@@ -807,7 +807,27 @@ GHOST_TSuccess GHOST_SystemCocoa::getCursorPosition(GHOST_TInt32& x, GHOST_TInt3
 /**
  * @note : expect Cocoa screen coordinates
  */
-GHOST_TSuccess GHOST_SystemCocoa::setCursorPosition(GHOST_TInt32 x, GHOST_TInt32 y) const
+GHOST_TSuccess GHOST_SystemCocoa::setCursorPosition(GHOST_TInt32 x, GHOST_TInt32 y)
+{
+	GHOST_TInt32 wx,wy;
+	GHOST_WindowCocoa* window = (GHOST_WindowCocoa*)m_windowManager->getActiveWindow();
+	if (!window) return GHOST_kFailure;
+
+	//Cursor and mouse dissociation placed here not to interfere with continuous grab
+	// (in cont. grab setMouseCursorPosition is directly called)
+	CGAssociateMouseAndMouseCursorPosition(false);
+	setMouseCursorPosition(x, y);
+	CGAssociateMouseAndMouseCursorPosition(true);
+	
+	//Force mouse move event (not pushed by Cocoa)
+	window->screenToClient(x, y, wx, wy);
+	pushEvent(new GHOST_EventCursor(getMilliSeconds(), GHOST_kEventCursorMove, window, wx,wy));
+	m_outsideLoopEventProcessed = true;
+	
+	return GHOST_kSuccess;
+}
+
+GHOST_TSuccess GHOST_SystemCocoa::setMouseCursorPosition(GHOST_TInt32 x, GHOST_TInt32 y)
 {
 	float xf=(float)x, yf=(float)y;
 	GHOST_WindowCocoa* window = (GHOST_WindowCocoa*)m_windowManager->getActiveWindow();
@@ -1090,7 +1110,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleDraggingEvent(GHOST_TEventType eventType
 					{
 						droppedStr = [droppedArray objectAtIndex:i];
 						
-						pastedTextSize = [droppedStr lengthOfBytesUsingEncoding:NSISOLatin1StringEncoding];
+						pastedTextSize = [droppedStr lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
 						temp_buff = (GHOST_TUns8*) malloc(pastedTextSize+1); 
 					
 						if (!temp_buff) {
@@ -1098,7 +1118,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleDraggingEvent(GHOST_TEventType eventType
 							break;
 						}
 					
-						strncpy((char*)temp_buff, [droppedStr cStringUsingEncoding:NSISOLatin1StringEncoding], pastedTextSize);
+						strncpy((char*)temp_buff, [droppedStr cStringUsingEncoding:NSUTF8StringEncoding], pastedTextSize);
 						temp_buff[pastedTextSize] = '\0';
 						
 						strArray->strings[i] = temp_buff;
@@ -1109,7 +1129,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleDraggingEvent(GHOST_TEventType eventType
 					
 				case GHOST_kDragnDropTypeString:
 					droppedStr = (NSString*)data;
-					pastedTextSize = [droppedStr lengthOfBytesUsingEncoding:NSISOLatin1StringEncoding];
+					pastedTextSize = [droppedStr lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
 					
 					temp_buff = (GHOST_TUns8*) malloc(pastedTextSize+1); 
 					
@@ -1117,7 +1137,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleDraggingEvent(GHOST_TEventType eventType
 						return GHOST_kFailure;
 					}
 					
-					strncpy((char*)temp_buff, [droppedStr cStringUsingEncoding:NSISOLatin1StringEncoding], pastedTextSize);
+					strncpy((char*)temp_buff, [droppedStr cStringUsingEncoding:NSUTF8StringEncoding], pastedTextSize);
 					
 					temp_buff[pastedTextSize] = '\0';
 					
@@ -1279,6 +1299,11 @@ GHOST_TUns8 GHOST_SystemCocoa::handleQuitRequest()
 			NSArray *windowsList = [NSApp orderedWindows];
 			if ([windowsList count]) {
 				[[windowsList objectAtIndex:0] makeKeyAndOrderFront:nil];
+				//Handle the modifiers keyes changed state issue
+				//as recovering from the quit dialog is like application
+				//gaining focus back.
+				//Main issue fixed is Cmd modifier not being cleared
+				handleApplicationBecomeActiveEvent();
 			}
 		}
 
@@ -1517,7 +1542,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
 						
 						//Set new cursor position
 						window->clientToScreen(x_mouse, y_mouse, x_cur, y_cur);
-						setCursorPosition(x_cur, y_cur); /* wrap */
+						setMouseCursorPosition(x_cur, y_cur); /* wrap */
 						
 						//Post event
 						window->getCursorGrabInitPos(x_cur, y_cur);
@@ -1530,7 +1555,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
 						NSPoint mousePos = [event locationInWindow];
 						pushEvent(new GHOST_EventCursor([event timestamp]*1000, GHOST_kEventCursorMove, window, mousePos.x, mousePos.y));
 						m_cursorDelta_x=0;
-						m_cursorDelta_y=0; //Mouse motion occured between two cursor warps, so we can reset the delta counter
+						m_cursorDelta_y=0; //Mouse motion occurred between two cursor warps, so we can reset the delta counter
 					}
 						break;
 				}
@@ -1771,22 +1796,16 @@ const GHOST_TUns8* GHOST_SystemCocoa::getSystemDir() const
 {
 	static GHOST_TUns8 tempPath[512] = "";
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	NSFileManager *fileManager;
 	NSString *basePath;
 	NSArray *paths;
 	
 	paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSLocalDomainMask, YES);
 	
 	if ([paths count] > 0)
-		basePath = [[paths objectAtIndex:0] stringByAppendingPathComponent:@"Blender"];
-	else { //Fall back to standard unix path in case of issue
-		basePath = @"/usr/share/blender";
-	}
-	
-	/* Ensure path exists, creates it if needed */
-	fileManager = [NSFileManager defaultManager];
-	if (![fileManager fileExistsAtPath:basePath isDirectory:NULL]) {
-		[fileManager createDirectoryAtPath:basePath attributes:nil];
+		basePath = [paths objectAtIndex:0];
+	else { 
+		[pool drain];
+		return NULL;
 	}
 	
 	strcpy((char*)tempPath, [basePath cStringUsingEncoding:NSASCIIStringEncoding]);
@@ -1799,22 +1818,35 @@ const GHOST_TUns8* GHOST_SystemCocoa::getUserDir() const
 {
 	static GHOST_TUns8 tempPath[512] = "";
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	NSFileManager *fileManager;
 	NSString *basePath;
 	NSArray *paths;
 
 	paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
 
 	if ([paths count] > 0)
-		basePath = [[paths objectAtIndex:0] stringByAppendingPathComponent:@"Blender"];
-	else { //Fall back to HOME in case of issue
-		basePath = [NSHomeDirectory() stringByAppendingPathComponent:@".blender"];
+		basePath = [paths objectAtIndex:0];
+	else { 
+		[pool drain];
+		return NULL;
 	}
+
+	strcpy((char*)tempPath, [basePath cStringUsingEncoding:NSASCIIStringEncoding]);
 	
-	/* Ensure path exists, creates it if needed */
-	fileManager = [NSFileManager defaultManager];
-	if (![fileManager fileExistsAtPath:basePath isDirectory:NULL]) {
-		[fileManager createDirectoryAtPath:basePath attributes:nil];
+	[pool drain];
+	return tempPath;
+}
+
+const GHOST_TUns8* GHOST_SystemCocoa::getBinaryDir() const
+{
+	static GHOST_TUns8 tempPath[512] = "";
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+	NSString *basePath;
+	
+	basePath = [[NSBundle mainBundle] bundlePath];
+	
+	if (basePath == nil) {
+		[pool drain];
+		return NULL;
 	}
 	
 	strcpy((char*)tempPath, [basePath cStringUsingEncoding:NSASCIIStringEncoding]);

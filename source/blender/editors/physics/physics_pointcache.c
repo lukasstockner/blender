@@ -33,15 +33,15 @@
 
 #include "DNA_scene_types.h"
 
-#include "BKE_anim.h"
 #include "BKE_context.h"
+#include "BKE_global.h"
+#include "BKE_main.h"
+#include "BKE_modifier.h"
 #include "BKE_particle.h"
+#include "BKE_pointcache.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_utildefines.h" 
-#include "BKE_pointcache.h"
-#include "BKE_global.h"
-#include "BKE_modifier.h"
 
 #include "BLI_blenlib.h"
 
@@ -71,7 +71,7 @@ static int ptcache_bake_all_poll(bContext *C)
 
 static int ptcache_poll(bContext *C)
 {
-	PointerRNA ptr= CTX_data_pointer_get_type(C, "PointCache", &RNA_PointCache);
+	PointerRNA ptr= CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
 	return (ptr.data && ptr.id.data);
 }
 
@@ -88,11 +88,12 @@ void bake_console_progress_end(void *arg)
 
 static int ptcache_bake_all_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain = CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
-	wmWindow *win = CTX_wm_window(C);
+	wmWindow *win = G.background ? NULL : CTX_wm_window(C);
 	PTCacheBaker baker;
 
-
+	baker.main = bmain;
 	baker.scene = scene;
 	baker.pid = NULL;
 	baker.bake = RNA_boolean_get(op->ptr, "bake");
@@ -115,6 +116,7 @@ static int ptcache_bake_all_exec(bContext *C, wmOperator *op)
 	BKE_ptcache_make_cache(&baker);
 
 	WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
+	WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, NULL);
 
 	return OPERATOR_FINISHED;
 }
@@ -133,6 +135,8 @@ static int ptcache_free_bake_all_exec(bContext *C, wmOperator *op)
 		}
 		
 		BLI_freelistN(&pidlist);
+		
+		WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, base->object);
 	}
 
 	WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
@@ -170,9 +174,10 @@ void PTCACHE_OT_free_bake_all(wmOperatorType *ot)
 }
 static int ptcache_bake_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	wmWindow *win = CTX_wm_window(C);
-	PointerRNA ptr= CTX_data_pointer_get_type(C, "PointCache", &RNA_PointCache);
+	wmWindow *win = G.background ? NULL : CTX_wm_window(C);
+	PointerRNA ptr= CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
 	Object *ob= ptr.id.data;
 	PointCache *cache= ptr.data;
 	PTCacheBaker baker;
@@ -186,6 +191,7 @@ static int ptcache_bake_exec(bContext *C, wmOperator *op)
 			break;
 	}
 
+	baker.main = bmain;
 	baker.scene = scene;
 	baker.pid = pid;
 	baker.bake = RNA_boolean_get(op->ptr, "bake");
@@ -211,13 +217,15 @@ static int ptcache_bake_exec(bContext *C, wmOperator *op)
 	BLI_freelistN(&pidlist);
 
 	WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
+	WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, ob);
 
 	return OPERATOR_FINISHED;
 }
 static int ptcache_free_bake_exec(bContext *C, wmOperator *op)
 {
-	PointerRNA ptr= CTX_data_pointer_get_type(C, "PointCache", &RNA_PointCache);
+	PointerRNA ptr= CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
 	PointCache *cache= ptr.data;
+	Object *ob= ptr.id.data;
 
 	if(cache->edit) {
 		if(!cache->edit->edited || 1) {// XXX okee("Lose changes done in particle mode?")) {
@@ -228,15 +236,20 @@ static int ptcache_free_bake_exec(bContext *C, wmOperator *op)
 	}
 	else
 		cache->flag &= ~PTCACHE_BAKED;
+	
+	WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, ob);
 
 	return OPERATOR_FINISHED;
 }
 static int ptcache_bake_from_cache_exec(bContext *C, wmOperator *op)
 {
-	PointerRNA ptr= CTX_data_pointer_get_type(C, "PointCache", &RNA_PointCache);
+	PointerRNA ptr= CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
 	PointCache *cache= ptr.data;
+	Object *ob= ptr.id.data;
 	
 	cache->flag |= PTCACHE_BAKED;
+	
+	WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, ob);
 
 	return OPERATOR_FINISHED;
 }
@@ -285,7 +298,7 @@ void PTCACHE_OT_bake_from_cache(wmOperatorType *ot)
 static int ptcache_add_new_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	PointerRNA ptr= CTX_data_pointer_get_type(C, "PointCache", &RNA_PointCache);
+	PointerRNA ptr= CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
 	Object *ob= ptr.id.data;
 	PointCache *cache= ptr.data;
 	PTCacheID *pid;
@@ -303,12 +316,13 @@ static int ptcache_add_new_exec(bContext *C, wmOperator *op)
 	BLI_freelistN(&pidlist);
 
 	WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
+	WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, ob);
 
 	return OPERATOR_FINISHED;
 }
 static int ptcache_remove_exec(bContext *C, wmOperator *op)
 {
-	PointerRNA ptr= CTX_data_pointer_get_type(C, "PointCache", &RNA_PointCache);
+	PointerRNA ptr= CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
 	Scene *scene= CTX_data_scene(C);
 	Object *ob= ptr.id.data;
 	PointCache *cache= ptr.data;
@@ -331,6 +345,8 @@ static int ptcache_remove_exec(bContext *C, wmOperator *op)
 	}
 
 	BLI_freelistN(&pidlist);
+	
+	WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, ob);
 
 	return OPERATOR_FINISHED;
 }

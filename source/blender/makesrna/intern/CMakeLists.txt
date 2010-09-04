@@ -32,14 +32,30 @@ LIST(REMOVE_ITEM DEFSRC ${APISRC})
 STRING(REGEX REPLACE "rna_([a-zA-Z0-9_-]*).c" "${CMAKE_CURRENT_BINARY_DIR}/rna_\\1_gen.c" GENSRC "${DEFSRC}")
 
 SET(SRC
-		makesrna.c
-		rna_define.c
-		${DEFSRC}
-		${APISRC}
-		../../../../intern/guardedalloc/intern/mallocn.c
-		../../../../intern/guardedalloc/intern/mmap_win.c)
+	makesrna.c
+	rna_define.c
+	${DEFSRC}
+	${APISRC}
+	../../../../intern/guardedalloc/intern/mallocn.c
+	../../../../intern/guardedalloc/intern/mmap_win.c)
 
-INCLUDE_DIRECTORIES(../../../../intern/guardedalloc .. ../../makesdna ../../blenkernel ../../blenlib ../../ikplugin ../../windowmanager ../../editors/include ../../gpu ../../imbuf ../../render/extern/include .)
+INCLUDE_DIRECTORIES(
+	../../../../intern/audaspace/intern
+	../../../../intern/guardedalloc
+	../../../../intern/memutil
+	..
+	../../makesdna
+	../../blenkernel
+	../../blenlib
+	../../ikplugin
+	../../windowmanager
+	../../editors/include
+	../../gpu
+	../../imbuf
+	../../render/extern/include
+	../../../../extern/glew/include
+	. )
+
 FILE(GLOB INC_FILES ../*.h ../../makesdna/*.h)
 
 IF(NOT WITH_PYTHON)
@@ -54,17 +70,29 @@ IF(WITH_GAMEENGINE)
 	ADD_DEFINITIONS(-DGAMEBLENDER)
 ENDIF(WITH_GAMEENGINE)
 
-IF(WITH_OPENEXR)
+IF(WITH_IMAGE_OPENEXR)
 	ADD_DEFINITIONS(-DWITH_OPENEXR)
-ENDIF(WITH_OPENEXR)
+ENDIF(WITH_IMAGE_OPENEXR)
 
-IF(WITH_OPENJPEG)
+IF(WITH_IMAGE_TIFF)
+	ADD_DEFINITIONS(-DWITH_TIFF)
+ENDIF(WITH_IMAGE_TIFF)
+
+IF(WITH_IMAGE_OPENJPEG)
 	ADD_DEFINITIONS(-DWITH_OPENJPEG)
-ENDIF(WITH_OPENJPEG)
+ENDIF(WITH_IMAGE_OPENJPEG)
 
-IF(WITH_DDS)
+IF(WITH_IMAGE_DDS)
 	ADD_DEFINITIONS(-DWITH_DDS)
-ENDIF(WITH_DDS)
+ENDIF(WITH_IMAGE_DDS)
+
+IF(WITH_IMAGE_CINEON)
+	ADD_DEFINITIONS(-DWITH_CINEON)
+ENDIF(WITH_IMAGE_CINEON)
+
+IF(WITH_IMAGE_HDR)
+	ADD_DEFINITIONS(-DWITH_HDR)
+ENDIF(WITH_IMAGE_HDR)
 
 IF(WITH_QUICKTIME)
 	SET(INC ${INC} ../../quicktime)
@@ -76,9 +104,14 @@ IF(WITH_FFMPEG)
 	ADD_DEFINITIONS(-DWITH_FFMPEG)
 ENDIF(WITH_FFMPEG)
 
-IF(NOT WITH_ELBEEM)
+IF(WITH_LCMS)
+	SET(INC ${INC} ${LCMS_INCLUDE_DIR})
+	ADD_DEFINITIONS(-DWITH_LCMS)
+ENDIF(WITH_LCMS)
+
+IF(NOT WITH_FLUID)
 	ADD_DEFINITIONS(-DDISABLE_ELBEEM)
-ENDIF(NOT WITH_ELBEEM)
+ENDIF(NOT WITH_FLUID)
 
 IF(WITH_FFTW3)
 	ADD_DEFINITIONS(-DFFTW3=1)

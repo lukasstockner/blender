@@ -1,3 +1,4 @@
+import bpy
 from bpy.props import *
 
 class ModalOperator(bpy.types.Operator):
@@ -32,8 +33,6 @@ class ModalOperator(bpy.types.Operator):
             self.report({'WARNING'}, "No active object, could not finish")
             return {'CANCELLED'}
 
-
-bpy.types.register(ModalOperator)
 
 if __name__ == "__main__":
     bpy.ops.object.modal_operator()

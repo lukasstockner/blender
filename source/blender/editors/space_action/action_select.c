@@ -29,10 +29,6 @@
 #include <string.h>
 #include <float.h>
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
@@ -46,15 +42,9 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "BKE_action.h"
-#include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
-#include "BKE_key.h"
-#include "BKE_material.h"
 #include "BKE_nla.h"
-#include "BKE_object.h"
 #include "BKE_context.h"
-#include "BKE_utildefines.h"
 
 #include "UI_view2d.h"
 
@@ -68,6 +58,7 @@
 #include "WM_types.h"
 
 #include "action_intern.h"
+
 
 /* ************************************************************************** */
 /* KEYFRAMES STUFF */
@@ -99,9 +90,9 @@ static void deselect_action_keys (bAnimContext *ac, short test, short sel)
 	
 	/* determine type-based settings */
 	if (ac->datatype == ANIMCONT_GPENCIL)
-		filter= (ANIMFILTER_VISIBLE);
+		filter= (ANIMFILTER_VISIBLE | ANIMFILTER_NODUPLIS);
 	else
-		filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVESONLY);
+		filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVESONLY | ANIMFILTER_NODUPLIS);
 	
 	/* filter data */
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
@@ -160,7 +151,7 @@ static int actkeys_deselectall_exec(bContext *C, wmOperator *op)
 		deselect_action_keys(&ac, 1, SELECT_ADD);
 	
 	/* set notifier that keyframe selection have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_SELECT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|NA_SELECTED, NULL);
 	
 	return OPERATOR_FINISHED;
 }
@@ -216,7 +207,7 @@ static void borderselect_action (bAnimContext *ac, rcti rect, short mode, short 
 	UI_view2d_region_to_view(v2d, rect.xmax, rect.ymax-2, &rectf.xmax, &rectf.ymax);
 	
 	/* filter data */
-	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CHANNELS);
+	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CHANNELS | ANIMFILTER_NODUPLIS);
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 	
 	/* get filtering flag for dopesheet data (if applicable) */
@@ -321,7 +312,7 @@ static int actkeys_borderselect_exec(bContext *C, wmOperator *op)
 	borderselect_action(&ac, rect, mode, selectmode);
 	
 	/* set notifier that keyframe selection have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_SELECT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|NA_SELECTED, NULL);
 	
 	return OPERATOR_FINISHED;
 } 
@@ -393,7 +384,7 @@ static void markers_selectkeys_between (bAnimContext *ac)
 	ked.f2= max;
 	
 	/* filter data */
-	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVESONLY);
+	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVESONLY | ANIMFILTER_NODUPLIS);
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 	
 	/* select keys in-between */
@@ -535,7 +526,7 @@ static int actkeys_columnselect_exec(bContext *C, wmOperator *op)
 		columnselect_action_keys(&ac, mode);
 	
 	/* set notifier that keyframe selection have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_SELECT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|NA_SELECTED, NULL);
 	
 	return OPERATOR_FINISHED;
 }
@@ -576,7 +567,7 @@ static int actkeys_select_linked_exec (bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	
 	/* loop through all of the keys and select additional keyframes based on these */
-	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVEVISIBLE | ANIMFILTER_CURVESONLY);
+	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVEVISIBLE | ANIMFILTER_CURVESONLY | ANIMFILTER_NODUPLIS);
 	ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 	
 	for (ale= anim_data.first; ale; ale= ale->next) {
@@ -593,7 +584,7 @@ static int actkeys_select_linked_exec (bContext *C, wmOperator *op)
 	BLI_freelistN(&anim_data);
 	
 	/* set notifier that keyframe selection has changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_SELECT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|NA_SELECTED, NULL);
 	
 	return OPERATOR_FINISHED;
 }
@@ -631,7 +622,7 @@ static void select_moreless_action_keys (bAnimContext *ac, short mode)
 	memset(&ked, 0, sizeof(KeyframeEditData)); 
 	
 	/* loop through all of the keys and select additional keyframes based on these */
-	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVESONLY);
+	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVESONLY | ANIMFILTER_NODUPLIS);
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 	
 	for (ale= anim_data.first; ale; ale= ale->next) {
@@ -671,7 +662,7 @@ static int actkeys_select_more_exec (bContext *C, wmOperator *op)
 	select_moreless_action_keys(&ac, SELMAP_MORE);
 	
 	/* set notifier that keyframe selection has changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_SELECT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|NA_SELECTED, NULL);
 	
 	return OPERATOR_FINISHED;
 }
@@ -705,7 +696,7 @@ static int actkeys_select_less_exec (bContext *C, wmOperator *op)
 	select_moreless_action_keys(&ac, SELMAP_LESS);
 	
 	/* set notifier that keyframe selection has changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_SELECT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|NA_SELECTED, NULL);
 	
 	return OPERATOR_FINISHED;
 }
@@ -804,9 +795,9 @@ static void actkeys_mselect_leftright (bAnimContext *ac, short leftright, short 
 	
 	/* filter data */
 	if (ac->datatype == ANIMCONT_GPENCIL)
-		filter= (ANIMFILTER_VISIBLE);
+		filter= (ANIMFILTER_VISIBLE | ANIMFILTER_NODUPLIS);
 	else
-		filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVESONLY);
+		filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVESONLY | ANIMFILTER_NODUPLIS);
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 		
 	/* select keys on the side where most data occurs */
@@ -827,13 +818,14 @@ static void actkeys_mselect_leftright (bAnimContext *ac, short leftright, short 
 	/* Sync marker support */
 	if((select_mode==SELECT_ADD) && (ac->spacetype==SPACE_ACTION) && ELEM(leftright, ACTKEYS_LRSEL_LEFT, ACTKEYS_LRSEL_RIGHT)) {
 		SpaceAction *saction= ac->sa->spacedata.first;
+		
 		if (saction && saction->flag & SACTION_MARKERS_MOVE) {
 			TimeMarker *marker;
-
+			
 			for (marker= scene->markers.first; marker; marker= marker->next) {
-				if(	((leftright == ACTKEYS_LRSEL_LEFT) && marker->frame < CFRA) ||
-					((leftright == ACTKEYS_LRSEL_RIGHT) && marker->frame >= CFRA)
-				) {
+				if(	((leftright == ACTKEYS_LRSEL_LEFT) && (marker->frame < CFRA)) ||
+					((leftright == ACTKEYS_LRSEL_RIGHT) && (marker->frame >= CFRA)) ) 
+				{
 					marker->flag |= SELECT;
 				}
 				else {
@@ -868,9 +860,9 @@ static void actkeys_mselect_column(bAnimContext *ac, short select_mode, float se
 	 * based on the keys found to be selected above
 	 */
 	if (ac->datatype == ANIMCONT_GPENCIL)
-		filter= (ANIMFILTER_VISIBLE);
+		filter= (ANIMFILTER_VISIBLE | ANIMFILTER_NODUPLIS);
 	else
-		filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVESONLY);
+		filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVESONLY | ANIMFILTER_NODUPLIS);
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 	
 	for (ale= anim_data.first; ale; ale= ale->next) {
@@ -997,14 +989,12 @@ static void mouse_action_keys (bAnimContext *ac, int mval[2], short select_mode,
 			return;
 		}
 		else if (ale->type == ANIMTYPE_GPLAYER) {
-			bGPDlayer *gpl= (bGPDlayer *)ale->data;
+			struct bGPDlayer *gpl= (struct bGPDlayer *)ale->data;
 			gpl_to_keylist(ads, gpl, &anim_keys, NULL);
 		}
 		
-		// the call below is not strictly necessary, since we have adjacency info anyway
-		//BLI_dlrbTree_linkedlist_sync(&anim_keys);
-		
 		/* loop through keyframes, finding one that was within the range clicked on */
+		// TODO: replace this with API calls instead of inlining
 		for (ak= anim_keys.root; ak; ak= akn) {
 			if (IN_RANGE(ak->cfra, rectf.xmin, rectf.xmax)) {
 				/* set the frame to use, and apply inverse-correction for NLA-mapping 
@@ -1143,7 +1133,7 @@ static int actkeys_clickselect_invoke(bContext *C, wmOperator *op, wmEvent *even
 	}
 	
 	/* set notifier that keyframe selection (and channels too) have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_SELECT|ND_ANIMCHAN_SELECT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|ND_ANIMCHAN|NA_SELECTED, NULL);
 	
 	/* for tweak grab to work */
 	return OPERATOR_FINISHED|OPERATOR_PASS_THROUGH;

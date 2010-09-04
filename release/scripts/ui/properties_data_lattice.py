@@ -20,21 +20,20 @@
 import bpy
 from rna_prop_ui import PropertyPanel
 
-narrowui = 180
 
-
-class DataButtonsPanel(bpy.types.Panel):
+class DataButtonsPanel():
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "data"
 
-    def poll(self, context):
+    @classmethod
+    def poll(cls, context):
         return context.lattice
 
 
-class DATA_PT_context_lattice(DataButtonsPanel):
+class DATA_PT_context_lattice(DataButtonsPanel, bpy.types.Panel):
     bl_label = ""
-    bl_show_header = False
+    bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
         layout = self.layout
@@ -42,77 +41,58 @@ class DATA_PT_context_lattice(DataButtonsPanel):
         ob = context.object
         lat = context.lattice
         space = context.space_data
-        wide_ui = context.region.width > narrowui
 
-        if wide_ui:
-            split = layout.split(percentage=0.65)
-            if ob:
-                split.template_ID(ob, "data")
-                split.separator()
-            elif lat:
-                split.template_ID(space, "pin_id")
-                split.separator()
-        else:
-            if ob:
-                layout.template_ID(ob, "data")
-            elif lat:
-                layout.template_ID(space, "pin_id")
+        split = layout.split(percentage=0.65)
+        if ob:
+            split.template_ID(ob, "data")
+            split.separator()
+        elif lat:
+            split.template_ID(space, "pin_id")
+            split.separator()
 
 
-class DATA_PT_custom_props_lattice(DataButtonsPanel, PropertyPanel):
-    _context_path = "object.data"
-
-
-class DATA_PT_lattice(DataButtonsPanel):
+class DATA_PT_lattice(DataButtonsPanel, bpy.types.Panel):
     bl_label = "Lattice"
 
     def draw(self, context):
         layout = self.layout
 
         lat = context.lattice
-        wide_ui = context.region.width > narrowui
 
         split = layout.split()
         col = split.column()
         col.prop(lat, "points_u")
-        if wide_ui:
-            col = split.column()
+        col = split.column()
         col.prop(lat, "interpolation_type_u", text="")
 
         split = layout.split()
         col = split.column()
         col.prop(lat, "points_v")
-        if wide_ui:
-            col = split.column()
+        col = split.column()
         col.prop(lat, "interpolation_type_v", text="")
 
         split = layout.split()
         col = split.column()
         col.prop(lat, "points_w")
-        if wide_ui:
-            col = split.column()
+        col = split.column()
         col.prop(lat, "interpolation_type_w", text="")
 
-        layout.prop(lat, "outside")
+        row = layout.row()
+        row.prop(lat, "use_outside")
+        row.prop_search(lat, "vertex_group", context.object, "vertex_groups", text="")
+ 
 
-
-classes = [
-    DATA_PT_context_lattice,
-    DATA_PT_lattice,
-
-    DATA_PT_custom_props_lattice]
+class DATA_PT_custom_props_lattice(DataButtonsPanel, PropertyPanel, bpy.types.Panel):
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    _context_path = "object.data"
 
 
 def register():
-    register = bpy.types.register
-    for cls in classes:
-        register(cls)
+    pass
 
 
 def unregister():
-    unregister = bpy.types.unregister
-    for cls in classes:
-        unregister(cls)
+    pass
 
 if __name__ == "__main__":
     register()

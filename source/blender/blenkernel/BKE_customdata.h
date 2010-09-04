@@ -88,7 +88,7 @@ void *CustomData_add_layer(struct CustomData *data, int type, int alloctype,
 						   void *layer, int totelem);
 /*same as above but accepts a name */
 void *CustomData_add_layer_named(struct CustomData *data, int type, int alloctype,
-						   void *layer, int totelem, char *name);
+						   void *layer, int totelem, const char *name);
 
 /* frees the active or first data layer with the give type.
  * returns 1 on succes, 0 if no layer with the given type is found
@@ -174,7 +174,7 @@ void CustomData_bmesh_interp(struct CustomData *data, void **src_blocks,
 /* swaps the data in the element corners, to new corners with indices as
    specified in corner_indices. for edges this is an array of length 2, for
    faces an array of length 4 */
-void CustomData_swap(struct CustomData *data, int index, int *corner_indices);
+void CustomData_swap(struct CustomData *data, int index, const int *corner_indices);
 
 /* gets a pointer to the data element at index from the first layer of type
  * returns NULL if there is no layer of type
@@ -291,6 +291,8 @@ int CustomData_external_test(struct CustomData *data, int type);
 void CustomData_external_write(struct CustomData *data,
 	struct ID *id, CustomDataMask mask, int totelem, int free);
 void CustomData_external_read(struct CustomData *data,
+	struct ID *id, CustomDataMask mask, int totelem);
+void CustomData_external_reload(struct CustomData *data,
 	struct ID *id, CustomDataMask mask, int totelem);
 
 #endif

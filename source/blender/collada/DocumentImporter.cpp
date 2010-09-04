@@ -217,6 +217,7 @@ static int set_parent(Object *ob, Object *par, bContext *C, bool is_parent_space
 		return false;
 
 	Object workob;
+	Main *bmain = CTX_data_main(C);
 	Scene *sce = CTX_data_scene(C);
 
 	ob->parent = par;
@@ -244,8 +245,8 @@ static int set_parent(Object *ob, Object *par, bContext *C, bool is_parent_space
 	ob->recalc |= OB_RECALC_OB | OB_RECALC_DATA;
 	par->recalc |= OB_RECALC_OB;
 
-	DAG_scene_sort(sce);
-	DAG_ids_flush_update(0);
+	DAG_scene_sort(bmain, sce);
+	DAG_ids_flush_update(bmain, 0);
 	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, NULL);
 
 	return true;
@@ -612,9 +613,10 @@ private:
 		void link_armature(bContext *C, Object *ob, std::map<COLLADAFW::UniqueId, COLLADAFW::Node*>& joint_by_uid,
 						   TransformReader *tm)
 		{
+			Main *bmain = CTX_data_main(C);
 			Scene *scene = CTX_data_scene(C);
 
-			ModifierData *md = ED_object_modifier_add(NULL, scene, ob, NULL, eModifierType_Armature);
+			ModifierData *md = ED_object_modifier_add(NULL, bmain, scene, ob, NULL, eModifierType_Armature);
 			((ArmatureModifierData *)md)->object = ob_arm;
 
 			copy_m4_m4(ob->obmat, bind_shape_matrix);
@@ -631,8 +633,8 @@ private:
 
 			ob->recalc |= OB_RECALC_OB|OB_RECALC_DATA;
 
-			DAG_scene_sort(scene);
-			DAG_ids_flush_update(0);
+			DAG_scene_sort(bmain, scene);
+			DAG_ids_flush_update(bmain, 0);
 			WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, NULL);
 #endif
 
@@ -1329,7 +1331,7 @@ private:
 		}
 #endif
 
-		void getUV(int uv_set_index, int uv_index[2], float *uv)
+		void getUV(int uv_index[2], float *uv)
 		{
 			switch(mVData->getType()) {
 			case COLLADAFW::MeshVertexData::DATA_TYPE_FLOAT:
@@ -1380,7 +1382,7 @@ private:
 	}
 #endif
 	
-	void set_face_uv(MTFace *mtface, UVDataWrapper &uvs, int uv_set_index,
+	void set_face_uv(MTFace *mtface, UVDataWrapper &uvs,
 					 COLLADAFW::IndexList& index_list, unsigned int *tris_indices)
 	{
 		int uv_indices[4][2];
@@ -1395,12 +1397,12 @@ private:
 			uv_indices[i][1] = uv_index * 2 + 1;
 		}
 
-		uvs.getUV(uv_set_index, uv_indices[0], mtface->uv[0]);
-		uvs.getUV(uv_set_index, uv_indices[1], mtface->uv[1]);
-		uvs.getUV(uv_set_index, uv_indices[2], mtface->uv[2]);
+		uvs.getUV(uv_indices[0], mtface->uv[0]);
+		uvs.getUV(uv_indices[1], mtface->uv[1]);
+		uvs.getUV(uv_indices[2], mtface->uv[2]);
 	}
 
-	void set_face_uv(MTFace *mtface, UVDataWrapper &uvs, int uv_set_index,
+	void set_face_uv(MTFace *mtface, UVDataWrapper &uvs,
 					COLLADAFW::IndexList& index_list, int index, bool quad)
 	{
 		int uv_indices[4][2];
@@ -1415,11 +1417,11 @@ private:
 			uv_indices[i][1] = uv_index * 2 + 1;
 		}
 
-		uvs.getUV(uv_set_index, uv_indices[0], mtface->uv[0]);
-		uvs.getUV(uv_set_index, uv_indices[1], mtface->uv[1]);
-		uvs.getUV(uv_set_index, uv_indices[2], mtface->uv[2]);
+		uvs.getUV(uv_indices[0], mtface->uv[0]);
+		uvs.getUV(uv_indices[1], mtface->uv[1]);
+		uvs.getUV(uv_indices[2], mtface->uv[2]);
 
-		if (quad) uvs.getUV(uv_set_index, uv_indices[3], mtface->uv[3]);
+		if (quad) uvs.getUV(uv_indices[3], mtface->uv[3]);
 
 #ifdef COLLADA_DEBUG
 		/*if (quad) {
@@ -1544,7 +1546,7 @@ private:
 			vert += 3;
 		}
 		
-		filldisplist(&dispbase, &dispbase);
+		filldisplist(&dispbase, &dispbase, 0);
 
 		int tottri = 0;
 		dl= (DispList*)dispbase.first;
@@ -1619,6 +1621,13 @@ private:
 		// allocate UV layers
 		unsigned int totuvset = mesh->getUVCoords().getInputInfosArray().getCount();
 
+		// for (i = 0; i < totuvset; i++) {
+		// 	if (mesh->getUVCoords().getLength(i) == 0) {
+		// 		totuvset = 0;
+		// 		break;
+		// 	}
+		// }
+ 
 		for (i = 0; i < totuvset; i++) {
 			if (mesh->getUVCoords().getLength(i) == 0) {
 				totuvset = 0;
@@ -1682,6 +1691,7 @@ private:
 					set_face_indices(mface, indices, false);
 					indices += 3;
 
+#if 0
 					for (k = 0; k < totuvset; k++) {
 						if (!index_list_array.empty() && index_list_array[k]) {
 							// get mtface by face index and uv set index
@@ -1689,6 +1699,15 @@ private:
 							set_face_uv(&mtface[face_index], uvs, k, *index_list_array[k], index, false);
 						}
 					}
+#else
+					for (k = 0; k < index_list_array.getCount(); k++) {
+						int uvset_index = index_list_array[k]->getSetIndex();
+
+						// get mtface by face index and uv set index
+						MTFace *mtface = (MTFace*)CustomData_get_layer_n(&me->fdata, CD_MTFACE, uvset_index);
+						set_face_uv(&mtface[face_index], uvs, *index_list_array[k], index, false);
+					}
+#endif
 
 					test_index_face(mface, &me->fdata, face_index, 3);
 
@@ -1720,6 +1739,7 @@ private:
 						// set mtface for each uv set
 						// it is assumed that all primitives have equal number of UV sets
 						
+#if 0
 						for (k = 0; k < totuvset; k++) {
 							if (!index_list_array.empty() && index_list_array[k]) {
 								// get mtface by face index and uv set index
@@ -1727,6 +1747,15 @@ private:
 								set_face_uv(&mtface[face_index], uvs, k, *index_list_array[k], index, mface->v4 != 0);
 							}
 						}
+#else
+						for (k = 0; k < index_list_array.getCount(); k++) {
+							int uvset_index = index_list_array[k]->getSetIndex();
+
+							// get mtface by face index and uv set index
+							MTFace *mtface = (MTFace*)CustomData_get_layer_n(&me->fdata, CD_MTFACE, uvset_index);
+							set_face_uv(&mtface[face_index], uvs, *index_list_array[k], index, mface->v4 != 0);
+						}
+#endif
 
 						test_index_face(mface, &me->fdata, face_index, vcount);
 
@@ -1762,6 +1791,7 @@ private:
 
 							set_face_indices(mface, tri_indices, false);
 							
+#if 0
 							for (unsigned int l = 0; l < totuvset; l++) {
 								if (!index_list_array.empty() && index_list_array[l]) {
 									// get mtface by face index and uv set index
@@ -1769,6 +1799,16 @@ private:
 									set_face_uv(&mtface[face_index], uvs, l, *index_list_array[l], uv_indices);
 								}
 							}
+#else
+							for (unsigned int l = 0; l < index_list_array.getCount(); l++) {
+								int uvset_index = index_list_array[l]->getSetIndex();
+
+								// get mtface by face index and uv set index
+								MTFace *mtface = (MTFace*)CustomData_get_layer_n(&me->fdata, CD_MTFACE, uvset_index);
+								set_face_uv(&mtface[face_index], uvs, *index_list_array[l], uv_indices);
+							}
+#endif
+
 
 							test_index_face(mface, &me->fdata, face_index, 3);
 
@@ -3102,7 +3142,7 @@ public:
 			where_is_object(scene, job);
 
 			// after parenting and layer change
-			DAG_scene_sort(scene);
+			DAG_scene_sort(CTX_data_main(C), scene);
 
 			joint_objects[node->getUniqueId()] = job;
 		}
@@ -3243,7 +3283,7 @@ public:
 	}
 
 	/** This method will be called if an error in the loading process occurred and the loader cannot
-		continue to to load. The writer should undo all operations that have been performed.
+		continue to load. The writer should undo all operations that have been performed.
 		@param errorMessage A message containing informations about the error that occurred.
 	*/
 	virtual void cancel(const COLLADAFW::String& errorMessage)
@@ -3308,8 +3348,8 @@ public:
 			}
 			libnode_ob.clear();
 
-			DAG_scene_sort(sce);
-			DAG_ids_flush_update(0);
+			DAG_scene_sort(CTX_data_main(mContext), sce);
+			DAG_ids_flush_update(CTX_data_main(mContext), 0);
 		}
 	}
 
@@ -3399,7 +3439,7 @@ public:
 	Object *create_instance_node(Object *source_ob, COLLADAFW::Node *source_node, COLLADAFW::Node *instance_node, Scene *sce, bool is_library_node)
 	{
 		Object *obn = copy_object(source_ob);
-		obn->recalc |= OB_RECALC;
+		obn->recalc |= OB_RECALC_ALL;
 		scene_add_base(sce, obn);
 
 		if (instance_node)
@@ -3407,8 +3447,8 @@ public:
 		else
 			anim_importer.read_node_transform(source_node, obn);
 
-		DAG_scene_sort(sce);
-		DAG_ids_flush_update(0);
+		DAG_scene_sort(CTX_data_main(mContext), sce);
+		DAG_ids_flush_update(CTX_data_main(mContext), 0);
 
 		COLLADAFW::NodePointerArray &children = source_node->getChildNodes();
 		if (children.getCount()) {
@@ -3500,10 +3540,6 @@ public:
 		}
 
 		anim_importer.read_node_transform(node, ob);
-
-		// if (ob->type == OB_MESH) {
-		// 	create_instance_node(ob, node, sce);
-		// }
 
 		if (!is_joint) {
 			// if par was given make this object child of the previous 

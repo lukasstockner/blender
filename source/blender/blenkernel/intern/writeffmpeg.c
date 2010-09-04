@@ -69,10 +69,6 @@
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 extern void do_init_ffmpeg();
 
 static int ffmpeg_type = 0;
@@ -366,7 +362,7 @@ static AVFrame* generate_video_frame(uint8_t* pixels, ReportList *reports)
 	}
 
 	if (c->pix_fmt != PIX_FMT_BGR32) {
-		sws_scale(img_convert_ctx, rgb_frame->data,
+		sws_scale(img_convert_ctx, (const uint8_t * const*) rgb_frame->data,
 			  rgb_frame->linesize, 0, c->height, 
 			  current_frame->data, current_frame->linesize);
 		delete_picture(rgb_frame);
@@ -382,7 +378,7 @@ static void set_ffmpeg_property_option(AVCodecContext* c, IDProperty * prop)
 
 	fprintf(stderr, "FFMPEG expert option: %s: ", prop->name);
 
-	strncpy(name, prop->name, 128);
+	BLI_strncpy(name, prop->name, sizeof(name));
 
 	param = strchr(name, ':');
 
@@ -519,6 +515,12 @@ static AVStream* alloc_video_stream(RenderData *rd, int codec_id, AVFormatContex
 	if (codec_id == CODEC_ID_XVID) {
 		/* arghhhh ... */
 		c->pix_fmt = PIX_FMT_YUV420P;
+	}
+
+	if (codec_id == CODEC_ID_H264) {
+		/* correct wrong default ffmpeg param which crash x264 */
+		c->qmin=10;
+		c->qmax=51;
 	}
 	
 	if ((of->oformat->flags & AVFMT_GLOBALHEADER)
@@ -1078,7 +1080,7 @@ int ffmpeg_property_add_string(RenderData *rd, const char * type, const char * s
 	
 	avcodec_get_context_defaults(&c);
 
-	strncpy(name_, str, 128);
+	strncpy(name_, str, sizeof(name_));
 
 	name = name_;
 	while (*name == ' ') name++;

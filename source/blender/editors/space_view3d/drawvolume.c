@@ -29,10 +29,6 @@
 #include <string.h>
 #include <math.h>
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include "MEM_guardedalloc.h"
 
 
@@ -49,7 +45,6 @@
 #include "BLI_edgehash.h"
 #include "BLI_rand.h"
 
-#include "BKE_anim.h"			//for the where_on_path function
 #include "BKE_curve.h"
 #include "BKE_constraint.h" // for the get_constraint_target function
 #include "BKE_DerivedMesh.h"
@@ -70,12 +65,10 @@
 #include "BKE_particle.h"
 #include "BKE_property.h"
 #include "BKE_smoke.h"
-#include "BKE_unit.h"
 #include "BKE_utildefines.h"
 #include "smoke_API.h"
 
 #include "BIF_gl.h"
-#include "BIF_glutil.h"
 
 #include "GPU_extensions.h"
 
@@ -123,6 +116,7 @@ static void tend ( void )
 {
 	gettimeofday ( &_tend,&tz );
 }
+  #if 0
 static double tval()
 {
 	double t1, t2;
@@ -130,6 +124,7 @@ static double tval()
 	t2 = ( double ) _tend.tv_sec*1000 + ( double ) _tend.tv_usec/ ( 1000 );
 	return t2-t1;
 }
+  #endif
 #endif
 
 struct GPUTexture;
@@ -216,7 +211,7 @@ void draw_volume(Scene *scene, ARegion *ar, View3D *v3d, Base *base, GPUTexture 
 		{{-1.0f, 1.0f, -1.0f}, {2.0f, 0.0f, 0.0f}}
 	};
 
-	/* Fragment program to calculate the 3dview of smoke */
+	/* Fragment program to calculate the view3d of smoke */
 	/* using 2 textures, density and shadow */
 	const char *text = "!!ARBfp1.0\n"
 					"PARAM dx = program.local[0];\n"
@@ -353,6 +348,11 @@ void draw_volume(Scene *scene, ARegion *ar, View3D *v3d, Base *base, GPUTexture 
 		}
 	}
 
+	if(i >= 8) {
+		/* fallback, avoid using buffer over-run */
+		i= 0;
+	}
+
 	// printf("i: %d\n", i);
 	// printf("point %f, %f, %f\n", cv[i][0], cv[i][1], cv[i][2]);
 
@@ -449,7 +449,7 @@ void draw_volume(Scene *scene, ARegion *ar, View3D *v3d, Base *base, GPUTexture 
 	}
 
 	tend();
-	printf ( "Draw Time: %f\n",( float ) tval() );
+	// printf ( "Draw Time: %f\n",( float ) tval() );
 
 	if(tex_shadow)
 		GPU_texture_unbind(tex_shadow);

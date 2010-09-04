@@ -33,10 +33,6 @@
 #include <stdlib.h>
 #include <math.h>
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 /* WARNING; optimized, cannot be used to do gamma(invgamma()) and expect    */
 /* result remain identical (ton)                                            */   
 
@@ -121,7 +117,7 @@ void makeGammaTables(float gamma)
 
 	/* The end of the table should match 1.0 carefully. In order to avoid    */
 	/* rounding errors, we just set this explicitly. The last segment may    */
-	/* have a different lenght than the other segments, but our              */
+	/* have a different length than the other segments, but our              */
 	/* interpolation is insensitive to that.                                 */
 	color_domain_table[RE_GAMMA_TABLE_SIZE]   = 1.0;
 	gamma_range_table[RE_GAMMA_TABLE_SIZE]     = 1.0;

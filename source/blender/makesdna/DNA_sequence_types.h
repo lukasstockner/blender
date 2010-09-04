@@ -32,27 +32,17 @@
 #define DNA_SEQUENCE_TYPES_H
 
 #include "DNA_listBase.h"
-
-/* needed for sound support */
-#include "DNA_sound_types.h"
+#include "DNA_vec_types.h"
 
 struct Ipo;
 struct Scene;
+struct bSound;
 
 /* strlens; 80= FILE_MAXFILE, 160= FILE_MAXDIR */
 
 typedef struct StripElem {
 	char name[80];
 } StripElem;
-
-typedef struct TStripElem {
-	struct ImBuf *ibuf;
-	struct ImBuf *ibuf_comp;
-	struct TStripElem *se1, *se2, *se3;
-	short ok;
-	short flag;
-	int nr;
-} TStripElem;
 
 typedef struct StripCrop {
 	int top;
@@ -72,8 +62,8 @@ typedef struct StripColorBalance {
 	float gain[3];
 	int flag;
 	int pad;
-	float exposure;
-	float saturation;
+	// float exposure;
+	// float saturation;
 } StripColorBalance;
 
 typedef struct StripProxy {
@@ -96,11 +86,6 @@ typedef struct Strip {
 	StripCrop *crop;
 	StripTransform *transform;
 	StripColorBalance *color_balance;
-	TStripElem *tstripdata;
-	TStripElem *tstripdata_startstill;
-	TStripElem *tstripdata_endstill;
-	struct ImBuf *ibuf_startstill;
-	struct ImBuf *ibuf_endstill;
 } Strip;
 
 
@@ -140,6 +125,7 @@ typedef struct Sequence {
 	int startstill, endstill;
 	int machine, depth; /*machine - the strip channel, depth - the depth in the sequence when dealing with metastrips */
 	int startdisp, enddisp;	/*starting and ending points in the sequence*/
+	float sat, pad;
 	float mul, handsize;
 					/* is sfra needed anymore? - it looks like its only used in one place */
 	int sfra;		/* starting frame according to the timeline of the scene. */
@@ -164,10 +150,11 @@ typedef struct Sequence {
 
 	struct bSound *sound;	/* the linked "bSound" object */
 	void *scene_sound;
-	float volume, pad;
+	float volume;
 
 	float level, pan;	/* level in dB (0=full), pan -1..1 */
 	int scenenr;          /* for scene selection */
+	int multicam_source;  /* for multicam source selection */
 	float strobe;
 
 	void *effectdata;	/* Struct pointer for effect settings */
@@ -195,6 +182,10 @@ typedef struct Editing {
 	Sequence *act_seq;
 	char act_imagedir[256];
 	char act_sounddir[256];
+
+	int over_ofs, over_cfra;
+	int over_flag, pad;
+	rctf over_border;
 } Editing;
 
 /* ************* Effect Variable Structs ********* */
@@ -241,6 +232,10 @@ typedef struct SpeedControlVars {
 	int lastValidFrame;
 } SpeedControlVars;
 
+/* Editor->over_flag */
+#define SEQ_EDIT_OVERLAY_SHOW			1
+#define SEQ_EDIT_OVERLAY_ABS			2
+
 #define SEQ_STRIP_OFSBOTTOM		0.2f
 #define SEQ_STRIP_OFSTOP		0.8f
 
@@ -275,6 +270,9 @@ typedef struct SpeedControlVars {
 #define SEQ_USE_PROXY_CUSTOM_FILE             2097152
 #define SEQ_USE_EFFECT_DEFAULT_FADE           4194304
 
+/* convenience define for all selection flags */
+#define SEQ_ALLSEL	(SELECT+SEQ_LEFTSEL+SEQ_RIGHTSEL)
+
 /* deprecated, dont use a flag anymore*/
 /*#define SEQ_ACTIVE                            1048576*/
 
@@ -306,7 +304,8 @@ typedef struct SpeedControlVars {
 #define SEQ_TRANSFORM		27
 #define SEQ_COLOR               28
 #define SEQ_SPEED               29
-#define SEQ_EFFECT_MAX          29
+#define SEQ_MULTICAM            30
+#define SEQ_EFFECT_MAX          30
 
 #define STRIPELEM_FAILED       0
 #define STRIPELEM_OK           1
@@ -318,6 +317,9 @@ typedef struct SpeedControlVars {
    to the table above. (Only those effects that handle _exactly_ two inputs,
    otherwise, you can't really blend, right :) !)
 */
+
+
+#define SEQ_HAS_PATH(_seq) (ELEM5((_seq)->type, SEQ_MOVIE, SEQ_IMAGE, SEQ_SOUND, SEQ_RAM_SOUND, SEQ_HD_SOUND))
 
 #endif
 

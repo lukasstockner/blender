@@ -33,21 +33,20 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #ifndef WIN32 
 #include <unistd.h>
 #else
 #include <io.h>
 #endif
-#include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_group_types.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_sequence_types.h"
+
+#include "MEM_guardedalloc.h"
 
 #include "BKE_anim.h"
 #include "BKE_animsys.h"
@@ -69,10 +68,6 @@
 
 //XXX #include "BIF_previewrender.h"
 //XXX #include "BIF_editseq.h"
-
-#ifndef DISABLE_PYTHON
-#include "BPY_extern.h"
-#endif
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -174,9 +169,12 @@ Scene *copy_scene(Main *bmain, Scene *sce, int type)
 		BLI_duplicatelist(&(scen->transform_spaces), &(sce->transform_spaces));
 		BLI_duplicatelist(&(scen->r.layers), &(sce->r.layers));
 		BKE_keyingsets_copy(&(scen->keyingsets), &(sce->keyingsets));
-		
-		scen->nodetree= ntreeCopyTree(sce->nodetree, 0);
-		
+
+		if(sce->nodetree) {
+			scen->nodetree= ntreeCopyTree(sce->nodetree, 0);
+			ntreeSwitchID(scen->nodetree, &sce->id, &scen->id);
+		}
+
 		obase= sce->base.first;
 		base= scen->base.first;
 		while(base) {
@@ -201,6 +199,10 @@ Scene *copy_scene(Main *bmain, Scene *sce, int type)
 		scen->r.qtcodecdata->cdParms = MEM_dupallocN(scen->r.qtcodecdata->cdParms);
 	}
 	
+	if(sce->r.ffcodecdata.properties) { /* intentionally check scen not sce. */
+		scen->r.ffcodecdata.properties= IDP_CopyProperty(sce->r.ffcodecdata.properties);
+	}
+
 	/* NOTE: part of SCE_COPY_LINK_DATA and SCE_COPY_FULL operations
 	 * are done outside of blenkernel with ED_objects_single_users! */
 
@@ -214,6 +216,12 @@ Scene *copy_scene(Main *bmain, Scene *sce, int type)
 		if(scen->world) {
 			id_us_plus((ID *)scen->world);
 			scen->world= copy_world(scen->world);
+		}
+
+		if(sce->ed) {
+			scen->ed= MEM_callocN( sizeof(Editing), "addseq");
+			scen->ed->seqbasep= &scen->ed->seqbase;
+			seqbase_dupli_recursive(sce, &scen->ed->seqbase, &sce->ed->seqbase, SEQ_DUPE_ALL);
 		}
 	}
 
@@ -309,12 +317,13 @@ void free_scene(Scene *sce)
 
 Scene *add_scene(char *name)
 {
+	Main *bmain= G.main;
 	Scene *sce;
 	ParticleEditSettings *pset;
 	int a;
 
-	sce= alloc_libblock(&G.main->scene, ID_SCE, name);
-	sce->lay= 1;
+	sce= alloc_libblock(&bmain->scene, ID_SCE, name);
+	sce->lay= sce->layact= 1;
 	
 	sce->r.mode= R_GAMMA|R_OSA|R_SHADOW|R_SSS|R_ENVMAP|R_RAYTRACE;
 	sce->r.cfra= 1;
@@ -388,6 +397,7 @@ Scene *add_scene(char *name)
 	sce->toolsettings->jointrilimit = 0.8f;
 
 	sce->toolsettings->selectmode= SCE_SELECT_VERTEX;
+	sce->toolsettings->uv_selectmode= UV_SELECT_VERTEX;
 	sce->toolsettings->normalsize= 0.1;
 	sce->toolsettings->autokey_mode= U.autokey_mode;
 
@@ -493,7 +503,7 @@ Base *object_in_scene(Object *ob, Scene *sce)
 	return NULL;
 }
 
-void set_scene_bg(Scene *scene)
+void set_scene_bg(Main *bmain, Scene *scene)
 {
 	Scene *sce;
 	Base *base;
@@ -503,14 +513,18 @@ void set_scene_bg(Scene *scene)
 	int flag;
 	
 	/* check for cyclic sets, for reading old files but also for definite security (py?) */
-	scene_check_setscene(scene);
+	scene_check_setscene(bmain, scene);
 	
+	/* can happen when switching modes in other scenes */
+	if(scene->obedit && !(scene->obedit->mode & OB_MODE_EDIT))
+		scene->obedit= NULL;
+
 	/* deselect objects (for dataselect) */
-	for(ob= G.main->object.first; ob; ob= ob->id.next)
+	for(ob= bmain->object.first; ob; ob= ob->id.next)
 		ob->flag &= ~(SELECT|OB_FROMGROUP);
 
 	/* group flags again */
-	for(group= G.main->group.first; group; group= group->id.next) {
+	for(group= bmain->group.first; group; group= group->id.next) {
 		go= group->gobject.first;
 		while(go) {
 			if(go->ob) go->ob->flag |= OB_FROMGROUP;
@@ -519,12 +533,12 @@ void set_scene_bg(Scene *scene)
 	}
 
 	/* sort baselist */
-	DAG_scene_sort(scene);
+	DAG_scene_sort(bmain, scene);
 	
 	/* ensure dags are built for sets */
 	for(sce= scene->set; sce; sce= sce->set)
 		if(sce->theDag==NULL)
-			DAG_scene_sort(sce);
+			DAG_scene_sort(bmain, sce);
 
 	/* copy layers and flags from bases to objects */
 	for(base= scene->base.first; base; base= base->next) {
@@ -546,18 +560,17 @@ void set_scene_bg(Scene *scene)
 }
 
 /* called from creator.c */
-void set_scene_name(char *name)
+Scene *set_scene_name(Main *bmain, char *name)
 {
-	Scene *sce;
-
-	for (sce= G.main->scene.first; sce; sce= sce->id.next) {
-		if (BLI_streq(name, sce->id.name+2)) {
-			set_scene_bg(sce);
-			return;
-		}
+	Scene *sce= (Scene *)find_id("SC", name);
+	if(sce) {
+		set_scene_bg(bmain, sce);
+		printf("Scene switch: '%s' in file: '%s'\n", name, G.sce);
+		return sce;
 	}
-	
-	//XXX error("Can't find scene: %s", name);
+
+	printf("Can't find scene: '%s' in file: '%s'\n", name, G.sce);
+	return NULL;
 }
 
 void unlink_scene(Main *bmain, Scene *sce, Scene *newsce)
@@ -571,7 +584,7 @@ void unlink_scene(Main *bmain, Scene *sce, Scene *newsce)
 			sce1->set= NULL;
 	
 	/* check all sequences */
-	clear_scene_in_allseqs(sce);
+	clear_scene_in_allseqs(bmain, sce);
 
 	/* check render layer nodes in other scenes */
 	clear_scene_in_nodes(bmain, sce);
@@ -587,7 +600,7 @@ void unlink_scene(Main *bmain, Scene *sce, Scene *newsce)
 /* used by metaballs
  * doesnt return the original duplicated object, only dupli's
  */
-int next_object(Scene *scene, int val, Base **base, Object **ob)
+int next_object(Scene **scene, int val, Base **base, Object **ob)
 {
 	static ListBase *duplilist= NULL;
 	static DupliObject *dupob;
@@ -616,17 +629,21 @@ int next_object(Scene *scene, int val, Base **base, Object **ob)
 
 			/* the first base */
 			if(fase==F_START) {
-				*base= scene->base.first;
+				*base= (*scene)->base.first;
 				if(*base) {
 					*ob= (*base)->object;
 					fase= F_SCENE;
 				}
 				else {
 					/* exception: empty scene */
-					if(scene->set && scene->set->base.first) {
-						*base= scene->set->base.first;
-						*ob= (*base)->object;
-						fase= F_SET;
+					while((*scene)->set) {
+						(*scene)= (*scene)->set;
+						if((*scene)->base.first) {
+							*base= (*scene)->base.first;
+							*ob= (*base)->object;
+							fase= F_SCENE;
+							break;
+						}
 					}
 				}
 			}
@@ -636,11 +653,14 @@ int next_object(Scene *scene, int val, Base **base, Object **ob)
 					if(*base) *ob= (*base)->object;
 					else {
 						if(fase==F_SCENE) {
-							/* scene is finished, now do the set */
-							if(scene->set && scene->set->base.first) {
-								*base= scene->set->base.first;
-								*ob= (*base)->object;
-								fase= F_SET;
+							/* (*scene) is finished, now do the set */
+							while((*scene)->set) {
+								(*scene)= (*scene)->set;
+								if((*scene)->base.first) {
+									*base= (*scene)->base.first;
+									*ob= (*base)->object;
+									break;
+								}
 							}
 						}
 					}
@@ -655,7 +675,7 @@ int next_object(Scene *scene, int val, Base **base, Object **ob)
 						this enters eternal loop because of 
 						makeDispListMBall getting called inside of group_duplilist */
 						if((*base)->object->dup_group == NULL) {
-							duplilist= object_duplilist(scene, (*base)->object);
+							duplilist= object_duplilist((*scene), (*base)->object);
 							
 							dupob= duplilist->first;
 
@@ -691,6 +711,10 @@ int next_object(Scene *scene, int val, Base **base, Object **ob)
 		}
 	}
 	
+	/* if(ob && *ob) {
+		printf("Scene: '%s', '%s'\n", (*scene)->id.name+2, (*ob)->id.name+2);
+	} */
+
 	/* reset recursion test */
 	in_next_object= 0;
 	
@@ -849,7 +873,7 @@ void scene_select_base(Scene *sce, Base *selbase)
 }
 
 /* checks for cycle, returns 1 if it's all OK */
-int scene_check_setscene(Scene *sce)
+int scene_check_setscene(Main *bmain, Scene *sce)
 {
 	Scene *scene;
 	int a, totscene;
@@ -857,7 +881,7 @@ int scene_check_setscene(Scene *sce)
 	if(sce->set==NULL) return 1;
 	
 	totscene= 0;
-	for(scene= G.main->scene.first; scene; scene= scene->id.next)
+	for(scene= bmain->scene.first; scene; scene= scene->id.next)
 		totscene++;
 	
 	for(a=0, scene=sce; scene->set; scene=scene->set, a++) {
@@ -872,102 +896,71 @@ int scene_check_setscene(Scene *sce)
 	return 1;
 }
 
-/* This (evil) function is needed to cope with two legacy Blender rendering features
-* mblur (motion blur that renders 'subframes' and blurs them together), and fields 
-* rendering. Thus, the use of ugly globals from object.c
-*/
-// BAD... EVIL... JUJU...!!!!
-// XXX moved here temporarily
-float frame_to_float (Scene *scene, int cfra)		/* see also bsystem_time in object.c */
+/* This function is needed to cope with fractional frames - including two Blender rendering features
+* mblur (motion blur that renders 'subframes' and blurs them together), and fields rendering. */
+
+/* see also bsystem_time in object.c */
+float BKE_curframe(Scene *scene)
 {
-	extern float bluroffs;	/* bad stuff borrowed from object.c */
-	extern float fieldoffs;
-	float ctime;
-	
-	ctime= (float)cfra;
-	ctime+= bluroffs+fieldoffs;
-	ctime*= scene->r.framelen;
-	
+	float ctime = scene->r.cfra;
+	ctime+= scene->r.subframe;
+	ctime*= scene->r.framelen;	
+
 	return ctime;
 }
 
-static void scene_update_newframe(Scene *scene, int cfra, unsigned int lay)
+static void scene_update_tagged_recursive(Main *bmain, Scene *scene, Scene *scene_parent)
 {
 	Base *base;
-	Object *ob;
-	int cfra_back= scene->r.cfra;
-	scene->r.cfra= cfra;
-	
+
+	/* sets first, we allow per definition current scene to have
+	   dependencies on sets, but not the other way around. */
+	if(scene->set)
+		scene_update_tagged_recursive(bmain, scene->set, scene_parent);
+
 	for(base= scene->base.first; base; base= base->next) {
-		ob= base->object;
-		
-		object_handle_update(scene, ob);   // bke_object.h
+		Object *ob= base->object;
+
+		object_handle_update(scene_parent, ob);
 
 		if(ob->dup_group && (ob->transflag & OB_DUPLIGROUP))
-			group_handle_recalc_and_update(scene, ob, ob->dup_group);
-		
-		/* only update layer when an ipo */
-			// XXX old animation system
-		//if(ob->ipo && has_ipo_code(ob->ipo, OB_LAY) ) {
-		//	base->lay= ob->lay;
-		//}
+			group_handle_recalc_and_update(scene_parent, ob, ob->dup_group);
+			
+		/* always update layer, so that animating layers works */
+		base->lay= ob->lay;
 	}
-
-	scene->r.cfra= cfra_back;
 }
 
 /* this is called in main loop, doing tagged updates before redraw */
-void scene_update_tagged(Scene *scene)
+void scene_update_tagged(Main *bmain, Scene *scene)
 {
-	Scene *sce;
-	Base *base;
-	Object *ob;
-	float ctime = frame_to_float(scene, scene->r.cfra); 
+	scene->physics_settings.quick_cache_step= 0;
 
 	/* update all objects: drivers, matrices, displists, etc. flags set
 	   by depgraph or manual, no layer check here, gets correct flushed */
 
-	/* sets first, we allow per definition current scene to have
-	   dependencies on sets, but not the other way around. */
-	if(scene->set) {
-		for(SETLOOPER(scene->set, base)) {
-			ob= base->object;
-
-			object_handle_update(scene, ob);
-
-			if(ob->dup_group && (ob->transflag & OB_DUPLIGROUP))
-				group_handle_recalc_and_update(scene, ob, ob->dup_group);
-		}
-	}
-	
-	for(base= scene->base.first; base; base= base->next) {
-		ob= base->object;
-
-		object_handle_update(scene, ob);
-
-		if(ob->dup_group && (ob->transflag & OB_DUPLIGROUP))
-			group_handle_recalc_and_update(scene, ob, ob->dup_group);
-	}
+	scene_update_tagged_recursive(bmain, scene, scene);
 
 	/* recalc scene animation data here (for sequencer) */
 	{
+		float ctime = BKE_curframe(scene); 
 		AnimData *adt= BKE_animdata_from_id(&scene->id);
 
 		if(adt && (adt->recalc & ADT_RECALC_ANIM))
 			BKE_animsys_evaluate_animdata(&scene->id, adt, ctime, 0);
 	}
 
-	/* XXX - this is called far to often, should be made apart of the depgraph */
-	BKE_ptcache_quick_cache_all(scene);
+	if(scene->physics_settings.quick_cache_step)
+		BKE_ptcache_quick_cache_all(bmain, scene);
 
 	/* in the future this should handle updates for all datablocks, not
 	   only objects and scenes. - brecht */
 }
 
 /* applies changes right away, does all sets too */
-void scene_update_for_newframe(Scene *sce, unsigned int lay)
+void scene_update_for_newframe(Main *bmain, Scene *sce, unsigned int lay)
 {
-	float ctime = frame_to_float(sce, sce->r.cfra);
+	float ctime = BKE_curframe(sce);
 	Scene *sce_iter;
 	
 	/* clear animation overrides */
@@ -975,13 +968,13 @@ void scene_update_for_newframe(Scene *sce, unsigned int lay)
 
 	for(sce_iter= sce; sce_iter; sce_iter= sce_iter->set) {
 		if(sce_iter->theDag==NULL)
-			DAG_scene_sort(sce_iter);
+			DAG_scene_sort(bmain, sce_iter);
 	}
 
 
 	/* Following 2 functions are recursive
-	 * so dont call within 'scene_update_newframe' */
-	DAG_scene_update_flags(sce, lay);   // only stuff that moves or needs display still
+	 * so dont call within 'scene_update_tagged_recursive' */
+	DAG_scene_update_flags(bmain, sce, lay);   // only stuff that moves or needs display still
 
 	/* All 'standard' (i.e. without any dependencies) animation is handled here,
 	 * with an 'local' to 'macro' order of evaluation. This should ensure that
@@ -989,16 +982,11 @@ void scene_update_for_newframe(Scene *sce, unsigned int lay)
 	 * can be overridden by settings from Scene, which owns the Texture through a hierarchy
 	 * such as Scene->World->MTex/Texture) can still get correctly overridden.
 	 */
-	BKE_animsys_evaluate_all_animation(G.main, ctime);
+	BKE_animsys_evaluate_all_animation(bmain, ctime);
 	/*...done with recusrive funcs */
 
-
-	/* sets first, we allow per definition current scene to have dependencies on sets */
-	for(sce_iter= sce->set; sce_iter; sce_iter= sce_iter->set) {
-		scene_update_newframe(sce_iter, sce->r.cfra, lay);
-    }
-
-	scene_update_newframe(sce, sce->r.cfra, lay);
+	/* object_handle_update() on all objects, groups and sets */
+	scene_update_tagged_recursive(bmain, sce, sce);
 }
 
 /* return default layer, also used to patch old files */

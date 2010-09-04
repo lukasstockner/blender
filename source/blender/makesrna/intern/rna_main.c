@@ -50,21 +50,25 @@ static void rna_Main_debug_set(PointerRNA *ptr, const int value)
 		G.f &= ~G_DEBUG;
 }
 
+static int rna_Main_is_dirty_get(PointerRNA *ptr)
+{
+	return !G.relbase_valid;
+}
 
-static void rna_Main_filename_get(PointerRNA *ptr, char *value)
+static void rna_Main_filepath_get(PointerRNA *ptr, char *value)
 {
 	Main *bmain= (Main*)ptr->data;
 	BLI_strncpy(value, bmain->name, sizeof(bmain->name));
 }
 
-static int rna_Main_filename_length(PointerRNA *ptr)
+static int rna_Main_filepath_length(PointerRNA *ptr)
 {
 	Main *bmain= (Main*)ptr->data;
 	return strlen(bmain->name);
 }
 
 #if 0
-static void rna_Main_filename_set(PointerRNA *ptr, const char *value)
+static void rna_Main_filepath_set(PointerRNA *ptr, const char *value)
 {
 	Main *bmain= (Main*)ptr->data;
 	BLI_strncpy(bmain->name, value, sizeof(bmain->name));
@@ -143,13 +147,11 @@ static void rna_Main_camera_begin(CollectionPropertyIterator *iter, PointerRNA *
 	rna_iterator_listbase_begin(iter, &bmain->camera, NULL);
 }
 
-#if 0
 static void rna_Main_key_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 	Main *bmain= (Main*)ptr->data;
 	rna_iterator_listbase_begin(iter, &bmain->key, NULL);
 }
-#endif
 
 static void rna_Main_world_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
@@ -169,7 +171,7 @@ static void rna_Main_script_begin(CollectionPropertyIterator *iter, PointerRNA *
 	rna_iterator_listbase_begin(iter, &bmain->script, NULL);
 }
 
-static void rna_Main_vfont_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+static void rna_Main_font_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 	Main *bmain= (Main*)ptr->data;
 	rna_iterator_listbase_begin(iter, &bmain->vfont, NULL);
@@ -267,6 +269,7 @@ void RNA_def_main(BlenderRNA *brna)
 	PropertyRNA *prop;
 	CollectionDefFunc *func;
 
+	/* plural must match idtypes in readblenentry.c */
 	MainCollectionDef lists[]= {
 		{"cameras", "Camera", "rna_Main_camera_begin", "Cameras", "Camera datablocks.", RNA_def_main_cameras},
 		{"scenes", "Scene", "rna_Main_scene_begin", "Scenes", "Scene datablocks.", RNA_def_main_scenes},
@@ -282,19 +285,19 @@ void RNA_def_main(BlenderRNA *brna)
 		{"lattices", "Lattice", "rna_Main_latt_begin", "Lattices", "Lattice datablocks.", RNA_def_main_lattices},
 		{"curves", "Curve", "rna_Main_curve_begin", "Curves", "Curve datablocks.", RNA_def_main_curves} ,
 		{"metaballs", "MetaBall", "rna_Main_mball_begin", "Metaballs", "Metaball datablocks.", RNA_def_main_metaballs},
-		{"vfonts", "VectorFont", "rna_Main_vfont_begin", "Vector Fonts", "Vector font datablocks.", RNA_def_main_vfonts},
+		{"fonts", "VectorFont", "rna_Main_font_begin", "Vector Fonts", "Vector font datablocks.", RNA_def_main_fonts},
 		{"textures", "Texture", "rna_Main_tex_begin", "Textures", "Texture datablocks.", RNA_def_main_textures},
 		{"brushes", "Brush", "rna_Main_brush_begin", "Brushes", "Brush datablocks.", RNA_def_main_brushes},
 		{"worlds", "World", "rna_Main_world_begin", "Worlds", "World datablocks.", RNA_def_main_worlds},
 		{"groups", "Group", "rna_Main_group_begin", "Groups", "Group datablocks.", RNA_def_main_groups},
-/*		{"keys", "Key", "rna_Main_key_begin", "Keys", "Key datablocks.", NULL}, */
+		{"shape_keys", "Key", "rna_Main_key_begin", "Keys", "Key datablocks.", NULL},
 		{"scripts", "ID", "rna_Main_script_begin", "Scripts", "Script datablocks (DEPRECATED).", NULL},
 		{"texts", "Text", "rna_Main_text_begin", "Texts", "Text datablocks.", RNA_def_main_texts},
 		{"sounds", "Sound", "rna_Main_sound_begin", "Sounds", "Sound datablocks.", RNA_def_main_sounds},
 		{"armatures", "Armature", "rna_Main_armature_begin", "Armatures", "Armature datablocks.", RNA_def_main_armatures},
 		{"actions", "Action", "rna_Main_action_begin", "Actions", "Action datablocks.", RNA_def_main_actions},
 		{"particles", "ParticleSettings", "rna_Main_particle_begin", "Particles", "Particle datablocks.", RNA_def_main_particles},
-		{"gpencil", "GreasePencil", "rna_Main_gpencil_begin", "Grease Pencil", "Grease Pencil datablocks.", RNA_def_main_gpencil},
+		{"grease_pencil", "GreasePencil", "rna_Main_gpencil_begin", "Grease Pencil", "Grease Pencil datablocks.", RNA_def_main_gpencil},
 		{NULL, NULL, NULL, NULL, NULL, NULL}};
 
 	int i;
@@ -303,11 +306,16 @@ void RNA_def_main(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Main", "Main data structure representing a .blend file and all its datablocks");
 	RNA_def_struct_ui_icon(srna, ICON_BLENDER);
 
-	prop= RNA_def_property(srna, "filename", PROP_STRING, PROP_FILEPATH);
+	prop= RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
 	RNA_def_property_string_maxlength(prop, 240);
-	RNA_def_property_string_funcs(prop, "rna_Main_filename_get", "rna_Main_filename_length", "rna_Main_filename_set");
+	RNA_def_property_string_funcs(prop, "rna_Main_filepath_get", "rna_Main_filepath_length", "rna_Main_filepath_set");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Filename", "Path to the .blend file");
+	
+	prop= RNA_def_property(srna, "is_dirty", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_is_dirty_get", NULL);
+	RNA_def_property_ui_text(prop, "File is Saved", "Has the current session been saved to disk as a .blend file");
 
 	prop= RNA_def_property(srna, "debug", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_Main_debug_get", "rna_Main_debug_set");
@@ -335,7 +343,7 @@ void RNA_def_main(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "test", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "Test");
-	RNA_def_property_pointer_funcs(prop, "rna_Test_test_get", NULL, NULL);
+	RNA_def_property_pointer_funcs(prop, "rna_Test_test_get", NULL, NULL, NULL);
 
 	RNA_define_verify_sdna(1);
 

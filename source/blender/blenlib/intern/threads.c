@@ -29,6 +29,7 @@
  */
 
 #include <errno.h>
+#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -106,6 +107,9 @@ static pthread_mutex_t _image_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t _preview_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t _viewer_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t _custom1_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t _rcache_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t _opengl_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_t mainid;
 static int thread_levels= 0;	/* threads can be invoked inside threads */
 
 /* just a max for security reasons */
@@ -129,6 +133,11 @@ static void BLI_unlock_malloc_thread(void)
 	pthread_mutex_unlock(&_malloc_lock);
 }
 
+void BLI_threadapi_init(void)
+{
+	mainid = pthread_self();
+}
+
 /* tot = 0 only initializes malloc mutex in a safe way (see sequence.c)
    problem otherwise: scene render will kill of the mutex!
 */
@@ -136,7 +145,7 @@ static void BLI_unlock_malloc_thread(void)
 void BLI_init_threads(ListBase *threadbase, void *(*do_thread)(void *), int tot)
 {
 	int a;
-	
+
 	if(threadbase != NULL && tot > 0) {
 		threadbase->first= threadbase->last= NULL;
 	
@@ -149,20 +158,20 @@ void BLI_init_threads(ListBase *threadbase, void *(*do_thread)(void *), int tot)
 			tslot->do_thread= do_thread;
 			tslot->avail= 1;
 		}
-		
-		if(thread_levels == 0) {
-			MEM_set_lock_callback(BLI_lock_malloc_thread, BLI_unlock_malloc_thread);
+	}
+	
+	if(thread_levels == 0) {
+		MEM_set_lock_callback(BLI_lock_malloc_thread, BLI_unlock_malloc_thread);
 
 #if defined(__APPLE__) && (PARALLEL == 1) && (__GNUC__ == 4) && (__GNUC_MINOR__ == 2)
-			/* workaround for Apple gcc 4.2.1 omp vs background thread bug,
-			   we copy gomp thread local storage pointer to setting it again
-			   inside the thread that we start */
-			thread_tls_data = pthread_getspecific(gomp_tls_key);
+		/* workaround for Apple gcc 4.2.1 omp vs background thread bug,
+		   we copy gomp thread local storage pointer to setting it again
+		   inside the thread that we start */
+		thread_tls_data = pthread_getspecific(gomp_tls_key);
 #endif
-		}
-
-		thread_levels++;
 	}
+
+	thread_levels++;
 }
 
 /* amount of available threads */
@@ -202,6 +211,10 @@ static void *tslot_thread_start(void *tslot_p)
 #endif
 
 	return tslot->do_thread(tslot->callerdata);
+}
+
+int BLI_thread_is_main(void) {
+	return pthread_equal(pthread_self(), mainid);
 }
 
 void BLI_insert_thread(ListBase *threadbase, void *callerdata)
@@ -274,11 +287,11 @@ void BLI_end_threads(ListBase *threadbase)
 			}
 		}
 		BLI_freelistN(threadbase);
-
-		thread_levels--;
-		if(thread_levels==0)
-			MEM_set_lock_callback(NULL, NULL);
 	}
+
+	thread_levels--;
+	if(thread_levels==0)
+		MEM_set_lock_callback(NULL, NULL);
 }
 
 /* System Information */
@@ -327,6 +340,10 @@ void BLI_lock_thread(int type)
 		pthread_mutex_lock(&_viewer_lock);
 	else if (type==LOCK_CUSTOM1)
 		pthread_mutex_lock(&_custom1_lock);
+	else if (type==LOCK_RCACHE)
+		pthread_mutex_lock(&_rcache_lock);
+	else if (type==LOCK_OPENGL)
+		pthread_mutex_lock(&_opengl_lock);
 }
 
 void BLI_unlock_thread(int type)
@@ -339,6 +356,10 @@ void BLI_unlock_thread(int type)
 		pthread_mutex_unlock(&_viewer_lock);
 	else if(type==LOCK_CUSTOM1)
 		pthread_mutex_unlock(&_custom1_lock);
+	else if(type==LOCK_RCACHE)
+		pthread_mutex_unlock(&_rcache_lock);
+	else if(type==LOCK_OPENGL)
+		pthread_mutex_unlock(&_opengl_lock);
 }
 
 /* Mutex Locks */

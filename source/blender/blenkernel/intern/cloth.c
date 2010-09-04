@@ -27,16 +27,21 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_cloth.h"
+#include "DNA_cloth_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_object_types.h"
+#include "DNA_meshdata_types.h"
+
+#include "BLI_math.h"
+#include "BLI_edgehash.h"
 
 #include "BKE_cdderivedmesh.h"
+#include "BKE_cloth.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_modifier.h"
-#include "BKE_utildefines.h"
-
 #include "BKE_pointcache.h"
-
+#include "BKE_utildefines.h"
 
 #ifdef _WIN32
 void tstart ( void )
@@ -147,6 +152,9 @@ void cloth_init ( ClothModifierData *clmd )
 
 	if(!clmd->sim_parms->effector_weights)
 		clmd->sim_parms->effector_weights = BKE_add_effector_weights(NULL);
+
+	if(clmd->point_cache)
+		clmd->point_cache->step = 1;
 }
 
 static BVHTree *bvhselftree_build_from_cloth (ClothModifierData *clmd, float epsilon)

@@ -102,7 +102,6 @@ void ED_keymap_armature(struct wmKeyConfig *keyconf);
 void ED_armature_from_edit(struct Object *obedit);
 void ED_armature_to_edit(struct Object *ob);
 void ED_armature_edit_free(struct Object *ob);
-void ED_armature_edit_remake(struct Object *obedit);
 void ED_armature_deselectall(struct Object *obedit, int toggle, int doundo);
 
 int ED_do_pose_selectbuffer(struct Scene *scene, struct Base *base, unsigned int *buffer, 
@@ -121,7 +120,7 @@ void ED_armature_edit_bone_remove(struct bArmature *arm, EditBone *exBone);
 
 void transform_armature_mirror_update(struct Object *obedit);
 void clear_armature(struct Scene *scene, struct Object *ob, char mode);
-void docenter_armature (struct Scene *scene, struct View3D *v3d, struct Object *ob, int centermode);
+void docenter_armature (struct Scene *scene, struct Object *ob, float cursor[3], int centermode, int around);
 
 void ED_armature_apply_transform(struct Object *ob, float mat[4][4]);
 
@@ -166,7 +165,7 @@ void BDR_drawSketch(const struct bContext *vc);
 int BDR_drawSketchNames(struct ViewContext *vc);
 
 /* meshlaplacian.c */
-void mesh_deform_bind(struct Scene *scene, struct DerivedMesh *dm,
+void mesh_deform_bind(struct Scene *scene,
 	struct MeshDeformModifierData *mmd,
 	float *vertexcos, int totvert, float cagemat[][4]);
 

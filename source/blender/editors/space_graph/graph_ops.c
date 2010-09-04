@@ -29,7 +29,6 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include "MEM_guardedalloc.h"
 
 #include "DNA_scene_types.h"
 
@@ -37,7 +36,6 @@
 
 #include "BKE_context.h"
 #include "BKE_sound.h"
-#include "BKE_utildefines.h"
 
 #include "UI_view2d.h"
 
@@ -71,6 +69,7 @@ static void graphview_cursor_apply(bContext *C, wmOperator *op)
 	 * NOTE: sync this part of the code with ANIM_OT_change_frame
 	 */
 	CFRA= RNA_int_get(op->ptr, "frame");
+	SUBFRA=0.f;
 	sound_seek_scene(C);
 	
 	/* set the cursor value */
@@ -173,7 +172,7 @@ void GRAPH_OT_cursor_set(wmOperatorType *ot)
 	ot->poll= ED_operator_ipo_active;
 	
 	/* flags */
-	ot->flag= OPTYPE_BLOCKING;
+	ot->flag= OPTYPE_BLOCKING|OPTYPE_UNDO;
 
 	/* rna */
 	RNA_def_int(ot->srna, "frame", 0, MINAFRAME, MAXFRAME, "Frame", "", MINAFRAME, MAXFRAME);

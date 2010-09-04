@@ -45,6 +45,7 @@
 #include "RAS_FramingManager.h"
 #include "RAS_Rect.h"
 
+
 #include "PyObjectPlus.h"
 #include "RAS_2DFilterManager.h"
 
@@ -82,6 +83,10 @@ class SCA_JoystickManager;
 class btCollisionShape;
 class KX_BlenderSceneConverter;
 struct KX_ClientObjectInfo;
+
+#ifdef WITH_CXX_GUARDEDALLOC
+#include "MEM_guardedalloc.h"
+#endif
 
 /* for ID freeing */
 #define IS_TAGGED(_id) ((_id) && (((ID *)_id)->flag & LIB_DOIT))
@@ -280,7 +285,8 @@ public:
 		class SCA_IInputDevice* mousedevice,
 		class NG_NetworkDeviceInterface* ndi,
 		const STR_String& scenename,
-		struct Scene* scene);
+		struct Scene* scene,
+		class RAS_ICanvas* canvas);
 
 	virtual	
 	~KX_Scene();
@@ -608,8 +614,6 @@ public:
 	//void PrintStats(int verbose_level) {
 	//	m_bucketmanager->PrintStats(verbose_level)
 	//}
-
-
 };
 
 typedef std::vector<KX_Scene*> KX_SceneList;

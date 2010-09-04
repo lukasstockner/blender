@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_scene_types.h"
@@ -12,7 +11,6 @@
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 
-#include "BKE_animsys.h"
 #include "BKE_context.h"
 #include "BKE_fcurve.h"
 
@@ -111,7 +109,7 @@ void ui_but_anim_autokey(bContext *C, uiBut *but, Scene *scene, float cfra)
 			
 			fcu->flag &= ~FCURVE_SELECTED;
 			insert_keyframe(id, action, ((fcu->grp)?(fcu->grp->name):(NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
-			WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_EDIT, NULL);
+			WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
 		}
 	}
 }

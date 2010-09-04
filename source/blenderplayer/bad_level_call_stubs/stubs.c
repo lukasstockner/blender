@@ -36,14 +36,17 @@
 struct ARegion;
 struct ARegionType;
 struct Base;
+struct Brush;
 struct bNodeTree;
 struct CSG_FaceIteratorDescriptor;
 struct CSG_VertexIteratorDescriptor;
 struct ColorBand;
 struct CurveMapping;
 struct EditBone;
+struct EditFace;
 struct EditMesh;
 struct ID;
+struct FCurve;
 struct ImBuf;
 struct Image;
 struct ImageUser;
@@ -53,16 +56,20 @@ struct LOD_Decimation_Info;
 struct MTex;
 struct Main;
 struct Material;
+struct MCol;
 struct MenuType;
 struct Mesh;
 struct ModifierData;
+struct MultiresModifierData;
 struct NodeBlurData;
 struct Object;
+struct PBVHNode;
 struct Render;
 struct RenderEngine;
 struct RenderLayer;
 struct RenderResult;
 struct ScrArea;
+struct SculptSession;
 struct ShadeInput;
 struct ShadeResult;
 struct SpaceImage;
@@ -133,9 +140,13 @@ void WM_menutype_freelink(struct MenuType* mt){}
 int WM_menutype_add(struct MenuType *mt) {return 0;}
 int WM_operator_props_dialog_popup (struct bContext *C, struct wmOperator *op, int width, int height){return 0;}
 struct MenuType *WM_menutype_find(const char *idname, int quiet){return (struct MenuType *) NULL;}
+void WM_operator_stack_clear(struct bContext *C) {}
 
 void WM_autosave_init(struct bContext *C){}
 void WM_jobs_stop_all(struct wmWindowManager *wm){}
+
+char *WM_clipboard_text_get(int selection){return (char*)0;}
+void WM_clipboard_text_set(char *buf, int selection){}
 
 struct wmKeyMapItem *WM_keymap_item_find_id(struct wmKeyMap *keymap, int id){return (struct wmKeyMapItem *) NULL;}
 int WM_enum_search_invoke(struct bContext *C, struct wmOperator *op, struct wmEvent *event){return 0;}
@@ -148,7 +159,7 @@ void object_test_constraints (struct Object *owner){}
 void ED_object_parent(struct Object *ob, struct Object *par, int type, const char *substr){}
 void ED_object_constraint_set_active(struct Object *ob, struct bConstraint *con){}
 void ED_node_composit_default(struct Scene *sce){}
-void *ED_region_draw_cb_activate(struct ARegionType *art, void(*draw)(const struct bContext *, struct ARegion *, void *), void *custumdata, int type){return 0;} /* XXX this one looks wierd */
+void *ED_region_draw_cb_activate(struct ARegionType *art, void(*draw)(const struct bContext *, struct ARegion *, void *), void *custumdata, int type){return 0;} /* XXX this one looks weird */
 void *ED_region_draw_cb_customdata(void *handle){return 0;} /* XXX This one looks wrong also */
 void ED_region_draw_cb_exit(struct ARegionType *art, void *handle){}
 
@@ -186,6 +197,7 @@ int WM_keymap_item_compare(struct wmKeyMapItem *k1, struct wmKeyMapItem *k2){ret
 
 
 /* rna editors */
+struct FCurve *verify_fcurve (struct bAction *act, const char group[], const char rna_path[], const int array_index, short add){return (struct FCurve *) NULL;}
 int insert_vert_fcurve(struct FCurve *fcu, float x, float y, short flag){return 0;}
 void delete_fcurve_key(struct FCurve *fcu, int index, short do_recalc){}
 struct KeyingSetInfo *ANIM_keyingset_info_find_named (const char name[]){return (struct KeyingSetInfo *) NULL;}
@@ -195,6 +207,7 @@ struct ListBase builtin_keyingsets;
 void ANIM_keyingset_info_register (const struct bContext *C, struct KeyingSetInfo *ksi){}
 void ANIM_keyingset_info_unregister (const struct bContext *C, struct KeyingSetInfo *ksi){}
 short ANIM_add_driver(struct ID *id, const char rna_path[], int array_index, short flag, int type){return 0;}
+short ANIM_remove_driver (struct ID *id, const char rna_path[], int array_index, short flag){return 0;}
 void ED_space_image_release_buffer(struct SpaceImage *sima, void *lock){}
 struct ImBuf *ED_space_image_acquire_buffer(struct SpaceImage *sima, void **lock_r){return (struct ImBuf *) NULL;}
 char *ED_info_stats_string(struct Scene *scene){return (char *) NULL;}
@@ -245,9 +258,21 @@ void ED_sequencer_update_view(struct bContext *C, int view){}
 float ED_rollBoneToVector(struct EditBone *bone, float new_up_axis[3]){return 0.0f;}
 void ED_space_image_size(struct SpaceImage *sima, int *width, int *height){}
 
+struct ListBase *ED_curve_editnurbs(struct Curve *cu){return NULL;}
+void free_curve_editNurb (struct Curve *cu){};
+
 void EM_selectmode_set(struct EditMesh *em){}
+int EM_texFaceCheck(struct EditMesh *em){return 0;}
+struct MTFace *EM_get_active_mtface(struct EditMesh *em, struct EditFace **act_efa, struct MCol **mcol, int sloopy){return (struct MTFace *)NULL;}
 void make_editMesh(struct Scene *scene, struct Object *ob){}
 void load_editMesh(struct Scene *scene, struct Object *ob){}
+
+void make_editLatt(struct Object *obedit){}
+void load_editLatt(struct Object *obedit){}
+
+void load_editNurb	(struct Object *obedit){}
+void make_editNurb	(struct Object *obedit){}
+
 
 void uiItemR(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, int flag, char *name, int icon){}
 
@@ -261,6 +286,7 @@ void uiItemsEnumR(struct uiLayout *layout, struct PointerRNA *ptr, char *propnam
 void uiItemMenuEnumR(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, char *name, int icon){}
 void uiItemEnumR_string(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, char *value, char *name, int icon){}
 void uiItemPointerR(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, struct PointerRNA *searchptr, char *searchpropname, char *name, int icon){}
+void uiItemPointerSubR(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, char *searchpropname, char *name, int icon){}
 void uiItemsEnumO(struct uiLayout *layout, char *opname, char *propname){}
 void uiItemEnumO_string(struct uiLayout *layout, char *name, int icon, char *opname, char *propname, char *value_str){}
 void uiItemMenuEnumO(struct uiLayout *layout, char *opname, char *propname, char *name, int icon){}
@@ -287,7 +313,6 @@ void uiTemplateIDPreview(struct uiLayout *layout, struct bContext *C, struct Poi
 void uiTemplateCurveMapping(struct uiLayout *layout, struct CurveMapping *cumap, int type, int compact){}
 void uiTemplateColorRamp(struct uiLayout *layout, struct ColorBand *coba, int expand){}
 void uiTemplateLayers(struct uiLayout *layout, struct PointerRNA *ptr, char *propname){}
-void uiTemplateTriColorSet(struct uiLayout *layout, struct PointerRNA *ptr, char *propname){}
 void uiTemplateImageLayers(struct uiLayout *layout, struct bContext *C, struct Image *ima, struct ImageUser *iuser){}
 ListBase uiTemplateList(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, char *propname, struct PointerRNA *activeptr, char *activepropname, int rows, int listtype){struct ListBase b = {0,0}; return b;}
 void uiTemplateRunningJobs(struct uiLayout *layout, struct bContext *C){}
@@ -299,6 +324,8 @@ void uiTemplateDopeSheetFilter(struct uiLayout *layout, struct bContext *C, stru
 void uiTemplateColorWheel(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, int value_slider){}
 void uiTemplateHistogram(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand){}
 void uiTemplateReportsBanner(struct uiLayout *layout, struct bContext *C, struct wmOperator *op){}
+void uiTemplateWaveform(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand){}
+void uiTemplateVectorscope(struct uiLayout *_self, struct PointerRNA *data, char* property, int expand){}
 
 /* rna render */
 struct RenderResult *RE_engine_begin_result(struct RenderEngine *engine, int x, int y, int w, int h){return (struct RenderResult *) NULL;}
@@ -345,9 +372,7 @@ int LOD_PreprocessMesh(struct LOD_Decimation_Info *info){return 0;}
 int LOD_LoadMesh(struct LOD_Decimation_Info *info){return 0;}
 
 /* smoke */
-void lzo1x_1_compress(void) {return;}
 void LzmaCompress(void) { return; }
-void lzo1x_decompress(void) {return;}
 void LzmaUncompress(void) {return;}
 /* smoke is included anyway
 void smoke_export(void) {return;}
@@ -368,6 +393,24 @@ void smoke_get_obstacle(void) {return;}
 void smoke_get_index(void) {return;}
 void smoke_step(void) {return;}
 */
+
+/* sculpt */
+/*
+ void ED_sculpt_force_update(struct bContext *C) {}
+struct SculptUndoNode *sculpt_undo_push_node(struct SculptSession *ss, struct PBVHNode *node) {return (struct SculptUndoNode *)NULL;}
+void sculpt_undo_push_end(void) {}
+void sculpt_undo_push_begin(char *name) {}
+struct SculptUndoNode *sculpt_undo_get_node(struct PBVHNode *node) {return (struct SculptUndoNode *) NULL;}
+struct MultiresModifierData *sculpt_multires_active(struct Scene *scene, struct Object *ob) {return (struct MultiresModifierData *) NULL;}
+int sculpt_modifiers_active(struct Scene *scene, struct Object *ob) {return 0;}
+*/
+int sculpt_get_brush_size(struct Brush *brush) {return 0;}
+void sculpt_set_brush_size(struct Brush *brush, int size) {}
+int sculpt_get_lock_brush_size(struct Brush *brush){ return 0;}
+float sculpt_get_brush_unprojected_radius(struct Brush *brush){return 0.0f;}
+void sculpt_set_brush_unprojected_radius(struct Brush *brush, float unprojected_radius){}
+float sculpt_get_brush_alpha(struct Brush *brush){return 0.0f;}
+void sculpt_set_brush_alpha(struct Brush *brush, float alpha){}
 
 char blender_path[] = "";
 

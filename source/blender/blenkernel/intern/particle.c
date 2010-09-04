@@ -40,12 +40,16 @@
 #include "DNA_key_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_smoke_types.h"
+#include "DNA_scene_types.h"
 
+#include "BLI_blenlib.h"
 #include "BLI_kdtree.h"
 #include "BLI_rand.h"
 #include "BLI_threads.h"
+#include "BLI_math.h"
 
 #include "BKE_anim.h"
 #include "BKE_animsys.h"
@@ -396,7 +400,7 @@ void free_hair(Object *ob, ParticleSystem *psys, int dynamics)
 		if(dynamics) {
 			BKE_ptcache_free_list(&psys->ptcaches);
 			psys->clmd->point_cache = psys->pointcache = NULL;
-			psys->clmd->ptcaches.first = psys->clmd->ptcaches.first = NULL;
+			psys->clmd->ptcaches.first = psys->clmd->ptcaches.last = NULL;
 
 			modifier_free((ModifierData*)psys->clmd);
 			
@@ -620,8 +624,7 @@ static float psys_render_projected_area(ParticleSystem *psys, float *center, flo
 	mul_m4_v4(data->viewmat, co);
 	
 	/* compute two vectors orthogonal to view vector */
-	VECCOPY(view, co);
-	normalize_v3(view);
+	normalize_v3_v3(view, co);
 	ortho_basis_v3v3_v3( ortho1, ortho2,view);
 
 	/* compute on screen minification */
@@ -1037,6 +1040,7 @@ typedef struct ParticleInterpolationData {
 	ParticleKey *kkey[2];
 
 	PointCache *cache;
+	PTCacheMem *pm;
 
 	PTCacheEditPoint *epoint;
 	PTCacheEditKey *ekey[2];
@@ -1045,30 +1049,73 @@ typedef struct ParticleInterpolationData {
 	int bspline;
 } ParticleInterpolationData;
 /* Assumes pointcache->mem_cache exists, so for disk cached particles call psys_make_temp_pointcache() before use */
-static void get_pointcache_keys_for_time(Object *ob, PointCache *cache, int index, float t, ParticleKey *key1, ParticleKey *key2)
+/* It uses ParticleInterpolationData->pm to store the current memory cache frame so it's thread safe. */
+static void get_pointcache_keys_for_time(Object *ob, PointCache *cache, PTCacheMem **cur, int index, float t, ParticleKey *key1, ParticleKey *key2)
 {
-	static PTCacheMem *pm = NULL; /* not thread safe */
+	static PTCacheMem *pm = NULL;
 
 	if(index < 0) { /* initialize */
-		pm = cache->mem_cache.first;
+		*cur = cache->mem_cache.first;
 
-		if(pm)
-			pm = pm->next;
+		if(*cur)
+			*cur = (*cur)->next;
 	}
 	else {
-		if(pm) {
-			while(pm && pm->next && (float)pm->frame < t)
-				pm = pm->next;
+		if(*cur) {
+			while(*cur && (*cur)->next && (float)(*cur)->frame < t)
+				*cur = (*cur)->next;
+
+			pm = *cur;
 
 			BKE_ptcache_make_particle_key(key2, pm->index_array ? pm->index_array[index] - 1 : index, pm->data, (float)pm->frame);
-			BKE_ptcache_make_particle_key(key1, pm->prev->index_array ? pm->prev->index_array[index] - 1 : index, pm->prev->data, (float)pm->prev->frame);
+			if(pm->prev->index_array && pm->prev->index_array[index] == 0)
+				copy_particle_key(key1, key2, 1);
+			else
+				BKE_ptcache_make_particle_key(key1, pm->prev->index_array ? pm->prev->index_array[index] - 1 : index, pm->prev->data, (float)pm->prev->frame);
 		}
 		else if(cache->mem_cache.first) {
-			PTCacheMem *pm2 = cache->mem_cache.first;
-			BKE_ptcache_make_particle_key(key2, pm2->index_array ? pm2->index_array[index] - 1 : index, pm2->data, (float)pm2->frame);
+			pm = cache->mem_cache.first;
+			BKE_ptcache_make_particle_key(key2, pm->index_array ? pm->index_array[index] - 1 : index, pm->data, (float)pm->frame);
 			copy_particle_key(key1, key2, 1);
 		}
 	}
+}
+static int get_pointcache_times_for_particle(PointCache *cache, int index, float *start, float *end)
+{
+	PTCacheMem *pm;
+	int ret = 0;
+
+	for(pm=cache->mem_cache.first; pm; pm=pm->next) {
+		if(pm->index_array) {
+			if(pm->index_array[index]) {
+				*start = pm->frame;
+				ret++;
+				break;
+			}
+		}
+		else {
+			*start = pm->frame;
+			ret++;
+			break;
+		}
+	}
+
+	for(pm=cache->mem_cache.last; pm; pm=pm->prev) {
+		if(pm->index_array) {
+			if(pm->index_array[index]) {
+				*end = pm->frame;
+				ret++;
+				break;
+			}
+		}
+		else {
+			*end = pm->frame;
+			ret++;
+			break;
+		}
+	}
+
+	return ret == 2;
 }
 static void init_particle_interpolation(Object *ob, ParticleSystem *psys, ParticleData *pa, ParticleInterpolationData *pind)
 {
@@ -1091,10 +1138,15 @@ static void init_particle_interpolation(Object *ob, ParticleSystem *psys, Partic
 		pind->dietime = (key + pa->totkey - 1)->time;
 	}
 	else if(pind->cache) {
-		get_pointcache_keys_for_time(ob, pind->cache, -1, 0.0f, NULL, NULL);
-
+		float start, end;
+		get_pointcache_keys_for_time(ob, pind->cache, &pind->pm, -1, 0.0f, NULL, NULL);
 		pind->birthtime = pa ? pa->time : pind->cache->startframe;
 		pind->dietime = pa ? pa->dietime : pind->cache->endframe;
+
+		if(get_pointcache_times_for_particle(pind->cache, pa - psys->particles, &start, &end)) {
+			pind->birthtime = MAX2(pind->birthtime, start);
+			pind->dietime = MIN2(pind->dietime, end);
+		}
 	}
 	else {
 		HairKey *key = pa->hair;
@@ -1136,6 +1188,9 @@ static void do_particle_interpolation(ParticleSystem *psys, int p, ParticleData 
 	ParticleKey keys[4];
 	int point_vel = (point && point->keys->vel);
 	float real_t, dfra, keytime;
+
+	/* billboards wont fill in all of these, so start cleared */
+	memset(keys, 0, sizeof(keys));
 
 	/* interpret timing and find keys */
 	if(point) {
@@ -1221,7 +1276,7 @@ static void do_particle_interpolation(ParticleSystem *psys, int p, ParticleData 
 		memcpy(keys + 2, pind->kkey[1], sizeof(ParticleKey));
 	}
 	else if(pind->cache) {
-		get_pointcache_keys_for_time(NULL, pind->cache, p, real_t, keys+1, keys+2);
+		get_pointcache_keys_for_time(NULL, pind->cache, &pind->pm, p, real_t, keys+1, keys+2);
 	}
 	else {
 		hair_to_particle(keys + 1, pind->hkey[0]);
@@ -1867,8 +1922,7 @@ static void do_prekink(ParticleKey *state, ParticleKey *par, float *par_rot, flo
 				mul_qt_v3(q2,z_vec);
 				
 				VECSUB(vec_from_par,state->co,par->co);
-				VECCOPY(vec_one,vec_from_par);
-				radius=normalize_v3(vec_one);
+				radius= normalize_v3_v3(vec_one, vec_from_par);
 
 				inp_y=dot_v3v3(y_vec,vec_one);
 				inp_z=dot_v3v3(z_vec,vec_one);
@@ -1985,7 +2039,7 @@ int do_guides(ListBase *effectors, ParticleKey *state, int index, float time)
 
 	float effect[3] = {0.0f, 0.0f, 0.0f}, veffect[3] = {0.0f, 0.0f, 0.0f};
 	float guidevec[4], guidedir[3], rot2[4], temp[3];
-	float guidetime, radius, angle, totstrength = 0.0f;
+	float guidetime, radius, weight, angle, totstrength = 0.0f;
 	float vec_to_point[3];
 
 	if(effectors) for(eff = effectors->first; eff; eff=eff->next) {
@@ -2007,11 +2061,11 @@ int do_guides(ListBase *effectors, ParticleKey *state, int index, float time)
 		cu = (Curve*)eff->ob->data;
 
 		if(pd->flag & PFIELD_GUIDE_PATH_ADD) {
-			if(where_on_path(eff->ob, data->strength * guidetime, guidevec, guidedir, NULL, &radius)==0)
+			if(where_on_path(eff->ob, data->strength * guidetime, guidevec, guidedir, NULL, &radius, &weight)==0)
 				return 0;
 		}
 		else {
-			if(where_on_path(eff->ob, guidetime, guidevec, guidedir, NULL, &radius)==0)
+			if(where_on_path(eff->ob, guidetime, guidevec, guidedir, NULL, &radius, &weight)==0)
 				return 0;
 		}
 
@@ -2051,10 +2105,14 @@ int do_guides(ListBase *effectors, ParticleKey *state, int index, float time)
 		VECCOPY(vec_to_point, key.co);
 
 		VECADD(vec_to_point, vec_to_point, guidevec);
+
 		//VECSUB(pa_loc,pa_loc,pa_zero);
 		VECADDFAC(effect, effect, vec_to_point, data->strength);
 		VECADDFAC(veffect, veffect, guidedir, data->strength);
 		totstrength += data->strength;
+
+		if(pd->flag & PFIELD_GUIDE_PATH_WEIGHT)
+			totstrength *= weight;
 	}
 
 	if(totstrength != 0.0){
@@ -2122,7 +2180,7 @@ static void do_path_effectors(ParticleSimulationData *sim, int i, ParticleCacheK
 
 	mul_v3_fl(force, effector*pow((float)k / (float)steps, 100.0f * sim->psys->part->eff_hair) / (float)steps);
 
-	add_v3_v3v3(force, force, vec);
+	add_v3_v3(force, vec);
 
 	normalize_v3(force);
 
@@ -2731,12 +2789,12 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	int steps = (int)pow(2.0, (double)(psys->renderdata ? part->ren_step : part->draw_step));
 	int totpart = psys->totpart;
 	float length, vec[3];
-	float *vg_effector= NULL, effector=0.0f;
+	float *vg_effector= NULL;
 	float *vg_length= NULL, pa_length=1.0f;
 	int keyed, baked;
 
 	/* we don't have anything valid to create paths from so let's quit here */
-	if((psys->flag & PSYS_HAIR_DONE || psys->flag & PSYS_KEYED || psys->pointcache->flag & PTCACHE_BAKED)==0)
+	if((psys->flag & PSYS_HAIR_DONE || psys->flag & PSYS_KEYED || psys->pointcache)==0)
 		return;
 
 	if(psys_in_edit_mode(sim->scene, psys))
@@ -2746,7 +2804,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	BLI_srandom(psys->seed);
 
 	keyed = psys->flag & PSYS_KEYED;
-	baked = !hair_dm && psys->pointcache->flag & PTCACHE_BAKED;
+	baked = !hair_dm && psys->pointcache->mem_cache.first;
 
 	/* clear out old and create new empty path cache */
 	psys_free_path_cache(psys, psys->edit);
@@ -2833,85 +2891,83 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 		
 		/*--modify paths and calculate rotation & velocity--*/
 
-		sub_v3_v3v3(vec,(cache[p]+1)->co,cache[p]->co);
-		length = len_v3(vec);
-
-		effector= 1.0f;
-		if(vg_effector)
-			effector*= psys_particle_value_from_verts(psmd->dm,psys->part->from,pa,vg_effector);
-
-		for(k=0, ca=cache[p]; k<=steps; k++, ca++) {
-			if(!(psys->flag & PSYS_GLOBAL_HAIR)) {
+		if(!(psys->flag & PSYS_GLOBAL_HAIR)) {
 			/* apply effectors */
-				if(!(psys->part->flag & PART_CHILD_EFFECT) && k)
-					do_path_effectors(sim, p, ca, k, steps, cache[p]->co, effector, dfra, cfra, &length, vec);
+			if((psys->part->flag & PART_CHILD_EFFECT) == 0) {
+				float effector= 1.0f;
+				if(vg_effector)
+					effector*= psys_particle_value_from_verts(psmd->dm,psys->part->from,pa,vg_effector);
 
-				/* apply guide curves to path data */
-				if(sim->psys->effectors && (psys->part->flag & PART_CHILD_EFFECT)==0)
+				sub_v3_v3v3(vec,(cache[p]+1)->co,cache[p]->co);
+				length = len_v3(vec);
+
+				for(k=1, ca=cache[p]+1; k<=steps; k++, ca++)
+					do_path_effectors(sim, p, ca, k, steps, cache[p]->co, effector, dfra, cfra, &length, vec);
+			}
+
+			/* apply guide curves to path data */
+			if(sim->psys->effectors && (psys->part->flag & PART_CHILD_EFFECT)==0) {
+				for(k=0, ca=cache[p]; k<=steps; k++, ca++)
 					/* ca is safe to cast, since only co and vel are used */
 					do_guides(sim->psys->effectors, (ParticleKey*)ca, p, (float)k/(float)steps);
+			}
 
-				/* apply lattice */
-				if(psys->lattice)
+			/* lattices have to be calculated separately to avoid mixups between effector calculations */
+			if(psys->lattice) {
+				for(k=0, ca=cache[p]; k<=steps; k++, ca++)
 					calc_latt_deform(psys->lattice, ca->co, 1.0f);
+			}
+		}
 
-				/* figure out rotation */
-				
-				if(k) {
-					float cosangle, angle, tangent[3], normal[3], q[4];
+		/* finally do rotation & velocity */
+		for(k=1, ca=cache[p]+1; k<=steps; k++, ca++) {
+			/* figure out rotation */
+			float cosangle, angle, tangent[3], normal[3], q[4];
 
-					if(k == 1) {
-						/* calculate initial tangent for incremental rotations */
-						VECSUB(tangent, ca->co, (ca - 1)->co);
-						VECCOPY(prev_tangent, tangent);
-						normalize_v3(prev_tangent);
+			if(k == 1) {
+				/* calculate initial tangent for incremental rotations */
+				VECSUB(tangent, ca->co, (ca - 1)->co);
+				normalize_v3_v3(prev_tangent, tangent);
 
-						/* First rotation is based on emitting face orientation.		*/
-						/* This is way better than having flipping rotations resulting	*/
-						/* from using a global axis as a rotation pole (vec_to_quat()). */
-						/* It's not an ideal solution though since it disregards the	*/
-						/* initial tangent, but taking that in to account will allow	*/
-						/* the possibility of flipping again. -jahka					*/
-						mat3_to_quat_is_ok( (ca-1)->rot,rotmat);
-					}
-					else {
-						VECSUB(tangent, ca->co, (ca - 1)->co);
-						normalize_v3(tangent);
+				/* First rotation is based on emitting face orientation.		*/
+				/* This is way better than having flipping rotations resulting	*/
+				/* from using a global axis as a rotation pole (vec_to_quat()). */
+				/* It's not an ideal solution though since it disregards the	*/
+				/* initial tangent, but taking that in to account will allow	*/
+				/* the possibility of flipping again. -jahka					*/
+				mat3_to_quat_is_ok( (ca-1)->rot,rotmat);
+			}
+			else {
+				VECSUB(tangent, ca->co, (ca - 1)->co);
+				normalize_v3(tangent);
 
-						cosangle= dot_v3v3(tangent, prev_tangent);
+				cosangle= dot_v3v3(tangent, prev_tangent);
 
-						/* note we do the comparison on cosangle instead of
-						* angle, since floating point accuracy makes it give
-						* different results across platforms */
-						if(cosangle > 0.999999f) {
-							QUATCOPY((ca - 1)->rot, (ca - 2)->rot);
-						}
-						else {
-							angle= saacos(cosangle);
-							cross_v3_v3v3(normal, prev_tangent, tangent);
-							axis_angle_to_quat( q,normal, angle);
-							mul_qt_qtqt((ca - 1)->rot, q, (ca - 2)->rot);
-						}
-
-						VECCOPY(prev_tangent, tangent);
-					}
-
-					if(k == steps)
-						QUATCOPY(ca->rot, (ca - 1)->rot);
+				/* note we do the comparison on cosangle instead of
+				* angle, since floating point accuracy makes it give
+				* different results across platforms */
+				if(cosangle > 0.999999f) {
+					QUATCOPY((ca - 1)->rot, (ca - 2)->rot);
+				}
+				else {
+					angle= saacos(cosangle);
+					cross_v3_v3v3(normal, prev_tangent, tangent);
+					axis_angle_to_quat( q,normal, angle);
+					mul_qt_qtqt((ca - 1)->rot, q, (ca - 2)->rot);
 				}
 
+				VECCOPY(prev_tangent, tangent);
 			}
+
+			if(k == steps)
+				QUATCOPY(ca->rot, (ca - 1)->rot);
 			
+
 			/* set velocity */
+			VECSUB(ca->vel, ca->co, (ca-1)->co);
 
-			if(k){
-				VECSUB(ca->vel, ca->co, (ca-1)->co);
-
-				if(k==1) {
-					VECCOPY((ca-1)->vel, ca->vel);
-				}
-
-			}
+			if(k==1)
+				VECCOPY((ca-1)->vel, ca->vel);
 		}
 	}
 
@@ -2946,7 +3002,7 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 	float birthtime = 0.0, dietime = 0.0;
 	float t, time = 0.0, keytime = 0.0, frs_sec;
 	float hairmat[4][4], rotmat[3][3], prev_tangent[3];
-	int k,i;
+	int k, i;
 	int steps = (int)pow(2.0, (double)pset->draw_step);
 	int totpart = edit->totpoint, recalc_set=0;
 	float sel_col[3];
@@ -3047,8 +3103,7 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 					if(k == 1) {
 						/* calculate initial tangent for incremental rotations */
 						VECSUB(tangent, ca->co, (ca - 1)->co);
-						VECCOPY(prev_tangent, tangent);
-						normalize_v3(prev_tangent);
+						normalize_v3_v3(prev_tangent, tangent);
 
 						/* First rotation is based on emitting face orientation.		*/
 						/* This is way better than having flipping rotations resulting	*/
@@ -3093,17 +3148,26 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 
 			/* selection coloring in edit mode */
 			if(pset->brushtype==PE_BRUSH_WEIGHT){
-				if(k==0)
+				float t2;
+
+				if(k==0) {
 					weight_to_rgb(pind.hkey[1]->weight, ca->col, ca->col+1, ca->col+2);
-				else if(k >= steps - 1)
-					weight_to_rgb(pind.hkey[0]->weight, ca->col, ca->col+1, ca->col+2);
-				else
-					weight_to_rgb((1.0f - keytime) * pind.hkey[0]->weight + keytime * pind.hkey[1]->weight, ca->col, ca->col+1, ca->col+2);
+				} else {
+					float w1[3], w2[3];
+					keytime = (t - (*pind.ekey[0]->time))/((*pind.ekey[1]->time) - (*pind.ekey[0]->time));
+
+					weight_to_rgb(pind.hkey[0]->weight, w1, w1+1, w1+2);
+					weight_to_rgb(pind.hkey[1]->weight, w2, w2+1, w2+2);
+
+					interp_v3_v3v3(ca->col, w1, w2, keytime);
+				}
 
 				/* at the moment this is only used for weight painting.
 				 * will need to move out of this check if its used elsewhere. */
-				pind.hkey[0] = pind.hkey[1];
-				pind.hkey[1]++;
+				t2 = birthtime + ((float)(k+1)/(float)steps) * (dietime - birthtime);
+
+				while (pind.hkey[1]->time < t2) pind.hkey[1]++;
+				pind.hkey[0] = pind.hkey[1] - 1;
 			}
 			else {
 				if((ekey + (pind.ekey[0] - point->keys))->flag & PEK_SELECT){
@@ -3132,7 +3196,7 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 
 	edit->totcached = totpart;
 
-	if(psys && psys->part->type == PART_HAIR) {
+	if(psys) {
 		ParticleSimulationData sim = {scene, ob, psys, psys_get_modifier(ob, psys), NULL};
 		psys_cache_child_paths(&sim, cfra, 1);
 	}
@@ -3331,7 +3395,7 @@ ModifierData *object_add_particle_system(Scene *scene, Object *ob, char *name)
 	psys->flag = PSYS_ENABLED|PSYS_CURRENT;
 	psys->cfra=bsystem_time(scene,ob,scene->r.cfra+1,0.0);
 
-	DAG_scene_sort(scene);
+	DAG_scene_sort(G.main, scene);
 	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
 
 	return md;
@@ -3368,7 +3432,7 @@ void object_remove_particle_system(Scene *scene, Object *ob)
 	else
 		ob->mode &= ~OB_MODE_PARTICLE_EDIT;
 
-	DAG_scene_sort(scene);
+	DAG_scene_sort(G.main, scene);
 	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
 }
 static void default_particle_settings(ParticleSettings *part)
@@ -3471,6 +3535,7 @@ ParticleSettings *psys_copy_settings(ParticleSettings *part)
 	partn= copy_libblock(part);
 	if(partn->pd) partn->pd= MEM_dupallocN(part->pd);
 	if(partn->pd2) partn->pd2= MEM_dupallocN(part->pd2);
+	partn->effector_weights = MEM_dupallocN(part->effector_weights);
 
 	partn->boids = boid_copy_settings(part->boids);
 	
@@ -4191,8 +4256,13 @@ void psys_get_dupli_texture(Object *ob, ParticleSettings *part, ParticleSystemMo
 			num= pa->num_dmcache;
 
 			if(num == DMCACHE_NOTFOUND)
-				if(pa->num < psmd->dm->getNumFaces(psmd->dm))
-					num= pa->num;
+				num= pa->num;
+
+			if (num >= psmd->dm->getNumFaces(psmd->dm)) {
+				/* happens when simplify is enabled
+				 * gives invalid coords but would crash otherwise */
+				num= DMCACHE_NOTFOUND;
+			}
 
 			if(mtface && num != DMCACHE_NOTFOUND) {
 				mface= psmd->dm->getFaceData(psmd->dm, num, CD_MFACE);
@@ -4215,18 +4285,11 @@ void psys_get_dupli_path_transform(ParticleSimulationData *sim, ParticleData *pa
 	ParticleSystem *psys = sim->psys;
 	ParticleSystemModifierData *psmd = sim->psmd;
 	float loc[3], nor[3], vec[3], side[3], len, obrotmat[4][4], qmat[4][4];
-	float xvec[3] = {-1.0, 0.0, 0.0}, q[4];
+	float xvec[3] = {-1.0, 0.0, 0.0}, q[4], nmat[3][3];
 
 	sub_v3_v3v3(vec, (cache+cache->steps-1)->co, cache->co);
 	len= normalize_v3(vec);
 
-	if(pa)
-		psys_particle_on_emitter(psmd,sim->psys->part->from,pa->num,pa->num_dmcache,pa->fuv,pa->foffset,loc,nor,0,0,0,0);
-	else
-		psys_particle_on_emitter(psmd,
-			(psys->part->childtype == PART_CHILD_FACES)? PART_FROM_FACE: PART_FROM_PARTICLE,
-			cpa->num,DMCACHE_ISCHILD,cpa->fuv,cpa->foffset,loc,nor,0,0,0,0);
-	
 	if(psys->part->rotmode) {
 		if(!pa)
 			pa= psys->particles+cpa->pa[0];
@@ -4239,6 +4302,17 @@ void psys_get_dupli_path_transform(ParticleSimulationData *sim, ParticleData *pa
 		mul_m4_m4m4(mat, obrotmat, qmat);
 	}
 	else {
+		if(pa)
+			psys_particle_on_emitter(psmd,sim->psys->part->from,pa->num,pa->num_dmcache,pa->fuv,pa->foffset,loc,nor,0,0,0,0);
+		else
+			psys_particle_on_emitter(psmd,
+				(psys->part->childtype == PART_CHILD_FACES)? PART_FROM_FACE: PART_FROM_PARTICLE,
+				cpa->num,DMCACHE_ISCHILD,cpa->fuv,cpa->foffset,loc,nor,0,0,0,0);
+		
+		copy_m3_m4(nmat, ob->imat);
+		transpose_m3(nmat);
+		mul_m3_v3(nmat, nor);
+
 		/* make sure that we get a proper side vector */
 		if(fabs(dot_v3v3(nor,vec))>0.999999) {
 			if(fabs(dot_v3v3(nor,xvec))>0.999999) {
@@ -4272,24 +4346,35 @@ void psys_make_billboard(ParticleBillboardData *bb, float xvec[3], float yvec[3]
 	xvec[0] = 1.0f; xvec[1] = 0.0f; xvec[2] = 0.0f;
 	yvec[0] = 0.0f; yvec[1] = 1.0f; yvec[2] = 0.0f;
 
+    /* can happen with bad pointcache or physics calculation
+     * since this becomes geometry, nan's and inf's crash raytrace code.
+     * better not allow this. */
+    if( !finite(bb->vec[0]) || !finite(bb->vec[1]) || !finite(bb->vec[2]) ||
+        !finite(bb->vel[0]) || !finite(bb->vel[1]) || !finite(bb->vel[2]) )
+    {
+        zero_v3(bb->vec);
+        zero_v3(bb->vel);
+        
+        zero_v3(xvec);
+        zero_v3(yvec);
+        zero_v3(zvec);
+        zero_v3(center);
+
+        return;
+    }
+
 	if(bb->align < PART_BB_VIEW)
 		onevec[bb->align]=1.0f;
 
 	if(bb->lock && (bb->align == PART_BB_VIEW)) {
-		VECCOPY(xvec, bb->ob->obmat[0]);
-		normalize_v3(xvec);
-
-		VECCOPY(yvec, bb->ob->obmat[1]);
-		normalize_v3(yvec);
-
-		VECCOPY(zvec, bb->ob->obmat[2]);
-		normalize_v3(zvec);
+		normalize_v3_v3(xvec, bb->ob->obmat[0]);
+		normalize_v3_v3(yvec, bb->ob->obmat[1]);
+		normalize_v3_v3(zvec, bb->ob->obmat[2]);
 	}
 	else if(bb->align == PART_BB_VEL) {
 		float temp[3];
 
-		VECCOPY(temp, bb->vel);
-		normalize_v3(temp);
+		normalize_v3_v3(temp, bb->vel);
 
 		VECSUB(zvec, bb->ob->obmat[3], bb->vec);
 

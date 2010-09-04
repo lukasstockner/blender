@@ -102,8 +102,11 @@ typedef struct bAnimListElem {
 	int		flag;			/* copy of elem's flags for quick access */
 	int 	index;			/* for un-named data, the index of the data in it's collection */
 	
-	void	*key_data;		/* motion data - mostly F-Curves, but can be other types too */
+	short	elemFlag;		/* flags for the list elem instance (not the data it represents) */
+	
 	short	datatype;		/* type of motion data to expect */
+	void	*key_data;		/* motion data - mostly F-Curves, but can be other types too */
+	
 	
 	struct ID *id;			/* ID block that channel is attached to */
 	struct AnimData *adt; 	/* source of the animation data attached to ID block (for convenience) */
@@ -192,6 +195,7 @@ typedef enum eAnimFilter_Flags {
 	ANIMFILTER_ANIMDATA		= (1<<9),	/* only return the underlying AnimData blocks (not the tracks, etc.) data comes from */
 	ANIMFILTER_NLATRACKS	= (1<<10),	/* only include NLA-tracks */
 	ANIMFILTER_SELEDIT		= (1<<11),	/* link editability with selected status */
+	ANIMFILTER_NODUPLIS		= (1<<12),	/* duplicate entries for animation data attached to multi-user blocks must not occur */
 	
 	/* all filters - the power inside the bracket must be the last power for left-shifts + 1 */
 	ANIMFILTER_ALLFILTERS	= ((1<<12) - 1)

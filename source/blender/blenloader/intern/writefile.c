@@ -62,15 +62,12 @@ Any case: direct data is ALWAYS after the lib block
 	- write library block
 	- per LibBlock
 		- write the ID of LibBlock
+- write TEST (128x128, blend file preview, optional)
 - write FileGlobal (some global vars)
 - write SDNA
-- write USER if filename is ~/.B.blend
+- write USER if filename is ~/X.XX/config/startup.blend
 */
 
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
 #include <math.h>
 #include <fcntl.h>
@@ -91,38 +88,26 @@ Any case: direct data is ALWAYS after the lib block
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_action_types.h"
 #include "DNA_actuator_types.h"
-#include "DNA_boid_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_cloth_types.h"
-#include "DNA_color_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_controller_types.h"
-#include "DNA_curve_types.h"
-#include "DNA_customdata_types.h"
-#include "DNA_effect_types.h"
 #include "DNA_genfile.h"
 #include "DNA_group_types.h"
 #include "DNA_gpencil_types.h"
-#include "DNA_image_types.h"
-#include "DNA_ipo_types.h"	// XXX depreceated - animsys
 #include "DNA_fileglobal_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
-#include "DNA_listBase.h" /* for Listbase, the type of samples, ...*/
 #include "DNA_lamp_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_material_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_nla_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_object_force.h"
-#include "DNA_outliner_types.h"
 #include "DNA_packedFile_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_property_types.h"
@@ -134,11 +119,9 @@ Any case: direct data is ALWAYS after the lib block
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sound_types.h"
-#include "DNA_texture_types.h"
 #include "DNA_text_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_vfont_types.h"
-#include "DNA_userdef_types.h"
 #include "DNA_world_types.h"
 #include "DNA_windowmanager_types.h"
 
@@ -149,23 +132,16 @@ Any case: direct data is ALWAYS after the lib block
 
 #include "BKE_action.h"
 #include "BKE_blender.h"
-#include "BKE_cloth.h"
 #include "BKE_curve.h"
-#include "BKE_customdata.h"
 #include "BKE_constraint.h"
 #include "BKE_global.h" // for G
 #include "BKE_library.h" // for  set_listbasepointers
 #include "BKE_main.h"
 #include "BKE_node.h"
-#include "BKE_packedFile.h" // for packAll
-#include "BKE_pointcache.h"
 #include "BKE_report.h"
-#include "BKE_screen.h" // for waitcursor
 #include "BKE_sequencer.h"
-#include "BKE_sound.h" /* ... and for samples */
 #include "BKE_utildefines.h" // for defines
 #include "BKE_modifier.h"
-#include "BKE_idprop.h"
 #include "BKE_fcurve.h"
 
 #include "BLO_writefile.h"
@@ -1235,10 +1211,10 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 			MeshDeformModifierData *mmd = (MeshDeformModifierData*) md;
 			int size = mmd->dyngridsize;
 
-			writedata(wd, DATA, sizeof(float)*mmd->totvert*mmd->totcagevert,
-				mmd->bindweights);
+			writestruct(wd, DATA, "MDefInfluence", mmd->totinfluence, mmd->bindinfluences);
+			writedata(wd, DATA, sizeof(int)*(mmd->totvert+1), mmd->bindoffsets);
 			writedata(wd, DATA, sizeof(float)*3*mmd->totcagevert,
-				mmd->bindcos);
+				mmd->bindcagecos);
 			writestruct(wd, DATA, "MDefCell", size*size*size, mmd->dyngrid);
 			writestruct(wd, DATA, "MDefInfluence", mmd->totinfluence, mmd->dyninfluences);
 			writedata(wd, DATA, sizeof(int)*mmd->totvert, mmd->dynverts);
@@ -1270,6 +1246,14 @@ static void write_objects(WriteData *wd, ListBase *idbase)
 			write_sensors(wd, &ob->sensors);
 			write_controllers(wd, &ob->controllers);
 			write_actuators(wd, &ob->actuators);
+
+			if (ob->type == OB_ARMATURE) {
+				bArmature *arm = ob->data;
+				if (arm && ob->pose && arm->act_bone) {
+					strcpy(ob->pose->proxy_act_bone, arm->act_bone->name);
+				}
+			}
+
 			write_pose(wd, ob->pose);
 			write_defgroups(wd, &ob->defbase);
 			write_constraints(wd, &ob->constraints);
@@ -1418,7 +1402,7 @@ static void write_curves(WriteData *wd, ListBase *idbase)
 			
 			if(cu->vfont) {
 				writedata(wd, DATA, amount_of_chars(cu->str)+1, cu->str);
-				writestruct(wd, DATA, "CharInfo", cu->len, cu->strinfo);
+				writestruct(wd, DATA, "CharInfo", cu->len+1, cu->strinfo);
 				writestruct(wd, DATA, "TextBox", cu->totbox, cu->tb);				
 			}
 			else {
@@ -1533,6 +1517,7 @@ static void write_meshs(WriteData *wd, ListBase *idbase)
 
 			/* direct data */
 			if (mesh->id.properties) IDP_WriteProperty(mesh->id.properties, wd);
+			if (mesh->adt) write_animdata(wd, mesh->adt);
 
 			writedata(wd, DATA, sizeof(void *)*mesh->totcol, mesh->mat);
 
@@ -1764,11 +1749,6 @@ static void write_lamps(WriteData *wd, ListBase *idbase)
 	}
 }
 
-static void write_paint(WriteData *wd, Paint *p)
-{
-	if(p && p->brushes)
-		writedata(wd, DATA, p->brush_count * sizeof(Brush*), p->brushes);
-}
 
 static void write_scenes(WriteData *wd, ListBase *scebase)
 {
@@ -1803,18 +1783,15 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 		writestruct(wd, DATA, "ToolSettings", 1, tos);
 		if(tos->vpaint) {
 			writestruct(wd, DATA, "VPaint", 1, tos->vpaint);
-			write_paint(wd, &tos->vpaint->paint);
 		}
 		if(tos->wpaint) {
 			writestruct(wd, DATA, "VPaint", 1, tos->wpaint);
-			write_paint(wd, &tos->wpaint->paint);
 		}
 		if(tos->sculpt) {
 			writestruct(wd, DATA, "Sculpt", 1, tos->sculpt);
-			write_paint(wd, &tos->sculpt->paint);
 		}
 
-		write_paint(wd, &tos->imapaint.paint);
+		// write_paint(wd, &tos->imapaint.paint);
 
 		ed= sce->ed;
 		if(ed) {
@@ -2112,7 +2089,15 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 					writestruct(wd, DATA, "SpaceLogic", 1, sl);
 				}
 				else if(sl->spacetype==SPACE_CONSOLE) {
+					SpaceConsole *con = (SpaceConsole*)sl;
+					ConsoleLine *cl;
+
+					for (cl=con->history.first; cl; cl=cl->next) {
+						writestruct(wd, DATA, "ConsoleLine", 1, cl);
+						writedata(wd, DATA, cl->len+1, cl->line);
+					}
 					writestruct(wd, DATA, "SpaceConsole", 1, sl);
+
 				}
 				else if(sl->spacetype==SPACE_USERPREF) {
 					writestruct(wd, DATA, "SpaceUserPref", 1, sl);
@@ -2378,9 +2363,19 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
 	writestruct(wd, GLOB, "FileGlobal", 1, &fg);
 }
 
+/* preview image, first 2 values are width and height
+ * second are an RGBA image (unsigned char)
+ * note, this uses 'TEST' since new types will segfault on file load for older blender versions.
+ */
+static void write_thumb(WriteData *wd, int *img)
+{
+	if(img)
+		writedata(wd, TEST, (2 + img[0] * img[1]) * sizeof(int), img);
+}
+
 /* if MemFile * there's filesave to memory */
 static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFile *current, 
-							 int write_user_block, int write_flags)
+							 int write_user_block, int write_flags, int *thumb)
 {
 	BHead bhead;
 	ListBase mainlist;
@@ -2395,6 +2390,7 @@ static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFil
 	mywrite(wd, buf, 12);
 
 	write_renderinfo(wd, mainvar);
+	write_thumb(wd, thumb);
 	write_global(wd, write_flags, mainvar);
 
 	/* no UI save in undo */
@@ -2446,7 +2442,7 @@ static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFil
 }
 
 /* return: success (1) */
-int BLO_write_file(Main *mainvar, char *dir, int write_flags, ReportList *reports)
+int BLO_write_file(Main *mainvar, char *dir, int write_flags, ReportList *reports, int *thumb)
 {
 	char userfilename[FILE_MAXDIR+FILE_MAXFILE];
 	char tempname[FILE_MAXDIR+FILE_MAXFILE+1];
@@ -2457,7 +2453,7 @@ int BLO_write_file(Main *mainvar, char *dir, int write_flags, ReportList *report
 
 	file = open(tempname,O_BINARY+O_WRONLY+O_CREAT+O_TRUNC, 0666);
 	if(file == -1) {
-		BKE_report(reports, RPT_ERROR, "Unable to open file for writing.");
+		BKE_reportf(reports, RPT_ERROR, "Can't open file %s for writing: %s.", tempname, strerror(errno));
 		return 0;
 	}
 
@@ -2478,14 +2474,14 @@ int BLO_write_file(Main *mainvar, char *dir, int write_flags, ReportList *report
 			makeFilesAbsolute(G.sce, NULL);
 	}
 
-	BLI_make_file_string(G.sce, userfilename, BLI_gethome(), ".B25.blend");
+	BLI_make_file_string(G.sce, userfilename, BLI_get_folder_create(BLENDER_USER_CONFIG, NULL), BLENDER_STARTUP_FILE);
 	write_user_block= BLI_streq(dir, userfilename);
 
 	if(write_flags & G_FILE_RELATIVE_REMAP)
 		makeFilesRelative(dir, NULL); /* note, making relative to something OTHER then G.sce */
 
 	/* actual file writing */
-	err= write_file_handle(mainvar, file, NULL,NULL, write_user_block, write_flags);
+	err= write_file_handle(mainvar, file, NULL,NULL, write_user_block, write_flags, thumb);
 	close(file);
 
 	/* rename/compress */
@@ -2538,7 +2534,7 @@ int BLO_write_file_mem(Main *mainvar, MemFile *compare, MemFile *current, int wr
 {
 	int err;
 
-	err= write_file_handle(mainvar, 0, compare, current, 0, write_flags);
+	err= write_file_handle(mainvar, 0, compare, current, 0, write_flags, NULL);
 	
 	if(err==0) return 1;
 	return 0;
@@ -2634,7 +2630,7 @@ int BLO_write_runtime(Main *mainvar, char *file, char *exename, ReportList *repo
 	outfd= open(gamename, O_BINARY|O_WRONLY|O_CREAT|O_TRUNC, 0777);
 	if (outfd != -1) {
 
-		write_file_handle(mainvar, outfd, NULL,NULL, 0, G.fileflags);
+		write_file_handle(mainvar, outfd, NULL,NULL, 0, G.fileflags, NULL);
 
 		if (write(outfd, " ", 1) != 1) {
 			BKE_report(reports, RPT_ERROR, "Unable to write to output file.");
@@ -2720,7 +2716,7 @@ int BLO_write_runtime(Main *mainvar, char *file, char *exename, ReportList *repo
 
 	datastart= lseek(outfd, 0, SEEK_CUR);
 
-	write_file_handle(mainvar, outfd, NULL,NULL, 0, G.fileflags);
+	write_file_handle(mainvar, outfd, NULL,NULL, 0, G.fileflags, NULL);
 
 	if (!handle_write_msb_int(outfd, datastart) || (write(outfd, "BRUNTIME", 8)!=8)) {
 		BKE_report(reports, RPT_ERROR, "Unable to write to output file.");

@@ -40,7 +40,6 @@
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_screen.h"
-#include "BKE_utildefines.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -48,6 +47,7 @@
 
 #include "ED_screen.h"
 #include "ED_screen_types.h"
+#include "ED_space_api.h"
 #include "ED_types.h"
 #include "ED_fileselect.h" 
 
@@ -58,10 +58,6 @@
 #include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
-
-#ifndef DISABLE_PYTHON
-#include "BPY_extern.h"
-#endif
 
 #include "screen_intern.h"
 
@@ -121,16 +117,10 @@ void ED_region_do_listen(ARegion *ar, wmNotifier *note)
 		case NC_WINDOW:
 			ED_region_tag_redraw(ar);
 			break;
-#ifndef WM_FAST_DRAW
-		case NC_SCREEN:
-			if(note->action==NA_EDITED)
-				ED_region_tag_redraw(ar);
-			/* pass on */
-#endif
-		default:
-			if(ar->type && ar->type->listener)
-				ar->type->listener(ar, note);
 	}
+
+	if(ar->type && ar->type->listener)
+		ar->type->listener(ar, note);
 }
 
 /* only exported for WM */
@@ -181,14 +171,18 @@ static void area_draw_azone(short x1, short y1, short x2, short y2)
 	float dx= 0.3f*(xmax-xmin);
 	float dy= 0.3f*(ymax-ymin);
 	
-	glColor4ub(255, 255, 255, 80);
+	glColor4ub(255, 255, 255, 180);
 	fdrawline(xmin, ymax, xmax, ymin);
+	glColor4ub(255, 255, 255, 130);
 	fdrawline(xmin, ymax-dy, xmax-dx, ymin);
+	glColor4ub(255, 255, 255, 80);
 	fdrawline(xmin, ymax-2*dy, xmax-2*dx, ymin);
 	
-	glColor4ub(0, 0, 0, 150);
+	glColor4ub(0, 0, 0, 210);
 	fdrawline(xmin, ymax+1, xmax+1, ymin);
+	glColor4ub(0, 0, 0, 180);
 	fdrawline(xmin, ymax-dy+1, xmax-dx+1, ymin);
+	glColor4ub(0, 0, 0, 150);
 	fdrawline(xmin, ymax-2*dy+1, xmax-2*dx+1, ymin);
 }
 
@@ -340,9 +334,7 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 	
 	/* optional header info instead? */
 	if(ar->headerstr) {
-		float col[3];
-		UI_GetThemeColor3fv(TH_HEADER, col);
-		glClearColor(col[0], col[1], col[2], 0.0);
+		UI_ThemeClearColor(TH_HEADER);
 		glClear(GL_COLOR_BUFFER_BIT);
 		
 		UI_ThemeColor(TH_TEXT);
@@ -351,6 +343,8 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 	else if(at->draw) {
 		at->draw(C, ar);
 	}
+
+	ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_PIXEL);
 	
 	uiFreeInactiveBlocks(C, &ar->uiblocks);
 	
@@ -376,6 +370,12 @@ void ED_region_tag_redraw(ARegion *ar)
 		ar->do_draw= RGN_DRAW;
 		memset(&ar->drawrct, 0, sizeof(ar->drawrct));
 	}
+}
+
+void ED_region_tag_redraw_overlay(ARegion *ar)
+{
+	if(ar)
+		ar->do_draw_overlay= RGN_DRAW;
 }
 
 void ED_region_tag_redraw_partial(ARegion *ar, rcti *rct)
@@ -908,7 +908,7 @@ void ED_area_initialize(wmWindowManager *wm, wmWindow *win, ScrArea *sa)
 		if(ar->swinid) {
 			/* default region handlers */
 			ed_default_handlers(wm, &ar->handlers, ar->type->keymapflag);
-
+			/* own handlers */
 			if(ar->type->init)
 				ar->type->init(wm, ar);
 		}
@@ -956,6 +956,7 @@ void area_copy_data(ScrArea *sa1, ScrArea *sa2, int swap_space)
 {
 	SpaceType *st;
 	ARegion *ar;
+	int spacetype= sa1->spacetype;
 	
 	sa1->headertype= sa2->headertype;
 	sa1->spacetype= sa2->spacetype;
@@ -983,7 +984,7 @@ void area_copy_data(ScrArea *sa1, ScrArea *sa2, int swap_space)
 	}
 	else {
 		if(swap_space<2) {
-			st= BKE_spacetype_from_id(sa1->spacetype);
+			st= BKE_spacetype_from_id(spacetype);
 			for(ar= sa1->regionbase.first; ar; ar= ar->next)
 				BKE_area_region_free(st, ar);
 			BLI_freelistN(&sa1->regionbase);
@@ -1005,10 +1006,6 @@ void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2)
 
 	ED_area_exit(C, sa1);
 	ED_area_exit(C, sa2);
-
-	tmp->spacetype= sa1->spacetype;
-	tmp->butspacetype= sa1->butspacetype;
-	BKE_spacedata_copyfirst(&tmp->spacedata, &sa1->spacedata);
 
 	area_copy_data(tmp, sa1, 2);
 	area_copy_data(sa1, sa2, 0);
@@ -1228,7 +1225,6 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, char *contex
 	Panel *panel;
 	View2D *v2d= &ar->v2d;
 	View2DScrollers *scrollers;
-	float col[3];
 	int xco, yco, x, y, miny=0, w, em, header, triangle, open, newcontext= 0;
 
 	if(contextnr >= 0)
@@ -1334,14 +1330,9 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, char *contex
 	}
 
 	/* clear */
-	if (ar->type->regionid == RGN_TYPE_PREVIEW)
-		UI_GetThemeColor3fv(TH_PREVIEW_BACK, col);
-	else
-		UI_GetThemeColor3fv(TH_BACK, col);
-	
-	glClearColor(col[0], col[1], col[2], 0.0);
+	UI_ThemeClearColor((ar->type->regionid == RGN_TYPE_PREVIEW)?TH_PREVIEW_BACK:TH_BACK);
 	glClear(GL_COLOR_BUFFER_BIT);
-
+	
 	/* before setting the view */
 	if(vertical) {
 		/* only allow scrolling in vertical direction */
@@ -1418,16 +1409,10 @@ void ED_region_header(const bContext *C, ARegion *ar)
 	uiLayout *layout;
 	HeaderType *ht;
 	Header header = {0};
-	float col[3];
 	int maxco, xco, yco;
 
-	/* clear */
-	if(ED_screen_area_active(C))
-		UI_GetThemeColor3fv(TH_HEADER, col);
-	else
-		UI_GetThemeColor3fv(TH_HEADERDESEL, col);
-	
-	glClearColor(col[0], col[1], col[2], 0.0);
+	/* clear */	
+	UI_ThemeClearColor((ED_screen_area_active(C))?TH_HEADER:TH_HEADERDESEL);
 	glClear(GL_COLOR_BUFFER_BIT);
 	
 	/* set view2d view matrix for scrolling (without scrollers) */
@@ -1438,7 +1423,7 @@ void ED_region_header(const bContext *C, ARegion *ar)
 
 	/* draw all headers types */
 	for(ht= ar->type->headertypes.first; ht; ht= ht->next) {
-		block= uiBeginBlock(C, ar, "header buttons", UI_EMBOSS);
+		block= uiBeginBlock(C, ar, ht->idname, UI_EMBOSS);
 		layout= uiBlockLayout(block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, xco, yco, HEADERY-6, 1, style);
 
 		if(ht->draw) {

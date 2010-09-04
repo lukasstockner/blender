@@ -36,7 +36,6 @@
 
 #include "BLI_math.h"
 
-#include "DNA_image_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
@@ -45,7 +44,6 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_smoke_types.h"
-#include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
 
 #include "MEM_guardedalloc.h"
@@ -62,9 +60,13 @@
 #include "BKE_object.h"
 #include "BKE_utildefines.h"
 
+#include "BLI_threads.h"
+#include "BLI_blenlib.h"
+
+#include "GPU_buffers.h"
+#include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
-#include "GPU_draw.h"
 
 #include "smoke_API.h"
 
@@ -781,8 +783,45 @@ void GPU_create_smoke(SmokeModifierData *smd, int highres)
 	smd->domain->tex_shadow = GPU_texture_create_3D(smd->domain->res[0], smd->domain->res[1], smd->domain->res[2], smd->domain->shadow);
 }
 
+static ListBase image_free_queue = {NULL, NULL};
+
+static void gpu_queue_image_for_free(Image *ima)
+{
+    Image *cpy = MEM_dupallocN(ima);
+
+	BLI_lock_thread(LOCK_OPENGL);
+	BLI_addtail(&image_free_queue, cpy);
+	BLI_unlock_thread(LOCK_OPENGL);
+}
+
+void GPU_free_unused_buffers(void)
+{
+	Image *ima;
+
+	if(!BLI_thread_is_main())
+		return;
+
+	BLI_lock_thread(LOCK_OPENGL);
+
+	/* images */
+	for(ima=image_free_queue.first; ima; ima=ima->id.next)
+		GPU_free_image(ima);
+
+	BLI_freelistN(&image_free_queue);
+
+	/* vbo buffers */
+	GPU_buffer_pool_free_unused(0);
+
+	BLI_unlock_thread(LOCK_OPENGL);
+}
+
 void GPU_free_image(Image *ima)
 {
+	if(!BLI_thread_is_main()) {
+		gpu_queue_image_for_free(ima);
+		return;
+	}
+
 	/* free regular image binding */
 	if(ima->bindcode) {
 		glDeleteTextures(1, (GLuint *)&ima->bindcode);
@@ -813,6 +852,17 @@ void GPU_free_images(void)
 	if(G.main)
 		for(ima=G.main->image.first; ima; ima=ima->id.next)
 			GPU_free_image(ima);
+}
+
+/* same as above but only free animated images */
+void GPU_free_images_anim(void)
+{
+	Image* ima;
+
+	if(G.main)
+		for(ima=G.main->image.first; ima; ima=ima->id.next)
+			if(ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE))
+				GPU_free_image(ima);
 }
 
 /* OpenGL Materials */
@@ -1097,6 +1147,14 @@ void GPU_end_object_materials(void)
 	GMS.matbuf= NULL;
 	GMS.gmatbuf= NULL;
 	GMS.blendmode= NULL;
+
+	/* resetting the texture matrix after the glScale needed for tiled textures */
+	if(GTS.tilemode)
+	{
+		glMatrixMode(GL_TEXTURE);
+		glLoadIdentity();
+		glMatrixMode(GL_MODELVIEW);
+	}
 }
 
 /* Lights */

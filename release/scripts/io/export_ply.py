@@ -99,11 +99,12 @@ def write(filename, scene, ob, \
 
     Window.WaitCursor(1)
     """
-    bpy.ops.object.mode_set(mode='OBJECT')
+    if scene.objects.active:
+        bpy.ops.object.mode_set(mode='OBJECT')
 
     #mesh = BPyMesh.getMeshFromObject(ob, None, EXPORT_APPLY_MODIFIERS, False, scn) # XXX
     if EXPORT_APPLY_MODIFIERS:
-        mesh = ob.create_mesh(True, 'PREVIEW')
+        mesh = ob.create_mesh(scene, True, 'PREVIEW')
     else:
         mesh = ob.data
 
@@ -111,7 +112,7 @@ def write(filename, scene, ob, \
         raise ("Error, could not get mesh data from active object")
         return
 
-    # mesh.transform(ob.matrixWorld) # XXX
+    # mesh.transform(ob.matrix_world) # XXX
 
     faceUV = (len(mesh.uv_textures) > 0)
     vertexUV = (len(mesh.sticky) > 0)
@@ -128,7 +129,7 @@ def write(filename, scene, ob, \
         vertexColors = False
 
     if faceUV:
-        active_uv_layer = mesh.active_uv_texture
+        active_uv_layer = mesh.uv_textures.active
         if not active_uv_layer:
             EXPORT_UV = False
             faceUV = None
@@ -136,7 +137,7 @@ def write(filename, scene, ob, \
             active_uv_layer = active_uv_layer.data
 
     if vertexColors:
-        active_col_layer = mesh.active_vertex_color
+        active_col_layer = mesh.vertex_colors.active
         if not active_col_layer:
             EXPORT_COLORS = False
             vertexColors = None
@@ -146,7 +147,7 @@ def write(filename, scene, ob, \
     # incase
     color = uvcoord = uvcoord_key = normal = normal_key = None
 
-    mesh_verts = mesh.verts # save a lookup
+    mesh_verts = mesh.vertices # save a lookup
     ply_verts = [] # list of dictionaries
     # vdict = {} # (index, normal, uv) -> new index
     vdict = [{} for i in range(len(mesh_verts))]
@@ -155,7 +156,7 @@ def write(filename, scene, ob, \
     for i, f in enumerate(mesh.faces):
 
 
-        smooth = f.smooth
+        smooth = f.use_smooth
         if not smooth:
             normal = tuple(f.normal)
             normal_key = rvec3d(normal)
@@ -167,7 +168,7 @@ def write(filename, scene, ob, \
             col = active_col_layer[i]
             col = col.color1, col.color2, col.color3, col.color4
 
-        f_verts = f.verts
+        f_verts = f.vertices
 
         pf = ply_faces[i]
         for j, vidx in enumerate(f_verts):
@@ -203,7 +204,7 @@ def write(filename, scene, ob, \
 
     file.write('ply\n')
     file.write('format ascii 1.0\n')
-    file.write('comment Created by Blender %s - www.blender.org, source file: %s\n' % (bpy.app.version_string, bpy.data.filename.split('/')[-1].split('\\')[-1]))
+    file.write('comment Created by Blender %s - www.blender.org, source file: %s\n' % (bpy.app.version_string, bpy.data.filepath.split('/')[-1].split('\\')[-1]))
 
     file.write('element vertex %d\n' % len(ply_verts))
 
@@ -267,23 +268,22 @@ class ExportPLY(bpy.types.Operator):
     # to the class instance from the operator settings before calling.
 
 
-    path = StringProperty(name="File Path", description="File path used for exporting the PLY file", maxlen=1024, default="")
+    filepath = StringProperty(name="File Path", description="Filepath used for exporting the PLY file", maxlen=1024, default="")
     check_existing = BoolProperty(name="Check Existing", description="Check and warn on overwriting existing files", default=True, options={'HIDDEN'})
     use_modifiers = BoolProperty(name="Apply Modifiers", description="Apply Modifiers to the exported mesh", default=True)
     use_normals = BoolProperty(name="Normals", description="Export Normals for smooth and hard shaded faces", default=True)
     use_uvs = BoolProperty(name="UVs", description="Exort the active UV layer", default=True)
     use_colors = BoolProperty(name="Vertex Colors", description="Exort the active vertex color layer", default=True)
 
-    def poll(self, context):
+    @classmethod
+    def poll(cls, context):
         return context.active_object != None
 
     def execute(self, context):
-        # print("Selected: " + context.active_object.name)
+        filepath = self.properties.filepath
+        filepath = bpy.path.ensure_ext(filepath, ".ply")
 
-        if not self.properties.path:
-            raise Exception("filename not set")
-
-        write(self.properties.path, context.scene, context.active_object,\
+        write(filepath, context.scene, context.active_object,\
             EXPORT_APPLY_MODIFIERS=self.properties.use_modifiers,
             EXPORT_NORMALS=self.properties.use_normals,
             EXPORT_UV=self.properties.use_uvs,
@@ -293,8 +293,11 @@ class ExportPLY(bpy.types.Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):
-        wm = context.manager
-        wm.add_fileselect(self)
+        import os
+        if not self.properties.is_property_set("filepath"):
+            self.properties.filepath = os.path.splitext(bpy.data.filepath)[0] + ".ply"
+
+        context.manager.add_fileselect(self)
         return {'RUNNING_MODAL'}
 
     def draw(self, context):
@@ -310,17 +313,14 @@ class ExportPLY(bpy.types.Operator):
 
 
 def menu_func(self, context):
-    default_path = bpy.data.filename.replace(".blend", ".ply")
-    self.layout.operator(ExportPLY.bl_idname, text="Stanford (.ply)").path = default_path
+    self.layout.operator(ExportPLY.bl_idname, text="Stanford (.ply)")
 
 
 def register():
-    bpy.types.register(ExportPLY)
     bpy.types.INFO_MT_file_export.append(menu_func)
 
 
 def unregister():
-    bpy.types.unregister(ExportPLY)
     bpy.types.INFO_MT_file_export.remove(menu_func)
 
 if __name__ == "__main__":

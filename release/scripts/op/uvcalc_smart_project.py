@@ -22,10 +22,9 @@
 
 # <pep8 compliant>
 
-#from Blender import Object, Draw, Window, sys, Mesh, Geometry
-from Mathutils import Matrix, Vector, RotationMatrix
+from mathutils import Matrix, Vector
 import time
-import Geometry
+import geometry
 import bpy
 from math import cos, radians
 
@@ -200,7 +199,7 @@ def pointInEdges(pt, edges):
 """
 
 def pointInIsland(pt, island):
-    vec1 = Vector(); vec2 = Vector(); vec3 = Vector()
+    vec1, vec2, vec3 = Vector(), Vector(), Vector()
     for f in island:
         vec1.x, vec1.y = f.uv[0]
         vec2.x, vec2.y = f.uv[1]
@@ -227,7 +226,7 @@ def islandIntersectUvIsland(source, target, SourceOffset):
     # Edge intersect test
     for ed in edgeLoopsSource:
         for seg in edgeLoopsTarget:
-            i = Geometry.LineIntersect2D(\
+            i = geometry.LineIntersect2D(\
             seg[0], seg[1], SourceOffset+ed[0], SourceOffset+ed[1])
             if i:
                 return 1 # LINE INTERSECTION
@@ -276,15 +275,15 @@ def testNewVecLs2DRotIsBetter(vecs, mat=-1, bestAreaSoFar = -1):
 
 # Takes a list of faces that make up a UV island and rotate
 # until they optimally fit inside a square.
-ROTMAT_2D_POS_90D = RotationMatrix( radians(90.0), 2)
-ROTMAT_2D_POS_45D = RotationMatrix( radians(45.0), 2)
+ROTMAT_2D_POS_90D = Matrix.Rotation( radians(90.0), 2)
+ROTMAT_2D_POS_45D = Matrix.Rotation( radians(45.0), 2)
 
 RotMatStepRotation = []
 rot_angle = 22.5 #45.0/2
 while rot_angle > 0.1:
     RotMatStepRotation.append([\
-     RotationMatrix( radians(rot_angle), 2),\
-     RotationMatrix( radians(-rot_angle), 2)])
+     Matrix.Rotation( radians(rot_angle), 2),\
+     Matrix.Rotation( radians(-rot_angle), 2)])
 
     rot_angle = rot_angle/2.0
 
@@ -390,7 +389,7 @@ def mergeUvIslands(islandList):
         w, h = maxx-minx, maxy-miny
 
         totFaceArea = 0
-        offset= Vector(minx, miny)
+        offset= Vector((minx, miny))
         for f in islandList[islandIdx]:
             for uv in f.uv:
                 uv -= offset
@@ -514,7 +513,7 @@ def mergeUvIslands(islandList):
 
                             ##testcount+=1
                             #print 'Testing intersect'
-                            Intersect = islandIntersectUvIsland(sourceIsland, targetIsland, Vector(boxLeft, boxBottom))
+                            Intersect = islandIntersectUvIsland(sourceIsland, targetIsland, Vector((boxLeft, boxBottom)))
                             #print 'Done', Intersect
                             if Intersect == 1:  # Line intersect, dont bother with this any more
                                 pass
@@ -525,7 +524,7 @@ def mergeUvIslands(islandList):
                                 then move us 1 whole width accross,
                                 Its possible this is a bad idea since 2 skinny Angular faces
                                 could join without 1 whole move, but its a lot more optimal to speed this up
-                                since we have alredy tested for it.
+                                since we have already tested for it.
 
                                 It gives about 10% speedup with minimal errors.
                                 '''
@@ -540,7 +539,7 @@ def mergeUvIslands(islandList):
 
                                 # Move faces into new island and offset
                                 targetIsland[0].extend(sourceIsland[0])
-                                offset= Vector(boxLeft, boxBottom)
+                                offset= Vector((boxLeft, boxBottom))
 
                                 for f in sourceIsland[0]:
                                     for uv in f.uv:
@@ -565,7 +564,7 @@ def mergeUvIslands(islandList):
 
 
                                 targetIsland[7].extend(sourceIsland[7])
-                                offset= Vector(boxLeft, boxBottom, 0)
+                                offset= Vector((boxLeft, boxBottom, 0.0))
                                 for p in sourceIsland[7]:
                                     p+= offset
 
@@ -605,7 +604,7 @@ def getUvIslands(faceGroups, me):
     # Get seams so we dont cross over seams
     edge_seams = {} # shoudl be a set
     for ed in me.edges:
-        if ed.seam:
+        if ed.use_seam:
             edge_seams[ed.key] = None # dummy var- use sets!
     # Done finding seams
 
@@ -741,7 +740,7 @@ def packIslands(islandList):
 #XXX	Window.DrawProgressBar(0.7, 'Packing %i UV Islands...' % len(packBoxes) )
 
     time1 = time.time()
-    packWidth, packHeight = Geometry.BoxPack2D(packBoxes)
+    packWidth, packHeight = geometry.BoxPack2D(packBoxes)
 
     # print 'Box Packing Time:', time.time() - time1
 
@@ -781,9 +780,9 @@ def packIslands(islandList):
 def VectoMat(vec):
     a3 = vec.__copy__().normalize()
 
-    up = Vector(0,0,1)
+    up = Vector((0.0, 0.0, 1.0))
     if abs(a3.dot(up)) == 1.0:
-        up = Vector(0,1,0)
+        up = Vector((0.0, 1.0, 0.0))
 
     a1 = a3.cross(up).normalize()
     a2 = a3.cross(a1)
@@ -793,7 +792,7 @@ def VectoMat(vec):
 class thickface(object):
     __slost__= 'v', 'uv', 'no', 'area', 'edge_keys'
     def __init__(self, face, uvface, mesh_verts):
-        self.v = [mesh_verts[i] for i in face.verts]
+        self.v = [mesh_verts[i] for i in face.vertices]
         if len(self.v)==4:
             self.uv = uvface.uv1, uvface.uv2, uvface.uv3, uvface.uv4
         else:
@@ -822,7 +821,7 @@ def main(context, island_margin, projection_limit):
 #XXX	ob = objects.active
     ob= objects[0]
 
-    if ob and ob.selected == 0 and ob.type == 'MESH':
+    if ob and (not ob.select) and ob.type == 'MESH':
         # Add to the list
         obList =[ob]
     del objects
@@ -893,14 +892,14 @@ def main(context, island_margin, projection_limit):
         # Tag as used
         me.tag = True
 
-        if len(me.uv_textures)==0: # Mesh has no UV Coords, dont bother.
-            me.add_uv_texture()
+        if not me.uv_textures: # Mesh has no UV Coords, dont bother.
+            me.uv_textures.new()
 
-        uv_layer = me.active_uv_texture.data
-        me_verts = list(me.verts)
+        uv_layer = me.uv_textures.active.data
+        me_verts = list(me.vertices)
 
         if USER_ONLY_SELECTED_FACES:
-            meshFaces = [thickface(f, uv_layer[i], me_verts) for i, f in enumerate(me.faces) if f.selected]
+            meshFaces = [thickface(f, uv_layer[i], me_verts) for i, f in enumerate(me.faces) if f.select]
         #else:
         #	meshFaces = map(thickface, me.faces)
 
@@ -936,7 +935,7 @@ def main(context, island_margin, projection_limit):
         # Initialize projectVecs
         if USER_VIEW_INIT:
             # Generate Projection
-            projectVecs = [Vector(Window.GetViewVector()) * ob.matrixWorld.copy().invert().rotation_part()] # We add to this allong the way
+            projectVecs = [Vector(Window.GetViewVector()) * ob.matrix_world.copy().invert().rotation_part()] # We add to this allong the way
         else:
             projectVecs = []
 
@@ -964,7 +963,7 @@ def main(context, island_margin, projection_limit):
                     newProjectMeshFaces.append(tempMeshFaces.pop(fIdx))
 
             # Add the average of all these faces normals as a projectionVec
-            averageVec = Vector(0,0,0)
+            averageVec = Vector((0.0, 0.0, 0.0))
             if USER_AREA_WEIGHT:
                 for fprop in newProjectMeshFaces:
                     averageVec += (fprop.no * fprop.area)
@@ -1028,7 +1027,7 @@ def main(context, island_margin, projection_limit):
             bestAng = fvec.dot(projectVecs[0])
             bestAngIdx = 0
 
-            # Cycle through the remaining, first alredy done
+            # Cycle through the remaining, first already done
             while i-1:
                 i-=1
 
@@ -1056,7 +1055,7 @@ def main(context, island_margin, projection_limit):
             for f in faceProjectionGroupList[i]:
                 f_uv = f.uv
                 for j, v in enumerate(f.v):
-                    # XXX - note, between Mathutils in 2.4 and 2.5 the order changed.
+                    # XXX - note, between mathutils in 2.4 and 2.5 the order changed.
                     f_uv[j][:] = (v.co * MatProj)[:2]
 
 
@@ -1125,7 +1124,8 @@ class SmartProject(bpy.types.Operator):
             description="Margin to reduce bleed from adjacent islands.",
             default=0.0, min=0.0, max=1.0)
 
-    def poll(self, context):
+    @classmethod
+    def poll(cls, context):
         return context.active_object != None
 
     def execute(self, context):
@@ -1139,12 +1139,10 @@ menu_func = (lambda self, context: self.layout.operator(SmartProject.bl_idname,
 
 
 def register():
-    bpy.types.register(SmartProject)
     bpy.types.VIEW3D_MT_uv_map.append(menu_func)
 
 
 def unregister():
-    bpy.types.unregister(SmartProject)
     bpy.types.VIEW3D_MT_uv_map.remove(menu_func)
 
 if __name__ == "__main__":

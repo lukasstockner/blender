@@ -40,15 +40,15 @@ struct ListBase;
 struct BezTriple;
 struct BevList;
 
-#define KNOTSU(nu)	    ( (nu)->orderu+ (nu)->pntsu+ (((nu)->flagu & CU_NURB_CYCLIC) ? (nu->orderu-1) : 0) )
-#define KNOTSV(nu)	    ( (nu)->orderv+ (nu)->pntsv+ (((nu)->flagv & CU_NURB_CYCLIC) ? (nu->orderv-1) : 0) )
+#define KNOTSU(nu)	    ( (nu)->orderu+ (nu)->pntsu+ (((nu)->flagu & CU_NURB_CYCLIC) ? ((nu)->orderu-1) : 0) )
+#define KNOTSV(nu)	    ( (nu)->orderv+ (nu)->pntsv+ (((nu)->flagv & CU_NURB_CYCLIC) ? ((nu)->orderv-1) : 0) )
 
 /* Non cyclic nurbs have 1 less segment */
 #define SEGMENTSU(nu)	    ( ((nu)->flagu & CU_NURB_CYCLIC) ? (nu)->pntsu : (nu)->pntsu-1 )
 #define SEGMENTSV(nu)	    ( ((nu)->flagv & CU_NURB_CYCLIC) ? (nu)->pntsv : (nu)->pntsv-1 )
 
 #define CU_DO_TILT(cu, nu) (((nu->flag & CU_2D) && (cu->flag & CU_3D)==0) ? 0 : 1)
-#define CU_DO_RADIUS(cu, nu) ((CU_DO_TILT(cu, nu) || cu->bevobj || cu->ext1!=0.0 || cu->ext2!=0.0) ? 1:0)
+#define CU_DO_RADIUS(cu, nu) ((CU_DO_TILT(cu, nu) || ((cu)->flag & CU_PATH_RADIUS) || (cu)->bevobj || (cu)->ext1!=0.0 || (cu)->ext2!=0.0) ? 1:0)
 
 
 void unlink_curve( struct Curve *cu);
@@ -72,7 +72,7 @@ void minmaxNurb( struct Nurb *nu, float *min, float *max);
 void makeknots( struct Nurb *nu, short uv);
 
 void makeNurbfaces(struct Nurb *nu, float *coord_array, int rowstride);
-void makeNurbcurve(struct Nurb *nu, float *coord_array, float *tilt_array, float *radius_array, int resolu, int stride);
+void makeNurbcurve(struct Nurb *nu, float *coord_array, float *tilt_array, float *radius_array, float *weight_array, int resolu, int stride);
 void forward_diff_bezier(float q0, float q1, float q2, float q3, float *p, int it, int stride);
 float *make_orco_curve(struct Scene *scene, struct Object *ob);
 float *make_orco_surf( struct Object *ob);
@@ -105,5 +105,11 @@ int check_valid_nurb_v( struct Nurb *nu);
 int clamp_nurb_order_u( struct Nurb *nu);
 int clamp_nurb_order_v( struct Nurb *nu);
 
+ListBase *BKE_curve_nurbs(struct Curve *cu);
+
+int minmax_curve(struct Curve *cu, float min[3], float max[3]);
+int curve_center_median(struct Curve *cu, float cent[3]);
+int curve_center_bounds(struct Curve *cu, float cent[3]);
+void curve_translate(struct Curve *cu, float offset[3], int do_keys);
 #endif
 

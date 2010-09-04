@@ -83,7 +83,7 @@ extern void copy_displist(struct ListBase *lbn, struct ListBase *lb);
 extern void free_disp_elem(DispList *dl);
 extern DispList *find_displist_create(struct ListBase *lb, int type);
 extern DispList *find_displist(struct ListBase *lb, int type);
-extern void addnormalsDispList(struct Object *ob, struct ListBase *lb);
+extern void addnormalsDispList(struct ListBase *lb);
 extern void count_displist(struct ListBase *lb, int *totvert, int *totface);
 extern void freedisplist(struct ListBase *lb);
 extern int displist_has_faces(struct ListBase *lb);
@@ -93,13 +93,14 @@ extern void makeDispListCurveTypes(struct Scene *scene, struct Object *ob, int f
 extern void makeDispListCurveTypes_forRender(struct Scene *scene, struct Object *ob, struct ListBase *dispbase, struct DerivedMesh **derivedFinal, int forOrco);
 extern void makeDispListCurveTypes_forOrco(struct Scene *scene, struct Object *ob, struct ListBase *dispbase);
 extern void makeDispListMBall(struct Scene *scene, struct Object *ob);
+extern void makeDispListMBall_forRender(struct Scene *scene, struct Object *ob, struct ListBase *dispbase);
 extern void shadeDispList(struct Scene *scene, struct Base *base);
 extern void shadeMeshMCol(struct Scene *scene, struct Object *ob, struct Mesh *me);
 
 int surfindex_displist(DispList *dl, int a, int *b, int *p1, int *p2, int *p3, int *p4);
 void imagestodisplist(void);
 void reshadeall_displist(struct Scene *scene);
-void filldisplist(struct ListBase *dispbase, struct ListBase *to);
+void filldisplist(struct ListBase *dispbase, struct ListBase *to, int flipnormal);
 
 void fastshade_free_render(void);
 

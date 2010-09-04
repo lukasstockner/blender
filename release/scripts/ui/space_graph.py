@@ -25,6 +25,8 @@ class GRAPH_HT_header(bpy.types.Header):
     bl_space_type = 'GRAPH_EDITOR'
 
     def draw(self, context):
+        from space_dopesheet import dopesheet_filter
+
         layout = self.layout
 
         st = context.space_data
@@ -42,9 +44,9 @@ class GRAPH_HT_header(bpy.types.Header):
 
         layout.prop(st, "mode", text="")
 
-        layout.template_dopesheet_filter(st.dopesheet)
+        dopesheet_filter(layout, context)
 
-        layout.prop(st, "autosnap", text="")
+        layout.prop(st, "auto_snap", text="")
         layout.prop(st, "pivot_point", text="", icon_only=True)
 
         row = layout.row(align=True)
@@ -71,19 +73,19 @@ class GRAPH_MT_view(bpy.types.Menu):
         layout.operator("graph.properties", icon='MENU_PANEL')
         layout.separator()
 
-        layout.prop(st, "realtime_updates")
-        layout.prop(st, "show_cframe_indicator")
+        layout.prop(st, "use_realtime_update")
+        layout.prop(st, "show_frame_indicator")
         layout.prop(st, "show_cursor")
         layout.prop(st, "show_sliders")
-        layout.prop(st, "automerge_keyframes")
+        layout.prop(st, "use_auto_merge_keyframes")
 
         layout.separator()
         if st.show_handles:
             layout.operator("graph.handles_view_toggle", icon='CHECKBOX_HLT', text="Show All Handles")
         else:
             layout.operator("graph.handles_view_toggle", icon='CHECKBOX_DEHLT', text="Show All Handles")
-        layout.prop(st, "only_selected_curves_handles")
-        layout.prop(st, "only_selected_keyframe_handles")
+        layout.prop(st, "use_only_selected_curves_handles")
+        layout.prop(st, "use_only_selected_keyframe_handles")
         layout.operator("anim.time_toggle")
 
         layout.separator()
@@ -126,7 +128,7 @@ class GRAPH_MT_select(bpy.types.Menu):
         layout.separator()
         layout.operator("graph.select_more")
         layout.operator("graph.select_less")
-		
+
         layout.separator()
         layout.operator("graph.select_linked")
 
@@ -204,25 +206,12 @@ class GRAPH_MT_key_transform(bpy.types.Menu):
         layout.operator("transform.resize", text="Scale")
 
 
-classes = [
-    GRAPH_HT_header, # header/menu classes
-    GRAPH_MT_view,
-    GRAPH_MT_select,
-    GRAPH_MT_channel,
-    GRAPH_MT_key,
-    GRAPH_MT_key_transform]
-
-
 def register():
-    register = bpy.types.register
-    for cls in classes:
-        register(cls)
+    pass
 
 
 def unregister():
-    unregister = bpy.types.unregister
-    for cls in classes:
-        unregister(cls)
+    pass
 
 if __name__ == "__main__":
     register()

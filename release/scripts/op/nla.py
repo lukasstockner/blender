@@ -22,7 +22,7 @@ import bpy
 
 
 def pose_info():
-    from Mathutils import Matrix
+    from mathutils import Matrix
 
     info = {}
 
@@ -100,7 +100,7 @@ def bake(frame_start, frame_end, step=1, only_selected=False):
     pose_items = pose.bones.items()
 
     for name, pbone in pose_items:
-        if only_selected and not pbone.selected:
+        if only_selected and not pbone.select:
             continue
 
         for f in frame_range:
@@ -109,34 +109,19 @@ def bake(frame_start, frame_end, step=1, only_selected=False):
             #pbone.location = matrix.translation_part()
             #pbone.rotation_quaternion = matrix.to_quat()
             pbone.matrix_local = [f for v in matrix for f in v]
-            
-            pbone.keyframe_insert("location", -1, f)
+
+            pbone.keyframe_insert("location", -1, f, name)
 
             rotation_mode = pbone.rotation_mode
 
             if rotation_mode == 'QUATERNION':
-                pbone.keyframe_insert("rotation_quaternion", -1, f)
+                pbone.keyframe_insert("rotation_quaternion", -1, f, name)
             elif rotation_mode == 'AXIS_ANGLE':
-                pbone.keyframe_insert("rotation_axis_angle", -1, f)
+                pbone.keyframe_insert("rotation_axis_angle", -1, f, name)
             else: # euler, XYZ, ZXY etc
-                pbone.keyframe_insert("rotation_euler", -1, f)
+                pbone.keyframe_insert("rotation_euler", -1, f, name)
 
-            pbone.keyframe_insert("scale", -1, f)
-
-    # assign groups, could become a more generic function
-    agrp_loc = action.groups.add("Location")
-    agrp_rot = action.groups.add("Rotation")
-    agrp_sca = action.groups.add("Scale")
-
-    for fcu in action.fcurves:
-        path = fcu.data_path.rsplit(".", 1)[-1]
-
-        if path.startswith("loc"):
-            fcu.group = agrp_loc
-        if path.startswith("rot"):
-            fcu.group = agrp_rot
-        if path.startswith("sca"):
-            fcu.group = agrp_sca
+            pbone.keyframe_insert("scale", -1, f, name)
 
     return action
 
@@ -145,7 +130,7 @@ from bpy.props import *
 
 
 class BakeAction(bpy.types.Operator):
-    '''Add a torus mesh'''
+    '''Bake animation to an Action'''
     bl_idname = "nla.bake"
     bl_label = "Bake Action"
     bl_options = {'REGISTER', 'UNDO'}
@@ -165,7 +150,7 @@ class BakeAction(bpy.types.Operator):
     def execute(self, context):
         props = self.properties
 
-        action = bake(props.frame_start, props.frame_end, props.step, props.only_selected)
+        action = bake(props.frame_start, props.frame_end, props.step, props.show_only_selected)
 
         # basic cleanup, could move elsewhere
         for fcu in action.fcurves:
@@ -193,12 +178,12 @@ class BakeAction(bpy.types.Operator):
 
 
 def register():
-    bpy.types.register(BakeAction)
+    pass
     # bpy.types.INFO_MT_mesh_add.append(menu_func)
 
 
 def unregister():
-    bpy.types.unregister(BakeAction)
+    pass
     # bpy.types.INFO_MT_mesh_add.remove(menu_func)
 
 if __name__ == "__main__":

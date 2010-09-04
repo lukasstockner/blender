@@ -36,6 +36,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_editVert.h"
 
@@ -71,10 +72,6 @@
 
 #ifndef DISABLE_PYTHON
 #include "BPY_extern.h"
-#endif
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
 #endif
 
 #ifndef M_PI
@@ -259,7 +256,7 @@ void constraint_mat_convertspace (Object *ob, bPoseChannel *pchan, float mat[][4
 								
 							/* construct offs_bone the same way it is done in armature.c */
 							copy_m4_m3(offs_bone, pchan->bone->bone_mat);
-							VECCOPY(offs_bone[3], pchan->bone->head);
+							copy_v3_v3(offs_bone[3], pchan->bone->head);
 							offs_bone[3][1]+= pchan->bone->parent->length;
 							
 							if (pchan->bone->flag & BONE_HINGE) {
@@ -270,7 +267,7 @@ void constraint_mat_convertspace (Object *ob, bPoseChannel *pchan, float mat[][4
 								copy_m4_m4(tmat, pchan->bone->parent->arm_mat);
 								
 								/* the location of actual parent transform */
-								VECCOPY(tmat[3], offs_bone[3]);
+								copy_v3_v3(tmat[3], offs_bone[3]);
 								offs_bone[3][0]= offs_bone[3][1]= offs_bone[3][2]= 0.0f;
 								mul_m4_v3(pchan->parent->pose_mat, tmat[3]);
 								
@@ -312,7 +309,7 @@ void constraint_mat_convertspace (Object *ob, bPoseChannel *pchan, float mat[][4
 						
 						/* construct offs_bone the same way it is done in armature.c */
 						copy_m4_m3(offs_bone, pchan->bone->bone_mat);
-						VECCOPY(offs_bone[3], pchan->bone->head);
+						copy_v3_v3(offs_bone[3], pchan->bone->head);
 						offs_bone[3][1]+= pchan->bone->parent->length;
 						
 						if (pchan->bone->flag & BONE_HINGE) {
@@ -323,8 +320,8 @@ void constraint_mat_convertspace (Object *ob, bPoseChannel *pchan, float mat[][4
 							copy_m4_m4(tmat, pchan->bone->parent->arm_mat);
 							
 							/* the location of actual parent transform */
-							VECCOPY(tmat[3], offs_bone[3]);
-							offs_bone[3][0]= offs_bone[3][1]= offs_bone[3][2]= 0.0f;
+							copy_v3_v3(tmat[3], offs_bone[3]);
+							zero_v3(offs_bone[3]);
 							mul_m4_v3(pchan->parent->pose_mat, tmat[3]);
 							
 							mul_m4_m4m4(diff_mat, offs_bone, tmat);
@@ -403,7 +400,7 @@ static void contarget_get_mesh_mat (Scene *scene, Object *ob, char *substring, f
 	DerivedMesh *dm = NULL;
 	Mesh *me= ob->data;
 	EditMesh *em = BKE_mesh_get_editmesh(me);
-	float vec[3] = {0.0f, 0.0f, 0.0f}, tvec[3];
+	float vec[3] = {0.0f, 0.0f, 0.0f};
 	float normal[3] = {0.0f, 0.0f, 0.0f}, plane[3];
 	float imat[3][3], tmat[3][3];
 	int dgroup;
@@ -451,8 +448,8 @@ static void contarget_get_mesh_mat (Scene *scene, Object *ob, char *substring, f
 					if (dvert[i].dw[j].def_nr == dgroup) {
 						dm->getVertCo(dm, i, co);
 						dm->getVertNo(dm, i, nor);
-						add_v3_v3v3(vec, vec, co);
-						add_v3_v3v3(normal, normal, nor);
+						add_v3_v3(vec, co);
+						add_v3_v3(normal, nor);
 						count++;
 						break;
 					}
@@ -480,9 +477,9 @@ static void contarget_get_mesh_mat (Scene *scene, Object *ob, char *substring, f
 			mul_m3_v3(tmat, normal);
 			
 			normalize_v3(normal);
-			VECCOPY(plane, tmat[1]);
+			copy_v3_v3(plane, tmat[1]);
 			
-			VECCOPY(tmat[2], normal);
+			copy_v3_v3(tmat[2], normal);
 			cross_v3_v3v3(tmat[0], normal, plane);
 			cross_v3_v3v3(tmat[1], tmat[2], tmat[0]);
 			
@@ -491,8 +488,7 @@ static void contarget_get_mesh_mat (Scene *scene, Object *ob, char *substring, f
 			
 			
 			/* apply the average coordinate as the new location */
-			mul_v3_m4v3(tvec, ob->obmat, vec);
-			VECCOPY(mat[3], tvec);
+			mul_v3_m4v3(mat[3], ob->obmat, vec);
 		}
 	}
 	
@@ -539,7 +535,7 @@ static void contarget_get_lattice_mat (Object *ob, char *substring, float mat[][
 				else
 					memcpy(tvec, bp->vec, 3*sizeof(float));
 					
-				add_v3_v3v3(vec, vec, tvec);
+				add_v3_v3(vec, tvec);
 				grouped++;
 				
 				break;
@@ -557,7 +553,7 @@ static void contarget_get_lattice_mat (Object *ob, char *substring, float mat[][
 	mul_v3_m4v3(tvec, ob->obmat, vec);
 	
 	/* copy new location to matrix */
-	VECCOPY(mat[3], tvec);
+	copy_v3_v3(mat[3], tvec);
 }
 
 /* generic function to get the appropriate matrix for most target cases */
@@ -822,13 +818,13 @@ static void childof_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 		copy_m4_m4(invmat, data->invmat);
 		
 		/* extract components of both matrices */
-		VECCOPY(loc, ct->matrix[3]);
-		mat4_to_eulO( eul, ct->rotOrder,ct->matrix);
-		mat4_to_size( size,ct->matrix);
+		copy_v3_v3(loc, ct->matrix[3]);
+		mat4_to_eulO(eul, ct->rotOrder, ct->matrix);
+		mat4_to_size(size, ct->matrix);
 		
-		VECCOPY(loco, invmat[3]);
-		mat4_to_eulO( eulo, cob->rotOrder,invmat);
-		mat4_to_size( sizo,invmat);
+		copy_v3_v3(loco, invmat[3]);
+		mat4_to_eulO(eulo, cob->rotOrder, invmat);
+		mat4_to_size(sizo, invmat);
 		
 		/* disable channels not enabled */
 		if (!(data->flag & CHILDOF_LOCX)) loc[0]= loco[0]= 0.0f;
@@ -943,9 +939,8 @@ static void vectomat (float *vec, float *target_up, short axis, short upflag, sh
 	float right[3];
 	float neg = -1;
 	int right_index;
-	
-	copy_v3_v3(n, vec);
-	if (normalize_v3(n) == 0.0) { 
+
+	if (normalize_v3_v3(n, vec) == 0.0) { 
 		n[0] = 0.0;
 		n[1] = 0.0;
 		n[2] = 1.0;
@@ -956,9 +951,7 @@ static void vectomat (float *vec, float *target_up, short axis, short upflag, sh
 	/* n specifies the transformation of the track axis */
 	if (flags & TARGET_Z_UP) { 
 		/* target Z axis is the global up axis */
-		u[0] = target_up[0];
-		u[1] = target_up[1];
-		u[2] = target_up[2];
+		copy_v3_v3(u, target_up);
 	}
 	else { 
 		/* world Z axis is the global up axis */
@@ -991,20 +984,13 @@ static void vectomat (float *vec, float *target_up, short axis, short upflag, sh
 		m[right_index][1] = neg * right[1];
 		m[right_index][2] = neg * right[2];
 		
-		m[upflag][0] = proj[0];
-		m[upflag][1] = proj[1];
-		m[upflag][2] = proj[2];
+		copy_v3_v3(m[upflag], proj);
 		
-		m[axis][0] = n[0];
-		m[axis][1] = n[1];
-		m[axis][2] = n[2];
+		copy_v3_v3(m[axis], n);
 	}
 	/* identity matrix - don't do anything if the two axes are the same */
 	else {
-		m[0][0]= m[1][1]= m[2][2]= 1.0;
-		m[0][1]= m[0][2]= 0.0;
-		m[1][0]= m[1][2]= 0.0;
-		m[2][0]= m[2][1]= 0.0;
+		unit_m3(m);
 	}
 }
 
@@ -1020,7 +1006,7 @@ static void trackto_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 		float tmat[4][4];
 		
 		/* Get size property, since ob->size is only the object's own relative size, not its global one */
-		mat4_to_size( size,cob->matrix);
+		mat4_to_size(size, cob->matrix);
 		
 		/* Clear the object's rotation */ 	
 		cob->matrix[0][0]=size[0];
@@ -1130,10 +1116,9 @@ static void kinematic_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstra
 			else {
 				float vec[3];
 				/* move grabtarget into world space */
-				VECCOPY(vec, data->grabtarget);
-				mul_m4_v3(ob->obmat, vec);
+				mul_v3_m4v3(vec, ob->obmat, data->grabtarget);
 				copy_m4_m4(ct->matrix, ob->obmat);
-				VECCOPY(ct->matrix[3], vec);
+				copy_v3_v3(ct->matrix[3], vec);
 			}
 		}
 		else
@@ -1246,7 +1231,7 @@ static void followpath_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstr
 				curvetime= data->offset_fac;
 			}
 			
-			if ( where_on_path(ct->tar, curvetime, vec, dir, NULL, &radius) ) {
+			if ( where_on_path(ct->tar, curvetime, vec, dir, NULL, &radius, NULL) ) {
 				if (data->followflag & FOLLOWPATH_FOLLOW) {
 					vec_to_quat(quat, dir, (short)data->trackflag, (short)data->upflag);
 					
@@ -1268,7 +1253,7 @@ static void followpath_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstr
 					copy_m4_m4(totmat, rmat);
 				}
 				
-				VECCOPY(totmat[3], vec);
+				copy_v3_v3(totmat[3], vec);
 				
 				mul_serie_m4(ct->matrix, ct->tar->obmat, totmat, NULL, NULL, NULL, NULL, NULL, NULL);
 			}
@@ -1387,10 +1372,10 @@ static void rotlimit_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *t
 	float eul[3];
 	float size[3];
 	
-	VECCOPY(loc, cob->matrix[3]);
-	mat4_to_size( size,cob->matrix);
+	copy_v3_v3(loc, cob->matrix[3]);
+	mat4_to_size(size, cob->matrix);
 	
-	mat4_to_eulO( eul, cob->rotOrder,cob->matrix);
+	mat4_to_eulO(eul, cob->rotOrder, cob->matrix);
 	
 	/* constraint data uses radians internally */
 	
@@ -1548,7 +1533,7 @@ static void loclike_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 		float offset[3] = {0.0f, 0.0f, 0.0f};
 		
 		if (data->flag & LOCLIKE_OFFSET)
-			VECCOPY(offset, cob->matrix[3]);
+			copy_v3_v3(offset, cob->matrix[3]);
 			
 		if (data->flag & LOCLIKE_X) {
 			cob->matrix[3][0] = ct->matrix[3][0];
@@ -1640,18 +1625,18 @@ static void rotlike_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 		float	eul[3], obeul[3];
 		float	size[3];
 		
-		VECCOPY(loc, cob->matrix[3]);
-		mat4_to_size( size,cob->matrix);
+		copy_v3_v3(loc, cob->matrix[3]);
+		mat4_to_size(size, cob->matrix);
 		
 		/* to allow compatible rotations, must get both rotations in the order of the owner... */
-		mat4_to_eulO( eul, cob->rotOrder,ct->matrix);
-		mat4_to_eulO( obeul, cob->rotOrder,cob->matrix);
+		mat4_to_eulO(eul, cob->rotOrder, ct->matrix);
+		mat4_to_eulO(obeul, cob->rotOrder, cob->matrix);
 		
 		if ((data->flag & ROTLIKE_X)==0)
 			eul[0] = obeul[0];
 		else {
 			if (data->flag & ROTLIKE_OFFSET)
-				rotate_eulO(eul, cob->rotOrder, 'x', obeul[0]);
+				rotate_eulO(eul, cob->rotOrder, 'X', obeul[0]);
 			
 			if (data->flag & ROTLIKE_X_INVERT)
 				eul[0] *= -1;
@@ -1661,7 +1646,7 @@ static void rotlike_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 			eul[1] = obeul[1];
 		else {
 			if (data->flag & ROTLIKE_OFFSET)
-				rotate_eulO(eul, cob->rotOrder, 'y', obeul[1]);
+				rotate_eulO(eul, cob->rotOrder, 'Y', obeul[1]);
 			
 			if (data->flag & ROTLIKE_Y_INVERT)
 				eul[1] *= -1;
@@ -1671,7 +1656,7 @@ static void rotlike_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 			eul[2] = obeul[2];
 		else {
 			if (data->flag & ROTLIKE_OFFSET)
-				rotate_eulO(eul, cob->rotOrder, 'z', obeul[2]);
+				rotate_eulO(eul, cob->rotOrder, 'Z', obeul[2]);
 			
 			if (data->flag & ROTLIKE_Z_INVERT)
 				eul[2] *= -1;
@@ -1871,29 +1856,29 @@ static void samevolume_evaluate (bConstraint *con, bConstraintOb *cob, ListBase 
 {
 	bSameVolumeConstraint *data= con->data;
 
+	float volume = data->volume;
+	float fac = 1.0f;
 	float obsize[3];
-	float volume=data->volume;
 
 	mat4_to_size(obsize, cob->matrix);
-
+	
+	/* calculate normalising scale factor for non-essential values */
+	if (obsize[data->flag] != 0) 
+		fac = sqrt(volume / obsize[data->flag]) / obsize[data->flag];
+	
+	/* apply scaling factor to the channels not being kept */
 	switch (data->flag) {
 		case SAMEVOL_X:
-			if (obsize[0]!=0) {
-				mul_v3_fl(cob->matrix[1], sqrt(volume/obsize[0])/obsize[0]);
-				mul_v3_fl(cob->matrix[2], sqrt(volume/obsize[0])/obsize[0]);
-			}
+			mul_v3_fl(cob->matrix[1], fac);
+			mul_v3_fl(cob->matrix[2], fac);
 			break;
 		case SAMEVOL_Y:
-			if (obsize[1]!=0) {
-				mul_v3_fl(cob->matrix[0], sqrt(volume/obsize[1])/obsize[1]);
-				mul_v3_fl(cob->matrix[2], sqrt(volume/obsize[1])/obsize[1]);
-			}
+			mul_v3_fl(cob->matrix[0], fac);
+			mul_v3_fl(cob->matrix[2], fac);
 			break;
 		case SAMEVOL_Z:
-			if (obsize[2]!=0) {
-				mul_v3_fl(cob->matrix[0], sqrt(volume/obsize[2])/obsize[2]);
-				mul_v3_fl(cob->matrix[1], sqrt(volume/obsize[2])/obsize[2]);
-			}
+			mul_v3_fl(cob->matrix[0], fac);
+			mul_v3_fl(cob->matrix[1], fac);
 			break;
 	}
 }
@@ -1983,8 +1968,10 @@ static void pycon_id_looper (bConstraint *con, ConstraintIDFunc func, void *user
 /* Whether this approach is maintained remains to be seen (aligorith) */
 static void pycon_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float ctime)
 {
+#ifndef DISABLE_PYTHON
 	bPythonConstraint *data= con->data;
-	
+#endif
+
 	if (VALID_CONS_TARGET(ct)) {
 		/* special exception for curves - depsgraph issues */
 		if (ct->tar->type == OB_CURVE) {
@@ -2140,7 +2127,7 @@ static void actcon_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraint
 		}
 		else {
 			/* extract location */
-			VECCOPY(vec, tempmat[3]);
+			copy_v3_v3(vec, tempmat[3]);
 			axis= data->type - 20;
 		}
 		
@@ -2296,10 +2283,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					normalize_v3(totmat[1]);
 					
 					/* the x axis is fixed */
-					totmat[0][0] = cob->matrix[0][0];
-					totmat[0][1] = cob->matrix[0][1];
-					totmat[0][2] = cob->matrix[0][2];
-					normalize_v3(totmat[0]);
+					normalize_v3_v3(totmat[0], cob->matrix[0]);
 					
 					/* the z axis gets mapped onto a third orthogonal vector */
 					cross_v3_v3v3(totmat[2], totmat[0], totmat[1]);
@@ -2313,10 +2297,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					normalize_v3(totmat[2]);
 					
 					/* the x axis is fixed */
-					totmat[0][0] = cob->matrix[0][0];
-					totmat[0][1] = cob->matrix[0][1];
-					totmat[0][2] = cob->matrix[0][2];
-					normalize_v3(totmat[0]);
+					normalize_v3_v3(totmat[0], cob->matrix[0]);
 					
 					/* the z axis gets mapped onto a third orthogonal vector */
 					cross_v3_v3v3(totmat[1], totmat[2], totmat[0]);
@@ -2331,10 +2312,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					negate_v3(totmat[1]);
 					
 					/* the x axis is fixed */
-					totmat[0][0] = cob->matrix[0][0];
-					totmat[0][1] = cob->matrix[0][1];
-					totmat[0][2] = cob->matrix[0][2];
-					normalize_v3(totmat[0]);
+					normalize_v3_v3(totmat[0], cob->matrix[0]);
 					
 					/* the z axis gets mapped onto a third orthogonal vector */
 					cross_v3_v3v3(totmat[2], totmat[0], totmat[1]);
@@ -2349,10 +2327,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					negate_v3(totmat[2]);
 						
 					/* the x axis is fixed */
-					totmat[0][0] = cob->matrix[0][0];
-					totmat[0][1] = cob->matrix[0][1];
-					totmat[0][2] = cob->matrix[0][2];
-					normalize_v3(totmat[0]);
+					normalize_v3_v3(totmat[0], cob->matrix[0]);
 						
 					/* the z axis gets mapped onto a third orthogonal vector */
 					cross_v3_v3v3(totmat[1], totmat[2], totmat[0]);
@@ -2360,9 +2335,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					break;
 				default:
 				{
-					totmat[0][0] = 1;totmat[0][1] = 0;totmat[0][2] = 0;
-					totmat[1][0] = 0;totmat[1][1] = 1;totmat[1][2] = 0;
-					totmat[2][0] = 0;totmat[2][1] = 0;totmat[2][2] = 1;
+					unit_m3(totmat);
 				}
 					break;
 			}
@@ -2379,11 +2352,8 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					normalize_v3(totmat[0]);
 					
 					/* the y axis is fixed */
-					totmat[1][0] = cob->matrix[1][0];
-					totmat[1][1] = cob->matrix[1][1];
-					totmat[1][2] = cob->matrix[1][2];
-					normalize_v3(totmat[1]);
-					
+					normalize_v3_v3(totmat[1], cob->matrix[1]);
+
 					/* the z axis gets mapped onto a third orthogonal vector */
 					cross_v3_v3v3(totmat[2], totmat[0], totmat[1]);
 				}
@@ -2396,10 +2366,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					normalize_v3(totmat[2]);
 					
 					/* the y axis is fixed */
-					totmat[1][0] = cob->matrix[1][0];
-					totmat[1][1] = cob->matrix[1][1];
-					totmat[1][2] = cob->matrix[1][2];
-					normalize_v3(totmat[1]);
+					normalize_v3_v3(totmat[1], cob->matrix[1]);
 					
 					/* the z axis gets mapped onto a third orthogonal vector */
 					cross_v3_v3v3(totmat[0], totmat[1], totmat[2]);
@@ -2414,10 +2381,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					negate_v3(totmat[0]);
 					
 					/* the y axis is fixed */
-					totmat[1][0] = cob->matrix[1][0];
-					totmat[1][1] = cob->matrix[1][1];
-					totmat[1][2] = cob->matrix[1][2];
-					normalize_v3(totmat[1]);
+					normalize_v3_v3(totmat[1], cob->matrix[1]);
 					
 					/* the z axis gets mapped onto a third orthogonal vector */
 					cross_v3_v3v3(totmat[2], totmat[0], totmat[1]);
@@ -2432,10 +2396,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					negate_v3(totmat[2]);
 					
 					/* the y axis is fixed */
-					totmat[1][0] = cob->matrix[1][0];
-					totmat[1][1] = cob->matrix[1][1];
-					totmat[1][2] = cob->matrix[1][2];
-					normalize_v3(totmat[1]);
+					normalize_v3_v3(totmat[1], cob->matrix[1]);
 					
 					/* the z axis gets mapped onto a third orthogonal vector */
 					cross_v3_v3v3(totmat[0], totmat[1], totmat[2]);
@@ -2443,9 +2404,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					break;
 				default:
 				{
-					totmat[0][0] = 1;totmat[0][1] = 0;totmat[0][2] = 0;
-					totmat[1][0] = 0;totmat[1][1] = 1;totmat[1][2] = 0;
-					totmat[2][0] = 0;totmat[2][1] = 0;totmat[2][2] = 1;
+					unit_m3(totmat);
 				}
 					break;
 			}
@@ -2462,10 +2421,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					normalize_v3(totmat[0]);
 					
 					/* the z axis is fixed */
-					totmat[2][0] = cob->matrix[2][0];
-					totmat[2][1] = cob->matrix[2][1];
-					totmat[2][2] = cob->matrix[2][2];
-					normalize_v3(totmat[2]);
+					normalize_v3_v3(totmat[2], cob->matrix[2]);
 					
 					/* the x axis gets mapped onto a third orthogonal vector */
 					cross_v3_v3v3(totmat[1], totmat[2], totmat[0]);
@@ -2479,10 +2435,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					normalize_v3(totmat[1]);
 					
 					/* the z axis is fixed */
-					totmat[2][0] = cob->matrix[2][0];
-					totmat[2][1] = cob->matrix[2][1];
-					totmat[2][2] = cob->matrix[2][2];
-					normalize_v3(totmat[2]);
+					normalize_v3_v3(totmat[2], cob->matrix[2]);
 						
 					/* the x axis gets mapped onto a third orthogonal vector */
 					cross_v3_v3v3(totmat[0], totmat[1], totmat[2]);
@@ -2497,10 +2450,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					negate_v3(totmat[0]);
 					
 					/* the z axis is fixed */
-					totmat[2][0] = cob->matrix[2][0];
-					totmat[2][1] = cob->matrix[2][1];
-					totmat[2][2] = cob->matrix[2][2];
-					normalize_v3(totmat[2]);
+					normalize_v3_v3(totmat[2], cob->matrix[2]);
 					
 					/* the x axis gets mapped onto a third orthogonal vector */
 					cross_v3_v3v3(totmat[1], totmat[2], totmat[0]);
@@ -2515,10 +2465,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					negate_v3(totmat[1]);
 					
 					/* the z axis is fixed */
-					totmat[2][0] = cob->matrix[2][0];
-					totmat[2][1] = cob->matrix[2][1];
-					totmat[2][2] = cob->matrix[2][2];
-					normalize_v3(totmat[2]);
+					normalize_v3_v3(totmat[2], cob->matrix[2]);
 						
 					/* the x axis gets mapped onto a third orthogonal vector */
 					cross_v3_v3v3(totmat[0], totmat[1], totmat[2]);
@@ -2526,9 +2473,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					break;
 				default:
 				{
-					totmat[0][0] = 1;totmat[0][1] = 0;totmat[0][2] = 0;
-					totmat[1][0] = 0;totmat[1][1] = 1;totmat[1][2] = 0;
-					totmat[2][0] = 0;totmat[2][1] = 0;totmat[2][2] = 1;
+					unit_m3(totmat);
 				}
 					break;
 			}
@@ -2536,19 +2481,13 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 			break;
 		default:
 		{
-			totmat[0][0] = 1;totmat[0][1] = 0;totmat[0][2] = 0;
-			totmat[1][0] = 0;totmat[1][1] = 1;totmat[1][2] = 0;
-			totmat[2][0] = 0;totmat[2][1] = 0;totmat[2][2] = 1;
+			unit_m3(totmat);
 		}
 			break;
 		}
 		/* Block to keep matrix heading */
-		tmpmat[0][0] = cob->matrix[0][0];tmpmat[0][1] = cob->matrix[0][1];tmpmat[0][2] = cob->matrix[0][2];
-		tmpmat[1][0] = cob->matrix[1][0];tmpmat[1][1] = cob->matrix[1][1];tmpmat[1][2] = cob->matrix[1][2];
-		tmpmat[2][0] = cob->matrix[2][0];tmpmat[2][1] = cob->matrix[2][1];tmpmat[2][2] = cob->matrix[2][2];
-		normalize_v3(tmpmat[0]);
-		normalize_v3(tmpmat[1]);
-		normalize_v3(tmpmat[2]);
+		copy_m3_m4(tmpmat, cob->matrix);
+		normalize_m3(tmpmat);
 		invert_m3_m3(invmat, tmpmat);
 		mul_m3_m3m3(tmpmat, totmat, invmat);
 		totmat[0][0] = tmpmat[0][0];totmat[0][1] = tmpmat[0][1];totmat[0][2] = tmpmat[0][2];
@@ -2561,9 +2500,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 						totmat[1][0],totmat[1][1],totmat[1][2],
 						totmat[2][0],totmat[2][1],totmat[2][2]);
 		if (mdet==0) {
-			totmat[0][0] = 1;totmat[0][1] = 0;totmat[0][2] = 0;
-			totmat[1][0] = 0;totmat[1][1] = 1;totmat[1][2] = 0;
-			totmat[2][0] = 0;totmat[2][1] = 0;totmat[2][2] = 1;
+			unit_m3(totmat);
 		}
 		
 		/* apply out transformaton to the object */
@@ -2691,7 +2628,7 @@ static void distlimit_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 			interp_v3_v3v3(dvec, ct->matrix[3], cob->matrix[3], sfac);
 			
 			/* copy new vector onto owner */
-			VECCOPY(cob->matrix[3], dvec);
+			copy_v3_v3(cob->matrix[3], dvec);
 		}
 	}
 }
@@ -2771,19 +2708,13 @@ static void stretchto_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 		float dist;
 		
 		/* store scaling before destroying obmat */
-		mat4_to_size( size,cob->matrix);
+		mat4_to_size(size, cob->matrix);
 		
 		/* store X orientation before destroying obmat */
-		xx[0] = cob->matrix[0][0];
-		xx[1] = cob->matrix[0][1];
-		xx[2] = cob->matrix[0][2];
-		normalize_v3(xx);
+		normalize_v3_v3(xx, cob->matrix[0]);
 		
 		/* store Z orientation before destroying obmat */
-		zz[0] = cob->matrix[2][0];
-		zz[1] = cob->matrix[2][1];
-		zz[2] = cob->matrix[2][2];
-		normalize_v3(zz);
+		normalize_v3_v3(zz, cob->matrix[2]);
 		
 		sub_v3_v3v3(vec, cob->matrix[3], ct->matrix[3]);
 		vec[0] /= size[0];
@@ -2838,9 +2769,7 @@ static void stretchto_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 		normalize_v3(vec);
 		
 		/* new Y aligns  object target connection*/
-		totmat[1][0] = -vec[0];
-		totmat[1][1] = -vec[1];
-		totmat[1][2] = -vec[2];
+		negate_v3_v3(totmat[1], vec);
 		switch (data->plane) {
 		case PLANE_X:
 			/* build new Z vector */
@@ -2849,16 +2778,11 @@ static void stretchto_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 			normalize_v3(orth);
 			
 			/* new Z*/
-			totmat[2][0] = orth[0];
-			totmat[2][1] = orth[1];
-			totmat[2][2] = orth[2];
+			copy_v3_v3(totmat[2], orth);
 			
 			/* we decided to keep X plane*/
 			cross_v3_v3v3(xx, orth, vec);
-			normalize_v3(xx);
-			totmat[0][0] = xx[0];
-			totmat[0][1] = xx[1];
-			totmat[0][2] = xx[2];
+			normalize_v3_v3(totmat[0], xx);
 			break;
 		case PLANE_Z:
 			/* build new X vector */
@@ -2867,16 +2791,11 @@ static void stretchto_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 			normalize_v3(orth);
 			
 			/* new X */
-			totmat[0][0] = -orth[0];
-			totmat[0][1] = -orth[1];
-			totmat[0][2] = -orth[2];
+			negate_v3_v3(totmat[0], orth);
 			
 			/* we decided to keep Z */
 			cross_v3_v3v3(zz, orth, vec);
-			normalize_v3(zz);
-			totmat[2][0] = zz[0];
-			totmat[2][1] = zz[1];
-			totmat[2][2] = zz[2];
+			normalize_v3_v3(totmat[2], zz);
 			break;
 		} /* switch (data->plane) */
 		
@@ -3008,10 +2927,10 @@ static void minmax_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *tar
 			obmat[3][index] = tarmat[3][index] + data->offset;
 			if (data->flag & MINMAX_STICKY) {
 				if (data->flag & MINMAX_STUCK) {
-					VECCOPY(obmat[3], data->cache);
+					copy_v3_v3(obmat[3], data->cache);
 				} 
 				else {
-					VECCOPY(data->cache, obmat[3]);
+					copy_v3_v3(data->cache, obmat[3]);
 					data->flag |= MINMAX_STUCK;
 				}
 			}
@@ -3021,7 +2940,7 @@ static void minmax_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *tar
 				copy_m4_m4(cob->matrix, tmat);
 			} 
 			else {			
-				VECCOPY(cob->matrix[3], obmat[3]);
+				copy_v3_v3(cob->matrix[3], obmat[3]);
 			}
 		} 
 		else {
@@ -3176,7 +3095,7 @@ static void clampto_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 		
 		copy_m4_m4(obmat, cob->matrix);
 		unit_m4(targetMatrix);
-		VECCOPY(ownLoc, obmat[3]);
+		copy_v3_v3(ownLoc, obmat[3]);
 		
 		INIT_MINMAX(curveMin, curveMax)
 		minmax_object(ct->tar, curveMin, curveMax);
@@ -3263,16 +3182,16 @@ static void clampto_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 			}
 			
 			/* 3. position on curve */
-			if (where_on_path(ct->tar, curvetime, vec, dir, NULL, NULL) ) {
+			if (where_on_path(ct->tar, curvetime, vec, dir, NULL, NULL, NULL) ) {
 				unit_m4(totmat);
-				VECCOPY(totmat[3], vec);
+				copy_v3_v3(totmat[3], vec);
 				
 				mul_serie_m4(targetMatrix, ct->tar->obmat, totmat, NULL, NULL, NULL, NULL, NULL, NULL);
 			}
 		}
 		
 		/* obtain final object position */
-		VECCOPY(cob->matrix[3], targetMatrix[3]);
+		copy_v3_v3(cob->matrix[3], targetMatrix[3]);
 	}
 }
 
@@ -3354,7 +3273,7 @@ static void transform_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 				mat4_to_size( dvec,ct->matrix);
 				break;
 			case 1: /* rotation (convert to degrees first) */
-				mat4_to_eulO( dvec, cob->rotOrder,ct->matrix);
+				mat4_to_eulO(dvec, cob->rotOrder, ct->matrix);
 				for (i=0; i<3; i++)
 					dvec[i] = (float)(dvec[i] / M_PI * 180);
 				break;
@@ -3364,9 +3283,9 @@ static void transform_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 		}
 		
 		/* extract components of owner's matrix */
-		VECCOPY(loc, cob->matrix[3]);
-		mat4_to_eulO( eul, cob->rotOrder,cob->matrix);
-		mat4_to_size( size,cob->matrix);	
+		copy_v3_v3(loc, cob->matrix[3]);
+		mat4_to_eulO(eul, cob->rotOrder, cob->matrix);
+		mat4_to_size(size, cob->matrix);	
 		
 		/* determine where in range current transforms lie */
 		if (data->expo) {
@@ -3486,95 +3405,95 @@ static void shrinkwrap_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstr
 		float co[3] = {0.0f, 0.0f, 0.0f};
 		float no[3] = {0.0f, 0.0f, 0.0f};
 		float dist;
-
+		
 		SpaceTransform transform;
 		DerivedMesh *target = object_get_derived_final(cob->scene, ct->tar, CD_MASK_BAREMESH);
 		BVHTreeRayHit hit;
 		BVHTreeNearest nearest;
-
+		
 		BVHTreeFromMesh treeData;
-		memset( &treeData, 0, sizeof(treeData) );
-
+		memset(&treeData, 0, sizeof(treeData));
+		
 		nearest.index = -1;
 		nearest.dist = FLT_MAX;
-
+		
 		hit.index = -1;
 		hit.dist = 100000.0f;  //TODO should use FLT_MAX.. but normal projection doenst yet supports it
-
+		
 		unit_m4(ct->matrix);
-
+		
 		if(target != NULL)
 		{
 			space_transform_from_matrixs(&transform, cob->matrix, ct->tar->obmat);
-
+			
 			switch(scon->shrinkType)
 			{
 				case MOD_SHRINKWRAP_NEAREST_SURFACE:
 				case MOD_SHRINKWRAP_NEAREST_VERTEX:
-
+					
 					if(scon->shrinkType == MOD_SHRINKWRAP_NEAREST_VERTEX)
 						bvhtree_from_mesh_verts(&treeData, target, 0.0, 2, 6);
 					else
 						bvhtree_from_mesh_faces(&treeData, target, 0.0, 2, 6);
-
+					
 					if(treeData.tree == NULL)
 					{
 						fail = TRUE;
 						break;
 					}
-
+					
 					space_transform_apply(&transform, co);
-
+					
 					BLI_bvhtree_find_nearest(treeData.tree, co, &nearest, treeData.nearest_callback, &treeData);
 					
 					dist = len_v3v3(co, nearest.co);
 					interp_v3_v3v3(co, co, nearest.co, (dist - scon->dist)/dist);	/* linear interpolation */
 					space_transform_invert(&transform, co);
 				break;
-
+				
 				case MOD_SHRINKWRAP_PROJECT:
 					if(scon->projAxis & MOD_SHRINKWRAP_PROJECT_OVER_X_AXIS) no[0] = 1.0f;
 					if(scon->projAxis & MOD_SHRINKWRAP_PROJECT_OVER_Y_AXIS) no[1] = 1.0f;
 					if(scon->projAxis & MOD_SHRINKWRAP_PROJECT_OVER_Z_AXIS) no[2] = 1.0f;
-
+					
 					if(INPR(no,no) < FLT_EPSILON)
 					{
 						fail = TRUE;
 						break;
 					}
-
+					
 					normalize_v3(no);
-
-
+					
+					
 					bvhtree_from_mesh_faces(&treeData, target, scon->dist, 4, 6);
 					if(treeData.tree == NULL)
 					{
 						fail = TRUE;
 						break;
 					}
-
+					
 					if(normal_projection_project_vertex(0, co, no, &transform, treeData.tree, &hit, treeData.raycast_callback, &treeData) == FALSE)
 					{
 						fail = TRUE;
 						break;
 					}
-					VECCOPY(co, hit.co);
+					copy_v3_v3(co, hit.co);
 				break;
 			}
-
+			
 			free_bvhtree_from_mesh(&treeData);
-
+			
 			target->release(target);
-
+			
 			if(fail == TRUE)
 			{
 				/* Don't move the point */
 				co[0] = co[1] = co[2] = 0.0f;
 			}
-
+			
 			/* co is in local object coordinates, change it to global and update target position */
-			mul_v3_m4v3(co, cob->matrix, co);
-			VECCOPY(ct->matrix[3], co);
+			mul_m4_v3(cob->matrix, co);
+			copy_v3_v3(ct->matrix[3], co);
 		}
 	}
 }
@@ -3586,7 +3505,7 @@ static void shrinkwrap_evaluate (bConstraint *con, bConstraintOb *cob, ListBase 
 	/* only evaluate if there is a target */
 	if (VALID_CONS_TARGET(ct))
 	{
-		VECCOPY(cob->matrix[3], ct->matrix[3]);
+		copy_v3_v3(cob->matrix[3], ct->matrix[3]);
 	}
 }
 
@@ -3670,23 +3589,23 @@ static void damptrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 		 *	- the normalisation step at the end should take care of any unwanted scaling
 		 *	  left over in the 3x3 matrix we used
 		 */
-		VECCOPY(obvec, track_dir_vecs[data->trackflag]);
+		copy_v3_v3(obvec, track_dir_vecs[data->trackflag]);
 		mul_mat3_m4_v3(cob->matrix, obvec);
 		
 		if (normalize_v3(obvec) == 0.0f) {
 			/* exceptional case - just use the track vector as appropriate */
-			VECCOPY(obvec, track_dir_vecs[data->trackflag]);
+			copy_v3_v3(obvec, track_dir_vecs[data->trackflag]);
 		}
 		
 		/* find the (unit) direction vector going from the owner to the target */
-		VECCOPY(obloc, cob->matrix[3]);
+		copy_v3_v3(obloc, cob->matrix[3]);
 		sub_v3_v3v3(tarvec, ct->matrix[3], obloc);
 		
 		if (normalize_v3(tarvec) == 0.0f) {
 			/* the target is sitting on the owner, so just make them use the same direction vectors */
 			// FIXME: or would it be better to use the pure direction vector?
-			VECCOPY(tarvec, obvec);
-			//VECCOPY(tarvec, track_dir_vecs[data->trackflag]);
+			copy_v3_v3(tarvec, obvec);
+			//copy_v3_v3(tarvec, track_dir_vecs[data->trackflag]);
 		}
 		
 		/* determine the axis-angle rotation, which represents the smallest possible rotation
@@ -3705,7 +3624,7 @@ static void damptrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 		/* construct rotation matrix from the axis-angle rotation found above 
 		 *	- this call takes care to make sure that the axis provided is a unit vector first
 		 */
-		axis_angle_to_mat3( rmat,raxis, rangle);
+		axis_angle_to_mat3(rmat, raxis, rangle);
 		
 		/* rotate the owner in the way defined by this rotation matrix, then reapply the location since
 		 * we may have destroyed that in the process of multiplying the matrix
@@ -3714,7 +3633,7 @@ static void damptrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 		mul_m4_m3m4(tmat, rmat, cob->matrix); // m1, m3, m2
 		
 		copy_m4_m4(cob->matrix, tmat);
-		VECCOPY(cob->matrix[3], obloc);
+		copy_v3_v3(cob->matrix[3], obloc);
 	}
 }
 
@@ -3752,6 +3671,13 @@ static void splineik_copy (bConstraint *con, bConstraint *srccon)
 	
 	/* copy the binding array */
 	dst->points= MEM_dupallocN(src->points);
+}
+
+static void splineik_new_data (void *cdata)
+{
+	bSplineIKConstraint *data= (bSplineIKConstraint *)cdata;
+
+	data->chainlen= 1;
 }
 
 static void splineik_id_looper (bConstraint *con, ConstraintIDFunc func, void *userdata)
@@ -3818,11 +3744,123 @@ static bConstraintTypeInfo CTI_SPLINEIK = {
 	NULL, /* relink data */
 	splineik_id_looper, /* id looper */
 	splineik_copy, /* copy data */
-	NULL, /* new data */
+	splineik_new_data, /* new data */
 	splineik_get_tars, /* get constraint targets */
 	splineik_flush_tars, /* flush constraint targets */
 	splineik_get_tarmat, /* get target matrix */
 	NULL /* evaluate - solved as separate loop */
+};
+
+/* ----------- Pivot ------------- */
+
+static void pivotcon_id_looper (bConstraint *con, ConstraintIDFunc func, void *userdata)
+{
+	bPivotConstraint *data= con->data;
+	
+	/* target only */
+	func(con, (ID**)&data->tar, userdata);
+}
+
+static int pivotcon_get_tars (bConstraint *con, ListBase *list)
+{
+	if (con && list) {
+		bPivotConstraint *data= con->data;
+		bConstraintTarget *ct;
+		
+		/* standard target-getting macro for single-target constraints */
+		SINGLETARGET_GET_TARS(con, data->tar, data->subtarget, ct, list)
+		
+		return 1;
+	}
+	
+	return 0;
+}
+
+static void pivotcon_flush_tars (bConstraint *con, ListBase *list, short nocopy)
+{
+	if (con && list) {
+		bPivotConstraint *data= con->data;
+		bConstraintTarget *ct= list->first;
+		
+		/* the following macro is used for all standard single-target constraints */
+		SINGLETARGET_FLUSH_TARS(con, data->tar, data->subtarget, ct, list, nocopy)
+	}
+}
+
+static void pivotcon_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *targets)
+{
+	bPivotConstraint *data= con->data;
+	bConstraintTarget *ct= targets->first;
+	
+	float pivot[3], vec[3];
+	float rotMat[3][3];
+	
+	/* firstly, check if pivoting should take place based on the current rotation */
+	if (data->rotAxis != PIVOTCON_AXIS_NONE) {
+		float rot[3];
+		
+		/* extract euler-rotation of target */
+		mat4_to_eulO(rot, cob->rotOrder, cob->matrix);
+		
+		/* check which range might be violated */
+		if (data->rotAxis < PIVOTCON_AXIS_X) {
+			/* negative rotations (data->rotAxis = 0 -> 2) */
+			if (rot[data->rotAxis] > 0.0f)
+				return;
+		}
+		else {
+			/* positive rotations (data->rotAxis = 3 -> 5 */
+			if (rot[data->rotAxis - PIVOTCON_AXIS_X] < 0.0f)
+				return;
+		}
+	}
+	
+	/* find the pivot-point to use  */
+	if (VALID_CONS_TARGET(ct)) {
+		/* apply offset to target location */
+		add_v3_v3v3(pivot, ct->matrix[3], data->offset);
+	}
+	else {
+		/* no targets to worry about... */
+		if ((data->flag & PIVOTCON_FLAG_OFFSET_ABS) == 0) {
+			/* offset is relative to owner */
+			add_v3_v3v3(pivot, cob->matrix[3], data->offset);
+		}
+		else {
+			/* directly use the 'offset' specified as an absolute position instead */
+			copy_v3_v3(pivot, data->offset);
+		}
+	}
+	
+	/* get rotation matrix representing the rotation of the owner */
+	// TODO: perhaps we might want to include scaling based on the pivot too?
+	copy_m3_m4(rotMat, cob->matrix);
+	normalize_m3(rotMat);
+	
+	/* perform the pivoting... */
+		/* 1. take the vector from owner to the pivot */
+	sub_v3_v3v3(vec, pivot, cob->matrix[3]);
+		/* 2. rotate this vector by the rotation of the object... */
+	mul_m3_v3(rotMat, vec);
+		/* 3. make the rotation in terms of the pivot now */
+	add_v3_v3v3(cob->matrix[3], pivot, vec);
+}
+
+
+static bConstraintTypeInfo CTI_PIVOT = {
+	CONSTRAINT_TYPE_PIVOT, /* type */
+	sizeof(bPivotConstraint), /* size */
+	"Pivot", /* name */
+	"bPivotConstraint", /* struct name */
+	NULL, /* free data */
+	NULL, /* relink data */
+	pivotcon_id_looper, /* id looper */
+	NULL, /* copy data */
+	NULL, /* new data */ // XXX: might be needed to get 'normal' pivot behaviour...
+	pivotcon_get_tars, /* get constraint targets */
+	pivotcon_flush_tars, /* flush constraint targets */
+	default_get_tarmat, /* get target matrix */
+	pivotcon_evaluate /* evaluate */
 };
 
 /* ************************* Constraints Type-Info *************************** */
@@ -3861,6 +3899,7 @@ static void constraints_init_typeinfo () {
 	constraintsTypeInfo[22]= &CTI_SPLINEIK;			/* Spline IK Constraint */
 	constraintsTypeInfo[23]= &CTI_TRANSLIKE;		/* Copy Transforms Constraint */
 	constraintsTypeInfo[24]= &CTI_SAMEVOL;			/* Maintain Volume Constraint */
+	constraintsTypeInfo[25]= &CTI_PIVOT;			/* Pivot Constraint */
 }
 
 /* This function should be used for getting the appropriate type-info when only
@@ -3945,17 +3984,6 @@ int remove_constraint (ListBase *list, bConstraint *con)
 		return 1;
 	}
 	else
-		return 0;
-}
-
-/* Remove the nth constraint from the given constraint stack */
-int remove_constraint_index (ListBase *list, int index)
-{
-	bConstraint *con= BLI_findlink(list, index);
-	
-	if (con)
-		return remove_constraint(list, con);
-	else 
 		return 0;
 }
 
@@ -4125,7 +4153,7 @@ static void con_extern_cb(bConstraint *con, ID **idpoin, void *userdata)
 }
 
 /* duplicate all of the constraints in a constraint stack */
-void copy_constraints (ListBase *dst, const ListBase *src)
+void copy_constraints (ListBase *dst, const ListBase *src, int do_extern)
 {
 	bConstraint *con, *srccon;
 	
@@ -4144,14 +4172,22 @@ void copy_constraints (ListBase *dst, const ListBase *src)
 			if (cti->copy_data)
 				cti->copy_data(con, srccon);
 			
-			/* go over used ID-links for this constraint to ensure that they are valid for proxies */
-			if (cti->id_looper)
-				cti->id_looper(con, con_extern_cb, NULL);
+			/* for proxies we dont want to make extern */
+			if (do_extern) {
+				/* go over used ID-links for this constraint to ensure that they are valid for proxies */
+				if (cti->id_looper)
+					cti->id_looper(con, con_extern_cb, NULL);
+			}
 		}
 	}
 }
 
 /* ......... */
+
+bConstraint *constraints_findByName(ListBase *list, const char *name)
+{
+	return BLI_findstring(list, name, offsetof(bConstraint, name));
+}
 
 /* finds the 'active' constraint in a constraint stack */
 bConstraint *constraints_get_active (ListBase *list)

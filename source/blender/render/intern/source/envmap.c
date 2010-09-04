@@ -46,7 +46,6 @@
 
 #include "BKE_library.h"
 #include "BKE_main.h"
-#include "BKE_global.h"
 #include "BKE_image.h"   // BKE_write_ibuf 
 #include "BKE_texture.h"
 #include "BKE_utildefines.h"
@@ -508,7 +507,7 @@ void make_envmaps(Render *re)
 	
 	/* 5 = hardcoded max recursion level */
 	while(depth<5) {
-		tex= G.main->tex.first;
+		tex= re->main->tex.first;
 		while(tex) {
 			if(tex->id.us && tex->type==TEX_ENVMAP) {
 				if(tex->env && tex->env->object) {
@@ -719,9 +718,9 @@ int envmaptex(Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexRe
 	
 			texr1.nor= texr2.nor= NULL;
 
-			add_v3_v3v3(vec, vec, dxt);
+			add_v3_v3(vec, dxt);
 			face1= envcube_isect(env, vec, sco);
-			sub_v3_v3v3(vec, vec, dxt);
+			sub_v3_v3(vec, dxt);
 			
 			if(face!=face1) {
 				ibuf= env->cube[face1];
@@ -732,9 +731,9 @@ int envmaptex(Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexRe
 			
 			/* here was the nasty bug! results were not zero-ed. FPE! */
 			
-			add_v3_v3v3(vec, vec, dyt);
+			add_v3_v3(vec, dyt);
 			face1= envcube_isect(env, vec, sco);
-			sub_v3_v3v3(vec, vec, dyt);
+			sub_v3_v3(vec, dyt);
 			
 			if(face!=face1) {
 				ibuf= env->cube[face1];

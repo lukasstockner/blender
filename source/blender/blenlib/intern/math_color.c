@@ -33,17 +33,14 @@ void hsv_to_rgb(float h, float s, float v, float *r, float *g, float *b)
 	int i;
 	float f, p, q, t;
 
-	h *= 360.0f;
-	
 	if(s==0.0f) {
 		*r = v;
 		*g = v;
 		*b = v;
 	}
 	else {
-		if(h== 360.0f) h = 0.0f;
-		
-		h /= 60.0f;
+		h= (h - floor(h))*6.0f;
+
 		i = (int)floor(h);
 		f = h - i;
 		p = v*(1.0f-s);
@@ -110,7 +107,7 @@ void yuv_to_rgb(float y, float u, float v, float *lr, float *lg, float *lb)
 }
 
 /* The RGB inputs are supposed gamma corrected and in the range 0 - 1.0f */
-/* Output YCC have a range of 16-235 and 16-240 exepect with JFIF_0_255 where the range is 0-255 */
+/* Output YCC have a range of 16-235 and 16-240 except with JFIF_0_255 where the range is 0-255 */
 void rgb_to_ycc(float r, float g, float b, float *ly, float *lcb, float *lcr, int colorspace)
 {
 	float sr,sg, sb;
@@ -132,7 +129,7 @@ void rgb_to_ycc(float r, float g, float b, float *ly, float *lcb, float *lcr, in
 		cr=(0.439f*sr)-(0.399f*sg)-(0.040f*sb)+128.0f;
 		break;
 	case BLI_YCC_JFIF_0_255 :
-		y=(0.299f*sr)+(0.587f*sg)+(0.114f*sb)+16.0f;
+		y=(0.299f*sr)+(0.587f*sg)+(0.114f*sb);
 		cb=(-0.16874f*sr)-(0.33126f*sg)+(0.5f*sb)+128.0f;
 		cr=(0.5f*sr)-(0.41869f*sg)-(0.08131f*sb)+128.0f;
 		break;
@@ -375,6 +372,40 @@ void linearrgb_to_srgb_v3_v3(float *col_to, float *col_from)
 	col_to[2] = linearrgb_to_srgb(col_from[2]);
 }
 
+/* todo, should these be moved elsewhere?, they dont belong in imbuf */
+void srgb_to_linearrgb_rgba_buf(float *col, int tot)
+{
+	while(tot--) {
+		srgb_to_linearrgb_v3_v3(col, col);
+		col += 4;
+	}
+}
+
+void linearrgb_to_srgb_rgba_buf(float *col, int tot)
+{
+	while(tot--) {
+		linearrgb_to_srgb_v3_v3(col, col);
+		col += 4;
+	}
+}
+
+void srgb_to_linearrgb_rgba_rgba_buf(float *col_to, float *col_from, int tot)
+{
+	while(tot--) {
+		srgb_to_linearrgb_v3_v3(col_to, col_from);
+		col_to += 4;
+		col_from += 4;
+	}
+}
+
+void linearrgb_to_srgb_rgba_rgba_buf(float *col_to, float *col_from, int tot)
+{
+	while(tot--) {
+		linearrgb_to_srgb_v3_v3(col_to, col_from);
+		col_to += 4;
+		col_from += 4;
+	}
+}
 
 void minmax_rgb(short c[])
 {

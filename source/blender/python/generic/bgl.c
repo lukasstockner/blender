@@ -27,9 +27,8 @@
  * ***** END GPL LICENSE BLOCK *****
 */
 
-/* This file is the Blender.BGL part of opy_draw.c, from the old
- * bpython/intern dir, with minor changes to adapt it to the new Python
- * implementation.  The BGL submodule "wraps" OpenGL functions and constants,
+/* This file is the 'bgl' module.
+ * The BGL submodule "wraps" OpenGL functions and constants,
  * allowing script writers to make OpenGL calls in their Python scripts. */
 
 #include "bgl.h" /*This must come first */
@@ -64,13 +63,16 @@ static int Buffer_ass_slice( PyObject * self, int begin, int end,
 				 PyObject * seq );
 
 static PySequenceMethods Buffer_SeqMethods = {
-	( lenfunc ) Buffer_len,	/*sq_length */
-	( binaryfunc ) 0,	/*sq_concat */
-	( ssizeargfunc ) 0,	/*sq_repeat */
-	( ssizeargfunc ) Buffer_item,	/*sq_item */
-	( ssizessizeargfunc ) Buffer_slice,	/*sq_slice */
-	( ssizeobjargproc ) Buffer_ass_item,	/*sq_ass_item */
-	( ssizessizeobjargproc ) Buffer_ass_slice,	/*sq_ass_slice */
+	( lenfunc ) Buffer_len,						/*sq_length */
+	( binaryfunc ) NULL,						/*sq_concat */
+	( ssizeargfunc ) NULL,						/*sq_repeat */
+	( ssizeargfunc ) Buffer_item,				/*sq_item */
+	( ssizessizeargfunc ) Buffer_slice,			/*sq_slice, deprecated TODO, replace */
+	( ssizeobjargproc ) Buffer_ass_item,		/*sq_ass_item */
+	( ssizessizeobjargproc ) Buffer_ass_slice,	/*sq_ass_slice, deprecated TODO, replace */
+	(objobjproc) NULL,							/* sq_contains */
+	(binaryfunc) NULL,							/* sq_inplace_concat */
+	(ssizeargfunc) NULL,						/* sq_inplace_repeat */
 };
 
 static void Buffer_dealloc( PyObject * self );
@@ -319,20 +321,20 @@ static int Buffer_ass_item(PyObject *self, int i, PyObject *v)
 	}
 
 	if (buf->type==GL_BYTE) {
-		if (!PyArg_Parse(v, "b;Coordinates must be ints", &buf->buf.asbyte[i]))
+		if (!PyArg_Parse(v, "b:Coordinates must be ints", &buf->buf.asbyte[i]))
 		return -1;
 	} else if (buf->type==GL_SHORT) {
-		if (!PyArg_Parse(v, "h;Coordinates must be ints", &buf->buf.asshort[i]))
+		if (!PyArg_Parse(v, "h:Coordinates must be ints", &buf->buf.asshort[i]))
 			return -1;
 	  
 	} else if (buf->type==GL_INT) {
-		if (!PyArg_Parse(v, "i;Coordinates must be ints", &buf->buf.asint[i]))
+		if (!PyArg_Parse(v, "i:Coordinates must be ints", &buf->buf.asint[i]))
 			return -1;
 	} else if (buf->type==GL_FLOAT) {
-		if (!PyArg_Parse(v, "f;Coordinates must be floats", &buf->buf.asfloat[i]))
+		if (!PyArg_Parse(v, "f:Coordinates must be floats", &buf->buf.asfloat[i]))
 			return -1;
 	} else if (buf->type==GL_DOUBLE) {
-		if (!PyArg_Parse(v, "d;Coordinates must be floats", &buf->buf.asdouble[i]))
+		if (!PyArg_Parse(v, "d:Coordinates must be floats", &buf->buf.asdouble[i]))
 			return -1;
 	}
 	return 0;
@@ -1115,7 +1117,7 @@ PyObject *BGL_Init(void)
 {
 	PyObject *mod, *dict, *item;
 	mod = PyModule_Create(&BGL_module_def);
-	PyDict_SetItemString(PySys_GetObject("modules"), BGL_module_def.m_name, mod);
+	PyDict_SetItemString(PyImport_GetModuleDict(), BGL_module_def.m_name, mod);
 	dict= PyModule_GetDict(mod);
 	
 	if( PyType_Ready( &BGL_bufferType) < 0)

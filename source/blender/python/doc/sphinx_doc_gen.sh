@@ -1,15 +1,14 @@
 #!/bin/sh
 # run from the blender source dir
 #   bash source/blender/python/doc/sphinx_doc_gen.sh
-# ssh upload means you need a login into the server
+# ssh upload means you need an account on the server
 
 BLENDER="./blender.bin"
 SSH_HOST="ideasman42@emo.blender.org"
 SSH_UPLOAD="/data/www/vhosts/www.blender.org/documentation/250PythonDoc"
 
-# clear doc dir
-rm -rf ./source/blender/python/doc/sphinx-in ./source/blender/python/doc/sphinx-out
-$BLENDER -b -P ./source/blender/python/doc/sphinx_doc_gen.py
+# dont delete existing docs, now partial updates are used for quick builds.
+$BLENDER --background --python ./source/blender/python/doc/sphinx_doc_gen.py
 
 # html
 sphinx-build source/blender/python/doc/sphinx-in source/blender/python/doc/sphinx-out

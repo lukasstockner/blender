@@ -32,6 +32,8 @@
 extern "C" {
 #endif
 
+#include "BLI_math_inline.h"
+
 #ifdef BLI_MATH_INLINE
 #include "intern/math_vector_inline.c"
 #endif
@@ -69,12 +71,14 @@ MINLINE void mul_v3_v3fl(float r[3], const float a[3], float f);
 MINLINE void mul_v2_v2(float r[2], const float a[2]);
 MINLINE void mul_v3_v3(float r[3], const float a[3]);
 MINLINE void mul_v3_v3v3(float r[3], const float a[3], const float b[3]);
+MINLINE void mul_v4_fl(float r[4], float f);
 
 MINLINE void madd_v3_v3fl(float r[3], const float a[3], float f);
 MINLINE void madd_v3_v3v3(float r[3], const float a[3], const float b[3]);
 MINLINE void madd_v2_v2v2fl(float r[2], const float a[2], const float b[2], float f);
 MINLINE void madd_v3_v3v3fl(float r[3], const float a[3], const float b[3], float f);
 MINLINE void madd_v3_v3v3v3(float r[3], const float a[3], const float b[3], const float c[3]);
+MINLINE void madd_v4_v4fl(float r[4], const float a[4], float f);
 
 MINLINE void negate_v3(float r[3]);
 MINLINE void negate_v3_v3(float r[3], const float a[3]);
@@ -93,6 +97,7 @@ MINLINE float len_v2(const float a[2]);
 MINLINE float len_v2v2(const float a[2], const float b[2]);
 MINLINE float len_v3(const float a[3]);
 MINLINE float len_v3v3(const float a[3], const float b[3]);
+MINLINE float len_squared_v3v3(const float a[3], const float b[3]);
 
 MINLINE float normalize_v2(float r[2]);
 MINLINE float normalize_v2_v2(float r[2], const float a[2]);
@@ -107,6 +112,7 @@ void interp_v3_v3v3(float r[3], const float a[3], const float b[3], const float 
 void interp_v3_v3v3v3(float p[3], const float v1[3], const float v2[3], const float v3[3], const float w[3]);
 void interp_v3_v3v3v3v3(float p[3], const float v1[3], const float v2[3], const float v3[3], const float v4[3], const float w[4]);
 void interp_v4_v4v4(float r[4], const float a[4], const float b[4], const float t);
+void interp_v4_v4v4v4(float p[4], const float v1[4], const float v2[4], const float v3[4], const float w[3]);
 
 void mid_v3_v3v3(float r[3], float a[3], float b[3]);
 
@@ -120,6 +126,7 @@ MINLINE int compare_v3v3(float a[3], float b[3], float limit);
 MINLINE int compare_len_v3v3(float a[3], float b[3], float limit);
 
 MINLINE int compare_v4v4(float a[4], float b[4], float limit);
+MINLINE int equals_v4v4(float a[4], float b[4]);
 
 /********************************** Angles ***********************************/
 /* - angle with 2 arguments is angle between vector                          */
@@ -144,9 +151,9 @@ void bisect_v3_v3v3v3(float r[3], float a[3], float b[3], float c[3]);
 
 /*********************************** Other ***********************************/
 
-void print_v2(char *str, float a[2]);
-void print_v3(char *str, float a[3]);
-void print_v4(char *str, float a[4]);
+void print_v2(const char *str, const float a[2]);
+void print_v3(const char *str, const float a[3]);
+void print_v4(const char *str, const float a[4]);
 
 MINLINE void normal_short_to_float_v3(float r[3], const short n[3]);
 MINLINE void normal_float_to_short_v3(short r[3], const float n[3]);

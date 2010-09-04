@@ -51,13 +51,7 @@ editmesh_loop: tools with own drawing subloops, select, knife, subdiv
 
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
-#include "BKE_displist.h"
-#include "BKE_global.h"
-#include "BKE_library.h"
 #include "BKE_mesh.h"
-#include "BKE_object.h"
-#include "BKE_report.h"
-#include "BKE_utildefines.h"
 
 #include "PIL_time.h"
 
@@ -75,9 +69,9 @@ editmesh_loop: tools with own drawing subloops, select, knife, subdiv
 #include "mesh_intern.h"
 
 /* **** XXX ******** */
-static void BIF_undo_push() {}
+static void BIF_undo_push(const char *dummy) {}
 static void BIF_undo() {}
-static void error() {}
+static void error(const char *dummy) {}
 static int qtest() {return 0;}
 /* **** XXX ******** */
 
@@ -629,7 +623,7 @@ static int knife_cut_exec(bContext *C, wmOperator *op)
 	int len=0;
 	short numcuts= RNA_int_get(op->ptr, "num_cuts"); 
 	short mode= RNA_int_get(op->ptr, "type");
-	int corner_cut_pattern= RNA_enum_get(op->ptr,"corner_cut_pattern");
+//	int corner_cut_pattern= RNA_enum_get(op->ptr,"corner_cut_pattern");
 	
 	/* edit-object needed for matrix, and ar->regiondata for projections to work */
 	if (ELEM3(NULL, obedit, ar, ar->regiondata))
@@ -660,7 +654,7 @@ static int knife_cut_exec(bContext *C, wmOperator *op)
 		eed->tmp.fp = 0.0; 
 	
 	/*the floating point coordinates of verts in screen space will be stored in a hash table according to the vertices pointer*/
-	gh = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
+	gh = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "knife_cut_exec gh");
 	for(eve=em->verts.first; eve; eve=eve->next){
 		scr = MEM_mallocN(sizeof(float)*2, "Vertex Screen Coordinates");
 		VECCOPY(co, eve->co);

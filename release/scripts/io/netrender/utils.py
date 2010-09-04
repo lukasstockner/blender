@@ -19,7 +19,7 @@
 import sys, os
 import re
 import http, http.client, http.server, urllib, socket
-import subprocess, shutil, time, hashlib
+import subprocess, shutil, time, hashlib, zlib
 
 import netrender.model
 
@@ -28,7 +28,7 @@ try:
 except:
   bpy = None
 
-VERSION = bytes("0.8", encoding='utf8')
+VERSION = bytes("0.9", encoding='utf8')
 
 # Jobs status
 JOB_WAITING = 0 # before all data has been entered
@@ -57,9 +57,10 @@ FRAME_STATUS_TEXT = {
         ERROR: "Error"
         }
 
-def rnaType(rna_type):
-    if bpy: bpy.types.register(rna_type)
-    return rna_type
+def responseStatus(conn):
+    response = conn.getresponse()
+    response.read()
+    return response.status
 
 def reporting(report, message, errorType = None):
     if errorType:
@@ -154,22 +155,37 @@ def renderURL(job_id, frame_number):
 def cancelURL(job_id):
     return "/cancel_%s" % (job_id)
 
-def prefixPath(prefix_directory, file_path, prefix_path):
+def hashFile(path):
+    f = open(path, "rb")
+    value = hashData(f.read())
+    f.close()
+    return value
+    
+def hashData(data):
+    m = hashlib.md5()
+    m.update(data)
+    return m.hexdigest()
+    
+
+def prefixPath(prefix_directory, file_path, prefix_path, force = False):
     if os.path.isabs(file_path):
         # if an absolute path, make sure path exists, if it doesn't, use relative local path
         full_path = file_path
-        if not os.path.exists(full_path):
-            p, n = os.path.split(full_path)
+        if force or not os.path.exists(full_path):
+            p, n = os.path.split(os.path.normpath(full_path))
 
             if prefix_path and p.startswith(prefix_path):
-                directory = prefix_directory + p[len(prefix_path):]
-                full_path = directory + os.sep + n
-                if not os.path.exists(directory):
-                    os.mkdir(directory)
+                if len(prefix_path) < len(p):
+                    directory = os.path.join(prefix_directory, p[len(prefix_path)+1:]) # +1 to remove separator
+                    if not os.path.exists(directory):
+                        os.mkdir(directory)
+                else:
+                    directory = prefix_directory
+                full_path = os.path.join(directory, n)
             else:
-                full_path = prefix_directory + n
+                full_path = os.path.join(prefix_directory, n)
     else:
-        full_path = prefix_directory + file_path
+        full_path = (prefix_directory, file_path)
 
     return full_path
 
@@ -200,7 +216,7 @@ def thumbnail(filename):
         scene = bpy.data.scenes[0] # FIXME, this is dodgy!
         scene.render.file_format = "JPEG"
         scene.render.file_quality = 90
-        bpy.ops.image.open(path = filename)
+        bpy.ops.image.open(filepath=filename)
         img = bpy.data.images[imagename]
         img.save_render(thumbname, scene=scene)
 

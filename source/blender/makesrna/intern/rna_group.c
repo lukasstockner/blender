@@ -110,13 +110,14 @@ void RNA_def_group(BlenderRNA *brna)
 	srna= RNA_def_struct(brna, "Group", "ID");
 	RNA_def_struct_ui_text(srna, "Group", "Group of Object datablocks");
 	RNA_def_struct_ui_icon(srna, ICON_GROUP);
+	RNA_def_struct_clear_flag(srna, STRUCT_ID_REFCOUNT); /* this is done on save/load in readfile.c, removed if no objects are in the group */
 
 	prop= RNA_def_property(srna, "dupli_offset", PROP_FLOAT, PROP_TRANSLATION);
 	RNA_def_property_float_sdna(prop, NULL, "dupli_ofs");
 	RNA_def_property_ui_text(prop, "Dupli Offset", "Offset from the origin to use when instancing as DupliGroup");
 	RNA_def_property_ui_range(prop, -10000.0, 10000.0, 10, 4);
 
-	prop= RNA_def_property(srna, "layer", PROP_BOOLEAN, PROP_LAYER);
+	prop= RNA_def_property(srna, "layers", PROP_BOOLEAN, PROP_LAYER);
 	RNA_def_property_boolean_sdna(prop, NULL, "layer", 1);
 	RNA_def_property_array(prop, 20);
 	RNA_def_property_ui_text(prop, "Dupli Layers", "Layers visible when this groups is instanced as a dupli");

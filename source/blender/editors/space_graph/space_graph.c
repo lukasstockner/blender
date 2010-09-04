@@ -43,7 +43,6 @@
 #include "BKE_main.h"
 #include "BKE_fcurve.h"
 #include "BKE_screen.h"
-#include "BKE_utildefines.h"
 
 #include "ED_screen.h"
 #include "ED_anim_api.h"
@@ -382,8 +381,11 @@ static void graph_region_listener(ARegion *ar, wmNotifier *wmn)
 				case ND_OB_ACTIVE:
 				case ND_FRAME:
 				case ND_MARKERS:
-				case ND_SEQUENCER_SELECT:
 					ED_region_tag_redraw(ar);
+					break;
+				case ND_SEQUENCER:
+					if (wmn->action == NA_SELECTED)
+						ED_region_tag_redraw(ar);
 					break;
 			}
 			break;
@@ -401,13 +403,9 @@ static void graph_region_listener(ARegion *ar, wmNotifier *wmn)
 			}
 			break;
 		case NC_NODE:
-			switch(wmn->data) {
-				case ND_NODE_SELECT:
-					ED_region_tag_redraw(ar);
-					break;
-			}
 			switch(wmn->action) {
 				case NA_EDITED:
+				case NA_SELECTED:
 					ED_region_tag_redraw(ar);
 					break;
 			}
@@ -432,7 +430,7 @@ static void graph_listener(ScrArea *sa, wmNotifier *wmn)
 	switch (wmn->category) {
 		case NC_ANIMATION:
 			/* for selection changes of animation data, we can just redraw... otherwise autocolor might need to be done again */
-			if (ELEM(wmn->data, ND_KEYFRAME_SELECT, ND_ANIMCHAN_SELECT))
+			if (ELEM(wmn->data, ND_KEYFRAME, ND_ANIMCHAN) && (wmn->action == NA_SELECTED))
 				ED_area_tag_redraw(sa);
 			else
 				ED_area_tag_refresh(sa);
@@ -521,7 +519,7 @@ static void graph_refresh(const bContext *C, ScrArea *sa)
 		 * 	- we don't include ANIMFILTER_CURVEVISIBLE filter, as that will result in a 
 		 * 	  mismatch between channel-colors and the drawn curves
 		 */
-		filter= (ANIMFILTER_VISIBLE|ANIMFILTER_CURVESONLY);
+		filter= (ANIMFILTER_VISIBLE|ANIMFILTER_CURVESONLY|ANIMFILTER_NODUPLIS);
 		items= ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 		
 		/* loop over F-Curves, assigning colors */

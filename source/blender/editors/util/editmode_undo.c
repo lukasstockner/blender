@@ -40,12 +40,10 @@
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
-#include "BKE_object.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_dynstr.h"
 
-#include "BKE_utildefines.h"
 
 #include "ED_mesh.h"
 
@@ -76,7 +74,7 @@ void undo_editmode_menu(void)				// history menu
 /* ********************************************************************* */
 
 /* ****** XXX ***** */
-void error() {}
+void error(const char *dummy) {}
 /* ****** XXX ***** */
 
 

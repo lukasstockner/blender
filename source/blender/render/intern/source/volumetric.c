@@ -56,10 +56,6 @@
 #include "volumetric.h"
 #include "volume_precache.h"
 
-#if defined( _MSC_VER ) && !defined( __cplusplus )
-# define inline __inline
-#endif // defined( _MSC_VER ) && !defined( __cplusplus )
-
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 /* defined in pipeline.c, is hardcopy of active dynamic allocated Render */
 /* only to be used here in this file, it's for speed */
@@ -67,7 +63,7 @@ extern struct Render R;
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
 /* luminance rec. 709 */
-inline float luminance(float* col)
+BM_INLINE float luminance(float* col)
 {
 	return (0.212671f*col[0] + 0.71516f*col[1] + 0.072169f*col[2]);
 }
@@ -197,7 +193,7 @@ static void vol_trace_behind(ShadeInput *shi, VlakRen *vlr, float *co, float *co
 	isect.labda = FLT_MAX;
 	
 	isect.mode= RE_RAY_MIRROR;
-	isect.skip = RE_SKIP_VLR_NEIGHBOUR | RE_SKIP_VLR_RENDER_CHECK;
+	isect.skip = RE_SKIP_VLR_NEIGHBOUR;
 	isect.orig.ob = (void*) shi->obi;
 	isect.orig.face = (void*)vlr;
 	isect.last_hit = NULL;
@@ -209,27 +205,28 @@ static void vol_trace_behind(ShadeInput *shi, VlakRen *vlr, float *co, float *co
 	} else {
 		shadeSkyView(col, co, shi->view, NULL, shi->thread);
 		shadeSunView(col, shi->view);
-	}
+	} 
 }
 
 
 /* trilinear interpolation */
-static void vol_get_precached_scattering(ShadeInput *shi, float *scatter_col, float *co)
+static void vol_get_precached_scattering(Render *re, ShadeInput *shi, float *scatter_col, float *co)
 {
 	VolumePrecache *vp = shi->obi->volume_precache;
 	float bbmin[3], bbmax[3], dim[3];
-	float sample_co[3];
+	float world_co[3], sample_co[3];
 	
 	if (!vp) return;
 	
-	/* convert input coords to 0.0, 1.0 */
-	VECCOPY(bbmin, shi->obi->obr->boundbox[0]);
-	VECCOPY(bbmax, shi->obi->obr->boundbox[1]);
+	/* find sample point in global space bounding box 0.0-1.0 */
+	global_bounds_obi(re, shi->obi, bbmin, bbmax);
 	sub_v3_v3v3(dim, bbmax, bbmin);
+	mul_v3_m4v3(world_co, re->viewinv, co);	
 
-	sample_co[0] = ((co[0] - bbmin[0]) / dim[0]);
-	sample_co[1] = ((co[1] - bbmin[1]) / dim[1]);
-	sample_co[2] = ((co[2] - bbmin[2]) / dim[2]);
+	/* sample_co in 0.0-1.0 */
+	sample_co[0] = (world_co[0] - bbmin[0]) / dim[0];
+	sample_co[1] = (world_co[1] - bbmin[1]) / dim[1];
+	sample_co[2] = (world_co[2] - bbmin[2]) / dim[2];
 
 	scatter_col[0] = voxel_sample_triquadratic(vp->data_r, vp->res, sample_co);
 	scatter_col[1] = voxel_sample_triquadratic(vp->data_g, vp->res, sample_co);
@@ -449,13 +446,13 @@ static void vol_get_transmittance(ShadeInput *shi, float *tr, float *co, float *
 		const float stepd = (t0 - pt0) * d;
 		float sigma_t[3];
 		
-		vol_get_sigma_t(shi, sigma_t, co);
+		vol_get_sigma_t(shi, sigma_t, p);
 		
 		tau[0] += stepd * sigma_t[0];
 		tau[1] += stepd * sigma_t[1];
 		tau[2] += stepd * sigma_t[2];
 		
-		add_v3_v3v3(p, p, step_vec);
+		add_v3_v3(p, step_vec);
 	}
 	
 	/* return transmittance */
@@ -561,7 +558,7 @@ void vol_get_scattering(ShadeInput *shi, float *scatter_col, float *co)
 		
 		if (lar) {
 			vol_shade_one_lamp(shi, co, lar, lacol);
-			add_v3_v3v3(scatter_col, scatter_col, lacol);
+			add_v3_v3(scatter_col, lacol);
 		}
 	}
 }
@@ -606,13 +603,16 @@ static void volumeintegrate(struct ShadeInput *shi, float *col, float *co, float
 		const float density = vol_get_density(shi, p);
 		
 		if (density > 0.01f) {
-			float scatter_col[3], emit_col[3];
+			float scatter_col[3] = {0.f, 0.f, 0.f}, emit_col[3];
 			const float stepd = (t0 - pt0) * density;
 			
 			/* transmittance component (alpha) */
 			vol_get_transmittance_seg(shi, tr, stepsize, co, density);
 			
-			if (luminance(tr) < shi->mat->vol.depth_cutoff) break;
+			if (t0 > t1 * 0.25) {
+				/* only use depth cutoff after we've traced a little way into the volume */
+				if (luminance(tr) < shi->mat->vol.depth_cutoff) break;
+			}
 			
 			vol_get_emission(shi, emit_col, p);
 			
@@ -623,7 +623,7 @@ static void volumeintegrate(struct ShadeInput *shi, float *col, float *co, float
 				p2[1] = p[1] + (step_vec[1] * 0.5);
 				p2[2] = p[2] + (step_vec[2] * 0.5);
 				
-				vol_get_precached_scattering(shi, scatter_col, p2);
+				vol_get_precached_scattering(&R, shi, scatter_col, p2);
 			} else
 				vol_get_scattering(shi, scatter_col, p);
 			
@@ -631,12 +631,12 @@ static void volumeintegrate(struct ShadeInput *shi, float *col, float *co, float
 			radiance[1] += stepd * tr[1] * (emit_col[1] + scatter_col[1]);
 			radiance[2] += stepd * tr[2] * (emit_col[2] + scatter_col[2]);
 		}
-		add_v3_v3v3(p, p, step_vec);
+		add_v3_v3(p, step_vec);
 	}
 	
 	/* multiply original color (from behind volume) with transmittance over entire distance */
 	mul_v3_v3v3(col, tr, col);
-	add_v3_v3v3(col, col, radiance);
+	add_v3_v3(col, radiance);
 	
 	/* alpha <-- transmission luminance */
 	col[3] = 1.0f - luminance(tr);
@@ -786,10 +786,7 @@ void shade_volume_inside(ShadeInput *shi, ShadeResult *shr)
 	MatInside *m;
 	Material *mat_backup;
 	ObjectInstanceRen *obi_backup;
-	float prev_alpha = shr->alpha;
-	
-	//if (BLI_countlist(&R.render_volumes_inside) == 0) return;
-	
+
 	/* XXX: extend to multiple volumes perhaps later */
 	mat_backup = shi->mat;
 	obi_backup = shi->obi;
@@ -799,10 +796,10 @@ void shade_volume_inside(ShadeInput *shi, ShadeResult *shr)
 	shi->obi = m->obi;
 	shi->obr = m->obi->obr;
 	
-	volume_trace(shi, shr, VOL_SHADE_INSIDE);
-	shr->alpha += prev_alpha;
-	CLAMP(shr->alpha, 0.f, 1.f);
+	memset(shr, 0, sizeof(ShadeResult));
 	
+	volume_trace(shi, shr, VOL_SHADE_INSIDE);
+
 	shi->mat = mat_backup;
 	shi->obi = obi_backup;
 	shi->obr = obi_backup->obr;

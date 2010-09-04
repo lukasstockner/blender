@@ -28,10 +28,6 @@
  * .blend file reading entry point
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -40,10 +36,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_listBase.h"
-#include "DNA_userdef_types.h"
 
-#include "BKE_utildefines.h"
-#include "BKE_global.h"
 
 #include "BLO_undofile.h"
 

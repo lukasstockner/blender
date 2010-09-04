@@ -29,10 +29,6 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include "GHOST_SystemX11.h"
 #include "GHOST_WindowX11.h"
 #include "GHOST_WindowManager.h"
@@ -70,6 +66,10 @@
 #include <vector>
 #include <stdio.h> // for fprintf only
 #include <cstdlib> // for exit
+
+#ifndef PREFIX
+#  define PREFIX "/usr/local"
+#endif
 
 typedef struct NDOFPlatformInfo {
 	Display *display;
@@ -469,7 +469,7 @@ GHOST_SystemX11::processEvent(XEvent *xe)
 
 				/* could also clamp to screen bounds
 				 * wrap with a window outside the view will fail atm  */
-				bounds.wrapPoint(x_new, y_new, 2); /* offset of one incase blender is at screen bounds */
+				bounds.wrapPoint(x_new, y_new, 8); /* offset of one incase blender is at screen bounds */
 				window->getCursorGrabAccum(x_accum, y_accum);
 
 				if(x_new != xme.x_root || y_new != xme.y_root) {
@@ -970,7 +970,7 @@ GHOST_SystemX11::
 setCursorPosition(
 	GHOST_TInt32 x,
 	GHOST_TInt32 y
-) const {
+) {
 
 	// This is a brute force move in screen coordinates
 	// XWarpPointer does relative moves so first determine the
@@ -1465,19 +1465,21 @@ void GHOST_SystemX11::putClipboard(GHOST_TInt8 *buffer, bool selection) const
 
 const GHOST_TUns8* GHOST_SystemX11::getSystemDir() const
 {
-	return (GHOST_TUns8*)"/usr/share/blender";
+	return (GHOST_TUns8*) PREFIX "/share";
 }
 
 const GHOST_TUns8* GHOST_SystemX11::getUserDir() const
 {
-	static char path[256];
 	char* env = getenv("HOME");
 	if(env) {
-		strncpy(path, env, 245);
-		path[245]=0;
-		strcat(path, "/.blender/");
-		return (GHOST_TUns8*) path;
+		return (GHOST_TUns8*) env;
 	} else {
 		return NULL;
 	}
 }
+
+const GHOST_TUns8* GHOST_SystemX11::getBinaryDir() const
+{
+	return NULL;
+}
+

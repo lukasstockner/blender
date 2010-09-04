@@ -71,6 +71,7 @@ private:
 	class KX_ISceneConverter*			m_sceneconverter;
 	class NG_NetworkDeviceInterface*		m_networkdevice;
 #ifndef DISABLE_PYTHON
+	/* borrowed from sys.modules["__main__"], dont manage ref's */
 	PyObject*					m_pythondictionary;
 #endif
 	class SCA_IInputDevice*				m_keyboarddevice;
@@ -213,6 +214,8 @@ public:
 	RAS_IRasterizer*		GetRasterizer(){return m_rasterizer;};
 	RAS_ICanvas*		    GetCanvas(){return m_canvas;};
 	RAS_IRenderTools*	    GetRenderTools(){return m_rendertools;};
+	SCA_IInputDevice*		GetKeyboardDevice(){return m_keyboarddevice;};
+	SCA_IInputDevice*		GetMouseDevice(){return m_mousedevice;};
 
 	/// Dome functions
 	void			InitDome(short res, short mode, short angle, float resbuf, short tilt, struct Text* text); 
@@ -410,7 +413,7 @@ protected:
 	
 #ifdef WITH_CXX_GUARDEDALLOC
 public:
-	void *operator new( unsigned int num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_KetsjiEngine"); }
+	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_KetsjiEngine"); }
 	void operator delete( void *mem ) { MEM_freeN(mem); }
 #endif
 };

@@ -52,10 +52,6 @@
 #include "nla_private.h"
 
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 
 /* *************************************************** */
 /* Data Management */
@@ -1247,7 +1243,7 @@ void BKE_nlastrip_validate_name (AnimData *adt, NlaStrip *strip)
 	 *	- this is easier than iterating over all the tracks+strips hierarchy everytime
 	 *	  (and probably faster)
 	 */
-	gh= BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp);
+	gh= BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp, "nlastrip_validate_name gh");
 	
 	for (nlt= adt->nla_tracks.first; nlt; nlt= nlt->next) {
 		for (tstrip= nlt->strips.first; tstrip; tstrip= tstrip->next) {
@@ -1269,13 +1265,13 @@ void BKE_nlastrip_validate_name (AnimData *adt, NlaStrip *strip)
 		char *dot;
 		
 		/* Strip off the suffix */
-		dot = strchr(strip->name, '.');
+		dot = strrchr(strip->name, '.');
 		if (dot) *dot=0;
 		
 		/* Try different possibilities */
 		for (number = 1; number <= 999; number++) {
 			/* assemble alternative name */
-			BLI_snprintf(tempname, 128, "%s%c%03d", strip->name, ".", number);
+			BLI_snprintf(tempname, 128, "%s.%03d", strip->name, number);
 			
 			/* if hash doesn't have this, set it */
 			if (BLI_ghash_haskey(gh, tempname) == 0) {

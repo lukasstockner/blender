@@ -48,13 +48,9 @@
 #include "BKE_action.h"
 #include "BKE_armature.h"
 #include "BKE_depsgraph.h"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
 
-#include "BKE_global.h"
 #include "BKE_context.h"
 #include "BKE_report.h"
-#include "BKE_utildefines.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -282,8 +278,16 @@ static void poselib_add_menu_invoke__replacemenu (bContext *C, uiLayout *layout,
 	uiLayoutSetOperatorContext(layout, WM_OP_EXEC_DEFAULT);
 	
 	/* add each marker to this menu */
-	for (marker= act->markers.first; marker; marker= marker->next)
-		uiItemIntO(layout, marker->name, ICON_ARMATURE_DATA, "POSELIB_OT_pose_add", "frame", marker->frame);
+	for (marker= act->markers.first; marker; marker= marker->next) {
+		PointerRNA props_ptr;
+		
+		props_ptr = uiItemFullO(layout, "POSELIB_OT_pose_add", 
+						marker->name, ICON_ARMATURE_DATA, NULL, 
+						WM_OP_EXEC_DEFAULT, UI_ITEM_O_RETURN_PROPS);
+		
+		RNA_int_set(&props_ptr, "frame", marker->frame);
+		RNA_string_set(&props_ptr, "name", marker->name);
+	}
 }
 
 static int poselib_add_menu_invoke (bContext *C, wmOperator *op, wmEvent *evt)
@@ -769,12 +773,19 @@ static void poselib_keytag_pose (bContext *C, Scene *scene, tPoseLib_PreviewData
 			if (pchan) {
 				if (autokeyframe_cfra_can_key(scene, &pld->ob->id)) {
 					ListBase dsources = {NULL, NULL};
+					KeyingSet *ks = NULL;
 					
-					/* get KeyingSet to use */
-					// TODO: for getting the KeyingSet used, we should really check which channels were affected
-					// TODO: this should get modified so that custom props are taken into account too!
+					/* get KeyingSet to use 
+					 *	- use the active KeyingSet if defined (and user wants to use it for all autokeying), 
+					 * 	  or otherwise key transforms only
+					 */
 					if (poselib_ks_locrotscale == NULL)
 						poselib_ks_locrotscale= ANIM_builtin_keyingset_get_named(NULL, "LocRotScale");
+					 
+					if (IS_AUTOKEY_FLAG(ONLYKEYINGSET) && (scene->active_keyingset))
+						ks = ANIM_scene_get_active_keyingset(scene);
+					else 
+						ks = ANIM_builtin_keyingset_get_named(NULL, "LocRotScale");
 					
 					/* now insert the keyframe(s) using the Keying Set
 					 *	1) add datasource override for the PoseChannel
@@ -782,7 +793,7 @@ static void poselib_keytag_pose (bContext *C, Scene *scene, tPoseLib_PreviewData
 					 *	3) free the extra info 
 					 */
 					ANIM_relative_keyingset_add_source(&dsources, &pld->ob->id, &RNA_PoseBone, pchan); 
-					ANIM_apply_keyingset(C, &dsources, NULL, poselib_ks_locrotscale, MODIFYKEY_MODE_INSERT, (float)CFRA);
+					ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, (float)CFRA);
 					BLI_freelistN(&dsources);
 					
 					/* clear any unkeyed tags */
@@ -799,7 +810,7 @@ static void poselib_keytag_pose (bContext *C, Scene *scene, tPoseLib_PreviewData
 	}
 	
 	/* send notifiers for this */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_EDIT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
 }
 
 /* Apply the relevant changes to the pose */
@@ -847,7 +858,7 @@ static void poselib_preview_apply (bContext *C, wmOperator *op)
 			/* get search-string */
 			index= pld->search_cursor;
 			
-			if (IN_RANGE(index, 0, 64)) {
+			if (index >= 0 && index <= 64) {
 				memcpy(&tempstr[0], &pld->searchstr[0], index);
 				tempstr[index]= '|';
 				memcpy(&tempstr[index+1], &pld->searchstr[index], 64-index);
@@ -1483,6 +1494,8 @@ void POSELIB_OT_browse_interactive (wmOperatorType *ot)
 	/* properties */	
 		// TODO: make the pose_index into a proper enum instead of a cryptic int...
 	ot->prop= RNA_def_int(ot->srna, "pose_index", -1, -2, INT_MAX, "Pose", "Index of the pose to apply (-2 for no change to pose, -1 for poselib active pose)", 0, INT_MAX);
-		// XXX: percentage vs factor?
-	RNA_def_float_factor(ot->srna, "blend_factor", 1.0f, 0.0f, 1.0f, "Blend Factor", "Amount that the pose is applied on top of the existing poses", 0.0f, 1.0f);
+	
+	// XXX: percentage vs factor?
+	/* not used yet */
+	/* RNA_def_float_factor(ot->srna, "blend_factor", 1.0f, 0.0f, 1.0f, "Blend Factor", "Amount that the pose is applied on top of the existing poses", 0.0f, 1.0f); */
 }

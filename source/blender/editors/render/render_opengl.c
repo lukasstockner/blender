@@ -38,20 +38,13 @@
 #include "BLI_dlrbTree.h"
 
 #include "DNA_scene_types.h"
+#include "DNA_object_types.h"
 
-#include "BKE_blender.h"
-#include "BKE_object.h"
 #include "BKE_context.h"
-#include "BKE_global.h"
 #include "BKE_image.h"
-#include "BKE_library.h"
 #include "BKE_main.h"
-#include "BKE_mesh.h"
-#include "BKE_multires.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
-#include "BKE_utildefines.h"
 #include "BKE_writeavi.h"
 
 #include "WM_api.h"
@@ -59,9 +52,11 @@
 
 #include "ED_screen.h"
 #include "ED_view3d.h"
+#include "ED_image.h"
 
 #include "RE_pipeline.h"
 #include "IMB_imbuf_types.h"
+#include "IMB_imbuf.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -94,6 +89,17 @@ typedef struct OGLRender {
 	wmTimer *timer; /* use to check if running modal or not (invoke'd or exec'd)*/
 } OGLRender;
 
+/* added because v3d is not always valid */
+static unsigned int screen_opengl_layers(OGLRender *oglrender)
+{
+	if(oglrender->v3d) {
+		return oglrender->scene->lay | oglrender->v3d->lay;
+	}
+	else {
+		return oglrender->scene->lay;
+	}
+}
+
 static void screen_opengl_render_apply(OGLRender *oglrender)
 {
 	Scene *scene= oglrender->scene;
@@ -106,32 +112,54 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 	float winmat[4][4];
 	int sizex= oglrender->sizex;
 	int sizey= oglrender->sizey;
+	int view_context = (v3d != NULL);
 
-	/* bind */
-	GPU_offscreen_bind(oglrender->ofs);
-
-	/* render 3d view */
-	if(rv3d->persp==RV3D_CAMOB && v3d->camera) {
-		RE_GetCameraWindow(oglrender->re, v3d->camera, scene->r.cfra, winmat);
-		ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, winmat);
-	}
-	else
-		ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, NULL);
-
-	/* read in pixels & stamp */
 	rr= RE_AcquireResultRead(oglrender->re);
-	glReadPixels(0, 0, sizex, sizey, GL_RGBA, GL_FLOAT, rr->rectf);
+	
+	/* note on color management:
+	 * looked into how best to deal with color management here and found heres how it should work.
+	 *
+	 * OpenGL materials etc are color corrected, so a float buffer from the graphics card is
+	 * color corrected, without running any conversion functions.
+	 * 
+	 * With color correction disabled blender expects the rr->rectf to be non-color managed so
+	 * just do a direct copy from the byte array to the rectf with no conversion too.
+	 * notice IMB_float_from_rect has the profile set so no conversion is done.
+	 */
+
+	if(view_context) {
+		GPU_offscreen_bind(oglrender->ofs); /* bind */
+
+		/* render 3d view */
+		if(rv3d->persp==RV3D_CAMOB && v3d->camera) {
+			RE_GetCameraWindow(oglrender->re, v3d->camera, scene->r.cfra, winmat);
+			ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, winmat);
+		}
+		else {
+			ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, NULL);
+		}
+	
+		glReadPixels(0, 0, sizex, sizey, GL_RGBA, GL_FLOAT, rr->rectf);
+
+		GPU_offscreen_unbind(oglrender->ofs); /* unbind */
+	}
+	else {
+		ImBuf *ibuf_view= ED_view3d_draw_offscreen_imbuf_simple(scene, oglrender->sizex, oglrender->sizey, IB_rectfloat, OB_SOLID);
+		memcpy(rr->rectf, ibuf_view->rect_float, sizeof(float) * 4 * oglrender->sizex * oglrender->sizey);
+		IMB_freeImBuf(ibuf_view);
+	}
+	
+	/* rr->rectf is now filled with image data */
+
 	if((scene->r.stamp & R_STAMP_ALL) && (scene->r.stamp & R_STAMP_DRAW))
 		BKE_stamp_buf(scene, NULL, rr->rectf, rr->rectx, rr->recty, 4);
+
 	RE_ReleaseResult(oglrender->re);
 
 	/* update byte from float buffer */
 	ibuf= BKE_image_acquire_ibuf(oglrender->ima, &oglrender->iuser, &lock);
 	if(ibuf) image_buffer_rect_update(NULL, rr, ibuf, NULL);
 	BKE_image_release_ibuf(oglrender->ima, lock);
-
-	/* unbind */
-	GPU_offscreen_unbind(oglrender->ofs);
 }
 
 static int screen_opengl_render_init(bContext *C, wmOperator *op)
@@ -142,14 +170,23 @@ static int screen_opengl_render_init(bContext *C, wmOperator *op)
 	GPUOffScreen *ofs;
 	OGLRender *oglrender;
 	int sizex, sizey;
+	int view_context= RNA_boolean_get(op->ptr, "view_context");
 
 	/* ensure we have a 3d view */
-	if(!ED_view3d_context_activate(C))
-		return 0;
+	
+	if(!ED_view3d_context_activate(C)) {
+		RNA_boolean_set(op->ptr, "view_context", 0);
+		view_context = 0;
+	}
 
 	/* only one render job at a time */
 	if(WM_jobs_test(CTX_wm_manager(C), scene))
 		return 0;
+	
+	if(!view_context && scene->camera==NULL) {
+		BKE_report(op->reports, RPT_ERROR, "Scene has no camera.");
+		return 0;
+	}
 
 	/* stop all running jobs, currently previews frustrate Render */
 	WM_jobs_stop_all(CTX_wm_manager(C));
@@ -177,9 +214,11 @@ static int screen_opengl_render_init(bContext *C, wmOperator *op)
 	oglrender->sizey= sizey;
 	oglrender->scene= scene;
 
-	oglrender->v3d= CTX_wm_view3d(C);
-	oglrender->ar= CTX_wm_region(C);
-	oglrender->rv3d= CTX_wm_region_view3d(C);
+	if(view_context) {
+		oglrender->v3d= CTX_wm_view3d(C);
+		oglrender->ar= CTX_wm_region(C);
+		oglrender->rv3d= CTX_wm_region_view3d(C);
+	}
 
 	/* create image and image user */
 	oglrender->ima= BKE_image_verify_viewer(IMA_TYPE_R_RESULT, "Render Result");
@@ -194,7 +233,7 @@ static int screen_opengl_render_init(bContext *C, wmOperator *op)
 
 	rr= RE_AcquireResultWrite(oglrender->re);
 	if(rr->rectf==NULL)
-		rr->rectf= MEM_mallocN(sizeof(float)*4*sizex*sizey, "32 bits rects");
+		rr->rectf= MEM_callocN(sizeof(float)*4*sizex*sizey, "screen_opengl_render_init rect");
 	RE_ReleaseResult(oglrender->re);
 
 	return 1;
@@ -202,6 +241,7 @@ static int screen_opengl_render_init(bContext *C, wmOperator *op)
 
 static void screen_opengl_render_end(bContext *C, OGLRender *oglrender)
 {
+	Main *bmain= CTX_data_main(C);
 	Scene *scene= oglrender->scene;
 
 	if(oglrender->mh) {
@@ -211,7 +251,7 @@ static void screen_opengl_render_end(bContext *C, OGLRender *oglrender)
 
 	if(oglrender->timer) { /* exec will not have a timer */
 		scene->r.cfra= oglrender->cfrao;
-		scene_update_for_newframe(scene, scene->lay);
+		scene_update_for_newframe(bmain, scene, screen_opengl_layers(oglrender));
 
 		WM_event_remove_timer(CTX_wm_manager(C), CTX_wm_window(C), oglrender->timer);
 	}
@@ -258,32 +298,42 @@ static int screen_opengl_render_anim_initialize(bContext *C, wmOperator *op)
 }
 static int screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 {
+	Main *bmain= CTX_data_main(C);
 	OGLRender *oglrender= op->customdata;
 	Scene *scene= oglrender->scene;
 	ImBuf *ibuf;
 	void *lock;
 	char name[FILE_MAXDIR+FILE_MAXFILE];
-	unsigned int lay;
 	int ok= 0;
+	int view_context = (oglrender->v3d != NULL);
+
+	/* update animated image textures for gpu, etc,
+	 * call before scene_update_for_newframe so modifiers with textuers dont lag 1 frame */
+	ED_image_update_frame(C);
 
 	/* go to next frame */
 	while(CFRA<oglrender->nfra) {
-		if(scene->lay & 0xFF000000)
-			lay= scene->lay & 0xFF000000;
-		else
-			lay= scene->lay;
+		unsigned int lay= screen_opengl_layers(oglrender);
 
-		scene_update_for_newframe(scene, lay);
+		if(lay & 0xFF000000)
+			lay &= 0xFF000000;
+
+		scene_update_for_newframe(bmain, scene, lay);
 		CFRA++;
 	}
 
-	scene_update_for_newframe(scene, scene->lay);
+	scene_update_for_newframe(bmain, scene, screen_opengl_layers(oglrender));
 
-	if(oglrender->rv3d->persp==RV3D_CAMOB && oglrender->v3d->camera && oglrender->v3d->scenelock) {
-		/* since scene_update_for_newframe() is used rather
-		 * then ED_update_for_newframe() the camera needs to be set */
-		if(scene_camera_switch_update(scene))
-			oglrender->v3d->camera= scene->camera;
+	if(view_context) {
+		if(oglrender->rv3d->persp==RV3D_CAMOB && oglrender->v3d->camera && oglrender->v3d->scenelock) {
+			/* since scene_update_for_newframe() is used rather
+			 * then ED_update_for_newframe() the camera needs to be set */
+			if(scene_camera_switch_update(scene))
+				oglrender->v3d->camera= scene->camera;
+		}
+	}
+	else {
+		scene_camera_switch_update(scene);
 	}
 
 	/* render into offscreen buffer */
@@ -354,9 +404,10 @@ static int screen_opengl_render_modal(bContext *C, wmOperator *op, wmEvent *even
 			return OPERATOR_RUNNING_MODAL;
 	}
 
-	ret= screen_opengl_render_anim_step(C, op);
-
+	/* run first because screen_opengl_render_anim_step can free oglrender */
 	WM_event_add_notifier(C, NC_SCENE|ND_RENDER_RESULT, oglrender->scene);
+	
+	ret= screen_opengl_render_anim_step(C, op);
 
 	/* stop at the end or on error */
 	if(ret == 0) {
@@ -445,6 +496,7 @@ void RENDER_OT_opengl(wmOperatorType *ot)
 	ot->poll= ED_operator_screenactive;
 
 	RNA_def_boolean(ot->srna, "animation", 0, "Animation", "");
+	RNA_def_boolean(ot->srna, "view_context", 1, "View Context", "Use the current 3D view for rendering, else use scene settings.");
 }
 
 /* function for getting an opengl buffer from a View3D, used by sequencer */

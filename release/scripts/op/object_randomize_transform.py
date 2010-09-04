@@ -25,12 +25,12 @@ def randomize_selected(seed, loc, rot, scale, scale_even, scale_min):
 
     import random
     from random import uniform
-    from Mathutils import Vector
+    from mathutils import Vector
 
     random.seed(seed)
 
     def rand_vec(vec_range):
-        return Vector([uniform(- val, val) for val in vec_range])
+        return Vector([uniform(-val, val) for val in vec_range])
 
     for obj in bpy.context.selected_objects:
 
@@ -140,12 +140,10 @@ def menu_func(self, context):
 
 
 def register():
-    bpy.types.register(RandomizeLocRotSize)
     bpy.types.VIEW3D_MT_transform.append(menu_func)
 
 
 def unregister():
-    bpy.types.unregister(RandomizeLocRotSize)
     bpy.types.VIEW3D_MT_transform.remove(menu_func)
 
 if __name__ == "__main__":

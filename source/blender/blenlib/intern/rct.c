@@ -36,10 +36,8 @@
  */
 
 #include "DNA_vec_types.h"
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
+#include <stdio.h>
+#include <math.h>
 
 int BLI_rcti_is_empty(rcti * rect)
 {
@@ -146,6 +144,27 @@ void BLI_translate_rctf(rctf *rect, float x, float y)
 	rect->ymax += y;
 }
 
+/* change width & height around the central location */
+void BLI_resize_rcti(rcti *rect, int x, int y)
+{
+	rect->xmin= rect->xmax= (rect->xmax + rect->xmin) / 2;
+	rect->ymin= rect->ymax= (rect->ymax + rect->ymin) / 2;
+	rect->xmin -= x / 2;
+	rect->ymin -= y / 2;
+	rect->xmax= rect->xmin + x;
+	rect->ymax= rect->ymin + y;
+}
+
+void BLI_resize_rctf(rctf *rect, float x, float y)
+{
+	rect->xmin= rect->xmax= (rect->xmax + rect->xmin) * 0.5f;
+	rect->ymin= rect->ymax= (rect->ymax + rect->ymin) * 0.5f;
+	rect->xmin -= x * 0.5f;
+	rect->ymin -= y * 0.5f;
+	rect->xmax= rect->xmin + x;
+	rect->ymax= rect->ymin + y;
+}
+
 int BLI_isect_rctf(rctf *src1, rctf *src2, rctf *dest)
 {
 	float xmin, xmax;
@@ -204,4 +223,22 @@ int BLI_isect_rcti(rcti *src1, rcti *src2, rcti *dest)
 		}
 		return 0;
 	}
+}
+
+void BLI_copy_rcti_rctf(rcti *tar, const rctf *src)
+{
+	tar->xmin= floor(src->xmin + 0.5);
+	tar->xmax= floor((src->xmax - src->xmin) + 0.5);
+	tar->ymin= floor(src->ymin + 0.5);
+	tar->ymax= floor((src->ymax - src->ymin) + 0.5);
+}
+
+void print_rctf(const char *str, rctf *rect)
+{
+	printf("%s: xmin %.3f, xmax %.3f, ymin %.3f, ymax %.3f\n", str, rect->xmin, rect->xmax, rect->ymin, rect->ymax);
+}
+
+void print_rcti(const char *str, rcti *rect)
+{
+	printf("%s: xmin %d, xmax %d, ymin %d, ymax %d\n", str, rect->xmin, rect->xmax, rect->ymin, rect->ymax);
 }

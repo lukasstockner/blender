@@ -19,6 +19,7 @@
 import sys, os
 import http, http.client, http.server, urllib, socket, socketserver, threading
 import subprocess, shutil, time, hashlib
+import pickle
 import select # for select.error
 
 from netrender.utils import *
@@ -27,12 +28,16 @@ import netrender.balancing
 import netrender.master_html
 
 class MRenderFile(netrender.model.RenderFile):
-    def __init__(self, filepath, index, start, end):
-        super().__init__(filepath, index, start, end)
+    def __init__(self, filepath, index, start, end, signature):
+        super().__init__(filepath, index, start, end, signature)
         self.found = False
 
     def test(self):
         self.found = os.path.exists(self.filepath)
+        if self.found:
+            found_signature = hashFile(self.filepath)
+            self.found = self.signature == found_signature
+            
         return self.found
 
 
@@ -74,7 +79,7 @@ class MRenderJob(netrender.model.RenderJob):
         # special server properties
         self.last_update = 0
         self.save_path = ""
-        self.files = [MRenderFile(rfile.filepath, rfile.index, rfile.start, rfile.end) for rfile in job_info.files]
+        self.files = [MRenderFile(rfile.filepath, rfile.index, rfile.start, rfile.end, rfile.signature) for rfile in job_info.files]
 
         self.resolution = None
 
@@ -84,7 +89,7 @@ class MRenderJob(netrender.model.RenderJob):
 
     def save(self):
         if self.save_path:
-            f = open(self.save_path + "job.txt", "w")
+            f = open(os.path.join(self.save_path, "job.txt"), "w")
             f.write(repr(self.serialize()))
             f.close()
 
@@ -129,8 +134,8 @@ class MRenderJob(netrender.model.RenderJob):
         self.status = JOB_QUEUED
 
     def addLog(self, frames):
-        log_name = "_".join(("%04d" % f for f in frames)) + ".log"
-        log_path = self.save_path + log_name
+        log_name = "_".join(("%06d" % f for f in frames)) + ".log"
+        log_path = os.path.join(self.save_path, log_name)
 
         for number in frames:
             frame = self[number]
@@ -190,6 +195,11 @@ pause_pattern = re.compile("/pause_([a-zA-Z0-9]+)")
 edit_pattern = re.compile("/edit_([a-zA-Z0-9]+)")
 
 class RenderHandler(http.server.BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # override because the original calls self.address_string(), which
+        # is extremely slow due to some timeout..
+        sys.stderr.write("[%s] %s\n" % (self.log_date_time_string(), format%args))
+
     def send_head(self, code = http.client.OK, headers = {}, content = "application/octet-stream"):
         self.send_response(code)
         self.send_header("Content-type", content)
@@ -250,7 +260,7 @@ class RenderHandler(http.server.BaseHTTPRequestHandler):
                         elif frame.status == DONE:
                             self.server.stats("", "Sending result to client")
 
-                            filename = job.save_path + "%04d" % frame_number + ".exr"
+                            filename = os.path.join(job.save_path, "%06d.exr" % frame_number)
 
                             f = open(filename, 'rb')
                             self.send_head(content = "image/x-exr")
@@ -284,7 +294,7 @@ class RenderHandler(http.server.BaseHTTPRequestHandler):
                         if frame.status in (QUEUED, DISPATCHED):
                             self.send_head(http.client.ACCEPTED)
                         elif frame.status == DONE:
-                            filename = job.save_path + "%04d" % frame_number + ".exr"
+                            filename = os.path.join(job.save_path, "%06d.exr" % frame_number)
 
                             thumbname = thumbnail(filename)
 
@@ -706,12 +716,12 @@ class RenderHandler(http.server.BaseHTTPRequestHandler):
                         if file_index > 0:
                             file_path = prefixPath(job.save_path, render_file.filepath, main_path)
                         else:
-                            file_path = job.save_path + main_name
+                            file_path = os.path.join(job.save_path, main_name)
 
                         buf = self.rfile.read(length)
 
                         # add same temp file + renames as slave
-
+                        
                         f = open(file_path, "wb")
                         f.write(buf)
                         f.close()
@@ -762,7 +772,7 @@ class RenderHandler(http.server.BaseHTTPRequestHandler):
                             if job_result == DONE:
                                 length = int(self.headers['content-length'])
                                 buf = self.rfile.read(length)
-                                f = open(job.save_path + "%04d" % job_frame + ".exr", 'wb')
+                                f = open(os.path.join(job.save_path, "%06d.exr" % job_frame), 'wb')
                                 f.write(buf)
                                 f.close()
 
@@ -812,13 +822,12 @@ class RenderHandler(http.server.BaseHTTPRequestHandler):
                         if job.type == netrender.model.JOB_BLENDER:
                             length = int(self.headers['content-length'])
                             buf = self.rfile.read(length)
-                            f = open(job.save_path + "%04d" % job_frame + ".jpg", 'wb')
+                            f = open(os.path.join(job.save_path, "%06d.jpg" % job_frame), 'wb')
                             f.write(buf)
                             f.close()
 
                             del buf
 
-                        self.send_head()
                     else: # frame not found
                         self.send_head(http.client.NO_CONTENT)
                 else: # job not found
@@ -861,16 +870,20 @@ class RenderHandler(http.server.BaseHTTPRequestHandler):
                 self.send_head(http.client.NO_CONTENT)
 
 class RenderMasterServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
-    def __init__(self, address, handler_class, path):
+    def __init__(self, address, handler_class, path, subdir=True):
         super().__init__(address, handler_class)
         self.jobs = []
         self.jobs_map = {}
         self.slaves = []
         self.slaves_map = {}
         self.job_id = 0
-        self.path = path + "master_" + str(os.getpid()) + os.sep
 
-        self.slave_timeout = 30 # 30 mins: need a parameter for that
+        if subdir:
+            self.path = os.path.join(path, "master_" + str(os.getpid()))
+        else:
+            self.path = path
+
+        self.slave_timeout = 5 # 5 mins: need a parameter for that
 
         self.balancer = netrender.balancing.Balancer()
         self.balancer.addRule(netrender.balancing.RatingUsageByCategory(self.getJobs))
@@ -882,6 +895,22 @@ class RenderMasterServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
 
         if not os.path.exists(self.path):
             os.mkdir(self.path)
+
+    def restore(self, jobs, slaves, balancer = None):
+        self.jobs = jobs
+        self.jobs_map = {}
+        
+        for job in self.jobs:
+            self.jobs_map[job.id] = job
+            self.job_id = max(self.job_id, int(job.id))
+
+        self.slaves = slaves
+        for slave in self.slaves:
+            self.slaves_map[slave.id] = slave
+        
+        if balancer:
+            self.balancer = balancer
+        
 
     def nextJobID(self):
         self.job_id += 1
@@ -977,7 +1006,7 @@ class RenderMasterServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
         self.jobs_map[job.id] = job
 
         # create job directory
-        job.save_path = self.path + "job_" + job.id + os.sep
+        job.save_path = os.path.join(self.path, "job_" + job.id)
         if not os.path.exists(job.save_path):
             os.mkdir(job.save_path)
 
@@ -1001,8 +1030,29 @@ class RenderMasterServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
 def clearMaster(path):
     shutil.rmtree(path)
 
+def createMaster(address, clear, path):
+    filepath = os.path.join(path, "blender_master.data")
+
+    if not clear and os.path.exists(filepath):
+        print("loading saved master:", filepath)
+        with open(filepath, 'rb') as f:
+            path, jobs, slaves = pickle.load(f)
+            
+            httpd = RenderMasterServer(address, RenderHandler, path, subdir=False)
+            httpd.restore(jobs, slaves)
+            
+            return httpd
+
+    return RenderMasterServer(address, RenderHandler, path)
+
+def saveMaster(path, httpd):
+    filepath = os.path.join(path, "blender_master.data")
+    
+    with open(filepath, 'wb') as f:
+        pickle.dump((httpd.path, httpd.jobs, httpd.slaves), f, pickle.HIGHEST_PROTOCOL)
+
 def runMaster(address, broadcast, clear, path, update_stats, test_break):
-        httpd = RenderMasterServer(address, RenderHandler, path)
+        httpd = createMaster(address, clear, path)
         httpd.timeout = 1
         httpd.stats = update_stats
 
@@ -1010,7 +1060,7 @@ def runMaster(address, broadcast, clear, path, update_stats, test_break):
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
-        start_time = time.time()
+        start_time = time.time() - 2
 
         while not test_break():
             try:
@@ -1018,7 +1068,7 @@ def runMaster(address, broadcast, clear, path, update_stats, test_break):
             except select.error:
                 pass
 
-            if time.time() - start_time >= 10: # need constant here
+            if time.time() - start_time >= 2: # need constant here
                 httpd.timeoutSlaves()
 
                 httpd.updateUsage()
@@ -1031,3 +1081,6 @@ def runMaster(address, broadcast, clear, path, update_stats, test_break):
         httpd.server_close()
         if clear:
             clearMaster(httpd.path)
+        else:
+            saveMaster(path, httpd)
+

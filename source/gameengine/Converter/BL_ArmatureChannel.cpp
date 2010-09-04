@@ -26,10 +26,6 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include "DNA_armature_types.h"
 #include "BL_ArmatureChannel.h"
 #include "BL_ArmatureObject.h"
@@ -124,7 +120,7 @@ PyAttributeDef BL_ArmatureChannel::AttributesPtr[] = {
 	KX_PYATTRIBUTE_FLOAT_VECTOR_RW("location",-FLT_MAX,FLT_MAX,bPoseChannel,loc,3),
 	KX_PYATTRIBUTE_FLOAT_VECTOR_RW("scale",-FLT_MAX,FLT_MAX,bPoseChannel,size,3),
 	KX_PYATTRIBUTE_FLOAT_VECTOR_RW("rotation_quaternion",-1.0f,1.0f,bPoseChannel,quat,4),
-	KX_PYATTRIBUTE_FLOAT_VECTOR_RW("rotaion_euler",-10.f,10.f,bPoseChannel,eul,3),
+	KX_PYATTRIBUTE_FLOAT_VECTOR_RW("rotation_euler",-10.f,10.f,bPoseChannel,eul,3),
 	KX_PYATTRIBUTE_SHORT_RW("rotation_mode",0,ROT_MODE_MAX-1,false,bPoseChannel,rotmode),
 	KX_PYATTRIBUTE_FLOAT_MATRIX_RO("channel_matrix",bPoseChannel,chan_mat,4),
 	KX_PYATTRIBUTE_FLOAT_MATRIX_RO("pose_matrix",bPoseChannel,pose_mat,4),
@@ -201,8 +197,7 @@ int BL_ArmatureChannel::py_attr_setattr(void *self_v, const struct KX_PYATTRIBUT
 
 PyObject* BL_ArmatureChannel::py_attr_get_joint_rotation(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
-	BL_ArmatureChannel* self= static_cast<BL_ArmatureChannel*>(self_v);
-	bPoseChannel* pchan = self->m_posechannel;
+	bPoseChannel* pchan = static_cast<bPoseChannel*>(self_v);
 	// decompose the pose matrix in euler rotation
 	float rest_mat[3][3];
 	float pose_mat[3][3];
@@ -436,13 +431,13 @@ PyAttributeDef BL_ArmatureBone::AttributesPtr[] = {
 	KX_PYATTRIBUTE_FLOAT_MATRIX_RO("arm_mat",Bone,arm_mat,4),
 	KX_PYATTRIBUTE_FLOAT_MATRIX_RO("bone_mat",Bone,bone_mat,4),
 	KX_PYATTRIBUTE_RO_FUNCTION("parent",BL_ArmatureBone,py_bone_get_parent),
-	KX_PYATTRIBUTE_RO_FUNCTION("children",BL_ArmatureBone,py_bone_get_parent),
+	KX_PYATTRIBUTE_RO_FUNCTION("children",BL_ArmatureBone,py_bone_get_children),
 	{ NULL }	//Sentinel
 };
 
 PyObject *BL_ArmatureBone::py_bone_get_parent(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
-	Bone* bone = reinterpret_cast<Bone*>BGE_PROXY_PTR(self);
+	Bone* bone = reinterpret_cast<Bone*>(self);
 	if (bone->parent) {
 		// create a proxy unconnected to any GE object
 		return NewProxyPlus_Ext(NULL,&Type,bone->parent,false);
@@ -452,7 +447,7 @@ PyObject *BL_ArmatureBone::py_bone_get_parent(void *self, const struct KX_PYATTR
 
 PyObject *BL_ArmatureBone::py_bone_get_children(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
-	Bone* bone = reinterpret_cast<Bone*>BGE_PROXY_PTR(self);
+	Bone* bone = reinterpret_cast<Bone*>(self);
 	Bone* child;
 	int count = 0;
 	for (child=(Bone*)bone->childbase.first; child; child=(Bone*)child->next)

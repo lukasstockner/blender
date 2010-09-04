@@ -41,9 +41,10 @@
 #include "BKE_node.h"
 #include "BKE_utildefines.h"
 
-#include "BLI_math.h"
 #include "BLI_blenlib.h"
+#include "BLI_cpu.h"
 #include "BLI_jitter.h"
+#include "BLI_math.h"
 #include "BLI_rand.h"
 
 #include "PIL_time.h"
@@ -98,7 +99,7 @@ RayObject*  RE_rayobject_create(Render *re, int type, int size)
 		//TODO
 		//if(detect_simd())
 #ifdef __SSE__
-		type = R_RAYSTRUCTURE_SIMD_SVBVH;
+		type = BLI_cpu_support_sse2()? R_RAYSTRUCTURE_SIMD_SVBVH: R_RAYSTRUCTURE_VBVH;
 #else
 		type = R_RAYSTRUCTURE_VBVH;
 #endif
@@ -240,7 +241,9 @@ RayObject* makeraytree_object(Render *re, ObjectInstanceRen *obi)
 			if(is_raytraceable_vlr(re, vlr))
 				faces++;
 		}
-		assert( faces > 0 );
+		
+		if (faces == 0)
+			return NULL;
 
 		//Create Ray cast accelaration structure		
 		raytree = RE_rayobject_create( re,  re->r.raytrace_structure, faces );
@@ -370,7 +373,12 @@ static void makeraytree_single(Render *re)
 		if(has_special_rayobject(re, obi))
 		{
 			RayObject *obj = makeraytree_object(re, obi);
-			RE_rayobject_add( re->raytree, obj );
+
+			if(test_break(re))
+				break;
+
+			if (obj)
+				RE_rayobject_add( re->raytree, obj );
 		}
 		else
 		{
@@ -523,10 +531,6 @@ void shade_ray(Isect *is, ShadeInput *shi, ShadeResult *shr)
 
 	shade_input_set_normals(shi);
 
-	/* point normals to viewing direction */
-	if(INPR(shi->facenor, shi->view) < 0.0f)
-		shade_input_flip_normals(shi);
-
 	shade_input_set_shade_texco(shi);
 	if (shi->mat->material_type == MA_TYPE_VOLUME) {
 		if(ELEM(is->mode, RE_RAY_SHADOW, RE_RAY_SHADOW_TRA)) {
@@ -550,19 +554,9 @@ void shade_ray(Isect *is, ShadeInput *shi, ShadeResult *shr)
 			shi->mat= vlr->mat;		/* shi->mat is being set in nodetree */
 		}
 		else {
-			int tempdepth;
-			/* XXX dodgy business here, set ray depth to -1
-			 * to ignore raytrace in shade_material_loop()
-			 * this could really use a refactor --Matt */
-			if (shi->volume_depth == 0) {
-				tempdepth = shi->depth;
-				shi->depth = -1;
-				shade_material_loop(shi, shr);
-				shi->depth = tempdepth;
-			} else {
-				shade_material_loop(shi, shr);
-			}
+			shade_material_loop(shi, shr);
 		}
+		
 		/* raytrace likes to separate the spec color */
 		VECSUB(shr->diff, shr->combined, shr->spec);
 	}	
@@ -1310,7 +1304,7 @@ static void trace_refract(float *col, ShadeInput *shi, ShadeResult *shr)
 				
 			/* and perturb the refraction vector in it */
 			add_v3_v3v3(v_refract_new, v_refract, orthx);
-			add_v3_v3v3(v_refract_new, v_refract_new, orthy);
+			add_v3_v3(v_refract_new, orthy);
 			
 			normalize_v3(v_refract_new);
 		} else {
@@ -1405,7 +1399,7 @@ static void trace_reflect(float *col, ShadeInput *shi, ShadeResult *shr, float f
 
 			/* and perturb the normal in it */
 			add_v3_v3v3(v_nor_new, shi->vn, orthx);
-			add_v3_v3v3(v_nor_new, v_nor_new, orthy);
+			add_v3_v3(v_nor_new, orthy);
 			normalize_v3(v_nor_new);
 		} else {
 			/* no blurriness, use the original normal */
@@ -1728,7 +1722,7 @@ static void DS_energy(float *sphere, int tot, float *vec)
 	}
 
 	mul_v3_fl(res, 0.5);
-	add_v3_v3v3(vec, vec, res);
+	add_v3_v3(vec, res);
 	normalize_v3(vec);
 	
 }

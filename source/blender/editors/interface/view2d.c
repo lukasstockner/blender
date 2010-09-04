@@ -44,7 +44,6 @@
 #include "WM_api.h"
 
 #include "BIF_gl.h"
-#include "BIF_glutil.h"
 
 #include "BLF_api.h"
 
@@ -1314,6 +1313,13 @@ void UI_view2d_constant_grid_draw(const bContext *C, View2D *v2d)
 	glEnd();
 }
 
+/* the price we pay for not exposting structs :( */
+void UI_view2d_grid_size(View2DGrid *grid, float *r_dx, float *r_dy)
+{
+	*r_dx= grid->dx;
+	*r_dy= grid->dy;
+}
+
 /* free temporary memory used for drawing grid */
 void UI_view2d_grid_free(View2DGrid *grid)
 {
@@ -1389,6 +1395,7 @@ View2DScrollers *UI_view2d_scrollers_calc(const bContext *C, View2D *v2d, short 
 		/* scroller 'button' extents */
 		totsize= v2d->tot.xmax - v2d->tot.xmin;
 		scrollsize= (float)(hor.xmax - hor.xmin);
+		if(totsize==0.0f) totsize = 1.0f; /* avoid divide by zero */
 		
 		fac1= (v2d->cur.xmin - v2d->tot.xmin) / totsize;
 		if(fac1<=0.0f)
@@ -1429,6 +1436,7 @@ View2DScrollers *UI_view2d_scrollers_calc(const bContext *C, View2D *v2d, short 
 		/* scroller 'button' extents */
 		totsize= v2d->tot.ymax - v2d->tot.ymin;
 		scrollsize= (float)(vert.ymax - vert.ymin);
+		if(totsize==0.0f) totsize = 1.0f; /* avoid divide by zero */
 		
 		fac1= (v2d->cur.ymin- v2d->tot.ymin) / totsize;
 		if(fac1<=0.0f)
@@ -1702,8 +1710,9 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 			/* draw vertical steps */
 			if (dfac > 0.0f) {
 				
-				BLF_default_rotation(90.0f);
-				
+				BLF_rotation_default(90.0f);
+				BLF_enable_default(BLF_ROTATION);
+
 				for (; fac < vert.ymax-10; fac+= dfac, val += grid->dy) {
 					
 					/* make prints look nicer for scrollers */
@@ -1713,7 +1722,7 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 					scroll_printstr(vs, scene, (float)(vert.xmax)-2.0f, fac, val, grid->powery, vs->yunits, 'v');
 				}
 				
-				BLF_default_rotation(0.0f);
+				BLF_disable_default(BLF_ROTATION);
 			}
 		}	
 	}
@@ -2053,12 +2062,10 @@ void UI_view2d_text_cache_draw(ARegion *ar)
 			yofs= ceil( 0.5f*(v2s->rect.ymax - v2s->rect.ymin - BLF_height_default("28")));
 			if(yofs<1) yofs= 1;
 			
-			BLF_clipping(v2s->rect.xmin-4, v2s->rect.ymin-4, v2s->rect.xmax+4, v2s->rect.ymax+4);
-			BLF_enable(BLF_CLIPPING);
-			
+			BLF_clipping_default(v2s->rect.xmin-4, v2s->rect.ymin-4, v2s->rect.xmax+4, v2s->rect.ymax+4);
+			BLF_enable_default(BLF_CLIPPING);
 			BLF_draw_default(v2s->rect.xmin+xofs, v2s->rect.ymin+yofs, 0.0f, v2s->str);
-
-			BLF_disable(BLF_CLIPPING);
+			BLF_disable_default(BLF_CLIPPING);
 		}
 	}
 	

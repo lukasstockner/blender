@@ -26,11 +26,10 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "string.h"
+#include <string.h>
+#include <stddef.h>
 
 #include "DNA_windowmanager_types.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "GHOST_C-api.h"
 
@@ -52,6 +51,8 @@
 #include "wm_event_types.h"
 #include "wm_draw.h"
 #include "wm.h"
+
+#include "MEM_guardedalloc.h"
 
 #include "ED_screen.h"
 #include "BPY_extern.h"
@@ -98,13 +99,18 @@ void WM_operator_free(wmOperator *op)
 	MEM_freeN(op);
 }
 
+static void wm_reports_free(wmWindowManager *wm)
+{
+	BKE_reports_clear(&wm->reports);
+	WM_event_remove_timer(wm, NULL, wm->reports.reporttimer);
+}
+
 /* all operations get registered in the windowmanager here */
 /* called on event handling by event_system.c */
 void wm_operator_register(bContext *C, wmOperator *op)
 {
 	wmWindowManager *wm= CTX_wm_manager(C);
 	int tot;
-	char *buf;
 
 	BLI_addtail(&wm->operators, op);
 	tot= BLI_countlist(&wm->operators);
@@ -116,14 +122,9 @@ void wm_operator_register(bContext *C, wmOperator *op)
 		tot--;
 	}
 	
-	
-	/* Report the string representation of the operator */
-	buf = WM_operator_pystring(C, op->type, op->ptr, 1);
-	BKE_report(CTX_wm_reports(C), RPT_OPERATOR, buf);
-	MEM_freeN(buf);
-	
 	/* so the console is redrawn */
 	WM_event_add_notifier(C, NC_SPACE|ND_SPACE_CONSOLE_REPORT, NULL);
+	WM_event_add_notifier(C, NC_WM|ND_HISTORY, NULL);
 }
 
 
@@ -137,6 +138,7 @@ void WM_operator_stack_clear(bContext *C)
 		WM_operator_free(op);
 	}
 	
+	WM_event_add_notifier(C, NC_WM|ND_HISTORY, NULL);
 }
 
 /* ****************************************** */
@@ -148,9 +150,9 @@ MenuType *WM_menutype_find(const char *idname, int quiet)
 	MenuType* mt;
 
 	if (idname[0]) {
-		for(mt=menutypes.first; mt; mt=mt->next)
-			if(strcmp(idname, mt->idname)==0)
-				return mt;
+		mt= BLI_findstring(&menutypes, idname, offsetof(MenuType, idname));
+		if(mt)
+			return mt;
 	}
 
 	if(!quiet)
@@ -307,7 +309,8 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
 	
 	BLI_freelistN(&wm->paintcursors);
 	BLI_freelistN(&wm->drags);
-	BKE_reports_clear(&wm->reports);
+	
+	wm_reports_free(wm);
 	
 	if(C && CTX_wm_manager(C)==wm) CTX_wm_manager_set(C, NULL);
 }

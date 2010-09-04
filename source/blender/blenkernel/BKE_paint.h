@@ -28,6 +28,8 @@
 #ifndef BKE_PAINT_H
 #define BKE_PAINT_H
 
+#include "DNA_vec_types.h"
+
 struct Brush;
 struct MFace;
 struct MultireModifierData;
@@ -45,13 +47,11 @@ extern const char PAINT_CURSOR_TEXTURE_PAINT[3];
 
 void paint_init(struct Paint *p, const char col[3]);
 void free_paint(struct Paint *p);
-void copy_paint(struct Paint *orig, struct Paint *new);
+void copy_paint(struct Paint *src, struct Paint *tar);
 
 struct Paint *paint_get_active(struct Scene *sce);
 struct Brush *paint_brush(struct Paint *paint);
 void paint_brush_set(struct Paint *paint, struct Brush *br);
-void paint_brush_slot_add(struct Paint *p);
-void paint_brush_slot_remove(struct Paint *p);
 
 /* testing face select mode
  * Texture paint could be removed since selected faces are not used
@@ -70,7 +70,7 @@ typedef struct SculptSession {
 	int totvert, totface;
 	float *face_normals;
 	struct Object *ob;
-	struct KeyBlock *kb, *refkb;
+	struct KeyBlock *kb;
 	
 	/* Mesh connectivity */
 	struct ListBase *fmap;
@@ -94,6 +94,10 @@ typedef struct SculptSession {
 	struct StrokeCache *cache;
 
 	struct GPUDrawObject *drawobject;
+
+	int modifiers_active;
+
+	rcti previous_r;
 } SculptSession;
 
 void free_sculptsession(struct Object *ob);

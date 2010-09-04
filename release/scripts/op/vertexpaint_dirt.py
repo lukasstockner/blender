@@ -34,7 +34,7 @@ import bpy
 import math
 import time
 
-from Mathutils import Vector
+from mathutils import Vector
 from bpy.props import *
 
 
@@ -43,7 +43,7 @@ def applyVertexDirt(me, blur_iterations, blur_strength, clamp_dirt, clamp_clean,
 
     #BPyMesh.meshCalcNormals(me)
 
-    vert_tone = [0.0] * len(me.verts)
+    vert_tone = [0.0] * len(me.vertices)
 
     min_tone = 180.0
     max_tone = 0.0
@@ -51,24 +51,29 @@ def applyVertexDirt(me, blur_iterations, blur_strength, clamp_dirt, clamp_clean,
     # create lookup table for each vertex's connected vertices (via edges)
     con = []
 
-    con = [[] for i in range(len(me.verts))]
+    con = [[] for i in range(len(me.vertices))]
 
     # add connected verts
     for e in me.edges:
-        con[e.verts[0]].append(e.verts[1])
-        con[e.verts[1]].append(e.verts[0])
+        con[e.vertices[0]].append(e.vertices[1])
+        con[e.vertices[1]].append(e.vertices[0])
 
-    for v in me.verts:
+    for i, v in enumerate(me.vertices):
         vec = Vector()
         no = v.normal
         co = v.co
 
         # get the direction of the vectors between the vertex and it's connected vertices
-        for c in con[v.index]:
-            vec += Vector(me.verts[c].co - co).normalize()
+        for c in con[i]:
+            vec += (me.vertices[c].co - co).normalize()
 
         # normalize the vector by dividing by the number of connected verts
-        vec /= len(con[v.index])
+        tot_con = len(con[i])
+
+        if tot_con == 0:
+            continue
+
+        vec /= tot_con
 
         # angle is the acos of the dot product between vert and connected verts normals
         ang = math.acos(no.dot(vec))
@@ -79,7 +84,7 @@ def applyVertexDirt(me, blur_iterations, blur_strength, clamp_dirt, clamp_clean,
         if not dirt_only:
             ang = min(clamp_clean, ang)
 
-        vert_tone[v.index] = ang
+        vert_tone[i] = ang
 
     # blur tones
     for i in range(blur_iterations):
@@ -122,15 +127,15 @@ def applyVertexDirt(me, blur_iterations, blur_strength, clamp_dirt, clamp_clean,
         return('CANCELLED', )
 
     for i, f in enumerate(me.faces):
-        if not me.use_paint_mask or f.selected:
+        if not me.use_paint_mask or f.select:
 
             f_col = active_col_layer[i]
 
             f_col = [f_col.color1, f_col.color2, f_col.color3, f_col.color4]
 
-            for j, v in enumerate(f.verts):
+            for j, v in enumerate(f.vertices):
                 col = f_col[j]
-                tone = vert_tone[me.verts[v].index]
+                tone = vert_tone[me.vertices[v].index]
                 tone = (tone - min_tone) / tone_range
 
                 if dirt_only:
@@ -146,7 +151,7 @@ def applyVertexDirt(me, blur_iterations, blur_strength, clamp_dirt, clamp_clean,
 
 class VertexPaintDirt(bpy.types.Operator):
 
-    bl_idname = "mesh.vertex_paint_dirt"
+    bl_idname = "paint.vertex_color_dirt"
     bl_label = "Dirty Vertex Colors"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -171,15 +176,15 @@ class VertexPaintDirt(bpy.types.Operator):
 
         print('Dirt calculated in %.6f' % (time.time() - t))
 
-        return('FINISHED',)
+        return {'FINISHED'}
 
 
 def register():
-    bpy.types.register(VertexPaintDirt)
+    pass
 
 
 def unregister():
-    bpy.types.unregister(VertexPaintDirt)
+    pass
 
 if __name__ == "__main__":
     register()

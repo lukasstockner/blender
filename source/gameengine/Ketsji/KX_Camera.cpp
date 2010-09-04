@@ -34,10 +34,6 @@
 #include "KX_PythonInit.h"
 #include "KX_Python.h"
 #include "KX_PyMath.h"
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 KX_Camera::KX_Camera(void* sgReplicationInfo,
 					 SG_Callbacks callbacks,
 					 const RAS_CameraData& camdata,
@@ -503,6 +499,7 @@ PyAttributeDef KX_Camera::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("perspective", KX_Camera, pyattr_get_perspective, pyattr_set_perspective),
 	
 	KX_PYATTRIBUTE_RW_FUNCTION("lens",	KX_Camera,	pyattr_get_lens, pyattr_set_lens),
+	KX_PYATTRIBUTE_RW_FUNCTION("ortho_scale",	KX_Camera,	pyattr_get_ortho_scale, pyattr_set_ortho_scale),
 	KX_PYATTRIBUTE_RW_FUNCTION("near",	KX_Camera,	pyattr_get_near, pyattr_set_near),
 	KX_PYATTRIBUTE_RW_FUNCTION("far",	KX_Camera,	pyattr_get_far,  pyattr_set_far),
 	
@@ -556,8 +553,8 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, sphereInsideFrustum,
 "\tcenter = the center of the sphere (in world coordinates.)\n"
 "\tradius = the radius of the sphere\n\n"
 "\tExample:\n"
-"\timport GameLogic\n\n"
-"\tco = GameLogic.getCurrentController()\n"
+"\timport bge.logic\n\n"
+"\tco = bge.logic.getCurrentController()\n"
 "\tcam = co.GetOwner()\n\n"
 "\t# A sphere of radius 4.0 located at [x, y, z] = [1.0, 1.0, 1.0]\n"
 "\tif (cam.sphereInsideFrustum([1.0, 1.0, 1.0], 4) != cam.OUTSIDE):\n"
@@ -589,8 +586,8 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, boxInsideFrustum,
 "\tinside/outside/intersects this camera's viewing frustum.\n\n"
 "\tbox = a list of the eight (8) corners of the box (in world coordinates.)\n\n"
 "\tExample:\n"
-"\timport GameLogic\n\n"
-"\tco = GameLogic.getCurrentController()\n"
+"\timport bge.logic\n\n"
+"\tco = bge.logic.getCurrentController()\n"
 "\tcam = co.GetOwner()\n\n"
 "\tbox = []\n"
 "\tbox.append([-1.0, -1.0, -1.0])\n"
@@ -633,8 +630,8 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, pointInsideFrustum,
 "\treturns 1 if the given point is inside this camera's viewing frustum.\n\n"
 "\tpoint = The point to test (in world coordinates.)\n\n"
 "\tExample:\n"
-"\timport GameLogic\n\n"
-"\tco = GameLogic.getCurrentController()\n"
+"\timport bge.logic\n\n"
+"\tco = bge.logic.getCurrentController()\n"
 "\tcam = co.GetOwner()\n\n"
 "\t# Test point [0.0, 0.0, 0.0]"
 "\tif (cam.pointInsideFrustum([0.0, 0.0, 0.0])):\n"
@@ -728,6 +725,26 @@ int KX_Camera::pyattr_set_lens(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, 
 	}
 	
 	self->m_camdata.m_lens= param;
+	self->m_set_projection_matrix = false;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject* KX_Camera::pyattr_get_ortho_scale(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	return PyFloat_FromDouble(self->m_camdata.m_scale);
+}
+
+int KX_Camera::pyattr_set_ortho_scale(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	float param = PyFloat_AsDouble(value);
+	if (param == -1) {
+		PyErr_SetString(PyExc_AttributeError, "camera.ortho_scale = float: KX_Camera, expected a float greater then zero");
+		return PY_SET_ATTR_FAIL;
+	}
+	
+	self->m_camdata.m_scale= param;
 	self->m_set_projection_matrix = false;
 	return PY_SET_ATTR_SUCCESS;
 }

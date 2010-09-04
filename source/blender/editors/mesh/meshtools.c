@@ -44,7 +44,6 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_view3d_types.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -54,20 +53,15 @@
 #include "BLI_threads.h"
 
 
-#include "BKE_blender.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
+#include "BKE_deform.h"
 #include "BKE_DerivedMesh.h"
-#include "BKE_customdata.h"
-#include "BKE_global.h"
-#include "BKE_image.h"
 #include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
 #include "BKE_material.h"
-#include "BKE_object.h"
-#include "BKE_utildefines.h"
 #include "BKE_report.h"
 
 #include "BLO_sys_types.h" // for intptr_t support
@@ -82,10 +76,6 @@
 /* own include */
 #include "mesh_intern.h"
 
-/* XXX */
-static int pupmenu() {return 0;}
-/* XXX */
-
 
 /* * ********************** no editmode!!! *********** */
 
@@ -96,6 +86,7 @@ return 0 if no join is made (error) and 1 of the join is done */
 
 int join_mesh_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	Object *ob= CTX_data_active_object(C);
 	Material **matar, *ma;
@@ -194,12 +185,7 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 			/* Join this object's vertex groups to the base one's */
 			for(dg=base->object->defbase.first; dg; dg=dg->next) {
 				/* See if this group exists in the object (if it doesn't, add it to the end) */
-				for(odg=ob->defbase.first; odg; odg=odg->next) {
-					if(!strcmp(odg->name, dg->name)) {
-						break;
-					}
-				}
-				if(!odg) {
+				if(!defgroup_find_name(ob, dg->name)) {
 					odg = MEM_callocN(sizeof(bDeformGroup), "join deformGroup");
 					memcpy(odg, dg, sizeof(bDeformGroup));
 					BLI_addtail(&ob->defbase, odg);
@@ -447,7 +433,7 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 			
 			/* free base, now that data is merged */
 			if(base->object != ob)
-				ED_base_object_free_and_unlink(scene, base);
+				ED_base_object_free_and_unlink(bmain, scene, base);
 		}
 	}
 	CTX_DATA_END;
@@ -507,17 +493,17 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 		/* free it's ipo too - both are not actually freed from memory yet as ID-blocks */
 		if(nkey->ipo) {
 			free_ipo(nkey->ipo);
-			BLI_remlink(&G.main->ipo, nkey->ipo);
+			BLI_remlink(&bmain->ipo, nkey->ipo);
 			MEM_freeN(nkey->ipo);
 		}
 #endif
 		
 		free_key(nkey);
-		BLI_remlink(&G.main->key, nkey);
+		BLI_remlink(&bmain->key, nkey);
 		MEM_freeN(nkey);
 	}
 	
-	DAG_scene_sort(scene);	// removed objects, need to rebuild dag before editmode call
+	DAG_scene_sort(bmain, scene);	// removed objects, need to rebuild dag before editmode call
 	
 	ED_object_enter_editmode(C, EM_WAITCURSOR);
 	ED_object_exit_editmode(C, EM_FREEDATA|EM_WAITCURSOR|EM_DO_UNDO);
@@ -600,153 +586,6 @@ int join_mesh_shapes_exec(bContext *C, wmOperator *op)
 	
 	return OPERATOR_FINISHED;
 }
-
-/* ********************** SORT FACES ******************* */
-
-static void permutate(void *list, int num, int size, int *index)
-{
-	void *buf;
-	int len;
-	int i;
-
-	len = num * size;
-
-	buf = MEM_mallocN(len, "permutate");
-	memcpy(buf, list, len);
-	
-	for (i = 0; i < num; i++) {
-		memcpy((char *)list + (i * size), (char *)buf + (index[i] * size), size);
-	}
-	MEM_freeN(buf);
-}
-
-/* sort faces on view axis */
-static float *face_sort_floats;
-static int float_sort(const void *v1, const void *v2)
-{
-	float x1, x2;
-	
-	x1 = face_sort_floats[((int *) v1)[0]];
-	x2 = face_sort_floats[((int *) v2)[0]];
-	
-	if( x1 > x2 ) return 1;
-	else if( x1 < x2 ) return -1;
-	return 0;
-}
-
-
-void sort_faces(Scene *scene, View3D *v3d)
-{
-	RegionView3D *rv3d= NULL; // get from context 
-	Object *ob= OBACT;
-	Mesh *me;
-	CustomDataLayer *layer;
-	int i, *index;
-	short event;
-	float reverse = 1;
-	int ctrl= 0;	// XXX
-	
-	if(!ob) return;
-	if(scene->obedit) return;
-	if(ob->type!=OB_MESH) return;
-	if (!v3d) return;
-	
-	me= ob->data;
-	if(me->totface==0) return;
-	
-	event = pupmenu(
-	"Sort Faces (Ctrl to reverse)%t|"
-	"View Axis%x1|"
-	"Cursor Distance%x2|"
-	"Material%x3|"
-	"Selection%x4|"
-	"Randomize%x5");
-	
-	if (event==-1) return;
-	
-	if(ctrl)
-		reverse = -1;
-	
-/*	create index list */
-	index = (int *) MEM_mallocN(sizeof(int) * me->totface, "sort faces");
-	for (i = 0; i < me->totface; i++) {
-		index[i] = i;
-	}
-	
-	face_sort_floats = (float *) MEM_mallocN(sizeof(float) * me->totface, "sort faces float");
-	
-/* sort index list instead of faces itself 
-   and apply this permutation to all face layers */
-   
-	  if (event == 5) {
-		/* Random */
-		for(i=0; i<me->totface; i++) {
-			face_sort_floats[i] = BLI_frand();
-		}
-		qsort(index, me->totface, sizeof(int), float_sort);		
-	} else {
-		MFace *mf;
-		float vec[3];
-		float mat[4][4];
-		float cur[3];
-		
-		if (event == 1)
-			mul_m4_m4m4(mat, OBACT->obmat, rv3d->viewmat); /* apply the view matrix to the object matrix */
-		else if (event == 2) { /* sort from cursor */
-			if( v3d && v3d->localvd ) {
-				VECCOPY(cur, v3d->cursor);
-			} else {
-				VECCOPY(cur, scene->cursor);
-			}
-			invert_m4_m4(mat, OBACT->obmat);
-			mul_m4_v3(mat, cur);
-		}
-		
-		mf= me->mface;
-		for(i=0; i<me->totface; i++, mf++) {
-			
-			if (event==3) {
-				face_sort_floats[i] = ((float)mf->mat_nr)*reverse;
-			} else if (event==4) {
-				/*selected first*/
-				if (mf->flag & ME_FACE_SEL)	face_sort_floats[i] = 0.0;
-				else						face_sort_floats[i] = reverse;
-			} else {
-				/* find the faces center */
-				add_v3_v3v3(vec, (me->mvert+mf->v1)->co, (me->mvert+mf->v2)->co);
-				if (mf->v4) {
-					add_v3_v3v3(vec, vec, (me->mvert+mf->v3)->co);
-					add_v3_v3v3(vec, vec, (me->mvert+mf->v4)->co);
-					mul_v3_fl(vec, 0.25f);
-				} else {
-					add_v3_v3v3(vec, vec, (me->mvert+mf->v3)->co);
-					mul_v3_fl(vec, 1.0f/3.0f);
-				} /* done */
-				
-				if (event == 1) { /* sort on view axis */
-					mul_m4_v3(mat, vec);
-					face_sort_floats[i] = vec[2] * reverse;
-				} else if(event == 2) { /* distance from cursor*/
-					face_sort_floats[i] = len_v3v3(cur, vec) * reverse; /* back to front */
-				}
-			}
-		}
-		qsort(index, me->totface, sizeof(int), float_sort);
-	}
-	
-	MEM_freeN(face_sort_floats);
-	
-	for(i = 0; i < me->fdata.totlayer; i++) {
-		layer = &me->fdata.layers[i];
-		permutate(layer->data, me->totface, CustomData_sizeof(layer->type), index);
-	}
-
-	MEM_freeN(index);
-
-	DAG_id_flush_update(ob->data, OB_RECALC_DATA);
-}
-
-
 
 /* ********************* MESH VERTEX OCTREE LOOKUP ************* */
 
@@ -1374,7 +1213,7 @@ int *mesh_get_x_mirror_faces(Object *ob, EditMesh *em)
 
 	mesh_octree_table(ob, em, NULL, 'e');
 
-	fhash= BLI_ghash_new(mirror_facehash, mirror_facecmp);
+	fhash= BLI_ghash_new(mirror_facehash, mirror_facecmp, "mirror_facehash gh");
 	for(a=0, mf=mface; a<me->totface; a++, mf++)
 		BLI_ghash_insert(fhash, mf, mf);
 

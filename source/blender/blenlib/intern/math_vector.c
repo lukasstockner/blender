@@ -83,6 +83,14 @@ void interp_v3_v3v3v3v3(float p[3], const float v1[3], const float v2[3], const 
 	p[2] = v1[2]*w[0] + v2[2]*w[1] + v3[2]*w[2] + v4[2]*w[3];
 }
 
+void interp_v4_v4v4v4(float p[4], const float v1[4], const float v2[4], const float v3[4], const float w[3])
+{
+	p[0] = v1[0]*w[0] + v2[0]*w[1] + v3[0]*w[2];
+	p[1] = v1[1]*w[0] + v2[1]*w[1] + v3[1]*w[2];
+	p[2] = v1[2]*w[0] + v2[2]*w[1] + v3[2]*w[2];
+	p[3] = v1[3]*w[0] + v2[3]*w[1] + v3[3]*w[2];
+}
+
 void mid_v3_v3v3(float *v, float *v1, float *v2)
 {
 	v[0]= 0.5f*(v1[0] + v2[0]);
@@ -112,10 +120,8 @@ float angle_v3v3(float *v1, float *v2)
 {
 	float vec1[3], vec2[3];
 
-	copy_v3_v3(vec1, v1);
-	copy_v3_v3(vec2, v2);
-	normalize_v3(vec1);
-	normalize_v3(vec2);
+	normalize_v3_v3(vec1, v1);
+	normalize_v3_v3(vec2, v2);
 
 	return angle_normalized_v3v3(vec1, vec2);
 }
@@ -292,17 +298,17 @@ void ortho_basis_v3v3_v3(float *v1, float *v2, float *v)
 
 /*********************************** Other ***********************************/
 
-void print_v2(char *str, float v[2])
+void print_v2(const char *str, const float v[2])
 {
 	printf("%s: %.3f %.3f\n", str, v[0], v[1]);
 }
 
-void print_v3(char *str, float v[3])
+void print_v3(const char *str, const float v[3])
 {
 	printf("%s: %.3f %.3f %.3f\n", str, v[0], v[1], v[2]);
 }
 
-void print_v4(char *str, float v[4])
+void print_v4(const char *str, const float v[4])
 {
 	printf("%s: %.3f %.3f %.3f %.3f\n", str, v[0], v[1], v[2], v[3]);
 }

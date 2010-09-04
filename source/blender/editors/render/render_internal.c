@@ -33,11 +33,11 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_threads.h"
+#include "BLI_rand.h"
 
 #include "DNA_scene_types.h"
 
 #include "BKE_blender.h"
-#include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
@@ -45,9 +45,7 @@
 #include "BKE_main.h"
 #include "BKE_multires.h"
 #include "BKE_report.h"
-#include "BKE_scene.h"
-#include "BKE_screen.h"
-#include "BKE_utildefines.h"
+#include "BKE_sequencer.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -87,11 +85,11 @@ void image_buffer_rect_update(Scene *scene, RenderResult *rr, ImBuf *ibuf, volat
 
 		/* xmin here is first subrect x coord, xmax defines subrect width */
 		xmin = renrect->xmin + rr->crop;
-		xmax = renrect->xmax - xmin - rr->crop;
+		xmax = renrect->xmax - xmin + rr->crop;
 		if (xmax<2) return;
 
 		ymin= renrect->ymin + rr->crop;
-		ymax= renrect->ymax - ymin - rr->crop;
+		ymax= renrect->ymax - ymin + rr->crop;
 		if(ymax<2)
 			return;
 		renrect->ymin= renrect->ymax;
@@ -131,23 +129,25 @@ void image_buffer_rect_update(Scene *scene, RenderResult *rr, ImBuf *ibuf, volat
 
 	if(ibuf->rect==NULL)
 		imb_addrectImBuf(ibuf);
-
+	
 	rectf+= 4*(rr->rectx*ymin + xmin);
 	rectc= (char *)(ibuf->rect + ibuf->x*rymin + rxmin);
-
+	
 	/* XXX make nice consistent functions for this */
 	if (scene && (scene->r.color_mgt_flag & R_COLOR_MANAGEMENT)) {
 		for(y1= 0; y1<ymax; y1++) {
 			float *rf= rectf;
 			float srgb[3];
 			char *rc= rectc;
+			const float dither = ibuf->dither / 255.0;
 
 			/* XXX temp. because crop offset */
 			if( rectc >= (char *)(ibuf->rect)) {
 				for(x1= 0; x1<xmax; x1++, rf += 4, rc+=4) {
-					srgb[0]= linearrgb_to_srgb(rf[0]);
-					srgb[1]= linearrgb_to_srgb(rf[1]);
-					srgb[2]= linearrgb_to_srgb(rf[2]);
+					const float d = (BLI_frand()-0.5)*dither;
+					srgb[0]= d + linearrgb_to_srgb(rf[0]);
+					srgb[1]= d + linearrgb_to_srgb(rf[1]);
+					srgb[2]= d + linearrgb_to_srgb(rf[2]);
 
 					rc[0]= FTOCHAR(srgb[0]);
 					rc[1]= FTOCHAR(srgb[1]);
@@ -162,20 +162,28 @@ void image_buffer_rect_update(Scene *scene, RenderResult *rr, ImBuf *ibuf, volat
 		for(y1= 0; y1<ymax; y1++) {
 			float *rf= rectf;
 			char *rc= rectc;
+			float rgb[3];
+			const float dither = ibuf->dither / 255.0;
 
 			/* XXX temp. because crop offset */
 			if( rectc >= (char *)(ibuf->rect)) {
 				for(x1= 0; x1<xmax; x1++, rf += 4, rc+=4) {
-					rc[0]= FTOCHAR(rf[0]);
-					rc[1]= FTOCHAR(rf[1]);
-					rc[2]= FTOCHAR(rf[2]);
+					const float d = (BLI_frand()-0.5)*dither;
+					
+					rgb[0] = d + rf[0];
+					rgb[1] = d + rf[1];
+					rgb[2] = d + rf[2];
+					
+					rc[0]= FTOCHAR(rgb[0]);
+					rc[1]= FTOCHAR(rgb[1]);
+					rc[2]= FTOCHAR(rgb[2]);
 					rc[3]= FTOCHAR(rf[3]);
 				}
 			}
 			rectf += 4*rr->rectx;
 			rectc += 4*ibuf->x;
 		}
-	}
+	}	
 }
 
 /* new window uses x,y to set position */
@@ -210,7 +218,7 @@ void screen_set_image_output(bContext *C, int mx, int my)
 		sa= CTX_wm_area(C);
 	}
 	else if(scene->r.displaymode==R_OUTPUT_SCREEN) {
-		if (CTX_wm_area(C)->spacetype == SPACE_IMAGE)
+		if (CTX_wm_area(C) && CTX_wm_area(C)->spacetype == SPACE_IMAGE)
 			area_was_image = 1;
 
 		/* this function returns with changed context */
@@ -380,28 +388,43 @@ static ScrArea *find_empty_image_area(bContext *C)
 }
 #endif // XXX not used
 
+static void render_error_reports(void *reports, char *str)
+{
+	BKE_report(reports, RPT_ERROR, str);
+}
+
 /* executes blocking render */
 static int screen_render_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene= CTX_data_scene(C);
-	Render *re= RE_GetRender(scene->id.name);
+	Render *re= RE_NewRender(scene->id.name);
 	Image *ima;
 	View3D *v3d= CTX_wm_view3d(C);
-	int lay= (v3d)? v3d->lay|scene->lay: scene->lay;
+	Main *mainp= CTX_data_main(C);
+	int lay= (v3d)? v3d->lay: scene->lay;
 
 	if(re==NULL) {
 		re= RE_NewRender(scene->id.name);
 	}
+	
+	G.afbreek= 0;
 	RE_test_break_cb(re, NULL, (int (*)(void *)) blender_test_break);
+	RE_error_cb(re, op->reports, render_error_reports);
 
 	ima= BKE_image_verify_viewer(IMA_TYPE_R_RESULT, "Render Result");
 	BKE_image_signal(ima, NULL, IMA_SIGNAL_FREE);
 	BKE_image_backup_render(scene, ima);
 
+	/* cleanup sequencer caches before starting user triggered render.
+	   otherwise, invalidated cache entries can make their way into
+	   the output rendering. We can't put that into RE_BlenderFrame,
+	   since sequence rendering can call that recursively... (peter) */
+	seq_stripelem_cache_cleanup();
+
 	if(RNA_boolean_get(op->ptr, "animation"))
-		RE_BlenderAnim(re, scene, lay, scene->r.sfra, scene->r.efra, scene->r.frame_step, op->reports);
+		RE_BlenderAnim(re, mainp, scene, lay, scene->r.sfra, scene->r.efra, scene->r.frame_step, op->reports);
 	else
-		RE_BlenderFrame(re, scene, NULL, lay, scene->r.cfra);
+		RE_BlenderFrame(re, mainp, scene, NULL, lay, scene->r.cfra);
 
 	// no redraw needed, we leave state as we entered it
 	ED_update_for_newframe(C, 1);
@@ -412,6 +435,7 @@ static int screen_render_exec(bContext *C, wmOperator *op)
 }
 
 typedef struct RenderJob {
+	Main *main;
 	Scene *scene;
 	Render *re;
 	wmWindow *win;
@@ -422,6 +446,7 @@ typedef struct RenderJob {
 	ImageUser iuser;
 	short *stop;
 	short *do_update;
+	float *progress;
 	ReportList *reports;
 } RenderJob;
 
@@ -436,15 +461,17 @@ static void render_freejob(void *rjv)
 static void make_renderinfo_string(RenderStats *rs, Scene *scene, char *str)
 {
 	char info_time_str[32];	// used to be extern to header_info.c
-	uintptr_t mem_in_use, mmap_in_use;
-	float megs_used_memory, mmap_used_memory;
+	uintptr_t mem_in_use, mmap_in_use, peak_memory;
+	float megs_used_memory, mmap_used_memory, megs_peak_memory;
 	char *spos= str;
 
 	mem_in_use= MEM_get_memory_in_use();
 	mmap_in_use= MEM_get_mapped_memory_in_use();
+	peak_memory = MEM_get_peak_memory();
 
 	megs_used_memory= (mem_in_use-mmap_in_use)/(1024.0*1024.0);
 	mmap_used_memory= (mmap_in_use)/(1024.0*1024.0);
+	megs_peak_memory = (peak_memory)/(1024.0*1024.0);
 
 	if(scene->lay & 0xFF000000)
 		spos+= sprintf(spos, "Localview | ");
@@ -458,7 +485,7 @@ static void make_renderinfo_string(RenderStats *rs, Scene *scene, char *str)
 		spos+= sprintf(spos, "Fra:%d  Ve:%d Fa:%d ", (scene->r.cfra), rs->totvert, rs->totface);
 		if(rs->tothalo) spos+= sprintf(spos, "Ha:%d ", rs->tothalo);
 		if(rs->totstrand) spos+= sprintf(spos, "St:%d ", rs->totstrand);
-		spos+= sprintf(spos, "La:%d Mem:%.2fM (%.2fM) ", rs->totlamp, megs_used_memory, mmap_used_memory);
+		spos+= sprintf(spos, "La:%d Mem:%.2fM (%.2fM, peak %.2fM) ", rs->totlamp, megs_used_memory, mmap_used_memory, megs_peak_memory);
 
 		if(rs->curfield)
 			spos+= sprintf(spos, "Field %d ", rs->curfield);
@@ -486,16 +513,27 @@ static void image_renderinfo_cb(void *rjv, RenderStats *rs)
 
 	rr= RE_AcquireResultRead(rj->re);
 
-	/* malloc OK here, stats_draw is not in tile threads */
-	if(rr->text==NULL)
-		rr->text= MEM_callocN(IMA_MAX_RENDER_TEXT, "rendertext");
+	if(rr) {
+		/* malloc OK here, stats_draw is not in tile threads */
+		if(rr->text==NULL)
+			rr->text= MEM_callocN(IMA_MAX_RENDER_TEXT, "rendertext");
 
-	make_renderinfo_string(rs, rj->scene, rr->text);
+		make_renderinfo_string(rs, rj->scene, rr->text);
+	}
+
 	RE_ReleaseResult(rj->re);
 
 	/* make jobs timer to send notifier */
 	*(rj->do_update)= 1;
 
+}
+
+static void render_progress_update(void *rjv, float progress)
+{
+	RenderJob *rj= rjv;
+	
+	if (rj->progress)
+		*rj->progress = progress;
 }
 
 static void image_rect_update(void *rjv, RenderResult *rr, volatile rcti *renrect)
@@ -519,21 +557,30 @@ static void image_rect_update(void *rjv, RenderResult *rr, volatile rcti *renrec
 	BKE_image_release_ibuf(ima, lock);
 }
 
-static void render_startjob(void *rjv, short *stop, short *do_update)
+static void render_startjob(void *rjv, short *stop, short *do_update, float *progress)
 {
 	RenderJob *rj= rjv;
-//	Main *mainp= BKE_undo_get_main(&rj->scene);
 
 	rj->stop= stop;
 	rj->do_update= do_update;
+	rj->progress= progress;
 
 	if(rj->anim)
-		RE_BlenderAnim(rj->re, rj->scene, rj->lay, rj->scene->r.sfra, rj->scene->r.efra, rj->scene->r.frame_step, rj->reports);
+		RE_BlenderAnim(rj->re, rj->main, rj->scene, rj->lay, rj->scene->r.sfra, rj->scene->r.efra, rj->scene->r.frame_step, rj->reports);
 	else
-		RE_BlenderFrame(rj->re, rj->scene, rj->srl, rj->lay, rj->scene->r.cfra);
+		RE_BlenderFrame(rj->re, rj->main, rj->scene, rj->srl, rj->lay, rj->scene->r.cfra);
+}
 
-//	if(mainp)
-//		free_main(mainp);
+static void render_endjob(void *rjv)
+{
+	RenderJob *rj= rjv;
+
+	if(rj->main != G.main)
+		free_main(rj->main);
+
+	/* XXX render stability hack */
+	G.rendering = 0;
+	WM_main_add_notifier(NC_WINDOW, NULL);
 }
 
 /* called by render, check job 'stop' value or the global */
@@ -552,8 +599,9 @@ static int render_breakjob(void *rjv)
 static int screen_render_modal(bContext *C, wmOperator *op, wmEvent *event)
 {
 	/* no running blender, remove handler and pass through */
-	if(0==WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C)))
+	if(0==WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C))) {
 		return OPERATOR_FINISHED|OPERATOR_PASS_THROUGH;
+	}
 
 	/* running render */
 	switch (event->type) {
@@ -568,6 +616,7 @@ static int screen_render_modal(bContext *C, wmOperator *op, wmEvent *event)
 static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
 	/* new render clears all callbacks */
+	Main *mainp;
 	Scene *scene= CTX_data_scene(C);
 	SceneRenderLayer *srl=NULL;
 	bScreen *screen= CTX_wm_screen(C);
@@ -584,6 +633,14 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	/* stop all running jobs, currently previews frustrate Render */
 	WM_jobs_stop_all(CTX_wm_manager(C));
 
+	/* get main */
+	if(G.rt == 101) {
+		/* thread-safety experiment, copy main from the undo buffer */
+		mainp= BKE_undo_get_main(&scene);
+	}
+	else
+		mainp= CTX_data_main(C);
+
 	/* cancel animation playback */
 	if (screen->animtimer)
 		ED_screen_animation_play(C, 0, 0);
@@ -594,8 +651,14 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	/* flush multires changes (for sculpt) */
 	multires_force_render_update(CTX_data_active_object(C));
 
+	/* cleanup sequencer caches before starting user triggered render.
+	   otherwise, invalidated cache entries can make their way into
+	   the output rendering. We can't put that into RE_BlenderFrame,
+	   since sequence rendering can call that recursively... (peter) */
+	seq_stripelem_cache_cleanup();
+
 	/* get editmode results */
-	ED_object_exit_editmode(C, EM_FREEDATA|EM_DO_UNDO);	/* 0 = does not exit editmode */
+	ED_object_exit_editmode(C, 0);	/* 0 = does not exit editmode */
 
 	// store spare
 	// get view3d layer, local layer, make this nice api call to render
@@ -613,7 +676,7 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		RNA_string_get(op->ptr, "layer", rl_name);
 		RNA_string_get(op->ptr, "scene", scene_name);
 
-		scn = (Scene *)BLI_findstring(&CTX_data_main(C)->scene, scene_name, offsetof(ID, name) + 2);
+		scn = (Scene *)BLI_findstring(&mainp->scene, scene_name, offsetof(ID, name) + 2);
 		rl = (SceneRenderLayer *)BLI_findstring(&scene->r.layers, rl_name, offsetof(SceneRenderLayer, name));
 
 		if (scn && rl) {
@@ -624,20 +687,21 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 
 	/* job custom data */
 	rj= MEM_callocN(sizeof(RenderJob), "render job");
+	rj->main= mainp;
 	rj->scene= scene;
 	rj->win= CTX_wm_window(C);
 	rj->srl = srl;
-	rj->lay = (v3d)? v3d->lay|scene->lay: scene->lay;
+	rj->lay = (v3d)? v3d->lay: scene->lay;
 	rj->anim= RNA_boolean_get(op->ptr, "animation");
 	rj->iuser.scene= scene;
 	rj->iuser.ok= 1;
 	rj->reports= op->reports;
 
 	/* setup job */
-	steve= WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, WM_JOB_EXCL_RENDER|WM_JOB_PRIORITY);
+	steve= WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Render", WM_JOB_EXCL_RENDER|WM_JOB_PRIORITY|WM_JOB_PROGRESS);
 	WM_jobs_customdata(steve, rj, render_freejob);
 	WM_jobs_timer(steve, 0.2, NC_SCENE|ND_RENDER_RESULT, 0);
-	WM_jobs_callbacks(steve, render_startjob, NULL, NULL);
+	WM_jobs_callbacks(steve, render_startjob, NULL, NULL, render_endjob);
 
 	/* get a render result image, and make sure it is empty */
 	ima= BKE_image_verify_viewer(IMA_TYPE_R_RESULT, "Render Result");
@@ -650,17 +714,22 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	RE_test_break_cb(re, rj, render_breakjob);
 	RE_display_draw_cb(re, rj, image_rect_update);
 	RE_stats_draw_cb(re, rj, image_renderinfo_cb);
+	RE_progress_cb(re, rj, render_progress_update);
 
 	rj->re= re;
 	G.afbreek= 0;
 
-	//	BKE_report in render!
-	//	RE_error_cb(re, error_cb);
+	RE_error_cb(re, op->reports, render_error_reports);
 
 	WM_jobs_start(CTX_wm_manager(C), steve);
 
 	WM_cursor_wait(0);
 	WM_event_add_notifier(C, NC_SCENE|ND_RENDER_RESULT, scene);
+
+	/* we set G.rendering here already instead of only in the job, this ensure
+	   main loop or other scene updates are disabled in time, since they may
+	   have started before the job thread */
+	G.rendering = 1;
 
 	/* add modal handler for ESC */
 	WM_event_add_modal_handler(C, op);

@@ -45,7 +45,6 @@
 
 #include <stdlib.h>
 
-#include "MEM_guardedalloc.h"
 #include "DNA_userdef_types.h"
 
 #include "BKE_global.h"
@@ -53,10 +52,6 @@
 
 
 #include "DNA_scene_types.h"
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
 static int sock;
 static int connsock;

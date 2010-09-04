@@ -25,6 +25,8 @@
  */
 
 #include <string.h>
+#include <math.h>
+
 
 #include "MEM_guardedalloc.h"
 
@@ -40,7 +42,6 @@
 #include "BKE_node.h"
 #include "BKE_screen.h"
 #include "BKE_scene.h"
-#include "BKE_utildefines.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -49,7 +50,7 @@
 #include "WM_types.h"
 
 #include "ED_image.h"
-#include "ED_view3d.h"
+#include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_screen_types.h"
 
@@ -1367,6 +1368,8 @@ void ED_screen_set_scene(bContext *C, Scene *scene)
 	bScreen *sc;
 	bScreen *curscreen= CTX_wm_screen(C);
 	
+	ED_object_exit_editmode(C, EM_FREEDATA|EM_DO_UNDO);
+
 	for(sc= CTX_data_main(C)->screen.first; sc; sc= sc->id.next) {
 		if((U.flag & USER_SCENEGLOBAL) || sc==curscreen) {
 			
@@ -1395,7 +1398,7 @@ void ED_screen_set_scene(bContext *C, Scene *scene)
 					if(sl->spacetype==SPACE_VIEW3D) {
 						View3D *v3d= (View3D*) sl;
 
-						ED_view3d_scene_layers_copy(v3d, scene);
+						BKE_screen_view3d_sync(v3d, scene);
 
 						if (!v3d->camera || !object_in_scene(v3d->camera, scene)) {
 							v3d->camera= scene_find_camera(sc->scene);
@@ -1421,7 +1424,7 @@ void ED_screen_set_scene(bContext *C, Scene *scene)
 	}
 	
 	CTX_data_scene_set(C, scene);
-	set_scene_bg(scene);
+	set_scene_bg(CTX_data_main(C), scene);
 	
 	ED_update_for_newframe(C, 1);
 	
@@ -1492,7 +1495,7 @@ void ED_screen_full_restore(bContext *C, ScrArea *sa)
 	wmWindow *win= CTX_wm_window(C);
 	SpaceLink *sl = sa->spacedata.first;
 	
-	/* if fullscreen area has a secondary space (such as as file browser or fullscreen render 
+	/* if fullscreen area has a secondary space (such as a file browser or fullscreen render 
 	 * overlaid on top of a existing setup) then return to the previous space */
 	
 	if (sl->next) {
@@ -1651,7 +1654,7 @@ void ED_refresh_viewport_fps(bContext *C)
 /* redraws: uses defines from stime->redraws 
  * enable: 1 - forward on, -1 - backwards on, 0 - off
  */
-void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable)
+void ED_screen_animation_timer(bContext *C, int redraws, int refresh, int sync, int enable)
 {
 	bScreen *screen= CTX_wm_screen(C);
 	wmWindowManager *wm= CTX_wm_manager(C);
@@ -1666,11 +1669,14 @@ void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable)
 		ScreenAnimData *sad= MEM_callocN(sizeof(ScreenAnimData), "ScreenAnimData");
 		
 		screen->animtimer= WM_event_add_timer(wm, win, TIMER0, (1.0/FPS));
+		
 		sad->ar= CTX_wm_region(C);
 		sad->sfra = scene->r.cfra;
 		sad->redraws= redraws;
+		sad->refresh= refresh;
 		sad->flag |= (enable < 0)? ANIMPLAY_FLAG_REVERSE: 0;
 		sad->flag |= (sync == 0)? ANIMPLAY_FLAG_NO_SYNC: (sync == 1)? ANIMPLAY_FLAG_SYNC: 0;
+		
 		screen->animtimer->customdata= sad;
 		
 	}
@@ -1702,13 +1708,14 @@ static ARegion *time_top_left_3dwindow(bScreen *screen)
 	return aret;
 }
 
-void ED_screen_animation_timer_update(bScreen *screen, int redraws)
+void ED_screen_animation_timer_update(bScreen *screen, int redraws, int refresh)
 {
 	if(screen && screen->animtimer) {
 		wmTimer *wt= screen->animtimer;
 		ScreenAnimData *sad= wt->customdata;
 		
 		sad->redraws= redraws;
+		sad->refresh= refresh;
 		sad->ar= NULL;
 		if(redraws & TIME_REGION)
 			sad->ar= time_top_left_3dwindow(screen);
@@ -1718,43 +1725,31 @@ void ED_screen_animation_timer_update(bScreen *screen, int redraws)
 /* results in fully updated anim system */
 void ED_update_for_newframe(const bContext *C, int mute)
 {
+	Main *bmain= CTX_data_main(C);
 	bScreen *screen= CTX_wm_screen(C);
 	Scene *scene= CTX_data_scene(C);
 	
 #ifdef DURIAN_CAMERA_SWITCH
 	void *camera= scene_camera_switch_find(scene);
 	if(camera && scene->camera != camera) {
-
-		if(camera && scene->camera && (camera != scene->camera)) {
-			bScreen *sc;
-			/* are there cameras in the views that are not in the scene? */
-			for(sc= CTX_data_main(C)->screen.first; sc; sc= sc->id.next) {
-				ScrArea *sa= sc->areabase.first;
-				while(sa) {
-					SpaceLink *sl= sa->spacedata.first;
-					while(sl) {
-						if(sl->spacetype==SPACE_VIEW3D) {
-							View3D *v3d= (View3D*) sl;
-							if (v3d->scenelock) {
-								v3d->camera= camera;
-							}
-						}
-						sl= sl->next;
-					}
-					sa= sa->next;
-				}
-			}
-		}
-
+		bScreen *sc;
 		scene->camera= camera;
+		/* are there cameras in the views that are not in the scene? */
+		for(sc= CTX_data_main(C)->screen.first; sc; sc= sc->id.next) {
+			BKE_screen_view3d_scene_sync(sc);
+		}
 	}
 #endif
 
 	//extern void audiostream_scrub(unsigned int frame);	/* seqaudio.c */
 	
+	/* update animated image textures for gpu, etc,
+	 * call before scene_update_for_newframe so modifiers with textuers dont lag 1 frame */
+	ED_image_update_frame(C);
+
 	/* this function applies the changes too */
 	/* XXX future: do all windows */
-	scene_update_for_newframe(scene, BKE_screen_visible_layers(screen, scene)); /* BKE_scene.h */
+	scene_update_for_newframe(bmain, scene, BKE_screen_visible_layers(screen, scene)); /* BKE_scene.h */
 	
 	//if ( (CFRA>1) && (!mute) && (scene->r.audio.flag & AUDIO_SCRUB)) 
 	//	audiostream_scrub( CFRA );
@@ -1768,9 +1763,6 @@ void ED_update_for_newframe(const bContext *C, int mute)
 	/* composite */
 	if(scene->use_nodes && scene->nodetree)
 		ntreeCompositTagAnimated(scene->nodetree);
-	
-	/* update animated image textures for gpu, etc */
-	ED_image_update_frame(C);
 	
 	/* update animated texture nodes */
 	{

@@ -44,8 +44,6 @@
 #include "BLI_string.h"
 
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
-#include "BKE_global.h"
 #include "BKE_group.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
@@ -53,12 +51,14 @@
 #include "BKE_property.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-#include "BKE_utildefines.h"
+#include "BKE_deform.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
 
 #include "ED_screen.h"
+
+#include "UI_interface.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -161,11 +161,13 @@ void OBJECT_OT_select_by_type(wmOperatorType *ot)
 
 static EnumPropertyItem prop_select_linked_types[] = {
 	//{1, "IPO", 0, "Object IPO", ""}, // XXX depreceated animation system stuff...
-	{2, "OBDATA", 0, "Ob Data", ""},
+	{2, "OBDATA", 0, "Object Data", ""},
 	{3, "MATERIAL", 0, "Material", ""},
 	{4, "TEXTURE", 0, "Texture", ""},
 	{5, "DUPGROUP", 0, "Dupligroup", ""},
 	{6, "PARTICLE", 0, "Particle System", ""},
+	{7, "LIBRARY", 0, "Library", ""},
+	{8, "LIBRARY_OBDATA", 0, "Library (Object Data)", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -198,7 +200,7 @@ static int object_select_linked_exec(bContext *C, wmOperator *op)
 	}
 	
 	ob= OBACT;
-	if(ob==0){ 
+	if(ob==NULL){ 
 		BKE_report(op->reports, RPT_ERROR, "No Active Object");
 		return OPERATOR_CANCELLED;
 	}
@@ -227,7 +229,14 @@ static int object_select_linked_exec(bContext *C, wmOperator *op)
 	else if(nr==6) {
 		if(ob->particlesystem.first==NULL) return OPERATOR_CANCELLED;
 	}
-	else return OPERATOR_CANCELLED;
+	else if(nr==7) {
+		/* do nothing */
+	}
+	else if(nr==8) {
+		if(ob->data==NULL) return OPERATOR_CANCELLED;
+	}
+	else
+		return OPERATOR_CANCELLED;
 	
 	CTX_DATA_BEGIN(C, Base*, base, visible_bases) {
 		if(nr==1) {
@@ -284,6 +293,18 @@ static int object_select_linked_exec(bContext *C, wmOperator *op)
 				if (base->flag & SELECT) {
 					break;
 				}
+			}
+		}
+		else if(nr==7) {
+			if(ob->id.lib == base->object->id.lib) {
+				base->flag |= SELECT;
+				changed= 1;
+			}
+		}
+		else if(nr==8) {
+			if(base->object->data && ((ID *)ob->data)->lib == ((ID *)base->object->data)->lib) {
+				base->flag |= SELECT;
+				changed= 1;
 			}
 		}
 		base->object->flag= base->flag;
@@ -382,14 +403,11 @@ static short select_grouped_group(bContext *C, Object *ob)	/* Select objects in 
 {
 	short changed = 0;
 	Group *group, *ob_groups[GROUP_MENU_MAX];
-	//char str[10 + (24*GROUP_MENU_MAX)];
-	//char *p = str;
-	int group_count=0; //, menu, i;
+	int group_count=0, i;
+	uiPopupMenu *pup;
+	uiLayout *layout;
 
-	for (	group=G.main->group.first;
-			group && group_count < GROUP_MENU_MAX;
-			group=group->id.next
-		) {
+	for (group=CTX_data_main(C)->group.first; group && group_count < GROUP_MENU_MAX; group=group->id.next) {
 		if (object_in_group (ob, group)) {
 			ob_groups[group_count] = group;
 			group_count++;
@@ -398,7 +416,6 @@ static short select_grouped_group(bContext *C, Object *ob)	/* Select objects in 
 
 	if (!group_count)
 		return 0;
-
 	else if (group_count == 1) {
 		group = ob_groups[0];
 		CTX_DATA_BEGIN(C, Base*, base, visible_bases) {
@@ -410,27 +427,18 @@ static short select_grouped_group(bContext *C, Object *ob)	/* Select objects in 
 		CTX_DATA_END;
 		return changed;
 	}
-#if 0 // XXX hows this work in 2.5?
+
 	/* build the menu. */
-	p += sprintf(str, "Groups%%t");
+	pup= uiPupMenuBegin(C, "Select Group", 0);
+	layout= uiPupMenuLayout(pup);
+
 	for (i=0; i<group_count; i++) {
 		group = ob_groups[i];
-		p += sprintf (p, "|%s%%x%i", group->id.name+2, i);
+		uiItemStringO(layout, group->id.name+2, 0, "OBJECT_OT_select_same_group", "group", group->id.name);
 	}
 
-	menu = pupmenu (str);
-	if (menu == -1)
-		return 0;
-
-	group = ob_groups[menu];
-	for (base= FIRSTBASE; base; base= base->next) {
-		if (!(base->flag & SELECT) && object_in_group(base->object, group)) {
-			ED_base_object_select(base, BA_SELECT);
-			changed = 1;
-		}
-	}
-#endif
-	return changed;
+	uiPupMenuEnd(C, pup);
+	return changed; // The operator already handle this!
 }
 
 static short select_grouped_object_hooks(bContext *C, Object *ob)
@@ -627,7 +635,7 @@ static int object_select_by_layer_exec(bContext *C, wmOperator *op)
 	short extend;
 	
 	extend= RNA_boolean_get(op->ptr, "extend");
-	layernum = RNA_int_get(op->ptr, "layer");
+	layernum = RNA_int_get(op->ptr, "layers");
 	
 	if (extend == 0) {
 		CTX_DATA_BEGIN(C, Base*, base, visible_bases) {
@@ -665,7 +673,7 @@ void OBJECT_OT_select_by_layer(wmOperatorType *ot)
 	
 	/* properties */
 	RNA_def_boolean(ot->srna, "extend", FALSE, "Extend", "Extend selection instead of deselecting everything first.");
-	RNA_def_int(ot->srna, "layer", 1, 1, 20, "Layer", "", 1, 20);
+	RNA_def_int(ot->srna, "layers", 1, 1, 20, "Layer", "", 1, 20);
 }
 
 /************************** Select Inverse *************************/
@@ -751,7 +759,7 @@ void OBJECT_OT_select_all(wmOperatorType *ot)
 {
 	
 	/* identifiers */
-	ot->name= "deselect all";
+	ot->name= "Select or Deselect All";
 	ot->description = "Change selection of all visible objects in scene";
 	ot->idname= "OBJECT_OT_select_all";
 	
@@ -765,131 +773,67 @@ void OBJECT_OT_select_all(wmOperatorType *ot)
 	WM_operator_properties_select_all(ot);
 }
 
-/**************************** Select Mirror ****************************/
+/**************************** Select In The Same Group ****************************/
 
-/* finds the best possible flipped name. For renaming; check for unique names afterwards */
-/* if strip_number: removes number extensions */
-void object_flip_name (char *name)
+static int object_select_same_group_exec(bContext *C, wmOperator *op)
 {
-	int     len;
-	char    prefix[128]={""};   /* The part before the facing */
-	char    suffix[128]={""};   /* The part after the facing */
-	char    replace[128]={""};  /* The replacement string */
-	char    number[128]={""};   /* The number extension string */
-	char    *index=NULL;
+	Group *group;
+	char group_name[32];
 
-	len= strlen(name);
-	if(len<3) return; // we don't do names like .R or .L
+	/* passthrough if no objects are visible */
+	if (CTX_DATA_COUNT(C, visible_bases) == 0) return OPERATOR_PASS_THROUGH;
 
-	/* We first check the case with a .### extension, let's find the last period */
-	if(isdigit(name[len-1])) {
-		index= strrchr(name, '.'); // last occurrence
-		if (index && isdigit(index[1]) ) { // doesnt handle case bone.1abc2 correct..., whatever!
-			strcpy(number, index);
-			*index= 0;
-			len= strlen(name);
-		}
+	RNA_string_get(op->ptr, "group", group_name);
+
+	for (group=CTX_data_main(C)->group.first;	group; group=group->id.next) {
+		if (!strcmp(group->id.name, group_name))
+			break;
 	}
 
-	strcpy (prefix, name);
+	if (!group)
+		return OPERATOR_PASS_THROUGH;
 
-#define IS_SEPARATOR(a) ((a)=='.' || (a)==' ' || (a)=='-' || (a)=='_')
-
-	/* first case; separator . - _ with extensions r R l L  */
-	if( IS_SEPARATOR(name[len-2]) ) {
-		switch(name[len-1]) {
-			case 'l':
-				prefix[len-1]= 0;
-				strcpy(replace, "r");
-				break;
-			case 'r':
-				prefix[len-1]= 0;
-				strcpy(replace, "l");
-				break;
-			case 'L':
-				prefix[len-1]= 0;
-				strcpy(replace, "R");
-				break;
-			case 'R':
-				prefix[len-1]= 0;
-				strcpy(replace, "L");
-				break;
-		}
+	CTX_DATA_BEGIN(C, Base*, base, visible_bases) {
+		if (!(base->flag & SELECT) && object_in_group(base->object, group))
+			ED_base_object_select(base, BA_SELECT);
 	}
-	/* case; beginning with r R l L , with separator after it */
-	else if( IS_SEPARATOR(name[1]) ) {
-		switch(name[0]) {
-			case 'l':
-				strcpy(replace, "r");
-				strcpy(suffix, name+1);
-				prefix[0]= 0;
-				break;
-			case 'r':
-				strcpy(replace, "l");
-				strcpy(suffix, name+1);
-				prefix[0]= 0;
-				break;
-			case 'L':
-				strcpy(replace, "R");
-				strcpy(suffix, name+1);
-				prefix[0]= 0;
-				break;
-			case 'R':
-				strcpy(replace, "L");
-				strcpy(suffix, name+1);
-				prefix[0]= 0;
-				break;
-		}
-	}
-	else if(len > 5) {
-		/* hrms, why test for a separator? lets do the rule 'ultimate left or right' */
-		index = BLI_strcasestr(prefix, "right");
-		if (index==prefix || index==prefix+len-5) {
-			if(index[0]=='r') 
-				strcpy (replace, "left");
-			else {
-				if(index[1]=='I') 
-					strcpy (replace, "LEFT");
-				else
-					strcpy (replace, "Left");
-			}
-			*index= 0;
-			strcpy (suffix, index+5);
-		}
-		else {
-			index = BLI_strcasestr(prefix, "left");
-			if (index==prefix || index==prefix+len-4) {
-				if(index[0]=='l') 
-					strcpy (replace, "right");
-				else {
-					if(index[1]=='E') 
-						strcpy (replace, "RIGHT");
-					else
-						strcpy (replace, "Right");
-				}
-				*index= 0;
-				strcpy (suffix, index+4);
-			}
-		}
-	}
+	CTX_DATA_END;
 
-#undef IS_SEPARATOR
-
-	sprintf (name, "%s%s%s%s", prefix, replace, suffix, number);
+	WM_event_add_notifier(C, NC_SCENE|ND_OB_SELECT, CTX_data_scene(C));
+	
+	return OPERATOR_FINISHED;
 }
 
+void OBJECT_OT_select_same_group(wmOperatorType *ot)
+{
+	
+	/* identifiers */
+	ot->name= "select same group";
+	ot->description = "Select object in the same group";
+	ot->idname= "OBJECT_OT_select_same_group";
+	
+	/* api callbacks */
+	ot->exec= object_select_same_group_exec;
+	ot->poll= ED_operator_scene_editable;
+	
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	RNA_def_string(ot->srna, "group", "", 32, "Group", "Name of the group to select.");
+}
+
+/**************************** Select Mirror ****************************/
 static int object_select_mirror_exec(bContext *C, wmOperator *op)
 {
-	char tmpname[32];
 	short extend;
 	
 	extend= RNA_boolean_get(op->ptr, "extend");
 	
 	CTX_DATA_BEGIN(C, Base*, primbase, selected_bases) {
 
-		strcpy(tmpname, primbase->object->id.name+2);
-		object_flip_name(tmpname);
-		
+		char tmpname[32];
+		flip_side_name(tmpname, primbase->object->id.name+2, TRUE);
+
 		CTX_DATA_BEGIN(C, Base*, secbase, visible_bases) {
 			if(!strcmp(secbase->object->id.name+2, tmpname)) {
 				ED_base_object_select(secbase, BA_SELECT);
@@ -941,7 +885,9 @@ static int object_select_name_exec(bContext *C, wmOperator *op)
 	}
 
 	CTX_DATA_BEGIN(C, Base*, base, selectable_bases) {
+		/* this is a bit dodjy, there should only be ONE object with this name, but library objects can mess this up */
 		if(strcmp(name, base->object->id.name+2)==0) {
+			ED_base_object_activate(C, base);
 			ED_base_object_select(base, BA_SELECT);
 			changed= 1;
 		}

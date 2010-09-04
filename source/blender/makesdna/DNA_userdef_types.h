@@ -33,7 +33,7 @@
 #define DNA_USERDEF_TYPES_H
 
 #include "DNA_listBase.h"
-#include "DNA_texture_types.h"
+#include "DNA_texture_types.h" /* ColorBand */
 
 /* themes; defines in BIF_resource.h */
 struct ColorBand;
@@ -119,7 +119,7 @@ typedef struct uiWidgetColors {
 	char text_sel[4];
 	short shaded;
 	short shadetop, shadedown;
-	short pad;
+	short alpha_check;
 } uiWidgetColors;
 
 typedef struct uiWidgetStateColors {
@@ -139,8 +139,8 @@ typedef struct ThemeUI {
 	uiWidgetColors wcol_radio, wcol_option, wcol_toggle;
 	uiWidgetColors wcol_num, wcol_numslider;
 	uiWidgetColors wcol_menu, wcol_pulldown, wcol_menu_back, wcol_menu_item;
-	uiWidgetColors wcol_box, wcol_scroll, wcol_list_item;
-
+	uiWidgetColors wcol_box, wcol_scroll, wcol_progress, wcol_list_item;
+	
 	uiWidgetStateColors wcol_state;
 	
 	char iconfile[80];	// FILE_MAXFILE length
@@ -192,7 +192,7 @@ typedef struct ThemeSpace {
 	char active[4], group[4], group_active[4], transform[4];
 	char vertex[4], vertex_select[4];
 	char edge[4], edge_select[4];
-	char edge_seam[4], edge_sharp[4], edge_facesel[4];
+	char edge_seam[4], edge_sharp[4], edge_facesel[4], edge_crease[4];
 	char face[4], face_select[4];	// solid faces
 	char face_dot[4];				// selected color
 	char normal[4];
@@ -201,7 +201,7 @@ typedef struct ThemeSpace {
 	char strip[4], strip_select[4];
 	char cframe[4];
 	char nurb_uline[4], nurb_vline[4];
-	char act_spline[4], nurb_sel_uline[4], nurb_sel_vline[4];
+	char act_spline[4], nurb_sel_uline[4], nurb_sel_vline[4], lastsel_point[4];
 	char handle_free[4], handle_auto[4], handle_vect[4], handle_align[4];
 	char handle_sel_free[4], handle_sel_auto[4], handle_sel_vect[4], handle_sel_align[4];
 	char ds_channel[4], ds_subchannel[4]; // dopesheet
@@ -210,7 +210,7 @@ typedef struct ThemeSpace {
 	char console_cursor[4];
 	
 	char vertex_size, facedot_size;
-	char bpad[6];
+	char bpad[2];
 
 	char syntaxl[4], syntaxn[4], syntaxb[4]; // syntax for textwindow and nodes
 	char syntaxv[4], syntaxc[4];
@@ -223,7 +223,7 @@ typedef struct ThemeSpace {
 	char handle_vertex_select[4];
 	
 	char handle_vertex_size;
-	char hpad[3];
+	char hpad[7];
 	
 	char preview_back[4];
 	
@@ -343,7 +343,8 @@ typedef struct UserDef {
 	struct SolidLight light[3];
 	short tw_hotspot, tw_flag, tw_handlesize, tw_size;
 	short textimeout,texcollectrate;
-	short wmdrawmethod, wmpad;
+	short wmdrawmethod; /* removed wmpad */
+	short pad2;
 	int memcachelimit;
 	int prefetchframes;
 	short frameserverport;
@@ -362,6 +363,8 @@ typedef struct UserDef {
 
 	short scrcastfps;		/* frame rate for screencast to be played back */
 	short scrcastwait;		/* milliseconds between screencast snapshots */
+	
+	short pad8, pad[3]; /* Value for Dual/Single Column UI */
 
 	char versemaster[160];
 	char verseuser[160];
@@ -371,6 +374,11 @@ typedef struct UserDef {
 	short autokey_flag;		/* flags for autokeying */
 
 	struct ColorBand coba_weight;	/* from texture.h */
+
+	float sculpt_paint_overlay_col[3];
+	int pad3;
+
+	char author[80];	/* author name for file formats supporting it */
 } UserDef;
 
 extern UserDef U; /* from blenkernel blender.c */
@@ -388,9 +396,9 @@ extern UserDef U; /* from blenkernel blender.c */
 
 /* flag */
 #define USER_AUTOSAVE			(1 << 0)
-#define USER_AUTOGRABGRID		(1 << 1)
-#define USER_AUTOROTGRID		(1 << 2)
-#define USER_AUTOSIZEGRID		(1 << 3)
+#define USER_AUTOGRABGRID		(1 << 1)	/* deprecated */
+#define USER_AUTOROTGRID		(1 << 2)	/* deprecated */
+#define USER_AUTOSIZEGRID		(1 << 3)	/* deprecated */
 #define USER_SCENEGLOBAL		(1 << 4)
 #define USER_TRACKBALL			(1 << 5)
 #define USER_DUPLILINK			(1 << 6)
@@ -437,7 +445,7 @@ extern UserDef U; /* from blenkernel blender.c */
 #define USER_FLIPFULLSCREEN		(1 << 7)
 #define USER_ALLWINCODECS		(1 << 8)
 #define USER_MENUOPENAUTO		(1 << 9)
-#define USER_PANELPINNED		(1 << 10)
+#define USER_PANELPINNED		(1 << 10)		/* deprecated */
 #define USER_AUTOPERSP     		(1 << 11)
 #define USER_LOCKAROUND     	(1 << 12)
 #define USER_GLOBALUNDO     	(1 << 13)

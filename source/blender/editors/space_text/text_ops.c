@@ -34,19 +34,17 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_constraint_types.h"
 #include "DNA_text_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BLI_blenlib.h"
 #include "PIL_time.h"
 
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
-#include "BKE_suggestions.h"
 #include "BKE_text.h"
 
 #include "WM_api.h"
@@ -190,6 +188,9 @@ void TEXT_OT_new(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec= new_exec;
 	ot->poll= text_new_poll;
+	
+	/* flags */
+	ot->flag= OPTYPE_UNDO;
 }
 
 /******************* open operator *********************/
@@ -215,9 +216,9 @@ static int open_exec(bContext *C, wmOperator *op)
 	PropertyPointerRNA *pprop;
 	PointerRNA idptr;
 	char str[FILE_MAX];
-	short internal = RNA_int_get(op->ptr, "internal");
+	short internal = RNA_boolean_get(op->ptr, "internal");
 
-	RNA_string_get(op->ptr, "path", str);
+	RNA_string_get(op->ptr, "filepath", str);
 
 	text= add_text(str, G.sce);
 
@@ -265,11 +266,11 @@ static int open_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	Text *text= CTX_data_edit_text(C);
 	char *path= (text && text->name)? text->name: G.sce;
 
-	if(RNA_property_is_set(op->ptr, "path"))
+	if(RNA_property_is_set(op->ptr, "filepath"))
 		return open_exec(C, op);
 	
 	open_init(C, op);
-	RNA_string_set(op->ptr, "path", path);
+	RNA_string_set(op->ptr, "filepath", path);
 	WM_event_add_fileselect(C, op); 
 
 	return OPERATOR_RUNNING_MODAL;
@@ -288,8 +289,11 @@ void TEXT_OT_open(wmOperatorType *ot)
 	ot->cancel= open_cancel;
 	ot->poll= text_new_poll;
 
+	/* flags */
+	ot->flag= OPTYPE_UNDO;
+	
 	/* properties */
-	WM_operator_properties_filesel(ot, FOLDERFILE|TEXTFILE|PYSCRIPTFILE, FILE_SPECIAL, FILE_OPENFILE);
+	WM_operator_properties_filesel(ot, FOLDERFILE|TEXTFILE|PYSCRIPTFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH);  //XXX TODO, relative_path
 	RNA_def_boolean(ot->srna, "internal", 0, "Make internal", "Make text file internal after loading");
 }
 
@@ -369,6 +373,9 @@ void TEXT_OT_unlink(wmOperatorType *ot)
 	ot->exec= unlink_exec;
 	ot->invoke= WM_operator_confirm;
 	ot->poll= text_edit_poll;
+	
+	/* flags */
+	ot->flag= OPTYPE_UNDO;
 }
 
 /******************* make internal operator *********************/
@@ -400,6 +407,9 @@ void TEXT_OT_make_internal(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec= make_internal_exec;
 	ot->poll= text_edit_poll;
+	
+	/* flags */
+	ot->flag= OPTYPE_UNDO;
 }
 
 /******************* save operator *********************/
@@ -482,7 +492,7 @@ static int save_as_exec(bContext *C, wmOperator *op)
 	if(!text)
 		return OPERATOR_CANCELLED;
 
-	RNA_string_get(op->ptr, "path", str);
+	RNA_string_get(op->ptr, "filepath", str);
 
 	if(text->name) MEM_freeN(text->name);
 	text->name= BLI_strdup(str);
@@ -501,7 +511,7 @@ static int save_as_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	Text *text= CTX_data_edit_text(C);
 	char *str;
 
-	if(RNA_property_is_set(op->ptr, "path"))
+	if(RNA_property_is_set(op->ptr, "filepath"))
 		return save_as_exec(C, op);
 
 	if(text->name)
@@ -511,7 +521,7 @@ static int save_as_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	else
 		str= G.sce;
 	
-	RNA_string_set(op->ptr, "path", str);
+	RNA_string_set(op->ptr, "filepath", str);
 	WM_event_add_fileselect(C, op); 
 
 	return OPERATOR_RUNNING_MODAL;
@@ -530,7 +540,7 @@ void TEXT_OT_save_as(wmOperatorType *ot)
 	ot->poll= text_edit_poll;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, FOLDERFILE|TEXTFILE|PYSCRIPTFILE, FILE_SPECIAL, FILE_SAVE);
+	WM_operator_properties_filesel(ot, FOLDERFILE|TEXTFILE|PYSCRIPTFILE, FILE_SPECIAL, FILE_SAVE, WM_FILESEL_FILEPATH);  //XXX TODO, relative_path
 }
 
 /******************* run script operator *********************/
@@ -571,14 +581,17 @@ void TEXT_OT_run_script(wmOperatorType *ot)
 	/* api callbacks */
 	ot->poll= run_script_poll;
 	ot->exec= run_script_exec;
-}
 
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+}
 
 /******************* refresh pyconstraints operator *********************/
 
 static int refresh_pyconstraints_exec(bContext *C, wmOperator *op)
 {
 #ifndef DISABLE_PYTHON
+#if 0
 	Text *text= CTX_data_edit_text(C);
 	Object *ob;
 	bConstraint *con;
@@ -612,6 +625,7 @@ static int refresh_pyconstraints_exec(bContext *C, wmOperator *op)
 			DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
 		}
 	}
+#endif
 #endif
 
 	return OPERATOR_FINISHED;
@@ -749,7 +763,7 @@ void TEXT_OT_paste(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec= paste_exec;
 	ot->poll= text_edit_poll;
-
+	
 	/* properties */
 	RNA_def_boolean(ot->srna, "selection", 0, "Selection", "Paste text selected elsewhere rather than copied, X11 only.");
 }
@@ -890,15 +904,22 @@ void TEXT_OT_unindent(wmOperatorType *ot)
 
 static int line_break_exec(bContext *C, wmOperator *op)
 {
+	SpaceText *st= CTX_wm_space_text(C);
 	Text *text= CTX_data_edit_text(C);
-	int a, curtab;
+	int a, curts;
+	int space = (text->flags & TXT_TABSTOSPACES) ? st->tabnumber : 1;
 
-	// double check tabs before splitting the line
-	curtab= setcurr_tab(text);
+	// double check tabs/spaces before splitting the line
+	curts= setcurr_tab_spaces(text, space);
 	txt_split_curline(text);
 
-	for(a=0; a < curtab; a++)
-		txt_add_char(text, '\t');
+	for(a=0; a < curts; a++) {
+		if (text->flags & TXT_TABSTOSPACES) {
+			txt_add_char(text, ' ');
+		} else {
+			txt_add_char(text, '\t');
+		}
+	}
 
 	if(text->curl) {
 		if(text->curl->prev)
@@ -1008,7 +1029,7 @@ static int convert_whitespace_exec(bContext *C, wmOperator *op)
 	
 	tmp = text->lines.first;
 	
-	//first convert to all space, this make it alot easier to convert to tabs because there is no mixtures of ' ' && '\t'
+	//first convert to all space, this make it a lot easier to convert to tabs because there is no mixtures of ' ' && '\t'
 	while(tmp) {
 		text_check_line = tmp->line;
 		number = flatten_string(st, &fs, text_check_line)+1;
@@ -1688,6 +1709,8 @@ static int toggle_overwrite_exec(bContext *C, wmOperator *op)
 
 	st->overwrite= !st->overwrite;
 
+	WM_event_add_notifier(C, NC_TEXT|ND_CURSOR, st->text);
+
 	return OPERATOR_FINISHED;
 }
 
@@ -2340,9 +2363,11 @@ void TEXT_OT_insert(wmOperatorType *ot)
 
 static int find_and_replace(bContext *C, wmOperator *op, short mode)
 {
+	Main *bmain= CTX_data_main(C);
 	SpaceText *st= CTX_wm_space_text(C);
 	Text *start= NULL, *text= st->text;
 	int flags, first= 1;
+	int found = 0;
 	char *tmp;
 
 	if(!st->findstr[0] || (mode == TEXT_REPLACE && !st->replacestr[0]))
@@ -2401,16 +2426,17 @@ static int find_and_replace(bContext *C, wmOperator *op, short mode)
 			if(text->id.next)
 				text= st->text= text->id.next;
 			else
-				text= st->text= G.main->text.first;
+				text= st->text= bmain->text.first;
 			txt_move_toline(text, 0, 0);
 			text_update_cursor_moved(C);
 			WM_event_add_notifier(C, NC_TEXT|ND_CURSOR, text);
 			first= 1;
 		}
 		else {
-			BKE_reportf(op->reports, RPT_ERROR, "Text not found: %s", st->findstr);
+			if(!found) BKE_reportf(op->reports, RPT_ERROR, "Text not found: %s", st->findstr);
 			break;
 		}
+		found = 1;
 	} while(mode==TEXT_MARK_ALL);
 
 	return OPERATOR_FINISHED;

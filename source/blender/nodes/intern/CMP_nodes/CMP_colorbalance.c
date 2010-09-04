@@ -54,14 +54,19 @@ DO_INLINE float colorbalance_cdl(float in, float offset, float power, float slop
 	return powf(x, 1.f/power);
 }
 
-DO_INLINE float colorbalance_lgg(float in, float lift, float gamma, float gain)
+/* note: lift_lgg is just 2-lift, gamma_inv is 1.0/gamma */
+DO_INLINE float colorbalance_lgg(float in, float lift_lgg, float gamma_inv, float gain)
 {
-	float x = gain*(in+(lift-1)*(1-in));
-	
+	/* 1:1 match with the sequencer with linear/srgb conversions, the conversion isnt pretty
+	 * but best keep it this way, sice testing for durian shows a similar calculation
+	 * without lin/srgb conversions gives bad results (over-saturated shadows) with colors
+	 * slightly below 1.0. some correction can be done but it ends up looking bad for shadows or lighter tones - campbell */
+	float x= (((linearrgb_to_srgb(in) - 1.0f) * lift_lgg) + 1.0f) * gain;
+
 	/* prevent NaN */
 	if (x < 0.f) x = 0.f;
-	
-	return powf(x, (1.f/gamma));
+
+	return powf(srgb_to_linearrgb(x), gamma_inv);
 }
 
 static void do_colorbalance_cdl(bNode *node, float* out, float *in)
@@ -88,10 +93,10 @@ static void do_colorbalance_cdl_fac(bNode *node, float* out, float *in, float *f
 static void do_colorbalance_lgg(bNode *node, float* out, float *in)
 {
 	NodeColorBalance *n= (NodeColorBalance *)node->storage;
-	
-	out[0] = colorbalance_lgg(in[0], n->lift[0], n->gamma[0], n->gain[0]);
-	out[1] = colorbalance_lgg(in[1], n->lift[1], n->gamma[1], n->gain[1]);
-	out[2] = colorbalance_lgg(in[2], n->lift[2], n->gamma[2], n->gain[2]);
+
+	out[0] = colorbalance_lgg(in[0], n->lift_lgg[0], n->gamma_inv[0], n->gain[0]);
+	out[1] = colorbalance_lgg(in[1], n->lift_lgg[1], n->gamma_inv[1], n->gain[1]);
+	out[2] = colorbalance_lgg(in[2], n->lift_lgg[2], n->gamma_inv[2], n->gain[2]);
 	out[3] = in[3];
 }
 
@@ -99,10 +104,10 @@ static void do_colorbalance_lgg_fac(bNode *node, float* out, float *in, float *f
 {
 	NodeColorBalance *n= (NodeColorBalance *)node->storage;
 	const float mfac= 1.0f - *fac;
-	
-	out[0] = mfac*in[0] + *fac * colorbalance_lgg(in[0], n->lift[0], n->gamma[0], n->gain[0]);
-	out[1] = mfac*in[1] + *fac * colorbalance_lgg(in[1], n->lift[1], n->gamma[1], n->gain[1]);
-	out[2] = mfac*in[2] + *fac * colorbalance_lgg(in[2], n->lift[2], n->gamma[2], n->gain[2]);
+
+	out[0] = mfac*in[0] + *fac * colorbalance_lgg(in[0], n->lift_lgg[0], n->gamma_inv[0], n->gain[0]);
+	out[1] = mfac*in[1] + *fac * colorbalance_lgg(in[1], n->lift_lgg[1], n->gamma_inv[1], n->gain[1]);
+	out[2] = mfac*in[2] + *fac * colorbalance_lgg(in[2], n->lift_lgg[2], n->gamma_inv[2], n->gain[2]);
 	out[3] = in[3];
 }
 
@@ -119,7 +124,17 @@ static void node_composit_exec_colorbalance(void *data, bNode *node, bNodeStack 
 		out[0]->data = pass_on_compbuf(cbuf);
 		return;
 	}
-	
+
+	{
+		NodeColorBalance *n= (NodeColorBalance *)node->storage;
+		int c;
+
+		for (c = 0; c < 3; c++) {
+			n->lift_lgg[c] = 2.0f - n->lift[c];
+			n->gamma_inv[c] = (n->gamma[c] != 0.0f) ? 1.0f/n->gamma[c] : 1000000.0f;
+		}
+	}
+
 	if (cbuf) {
 		stackbuf= alloc_compbuf(cbuf->x, cbuf->y, CB_RGBA, 1); /* create output based on image input */
 			

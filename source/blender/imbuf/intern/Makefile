@@ -15,7 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
-# Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
 # All rights reserved.
@@ -36,7 +36,12 @@ include nan_subdirs.mk
 include nan_compile.mk
 include nan_definitions.mk
 
-DIRS = cineon
+DIRS = 
+
+ifeq ($(WITH_CINEON), true)
+	DIRS += cineon
+	CPPFLAGS += -DWITH_CINEON
+endif
 
 ifeq ($(WITH_OPENEXR), true)
     DIRS += openexr
@@ -61,7 +66,6 @@ CFLAGS += $(LEVEL_1_C_WARNINGS)
 CPPFLAGS += -I$(NAN_JPEG)/include
 CPPFLAGS += -I$(NAN_PNG)/include
 CPPFLAGS += -I$(NAN_ZLIB)/include
-CPPFLAGS += -I$(NAN_TIFF)/include
 CPPFLAGS += -I../../include
 CPPFLAGS += -I../../blenkernel
 CPPFLAGS += -I../../blenlib
@@ -84,4 +88,13 @@ endif
 ifeq ($(WITH_FFMPEG), true)
    CPPFLAGS += -DWITH_FFMPEG
    CPPFLAGS += $(NAN_FFMPEGCFLAGS)
+endif
+
+ifeq ($(WITH_TIFF), true)
+   CPPFLAGS += -DWITH_TIFF
+   CPPFLAGS += -I$(NAN_TIFF)/include
+endif
+
+ifeq ($(WITH_HDR), true)
+   CPPFLAGS += -DWITH_HDR
 endif

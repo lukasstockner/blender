@@ -528,6 +528,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\source\blender\blenlib\intern\cpu.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\source\blender\blenlib\intern\DLRB_tree.c"
 				>
 			</File>
@@ -581,6 +585,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\source\blender\blenlib\intern\math_geom.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\source\blender\blenlib\intern\math_geom_inline.c"
 				>
 			</File>
 			<File
@@ -678,6 +686,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\source\blender\blenlib\intern\BLI_callbacks.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\source\blender\blenlib\BLI_cpu.h"
 				>
 			</File>
 			<File

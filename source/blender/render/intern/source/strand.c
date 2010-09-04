@@ -318,9 +318,9 @@ StrandShadeCache *strand_shade_cache_create()
 	StrandShadeCache *cache;
 
 	cache= MEM_callocN(sizeof(StrandShadeCache), "StrandShadeCache");
-	cache->resulthash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
-	cache->refcounthash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
-	cache->memarena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE);
+	cache->resulthash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "strand_shade_cache_create1 gh");
+	cache->refcounthash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "strand_shade_cache_create2 gh");
+	cache->memarena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "strand shade cache arena");
 	
 	return cache;
 }
@@ -818,7 +818,7 @@ int zbuffer_strands_abuf(Render *re, RenderPart *pa, APixstrand *apixbuf, ListBa
 	bounds[2]= (2*pa->disprect.ymin - winy-1)/(float)winy;
 	bounds[3]= (2*pa->disprect.ymax - winy+1)/(float)winy;
 
-	memarena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE);
+	memarena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "strand sort arena");
 	firstseg= NULL;
 	sortseg= sortsegments;
 	totsegment= 0;

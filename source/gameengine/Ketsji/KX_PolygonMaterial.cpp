@@ -25,10 +25,6 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include "KX_PolygonMaterial.h"
 
 #include "BKE_mesh.h"
@@ -119,7 +115,7 @@ bool KX_PolygonMaterial::Activate(RAS_IRasterizer* rasty, TCachingInfo& cachingI
 	{
 		PyObject *pyRasty = PyCObject_FromVoidPtr((void*)rasty, NULL);	/* new reference */
 		PyObject *pyCachingInfo = PyCObject_FromVoidPtr((void*) &cachingInfo, NULL); /* new reference */
-		PyObject *ret = PyObject_CallMethod(m_pymaterial, "activate", "(NNO)", pyRasty, pyCachingInfo, (PyObject*) this->m_proxy);
+		PyObject *ret = PyObject_CallMethod(m_pymaterial, (char *)"activate", (char *)"(NNO)", pyRasty, pyCachingInfo, (PyObject*) this->m_proxy);
 		if (ret)
 		{
 			bool value = PyLong_AsSsize_t(ret);
@@ -237,7 +233,7 @@ PyAttributeDef KX_PolygonMaterial::Attributes[] = {
 	KX_PYATTRIBUTE_FLOAT_RW("shininess", 0.0f, 1000.0f, KX_PolygonMaterial, m_shininess),
 	KX_PYATTRIBUTE_FLOAT_RW("specularity", 0.0f, 1000.0f, KX_PolygonMaterial, m_specularity),
 	
-	KX_PYATTRIBUTE_RW_FUNCTION("diffuse", KX_PolygonMaterial, pyattr_get_texture, pyattr_set_diffuse),
+	KX_PYATTRIBUTE_RW_FUNCTION("diffuse", KX_PolygonMaterial, pyattr_get_diffuse, pyattr_set_diffuse),
 	KX_PYATTRIBUTE_RW_FUNCTION("specular",KX_PolygonMaterial, pyattr_get_specular, pyattr_set_specular),	
 	
 	KX_PYATTRIBUTE_RO_FUNCTION("tface",	KX_PolygonMaterial, pyattr_get_tface), /* How the heck is this even useful??? - Campbell */

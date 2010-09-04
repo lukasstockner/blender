@@ -66,6 +66,9 @@ typedef enum ModifierType {
 	eModifierType_ShapeKey,
 	eModifierType_Solidify,
 	eModifierType_Screw,
+	/* placeholder, keep this so durian files load in
+	 * trunk with the correct modifier once its merged */
+	eModifierType_Warp,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -83,6 +86,7 @@ typedef struct ModifierData {
 	struct ModifierData *next, *prev;
 
 	int type, mode;
+	int stackindex, pad;
 	char name[32];
 	
 	/* XXX for timing info set by caller... solve later? (ton) */
@@ -516,9 +520,13 @@ typedef struct MeshDeformModifierData {
 
 	short gridsize, flag, mode, pad;
 
-	/* variables filled in when bound */
-	float *bindweights, *bindcos;	/* computed binding weights */
+	/* result of static binding */
+	MDefInfluence *bindinfluences;	/* influences */
+	int *bindoffsets;				/* offsets into influences array */
+	float *bindcagecos;				/* coordinates that cage was bound with */
 	int totvert, totcagevert;		/* total vertices in mesh and cage */
+
+	/* result of dynamic binding */
 	MDefCell *dyngrid;				/* grid with dynamic binding cell points */
 	MDefInfluence *dyninfluences;	/* dynamic binding vertex influences */
 	int *dynverts, *pad2;			/* is this vertex bound or not? */
@@ -528,8 +536,12 @@ typedef struct MeshDeformModifierData {
 	float dyncellwidth;				/* width of dynamic bind cell */
 	float bindmat[4][4];			/* matrix of cage at binding time */
 
+	/* deprecated storage */
+	float *bindweights;				/* deprecated inefficient storage */
+	float *bindcos;					/* deprecated storage of cage coords */
+
 	/* runtime */
-	void (*bindfunc)(struct Scene *scene, struct DerivedMesh *dm,
+	void (*bindfunc)(struct Scene *scene,
 		struct MeshDeformModifierData *mmd,
 		float *vertexcos, int totvert, float cagemat[][4]);
 } MeshDeformModifierData;
@@ -571,7 +583,7 @@ typedef struct ParticleInstanceModifierData {
 
 typedef enum {
 	eExplodeFlag_CalcFaces =	(1<<0),
-	//eExplodeFlag_PaSize =		(1<<1),
+	eExplodeFlag_PaSize =		(1<<1),
 	eExplodeFlag_EdgeSplit =	(1<<2),
 	eExplodeFlag_Unborn =		(1<<3),
 	eExplodeFlag_Alive =		(1<<4),
@@ -599,7 +611,7 @@ typedef enum {
 typedef struct FluidsimModifierData {
 	ModifierData modifier;
 	
-	struct FluidsimSettings *fss; /* definition is is DNA_object_fluidsim.h */
+	struct FluidsimSettings *fss; /* definition is in DNA_object_fluidsim.h */
 	struct PointCache *point_cache;	/* definition is in DNA_object_force.h */
 } FluidsimModifierData;
 
@@ -694,6 +706,7 @@ typedef struct SolidifyModifierData {
 #define MOD_SOLIDIFY_EVEN			(1<<1)
 #define MOD_SOLIDIFY_NORMAL_CALC	(1<<2)
 #define MOD_SOLIDIFY_VGROUP_INV		(1<<3)
+#define MOD_SOLIDIFY_RIM_MATERIAL	(1<<4)
 
 typedef struct ScrewModifierData {
 	ModifierData modifier;

@@ -45,15 +45,16 @@
 #include "DNA_key_types.h"
 #include "DNA_material_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_object_types.h"
 
 #include "BKE_animsys.h"
 #include "BKE_action.h"
 #include "BKE_constraint.h"
 #include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
+#include "BKE_main.h"
 #include "BKE_nla.h"
 #include "BKE_global.h"
-#include "BKE_utildefines.h"
 #include "BKE_context.h"
 #include "BKE_report.h"
 #include "BKE_key.h"
@@ -130,8 +131,11 @@ bAction *verify_adt_action (ID *id, short add)
 		
 	/* init action if none available yet */
 	// TODO: need some wizardry to handle NLA stuff correct
-	if ((adt->action == NULL) && (add))
-		adt->action= add_empty_action("Action");
+	if ((adt->action == NULL) && (add)) {
+		char actname[sizeof(id->name)-2];
+		BLI_snprintf(actname, sizeof(actname), "%sAction", id->name+2);
+		adt->action= add_empty_action(actname);
+	}
 		
 	/* return the action */
 	return adt->action;
@@ -814,15 +818,21 @@ short insert_keyframe_direct (PointerRNA ptr, PropertyRNA *prop, FCurve *fcu, fl
 short insert_keyframe (ID *id, bAction *act, const char group[], const char rna_path[], int array_index, float cfra, short flag)
 {	
 	PointerRNA id_ptr, ptr;
-	PropertyRNA *prop;
+	PropertyRNA *prop = NULL;
 	FCurve *fcu;
 	int array_index_max= array_index+1;
 	int ret= 0;
 	
 	/* validate pointer first - exit if failure */
+	if (id == NULL) {
+		printf("Insert Key: no ID-block to insert keyframe in (Path = %s) \n", rna_path);
+		return 0;
+	}
+	
 	RNA_id_pointer_create(id, &id_ptr);
 	if ((RNA_path_resolve(&id_ptr, rna_path, &ptr, &prop) == 0) || (prop == NULL)) {
-		printf("Insert Key: Could not insert keyframe, as RNA Path is invalid for the given ID (ID = %s, Path = %s)\n", id->name, rna_path);
+		printf("Insert Key: Could not insert keyframe, as RNA Path is invalid for the given ID (ID = %s, Path = %s)\n", 
+			(id)? id->name : "<Missing ID-Block>", rna_path);
 		return 0;
 	}
 	
@@ -919,7 +929,7 @@ short delete_keyframe (ID *id, bAction *act, const char group[], const char rna_
 	if ELEM(NULL, id, adt) {
 		printf("ERROR: no ID-block and/or AnimData to delete keyframe from \n");
 		return 0;
-	}	
+	}
 	
 	/* validate pointer first - exit if failure */
 	RNA_id_pointer_create(id, &id_ptr);
@@ -1033,9 +1043,13 @@ static int modify_key_op_poll(bContext *C)
 	if (ELEM(NULL, sa, scene)) 
 		return 0;
 	
-	/* if Outliner, only allow in DataBlocks view */
-	if (so && (so->outlinevis != SO_DATABLOCKS))
-		return 0;
+	/* if Outliner, don't allow in some views */
+	if (so) {
+		if (ELEM4(so->outlinevis, SO_GROUPS, SO_LIBRARIES, SO_VERSE_SESSION, SO_VERSE_SESSION))
+			return 0;
+		if (ELEM3(so->outlinevis, SO_SEQUENCE, SO_USERDEF, SO_KEYMAP))
+			return 0;
+	}
 	
 	/* TODO: checks for other space types can be added here */
 	
@@ -1047,6 +1061,7 @@ static int modify_key_op_poll(bContext *C)
 
 static int insert_key_exec (bContext *C, wmOperator *op)
 {
+	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	KeyingSet *ks= NULL;
 	int type= RNA_int_get(op->ptr, "type");
@@ -1087,19 +1102,21 @@ static int insert_key_exec (bContext *C, wmOperator *op)
 			BKE_reportf(op->reports, RPT_INFO, "Successfully added %d Keyframes for KeyingSet '%s'", success, ks->name);
 		
 		/* send notifiers that keyframes have been changed */
-		WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_EDIT, NULL);
+		WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
 	}
 	else
 		BKE_report(op->reports, RPT_WARNING, "Keying Set failed to insert any keyframes");
 	
 	/* send updates */
-	DAG_ids_flush_update(0);
+	DAG_ids_flush_update(bmain, 0);
 	
 	return OPERATOR_FINISHED;
 }
 
 void ANIM_OT_keyframe_insert (wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+	
 	/* identifiers */
 	ot->name= "Insert Keyframe";
 	ot->idname= "ANIM_OT_keyframe_insert";
@@ -1115,11 +1132,13 @@ void ANIM_OT_keyframe_insert (wmOperatorType *ot)
 	/* keyingset to use
 	 *	- here the type is int not enum, since many of the indicies here are determined dynamically
 	 */
-	RNA_def_int(ot->srna, "type", 0, INT_MIN, INT_MAX, "Keying Set Number", "Index (determined internally) of the Keying Set to use", 0, 1);
+	prop= RNA_def_int(ot->srna, "type", 0, INT_MIN, INT_MAX, "Keying Set Number", "Index (determined internally) of the Keying Set to use", 0, 1);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 	/* confirm whether a keyframe was added by showing a popup 
 	 *	- by default, this is enabled, since this operator is assumed to be called independently
 	 */
-	RNA_def_boolean(ot->srna, "confirm_success", 1, "Confirm Successful Insert", "Show a popup when the keyframes get successfully added");
+	prop= RNA_def_boolean(ot->srna, "confirm_success", 1, "Confirm Successful Insert", "Show a popup when the keyframes get successfully added");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 /* Insert Key Operator (With Menu) ------------------------ */
@@ -1148,6 +1167,8 @@ static int insert_key_menu_invoke (bContext *C, wmOperator *op, wmEvent *event)
  
 void ANIM_OT_keyframe_insert_menu (wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+	
 	/* identifiers */
 	ot->name= "Insert Keyframe Menu";
 	ot->idname= "ANIM_OT_keyframe_insert_menu";
@@ -1163,23 +1184,27 @@ void ANIM_OT_keyframe_insert_menu (wmOperatorType *ot)
 	/* keyingset to use
 	 *	- here the type is int not enum, since many of the indicies here are determined dynamically
 	 */
-	RNA_def_int(ot->srna, "type", 0, INT_MIN, INT_MAX, "Keying Set Number", "Index (determined internally) of the Keying Set to use", 0, 1);
+	prop= RNA_def_int(ot->srna, "type", 0, INT_MIN, INT_MAX, "Keying Set Number", "Index (determined internally) of the Keying Set to use", 0, 1);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 	/* confirm whether a keyframe was added by showing a popup 
 	 *	- by default, this is disabled so that if a menu is shown, this doesn't come up too
 	 */
 	// XXX should this just be always on?
-	RNA_def_boolean(ot->srna, "confirm_success", 0, "Confirm Successful Insert", "Show a popup when the keyframes get successfully added");
+	prop= RNA_def_boolean(ot->srna, "confirm_success", 0, "Confirm Successful Insert", "Show a popup when the keyframes get successfully added");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 	/* whether the menu should always be shown 
 	 *	- by default, the menu should only be shown when there is no active Keying Set (2.5 behaviour),
 	 *	  although in some cases it might be useful to always shown (pre 2.5 behaviour)
 	 */
-	RNA_def_boolean(ot->srna, "always_prompt", 0, "Always Show Menu", "");
+	prop= RNA_def_boolean(ot->srna, "always_prompt", 0, "Always Show Menu", "");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 /* Delete Key Operator ------------------------ */
 
 static int delete_key_exec (bContext *C, wmOperator *op)
 {
+	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	KeyingSet *ks= NULL;	
 	int type= RNA_int_get(op->ptr, "type");
@@ -1220,13 +1245,13 @@ static int delete_key_exec (bContext *C, wmOperator *op)
 			BKE_reportf(op->reports, RPT_INFO, "Successfully removed %d Keyframes for KeyingSet '%s'", success, ks->name);
 		
 		/* send notifiers that keyframes have been changed */
-		WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_EDIT, NULL);
+		WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
 	}
 	else
 		BKE_report(op->reports, RPT_WARNING, "Keying Set failed to remove any keyframes");
 	
 	/* send updates */
-	DAG_ids_flush_update(0);
+	DAG_ids_flush_update(bmain, 0);
 	
 	return OPERATOR_FINISHED;
 }
@@ -1265,6 +1290,7 @@ void ANIM_OT_keyframe_delete (wmOperatorType *ot)
  
 static int delete_key_v3d_exec (bContext *C, wmOperator *op)
 {
+	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	float cfra= (float)CFRA; // XXX for now, don't bother about all the yucky offset crap
 	
@@ -1293,7 +1319,7 @@ static int delete_key_v3d_exec (bContext *C, wmOperator *op)
 	CTX_DATA_END;
 	
 	/* send updates */
-	DAG_ids_flush_update(0);
+	DAG_ids_flush_update(bmain, 0);
 	
 	WM_event_add_notifier(C, NC_OBJECT|ND_KEYS, NULL);
 	
@@ -1321,6 +1347,7 @@ void ANIM_OT_keyframe_delete_v3d (wmOperatorType *ot)
 
 static int insert_key_button_exec (bContext *C, wmOperator *op)
 {
+	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	PointerRNA ptr;
 	PropertyRNA *prop= NULL;
@@ -1378,10 +1405,10 @@ static int insert_key_button_exec (bContext *C, wmOperator *op)
 	
 	if (success) {
 		/* send updates */
-		DAG_ids_flush_update(0);
+		DAG_ids_flush_update(bmain, 0);
 		
 		/* send notifiers that keyframes have been changed */
-		WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_EDIT, NULL);
+		WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
 	}
 	
 	return (success)? OPERATOR_FINISHED: OPERATOR_CANCELLED;
@@ -1408,6 +1435,7 @@ void ANIM_OT_keyframe_insert_button (wmOperatorType *ot)
 
 static int delete_key_button_exec (bContext *C, wmOperator *op)
 {
+	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	PointerRNA ptr;
 	PropertyRNA *prop= NULL;
@@ -1448,10 +1476,10 @@ static int delete_key_button_exec (bContext *C, wmOperator *op)
 	
 	if (success) {
 		/* send updates */
-		DAG_ids_flush_update(0);
+		DAG_ids_flush_update(bmain, 0);
 		
 		/* send notifiers that keyframes have been changed */
-		WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_EDIT, NULL);
+		WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
 	}
 	
 	return (success)? OPERATOR_FINISHED: OPERATOR_CANCELLED;

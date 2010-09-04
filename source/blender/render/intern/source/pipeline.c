@@ -39,6 +39,8 @@
 #include "DNA_sequence_types.h"
 #include "DNA_userdef_types.h"
 
+#include "MEM_guardedalloc.h"
+
 #include "BKE_utildefines.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
@@ -51,8 +53,6 @@
 #include "BKE_sequencer.h"
 #include "BKE_pointcache.h"
 #include "BKE_animsys.h"	/* <------ should this be here?, needed for sequencer update */
-
-#include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -131,17 +131,26 @@ static int thread_break(void *unused)
 static void result_nothing(void *unused, RenderResult *rr) {}
 static void result_rcti_nothing(void *unused, RenderResult *rr, volatile struct rcti *rect) {}
 static void stats_nothing(void *unused, RenderStats *rs) {}
-static void int_nothing(void *unused, int val) {}
+static void float_nothing(void *unused, float val) {}
 static void print_error(void *unused, char *str) {printf("ERROR: %s\n", str);}
 static int default_break(void *unused) {return G.afbreek == 1;}
 
 static void stats_background(void *unused, RenderStats *rs)
 {
-	uintptr_t mem_in_use= MEM_get_memory_in_use();
-	float megs_used_memory= mem_in_use/(1024.0*1024.0);
 	char str[400], *spos= str;
-	
-	spos+= sprintf(spos, "Fra:%d Mem:%.2fM ", rs->cfra, megs_used_memory);
+	uintptr_t mem_in_use, mmap_in_use, peak_memory;
+	float megs_used_memory, mmap_used_memory, megs_peak_memory;
+
+	mem_in_use= MEM_get_memory_in_use();
+	mmap_in_use= MEM_get_mapped_memory_in_use();
+	peak_memory = MEM_get_peak_memory();
+
+	megs_used_memory= (mem_in_use-mmap_in_use)/(1024.0*1024.0);
+	mmap_used_memory= (mmap_in_use)/(1024.0*1024.0);
+	megs_peak_memory = (peak_memory)/(1024.0*1024.0);
+
+	spos+= sprintf(spos, "Fra:%d Mem:%.2fM (%.2fM, peak %.2fM) ", rs->cfra,
+				   megs_used_memory, mmap_used_memory, megs_peak_memory);
 	
 	if(rs->curfield)
 		spos+= sprintf(spos, "Field %d ", rs->curfield);
@@ -918,12 +927,16 @@ static int read_render_result_from_file(char *filename, RenderResult *rr)
 	int rectx, recty;
 
 	if(IMB_exr_begin_read(exrhandle, filename, &rectx, &recty)==0) {
+		printf("failed being read %s\n", filename);
 		IMB_exr_close(exrhandle);
 		return 0;
 	}
-	
+
 	if(rr == NULL || rectx!=rr->rectx || recty!=rr->recty) {
-		printf("error in reading render result\n");
+		if(rr)
+			printf("error in reading render result: dimensions don't match\n");
+		else
+			printf("error in reading render result: NULL result pointer\n");
 		IMB_exr_close(exrhandle);
 		return 0;
 	}
@@ -1061,7 +1074,6 @@ void RE_AcquireResultImage(Render *re, RenderResult *rr)
 			rr->rectf= re->result->rectf;
 			rr->rectz= re->result->rectz;
 			rr->rect32= re->result->rect32;
-			rr->compo_seq= (rr->rectf != NULL);
 			
 			/* active layer */
 			rl= render_get_active_layer(re, re->result);
@@ -1073,6 +1085,7 @@ void RE_AcquireResultImage(Render *re, RenderResult *rr)
 					rr->rectz= RE_RenderLayerGetPass(rl, SCE_PASS_Z);	
 			}
 
+			rr->have_combined= (re->result->rectf != NULL);
 			rr->layers= re->result->layers;
 		}
 	}
@@ -1149,7 +1162,7 @@ Render *RE_NewRender(const char *name)
 	re->display_init= result_nothing;
 	re->display_clear= result_nothing;
 	re->display_draw= result_rcti_nothing;
-	re->timecursor= int_nothing;
+	re->progress= float_nothing;
 	re->test_break= default_break;
 	re->error= print_error;
 	if(G.background)
@@ -1157,7 +1170,7 @@ Render *RE_NewRender(const char *name)
 	else
 		re->stats_draw= stats_nothing;
 	/* clear callback handles */
-	re->dih= re->dch= re->ddh= re->sdh= re->tch= re->tbh= re->erh= NULL;
+	re->dih= re->dch= re->ddh= re->sdh= re->prh= re->tbh= re->erh= NULL;
 	
 	/* init some variables */
 	re->ycor= 1.0f;
@@ -1289,6 +1302,8 @@ void RE_InitState(Render *re, Render *source, RenderData *rd, SceneRenderLayer *
 	/* we clip faces with a minimum of 2 pixel boundary outside of image border. see zbuf.c */
 	re->clipcrop= 1.0f + 2.0f/(float)(re->winx>re->winy?re->winy:re->winx);
 	
+	re->mblur_offs = re->field_offs = 0.f;
+	
 	RE_init_threadcount(re);
 }
 
@@ -1361,10 +1376,10 @@ void RE_stats_draw_cb(Render *re, void *handle, void (*f)(void *handle, RenderSt
 	re->stats_draw= f;
 	re->sdh= handle;
 }
-void RE_timecursor_cb(Render *re, void *handle, void (*f)(void *handle, int))
+void RE_progress_cb(Render *re, void *handle, void (*f)(void *handle, float))
 {
-	re->timecursor= f;
-	re->tch= handle;
+	re->progress= f;
+	re->prh= handle;
 }
 
 void RE_test_break_cb(Render *re, void *handle, int (*f)(void *handle))
@@ -1564,7 +1579,7 @@ static void print_part_stats(Render *re, RenderPart *pa)
 {
 	char str[64];
 	
-	sprintf(str, "Part %d-%d", pa->nr, re->i.totpart);
+	sprintf(str, "%s, Part %d-%d", re->scene->id.name+2, pa->nr, re->i.totpart);
 	re->i.infostr= str;
 	re->stats_draw(re->sdh, &re->i);
 	re->i.infostr= NULL;
@@ -1681,6 +1696,7 @@ static void threaded_tile_processor(Render *re)
 					free_render_result(&pa->fullresult, pa->result);
 					pa->result= NULL;
 					re->i.partsdone++;
+					re->progress(re->prh, re->i.partsdone / (float)re->i.totpart);
 					hasdrawn= 1;
 				}
 			}
@@ -1748,12 +1764,13 @@ static void do_render_3d(Render *re)
 	/* internal */
 	
 //	re->cfra= cfra;	/* <- unused! */
+	re->scene->r.subframe = re->mblur_offs + re->field_offs;
 	
 	/* make render verts/faces/halos/lamps */
 	if(render_scene_needs_vector(re))
-		RE_Database_FromScene_Vectors(re, re->scene, re->lay);
+		RE_Database_FromScene_Vectors(re, re->main, re->scene, re->lay);
 	else
-	   RE_Database_FromScene(re, re->scene, re->lay, 1);
+	   RE_Database_FromScene(re, re->main, re->scene, re->lay, 1);
 	
 	threaded_tile_processor(re);
 	
@@ -1764,6 +1781,8 @@ static void do_render_3d(Render *re)
 	
 	/* free all render verts etc */
 	RE_Database_Free(re);
+	
+	re->scene->r.subframe = 0.f;
 }
 
 /* called by blur loop, accumulate RGBA key alpha */
@@ -1863,7 +1882,7 @@ static void do_render_blur_3d(Render *re)
 	
 	/* do the blur steps */
 	while(blur--) {
-		set_mblur_offs( re->r.blurfac*((float)(re->r.mblur_samples-blur))/(float)re->r.mblur_samples );
+		re->mblur_offs = re->r.blurfac*((float)(re->r.mblur_samples-blur))/(float)re->r.mblur_samples;
 		
 		re->i.curblur= re->r.mblur_samples-blur;	/* stats */
 		
@@ -1881,7 +1900,7 @@ static void do_render_blur_3d(Render *re)
 	re->result= rres;
 	BLI_rw_mutex_unlock(&re->resultmutex);
 	
-	set_mblur_offs(0.0f);
+	re->mblur_offs = 0.0f;
 	re->i.curblur= 0;	/* stats */
 	
 	/* weak... the display callback wants an active renderlayer pointer... */
@@ -1961,15 +1980,17 @@ static void do_render_fields_3d(Render *re)
 		re->i.curfield= 2;	/* stats */
 		
 		re->flag |= R_SEC_FIELD;
-		if((re->r.mode & R_FIELDSTILL)==0) 
-			set_field_offs(0.5f);
+		if((re->r.mode & R_FIELDSTILL)==0) {
+			re->field_offs = 0.5f;
+		}
 		RE_SetCamera(re, re->scene->camera);
 		if(re->r.mode & R_MBLUR)
 			do_render_blur_3d(re);
 		else
 			do_render_3d(re);
 		re->flag &= ~R_SEC_FIELD;
-		set_field_offs(0.0f);
+		
+		re->field_offs = 0.0f;
 		
 		rr2= re->result;
 	}
@@ -2121,11 +2142,12 @@ static void render_scene(Render *re, Scene *sce, int cfra)
 	RE_InitState(resc, re, &sce->r, NULL, winx, winy, &re->disprect);
 	
 	/* still unsure entity this... */
+	resc->main= re->main;
 	resc->scene= sce;
 	resc->lay= sce->lay;
 	
 	/* ensure scene has depsgraph, base flags etc OK */
-	set_scene_bg(sce);
+	set_scene_bg(re->main, sce);
 
 	/* copy callbacks */
 	resc->display_draw= re->display_draw;
@@ -2143,7 +2165,7 @@ static void tag_scenes_for_render(Render *re)
 	bNode *node;
 	Scene *sce;
 	
-	for(sce= G.main->scene.first; sce; sce= sce->id.next)
+	for(sce= re->main->scene.first; sce; sce= sce->id.next)
 		sce->id.flag &= ~LIB_DOIT;
 	
 	re->scene->id.flag |= LIB_DOIT;
@@ -2298,7 +2320,7 @@ void RE_MergeFullSample(Render *re, Scene *sce, bNodeTree *ntree)
 	/* first call RE_ReadRenderResult on every renderlayer scene. this creates Render structs */
 	
 	/* tag scenes unread */
-	for(scene= G.main->scene.first; scene; scene= scene->id.next) 
+	for(scene= re->main->scene.first; scene; scene= scene->id.next) 
 		scene->id.flag |= LIB_DOIT;
 	
 	for(node= ntree->nodes.first; node; node= node->next) {
@@ -2363,14 +2385,17 @@ static void do_render_composite_fields_blur_3d(Render *re)
 			if(!re->test_break(re->tbh)) {
 				ntree->stats_draw= render_composit_stats;
 				ntree->test_break= re->test_break;
+				ntree->progress= re->progress;
 				ntree->sdh= re->sdh;
 				ntree->tbh= re->tbh;
+				ntree->prh= re->prh;
+				
 				/* in case it was never initialized */
 				R.sdh= re->sdh;
 				R.stats_draw= re->stats_draw;
 				
 				if (update_newframe)
-					scene_update_for_newframe(re->scene, re->lay);
+					scene_update_for_newframe(re->main, re->scene, re->lay);
 				
 				if(re->r.scemode & R_FULL_SAMPLE) 
 					do_merge_fullsample(re, ntree);
@@ -2380,7 +2405,8 @@ static void do_render_composite_fields_blur_3d(Render *re)
 				
 				ntree->stats_draw= NULL;
 				ntree->test_break= NULL;
-				ntree->tbh= ntree->sdh= NULL;
+				ntree->progress= NULL;
+				ntree->tbh= ntree->sdh= ntree->prh= NULL;
 			}
 		}
 		else if(re->r.scemode & R_FULL_SAMPLE)
@@ -2403,6 +2429,24 @@ static void renderresult_stampinfo(Scene *scene)
 	RE_ReleaseResultImage(re);
 }
 
+static int seq_render_active(Render *re)
+{
+	Editing *ed;
+	Sequence *seq;
+
+	ed = re->scene->ed;
+	
+	if (!(re->r.scemode & R_DOSEQ) || !ed || !ed->seqbase.first)
+		return 0;
+	
+	for (seq= ed->seqbase.first; seq; seq= seq->next) {
+		if (seq->type != SEQ_SOUND)
+			return 1;
+	}
+	
+	return 0;
+}
+
 static void do_render_seq(Render * re)
 {
 	static int recurs_depth = 0;
@@ -2410,14 +2454,16 @@ static void do_render_seq(Render * re)
 	RenderResult *rr = re->result;
 	int cfra = re->r.cfra;
 
+	re->i.cfra= cfra;
+
 	if(recurs_depth==0) {
 		/* otherwise sequencer animation isnt updated */
-		BKE_animsys_evaluate_all_animation(G.main, (float)cfra); // XXX, was frame_to_float(re->scene, cfra)
+		BKE_animsys_evaluate_all_animation(re->main, (float)cfra); // XXX, was BKE_curframe(re->scene)
 	}
 
 	recurs_depth++;
 
-	ibuf= give_ibuf_seq(re->scene, rr->rectx, rr->recty, cfra, 0, 100.0);
+	ibuf= give_ibuf_seq(re->main, re->scene, rr->rectx, rr->recty, cfra, 0, 100.0);
 
 	recurs_depth--;
 	
@@ -2428,7 +2474,21 @@ static void do_render_seq(Render * re)
 			if (!rr->rectf)
 				rr->rectf= MEM_mallocN(4*sizeof(float)*rr->rectx*rr->recty, "render_seq rectf");
 			
-			memcpy(rr->rectf, ibuf->rect_float, 4*sizeof(float)*rr->rectx*rr->recty);
+			/* color management: when off ensure rectf is non-lin, since thats what the internal
+			 * render engine delivers */
+			if(re->r.color_mgt_flag & R_COLOR_MANAGEMENT) {
+				if(ibuf->profile == IB_PROFILE_LINEAR_RGB)
+					memcpy(rr->rectf, ibuf->rect_float, 4*sizeof(float)*rr->rectx*rr->recty);
+				else
+					srgb_to_linearrgb_rgba_rgba_buf(rr->rectf, ibuf->rect_float, rr->rectx*rr->recty);
+					
+			}
+			else {
+				if(ibuf->profile != IB_PROFILE_LINEAR_RGB)
+					memcpy(rr->rectf, ibuf->rect_float, 4*sizeof(float)*rr->rectx*rr->recty);
+				else
+					linearrgb_to_srgb_rgba_rgba_buf(rr->rectf, ibuf->rect_float, rr->rectx*rr->recty);
+			}
 			
 			/* TSK! Since sequence render doesn't free the *rr render result, the old rect32
 			   can hang around when sequence render has rendered a 32 bits one before */
@@ -2452,9 +2512,10 @@ static void do_render_seq(Render * re)
 		if (recurs_depth == 0) { /* with nested scenes, only free on toplevel... */
 			Editing * ed = re->scene->ed;
 			if (ed) {
-				free_imbuf_seq(re->scene, &ed->seqbase, TRUE);
+				free_imbuf_seq(re->scene, &ed->seqbase, TRUE, TRUE);
 			}
 		}
+		IMB_freeImBuf(ibuf);
 	}
 	else {
 		/* render result is delivered empty in most cases, nevertheless we handle all cases */
@@ -2484,7 +2545,7 @@ static void do_render_all_options(Render *re)
 	if(external_render_3d(re, 1)) {
 		/* in this case external render overrides all */
 	}
-	else if((re->r.scemode & R_DOSEQ) && re->scene->ed && re->scene->ed->seqbase.first) {
+	else if(seq_render_active(re)) {
 		/* note: do_render_seq() frees rect32 when sequencer returns float images */
 		if(!re->test_break(re->tbh)) 
 			do_render_seq(re);
@@ -2620,6 +2681,7 @@ static void update_physics_cache(Render *re, Scene *scene, int anim_init)
 {
 	PTCacheBaker baker;
 
+	baker.main = re->main;
 	baker.scene = scene;
 	baker.pid = NULL;
 	baker.bake = 0;
@@ -2633,7 +2695,7 @@ static void update_physics_cache(Render *re, Scene *scene, int anim_init)
 	BKE_ptcache_make_cache(&baker);
 }
 /* evaluating scene options for general Blender render */
-static int render_initialize_from_scene(Render *re, Scene *scene, SceneRenderLayer *srl, unsigned int lay, int anim, int anim_init)
+static int render_initialize_from_main(Render *re, Main *bmain, Scene *scene, SceneRenderLayer *srl, unsigned int lay, int anim, int anim_init)
 {
 	int winx, winy;
 	rcti disprect;
@@ -2659,6 +2721,7 @@ static int render_initialize_from_scene(Render *re, Scene *scene, SceneRenderLay
 		disprect.ymax= winy;
 	}
 	
+	re->main= bmain;
 	re->scene= scene;
 	re->lay= lay;
 	
@@ -2701,17 +2764,18 @@ static int render_initialize_from_scene(Render *re, Scene *scene, SceneRenderLay
 }
 
 /* general Blender frame render call */
-void RE_BlenderFrame(Render *re, Scene *scene, SceneRenderLayer *srl, unsigned int lay, int frame)
+void RE_BlenderFrame(Render *re, Main *bmain, Scene *scene, SceneRenderLayer *srl, unsigned int lay, int frame)
 {
 	/* ugly global still... is to prevent preview events and signal subsurfs etc to make full resol */
 	G.rendering= 1;
 	
 	scene->r.cfra= frame;
 	
-	if(render_initialize_from_scene(re, scene, srl, lay, 0, 0)) {
+	if(render_initialize_from_main(re, bmain, scene, srl, lay, 0, 0)) {
+		MEM_reset_peak_memory();
 		do_render_all_options(re);
 	}
-	
+		
 	/* UGLY WARNING */
 	G.rendering= 0;
 }
@@ -2803,14 +2867,14 @@ static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, R
 }
 
 /* saves images to disk */
-void RE_BlenderAnim(Render *re, Scene *scene, unsigned int lay, int sfra, int efra, int tfra, ReportList *reports)
+void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, unsigned int lay, int sfra, int efra, int tfra, ReportList *reports)
 {
 	bMovieHandle *mh= BKE_get_movie_handle(scene->r.imtype);
 	int cfrao= scene->r.cfra;
 	int nfra;
 	
 	/* do not fully call for each frame, it initializes & pops output window */
-	if(!render_initialize_from_scene(re, scene, NULL, lay, 0, 1))
+	if(!render_initialize_from_main(re, bmain, scene, NULL, lay, 0, 1))
 		return;
 	
 	/* ugly global still... is to prevent renderwin events and signal subsurfs etc to make full resol */
@@ -2843,7 +2907,7 @@ void RE_BlenderAnim(Render *re, Scene *scene, unsigned int lay, int sfra, int ef
 			char name[FILE_MAX];
 			
 			/* only border now, todo: camera lens. (ton) */
-			render_initialize_from_scene(re, scene, NULL, lay, 1, 0);
+			render_initialize_from_main(re, bmain, scene, NULL, lay, 1, 0);
 
 			if(nfra!=scene->r.cfra) {
 				/*
@@ -2858,7 +2922,7 @@ void RE_BlenderAnim(Render *re, Scene *scene, unsigned int lay, int sfra, int ef
 				else
 					updatelay= re->lay;
 
-				scene_update_for_newframe(scene, updatelay);
+				scene_update_for_newframe(bmain, scene, updatelay);
 				continue;
 			}
 			else
@@ -2909,12 +2973,12 @@ void RE_BlenderAnim(Render *re, Scene *scene, unsigned int lay, int sfra, int ef
 		mh->end_movie();
 
 	scene->r.cfra= cfrao;
-	
+
 	/* UGLY WARNING */
 	G.rendering= 0;
 }
 
-void RE_PreviewRender(Render *re, Scene *sce)
+void RE_PreviewRender(Render *re, Main *bmain, Scene *sce)
 {
 	int winx, winy;
 
@@ -2923,6 +2987,7 @@ void RE_PreviewRender(Render *re, Scene *sce)
 
 	RE_InitState(re, NULL, &sce->r, NULL, winx, winy, NULL);
 
+	re->main = bmain;
 	re->scene = sce;
 	re->lay = sce->lay;
 

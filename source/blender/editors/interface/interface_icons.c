@@ -44,12 +44,15 @@
 #include "BLI_blenlib.h"
 #include "BLI_storage_types.h"
 
+#include "DNA_brush_types.h"
+#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_userdef_types.h"
+
+#include "RNA_access.h"
+#include "RNA_enum_types.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
-#include "BKE_image.h"
 #include "BKE_icons.h"
 #include "BKE_utildefines.h"
 
@@ -57,7 +60,6 @@
 #include "IMB_imbuf_types.h"
 
 #include "BIF_gl.h"
-#include "BIF_glutil.h"
 
 #include "ED_datafiles.h"
 #include "ED_render.h"
@@ -451,36 +453,76 @@ static void vicon_move_down_draw(int x, int y, int w, int h, float alpha)
 	glDisable(GL_LINE_SMOOTH);
 }
 
+static void init_brush_icons()
+{
+
+#define INIT_BRUSH_ICON(icon_id, name)					     \
+	bbuf = IMB_ibImageFromMemory((unsigned char*)datatoc_ ##name## _png, \
+				     datatoc_ ##name## _png_size, IB_rect);  \
+	def_internal_icon(bbuf, icon_id, 0, 0, w, ICON_TYPE_BUFFER);	     \
+	IMB_freeImBuf(bbuf);
+	// end INIT_BRUSH_ICON
+
+	ImBuf *bbuf;
+	const int w = 96;
+
+	INIT_BRUSH_ICON(ICON_BRUSH_ADD, add);
+	INIT_BRUSH_ICON(ICON_BRUSH_BLOB, blob);
+	INIT_BRUSH_ICON(ICON_BRUSH_BLUR, blur);
+	INIT_BRUSH_ICON(ICON_BRUSH_CLAY, clay);
+	INIT_BRUSH_ICON(ICON_BRUSH_CLONE, clone);
+	INIT_BRUSH_ICON(ICON_BRUSH_CREASE, crease);
+	INIT_BRUSH_ICON(ICON_BRUSH_DARKEN, darken);
+	INIT_BRUSH_ICON(ICON_BRUSH_SCULPT_DRAW, draw);
+	INIT_BRUSH_ICON(ICON_BRUSH_FILL, fill);
+	INIT_BRUSH_ICON(ICON_BRUSH_FLATTEN, flatten);
+	INIT_BRUSH_ICON(ICON_BRUSH_GRAB, grab);
+	INIT_BRUSH_ICON(ICON_BRUSH_INFLATE, inflate);
+	INIT_BRUSH_ICON(ICON_BRUSH_LAYER, layer);
+	INIT_BRUSH_ICON(ICON_BRUSH_LIGHTEN, lighten);
+	INIT_BRUSH_ICON(ICON_BRUSH_MIX, mix);
+	INIT_BRUSH_ICON(ICON_BRUSH_MULTIPLY, multiply);
+	INIT_BRUSH_ICON(ICON_BRUSH_NUDGE, nudge);
+	INIT_BRUSH_ICON(ICON_BRUSH_PINCH, pinch);
+	INIT_BRUSH_ICON(ICON_BRUSH_SCRAPE, scrape);
+	INIT_BRUSH_ICON(ICON_BRUSH_SMEAR, smear);
+	INIT_BRUSH_ICON(ICON_BRUSH_SMOOTH, smooth);
+	INIT_BRUSH_ICON(ICON_BRUSH_SNAKE_HOOK, snake_hook);
+	INIT_BRUSH_ICON(ICON_BRUSH_SOFTEN, soften);
+	INIT_BRUSH_ICON(ICON_BRUSH_SUBTRACT, subtract);
+	INIT_BRUSH_ICON(ICON_BRUSH_TEXDRAW, texdraw);
+	INIT_BRUSH_ICON(ICON_BRUSH_THUMB, thumb);
+	INIT_BRUSH_ICON(ICON_BRUSH_ROTATE, twist);
+	INIT_BRUSH_ICON(ICON_BRUSH_VERTEXDRAW, vertexdraw);
+
+#undef INIT_BRUSH_ICON
+}
+
 static void init_internal_icons()
 {
 	bTheme *btheme= U.themes.first;
 	ImBuf *bbuf= NULL;
 	int x, y, icontype;
 	char iconfilestr[FILE_MAXDIR+FILE_MAXFILE];
-	char filenamestr[FILE_MAXFILE+16];	// 16 == strlen(".blender/icons/")+1
 	
 	if ((btheme!=NULL) && (strlen(btheme->tui.iconfile) > 0)) {
-	
-#ifdef WIN32
-		sprintf(filenamestr, "icons/%s", btheme->tui.iconfile);
-#else
-		sprintf(filenamestr, ".blender/icons/%s", btheme->tui.iconfile);
-#endif
-		
-		BLI_make_file_string("/", iconfilestr, BLI_gethome(), filenamestr);
-		
-		if (BLI_exists(iconfilestr)) {
-			bbuf = IMB_loadiffname(iconfilestr, IB_rect);
-			if(bbuf->x < ICON_IMAGE_W || bbuf->y < ICON_IMAGE_H) {
-				if (G.f & G_DEBUG)
-					printf("\n***WARNING***\nIcons file %s too small.\nUsing built-in Icons instead\n", iconfilestr);
-				IMB_freeImBuf(bbuf);
-				bbuf= NULL;
+		char *datadir= BLI_get_folder(BLENDER_DATAFILES, NULL);
+		if (datadir) {
+			BLI_make_file_string("/", iconfilestr, datadir, btheme->tui.iconfile);
+			
+			if (BLI_exists(iconfilestr)) {
+				bbuf = IMB_loadiffname(iconfilestr, IB_rect);
+				if(bbuf->x < ICON_IMAGE_W || bbuf->y < ICON_IMAGE_H) {
+					if (G.f & G_DEBUG)
+						printf("\n***WARNING***\nIcons file %s too small.\nUsing built-in Icons instead\n", iconfilestr);
+					IMB_freeImBuf(bbuf);
+					bbuf= NULL;
+				}
 			}
 		}
 	}
 	if(bbuf==NULL)
-		bbuf = IMB_ibImageFromMemory((int *)datatoc_blenderbuttons, datatoc_blenderbuttons_size, IB_rect);
+		bbuf = IMB_ibImageFromMemory((unsigned char*)datatoc_blenderbuttons, datatoc_blenderbuttons_size, IB_rect);
 
 	if(bbuf) {
 		/* free existing texture if any */
@@ -518,12 +560,14 @@ static void init_internal_icons()
 	else
 		icontype= ICON_TYPE_BUFFER;
 	
-	for (y=0; y<ICON_GRID_ROWS; y++) {
-		for (x=0; x<ICON_GRID_COLS; x++) {
-			def_internal_icon(bbuf, BIFICONID_FIRST + y*ICON_GRID_COLS + x,
-				x*(ICON_GRID_W+ICON_GRID_MARGIN)+ICON_GRID_MARGIN,
-				y*(ICON_GRID_H+ICON_GRID_MARGIN)+ICON_GRID_MARGIN, ICON_GRID_W,
-				icontype);
+	if(bbuf) {
+		for (y=0; y<ICON_GRID_ROWS; y++) {
+			for (x=0; x<ICON_GRID_COLS; x++) {
+				def_internal_icon(bbuf, BIFICONID_FIRST + y*ICON_GRID_COLS + x,
+					x*(ICON_GRID_W+ICON_GRID_MARGIN)+ICON_GRID_MARGIN,
+					y*(ICON_GRID_H+ICON_GRID_MARGIN)+ICON_GRID_MARGIN, ICON_GRID_W,
+					icontype);
+			}
 		}
 	}
 
@@ -553,14 +597,14 @@ static void init_iconfile_list(struct ListBase *list)
 	char icondirstr[FILE_MAX];
 	char iconfilestr[FILE_MAX+16]; /* allow 256 chars for file+dir */
 	char olddir[FILE_MAX];
-	
-	list->first = list->last = NULL;
+	char *datadir= NULL;
 
-#ifdef WIN32
-	BLI_make_file_string("/", icondirstr, BLI_gethome(), "icons");
-#else
-	BLI_make_file_string("/", icondirstr, BLI_gethome(), ".blender/icons");
-#endif
+	list->first = list->last = NULL;
+	datadir = BLI_get_folder(BLENDER_DATAFILES, NULL);
+
+	if (!datadir) return;
+
+	BLI_make_file_string("/", icondirstr, datadir, "");
 	
 	if(BLI_exists(icondirstr)==0)
 		return;
@@ -570,8 +614,7 @@ static void init_iconfile_list(struct ListBase *list)
 	if(!BLI_getwdN(olddir)) 
 		restoredir = 0;
 	totfile = BLI_getdir(icondirstr, &dir);
-	if (restoredir && !chdir(olddir))
-		; /* fix warning about checking return value */
+	if (restoredir && !chdir(olddir)) {} /* fix warning about checking return value */
 
 	for(i=0; i<totfile; i++) {
 		if( (dir[i].type & S_IFREG) ) {
@@ -742,6 +785,7 @@ void UI_icons_init(int first_dyn_id)
 	init_iconfile_list(&iconfilelist);
 	BKE_icons_init(first_dyn_id);
 	init_internal_icons();
+	init_brush_icons();
 }
 
 /* Render size for preview images at level miplevel */
@@ -766,6 +810,7 @@ static void icon_create_mipmap(struct PreviewImage* prv_img, int miplevel)
 		prv_img->w[miplevel] = size;
 		prv_img->h[miplevel] = size;
 		prv_img->changed[miplevel] = 1;
+		prv_img->changed_timestamp[miplevel] = 0;
 		prv_img->rect[miplevel] = MEM_callocN(size*size*sizeof(unsigned int), "prv_rect"); 
 	}
 }
@@ -964,6 +1009,43 @@ void ui_id_icon_render(bContext *C, ID *id, int preview)
 	}
 }
 
+static int ui_id_brush_get_icon(bContext *C, ID *id, int preview)
+{
+	Brush *br = (Brush*)id;
+
+	if(br->flag & BRUSH_CUSTOM_ICON) {
+		BKE_icon_getid(id);
+		ui_id_icon_render(C, id, preview);
+	}
+	else if(!id->icon_id) {
+		/* no icon found, reset it */
+		
+		/* this is not nice, should probably make
+		   brushes be strictly in one paint mode only
+		   to avoid this kind of thing */
+		Object *ob = CTX_data_active_object(C);
+		EnumPropertyItem *items;
+		int tool;
+		
+		if(ob && (ob->mode & OB_MODE_SCULPT)) {
+			items = brush_sculpt_tool_items;
+			tool = br->sculpt_tool;
+		}
+		else if(ob && (ob->mode & (OB_MODE_VERTEX_PAINT|OB_MODE_WEIGHT_PAINT))) {
+			items = brush_vertexpaint_tool_items;
+			tool = br->vertexpaint_tool;
+		}
+		else {
+			items = brush_imagepaint_tool_items;
+			tool = br->imagepaint_tool;
+		}
+
+		RNA_enum_icon_from_value(items, tool, &id->icon_id);
+	}
+
+	return id->icon_id;
+}
+
 int ui_id_icon_get(bContext *C, ID *id, int preview)
 {
 	int iconid= 0;
@@ -971,6 +1053,9 @@ int ui_id_icon_get(bContext *C, ID *id, int preview)
 	/* icon */
 	switch(GS(id->name))
 	{
+		case ID_BR:
+			iconid= ui_id_brush_get_icon(C, id, preview);
+			break;
 		case ID_MA: /* fall through */
 		case ID_TE: /* fall through */
 		case ID_IM: /* fall through */

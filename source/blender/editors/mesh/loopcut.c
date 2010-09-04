@@ -51,7 +51,6 @@
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_scene.h"
-#include "BKE_utildefines.h"
 #include "BKE_mesh.h"
 
 #include "BIF_gl.h"
@@ -60,7 +59,6 @@
 #include "IMB_imbuf_types.h"
 
 #include "ED_screen.h"
-#include "ED_util.h"
 #include "ED_space_api.h"
 #include "ED_view3d.h"
 #include "ED_mesh.h"
@@ -271,6 +269,16 @@ static void ringsel_finish(bContext *C, wmOperator *op)
 		if (lcd->do_cut) {
 			EditMesh *em = BKE_mesh_get_editmesh(lcd->ob->data);
 			esubdivideflag(lcd->ob, em, SELECT, 0.0f, 0.0f, 0, cuts, 0, SUBDIV_SELECT_LOOPCUT);
+
+			/* force edge slide to edge select mode in in face select mode */
+			if (em->selectmode & SCE_SELECT_FACE) {
+				if (em->selectmode == SCE_SELECT_FACE)
+					em->selectmode = SCE_SELECT_EDGE;
+				else
+					em->selectmode &= ~SCE_SELECT_FACE;
+				CTX_data_tool_settings(C)->selectmode= em->selectmode;
+				EM_selectmode_set(em);
+			}
 			
 			DAG_id_flush_update(lcd->ob->data, OB_RECALC_DATA);
 			WM_event_add_notifier(C, NC_GEOM|ND_DATA, lcd->ob->data);
@@ -403,7 +411,7 @@ static int ringcut_modal (bContext *C, wmOperator *op, wmEvent *event)
 
 	switch (event->type) {
 		case LEFTMOUSE: /* confirm */ // XXX hardcoded
-			if (event->val == KM_RELEASE) {
+			if (event->val == KM_PRESS) {
 				/* finish */
 				ED_region_tag_redraw(lcd->ar);
 				

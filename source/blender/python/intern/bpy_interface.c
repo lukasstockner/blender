@@ -44,6 +44,7 @@
 
 #include "BKE_context.h"
 #include "BKE_text.h"
+#include "BKE_font.h" /* only for utf8towchar */
 #include "BKE_main.h"
 #include "BKE_global.h" /* only for script checking */
 
@@ -145,39 +146,10 @@ void BPY_update_modules( void )
 	bpy_context_module->ptr.data= (void *)BPy_GetContext();
 }
 
-/*****************************************************************************
-* Description: This function creates a new Python dictionary object.
-*****************************************************************************/
-static PyObject *CreateGlobalDictionary( bContext *C, const char *filename )
-{
-	PyObject *mod;
-	PyObject *item;
-	PyObject *dict = PyDict_New(  );
-	PyDict_SetItemString( dict, "__builtins__", PyEval_GetBuiltins(  ) );
-
-	item = PyUnicode_FromString( "__main__" );
-	PyDict_SetItemString( dict, "__name__", item );
-	Py_DECREF(item);
-	
-	/* __file__ only for nice UI'ness */
-	if(filename) {
-		PyObject *item = PyUnicode_FromString( filename );
-		PyDict_SetItemString( dict, "__file__", item );
-		Py_DECREF(item);
-	}
-
-	/* add bpy to global namespace */
-	mod= PyImport_ImportModuleLevel("bpy", NULL, NULL, NULL, 0);
-	PyDict_SetItemString( dict, "bpy", mod );
-	Py_DECREF(mod);
-	
-	return dict;
-}
-
 /* must be called before Py_Initialize */
 void BPY_start_python_path(void)
 {
-	char *py_path_bundle= BLI_gethome_folder("python", BLI_GETHOME_ALL);
+	char *py_path_bundle= BLI_get_folder(BLENDER_PYTHON, NULL);
 
 	if(py_path_bundle==NULL)
 		return;
@@ -210,10 +182,15 @@ void BPY_start_python_path(void)
 #endif
 
 	{
-		static wchar_t py_path_bundle_wchar[FILE_MAXDIR];
+		static wchar_t py_path_bundle_wchar[FILE_MAX];
 
-		mbstowcs(py_path_bundle_wchar, py_path_bundle, FILE_MAXDIR);
+		/* cant use this, on linux gives bug: #23018, TODO: try LANG="en_US.UTF-8" /usr/bin/blender, suggested 22008 */
+		/* mbstowcs(py_path_bundle_wchar, py_path_bundle, FILE_MAXDIR); */
+
+		utf8towchar(py_path_bundle_wchar, py_path_bundle);
+
 		Py_SetPythonHome(py_path_bundle_wchar);
+		// printf("found python (wchar_t) '%ls'\n", py_path_bundle_wchar);
 	}
 }
 
@@ -229,6 +206,11 @@ void BPY_start_python( int argc, char **argv )
 {
 	PyThreadState *py_tstate = NULL;
 	
+	/* not essential but nice to set our name */
+	static wchar_t bprogname_wchar[FILE_MAXDIR+FILE_MAXFILE]; /* python holds a reference */
+	utf8towchar(bprogname_wchar, bprogname);
+	Py_SetProgramName(bprogname_wchar);
+
 	BPY_start_python_path(); /* allow to use our own included python */
 
 	Py_Initialize(  );
@@ -325,18 +307,19 @@ int BPY_run_python_script( bContext *C, const char *fn, struct Text *text, struc
 	if (fn==NULL && text==NULL) {
 		return 0;
 	}
-	
+
 	bpy_context_set(C, &gilstate);
-	
-	py_dict = CreateGlobalDictionary(C, text?text->id.name+2:fn);
 
 	if (text) {
+		char fn_dummy[FILE_MAXDIR];
+		bpy_text_filename_get(fn_dummy, text);
+		py_dict = bpy_namespace_dict_new(fn_dummy);
 		
 		if( !text->compiled ) {	/* if it wasn't already compiled, do it now */
 			char *buf = txt_to_buf( text );
 
 			text->compiled =
-				Py_CompileString( buf, text->id.name+2, Py_file_input );
+				Py_CompileString( buf, fn_dummy, Py_file_input );
 
 			MEM_freeN( buf );
 
@@ -347,8 +330,12 @@ int BPY_run_python_script( bContext *C, const char *fn, struct Text *text, struc
 		if(text->compiled)
 			py_result =  PyEval_EvalCode( text->compiled, py_dict, py_dict );
 		
-	} else {
-		FILE *fp= fopen(fn, "r");		
+	}
+	else {
+		FILE *fp= fopen(fn, "r");
+
+		py_dict = bpy_namespace_dict_new(fn);
+
 		if(fp) {
 #ifdef _WIN32
 			/* Previously we used PyRun_File to run directly the code on a FILE 
@@ -382,7 +369,7 @@ int BPY_run_python_script( bContext *C, const char *fn, struct Text *text, struc
 		Py_DECREF( py_result );
 	}
 	
-	Py_DECREF(py_dict);
+	PyDict_SetItemString(PyThreadState_GET()->interp->modules, "__main__", Py_None);
 	
 	bpy_context_clear(C, &gilstate);
 
@@ -491,7 +478,7 @@ int BPY_run_python_script_space(const char *modulename, const char *func)
 	
 	gilstate = PyGILState_Ensure();
 	
-	py_dict = CreateGlobalDictionary(C);
+	py_dict = bpy_namespace_dict_new("<dummy>");
 	
 	PyObject *module = PyImport_ImportModule(scpt->script.filename);
 	if (module==NULL) {
@@ -520,7 +507,7 @@ int BPY_run_python_script_space(const char *modulename, const char *func)
 	
 	Py_XDECREF(module);
 	
-	Py_DECREF(py_dict);
+	PyDict_SetItemString(PyThreadState_GET()->interp->modules, "__main__", Py_None);
 	
 	PyGILState_Release(gilstate);
 	return 1;
@@ -528,10 +515,10 @@ int BPY_run_python_script_space(const char *modulename, const char *func)
 #endif
 
 
-int BPY_button_eval(bContext *C, char *expr, double *value)
+int BPY_eval_button(bContext *C, const char *expr, double *value)
 {
 	PyGILState_STATE gilstate;
-	PyObject *dict, *mod, *retval;
+	PyObject *py_dict, *mod, *retval;
 	int error_ret = 0;
 	
 	if (!value || !expr) return -1;
@@ -543,11 +530,11 @@ int BPY_button_eval(bContext *C, char *expr, double *value)
 
 	bpy_context_set(C, &gilstate);
 	
-	dict= CreateGlobalDictionary(C, NULL);
+	py_dict= bpy_namespace_dict_new("<blender button>");
 
 	mod = PyImport_ImportModule("math");
 	if (mod) {
-		PyDict_Merge(dict, PyModule_GetDict(mod), 0); /* 0 - dont overwrite existing values */
+		PyDict_Merge(py_dict, PyModule_GetDict(mod), 0); /* 0 - dont overwrite existing values */
 		Py_DECREF(mod);
 	}
 	else { /* highly unlikely but possibly */
@@ -555,7 +542,7 @@ int BPY_button_eval(bContext *C, char *expr, double *value)
 		PyErr_Clear();
 	}
 	
-	retval = PyRun_String(expr, Py_eval_input, dict, dict);
+	retval = PyRun_String(expr, Py_eval_input, py_dict, py_dict);
 	
 	if (retval == NULL) {
 		error_ret= -1;
@@ -592,12 +579,48 @@ int BPY_button_eval(bContext *C, char *expr, double *value)
 	if(error_ret) {
 		BPy_errors_to_report(CTX_wm_reports(C));
 	}
+
+	PyDict_SetItemString(PyThreadState_GET()->interp->modules, "__main__", Py_None);
 	
-	Py_DECREF(dict);
 	bpy_context_clear(C, &gilstate);
 	
 	return error_ret;
 }
+
+int BPY_eval_string(bContext *C, const char *expr)
+{
+	PyGILState_STATE gilstate;
+	PyObject *py_dict, *retval;
+	int error_ret = 0;
+
+	if (!expr) return -1;
+
+	if(expr[0]=='\0') {
+		return error_ret;
+	}
+
+	bpy_context_set(C, &gilstate);
+
+	py_dict= bpy_namespace_dict_new("<blender string>");
+
+	retval = PyRun_String(expr, Py_eval_input, py_dict, py_dict);
+
+	if (retval == NULL) {
+		error_ret= -1;
+
+		BPy_errors_to_report(CTX_wm_reports(C));
+	}
+	else {
+		Py_DECREF(retval);
+	}
+
+	PyDict_SetItemString(PyThreadState_GET()->interp->modules, "__main__", Py_None);
+	
+	bpy_context_clear(C, &gilstate);
+	
+	return error_ret;
+}
+
 
 void BPY_load_user_modules(bContext *C)
 {

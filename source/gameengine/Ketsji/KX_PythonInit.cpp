@@ -38,12 +38,17 @@
 
 extern "C" {
 	#include "bpy_internal_import.h"  /* from the blender python api, but we want to import text too! */
-	#include "Mathutils.h" // Blender.Mathutils module copied here so the blenderlayer can use.
-	#include "Geometry.h" // Blender.Geometry module copied here so the blenderlayer can use.
+	#include "mathutils.h" // Blender.Mathutils module copied here so the blenderlayer can use.
+	#include "geometry.h" // Blender.Geometry module copied here so the blenderlayer can use.
 	#include "bgl.h"
+	#include "blf_api.h"
 
 	#include "marshal.h" /* python header for loading/saving dicts */
 }
+
+#define WITH_PYTHON
+#include "AUD_PyInit.h"
+
 #endif
 
 #include "KX_PythonInit.h"
@@ -73,6 +78,8 @@ extern "C" {
 #include "SCA_PropertySensor.h"
 #include "SCA_RandomActuator.h"
 #include "SCA_KeyboardSensor.h" /* IsPrintable, ToCharacter */
+#include "SCA_PythonKeyboard.h"
+#include "SCA_PythonMouse.h"
 #include "KX_ConstraintActuator.h"
 #include "KX_IpoActuator.h"
 #include "KX_SoundActuator.h"
@@ -115,21 +122,24 @@ extern "C" {
 #include "KX_BlenderSceneConverter.h"
 #include "KX_MeshProxy.h" /* for creating a new library of mesh objects */
 extern "C" {
-	#include "BLO_readfile.h"
+	#include "BKE_idcode.h"
 }
-
 
 #include "NG_NetworkScene.h" //Needed for sendMessage()
 
-static void setSandbox(TPythonSecurityLevel level);
-
 // 'local' copy of canvas ptr, for window height/width python scripts
+
+#ifndef DISABLE_PYTHON
+
 static RAS_ICanvas* gp_Canvas = NULL;
+static char gp_GamePythonPath[FILE_MAXDIR + FILE_MAXFILE] = "";
+static char gp_GamePythonPathOrig[FILE_MAXDIR + FILE_MAXFILE] = ""; // not super happy about this, but we need to remember the first loaded file for the global/dict load save
+
+#endif // DISABLE_PYTHON
+
 static KX_Scene*	gp_KetsjiScene = NULL;
 static KX_KetsjiEngine*	gp_KetsjiEngine = NULL;
 static RAS_IRasterizer* gp_Rasterizer = NULL;
-static char gp_GamePythonPath[FILE_MAXDIR + FILE_MAXFILE] = "";
-static char gp_GamePythonPathOrig[FILE_MAXDIR + FILE_MAXFILE] = ""; // not super happy about this, but we need to remember the first loaded file for the global/dict load save
 
 void KX_SetActiveScene(class KX_Scene* scene)
 {
@@ -256,8 +266,8 @@ static PyObject* gPyRestartGame(PyObject*)
 }
 
 static char gPySaveGlobalDict_doc[] =
-"saveGlobalDict()\n\
-Saves GameLogic.globalDict to a file";
+	"saveGlobalDict()\n"
+	"Saves bge.logic.globalDict to a file";
 
 static PyObject* gPySaveGlobalDict(PyObject*)
 {
@@ -293,8 +303,8 @@ static PyObject* gPySaveGlobalDict(PyObject*)
 }
 
 static char gPyLoadGlobalDict_doc[] =
-"LoadGlobalDict()\n\
-Loads GameLogic.globalDict from a file";
+	"LoadGlobalDict()\n"
+	"Loads bge.logic.globalDict from a file";
 
 static PyObject* gPyLoadGlobalDict(PyObject*)
 {
@@ -367,15 +377,6 @@ static PyObject* gPyGetSpectrum(PyObject*)
         }
 
 	return resultlist;
-}
-
-
-static PyObject* gPyStopDSP(PyObject*, PyObject* args)
-{
-        PyErr_SetString(PyExc_RuntimeError, "no audio device available");
-        return NULL;
-	
-	Py_RETURN_NONE;
 }
 
 static PyObject* gPySetLogicTicRate(PyObject*, PyObject* args)
@@ -660,7 +661,7 @@ static PyObject *gLibNew(PyObject*, PyObject* args)
 		return NULL;
 	}
 	
-	idcode= BLO_idcode_from_name(group);
+	idcode= BKE_idcode_from_name(group);
 	if(idcode==0) {
 		PyErr_Format(PyExc_ValueError, "invalid group given \"%s\"", group);
 		return NULL;
@@ -746,7 +747,6 @@ static struct PyMethodDef game_methods[] = {
 	{"getRandomFloat",(PyCFunction) gPyGetRandomFloat, METH_NOARGS, (const char *)gPyGetRandomFloat_doc},
 	{"setGravity",(PyCFunction) gPySetGravity, METH_O, (const char *)"set Gravitation"},
 	{"getSpectrum",(PyCFunction) gPyGetSpectrum, METH_NOARGS, (const char *)"get audio spectrum"},
-	{"stopDSP",(PyCFunction) gPyStopDSP, METH_VARARGS, (const char *)"stop using the audio dsp (for performance reasons)"},
 	{"getMaxLogicFrame", (PyCFunction) gPyGetMaxLogicFrame, METH_NOARGS, (const char *)"Gets the max number of logic frame per render frame"},
 	{"setMaxLogicFrame", (PyCFunction) gPySetMaxLogicFrame, METH_VARARGS, (const char *)"Sets the max number of logic frame per render frame"},
 	{"getMaxPhysicsFrame", (PyCFunction) gPyGetMaxPhysicsFrame, METH_NOARGS, (const char *)"Gets the max number of physics frame per render frame"},
@@ -928,7 +928,6 @@ static PyObject* gPyDisableMist(PyObject*)
 	
 	Py_RETURN_NONE;
 }
-
 
 static PyObject* gPySetMistStart(PyObject*, PyObject* args)
 {
@@ -1226,7 +1225,7 @@ static struct PyMethodDef rasterizer_methods[] = {
 // Initialization function for the module (*must* be called initGameLogic)
 
 static char GameLogic_module_documentation[] =
-"This is the Python API for the game engine of GameLogic"
+"This is the Python API for the game engine of bge.logic"
 ;
 
 static char Rasterizer_module_documentation[] =
@@ -1280,6 +1279,13 @@ PyObject* initGameLogic(KX_KetsjiEngine *engine, KX_Scene* scene) // quick hack 
 	
 	PyDict_SetItemString(d, "globalDict", item=PyDict_New()); Py_DECREF(item);
 
+	// Add keyboard and mouse attributes to this module
+	SCA_PythonKeyboard* pykeyb = new SCA_PythonKeyboard(gp_KetsjiEngine->GetKeyboardDevice());
+	PyDict_SetItemString(d, "keyboard", pykeyb->NewProxy(true));
+
+	SCA_PythonMouse* pymouse = new SCA_PythonMouse(gp_KetsjiEngine->GetMouseDevice(), gp_Canvas);
+	PyDict_SetItemString(d, "mouse", pymouse->NewProxy(true));
+
 	ErrorObject = PyUnicode_FromString("GameLogic.error");
 	PyDict_SetItemString(d, "error", ErrorObject);
 	Py_DECREF(ErrorObject);
@@ -1308,19 +1314,25 @@ PyObject* initGameLogic(KX_KetsjiEngine *engine, KX_Scene* scene) // quick hack 
 	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_ROTZ, KX_ConstraintActuator::KX_ACT_CONSTRAINT_ROTZ);
 	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_DIRPX, KX_ConstraintActuator::KX_ACT_CONSTRAINT_DIRPX);
 	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_DIRPY, KX_ConstraintActuator::KX_ACT_CONSTRAINT_DIRPY);
-	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_DIRPY, KX_ConstraintActuator::KX_ACT_CONSTRAINT_DIRPY);
+	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_DIRPZ, KX_ConstraintActuator::KX_ACT_CONSTRAINT_DIRPZ);
 	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_DIRNX, KX_ConstraintActuator::KX_ACT_CONSTRAINT_DIRNX);
 	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_DIRNY, KX_ConstraintActuator::KX_ACT_CONSTRAINT_DIRNY);
-	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_DIRNY, KX_ConstraintActuator::KX_ACT_CONSTRAINT_DIRNY);
+	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_DIRNZ, KX_ConstraintActuator::KX_ACT_CONSTRAINT_DIRNZ);
 	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_ORIX, KX_ConstraintActuator::KX_ACT_CONSTRAINT_ORIX);
 	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_ORIY, KX_ConstraintActuator::KX_ACT_CONSTRAINT_ORIY);
 	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_ORIZ, KX_ConstraintActuator::KX_ACT_CONSTRAINT_ORIZ);
-	KX_MACRO_addTypesToDict(d, KX_ACT_CONSTRAINT_FHPX, KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHPX);
-	KX_MACRO_addTypesToDict(d, KX_ACT_CONSTRAINT_FHPY, KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHPY);
-	KX_MACRO_addTypesToDict(d, KX_ACT_CONSTRAINT_FHPZ, KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHPZ);
-	KX_MACRO_addTypesToDict(d, KX_ACT_CONSTRAINT_FHNX, KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHNX);
-	KX_MACRO_addTypesToDict(d, KX_ACT_CONSTRAINT_FHNY, KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHNY);
-	KX_MACRO_addTypesToDict(d, KX_ACT_CONSTRAINT_FHNZ, KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHNZ);
+	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_FHPX, KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHPX);
+	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_FHPY, KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHPY);
+	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_FHPZ, KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHPZ);
+	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_FHNX, KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHNX);
+	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_FHNY, KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHNY);
+	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_FHNZ, KX_ConstraintActuator::KX_ACT_CONSTRAINT_FHNZ);
+	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_NORMAL, KX_ConstraintActuator::KX_ACT_CONSTRAINT_NORMAL);
+	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_MATERIAL, KX_ConstraintActuator::KX_ACT_CONSTRAINT_MATERIAL);
+	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_PERMANENT, KX_ConstraintActuator::KX_ACT_CONSTRAINT_PERMANENT);
+	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_DISTANCE, KX_ConstraintActuator::KX_ACT_CONSTRAINT_DISTANCE);
+	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_LOCAL, KX_ConstraintActuator::KX_ACT_CONSTRAINT_LOCAL);
+	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_DOROTFH, KX_ConstraintActuator::KX_ACT_CONSTRAINT_DOROTFH);
 
 	/* 4. Ipo actuator, simple part                                            */
 	KX_MACRO_addTypesToDict(d, KX_IPOACT_PLAY,     KX_IpoActuator::KX_ACT_IPO_PLAY);
@@ -1459,6 +1471,7 @@ PyObject* initGameLogic(KX_KetsjiEngine *engine, KX_Scene* scene) // quick hack 
 	KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_MIDDLE, SCA_IInputDevice::KX_MIDDLEMOUSE);
 	KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_RIGHT, SCA_IInputDevice::KX_RIGHTMOUSE);
 
+	/* 2D Filter Actuator */
 	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_ENABLED, RAS_2DFilterManager::RAS_2DFILTER_ENABLED);
 	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_DISABLED, RAS_2DFilterManager::RAS_2DFILTER_DISABLED);
 	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_NOFILTER, RAS_2DFilterManager::RAS_2DFILTER_NOFILTER);
@@ -1474,7 +1487,8 @@ PyObject* initGameLogic(KX_KetsjiEngine *engine, KX_Scene* scene) // quick hack 
 	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SEPIA, RAS_2DFilterManager::RAS_2DFILTER_SEPIA);
 	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_INVERT, RAS_2DFilterManager::RAS_2DFILTER_INVERT);
 	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_CUSTOMFILTER, RAS_2DFilterManager::RAS_2DFILTER_CUSTOMFILTER);
-		
+
+	/* Sound Actuator */
 	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_PLAYSTOP, KX_SoundActuator::KX_SOUNDACT_PLAYSTOP);
 	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_PLAYEND, KX_SoundActuator::KX_SOUNDACT_PLAYEND);
 	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPSTOP, KX_SoundActuator::KX_SOUNDACT_LOOPSTOP);
@@ -1482,17 +1496,11 @@ PyObject* initGameLogic(KX_KetsjiEngine *engine, KX_Scene* scene) // quick hack 
 	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPBIDIRECTIONAL, KX_SoundActuator::KX_SOUNDACT_LOOPBIDIRECTIONAL);
 	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP, KX_SoundActuator::KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP);
 
+	/* State Actuator */
 	KX_MACRO_addTypesToDict(d, KX_STATE_OP_CPY, KX_StateActuator::OP_CPY);
 	KX_MACRO_addTypesToDict(d, KX_STATE_OP_SET, KX_StateActuator::OP_SET);
 	KX_MACRO_addTypesToDict(d, KX_STATE_OP_CLR, KX_StateActuator::OP_CLR);
 	KX_MACRO_addTypesToDict(d, KX_STATE_OP_NEG, KX_StateActuator::OP_NEG);
-
-	KX_MACRO_addTypesToDict(d, KX_ACT_CONSTRAINT_NORMAL, KX_ConstraintActuator::KX_ACT_CONSTRAINT_NORMAL);
-	KX_MACRO_addTypesToDict(d, KX_ACT_CONSTRAINT_MATERIAL, KX_ConstraintActuator::KX_ACT_CONSTRAINT_MATERIAL);
-	KX_MACRO_addTypesToDict(d, KX_ACT_CONSTRAINT_PERMANENT, KX_ConstraintActuator::KX_ACT_CONSTRAINT_PERMANENT);
-	KX_MACRO_addTypesToDict(d, KX_ACT_CONSTRAINT_DISTANCE, KX_ConstraintActuator::KX_ACT_CONSTRAINT_DISTANCE);
-	KX_MACRO_addTypesToDict(d, KX_ACT_CONSTRAINT_LOCAL, KX_ConstraintActuator::KX_ACT_CONSTRAINT_LOCAL);
-	KX_MACRO_addTypesToDict(d, KX_ACT_CONSTRAINT_DOROTFH, KX_ConstraintActuator::KX_ACT_CONSTRAINT_DOROTFH);
 
 	/* Game Actuator Modes */
 	KX_MACRO_addTypesToDict(d, KX_GAME_LOAD, KX_GameActuator::KX_GAME_LOAD);
@@ -1566,7 +1574,7 @@ PyObject* initGameLogic(KX_KetsjiEngine *engine, KX_Scene* scene) // quick hack 
 	// Check for errors
 	if (PyErr_Occurred())
     {
-		Py_FatalError("can't initialize module GameLogic");
+		Py_FatalError("can't initialize module bge.logic");
     }
 
 	return m;
@@ -1622,7 +1630,7 @@ PyObject *KXpy_import(PyObject *self, PyObject *args)
 	/* quick hack for GamePython modules 
 		TODO: register builtin modules properly by ExtendInittab */
 	if (!strcmp(name, "GameLogic") || !strcmp(name, "GameKeys") || !strcmp(name, "PhysicsConstraints") ||
-		!strcmp(name, "Rasterizer") || !strcmp(name, "Mathutils") || !strcmp(name, "bgl") || !strcmp(name, "Geometry")) {
+		!strcmp(name, "Rasterizer") || !strcmp(name, "mathutils") || !strcmp(name, "bgl") || !strcmp(name, "geometry")) {
 		return PyImport_ImportModuleEx(name, globals, locals, fromlist);
 	}
 	
@@ -1691,7 +1699,7 @@ static PyMethodDef meth_import[] = {{ "import", KXpy_import, METH_VARARGS, "our 
 //static PyObject *g_oldimport = 0;
 //static int g_security = 0;
 
-void setSandbox(TPythonSecurityLevel level)
+static void setSandbox(TPythonSecurityLevel level)
 {
     PyObject *m = PyImport_AddModule("__builtin__");
     PyObject *d = PyModule_GetDict(m);
@@ -1818,7 +1826,7 @@ static void initPySysObjects(Main *maggie)
 	while(lib) {
 		/* lib->name wont work in some cases (on win32),
 		 * even when expanding with gp_GamePythonPath, using lib->filename is less trouble */
-		initPySysObjects__append(sys_path, lib->filename);
+		initPySysObjects__append(sys_path, lib->filepath);
 		lib= (Library *)lib->id.next;
 	}
 	
@@ -1896,9 +1904,8 @@ PyObject* initGamePlayerPythonScripting(const STR_String& progname, TPythonSecur
 	first_time = false;
 	
 	PyObjectPlus::ClearDeprecationWarning();
-	
-	PyObject* moduleobj = PyImport_AddModule("__main__");
-	return PyModule_GetDict(moduleobj);
+
+	return bpy_namespace_dict_new(NULL);
 }
 
 void exitGamePlayerPythonScripting()
@@ -1933,9 +1940,8 @@ PyObject* initGamePythonScripting(const STR_String& progname, TPythonSecurityLev
 	initPySysObjects(maggie);
 
 	PyObjectPlus::NullDeprecationWarning();
-	
-	PyObject* moduleobj = PyImport_AddModule("__main__");
-	return PyModule_GetDict(moduleobj);
+
+	return bpy_namespace_dict_new(NULL);
 }
 
 void exitGamePythonScripting()
@@ -1965,20 +1971,18 @@ void setupGamePython(KX_KetsjiEngine* ketsjiengine, KX_Scene* startscene, Main *
 		PyDict_SetItemString(PyModule_GetDict(*gameLogic), "globalDict", pyGlobalDict); // Same as importing the module.
 
 	*gameLogic_keys = PyDict_Keys(PyModule_GetDict(*gameLogic));
-	PyDict_SetItemString(dictionaryobject, "GameLogic", *gameLogic); // Same as importing the module.
 
 	initGameKeys();
 	initPythonConstraintBinding();
 	initMathutils();
 	initGeometry();
 	initBGL();
-
-#ifdef WITH_FFMPEG
+	initBLF();
+	AUD_initPython();
 	initVideoTexture();
-#endif
 
 	/* could be done a lot more nicely, but for now a quick way to get bge.* working */
-	PyRun_SimpleString("__import__('sys').modules['bge']=[mod for mod in (type(__builtins__)('bge'), ) if mod.__dict__.update({'logic':__import__('GameLogic'), 'render':__import__('Rasterizer'), 'keys':__import__('GameKeys'), 'constraints':__import__('PhysicsConstraints'), 'types':__import__('GameTypes')}) is None][0]");
+	PyRun_SimpleString("sys = __import__('sys');mod = sys.modules['bge'] = type(sys)('bge');mod.__dict__.update({'logic':__import__('GameLogic'), 'render':__import__('Rasterizer'), 'events':__import__('GameKeys'), 'constraints':__import__('PhysicsConstraints'), 'types':__import__('GameTypes')});import bge");
 }
 
 static struct PyModuleDef Rasterizer_module_def = {
@@ -2249,6 +2253,13 @@ PyObject* initGameKeys()
 	KX_MACRO_addTypesToDict(d, F10KEY, SCA_IInputDevice::KX_F10KEY);
 	KX_MACRO_addTypesToDict(d, F11KEY, SCA_IInputDevice::KX_F11KEY);
 	KX_MACRO_addTypesToDict(d, F12KEY, SCA_IInputDevice::KX_F12KEY);
+	KX_MACRO_addTypesToDict(d, F13KEY, SCA_IInputDevice::KX_F13KEY);
+	KX_MACRO_addTypesToDict(d, F14KEY, SCA_IInputDevice::KX_F14KEY);
+	KX_MACRO_addTypesToDict(d, F15KEY, SCA_IInputDevice::KX_F15KEY);
+	KX_MACRO_addTypesToDict(d, F16KEY, SCA_IInputDevice::KX_F16KEY);
+	KX_MACRO_addTypesToDict(d, F17KEY, SCA_IInputDevice::KX_F17KEY);
+	KX_MACRO_addTypesToDict(d, F18KEY, SCA_IInputDevice::KX_F18KEY);
+	KX_MACRO_addTypesToDict(d, F19KEY, SCA_IInputDevice::KX_F19KEY);
 		
 	KX_MACRO_addTypesToDict(d, PAUSEKEY, SCA_IInputDevice::KX_PAUSEKEY);
 	KX_MACRO_addTypesToDict(d, INSERTKEY, SCA_IInputDevice::KX_INSERTKEY);
@@ -2256,6 +2267,15 @@ PyObject* initGameKeys()
 	KX_MACRO_addTypesToDict(d, PAGEUPKEY, SCA_IInputDevice::KX_PAGEUPKEY);
 	KX_MACRO_addTypesToDict(d, PAGEDOWNKEY, SCA_IInputDevice::KX_PAGEDOWNKEY);
 	KX_MACRO_addTypesToDict(d, ENDKEY, SCA_IInputDevice::KX_ENDKEY);
+
+	// MOUSE
+	KX_MACRO_addTypesToDict(d, LEFTMOUSE, SCA_IInputDevice::KX_LEFTMOUSE);
+	KX_MACRO_addTypesToDict(d, MIDDLEMOUSE, SCA_IInputDevice::KX_MIDDLEMOUSE);
+	KX_MACRO_addTypesToDict(d, RIGHTMOUSE, SCA_IInputDevice::KX_RIGHTMOUSE);
+	KX_MACRO_addTypesToDict(d, WHEELUPMOUSE, SCA_IInputDevice::KX_WHEELUPMOUSE);
+	KX_MACRO_addTypesToDict(d, WHEELDOWNMOUSE, SCA_IInputDevice::KX_WHEELDOWNMOUSE);
+	KX_MACRO_addTypesToDict(d, MOUSEX, SCA_IInputDevice::KX_MOUSEX);
+	KX_MACRO_addTypesToDict(d, MOUSEY, SCA_IInputDevice::KX_MOUSEY);
 
 	// Check for errors
 	if (PyErr_Occurred())
@@ -2279,6 +2299,11 @@ PyObject* initGeometry()
 PyObject* initBGL()
 {
 	return BGL_Init();
+}
+
+PyObject* initBLF()
+{
+	return BLF_Init();
 }
 
 // utility function for loading and saving the globalDict
@@ -2305,15 +2330,15 @@ int saveGamePythonConfig( char **marshal_buffer)
 				memcpy(*marshal_buffer, marshal_cstring, marshal_length);
 				Py_DECREF(pyGlobalDictMarshal);
 			} else {
-				printf("Error, GameLogic.globalDict could not be marshal'd\n");
+				printf("Error, bge.logic.globalDict could not be marshal'd\n");
 			}
 		} else {
-			printf("Error, GameLogic.globalDict was removed\n");
+			printf("Error, bge.logic.globalDict was removed\n");
 		}
 		Py_DECREF(gameLogic);
 	} else {
 		PyErr_Clear();
-		printf("Error, GameLogic failed to import GameLogic.globalDict will be lost\n");
+		printf("Error, bge.logic failed to import bge.logic.globalDict will be lost\n");
 	}
 	return marshal_length;
 }
@@ -2345,7 +2370,7 @@ int loadGamePythonConfig(char *marshal_buffer, int marshal_length)
 			}
 		} else {
 			PyErr_Clear();
-			printf("Error, GameLogic failed to import GameLogic.globalDict will be lost\n");
+			printf("Error, bge.logic failed to import bge.logic.globalDict will be lost\n");
 		}	
 	}
 	return 0;

@@ -36,7 +36,6 @@
 #include "BLI_math.h"
 #include "BLI_rand.h"
 
-#include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_screen.h"
 
@@ -191,39 +190,22 @@ void buttons_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "BUTTONS_OT_toolbox", RIGHTMOUSE, KM_PRESS, 0, 0);
 }
 
-//#define PY_HEADER
 /* add handlers, stuff you only do once or on area/region changes */
 static void buttons_header_area_init(wmWindowManager *wm, ARegion *ar)
 {
-#ifdef PY_HEADER
-	ED_region_header_init(ar);
-#else
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_HEADER, ar->winx, ar->winy);
-#endif
 }
 
 static void buttons_header_area_draw(const bContext *C, ARegion *ar)
 {
-#ifdef PY_HEADER
-	ED_region_header(C, ar);
-#else
-
-	float col[3];
-	
 	/* clear */
-	if(ED_screen_area_active(C))
-		UI_GetThemeColor3fv(TH_HEADER, col);
-	else
-		UI_GetThemeColor3fv(TH_HEADERDESEL, col);
-	
-	glClearColor(col[0], col[1], col[2], 0.0);
+	UI_ThemeClearColor(ED_screen_area_active(C)?TH_HEADER:TH_HEADERDESEL);
 	glClear(GL_COLOR_BUFFER_BIT);
 	
 	/* set view2d view matrix for scrolling (without scrollers) */
 	UI_view2d_view_ortho(C, &ar->v2d);
 	
 	buttons_header_buttons(C, ar);
-#endif	
 
 	/* restore view matrix? */
 	UI_view2d_view_restore(C);
@@ -268,6 +250,8 @@ static void buttons_area_listener(ScrArea *sa, wmNotifier *wmn)
 				case ND_KEYINGSET:
 					buttons_area_redraw(sa, BCONTEXT_SCENE);
 					break;
+				case ND_RENDER_RESULT:
+					break;
 				case ND_MODE:
 				case ND_LAYER:
 				default:
@@ -297,8 +281,9 @@ static void buttons_area_listener(ScrArea *sa, wmNotifier *wmn)
 					buttons_area_redraw(sa, BCONTEXT_CONSTRAINT);
 					buttons_area_redraw(sa, BCONTEXT_BONE_CONSTRAINT);
 					break;
-				case ND_PARTICLE_DATA:
-					buttons_area_redraw(sa, BCONTEXT_PARTICLE);
+				case ND_PARTICLE:
+					if (wmn->action == NA_EDITED)
+						buttons_area_redraw(sa, BCONTEXT_PARTICLE);
 					break;
 				case ND_DRAW:
 					buttons_area_redraw(sa, BCONTEXT_OBJECT);
@@ -344,9 +329,9 @@ static void buttons_area_listener(ScrArea *sa, wmNotifier *wmn)
 			break;
 		case NC_BRUSH:
 			buttons_area_redraw(sa, BCONTEXT_TEXTURE);
-			sbuts->preview= 1;
 			break;
 		case NC_TEXTURE:
+		case NC_IMAGE:
 			ED_area_tag_redraw(sa);
 			sbuts->preview= 1;
 			break;
@@ -360,10 +345,17 @@ static void buttons_area_listener(ScrArea *sa, wmNotifier *wmn)
 			break;
 		case NC_ANIMATION:
 			switch(wmn->data) {
-				case ND_KEYFRAME_EDIT:
-					ED_area_tag_redraw(sa);
+				case ND_KEYFRAME:
+					if (wmn->action == NA_EDITED)
+						ED_area_tag_redraw(sa);
 					break;
 			}
+			break;
+		/* Listener for preview render, when doing an global undo. */
+		case NC_WINDOW:
+			ED_area_tag_redraw(sa);
+			sbuts->preview= 1;
+			break;
 	}
 
 	if(wmn->data == ND_KEYS)

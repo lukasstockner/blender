@@ -56,6 +56,7 @@ struct bMotionPath;
 
 #define V3D_XRAY	1
 #define V3D_TRANSP	2
+#define V3D_XRAYTRANSP	4
 
 #define V3D_SELECT_MOUSE	1
 
@@ -75,6 +76,7 @@ void VIEW3D_OT_view_all(struct wmOperatorType *ot);
 void VIEW3D_OT_viewnumpad(struct wmOperatorType *ot);
 void VIEW3D_OT_view_selected(struct wmOperatorType *ot);
 void VIEW3D_OT_view_center_cursor(struct wmOperatorType *ot);
+void VIEW3D_OT_view_center_camera(struct wmOperatorType *ot);
 void VIEW3D_OT_view_pan(struct wmOperatorType *ot);
 void VIEW3D_OT_view_persportho(struct wmOperatorType *ot);
 void VIEW3D_OT_add_background_image(struct wmOperatorType *ot);
@@ -101,10 +103,10 @@ void draw_motion_paths_cleanup(Scene *scene, View3D *v3d, struct ARegion *ar);
 
 /* drawobject.c */
 void draw_object(Scene *scene, struct ARegion *ar, View3D *v3d, Base *base, int flag);
-int draw_glsl_material(Scene *scene, Object *ob, View3D *v3d, int dt);
-void draw_object_instance(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *ob, int dt, int outline);
-void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *ob);
-void drawaxes(struct RegionView3D *rv3d, float mat[][4], float size, int flag, char drawtype);
+int draw_glsl_material(Scene *scene, struct Object *ob, View3D *v3d, int dt);
+void draw_object_instance(Scene *scene, View3D *v3d, RegionView3D *rv3d, struct Object *ob, int dt, int outline);
+void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, struct Object *ob);
+void drawaxes(float size, int flag, char drawtype);
 
 void view3d_cached_text_draw_begin(void);
 void view3d_cached_text_draw_add(float x, float y, float z, char *str, short xoffs, short flag);
@@ -116,7 +118,7 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, int depth_write, floa
 int draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base, int dt, int flag);
 
 /* drawmesh.c */
-void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *ob, struct DerivedMesh *dm, int faceselect);
+void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, struct Object *ob, struct DerivedMesh *dm, int faceselect);
 
 /* view3d_draw.c */
 void view3d_main_area_draw(const struct bContext *C, struct ARegion *ar);
@@ -124,8 +126,7 @@ void draw_depth(Scene *scene, struct ARegion *ar, View3D *v3d, int (* func)(void
 void draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d);
 void view3d_clr_clipping(void);
 void view3d_set_clipping(RegionView3D *rv3d);
-void add_view3d_after(View3D *v3d, Base *base, int type, int flag);
-void calc_viewborder(Scene *scene, struct ARegion *ar, View3D *v3d, rctf *viewborder_r);
+void add_view3d_after(ListBase *lb, Base *base, int flag);
 
 void circf(float x, float y, float rad);
 void circ(float x, float y, float rad);
@@ -139,9 +140,11 @@ void VIEW3D_OT_select_border(struct wmOperatorType *ot);
 void VIEW3D_OT_select_lasso(struct wmOperatorType *ot);
 
 /* view3d_view.c */
+void view3d_settings_from_ob(struct Object *ob, float *ofs, float *quat, float *dist, float *lens);
+
 void VIEW3D_OT_smoothview(struct wmOperatorType *ot);
 void VIEW3D_OT_setcameratoview(struct wmOperatorType *ot);
-void VIEW3D_OT_setobjectascamera(struct wmOperatorType *ot);
+void VIEW3D_OT_object_as_camera(struct wmOperatorType *ot);
 void VIEW3D_OT_localview(struct wmOperatorType *ot);
 void VIEW3D_OT_game_start(struct wmOperatorType *ot);
 void VIEW3D_OT_fly(struct wmOperatorType *ot);
@@ -151,7 +154,7 @@ int boundbox_clip(RegionView3D *rv3d, float obmat[][4], struct BoundBox *bb);
 
 void centerview(struct ARegion *ar, View3D *v3d);
 
-void smooth_view(struct bContext *C, Object *, Object *, float *ofs, float *quat, float *dist, float *lens);
+void smooth_view(struct bContext *C, struct Object *, struct Object *, float *ofs, float *quat, float *dist, float *lens);
 
 void setwinmatrixview3d(ARegion *ar, View3D *v3d, rctf *rect);	/* rect: for picking */
 void setviewmatrixview3d(Scene *scene, View3D *v3d, RegionView3D *rv3d);
@@ -171,11 +174,10 @@ void view3d_toolshelf_register(struct ARegionType *art);
 void view3d_tool_props_register(struct ARegionType *art);
 
 /* view3d_snap.c */
-int minmax_verts(Object *obedit, float *min, float *max);
+int minmax_verts(struct Object *obedit, float *min, float *max);
 
 void VIEW3D_OT_snap_selected_to_grid(struct wmOperatorType *ot);
 void VIEW3D_OT_snap_selected_to_cursor(struct wmOperatorType *ot);
-void VIEW3D_OT_snap_selected_to_center(struct wmOperatorType *ot);
 void VIEW3D_OT_snap_cursor_to_grid(struct wmOperatorType *ot);
 void VIEW3D_OT_snap_cursor_to_center(struct wmOperatorType *ot);
 void VIEW3D_OT_snap_cursor_to_selected(struct wmOperatorType *ot);

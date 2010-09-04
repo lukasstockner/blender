@@ -30,6 +30,7 @@
 #include "BL_ArmatureObject.h"
 #include "BL_ActionActuator.h"
 #include "KX_BlenderSceneConverter.h"
+#include "MEM_guardedalloc.h"
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_math.h"
@@ -52,10 +53,6 @@
 #include "KX_KetsjiEngine.h"
 
 #include "MT_Matrix4x4.h"
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
 /** 
  * Move here pose function for game engine so that we can mix with GE objects
@@ -97,7 +94,7 @@ void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
 	BLI_duplicatelist(&out->chanbase, &src->chanbase);
 
 	/* remap pointers */
-	ghash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
+	ghash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "game_copy_pose gh");
 
 	pchan= (bPoseChannel*)src->chanbase.first;
 	outpchan= (bPoseChannel*)out->chanbase.first;
@@ -112,12 +109,17 @@ void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
 		if (copy_constraint) {
 			ListBase listb;
 			// copy all constraint for backward compatibility
-			copy_constraints(&listb, &pchan->constraints);  // copy_constraints NULLs listb
+			copy_constraints(&listb, &pchan->constraints, FALSE);  // copy_constraints NULLs listb, no need to make extern for this operation.
 			pchan->constraints= listb;
 		} else {
 			pchan->constraints.first = NULL;
 			pchan->constraints.last = NULL;
 		}
+
+		// fails to link, props are not used in the BGE yet.
+		/* if(pchan->prop)
+			pchan->prop= IDP_CopyProperty(pchan->prop); */
+		pchan->prop= NULL;
 	}
 
 	BLI_ghash_free(ghash, NULL, NULL);

@@ -30,10 +30,15 @@
 #include <time.h>
 #include <float.h>
 #include <ctype.h>
+#include <stddef.h> //for offsetof
 
 #include "MEM_guardedalloc.h"
 
-#include "IMB_imbuf_types.h"
+#include "BLI_blenlib.h"
+#include "BLI_math.h"
+#include "BLI_editVert.h"
+#include "BLI_ghash.h"
+#include "BLI_rand.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_curve_types.h"
@@ -42,59 +47,38 @@
 #include "DNA_material_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_property_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_object_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_vfont_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_math.h"
-#include "BLI_editVert.h"
-#include "BLI_ghash.h"
-#include "BLI_rand.h"
+#include "IMB_imbuf_types.h"
 
-#include "BKE_action.h"
 #include "BKE_anim.h"
-#include "BKE_armature.h"
-#include "BKE_booleanops.h"
 #include "BKE_constraint.h"
 #include "BKE_context.h"
-#include "BKE_customdata.h"
-#include "BKE_blender.h"
-#include "BKE_booleanops.h"
-#include "BKE_cloth.h"
 #include "BKE_curve.h"
-#include "BKE_displist.h"
 #include "BKE_depsgraph.h"
-#include "BKE_DerivedMesh.h"
-#include "BKE_effect.h"
 #include "BKE_font.h"
-#include "BKE_global.h"
-#include "BKE_group.h"
 #include "BKE_image.h"
-#include "BKE_key.h"
-#include "BKE_lattice.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_mball.h"
 #include "BKE_mesh.h"
-#include "BKE_nla.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
-#include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_property.h"
-#include "BKE_report.h"
 #include "BKE_sca.h"
-#include "BKE_scene.h"
 #include "BKE_softbody.h"
-#include "BKE_subsurf.h"
-#include "BKE_texture.h"
-#include "BKE_utildefines.h"
 #include "BKE_modifier.h"
 
 #include "ED_armature.h"
 #include "ED_curve.h"
 #include "ED_mesh.h"
 #include "ED_mball.h"
+#include "ED_lattice.h"
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_util.h"
@@ -106,13 +90,14 @@
 
 /* for menu/popup icons etc etc*/
 
+#include "UI_interface.h"
 #include "WM_api.h"
 #include "WM_types.h"
 
 #include "object_intern.h"	// own include
 
 /* ************* XXX **************** */
-static void error() {}
+static void error(const char *dummy) {}
 static void waitcursor(int val) {}
 static int pupmenu(const char *msg) {return 0;}
 
@@ -121,18 +106,23 @@ static bContext *C;
 static void error_libdata() {}
 
 
-/* find the correct active object per context */
+/* find the correct active object per context
+ * note: context can be NULL when called from a enum with PROP_ENUM_NO_CONTEXT */
 Object *ED_object_active_context(bContext *C)
 {
-	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
-	if (!ob) ob= CTX_data_active_object(C);
+	Object *ob= NULL;
+	if(C) {
+		ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+		if (!ob) ob= CTX_data_active_object(C);
+	}
 	return ob;
 }
 
 
 /* ********* clear/set restrict view *********/
-static int object_restrictview_clear_exec(bContext *C, wmOperator *op)
+static int object_hide_view_clear_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain= CTX_data_main(C);
 	ScrArea *sa= CTX_wm_area(C);
 	View3D *v3d= sa->spacedata.first;
 	Scene *scene= CTX_data_scene(C);
@@ -149,31 +139,32 @@ static int object_restrictview_clear_exec(bContext *C, wmOperator *op)
 		}
 	}
 	if (changed) {
-		DAG_scene_sort(scene);
+		DAG_scene_sort(bmain, scene);
 		WM_event_add_notifier(C, NC_SCENE|ND_OB_SELECT, scene);
 	}
 
 	return OPERATOR_FINISHED;
 }
 
-void OBJECT_OT_restrictview_clear(wmOperatorType *ot)
+void OBJECT_OT_hide_view_clear(wmOperatorType *ot)
 {
 	
 	/* identifiers */
 	ot->name= "Clear Restrict View";
-	ot->description = "Reveal the object by setting the restrictview flag";
-	ot->idname= "OBJECT_OT_restrictview_clear";
+	ot->description = "Reveal the object by setting the hide flag";
+	ot->idname= "OBJECT_OT_hide_view_clear";
 	
 	/* api callbacks */
-	ot->exec= object_restrictview_clear_exec;
+	ot->exec= object_hide_view_clear_exec;
 	ot->poll= ED_operator_view3d_active;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
 
-static int object_restrictview_set_exec(bContext *C, wmOperator *op)
+static int object_hide_view_set_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	short changed = 0;
 	int unselected= RNA_boolean_get(op->ptr, "unselected");
@@ -200,7 +191,7 @@ static int object_restrictview_set_exec(bContext *C, wmOperator *op)
 	CTX_DATA_END;
 
 	if (changed) {
-		DAG_scene_sort(scene);
+		DAG_scene_sort(bmain, scene);
 		
 		WM_event_add_notifier(C, NC_SCENE|ND_OB_SELECT, CTX_data_scene(C));
 		
@@ -209,15 +200,15 @@ static int object_restrictview_set_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-void OBJECT_OT_restrictview_set(wmOperatorType *ot)
+void OBJECT_OT_hide_view_set(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Set Restrict View";
-	ot->description = "Hide the object by setting the restrictview flag";
-	ot->idname= "OBJECT_OT_restrictview_set";
+	ot->description = "Hide the object by setting the hide flag";
+	ot->idname= "OBJECT_OT_hide_view_set";
 	
 	/* api callbacks */
-	ot->exec= object_restrictview_set_exec;
+	ot->exec= object_hide_view_set_exec;
 	ot->poll= ED_operator_view3d_active;
 	
 	/* flags */
@@ -227,6 +218,79 @@ void OBJECT_OT_restrictview_set(wmOperatorType *ot)
 	
 }
 
+/* 99% same as above except no need for scene refreshing (TODO, update render preview) */
+static int object_hide_render_clear_exec(bContext *C, wmOperator *op)
+{
+	short changed= 0;
+
+	/* XXX need a context loop to handle such cases */
+	CTX_DATA_BEGIN(C, Object*, ob, selected_editable_objects) {
+		if(ob->restrictflag & OB_RESTRICT_RENDER) {
+			ob->restrictflag &= ~OB_RESTRICT_RENDER;
+			changed= 1;
+		}
+	}
+	CTX_DATA_END;
+
+	if(changed)
+		WM_event_add_notifier(C, NC_SPACE|ND_SPACE_OUTLINER, NULL);
+
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_hide_render_clear(wmOperatorType *ot)
+{
+
+	/* identifiers */
+	ot->name= "Clear Restrict Render";
+	ot->description = "Reveal the render object by setting the hide render flag";
+	ot->idname= "OBJECT_OT_hide_render_clear";
+
+	/* api callbacks */
+	ot->exec= object_hide_render_clear_exec;
+	ot->poll= ED_operator_view3d_active;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+
+static int object_hide_render_set_exec(bContext *C, wmOperator *op)
+{
+	int unselected= RNA_boolean_get(op->ptr, "unselected");
+
+	CTX_DATA_BEGIN(C, Base*, base, visible_bases) {
+		if(!unselected) {
+			if (base->flag & SELECT){
+				base->object->restrictflag |= OB_RESTRICT_RENDER;
+			}
+		}
+		else {
+			if (!(base->flag & SELECT)){
+				base->object->restrictflag |= OB_RESTRICT_RENDER;
+			}
+		}
+	}
+	CTX_DATA_END;
+	WM_event_add_notifier(C, NC_SPACE|ND_SPACE_OUTLINER, NULL);
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_hide_render_set(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Set Restrict Render";
+	ot->description = "Hide the render object by setting the hide render flag";
+	ot->idname= "OBJECT_OT_hide_render_set";
+
+	/* api callbacks */
+	ot->exec= object_hide_render_set_exec;
+	ot->poll= ED_operator_view3d_active;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	RNA_def_boolean(ot->srna, "unselected", 0, "Unselected", "Hide unselected rather than selected objects.");
+}
 
 /* ******************* toggle editmode operator  ***************** */
 
@@ -358,7 +422,12 @@ void ED_object_enter_editmode(bContext *C, int flag)
 	if(flag & EM_WAITCURSOR) waitcursor(1);
 
 	ob->restore_mode = ob->mode;
-	ED_object_toggle_modes(C, ob->mode);
+
+	/* note, when switching scenes the object can have editmode data but
+	 * not be scene->obedit: bug 22954, this avoids calling self eternally */
+	if((ob->restore_mode & OB_MODE_EDIT)==0)
+		ED_object_toggle_modes(C, ob->mode);
+
 	ob->mode= OB_MODE_EDIT;
 	
 	if(ob->type==OB_MESH) {
@@ -391,7 +460,7 @@ void ED_object_enter_editmode(bContext *C, int flag)
 		scene->obedit= ob;
 		ED_armature_to_edit(ob);
 		/* to ensure all goes in restposition and without striding */
-		DAG_id_flush_update(&ob->id, OB_RECALC);
+		DAG_id_flush_update(&ob->id, OB_RECALC_ALL); // XXX: should this be OB_RECALC_DATA?
 
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_EDITMODE_ARMATURE, scene);
 	}
@@ -870,159 +939,23 @@ void special_editmenu(Scene *scene, View3D *v3d)
 		static float weight= 1.0f;
 		{ // XXX
 // XXX		if(fbutton(&weight, 0.0f, 1.0f, 10, 10, "Set Weight")) {
-			int a= lt->editlatt->pntsu*lt->editlatt->pntsv*lt->editlatt->pntsw;
-			BPoint *bp= lt->editlatt->def;
+			Lattice *editlt= lt->editlatt->latt;
+			int a= editlt->pntsu*editlt->pntsv*editlt->pntsw;
+			BPoint *bp= editlt->def;
 			
 			while(a--) {
 				if(bp->f1 & SELECT)
 					bp->weight= weight;
 				bp++;
-			}	
+			}
 		}
 	}
 
 }
 
-/* Change subdivision or particle properties of mesh object ob, if level==-1
- * then toggle subsurf, else set to level set allows to toggle multiple
- * selections */
-
-static void object_has_subdivision_particles(Object *ob, int *havesubdiv, int *havepart, int depth)
-{
-	if(ob->type==OB_MESH) {
-		if(modifiers_findByType(ob, eModifierType_Subsurf))
-			*havesubdiv= 1;
-		if(modifiers_findByType(ob, eModifierType_ParticleSystem))
-			*havepart= 1;
-	}
-
-	if(ob->dup_group && depth <= 4) {
-		GroupObject *go;
-
-		for(go= ob->dup_group->gobject.first; go; go= go->next)
-			object_has_subdivision_particles(go->ob, havesubdiv, havepart, depth+1);
-	}
-}
-
-static void object_flip_subdivison_particles(Scene *scene, Object *ob, int *set, int level, int mode, int particles, int depth)
-{
-	ModifierData *md;
-
-	if(ob->type==OB_MESH) {
-		if(particles) {
-			for(md=ob->modifiers.first; md; md=md->next) {
-				if(md->type == eModifierType_ParticleSystem) {
-					ParticleSystemModifierData *psmd = (ParticleSystemModifierData*)md;
-
-					if(*set == -1)
-						*set= psmd->modifier.mode&(mode);
-
-					if (*set)
-						psmd->modifier.mode &= ~(mode);
-					else
-						psmd->modifier.mode |= (mode);
-				}
-			}
-		}
-		else {
-			md = modifiers_findByType(ob, eModifierType_Subsurf);
-
-			if (md) {
-				SubsurfModifierData *smd = (SubsurfModifierData*) md;
-
-				if (level == -1) {
-					if(*set == -1) 
-						*set= smd->modifier.mode&(mode);
-
-					if (*set)
-						smd->modifier.mode &= ~(mode);
-					else
-						smd->modifier.mode |= (mode);
-				} else {
-					smd->levels = level;
-				}
-			} 
-			else if(depth == 0 && *set != 0) {
-				SubsurfModifierData *smd = (SubsurfModifierData*) modifier_new(eModifierType_Subsurf);
-				
-				BLI_addtail(&ob->modifiers, smd);
-				modifier_unique_name(&ob->modifiers, (ModifierData*)smd);
-				
-				if (level!=-1) {
-					smd->levels = level;
-				}
-				
-				if(*set == -1)
-					*set= 1;
-			}
-		}
-
-		DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
-	}
-
-	if(ob->dup_group && depth<=4) {
-		GroupObject *go;
-
-		for(go= ob->dup_group->gobject.first; go; go= go->next)
-			object_flip_subdivison_particles(scene, go->ob, set, level, mode, particles, depth+1);
-	}
-}
-
-/* Change subdivision properties of mesh object ob, if
-* level==-1 then toggle subsurf, else set to level.
-*/
-
-void flip_subdivison(Scene *scene, View3D *v3d, int level)
-{
-	Base *base;
-	int set= -1;
-	int mode, pupmode, particles= 0, havesubdiv= 0, havepart= 0;
-	int alt= 0; // XXX
-	
-	if(alt)
-		mode= eModifierMode_Realtime;
-	else
-		mode= eModifierMode_Render|eModifierMode_Realtime;
-	
-	if(level == -1) {
-		if (scene->obedit) { // XXX get from context
-			object_has_subdivision_particles(scene->obedit, &havesubdiv, &havepart, 0);			
-		} else {
-			for(base= scene->base.first; base; base= base->next) {
-				if(((level==-1) && (TESTBASE(v3d, base))) || (TESTBASELIB(v3d, base))) {
-					object_has_subdivision_particles(base->object, &havesubdiv, &havepart, 0);
-				}
-			}
-		}
-	}
-	else
-		havesubdiv= 1;
-	
-	if(havesubdiv && havepart) {
-		pupmode= pupmenu("Switch%t|Subsurf %x1|Particle Systems %x2");
-		if(pupmode <= 0)
-			return;
-		else if(pupmode == 2)
-			particles= 1;
-	}
-	else if(havepart)
-		particles= 1;
-
-	if (scene->obedit) {	 // XXX get from context
-		object_flip_subdivison_particles(scene, scene->obedit, &set, level, mode, particles, 0);
-	} else {
-		for(base= scene->base.first; base; base= base->next) {
-			if(((level==-1) && (TESTBASE(v3d, base))) || (TESTBASELIB(v3d, base))) {
-				object_flip_subdivison_particles(scene, base->object, &set, level, mode, particles, 0);
-			}
-		}
-	}
-	
-	DAG_ids_flush_update(0);
-}
- 
 static void copymenu_properties(Scene *scene, View3D *v3d, Object *ob)
 {	
+//XXX no longer used - to be removed - replaced by game_properties_copy_exec
 	bProperty *prop;
 	Base *base;
 	int nr, tot=0;
@@ -1081,6 +1014,7 @@ static void copymenu_properties(Scene *scene, View3D *v3d, Object *ob)
 
 static void copymenu_logicbricks(Scene *scene, View3D *v3d, Object *ob)
 {
+//XXX no longer used - to be removed - replaced by logicbricks_copy_exec
 	Base *base;
 	
 	for(base= FIRSTBASE; base; base= base->next) {
@@ -1113,7 +1047,7 @@ static void copymenu_logicbricks(Scene *scene, View3D *v3d, Object *ob)
 	}
 }
 
-static void copymenu_modifiers(Scene *scene, View3D *v3d, Object *ob)
+static void copymenu_modifiers(Main *bmain, Scene *scene, View3D *v3d, Object *ob)
 {
 	Base *base;
 	int i, event;
@@ -1212,7 +1146,7 @@ static void copymenu_modifiers(Scene *scene, View3D *v3d, Object *ob)
 	
 //	if(errorstr) notice(errorstr);
 	
-	DAG_scene_sort(scene);
+	DAG_scene_sort(bmain, scene);
 	
 }
 
@@ -1260,7 +1194,7 @@ static void copy_texture_space(Object *to, Object *ob)
 	
 }
 
-void copy_attr(Scene *scene, View3D *v3d, short event)
+void copy_attr(Main *bmain, Scene *scene, View3D *v3d, short event)
 {
 	Object *ob;
 	Base *base;
@@ -1285,7 +1219,7 @@ void copy_attr(Scene *scene, View3D *v3d, short event)
 		return;
 	}
 	else if(event==24) {
-		copymenu_modifiers(scene, v3d, ob);
+		copymenu_modifiers(bmain, scene, v3d, ob);
 		return;
 	}
 
@@ -1329,7 +1263,7 @@ void copy_attr(Scene *scene, View3D *v3d, short event)
 
 					base->object->dup_group= ob->dup_group;
 					if(ob->dup_group)
-						id_us_plus((ID *)ob->dup_group);
+						id_lib_extern(&ob->dup_group->id);
 				}
 				else if(event==7) {	/* mass */
 					base->object->mass= ob->mass;
@@ -1448,7 +1382,7 @@ void copy_attr(Scene *scene, View3D *v3d, short event)
 				}
 				else if(event==22) {
 					/* Copy the constraint channels over */
-					copy_constraints(&base->object->constraints, &ob->constraints);
+					copy_constraints(&base->object->constraints, &ob->constraints, TRUE);
 					
 					do_scene_sort= 1;
 				}
@@ -1503,12 +1437,12 @@ void copy_attr(Scene *scene, View3D *v3d, short event)
 	}
 	
 	if(do_scene_sort)
-		DAG_scene_sort(scene);
+		DAG_scene_sort(bmain, scene);
 
-	DAG_ids_flush_update(0);
+	DAG_ids_flush_update(bmain, 0);
 }
 
-void copy_attr_menu(Scene *scene, View3D *v3d)
+void copy_attr_menu(Main *bmain, Scene *scene, View3D *v3d)
 {
 	Object *ob;
 	short event;
@@ -1559,7 +1493,7 @@ void copy_attr_menu(Scene *scene, View3D *v3d)
 	event= pupmenu(str);
 	if(event<= 0) return;
 	
-	copy_attr(scene, v3d, event);
+	copy_attr(bmain, scene, v3d, event);
 }
 
 /* ********************************************** */
@@ -1713,6 +1647,11 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
 	return (done)? OPERATOR_FINISHED: OPERATOR_CANCELLED;
 }
 
+static int shade_poll(bContext *C)
+{
+	return (ED_operator_object_active_editable(C) && !ED_operator_editmesh(C));
+}
+
 void OBJECT_OT_shade_flat(wmOperatorType *ot)
 {
 	/* identifiers */
@@ -1720,7 +1659,7 @@ void OBJECT_OT_shade_flat(wmOperatorType *ot)
 	ot->idname= "OBJECT_OT_shade_flat";
 	
 	/* api callbacks */
-	ot->poll= ED_operator_object_active_editable;
+	ot->poll= shade_poll;
 	ot->exec= shade_smooth_exec;
 
 	/* flags */
@@ -1734,7 +1673,7 @@ void OBJECT_OT_shade_smooth(wmOperatorType *ot)
 	ot->idname= "OBJECT_OT_shade_smooth";
 	
 	/* api callbacks */
-	ot->poll= ED_operator_object_active_editable;
+	ot->poll= shade_poll;
 	ot->exec= shade_smooth_exec;
 	
 	/* flags */
@@ -2054,6 +1993,8 @@ void ED_object_toggle_modes(bContext *C, int mode)
 		WM_operator_name_call(C, "PARTICLE_OT_particle_edit_toggle", WM_OP_EXEC_REGION_WIN, NULL);
 	if(mode & OB_MODE_POSE)
 		WM_operator_name_call(C, "OBJECT_OT_posemode_toggle", WM_OP_EXEC_REGION_WIN, NULL);
+	if(mode & OB_MODE_EDIT)
+		WM_operator_name_call(C, "OBJECT_OT_editmode_toggle", WM_OP_EXEC_REGION_WIN, NULL);
 }
 
 /************************ Game Properties ***********************/
@@ -2070,6 +2011,7 @@ static int game_property_new(bContext *C, wmOperator *op)
 	BLI_addtail(&ob->prop, prop);
 	unique_property(NULL, prop, 0); // make_unique_prop_names(prop->name);
 
+	WM_event_add_notifier(C, NC_LOGIC, NULL);
 	return OPERATOR_FINISHED;
 }
 
@@ -2092,18 +2034,18 @@ static int game_property_remove(bContext *C, wmOperator *op)
 {
 	Object *ob= CTX_data_active_object(C);
 	bProperty *prop;
-	int index;
+	int index= RNA_int_get(op->ptr, "index");
 
 	if(!ob)
 		return OPERATOR_CANCELLED;
-
-	index = RNA_int_get(op->ptr, "index");
 
 	prop= BLI_findlink(&ob->prop, index);
 
 	if(prop) {
 		BLI_remlink(&ob->prop, prop);
 		free_property(prop);
+
+		WM_event_add_notifier(C, NC_LOGIC, NULL);
 		return OPERATOR_FINISHED;
 	}
 	else {
@@ -2125,4 +2067,182 @@ void OBJECT_OT_game_property_remove(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Property index to remove ", 0, INT_MAX);
+}
+
+#define COPY_PROPERTIES_REPLACE	1
+#define COPY_PROPERTIES_MERGE	2
+#define COPY_PROPERTIES_COPY	3
+
+static EnumPropertyItem game_properties_copy_operations[] ={
+	{COPY_PROPERTIES_REPLACE, "REPLACE", 0, "Replace Properties", ""},
+	{COPY_PROPERTIES_MERGE, "MERGE", 0, "Merge Properties", ""},
+	{COPY_PROPERTIES_COPY, "COPY", 0, "Copy a Property", ""},
+	{0, NULL, 0, NULL, NULL}};
+
+static EnumPropertyItem gameprops_items[]= {
+	{0, NULL, 0, NULL, NULL}};
+
+static EnumPropertyItem *gameprops_itemf(bContext *C, PointerRNA *ptr, int *free)
+{	
+	Object *ob= ED_object_active_context(C);
+	EnumPropertyItem tmp = {0, "", 0, "", ""};
+	EnumPropertyItem *item= NULL;
+	bProperty *prop;
+	int a, totitem= 0;
+	
+	if(!ob)
+		return gameprops_items;
+
+	for(a=1, prop= ob->prop.first; prop; prop=prop->next, a++) {
+		tmp.value= a;
+		tmp.identifier= prop->name;
+		tmp.name= prop->name;
+		RNA_enum_item_add(&item, &totitem, &tmp);
+	}
+
+	RNA_enum_item_end(&item, &totitem);
+	*free= 1;
+
+	return item;
+}
+
+static int game_property_copy_exec(bContext *C, wmOperator *op)
+{
+	Object *ob=ED_object_active_context(C);
+	bProperty *prop;
+	int type = RNA_enum_get(op->ptr, "operation");
+	int propid= RNA_enum_get(op->ptr, "property");
+
+	if(propid > 0) { /* copy */
+		prop = BLI_findlink(&ob->prop, propid-1);
+		
+		if(prop) {
+			CTX_DATA_BEGIN(C, Object*, ob_iter, selected_editable_objects) {
+				if (ob != ob_iter) {
+					if (ob->data != ob_iter->data)
+						set_ob_property(ob_iter, prop);
+				}
+			} CTX_DATA_END;
+		}
+	}
+	else if (ELEM(type, COPY_PROPERTIES_REPLACE, COPY_PROPERTIES_MERGE)) {
+		CTX_DATA_BEGIN(C, Object*, ob_iter, selected_editable_objects) {
+			if (ob != ob_iter) {
+				if (ob->data != ob_iter->data){
+					if (type == 2) {/* merge */
+						for(prop = ob->prop.first; prop; prop= prop->next ) {
+							set_ob_property(ob_iter, prop);
+						}
+					} else /* replace */
+						copy_properties( &ob_iter->prop, &ob->prop );
+				}
+			}
+		}
+		CTX_DATA_END;
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_game_property_copy(wmOperatorType *ot)
+{
+	PropertyRNA *prop;
+	/* identifiers */
+	ot->name= "Copy Game Property";
+	ot->idname= "OBJECT_OT_game_property_copy";
+
+	/* api callbacks */
+	ot->exec= game_property_copy_exec;
+	ot->poll= ED_operator_object_active_editable;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	RNA_def_enum(ot->srna, "operation", game_properties_copy_operations, 3, "Operation", "");
+	prop=RNA_def_enum(ot->srna, "property", gameprops_items, 0, "Property", "Properties to copy");
+	RNA_def_enum_funcs(prop, gameprops_itemf);
+	ot->prop=prop;
+}
+
+static int game_property_clear_exec(bContext *C, wmOperator *op)
+{
+	CTX_DATA_BEGIN(C, Object*, ob_iter, selected_editable_objects) {
+		free_properties(&ob_iter->prop);
+	}
+	CTX_DATA_END;
+
+	WM_event_add_notifier(C, NC_LOGIC, NULL);
+	return OPERATOR_FINISHED;
+}
+void OBJECT_OT_game_property_clear(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Clear Game Property";
+	ot->idname= "OBJECT_OT_game_property_clear";
+
+	/* api callbacks */
+	ot->exec= game_property_clear_exec;
+	ot->poll= ED_operator_object_active_editable;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+
+/************************ Copy Logic Bricks ***********************/
+
+static int logicbricks_copy_exec(bContext *C, wmOperator *op)
+{
+	Object *ob=ED_object_active_context(C);
+
+	CTX_DATA_BEGIN(C, Object*, ob_iter, selected_editable_objects) {
+		if(ob != ob_iter) {
+			if (ob->data != ob_iter->data){
+				/* first: free all logic */
+				free_sensors(&ob_iter->sensors);				
+				unlink_controllers(&ob_iter->controllers);
+				free_controllers(&ob_iter->controllers);
+				unlink_actuators(&ob_iter->actuators);
+				free_actuators(&ob_iter->actuators);
+			
+				/* now copy it, this also works without logicbricks! */
+				clear_sca_new_poins_ob(ob);
+				copy_sensors(&ob_iter->sensors, &ob->sensors);
+				copy_controllers(&ob_iter->controllers, &ob->controllers);
+				copy_actuators(&ob_iter->actuators, &ob->actuators);
+				set_sca_new_poins_ob(ob_iter);
+			
+				/* some menu settings */
+				ob_iter->scavisflag= ob->scavisflag;
+				ob_iter->scaflag= ob->scaflag;
+			
+				/* set the initial state */
+				ob_iter->state= ob->state;
+				ob_iter->init_state= ob->init_state;
+			}			
+			if(ob_iter->totcol==ob->totcol) {
+				ob_iter->actcol= ob->actcol;
+				WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob_iter);
+			}
+		}
+	}
+	CTX_DATA_END;
+
+	WM_event_add_notifier(C, NC_LOGIC, NULL);
+
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_logic_bricks_copy(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Copy Logic Bricks to Selected";
+	ot->description = "Copy logic bricks to other selected objects.";
+	ot->idname= "OBJECT_OT_logic_bricks_copy";
+
+	/* api callbacks */
+	ot->exec= logicbricks_copy_exec;
+	ot->poll= ED_operator_object_active_editable;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }

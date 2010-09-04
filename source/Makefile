@@ -17,7 +17,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
-# Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
 # All rights reserved.
@@ -97,6 +97,7 @@ COMLIB += $(OCGDIR)/blender/nodes_tex/$(DEBUG_DIR)libnodes_tex.a
 COMLIB += $(OCGDIR)/blender/nodes/$(DEBUG_DIR)libnodes.a
 COMLIB += $(OCGDIR)/blender/imbuf/$(DEBUG_DIR)libimbuf.a
 COMLIB += $(OCGDIR)/blender/ikplugin/$(DEBUG_DIR)libikplugin.a
+COMLIB += $(OCGDIR)/blender/modifiers/$(DEBUG_DIR)libmodifiers.a
 COMLIB += $(NAN_IKSOLVER)/lib/$(DEBUG_DIR)libiksolver.a
 COMLIB += $(NAN_ITASC)/lib/$(DEBUG_DIR)libitasc.a
 COMLIB += $(NAN_ITASC)/lib/$(DEBUG_DIR)libitasc_kdl.a
@@ -108,10 +109,28 @@ COMLIB += $(NAN_JPEG)/lib/libjpeg.a
 COMLIB += $(OCGDIR)/blender/gpu/$(DEBUG_DIR)libgpu.a
 COMLIB += $(NAN_GLEW)/lib/$(DEBUG_DIR)libglew.a
 COMLIB += $(OCGDIR)/blender/blenfont/$(DEBUG_DIR)libblenfont.a
+COMLIB += $(OCGDIR)/blender/python/$(DEBUG_DIR)libpython.a
+COMLIB += $(NAN_AUDASPACE)/lib/$(DEBUG_DIR)libaudaspace.a
+COMLIB += $(NAN_AUDASPACE)/lib/$(DEBUG_DIR)libaud_python.a
 COMLIB += $(NAN_AUDASPACE)/lib/$(DEBUG_DIR)libaudaspace.a
 COMLIB += $(NAN_AUDASPACE)/lib/$(DEBUG_DIR)libaud_src.a
 COMLIB += $(NAN_AUDASPACE)/lib/$(DEBUG_DIR)libaud_fx.a
 COMLIB += $(NAN_AUDASPACE)/lib/$(DEBUG_DIR)libaud_sdl.a
+ifeq ($(WITH_FFMPEG),true)
+    COMLIB += $(NAN_AUDASPACE)/lib/$(DEBUG_DIR)libaud_ffmpeg.a
+endif
+ifeq ($(WITH_OPENAL),true)
+    COMLIB += $(NAN_AUDASPACE)/lib/$(DEBUG_DIR)libaud_openal.a
+endif
+ifeq ($(WITH_JACK),true)
+    COMLIB += $(NAN_AUDASPACE)/lib/$(DEBUG_DIR)libaud_jack.a
+endif
+ifeq ($(WITH_SNDFILE),true)
+    COMLIB += $(NAN_AUDASPACE)/lib/$(DEBUG_DIR)libaud_sndfile.a
+endif
+ifeq ($(WITH_FFTW3),true)
+    COMLIB += $(NAN_AUDASPACE)/lib/$(DEBUG_DIR)libaud_fftw.a
+endif
 COMLIB += $(NAN_SAMPLERATE)/lib/$(DEBUG_DIR)libsamplerate.a
 COMLIB += $(NAN_LZO)/lib/$(DEBUG_DIR)libminilzo.a
 COMLIB += $(NAN_LZMA)/lib/$(DEBUG_DIR)liblzma.a
@@ -119,26 +138,8 @@ COMLIB += $(NAN_BSP)/lib/$(DEBUG_DIR)libbsp.a
 COMLIB += $(NAN_BOOLOP)/lib/$(DEBUG_DIR)libboolop.a
 COMLIB += $(NAN_MOTO)/lib/$(DEBUG_DIR)libmoto.a
 COMLIB += $(NAN_DECIMATION)/lib/$(DEBUG_DIR)libdecimation.a
+COMLIB += $(NAN_GHOST)/lib/$(DEBUG_DIR)libghost.a
 
-ifeq ($(WITH_FFMPEG),true)
-    COMLIB += $(NAN_AUDASPACE)/lib/$(DEBUG_DIR)libaud_ffmpeg.a
-endif
-
-ifeq ($(WITH_OPENAL),true)
-    COMLIB += $(NAN_AUDASPACE)/lib/$(DEBUG_DIR)libaud_openal.a
-endif
-
-ifeq ($(WITH_JACK),true)
-    COMLIB += $(NAN_AUDASPACE)/lib/$(DEBUG_DIR)libaud_jack.a
-endif
-
-ifeq ($(WITH_SNDFILE),true)
-    COMLIB += $(NAN_AUDASPACE)/lib/$(DEBUG_DIR)libaud_sndfile.a
-endif
-
-ifeq ($(WITH_FFTW3),true)
-    COMLIB += $(NAN_AUDASPACE)/lib/$(DEBUG_DIR)libaud_fftw.a
-endif
 
 ifneq ($(NAN_NO_KETSJI),true)
     COMLIB += $(OCGDIR)/gameengine/bloutines/$(DEBUG_DIR)libbloutines.a
@@ -202,7 +203,9 @@ ifeq ($(WITH_OPENJPEG), true)
     endif
 endif
 
-COMLIB += $(OCGDIR)/blender/imbuf/cineon/$(DEBUG_DIR)libcineon.a
+ifeq ($(WITH_CINEON), true)
+	COMLIB += $(OCGDIR)/blender/imbuf/cineon/$(DEBUG_DIR)libcineon.a
+endif
 
 ifeq ($(WITH_DDS), true)
     COMLIB += $(OCGDIR)/blender/imbuf/dds/$(DEBUG_DIR)libdds.a
@@ -416,7 +419,7 @@ ifeq ($(WITH_JACK),true)
 endif
 
 ifeq ($(WITH_SNDFILE),true)
-  ifeq ($(OS),$(findstring $(OS), "linux"))
+  ifeq ($(OS),$(findstring $(OS), "linux darwin"))
     NAN_SND_LIBS += $(NAN_SNDFILELIBS)
   endif
 endif
@@ -477,7 +480,7 @@ debug debuglink::
 clean:: linkclean debuglinkclean
 
 link: $(BINTARGETS)
-	@echo "****> Build $(MAKE_START) - `date '+%H:%M:%S %d-%b-%Y'`"
+	@echo "****> Build SVN rev $(BUILD_REV), $(MAKE_START) - `date '+%H:%M:%S %d-%b-%Y'`"
 ifdef NANENV
 	@for n in $(NANENV); do \
 	    echo "      $$n"; \

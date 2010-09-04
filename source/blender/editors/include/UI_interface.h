@@ -142,7 +142,7 @@ typedef struct uiLayout uiLayout;
 #define UI_BUT_ALIGN_DOWN	(1<<17)
 
 #define UI_BUT_DISABLED		(1<<18)
-#define UI_BUT_UNUSED		(1<<19)
+#define UI_BUT_COLOR_LOCK	(1<<19)
 #define UI_BUT_ANIMATED		(1<<20)
 #define UI_BUT_ANIMATED_KEY	(1<<21)
 #define UI_BUT_DRIVEN		(1<<22)
@@ -151,6 +151,9 @@ typedef struct uiLayout uiLayout;
 #define UI_BUT_UNDO			(1<<25)
 #define UI_BUT_IMMEDIATE	(1<<26)
 #define UI_BUT_NO_TOOLTIP	(1<<27)
+
+#define UI_BUT_VEC_SIZE_LOCK (1<<28) /* used to flag if color hsv-circle should keep luminance */
+#define UI_BUT_COLOR_CUBIC	(1<<29) /* cubic saturation for the color wheel */
 
 #define UI_PANEL_WIDTH			340
 #define UI_COMPACT_PANEL_WIDTH	160
@@ -218,6 +221,9 @@ typedef struct uiLayout uiLayout;
 #define HOTKEYEVT	(45<<9)
 #define BUT_IMAGE	(46<<9)
 #define HISTOGRAM	(47<<9)
+#define WAVEFORM	(48<<9)
+#define VECTORSCOPE	(49<<9)
+#define PROGRESSBAR	(50<<9)
 
 #define BUTTYPE		(63<<9)
 
@@ -245,8 +251,9 @@ void uiDrawMenuBox(float minx, float miny, float maxx, float maxy, short flag, s
 void uiDrawBoxShadow(unsigned char alpha, float minx, float miny, float maxx, float maxy);
 
 /* state for scrolldrawing */
-#define UI_SCROLL_PRESSED	1
-#define UI_SCROLL_ARROWS	2
+#define UI_SCROLL_PRESSED		1
+#define UI_SCROLL_ARROWS		2
+#define UI_SCROLL_NO_OUTLINE	4
 void uiWidgetScrollDraw(struct uiWidgetColors *wcol, struct rcti *rect, struct rcti *slider, int state);
 
 /* Menu Callbacks */
@@ -671,14 +678,15 @@ void uiTemplateAnyID(uiLayout *layout, struct bContext *C, struct PointerRNA *pt
 	char *proptypename, char *text);
 void uiTemplatePathBuilder(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, char *propname, 
 	struct PointerRNA *root_ptr, char *text);
-uiLayout *uiTemplateModifier(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, int compact);
+uiLayout *uiTemplateModifier(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr);
 uiLayout *uiTemplateConstraint(uiLayout *layout, struct PointerRNA *ptr);
 void uiTemplatePreview(uiLayout *layout, struct ID *id, struct ID *parent, struct MTex *slot);
 void uiTemplateColorRamp(uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand);
 void uiTemplateHistogram(uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand);
+void uiTemplateWaveform(uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand);
+void uiTemplateVectorscope(uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand);
 void uiTemplateCurveMapping(uiLayout *layout, struct PointerRNA *ptr, char *propname, int type, int levels, int brush);
-void uiTemplateColorWheel(uiLayout *layout, struct PointerRNA *ptr, char *propname, int value_slider, int lock);
-void uiTemplateTriColorSet(uiLayout *layout, struct PointerRNA *ptr, char *propname);
+void uiTemplateColorWheel(uiLayout *layout, struct PointerRNA *ptr, char *propname, int value_slider, int lock, int lock_luminosity, int cubic);
 void uiTemplateLayers(uiLayout *layout, struct PointerRNA *ptr, char *propname,
 			  PointerRNA *used_ptr, char *used_propname, int active_layer);
 void uiTemplateImage(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, char *propname, struct PointerRNA *userptr, int compact);
@@ -687,7 +695,7 @@ void uiTemplateRunningJobs(uiLayout *layout, struct bContext *C);
 void uiTemplateOperatorSearch(uiLayout *layout);
 void uiTemplateHeader3D(uiLayout *layout, struct bContext *C);
 void uiTemplateTextureImage(uiLayout *layout, struct bContext *C, struct Tex *tex);
-void uiTemplateReportsBanner(uiLayout *layout, struct bContext *C, struct wmOperator *op);
+void uiTemplateReportsBanner(uiLayout *layout, struct bContext *C);
 
 void uiTemplateList(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, char *propname, struct PointerRNA *activeptr, char *activeprop, int rows, int maxrows, int type);
 

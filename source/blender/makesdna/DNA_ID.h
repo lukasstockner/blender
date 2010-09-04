@@ -116,10 +116,10 @@ typedef struct Library {
 	ID id;
 	ID *idblock;
 	struct FileData *filedata;
-	char name[240];			/* revealed in the UI, can store relative path */
-	char filename[240];		/* expanded name, not relative, used while reading */
+	char name[240];			/* path name used for reading, can be relative and edited in the outliner */
+	char filepath[240];		/* temp. absolute filepath, only used while reading */
 	int tot, pad;			/* tot, idblock and filedata are only fo read and write */
-	struct Library *parent;	/* for outliner, showing dependency */
+	struct Library *parent;	/* set for indirectly linked libs, used in the outliner and while reading */
 } Library;
 
 #define PREVIEW_MIPMAPS 2
@@ -130,7 +130,7 @@ typedef struct PreviewImage {
 	unsigned int w[2];
 	unsigned int h[2];	
 	short changed[2];
-	short pad0, pad1;
+	short changed_timestamp[2];
 	unsigned int * rect[2];
 } PreviewImage;
 
@@ -164,7 +164,6 @@ typedef struct PreviewImage {
 #define ID_MA		MAKE_ID2('M', 'A') /* Material */
 #define ID_TE		MAKE_ID2('T', 'E') /* Texture */
 #define ID_IM		MAKE_ID2('I', 'M') /* Image */
-#define ID_WV		MAKE_ID2('W', 'V') /* Wave (unused) */
 #define ID_LT		MAKE_ID2('L', 'T') /* Lattice */
 #define ID_LA		MAKE_ID2('L', 'A') /* Lamp */
 #define ID_CA		MAKE_ID2('C', 'A') /* Camera */
@@ -205,8 +204,8 @@ typedef struct PreviewImage {
 #define LIB_EXTERN		1
 #define LIB_INDIRECT	2
 #define LIB_TEST		8
-#define LIB_TESTEXT		9
-#define LIB_TESTIND		10
+#define LIB_TESTEXT		(LIB_TEST | LIB_EXTERN)
+#define LIB_TESTIND		(LIB_TEST | LIB_INDIRECT)
 #define LIB_READ		16
 #define LIB_NEEDLINK	32
 

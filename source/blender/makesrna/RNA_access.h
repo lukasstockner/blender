@@ -316,6 +316,7 @@ extern StructRNA RNA_MotionPath;
 extern StructRNA RNA_MotionPathVert;
 extern StructRNA RNA_MouseSensor;
 extern StructRNA RNA_MovieSequence;
+extern StructRNA RNA_MulticamSequence;
 extern StructRNA RNA_MultiresModifier;
 extern StructRNA RNA_MusgraveTexture;
 extern StructRNA RNA_NandController;
@@ -355,6 +356,7 @@ extern StructRNA RNA_SPHFluidSettings;
 extern StructRNA RNA_ParticleSystem;
 extern StructRNA RNA_ParticleSystemModifier;
 extern StructRNA RNA_ParticleTarget;
+extern StructRNA RNA_PivotConstraint;
 extern StructRNA RNA_PluginSequence;
 extern StructRNA RNA_PluginTexture;
 extern StructRNA RNA_PointCache;
@@ -383,6 +385,7 @@ extern StructRNA RNA_Scene;
 extern StructRNA RNA_SceneGameData;
 extern StructRNA RNA_SceneRenderLayer;
 extern StructRNA RNA_SceneSequence;
+extern StructRNA RNA_Scopes;
 extern StructRNA RNA_Screen;
 extern StructRNA RNA_ScrewModifier;
 extern StructRNA RNA_Sculpt;
@@ -435,7 +438,7 @@ extern StructRNA RNA_SolidifyModifier;
 extern StructRNA RNA_Sound;
 extern StructRNA RNA_SoundSequence;
 extern StructRNA RNA_Space;
-extern StructRNA RNA_Space3DView;
+extern StructRNA RNA_SpaceView3D;
 extern StructRNA RNA_SpaceConsole;
 extern StructRNA RNA_SpaceDopeSheetEditor;
 extern StructRNA RNA_SpaceFileBrowser;
@@ -604,8 +607,9 @@ void RNA_struct_py_type_set(StructRNA *srna, void *py_type);
 void *RNA_struct_blender_type_get(StructRNA *srna);
 void RNA_struct_blender_type_set(StructRNA *srna, void *blender_type);
 
-struct IDProperty *RNA_struct_idproperties(PointerRNA *ptr, int create);
-int RNA_struct_idproperties_check(StructRNA *srna);
+struct IDProperty *RNA_struct_idprops(PointerRNA *ptr, int create);
+int RNA_struct_idprops_check(StructRNA *srna);
+int RNA_struct_idprops_register_check(StructRNA *type);
 
 
 PropertyRNA *RNA_struct_find_property(PointerRNA *ptr, const char *identifier);
@@ -658,13 +662,16 @@ int RNA_property_int_clamp(PointerRNA *ptr, PropertyRNA *prop, int *value);
 int RNA_enum_identifier(EnumPropertyItem *item, const int value, const char **identifier);
 int RNA_enum_bitflag_identifiers(EnumPropertyItem *item, const int value, const char **identifier);
 int RNA_enum_name(EnumPropertyItem *item, const int value, const char **name);
+int RNA_enum_description(EnumPropertyItem *item, const int value, const char **description);
 
 void RNA_property_enum_items(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, EnumPropertyItem **item, int *totitem, int *free);
 int RNA_property_enum_value(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const char *identifier, int *value);
 int RNA_property_enum_identifier(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const int value, const char **identifier);
+int RNA_property_enum_name(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const int value, const char **name);
 int RNA_property_enum_bitflag_identifiers(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const int value, const char **identifier);
 
 StructRNA *RNA_property_pointer_type(PointerRNA *ptr, PropertyRNA *prop);
+int RNA_property_pointer_poll(PointerRNA *ptr, PropertyRNA *prop, PointerRNA *value);
 
 int RNA_property_editable(PointerRNA *ptr, PropertyRNA *prop);
 int RNA_property_editable_index(PointerRNA *ptr, PropertyRNA *prop, int index);
@@ -817,9 +824,10 @@ void RNA_enum_set(PointerRNA *ptr, const char *name, int value);
 void RNA_enum_set_identifier(PointerRNA *ptr, const char *name, const char *id);
 int RNA_enum_is_equal(struct bContext *C, PointerRNA *ptr, const char *name, const char *enumname);
 
-/* lower level functions that donr use a PointerRNA */
-int	RNA_enum_value_from_id(EnumPropertyItem *item, const char *identifier, int *value);
-int	RNA_enum_id_from_value(EnumPropertyItem *item, int value, const char **identifier);
+/* lower level functions that don't use a PointerRNA */
+int RNA_enum_value_from_id(EnumPropertyItem *item, const char *identifier, int *value);
+int RNA_enum_id_from_value(EnumPropertyItem *item, int value, const char **identifier);
+int RNA_enum_icon_from_value(EnumPropertyItem *item, int value, int *icon);
 
 void RNA_string_get(PointerRNA *ptr, const char *name, char *value);
 char *RNA_string_get_alloc(PointerRNA *ptr, const char *name, char *fixedbuf, int fixedlen);

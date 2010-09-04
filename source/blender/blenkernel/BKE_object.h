@@ -46,6 +46,7 @@ struct BulletSoftBody;
 struct Group;
 struct bAction;
 struct RenderData;
+struct rctf;
 
 void clear_workob(struct Object *workob);
 void what_does_parent(struct Scene *scene, struct Object *ob, struct Object *workob);
@@ -76,12 +77,12 @@ void *add_camera(char *name);
 struct Camera *copy_camera(struct Camera *cam);
 void make_local_camera(struct Camera *cam);
 float dof_camera(struct Object *ob);
+	
 void *add_lamp(char *name);
 struct Lamp *copy_lamp(struct Lamp *la);
 void make_local_lamp(struct Lamp *la);
 void free_camera(struct Camera *ca);
 void free_lamp(struct Lamp *la);
-void *add_wave(void);
 
 struct Object *add_only_object(int type, char *name);
 struct Object *add_object(struct Scene *scene, int type);

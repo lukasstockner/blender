@@ -188,6 +188,20 @@ MINLINE void mul_v3_v3(float r[3], const float a[3])
 	r[2] *= a[2];
 }
 
+MINLINE void mul_v4_fl(float r[4], float f)
+{
+	r[0]*= f;
+	r[1]*= f;
+	r[2]*= f;
+	r[3]*= f;
+}
+
+MINLINE void madd_v2_v2fl(float r[2], const float a[2], float f)
+{
+	r[0] += a[0]*f;
+	r[1] += a[1]*f;
+}
+
 MINLINE void madd_v3_v3fl(float r[3], const float a[3], float f)
 {
 	r[0] += a[0]*f;
@@ -220,6 +234,14 @@ MINLINE void madd_v3_v3v3v3(float r[3], const float a[3], const float b[3], cons
 	r[0] = a[0] + b[0]*c[0];
 	r[1] = a[1] + b[1]*c[1];
 	r[2] = a[2] + b[2]*c[2];
+}
+
+MINLINE void madd_v4_v4fl(float r[4], const float a[4], float f)
+{
+	r[0] += a[0]*f;
+	r[1] += a[1]*f;
+	r[2] += a[2]*f;
+	r[3] += a[3]*f;
 }
 
 MINLINE void mul_v3_v3v3(float *v, const float *v1, const float *v2)
@@ -305,6 +327,14 @@ MINLINE float len_v3v3(const float a[3], const float b[3])
 	return len_v3(d);
 }
 
+MINLINE float len_squared_v3v3(const float a[3], const float b[3])
+{
+	float d[3];
+
+	sub_v3_v3v3(d, b, a);
+	return dot_v3v3(d, d);
+}
+
 MINLINE float normalize_v2_v2(float r[2], const float a[2])
 {
 	float d= dot_v2v2(a, a);
@@ -377,6 +407,11 @@ MINLINE int is_one_v3(float *v)
 MINLINE int equals_v3v3(float *v1, float *v2)
 {
 	return ((v1[0]==v2[0]) && (v1[1]==v2[1]) && (v1[2]==v2[2]));
+}
+
+MINLINE int equals_v4v4(float *v1, float *v2)
+{
+	return ((v1[0]==v2[0]) && (v1[1]==v2[1]) && (v1[2]==v2[2]) && (v1[3]==v2[3]));
 }
 
 MINLINE int compare_v3v3(float *v1, float *v2, float limit)

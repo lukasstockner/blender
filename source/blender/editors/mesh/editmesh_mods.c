@@ -55,14 +55,9 @@ editmesh_mods.c, UI level access, no geometry changes
 #include "BKE_context.h"
 #include "BKE_displist.h"
 #include "BKE_depsgraph.h"
-#include "BKE_DerivedMesh.h"
-#include "BKE_customdata.h"
-#include "BKE_global.h"
 #include "BKE_mesh.h"
 #include "BKE_material.h"
 #include "BKE_paint.h"
-#include "BKE_texture.h"
-#include "BKE_utildefines.h"
 #include "BKE_report.h"
 
 #include "IMB_imbuf_types.h"
@@ -82,7 +77,6 @@ editmesh_mods.c, UI level access, no geometry changes
 #include "ED_view3d.h"
 
 #include "BIF_gl.h"
-#include "BIF_glutil.h"
 
 #include "mesh_intern.h"
 
@@ -90,7 +84,7 @@ editmesh_mods.c, UI level access, no geometry changes
 
 /* XXX */
 static void waitcursor(int val) {}
-static int pupmenu() {return 0;}
+static int pupmenu(const char *dummy) {return 0;}
 
 /* ****************************** MIRROR **************** */
 
@@ -186,7 +180,7 @@ static void draw_triangulated(short mcords[][2], short tot)
 	}
 	
 	/* do the fill */
-	filldisplist(&lb, &lb);
+	filldisplist(&lb, &lb, 0);
 
 	/* do the draw */
 	dl= lb.first;	/* filldisplist adds in head of list */
@@ -931,7 +925,7 @@ static int similar_edge_select__internal(ToolSettings *ts, EditMesh *em, int mod
 		/* cound how many faces each edge uses use tmp.l */
 		for(efa= em->faces.first; efa; efa= efa->next) {
 			/* here we use the edges temp data to assign a face
-			if a face has alredy been assigned (eed->f2==1)
+			if a face has already been assigned (eed->f2==1)
 			we calculate the angle between the current face and
 			the edges previously found face.
 			store the angle in eed->tmp.fp (loosing the face eed->tmp.f)
@@ -1207,7 +1201,7 @@ static int similar_vert_select_exec(bContext *C, wmOperator *op)
 
 					if (dvert && !(eve->f & SELECT) && !eve->h && dvert->totweight) {
 						/* do the extra check for selection in the following if, so were not
-						checking verts that may be alredy selected */
+						checking verts that may be already selected */
 						for (i=0; base_dvert->totweight >i && !(eve->f & SELECT); i++) { 
 							for (j=0; dvert->totweight >j; j++) {
 								if (base_dvert->dw[i].def_nr==dvert->dw[j].def_nr) {
@@ -2150,7 +2144,7 @@ static void mouse_mesh_shortest_path(bContext *C, short mval[2])
 			if(ese && ese->type == EDITEDGE) {
 				eed_act = (EditEdge*)ese->data;
 				if (eed_act != eed) {
-					if (edgetag_shortest_path(vc.scene, em, eed_act, eed)) {
+					if (edgetag_shortest_path(vc.scene, em, eed_act, eed)) { /* <- this is where the magic happens */
 						EM_remove_selection(em, eed_act, EDITEDGE);
 						path = 1;
 					}
@@ -2163,13 +2157,19 @@ static void mouse_mesh_shortest_path(bContext *C, short mval[2])
 		}
 
 		/* even if this is selected it may not be in the selection list */
-		if(edgetag_context_check(vc.scene, eed)==EDGE_MODE_SELECT)
+		if(edgetag_context_check(vc.scene, eed)==0) {
 			EM_remove_selection(em, eed, EDITEDGE);
+		}
 		else {
 			/* other modes need to keep the last edge tagged */
-			if(eed_act)
-				EM_select_edge(eed_act, 0);
+			if(eed_act) {
+				if(vc.scene->toolsettings->edge_mode!=EDGE_MODE_SELECT) {
+					/* for non-select modes, always de-select the previous active edge */
+					EM_select_edge(eed_act, 0);
+				}
+			}
 
+			/* set the new edge active */
 			EM_select_edge(eed, 1);
 			EM_store_selection(em, eed, EDITEDGE);
 		}
@@ -2208,6 +2208,16 @@ static int mesh_shortest_path_select_invoke(bContext *C, wmOperator *op, wmEvent
 	
 	return OPERATOR_FINISHED;
 }
+
+static int mesh_shortest_path_select_poll(bContext *C)
+{
+	if(ED_operator_editmesh_view3d(C)) {
+		Object *obedit= CTX_data_edit_object(C);
+		EditMesh *em= BKE_mesh_get_editmesh(obedit->data);
+		return (em->selectmode & SCE_SELECT_EDGE);
+	}
+	return 0;
+}
 	
 void MESH_OT_select_shortest_path(wmOperatorType *ot)
 {
@@ -2218,7 +2228,7 @@ void MESH_OT_select_shortest_path(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->invoke= mesh_shortest_path_select_invoke;
-	ot->poll= ED_operator_editmesh_view3d;
+	ot->poll= mesh_shortest_path_select_poll;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -3420,7 +3430,7 @@ static int select_all_exec(bContext *C, wmOperator *op)
 void MESH_OT_select_all(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Select/Deselect All";
+	ot->name= "Select or Deselect All";
 	ot->description= "Change selection of all vertices, edges or faces";
 	ot->idname= "MESH_OT_select_all";
 	
@@ -4058,7 +4068,7 @@ static void editmesh_calc_selvert_center(EditMesh *em, float cent_r[3])
 	EditVert *eve;
 	int nsel= 0;
 
-	cent_r[0]= cent_r[1]= cent_r[0]= 0.0;
+	zero_v3(cent_r);
 
 	for (eve= em->verts.first; eve; eve= eve->next) {
 		if (eve->f & SELECT) {
@@ -4301,11 +4311,11 @@ static int smooth_vertex(bContext *C, wmOperator *op)
 			
 			if((eed->v1->f & SELECT) && eed->v1->f1<255) {
 				eed->v1->f1++;
-				add_v3_v3v3(eed->v1->tmp.p, eed->v1->tmp.p, fvec);
+				add_v3_v3(eed->v1->tmp.p, fvec);
 			}
 			if((eed->v2->f & SELECT) && eed->v2->f1<255) {
 				eed->v2->f1++;
-				add_v3_v3v3(eed->v2->tmp.p, eed->v2->tmp.p, fvec);
+				add_v3_v3(eed->v2->tmp.p, fvec);
 			}
 		}
 		eed= eed->next;
@@ -4317,6 +4327,10 @@ static int smooth_vertex(bContext *C, wmOperator *op)
 		if(eve->f & SELECT) {
 			if(eve->f1) {
 				
+				int xaxis= RNA_boolean_get(op->ptr, "xaxis");
+				int yaxis= RNA_boolean_get(op->ptr, "yaxis");
+				int zaxis= RNA_boolean_get(op->ptr, "zaxis");
+				
 				if (((Mesh *)obedit->data)->editflag & ME_EDIT_MIRROR_X) {
 					eve_mir= editmesh_get_x_mirror_vert(obedit, em, eve, eve->co, index);
 				}
@@ -4324,9 +4338,12 @@ static int smooth_vertex(bContext *C, wmOperator *op)
 				adr = eve->tmp.p;
 				fac= 0.5/(float)eve->f1;
 				
-				eve->co[0]= 0.5*eve->co[0]+fac*adr[0];
-				eve->co[1]= 0.5*eve->co[1]+fac*adr[1];
-				eve->co[2]= 0.5*eve->co[2]+fac*adr[2];
+				if(xaxis)
+					eve->co[0]= 0.5*eve->co[0]+fac*adr[0];
+				if(yaxis)
+					eve->co[1]= 0.5*eve->co[1]+fac*adr[1];
+				if(zaxis)
+					eve->co[2]= 0.5*eve->co[2]+fac*adr[2];
 				
 				
 				/* clip if needed by mirror modifier */
@@ -4395,6 +4412,9 @@ void MESH_OT_vertices_smooth(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	RNA_def_int(ot->srna, "repeat", 1, 1, 100, "Smooth Iterations", "", 1, INT_MAX);
+	RNA_def_boolean(ot->srna, "xaxis", 1, "X-Axis", "Smooth along the X axis.");
+	RNA_def_boolean(ot->srna, "yaxis", 1, "Y-Axis", "Smooth along the Y axis.");
+	RNA_def_boolean(ot->srna, "zaxis", 1, "Z-Axis", "Smooth along the Z axis.");
 }
 
 void vertexnoise(Object *obedit, EditMesh *em)
@@ -4426,7 +4446,7 @@ void vertexnoise(Object *obedit, EditMesh *em)
 				vec[1]= 0.2*(b2-BLI_hnoise(tex->noisesize, eve->co[0], eve->co[1]+ofs, eve->co[2]));
 				vec[2]= 0.2*(b2-BLI_hnoise(tex->noisesize, eve->co[0], eve->co[1], eve->co[2]+ofs));
 				
-				add_v3_v3v3(eve->co, eve->co, vec);
+				add_v3_v3(eve->co, vec);
 			}
 			else {
 				float tin, dum;

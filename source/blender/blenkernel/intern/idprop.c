@@ -27,6 +27,7 @@
  
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 
 #include "BKE_idprop.h"
@@ -299,6 +300,34 @@ IDProperty *IDP_CopyArray(IDProperty *prop)
 
 
 /* ---------- String Type ------------ */
+IDProperty *IDP_NewString(const char *st, const char *name, int maxlen)
+{
+	IDProperty *prop = MEM_callocN(sizeof(IDProperty), "IDProperty string");
+
+	if (st == NULL) {
+		prop->data.pointer = MEM_callocN(DEFAULT_ALLOC_FOR_NULL_STRINGS, "id property string 1");
+		prop->totallen = DEFAULT_ALLOC_FOR_NULL_STRINGS;
+		prop->len = 1; /*NULL string, has len of 1 to account for null byte.*/
+	}
+	else {
+		int stlen = strlen(st);
+
+		if(maxlen > 0 && maxlen < stlen)
+			stlen = maxlen;
+
+		stlen++; /* null terminator '\0' */
+
+		prop->data.pointer = MEM_callocN(stlen, "id property string 2");
+		prop->len = prop->totallen = stlen;
+		BLI_strncpy(prop->data.pointer, st, stlen);
+	}
+
+	prop->type = IDP_STRING;
+	BLI_strncpy(prop->name, name, MAX_IDPROP_NAME);
+
+	return prop;
+}
+
 IDProperty *IDP_CopyString(IDProperty *prop)
 {
 	IDProperty *newp = idp_generic_copy(prop);
@@ -312,14 +341,19 @@ IDProperty *IDP_CopyString(IDProperty *prop)
 }
 
 
-void IDP_AssignString(IDProperty *prop, char *st)
+void IDP_AssignString(IDProperty *prop, char *st, int maxlen)
 {
 	int stlen;
 
 	stlen = strlen(st);
 
-	IDP_ResizeArray(prop, stlen+1); /*make room for null byte :) */
-	strcpy(prop->data.pointer, st);
+	if(maxlen > 0 && maxlen < stlen)
+		stlen= maxlen;
+
+	stlen++; /* make room for null byte */
+
+	IDP_ResizeArray(prop, stlen);
+	BLI_strncpy(prop->data.pointer, st, stlen);
 }
 
 void IDP_ConcatStringC(IDProperty *prop, char *st)
@@ -458,47 +492,41 @@ void IDP_ReplaceGroupInGroup(IDProperty *dest, IDProperty *src)
 void IDP_ReplaceInGroup(IDProperty *group, IDProperty *prop)
 {
 	IDProperty *loop;
-	for (loop=group->data.group.first; loop; loop=loop->next) {
-		if (BSTR_EQ(loop->name, prop->name)) {
-			BLI_insertlink(&group->data.group, loop, prop);
-			
-			BLI_remlink(&group->data.group, loop);
-			IDP_FreeProperty(loop);
-			MEM_freeN(loop);			
-			return;
-		}
+	if((loop= IDP_GetPropertyFromGroup(group, prop->name)))  {
+		BLI_insertlink(&group->data.group, loop, prop);
+		
+		BLI_remlink(&group->data.group, loop);
+		IDP_FreeProperty(loop);
+		MEM_freeN(loop);			
 	}
-
-	group->len++;
-	BLI_addtail(&group->data.group, prop);
+	else {
+		group->len++;
+		BLI_addtail(&group->data.group, prop);
+	}
 }
 
 /*returns 0 if an id property with the same name exists and it failed,
   or 1 if it succeeded in adding to the group.*/
 int IDP_AddToGroup(IDProperty *group, IDProperty *prop)
 {
-	IDProperty *loop;
-	for (loop=group->data.group.first; loop; loop=loop->next) {
-		if (BSTR_EQ(loop->name, prop->name)) return 0;
+	if(IDP_GetPropertyFromGroup(group, prop->name) == NULL)  {
+		group->len++;
+		BLI_addtail(&group->data.group, prop);
+		return 1;
 	}
 
-	group->len++;
-	BLI_addtail(&group->data.group, prop);
-
-	return 1;
+	return 0;
 }
 
 int IDP_InsertToGroup(IDProperty *group, IDProperty *previous, IDProperty *pnew)
 {
-	IDProperty *loop;
-	for (loop=group->data.group.first; loop; loop=loop->next) {
-		if (BSTR_EQ(loop->name, pnew->name)) return 0;
+	if(IDP_GetPropertyFromGroup(group, pnew->name) == NULL)  {
+		group->len++;
+		BLI_insertlink(&group->data.group, previous, pnew);
+		return 1;
 	}
-	
-	group->len++;
 
-	BLI_insertlink(&group->data.group, previous, pnew);
-	return 1;
+	return 0;
 }
 
 void IDP_RemFromGroup(IDProperty *group, IDProperty *prop)
@@ -509,11 +537,7 @@ void IDP_RemFromGroup(IDProperty *group, IDProperty *prop)
 
 IDProperty *IDP_GetPropertyFromGroup(IDProperty *prop, const char *name)
 {
-	IDProperty *loop;
-	for (loop=prop->data.group.first; loop; loop=loop->next) {
-		if (strcmp(loop->name, name)==0) return loop;
-	}
-	return NULL;
+	return (IDProperty *)BLI_findstring(&prop->data.group, name, offsetof(IDProperty, name));
 }
 
 typedef struct IDPIter {
@@ -708,9 +732,6 @@ IDProperty *IDP_New(int type, IDPropertyTemplate val, const char *name)
 
 	prop->type = type;
 	BLI_strncpy(prop->name, name, MAX_IDPROP_NAME);
-	
-	/*security null byte*/
-	prop->name[MAX_IDPROP_NAME-1] = 0;
 	
 	return prop;
 }

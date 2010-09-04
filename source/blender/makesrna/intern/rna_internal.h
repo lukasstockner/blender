@@ -34,6 +34,7 @@
 struct ID;
 struct IDProperty;
 struct SDNA;
+struct Sequence;
 
 /* Data structures used during define */
 
@@ -188,9 +189,9 @@ void rna_ID_name_get(struct PointerRNA *ptr, char *value);
 int rna_ID_name_length(struct PointerRNA *ptr);
 void rna_ID_name_set(struct PointerRNA *ptr, const char *value);
 struct StructRNA *rna_ID_refine(struct PointerRNA *ptr);
-struct IDProperty *rna_ID_idproperties(struct PointerRNA *ptr, int create);
+struct IDProperty *rna_ID_idprops(struct PointerRNA *ptr, int create);
 void rna_ID_fake_user_set(struct PointerRNA *ptr, int value);
-struct IDProperty *rna_IDPropertyGroup_idproperties(struct PointerRNA *ptr, int create);
+struct IDProperty *rna_IDPropertyGroup_idprops(struct PointerRNA *ptr, int create);
 void rna_IDPropertyGroup_unregister(const struct bContext *C, struct StructRNA *type);
 struct StructRNA *rna_IDPropertyGroup_register(const struct bContext *C, struct ReportList *reports, void *data, const char *identifier, StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free);
 struct StructRNA* rna_IDPropertyGroup_refine(struct PointerRNA *ptr);
@@ -204,10 +205,18 @@ void rna_object_vcollayer_name_set(struct PointerRNA *ptr, const char *value, ch
 PointerRNA rna_object_shapekey_index_get(struct ID *id, int value);
 int rna_object_shapekey_index_set(struct ID *id, PointerRNA value, int current);
 
-void rna_Object_update(struct Main *bmain, struct Scene *scene, struct PointerRNA *ptr);
-void rna_Object_update_data(struct Main *bmain, struct Scene *scene, struct PointerRNA *ptr);
+/* named internal so as not to conflict with obj.update() rna func */
+void rna_Object_internal_update_data(struct Main *bmain, struct Scene *scene, struct PointerRNA *ptr);
 void rna_Mesh_update_draw(struct Main *bmain, struct Scene *scene, struct PointerRNA *ptr);
 void rna_TextureSlot_update(struct Main *bmain, struct Scene *scene, struct PointerRNA *ptr);
+
+/* basic poll functions for object types */
+int rna_Armature_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
+int rna_Camera_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
+int rna_Curve_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
+int rna_Lattice_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
+int rna_Mesh_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
+
 
 char *rna_TextureSlot_path(struct PointerRNA *ptr);
 
@@ -227,12 +236,17 @@ void RNA_api_main(struct StructRNA *srna);
 void RNA_api_material(StructRNA *srna);
 void RNA_api_mesh(struct StructRNA *srna);
 void RNA_api_object(struct StructRNA *srna);
+void RNA_api_object_base(struct StructRNA *srna);
 void RNA_api_pose_channel(struct StructRNA *srna);
 void RNA_api_scene(struct StructRNA *srna);
 void RNA_api_scene_render(struct StructRNA *srna);
+void RNA_api_sequence_strip(StructRNA *srna);
 void RNA_api_text(struct StructRNA *srna);
 void RNA_api_ui_layout(struct StructRNA *srna);
 void RNA_api_wm(struct StructRNA *srna);
+void RNA_api_sensor(struct StructRNA *srna);
+void RNA_api_controller(struct StructRNA *srna);
+void RNA_api_actuator(struct StructRNA *srna);
 
 /* main collection functions */
 void RNA_def_main_cameras(BlenderRNA *brna, PropertyRNA *cprop);
@@ -249,7 +263,7 @@ void RNA_def_main_images(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_lattices(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_curves(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_metaballs(BlenderRNA *brna, PropertyRNA *cprop);
-void RNA_def_main_vfonts(BlenderRNA *brna, PropertyRNA *cprop);
+void RNA_def_main_fonts(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_textures(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_brushes(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_worlds(BlenderRNA *brna, PropertyRNA *cprop);
@@ -337,6 +351,7 @@ PointerRNA rna_pointer_inherit_refine(struct PointerRNA *ptr, struct StructRNA *
 
 int rna_parameter_size(struct PropertyRNA *parm);
 int rna_parameter_size_alloc(struct PropertyRNA *parm);
+
 
 #endif /* RNA_INTERNAL_H */
 

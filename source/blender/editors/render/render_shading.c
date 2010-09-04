@@ -52,7 +52,6 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_texture.h"
-#include "BKE_utildefines.h"
 #include "BKE_world.h"
 
 #include "IMB_imbuf.h"
@@ -196,6 +195,34 @@ static void world_changed(Main *bmain, World *wo)
 			GPU_material_free(ma);
 }
 
+static void image_changed(Main *bmain, Image *ima)
+{
+	Tex *tex;
+
+	/* icons */
+	BKE_icon_changed(BKE_icon_getid(&ima->id));
+
+	/* textures */
+	for(tex=bmain->tex.first; tex; tex=tex->id.next)
+		if(tex->ima == ima)
+			texture_changed(bmain, tex);
+}
+
+static void scene_changed(Main *bmain, Scene *sce)
+{
+	Object *ob;
+	Material *ma;
+
+	/* glsl */
+	for(ob=bmain->object.first; ob; ob=ob->id.next)
+		if(ob->gpulamp.first)
+			GPU_lamp_free(ob);
+
+	for(ma=bmain->mat.first; ma; ma=ma->id.next)
+		if(ma->gpumaterial.first)
+			GPU_material_free(ma);
+}
+
 void ED_render_id_flush_update(Main *bmain, ID *id)
 {
 	if(!id)
@@ -213,6 +240,12 @@ void ED_render_id_flush_update(Main *bmain, ID *id)
 			break;
 		case ID_LA:
 			lamp_changed(bmain, (Lamp*)id);
+			break;
+		case ID_IM:
+			image_changed(bmain, (Image*)id);
+			break;
+		case ID_SCE:
+			scene_changed(bmain, (Scene*)id);
 			break;
 		default:
 			break;
@@ -294,11 +327,11 @@ static int material_slot_assign_exec(bContext *C, wmOperator *op)
 			}
 		}
 		else if(ELEM(ob->type, OB_CURVE, OB_SURF)) {
-			ListBase *editnurb= ((Curve*)ob->data)->editnurb;
 			Nurb *nu;
+			ListBase *nurbs= ED_curve_editnurbs((Curve*)ob->data);
 
-			if(editnurb) {
-				for(nu= editnurb->first; nu; nu= nu->next)
+			if(nurbs) {
+				for(nu= nurbs->first; nu; nu= nu->next)
 					if(isNurbsel(nu))
 						nu->mat_nr= nu->charidx= ob->actcol-1;
 			}
@@ -352,13 +385,13 @@ static int material_slot_de_select(bContext *C, int select)
 		}
 	}
 	else if ELEM(ob->type, OB_CURVE, OB_SURF) {
-		ListBase *editnurb= ((Curve*)ob->data)->editnurb;
+		ListBase *nurbs= ED_curve_editnurbs((Curve*)ob->data);
 		Nurb *nu;
 		BPoint *bp;
 		BezTriple *bezt;
 		int a;
 
-		for(nu= editnurb->first; nu; nu=nu->next) {
+		for(nu= nurbs->first; nu; nu=nu->next) {
 			if(nu->mat_nr==ob->actcol-1) {
 				if(nu->bezt) {
 					a= nu->pntsu;
@@ -780,7 +813,7 @@ void TEXTURE_OT_slot_move(wmOperatorType *ot)
 
 static int save_envmap(wmOperator *op, Scene *scene, EnvMap *env, char *str, int imtype)
 {
-	ImBuf *ibuf;
+	ImBuf *ibuf=NULL;
 	int dx;
 	int retval;
 	
@@ -831,7 +864,7 @@ static int envmap_save_exec(bContext *C, wmOperator *op)
 	int imtype = scene->r.imtype;
 	char path[FILE_MAX];
 	
-	RNA_string_get(op->ptr, "path", path);
+	RNA_string_get(op->ptr, "filepath", path);
 	
 	if(scene->r.scemode & R_EXTENSION)  {
 		BKE_add_image_extension(path, imtype);
@@ -855,12 +888,12 @@ static int envmap_save_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	if(!RNA_property_is_set(op->ptr, "relative_path"))
 		RNA_boolean_set(op->ptr, "relative_path", U.flag & USER_RELPATHS);
 	
-	if(RNA_property_is_set(op->ptr, "path"))
+	if(RNA_property_is_set(op->ptr, "filepath"))
 		return envmap_save_exec(C, op);
 
 	//RNA_enum_set(op->ptr, "file_type", scene->r.imtype);
 	
-	RNA_string_set(op->ptr, "path", G.sce);
+	RNA_string_set(op->ptr, "filepath", G.sce);
 	WM_event_add_fileselect(C, op);
 	
 	return OPERATOR_RUNNING_MODAL;
@@ -897,9 +930,7 @@ void TEXTURE_OT_envmap_save(wmOperatorType *ot)
 	
 	/* properties */
 	//RNA_def_enum(ot->srna, "file_type", image_file_type_items, R_PNG, "File Type", "File type to save image as.");
-	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE|MOVIEFILE, FILE_SPECIAL, FILE_SAVE);
-	
-	RNA_def_boolean(ot->srna, "relative_path", 0, "Relative Path", "Save image with relative path to current .blend file");
+	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE|MOVIEFILE, FILE_SPECIAL, FILE_SAVE, WM_FILESEL_FILEPATH|WM_FILESEL_RELPATH);
 }
 
 static int envmap_clear_exec(bContext *C, wmOperator *op)
@@ -1021,7 +1052,7 @@ void MATERIAL_OT_paste(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Paste Material";
 	ot->idname= "MATERIAL_OT_paste";
-	ot->description="Copy the material settings and nodes";
+	ot->description="Paste the material settings and nodes";
 
 	/* api callbacks */
 	ot->exec= paste_material_exec;

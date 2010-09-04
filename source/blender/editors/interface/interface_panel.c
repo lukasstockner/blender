@@ -43,7 +43,6 @@
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
-#include "BKE_utildefines.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -284,32 +283,6 @@ void uiEndPanel(uiBlock *block, int width, int height)
 			pa->sizey= height;
 	}
 }
-
-#if 0
-void uiPanelToMouse(const bContext *C, Panel *pa)
-{
-	/* global control over this feature; UI_PNL_TO_MOUSE only called for hotkey panels */
-	if(U.uiflag & USER_PANELPINNED);
-	else if(pa->control & UI_PNL_TO_MOUSE) {
-		int mx, my;
-
-		mx= CTX_wm_window(C)->eventstate->x;
-		my= CTX_wm_window(C)->eventstate->y;
-		
-		pa->ofsx= mx-pa->sizex/2;
-		pa->ofsy= my-pa->sizey/2;
-		
-		if(pa->flag & PNL_CLOSED) pa->flag &= ~PNL_CLOSED;
-	}
-	
-	if(pa->control & UI_PNL_UNSTOW) {
-		if(pa->flag & PNL_CLOSEDY) {
-			pa->flag &= ~PNL_CLOSED;
-		}
-	}
-}
-#endif
-
 
 static void ui_offset_panel_block(uiBlock *block)
 {
@@ -656,6 +629,10 @@ static int find_highest_panel(const void *a1, const void *a2)
 {
 	const PanelSort *ps1=a1, *ps2=a2;
 	
+	/* stick uppermost header-less panels to the top of the region -
+	 * prevent them from being sorted */
+	if (ps1->pa->sortorder < ps2->pa->sortorder && ps1->pa->type->flag & PNL_NO_HEADER) return -1;
+	
 	if(ps1->pa->ofsy+ps1->pa->sizey < ps2->pa->ofsy+ps2->pa->sizey) return 1;
 	else if(ps1->pa->ofsy+ps1->pa->sizey > ps2->pa->ofsy+ps2->pa->sizey) return -1;
 	else if(ps1->pa->sortorder > ps2->pa->sortorder) return 1;
@@ -864,6 +841,8 @@ void uiEndPanels(const bContext *C, ARegion *ar)
 	if(firstpa)
 		firstpa->runtime_flag |= PNL_FIRST;
 
+	UI_ThemeClearColor(TH_BACK);
+	
 	/* draw panels, selected on top */
 	for(block= ar->uiblocks.first; block; block=block->next) {
 		if(block->active && block->panel && !(block->panel->flag & PNL_SELECT)) {
@@ -954,7 +933,7 @@ static void ui_do_drag(const bContext *C, wmEvent *event, Panel *panel)
 
 /* this function is supposed to call general window drawing too */
 /* also it supposes a block has panel, and isnt a menu */
-static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, int my)
+static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, int my, int event)
 {
 	ScrArea *sa= CTX_wm_area(C);
 	ARegion *ar= CTX_wm_region(C);
@@ -966,7 +945,11 @@ static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, in
 	/* XXX weak code, currently it assumes layout style for location of widgets */
 	
 	/* check open/collapsed button */
-	if(block->panel->flag & PNL_CLOSEDX) {
+	if(event==RETKEY)
+		button= 1;
+	else if(event==AKEY)
+		button= 1;
+	else if(block->panel->flag & PNL_CLOSEDX) {
 		if(my >= block->maxy) button= 1;
 	}
 	else if(block->panel->control & UI_PNL_CLOSE) {
@@ -1019,6 +1002,9 @@ static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, in
 	}
 }
 
+/* XXX should become modal keymap */
+/* AKey is opening/closing panels, independent of button state now */
+
 int ui_handler_panel_region(bContext *C, wmEvent *event)
 {
 	ARegion *ar= CTX_wm_region(C);
@@ -1027,11 +1013,6 @@ int ui_handler_panel_region(bContext *C, wmEvent *event)
 	int retval, mx, my, inside_header= 0, inside_scale= 0, inside;
 
 	retval= WM_UI_HANDLER_CONTINUE;
-
-	/* buttons get priority */
-	if(ui_button_is_active(ar))
-		return retval;
-
 	for(block=ar->uiblocks.last; block; block=block->prev) {
 		mx= event->x;
 		my= event->y;
@@ -1049,7 +1030,25 @@ int ui_handler_panel_region(bContext *C, wmEvent *event)
 		if(block->minx <= mx && block->maxx >= mx)
 			if(block->miny <= my && block->maxy+PNL_HEADER >= my)
 				inside= 1;
-
+		
+		if(inside && event->val==KM_PRESS) {
+			if(event->type == AKEY && !ELEM4(1, event->ctrl, event->oskey, event->shift, event->alt)) {
+				
+				if(pa->flag & PNL_CLOSEDY) {
+					if((block->maxy <= my) && (block->maxy+PNL_HEADER >= my))
+						ui_handle_panel_header(C, block, mx, my, event->type);
+				}
+				else
+					ui_handle_panel_header(C, block, mx, my, event->type);
+				
+				continue;
+			}
+		}
+		
+		/* on active button, do not handle panels */
+		if(ui_button_is_active(ar))
+			continue;
+		
 		if(inside) {
 			/* clicked at panel header? */
 			if(pa->flag & PNL_CLOSEDX) {
@@ -1066,9 +1065,16 @@ int ui_handler_panel_region(bContext *C, wmEvent *event)
 			}
 
 			if(event->val==KM_PRESS) {
-				if(event->type == LEFTMOUSE) {
+				/* open close on header */
+				if(ELEM(event->type, RETKEY, PADENTER)) {
 					if(inside_header) {
-						ui_handle_panel_header(C, block, mx, my);
+						ui_handle_panel_header(C, block, mx, my, RETKEY);
+						break;
+					}
+				}
+				else if(event->type == LEFTMOUSE) {
+					if(inside_header) {
+						ui_handle_panel_header(C, block, mx, my, 0);
 						break;
 					}
 					else if(inside_scale && !(pa->flag & PNL_CLOSED)) {

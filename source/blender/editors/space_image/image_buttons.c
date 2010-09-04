@@ -45,15 +45,9 @@
 #include "BKE_context.h"
 #include "BKE_customdata.h"
 #include "BKE_image.h"
-#include "BKE_global.h"
-#include "BKE_library.h"
-#include "BKE_main.h"
 #include "BKE_mesh.h"
 #include "BKE_node.h"
-#include "BKE_packedFile.h"
-#include "BKE_paint.h"
 #include "BKE_screen.h"
-#include "BKE_utildefines.h"
 
 #include "RE_pipeline.h"
 
@@ -65,8 +59,6 @@
 #include "ED_screen.h"
 #include "ED_uvedit.h"
 
-#include "BIF_gl.h"
-#include "BIF_glutil.h"
 
 #include "RNA_access.h"
 
@@ -100,11 +92,6 @@
 #define B_VPCOLSLI			24
 #define B_SIMACLONEBROWSE	25
 #define B_SIMACLONEDELETE	26
-
-/* XXX */
-static int simaFaceDraw_Check() {return 0;}
-static int simaUVSel_Check() {return 0;}
-/* XXX */
 
 /* proto */
 static void image_editvertex_buts(const bContext *C, uiBlock *block);
@@ -203,7 +190,9 @@ static void image_transform_but_attr(SpaceImage *sima, int *imx, int *imy, int *
 /* is used for both read and write... */
 static void image_editvertex_buts(const bContext *C, uiBlock *block)
 {
+	Scene *scene= CTX_data_scene(C);
 	SpaceImage *sima= CTX_wm_space_image(C);
+	Image *ima= sima->image;
 	Object *obedit= CTX_data_edit_object(C);
 	static float ocent[2];
 	float cent[2]= {0.0, 0.0};
@@ -218,24 +207,24 @@ static void image_editvertex_buts(const bContext *C, uiBlock *block)
 	em= BKE_mesh_get_editmesh((Mesh *)obedit->data);
 	for (efa= em->faces.first; efa; efa= efa->next) {
 		tf= CustomData_em_get(&em->fdata, efa->data, CD_MTFACE);
-		if (simaFaceDraw_Check(efa, tf)) {
+		if (uvedit_face_visible(scene, ima, efa, tf)) {
 			
-			if (simaUVSel_Check(efa, tf, 0)) {
+			if (uvedit_uv_selected(scene, efa, tf, 0)) {
 				cent[0]+= tf->uv[0][0];
 				cent[1]+= tf->uv[0][1];
 				nactive++;
 			}
-			if (simaUVSel_Check(efa, tf, 1)) {
+			if (uvedit_uv_selected(scene, efa, tf, 1)) {
 				cent[0]+= tf->uv[1][0];
 				cent[1]+= tf->uv[1][1];
 				nactive++;
 			}
-			if (simaUVSel_Check(efa, tf, 2)) {
+			if (uvedit_uv_selected(scene, efa, tf, 2)) {
 				cent[0]+= tf->uv[2][0];
 				cent[1]+= tf->uv[2][1];
 				nactive++;
 			}
-			if (efa->v4 && simaUVSel_Check(efa, tf, 3)) {
+			if (efa->v4 && uvedit_uv_selected(scene, efa, tf, 3)) {
 				cent[0]+= tf->uv[3][0];
 				cent[1]+= tf->uv[3][1];
 				nactive++;
@@ -282,20 +271,20 @@ static void image_editvertex_buts(const bContext *C, uiBlock *block)
 
 		for (efa= em->faces.first; efa; efa= efa->next) {
 			tf= CustomData_em_get(&em->fdata, efa->data, CD_MTFACE);
-			if (simaFaceDraw_Check(efa, tf)) {
-				if (simaUVSel_Check(efa, tf, 0)) {
+			if (uvedit_face_visible(scene, ima, efa, tf)) {
+				if (uvedit_uv_selected(scene, efa, tf, 0)) {
 					tf->uv[0][0]+= delta[0];
 					tf->uv[0][1]+= delta[1];
 				}
-				if (simaUVSel_Check(efa, tf, 1)) {
+				if (uvedit_uv_selected(scene, efa, tf, 1)) {
 					tf->uv[1][0]+= delta[0];
 					tf->uv[1][1]+= delta[1];
 				}
-				if (simaUVSel_Check(efa, tf, 2)) {
+				if (uvedit_uv_selected(scene, efa, tf, 2)) {
 					tf->uv[2][0]+= delta[0];
 					tf->uv[2][1]+= delta[1];
 				}
-				if (efa->v4 && simaUVSel_Check(efa, tf, 3)) {
+				if (efa->v4 && uvedit_uv_selected(scene, efa, tf, 3)) {
 					tf->uv[3][0]+= delta[0];
 					tf->uv[3][1]+= delta[1];
 				}
@@ -777,7 +766,7 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propn
 	
 	prop= RNA_struct_find_property(ptr, propname);
 	if(!prop) {
-		printf("uiTemplateImage: property not found: %s\n", propname);
+		printf("uiTemplateImage: property not found: %s.%s\n", RNA_struct_identifier(ptr->type), propname);
 		return;
 	}
 
@@ -844,7 +833,17 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propn
 
 			if(ima->source != IMA_SRC_GENERATED) {
 				row= uiLayoutRow(layout, 1);
-				uiItemR(row, &imaptr, "filename", 0, "", 0);
+				split = uiLayoutSplit(row, 0.0, 0);
+				if (ima->packedfile)
+					uiItemO(split, "", ICON_PACKAGE, "image.unpack");
+				else
+					uiItemO(split, "", ICON_UGLYPACKAGE, "image.pack");
+				
+				split = uiLayoutSplit(row, 0.0, 0);
+				row= uiLayoutRow(split, 1);
+				uiLayoutSetEnabled(row, ima->packedfile==NULL);
+				
+				uiItemR(row, &imaptr, "filepath", 0, "", 0);
 				uiItemO(row, "", ICON_FILE_REFRESH, "image.reload");
 			}
 
@@ -879,14 +878,13 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propn
 					split= uiLayoutSplit(layout, 0, 0);
 
 					col= uiLayoutColumn(split, 0);
-					uiItemR(col, &imaptr, "fields", 0, NULL, 0);
+					uiItemR(col, &imaptr, "use_fields", 0, NULL, 0);
 					row= uiLayoutRow(col, 0);
 					uiItemR(row, &imaptr, "field_order", UI_ITEM_R_EXPAND, NULL, 0);
-					uiLayoutSetActive(row, RNA_boolean_get(&imaptr, "fields"));
+					uiLayoutSetActive(row, RNA_boolean_get(&imaptr, "use_fields"));
 
 					col= uiLayoutColumn(split, 0);
-					uiItemR(col, &imaptr, "antialias", 0, NULL, 0);
-					uiItemR(col, &imaptr, "premultiply", 0, NULL, 0);
+					uiItemR(col, &imaptr, "use_premultiply", 0, NULL, 0);
 				}
 			}
 
@@ -899,20 +897,20 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propn
 				 
 				sprintf(str, "(%d) Frames", iuser->framenr);
 				row= uiLayoutRow(col, 1);
-				uiItemR(col, userptr, "frames", 0, str, 0);
+				uiItemR(col, userptr, "frame_duration", 0, str, 0);
 				if(ima->anim) {
 					block= uiLayoutGetBlock(row);
-					but= uiDefBut(block, BUT, 0, "<", 0, 0, UI_UNIT_X*2, UI_UNIT_Y, 0, 0, 0, 0, 0, "Set the number of frames from the movie or sequence.");
+					but= uiDefBut(block, BUT, 0, "Match Movie Length", 0, 0, UI_UNIT_X*2, UI_UNIT_Y, 0, 0, 0, 0, 0, "Set the number of frames to match the movie or sequence.");
 					uiButSetFunc(but, set_frames_cb, ima, iuser);
 				}
 
 				uiItemR(col, userptr, "frame_start", 0, "Start", 0);
-				uiItemR(col, userptr, "offset", 0, NULL, 0);
+				uiItemR(col, userptr, "frame_offset", 0, NULL, 0);
 
 				col= uiLayoutColumn(split, 0);
 				uiItemR(col, userptr, "fields_per_frame", 0, "Fields", 0);
-				uiItemR(col, userptr, "auto_refresh", 0, NULL, 0);
-				uiItemR(col, userptr, "cyclic", 0, NULL, 0);
+				uiItemR(col, userptr, "use_auto_refresh", 0, NULL, 0);
+				uiItemR(col, userptr, "use_cyclic", 0, NULL, 0);
 			}
 			else if(ima->source==IMA_SRC_GENERATED) {
 				split= uiLayoutSplit(layout, 0, 0);

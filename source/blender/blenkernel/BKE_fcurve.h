@@ -143,7 +143,7 @@ typedef enum eFMI_Action_Types {
 typedef enum eFMI_Requirement_Flags {
 		/* modifier requires original data-points (kindof beats the purpose of a modifier stack?) */
 	FMI_REQUIRES_ORIGINAL_DATA		= (1<<0),
-		/* modifier doesn't require on any preceeding data (i.e. it will generate a curve). 
+		/* modifier doesn't require on any preceding data (i.e. it will generate a curve). 
 		 * Use in conjunction with FMI_TYPE_GENRATE_CURVE 
 		 */
 	FMI_REQUIRES_NOTHING			= (1<<1),
@@ -161,7 +161,6 @@ struct FModifier *add_fmodifier(ListBase *modifiers, int type);
 struct FModifier *copy_fmodifier(struct FModifier *src);
 void copy_fmodifiers(ListBase *dst, ListBase *src);
 int remove_fmodifier(ListBase *modifiers, struct FModifier *fcm);
-int remove_fmodifier_index(ListBase *modifiers, int index);
 void free_fmodifiers(ListBase *modifiers);
 
 struct FModifier *find_active_fmodifier(ListBase *modifiers);
@@ -186,6 +185,8 @@ void copy_fcurves(ListBase *dst, ListBase *src);
 
 /* find matching F-Curve in the given list of F-Curves */
 struct FCurve *list_find_fcurve(ListBase *list, const char rna_path[], const int array_index);
+
+struct FCurve *iter_step_fcurve (struct FCurve *fcu_iter, const char rna_path[]);
 
 /* high level function to get an fcurve from C without having the rna */
 struct FCurve *id_data_find_fcurve(ID *id, void *data, struct StructRNA *type, char *prop_name, int index);

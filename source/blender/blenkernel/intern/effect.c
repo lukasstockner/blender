@@ -222,7 +222,7 @@ static void precalculate_effector(EffectorCache *eff)
 				makeDispListCurveTypes(eff->scene, eff->ob, 0);
 
 			if(cu->path && cu->path->data) {
-				where_on_path(eff->ob, 0.0, eff->guide_loc, eff->guide_dir, NULL, &eff->guide_radius);
+				where_on_path(eff->ob, 0.0, eff->guide_loc, eff->guide_dir, NULL, &eff->guide_radius, NULL);
 				mul_m4_v3(eff->ob->obmat, eff->guide_loc);
 				mul_mat3_m4_v3(eff->ob->obmat, eff->guide_dir);
 			}
@@ -433,9 +433,8 @@ static float eff_calc_visibility(ListBase *colliders, EffectorCache *eff, Effect
 
 	if(!colls)
 		return visibility;
-	
-	VECCOPY(norm, efd->vec_to_point);
-	negate_v3(norm);
+
+	negate_v3_v3(norm, efd->vec_to_point);
 	len = normalize_v3(norm);
 	
 	// check all collision objects
@@ -576,10 +575,10 @@ int closest_point_on_surface(SurfaceModifierData *surmd, float *co, float *surfa
 			MFace *mface = CDDM_get_face(surmd->dm, nearest.index);
 			
 			VECCOPY(surface_vel, surmd->v[mface->v1].co);
-			add_v3_v3v3(surface_vel, surface_vel, surmd->v[mface->v2].co);
-			add_v3_v3v3(surface_vel, surface_vel, surmd->v[mface->v3].co);
+			add_v3_v3(surface_vel, surmd->v[mface->v2].co);
+			add_v3_v3(surface_vel, surmd->v[mface->v3].co);
 			if(mface->v4)
-				add_v3_v3v3(surface_vel, surface_vel, surmd->v[mface->v4].co);
+				add_v3_v3(surface_vel, surmd->v[mface->v4].co);
 
 			mul_v3_fl(surface_vel, mface->v4 ? 0.25f : 0.333f);
 		}
@@ -600,7 +599,7 @@ int get_effector_data(EffectorCache *eff, EffectorData *efd, EffectedPoint *poin
 		/* using velocity corrected location allows for easier sliding over effector surface */
 		copy_v3_v3(vec, point->vel);
 		mul_v3_fl(vec, point->vel_to_frame);
-		add_v3_v3v3(vec, vec, point->loc);
+		add_v3_v3(vec, point->loc);
 
 		ret = closest_point_on_surface(eff->surmd, vec, efd->loc, efd->nor, real_velocity ? efd->vel : NULL);
 
@@ -663,8 +662,7 @@ int get_effector_data(EffectorCache *eff, EffectorData *efd, EffectedPoint *poin
 		where_is_object_time(eff->scene, ob, cfra);
 
 		/* use z-axis as normal*/
-		VECCOPY(efd->nor, ob->obmat[2]);
-		normalize_v3(efd->nor);
+		normalize_v3_v3(efd->nor, ob->obmat[2]);
 
 		/* for vortex the shape chooses between old / new force */
 		if(eff->pd && eff->pd->shape == PFIELD_SHAPE_PLANE) {
@@ -708,8 +706,7 @@ int get_effector_data(EffectorCache *eff, EffectorData *efd, EffectedPoint *poin
 		else {
 			/* for some effectors we need the object center every time */
 			sub_v3_v3v3(efd->vec_to_point2, point->loc, eff->ob->obmat[3]);
-			VECCOPY(efd->nor2, eff->ob->obmat[2]);
-			normalize_v3(efd->nor2);
+			normalize_v3_v3(efd->nor2, eff->ob->obmat[2]);
 		}
 	}
 
@@ -777,10 +774,10 @@ static void do_texture_effector(EffectorCache *eff, EffectorData *efd, EffectedP
 	}
 
 	if(eff->pd->flag & PFIELD_TEX_OBJECT) {
-		mul_mat3_m4_v3(eff->ob->obmat, tex_co);
+		mul_m4_v3(eff->ob->obmat, tex_co);
 	}
 
-	hasrgb = multitex_ext(eff->pd->tex, tex_co, NULL,NULL, 1, result);
+	hasrgb = multitex_ext(eff->pd->tex, tex_co, NULL,NULL, 0, result);
 
 	if(hasrgb && mode==PFIELD_TEX_RGB) {
 		force[0] = (0.5f - result->tr) * strength;
@@ -791,15 +788,15 @@ static void do_texture_effector(EffectorCache *eff, EffectorData *efd, EffectedP
 		strength/=nabla;
 
 		tex_co[0] += nabla;
-		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 1, result+1);
+		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 0, result+1);
 
 		tex_co[0] -= nabla;
 		tex_co[1] += nabla;
-		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 1, result+2);
+		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 0, result+2);
 
 		tex_co[1] -= nabla;
 		tex_co[2] += nabla;
-		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 1, result+3);
+		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 0, result+3);
 
 		if(mode == PFIELD_TEX_GRAD || !hasrgb) { /* if we dont have rgb fall back to grad */
 			force[0] = (result[0].tin - result[1].tin) * strength;
@@ -827,7 +824,7 @@ static void do_texture_effector(EffectorCache *eff, EffectorData *efd, EffectedP
 		VECADDFAC(force, force, efd->nor, fac);
 	}
 
-	add_v3_v3v3(total_force, total_force, force);
+	add_v3_v3(total_force, force);
 }
 void do_physical_effector(EffectorCache *eff, EffectorData *efd, EffectedPoint *point, float *total_force)
 {
@@ -874,7 +871,7 @@ void do_physical_effector(EffectorCache *eff, EffectorData *efd, EffectedPoint *
 				mul_v3_fl(force, strength * efd->falloff);
 				
 				VECADDFAC(temp, temp, point->vel, -point->vel_to_sec);
-				add_v3_v3v3(force, force, temp);
+				add_v3_v3(force, temp);
 			}
 			break;
 		case PFIELD_MAGNET:
@@ -893,7 +890,7 @@ void do_physical_effector(EffectorCache *eff, EffectorData *efd, EffectedPoint *
 			mul_v3_fl(force, -strength * efd->falloff);
 			copy_v3_v3(temp, point->vel);
 			mul_v3_fl(temp, -damp * 2.0f * (float)sqrt(fabs(strength)) * point->vel_to_sec);
-			add_v3_v3v3(force, force, temp);
+			add_v3_v3(force, temp);
 			break;
 		case PFIELD_CHARGE:
 			mul_v3_fl(force, point->charge * strength * efd->falloff);
@@ -950,7 +947,7 @@ void do_physical_effector(EffectorCache *eff, EffectorData *efd, EffectedPoint *
 		if(pd->f_flow != 0.0f) {
 			VECADDFAC(dave, dave, point->ave, -pd->f_flow * efd->falloff);
 		}
-		add_v3_v3v3(point->ave, point->ave, dave);
+		add_v3_v3(point->ave, dave);
 	}
 }
 

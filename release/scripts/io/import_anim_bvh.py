@@ -22,8 +22,8 @@ import math
 from math import radians
 
 import bpy
-import Mathutils
-from Mathutils import Vector, Euler, Matrix, RotationMatrix, TranslationMatrix
+import mathutils
+from mathutils import Vector, Euler, Matrix
 
 
 class bvh_node_class(object):
@@ -78,12 +78,12 @@ MATRIX_IDENTITY_4x4 = Matrix([1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0,
 
 def eulerRotate(x, y, z, rot_order):
     # Clamp all values between 0 and 360, values outside this raise an error.
-    mats = [RotationMatrix(x, 3, 'X'), RotationMatrix(y, 3, 'Y'), RotationMatrix(z, 3, 'Z')]
+    mats = [Matrix.Rotation(x, 3, 'X'), Matrix.Rotation(y, 3, 'Y'), Matrix.Rotation(z, 3, 'Z')]
     return (MATRIX_IDENTITY_3x3 * mats[rot_order[0]] * (mats[rot_order[1]] * (mats[rot_order[2]]))).to_euler()
 
     # Should work but doesnt!
     '''
-    eul = Euler(x,y,z)
+    eul = Euler((x, y, z))
     eul.order = "XYZ"[rot_order[0]] + "XYZ"[rot_order[1]] + "XYZ"[rot_order[2]]
     return tuple(eul.to_matrix().to_euler())
     '''
@@ -136,7 +136,7 @@ def read_bvh(context, file_path, ROT_MODE='XYZ', GLOBAL_SCALE=1.0):
             #print '%snode: %s, parent: %s' % (len(bvh_nodes_serial) * '  ', name,  bvh_nodes_serial[-1])
 
             lineIdx += 2 # Incriment to the next line (Offset)
-            rest_head_local = Vector(float(file_lines[lineIdx][1]), float(file_lines[lineIdx][2]), float(file_lines[lineIdx][3])) * GLOBAL_SCALE
+            rest_head_local = Vector((float(file_lines[lineIdx][1]), float(file_lines[lineIdx][2]), float(file_lines[lineIdx][3]))) * GLOBAL_SCALE
             lineIdx += 1 # Incriment to the next line (Channels)
 
             # newChannel[Xposition, Yposition, Zposition, Xrotation, Yrotation, Zrotation]
@@ -188,7 +188,7 @@ def read_bvh(context, file_path, ROT_MODE='XYZ', GLOBAL_SCALE=1.0):
         # Account for an end node
         if file_lines[lineIdx][0].lower() == 'end' and file_lines[lineIdx][1].lower() == 'site': # There is somtimes a name after 'End Site' but we will ignore it.
             lineIdx += 2 # Incriment to the next line (Offset)
-            rest_tail = Vector(float(file_lines[lineIdx][1]), float(file_lines[lineIdx][2]), float(file_lines[lineIdx][3])) * GLOBAL_SCALE
+            rest_tail = Vector((float(file_lines[lineIdx][1]), float(file_lines[lineIdx][2]), float(file_lines[lineIdx][3]))) * GLOBAL_SCALE
 
             bvh_nodes_serial[-1].rest_tail_world = bvh_nodes_serial[-1].rest_head_world + rest_tail
             bvh_nodes_serial[-1].rest_tail_local = bvh_nodes_serial[-1].rest_head_local + rest_tail
@@ -267,8 +267,8 @@ def read_bvh(context, file_path, ROT_MODE='XYZ', GLOBAL_SCALE=1.0):
                 #	raise 'error, bvh node has no end and no children. bad file'
 
                 # Removed temp for now
-                rest_tail_world = Vector(0.0, 0.0, 0.0)
-                rest_tail_local = Vector(0.0, 0.0, 0.0)
+                rest_tail_world = Vector((0.0, 0.0, 0.0))
+                rest_tail_local = Vector((0.0, 0.0, 0.0))
                 for bvh_node_child in bvh_node.children:
                     rest_tail_world += bvh_node_child.rest_head_world
                     rest_tail_local += bvh_node_child.rest_head_local
@@ -328,7 +328,7 @@ def bvh_node_dict2objects(context, bvh_nodes, IMPORT_START_FRAME=1, IMPORT_LOOP=
             lx, ly, lz, rx, ry, rz = bvh_node.anim_data[frame_current]
 
             rest_head_local = bvh_node.rest_head_local
-            bvh_node.temp.loc = rest_head_local + Vector(lx, ly, lz)
+            bvh_node.temp.loc = rest_head_local + Vector((lx, ly, lz))
 
             bvh_node.temp.rot = rx, ry, rz
 
@@ -347,7 +347,7 @@ def bvh_node_dict2armature(context, bvh_nodes, ROT_MODE='XYZ', IMPORT_START_FRAM
     scn = context.scene
 #XXX	scn.objects.selected = []
     for ob in scn.objects:
-        ob.selected = False
+        ob.select = False
 
     scn.set_frame(IMPORT_START_FRAME)
 
@@ -356,7 +356,7 @@ def bvh_node_dict2armature(context, bvh_nodes, ROT_MODE='XYZ', IMPORT_START_FRAM
 
     scn.objects.link(arm_ob)
 
-    arm_ob.selected = True
+    arm_ob.select = True
     scn.objects.active = arm_ob
     print(scn.objects.active)
 
@@ -426,7 +426,7 @@ def bvh_node_dict2armature(context, bvh_nodes, ROT_MODE='XYZ', IMPORT_START_FRAM
             bvh_node.parent and\
             bvh_node.parent.temp.name not in ZERO_AREA_BONES and\
             bvh_node.parent.rest_tail_local == bvh_node.rest_head_local:
-                bvh_node.temp.connected = True
+                bvh_node.temp.use_connect = True
 
     # Replace the editbone with the editbone name,
     # to avoid memory errors accessing the editbone outside editmode
@@ -458,13 +458,11 @@ def bvh_node_dict2armature(context, bvh_nodes, ROT_MODE='XYZ', IMPORT_START_FRAM
             pose_bone = pose_bones[bone_name]
             pose_bone.rotation_mode = eul_order_lookup[tuple(bvh_node.rot_order)]
 
-    elif ROT_MODE == 'XYZ':
-        print(2)
+    elif ROT_MODE != 'QUATERNION':
         for pose_bone in pose_bones:
-            pose_bone.rotation_mode = 'XYZ'
+            pose_bone.rotation_mode = ROT_MODE
     else:
         # Quats default
-        print(3)
         pass
 
     context.scene.update()
@@ -520,18 +518,18 @@ def bvh_node_dict2armature(context, bvh_nodes, ROT_MODE='XYZ', IMPORT_START_FRAM
             lx, ly, lz, rx, ry, rz = bvh_node.anim_data[frame_current + 1]
 
             if bvh_node.has_rot:
-                bone_rotation_matrix = Euler(rx, ry, rz).to_matrix().resize4x4()
+                bone_rotation_matrix = Euler((rx, ry, rz)).to_matrix().resize4x4()
                 bone_rotation_matrix = bone_rest_matrix_inv * bone_rotation_matrix * bone_rest_matrix
 
                 if ROT_MODE == 'QUATERNION':
                     pose_bone.rotation_quaternion = bone_rotation_matrix.to_quat()
                 else:
-                    euler = bone_rotation_matrix.to_euler('XYZ', prev_euler[i]) # pose_bone.rotation_mode # TODO, XYZ default for now
+                    euler = bone_rotation_matrix.to_euler(pose_bone.rotation_mode, prev_euler[i])
                     pose_bone.rotation_euler = euler
                     prev_euler[i] = euler
 
             if bvh_node.has_loc:
-                pose_bone.location = (bone_rest_matrix_inv * TranslationMatrix(Vector(lx, ly, lz) - bvh_node.rest_head_local)).translation_part()
+                pose_bone.location = (bone_rest_matrix_inv * Matrix.Translation(Vector((lx, ly, lz)) - bvh_node.rest_head_local)).translation_part()
 
             if bvh_node.has_loc:
                 pose_bone.keyframe_insert("location")
@@ -563,23 +561,23 @@ class BvhImporter(bpy.types.Operator):
     bl_idname = "import_anim.bvh"
     bl_label = "Import BVH"
 
-    path = StringProperty(name="File Path", description="File path used for importing the OBJ file", maxlen=1024, default="")
+    filepath = StringProperty(name="File Path", description="Filepath used for importing the OBJ file", maxlen=1024, default="")
     scale = FloatProperty(name="Scale", description="Scale the BVH by this value", min=0.0001, max=1000000.0, soft_min=0.001, soft_max=100.0, default=0.1)
     frame_start = IntProperty(name="Start Frame", description="Starting frame for the animation", default=1)
     loop = BoolProperty(name="Loop", description="Loop the animation playback", default=False)
     rotate_mode = EnumProperty(items=(
             ('QUATERNION', "Quaternion", "Convert rotations to quaternions"),
-            # ('NATIVE', "Euler (Native)", "Use the rotation order defined in the BVH file"),
+            ('NATIVE', "Euler (Native)", "Use the rotation order defined in the BVH file"),
             ('XYZ', "Euler (XYZ)", "Convert rotations to euler XYZ"),
-            # ('XZY', "Euler (XZY)", "Convert rotations to euler XZY"),
-            # ('YXZ', "Euler (YXZ)", "Convert rotations to euler YXZ"),
-            # ('YZX', "Euler (YZX)", "Convert rotations to euler YZX"),
-            # ('ZXY', "Euler (ZXY)", "Convert rotations to euler ZXY"),
-            # ('ZYX', "Euler (ZYX)", "Convert rotations to euler ZYX")),
+            ('XZY', "Euler (XZY)", "Convert rotations to euler XZY"),
+            ('YXZ', "Euler (YXZ)", "Convert rotations to euler YXZ"),
+            ('YZX', "Euler (YZX)", "Convert rotations to euler YZX"),
+            ('ZXY', "Euler (ZXY)", "Convert rotations to euler ZXY"),
+            ('ZYX', "Euler (ZYX)", "Convert rotations to euler ZYX"),
             ),
                 name="Rotation",
                 description="Rotation conversion.",
-                default='QUATERNION')
+                default='NATIVE')
 
     def execute(self, context):
         # print("Selected: " + context.active_object.name)
@@ -587,7 +585,7 @@ class BvhImporter(bpy.types.Operator):
         t1 = time.time()
         print('\tparsing bvh...', end="")
 
-        bvh_nodes = read_bvh(context, self.properties.path,
+        bvh_nodes = read_bvh(context, self.properties.filepath,
                 ROT_MODE=self.properties.rotate_mode,
                 GLOBAL_SCALE=self.properties.scale)
 
@@ -614,12 +612,10 @@ def menu_func(self, context):
 
 
 def register():
-    bpy.types.register(BvhImporter)
     bpy.types.INFO_MT_file_import.append(menu_func)
 
 
 def unregister():
-    bpy.types.unregister(BvhImporter)
     bpy.types.INFO_MT_file_import.remove(menu_func)
 
 if __name__ == "__main__":

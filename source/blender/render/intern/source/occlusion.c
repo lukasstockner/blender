@@ -660,7 +660,7 @@ static OcclusionTree *occ_tree_build(Render *re)
 	tree->doindirect= (re->wrld.ao_indirect_energy > 0.0f && re->wrld.ao_indirect_bounces > 0);
 
 	/* allocation */
-	tree->arena= BLI_memarena_new(0x8000 * sizeof(OccNode));
+	tree->arena= BLI_memarena_new(0x8000 * sizeof(OccNode), "occ tree arena");
 	BLI_memarena_use_calloc(tree->arena);
 
 	if(re->wrld.aomode & WO_AOCACHE)
@@ -1390,8 +1390,7 @@ static void sample_occ_tree(Render *re, OcclusionTree *tree, OccFace *exclude, f
 	if(onlyshadow)
 		envcolor= WO_AOPLAIN;
 
-	VECCOPY(nn, n);
-	negate_v3(nn);
+	negate_v3_v3(nn, n);
 
 	occ_lookup(tree, thread, exclude, co, nn, &occ, (tree->doindirect)? rad: NULL, (env && envcolor)? bn: NULL);
 

@@ -37,9 +37,6 @@ struct Scene;
 struct Group;
 struct Text;
 
-// for Sound3D
-#include "DNA_sound_types.h"
-
 /* ****************** ACTUATORS ********************* */
 
 /* unused now, moved to editobjectactuator in 2.02. Still needed for dna */
@@ -60,6 +57,18 @@ typedef struct bActionActuator {
 	short	strideaxis;		/* Displacement axis */
 	float	stridelength;	/* Displacement incurred by cycle */ // not in use
 } bActionActuator;												
+
+typedef struct Sound3D
+{
+	float min_gain;
+	float max_gain;
+	float reference_distance;
+	float max_distance;
+	float rolloff_factor;
+	float cone_inner_angle;
+	float cone_outer_angle;
+	float cone_outer_gain;
+} Sound3D;
 
 typedef struct bSoundActuator {
 	short flag, sndnr;
@@ -95,7 +104,7 @@ typedef struct bSceneActuator {
 typedef struct bPropertyActuator {
 	int pad, type;
 	char name[32], value[32];
-	struct Object *ob; // not in use anymore
+	struct Object *ob;
 } bPropertyActuator;
 
 typedef struct bObjectActuator {
@@ -236,13 +245,6 @@ typedef struct bActuator {
 	
 } bActuator;
 
-typedef struct FreeCamera {
-	float mass, accelleration;
-	float maxspeed, maxrotspeed,  maxtiltspeed;
-	int flag;
-	float rotdamp, tiltdamp, speeddamp, pad;
-} FreeCamera;
-
 /* objectactuator->flag */
 #define ACT_FORCE_LOCAL			1
 #define ACT_TORQUE_LOCAL		2
@@ -351,6 +353,7 @@ typedef struct FreeCamera {
 #define ACT_PROP_TOGGLE		3
 
 /* constraint flag */
+#define ACT_CONST_NONE		0
 #define ACT_CONST_LOCX		1
 #define ACT_CONST_LOCY		2
 #define ACT_CONST_LOCZ		4
@@ -496,6 +499,10 @@ typedef struct FreeCamera {
 #define ACT_STATE_ADD		1
 #define ACT_STATE_REMOVE	2
 #define ACT_STATE_CHANGE	3
+
+/* cameraactuator->axis */
+#define ACT_CAMERA_X		(float)'x'
+#define ACT_CAMERA_Y		(float)'y'
 
 #endif
 

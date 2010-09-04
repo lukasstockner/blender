@@ -53,7 +53,7 @@ static void cineon_conversion_parameters(LogImageByteConversionParameters *param
 	
 	params->blackPoint = 95;
 	params->whitePoint = 685;
-	params->gamma = 1.7f;
+	params->gamma = 1.0f;
 	params->doLogarithm = 0;
 	
 }
@@ -186,7 +186,7 @@ short imb_savecineon(struct ImBuf *buf, char *myfile, int flags)
 }
 
  
-int imb_is_cineon(void *buf)
+int imb_is_cineon(unsigned char *buf)
 {
 	return cineonIsMemFileCineon(buf);
 }
@@ -203,7 +203,7 @@ short imb_save_dpx(struct ImBuf *buf, char *myfile, int flags)
 	return imb_save_dpx_cineon(buf, myfile, 0, flags);
 }
 
-int imb_is_dpx(void *buf)
+int imb_is_dpx(unsigned char *buf)
 {
 	return dpxIsMemFileCineon(buf);
 }

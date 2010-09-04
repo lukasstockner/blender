@@ -36,6 +36,14 @@ struct Ipo;
 struct Key;
 struct MDeformVert;
 
+typedef struct EditLatt {
+	struct Lattice *latt;
+
+	int shapenr;
+
+	char pad[4];
+} EditLatt;
+
 typedef struct Lattice {
 	ID id;
 	
@@ -52,12 +60,13 @@ typedef struct Lattice {
 	struct Key *key;
 	
 	struct MDeformVert *dvert;
+	char vgroup[32]; /* multiply the influence */
 	
 	/* used while deforming, always free and NULL after use */
 	float *latticedata;
 	float latmat[4][4];
 	
-	struct Lattice *editlatt;
+	struct EditLatt *editlatt;
 } Lattice;
 
 /* ***************** LATTICE ********************* */

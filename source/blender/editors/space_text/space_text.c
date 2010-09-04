@@ -38,7 +38,6 @@
 #include "BLI_math.h"
 #include "BLI_rand.h"
 
-#include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_screen.h"
 
@@ -118,15 +117,13 @@ static void text_listener(ScrArea *sa, wmNotifier *wmn)
 	/* context changes */
 	switch(wmn->category) {
 		case NC_TEXT:
-			if(!wmn->reference || wmn->reference == st->text) {
+			if(!wmn->reference || wmn->reference == st->text || wmn->data == ND_DISPLAY || wmn->action == NA_EDITED) {
 				ED_area_tag_redraw(sa);
 
 				if(wmn->action == NA_EDITED)
 					if(st->text)
 						text_update_edited(st->text);
 			}
-			else if(wmn->data == ND_DISPLAY)
-				ED_area_tag_redraw(sa);
 
 			break;
 		case NC_SPACE:
@@ -217,19 +214,19 @@ static void text_keymap(struct wmKeyConfig *keyconf)
 	#endif
 	
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_cycle_int", WHEELUPMOUSE, KM_PRESS, KM_CTRL, 0);
-	RNA_string_set(kmi->ptr, "path", "space_data.font_size");
+	RNA_string_set(kmi->ptr, "data_path", "space_data.font_size");
 	RNA_boolean_set(kmi->ptr, "reverse", 0);
 	
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_cycle_int", WHEELDOWNMOUSE, KM_PRESS, KM_CTRL, 0);
-	RNA_string_set(kmi->ptr, "path", "space_data.font_size");
+	RNA_string_set(kmi->ptr, "data_path", "space_data.font_size");
 	RNA_boolean_set(kmi->ptr, "reverse", 1);
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_cycle_int", PADPLUSKEY, KM_PRESS, KM_CTRL, 0);
-	RNA_string_set(kmi->ptr, "path", "space_data.font_size");
+	RNA_string_set(kmi->ptr, "data_path", "space_data.font_size");
 	RNA_boolean_set(kmi->ptr, "reverse", 0);
 	
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_cycle_int", PADMINUS, KM_PRESS, KM_CTRL, 0);
-	RNA_string_set(kmi->ptr, "path", "space_data.font_size");
+	RNA_string_set(kmi->ptr, "data_path", "space_data.font_size");
 	RNA_boolean_set(kmi->ptr, "reverse", 1);
 	
 	WM_keymap_add_item(keymap, "TEXT_OT_new", NKEY, KM_PRESS, KM_ALT, 0);
@@ -276,6 +273,8 @@ static void text_keymap(struct wmKeyConfig *keyconf)
 	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move", DOWNARROWKEY, KM_PRESS, 0, 0)->ptr, "type", NEXT_LINE);
 	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move", PAGEUPKEY, KM_PRESS, 0, 0)->ptr, "type", PREV_PAGE);
 	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move", PAGEDOWNKEY, KM_PRESS, 0, 0)->ptr, "type", NEXT_PAGE);
+	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move", HOMEKEY, KM_PRESS, KM_CTRL, 0)->ptr, "type", FILE_TOP);
+	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move", ENDKEY, KM_PRESS, KM_CTRL, 0)->ptr, "type", FILE_BOTTOM);
 
 	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move_select", HOMEKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "type", LINE_BEGIN);
 	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move_select", ENDKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "type", LINE_END);
@@ -287,6 +286,8 @@ static void text_keymap(struct wmKeyConfig *keyconf)
 	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move_select", DOWNARROWKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "type", NEXT_LINE);
 	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move_select", PAGEUPKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "type", PREV_PAGE);
 	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move_select", PAGEDOWNKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "type", NEXT_PAGE);
+	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move_select", HOMEKEY, KM_PRESS, KM_SHIFT|KM_CTRL, 0)->ptr, "type", FILE_TOP);
+	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move_select", ENDKEY, KM_PRESS, KM_SHIFT|KM_CTRL, 0)->ptr, "type", FILE_BOTTOM);
 
 	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_delete", DELKEY, KM_PRESS, 0, 0)->ptr, "type", DEL_NEXT_CHAR);
 	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_delete", DKEY, KM_PRESS, KM_CTRL, 0)->ptr, "type", DEL_NEXT_CHAR);
@@ -307,6 +308,8 @@ static void text_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "TEXT_OT_line_break", RETKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "TEXT_OT_line_break", PADENTER, KM_PRESS, 0, 0);
 
+	WM_keymap_add_menu(keymap, "TEXT_MT_toolbox", RIGHTMOUSE, KM_PRESS, KM_ANY, 0);
+	
 	WM_keymap_add_item(keymap, "TEXT_OT_line_number", KM_TEXTINPUT, KM_ANY, KM_ANY, 0);
 	WM_keymap_add_item(keymap, "TEXT_OT_insert", KM_TEXTINPUT, KM_ANY, KM_ANY, 0); // last!
 }
@@ -334,12 +337,18 @@ static int text_context(const bContext *C, const char *member, bContextDataResul
 static void text_main_area_init(wmWindowManager *wm, ARegion *ar)
 {
 	wmKeyMap *keymap;
+	ListBase *lb;
 	
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_STANDARD, ar->winx, ar->winy);
 	
 	/* own keymap */
 	keymap= WM_keymap_find(wm->defaultconf, "Text", SPACE_TEXT, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
+	
+	/* add drop boxes */
+	lb = WM_dropboxmap_find("Text", SPACE_TEXT, RGN_TYPE_WINDOW);
+	
+	WM_event_add_dropbox_handler(&ar->handlers, lb);
 }
 
 static void text_main_area_draw(const bContext *C, ARegion *ar)
@@ -347,11 +356,9 @@ static void text_main_area_draw(const bContext *C, ARegion *ar)
 	/* draw entirely, view changes should be handled here */
 	SpaceText *st= CTX_wm_space_text(C);
 	//View2D *v2d= &ar->v2d;
-	float col[3];
 	
 	/* clear and setup matrix */
-	UI_GetThemeColor3fv(TH_BACK, col);
-	glClearColor(col[0], col[1], col[2], 0.0);
+	UI_ThemeClearColor(TH_BACK);
 	glClear(GL_COLOR_BUFFER_BIT);
 	
 	// UI_view2d_view_ortho(C, v2d);
@@ -369,6 +376,36 @@ static void text_cursor(wmWindow *win, ScrArea *sa, ARegion *ar)
 {
 	WM_cursor_set(win, BC_TEXTEDITCURSOR);
 }
+
+
+
+/* ************* dropboxes ************* */
+
+static int text_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
+{
+	if(drag->type==WM_DRAG_PATH)
+		if(ELEM(drag->icon, 0, ICON_FILE_BLANK))	/* rule might not work? */
+			return 1;
+	return 0;
+}
+
+static void text_drop_copy(wmDrag *drag, wmDropBox *drop)
+{
+	/* copy drag path to properties */
+	RNA_string_set(drop->ptr, "filepath", drag->path);
+}
+
+/* this region dropbox definition */
+static void text_dropboxes(void)
+{
+	ListBase *lb= WM_dropboxmap_find("Text", SPACE_TEXT, RGN_TYPE_WINDOW);
+	
+	WM_dropbox_add(lb, "TEXT_OT_open", text_drop_poll, text_drop_copy);
+
+}
+
+/* ************* end drop *********** */
+
 
 /****************** header region ******************/
 
@@ -415,6 +452,7 @@ void ED_spacetype_text(void)
 	st->keymap= text_keymap;
 	st->listener= text_listener;
 	st->context= text_context;
+	st->dropboxes = text_dropboxes;
 	
 	/* regions: main window */
 	art= MEM_callocN(sizeof(ARegionType), "spacetype text region");
@@ -429,7 +467,7 @@ void ED_spacetype_text(void)
 	art= MEM_callocN(sizeof(ARegionType), "spacetype text region");
 	art->regionid = RGN_TYPE_UI;
 	art->prefsizex= UI_COMPACT_PANEL_WIDTH;
-	art->keymapflag= ED_KEYMAP_UI|ED_KEYMAP_VIEW2D;
+	art->keymapflag= ED_KEYMAP_UI;
 	
 	art->init= text_properties_area_init;
 	art->draw= text_properties_area_draw;

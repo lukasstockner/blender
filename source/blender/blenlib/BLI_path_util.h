@@ -30,25 +30,62 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef BLI_UTIL_H
-#define BLI_UTIL_H
+#ifndef BLI_PATH_UTIL_H
+#define BLI_PATH_UTIL_H
 
-/* XXX doesn't seem to be used, marded for removal
-#define mallocstructN(x,y,name) (x*)MEM_mallocN((y)* sizeof(x),name)
-#define callocstructN(x,y,name) (x*)MEM_callocN((y)* sizeof(x),name)
-*/
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct ListBase;
 struct direntry;
 
-char *BLI_gethome(void);
-char *BLI_gethome_folder(char *folder_name, int flag);
+char *BLI_getDefaultDocumentFolder(void);
 
-/* BLI_gethome_folder flag */
-#define BLI_GETHOME_LOCAL		1<<1 /* relative location for portable binaries */
-#define BLI_GETHOME_SYSTEM		1<<2 /* system location, or set from the BLENDERPATH env variable (UNIX only) */
-#define BLI_GETHOME_USER		1<<3 /* home folder ~/.blender */
-#define BLI_GETHOME_ALL			(BLI_GETHOME_SYSTEM|BLI_GETHOME_LOCAL|BLI_GETHOME_USER)
+char *BLI_get_folder(int folder_id, char *subfolder);
+char *BLI_get_folder_create(int folder_id, char *subfolder);
+
+/* folder_id */
+
+/* general, will find based on user/local/system priority */
+#define BLENDER_CONFIG				1
+#define BLENDER_DATAFILES			2
+#define BLENDER_SCRIPTS				3
+#define BLENDER_PLUGINS				4
+#define BLENDER_PYTHON				5
+
+/* user-specific */
+#define BLENDER_USER_CONFIG			31
+#define BLENDER_USER_DATAFILES		32
+#define BLENDER_USER_SCRIPTS		33
+#define BLENDER_USER_PLUGINS		34
+#define BLENDER_USER_AUTOSAVE		35
+
+/* system */
+#define BLENDER_SYSTEM_CONFIG		51	/* optional */
+#define BLENDER_SYSTEM_DATAFILES	52
+#define BLENDER_SYSTEM_SCRIPTS		53
+#define BLENDER_SYSTEM_PLUGINS		54
+#define BLENDER_SYSTEM_PYTHON		54
+
+#define BLENDER_TEMP				80
+
+#define BLENDER_USERFOLDER(id) (id >= BLENDER_USER_CONFIG && id <= BLENDER_USER_PLUGINS)
+
+#define BLENDER_STARTUP_FILE	"startup.blend"
+#define BLENDER_BOOKMARK_FILE	"bookmarks.txt"
+#define BLENDER_HISTORY_FILE	"recent-files.txt"
+
+#ifdef WIN32
+#define BLENDER_USER_FORMAT		"%s\\Blender Foundation\\Blender\\%s"
+#define BLENDER_SYSTEM_FORMAT		"%s\\Blender Foundation\\Blender\\%s"
+#elif __APPLE__
+#define BLENDER_USER_FORMAT			"%s/Blender/%s"
+#define BLENDER_SYSTEM_FORMAT			"%s/Blender/%s"
+#else
+#define BLENDER_USER_FORMAT			"%s/.blender/%s"
+#define BLENDER_SYSTEM_FORMAT			"%s/blender/%s"
+#endif
 
 void BLI_setenv(const char *env, const char *val);
 void BLI_setenv_if_new(const char *env, const char* val);
@@ -58,13 +95,16 @@ void BLI_make_exist(char *dir);
 void BLI_make_existing_file(char *name);
 void BLI_split_dirfile(const char *string, char *dir, char *file);
 void BLI_join_dirfile(char *string, const char *dir, const char *file);
+char *BLI_path_basename(char *path);
 int BKE_rebase_path(char *abs, int abs_size, char *rel, int rel_size, const char *base_dir, const char *src_dir, const char *dest_dir);
 void BLI_getlastdir(const char* dir, char *last, int maxlen);
 int BLI_testextensie(const char *str, const char *ext);
+int BLI_testextensie_array(const char *str, const char **ext_array);
+int BLI_replace_extension(char *path, int maxlen, const char *ext);
 void BLI_uniquename(struct ListBase *list, void *vlink, const char defname[], char delim, short name_offs, short len);
 void BLI_newname(char * name, int add);
-int BLI_stringdec(char *string, char *head, char *start, unsigned short *numlen);
-void BLI_stringenc(char *string, char *head, char *start, unsigned short numlen, int pic);
+int BLI_stringdec(const char *string, char *head, char *start, unsigned short *numlen);
+void BLI_stringenc(char *string, const char *head, const char *tail, unsigned short numlen, int pic);
 void BLI_splitdirstring(char *di,char *fi);
 
 /* make sure path separators conform to system one */
@@ -138,17 +178,12 @@ char *get_install_dir(void);
 void BLI_where_is_temp(char *fullname, int usertemp);
 
 
-	/**
-	 * determines the full path to the application bundle on OS X
-	 *
-	 * @return path to application bundle
-	 */
-#ifdef __APPLE__
-char* BLI_getbundle(void);
-#endif
-
 #ifdef WITH_ICONV
 void BLI_string_to_utf8(char *original, char *utf_8, const char *code);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

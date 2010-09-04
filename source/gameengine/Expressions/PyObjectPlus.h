@@ -46,7 +46,7 @@
 #ifndef DISABLE_PYTHON
 #ifdef USE_MATHUTILS
 extern "C" {
-#include "../../blender/python/generic/Mathutils.h" /* so we can have mathutils callbacks */
+#include "../../blender/python/generic/mathutils.h" /* so we can have mathutils callbacks */
 }
 #endif
 
@@ -135,8 +135,8 @@ typedef struct PyObjectPlus_Proxy {
 // leave above line empty (macro)!
 #ifdef WITH_CXX_GUARDEDALLOC
 #define Py_Header __Py_Header \
-  void *operator new( unsigned int num_bytes) { return MEM_mallocN(num_bytes, Type.tp_name); } \
-  void operator delete( void *mem ) { MEM_freeN(mem); } \
+  void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, Type.tp_name); } \
+  void operator delete(void *mem) { MEM_freeN(mem); } \
 
 #else
 #define Py_Header __Py_Header
@@ -144,7 +144,7 @@ typedef struct PyObjectPlus_Proxy {
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #define Py_HeaderPtr __Py_HeaderPtr \
-  void *operator new( unsigned int num_bytes) { return MEM_mallocN(num_bytes, Type.tp_name); } \
+  void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, Type.tp_name); } \
   void operator delete( void *mem ) { MEM_freeN(mem); } \
 
 #else
@@ -319,9 +319,6 @@ typedef struct KX_PYATTRIBUTE_DEF {
 	} m_typeCheck;
 } PyAttributeDef;
 
-#define KX_PYATTRIBUTE_DUMMY(name) \
-	{ name, KX_PYATTRIBUTE_TYPE_DUMMY, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, 0, 0, 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
-
 #define KX_PYATTRIBUTE_BOOL_RW(name,object,field) \
 	{ name, KX_PYATTRIBUTE_TYPE_BOOL, KX_PYATTRIBUTE_RW, 0, 1, 0.f, 0.f, false, false, offsetof(object,field), 0, 1, NULL, NULL, NULL, {&((object *)0)->field, NULL, NULL, NULL, NULL, NULL, NULL} }
 #define KX_PYATTRIBUTE_BOOL_RW_CHECK(name,object,field,function) \
@@ -466,14 +463,15 @@ typedef PyTypeObject * PyParentObject;				// Define the PyParent Object
 
 #define Py_Header \
  public: \
-
+	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:PyObjectPlus"); } \
+	void operator delete( void *mem ) { MEM_freeN(mem); } \
 
 #define Py_HeaderPtr \
  public: \
-
+	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:PyObjectPlusPtr"); } \
+	void operator delete( void *mem ) { MEM_freeN(mem); } \
 
 #endif
-
 
 
 // By making SG_QList the ultimate parent for PyObjectPlus objects, it

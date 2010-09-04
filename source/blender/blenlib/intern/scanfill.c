@@ -35,10 +35,6 @@
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 /* callbacks for errors and interrupts and some goo */
 static void (*BLI_localErrorCallBack)(char*) = NULL;
 static int (*BLI_localInterruptCallBack)(void) = NULL;
@@ -142,7 +138,7 @@ struct mem_elements {
 static void *new_mem_element(int size)
 {
 	int blocksize= 16384;
-	static int offs= 0;		/* the current free adress */
+	static int offs= 0;		/* the current free address */
 	static struct mem_elements *cur= 0;
 	static ListBase lb= {0, 0};
 	void *adr;

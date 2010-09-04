@@ -28,10 +28,6 @@
  * .blend file reading entry point
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include "BLI_storage.h" /* _LARGEFILE_SOURCE */
 
 #include <stdlib.h>
@@ -50,6 +46,7 @@
 
 #include "BKE_main.h"
 #include "BKE_library.h" // for free_main
+#include "BKE_idcode.h"
 #include "BKE_report.h"
 
 #include "BLO_readfile.h"
@@ -65,102 +62,9 @@
 #include "BLI_winstuff.h"
 #endif
 
-	/**
-	 * IDType stuff, I plan to move this
-	 * out into its own file + prefix, and
-	 * make sure all IDType handling goes through
-	 * these routines.
-	 */
-
-typedef struct {
-	unsigned short code;
-	char *name;
-	
-	int flags;
-#define IDTYPE_FLAGS_ISLINKABLE	(1<<0)
-} IDType;
-
-static IDType idtypes[]= {
-	{ ID_AC,		"Action",	IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_AR,		"Armature", IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_BR,		"Brush",	IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_CA,		"Camera",	IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_CU,		"Curve",	IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_GD,		"GPencil",	IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_GR,		"Group",	IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_ID,		"ID",		0}, 
-	{ ID_IM,		"Image",	IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_IP,		"Ipo",		IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_KE,		"Key",		0}, 
-	{ ID_LA,		"Lamp",		IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_LI,		"Library",	0}, 
-	{ ID_LT,		"Lattice",	IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_MA,		"Material", IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_MB,		"Metaball", IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_ME,		"Mesh",		IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_NT,		"NodeTree",	IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_OB,		"Object",	IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_SCE,		"Scene",	IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_SCR,		"Screen",	0}, 
-	{ ID_SEQ,		"Sequence",	0}, 
-	{ ID_SO,		"Sound",	IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_TE,		"Texture",	IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_TXT,		"Text",		IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_VF,		"VFont",	IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_WO,		"World",	IDTYPE_FLAGS_ISLINKABLE}, 
-	{ ID_WV,		"Wave",		0}, 
-};
-static int nidtypes= sizeof(idtypes)/sizeof(idtypes[0]);
-
 /* local prototypes --------------------- */
 void BLO_blendhandle_print_sizes(BlendHandle *, void *); 
 
-
-static IDType *idtype_from_name(char *str) 
-{
-	int i= nidtypes;
-	
-	while (i--)
-		if (BLI_streq(str, idtypes[i].name))
-			return &idtypes[i];
-	
-	return NULL;
-}
-static IDType *idtype_from_code(int code) 
-{
-	int i= nidtypes;
-	
-	while (i--)
-		if (code==idtypes[i].code)
-			return &idtypes[i];
-	
-	return NULL;
-}
-
-static int bheadcode_is_idcode(int code) 
-{
-	return idtype_from_code(code)?1:0;
-}
-
-static int idcode_is_linkable(int code) {
-	IDType *idt= idtype_from_code(code);
-	return idt?(idt->flags&IDTYPE_FLAGS_ISLINKABLE):0;
-}
-
-char *BLO_idcode_to_name(int code) 
-{
-	IDType *idt= idtype_from_code(code);
-	
-	return idt?idt->name:NULL;
-}
-
-int BLO_idcode_from_name(char *name) 
-{
-	IDType *idt= idtype_from_name(name);
-	
-	return idt?idt->code:0;
-}
-	
 	/* Access routines used by filesel. */
 	 
 BlendHandle *BLO_blendhandle_from_file(char *file) 
@@ -233,10 +137,19 @@ LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype)
 	for (bhead= blo_firstbhead(fd); bhead; bhead= blo_nextbhead(fd, bhead)) {
 		if (bhead->code==ofblocktype) {
 			ID *id= (ID*) (bhead+1);
-			if ( (GS(id->name) == ID_MA) || (GS(id->name) == ID_TE)) {
-				new_prv = MEM_callocN(sizeof(PreviewImage), "newpreview");
-				BLI_linklist_prepend(&previews, new_prv);
-				looking = 1;
+			switch(GS(id->name))
+			{
+				case ID_MA: /* fall through */
+				case ID_TE: /* fall through */
+				case ID_IM: /* fall through */
+				case ID_WO: /* fall through */
+				case ID_LA: /* fall through */
+					new_prv = MEM_callocN(sizeof(PreviewImage), "newpreview");
+					BLI_linklist_prepend(&previews, new_prv);
+					looking = 1;
+					break;
+				default:
+					break;
 			}
 		} else if (bhead->code==DATA) {
 			if (looking) {
@@ -287,20 +200,20 @@ LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype)
 LinkNode *BLO_blendhandle_get_linkable_groups(BlendHandle *bh) 
 {
 	FileData *fd= (FileData*) bh;
-	GHash *gathered= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
+	GHash *gathered= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "linkable_groups gh");
 	LinkNode *names= NULL;
 	BHead *bhead;
 	
 	for (bhead= blo_firstbhead(fd); bhead; bhead= blo_nextbhead(fd, bhead)) {
 		if (bhead->code==ENDB) {
 			break;
-		} else if (bheadcode_is_idcode(bhead->code)) {
-			if (idcode_is_linkable(bhead->code)) {
-				char *str= BLO_idcode_to_name(bhead->code);
+		} else if (BKE_idcode_is_valid(bhead->code)) {
+			if (BKE_idcode_is_linkable(bhead->code)) {
+				const char *str= BKE_idcode_to_name(bhead->code);
 				
-				if (!BLI_ghash_haskey(gathered, str)) {
+				if (!BLI_ghash_haskey(gathered, (void *)str)) {
 					BLI_linklist_prepend(&names, strdup(str));
-					BLI_ghash_insert(gathered, str, NULL);
+					BLI_ghash_insert(gathered, (void *)str, NULL);
 				}
 			}
 		}

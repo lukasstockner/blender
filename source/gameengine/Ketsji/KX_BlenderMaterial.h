@@ -79,6 +79,9 @@ public:
 	Image * getImage (unsigned int idx) { 
 		return (idx < MAXTEX && mMaterial) ? mMaterial->img[idx] : NULL; 
 	}
+	unsigned int* getBlendFunc() {
+		return mBlendFunc;
+	}
 	// for ipos
 	void UpdateIPO(
 		MT_Vector4 rgba, MT_Vector3 specrgb,
@@ -88,12 +91,21 @@ public:
 	
 	virtual void Replace_IScene(SCA_IScene *val)
 	{
-		mScene= static_cast<KX_Scene *>(val);
+		if (mBlenderShader)
+		{
+			mScene= static_cast<KX_Scene *>(val);
+			mBlenderShader->SetScene(mScene);
+		}
 	};
 
 #ifndef DISABLE_PYTHON
 	// --------------------------------
 	virtual PyObject* py_repr(void) { return PyUnicode_FromString(mMaterial->matname.ReadPtr()); }
+
+	static PyObject* pyattr_get_shader(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject* pyattr_get_materialIndex(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject* pyattr_get_blending(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int       pyattr_set_blending(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	KX_PYMETHOD_DOC( KX_BlenderMaterial, getShader );
 	KX_PYMETHOD_DOC( KX_BlenderMaterial, getMaterialIndex );

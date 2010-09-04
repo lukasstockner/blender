@@ -6,8 +6,8 @@
 # for keyboard event comparison
 # import GameKeys
 
-# support for Vector(), Matrix() types and advanced functions like ScaleMatrix(...) and RotationMatrix(...)
-# import Mathutils
+# support for Vector(), Matrix() types and advanced functions like Matrix.Scale(...) and Matrix.Rotation(...)
+# import mathutils
 
 # for functions like getWindowWidth(), getWindowHeight()
 # import Rasterizer

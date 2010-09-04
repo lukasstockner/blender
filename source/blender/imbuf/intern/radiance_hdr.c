@@ -29,6 +29,8 @@
  * ***** END GPL LICENSE BLOCK *****
 */
 
+#ifdef WITH_HDR
+
 /* ----------------------------------------------------------------------
   Radiance High Dynamic Range image file IO
   For description and code for reading/writing of radiance hdr files 
@@ -40,17 +42,18 @@
 #ifdef WIN32
 #include <io.h>
 #endif
+
+#include "MEM_guardedalloc.h"
+
 #include "BLI_blenlib.h"
 
 #include "imbuf.h"
-#include "imbuf_patch.h"
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
 #include "IMB_allocimbuf.h"
-#include "IMB_cmap.h"
-#include "IMB_radiance_hdr.h"
+#include "IMB_filetype.h"
 
 /* needed constants */
 #define MINELEN 8
@@ -160,7 +163,7 @@ static void FLOAT2RGBE(fCOLOR fcol, RGBE rgbe)
 
 /* ImBuf read */
 
-int imb_is_a_hdr(void *buf)
+int imb_is_a_hdr(unsigned char *buf)
 {
 	// For recognition, Blender only loads first 32 bytes, so use #?RADIANCE id instead
 	// update: actually, the 'RADIANCE' part is just an optional program name, the magic word is really only the '#?' part
@@ -205,7 +208,6 @@ struct ImBuf *imb_loadhdr(unsigned char *mem, int size, int flags)
 			if (ibuf==NULL) return NULL;
 			ibuf->ftype = RADHDR;
 			ibuf->profile = IB_PROFILE_LINEAR_RGB;
-			ibuf->xorig = ibuf->yorig = 0;
 
 			if (flags & IB_test) return ibuf;
 
@@ -331,7 +333,7 @@ static void writeHeader(FILE *file, int width, int height)
 	fputc(10, file);
 }
 
-short imb_savehdr(struct ImBuf *ibuf, char *name, int flags)
+int imb_savehdr(struct ImBuf *ibuf, char *name, int flags)
 {
 	FILE* file = fopen(name, "wb");
 	float *fp= NULL;
@@ -361,3 +363,4 @@ short imb_savehdr(struct ImBuf *ibuf, char *name, int flags)
 	return 1;
 }
 
+#endif /* WITH_HDR */

@@ -23,6 +23,9 @@ if env['WITH_BF_BINRELOC']:
 if env['WITH_BF_OPENEXR']:
 	defs.append('WITH_OPENEXR')
 
+if env['WITH_BF_TIFF']:
+	defs.append('WITH_TIFF')
+
 if not env['WITH_BF_SDL']:
 	defs.append('DISABLE_SDL')
 
@@ -32,12 +35,15 @@ if env['WITH_BF_PYTHON']:
 		defs.append('_DEBUG')
 else:
 	defs.append('DISABLE_PYTHON')
-
-if env['WITH_BF_FHS']: # /usr -> /usr/share/blender/2.5
-	defs.append('BLENDERPATH=\\"' + os.path.join(env['BF_INSTALLDIR'], 'share', 'blender', env['BF_VERSION']) + '\\"')
 	
 if env['BF_BUILDINFO']:
 	defs.append('BUILD_DATE')
 	defs.append('NAN_BUILDINFO')
+    
+if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'linuxcross', 'win64-vc'):
+    incs += ' ' + env['BF_PTHREADS_INC']
+
+if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'linuxcross', 'win64-vc'):
+	incs += ' ' + env['BF_PTHREADS_INC']
 
 env.BlenderLib ( libname = 'bf_creator', sources = Split(sources), includes = Split(incs), defines = defs, libtype='core', priority = 0 )

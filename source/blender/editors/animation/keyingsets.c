@@ -40,20 +40,14 @@
 #include "BLI_dynstr.h"
 
 #include "DNA_anim_types.h"
-#include "DNA_constraint_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_object_types.h"
 
+#include "BKE_main.h"
 #include "BKE_animsys.h"
-#include "BKE_action.h"
 #include "BKE_context.h"
-#include "BKE_constraint.h"
 #include "BKE_depsgraph.h"
-#include "BKE_fcurve.h"
-#include "BKE_utildefines.h"
-#include "BKE_context.h"
 #include "BKE_report.h"
-#include "BKE_key.h"
-#include "BKE_material.h"
 
 #include "ED_keyframing.h"
 #include "ED_screen.h"
@@ -162,6 +156,10 @@ static int remove_active_keyingset_exec (bContext *C, wmOperator *op)
 	 */
 	if (scene->active_keyingset == 0) {
 		BKE_report(op->reports, RPT_ERROR, "No active Keying Set to remove");
+		return OPERATOR_CANCELLED;
+	}
+	else if (scene->active_keyingset < 0) {
+		BKE_report(op->reports, RPT_ERROR, "Cannot remove built in Keying Set");
 		return OPERATOR_CANCELLED;
 	}
 	else
@@ -284,6 +282,7 @@ void ANIM_OT_keying_set_path_remove (wmOperatorType *ot)
 
 static int add_keyingset_button_exec (bContext *C, wmOperator *op)
 {
+	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	KeyingSet *ks = NULL;
 	PropertyRNA *prop= NULL;
@@ -314,6 +313,10 @@ static int add_keyingset_button_exec (bContext *C, wmOperator *op)
 		ks= BKE_keyingset_add(&scene->keyingsets, "ButtonKeyingSet", flag, keyingflag);
 		
 		scene->active_keyingset= BLI_countlist(&scene->keyingsets);
+	}
+	else if (scene->active_keyingset < 0) {
+		BKE_report(op->reports, RPT_ERROR, "Cannot add property to built in Keying Set");
+		return OPERATOR_CANCELLED;
 	}
 	else
 		ks= BLI_findlink(&scene->keyingsets, scene->active_keyingset-1);
@@ -350,7 +353,7 @@ static int add_keyingset_button_exec (bContext *C, wmOperator *op)
 	
 	if (success) {
 		/* send updates */
-		DAG_ids_flush_update(0);
+		DAG_ids_flush_update(bmain, 0);
 		
 		/* for now, only send ND_KEYS for KeyingSets */
 		WM_event_add_notifier(C, NC_SCENE|ND_KEYINGSET, NULL);
@@ -380,6 +383,7 @@ void ANIM_OT_keyingset_button_add (wmOperatorType *ot)
 
 static int remove_keyingset_button_exec (bContext *C, wmOperator *op)
 {
+	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	KeyingSet *ks = NULL;
 	PropertyRNA *prop= NULL;
@@ -394,6 +398,10 @@ static int remove_keyingset_button_exec (bContext *C, wmOperator *op)
 	 */
 	if (scene->active_keyingset == 0) {
 		BKE_report(op->reports, RPT_ERROR, "No active Keying Set to remove property from");
+		return OPERATOR_CANCELLED;
+	}
+	else if (scene->active_keyingset < 0) {
+		BKE_report(op->reports, RPT_ERROR, "Cannot remove property from built in Keying Set");
 		return OPERATOR_CANCELLED;
 	}
 	else
@@ -428,7 +436,7 @@ static int remove_keyingset_button_exec (bContext *C, wmOperator *op)
 	
 	if (success) {
 		/* send updates */
-		DAG_ids_flush_update(0);
+		DAG_ids_flush_update(bmain, 0);
 		
 		/* for now, only send ND_KEYS for KeyingSets */
 		WM_event_add_notifier(C, NC_SCENE|ND_KEYINGSET, NULL);
@@ -514,20 +522,12 @@ ListBase builtin_keyingsets = {NULL, NULL};
 /* Find KeyingSet type info given a name */
 KeyingSetInfo *ANIM_keyingset_info_find_named (const char name[])
 {
-	KeyingSetInfo *ksi;
-	
 	/* sanity checks */
 	if ((name == NULL) || (name[0] == 0))
 		return NULL;
 		
 	/* search by comparing names */
-	for (ksi = keyingset_type_infos.first; ksi; ksi = ksi->next) {
-		if (strcmp(ksi->idname, name) == 0)
-			return ksi;
-	}
-	
-	/* no matches found */
-	return NULL;
+	return BLI_findstring(&keyingset_type_infos, name, offsetof(KeyingSetInfo, idname));
 }
 
 /* Find builtin KeyingSet by name */
@@ -577,7 +577,7 @@ void ANIM_keyingset_info_register (const bContext *C, KeyingSetInfo *ksi)
 /* Remove the given KeyingSetInfo from the list of type infos, and also remove the builtin set if appropriate */
 void ANIM_keyingset_info_unregister (const bContext *C, KeyingSetInfo *ksi)
 {
-	Scene *scene = CTX_data_scene(C);
+	Main *bmain= CTX_data_main(C);
 	KeyingSet *ks, *ksn;
 	
 	/* find relevant builtin KeyingSets which use this, and remove them */
@@ -588,8 +588,14 @@ void ANIM_keyingset_info_unregister (const bContext *C, KeyingSetInfo *ksi)
 		
 		/* remove if matching typeinfo name */
 		if (strcmp(ks->typeinfo, ksi->idname) == 0) {
+			Scene *scene;
 			BKE_keyingset_free(ks);
-			BLI_freelinkN(&scene->keyingsets, ks);
+			BLI_remlink(&builtin_keyingsets, ks);
+
+			for(scene= bmain->scene.first; scene; scene= scene->id.next)
+				BLI_remlink_safe(&scene->keyingsets, ks);
+
+			MEM_freeN(ks);
 		}
 	}
 	
@@ -906,13 +912,13 @@ int ANIM_apply_keyingset (bContext *C, ListBase *dsources, bAction *act, KeyingS
 				{
 					Object *ob= (Object *)ksp->id;
 					
-					ob->recalc |= OB_RECALC;
+					ob->recalc |= OB_RECALC_ALL; // XXX: only object transforms only?
 				}
 					break;
 			}
 			
 			/* send notifiers for updates (this doesn't require context to work!) */
-			WM_main_add_notifier(NC_ANIMATION|ND_KEYFRAME_EDIT, NULL);
+			WM_main_add_notifier(NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
 		}
 	}
 	

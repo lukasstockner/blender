@@ -28,16 +28,11 @@
  * Windows-posix compatibility layer, windows-specific functions.
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #ifdef WIN32
 
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "MEM_guardedalloc.h"
 
 #include "BLI_path_util.h"
 #include "BLI_string.h"

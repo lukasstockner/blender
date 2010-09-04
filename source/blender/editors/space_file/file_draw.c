@@ -38,20 +38,16 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
-#include "BKE_colortools.h"
 #include "BKE_context.h"
-#include "BKE_screen.h"
 #include "BKE_global.h"
-#include "BKE_utildefines.h"
 
 #include "BLF_api.h"
-
-
 
 #include "IMB_imbuf_types.h"
  
 #include "MEM_guardedalloc.h"
 
+#include "DNA_userdef_types.h"
 
 #include "RNA_access.h"
 
@@ -78,10 +74,6 @@
 
 /* button events */
 enum {
-	B_REDR 	= 0,
-	B_FS_EXEC,
-	B_FS_CANCEL,
-	B_FS_PARENT,
 	B_FS_DIRNAME,
 	B_FS_FILENAME
 } eFile_ButEvents;
@@ -90,9 +82,6 @@ enum {
 static void do_file_buttons(bContext *C, void *arg, int event)
 {
 	switch(event) {
-		case B_FS_PARENT:
-			file_parent_exec(C, NULL); /* file_ops.c */
-			break;
 		case B_FS_FILENAME:
 			file_filename_exec(C, NULL);
 			break;
@@ -129,10 +118,11 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 	const int separator  = 4;
 
 	/* Additional locals. */
-	char  name[20];
+	char  name[32];
 	int loadbutton;
 	int fnumbuttons;
 	int min_x       = 10;
+	int chan_offs	= 0;
 	int available_w = max_x - min_x;
 	int line1_w     = available_w;
 	int line2_w     = available_w;
@@ -151,8 +141,9 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 	/* exception to make space for collapsed region icon */
 	for (artmp=CTX_wm_area(C)->regionbase.first; artmp; artmp=artmp->next) {
 		if (artmp->regiontype == RGN_TYPE_CHANNELS && artmp->flag & RGN_FLAG_HIDDEN) {
-			min_x += 16;
-			available_w -= 16;
+			chan_offs = 16;
+			min_x += chan_offs;
+			available_w -= chan_offs;
 		}
 	}
 	
@@ -182,27 +173,28 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 	/* Text input fields for directory and file. */
 	if (available_w > 0) {
 		but = uiDefBut(block, TEX, B_FS_DIRNAME, "",
-				 min_x, line1_y, line1_w, btn_h, 
+				 min_x, line1_y, line1_w-chan_offs, btn_h, 
 				 params->dir, 0.0, (float)FILE_MAX-1, 0, 0, 
 				 "File path.");
 		uiButSetCompleteFunc(but, autocomplete_directory, NULL);
-		uiDefBut(block, TEX, B_FS_FILENAME, "",
-				 min_x, line2_y, line2_w, btn_h,
+		but = uiDefBut(block, TEX, B_FS_FILENAME, "",
+				 min_x, line2_y, line2_w-chan_offs, btn_h,
 				 params->file, 0.0, (float)FILE_MAXFILE-1, 0, 0, 
 				 "File name.");
+		uiButSetCompleteFunc(but, autocomplete_file, NULL);
 	}
 	
 	/* Filename number increment / decrement buttons. */
 	if (fnumbuttons) {
 		uiBlockBeginAlign(block);
 		but = uiDefIconButO(block, BUT, "FILE_OT_filenum", 0, ICON_ZOOMOUT,
-				min_x + line2_w + separator, line2_y, 
+				min_x + line2_w + separator - chan_offs, line2_y, 
 				btn_fn_w, btn_h, 
 				"Decrement the filename number");    
 		RNA_int_set(uiButGetOperatorPtrRNA(but), "increment", -1); 
 	
 		but = uiDefIconButO(block, BUT, "FILE_OT_filenum", 0, ICON_ZOOMIN, 
-				min_x + line2_w + separator + btn_fn_w, line2_y, 
+				min_x + line2_w + separator + btn_fn_w - chan_offs, line2_y, 
 				btn_fn_w, btn_h, 
 				"Increment the filename number");    
 		RNA_int_set(uiButGetOperatorPtrRNA(but), "increment", 1); 
@@ -334,10 +326,12 @@ static void file_draw_icon(uiBlock *block, char *path, int sx, int sy, int icon,
 
 static void file_draw_string(int sx, int sy, const char* string, float width, int height, int flag)
 {
+	uiStyle *style= U.uistyles.first;
 	int soffs;
 	char fname[FILE_MAXFILE];
 	float sw;
 	float x,y;
+
 
 	BLI_strncpy(fname,string, FILE_MAXFILE);
 	sw = shorten_string(fname, width, flag );
@@ -346,8 +340,9 @@ static void file_draw_string(int sx, int sy, const char* string, float width, in
 	x = (float)(sx);
 	y = (float)(sy-height);
 
-	BLF_position(x, y, 0);
-	BLF_draw(fname);
+	uiStyleFontSet(&style->widget);
+	BLF_position(style->widget.uifont_id, x, y, 0);
+	BLF_draw(style->widget.uifont_id, fname);
 }
 
 void file_calc_previews(const bContext *C, ARegion *ar)
@@ -431,21 +426,25 @@ static void renamebutton_cb(bContext *C, void *arg1, char *oldname)
 	SpaceFile *sfile= (SpaceFile*)CTX_wm_space_data(C);
 	ARegion* ar = CTX_wm_region(C);
 
+#if 0
 	struct direntry *file = (struct direntry *)arg1;
+#endif
 
 	BLI_make_file_string(G.sce, orgname, sfile->params->dir, oldname);
-	BLI_strncpy(filename, file->relname, sizeof(filename));
+	BLI_strncpy(filename, sfile->params->renameedit, sizeof(filename));
 	BLI_make_file_string(G.sce, newname, sfile->params->dir, filename);
 
 	if( strcmp(orgname, newname) != 0 ) {
 		if (!BLI_exists(newname)) {
 			BLI_rename(orgname, newname);
 			/* to make sure we show what is on disk */
+#if 0		/* this is cleared anyway, no need */
+			MEM_freeN(file->relname);
+			file->relname= BLI_strdup(sfile->params->renameedit);
+#endif
 			ED_fileselect_clear(C, sfile);
-		} else {
-			BLI_strncpy(file->relname, oldname, strlen(oldname)+1);
 		}
-		
+
 		ED_region_tag_redraw(ar);
 	}
 }
@@ -516,6 +515,13 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 	numfiles_layout = ED_fileselect_layout_numfiles(layout, ar);
 
+	/* adjust, so the next row is already drawn when scrolling */
+	if (layout->flag & FILE_LAYOUT_HOR) {
+		numfiles_layout += layout->rows;
+	} else {
+		numfiles_layout += layout->columns;
+	}
+
 	for (i=offset; (i < numfiles) && (i<offset+numfiles_layout); ++i)
 	{
 		ED_fileselect_layout_tilepos(layout, i, &sx, &sy);
@@ -533,7 +539,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			int but_width = (FILE_IMGDISPLAY == params->display) ? layout->tile_w : layout->column_widths[COLUMN_NAME];
 
 			uiBut *but = uiDefBut(block, TEX, 1, "", spos, sy-layout->tile_h-3, 
-				but_width, layout->textheight*2, file->relname, 1.0f, (float)FILE_MAX,0,0,"");
+				but_width, layout->textheight*2, sfile->params->renameedit, 1.0f, (float)sizeof(sfile->params->renameedit),0,0,"");
 			uiButSetRenameFunc(but, renamebutton_cb, file);
 			if ( 0 == uiButActiveOnly(C, block, but)) {
 				file->flags &= ~EDITING;
@@ -621,5 +627,4 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	uiDrawBlock(C, block);
 
 }
-
 

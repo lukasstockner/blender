@@ -70,6 +70,7 @@
 		/* mapped with userdef */
 #define WHEELINMOUSE	0x00c
 #define WHEELOUTMOUSE	0x00d
+#define INBETWEEN_MOUSEMOVE	0x011
 
 
 /* SYSTEM : 0x01xx */
@@ -187,6 +188,13 @@
 #define	F10KEY		309
 #define	F11KEY		310
 #define	F12KEY		311
+#define	F13KEY		312
+#define	F14KEY		313
+#define	F15KEY		314
+#define	F16KEY		315
+#define	F17KEY		316
+#define	F18KEY		317
+#define	F19KEY		318
 
 #define	PAUSEKEY	165
 #define	INSERTKEY	166
@@ -206,6 +214,9 @@
 	/* test whether the event is a key on the keyboard */
 #define ISKEYBOARD(event)	(event >=' ' && event <=320)
 
+	/* test whether the event is a modifier key */
+#define ISKEYMODIFIER(event)	((event >= LEFTCTRLKEY && event <= LEFTSHIFTKEY) || event == COMMANDKEY)
+
 	/* test whether the event is a mouse button */
 #define ISMOUSE(event)	(event >= LEFTMOUSE && event <= MOUSEROTATE)
 
@@ -216,7 +227,7 @@
 #define ISTWEAK(event)	(event >= EVT_TWEAK_L && event <= EVT_GESTURE)
 
 /* test whether event type is acceptable as hotkey, excluding modifiers */
-#define ISHOTKEY(event)	((ISKEYBOARD(event) || ISMOUSE(event)) && !(event>=LEFTCTRLKEY && event<=ESCKEY) && !(event>=UNKNOWNKEY && event<=GRLESSKEY))
+#define ISHOTKEY(event)	((ISKEYBOARD(event) || ISMOUSE(event)) && !(event>=LEFTCTRLKEY && event<=LEFTSHIFTKEY) && !(event>=UNKNOWNKEY && event<=GRLESSKEY))
 
 /* **************** BLENDER GESTURE EVENTS ********************* */
 

@@ -73,7 +73,7 @@ static int prefsizx= 0, prefsizy= 0, prefstax= 0, prefstay= 0;
 
 /* XXX this one should correctly check for apple top header...
  done for Cocoa : returns window contents (and not frame) max size*/
-static void wm_get_screensize(int *width_r, int *height_r) 
+void wm_get_screensize(int *width_r, int *height_r)
 {
 	unsigned int uiwidth;
 	unsigned int uiheight;
@@ -258,7 +258,7 @@ void wm_window_title(wmWindowManager *wm, wmWindow *win)
 	}
 	else {
 		
-		/* this is set to 1 if you don't have .B.blend open */
+		/* this is set to 1 if you don't have startup.blend open */
 		if(G.save_over) {
 			char *str= MEM_mallocN(strlen(G.sce) + 16, "title");
 			
@@ -729,7 +729,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr private)
 					CTX_wm_window_set(C, win);
 					
 					WM_operator_properties_create(&props_ptr, "WM_OT_open_mainfile");
-					RNA_string_set(&props_ptr, "path", path);
+					RNA_string_set(&props_ptr, "filepath", path);
 					WM_operator_name_call(C, "WM_OT_open_mainfile", WM_OP_EXEC_DEFAULT, &props_ptr);
 					WM_operator_properties_free(&props_ptr);
 					
@@ -739,21 +739,64 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr private)
 			}
 			case GHOST_kEventDraggingDropDone:
 			{
-				wmEvent event= *(win->eventstate);	/* copy last state, like mouse coords */
+				wmEvent event;
+				GHOST_TEventDragnDropData *ddd= GHOST_GetEventData(evt);
+				int cx, cy, wx, wy;
+
+				
+				/* entering window, update mouse pos */
+				GHOST_GetCursorPosition(g_system, &wx, &wy);
+				
+				GHOST_ScreenToClient(win->ghostwin, wx, wy, &cx, &cy);
+				win->eventstate->x= cx;
+				
+#if defined(__APPLE__) && defined(GHOST_COCOA)
+				//Cocoa already uses coordinates with y=0 at bottom
+				win->eventstate->y= cy;
+#else
+				win->eventstate->y= (win->sizey-1) - cy;
+#endif
+				
+				event= *(win->eventstate);	/* copy last state, like mouse coords */
+				
+				// activate region
+				event.type= MOUSEMOVE;
+				event.prevx= event.x;
+				event.prevy= event.y;
+				
+				wm->winactive= win; /* no context change! c->wm->windrawable is drawable, or for area queues */
+				win->active= 1;
+				
+				wm_event_add(win, &event);
+				
 				
 				/* make blender drop event with custom data pointing to wm drags */
 				event.type= EVT_DROP;
+				event.val= KM_RELEASE;
 				event.custom= EVT_DATA_LISTBASE;
 				event.customdata= &wm->drags;
+				event.customdatafree= 1;
 				
-				printf("Drop detected\n");
+				wm_event_add(win, &event);
+				
+				/* printf("Drop detected\n"); */
 				
 				/* add drag data to wm for paths: */
 				/* need icon type, some dropboxes check for that... see filesel code for this */
-				// WM_event_start_drag(C, icon, WM_DRAG_PATH, void *poin, 0.0);
-				/* void poin should point to string, it makes a copy */
 				
-				wm_event_add(win, &event);
+				if(ddd->dataType == GHOST_kDragnDropTypeFilenames) {
+					GHOST_TStringArray *stra= ddd->data;
+					int a;
+					
+					for(a=0; a<stra->count; a++) {
+						printf("drop file %s\n", stra->strings[a]);
+						WM_event_start_drag(C, 0, WM_DRAG_PATH, stra->strings[a], 0.0);
+						/* void poin should point to string, it makes a copy */
+						break; // only one drop element supported now 
+					}
+				}
+				
+				
 				
 				break;
 			}
@@ -973,6 +1016,18 @@ void WM_clipboard_text_set(char *buf, int selection)
 #else
 	GHOST_putClipboard((GHOST_TInt8*)buf, selection);
 #endif
+}
+
+/* ******************* progress bar **************** */
+
+void WM_progress_set(wmWindow *win, float progress)
+{
+	GHOST_SetProgressBar(win->ghostwin, progress);
+}
+
+void WM_progress_clear(wmWindow *win)
+{
+	GHOST_EndProgressBar(win->ghostwin);
 }
 
 /* ************************************ */

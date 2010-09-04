@@ -33,9 +33,8 @@
 
 #include "DNA_listBase.h"
 #include "DNA_ID.h"
-#include "DNA_gpencil_types.h"
 #include "DNA_view2d_types.h"
-#include "DNA_userdef_types.h"
+#include "DNA_userdef_types.h" /* ThemeWireColor */
 
 struct SpaceLink;
 struct Object;
@@ -154,6 +153,8 @@ typedef enum eMotionPaths_ViewFlag {
 	MOTIONPATH_VIEW_KFRAS		= (1<<1),
 		/* show keyframe/frame numbers */
 	MOTIONPATH_VIEW_KFNOS		= (1<<2),
+		/* find keyframes in whole action (instead of just in matching group name) */
+	MOTIONPATH_VIEW_KFACT		= (1<<3),
 } eMotionPath_ViewFlag;
 
 /* bAnimVizSettings->path_bakeflag */
@@ -344,6 +345,7 @@ typedef struct bPose {
 	void *ikparam;				/* IK solver parameters, structure depends on iksolver */ 
 	
 	bAnimVizSettings avs;		/* settings for visualisation of bone animation */
+	char proxy_act_bone[32];           /*proxy active bone name*/
 } bPose;
 
 
@@ -546,6 +548,9 @@ typedef enum eDopeSheet_FilterFlag {
 	
 		/* NLA-specific filters */
 	ADS_FILTER_NLA_NOACT		= (1<<25),	/* if the AnimData block has no NLA data, don't include to just show Action-line */
+	
+		/* general filtering 3 */
+	ADS_FILTER_INCL_HIDDEN		= (1<<26),	/* include 'hidden' channels too (i.e. those from hidden Objects/Bones) */
 	
 		/* combination filters (some only used at runtime) */
 	ADS_FILTER_NOOBDATA = (ADS_FILTER_NOCAM|ADS_FILTER_NOMAT|ADS_FILTER_NOLAM|ADS_FILTER_NOCUR|ADS_FILTER_NOPART|ADS_FILTER_NOARM),

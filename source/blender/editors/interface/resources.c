@@ -34,10 +34,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include "MEM_guardedalloc.h"
 
 
@@ -275,6 +271,8 @@ char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
 				cp= ts->edge_seam; break;
 			case TH_EDGE_SHARP:
 				cp= ts->edge_sharp; break;
+			case TH_EDGE_CREASE:
+				cp= ts->edge_crease; break;
 			case TH_EDITMESH_ACTIVE:
 				cp= ts->editmesh_active; break;
 			case TH_EDGE_FACESEL:
@@ -311,6 +309,8 @@ char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
 				cp= ts->nurb_sel_vline; break;
 			case TH_ACTIVE_SPLINE:
 				cp= ts->act_spline; break;
+			case TH_LASTSEL_POINT:
+				cp= ts->lastsel_point; break;
 			case TH_HANDLE_FREE:
 				cp= ts->handle_free; break;
 			case TH_HANDLE_AUTO:
@@ -532,6 +532,7 @@ void ui_theme_init_default(void)
 	SETCOL(btheme->tv3d.handle_sel_align, 0xf0, 0x90, 0xa0, 255);
 
 	SETCOL(btheme->tv3d.act_spline, 0xdb, 0x25, 0x12, 255);
+	SETCOL(btheme->tv3d.lastsel_point,  0xff, 0xff, 0xff, 255);
 
 	SETCOL(btheme->tv3d.bone_solid, 200, 200, 200, 255);
 	SETCOL(btheme->tv3d.bone_pose, 80, 200, 255, 80);               // alpha 80 is not meant editable, used for wire+action draw
@@ -942,6 +943,14 @@ void UI_GetColorPtrBlendShade3ubv(char *cp1, char *cp2, char *col, float fac, in
 	col[2] = b;
 }
 
+void UI_ThemeClearColor(int colorid)
+{
+	float col[3];
+	
+	UI_GetThemeColor3fv(colorid, col);
+	glClearColor(col[0], col[1], col[2], 0.0);
+}
+
 void UI_make_axis_color(char *src_col, char *dst_col, char axis)
 {
 	switch(axis)
@@ -970,6 +979,7 @@ void UI_make_axis_color(char *src_col, char *dst_col, char axis)
 /* patching UserDef struct and Themes */
 void init_userdef_do_versions(void)
 {
+	Main *bmain= G.main;
 //	countall();
 	
 	/* the UserDef struct is not corrected with do_versions() .... ugh! */
@@ -988,9 +998,13 @@ void init_userdef_do_versions(void)
 		
 		strcpy(U.tempdir, tmp?tmp:"/tmp/");
 	}
+	if (U.autokey_mode == 0) {
+		/* 'add/replace' but not on */
+		U.autokey_mode = 2;
+	}
 	if (U.savetime <= 0) {
 		U.savetime = 1;
-// XXX		error(".B.blend is buggy, please consider removing it.\n");
+// XXX		error("startup.blend is buggy, please consider removing it.\n");
 	}
 	/* transform widget settings */
 	if(U.tw_hotspot==0) {
@@ -1004,18 +1018,18 @@ void init_userdef_do_versions(void)
 	if(U.flag & USER_CUSTOM_RANGE) 
 		vDM_ColorBand_store(&U.coba_weight); /* signal for derivedmesh to use colorband */
 	
-	if (G.main->versionfile <= 191) {
+	if (bmain->versionfile <= 191) {
 		strcpy(U.plugtexdir, U.textudir);
 		strcpy(U.sounddir, "/");
 	}
 	
 	/* patch to set Dupli Armature */
-	if (G.main->versionfile < 220) {
+	if (bmain->versionfile < 220) {
 		U.dupflag |= USER_DUP_ARM;
 	}
 	
 	/* added seam, normal color, undo */
-	if (G.main->versionfile <= 234) {
+	if (bmain->versionfile <= 234) {
 		bTheme *btheme;
 		
 		U.uiflag |= USER_GLOBALUNDO;
@@ -1038,12 +1052,12 @@ void init_userdef_do_versions(void)
 			}
 		}
 	}
-	if (G.main->versionfile <= 235) {
+	if (bmain->versionfile <= 235) {
 		/* illegal combo... */
 		if (U.flag & USER_LMOUSESELECT) 
 			U.flag &= ~USER_TWOBUTTONMOUSE;
 	}
-	if (G.main->versionfile <= 236) {
+	if (bmain->versionfile <= 236) {
 		bTheme *btheme;
 		/* new space type */
 		for(btheme= U.themes.first; btheme; btheme= btheme->next) {
@@ -1060,7 +1074,7 @@ void init_userdef_do_versions(void)
 			}
 		}
 	}
-	if (G.main->versionfile <= 237) {
+	if (bmain->versionfile <= 237) {
 		bTheme *btheme;
 		/* bone colors */
 		for(btheme= U.themes.first; btheme; btheme= btheme->next) {
@@ -1071,7 +1085,7 @@ void init_userdef_do_versions(void)
 			}
 		}
 	}
-	if (G.main->versionfile <= 238) {
+	if (bmain->versionfile <= 238) {
 		bTheme *btheme;
 		/* bone colors */
 		for(btheme= U.themes.first; btheme; btheme= btheme->next) {
@@ -1082,7 +1096,7 @@ void init_userdef_do_versions(void)
 			}
 		}
 	}
-	if (G.main->versionfile <= 239) {
+	if (bmain->versionfile <= 239) {
 		bTheme *btheme;
 		
 		for(btheme= U.themes.first; btheme; btheme= btheme->next) {
@@ -1096,7 +1110,7 @@ void init_userdef_do_versions(void)
 		}
 		if(U.obcenter_dia==0) U.obcenter_dia= 6;
 	}
-	if (G.main->versionfile <= 241) {
+	if (bmain->versionfile <= 241) {
 		bTheme *btheme;
 		for(btheme= U.themes.first; btheme; btheme= btheme->next) {
 			/* Node editor theme, check for alpha==0 is safe, then color was never set */
@@ -1129,7 +1143,7 @@ void init_userdef_do_versions(void)
 		}
 		
 		/* set defaults for 3D View rotating axis indicator */ 
-		/* since size can't be set to 0, this indicates it's not saved in .B.blend */
+		/* since size can't be set to 0, this indicates it's not saved in startup.blend */
 		if (U.rvisize == 0) {
 			U.rvisize = 15;
 			U.rvibright = 8;
@@ -1137,7 +1151,7 @@ void init_userdef_do_versions(void)
 		}
 		
 	}
-	if (G.main->versionfile <= 242) {
+	if (bmain->versionfile <= 242) {
 		bTheme *btheme;
 		
 		for(btheme= U.themes.first; btheme; btheme= btheme->next) {
@@ -1155,11 +1169,11 @@ void init_userdef_do_versions(void)
 			}
 		}
 	}
-	if (G.main->versionfile <= 243) {
+	if (bmain->versionfile <= 243) {
 		/* set default number of recently-used files (if not set) */
 		if (U.recent_files == 0) U.recent_files = 10;
 	}
-	if (G.main->versionfile < 245 || (G.main->versionfile == 245 && G.main->subversionfile < 3)) {
+	if (bmain->versionfile < 245 || (bmain->versionfile == 245 && bmain->subversionfile < 3)) {
 		bTheme *btheme;
 		for(btheme= U.themes.first; btheme; btheme= btheme->next) {
 			SETCOL(btheme->tv3d.editmesh_active, 255, 255, 255, 128);
@@ -1167,7 +1181,7 @@ void init_userdef_do_versions(void)
 		if(U.coba_weight.tot==0)
 			init_colorband(&U.coba_weight, 1);
 	}
-	if ((G.main->versionfile < 245) || (G.main->versionfile == 245 && G.main->subversionfile < 11)) {
+	if ((bmain->versionfile < 245) || (bmain->versionfile == 245 && bmain->subversionfile < 11)) {
 		bTheme *btheme;
 		for (btheme= U.themes.first; btheme; btheme= btheme->next) {
 			/* these should all use the same colour */
@@ -1180,7 +1194,7 @@ void init_userdef_do_versions(void)
 			SETCOL(btheme->ttime.cframe, 0x60, 0xc0, 0x40, 255);
 		}
 	}
-	if ((G.main->versionfile < 245) || (G.main->versionfile == 245 && G.main->subversionfile < 13)) {
+	if ((bmain->versionfile < 245) || (bmain->versionfile == 245 && bmain->subversionfile < 13)) {
 		bTheme *btheme;
 		for (btheme= U.themes.first; btheme; btheme= btheme->next) {
 			/* action channel groups (recolor anyway) */
@@ -1253,10 +1267,10 @@ void init_userdef_do_versions(void)
 			}
 		}
 	}
-	if ((G.main->versionfile < 245) || (G.main->versionfile == 245 && G.main->subversionfile < 16)) {
+	if ((bmain->versionfile < 245) || (bmain->versionfile == 245 && bmain->subversionfile < 16)) {
 		U.flag |= USER_ADD_VIEWALIGNED|USER_ADD_EDITMODE;
 	}
-	if ((G.main->versionfile < 247) || (G.main->versionfile == 247 && G.main->subversionfile <= 2)) {
+	if ((bmain->versionfile < 247) || (bmain->versionfile == 247 && bmain->subversionfile <= 2)) {
 		bTheme *btheme;
 		
 		/* adjust themes */
@@ -1278,7 +1292,7 @@ void init_userdef_do_versions(void)
 			SETCOL(btheme->tseq.vertex_select, col[0], col[1], col[2], 255);
 		}
 	}
-	if (G.main->versionfile < 250) {
+	if (bmain->versionfile < 250) {
 		bTheme *btheme;
 		
 		for(btheme= U.themes.first; btheme; btheme= btheme->next) {
@@ -1319,7 +1333,7 @@ void init_userdef_do_versions(void)
 		U.ipo_new= BEZT_IPO_BEZ;
 	}
 	
-	if (G.main->versionfile < 250 || (G.main->versionfile == 250 && G.main->subversionfile < 1)) {
+	if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 1)) {
 		bTheme *btheme;
 
 		for(btheme= U.themes.first; btheme; btheme= btheme->next) {
@@ -1342,7 +1356,7 @@ void init_userdef_do_versions(void)
 		}
 	}
 
-	if (G.main->versionfile < 250 || (G.main->versionfile == 250 && G.main->subversionfile < 3)) {
+	if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 3)) {
 		/* new audio system */
 		if(U.audiochannels == 0)
 			U.audiochannels = 2;
@@ -1360,10 +1374,10 @@ void init_userdef_do_versions(void)
 			U.audiorate = 44100;
 	}
 
-	if (G.main->versionfile < 250 || (G.main->versionfile == 250 && G.main->subversionfile < 5))
+	if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 5))
 		U.gameflags |= USER_DISABLE_VBO;
 	
-	if (G.main->versionfile < 250 || (G.main->versionfile == 250 && G.main->subversionfile < 8)) {
+	if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 8)) {
 		wmKeyMap *km;
 		
 		for(km=U.keymaps.first; km; km=km->next) {
@@ -1403,16 +1417,16 @@ void init_userdef_do_versions(void)
 				strcpy(km->idname, "Property Editor");
 		}
 	}
-	if (G.main->versionfile < 250 || (G.main->versionfile == 250 && G.main->subversionfile < 16)) {
+	if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 16)) {
 		if(U.wmdrawmethod == USER_DRAW_TRIPLE)
 			U.wmdrawmethod = USER_DRAW_AUTOMATIC;
 	}
 	
-	if (G.main->versionfile < 252 || (G.main->versionfile == 252 && G.main->subversionfile < 3)) {
+	if (bmain->versionfile < 252 || (bmain->versionfile == 252 && bmain->subversionfile < 3)) {
 		if (U.flag & USER_LMOUSESELECT) 
 			U.flag &= ~USER_TWOBUTTONMOUSE;
 	}
-	if (G.main->versionfile < 252 || (G.main->versionfile == 252 && G.main->subversionfile < 4)) {
+	if (bmain->versionfile < 252 || (bmain->versionfile == 252 && bmain->subversionfile < 4)) {
 		bTheme *btheme;
 		
 		/* default new handle type is auto handles */
@@ -1440,9 +1454,42 @@ void init_userdef_do_versions(void)
 			SETCOL(btheme->tipo.handle_sel_auto, 0xf0, 0xff, 0x40, 255);
 			SETCOL(btheme->tipo.handle_sel_vect, 0x40, 0xc0, 0x30, 255);
 			SETCOL(btheme->tipo.handle_sel_align, 0xf0, 0x90, 0xa0, 255);
+			
+			/* edge crease */
+			SETCOLF(btheme->tv3d.edge_crease, 0.8, 0, 0.6, 1.0);
 		}
 	}
+	if (bmain->versionfile <= 252) {
+		bTheme *btheme;
 
+		/* init new curve colors */
+		for(btheme= U.themes.first; btheme; btheme= btheme->next) {
+			if (btheme->tv3d.lastsel_point[3] == 0)
+				SETCOL(btheme->tv3d.lastsel_point, 0xff, 0xff, 0xff, 255);
+		}
+	}
+	if (bmain->versionfile < 252 || (bmain->versionfile == 252 && bmain->subversionfile < 5)) {
+		bTheme *btheme;
+		
+		/* interface_widgets.c */
+		struct uiWidgetColors wcol_progress= {
+			{0, 0, 0, 255},
+			{190, 190, 190, 255},
+			{100, 100, 100, 180},
+			{68, 68, 68, 255},
+			
+			{0, 0, 0, 255},
+			{255, 255, 255, 255},
+			
+			0,
+			5, -5
+		};
+		
+		for(btheme= U.themes.first; btheme; btheme= btheme->next) {
+			/* init progress bar theme */
+			btheme->tui.wcol_progress= wcol_progress;
+		}
+	}
 	
 	/* GL Texture Garbage Collection (variable abused above!) */
 	if (U.textimeout == 0) {
@@ -1475,6 +1522,3 @@ void init_userdef_do_versions(void)
 // XXX	reset_autosave();
 
 }
-
-
-

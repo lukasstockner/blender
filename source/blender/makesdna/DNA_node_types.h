@@ -186,10 +186,10 @@ typedef struct bNodeTree {
 	int pad2[2];
 	
 	/* callbacks */
-	void (*timecursor)(void *, int nr);
+	void (*progress)(void *, float progress);
 	void (*stats_draw)(void *, char *str);
 	int (*test_break)(void *);
-	void *tbh, *tch, *sdh;
+	void *tbh, *prh, *sdh;
 	
 } bNodeTree;
 
@@ -255,6 +255,7 @@ typedef struct NodeChroma {
 
 typedef struct NodeTwoXYs {
 	short x1, x2, y1, y2;
+   float fac_x1, fac_x2, fac_y1, fac_y2;
 } NodeTwoXYs;
 
 typedef struct NodeTwoFloats {
@@ -311,6 +312,10 @@ typedef struct NodeColorBalance {
 	float lift[3];
 	float gamma[3];
 	float gain[3];
+
+	/* temp storage for inverted lift */
+	float lift_lgg[3];
+	float gamma_inv[3];
 } NodeColorBalance;
 
 typedef struct NodeColorspill {

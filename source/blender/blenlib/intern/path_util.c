@@ -44,13 +44,9 @@
 #include "BLI_storage_types.h"
 
 #include "BKE_utildefines.h"
+#include "BKE_blender.h"	// BLENDER_VERSION
 
-
-
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
+#include "GHOST_Path-api.h"
 
 
 #ifdef WIN32
@@ -67,11 +63,6 @@
 
 #else /* non windows */
 
-#ifdef __APPLE__
-#include <sys/param.h>
-#include <CoreFoundation/CoreFoundation.h>
-#endif
-
 #ifdef __linux__
 #include "binreloc.h"
 #endif
@@ -81,10 +72,11 @@
 /* local */
 
 static int add_win32_extension(char *name);
+static char *blender_version_decimal(void);
 
 /* implementation */
 
-int BLI_stringdec(char *string, char *head, char *start, unsigned short *numlen)
+int BLI_stringdec(const char *string, char *head, char *tail, unsigned short *numlen)
 {
 	unsigned short len, len2, lenlslash = 0, nums = 0, nume = 0;
 	short i, found = 0;
@@ -111,8 +103,8 @@ int BLI_stringdec(char *string, char *head, char *start, unsigned short *numlen)
 			if (found) break;
 		}
 	}
-	if (found){
-		if (start) strcpy(start,&string[nume+1]);
+	if (found) {
+		if (tail) strcpy(tail, &string[nume+1]);
 		if (head) {
 			strcpy(head,string);
 			head[nums]=0;
@@ -120,22 +112,22 @@ int BLI_stringdec(char *string, char *head, char *start, unsigned short *numlen)
 		if (numlen) *numlen = nume-nums+1;
 		return ((int)atoi(&(string[nums])));
 	}
-	if (start) strcpy(start, string + len);
+	if (tail) strcpy(tail, string + len);
 	if (head) {
 		strncpy(head, string, len);
-		head[len] = 0;
+		head[len] = '\0';
 	}
 	if (numlen) *numlen=0;
 	return 0;
 }
 
 
-void BLI_stringenc(char *string, char *head, char *start, unsigned short numlen, int pic)
+void BLI_stringenc(char *string, const char *head, const char *tail, unsigned short numlen, int pic)
 {
 	char fmtstr[16]="";
 	if(pic < 0) pic= 0;
 	sprintf(fmtstr, "%%s%%.%dd%%s", numlen);
-	sprintf(string, fmtstr, head, pic, start);
+	sprintf(string, fmtstr, head, pic, tail);
 }
 
 
@@ -358,8 +350,6 @@ void BLI_cleanup_file(const char *relabase, char *dir)
 
 void BLI_path_rel(char *file, const char *relfile)
 {
-	char * p;
-	char * q;
 	char * lslash;
 	char temp[FILE_MAXDIR+FILE_MAXFILE];
 	char res[FILE_MAXDIR+FILE_MAXFILE];
@@ -374,7 +364,7 @@ void BLI_path_rel(char *file, const char *relfile)
 	if (strlen(relfile) > 2 && relfile[1] != ':') {
 		char* ptemp;
 		/* fix missing volume name in relative base,
-		   can happen with old .Blog files */
+		   can happen with old recent-files.txt files */
 		get_default_root(temp);
 		ptemp = &temp[2];
 		if (relfile[0] != '\\' && relfile[0] != '/') {
@@ -407,11 +397,18 @@ void BLI_path_rel(char *file, const char *relfile)
 	{	
 		/* find the prefix of the filename that is equal for both filenames.
 		   This is replaced by the two slashes at the beginning */
-		p = temp;
-		q = file;
-		while (*p == *q) {
+		char *p= temp;
+		char *q= file;
+
+		while ((*p == *q)) {
 			++p; ++q;
+			/* dont search beyond the end of the string
+			 * in the rare case they match */
+			if ((*p=='\0') || (*q=='\0')) {
+				break;
+			}
 		}
+
 		/* we might have passed the slash when the beginning of a dir matches 
 		   so we rewind. Only check on the actual filename
 		*/
@@ -589,7 +586,7 @@ int BLI_path_abs(char *path, const char *basepath)
 		BLI_strncpy(tmp, path, FILE_MAX);
 	}
 #else
-	BLI_strncpy(tmp, path, FILE_MAX);
+	BLI_strncpy(tmp, path, sizeof(tmp));
 	
 	/* Check for loading a windows path on a posix system
 	 * in this case, there is no use in trying C:/ since it 
@@ -606,7 +603,7 @@ int BLI_path_abs(char *path, const char *basepath)
 	
 #endif
 
-	BLI_strncpy(base, basepath, FILE_MAX);
+	BLI_strncpy(base, basepath, sizeof(base));
 	
 	BLI_cleanup_file(NULL, base);
 	
@@ -625,21 +622,23 @@ int BLI_path_abs(char *path, const char *basepath)
 		char *lslash= BLI_last_slash(base);
 		if (lslash) {
 			int baselen= (int) (lslash-base) + 1;
-			/* use path for for temp storage here, we copy back over it right away */
+			/* use path for temp storage here, we copy back over it right away */
 			BLI_strncpy(path, tmp+2, FILE_MAX);
 			
 			memcpy(tmp, base, baselen);
-			strcpy(tmp+baselen, path);
-			strcpy(path, tmp);
+			BLI_strncpy(tmp+baselen, path, sizeof(tmp)-baselen);
+			BLI_strncpy(path, tmp, FILE_MAX);
 		} else {
-			strcpy(path, tmp+2);
+			BLI_strncpy(path, tmp+2, FILE_MAX);
 		}
 	} else {
-		strcpy(path, tmp);
+		BLI_strncpy(path, tmp, FILE_MAX);
 	}
 	
 	if (path[0]!='\0') {
 		if ( path[strlen(path)-1]=='/') {
+			/* remove the '/' so we avoid BLI_cleanup_dir adding an extra \ in WIN32 */
+			path[strlen(path)-1] = '\0';
 			BLI_cleanup_dir(NULL, path);
 		} else {
 			BLI_cleanup_file(NULL, path);
@@ -702,7 +701,7 @@ int BLI_path_cwd(char *path)
 }
 
 
-/* copy di to fi, filename only */
+/* 'di's filename component is moved into 'fi', di is made a dir path */
 void BLI_splitdirstring(char *di, char *fi)
 {
 	char *lslash= BLI_last_slash(di);
@@ -735,179 +734,332 @@ void BLI_getlastdir(const char* dir, char *last, int maxlen)
 	}
 }
 
-char *BLI_gethome(void) {
+/* This is now only used to really get the user's default document folder */
+/* On Windows I chose the 'Users/<MyUserName>/Documents' since it's used
+   as default location to save documents */
+char *BLI_getDefaultDocumentFolder(void) {
 	#if !defined(WIN32)
 		return getenv("HOME");
 
 	#else /* Windows */
 		char * ret;
-		static char dir[512];
-		static char appdatapath[MAXPATHLEN];
+		static char documentfolder[MAXPATHLEN];
 		HRESULT hResult;
 
 		/* Check for %HOME% env var */
 
 		ret = getenv("HOME");
 		if(ret) {
-			sprintf(dir, "%s\\.blender", ret);
-			if (BLI_exists(dir)) return dir;
+			if (BLI_is_dir(ret)) return ret;
 		}
-
-		/* else, check install dir (path containing blender.exe) */
-
-		BLI_getInstallationDir(dir);
-
-		if (BLI_exists(dir))
-		{
-			strcat(dir,"\\.blender");
-			if (BLI_exists(dir)) return(dir);
-		}
-
 				
-		/* add user profile support for WIN 2K / NT */
-		hResult = SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, appdatapath);
+		/* add user profile support for WIN 2K / NT.
+		 * This is %APPDATA%, which translates to either
+		 * %USERPROFILE%\Application Data or since Vista
+		 * to %USERPROFILE%\AppData\Roaming
+		 */
+		hResult = SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL, SHGFP_TYPE_CURRENT, documentfolder);
 		
 		if (hResult == S_OK)
 		{
-			if (BLI_exists(appdatapath)) { /* from fop, also below... */
-				sprintf(dir, "%s\\Blender Foundation\\Blender", appdatapath);
-				BLI_recurdir_fileops(dir);
-				if (BLI_exists(dir)) {
-					strcat(dir,"\\.blender");
-					if(BLI_exists(dir)) return(dir);
-				}
-			}
-			hResult = SHGetFolderPath(NULL, CSIDL_COMMON_APPDATA, NULL, SHGFP_TYPE_CURRENT, appdatapath);
-			if (hResult == S_OK)
-			{
-				if (BLI_exists(appdatapath)) 
-				{ /* from fop, also below... */
-					sprintf(dir, "%s\\Blender Foundation\\Blender", appdatapath);
-					BLI_recurdir_fileops(dir);
-					if (BLI_exists(dir)) {
-						strcat(dir,"\\.blender");
-						if(BLI_exists(dir)) return(dir);
-					}
-				}
-			}
+			if (BLI_is_dir(documentfolder)) return documentfolder;
 		}
 		
-		return "C:\\Temp";	/* sheesh! bad, bad, bad! (aphex) */
+		return NULL;
 	#endif
 }
 
-/* this function returns the path to a blender folder, if it exists
- * utility functions for BLI_gethome_folder */
+/* NEW stuff, to be cleaned up when fully migrated */
+/* ************************************************************* */
+/* ************************************************************* */
 
-/* #define PATH_DEBUG */ /* for testing paths that are checked */
+// #define PATH_DEBUG2
 
-static int test_data_path(char *targetpath, char *path_base, char *path_sep, char *folder_name)
+static char *blender_version_decimal(void)
 {
-	char tmppath[FILE_MAXDIR];
+	static char version_str[5];
+	sprintf(version_str, "%d.%02d", BLENDER_VERSION/100, BLENDER_VERSION%100);
+	return version_str;
+}
+
+static int test_path(char *targetpath, char *path_base, char *path_sep, char *folder_name)
+{
+	char tmppath[FILE_MAX];
 	
 	if(path_sep)	BLI_join_dirfile(tmppath, path_base, path_sep);
 	else			BLI_strncpy(tmppath, path_base, sizeof(tmppath));
 	
 	BLI_make_file_string("/", targetpath, tmppath, folder_name);
 	
-	if (BLI_exists(targetpath)) {
-#ifdef PATH_DEBUG
+	if (BLI_is_dir(targetpath)) {
+#ifdef PATH_DEBUG2
 		printf("\tpath found: %s\n", targetpath);
 #endif
 		return 1;
 	}
 	else {
-#ifdef PATH_DEBUG
+#ifdef PATH_DEBUG2
 		printf("\tpath missing: %s\n", targetpath);
 #endif
-		targetpath[0] = '\0';
+		//targetpath[0] = '\0';
 		return 0;
 	}
 }
 
-static int gethome_path_local(char *targetpath, char *folder_name)
+static int test_env_path(char *path, char *envvar)
+{
+	char *env = envvar?getenv(envvar):NULL;
+	if (!env) return 0;
+	
+	if (BLI_is_dir(env)) {
+		BLI_strncpy(path, env, FILE_MAX);
+		return 1;
+	} else {
+		path[0] = '\0';
+		return 0;
+	}
+}
+
+static int get_path_local(char *targetpath, char *folder_name, char *subfolder_name)
 {
 	extern char bprogname[]; /* argv[0] from creator.c */
-	char bprogdir[FILE_MAXDIR];
-	char cwd[FILE_MAXDIR];
+	char bprogdir[FILE_MAX];
+	char relfolder[FILE_MAX];
+	char cwd[FILE_MAX];
 	char *s;
 	int i;
 	
-#ifdef PATH_DEBUG
-	printf("gethome_path_local...\n");
+#ifdef PATH_DEBUG2
+	printf("get_path_local...\n");
 #endif
 	
-	/* try release/folder_name (binary relative) */
+	if (subfolder_name) {
+		BLI_join_dirfile(relfolder, folder_name, subfolder_name);
+	} else {
+		BLI_strncpy(relfolder, folder_name, FILE_MAX);
+	}
+	
 	/* use argv[0] (bprogname) to get the path to the executable */
 	s = BLI_last_slash(bprogname);
 	i = s - bprogname + 1;
 	BLI_strncpy(bprogdir, bprogname, i);
-
-	/* try release/folder_name (CWD relative) */
-	if(test_data_path(targetpath, BLI_getwdN(cwd), "release", folder_name))
-		return 1;
-
-	if(test_data_path(targetpath, bprogdir, "release", folder_name))
-		return 1;
-
-	/* try ./.blender/folder_name */
-	if(test_data_path(targetpath, bprogdir, ".blender", folder_name))
+	
+	/* try EXECUTABLE_DIR/folder_name */
+	if(test_path(targetpath, bprogdir, "", relfolder))
 		return 1;
 	
+	/* try CWD/release/folder_name */
+	if(test_path(targetpath, BLI_getwdN(cwd), "release", relfolder))
+		return 1;
+	
+	/* try EXECUTABLE_DIR/release/folder_name */
+	if(test_path(targetpath, bprogdir, "release", relfolder))
+		return 1;
+	
+	/* try EXECUTABLE_DIR/2.5/folder_name - new default directory for local blender installed files */
+	if(test_path(targetpath, bprogdir, blender_version_decimal(), relfolder))
+		return 1;
+
+	/* try ./.blender/folder_name -- DEPRECATED, need to update build systems */
+	if(test_path(targetpath, bprogdir, ".blender", relfolder))
+		return 1;
+
 	return 0;
 }
 
-static int gethome_path_user(char *targetpath, char *folder_name)
+static int get_path_user(char *targetpath, char *folder_name, char *subfolder_name, char *envvar)
 {
-	char *home_path= BLI_gethome();
-
-#ifdef PATH_DEBUG
-	printf("gethome_path_user...\n");
-#endif
+	char user_path[FILE_MAX];
+	const char *user_base_path;
 	
-	/* try $HOME/folder_name */
-	return test_data_path(targetpath, home_path, ".blender", folder_name);
-}
+	user_path[0] = '\0';
 
-static int gethome_path_system(char *targetpath, char *folder_name)
-{
-	extern char blender_path[]; /* unix prefix eg. /usr/share/blender/2.5 creator.c */
-	
-	if(!blender_path[0])
+	if (test_env_path(user_path, envvar)) {
+		if (subfolder_name) {
+			return test_path(targetpath, user_path, NULL, subfolder_name);
+		} else {
+			BLI_strncpy(targetpath, user_path, FILE_MAX);
+			return 1;
+		}
+	}
+
+	user_base_path = (const char *)GHOST_getUserDir();
+	if (user_base_path) {
+		BLI_snprintf(user_path, FILE_MAX, BLENDER_USER_FORMAT, user_base_path, blender_version_decimal());
+	}
+
+	if(!user_path[0])
 		return 0;
 	
-#ifdef PATH_DEBUG
-	printf("gethome_path_system...\n");
+#ifdef PATH_DEBUG2
+	printf("get_path_user: %s\n", user_path);
 #endif
 	
-	/* try $BLENDERPATH/folder_name */
-	return test_data_path(targetpath, blender_path, NULL, folder_name);
+	if (subfolder_name) {
+		/* try $HOME/folder_name/subfolder_name */
+		return test_path(targetpath, user_path, folder_name, subfolder_name);
+	} else {
+		/* try $HOME/folder_name */
+		return test_path(targetpath, user_path, NULL, folder_name);
+	}
 }
 
-char *BLI_gethome_folder(char *folder_name, int flag)
+static int get_path_system(char *targetpath, char *folder_name, char *subfolder_name, char *envvar)
 {
-	static char fulldir[FILE_MAXDIR] = "";
-	
-	/* first check if this is a redistributable bundle */
-	if(flag & BLI_GETHOME_LOCAL) {
-		if (gethome_path_local(fulldir, folder_name))
-			return fulldir;
+	char system_path[FILE_MAX];
+	const char *system_base_path;
+
+	system_path[0] = '\0';
+
+	if (test_env_path(system_path, envvar)) {
+		if (subfolder_name) {
+			return test_path(targetpath, system_path, NULL, subfolder_name);
+		} else {
+			BLI_strncpy(targetpath, system_path, FILE_MAX);
+			return 1;
+		}
 	}
 
-	/* then check if the OS has blender data files installed in a global location */
-	if(flag & BLI_GETHOME_SYSTEM) {
-		if (gethome_path_system(fulldir, folder_name))
-			return fulldir;
+	system_base_path = (const char *)GHOST_getSystemDir();
+	if (system_base_path) {
+		BLI_snprintf(system_path, FILE_MAX, BLENDER_SYSTEM_FORMAT, system_base_path, blender_version_decimal());
 	}
 	
-	/* now check the users home dir for data files */
-	if(flag & BLI_GETHOME_USER) {
-		if (gethome_path_user(fulldir, folder_name))
-			return fulldir;
-	}
+	if(!system_path[0])
+		return 0;
 	
-	return NULL;
+#ifdef PATH_DEBUG2
+	printf("get_path_system: %s\n", system_path);
+#endif
+	
+	if (subfolder_name) {
+		/* try $BLENDERPATH/folder_name/subfolder_name */
+		return test_path(targetpath, system_path, folder_name, subfolder_name);
+	} else {
+		/* try $BLENDERPATH/folder_name */
+		return test_path(targetpath, system_path, NULL, folder_name);
+	}
 }
+
+/* get a folder out of the 'folder_id' presets for paths */
+/* returns the path if found, NULL string if not */
+char *BLI_get_folder(int folder_id, char *subfolder)
+{
+	static char path[FILE_MAX] = "";
+	
+	switch (folder_id) {
+		case BLENDER_DATAFILES:		/* general case */
+			if (get_path_local(path, "datafiles", subfolder)) break;
+			if (get_path_user(path, "datafiles", subfolder, "BLENDER_USER_DATAFILES"))	break;
+			if (get_path_system(path, "datafiles", subfolder, "BLENDER_SYSTEM_DATAFILES")) break;
+			return NULL;
+			
+		case BLENDER_USER_DATAFILES:
+			if (get_path_local(path, "datafiles", subfolder)) break;
+			if (get_path_user(path, "datafiles", subfolder, "BLENDER_USER_DATAFILES"))	break;
+			return NULL;
+			
+		case BLENDER_SYSTEM_DATAFILES:
+			if (get_path_local(path, "datafiles", subfolder)) break;
+			if (get_path_system(path, "datafiles", subfolder, "BLENDER_SYSTEM_DATAFILES"))	break;
+			return NULL;
+			
+		case BLENDER_USER_AUTOSAVE:
+			if (get_path_local(path, "autosave", subfolder)) break;
+			if (get_path_user(path, "autosave", subfolder, "BLENDER_USER_DATAFILES"))	break;
+			return NULL;
+
+		case BLENDER_CONFIG:		/* general case */
+			if (get_path_local(path, "config", subfolder)) break;
+			if (get_path_user(path, "config", subfolder, "BLENDER_USER_CONFIG")) break;
+			if (get_path_system(path, "config", subfolder, "BLENDER_SYSTEM_CONFIG")) break;
+			return NULL;
+			
+		case BLENDER_USER_CONFIG:
+			if (get_path_local(path, "config", subfolder)) break;
+			if (get_path_user(path, "config", subfolder, "BLENDER_USER_CONFIG")) break;
+			return NULL;
+			
+		case BLENDER_SYSTEM_CONFIG:
+			if (get_path_local(path, "config", subfolder)) break;
+			if (get_path_system(path, "config", subfolder, "BLENDER_SYSTEM_CONFIG")) break;
+			return NULL;
+			
+		case BLENDER_SCRIPTS:		/* general case */
+			if (get_path_local(path, "scripts", subfolder)) break;
+			if (get_path_user(path, "scripts", subfolder, "BLENDER_USER_SCRIPTS")) break;		
+			if (get_path_system(path, "scripts", subfolder, "BLENDER_SYSTEM_SCRIPTS")) break;
+			return NULL;
+			
+		case BLENDER_USER_SCRIPTS:
+			if (get_path_local(path, "scripts", subfolder)) break;
+			if (get_path_user(path, "scripts", subfolder, "BLENDER_USER_SCRIPTS")) break;
+			return NULL;
+			
+		case BLENDER_SYSTEM_SCRIPTS:
+			if (get_path_local(path, "scripts", subfolder)) break;
+			if (get_path_system(path, "scripts", subfolder, "BLENDER_SYSTEM_SCRIPTS")) break;
+			return NULL;
+			
+		case BLENDER_PYTHON:		/* general case */
+			if (get_path_local(path, "python", subfolder)) break;
+			if (get_path_system(path, "python", subfolder, "BLENDER_SYSTEM_PYTHON")) break;
+			return NULL;
+			
+		case BLENDER_SYSTEM_PYTHON:
+			if (get_path_local(path, "python", subfolder)) break;
+			if (get_path_system(path, "python", subfolder, "BLENDER_SYSTEM_PYTHON")) break;
+			return NULL;
+	}
+	
+	return path;
+}
+
+static char *BLI_get_user_folder_notest(int folder_id, char *subfolder)
+{
+	static char path[FILE_MAX] = "";
+
+	switch (folder_id) {
+		case BLENDER_USER_DATAFILES:
+			get_path_user(path, "datafiles", subfolder, "BLENDER_USER_DATAFILES");
+			break;
+		case BLENDER_USER_CONFIG:
+			get_path_user(path, "config", subfolder, "BLENDER_USER_CONFIG");
+			break;
+		case BLENDER_USER_AUTOSAVE:
+			get_path_user(path, "autosave", subfolder, "BLENDER_USER_AUTOSAVE");
+			break;
+	}
+	if ('\0' == path[0]) {
+		return NULL;
+	}
+	return path;
+}
+
+char *BLI_get_folder_create(int folder_id, char *subfolder)
+{
+	char *path;
+
+	/* only for user folders */
+	if (!ELEM3(folder_id, BLENDER_USER_DATAFILES, BLENDER_USER_CONFIG, BLENDER_USER_AUTOSAVE))
+		return NULL;
+	
+	path = BLI_get_folder(folder_id, subfolder);
+	
+	if (!path) {
+		path = BLI_get_user_folder_notest(folder_id, subfolder);
+		if (path) BLI_recurdir_fileops(path);
+	}
+	
+	return path;
+}
+
+
+/* End new stuff */
+/* ************************************************************* */
+/* ************************************************************* */
+
+
 
 #ifdef PATH_DEBUG
 #undef PATH_DEBUG
@@ -977,7 +1129,7 @@ void BLI_make_exist(char *dir) {
 	a = strlen(dir);
 	
 #ifdef WIN32	
-	while(BLI_exists(dir) == 0){
+	while(BLI_is_dir(dir) == 0){
 		a --;
 		while(dir[a] != '\\'){
 			a--;
@@ -991,7 +1143,7 @@ void BLI_make_exist(char *dir) {
 		}
 	}
 #else
-	while(BLI_exist(dir) == 0){
+	while(BLI_is_dir(dir) == 0){
 		a --;
 		while(dir[a] != '/'){
 			a--;
@@ -1008,9 +1160,9 @@ void BLI_make_exist(char *dir) {
 
 void BLI_make_existing_file(char *name)
 {
-	char di[FILE_MAXDIR], fi[FILE_MAXFILE];
-	
-	strcpy(di, name);
+	char di[FILE_MAXDIR+FILE_MAXFILE], fi[FILE_MAXFILE];
+
+	BLI_strncpy(di, name, sizeof(di));
 	BLI_splitdirstring(di, fi);
 	
 	/* test exist */
@@ -1113,10 +1265,38 @@ int BLI_testextensie(const char *str, const char *ext)
 	return (retval);
 }
 
-/*
- * This is a simple version of BLI_split_dirfile that has the following advantages...
- * 
- * Converts "/foo/bar.txt" to "/foo/" and "bar.txt"
+int BLI_testextensie_array(const char *str, const char **ext_array)
+{
+	int i=0;
+	while(ext_array[i]) {
+		if(BLI_testextensie(str, ext_array[i])) {
+			return 1;
+		}
+
+		i++;
+	}
+	return 0;
+}
+
+int BLI_replace_extension(char *path, int maxlen, const char *ext)
+{
+	int a;
+
+	for(a=strlen(path)-1; a>=0; a--)
+		if(path[a] == '.' || path[a] == '/' || path[a] == '\\')
+			break;
+	
+	if(path[a] != '.')
+		a= strlen(path);
+
+	if(a + strlen(ext) >= maxlen)
+		return 0;
+
+	strcpy(path+a, ext);
+	return 1;
+}
+
+/* Converts "/foo/bar.txt" to "/foo/" and "bar.txt"
  * - wont change 'string'
  * - wont create any directories
  * - dosnt use CWD, or deal with relative paths.
@@ -1124,14 +1304,12 @@ int BLI_testextensie(const char *str, const char *ext)
  * */
 void BLI_split_dirfile(const char *string, char *dir, char *file)
 {
-	int lslash=0, i = 0;
-	for (i=0; string[i]!='\0'; i++) {
-		if (string[i]=='\\' || string[i]=='/')
-			lslash = i+1;
-	}
+	char *lslash_str = BLI_last_slash(string);
+	int lslash= lslash_str ? (int)(lslash_str - string) + 1 : 0;
+
 	if (dir) {
 		if (lslash) {
-			BLI_strncpy( dir, string, lslash+1); /* +1 to include the slash and the last char */
+			BLI_strncpy( dir, string, lslash + 1); /* +1 to include the slash and the last char */
 		} else {
 			dir[0] = '\0';
 		}
@@ -1149,6 +1327,9 @@ void BLI_join_dirfile(char *string, const char *dir, const char *file)
 	
 	if(string != dir) /* compare pointers */
 		BLI_strncpy(string, dir, FILE_MAX);
+
+	if (!file)
+		return;
 	
 	sl_dir= BLI_add_slash(string);
 	
@@ -1157,6 +1338,12 @@ void BLI_join_dirfile(char *string, const char *dir, const char *file)
 	}
 }
 
+/* like pythons os.path.basename( ) */
+char *BLI_path_basename(char *path)
+{
+	char *filename= BLI_last_slash(path);
+	return filename ? filename + 1 : path;
+}
 
 /*
   Produce image export path.
@@ -1316,7 +1503,7 @@ void BLI_where_am_i(char *fullname, const char *name)
 	/* linux uses binreloc since argv[0] is not relyable, call br_init( NULL ) first */
 	path = br_find_exe( NULL );
 	if (path) {
-		strcpy(fullname, path);
+		BLI_strncpy(fullname, path, FILE_MAXDIR+FILE_MAXFILE);
 		free(path);
 		return;
 	}
@@ -1392,7 +1579,7 @@ void BLI_where_is_temp(char *fullname, int usertemp)
 {
 	fullname[0] = '\0';
 	
-	if (usertemp && BLI_exists(U.tempdir)) {
+	if (usertemp && BLI_is_dir(U.tempdir)) {
 		strcpy(fullname, U.tempdir);
 	}
 	
@@ -1400,7 +1587,7 @@ void BLI_where_is_temp(char *fullname, int usertemp)
 #ifdef WIN32
 	if (fullname[0] == '\0') {
 		char *tmp = getenv("TEMP"); /* Windows */
-		if (tmp && BLI_exists(tmp)) {
+		if (tmp && BLI_is_dir(tmp)) {
 			strcpy(fullname, tmp);
 		}
 	}
@@ -1408,14 +1595,14 @@ void BLI_where_is_temp(char *fullname, int usertemp)
 	/* Other OS's - Try TMP and TMPDIR */
 	if (fullname[0] == '\0') {
 		char *tmp = getenv("TMP");
-		if (tmp && BLI_exists(tmp)) {
+		if (tmp && BLI_is_dir(tmp)) {
 			strcpy(fullname, tmp);
 		}
 	}
 	
 	if (fullname[0] == '\0') {
 		char *tmp = getenv("TMPDIR");
-		if (tmp && BLI_exists(tmp)) {
+		if (tmp && BLI_is_dir(tmp)) {
 			strcpy(fullname, tmp);
 		}
 	}
@@ -1449,26 +1636,6 @@ char *get_install_dir(void) {
 		return NULL;
 	}
 }
-
-/* 
- * returns absolute path to the app bundle
- * only useful on OS X 
- */
-#ifdef __APPLE__
-char* BLI_getbundle(void) {
-	CFURLRef bundleURL;
-	CFStringRef pathStr;
-	static char path[MAXPATHLEN];
-	CFBundleRef mainBundle = CFBundleGetMainBundle();
-
-	bundleURL = CFBundleCopyBundleURL(mainBundle);
-	pathStr = CFURLCopyFileSystemPath(bundleURL, kCFURLPOSIXPathStyle);
-	CFStringGetCString(pathStr, path, MAXPATHLEN, kCFStringEncodingASCII);
-	CFRelease(pathStr);
-	CFRelease(bundleURL);
-	return path;
-}
-#endif
 
 #ifdef WITH_ICONV
 

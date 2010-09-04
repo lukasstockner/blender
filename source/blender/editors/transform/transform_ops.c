@@ -32,7 +32,6 @@
 
 #include "BLI_math.h"
 
-#include "BKE_utildefines.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
 
@@ -61,6 +60,7 @@ char OP_RESIZE[] = "TRANSFORM_OT_resize";
 char OP_SHEAR[] = "TRANSFORM_OT_shear";
 char OP_WARP[] = "TRANSFORM_OT_warp";
 char OP_SHRINK_FATTEN[] = "TRANSFORM_OT_shrink_fatten";
+char OP_PUSH_PULL[] = "TRANSFORM_OT_push_pull";
 char OP_TILT[] = "TRANSFORM_OT_tilt";
 char OP_TRACKBALL[] = "TRANSFORM_OT_trackball";
 char OP_MIRROR[] = "TRANSFORM_OT_mirror";
@@ -75,6 +75,7 @@ void TRANSFORM_OT_resize(struct wmOperatorType *ot);
 void TRANSFORM_OT_shear(struct wmOperatorType *ot);
 void TRANSFORM_OT_warp(struct wmOperatorType *ot);
 void TRANSFORM_OT_shrink_fatten(struct wmOperatorType *ot);
+void TRANSFORM_OT_push_pull(struct wmOperatorType *ot);
 void TRANSFORM_OT_tilt(struct wmOperatorType *ot);
 void TRANSFORM_OT_trackball(struct wmOperatorType *ot);
 void TRANSFORM_OT_mirror(struct wmOperatorType *ot);
@@ -91,6 +92,7 @@ TransformModeItem transform_modes[] =
 	{OP_SHEAR, TFM_SHEAR, TRANSFORM_OT_shear},
 	{OP_WARP, TFM_WARP, TRANSFORM_OT_warp},
 	{OP_SHRINK_FATTEN, TFM_SHRINKFATTEN, TRANSFORM_OT_shrink_fatten},
+	{OP_PUSH_PULL, TFM_PUSHPULL, TRANSFORM_OT_push_pull},
 	{OP_TILT, TFM_TILT, TRANSFORM_OT_tilt},
 	{OP_TRACKBALL, TFM_TRACKBALL, TRANSFORM_OT_trackball},
 	{OP_MIRROR, TFM_MIRROR, TRANSFORM_OT_mirror},
@@ -278,7 +280,7 @@ static int transformops_data(bContext *C, wmOperator *op, wmEvent *event)
 	int retval = 1;
 	if (op->customdata == NULL)
 	{
-		TransInfo *t = MEM_callocN(sizeof(TransInfo), "TransInfo data");
+		TransInfo *t = MEM_callocN(sizeof(TransInfo), "TransInfo data2");
 		TransformModeItem *tmode;
 		int mode = -1;
 
@@ -300,7 +302,12 @@ static int transformops_data(bContext *C, wmOperator *op, wmEvent *event)
 		G.moving = 1;
 
 		/* store data */
-		op->customdata = t;
+		if(retval) {
+			op->customdata = t;
+		}
+		else {
+			MEM_freeN(t);
+		}
 	}
 
 	return retval; /* return 0 on error */
@@ -389,15 +396,20 @@ void Transform_Properties(struct wmOperatorType *ot, int flags)
 	{
 		prop= RNA_def_property(ot->srna, "axis", PROP_FLOAT, PROP_DIRECTION);
 		RNA_def_property_array(prop, 3);
+		/* Make this not hidden when there's a nice axis selection widget */
+		RNA_def_property_flag(prop, PROP_HIDDEN);
 		RNA_def_property_ui_text(prop, "Axis", "The axis around which the transformation occurs");
+
 	}
 
 	if (flags & P_CONSTRAINT)
 	{
-		RNA_def_boolean_vector(ot->srna, "constraint_axis", 3, NULL, "Constraint Axis", "");
+		prop= RNA_def_boolean_vector(ot->srna, "constraint_axis", 3, NULL, "Constraint Axis", "");
 		prop= RNA_def_property(ot->srna, "constraint_orientation", PROP_ENUM, PROP_NONE);
 		RNA_def_property_ui_text(prop, "Orientation", "Transformation orientation");
 		RNA_def_enum_funcs(prop, rna_TransformOrientation_itemf);
+
+		
 	}
 
 	if (flags & P_MIRROR)
@@ -409,28 +421,33 @@ void Transform_Properties(struct wmOperatorType *ot, int flags)
 	if (flags & P_PROPORTIONAL)
 	{
 		RNA_def_enum(ot->srna, "proportional", proportional_editing_items, 0, "Proportional Editing", "");
-		RNA_def_enum(ot->srna, "proportional_editing_falloff", proportional_falloff_items, 0, "Proportional Editing Falloff", "Falloff type for proportional editing mode.");
+		RNA_def_enum(ot->srna, "proportional_edit_falloff", proportional_falloff_items, 0, "Proportional Editing Falloff", "Falloff type for proportional editing mode.");
 		RNA_def_float(ot->srna, "proportional_size", 1, 0, FLT_MAX, "Proportional Size", "", 0, 100);
 	}
 
 	if (flags & P_SNAP)
 	{
-		RNA_def_boolean(ot->srna, "snap", 0, "Use Snapping Options", "");
+		prop= RNA_def_boolean(ot->srna, "snap", 0, "Use Snapping Options", "");
+		RNA_def_property_flag(prop, PROP_HIDDEN);
 
 		if (flags & P_GEO_SNAP) {
-			RNA_def_enum(ot->srna, "snap_target", snap_target_items, 0, "Target", "");
-			RNA_def_float_vector(ot->srna, "snap_point", 3, NULL, -FLT_MAX, FLT_MAX, "Point", "", -FLT_MAX, FLT_MAX);
-
+			prop= RNA_def_enum(ot->srna, "snap_target", snap_target_items, 0, "Target", "");
+			RNA_def_property_flag(prop, PROP_HIDDEN);
+			prop= RNA_def_float_vector(ot->srna, "snap_point", 3, NULL, -FLT_MAX, FLT_MAX, "Point", "", -FLT_MAX, FLT_MAX);
+			RNA_def_property_flag(prop, PROP_HIDDEN);
+			
 			if (flags & P_ALIGN_SNAP) {
-				RNA_def_boolean(ot->srna, "snap_align", 0, "Align with Point Normal", "");
-				RNA_def_float_vector(ot->srna, "snap_normal", 3, NULL, -FLT_MAX, FLT_MAX, "Normal", "", -FLT_MAX, FLT_MAX);
+				prop= RNA_def_boolean(ot->srna, "snap_align", 0, "Align with Point Normal", "");
+				RNA_def_property_flag(prop, PROP_HIDDEN);
+				prop= RNA_def_float_vector(ot->srna, "snap_normal", 3, NULL, -FLT_MAX, FLT_MAX, "Normal", "", -FLT_MAX, FLT_MAX);
+				RNA_def_property_flag(prop, PROP_HIDDEN);
 			}
 		}
 	}
 
 	// Add confirm method all the time. At the end because it's not really that important and should be hidden
 	prop = RNA_def_boolean(ot->srna, "release_confirm", 0, "Confirm on Release", "Always confirm operation when releasing button");
-	//RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 void TRANSFORM_OT_translate(struct wmOperatorType *ot)
@@ -448,7 +465,7 @@ void TRANSFORM_OT_translate(struct wmOperatorType *ot)
 	ot->cancel  = transform_cancel;
 	ot->poll   = ED_operator_areaactive;
 
-	RNA_def_float_vector(ot->srna, "value", 3, NULL, -FLT_MAX, FLT_MAX, "Vector", "", -FLT_MAX, FLT_MAX);
+	RNA_def_float_vector_xyz(ot->srna, "value", 3, NULL, -FLT_MAX, FLT_MAX, "Vector", "", -FLT_MAX, FLT_MAX);
 
 	Transform_Properties(ot, P_CONSTRAINT|P_PROPORTIONAL|P_MIRROR|P_ALIGN_SNAP);
 }
@@ -577,6 +594,26 @@ void TRANSFORM_OT_shear(struct wmOperatorType *ot)
 
 	Transform_Properties(ot, P_PROPORTIONAL|P_MIRROR|P_SNAP);
 	// XXX Shear axis?
+}
+
+void TRANSFORM_OT_push_pull(struct wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name   = "Push/Pull";
+	ot->description= "Push/Pull selected items";
+	ot->idname = OP_PUSH_PULL;
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;
+
+	/* api callbacks */
+	ot->invoke = transform_invoke;
+	ot->exec   = transform_exec;
+	ot->modal  = transform_modal;
+	ot->cancel  = transform_cancel;
+	ot->poll   = ED_operator_areaactive;
+
+	RNA_def_float(ot->srna, "value", 0, -FLT_MAX, FLT_MAX, "Distance", "", -FLT_MAX, FLT_MAX);
+
+	Transform_Properties(ot, P_PROPORTIONAL|P_MIRROR|P_SNAP);
 }
 
 void TRANSFORM_OT_shrink_fatten(struct wmOperatorType *ot)
@@ -814,7 +851,7 @@ void transform_keymap_for_space(wmKeyConfig *keyconf, wmKeyMap *keymap, int spac
 			km = WM_keymap_add_item(keymap, OP_MIRROR, MKEY, KM_PRESS, KM_CTRL, 0);
 
 			km = WM_keymap_add_item(keymap, "WM_OT_context_toggle", TABKEY, KM_PRESS, KM_SHIFT, 0);
-			RNA_string_set(km->ptr, "path", "tool_settings.snap");
+			RNA_string_set(km->ptr, "data_path", "tool_settings.snap");
 
 			km = WM_keymap_add_item(keymap, "TRANSFORM_OT_snap_type", TABKEY, KM_PRESS, KM_SHIFT|KM_CTRL, 0);
 
@@ -892,7 +929,7 @@ void transform_keymap_for_space(wmKeyConfig *keyconf, wmKeyMap *keymap, int spac
 			km = WM_keymap_add_item(keymap, "TRANSFORM_OT_mirror", MKEY, KM_PRESS, KM_CTRL, 0);
 
 			km = WM_keymap_add_item(keymap, "WM_OT_context_toggle", TABKEY, KM_PRESS, KM_SHIFT, 0);
-			RNA_string_set(km->ptr, "path", "tool_settings.snap");
+			RNA_string_set(km->ptr, "data_path", "tool_settings.snap");
 			break;
 		default:
 			break;

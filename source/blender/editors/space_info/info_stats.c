@@ -35,7 +35,6 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_anim.h"
-#include "BKE_context.h"
 #include "BKE_displist.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_key.h"
@@ -45,6 +44,7 @@
 
 #include "ED_armature.h"
 #include "ED_mesh.h"
+#include "ED_curve.h" /* for ED_curve_editnurbs */
 
 #include "BLI_editVert.h"
 
@@ -187,8 +187,9 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
 		BezTriple *bezt;
 		BPoint *bp;
 		int a;
+		ListBase *nurbs= ED_curve_editnurbs(cu);
 
-		for(nu=cu->editnurb->first; nu; nu=nu->next) {
+		for(nu=nurbs->first; nu; nu=nu->next) {
 			if(nu->type == CU_BEZIER) {
 				bezt= nu->bezt;
 				a= nu->pntsu;
@@ -224,7 +225,7 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
 	else if(obedit->type==OB_LATTICE) {
 		/* Lattice Edit */
 		Lattice *lt= obedit->data;
-		Lattice *editlatt= lt->editlatt;
+		Lattice *editlatt= lt->editlatt->latt;
 		BPoint *bp;
 		int a;
 

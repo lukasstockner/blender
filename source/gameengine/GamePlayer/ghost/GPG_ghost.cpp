@@ -376,11 +376,7 @@ int main(int argc, char** argv)
 
 	GEN_init_messaging_system();
 
-#ifdef WITH_QUICKTIME
-	quicktime_init();
-#endif
-
-	libtiff_init();
+	IMB_init();
  
 	// Parse command line options
 #ifndef NDEBUG
@@ -664,7 +660,7 @@ int main(int argc, char** argv)
 				system->getMainDisplayDimensions(fullScreenWidth, fullScreenHeight);
 			// process first batch of events. If the user
 			// drops a file on top off the blenderplayer icon, we 
-			// recieve an event with the filename
+			// receive an event with the filename
 			
 			system->processEvents(0);
 			

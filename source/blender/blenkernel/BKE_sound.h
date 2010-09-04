@@ -38,6 +38,8 @@ struct ListBase;
 struct Main;
 struct Sequence;
 
+void sound_init_once();
+
 void sound_init(struct Main *main);
 
 void sound_exit();
@@ -92,6 +94,6 @@ float sound_sync_scene(struct Scene *scene);
 
 int sound_scene_playing(struct Scene *scene);
 
-int sound_read_sound_buffer(struct bSound* sound, float* buffer, int length);
+int sound_read_sound_buffer(struct bSound* sound, float* buffer, int length, float start, float end);
 
 #endif

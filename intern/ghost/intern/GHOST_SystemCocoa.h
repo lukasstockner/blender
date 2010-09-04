@@ -155,7 +155,7 @@ public:
 	 * @param draggedObjectType The type object concerned (currently array of file names, string, TIFF image)
 	 * @param mouseX x mouse coordinate (in cocoa base window coordinates)
 	 * @param mouseY y mouse coordinate
-	 * @param window The window on which the event occured
+	 * @param window The window on which the event occurred
      * @return Indication whether the event was handled. 
      */
 	GHOST_TSuccess handleDraggingEvent(GHOST_TEventType eventType, GHOST_TDragnDropTypes draggedObjectType,
@@ -179,8 +179,8 @@ public:
 	 * @param y			The y-coordinate of the cursor.
 	 * @return			Indication of success.
 	 */
-	virtual GHOST_TSuccess setCursorPosition(GHOST_TInt32 x, GHOST_TInt32 y) const;
-
+	virtual GHOST_TSuccess setCursorPosition(GHOST_TInt32 x, GHOST_TInt32 y);
+	
 	/***************************************************************************************
 	 ** Access to mouse button and keyboard states.
 	 ***************************************************************************************/
@@ -228,9 +228,15 @@ public:
 	virtual const GHOST_TUns8* getUserDir() const;
 
 	/**
+	  * Determine the directory of the current binary
+	  * @return Unsigned char string pointing to the binary dir
+	  */
+	 virtual const GHOST_TUns8* getBinaryDir() const;
+
+	/**
      * Handles a window event. Called by GHOST_WindowCocoa window delegate
      * @param eventType The type of window event
-	 * @param window The window on which the event occured
+	 * @param window The window on which the event occurred
      * @return Indication whether the event was handled. 
      */
     GHOST_TSuccess handleWindowEvent(GHOST_TEventType eventType, GHOST_WindowCocoa* window);
@@ -272,6 +278,14 @@ protected:
      */
     GHOST_TSuccess handleKeyEvent(void *eventPtr);
     
+	/**
+	 * Performs the actual cursor position update (location in screen coordinates).
+	 * @param x			The x-coordinate of the cursor.
+	 * @param y			The y-coordinate of the cursor.
+	 * @return			Indication of success.
+	 */
+	GHOST_TSuccess setMouseCursorPosition(GHOST_TInt32 x, GHOST_TInt32 y);
+
 	/** Start time at initialization. */
 	GHOST_TUns64 m_start_time;
 	

@@ -29,10 +29,6 @@
 
 #include <string.h>
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 
 #include "MEM_guardedalloc.h"
 
@@ -63,7 +59,7 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
-#include "gpu_buffers.h"
+#include "GPU_buffers.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
@@ -251,8 +247,8 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me)
 
 	/* if the number of verts has changed, remove invalid data */
 	if(tmp.totvert != me->totvert) {
-		if(me->key) me->key->id.us--;
-		me->key = NULL;
+		if(tmp.key) tmp.key->id.us--;
+		tmp.key = NULL;
 	}
 
 	*me = tmp;
@@ -416,7 +412,7 @@ void DM_interp_face_data(DerivedMesh *source, DerivedMesh *dest,
 					  weights, (float*)vert_weights, count, dest_index);
 }
 
-void DM_swap_face_data(DerivedMesh *dm, int index, int *corner_indices)
+void DM_swap_face_data(DerivedMesh *dm, int index, const int *corner_indices)
 {
 	CustomData_swap(&dm->faceData, index, corner_indices);
 }
@@ -587,14 +583,14 @@ static void emDM__calcFaceCent(EditFace *efa, float cent[3], float (*vertexCos)[
 {
 	if (vertexCos) {
 		VECCOPY(cent, vertexCos[(int) efa->v1->tmp.l]);
-		add_v3_v3v3(cent, cent, vertexCos[(int) efa->v2->tmp.l]);
-		add_v3_v3v3(cent, cent, vertexCos[(int) efa->v3->tmp.l]);
-		if (efa->v4) add_v3_v3v3(cent, cent, vertexCos[(int) efa->v4->tmp.l]);
+		add_v3_v3(cent, vertexCos[(int) efa->v2->tmp.l]);
+		add_v3_v3(cent, vertexCos[(int) efa->v3->tmp.l]);
+		if (efa->v4) add_v3_v3(cent, vertexCos[(int) efa->v4->tmp.l]);
 	} else {
 		VECCOPY(cent, efa->v1->co);
-		add_v3_v3v3(cent, cent, efa->v2->co);
-		add_v3_v3v3(cent, cent, efa->v3->co);
-		if (efa->v4) add_v3_v3v3(cent, cent, efa->v4->co);
+		add_v3_v3(cent, efa->v2->co);
+		add_v3_v3(cent, efa->v3->co);
+		if (efa->v4) add_v3_v3(cent, efa->v4->co);
 	}
 
 	if (efa->v4) {
@@ -1081,6 +1077,21 @@ static int emDM_getNumFaces(DerivedMesh *dm)
 	return BLI_countlist(&emdm->em->faces);
 }
 
+static void emDM_getVertCos(DerivedMesh *dm, float (*cos_r)[3])
+{
+	EditMeshDerivedMesh *emdm= (EditMeshDerivedMesh*) dm;
+	EditVert *eve;
+	int i;
+
+	for (i=0,eve= emdm->em->verts.first; eve; i++,eve=eve->next) {
+		if (emdm->vertexCos) {
+			copy_v3_v3(cos_r[i], emdm->vertexCos[i]);
+		} else {
+			copy_v3_v3(cos_r[i], eve->co);
+		}
+	}
+}
+
 static void emDM_getVert(DerivedMesh *dm, int index, MVert *vert_r)
 {
 	EditVert *ev = ((EditMeshDerivedMesh *)dm)->em->verts.first;
@@ -1178,10 +1189,15 @@ static void emDM_getFace(DerivedMesh *dm, int index, MFace *face_r)
 
 static void emDM_copyVertArray(DerivedMesh *dm, MVert *vert_r)
 {
-	EditVert *ev = ((EditMeshDerivedMesh *)dm)->em->verts.first;
+	EditMeshDerivedMesh *emdm= (EditMeshDerivedMesh*) dm;
+	EditVert *ev = emdm->em->verts.first;
+	int i;
 
-	for( ; ev; ev = ev->next, ++vert_r) {
-		VECCOPY(vert_r->co, ev->co);
+	for(i=0; ev; ev = ev->next, ++vert_r, ++i) {
+		if(emdm->vertexCos)
+			copy_v3_v3(vert_r->co, emdm->vertexCos[i]);
+		else
+			copy_v3_v3(vert_r->co, ev->co);
 
 		vert_r->no[0] = ev->no[0] * 32767.0;
 		vert_r->no[1] = ev->no[1] * 32767.0;
@@ -1313,6 +1329,8 @@ static DerivedMesh *getEditMeshDerivedMesh(EditMesh *em, Object *ob,
 	emdm->dm.getNumEdges = emDM_getNumEdges;
 	emdm->dm.getNumFaces = emDM_getNumFaces;
 
+	emdm->dm.getVertCos = emDM_getVertCos;
+
 	emdm->dm.getVert = emDM_getVert;
 	emdm->dm.getEdge = emDM_getEdge;
 	emdm->dm.getFace = emDM_getFace;
@@ -1373,15 +1391,15 @@ static DerivedMesh *getEditMeshDerivedMesh(EditMesh *em, Object *ob,
 				float *v4 = vertexCos[(int) efa->v4->tmp.l];
 
 				normal_quad_v3( no,v1, v2, v3, v4);
-				add_v3_v3v3(emdm->vertexNos[(int) efa->v4->tmp.l], emdm->vertexNos[(int) efa->v4->tmp.l], no);
+				add_v3_v3(emdm->vertexNos[(int) efa->v4->tmp.l], no);
 			}
 			else {
 				normal_tri_v3( no,v1, v2, v3);
 			}
 
-			add_v3_v3v3(emdm->vertexNos[(int) efa->v1->tmp.l], emdm->vertexNos[(int) efa->v1->tmp.l], no);
-			add_v3_v3v3(emdm->vertexNos[(int) efa->v2->tmp.l], emdm->vertexNos[(int) efa->v2->tmp.l], no);
-			add_v3_v3v3(emdm->vertexNos[(int) efa->v3->tmp.l], emdm->vertexNos[(int) efa->v3->tmp.l], no);
+			add_v3_v3(emdm->vertexNos[(int) efa->v1->tmp.l], no);
+			add_v3_v3(emdm->vertexNos[(int) efa->v2->tmp.l], no);
+			add_v3_v3(emdm->vertexNos[(int) efa->v3->tmp.l], no);
 		}
 
 		for(i=0, eve= em->verts.first; eve; i++, eve=eve->next) {
@@ -1389,8 +1407,7 @@ static DerivedMesh *getEditMeshDerivedMesh(EditMesh *em, Object *ob,
 			/* following Mesh convention; we use vertex coordinate itself
 			 * for normal in this case */
 			if (normalize_v3(no)==0.0) {
-				VECCOPY(no, vertexCos[i]);
-				normalize_v3(no);
+				normalize_v3_v3(no, vertexCos[i]);
 			}
 		}
 	}
@@ -1745,7 +1762,6 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		 */
 
 		if(mti->type == eModifierTypeType_OnlyDeform) {
-			
 			/* No existing verts to deform, need to build them. */
 			if(!deformedVerts) {
 				if(dm) {
@@ -1871,7 +1887,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 				}
 			}
 		}
-		
+
 		/* grab modifiers until index i */
 		if((index >= 0) && (modifiers_indexInObject(ob, md) >= index))
 			break;
@@ -2021,7 +2037,9 @@ static void editmesh_calc_modifiers(Scene *scene, Object *ob, EditMesh *em, Deri
 				}
 			}
 
-			mti->deformVertsEM(md, ob, em, dm, deformedVerts, numVerts);
+			if (mti->deformVertsEM)
+				mti->deformVertsEM(md, ob, em, dm, deformedVerts, numVerts);
+			else mti->deformVerts(md, ob, dm, deformedVerts, numVerts, 0, 0);
 		} else {
 			DerivedMesh *ndm;
 
@@ -2057,7 +2075,11 @@ static void editmesh_calc_modifiers(Scene *scene, Object *ob, EditMesh *em, Deri
 
 				mask &= ~CD_MASK_ORCO;
 				DM_set_only_copy(orcodm, mask);
-				ndm = mti->applyModifierEM(md, ob, em, orcodm);
+
+				if (mti->applyModifierEM)
+					ndm = mti->applyModifierEM(md, ob, em, orcodm);
+				else
+					ndm = mti->applyModifier(md, ob, orcodm, 0, 0);
 
 				if(ndm) {
 					/* if the modifier returned a new dm, release the old one */
@@ -2073,7 +2095,10 @@ static void editmesh_calc_modifiers(Scene *scene, Object *ob, EditMesh *em, Deri
 				if(!CustomData_has_layer(&dm->faceData, CD_ORIGSPACE))
 					DM_add_face_layer(dm, CD_ORIGSPACE, CD_DEFAULT, NULL);
 			
-			ndm = mti->applyModifierEM(md, ob, em, dm);
+			if (mti->applyModifierEM)
+				ndm = mti->applyModifierEM(md, ob, em, dm);
+			else
+				ndm = mti->applyModifier(md, ob, dm, 0, 0);
 
 			if (ndm) {
 				if(dm && dm != ndm)
@@ -2489,7 +2514,7 @@ void DM_add_tangent_layer(DerivedMesh *dm)
 	tangent= DM_get_face_data_layer(dm, CD_TANGENT);
 	
 	/* allocate some space */
-	arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE);
+	arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "tangent layer arena");
 	BLI_memarena_use_calloc(arena);
 	vtangents= MEM_callocN(sizeof(VertexTangent*)*totvert, "VertexTangent");
 	
@@ -2564,9 +2589,7 @@ void DM_add_tangent_layer(DerivedMesh *dm)
 		
 		for(j=0; j<len; j++) {
 			vtang= find_vertex_tangent(vtangents[mf_vi[j]], mtface ? tf->uv[j] : uv[j]);
-
-			VECCOPY(tangent[j], vtang);
-			normalize_v3(tangent[j]);
+			normalize_v3_v3(tangent[j], vtang);
 		}
 	}
 	

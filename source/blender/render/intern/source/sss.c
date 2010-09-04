@@ -56,7 +56,6 @@
 #include "DNA_material_types.h"
 
 #include "BKE_colortools.h"
-#include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_node.h"
@@ -779,7 +778,7 @@ void scatter_tree_build(ScatterTree *tree)
 	tmppoints= MEM_callocN(sizeof(ScatterPoint*)*totpoint, "ScatterTmpPoints");
 	tree->tmppoints= tmppoints;
 
-	tree->arena= BLI_memarena_new(0x8000 * sizeof(ScatterNode));
+	tree->arena= BLI_memarena_new(0x8000 * sizeof(ScatterNode), "sss tree arena");
 	BLI_memarena_use_calloc(tree->arena);
 
 	/* build tree */
@@ -988,12 +987,12 @@ void make_sss_tree(Render *re)
 {
 	Material *mat;
 	
-	re->sss_hash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
+	re->sss_hash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "make_sss_tree gh");
 
 	re->i.infostr= "SSS preprocessing";
 	re->stats_draw(re->sdh, &re->i);
 	
-	for(mat= G.main->mat.first; mat; mat= mat->id.next)
+	for(mat= re->main->mat.first; mat; mat= mat->id.next)
 		if(mat->id.us && (mat->flag & MA_IS_USED) && (mat->sss_flag & MA_DIFF_SSS))
 			sss_create_tree_mat(re, mat);
 }

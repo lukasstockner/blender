@@ -29,7 +29,6 @@
 
 #include <string.h>
 
-#include "MEM_guardedalloc.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -43,17 +42,16 @@
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
-#include "BKE_utildefines.h"
 
 #include "RE_pipeline.h"
 
 #include "file_intern.h"
 
 /* XXX */
-static void error() {}
+static void error(const char *dummy) {}
 static void waitcursor(int val) {}
-static void activate_fileselect() {}
-static int saveover() {return 0;}
+static void activate_fileselect(int d1, char *d2, char *d3, void *d4) {}
+static int saveover(const char *dummy) {return 0;}
 /* XXX */
 
 
@@ -125,9 +123,11 @@ static void save_rendered_image_cb_real(char *name, int confirm)
 void save_image_filesel_str(Scene *scene, char *str)
 {
 	switch(scene->r.imtype) {
+#ifdef WITH_HDR
 		case R_RADHDR:
 			strcpy(str, "Save Radiance HDR");
 			break;
+#endif
 		case R_FFMPEG:
 		case R_H264:
 		case R_XVID:
@@ -143,21 +143,24 @@ void save_image_filesel_str(Scene *scene, char *str)
 		case R_BMP:
 			strcpy(str, "Save BMP");
 			break;
+#ifdef WITH_TIFF
 		case R_TIFF:
-			if (G.have_libtiff)
-				strcpy(str, "Save TIFF");
+			strcpy(str, "Save TIFF");
 			break;
+#endif
 #ifdef WITH_OPENEXR
 		case R_OPENEXR:
 			strcpy(str, "Save OpenEXR");
 			break;
 #endif
+#ifdef WITH_CINEON
 		case R_CINEON:
 			strcpy(str, "Save Cineon");
 			break;
 		case R_DPX:
 			strcpy(str, "Save DPX");
 			break;
+#endif
 		case R_RAWTGA:
 			strcpy(str, "Save Raw Targa");
 			break;
@@ -166,9 +169,6 @@ void save_image_filesel_str(Scene *scene, char *str)
 			break;
 		case R_IRIZ:
 			strcpy(str, "Save IRIS");
-			break;
-		case R_HAMX:
-			strcpy(str, "Save HAMX");
 			break;
 		case R_TARGA:
 			strcpy(str, "Save Targa");
@@ -183,7 +183,6 @@ void save_image_filesel_str(Scene *scene, char *str)
 #endif
 			/* default we save jpeg, also for all movie formats */
 		case R_JPEG90:
-		case R_MOVIE:
 		case R_AVICODEC:
 		case R_AVIRAW:
 		case R_AVIJPEG:

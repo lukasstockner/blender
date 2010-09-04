@@ -76,7 +76,6 @@
 #endif
 
 #ifdef WIN32
-#include <sys/types.h>
 #include <io.h>
 #include <direct.h>
 #include "BLI_winstuff.h"
@@ -238,8 +237,19 @@ void BLI_builddir(char *dirname, char *relname)
 		
 		if (newnum){
 
-			if (files) files=(struct direntry *)realloc(files,(totnum+newnum) * sizeof(struct direntry));
-			else files=(struct direntry *)malloc(newnum * sizeof(struct direntry));
+			if(files) {
+				void *tmp= realloc(files, (totnum+newnum) * sizeof(struct direntry));
+				if(tmp) {
+					files= (struct direntry *)tmp;
+				}
+				else { /* realloc fail */
+					free(files);
+					files= NULL;
+				}
+			}
+			
+			if(files==NULL)
+				files=(struct direntry *)malloc(newnum * sizeof(struct direntry));
 
 			if (files){
 				dlink = (struct dirlink *) dirbase->first;
@@ -251,6 +261,8 @@ void BLI_builddir(char *dirname, char *relname)
 // Excluding other than current MSVC compiler until able to test.
 #if (defined(WIN32) || defined(WIN64)) && (_MSC_VER>=1500)
 					_stat64(dlink->name,&files[actnum].s);
+#elif defined(__MINGW32__)
+					_stati64(dlink->name,&files[actnum].s);
 #else
 					stat(dlink->name,&files[actnum].s);
 #endif
@@ -433,18 +445,29 @@ int BLI_filepathsize(const char *path)
 
 int BLI_exist(char *name)
 {
-	struct stat st;
-#ifdef WIN32
+#if defined(WIN32) && !defined(__MINGW32__)
+	struct _stat64i32 st;
 	/*  in Windows stat doesn't recognize dir ending on a slash 
 		To not break code where the ending slash is expected we
 		don't mess with the argument name directly here - elubie */
 	char tmp[FILE_MAXDIR+FILE_MAXFILE];
-	int len;
+	int len, res;
 	BLI_strncpy(tmp, name, FILE_MAXDIR+FILE_MAXFILE);
 	len = strlen(tmp);
 	if (len > 3 && ( tmp[len-1]=='\\' || tmp[len-1]=='/') ) tmp[len-1] = '\0';
-	if (stat(tmp,&st)) return(0);
+	res = _stat(tmp, &st);
+	if (res == -1) return(0);
+#elif defined(__MINGW32__)
+	struct _stati64 st;
+	char tmp[FILE_MAXDIR+FILE_MAXFILE];
+	int len, res;
+	BLI_strncpy(tmp, name, FILE_MAXDIR+FILE_MAXFILE);
+	len = strlen(tmp);
+	if (len > 3 && ( tmp[len-1]=='\\' || tmp[len-1]=='/') ) tmp[len-1] = '\0';
+	res = _stati64(tmp, &st);
+	if (res) return(0);
 #else
+	struct stat st;
 	if (stat(name,&st)) return(0);	
 #endif
 	return(st.st_mode);
@@ -500,3 +523,14 @@ void BLI_free_file_lines(LinkNode *lines)
 {
 	BLI_linklist_free(lines, (void(*)(void*)) MEM_freeN);
 }
+
+int BLI_file_older(const char *file1, const char *file2)
+{
+	struct stat st1, st2;
+
+	if(stat(file1, &st1)) return 0;
+	if(stat(file2, &st2)) return 0;
+
+	return (st1.st_mtime < st2.st_mtime);
+}
+

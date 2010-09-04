@@ -62,7 +62,6 @@
 #include "BLI_listbase.h"
 #include "BLI_threads.h"
 
-#include "BKE_anim.h"
 #include "BKE_animsys.h"
 #include "BKE_boids.h"
 #include "BKE_cdderivedmesh.h"
@@ -182,7 +181,7 @@ static void realloc_particles(ParticleSimulationData *sim, int new_totpart)
 	else
 		totpart=new_totpart;
 
-	if(totpart && totpart != psys->totpart) {
+	if(totpart != psys->totpart) {
 		if(psys->edit && psys->free_edit) {
 			psys->free_edit(psys->edit);
 			psys->edit = NULL;
@@ -617,6 +616,10 @@ static int binary_search_distribution(float *sum, int n, float value)
 	return low;
 }
 
+/* the max number if calls to rng_* funcs within psys_thread_distribute_particle
+ * be sure to keep up to date if this changes */
+#define PSYS_RND_DIST_SKIP 2
+
 /* note: this function must be thread safe, for from == PART_FROM_CHILD */
 #define ONLY_WORKING_WITH_PA_VERTS 0
 static void psys_thread_distribute_particle(ParticleThread *thread, ParticleData *pa, ChildParticle *cpa, int p)
@@ -632,6 +635,7 @@ static void psys_thread_distribute_particle(ParticleThread *thread, ParticleData
 	int cfrom= ctx->cfrom;
 	int distr= ctx->distr;
 	int i, intersect, tot;
+	int rng_skip_tot= PSYS_RND_DIST_SKIP; /* count how many rng_* calls wont need skipping */
 
 	if(from == PART_FROM_VERT) {
 		/* TODO_PARTICLE - use original index */
@@ -669,6 +673,8 @@ static void psys_thread_distribute_particle(ParticleThread *thread, ParticleData
 		case PART_DISTR_RAND:
 			randu= rng_getFloat(thread->rng);
 			randv= rng_getFloat(thread->rng);
+			rng_skip_tot -= 2;
+
 			psys_uv_to_w(randu, randv, mface->v4, pa->fuv);
 			break;
 		}
@@ -720,7 +726,7 @@ static void psys_thread_distribute_particle(ParticleThread *thread, ParticleData
 				pa->foffset=0.0;
 			else switch(distr){
 				case PART_DISTR_JIT:
-					pa->foffset*= ctx->jit[2*(int)ctx->jitoff[i]];
+					pa->foffset*= ctx->jit[p%(2*ctx->jitlevel)];
 					break;
 				case PART_DISTR_RAND:
 					pa->foffset*=BLI_frand();
@@ -751,6 +757,8 @@ static void psys_thread_distribute_particle(ParticleThread *thread, ParticleData
 
 		randu= rng_getFloat(thread->rng);
 		randv= rng_getFloat(thread->rng);
+		rng_skip_tot -= 2;
+
 		psys_uv_to_w(randu, randv, mf->v4, cpa->fuv);
 
 		cpa->num = ctx->index[p];
@@ -859,6 +867,9 @@ static void psys_thread_distribute_particle(ParticleThread *thread, ParticleData
 			cpa->parent=cpa->pa[0];
 		}
 	}
+
+	if(rng_skip_tot > 0) /* should never be below zero */
+		rng_skip(thread->rng, rng_skip_tot);
 }
 
 static void *exec_distribution(void *data)
@@ -875,12 +886,12 @@ static void *exec_distribution(void *data)
 
 		for(p=0; p<totpart; p++, cpa++) {
 			if(thread->ctx->skip) /* simplification skip */
-				rng_skip(thread->rng, 5*thread->ctx->skip[p]);
+				rng_skip(thread->rng, PSYS_RND_DIST_SKIP * thread->ctx->skip[p]);
 
 			if((p+thread->num) % thread->tot == 0)
 				psys_thread_distribute_particle(thread, NULL, cpa, p);
 			else /* thread skip */
-				rng_skip(thread->rng, 5);
+				rng_skip(thread->rng, PSYS_RND_DIST_SKIP);
 		}
 	}
 	else {
@@ -1718,8 +1729,7 @@ void reset_particle(ParticleSimulationData *sim, ParticleData *pa, float dtime, 
 		mul_qt_v3(rot, vtan);
 		mul_qt_v3(rot, utan);
 
-		VECCOPY(p_vel, state.vel);
-		speed=normalize_v3(p_vel);
+		speed= normalize_v3_v3(p_vel, state.vel);
 		mul_v3_fl(p_vel, dot_v3v3(r_vel, p_vel));
 		VECSUB(p_vel, r_vel, p_vel);
 		normalize_v3(p_vel);
@@ -1860,18 +1870,15 @@ void reset_particle(ParticleSimulationData *sim, ParticleData *pa, float dtime, 
 
 		/*		*emitter object orientation		*/
 		if(part->ob_vel[0]!=0.0) {
-			VECCOPY(vec, ob->obmat[0]);
-			normalize_v3(vec);
+			normalize_v3_v3(vec, ob->obmat[0]);
 			VECADDFAC(vel, vel, vec, part->ob_vel[0]);
 		}
 		if(part->ob_vel[1]!=0.0) {
-			VECCOPY(vec, ob->obmat[1]);
-			normalize_v3(vec);
+			normalize_v3_v3(vec, ob->obmat[1]);
 			VECADDFAC(vel, vel, vec, part->ob_vel[1]);
 		}
 		if(part->ob_vel[2]!=0.0) {
-			VECCOPY(vec, ob->obmat[2]);
-			normalize_v3(vec);
+			normalize_v3_v3(vec, ob->obmat[2]);
 			VECADDFAC(vel, vel, vec, part->ob_vel[2]);
 		}
 
@@ -2308,8 +2315,7 @@ void particle_fluidsim(ParticleSystem *psys, ParticleData *pa, ParticleSettings 
 	VECCOPY(start, pa->prev_state.co);
 	VECCOPY(end, pa->state.co);
 
-	sub_v3_v3v3(v, end, start);
-	mul_v3_fl(v, 1.f/dtime);
+	VECCOPY(v, pa->state.vel);
 
 	neighbours = BLI_kdtree_range_search(tree, radius, start, NULL, &ptn);
 
@@ -2386,7 +2392,7 @@ void particle_fluidsim(ParticleSystem *psys, ParticleData *pa, ParticleSettings 
 
 static void apply_particle_fluidsim(ParticleSystem *psys, ParticleData *pa, ParticleSettings *part, ParticleSimulationData *sim, float dfra, float cfra){
 	ParticleTarget *pt;
-	float dtime = dfra*psys_get_timestep(sim);
+//	float dtime = dfra*psys_get_timestep(sim);
 	float particle_mass = part->mass;
 
 	particle_fluidsim(psys, pa, part, sim, dfra, cfra, particle_mass);
@@ -3118,7 +3124,7 @@ static void psys_update_path_cache(ParticleSimulationData *sim, float cfra)
 		if(part->childtype) {
 			if(!psys->totchild)
 				skip = 1;
-			else if((psys->part->type == PART_HAIR && psys->flag & PSYS_HAIR_DONE)==0)
+			else if(psys->part->type == PART_HAIR && (psys->flag & PSYS_HAIR_DONE)==0)
 				skip = 1;
 
 			if(!skip)
@@ -3267,8 +3273,8 @@ static void hair_step(ParticleSimulationData *sim, float cfra)
 	if(psys->part->type==PART_HAIR && psys->flag & PSYS_HAIR_DYNAMICS)
 		do_hair_dynamics(sim);
 
+	/* following lines were removed r29079 but cause bug [#22811], see report for details */
 	psys_update_effectors(sim);
-
 	psys_update_path_cache(sim, cfra);
 
 	psys->flag |= PSYS_HAIR_UPDATED;
@@ -3688,8 +3694,8 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 	PTCacheID pid, *use_cache = NULL;
 	PARTICLE_P;
 	int oldtotpart;
-	float disp, *vg_vel= 0, *vg_tan= 0, *vg_rot= 0, *vg_size= 0;
-	int init= 0, emit= 0, only_children_changed= 0;
+	float disp; /*, *vg_vel= 0, *vg_tan= 0, *vg_rot= 0, *vg_size= 0; */
+	int init= 0, emit= 0; //, only_children_changed= 0;
 	int framenr, framedelta, startframe = 0, endframe = 100;
 
 	framenr= (int)sim->scene->r.cfra;
@@ -3732,7 +3738,7 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 	oldtotpart = psys->totpart;
 
 	emit = emit_particles(sim, use_cache, cfra);
-	if(emit > 0)
+	if(use_cache && emit > 0)
 		BKE_ptcache_id_clear(&pid, PTCACHE_CLEAR_ALL, cfra);
 	init = emit*emit + (psys->recalc & PSYS_RECALC_RESET);
 
@@ -3790,18 +3796,23 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 	}
 
 	if(psys->totpart) {
-		int dframe, totframesback = 0;
-
+		int dframe, subframe = 0, totframesback = 0, totsubframe = part->subframes+1;
+		float fraction;
+		
 		/* handle negative frame start at the first frame by doing
 		 * all the steps before the first frame */
 		if(framenr == startframe && part->sta < startframe)
 			totframesback = (startframe - (int)part->sta);
-
+		
 		for(dframe=-totframesback; dframe<=0; dframe++) {
 			/* ok now we're all set so let's go */
-			dynamics_step(sim, cfra+dframe);
-			psys->cfra = cfra+dframe;
+			for (subframe = 1; subframe <= totsubframe; subframe++) {
+				fraction = (float)subframe/(float)totsubframe;
+				dynamics_step(sim, cfra+dframe+fraction - 1.f);
+				psys->cfra = cfra+dframe+fraction - 1.f;
+			}
 		}
+		
 	}
 	
 /* 4. only write cache starting from second frame */
@@ -3959,7 +3970,7 @@ void particle_system_update(Scene *scene, Object *ob, ParticleSystem *psys)
 	if(!psys_check_enabled(ob, psys))
 		return;
 
-	cfra= bsystem_time(scene, ob, (float)scene->r.cfra, 0.0f);
+	cfra= BKE_curframe(scene);
 	sim.psmd= psys_get_modifier(ob, psys);
 
 	/* system was already updated from modifier stack */
@@ -4022,12 +4033,21 @@ void particle_system_update(Scene *scene, Object *ob, ParticleSystem *psys)
 				case PART_PHYS_NO:
 				case PART_PHYS_KEYED:
 				{
+					PARTICLE_P;
+
 					if(emit_particles(&sim, NULL, cfra)) {
 						free_keyed_keys(psys);
 						distribute_particles(&sim, part->from);
 						initialize_all_particles(&sim);
 					}
-					reset_all_particles(&sim, 0.0, cfra, 0);
+
+					LOOP_EXISTING_PARTICLES {
+						pa->size = part->size;
+						if(part->randsize > 0.0)
+							pa->size *= 1.0f - part->randsize * PSYS_FRAND(p + 1);
+
+						reset_particle(&sim, pa, 0.0, cfra);
+					}
 
 					if(part->phystype == PART_PHYS_KEYED) {
 						psys_count_keyed_targets(&sim);

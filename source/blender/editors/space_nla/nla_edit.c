@@ -39,16 +39,13 @@
 #include "BLI_math.h"
 #include "BLI_rand.h"
 
-#include "BKE_animsys.h"
 #include "BKE_action.h"
 #include "BKE_fcurve.h"
 #include "BKE_nla.h"
 #include "BKE_context.h"
-#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
 #include "BKE_screen.h"
-#include "BKE_utildefines.h"
 
 #include "ED_anim_api.h"
 #include "ED_keyframes_edit.h"
@@ -260,7 +257,7 @@ static int nlaedit_add_actionclip_exec (bContext *C, wmOperator *op)
 	cfra= (float)CFRA;
 		
 	/* get action to use */
-	act= BLI_findlink(&CTX_data_main(C)->action, RNA_enum_get(op->ptr, "type"));
+	act= BLI_findlink(&CTX_data_main(C)->action, RNA_enum_get(op->ptr, "action"));
 	
 	if (act == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "No valid Action to add.");
@@ -311,7 +308,7 @@ static int nlaedit_add_actionclip_exec (bContext *C, wmOperator *op)
 	ED_nla_postop_refresh(&ac);
 	
 	/* set notifier that things have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA_EDIT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_EDITED, NULL);
 	
 	/* done */
 	return OPERATOR_FINISHED;
@@ -336,7 +333,7 @@ void NLA_OT_actionclip_add (wmOperatorType *ot)
 	
 	/* props */
 		// TODO: this would be nicer as an ID-pointer...
-	prop= RNA_def_enum(ot->srna, "type", DummyRNA_NULL_items, 0, "Type", "");
+	prop= RNA_def_enum(ot->srna, "action", DummyRNA_NULL_items, 0, "Action", "");
 	RNA_def_enum_funcs(prop, RNA_action_itemf);
 	ot->prop= prop;
 }
@@ -430,7 +427,7 @@ static int nlaedit_add_transition_exec (bContext *C, wmOperator *op)
 		ED_nla_postop_refresh(&ac);
 		
 		/* set notifier that things have changed */
-		WM_event_add_notifier(C, NC_ANIMATION|ND_NLA_EDIT, NULL);
+		WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_EDITED, NULL);
 		
 		/* done */
 		return OPERATOR_FINISHED;
@@ -497,7 +494,7 @@ static int nlaedit_add_meta_exec (bContext *C, wmOperator *op)
 	BLI_freelistN(&anim_data);
 	
 	/* set notifier that things have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA_EDIT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_EDITED, NULL);
 	
 	/* done */
 	return OPERATOR_FINISHED;
@@ -549,7 +546,7 @@ static int nlaedit_remove_meta_exec (bContext *C, wmOperator *op)
 	BLI_freelistN(&anim_data);
 	
 	/* set notifier that things have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA_EDIT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_EDITED, NULL);
 	
 	/* done */
 	return OPERATOR_FINISHED;
@@ -639,7 +636,7 @@ static int nlaedit_duplicate_exec (bContext *C, wmOperator *op)
 		ED_nla_postop_refresh(&ac);
 		
 		/* set notifier that things have changed */
-		WM_event_add_notifier(C, NC_ANIMATION|ND_NLA_EDIT, NULL);
+		WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_EDITED, NULL);
 		
 		/* done */
 		return OPERATOR_FINISHED;
@@ -727,7 +724,7 @@ static int nlaedit_delete_exec (bContext *C, wmOperator *op)
 	ED_nla_postop_refresh(&ac);
 	
 	/* set notifier that things have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA_EDIT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_EDITED, NULL);
 	
 	/* done */
 	return OPERATOR_FINISHED;
@@ -872,7 +869,7 @@ static int nlaedit_split_exec (bContext *C, wmOperator *op)
 	ED_nla_postop_refresh(&ac);
 	
 	/* set notifier that things have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA_EDIT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_EDITED, NULL);
 	
 	/* done */
 	return OPERATOR_FINISHED;
@@ -903,7 +900,7 @@ static int nlaedit_bake_exec (bContext *C, wmOperator *op)
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
 	int filter;
-	int flag = 0;
+//	int flag = 0;
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
@@ -925,7 +922,7 @@ static int nlaedit_bake_exec (bContext *C, wmOperator *op)
 	ED_nla_postop_refresh(&ac);
 	
 	/* set notifier that things have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA_EDIT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_EDITED, NULL);
 	
 	/* done */
 	return OPERATOR_FINISHED;
@@ -987,7 +984,7 @@ static int nlaedit_toggle_mute_exec (bContext *C, wmOperator *op)
 	BLI_freelistN(&anim_data);
 	
 	/* set notifier that things have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA_EDIT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_EDITED, NULL);
 	
 	/* done */
 	return OPERATOR_FINISHED;
@@ -1061,7 +1058,7 @@ static int nlaedit_move_up_exec (bContext *C, wmOperator *op)
 	ED_nla_postop_refresh(&ac);
 	
 	/* set notifier that things have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA_EDIT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_EDITED, NULL);
 	
 	/* done */
 	return OPERATOR_FINISHED;
@@ -1135,7 +1132,7 @@ static int nlaedit_move_down_exec (bContext *C, wmOperator *op)
 	ED_nla_postop_refresh(&ac);
 	
 	/* set notifier that things have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA_EDIT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_EDITED, NULL);
 	
 	/* done */
 	return OPERATOR_FINISHED;
@@ -1211,7 +1208,7 @@ static int nlaedit_sync_actlen_exec (bContext *C, wmOperator *op)
 	BLI_freelistN(&anim_data);
 	
 	/* set notifier that things have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA_EDIT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_EDITED, NULL);
 	
 	/* done */
 	return OPERATOR_FINISHED;
@@ -1312,7 +1309,7 @@ static int nlaedit_apply_scale_exec (bContext *C, wmOperator *op)
 	BLI_freelistN(&anim_data);
 	
 	/* set notifier that things have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA_EDIT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_EDITED, NULL);
 	
 	/* done */
 	return OPERATOR_FINISHED;
@@ -1375,7 +1372,7 @@ static int nlaedit_clear_scale_exec (bContext *C, wmOperator *op)
 	ED_nla_postop_refresh(&ac);
 	
 	/* set notifier that things have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA_EDIT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_EDITED, NULL);
 	
 	/* done */
 	return OPERATOR_FINISHED;
@@ -1516,7 +1513,7 @@ static int nlaedit_snap_exec (bContext *C, wmOperator *op)
 	ED_nla_postop_refresh(&ac);
 	
 	/* set notifier that things have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA_EDIT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_EDITED, NULL);
 	
 	/* done */
 	return OPERATOR_FINISHED;
@@ -1631,7 +1628,7 @@ static int nla_fmodifier_add_exec(bContext *C, wmOperator *op)
 	BLI_freelistN(&anim_data);
 	
 	/* set notifier that things have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA_EDIT, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_EDITED, NULL);
 	
 	/* done */
 	return OPERATOR_FINISHED;
@@ -1753,7 +1750,7 @@ static int nla_fmodifier_paste_exec(bContext *C, wmOperator *op)
 	if (ok) {
 		/* set notifier that things have changed */
 		/* set notifier that things have changed */
-		WM_event_add_notifier(C, NC_ANIMATION|ND_NLA_EDIT, NULL);
+		WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_EDITED, NULL);
 		return OPERATOR_FINISHED;
 	}
 	else {

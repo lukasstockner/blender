@@ -56,7 +56,6 @@ int		BKE_imtype_is_movie(int imtype);
 
 struct anim *openanim(char * name, int flags);
 
-void	converttopremul(struct ImBuf *ibuf);
 void	image_de_interlace(struct Image *ima, int odd);
 	
 void	tag_image_time(struct Image *ima);
@@ -117,7 +116,7 @@ void BKE_image_release_ibuf(struct Image *ima, void *lock);
 struct Image *BKE_add_image_file(const char *name, int frame);
 
 /* adds image, adds ibuf, generates color or pattern */
-struct Image *BKE_add_image_size(int width, int height, char *name, int floatbuf, short uvtestgrid, float color[4]);
+struct Image *BKE_add_image_size(int width, int height, char *name, int depth, int floatbuf, short uvtestgrid, float color[4]);
 /* adds image from imbuf, owns imbuf */
 struct Image *BKE_add_image_imbuf(struct ImBuf *ibuf);
 
@@ -161,7 +160,7 @@ void BKE_image_memorypack(struct Image *ima);
 void BKE_image_print_memlist(void);
 
 /* empty image block, of similar type and filename */
-struct Image *BKE_image_copy(struct Image *ima);
+struct Image *copy_image(struct Image *ima);
 
 /* merge source into dest, and free source */
 void BKE_image_merge(struct Image *dest, struct Image *source);

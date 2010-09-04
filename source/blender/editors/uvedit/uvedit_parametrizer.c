@@ -3190,11 +3190,11 @@ static float p_face_stretch(PFace *f)
 
 	copy_v3_v3(tmp, v2->co);
 	mul_v3_fl(tmp, (v3->uv[1] - v1->uv[1]));
-	add_v3_v3v3(Ps, Ps, tmp);
+	add_v3_v3(Ps, tmp);
 
 	copy_v3_v3(tmp, v3->co);
 	mul_v3_fl(tmp, (v1->uv[1] - v2->uv[1]));
-	add_v3_v3v3(Ps, Ps, tmp);
+	add_v3_v3(Ps, tmp);
 
 	mul_v3_fl(Ps, w);
 
@@ -3203,11 +3203,11 @@ static float p_face_stretch(PFace *f)
 
 	copy_v3_v3(tmp, v2->co);
 	mul_v3_fl(tmp, (v1->uv[0] - v3->uv[0]));
-	add_v3_v3v3(Pt, Pt, tmp);
+	add_v3_v3(Pt, tmp);
 
 	copy_v3_v3(tmp, v3->co);
 	mul_v3_fl(tmp, (v2->uv[0] - v1->uv[0]));
-	add_v3_v3v3(Pt, Pt, tmp);
+	add_v3_v3(Pt, tmp);
 
 	mul_v3_fl(Pt, w);
 
@@ -4027,7 +4027,7 @@ static void p_smooth(PChart *chart)
 	MEM_freeN(nodesx);
 	MEM_freeN(nodesy);
 
-	arena = BLI_memarena_new(1<<16);
+	arena = BLI_memarena_new(1<<16, "param smooth arena");
 	root = p_node_new(arena, tri, esize*2, minv, maxv, 0);
 
 	for (v=chart->verts; v; v=v->nextlink)
@@ -4047,7 +4047,7 @@ ParamHandle *param_construct_begin()
 	PHandle *handle = MEM_callocN(sizeof*handle, "PHandle");
 	handle->construction_chart = p_chart_new(handle);
 	handle->state = PHANDLE_STATE_ALLOCATED;
-	handle->arena = BLI_memarena_new((1<<16));
+	handle->arena = BLI_memarena_new((1<<16), "param construct arena");
 	handle->aspx = 1.0f;
 	handle->aspy = 1.0f;
 

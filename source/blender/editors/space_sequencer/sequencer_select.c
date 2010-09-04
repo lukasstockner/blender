@@ -35,7 +35,6 @@
 #endif
 #include <sys/types.h>
 
-#include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -43,12 +42,7 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_library.h"
-#include "BKE_main.h"
 #include "BKE_sequencer.h"
-#include "BKE_scene.h"
-#include "BKE_utildefines.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -64,8 +58,7 @@
 
 /* own include */
 #include "sequencer_intern.h"
-static void *find_nearest_marker() {return NULL;}
-static void deselect_markers() {}
+static void *find_nearest_marker(int d1, int d2) {return NULL;}
 	
 void select_surrounding_handles(Scene *scene, Sequence *test) /* XXX BRING BACK */
 {
@@ -167,7 +160,7 @@ void select_single_seq(Scene *scene, Sequence *seq, int deselect_all) /* BRING B
 	
 	if(deselect_all)
 		deselect_all_seq(scene);
-	active_seq_set(scene, seq);
+	seq_active_set(scene, seq);
 
 	if((seq->type==SEQ_IMAGE) || (seq->type==SEQ_MOVIE)) {
 		if(seq->strip)
@@ -186,7 +179,7 @@ void select_single_seq(Scene *scene, Sequence *seq, int deselect_all) /* BRING B
 
 void select_neighbor_from_last(Scene *scene, int lr)
 {
-	Sequence *seq= active_seq_get(scene);
+	Sequence *seq= seq_active_get(scene);
 	Sequence *neighbor;
 	int change = 0;
 	if (seq) {
@@ -223,9 +216,6 @@ static int sequencer_deselect_exec(bContext *C, wmOperator *op)
 	Sequence *seq;
 	int desel = 0;
 
-	if(ed==NULL)
-		return OPERATOR_CANCELLED;
-
 	for(seq= ed->seqbasep->first; seq; seq=seq->next) {
 		if(seq->flag & SEQ_ALLSEL) {
 			desel= 1;
@@ -235,7 +225,7 @@ static int sequencer_deselect_exec(bContext *C, wmOperator *op)
 
 	for(seq= ed->seqbasep->first; seq; seq=seq->next) {
 		if (desel) {
-			seq->flag &= SEQ_DESEL;
+			seq->flag &= ~SEQ_ALLSEL;
 		}
 		else {
 			seq->flag &= ~(SEQ_LEFTSEL+SEQ_RIGHTSEL);
@@ -243,7 +233,7 @@ static int sequencer_deselect_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER_SELECT, scene);
+	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER|NA_SELECTED, scene);
 	
 	return OPERATOR_FINISHED;
 }
@@ -251,14 +241,13 @@ static int sequencer_deselect_exec(bContext *C, wmOperator *op)
 void SEQUENCER_OT_select_all_toggle(struct wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "(De)Select All";
+	ot->name= "Select or Deselect All";
 	ot->idname= "SEQUENCER_OT_select_all_toggle";
 	ot->description="Select or deselect all strips";
 	
 	/* api callbacks */
 	ot->exec= sequencer_deselect_exec;
-
-	ot->poll= ED_operator_sequencer_active;
+	ot->poll= sequencer_edit_poll;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -272,12 +261,9 @@ static int sequencer_select_inverse_exec(bContext *C, wmOperator *op)
 	Editing *ed= seq_give_editing(scene, FALSE);
 	Sequence *seq;
 
-	if(ed==NULL)
-		return OPERATOR_CANCELLED;
-
 	for(seq= ed->seqbasep->first; seq; seq=seq->next) {
 		if (seq->flag & SELECT) {
-			seq->flag &= SEQ_DESEL;
+			seq->flag &= ~SEQ_ALLSEL;
 		}
 		else {
 			seq->flag &= ~(SEQ_LEFTSEL+SEQ_RIGHTSEL);
@@ -285,7 +271,7 @@ static int sequencer_select_inverse_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER_SELECT, scene);
+	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER|NA_SELECTED, scene);
 	
 	return OPERATOR_FINISHED;
 }
@@ -299,8 +285,7 @@ void SEQUENCER_OT_select_inverse(struct wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= sequencer_select_inverse_exec;
-
-	ot->poll= ED_operator_sequencer_active;
+	ot->poll= sequencer_edit_poll;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -349,7 +334,7 @@ static int sequencer_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
 				marker->flag |= SELECT;
 		}
 		else {
-			deselect_markers(0, 0);
+			/* deselect_markers(0, 0); */ /* XXX, in 2.4x, seq selection used to deselect all, need to re-thnik this for 2.5 */
 			marker->flag |= SELECT;				
 		}
 		
@@ -401,7 +386,7 @@ static int sequencer_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
 			deselect_all_seq(scene);
 	
 		if(seq) {
-			active_seq_set(scene, seq);
+			seq_active_set(scene, seq);
 	
 			if ((seq->type == SEQ_IMAGE) || (seq->type == SEQ_MOVIE)) {
 				if(seq->strip) {
@@ -418,7 +403,7 @@ static int sequencer_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
 				switch(hand) {
 				case SEQ_SIDE_NONE:
 					if (linked_handle==0)
-						seq->flag &= SEQ_DESEL;
+						seq->flag &= ~SEQ_ALLSEL;
 					break;
 				case SEQ_SIDE_LEFT:
 					seq->flag ^= SEQ_LEFTSEL;
@@ -514,7 +499,7 @@ static int sequencer_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	}
 #endif
 	
-	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER_SELECT, scene);
+	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER|NA_SELECTED, scene);
 
 	/* allowing tweaks */
 	return OPERATOR_FINISHED|OPERATOR_PASS_THROUGH;
@@ -604,7 +589,7 @@ static int sequencer_select_more_exec(bContext *C, wmOperator *op)
 	if(!select_more_less_seq__internal(scene, 0, 0))
 		return OPERATOR_CANCELLED;
 
-	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER_SELECT, scene);
+	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER|NA_SELECTED, scene);
 	
 	return OPERATOR_FINISHED;
 }
@@ -614,11 +599,11 @@ void SEQUENCER_OT_select_more(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Select More";
 	ot->idname= "SEQUENCER_OT_select_more";
-	ot->description="DOC_BROKEN";
+	ot->description="Select more strips adjacent to the current selection";
 	
 	/* api callbacks */
 	ot->exec= sequencer_select_more_exec;
-	ot->poll= ED_operator_sequencer_active;
+	ot->poll= sequencer_edit_poll;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -635,7 +620,7 @@ static int sequencer_select_less_exec(bContext *C, wmOperator *op)
 	if(!select_more_less_seq__internal(scene, 1, 0))
 		return OPERATOR_CANCELLED;
  
-	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER_SELECT, scene);
+	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER|NA_SELECTED, scene);
 	
 	return OPERATOR_FINISHED;
 }
@@ -645,11 +630,11 @@ void SEQUENCER_OT_select_less(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Select less";
 	ot->idname= "SEQUENCER_OT_select_less";
-	ot->description="DOC_BROKEN";
+	ot->description="Shrink the current selection of adjacent selected strips";
 	
 	/* api callbacks */
 	ot->exec= sequencer_select_less_exec;
-	ot->poll= ED_operator_sequencer_active;
+	ot->poll= sequencer_edit_poll;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -690,7 +675,7 @@ static int sequencer_select_linked_pick_invoke(bContext *C, wmOperator *op, wmEv
 		selected = select_more_less_seq__internal(scene, 1, 1);
 	}
 	
-	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER_SELECT, scene);
+	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER|NA_SELECTED, scene);
 	
 	return OPERATOR_FINISHED;
 }
@@ -700,7 +685,7 @@ void SEQUENCER_OT_select_linked_pick(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Select pick linked";
 	ot->idname= "SEQUENCER_OT_select_linked_pick";
-	ot->description="DOC_BROKEN";
+	ot->description="Select a chain of linked strips nearest to the mouse pointer";
 	
 	/* api callbacks */
 	ot->invoke= sequencer_select_linked_pick_invoke;
@@ -725,7 +710,7 @@ static int sequencer_select_linked_exec(bContext *C, wmOperator *op)
 		selected = select_more_less_seq__internal(scene, 1, 1);
 	}
 
-	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER_SELECT, scene);
+	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER|NA_SELECTED, scene);
 
 	return OPERATOR_FINISHED;
 }
@@ -735,11 +720,11 @@ void SEQUENCER_OT_select_linked(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Select linked";
 	ot->idname= "SEQUENCER_OT_select_linked";
-	ot->description="DOC_BROKEN";
+	ot->description="Select all strips adjacent to the current selection";
 	
 	/* api callbacks */
 	ot->exec= sequencer_select_linked_exec;
-	ot->poll= ED_operator_sequencer_active;
+	ot->poll= sequencer_edit_poll;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -756,8 +741,6 @@ static int sequencer_select_handles_exec(bContext *C, wmOperator *op)
 	Sequence *seq;
 	int sel_side= RNA_enum_get(op->ptr, "side");
 
-	if (ed==NULL)
-		return OPERATOR_CANCELLED;
 
 	for(seq= ed->seqbasep->first; seq; seq=seq->next) {
 		if (seq->flag & SELECT) {
@@ -777,7 +760,7 @@ static int sequencer_select_handles_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER_SELECT, scene);
+	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER|NA_SELECTED, scene);
 
 	return OPERATOR_FINISHED;
 }
@@ -787,11 +770,11 @@ void SEQUENCER_OT_select_handles(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Select Handles";
 	ot->idname= "SEQUENCER_OT_select_handles";
-	ot->description="DOC_BROKEN";
+	ot->description="Select manipulator handles on the sides of the selected strip";
 	
 	/* api callbacks */
 	ot->exec= sequencer_select_handles_exec;
-	ot->poll= ED_operator_sequencer_active;
+	ot->poll= sequencer_edit_poll;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -805,7 +788,7 @@ static int sequencer_select_active_side_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene= CTX_data_scene(C);
 	Editing *ed= seq_give_editing(scene, 0);
-	Sequence *seq_act= active_seq_get(scene);
+	Sequence *seq_act= seq_active_get(scene);
 
 	if (ed==NULL || seq_act==NULL)
 		return OPERATOR_CANCELLED;
@@ -814,7 +797,7 @@ static int sequencer_select_active_side_exec(bContext *C, wmOperator *op)
 
 	select_active_side(ed->seqbasep, RNA_enum_get(op->ptr, "side"), seq_act->machine, seq_act->startdisp);
 
-	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER_SELECT, scene);
+	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER|NA_SELECTED, scene);
 
 	return OPERATOR_FINISHED;
 }
@@ -824,11 +807,11 @@ void SEQUENCER_OT_select_active_side(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Select Active Side";
 	ot->idname= "SEQUENCER_OT_select_active_side";
-	ot->description="DOC_BROKEN";
+	ot->description="Select strips on the nominated side of the active strip";
 	
 	/* api callbacks */
 	ot->exec= sequencer_select_active_side_exec;
-	ot->poll= ED_operator_sequencer_active;
+	ot->poll= sequencer_edit_poll;
 
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -871,12 +854,12 @@ static int sequencer_borderselect_exec(bContext *C, wmOperator *op)
 		
 		if(BLI_isect_rctf(&rq, &rectf, 0)) {
 			if(selecting)		seq->flag |= SELECT;
-			else				seq->flag &= SEQ_DESEL;
+			else				seq->flag &= ~SEQ_ALLSEL;
 			recurs_sel_seq(seq);
 		}
 	}
 
-	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER_SELECT, scene);
+	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER|NA_SELECTED, scene);
 
 	return OPERATOR_FINISHED;
 } 

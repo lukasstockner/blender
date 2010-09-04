@@ -236,8 +236,6 @@ int imagewrap(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, TexResult *texre
 		}
 	}
 
-	BRICONTRGB;
-
 	if(texres->talpha) texres->tin= texres->ta;
 	else if(tex->imaflag & TEX_CALCALPHA) {
 		texres->ta= texres->tin= MAX3(texres->tr, texres->tg, texres->tb);
@@ -253,6 +251,8 @@ int imagewrap(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, TexResult *texre
 		texres->tg*= fx;
 		texres->tb*= fx;
 	}
+	
+	BRICONTRGB;
 	
 	return retval;
 }
@@ -586,48 +586,18 @@ static void boxsample(ImBuf *ibuf, float minx, float miny, float maxx, float max
 	}
 }	
 
-void image_sample(Image *ima, float fx, float fy, float dx, float dy, float *result)
-{
-	TexResult texres;
-	ImBuf *ibuf= BKE_image_get_ibuf(ima, NULL);
-	
-	if(ibuf==NULL) {
-		result[0]= result[1]= result[2]= result[3]= 0.0f;
-		return;
-	}
-	
-	if( (R.flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) )
-		ibuf->rect+= (ibuf->x*ibuf->y);
-	
-	boxsample(ibuf, fx, fy, fx+dx, fy+dy, &texres, 0, 1, 0);
-	result[0]= texres.tr;
-	result[1]= texres.tg;
-	result[2]= texres.tb;
-	result[3]= texres.ta;
-
-	if( (R.flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) )
-		ibuf->rect-= (ibuf->x*ibuf->y);
-}
-
-void ibuf_sample(ImBuf *ibuf, float fx, float fy, float dx, float dy, float *result)
-{
-	TexResult texres;
-	
-	if(ibuf==NULL) {
-		return;
-	}
-	
-	memset(&texres, 0, sizeof(texres));
-	boxsample(ibuf, fx, fy, fx+dx, fy+dy, &texres, 0, 1, 0);
-	result[0]= texres.tr;
-	result[1]= texres.tg;
-	result[2]= texres.tb;
-	result[3]= texres.ta;
-}
-
-
 //-----------------------------------------------------------------------------------------------------------------
 // from here, some functions only used for the new filtering
+
+// anisotropic filters, data struct used instead of long line of (possibly unused) func args
+typedef struct afdata_t {
+	float dxt[2], dyt[2];
+	int intpol, extflag;
+	// feline only
+	float majrad, minrad, theta;
+	int iProbes;
+	float dusc, dvsc;
+} afdata_t;
 
 // this only used here to make it easier to pass extend flags as single int
 enum {TXC_XMIR=1, TXC_YMIR, TXC_REPT, TXC_EXTD};
@@ -712,16 +682,6 @@ static int ibuf_get_color_clip_bilerp(float *col, ImBuf *ibuf, float u, float v,
 	}
 	return ibuf_get_color_clip(col, ibuf, (int)u, (int)v, extflag);
 }
-
-// anisotropic filters, data struct used instead of long line of (possibly unused) func args
-typedef struct afdata_t {
-	float dxt[2], dyt[2];
-	int intpol, extflag;
-	// feline only
-	float majrad, minrad, theta;
-	int iProbes;
-	float dusc, dvsc;
-} afdata_t;
 
 static void area_sample(TexResult* texr, ImBuf* ibuf, float fx, float fy, afdata_t* AFD)
 {
@@ -1358,8 +1318,6 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, 
 		}
 	}
 
-	BRICONTRGB;
-
 	if (tex->imaflag & TEX_CALCALPHA)
 		texres->ta = texres->tin = texres->ta * MAX3(texres->tr, texres->tg, texres->tb);
 	else
@@ -1388,6 +1346,8 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, 
 		texres->tb *= fx;
 	}
 
+	BRICONTRGB;
+	
 	return retval;
 }
 
@@ -1745,8 +1705,6 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, f
 			boxsample(ibuf, fx-minx, fy-miny, fx+minx, fy+miny, texres, imaprepeat, imapextend, 0);
 	}
 	
-	BRICONTRGB;
-	
 	if(tex->imaflag & TEX_CALCALPHA) {
 		texres->ta= texres->tin= texres->ta*MAX3(texres->tr, texres->tg, texres->tb);
 	}
@@ -1773,5 +1731,57 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, f
 		texres->tb*= fx;
 	}
 
+	BRICONTRGB;
+	
 	return retval;
+}
+
+void image_sample(Image *ima, float fx, float fy, float dx, float dy, float *result)
+{
+	TexResult texres;
+	ImBuf *ibuf= BKE_image_get_ibuf(ima, NULL);
+	
+	if(ibuf==NULL) {
+		result[0]= result[1]= result[2]= result[3]= 0.0f;
+		return;
+	}
+	
+	if( (R.flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) )
+		ibuf->rect+= (ibuf->x*ibuf->y);
+	
+	boxsample(ibuf, fx, fy, fx+dx, fy+dy, &texres, 0, 1, 0);
+	result[0]= texres.tr;
+	result[1]= texres.tg;
+	result[2]= texres.tb;
+	result[3]= texres.ta;
+	
+	if( (R.flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) )
+		ibuf->rect-= (ibuf->x*ibuf->y);
+}
+
+void ibuf_sample(ImBuf *ibuf, float fx, float fy, float dx, float dy, float *result)
+{
+	TexResult texres;
+	afdata_t AFD;
+	
+	if(ibuf==NULL) {
+		return;
+	}
+	
+	AFD.dxt[0] = dx; AFD.dxt[1] = dx;
+	AFD.dyt[0] = dy; AFD.dyt[1] = dy;
+	//copy_v2_v2(AFD.dxt, dx);
+	//copy_v2_v2(AFD.dyt, dy);
+	
+	AFD.intpol = 1;
+	AFD.extflag = TXC_EXTD;
+	
+	memset(&texres, 0, sizeof(texres));
+	ewa_eval(&texres, ibuf, fx, fy, &AFD);
+	
+	
+	result[0]= texres.tr;
+	result[1]= texres.tg;
+	result[2]= texres.tb;
+	result[3]= texres.ta;
 }

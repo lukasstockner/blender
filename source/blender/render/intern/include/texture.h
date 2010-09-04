@@ -40,7 +40,13 @@ if(texres->tr<0.0) texres->tr= 0.0; \
 texres->tg= tex->gfac*((texres->tg-0.5)*tex->contrast+tex->bright-0.5); \
 if(texres->tg<0.0) texres->tg= 0.0; \
 texres->tb= tex->bfac*((texres->tb-0.5)*tex->contrast+tex->bright-0.5); \
-if(texres->tb<0.0) texres->tb= 0.0; 
+if(texres->tb<0.0) texres->tb= 0.0; \
+if(tex->saturation != 1.0f) { \
+	float _hsv[3]; \
+	rgb_to_hsv(texres->tr, texres->tg, texres->tb, _hsv, _hsv+1, _hsv+2); \
+	_hsv[1] *= tex->saturation; \
+	hsv_to_rgb(_hsv[0], _hsv[1], _hsv[2], &texres->tr, &texres->tg, &texres->tb); \
+} \
 
 
 struct HaloRen;
@@ -59,7 +65,7 @@ void do_lamp_tex(LampRen *la, float *lavec, struct ShadeInput *shi, float *colf,
 void do_volume_tex(struct ShadeInput *shi, float *xyz, int mapto_flag, float *col, float *val);
 
 void init_render_textures(Render *re);
-void end_render_textures(void);
+void end_render_textures(Render *re);
 
 void render_realtime_texture(struct ShadeInput *shi, struct Image *ima);
 

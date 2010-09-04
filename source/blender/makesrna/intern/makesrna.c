@@ -30,7 +30,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_types.h"
 
 #include "rna_internal.h"
 
@@ -80,6 +82,7 @@ static int replace_if_different(char *tmpfile)
 	if(fp_new==NULL) {
 		/* shouldn't happen, just to be safe */
 		fprintf(stderr, "%s:%d, open error: \"%s\"\n", __FILE__, __LINE__, tmpfile);
+		fclose(fp_org);
 		return -1;
 	}
 
@@ -483,13 +486,13 @@ static char *rna_def_property_get_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 
 					if(dp->dnaarraylength == 1) {
 						if(prop->type == PROP_BOOLEAN && dp->booleanbit)
-							fprintf(f, "		values[i]= (%s(data->%s & (%d<<i)) != 0);\n", (dp->booleannegative)? "!": "", dp->dnaname, dp->booleanbit);
+							fprintf(f, "		values[i]= %s((data->%s & (%d<<i)) != 0);\n", (dp->booleannegative)? "!": "", dp->dnaname, dp->booleanbit);
 						else
 							fprintf(f, "		values[i]= (%s)%s((&data->%s)[i]);\n", rna_type_type(prop), (dp->booleannegative)? "!": "", dp->dnaname);
 					}
 					else {
 						if(prop->type == PROP_BOOLEAN && dp->booleanbit) {
-							fprintf(f, "		values[i]= (%s(data->%s[i] & ", (dp->booleannegative)? "!": "", dp->dnaname);
+							fprintf(f, "		values[i]= %s((data->%s[i] & ", (dp->booleannegative)? "!": "", dp->dnaname);
 							rna_int_print(f, dp->booleanbit);
 							fprintf(f, ") != 0);\n");
 						}
@@ -514,7 +517,7 @@ static char *rna_def_property_get_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 				else {
 					rna_print_data_get(f, dp);
 					if(prop->type == PROP_BOOLEAN && dp->booleanbit) {
-						fprintf(f, "	return (%s((data->%s) & ", (dp->booleannegative)? "!": "", dp->dnaname);
+						fprintf(f, "	return %s(((data->%s) & ", (dp->booleannegative)? "!": "", dp->dnaname);
 						rna_int_print(f, dp->booleanbit);
 						fprintf(f, ") != 0);\n");
 					}
@@ -624,6 +627,14 @@ static char *rna_def_property_set_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 					fprintf(f, "		id_us_min((ID*)data->%s);\n", dp->dnaname);
 					fprintf(f, "	if(value.data)\n");
 					fprintf(f, "		id_us_plus((ID*)value.data);\n\n");
+				}
+				else {
+					PointerPropertyRNA *pprop= (PointerPropertyRNA*)dp->prop;
+					StructRNA *type= rna_find_struct((char*)pprop->type);
+					if(type && (type->flag & STRUCT_ID)) {
+						fprintf(f, "	if(value.data)\n");
+						fprintf(f, "		id_lib_extern((ID*)value.data);\n\n");
+					}
 				}
 
 				fprintf(f, "	data->%s= value.data;\n", dp->dnaname);
@@ -1634,7 +1645,7 @@ static const char *rna_property_typename(PropertyType type)
 	}
 }
 
-static const char *rna_property_subtypename(PropertyType type)
+static const char *rna_property_subtypename(PropertySubType type)
 {
 	switch(type) {
 		case PROP_NONE: return "PROP_NONE";
@@ -1684,7 +1695,7 @@ static const char *rna_property_subtype_unit(PropertyType type)
 		case PROP_UNIT_TIME:		return "PROP_UNIT_TIME";
 		case PROP_UNIT_VELOCITY:	return "PROP_UNIT_VELOCITY";
 		case PROP_UNIT_ACCELERATION:return "PROP_UNIT_ACCELERATION";
-		default: return "PROP_UNKNOWN";
+		default:					return "PROP_UNIT_UNKNOWN";
 	}
 }
 
@@ -2077,7 +2088,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 			}
 			case PROP_POINTER: {
 				PointerPropertyRNA *pprop= (PointerPropertyRNA*)prop;
-				fprintf(f, "\t%s, %s, %s, ", rna_function_string(pprop->get), rna_function_string(pprop->set), rna_function_string(pprop->typef));
+				fprintf(f, "\t%s, %s, %s, %s,", rna_function_string(pprop->get), rna_function_string(pprop->set), rna_function_string(pprop->typef), rna_function_string(pprop->poll));
 				if(pprop->type) fprintf(f, "&RNA_%s\n", (char*)pprop->type);
 				else fprintf(f, "NULL\n");
 				break;
@@ -2234,7 +2245,7 @@ RNAProcessItem PROCESS_ITEMS[]= {
 	{"rna_action.c", "rna_action_api.c", RNA_def_action},
 	{"rna_animation.c", "rna_animation_api.c", RNA_def_animation},
 	{"rna_animviz.c", NULL, RNA_def_animviz},
-	{"rna_actuator.c", NULL, RNA_def_actuator},
+	{"rna_actuator.c", "rna_actuator_api.c", RNA_def_actuator},
 	{"rna_armature.c", "rna_armature_api.c", RNA_def_armature},
 	{"rna_boid.c", NULL, RNA_def_boid},
 	{"rna_brush.c", NULL, RNA_def_brush},
@@ -2243,7 +2254,7 @@ RNAProcessItem PROCESS_ITEMS[]= {
 	{"rna_color.c", NULL, RNA_def_color},
 	{"rna_constraint.c", NULL, RNA_def_constraint},
 	{"rna_context.c", NULL, RNA_def_context},
-	{"rna_controller.c", NULL, RNA_def_controller},
+	{"rna_controller.c", "rna_controller_api.c", RNA_def_controller},
 	{"rna_curve.c", NULL, RNA_def_curve},
 	{"rna_fcurve.c", "rna_fcurve_api.c", RNA_def_fcurve},
 	{"rna_fluidsim.c", NULL, RNA_def_fluidsim},
@@ -2270,8 +2281,8 @@ RNAProcessItem PROCESS_ITEMS[]= {
 	{"rna_scene.c", "rna_scene_api.c", RNA_def_scene},
 	{"rna_screen.c", NULL, RNA_def_screen},
 	{"rna_sculpt_paint.c", NULL, RNA_def_sculpt_paint},
-	{"rna_sensor.c", NULL, RNA_def_sensor},
-	{"rna_sequencer.c", NULL, RNA_def_sequencer},
+	{"rna_sensor.c", "rna_sensor_api.c", RNA_def_sensor},
+	{"rna_sequencer.c", "rna_sequencer_api.c", RNA_def_sequencer},
 	{"rna_smoke.c", NULL, RNA_def_smoke},
 	{"rna_space.c", NULL, RNA_def_space},
 	{"rna_test.c", NULL, RNA_def_test},

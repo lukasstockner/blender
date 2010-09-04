@@ -32,10 +32,6 @@
 #include <string.h>
 #include <float.h>
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
@@ -46,10 +42,6 @@
 #include "BKE_fcurve.h"
 #include "BKE_idprop.h"
 #include "BKE_utildefines.h"
-
-#ifndef DISABLE_PYTHON
-#include "BPY_extern.h" /* for BPY_pydriver_eval() */
-#endif
 
 #define SMALL -1.0e-10
 #define SELECT 1
@@ -1095,13 +1087,6 @@ int remove_fmodifier (ListBase *modifiers, FModifier *fcm)
 	}
 }
 
-/* Remove and free the nth F-Modifier from the given stack */
-int remove_fmodifier_index (ListBase *modifiers, int index)
-{
-	FModifier *fcm= BLI_findlink(modifiers, index);
-	return remove_fmodifier(modifiers, fcm);
-}
-
 /* Remove all of a given F-Curve's modifiers */
 void free_fmodifiers (ListBase *modifiers)
 {
@@ -1197,7 +1182,7 @@ short list_has_suitable_fmodifier (ListBase *modifiers, int mtype, short acttype
  *	- this step acts as an optimisation to prevent the F-Curve stack being evaluated 
  *	  several times by modifiers requesting the time be modified, as the final result
  *	  would have required using the modified time
- *	- modifiers only ever recieve the unmodified time, as subsequent modifiers should be
+ *	- modifiers only ever receive the unmodified time, as subsequent modifiers should be
  *	  working on the 'global' result of the modified curve, not some localised segment,
  *	  so nevaltime gets set to whatever the last time-modifying modifier likes...
  *	- we start from the end of the stack, as only the last one matters for now

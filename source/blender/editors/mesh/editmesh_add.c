@@ -47,11 +47,8 @@
 
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
-#include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_mesh.h"
-#include "BKE_object.h"
-#include "BKE_utildefines.h"
 #include "BKE_report.h"
 
 #include "WM_api.h"
@@ -140,7 +137,7 @@ static int dupli_extrude_cursor(bContext *C, wmOperator *op, wmEvent *event)
 			if( (eed->v1->f & SELECT)+(eed->v2->f & SELECT) == SELECT ) {
 				if(eed->v1->f & SELECT) sub_v3_v3v3(vec, eed->v1->co, eed->v2->co);
 				else sub_v3_v3v3(vec, eed->v2->co, eed->v1->co);
-				add_v3_v3v3(nor, nor, vec);
+				add_v3_v3(nor, vec);
 				done= 1;
 			}
 		}
@@ -1262,6 +1259,23 @@ static void make_prim(Object *obedit, int type, float mat[4][4], int tot, int se
 
 /* ********* add primitive operators ************* */
 
+static char *get_mesh_defname(int type)
+{
+	switch (type) {
+		case PRIM_PLANE: return "Plane";
+		case PRIM_CUBE: return "Cube";
+		case PRIM_CIRCLE: return "Circle";
+		case PRIM_CYLINDER: return "Tube";
+		case PRIM_CONE: return "Cone";
+		case PRIM_GRID: return "Grid";
+		case PRIM_UVSPHERE: return "Sphere";
+		case PRIM_ICOSPHERE: return "Icosphere";
+		case PRIM_MONKEY: return "Monkey";
+		default:
+			return "Mesh";
+	}
+}
+
 static void make_prim_ext(bContext *C, float *loc, float *rot, int enter_editmode, unsigned int layer, 
 		int type, int tot, int seg,
 		int subdiv, float dia, float depth, int ext, int fill)
@@ -1269,9 +1283,13 @@ static void make_prim_ext(bContext *C, float *loc, float *rot, int enter_editmod
 	Object *obedit= CTX_data_edit_object(C);
 	int newob = 0;
 	float mat[4][4];
+	float scale;
 
 	if(obedit==NULL || obedit->type!=OB_MESH) {
 		obedit= ED_object_add_type(C, OB_MESH, loc, rot, FALSE, layer);
+		
+		rename_id((ID *)obedit, get_mesh_defname(type));
+		rename_id((ID *)obedit->data, get_mesh_defname(type));
 		
 		/* create editmode */
 		ED_object_enter_editmode(C, EM_DO_UNDO|EM_IGNORE_LAYER); /* rare cases the active layer is messed up */
@@ -1279,8 +1297,10 @@ static void make_prim_ext(bContext *C, float *loc, float *rot, int enter_editmod
 	}
 	else DAG_id_flush_update(&obedit->id, OB_RECALC_DATA);
 
-	dia *= ED_object_new_primitive_matrix(C, loc, rot, mat);
-	depth *= ED_object_new_primitive_matrix(C, loc, rot, mat);
+	scale= ED_object_new_primitive_matrix(C, obedit, loc, rot, mat);
+
+	dia *= scale;
+	depth *= scale;
 
 	make_prim(obedit, type, mat, tot, seg, subdiv, dia, depth, ext, fill);
 
@@ -1301,7 +1321,8 @@ static int add_primitive_plane_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	float loc[3], rot[3];
 	
-	ED_object_add_generic_get_opts(op, loc, rot, &enter_editmode, &layer);
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return OPERATOR_CANCELLED;
 
 	/* sqrt(2.0f) - plane (diameter of 1.41 makes it unit size) */
 	make_prim_ext(C, loc, rot, enter_editmode, layer,
@@ -1333,7 +1354,8 @@ static int add_primitive_cube_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	float loc[3], rot[3];
 	
-	ED_object_add_generic_get_opts(op, loc, rot, &enter_editmode, &layer);
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return OPERATOR_CANCELLED;
 
 	/* sqrt(2.0f) - plane (diameter of 1.41 makes it unit size) */
 	make_prim_ext(C, loc, rot, enter_editmode, layer,
@@ -1365,7 +1387,8 @@ static int add_primitive_circle_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	float loc[3], rot[3];
 	
-	ED_object_add_generic_get_opts(op, loc, rot, &enter_editmode, &layer);
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return OPERATOR_CANCELLED;
 
 	make_prim_ext(C, loc, rot, enter_editmode, layer,
 			PRIM_CIRCLE, RNA_int_get(op->ptr, "vertices"), 0, 0,
@@ -1404,7 +1427,8 @@ static int add_primitive_tube_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	float loc[3], rot[3];
 	
-	ED_object_add_generic_get_opts(op, loc, rot, &enter_editmode, &layer);
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return OPERATOR_CANCELLED;
 
 	make_prim_ext(C, loc, rot, enter_editmode, layer,
 			PRIM_CYLINDER, RNA_int_get(op->ptr, "vertices"), 0, 0,
@@ -1445,7 +1469,8 @@ static int add_primitive_cone_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	float loc[3], rot[3];
 	
-	ED_object_add_generic_get_opts(op, loc, rot, &enter_editmode, &layer);
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return OPERATOR_CANCELLED;
 
 	make_prim_ext(C, loc, rot, enter_editmode, layer,
 			PRIM_CONE, RNA_int_get(op->ptr, "vertices"), 0, 0,
@@ -1485,7 +1510,8 @@ static int add_primitive_grid_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	float loc[3], rot[3];
 	
-	ED_object_add_generic_get_opts(op, loc, rot, &enter_editmode, &layer);
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return OPERATOR_CANCELLED;
 
 	make_prim_ext(C, loc, rot, enter_editmode, layer,
 			PRIM_GRID, RNA_int_get(op->ptr, "x_subdivisions"),
@@ -1524,7 +1550,8 @@ static int add_primitive_monkey_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	float loc[3], rot[3];
 	
-	ED_object_add_generic_get_opts(op, loc, rot, &enter_editmode, &layer);
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return OPERATOR_CANCELLED;
 
 	make_prim_ext(C, loc, rot, enter_editmode, layer,
 			PRIM_MONKEY, 0, 0, 2, 0.0f, 0.0f, 0, 0);
@@ -1556,10 +1583,11 @@ static int add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	float loc[3], rot[3];
 	
-	ED_object_add_generic_get_opts(op, loc, rot, &enter_editmode, &layer);
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return OPERATOR_CANCELLED;
 
 	make_prim_ext(C, loc, rot, enter_editmode, layer,
-			PRIM_UVSPHERE, RNA_int_get(op->ptr, "rings"),
+			PRIM_UVSPHERE, RNA_int_get(op->ptr, "ring_count"),
 			RNA_int_get(op->ptr, "segments"), 0,
 			RNA_float_get(op->ptr,"size"), 0.0f, 0, 0);
 
@@ -1583,7 +1611,7 @@ void MESH_OT_primitive_uv_sphere_add(wmOperatorType *ot)
 	
 	/* props */
 	RNA_def_int(ot->srna, "segments", 32, INT_MIN, INT_MAX, "Segments", "", 3, 500);
-	RNA_def_int(ot->srna, "rings", 16, INT_MIN, INT_MAX, "Rings", "", 3, 500);
+	RNA_def_int(ot->srna, "ring_count", 16, INT_MIN, INT_MAX, "Rings", "", 3, 500);
 	RNA_def_float(ot->srna, "size", 1.0f, 0.0, FLT_MAX, "Size", "", 0.001, 100.00);
 
 	ED_object_add_generic_props(ot, TRUE);
@@ -1595,7 +1623,8 @@ static int add_primitive_icosphere_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	float loc[3], rot[3];
 	
-	ED_object_add_generic_get_opts(op, loc, rot, &enter_editmode, &layer);
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return OPERATOR_CANCELLED;
 
 	make_prim_ext(C, loc, rot, enter_editmode, layer,
 			PRIM_ICOSPHERE, 0, 0, RNA_int_get(op->ptr, "subdivisions"),
@@ -1620,7 +1649,7 @@ void MESH_OT_primitive_ico_sphere_add(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* props */
-	RNA_def_int(ot->srna, "subdivisions", 2, 0, 6, "Subdivisions", "", 0, 8);
+	RNA_def_int(ot->srna, "subdivisions", 2, 0, INT_MAX, "Subdivisions", "", 0, 8);
 	RNA_def_float(ot->srna, "size", 1.0f, 0.0f, FLT_MAX, "Size", "", 0.001f, 100.00);
 
 	ED_object_add_generic_props(ot, TRUE);

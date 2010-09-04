@@ -36,7 +36,6 @@
 #include "UI_interface.h"
 #include "UI_view2d.h"
 
-#include "BIF_gl.h"
 
 #include "ED_anim_api.h"
 #include "ED_armature.h"
@@ -55,6 +54,7 @@
 #include "ED_sound.h"
 #include "ED_uvedit.h"
 #include "ED_mball.h"
+#include "ED_logic.h"
 
 /* only call once on startup, storage is global in BKE kernel listbase */
 void ED_spacetypes_init(void)
@@ -100,6 +100,7 @@ void ED_spacetypes_init(void)
 	ED_operatortypes_metaball();
 	ED_operatortypes_sound();
 	ED_operatortypes_render();
+	ED_operatortypes_logic();
 	
 	UI_view2d_operatortypes();
 	UI_buttons_operatortypes();

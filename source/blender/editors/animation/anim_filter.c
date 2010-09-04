@@ -49,7 +49,6 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_constraint_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_lattice_types.h"
@@ -64,10 +63,13 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_world_types.h"
+#include "DNA_gpencil_types.h"
+#include "DNA_object_types.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_ghash.h"
 
 #include "BKE_animsys.h"
 #include "BKE_action.h"
@@ -79,7 +81,6 @@
 #include "BKE_material.h"
 #include "BKE_node.h"
 #include "BKE_sequencer.h"
-#include "BKE_utildefines.h"
 
 #include "ED_anim_api.h"
 
@@ -796,7 +797,7 @@ bAnimListElem *make_new_animlistelem (void *data, short datatype, void *owner, s
 /* ----------------------------------------- */
 
 /* NOTE: when this function returns true, the F-Curve is to be skipped */
-static int skip_fcurve_selected_data(FCurve *fcu, ID *owner_id, int filter_mode)
+static int skip_fcurve_selected_data(bDopeSheet *ads, FCurve *fcu, ID *owner_id, int filter_mode)
 {
 	if (GS(owner_id->name) == ID_OB) {
 		Object *ob= (Object *)owner_id;
@@ -813,9 +814,8 @@ static int skip_fcurve_selected_data(FCurve *fcu, ID *owner_id, int filter_mode)
 			
 			/* check whether to continue or skip */
 			if ((pchan) && (pchan->bone)) {
-				/* if only visible channels, skip if bone not visible */
-				// TODO: should we just do this always?
-				if (filter_mode & ANIMFILTER_VISIBLE) {
+				/* if only visible channels, skip if bone not visible unless user wants channels from hidden data too */
+				if ((filter_mode & ANIMFILTER_VISIBLE) && !(ads->filterflag & ADS_FILTER_INCL_HIDDEN)) {
 					bArmature *arm= (bArmature *)ob->data;
 					
 					if ((arm->layer & pchan->bone->layer) == 0)
@@ -886,7 +886,7 @@ static FCurve *animdata_filter_fcurve_next (bDopeSheet *ads, FCurve *first, bAct
 		 *	- this will also affect things like Drivers, and also works for Bone Constraints
 		 */
 		if ( ((ads) && (ads->filterflag & ADS_FILTER_ONLYSEL)) && (owner_id) ) {
-			if (skip_fcurve_selected_data(fcu, owner_id, filter_mode))
+			if (skip_fcurve_selected_data(ads, fcu, owner_id, filter_mode))
 				continue;
 		}
 			
@@ -944,6 +944,13 @@ static int animdata_filter_action (bAnimContext *ac, ListBase *anim_data, bDopeS
 	bActionGroup *agrp;
 	FCurve *lastchan=NULL;
 	int items = 0;
+	
+	/* don't include anything from this action if it is linked in from another file,
+	 * and we're getting stuff for editing...
+	 */
+	// TODO: need a way of tagging other channels that may also be affected...
+	if ((filter_mode & ANIMFILTER_FOREDIT) && (act->id.lib))
+		return 0;
 	
 	/* loop over groups */
 	// TODO: in future, should we expect to need nested groups?
@@ -1707,7 +1714,7 @@ static int animdata_filter_dopesheet_ob (bAnimContext *ac, ListBase *anim_data, 
 				
 				/* add NLA tracks - only if expanded or so */
 				if (!(filter_mode & ANIMFILTER_VISIBLE) || FILTER_SKE_OBJD(key) || (filter_mode & ANIMFILTER_CURVESONLY))
-					items += animdata_filter_nla(ac, anim_data, ads, adt, filter_mode, ob, ANIMTYPE_OBJECT, (ID *)ob);
+					items += animdata_filter_nla(ac, anim_data, ads, adt, filter_mode, ob, ANIMTYPE_OBJECT, (ID *)key);
 			},
 			{ /* drivers */
 				/* include shapekey-expand widget? */
@@ -2104,11 +2111,14 @@ static int animdata_filter_dopesheet (bAnimContext *ac, ListBase *anim_data, bDo
 			
 			/* firstly, check if object can be included, by the following factors:
 			 *	- if only visible, must check for layer and also viewport visibility
+			 *		--> while tools may demand only visible, user setting takes priority
+			 *			as user option controls whether sets of channels get included while
+			 *			tool-flag takes into account collapsed/open channels too
 			 *	- if only selected, must check if object is selected 
 			 *	- there must be animation data to edit
 			 */
 			// TODO: if cache is implemented, just check name here, and then 
-			if (filter_mode & ANIMFILTER_VISIBLE) {
+			if ((filter_mode & ANIMFILTER_VISIBLE) && !(ads->filterflag & ADS_FILTER_INCL_HIDDEN)) {
 				/* layer visibility - we check both object and base, since these may not be in sync yet */
 				if ((sce->lay & (ob->lay|base->lay))==0) continue;
 				
@@ -2512,6 +2522,65 @@ static short animdata_filter_dopesheet_summary (bAnimContext *ac, ListBase *anim
 	return 1;
 }  
 
+/* ----------- Cleanup API --------------- */
+
+/* Remove entries with invalid types in animation channel list */
+static int animdata_filter_remove_invalid (ListBase *anim_data)
+{
+	bAnimListElem *ale, *next;
+	int items = 0;
+	
+	/* only keep entries with valid types */
+	for (ale= anim_data->first; ale; ale= next) {
+		next= ale->next;
+		
+		if (ale->type == ANIMTYPE_NONE)
+			BLI_freelinkN(anim_data, ale);
+		else
+			items++;
+	}
+	
+	return items;
+}
+
+/* Remove duplicate entries in animation channel list */
+static int animdata_filter_remove_duplis (ListBase *anim_data)
+{
+	bAnimListElem *ale, *next;
+	GHash *gh;
+	int items = 0;
+	
+	/* build new hashtable to efficiently store and retrieve which entries have been 
+	 * encountered already while searching
+	 */
+	gh= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "animdata_filter_duplis_remove gh");
+	
+	/* loop through items, removing them from the list if a similar item occurs already */
+	for (ale = anim_data->first; ale; ale = next) {
+		next = ale->next;
+		
+		/* check if hash has any record of an entry like this 
+		 *	- just use ale->data for now, though it would be nicer to involve 
+		 *	  ale->type in combination too to capture corner cases (where same data performs differently)
+		 */
+		if (BLI_ghash_haskey(gh, ale->data) == 0) {
+			/* this entry is 'unique' and can be kept */
+			BLI_ghash_insert(gh, ale->data, NULL);
+			items++;
+		}
+		else {
+			/* this entry isn't needed anymore */
+			BLI_freelinkN(anim_data, ale);
+		}
+	}
+	
+	/* free the hash... */
+	BLI_ghash_free(gh, NULL, NULL);
+	
+	/* return the number of items still in the list */
+	return items;
+}
+
 /* ----------- Public API --------------- */
 
 /* This function filters the active data source to leave only animation channels suitable for
@@ -2527,7 +2596,6 @@ int ANIM_animdata_filter (bAnimContext *ac, ListBase *anim_data, int filter_mode
 	
 	/* only filter data if there's somewhere to put it */
 	if (data && anim_data) {
-		bAnimListElem *ale, *next;
 		Object *obact= (ac) ? ac->obact : NULL;
 		
 		/* firstly filter the data */
@@ -2572,16 +2640,12 @@ int ANIM_animdata_filter (bAnimContext *ac, ListBase *anim_data, int filter_mode
 				break;
 		}
 			
-		/* remove any weedy entries */
-		// XXX this is weedy code!
-		for (ale= anim_data->first; ale; ale= next) {
-			next= ale->next;
-			
-			if (ale->type == ANIMTYPE_NONE) {
-				items--;
-				BLI_freelinkN(anim_data, ale);
-			}
-		}
+		/* remove any 'weedy' entries */
+		items = animdata_filter_remove_invalid(anim_data);
+		
+		/* remove duplicates (if required) */
+		if (filter_mode & ANIMFILTER_NODUPLIS)
+			items = animdata_filter_remove_duplis(anim_data);
 	}
 	
 	/* return the number of items in the list */

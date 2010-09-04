@@ -19,7 +19,8 @@
 # <pep8 compliant>
 
 from _bpy import types as bpy_types
-from Mathutils import Vector
+import _bpy
+from mathutils import Vector
 
 StructRNA = bpy_types.Struct.__bases__[0]
 # StructRNA = bpy_types.Struct
@@ -29,13 +30,60 @@ class Context(StructRNA):
     __slots__ = ()
 
     def copy(self):
+        from types import BuiltinMethodType
         new_context = {}
-        generic_keys = StructRNA.__dict__.keys()
-        for item in dir(self):
-            if item not in generic_keys:
-                new_context[item] = getattr(self, item)
+        generic_attrs = list(StructRNA.__dict__.keys()) + ["bl_rna", "rna_type", "copy"]
+        for attr in dir(self):
+            if not (attr.startswith("_") or attr in generic_attrs):
+                value = getattr(self, attr)
+                if type(value) != BuiltinMethodType:
+                    new_context[attr] = value
 
         return new_context
+
+
+class Library(bpy_types.ID):
+    __slots__ = ()
+
+    @property
+    def users_id(self):
+        """ID datablocks which use this library"""
+        import bpy
+
+        # See: readblenentry.c, IDTYPE_FLAGS_ISLINKABLE, we could make this an attribute in rna.
+        attr_links = "actions", "armatures", "brushes", "cameras", \
+                "curves", "grease_pencil", "groups", "images", \
+                "lamps", "lattices", "materials", "metaballs", \
+                "meshes", "node_groups", "objects", "scenes", \
+                "sounds", "textures", "texts", "fonts", "worlds"
+
+        return tuple(id_block for attr in attr_links for id_block in getattr(bpy.data, attr) if id_block.library == self)
+
+
+class Texture(bpy_types.ID):
+    __slots__ = ()
+
+    @property
+    def users_material(self):
+        """Materials that use this texture"""
+        import bpy
+        return tuple(mat for mat in bpy.data.materials if self in [slot.texture for slot in mat.texture_slots if slot])
+
+    @property
+    def users_object_modifier(self):
+        """Object modifiers that use this texture"""
+        import bpy
+        return tuple(obj for obj in bpy.data.objects if self in [mod.texture for mod in obj.modifiers if mod.type == 'DISPLACE'])
+
+
+class Group(bpy_types.ID):
+    __slots__ = ()
+
+    @property
+    def users_dupli_group(self):
+        """The dupli group this group is used in"""
+        import bpy
+        return tuple(obj for obj in bpy.data.objects if self == obj.dupli_group)
 
 
 class Object(bpy_types.ID):
@@ -45,21 +93,19 @@ class Object(bpy_types.ID):
     def children(self):
         """All the children of this object"""
         import bpy
-        return [child for child in bpy.data.objects if child.parent == self]
+        return tuple(child for child in bpy.data.objects if child.parent == self)
 
     @property
-    def group_users(self):
+    def users_group(self):
         """The groups this object is in"""
         import bpy
-        name = self.name
-        return [group for group in bpy.data.groups if name in group.objects]
+        return tuple(group for group in bpy.data.groups if self in group.objects[:])
 
     @property
-    def scene_users(self):
+    def users_scene(self):
         """The scenes this object is in"""
         import bpy
-        name = self.name
-        return [scene for scene in bpy.data.scenes if name in scene.objects]
+        return tuple(scene for scene in bpy.data.scenes if self in scene.objects[:])
 
 
 class _GenericBone:
@@ -95,19 +141,19 @@ class _GenericBone:
     def x_axis(self):
         """ Vector pointing down the x-axis of the bone.
         """
-        return self.matrix.rotation_part() * Vector(1.0, 0.0, 0.0)
+        return self.matrix.rotation_part() * Vector((1.0, 0.0, 0.0))
 
     @property
     def y_axis(self):
         """ Vector pointing down the x-axis of the bone.
         """
-        return self.matrix.rotation_part() * Vector(0.0, 1.0, 0.0)
+        return self.matrix.rotation_part() * Vector((0.0, 1.0, 0.0))
 
     @property
     def z_axis(self):
         """ Vector pointing down the x-axis of the bone.
         """
-        return self.matrix.rotation_part() * Vector(0.0, 0.0, 1.0)
+        return self.matrix.rotation_part() * Vector((0.0, 0.0, 1.0))
 
     @property
     def basename(self):
@@ -236,8 +282,8 @@ class EditBone(StructRNA, _GenericBone):
         Transform the the bones head, tail, roll and envalope (when the matrix has a scale component).
         Expects a 4x4 or 3x3 matrix.
         """
-        from Mathutils import Vector
-        z_vec = self.matrix.rotation_part() * Vector(0.0, 0.0, 1.0)
+        from mathutils import Vector
+        z_vec = self.matrix.rotation_part() * Vector((0.0, 0.0, 1.0))
         self.tail = matrix * self.tail
         self.head = matrix * self.head
         scalar = matrix.median_scale
@@ -260,25 +306,30 @@ class Mesh(bpy_types.ID):
         Make a mesh from a list of verts/edges/faces
         Until we have a nicer way to make geometry, use this.
         """
-        self.add_geometry(len(verts), len(edges), len(faces))
+        self.vertices.add(len(verts))
+        self.edges.add(len(edges))
+        self.faces.add(len(faces))
 
         verts_flat = [f for v in verts for f in v]
-        self.verts.foreach_set("co", verts_flat)
+        self.vertices.foreach_set("co", verts_flat)
         del verts_flat
 
         edges_flat = [i for e in edges for i in e]
-        self.edges.foreach_set("verts", edges_flat)
+        self.edges.foreach_set("vertices", edges_flat)
         del edges_flat
 
         def treat_face(f):
             if len(f) == 3:
-                return f[0], f[1], f[2], 0
-            elif f[3] == 0:
+                if f[2] == 0:
+                    return f[2], f[0], f[1], 0
+                else:
+                    return f[0], f[1], f[2], 0
+            elif f[2] == 0 or f[3] == 0:
                 return f[3], f[0], f[1], f[2]
             return f
 
         faces_flat = [v for f in faces for v in treat_face(f)]
-        self.faces.foreach_set("verts_raw", faces_flat)
+        self.faces.foreach_set("vertices_raw", faces_flat)
         del faces_flat
 
     @property
@@ -303,7 +354,7 @@ class Mesh(bpy_types.ID):
         edge_face_count_dict = self.edge_face_count_dict
         return [edge_face_count_dict.get(ed.key, 0) for ed in self.edges]
 
-    def edge_loops(self, faces=None, seams=()):
+    def edge_loops_from_faces(self, faces=None, seams=()):
         """
         Edge loops defined by faces
 
@@ -314,7 +365,7 @@ class Mesh(bpy_types.ID):
         return a list of edge key lists
         [ [(0,1), (4, 8), (3,8)], ...]
 
-        optionaly, seams are edge keys that will be removed
+        return a list of edge vertex index lists
         """
 
         OTHER_INDEX = 2, 3, 0, 1 # opposite face index
@@ -326,7 +377,7 @@ class Mesh(bpy_types.ID):
 
         for f in faces:
 #            if len(f) == 4:
-            if f.verts_raw[3] != 0:
+            if f.vertices_raw[3] != 0:
                 edge_keys = f.edge_keys
                 for i, edkey in enumerate(f.edge_keys):
                     edges.setdefault(edkey, []).append(edge_keys[OTHER_INDEX[i]])
@@ -379,13 +430,77 @@ class Mesh(bpy_types.ID):
 
         return edge_loops
 
+    def edge_loops_from_edges(self, edges=None):
+        """
+        Edge loops defined by edges
+
+        Takes me.edges or a list of edges and returns the edge loops
+
+        return a list of vertex indices.
+        [ [1, 6, 7, 2], ...]
+
+        closed loops have matching start and end values.
+        """
+        line_polys = []
+
+        # Get edges not used by a face
+        if edges is None:
+            edges = self.edges
+
+        if not hasattr(edges, "pop"):
+            edges = edges[:]
+
+        edge_dict = {ed.key: ed for ed in self.edges if ed.select}
+
+        while edges:
+            current_edge = edges.pop()
+            vert_end, vert_start = current_edge.vertices[:]
+            line_poly = [vert_start, vert_end]
+
+            ok = True
+            while ok:
+                ok = False
+                #for i, ed in enumerate(edges):
+                i = len(edges)
+                while i:
+                    i -= 1
+                    ed = edges[i]
+                    v1, v2 = ed.vertices
+                    if v1 == vert_end:
+                        line_poly.append(v2)
+                        vert_end = line_poly[-1]
+                        ok = 1
+                        del edges[i]
+                        # break
+                    elif v2 == vert_end:
+                        line_poly.append(v1)
+                        vert_end = line_poly[-1]
+                        ok = 1
+                        del edges[i]
+                        #break
+                    elif v1 == vert_start:
+                        line_poly.insert(0, v2)
+                        vert_start = line_poly[0]
+                        ok = 1
+                        del edges[i]
+                        # break
+                    elif v2 == vert_start:
+                        line_poly.insert(0, v1)
+                        vert_start = line_poly[0]
+                        ok = 1
+                        del edges[i]
+                        #break
+            line_polys.append(line_poly)
+
+        return line_polys
+
 
 class MeshEdge(StructRNA):
     __slots__ = ()
 
     @property
     def key(self):
-        return ord_ind(*tuple(self.verts))
+        return ord_ind(*tuple(self.vertices))
 
 
 class MeshFace(StructRNA):
@@ -394,8 +509,8 @@ class MeshFace(StructRNA):
     @property
     def center(self):
         """The midpoint of the face."""
-        face_verts = self.verts[:]
-        mesh_verts = self.id_data.verts
+        face_verts = self.vertices[:]
+        mesh_verts = self.id_data.vertices
         if len(face_verts) == 3:
             return (mesh_verts[face_verts[0]].co + mesh_verts[face_verts[1]].co + mesh_verts[face_verts[2]].co) / 3.0
         else:
@@ -403,17 +518,110 @@ class MeshFace(StructRNA):
 
     @property
     def edge_keys(self):
-        verts = self.verts[:]
+        verts = self.vertices[:]
         if len(verts) == 3:
             return ord_ind(verts[0], verts[1]), ord_ind(verts[1], verts[2]), ord_ind(verts[2], verts[0])
 
         return ord_ind(verts[0], verts[1]), ord_ind(verts[1], verts[2]), ord_ind(verts[2], verts[3]), ord_ind(verts[3], verts[0])
 
 
+class Text(bpy_types.ID):
+    __slots__ = ()
+
+    def as_string(self):
+        """Return the text as a string."""
+        return "\n".join(line.body for line in self.lines)
+
+    def from_string(self, string):
+        """Replace text with this string."""
+        self.clear()
+        self.write(string)
+
+    @property
+    def users_logic(self):
+        """Logic bricks that use this text"""
+        import bpy
+        return tuple(obj for obj in bpy.data.objects if self in [cont.text for cont in obj.game.controllers if cont.type == 'PYTHON'])
+
 import collections
 
+TypeMap = {}
+# Properties (IDPropertyGroup) are different from types because they need to be registered
+# before adding sub properties to them, so they are registered on definition
+# and unregistered on unload
+PropertiesMap = {}
 
-class OrderedMeta(type):
+# Using our own loading function we set this to false
+# so when running a script directly in the text editor
+# registers moduals instantly.
+_register_immediate = True
+
+def _unregister_module(module, free=True):
+    for t in TypeMap.get(module, ()):
+        try:
+            bpy_types.unregister(t)
+        except:
+            import traceback
+            print("bpy.utils._unregister_module(): Module '%s' failed to unregister class '%s.%s'" % (module, t.__module__, t.__name__))
+            traceback.print_exc()
+
+    if free == True and module in TypeMap:
+        del TypeMap[module]
+
+
+    for t in PropertiesMap.get(module, ()):
+        try:
+            bpy_types.unregister(t)
+        except:
+            import traceback
+            print("bpy.utils._unload_module(): Module '%s' failed to unregister class '%s.%s'" % (module, t.__module__, t.__name__))
+            traceback.print_exc()
+
+    if free == True and module in PropertiesMap:
+        del PropertiesMap[module]
+
+
+def _register_module(module):
+    for t in TypeMap.get(module, ()):
+        try:
+            bpy_types.register(t)
+        except:
+            import traceback
+            print("bpy.utils._register_module(): Module '%s' failed to register class '%s.%s'" % (module, t.__module__, t.__name__))
+            traceback.print_exc()
+
+
+class RNAMeta(type):
+    @classmethod
+    def _register_immediate(cls):
+        return _register_immediate
+    
+    def __new__(cls, name, bases, classdict, **args):
+        result = type.__new__(cls, name, bases, classdict)
+        if bases and bases[0] != StructRNA:
+            module = result.__module__
+
+            ClassMap = TypeMap
+
+            # Register right away if needed
+            if cls._register_immediate():
+                bpy_types.register(result)
+                ClassMap = PropertiesMap 
+
+            # first part of packages only
+            if "." in module:
+                module = module[:module.index(".")]
+            
+            ClassMap.setdefault(module, []).append(result)
+
+        return result
+
+class RNAMetaRegister(RNAMeta):
+    @classmethod
+    def _register_immediate(cls):
+        return True
+
+class OrderedMeta(RNAMeta):
 
     def __init__(cls, name, bases, attributes):
         super(OrderedMeta, cls).__init__(name, bases, attributes)
@@ -421,7 +629,6 @@ class OrderedMeta(type):
 
     def __prepare__(name, bases, **kwargs):
         return collections.OrderedDict()
-
 
 # Only defined so operators members can be used by accessing self.order
 class Operator(StructRNA, metaclass=OrderedMeta):
@@ -437,7 +644,12 @@ class Macro(StructRNA, metaclass=OrderedMeta):
     def define(self, opname):
         from _bpy import ops
         return ops.macro_define(self, opname)
+    
+class IDPropertyGroup(StructRNA, metaclass=RNAMetaRegister):
+        __slots__ = ()
 
+class RenderEngine(StructRNA, metaclass=RNAMeta):
+    __slots__ = ()
 
 class _GenericUI:
     __slots__ = ()
@@ -479,20 +691,20 @@ class _GenericUI:
             pass
 
 
-class Panel(StructRNA, _GenericUI):
+class Panel(StructRNA, _GenericUI, metaclass=RNAMeta):
     __slots__ = ()
 
 
-class Header(StructRNA, _GenericUI):
+class Header(StructRNA, _GenericUI, metaclass=RNAMeta):
     __slots__ = ()
 
 
-class Menu(StructRNA, _GenericUI):
+class Menu(StructRNA, _GenericUI, metaclass=RNAMeta):
     __slots__ = ()
 
     def path_menu(self, searchpaths, operator, props_default={}):
         layout = self.layout
-        # hard coded to set the operators 'path' to the filename.
+        # hard coded to set the operators 'filepath' to the filename.
 
         import os
         import bpy.utils
@@ -501,22 +713,26 @@ class Menu(StructRNA, _GenericUI):
 
         # collect paths
         files = []
-        for path in searchpaths:
-            files.extend([(f, os.path.join(path, f)) for f in os.listdir(path)])
+        for directory in searchpaths:
+            files.extend([(f, os.path.join(directory, f)) for f in os.listdir(directory)])
 
         files.sort()
 
-        for f, path in files:
+        for f, filepath in files:
 
             if f.startswith("."):
                 continue
 
-            props = layout.operator(operator, text=bpy.utils.display_name(f))
+            preset_name = bpy.path.display_name(f)
+            props = layout.operator(operator, text=preset_name)
 
             for attr, value in props_default.items():
                 setattr(props, attr, value)
 
-            props.path = path
+            props.filepath = filepath
+            if operator == "script.execute_preset":
+                props.menu_idname = self.bl_idname
+                props.preset_name = preset_name
 
     def draw_preset(self, context):
         """Define these on the subclass

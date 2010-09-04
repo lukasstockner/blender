@@ -34,10 +34,6 @@
 #include <math.h>
 #include <string.h>
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #ifndef WIN32
 #include <unistd.h>
 #else
@@ -56,25 +52,14 @@
 #endif
 
 #include "BKE_context.h"
-#include "BKE_utildefines.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
-#include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
 #include "BLO_readfile.h"
+#include "BKE_idcode.h"
 
 #include "DNA_space_types.h"
-#include "DNA_ipo_types.h"
-#include "DNA_ID.h"
-#include "DNA_object_types.h"
-#include "DNA_listBase.h"
-#include "DNA_lamp_types.h"
-#include "DNA_material_types.h"
-#include "DNA_texture_types.h"
-#include "DNA_world_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_userdef_types.h"
 
 #include "ED_datafiles.h"
 
@@ -165,7 +150,7 @@ static int compare_name(const void *a1, const void *a2)
 {
 	const struct direntry *entry1=a1, *entry2=a2;
 
-	/* type is is equal to stat.st_mode */
+	/* type is equal to stat.st_mode */
 
 	if (S_ISDIR(entry1->type)){
 		if (S_ISDIR(entry2->type)==0) return (-1);
@@ -262,7 +247,7 @@ static int compare_extension(const void *a1, const void *a2) {
 	if (!sufix1) sufix1= nil;
 	if (!sufix2) sufix2= nil;
 
-	/* type is is equal to stat.st_mode */
+	/* type is equal to stat.st_mode */
 
 	if (S_ISDIR(entry1->type)){
 		if (S_ISDIR(entry2->type)==0) return (-1);
@@ -379,7 +364,7 @@ void filelist_init_icons()
 	short x, y, k;
 	ImBuf *bbuf;
 	ImBuf *ibuf;
-	bbuf = IMB_ibImageFromMemory((int *)datatoc_prvicons, datatoc_prvicons_size, IB_rect);
+	bbuf = IMB_ibImageFromMemory((unsigned char*)datatoc_prvicons, datatoc_prvicons_size, IB_rect);
 	if (bbuf) {
 		for (y=0; y<SPECIAL_IMG_ROWS; y++) {
 			for (x=0; x<SPECIAL_IMG_COLS; x++) {
@@ -617,9 +602,7 @@ struct ImBuf * filelist_loadimage(struct FileList* filelist, int index)
 	if (!imb)
 	{
 		if ( (filelist->filelist[fidx].flags & IMAGEFILE) || (filelist->filelist[fidx].flags & MOVIEFILE) ) {
-			char path[FILE_MAX];
-			BLI_join_dirfile(path, filelist->dir, filelist->filelist[fidx].relname);
-			imb = IMB_thumb_read(path, THB_NORMAL);
+			imb = IMB_thumb_read(filelist->filelist[fidx].path, THB_NORMAL);
 		} 
 		if (imb) {
 			filelist->filelist[fidx].image = imb;
@@ -743,7 +726,7 @@ static void filelist_read_dir(struct FileList* filelist)
 	BLI_cleanup_dir(G.sce, filelist->dir);
 	filelist->numfiles = BLI_getdir(filelist->dir, &(filelist->filelist));
 
-	if(!chdir(wdir)) /* fix warning about not checking return value */;
+	if(!chdir(wdir)) {} /* fix warning about not checking return value */
 	filelist_setfiletypes(filelist, G.have_quicktime);
 	filelist_filter(filelist);
 }
@@ -813,9 +796,6 @@ void filelist_setfiletypes(struct FileList* filelist, short has_quicktime)
 
 			/* Don't check extensions for directories */ 
 		if (file->type & S_IFDIR) {
-			if(BLO_has_bfile_extension(file->relname)) {
-				file->flags |= BLENDERFILE;
-			}
 			continue;
 		}
 
@@ -837,129 +817,13 @@ void filelist_setfiletypes(struct FileList* filelist, short has_quicktime)
 				file->flags |= BTXFILE;
 		} else if(BLI_testextensie(file->relname, ".dae")) {
 			file->flags |= COLLADAFILE;
-		} else if (has_quicktime){
-			if(		BLI_testextensie(file->relname, ".int")
-				||  BLI_testextensie(file->relname, ".inta")
-				||  BLI_testextensie(file->relname, ".jpg")
-#ifdef WITH_OPENJPEG
-				||  BLI_testextensie(file->relname, ".jp2")
-#endif
-				||	BLI_testextensie(file->relname, ".jpeg")
-				||	BLI_testextensie(file->relname, ".tga")
-				||	BLI_testextensie(file->relname, ".rgb")
-				||	BLI_testextensie(file->relname, ".rgba")
-				||	BLI_testextensie(file->relname, ".bmp")
-				||	BLI_testextensie(file->relname, ".png")
-				||	BLI_testextensie(file->relname, ".iff")
-				||	BLI_testextensie(file->relname, ".lbm")
-				||	BLI_testextensie(file->relname, ".gif")
-				||	BLI_testextensie(file->relname, ".psd")
-				||	BLI_testextensie(file->relname, ".tif")
-				||	BLI_testextensie(file->relname, ".tiff")
-				||	BLI_testextensie(file->relname, ".pct")
-				||	BLI_testextensie(file->relname, ".pict")
-				||	BLI_testextensie(file->relname, ".pntg") //macpaint
-				||	BLI_testextensie(file->relname, ".qtif")
-				||	BLI_testextensie(file->relname, ".sgi")
-				||	BLI_testextensie(file->relname, ".hdr")
-#ifdef WITH_DDS
-				||	BLI_testextensie(file->relname, ".dds")
-#endif
-#ifdef WITH_OPENEXR
-				||	BLI_testextensie(file->relname, ".exr")
-#endif
-				) {
+		} else if(BLI_testextensie_array(file->relname, imb_ext_image)
+					|| (has_quicktime && BLI_testextensie_array(file->relname, imb_ext_image_qt))) {
 				file->flags |= IMAGEFILE;			
-			}
-			else if(BLI_testextensie(file->relname, ".avi")
-				||	BLI_testextensie(file->relname, ".flc")
-				||	BLI_testextensie(file->relname, ".mov")
-				||	BLI_testextensie(file->relname, ".movie")
-				||	BLI_testextensie(file->relname, ".mp4")
-				||	BLI_testextensie(file->relname, ".m4v")
-				||	BLI_testextensie(file->relname, ".mv")
-				||	BLI_testextensie(file->relname, ".wmv")
-				||	BLI_testextensie(file->relname, ".ogv")
-				||	BLI_testextensie(file->relname, ".mpeg")
-				||	BLI_testextensie(file->relname, ".mpg")
-				||	BLI_testextensie(file->relname, ".mpg2")
-				||	BLI_testextensie(file->relname, ".vob")
-				||	BLI_testextensie(file->relname, ".mkv")
-				||	BLI_testextensie(file->relname, ".flv")
-				||	BLI_testextensie(file->relname, ".divx")
-				||	BLI_testextensie(file->relname, ".xvid")) {
-				file->flags |= MOVIEFILE;			
-			}
-			else if(BLI_testextensie(file->relname, ".wav")
-				||	BLI_testextensie(file->relname, ".ogg")
-				||	BLI_testextensie(file->relname, ".oga")
-				||	BLI_testextensie(file->relname, ".mp3")
-				||	BLI_testextensie(file->relname, ".mp2")
-				||	BLI_testextensie(file->relname, ".ac3")
-				||	BLI_testextensie(file->relname, ".aac")
-				||	BLI_testextensie(file->relname, ".flac")
-				||	BLI_testextensie(file->relname, ".wma")
-				||	BLI_testextensie(file->relname, ".eac3")) {
-				file->flags |= SOUNDFILE;
-			}
-		} else { // no quicktime
-			if(BLI_testextensie(file->relname, ".int")
-				||	BLI_testextensie(file->relname, ".inta")
-				||	BLI_testextensie(file->relname, ".jpg")
-				||  BLI_testextensie(file->relname, ".jpeg")
-#ifdef WITH_OPENJPEG
-				||  BLI_testextensie(file->relname, ".jp2")
-#endif
-				||	BLI_testextensie(file->relname, ".tga")
-				||	BLI_testextensie(file->relname, ".rgb")
-				||	BLI_testextensie(file->relname, ".rgba")
-				||	BLI_testextensie(file->relname, ".bmp")
-				||	BLI_testextensie(file->relname, ".png")
-				||	BLI_testextensie(file->relname, ".iff")
-				||	BLI_testextensie(file->relname, ".tif")
-				||	BLI_testextensie(file->relname, ".tiff")
-				||	BLI_testextensie(file->relname, ".hdr")
-#ifdef WITH_DDS
-				||	BLI_testextensie(file->relname, ".dds")
-#endif
-#ifdef WITH_OPENEXR
-				||	BLI_testextensie(file->relname, ".exr")
-#endif
-				||	BLI_testextensie(file->relname, ".lbm")
-				||	BLI_testextensie(file->relname, ".sgi")) {
-				file->flags |= IMAGEFILE;			
-			}
-			else if(BLI_testextensie(file->relname, ".avi")
-				||	BLI_testextensie(file->relname, ".flc")
-				||	BLI_testextensie(file->relname, ".mov")
-				||	BLI_testextensie(file->relname, ".movie")
-				||	BLI_testextensie(file->relname, ".mp4")
-				||	BLI_testextensie(file->relname, ".m4v")
-				||	BLI_testextensie(file->relname, ".mv")
-				||	BLI_testextensie(file->relname, ".wmv")
-				||	BLI_testextensie(file->relname, ".ogv")
-				||	BLI_testextensie(file->relname, ".mpeg")
-				||	BLI_testextensie(file->relname, ".mpg")
-				||	BLI_testextensie(file->relname, ".mpg2")
-				||	BLI_testextensie(file->relname, ".vob")
-				||	BLI_testextensie(file->relname, ".mkv")
-				||	BLI_testextensie(file->relname, ".flv")
-				||	BLI_testextensie(file->relname, ".divx")
-				||	BLI_testextensie(file->relname, ".xvid")) {
-				file->flags |= MOVIEFILE;			
-			}
-			else if(BLI_testextensie(file->relname, ".wav")
-				||	BLI_testextensie(file->relname, ".ogg")
-				||	BLI_testextensie(file->relname, ".oga")
-				||	BLI_testextensie(file->relname, ".mp3")
-				||	BLI_testextensie(file->relname, ".mp2")
-				||	BLI_testextensie(file->relname, ".ac3")
-				||	BLI_testextensie(file->relname, ".aac")
-				||	BLI_testextensie(file->relname, ".flac")
-				||	BLI_testextensie(file->relname, ".wma")
-				||	BLI_testextensie(file->relname, ".eac3")) {
-				file->flags |= SOUNDFILE;
-			}
+		} else if(BLI_testextensie_array(file->relname, imb_ext_movie)) {
+			file->flags |= MOVIEFILE;			
+		} else if(BLI_testextensie_array(file->relname, imb_ext_audio)) {
+			file->flags |= SOUNDFILE;
 		}
 	}
 }
@@ -1018,7 +882,7 @@ static int groupname_to_code(char *group)
 	if (lslash)
 		lslash[0]= '\0';
 
-	return BLO_idcode_from_name(buf);
+	return BKE_idcode_from_name(buf);
 }
 
 void filelist_from_library(struct FileList* filelist)
@@ -1271,7 +1135,7 @@ static void thumbnail_joblist_free(ThumbnailJob *tj)
 	BLI_freelistN(&tj->loadimages);
 }
 
-static void thumbnails_startjob(void *tjv, short *stop, short *do_update)
+static void thumbnails_startjob(void *tjv, short *stop, short *do_update, float *progress)
 {
 	ThumbnailJob *tj= tjv;
 	FileImage* limg = tj->loadimages.first;
@@ -1282,7 +1146,9 @@ static void thumbnails_startjob(void *tjv, short *stop, short *do_update)
 	while ( (*stop==0) && (limg) ) {
 		if ( limg->flags & IMAGEFILE ) {
 			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_IMAGE);
-		} else if ( limg->flags & MOVIEFILE ) {			
+		} else if ( limg->flags & BLENDERFILE ) {
+			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_BLEND);
+		} else if ( limg->flags & MOVIEFILE ) {
 			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_MOVIE);
 			if (!limg->img) {
 					/* remember that file can't be loaded via IMB_open_anim */
@@ -1336,9 +1202,9 @@ void thumbnails_start(struct FileList* filelist, const struct bContext* C)
 	tj->filelist = filelist;
 	for (idx = 0; idx < filelist->numfiles;idx++) {
 		if (!filelist->filelist[idx].image) {
-			if ( (filelist->filelist[idx].flags & IMAGEFILE) || (filelist->filelist[idx].flags & MOVIEFILE) ) {
+			if ( (filelist->filelist[idx].flags & (IMAGEFILE|MOVIEFILE|BLENDERFILE)) ) {
 				FileImage* limg = MEM_callocN(sizeof(struct FileImage), "loadimage");
-				BLI_join_dirfile(limg->path, filelist->dir, filelist->filelist[idx].relname);
+				BLI_strncpy(limg->path, filelist->filelist[idx].path, FILE_MAX);
 				limg->index= idx;
 				limg->flags= filelist->filelist[idx].flags;
 				BLI_addtail(&tj->loadimages, limg);
@@ -1349,10 +1215,10 @@ void thumbnails_start(struct FileList* filelist, const struct bContext* C)
 	BKE_reports_init(&tj->reports, RPT_PRINT);
 
 	/* setup job */
-	steve= WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), filelist, 0);
+	steve= WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), filelist, "Thumbnails", 0);
 	WM_jobs_customdata(steve, tj, thumbnails_free);
 	WM_jobs_timer(steve, 0.5, NC_WINDOW, NC_WINDOW);
-	WM_jobs_callbacks(steve, thumbnails_startjob, NULL, thumbnails_update);
+	WM_jobs_callbacks(steve, thumbnails_startjob, NULL, thumbnails_update, NULL);
 
 	/* start the job */
 	WM_jobs_start(CTX_wm_manager(C), steve);
@@ -1360,5 +1226,10 @@ void thumbnails_start(struct FileList* filelist, const struct bContext* C)
 
 void thumbnails_stop(struct FileList* filelist, const struct bContext* C)
 {
-	WM_jobs_kill(CTX_wm_manager(C), filelist);
+	WM_jobs_kill(CTX_wm_manager(C), filelist, NULL);
+}
+
+int thumbnails_running(struct FileList* filelist, const struct bContext* C)
+{
+	return WM_jobs_test(CTX_wm_manager(C), filelist);
 }

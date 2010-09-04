@@ -34,10 +34,6 @@
 #include <string.h>
 #include <stdlib.h>  
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include "MEM_guardedalloc.h"
 #include "BLI_blenlib.h"  
 #include "BLI_math.h"  
@@ -49,6 +45,7 @@
 #include "DNA_key_types.h"  
 #include "DNA_scene_types.h"  
 #include "DNA_vfont_types.h"  
+#include "DNA_object_types.h"
 
 #include "BKE_animsys.h"
 #include "BKE_anim.h"  
@@ -61,6 +58,8 @@
 #include "BKE_main.h"  
 #include "BKE_object.h"  
 #include "BKE_utildefines.h"  // VECCOPY
+
+#include "ED_curve.h"
 
 /* globals */
 
@@ -108,13 +107,8 @@ void free_curve(Curve *cu)
 	BLI_freelistN(&cu->bev);
 	freedisplist(&cu->disp);
 	BKE_free_editfont(cu);
-	
-	if(cu->editnurb) {
-		freeNurblist(cu->editnurb);
-		MEM_freeN(cu->editnurb);
-		cu->editnurb= NULL;
-	}
 
+	free_curve_editNurb(cu);
 	unlink_curve(cu);
 	BKE_free_animdata((ID *)cu);
 	
@@ -133,7 +127,7 @@ Curve *add_curve(char *name, int type)
 	cu= alloc_libblock(&G.main->curve, ID_CU, name);
 	
 	cu->size[0]= cu->size[1]= cu->size[2]= 1.0;
-	cu->flag= CU_FRONT|CU_BACK|CU_PATH_RADIUS;
+	cu->flag= CU_FRONT|CU_BACK|CU_DEFORM_BOUNDS_OFF|CU_PATH_RADIUS;
 	cu->pathlen= 100;
 	cu->resolu= cu->resolv= 12;
 	cu->width= 1.0;
@@ -142,6 +136,7 @@ Curve *add_curve(char *name, int type)
 	cu->fsize= 1.0;
 	cu->ulheight = 0.05;	
 	cu->texflag= CU_AUTOSPACE;
+	cu->smallcaps_scale= 0.75f;
 	cu->twist_mode= CU_TWIST_MINIMUM;	// XXX: this one seems to be the best one in most cases, at least for curve deform...
 	
 	cu->bb= unit_boundbox();
@@ -151,7 +146,7 @@ Curve *add_curve(char *name, int type)
 		cu->vfont->id.us+=4;
 		cu->str= MEM_mallocN(12, "str");
 		strcpy(cu->str, "Text");
-		cu->pos= 4;
+		cu->len= cu->pos= 4;
 		cu->strinfo= MEM_callocN(12*sizeof(CharInfo), "strinfo new");
 		cu->totbox= cu->actbox= 1;
 		cu->tb= MEM_callocN(MAXTEXTBOX*sizeof(TextBox), "textbox");
@@ -282,7 +277,7 @@ void tex_space_curve(Curve *cu)
 {
 	DispList *dl;
 	BoundBox *bb;
-	float *fp, min[3], max[3], loc[3], size[3];
+	float *fp, min[3], max[3];
 	int tot, doit= 0;
 	
 	if(cu->bb==NULL) cu->bb= MEM_callocN(sizeof(BoundBox), "boundbox");
@@ -309,20 +304,15 @@ void tex_space_curve(Curve *cu)
 		min[0] = min[1] = min[2] = -1.0f;
 		max[0] = max[1] = max[2] = 1.0f;
 	}
-	
-	loc[0]= (min[0]+max[0])/2.0f;
-	loc[1]= (min[1]+max[1])/2.0f;
-	loc[2]= (min[2]+max[2])/2.0f;
-	
-	size[0]= (max[0]-min[0])/2.0f;
-	size[1]= (max[1]-min[1])/2.0f;
-	size[2]= (max[2]-min[2])/2.0f;
 
 	boundbox_set_from_min_max(bb, min, max);
 
 	if(cu->texflag & CU_AUTOSPACE) {
-		VECCOPY(cu->loc, loc);
-		VECCOPY(cu->size, size);
+		mid_v3_v3v3(cu->loc, min, max);
+		cu->size[0]= (max[0]-min[0])/2.0f;
+		cu->size[1]= (max[1]-min[1])/2.0f;
+		cu->size[2]= (max[2]-min[2])/2.0f;
+
 		cu->rot[0]= cu->rot[1]= cu->rot[2]= 0.0;
 
 		if(cu->size[0]==0.0) cu->size[0]= 1.0;
@@ -891,14 +881,14 @@ void makeNurbfaces(Nurb *nu, float *coord_array, int rowstride)
 	MEM_freeN(jend);
 }
 
-void makeNurbcurve(Nurb *nu, float *coord_array, float *tilt_array, float *radius_array, int resolu, int stride)
+void makeNurbcurve(Nurb *nu, float *coord_array, float *tilt_array, float *radius_array, float *weight_array, int resolu, int stride)
 /* coord_array has to be 3*4*pntsu*resolu in size and zero-ed
  * tilt_array and radius_array will be written to if valid */
 {
 	BPoint *bp;
 	float u, ustart, uend, ustep, sumdiv;
 	float *basisu, *sum, *fp;
-	float *coord_fp= coord_array, *tilt_fp= tilt_array, *radius_fp= radius_array;
+	float *coord_fp= coord_array, *tilt_fp= tilt_array, *radius_fp= radius_array, *weight_fp= weight_array;
 	int i, len, istart, iend, cycl;
 
 	if(nu->knotsu==NULL) return;
@@ -971,6 +961,9 @@ void makeNurbcurve(Nurb *nu, float *coord_array, float *tilt_array, float *radiu
 				
 				if (radius_fp)
 					(*radius_fp) += (*fp) * bp->radius;
+
+				if (weight_fp)
+					(*weight_fp) += (*fp) * bp->weight;
 				
 			}
 		}
@@ -979,6 +972,7 @@ void makeNurbcurve(Nurb *nu, float *coord_array, float *tilt_array, float *radiu
 		
 		if (tilt_fp)	tilt_fp = (float *)(((char *)tilt_fp) + stride);
 		if (radius_fp)	radius_fp = (float *)(((char *)radius_fp) + stride);
+		if (weight_fp)	weight_fp = (float *)(((char *)weight_fp) + stride);
 		
 		u+= ustep;
 	}
@@ -1228,6 +1222,8 @@ void makebevelcurve(Scene *scene, Object *ob, ListBase *disp, int forRender)
 // XXX	if( ob == obedit && ob->type == OB_FONT ) return;
 
 	if(cu->bevobj) {
+		if (cu->bevobj->type!=OB_CURVE) return;
+
 		bevcu= cu->bevobj->data;
 		if(bevcu->ext1==0.0 && bevcu->ext2==0.0) {
 			ListBase bevdisp= {NULL, NULL};
@@ -1317,30 +1313,33 @@ void makebevelcurve(Scene *scene, Object *ob, ListBase *disp, int forRender)
 		short dnr;
 		
 		/* bevel now in three parts, for proper vertex normals */
-		/* part 1 */
-		dnr= nr= 2+ cu->bevresol;
-		if( (cu->flag & (CU_FRONT|CU_BACK))==0)
-			nr= 3+ 2*cu->bevresol;
-		   
-		dl= MEM_callocN(sizeof(DispList), "makebevelcurve p1");
-		dl->verts= MEM_mallocN(nr*3*sizeof(float), "makebevelcurve p1");
-		BLI_addtail(disp, dl);
-		dl->type= DL_SEGM;
-		dl->parts= 1;
-		dl->flag= DL_BACK_CURVE;
-		dl->nr= nr;
+		/* part 1, back */
 
-		/* half a circle */
-		fp= dl->verts;
-		dangle= (0.5*M_PI/(dnr-1));
-		angle= -(nr-1)*dangle;
-		
-		for(a=0; a<nr; a++) {
-			fp[0]= 0.0;
-			fp[1]= (float)(cos(angle)*(cu->ext2));
-			fp[2]= (float)(sin(angle)*(cu->ext2)) - cu->ext1;
-			angle+= dangle;
-			fp+= 3;
+		if((cu->flag & CU_BACK) || !(cu->flag & CU_FRONT)) {
+			dnr= nr= 2+ cu->bevresol;
+			if( (cu->flag & (CU_FRONT|CU_BACK))==0)
+				nr= 3+ 2*cu->bevresol;
+
+			dl= MEM_callocN(sizeof(DispList), "makebevelcurve p1");
+			dl->verts= MEM_mallocN(nr*3*sizeof(float), "makebevelcurve p1");
+			BLI_addtail(disp, dl);
+			dl->type= DL_SEGM;
+			dl->parts= 1;
+			dl->flag= DL_BACK_CURVE;
+			dl->nr= nr;
+
+			/* half a circle */
+			fp= dl->verts;
+			dangle= (0.5*M_PI/(dnr-1));
+			angle= -(nr-1)*dangle;
+
+			for(a=0; a<nr; a++) {
+				fp[0]= 0.0;
+				fp[1]= (float)(cos(angle)*(cu->ext2));
+				fp[2]= (float)(sin(angle)*(cu->ext2)) - cu->ext1;
+				angle+= dangle;
+				fp+= 3;
+			}
 		}
 		
 		/* part 2, sidefaces */
@@ -1373,30 +1372,32 @@ void makebevelcurve(Scene *scene, Object *ob, ListBase *disp, int forRender)
 			}
 		}
 		
-		/* part 3 */
-		dnr= nr= 2+ cu->bevresol;
-		if( (cu->flag & (CU_FRONT|CU_BACK))==0)
-			nr= 3+ 2*cu->bevresol;
-		
-		dl= MEM_callocN(sizeof(DispList), "makebevelcurve p3");
-		dl->verts= MEM_mallocN(nr*3*sizeof(float), "makebevelcurve p3");
-		BLI_addtail(disp, dl);
-		dl->type= DL_SEGM;
-		dl->flag= DL_FRONT_CURVE;
-		dl->parts= 1;
-		dl->nr= nr;
-		
-		/* half a circle */
-		fp= dl->verts;
-		angle= 0.0;
-		dangle= (0.5*M_PI/(dnr-1));
-		
-		for(a=0; a<nr; a++) {
-			fp[0]= 0.0;
-			fp[1]= (float)(cos(angle)*(cu->ext2));
-			fp[2]= (float)(sin(angle)*(cu->ext2)) + cu->ext1;
-			angle+= dangle;
-			fp+= 3;
+		/* part 3, front */
+		if((cu->flag & CU_FRONT) || !(cu->flag & CU_BACK)) {
+			dnr= nr= 2+ cu->bevresol;
+			if( (cu->flag & (CU_FRONT|CU_BACK))==0)
+				nr= 3+ 2*cu->bevresol;
+
+			dl= MEM_callocN(sizeof(DispList), "makebevelcurve p3");
+			dl->verts= MEM_mallocN(nr*3*sizeof(float), "makebevelcurve p3");
+			BLI_addtail(disp, dl);
+			dl->type= DL_SEGM;
+			dl->flag= DL_FRONT_CURVE;
+			dl->parts= 1;
+			dl->nr= nr;
+
+			/* half a circle */
+			fp= dl->verts;
+			angle= 0.0;
+			dangle= (0.5*M_PI/(dnr-1));
+
+			for(a=0; a<nr; a++) {
+				fp[0]= 0.0;
+				fp[1]= (float)(cos(angle)*(cu->ext2));
+				fp[2]= (float)(sin(angle)*(cu->ext2)) + cu->ext1;
+				angle+= dangle;
+				fp+= 3;
+			}
 		}
 	}
 }
@@ -1542,7 +1543,7 @@ static void calc_bevel_sin_cos(float x1, float y1, float x2, float y2, float *si
 
 }
 
-static void alfa_bezpart(BezTriple *prevbezt, BezTriple *bezt, Nurb *nu, float *tilt_array, float *radius_array, int resolu, int stride)
+static void alfa_bezpart(BezTriple *prevbezt, BezTriple *bezt, Nurb *nu, float *tilt_array, float *radius_array, float *weight_array, int resolu, int stride)
 {
 	BezTriple *pprev, *next, *last;
 	float fac, dfac, t[4];
@@ -1572,7 +1573,7 @@ static void alfa_bezpart(BezTriple *prevbezt, BezTriple *bezt, Nurb *nu, float *
 	
 	for(a=0; a<resolu; a++, fac+= dfac) {
 		if (tilt_array) {
-			if (nu->tilt_interp==3) { /* May as well support for tilt also 2.47 ease interp */
+			if (nu->tilt_interp==KEY_CU_EASE) { /* May as well support for tilt also 2.47 ease interp */
 				*tilt_array = prevbezt->alfa + (bezt->alfa - prevbezt->alfa)*(3.0f*fac*fac - 2.0f*fac*fac*fac);
 			} else {
 				key_curve_position_weights(fac, t, nu->tilt_interp);
@@ -1583,7 +1584,7 @@ static void alfa_bezpart(BezTriple *prevbezt, BezTriple *bezt, Nurb *nu, float *
 		}
 		
 		if (radius_array) {
-			if (nu->radius_interp==3) {
+			if (nu->radius_interp==KEY_CU_EASE) {
 				/* Support 2.47 ease interp
 				 * Note! - this only takes the 2 points into account,
 				 * giving much more localized results to changes in radius, sometimes you want that */
@@ -1598,6 +1599,13 @@ static void alfa_bezpart(BezTriple *prevbezt, BezTriple *bezt, Nurb *nu, float *
 			}
 			
 			radius_array = (float *)(((char *)radius_array) + stride); 
+		}
+
+		if(weight_array) {
+			/* basic interpolation for now, could copy tilt interp too  */
+			*weight_array = prevbezt->weight + (bezt->weight - prevbezt->weight)*(3.0f*fac*fac - 2.0f*fac*fac*fac);
+
+			weight_array = (float *)(((char *)weight_array) + stride);
 		}
 	}
 }
@@ -1984,7 +1992,7 @@ void makeBevelList(Object *ob)
 	float min, inp, x1, x2, y1, y2;
 	struct bevelsort *sortdata, *sd, *sd1;
 	int a, b, nr, poly, resolu = 0, len = 0;
-	int do_tilt, do_radius;
+	int do_tilt, do_radius, do_weight;
 	
 	/* this function needs an object, because of tflag and upflag */
 	cu= ob->data;
@@ -1995,14 +2003,17 @@ void makeBevelList(Object *ob)
 	/* STEP 1: MAKE POLYS  */
 
 	BLI_freelistN(&(cu->bev));
-	if(cu->editnurb && ob->type!=OB_FONT) nu= cu->editnurb->first;
-	else nu= cu->nurb.first;
+	if(cu->editnurb && ob->type!=OB_FONT) {
+		ListBase *nurbs= ED_curve_editnurbs(cu);
+		nu= nurbs->first;
+	} else nu= cu->nurb.first;
 	
 	while(nu) {
 		
 		/* check if we will calculate tilt data */
 		do_tilt = CU_DO_TILT(cu, nu);
 		do_radius = CU_DO_RADIUS(cu, nu); /* normal display uses the radius, better just to calculate them */
+		do_weight = 1;
 		
 		/* check we are a single point? also check we are not a surface and that the orderu is sane,
 		 * enforced in the UI but can go wrong possibly */
@@ -2032,6 +2043,7 @@ void makeBevelList(Object *ob)
 					VECCOPY(bevp->vec, bp->vec);
 					bevp->alfa= bp->alfa;
 					bevp->radius= bp->radius;
+					bevp->weight= bp->weight;
 					bevp->split_tag= TRUE;
 					bevp++;
 					bp++;
@@ -2064,6 +2076,7 @@ void makeBevelList(Object *ob)
 						VECCOPY(bevp->vec, prevbezt->vec[1]);
 						bevp->alfa= prevbezt->alfa;
 						bevp->radius= prevbezt->radius;
+						bevp->weight= prevbezt->weight;
 						bevp->split_tag= TRUE;
 						bevp->dupe_tag= FALSE;
 						bevp++;
@@ -2085,6 +2098,7 @@ void makeBevelList(Object *ob)
 						alfa_bezpart(	prevbezt, bezt, nu,
 										 do_tilt	? &bevp->alfa : NULL,
 										 do_radius	? &bevp->radius : NULL,
+										 do_weight	? &bevp->weight : NULL,
 										 resolu, sizeof(BevPoint));
 
 						
@@ -2114,6 +2128,7 @@ void makeBevelList(Object *ob)
 					VECCOPY(bevp->vec, prevbezt->vec[1]);
 					bevp->alfa= prevbezt->alfa;
 					bevp->radius= prevbezt->radius;
+					bevp->weight= prevbezt->weight;
 					bl->nr++;
 				}
 			}
@@ -2132,6 +2147,7 @@ void makeBevelList(Object *ob)
 					makeNurbcurve(	nu, &bevp->vec[0],
 									do_tilt		? &bevp->alfa : NULL,
 									do_radius	? &bevp->radius : NULL,
+									do_weight	? &bevp->weight : NULL,
 									resolu, sizeof(BevPoint));
 				}
 			}
@@ -2980,7 +2996,7 @@ float (*curve_getKeyVertexCos(Curve *cu, ListBase *lb, float *key))[3]
 				VECCOPY(co, key); co+=3; key+=3;
 				VECCOPY(co, key); co+=3; key+=3;
 				VECCOPY(co, key); co+=3; key+=3;
-				key++; /* skip tilt */
+				key+=3; /* skip tilt */
 			}
 		}
 		else {
@@ -3059,7 +3075,7 @@ int clamp_nurb_order_u( struct Nurb *nu )
 		nu->orderu= nu->pntsu;
 		change= 1;
 	}
-	if(((nu->flag & CU_NURB_CYCLIC)==0) && (nu->flagu & CU_NURB_BEZIER)) {
+	if(((nu->flagu & CU_NURB_CYCLIC)==0) && (nu->flagu & CU_NURB_BEZIER)) {
 		CLAMP(nu->orderu, 3,4);
 		change= 1;
 	}
@@ -3073,12 +3089,117 @@ int clamp_nurb_order_v( struct Nurb *nu)
 		nu->orderv= nu->pntsv;
 		change= 1;
 	}
-	if(((nu->flag & CU_NURB_CYCLIC)==0) && (nu->flagv & CU_NURB_BEZIER)) {
+	if(((nu->flagv & CU_NURB_CYCLIC)==0) && (nu->flagv & CU_NURB_BEZIER)) {
 		CLAMP(nu->orderv, 3,4);
 		change= 1;
 	}
 	return change;
 }
 
+/* Get edit nurbs or normal nurbs list */
+ListBase *BKE_curve_nurbs(Curve *cu)
+{
+	if (cu->editnurb) {
+		return ED_curve_editnurbs(cu);
+	}
+
+	return &cu->nurb;
+}
 
 
+/* basic vertex data functions */
+int minmax_curve(Curve *cu, float min[3], float max[3])
+{
+	ListBase *nurb_lb= BKE_curve_nurbs(cu);
+	Nurb *nu;
+
+	for(nu= nurb_lb->first; nu; nu= nu->next)
+		minmaxNurb(nu, min, max);
+
+	return (nurb_lb->first != NULL);
+}
+
+int curve_center_median(Curve *cu, float cent[3])
+{
+	ListBase *nurb_lb= BKE_curve_nurbs(cu);
+	Nurb *nu;
+	int total= 0;
+
+	zero_v3(cent);
+
+	for(nu= nurb_lb->first; nu; nu= nu->next) {
+		int i;
+
+		if(nu->type == CU_BEZIER) {
+			BezTriple *bezt;
+			i= nu->pntsu;
+			total += i * 3;
+			for(bezt= nu->bezt; i--; bezt++) {
+				add_v3_v3(cent, bezt->vec[0]);
+				add_v3_v3(cent, bezt->vec[1]);
+				add_v3_v3(cent, bezt->vec[2]);
+			}
+		}
+		else {
+			BPoint *bp;
+			i= nu->pntsu*nu->pntsv;
+			total += i;
+			for(bp= nu->bp; i--; bp++) {
+				add_v3_v3(cent, bp->vec);
+			}
+		}
+	}
+
+	mul_v3_fl(cent, 1.0f/(float)total);
+
+	return (total != 0);
+}
+
+int curve_center_bounds(Curve *cu, float cent[3])
+{
+	float min[3], max[3];
+	INIT_MINMAX(min, max);
+	if(minmax_curve(cu, min, max)) {
+		mid_v3_v3v3(cent, min, max);
+		return 1;
+	}
+
+	return 0;
+}
+
+void curve_translate(Curve *cu, float offset[3], int do_keys)
+{
+	ListBase *nurb_lb= BKE_curve_nurbs(cu);
+	Nurb *nu;
+	int i;
+
+	for(nu= nurb_lb->first; nu; nu= nu->next) {
+		BezTriple *bezt;
+		BPoint *bp;
+
+		if(nu->type == CU_BEZIER) {
+			i= nu->pntsu;
+			for(bezt= nu->bezt; i--; bezt++) {
+				add_v3_v3(bezt->vec[0], offset);
+				add_v3_v3(bezt->vec[1], offset);
+				add_v3_v3(bezt->vec[2], offset);
+			}
+		}
+		else {
+			i= nu->pntsu*nu->pntsv;
+			for(bp= nu->bp; i--; bp++) {
+				add_v3_v3(bp->vec, offset);
+			}
+		}
+	}
+
+	if (do_keys && cu->key) {
+		KeyBlock *kb;
+		for (kb=cu->key->block.first; kb; kb=kb->next) {
+			float *fp= kb->data;
+			for (i= kb->totelem; i--; fp+=3) {
+				add_v3_v3(fp, offset);
+			}
+		}
+	}
+}

@@ -35,42 +35,42 @@ def metarig_template():
     bone.head[:] = 0.0004, -0.0629, 0.0000
     bone.tail[:] = 0.0021, -0.0209, 0.0000
     bone.roll = 0.0000
-    bone.connected = False
+    bone.use_connect = False
     bone = arm.edit_bones.new('palm.03')
     bone.head[:] = -0.0000, 0.0000, 0.0000
     bone.tail[:] = 0.0025, 0.0644, -0.0065
     bone.roll = -3.1396
-    bone.connected = False
+    bone.use_connect = False
     bone.parent = arm.edit_bones['hand']
     bone = arm.edit_bones.new('palm.02')
     bone.head[:] = 0.0252, -0.0000, 0.0000
     bone.tail[:] = 0.0324, 0.0627, -0.0065
     bone.roll = -3.1357
-    bone.connected = False
+    bone.use_connect = False
     bone.parent = arm.edit_bones['hand']
     bone = arm.edit_bones.new('palm.01')
     bone.head[:] = 0.0504, 0.0000, 0.0000
     bone.tail[:] = 0.0703, 0.0508, -0.0065
     bone.roll = -3.1190
-    bone.connected = False
+    bone.use_connect = False
     bone.parent = arm.edit_bones['hand']
     bone = arm.edit_bones.new('palm.04')
     bone.head[:] = -0.0252, 0.0000, 0.0000
     bone.tail[:] = -0.0286, 0.0606, -0.0065
     bone.roll = 3.1386
-    bone.connected = False
+    bone.use_connect = False
     bone.parent = arm.edit_bones['hand']
     bone = arm.edit_bones.new('palm.05')
     bone.head[:] = -0.0504, 0.0000, 0.0000
     bone.tail[:] = -0.0669, 0.0534, -0.0065
     bone.roll = 3.1239
-    bone.connected = False
+    bone.use_connect = False
     bone.parent = arm.edit_bones['hand']
     bone = arm.edit_bones.new('thumb')
     bone.head[:] = 0.0682, -0.0148, 0.0000
     bone.tail[:] = 0.1063, 0.0242, -0.0065
     bone.roll = -3.0929
-    bone.connected = False
+    bone.use_connect = False
     bone.parent = arm.edit_bones['hand']
 
     bpy.ops.object.mode_set(mode='OBJECT')
@@ -156,7 +156,7 @@ def main(obj, bone_definition, base_names, options):
     driver_fcurves = pinky_pbone.driver_add("rotation_euler")
 
 
-    controller_path = control_pbone.path_to_id()
+    controller_path = control_pbone.path_from_id()
 
     # add custom prop
     control_pbone["spread"] = 0.0
@@ -194,7 +194,7 @@ def main(obj, bone_definition, base_names, options):
     driver.expression = "(1.0-cos(x))-s"
 
     for fcurve in driver_fcurves:
-        fcurve.modifiers.remove(0) # grr dont need a modifier
+        fcurve.modifiers.remove(fcurve.modifiers[0]) # grr dont need a modifier
 
     var = driver.variables.new()
     var.name = "x"
@@ -248,13 +248,13 @@ def main(obj, bone_definition, base_names, options):
         # NOTE: the direction of the Z rotation depends on which side the palm is on.
         # we could do a simple side-of-x test but better to work out the direction
         # the hand is facing.
-        from Mathutils import Vector
+        from mathutils import Vector
         from math import degrees
         child_pbone_01 = obj.pose.bones[children[0]].bone
         child_pbone_02 = obj.pose.bones[children[1]].bone
 
         rel_vec = child_pbone_01.head - child_pbone_02.head
-        x_vec = child_pbone_01.matrix.rotation_part() * Vector(1.0, 0.0, 0.0)
+        x_vec = child_pbone_01.matrix.rotation_part() * Vector((1.0, 0.0, 0.0))
 
         return degrees(rel_vec.angle(x_vec)) > 90.0
 
@@ -263,7 +263,7 @@ def main(obj, bone_definition, base_names, options):
 
 
     # last step setup layers
-    arm.bones[control_name].layer = list(arm.bones[bone_definition[1]].layer)
+    arm.bones[control_name].layers = list(arm.bones[bone_definition[1]].layers)
 
 
     # no blending the result of this

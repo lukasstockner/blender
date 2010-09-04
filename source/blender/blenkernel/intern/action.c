@@ -26,10 +26,6 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
@@ -41,6 +37,7 @@
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_object_types.h"
 
 #include "BKE_animsys.h"
 #include "BKE_action.h"
@@ -305,7 +302,7 @@ void action_groups_add_channel (bAction *act, bActionGroup *agrp, FCurve *fcurve
 		/* firstly, link this F-Curve to the group */
 		agrp->channels.first = agrp->channels.last = fcurve;
 		
-		/* step through the groups preceeding this one, finding the F-Curve there to attach this one after */
+		/* step through the groups preceding this one, finding the F-Curve there to attach this one after */
 		for (grp= agrp->prev; grp; grp= grp->prev) {
 			/* if this group has F-Curves, we want weave the given one in right after the last channel there,
 			 * but via the Action's list not this group's list
@@ -371,20 +368,12 @@ void action_groups_remove_channel (bAction *act, FCurve *fcu)
 /* Find a group with the given name */
 bActionGroup *action_groups_find_named (bAction *act, const char name[])
 {
-	bActionGroup *grp;
-	
 	/* sanity checks */
 	if (ELEM3(NULL, act, act->groups.first, name) || (name[0] == 0))
 		return NULL;
 		
 	/* do string comparisons */
-	for (grp= act->groups.first; grp; grp= grp->next) {
-		if (strcmp(grp->name, name) == 0)
-			return grp;
-	}
-	
-	/* not found */
-	return NULL;
+	return BLI_findstring(&act->groups, name, offsetof(bActionGroup, name));
 }
 
 /* *************** Pose channels *************** */
@@ -396,7 +385,7 @@ bPoseChannel *get_pose_channel(const bPose *pose, const char *name)
 		return NULL;
 	
 	if(pose->chanhash)
-		return BLI_ghash_lookup(pose->chanhash, name);
+		return BLI_ghash_lookup(pose->chanhash, (void *)name);
 	
 	return BLI_findstring(&((bPose *)pose)->chanbase, name, offsetof(bPoseChannel, name));
 }
@@ -497,7 +486,7 @@ void copy_pose (bPose **dst, bPose *src, int copycon)
 	for (pchan=outPose->chanbase.first; pchan; pchan=pchan->next) {
 		// TODO: rename this argument...
 		if (copycon) {
-			copy_constraints(&listb, &pchan->constraints);  // copy_constraints NULLs listb
+			copy_constraints(&listb, &pchan->constraints, TRUE);  // copy_constraints NULLs listb
 			pchan->constraints= listb;
 			pchan->path= NULL; // XXX remove this line when the new motionpaths are ready... (depreceated code)
 			pchan->mpath= NULL; /* motion paths should not get copied yet... */
@@ -553,7 +542,7 @@ void make_pose_channels_hash(bPose *pose)
 	if(!pose->chanhash) {
 		bPoseChannel *pchan;
 
-		pose->chanhash= BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp);
+		pose->chanhash= BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp, "make_pose_chan gh");
 		for(pchan=pose->chanbase.first; pchan; pchan=pchan->next)
 			BLI_ghash_insert(pose->chanhash, pchan->name, pchan);
 	}
@@ -671,7 +660,7 @@ void duplicate_pose_channel_data(bPoseChannel *pchan, const bPoseChannel *pchan_
 	pchan->iklinweight= pchan_from->iklinweight;
 
 	/* constraints */
-	copy_constraints(&pchan->constraints, &pchan_from->constraints);
+	copy_constraints(&pchan->constraints, &pchan_from->constraints, TRUE);
 
 	/* id-properties */
 	if(pchan->prop) {
@@ -1255,12 +1244,12 @@ static void blend_pose_offset_bone(bActionStrip *strip, bPose *dst, bPose *src, 
 				/* if blending, we only add with factor scrweight */
 				mul_v3_fl(vec, srcweight);
 				
-				add_v3_v3v3(dst->cyclic_offset, dst->cyclic_offset, vec);
+				add_v3_v3(dst->cyclic_offset, vec);
 			}
 		}
 	}
 	
-	add_v3_v3v3(dst->cyclic_offset, dst->cyclic_offset, src->cyclic_offset);
+	add_v3_v3(dst->cyclic_offset, src->cyclic_offset);
 }
 
 /* added "sizecorr" here, to allow armatures to be scaled and still have striding.
@@ -1422,7 +1411,7 @@ static void do_nla(Scene *scene, Object *ob, int blocktype)
 	bActionStrip *strip, *striplast=NULL, *stripfirst=NULL;
 	float striptime, frametime, length, actlength;
 	float blendfac, stripframe;
-	float scene_cfra= frame_to_float(scene, scene->r.cfra); 
+	float scene_cfra= BKE_curframe(scene);
 	int	doit, dostride;
 	
 	if(blocktype==ID_AR) {
@@ -1620,7 +1609,7 @@ static void do_nla(Scene *scene, Object *ob, int blocktype)
 	}
 	else if(blocktype==ID_AR) {
 		/* apply stride offset to object */
-		add_v3_v3v3(ob->obmat[3], ob->obmat[3], ob->pose->stride_offset);
+		add_v3_v3(ob->obmat[3], ob->pose->stride_offset);
 	}
 	
 	/* free */

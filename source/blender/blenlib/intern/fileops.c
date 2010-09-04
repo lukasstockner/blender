@@ -80,32 +80,7 @@ char *BLI_last_slash(const char *string) {
 	else return lfslash;
 }
 
-static const char *last_slash_len(const char *string, int len) {
-	int a;
-
-	for(a=len-1; a>=0; a--)
-		if(string[a] == '/' || string[a] == '\\')
-			return &string[a];
-	
-	return NULL;
-}
-
-const char *BLI_short_filename(const char *string) {
-	const char *ls, *lls;
-	
-	ls= last_slash_len(string, strlen(string));
-	if(!ls)
-		return string;
-	
-	lls= last_slash_len(string, ls-string);
-
-	if(lls)
-		return lls+1;
-	else
-		return ls+1;
-}
-
-/* adds a slash if there isnt one there alredy */
+/* adds a slash if there isnt one there already */
 int BLI_add_slash(char *string) {
 	int len = strlen(string);
 #ifdef WIN32
@@ -230,6 +205,10 @@ int BLI_touch(const char *file)
 	return 0;
 }
 
+int BLI_exists(char *file) {
+	return BLI_exist(file);
+}
+
 #ifdef WIN32
 
 static char str[MAXPATHLEN+12];
@@ -307,10 +286,6 @@ int BLI_link(char *file, char *to) {
 	return 1;
 }
 
-int BLI_exists(char *file) {
-	return (GetFileAttributes(file) != 0xFFFFFFFF);
-}
-
 void BLI_recurdir_fileops(char *dirname) {
 	char *lslash;
 	char tmp[MAXPATHLEN];
@@ -351,10 +326,10 @@ int BLI_rename(char *from, char *to) {
 	return rename(from, to);
 }
 
-#else /* The sane UNIX world */
+#else /* The weirdo UNIX world */
 
 /*
- * but the sane UNIX world is tied to the interface, and the system
+ * but the UNIX world is tied to the interface, and the system
  * timer, and... We implement a callback mechanism. The system will
  * have to initialise the callback before the functions will work!
  * */
@@ -397,10 +372,6 @@ int BLI_link(char *file, char *to) {
 	sprintf(str, "/bin/ln -f \"%s\" \"%s\"", file, to);
 	
 	return system(str);
-}
-
-int BLI_exists(char *file) {
-	return BLI_exist(file);
 }
 
 void BLI_recurdir_fileops(char *dirname) {

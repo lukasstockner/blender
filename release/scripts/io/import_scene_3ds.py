@@ -141,10 +141,10 @@ import os
 import time
 import struct
 
-from import_scene_obj import unpack_face_list, load_image
+from import_scene_obj import load_image
 
 import bpy
-import Mathutils
+import mathutils
 
 BOUNDS_3DS = []
 
@@ -266,12 +266,10 @@ def read_string(file):
         s += struct.unpack('<c', file.read(1))[0]
         #print 'string: ',s
 
+    #remove the null character from the string
     s = str(s[:-1], 'ASCII')
 # 	print("read string", s)
-
-    #remove the null character from the string
     return s
-# 	return s[:-1]
 
 ######################################################
 # IMPORT
@@ -300,7 +298,6 @@ def add_texture_to_material(image, texture, material, mapto):
 
     if image:
         texture.image = image
-# 	if image: texture.setImage(image) # double check its an image.
 
     material.add_texture(texture, "UV", mapto)
 
@@ -310,12 +307,12 @@ def process_next_chunk(file, previous_chunk, importedObjects, IMAGE_SEARCH):
     contextObName = None
     contextLamp = [None, None] # object, Data
     contextMaterial = None
-    contextMatrix_rot = None # Blender.Mathutils.Matrix(); contextMatrix.identity()
-    #contextMatrix_tx = None # Blender.Mathutils.Matrix(); contextMatrix.identity()
-    contextMesh_vertls = None
+    contextMatrix_rot = None # Blender.mathutils.Matrix(); contextMatrix.identity()
+    #contextMatrix_tx = None # Blender.mathutils.Matrix(); contextMatrix.identity()
+    contextMesh_vertls = None # flat array: (verts * 3)
     contextMesh_facels = None
     contextMeshMaterials = {} # matname:[face_idxs]
-    contextMeshUV = None
+    contextMeshUV = None # flat array (verts * 2)
 
     TEXTURE_DICT = {}
     MATDICT = {}
@@ -333,115 +330,71 @@ def process_next_chunk(file, previous_chunk, importedObjects, IMAGE_SEARCH):
     # print STRUCT_SIZE_4x3MAT, ' STRUCT_SIZE_4x3MAT'
 
     def putContextMesh(myContextMesh_vertls, myContextMesh_facels, myContextMeshMaterials):
+        
+        bmesh = bpy.data.meshes.new(contextObName)
+        if myContextMesh_vertls:
 
-        materialFaces = set() # faces that have a material. Can optimize?
-
-        # Now make copies with assigned materils.
-
-        def makeMeshMaterialCopy(matName, faces):
-            '''
-            Make a new mesh with only face the faces that use this material.
-            faces can be any iterable object - containing ints.
-            '''
-
-            faceVertUsers = [False] * len(myContextMesh_vertls)
-            ok = 0
-            for fIdx in faces:
-                for vindex in myContextMesh_facels[fIdx]:
-                    faceVertUsers[vindex] = True
-                    if matName != None: # if matName is none then this is a set(), meaning we are using the untextured faces and do not need to store textured faces.
-                        materialFaces.add(fIdx)
-                    ok = 1
-
-            if not ok:
-                return
-
-            myVertMapping = {}
-            vertMappingIndex = 0
-
-            vertsToUse = [i for i in range(len(myContextMesh_vertls)) if faceVertUsers[i]]
-            myVertMapping = dict( [ (ii, i) for i, ii in enumerate(vertsToUse) ] )
-
-            tempName= '%s_%s' % (contextObName, matName) # matName may be None.
-            bmesh = bpy.data.meshes.new(tempName)
-
-            if matName == None:
-                img = None
+            bmesh.vertices.add(len(myContextMesh_vertls)//3)
+            bmesh.faces.add(len(myContextMesh_facels))
+            bmesh.vertices.foreach_set("co", myContextMesh_vertls)
+            
+            eekadoodle_faces = []
+            for v1, v2, v3 in myContextMesh_facels:
+                eekadoodle_faces.extend([v3, v1, v2, 0] if v3 == 0 else [v1, v2, v3, 0])
+            bmesh.faces.foreach_set("vertices_raw", eekadoodle_faces)
+            
+            if bmesh.faces and contextMeshUV:
+                bmesh.uv_textures.new()
+                uv_faces = bmesh.uv_textures.active.data[:]
             else:
-                bmat = MATDICT[matName][1]
-                bmesh.add_material(bmat)
-# 				bmesh.materials = [bmat]
-                try:	img = TEXTURE_DICT[bmat.name]
-                except:	img = None
+                uv_faces = None
 
-# 			bmesh_verts = bmesh.verts
-            if len(vertsToUse):
-                bmesh.add_geometry(len(vertsToUse), 0, len(faces))
+            for mat_idx, (matName, faces) in enumerate(myContextMeshMaterials.items()):
+                if matName is None:
+                    bmat = None
+                else:
+                    bmat = MATDICT[matName][1]
+                    img = TEXTURE_DICT.get(bmat.name)
 
-                # XXX why add extra vertex?
-# 	 			bmesh_verts.extend( [Vector()] )
-                bmesh.verts.foreach_set("co", [x for tup in [myContextMesh_vertls[i] for i in vertsToUse] for x in tup])
-# 	 			bmesh_verts.extend( [myContextMesh_vertls[i] for i in vertsToUse] )
+                bmesh.materials.link(bmat) # can be None
 
-                # +1 because of DUMMYVERT
-                bmesh.faces.foreach_set("verts_raw", unpack_face_list([[myVertMapping[vindex] for vindex in myContextMesh_facels[fIdx]] for fIdx in faces]))
-# 	 			face_mapping = bmesh.faces.extend( [ [ bmesh_verts[ myVertMapping[vindex]+1] for vindex in myContextMesh_facels[fIdx]] for fIdx in faces ], indexList=True )
+                if uv_faces  and img:
+                    for fidx in faces:
+                        bmesh.faces[fidx].material_index = mat_idx
+                        uf = uv_faces[fidx]
+                        uf.image = img
+                        uf.use_image = True
+                else:
+                    for fidx in faces:
+                        bmesh.faces[fidx].material_index = mat_idx
+                
+            if uv_faces:
+                for fidx, uf in enumerate(uv_faces):
+                    face = myContextMesh_facels[fidx]
+                    v1, v2, v3 = face
+                    
+                    # eekadoodle
+                    if v3 == 0:
+                        v1, v2, v3 = v3, v1, v2
+                    
+                    uf.uv1 = contextMeshUV[v1 * 2:(v1 * 2) + 2]
+                    uf.uv2 = contextMeshUV[v2 * 2:(v2 * 2) + 2]
+                    uf.uv3 = contextMeshUV[v3 * 2:(v3 * 2) + 2]
+                    # always a tri
 
-                if bmesh.faces and (contextMeshUV or img):
-                    bmesh.add_uv_texture()
-                    for ii, i in enumerate(faces):
+        ob = bpy.data.objects.new(tempName, bmesh)
+        SCN.objects.link(ob)
+        
+        '''
+        if contextMatrix_tx:
+            ob.setMatrix(contextMatrix_tx)
+        '''
+        
+        if contextMatrix_rot:
+            ob.matrix_world = contextMatrix_rot
 
-                        # Mapped index- faces may have not been added- if so, then map to the correct index
-                        # BUGGY API - face_mapping is not always the right length
-# 						map_index = face_mapping[ii]
-
-                        if 1:
-# 						if map_index != None:
-                            targetFace = bmesh.faces[ii]
-# 							targetFace = bmesh.faces[map_index]
-
-                            uf = bmesh.active_uv_texture.data[ii]
-
-                            if contextMeshUV:
-                                # v.index-1 because of the DUMMYVERT
-                                uvs = [contextMeshUV[vindex] for vindex in myContextMesh_facels[i]]
-
-                                if len(myContextMesh_facels[i]) == 3:
-                                    uf.uv1, uf.uv2, uf.uv3, uf.uv4 = uvs + [(0.0, 0.0)]
-                                else:
-                                    uf.uv1, uf.uv2, uf.uv3, uf.uv4 = uvs
-# 								targetFace.uv = [contextMeshUV[vindex] for vindex in myContextMesh_facels[i]]
-                            if img:
-                                uf.image = img
-
-                                # to get this image to show up in 'Textured' shading mode
-                                uf.tex = True
-
-            # bmesh.transform(contextMatrix)
-            ob = bpy.data.objects.new(tempName, bmesh)
-            SCN.objects.link(ob)
-# 			ob = SCN_OBJECTS.new(bmesh, tempName)
-            '''
-            if contextMatrix_tx:
-                ob.setMatrix(contextMatrix_tx)
-            '''
-
-            if contextMatrix_rot:
-                # ob.matrix = [x for row in contextMatrix_rot for x in row]
-                ob.matrix = contextMatrix_rot
-# 				ob.setMatrix(contextMatrix_rot)
-
-            importedObjects.append(ob)
-            bmesh.update()
-# 			bmesh.calcNormals()
-
-        for matName, faces in myContextMeshMaterials.items():
-            makeMeshMaterialCopy(matName, faces)
-
-        if len(materialFaces) != len(myContextMesh_facels):
-            # Invert material faces.
-            makeMeshMaterialCopy(None, set(range(len( myContextMesh_facels ))) - materialFaces)
-            #raise 'Some UnMaterialed faces', len(contextMesh.faces)
+        importedObjects.append(ob)
+        bmesh.update()
 
     #a spare chunk
     new_chunk = chunk()
@@ -460,9 +413,7 @@ def process_next_chunk(file, previous_chunk, importedObjects, IMAGE_SEARCH):
         return [float(col)/255 for col in struct.unpack('<3B', temp_data)] # data [0,1,2] == rgb
 
     def read_texture(new_chunk, temp_chunk, name, mapto):
-        new_texture = bpy.data.textures.new(name)
-        new_texture.type = 'IMAGE'
-        new_texture = new_texture.recast_type()
+        new_texture = bpy.data.textures.new(name, type='IMAGE')
 
         img = None
         while (new_chunk.bytes_read < new_chunk.length):
@@ -669,14 +620,10 @@ def process_next_chunk(file, previous_chunk, importedObjects, IMAGE_SEARCH):
             new_chunk.bytes_read += 2
 
             # print 'number of verts: ', num_verts
-            def getvert():
-                temp_data = struct.unpack('<3f', file.read(STRUCT_SIZE_3FLOAT))
-                new_chunk.bytes_read += STRUCT_SIZE_3FLOAT #12: 3 floats x 4 bytes each
-                return temp_data
-
-            #contextMesh.verts.extend( [Vector(),] ) # DUMMYVERT! - remove when blenders internals are fixed.
-            contextMesh_vertls = [getvert() for i in range(num_verts)]
-
+            contextMesh_vertls = struct.unpack('<%df' % (num_verts * 3), file.read(STRUCT_SIZE_3FLOAT * num_verts))
+            new_chunk.bytes_read += STRUCT_SIZE_3FLOAT * num_verts
+            # dummyvert is not used atm!
+            
             #print 'object verts: bytes read: ', new_chunk.bytes_read
 
         elif (new_chunk.ID == OBJECT_FACES):
@@ -686,15 +633,11 @@ def process_next_chunk(file, previous_chunk, importedObjects, IMAGE_SEARCH):
             new_chunk.bytes_read += 2
             #print 'number of faces: ', num_faces
 
-            def getface():
-                # print '\ngetting a face'
-                temp_data = file.read(STRUCT_SIZE_4UNSIGNED_SHORT)
-                new_chunk.bytes_read += STRUCT_SIZE_4UNSIGNED_SHORT #4 short ints x 2 bytes each
-                v1,v2,v3,dummy = struct.unpack('<4H', temp_data)
-                return v1, v2, v3
-
-            contextMesh_facels = [ getface() for i in range(num_faces) ]
-
+            # print '\ngetting a face'
+            temp_data = file.read(STRUCT_SIZE_4UNSIGNED_SHORT * num_faces)
+            new_chunk.bytes_read += STRUCT_SIZE_4UNSIGNED_SHORT * num_faces #4 short ints x 2 bytes each
+            contextMesh_facels = struct.unpack('<%dH' % (num_faces * 4), temp_data)
+            contextMesh_facels = [contextMesh_facels[i - 3:i] for i in range(3, (num_faces * 4) + 3, 4)]
 
         elif (new_chunk.ID == OBJECT_MATERIAL):
             # print 'elif (new_chunk.ID == OBJECT_MATERIAL):'
@@ -705,12 +648,11 @@ def process_next_chunk(file, previous_chunk, importedObjects, IMAGE_SEARCH):
             num_faces_using_mat = struct.unpack('<H', temp_data)[0]
             new_chunk.bytes_read += STRUCT_SIZE_UNSIGNED_SHORT
 
-            def getmat():
-                temp_data = file.read(STRUCT_SIZE_UNSIGNED_SHORT)
-                new_chunk.bytes_read += STRUCT_SIZE_UNSIGNED_SHORT
-                return struct.unpack('<H', temp_data)[0]
+            
+            temp_data = file.read(STRUCT_SIZE_UNSIGNED_SHORT * num_faces_using_mat)
+            new_chunk.bytes_read += STRUCT_SIZE_UNSIGNED_SHORT * num_faces_using_mat
 
-            contextMeshMaterials[material_name]= [ getmat() for i in range(num_faces_using_mat) ]
+            contextMeshMaterials[material_name]= struct.unpack("<%dH" % (num_faces_using_mat), temp_data)
 
             #look up the material in all the materials
 
@@ -719,12 +661,9 @@ def process_next_chunk(file, previous_chunk, importedObjects, IMAGE_SEARCH):
             num_uv = struct.unpack('<H', temp_data)[0]
             new_chunk.bytes_read += 2
 
-            def getuv():
-                temp_data = file.read(STRUCT_SIZE_2FLOAT)
-                new_chunk.bytes_read += STRUCT_SIZE_2FLOAT #2 float x 4 bytes each
-                return Mathutils.Vector( struct.unpack('<2f', temp_data) )
-
-            contextMeshUV = [ getuv() for i in range(num_uv) ]
+            temp_data = file.read(STRUCT_SIZE_2FLOAT * num_uv)
+            new_chunk.bytes_read += STRUCT_SIZE_2FLOAT * num_uv
+            contextMeshUV = struct.unpack('<%df' % (num_uv * 2), temp_data)
 
         elif (new_chunk.ID == OBJECT_TRANS_MATRIX):
             # How do we know the matrix size? 54 == 4x4 48 == 4x3
@@ -732,7 +671,7 @@ def process_next_chunk(file, previous_chunk, importedObjects, IMAGE_SEARCH):
             data = list( struct.unpack('<ffffffffffff', temp_data)  )
             new_chunk.bytes_read += STRUCT_SIZE_4x3MAT
 
-            contextMatrix_rot = Mathutils.Matrix(\
+            contextMatrix_rot = mathutils.Matrix(\
              data[:3] + [0],\
              data[3:6] + [0],\
              data[6:9] + [0],\
@@ -740,7 +679,7 @@ def process_next_chunk(file, previous_chunk, importedObjects, IMAGE_SEARCH):
 
 
             '''
-            contextMatrix_rot = Blender.Mathutils.Matrix(\
+            contextMatrix_rot = Blender.mathutils.Matrix(\
              data[:3] + [0],\
              data[3:6] + [0],\
              data[6:9] + [0],\
@@ -748,14 +687,14 @@ def process_next_chunk(file, previous_chunk, importedObjects, IMAGE_SEARCH):
             '''
 
             '''
-            contextMatrix_rot = Blender.Mathutils.Matrix(\
+            contextMatrix_rot = Blender.mathutils.Matrix(\
              data[:3] ,\
              data[3:6],\
              data[6:9])
             '''
 
             '''
-            contextMatrix_rot = Blender.Mathutils.Matrix()
+            contextMatrix_rot = Blender.mathutils.Matrix()
             m = 0
             for j in xrange(4):
                 for i in xrange(3):
@@ -773,7 +712,7 @@ def process_next_chunk(file, previous_chunk, importedObjects, IMAGE_SEARCH):
             #print contextMatrix_rot
             contextMatrix_rot.invert()
             #print contextMatrix_rot
-            #contextMatrix_tx = Blender.Mathutils.TranslationMatrix(0.5 * Blender.Mathutils.Vector(data[9:]))
+            #contextMatrix_tx = mathutils.Matrix.Translation(0.5 * Blender.mathutils.Vector(data[9:]))
             #contextMatrix_tx.invert()
 
             #tx.invert()
@@ -808,7 +747,7 @@ def process_next_chunk(file, previous_chunk, importedObjects, IMAGE_SEARCH):
 
     # FINISHED LOOP
     # There will be a number of objects still not added
-    if contextMesh_facels != None:
+    if CreateBlenderObject:
         putContextMesh(contextMesh_vertls, contextMesh_facels, contextMeshMaterials)
 
 def load_3ds(filename, context, IMPORT_CONSTRAIN_BOUNDS=10.0, IMAGE_SEARCH=True, APPLY_MATRIX=False):
@@ -885,14 +824,12 @@ def load_3ds(filename, context, IMPORT_CONSTRAIN_BOUNDS=10.0, IMAGE_SEARCH=True,
 
     # REMOVE DUMMYVERT, - remove this in the next release when blenders internal are fixed.
 
-
-# 	for ob in importedObjects:
-# 		if ob.type == 'MESH':
-# # 		if ob.type=='Mesh':
-# 			me = ob.getData(mesh=1)
-# 			me.verts.delete([me.verts[0],])
-# 			if not APPLY_MATRIX:
-# 				me.transform(ob.matrixWorld.copy().invert())
+    for ob in importedObjects:
+        if ob.type == 'MESH':
+            me = ob.data
+#           me.vertices.delete([me.vertices[0],]) # XXX, todo
+            if not APPLY_MATRIX:
+                me.transform(ob.matrix_world.copy().invert())
 
     # Done DUMMYVERT
     """
@@ -946,11 +883,11 @@ def load_3ds(filename, context, IMPORT_CONSTRAIN_BOUNDS=10.0, IMAGE_SEARCH=True,
                 SCALE/=10
 
             # SCALE Matrix
-            SCALE_MAT = Mathutils.Matrix([SCALE,0,0,0],[0,SCALE,0,0],[0,0,SCALE,0],[0,0,0,1])
-# 			SCALE_MAT = Blender.Mathutils.Matrix([SCALE,0,0,0],[0,SCALE,0,0],[0,0,SCALE,0],[0,0,0,1])
+            SCALE_MAT = mathutils.Matrix([SCALE,0,0,0],[0,SCALE,0,0],[0,0,SCALE,0],[0,0,0,1])
+# 			SCALE_MAT = Blender.mathutils.Matrix([SCALE,0,0,0],[0,SCALE,0,0],[0,0,SCALE,0],[0,0,0,1])
 
             for ob in importedObjects:
-                ob.setMatrix(ob.matrixWorld * SCALE_MAT)
+                ob.matrix_world =  ob.matrix_world * SCALE_MAT
 
         # Done constraining to bounds.
 
@@ -1011,17 +948,19 @@ class IMPORT_OT_autodesk_3ds(bpy.types.Operator):
 
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
+    filepath = StringProperty(name="File Path", description="Filepath used for importing the 3DS file", maxlen= 1024, default= "")
 
-    path = StringProperty(name="File Path", description="File path used for importing the 3DS file", maxlen= 1024, default= "")
-    filename = StringProperty(name="File Name", description="Name of the file.")
-    directory = StringProperty(name="Directory", description="Directory of the file.")
-
-# 	size_constraint = FloatProperty(name="Size Constraint", description="Scale the model by 10 until it reacehs the size constraint. Zero Disables.", min=0.0, max=1000.0, soft_min=0.0, soft_max=1000.0, default=10.0),
-# 	search_images = BoolProperty(name="Image Search", description="Search subdirectories for any assosiated images (Warning, may be slow)", default=True),
-# 	apply_matrix = BoolProperty(name="Transform Fix", description="Workaround for object transformations importing incorrectly", default=False),
+    constrain_size = FloatProperty(name="Size Constraint", description="Scale the model by 10 until it reacehs the size constraint. Zero Disables.", min=0.0, max=1000.0, soft_min=0.0, soft_max=1000.0, default=10.0)
+    search_images = BoolProperty(name="Image Search", description="Search subdirectories for any assosiated images (Warning, may be slow)", default=True)
+    apply_transform = BoolProperty(name="Apply Transform", description="Workaround for object transformations importing incorrectly", default=False)
 
     def execute(self, context):
-        load_3ds(self.properties.path, context, 0.0, False, False)
+        load_3ds(self.properties.filepath,
+                 context,
+                 IMPORT_CONSTRAIN_BOUNDS=self.properties.constrain_size,
+                 IMAGE_SEARCH=self.properties.search_images,
+                 APPLY_MATRIX=self.properties.apply_transform)
+
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -1034,11 +973,9 @@ def menu_func(self, context):
     self.layout.operator(IMPORT_OT_autodesk_3ds.bl_idname, text="3D Studio (.3ds)")
 
 def register():
-    bpy.types.register(IMPORT_OT_autodesk_3ds)
     bpy.types.INFO_MT_file_import.append(menu_func)
 
 def unregister():
-    bpy.types.unregister(IMPORT_OT_autodesk_3ds)
     bpy.types.INFO_MT_file_import.remove(menu_func)
 
 # NOTES:

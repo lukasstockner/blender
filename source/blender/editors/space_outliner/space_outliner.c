@@ -36,11 +36,8 @@
 #include "BLI_math.h"
 #include "BLI_rand.h"
 
-#include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_screen.h"
-#include "BKE_texture.h"
-#include "BKE_utildefines.h"
 
 #include "ED_screen.h"
 
@@ -48,7 +45,6 @@
 #include "WM_types.h"
 
 #include "BIF_gl.h"
-#include "BIF_glutil.h"
 
 #include "UI_resources.h"
 #include "UI_view2d.h"
@@ -71,11 +67,9 @@ static void outliner_main_area_draw(const bContext *C, ARegion *ar)
 {
 	View2D *v2d= &ar->v2d;
 	View2DScrollers *scrollers;
-	float col[3];
 	
 	/* clear */
-	UI_GetThemeColor3fv(TH_BACK, col);
-	glClearColor(col[0], col[1], col[2], 0.0);
+	UI_ThemeClearColor(TH_BACK);
 	glClear(GL_COLOR_BUFFER_BIT);
 	
 	draw_outliner(C);

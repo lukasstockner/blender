@@ -38,42 +38,38 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_ghash.h"
 
+#include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
+
 #include "DNA_armature_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_particle_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_brush_types.h"
+#include "DNA_object_types.h"
+#include "DNA_meshdata_types.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "BKE_armature.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_action.h"
 #include "BKE_brush.h"
-#include "BKE_DerivedMesh.h"
-#include "BKE_cloth.h"
 #include "BKE_context.h"
-#include "BKE_customdata.h"
 #include "BKE_depsgraph.h"
 #include "BKE_deform.h"
-#include "BKE_displist.h"
-#include "BKE_global.h"
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
-#include "BKE_utildefines.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "BIF_gl.h"
-#include "BIF_glutil.h"
 
 #include "ED_armature.h"
 #include "ED_mesh.h"
@@ -99,7 +95,7 @@ int vertex_paint_mode_poll(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
 
-	return ob && ob->mode == OB_MODE_VERTEX_PAINT;
+	return ob && ob->mode == OB_MODE_VERTEX_PAINT && ((Mesh *)ob->data)->totface;
 }
 
 int vertex_paint_poll(bContext *C)
@@ -111,8 +107,8 @@ int vertex_paint_poll(bContext *C)
 			ARegion *ar= CTX_wm_region(C);
 			if(ar->regiontype==RGN_TYPE_WINDOW)
 				return 1;
+			}
 		}
-	}
 	return 0;
 }
 
@@ -120,7 +116,7 @@ int weight_paint_mode_poll(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
 
-	return ob && ob->mode == OB_MODE_WEIGHT_PAINT;
+	return ob && ob->mode == OB_MODE_WEIGHT_PAINT && ((Mesh *)ob->data)->totface;
 }
 
 int weight_paint_poll(bContext *C)
@@ -386,9 +382,8 @@ void wpaint_fill(VPaint *wp, Object *ob, float paintweight)
 			int actdef= 0;
 			char name[32];
 
-			BLI_strncpy(name, defgroup->name, 32);
-			bone_flip_name(name, 0);		/* 0 = don't strip off number extensions */
-			
+			flip_side_name(name, defgroup->name, FALSE);
+
 			for (curdef = ob->defbase.first; curdef; curdef=curdef->next, actdef++)
 				if (!strcmp(curdef->name, name))
 					break;
@@ -663,7 +658,7 @@ static void vpaint_blend(VPaint *vp, unsigned int *col, unsigned int *colorig, u
 		unsigned int testcol=0, a;
 		char *cp, *ct, *co;
 		
-		alpha= (int)(255.0*brush->alpha);
+		alpha= (int)(255.0*brush_alpha(brush));
 		
 		if(brush->vertexpaint_tool==VP_MIX || brush->vertexpaint_tool==VP_BLUR) testcol= mcol_blend( *colorig, paintcol, alpha);
 		else if(brush->vertexpaint_tool==VP_ADD) testcol= mcol_add( *colorig, paintcol, alpha);
@@ -733,23 +728,24 @@ static float calc_vp_alpha_dl(VPaint *vp, ViewContext *vc, float vpimat[][3], fl
 	float fac, fac_2, size, dx, dy;
 	float alpha;
 	short vertco[2];
-	
+	const int radius= brush_size(brush);
+
 	project_short_noclip(vc->ar, vert_nor, vertco);
 	dx= mval[0]-vertco[0];
 	dy= mval[1]-vertco[1];
 	
-	if (brush->flag & BRUSH_SIZE_PRESSURE)
-		size = pressure * brush->size;
+	if (brush_use_size_pressure(brush))
+		size = pressure * radius;
 	else
-		size = brush->size;
+		size = radius;
 	
 	fac_2= dx*dx + dy*dy;
 	if(fac_2 > size*size) return 0.f;
 	fac = sqrtf(fac_2);
 	
-	alpha= brush->alpha * brush_curve_strength_clamp(brush, fac, size);
+	alpha= brush_alpha(brush) * brush_curve_strength_clamp(brush, fac, size);
 	
-	if (brush->flag & BRUSH_ALPHA_PRESSURE)
+	if (brush_use_alpha_pressure(brush))
 		alpha *= pressure;
 		
 	if(vp->flag & VP_NORMALS) {
@@ -813,7 +809,7 @@ static void wpaint_blend(VPaint *wp, MDeformWeight *dw, MDeformWeight *uw, float
 	if((wp->flag & VP_SPRAY)==0) {
 		float testw=0.0f;
 		
-		alpha= brush->alpha;
+		alpha= brush_alpha(brush);
 		if(tool==VP_MIX || tool==VP_BLUR)
 			testw = paintval*alpha + uw->weight*(1.0-alpha);
 		else if(tool==VP_ADD)
@@ -864,6 +860,7 @@ void sample_wpaint(Scene *scene, ARegion *ar, View3D *v3d, int mode)
 	Mesh *me= get_mesh(ob);
 	int index;
 	short mval[2] = {0, 0}, sco[2];
+	int vgroup= ob->actdef-1;
 
 	if (!me) return;
 	
@@ -938,7 +935,6 @@ void sample_wpaint(Scene *scene, ARegion *ar, View3D *v3d, int mode)
 		}
 		else {
 			DerivedMesh *dm;
-			MDeformWeight *dw;
 			float w1, w2, w3, w4, co[3], fac;
 			
 			dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
@@ -968,21 +964,17 @@ void sample_wpaint(Scene *scene, ARegion *ar, View3D *v3d, int mode)
 				
 				fac= MIN4(w1, w2, w3, w4);
 				if(w1==fac) {
-					dw= defvert_find_index(me->dvert+mface->v1, ob->actdef-1);
-					if(dw) ts->vgroup_weight= dw->weight; else ts->vgroup_weight= 0.0f;
+					ts->vgroup_weight= defvert_find_weight(me->dvert+mface->v1, vgroup);
 				}
 				else if(w2==fac) {
-					dw= defvert_find_index(me->dvert+mface->v2, ob->actdef-1);
-					if(dw) ts->vgroup_weight= dw->weight; else ts->vgroup_weight= 0.0f;
+					ts->vgroup_weight= defvert_find_weight(me->dvert+mface->v2, vgroup);
 				}
 				else if(w3==fac) {
-					dw= defvert_find_index(me->dvert+mface->v3, ob->actdef-1);
-					if(dw) ts->vgroup_weight= dw->weight; else ts->vgroup_weight= 0.0f;
+					ts->vgroup_weight= defvert_find_weight(me->dvert+mface->v3, vgroup);
 				}
 				else if(w4==fac) {
 					if(mface->v4) {
-						dw= defvert_find_index(me->dvert+mface->v4, ob->actdef-1);
-						if(dw) ts->vgroup_weight= dw->weight; else ts->vgroup_weight= 0.0f;
+						ts->vgroup_weight= defvert_find_weight(me->dvert+mface->v4, vgroup);
 					}
 				}
 			}
@@ -1123,8 +1115,6 @@ static int set_wpaint(bContext *C, wmOperator *op)		/* toggle */
 /* for switching to/from mode */
 static int paint_poll_test(bContext *C)
 {
-	if(ED_operator_view3d_active(C)==0)
-		return 0;
 	if(CTX_data_edit_object(C))
 		return 0;
 	if(CTX_data_active_object(C)==NULL)
@@ -1154,10 +1144,16 @@ static int vpaint_radial_control_invoke(bContext *C, wmOperator *op, wmEvent *ev
 {
 	Paint *p = paint_get_active(CTX_data_scene(C));
 	Brush *brush = paint_brush(p);
+	float col[4];
 	
 	WM_paint_cursor_end(CTX_wm_manager(C), p->paint_cursor);
 	p->paint_cursor = NULL;
 	brush_radial_control_invoke(op, brush, 1);
+
+	copy_v3_v3(col, brush->add_col);
+	col[3]= 0.5f;
+	RNA_float_set_array(op->ptr, "color", col);
+
 	return WM_radial_control_invoke(C, op, event);
 }
 
@@ -1183,10 +1179,16 @@ static int wpaint_radial_control_invoke(bContext *C, wmOperator *op, wmEvent *ev
 {
 	Paint *p = paint_get_active(CTX_data_scene(C));
 	Brush *brush = paint_brush(p);
+	float col[4];
 	
 	WM_paint_cursor_end(CTX_wm_manager(C), p->paint_cursor);
 	p->paint_cursor = NULL;
 	brush_radial_control_invoke(op, brush, 1);
+
+	copy_v3_v3(col, brush->add_col);
+	col[3]= 0.5f;
+	RNA_float_set_array(op->ptr, "color", col);
+
 	return WM_radial_control_invoke(C, op, event);
 }
 
@@ -1262,7 +1264,7 @@ static char *wpaint_make_validmap(Mesh *me, Object *ob)
 	bPose *pose;
 	bPoseChannel *chan;
 	ArmatureModifierData *amd;
-	GHash *gh = BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp);
+	GHash *gh = BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp, "wpaint_make_validmap gh");
 	int i = 0, step1=1;
 
 	/*add all names to a hash table*/
@@ -1395,10 +1397,9 @@ static int wpaint_stroke_test_start(bContext *C, wmOperator *op, wmEvent *event)
 			bDeformGroup *curdef;
 			int actdef= 0;
 			char name[32];
-			
-			BLI_strncpy(name, defgroup->name, 32);
-			bone_flip_name(name, 0);		/* 0 = don't strip off number extensions */
-			
+
+			flip_side_name(name, defgroup->name, FALSE);
+
 			for (curdef = ob->defbase.first; curdef; curdef=curdef->next, actdef++)
 				if (!strcmp(curdef->name, name))
 					break;
@@ -1450,7 +1451,7 @@ static void wpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 	/* load projection matrix */
 	mul_m4_m4m4(mat, ob->obmat, vc->rv3d->persmat);
 
-	flip = RNA_boolean_get(itemptr, "flip");
+	flip = RNA_boolean_get(itemptr, "pen_flip");
 	pressure = RNA_float_get(itemptr, "pressure");
 	RNA_float_get_array(itemptr, "mouse", mval);
 	mval[0]-= vc->ar->winrct.xmin;
@@ -1460,7 +1461,7 @@ static void wpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 			
 	/* which faces are involved */
 	if(wp->flag & VP_AREA) {
-		totindex= sample_backbuf_area(vc, indexar, me->totface, mval[0], mval[1], brush->size);
+		totindex= sample_backbuf_area(vc, indexar, me->totface, mval[0], mval[1], brush_size(brush));
 	}
 	else {
 		indexar[0]= view3d_sample_backbuf(vc, mval[0], mval[1]);
@@ -1746,7 +1747,6 @@ void PAINT_OT_vertex_paint_toggle(wmOperatorType *ot)
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
-	
 }
 
 
@@ -1866,7 +1866,7 @@ static void vpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 	float pressure, mval[2];
 
 	RNA_float_get_array(itemptr, "mouse", mval);
-	flip = RNA_boolean_get(itemptr, "flip");
+	flip = RNA_boolean_get(itemptr, "pen_flip");
 	pressure = RNA_float_get(itemptr, "pressure");
 			
 	view3d_operator_needs_opengl(C);
@@ -1880,7 +1880,7 @@ static void vpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 			
 	/* which faces are involved */
 	if(vp->flag & VP_AREA) {
-		totindex= sample_backbuf_area(vc, indexar, me->totface, mval[0], mval[1], brush->size);
+		totindex= sample_backbuf_area(vc, indexar, me->totface, mval[0], mval[1], brush_size(brush));
 	}
 	else {
 		indexar[0]= view3d_sample_backbuf(vc, mval[0], mval[1]);

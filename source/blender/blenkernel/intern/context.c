@@ -25,6 +25,9 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#include <string.h>
+#include <stddef.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_scene_types.h"
@@ -46,8 +49,6 @@
 #ifndef DISABLE_PYTHON
 #include "BPY_extern.h"
 #endif
-
-#include <string.h>
 
 /* struct */
 
@@ -404,6 +405,7 @@ struct bContextDataResult {
 	PointerRNA ptr;
 	ListBase list;
 	const char **dir;
+	short type; /* 0: normal, 1: seq */
 };
 
 static int ctx_data_get(bContext *C, const char *member, bContextDataResult *result)
@@ -548,7 +550,7 @@ ListBase CTX_data_collection_get(const bContext *C, const char *member)
 }
 
 /* 1:found,  -1:found but not set,  0:not found */
-int CTX_data_get(const bContext *C, const char *member, PointerRNA *r_ptr, ListBase *r_lb)
+int CTX_data_get(const bContext *C, const char *member, PointerRNA *r_ptr, ListBase *r_lb, short *r_type)
 {
 	bContextDataResult result;
 	int ret= ctx_data_get((bContext*)C, member, &result);
@@ -556,10 +558,12 @@ int CTX_data_get(const bContext *C, const char *member, PointerRNA *r_ptr, ListB
 	if(ret==1) {
 		*r_ptr= result.ptr;
 		*r_lb= result.list;
+		*r_type= result.type;
 	}
 	else {
 		memset(r_ptr, 0, sizeof(*r_ptr));
 		memset(r_lb, 0, sizeof(*r_lb));
+		*r_type= 0;
 	}
 
 	return ret;
@@ -568,13 +572,12 @@ int CTX_data_get(const bContext *C, const char *member, PointerRNA *r_ptr, ListB
 static void data_dir_add(ListBase *lb, const char *member)
 {
 	LinkData *link;
-
+	
 	if(strcmp(member, "scene") == 0) /* exception */
 		return;
 
-	for(link=lb->first; link; link=link->next)
-		if(strcmp(link->data, member) == 0)
-			return;
+	if(BLI_findstring(lb, member, offsetof(LinkData, data)))
+		return;
 	
 	link= MEM_callocN(sizeof(LinkData), "LinkData");
 	link->data= (void*)member;
@@ -680,6 +683,16 @@ int ctx_data_list_count(const bContext *C, int (*func)(const bContext*, ListBase
 void CTX_data_dir_set(bContextDataResult *result, const char **dir)
 {
 	result->dir= dir;
+}
+
+void CTX_data_type_set(bContextDataResult *result, short type)
+{
+	result->type= type;
+}
+
+short CTX_data_type_get(bContextDataResult *result)
+{
+	return result->type;
 }
 
 /* data context */

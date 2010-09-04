@@ -52,7 +52,7 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 						int useRenderParams, float (*vertCos)[3],
 						int isFinalCalc, int editMode);
 
-void subsurf_calculate_limit_positions(Mesh *me, float (*positions_r)[3]);
+void subsurf_calculate_limit_positions(struct Mesh *me, float (*positions_r)[3]);
 
 /**************************** Internal *****************************/
 
@@ -72,6 +72,7 @@ typedef struct CCGDerivedMesh {
 	char *faceFlags;
 
 	struct PBVH *pbvh;
+	int pbvh_draw;
 	struct ListBase *fmap;
 	struct IndexNode *fmap_mem;
 
@@ -87,7 +88,7 @@ typedef struct CCGDerivedMesh {
 		int lvl, totlvl;
 		float (*orco)[3];
 
-		Object *ob;
+		struct Object *ob;
 		int modified;
 
 		void (*update)(DerivedMesh*);

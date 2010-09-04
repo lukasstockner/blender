@@ -135,8 +135,8 @@ UvCameraInfo *project_camera_info(Object *ob, float (*rotmat)[4], float winx, fl
 	uci.do_pano = (camera->flag & CAM_PANORAMA);
 	uci.do_persp = (camera->type==CAM_PERSP);
 
-	uci.camangle= DEG2RAD(camera->angle)/2.0f;
-	uci.camsize=  uci.do_persp ?  uci.camsize= tanf(uci.camangle) : camera->ortho_scale;
+	uci.camangle= lens_to_angle(camera->lens) / 2.0f;
+	uci.camsize= uci.do_persp ? tanf(uci.camangle) : camera->ortho_scale;
 
 	if (invert_m4_m4(uci.caminv, ob->obmat)) {
 		UvCameraInfo *uci_pt;
@@ -181,4 +181,11 @@ void project_from_view_ortho(float target[2], float source[3], float rotmat[4][4
 	/* ortho projection */
 	target[0] = -pv[0];
 	target[1] = pv[2];
+}
+
+
+void project_camera_info_scale(UvCameraInfo *uci, float scale_x, float scale_y)
+{
+	uci->xasp *= scale_x;
+	uci->yasp *= scale_y;
 }

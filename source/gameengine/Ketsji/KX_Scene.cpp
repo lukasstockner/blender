@@ -68,7 +68,6 @@
 #include "SG_Tree.h"
 #include "DNA_group_types.h"
 #include "DNA_scene_types.h"
-#include "BKE_anim.h"
 
 #include "KX_SG_NodeRelationships.h"
 
@@ -139,7 +138,8 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 				   class SCA_IInputDevice* mousedevice,
 				   class NG_NetworkDeviceInterface *ndi,
 				   const STR_String& sceneName,
-				   Scene *scene): 
+				   Scene *scene,
+				   class RAS_ICanvas* canvas): 
 	PyObjectPlus(),
 	m_keyboardmgr(NULL),
 	m_mousemgr(NULL),
@@ -170,7 +170,7 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 	
 	m_timemgr = new SCA_TimeEventManager(m_logicmgr);
 	m_keyboardmgr = new SCA_KeyboardManager(m_logicmgr,keyboarddevice);
-	m_mousemgr = new SCA_MouseManager(m_logicmgr,mousedevice);
+	m_mousemgr = new SCA_MouseManager(m_logicmgr,mousedevice, canvas);
 	
 	//SCA_AlwaysEventManager* alwaysmgr = new SCA_AlwaysEventManager(m_logicmgr);
 	//SCA_PropertyEventManager* propmgr = new SCA_PropertyEventManager(m_logicmgr);
@@ -529,7 +529,7 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_IObject* node, class CVal
 // replica of the hierarchy in order to make cross-links work properly
 // !
 // It is VERY important that the order of sensors and actuators in
-// the replicated object is preserved: it is is used to reconnect the logic.
+// the replicated object is preserved: it is used to reconnect the logic.
 // This method is more robust then using the bricks name in case of complex 
 // group replication. The replication of logic bricks is done in 
 // SCA_IObject::ReParentLogic(), make sure it preserves the order of the bricks.
@@ -961,8 +961,8 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 	{
 		m_logicmgr->RemoveSensor(*its);
 	}
-	
-    SCA_ControllerList& controllers = newobj->GetControllers();
+
+	SCA_ControllerList& controllers = newobj->GetControllers();
 	for (SCA_ControllerList::iterator itc = controllers.begin();
 		 !(itc==controllers.end());itc++)
 	{
@@ -1066,12 +1066,12 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj, bool use_gfx, bool u
 			bool bHasShapeKey = blendmesh->key != NULL && blendmesh->key->type==KEY_RELATIVE;
 			bool bHasDvert = blendmesh->dvert != NULL;
 			bool bHasArmature = 
+				BL_ModifierDeformer::HasArmatureDeformer(blendobj) &&
 				parentobj &&								// current parent is armature
 				parentobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE &&
 				oldblendobj &&								// needed for mesh deform
 				blendobj->parent &&							// original object had armature (not sure this test is needed)
-				blendobj->parent->type == OB_ARMATURE && 
-				blendobj->partype==PARSKEL && 
+				blendobj->parent->type == OB_ARMATURE &&
 				blendmesh->dvert!=NULL;						// mesh has vertex group
 			bool bHasSoftBody = (!parentobj && (blendobj->gameflag & OB_SOFT_BODY));
 
@@ -1753,7 +1753,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 	}
 
 
-	GetBucketManager()->MergeBucketManager(other->GetBucketManager());
+	GetBucketManager()->MergeBucketManager(other->GetBucketManager(), this);
 
 	/* move materials across, assume they both use the same scene-converters */
 	GetSceneConverter()->MergeScene(this, other);
@@ -1998,6 +1998,8 @@ PySequenceMethods KX_Scene::Sequence = {
 	NULL,		/* sq_ass_item */
 	NULL,		/* sq_ass_slice */
 	(objobjproc)Seq_Contains,	/* sq_contains */
+	(binaryfunc) NULL, /* sq_inplace_concat */
+	(ssizeargfunc) NULL, /* sq_inplace_repeat */
 };
 
 PyObject* KX_Scene::pyattr_get_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

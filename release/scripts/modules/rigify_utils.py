@@ -26,7 +26,7 @@
 # that a generic function would need to check for.
 
 import bpy
-from Mathutils import Vector
+from mathutils import Vector
 from rna_prop_ui import rna_idprop_ui_prop_get
 
 DELIMITER = '-._'
@@ -67,7 +67,7 @@ def add_stretch_to(obj, from_name, to_name, name):
     con = stretch_pbone.constraints.new('STRETCH_TO')
     con.target = obj
     con.subtarget = to_name
-    con.original_length = (head - tail).length
+    con.rest_length = (head - tail).length
     con.keep_axis = 'PLANE_X'
     con.volume = 'NO_VOLUME'
 
@@ -81,13 +81,13 @@ def copy_bone_simple(arm, from_bone, name, parent=False):
     ebone_new = arm.edit_bones.new(name)
 
     if parent:
-        ebone_new.connected = ebone.connected
+        ebone_new.use_connect = ebone.use_connect
         ebone_new.parent = ebone.parent
 
     ebone_new.head = ebone.head
     ebone_new.tail = ebone.tail
     ebone_new.roll = ebone.roll
-    ebone_new.layer = list(ebone.layer)
+    ebone_new.layers = list(ebone.layers)
     return ebone_new
 
 
@@ -136,7 +136,7 @@ def blend_bone_list(obj, apply_bones, from_bones, to_bones, target_bone=None, ta
         prop["soft_min"] = 0.0
         prop["soft_max"] = 1.0
 
-    driver_path = prop_pbone.path_to_id() + ('["%s"]' % target_prop)
+    driver_path = prop_pbone.path_from_id() + ('["%s"]' % target_prop)
 
     def blend_target(driver):
         var = driver.variables.new()
@@ -154,10 +154,10 @@ def blend_bone_list(obj, apply_bones, from_bones, to_bones, target_bone=None, ta
         con.target = obj
         con.subtarget = to_bone_name
 
-        fcurve = con.driver_add("influence", 0)
+        fcurve = con.driver_add("influence")
         driver = fcurve.driver
         driver.type = 'AVERAGE'
-        fcurve.modifiers.remove(0) # grr dont need a modifier
+        fcurve.modifiers.remove(fcurve.modifiers[0]) # grr dont need a modifier
 
         blend_target(driver)
 
@@ -204,12 +204,12 @@ def add_pole_target_bone(obj, base_bone_name, name, mode='CROSS'):
         offset.length = distance
     elif mode == 'ZAVERAGE':
         # between both bones Z axis
-        z_axis_a = base_ebone.matrix.copy().rotation_part() * Vector(0.0, 0.0, -1.0)
-        z_axis_b = parent_ebone.matrix.copy().rotation_part() * Vector(0.0, 0.0, -1.0)
+        z_axis_a = base_ebone.matrix.copy().rotation_part() * Vector((0.0, 0.0, -1.0))
+        z_axis_b = parent_ebone.matrix.copy().rotation_part() * Vector((0.0, 0.0, -1.0))
         offset = (z_axis_a + z_axis_b).normalize() * distance
     else:
         # preset axis
-        offset = Vector(0, 0, 0)
+        offset = Vector((0.0, 0.0, 0.0))
         if mode[0] == "+":
             val = distance
         else:
@@ -276,7 +276,7 @@ def write_meta_rig(obj, func_name="metarig_template"):
         code.append("    bone.head[:] = %.4f, %.4f, %.4f" % bone.head.to_tuple(4))
         code.append("    bone.tail[:] = %.4f, %.4f, %.4f" % bone.tail.to_tuple(4))
         code.append("    bone.roll = %.4f" % bone.roll)
-        code.append("    bone.connected = %s" % str(bone.connected))
+        code.append("    bone.use_connect = %s" % str(bone.use_connect))
         if bone.parent:
             code.append("    bone.parent = arm.edit_bones['%s']" % bone.parent.name)
 

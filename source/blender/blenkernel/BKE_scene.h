@@ -31,16 +31,16 @@
 #ifndef BKE_SCENE_H
 #define BKE_SCENE_H
 
-struct bglMats;
-struct Scene;
-struct Object;
-struct Base;
-struct Text;
 struct AviCodecData;
+struct Base;
+struct bglMats;
+struct Main;
+struct Object;
 struct QuicktimeCodecData;
 struct RenderData;
+struct Scene;
 struct Text;
-struct Main;
+struct Text;
 
 #define SCE_COPY_EMPTY		0
 #define SCE_COPY_LINK_OB	1
@@ -57,13 +57,13 @@ void free_scene(struct Scene *sce);
 struct Scene *add_scene(char *name);
 struct Base *object_in_scene(struct Object *ob, struct Scene *sce);
 
-void set_scene_bg(struct Scene *sce);
-void set_scene_name(char *name);
+void set_scene_bg(struct Main *bmain, struct Scene *sce);
+struct Scene *set_scene_name(struct Main *bmain, char *name);
 
 struct Scene *copy_scene(struct Main *bmain, struct Scene *sce, int type);
 void unlink_scene(struct Main *bmain, struct Scene *sce, struct Scene *newsce);
 
-int next_object(struct Scene *scene, int val, struct Base **base, struct Object **ob);
+int next_object(struct Scene **scene, int val, struct Base **base, struct Object **ob);
 struct Object *scene_find_camera(struct Scene *sc);
 struct Object *scene_camera_switch_find(struct Scene *scene); // DURIAN_CAMERA_SWITCH
 int scene_camera_switch_update(struct Scene *scene);
@@ -78,10 +78,12 @@ void scene_deselect_all(struct Scene *sce);
 void scene_select_base(struct Scene *sce, struct Base *selbase);
 
 /* checks for cycle, returns 1 if it's all OK */
-int scene_check_setscene(struct Scene *sce);
+int scene_check_setscene(struct Main *bmain, struct Scene *sce);
 
-void scene_update_tagged(struct Scene *sce);
-void scene_update_for_newframe(struct Scene *sce, unsigned int lay);
+float BKE_curframe(struct Scene *scene);
+
+void scene_update_tagged(struct Main *bmain, struct Scene *sce);
+void scene_update_for_newframe(struct Main *bmain, struct Scene *sce, unsigned int lay);
 
 void scene_add_render_layer(struct Scene *sce);
 

@@ -42,8 +42,10 @@
 struct ID;
 struct Text;
 struct Script;
+struct bSound;
 struct ImBuf;
 struct Image;
+struct Scopes;
 struct Histogram;
 struct SpaceIpo;
 struct BlendHandle;
@@ -159,6 +161,7 @@ typedef struct FileSelectParams {
 	char dir[240]; /* directory */
 	char file[80]; /* file */
 	char renamefile[80];
+	char renameedit[80]; /* annoying but the first is only used for initialization */
 
 	short type; /* XXXXX for now store type here, should be moved to the operator */
 	short flag; /* settings for filter, hiding dots files,...  */
@@ -186,7 +189,7 @@ typedef struct SpaceFile {
 	SpaceLink *next, *prev;
 	ListBase regionbase;		/* storage of regions for inactive spaces */
 	int spacetype;
-	int pad;
+	int scroll_offset;
 
 	struct FileSelectParams *params; /* config and input for file select */
 	
@@ -202,7 +205,7 @@ typedef struct SpaceFile {
 	*/
 	struct wmOperator *op; 
 
-	struct wmTimer *loadimage_timer;
+	struct wmTimer *smoothscroll_timer;
 
 	struct FileLayout *layout;
 	
@@ -260,8 +263,10 @@ typedef struct SpaceImage {
 	
 	struct bGPdata *gpd;			/* grease pencil data */
 	
-	struct Histogram hist;			/* viewer histogram */
+	struct Scopes scopes;			/* histogram waveform and vectorscope */
+
 	struct Histogram sample_line_hist;	/* sample line histogram */
+	
 } SpaceImage;
 
 typedef struct SpaceNla {
@@ -299,7 +304,8 @@ typedef struct SpaceText {
 	int showlinenrs;
 	int tabnumber;
 
-	int showsyntax;
+	short showsyntax;
+	short line_hlight;
 	short overwrite;
 	short live_edit; /* run python while editing, evil */
 	float pix_per_line;
@@ -343,6 +349,17 @@ typedef struct SpaceScript {
 	void *but_refs;
 } SpaceScript;
 
+typedef struct SpaceTimeCache {
+	struct SpaceTimeCache *next, *prev;
+	int type;
+	int flag;
+	
+	float *array;
+	int len;
+	int startframe, endframe;
+	int ok;
+} SpaceTimeCache;
+
 typedef struct SpaceTime {
 	SpaceLink *next, *prev;
 	ListBase regionbase;		/* storage of regions for inactive spaces */
@@ -350,6 +367,9 @@ typedef struct SpaceTime {
 	float blockscale;
 	
 	View2D v2d; /* deprecated, copied to region */
+	
+	ListBase caches;
+	int cache_display, pad;
 	
 	int flag, redraws;
 	
@@ -370,8 +390,9 @@ typedef struct SpaceNode {
 	float aspect;
 	void *curfont;
 	
-	float xof, yof;	/* offset for drawing the backdrop */
-	float mx, my;	/* mousepos for drawing socketless link */
+	float xof, yof;		/* offset for drawing the backdrop */
+	float zoom, padf;	/* zoom for backdrop */
+	float mx, my;		/* mousepos for drawing socketless link */
 	
 	struct bNodeTree *nodetree, *edittree;
 	int treetype;			/* treetype: as same nodetree->type */
@@ -527,7 +548,26 @@ typedef struct SpaceUserPref {
 	int spacetype;
 
 	int pad;
+	
+	char filter[64];		/* search term for filtering in the UI */
+
 } SpaceUserPref;
+
+typedef struct SpaceSound {
+	struct SpaceLink *next, *prev;
+	ListBase regionbase;		/* storage of regions for inactive spaces */
+	int spacetype;
+	float blockscale;
+	struct ScrArea *area;
+	
+	View2D v2d;
+	
+	struct bSound *sound;
+	short mode, sndnr;
+	short xof, yof;
+	short flag, lock;
+	int pad2;
+} SpaceSound;
 
 /* view3d  Now in DNA_view3d_types.h */
 
@@ -621,6 +661,7 @@ typedef struct SpaceUserPref {
 #define BUTS_ACT_LINK		256
 #define BUTS_SENS_STATE		512
 #define BUTS_ACT_STATE		1024
+#define BUTS_CONT_INIT_STATE	2048
 
 /* FileSelectParams.display */
 enum FileDisplayTypeE {
@@ -807,6 +848,10 @@ enum {
 		/* if set, it allows redraws. gets set for some allqueue events */
 #define SO_TREESTORE_REDRAW		2
 
+/* outliner search flags (SpaceOops->search_flags) */
+#define SO_FIND_CASE_SENSITIVE		(1<<0)
+#define SO_FIND_COMPLETE			(1<<1)
+
 /* headerbuttons: 450-499 */
 
 #define B_IMASELHOME		451
@@ -848,6 +893,13 @@ enum {
 #define TIME_CONTINUE_PHYSICS	128
 #define TIME_NODES				256
 
+/* time->cache */
+#define TIME_CACHE_DISPLAY		1
+#define TIME_CACHE_SOFTBODY		2
+#define TIME_CACHE_PARTICLES	4
+#define TIME_CACHE_CLOTH		8
+#define TIME_CACHE_SMOKE		16
+
 /* sseq->mainb */
 #define SEQ_DRAW_SEQUENCE         0
 #define SEQ_DRAW_IMG_IMBUF        1
@@ -867,6 +919,14 @@ enum {
 #define SEQ_VIEW_SEQUENCE			1
 #define SEQ_VIEW_PREVIEW			2
 #define SEQ_VIEW_SEQUENCE_PREVIEW	3
+
+/* sseq->render_size */
+#define SEQ_PROXY_RENDER_SIZE_NONE      -1
+#define SEQ_PROXY_RENDER_SIZE_SCENE     0
+#define SEQ_PROXY_RENDER_SIZE_25        25
+#define SEQ_PROXY_RENDER_SIZE_50        50
+#define SEQ_PROXY_RENDER_SIZE_75        75
+#define SEQ_PROXY_RENDER_SIZE_FULL      100
 
 
 /* space types, moved from DNA_screen_types.h */

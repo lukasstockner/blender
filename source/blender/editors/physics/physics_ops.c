@@ -43,8 +43,8 @@
 static void operatortypes_particle(void)
 {
 	WM_operatortype_append(PARTICLE_OT_select_all);
-	WM_operatortype_append(PARTICLE_OT_select_first);
-	WM_operatortype_append(PARTICLE_OT_select_last);
+	WM_operatortype_append(PARTICLE_OT_select_roots);
+	WM_operatortype_append(PARTICLE_OT_select_tips);
 	WM_operatortype_append(PARTICLE_OT_select_linked);
 	WM_operatortype_append(PARTICLE_OT_select_less);
 	WM_operatortype_append(PARTICLE_OT_select_more);
@@ -114,7 +114,7 @@ static void keymap_particle(wmKeyConfig *keyconf)
 	
 	WM_keymap_add_item(keymap, "PARTICLE_OT_weight_set", KKEY, KM_PRESS, KM_SHIFT, 0);
 
-	ED_object_generic_keymap(keyconf, keymap, 1);
+	ED_object_generic_keymap(keyconf, keymap, 2);
 }
 
 /******************************* boids *************************************/

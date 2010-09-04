@@ -37,12 +37,10 @@
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
-#include "BKE_utildefines.h"
 
 #include "ED_screen.h"
 
 #include "BIF_gl.h"
-#include "BIF_glutil.h"
 
 
 #include "WM_api.h"
@@ -182,6 +180,7 @@ void logic_keymap(struct wmKeyConfig *keyconf)
 	
 	WM_keymap_add_item(keymap, "LOGIC_OT_properties", NKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "LOGIC_OT_links_cut", LEFTMOUSE, KM_PRESS, KM_CTRL, 0);
+	WM_keymap_add_menu(keymap, "LOGIC_MT_logicbricks_add", AKEY, KM_PRESS, KM_SHIFT, 0);
 }
 
 static void logic_refresh(const bContext *C, ScrArea *sa)
@@ -195,6 +194,9 @@ static void logic_listener(ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch(wmn->category) {
+		case NC_LOGIC:
+			ED_region_tag_redraw(ar);
+			break;
 		case NC_SCENE:
 			switch(wmn->data) {
 				case ND_FRAME:
@@ -244,11 +246,9 @@ static void logic_main_area_draw(const bContext *C, ARegion *ar)
 //	SpaceLogic *slogic= CTX_wm_space_logic(C);
 	View2D *v2d= &ar->v2d;
 	View2DScrollers *scrollers;
-	float col[3];
 	
 	/* clear and setup matrix */
-	UI_GetThemeColor3fv(TH_BACK, col);
-	glClearColor(col[0], col[1], col[2], 0.0);
+	UI_ThemeClearColor(TH_BACK);
 	glClear(GL_COLOR_BUFFER_BIT);
 	
 	UI_view2d_view_ortho(C, v2d);
@@ -294,24 +294,7 @@ static void logic_header_area_init(wmWindowManager *wm, ARegion *ar)
 
 static void logic_header_area_draw(const bContext *C, ARegion *ar)
 {
-	float col[3];
-	
-	/* clear */
-	if(ED_screen_area_active(C))
-		UI_GetThemeColor3fv(TH_HEADER, col);
-	else
-		UI_GetThemeColor3fv(TH_HEADERDESEL, col);
-	
-	glClearColor(col[0], col[1], col[2], 0.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-	
-	/* set view2d view matrix for scrolling (without scrollers) */
-	UI_view2d_view_ortho(C, &ar->v2d);
-	
-	logic_header_buttons(C, ar);
-	
-	/* restore view matrix? */
-	UI_view2d_view_restore(C);
+	ED_region_header(C, ar);
 }
 
 /**************************** spacetype *****************************/

@@ -967,13 +967,13 @@ static void update_data_blocks(EditMesh *em, CustomData *olddata, CustomData *da
 	}
 }
 
-void EM_add_data_layer(EditMesh *em, CustomData *data, int type)
+void EM_add_data_layer(EditMesh *em, CustomData *data, int type, const char *name)
 {
 	CustomData olddata;
 
 	olddata= *data;
 	olddata.layers= (olddata.layers)? MEM_dupallocN(olddata.layers): NULL;
-	CustomData_add_layer(data, type, CD_CALLOC, NULL, 0);
+	CustomData_add_layer_named(data, type, CD_CALLOC, NULL, 0, name);
 
 	update_data_blocks(em, &olddata, data);
 	if (olddata.layers) MEM_freeN(olddata.layers);
@@ -996,9 +996,9 @@ void EM_free_data_layer(EditMesh *em, CustomData *data, int type)
 static void add_normal_aligned(float *nor, float *add)
 {
 	if( INPR(nor, add) < -0.9999f)
-		sub_v3_v3v3(nor, nor, add);
+		sub_v3_v3(nor, add);
 	else
-		add_v3_v3v3(nor, nor, add);
+		add_v3_v3(nor, add);
 }
 
 static void set_edge_directions_f2(EditMesh *em, int val)
@@ -1316,8 +1316,8 @@ static short extrudeflag_edge(Object *obedit, EditMesh *em, short flag, float *n
 						copy_v3_v3(co2, eed->v2->co);
 
 						if (mmd->mirror_ob) {
-							mul_v3_m4v3(co1, mtx, co1);
-							mul_v3_m4v3(co2, mtx, co2);
+							mul_m4_v3(mtx, co1);
+							mul_m4_v3(mtx, co2);
 						}
 
 						if (mmd->flag & MOD_MIR_AXIS_X)
@@ -1605,8 +1605,8 @@ short extrudeflag_vert(Object *obedit, EditMesh *em, short flag, float *nor, int
 						copy_v3_v3(co2, eed->v2->co);
 
 						if (mmd->mirror_ob) {
-							mul_v3_m4v3(co1, mtx, co1);
-							mul_v3_m4v3(co2, mtx, co2);
+							mul_m4_v3(mtx, co1);
+							mul_m4_v3(mtx, co2);
 						}
 
 						if (mmd->flag & MOD_MIR_AXIS_X)
@@ -2006,15 +2006,15 @@ void recalc_editnormals(EditMesh *em)
 		if(efa->v4) {
 			normal_quad_v3( efa->n,efa->v1->co, efa->v2->co, efa->v3->co, efa->v4->co);
 			cent_quad_v3(efa->cent, efa->v1->co, efa->v2->co, efa->v3->co, efa->v4->co);
-			add_v3_v3v3(efa->v4->no, efa->v4->no, efa->n);
+			add_v3_v3(efa->v4->no, efa->n);
 		}
 		else {
 			normal_tri_v3( efa->n,efa->v1->co, efa->v2->co, efa->v3->co);
 			cent_tri_v3(efa->cent, efa->v1->co, efa->v2->co, efa->v3->co);
 		}
-		add_v3_v3v3(efa->v1->no, efa->v1->no, efa->n);
-		add_v3_v3v3(efa->v2->no, efa->v2->no, efa->n);
-		add_v3_v3v3(efa->v3->no, efa->v3->no, efa->n);
+		add_v3_v3(efa->v1->no, efa->n);
+		add_v3_v3(efa->v2->no, efa->n);
+		add_v3_v3(efa->v3->no, efa->n);
 	}
 
 	/* following Mesh convention; we use vertex coordinate itself for normal in this case */

@@ -37,19 +37,16 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
 #include "BLI_dlrbTree.h"
 
-#include "BKE_animsys.h"
 #include "BKE_fcurve.h"
 #include "BKE_nla.h"
 #include "BKE_context.h"
 #include "BKE_screen.h"
-#include "BKE_utildefines.h"
 
 #include "ED_anim_api.h"
 #include "ED_keyframes_draw.h"
@@ -705,7 +702,7 @@ static void draw_nla_channel_list_gl (bAnimContext *ac, ListBase *anim_data, Vie
 					
 					offset += 7 * indent;
 					
-					/* only on top two corners, to show that this channel sits on top of the preceeding ones */
+					/* only on top two corners, to show that this channel sits on top of the preceding ones */
 					uiSetRoundBox((1|2)); 
 					
 					/* draw slightly shifted up vertically to look like it has more separtion from other channels,
@@ -790,7 +787,7 @@ static void draw_nla_channel_list_gl (bAnimContext *ac, ListBase *anim_data, Vie
 						
 						fdrawline((float)(v2d->cur.xmax-offset), yminc, 
 								  (float)(v2d->cur.xmax-offset), ymaxc);
-						offset += 16;;
+						offset += 16;
 						
 						/* 'tweaking action' indicator - not a button */
 						UI_icon_draw((float)(v2d->cur.xmax-offset), ydatac, ICON_EDIT); 
@@ -805,7 +802,7 @@ static void draw_nla_channel_list_gl (bAnimContext *ac, ListBase *anim_data, Vie
 						glEnd(); // GL_LINES
 						
 						/* 'push down' icon for normal active-actions */
-						UI_icon_draw((float)NLACHANNEL_NAMEWIDTH-offset, ydatac, ICON_FREEZE);
+						UI_icon_draw((float)v2d->cur.xmax-offset, ydatac, ICON_FREEZE);
 					}
 				}
 				

@@ -44,14 +44,11 @@
 #include "DNA_userdef_types.h"
 
 #include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
 #include "BKE_suggestions.h"
 #include "BKE_text.h"
 #include "BKE_utildefines.h"
 
 #include "BIF_gl.h"
-#include "BIF_glutil.h"
 
 #include "ED_datafiles.h"
 #include "UI_interface.h"
@@ -60,18 +57,15 @@
 #include "text_intern.h"
 
 /******************** text font drawing ******************/
+static int mono= -1; // XXX needs proper storage and change all the BLF_* here
 
 static void text_font_begin(SpaceText *st)
 {
-	static int mono= -1; // XXX needs proper storage
-
 	if(mono == -1)
 		mono= BLF_load_mem("monospace", (unsigned char*)datatoc_bmonofont_ttf, datatoc_bmonofont_ttf_size);
 
-	BLF_set(mono);
-	BLF_aspect(1.0);
-
-	BLF_size(st->lheight, 72);
+	BLF_aspect(mono, 1.0);
+	BLF_size(mono, st->lheight, 72);
 }
 
 static void text_font_end(SpaceText *st)
@@ -80,10 +74,10 @@ static void text_font_end(SpaceText *st)
 
 static int text_font_draw(SpaceText *st, int x, int y, char *str)
 {
-	BLF_position(x, y, 0);
-	BLF_draw(str);
+	BLF_position(mono, x, y, 0);
+	BLF_draw(mono, str);
 
-	return BLF_width(str);
+	return BLF_width(mono, str);
 }
 
 static int text_font_draw_character(SpaceText *st, int x, int y, char c)
@@ -93,15 +87,15 @@ static int text_font_draw_character(SpaceText *st, int x, int y, char c)
 	str[0]= c;
 	str[1]= '\0';
 
-	BLF_position(x, y, 0);
-	BLF_draw(str);
+	BLF_position(mono, x, y, 0);
+	BLF_draw(mono, str);
 
 	return st->cwidth;
 }
 
 int text_font_width(SpaceText *st, char *str)
 {
-	return BLF_width(str);
+	return BLF_width(mono, str);
 }
 
 /****************** flatten string **********************/
@@ -116,8 +110,8 @@ static void flatten_string_append(FlattenString *fs, char c, int accum)
 		nbuf= MEM_callocN(sizeof(*fs->buf)*fs->len, "fs->buf");
 		naccum= MEM_callocN(sizeof(*fs->accum)*fs->len, "fs->accum");
 
-		memcpy(nbuf, fs->buf, fs->pos);
-		memcpy(naccum, fs->accum, fs->pos);
+		memcpy(nbuf, fs->buf, fs->pos * sizeof(*fs->buf));
+		memcpy(naccum, fs->accum, fs->pos * sizeof(*fs->accum));
 		
 		if(fs->buf != fs->fixedbuf) {
 			MEM_freeN(fs->buf);
@@ -177,12 +171,13 @@ void flatten_string_free(FlattenString *fs)
 static int find_builtinfunc(char *string)
 {
 	int a, i;
-	char builtinfuncs[][11] = {"and", "as", "assert", "break", "class", "continue", "def",
+	char builtinfuncs[][9] = {"and", "as", "assert", "break", "class", "continue", "def",
 								"del", "elif", "else", "except", "exec", "finally",
 								"for", "from", "global", "if", "import", "in",
 								"is", "lambda", "not", "or", "pass", "print",
-								"raise", "return", "try", "while", "yield"};
-	for(a=0; a<30; a++) {
+								"raise", "return", "try", "while", "yield", "with"};
+
+	for(a=0; a < sizeof(builtinfuncs)/sizeof(builtinfuncs[0]); a++) {
 		i = 0;
 		while(1) {
 			/* If we hit the end of a keyword... (eg. "def") */
@@ -221,6 +216,36 @@ static int find_specialvar(char *string)
 	/* Check for "class" */
 	else if(string[0]=='c' && string[1]=='l' && string[2]=='a' && string[3]=='s' && string[4]=='s')
 		i = 5;
+	/* If next source char is an identifier (eg. 'i' in "definate") no match */
+	if(i==0 || text_check_identifier(string[i]))
+		return -1;
+	return i;
+}
+
+static int find_decorator(char *string) 
+{
+	if(string[0] == '@') {
+		int i = 1;
+		while(text_check_identifier(string[i])) {
+			i++;
+		}
+		return i;
+	}
+	return -1;
+}
+
+static int find_bool(char *string) 
+{
+	int i = 0;
+	/* Check for "False" */
+	if(string[0]=='F' && string[1]=='a' && string[2]=='l' && string[3]=='s' && string[4]=='e')
+		i = 5;
+	/* Check for "True" */
+	else if(string[0]=='T' && string[1]=='r' && string[2]=='u' && string[3]=='e')
+		i = 4;
+	/* Check for "None" */
+	else if(string[0]=='N' && string[1]=='o' && string[2]=='n' && string[3]=='e')
+		i = 4;
 	/* If next source char is an identifier (eg. 'i' in "definate") no match */
 	if(i==0 || text_check_identifier(string[i]))
 		return -1;
@@ -338,6 +363,17 @@ static void txt_format_line(SpaceText *st, TextLine *line, int do_next)
 			/* Numbers (digits not part of an identifier and periods followed by digits) */
 			else if((prev != 'q' && text_check_digit(*str)) || (*str == '.' && text_check_digit(*(str+1))))
 				*fmt = 'n';
+			/* Booleans */
+			else if(prev != 'q' && (i=find_bool(str)) != -1)
+				if(i>0) {
+					while(i>1) {
+						*fmt = 'n'; fmt++; str++;
+						i--;
+					}
+					*fmt = 'n';
+				}
+				else
+					*fmt = 'q';
 			/* Punctuation */
 			else if(text_check_delim(*str))
 				*fmt = '!';
@@ -351,6 +387,8 @@ static void txt_format_line(SpaceText *st, TextLine *line, int do_next)
 					prev = 'v';
 				else if((i=find_builtinfunc(str)) != -1)
 					prev = 'b';
+				else if((i=find_decorator(str)) != -1)
+					prev = 'v'; /* could have a new color for this */
 				if(i>0) {
 					while(i>1) {
 						*fmt = prev; fmt++; str++;
@@ -1076,6 +1114,22 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 		}
 	}
 
+	if(st->line_hlight) {
+		y= ar->winy-2 - vsell*st->lheight;
+		if(!(y<0 || y > ar->winy)) { /* check we need to draw */
+			int x1= st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
+			int x2= x1 + ar->winx;
+			y= ar->winy-2 - vsell*st->lheight;
+	
+			glColor4ub(255, 255, 255, 32);
+			
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glEnable(GL_BLEND);
+			glRecti(x1-4, y, x2, y-st->lheight+1);
+			glDisable(GL_BLEND);
+		}
+	}
+	
 	if(!hidden) {
 		/* Draw the cursor itself (we draw the sel. cursor as this is the leading edge) */
 		x= st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
@@ -1106,7 +1160,8 @@ static void draw_brackets(SpaceText *st, ARegion *ar)
 	int viewc, viewl, offl, offc, x, y;
 	char ch;
 
-	if(!text->curl) return;
+	// showsyntax must be on or else the format string will be null
+	if(!text->curl || !st->showsyntax) return;
 
 	startl= text->curl;
 	startc= text->curc;
@@ -1120,23 +1175,29 @@ static void draw_brackets(SpaceText *st, ARegion *ar)
 	endc= -1;
 	find= -b;
 	stack= 0;
+	
+	/* Dont highlight backets if syntax HL is off or bracket in string or comment. */
+	if(!linep->format || linep->format[c] == 'l' || linep->format[c] == '#')
+		return;
 
 	if(b>0) {
 		/* opening bracket, search forward for close */
 		c++;
 		while(linep) {
 			while(c<linep->len) {
-				b= text_check_bracket(linep->line[c]);
-				if(b==find) {
-					if(stack==0) {
-						endl= linep;
-						endc= c;
-						break;
+				if(linep->format && linep->format[c] != 'l' && linep->format[c] != '#') {
+					b= text_check_bracket(linep->line[c]);
+					if(b==find) {
+						if(stack==0) {
+							endl= linep;
+							endc= c;
+							break;
+						}
+						stack--;
 					}
-					stack--;
-				}
-				else if(b==-find) {
-					stack++;
+					else if(b==-find) {
+						stack++;
+					}
 				}
 				c++;
 			}
@@ -1150,17 +1211,19 @@ static void draw_brackets(SpaceText *st, ARegion *ar)
 		c--;
 		while(linep) {
 			while(c>=0) {
-				b= text_check_bracket(linep->line[c]);
-				if(b==find) {
-					if(stack==0) {
-						endl= linep;
-						endc= c;
-						break;
+				if(linep->format && linep->format[c] != 'l' && linep->format[c] != '#') {
+					b= text_check_bracket(linep->line[c]);
+					if(b==find) {
+						if(stack==0) {
+							endl= linep;
+							endc= c;
+							break;
+						}
+						stack--;
 					}
-					stack--;
-				}
-				else if(b==-find) {
-					stack++;
+					else if(b==-find) {
+						stack++;
+					}
 				}
 				c--;
 			}
@@ -1237,7 +1300,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	}
 
 	text_font_begin(st);
-	st->cwidth= BLF_fixed_width();
+	st->cwidth= BLF_fixed_width(mono);
 	st->cwidth= MAX2(st->cwidth, 1);
 
 	/* draw line numbers background */
@@ -1254,7 +1317,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	}
 	y= ar->winy-st->lheight;
 	winx= ar->winx - TXT_SCROLL_WIDTH;
-
+	
 	/* draw cursor */
 	draw_cursor(st, ar);
 
@@ -1307,7 +1370,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 void text_update_character_width(SpaceText *st)
 {
 	text_font_begin(st);
-	st->cwidth= BLF_fixed_width();
+	st->cwidth= BLF_fixed_width(mono);
 	st->cwidth= MAX2(st->cwidth, 1);
 	text_font_end(st);
 }
@@ -1318,19 +1381,19 @@ void text_update_cursor_moved(bContext *C)
 {
 	ScrArea *sa= CTX_wm_area(C);
 	SpaceText *st= CTX_wm_space_text(C);
-	Text *text= st->text;
+	Text *text;
 	ARegion *ar;
 	int i, x, winx= 0;
 
-	if(!st) return;
+	if(ELEM3(NULL, st, st->text, st->text->curl)) return;
+
+	text= st->text;
 
 	for(ar=sa->regionbase.first; ar; ar= ar->next)
 		if(ar->regiontype==RGN_TYPE_WINDOW)
 			winx= ar->winx;
 	
 	winx -= TXT_SCROLL_WIDTH;
-
-	if(!text || !text->curl) return;
 
 	text_update_character_width(st);
 

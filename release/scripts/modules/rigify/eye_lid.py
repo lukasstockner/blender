@@ -21,7 +21,7 @@
 import bpy
 from rna_prop_ui import rna_idprop_ui_prop_get
 from math import acos
-from Mathutils import Vector
+from mathutils import Vector
 from rigify import RigifyError
 from rigify_utils import copy_bone_simple
 
@@ -56,7 +56,7 @@ def metarig_template():
     bone.head[:] = 0.0000, 0.0000, 0.0000
     bone.tail[:] = 0.0000, 0.0000, 1.0000
     bone.roll = 0.0000
-    bone.connected = False
+    bone.use_connect = False
 
     bpy.ops.object.mode_set(mode='OBJECT')
     pbone = obj.pose.bones['Bone']
@@ -148,10 +148,10 @@ def deform(obj, definitions, base_names, options):
     eb[dlid3].parent  = eb[dlid4]
     eb[dlid33].parent = eb[dlid3]
 
-    eb[dlid2].connected  = True
-    eb[dlid22].connected = True
-    eb[dlid3].connected  = True
-    eb[dlid33].connected = True
+    eb[dlid2].use_connect  = True
+    eb[dlid22].use_connect = True
+    eb[dlid3].use_connect  = True
+    eb[dlid33].use_connect = True
 
     eb[dlid1].bbone_segments = 8
     eb[dlid2].bbone_segments = 8
@@ -170,10 +170,10 @@ def deform(obj, definitions, base_names, options):
     eb[dlid7].parent = eb[dlid8]
     eb[dlid77].parent = eb[dlid7]
 
-    eb[dlid6].connected = True
-    eb[dlid66].connected = True
-    eb[dlid7].connected = True
-    eb[dlid77].connected = True
+    eb[dlid6].use_connect = True
+    eb[dlid66].use_connect = True
+    eb[dlid7].use_connect = True
+    eb[dlid77].use_connect = True
 
     eb[dlid5].bbone_segments = 8
     eb[dlid6].bbone_segments = 8
@@ -299,14 +299,15 @@ def control(obj, definitions, base_names, options):
     lid8 = copy_bone_simple(obj.data, definitions[9], base_names[definitions[9]]).name
 
     size = eb[lid1].length
-    eb[lid1].tail = eb[lid1].head + Vector(0,size,0)
-    eb[lid2].tail = eb[lid2].head + Vector(0,size,0)
-    eb[lid3].tail = eb[lid3].head + Vector(0,size,0)
-    eb[lid4].tail = eb[lid4].head + Vector(0,size,0)
-    eb[lid5].tail = eb[lid5].head + Vector(0,size,0)
-    eb[lid6].tail = eb[lid6].head + Vector(0,size,0)
-    eb[lid7].tail = eb[lid7].head + Vector(0,size,0)
-    eb[lid8].tail = eb[lid8].head + Vector(0,size,0)
+    size_y = Vector(0.0, size, 0.0)
+    eb[lid1].tail = eb[lid1].head + size_y
+    eb[lid2].tail = eb[lid2].head + size_y
+    eb[lid3].tail = eb[lid3].head + size_y
+    eb[lid4].tail = eb[lid4].head + size_y
+    eb[lid5].tail = eb[lid5].head + size_y
+    eb[lid6].tail = eb[lid6].head + size_y
+    eb[lid7].tail = eb[lid7].head + size_y
+    eb[lid8].tail = eb[lid8].head + size_y
 
     eb[lid1].roll = 0
     eb[lid2].roll = 0
@@ -355,7 +356,7 @@ def control(obj, definitions, base_names, options):
     prop["min"] = 0.0
     prop["max"] = 1.0
 
-    close_driver_path = pb[upper_lid_ctrl].path_to_id() + '["close_action"]'
+    close_driver_path = pb[upper_lid_ctrl].path_from_id() + '["close_action"]'
 
     # Constraints
 
@@ -435,10 +436,10 @@ def control(obj, definitions, base_names, options):
     con.transform_channel = 'LOCATION_Y'
     con.frame_start = -30
     con.frame_end = 30
-    con.minimum = -distance*2
-    con.maximum = distance
+    con.min = -distance*2
+    con.max = distance
     con.target_space = 'LOCAL'
-    fcurve = con.driver_add("influence", 0)
+    fcurve = con.driver_add("influence")
     driver = fcurve.driver
     driver.type = 'AVERAGE'
     var = driver.variables.new()
@@ -454,10 +455,10 @@ def control(obj, definitions, base_names, options):
     con.transform_channel = 'LOCATION_Y'
     con.frame_start = -30
     con.frame_end = 30
-    con.minimum = -distance*2
-    con.maximum = distance
+    con.min = -distance*2
+    con.max = distance
     con.target_space = 'LOCAL'
-    fcurve = con.driver_add("influence", 0)
+    fcurve = con.driver_add("influence")
     driver = fcurve.driver
     driver.type = 'AVERAGE'
     var = driver.variables.new()
@@ -472,10 +473,10 @@ def control(obj, definitions, base_names, options):
     con.transform_channel = 'LOCATION_Y'
     con.frame_start = -30
     con.frame_end = 30
-    con.minimum = -distance*2
-    con.maximum = distance
+    con.min = -distance*2
+    con.max = distance
     con.target_space = 'LOCAL'
-    fcurve = con.driver_add("influence", 0)
+    fcurve = con.driver_add("influence")
     driver = fcurve.driver
     driver.type = 'AVERAGE'
     var = driver.variables.new()
@@ -490,10 +491,10 @@ def control(obj, definitions, base_names, options):
     con.transform_channel = 'LOCATION_Y'
     con.frame_start = -30
     con.frame_end = 30
-    con.minimum = -distance*2
-    con.maximum = distance
+    con.min = -distance*2
+    con.max = distance
     con.target_space = 'LOCAL'
-    fcurve = con.driver_add("influence", 0)
+    fcurve = con.driver_add("influence")
     driver = fcurve.driver
     driver.type = 'AVERAGE'
     var = driver.variables.new()
@@ -508,10 +509,10 @@ def control(obj, definitions, base_names, options):
     con.transform_channel = 'LOCATION_Y'
     con.frame_start = -30
     con.frame_end = 30
-    con.minimum = -distance*2
-    con.maximum = distance
+    con.min = -distance*2
+    con.max = distance
     con.target_space = 'LOCAL'
-    fcurve = con.driver_add("influence", 0)
+    fcurve = con.driver_add("influence")
     driver = fcurve.driver
     driver.type = 'AVERAGE'
     var = driver.variables.new()
@@ -527,10 +528,10 @@ def control(obj, definitions, base_names, options):
     con.transform_channel = 'LOCATION_Y'
     con.frame_start = -30
     con.frame_end = 30
-    con.minimum = -distance
-    con.maximum = distance*2
+    con.min = -distance
+    con.max = distance*2
     con.target_space = 'LOCAL'
-    fcurve = con.driver_add("influence", 0)
+    fcurve = con.driver_add("influence")
     driver = fcurve.driver
     driver.type = 'AVERAGE'
     var = driver.variables.new()
@@ -545,10 +546,10 @@ def control(obj, definitions, base_names, options):
     con.transform_channel = 'LOCATION_Y'
     con.frame_start = -30
     con.frame_end = 30
-    con.minimum = -distance
-    con.maximum = distance*2
+    con.min = -distance
+    con.max = distance*2
     con.target_space = 'LOCAL'
-    fcurve = con.driver_add("influence", 0)
+    fcurve = con.driver_add("influence")
     driver = fcurve.driver
     driver.type = 'AVERAGE'
     var = driver.variables.new()
@@ -563,10 +564,10 @@ def control(obj, definitions, base_names, options):
     con.transform_channel = 'LOCATION_Y'
     con.frame_start = -30
     con.frame_end = 30
-    con.minimum = -distance
-    con.maximum = distance*2
+    con.min = -distance
+    con.max = distance*2
     con.target_space = 'LOCAL'
-    fcurve = con.driver_add("influence", 0)
+    fcurve = con.driver_add("influence")
     driver = fcurve.driver
     driver.type = 'AVERAGE'
     var = driver.variables.new()
@@ -581,10 +582,10 @@ def control(obj, definitions, base_names, options):
     con.transform_channel = 'LOCATION_Y'
     con.frame_start = -30
     con.frame_end = 30
-    con.minimum = -distance
-    con.maximum = distance*2
+    con.min = -distance
+    con.max = distance*2
     con.target_space = 'LOCAL'
-    fcurve = con.driver_add("influence", 0)
+    fcurve = con.driver_add("influence")
     driver = fcurve.driver
     driver.type = 'AVERAGE'
     var = driver.variables.new()
@@ -599,10 +600,10 @@ def control(obj, definitions, base_names, options):
     con.transform_channel = 'LOCATION_Y'
     con.frame_start = -30
     con.frame_end = 30
-    con.minimum = -distance
-    con.maximum = distance*2
+    con.min = -distance
+    con.max = distance*2
     con.target_space = 'LOCAL'
-    fcurve = con.driver_add("influence", 0)
+    fcurve = con.driver_add("influence")
     driver = fcurve.driver
     driver.type = 'AVERAGE'
     var = driver.variables.new()
@@ -614,15 +615,15 @@ def control(obj, definitions, base_names, options):
 
 
     # Set layers
-    layer = list(bb[definitions[2]].layer)
-    bb[lid1].layer = layer
-    bb[lid2].layer = layer
-    bb[lid3].layer = layer
-    bb[lid4].layer = layer
-    bb[lid5].layer = layer
-    bb[lid6].layer = layer
-    bb[lid7].layer = layer
-    bb[lid8].layer = layer
+    layer = list(bb[definitions[2]].layers)
+    bb[lid1].layers = layer
+    bb[lid2].layers = layer
+    bb[lid3].layers = layer
+    bb[lid4].layers = layer
+    bb[lid5].layers = layer
+    bb[lid6].layers = layer
+    bb[lid7].layers = layer
+    bb[lid8].layers = layer
 
 
     return (None,)
@@ -647,7 +648,7 @@ def make_lid_stretch_bone(obj, name, bone1, bone2, roll_alpha):
 
     # Create the bone, pointing from bone1 to bone2
     bone_e = copy_bone_simple(obj.data, bone1, name, parent=True)
-    bone_e.connected = False
+    bone_e.use_connect = False
     bone_e.tail = eb[bone2].head
     bone = bone_e.name
 

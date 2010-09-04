@@ -98,7 +98,7 @@ void init_render_texture(Render *re, Tex *tex)
 	if(tex->type==TEX_PLUGIN) {
 		if(tex->plugin && tex->plugin->doit) {
 			if(tex->plugin->cfra) {
-				*(tex->plugin->cfra)= (float)cfra; //frame_to_float(re->scene, cfra); // XXX old animsys - timing stuff to be fixed 
+				*(tex->plugin->cfra)= (float)cfra; //BKE_curframe(re->scene); // XXX old animsys - timing stuff to be fixed 
 			}
 		}
 	}
@@ -131,7 +131,7 @@ void init_render_textures(Render *re)
 {
 	Tex *tex;
 	
-	tex= G.main->tex.first;
+	tex= re->main->tex.first;
 	while(tex) {
 		if(tex->id.us) init_render_texture(re, tex);
 		tex= tex->id.next;
@@ -144,10 +144,10 @@ void end_render_texture(Tex *tex)
 		ntreeEndExecTree(tex->nodetree);
 }
 
-void end_render_textures(void)
+void end_render_textures(Render *re)
 {
 	Tex *tex;
-	for(tex= G.main->tex.first; tex; tex= tex->id.next)
+	for(tex= re->main->tex.first; tex; tex= tex->id.next)
 		if(tex->id.us)
 			end_render_texture(tex);
 }
@@ -1731,7 +1731,7 @@ void do_material_tex(ShadeInput *shi)
 				co= shi->tang; dx= shi->dxno; dy= shi->dyno;
 			}
 			else if(mtex->texco==TEXCO_GLOB) {
-				co= shi->gl; dx= shi->dxco; dy= shi->dyco;
+				co= shi->gl; dx= shi->dxgl; dy= shi->dygl;
 			}
 			else if(mtex->texco==TEXCO_UV) {
 				if(mtex->texflag & MTEX_DUPLI_MAPTO) {
@@ -1762,7 +1762,7 @@ void do_material_tex(ShadeInput *shi)
 					// NOTE: test for shi->obr->ob here, since vlr/obr/obi can be 'fake' when called from fastshade(), another reason to move it..
 					// NOTE: shi->v1 is NULL when called from displace_render_vert, assigning verts in this case is not trivial because the shi quad face side is not know.
 					if ((mtex->texflag & MTEX_NEW_BUMP) && shi->obr && shi->obr->ob && shi->v1) {
-						if(mtex->mapto & (MAP_NORM|MAP_DISPLACE|MAP_WARP) && !((tex->type==TEX_IMAGE) && (tex->imaflag & TEX_NORMALMAP))) {
+						if(mtex->mapto & (MAP_NORM|MAP_WARP) && !((tex->type==TEX_IMAGE) && (tex->imaflag & TEX_NORMALMAP))) {
 							MTFace* tf = RE_vlakren_get_tface(shi->obr, shi->vlr, i, NULL, 0);
 							int j1 = shi->i1, j2 = shi->i2, j3 = shi->i3;
 
@@ -1833,7 +1833,7 @@ void do_material_tex(ShadeInput *shi)
 			else continue;	// can happen when texco defines disappear and it renders old files
 
 			/* the pointer defines if bumping happens */
-			if(mtex->mapto & (MAP_NORM|MAP_DISPLACE|MAP_WARP)) {
+			if(mtex->mapto & (MAP_NORM|MAP_WARP)) {
 				texres.nor= norvec;
 				norvec[0]= norvec[1]= norvec[2]= 0.0;
 			}
@@ -2219,8 +2219,7 @@ void do_material_tex(ShadeInput *shi)
 				}
 				
 				if(rgbnor & TEX_RGB) {
-					if(texres.talpha) texres.tin= texres.ta;
-					else texres.tin= (0.35f*texres.tr+0.45f*texres.tg+0.2f*texres.tb);
+					texres.tin= (0.35f*texres.tr+0.45f*texres.tg+0.2f*texres.tb);
 				}
 
 				factt= (0.5f-texres.tin)*mtex->dispfac*stencilTin; facmm= 1.0f-factt;
@@ -2510,6 +2509,7 @@ void do_halo_tex(HaloRen *har, float xn, float yn, float *colf)
 	if (R.r.scemode & R_NO_TEX) return;
 	
 	mtex= har->mat->mtex[0];
+	if(har->mat->septex & (1<<0)) return;
 	if(mtex->tex==NULL) return;
 	
 	/* no normal mapping */
@@ -2676,7 +2676,8 @@ void do_sky_tex(float *rco, float *lo, float *dxyview, float *hor, float *zen, f
 			switch(mtex->texco) {
 			case TEXCO_ANGMAP:
 				/* only works with texture being "real" */
-				fact= (1.0/M_PI)*acos(lo[2])/(sqrt(lo[0]*lo[0] + lo[1]*lo[1])); 
+				/* use saacos(), fixes bug [#22398], float precission caused lo[2] to be slightly less then -1.0 */
+				fact= (1.0/M_PI)*saacos(lo[2])/(sqrt(lo[0]*lo[0] + lo[1]*lo[1])); 
 				tempvec[0]= lo[0]*fact;
 				tempvec[1]= lo[1]*fact;
 				tempvec[2]= 0.0;
@@ -2881,6 +2882,9 @@ void do_lamp_tex(LampRen *la, float *lavec, ShadeInput *shi, float *colf, int ef
 				if(la->type==LA_SPOT) {
 					tempvec[0]*= la->spottexfac;
 					tempvec[1]*= la->spottexfac;
+                    /* project from 3d to 2d */
+					tempvec[0] /= -tempvec[2];
+					tempvec[1] /= -tempvec[2];
 				}
 				co= tempvec; 
 				

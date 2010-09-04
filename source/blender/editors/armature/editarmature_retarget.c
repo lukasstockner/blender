@@ -29,10 +29,6 @@
 #include <math.h> 
 #include <float.h>
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #include "MEM_guardedalloc.h"
 
 #include "PIL_time.h"
@@ -40,6 +36,7 @@
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_object_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -51,8 +48,6 @@
 
 //#include "BDR_editobject.h"
 
-#include "BKE_global.h"
-#include "BKE_utildefines.h"
 #include "BKE_constraint.h"
 #include "BKE_armature.h"
 #include "BKE_context.h"
@@ -320,8 +315,8 @@ static RigGraph *newRigGraph()
 	
 	rg->head = NULL;
 	
-	rg->bones_map = BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp);
-	rg->controls_map = BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp);
+	rg->bones_map = BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp, "newRigGraph bones gh");
+	rg->controls_map = BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp, "newRigGraph cont gh");
 	
 	rg->free_arc = RIG_freeRigArc;
 	rg->free_node = NULL;
@@ -565,7 +560,7 @@ static RigGraph *cloneRigGraph(RigGraph *src, ListBase *editbones, Object *ob, c
 	RigControl *ctrl;
 	RigGraph *rg;
 	
-	ptr_hash = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
+	ptr_hash = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "cloneRigGraph gh");
 
 	rg = newRigGraph();
 	

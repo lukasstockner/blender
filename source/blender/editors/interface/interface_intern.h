@@ -87,7 +87,8 @@ typedef enum {
 	UI_WTYPE_NORMAL,
 	UI_WTYPE_BOX,
 	UI_WTYPE_SCROLL,
-	UI_WTYPE_LISTITEM
+	UI_WTYPE_LISTITEM,
+	UI_WTYPE_PROGRESSBAR,
 	
 } uiWidgetTypeEnum;
 
@@ -183,8 +184,11 @@ struct uiBut {
 
 	struct bContextStore *context;
 
+	/* not ysed yet, was used in 2.4x for ui_draw_pulldown_round & friends */
+	/*
 	void (*embossfunc)(int , int , float, float, float, float, float, int);
 	void (*sliderfunc)(int , float, float, float, float, float, float, int);
+	*/
 
 	uiButCompleteFunc autocomplete_func;
 	void *autofunc_arg;
@@ -227,12 +231,12 @@ struct uiBut {
 
 	/* Operator data */
 	struct wmOperatorType *optype;
-	int opcontext;
 	struct IDProperty *opproperties;
 	struct PointerRNA *opptr;
+	short opcontext;
 	
 	/* Draggable data, type is WM_DRAG_... */
-	int dragtype;
+	short dragtype;
 	void *dragpoin;
 	struct ImBuf *imb;
 	float imb_scale;
@@ -443,6 +447,8 @@ extern void gl_round_box_vertical_shade(int mode, float minx, float miny, float 
 void ui_draw_gradient(rcti *rect, float *rgb, int type, float alpha);
 
 void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol, rcti *rect);
+void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol, rcti *rect);
+void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol, rcti *rect);
 void ui_draw_but_COLORBAND(uiBut *but, struct uiWidgetColors *wcol, rcti *rect);
 void ui_draw_but_NORMAL(uiBut *but, struct uiWidgetColors *wcol, rcti *rect);
 void ui_draw_but_CURVE(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol, rcti *rect);
@@ -450,7 +456,7 @@ void ui_draw_but_IMAGE(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol, rct
 
 /* interface_handlers.c */
 extern void ui_button_activate_do(struct bContext *C, struct ARegion *ar, uiBut *but);
-extern void ui_button_active_cancel(const struct bContext *C, uiBut *but);
+extern void ui_button_active_free(const struct bContext *C, uiBut *but);
 extern int ui_button_is_active(struct ARegion *ar);
 
 /* interface_widgets.c */

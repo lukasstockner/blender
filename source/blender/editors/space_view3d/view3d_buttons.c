@@ -47,21 +47,15 @@
 #include "BLI_rand.h"
 
 #include "BKE_action.h"
-#include "BKE_brush.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_customdata.h"
 #include "BKE_depsgraph.h"
-#include "BKE_idprop.h"
+#include "BKE_main.h"
 #include "BKE_mesh.h"
-#include "BKE_object.h"
-#include "BKE_global.h"
-#include "BKE_scene.h"
 #include "BKE_screen.h"
-#include "BKE_utildefines.h"
 #include "BKE_deform.h"
 
-#include "BIF_gl.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -73,6 +67,7 @@
 #include "ED_mesh.h"
 #include "ED_screen.h"
 #include "ED_transform.h"
+#include "ED_curve.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -157,7 +152,7 @@ static void v3d_editvertex_buts(const bContext *C, uiLayout *layout, View3D *v3d
 			if(eve->f & SELECT) {
 				evedef= eve;
 				tot++;
-				add_v3_v3v3(median, median, eve->co);
+				add_v3_v3(median, eve->co);
 			}
 			eve= eve->next;
 		}
@@ -205,15 +200,16 @@ static void v3d_editvertex_buts(const bContext *C, uiLayout *layout, View3D *v3d
 		BPoint *bp;
 		BezTriple *bezt;
 		int a;
-		
-		nu= cu->editnurb->first;
+		ListBase *nurbs= ED_curve_editnurbs(cu);
+
+		nu= nurbs->first;
 		while(nu) {
 			if(nu->type == CU_BEZIER) {
 				bezt= nu->bezt;
 				a= nu->pntsu;
 				while(a--) {
 					if(bezt->f2 & SELECT) {
-						add_v3_v3v3(median, median, bezt->vec[1]);
+						add_v3_v3(median, bezt->vec[1]);
 						tot++;
 						median[4]+= bezt->weight;
 						totweight++;
@@ -222,11 +218,11 @@ static void v3d_editvertex_buts(const bContext *C, uiLayout *layout, View3D *v3d
 					}
 					else {
 						if(bezt->f1 & SELECT) {
-							add_v3_v3v3(median, median, bezt->vec[0]);
+							add_v3_v3(median, bezt->vec[0]);
 							tot++;
 						}
 						if(bezt->f3 & SELECT) {
-							add_v3_v3v3(median, median, bezt->vec[2]);
+							add_v3_v3(median, bezt->vec[2]);
 							tot++;
 						}
 					}
@@ -238,7 +234,7 @@ static void v3d_editvertex_buts(const bContext *C, uiLayout *layout, View3D *v3d
 				a= nu->pntsu*nu->pntsv;
 				while(a--) {
 					if(bp->f1 & SELECT) {
-						add_v3_v3v3(median, median, bp->vec);
+						add_v3_v3(median, bp->vec);
 						median[3]+= bp->vec[3];
 						totw++;
 						tot++;
@@ -258,11 +254,11 @@ static void v3d_editvertex_buts(const bContext *C, uiLayout *layout, View3D *v3d
 		BPoint *bp;
 		int a;
 		
-		a= lt->editlatt->pntsu*lt->editlatt->pntsv*lt->editlatt->pntsw;
-		bp= lt->editlatt->def;
+		a= lt->editlatt->latt->pntsu*lt->editlatt->latt->pntsv*lt->editlatt->latt->pntsw;
+		bp= lt->editlatt->latt->def;
 		while(a--) {
 			if(bp->f1 & SELECT) {
-				add_v3_v3v3(median, median, bp->vec);
+				add_v3_v3(median, bp->vec);
 				tot++;
 				median[4]+= bp->weight;
 				totweight++;
@@ -358,7 +354,7 @@ static void v3d_editvertex_buts(const bContext *C, uiLayout *layout, View3D *v3d
 		if(totedge==1)
 			uiDefButF(block, NUM, B_OBJECTPANELMEDIAN, "Crease:",	0, 20, 200, 20, &(tfp->ve_median[3]), 0.0, 1.0, 10, 3, "");
 		else if(totedge>1)
-			uiDefButF(block, NUM, B_OBJECTPANELMEDIAN, "Median Crease:",	0, 20, 200, 20, &(tfp->ve_median[3]), 0.0, 1.0, 10, 3, "");
+			uiDefButF(block, NUM, B_OBJECTPANELMEDIAN, "Mean Crease:",	0, 20, 200, 20, &(tfp->ve_median[3]), 0.0, 1.0, 10, 3, "");
 		
 	}
 	else {	// apply
@@ -383,7 +379,7 @@ static void v3d_editvertex_buts(const bContext *C, uiLayout *layout, View3D *v3d
 			eve= em->verts.first;
 			while(eve) {
 				if(eve->f & SELECT) {
-					add_v3_v3v3(eve->co, eve->co, median);
+					add_v3_v3(eve->co, median);
 				}
 				eve= eve->next;
 			}
@@ -410,26 +406,27 @@ static void v3d_editvertex_buts(const bContext *C, uiLayout *layout, View3D *v3d
 			BPoint *bp;
 			BezTriple *bezt;
 			int a;
-			
-			nu= cu->editnurb->first;
+			ListBase *nurbs= ED_curve_editnurbs(cu);
+
+			nu= nurbs->first;
 			while(nu) {
 				if(nu->type == CU_BEZIER) {
 					bezt= nu->bezt;
 					a= nu->pntsu;
 					while(a--) {
 						if(bezt->f2 & SELECT) {
-							add_v3_v3v3(bezt->vec[0], bezt->vec[0], median);
-							add_v3_v3v3(bezt->vec[1], bezt->vec[1], median);
-							add_v3_v3v3(bezt->vec[2], bezt->vec[2], median);
+							add_v3_v3(bezt->vec[0], median);
+							add_v3_v3(bezt->vec[1], median);
+							add_v3_v3(bezt->vec[2], median);
 							bezt->weight+= median[4];
 							bezt->radius+= median[5];
 						}
 						else {
 							if(bezt->f1 & SELECT) {
-								add_v3_v3v3(bezt->vec[0], bezt->vec[0], median);
+								add_v3_v3(bezt->vec[0], median);
 							}
 							if(bezt->f3 & SELECT) {
-								add_v3_v3v3(bezt->vec[2], bezt->vec[2], median);
+								add_v3_v3(bezt->vec[2], median);
 							}
 						}
 						bezt++;
@@ -440,7 +437,7 @@ static void v3d_editvertex_buts(const bContext *C, uiLayout *layout, View3D *v3d
 					a= nu->pntsu*nu->pntsv;
 					while(a--) {
 						if(bp->f1 & SELECT) {
-							add_v3_v3v3(bp->vec, bp->vec, median);
+							add_v3_v3(bp->vec, median);
 							bp->vec[3]+= median[3];
 							bp->weight+= median[4];
 							bp->radius+= median[5];
@@ -459,11 +456,11 @@ static void v3d_editvertex_buts(const bContext *C, uiLayout *layout, View3D *v3d
 			BPoint *bp;
 			int a;
 			
-			a= lt->editlatt->pntsu*lt->editlatt->pntsv*lt->editlatt->pntsw;
-			bp= lt->editlatt->def;
+			a= lt->editlatt->latt->pntsu*lt->editlatt->latt->pntsv*lt->editlatt->latt->pntsw;
+			bp= lt->editlatt->latt->def;
 			while(a--) {
 				if(bp->f1 & SELECT) {
-					add_v3_v3v3(bp->vec, bp->vec, median);
+					add_v3_v3(bp->vec, median);
 					bp->weight+= median[4];
 				}
 				bp++;
@@ -746,7 +743,7 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
 	uiItemR(colsub, ptr, "location", 0, "Location", 0);
 	colsub = uiLayoutColumn(split, 1);
 	uiItemL(colsub, "", 0);
-	uiItemR(colsub, ptr, "lock_location", UI_ITEM_R_TOGGLE+UI_ITEM_R_ICON_ONLY, "", ICON_LOCKED);
+	uiItemR(colsub, ptr, "lock_location", UI_ITEM_R_TOGGLE+UI_ITEM_R_ICON_ONLY, "", 0);
 	
 	split = uiLayoutSplit(layout, 0.8, 0);
 	
@@ -757,10 +754,10 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
 			colsub = uiLayoutColumn(split, 1);
 			uiItemR(colsub, ptr, "lock_rotations_4d", UI_ITEM_R_TOGGLE, "4L", 0);
 			if (RNA_boolean_get(ptr, "lock_rotations_4d"))
-				uiItemR(colsub, ptr, "lock_rotation_w", UI_ITEM_R_TOGGLE+UI_ITEM_R_ICON_ONLY, "", ICON_LOCKED);
+				uiItemR(colsub, ptr, "lock_rotation_w", UI_ITEM_R_TOGGLE+UI_ITEM_R_ICON_ONLY, "", 0);
 			else
 				uiItemL(colsub, "", 0);
-			uiItemR(colsub, ptr, "lock_rotation", UI_ITEM_R_TOGGLE+UI_ITEM_R_ICON_ONLY, "", ICON_LOCKED);
+			uiItemR(colsub, ptr, "lock_rotation", UI_ITEM_R_TOGGLE+UI_ITEM_R_ICON_ONLY, "", 0);
 			break;
 		case ROT_MODE_AXISANGLE: /* axis angle */
 			colsub = uiLayoutColumn(split, 1);
@@ -768,17 +765,17 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
 			colsub = uiLayoutColumn(split, 1);
 			uiItemR(colsub, ptr, "lock_rotations_4d", UI_ITEM_R_TOGGLE, "4L", 0);
 			if (RNA_boolean_get(ptr, "lock_rotations_4d"))
-				uiItemR(colsub, ptr, "lock_rotation_w", UI_ITEM_R_TOGGLE+UI_ITEM_R_ICON_ONLY, "", ICON_LOCKED);
+				uiItemR(colsub, ptr, "lock_rotation_w", UI_ITEM_R_TOGGLE+UI_ITEM_R_ICON_ONLY, "", 0);
 			else
 				uiItemL(colsub, "", 0);
-			uiItemR(colsub, ptr, "lock_rotation", UI_ITEM_R_TOGGLE+UI_ITEM_R_ICON_ONLY, "", ICON_LOCKED);
+			uiItemR(colsub, ptr, "lock_rotation", UI_ITEM_R_TOGGLE+UI_ITEM_R_ICON_ONLY, "", 0);
 			break;
 		default: /* euler rotations */
 			colsub = uiLayoutColumn(split, 1);
 			uiItemR(colsub, ptr, "rotation_euler", 0, "Rotation", 0);
 			colsub = uiLayoutColumn(split, 1);
 			uiItemL(colsub, "", 0);
-			uiItemR(colsub, ptr, "lock_rotation", UI_ITEM_R_TOGGLE+UI_ITEM_R_ICON_ONLY, "", ICON_LOCKED);
+			uiItemR(colsub, ptr, "lock_rotation", UI_ITEM_R_TOGGLE+UI_ITEM_R_ICON_ONLY, "", 0);
 			break;
 	}
 	uiItemR(layout, ptr, "rotation_mode", 0, "", 0);
@@ -788,7 +785,7 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
 	uiItemR(colsub, ptr, "scale", 0, "Scale", 0);
 	colsub = uiLayoutColumn(split, 1);
 	uiItemL(colsub, "", 0);
-	uiItemR(colsub, ptr, "lock_scale", UI_ITEM_R_TOGGLE+UI_ITEM_R_ICON_ONLY, "", ICON_LOCKED);
+	uiItemR(colsub, ptr, "lock_scale", UI_ITEM_R_TOGGLE+UI_ITEM_R_ICON_ONLY, "", 0);
 	
 	if (ptr->type == &RNA_Object) {
 		Object *ob = ptr->data;
@@ -994,6 +991,7 @@ static int test_parent_loop(Object *par, Object *ob)
 
 static void do_view3d_region_buttons(bContext *C, void *arg, int event)
 {
+	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 //	Object *obedit= CTX_data_edit_object(C);
 	View3D *v3d= CTX_wm_view3d(C);
@@ -1025,7 +1023,7 @@ static void do_view3d_region_buttons(bContext *C, void *arg, int event)
 			if(ob->id.lib || test_parent_loop(ob->parent, ob) ) 
 				ob->parent= NULL;
 			else {
-				DAG_scene_sort(scene);
+				DAG_scene_sort(bmain, scene);
 				DAG_id_flush_update(&ob->id, OB_RECALC_OB);
 			}
 		}

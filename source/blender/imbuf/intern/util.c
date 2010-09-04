@@ -42,34 +42,14 @@
 #include "BKE_global.h"
 
 #include "imbuf.h"
-#include "imbuf_patch.h"
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
-
-#include "IMB_targa.h"
-#include "IMB_png.h"
-
-#ifdef WITH_DDS
-#include "dds/dds_api.h"
-#endif
-
-#include "IMB_bmp.h"
-#include "IMB_tiff.h"
-#include "IMB_radiance_hdr.h"
-#include "IMB_dpxcineon.h"
+#include "IMB_filetype.h"
 
 #include "IMB_anim.h"
 
-#ifdef WITH_OPENEXR
-#include "openexr/openexr_api.h"
-#endif
-
 #ifdef WITH_QUICKTIME
 #include "quicktime_import.h"
-#endif
-
-#ifdef WITH_OPENJPEG
-#include "IMB_jp2.h"
 #endif
 
 #ifdef WITH_FFMPEG
@@ -88,153 +68,127 @@
 
 #define UTIL_DEBUG 0
 
-/* from misc_util: flip the bytes from x  */
-#define GS(x) (((unsigned char *)(x))[0] << 8 | ((unsigned char *)(x))[1])
+const char *imb_ext_image[] = {
+	".png",
+	".tga",
+	".bmp",
+	".jpg", ".jpeg",
+	".sgi", ".rgb", ".rgba",
+#ifdef WITH_TIFF
+	".tif", ".tiff", ".tx",
+#endif
+#ifdef WITH_OPENJPEG
+	".jp2",
+#endif
+#ifdef WITH_HDR
+	".hdr",
+#endif
+#ifdef WITH_DDS
+	".dds",
+#endif
+#ifdef WITH_CINEON
+	".dpx",
+	".cin",
+#endif
+#ifdef WITH_OPENEXR
+	".exr",
+#endif
+	NULL};
 
-/* this one is only def-ed once, strangely... */
-#define GSS(x) (((uchar *)(x))[1] << 8 | ((uchar *)(x))[0])
+const char *imb_ext_image_qt[] = {
+	".gif",
+	".psd",
+	".pct", ".pict",
+	".pntg",
+	".qtif",
+	NULL};
+
+const char *imb_ext_movie[] = {
+	".avi",
+	".flc",
+	".mov",
+	".movie",
+	".mp4",
+	".m4v",
+	".m2v",
+	".m2t",
+	".mts",
+	".mv",
+	".avs",
+	".wmv",
+	".ogv",
+	".dv",
+	".mpeg",
+	".mpg",
+	".mpg2",
+	".vob",
+	".mkv",
+	".flv",
+	".divx",
+	".xvid",
+	NULL};
+
+/* sort of wrong being here... */
+const char *imb_ext_audio[] = {
+	".wav",
+	".ogg",
+	".oga",
+	".mp3",
+	".mp2",
+	".ac3",
+	".aac",
+	".flac",
+	".wma",
+	".eac3",
+	NULL};
 
 static int IMB_ispic_name(char *name)
 {
+	ImFileType *type;
 	struct stat st;
 	int fp, buf[10];
-	int ofs = 0;
 
 	if(UTIL_DEBUG) printf("IMB_ispic_name: loading %s\n", name);
 	
-	if (ib_stat(name,&st) == -1) return(0);
-	if (((st.st_mode) & S_IFMT) == S_IFREG){
-		if ((fp = open(name,O_BINARY|O_RDONLY)) >= 0){
-			if (read(fp,buf,32)==32){
-				close(fp);
-				if (buf[ofs] == CAT) ofs += 3;
-				if (buf[ofs] == FORM){
-					if (buf[ofs + 2] == ILBM) return(AMI);
-					if (buf[ofs + 2] == ANIM){
-						if (buf[ofs + 3] == FORM){
-							return(ANIM);
-						}else{
-							return(Anim);
-						}
-					}
-				} else {
-					if (GS(buf) == IMAGIC) return(IMAGIC);
-					if (GSS(buf) == IMAGIC) return(IMAGIC);
-					if ((BIG_LONG(buf[0]) & 0xfffffff0) == 0xffd8ffe0) return(JPG);
+	if(stat(name,&st) == -1)
+		return FALSE;
+	if(((st.st_mode) & S_IFMT) != S_IFREG)
+		return FALSE;
 
-					/* at windows there are ".ffl" files with the same magic numnber... 
-					   besides that,  tim images are not really important anymore! */
-					/* if ((BIG_LONG(buf[0]) == 0x10000000) && ((BIG_LONG(buf[1]) & 0xf0ffffff) == 0)) return(TIM); */
+	if((fp = open(name,O_BINARY|O_RDONLY)) < 0)
+		return FALSE;
 
-				}
-				if (imb_is_a_png(buf)) return(PNG);
-#ifdef WITH_DDS
-				if (imb_is_a_dds((uchar *)buf)) return(DDS);
-#endif
-				if (imb_is_a_targa(buf)) return(TGA);
-#ifdef WITH_OPENEXR
-				if (imb_is_a_openexr((uchar *)buf)) return(OPENEXR);
-#endif
-				if (imb_is_a_tiff(buf)) return(TIF);
-				if (imb_is_dpx(buf)) return (DPX);
-				if (imb_is_cineon(buf)) return(CINEON);
-				/* radhdr: check if hdr format */
-				if (imb_is_a_hdr(buf)) return(RADHDR);
-
-/*
-				if (imb_is_a_bmp(buf)) return(BMP);
-*/
-				
-#ifdef WITH_OPENJPEG
-				if (imb_is_a_jp2(buf)) return(JP2);
-#endif
-				
-#ifdef WITH_QUICKTIME
-#if defined(_WIN32) || defined(__APPLE__)
-				if(G.have_quicktime) {
-					if (imb_is_a_quicktime(name)) return(QUICKTIME);
-				}
-#endif
-#endif
-
-				return(FALSE);
-			}
-			close(fp);
-		}
+	if(read(fp, buf, 32) != 32) {
+		close(fp);
+		return FALSE;
 	}
-	return(FALSE);
+
+	close(fp);
+
+	/* XXX move this exception */
+	if((BIG_LONG(buf[0]) & 0xfffffff0) == 0xffd8ffe0)
+		return JPG;
+
+	for(type=IMB_FILE_TYPES; type->is_a; type++)
+		if(type->is_a((uchar*)buf))
+			return type->filetype;
+
+	return FALSE;
 }
-
-
 
 int IMB_ispic(char *filename)
 {
 	if(U.uiflag & USER_FILTERFILEEXTS) {
-		if (G.have_libtiff && (BLI_testextensie(filename, ".tif")
-				||	BLI_testextensie(filename, ".tiff"))) {
-				return IMB_ispic_name(filename);
+		if(	(BLI_testextensie_array(filename, imb_ext_image)) ||
+			(G.have_quicktime && BLI_testextensie_array(filename, imb_ext_image_qt))
+		) {
+			return IMB_ispic_name(filename);
 		}
-		if (G.have_quicktime){
-			if(		BLI_testextensie(filename, ".jpg")
-				||	BLI_testextensie(filename, ".jpeg")
-				||	BLI_testextensie(filename, ".tif")
-				||	BLI_testextensie(filename, ".tiff")
-				||	BLI_testextensie(filename, ".hdr")
-				||	BLI_testextensie(filename, ".tga")
-				||	BLI_testextensie(filename, ".rgb")
-				||	BLI_testextensie(filename, ".bmp")
-				||	BLI_testextensie(filename, ".png")
-#ifdef WITH_DDS
-				||	BLI_testextensie(filename, ".dds")
-#endif
-				||	BLI_testextensie(filename, ".iff")
-				||	BLI_testextensie(filename, ".lbm")
-				||	BLI_testextensie(filename, ".gif")
-				||	BLI_testextensie(filename, ".psd")
-				||	BLI_testextensie(filename, ".pct")
-				||	BLI_testextensie(filename, ".pict")
-				||	BLI_testextensie(filename, ".pntg") //macpaint
-				||	BLI_testextensie(filename, ".qtif")
-				||	BLI_testextensie(filename, ".cin")
-#ifdef WITH_BF_OPENEXR
-				||	BLI_testextensie(filename, ".exr")
-#endif
-#ifdef WITH_BF_OPENJPEG
-				||	BLI_testextensie(filename, ".jp2")
-#endif
-				||	BLI_testextensie(filename, ".sgi")) {
-				return IMB_ispic_name(filename);
-			} else {
-				return(FALSE);			
-			}
-		} else { /* no quicktime or libtiff */
-			if(		BLI_testextensie(filename, ".jpg")
-				||	BLI_testextensie(filename, ".jpeg")
-				||	BLI_testextensie(filename, ".hdr")
-				||	BLI_testextensie(filename, ".tga")
-				||	BLI_testextensie(filename, ".rgb")
-				||	BLI_testextensie(filename, ".bmp")
-				||	BLI_testextensie(filename, ".png")
-				||	BLI_testextensie(filename, ".cin")
-#ifdef WITH_DDS
-				||	BLI_testextensie(filename, ".dds")
-#endif
-#ifdef WITH_BF_OPENEXR
-				||	BLI_testextensie(filename, ".exr")
-#endif
-#ifdef WITH_BF_OPENJPEG
-				||	BLI_testextensie(filename, ".jp2")
-#endif
-				||	BLI_testextensie(filename, ".iff")
-				||	BLI_testextensie(filename, ".lbm")
-				||	BLI_testextensie(filename, ".sgi")) {
-				return IMB_ispic_name(filename);
-			}
-			else  {
-				return(FALSE);
-			}
+		else  {
+			return FALSE;
 		}
-	} else { /* no FILTERFILEEXTS */
+	}
+	else { /* no FILTERFILEEXTS */
 		return IMB_ispic_name(filename);
 	}
 }
@@ -391,14 +345,14 @@ int imb_get_anim_type(char * name) {
 	/* stat test below fails on large files > 4GB */
 	if (isffmpeg(name)) return (ANIM_FFMPEG);
 #	endif
-	if (ib_stat(name,&st) == -1) return(0);
+	if (stat(name,&st) == -1) return(0);
 	if (((st.st_mode) & S_IFMT) != S_IFREG) return(0);
 
 	if (isavi(name)) return (ANIM_AVI);
 
 	if (ismovie(name)) return (ANIM_MOVIE);
 #else
-	if (ib_stat(name,&st) == -1) return(0);
+	if (stat(name,&st) == -1) return(0);
 	if (((st.st_mode) & S_IFMT) != S_IFREG) return(0);
 
 	if (ismovie(name)) return (ANIM_MOVIE);
@@ -414,7 +368,6 @@ int imb_get_anim_type(char * name) {
 	if (isredcode(name)) return (ANIM_REDCODE);
 #endif
 	type = IMB_ispic(name);
-	if (type == ANIM) return (ANIM_ANIM5);
 	if (type) return(ANIM_SEQUENCE);
 	return(0);
 }

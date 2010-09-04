@@ -169,8 +169,8 @@ PluginTex *add_plugin_tex(char *str)
 	open_plugin_tex(pit);
 	
 	if(pit->doit==0) {
-		if(pit->handle==0); //XXX error("no plugin: %s", str);
-		else ; //XXX error("in plugin: %s", str);
+		if(pit->handle==0) {;} //XXX error("no plugin: %s", str);
+		else {;} //XXX error("in plugin: %s", str);
 		MEM_freeN(pit);
 		return NULL;
 	}
@@ -245,7 +245,7 @@ void init_colorband(ColorBand *coba, int rangetype)
 		coba->data[0].b= 0.0;
 		coba->data[0].a= 0.0;
 		
-		coba->data[1].r= 0.0;
+		coba->data[1].r= 1.0;
 		coba->data[1].g= 1.0;
 		coba->data[1].b= 1.0;
 		coba->data[1].a= 1.0;
@@ -403,6 +403,73 @@ void colorband_table_RGBA(ColorBand *coba, float **array, int *size)
 		do_colorband(coba, (float)a/(float)CM_TABLE, &(*array)[a*4]);
 }
 
+int vergcband(const void *a1, const void *a2)
+{
+	const CBData *x1=a1, *x2=a2;
+
+	if( x1->pos > x2->pos ) return 1;
+	else if( x1->pos < x2->pos) return -1;
+	return 0;
+}
+
+CBData *colorband_element_add(struct ColorBand *coba, float position)
+{
+	int a;
+
+	if(coba->tot==MAXCOLORBAND) {
+		return NULL;
+	}
+	else if(coba->tot > 0) {
+		CBData *xnew;
+		float col[4];
+
+		do_colorband(coba, position, col);
+
+		xnew = &coba->data[coba->tot];
+		xnew->pos = position;
+
+		xnew->r = col[0];
+		xnew->g = col[1];
+		xnew->b = col[2];
+		xnew->a = col[3];
+	}
+
+	coba->tot++;
+	coba->cur = coba->tot-1;
+
+	for(a = 0; a < coba->tot; a++)
+		coba->data[a].cur = a;
+
+	qsort(coba->data, coba->tot, sizeof(CBData), vergcband);
+
+	for(a = 0; a < coba->tot; a++) {
+		if(coba->data[a].cur == coba->cur) {
+			coba->cur = a;
+			break;
+		}
+	}
+
+	return coba->data + coba->cur;
+}
+
+int colorband_element_remove(struct ColorBand *coba, int index)
+{
+	int a;
+
+	if(coba->tot < 2)
+		return 0;
+
+	if(index < 0 || index >= coba->tot)
+		return 0;
+
+	for(a = index; a < coba->tot; a++) {
+		coba->data[a] = coba->data[a + 1];
+	}
+	if(coba->cur) coba->cur--;
+	coba->tot--;
+	return 1;
+}
+
 /* ******************* TEX ************************ */
 
 void free_texture(Tex *tex)
@@ -451,6 +518,7 @@ void default_tex(Tex *tex)
 	tex->nabla= 0.025;	// also in do_versions
 	tex->bright= 1.0;
 	tex->contrast= 1.0;
+	tex->saturation= 1.0;
 	tex->filtersize= 1.0;
 	tex->rfac= 1.0;
 	tex->gfac= 1.0;
@@ -509,13 +577,35 @@ void default_tex(Tex *tex)
 	tex->preview = NULL;
 }
 
+void tex_set_type(Tex *tex, int type)
+{
+	switch(type) {
+			
+		case TEX_VOXELDATA:
+			if (tex->vd == NULL)
+				tex->vd = BKE_add_voxeldata();
+			break;
+		case TEX_POINTDENSITY:
+			if (tex->pd == NULL)
+				tex->pd = BKE_add_pointdensity();
+			break;
+		case TEX_ENVMAP:
+			if (tex->env == NULL)
+				tex->env = BKE_add_envmap();
+			break;
+	}
+	
+	tex->type = type;
+}
+
 /* ------------------------------------------------------------------------- */
 
 Tex *add_texture(const char *name)
 {
+	Main *bmain= G.main;
 	Tex *tex;
 
-	tex= alloc_libblock(&G.main->tex, ID_TE, name);
+	tex= alloc_libblock(&bmain->tex, ID_TE, name);
 	
 	default_tex(tex);
 	
@@ -620,6 +710,8 @@ Tex *copy_texture(Tex *tex)
 	
 	if(texn->coba) texn->coba= MEM_dupallocN(texn->coba);
 	if(texn->env) texn->env= BKE_copy_envmap(texn->env);
+	if(texn->pd) texn->pd= MEM_dupallocN(texn->pd);
+	if(texn->vd) texn->vd= MEM_dupallocN(texn->vd);
 	
 	if(tex->preview) texn->preview = BKE_previewimg_copy(tex->preview);
 
@@ -635,6 +727,7 @@ Tex *copy_texture(Tex *tex)
 
 void make_local_texture(Tex *tex)
 {
+	Main *bmain= G.main;
 	Tex *texn;
 	Material *ma;
 	World *wrld;
@@ -664,7 +757,7 @@ void make_local_texture(Tex *tex)
 		return;
 	}
 	
-	ma= G.main->mat.first;
+	ma= bmain->mat.first;
 	while(ma) {
 		for(a=0; a<MAX_MTEX; a++) {
 			if(ma->mtex[a] && ma->mtex[a]->tex==tex) {
@@ -674,7 +767,7 @@ void make_local_texture(Tex *tex)
 		}
 		ma= ma->id.next;
 	}
-	la= G.main->lamp.first;
+	la= bmain->lamp.first;
 	while(la) {
 		for(a=0; a<MAX_MTEX; a++) {
 			if(la->mtex[a] && la->mtex[a]->tex==tex) {
@@ -684,7 +777,7 @@ void make_local_texture(Tex *tex)
 		}
 		la= la->id.next;
 	}
-	wrld= G.main->world.first;
+	wrld= bmain->world.first;
 	while(wrld) {
 		for(a=0; a<MAX_MTEX; a++) {
 			if(wrld->mtex[a] && wrld->mtex[a]->tex==tex) {
@@ -694,7 +787,7 @@ void make_local_texture(Tex *tex)
 		}
 		wrld= wrld->id.next;
 	}
-	br= G.main->brush.first;
+	br= bmain->brush.first;
 	while(br) {
 		if(br->mtex.tex==tex) {
 			if(br->id.lib) lib= 1;
@@ -712,7 +805,7 @@ void make_local_texture(Tex *tex)
 		texn= copy_texture(tex);
 		texn->id.us= 0;
 		
-		ma= G.main->mat.first;
+		ma= bmain->mat.first;
 		while(ma) {
 			for(a=0; a<MAX_MTEX; a++) {
 				if(ma->mtex[a] && ma->mtex[a]->tex==tex) {
@@ -725,7 +818,7 @@ void make_local_texture(Tex *tex)
 			}
 			ma= ma->id.next;
 		}
-		la= G.main->lamp.first;
+		la= bmain->lamp.first;
 		while(la) {
 			for(a=0; a<MAX_MTEX; a++) {
 				if(la->mtex[a] && la->mtex[a]->tex==tex) {
@@ -738,7 +831,7 @@ void make_local_texture(Tex *tex)
 			}
 			la= la->id.next;
 		}
-		wrld= G.main->world.first;
+		wrld= bmain->world.first;
 		while(wrld) {
 			for(a=0; a<MAX_MTEX; a++) {
 				if(wrld->mtex[a] && wrld->mtex[a]->tex==tex) {
@@ -751,7 +844,7 @@ void make_local_texture(Tex *tex)
 			}
 			wrld= wrld->id.next;
 		}
-		br= G.main->brush.first;
+		br= bmain->brush.first;
 		while(br) {
 			if(br->mtex.tex==tex) {
 				if(br->id.lib==0) {
@@ -769,6 +862,7 @@ void make_local_texture(Tex *tex)
 
 void autotexname(Tex *tex)
 {
+	Main *bmain= G.main;
 	char texstr[20][15]= {"None"  , "Clouds" , "Wood", "Marble", "Magic"  , "Blend",
 		"Stucci", "Noise"  , "Image", "Plugin", "EnvMap" , "Musgrave",
 		"Voronoi", "DistNoise", "Point Density", "Voxel Data", "", "", "", ""};
@@ -777,7 +871,7 @@ void autotexname(Tex *tex)
 	
 	if(tex) {
 		if(tex->use_nodes) {
-			new_id(&G.main->tex, (ID *)tex, "Noddy");
+			new_id(&bmain->tex, (ID *)tex, "Noddy");
 		}
 		else
 		if(tex->type==TEX_IMAGE) {
@@ -787,12 +881,12 @@ void autotexname(Tex *tex)
 				BLI_splitdirstring(di, fi);
 				strcpy(di, "I.");
 				strcat(di, fi);
-				new_id(&G.main->tex, (ID *)tex, di);
+				new_id(&bmain->tex, (ID *)tex, di);
 			}
-			else new_id(&G.main->tex, (ID *)tex, texstr[tex->type]);
+			else new_id(&bmain->tex, (ID *)tex, texstr[tex->type]);
 		}
-		else if(tex->type==TEX_PLUGIN && tex->plugin) new_id(&G.main->tex, (ID *)tex, tex->plugin->pname);
-		else new_id(&G.main->tex, (ID *)tex, texstr[tex->type]);
+		else if(tex->type==TEX_PLUGIN && tex->plugin) new_id(&bmain->tex, (ID *)tex, tex->plugin->pname);
+		else new_id(&bmain->tex, (ID *)tex, texstr[tex->type]);
 	}
 }
 
@@ -877,9 +971,15 @@ Tex *give_current_material_texture(Material *ma)
 		}
 		else {
 			node= nodeGetActiveID(ma->nodetree, ID_MA);
-			if(node)
+			if(node) {
 				ma= (Material*)node->id;
+				if(ma) {
+					mtex= ma->mtex[(int)(ma->texact)];
+					if(mtex) tex= mtex->tex;
+				}
+			}
 		}
+		return tex;
 	}
 
 	if(ma) {
@@ -1103,6 +1203,7 @@ PointDensity *BKE_add_pointdensity(void)
 	pd->totpoints = 0;
 	pd->object = NULL;
 	pd->psys = 0;
+	pd->psys_cache_space= TEX_PD_WORLDSPACE;
 	return pd;
 } 
 
@@ -1141,7 +1242,8 @@ void BKE_free_pointdensity(PointDensity *pd)
 void BKE_free_voxeldatadata(struct VoxelData *vd)
 {
 	if (vd->dataset) {
-		MEM_freeN(vd->dataset);
+		if(vd->file_format != TEX_VD_SMOKE)
+			MEM_freeN(vd->dataset);
 		vd->dataset = NULL;
 	}
 
@@ -1165,6 +1267,8 @@ struct VoxelData *BKE_add_voxeldata(void)
 	vd->int_multiplier = 1.0;
 	vd->extend = TEX_CLIP;
 	vd->object = NULL;
+	vd->cachedframe = -1;
+	vd->ok = 0;
 	
 	return vd;
  }

@@ -36,12 +36,11 @@
 extern "C" {
 #endif
 
-#include "stdio.h"
-#include "stdlib.h"
-#include "string.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "BKE_utildefines.h"
-#include "MEM_guardedalloc.h"
 
 #include "BLI_mempool.h"
 #include "BLI_blenlib.h"
@@ -72,7 +71,7 @@ typedef struct GHashIterator {
 	struct Entry *curEntry;
 } GHashIterator;
 
-GHash*	BLI_ghash_new		(GHashHashFP hashfp, GHashCmpFP cmpfp);
+GHash*	BLI_ghash_new		(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info);
 void	BLI_ghash_free		(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp);
 
 //BM_INLINE void	BLI_ghash_insert	(GHash *gh, void *key, void *val);

@@ -15,7 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
-# Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
 # All rights reserved.
@@ -38,10 +38,10 @@ include nan_compile.mk
 
 CCFLAGS += $(LEVEL_1_CPP_WARNINGS)
 
-CPPFLAGS += -I../Expressions 
+CPPFLAGS += -I../Expressions
 CPPFLAGS += -I../SceneGraph
 CPPFLAGS += -I../Rasterizer
-CPPFLAGS += -I$(NAN_STRING)/include    
+CPPFLAGS += -I$(NAN_STRING)/include
 CPPFLAGS += -I$(NAN_MOTO)/include
 CPPFLAGS += -I../../blender/makesdna
 CPPFLAGS += -I$(NAN_PYTHON)/include/python$(NAN_PYTHON_VERSION)

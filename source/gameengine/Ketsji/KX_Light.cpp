@@ -26,10 +26,6 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 #ifdef WIN32
 
 #pragma warning (disable : 4786)
@@ -70,7 +66,7 @@ KX_LightObject::~KX_LightObject()
 
 	if((lamp = GetGPULamp())) {
 		float obmat[4][4] = {{0}};
-		GPU_lamp_update(lamp, 0, obmat);
+		GPU_lamp_update(lamp, 0, 0, obmat);
 	}
 
 	m_rendertools->RemoveLight(&m_lightobj);
@@ -203,7 +199,7 @@ void KX_LightObject::Update()
 			for(int j=0; j<4; j++, dobmat++)
 				obmat[i][j] = (float)*dobmat;
 
-		GPU_lamp_update(lamp, m_lightobj.m_layer, obmat);
+		GPU_lamp_update(lamp, m_lightobj.m_layer, 0, obmat);
 		GPU_lamp_update_colors(lamp, m_lightobj.m_red, m_lightobj.m_green, 
 			m_lightobj.m_blue, m_lightobj.m_energy);
 	}
@@ -352,6 +348,11 @@ PyObject* KX_LightObject::pyattr_get_typeconst(void *self_v, const KX_PYATTRIBUT
 	} else if (!strcmp(type, "NORMAL")) {
 		retvalue = PyLong_FromSsize_t(RAS_LightObject::LIGHT_NORMAL);
 	}
+    else {
+        /* should never happen */
+        PyErr_SetString(PyExc_TypeError, "light.type: internal error, invalid light type");
+        retvalue = NULL;
+    }
 
 	return retvalue;
 }

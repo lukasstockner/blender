@@ -26,7 +26,7 @@ def RKS_POLL_selected_objects(ksi, context):
 def RKS_POLL_selected_bones(ksi, context):
     # we must be in Pose Mode, and there must be some bones selected 
     if (context.active_object) and (context.active_object.mode == 'POSE'):
-        if context.active_pose_bone or len(context.select_pose_bones):
+        if context.active_pose_bone or len(context.selected_pose_bones):
             return True;
     
     # nothing selected 
@@ -84,7 +84,7 @@ def get_transform_generators_base_info(data):
         grouping = None
     else:
         # get the path to the ID-block
-        path = data.path_to_id()
+        path = data.path_from_id()
 
         # try to use the name of the data element to group the F-Curve
         # else fallback on the KeyingSet name
@@ -96,14 +96,14 @@ def get_transform_generators_base_info(data):
 # Location 
 def RKS_GEN_location(ksi, context, ks, data):
     # get id-block and path info
-    id_block, base_path, grouping= get_transform_generators_base_info(data)
+    id_block, base_path, grouping = get_transform_generators_base_info(data)
     
     # add the property name to the base path
     path = path_add_property(base_path, "location")
     
     # add Keying Set entry for this...
     if grouping:
-        ks.paths.add(id_block, path, grouping_method='NAMED', group_name=grouping)
+        ks.paths.add(id_block, path, group_method='NAMED', group_name=grouping)
     else:
         ks.paths.add(id_block, path)
 
@@ -116,14 +116,14 @@ def RKS_GEN_rotation(ksi, context, ks, data):
     #   rotation mode affects the property used
     if data.rotation_mode == 'QUATERNION':
         path = path_add_property(base_path, "rotation_quaternion")
-    elif data.rotation_mode == 'AXISANGLE':
+    elif data.rotation_mode == 'AXIS_ANGLE':
         path = path_add_property(base_path, "rotation_axis_angle")
     else:
         path = path_add_property(base_path, "rotation_euler")
     
     # add Keying Set entry for this...
     if grouping:
-        ks.paths.add(id_block, path, grouping_method='NAMED', group_name=grouping)
+        ks.paths.add(id_block, path, group_method='NAMED', group_name=grouping)
     else:
         ks.paths.add(id_block, path)
 
@@ -137,7 +137,7 @@ def RKS_GEN_scaling(ksi, context, ks, data):
     
     # add Keying Set entry for this...
     if grouping:
-        ks.paths.add(id_block, path, grouping_method='NAMED', group_name=grouping)
+        ks.paths.add(id_block, path, group_method='NAMED', group_name=grouping)
     else:
         ks.paths.add(id_block, path)
 
@@ -147,15 +147,11 @@ def RKS_GEN_scaling(ksi, context, ks, data):
 classes = []
 
 def register():
-    register = bpy.types.register
-    for cls in classes:
-        register(cls)
+    pass
 
 
 def unregister():
-    unregister = bpy.types.unregister
-    for cls in classes:
-        unregister(cls)
+    pass
 
 if __name__ == "__main__":
     register()
