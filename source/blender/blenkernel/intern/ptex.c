@@ -60,6 +60,50 @@ DerivedMesh *quad_dm_create_from_derived(DerivedMesh *dm)
 	return ccgdm;
 }
 
+void ptex_elem_to_floats(int type, int channels, void *data, float *out)
+{
+	int i;
+
+	switch(type) {
+	case PTEX_DT_UINT8:
+		for(i = 0; i < channels; ++i)
+			out[i] = ((unsigned char*)data)[i] / 255.0;
+		break;
+	case PTEX_DT_UINT16:
+		for(i = 0; i < channels; ++i)
+			out[i] = ((unsigned char*)data)[i] / 65535.0;
+		break;
+	case PTEX_DT_FLOAT:
+		for(i = 0; i < channels; ++i)
+			out[i] = ((float*)data)[i];
+		break;
+	default:
+		break;
+	}
+}
+
+void ptex_elem_from_floats(int type, int channels, void *data, float *in)
+{
+	int i;
+
+	switch(type) {
+	case PTEX_DT_UINT8:
+		for(i = 0; i < channels; ++i)
+			((unsigned char*)data)[i] = in[i] * 255;
+		break;
+	case PTEX_DT_UINT16:
+		for(i = 0; i < channels; ++i)
+			((unsigned short*)data)[i] = in[i] * 65535;
+		break;
+	case PTEX_DT_FLOAT:
+		for(i = 0; i < channels; ++i)
+			((float*)data)[i] = in[i];
+		break;
+	default:
+		break;
+	}
+}
+
 static void ptex_elem_to_floats_mul_add(MPtex *pt, void *data, float *out, float fac)
 {
 	int i;
@@ -76,28 +120,6 @@ static void ptex_elem_to_floats_mul_add(MPtex *pt, void *data, float *out, float
 	case PTEX_DT_FLOAT:
 		for(i = 0; i < pt->channels; ++i)
 			out[i] += ((float*)data)[i] * fac;
-		break;
-	default:
-		break;
-	}
-}
-
-static void ptex_elem_from_floats(MPtex *pt, void *data, float *in)
-{
-	int i;
-
-	switch(pt->type) {
-	case PTEX_DT_UINT8:
-		for(i = 0; i < pt->channels; ++i)
-			((unsigned char*)data)[i] = in[i] * 255;
-		break;
-	case PTEX_DT_UINT16:
-		for(i = 0; i < pt->channels; ++i)
-			((unsigned short*)data)[i] = in[i] * 65535;
-		break;
-	case PTEX_DT_FLOAT:
-		for(i = 0; i < pt->channels; ++i)
-			((float*)data)[i] = in[i];
 		break;
 	default:
 		break;
@@ -129,7 +151,7 @@ static void ptex_bilinear_interp(MPtex *pt, MPtexSubface *subface,
 	ptex_elem_to_floats_mul_add(pt, input_start + layersize * (yi*rowlen+xt), tmp, s*v);
 	ptex_elem_to_floats_mul_add(pt, input_start + layersize * (yt*rowlen+xt), tmp, s*t);
 	ptex_elem_to_floats_mul_add(pt, input_start + layersize * (yt*rowlen+xi), tmp, u*t);
-	ptex_elem_from_floats(pt, out, tmp);
+	ptex_elem_from_floats(pt->type, pt->channels, out, tmp);
 }
 
 /* interpolate subface to new resolution */

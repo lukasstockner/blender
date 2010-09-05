@@ -33,6 +33,9 @@ struct MPtex;
 struct MPtexSubface;
 struct PtexTextureHandle;
 
+void ptex_elem_to_floats(int type, int channels, void *data, float *out);
+void ptex_elem_from_floats(int type, int channels, void *data, float *in);
+
 struct DerivedMesh *quad_dm_create_from_derived(struct DerivedMesh *dm);
 void ptex_subface_scale(struct MPtex *pt, struct MPtexSubface *subface, int ures, int vres);
 void ptex_layer_from_file(struct Mesh *me, struct PtexTextureHandle *ptex_texture);

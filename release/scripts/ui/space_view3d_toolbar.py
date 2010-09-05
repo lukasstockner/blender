@@ -1079,13 +1079,13 @@ class VIEW3D_PT_tools_paint_symmetry(PaintPanel, bpy.types.Panel):
         col = split.column()
 
         col.label(text="Mirror:")
-        col.prop(sculpt, "use_symmetry_x", text="X")
-        col.prop(sculpt, "use_symmetry_y", text="Y")
-        col.prop(sculpt, "use_symmetry_z", text="Z")
+        col.prop(paint, "use_symmetry_x", text="X")
+        col.prop(paint, "use_symmetry_y", text="Y")
+        col.prop(paint, "use_symmetry_z", text="Z")
 
         col = split.column()
 
-        col.prop(sculpt, "radial_symmetry", text="Radial")
+        col.prop(paint, "radial_symmetry", text="Radial")
 
         col = layout.column()
 

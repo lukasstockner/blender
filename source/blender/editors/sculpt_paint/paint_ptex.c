@@ -169,16 +169,147 @@ static void ptex_elem_from_float4(PtexDataType type, int channels, void *data, f
 	}
 }
 
+static void ptex_get_edge_iter(MPtex *mptex, GridToFace *gtf,
+			       char *data,
+			       int layersize, int edge, int border,
+			       char **start, int *len, int *step)
+{
+	MPtexSubface *subface = &mptex[gtf->face].subfaces[gtf->offset];
+	int *res = subface->res;
+	int start_offset;
+	int x, y;
+
+	if(!data)
+		data = subface->data;
+
+	switch(edge) {
+	case 0:
+		x = border;
+		y = 0;
+		*len = res[0];
+		*step = layersize;
+		break;
+	case 2:
+		x = border;
+		y = res[1] + border + border - 1;
+		*len = res[0];
+		*step = layersize;
+		break;
+	case 1:
+		x = -1;
+		y = border + 1;
+		*len = res[1];
+		*step = layersize * (res[0] + border + border);
+		break;
+	case 3:
+		x = 0;
+		y = border;
+		*len = res[1];
+		*step = layersize * (res[0] + border + border);
+		break;
+	}
+
+	start_offset = y * (res[0] + border + border) + x;
+	*start = data + layersize * start_offset;
+}
+
+
+
+/* build a ptex grid that includes borders filled with neighbor data,
+   or repeated data if at a mesh boundary. this could be done more efficient
+   by not allocating a full grid here, but simpler to get this working first */
+static void *ptex_paint_build_blur_input(DMGridAdjacency *grid_adj, MPtex *mptex,
+					 int grid_index, GridToFace *grid_face_map,
+					 int layersize)
+{
+	GridToFace *gtf;
+	MPtexSubface *subface;
+	char *out;
+	int i, v;
+
+	gtf = &grid_face_map[grid_index];
+	subface = &mptex[gtf->face].subfaces[gtf->offset];
+
+	out = MEM_mallocN(layersize * (subface->res[0]+2) * (subface->res[1]+2), "blurred_data_input");
+
+	/* copy center */
+	for(v = 0; v < subface->res[1]; ++v) {
+		memcpy(out + layersize * ((v+1) * (subface->res[0]+2) + 1),
+		       (char*)subface->data + layersize * v * subface->res[0],
+		       layersize * subface->res[0]);
+	}
+
+	/* fill in borders with adjacent data */
+	for(i = 0; i < 4; ++i) {
+		DMGridAdjacency *adj = &grid_adj[grid_index];
+
+		if(adj->index[i] == -1) {
+			/* TODO: mesh boundary, just repeat existing border */
+		}
+		else {
+			char *t1, *t2;
+			float step2_fac;
+			int j, len1, len2, step1, step2;
+
+			ptex_get_edge_iter(mptex, &grid_face_map[grid_index], out, layersize, i, 1, &t1, &len1, &step1);
+			ptex_get_edge_iter(mptex, &grid_face_map[adj->index[i]], NULL, layersize, adj->rotation[i], 0, &t2, &len2, &step2);
+
+			step2_fac = (float)len2 / (float)len1;
+
+			for(j = 0; j < len1; ++j) {
+				memcpy(t1 + step1 * j,
+				       t2 + step2*(int)(step2_fac*j),
+				       layersize);
+			}
+		}
+	}
+
+	return out;
+}
+
+static void ptex_blur_texel(MPtex *pt, MPtexSubface *subface,
+			    char *blur_input, int layersize,
+			    int u_offset, int v_offset,
+			    float avg[4])
+{
+	int i;
+
+	zero_v4(avg);
+	
+	for(i = 0; i < 4; ++i) {
+		float col[4];
+		int u = u_offset;
+		int v = v_offset;
+		
+		if(i == 0) u--;
+		else if(i == 1) v--;
+		else if(i == 2) u++;
+		else if(i == 3) v++;
+
+		ptex_elem_to_float4(pt->type,
+				    pt->channels,
+				    blur_input + layersize*((v+1)*(subface->res[0]+2) + u+1),
+				    col);
+		avg[0] += col[0];
+		avg[1] += col[1];
+		avg[2] += col[2];
+		avg[3] += col[3];
+	}
+
+	mul_v4_fl(avg, 1.0f / i);
+}
+
 static void ptex_paint_ptex_from_quad(Brush *brush, PaintStroke *stroke, PaintStrokeTest *test,
-				  MPtex *pt, int res[2], int rowlen, char *data,
-				  float v1[3], float v2[3], float v3[3], float v4[3])
+				      MPtex *pt, MPtexSubface *subface, int res[2],
+				      int u_offset, int v_offset, int layersize,
+				      char *blur_input,
+				      float v1[3], float v2[3], float v3[3], float v4[3])
 				  
 {
+	char *data = (char*)subface->data + layersize * (v_offset * subface->res[0] + u_offset);
 	float dtop[3], dbot[3], xoffset, yinterp, ustep, vstep;
 	float co_bot[3], co_top[3], start_top[3], start_bot[3];
-	int u, v, layersize;
-
-	layersize = pt->channels * ptex_data_size(pt->type);
+	int u, v;
 
 	/* start of top and bottom "rails" */
 	copy_v3_v3(start_top, v4);
@@ -213,13 +344,26 @@ static void ptex_paint_ptex_from_quad(Brush *brush, PaintStroke *stroke, PaintSt
 			if(paint_stroke_test(test, co)) {
 				float strength;
 				float fcol[4];
-				char *elem = data + layersize*(v*rowlen + u);
+				char *elem = data + layersize*(v*subface->res[0] + u);
 					
 				strength = brush->alpha *
 					paint_stroke_combined_strength(stroke, test->dist, co, 0);
 				
 				ptex_elem_to_float4(pt->type, pt->channels, elem, fcol);
-				ptex_paint_blend(brush, stroke, fcol, strength, co);
+
+				if(blur_input) {
+					float blurcol[4];
+					
+					ptex_blur_texel(pt, subface,
+							blur_input, layersize,
+							u_offset + u, v_offset + v,
+							blurcol);
+
+					interp_v4_v4v4(fcol, fcol, blurcol, strength);
+				}
+				else
+					ptex_paint_blend(brush, stroke, fcol, strength, co);
+
 				ptex_elem_from_float4(pt->type, pt->channels, elem, fcol);
 			}
 
@@ -232,11 +376,12 @@ static void ptex_paint_ptex_from_quad(Brush *brush, PaintStroke *stroke, PaintSt
 }
 
 static void ptex_paint_node_grids(Brush *brush, PaintStroke *stroke,
-			      DMGridData **grids, GridKey *gridkey,
-			      GridToFace *grid_face_map,
-			      CustomData *fdata,
-			      int *grid_indices,
-			      int totgrid, int gridsize)
+				  DMGridData **grids, GridKey *gridkey,
+				  GridToFace *grid_face_map,
+				  DMGridAdjacency *grid_adj,
+				  CustomData *fdata,
+				  int *grid_indices,
+				  int totgrid, int gridsize)
 {
 	PaintStrokeTest test;
 	MPtex *mptex;
@@ -252,6 +397,7 @@ static void ptex_paint_node_grids(Brush *brush, PaintStroke *stroke,
 		GridToFace *gtf = &grid_face_map[g];
 		MPtex *pt = &mptex[gtf->face];
 		MPtexSubface *subface = &pt->subfaces[gtf->offset];
+		char *blur_input = NULL;
 		int u, v, x, y, layersize, res[2];
 
 		/* ignore hidden and masked subfaces */
@@ -259,6 +405,12 @@ static void ptex_paint_node_grids(Brush *brush, PaintStroke *stroke,
 			continue;
 
 		layersize = pt->channels * ptex_data_size(pt->type);
+
+		if(brush->vertexpaint_tool == VERTEX_PAINT_BLUR) {
+			blur_input = ptex_paint_build_blur_input(grid_adj, mptex,
+								 g, grid_face_map,
+								 layersize);
+		}
 
 		res[0] = MAX2(subface->res[0] / (gridsize - 1), 1);
 		res[1] = MAX2(subface->res[1] / (gridsize - 1), 1);
@@ -274,11 +426,14 @@ static void ptex_paint_node_grids(Brush *brush, PaintStroke *stroke,
 				};
 
 				ptex_paint_ptex_from_quad(brush, stroke, &test,
-						      pt, res, subface->res[0],
-						      (char*)subface->data + layersize * (v * subface->res[0] + u),
-						      co[0], co[1], co[2], co[3]);
+							  pt, subface, res, u, v,
+							  layersize, blur_input,
+							  co[0], co[1], co[2], co[3]);
 			}
 		}
+
+		if(blur_input)
+			MEM_freeN(blur_input);
 	}
 }
 
@@ -300,6 +455,7 @@ static void ptex_paint_nodes(VPaint *vp, PaintStroke *stroke,
 
 	for(n = 0; n < totnode; ++n) {
 		DMGridData **grids;
+		DMGridAdjacency *grid_adj;
 		GridKey *gridkey;
 		int *grid_indices;
 		int totgrid, gridsize;
@@ -308,13 +464,14 @@ static void ptex_paint_nodes(VPaint *vp, PaintStroke *stroke,
 
 		BLI_pbvh_node_get_grids(pbvh, nodes[n],
 					&grid_indices, &totgrid, NULL,
-					&gridsize, &grids, NULL, &gridkey);
+					&gridsize, &grids, &grid_adj, &gridkey);
 
 		ptex_paint_node_grids(brush, stroke,
-				  grids, gridkey,
-				  grid_face_map, fdata,
-				  grid_indices,
-				  totgrid, gridsize);
+				      grids, gridkey,
+				      grid_face_map,
+				      grid_adj, fdata,
+				      grid_indices,
+				      totgrid, gridsize);
 
 		BLI_pbvh_node_set_flags(nodes[n],
 			SET_INT_IN_POINTER(PBVH_UpdateColorBuffers|
@@ -386,6 +543,11 @@ static void ptex_paint_restore(VPaint *vp, Object *ob)
 	}
 }
 
+static void ptex_stitch_subfaces()
+{
+
+}
+
 static void ptex_paint_stroke_update_step(bContext *C, PaintStroke *stroke,
 					  PointerRNA *itemptr)
 {
@@ -397,7 +559,7 @@ static void ptex_paint_stroke_update_step(bContext *C, PaintStroke *stroke,
 	paint_stroke_apply_brush(C, stroke, &vp->paint);
 
 	if(paint_brush(&vp->paint)->vertexpaint_tool == VERTEX_PAINT_BLUR)
-		;//multires_stitch_grids(ob);
+		ptex_stitch_subfaces();
 
 	/* partial redraw */
 	paint_tag_partial_redraw(C, ob);
@@ -471,6 +633,91 @@ void PAINT_OT_vertex_paint(wmOperatorType *ot)
 	ot->flag= OPTYPE_BLOCKING;
 
 	RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
+}
+
+static EnumPropertyItem ptex_layer_type_items[]= {
+	{PTEX_DT_UINT8, "PTEX_DT_UINT8", 0, "8-bit channels", ""},
+	{PTEX_DT_UINT16, "PTEX_DT_UINT16", 0, "16-bit channels", ""},
+	{PTEX_DT_FLOAT, "PTEX_DT_FLOAT", 0, "32-bit floating-point channels", ""},
+
+	{0, NULL, 0, NULL, NULL}};
+
+static int ptex_active_layer_poll(bContext *C)
+{
+	Object *ob = CTX_data_active_object(C);
+	if(ob) {
+		Mesh *me = get_mesh(ob);
+		if(me)
+			return !!CustomData_get_layer(&me->fdata, CD_MPTEX);
+	}
+	return 0;
+}
+
+static int ptex_layer_convert_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = CTX_data_active_object(C);
+	Mesh *me = ob->data;
+	MPtex *mptex;
+	PtexDataType new_type;
+	int i, j, x, y;
+
+	new_type = RNA_enum_get(op->ptr, "type");
+	mptex = CustomData_get_layer(&me->fdata, CD_MPTEX);
+
+	for(i = 0; i < me->totface; ++i) {
+		MPtex *pt = &mptex[i];
+
+		for(j = 0; j < mptex[i].totsubface; ++j) {
+			MPtexSubface *subface = &pt->subfaces[j];
+			int orig_layersize, new_layersize;
+			float *f;
+			char *orig_data, *new_data, *new_data_start;
+
+			orig_layersize = pt->channels * ptex_data_size(pt->type);
+			new_layersize = pt->channels * ptex_data_size(new_type);
+
+			f = MEM_callocN(sizeof(float) * pt->channels, "tmp ptex elem");
+			new_data_start = new_data =
+				MEM_callocN(new_layersize * subface->res[0] * subface->res[1],
+					    "mptex converted data");
+			orig_data = subface->data;
+
+			for(y = 0; y < subface->res[1]; ++y) {
+				for(x = 0; x < subface->res[0]; ++x,
+					    orig_data += orig_layersize,
+					    new_data += new_layersize) {
+					ptex_elem_to_floats(pt->type, pt->channels, orig_data, f);
+					ptex_elem_from_floats(new_type, pt->channels, new_data, f);
+				}
+			}
+
+			MEM_freeN(subface->data);
+			subface->data = new_data_start;
+			MEM_freeN(f);
+		}
+
+		pt->type = new_type;
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+void PTEX_OT_layer_convert(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Convert Layer";
+	ot->description= "Convert Ptex data to another type";
+	ot->idname= "PTEX_OT_layer_convert";
+	
+	/* api callbacks */
+	ot->exec= ptex_layer_convert_exec;
+	ot->poll= ptex_active_layer_poll;
+	
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	/* properties */
+	RNA_def_enum(ot->srna, "type", ptex_layer_type_items, PTEX_DT_FLOAT, "Type", "Layer channels and data type");
 }
 
 static int next_power_of_two(int n)
@@ -620,13 +867,6 @@ static int ptex_layer_add_exec(bContext *C, wmOperator *op)
 
 void PTEX_OT_layer_add(wmOperatorType *ot)
 {
-	static EnumPropertyItem type_items[]= {
-		{PTEX_DT_UINT8, "PTEX_DT_UINT8", 0, "8-bit channels", ""},
-		{PTEX_DT_UINT16, "PTEX_DT_UINT16", 0, "16-bit channels", ""},
-		{PTEX_DT_FLOAT, "PTEX_DT_FLOAT", 0, "32-bit floating-point channels", ""},
-
-		{0, NULL, 0, NULL, NULL}};
-	
 	/* identifiers */
 	ot->name= "Add Layer";
 	ot->description= "Add a new ptex layer";
@@ -641,7 +881,7 @@ void PTEX_OT_layer_add(wmOperatorType *ot)
 	/* properties */
 	RNA_def_float(ot->srna, "density", 10, 0, 6000, "Density", "Density of texels to generate", 0, 6000);
 	RNA_def_int(ot->srna, "channels", 3, 1, 4, "Channels", "", 1, 4);
-	RNA_def_enum(ot->srna, "type", type_items, PTEX_DT_FLOAT, "Type", "Layer channels and data type");
+	RNA_def_enum(ot->srna, "type", ptex_layer_type_items, PTEX_DT_FLOAT, "Type", "Layer channels and data type");
 }
 
 static int ptex_layer_remove_exec(bContext *C, wmOperator *op)
@@ -657,17 +897,6 @@ static int ptex_layer_remove_exec(bContext *C, wmOperator *op)
 		ED_object_toggle_modes(C, OB_MODE_VERTEX_PAINT);		
 
 	return OPERATOR_FINISHED;
-}
-
-static int ptex_active_layer_poll(bContext *C)
-{
-	Object *ob = CTX_data_active_object(C);
-	if(ob) {
-		Mesh *me = get_mesh(ob);
-		if(me)
-			return !!CustomData_get_layer(&me->fdata, CD_MPTEX);
-	}
-	return 0;
 }
 
 void PTEX_OT_layer_remove(wmOperatorType *ot)

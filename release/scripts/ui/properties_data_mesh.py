@@ -268,6 +268,7 @@ class DATA_PT_ptex(MeshButtonsPanel, bpy.types.Panel):
         col = row.column(align=True)
         col.operator("ptex.layer_remove", icon='ZOOMOUT', text="")
 
+        layout.operator_menu_enum("ptex.layer_convert", "type")
         layout.operator_menu_enum("ptex.layer_add", "type")
         row = layout.row()
         row.operator("ptex.open")

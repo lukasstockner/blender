@@ -1291,7 +1291,7 @@ void BLI_pbvh_get_grid_updates(PBVH *bvh, int clear, void ***gridfaces, int *tot
 	pbvh_iter_begin(&iter, bvh, NULL, NULL);
 
 	while((node=pbvh_iter_next(&iter))) {
-		if(node->flag & (PBVH_UpdateNormals|PBVH_NeedsColorStitch)) {
+		if(node->flag & (PBVH_UpdateNormals)) {
 			for(i = 0; i < node->totprim; ++i) {
 				face= bvh->gridfaces[node->prim_indices[i]];
 				if(!BLI_ghash_lookup(map, face))
@@ -1300,8 +1300,6 @@ void BLI_pbvh_get_grid_updates(PBVH *bvh, int clear, void ***gridfaces, int *tot
 
 			if(clear)
 				node->flag &= ~PBVH_UpdateNormals;
-
-			node->flag &= ~PBVH_NeedsColorStitch;
 		}
 	}
 

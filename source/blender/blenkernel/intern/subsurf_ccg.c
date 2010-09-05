@@ -2307,6 +2307,7 @@ static int ccgdm_adjacent_grid(CCGSubSurf *ss, int *gridOffset, CCGFace *f, int 
 		adjf = ccgSubSurf_getEdgeFace(e, i);
 
 		if(adjf != f) {
+			/* within the adjacent face, find the side [0-3] */
 			numEdges = ccgSubSurf_getFaceNumVerts(adjf);
 			for(j = 0; j < numEdges; j++)
 				if(ccgSubSurf_getFaceEdge(ss, adjf, j) == e)
@@ -2319,6 +2320,7 @@ static int ccgdm_adjacent_grid(CCGSubSurf *ss, int *gridOffset, CCGFace *f, int 
 	
 	fIndex = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(ss, adjf));
 
+	/* offset to choose the subface (there are two subfaces per edge) */
 	return gridOffset[fIndex] + (j + offset)%numEdges;
 }
 
@@ -2370,12 +2372,12 @@ static void ccgdm_create_grids(DerivedMesh *dm)
 
 			adj->index[0] = gIndex - S + nextS;
 			adj->rotation[0] = 3;
-			adj->index[1] = ccgdm_adjacent_grid(ss, gridOffset, f, prevS, 0);
-			adj->rotation[1] = 1;
-			adj->index[2] = ccgdm_adjacent_grid(ss, gridOffset, f, S, 1);
-			adj->rotation[2] = 3;
+			adj->index[1] = ccgdm_adjacent_grid(ss, gridOffset, f, S, 1);
+			adj->rotation[1] = 2;
+			adj->index[2] = ccgdm_adjacent_grid(ss, gridOffset, f, prevS, 0);
+			adj->rotation[2] = 1;
 			adj->index[3] = gIndex - S + prevS;
-			adj->rotation[3] = 1;
+			adj->rotation[3] = 0;
 		}
 	}
 

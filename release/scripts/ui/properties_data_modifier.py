@@ -396,7 +396,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, bpy.types.Panel):
         col.prop(md, "levels", text="Preview")
         col.prop(md, "edit_levels", text="Edit")
         col.prop(md, "render_levels", text="Render")
-        col.prop(md, "optimal_display")
+        col.prop(md, "show_only_control_edges")
 
         col = split.column()
 
@@ -405,7 +405,6 @@ class DATA_PT_modifiers(ModifierButtonsPanel, bpy.types.Panel):
         col.operator("object.multires_higher_levels_delete", text="Delete Higher")
         col.operator("object.multires_reshape", text="Reshape")
         col.operator("object.multires_base_apply", text="Apply Base")
-        col.prop(md, "show_only_control_edges")
 
         layout.separator()
 

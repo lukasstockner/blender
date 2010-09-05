@@ -223,6 +223,7 @@ void ED_operatortypes_paint(void)
 	WM_operatortype_append(PTEX_OT_layer_add);
 	WM_operatortype_append(PTEX_OT_layer_remove);
 	WM_operatortype_append(PTEX_OT_layer_save);
+	WM_operatortype_append(PTEX_OT_layer_convert);
 	WM_operatortype_append(PTEX_OT_open);
 	WM_operatortype_append(PTEX_OT_face_resolution_set);
 	WM_operatortype_append(PTEX_OT_subface_select);
