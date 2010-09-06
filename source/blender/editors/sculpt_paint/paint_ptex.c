@@ -242,25 +242,31 @@ static void *ptex_paint_build_blur_input(DMGridAdjacency *grid_adj, MPtex *mptex
 	/* fill in borders with adjacent data */
 	for(i = 0; i < 4; ++i) {
 		DMGridAdjacency *adj = &grid_adj[grid_index];
+		char *t1, *t2;
+		float step2_fac;
+		int j, len1, len2, step1, step2;
+
+		ptex_get_edge_iter(mptex, &grid_face_map[grid_index], out,
+				   layersize, i, 1, &t1, &len1, &step1);
 
 		if(adj->index[i] == -1) {
-			/* TODO: mesh boundary, just repeat existing border */
+			/* mesh boundary, just repeat existing border */
+			ptex_get_edge_iter(mptex, &grid_face_map[grid_index],
+					   NULL, layersize, i, 0,
+					   &t2, &len2, &step2);
 		}
 		else {
-			char *t1, *t2;
-			float step2_fac;
-			int j, len1, len2, step1, step2;
+			ptex_get_edge_iter(mptex, &grid_face_map[adj->index[i]],
+					   NULL, layersize, adj->rotation[i], 0,
+					   &t2, &len2, &step2);
+		}
 
-			ptex_get_edge_iter(mptex, &grid_face_map[grid_index], out, layersize, i, 1, &t1, &len1, &step1);
-			ptex_get_edge_iter(mptex, &grid_face_map[adj->index[i]], NULL, layersize, adj->rotation[i], 0, &t2, &len2, &step2);
+		step2_fac = (float)len2 / (float)len1;
 
-			step2_fac = (float)len2 / (float)len1;
-
-			for(j = 0; j < len1; ++j) {
-				memcpy(t1 + step1 * j,
-				       t2 + step2*(int)(step2_fac*j),
-				       layersize);
-			}
+		for(j = 0; j < len1; ++j) {
+			memcpy(t1 + step1 * j,
+			       t2 + step2*(int)(step2_fac*j),
+			       layersize);
 		}
 	}
 
