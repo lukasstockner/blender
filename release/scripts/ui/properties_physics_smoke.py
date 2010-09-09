@@ -49,7 +49,7 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, bpy.types.Panel):
 
         if md:
             # remove modifier + settings
-            split.set_context_pointer("modifier", md)
+            split.context_pointer_set("modifier", md)
             split.operator("object.modifier_remove", text="Remove")
 
             row = split.row(align=True)
@@ -89,7 +89,7 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, bpy.types.Panel):
                 sub.prop(domain, "use_dissolve_smoke_log", text="Slow")
 
             elif md.smoke_type == 'FLOW':
-    
+
                 flow = md.flow_settings
 
                 split = layout.split()
@@ -106,7 +106,6 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, bpy.types.Panel):
                 sub = sub.column()
                 sub.active = flow.initial_velocity
                 sub.prop(flow, "velocity_factor", text="Multiplier")
-
 
                 sub = split.column()
                 sub.active = not md.flow_settings.use_outflow

@@ -87,7 +87,7 @@ def bake(frame_start, frame_end, step=1, only_selected=False):
 
     # could spped this up by applying steps here too...
     for f in frame_range:
-        scene.set_frame(f)
+        scene.frame_set(f)
 
         info = pose_info()
         info_ls.append(info)
@@ -118,7 +118,7 @@ def bake(frame_start, frame_end, step=1, only_selected=False):
                 pbone.keyframe_insert("rotation_quaternion", -1, f, name)
             elif rotation_mode == 'AXIS_ANGLE':
                 pbone.keyframe_insert("rotation_axis_angle", -1, f, name)
-            else: # euler, XYZ, ZXY etc
+            else:  # euler, XYZ, ZXY etc
                 pbone.keyframe_insert("rotation_euler", -1, f, name)
 
             pbone.keyframe_insert("scale", -1, f, name)
@@ -169,7 +169,7 @@ class BakeAction(bpy.types.Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):
-        wm = context.manager
+        wm = context.window_manager
         return wm.invoke_props_dialog(self)
 
 

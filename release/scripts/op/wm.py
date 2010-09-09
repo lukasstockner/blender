@@ -23,6 +23,7 @@ import bpy
 from bpy.props import *
 from rna_prop_ui import rna_idprop_ui_prop_get, rna_idprop_ui_prop_clear
 
+
 class MESH_OT_delete_edgeloop(bpy.types.Operator):
     '''Delete an edge loop by merging the faces on each side to a single face loop'''
     bl_idname = "mesh.delete_edgeloop"
@@ -86,7 +87,7 @@ class WM_OT_context_set_boolean(bpy.types.Operator):
     execute = execute_context_assign
 
 
-class WM_OT_context_set_int(bpy.types.Operator): # same as enum
+class WM_OT_context_set_int(bpy.types.Operator):  # same as enum
     '''Set a context value.'''
     bl_idname = "wm.context_set_int"
     bl_label = "Context Set"
@@ -99,7 +100,7 @@ class WM_OT_context_set_int(bpy.types.Operator): # same as enum
     execute = execute_context_assign
 
 
-class WM_OT_context_scale_int(bpy.types.Operator): # same as enum
+class WM_OT_context_scale_int(bpy.types.Operator):
     '''Scale an int context value.'''
     bl_idname = "wm.context_scale_int"
     bl_label = "Context Set"
@@ -118,7 +119,7 @@ class WM_OT_context_scale_int(bpy.types.Operator): # same as enum
         value = self.properties.value
         data_path = self.properties.data_path
 
-        if value == 1.0: # nothing to do
+        if value == 1.0:  # nothing to do
             return {'CANCELLED'}
 
         if getattr(self.properties, "always_step", False):
@@ -135,7 +136,7 @@ class WM_OT_context_scale_int(bpy.types.Operator): # same as enum
         return {'FINISHED'}
 
 
-class WM_OT_context_set_float(bpy.types.Operator): # same as enum
+class WM_OT_context_set_float(bpy.types.Operator):  # same as enum
     '''Set a context value.'''
     bl_idname = "wm.context_set_float"
     bl_label = "Context Set Float"
@@ -149,7 +150,7 @@ class WM_OT_context_set_float(bpy.types.Operator): # same as enum
     execute = execute_context_assign
 
 
-class WM_OT_context_set_string(bpy.types.Operator): # same as enum
+class WM_OT_context_set_string(bpy.types.Operator):  # same as enum
     '''Set a context value.'''
     bl_idname = "wm.context_set_string"
     bl_label = "Context Set String"
@@ -314,7 +315,7 @@ class WM_OT_context_cycle_enum(bpy.types.Operator):
             if orig_index == 0:
                 advance_enum = enums[-1]
             else:
-                advance_enum = enums[orig_index-1]
+                advance_enum = enums[orig_index - 1]
         else:
             if orig_index == len(enums) - 1:
                 advance_enum = enums[0]
@@ -323,6 +324,34 @@ class WM_OT_context_cycle_enum(bpy.types.Operator):
 
         # set the new value
         exec("context.%s=advance_enum" % self.properties.data_path)
+        return {'FINISHED'}
+
+
+class WM_OT_context_cycle_array(bpy.types.Operator):
+    '''Set a context array value.
+    Useful for cycling the active mesh edit mode.'''
+    bl_idname = "wm.context_cycle_array"
+    bl_label = "Context Array Cycle"
+    bl_options = {'UNDO'}
+
+    data_path = rna_path_prop
+    reverse = rna_reverse_prop
+
+    def execute(self, context):
+        data_path = self.properties.data_path
+        value = context_path_validate(context, data_path)
+        if value is Ellipsis:
+            return {'PASS_THROUGH'}
+
+        def cycle(array):
+            if self.properties.reverse:
+                array.insert(0, array.pop())
+            else:
+                array.append(array.pop(0))
+            return array
+
+        exec("context.%s=cycle(context.%s[:])" % (data_path, data_path))
+
         return {'FINISHED'}
 
 
@@ -449,7 +478,7 @@ class WM_OT_context_modal_mouse(bpy.types.Operator):
         else:
             self.properties.initial_x = event.mouse_x
 
-            context.manager.add_modal_handler(self)
+            context.window_manager.add_modal_handler(self)
             return {'RUNNING_MODAL'}
 
 
@@ -505,7 +534,7 @@ class WM_OT_doc_view(bpy.types.Operator):
     bl_label = "View Documentation"
 
     doc_id = doc_id
-    _prefix = 'http://www.blender.org/documentation/250PythonDoc'
+    _prefix = "http://www.blender.org/documentation/blender_python_api_%s" % "_".join(str(v) for v in bpy.app.version)
 
     def _nested_class_string(self, class_string):
         ls = []
@@ -517,9 +546,9 @@ class WM_OT_doc_view(bpy.types.Operator):
 
     def execute(self, context):
         id_split = self.properties.doc_id.split('.')
-        if len(id_split) == 1: # rna, class
+        if len(id_split) == 1:  # rna, class
             url = '%s/bpy.types.%s.html' % (self._prefix, id_split[0])
-        elif len(id_split) == 2: # rna, class.prop
+        elif len(id_split) == 2:  # rna, class.prop
             class_name, class_prop = id_split
 
             if hasattr(bpy.types, class_name.upper() + '_OT_' + class_prop):
@@ -608,7 +637,7 @@ class WM_OT_doc_edit(bpy.types.Operator):
         layout.prop(props, "doc_new", text="")
 
     def invoke(self, context, event):
-        wm = context.manager
+        wm = context.window_manager
         return wm.invoke_props_dialog(self, width=600)
 
 
@@ -659,7 +688,6 @@ class WM_OT_properties_edit(bpy.types.Operator):
         # print(exec_str)
         exec(exec_str)
 
-
         # Reassign
         exec_str = "item['%s'] = %s" % (prop, repr(value_eval))
         # print(exec_str)
@@ -686,13 +714,13 @@ class WM_OT_properties_edit(bpy.types.Operator):
         item = eval("context.%s" % self.properties.data_path)
 
         # setup defaults
-        prop_ui = rna_idprop_ui_prop_get(item, self.properties.property, False) # dont create
+        prop_ui = rna_idprop_ui_prop_get(item, self.properties.property, False)  # dont create
         if prop_ui:
             self.properties.min = prop_ui.get("min", -1000000000)
             self.properties.max = prop_ui.get("max", 1000000000)
             self.properties.description = prop_ui.get("description", "")
 
-        wm = context.manager
+        wm = context.window_manager
         # This crashes, TODO - fix
         #return wm.invoke_props_popup(self, event)
 
@@ -738,6 +766,7 @@ class WM_OT_properties_remove(bpy.types.Operator):
         item = eval("context.%s" % self.properties.data_path)
         del item[self.properties.property]
         return {'FINISHED'}
+
 
 def register():
     pass

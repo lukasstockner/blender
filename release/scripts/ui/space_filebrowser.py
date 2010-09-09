@@ -27,7 +27,6 @@ class FILEBROWSER_HT_header(bpy.types.Header):
         layout = self.layout
 
         st = context.space_data
-        params = st.params
 
         layout.template_header(menus=False)
 
@@ -46,23 +45,27 @@ class FILEBROWSER_HT_header(bpy.types.Header):
         row = layout.row(align=True)
         row.operator("file.directory_new", text="", icon='NEWFOLDER')
 
-        layout.prop(params, "display_type", expand=True, text="")
-        layout.prop(params, "sort_method", expand=True, text="")
+        params = st.params
 
-        layout.prop(params, "show_hidden")
-        layout.prop(params, "use_filter", text="", icon='FILTER')
+        # can be None when save/reload with a file selector open
+        if params:
+            layout.prop(params, "display_type", expand=True, text="")
+            layout.prop(params, "sort_method", expand=True, text="")
 
-        row = layout.row(align=True)
-        row.active = params.use_filter
+            layout.prop(params, "show_hidden")
+            layout.prop(params, "use_filter", text="", icon='FILTER')
 
-        row.prop(params, "use_filter_folder", text="")
-        row.prop(params, "use_filter_blender", text="")
-        row.prop(params, "use_filter_image", text="")
-        row.prop(params, "use_filter_movie", text="")
-        row.prop(params, "use_filter_script", text="")
-        row.prop(params, "use_filter_font", text="")
-        row.prop(params, "use_filter_sound", text="")
-        row.prop(params, "use_filter_text", text="")
+            row = layout.row(align=True)
+            row.active = params.use_filter
+
+            row.prop(params, "use_filter_folder", text="")
+            row.prop(params, "use_filter_blender", text="")
+            row.prop(params, "use_filter_image", text="")
+            row.prop(params, "use_filter_movie", text="")
+            row.prop(params, "use_filter_script", text="")
+            row.prop(params, "use_filter_font", text="")
+            row.prop(params, "use_filter_sound", text="")
+            row.prop(params, "use_filter_text", text="")
 
 
 def register():

@@ -32,7 +32,7 @@ class AddPresetBase():
 
     name = bpy.props.StringProperty(name="Name", description="Name of the preset, used to make the path name", maxlen=64, default="")
 
-    def _as_filename(self, name): # could reuse for other presets
+    def _as_filename(self, name):  # could reuse for other presets
         for char in " !@#$%^&*(){}:\";'[]<>,./?":
             name = name.replace('.', '_')
         return name.lower()
@@ -44,7 +44,7 @@ class AddPresetBase():
 
         filename = self._as_filename(self.properties.name) + ".py"
 
-        target_path = bpy.utils.preset_paths(self.preset_subdir)[0] # we need some way to tell the user and system preset path
+        target_path = bpy.utils.preset_paths(self.preset_subdir)[0]  # we need some way to tell the user and system preset path
 
         filepath = os.path.join(target_path, filename)
         if getattr(self, "save_keyconfig", False):
@@ -64,7 +64,7 @@ class AddPresetBase():
         return {'FINISHED'}
 
     def invoke(self, context, event):
-        wm = context.manager
+        wm = context.window_manager
         #crashes, TODO - fix
         #return wm.invoke_props_popup(self, event)
 
@@ -202,6 +202,7 @@ class AddPresetInteraction(AddPresetBase, bpy.types.Operator):
     ]
 
     preset_subdir = "interaction"
+
 
 def register():
     pass

@@ -27,10 +27,15 @@
 FILE(GLOB SRC intern/*.c)
 
 SET(INC 
-	. ../makesdna ../blenkernel ../../../intern/guardedalloc ../include
-	../gpu ../../../intern/ghost
-	${FREETYPE_INCLUDE_DIRS}
+	.
+	../makesdna
+	../blenkernel
+	../include
+	../gpu
+	../../../intern/ghost
+	../../../intern/guardedalloc
 	${ZLIB_INC}
+	${FREETYPE_INCLUDE_DIRS}
 )
 
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -41,7 +46,7 @@ SET(INC
 ENDIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 
 IF(WIN32)
-	SET(INC ${INC} ${PTHREADS_INC})
+	LIST(APPEND INC ${PTHREADS_INC})
 ENDIF(WIN32)
 
 IF(WITH_OPENMP)

@@ -57,7 +57,7 @@ class PHYSICS_PT_field(PhysicButtonsPanel, bpy.types.Panel):
         split = layout.split()
 
         if field.type == 'NONE':
-            return # nothing to draw
+            return  # nothing to draw
         elif field.type == 'GUIDE':
             col = split.column()
             col.prop(field, "guide_minimum")
@@ -175,7 +175,7 @@ class PHYSICS_PT_collision(PhysicButtonsPanel, bpy.types.Panel):
 
         if md:
             # remove modifier + settings
-            split.set_context_pointer("modifier", md)
+            split.context_pointer_set("modifier", md)
             split.operator("object.modifier_remove", text="Remove")
             col = split.column()
 

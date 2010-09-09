@@ -3392,7 +3392,7 @@ static void draw_particle(ParticleKey *state, int draw_as, short draw, float pix
 			add_v3_v3v3(pdd->vd, bb_center, xvec);
 			add_v3_v3(pdd->vd, yvec); pdd->vd+=3;
 
-			sub_v3_v3v3(pdd->vd, bb_center, vec);
+			sub_v3_v3v3(pdd->vd, bb_center, xvec);
 			add_v3_v3(pdd->vd, yvec); pdd->vd+=3;
 
 			sub_v3_v3v3(pdd->vd, bb_center, xvec);
@@ -4789,7 +4789,7 @@ static void draw_empty_sphere (float size)
 		GLUquadricObj	*qobj;
 		
 		displist= glGenLists(1);
-		glNewList(displist, GL_COMPILE_AND_EXECUTE);
+		glNewList(displist, GL_COMPILE);
 		
 		glPushMatrix();
 		
@@ -4810,8 +4810,8 @@ static void draw_empty_sphere (float size)
 	}
 	
 	glScalef(size, size, size);
-		glCallList(displist);
-	glScalef(1/size, 1/size, 1/size);
+	glCallList(displist);
+	glScalef(1.0f/size, 1.0f/size, 1.0f/size);
 }
 
 /* draw a cone for use as an empty drawtype */
