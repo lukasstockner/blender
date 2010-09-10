@@ -1035,13 +1035,7 @@ class VIEW3D_PT_sculpt_options(PaintPanel, bpy.types.Panel):
         row.prop(sculpt, "lock_y", text="Y", toggle=True)
         row.prop(sculpt, "lock_z", text="Z", toggle=True)
 
-<<<<<<< .working
-
 class VIEW3D_PT_tools_paint_symmetry(PaintPanel, bpy.types.Panel):
-=======
-
-class VIEW3D_PT_sculpt_symmetry(PaintPanel, bpy.types.Panel):
->>>>>>> .merge-right.r31832
     bl_label = "Symmetry"
     bl_options = {'DEFAULT_CLOSED'}
 
