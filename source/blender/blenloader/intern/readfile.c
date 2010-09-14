@@ -3140,6 +3140,7 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 			psys->clmd->clothObject = NULL;
 			
 			psys->clmd->sim_parms= newdataadr(fd, psys->clmd->sim_parms);
+			psys->clmd->sim_parms->effector_weights = NULL;
 			psys->clmd->coll_parms= newdataadr(fd, psys->clmd->coll_parms);
 			
 			if(psys->clmd->sim_parms) {
@@ -10729,6 +10730,15 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				seq->volume = 1.0f;
 			}
 			SEQ_END
+		}
+
+		/* particle brush strength factor was changed from int to float */
+		for(sce= main->scene.first; sce; sce=sce->id.next) {
+			ParticleEditSettings *pset= &sce->toolsettings->particle;
+			int a;
+
+			for(a=0; a<PE_TOT_BRUSH; a++)
+				pset->brush[a].strength /= 100.0;
 		}
 
 		for(ma = main->mat.first; ma; ma=ma->id.next)

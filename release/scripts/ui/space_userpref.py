@@ -725,8 +725,10 @@ class USERPREF_PT_input(InputKeyMapPanel):
         sub = col.column()
         sub.label(text="Presets:")
         subrow = sub.row(align=True)
+
         subrow.menu("USERPREF_MT_interaction_presets", text=bpy.types.USERPREF_MT_interaction_presets.bl_label)
         subrow.operator("wm.interaction_preset_add", text="", icon='ZOOMIN')
+        subrow.operator("wm.interaction_preset_add", text="", icon='ZOOMOUT').remove_active = True
         sub.separator()
 
         sub.label(text="Mouse:")
@@ -805,6 +807,7 @@ class USERPREF_PT_addons(bpy.types.Panel):
     bl_region_type = 'WINDOW'
     bl_options = {'HIDE_HEADER'}
 
+    _addons_cats = None
     _addons_fake_modules = {}
 
     @classmethod
@@ -910,22 +913,20 @@ class USERPREF_PT_addons(bpy.types.Panel):
         cats = {info["category"] for mod, info in addons}
         cats.discard("")
 
-        cats = ["All", "Enabled", "Disabled"] + sorted(cats)
-
-        bpy.types.Scene.EnumProperty(items=[(cat, cat, cat + " addons") for cat in cats],
-            name="Category", attr="addon_filter", description="Filter add-ons by category")
-        bpy.types.Scene.StringProperty(name="Search", attr="addon_search",
-            description="Search within the selected filter")
+        if USERPREF_PT_addons._addons_cats != cats:
+            bpy.types.WindowManager.addon_filter = bpy.props.EnumProperty(items=[(cat, cat, "") for cat in ["All", "Enabled", "Disabled"] + sorted(cats)], name="Category", description="Filter add-ons by category")
+            bpy.types.WindowManager.addon_search = bpy.props.StringProperty(name="Search", description="Search within the selected filter")
+            USERPREF_PT_addons._addons_cats = cats
 
         split = layout.split(percentage=0.2)
         col = split.column()
-        col.prop(context.scene, "addon_filter", text="Filter", expand=True)
-        col.prop(context.scene, "addon_search", text="", icon='VIEWZOOM')
+        col.prop(context.window_manager, "addon_filter", text="Filter", expand=True)
+        col.prop(context.window_manager, "addon_search", text="", icon='VIEWZOOM')
 
         col = split.column()
 
-        filter = context.scene.addon_filter
-        search = context.scene.addon_search.lower()
+        filter = context.window_manager.addon_filter
+        search = context.window_manager.addon_search.lower()
 
         for mod, info in addons:
             module_name = mod.__name__
@@ -1049,79 +1050,17 @@ class WM_OT_addon_enable(bpy.types.Operator):
     module = StringProperty(name="Module", description="Module name of the addon to enable")
 
     def execute(self, context):
-        module_name = self.properties.module
+        mod = bpy.utils.addon_enable(self.module)
 
-        # note, this still gets added to _bpy_types.TypeMap
-
-        import sys
-        import bpy_types as _bpy_types
-
-
-        _bpy_types._register_immediate = False
-
-        def handle_error():
-            import traceback
-            traceback.print_exc()
-            _bpy_types._register_immediate = True
-
-
-        # reload if the mtime changes
-        mod = sys.modules.get(module_name)
         if mod:
-            mtime_orig = getattr(mod, "__time__", 0)
-            mtime_new = os.path.getmtime(mod.__file__)
-            if mtime_orig != mtime_new:
-                print("module changed on disk:", mod.__file__, "reloading...")
+            # check if add-on is written for current blender version, or raise a warning
+            info = addon_info_get(mod)
 
-                try:
-                    reload(mod)
-                except:
-                    handle_error()
-                    del sys.modules[module_name]
-                    return {'CANCELLED'}
-
-        # Split registering up into 3 steps so we can undo if it fails par way through
-        # 1) try import
-        try:
-            mod = __import__(module_name)
-            mod.__time__ = os.path.getmtime(mod.__file__)
-        except:
-            handle_error()
+            if info.get("blender", (0, 0, 0)) > bpy.app.version:
+                self.report("WARNING','This script was written for a newer version of Blender and might not function (correctly).\nThe script is enabled though.")
+            return {'FINISHED'}
+        else:
             return {'CANCELLED'}
-
-        # 2) try register collected modules
-        try:
-            _bpy_types._register_module(module_name)
-        except:
-            handle_error()
-            del sys.modules[module_name]
-            return {'CANCELLED'}
-
-        # 3) try run the modules register function
-        try:
-            mod.register()
-        except:
-            handle_error()
-            _bpy_types._unregister_module(module_name)
-            del sys.modules[module_name]
-            return {'CANCELLED'}
-
-        # * OK loaded successfully! *
-        # just incase its enabled alredy
-        ext = context.user_preferences.addons.get(module_name)
-        if not ext:
-            ext = context.user_preferences.addons.new()
-            ext.module = module_name
-
-        # check if add-on is written for current blender version, or raise a warning
-        info = addon_info_get(mod)
-
-        if info.get("blender", (0, 0, 0)) > bpy.app.version:
-            self.report("WARNING','This script was written for a newer version of Blender and might not function (correctly).\nThe script is enabled though.")
-
-        _bpy_types._register_immediate = True
-
-        return {'FINISHED'}
 
 
 class WM_OT_addon_disable(bpy.types.Operator):
@@ -1132,25 +1071,7 @@ class WM_OT_addon_disable(bpy.types.Operator):
     module = StringProperty(name="Module", description="Module name of the addon to disable")
 
     def execute(self, context):
-        import bpy_types as _bpy_types
-        module_name = self.properties.module
-
-        try:
-            mod = __import__(module_name)
-            _bpy_types._unregister_module(module_name, free=False)  # dont free because we may want to enable again.
-            mod.unregister()
-        except:
-            import traceback
-            traceback.print_exc()
-
-        # could be in more then once, unlikely but better do this just incase.
-        addons = context.user_preferences.addons
-
-        while module_name in addons:
-            addon = addons.get(module_name)
-            if addon:
-                addons.remove(addon)
-
+        bpy.utils.addon_disable(self.module)
         return {'FINISHED'}
 
 
@@ -1168,7 +1089,7 @@ class WM_OT_addon_install(bpy.types.Operator):
     def execute(self, context):
         import traceback
         import zipfile
-        pyfile = self.properties.filepath
+        pyfile = self.filepath
 
         path_addons = bpy.utils.script_paths("addons")[-1]
 
@@ -1222,7 +1143,7 @@ class WM_OT_addon_expand(bpy.types.Operator):
     module = StringProperty(name="Module", description="Module name of the addon to expand")
 
     def execute(self, context):
-        module_name = self.properties.module
+        module_name = self.module
 
         # unlikely to fail, module should have already been imported
         try:
