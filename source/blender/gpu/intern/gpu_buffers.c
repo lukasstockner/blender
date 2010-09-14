@@ -1119,7 +1119,7 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 	GridKey *gridkey;
 	int *grid_indices, totgrid, gridsize;
 	CustomData *vdata = NULL, *fdata = NULL;
-	MPtex *mptex;
+	MPtex *mptex = NULL;
 	int mcol_first_layer, pmask_first_layer;
 	int i, use_grids, use_color, use_ptex, ptex_edit = 0;
 
@@ -1166,12 +1166,17 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 		for(i = 0; i < totgrid; ++i) {
 			DMGridData *grid = grids[grid_indices[i]];
 			GridToFace *gtf = &grid_face_map[grid_indices[i]];
-			MPtex *pt = &mptex[gtf->face];
-			MPtexSubface *subface = &pt->subfaces[gtf->offset];
+			MPtex *pt;
+			MPtexSubface *subface;
 			float u, v, ustep, vstep, vstart = 0;
 
-			if(subface->flag & MPTEX_SUBFACE_HIDDEN)
-				continue;
+			if(mptex) {
+				pt = &mptex[gtf->face];
+				subface = &pt->subfaces[gtf->offset];
+
+				if(subface->flag & MPTEX_SUBFACE_HIDDEN)
+					continue;
+			}
 
 			if(ptex_edit) {
 				ustep = subface->res[0] >> 1;
