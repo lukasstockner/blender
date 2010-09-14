@@ -147,8 +147,7 @@ void GPU_update_mesh_color_buffers(GPU_Buffers *buffers,
 				   struct PBVH *bvh,
 				   struct PBVHNode *node,
 				   enum DMDrawFlags flags);
-GPU_Buffers *GPU_build_grid_buffers(struct DMGridData **grids,
-				    int *grid_indices, int totgrid, int gridsize);
+GPU_Buffers *GPU_build_grid_buffers(int gridsize);
 void GPU_update_grid_vert_buffers(GPU_Buffers *buffersb, struct DMGridData **grids,
 				  int *grid_indices, int totgrid, int gridsize,
 				  struct GridKey *gridkey, int smooth);

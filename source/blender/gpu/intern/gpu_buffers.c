@@ -430,7 +430,9 @@ struct GPU_Buffers {
 	GLuint *ptex;
 	int totptex;
 
-	unsigned int tot_tri, tot_quad;
+	int use_grids;
+	unsigned int tot_tri;
+	int gridsize;
 };
 
 static void delete_buffer(GLuint *buf)
@@ -955,89 +957,121 @@ void GPU_update_grid_vert_buffers(GPU_Buffers *buffers, DMGridData **grids,
 	//printf("node updated %p\n", buffers_v);
 }
 
-GPU_Buffers *GPU_build_grid_buffers(DMGridData **grids,
-				    int *grid_indices, int totgrid,
-				    int gridsize)
+static int gpu_build_grid_ibo(int gridsize)
+{
+	GLuint index_buf;
+	int totndx, use_ushorts, i, j;
+	unsigned short *quads_ushort;
+	unsigned int *quads_uint;
+
+	/* count the number of quads */
+	totndx = (gridsize-1)*(gridsize-1) * 4;
+
+	/* generate index buffer object */
+	if(GL_ARB_vertex_buffer_object && !(U.gameflags & USER_DISABLE_VBO))
+		glGenBuffersARB(1, &index_buf);
+
+	/* bad failure */
+	if(!index_buf)
+		return 0;
+
+	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, index_buf);
+
+	/* if possible, restrict indices to unsigned shorts to save space */
+	use_ushorts = totndx < USHRT_MAX;
+
+	/* allocate empty buffer data */
+	glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB,
+			(use_ushorts ? sizeof(unsigned short) :
+			               sizeof(unsigned int)) * totndx,
+			NULL, GL_STATIC_DRAW_ARB);
+
+	/* map the buffer into memory */
+	quads_ushort = (void*)(quads_uint =
+			       glMapBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB,
+					      GL_WRITE_ONLY_ARB));
+	if(!quads_ushort) {
+		delete_buffer(&index_buf);
+		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
+		return 0;
+	}
+
+	/* fill the quad buffer */
+	for(i = 0; i < gridsize-1; ++i) {
+		for(j = 0; j < gridsize-1; ++j) {
+#define IBO_ASSIGN(val) do {						\
+				if(use_ushorts)				\
+					*(quads_ushort++) = val;	\
+				else					\
+					*(quads_uint++) = val;		\
+		} while(0)
+			
+			IBO_ASSIGN(i*gridsize + j+1);
+			IBO_ASSIGN(i*gridsize + j);
+			IBO_ASSIGN((i+1)*gridsize + j);
+			IBO_ASSIGN((i+1)*gridsize + j+1);
+
+#undef IBO_ASSIGN
+		}
+	}
+
+	glUnmapBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB);
+	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
+
+	return index_buf;
+}
+
+/* cache grid IBOs, uses reference counting to free them */
+static int gpu_grid_ibo(int gridsize, int release)
+{
+	/* {reference count, buffer id} */
+	static unsigned int grid_buffers[32][2], inited = 0;
+	int lvl, i;
+
+	if(!inited) {
+		memset(grid_buffers, 0, sizeof(int)*32*2);
+		inited = 1;
+	}
+
+	for(i = 0, --gridsize; i < 32; ++i) {
+		if(gridsize & (1 << i)) {
+			lvl = i;
+			break;
+		}
+	}
+
+	if(release) {
+		if(grid_buffers[lvl][0] > 0) {
+			--grid_buffers[lvl][0];
+			if(!grid_buffers[lvl][0])
+				delete_buffer(&grid_buffers[lvl][1]);
+		}
+		else
+			fprintf(stderr, "gpu_grid_ibo: bad reference count\n");
+	}
+	else {
+		++grid_buffers[lvl][0];
+
+		if(!grid_buffers[lvl][1])
+			grid_buffers[lvl][1] = gpu_build_grid_ibo(gridsize + 1);
+	}
+
+	return grid_buffers[lvl][1];
+}
+
+GPU_Buffers *GPU_build_grid_buffers(int gridsize)
 {
 	GPU_Buffers *buffers;
-	int i, j, k, totquad, offset= 0;
 
 	buffers = MEM_callocN(sizeof(GPU_Buffers), "GPU_Buffers");
 
-	/* Count the number of quads */
-	totquad= (gridsize-1)*(gridsize-1)*totgrid;
-
-	/* Generate index buffer object */
-	if(GL_ARB_vertex_buffer_object && !(U.gameflags & USER_DISABLE_VBO))
-		glGenBuffersARB(1, &buffers->index_buf);
-
-	if(buffers->index_buf) {
-		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, buffers->index_buf);
-
-		if(totquad < USHRT_MAX) {
-			unsigned short *quad_data;
-
-			buffers->index_type = GL_UNSIGNED_SHORT;
-			glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB,
-					 sizeof(unsigned short) * totquad * 4, NULL, GL_STATIC_DRAW_ARB);
-
-			/* Fill the quad buffer */
-			quad_data = glMapBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB);
-			if(quad_data) {
-				for(i = 0; i < totgrid; ++i) {
-					for(j = 0; j < gridsize-1; ++j) {
-						for(k = 0; k < gridsize-1; ++k) {
-							*(quad_data++)= offset + j*gridsize + k+1;
-							*(quad_data++)= offset + j*gridsize + k;
-							*(quad_data++)= offset + (j+1)*gridsize + k;
-							*(quad_data++)= offset + (j+1)*gridsize + k+1;
-						}
-					}
-
-					offset += gridsize*gridsize;
-				}
-				glUnmapBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB);
-			}
-			else
-				delete_buffer(&buffers->index_buf);
-		}
-		else {
-			unsigned int *quad_data;
-
-			buffers->index_type = GL_UNSIGNED_INT;
-			glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB,
-					 sizeof(unsigned int) * totquad * 4, NULL, GL_STATIC_DRAW_ARB);
-
-			/* Fill the quad buffer */
-			quad_data = glMapBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB);
-
-			if(quad_data) {
-				for(i = 0; i < totgrid; ++i) {
-					for(j = 0; j < gridsize-1; ++j) {
-						for(k = 0; k < gridsize-1; ++k) {
-							*(quad_data++)= offset + j*gridsize + k+1;
-							*(quad_data++)= offset + j*gridsize + k;
-							*(quad_data++)= offset + (j+1)*gridsize + k;
-							*(quad_data++)= offset + (j+1)*gridsize + k+1;
-						}
-					}
-
-					offset += gridsize*gridsize;
-				}
-				glUnmapBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB);
-			}
-			else
-				delete_buffer(&buffers->index_buf);
-		}
-
-		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
-	}
+	buffers->index_buf = gpu_grid_ibo(gridsize, 0);
+	buffers->gridsize = gridsize;
+	buffers->use_grids = 1;
 
 	/* Build VBO */
 	if(buffers->index_buf)
 		glGenBuffersARB(1, &buffers->vert_buf);
-
-	buffers->tot_quad = totquad;
 
 	return buffers;
 }
@@ -1259,6 +1293,78 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 		glDisable(GL_COLOR_MATERIAL);
 }
 
+static void gpu_draw_grids(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFlags flags)
+{
+	int g, totgrid, *grid_indices, gridsize, offset, totndx;
+
+	BLI_pbvh_node_get_grids(pbvh, node, &grid_indices, &totgrid,
+				NULL, &gridsize, NULL, NULL, NULL);
+
+	totndx = (gridsize-1)*(gridsize-1) * 4;
+
+	for(g = 0; g < totgrid; ++g) {
+		offset = gridsize * gridsize * g;
+
+		glVertexPointer(3, GL_FLOAT, sizeof(GridVBO),
+				(char*)0 + offset*sizeof(GridVBO) + offsetof(GridVBO, co));
+		glNormalPointer(GL_FLOAT, sizeof(GridVBO),
+				(char*)0 + offset*sizeof(GridVBO) + offsetof(GridVBO, no));
+
+		if(buffers->color_buf) {
+			glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->color_buf);
+			glColorPointer(3, GL_UNSIGNED_BYTE, 0, (char*)0 + (offset * 3));
+		}
+
+		if(buffers->uv_buf) {
+			CustomData *fdata;
+			GridToFace *gtf;
+			MPtex *mptex, *pt;
+			MPtexSubface *subface;
+			GridToFace *grid_face_map;
+
+			/* note: code here assumes there's only one
+			   ptex subface per node */
+
+			BLI_pbvh_get_customdata(pbvh, NULL, &fdata);
+			mptex = CustomData_get_layer(fdata, CD_MPTEX);
+			grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
+					
+			gtf = &grid_face_map[grid_indices[0]];
+			pt = &mptex[gtf->face];
+			subface = &pt->subfaces[gtf->offset];
+
+			glEnable(GL_TEXTURE_2D);
+			if(flags & DM_DRAW_PTEX_TEXELS) {
+				gpu_bind_ptex_pattern();
+				if(subface->flag & MPTEX_SUBFACE_SELECTED)
+					glColor3ub(255, 255, 255);
+				else if(subface->flag & MPTEX_SUBFACE_MASKED)
+					glColor3ub(96, 96, 96);
+				else	 
+					glColor3ub(128, 128, 128);
+			}
+			else {
+				glBindTexture(GL_TEXTURE_2D, buffers->ptex[0]);
+
+				if(subface->flag & MPTEX_SUBFACE_MASKED)
+					glColor3ub(128, 128, 128);
+				else
+					glColor3ub(255, 255, 255);
+			}
+
+			if(subface->flag & MPTEX_SUBFACE_HIDDEN)
+				continue;
+
+			glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->uv_buf);
+			glTexCoordPointer(2, GL_FLOAT, 0, (void*)0);
+		}
+
+		glDrawElements(GL_QUADS, totndx,
+			       (totndx < USHRT_MAX ?
+				GL_UNSIGNED_SHORT : GL_UNSIGNED_INT), 0);
+	}
+}
+
 void GPU_draw_buffers(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFlags flags)
 {
 	glShadeModel((flags & DM_DRAW_FULLY_SMOOTH) ? GL_SMOOTH: GL_FLAT);
@@ -1283,65 +1389,8 @@ void GPU_draw_buffers(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFl
 			glEnable(GL_COLOR_MATERIAL);
 		}
 
-		if(buffers->tot_quad) {
-			int skip = 0;
-
-			glVertexPointer(3, GL_FLOAT, sizeof(GridVBO), (void*)offsetof(GridVBO, co));
-			glNormalPointer(GL_FLOAT, sizeof(GridVBO), (void*)offsetof(GridVBO, no));
-			if(buffers->color_buf) {
-				glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->color_buf);
-				glColorPointer(3, GL_UNSIGNED_BYTE, 0, (void*)0);
-			}
-			if(buffers->uv_buf) {
-				int *grid_indices;
-				CustomData *fdata;
-				GridToFace *gtf;
-				MPtex *mptex, *pt;
-				MPtexSubface *subface;
-				GridToFace *grid_face_map;
-
-				/* note: code here assumes there's only one
-				   ptex subface per node */
-
-				BLI_pbvh_get_customdata(pbvh, NULL, &fdata);
-				mptex = CustomData_get_layer(fdata, CD_MPTEX);
-				grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
-				BLI_pbvh_node_get_grids(pbvh, node,
-							&grid_indices, NULL, NULL, NULL,
-							NULL, NULL, NULL);
-					
-				gtf = &grid_face_map[grid_indices[0]];
-				pt = &mptex[gtf->face];
-				subface = &pt->subfaces[gtf->offset];
-
-				glEnable(GL_TEXTURE_2D);
-				if(flags & DM_DRAW_PTEX_TEXELS) {
-					gpu_bind_ptex_pattern();
-					if(subface->flag & MPTEX_SUBFACE_SELECTED)
-						glColor3ub(255, 255, 255);
-					else if(subface->flag & MPTEX_SUBFACE_MASKED)
-						glColor3ub(96, 96, 96);
-					else	 
-						glColor3ub(128, 128, 128);
-				}
-				else {
-					glBindTexture(GL_TEXTURE_2D, buffers->ptex[0]);
-
-					if(subface->flag & MPTEX_SUBFACE_MASKED)
-						glColor3ub(128, 128, 128);
-					else
-						glColor3ub(255, 255, 255);
-				}
-
-				if(subface->flag & MPTEX_SUBFACE_HIDDEN)
-					skip = 1;
-
-				glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->uv_buf);
-				glTexCoordPointer(2, GL_FLOAT, 0, (void*)0);
-			}
-
-			if(!skip)
-				glDrawElements(GL_QUADS, buffers->tot_quad * 4, buffers->index_type, 0);
+		if(buffers->use_grids) {
+			gpu_draw_grids(buffers, pbvh, node, flags);
 		}
 		else {
 			glVertexPointer(3, GL_FLOAT, sizeof(VertexBufferFormat), (void*)offsetof(VertexBufferFormat, co));
@@ -1384,8 +1433,12 @@ void GPU_free_buffers(GPU_Buffers *buffers_v)
 		
 		if(buffers->vert_buf)
 			glDeleteBuffersARB(1, &buffers->vert_buf);
-		if(buffers->index_buf)
-			glDeleteBuffersARB(1, &buffers->index_buf);
+		if(buffers->index_buf) {
+			if(buffers->use_grids)
+				gpu_grid_ibo(buffers->gridsize, 1);
+			else
+				glDeleteBuffersARB(1, &buffers->index_buf);
+		}
 		if(buffers->ptex) {
 			glDeleteTextures(buffers->totptex, buffers->ptex);
 			MEM_freeN(buffers->ptex);
