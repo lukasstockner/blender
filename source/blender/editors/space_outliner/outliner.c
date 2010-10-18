@@ -1553,10 +1553,37 @@ static void outliner_set_flag(SpaceOops *soops, ListBase *lb, short flag, short 
 
 /* --- */
 
+/* same check needed for both object operation and restrict column button func
+ * return 0 when in edit mode (cannot restrict view or select)
+ * otherwise return 1 */
+static int common_restrict_check(bContext *C, Scene *scene, Object *ob)
+{
+	/* Don't allow hide an object in edit mode,
+	 * check the bug #22153 and #21609, #23977
+	 */
+	Object *obedit= CTX_data_edit_object(C);
+	if (obedit && obedit == ob) {
+		/* found object is hidden, reset */
+		if (ob->restrictflag & OB_RESTRICT_VIEW)
+			ob->restrictflag &= ~OB_RESTRICT_VIEW;
+		/* found object is unselectable, reset */
+		if (ob->restrictflag & OB_RESTRICT_SELECT)
+			ob->restrictflag &= ~OB_RESTRICT_SELECT;
+		return 0;
+	}
+	
+	return 1;
+}
+
 void object_toggle_visibility_cb(bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *tsep, TreeStoreElem *tselem)
 {
 	Base *base= (Base *)te->directdata;
-	if(base || (base= object_in_scene((Object *)tselem->id, scene))) {
+	Object *ob = (Object *)tselem->id;
+	
+	/* add check for edit mode */
+	if(!common_restrict_check(C, scene, ob)) return;
+	
+	if(base || (base= object_in_scene(ob, scene))) {
 		if((base->object->restrictflag ^= OB_RESTRICT_VIEW)) {
 			ED_base_object_select(base, BA_DESELECT);
 		}
@@ -1571,6 +1598,7 @@ static int outliner_toggle_visibility_exec(bContext *C, wmOperator *op)
 	
 	outliner_do_object_operation(C, scene, soops, &soops->tree, object_toggle_visibility_cb);
 	
+	WM_event_add_notifier(C, NC_SCENE|ND_OB_VISIBLE, scene);
 	ED_region_tag_redraw(ar);
 	
 	return OPERATOR_FINISHED;
@@ -1579,13 +1607,13 @@ static int outliner_toggle_visibility_exec(bContext *C, wmOperator *op)
 void OUTLINER_OT_visibility_toggle(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Toggle Visability";
+	ot->name= "Toggle Visibility";
 	ot->idname= "OUTLINER_OT_visibility_toggle";
 	ot->description= "Toggle the visibility of selected items";
 	
 	/* callbacks */
 	ot->exec= outliner_toggle_visibility_exec;
-	ot->poll= ED_operator_outliner_active;
+	ot->poll= ED_operator_outliner_active_no_editobject;
 	
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
@@ -1610,6 +1638,7 @@ static int outliner_toggle_selectability_exec(bContext *C, wmOperator *op)
 	
 	outliner_do_object_operation(C, scene, soops, &soops->tree, object_toggle_selectability_cb);
 	
+	WM_event_add_notifier(C, NC_SCENE|ND_OB_SELECT, scene);
 	ED_region_tag_redraw(ar);
 	
 	return OPERATOR_FINISHED;
@@ -1624,7 +1653,7 @@ void OUTLINER_OT_selectability_toggle(wmOperatorType *ot)
 	
 	/* callbacks */
 	ot->exec= outliner_toggle_selectability_exec;
-	ot->poll= ED_operator_outliner_active;
+	ot->poll= ED_operator_outliner_active_no_editobject;
 	
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
@@ -1703,6 +1732,7 @@ static int outliner_toggle_selected_exec(bContext *C, wmOperator *op)
 {
 	SpaceOops *soops= CTX_wm_space_outliner(C);
 	ARegion *ar= CTX_wm_region(C);
+	Scene *scene= CTX_data_scene(C);
 	
 	if (outliner_has_one_flag(soops, &soops->tree, TSE_SELECTED, 1))
 		outliner_set_flag(soops, &soops->tree, TSE_SELECTED, 0);
@@ -1711,6 +1741,7 @@ static int outliner_toggle_selected_exec(bContext *C, wmOperator *op)
 	
 	soops->storeflag |= SO_TREESTORE_REDRAW;
 	
+	WM_event_add_notifier(C, NC_SCENE|ND_OB_SELECT, scene);
 	ED_region_tag_redraw(ar);
 	
 	return OPERATOR_FINISHED;
@@ -2114,8 +2145,8 @@ static int tree_element_active_posechannel(bContext *C, Scene *scene, TreeElemen
 	if(set) {
 		if(!(pchan->bone->flag & BONE_HIDDEN_P)) {
 			
-			if(set==2) ED_pose_deselectall(ob, 2, 0);	// 2 = clear active tag
-			else ED_pose_deselectall(ob, 0, 0);	// 0 = deselect 
+			if(set==2) ED_pose_deselectall(ob, 2);	// 2 = clear active tag
+			else ED_pose_deselectall(ob, 0);	// 0 = deselect 
 			
 			if(set==2 && (pchan->bone->flag & BONE_SELECTED)) {
 				pchan->bone->flag &= ~BONE_SELECTED;
@@ -2145,8 +2176,8 @@ static int tree_element_active_bone(bContext *C, Scene *scene, TreeElement *te, 
 	
 	if(set) {
 		if(!(bone->flag & BONE_HIDDEN_P)) {
-			if(set==2) ED_pose_deselectall(OBACT, 2, 0);	// 2 is clear active tag
-			else ED_pose_deselectall(OBACT, 0, 0);
+			if(set==2) ED_pose_deselectall(OBACT, 2);	// 2 is clear active tag
+			else ED_pose_deselectall(OBACT, 0);
 			
 			if(set==2 && (bone->flag & BONE_SELECTED)) {
 				bone->flag &= ~BONE_SELECTED;
@@ -2179,8 +2210,8 @@ static int tree_element_active_ebone(bContext *C, Scene *scene, TreeElement *te,
 	if(set) {
 		if(!(ebone->flag & BONE_HIDDEN_A)) {
 			bArmature *arm= scene->obedit->data;
-			if(set==2) ED_armature_deselectall(scene->obedit, 2, 0);	// only clear active tag
-			else ED_armature_deselectall(scene->obedit, 0, 0);	// deselect
+			if(set==2) ED_armature_deselectall(scene->obedit, 2);	// only clear active tag
+			else ED_armature_deselectall(scene->obedit, 0);	// deselect
 
 			ebone->flag |= BONE_SELECTED|BONE_ROOTSEL|BONE_TIPSEL;
 			arm->act_edbone= ebone;
@@ -3182,8 +3213,6 @@ static void object_delete_cb(bContext *C, Scene *scene, TreeElement *te, TreeSto
 		te->directdata= NULL;
 		tselem->id= NULL;
 	}
-	
-	WM_event_add_notifier(C, NC_SCENE|ND_OB_ACTIVE, scene);
 
 }
 
@@ -3333,6 +3362,7 @@ void outliner_del(bContext *C, Scene *scene, ARegion *ar, SpaceOops *soops)
 		outliner_do_object_operation(C, scene, soops, &soops->tree, object_delete_cb);
 		DAG_scene_sort(CTX_data_main(C), scene);
 		ED_undo_push(C, "Delete Objects");
+		WM_event_add_notifier(C, NC_SCENE|ND_OB_ACTIVE, scene);
 	}
 }
 
@@ -3370,34 +3400,38 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
 		}
 		
 		str= "Select Objects";
+		WM_event_add_notifier(C, NC_SCENE|ND_OB_SELECT, scene);
 	}
 	else if(event==2) {
 		outliner_do_object_operation(C, scene, soops, &soops->tree, object_deselect_cb);
 		str= "Deselect Objects";
+		WM_event_add_notifier(C, NC_SCENE|ND_OB_SELECT, scene);
 	}
 	else if(event==4) {
 		outliner_do_object_operation(C, scene, soops, &soops->tree, object_delete_cb);
 		DAG_scene_sort(bmain, scene);
 		str= "Delete Objects";
+		WM_event_add_notifier(C, NC_SCENE|ND_OB_ACTIVE, scene);
 	}
-	else if(event==5) {	/* disabled, see above (ton) */
+	else if(event==5) {	/* disabled, see above enum (ton) */
 		outliner_do_object_operation(C, scene, soops, &soops->tree, id_local_cb);
 		str= "Localized Objects";
 	}
 	else if(event==6) {
 		outliner_do_object_operation(C, scene, soops, &soops->tree, object_toggle_visibility_cb);
 		str= "Toggle Visibility";
+		WM_event_add_notifier(C, NC_SCENE|ND_OB_VISIBLE, scene);
 	}
 	else if(event==7) {
 		outliner_do_object_operation(C, scene, soops, &soops->tree, object_toggle_selectability_cb);
 		str= "Toggle Selectability";
+		WM_event_add_notifier(C, NC_SCENE|ND_OB_SELECT, scene);
 	}
 	else if(event==8) {
 		outliner_do_object_operation(C, scene, soops, &soops->tree, object_toggle_renderability_cb);
 		str= "Toggle Renderability";
+		WM_event_add_notifier(C, NC_SCENE|ND_OB_RENDER, scene);
 	}
-	
-	WM_event_add_notifier(C, NC_SCENE|ND_OB_SELECT, scene);
 
 	ED_undo_push(C, str);
 	
@@ -4837,16 +4871,8 @@ static void restrictbutton_view_cb(bContext *C, void *poin, void *poin2)
 {
 	Scene *scene = (Scene *)poin;
 	Object *ob = (Object *)poin2;
-	Object *obedit= CTX_data_edit_object(C);
 
-	/* Don't allow hide an objet in edit mode,
-	 * check the bug #22153 and #21609
-	 */
-	if (obedit && obedit == ob) {
-		if (ob->restrictflag & OB_RESTRICT_VIEW)
-			ob->restrictflag &= ~OB_RESTRICT_VIEW;
-		return;
-	}
+	if(!common_restrict_check(C, scene, ob)) return;
 	
 	/* deselect objects that are invisible */
 	if (ob->restrictflag & OB_RESTRICT_VIEW) {
@@ -4863,6 +4889,8 @@ static void restrictbutton_sel_cb(bContext *C, void *poin, void *poin2)
 	Scene *scene = (Scene *)poin;
 	Object *ob = (Object *)poin2;
 	
+	if(!common_restrict_check(C, scene, ob)) return;
+	
 	/* if select restriction has just been turned on */
 	if (ob->restrictflag & OB_RESTRICT_SELECT) {
 		/* Ouch! There is no backwards pointer from Object to Base, 
@@ -4875,7 +4903,7 @@ static void restrictbutton_sel_cb(bContext *C, void *poin, void *poin2)
 
 static void restrictbutton_rend_cb(bContext *C, void *poin, void *poin2)
 {
-	WM_event_add_notifier(C, NC_SCENE|ND_OB_SELECT, poin);
+	WM_event_add_notifier(C, NC_SCENE|ND_OB_RENDER, poin);
 }
 
 static void restrictbutton_r_lay_cb(bContext *C, void *poin, void *poin2)

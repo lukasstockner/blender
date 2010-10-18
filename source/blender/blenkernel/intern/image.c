@@ -382,7 +382,7 @@ Image *BKE_add_image_file(const char *name, int frame)
 	return ima;
 }
 
-static ImBuf *add_ibuf_size(int width, int height, char *name, int depth, int floatbuf, short uvtestgrid, float color[4])
+static ImBuf *add_ibuf_size(unsigned int width, unsigned int height, char *name, int depth, int floatbuf, short uvtestgrid, float color[4])
 {
 	ImBuf *ibuf;
 	unsigned char *rect= NULL;
@@ -415,7 +415,7 @@ static ImBuf *add_ibuf_size(int width, int height, char *name, int depth, int fl
 }
 
 /* adds new image block, creates ImBuf and initializes color */
-Image *BKE_add_image_size(int width, int height, char *name, int depth, int floatbuf, short uvtestgrid, float color[4])
+Image *BKE_add_image_size(unsigned int width, unsigned int height, char *name, int depth, int floatbuf, short uvtestgrid, float color[4])
 {
 	/* on save, type is changed to FILE in editsima.c */
 	Image *ima= image_alloc(name, IMA_SRC_GENERATED, IMA_TYPE_UV_TEST);
@@ -757,9 +757,9 @@ int BKE_imtype_is_movie(int imtype)
 	return 0;
 }
 
-void BKE_add_image_extension(char *string, int imtype)
+int BKE_add_image_extension(char *string, int imtype)
 {
-	char *extension="";
+	char *extension= NULL;
 	
 	if(imtype== R_IRIS) {
 		if(!BLI_testextensie(string, ".rgb"))
@@ -830,7 +830,12 @@ void BKE_add_image_extension(char *string, int imtype)
 			extension= ".jpg";
 	}
 
-	strcat(string, extension);
+	if(extension) {
+		return BLI_replace_extension(string, FILE_MAX, extension);
+	}
+	else {
+		return FALSE;
+	}
 }
 
 /* could allow access externally - 512 is for long names, 64 is for id names */
@@ -1772,8 +1777,6 @@ static ImBuf *image_load_image_file(Image *ima, ImageUser *iuser, int cfra)
 		else
 			BLI_path_abs(str, G.sce);
 		
-		BLI_path_frame(str, cfra, 0);
-		
 		/* read ibuf */
 		ibuf = IMB_loadiffname(str, flag);
 	}
@@ -2017,14 +2020,9 @@ static ImBuf *image_get_ibuf_threadsafe(Image *ima, ImageUser *iuser, int *frame
 		ibuf= image_get_ibuf(ima, IMA_NO_INDEX, 0);
 	}
 	else if(ima->source == IMA_SRC_VIEWER) {
-		if(ima->type==IMA_TYPE_R_RESULT) {
-			/* always verify entirely, not that this shouldn't happen
-			 * during render anyway */
-		}
-		else if(ima->type==IMA_TYPE_COMPOSITE) {
-			frame= iuser?iuser->framenr:0;
-			ibuf= image_get_ibuf(ima, 0, frame);
-		}
+		/* always verify entirely, not that this shouldn't happen
+		 * as part of texture sampling in rendering anyway, so not
+		 * a big bottleneck */
 	}
 
 	*frame_r = frame;
@@ -2141,10 +2139,15 @@ ImBuf *BKE_image_acquire_ibuf(Image *ima, ImageUser *iuser, void **lock_r)
 						BLI_lock_thread(LOCK_VIEWER);
 						*lock_r= ima;
 
-						/* Composite Viewer, all handled in compositor */
-						/* fake ibuf, will be filled in compositor */
-						ibuf= IMB_allocImBuf(256, 256, 32, IB_rect, 0);
-						image_assign_ibuf(ima, ibuf, 0, frame);
+						frame= iuser?iuser->framenr:0;
+						ibuf= image_get_ibuf(ima, 0, frame);
+
+						if(!ibuf) {
+							/* Composite Viewer, all handled in compositor */
+							/* fake ibuf, will be filled in compositor */
+							ibuf= IMB_allocImBuf(256, 256, 32, IB_rect, 0);
+							image_assign_ibuf(ima, ibuf, 0, frame);
+						}
 					}
 				}
 			}

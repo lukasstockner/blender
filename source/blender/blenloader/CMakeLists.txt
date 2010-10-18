@@ -27,11 +27,16 @@
 FILE(GLOB SRC intern/*.c)
 
 SET(INC 
-	. ../../../intern/guardedalloc ../blenlib ../blenkernel
-	../makesdna ../readblenfile ../include ../makesrna
-	../python ../../kernel/gen_messaging
+	.
+	../blenlib
+	../blenkernel
+	../makesdna
+	../readblenfile
+	../include
+	../makesrna
 	../render/extern/include
 	../../../extern/ptex
+	../../../intern/guardedalloc
 	${ZLIB_INC}
 )
 

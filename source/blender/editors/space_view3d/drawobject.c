@@ -523,12 +523,11 @@ void drawcircball(int mode, float *cent, float rad, float tmat[][4])
 }
 
 /* circle for object centers, special_color is for library or ob users */
-static void drawcentercircle(View3D *v3d, RegionView3D *rv3d, float *vec, int selstate, int special_color)
+static void drawcentercircle(View3D *v3d, RegionView3D *rv3d, float *co, int selstate, int special_color)
 {
-	float size;
-	
-	size= rv3d->persmat[0][3]*vec[0]+ rv3d->persmat[1][3]*vec[1]+ rv3d->persmat[2][3]*vec[2]+ rv3d->persmat[3][3];
-	size*= rv3d->pixsize*((float)U.obcenter_dia*0.5f);
+	float vec[3]= {rv3d->persmat[0][3], rv3d->persmat[1][3], rv3d->persmat[2][3]};
+	float size= rv3d->pixsize*((float)U.obcenter_dia*0.5f);
+	size *= dot_v3v3(vec, co) + rv3d->persmat[3][3];
 
 	/* using gldepthfunc guarantees that it does write z values, but not checks for it, so centers remain visible independt order of drawing */
 	if(v3d->zbuf)  glDepthFunc(GL_ALWAYS);
@@ -544,10 +543,10 @@ static void drawcentercircle(View3D *v3d, RegionView3D *rv3d, float *vec, int se
 		else if (selstate == SELECT) UI_ThemeColorShadeAlpha(TH_SELECT, 0, -80);
 		else if (selstate == DESELECT) UI_ThemeColorShadeAlpha(TH_TRANSFORM, 0, -80);
 	}
-	drawcircball(GL_POLYGON, vec, size, rv3d->viewinv);
+	drawcircball(GL_POLYGON, co, size, rv3d->viewinv);
 	
 	UI_ThemeColorShadeAlpha(TH_WIRE, 0, -30);
-	drawcircball(GL_LINE_LOOP, vec, size, rv3d->viewinv);
+	drawcircball(GL_LINE_LOOP, co, size, rv3d->viewinv);
 	
 	glDisable(GL_BLEND);
 	if(v3d->zbuf)  glDepthFunc(GL_LEQUAL);
@@ -3092,12 +3091,15 @@ static int drawCurveDerivedMesh(Scene *scene, View3D *v3d, RegionView3D *rv3d, B
 		int glsl = draw_glsl_material(scene, ob, v3d, dt);
 		GPU_begin_object_materials(v3d, rv3d, scene, ob, glsl, NULL);
 
-		if (!glsl)
+		if(!glsl) {
 			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, 0);
+			glEnable(GL_LIGHTING);
+			dm->drawFacesSolid(dm, NULL, GPU_enable_material, 0);
+			glDisable(GL_LIGHTING);
+		}
+		else
+			dm->drawFacesGLSL(dm, GPU_enable_material);
 
-		glEnable(GL_LIGHTING);
-		dm->drawFacesSolid(dm, NULL, GPU_enable_material, 0);
-		glDisable(GL_LIGHTING);
 		GPU_end_object_materials();
 	} else {
 		if((v3d->flag2 & V3D_RENDER_OVERRIDE && v3d->drawtype >= OB_SOLID)==0)

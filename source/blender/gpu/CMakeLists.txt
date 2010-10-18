@@ -26,10 +26,19 @@
 
 FILE(GLOB SRC intern/*.c)
 
-SET(INC 
-	. ../blenlib ../blenkernel ../makesdna ../makesrna ../include
-	../../../extern/glew/include ../../../intern/guardedalloc ../../../intern/smoke/extern ../imbuf
-	../../../extern/ptex)
+SET(INC
+	.
+	../blenlib
+	../blenkernel
+	../include
+	../imbuf
+	../makesdna
+	../makesrna
+	../../../extern/glew/include
+	../../../extern/ptex
+	../../../intern/guardedalloc
+	../../../intern/smoke/extern
+)
 
 IF(WIN32)
 	INCLUDE_DIRECTORIES(${PTHREADS_INC})

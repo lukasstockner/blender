@@ -117,7 +117,7 @@ def load_scripts(reload_scripts=False, refresh_scripts=False):
         # note that they will only actually reload of the modification time changes.
         # this `wont` work for packages so... its not perfect.
         for module_name in [ext.module for ext in _bpy.context.user_preferences.addons]:
-            addon_disable(module_name, default_set)
+            addon_disable(module_name, default_set=False)
 
     def register_module_call(mod):
         _bpy_types._register_module(mod.__name__)
@@ -271,8 +271,12 @@ def preset_paths(subdir):
     """
     Returns a list of paths for a specific preset.
     """
-
-    return (_os.path.join(_presets, subdir), )
+    dirs = []
+    for path in script_paths("presets"):
+        directory = _os.path.join(path, subdir)
+        if _os.path.isdir(directory):
+            dirs.append(directory)
+    return dirs
 
 
 def smpte_from_seconds(time, fps=None):
@@ -437,17 +441,18 @@ def addon_disable(module_name, default_set=True):
 
     mod = _sys.modules.get(module_name)
 
-    if mod is None:
-        print("addon_disable", module_name, "not loaded, nothing to do")
-        return
+    # possible this addon is from a previous session and didnt load a module this time.
+    # so even if the module is not found, still disable the addon in the user prefs.
+    if mod:
+        mod.__addon_enabled__ = False
 
-    mod.__addon_enabled__ = False
-
-    try:
-        _bpy_types._unregister_module(module_name, free=False)  # dont free because we may want to enable again.
-        mod.unregister()
-    except:
-        traceback.print_exc()
+        try:
+            _bpy_types._unregister_module(module_name, free=False)  # dont free because we may want to enable again.
+            mod.unregister()
+        except:
+            traceback.print_exc()
+    else:
+        print("addon_disable", module_name, "not loaded")
 
     # could be in more then once, unlikely but better do this just incase.
     addons = _bpy.context.user_preferences.addons

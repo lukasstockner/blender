@@ -105,6 +105,7 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 		sfile->params= MEM_callocN(sizeof(FileSelectParams), "fileselparams");
 		/* set path to most recently opened .blend */
 		BLI_split_dirfile(G.sce, sfile->params->dir, sfile->params->file);
+		sfile->params->filter_glob[0] = '\0';
 	}
 
 	params = sfile->params;
@@ -168,6 +169,14 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 			params->filter |= RNA_boolean_get(op->ptr, "filter_btx") ? BTXFILE : 0;
 		if(RNA_struct_find_property(op->ptr, "filter_collada"))
 			params->filter |= RNA_boolean_get(op->ptr, "filter_collada") ? COLLADAFILE : 0;
+		if (RNA_struct_find_property(op->ptr, "filter_glob")) {
+			RNA_string_get(op->ptr, "filter_glob", params->filter_glob);
+			params->filter |= (OPERATORFILE|FOLDERFILE);
+		}
+		else {
+			params->filter_glob[0] = '\0';
+		}
+
 		if (params->filter != 0) {
 			if (U.uiflag & USER_FILTERFILEEXTS) {
 				params->flag |= FILE_FILTER;
@@ -200,6 +209,7 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 		params->flag |= FILE_HIDE_DOT;
 		params->display = FILE_SHORTDISPLAY;
 		params->filter = 0;
+		params->filter_glob[0] = '\0';
 		params->sort = FILE_SORT_ALPHA;
 	}
 
@@ -531,5 +541,18 @@ void ED_fileselect_clear(struct bContext *C, struct SpaceFile *sfile)
 
 void ED_fileselect_exit(struct bContext *C, struct SpaceFile *sfile)
 {
-	thumbnails_stop(sfile->files, C);
+	if(!sfile) return;
+	if(sfile->op)
+		WM_event_fileselect_event(C, sfile->op, EVT_FILESELECT_EXTERNAL_CANCEL);
+	sfile->op = NULL;
+
+	folderlist_free(sfile->folders_prev);
+	folderlist_free(sfile->folders_next);
+	
+	if (sfile->files) {
+		ED_fileselect_clear(C, sfile);
+		MEM_freeN(sfile->files);
+		sfile->files= NULL;
+	}
+
 }

@@ -48,7 +48,7 @@ void	BKE_stamp_info(struct Scene *scene, struct ImBuf *ibuf);
 void	BKE_stamp_buf(struct Scene *scene, unsigned char *rect, float *rectf, int width, int height, int channels);
 int		BKE_write_ibuf(struct Scene *scene, struct ImBuf *ibuf, char *name, int imtype, int subimtype, int quality);
 void	BKE_makepicstring(char *string, char *base, int frame, int imtype, int use_ext);
-void	BKE_add_image_extension(char *string, int imtype);
+int		BKE_add_image_extension(char *string, int imtype);
 int		BKE_ftype_to_imtype(int ftype);
 int		BKE_imtype_to_ftype(int imtype);
 int		BKE_imtype_is_movie(int imtype);
@@ -115,7 +115,7 @@ void BKE_image_release_ibuf(struct Image *ima, void *lock);
 struct Image *BKE_add_image_file(const char *name, int frame);
 
 /* adds image, adds ibuf, generates color or pattern */
-struct Image *BKE_add_image_size(int width, int height, char *name, int depth, int floatbuf, short uvtestgrid, float color[4]);
+struct Image *BKE_add_image_size(unsigned int width, unsigned int height, char *name, int depth, int floatbuf, short uvtestgrid, float color[4]);
 /* adds image from imbuf, owns imbuf */
 struct Image *BKE_add_image_imbuf(struct ImBuf *ibuf);
 

@@ -29,6 +29,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#include <stddef.h>
 #include "BLI_storage.h" /* _LARGEFILE_SOURCE */
 
 #include <math.h>
@@ -85,7 +86,6 @@
 #include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
 #include "BKE_utildefines.h"
 
 #include "RE_render_ext.h"

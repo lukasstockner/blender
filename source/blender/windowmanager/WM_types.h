@@ -177,27 +177,30 @@ typedef struct wmNotifier {
 #define	ND_SEQUENCER		(6<<16)
 #define ND_OB_ACTIVE		(7<<16)
 #define ND_OB_SELECT		(8<<16)
-#define ND_MODE				(9<<16)
-#define ND_RENDER_RESULT	(10<<16)
-#define ND_COMPO_RESULT		(11<<16)
-#define ND_KEYINGSET		(12<<16)
-#define ND_TOOLSETTINGS		(13<<16)
-#define ND_LAYER			(14<<16)
-#define ND_FRAME_RANGE		(15<<16)
+#define ND_OB_VISIBLE		(9<<16)
+#define ND_OB_RENDER		(10<<16)
+#define ND_MODE				(11<<16)
+#define ND_RENDER_RESULT	(12<<16)
+#define ND_COMPO_RESULT		(13<<16)
+#define ND_KEYINGSET		(14<<16)
+#define ND_TOOLSETTINGS		(15<<16)
+#define ND_LAYER			(16<<16)
+#define ND_FRAME_RANGE		(17<<16)
 #define ND_LAYER_CONTENT	(101<<16)
 
 	/* NC_OBJECT Object */
-#define	ND_TRANSFORM		(16<<16)
-#define ND_OB_SHADING		(17<<16)
-#define ND_POSE				(18<<16)
-#define ND_BONE_ACTIVE		(19<<16)
-#define ND_BONE_SELECT		(20<<16)
-#define ND_DRAW				(21<<16)
-#define ND_MODIFIER			(22<<16)
-#define ND_KEYS				(23<<16)
-#define ND_CONSTRAINT		(24<<16)
-#define ND_PARTICLE			(25<<16)
-#define ND_POINTCACHE		(26<<16)
+#define	ND_TRANSFORM		(18<<16)
+#define ND_OB_SHADING		(19<<16)
+#define ND_POSE				(20<<16)
+#define ND_BONE_ACTIVE		(21<<16)
+#define ND_BONE_SELECT		(22<<16)
+#define ND_DRAW				(23<<16)
+#define ND_MODIFIER			(24<<16)
+#define ND_KEYS				(25<<16)
+#define ND_CONSTRAINT		(26<<16)
+#define ND_PARTICLE			(27<<16)
+#define ND_POINTCACHE		(28<<16)
+#define ND_PARENT			(29<<16)
 
 	/* NC_MATERIAL Material */
 #define	ND_SHADING			(30<<16)
@@ -385,6 +388,12 @@ typedef struct wmOperatorType {
 	 * any interface code or input device state.
 	 * - see defines below for return values */
 	int (*exec)(struct bContext *, struct wmOperator *);
+	
+	/* this callback executes on a running operator whenever as property
+	 * is changed. It can correct its own properties or report errors for
+	 * invalid settings in exceptional cases.
+	 * Boolean return value, True denotes a change has been made and to redraw */
+	int (*check)(struct bContext *, struct wmOperator *);
 
 	/* for modal temporary operators, initially invoke is called. then
 	 * any further events are handled in modal. if the operation is

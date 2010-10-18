@@ -376,7 +376,6 @@ static float tex_strength(SculptSession *ss, Brush *br, float *co,
 	return paint_stroke_combined_strength(ss->cache->stroke, dist, co, mask);
 }
 
-
 /* Handles clipping against a mirror modifier and SCULPT_LOCK axis flags */
 static void sculpt_clip(Sculpt *sd, SculptSession *ss, float *co, const float val[3])
 {

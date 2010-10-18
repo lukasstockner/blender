@@ -29,10 +29,24 @@ class ExportHelper:
     def invoke(self, context, event):
         import os
         if not self.filepath:
-            self.filepath = os.path.splitext(context.blend_data.filepath)[0] + self.filename_ext
+            blend_filepath = context.blend_data.filepath
+            if not blend_filepath:
+                blend_filepath = "untitled"
+            else:
+                blend_filepath = os.path.splitext(blend_filepath)[0]
+
+            self.filepath = blend_filepath + self.filename_ext
 
         context.window_manager.add_fileselect(self)
         return {'RUNNING_MODAL'}
+
+    def check(self, context):
+        filepath = bpy.path.ensure_ext(self.filepath, self.filename_ext)
+        if filepath != self.filepath:
+            self.filepath = filepath
+            return True
+        else:
+            return False
 
 
 class ImportHelper:

@@ -1397,6 +1397,14 @@ static void IDP_DirectLinkIDPArray(IDProperty *prop, int switch_endian, FileData
 	prop->data.pointer = newdataadr(fd, prop->data.pointer);
 
 	array= (IDProperty*) prop->data.pointer;
+	
+	/* note!, idp-arrays didn't exist in 2.4x, so the pointer will be cleared
+	 * theres not really anything we can do to correct this, at least dont crash */
+	if(array==NULL) {
+		prop->len= 0;
+		prop->totallen= 0;
+	}
+	
 
 	for(i=0; i<prop->len; i++)
 		IDP_DirectLinkProperty(&array[i], switch_endian, fd);
@@ -2727,7 +2735,7 @@ static void direct_link_curve(FileData *fd, Curve *cu)
 	cu->strinfo= newdataadr(fd, cu->strinfo);	
 	cu->tb= newdataadr(fd, cu->tb);
 
-	if(cu->vfont==0) link_list(fd, &(cu->nurb));
+	if(cu->vfont == NULL) link_list(fd, &(cu->nurb));
 	else {
 		cu->nurb.first=cu->nurb.last= 0;
 
@@ -2758,7 +2766,7 @@ static void direct_link_curve(FileData *fd, Curve *cu)
 		nu->bp= newdataadr(fd, nu->bp);
 		nu->knotsu= newdataadr(fd, nu->knotsu);
 		nu->knotsv= newdataadr(fd, nu->knotsv);
-		if (cu->vfont==0) nu->charidx= nu->mat_nr;
+		if (cu->vfont == NULL) nu->charidx= nu->mat_nr;
 
 		if(fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
 			switch_endian_knots(nu);
@@ -2929,6 +2937,7 @@ static void direct_link_pointcache(FileData *fd, PointCache *cache)
 	cache->simframe= 0;
 	cache->edit= NULL;
 	cache->free_edit= NULL;
+	cache->cached_frames= NULL;
 }
 
 static void direct_link_pointcache_list(FileData *fd, ListBase *ptcaches, PointCache **ocache)
@@ -11151,6 +11160,13 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				br->ob_mode= (OB_MODE_SCULPT|OB_MODE_WEIGHT_PAINT|OB_MODE_TEXTURE_PAINT|OB_MODE_VERTEX_PAINT);
 		}
 		
+	}
+	{
+		ParticleSettings *part;
+		for(part = main->particle.first; part; part = part->id.next) {
+			if(part->boids)
+				part->boids->pitch = 1.0f;
+		}
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */

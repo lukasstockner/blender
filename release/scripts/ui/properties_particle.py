@@ -27,7 +27,13 @@ from properties_physics_common import basic_force_field_falloff_ui
 
 
 def particle_panel_enabled(context, psys):
-    return (psys.point_cache.is_baked is False) and (not psys.is_edited) and (not context.particle_system_editable)
+    phystype = psys.settings.physics_type
+    if phystype == 'NO' or phystype == 'KEYED':
+        return True
+    if psys.settings.type in ('EMITTER', 'REACTOR') or (psys.settings.type == 'HAIR' and psys.use_hair_dynamics):
+        return (psys.point_cache.is_baked is False) and (not psys.is_edited) and (not context.particle_system_editable)
+    else:
+        return True
 
 
 def particle_panel_poll(cls, context):
@@ -512,6 +518,7 @@ class PARTICLE_PT_physics(ParticleButtonsPanel, bpy.types.Panel):
             col = row.column()
             col.label(text="Misc:")
             col.prop(boids, "bank", slider=True)
+            col.prop(boids, "pitch", slider=True)
             col.prop(boids, "height", slider=True)
 
         if part.physics_type == 'KEYED' or part.physics_type == 'BOIDS' or part.physics_type == 'FLUID':
@@ -863,7 +870,7 @@ class PARTICLE_PT_draw(ParticleButtonsPanel, bpy.types.Panel):
 
         if part.draw_percentage != 100:
             if part.type == 'HAIR':
-                if psys.hair_dynamics and psys.point_cache.is_baked == False:
+                if psys.use_hair_dynamics and psys.point_cache.is_baked == False:
                     layout.row().label(text="Display percentage makes dynamics inaccurate without baking!")
             else:
                 phystype = part.physics_type

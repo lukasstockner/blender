@@ -975,7 +975,6 @@ static void drawviewborder_flymode(ARegion *ar)
 
 static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 {
-	extern void gl_round_box(int mode, float minx, float miny, float maxx, float maxy, float rad);          // interface_panel.c
 	float fac, a;
 	float x1, x2, y1, y2;
 	float x1i, x2i, y1i, y2i;
@@ -1062,7 +1061,7 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 		UI_ThemeColorBlendShade(TH_WIRE, TH_BACK, 0.25, 0);
 		
 		uiSetRoundBox(15);
-		gl_round_box(GL_LINE_LOOP, x1, y1, x2, y2, 12.0);
+		uiDrawBox(GL_LINE_LOOP, x1, y1, x2, y2, 12.0);
 	}
 
 	setlinestyle(0);
@@ -1978,23 +1977,19 @@ static void view3d_main_area_setup_view(Scene *scene, View3D *v3d, ARegion *ar, 
 	mul_m4_m4m4(rv3d->persmat, rv3d->viewmat, rv3d->winmat);
 	invert_m4_m4(rv3d->persinv, rv3d->persmat);
 	invert_m4_m4(rv3d->viewinv, rv3d->viewmat);
-	
+
 	/* calculate pixelsize factor once, is used for lamps and obcenters */
 	{
-		float len1, len2, vec[3];
-		
-		copy_v3_v3(vec, rv3d->persinv[0]);
-		len1= normalize_v3(vec);
-		copy_v3_v3(vec, rv3d->persinv[1]);
-		len2= normalize_v3(vec);
-		
-		rv3d->pixsize= 2.0f*(len1>len2?len1:len2);
-		
-		/* correct for window size */
-		if(ar->winx > ar->winy) rv3d->pixsize/= (float)ar->winx;
-		else rv3d->pixsize/= (float)ar->winy;
+		/* note:  '1.0f / len_v3(v1)'  replaced  'len_v3(rv3d->viewmat[0])'
+		 * because of float point precission problems at large values [#23908] */
+		float v1[3]= {rv3d->persmat[0][0], rv3d->persmat[1][0], rv3d->persmat[2][0]};
+		float v2[3]= {rv3d->persmat[0][1], rv3d->persmat[1][1], rv3d->persmat[2][1]};
+		float len1= 1.0f / len_v3(v1);
+		float len2= 1.0f / len_v3(v2);
+
+		rv3d->pixsize = (2.0f * MAX2(len1, len2)) / (float)MAX2(ar->winx, ar->winy);
 	}
-	
+
 	/* set for opengl */
 	glMatrixMode(GL_PROJECTION);
 	glLoadMatrixf(rv3d->winmat);

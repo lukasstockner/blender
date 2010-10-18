@@ -129,6 +129,15 @@ int ED_operator_view3d_active(bContext *C)
 	return ed_spacetype_test(C, SPACE_VIEW3D);
 }
 
+int ED_operator_region_view3d_active(bContext *C)
+{
+	if(CTX_wm_region_view3d(C))
+		return TRUE;
+	
+	CTX_wm_operator_poll_msg_set(C, "expected a view3d region");
+	return FALSE;	
+}
+
 int ED_operator_timeline_active(bContext *C)
 {
 	return ed_spacetype_test(C, SPACE_TIME);
@@ -137,6 +146,19 @@ int ED_operator_timeline_active(bContext *C)
 int ED_operator_outliner_active(bContext *C)
 {
 	return ed_spacetype_test(C, SPACE_OUTLINER);
+}
+
+int ED_operator_outliner_active_no_editobject(bContext *C)
+{
+	if(ed_spacetype_test(C, SPACE_OUTLINER)) {
+		Object *ob = ED_object_active_context(C);
+		Object *obedit= CTX_data_edit_object(C);
+		if(ob && ob == obedit)
+			return 0;
+		else
+			return 1;
+	}
+	return 0;
 }
 
 int ED_operator_file_active(bContext *C)
@@ -213,6 +235,11 @@ int ED_operator_editmesh(bContext *C)
 int ED_operator_editmesh_view3d(bContext *C)
 {
 	return ED_operator_editmesh(C) && ED_operator_view3d_active(C);
+}
+
+int ED_operator_editmesh_region_view3d(bContext *C)
+{
+	return ED_operator_editmesh(C) && CTX_wm_region_view3d(C);
 }
 
 int ED_operator_editarmature(bContext *C)
@@ -1291,19 +1318,19 @@ typedef struct RegionMoveData {
 	int bigger, smaller, origval;
 	int origx, origy;
 	int maxsize;
-	char edge;
+	AZEdge edge;
 	
 } RegionMoveData;
 
 
-static int area_max_regionsize(ScrArea *sa, ARegion *scalear, char edge)
+static int area_max_regionsize(ScrArea *sa, ARegion *scalear, AZEdge edge)
 {
 	ARegion *ar;
 	int dist;
 	
-	if(edge=='l' || edge=='r') {
+	if(edge==AE_RIGHT_TO_TOPLEFT || edge==AE_LEFT_TO_TOPRIGHT) {
 		dist = sa->totrct.xmax - sa->totrct.xmin;
-	} else {	/* t, b */
+	} else {	/* AE_BOTTOM_TO_TOPLEFT, AE_TOP_TO_BOTTOMRIGHT */
 		dist = sa->totrct.ymax - sa->totrct.ymin;
 	}
 	
@@ -1325,9 +1352,9 @@ static int area_max_regionsize(ScrArea *sa, ARegion *scalear, char edge)
 		
 		/* case of regions in regions, like operator properties panel */
 		/* these can sit on top of other regions such as headers, so account for this */
-		else if (edge == 'b' && scalear->alignment & RGN_ALIGN_TOP && ar->alignment == RGN_ALIGN_TOP && ar->regiontype == RGN_TYPE_HEADER)
+		else if (edge == AE_BOTTOM_TO_TOPLEFT && scalear->alignment & RGN_ALIGN_TOP && ar->alignment == RGN_ALIGN_TOP && ar->regiontype == RGN_TYPE_HEADER)
 			dist -= ar->winy;
-		else if (edge == 't' && scalear->alignment & RGN_ALIGN_BOTTOM && ar->alignment == RGN_ALIGN_BOTTOM && ar->regiontype == RGN_TYPE_HEADER)
+		else if (edge == AE_TOP_TO_BOTTOMRIGHT && scalear->alignment & RGN_ALIGN_BOTTOM && ar->alignment == RGN_ALIGN_BOTTOM && ar->regiontype == RGN_TYPE_HEADER)
 			dist -= ar->winy;
 	}
 
@@ -1367,7 +1394,7 @@ static int region_scale_invoke(bContext *C, wmOperator *op, wmEvent *event)
 			rmd->ar->sizey= rmd->ar->type->prefsizey;
 		
 		/* now copy to regionmovedata */
-		if(rmd->edge=='l' || rmd->edge=='r') {
+		if(rmd->edge==AE_LEFT_TO_TOPRIGHT || rmd->edge==AE_RIGHT_TO_TOPLEFT) {
 			rmd->origval= rmd->ar->sizex;
 		} else {
 			rmd->origval= rmd->ar->sizey;
@@ -1399,9 +1426,9 @@ static int region_scale_modal(bContext *C, wmOperator *op, wmEvent *event)
 	switch(event->type) {
 		case MOUSEMOVE:
 			
-			if(rmd->edge=='l' || rmd->edge=='r') {
+			if(rmd->edge==AE_LEFT_TO_TOPRIGHT || rmd->edge==AE_RIGHT_TO_TOPLEFT) {
 				delta= event->x - rmd->origx;
-				if(rmd->edge=='l') delta= -delta;
+				if(rmd->edge==AE_LEFT_TO_TOPRIGHT) delta= -delta;
 				
 				rmd->ar->sizex= rmd->origval + delta;
 				CLAMP(rmd->ar->sizex, 0, rmd->maxsize);
@@ -1415,13 +1442,17 @@ static int region_scale_modal(bContext *C, wmOperator *op, wmEvent *event)
 					ED_region_toggle_hidden(C, rmd->ar);
 			}
 			else {
+				int maxsize=0;
 				delta= event->y - rmd->origy;
-				if(rmd->edge=='b') delta= -delta;
+				if(rmd->edge==AE_BOTTOM_TO_TOPLEFT) delta= -delta;
 				
 				rmd->ar->sizey= rmd->origval + delta;
 				CLAMP(rmd->ar->sizey, 0, rmd->maxsize);
 				
-				if(rmd->ar->sizey < 24) {
+				if(rmd->ar->regiontype == RGN_TYPE_TOOL_PROPS)
+					maxsize = rmd->maxsize - ((rmd->sa->headertype==2)?48:24) - 10;
+
+				if(rmd->ar->sizey < 24 || (maxsize > 0 && (rmd->ar->sizey > maxsize)) ) {
 					rmd->ar->sizey= rmd->origval;
 					if(!(rmd->ar->flag & RGN_FLAG_HIDDEN))
 						ED_region_toggle_hidden(C, rmd->ar);

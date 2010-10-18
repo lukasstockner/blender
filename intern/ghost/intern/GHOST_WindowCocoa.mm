@@ -280,6 +280,18 @@ extern "C" {
     return YES;
 }
 
+- (void) drawRect:(NSRect)rect
+{
+    if ([self inLiveResize])
+    {
+        //Don't redraw while in live resize
+    }
+    else
+    {
+        [super drawRect:rect];
+    }
+}
+
 @end
 
 
@@ -783,9 +795,9 @@ GHOST_TSuccess GHOST_WindowCocoa::setState(GHOST_TWindowState state)
 			break;
 		case GHOST_kWindowStateNormal:
         default:
+			NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 			if (m_fullScreen)
 			{
-				NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 				m_fullScreen = false;
 
 				//Exit fullscreen
@@ -835,15 +847,15 @@ GHOST_TSuccess GHOST_WindowCocoa::setState(GHOST_TWindowState state)
 			
 				//Tell WM of view new size
 				m_systemCocoa->handleWindowEvent(GHOST_kEventWindowSize, this);
-				
-				[pool drain];
 			}
             else if ([m_window isMiniaturized])
 				[m_window deminiaturize:nil];
 			else if ([m_window isZoomed])
 				[m_window zoom:nil];
+			[pool drain];
             break;
     }
+
     return GHOST_kSuccess;
 }
 

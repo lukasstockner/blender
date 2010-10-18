@@ -53,6 +53,7 @@
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_screen_types.h"
+#include "ED_fileselect.h"
 
 #include "UI_interface.h"
 
@@ -1090,6 +1091,10 @@ void ED_area_exit(bContext *C, ScrArea *sa)
 	ScrArea *prevsa= CTX_wm_area(C);
 	ARegion *ar;
 
+	if (sa->spacetype == SPACE_FILE) {
+		ED_fileselect_exit(C, (SpaceFile*)(sa) ? sa->spacedata.first : CTX_wm_space_data(C));
+	}
+
 	CTX_wm_area_set(C, sa);
 	for(ar= sa->regionbase.first; ar; ar= ar->next)
 		ED_region_exit(C, ar);
@@ -1157,7 +1162,7 @@ static void screen_cursor_set(wmWindow *win, wmEvent *event)
 		if(az->type==AZONE_AREA)
 			WM_cursor_set(win, CURSOR_EDIT);
 		else if(az->type==AZONE_REGION) {
-			if(az->edge == 'l' || az->edge == 'r')
+			if(az->edge == AE_LEFT_TO_TOPRIGHT || az->edge == AE_RIGHT_TO_TOPLEFT)
 				WM_cursor_set(win, CURSOR_X_MOVE);
 			else
 				WM_cursor_set(win, CURSOR_Y_MOVE);

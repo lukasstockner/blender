@@ -151,6 +151,11 @@ class VIEW3D_MT_transform(bpy.types.Menu):
         layout.operator("transform.shear", text="Shear")
         layout.operator("transform.warp", text="Warp")
         layout.operator("transform.push_pull", text="Push/Pull")
+
+        obj = context.object
+        if obj.type == 'ARMATURE' and obj.mode in ('EDIT', 'POSE') and obj.data.draw_type in ('BBONE', 'ENVELOPE'):
+            layout.operator("transform.transform", text="Scale Envelope/BBone").mode = 'BONE_SIZE'
+
         if context.edit_object and context.edit_object.type == 'ARMATURE':
             layout.operator("armature.align")
         else:
@@ -642,13 +647,17 @@ class VIEW3D_MT_select_face(bpy.types.Menu):  # XXX no matching enum
 
 # ********** Object menu **********
 
-
 class VIEW3D_MT_object(bpy.types.Menu):
     bl_context = "objectmode"
     bl_label = "Object"
 
     def draw(self, context):
         layout = self.layout
+
+        layout.operator("ed.undo")
+        layout.operator("ed.redo")
+
+        layout.separator()
 
         layout.menu("VIEW3D_MT_transform")
         layout.menu("VIEW3D_MT_mirror")
@@ -658,9 +667,7 @@ class VIEW3D_MT_object(bpy.types.Menu):
 
         layout.separator()
 
-        layout.operator("anim.keyframe_insert_menu", text="Insert Keyframe...")
-        layout.operator("anim.keyframe_delete_v3d", text="Delete Keyframe...")
-        layout.operator("anim.keying_set_active_set", text="Change Keying Set...")
+        layout.menu("VIEW3D_MT_object_animation")
 
         layout.separator()
 
@@ -682,8 +689,7 @@ class VIEW3D_MT_object(bpy.types.Menu):
 
         layout.separator()
 
-        layout.menu("VIEW3D_MT_object_game_properties")
-        layout.menu("VIEW3D_MT_object_game_logicbricks")
+        layout.menu("VIEW3D_MT_object_game")
 
         layout.separator()
 
@@ -696,6 +702,18 @@ class VIEW3D_MT_object(bpy.types.Menu):
         layout.menu("VIEW3D_MT_object_showhide")
 
         layout.operator_menu_enum("object.convert", "target")
+
+
+class VIEW3D_MT_object_animation(bpy.types.Menu):
+    bl_context = "objectmode"
+    bl_label = "Animation"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("anim.keyframe_insert_menu", text="Insert Keyframe...")
+        layout.operator("anim.keyframe_delete_v3d", text="Delete Keyframe...")
+        layout.operator("anim.keying_set_active_set", text="Change Keying Set...")
 
 
 class VIEW3D_MT_object_clear(bpy.types.Menu):
@@ -903,26 +921,24 @@ class VIEW3D_MT_make_links(bpy.types.Menu):
         layout.operator_enums("object.make_links_data", "type")  # inline
 
 
-class VIEW3D_MT_object_game_properties(bpy.types.Menu):
-    bl_label = "Game Properties"
+class VIEW3D_MT_object_game(bpy.types.Menu):
+    bl_label = "Game"
 
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("object.game_property_copy", text="Replace").operation = 'REPLACE'
-        layout.operator("object.game_property_copy", text="Merge").operation = 'MERGE'
-        layout.operator_menu_enum("object.game_property_copy", "property", text="Copy...")
+        layout.operator("object.logic_bricks_copy", text="Copy Logic Bricks")
+
         layout.separator()
+
+        layout.operator("object.game_property_copy", text="Replace Properties").operation = 'REPLACE'
+        layout.operator("object.game_property_copy", text="Merge Properties").operation = 'MERGE'
+        layout.operator_menu_enum("object.game_property_copy", "property", text="Copy Properties...")
+
+        layout.separator()
+
         layout.operator("object.game_property_clear")
 
-
-class VIEW3D_MT_object_game_logicbricks(bpy.types.Menu):
-    bl_label = "Logic Bricks"
-
-    def draw(self, context):
-        layout = self.layout
-
-        layout.operator("object.logic_bricks_copy", text="Copy")
 
 # ********** Vertex paint menu **********
 
@@ -932,6 +948,11 @@ class VIEW3D_MT_paint_vertex(bpy.types.Menu):
 
     def draw(self, context):
         layout = self.layout
+
+        layout.operator("ed.undo")
+        layout.operator("ed.redo")
+
+        layout.separator()
 
         layout.operator("paint.vertex_color_set")
         layout.operator("paint.vertex_color_dirt")
@@ -1004,6 +1025,11 @@ class VIEW3D_MT_paint_weight(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
 
+        layout.operator("ed.undo")
+        layout.operator("ed.redo")
+
+        layout.separator()
+
         layout.operator("paint.weight_from_bones", text="Assign Automatic From Bones").type = 'AUTOMATIC'
         layout.operator("paint.weight_from_bones", text="Assign From Bone Envelopes").type = 'ENVELOPES'
 
@@ -1031,6 +1057,11 @@ class VIEW3D_MT_sculpt(bpy.types.Menu):
         layout.operator("sculpt.area_hide", text="Show Hidden").show_all = True
         layout.operator("sculpt.area_hide", text="Hide Exterior Area")
         layout.operator("sculpt.area_hide", text="Hide Interior Area").hide_inside = True
+        layout.separator()
+
+        layout.operator("ed.undo")
+        layout.operator("ed.redo")
+
         layout.separator()
 
         layout.prop(sculpt, "use_symmetry_x")
@@ -1078,6 +1109,11 @@ class VIEW3D_MT_particle(bpy.types.Menu):
         layout = self.layout
 
         particle_edit = context.tool_settings.particle_edit
+
+        layout.operator("ed.undo")
+        layout.operator("ed.redo")
+
+        layout.separator()
 
         layout.operator("particle.mirror")
 
@@ -1129,10 +1165,13 @@ class VIEW3D_MT_pose(bpy.types.Menu):
 
         arm = context.active_object.data
 
+        layout.operator("ed.undo")
+        layout.operator("ed.redo")
+
+        layout.separator()
+
         layout.menu("VIEW3D_MT_transform")
         layout.menu("VIEW3D_MT_snap")
-        if arm.draw_type in ('BBONE', 'ENVELOPE'):
-            layout.operator("transform.transform", text="Scale Envelope Distance").mode = 'BONESIZE'
 
         layout.menu("VIEW3D_MT_pose_transform")
 
@@ -1513,7 +1552,7 @@ class VIEW3D_MT_edit_mesh_vertices(bpy.types.Menu):
         layout.operator_context = 'INVOKE_REGION_WIN'
 
         layout.operator("mesh.merge")
-        layout.operator("mesh.rip")
+        layout.operator("mesh.rip_move")
         layout.operator("mesh.split")
         layout.operator("mesh.separate")
 
@@ -1871,11 +1910,6 @@ class VIEW3D_MT_edit_armature(bpy.types.Menu):
         layout.menu("VIEW3D_MT_mirror")
         layout.menu("VIEW3D_MT_snap")
         layout.menu("VIEW3D_MT_edit_armature_roll")
-
-        if arm.draw_type == 'ENVELOPE':
-            layout.operator("transform.transform", text="Scale Envelope Distance").mode = 'BONESIZE'
-        else:
-            layout.operator("transform.transform", text="Scale B-Bone Width").mode = 'BONESIZE'
 
         layout.separator()
 

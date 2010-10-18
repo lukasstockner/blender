@@ -252,7 +252,7 @@ static void ringsel_find_edge(tringselOpData *lcd, const bContext *C, ARegion *a
 {
 	if (lcd->eed) {
 		edgering_sel(lcd, cuts, 0);
-	} else {
+	} else if(lcd->edges) {
 		MEM_freeN(lcd->edges);
 		lcd->edges = NULL;
 		lcd->totedge = 0;
@@ -506,7 +506,7 @@ void MESH_OT_loopcut (wmOperatorType *ot)
 	ot->invoke= ringcut_invoke;
 	ot->modal= ringcut_modal;
 	ot->cancel= ringcut_cancel;
-	ot->poll= ED_operator_editmesh_view3d;
+	ot->poll= ED_operator_editmesh_region_view3d;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;

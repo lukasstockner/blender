@@ -224,6 +224,7 @@ char *rna_TextureSlot_path(struct PointerRNA *ptr);
 
 void RNA_api_action(StructRNA *srna);
 void RNA_api_armature_edit_bone(StructRNA *srna);
+void RNA_api_bone(StructRNA *srna);
 void RNA_api_drivers(StructRNA *srna);
 void RNA_api_image(struct StructRNA *srna);
 void RNA_api_operator(struct StructRNA *srna);
@@ -284,6 +285,7 @@ extern FloatPropertyRNA rna_IDProperty_float;
 extern FloatPropertyRNA rna_IDProperty_float_array;
 extern PointerPropertyRNA rna_IDProperty_group;
 extern CollectionPropertyRNA rna_IDProperty_collection;
+extern CollectionPropertyRNA rna_IDProperty_idp_array;
 extern FloatPropertyRNA rna_IDProperty_double;
 extern FloatPropertyRNA rna_IDProperty_double_array;
 

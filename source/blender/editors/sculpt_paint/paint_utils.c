@@ -523,7 +523,7 @@ float brush_tex_strength(ViewContext *vc,
 		/* Get strength by feeding the vertex 
 		   location directly into a texture */
 		externtex(mtex, co, &avg,
-			  &jnk, &jnk, &jnk, &jnk);
+			  &jnk, &jnk, &jnk, &jnk, 0);
 	}
 	else {
 		float rotation = -mtex->rot;

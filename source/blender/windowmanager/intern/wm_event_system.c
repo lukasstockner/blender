@@ -466,6 +466,8 @@ static int wm_operator_exec(bContext *C, wmOperator *op, int repeat)
 	wmWindowManager *wm= CTX_wm_manager(C);
 	int retval= OPERATOR_CANCELLED;
 	
+	CTX_wm_operator_poll_msg_set(C, NULL);
+	
 	if(op==NULL || op->type==NULL)
 		return retval;
 	
@@ -698,6 +700,8 @@ static int wm_operator_call_internal(bContext *C, wmOperatorType *ot, int contex
 	
 	int retval;
 
+	CTX_wm_operator_poll_msg_set(C, NULL);
+
 	/* dummie test */
 	if(ot && C) {
 		switch(context) {
@@ -838,8 +842,9 @@ int WM_operator_call_py(bContext *C, wmOperatorType *ot, int context, PointerRNA
 	retval= wm_operator_call_internal(C, ot, context, properties, reports);
 	
 	/* keep the reports around if needed later */
-	if (retval & OPERATOR_RUNNING_MODAL || wm_operator_register_check(wm, ot))
-	{
+	if (	(retval & OPERATOR_RUNNING_MODAL) ||
+			((retval & OPERATOR_FINISHED) && wm_operator_register_check(wm, ot))
+	) {
 		reports->flag |= RPT_FREE; /* let blender manage freeing */
 	}
 	
@@ -1224,23 +1229,30 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 			
 		case EVT_FILESELECT_EXEC:
 		case EVT_FILESELECT_CANCEL:
+		case EVT_FILESELECT_EXTERNAL_CANCEL:
 			{
 				/* XXX validate area and region? */
 				bScreen *screen= CTX_wm_screen(C);
-				
-				if(screen != handler->filescreen)
-					ED_screen_full_prevspace(C, CTX_wm_area(C));
-				else
-					ED_area_prevspace(C, CTX_wm_area(C));
-				
-				/* remlink now, for load file case */
+
+				/* remlink now, for load file case before removing*/
 				BLI_remlink(handlers, handler);
+				
+				if(event->val!=EVT_FILESELECT_EXTERNAL_CANCEL) {
+					if(screen != handler->filescreen) {
+						ED_screen_full_prevspace(C, CTX_wm_area(C));
+					}
+					else {
+						ED_area_prevspace(C, CTX_wm_area(C));
+					}
+				}
 				
 				wm_handler_op_context(C, handler);
 
 				/* needed for uiPupMenuReports */
 
 				if(event->val==EVT_FILESELECT_EXEC) {
+#if 0				// use REDALERT now
+
 					/* a bit weak, might become arg for WM_event_fileselect? */
 					/* XXX also extension code in image-save doesnt work for this yet */
 					if (RNA_struct_find_property(handler->op->ptr, "check_existing") && 
@@ -1251,7 +1263,9 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 						if(path)
 							MEM_freeN(path);
 					}
-					else {
+					else
+#endif
+					{
 						int retval;
 						
 						if(handler->op->type->flag & OPTYPE_UNDO)
@@ -1820,6 +1834,12 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
 	
 	BLI_addhead(&win->modalhandlers, handler);
 	
+	/* check props once before invoking if check is available
+	 * ensures initial properties are valid */
+	if(op->type->check) {
+		op->type->check(C, op); /* ignore return value */
+	}
+
 	WM_event_fileselect_event(C, op, full?EVT_FILESELECT_FULL_OPEN:EVT_FILESELECT_OPEN);
 }
 

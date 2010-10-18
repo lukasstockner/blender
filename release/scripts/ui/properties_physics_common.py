@@ -51,6 +51,11 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
 
         layout.label(text=cache.info)
     else:
+        if cachetype == 'SMOKE':
+            if bpy.data.is_dirty:
+                layout.label(text="Cache is disabled until the file is saved")
+                layout.enabled = false
+
         layout.prop(cache, "name", text="File Name")
 
         split = layout.split()
@@ -60,7 +65,7 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
             col.enabled = enabled
             col.prop(cache, "frame_start")
             col.prop(cache, "frame_end")
-        if cachetype != 'SMOKE':
+        if cachetype not in ('SMOKE', 'CLOTH'):
             col.prop(cache, "frame_step")
 
         col = split.column()

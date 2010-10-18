@@ -753,7 +753,10 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	/* widgets */
 	for(but= block->buttons.first; but; but= but->next) {
 		ui_but_to_pixelrect(&rect, ar, block, but);
-		if(!(but->flag & UI_HIDDEN))
+		if(!(but->flag & UI_HIDDEN) &&
+			/* XXX: figure out why invalid coordinates happen when closing render window */
+			/* and material preview is redrawn in main window (temp fix for bug #23848) */
+			rect.xmin < rect.xmax && rect.ymin < rect.ymax)
 			ui_draw_but(C, ar, &style, but, &rect);
 	}
 	
@@ -808,7 +811,13 @@ static void ui_is_but_sel(uiBut *but)
 			break;
 		case ROW:
 		case LISTROW:
-			if(value == but->hardmax) push= 1;
+			/* support for rna enum buts */
+			if(but->rnaprop && (RNA_property_flag(but->rnaprop) & PROP_ENUM_FLAG)) {
+				if((int)value & (int)but->hardmax) push= 1;
+			}
+			else {
+				if(value == but->hardmax) push= 1;
+			}
 			break;
 		case COL:
 			push= 2;
@@ -1234,11 +1243,13 @@ int ui_is_but_unit(uiBut *but)
 	
 	if(but->rnaprop==NULL)
 		return 0;
-	
+
 	unit_type = RNA_SUBTYPE_UNIT(RNA_property_subtype(but->rnaprop));
-	
+
+#if 0 // removed so angle buttons get correct snapping
 	if (scene->unit.flag & USER_UNIT_ROT_RADIANS && unit_type == PROP_UNIT_ROTATION)
 		return 0;
+#endif
 	
 	/* for now disable time unit conversion */	
 	if (unit_type == PROP_UNIT_TIME)
@@ -1350,7 +1361,14 @@ void ui_set_but_val(uiBut *but, double value)
 						RNA_property_float_set(&but->rnapoin, prop, value);
 					break;
 				case PROP_ENUM:
-					RNA_property_enum_set(&but->rnapoin, prop, value);
+					if(RNA_property_flag(prop) & PROP_ENUM_FLAG) {
+						int ivalue= (int)value;
+						ivalue ^= RNA_property_enum_get(&but->rnapoin, prop); /* toggle for enum/flag buttons */
+						RNA_property_enum_set(&but->rnapoin, prop, ivalue);
+					}
+					else {
+						RNA_property_enum_set(&but->rnapoin, prop, value);
+					}
 					break;
 				default:
 					break;
@@ -1440,6 +1458,23 @@ static double ui_get_but_scale_unit(uiBut *but, double value)
 	}
 	else {
 		return value;
+	}
+}
+
+/* str will be overwritten */
+void ui_convert_to_unit_alt_name(uiBut *but, char *str, int maxlen)
+{
+	if(ui_is_but_unit(but)) {
+		int unit_type= RNA_SUBTYPE_UNIT_VALUE(RNA_property_subtype(but->rnaprop));
+		char *orig_str;
+		Scene *scene= CTX_data_scene((bContext *)but->block->evil_C);
+		
+		orig_str= MEM_callocN(sizeof(char)*maxlen + 1, "textedit sub str");
+		memcpy(orig_str, str, maxlen);
+		
+		bUnit_ToUnitAltName(str, maxlen, orig_str, scene->unit.system, unit_type);
+		
+		MEM_freeN(orig_str);
 	}
 }
 
@@ -2228,8 +2263,13 @@ static void ui_block_do_align_but(uiBlock *block, uiBut *first, int nr)
 				   flag |= UI_BUT_ALIGN_LEFT;
 				
 				if( (flag & UI_BUT_ALIGN_TOP)==0) {	/* stil top row */
-					if(prev)
-						flag= UI_BUT_ALIGN_DOWN|UI_BUT_ALIGN_LEFT;
+					if(prev) {
+						if(next && buts_are_horiz(next, but))
+							flag = UI_BUT_ALIGN_DOWN|UI_BUT_ALIGN_LEFT;
+						else {
+							flag = UI_BUT_ALIGN_DOWN|UI_BUT_ALIGN_LEFT|UI_BUT_ALIGN_RIGHT;
+						}
+					}
 					else 
 						flag |= UI_BUT_ALIGN_DOWN;
 				}

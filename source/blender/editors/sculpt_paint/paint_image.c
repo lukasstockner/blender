@@ -3757,7 +3757,7 @@ static void *do_projectpaint_thread(void *ph_v)
 
 					if (falloff > 0.0f) {
 						if (ps->is_texbrush) {
-							brush_sample_tex(ps->brush, projPixel->projCoSS, rgba);
+							brush_sample_tex(ps->brush, projPixel->projCoSS, rgba, thread_index);
 							alpha = rgba[3];
 						} else {
 							alpha = 1.0f;
@@ -5135,11 +5135,40 @@ static int sample_color_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	ARegion *ar= CTX_wm_region(C);
 	int location[2];
 
-	location[0]= event->x - ar->winrct.xmin;
-	location[1]= event->y - ar->winrct.ymin;
-	RNA_int_set_array(op->ptr, "location", location);
+	if(ar) {
+		location[0]= event->x - ar->winrct.xmin;
+		location[1]= event->y - ar->winrct.ymin;
+		RNA_int_set_array(op->ptr, "location", location);
 
-	return sample_color_exec(C, op);
+		sample_color_exec(C, op);
+	}
+
+	WM_event_add_modal_handler(C, op);
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static int sample_color_modal(bContext *C, wmOperator *op, wmEvent *event)
+{
+	ARegion *ar= CTX_wm_region(C);
+	int location[2];
+
+	switch(event->type) {
+		case LEFTMOUSE:
+		case RIGHTMOUSE: // XXX hardcoded
+			return OPERATOR_FINISHED;
+		case MOUSEMOVE:
+			if(ar) {
+				location[0]= event->x - ar->winrct.xmin;
+				location[1]= event->y - ar->winrct.ymin;
+				RNA_int_set_array(op->ptr, "location", location);
+
+				sample_color_exec(C, op);
+			}
+			break;
+	}
+
+	return OPERATOR_RUNNING_MODAL;
 }
 
 void PAINT_OT_sample_color(wmOperatorType *ot)
@@ -5151,6 +5180,7 @@ void PAINT_OT_sample_color(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec= sample_color_exec;
 	ot->invoke= sample_color_invoke;
+	ot->modal= sample_color_modal;
 	ot->poll= image_paint_poll;
 
 	/* flags */
@@ -5494,6 +5524,13 @@ static int texture_paint_image_from_view_exec(bContext *C, wmOperator *op)
 	if(h > maxsize) h= maxsize;
 
 	ibuf= ED_view3d_draw_offscreen_imbuf(CTX_data_scene(C), CTX_wm_view3d(C), CTX_wm_region(C), w, h, IB_rect);
+	if(!ibuf) {
+		/* Mostly happens when OpenGL offscreen buffer was failed to create, */
+		/* but could be other reasons. Should be handled in the future. nazgul */
+		BKE_report(op->reports, RPT_ERROR, "Failed to create OpenGL offscreen buffer.");
+		return OPERATOR_CANCELLED;
+	}
+
 	image= BKE_add_image_imbuf(ibuf);
 
 	if(image) {

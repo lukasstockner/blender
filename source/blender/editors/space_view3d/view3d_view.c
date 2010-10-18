@@ -472,7 +472,7 @@ void VIEW3D_OT_object_as_camera(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= view3d_setobjectascamera_exec;	
-	ot->poll= ED_operator_view3d_active;
+	ot->poll= ED_operator_region_view3d_active;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -2722,3 +2722,7 @@ void view3d_align_axis_to_vector(View3D *v3d, RegionView3D *rv3d, int axisidx, f
 	}
 }
 
+int view3d_is_ortho(View3D *v3d, RegionView3D *rv3d)
+{
+	return (rv3d->persp == RV3D_ORTHO || (v3d->camera && ((Camera *)v3d->camera->data)->type == CAM_ORTHO));
+}
