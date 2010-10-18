@@ -399,12 +399,24 @@ void rna_Curve_body_set(PointerRNA *ptr, const char *value)
 	BLI_strncpy(cu->str, value, len+1);
 }
 
-static void rna_Nurb_update_handle_data(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_Nurb_update_cyclic_u(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Nurb *nu= (Nurb*)ptr->data;
 
-	if(nu->type == CU_BEZIER)
+	if(nu->type == CU_BEZIER) {
 		calchandlesNurb(nu);
+	} else {
+		nurbs_knot_calc_u(nu);
+	}
+
+	rna_Curve_update_data(bmain, scene, ptr);
+}
+
+static void rna_Nurb_update_cyclic_v(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	Nurb *nu= (Nurb*)ptr->data;
+
+	nurbs_knot_calc_v(nu);
 
 	rna_Curve_update_data(bmain, scene, ptr);
 }
@@ -414,7 +426,7 @@ static void rna_Nurb_update_knot_u(Main *bmain, Scene *scene, PointerRNA *ptr)
 	Nurb *nu= (Nurb*)ptr->data;
 
 	clamp_nurb_order_u(nu);
-	makeknots(nu, 1);
+	nurbs_knot_calc_u(nu);
 
 	rna_Curve_update_data(bmain, scene, ptr);
 }
@@ -424,7 +436,7 @@ static void rna_Nurb_update_knot_v(Main *bmain, Scene *scene, PointerRNA *ptr)
 	Nurb *nu= (Nurb*)ptr->data;
 
 	clamp_nurb_order_v(nu);
-	makeknots(nu, 2);
+	nurbs_knot_calc_v(nu);
 
 	rna_Curve_update_data(bmain, scene, ptr);
 }
@@ -441,7 +453,7 @@ static void rna_Curve_spline_points_add(ID *id, Nurb *nu, ReportList *reports, i
 		addNurbPoints(nu, number);
 
 		/* update */
-		makeknots(nu, 1);
+		nurbs_knot_calc_u(nu);
 
 		rna_Curve_update_data_id(NULL, NULL, id);
 	}
@@ -458,7 +470,7 @@ static void rna_Curve_spline_bezpoints_add(ID *id, Nurb *nu, ReportList *reports
 		addNurbPointsBezier(nu, number);
 
 		/* update */
-		makeknots(nu, 1);
+		nurbs_knot_calc_u(nu);
 
 		rna_Curve_update_data_id(NULL, NULL, id);
 	}
@@ -1356,12 +1368,12 @@ static void rna_def_curve_nurb(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "use_cyclic_u", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flagu", CU_NURB_CYCLIC);
 	RNA_def_property_ui_text(prop, "Cyclic U", "Make this curve or surface a closed loop in the U direction");
-	RNA_def_property_update(prop, 0, "rna_Nurb_update_handle_data"); /* only needed for cyclic_u because cyclic_v cant do bezier */
+	RNA_def_property_update(prop, 0, "rna_Nurb_update_cyclic_u");
 
 	prop= RNA_def_property(srna, "use_cyclic_v", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flagv", CU_NURB_CYCLIC);
 	RNA_def_property_ui_text(prop, "Cyclic V", "Make this surface a closed loop in the V direction");
-	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
+	RNA_def_property_update(prop, 0, "rna_Nurb_update_cyclic_u");
 
 
 	/* Note, endpoint and bezier flags should never be on at the same time! */

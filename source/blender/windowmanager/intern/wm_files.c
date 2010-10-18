@@ -343,7 +343,7 @@ int WM_read_homefile(bContext *C, wmOperator *op)
 {
 	ListBase wmbase;
 	char tstr[FILE_MAXDIR+FILE_MAXFILE], scestr[FILE_MAXDIR];
-	int from_memory= op?RNA_boolean_get(op->ptr, "factory"):0;
+	int from_memory= op && strcmp(op->type->idname, "WM_OT_read_factory_settings")==0;
 	int success;
 	
 	free_ttfont(); /* still weird... what does it here? */
@@ -681,15 +681,20 @@ int WM_write_homefile(bContext *C, wmOperator *op)
 		wm_window_close(C, wm, win);
 	
 	BLI_make_file_string("/", tstr, BLI_get_folder_create(BLENDER_USER_CONFIG, NULL), BLENDER_STARTUP_FILE);
-	printf("trying to save homefile at %s \n", tstr);
+	printf("trying to save homefile at %s ", tstr);
 	
 	/*  force save as regular blend file */
 	fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_AUTOPLAY | G_FILE_LOCK | G_FILE_SIGN);
 
-	BLO_write_file(CTX_data_main(C), tstr, fileflags, op->reports, NULL);
+	if(BLO_write_file(CTX_data_main(C), tstr, fileflags, op->reports, NULL) == 0) {
+		printf("fail\n");
+		return OPERATOR_CANCELLED;
+	}
 	
+	printf("ok\n");
+
 	G.save_over= 0;
-	
+
 	return OPERATOR_FINISHED;
 }
 

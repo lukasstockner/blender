@@ -25,6 +25,8 @@
 #include <stdio.h>
 #include <math.h>
 
+extern "C" 
+{
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 #include "DNA_meshdata_types.h"
@@ -39,9 +41,8 @@
 #include "DNA_curve_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_userdef_types.h"
 
-extern "C" 
-{
 #include "BKE_DerivedMesh.h"
 #include "BKE_fcurve.h"
 #include "BKE_animsys.h"
@@ -496,13 +497,11 @@ public:
 		// XXX slow		
 		if (ob->totcol) {
 			for(int a = 0; a < ob->totcol; a++)	{
-				// account for NULL materials, this should not normally happen?
-				Material *ma = give_current_material(ob, a + 1);
-				createPolylist(ma != NULL, a, has_uvs, has_color, ob, geom_id, norind);
+				createPolylist(a, has_uvs, has_color, ob, geom_id, norind);
 			}
 		}
 		else {
-			createPolylist(false, 0, has_uvs, has_color, ob, geom_id, norind);
+			createPolylist(0, has_uvs, has_color, ob, geom_id, norind);
 		}
 		
 		closeMesh();
@@ -514,8 +513,7 @@ public:
 	}
 
 	// powerful because it handles both cases when there is material and when there's not
-	void createPolylist(bool has_material,
-						int material_index,
+	void createPolylist(int material_index,
 						bool has_uvs,
 						bool has_color,
 						Object *ob,
@@ -535,7 +533,7 @@ public:
 		for (i = 0; i < totfaces; i++) {
 			MFace *f = &mfaces[i];
 			
-			if ((has_material && f->mat_nr == material_index) || !has_material) {
+			if (f->mat_nr == material_index) {
 				faces_in_polylist++;
 				if (f->v4 == 0) {
 					vcount_list.push_back(3);
@@ -548,17 +546,18 @@ public:
 
 		// no faces using this material
 		if (faces_in_polylist == 0) {
+			fprintf(stderr, "%s: no faces use material %d\n", id_name(ob).c_str(), material_index);
 			return;
 		}
 			
-		Material *ma = has_material ? give_current_material(ob, material_index + 1) : NULL;
+		Material *ma = ob->totcol ? give_current_material(ob, material_index + 1) : NULL;
 		COLLADASW::Polylist polylist(mSW);
 			
 		// sets count attribute in <polylist>
 		polylist.setCount(faces_in_polylist);
 			
 		// sets material name
-		if (has_material) {
+		if (ma) {
 			polylist.setMaterial(translate_id(id_name(ma)));
 		}
 				
@@ -602,7 +601,7 @@ public:
 		for (i = 0; i < totfaces; i++) {
 			MFace *f = &mfaces[i];
 
-			if ((has_material && f->mat_nr == material_index) || !has_material) {
+			if (f->mat_nr == material_index) {
 
 				unsigned int *v = &f->v1;
 				unsigned int *n = &norind[i].v1;
@@ -1645,7 +1644,6 @@ public:
 		else if (ma->spec_shader == MA_SPEC_PHONG) {
 			ep.setShaderType(COLLADASW::EffectProfile::PHONG);
 			// shininess
-			// XXX not sure, stolen this from previous Collada plugin
 			ep.setShininess(ma->har);
 		}
 		else {
@@ -1717,6 +1715,9 @@ public:
 			MTex *t = ma->mtex[tex_indices[a]];
 			Image *ima = t->tex->ima;
 			
+			// Image not set for texture
+			if(!ima) continue;
+			
 			std::string key(id_name(ima));
 			key = translate_id(key);
 
@@ -1759,6 +1760,9 @@ public:
 		for (a = 0; a < tex_indices.size(); a++) {
 			MTex *t = ma->mtex[tex_indices[a]];
 			Image *ima = t->tex->ima;
+			
+			// Image not set for texture
+			if(!ima) continue;
 
 			// we assume map input is always TEXCO_UV
 
@@ -1804,7 +1808,7 @@ public:
 				// technique FCOLLADA, with the <bump> tag, is most likely the best understood,
 				// most widespread de-facto standard.
 				texture.setProfileName("FCOLLADA");
-				texture.setChildElementName("bump");				
+				texture.setChildElementName("bump");
 				ep.addExtraTechniqueColorOrTexture(COLLADASW::ColorOrTexture(texture));
 			}
 		}
@@ -2621,7 +2625,12 @@ void DocumentExporter::exportCurrentScene(Scene *sce, const char* filename)
 	asset.setUnit("decimetre", 0.1);
 	asset.setUpAxisType(COLLADASW::Asset::Z_UP);
 	// TODO: need an Author field in userpref
-	asset.getContributor().mAuthor = "Blender User";
+	if(strlen(U.author) > 0) {
+		asset.getContributor().mAuthor = U.author;
+	}
+	else {
+		asset.getContributor().mAuthor = "Blender User";
+	}
 #ifdef NAN_BUILDINFO
 	char version_buf[128];
 	sprintf(version_buf, "Blender %d.%02d.%d r%s", BLENDER_VERSION/100, BLENDER_VERSION%100, BLENDER_SUBVERSION, build_rev);

@@ -258,6 +258,7 @@ int EM_mask_init_backbuf_border(ViewContext *vc, short mcords[][2], short tot, s
 	unsigned int *dr, *drm;
 	struct ImBuf *buf, *bufmask;
 	int a;
+	GLboolean is_cull;
 	
 	/* method in use for face selecting too */
 	if(vc->obedit==NULL) {
@@ -276,10 +277,14 @@ int EM_mask_init_backbuf_border(ViewContext *vc, short mcords[][2], short tot, s
 	glDisable(GL_DEPTH_TEST);
 	
 	glColor3ub(0, 0, 0);
+
+	/* some opengl drivers have problems with draw direction */
+	glGetBooleanv(GL_CULL_FACE, &is_cull);
+	if(is_cull) glDisable(GL_CULL_FACE);
 	
 	/* yah, opengl doesn't do concave... tsk! */
 	ED_region_pixelspace(vc->ar);
-	 draw_triangulated(mcords, tot);	
+	draw_triangulated(mcords, tot);
 	
 	glBegin(GL_LINE_LOOP);	/* for zero sized masks, lines */
 	for(a=0; a<tot; a++) glVertex2s(mcords[a][0], mcords[a][1]);
@@ -302,6 +307,9 @@ int EM_mask_init_backbuf_border(ViewContext *vc, short mcords[][2], short tot, s
 	}
 	IMB_freeImBuf(buf);
 	IMB_freeImBuf(bufmask);
+	
+	if(is_cull) glEnable(GL_CULL_FACE);
+
 	return 1;
 	
 }
