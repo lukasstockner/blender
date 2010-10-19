@@ -21,6 +21,8 @@ import http, http.client, http.server, urllib
 import subprocess, time
 import json
 
+import bpy
+
 from netrender.utils import *
 import netrender.model
 import netrender.repath
@@ -30,8 +32,13 @@ BLENDER_PATH = sys.argv[0]
 CANCEL_POLL_SPEED = 2
 MAX_TIMEOUT = 10
 INCREMENT_TIMEOUT = 1
+try:
+    system = platform.system()
+except UnicodeDecodeError:
+    import sys
+    system = sys.platform
 
-if platform.system() == 'Windows' and platform.version() >= '5': # Error mode is only available on Win2k or higher, that's version 5
+if system in ('Windows', 'win32') and platform.version() >= '5': # Error mode is only available on Win2k or higher, that's version 5
     import ctypes
     def SetErrorMode():
         val = ctypes.windll.kernel32.SetErrorMode(0x0002)
@@ -118,7 +125,7 @@ def render_slave(engine, netsettings, threads):
 
         slave_id = response.getheader("slave-id")
 
-        NODE_PREFIX = os.path.join(netsettings.path, "slave_" + slave_id)
+        NODE_PREFIX = os.path.join(bpy.path.abspath(netsettings.path), "slave_" + slave_id)
         if not os.path.exists(NODE_PREFIX):
             os.mkdir(NODE_PREFIX)
 

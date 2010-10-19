@@ -31,6 +31,10 @@
 /* dna-savable wmStructs here */
 #include "DNA_windowmanager_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct bContext;
 struct IDProperty;
 struct wmEvent;
@@ -103,7 +107,7 @@ wmKeyConfig *WM_keyconfig_new	(struct wmWindowManager *wm, char *idname);
 wmKeyConfig *WM_keyconfig_new_user(struct wmWindowManager *wm, char *idname);
 void 		WM_keyconfig_remove	(struct wmWindowManager *wm, struct wmKeyConfig *keyconf);
 void 		WM_keyconfig_free	(struct wmKeyConfig *keyconf);
-void		WM_keyconfig_userdef(struct wmWindowManager *wm);
+void		WM_keyconfig_userdef(void);
 
 void		WM_keymap_init		(struct bContext *C);
 void		WM_keymap_free		(struct wmKeyMap *keymap);
@@ -115,7 +119,7 @@ wmKeyMapItem *WM_keymap_add_item(struct wmKeyMap *keymap, char *idname, int type
 wmKeyMapItem *WM_keymap_add_menu(struct wmKeyMap *keymap, char *idname, int type,
 								 int val, int modifier, int keymodifier);
 
-void         WM_keymap_remove_item(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi);
+void		WM_keymap_remove_item(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi);
 char		 *WM_keymap_item_to_string(wmKeyMapItem *kmi, char *str, int len);
 
 wmKeyMap	*WM_keymap_list_find(ListBase *lb, char *idname, int spaceid, int regionid);
@@ -216,7 +220,7 @@ struct wmOperatorTypeMacro *WM_operatortype_macro_define(struct wmOperatorType *
 int			WM_operator_poll		(struct bContext *C, struct wmOperatorType *ot);
 int			WM_operator_call		(struct bContext *C, struct wmOperator *op);
 int			WM_operator_repeat		(struct bContext *C, struct wmOperator *op);
-int         WM_operator_name_call	(struct bContext *C, const char *opstring, int context, struct PointerRNA *properties);
+int			WM_operator_name_call	(struct bContext *C, const char *opstring, int context, struct PointerRNA *properties);
 int			WM_operator_call_py(struct bContext *C, struct wmOperatorType *ot, int context, struct PointerRNA *properties, struct ReportList *reports);
 
 void		WM_operator_properties_alloc(struct PointerRNA **ptr, struct IDProperty **properties, const char *opstring); /* used for keymap and macro items */
@@ -337,6 +341,15 @@ void		WM_clipboard_text_set(char *buf, int selection);
 			/* progress */
 void		WM_progress_set(struct wmWindow *win, float progress);
 void		WM_progress_clear(struct wmWindow *win);
+
+#ifdef WIN32
+			/* Windows System Console */
+void		WM_toggle_console(struct bContext *C, short show);
+#endif
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* WM_API_H */
 

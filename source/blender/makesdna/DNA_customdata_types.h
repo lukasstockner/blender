@@ -30,6 +30,10 @@
 #ifndef DNA_CUSTOMDATA_TYPES_H
 #define DNA_CUSTOMDATA_TYPES_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* descriptor and storage for a custom data layer */
 typedef struct CustomDataLayer {
 	int type;       /* type of data in layer */
@@ -154,5 +158,9 @@ typedef struct CustomDataMultires {
 /* Limits */
 #define MAX_MTFACE 8
 #define MAX_MCOL   8
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

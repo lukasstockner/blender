@@ -156,7 +156,7 @@ void give_ibuf_prefetch_request(int rectx, int recty, int cfra, int chanshown, i
 void calc_sequence(struct Scene *scene, struct Sequence *seq);
 void calc_sequence_disp(struct Scene *scene, struct Sequence *seq);
 void new_tstripdata(struct Sequence *seq);
-void reload_sequence_new_file(struct Main *bmain, struct Scene *scene, struct Sequence * seq, int lock_range);
+void reload_sequence_new_file(struct Scene *scene, struct Sequence * seq, int lock_range);
 void sort_seq(struct Scene *scene);
 void build_seqar_cb(struct ListBase *seqbase, struct Sequence  ***seqar, int *totseq,
 					int (*test_func)(struct Sequence * seq));
@@ -220,14 +220,14 @@ int shuffle_seq(struct ListBase * seqbasep, struct Sequence *test, struct Scene 
 int shuffle_seq_time(ListBase * seqbasep, struct Scene *evil_scene);
 int seqbase_isolated_sel_check(struct ListBase *seqbase);
 void free_imbuf_seq(struct Scene *scene, struct ListBase * seqbasep, int check_mem_usage, int keep_file_handles);
-struct Sequence	*seq_dupli_recursive(struct Scene *scene, struct Sequence * seq, int dupe_flag);
+struct Sequence	*seq_dupli_recursive(struct Scene *scene, struct Scene *scene_to, struct Sequence * seq, int dupe_flag);
 int seq_swap(struct Sequence *seq_a, struct Sequence *seq_b);
 
 void seq_update_sound(struct Scene* scene, struct Sequence *seq);
 void seq_update_muting(struct Scene* scene, struct Editing *ed);
 void seqbase_sound_reload(struct Scene *scene, ListBase *seqbase);
 void seqbase_unique_name_recursive(ListBase *seqbasep, struct Sequence *seq);
-void seqbase_dupli_recursive(struct Scene *scene, ListBase *nseqbase, ListBase *seqbase, int dupe_flag);
+void seqbase_dupli_recursive(struct Scene *scene, struct Scene *scene_to, ListBase *nseqbase, ListBase *seqbase, int dupe_flag);
 
 void clear_scene_in_allseqs(struct Main *bmain, struct Scene *sce);
 

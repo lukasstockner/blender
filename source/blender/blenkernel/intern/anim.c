@@ -648,7 +648,7 @@ int where_on_path(Object *ob, float ctime, float *vec, float *dir, float *quat, 
 
 		totfac= data[1]+data[2];
 		if(totfac>FLT_EPSILON)	interp_qt_qtqt(q2, p1->quat, p2->quat, data[2] / totfac);
-		else					QUATCOPY(q1, p3->quat);
+		else					QUATCOPY(q2, p3->quat);
 
 		totfac = data[0]+data[1]+data[2]+data[3];
 		if(totfac>FLT_EPSILON)	interp_qt_qtqt(quat, q1, q2, (data[1]+data[2]) / totfac);
@@ -1138,7 +1138,7 @@ static void face_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, floa
 	dm->release(dm);
 }
 
-static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, float par_space_mat[][4], ParticleSystem *psys, int level, int animated)
+static void new_particle_duplilist(ListBase *lb, ID *UNUSED(id), Scene *scene, Object *par, float par_space_mat[][4], ParticleSystem *psys, int level, int animated)
 {
 	GroupObject *go;
 	Object *ob=0, **oblist=0, obcopy, *obcopylist=0;

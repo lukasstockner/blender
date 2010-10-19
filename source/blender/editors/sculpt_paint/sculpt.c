@@ -370,7 +370,7 @@ static float get_texcache_pixel_bilinear(const SculptSession *ss, float u, float
 
 #endif
 
-static float tex_strength(SculptSession *ss, Brush *br, float *co,
+static float tex_strength(SculptSession *ss, Brush *UNUSED(br), float *co,
 			  float mask, float dist)
 {
 	return paint_stroke_combined_strength(ss->cache->stroke, dist, co, mask);
@@ -408,6 +408,8 @@ static void calc_area_normal(Sculpt *sd, Object *ob, float an[3], PBVHNode **nod
 
 	float out_flip[3] = {0.0f, 0.0f, 0.0f};
 
+	(void)sd; /* unused w/o openmp */
+	
 	zero_v3(an);
 
 	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
@@ -1229,6 +1231,8 @@ static void calc_flatten_center(Sculpt *sd, Object *ob, PBVHNode **nodes, int to
 
 	float count = 0;
 
+	(void)sd; /* unused w/o openmp */
+
 	zero_v3(fc);
 
 	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
@@ -1284,6 +1288,8 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, Object *ob, PBVHNode
 	// fc
 	float count = 0;
 
+	(void)sd; /* unused w/o openmp */
+	
 	// an
 	zero_v3(an);
 
@@ -2384,7 +2390,7 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 	cache->vertex_rotation= 0;
 }
 
-static void sculpt_update_brush_delta(Sculpt *sd, Object *ob, Brush *brush)
+static void sculpt_update_brush_delta(Object *ob, Brush *brush)
 {
 	SculptSession *ss = ob->paint->sculpt;
 	StrokeCache *cache = ss->cache;
@@ -2463,7 +2469,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 
 	/* Truly temporary data that isn't stored in properties */
 
-	sculpt_update_brush_delta(sd, ob, brush);
+	sculpt_update_brush_delta(ob, brush);
 
 	if(brush->sculpt_tool == SCULPT_TOOL_ROTATE) {
 		float mouse[2], initial_mouse[2];

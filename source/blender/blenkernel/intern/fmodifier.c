@@ -190,7 +190,7 @@ static void fcm_generator_verify (FModifier *fcm)
 	}
 }
 
-static void fcm_generator_evaluate (FCurve *fcu, FModifier *fcm, float *cvalue, float evaltime)
+static void fcm_generator_evaluate (FCurve *UNUSED(fcu), FModifier *fcm, float *cvalue, float evaltime)
 {
 	FMod_Generator *data= (FMod_Generator *)fcm->data;
 	
@@ -303,7 +303,7 @@ static double sinc (double x)
 		return sin(M_PI * x) / (M_PI * x);
 }
 
-static void fcm_fn_generator_evaluate (FCurve *fcu, FModifier *fcm, float *cvalue, float evaltime)
+static void fcm_fn_generator_evaluate (FCurve *UNUSED(fcu), FModifier *fcm, float *cvalue, float evaltime)
 {
 	FMod_FunctionGenerator *data= (FMod_FunctionGenerator *)fcm->data;
 	double arg= data->phase_multiplier*evaltime + data->phase_offset;
@@ -432,7 +432,7 @@ static void fcm_envelope_verify (FModifier *fcm)
 	}
 }
 
-static void fcm_envelope_evaluate (FCurve *fcu, FModifier *fcm, float *cvalue, float evaltime)
+static void fcm_envelope_evaluate (FCurve *UNUSED(fcu), FModifier *fcm, float *cvalue, float evaltime)
 {
 	FMod_Envelope *env= (FMod_Envelope *)fcm->data;
 	FCM_EnvelopeData *fed, *prevfed, *lastfed;
@@ -524,12 +524,12 @@ static void fcm_cycles_new_data (void *mdata)
 	data->before_mode= data->after_mode= FCM_EXTRAPOLATE_CYCLIC;
 }
 
-static float fcm_cycles_time (FCurve *fcu, FModifier *fcm, float cvalue, float evaltime)
+static float fcm_cycles_time (FCurve *fcu, FModifier *fcm, float UNUSED(cvalue), float evaltime)
 {
 	FMod_Cycles *data= (FMod_Cycles *)fcm->data;
 	float prevkey[2], lastkey[2], cycyofs=0.0f;
 	short side=0, mode=0;
-	int cycles=0;
+	int cycles=0, ofs=0;
 	
 	/* check if modifier is first in stack, otherwise disable ourself... */
 	// FIXME...
@@ -571,6 +571,7 @@ static float fcm_cycles_time (FCurve *fcu, FModifier *fcm, float cvalue, float e
 			side= -1;
 			mode= data->before_mode;
 			cycles= data->before_cycles;
+			ofs= prevkey[0];
 		}
 	}
 	else if (evaltime > lastkey[0]) {
@@ -578,6 +579,7 @@ static float fcm_cycles_time (FCurve *fcu, FModifier *fcm, float cvalue, float e
 			side= 1;
 			mode= data->after_mode;
 			cycles= data->after_cycles;
+			ofs= lastkey[0];
 		}
 	}
 	if ELEM(0, side, mode)
@@ -585,11 +587,8 @@ static float fcm_cycles_time (FCurve *fcu, FModifier *fcm, float cvalue, float e
 		
 	/* find relative place within a cycle */
 	{
-		float cycdx=0, cycdy=0, ofs=0;
-		float cycle= 0;
-		
-		/* ofs is start frame of cycle */
-		ofs= prevkey[0];
+		float cycdx=0, cycdy=0;
+		float cycle= 0, cyct=0;
 		
 		/* calculate period and amplitude (total height) of a cycle */
 		cycdx= lastkey[0] - prevkey[0];
@@ -601,6 +600,9 @@ static float fcm_cycles_time (FCurve *fcu, FModifier *fcm, float cvalue, float e
 			
 		/* calculate the 'number' of the cycle */
 		cycle= ((float)side * (evaltime - ofs) / cycdx);
+
+		/* calculate the time inside the cycle */
+		cyct= fmod(evaltime - ofs, cycdx);
 		
 		/* check that cyclic is still enabled for the specified time */
 		if (cycles == 0) {
@@ -608,7 +610,7 @@ static float fcm_cycles_time (FCurve *fcu, FModifier *fcm, float cvalue, float e
 			 * as this indicates infinite cycles...
 			 */
 		}
-		else if (cycle > (cycles+1)) {
+		else if (cycle > cycles) {
 			/* we are too far away from range to evaluate
 			 * TODO: but we should still hold last value... 
 			 */
@@ -617,26 +619,36 @@ static float fcm_cycles_time (FCurve *fcu, FModifier *fcm, float cvalue, float e
 		
 		/* check if 'cyclic extrapolation', and thus calculate y-offset for this cycle */
 		if (mode == FCM_EXTRAPOLATE_CYCLIC_OFFSET) {
-			cycyofs = (float)floor((evaltime - ofs) / cycdx);
+			if(side < 0)
+				cycyofs = (float)floor((evaltime - ofs) / cycdx);
+			else
+				cycyofs = (float)ceil((evaltime - ofs) / cycdx);
 			cycyofs *= cycdy;
 		}
-		
+
+		/* special case for cycle start/end */
+		if(cyct == 0.0f) {
+			evaltime = (side == 1 ? lastkey[0] : prevkey[0]);
+
+			if((mode == FCM_EXTRAPOLATE_MIRROR) && ((int)cycle % 2))
+				evaltime = (side == 1 ? prevkey[0] : lastkey[0]);
+		}
 		/* calculate where in the cycle we are (overwrite evaltime to reflect this) */
-		if ((mode == FCM_EXTRAPOLATE_MIRROR) && ((int)(cycle) % 2)) {
+		else if ((mode == FCM_EXTRAPOLATE_MIRROR) && ((int)(cycle+1) % 2)) {
 			/* when 'mirror' option is used and cycle number is odd, this cycle is played in reverse 
 			 *	- for 'before' extrapolation, we need to flip in a different way, otherwise values past
 			 *	  then end of the curve get referenced (result of fmod will be negative, and with different phase)
 			 */
 			if (side < 0)
-				evaltime= (float)(prevkey[0] - fmod(evaltime-ofs, cycdx));
+				evaltime= prevkey[0] - cyct;
 			else
-				evaltime= (float)(lastkey[0] - fmod(evaltime-ofs, cycdx));
+				evaltime= lastkey[0] - cyct;
 		}
 		else {
 			/* the cycle is played normally... */
-			evaltime= (float)(fmod(evaltime-ofs, cycdx) + ofs);
+			evaltime= prevkey[0] + cyct;
 		}
-		if (evaltime < ofs) evaltime += cycdx;
+		if (evaltime < prevkey[0]) evaltime += cycdx;
 	}
 	
 	/* store temp data if needed */
@@ -652,7 +664,7 @@ static float fcm_cycles_time (FCurve *fcu, FModifier *fcm, float cvalue, float e
 	return evaltime;
 }
  
-static void fcm_cycles_evaluate (FCurve *fcu, FModifier *fcm, float *cvalue, float evaltime)
+static void fcm_cycles_evaluate (FCurve *UNUSED(fcu), FModifier *fcm, float *cvalue, float UNUSED(evaltime))
 {
 	tFCMED_Cycles *edata= (tFCMED_Cycles *)fcm->edata;
 	
@@ -696,7 +708,7 @@ static void fcm_noise_new_data (void *mdata)
 	data->modification = FCM_NOISE_MODIF_REPLACE;
 }
  
-static void fcm_noise_evaluate (FCurve *fcu, FModifier *fcm, float *cvalue, float evaltime)
+static void fcm_noise_evaluate (FCurve *UNUSED(fcu), FModifier *fcm, float *cvalue, float evaltime)
 {
 	FMod_Noise *data= (FMod_Noise *)fcm->data;
 	float noise;
@@ -788,7 +800,7 @@ static void fcm_python_copy (FModifier *fcm, FModifier *src)
 	pymod->prop = IDP_CopyProperty(opymod->prop);
 }
 
-static void fcm_python_evaluate (FCurve *fcu, FModifier *fcm, float *cvalue, float evaltime)
+static void fcm_python_evaluate (FCurve *UNUSED(fcu), FModifier *UNUSED(fcm), float *UNUSED(cvalue), float UNUSED(evaltime))
 {
 #ifndef DISABLE_PYTHON
 	//FMod_Python *data= (FMod_Python *)fcm->data;
@@ -817,7 +829,7 @@ static FModifierTypeInfo FMI_PYTHON = {
 
 /* Limits F-Curve Modifier --------------------------- */
 
-static float fcm_limits_time (FCurve *fcu, FModifier *fcm, float cvalue, float evaltime)
+static float fcm_limits_time (FCurve *UNUSED(fcu), FModifier *fcm, float UNUSED(cvalue), float evaltime)
 {
 	FMod_Limits *data= (FMod_Limits *)fcm->data;
 	
@@ -831,7 +843,7 @@ static float fcm_limits_time (FCurve *fcu, FModifier *fcm, float cvalue, float e
 	return evaltime;
 }
 
-static void fcm_limits_evaluate (FCurve *fcu, FModifier *fcm, float *cvalue, float evaltime)
+static void fcm_limits_evaluate (FCurve *UNUSED(fcu), FModifier *fcm, float *cvalue, float UNUSED(evaltime))
 {
 	FMod_Limits *data= (FMod_Limits *)fcm->data;
 	
@@ -868,7 +880,7 @@ static void fcm_stepped_new_data (void *mdata)
 	data->step_size = 2.0f;
 }
 
-static float fcm_stepped_time (FCurve *fcu, FModifier *fcm, float cvalue, float evaltime)
+static float fcm_stepped_time (FCurve *UNUSED(fcu), FModifier *fcm, float UNUSED(cvalue), float evaltime)
 {
 	FMod_Stepped *data= (FMod_Stepped *)fcm->data;
 	int snapblock;

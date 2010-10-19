@@ -41,11 +41,14 @@ int console_text_height(struct SpaceConsole *sc, struct ARegion *ar, struct Repo
 void *console_text_pick(struct SpaceConsole *sc, struct ARegion *ar, struct ReportList *reports, int mouse_y); /* needed for selection */
 int console_char_pick(struct SpaceConsole *sc, struct ARegion *ar, ReportList *reports, int mval[2]);
 
+void console_scrollback_prompt_begin(struct SpaceConsole *sc, ConsoleLine *cl_dummy);
+void console_scrollback_prompt_end(struct SpaceConsole *sc, ConsoleLine *cl_dummy);
+
 /* console_ops.c */
 void console_history_free(SpaceConsole *sc, ConsoleLine *cl);
 void console_scrollback_free(SpaceConsole *sc, ConsoleLine *cl);
-ConsoleLine *console_history_add_str(const struct bContext *C, char *str, int own);
-ConsoleLine *console_scrollback_add_str(const struct bContext *C, char *str, int own);
+ConsoleLine *console_history_add_str(struct SpaceConsole *sc, char *str, int own);
+ConsoleLine *console_scrollback_add_str(struct SpaceConsole *sc, char *str, int own);
 
 ConsoleLine *console_history_verify(const struct bContext *C);
 

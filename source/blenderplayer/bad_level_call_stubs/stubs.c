@@ -42,6 +42,7 @@ struct CSG_FaceIteratorDescriptor;
 struct CSG_VertexIteratorDescriptor;
 struct ColorBand;
 struct CurveMapping;
+struct Curve;
 struct EditBone;
 struct EditFace;
 struct EditMesh;
@@ -162,6 +163,7 @@ void ED_node_composit_default(struct Scene *sce){}
 void *ED_region_draw_cb_activate(struct ARegionType *art, void(*draw)(const struct bContext *, struct ARegion *, void *), void *custumdata, int type){return 0;} /* XXX this one looks weird */
 void *ED_region_draw_cb_customdata(void *handle){return 0;} /* XXX This one looks wrong also */
 void ED_region_draw_cb_exit(struct ARegionType *art, void *handle){}
+void	ED_area_headerprint(struct ScrArea *sa, char *str){}
 
 struct EditBone *ED_armature_bone_get_mirrored(struct ListBase *edbo, struct EditBone *ebo){return (struct EditBone *) NULL;}
 struct EditBone *ED_armature_edit_bone_add(struct bArmature *arm, char *name){return (struct EditBone*) NULL;}
@@ -204,7 +206,7 @@ struct KeyingSetInfo *ANIM_keyingset_info_find_named (const char name[]){return 
 struct KeyingSet *ANIM_scene_get_active_keyingset (struct Scene *scene){return (struct KeyingSet *) NULL;}
 int ANIM_scene_get_keyingset_index(struct Scene *scene, struct KeyingSet *ks){return 0;}
 struct ListBase builtin_keyingsets;
-void ANIM_keyingset_info_register (const struct bContext *C, struct KeyingSetInfo *ksi){}
+void ANIM_keyingset_info_register (struct KeyingSetInfo *ksi){}
 void ANIM_keyingset_info_unregister (const struct bContext *C, struct KeyingSetInfo *ksi){}
 short ANIM_add_driver(struct ID *id, const char rna_path[], int array_index, short flag, int type){return 0;}
 short ANIM_remove_driver (struct ID *id, const char rna_path[], int array_index, short flag){return 0;}
@@ -218,7 +220,7 @@ void WM_event_add_fileselect(struct bContext *C, struct wmOperator *op){}
 void WM_cursor_wait (int val) {}
 void ED_node_texture_default(struct Tex *tx){}
 void ED_node_changed_update(struct bContext *C, struct bNode *node){}
-void ED_node_generic_update(struct Main *bmain, struct Scene *scene, struct bNodeTree *ntree, struct bNode *node){}
+void ED_node_generic_update(struct Main *bmain, struct bNodeTree *ntree, struct bNode *node){}
 void ED_view3d_scene_layers_update(struct Main *bmain, struct Scene *scene){}
 int ED_view3d_scene_layer_set(int lay, const int *values){return 0;}
 void ED_view3d_quadview_update(struct ScrArea *sa, struct ARegion *ar){}
@@ -253,7 +255,7 @@ void ED_mesh_edges_add(struct Mesh *mesh, struct ReportList *reports, int count)
 void ED_mesh_faces_add(struct Mesh *mesh, struct ReportList *reports, int count){}
 void ED_mesh_material_link(struct Mesh *mesh, struct Material *ma){}
 int ED_mesh_color_add(struct bContext *C, struct Scene *scene, struct Object *ob, struct Mesh *me){return 0;}
-int ED_mesh_uv_texture_add(struct bContext *C, struct Scene *scene, struct Object *ob, struct Mesh *me){return 0;}
+int ED_mesh_uv_texture_add(struct bContext *C, struct Mesh *me){return 0;}
 void ED_object_constraint_dependency_update(struct Scene *scene, struct Object *ob){}
 void ED_object_constraint_update(struct Object *ob){}
 struct bDeformGroup *ED_vgroup_add_name(struct Object *ob, char *name){return (struct bDeformGroup *) NULL;}

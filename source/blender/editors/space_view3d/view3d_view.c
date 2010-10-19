@@ -205,7 +205,7 @@ void smooth_view(bContext *C, Object *oldcamera, Object *camera, float *ofs, flo
 	if(quat) copy_qt_qt(sms.new_quat, quat);
 	if(dist) sms.new_dist= *dist;
 	if(lens) sms.new_lens= *lens;
-	
+
 	if (camera) {
 		view3d_settings_from_ob(camera, sms.new_ofs, sms.new_quat, &sms.new_dist, &sms.new_lens);
 		sms.to_camera= 1; /* restore view3d values in end */
@@ -214,15 +214,15 @@ void smooth_view(bContext *C, Object *oldcamera, Object *camera, float *ofs, flo
 	if (C && U.smooth_viewtx) {
 		int changed = 0; /* zero means no difference */
 		
-		if (sms.new_dist != rv3d->dist)
+		if (oldcamera != camera)
 			changed = 1;
-		if (sms.new_lens != v3d->lens)
+		else if (sms.new_dist != rv3d->dist)
 			changed = 1;
-		
-		if (!equals_v3v3(sms.new_ofs, rv3d->ofs))
+		else if (sms.new_lens != v3d->lens)
 			changed = 1;
-
-		if (!equals_v4v4(sms.new_quat, rv3d->viewquat))
+		else if (!equals_v3v3(sms.new_ofs, rv3d->ofs))
+			changed = 1;
+		else if (!equals_v4v4(sms.new_quat, rv3d->viewquat))
 			changed = 1;
 		
 		/* The new view is different from the old one
@@ -296,7 +296,7 @@ void smooth_view(bContext *C, Object *oldcamera, Object *camera, float *ofs, flo
 }
 
 /* only meant for timer usage */
-static int view3d_smoothview_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int view3d_smoothview_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *event)
 {
 	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d= CTX_wm_region_view3d(C);
@@ -380,7 +380,7 @@ void VIEW3D_OT_smoothview(wmOperatorType *ot)
 
 /* ****************** change view operators ****************** */
 
-static void setcameratoview3d(View3D *v3d, RegionView3D *rv3d, Object *ob)
+static void setcameratoview3d(RegionView3D *rv3d, Object *ob)
 {
 	float dvec[3];
 	float mat3[3][3];
@@ -399,7 +399,7 @@ static void setcameratoview3d(View3D *v3d, RegionView3D *rv3d, Object *ob)
 }
 
 
-static int view3d_setcameratoview_exec(bContext *C, wmOperator *op)
+static int view3d_setcameratoview_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d= CTX_wm_region_view3d(C);
@@ -408,7 +408,7 @@ static int view3d_setcameratoview_exec(bContext *C, wmOperator *op)
 	rv3d->lview= rv3d->view;
 	rv3d->lpersp= rv3d->persp;
 
-	setcameratoview3d(v3d, rv3d, v3d->camera);
+	setcameratoview3d(rv3d, v3d->camera);
 	rv3d->persp = RV3D_CAMOB;
 	
 	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, v3d->camera);
@@ -444,21 +444,25 @@ void VIEW3D_OT_setcameratoview(wmOperatorType *ot)
 }
 
 
-static int view3d_setobjectascamera_exec(bContext *C, wmOperator *op)
+static int view3d_setobjectascamera_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d= CTX_wm_region_view3d(C);
 	Scene *scene= CTX_data_scene(C);
-	
-	if(BASACT) {
+	Object *ob = CTX_data_active_object(C);
+
+	if(ob) {
+		Object *camera_old= (rv3d->persp == RV3D_CAMOB && scene->camera) ? scene->camera : NULL;
 		rv3d->persp= RV3D_CAMOB;
-		v3d->camera= OBACT;
+		v3d->camera= ob;
 		if(v3d->scenelock)
-			scene->camera= OBACT;
-		smooth_view(C, NULL, v3d->camera, rv3d->ofs, rv3d->viewquat, &rv3d->dist, &v3d->lens);
+			scene->camera= ob;
+
+		if(camera_old != ob) /* unlikely but looks like a glitch when set to the same */
+			smooth_view(C, camera_old, v3d->camera, rv3d->ofs, rv3d->viewquat, &rv3d->dist, &v3d->lens);
+
+		WM_event_add_notifier(C, NC_SCENE|ND_RENDER_OPTIONS|NC_OBJECT|ND_DRAW, CTX_data_scene(C));
 	}
-	
-	WM_event_add_notifier(C, NC_SCENE|ND_RENDER_OPTIONS|NC_OBJECT|ND_DRAW, CTX_data_scene(C));
 	
 	return OPERATOR_FINISHED;
 }
@@ -1596,7 +1600,7 @@ static void endlocalview(Scene *scene, ScrArea *sa)
 	} 
 }
 
-static int localview_exec(bContext *C, wmOperator *unused)
+static int localview_exec(bContext *C, wmOperator *UNUSED(unused))
 {
 	View3D *v3d= CTX_wm_view3d(C);
 	
@@ -1663,6 +1667,7 @@ static void RestoreState(bContext *C)
 	win->queue= queue_back;
 	
 	GPU_state_init();
+	GPU_set_tpage(NULL, 0);
 
 	glPopAttrib();
 }
@@ -1775,6 +1780,8 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	RegionView3D *rv3d;
 	rcti cam_frame;
 
+	(void)op; /* unused */
+	
 	// bad context switch ..
 	if(!ED_view3d_context_activate(C))
 		return OPERATOR_CANCELLED;
@@ -1823,6 +1830,7 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 
 	return OPERATOR_FINISHED;
 #else
+	(void)C; /* unused */
 	BKE_report(op->reports, RPT_ERROR, "Game engine is disabled in this build.");
 	return OPERATOR_CANCELLED;
 #endif
@@ -1981,7 +1989,7 @@ typedef struct FlyInfo {
 
 } FlyInfo;
 
-static void drawFlyPixel(const struct bContext *C, struct ARegion *ar, void *arg)
+static void drawFlyPixel(const struct bContext *UNUSED(C), struct ARegion *UNUSED(ar), void *arg)
 {
 	FlyInfo *fly = arg;
 

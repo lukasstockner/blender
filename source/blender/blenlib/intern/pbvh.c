@@ -1629,6 +1629,7 @@ typedef struct {
 	PBVH *pbvh;
 	DMDrawFlags flags;
 } PBVHDrawData;
+
 void BLI_pbvh_node_draw(PBVHNode *node, void *data_v)
 {
 #if 0

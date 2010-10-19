@@ -298,7 +298,9 @@ struct DerivedMesh {
 				float (*partial_redraw_planes)[4],
 				int (*setDrawOptions)(void *userData, int index,
 						      int *drawSmooth_r),
-				void *userData, DMDrawFlags flags);
+				void *userData,
+				int (*setMaterial)(int, void *attribs),
+				DMDrawFlags flags);
 
 	/* Draw mapped faces using MTFace 
 	 *  o Drawing options too complicated to enumerate, look at code.

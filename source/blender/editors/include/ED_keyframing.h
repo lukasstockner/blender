@@ -28,6 +28,10 @@
 #ifndef ED_KEYFRAMING_H
 #define ED_KEYFRAMING_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ListBase;
 struct ID;
 struct Scene;
@@ -179,7 +183,7 @@ struct KeyingSet *ANIM_builtin_keyingset_get_named(struct KeyingSet *prevKS, con
 KeyingSetInfo *ANIM_keyingset_info_find_named(const char name[]);
 
 /* for RNA type registrations... */
-void ANIM_keyingset_info_register(const struct bContext *C, KeyingSetInfo *ksi);
+void ANIM_keyingset_info_register(KeyingSetInfo *ksi);
 void ANIM_keyingset_info_unregister(const struct bContext *C, KeyingSetInfo *ksi);
 
 /* cleanup on exit */
@@ -279,5 +283,9 @@ typedef enum eAnimFilterFlags {
 	ANIMFILTER_KEYS_NOMAT		= (1<<9),		/* don't include material keyframes */
 	ANIMFILTER_KEYS_NOSKEY		= (1<<10),		/* don't include shape keys (for geometry) */
 } eAnimFilterFlags;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /*  ED_KEYFRAMING_H */

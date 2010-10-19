@@ -1393,7 +1393,7 @@ class VIEW3D_MT_edit_mesh_specials(bpy.types.Menu):
         layout.operator("mesh.select_vertex_path")
 
 
-class VIEW3D_MT_edit_mesh_selection_mode(bpy.types.Menu):
+class VIEW3D_MT_edit_mesh_select_mode(bpy.types.Menu):
     bl_label = "Mesh Select Mode"
 
     def draw(self, context):
@@ -1417,82 +1417,35 @@ class VIEW3D_MT_edit_mesh_selection_mode(bpy.types.Menu):
 class VIEW3D_MT_edit_mesh_extrude(bpy.types.Menu):
     bl_label = "Extrude"
 
+    _extrude_funcs = { \
+        "VERT": lambda layout: layout.operator("mesh.extrude_vertices_move", text="Vertices Only"),
+        "EDGE": lambda layout: layout.operator("mesh.extrude_edges_move", text="Edges Only"),
+        "FACE": lambda layout: layout.operator("mesh.extrude_faces_move", text="Individual Faces"),
+        "REGION": lambda layout: layout.operator("view3d.edit_mesh_extrude_move_normal", text="Region"),
+    }
+
     @staticmethod
     def extrude_options(context):
         mesh = context.object.data
-        selection_mode = context.tool_settings.mesh_select_mode
+        select_mode = context.tool_settings.mesh_select_mode
 
-        totface = mesh.total_face_sel
-        totedge = mesh.total_edge_sel
-        totvert = mesh.total_vert_sel
-
-        # the following is dependent on selection modes
-        # we don't really want that
-#        if selection_mode[0]: # vert
-#            if totvert == 0:
-#                return ()
-#            elif totvert == 1:
-#                return (3,)
-#            elif totedge == 0:
-#                return (3,)
-#            elif totface == 0:
-#                return (2, 3)
-#            elif totface == 1:
-#                return (0, 2, 3)
-#            else:
-#                return (0, 1, 2, 3)
-#        elif selection_mode[1]: # edge
-#            if totedge == 0:
-#                return ()
-#            elif totedge == 1:
-#                return (2,)
-#            elif totface == 0:
-#                return (2,)
-#            elif totface == 1:
-#                return (0, 2)
-#            else:
-#                return (0, 1, 2)
-#        elif selection_mode[2]: # face
-#            if totface == 0:
-#                return ()
-#            elif totface == 1:
-#                return (0,)
-#            else:
-#                return (0, 1)
-
-        if totvert == 0:
-            return ()
-        elif totedge == 0:
-            return (0, 3)
-        elif totface == 0:
-            return (0, 2, 3)
-        else:
-            return (0, 1, 2, 3)
+        menu = []
+        if mesh.total_face_sel:
+            menu += ["REGION", "FACE"]
+        if mesh.total_edge_sel and (select_mode[0] or select_mode[1]):
+            menu += ["EDGE"]
+        if mesh.total_vert_sel and select_mode[0]:
+            menu += ["VERT"]        
 
         # should never get here
-        return ()
+        return menu
 
     def draw(self, context):
         layout = self.layout
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        def region_menu():
-            layout.operator("view3d.edit_mesh_extrude_move_normal", text="Region")
-
-        def face_menu():
-            layout.operator("mesh.extrude_faces_move", text="Individual Faces")
-
-        def edge_menu():
-            layout.operator("mesh.extrude_edges_move", text="Edges Only")
-
-        def vert_menu():
-            layout.operator("mesh.extrude_vertices_move", text="Vertices Only")
-
-        menu_funcs = region_menu, face_menu, edge_menu, vert_menu
-
-        for i in self.extrude_options(context):
-            func = menu_funcs[i]
-            func()
+        for menu_id in self.extrude_options(context):
+            self._extrude_funcs[menu_id](layout)
 
 
 class VIEW3D_OT_edit_mesh_extrude_individual_move(bpy.types.Operator):
@@ -1502,17 +1455,17 @@ class VIEW3D_OT_edit_mesh_extrude_individual_move(bpy.types.Operator):
 
     def execute(self, context):
         mesh = context.object.data
-        selection_mode = context.tool_settings.mesh_select_mode
+        select_mode = context.tool_settings.mesh_select_mode
 
         totface = mesh.total_face_sel
         totedge = mesh.total_edge_sel
         totvert = mesh.total_vert_sel
 
-        if selection_mode[2] and totface == 1:
+        if select_mode[2] and totface == 1:
             return bpy.ops.mesh.extrude_region_move('INVOKE_REGION_WIN', TRANSFORM_OT_translate={"constraint_orientation": "NORMAL", "constraint_axis": [False, False, True]})
-        elif selection_mode[2] and totface > 1:
+        elif select_mode[2] and totface > 1:
             return bpy.ops.mesh.extrude_faces_move('INVOKE_REGION_WIN')
-        elif selection_mode[1] and totedge >= 1:
+        elif select_mode[1] and totedge >= 1:
             return bpy.ops.mesh.extrude_edges_move('INVOKE_REGION_WIN')
         else:
             return bpy.ops.mesh.extrude_vertices_move('INVOKE_REGION_WIN')
@@ -1926,7 +1879,7 @@ class VIEW3D_MT_edit_armature(bpy.types.Menu):
 
         layout.separator()
 
-        layout.operator("armature.subdivide_multi", text="Subdivide")
+        layout.operator("armature.subdivide", text="Subdivide")
         layout.operator("armature.switch_direction", text="Switch Direction")
 
         layout.separator()
@@ -1960,7 +1913,7 @@ class VIEW3D_MT_armature_specials(bpy.types.Menu):
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        layout.operator("armature.subdivide_multi", text="Subdivide")
+        layout.operator("armature.subdivide", text="Subdivide")
         layout.operator("armature.switch_direction", text="Switch Direction")
 
         layout.separator()

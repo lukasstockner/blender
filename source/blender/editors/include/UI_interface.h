@@ -77,17 +77,18 @@ typedef struct uiLayout uiLayout;
 #define UI_EMBOSST		3	/* Table */
 
 /* uiBlock->direction */
+#define UI_DIRECTION	(UI_TOP|UI_DOWN|UI_LEFT|UI_RIGHT)
 #define UI_TOP		1
 #define UI_DOWN		2
 #define UI_LEFT		4
 #define UI_RIGHT	8
-#define UI_DIRECTION	15
+
 #define UI_CENTER		16
 #define UI_SHIFT_FLIPPED	32
 
 /* uiBlock->autofill (not yet used) */
-#define UI_BLOCK_COLLUMNS	1
-#define UI_BLOCK_ROWS		2
+// #define UI_BLOCK_COLLUMNS	1
+// #define UI_BLOCK_ROWS		2
 
 /* uiBlock->flag (controls) */
 #define UI_BLOCK_LOOP			1
@@ -316,7 +317,7 @@ void uiDrawBlock(const struct bContext *C, struct uiBlock *block);
 
 uiBlock *uiGetBlock(char *name, struct ARegion *ar);
 
-void uiBlockSetEmboss(uiBlock *block, short dt);
+void uiBlockSetEmboss(uiBlock *block, char dt);
 
 void uiFreeBlock(const struct bContext *C, uiBlock *block);
 void uiFreeBlocks(const struct bContext *C, struct ListBase *lb);
@@ -491,7 +492,7 @@ uiBut *uiDefSearchBut(uiBlock *block, void *arg, int retval, int icon, int maxle
 void uiBlockPickerButtons(struct uiBlock *block, float *col, float *hsv, float *old, char *hexcol, char mode, short retval);
 
 uiBut *uiDefAutoButR(uiBlock *block, struct PointerRNA *ptr, struct PropertyRNA *prop, int index, char *name, int icon, int x1, int y1, int x2, int y2);
-void uiDefAutoButsRNA(const struct bContext *C, uiLayout *layout, struct PointerRNA *ptr, int columns);
+void uiDefAutoButsRNA(uiLayout *layout, struct PointerRNA *ptr, int columns);
 
 /* Links
  *
@@ -679,17 +680,17 @@ void uiTemplateIDBrowse(uiLayout *layout, struct bContext *C, struct PointerRNA 
 				  char *newop, char *openop, char *unlinkop);
 void uiTemplateIDPreview(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, char *propname,
 	char *newop, char *openop, char *unlinkop, int rows, int cols);
-void uiTemplateAnyID(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, char *propname, 
+void uiTemplateAnyID(uiLayout *layout, struct PointerRNA *ptr, char *propname, 
 	char *proptypename, char *text);
-void uiTemplatePathBuilder(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, char *propname, 
+void uiTemplatePathBuilder(uiLayout *layout, struct PointerRNA *ptr, char *propname, 
 	struct PointerRNA *root_ptr, char *text);
 uiLayout *uiTemplateModifier(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr);
 uiLayout *uiTemplateConstraint(uiLayout *layout, struct PointerRNA *ptr);
 void uiTemplatePreview(uiLayout *layout, struct ID *id, struct ID *parent, struct MTex *slot);
 void uiTemplateColorRamp(uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand);
-void uiTemplateHistogram(uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand);
-void uiTemplateWaveform(uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand);
-void uiTemplateVectorscope(uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand);
+void uiTemplateHistogram(uiLayout *layout, struct PointerRNA *ptr, char *propname);
+void uiTemplateWaveform(uiLayout *layout, struct PointerRNA *ptr, char *propname);
+void uiTemplateVectorscope(uiLayout *layout, struct PointerRNA *ptr, char *propname);
 void uiTemplateCurveMapping(uiLayout *layout, struct PointerRNA *ptr, char *propname, int type, int levels, int brush);
 void uiTemplateColorWheel(uiLayout *layout, struct PointerRNA *ptr, char *propname, int value_slider, int lock, int lock_luminosity, int cubic);
 void uiTemplateLayers(uiLayout *layout, struct PointerRNA *ptr, char *propname,

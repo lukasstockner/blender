@@ -434,7 +434,7 @@ static void ui_item_array(uiLayout *layout, uiBlock *block, char *name, int icon
 	uiBlockSetCurLayout(block, layout);
 }
 
-static void ui_item_enum_expand(uiLayout *layout, uiBlock *block, PointerRNA *ptr, PropertyRNA *prop, char *uiname, int x, int y, int w, int h, int icon_only)
+static void ui_item_enum_expand(uiLayout *layout, uiBlock *block, PointerRNA *ptr, PropertyRNA *prop, char *uiname, int h, int icon_only)
 {
 	uiBut *but;
 	EnumPropertyItem *item;
@@ -472,7 +472,7 @@ static void ui_item_enum_expand(uiLayout *layout, uiBlock *block, PointerRNA *pt
 }
 
 /* callback for keymap item change button */
-static void ui_keymap_but_cb(bContext *C, void *but_v, void *key_v)
+static void ui_keymap_but_cb(bContext *UNUSED(C), void *but_v, void *UNUSED(key_v))
 {
 	uiBut *but= but_v;
 
@@ -956,7 +956,7 @@ void uiItemFullR(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index
 	}
 	/* expanded enum */
 	else if(type == PROP_ENUM && (expand || RNA_property_flag(prop) & PROP_ENUM_FLAG))
-		ui_item_enum_expand(layout, block, ptr, prop, name, 0, 0, w, h, icon_only);
+		ui_item_enum_expand(layout, block, ptr, prop, name, h, icon_only);
 	/* property with separate label */
 	else if(type == PROP_ENUM || type == PROP_STRING || type == PROP_POINTER) {
 		but= ui_item_with_label(layout, block, name, icon, ptr, prop, index, 0, 0, w, h, flag);
@@ -1026,7 +1026,7 @@ void uiItemEnumR_string(uiLayout *layout, struct PointerRNA *ptr, char *propname
 
 	for(a=0; item[a].identifier; a++) {
 		if(item[a].value == ivalue) {
-			uiItemFullR(layout, ptr, prop, RNA_ENUM_VALUE, ivalue, 0, (char*)item[a].name, item[a].icon);
+			uiItemFullR(layout, ptr, prop, RNA_ENUM_VALUE, ivalue, 0, name ? name : (char*)item[a].name, icon ? icon : item[a].icon);
 			break;
 		}
 	}
@@ -1109,6 +1109,7 @@ static void rna_search_cb(const struct bContext *C, void *arg_but, char *str, ui
 	int i=0, iconid=0, flag= RNA_property_flag(but->rnaprop);
 	ListBase *items_list= MEM_callocN(sizeof(ListBase), "items_list");
 	CollItemSearch *cis;
+	const int skip_filter= !but->changed;
 
 	/* build a temporary list of relevant items first */
 	RNA_PROP_BEGIN(&but->rnasearchpoin, itemptr, but->rnasearchprop) {
@@ -1140,7 +1141,7 @@ static void rna_search_cb(const struct bContext *C, void *arg_but, char *str, ui
 		}
 
 		if(name) {
-			if(BLI_strcasestr(name, str)) {
+			if(skip_filter || BLI_strcasestr(name, str)) {
 				cis = MEM_callocN(sizeof(CollItemSearch), "CollectionItemSearch");
 				cis->name = MEM_dupallocN(name);
 				cis->index = i;
@@ -1323,7 +1324,7 @@ static void ui_item_menu(uiLayout *layout, char *name, int icon, uiMenuCreateFun
 	}
 }
 
-void uiItemM(uiLayout *layout, bContext *C, char *menuname, char *name, int icon)
+void uiItemM(uiLayout *layout, bContext *UNUSED(C), char *menuname, char *name, int icon)
 {
 	MenuType *mt;
 
@@ -1433,7 +1434,7 @@ typedef struct MenuItemLevel {
 	PointerRNA rnapoin;
 } MenuItemLevel;
 
-static void menu_item_enum_opname_menu(bContext *C, uiLayout *layout, void *arg)
+static void menu_item_enum_opname_menu(bContext *UNUSED(C), uiLayout *layout, void *arg)
 {
 	MenuItemLevel *lvl= (MenuItemLevel*)(((uiBut*)arg)->func_argN);
 
@@ -1464,7 +1465,7 @@ void uiItemMenuEnumO(uiLayout *layout, char *opname, char *propname, char *name,
 	ui_item_menu(layout, name, icon, menu_item_enum_opname_menu, NULL, lvl);
 }
 
-static void menu_item_enum_rna_menu(bContext *C, uiLayout *layout, void *arg)
+static void menu_item_enum_rna_menu(bContext *UNUSED(C), uiLayout *layout, void *arg)
 {
 	MenuItemLevel *lvl= (MenuItemLevel*)(((uiBut*)arg)->func_argN);
 
@@ -1673,7 +1674,7 @@ static void ui_litem_layout_column(uiLayout *litem)
 }
 
 /* root layout */
-static void ui_litem_estimate_root(uiLayout *litem)
+static void ui_litem_estimate_root(uiLayout *UNUSED(litem))
 {
 	/* nothing to do */
 }
@@ -2168,6 +2169,7 @@ uiLayout *uiLayoutSplit(uiLayout *layout, float percentage, int align)
 	split->litem.enabled= 1;
 	split->litem.context= layout->context;
 	split->litem.space= layout->root->style->columnspace;
+	split->litem.w= layout->w;
 	split->percentage= percentage;
 	BLI_addtail(&layout->items, split);
 

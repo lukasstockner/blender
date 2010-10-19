@@ -24,6 +24,9 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
+# this warning on generated files gets annoying
+STRING(REGEX REPLACE "-Wunused-parameter" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+
 FILE(GLOB SRC stubs.c)
 
 IF(WITH_BUILDINFO)
@@ -37,6 +40,7 @@ SET(INC
 	../../../intern/guardedalloc
 	../../../source/blender/makesdna
 	../../../source/blender/makesrna
+	../../../source/blender/blenkernel
 )
 
 IF(WITH_GAMEENGINE)

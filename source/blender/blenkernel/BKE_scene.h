@@ -31,6 +31,10 @@
 #ifndef BKE_SCENE_H
 #define BKE_SCENE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct AviCodecData;
 struct Base;
 struct bglMats;
@@ -60,7 +64,7 @@ struct Base *object_in_scene(struct Object *ob, struct Scene *sce);
 void set_scene_bg(struct Main *bmain, struct Scene *sce);
 struct Scene *set_scene_name(struct Main *bmain, char *name);
 
-struct Scene *copy_scene(struct Main *bmain, struct Scene *sce, int type);
+struct Scene *copy_scene(struct Scene *sce, int type);
 void unlink_scene(struct Main *bmain, struct Scene *sce, struct Scene *newsce);
 
 int next_object(struct Scene **scene, int val, struct Base **base, struct Object **ob);
@@ -92,6 +96,10 @@ int get_render_subsurf_level(struct RenderData *r, int level);
 int get_render_child_particle_number(struct RenderData *r, int num);
 int get_render_shadow_samples(struct RenderData *r, int samples);
 float get_render_aosss_error(struct RenderData *r, float error);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

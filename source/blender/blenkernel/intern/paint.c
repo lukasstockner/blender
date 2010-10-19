@@ -32,6 +32,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_brush_types.h"
 
+#include "BKE_utildefines.h"
 #include "BKE_brush.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_dmgrid.h"
@@ -108,7 +109,7 @@ void paint_init(Paint *p, const char col[3])
 	p->flags |= PAINT_SHOW_BRUSH;
 }
 
-void free_paint(Paint *paint)
+void free_paint(Paint *UNUSED(paint))
 {
 	/* nothing */
 }

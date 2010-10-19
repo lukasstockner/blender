@@ -27,6 +27,10 @@
 #ifndef ED_ARMATURE_H
 #define ED_ARMATURE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct bArmature;
 struct Base;
 struct bContext;
@@ -38,6 +42,7 @@ struct ListBase;
 struct MeshDeformModifierData;
 struct Object;
 struct RegionView3D;
+struct ReportList;
 struct Scene;
 struct SK_Sketch;
 struct View3D;
@@ -128,7 +133,7 @@ void ED_armature_apply_transform(struct Object *ob, float mat[4][4]);
 #define ARM_GROUPS_ENVELOPE	2
 #define ARM_GROUPS_AUTO		3
 
-void create_vgroups_from_armature(struct Scene *scene, struct Object *ob, struct Object *par, int mode, int mirror);
+void create_vgroups_from_armature(struct ReportList *reports, struct Scene *scene, struct Object *ob, struct Object *par, int mode, int mirror);
 
 void auto_align_armature(struct Scene *scene, struct View3D *v3d, short mode);
 void unique_editbone_name(struct ListBase *ebones, char *name, EditBone *bone); /* if bone is already in list, pass it as param to ignore it */
@@ -137,11 +142,12 @@ void ED_armature_bone_rename(struct bArmature *arm, char *oldnamep, char *newnam
 void undo_push_armature(struct bContext *C, char *name);
 
 /* poseobject.c */
+struct Object *ED_object_pose_armature(struct Object *ob);
 void ED_armature_exit_posemode(struct bContext *C, struct Base *base);
 void ED_armature_enter_posemode(struct bContext *C, struct Base *base);
 int ED_pose_channel_in_IK_chain(struct Object *ob, struct bPoseChannel *pchan);
 void ED_pose_deselectall(struct Object *ob, int test);
-void ED_pose_recalculate_paths(struct bContext *C, struct Scene *scene, struct Object *ob);
+void ED_pose_recalculate_paths(struct Scene *scene, struct Object *ob);
 
 /* sketch */
 
@@ -168,6 +174,10 @@ int BDR_drawSketchNames(struct ViewContext *vc);
 void mesh_deform_bind(struct Scene *scene,
 	struct MeshDeformModifierData *mmd,
 	float *vertexcos, int totvert, float cagemat[][4]);
+	
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ED_ARMATURE_H */
 

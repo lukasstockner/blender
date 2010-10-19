@@ -655,7 +655,7 @@ static bConstraintTypeInfo CTI_CONSTRNAME = {
 /* This function should be used for the get_target_matrix member of all 
  * constraints that are not picky about what happens to their target matrix.
  */
-static void default_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float ctime)
+static void default_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float UNUSED(ctime))
 {
 	if (VALID_CONS_TARGET(ct))
 		constraint_target_to_mat4(cob->scene, ct->tar, ct->subtarget, ct->matrix, CONSTRAINT_SPACE_WORLD, ct->space, con->headtail);
@@ -1107,7 +1107,7 @@ static void kinematic_flush_tars (bConstraint *con, ListBase *list, short nocopy
 	}
 }
 
-static void kinematic_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float ctime)
+static void kinematic_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float UNUSED(ctime))
 {
 	bKinematicConstraint *data= con->data;
 	
@@ -1195,13 +1195,13 @@ static void followpath_flush_tars (bConstraint *con, ListBase *list, short nocop
 	}
 }
 
-static void followpath_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float ctime)
+static void followpath_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float UNUSED(ctime))
 {
 	bFollowPathConstraint *data= con->data;
 	
 	if (VALID_CONS_TARGET(ct)) {
 		Curve *cu= ct->tar->data;
-		float q[4], vec[4], dir[3], quat[4], radius, x1;
+		float vec[4], dir[3], radius;
 		float totmat[4][4];
 		float curvetime;
 		
@@ -1217,7 +1217,8 @@ static void followpath_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstr
 			makeDispListCurveTypes(cob->scene, ct->tar, 0);
 		
 		if (cu->path && cu->path->data) {
-			if ((data->followflag & FOLLOWPATH_STATIC) == 0) { 
+			float quat[4];
+			if ((data->followflag & FOLLOWPATH_STATIC) == 0) {
 				/* animated position along curve depending on time */
 				if (cob->scene)
 					curvetime= bsystem_time(cob->scene, ct->tar, cu->ctime, 0.0) - data->offset;
@@ -1238,8 +1239,10 @@ static void followpath_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstr
 				curvetime= data->offset_fac;
 			}
 			
-			if ( where_on_path(ct->tar, curvetime, vec, dir, NULL, &radius, NULL) ) {
+			if ( where_on_path(ct->tar, curvetime, vec, dir, (data->followflag & FOLLOWPATH_FOLLOW) ? quat : NULL, &radius, NULL) ) { /* quat_pt is quat or NULL*/
 				if (data->followflag & FOLLOWPATH_FOLLOW) {
+#if 0
+					float x1, q[4];
 					vec_to_quat(quat, dir, (short)data->trackflag, (short)data->upflag);
 					
 					normalize_v3(dir);
@@ -1249,10 +1252,13 @@ static void followpath_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstr
 					q[2]= -x1*dir[1];
 					q[3]= -x1*dir[2];
 					mul_qt_qtqt(quat, q, quat);
-					
+#else
+					quat_apply_track(quat, data->trackflag, data->upflag);
+#endif
+
 					quat_to_mat4(totmat, quat);
 				}
-				
+
 				if (data->followflag & FOLLOWPATH_RADIUS) {
 					float tmat[4][4], rmat[4][4];
 					scale_m4_fl(tmat, radius);
@@ -1324,7 +1330,7 @@ static bConstraintTypeInfo CTI_FOLLOWPATH = {
 /* --------- Limit Location --------- */
 
 
-static void loclimit_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *targets)
+static void loclimit_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *UNUSED(targets))
 {
 	bLocLimitConstraint *data = con->data;
 	
@@ -1372,7 +1378,7 @@ static bConstraintTypeInfo CTI_LOCLIMIT = {
 
 /* -------- Limit Rotation --------- */
 
-static void rotlimit_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *targets)
+static void rotlimit_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *UNUSED(targets))
 {
 	bRotLimitConstraint *data = con->data;
 	float loc[3];
@@ -1431,7 +1437,7 @@ static bConstraintTypeInfo CTI_ROTLIMIT = {
 /* --------- Limit Scaling --------- */
 
 
-static void sizelimit_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *targets)
+static void sizelimit_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *UNUSED(targets))
 {
 	bSizeLimitConstraint *data = con->data;
 	float obsize[3], size[3];
@@ -1825,7 +1831,7 @@ static void translike_flush_tars (bConstraint *con, ListBase *list, short nocopy
 	}
 }
 
-static void translike_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *targets)
+static void translike_evaluate (bConstraint *UNUSED(con), bConstraintOb *cob, ListBase *targets)
 {
 	bConstraintTarget *ct= targets->first;
 	
@@ -1861,7 +1867,7 @@ static void samevolume_new_data (void *cdata)
 	data->volume = 1.0f;
 }
 
-static void samevolume_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *targets)
+static void samevolume_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *UNUSED(targets))
 {
 	bSameVolumeConstraint *data= con->data;
 
@@ -1975,7 +1981,7 @@ static void pycon_id_looper (bConstraint *con, ConstraintIDFunc func, void *user
 }
 
 /* Whether this approach is maintained remains to be seen (aligorith) */
-static void pycon_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float ctime)
+static void pycon_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float UNUSED(ctime))
 {
 #ifndef DISABLE_PYTHON
 	bPythonConstraint *data= con->data;
@@ -2099,7 +2105,7 @@ static void actcon_flush_tars (bConstraint *con, ListBase *list, short nocopy)
 	}
 }
 
-static void actcon_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float ctime)
+static void actcon_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float UNUSED(ctime))
 {
 	extern void chan_calc_mat(bPoseChannel *chan);
 	bActionConstraint *data = con->data;
@@ -2190,7 +2196,7 @@ static void actcon_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraint
 	}
 }
 
-static void actcon_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *targets)
+static void actcon_evaluate (bConstraint *UNUSED(con), bConstraintOb *cob, ListBase *targets)
 {
 	bConstraintTarget *ct= targets->first;
 	
@@ -3070,7 +3076,7 @@ static void clampto_flush_tars (bConstraint *con, ListBase *list, short nocopy)
 	}
 }
 
-static void clampto_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float ctime)
+static void clampto_get_tarmat (bConstraint *UNUSED(con), bConstraintOb *cob, bConstraintTarget *ct, float UNUSED(ctime))
 {
 	if (VALID_CONS_TARGET(ct)) {
 		Curve *cu= ct->tar->data;
@@ -3404,7 +3410,7 @@ static void shrinkwrap_flush_tars (bConstraint *con, ListBase *list, short nocop
 }
 
 
-static void shrinkwrap_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float ctime)
+static void shrinkwrap_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float UNUSED(ctime))
 {
 	bShrinkwrapConstraint *scon = (bShrinkwrapConstraint *) con->data;
 	
@@ -3507,7 +3513,7 @@ static void shrinkwrap_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstr
 	}
 }
 
-static void shrinkwrap_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *targets)
+static void shrinkwrap_evaluate (bConstraint *UNUSED(con), bConstraintOb *cob, ListBase *targets)
 {
 	bConstraintTarget *ct= targets->first;
 	
@@ -3723,7 +3729,7 @@ static void splineik_flush_tars (bConstraint *con, ListBase *list, short nocopy)
 	}
 }
 
-static void splineik_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float ctime)
+static void splineik_get_tarmat (bConstraint *UNUSED(con), bConstraintOb *cob, bConstraintTarget *ct, float UNUSED(ctime))
 {
 	if (VALID_CONS_TARGET(ct)) {
 		Curve *cu= ct->tar->data;
@@ -4155,7 +4161,7 @@ void id_loop_constraints (ListBase *conlist, ConstraintIDFunc func, void *userda
 /* ......... */
 
 /* helper for copy_constraints(), to be used for making sure that ID's are valid */
-static void con_extern_cb(bConstraint *con, ID **idpoin, void *userdata)
+static void con_extern_cb(bConstraint *UNUSED(con), ID **idpoin, void *UNUSED(userData))
 {
 	if (*idpoin && (*idpoin)->lib)
 		id_lib_extern(*idpoin);

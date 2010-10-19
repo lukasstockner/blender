@@ -1274,7 +1274,7 @@ void VIEW3D_OT_zoom(wmOperatorType *ot)
 	RNA_def_int(ot->srna, "my", 0, 0, INT_MAX, "Zoom Position Y", "", 0, INT_MAX);
 }
 
-static int viewhome_exec(bContext *C, wmOperator *op) /* was view3d_home() in 2.4x */
+static int view3d_all_exec(bContext *C, wmOperator *op) /* was view3d_home() in 2.4x */
 {
 	ARegion *ar= CTX_wm_region(C);
 	View3D *v3d = CTX_wm_view3d(C);
@@ -1289,12 +1289,11 @@ static int viewhome_exec(bContext *C, wmOperator *op) /* was view3d_home() in 2.
 	int ok= 1, onedone=0;
 
 	if(center) {
-		min[0]= min[1]= min[2]= 0.0f;
-		max[0]= max[1]= max[2]= 0.0f;
-
 		/* in 2.4x this also move the cursor to (0, 0, 0) (with shift+c). */
 		curs= give_cursor(scene, v3d);
-		curs[0]= curs[1]= curs[2]= 0.0;
+		zero_v3(min);
+		zero_v3(max);
+		zero_v3(curs);
 	}
 	else {
 		INIT_MINMAX(min, max);
@@ -1318,9 +1317,7 @@ static int viewhome_exec(bContext *C, wmOperator *op) /* was view3d_home() in 2.
 		return OPERATOR_FINISHED;
 	}
 
-	afm[0]= (max[0]-min[0]);
-	afm[1]= (max[1]-min[1]);
-	afm[2]= (max[2]-min[2]);
+	sub_v3_v3v3(afm, max, min);
 	size= 0.7f*MAX3(afm[0], afm[1], afm[2]);
 	if(size==0.0) ok= 0;
 
@@ -1342,7 +1339,7 @@ static int viewhome_exec(bContext *C, wmOperator *op) /* was view3d_home() in 2.
 
 		if (rv3d->persp==RV3D_CAMOB) {
 			rv3d->persp= RV3D_PERSP;
-			smooth_view(C, NULL, v3d->camera, new_ofs, NULL, &new_dist, NULL);
+			smooth_view(C, v3d->camera, NULL, new_ofs, NULL, &new_dist, NULL);
 		}
 		else {
 			smooth_view(C, NULL, NULL, new_ofs, NULL, &new_dist, NULL);
@@ -1358,17 +1355,6 @@ static int viewhome_exec(bContext *C, wmOperator *op) /* was view3d_home() in 2.
 	return OPERATOR_FINISHED;
 }
 
-static int viewhome_poll(bContext *C)
-{
-	if(ED_operator_view3d_active(C)) {
-		RegionView3D *rv3d= CTX_wm_region_view3d(C); //XXX, when accessed from a header menu this doesnt work!
-		if(rv3d && rv3d->persp!=RV3D_CAMOB) {
-			return 1;
-		}
-	}
-
-	return 0;
-}
 
 void VIEW3D_OT_view_all(wmOperatorType *ot)
 {
@@ -1378,8 +1364,8 @@ void VIEW3D_OT_view_all(wmOperatorType *ot)
 	ot->idname= "VIEW3D_OT_view_all";
 
 	/* api callbacks */
-	ot->exec= viewhome_exec;
-	ot->poll= viewhome_poll;
+	ot->exec= view3d_all_exec;
+	ot->poll= ED_operator_view3d_active;
 
 	/* flags */
 	ot->flag= 0;
@@ -1388,7 +1374,7 @@ void VIEW3D_OT_view_all(wmOperatorType *ot)
 }
 
 
-static int viewselected_exec(bContext *C, wmOperator *op) /* like a localview without local!, was centerview() in 2.4x */
+static int viewselected_exec(bContext *C, wmOperator *UNUSED(op)) /* like a localview without local!, was centerview() in 2.4x */
 {
 	ARegion *ar= CTX_wm_region(C);
 	View3D *v3d = CTX_wm_view3d(C);
@@ -1528,7 +1514,7 @@ void VIEW3D_OT_view_selected(wmOperatorType *ot)
 	ot->flag= 0;
 }
 
-static int viewcenter_cursor_exec(bContext *C, wmOperator *op)
+static int viewcenter_cursor_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d= CTX_wm_region_view3d(C);
@@ -1562,7 +1548,7 @@ void VIEW3D_OT_view_center_cursor(wmOperatorType *ot)
 	ot->flag= 0;
 }
 
-static int view3d_center_camera_exec(bContext *C, wmOperator *op) /* was view3d_home() in 2.4x */
+static int view3d_center_camera_exec(bContext *C, wmOperator *UNUSED(op)) /* was view3d_home() in 2.4x */
 {
 	RegionView3D *rv3d= CTX_wm_region_view3d(C);
 
@@ -1705,7 +1691,7 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 		rv3d->depths->damaged = 1;
 	}
 
-	view3d_update_depths(ar, v3d);
+	view3d_update_depths(ar);
 
 	/* Constrain rect to depth bounds */
 	if (rect.xmin < 0) rect.xmin = 0;
@@ -2135,14 +2121,11 @@ static int viewpan_exec(bContext *C, wmOperator *op)
 	pandir = RNA_enum_get(op->ptr, "type");
 
 	initgrabz(rv3d, 0.0, 0.0, 0.0);
-
 	if(pandir == V3D_VIEW_PANRIGHT) window_to_3d_delta(ar, vec, -32, 0);
 	else if(pandir == V3D_VIEW_PANLEFT) window_to_3d_delta(ar, vec, 32, 0);
 	else if(pandir == V3D_VIEW_PANUP) window_to_3d_delta(ar, vec, 0, -25);
 	else if(pandir == V3D_VIEW_PANDOWN) window_to_3d_delta(ar, vec, 0, 25);
-	rv3d->ofs[0]+= vec[0];
-	rv3d->ofs[1]+= vec[1];
-	rv3d->ofs[2]+= vec[2];
+	add_v3_v3(rv3d->ofs, vec);
 
 	if(rv3d->viewlock & RV3D_BOXVIEW)
 		view3d_boxview_sync(CTX_wm_area(C), ar);
@@ -2168,7 +2151,7 @@ void VIEW3D_OT_view_pan(wmOperatorType *ot)
 	RNA_def_enum(ot->srna, "type", prop_view_pan_items, 0, "Pan", "Direction of View Pan");
 }
 
-static int viewpersportho_exec(bContext *C, wmOperator *op)
+static int viewpersportho_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ARegion *ar= CTX_wm_region(C);
 	RegionView3D *rv3d= CTX_wm_region_view3d(C);
@@ -2217,16 +2200,15 @@ static BGpic *add_background_image(bContext *C)
 	return bgpic;
 }
 
-static int add_background_image_exec(bContext *C, wmOperator *op)
+static int add_background_image_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	add_background_image(C);
 
 	return OPERATOR_FINISHED;
 }
 
-static int add_background_image_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int add_background_image_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
-	Scene *scene= CTX_data_scene(C);
 	View3D *v3d= CTX_wm_view3d(C);
 	Image *ima= NULL;
 	BGpic *bgpic;
@@ -2237,7 +2219,7 @@ static int add_background_image_invoke(bContext *C, wmOperator *op, wmEvent *eve
 		char path[FILE_MAX];
 		
 		RNA_string_get(op->ptr, "filepath", path);
-		ima= BKE_add_image_file(path, scene ? scene->r.cfra : 1);
+		ima= BKE_add_image_file(path);
 	}
 	else if(RNA_property_is_set(op->ptr, "name")) {
 		RNA_string_get(op->ptr, "name", name);
@@ -2427,7 +2409,7 @@ void VIEW3D_OT_clip_border(wmOperatorType *ot)
 /* ***************** 3d cursor cursor op ******************* */
 
 /* mx my in region coords */
-static int set_3dcursor_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int set_3dcursor_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *event)
 {
 	Scene *scene= CTX_data_scene(C);
 	ARegion *ar= CTX_wm_region(C);
@@ -2552,7 +2534,7 @@ void VIEW3D_OT_manipulator(wmOperatorType *ot)
 	Transform_Properties(ot, P_CONSTRAINT);
 }
 
-static int enable_manipulator_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int enable_manipulator_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	View3D *v3d = CTX_wm_view3d(C);
 
@@ -2661,7 +2643,7 @@ int view_autodist(Scene *scene, ARegion *ar, View3D *v3d, short *mval, float mou
 		rv3d->depths->damaged = 1;
 	}
 
-	view3d_update_depths(ar, v3d);
+	view3d_update_depths(ar);
 
 	depth_close= view_autodist_depth_margin(ar, mval, 4);
 
@@ -2705,7 +2687,7 @@ int view_autodist_init(Scene *scene, ARegion *ar, View3D *v3d, int mode) //, flo
 		rv3d->depths->damaged = 1;
 	}
 
-	view3d_update_depths(ar, v3d);
+	view3d_update_depths(ar);
 	return 1;
 }
 
@@ -2802,7 +2784,7 @@ void filterNDOFvalues(float *sbval)
 int dz_flag = 0;
 float m_dist;
 
-void viewmoveNDOFfly(ARegion *ar, View3D *v3d, int mode)
+void viewmoveNDOFfly(ARegion *ar, View3D *v3d, int UNUSED(mode))
 {
 	RegionView3D *rv3d= ar->regiondata;
 	int i;
@@ -2931,7 +2913,7 @@ void viewmoveNDOFfly(ARegion *ar, View3D *v3d, int mode)
 // XXX	BIF_view3d_previewrender_signal(ar, PR_DBASE|PR_DISPRECT);
 }
 
-void viewmoveNDOF(Scene *scene, ARegion *ar, View3D *v3d, int mode)
+void viewmoveNDOF(Scene *scene, ARegion *ar, View3D *v3d, int UNUSED(mode))
 {
 	RegionView3D *rv3d= ar->regiondata;
 	float fval[7];

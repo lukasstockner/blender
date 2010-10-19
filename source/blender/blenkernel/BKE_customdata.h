@@ -32,6 +32,10 @@
 #ifndef BKE_CUSTOMDATA_H
 #define BKE_CUSTOMDATA_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ID;
 struct CustomData;
 struct CustomDataLayer;
@@ -365,5 +369,9 @@ void CustomData_external_read(struct CustomData *data,
 	struct ID *id, CustomDataMask mask, int totelem);
 void CustomData_external_reload(struct CustomData *data,
 	struct ID *id, CustomDataMask mask, int totelem);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -101,6 +101,9 @@ IF(WITH_BUILDINFO)
 		-DBUILD_REV="${BUILD_REV}"
 		-DBUILD_PLATFORM="${CMAKE_SYSTEM_NAME}"
 		-DBUILD_TYPE="${CMAKE_BUILD_TYPE}"
+		-DBUILD_CFLAGS="${CMAKE_C_FLAGS}"
+		-DBUILD_CXXFLAGS="${CMAKE_CXX_FLAGS}"
+		-DBUILD_LINKFLAGS="${PLATFORM_LINKFLAGS}"
 	)
 
 	LIST(APPEND EXESRC buildinfo.c)
@@ -212,7 +215,7 @@ IF(WITH_INSTALL)
 			DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
 		)
 		INSTALL(
-			FILES ${CMAKE_SOURCE_DIR}/doc/blender.1
+			FILES ${CMAKE_SOURCE_DIR}/doc/manpage/blender.1
 			DESTINATION ${CMAKE_INSTALL_PREFIX}/share/man/man1
 		)
 		INSTALL(
@@ -254,16 +257,17 @@ IF(WITH_INSTALL)
 			COMMAND cp -Rf ${SOURCEDIR}/Contents/PkgInfo ${TARGETDIR}/blender.app/Contents/
 			COMMAND cp -Rf ${SOURCEDIR}/Contents/Resources ${TARGETDIR}/blender.app/Contents/
 			COMMAND cat ${SOURCEINFO} | sed s/VERSION/`cat ${CMAKE_SOURCE_DIR}/release/VERSION`/ | sed s/DATE/`date +'%Y-%b-%d'`/ > ${TARGETINFO}
-			COMMAND rm -Rf ${TARGETDIR}/blender.app/Contents/MacOS/datafiles
-			COMMAND mkdir ${TARGETDIR}/blender.app/Contents/MacOS/datafiles/
-			COMMAND cp ${CMAKE_SOURCE_DIR}/release/bin/.blender/.bfont.ttf ${TARGETDIR}/blender.app/Contents/MacOS/datafiles/
+			COMMAND rm -Rf ${TARGETDIR}/blender.app/Contents/MacOS/${BLENDER_VERSION}
+			COMMAND mkdir ${TARGETDIR}/blender.app/Contents/MacOS/${BLENDER_VERSION}
+			COMMAND mkdir ${TARGETDIR}/blender.app/Contents/MacOS/${BLENDER_VERSION}/datafiles/
+			COMMAND cp ${CMAKE_SOURCE_DIR}/release/bin/.blender/.bfont.ttf ${TARGETDIR}/blender.app/Contents/MacOS/${BLENDER_VERSION}/datafiles/
 		)
 	  
 		IF(WITH_INTERNATIONAL)
 			ADD_CUSTOM_COMMAND(
 				TARGET blender POST_BUILD MAIN_DEPENDENCY blender
-				COMMAND cp ${CMAKE_SOURCE_DIR}/release/bin/.blender/.Blanguages ${TARGETDIR}/blender.app/Contents/MacOS/datafiles/
-				COMMAND cp -Rf ${CMAKE_SOURCE_DIR}/release/bin/.blender/locale ${TARGETDIR}/blender.app/Contents/MacOS/datafiles/
+				COMMAND cp ${CMAKE_SOURCE_DIR}/release/bin/.blender/.Blanguages ${TARGETDIR}/blender.app/Contents/MacOS/${BLENDER_VERSION}/datafiles/
+				COMMAND cp -Rf ${CMAKE_SOURCE_DIR}/release/bin/.blender/locale ${TARGETDIR}/blender.app/Contents/MacOS/${BLENDER_VERSION}/datafiles/
 			)
 		ENDIF(WITH_INTERNATIONAL)
 	  
@@ -271,10 +275,9 @@ IF(WITH_INSTALL)
 			SET(PYTHON_ZIP "python_${CMAKE_OSX_ARCHITECTURES}.zip")
 			ADD_CUSTOM_COMMAND(
 				TARGET blender POST_BUILD MAIN_DEPENDENCY blender
-				COMMAND cp -Rf ${CMAKE_SOURCE_DIR}/release/scripts ${TARGETDIR}/blender.app/Contents/MacOS/
-				COMMAND rm -Rf ${TARGETDIR}/blender.app/Contents/MacOS/python/
-				COMMAND mkdir ${TARGETDIR}/blender.app/Contents/MacOS/python/
-				COMMAND unzip -q ${LIBDIR}/release/${PYTHON_ZIP} -d ${TARGETDIR}/blender.app/Contents/MacOS/python/
+				COMMAND cp -Rf ${CMAKE_SOURCE_DIR}/release/scripts ${TARGETDIR}/blender.app/Contents/MacOS/${BLENDER_VERSION}/
+				COMMAND mkdir ${TARGETDIR}/blender.app/Contents/MacOS/${BLENDER_VERSION}/python/
+				COMMAND unzip -q ${LIBDIR}/release/${PYTHON_ZIP} -d ${TARGETDIR}/blender.app/Contents/MacOS/${BLENDER_VERSION}/python/
 				COMMAND find ${TARGETDIR}/blender.app -name "*.py?" -prune -exec rm -rf {} "\;"
 			)
 		ENDIF(WITH_PYTHON)	  
@@ -451,9 +454,6 @@ IF(WITH_FLUID)
 	LIST(APPEND BLENDER_LINK_LIBS bf_intern_elbeem)
 ENDIF(WITH_FLUID)
 
-IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-	LIST(APPEND BLENDER_LINK_LIBS extern_binreloc)
-ENDIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 
 #IF(UNIX)
 	# Sort libraries
@@ -498,7 +498,6 @@ ENDIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 		bf_editor_animation
 		bf_editor_datafiles
 
-		bf_intern_bsp 
 		bf_render 
 		bf_intern_opennl 
 		bf_python 
@@ -529,8 +528,6 @@ ENDIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 		bf_intern_memutil 
 		bf_intern_guardedalloc 
 		bf_intern_ctr 
-		bf_intern_moto 
-		bf_windowmanager
 		bf_blroutines 
 		bf_converter 
 		bf_dummy 
@@ -545,19 +542,13 @@ ENDIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 		bf_oglrasterizer 
 		bf_expressions 
 		bf_scenegraph 
-		bf_intern_moto 
-		bf_blroutines 
 		kx_network 
-		bf_kernel 
+		bf_kernel
+		bf_python # duplicate for BPY_eval_driver
 		bf_ngnetwork 
 		extern_bullet 
 		bf_loopbacknetwork 
-		bf_intern_itasc
-		bf_common 
 		bf_intern_moto 
-		bf_python
-		bf_python_ext
-		extern_binreloc
 		extern_glew
 		extern_ptex
 		bf_videotex
@@ -565,9 +556,11 @@ ENDIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 		bf_dna
 		bf_blenfont
 		bf_intern_audaspace
-		bf_intern_decimate
-
 	)
+
+	IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+		LIST(APPEND BLENDER_SORTED_LIBS extern_binreloc)
+	ENDIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 
 	IF(WITH_CXX_GUARDEDALLOC)
 		LIST(APPEND BLENDER_SORTED_LIBS bf_intern_guardedalloc_cpp)

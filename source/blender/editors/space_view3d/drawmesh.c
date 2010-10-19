@@ -192,7 +192,7 @@ static int draw_tfaces3D__drawFaceOpts(void *userData, int index)
 		return 0;
 }
 
-static void draw_tfaces3D(RegionView3D *rv3d, Object *ob, Mesh *me, DerivedMesh *dm)
+static void draw_tfaces3D(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 {
 	struct { Mesh *me; EdgeHash *eh; } data;
 
@@ -523,7 +523,7 @@ static int draw_em_tf_mapped__set_draw(void *userData, int index)
 	MCol *mcol;
 	int matnr;
 
-	if (efa==NULL || efa->h)
+	if (efa->h)
 		return 0;
 
 	tface = CustomData_em_get(&em->fdata, efa->data, CD_MTFACE);
@@ -536,12 +536,13 @@ static int draw_em_tf_mapped__set_draw(void *userData, int index)
 static int wpaint__setSolidDrawOptions(void *userData, int index, int *drawSmooth_r)
 {
 	Mesh *me = (Mesh*)userData;
-	MTFace *tface = (me->mtface)? &me->mtface[index]: NULL;
-	MFace *mface = (me->mface)? &me->mface[index]: NULL;
-	
-	if ((mface->flag&ME_HIDE) || (tface && (tface->mode&TF_INVISIBLE))) 
-			return 0;
-	
+
+	if (	(me->mface && me->mface[index].flag & ME_HIDE) ||
+			(me->mtface && (me->mtface[index].mode & TF_INVISIBLE))
+	) {
+		return 0;
+	}
+
 	*drawSmooth_r = 1;
 	return 1;
 }
@@ -647,7 +648,7 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *o
 		dm->drawMappedFacesTex(dm, draw_em_tf_mapped__set_draw, me->edit_mesh);
 	} else if(faceselect) {
 		if(ob->mode & OB_MODE_WEIGHT_PAINT)
-			dm->drawMappedFaces(dm, NULL, wpaint__setSolidDrawOptions, me, DM_DRAW_VERTEX_COLORS);
+			dm->drawMappedFaces(dm, NULL, wpaint__setSolidDrawOptions, me, GPU_enable_material, DM_DRAW_VERTEX_COLORS);
 		else
 			dm->drawMappedFacesTex(dm, draw_tface_mapped__set_draw, me);
 	}
@@ -670,7 +671,7 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *o
 	
 	/* draw edges and selected faces over textured mesh */
 	if(!(ob == scene->obedit) && faceselect)
-		draw_tfaces3D(rv3d, ob, me, dm);
+		draw_tfaces3D(rv3d, me, dm);
 
 	/* reset from negative scale correction */
 	glFrontFace(GL_CCW);

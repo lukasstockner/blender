@@ -28,6 +28,10 @@
 #ifndef WM_TYPES_H
 #define WM_TYPES_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct bContext;
 struct wmEvent;
 struct wmWindowManager;
@@ -187,6 +191,7 @@ typedef struct wmNotifier {
 #define ND_TOOLSETTINGS		(15<<16)
 #define ND_LAYER			(16<<16)
 #define ND_FRAME_RANGE		(17<<16)
+#define ND_WORLD			(92<<16)
 #define ND_LAYER_CONTENT	(101<<16)
 
 	/* NC_OBJECT Object */
@@ -510,6 +515,10 @@ typedef struct RecentFile {
 	char *filepath;
 } RecentFile;
 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* WM_TYPES_H */
 

@@ -39,6 +39,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <assert.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -70,6 +71,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_dynstr.h"
 
+#include "BKE_utildefines.h"
 #include "BKE_animsys.h"
 #include "BKE_context.h"
 #include "BKE_library.h"
@@ -335,7 +337,7 @@ int id_unlink(ID *id, int test)
 			break;
 		case ID_OB:
 			if(test) return 1;
-			unlink_object(NULL, (Object*)id);
+			unlink_object((Object*)id);
 			break;
 	}
 
@@ -649,11 +651,9 @@ void *copy_libblock(void *rt)
 
 	lb= which_libbase(G.main, GS(id->name));
 	idn= alloc_libblock(lb, GS(id->name), id->name+2);
-	
-	if(idn==NULL) {
-		printf("ERROR: Illegal ID name for %s (Crashing now)\n", id->name);
-	}
-	
+
+	assert(idn != NULL);
+
 	idn_len= MEM_allocN_len(idn);
 	if(idn_len - sizeof(ID) > 0) {
 		cp= (char *)id;
@@ -669,7 +669,7 @@ void *copy_libblock(void *rt)
 	return idn;
 }
 
-static void free_library(Library *lib)
+static void free_library(Library *UNUSED(lib))
 {
 	/* no freeing needed for libraries yet */
 }
@@ -681,7 +681,7 @@ void set_free_windowmanager_cb(void (*func)(bContext *C, wmWindowManager *) )
 	free_windowmanager_cb= func;
 }
 
-void animdata_dtar_clear_cb(ID *id, AnimData *adt, void *userdata)
+void animdata_dtar_clear_cb(ID *UNUSED(id), AnimData *adt, void *userdata)
 {
 	ChannelDriver *driver;
 	FCurve *fcu;
@@ -822,7 +822,7 @@ void free_libblock_us(ListBase *lb, void *idv)		/* test users */
 		else printf("ERROR block %s users %d\n", id->name, id->us);
 	}
 	if(id->us==0) {
-		if( GS(id->name)==ID_OB ) unlink_object(NULL, (Object *)id);
+		if( GS(id->name)==ID_OB ) unlink_object((Object *)id);
 		
 		free_libblock(lb, id);
 	}
@@ -1234,7 +1234,7 @@ static void image_fix_relative_path(Image *ima)
 	if(ima->id.lib==NULL) return;
 	if(strncmp(ima->name, "//", 2)==0) {
 		BLI_path_abs(ima->name, ima->id.lib->filepath);
-		BLI_path_rel(ima->name, G.sce);
+		BLI_path_rel(ima->name, G.main->name);
 	}
 }
 

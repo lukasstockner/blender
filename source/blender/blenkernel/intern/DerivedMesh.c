@@ -520,7 +520,7 @@ static void emDM_drawMappedEdges(DerivedMesh *dm, int (*setDrawOptions)(void *us
 		glEnd();
 	}
 }
-static void emDM_drawEdges(DerivedMesh *dm, int drawLooseEdges, int drawAllEdges)
+static void emDM_drawEdges(DerivedMesh *dm, int UNUSED(drawLooseEdges), int UNUSED(drawAllEdges))
 {
 	emDM_drawMappedEdges(dm, NULL, NULL);
 }
@@ -629,13 +629,19 @@ static void emDM_foreachMappedFaceCenter(DerivedMesh *dm, void (*func)(void *use
 		func(userData, i, cent, emdm->vertexCos?emdm->faceNos[i]:efa->n);
 	}
 }
+
+/* note, material function is ignored for now. */
 static void emDM_drawMappedFaces(DerivedMesh *dm, float (*partial_redraw_planes)[4],
 				 int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r),
-				 void *userData, DMDrawFlags flags)
+				 void *userData,
+				 int (*setMaterial)(int, void *attribs),
+				 DMDrawFlags flags)
 {
 	EditMeshDerivedMesh *emdm= (EditMeshDerivedMesh*) dm;
 	EditFace *efa;
 	int i, draw;
+	
+	(void)setMaterial; /* unused */
 
 	if (emdm->vertexCos) {
 		EditVert *eve;
@@ -1329,8 +1335,7 @@ static void emDM_release(DerivedMesh *dm)
 	}
 }
 
-static DerivedMesh *getEditMeshDerivedMesh(EditMesh *em, Object *ob,
-										   float (*vertexCos)[3])
+static DerivedMesh *getEditMeshDerivedMesh(EditMesh *em, float (*vertexCos)[3])
 {
 	EditMeshDerivedMesh *emdm = MEM_callocN(sizeof(*emdm), "emdm");
 
@@ -2033,7 +2038,7 @@ static void editmesh_calc_modifiers(Scene *scene, Object *ob, EditMesh *em, Deri
 	modifiers_clearErrors(ob);
 
 	if(cage_r && cageIndex == -1) {
-		*cage_r = getEditMeshDerivedMesh(em, ob, NULL);
+		*cage_r = getEditMeshDerivedMesh(em, NULL);
 	}
 
 	dm = NULL;
@@ -2166,7 +2171,7 @@ static void editmesh_calc_modifiers(Scene *scene, Object *ob, EditMesh *em, Deri
 				*cage_r = dm;
 			} else {
 				*cage_r =
-					getEditMeshDerivedMesh(em, ob,
+					getEditMeshDerivedMesh(em,
 						deformedVerts ? MEM_dupallocN(deformedVerts) : NULL);
 			}
 		}
@@ -2190,7 +2195,7 @@ static void editmesh_calc_modifiers(Scene *scene, Object *ob, EditMesh *em, Deri
 	} else if (!deformedVerts && cage_r && *cage_r) {
 		*final_r = *cage_r;
 	} else {
-		*final_r = getEditMeshDerivedMesh(em, ob, deformedVerts);
+		*final_r = getEditMeshDerivedMesh(em, deformedVerts);
 		deformedVerts = NULL;
 	}
 
@@ -2410,9 +2415,9 @@ DerivedMesh *editmesh_get_derived_cage(Scene *scene, Object *obedit, EditMesh *e
 	return em->derivedCage;
 }
 
-DerivedMesh *editmesh_get_derived_base(Object *obedit, EditMesh *em)
+DerivedMesh *editmesh_get_derived_base(Object *UNUSED(obedit), EditMesh *em)
 {
-	return getEditMeshDerivedMesh(em, obedit, NULL);
+	return getEditMeshDerivedMesh(em, NULL);
 }
 
 
@@ -2498,7 +2503,7 @@ int editmesh_get_first_deform_matrices(Scene *scene, Object *ob, EditMesh *em, f
 
 		if(mti->type==eModifierTypeType_OnlyDeform && mti->deformMatricesEM) {
 			if(!defmats) {
-				dm= getEditMeshDerivedMesh(em, ob, NULL);
+				dm= getEditMeshDerivedMesh(em, NULL);
 				deformedVerts= editmesh_getVertexCos(em, &numVerts);
 				defmats= MEM_callocN(sizeof(*defmats)*numVerts, "defmats");
 

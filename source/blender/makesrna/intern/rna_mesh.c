@@ -1143,7 +1143,7 @@ static char *rna_VertexGroupElement_path(PointerRNA *ptr)
 	for(a=0, dvert=me->dvert; a<me->totvert; a++, dvert++)
 		for(b=0; b<dvert->totweight; b++)
 			if(dw == &dvert->dw[b])
-				return BLI_sprintfN("verts[%d].groups[%d]", a, b);
+				return BLI_sprintfN("vertices[%d].groups[%d]", a, b);
 
 	return NULL;
 }
@@ -1160,7 +1160,7 @@ static char *rna_MeshEdge_path(PointerRNA *ptr)
 
 static char *rna_MeshVertex_path(PointerRNA *ptr)
 {
-	return BLI_sprintfN("verts[%d]", (MVert*)ptr->data - ((Mesh*)ptr->id.data)->mvert);
+	return BLI_sprintfN("vertices[%d]", (MVert*)ptr->data - ((Mesh*)ptr->id.data)->mvert);
 }
 
 static char *rna_MeshTextureFaceLayer_path(PointerRNA *ptr)
@@ -1277,7 +1277,7 @@ static CustomDataLayer *rna_Mesh_uv_texture_new(struct Mesh *me, struct bContext
 	CustomDataLayer *cdl= NULL;
 	int index;
 
-	if(ED_mesh_uv_texture_add(C, NULL, NULL, me, name, FALSE)) {
+	if(ED_mesh_uv_texture_add(C, me, name, FALSE)) {
 		fdata= rna_mesh_fdata(me);
 		index= CustomData_get_named_layer_index(fdata, CD_MTFACE, name);
 		cdl= (index == -1)? NULL: &fdata->layers[index];
