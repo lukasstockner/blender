@@ -56,6 +56,7 @@ extern int cu_ar[];
 extern int seq_ar[];
 extern int te_ar[];
 extern int wo_ar[];
+extern int part_ar[];
 
 PyObject *submodule;
 
@@ -303,6 +304,11 @@ void generate_curveattrs( PyObject* dict, int blocktype )
 		vals = seq_ar;
 		size = SEQ_TOTIPO;
 		break;
+    case ID_PA:
+        lookup_name = (namefunc)getname_part_ei;
+        vals = part_ar;
+        size = PART_TOTIPO;
+        break;
 	}
 
 	desc = PyDescr_NewGetSet( &Ipo_Type, &BPy_Ipocurve_getseter );
@@ -517,6 +523,11 @@ static short lookup_curve_name( char *str, int blocktype, int channel )
 		adrcodes = seq_ar;
 		size = SEQ_TOTIPO;
 		break;
+    case ID_PA:
+        lookup_name = (namefunc)getname_part_ei;
+        adrcodes = part_ar;
+        size = PART_TOTIPO;
+        break;
 	case ID_KE:	/* shouldn't happen */
 	default:
 		return -1;
@@ -621,6 +632,10 @@ static short lookup_curve_adrcode( int code, int blocktype, int channel )
 		adrcodes = seq_ar;
 		size = SEQ_TOTIPO;
 		break;
+    case ID_PA:
+        adrcodes = part_ar;
+        size = PART_TOTIPO;
+        break;
 	case ID_KE:
 	default:
 		return -1;
@@ -699,6 +714,8 @@ static PyObject *M_Ipo_New( PyObject * self_unused, PyObject * args )
 		idcode = ID_CO;
 	else if( !strcmp( code, "Sequence" ) )
 		idcode = ID_SEQ;
+	else if( !strcmp( code, "Particle" ) )
+		idcode = ID_PA;
 	else if( !strcmp( code, "Curve" ) )
 		idcode = ID_CU;
 	else if( !strcmp( code, "Key" ) )
@@ -1094,6 +1111,12 @@ static PyObject *Ipo_getCurveNames( BPy_Ipo * self )
 		size = SEQ_TOTIPO;
 		strcpy( name, "SQ_" );
 		break;
+	case ID_PA:
+		lookup_name = (namefunc)getname_part_ei;
+		vals = part_ar;
+		size = PART_TOTIPO;
+		strcpy( name, "PA_" );
+		break;
 	case ID_KE:
 		{
 			Key *key;
@@ -1155,7 +1178,7 @@ static void generate_curveconsts( PyObject* module )
 
 	unsigned int i = 0;
 	static short curvelist[] = {
-		ID_OB, ID_MA, ID_CA, ID_LA, ID_TE, ID_WO, ID_PO, ID_CO, ID_CU, ID_SEQ
+		ID_OB, ID_MA, ID_CA, ID_LA, ID_TE, ID_WO, ID_PO, ID_CO, ID_CU, ID_SEQ, ID_PA
 	};
 
 	for( i = 0; i < sizeof(curvelist)/sizeof(short); ++i ) {
@@ -1219,6 +1242,12 @@ static void generate_curveconsts( PyObject* module )
 			vals = seq_ar;
 			size = SEQ_TOTIPO;
 			strcpy( name, "SQ_" );
+			break;
+		case ID_PA:
+			lookup_name = (namefunc)getname_part_ei;
+			vals = part_ar;
+			size = PART_TOTIPO;
+			strcpy( name, "PA_" );
 			break;
 		}
 
@@ -1297,6 +1326,8 @@ static PyObject *Ipo_repr( BPy_Ipo * self )
 		param = "Curve"; break;
 	case ID_SEQ:
 		param = "Sequence"; break;
+	case ID_PA:
+		param = "Particle"; break;
 	case ID_KE:
 		param = "Key"; break;
 	default:

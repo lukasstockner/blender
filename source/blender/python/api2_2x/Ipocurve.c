@@ -362,6 +362,8 @@ char *getIpoCurveName( IpoCurve * icu )
 		return get_key_curvename( icu );
 	case ID_SEQ:
 		return getname_seq_ei( icu->adrcode );
+	case ID_PA:
+		return getname_part_ei( icu->adrcode );
 	case ID_CO:
 		return getname_co_ei( icu->adrcode );
 	}
@@ -629,6 +631,9 @@ static PyObject *IpoCurve_getName( C_IpoCurve * self )
 		return PyString_FromString( get_key_curvename( self->ipocurve ) );
 	case ID_SEQ:
 		return PyString_FromString( getname_seq_ei
+					    ( self->ipocurve->adrcode ) );
+	case ID_PA:
+		return PyString_FromString( getname_part_ei
 					    ( self->ipocurve->adrcode ) );
 	case ID_CO:
 		return PyString_FromString( getname_co_ei
