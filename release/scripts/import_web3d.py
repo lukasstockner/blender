@@ -1774,7 +1774,7 @@ def importMesh_IndexedFaceSet(geom, bpyima, ancestry):
 					color_index = faces_orig_index[f.index] # color index is face index
 					#print color_index, ifs_color_index
 					if ifs_color_index:
-						if color_index <= len(ifs_color_index):
+						if color_index >= len(ifs_color_index):
 							print '\tWarning: per face color index out of range'
 							color_index = 0
 						else:
