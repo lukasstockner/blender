@@ -606,13 +606,15 @@ static void BPY_Err_Handle( char *script_name )
  */
 
 		for(;;) {
+			PyObject *py_fn= NULL;
 			v = PyObject_GetAttrString( tb, "tb_next" );
 
 			if( !v || v == Py_None ||
-				strcmp(PyString_AsString(traceback_getFilename(v)), script_name)) {
+				strcmp(PyString_AsString((py_fn= traceback_getFilename(v))), script_name)) {
+				Py_XDECREF(py_fn);
 				break;
 			}
-
+			Py_XDECREF( py_fn );
 			Py_DECREF( tb );
 			tb = v;
 		}
