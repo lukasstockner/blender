@@ -88,7 +88,7 @@ void IDP_ResizeArray(IDProperty *prop, int newlen)
 	/*newlen is bigger*/
 	if (newlen >= prop->len) memcpy(newarr, prop->data.pointer, prop->len*idp_size_table[prop->type]);
 	/*newlen is smaller*/
-	else memcpy(newarr, prop->data.pointer, newlen*prop->len*idp_size_table[prop->type]);
+	else memcpy(newarr, prop->data.pointer, newlen*idp_size_table[prop->type]);
 
 	MEM_freeN(prop->data.pointer);
 	prop->data.pointer = newarr;
