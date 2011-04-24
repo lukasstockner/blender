@@ -183,13 +183,13 @@ def load_scripts(reload_scripts=False, refresh_scripts=False):
         _global_loaded_modules[:] = []
 
     for base_path in script_paths():
-        for path_subdir in ("startup", "modules"):
+        for path_subdir in ("startup", "modules", "bge_components"):
             path = _os.path.join(base_path, path_subdir)
             if _os.path.isdir(path):
                 _sys_path_ensure(path)
 
-                # only add this to sys.modules, dont run
-                if path_subdir == "modules":
+                # only add these to sys.modules, dont run
+                if path_subdir in ("modules", "bge_components"):
                     continue
 
                 for mod in modules_from_path(path, loaded_modules):

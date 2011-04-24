@@ -75,6 +75,7 @@
 #include "BKE_DerivedMesh.h"
 #include "BKE_animsys.h"
 #include "BKE_anim.h"
+#include "BKE_pycomponent.h"
 #include "BKE_constraint.h"
 #include "BKE_curve.h"
 #include "BKE_displist.h"
@@ -307,6 +308,7 @@ void free_object(Object *ob)
 	free_sensors(&ob->sensors);
 	free_controllers(&ob->controllers);
 	free_actuators(&ob->actuators);
+	free_components(&ob->components);
 	
 	free_constraints(&ob->constraints);
 	
@@ -1321,6 +1323,7 @@ Object *copy_object(Object *ob)
 	copy_sensors(&obn->sensors, &ob->sensors);
 	copy_controllers(&obn->controllers, &ob->controllers);
 	copy_actuators(&obn->actuators, &ob->actuators);
+	// XXX todo copy_components(&obn->components, &ob->components);
 	
 	if(ob->pose) {
 		copy_object_pose(obn, ob);

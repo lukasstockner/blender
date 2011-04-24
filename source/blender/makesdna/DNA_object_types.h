@@ -201,6 +201,7 @@ typedef struct Object {
 	ListBase sensors;
 	ListBase controllers;
 	ListBase actuators;
+	ListBase components;
     
 	float bbsize[3];
 	short index;			/* custom index, for renderpasses */

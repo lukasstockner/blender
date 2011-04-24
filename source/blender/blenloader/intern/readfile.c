@@ -56,6 +56,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_cloth_types.h"
+#include "DNA_component_types.h"
 #include "DNA_controller_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_effect_types.h"
@@ -4132,6 +4133,8 @@ static void direct_link_object(FileData *fd, Object *ob)
 	bSensor *sens;
 	bController *cont;
 	bActuator *act;
+	PythonComponent *pc;
+	ComponentProperty *cprop;
 	int a;
 	
 	/* weak weak... this was only meant as draw flag, now is used in give_base too */
@@ -4291,6 +4294,20 @@ static void direct_link_object(FileData *fd, Object *ob)
 		act->data= newdataadr(fd, act->data);
 		act= act->next;
 	}
+
+	link_glob_list(fd, &ob->components);
+	pc= ob->components.first;
+	while(pc) {
+		link_glob_list(fd, &pc->properties);
+		cprop= pc->properties.first;
+		while(cprop) {
+			cprop->poin= newdataadr(fd, cprop->poin);
+			cprop= cprop->next;
+		}
+
+		pc= pc->next;
+	}
+
 
 	link_list(fd, &ob->hooks);
 	while (ob->hooks.first) {

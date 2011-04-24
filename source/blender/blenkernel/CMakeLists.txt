@@ -123,6 +123,7 @@ set(SRC
 	intern/particle_system.c
 	intern/pointcache.c
 	intern/property.c
+	intern/python_component.c
 	intern/report.c
 	intern/sca.c
 	intern/scene.c
@@ -206,6 +207,7 @@ set(SRC
 	BKE_plugin_types.h
 	BKE_pointcache.h
 	BKE_property.h
+	BKE_pycomponent.h
 	BKE_report.h
 	BKE_sca.h
 	BKE_scene.h
@@ -307,7 +309,7 @@ if(WITH_LZMA)
 endif()
 
 if(MSVC)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 endif()
 
 blender_add_lib(bf_blenkernel "${SRC}" "${INC}")

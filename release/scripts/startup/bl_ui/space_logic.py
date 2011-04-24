@@ -19,6 +19,40 @@
 # <pep8 compliant>
 import bpy
 
+class LOGIC_PT_components(bpy.types.Panel):
+	bl_space_type = 'LOGIC_EDITOR'
+	bl_region_type = 'UI'
+	bl_label = 'Components'
+	
+	@classmethod
+	def poll(cls, context):
+		ob = context.active_object
+		return ob and ob.name
+		
+	def draw(self, context):
+		layout = self.layout
+		
+		ob = context.active_object
+		game = ob.game
+		
+		st = context.space_data
+
+		row = layout.row()
+		row.prop(st, "import_string", text="")
+		row.operator("logic.component_add", text="Add Component")
+		
+		for i, c in enumerate(game.components):
+			box = layout.box()
+			row = box.row()
+			row.prop(c, "name", text="")
+			row.operator("logic.component_reload", text="", icon='RECOVER_LAST', emboss=False).index = i
+			row.operator("logic.component_remove", text="", icon='X', emboss=False).index = i
+			
+			for prop in c.properties:
+				row = box.row()
+				row.label(text=prop.name)
+				row.prop(prop, "value", text="")
+			
 
 class LOGIC_PT_properties(bpy.types.Panel):
     bl_space_type = 'LOGIC_EDITOR'

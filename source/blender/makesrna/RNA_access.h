@@ -375,6 +375,7 @@ extern StructRNA RNA_PropertyGroupItem;
 extern StructRNA RNA_PropertySensor;
 extern StructRNA RNA_PythonConstraint;
 extern StructRNA RNA_PythonController;
+extern StructRNA RNA_PythonComponent;
 extern StructRNA RNA_RGBANodeSocket;
 extern StructRNA RNA_RadarSensor;
 extern StructRNA RNA_RandomSensor;

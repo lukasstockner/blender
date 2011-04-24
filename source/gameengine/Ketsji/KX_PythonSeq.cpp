@@ -41,6 +41,7 @@
 #include "SCA_ISensor.h"
 #include "SCA_IController.h"
 #include "SCA_IActuator.h"
+#include "KX_PythonComponent.h"
 
 
 PyObject *KX_PythonSeq_CreatePyObject( PyObject *base, short type )
@@ -91,6 +92,8 @@ static Py_ssize_t KX_PythonSeq_len( PyObject * self )
 		return ((KX_GameObject *)self_plus)->GetControllers().size();
 	case KX_PYGENSEQ_OB_TYPE_ACTUATORS:
 		return ((KX_GameObject *)self_plus)->GetActuators().size();
+	case KX_PYGENSEQ_OB_TYPE_COMPONENTS:
+		return ((KX_GameObject *)self_plus)->GetComponents().size();
 	case KX_PYGENSEQ_OB_TYPE_CONSTRAINTS:
 		return ((BL_ArmatureObject *)self_plus)->GetConstraintNumber();
 	case KX_PYGENSEQ_OB_TYPE_CHANNELS:
@@ -161,6 +164,17 @@ static PyObject *KX_PythonSeq_getIndex(PyObject* self, int index)
 				return NULL;
 			}
 			return linkedactuators[index]->GetProxy();
+		}
+		case KX_PYGENSEQ_OB_TYPE_COMPONENTS:
+		{
+			ComponentList& components= ((KX_GameObject *)self_plus)->GetComponents();
+			if(index<0) index += components.size();
+			if(index<0 || index>= components.size()) {
+				PyErr_SetString(PyExc_IndexError, "seq[i]: index out of range");
+				return NULL;
+			}
+			Py_INCREF(components[index]);
+			return components[index];
 		}
 		case KX_PYGENSEQ_OB_TYPE_CONSTRAINTS:
 		{
@@ -252,6 +266,17 @@ static PyObjectPlus * KX_PythonSeq_subscript__internal(PyObject *self, char *key
 			}
 			break;
 		}
+		case KX_PYGENSEQ_OB_TYPE_COMPONENTS:
+		{
+			ComponentList& components= ((KX_GameObject *)self_plus)->GetComponents();
+			PyObject *comp;
+			for (unsigned int index=0;index<components.size();index++) {
+				comp = components[index];
+				if (strcmp(Py_TYPE(comp)->tp_name, key) == 0)
+					return (PyObjectPlus*)comp;
+			}
+			break;
+		}
 		case KX_PYGENSEQ_OB_TYPE_CONSTRAINTS:
 		{
 			return ((BL_ArmatureObject*)self_plus)->GetConstraint(key);
@@ -283,6 +308,11 @@ static PyObject * KX_PythonSeq_subscript(PyObject * self, PyObject *key)
 		PyObjectPlus *ret = KX_PythonSeq_subscript__internal(self, name);
 		
 		if(ret) {
+			if (((KX_PythonSeq *)self)->type == KX_PYGENSEQ_OB_TYPE_COMPONENTS)
+			{
+				Py_INCREF((PyObject*)ret);
+				return (PyObject*)ret;
+			}
 			return ret->GetProxy();
 		} else {
 			PyErr_Format( PyExc_KeyError, "requested item \"%s\" does not exist", name);
@@ -326,7 +356,14 @@ PyObject* KX_PythonSeq_get(PyObject * self, PyObject *args)
 		return NULL;
 	
 	if((ret_plus = KX_PythonSeq_subscript__internal(self, key)))
+	{
+		if (((KX_PythonSeq*)self)->type == KX_PYGENSEQ_OB_TYPE_COMPONENTS)
+		{
+			Py_INCREF((PyObject*)ret_plus);
+			return (PyObject*)ret_plus;
+		}
 		return ret_plus->GetProxy();
+	}
 	
 	Py_INCREF(def);
 	return def;

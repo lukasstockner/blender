@@ -45,11 +45,11 @@ typedef unsigned long uint_ptr;
 #pragma warning( disable : 4786 )     
 #endif
 
-
 #define KX_INERTIA_INFINITE 10000
 #include "RAS_IPolygonMaterial.h"
 #include "KX_BlenderMaterial.h"
 #include "KX_GameObject.h"
+#include "KX_PythonComponent.h"
 #include "KX_Camera.h" // only for their ::Type
 #include "KX_Light.h"  // only for their ::Type
 #include "KX_FontObject.h"  // only for their ::Type
@@ -82,6 +82,9 @@ typedef unsigned long uint_ptr;
 #include "KX_SG_NodeRelationships.h"
 
 #include "BLI_math.h"
+
+/* Component stuff */
+#include "DNA_component_types.h"
 
 static MT_Point3 dummy_point= MT_Point3(0.0, 0.0, 0.0);
 static MT_Vector3 dummy_scaling = MT_Vector3(1.0, 1.0, 1.0);
@@ -160,6 +163,15 @@ KX_GameObject::~KX_GameObject()
 		/* Py_CLEAR: Py_DECREF's and NULL's */
 		Py_CLEAR(m_attr_dict);
 	}
+
+	ComponentList::iterator it;
+	for (it=m_components.begin(); it != m_components.end(); ++it)
+	{
+		Py_DECREF(*it);
+	}
+
+	m_components.clear();
+
 #endif // WITH_PYTHON
 }
 
@@ -360,6 +372,8 @@ void KX_GameObject::ProcessReplica()
 		m_attr_dict= PyDict_Copy(m_attr_dict);
 #endif
 		
+	// Reinitialize any components
+	InitComponents();
 }
 
 static void setGraphicController_recursive(SG_Node* node)
@@ -1221,6 +1235,137 @@ CListValue* KX_GameObject::GetChildrenRecursive()
 	return list;
 }
 
+ComponentList &KX_GameObject::GetComponents()
+{
+	return m_components;
+}
+
+#ifdef WITH_PYTHON
+PyObject *arg_dict_from_component(PythonComponent *pc)
+{
+	ComponentProperty *cprop;
+	PyObject *args= NULL, *value=NULL;
+
+	args = PyDict_New();
+
+	cprop = (ComponentProperty*)pc->properties.first;
+
+	while (cprop)
+	{
+		if (cprop->type == CPROP_TYPE_INT)
+			value = PyLong_FromLong(cprop->data);
+		else if (cprop->type == CPROP_TYPE_FLOAT)
+			value = PyFloat_FromDouble(*(float*)(&cprop->data));
+		else if (cprop->type == CPROP_TYPE_BOOLEAN)
+			value = PyBool_FromLong(cprop->data);
+		else if (cprop->type == CPROP_TYPE_STRING)
+			value = PyUnicode_FromString((char*)cprop->poin);
+		else if (cprop->type == CPROP_TYPE_SET)
+			value = PyUnicode_FromString((char*)cprop->poin2);
+		else
+		{
+			cprop= cprop->next;
+			continue;
+		}
+
+		PyDict_SetItemString(args, cprop->name, value);
+
+		cprop= cprop->next;
+	}
+
+	return args;
+}
+#endif /* WITH_PYTHON */
+
+void KX_GameObject::InitComponents()
+{
+#ifdef WITH_PYTHON
+	PythonComponent *pc = (PythonComponent*)GetBlenderObject()->components.first;
+	PyObject *arg_dict=NULL, *args=NULL, *mod=NULL, *cls=NULL, *pycomp;
+
+	while (pc)
+	{
+		// Make sure to clean out anything from previous loops
+		Py_XDECREF(args);
+		Py_XDECREF(arg_dict);
+		Py_XDECREF(mod);
+		Py_XDECREF(cls);
+		args = mod = cls = NULL;
+
+		// Grab the module
+		mod = PyImport_ImportModule(pc->module);
+
+		if (mod == NULL)
+		{
+			if (PyErr_Occurred()) PyErr_Print();
+			printf("Coulding import the module '%s'\n", pc->module);
+			pc = pc->next;
+			continue;
+		}
+
+		// Clear the module from sys.modules
+		//PyDict_DelItemString(PyImport_GetModuleDict(), pc->module);
+
+		// Grab the class object
+		cls = PyObject_GetAttrString(mod, pc->name);
+		if (cls == NULL)
+		{
+			if (PyErr_Occurred()) PyErr_Print();
+			printf("Python module found, but failed to find the compoent '%s'\n", pc->name);
+			pc = pc->next;
+			continue;
+		}
+
+		// Lastly make sure we have a class and it's an appropriate sub type
+		if (!PyType_Check(cls) || !PyObject_IsSubclass(cls, (PyObject*)&KX_PythonComponent::Type))
+		{
+			printf("%s.%s is not a KX_PythonComponent subclass\n", pc->module, pc->name);
+			pc = pc->next;
+			continue;
+		}
+
+		// Every thing checks out, now generate the args dictionary and init the component
+		arg_dict = arg_dict_from_component(pc);
+		args = PyTuple_New(1);
+		PyTuple_SetItem(args, 0, GetProxy());
+
+		pycomp = PyObject_Call(cls, args, NULL);
+
+		PyObject_CallMethod(pycomp, "start", "O", arg_dict);
+
+		if (PyErr_Occurred())
+		{
+			// The component is invalid, drop it
+			PyErr_Print();
+			Py_XDECREF(pycomp);
+		}
+		else 
+			m_components.push_back(pycomp);
+
+		pc = pc->next;
+	}
+
+	
+	Py_XDECREF(args);
+	Py_XDECREF(arg_dict);
+	Py_XDECREF(mod);
+	Py_XDECREF(cls);
+
+#endif // WITH_PYTHON
+}
+
+void KX_GameObject::UpdateComponents()
+{
+#ifdef WITH_PYTHON
+	for (size_t i=0; i<m_components.size(); ++i)
+	{
+		if (!PyObject_CallMethod(m_components[i], "update", ""))
+			PyErr_Print();
+	}
+
+#endif // WITH_PYTHON
+}
+
 /* ---------------------------------------------------------------------
  * Some stuff taken from the header
  * --------------------------------------------------------------------- */
@@ -1536,6 +1681,7 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("childrenRecursive",	KX_GameObject, pyattr_get_children_recursive),
 	KX_PYATTRIBUTE_RO_FUNCTION("attrDict",	KX_GameObject, pyattr_get_attrDict),
 	KX_PYATTRIBUTE_RW_FUNCTION("color", KX_GameObject, pyattr_get_obcolor, pyattr_set_obcolor),
+	KX_PYATTRIBUTE_RO_FUNCTION("components", KX_GameObject, pyattr_get_components),
 	
 	/* Experemental, dont rely on these yet */
 	KX_PYATTRIBUTE_RO_FUNCTION("sensors",		KX_GameObject, pyattr_get_sensors),
@@ -2218,6 +2364,11 @@ int KX_GameObject::pyattr_set_obcolor(void *self_v, const KX_PYATTRIBUTE_DEF *at
 
 	self->SetObjectColor(obcolor);
 	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject* KX_GameObject::pyattr_get_components(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	return KX_PythonSeq_CreatePyObject((static_cast<KX_GameObject*>(self_v))->m_proxy, KX_PYGENSEQ_OB_TYPE_COMPONENTS);
 }
 
 /* These are experimental! */
@@ -3029,7 +3180,7 @@ bool ConvertPythonToGameObject(PyObject * value, KX_GameObject **object, bool py
 	}
 	
 	if (PyUnicode_Check(value)) {
-		*object = (KX_GameObject*)SCA_ILogicBrick::m_sCurrentLogicManager->GetGameObjectByName(STR_String( _PyUnicode_AsString(value) ));
+		*object = (KX_GameObject*)KX_GetActiveScene()->GetLogicManager()->GetGameObjectByName(STR_String( _PyUnicode_AsString(value) ));
 		
 		if (*object) {
 			return true;

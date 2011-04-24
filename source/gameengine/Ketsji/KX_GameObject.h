@@ -74,6 +74,8 @@ bool ConvertPythonToGameObject(PyObject * value, KX_GameObject **object, bool py
 void KX_GameObject_Mathutils_Callback_Init(void);
 #endif
 
+typedef std::vector<PyObject*> ComponentList;
+
 /**
  * KX_GameObject is the main class for dynamic objects.
  */
@@ -112,6 +114,10 @@ protected:
 	SG_Node*							m_pSGNode;
 
 	MT_CmMatrix4x4						m_OpenGL_4x4Matrix;
+
+#ifdef WITH_PYTHON
+	ComponentList				m_components;
+#endif
 	
 public:
 	bool								m_isDeformable;
@@ -801,6 +807,21 @@ public:
 	CListValue* GetChildren();
 	CListValue* GetChildrenRecursive();
 
+	/**
+	 * Returns the component list
+	 */
+	ComponentList &GetComponents();
+
+	/**
+	 * Initializes the components
+	 */
+	void InitComponents();
+
+	/**
+	 * Updates the components
+	 */
+	void UpdateComponents();
+
 #ifdef WITH_PYTHON
 	/**
 	 * @section Python interface functions.
@@ -901,6 +922,7 @@ public:
 	static PyObject*	pyattr_get_attrDict(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_obcolor(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_obcolor(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_components(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	
 	/* Experemental! */
 	static PyObject*	pyattr_get_sensors(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

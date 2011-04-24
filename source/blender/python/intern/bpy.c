@@ -62,6 +62,8 @@
 
 #include "AUD_PyInit.h"
 
+#include "../../../gameengine/Ketsji/KX_PythonInitTypes.h"
+
 PyObject *bpy_package_py= NULL;
 
 static char bpy_script_paths_doc[] =
@@ -253,6 +255,9 @@ void BPy_init_modules( void )
 	/* stand alone utility modules not related to blender directly */
 	IDProp_Init_Types(); /* not actually a submodule, just types */
 
+	/* Setup a dummy BGE module so we can import BGE classes for introspection */
+	initPyTypes();
+	PyRun_SimpleString("sys = __import__('sys');mod = sys.modules['bge'] = type(sys)('bge');mod.__dict__.update({'logic':'', 'render':'', 'events':'', 'constraints':'', 'types':__import__('GameTypes'), 'texture':''});");
 	mod= PyModule_New("_bpy");
 
 	/* add the module so we can import it */

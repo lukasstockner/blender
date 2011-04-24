@@ -35,7 +35,18 @@
 #define _adr_py_init_types_h_				// even if multiply included
 
 #ifdef WITH_PYTHON
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 void initPyTypes(void);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif
 
 #endif
