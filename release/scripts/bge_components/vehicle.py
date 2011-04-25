@@ -19,8 +19,7 @@ class Vehicle(bge.types.KX_PythonComponent):
 		("Brake Power", 10.0),
 		("Turn Power", 0.3),
 		
-		("Front Wheel Drive", True),
-		("Rear Wheel Drive", False),
+		("Drive Type", {"Front Wheel", "Rear Wheel"}),
 		("Tire Prefix", "tire_"),
 		("Front Tire Radius", 0.3),
 		("Rear Tire Radius", 0.3),
@@ -41,8 +40,8 @@ class Vehicle(bge.types.KX_PythonComponent):
 		self.turn = args['Turn Power']
 		
 		# Save steering settings
-		self.fwd = args['Front Wheel Drive']
-		self.rwd = args['Rear Wheel Drive']
+		self.fwd = args['Drive Type'] == "Front Wheel"
+		self.rwd = args['Drive Type'] == "Rear Wheel"
 		
 		# Create the vehicle constraint
 		constraint = bge.constraints.createConstraint(self.object.getPhysicsId(), 0, 11)
@@ -89,7 +88,7 @@ class Vehicle(bge.types.KX_PythonComponent):
 					args['Front Tire Radius'] if i in (0, 1) else args['Rear Tire Radius'],
 					
 					# Steerability
-					args['Front Wheel Drive'] if i in (2, 3) else args['Rear Wheel Drive'])
+					self.fwd if i in (2, 3) else self.rwd)
 					
 			# Advanced settings
 			vid.setTyreFriction(args['Tire Friction'], i)

@@ -10,7 +10,6 @@ class ThirdPerson(bge.types.KX_PythonComponent):
 		("Lens", 30),
 		("Scale Max", 4.0),
 		("Scale Min", 0.6),
-		("Option", {"One", "Two"})
 		])
 		
 	def start(self, args):
@@ -18,7 +17,6 @@ class ThirdPerson(bge.types.KX_PythonComponent):
 		if not isinstance(self.object, bge.types.KX_Camera):
 			raise TypeError("This component must be attached to a camera")
 		
-		print(args['Option'])
 		# Apply settings
 		self.object.parent.timeOffset = args['Time Offset']
 		self.object.lens = args['Lens']
