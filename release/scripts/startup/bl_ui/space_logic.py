@@ -45,8 +45,8 @@ class LOGIC_PT_components(bpy.types.Panel):
 			box = layout.box()
 			row = box.row()
 			row.prop(c, "name", text="")
-			row.operator("logic.component_reload", text="", icon='RECOVER_LAST', emboss=False).index = i
-			row.operator("logic.component_remove", text="", icon='X', emboss=False).index = i
+			row.operator("logic.component_reload", text="", icon='RECOVER_LAST').index = i
+			row.operator("logic.component_remove", text="", icon='X').index = i
 			
 			for prop in c.properties:
 				row = box.row()
