@@ -32,6 +32,8 @@
 //#define USE_DL_EXPORT
 #include "Python.h"
 
+#include <stddef.h> /* for python offsetof macros */
+
 #ifdef __FreeBSD__
 #include <osreldate.h>
 #if __FreeBSD_version > 500039

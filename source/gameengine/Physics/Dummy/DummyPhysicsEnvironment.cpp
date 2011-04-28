@@ -29,6 +29,8 @@
 #include "DummyPhysicsEnvironment.h"
 #include "PHY_IMotionState.h"
 
+#include <stddef.h>
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
