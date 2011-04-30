@@ -263,23 +263,23 @@ PythonComponent *new_component_from_import(char *import)
 	if (strcmp(import, "") == 0)
 		return NULL;
 
-	state = PyGILState_Ensure();
-
 	// Split the class and module
 	last_dot_str = strrchr(import, '.');
 	last_dot = (int)(last_dot_str-import) + 1;
 
-	if(last_dot)
+
+	if(last_dot > 0)
 	{
 		BLI_strncpy(path, import, last_dot);
 		strcpy(cls, import+last_dot);
 	}
 	else
 	{
-		strcpy(path, import);
-		strcpy(cls, "");
+		printf("No component class was specified, only the module was.\n");
+		return NULL;
 	}
 
+	state = PyGILState_Ensure();
 
 	// Try to load up the module
 	mod = PyImport_ImportModule(path);
