@@ -172,11 +172,7 @@ static void cdDM_getVertCos(DerivedMesh *dm, float (*cos_r)[3])
 static void cdDM_getVertNo(DerivedMesh *dm, int index, float no_r[3])
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
-	short *no = cddm->mvert[index].no;
-
-	no_r[0] = no[0]/32767.f;
-	no_r[1] = no[1]/32767.f;
-	no_r[2] = no[2]/32767.f;
+	normal_short_to_float_v3(no_r, cddm->mvert[index].no);
 }
 
 static ListBase *cdDM_getFaceMap(Object *ob, DerivedMesh *dm)
@@ -774,6 +770,19 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 		}
 
 		if( !GPU_buffer_legacy(dm) ) {
+			/* warning!, this logic is incorrect, see bug [#27175]
+			 * firstly, there are no checks for changes in context, such as texface image.
+			 * secondly, drawParams() sets the GL context, so checking if there is a change
+			 * from lastFlag is too late once glDrawArrays() runs, since drawing the arrays
+			 * will use the modified, OpenGL settings.
+			 * 
+			 * However its tricky to fix this without duplicating the internal logic
+			 * of drawParams(), perhaps we need an argument like...
+			 * drawParams(..., keep_gl_state_but_return_when_changed) ?.
+			 *
+			 * We could also just disable VBO's here, since texface may be deprecated - campbell.
+			 */
+			
 			glShadeModel( GL_SMOOTH );
 			lastFlag = 0;
 			for(i = 0; i < dm->drawObject->nelements/3; i++) {
