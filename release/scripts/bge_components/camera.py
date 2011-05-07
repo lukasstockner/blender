@@ -5,7 +5,7 @@ class ThirdPerson(bge.types.KX_PythonComponent):
 	"""A component for a third person camera"""
 	
 	args = OrderedDict([
-		("pPivot Name", "pivot"),
+		("Pivot Name", "pivot"),
 		("Time Offset", 35),
 		("Lens", 30),
 		("Scale Max", 4.0),
