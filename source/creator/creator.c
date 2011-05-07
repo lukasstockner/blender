@@ -108,8 +108,7 @@
 
 /* for passing information between creator and gameengine */
 #ifdef WITH_GAMEENGINE
-#include "GEN_messaging.h"
-#include "SYS_System.h"
+#include "BL_System.h"
 #else /* dummy */
 #define SYS_SystemHandle int
 #endif
@@ -781,7 +780,7 @@ static int render_frame(int argc, const char **argv, void *data)
 
 			frame = MIN2(MAXFRAME, MAX2(MINAFRAME, frame));
 
-			RE_BlenderAnim(re, bmain, scene, scene->lay, frame, frame, scene->r.frame_step, &reports);
+			RE_BlenderAnim(re, bmain, scene, NULL, scene->lay, frame, frame, scene->r.frame_step, &reports);
 			return 1;
 		} else {
 			printf("\nError: frame number must follow '-f / --render-frame'.\n");
@@ -802,7 +801,7 @@ static int render_animation(int UNUSED(argc), const char **UNUSED(argv), void *d
 		Render *re= RE_NewRender(scene->id.name);
 		ReportList reports;
 		BKE_reports_init(&reports, RPT_PRINT);
-		RE_BlenderAnim(re, bmain, scene, scene->lay, scene->r.sfra, scene->r.efra, scene->r.frame_step, &reports);
+		RE_BlenderAnim(re, bmain, scene, NULL, scene->lay, scene->r.sfra, scene->r.efra, scene->r.frame_step, &reports);
 	} else {
 		printf("\nError: no blend loaded. cannot use '-a'.\n");
 	}
@@ -1216,7 +1215,6 @@ int main(int argc, const char **argv)
 
 #ifdef WITH_GAMEENGINE
 	syshandle = SYS_GetSystem();
-	GEN_init_messaging_system();
 #else
 	syshandle= 0;
 #endif
