@@ -7,7 +7,7 @@ Group: 'Import'
 Tooltip: 'Import for DWG/DXF geometry data.'
 """
 __author__ = 'Kitsu(Ed Blake) & migius(Remigiusz Fiedler)'
-__version__ = '1.12 - 2010.03.04 by migius'
+__version__ = '1.12 - 2011.05.07 by migius'
 __url__ = ["http://blenderartists.org/forum/showthread.php?t=84319",
 	 "http://wiki.blender.org/index.php/Scripts/Manual/Import/DXF-3D"]
 __email__ = ["migius(at)gmx.net","Kitsune_e(at)yahoo.com"]
@@ -111,6 +111,11 @@ History:
  -- support DXF-definitions of autoshade: scene, lights and cameras
  -- support ortho mode for VIEWs and VPORTs as cameras 
 
+ v1.12 - 2011.05.07 by migius
+ h1 fixed for SPLINE: points coordinates are always in WCS
+ h1 code beautifying
+ v1.12 - 2010.04.29 by migius
+ g1 preparation for non-UI-mode: import_dxf.main('dxf_file_name.dxf')
  v1.12 - 2010.03.04 by migius
  f1 fix POLYFACE non-standard ordered double-vertices
  v1.12 - 2009.11.28 by migius
@@ -685,8 +690,8 @@ def get_extrusion(data):	 #-------------------------------------------------
 	return vec
 
 
-#------------------------------------------
-def getSceneChild(name):
+
+def getSceneChild(name): #------------------------------------------
 	dudu = [i for i in SCENE.objects if i.name==name]
 #	dudu = [i for i in SCENE.getChildren() if i.name==name]
 	#print 'deb:getSceneChild %s -result: %s:' %(name,dudu) #-----------------
@@ -1230,8 +1235,8 @@ class Polyline:  #--------------------------------------------------------------
 
 		#print 'deb:drawPlFace: len of points_list:\n', len(points)  #-----------------------
 		#print 'deb:drawPlFace: len of faces_list:\n', len(faces)  #-----------------------
-		print 'deb:drawPlFace: points_list:\n', points  #-----------------------
-		print 'deb:drawPlFace: faces_list:\n', faces  #-----------------------
+		#print 'deb:drawPlFace: points_list:\n', points  #-----------------------
+		#print 'deb:drawPlFace: faces_list:\n', faces  #-----------------------
 		obname = 'pf_%s' %self.layer  # create object name from layer name
 		obname = obname[:MAX_NAMELENGTH]
 		me = Mesh.New(obname)		  # create a new mesh
@@ -1356,7 +1361,7 @@ class Polyline:  #--------------------------------------------------------------
 			firstpoint = nurbs_points[0]
 			curve = pline.appendNurb(firstpoint)
 			curve.setType(4) # set curve_type NURBS
-			print 'deb: dir(curve):', dir(curve[-1]) #----------------
+			#print 'deb: dir(curve):', dir(curve[-1]) #----------------
 			for point in nurbs_points[1:]:
 				curve.append(point)
 				#TODO: what is the trick for bevel radius? curve[-1].radius = 1.0
@@ -1501,7 +1506,8 @@ class Polyline:  #--------------------------------------------------------------
 			pline.setExt1(1.0)  # curve-extrusion accepts only (0.0 - 2.0)
 			ob.LocZ = thic + LocZ
 
-		transform(self.extrusion, 0, ob)
+		if self.pltype!='spline':
+			transform(self.extrusion, 0, ob)
 		if thic != 0.0:
 			ob.SizeZ *= abs(thic)
 
@@ -2057,29 +2063,29 @@ class Spline(Polyline):  #------------------------------------------------------
 	"""Class for objects representing dxf SPLINEs.
 	"""
 	"""Expects an entity object of type spline as input.
-100 - Subclass marker (AcDbSpline)
-210,220, 230  - Normal vector (omitted if the spline is nonplanar) X,Y,Z values of normal vector
-70 - Spline flag (bit coded):
-  1 = Closed spline
-  2 = Periodic spline
-  4 = Rational spline
-  8 = Planar
- 16 = Linear (planar bit is also set)
-71 - Degree of the spline curve
-72 - Number of knots
-73 - Number of control points
-74 - Number of fit points (if any)
-42 - Knot tolerance (default = 0.0000001)
-43 - Control-point tolerance (default = 0.0000001)
-44 - Fit tolerance (default = 0.0000000001)
-12,22,32 - Start tangent--may be omitted (in WCS). X,Y,Z values of start tangent--may be omitted (in WCS).
-13,23, 33 - End tangent--may be omitted (in WCS). X,Y,Z values of end tangent--may be omitted (in WCS)
-40 - Knot value (one entry per knot)
-41 - Weight (if not 1); with multiple group pairs, are present if all are not 1
-10,20, 30  - Control points (in WCS) one entry per control point.
-DXF: X value; APP: 3D point, Y and Z values of control points (in WCS) (one entry per control point)
-11,21, 31 - Fit points (in WCS) one entry per fit point.
- X,Y,Z values of fit points (in WCS) (one entry per fit point)
+	100 - Subclass marker (AcDbSpline)
+	210,220, 230  - Normal vector (omitted if the spline is nonplanar) X,Y,Z values of normal vector
+	70 - Spline flag (bit coded):
+	  1 = Closed spline
+	  2 = Periodic spline
+	  4 = Rational spline
+	  8 = Planar
+	 16 = Linear (planar bit is also set)
+	71 - Degree of the spline curve
+	72 - Number of knots
+	73 - Number of control points
+	74 - Number of fit points (if any)
+	42 - Knot tolerance (default = 0.0000001)
+	43 - Control-point tolerance (default = 0.0000001)
+	44 - Fit tolerance (default = 0.0000000001)
+	12,22,32 - Start tangent--may be omitted (in WCS). X,Y,Z values of start tangent--may be omitted (in WCS).
+	13,23, 33 - End tangent--may be omitted (in WCS). X,Y,Z values of end tangent--may be omitted (in WCS)
+	40 - Knot value (one entry per knot)
+	41 - Weight (if not 1); with multiple group pairs, are present if all are not 1
+	10,20, 30  - Control points (in WCS) one entry per control point.
+	DXF: X value; APP: 3D point, Y and Z values of control points (in WCS) (one entry per control point)
+	11,21, 31 - Fit points (in WCS) one entry per fit point.
+	 X,Y,Z values of fit points (in WCS) (one entry per fit point)
 	"""
 	def __init__(self, obj):
 		#print 'deb:Spline.START:----------------' #------------------------
@@ -3586,9 +3592,8 @@ class Face:  #-----------------------------------------------------------------
 		return ob
 
 
-#---------------------------------------------------------------------------------------
-# type to object maping (sorted-dictionary for f_obiectify ONLY!, format={'key':Class} )
-type_map = {
+
+type_map = {  # type to object maping (sorted-dictionary for f_obiectify ONLY!, format={'key':Class} )
 	'vport':Vport,
 	'view':View,
 	'layer':Layer,
@@ -3610,10 +3615,7 @@ type_map = {
 	'circle':Circle,
 	'ellipse':Ellipse,
 	'arc':Arc
-}
-
-
-
+	}
 def objectify(data):  #-----------------------------------------------------------------
 	"""Expects a section type object's data as input.
 
@@ -4092,7 +4094,7 @@ class Settings:  #--------------------------------------------------------------
 	def progress(self, done, text):
 		"""Wrapper for Blender.Window.DrawProgressBar.
 		"""
-		if self.var['optimization'] <= self.PRO:
+		if self.var['optimization'] <= self.PRO and Blender.mode!='background':
 			progressbar = done * self.obj_number
 			Window.DrawProgressBar(progressbar, text)
 			#print 'deb:drawer done, progressbar: ', done, progressbar  #-----------------------
@@ -4326,7 +4328,7 @@ def main(dxfFile):  #---------------#############################-----------
 		#print 'deb:settings.var:\n', settings.var  #-----------------------
 
 		if not settings:
-			#Draw.PupMenu('DXF importer:  EXIT!%t')
+			#if UI_MODE: Draw.PupMenu('DXF importer:  EXIT!%t')
 			#print '\nDXF Import: terminated by user!'
 			print '\nDXF Import: terminated, cause settings failure!'
 			Window.WaitCursor(False)
@@ -4344,7 +4346,8 @@ def main(dxfFile):  #---------------#############################-----------
 			Window.WaitCursor(False)
 		elif dxfFile.lower().endswith('.dwg') and sys.exists(dxfFile):
 			if not extCONV_OK:
-				Draw.PupMenu(extCONV_TEXT)
+				if UI_MODE: Draw.PupMenu(extCONV_TEXT)
+				print extCONV_TEXT
 				Window.WaitCursor(False)
 				if editmode: Window.EditMode(1) # and put things back how we fond them
 				return None
@@ -5593,7 +5596,7 @@ def resetDefaultConfig_3D():  #-----------------------------------------------
 	updateConfig(keywords3d, drawTypes3d)
 
 
-def	inputGlobalScale():
+def inputGlobalScale():
 	"""Pop-up UI-Block for global scale factor
 	"""
 	global GUI_A
@@ -5608,7 +5611,7 @@ def	inputGlobalScale():
 	GUI_A['g_scale'].val = float(x_scale.val)
 
 	
-def	inputOriginVector():
+def inputOriginVector():
 	"""Pop-up UI-Block for global translation vector
 	"""
 	global GUI_A
@@ -6056,7 +6059,7 @@ def bevent(evt):
 			webbrowser.open('http://wiki.blender.org/index.php?title=Scripts/Manual/Import/DXF-3D')
 		except:
 			Draw.PupMenu('DXF importer: HELP Alert!%t|no connection to manual-page on Blender-Wiki!	try:|\
-http://wiki.blender.org/index.php?title=Scripts/Manual/Import/DXF-3D')
+	http://wiki.blender.org/index.php?title=Scripts/Manual/Import/DXF-3D')
 		Draw.Redraw()
 	elif (evt==EVENT_LOAD_INI):
 		loadConfig()
@@ -6098,9 +6101,7 @@ http://wiki.blender.org/index.php?title=Scripts/Manual/Import/DXF-3D')
 			if not extCONV_OK: Draw.PupMenu(extCONV_TEXT)
 			elif Draw.PupMenu('DWG importer will import all DWG-files from:|%s|OK?' % dxfFile) != -1:
 			#elif Draw.PupMenu('DWG importer will import all DWG-files from:|%s|Caution! overwrites existing DXF-files!| OK?' % dxfFile) != -1:
-				UI_MODE = False
 				multi_import(dxfFile)
-				UI_MODE = True
 				Draw.Redraw()
 				
 		elif sys.exists(dxfFile) and dxfFile.lower()[-4:] in ('.dxf','.dwg'):
@@ -6133,6 +6134,28 @@ http://wiki.blender.org/index.php?title=Scripts/Manual/Import/DXF-3D')
 			Draw.Redraw()
 
 
+def import_file(dxfFile):
+	"""Imports DXF-file in non-UI-mode
+	
+	"""
+	global SCENE
+	global GUI_A, UI_MODE
+
+	if GUI_A['newScene_on'].val:
+		_dxf_file = dxfFile.split('/')[-1].split('\\')[-1]
+		_dxf_file = _dxf_file[:-4]  # cut last char:'.dxf'
+		_dxf_file = _dxf_file[:MAX_NAMELENGTH]  #? [-MAX_NAMELENGTH:])
+		SCENE = Blender.Scene.New(_dxf_file)
+		SCENE.makeCurrent()
+		#or so? Blender.Scene.makeCurrent(_dxf_file)
+		#sce = bpy.data.scenes.new(_dxf_file)
+		#bpy.data.scenes.active = sce
+	else:
+		SCENE = Blender.Scene.GetCurrent()
+		SCENE.objects.selected = [] # deselect all
+	UI_MODE = False
+	main(dxfFile)
+	UI_MODE = True
 
 
 def multi_import(DIR):
@@ -6153,31 +6176,16 @@ def multi_import(DIR):
 		[sys.join(DIR, f) for f in os.listdir(DIR) if f.lower().endswith(EXT)] 
 	if not files:
 		print '...None %s-files found. Abort!' %EXT
-		return
+	else:
+		for i,dxfFile in enumerate(files):
+			print '\n%s-file' %EXT, i+1, 'of', len(files) #,'\nImporting', dxfFile
+			import_file(dxfFile)
+			#Blender.Redraw()
 	
-	i = 0
-	for dxfFile in files:
-		i += 1
-		print '\n%s-file' %EXT, i, 'of', len(files) #,'\nImporting', dxfFile
-		if GUI_A['newScene_on'].val:
-			_dxf_file = dxfFile.split('/')[-1].split('\\')[-1]
-			_dxf_file = _dxf_file[:-4]  # cut last char:'.dxf'
-			_dxf_file = _dxf_file[:MAX_NAMELENGTH]  #? [-MAX_NAMELENGTH:])
-			SCENE = Blender.Scene.New(_dxf_file)
-			SCENE.makeCurrent()
-			#or so? Blender.Scene.makeCurrent(_dxf_file)
-			#sce = bpy.data.scenes.new(_dxf_file)
-			#bpy.data.scenes.active = sce
-		else:
-			SCENE = Blender.Scene.GetCurrent()
-			SCENE.objects.selected = [] # deselect all
-		main(dxfFile)
-		#Blender.Redraw()
-
-	print 'TOTAL TIME: %.6f' % (sys.time() - batchTIME)
-	print '\a\r', # beep when done
-	Draw.PupMenu('DXF importer:	Done!|finished in %.4f sec.' % (sys.time() - batchTIME))
-
+		print 'TOTAL TIME: %.6f' % (sys.time() - batchTIME)
+		print '\a\r', # beep when done
+		Draw.PupMenu('DXF importer:	Done!|finished in %.4f sec.' % (sys.time() - batchTIME))
+	
 
 if __name__ == "__main__":
 	#Draw.PupMenu('DXF importer: Abort%t|This script version works for Blender up 2.49 only!')
