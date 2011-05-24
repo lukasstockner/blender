@@ -20,19 +20,18 @@
 import bpy
 from rna_prop_ui import PropertyPanel
 
-narrowui = bpy.context.user_preferences.view.properties_width_check
 
-
-class BoneButtonsPanel(bpy.types.Panel):
+class BoneButtonsPanel():
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "bone"
 
-    def poll(self, context):
+    @classmethod
+    def poll(cls, context):
         return (context.bone or context.edit_bone)
 
 
-class BONE_PT_context_bone(BoneButtonsPanel):
+class BONE_PT_context_bone(BoneButtonsPanel, bpy.types.Panel):
     bl_label = ""
     bl_show_header = False
 
@@ -48,18 +47,7 @@ class BONE_PT_context_bone(BoneButtonsPanel):
         row.prop(bone, "name", text="")
 
 
-class BONE_PT_custom_props(BoneButtonsPanel, PropertyPanel):
-
-    @property
-    def _context_path(self):
-        obj = bpy.context.object
-        if obj and obj.mode == 'POSE':
-            return "active_pose_bone"
-        else:
-            return "active_bone"
-
-
-class BONE_PT_transform(BoneButtonsPanel):
+class BONE_PT_transform(BoneButtonsPanel, bpy.types.Panel):
     bl_label = "Transform"
 
     def draw(self, context):
@@ -67,11 +55,9 @@ class BONE_PT_transform(BoneButtonsPanel):
 
         ob = context.object
         bone = context.bone
-        wide_ui = context.region.width > narrowui
 
         if not bone:
             bone = context.edit_bone
-            if wide_ui:
                 row = layout.row()
                 row.column().prop(bone, "head")
                 row.column().prop(bone, "tail")
@@ -82,17 +68,10 @@ class BONE_PT_transform(BoneButtonsPanel):
                 sub.prop(bone, "roll", text="")
                 sub.label()
                 sub.prop(bone, "lock")
-            else:
-                col = layout.column()
-                col.prop(bone, "head")
-                col.prop(bone, "tail")
-                col.prop(bone, "roll")
-                col.prop(bone, "lock")
 
         else:
             pchan = ob.pose.bones[context.bone.name]
 
-            if wide_ui:
                 row = layout.row()
                 col = row.column()
                 col.prop(pchan, "location")
@@ -112,27 +91,14 @@ class BONE_PT_transform(BoneButtonsPanel):
                 row.column().prop(pchan, "scale")
 
                 layout.prop(pchan, "rotation_mode")
-            else:
-                col = layout.column()
-                sub = col.column()
-                sub.active = not (bone.parent and bone.connected)
-                sub.prop(pchan, "location")
-                col.label(text="Rotation:")
-                col.prop(pchan, "rotation_mode", text="")
-                if pchan.rotation_mode == 'QUATERNION':
-                    col.prop(pchan, "rotation_quaternion", text="")
-                elif pchan.rotation_mode == 'AXIS_ANGLE':
-                    col.prop(pchan, "rotation_axis_angle", text="")
-                else:
-                    col.prop(pchan, "rotation_euler", text="")
-                col.prop(pchan, "scale")
 
 
-class BONE_PT_transform_locks(BoneButtonsPanel):
+class BONE_PT_transform_locks(BoneButtonsPanel, bpy.types.Panel):
     bl_label = "Transform Locks"
     bl_default_closed = True
 
-    def poll(self, context):
+    @classmethod
+    def poll(cls, context):
         return context.bone
 
     def draw(self, context):
@@ -159,7 +125,7 @@ class BONE_PT_transform_locks(BoneButtonsPanel):
         row.column().prop(pchan, "lock_scale")
 
 
-class BONE_PT_relations(BoneButtonsPanel):
+class BONE_PT_relations(BoneButtonsPanel, bpy.types.Panel):
     bl_label = "Relations"
 
     def draw(self, context):
@@ -168,7 +134,6 @@ class BONE_PT_relations(BoneButtonsPanel):
         ob = context.object
         bone = context.bone
         arm = context.armature
-        wide_ui = context.region.width > narrowui
 
         if not bone:
             bone = context.edit_bone
@@ -188,7 +153,6 @@ class BONE_PT_relations(BoneButtonsPanel):
             col.label(text="Bone Group:")
             col.prop_object(pchan, "bone_group", ob.pose, "bone_groups", text="")
 
-        if wide_ui:
             col = split.column()
         col.label(text="Parent:")
         if context.bone:
@@ -206,10 +170,11 @@ class BONE_PT_relations(BoneButtonsPanel):
         sub.prop(bone, "local_location", text="Local Location")
 
 
-class BONE_PT_display(BoneButtonsPanel):
+class BONE_PT_display(BoneButtonsPanel, bpy.types.Panel):
     bl_label = "Display"
 
-    def poll(self, context):
+    @classmethod
+    def poll(cls, context):
         return context.bone
 
     def draw(self, context):
@@ -217,7 +182,6 @@ class BONE_PT_display(BoneButtonsPanel):
 
         ob = context.object
         bone = context.bone
-        wide_ui = context.region.width > narrowui
 
         if not bone:
             bone = context.edit_bone
@@ -233,7 +197,6 @@ class BONE_PT_display(BoneButtonsPanel):
             col.prop(bone, "draw_wire", text="Wireframe")
             col.prop(bone, "hide", text="Hide")
 
-            if wide_ui:
                 col = split.column()
 
             col.label(text="Custom Shape:")
@@ -242,11 +205,12 @@ class BONE_PT_display(BoneButtonsPanel):
                 col.prop_object(pchan, "custom_shape_transform", ob.pose, "bones", text="At")
 
 
-class BONE_PT_inverse_kinematics(BoneButtonsPanel):
+class BONE_PT_inverse_kinematics(BoneButtonsPanel, bpy.types.Panel):
     bl_label = "Inverse Kinematics"
     bl_default_closed = True
 
-    def poll(self, context):
+    @classmethod
+    def poll(cls, context):
         return context.active_pose_bone
 
     def draw(self, context):
@@ -255,7 +219,6 @@ class BONE_PT_inverse_kinematics(BoneButtonsPanel):
         ob = context.object
         bone = context.bone
         pchan = ob.pose.bones[bone.name]
-        wide_ui = context.region.width > narrowui
 
         row = layout.row()
         row.prop(ob.pose, "ik_solver")
@@ -267,14 +230,11 @@ class BONE_PT_inverse_kinematics(BoneButtonsPanel):
         row.prop(pchan, "ik_stiffness_x", text="Stiffness", slider=True)
         row.active = pchan.ik_dof_x and pchan.has_ik
 
-        if wide_ui:
             split = layout.split(percentage=0.25)
             sub = split.row()
-        else:
-            sub = layout.column(align=True)
+
         sub.prop(pchan, "ik_limit_x", text="Limit")
         sub.active = pchan.ik_dof_x and pchan.has_ik
-        if wide_ui:
             sub = split.row(align=True)
         sub.prop(pchan, "ik_min_x", text="")
         sub.prop(pchan, "ik_max_x", text="")
@@ -287,14 +247,12 @@ class BONE_PT_inverse_kinematics(BoneButtonsPanel):
         row.prop(pchan, "ik_stiffness_y", text="Stiffness", slider=True)
         row.active = pchan.ik_dof_y and pchan.has_ik
 
-        if wide_ui:
             split = layout.split(percentage=0.25)
             sub = split.row()
-        else:
-            sub = layout.column(align=True)
+
         sub.prop(pchan, "ik_limit_y", text="Limit")
         sub.active = pchan.ik_dof_y and pchan.has_ik
-        if wide_ui:
+
             sub = split.row(align=True)
         sub.prop(pchan, "ik_min_y", text="")
         sub.prop(pchan, "ik_max_y", text="")
@@ -307,21 +265,17 @@ class BONE_PT_inverse_kinematics(BoneButtonsPanel):
         sub.prop(pchan, "ik_stiffness_z", text="Stiffness", slider=True)
         sub.active = pchan.ik_dof_z and pchan.has_ik
 
-        if wide_ui:
             split = layout.split(percentage=0.25)
             sub = split.row()
-        else:
-            sub = layout.column(align=True)
+
         sub.prop(pchan, "ik_limit_z", text="Limit")
         sub.active = pchan.ik_dof_z and pchan.has_ik
-        if wide_ui:
             sub = split.row(align=True)
         sub.prop(pchan, "ik_min_z", text="")
         sub.prop(pchan, "ik_max_z", text="")
         sub.active = pchan.ik_dof_z and pchan.ik_limit_z and pchan.has_ik
         split = layout.split()
         split.prop(pchan, "ik_stretch", text="Stretch", slider=True)
-        if wide_ui:
             split.label()
         split.active = pchan.has_ik
 
@@ -330,7 +284,6 @@ class BONE_PT_inverse_kinematics(BoneButtonsPanel):
             col = split.column()
             col.prop(pchan, "ik_rot_control", text="Control Rotation")
             col.active = pchan.has_ik
-            if wide_ui:
                 col = split.column()
             col.prop(pchan, "ik_rot_weight", text="Weight", slider=True)
             col.active = pchan.has_ik
@@ -340,7 +293,7 @@ class BONE_PT_inverse_kinematics(BoneButtonsPanel):
             #row.prop(pchan, "ik_lin_weight", text="Weight", slider=True)
 
 
-class BONE_PT_deform(BoneButtonsPanel):
+class BONE_PT_deform(BoneButtonsPanel, bpy.types.Panel):
     bl_label = "Deform"
     bl_default_closed = True
 
@@ -356,7 +309,6 @@ class BONE_PT_deform(BoneButtonsPanel):
         layout = self.layout
 
         bone = context.bone
-        wide_ui = context.region.width > narrowui
 
         if not bone:
             bone = context.edit_bone
@@ -378,7 +330,6 @@ class BONE_PT_deform(BoneButtonsPanel):
         sub.prop(bone, "head_radius", text="Head")
         sub.prop(bone, "tail_radius", text="Tail")
 
-        if wide_ui:
             col = split.column()
         col.label(text="Curved Bones:")
 
@@ -390,28 +341,25 @@ class BONE_PT_deform(BoneButtonsPanel):
         col.label(text="Offset:")
         col.prop(bone, "cyclic_offset")
 
-classes = [
-    BONE_PT_context_bone,
-    BONE_PT_transform,
-    BONE_PT_transform_locks,
-    BONE_PT_relations,
-    BONE_PT_display,
-    BONE_PT_inverse_kinematics,
-    BONE_PT_deform,
 
-    BONE_PT_custom_props]
+class BONE_PT_custom_props(BoneButtonsPanel, PropertyPanel, bpy.types.Panel):
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+
+    @property
+    def _context_path(self):
+        obj = bpy.context.object
+        if obj and obj.mode == 'POSE':
+            return "active_pose_bone"
+        else:
+            return "active_bone"
 
 
 def register():
-    register = bpy.types.register
-    for cls in classes:
-        register(cls)
+    pass
 
 
 def unregister():
-    unregister = bpy.types.unregister
-    for cls in classes:
-        unregister(cls)
+    pass
 
 if __name__ == "__main__":
     register()

@@ -44,8 +44,6 @@
 #include "DNA_userdef_types.h"
 
 #include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
 #include "BKE_suggestions.h"
 #include "BKE_text.h"
 #include "BKE_utildefines.h"
@@ -113,8 +111,8 @@ static void flatten_string_append(FlattenString *fs, char c, int accum)
 		nbuf= MEM_callocN(sizeof(*fs->buf)*fs->len, "fs->buf");
 		naccum= MEM_callocN(sizeof(*fs->accum)*fs->len, "fs->accum");
 
-		memcpy(nbuf, fs->buf, fs->pos);
-		memcpy(naccum, fs->accum, fs->pos);
+		memcpy(nbuf, fs->buf, fs->pos * sizeof(*fs->buf));
+		memcpy(naccum, fs->accum, fs->pos * sizeof(*fs->accum));
 		
 		if(fs->buf != fs->fixedbuf) {
 			MEM_freeN(fs->buf);
@@ -174,12 +172,13 @@ void flatten_string_free(FlattenString *fs)
 static int find_builtinfunc(char *string)
 {
 	int a, i;
-	char builtinfuncs[][11] = {"and", "as", "assert", "break", "class", "continue", "def",
+	char builtinfuncs[][9] = {"and", "as", "assert", "break", "class", "continue", "def",
 								"del", "elif", "else", "except", "exec", "finally",
 								"for", "from", "global", "if", "import", "in",
 								"is", "lambda", "not", "or", "pass", "print",
-								"raise", "return", "try", "while", "yield"};
-	for(a=0; a<30; a++) {
+								"raise", "return", "try", "while", "yield", "with"};
+
+	for(a=0; a < sizeof(builtinfuncs)/sizeof(builtinfuncs[0]); a++) {
 		i = 0;
 		while(1) {
 			/* If we hit the end of a keyword... (eg. "def") */
@@ -1102,6 +1101,22 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 		}
 	}
 
+	if(st->line_hlight) {
+		y= ar->winy-2 - vsell*st->lheight;
+		if(!(y<0 || y > ar->winy)) { /* check we need to draw */
+			int x1= st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
+			int x2= x1 + ar->winx;
+			y= ar->winy-2 - vsell*st->lheight;
+	
+			glColor4ub(255, 255, 255, 32);
+			
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glEnable(GL_BLEND);
+			glRecti(x1-4, y, x2, y-st->lheight+1);
+			glDisable(GL_BLEND);
+		}
+	}
+	
 	if(!hidden) {
 		/* Draw the cursor itself (we draw the sel. cursor as this is the leading edge) */
 		x= st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
@@ -1357,7 +1372,7 @@ void text_update_cursor_moved(bContext *C)
 	ARegion *ar;
 	int i, x, winx= 0;
 
-	if(!st || !st->text || st->text->curl) return;
+	if(ELEM3(NULL, st, st->text, st->text->curl)) return;
 
 	text= st->text;
 

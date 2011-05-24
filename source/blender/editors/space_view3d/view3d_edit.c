@@ -41,16 +41,11 @@
 #include "BLI_math.h"
 #include "BLI_rand.h"
 
-#include "BKE_action.h"
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_object.h"
-#include "BKE_global.h"
 #include "BKE_paint.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
-#include "BKE_utildefines.h"
 
 
 #include "BIF_gl.h"
@@ -827,6 +822,9 @@ void viewmove_modal_keymap(wmKeyConfig *keyconf)
 	static EnumPropertyItem modal_items[] = {
 	{VIEW_MODAL_CONFIRM,	"CONFIRM", 0, "Confirm", ""},
 
+	{VIEWROT_MODAL_SWITCH_ZOOM, "SWITCH_TO_ZOOM", 0, "Switch to Zoom"},
+	{VIEWROT_MODAL_SWITCH_ROTATE, "SWITCH_TO_ROTATE", 0, "Switch to Rotate"},
+
 	{0, NULL, 0, NULL, NULL}};
 
 	wmKeyMap *keymap= WM_modalkeymap_get(keyconf, "View3D Move Modal");
@@ -968,6 +966,9 @@ void viewzoom_modal_keymap(wmKeyConfig *keyconf)
 {
 	static EnumPropertyItem modal_items[] = {
 	{VIEW_MODAL_CONFIRM,	"CONFIRM", 0, "Confirm", ""},
+
+	{VIEWROT_MODAL_SWITCH_ROTATE, "SWITCH_TO_ROTATE", 0, "Switch to Rotate"},
+	{VIEWROT_MODAL_SWITCH_MOVE, "SWITCH_TO_MOVE", 0, "Switch to Move"},
 
 	{0, NULL, 0, NULL, NULL}};
 
@@ -2390,7 +2391,7 @@ static int set_3dcursor_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	float dx, dy, fz, *fp = NULL, dvec[3], oldcurs[3];
 	short mx, my, mval[2];
 //	short ctrl= 0; // XXX
-
+	int flip;
 	fp= give_cursor(scene, v3d);
 
 //	if(obedit && ctrl) lr_click= 1;
@@ -2398,9 +2399,18 @@ static int set_3dcursor_invoke(bContext *C, wmOperator *op, wmEvent *event)
 
 	mx= event->x - ar->winrct.xmin;
 	my= event->y - ar->winrct.ymin;
-	project_short_noclip(ar, fp, mval);
 
-	initgrabz(rv3d, fp[0], fp[1], fp[2]);
+	project_short_noclip(ar, fp, mval);
+	flip= initgrabz(rv3d, fp[0], fp[1], fp[2]);
+
+	/* reset the depth based on the view offset */
+	if(flip) {
+		negate_v3_v3(fp, rv3d->ofs);
+
+		/* re initialize */
+		project_short_noclip(ar, fp, mval);
+		flip= initgrabz(rv3d, fp[0], fp[1], fp[2]);
+	}
 
 	if(mval[0]!=IS_CLIPPED) {
 		short depth_used = 0;

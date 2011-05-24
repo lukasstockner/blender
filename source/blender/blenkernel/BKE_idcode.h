@@ -1,7 +1,5 @@
 /**
- * blenlib/DNA_wave_types.h (mar-2001 nzc)
- *
- * $Id$ 
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -28,23 +26,50 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_WAVE_TYPES_H
-#define DNA_WAVE_TYPES_H
 
-#include "DNA_ID.h"
+#ifndef BKE_ID_INFO_H
+#define BKE_ID_INFO_H
 
-struct Ipo;
+/**
+ * Convert an idcode into a name.
+ * 
+ * @param code The code to convert.
+ * @return A static string representing the name of
+ * the code.
+ */
+const char *BKE_idcode_to_name(int code);
 
+/**
+ * Convert an idcode into a name (plural).
+ * 
+ * @param code The code to convert.
+ * @return A static string representing the name of
+ * the code.
+ */
+const char *BKE_idcode_to_name_plural(int code);
 
-/* a Wave has never been implemented... it was meant as a 'free' mathematical
-  deformation object type (ton) */
+/**
+ * Convert a name into an idcode (ie. ID_SCE)
+ * 
+ * @param name The name to convert.
+ * @return The code for the name, or 0 if invalid.
+ */
+int BKE_idcode_from_name(const char *name);
 
-typedef struct Wave {
-	ID id;
-	
-	struct Ipo *ipo;
-	
-} Wave;
+/**
+ * Return non-zero when an ID type is linkable.
+ * 
+ * @param code The code to check.
+ * @return Boolean, 0 when non linkable.
+ */
+int BKE_idcode_is_linkable(int code);
+
+/**
+ * Return if the ID code is a valid ID code.
+ * 
+ * @param code The code to check.
+ * @return Boolean, 0 when invalid.
+ */
+int BKE_idcode_is_valid(int code);
 
 #endif
-

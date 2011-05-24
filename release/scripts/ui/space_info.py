@@ -27,7 +27,7 @@ class INFO_HT_header(bpy.types.Header):
         layout = self.layout
 
         wm = context.manager
-        if wm and len(wm.operators):
+        if wm and wm.operators:
             last_op = wm.operators[-1]
         else:
             last_op = None
@@ -131,7 +131,7 @@ class INFO_MT_file_import(bpy.types.Menu):
     bl_label = "Import"
 
     def draw(self, context):
-        if "collada_import" in dir(bpy.ops.wm):
+        if hasattr(bpy.types, "WM_OT_collada_import"):
             self.layout.operator("wm.collada_import", text="COLLADA (.dae)")
 
 
@@ -140,7 +140,7 @@ class INFO_MT_file_export(bpy.types.Menu):
     bl_label = "Export"
 
     def draw(self, context):
-        if "collada_export" in dir(bpy.ops.wm):
+        if hasattr(bpy.types, "WM_OT_collada_export"):
             self.layout.operator("wm.collada_export", text="COLLADA (.dae)")
 
 
@@ -354,34 +354,13 @@ class HELP_OT_operator_cheat_sheet(bpy.types.Operator):
         return {'FINISHED'}
 
 
-classes = [
-    INFO_HT_header,
-    INFO_MT_file,
-    INFO_MT_file_import,
-    INFO_MT_file_export,
-    INFO_MT_file_external_data,
-    INFO_MT_add,
-    INFO_MT_mesh_add,
-    INFO_MT_curve_add,
-    INFO_MT_surface_add,
-    INFO_MT_armature_add,
-    INFO_MT_game,
-    INFO_MT_render,
-    INFO_MT_help,
-
-    HELP_OT_operator_cheat_sheet]
-
 
 def register():
-    register = bpy.types.register
-    for cls in classes:
-        register(cls)
+    pass
 
 
 def unregister():
-    unregister = bpy.types.unregister
-    for cls in classes:
-        unregister(cls)
+    pass
 
 if __name__ == "__main__":
     register()

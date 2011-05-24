@@ -46,7 +46,6 @@
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_screen.h"
-#include "BKE_utildefines.h"
 
 #include "ED_anim_api.h"
 #include "ED_keyframes_edit.h"
@@ -385,6 +384,7 @@ static int nlaedit_add_tracks_exec (bContext *C, wmOperator *op)
 	
 	/* add tracks... */
 	for (ale= anim_data.first; ale; ale= ale->next) {
+		if(ale->type == ANIMTYPE_NLATRACK) {
 		NlaTrack *nlt= (NlaTrack *)ale->data;
 		AnimData *adt= ale->adt;
 		
@@ -400,6 +400,7 @@ static int nlaedit_add_tracks_exec (bContext *C, wmOperator *op)
 			add_nlatrack(adt, NULL);
 			lastAdt= adt;
 		}
+	}
 	}
 	
 	/* free temp data */
@@ -451,11 +452,13 @@ static int nlaedit_delete_tracks_exec (bContext *C, wmOperator *op)
 	
 	/* delete tracks */
 	for (ale= anim_data.first; ale; ale= ale->next) {
+		if(ale->type == ANIMTYPE_NLATRACK) {
 		NlaTrack *nlt= (NlaTrack *)ale->data;
 		AnimData *adt= ale->adt;
 		
 		/* call delete on this track - deletes all strips too */
 		free_nlatrack(&adt->nla_tracks, nlt);
+	}
 	}
 	
 	/* free temp data */

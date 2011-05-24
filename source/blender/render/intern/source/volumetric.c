@@ -786,7 +786,6 @@ void shade_volume_inside(ShadeInput *shi, ShadeResult *shr)
 	MatInside *m;
 	Material *mat_backup;
 	ObjectInstanceRen *obi_backup;
-	float prev_alpha = shr->alpha;
 	
 	/* XXX: extend to multiple volumes perhaps later */
 	mat_backup = shi->mat;
@@ -797,9 +796,9 @@ void shade_volume_inside(ShadeInput *shi, ShadeResult *shr)
 	shi->obi = m->obi;
 	shi->obr = m->obi->obr;
 	
+	memset(shr, 0, sizeof(ShadeResult));
+	
 	volume_trace(shi, shr, VOL_SHADE_INSIDE);
-	shr->alpha += prev_alpha;
-	CLAMP(shr->alpha, 0.f, 1.f);
 	
 	shi->mat = mat_backup;
 	shi->obi = obi_backup;

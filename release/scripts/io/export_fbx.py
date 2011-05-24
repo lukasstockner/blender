@@ -55,7 +55,7 @@ import math # math.pi
 import shutil # for file copying
 
 import bpy
-from mathutils import Vector, Euler, Matrix, RotationMatrix
+from mathutils import Vector, Euler, Matrix
 
 def copy_file(source, dest):
     # XXX - remove, can use shutil
@@ -75,7 +75,7 @@ def copy_images(dest_dir, textures):
 
     image_paths = set()
     for tex in textures:
-        image_paths.add(bpy.utils.expandpath(tex.filepath))
+        image_paths.add(bpy.path.abspath(tex.filepath))
 
     # Now copy images
     copyCount = 0
@@ -107,19 +107,19 @@ def eulerRadToDeg(eul):
 mtx4_identity = Matrix()
 
 # testing
-mtx_x90		= RotationMatrix( math.pi/2, 3, 'X') # used
-#mtx_x90n	= RotationMatrix(-90, 3, 'x')
-#mtx_y90	= RotationMatrix( 90, 3, 'y')
-#mtx_y90n	= RotationMatrix(-90, 3, 'y')
-#mtx_z90	= RotationMatrix( 90, 3, 'z')
-#mtx_z90n	= RotationMatrix(-90, 3, 'z')
+mtx_x90		= Matrix.Rotation( math.pi/2, 3, 'X') # used
+#mtx_x90n	= Matrix.Rotation(-90, 3, 'x')
+#mtx_y90	= Matrix.Rotation( 90, 3, 'y')
+#mtx_y90n	= Matrix.Rotation(-90, 3, 'y')
+#mtx_z90	= Matrix.Rotation( 90, 3, 'z')
+#mtx_z90n	= Matrix.Rotation(-90, 3, 'z')
 
-#mtx4_x90	= RotationMatrix( 90, 4, 'x')
-mtx4_x90n	= RotationMatrix(-math.pi/2, 4, 'X') # used
-#mtx4_y90	= RotationMatrix( 90, 4, 'y')
-mtx4_y90n	= RotationMatrix(-math.pi/2, 4, 'Y') # used
-mtx4_z90	= RotationMatrix( math.pi/2, 4, 'Z') # used
-mtx4_z90n	= RotationMatrix(-math.pi/2, 4, 'Z') # used
+#mtx4_x90	= Matrix.Rotation( 90, 4, 'x')
+mtx4_x90n	= Matrix.Rotation(-math.pi/2, 4, 'X') # used
+#mtx4_y90	= Matrix.Rotation( 90, 4, 'y')
+mtx4_y90n	= Matrix.Rotation(-math.pi/2, 4, 'Y') # used
+mtx4_z90	= Matrix.Rotation( math.pi/2, 4, 'Z') # used
+mtx4_z90n	= Matrix.Rotation(-math.pi/2, 4, 'Z') # used
 
 # def strip_path(p):
 # 	return p.split('\\')[-1].split('/')[-1]
@@ -176,7 +176,7 @@ def sane_name(data, dct):
         name = 'unnamed' # blank string, ASKING FOR TROUBLE!
     else:
 
-        name = bpy.utils.clean_name(name) # use our own
+        name = bpy.path.clean_name(name) # use our own
 
     while name in iter(dct.values()):	name = increment_string(name)
 
@@ -200,14 +200,14 @@ def sane_groupname(data):	return sane_name(data, sane_name_mapping_group)
 # 	FORCE_CWD - dont use the basepath, just add a ./ to the filename.
 # 		use when we know the file will be in the basepath.
 # 	'''
-# 	fname = bpy.utils.expandpath(fname_orig)
+# 	fname = bpy.path.abspath(fname_orig)
 # # 	fname = Blender.sys.expandpath(fname_orig)
 # 	fname_strip = os.path.basename(fname)
 # # 	fname_strip = strip_path(fname)
 # 	if FORCE_CWD:
 # 		fname_rel = '.' + os.sep + fname_strip
 # 	else:
-# 		fname_rel = bpy.utils.relpath(fname, basepath)
+# 		fname_rel = bpy.path.relpath(fname, basepath)
 # # 		fname_rel = Blender.sys.relpath(fname, basepath)
 # 	if fname_rel.startswith('//'): fname_rel = '.' + os.sep + fname_rel[2:]
 # 	return fname, fname_strip, fname_rel
@@ -354,8 +354,8 @@ def write(filename, batch_objects = None, \
 
         new_fbxpath = fbxpath # own dir option modifies, we need to keep an original
         for data in data_seq: # scene or group
-            newname = BATCH_FILE_PREFIX + bpy.utils.clean_name(data.name)
-# 			newname = BATCH_FILE_PREFIX + BPySys.bpy.utils.clean_name(data.name)
+            newname = BATCH_FILE_PREFIX + bpy.path.clean_name(data.name)
+# 			newname = BATCH_FILE_PREFIX + BPySys.bpy.path.clean_name(data.name)
 
 
             if BATCH_OWN_DIR:
@@ -562,7 +562,7 @@ def write(filename, batch_objects = None, \
             elif type =='CAMERA':
 # 			elif ob and type =='Camera':
                 y = matrix_rot * Vector((0.0, 1.0, 0.0))
-                matrix_rot = RotationMatrix(math.pi/2, 3, y) * matrix_rot
+                matrix_rot = Matrix.Rotation(math.pi/2, 3, y) * matrix_rot
 
             return matrix_rot
 
@@ -664,7 +664,7 @@ def write(filename, batch_objects = None, \
                     rot = tuple(matrix_rot.to_euler())
                 elif ob and ob.type =='Camera':
                     y = matrix_rot * Vector((0.0, 1.0, 0.0))
-                    matrix_rot = RotationMatrix(math.pi/2, 3, y) * matrix_rot
+                    matrix_rot = Matrix.Rotation(math.pi/2, 3, y) * matrix_rot
                     rot = tuple(matrix_rot.to_euler())
                 else:
                     rot = tuple(matrix_rot.to_euler())
@@ -1250,7 +1250,7 @@ def write(filename, batch_objects = None, \
         file.write('\n\t}')
 
     def copy_image(image):
-        fn = bpy.utils.expandpath(image.filepath)
+        fn = bpy.path.abspath(image.filepath)
         fn_strip = os.path.basename(fn)
 
         if EXP_IMAGE_COPY:
@@ -3361,12 +3361,16 @@ class ExportFBX(bpy.types.Operator):
     BATCH_FILE_PREFIX = StringProperty(name="Prefix", description="Prefix each file with this name", maxlen=1024, default="")
 
 
-    def poll(self, context):
+    @classmethod
+    def poll(cls, context):
         return context.active_object
 
     def execute(self, context):
         if not self.properties.filepath:
             raise Exception("filepath not set")
+
+        filepath = self.properties.filepath
+        filepath = bpy.path.ensure_ext(filepath, ".fbx")
 
         GLOBAL_MATRIX = mtx4_identity
         GLOBAL_MATRIX[0][0] = GLOBAL_MATRIX[1][1] = GLOBAL_MATRIX[2][2] = self.properties.TX_SCALE
@@ -3374,7 +3378,7 @@ class ExportFBX(bpy.types.Operator):
         if self.properties.TX_YROT90: GLOBAL_MATRIX = mtx4_y90n * GLOBAL_MATRIX
         if self.properties.TX_ZROT90: GLOBAL_MATRIX = mtx4_z90n * GLOBAL_MATRIX
 
-        write(self.properties.filepath,
+        write(filepath,
               None, # XXX
               context,
               self.properties.EXP_OBS_SELECTED,
@@ -3394,13 +3398,17 @@ class ExportFBX(bpy.types.Operator):
               self.properties.BATCH_ENABLE,
               self.properties.BATCH_GROUP,
               self.properties.BATCH_FILE_PREFIX,
-              self.properties.BATCH_OWN_DIR)
+              self.properties.BATCH_OWN_DIR,
+              )
 
         return {'FINISHED'}
 
     def invoke(self, context, event):
-        wm = context.manager
-        wm.add_fileselect(self)
+        import os
+        if not self.properties.is_property_set("filepath"):
+            self.properties.filepath = os.path.splitext(bpy.data.filepath)[0] + ".fbx"
+
+        context.manager.add_fileselect(self)
         return {'RUNNING_MODAL'}
 
 
@@ -3412,7 +3420,7 @@ class ExportFBX(bpy.types.Operator):
 
 # NOTES (all line numbers correspond to original export_fbx.py (under release/scripts)
 # - Draw.PupMenu alternative in 2.5?, temporarily replaced PupMenu with print
-# - get rid of bpy.utils.clean_name somehow
+# - get rid of bpy.path.clean_name somehow
 # + fixed: isinstance(inst, bpy.types.*) doesn't work on RNA objects: line 565
 # + get rid of BPyObject_getObjectArmature, move it in RNA?
 # - BATCH_ENABLE and BATCH_GROUP options: line 327
@@ -3427,24 +3435,21 @@ class ExportFBX(bpy.types.Operator):
 # - bpy.data.remove_scene: line 366
 # - bpy.sys.time move to bpy.sys.util?
 # - new scene creation, activation: lines 327-342, 368
-# - uses bpy.utils.expandpath, *.relpath - replace at least relpath
+# - uses bpy.path.abspath, *.relpath - replace at least relpath
 
 # SMALL or COSMETICAL
 # - find a way to get blender version, and put it in bpy.util?, old was Blender.Get('version')
 
 
 def menu_func(self, context):
-    default_path = os.path.splitext(bpy.data.filepath)[0] + ".fbx"
-    self.layout.operator(ExportFBX.bl_idname, text="Autodesk FBX (.fbx)").filepath = default_path
+    self.layout.operator(ExportFBX.bl_idname, text="Autodesk FBX (.fbx)")
 
 
 def register():
-    bpy.types.register(ExportFBX)
     bpy.types.INFO_MT_file_export.append(menu_func)
 
 
 def unregister():
-    bpy.types.unregister(ExportFBX)
     bpy.types.INFO_MT_file_export.remove(menu_func)
 
 if __name__ == "__main__":

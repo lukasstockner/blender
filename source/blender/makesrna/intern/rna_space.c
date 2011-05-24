@@ -313,22 +313,32 @@ static PointerRNA rna_SpaceView3D_region_3d_get(PointerRNA *ptr)
 {
 	View3D *v3d= (View3D*)(ptr->data);
 	ScrArea *sa= rna_area_from_space(ptr);
+	void *regiondata= NULL;
+	if(sa) {
 	ListBase *regionbase= (sa->spacedata.first == v3d)? &sa->regionbase: &v3d->regionbase;
 	ARegion *ar= regionbase->last; /* always last in list, weak .. */
+		regiondata= ar->regiondata;
+	}
 
-	return rna_pointer_inherit_refine(ptr, &RNA_RegionView3D, ar->regiondata);
+	return rna_pointer_inherit_refine(ptr, &RNA_RegionView3D, regiondata);
 }
 
 static PointerRNA rna_SpaceView3D_region_quadview_get(PointerRNA *ptr)
 {
 	View3D *v3d= (View3D*)(ptr->data);
 	ScrArea *sa= rna_area_from_space(ptr);
+	void *regiondata= NULL;
+	if(sa) {
 	ListBase *regionbase= (sa->spacedata.first == v3d)? &sa->regionbase: &v3d->regionbase;
 	ARegion *ar= regionbase->last; /* always before last in list, weak .. */
 
 	ar= (ar->alignment == RGN_ALIGN_QSPLIT)? ar->prev: NULL;
+		if(ar) {
+			regiondata= ar->regiondata;
+		}
+	}
 
-	return rna_pointer_inherit_refine(ptr, &RNA_RegionView3D, (ar)? ar->regiondata: NULL);
+	return rna_pointer_inherit_refine(ptr, &RNA_RegionView3D, regiondata);
 }
 
 static void rna_RegionView3D_quadview_update(Main *main, Scene *scene, PointerRNA *ptr)
@@ -560,31 +570,30 @@ static void rna_SpaceProperties_align_set(PointerRNA *ptr, int value)
 }
 
 /* Space Console */
-static void rna_ConsoleLine_line_get(PointerRNA *ptr, char *value)
+static void rna_ConsoleLine_body_get(PointerRNA *ptr, char *value)
 {
 	ConsoleLine *ci= (ConsoleLine*)ptr->data;
 	strcpy(value, ci->line);
 }
 
-static int rna_ConsoleLine_line_length(PointerRNA *ptr)
+static int rna_ConsoleLine_body_length(PointerRNA *ptr)
 {
 	ConsoleLine *ci= (ConsoleLine*)ptr->data;
 	return ci->len;
 }
 
-static void rna_ConsoleLine_line_set(PointerRNA *ptr, const char *value)
+static void rna_ConsoleLine_body_set(PointerRNA *ptr, const char *value)
 {
 	ConsoleLine *ci= (ConsoleLine*)ptr->data;
 	int len= strlen(value);
 	
-	if(len < ci->len_alloc) { /* allocated size is enough? */
-		strcpy(ci->line, value);
-	}
-	else { /* allocate a new strnig */
+	if((len >= ci->len_alloc) || (len * 2 < ci->len_alloc) ) { /* allocate a new strnig */
 		MEM_freeN(ci->line);
-		ci->line= BLI_strdup(value);
-		ci->len_alloc= len;
+		ci->line= MEM_mallocN((len + 1) * sizeof(char), "rna_consoleline");
+		ci->len_alloc= len + 1;
 	}
+
+	memcpy(ci->line, value, len + 1);
 	ci->len= len;
 
 	if(ci->cursor > len) /* clamp the cursor */
@@ -1138,7 +1147,7 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "current_orientation", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "TransformOrientation");
-	RNA_def_property_pointer_funcs(prop, "rna_CurrentOrientation_get", NULL, NULL);
+	RNA_def_property_pointer_funcs(prop, "rna_CurrentOrientation_get", NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Current Transform Orientation", "Current Transformation orientation");
 
 	prop= RNA_def_property(srna, "lock_camera_and_layers", PROP_BOOLEAN, PROP_NONE);
@@ -1170,12 +1179,12 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "region_3d", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "RegionView3D");
-	RNA_def_property_pointer_funcs(prop, "rna_SpaceView3D_region_3d_get", NULL, NULL);
+	RNA_def_property_pointer_funcs(prop, "rna_SpaceView3D_region_3d_get", NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "3D Region", "3D region in this space, in case of quad view the camera region");
 
 	prop= RNA_def_property(srna, "region_quadview", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "RegionView3D");
-	RNA_def_property_pointer_funcs(prop, "rna_SpaceView3D_region_quadview_get", NULL, NULL);
+	RNA_def_property_pointer_funcs(prop, "rna_SpaceView3D_region_quadview_get", NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Quad View Region", "3D region that defines the quad view settings");
 
 	/* region */
@@ -1293,7 +1302,7 @@ static void rna_def_space_buttons(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "pinid");
 	RNA_def_property_struct_type(prop, "ID");
     /* note: custom set function is ONLY to avoid rna setting a user for this. */
-	RNA_def_property_pointer_funcs(prop, NULL, "rna_SpaceProperties_pin_id_set", "rna_SpaceProperties_pin_id_typef");
+	RNA_def_property_pointer_funcs(prop, NULL, "rna_SpaceProperties_pin_id_set", "rna_SpaceProperties_pin_id_typef", NULL);
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_PROPERTIES, "rna_SpaceProperties_pin_id_update");
 
@@ -1313,7 +1322,7 @@ static void rna_def_space_image(BlenderRNA *brna)
 
 	/* image */
 	prop= RNA_def_property(srna, "image", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_funcs(prop, NULL, "rna_SpaceImageEditor_image_set", NULL);
+	RNA_def_property_pointer_funcs(prop, NULL, "rna_SpaceImageEditor_image_set", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Image", "Image displayed and edited in this space");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_IMAGE, NULL);
@@ -1363,7 +1372,7 @@ static void rna_def_space_image(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "uv_editor", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
 	RNA_def_property_struct_type(prop, "SpaceUVEditor");
-	RNA_def_property_pointer_funcs(prop, "rna_SpaceImageEditor_uvedit_get", NULL, NULL);
+	RNA_def_property_pointer_funcs(prop, "rna_SpaceImageEditor_uvedit_get", NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "UV Editor", "UV editor settings");
 	
 	/* paint */
@@ -1541,35 +1550,32 @@ static void rna_def_space_text(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "text", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Text", "Text displayed and edited in this space");
-	RNA_def_property_pointer_funcs(prop, NULL, "rna_SpaceTextEditor_text_set", NULL);
+	RNA_def_property_pointer_funcs(prop, NULL, "rna_SpaceTextEditor_text_set", NULL, NULL);
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_TEXT, NULL);
 
 	/* display */
-	prop= RNA_def_property(srna, "syntax_highlight", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "showsyntax", 0);
-	RNA_def_property_ui_text(prop, "Syntax Highlight", "Syntax highlight for scripting");
-	RNA_def_property_ui_icon(prop, ICON_SYNTAX_OFF, 1);
-	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_TEXT, NULL);
-
-	prop= RNA_def_property(srna, "word_wrap", PROP_BOOLEAN, PROP_NONE);
+	prop= RNA_def_property(srna, "show_word_wrap", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "wordwrap", 0);
 	RNA_def_property_boolean_funcs(prop, NULL, "rna_SpaceTextEditor_word_wrap_set");
 	RNA_def_property_ui_text(prop, "Word Wrap", "Wrap words if there is not enough horizontal space");
 	RNA_def_property_ui_icon(prop, ICON_WORDWRAP_OFF, 1);
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_TEXT, NULL);
 
-	prop= RNA_def_property(srna, "line_numbers", PROP_BOOLEAN, PROP_NONE);
+	prop= RNA_def_property(srna, "show_line_numbers", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "showlinenrs", 0);
 	RNA_def_property_ui_text(prop, "Line Numbers", "Show line numbers next to the text");
 	RNA_def_property_ui_icon(prop, ICON_LINENUMBERS_OFF, 1);
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_TEXT, NULL);
 
-	prop= RNA_def_property(srna, "overwrite", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Overwrite", "Overwrite characters when typing rather than inserting them");
+	prop= RNA_def_property(srna, "show_syntax_highlight", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "showsyntax", 0);
+	RNA_def_property_ui_text(prop, "Syntax Highlight", "Syntax highlight for scripting");
+	RNA_def_property_ui_icon(prop, ICON_SYNTAX_OFF, 1);
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_TEXT, NULL);
 	
-	prop= RNA_def_property(srna, "live_edit", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Live Edit", "Run python while editing");
+	prop= RNA_def_property(srna, "show_line_highlight", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "line_hlight", 0);
+	RNA_def_property_ui_text(prop, "Highlight Line", "Highlight the current line");
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_TEXT, NULL);
 
 	prop= RNA_def_property(srna, "tab_width", PROP_INT, PROP_NONE);
@@ -1584,6 +1590,15 @@ static void rna_def_space_text(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Font Size", "Font size to use for displaying the text");
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_TEXT, NULL);
 
+	/* functionality options */
+	prop= RNA_def_property(srna, "overwrite", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Overwrite", "Overwrite characters when typing rather than inserting them");
+	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_TEXT, NULL);
+	
+	prop= RNA_def_property(srna, "live_edit", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Live Edit", "Run python while editing");
+	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_TEXT, NULL);
+	
 	/* find */
 	prop= RNA_def_property(srna, "find_all", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", ST_FIND_ALL);
@@ -1626,7 +1641,7 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
 	/* data */
 	prop= RNA_def_property(srna, "action", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_pointer_funcs(prop, NULL, "rna_SpaceDopeSheetEditor_action_set", NULL);
+	RNA_def_property_pointer_funcs(prop, NULL, "rna_SpaceDopeSheetEditor_action_set", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Action", "Action displayed and edited in this space");
 	RNA_def_property_update(prop, NC_ANIMATION|ND_KEYFRAME|NA_EDITED, "rna_SpaceDopeSheetEditor_action_update");
 	
@@ -1934,8 +1949,8 @@ static void rna_def_console_line(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Console Input", "Input line for the interactive console");
 	// XXX using non-inited "prop", uh? RNA_def_property_update(prop, NC_SPACE|ND_SPACE_CONSOLE, NULL);
 	
-	prop= RNA_def_property(srna, "line", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_funcs(prop, "rna_ConsoleLine_line_get", "rna_ConsoleLine_line_length", "rna_ConsoleLine_line_set");
+	prop= RNA_def_property(srna, "body", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_funcs(prop, "rna_ConsoleLine_body_get", "rna_ConsoleLine_body_length", "rna_ConsoleLine_body_set");
 	RNA_def_property_ui_text(prop, "Line", "Text in the line");
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_CONSOLE, NULL);
 	

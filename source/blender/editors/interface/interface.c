@@ -41,11 +41,7 @@
 #include "BLI_dynstr.h"
 
 #include "BKE_context.h"
-#include "BKE_idprop.h"
 #include "BKE_library.h"
-#include "BKE_screen.h"
-#include "BKE_texture.h"
-#include "BKE_utildefines.h"
 #include "BKE_unit.h"
 
 #include "BIF_gl.h"
@@ -1644,7 +1640,7 @@ int ui_set_but_string(bContext *C, uiBut *but, const char *str)
 		value= atof(str);
 #endif
 
-		if(!ui_is_but_float(but)) value= (int)value;
+		if(!ui_is_but_float(but)) value= (int)floor(value + 0.5);
 		if(but->type==NUMABS) value= fabs(value);
 
 		/* not that we use hard limits here */

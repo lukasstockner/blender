@@ -44,7 +44,6 @@
 #include "BKE_idprop.h"
 #include "BKE_report.h"
 #include "BKE_texture.h"
-#include "BKE_utildefines.h"
 
 #include "ED_screen.h"
 #include "ED_util.h"
@@ -3251,24 +3250,8 @@ static int ui_do_but_COLORBAND(bContext *C, uiBlock *block, uiBut *but, uiHandle
 
 			if(event->ctrl) {
 				/* insert new key on mouse location */
-				if(coba->tot < MAXCOLORBAND-1) {
 					float pos= ((float)(mx - but->x1))/(but->x2-but->x1);
-					float col[4];
-					
-					do_colorband(coba, pos, col);	/* executes it */
-					
-					coba->tot++;
-					coba->cur= coba->tot-1;
-					
-					coba->data[coba->cur].r= col[0];
-					coba->data[coba->cur].g= col[1];
-					coba->data[coba->cur].b= col[2];
-					coba->data[coba->cur].a= col[3];
-					coba->data[coba->cur].pos= pos;
-
-					ui_colorband_update(coba);
-				}
-
+				colorband_element_add(coba, pos);
 				button_activate_state(C, but, BUTTON_STATE_EXIT);
 			}
 			else {
@@ -4279,7 +4262,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, wmEvent *event)
 			return WM_UI_HANDLER_BREAK;
 		}
 		/* reset to default */
-		else if(event->type == ZEROKEY && event->val == KM_PRESS) {
+		else if(ELEM(event->type, ZEROKEY,PAD0) && event->val == KM_PRESS) {
 			if (!(ELEM3(but->type, HSVCIRCLE, HSVCUBE, HISTOGRAM)))
 				ui_set_but_default(C, but);
 		}

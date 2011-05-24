@@ -32,6 +32,7 @@
 #include "rna_internal.h"
 
 #include "DNA_modifier_types.h"
+#include "DNA_cloth_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_object_force.h"
 #include "DNA_object_types.h"
@@ -214,7 +215,7 @@ static void rna_Particle_redo(Main *bmain, Scene *scene, PointerRNA *ptr)
 
 static void rna_Particle_redo_dependency(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-	DAG_scene_sort(scene);
+	DAG_scene_sort(bmain, scene);
 	rna_Particle_redo(bmain, scene, ptr);
 }
 
@@ -238,12 +239,25 @@ static void rna_Particle_redo_child(Main *bmain, Scene *scene, PointerRNA *ptr)
 	particle_recalc(bmain, scene, ptr, PSYS_RECALC_CHILD);
 }
 
+static ParticleSystem *rna_particle_system_for_target(Object *ob, ParticleTarget *target)
+{
+	ParticleSystem *psys;
+	ParticleTarget *pt;
+
+	for(psys=ob->particlesystem.first; psys; psys=psys->next)
+		for(pt=psys->targets.first; pt; pt=pt->next)
+			if(pt == target)
+				return psys;
+	
+	return NULL;
+}
+
 static void rna_Particle_target_reset(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	if(ptr->type==&RNA_ParticleTarget) {
-		ParticleTarget *pt = (ParticleTarget*)ptr->data;
 		Object *ob = (Object*)ptr->id.data;
-		ParticleSystem *kpsys=NULL, *psys=psys_get_current(ob);
+		ParticleTarget *pt = (ParticleTarget*)ptr->data;
+		ParticleSystem *kpsys=NULL, *psys=rna_particle_system_for_target(ob, pt);
 
 		if(pt->ob==ob || pt->ob==NULL) {
 			kpsys = BLI_findlink(&ob->particlesystem, pt->psys-1);
@@ -266,7 +280,7 @@ static void rna_Particle_target_reset(Main *bmain, Scene *scene, PointerRNA *ptr
 		psys->recalc = PSYS_RECALC_RESET;
 
 		DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
-		DAG_scene_sort(scene);
+		DAG_scene_sort(bmain, scene);
 	}
 
 	WM_main_add_notifier(NC_OBJECT|ND_PARTICLE|NA_EDITED, NULL);
@@ -276,7 +290,8 @@ static void rna_Particle_target_redo(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	if(ptr->type==&RNA_ParticleTarget) {
 		Object *ob = (Object*)ptr->id.data;
-		ParticleSystem *psys = psys_get_current(ob);
+		ParticleTarget *pt = (ParticleTarget*)ptr->data;
+		ParticleSystem *psys = rna_particle_system_for_target(ob, pt);
 		
 		psys->recalc = PSYS_RECALC_REDO;
 
@@ -301,16 +316,15 @@ static void rna_Particle_hair_dynamics(Main *bmain, Scene *scene, PointerRNA *pt
 }
 static PointerRNA rna_particle_settings_get(PointerRNA *ptr)
 {
-	Object *ob= (Object*)ptr->id.data;
-	ParticleSettings *part = psys_get_current(ob)->part;
+	ParticleSystem *psys= (ParticleSystem*)ptr->data;
+	ParticleSettings *part = psys->part;
 
 	return rna_pointer_inherit_refine(ptr, &RNA_ParticleSettings, part);
 }
 
 static void rna_particle_settings_set(PointerRNA *ptr, PointerRNA value)
 {
-	Object *ob= (Object*)ptr->id.data;
-	ParticleSystem *psys = psys_get_current(ob);
+	ParticleSystem *psys= (ParticleSystem*)ptr->data;
 
 	if(psys->part)
 		psys->part->id.us--;
@@ -1058,13 +1072,14 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 	};
 
 	//TODO: names, tooltips
+#if 0
 	static EnumPropertyItem rot_from_items[] = {
 		{PART_ROT_KEYS, "KEYS", 0, "keys", ""},
 		{PART_ROT_ZINCR, "ZINCR", 0, "zincr", ""},
 		{PART_ROT_IINCR, "IINCR", 0, "iincr", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
-
+#endif
 	static EnumPropertyItem integrator_type_items[] = {
 		{PART_INT_EULER, "EULER", 0, "Euler", ""},
 		{PART_INT_VERLET, "VERLET", 0, "Verlet", ""},
@@ -1432,11 +1447,13 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Particle_redo");
 
 
-	//TODO: is this read only/internal?
+	// not used anywhere, why is this in DNA???
+#if 0
 	prop= RNA_def_property(srna, "rotate_from", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "rotfrom");
 	RNA_def_property_enum_items(prop, rot_from_items);
 	RNA_def_property_ui_text(prop, "Rotate From", "");
+#endif
 
 	prop= RNA_def_property(srna, "integrator", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, integrator_type_items);
@@ -1949,7 +1966,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "active_dupliweight", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "ParticleDupliWeight");
-	RNA_def_property_pointer_funcs(prop, "rna_ParticleDupliWeight_active_get", NULL, NULL);
+	RNA_def_property_pointer_funcs(prop, "rna_ParticleDupliWeight_active_get", NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Active Dupli Object", "");
 
 	prop= RNA_def_property(srna, "active_dupliweight_index", PROP_INT, PROP_UNSIGNED);
@@ -1981,13 +1998,13 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "force_field_1", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "pd");
 	RNA_def_property_struct_type(prop, "FieldSettings");
-	RNA_def_property_pointer_funcs(prop, "rna_Particle_field1_get", NULL, NULL);
+	RNA_def_property_pointer_funcs(prop, "rna_Particle_field1_get", NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Force Field 1", "");
 
 	prop= RNA_def_property(srna, "force_field_2", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "pd2");
 	RNA_def_property_struct_type(prop, "FieldSettings");
-	RNA_def_property_pointer_funcs(prop, "rna_Particle_field2_get", NULL, NULL);
+	RNA_def_property_pointer_funcs(prop, "rna_Particle_field2_get", NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Force Field 2", "");
 }
 
@@ -2069,7 +2086,7 @@ static void rna_def_particle_system(BlenderRNA *brna)
 	//RNA_def_property_pointer_sdna(prop, NULL, "part");
 	RNA_def_property_struct_type(prop, "ParticleSettings");
 	RNA_def_property_flag(prop, PROP_EDITABLE|PROP_NEVER_NULL);
-	RNA_def_property_pointer_funcs(prop, "rna_particle_settings_get", "rna_particle_settings_set", NULL);
+	RNA_def_property_pointer_funcs(prop, "rna_particle_settings_get", "rna_particle_settings_set", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Settings", "Particle system settings");
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
 
@@ -2131,7 +2148,7 @@ static void rna_def_particle_system(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "active_particle_target", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "ParticleTarget");
-	RNA_def_property_pointer_funcs(prop, "rna_ParticleSystem_active_particle_target_get", NULL, NULL);
+	RNA_def_property_pointer_funcs(prop, "rna_ParticleSystem_active_particle_target_get", NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Active Particle Target", "");
 
 	prop= RNA_def_property(srna, "active_particle_target_index", PROP_INT, PROP_UNSIGNED);

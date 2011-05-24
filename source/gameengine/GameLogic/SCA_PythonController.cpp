@@ -316,11 +316,17 @@ bool SCA_PythonController::Import()
 
 	// Import the module and print an error if it's not found
 	PyObject *mod = PyImport_ImportModule(mod_path);
-	if(mod && m_debug)
+
+	if (mod == NULL) {
+		ErrorPrint("Python module can't be imported");
+		return false;
+	}
+
+	if(m_debug)
 		mod = PyImport_ReloadModule(mod);
 
 	if (mod == NULL) {
-		ErrorPrint("Python module not found");
+		ErrorPrint("Python module can't be reloaded");
 		return false;
 	}
 

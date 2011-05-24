@@ -23,6 +23,7 @@
  */
 
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 #include <ctype.h>
 
@@ -258,13 +259,9 @@ int RNA_struct_idproperties_check(StructRNA *srna)
 static IDProperty *rna_idproperty_find(PointerRNA *ptr, const char *name)
 {
 	IDProperty *group= RNA_struct_idproperties(ptr, 0);
-	IDProperty *idprop;
 
-	if(group) {
-		for(idprop=group->data.group.first; idprop; idprop=idprop->next)
-			if(strcmp(idprop->name, name) == 0)
-				return idprop;
-	}
+	if(group)
+		return IDP_GetPropertyFromGroup(group, name);
 	
 	return NULL;
 }
@@ -577,8 +574,8 @@ FunctionRNA *RNA_struct_find_function(PointerRNA *ptr, const char *identifier)
 	FunctionRNA *func;
 	StructRNA *type;
 	for(type= ptr->type; type; type= type->base) {
-		for(func= type->functions.first; func; func= func->cont.next) {
-			if(strcmp(func->identifier, identifier)==0)
+		func= (FunctionRNA *)BLI_findstring_ptr(&type->functions, identifier, offsetof(FunctionRNA, identifier));
+		if(func) {
 				return func;
 		}
 	}
@@ -786,6 +783,7 @@ int RNA_property_array_item_index(PropertyRNA *prop, char name)
 	return -1;
 }
 
+
 void RNA_property_int_range(PointerRNA *ptr, PropertyRNA *prop, int *hardmin, int *hardmax)
 {
 	IntPropertyRNA *iprop= (IntPropertyRNA*)rna_ensure_property(prop);
@@ -988,6 +986,22 @@ StructRNA *RNA_property_pointer_type(PointerRNA *ptr, PropertyRNA *prop)
 	}
 
 	return &RNA_UnknownType;
+}
+
+int RNA_property_pointer_poll(PointerRNA *ptr, PropertyRNA *prop, PointerRNA *value)
+{
+	prop= rna_ensure_property(prop);
+
+	if(prop->type == PROP_POINTER) {
+		PointerPropertyRNA *pprop= (PointerPropertyRNA*)prop;
+		if(pprop->poll)
+			return pprop->poll(ptr, *value);
+
+		return 1;
+	}
+
+	printf("RNA_property_pointer_poll %s: is not a pointer property.\n", prop->identifier);
+	return 0;
 }
 
 /* Reuse for dynamic types  */
@@ -3575,7 +3589,8 @@ int RNA_property_is_set(PointerRNA *ptr, const char *name)
 			return 1;
 	}
 	else {
-		// printf("RNA_property_is_set: %s.%s not found.\n", ptr->type->identifier, name);
+		/* python raises an error */
+		/* printf("RNA_property_is_set: %s.%s not found.\n", ptr->type->identifier, name); */
 		return 0;
 	}
 }
@@ -3760,27 +3775,12 @@ int RNA_function_defined(FunctionRNA *func)
 
 PropertyRNA *RNA_function_get_parameter(PointerRNA *ptr, FunctionRNA *func, int index)
 {
-	PropertyRNA *parm;
-	int i;
-
-	parm= func->cont.properties.first;
-	for(i= 0; parm; parm= parm->next, i++)
-		if(i==index)
-			return parm;
-
-	return NULL;
+	return BLI_findlink(&func->cont.properties, index);
 }
 
 PropertyRNA *RNA_function_find_parameter(PointerRNA *ptr, FunctionRNA *func, const char *identifier)
 {
-	PropertyRNA *parm;
-
-	parm= func->cont.properties.first;
-	for(; parm; parm= parm->next)
-		if(strcmp(parm->identifier, identifier)==0)
-			return parm;
-
-	return NULL;
+	return BLI_findstring(&func->cont.properties, identifier, offsetof(PropertyRNA, identifier));
 }
 
 const struct ListBase *RNA_function_defined_parameters(FunctionRNA *func)

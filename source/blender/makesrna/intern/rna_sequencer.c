@@ -36,6 +36,7 @@
 #include "DNA_sequence_types.h"
 
 #include "BKE_animsys.h"
+#include "BKE_global.h"
 #include "BKE_sequencer.h"
 
 #include "MEM_guardedalloc.h"
@@ -149,7 +150,7 @@ static void rna_Sequence_anim_startofs_final_set(PointerRNA *ptr, int value)
 
 	seq->anim_startofs = MIN2(value, seq->len + seq->anim_startofs);
 
-	reload_sequence_new_file(scene, seq, FALSE);
+	reload_sequence_new_file(G.main, scene, seq, FALSE);
 	rna_Sequence_frame_change_update(scene, seq);
 }
 
@@ -160,7 +161,7 @@ static void rna_Sequence_anim_endofs_final_set(PointerRNA *ptr, int value)
 
 	seq->anim_endofs = MIN2(value, seq->len + seq->anim_endofs);
 
-	reload_sequence_new_file(scene, seq, FALSE);
+	reload_sequence_new_file(G.main, scene, seq, FALSE);
 	rna_Sequence_frame_change_update(scene, seq);
 }
 
@@ -551,7 +552,7 @@ static void rna_Sequence_mute_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 static void rna_Sequence_filepath_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Sequence *seq= (Sequence*)(ptr->data);
-	reload_sequence_new_file(scene, seq, TRUE);
+	reload_sequence_new_file(G.main, scene, seq, TRUE);
 	calc_sequence(scene, seq);
 	rna_Sequence_update(bmain, scene, ptr);
 }
@@ -1218,6 +1219,7 @@ static void rna_def_scene(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "scene_camera", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, "rna_Camera_object_poll");
 	RNA_def_property_ui_text(prop, "Camera Override", "Override the scenes active camera");
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 

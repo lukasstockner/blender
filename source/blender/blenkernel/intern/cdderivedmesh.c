@@ -241,7 +241,8 @@ static void cdDM_drawVerts(DerivedMesh *dm)
 	else {	/* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
 		GPU_vertex_setup(dm);
 		if( !GPU_buffer_legacy(dm) ) {
-			glDrawArrays(GL_POINTS,0,dm->drawObject->nelements);
+			if(dm->drawObject->nelements)	glDrawArrays(GL_POINTS,0, dm->drawObject->nelements);
+			else							glDrawArrays(GL_POINTS,0, dm->drawObject->nlooseverts);
 		}
 		GPU_buffer_unbind();
 	}
@@ -1776,14 +1777,10 @@ void CDDM_calc_normals(DerivedMesh *dm)
 	for(i = 0; i < numVerts; i++, mv++) {
 		float *no = temp_nors[i];
 		
-		if (normalize_v3(no) == 0.0) {
-			VECCOPY(no, mv->co);
-			normalize_v3(no);
-		}
+		if (normalize_v3(no) == 0.0)
+			normalize_v3_v3(no, mv->co);
 
-		mv->no[0] = (short)(no[0] * 32767.0);
-		mv->no[1] = (short)(no[1] * 32767.0);
-		mv->no[2] = (short)(no[2] * 32767.0);
+		normal_float_to_short_v3(mv->no, no);
 	}
 	
 	MEM_freeN(temp_nors);

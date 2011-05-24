@@ -34,14 +34,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_image_types.h"
 #include "DNA_lamp_types.h"
-#include "DNA_listBase.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_texture_types.h"
-#include "DNA_view3d_types.h"
 #include "DNA_world_types.h"
 
 #include "BKE_anim.h"
@@ -1005,6 +1001,10 @@ static void do_material_tex(GPUShadeInput *shi)
 						GPU_link(mat, "set_value_one", &tin);
 				}
 				
+				if(tex->type==TEX_IMAGE)
+					if(mat->scene->r.color_mgt_flag & R_COLOR_MANAGEMENT)
+						GPU_link(mat, "srgb_to_linearrgb", tcol, &tcol);
+				
 				if(mtex->mapto & MAP_COL) {
 					GPUNodeLink *colfac;
 
@@ -1244,6 +1244,9 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 		mat->obcolalpha = 1;
 		GPU_link(mat, "shade_alpha_obcolor", shr->combined, GPU_builtin(GPU_OBCOLOR), &shr->combined);
 	}
+
+	if(mat->scene->r.color_mgt_flag & R_COLOR_MANAGEMENT)
+		GPU_link(mat, "linearrgb_to_srgb", shr->combined, &shr->combined);
 }
 
 GPUNodeLink *GPU_blender_material(GPUMaterial *mat, Material *ma)
@@ -1358,7 +1361,7 @@ static void gpu_lamp_from_blender(Scene *scene, Object *ob, Object *par, Lamp *l
 	lamp->col[1]= la->g*lamp->energy;
 	lamp->col[2]= la->b*lamp->energy;
 
-	GPU_lamp_update(lamp, ob->lay, (ob->restrictflag & OB_RESTRICT_VIEW), ob->obmat);
+	GPU_lamp_update(lamp, ob->lay, (ob->restrictflag & OB_RESTRICT_RENDER), ob->obmat);
 
 	lamp->spotsi= la->spotsize;
 	if(lamp->mode & LA_HALO)

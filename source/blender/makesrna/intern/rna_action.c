@@ -115,6 +115,7 @@ static void rna_Action_fcurve_remove(bAction *act, ReportList *reports, FCurve *
 		}
 
 		action_groups_remove_channel(act, fcu);
+		free_fcurve(fcu);
 	}
 	else {
 		if(BLI_findindex(&act->curves, fcu) == -1) {

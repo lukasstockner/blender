@@ -41,20 +41,13 @@
 #include "DNA_scene_types.h"
 #include "DNA_meta_types.h"
 
-#include "BKE_blender.h"
-#include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_customdata.h"
-#include "BKE_global.h"
-#include "BKE_idprop.h"
-#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
-#include "BKE_multires.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
-#include "BKE_utildefines.h"
 #include "BKE_sound.h"
 
 #include "WM_api.h"
@@ -2838,9 +2831,9 @@ static int scene_new_exec(bContext *C, wmOperator *op)
 	
 	/* these can't be handled in blenkernel curently, so do them here */
 	if(type == SCE_COPY_LINK_DATA)
-		ED_object_single_users(newscene, 0);
+		ED_object_single_users(bmain, newscene, 0);
 	else if(type == SCE_COPY_FULL)
-		ED_object_single_users(newscene, 1);
+		ED_object_single_users(bmain, newscene, 1);
 	
 	WM_event_add_notifier(C, NC_SCENE|ND_SCENEBROWSE, newscene);
 	

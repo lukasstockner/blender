@@ -43,7 +43,6 @@
 #include "BLI_rand.h"
 #include "BLI_storage_types.h"
 
-#include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_screen.h"
 
@@ -233,6 +232,7 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 				file->flags |= EDITING;
 			}
 		}
+		BLI_strncpy(sfile->params->renameedit, sfile->params->renamefile, sizeof(sfile->params->renameedit));
 		params->renamefile[0] = '\0';
 	}
 	if (sfile->layout) sfile->layout->dirty= 1;

@@ -55,7 +55,7 @@ static void rna_Smoke_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 static void rna_Smoke_dependency_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	rna_Smoke_update(bmain, scene, ptr);
-	DAG_scene_sort(scene);
+	DAG_scene_sort(bmain, scene);
 }
 
 static void rna_Smoke_reset(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -205,8 +205,8 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "dissolve_speed", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "diss_speed");
-	RNA_def_property_range(prop, 1.0, 100.0);
-	RNA_def_property_ui_range(prop, 1.0, 1000.0, 1, 0);
+	RNA_def_property_range(prop, 1.0, 10000.0);
+	RNA_def_property_ui_range(prop, 1.0, 10000.0, 1, 0);
 	RNA_def_property_ui_text(prop, "Dissolve Speed", "Dissolve Speed");
 	RNA_def_property_update(prop, 0, NULL);
 

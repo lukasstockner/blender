@@ -22,7 +22,7 @@
 
 # <pep8 compliant>
 
-from mathutils import Matrix, Vector, RotationMatrix
+from mathutils import Matrix, Vector
 import time
 import geometry
 import bpy
@@ -275,15 +275,15 @@ def testNewVecLs2DRotIsBetter(vecs, mat=-1, bestAreaSoFar = -1):
 
 # Takes a list of faces that make up a UV island and rotate
 # until they optimally fit inside a square.
-ROTMAT_2D_POS_90D = RotationMatrix( radians(90.0), 2)
-ROTMAT_2D_POS_45D = RotationMatrix( radians(45.0), 2)
+ROTMAT_2D_POS_90D = Matrix.Rotation( radians(90.0), 2)
+ROTMAT_2D_POS_45D = Matrix.Rotation( radians(45.0), 2)
 
 RotMatStepRotation = []
 rot_angle = 22.5 #45.0/2
 while rot_angle > 0.1:
     RotMatStepRotation.append([\
-     RotationMatrix( radians(rot_angle), 2),\
-     RotationMatrix( radians(-rot_angle), 2)])
+     Matrix.Rotation( radians(rot_angle), 2),\
+     Matrix.Rotation( radians(-rot_angle), 2)])
 
     rot_angle = rot_angle/2.0
 
@@ -1124,7 +1124,8 @@ class SmartProject(bpy.types.Operator):
             description="Margin to reduce bleed from adjacent islands.",
             default=0.0, min=0.0, max=1.0)
 
-    def poll(self, context):
+    @classmethod
+    def poll(cls, context):
         return context.active_object != None
 
     def execute(self, context):
@@ -1138,12 +1139,10 @@ menu_func = (lambda self, context: self.layout.operator(SmartProject.bl_idname,
 
 
 def register():
-    bpy.types.register(SmartProject)
     bpy.types.VIEW3D_MT_uv_map.append(menu_func)
 
 
 def unregister():
-    bpy.types.unregister(SmartProject)
     bpy.types.VIEW3D_MT_uv_map.remove(menu_func)
 
 if __name__ == "__main__":

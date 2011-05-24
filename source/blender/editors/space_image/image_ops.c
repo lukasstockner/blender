@@ -41,7 +41,6 @@
 #include "BKE_context.h"
 #include "BKE_image.h"
 #include "BKE_global.h"
-#include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
@@ -648,9 +647,13 @@ static const EnumPropertyItem image_file_type_items[] = {
 #ifdef WITH_TIFF
 		{R_TIFF, "TIFF", 0, "Tiff", ""},
 #endif
+#ifdef WITH_DDS
 		{R_RADHDR, "RADIANCE_HDR", 0, "Radiance HDR", ""},
+#endif
+#ifdef WITH_CINEON
 		{R_CINEON, "CINEON", 0, "Cineon", ""},
 		{R_DPX, "DPX", 0, "DPX", ""},
+#endif
 #ifdef WITH_OPENEXR
 		{R_OPENEXR, "OPENEXR", 0, "OpenEXR", ""},
 	/* saving sequences of multilayer won't work, they copy buffers  */
@@ -736,7 +739,22 @@ static int open_exec(bContext *C, wmOperator *op)
 static int open_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
 	SpaceImage *sima= CTX_wm_space_image(C);
-	char *path= (sima && sima->image)? sima->image->name: U.textudir;
+	char *path=U.textudir;
+	Image *ima= NULL;
+
+	if(sima) {
+		 ima= sima->image;
+	}
+
+	if (ima==NULL) {
+		 Tex *tex= CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data;
+		 if(tex && tex->type==TEX_IMAGE)
+			 ima= tex->ima;
+	}
+
+	if(ima)
+		path= ima->name;
+	
 
 	if(!RNA_property_is_set(op->ptr, "relative_path"))
 		RNA_boolean_set(op->ptr, "relative_path", U.flag & USER_RELPATHS);

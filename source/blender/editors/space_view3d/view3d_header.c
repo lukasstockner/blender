@@ -31,28 +31,20 @@
 #include <stdlib.h>
 
 #include "DNA_scene_types.h"
+#include "DNA_object_types.h"
 
 #include "RNA_access.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_action.h"
-#include "BKE_brush.h"
 #include "BKE_context.h"
-#include "BKE_curve.h"
 #include "BKE_depsgraph.h"
-#include "BKE_displist.h"
 #include "BKE_effect.h"
-#include "BKE_global.h"
-#include "BKE_image.h"
-#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_paint.h"
-#include "BKE_particle.h"
 #include "BKE_screen.h"
-#include "BKE_utildefines.h" /* for VECCOPY */
 
 #include "ED_mesh.h"
 #include "ED_util.h"
@@ -152,6 +144,7 @@ static void handle_view3d_lock(bContext *C)
 
 static int layers_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	ScrArea *sa= CTX_wm_area(C);
 	View3D *v3d= sa->spacedata.first;
@@ -213,7 +206,7 @@ static int layers_exec(bContext *C, wmOperator *op)
 	if(v3d->scenelock) handle_view3d_lock(C);
 	
 	/* new layers might need unflushed events events */
-	DAG_scene_update_flags(scene, v3d->lay);	/* tags all that moves and flushes */
+	DAG_scene_update_flags(bmain, scene, v3d->lay);	/* tags all that moves and flushes */
 
 	ED_area_tag_redraw(sa);
 	

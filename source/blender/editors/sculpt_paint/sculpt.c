@@ -41,31 +41,22 @@
 #include "BLI_editVert.h"
 #include "BLI_rand.h"
 
-#include "DNA_key_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_brush_types.h"
 
 #include "BKE_brush.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
-#include "BKE_customdata.h"
-#include "BKE_DerivedMesh.h"
 #include "BKE_depsgraph.h"
-#include "BKE_global.h"
-#include "BKE_image.h"
 #include "BKE_key.h"
 #include "BKE_library.h"
-#include "BKE_main.h"
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_multires.h"
 #include "BKE_paint.h"
 #include "BKE_report.h"
-#include "BKE_texture.h"
-#include "BKE_utildefines.h"
-#include "BKE_colortools.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -413,7 +404,7 @@ static int sculpt_brush_test_fast(SculptBrushTest *test, float co[3])
 
 static int sculpt_brush_test_cube(SculptBrushTest *test, float *fade, float co[3], float local[4][4])
 {
-	const static float side = 0.70710678118654752440084436210485; // sqrt(.5);
+	static const float side = 0.70710678118654752440084436210485; // sqrt(.5);
 
 	float local_co[3];
 
@@ -3262,20 +3253,15 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 	if (ss->cache->alt_smooth) {
 		Paint *p= &sd->paint;
 		Brush *br;
-		int i;
 		
 		BLI_strncpy(cache->saved_active_brush_name, brush->id.name+2, sizeof(cache->saved_active_brush_name));
 
-		for(i = 0; i < p->brush_count; ++i) {
-			br = p->brushes[i];
-		
-			if (strcmp(br->id.name+2, "Smooth")==0) {
+		br= (Brush *)find_id("BR", "Smooth");
+		if(br) {
 				paint_brush_set(p, br);
 				brush = br;
-				break;
 			}
 		}
-	}
 
 	copy_v2_v2(cache->mouse, cache->initial_mouse);
 	copy_v2_v2(cache->tex_mouse, cache->initial_mouse);
@@ -3481,20 +3467,15 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 		cache->special_rotation = atan2(dx, dy) + M_PI;
 
 		if (brush->flag & BRUSH_EDGE_TO_EDGE) {
-			float d[3];
-			float halfway[3];
+			float halfway[2];
 			float out[3];
 
-			d[0] = dx;
-			d[1] = dy;
-			d[2] = 0;
-
-			mul_v3_v3fl(halfway, d, 0.5f);
-			add_v3_v3(halfway, cache->initial_mouse);
+			halfway[0] = dx*0.5 + cache->initial_mouse[0];
+			halfway[1] = dy*0.5 + cache->initial_mouse[1];
 
 			if (sculpt_stroke_get_location(C, stroke, out, halfway)) {
 				copy_v3_v3(sd->anchored_location, out);
-				copy_v3_v3(sd->anchored_initial_mouse, halfway);
+				copy_v2_v2(sd->anchored_initial_mouse, halfway);
 				copy_v2_v2(cache->tex_mouse, halfway);
 				copy_v3_v3(cache->true_location, sd->anchored_location);
 				sd->anchored_size /= 2.0f;
@@ -3522,7 +3503,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 		const float dy = cache->last_rake[1] - cache->mouse[1];
 
 		if (cache->first_time) {
-			copy_v3_v3(cache->last_rake, cache->mouse);
+			copy_v2_v2(cache->last_rake, cache->mouse);
 		}
 		else if (dx*dx + dy*dy >= r*r) {
 			cache->special_rotation = atan2(dx, dy);
@@ -3654,7 +3635,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 		dx = cache->mouse[0] - cache->initial_mouse[0];
 		dy = cache->mouse[1] - cache->initial_mouse[1];
 
-		cache->vertex_rotation = -atan2(dx, dy) / 4.0f;
+		cache->vertex_rotation = -atan2(dx, dy);
 
 		sd->draw_anchored = 1;
 		copy_v2_v2(sd->anchored_initial_mouse, cache->initial_mouse);
@@ -3971,18 +3952,11 @@ static void sculpt_stroke_done(bContext *C, struct PaintStroke *unused)
 		/* Alt-Smooth */
 		if (ss->cache->alt_smooth) {
 			Paint *p= &sd->paint;
-			Brush *br;
-			int i;
-
-			for(i = 0; i < p->brush_count; ++i) {
-				br = p->brushes[i];
-
-				if (strcmp(br->id.name+2, ss->cache->saved_active_brush_name)==0) {
+			Brush *br= (Brush *)find_id("BR", ss->cache->saved_active_brush_name);
+			if(br) {
 					paint_brush_set(p, br);
-					break;
 				}
 			}
-		}
 
 		sculpt_cache_free(ss->cache);
 		ss->cache = NULL;

@@ -33,7 +33,7 @@
 #define DNA_USERDEF_TYPES_H
 
 #include "DNA_listBase.h"
-#include "DNA_texture_types.h"
+#include "DNA_texture_types.h" /* ColorBand */
 
 /* themes; defines in BIF_resource.h */
 struct ColorBand;
@@ -364,7 +364,7 @@ typedef struct UserDef {
 	short scrcastfps;		/* frame rate for screencast to be played back */
 	short scrcastwait;		/* milliseconds between screencast snapshots */
 	
-	short propwidth, pad[3]; /* Value for Dual/Single Column UI */
+	short pad8, pad[3]; /* Value for Dual/Single Column UI */
 
 	char versemaster[160];
 	char verseuser[160];

@@ -18,13 +18,6 @@
 
 # <pep8 compliant>
 
-"""
-Name: 'Wavefront (.obj)...'
-Blender: 248
-Group: 'Export'
-Tooltip: 'Save a Wavefront OBJ File'
-"""
-
 __author__ = "Campbell Barton, Jiri Hnidek, Paolo Ciccone"
 __url__ = ['http://wiki.blender.org/index.php/Scripts/Manual/Export/wavefront_obj', 'www.blender.org', 'blenderartists.org']
 __version__ = "1.21"
@@ -49,16 +42,6 @@ import shutil
 import bpy
 import mathutils
 
-
-# Returns a tuple - path,extension.
-# 'hello.obj' >	 ('hello', '.obj')
-def splitExt(path):
-    dotidx = path.rfind('.')
-    if dotidx == -1:
-        return path, ''
-    else:
-        return path[:dotidx], path[dotidx:]
-
 def fixName(name):
     if name == None:
         return 'None'
@@ -73,7 +56,7 @@ def write_mtl(scene, filepath, copy_images, mtl_dict):
     dest_dir = os.path.dirname(filepath)
 
     def copy_image(image):
-        fn = bpy.utils.expandpath(image.filepath)
+        fn = bpy.path.abspath(image.filepath)
         fn_strip = os.path.basename(fn)
         if copy_images:
             rel = fn_strip
@@ -189,7 +172,7 @@ def copy_images(dest_dir):
     copyCount = 0
 
 # 	for bImage in uniqueImages.values():
-# 		image_path = bpy.utils.expandpath(bImage.filepath)
+#       image_path = bpy.path.abspath(bImage.filepath)
 # 		if bpy.sys.exists(image_path):
 # 			# Make a name for the target path.
 # 			dest_image_path = dest_dir + image_path.split('\\')[-1].split('/')[-1]
@@ -282,7 +265,7 @@ def write_nurb(file, ob, ob_mat):
 
     return tot_verts
 
-def write(filepath, objects, scene,
+def write_file(filepath, objects, scene,
           EXPORT_TRI=False,
           EXPORT_EDGES=False,
           EXPORT_NORMALS=False,
@@ -370,7 +353,7 @@ def write(filepath, objects, scene,
         file.write('mtllib %s\n' % ( mtlfilepath.split('\\')[-1].split('/')[-1] ))
 
     if EXPORT_ROTX90:
-        mat_xrot90= mathutils.RotationMatrix(-math.pi/2, 4, 'X')
+        mat_xrot90= mathutils.Matrix.Rotation(-math.pi/2, 4, 'X')
 
     # Initialize totals, these are updated each object
     totverts = totuvco = totno = 1
@@ -435,8 +418,11 @@ def write(filepath, objects, scene,
 
             if EXPORT_UV:
                 faceuv = len(me.uv_textures) > 0
+                uv_layer = me.active_uv_texture.data[:]
             else:
                 faceuv = False
+
+            me_verts = me.verts[:]
 
             # XXX - todo, find a better way to do triangulation
             # ...removed convert_to_triface because it relies on editmesh
@@ -510,10 +496,7 @@ def write(filepath, objects, scene,
             if EXPORT_KEEP_VERT_ORDER:
                 pass
             elif faceuv:
-                # XXX update
-                tface = me.active_uv_texture.data
-
-                face_index_pairs.sort(key=lambda a: (a[0].material_index, hash(tface[a[1]].image), a[0].smooth))
+                face_index_pairs.sort(key=lambda a: (a[0].material_index, hash(uv_layer[a[1]].image), a[0].smooth))
             elif len(materials) > 1:
                 face_index_pairs.sort(key = lambda a: (a[0].material_index, a[0].smooth))
             else:
@@ -531,8 +514,6 @@ def write(filepath, objects, scene,
 #				# no materials
 #				try:	faces.sort(key = lambda a: a.smooth)
 #				except:	faces.sort(lambda a,b: cmp(a.smooth, b.smooth))
-
-            faces = [pair[0] for pair in face_index_pairs]
 
             # Set the default mat to no material and no image.
             contextMat = (0, 0) # Can never be this, so we will label a new material teh first chance we get.
@@ -553,28 +534,17 @@ def write(filepath, objects, scene,
 
 
             # Vert
-            for v in me.verts:
+            for v in me_verts:
                 file.write('v %.6f %.6f %.6f\n' % tuple(v.co))
 
             # UV
             if faceuv:
-                uv_face_mapping = [[0,0,0,0] for f in faces] # a bit of a waste for tri's :/
+                uv_face_mapping = [[0,0,0,0] for i in range(len(face_index_pairs))] # a bit of a waste for tri's :/
 
                 uv_dict = {} # could use a set() here
-                uv_layer = me.active_uv_texture
+                uv_layer = me.active_uv_texture.data
                 for f, f_index in face_index_pairs:
-
-                    tface = uv_layer.data[f_index]
-
-                    # workaround, since tface.uv iteration is wrong atm
-                    uvs = tface.uv
-                    # uvs = [tface.uv1, tface.uv2, tface.uv3]
-
-                    # # add another UV if it's a quad
-                    # if len(f.verts) == 4:
-                    # 	uvs.append(tface.uv4)
-
-                    for uv_index, uv in enumerate(uvs):
+                    for uv_index, uv in enumerate(uv_layer[f_index].uv):
                         uvkey = veckey2d(uv)
                         try:
                             uv_face_mapping[f_index][uv_index] = uv_dict[uvkey]
@@ -582,27 +552,16 @@ def write(filepath, objects, scene,
                             uv_face_mapping[f_index][uv_index] = uv_dict[uvkey] = len(uv_dict)
                             file.write('vt %.6f %.6f\n' % tuple(uv))
 
-#				uv_dict = {} # could use a set() here
-#				for f_index, f in enumerate(faces):
-
-#					for uv_index, uv in enumerate(f.uv):
-#						uvkey = veckey2d(uv)
-#						try:
-#							uv_face_mapping[f_index][uv_index] = uv_dict[uvkey]
-#						except:
-#							uv_face_mapping[f_index][uv_index] = uv_dict[uvkey] = len(uv_dict)
-#							file.write('vt %.6f %.6f\n' % tuple(uv))
-
                 uv_unique_count = len(uv_dict)
 # 				del uv, uvkey, uv_dict, f_index, uv_index
                 # Only need uv_unique_count and uv_face_mapping
 
             # NORMAL, Smooth/Non smoothed.
             if EXPORT_NORMALS:
-                for f in faces:
+                for f, f_index in face_index_pairs:
                     if f.smooth:
-                        for vIdx in f.verts:
-                            v = me.verts[vIdx]
+                        for v_idx in f.verts:
+                            v = me_verts[v_idx]
                             noKey = veckey3d(v.normal)
                             if noKey not in globalNormals:
                                 globalNormals[noKey] = totno
@@ -626,16 +585,16 @@ def write(filepath, objects, scene,
 
                 currentVGroup = ''
                 # Create a dictionary keyed by face id and listing, for each vertex, the vertex groups it belongs to
-                vgroupsMap = [[] for _i in range(len(me.verts))]
-#				vgroupsMap = [[] for _i in xrange(len(me.verts))]
+                vgroupsMap = [[] for _i in range(len(me_verts))]
+#               vgroupsMap = [[] for _i in xrange(len(me_verts))]
                 for g in ob.vertex_groups:
 #				for vertexGroupName in vertGroupNames:
-                    for vIdx, vWeight in getVertsFromGroup(me, g.index):
-#					for vIdx, vWeight in me.getVertsFromGroup(vertexGroupName, 1):
-                        vgroupsMap[vIdx].append((g.name, vWeight))
+                    for v_idx, vWeight in getVertsFromGroup(me, g.index):
+#                   for v_idx, vWeight in me.getVertsFromGroup(vertexGroupName, 1):
+                        vgroupsMap[v_idx].append((g.name, vWeight))
 
             for f, f_index in face_index_pairs:
-                f_v = [{"index": index, "vertex": me.verts[index]} for index in f.verts]
+                f_v = [me_verts[v_idx] for v_idx in f.verts]
 
                 # if f.verts[3] == 0:
                 # 	f_v.pop()
@@ -646,7 +605,7 @@ def write(filepath, objects, scene,
 #				f_mat = min(f.mat, len(materialNames)-1)
                 if faceuv:
 
-                    tface = me.active_uv_texture.data[f_index]
+                    tface = uv_layer[f_index]
 
                     f_image = tface.image
                     f_uv = tface.uv
@@ -725,21 +684,21 @@ def write(filepath, objects, scene,
                         if f_smooth: # Smoothed, use vertex normals
                             for vi, v in enumerate(f_v):
                                 file.write( ' %d/%d/%d' % \
-                                                (v["index"] + totverts,
+                                                (v.index + totverts,
                                                  totuvco + uv_face_mapping[f_index][vi],
-                                                 globalNormals[ veckey3d(v["vertex"].normal) ]) ) # vert, uv, normal
+                                                 globalNormals[ veckey3d(v.normal) ]) ) # vert, uv, normal
 
                         else: # No smoothing, face normals
                             no = globalNormals[ veckey3d(f.normal) ]
                             for vi, v in enumerate(f_v):
                                 file.write( ' %d/%d/%d' % \
-                                                (v["index"] + totverts,
+                                                (v.index + totverts,
                                                  totuvco + uv_face_mapping[f_index][vi],
                                                  no) ) # vert, uv, normal
                     else: # No Normals
                         for vi, v in enumerate(f_v):
                             file.write( ' %d/%d' % (\
-                              v["index"] + totverts,\
+                              v.index + totverts,\
                               totuvco + uv_face_mapping[f_index][vi])) # vert, uv
 
                     face_vert_index += len(f_v)
@@ -749,14 +708,14 @@ def write(filepath, objects, scene,
                         if f_smooth: # Smoothed, use vertex normals
                             for v in f_v:
                                 file.write( ' %d//%d' %
-                                            (v["index"] + totverts, globalNormals[ veckey3d(v["vertex"].normal) ]) )
+                                            (v.index + totverts, globalNormals[ veckey3d(v.normal) ]) )
                         else: # No smoothing, face normals
                             no = globalNormals[ veckey3d(f.normal) ]
                             for v in f_v:
-                                file.write( ' %d//%d' % (v["index"] + totverts, no) )
+                                file.write( ' %d//%d' % (v.index + totverts, no) )
                     else: # No Normals
                         for v in f_v:
-                            file.write( ' %d' % (v["index"] + totverts) )
+                            file.write( ' %d' % (v.index + totverts) )
 
                 file.write('\n')
 
@@ -767,7 +726,7 @@ def write(filepath, objects, scene,
                         file.write('f %d %d\n' % (ed.verts[0] + totverts, ed.verts[1] + totverts))
 
             # Make the indicies global rather then per mesh
-            totverts += len(me.verts)
+            totverts += len(me_verts)
             if faceuv:
                 totuvco += uv_unique_count
 
@@ -795,29 +754,28 @@ def write(filepath, objects, scene,
 # 			print('\tError: "%s" could not be used as a base for an image path.' % filepath)
 
     print("OBJ Export time: %.2f" % (time.clock() - time1))
-#	print "OBJ Export time: %.2f" % (sys.time() - time1)
 
-def do_export(filepath, context,
-              EXPORT_APPLY_MODIFIERS = True, # not used
-              EXPORT_ROTX90 = True, # wrong
-              EXPORT_TRI = False, # ok
-              EXPORT_EDGES = False,
-              EXPORT_NORMALS = False, # not yet
-              EXPORT_NORMALS_HQ = False, # not yet
-              EXPORT_UV = True, # ok
-              EXPORT_MTL = True,
-              EXPORT_SEL_ONLY = True, # ok
-              EXPORT_ALL_SCENES = False, # XXX not working atm
-              EXPORT_ANIMATION = False,
-              EXPORT_COPY_IMAGES = False,
-              EXPORT_BLEN_OBS = True,
-              EXPORT_GROUP_BY_OB = False,
-              EXPORT_GROUP_BY_MAT = False,
-              EXPORT_KEEP_VERT_ORDER = False,
-              EXPORT_POLYGROUPS = False,
-              EXPORT_CURVE_AS_NURBS = True):
+def write(filepath, context,
+              EXPORT_TRI, # ok
+              EXPORT_EDGES,
+              EXPORT_NORMALS, # not yet
+              EXPORT_NORMALS_HQ, # not yet
+              EXPORT_UV, # ok
+              EXPORT_MTL,
+              EXPORT_COPY_IMAGES,
+              EXPORT_APPLY_MODIFIERS, # ok
+              EXPORT_ROTX90, # wrong
+              EXPORT_BLEN_OBS,
+              EXPORT_GROUP_BY_OB,
+              EXPORT_GROUP_BY_MAT,
+              EXPORT_KEEP_VERT_ORDER,
+              EXPORT_POLYGROUPS,
+              EXPORT_CURVE_AS_NURBS,
+              EXPORT_SEL_ONLY, # ok
+              EXPORT_ALL_SCENES, # XXX not working atm
+              EXPORT_ANIMATION): # Not used
     
-    base_name, ext = splitExt(filepath)
+    base_name, ext = os.path.splitext(filepath)
     context_name = [base_name, '', '', ext] # Base name, scene name, frame number, extension
 
     orig_scene = context.scene
@@ -838,17 +796,17 @@ def do_export(filepath, context,
     export_scenes = [orig_scene]
 
     # Export all scenes.
-    for scn in export_scenes:
-        #		scn.makeCurrent() # If already current, this is not slow.
-        #		context = scn.getRenderingContext()
-        orig_frame = scn.frame_current
+    for scene in export_scenes:
+        #       scene.makeCurrent() # If already current, this is not slow.
+        #       context = scene.getRenderingContext()
+        orig_frame = scene.frame_current
 
         if EXPORT_ALL_SCENES: # Add scene name into the context_name
-            context_name[1] = '_%s' % bpy.utils.clean_name(scn.name) # WARNING, its possible that this could cause a collision. we could fix if were feeling parranoied.
+            context_name[1] = '_%s' % bpy.path.clean_name(scene.name) # WARNING, its possible that this could cause a collision. we could fix if were feeling parranoied.
 
         # Export an animation?
         if EXPORT_ANIMATION:
-            scene_frames = range(scn.frame_start, context.frame_end + 1) # Up to and including the end frame.
+            scene_frames = range(scene.frame_start, context.frame_end + 1) # Up to and including the end frame.
         else:
             scene_frames = [orig_frame] # Dont export an animation.
 
@@ -857,26 +815,35 @@ def do_export(filepath, context,
             if EXPORT_ANIMATION: # Add frame to the filepath.
                 context_name[2] = '_%.6d' % frame
 
-            scn.frame_current = frame
+            scene.frame_current = frame
             if EXPORT_SEL_ONLY:
-                export_objects = context.selected_objects
+                objects = context.selected_objects
             else:
-                export_objects = scn.objects
+                objects = scene.objects
 
             full_path= ''.join(context_name)
 
             # erm... bit of a problem here, this can overwrite files when exporting frames. not too bad.
             # EXPORT THE FILE.
-            write(full_path, export_objects, scn,
-                  EXPORT_TRI, EXPORT_EDGES, EXPORT_NORMALS,
-                  EXPORT_NORMALS_HQ, EXPORT_UV, EXPORT_MTL,
-                  EXPORT_COPY_IMAGES, EXPORT_APPLY_MODIFIERS,
-                  EXPORT_ROTX90, EXPORT_BLEN_OBS,
-                  EXPORT_GROUP_BY_OB, EXPORT_GROUP_BY_MAT, EXPORT_KEEP_VERT_ORDER,
-                  EXPORT_POLYGROUPS, EXPORT_CURVE_AS_NURBS)
+            write_file(full_path, objects, scene,
+                  EXPORT_TRI,
+                  EXPORT_EDGES,
+                  EXPORT_NORMALS,
+                  EXPORT_NORMALS_HQ,
+                  EXPORT_UV,
+                  EXPORT_MTL,
+                  EXPORT_COPY_IMAGES,
+                  EXPORT_APPLY_MODIFIERS,
+                  EXPORT_ROTX90,
+                  EXPORT_BLEN_OBS,
+                  EXPORT_GROUP_BY_OB,
+                  EXPORT_GROUP_BY_MAT,
+                  EXPORT_KEEP_VERT_ORDER,
+                  EXPORT_POLYGROUPS,
+                  EXPORT_CURVE_AS_NURBS)
 
 
-        scn.frame_current = orig_frame
+        scene.frame_current = orig_frame
 
     # Restore old active scene.
 #	orig_scene.makeCurrent()
@@ -905,12 +872,12 @@ class ExportOBJ(bpy.types.Operator):
     check_existing = BoolProperty(name="Check Existing", description="Check and warn on overwriting existing files", default=True, options={'HIDDEN'})
 
     # context group
-    use_selection = BoolProperty(name="Selection Only", description="", default= False)
+    use_selection = BoolProperty(name="Selection Only", description="Export selected objects only", default= False)
     use_all_scenes = BoolProperty(name="All Scenes", description="", default= False)
-    use_animation = BoolProperty(name="All Animation", description="", default= False)
+    use_animation = BoolProperty(name="Animation", description="", default= False)
 
     # object group
-    use_modifiers = BoolProperty(name="Apply Modifiers", description="", default= True)
+    use_modifiers = BoolProperty(name="Apply Modifiers", description="Apply modifiers (preview resolution)", default= True)
     use_rotate90 = BoolProperty(name="Rotate X90", description="", default= True)
 
     # extra data group
@@ -934,10 +901,9 @@ class ExportOBJ(bpy.types.Operator):
     def execute(self, context):
 
         filepath = self.properties.filepath
-        if not filepath.lower().endswith(".obj"):
-            filepath += ".obj"
+        filepath = bpy.path.ensure_ext(filepath, ".obj")
 
-        do_export(filepath, context,
+        write(filepath, context,
                   EXPORT_TRI=self.properties.use_triangles,
                   EXPORT_EDGES=self.properties.use_edges,
                   EXPORT_NORMALS=self.properties.use_normals,
@@ -954,27 +920,28 @@ class ExportOBJ(bpy.types.Operator):
                   EXPORT_POLYGROUPS=self.properties.use_vertex_groups,
                   EXPORT_CURVE_AS_NURBS=self.properties.use_nurbs,
                   EXPORT_SEL_ONLY=self.properties.use_selection,
-                  EXPORT_ALL_SCENES=self.properties.use_all_scenes)
+              EXPORT_ALL_SCENES=self.properties.use_all_scenes,
+              EXPORT_ANIMATION=self.properties.use_animation)
 
         return {'FINISHED'}
 
     def invoke(self, context, event):
-        wm = context.manager
-        wm.add_fileselect(self)
+        import os
+        if not self.properties.is_property_set("filepath"):
+            self.properties.filepath = os.path.splitext(bpy.data.filepath)[0] + ".obj"
+
+        context.manager.add_fileselect(self)
         return {'RUNNING_MODAL'}
 
 
 def menu_func(self, context):
-    default_path = os.path.splitext(bpy.data.filepath)[0] + ".obj"
-    self.layout.operator(ExportOBJ.bl_idname, text="Wavefront (.obj)").filepath = default_path
+    self.layout.operator(ExportOBJ.bl_idname, text="Wavefront (.obj)")
 
 
 def register():
-    bpy.types.register(ExportOBJ)
     bpy.types.INFO_MT_file_export.append(menu_func)
 
 def unregister():
-    bpy.types.unregister(ExportOBJ)
     bpy.types.INFO_MT_file_export.remove(menu_func)
 
 
@@ -987,4 +954,3 @@ def unregister():
 
 if __name__ == "__main__":
     register()
-

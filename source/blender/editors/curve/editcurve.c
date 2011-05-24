@@ -56,9 +56,7 @@
 #include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
-#include "BKE_object.h"
 #include "BKE_report.h"
-#include "BKE_utildefines.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -397,6 +395,10 @@ static void keyIndex_delNurb(EditNurb *editnurb, Nurb *nu)
 {
 	int a;
 
+	if (!editnurb->keyindex) {
+		return;
+	}
+
 	if (nu->bezt) {
 		BezTriple *bezt= nu->bezt;
 		a= nu->pntsu;
@@ -722,7 +724,7 @@ static void calc_shapeKeys(Object *obedit)
 		int a, i, j;
 		EditNurb *editnurb= cu->editnurb;
 		KeyBlock *currkey;
-		KeyBlock *actkey= ob_get_keyblock(obedit);
+		KeyBlock *actkey= BLI_findlink(&cu->key->block, editnurb->shapenr-1);
 		BezTriple *bezt, *oldbezt;
 		BPoint *bp, *oldbp;
 		Nurb *nu;
@@ -736,7 +738,7 @@ static void calc_shapeKeys(Object *obedit)
 			int act_is_basis = 0;
 			/* find if this key is a basis for any others */
 			for(currkey = cu->key->block.first; currkey; currkey= currkey->next) {
-				if(obedit->shapenr-1 == currkey->relative) {
+				if(editnurb->shapenr-1 == currkey->relative) {
 					act_is_basis = 1;
 					break;
 				}
@@ -804,7 +806,7 @@ static void calc_shapeKeys(Object *obedit)
 
 		currkey = cu->key->block.first;
 		while(currkey) {
-			int apply_offset = (ofs && (currkey != actkey) && (obedit->shapenr-1 == currkey->relative));
+			int apply_offset = (ofs && (currkey != actkey) && (editnurb->shapenr-1 == currkey->relative));
 
 			fp= newkey= MEM_callocN(cu->key->elemsize * totvert,  "currkey->data");
 			ofp= oldkey = currkey->data;
@@ -1033,6 +1035,7 @@ void make_editNurb(Object *obedit)
 		}
 
 		if(actkey) {
+			editnurb->shapenr= obedit->shapenr;
 			init_editNurb_keyIndex(editnurb, &cu->nurb);
 		}
 	}
@@ -1119,6 +1122,7 @@ void CU_select_swap(Object *obedit)
 
 static int separate_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	Nurb *nu, *nu1;
 	Object *oldob, *newob;
@@ -1139,7 +1143,7 @@ static int separate_exec(bContext *C, wmOperator *op)
 	WM_cursor_wait(1);
 	
 	/* 1. duplicate the object and data */
-	newbase= ED_object_add_duplicate(scene, oldbase, 0);	/* 0 = fully linked */
+	newbase= ED_object_add_duplicate(bmain, scene, oldbase, 0);	/* 0 = fully linked */
 	ED_base_object_select(newbase, BA_DESELECT);
 	newob= newbase->object;
 
@@ -5543,6 +5547,7 @@ void CURVE_OT_shade_flat(wmOperatorType *ot)
 
 int join_curve_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	Object *ob= CTX_data_active_object(C);
 	Curve *cu;
@@ -5594,7 +5599,7 @@ int join_curve_exec(bContext *C, wmOperator *op)
 					}
 				}
 			
-				ED_base_object_free_and_unlink(scene, base);
+				ED_base_object_free_and_unlink(bmain, scene, base);
 			}
 		}
 	}
@@ -5603,7 +5608,7 @@ int join_curve_exec(bContext *C, wmOperator *op)
 	cu= ob->data;
 	addlisttolist(&cu->nurb, &tempbase);
 	
-	DAG_scene_sort(scene);	// because we removed object(s), call before editmode!
+	DAG_scene_sort(bmain, scene);	// because we removed object(s), call before editmode!
 	
 	ED_object_enter_editmode(C, EM_WAITCURSOR);
 	ED_object_exit_editmode(C, EM_FREEDATA|EM_WAITCURSOR|EM_DO_UNDO);

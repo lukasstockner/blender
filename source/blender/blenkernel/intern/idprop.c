@@ -27,6 +27,7 @@
  
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 
 #include "BKE_idprop.h"
@@ -491,47 +492,41 @@ void IDP_ReplaceGroupInGroup(IDProperty *dest, IDProperty *src)
 void IDP_ReplaceInGroup(IDProperty *group, IDProperty *prop)
 {
 	IDProperty *loop;
-	for (loop=group->data.group.first; loop; loop=loop->next) {
-		if (BSTR_EQ(loop->name, prop->name)) {
+	if((loop= IDP_GetPropertyFromGroup(group, prop->name)))  {
 			BLI_insertlink(&group->data.group, loop, prop);
 			
 			BLI_remlink(&group->data.group, loop);
 			IDP_FreeProperty(loop);
 			MEM_freeN(loop);			
-			return;
 		}
-	}
-
+	else {
 	group->len++;
 	BLI_addtail(&group->data.group, prop);
+}
 }
 
 /*returns 0 if an id property with the same name exists and it failed,
   or 1 if it succeeded in adding to the group.*/
 int IDP_AddToGroup(IDProperty *group, IDProperty *prop)
 {
-	IDProperty *loop;
-	for (loop=group->data.group.first; loop; loop=loop->next) {
-		if (BSTR_EQ(loop->name, prop->name)) return 0;
-	}
-
+	if(IDP_GetPropertyFromGroup(group, prop->name) == NULL)  {
 	group->len++;
 	BLI_addtail(&group->data.group, prop);
-
 	return 1;
 }
 
-int IDP_InsertToGroup(IDProperty *group, IDProperty *previous, IDProperty *pnew)
-{
-	IDProperty *loop;
-	for (loop=group->data.group.first; loop; loop=loop->next) {
-		if (BSTR_EQ(loop->name, pnew->name)) return 0;
+	return 0;
 	}
 	
+int IDP_InsertToGroup(IDProperty *group, IDProperty *previous, IDProperty *pnew)
+{
+	if(IDP_GetPropertyFromGroup(group, pnew->name) == NULL)  {
 	group->len++;
-
 	BLI_insertlink(&group->data.group, previous, pnew);
 	return 1;
+}
+
+	return 0;
 }
 
 void IDP_RemFromGroup(IDProperty *group, IDProperty *prop)
@@ -542,12 +537,8 @@ void IDP_RemFromGroup(IDProperty *group, IDProperty *prop)
 
 IDProperty *IDP_GetPropertyFromGroup(IDProperty *prop, const char *name)
 {
-	IDProperty *loop;
-	for (loop=prop->data.group.first; loop; loop=loop->next) {
-		if (strcmp(loop->name, name)==0) return loop;
+	return (IDProperty *)BLI_findstring(&prop->data.group, name, offsetof(IDProperty, name));
 	}
-	return NULL;
-}
 
 typedef struct IDPIter {
 	void *next;

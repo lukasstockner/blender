@@ -118,7 +118,7 @@ extern "C" {
 #include "KX_BlenderSceneConverter.h"
 #include "KX_MeshProxy.h" /* for creating a new library of mesh objects */
 extern "C" {
-	#include "BLO_readfile.h"
+	#include "BKE_idcode.h"
 }
 
 #include "NG_NetworkScene.h" //Needed for sendMessage()
@@ -666,7 +666,7 @@ static PyObject *gLibNew(PyObject*, PyObject* args)
 		return NULL;
 	}
 	
-	idcode= BLO_idcode_from_name(group);
+	idcode= BKE_idcode_from_name(group);
 	if(idcode==0) {
 		PyErr_Format(PyExc_ValueError, "invalid group given \"%s\"", group);
 		return NULL;
@@ -1913,8 +1913,7 @@ PyObject* initGamePlayerPythonScripting(const STR_String& progname, TPythonSecur
 	
 	PyObjectPlus::ClearDeprecationWarning();
 	
-	PyObject* moduleobj = PyImport_AddModule("__main__");
-	return PyModule_GetDict(moduleobj);
+	return bpy_namespace_dict_new(NULL);
 }
 
 void exitGamePlayerPythonScripting()
@@ -1950,8 +1949,7 @@ PyObject* initGamePythonScripting(const STR_String& progname, TPythonSecurityLev
 
 	PyObjectPlus::NullDeprecationWarning();
 	
-	PyObject* moduleobj = PyImport_AddModule("__main__");
-	return PyModule_GetDict(moduleobj);
+	return bpy_namespace_dict_new(NULL);
 }
 
 void exitGamePythonScripting()
@@ -1992,7 +1990,7 @@ void setupGamePython(KX_KetsjiEngine* ketsjiengine, KX_Scene* startscene, Main *
 	initVideoTexture();
 
 	/* could be done a lot more nicely, but for now a quick way to get bge.* working */
-	PyRun_SimpleString("__import__('sys').modules['bge']=[mod for mod in (type(__builtins__)('bge'), ) if mod.__dict__.update({'logic':__import__('GameLogic'), 'render':__import__('Rasterizer'), 'events':__import__('GameKeys'), 'constraints':__import__('PhysicsConstraints'), 'types':__import__('GameTypes')}) is None][0]");
+	PyRun_SimpleString("sys = __import__('sys');mod = sys.modules['bge'] = type(sys)('bge');mod.__dict__.update({'logic':__import__('GameLogic'), 'render':__import__('Rasterizer'), 'events':__import__('GameKeys'), 'constraints':__import__('PhysicsConstraints'), 'types':__import__('GameTypes')})");
 }
 
 static struct PyModuleDef Rasterizer_module_def = {

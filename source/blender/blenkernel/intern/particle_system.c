@@ -62,7 +62,6 @@
 #include "BLI_listbase.h"
 #include "BLI_threads.h"
 
-#include "BKE_anim.h"
 #include "BKE_animsys.h"
 #include "BKE_boids.h"
 #include "BKE_cdderivedmesh.h"
@@ -182,7 +181,7 @@ static void realloc_particles(ParticleSimulationData *sim, int new_totpart)
 	else
 		totpart=new_totpart;
 
-	if(totpart && totpart != psys->totpart) {
+	if(totpart != psys->totpart) {
 		if(psys->edit && psys->free_edit) {
 			psys->free_edit(psys->edit);
 			psys->edit = NULL;
@@ -1730,8 +1729,7 @@ void reset_particle(ParticleSimulationData *sim, ParticleData *pa, float dtime, 
 		mul_qt_v3(rot, vtan);
 		mul_qt_v3(rot, utan);
 
-		VECCOPY(p_vel, state.vel);
-		speed=normalize_v3(p_vel);
+		speed= normalize_v3_v3(p_vel, state.vel);
 		mul_v3_fl(p_vel, dot_v3v3(r_vel, p_vel));
 		VECSUB(p_vel, r_vel, p_vel);
 		normalize_v3(p_vel);
@@ -1872,18 +1870,15 @@ void reset_particle(ParticleSimulationData *sim, ParticleData *pa, float dtime, 
 
 		/*		*emitter object orientation		*/
 		if(part->ob_vel[0]!=0.0) {
-			VECCOPY(vec, ob->obmat[0]);
-			normalize_v3(vec);
+			normalize_v3_v3(vec, ob->obmat[0]);
 			VECADDFAC(vel, vel, vec, part->ob_vel[0]);
 		}
 		if(part->ob_vel[1]!=0.0) {
-			VECCOPY(vec, ob->obmat[1]);
-			normalize_v3(vec);
+			normalize_v3_v3(vec, ob->obmat[1]);
 			VECADDFAC(vel, vel, vec, part->ob_vel[1]);
 		}
 		if(part->ob_vel[2]!=0.0) {
-			VECCOPY(vec, ob->obmat[2]);
-			normalize_v3(vec);
+			normalize_v3_v3(vec, ob->obmat[2]);
 			VECADDFAC(vel, vel, vec, part->ob_vel[2]);
 		}
 

@@ -30,11 +30,14 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <stddef.h>
+
 
 #include "DNA_ID.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_brush_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
@@ -62,6 +65,7 @@
 #include "BKE_screen.h" /* BKE_ST_MAXNAME */
 #include "BKE_utildefines.h"
 #include "BKE_brush.h" // JW
+#include "BKE_idcode.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h" /* for paint cursor */
@@ -104,8 +108,8 @@ wmOperatorType *WM_operatortype_find(const char *idname, int quiet)
 	WM_operator_bl_idname(idname_bl, idname);
 	
 	if (idname_bl[0]) {
-		for(ot= global_ops.first; ot; ot= ot->next) {
-			if(strncmp(ot->idname, idname_bl, OP_MAX_TYPENAME)==0)
+		ot= (wmOperatorType *)BLI_findstring_ptr(&global_ops, idname_bl, offsetof(wmOperatorType, idname));
+		if(ot) {
 			   return ot;
 		}
 	}
@@ -113,22 +117,6 @@ wmOperatorType *WM_operatortype_find(const char *idname, int quiet)
 	if(!quiet)
 		printf("search for unknown operator %s, %s\n", idname_bl, idname);
 	
-	return NULL;
-}
-
-wmOperatorType *WM_operatortype_exists(const char *idname)
-{
-	wmOperatorType *ot;
-	
-	char idname_bl[OP_MAX_TYPENAME]; // XXX, needed to support python style names without the _OT_ syntax
-	WM_operator_bl_idname(idname_bl, idname);
-	
-	if(idname_bl[0]) {
-		for(ot= global_ops.first; ot; ot= ot->next) {
-			if(strncmp(ot->idname, idname_bl, OP_MAX_TYPENAME)==0)
-			   return ot;
-		}
-	}
 	return NULL;
 }
 
@@ -332,7 +320,7 @@ wmOperatorType *WM_operatortype_append_macro(char *idname, char *name, int flag)
 {
 	wmOperatorType *ot;
 	
-	if(WM_operatortype_exists(idname)) {
+	if(WM_operatortype_find(idname, TRUE)) {
 		printf("Macro error: operator %s exists\n", idname);
 		return NULL;
 	}
@@ -1624,7 +1612,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		scene_deselect_all(scene);
 
 	bh = BLO_blendhandle_from_file(libname);
-	idcode = BLO_idcode_from_name(group);
+	idcode = BKE_idcode_from_name(group);
 	
 	flag = wm_link_append_flag(op);
 
@@ -1668,8 +1656,8 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	flag_all_listbases_ids(LIB_PRE_EXISTING, 0);
 
 	/* recreate dependency graph to include new objects */
-	DAG_scene_sort(scene);
-	DAG_ids_flush_update(0);
+	DAG_scene_sort(bmain, scene);
+	DAG_ids_flush_update(bmain, 0);
 
 	BLO_blendhandle_close(bh);
 
@@ -2665,7 +2653,7 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 	float r1=0.0f, r2=0.0f, r3=0.0f, angle=0.0f;
 
 	Paint *paint = paint_get_active(CTX_data_scene(C));
-	Brush *brush = paint_brush(paint);
+	struct Brush *brush = paint_brush(paint);
 
 	ViewContext vc;
 
@@ -3075,15 +3063,17 @@ static int redraw_timer_exec(bContext *C, wmOperator *op)
 			redraw_timer_window_swap(C);
 		}
 		else if (type==4) {
+			Main *bmain= CTX_data_main(C);
 			Scene *scene= CTX_data_scene(C);
 			
 			if(a & 1) scene->r.cfra--;
 			else scene->r.cfra++;
-			scene_update_for_newframe(scene, scene->lay);
+			scene_update_for_newframe(bmain, scene, scene->lay);
 		}
 		else if (type==5) {
 
 			/* play anim, return on same frame as started with */
+			Main *bmain= CTX_data_main(C);
 			Scene *scene= CTX_data_scene(C);
 			int tot= (scene->r.efra - scene->r.sfra) + 1;
 
@@ -3093,7 +3083,7 @@ static int redraw_timer_exec(bContext *C, wmOperator *op)
 				if(scene->r.cfra > scene->r.efra)
 					scene->r.cfra= scene->r.sfra;
 
-				scene_update_for_newframe(scene, scene->lay);
+				scene_update_for_newframe(bmain, scene, scene->lay);
 				redraw_timer_window_swap(C);
 			}
 		}

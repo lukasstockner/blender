@@ -30,18 +30,15 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "BLI_string.h"
 
 #include "BKE_colortools.h"
 #include "BKE_context.h"
-#include "BKE_icons.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_texture.h"
-#include "BKE_utildefines.h"
 #include "BKE_report.h"
 
 #include "ED_screen.h"
@@ -142,8 +139,6 @@ typedef struct TemplateID {
 
 	ListBase *idlb;
 	int prv_rows, prv_cols;
-
-	char filterop[64];
 } TemplateID;
 
 /* Search browse menu, assign  */
@@ -173,54 +168,27 @@ static void id_search_cb(const bContext *C, void *arg_template, char *str, uiSea
 	/* ID listbase */
 	for(id= lb->first; id; id= id->next) {
 		if(!((flag & PROP_ID_SELF_CHECK) && id == id_from)) {
-			int filter_yes;
-
-			filter_yes= 0;
 
 			/* use filter */
-			if (template->filterop[0] != 0) {
+			if(RNA_property_type(template->prop)==PROP_POINTER) {
 				PointerRNA ptr;
-				ReportList reports;
-				FunctionRNA *func;
-				ParameterList parms;
-
 				RNA_id_pointer_create(id, &ptr);
-
-				BKE_reports_init(&reports, RPT_PRINT);
-
-				func= RNA_struct_find_function(&ptr, template->filterop);
-
-				if (func) {
-					RNA_parameter_list_create(&parms, &ptr, func);
-
-					RNA_parameter_set_lookup(&parms, "context", &C);
-
-					if (RNA_function_call((bContext *)C, &reports, &ptr, func, &parms) == 0) {
-						int* ret;
-						RNA_parameter_get_lookup(&parms, "ret", (void **)&ret);
-
-						if (!(*ret)) {
-							RNA_parameter_list_free(&parms);
+				if(RNA_property_pointer_poll(&template->ptr, template->prop, &ptr)==0)
 							continue;
 						}
-						else {
-							filter_yes= 1;
-						}
-					}
-
-					RNA_parameter_list_free(&parms);
-				}
-			}
 
 			/* hide dot-datablocks, but only if filter does not force it visible */
-			if(!filter_yes && U.uiflag & USER_HIDE_DOT)
+			if(U.uiflag & USER_HIDE_DOT)
 				if ((id->name[2]=='.') && (str[0] != '.'))
 					continue;
 
 			if(BLI_strcasestr(id->name+2, str)) {
+				char name_ui[32];
+				name_uiprefix_id(name_ui, id);
+
 				iconid= ui_id_icon_get((bContext*)C, id, 1);
 
-				if(!uiSearchItemAdd(items, id->name+2, id, iconid))
+				if(!uiSearchItemAdd(items, name_ui, id, iconid))
 					break;
 			}
 		}
@@ -381,7 +349,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
 	}
 }
 
-static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, StructRNA *type, int flag, char *newop, char *openop, char *unlinkop, char *filterop)
+static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, StructRNA *type, int flag, char *newop, char *openop, char *unlinkop)
 {
 	uiBut *but;
 	uiBlock *block;
@@ -524,7 +492,7 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 	uiBlockEndAlign(block);
 }
 
-static void ui_template_id(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propname, char *newop, char *openop, char *unlinkop, char* filterop, int flag, int prv_rows, int prv_cols)
+static void ui_template_id(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propname, char *newop, char *openop, char *unlinkop, int flag, int prv_rows, int prv_cols)
 {
 	TemplateID *template;
 	PropertyRNA *prop;
@@ -543,11 +511,6 @@ static void ui_template_id(uiLayout *layout, bContext *C, PointerRNA *ptr, char 
 	template->prv_rows = prv_rows;
 	template->prv_cols = prv_cols;
 
-	if (filterop) 
-		BLI_strncpy(template->filterop, filterop, sizeof(template->filterop));
-	else
-		template->filterop[0] = 0;
-
 	if(newop)
 		flag |= UI_ID_ADD_NEW;
 	if(openop)
@@ -561,25 +524,25 @@ static void ui_template_id(uiLayout *layout, bContext *C, PointerRNA *ptr, char 
 	 */
 	if(template->idlb) {
 		uiLayoutRow(layout, 1);
-		template_ID(C, layout, template, type, flag, newop, openop, unlinkop, filterop);
+		template_ID(C, layout, template, type, flag, newop, openop, unlinkop);
 	}
 
 	MEM_freeN(template);
 }
 
-void uiTemplateID(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propname, char *newop, char *openop, char *unlinkop, char *filterop)
+void uiTemplateID(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propname, char *newop, char *openop, char *unlinkop)
 {
-	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop, filterop, UI_ID_BROWSE|UI_ID_RENAME|UI_ID_DELETE, 0, 0);
+	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop, UI_ID_BROWSE|UI_ID_RENAME|UI_ID_DELETE, 0, 0);
 }
 
-void uiTemplateIDBrowse(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propname, char *newop, char *openop, char *unlinkop, char *filterop)
+void uiTemplateIDBrowse(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propname, char *newop, char *openop, char *unlinkop)
 {
-	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop, filterop, UI_ID_BROWSE|UI_ID_RENAME, 0, 0);
+	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop, UI_ID_BROWSE|UI_ID_RENAME, 0, 0);
 }
 
-void uiTemplateIDPreview(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propname, char *newop, char *openop, char *unlinkop, char *filterop, int rows, int cols)
+void uiTemplateIDPreview(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propname, char *newop, char *openop, char *unlinkop, int rows, int cols)
 {
-	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop, filterop, UI_ID_BROWSE|UI_ID_RENAME|UI_ID_DELETE|UI_ID_PREVIEWS, rows, cols);
+	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop, UI_ID_BROWSE|UI_ID_RENAME|UI_ID_DELETE|UI_ID_PREVIEWS, rows, cols);
 }
 
 /************************ ID Chooser Template ***************************/
@@ -664,12 +627,8 @@ void uiTemplatePathBuilder(uiLayout *layout, bContext *C, PointerRNA *ptr, char 
 #include "DNA_object_force.h"
 
 #include "BKE_depsgraph.h"
-#include "BKE_DerivedMesh.h"
-#include "BKE_global.h"
 #include "BKE_modifier.h"
-#include "BKE_object.h"
 #include "BKE_particle.h"
-#include "BKE_report.h"
 
 #include "ED_util.h"
 
@@ -957,6 +916,7 @@ uiLayout *uiTemplateModifier(uiLayout *layout, bContext *C, PointerRNA *ptr, int
 
 void do_constraint_panels(bContext *C, void *arg, int event)
 {
+	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	Object *ob= CTX_data_active_object(C);
 	
@@ -968,7 +928,7 @@ void do_constraint_panels(bContext *C, void *arg, int event)
 		break;  // no handling
 	case B_CONSTRAINT_CHANGETARGET:
 		if (ob->pose) ob->pose->flag |= POSE_RECALC;	// checks & sorts pose channels
-		DAG_scene_sort(scene);
+		DAG_scene_sort(bmain, scene);
 		break;
 	default:
 		break;
@@ -1182,7 +1142,6 @@ uiLayout *uiTemplateConstraint(uiLayout *layout, PointerRNA *ptr, int compact)
 
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
-#include "DNA_texture_types.h"
 #include "DNA_world_types.h"
 
 #define B_MATPRV 1
@@ -1282,7 +1241,6 @@ void uiTemplatePreview(uiLayout *layout, ID *id, ID *parent, MTex *slot)
 
 /********************** ColorRamp Template **************************/
 
-#include "BKE_texture.h"
 
 typedef struct RNAUpdateCb {
 	PointerRNA ptr;
@@ -1301,89 +1259,30 @@ static void rna_update_cb(bContext *C, void *arg_cb, void *arg_unused)
 
 #define B_BANDCOL 1
 
-static int vergcband(const void *a1, const void *a2)
-{
-	const CBData *x1=a1, *x2=a2;
-
-	if( x1->pos > x2->pos ) return 1;
-	else if( x1->pos < x2->pos) return -1;
-	return 0;
-}
-
-static void colorband_pos_cb(bContext *C, void *cb_v, void *coba_v)
-{
-	ColorBand *coba= coba_v;
-	int a;
-
-	if(coba->tot<2) return;
-
-	for(a=0; a<coba->tot; a++) coba->data[a].cur= a;
-	qsort(coba->data, coba->tot, sizeof(CBData), vergcband);
-	for(a=0; a<coba->tot; a++) {
-		if(coba->data[a].cur==coba->cur) {
-			coba->cur= a;
-			break;
-		}
-	}
-
-	rna_update_cb(C, cb_v, NULL);
-}
-
 static void colorband_add_cb(bContext *C, void *cb_v, void *coba_v)
 {
 	ColorBand *coba= coba_v;
-
-	if(coba->tot > 0) {
-		CBData *xnew, *x1, *x2;
-		float col[4];
-
-		xnew= &coba->data[coba->tot];
+	float pos= 0.5f;
 
 		if(coba->tot > 1) {
-			if(coba->cur > 0) {
-				x1= &coba->data[coba->cur-1];
-				x2= &coba->data[coba->cur];
-			}
-			else {
-				x1= &coba->data[coba->cur];
-				x2= &coba->data[coba->cur+1];
+		if(coba->cur > 0)	pos= (coba->data[coba->cur-1].pos + coba->data[coba->cur].pos) * 0.5f;
+		else				pos= (coba->data[coba->cur+1].pos + coba->data[coba->cur].pos) * 0.5f;
 			}
 
-			xnew->pos = x1->pos + ((x2->pos - x1->pos) / 2);
+	if(colorband_element_add(coba, pos)) {
+		rna_update_cb(C, cb_v, NULL);
+		ED_undo_push(C, "Add colorband");	
 		}
-
-		do_colorband(coba, xnew->pos, col);
-
-		xnew->r= col[0];
-		xnew->g= col[1];
-		xnew->b= col[2];
-		xnew->a= col[3];
 	}
-
-	if(coba->tot < MAXCOLORBAND-1) coba->tot++;
-	coba->cur= coba->tot-1;
-
-	colorband_pos_cb(C, cb_v, coba_v);
-
-	ED_undo_push(C, "Add colorband");
-}
 
 static void colorband_del_cb(bContext *C, void *cb_v, void *coba_v)
 {
 	ColorBand *coba= coba_v;
-	int a;
 
-	if(coba->tot<2) return;
-
-	for(a=coba->cur; a<coba->tot; a++) {
-		coba->data[a]= coba->data[a+1];
-	}
-	if(coba->cur) coba->cur--;
-	coba->tot--;
-
+	if(colorband_element_remove(coba, coba->cur)) {
 	ED_undo_push(C, "Delete colorband");
-
 	rna_update_cb(C, cb_v, NULL);
+}
 }
 
 static void colorband_flip_cb(bContext *C, void *cb_v, void *coba_v)
@@ -1637,7 +1536,6 @@ void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, char *propname, in
 
 /********************* CurveMapping Template ************************/
 
-#include "BKE_colortools.h"
 
 static void curvemap_buttons_zoom_in(bContext *C, void *cumap_v, void *unused)
 {
@@ -1746,7 +1644,7 @@ static void curvemap_tools_dofunc(bContext *C, void *cumap_v, int event)
 
 	switch(event) {
 		case 0: /* reset */
-			curvemap_reset(cuma, &cumap->clipr,	cumap->preset);
+			curvemap_reset(cuma, &cumap->clipr,	cumap->preset, CURVEMAP_SLOPE_POSITIVE);
 			curvemapping_changed(cumap, 0);
 			break;
 		case 1:
@@ -1826,7 +1724,7 @@ static void curvemap_buttons_reset(bContext *C, void *cb_v, void *cumap_v)
 	
 	cumap->preset = CURVE_PRESET_LINE;
 	for(a=0; a<CM_TOT; a++)
-		curvemap_reset(cumap->cm+a, &cumap->clipr, cumap->preset);
+		curvemap_reset(cumap->cm+a, &cumap->clipr, cumap->preset, CURVEMAP_SLOPE_POSITIVE);
 	
 	cumap->black[0]=cumap->black[1]=cumap->black[2]= 0.0f;
 	cumap->white[0]=cumap->white[1]=cumap->white[2]= 1.0f;
@@ -2197,12 +2095,6 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 
 	/* list item behind label & other buttons */
 	sub= uiLayoutRow(overlap, 0);
-
-	if(itemptr->type == &RNA_ShapeKey) {
-		ob= (Object*)activeptr->data;
-		if(ob->mode == OB_MODE_EDIT && !(ob->type == OB_MESH))
-			uiLayoutSetEnabled(sub, 0);
-	}
 
 	but= uiDefButR(block, LISTROW, 0, "", 0,0, UI_UNIT_X*10,UI_UNIT_Y, activeptr, activepropname, 0, 0, i, 0, 0, "");
 	uiButSetFlag(but, UI_BUT_NO_TOOLTIP);

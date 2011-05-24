@@ -42,19 +42,11 @@
 #include "BLI_editVert.h"
 #include "BLI_rand.h"
 
-#include "BKE_action.h"
-#include "BKE_animsys.h"
 #include "BKE_context.h"
-#include "BKE_curve.h"
-#include "BKE_customdata.h"
 #include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
-#include "BKE_library.h"
 #include "BKE_main.h"
-#include "BKE_object.h"
-#include "BKE_scene.h"
 #include "BKE_screen.h"
-#include "BKE_utildefines.h"
 
 #include "BIF_gl.h"
 
@@ -299,16 +291,17 @@ static void graph_panel_key_properties(const bContext *C, Panel *pa)
 
 static void do_graph_region_driver_buttons(bContext *C, void *arg, int event)
 {
+	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	
 	switch (event) {
 		case B_IPO_DEPCHANGE:
 		{
 			/* rebuild depsgraph for the new deps */
-			DAG_scene_sort(scene);
+			DAG_scene_sort(bmain, scene);
 			
 			/* force an update of depsgraph */
-			DAG_ids_flush_update(0);
+			DAG_ids_flush_update(bmain, 0);
 		}
 			break;
 	}

@@ -39,7 +39,11 @@
 #include "DNA_lattice_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_object_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_view3d_types.h"
+#include "DNA_modifier_types.h"
 
 #include "RNA_access.h"
 
@@ -54,23 +58,14 @@
 
 #include "BKE_animsys.h"
 #include "BKE_action.h"
-#include "BKE_anim.h"
 #include "BKE_armature.h"
-#include "BKE_cloth.h"
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
 #include "BKE_displist.h"
-#include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
-#include "BKE_global.h"
-#include "BKE_group.h"
 #include "BKE_lattice.h"
-#include "BKE_key.h"
 #include "BKE_mesh.h"
-#include "BKE_modifier.h"
 #include "BKE_nla.h"
-#include "BKE_object.h"
-#include "BKE_utildefines.h"
 #include "BKE_context.h"
 
 #include "ED_anim_api.h"
@@ -664,7 +659,7 @@ void recalcData(TransInfo *t)
 				Lattice *la= t->obedit->data;
 				DAG_id_flush_update(t->obedit->data, OB_RECALC_DATA);  /* sets recalc flags */
 	
-				if(la->editlatt->flag & LT_OUTSIDE) outside_lattice(la->editlatt);
+				if(la->editlatt->latt->flag & LT_OUTSIDE) outside_lattice(la->editlatt->latt);
 			}
 			else if (t->obedit->type == OB_MESH) {
 				EditMesh *em = ((Mesh*)t->obedit->data)->edit_mesh;
@@ -1033,9 +1028,9 @@ int initTransInfo (bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 		{
 			switch(RNA_enum_get(op->ptr, "proportional"))
 			{
-			case 2: /* XXX connected constant */
+			case PROP_EDIT_CONNECTED:
 				t->flag |= T_PROP_CONNECTED;
-			case 1: /* XXX prop on constant */
+			case PROP_EDIT_ON:
 				t->flag |= T_PROP_EDIT;
 				break;
 			}
@@ -1045,12 +1040,20 @@ int initTransInfo (bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 			/* use settings from scene only if modal */
 			if (t->flag & T_MODAL)
 			{
-				if ((t->options & CTX_NO_PET) == 0 && (ts->proportional != PROP_EDIT_OFF)) {
+				if ((t->options & CTX_NO_PET) == 0)
+				{
+					if (t->obedit && ts->proportional != PROP_EDIT_OFF)
+					{
 					t->flag |= T_PROP_EDIT;
 
 					if(ts->proportional == PROP_EDIT_CONNECTED)
 						t->flag |= T_PROP_CONNECTED;
 				}
+					else if (t->obedit == NULL && ts->proportional_objects)
+					{
+						t->flag |= T_PROP_EDIT;
+			}
+		}
 			}
 		}
 		

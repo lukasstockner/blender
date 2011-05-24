@@ -47,18 +47,13 @@
 #include "BLI_rand.h"
 
 #include "BKE_action.h"
-#include "BKE_brush.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_customdata.h"
 #include "BKE_depsgraph.h"
-#include "BKE_idprop.h"
+#include "BKE_main.h"
 #include "BKE_mesh.h"
-#include "BKE_object.h"
-#include "BKE_global.h"
-#include "BKE_scene.h"
 #include "BKE_screen.h"
-#include "BKE_utildefines.h"
 #include "BKE_deform.h"
 
 #include "BIF_gl.h"
@@ -260,8 +255,8 @@ static void v3d_editvertex_buts(const bContext *C, uiLayout *layout, View3D *v3d
 		BPoint *bp;
 		int a;
 		
-		a= lt->editlatt->pntsu*lt->editlatt->pntsv*lt->editlatt->pntsw;
-		bp= lt->editlatt->def;
+		a= lt->editlatt->latt->pntsu*lt->editlatt->latt->pntsv*lt->editlatt->latt->pntsw;
+		bp= lt->editlatt->latt->def;
 		while(a--) {
 			if(bp->f1 & SELECT) {
 				add_v3_v3(median, bp->vec);
@@ -462,8 +457,8 @@ static void v3d_editvertex_buts(const bContext *C, uiLayout *layout, View3D *v3d
 			BPoint *bp;
 			int a;
 			
-			a= lt->editlatt->pntsu*lt->editlatt->pntsv*lt->editlatt->pntsw;
-			bp= lt->editlatt->def;
+			a= lt->editlatt->latt->pntsu*lt->editlatt->latt->pntsv*lt->editlatt->latt->pntsw;
+			bp= lt->editlatt->latt->def;
 			while(a--) {
 				if(bp->f1 & SELECT) {
 					add_v3_v3(bp->vec, median);
@@ -997,6 +992,7 @@ static int test_parent_loop(Object *par, Object *ob)
 
 static void do_view3d_region_buttons(bContext *C, void *arg, int event)
 {
+	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 //	Object *obedit= CTX_data_edit_object(C);
 	View3D *v3d= CTX_wm_view3d(C);
@@ -1028,7 +1024,7 @@ static void do_view3d_region_buttons(bContext *C, void *arg, int event)
 			if(ob->id.lib || test_parent_loop(ob->parent, ob) ) 
 				ob->parent= NULL;
 			else {
-				DAG_scene_sort(scene);
+				DAG_scene_sort(bmain, scene);
 				DAG_id_flush_update(&ob->id, OB_RECALC_OB);
 			}
 		}

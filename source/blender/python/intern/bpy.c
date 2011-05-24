@@ -65,7 +65,7 @@ PyObject *bpy_script_paths(PyObject *self)
 static char bpy_blend_paths_doc[] =
 ".. function:: blend_paths(absolute=False)\n"
 "\n"
-"   Returns a list of paths associated with this blend file.\n"
+"   Returns a list of paths to external files referenced by the loaded .blend file.\n"
 "\n"
 "   :arg absolute: When true the paths returned are made absolute.\n"
 "   :type absolute: boolean\n"
@@ -158,7 +158,7 @@ void BPy_init_modules( void )
 	mod = PyModule_New("_bpy");
 
 	/* add the module so we can import it */
-	PyDict_SetItemString(PySys_GetObject("modules"), "_bpy", mod);
+	PyDict_SetItemString(PyImport_GetModuleDict(), "_bpy", mod);
 	Py_DECREF(mod);
 
 	/* run first, initializes rna types */

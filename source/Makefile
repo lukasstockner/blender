@@ -17,7 +17,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
-# Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
 # All rights reserved.
@@ -204,7 +204,9 @@ ifeq ($(WITH_OPENJPEG), true)
     endif
 endif
 
+ifeq ($(WITH_CINEON), true)
 COMLIB += $(OCGDIR)/blender/imbuf/cineon/$(DEBUG_DIR)libcineon.a
+endif
 
 ifeq ($(WITH_DDS), true)
     COMLIB += $(OCGDIR)/blender/imbuf/dds/$(DEBUG_DIR)libdds.a
@@ -418,7 +420,7 @@ ifeq ($(WITH_JACK),true)
 endif
 
 ifeq ($(WITH_SNDFILE),true)
-  ifeq ($(OS),$(findstring $(OS), "linux"))
+  ifeq ($(OS),$(findstring $(OS), "linux darwin"))
     NAN_SND_LIBS += $(NAN_SNDFILELIBS)
   endif
 endif
