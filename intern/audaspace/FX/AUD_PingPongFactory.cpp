@@ -28,17 +28,13 @@
 #include "AUD_ReverseFactory.h"
 
 AUD_PingPongFactory::AUD_PingPongFactory(AUD_IFactory* factory) :
-		AUD_EffectFactory(factory) {}
-
-AUD_IReader* AUD_PingPongFactory::createReader()
+		AUD_EffectFactory(factory)
 {
-	if(m_factory == 0)
-		return 0;
+}
 
-	AUD_IReader* reader = m_factory->createReader();
-
-	if(reader != 0)
+AUD_IReader* AUD_PingPongFactory::createReader() const
 	{
+	AUD_IReader* reader = getReader();
 		AUD_IReader* reader2;
 		AUD_ReverseFactory factory(m_factory);
 
@@ -46,22 +42,11 @@ AUD_IReader* AUD_PingPongFactory::createReader()
 		{
 			reader2 = factory.createReader();
 		}
-		catch(AUD_Exception)
+	catch(AUD_Exception&)
 		{
-			reader2 = 0;
+		delete reader;
+		throw;
 		}
 
-		if(reader2 != 0)
-		{
-			reader = new AUD_DoubleReader(reader, reader2);
-			AUD_NEW("reader")
+	return new AUD_DoubleReader(reader, reader2);
 		}
-		else
-		{
-			delete reader; AUD_DELETE("reader")
-			reader = 0;
-		}
-	}
-
-	return reader;
-}

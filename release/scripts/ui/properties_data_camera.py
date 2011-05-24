@@ -34,7 +34,7 @@ class CameraButtonsPanel():
 
 class DATA_PT_context_camera(CameraButtonsPanel, bpy.types.Panel):
     bl_label = ""
-    bl_show_header = False
+    bl_options = {'HIDE_HEADER'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     def draw(self, context):
@@ -78,7 +78,7 @@ class DATA_PT_camera(CameraButtonsPanel, bpy.types.Panel):
         elif cam.type == 'ORTHO':
             col.prop(cam, "ortho_scale")
 
-        layout.prop(cam, "panorama")
+        layout.prop(cam, "use_panorama")
 
         split = layout.split()
 

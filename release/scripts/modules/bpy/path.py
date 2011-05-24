@@ -26,6 +26,7 @@ functions for dealing with paths in Blender.
 import bpy as _bpy
 import os as _os
 
+
 def abspath(path):
     """
     Returns the absolute path relative to the current blend file using the "//" prefix.
@@ -93,7 +94,7 @@ def display_name(name):
     name_base = name_base.replace("_", " ")
 
     if name_base.islower():
-        return name_base.capitalize()
+        return name_base.lower().title()
     else:
         return name_base
 
@@ -107,7 +108,7 @@ def resolve_ncase(path):
 	import os
 
 	def _ncase_path_found(path):
-		if path=='' or os.path.exists(path):
+        if path == "" or os.path.exists(path):
 			return path, True
 
 		filename = os.path.basename(path) # filename may be a directory or a file
@@ -172,3 +173,35 @@ def ensure_ext(filepath, ext, case_sensitive=False):
 
     else:
         return filepath + ext
+
+
+def module_names(path, recursive=False):
+    """
+    Return a list of modules which can be imported from *path*.
+
+    :arg path: a directory to scan.
+    :type path: string
+    :arg recursive: Also return submodule names for packages.
+    :type recursive: bool
+    :return: a list of string pairs (module_name, module_file).
+    :rtype: list
+    """
+
+    from os.path import join, isfile
+
+    modules = []
+
+    for filename in sorted(_os.listdir(path)):
+        if filename.endswith(".py") and filename != "__init__.py":
+            fullpath = join(path, filename)
+            modules.append((filename[0:-3], fullpath))
+        elif ("." not in filename):
+            directory = join(path, filename)
+            fullpath = join(directory, "__init__.py")
+            if isfile(fullpath):
+                modules.append((filename, fullpath))
+                if recursive:
+                    for mod_name, mod_path in module_names(directory, True):
+                        modules.append(("%s.%s" % (filename, mod_name), mod_path))
+
+    return modules

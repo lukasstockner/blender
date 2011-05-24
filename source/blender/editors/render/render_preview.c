@@ -81,7 +81,6 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "ED_datafiles.h"
 #include "ED_render.h"
 #include "ED_view3d.h"
 
@@ -549,8 +548,8 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
 		newrect.ymax= rect->ymin;
 
 		if(parent) {
-			ok = ed_preview_draw_rect(sa, sce, parent, 1, 1, rect, &newrect);
-			ok &= ed_preview_draw_rect(sa, sce, id, 1, 0, rect, &newrect);
+			ok = ed_preview_draw_rect(sa, sce, id, 1, 1, rect, &newrect);
+			ok &= ed_preview_draw_rect(sa, sce, parent, 1, 0, rect, &newrect);
 		}
 		else
 			ok = ed_preview_draw_rect(sa, sce, id, 0, 0, rect, &newrect);
@@ -1000,8 +999,8 @@ static void shader_preview_startjob(void *customdata, short *stop, short *do_upd
 	sp->do_update= do_update;
 
 	if(sp->parent) {
-		shader_preview_render(sp, sp->parent, 1, 1);
-		shader_preview_render(sp, sp->id, 1, 0);
+		shader_preview_render(sp, sp->id, 1, 1);
+		shader_preview_render(sp, sp->parent, 1, 0);
 	}
 	else
 		shader_preview_render(sp, sp->id, 0, 0);

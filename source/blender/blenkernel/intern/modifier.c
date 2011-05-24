@@ -44,9 +44,12 @@
 #include "DNA_object_types.h"
 #include "DNA_meshdata_types.h"
 
+#include "MEM_guardedalloc.h"
+
 #include "BKE_bmesh.h"
 #include "BKE_cloth.h"
 #include "BKE_key.h"
+#include "BKE_multires.h"
 
 #include "MOD_modifiertypes.h"
 
@@ -524,5 +527,21 @@ void modifier_freeTemporaryData(ModifierData *md)
 	}
 }
 
+/* ensure modifier correctness when changing ob->data */
+void test_object_modifiers(Object *ob)
+{
+	ModifierData *md;
 
+	/* just multires checked for now, since only multires
+	   modifies mesh data */
 
+	if(ob->type != OB_MESH) return;
+
+	for(md = ob->modifiers.first; md; md = md->next) {
+		if(md->type == eModifierType_Multires) {
+			MultiresModifierData *mmd = (MultiresModifierData*)md;
+
+			multiresModifier_set_levels_from_disps(mmd, ob);
+		}
+	}
+}

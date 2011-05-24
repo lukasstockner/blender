@@ -25,7 +25,7 @@ from properties_physics_common import effector_weights_ui
 
 
 def cloth_panel_enabled(md):
-    return md.point_cache.baked is False
+    return md.point_cache.is_baked is False
 
 
 class CLOTH_MT_presets(bpy.types.Menu):
@@ -63,12 +63,12 @@ class PHYSICS_PT_cloth(PhysicButtonsPanel, bpy.types.Panel):
 
         if md:
             # remove modifier + settings
-            split.set_context_pointer("modifier", md)
+            split.context_pointer_set("modifier", md)
             split.operator("object.modifier_remove", text="Remove")
 
             row = split.row(align=True)
-            row.prop(md, "render", text="")
-            row.prop(md, "realtime", text="")
+            row.prop(md, "show_render", text="")
+            row.prop(md, "show_viewport", text="")
         else:
             # add modifier
             split.operator("object.modifier_add", text="Add").type = 'CLOTH'
@@ -87,6 +87,7 @@ class PHYSICS_PT_cloth(PhysicButtonsPanel, bpy.types.Panel):
             sub = col.row(align=True)
             sub.menu("CLOTH_MT_presets", text=bpy.types.CLOTH_MT_presets.bl_label)
             sub.operator("cloth.preset_add", text="", icon="ZOOMIN")
+            sub.operator("cloth.preset_add", text="", icon="ZOOMOUT").remove_active = True
 
             col.label(text="Quality:")
             col.prop(cloth, "quality", text="Steps", slider=True)
@@ -102,10 +103,10 @@ class PHYSICS_PT_cloth(PhysicButtonsPanel, bpy.types.Panel):
             col.prop(cloth, "spring_damping", text="Spring")
             col.prop(cloth, "air_damping", text="Air")
 
-            col.prop(cloth, "pin_cloth", text="Pinning")
+            col.prop(cloth, "use_pin_cloth", text="Pinning")
             sub = col.column()
-            sub.active = cloth.pin_cloth
-            sub.prop_object(cloth, "mass_vertex_group", ob, "vertex_groups", text="")
+            sub.active = cloth.use_pin_cloth
+            sub.prop_search(cloth, "vertex_group_mass", ob, "vertex_groups", text="")
             sub.prop(cloth, "pin_stiffness", text="Stiffness")
 
             col.label(text="Pre roll:")
@@ -113,7 +114,7 @@ class PHYSICS_PT_cloth(PhysicButtonsPanel, bpy.types.Panel):
 
             # Disabled for now
             """
-            if cloth.mass_vertex_group:
+            if cloth.vertex_group_mass:
                 layout.label(text="Goal:")
 
                 col = layout.column_flow()
@@ -126,12 +127,12 @@ class PHYSICS_PT_cloth(PhysicButtonsPanel, bpy.types.Panel):
 
             if key:
                 col.label(text="Rest Shape Key:")
-                col.prop_object(cloth, "rest_shape_key", key, "keys", text="")
+                col.prop_search(cloth, "rest_shape_key", key, "keys", text="")
 
 
 class PHYSICS_PT_cloth_cache(PhysicButtonsPanel, bpy.types.Panel):
     bl_label = "Cloth Cache"
-    bl_default_closed = True
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -144,7 +145,7 @@ class PHYSICS_PT_cloth_cache(PhysicButtonsPanel, bpy.types.Panel):
 
 class PHYSICS_PT_cloth_collision(PhysicButtonsPanel, bpy.types.Panel):
     bl_label = "Cloth Collision"
-    bl_default_closed = True
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -154,7 +155,7 @@ class PHYSICS_PT_cloth_collision(PhysicButtonsPanel, bpy.types.Panel):
         cloth = context.cloth.collision_settings
 
         self.layout.active = cloth_panel_enabled(context.cloth)
-        self.layout.prop(cloth, "enable_collision", text="")
+        self.layout.prop(cloth, "use_collision", text="")
 
     def draw(self, context):
         layout = self.layout
@@ -162,28 +163,28 @@ class PHYSICS_PT_cloth_collision(PhysicButtonsPanel, bpy.types.Panel):
         cloth = context.cloth.collision_settings
         md = context.cloth
 
-        layout.active = cloth.enable_collision and cloth_panel_enabled(md)
+        layout.active = cloth.use_collision and cloth_panel_enabled(md)
 
         split = layout.split()
 
         col = split.column()
         col.prop(cloth, "collision_quality", slider=True, text="Quality")
-        col.prop(cloth, "min_distance", slider=True, text="Distance")
+        col.prop(cloth, "distance_min", slider=True, text="Distance")
         col.prop(cloth, "friction")
 
             col = split.column()
-        col.prop(cloth, "enable_self_collision", text="Self Collision")
+        col.prop(cloth, "use_self_collision", text="Self Collision")
         sub = col.column()
-        sub.active = cloth.enable_self_collision
+        sub.active = cloth.use_self_collision
         sub.prop(cloth, "self_collision_quality", slider=True, text="Quality")
-        sub.prop(cloth, "self_min_distance", slider=True, text="Distance")
+        sub.prop(cloth, "self_distance_min", slider=True, text="Distance")
 
         layout.prop(cloth, "group")
 
 
 class PHYSICS_PT_cloth_stiffness(PhysicButtonsPanel, bpy.types.Panel):
     bl_label = "Cloth Stiffness Scaling"
-    bl_default_closed = True
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -193,7 +194,7 @@ class PHYSICS_PT_cloth_stiffness(PhysicButtonsPanel, bpy.types.Panel):
         cloth = context.cloth.settings
 
         self.layout.active = cloth_panel_enabled(context.cloth)
-        self.layout.prop(cloth, "stiffness_scaling", text="")
+        self.layout.prop(cloth, "use_stiffness_scale", text="")
 
     def draw(self, context):
         layout = self.layout
@@ -202,24 +203,24 @@ class PHYSICS_PT_cloth_stiffness(PhysicButtonsPanel, bpy.types.Panel):
         ob = context.object
         cloth = context.cloth.settings
 
-        layout.active = cloth.stiffness_scaling	and cloth_panel_enabled(md)
+        layout.active = cloth.use_stiffness_scale	and cloth_panel_enabled(md)
 
         split = layout.split()
 
         col = split.column()
         col.label(text="Structural Stiffness:")
-        col.prop_object(cloth, "structural_stiffness_vertex_group", ob, "vertex_groups", text="")
+        col.prop_search(cloth, "vertex_group_structural_stiffness", ob, "vertex_groups", text="")
         col.prop(cloth, "structural_stiffness_max", text="Max")
 
             col = split.column()
         col.label(text="Bending Stiffness:")
-        col.prop_object(cloth, "bending_vertex_group", ob, "vertex_groups", text="")
+        col.prop_search(cloth, "vertex_group_bending", ob, "vertex_groups", text="")
         col.prop(cloth, "bending_stiffness_max", text="Max")
 
 
 class PHYSICS_PT_cloth_field_weights(PhysicButtonsPanel, bpy.types.Panel):
     bl_label = "Cloth Field Weights"
-    bl_default_closed = True
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):

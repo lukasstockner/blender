@@ -39,7 +39,6 @@
 #include "DNA_windowmanager_types.h"
 
 #include "WM_types.h"
-#include "WM_api.h"
 
 #include "RNA_access.h"
 
@@ -152,6 +151,8 @@ Brush *copy_brush(Brush *brush)
 
 	if (brush->icon_imbuf)
 		brushn->icon_imbuf= IMB_dupImBuf(brush->icon_imbuf);
+
+	brushn->preview = NULL;
 
 	brushn->curve= curvemapping_copy(brush->curve);
 

@@ -41,6 +41,8 @@
 #include "DNA_screen_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_ghash.h"
 
 #include "BKE_animsys.h"
@@ -58,12 +60,6 @@
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
-
-#include "MEM_guardedalloc.h"
-
-#ifndef DISABLE_PYTHON
-#include "BPY_extern.h"
-#endif
 
  #include "depsgraph_private.h"
  

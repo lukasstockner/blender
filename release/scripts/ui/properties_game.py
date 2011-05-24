@@ -51,14 +51,14 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, bpy.types.Panel):
             split = layout.split()
 
             col = split.column()
-            col.prop(game, "actor")
-            col.prop(game, "ghost")
+            col.prop(game, "use_actor")
+            col.prop(game, "use_ghost")
             col.prop(ob, "hide_render", text="Invisible") # out of place but useful
 
                 col = split.column()
-            col.prop(game, "material_physics")
-            col.prop(game, "rotate_from_normal")
-            col.prop(game, "no_sleeping")
+            col.prop(game, "use_material_physics")
+            col.prop(game, "use_rotate_from_normal")
+            col.prop(game, "use_sleep")
 
             layout.separator()
 
@@ -73,9 +73,9 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, bpy.types.Panel):
                 col = split.column()
             sub = col.column()
             sub.active = (game.physics_type == 'RIGID_BODY')
-            sub.prop(game, "anisotropic_friction")
+            sub.prop(game, "use_anisotropic_friction")
             subsub = sub.column()
-            subsub.active = game.anisotropic_friction
+            subsub.active = game.use_anisotropic_friction
             subsub.prop(game, "friction_coefficients", text="", slider=True)
 
             split = layout.split()
@@ -83,8 +83,8 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, bpy.types.Panel):
             col = split.column()
             col.label(text="Velocity:")
             sub = col.column(align=True)
-            sub.prop(game, "minimum_velocity", text="Minimum")
-            sub.prop(game, "maximum_velocity", text="Maximum")
+            sub.prop(game, "velocity_min", text="Minimum")
+            sub.prop(game, "velocity_max", text="Maximum")
 
                 col = split.column()
             col.label(text="Damping:")
@@ -98,20 +98,20 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, bpy.types.Panel):
 
             col = split.column()
             col.label(text="Lock Translation:")
-            col.prop(game, "lock_x_axis", text="X")
-            col.prop(game, "lock_y_axis", text="Y")
-            col.prop(game, "lock_z_axis", text="Z")
+            col.prop(game, "lock_location_x", text="X")
+            col.prop(game, "lock_location_y", text="Y")
+            col.prop(game, "lock_location_z", text="Z")
 
             col = split.column()
             col.label(text="Lock Rotation:")
-            col.prop(game, "lock_x_rot_axis", text="X")
-            col.prop(game, "lock_y_rot_axis", text="Y")
-            col.prop(game, "lock_z_rot_axis", text="Z")
+            col.prop(game, "lock_rotation_x", text="X")
+            col.prop(game, "lock_rotation_y", text="Y")
+            col.prop(game, "lock_rotation_z", text="Z")
 
         elif game.physics_type == 'SOFT_BODY':
             col = layout.column()
-            col.prop(game, "actor")
-            col.prop(game, "ghost")
+            col.prop(game, "use_actor")
+            col.prop(game, "use_ghost")
             col.prop(ob, "hide_render", text="Invisible")
 
             layout.separator()
@@ -121,32 +121,32 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, bpy.types.Panel):
             col = split.column()
             col.label(text="Attributes:")
             col.prop(game, "mass")
-            col.prop(soft, "welding")
-            col.prop(soft, "position_iterations")
-            col.prop(soft, "linstiff", slider=True)
+            col.prop(soft, "weld_threshold")
+            col.prop(soft, "location_iterations")
+            col.prop(soft, "linear_stiffness", slider=True)
             col.prop(soft, "dynamic_friction", slider=True)
-            col.prop(soft, "margin", slider=True)
-            col.prop(soft, "bending_const", text="Bending Constraints")
+            col.prop(soft, "collision_margin", slider=True)
+            col.prop(soft, "use_bending_constraints", text="Bending Constraints")
 
                 col = split.column()
-            col.prop(soft, "shape_match")
+            col.prop(soft, "use_shape_match")
             sub = col.column()
-            sub.active = soft.shape_match
-            sub.prop(soft, "threshold", slider=True)
+            sub.active = soft.use_shape_match
+            sub.prop(soft, "shape_threshold", slider=True)
 
             col.separator()
 
             col.label(text="Cluster Collision:")
-            col.prop(soft, "cluster_rigid_to_softbody")
-            col.prop(soft, "cluster_soft_to_softbody")
+            col.prop(soft, "use_cluster_rigid_to_softbody")
+            col.prop(soft, "use_cluster_soft_to_softbody")
             sub = col.column()
-            sub.active = (soft.cluster_rigid_to_softbody or soft.cluster_soft_to_softbody)
+            sub.active = (soft.use_cluster_rigid_to_softbody or soft.use_cluster_soft_to_softbody)
             sub.prop(soft, "cluster_iterations", text="Iterations")
 
         elif game.physics_type == 'STATIC':
             col = layout.column()
-            col.prop(game, "actor")
-            col.prop(game, "ghost")
+            col.prop(game, "use_actor")
+            col.prop(game, "use_ghost")
             col.prop(ob, "hide_render", text="Invisible")
 
         elif game.physics_type in ('SENSOR', 'INVISIBLE', 'NO_COLLISION', 'OCCLUDE'):
@@ -174,7 +174,7 @@ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, bpy.types.Panel):
         game = context.active_object.game
 
         layout.active = game.use_collision_bounds
-            layout.prop(game, "collision_bounds", text="Bounds")
+        layout.prop(game, "collision_bounds_type", text="Bounds")
 
         split = layout.split()
 
@@ -182,7 +182,7 @@ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, bpy.types.Panel):
         col.prop(game, "collision_margin", text="Margin", slider=True)
 
             col = split.column()
-        col.prop(game, "collision_compound", text="Compound")
+        col.prop(game, "use_collision_compound", text="Compound")
 
 
 class RenderButtonsPanel():
@@ -215,9 +215,9 @@ class RENDER_PT_game_player(RenderButtonsPanel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        gs = context.scene.game_data
+        gs = context.scene.game_settings
 
-        layout.prop(gs, "fullscreen")
+        layout.prop(gs, "show_fullscreen")
 
         split = layout.split()
 
@@ -236,9 +236,9 @@ class RENDER_PT_game_player(RenderButtonsPanel, bpy.types.Panel):
         # framing:
         col = layout.column()
         col.label(text="Framing:")
-            col.row().prop(gs, "framing_type", expand=True)
-        if gs.framing_type == 'LETTERBOX':
-            col.prop(gs, "framing_color", text="")
+        col.row().prop(gs, "frame_type", expand=True)
+        if gs.frame_type == 'LETTERBOX':
+            col.prop(gs, "frame_color", text="")
 
 
 class RENDER_PT_game_stereo(RenderButtonsPanel, bpy.types.Panel):
@@ -248,7 +248,7 @@ class RENDER_PT_game_stereo(RenderButtonsPanel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        gs = context.scene.game_data
+        gs = context.scene.game_settings
         stereo_mode = gs.stereo
 
         # stereo options:
@@ -257,7 +257,7 @@ class RENDER_PT_game_stereo(RenderButtonsPanel, bpy.types.Panel):
         # stereo:
         if stereo_mode == 'STEREO':
             layout.prop(gs, "stereo_mode")
-            layout.prop(gs, "eye_separation")
+            layout.prop(gs, "stereo_eye_separation")
 
         # dome:
         elif stereo_mode == 'DOME':
@@ -302,7 +302,7 @@ class RENDER_PT_game_shading(RenderButtonsPanel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        gs = context.scene.game_data
+        gs = context.scene.game_settings
 
             layout.prop(gs, "material_mode", expand=True)
 
@@ -310,14 +310,14 @@ class RENDER_PT_game_shading(RenderButtonsPanel, bpy.types.Panel):
             split = layout.split()
 
             col = split.column()
-            col.prop(gs, "glsl_lights", text="Lights")
-            col.prop(gs, "glsl_shaders", text="Shaders")
-            col.prop(gs, "glsl_shadows", text="Shadows")
+            col.prop(gs, "use_glsl_lights", text="Lights")
+            col.prop(gs, "use_glsl_shaders", text="Shaders")
+            col.prop(gs, "use_glsl_shadows", text="Shadows")
 
             col = split.column()
-            col.prop(gs, "glsl_ramps", text="Ramps")
-            col.prop(gs, "glsl_nodes", text="Nodes")
-            col.prop(gs, "glsl_extra_textures", text="Extra Textures")
+            col.prop(gs, "use_glsl_ramps", text="Ramps")
+            col.prop(gs, "use_glsl_nodes", text="Nodes")
+            col.prop(gs, "use_glsl_extra_textures", text="Extra Textures")
 
 
 class RENDER_PT_game_performance(RenderButtonsPanel, bpy.types.Panel):
@@ -327,7 +327,7 @@ class RENDER_PT_game_performance(RenderButtonsPanel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        gs = context.scene.game_data
+        gs = context.scene.game_settings
 
         split = layout.split()
 
@@ -354,10 +354,10 @@ class RENDER_PT_game_sound(RenderButtonsPanel, bpy.types.Panel):
 
         scene = context.scene
 
-            layout.prop(scene, "distance_model")
+        layout.prop(scene, "audio_distance_model")
 
-        layout.prop(scene, "speed_of_sound", text="Speed")
-        layout.prop(scene, "doppler_factor")
+        layout.prop(scene, "audio_doppler_speed", text="Speed")
+        layout.prop(scene, "audio_doppler_factor")
 
 
 class WorldButtonsPanel():
@@ -368,7 +368,7 @@ class WorldButtonsPanel():
 
 class WORLD_PT_game_context_world(WorldButtonsPanel, bpy.types.Panel):
     bl_label = ""
-    bl_show_header = False
+    bl_options = {'HIDE_HEADER'}
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
     @classmethod
@@ -425,21 +425,21 @@ class WORLD_PT_game_mist(WorldButtonsPanel, bpy.types.Panel):
     def draw_header(self, context):
         world = context.world
 
-        self.layout.prop(world.mist, "use_mist", text="")
+        self.layout.prop(world.mist_settings, "use_mist", text="")
 
     def draw(self, context):
         layout = self.layout
 
         world = context.world
 
-        layout.active = world.mist.use_mist
+        layout.active = world.mist_settings.use_mist
         split = layout.split()
 
         col = split.column()
-        col.prop(world.mist, "start")
+        col.prop(world.mist_settings, "start")
 
             col = split.column()
-        col.prop(world.mist, "depth")
+        col.prop(world.mist_settings, "depth")
 
 
 class WORLD_PT_game_physics(WorldButtonsPanel, bpy.types.Panel):
@@ -454,7 +454,7 @@ class WORLD_PT_game_physics(WorldButtonsPanel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        gs = context.scene.game_data
+        gs = context.scene.game_settings
 
         layout.prop(gs, "physics_engine")
         if gs.physics_engine != 'NONE':

@@ -51,7 +51,6 @@
 #include "BKE_texture.h"
 #include "BKE_report.h"
 
-#include "BIF_gl.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -1919,33 +1918,6 @@ void NODE_OT_read_fullsamplelayers(wmOperatorType *ot)
 	ot->flag= 0;
 }
 
-
-/* ************************* */
-
-void imagepaint_composite_tags(bNodeTree *ntree, Image *image, ImageUser *iuser)
-{
-	bNode *node;
-	
-	if(ntree==NULL)
-		return;
-	
-	/* search for renderresults */
-	if(image->type==IMA_TYPE_R_RESULT) {
-		for(node= ntree->nodes.first; node; node= node->next) {
-			if(node->type==CMP_NODE_R_LAYERS && node->id==NULL) {
-				/* imageuser comes from ImageWin, so indexes are offset 1 */
-				if(node->custom1==iuser->layer-1)
-					NodeTagChanged(ntree, node);
-			}
-		}
-	}
-	else {
-		for(node= ntree->nodes.first; node; node= node->next) {
-			if(node->id== &image->id)
-				NodeTagChanged(ntree, node);
-		}
-	}
-}
 
 /* ****************** Make Group operator ******************* */
 

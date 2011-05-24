@@ -54,7 +54,6 @@
 #include "BKE_modifier.h"
 #include "BKE_report.h"
 
-#include "BIF_gl.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -158,7 +157,7 @@ static short pose_has_protected_selected(Object *ob, short only_selected, short 
 }
 
 /* only for real IK, not for auto-IK */
-int ED_pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan)
+static int pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan, int level)
 {
 	bConstraint *con;
 	Bone *bone;
@@ -168,16 +167,23 @@ int ED_pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan)
 	for(con= pchan->constraints.first; con; con= con->next) {
 		if(con->type==CONSTRAINT_TYPE_KINEMATIC) {
 			bKinematicConstraint *data= con->data;
+			if(data->rootbone == 0 || data->rootbone > level) {
 			if((data->flag & CONSTRAINT_IK_AUTO)==0)
 				return 1;
 		}
 	}
+	}
 	for(bone= pchan->bone->childbase.first; bone; bone= bone->next) {
 		pchan= get_pose_channel(ob->pose, bone->name);
-		if(pchan && ED_pose_channel_in_IK_chain(ob, pchan))
+		if(pchan && pose_channel_in_IK_chain(ob, pchan, level + 1))
 			return 1;
 	}
 	return 0;
+}
+
+int ED_pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan)
+{
+	return pose_channel_in_IK_chain(ob, pchan, 0);
 }
 
 /* ********************************************** */
@@ -1579,7 +1585,7 @@ static int pose_armature_layers_invoke (bContext *C, wmOperator *op, wmEvent *ev
 		
 	/* get RNA pointer to armature data to use that to retrieve the layers as ints to init the operator */
 	RNA_id_pointer_create((ID *)arm, &ptr);
-	RNA_boolean_get_array(&ptr, "layer", layers);
+	RNA_boolean_get_array(&ptr, "layers", layers);
 	RNA_boolean_set_array(op->ptr, "layers", layers);
 	
 	/* part to sync with other similar operators... */
@@ -1599,7 +1605,7 @@ static int pose_armature_layers_exec (bContext *C, wmOperator *op)
 	
 	/* get pointer for armature, and write data there... */
 	RNA_id_pointer_create((ID *)arm, &ptr);
-	RNA_boolean_set_array(&ptr, "layer", layers);
+	RNA_boolean_set_array(&ptr, "layers", layers);
 	
 	/* note, notifier might evolve */
 	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
@@ -1691,7 +1697,7 @@ static int pose_bone_layers_exec (bContext *C, wmOperator *op)
 	{
 		/* get pointer for pchan, and write flags this way */
 		RNA_pointer_create((ID *)arm, &RNA_Bone, pchan->bone, &ptr);
-		RNA_boolean_set_array(&ptr, "layer", layers);
+		RNA_boolean_set_array(&ptr, "layers", layers);
 	}
 	CTX_DATA_END;
 	
@@ -1765,7 +1771,7 @@ static int armature_bone_layers_exec (bContext *C, wmOperator *op)
 	{
 		/* get pointer for pchan, and write flags this way */
 		RNA_pointer_create((ID *)arm, &RNA_EditBone, ebone, &ptr);
-		RNA_boolean_set_array(&ptr, "layer", layers);
+		RNA_boolean_set_array(&ptr, "layers", layers);
 	}
 	CTX_DATA_END;
 	

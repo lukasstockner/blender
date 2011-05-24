@@ -58,7 +58,7 @@ class EditExternally(bpy.types.Operator):
     def execute(self, context):
         import os
         import subprocess
-        filepath = bpy.path.abspath(self.properties.filepath)
+        filepath = bpy.path.abspath(self.filepath)
 
         if not os.path.exists(filepath):
             self.report('ERROR', "Image path '%s' not found." % filepath)
@@ -77,7 +77,7 @@ class EditExternally(bpy.types.Operator):
             self.report({'ERROR'}, "Image not found on disk")
             return {'CANCELLED'}
 
-        self.properties.filepath = filepath
+        self.filepath = filepath
         self.execute(context)
 
         return {'FINISHED'}
@@ -92,7 +92,7 @@ class SaveDirty(bpy.types.Operator):
     def execute(self, context):
         unique_paths = set()
         for image in bpy.data.images:
-            if image.dirty:
+            if image.is_dirty:
                 filepath = bpy.path.abspath(image.filepath)
                 if "\\" not in filepath and "/" not in filepath:
                     self.report({'WARNING'}, "Invalid path: " + filepath)
@@ -191,6 +191,7 @@ class ProjectApply(bpy.types.Operator):
 
 def register():
     pass
+
 
 def unregister():
     pass

@@ -69,6 +69,7 @@
 #include "BKE_main.h"
 #include "BKE_packedFile.h"
 #include "BKE_scene.h"
+#include "BKE_node.h"
 
 //XXX #include "BIF_editseq.h"
 
@@ -1447,6 +1448,17 @@ void BKE_image_signal(Image *ima, ImageUser *iuser, int signal)
 		}
 		break;
 	}
+	
+	/* dont use notifiers because they are not 100% sure to succseed
+	 * this also makes sure all scenes are accounted for. */
+	{
+		Scene *scene;
+		for(scene= G.main->scene.first; scene; scene= scene->id.next) {
+			if(scene->nodetree) {
+				NodeTagIDChanged(scene->nodetree, &ima->id);
+}
+		}
+	}
 }
 
 /* if layer or pass changes, we need an index for the imbufs list */
@@ -1979,8 +1991,14 @@ static ImBuf *image_get_ibuf_threadsafe(Image *ima, ImageUser *iuser, int *frame
 			ibuf= image_get_ibuf(ima, 0, frame);
 			
 			/* XXX temp stuff? */
-			if(ima->lastframe != frame)
+			if(ima->lastframe != frame) {
 				ima->tpageflag |= IMA_TPAGE_REFRESH;
+				if(ibuf) {
+					/* without this the image name only updates
+					 * on first load which is quite confusing */
+					BLI_strncpy(ima->name, ibuf->name, sizeof(ima->name));
+				}
+			}
 			ima->lastframe = frame;
 		}	
 		else if(ima->type==IMA_TYPE_MULTILAYER) {

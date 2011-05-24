@@ -376,6 +376,8 @@ typedef struct UserDef {
 	struct ColorBand coba_weight;	/* from texture.h */
 
 	float sculpt_paint_overlay_col[4];
+
+	char author[80];	/* author name for file formats supporting it */
 } UserDef;
 
 extern UserDef U; /* from blenkernel blender.c */

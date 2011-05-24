@@ -45,7 +45,6 @@
 #include "BKE_unit.h"
 
 #include "BIF_gl.h"
-#include "BIF_glutil.h"
 
 #include "BLF_api.h"
 
@@ -1238,8 +1237,10 @@ int ui_is_but_unit(uiBut *but)
 	
 	unit_type = RNA_SUBTYPE_UNIT(RNA_property_subtype(but->rnaprop));
 	
+#if 0 // removed so angle buttons get correct snapping
 	if (scene->unit.flag & USER_UNIT_ROT_RADIANS && unit_type == PROP_UNIT_ROTATION)
 		return 0;
+#endif
 	
 	/* for now disable time unit conversion */	
 	if (unit_type == PROP_UNIT_TIME)
@@ -1441,6 +1442,23 @@ static double ui_get_but_scale_unit(uiBut *but, double value)
 	}
 	else {
 		return value;
+	}
+}
+
+/* str will be overwritten */
+void ui_convert_to_unit_alt_name(uiBut *but, char *str, int maxlen)
+{
+	if(ui_is_but_unit(but)) {
+		int unit_type= RNA_SUBTYPE_UNIT_VALUE(RNA_property_subtype(but->rnaprop));
+		char *orig_str;
+		Scene *scene= CTX_data_scene((bContext *)but->block->evil_C);
+		
+		orig_str= MEM_callocN(sizeof(char)*maxlen + 1, "textedit sub str");
+		memcpy(orig_str, str, maxlen);
+		
+		bUnit_ToUnitAltName(str, maxlen, orig_str, scene->unit.system, unit_type);
+		
+		MEM_freeN(orig_str);
 	}
 }
 
@@ -1766,9 +1784,11 @@ static void ui_free_but(const bContext *C, uiBut *but)
 	}
 	if(but->func_argN) MEM_freeN(but->func_argN);
 	if(but->active) {
-		/* XXX solve later, buttons should be free-able without context? */
+		/* XXX solve later, buttons should be free-able without context ideally,
+		   however they may have open tooltips or popup windows, which need to
+		   be closed using a context pointer */
 		if(C) 
-			ui_button_active_cancel(C, but);
+			ui_button_active_free(C, but);
 		else
 			if(but->active) 
 				MEM_freeN(but->active);
@@ -2529,8 +2549,10 @@ uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, char *str, short x1,
 			}
 		}
 	}
-	else
+	else {
+		printf("ui_def_but_rna: property not found: %s.%s\n", RNA_struct_identifier(ptr->type), propname);
 		str= (char*)propname;
+	}
 
 	/* now create button */
 	but= ui_def_but(block, type, retval, str, x1, y1, x2, y2, NULL, min, max, a1, a2, tip);

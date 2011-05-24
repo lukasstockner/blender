@@ -41,6 +41,7 @@
 #include "MEM_guardedalloc.h"
 #include "BLI_path_util.h"
 #include "BLI_math_base.h"
+#include "BLI_string.h"
 
 #include "BKE_context.h"
 #include "BKE_text.h"
@@ -169,14 +170,6 @@ void BPY_start_python_path(void)
 	/* cmake/MSVC debug build crashes without this, why only
 	   in this case is unknown.. */
 	{
-		char *envpath = getenv("PYTHONPATH");
-
-		if(envpath && envpath[0]) {
-			char *newenvpath = BLI_sprintfN("%s;%s", py_path_bundle, envpath);
-			BLI_setenv("PYTHONPATH", newenvpath);
-			MEM_freeN(newenvpath);
-		}
-		else
 			BLI_setenv("PYTHONPATH", py_path_bundle);	
 	}
 #endif

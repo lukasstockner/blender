@@ -28,6 +28,7 @@
  * .blend file reading entry point
  */
 
+#include <stddef.h>
 #include "BLI_storage.h" /* _LARGEFILE_SOURCE */
 
 #include <stdlib.h>
@@ -72,6 +73,15 @@ BlendHandle *BLO_blendhandle_from_file(char *file)
 	BlendHandle *bh;
 
 	bh= (BlendHandle*)blo_openblenderfile(file, NULL);
+
+	return bh;
+}
+
+BlendHandle *BLO_blendhandle_from_memory(void *mem, int memsize)
+{
+	BlendHandle *bh;
+
+	bh= (BlendHandle*)blo_openblendermemory(mem, memsize, NULL);
 
 	return bh;
 }

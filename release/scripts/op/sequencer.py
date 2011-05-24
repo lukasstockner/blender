@@ -92,7 +92,7 @@ class SequencerCutMulticam(bpy.types.Operator):
             return False
 
     def execute(self, context):
-        camera = self.properties.camera
+        camera = self.camera
 
         s = context.scene.sequence_editor.active_strip
 
@@ -129,7 +129,7 @@ class SequencerDeinterlaceSelectedMovies(bpy.types.Operator):
     def execute(self, context):
         for s in context.scene.sequence_editor.sequences_all:
             if s.select and s.type == 'MOVIE':
-                s.de_interlace = True
+                s.use_deinterlace = True
 
         return {'FINISHED'}
 

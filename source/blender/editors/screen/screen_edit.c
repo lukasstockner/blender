@@ -51,7 +51,6 @@
 
 #include "ED_image.h"
 #include "ED_object.h"
-#include "ED_view3d.h"
 #include "ED_screen.h"
 #include "ED_screen_types.h"
 
@@ -1501,7 +1500,17 @@ void ED_screen_full_restore(bContext *C, ScrArea *sa)
 	
 	if (sl->next) {
 		/* specific checks for space types */
+
+		int sima_restore = 0;
+
+		/* Special check added for non-render image window (back from fullscreen through "Back to Previous" button) */
 		if (sl->spacetype == SPACE_IMAGE) {
+			SpaceImage *sima= sa->spacedata.first;
+			if (!(sima->flag & SI_PREVSPACE) && !(sima->flag & SI_FULLWINDOW))
+				sima_restore = 1;
+		}
+
+		if (sl->spacetype == SPACE_IMAGE && !sima_restore) {
 			SpaceImage *sima= sa->spacedata.first;
 			if (sima->flag & SI_PREVSPACE)
 				sima->flag &= ~SI_PREVSPACE;

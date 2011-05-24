@@ -28,7 +28,7 @@
  * Convert blender data to ketsji
  */
 
-#ifdef WIN32
+#if defined(WIN32) && !defined(FREE_WINDOWS)
 #pragma warning (disable : 4786)
 #endif
 
@@ -1570,7 +1570,16 @@ void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 				objprop.m_boundobject.c.m_height = 2.f*bb.m_extends[2];
 				break;
 			}
+			case OB_BOUND_CAPSULE:
+			{
+				objprop.m_boundclass = KX_BOUNDCAPSULE;
+				objprop.m_boundobject.c.m_radius = MT_max(bb.m_extends[0], bb.m_extends[1]);
+				objprop.m_boundobject.c.m_height = 2.f*(bb.m_extends[2]-objprop.m_boundobject.c.m_radius);
+				if (objprop.m_boundobject.c.m_height < 0.f)
+					objprop.m_boundobject.c.m_height = 0.f;
+				break;
 		}
+	}
 	}
 
 	

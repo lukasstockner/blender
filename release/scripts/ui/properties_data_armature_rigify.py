@@ -18,14 +18,17 @@
 
 # <pep8 compliant>
 import bpy
-
-
-class PoseTemplateSettings(bpy.types.IDPropertyGroup):
-    pass
+from bpy.props import *
 
 
 class PoseTemplate(bpy.types.IDPropertyGroup):
-    pass
+    name = StringProperty(name="Name of the slave", description="", maxlen=64, default="")
+
+
+class PoseTemplateSettings(bpy.types.IDPropertyGroup):
+    templates = CollectionProperty(type=PoseTemplate, name="Templates", description="")
+    active_template_index = IntProperty(name="Index of the active slave", description="", default=-1, min=-1, max=65535)
+    use_generate_deform_rig = BoolProperty(name="Create Deform Rig", description="Create a copy of the metarig, constrainted by the generated rig", default=False)
 
 
 def metarig_templates():
@@ -38,7 +41,7 @@ class DATA_PT_template(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "data"
-    bl_default_closed = True
+    bl_options = {'DEFAULT_CLOSED'}
 
     templates = []
 
@@ -84,7 +87,7 @@ class DATA_PT_template(bpy.types.Panel):
         row.operator("pose.metarig_validate", text="Check")
         row.operator("pose.metarig_graph", text="Graph")
         row = layout.row()
-        row.prop(pose_templates, "generate_def_rig")
+        row.prop(pose_templates, "use_generate_deform_rig")
 
         row = layout.row()
         col = row.column()
@@ -102,10 +105,6 @@ class DATA_PT_template(bpy.types.Panel):
 
         sub = row.column(align=True)
         sub.operator("pose.metarig_reload", icon="FILE_REFRESH", text="")
-
-
-# operators
-from bpy.props import StringProperty
 
 
 class Reload(bpy.types.Operator):
@@ -151,7 +150,7 @@ class Generate(bpy.types.Operator):
         import rigify
         reload(rigify)
 
-        meta_def = context.scene.pose_templates.generate_def_rig
+        meta_def = context.scene.pose_templates.use_generate_deform_rig
 
         try:
             rigify.generate_rig(context, context.object, META_DEF=meta_def)
@@ -188,8 +187,8 @@ class Sample(bpy.types.Operator):
     def execute(self, context):
         import rigify
         reload(rigify)
-        final = (self.properties.metarig_type == "")
-        objects = rigify.generate_test(context, metarig_type=self.properties.metarig_type, GENERATE_FINAL=final)
+        final = (self.metarig_type == "")
+        objects = rigify.generate_test(context, metarig_type=self.metarig_type, GENERATE_FINAL=final)
 
         if len(objects) > 1:
             for i, (obj_meta, obj_gen) in enumerate(objects):
@@ -239,7 +238,7 @@ class AsScript(bpy.types.Operator):
         reload(rigify_utils)
         obj = context.object
         code = rigify_utils.write_meta_rig(obj)
-        path = self.properties.filepath
+        path = self.filepath
         file = open(path, "w")
         file.write(code)
         file.close()
@@ -249,8 +248,8 @@ class AsScript(bpy.types.Operator):
     def invoke(self, context, event):
         import os
         obj = context.object
-        self.properties.filepath = os.path.splitext(bpy.data.filepath)[0] + "-" + bpy.path.clean_name(obj.name) + ".py"
-        wm = context.manager
+        self.filepath = os.path.splitext(bpy.data.filepath)[0] + "-" + bpy.path.clean_name(obj.name) + ".py"
+        wm = context.window_manager
         wm.add_fileselect(self)
         return {'RUNNING_MODAL'}
 
@@ -314,33 +313,12 @@ import space_info # ensure the menu is loaded first
 
 
 def register():
-    PoseTemplate.StringProperty(attr="name",
-                    name="Name of the slave",
-                    description="",
-                    maxlen=64,
-                    default="")
-
-
-    PoseTemplateSettings.CollectionProperty(attr="templates", type=PoseTemplate, name="Templates", description="")
-    PoseTemplateSettings.IntProperty(attr="active_template_index",
-                    name="Index of the active slave",
-                    description="",
-                    default=-1,
-                    min=-1,
-                    max=65535)
-
-    PoseTemplateSettings.BoolProperty(attr="generate_def_rig",
-                    name="Create Deform Rig",
-                    description="Create a copy of the metarig, constrainted by the generated rig",
-                    default=False)
-
-    bpy.types.Scene.PointerProperty(attr="pose_templates", type=PoseTemplateSettings, name="Pose Templates", description="Pose Template Settings")
-
+    bpy.types.Scene.pose_templates = PointerProperty(type=PoseTemplateSettings, name="Pose Templates", description="Pose Template Settings")
     space_info.INFO_MT_armature_add.append(menu_func)
 
 
 def unregister():
-    bpy.types.Scene.RemoveProperty("pose_templates")
+    del bpy.types.Scene.pose_templates
     space_info.INFO_MT_armature_add.remove(menu_func)
 
 if __name__ == "__main__":

@@ -25,13 +25,18 @@
 FILE(GLOB SRC intern/*.c)
 
 SET(INC 
-	../../../intern/guardedalloc ../blenlib ../makesdna ../editors/include
-	../blenkernel ../../../extern/glew/include .
+	.
+	../blenlib
+	../makesdna
+	../editors/include
+	../blenkernel
+	../../../intern/guardedalloc
+	../../../extern/glew/include
 	${FREETYPE_INCLUDE_DIRS}
 )
 
 IF(WITH_INTERNATIONAL)
-	SET(INC ${INC} ${GETTEXT_INC})
+	LIST(APPEND INC ${GETTEXT_INC})
 	ADD_DEFINITIONS(-DINTERNATIONAL)
 ENDIF(WITH_INTERNATIONAL)
 

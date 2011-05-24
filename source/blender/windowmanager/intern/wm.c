@@ -29,6 +29,8 @@
 #include <string.h>
 #include <stddef.h>
 
+#include "BLO_sys_types.h"
+
 #include "DNA_windowmanager_types.h"
 
 #include "GHOST_C-api.h"
@@ -55,8 +57,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "ED_screen.h"
-#include "BPY_extern.h"
 
+#ifndef DISABLE_PYTHON
+#include "BPY_extern.h"
+#endif
 
 /* ****************************************************** */
 
@@ -195,7 +199,7 @@ void WM_keymap_init(bContext *C)
 	wmWindowManager *wm= CTX_wm_manager(C);
 
 	if(!wm->defaultconf)
-		wm->defaultconf= WM_keyconfig_add(wm, "Blender");
+		wm->defaultconf= WM_keyconfig_new(wm, "Blender");
 	
 	if(wm && CTX_py_init_get(C) && (wm->initialized & WM_INIT_KEYMAP) == 0) {
 		/* create default key config */
@@ -227,7 +231,7 @@ void WM_check(bContext *C)
 		}
 
 		/* case: no open windows at all, for old file reads */
-		wm_window_add_ghostwindows(wm);
+		wm_window_add_ghostwindows(C, wm);
 
 		/* case: fileread */
 		if((wm->initialized & WM_INIT_WINDOW) == 0) {

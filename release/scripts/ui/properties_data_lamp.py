@@ -42,7 +42,7 @@ class DataButtonsPanel():
 
 class DATA_PT_context_lamp(DataButtonsPanel, bpy.types.Panel):
     bl_label = ""
-    bl_show_header = False
+    bl_options = {'HIDE_HEADER'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     def draw(self, context):
@@ -54,12 +54,15 @@ class DATA_PT_context_lamp(DataButtonsPanel, bpy.types.Panel):
 
             split = layout.split(percentage=0.65)
 
+        texture_count = len(lamp.texture_slots.keys())
+
             if ob:
                 split.template_ID(ob, "data")
-                split.separator()
             elif lamp:
                 split.template_ID(space, "pin_id")
-                split.separator()
+
+        if texture_count != 0:
+            split.label(text=str(texture_count), icon='TEXTURE')
 
 
 class DATA_PT_preview(DataButtonsPanel, bpy.types.Panel):
@@ -99,17 +102,17 @@ class DATA_PT_lamp(DataButtonsPanel, bpy.types.Panel):
                 sub.prop(lamp, "linear_attenuation", slider=True, text="Linear")
                 sub.prop(lamp, "quadratic_attenuation", slider=True, text="Quadratic")
 
-            col.prop(lamp, "sphere")
+            col.prop(lamp, "use_sphere")
 
         if lamp.type == 'AREA':
             col.prop(lamp, "distance")
             col.prop(lamp, "gamma")
 
             col = split.column()
-        col.prop(lamp, "negative")
-        col.prop(lamp, "layer", text="This Layer Only")
-        col.prop(lamp, "specular")
-        col.prop(lamp, "diffuse")
+        col.prop(lamp, "use_negative")
+        col.prop(lamp, "use_own_layer", text="This Layer Only")
+        col.prop(lamp, "use_specular")
+        col.prop(lamp, "use_diffuse")
 
 
 class DATA_PT_sunsky(DataButtonsPanel, bpy.types.Panel):
@@ -131,6 +134,7 @@ class DATA_PT_sunsky(DataButtonsPanel, bpy.types.Panel):
         row.prop(lamp, "use_sky")
         row.menu("LAMP_MT_sunsky_presets", text=bpy.types.LAMP_MT_sunsky_presets.bl_label)
         row.operator("lamp.sunsky_preset_add", text="", icon="ZOOMIN")
+        row.operator("lamp.sunsky_preset_add", text="", icon="ZOOMOUT").remove_active = True
 
         row = layout.row()
         row.active = lamp.use_sky or lamp.use_atmosphere
@@ -221,8 +225,8 @@ class DATA_PT_shadow(DataButtonsPanel, bpy.types.Panel):
             col.prop(lamp, "shadow_color", text="")
 
                 col = split.column()
-            col.prop(lamp, "shadow_layer", text="This Layer Only")
-            col.prop(lamp, "only_shadow")
+            col.prop(lamp, "use_shadow_layer", text="This Layer Only")
+            col.prop(lamp, "use_only_shadow")
 
         if lamp.shadow_method == 'RAY_SHADOW':
                 split = layout.split()
@@ -245,21 +249,21 @@ class DATA_PT_shadow(DataButtonsPanel, bpy.types.Panel):
                     sub.prop(lamp, "shadow_ray_samples_x", text="Samples X")
                     sub.prop(lamp, "shadow_ray_samples_y", text="Samples Y")
 
-            col.row().prop(lamp, "shadow_ray_sampling_method", expand=True)
+            col.row().prop(lamp, "shadow_ray_sample_method", expand=True)
 
             split = layout.split()
             col = split.column()
             
-                if lamp.shadow_ray_sampling_method == 'ADAPTIVE_QMC':
+            if lamp.shadow_ray_sample_method == 'ADAPTIVE_QMC':
                     col.prop(lamp, "shadow_adaptive_threshold", text="Threshold")
                         col = split.column()
 
-            if lamp.type == 'AREA' and lamp.shadow_ray_sampling_method == 'CONSTANT_JITTERED':
+            if lamp.type == 'AREA' and lamp.shadow_ray_sample_method == 'CONSTANT_JITTERED':
                         col = split.column()
                 col = split.column()
-                    col.prop(lamp, "umbra")
-                    col.prop(lamp, "dither")
-                    col.prop(lamp, "jitter")
+                col.prop(lamp, "use_umbra")
+                col.prop(lamp, "use_dither")
+                col.prop(lamp, "use_jitter")
 
         elif lamp.shadow_method == 'BUFFER_SHADOW':
             col = layout.column()
@@ -291,15 +295,15 @@ class DATA_PT_shadow(DataButtonsPanel, bpy.types.Panel):
             split = layout.split()
 
             col = split.column()
-            col.prop(lamp, "auto_clip_start", text="Autoclip Start")
+            col.prop(lamp, "use_auto_clip_start", text="Autoclip Start")
             sub = col.column()
-            sub.active = not lamp.auto_clip_start
+            sub.active = not lamp.use_auto_clip_start
             sub.prop(lamp, "shadow_buffer_clip_start", text="Clip Start")
 
                 col = split.column()
-            col.prop(lamp, "auto_clip_end", text="Autoclip End")
+            col.prop(lamp, "use_auto_clip_end", text="Autoclip End")
             sub = col.column()
-            sub.active = not lamp.auto_clip_end
+            sub.active = not lamp.use_auto_clip_end
             sub.prop(lamp, "shadow_buffer_clip_end", text=" Clip End")
 
 
@@ -352,14 +356,14 @@ class DATA_PT_spot(DataButtonsPanel, bpy.types.Panel):
         sub = col.column()
         sub.prop(lamp, "spot_size", text="Size")
         sub.prop(lamp, "spot_blend", text="Blend", slider=True)
-        col.prop(lamp, "square")
+        col.prop(lamp, "use_square")
         col.prop(lamp, "show_cone")
 
             col = split.column()
 
-        col.prop(lamp, "halo")
+        col.prop(lamp, "use_halo")
         sub = col.column(align=True)
-        sub.active = lamp.halo
+        sub.active = lamp.use_halo
         sub.prop(lamp, "halo_intensity", text="Intensity")
         if lamp.shadow_method == 'BUFFER_SHADOW':
             sub.prop(lamp, "halo_step", text="Step")
@@ -367,7 +371,7 @@ class DATA_PT_spot(DataButtonsPanel, bpy.types.Panel):
 
 class DATA_PT_falloff_curve(DataButtonsPanel, bpy.types.Panel):
     bl_label = "Falloff Curve"
-    bl_default_closed = True
+    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     @classmethod

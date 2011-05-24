@@ -40,7 +40,6 @@
 #include "BLI_math.h"
 #include "BLI_rand.h"
 
-
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_group_types.h"
@@ -49,7 +48,6 @@
 #include "DNA_scene_types.h"
 #include "DNA_vfont_types.h"
 
-//(INCLUDE_LINT)#include "BKE_anim.h"
 #include "BKE_curve.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_depsgraph.h"
@@ -66,7 +64,6 @@
 #include "BKE_utildefines.h"
 #include "BKE_depsgraph.h"
 
-#include "ED_curve.h" /* for ED_curve_nurbs */
 
 // XXX bad level call...
 
@@ -1288,6 +1285,12 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 				size = psys_get_child_size(psys, cpa, ctime, 0);
 			}
 
+			/* some hair paths might be non-existent so they can't be used for duplication */
+			if(hair &&
+				((a < totpart && psys->pathcache[a]->steps < 0) ||
+				(a >= totpart && psys->childcache[a-totpart]->steps < 0)))
+				continue;
+
 			if(part->ren_as==PART_DRAW_GR) {
 				/* for groups, pick the object based on settings */
 				if(part->draw&PART_DRAW_RAND_GR)
@@ -1354,18 +1357,24 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 				VECCOPY(vec, obmat[3]);
 				obmat[3][0] = obmat[3][1] = obmat[3][2] = 0.0f;
 				
+				/* Normal particles and cached hair live in global space so we need to
+				 * remove the real emitter's transformation before 2nd order duplication.
+				 */
+				if(par_space_mat)
+					mul_m4_m4m4(mat, pamat, psys->imat);
+				else
 				copy_m4_m4(mat, pamat);
 
 				mul_m4_m4m4(tmat, obmat, mat);
 				mul_mat3_m4_fl(tmat, size*scale);
 
-				if(part->draw & PART_DRAW_GLOBAL_OB)
-					VECADD(tmat[3], tmat[3], vec);
-
 				if(par_space_mat)
 					mul_m4_m4m4(mat, tmat, par_space_mat);
 				else
 					copy_m4_m4(mat, tmat);
+
+				if(part->draw & PART_DRAW_GLOBAL_OB)
+					VECADD(mat[3], mat[3], vec);
 
 				dob= new_dupli_object(lb, ob, mat, ob->lay, counter, OB_DUPLIPARTS, animated);
 				copy_m4_m4(dob->omat, oldobmat);

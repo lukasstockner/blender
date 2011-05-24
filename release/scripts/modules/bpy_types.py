@@ -23,6 +23,7 @@ import _bpy
 from mathutils import Vector
 
 StructRNA = bpy_types.Struct.__bases__[0]
+StructMetaIDProp = _bpy.StructMetaIDProp
 # StructRNA = bpy_types.Struct
 
 
@@ -52,7 +53,7 @@ class Library(bpy_types.ID):
 
         # See: readblenentry.c, IDTYPE_FLAGS_ISLINKABLE, we could make this an attribute in rna.
         attr_links = "actions", "armatures", "brushes", "cameras", \
-                "curves", "gpencil", "groups", "images", \
+                "curves", "grease_pencil", "groups", "images", \
                 "lamps", "lattices", "materials", "metaballs", \
                 "meshes", "node_groups", "objects", "scenes", \
                 "sounds", "textures", "texts", "fonts", "worlds"
@@ -306,25 +307,30 @@ class Mesh(bpy_types.ID):
         Make a mesh from a list of verts/edges/faces
         Until we have a nicer way to make geometry, use this.
         """
-        self.add_geometry(len(verts), len(edges), len(faces))
+        self.vertices.add(len(verts))
+        self.edges.add(len(edges))
+        self.faces.add(len(faces))
 
         verts_flat = [f for v in verts for f in v]
-        self.verts.foreach_set("co", verts_flat)
+        self.vertices.foreach_set("co", verts_flat)
         del verts_flat
 
         edges_flat = [i for e in edges for i in e]
-        self.edges.foreach_set("verts", edges_flat)
+        self.edges.foreach_set("vertices", edges_flat)
         del edges_flat
 
         def treat_face(f):
             if len(f) == 3:
+                if f[2] == 0:
+                    return f[2], f[0], f[1], 0
+                else:
                 return f[0], f[1], f[2], 0
-            elif f[3] == 0:
+            elif f[2] == 0 or f[3] == 0:
                 return f[3], f[0], f[1], f[2]
             return f
 
         faces_flat = [v for f in faces for v in treat_face(f)]
-        self.faces.foreach_set("verts_raw", faces_flat)
+        self.faces.foreach_set("vertices_raw", faces_flat)
         del faces_flat
 
     @property
@@ -372,7 +378,7 @@ class Mesh(bpy_types.ID):
 
         for f in faces:
 #            if len(f) == 4:
-            if f.verts_raw[3] != 0:
+            if f.vertices_raw[3] != 0:
                 edge_keys = f.edge_keys
                 for i, edkey in enumerate(f.edge_keys):
                     edges.setdefault(edkey, []).append(edge_keys[OTHER_INDEX[i]])
@@ -422,7 +428,6 @@ class Mesh(bpy_types.ID):
                     # Dont look at this again
                     ed_adj[:] = []
 
-
         return edge_loops
 
     def edge_loops_from_edges(self, edges=None):
@@ -449,7 +454,7 @@ class Mesh(bpy_types.ID):
 
         while edges:
             current_edge = edges.pop()
-            vert_end, vert_start = current_edge.verts[:]
+            vert_end, vert_start = current_edge.vertices[:]
             line_poly = [vert_start, vert_end]
 
             ok = True
@@ -460,7 +465,7 @@ class Mesh(bpy_types.ID):
                 while i:
                     i -= 1
                     ed = edges[i]
-                    v1, v2 = ed.verts
+                    v1, v2 = ed.vertices
                     if v1 == vert_end:
                         line_poly.append(v2)
                         vert_end = line_poly[-1]
@@ -495,7 +500,7 @@ class MeshEdge(StructRNA):
 
     @property
     def key(self):
-        return ord_ind(*tuple(self.verts))
+        return ord_ind(*tuple(self.vertices))
 
 
 class MeshFace(StructRNA):
@@ -504,8 +509,8 @@ class MeshFace(StructRNA):
     @property
     def center(self):
         """The midpoint of the face."""
-        face_verts = self.verts[:]
-        mesh_verts = self.id_data.verts
+        face_verts = self.vertices[:]
+        mesh_verts = self.id_data.vertices
         if len(face_verts) == 3:
             return (mesh_verts[face_verts[0]].co + mesh_verts[face_verts[1]].co + mesh_verts[face_verts[2]].co) / 3.0
         else:
@@ -513,7 +518,7 @@ class MeshFace(StructRNA):
 
     @property
     def edge_keys(self):
-        verts = self.verts[:]
+        verts = self.vertices[:]
         if len(verts) == 3:
             return ord_ind(verts[0], verts[1]), ord_ind(verts[1], verts[2]), ord_ind(verts[2], verts[0])
 
@@ -551,6 +556,7 @@ PropertiesMap = {}
 # registers moduals instantly.
 _register_immediate = True
 
+
 def _unregister_module(module, free=True):
     for t in TypeMap.get(module, ()):
         try:
@@ -562,7 +568,6 @@ def _unregister_module(module, free=True):
 
     if free == True and module in TypeMap:
         del TypeMap[module]
-
 
     for t in PropertiesMap.get(module, ()):
         try:
@@ -582,7 +587,8 @@ def _register_module(module):
             bpy_types.register(t)
         except:
             import traceback
-            print("bpy.utils._register_module(): Module '%s' failed to register class '%s.%s'" % (module, t.__module__, t.__name__))
+            import sys
+            print("bpy.utils._register_module(): '%s' failed to register class '%s.%s'" % (sys.modules[module].__file__, t.__module__, t.__name__))
             traceback.print_exc()
 
 
@@ -611,10 +617,12 @@ class RNAMeta(type):
 
         return result
 
-class RNAMetaRegister(RNAMeta):
+
+class RNAMetaRegister(RNAMeta, StructMetaIDProp):
     @classmethod
     def _register_immediate(cls):
         return True
+
 
 class OrderedMeta(RNAMeta):
 
@@ -625,9 +633,32 @@ class OrderedMeta(RNAMeta):
     def __prepare__(name, bases, **kwargs):
         return collections.OrderedDict()
 
+
 # Only defined so operators members can be used by accessing self.order
+# with doc generation 'self.properties.bl_rna.properties' can fail
 class Operator(StructRNA, metaclass=OrderedMeta):
     __slots__ = ()
+
+    def __getattribute__(self, attr):
+        properties = StructRNA.path_resolve(self, "properties")
+        bl_rna = getattr(properties, "bl_rna", None)
+        if bl_rna and attr in bl_rna.properties:
+            return getattr(properties, attr)
+        return super().__getattribute__(attr)
+
+    def __setattr__(self, attr, value):
+        properties = StructRNA.path_resolve(self, "properties")
+        bl_rna = getattr(properties, "bl_rna", None)
+        if bl_rna and attr in bl_rna.properties:
+            setattr(properties, attr, value)
+        return super().__setattr__(attr, value)
+
+    def __delattr__(self, attr):
+        properties = StructRNA.path_resolve(self, "properties")
+        bl_rna = getattr(properties, "bl_rna", None)
+        if bl_rna and attr in bl_rna.properties:
+            delattr(properties, attr)
+        return super().__delattr__(attr)
 
 
 class Macro(StructRNA, metaclass=OrderedMeta):
@@ -640,11 +671,14 @@ class Macro(StructRNA, metaclass=OrderedMeta):
         from _bpy import ops
         return ops.macro_define(self, opname)
 
+
 class IDPropertyGroup(StructRNA, metaclass=RNAMetaRegister):
         __slots__ = ()
 
+
 class RenderEngine(StructRNA, metaclass=RNAMeta):
     __slots__ = ()
+
 
 class _GenericUI:
     __slots__ = ()
@@ -706,6 +740,9 @@ class Menu(StructRNA, _GenericUI, metaclass=RNAMeta):
 
         layout = self.layout
 
+        if not searchpaths:
+            layout.label("* Missing Paths *")
+
         # collect paths
         files = []
         for directory in searchpaths:
@@ -727,7 +764,6 @@ class Menu(StructRNA, _GenericUI, metaclass=RNAMeta):
             props.filepath = filepath
             if operator == "script.execute_preset":
                 props.menu_idname = self.bl_idname
-                props.preset_name = preset_name
 
     def draw_preset(self, context):
         """Define these on the subclass

@@ -35,8 +35,6 @@
 #include <string.h>
 #include <math.h>
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_lattice_types.h"
@@ -49,6 +47,8 @@
 #include "DNA_constraint_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_meshdata_types.h"
+
+#include "MEM_guardedalloc.h"
 
 #include "BKE_action.h"
 #include "BKE_armature.h"
@@ -69,7 +69,6 @@
 #include "BKE_bmesh.h"
 #include "BKE_scene.h"
 
-#include "BIF_gl.h"
 
 #include "ED_anim_api.h"
 #include "ED_armature.h"
@@ -648,7 +647,8 @@ static void bone_children_clear_transflag(int mode, short around, ListBase *lb)
 	}
 }
 
-/* sets transform flags in the bones, returns total */
+/* sets transform flags in the bones
+ * returns total number of bones with BONE_TRANSFORM */
 int count_set_pose_transflags(int *out_mode, short around, Object *ob)
 {
 	bArmature *arm= ob->data;

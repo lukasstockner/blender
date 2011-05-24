@@ -32,6 +32,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 #include <ctype.h>
 
@@ -180,15 +181,8 @@ void unique_property(bProperty *first, bProperty *prop, int force)
 
 bProperty *get_ob_property(Object *ob, char *name)
 {
-	bProperty *prop;
-	
-	prop= ob->prop.first;
-	while(prop) {
-		if( strcmp(prop->name, name)==0 ) return prop;
-		prop= prop->next;
+	return BLI_findstring(&ob->prop, name, offsetof(bProperty, name));
 	}
-	return NULL;
-}
 
 void set_ob_property(Object *ob, bProperty *propc)
 {

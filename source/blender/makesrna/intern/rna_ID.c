@@ -71,6 +71,7 @@ EnumPropertyItem id_type_items[] = {
 #include "BKE_idprop.h"
 #include "BKE_library.h"
 #include "BKE_animsys.h"
+#include "BKE_material.h"
 
 /* name functions that ignore the first two ID characters */
 void rna_ID_name_get(PointerRNA *ptr, char *value)
@@ -176,7 +177,7 @@ StructRNA *rna_ID_refine(PointerRNA *ptr)
 	return ID_code_to_RNA_type(GS(id->name));
 }
 
-IDProperty *rna_ID_idproperties(PointerRNA *ptr, int create)
+IDProperty *rna_ID_idprops(PointerRNA *ptr, int create)
 {
 	return IDP_GetProperties(ptr->data, create);
 }
@@ -195,7 +196,7 @@ void rna_ID_fake_user_set(PointerRNA *ptr, int value)
 	}
 }
 
-IDProperty *rna_IDPropertyGroup_idproperties(PointerRNA *ptr, int create)
+IDProperty *rna_IDPropertyGroup_idprops(PointerRNA *ptr, int create)
 {
 	return ptr->data;
 }
@@ -317,7 +318,7 @@ static void rna_def_ID_properties(BlenderRNA *brna)
 	 * care of the properties here */
 	srna= RNA_def_struct(brna, "IDPropertyGroup", NULL);
 	RNA_def_struct_ui_text(srna, "ID Property Group", "Group of ID properties");
-	RNA_def_struct_idproperties_func(srna, "rna_IDPropertyGroup_idproperties");
+	RNA_def_struct_idprops_func(srna, "rna_IDPropertyGroup_idprops");
 	RNA_def_struct_register_funcs(srna, "rna_IDPropertyGroup_register", "rna_IDPropertyGroup_unregister");
 	RNA_def_struct_refine_func(srna, "rna_IDPropertyGroup_refine");
 
@@ -331,6 +332,31 @@ static void rna_def_ID_properties(BlenderRNA *brna)
 	RNA_def_struct_name_property(srna, prop);
 }
 
+
+static void rna_def_ID_materials(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	FunctionRNA *func;
+	PropertyRNA *parm;
+	
+	/* for mesh/mball/curve materials */
+	srna= RNA_def_struct(brna, "IDMaterials", NULL);
+	RNA_def_struct_sdna(srna, "ID");
+	RNA_def_struct_ui_text(srna, "ID Materials", "Collection of materials");
+
+	func= RNA_def_function(srna, "append", "material_append_id");
+	RNA_def_function_ui_description(func, "Add a new material to Mesh.");
+	parm= RNA_def_pointer(func, "material", "Material", "", "Material to add.");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	
+	func= RNA_def_function(srna, "pop", "material_pop_id");
+	RNA_def_function_ui_description(func, "Add a new material to Mesh.");
+	parm= RNA_def_int(func, "index", 0, 0, INT_MAX, "", "Frame number to set.", 0, INT_MAX);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm= RNA_def_pointer(func, "material", "Material", "", "Material to add.");
+	RNA_def_function_return(func, parm);
+}
+
 static void rna_def_ID(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -341,7 +367,7 @@ static void rna_def_ID(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "ID", "Base type for datablocks, defining a unique name, linking from other libraries and garbage collection");
 	RNA_def_struct_flag(srna, STRUCT_ID|STRUCT_ID_REFCOUNT);
 	RNA_def_struct_refine_func(srna, "rna_ID_refine");
-	RNA_def_struct_idproperties_func(srna, "rna_ID_idproperties");
+	RNA_def_struct_idprops_func(srna, "rna_ID_idprops");
 
 	prop= RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Name", "Unique datablock ID name");
@@ -356,7 +382,7 @@ static void rna_def_ID(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Users", "Number of times this datablock is referenced");
 
-	prop= RNA_def_property(srna, "fake_user", PROP_BOOLEAN, PROP_NONE);
+	prop= RNA_def_property(srna, "use_fake_user", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", LIB_FAKEUSER);
 	RNA_def_property_ui_text(prop, "Fake User", "Saves this datablock even if it has no users");
 	RNA_def_property_boolean_funcs(prop, NULL, "rna_ID_fake_user_set");
@@ -422,6 +448,7 @@ void RNA_def_ID(BlenderRNA *brna)
 
 	rna_def_ID(brna);
 	rna_def_ID_properties(brna);
+	rna_def_ID_materials(brna);
 	rna_def_library(brna);
 }
 

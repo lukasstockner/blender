@@ -86,6 +86,7 @@
 #include "DNA_world_types.h"
 
 #include "MEM_guardedalloc.h"
+
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 
@@ -3139,6 +3140,7 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 			psys->clmd->clothObject = NULL;
 			
 			psys->clmd->sim_parms= newdataadr(fd, psys->clmd->sim_parms);
+			psys->clmd->sim_parms->effector_weights = NULL;
 			psys->clmd->coll_parms= newdataadr(fd, psys->clmd->coll_parms);
 			
 			if(psys->clmd->sim_parms) {
@@ -5081,7 +5083,9 @@ static void direct_link_screen(FileData *fd, bScreen *sc)
 					direct_link_gpencil(fd, v3d->gpd);
 				}
 				v3d->localvd= newdataadr(fd, v3d->localvd);
-				v3d->afterdraw.first= v3d->afterdraw.last= NULL;
+				v3d->afterdraw_transp.first= v3d->afterdraw_transp.last= NULL;
+				v3d->afterdraw_xray.first= v3d->afterdraw_xray.last= NULL;
+				v3d->afterdraw_xraytransp.first= v3d->afterdraw_xraytransp.last= NULL;
 				v3d->properties_storage= NULL;
 
 				view3d_split_250(v3d, &sl->regionbase);
@@ -10684,6 +10688,15 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				seq->volume = 1.0f;
 			}
 			SEQ_END
+		}
+
+		/* particle brush strength factor was changed from int to float */
+		for(sce= main->scene.first; sce; sce=sce->id.next) {
+			ParticleEditSettings *pset= &sce->toolsettings->particle;
+			int a;
+
+			for(a=0; a<PE_TOT_BRUSH; a++)
+				pset->brush[a].strength /= 100.0;
 		}
 
 		for(ma = main->mat.first; ma; ma=ma->id.next)

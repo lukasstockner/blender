@@ -45,7 +45,6 @@
 
 #include "PIL_time.h"
 
-#include "MEM_guardedalloc.h"
 
 #include "CMP_node.h"
 #include "intern/CMP_util.h"	/* stupid include path... */
@@ -735,14 +734,8 @@ void nodeGroupSocketUseFlags(bNodeTree *ngroup)
 /* finds a node based on its name */
 bNode *nodeFindNodebyName(bNodeTree *ntree, const char *name)
 {
-	bNode *node=NULL;
-	
-	for(node= ntree->nodes.first; node; node= node->next) {
-		if (strcmp(name, node->name) == 0)
-			break;
+	return BLI_findstring(&ntree->nodes, name, offsetof(bNode, name));
 	}
-	return node;
-}
 
 /* finds a node based on given socket */
 int nodeFindNode(bNodeTree *ntree, bNodeSocket *sock, bNode **nodep, int *sockindex)
@@ -1794,18 +1787,25 @@ void NodeTagChanged(bNodeTree *ntree, bNode *node)
 	}
 }
 
-void NodeTagIDChanged(bNodeTree *ntree, ID *id)
+int NodeTagIDChanged(bNodeTree *ntree, ID *id)
 {
+	int change = FALSE;
+
 	if(id==NULL)
-		return;
+		return change;
 	
 	if(ntree->type==NTREE_COMPOSIT) {
 		bNode *node;
 		
-		for(node= ntree->nodes.first; node; node= node->next)
-			if(node->id==id)
+		for(node= ntree->nodes.first; node; node= node->next) {
+			if(node->id==id) {
+				change= TRUE;
 				NodeTagChanged(ntree, node);
 	}
+}
+	}
+
+	return change;
 }
 
 

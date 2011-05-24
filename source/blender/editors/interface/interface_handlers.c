@@ -44,6 +44,7 @@
 #include "BKE_idprop.h"
 #include "BKE_report.h"
 #include "BKE_texture.h"
+#include "BKE_unit.h"
 
 #include "ED_screen.h"
 #include "ED_util.h"
@@ -240,6 +241,20 @@ static int ui_is_a_warp_but(uiBut *but)
 			return TRUE;
 
 	return FALSE;
+}
+
+/* file selectors are exempt from utf-8 checks */
+static int ui_is_utf8_but(uiBut *but)
+{
+	if (but->rnaprop) {
+		int subtype= RNA_property_subtype(but->rnaprop);
+		
+		if(ELEM3(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_FILENAME)) {
+			return TRUE;
+		}
+	}
+
+	return !(but->flag & UI_BUT_NO_UTF8);
 }
 
 /* ********************** button apply/revert ************************/
@@ -1541,7 +1556,8 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 		int i;
 		for(i=0; data->str[i]; i++) {
 			if(!isascii(data->str[i])) {
-				data->str[i]= '\0';
+				/* no stripping actually: just convert to alt name */
+				ui_convert_to_unit_alt_name(but, data->str, data->maxlen);
 				break;
 			}
 		}
@@ -1572,6 +1588,15 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
 	if(but) {
+		if(ui_is_utf8_but(but)) {
+			int strip= BLI_utf8_invalid_strip(but->editstr, strlen(but->editstr));
+			/* not a file?, strip non utf-8 chars */
+			if(strip) {
+				/* wont happen often so isnt that annoying to keep it here for a while */
+				printf("invalid utf8 - stripped chars %d\n", strip);
+			}
+		}
+		
 		if(data->searchbox) {
 			if(data->cancel==0)
 				ui_searchbox_apply(but, data->searchbox);
@@ -2171,26 +2196,47 @@ static int ui_do_but_EXIT(bContext *C, uiBut *but, uiHandleButtonData *data, wmE
 }
 
 /* var names match ui_numedit_but_NUM */
-static float ui_numedit_apply_snapf(float tempf, float softmin, float softmax, float softrange, int snap)
+static float ui_numedit_apply_snapf(uiBut *but, float tempf, float softmin, float softmax, float softrange, int snap)
 {
-	if(tempf==softmin || tempf==softmax)
-		return tempf;
+	if(tempf==softmin || tempf==softmax || snap==0) {
+		/* pass */
+	}
+	else {
+		float fac= 1.0f;
 
-	switch(snap) {
-	case 0:
-		break;
-	case 1:
-		if(tempf==softmin || tempf==softmax) { }
-		else if(softrange < 2.10) tempf= 0.1*floor(10*tempf);
+		if(ui_is_but_unit(but)) {
+			Scene *scene= CTX_data_scene((bContext *)but->block->evil_C);
+			int unit_type = RNA_SUBTYPE_UNIT_VALUE(RNA_property_subtype(but->rnaprop));
+
+			if(bUnit_IsValid(scene->unit.system, unit_type)) {
+				fac= (float)bUnit_BaseScalar(scene->unit.system, unit_type);
+				if(ELEM3(unit_type, B_UNIT_LENGTH, B_UNIT_AREA, B_UNIT_VOLUME)) {
+					fac /= scene->unit.scale_length;
+				}
+			}
+		}
+
+		if(fac != 1.0f) {
+			/* snap in unit-space */
+			tempf /= fac;
+			softmin /= fac;
+			softmax /= fac;
+			softrange /= fac;
+		}
+
+		if(snap==1) {
+			if(softrange < 2.10) tempf= 0.1*floor(10*tempf);
 		else if(softrange < 21.0) tempf= floor(tempf);
 		else tempf= 10.0*floor(tempf/10.0);
-		break;
-	case 2:
-		if(tempf==softmin || tempf==softmax) { }
-		else if(softrange < 2.10) tempf= 0.01*floor(100.0*tempf);
+		}
+		else if(snap==2) {
+			if(softrange < 2.10) tempf= 0.01*floor(100.0*tempf);
 		else if(softrange < 21.0) tempf= 0.1*floor(10.0*tempf);
 		else tempf= floor(tempf);
-		break;
+	}
+
+		if(fac != 1.0f)
+			tempf *= fac;
 	}
 
 	return tempf;
@@ -2243,7 +2289,7 @@ static int ui_numedit_but_NUM(uiBut *but, uiHandleButtonData *data, float fac, i
 		if(ui_is_but_float(but)) {
 			fac *= 0.01*but->a1;
 			tempf = data->startvalue + ((mx - data->dragstartx) * fac);
-			tempf= ui_numedit_apply_snapf(tempf, softmin, softmax, softrange, snap);
+			tempf= ui_numedit_apply_snapf(but, tempf, softmin, softmax, softrange, snap);
 
 #if 1		/* fake moving the click start, nicer for dragging back after passing the limit */
 			if(tempf < softmin) {
@@ -2336,7 +2382,7 @@ static int ui_numedit_but_NUM(uiBut *but, uiHandleButtonData *data, float fac, i
 		}
 		else {
 			temp= 0;
-			tempf= ui_numedit_apply_snapf(tempf, softmin, softmax, softrange, snap);
+			tempf= ui_numedit_apply_snapf(but, tempf, softmin, softmax, softrange, snap);
 
 			CLAMP(tempf, softmin, softmax);
 
@@ -4777,7 +4823,7 @@ static void button_activate_init(bContext *C, ARegion *ar, uiBut *but, uiButtonA
 		button_activate_state(C, but, BUTTON_STATE_WAIT_FLASH);
 }
 
-static void button_activate_exit(bContext *C, uiHandleButtonData *data, uiBut *but, int mousemove)
+static void button_activate_exit(bContext *C, uiHandleButtonData *data, uiBut *but, int mousemove, int onfree)
 {
 	uiBlock *block= but->block;
 	uiBut *bt;
@@ -4787,6 +4833,7 @@ static void button_activate_exit(bContext *C, uiHandleButtonData *data, uiBut *b
 		button_activate_state(C, but, BUTTON_STATE_EXIT);
 
 	/* apply the button action or value */
+	if(!onfree)
 	ui_apply_button(C, block, but, data, 0);
 
 	/* if this button is in a menu, this will set the button return
@@ -4802,7 +4849,7 @@ static void button_activate_exit(bContext *C, uiHandleButtonData *data, uiBut *b
 		}
 	}
 
-	if(!data->cancel) {
+	if(!onfree && !data->cancel) {
 		/* autokey & undo push */
 		ui_apply_autokey_undo(C, but);
 
@@ -4835,6 +4882,7 @@ static void button_activate_exit(bContext *C, uiHandleButtonData *data, uiBut *b
 	but->active= NULL;
 	but->flag &= ~(UI_ACTIVE|UI_SELECT);
 	but->flag |= UI_BUT_LAST_ACTIVE;
+	if(!onfree)
 	ui_check_but(but);
 
 	/* adds empty mousemove in queue for re-init handler, in case mouse is
@@ -4844,7 +4892,7 @@ static void button_activate_exit(bContext *C, uiHandleButtonData *data, uiBut *b
 		WM_event_add_mousemove(C);
 }
 
-void ui_button_active_cancel(const bContext *C, uiBut *but)
+void ui_button_active_free(const bContext *C, uiBut *but)
 {
 	uiHandleButtonData *data;
 
@@ -4854,7 +4902,7 @@ void ui_button_active_cancel(const bContext *C, uiBut *but)
 	if(but->active) {
 		data= but->active;
 		data->cancel= 1;
-		button_activate_exit((bContext*)C, data, but, 0);
+		button_activate_exit((bContext*)C, data, but, 0, 1);
 	}
 }
 
@@ -4920,7 +4968,7 @@ static void ui_handle_button_activate(bContext *C, ARegion *ar, uiBut *but, uiBu
 	if(oldbut) {
 		data= oldbut->active;
 		data->cancel= 1;
-		button_activate_exit(C, data, oldbut, 0);
+		button_activate_exit(C, data, oldbut, 0, 0);
 	}
 
 	button_activate_init(C, ar, but, type);
@@ -5078,7 +5126,7 @@ static int ui_handle_button_event(bContext *C, wmEvent *event, uiBut *but)
 		postbut= data->postbut;
 		posttype= data->posttype;
 
-		button_activate_exit(C, data, but, (postbut == NULL));
+		button_activate_exit(C, data, but, (postbut == NULL), 0);
 
 		/* for jumping to the next button with tab while text editing */
 		if(postbut)
@@ -5182,7 +5230,7 @@ static void ui_handle_button_return_submenu(bContext *C, wmEvent *event, uiBut *
 		if(menu->menuretval != UI_RETURN_OK)
 			data->cancel= 1;
 
-		button_activate_exit(C, data, but, 1);
+		button_activate_exit(C, data, but, 1, 0);
 	}
 	else if(menu->menuretval == UI_RETURN_OUT) {
 		if(event->type==MOUSEMOVE && ui_mouse_inside_button(data->region, but, event->x, event->y)) {
@@ -5196,7 +5244,7 @@ static void ui_handle_button_return_submenu(bContext *C, wmEvent *event, uiBut *
 			}
 			else {
 				data->cancel= 1;
-				button_activate_exit(C, data, but, 1);
+				button_activate_exit(C, data, but, 1, 0);
 			}
 		}
 	}

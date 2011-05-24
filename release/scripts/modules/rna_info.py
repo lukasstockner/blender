@@ -201,13 +201,11 @@ class InfoPropertyRNA:
         if self.type == "enum":
             self.enum_items[:] = rna_prop.items.keys()
 
-
         if self.array_length:
             self.default = tuple(getattr(rna_prop, "default_array", ()))
         else:
             self.default = getattr(rna_prop, "default", None)
         self.default_str = "" # fallback
-
 
         if self.type == "pointer":
             # pointer has no default, just set as None
@@ -302,6 +300,7 @@ class InfoFunctionRNA:
         self.identifier = rna_func.identifier
         # self.name = rna_func.name # functions have no name!
         self.description = rna_func.description.strip()
+        self.is_classmethod = not rna_func.use_self
 
         self.args = []
         self.return_values = ()
@@ -313,7 +312,7 @@ class InfoFunctionRNA:
 
         for rna_prop in rna_func.parameters.values():
             prop = GetInfoPropertyRNA(rna_prop, parent_id)
-            if rna_prop.use_output:
+            if rna_prop.is_output:
                 self.return_values.append(prop)
             else:
                 self.args.append(prop)
@@ -465,15 +464,11 @@ def BuildRNAInfo():
                 # NOT USED YET
                 ## rna_functions_dict[identifier] = get_direct_functions(rna_struct)
 
-
                 # fill in these later
                 rna_children_dict[identifier] = []
                 rna_references_dict[identifier] = []
-
-
         else:
             print("Ignoring", rna_type_name)
-
 
     structs.sort() # not needed but speeds up sort below, setting items without an inheritance first
 
@@ -505,7 +500,6 @@ def BuildRNAInfo():
 
     # Done ordering structs
 
-
     # precalc vars to avoid a lot of looping
     for (rna_base, identifier, rna_struct) in structs:
 
@@ -535,17 +529,14 @@ def BuildRNAInfo():
                 if rna_prop_ptr:
                     rna_references_dict[rna_prop_ptr.identifier].append("%s.%s" % (rna_struct_path, rna_func.identifier))
 
-
         # Store nested children
         nested = rna_struct.nested
         if nested:
             rna_children_dict[nested.identifier].append(rna_struct)
 
-
     # Sort the refs, just reads nicer
     for rna_refs in rna_references_dict.values():
         rna_refs.sort()
-
 
     info_structs = []
     for (rna_base, identifier, rna_struct) in structs:
@@ -589,12 +580,11 @@ def BuildRNAInfo():
                     if default < prop.min or default > prop.max:
                         print("\t %s.%s, %s not in [%s - %s]" % (rna_info.identifier, prop.identifier, default, prop.min, prop.max))
 
-
     # now for operators
     op_mods = dir(bpy.ops)
 
     for op_mod_name in sorted(op_mods):
-        if op_mod_name.startswith('__') or op_mod_name in ("add", "remove"):
+        if op_mod_name.startswith('__'):
             continue
 
         op_mod = getattr(bpy.ops, op_mod_name)
@@ -615,10 +605,8 @@ def BuildRNAInfo():
         for rna_prop in rna_info.args:
             rna_prop.build()
 
-
     #for rna_info in InfoStructRNA.global_lookup.values():
     #    print(rna_info)
-
     return InfoStructRNA.global_lookup, InfoFunctionRNA.global_lookup, InfoOperatorRNA.global_lookup, InfoPropertyRNA.global_lookup
 
 
@@ -636,12 +624,17 @@ if __name__ == "__main__":
         for prop_id, prop in sorted(props):
             # if prop.type == 'boolean':
             #     continue
-            data.append("%s.%s -> %s:    %s%s    %s" % (struct_id_str, prop.identifier, prop.identifier, prop.type, ", (read-only)" if prop.is_readonly else "", prop.description))
+            prop_type = prop.type
+            if prop.array_length > 0:
+                prop_type += "[%d]" % prop.array_length
+
+            data.append("%s.%s -> %s:    %s%s    %s" % (struct_id_str, prop.identifier, prop.identifier, prop_type, ", (read-only)" if prop.is_readonly else "", prop.description))
         data.sort()
 
     if bpy.app.background:
         import sys
         sys.stderr.write("\n".join(data))
+        sys.stderr.write("\n\nEOF\n")
     else:
         text = bpy.data.texts.new(name="api.py")
         text.from_string(data)

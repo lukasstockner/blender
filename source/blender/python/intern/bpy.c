@@ -41,6 +41,8 @@
 #include "../generic/blf_api.h"
 #include "../generic/IDProp.h"
 
+#include "AUD_PyInit.h"
+
 static char bpy_script_paths_doc[] =
 ".. function:: script_paths()\n"
 "\n"
@@ -153,7 +155,7 @@ void BPy_init_modules( void )
 	BGL_Init();
 	BLF_Init();
 	IDProp_Init_Types();
-
+	AUD_initPython();
 
 	mod = PyModule_New("_bpy");
 
@@ -165,6 +167,8 @@ void BPy_init_modules( void )
 	BPY_rna_init();
 
 	PyModule_AddObject( mod, "types", BPY_rna_types() ); /* needs to be first so bpy_types can run */
+	PyModule_AddObject(mod, "StructMetaIDProp", (PyObject *)&pyrna_struct_meta_idprop_Type); /* metaclass for idprop types, bpy_types.py needs access */
+			
 	bpy_import_test("bpy_types");
 	PyModule_AddObject( mod, "data", BPY_rna_module() ); /* imports bpy_types by running this */
 	bpy_import_test("bpy_types");

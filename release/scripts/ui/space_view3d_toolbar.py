@@ -92,13 +92,11 @@ class VIEW3D_PT_tools_meshedit(View3DPanel, bpy.types.Panel):
         col.operator("transform.resize", text="Scale")
         col.operator("transform.shrink_fatten", text="Along Normal")
 
-
         col = layout.column(align=True)
         col.label(text="Deform:")
         col.operator("transform.edge_slide")
         col.operator("mesh.rip_move")
         col.operator("mesh.vertices_smooth")
-
 
         col = layout.column(align=True)
         col.label(text="Add:")
@@ -126,7 +124,6 @@ class VIEW3D_PT_tools_meshedit(View3DPanel, bpy.types.Panel):
         col.operator("wm.call_menu", text="Unwrap").name = "VIEW3D_MT_uv_map"
         col.operator("mesh.mark_seam")
         col.operator("mesh.mark_seam", text="Clear Seam").clear = True
-
 
         col = layout.column(align=True)
         col.label(text="Shading:")
@@ -339,7 +336,7 @@ class VIEW3D_PT_tools_armatureedit_options(View3DPanel, bpy.types.Panel):
         arm = context.active_object.data
 
         col = layout.column(align=True)
-        col.prop(arm, "x_axis_mirror")
+        col.prop(arm, "use_mirror_x")
 
 # ********** default tools for editmode_mball ****************
 
@@ -462,8 +459,8 @@ class VIEW3D_PT_tools_posemode_options(View3DPanel, bpy.types.Panel):
         arm = context.active_object.data
 
         col = layout.column(align=True)
-        col.prop(arm, "x_axis_mirror")
-        col.prop(arm, "auto_ik")
+        col.prop(arm, "use_mirror_x")
+        col.prop(arm, "use_auto_ik")
 
 # ********** default tools for paint modes ****************
 
@@ -523,11 +520,11 @@ class VIEW3D_PT_tools_brush(PaintPanel, bpy.types.Panel):
             if settings.tool == 'ADD':
                 col.prop(brush, "count")
                 col = layout.column()
-                col.prop(settings, "add_interpolate")
+                col.prop(settings, "use_default_interpolate")
                 sub = col.column(align=True)
-                sub.active = settings.add_interpolate
+                sub.active = settings.use_default_interpolate
                 sub.prop(brush, "steps", slider=True)
-                sub.prop(settings, "add_keys", slider=True)
+                sub.prop(settings, "default_key_count", slider=True)
             elif settings.tool == 'LENGTH':
                 layout.prop(brush, "length_mode", expand=True)
             elif settings.tool == 'PUFF':
@@ -540,7 +537,6 @@ class VIEW3D_PT_tools_brush(PaintPanel, bpy.types.Panel):
 
             col = layout.column()
 
-
             col.separator()
 
             row = col.row(align=True)
@@ -552,8 +548,7 @@ class VIEW3D_PT_tools_brush(PaintPanel, bpy.types.Panel):
                 row.prop(brush, "use_locked_size", toggle=True, text="", icon='UNLOCKED')
                 row.prop(brush, "size", text="Radius", slider=True)
 
-            row.prop(brush, "use_size_pressure", toggle=True, text="")
-
+            row.prop(brush, "use_pressure_size", toggle=True, text="")
 
             if brush.sculpt_tool not in ('SNAKE_HOOK', 'GRAB', 'ROTATE'):
                 col.separator()
@@ -567,18 +562,14 @@ class VIEW3D_PT_tools_brush(PaintPanel, bpy.types.Panel):
                         row.prop(brush, "use_space_atten", toggle=True, text="", icon='UNLOCKED')
 
                 row.prop(brush, "strength", text="Strength", slider=True)
-                row.prop(brush, "use_strength_pressure", text="")
-
-
+                row.prop(brush, "use_pressure_strength", text="")
 
             if brush.sculpt_tool not in ('SMOOTH'):
                 col.separator()
 
                 row = col.row(align=True)
-                row.prop(brush, "autosmooth_factor", slider=True)
+                row.prop(brush, "auto_smooth_factor", slider=True)
                 row.prop(brush, "use_inverse_smooth_pressure", toggle=True, text="")
-
-
 
             if brush.sculpt_tool not in ('GRAVITY'):
                 col.separator()
@@ -593,8 +584,6 @@ class VIEW3D_PT_tools_brush(PaintPanel, bpy.types.Panel):
 
                 row = col.row(align=True)
                 row.prop(brush, "normal_weight", slider=True)
-
-
 
             if brush.sculpt_tool in ('CREASE', 'BLOB'):
                 col.separator()
@@ -678,15 +667,15 @@ class VIEW3D_PT_tools_brush(PaintPanel, bpy.types.Panel):
 
             row = col.row(align=True)
             row.prop(brush, "size", text="Radius", slider=True)
-            row.prop(brush, "use_size_pressure", toggle=True, text="")
+            row.prop(brush, "use_pressure_size", toggle=True, text="")
 
             row = col.row(align=True)
             row.prop(brush, "strength", text="Strength", slider=True)
-            row.prop(brush, "use_strength_pressure", toggle=True, text="")
+            row.prop(brush, "use_pressure_strength", toggle=True, text="")
 
             row = col.row(align=True)
             row.prop(brush, "jitter", slider=True)
-            row.prop(brush, "use_jitter_pressure", toggle=True, text="")
+            row.prop(brush, "use_pressure_jitter", toggle=True, text="")
 
             col.prop(brush, "blend", text="Blend")
 
@@ -694,29 +683,26 @@ class VIEW3D_PT_tools_brush(PaintPanel, bpy.types.Panel):
             col.active = (brush.blend not in ('ERASE_ALPHA', 'ADD_ALPHA'))
             col.prop(brush, "use_alpha")
 
-
         # Weight Paint Mode #
-
         elif context.weight_paint_object and brush:
             layout.prop(context.tool_settings, "vertex_group_weight", text="Weight", slider=True)
-            layout.prop(context.tool_settings, "auto_normalize", text="Auto Normalize")
+            layout.prop(context.tool_settings, "use_auto_normalize", text="Auto Normalize")
 
             col = layout.column()
 
             row = col.row(align=True)
             row.prop(brush, "size", text="Radius", slider=True)
-            row.prop(brush, "use_size_pressure", toggle=True, text="")
+            row.prop(brush, "use_pressure_size", toggle=True, text="")
 
             row = col.row(align=True)
             row.prop(brush, "strength", text="Strength", slider=True)
-            row.prop(brush, "use_strength_pressure", toggle=True, text="")
+            row.prop(brush, "use_pressure_strength", toggle=True, text="")
 
             row = col.row(align=True)
             row.prop(brush, "jitter", slider=True)
-            row.prop(brush, "use_jitter_pressure", toggle=True, text="")
+            row.prop(brush, "use_pressure_jitter", toggle=True, text="")
 
         # Vertex Paint Mode #
-
         elif context.vertex_paint_object and brush:
             col = layout.column()
             col.template_color_wheel(brush, "color", value_slider=True)
@@ -724,21 +710,21 @@ class VIEW3D_PT_tools_brush(PaintPanel, bpy.types.Panel):
 
             row = col.row(align=True)
             row.prop(brush, "size", text="Radius", slider=True)
-            row.prop(brush, "use_size_pressure", toggle=True, text="")
+            row.prop(brush, "use_pressure_size", toggle=True, text="")
 
             row = col.row(align=True)
             row.prop(brush, "strength", text="Strength", slider=True)
-            row.prop(brush, "use_strength_pressure", toggle=True, text="")
+            row.prop(brush, "use_pressure_strength", toggle=True, text="")
 
             # XXX - TODO
             #row = col.row(align=True)
             #row.prop(brush, "jitter", slider=True)
-            #row.prop(brush, "use_jitter_pressure", toggle=True, text="")
+            #row.prop(brush, "use_pressure_jitter", toggle=True, text="")
 
 
 class VIEW3D_PT_tools_brush_texture(PaintPanel, bpy.types.Panel):
     bl_label = "Texture"
-    bl_default_closed = True
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -760,10 +746,7 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel, bpy.types.Panel):
         if context.sculpt_object:
             #XXX duplicated from properties_texture.py
 
-
-
             col.separator()
-
 
             col.label(text="Brush Mapping:")
             row = col.row(align=True)
@@ -776,7 +759,7 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel, bpy.types.Panel):
             col.label(text="Angle:")
             
             col = layout.column()
-            col.prop(brush, "texture_angle_source", text="")
+                col.prop(brush, "texture_angle_source_random", text="")
 
             col = layout.column()
             col.prop(tex_slot, "angle", text="")
@@ -820,7 +803,7 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel, bpy.types.Panel):
 
 class VIEW3D_PT_tools_brush_tool(PaintPanel, bpy.types.Panel):
     bl_label = "Tool"
-    bl_default_closed = True
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -856,7 +839,7 @@ class VIEW3D_PT_tools_brush_tool(PaintPanel, bpy.types.Panel):
 
 class VIEW3D_PT_tools_brush_stroke(PaintPanel, bpy.types.Panel):
     bl_label = "Stroke"
-    bl_default_closed = True
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -882,7 +865,7 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel, bpy.types.Panel):
             if brush.use_anchor:
                 col.separator()
                 row = col.row()
-                row.prop(brush, "edge_to_edge", "Edge To Edge")
+                row.prop(brush, "use_edge_to_edge", "Edge To Edge")
 
             if brush.use_airbrush:
                 col.separator()
@@ -898,7 +881,7 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel, bpy.types.Panel):
                 row.active = brush.use_space
                 row.prop(brush, "use_adaptive_space", text="Adaptive Spacing")
 
-            if brush.sculpt_tool not in ('GRAB', 'THUMB', 'SNAKE_HOOK', 'ROTATE') and (not brush.use_anchor) and (not brush.restore_mesh):
+            if brush.sculpt_tool not in ('GRAB', 'THUMB', 'SNAKE_HOOK', 'ROTATE') and (not brush.use_anchor) and (not brush.use_restore_mesh):
                 col = layout.column()
                 col.separator()
 
@@ -913,7 +896,7 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel, bpy.types.Panel):
 
                 row = col.row(align=True)
                 row.prop(brush, "jitter", slider=True)
-                row.prop(brush, "use_jitter_pressure", toggle=True, text="")
+                row.prop(brush, "use_pressure_jitter", toggle=True, text="")
 
         else:
             row = col.row()
@@ -952,12 +935,12 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel, bpy.types.Panel):
             #col.separator()
 
             #if texture_paint:
-            #    row.prop(brush, "use_spacing_pressure", toggle=True, text="")
+            #    row.prop(brush, "use_pressure_spacing", toggle=True, text="")
 
 
 class VIEW3D_PT_tools_brush_curve(PaintPanel, bpy.types.Panel):
     bl_label = "Curve"
-    bl_default_closed = True
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -984,7 +967,7 @@ class VIEW3D_PT_tools_brush_curve(PaintPanel, bpy.types.Panel):
 
 class VIEW3D_PT_sculpt_options(PaintPanel, bpy.types.Panel):
     bl_label = "Options"
-    bl_default_closed = True
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -992,7 +975,6 @@ class VIEW3D_PT_sculpt_options(PaintPanel, bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-
 
         tool_settings = context.tool_settings
         sculpt = tool_settings.sculpt
@@ -1003,8 +985,8 @@ class VIEW3D_PT_sculpt_options(PaintPanel, bpy.types.Panel):
 
         col = split.column()
 
-        col.prop(sculpt, "use_openmp", text="Threaded Sculpt")
-        col.prop(sculpt, "fast_navigate")
+        col.prop(sculpt, "use_threaded", text="Threaded Sculpt")
+        col.prop(sculpt, "show_low_resolution")
         col.prop(sculpt, "show_brush")
 
         row = col.row()
@@ -1024,10 +1006,9 @@ class VIEW3D_PT_sculpt_options(PaintPanel, bpy.types.Panel):
         row.prop(sculpt, "lock_z", text="Z", toggle=True)
 
 
-
 class VIEW3D_PT_sculpt_symmetry(PaintPanel, bpy.types.Panel):
     bl_label = "Symmetry"
-    bl_default_closed = True
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -1046,13 +1027,13 @@ class VIEW3D_PT_sculpt_symmetry(PaintPanel, bpy.types.Panel):
         col = split.column()
 
         col.label(text="Mirror:")
-        col.prop(sculpt, "symmetry_x", text="X")
-        col.prop(sculpt, "symmetry_y", text="Y")
-        col.prop(sculpt, "symmetry_z", text="Z")
+        col.prop(sculpt, "use_symmetry_x", text="X")
+        col.prop(sculpt, "use_symmetry_y", text="Y")
+        col.prop(sculpt, "use_symmetry_z", text="Z")
 
             col = split.column()
 
-        col.prop(sculpt, "radial_symm", text="Radial")
+        col.prop(sculpt, "radial_symmetry", text="Radial")
 
         col = layout.column()
 
@@ -1060,9 +1041,10 @@ class VIEW3D_PT_sculpt_symmetry(PaintPanel, bpy.types.Panel):
 
         col.prop(brush, "use_symmetry_feather", text="Feather")
 
+
 class VIEW3D_PT_tools_brush_appearance(PaintPanel, bpy.types.Panel):
     bl_label = "Appearance"
-    bl_default_closed = True
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -1075,16 +1057,16 @@ class VIEW3D_PT_tools_brush_appearance(PaintPanel, bpy.types.Panel):
         settings = __class__.paint_settings(context)
         brush = settings.brush
 
-        col = layout.column();
+        col = layout.column()
 
         if context.sculpt_object and context.tool_settings.sculpt:
             if brush.sculpt_tool in ('DRAW', 'GRAVITY', 'INFLATE', 'CLAY', 'CLAY_STRIPS', 'PINCH', 'CREASE', 'BLOB', 'FLATTEN', 'FILL', 'SCRAPE'):
-                col.prop(brush, "add_col", text="Add Color")
-                col.prop(brush, "sub_col", text="Subtract Color")
+                col.prop(brush, "cursor_color_add", text="Add Color")
+                col.prop(brush, "cursor_color_subtract", text="Subtract Color")
             else:
-                col.prop(brush, "add_col", text="Color")
+                col.prop(brush, "cursor_color_add", text="Color")
         else:
-            col.prop(brush, "add_col", text="Color")
+            col.prop(brush, "cursor_color_add", text="Color")
 
         col = layout.column()
         col.label(text="Icon:")
@@ -1124,9 +1106,9 @@ class VIEW3D_PT_tools_weightpaint_options(View3DPanel, bpy.types.Panel):
         wpaint = tool_settings.weight_paint
 
         col = layout.column()
-        col.prop(wpaint, "all_faces")
-        col.prop(wpaint, "normals")
-        col.prop(wpaint, "spray")
+        col.prop(wpaint, "use_all_faces")
+        col.prop(wpaint, "use_normal")
+        col.prop(wpaint, "use_spray")
 
         obj = context.weight_paint_object
         if obj.type == 'MESH':
@@ -1162,9 +1144,9 @@ class VIEW3D_PT_tools_vertexpaint(View3DPanel, bpy.types.Panel):
 
         col = layout.column()
         #col.prop(vpaint, "mode", text="")
-        col.prop(vpaint, "all_faces")
-        col.prop(vpaint, "normals")
-        col.prop(vpaint, "spray")
+        col.prop(vpaint, "use_all_faces")
+        col.prop(vpaint, "use_normal")
+        col.prop(vpaint, "use_spray")
 
         col.label(text="Unified Settings:")
         col.prop(tool_settings, "sculpt_paint_use_unified_size", text="Size")
@@ -1204,7 +1186,7 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, bpy.types.Panel):
         sub = col.column()
         sub.active = use_projection
         sub.prop(ipaint, "use_occlude")
-        sub.prop(ipaint, "use_backface_cull")
+        sub.prop(ipaint, "use_backface_culling")
 
         split = layout.split()
 
@@ -1252,7 +1234,7 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, bpy.types.Panel):
 
 class VIEW3D_PT_imagepaint_options(PaintPanel):
     bl_label = "Options"
-    bl_default_closed = True
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -1268,6 +1250,7 @@ class VIEW3D_PT_imagepaint_options(PaintPanel):
         col.prop(tool_settings, "sculpt_paint_use_unified_size", text="Size")
         col.prop(tool_settings, "sculpt_paint_use_unified_strength", text="Strength")
         
+
 class VIEW3D_MT_tools_projectpaint_clone(bpy.types.Menu):
     bl_label = "Clone Layer"
 
@@ -1308,52 +1291,51 @@ class VIEW3D_PT_tools_particlemode(View3DPanel, bpy.types.Panel):
         if pe.type == 'PARTICLES':
             if ob.particle_systems:
                 if len(ob.particle_systems) > 1:
-                    layout.template_list(ob, "particle_systems", ob, "active_particle_system_index", type='ICONS')
+                    layout.template_list(ob, "particle_systems", ob.particle_systems, "active_index", type='ICONS')
 
-                ptcache = ob.particle_systems[ob.active_particle_system_index].point_cache
+                ptcache = ob.particle_systems.active.point_cache
         else:
             for md in ob.modifiers:
                 if md.type == pe.type:
                     ptcache = md.point_cache
 
-        if ptcache and len(ptcache.point_cache_list) > 1:
-            layout.template_list(ptcache, "point_cache_list", ptcache, "active_point_cache_index", type='ICONS')
+        if ptcache and len(ptcache.point_caches) > 1:
+            layout.template_list(ptcache, "point_caches", ptcache.point_caches, "active_index", type='ICONS')
 
-
-        if not pe.editable:
+        if not pe.is_editable:
             layout.label(text="Point cache must be baked")
             layout.label(text="to enable editing!")
 
         col = layout.column(align=True)
-        if pe.hair:
-            col.active = pe.editable
-            col.prop(pe, "emitter_deflect", text="Deflect emitter")
+        if pe.is_hair:
+            col.active = pe.is_editable
+            col.prop(pe, "use_emitter_deflect", text="Deflect emitter")
             sub = col.row()
-            sub.active = pe.emitter_deflect
+            sub.active = pe.use_emitter_deflect
             sub.prop(pe, "emitter_distance", text="Distance")
 
         col = layout.column(align=True)
-        col.active = pe.editable
+        col.active = pe.is_editable
         col.label(text="Keep:")
-        col.prop(pe, "keep_lengths", text="Lengths")
-        col.prop(pe, "keep_root", text="Root")
-        if not pe.hair:
+        col.prop(pe, "use_preserve_length", text="Lengths")
+        col.prop(pe, "use_preserve_root", text="Root")
+        if not pe.is_hair:
             col.label(text="Correct:")
-            col.prop(pe, "auto_velocity", text="Velocity")
+            col.prop(pe, "use_auto_velocity", text="Velocity")
         col.prop(ob.data, "use_mirror_x")
 
         col = layout.column(align=True)
-        col.active = pe.editable
+        col.active = pe.is_editable
         col.label(text="Draw:")
         col.prop(pe, "draw_step", text="Path Steps")
-        if pe.hair:
-            col.prop(pe, "draw_particles", text="Children")
+        if pe.is_hair:
+            col.prop(pe, "show_particles", text="Children")
         else:
             if pe.type == 'PARTICLES':
-                col.prop(pe, "draw_particles", text="Particles")
-            col.prop(pe, "fade_time")
+                col.prop(pe, "show_particles", text="Particles")
+            col.prop(pe, "use_fade_time")
             sub = col.row()
-            sub.active = pe.fade_time
+            sub.active = pe.use_fade_time
             sub.prop(pe, "fade_frames", slider=True)
 
 

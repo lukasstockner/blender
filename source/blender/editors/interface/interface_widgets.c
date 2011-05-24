@@ -28,7 +28,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "MEM_guardedalloc.h"
 
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
@@ -1421,8 +1420,7 @@ static void widget_state(uiWidgetType *wt, int state)
 
 		VECCOPY(wt->wcol.text, wt->wcol.text_sel);
 		
-		if (!(state & UI_TEXTINPUT))
-			/* swap for selection - show depressed */
+		if(state & UI_SELECT)
 			SWAP(short, wt->wcol.shadetop, wt->wcol.shadedown);
 	}
 	else {
@@ -1453,12 +1451,16 @@ static void widget_state_numslider(uiWidgetType *wt, int state)
 	/* now, set the inner-part so that it reflects state settings too */
 	// TODO: maybe we should have separate settings for the blending colors used for this case?
 	if(state & UI_SELECT) {
+		
 		if(state & UI_BUT_ANIMATED_KEY)
 			widget_state_blend(wt->wcol.item, wcol_state->inner_key_sel, blend);
 		else if(state & UI_BUT_ANIMATED)
 			widget_state_blend(wt->wcol.item, wcol_state->inner_anim_sel, blend);
 		else if(state & UI_BUT_DRIVEN)
 			widget_state_blend(wt->wcol.item, wcol_state->inner_driven_sel, blend);
+		
+		if(state & UI_SELECT)
+			SWAP(short, wt->wcol.shadetop, wt->wcol.shadedown);
 	}
 	else {
 		if(state & UI_BUT_ANIMATED_KEY)
@@ -1639,6 +1641,10 @@ void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	float centx, centy, radius;
 	float rgb[3], hsv[3], hsvo[3], col[3], colcent[3];
 	int a, tot= 32;
+	int color_profile = but->block->color_profile;
+	
+	if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
+		color_profile = BLI_PR_NONE;
 	
 	radstep= 2.0f*M_PI/(float)tot;
 	centx= (float)(rect->xmin + rect->xmax)/2;
@@ -1657,7 +1663,10 @@ void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	/* exception: if 'lock' is set
 	 * lock the value of the color wheel to 1.
 	 * Useful for color correction tools where you're only interested in hue. */
-	if (but->flag & UI_BUT_COLOR_LOCK) hsv[2] = 1.f;
+	if (but->flag & UI_BUT_COLOR_LOCK)
+		hsv[2] = 1.f;
+	else if (color_profile)
+		hsv[2] = linearrgb_to_srgb(hsv[2]);
 	
 	hsv_to_rgb(0.f, 0.f, hsv[2], colcent, colcent+1, colcent+2);
 	
@@ -1885,11 +1894,8 @@ static void ui_draw_but_HSV_v(uiBut *but, rcti *rect)
 	float rgb[3], hsv[3], v, range;
 	int color_profile = but->block->color_profile;
 	
-	if (but->rnaprop) {
-		if (RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
+	if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
 			color_profile = BLI_PR_NONE;
-		}
-	}
 
 	ui_get_but_vectorf(but, rgb);
 	rgb_to_hsv(rgb[0], rgb[1], rgb[2], hsv, hsv+1, hsv+2);
@@ -1951,6 +1957,9 @@ static void widget_numbut(uiWidgetColors *wcol, rcti *rect, int state, int round
 	float rad= 0.5f*(rect->ymax - rect->ymin);
 	float textofs = rad*0.75;
 
+	if(state & UI_SELECT)
+		SWAP(short, wcol->shadetop, wcol->shadedown);
+	
 	widget_init(&wtb);
 	
 	/* fully rounded */
@@ -2224,6 +2233,8 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 	VECCOPY(outline, wcol->outline);
 	VECCOPY(wcol->outline, wcol->item);
 	VECCOPY(wcol->inner, wcol->item);
+
+	if(!(state & UI_SELECT))
 	SWAP(short, wcol->shadetop, wcol->shadedown);
 	
 	rect1= *rect;
@@ -2248,6 +2259,8 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 	
 	widgetbase_draw(&wtb1, wcol);
 	VECCOPY(wcol->outline, outline);
+	
+	if(!(state & UI_SELECT))
 	SWAP(short, wcol->shadetop, wcol->shadedown);
 	
 	/* outline */
@@ -2302,6 +2315,9 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 static void widget_textbut(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
 	uiWidgetBase wtb;
+	
+	if(state & UI_SELECT)
+		SWAP(short, wcol->shadetop, wcol->shadedown);
 	
 	widget_init(&wtb);
 	

@@ -250,7 +250,7 @@ static PyObject *Euler_Rotate(EulerObject * self, PyObject *args)
 		PyErr_SetString(PyExc_TypeError, "euler.rotate(): expected angle (float) and axis (x,y,z)");
 		return NULL;
 	}
-	if(ELEM3(*axis, 'X', 'Y', 'Z') && axis[1]=='\0'){
+	if(!(ELEM3(*axis, 'X', 'Y', 'Z') && axis[1]=='\0')){
 		PyErr_SetString(PyExc_TypeError, "euler.rotate(): expected axis to be 'X', 'Y' or 'Z'");
 		return NULL;
 	}
@@ -621,7 +621,7 @@ static PyGetSetDef Euler_getseters[] = {
 	{"order", (getter)Euler_getOrder, (setter)Euler_setOrder, "Euler rotation order.\n\n:type: string in ['XYZ', 'XZY', 'YXZ', 'YZX', 'ZXY', 'ZYX']", (void *)NULL},
 
 	{"is_wrapped", (getter)BaseMathObject_getWrapped, (setter)NULL, BaseMathObject_Wrapped_doc, NULL},
-	{"_owner", (getter)BaseMathObject_getOwner, (setter)NULL, BaseMathObject_Owner_doc, NULL},
+	{"owner", (getter)BaseMathObject_getOwner, (setter)NULL, BaseMathObject_Owner_doc, NULL},
 	{NULL,NULL,NULL,NULL,NULL}  /* Sentinel */
 };
 

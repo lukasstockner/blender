@@ -26,6 +26,7 @@ language_id = 'python'
 # but python expects this in some places
 _BPY_MAIN_OWN = True
 
+
 def add_scrollback(text, text_type):
     for l in text.split('\n'):
         bpy.ops.console.scrollback_append(text=l.replace('\t', '    '),
@@ -44,7 +45,7 @@ def get_console(console_id):
     from code import InteractiveConsole
 
     consoles = getattr(get_console, "consoles", None)
-    hash_next = hash(bpy.context.manager)
+    hash_next = hash(bpy.context.window_manager)
 
     if consoles is None:
         consoles = get_console.consoles = {}

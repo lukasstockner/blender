@@ -33,7 +33,7 @@ class DataButtonsPanel():
 
 class DATA_PT_context_lattice(DataButtonsPanel, bpy.types.Panel):
     bl_label = ""
-    bl_show_header = False
+    bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
         layout = self.layout
@@ -78,8 +78,8 @@ class DATA_PT_lattice(DataButtonsPanel, bpy.types.Panel):
         col.prop(lat, "interpolation_type_w", text="")
 
         row = layout.row()
-        row.prop(lat, "outside")
-        row.prop_object(lat, "vertex_group", context.object, "vertex_groups", text="")
+        row.prop(lat, "use_outside")
+        row.prop_search(lat, "vertex_group", context.object, "vertex_groups", text="")
 
 
 class DATA_PT_custom_props_lattice(DataButtonsPanel, PropertyPanel, bpy.types.Panel):

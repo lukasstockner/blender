@@ -901,7 +901,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 	
 	if(drawcone && !v3d->transp) {
 		/* in this case we need to draw delayed */
-		add_view3d_after(v3d, base, V3D_TRANSP, flag);
+		add_view3d_after(&v3d->afterdraw_transp, base, flag);
 		return;
 	}
 	
@@ -2769,7 +2769,20 @@ static int draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	}
 	
 	/* GPU_begin_object_materials checked if this is needed */
-	if(do_alpha_pass) add_view3d_after(v3d, base, V3D_TRANSP, flag);
+	if(do_alpha_pass) {
+		if(ob->dtx & OB_DRAWXRAY) {
+			add_view3d_after(&v3d->afterdraw_xraytransp, base, flag);
+		}
+		else {
+			add_view3d_after(&v3d->afterdraw_transp, base, flag);
+		}
+	}
+	else if(ob->dtx & OB_DRAWXRAY && ob->dtx & OB_DRAWTRANSP) {
+		/* special case xray+transp when alpha is 1.0, without this the object vanishes */
+		if(v3d->xray == 0 && v3d->transp == 0) {
+			add_view3d_after(&v3d->afterdraw_xray, base, flag);
+		}
+	}
 	
 	return retval;
 }
@@ -3362,7 +3375,7 @@ static void draw_particle(ParticleKey *state, int draw_as, short draw, float pix
 			add_v3_v3v3(pdd->vd, bb_center, xvec);
 			add_v3_v3(pdd->vd, yvec); pdd->vd+=3;
 
-			sub_v3_v3v3(pdd->vd, bb_center, vec);
+			sub_v3_v3v3(pdd->vd, bb_center, xvec);
 			add_v3_v3(pdd->vd, yvec); pdd->vd+=3;
 
 			sub_v3_v3v3(pdd->vd, bb_center, xvec);
@@ -4759,7 +4772,7 @@ static void draw_empty_sphere (float size)
 		GLUquadricObj	*qobj;
 		
 		displist= glGenLists(1);
-		glNewList(displist, GL_COMPILE_AND_EXECUTE);
+		glNewList(displist, GL_COMPILE);
 		
 		glPushMatrix();
 		
@@ -4781,7 +4794,7 @@ static void draw_empty_sphere (float size)
 	
 	glScalef(size, size, size);
 		glCallList(displist);
-	glScalef(1/size, 1/size, 1/size);
+	glScalef(1.0f/size, 1.0f/size, 1.0f/size);
 }
 
 /* draw a cone for use as an empty drawtype */
@@ -5470,10 +5483,9 @@ static void draw_hooks(Object *ob)
 //<rcruiz>
 void drawRBpivot(bRigidBodyJointConstraint *data)
 {
-	float radsPerDeg = 6.283185307179586232f / 360.f;
 	int axis;
 	float v1[3]= {data->pivX, data->pivY, data->pivZ};
-	float eu[3]= {radsPerDeg*data->axX, radsPerDeg*data->axY, radsPerDeg*data->axZ};
+	float eu[3]= {data->axX, data->axY, data->axZ};
 	float mat[4][4];
 
 	eul_to_mat4(mat,eu);
@@ -5539,7 +5551,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 		if(!(ob->mode & OB_MODE_PARTICLE_EDIT)) {
 			/* xray and transp are set when it is drawing the 2nd/3rd pass */
 			if(!v3d->xray && !v3d->transp && (ob->dtx & OB_DRAWXRAY) && !(ob->dtx & OB_DRAWTRANSP)) {
-				add_view3d_after(v3d, base, V3D_XRAY, flag);
+				add_view3d_after(&v3d->afterdraw_xray, base, flag);
 				return;
 			}
 		}

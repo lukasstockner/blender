@@ -522,22 +522,14 @@ ListBase builtin_keyingsets = {NULL, NULL};
 /* Find KeyingSet type info given a name */
 KeyingSetInfo *ANIM_keyingset_info_find_named (const char name[])
 {
-	KeyingSetInfo *ksi;
-	
 	/* sanity checks */
 	if ((name == NULL) || (name[0] == 0))
 		return NULL;
 		
 	/* search by comparing names */
-	for (ksi = keyingset_type_infos.first; ksi; ksi = ksi->next) {
-		if (strcmp(ksi->idname, name) == 0)
-			return ksi;
+	return BLI_findstring(&keyingset_type_infos, name, offsetof(KeyingSetInfo, idname));
 	}
 	
-	/* no matches found */
-	return NULL;
-}
-
 /* Find builtin KeyingSet by name */
 KeyingSet *ANIM_builtin_keyingset_get_named (KeyingSet *prevKS, const char name[])
 {

@@ -6,7 +6,7 @@ sources = env.Glob('intern/*.c')
 incs = '. ../editors/include ../makesdna ../makesrna ../blenlib ../blenkernel ../nodes'
 incs += ' ../imbuf ../blenloader ../render/extern/include ../windowmanager'
 incs += ' #intern/guardedalloc #intern/memutil #extern/glew/include'
-incs += ' ' + env['BF_PYTHON_INC']
+incs += ' #intern/audaspace/intern ' + env['BF_PYTHON_INC']
 
 defs = []
 
@@ -21,4 +21,4 @@ env.BlenderLib( libname = 'bf_python', sources = Split(sources), includes = Spli
 
 # generic
 sources = env.Glob('generic/*.c')
-env.BlenderLib( libname = 'bf_gen_python', sources = Split(sources), includes = Split(incs), defines = defs, libtype = ['core','player'], priority = [362,165]) # ketsji is 360
+env.BlenderLib( libname = 'bf_python_ext', sources = Split(sources), includes = Split(incs), defines = defs, libtype = ['core','player'], priority = [362,165]) # ketsji is 360
