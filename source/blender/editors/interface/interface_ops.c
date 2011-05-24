@@ -68,7 +68,7 @@ static int eyedropper_init(bContext *C, wmOperator *op)
 	
 	op->customdata= eye= MEM_callocN(sizeof(Eyedropper), "Eyedropper");
 	
-	uiAnimContextProperty(C, &eye->ptr, &eye->prop, &eye->index);
+	uiContextActiveProperty(C, &eye->ptr, &eye->prop, &eye->index);
 	
 	return (eye->ptr.data && eye->prop && RNA_property_editable(&eye->ptr, eye->prop));
 }
@@ -134,7 +134,7 @@ static int eyedropper_modal(bContext *C, wmOperator *op, wmEvent *event)
 }
 
 /* Modal Operator init */
-static int eyedropper_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int eyedropper_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	/* init */
 	if (eyedropper_init(C, op)) {
@@ -195,7 +195,7 @@ void UI_OT_eyedropper(wmOperatorType *ot)
 
 /* Reset Default Theme ------------------------ */
 
-static int reset_default_theme_exec(bContext *C, wmOperator *op)
+static int reset_default_theme_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ui_theme_init_default();
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
@@ -219,7 +219,7 @@ void UI_OT_reset_default_theme(wmOperatorType *ot)
 
 /* Copy Data Path Operator ------------------------ */
 
-static int copy_data_path_button_exec(bContext *C, wmOperator *op)
+static int copy_data_path_button_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	PointerRNA ptr;
 	PropertyRNA *prop;
@@ -228,9 +228,9 @@ static int copy_data_path_button_exec(bContext *C, wmOperator *op)
 	int index;
 
 	/* try to create driver using property retrieved from UI */
-	uiAnimContextProperty(C, &ptr, &prop, &index);
+	uiContextActiveProperty(C, &ptr, &prop, &index);
 
-	if (ptr.data && prop) {
+	if (ptr.id.data && ptr.data && prop) {
 		path= RNA_path_from_ID_to_property(&ptr, prop);
 		
 		if (path) {
@@ -266,7 +266,7 @@ static int reset_default_button_poll(bContext *C)
 	PropertyRNA *prop;
 	int index;
 
-	uiAnimContextProperty(C, &ptr, &prop, &index);
+	uiContextActiveProperty(C, &ptr, &prop, &index);
 	
 	return (ptr.data && prop && RNA_property_editable(&ptr, prop));
 }
@@ -279,7 +279,7 @@ static int reset_default_button_exec(bContext *C, wmOperator *op)
 	int index, all = RNA_boolean_get(op->ptr, "all");
 
 	/* try to reset the nominated setting to its default value */
-	uiAnimContextProperty(C, &ptr, &prop, &index);
+	uiContextActiveProperty(C, &ptr, &prop, &index);
 	
 	/* if there is a valid property that is editable... */
 	if (ptr.data && prop && RNA_property_editable(&ptr, prop)) {
@@ -335,7 +335,7 @@ static int copy_to_selected_button_poll(bContext *C)
 	PropertyRNA *prop;
 	int index, success= 0;
 
-	uiAnimContextProperty(C, &ptr, &prop, &index);
+	uiContextActiveProperty(C, &ptr, &prop, &index);
 
 	if (ptr.data && prop) {
 		CollectionPointerLink *link;
@@ -361,7 +361,7 @@ static int copy_to_selected_button_exec(bContext *C, wmOperator *op)
 	int index, all = RNA_boolean_get(op->ptr, "all");
 
 	/* try to reset the nominated setting to its default value */
-	uiAnimContextProperty(C, &ptr, &prop, &index);
+	uiContextActiveProperty(C, &ptr, &prop, &index);
 	
 	/* if there is a valid property that is editable... */
 	if (ptr.data && prop) {

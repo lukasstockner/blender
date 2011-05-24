@@ -24,6 +24,7 @@
  */
 
 #include "BKE_idprop.h"
+#include "BKE_utildefines.h"
 #include "IDProp.h"
 #include "MEM_guardedalloc.h"
 
@@ -34,7 +35,7 @@
 #endif
 
 PyObject *		PyC_UnicodeFromByte(const char *str);
-const char *	PuC_UnicodeAsByte(PyObject *py_str, PyObject **coerce); /* coerce must be NULL */
+const char *	PyC_UnicodeAsByte(PyObject *py_str, PyObject **coerce); /* coerce must be NULL */
 
 /*** Function to wrap ID properties ***/
 PyObject *BPy_Wrap_IDProperty(ID *id, IDProperty *prop, IDProperty *parent);
@@ -123,7 +124,7 @@ int BPy_IDGroup_SetData(BPy_IDProperty *self, IDProperty *prop, PyObject *value)
 				int alloc_len;
 				PyObject *value_coerce= NULL;
 
-				st= (char *)PuC_UnicodeAsByte(value, &value_coerce);
+				st= (char *)PyC_UnicodeAsByte(value, &value_coerce);
 				alloc_len= strlen(st) + 1;
 
 			st = _PyUnicode_AsString(value);
@@ -177,12 +178,12 @@ int BPy_IDGroup_SetData(BPy_IDProperty *self, IDProperty *prop, PyObject *value)
 	return 0;
 }
 
-PyObject *BPy_IDGroup_GetName(BPy_IDProperty *self, void *bleh)
+PyObject *BPy_IDGroup_GetName(BPy_IDProperty *self, void *UNUSED(closure))
 {
 	return PyUnicode_FromString(self->prop->name);
 }
 
-static int BPy_IDGroup_SetName(BPy_IDProperty *self, PyObject *value, void *bleh)
+static int BPy_IDGroup_SetName(BPy_IDProperty *self, PyObject *value, void *UNUSED(closure))
 {
 	char *st;
 	if (!PyUnicode_Check(value)) {
@@ -311,7 +312,7 @@ char *BPy_IDProperty_Map_ValidateAndCreate(char *name, IDProperty *group, PyObje
 	} else if (PyUnicode_Check(ob)) {
 #ifdef USE_STRING_COERCE
 		PyObject *value_coerce= NULL;
-		val.str = (char *)PuC_UnicodeAsByte(ob, &value_coerce);
+		val.str = (char *)PyC_UnicodeAsByte(ob, &value_coerce);
 		prop = IDP_New(IDP_STRING, val, name);
 		Py_XDECREF(value_coerce);
 #else
@@ -860,7 +861,7 @@ PyObject *BPy_Wrap_IDProperty(ID *id, IDProperty *prop, IDProperty *parent)
 
 static PyObject *IDArray_repr(BPy_IDArray *self)
 {
-	return PyUnicode_FromString("(ID Array)");
+	return PyUnicode_FromFormat("(ID Array [%d])", self->prop->len);
 }
 
 
@@ -1071,7 +1072,7 @@ static PyObject *IDGroup_Iter_iterself(PyObject *self)
 
 static PyObject *IDGroup_Iter_repr(BPy_IDGroup_Iter *self)
 {
-	return PyUnicode_FromString("(ID Property Group)");
+	return PyUnicode_FromFormat("(ID Property Group Iter \"%s\")", self->group->prop->name);
 }
 
 static PyObject *BPy_Group_Iter_Next(BPy_IDGroup_Iter *self)

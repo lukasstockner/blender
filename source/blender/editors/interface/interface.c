@@ -67,7 +67,7 @@
 #define MENU_SEP_HEIGHT		6
 
 /* 
- * a full doc with API notes can be found in bf-blender/blender/doc/interface_API.txt
+ * a full doc with API notes can be found in bf-blender/trunk/blender/doc/guides/interface_API.txt
  * 
  * uiBlahBlah()		external function
  * ui_blah_blah()	internal function
@@ -441,7 +441,7 @@ void uiCenteredBoundsBlock(uiBlock *block, int addval)
 
 /* link line drawing is not part of buttons or theme.. so we stick with it here */
 
-static void ui_draw_linkline(uiBut *but, uiLinkLine *line)
+static void ui_draw_linkline(uiLinkLine *line)
 {
 	rcti rect;
 
@@ -470,7 +470,7 @@ static void ui_draw_links(uiBlock *block)
 		if(but->type==LINK && but->link) {
 			line= but->link->lines.first;
 			while(line) {
-				ui_draw_linkline(but, line);
+				ui_draw_linkline(line);
 				line= line->next;
 			}
 		}
@@ -748,12 +748,15 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	if(block->flag & UI_BLOCK_LOOP)
 		ui_draw_menu_back(&style, block, &rect);
 	else if(block->panel)
-		ui_draw_aligned_panel(ar, &style, block, &rect);
+		ui_draw_aligned_panel(&style, block, &rect);
 
 	/* widgets */
 	for(but= block->buttons.first; but; but= but->next) {
 		ui_but_to_pixelrect(&rect, ar, block, but);
-		if(!(but->flag & UI_HIDDEN))
+		if(!(but->flag & UI_HIDDEN) &&
+			/* XXX: figure out why invalid coordinates happen when closing render window */
+			/* and material preview is redrawn in main window (temp fix for bug #23848) */
+			rect.xmin < rect.xmax && rect.ymin < rect.ymax)
 			ui_draw_but(C, ar, &style, but, &rect);
 	}
 	
@@ -808,7 +811,13 @@ static void ui_is_but_sel(uiBut *but)
 			break;
 		case ROW:
 		case LISTROW:
+			/* support for rna enum buts */
+			if(but->rnaprop && (RNA_property_flag(but->rnaprop) & PROP_ENUM_FLAG)) {
+				if((int)value & (int)but->hardmax) push= 1;
+			}
+			else {
 			if(value == but->hardmax) push= 1;
+			}
 			break;
 		case COL:
 			push= 2;
@@ -826,7 +835,7 @@ static void ui_is_but_sel(uiBut *but)
 
 /* XXX 2.50 no links supported yet */
 
-static int uibut_contains_pt(uiBut *but, short *mval)
+static int uibut_contains_pt(uiBut *UNUSED(but), short *UNUSED(mval))
 {
 	return 0;
 
@@ -928,7 +937,7 @@ void uiComposeLinks(uiBlock *block)
 void uiBlockSetButLock(uiBlock *block, int val, char *lockstr)
 {
 	if(val) {
-		block->lock |= val;
+		block->lock= val ? 1:0;
 		block->lockstr= lockstr;
 	}
 }
@@ -1084,12 +1093,12 @@ static void ui_do_active_linklines(uiBlock *block, short *mval)
 					if(line==act) {
 						if((line->flag & UI_SELECT)==0) {
 							line->flag |= UI_SELECT;
-							ui_draw_linkline(but, line);
+							ui_draw_linkline(line);
 						}
 					}
 					else if(line->flag & UI_SELECT) {
 						line->flag &= ~UI_SELECT;
-						ui_draw_linkline(but, line);
+						ui_draw_linkline(line);
 					}
 					line= line->next;
 				}
@@ -1352,7 +1361,14 @@ void ui_set_but_val(uiBut *but, double value)
 						RNA_property_float_set(&but->rnapoin, prop, value);
 					break;
 				case PROP_ENUM:
+					if(RNA_property_flag(prop) & PROP_ENUM_FLAG) {
+						int ivalue= (int)value;
+						ivalue ^= RNA_property_enum_get(&but->rnapoin, prop); /* toggle for enum/flag buttons */
+						RNA_property_enum_set(&but->rnapoin, prop, ivalue);
+					}
+					else {
 					RNA_property_enum_set(&but->rnapoin, prop, value);
+					}
 					break;
 				default:
 					break;
@@ -1931,7 +1947,7 @@ uiBlock *uiGetBlock(char *name, ARegion *ar)
 	return NULL;
 }
 
-void uiBlockSetEmboss(uiBlock *block, short dt)
+void uiBlockSetEmboss(uiBlock *block, char dt)
 {
 	block->dt= dt;
 }
@@ -2120,11 +2136,6 @@ void ui_check_but(uiBut *but)
 
 	case HSVCUBE:
 	case HSVCIRCLE:
-		{
-			float rgb[3];
-			ui_get_but_vectorf(but, rgb);
-			rgb_to_hsv(rgb[0], rgb[1], rgb[2], but->hsv, but->hsv+1, but->hsv+2);
-		}
 		break;
 	default:
 		strncpy(but->drawstr, but->str, UI_MAX_DRAW_STR);
@@ -2171,7 +2182,7 @@ int ui_but_can_align(uiBut *but)
 	return !ELEM3(but->type, LABEL, OPTION, OPTIONN);
 }
 
-static void ui_block_do_align_but(uiBlock *block, uiBut *first, int nr)
+static void ui_block_do_align_but(uiBut *first, int nr)
 {
 	uiBut *prev, *but=NULL, *next;
 	int flag= 0, cols=0, rows=0;
@@ -2247,8 +2258,13 @@ static void ui_block_do_align_but(uiBlock *block, uiBut *first, int nr)
 				   flag |= UI_BUT_ALIGN_LEFT;
 				
 				if( (flag & UI_BUT_ALIGN_TOP)==0) {	/* stil top row */
-					if(prev)
+					if(prev) {
+						if(next && buts_are_horiz(next, but))
 						flag= UI_BUT_ALIGN_DOWN|UI_BUT_ALIGN_LEFT;
+						else {
+							flag = UI_BUT_ALIGN_DOWN|UI_BUT_ALIGN_LEFT|UI_BUT_ALIGN_RIGHT;
+						}
+					}
 					else 
 						flag |= UI_BUT_ALIGN_DOWN;
 				}
@@ -2300,7 +2316,7 @@ void ui_block_do_align(uiBlock *block)
 	for(but=block->buttons.first; but;) {
 		if(but->alignnr) {
 			nr= but->alignnr;
-			ui_block_do_align_but(block, but, nr);
+			ui_block_do_align_but(but, nr);
 
 			/* skip with same number */
 			for(; but && but->alignnr == nr; but=but->next);

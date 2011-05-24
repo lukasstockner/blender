@@ -91,7 +91,7 @@
 
 /* Get shapekey data being edited (for Action Editor -> ShapeKey mode) */
 /* Note: there's a similar function in key.c (ob_get_key) */
-Key *actedit_get_shapekeys (bAnimContext *ac, SpaceAction *saction) 
+static Key *actedit_get_shapekeys (bAnimContext *ac) 
 {
 	Scene *scene= ac->scene;
 	Object *ob;
@@ -153,7 +153,7 @@ static short actedit_get_context (bAnimContext *ac, SpaceAction *saction)
 			
 		case SACTCONT_SHAPEKEY: /* 'ShapeKey Editor' */
 			ac->datatype= ANIMCONT_SHAPEKEY;
-			ac->data= actedit_get_shapekeys(ac, saction);
+			ac->data= actedit_get_shapekeys(ac);
 			
 			ac->mode= saction->mode;
 			return 1;
@@ -1389,8 +1389,23 @@ static int animdata_filter_dopesheet_mats (bAnimContext *ac, ListBase *anim_data
 		short ok = 0;
 		
 		/* for now, if no material returned, skip (this shouldn't confuse the user I hope) */
-		if (ELEM(NULL, ma, ma->adt)) 
+		if (ma == NULL) continue;
+		if (ma->adt == NULL) {
+			/* need to check textures */
+			if(ma->mtex) {
+				MTex **mtex = ma->mtex;
+				int a;
+				for (a=0; a < MAX_MTEX; a++) {
+					if (ELEM3(NULL, mtex[a], mtex[a]->tex, mtex[a]->tex->adt))
 			continue;
+					else
+						ok=1;
+				}
+			}
+			else
+				continue;
+		}
+		
 		
 		/* check if ok */
 		ANIMDATA_FILTER_CASES(ma, 
@@ -1407,7 +1422,6 @@ static int animdata_filter_dopesheet_mats (bAnimContext *ac, ListBase *anim_data
 	}
 	
 	/* if there were no channels found, no need to carry on */
-	// XXX: textures with no animated owner material won't work because of this...
 	if (mats.first == NULL)
 		return 0;
 	
@@ -2399,11 +2413,26 @@ static int animdata_filter_dopesheet (bAnimContext *ac, ListBase *anim_data, bDo
 					/* firstly check that we actuallly have some materials */
 					for (a=0; a < ob->totcol; a++) {
 						Material *ma= give_current_material(ob, a);
+						int mtInd;
 						
 						if ((ma) && ANIMDATA_HAS_KEYS(ma)) {
 							matOk= 1;
 							break;
 						}
+								
+						if(ma) {
+							for (mtInd= 0; mtInd < MAX_MTEX; mtInd++) {
+								MTex *mtex= ma->mtex[mtInd];
+								
+								if (mtex && mtex->tex && ANIMDATA_HAS_KEYS(mtex->tex)) {									
+									matOk= 1; 
+									break;
+					}
+				}
+						}
+				
+						if(matOk)
+							break;
 					}
 				}
 				

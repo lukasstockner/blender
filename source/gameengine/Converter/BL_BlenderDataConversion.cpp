@@ -1766,9 +1766,11 @@ static KX_GameObject *gameobject_from_blenderobject(
 			BL_MeshDeformer *dcont = new BL_MeshDeformer((BL_DeformableGameObject*)gameobj,
 														  ob, meshobj);
 			((BL_DeformableGameObject*)gameobj)->SetDeformer(dcont);
+#ifdef USE_BULLET
 		} else if (bHasSoftBody) {
 			KX_SoftBodyDeformer *dcont = new KX_SoftBodyDeformer(meshobj, (BL_DeformableGameObject*)gameobj);
 			((BL_DeformableGameObject*)gameobj)->SetDeformer(dcont);
+#endif
 		}
 		
 		MT_Point3 min = MT_Point3(center) - MT_Vector3(extents);
@@ -2634,7 +2636,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	sumolist->Release();
 
 	// convert world
-	KX_WorldInfo* worldinfo = new BlenderWorldInfo(blenderscene->world);
+	KX_WorldInfo* worldinfo = new BlenderWorldInfo(blenderscene, blenderscene->world);
 	converter->RegisterWorldInfo(worldinfo);
 	kxscene->SetWorldInfo(worldinfo);
 

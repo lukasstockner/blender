@@ -60,6 +60,7 @@
 #include "IMB_imbuf_types.h"
 
 #include "BIF_gl.h"
+#include "BIF_glutil.h"
 
 #include "ED_datafiles.h"
 #include "ED_render.h"
@@ -330,7 +331,7 @@ static void vicon_editmode_hlt_draw(int x, int y, int w, int h, float alpha)
 	viconutil_draw_points(pts, 3, 1);
 }
 
-static void vicon_editmode_dehlt_draw(int x, int y, int w, int h, float alpha)
+static void vicon_editmode_dehlt_draw(int x, int y, int w, int h, float UNUSED(alpha))
 {
 	GLint pts[3][2];
 
@@ -345,7 +346,7 @@ static void vicon_editmode_dehlt_draw(int x, int y, int w, int h, float alpha)
 	viconutil_draw_points(pts, 3, 1);
 }
 
-static void vicon_disclosure_tri_right_draw(int x, int y, int w, int h, float alpha)
+static void vicon_disclosure_tri_right_draw(int x, int y, int w, int UNUSED(h), float alpha)
 {
 	GLint pts[3][2];
 	int cx = x+w/2;
@@ -370,7 +371,7 @@ static void vicon_disclosure_tri_right_draw(int x, int y, int w, int h, float al
 	viconutil_draw_lineloop_smooth(pts, 3);
 }
 
-static void vicon_small_tri_right_draw(int x, int y, int w, int h, float alpha)
+static void vicon_small_tri_right_draw(int x, int y, int w, int UNUSED(h), float alpha)
 {
 	GLint pts[3][2];
 	int cx = x+w/2-4;
@@ -392,7 +393,7 @@ static void vicon_small_tri_right_draw(int x, int y, int w, int h, float alpha)
 	glShadeModel(GL_FLAT);
 }
 
-static void vicon_disclosure_tri_down_draw(int x, int y, int w, int h, float alpha)
+static void vicon_disclosure_tri_down_draw(int x, int y, int w, int UNUSED(h), float alpha)
 {
 	GLint pts[3][2];
 	int cx = x+w/2;
@@ -417,7 +418,7 @@ static void vicon_disclosure_tri_down_draw(int x, int y, int w, int h, float alp
 	viconutil_draw_lineloop_smooth(pts, 3);
 }
 
-static void vicon_move_up_draw(int x, int y, int w, int h, float alpha)
+static void vicon_move_up_draw(int x, int y, int w, int h, float UNUSED(alpha))
 {
 	int d=-2;
 
@@ -435,7 +436,7 @@ static void vicon_move_up_draw(int x, int y, int w, int h, float alpha)
 	glDisable(GL_LINE_SMOOTH);
 }
 
-static void vicon_move_down_draw(int x, int y, int w, int h, float alpha)
+static void vicon_move_down_draw(int x, int y, int w, int h, float UNUSED(alpha))
 {
 	int d=2;
 
@@ -626,12 +627,22 @@ static void init_iconfile_list(struct ListBase *list)
 				/* copying strings here should go ok, assuming that we never get back
 				   a complete path to file longer than 256 chars */
 				sprintf(iconfilestr, "%s/%s", icondirstr, filename);
-				if(BLI_exists(iconfilestr)) bbuf = IMB_loadiffname(iconfilestr, IB_rect);
+				if(BLI_exists(iconfilestr))
+					bbuf= IMB_loadiffname(iconfilestr, IB_rect);
+				else
+					bbuf= NULL;
 				
+
+				if(bbuf) {
 				ifilex = bbuf->x;
 				ifiley = bbuf->y;
 				IMB_freeImBuf(bbuf);
+				}
+				else {
+					ifilex= ifiley= 0;
+				}
 				
+				/* bad size or failed to load */
 				if ((ifilex != ICON_IMAGE_W) || (ifiley != ICON_IMAGE_H))
 					continue;
 			
@@ -832,7 +843,7 @@ static void icon_set_image(bContext *C, ID *id, PreviewImage* prv_img, int miple
 		prv_img->w[miplevel], prv_img->h[miplevel]);
 }
 
-static void icon_draw_rect(float x, float y, int w, int h, float aspect, int rw, int rh, unsigned int *rect, float alpha, float *rgb)
+static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect), int rw, int rh, unsigned int *rect, float alpha, float *rgb)
 {
 	/* modulate color */
 	if(alpha != 1.0f)
@@ -844,10 +855,6 @@ static void icon_draw_rect(float x, float y, int w, int h, float aspect, int rw,
 		glPixelTransferf(GL_BLUE_SCALE, rgb[2]);
 	}
 
-	/* position */
-	glRasterPos2f(x, y);
-	// XXX ui_rasterpos_safe(x, y, aspect);
-	
 	/* draw */
 	if((w<1 || h<1)) {
 		// XXX - TODO 2.5 verify whether this case can happen
@@ -869,13 +876,13 @@ static void icon_draw_rect(float x, float y, int w, int h, float aspect, int rw,
 			
 			/* scale it */
 			IMB_scaleImBuf(ima, w, h);
-			glDrawPixels(w, h, GL_RGBA, GL_UNSIGNED_BYTE, ima->rect);
+			glaDrawPixelsSafe(x, y, w, h, w, GL_RGBA, GL_UNSIGNED_BYTE, ima->rect);
 			
 			IMB_freeImBuf(ima);
 		}
 	}
 	else
-		glDrawPixels(w, h, GL_RGBA, GL_UNSIGNED_BYTE, rect);
+		glaDrawPixelsSafe(x, y, w, h, w, GL_RGBA, GL_UNSIGNED_BYTE, rect);
 
 	/* restore color */
 	if(alpha != 0.0f)
@@ -888,7 +895,7 @@ static void icon_draw_rect(float x, float y, int w, int h, float aspect, int rw,
 	}
 }
 
-static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy, int iw, int ih, float alpha, float *rgb)
+static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy, int UNUSED(iw), int ih, float alpha, float *rgb)
 {
 	float x1, x2, y1, y2;
 
@@ -931,7 +938,7 @@ static int preview_size(int miplevel)
 	return 0;
 }
 
-static void icon_draw_size(float x, float y, int icon_id, float aspect, float alpha, float *rgb, int miplevel, int draw_size, int nocreate)
+static void icon_draw_size(float x, float y, int icon_id, float aspect, float alpha, float *rgb, int miplevel, int draw_size, int UNUSED(nocreate))
 {
 	Icon *icon = NULL;
 	DrawInfo *di = NULL;

@@ -1289,7 +1289,9 @@ void vec_roll_to_mat3(float *vec, float roll, float mat[][3])
 	/*	Find Axis & Amount for bone matrix*/
 	cross_v3_v3v3(axis,target,nor);
 
-	if (dot_v3v3(axis,axis) > 0.0000000000001) {
+	/* was 0.0000000000001, caused bug [#23954], smaller values give unstable
+	 * roll when toggling editmode */
+	if (dot_v3v3(axis,axis) > 0.00001) {
 		/* if nor is *not* a multiple of target ... */
 		normalize_v3(axis);
 		
@@ -2237,11 +2239,26 @@ void where_is_pose_bone(Scene *scene, Object *ob, bPoseChannel *pchan, float cti
 		offs_bone[3][1]+= parbone->length;
 		
 		/* Compose the matrix for this bone  */
-		if(bone->flag & BONE_HINGE) {	// uses restposition rotation, but actual position
+		if((bone->flag & BONE_HINGE) && (bone->flag & BONE_NO_SCALE)) {	// uses restposition rotation, but actual position
 			float tmat[4][4];
-			
 			/* the rotation of the parent restposition */
 			copy_m4_m4(tmat, parbone->arm_mat);
+			mul_serie_m4(pchan->pose_mat, tmat, offs_bone, pchan->chan_mat, NULL, NULL, NULL, NULL, NULL);
+		}
+		else if(bone->flag & BONE_HINGE) {	// same as above but apply parent scale
+			float tmat[4][4];
+			
+			/* apply the parent matrix scale */
+			float tsmat[4][4], tscale[3];
+
+			/* the rotation of the parent restposition */
+			copy_m4_m4(tmat, parbone->arm_mat);
+
+			/* extract the scale of the parent matrix */
+			mat4_to_size(tscale, parchan->pose_mat);
+			size_to_mat4(tsmat, tscale);
+			mul_m4_m4m4(tmat, tmat, tsmat);
+
 			mul_serie_m4(pchan->pose_mat, tmat, offs_bone, pchan->chan_mat, NULL, NULL, NULL, NULL, NULL);
 		}
 		else if(bone->flag & BONE_NO_SCALE) {

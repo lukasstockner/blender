@@ -254,7 +254,7 @@ void ED_render_id_flush_update(Main *bmain, ID *id)
 
 /********************** material slot operators *********************/
 
-static int material_slot_add_exec(bContext *C, wmOperator *op)
+static int material_slot_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
 
@@ -263,6 +263,7 @@ static int material_slot_add_exec(bContext *C, wmOperator *op)
 
 	object_add_material_slot(ob);
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
+	WM_event_add_notifier(C, NC_OBJECT|ND_OB_SHADING, ob);
 	
 	return OPERATOR_FINISHED;
 }
@@ -288,8 +289,15 @@ static int material_slot_remove_exec(bContext *C, wmOperator *op)
 	if(!ob)
 		return OPERATOR_CANCELLED;
 
+	/* Removing material slots in edit mode screws things up, see bug #21822.*/
+	if(ob == CTX_data_edit_object(C)) {
+		BKE_report(op->reports, RPT_ERROR, "Unable to remove material slot in edit mode.");
+		return OPERATOR_CANCELLED;
+	}
+
 	object_remove_material_slot(ob);
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
+	WM_event_add_notifier(C, NC_OBJECT|ND_OB_SHADING, ob);
 	
 	return OPERATOR_FINISHED;
 }
@@ -308,7 +316,7 @@ void OBJECT_OT_material_slot_remove(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
 
-static int material_slot_assign_exec(bContext *C, wmOperator *op)
+static int material_slot_assign_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
 
@@ -432,7 +440,7 @@ static int material_slot_de_select(bContext *C, int select)
 	return OPERATOR_FINISHED;
 }
 
-static int material_slot_select_exec(bContext *C, wmOperator *op)
+static int material_slot_select_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	return material_slot_de_select(C, 1);
 }
@@ -451,7 +459,7 @@ void OBJECT_OT_material_slot_select(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
 
-static int material_slot_deselect_exec(bContext *C, wmOperator *op)
+static int material_slot_deselect_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	return material_slot_de_select(C, 0);
 }
@@ -471,7 +479,7 @@ void OBJECT_OT_material_slot_deselect(wmOperatorType *ot)
 }
 
 
-static int material_slot_copy_exec(bContext *C, wmOperator *op)
+static int material_slot_copy_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
 	Material ***matar;
@@ -512,7 +520,7 @@ void OBJECT_OT_material_slot_copy(wmOperatorType *ot)
 
 /********************** new material operator *********************/
 
-static int new_material_exec(bContext *C, wmOperator *op)
+static int new_material_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Material *ma= CTX_data_pointer_get_type(C, "material", &RNA_Material).data;
 	PointerRNA ptr, idptr;
@@ -558,7 +566,7 @@ void MATERIAL_OT_new(wmOperatorType *ot)
 
 /********************** new texture operator *********************/
 
-static int new_texture_exec(bContext *C, wmOperator *op)
+static int new_texture_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Tex *tex= CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data;
 	PointerRNA ptr, idptr;
@@ -604,7 +612,7 @@ void TEXTURE_OT_new(wmOperatorType *ot)
 
 /********************** new world operator *********************/
 
-static int new_world_exec(bContext *C, wmOperator *op)
+static int new_world_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	World *wo= CTX_data_pointer_get_type(C, "world", &RNA_World).data;
 	PointerRNA ptr, idptr;
@@ -650,7 +658,7 @@ void WORLD_OT_new(wmOperatorType *ot)
 
 /********************** render layer operators *********************/
 
-static int render_layer_add_exec(bContext *C, wmOperator *op)
+static int render_layer_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Scene *scene= CTX_data_scene(C);
 
@@ -676,7 +684,7 @@ void SCENE_OT_render_layer_add(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
 
-static int render_layer_remove_exec(bContext *C, wmOperator *op)
+static int render_layer_remove_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Scene *scene= CTX_data_scene(C);
 	SceneRenderLayer *rl;
@@ -816,6 +824,7 @@ static int save_envmap(wmOperator *op, Scene *scene, EnvMap *env, char *str, int
 	ImBuf *ibuf=NULL;
 	int dx;
 	int retval;
+	int relative= (RNA_struct_find_property(op->ptr, "relative_path") && RNA_boolean_get(op->ptr, "relative_path"));
 	
 	if(env->cube[1]==NULL) {
 		BKE_report(op->reports, RPT_ERROR, "There is no generated environment map available to save");
@@ -842,6 +851,9 @@ static int save_envmap(wmOperator *op, Scene *scene, EnvMap *env, char *str, int
 	if (scene->r.color_mgt_flag & R_COLOR_MANAGEMENT)
 		ibuf->profile = IB_PROFILE_LINEAR_RGB;
 	
+	/* to save, we first get absolute path */
+	BLI_path_abs(str, G.sce);
+	
 	if (BKE_write_ibuf(scene, ibuf, str, imtype, scene->r.subimtype, scene->r.quality)) {
 		retval = OPERATOR_FINISHED;
 	}
@@ -849,6 +861,9 @@ static int save_envmap(wmOperator *op, Scene *scene, EnvMap *env, char *str, int
 		BKE_reportf(op->reports, RPT_ERROR, "Error saving environment map to %s.", str);
 		retval = OPERATOR_CANCELLED;
 	}
+	/* in case we were saving with relative paths, change back again */
+	if(relative)
+		BLI_path_rel(str, G.sce);
 	
 	IMB_freeImBuf(ibuf);
 	ibuf = NULL;
@@ -881,7 +896,7 @@ static int envmap_save_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int envmap_save_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int envmap_save_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	//Scene *scene= CTX_data_scene(C);
 	
@@ -933,7 +948,7 @@ void TEXTURE_OT_envmap_save(wmOperatorType *ot)
 	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE|MOVIEFILE, FILE_SPECIAL, FILE_SAVE, WM_FILESEL_FILEPATH|WM_FILESEL_RELPATH);
 }
 
-static int envmap_clear_exec(bContext *C, wmOperator *op)
+static int envmap_clear_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Tex *tex= CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data;
 	
@@ -973,7 +988,7 @@ void TEXTURE_OT_envmap_clear(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
 
-static int envmap_clear_all_exec(bContext *C, wmOperator *op)
+static int envmap_clear_all_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Main *bmain = CTX_data_main(C);
 	Tex *tex;
@@ -1005,7 +1020,7 @@ void TEXTURE_OT_envmap_clear_all(wmOperatorType *ot)
 /********************** material operators *********************/
 
 /* material copy/paste */
-static int copy_material_exec(bContext *C, wmOperator *op)
+static int copy_material_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Material *ma= CTX_data_pointer_get_type(C, "material", &RNA_Material).data;
 
@@ -1033,7 +1048,7 @@ void MATERIAL_OT_copy(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
 
-static int paste_material_exec(bContext *C, wmOperator *op)
+static int paste_material_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Material *ma= CTX_data_pointer_get_type(C, "material", &RNA_Material).data;
 
@@ -1133,7 +1148,7 @@ void paste_mtex_copybuf(ID *id)
 }
 
 
-static int copy_mtex_exec(bContext *C, wmOperator *op)
+static int copy_mtex_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ID *id= CTX_data_pointer_get_type(C, "texture_slot", &RNA_TextureSlot).id.data;
 
@@ -1172,7 +1187,7 @@ void TEXTURE_OT_slot_copy(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
 
-static int paste_mtex_exec(bContext *C, wmOperator *op)
+static int paste_mtex_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ID *id= CTX_data_pointer_get_type(C, "texture_slot", &RNA_TextureSlot).id.data;
 

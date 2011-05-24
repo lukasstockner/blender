@@ -258,6 +258,7 @@ int EM_mask_init_backbuf_border(ViewContext *vc, short mcords[][2], short tot, s
 	unsigned int *dr, *drm;
 	struct ImBuf *buf, *bufmask;
 	int a;
+	GLboolean is_cull;
 	
 	/* method in use for face selecting too */
 	if(vc->obedit==NULL) {
@@ -276,6 +277,10 @@ int EM_mask_init_backbuf_border(ViewContext *vc, short mcords[][2], short tot, s
 	glDisable(GL_DEPTH_TEST);
 	
 	glColor3ub(0, 0, 0);
+	
+	/* some opengl drivers have problems with draw direction */
+	glGetBooleanv(GL_CULL_FACE, &is_cull);
+	if(is_cull) glDisable(GL_CULL_FACE);
 	
 	/* yah, opengl doesn't do concave... tsk! */
 	ED_region_pixelspace(vc->ar);
@@ -302,6 +307,9 @@ int EM_mask_init_backbuf_border(ViewContext *vc, short mcords[][2], short tot, s
 	}
 	IMB_freeImBuf(buf);
 	IMB_freeImBuf(bufmask);
+	
+	if(is_cull) glEnable(GL_CULL_FACE);
+
 	return 1;
 	
 }
@@ -2199,7 +2207,7 @@ static void mouse_mesh_shortest_path(bContext *C, short mval[2])
 }
 
 
-static int mesh_shortest_path_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int mesh_shortest_path_select_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *event)
 {
 	
 	view3d_operator_needs_opengl(C);
@@ -2542,7 +2550,7 @@ void MESH_OT_select_linked_pick(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	RNA_def_boolean(ot->srna, "deselect", 0, "Deselect", "");
-	RNA_def_boolean(ot->srna, "limit", 0, "Limit by Seams", "");
+	RNA_def_boolean(ot->srna, "limit", 0, "Limit by Seams", "Limit selection by seam boundries (faces only)");
 }
 
 
@@ -2610,7 +2618,7 @@ static int select_linked_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;	
 }
 
-static int select_linked_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int select_linked_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	linked_limit_default(C, op);
 	return select_linked_exec(C, op);
@@ -2631,7 +2639,7 @@ void MESH_OT_select_linked(wmOperatorType *ot)
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
-	RNA_def_boolean(ot->srna, "limit", 0, "Limit by Seams", "");
+	RNA_def_boolean(ot->srna, "limit", 0, "Limit by Seams", "Limit selection by seam boundries (faces only)");
 }
 
 
@@ -2807,7 +2815,7 @@ void EM_reveal_mesh(EditMesh *em)
 //	DAG_id_flush_update(obedit->data, OB_RECALC_DATA);	
 }
 
-static int reveal_mesh_exec(bContext *C, wmOperator *op)
+static int reveal_mesh_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *obedit= CTX_data_edit_object(C);
 	EditMesh *em= BKE_mesh_get_editmesh(((Mesh *)obedit->data));
@@ -3352,7 +3360,7 @@ void EM_select_swap(EditMesh *em) /* exported for UV */
 
 }
 
-static int select_inverse_mesh_exec(bContext *C, wmOperator *op)
+static int select_inverse_mesh_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *obedit= CTX_data_edit_object(C);
 	EditMesh *em= BKE_mesh_get_editmesh(((Mesh *)obedit->data));
@@ -3485,7 +3493,7 @@ void EM_select_more(EditMesh *em)
 	}
 }
 
-static int select_more(bContext *C, wmOperator *op)
+static int select_more(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *obedit= CTX_data_edit_object(C);
 	EditMesh *em= BKE_mesh_get_editmesh(((Mesh *)obedit->data)) ;
@@ -3576,7 +3584,7 @@ void EM_select_less(EditMesh *em)
 	}
 }
 
-static int select_less(bContext *C, wmOperator *op)
+static int select_less(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *obedit= CTX_data_edit_object(C);
 	EditMesh *em= BKE_mesh_get_editmesh(((Mesh *)obedit->data));
@@ -4450,7 +4458,7 @@ void vertexnoise(Object *obedit, EditMesh *em)
 			}
 			else {
 				float tin, dum;
-				externtex(ma->mtex[0], eve->co, &tin, &dum, &dum, &dum, &dum);
+				externtex(ma->mtex[0], eve->co, &tin, &dum, &dum, &dum, &dum, 0);
 				eve->co[2]+= 0.05*tin;
 			}
 		}
@@ -4482,7 +4490,7 @@ void flipface(EditMesh *em, EditFace *efa)
 }
 
 
-static int flip_normals(bContext *C, wmOperator *op)
+static int flip_normals(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *obedit= CTX_data_edit_object(C);
 	EditMesh *em= BKE_mesh_get_editmesh(((Mesh *)obedit->data));

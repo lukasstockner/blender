@@ -155,6 +155,7 @@ void ANIM_set_active_channel (bAnimContext *ac, void *data, short datatype, int 
 			case ANIMTYPE_DSMESH:
 			{
 				/* need to verify that this data is valid for now */
+				// XXX: ale may be null!
 				if (ale->adt)
 					ale->adt->flag |= ADT_UI_ACTIVE;
 			}
@@ -462,7 +463,7 @@ void ANIM_flush_setting_anim_channels (bAnimContext *ac, ListBase *anim_data, bA
 				break;
 			
 			/* store this level as the 'old' level now */
-			prevLevel= level;
+			prevLevel= level; // XXX: prevLevel is unused
 		}
 	}
 }
@@ -921,7 +922,7 @@ void ANIM_OT_channels_move_bottom (wmOperatorType *ot)
 
 /* ******************** Delete Channel Operator *********************** */
 
-static int animchannels_delete_exec(bContext *C, wmOperator *op)
+static int animchannels_delete_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	bAnimContext ac;
 	ListBase anim_data = {NULL, NULL};
@@ -1022,7 +1023,7 @@ void ANIM_OT_channels_delete (wmOperatorType *ot)
 /* ******************** Set Channel Visibility Operator *********************** */
 /* NOTE: this operator is only valid in the Graph Editor channels region */
 
-static int animchannels_visibility_set_exec(bContext *C, wmOperator *op)
+static int animchannels_visibility_set_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	bAnimContext ac;
 	ListBase anim_data = {NULL, NULL};
@@ -1100,7 +1101,7 @@ void ANIM_OT_channels_visibility_set (wmOperatorType *ot)
 /* ******************** Toggle Channel Visibility Operator *********************** */
 /* NOTE: this operator is only valid in the Graph Editor channels region */
 
-static int animchannels_visibility_toggle_exec(bContext *C, wmOperator *op)
+static int animchannels_visibility_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	bAnimContext ac;
 	ListBase anim_data = {NULL, NULL};
@@ -1885,7 +1886,6 @@ static int mouse_anim_channels (bAnimContext *ac, float x, int channel_index, sh
 static int animchannels_mouseclick_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
 	bAnimContext ac;
-	Scene *scene;
 	ARegion *ar;
 	View2D *v2d;
 	int mval[2], channel_index;
@@ -1899,7 +1899,6 @@ static int animchannels_mouseclick_invoke(bContext *C, wmOperator *op, wmEvent *
 		return OPERATOR_CANCELLED;
 		
 	/* get useful pointers from animation context data */
-	scene= ac.scene;
 	ar= ac.ar;
 	v2d= &ar->v2d;
 	

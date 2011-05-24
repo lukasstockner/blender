@@ -107,7 +107,7 @@ static int keyingset_poll_activePath_edit (bContext *C)
  
 /* Add a Default (Empty) Keying Set ------------------------- */
 
-static int add_default_keyingset_exec (bContext *C, wmOperator *op)
+static int add_default_keyingset_exec (bContext *C, wmOperator *UNUSED(op))
 {
 	Scene *scene= CTX_data_scene(C);
 	short flag=0, keyingflag=0;
@@ -323,10 +323,10 @@ static int add_keyingset_button_exec (bContext *C, wmOperator *op)
 	
 	/* try to add to keyingset using property retrieved from UI */
 	memset(&ptr, 0, sizeof(PointerRNA));
-	uiAnimContextProperty(C, &ptr, &prop, &index);
+	uiContextActiveProperty(C, &ptr, &prop, &index);
 	
 	/* check if property is able to be added */
-	if (ptr.data && prop && RNA_property_animateable(&ptr, prop)) {
+	if (ptr.id.data && ptr.data && prop && RNA_property_animateable(&ptr, prop)) {
 		path= RNA_path_from_ID_to_property(&ptr, prop);
 		
 		if (path) {
@@ -409,9 +409,9 @@ static int remove_keyingset_button_exec (bContext *C, wmOperator *op)
 	
 	/* try to add to keyingset using property retrieved from UI */
 	memset(&ptr, 0, sizeof(PointerRNA));
-	uiAnimContextProperty(C, &ptr, &prop, &index);
+	uiContextActiveProperty(C, &ptr, &prop, &index);
 
-	if (ptr.data && prop) {
+	if (ptr.id.data && ptr.data && prop) {
 		path= RNA_path_from_ID_to_property(&ptr, prop);
 		
 		if (path) {
@@ -464,7 +464,7 @@ void ANIM_OT_keyingset_button_remove (wmOperatorType *ot)
 /* Change Active KeyingSet Operator ------------------------ */
 /* This operator checks if a menu should be shown for choosing the KeyingSet to make the active one */
 
-static int keyingset_active_menu_invoke (bContext *C, wmOperator *op, wmEvent *event)
+static int keyingset_active_menu_invoke (bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	/* call the menu, which will call this operator again, hence the cancelled */
 	ANIM_keying_sets_menu_setup(C, op->type->name, "ANIM_OT_keying_set_active_set");
@@ -674,6 +674,21 @@ int ANIM_scene_get_keyingset_index (Scene *scene, KeyingSet *ks)
 		return -(index + 1);
 	else
 		return 0;
+}
+
+/* Get Keying Set to use for Auto-Keyframing some transforms */
+KeyingSet *ANIM_get_keyingset_for_autokeying(Scene *scene, const char *tranformKSName)
+{
+	/* get KeyingSet to use 
+	 *	- use the active KeyingSet if defined (and user wants to use it for all autokeying), 
+	 * 	  or otherwise key transforms only
+	 */
+	if (IS_AUTOKEY_FLAG(ONLYKEYINGSET) && (scene->active_keyingset))
+		return ANIM_scene_get_active_keyingset(scene);
+	else if (IS_AUTOKEY_FLAG(INSERTAVAIL))
+		return ANIM_builtin_keyingset_get_named(NULL, "Available");
+	else 
+		return ANIM_builtin_keyingset_get_named(NULL, tranformKSName);
 }
 
 /* Menu of All Keying Sets ----------------------------- */

@@ -65,14 +65,15 @@ static void copyData(ModifierData *md, ModifierData *target)
 	tbmd->seed = bmd->seed;
 }
 
-static int dependsOnTime(ModifierData *md)
+static int dependsOnTime(ModifierData *UNUSED(md))
 {
 	return 1;
 }
 
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		DerivedMesh *derivedData,
-  int useRenderParams, int isFinalCalc)
+						int UNUSED(useRenderParams),
+						int UNUSED(isFinalCalc))
 {
 	DerivedMesh *dm = derivedData;
 	DerivedMesh *result;
@@ -295,6 +296,7 @@ ModifierTypeInfo modifierType_Build = {
 	/* isDisabled */        0,
 	/* updateDepgraph */    0,
 	/* dependsOnTime */     dependsOnTime,
+	/* dependsOnNormals */	0,
 	/* foreachObjectLink */ 0,
 	/* foreachIDLink */     0,
 };

@@ -67,7 +67,7 @@ static void console_update_rect(const bContext *C, ARegion *ar)
 
 /* ******************** default callbacks for console space ***************** */
 
-static SpaceLink *console_new(const bContext *C)
+static SpaceLink *console_new(const bContext *UNUSED(C))
 {
 	ARegion *ar;
 	SpaceConsole *sconsole;
@@ -121,7 +121,7 @@ static void console_free(SpaceLink *sl)
 
 
 /* spacetype; init callback */
-static void console_init(struct wmWindowManager *wm, ScrArea *sa)
+static void console_init(struct wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
 {
 
 }
@@ -162,7 +162,7 @@ static void console_main_area_init(wmWindowManager *wm, ARegion *ar)
 
 /* ************* dropboxes ************* */
 
-static int id_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
+static int id_drop_poll(bContext *C, wmDrag *drag, wmEvent *UNUSED(event))
 {
     SpaceConsole *sc= CTX_wm_space_console(C);
     if(sc->type==CONSOLE_TYPE_PYTHON)
@@ -182,7 +182,7 @@ static void id_drop_copy(wmDrag *drag, wmDropBox *drop)
 	RNA_string_set(drop->ptr, "text", text);
 }
 
-static int path_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
+static int path_drop_poll(bContext *C, wmDrag *drag, wmEvent *UNUSED(event))
 {
     SpaceConsole *sc= CTX_wm_space_console(C);
     if(sc->type==CONSOLE_TYPE_PYTHON)
@@ -227,7 +227,7 @@ static void console_main_area_draw(const bContext *C, ARegion *ar)
 	console_update_rect(C, ar);
 
 	/* worlks best with no view2d matrix set */
-	UI_view2d_view_ortho(C, v2d);
+	UI_view2d_view_ortho(v2d);
 
 	/* data... */
 
@@ -354,14 +354,14 @@ void console_keymap(struct wmKeyConfig *keyconf)
 	
 	WM_keymap_add_item(keymap, "CONSOLE_OT_select_set", LEFTMOUSE, KM_PRESS, 0, 0);
 
-	RNA_string_set(WM_keymap_add_item(keymap, "CONSOLE_OT_insert", TABKEY, KM_PRESS, 0, 0)->ptr, "text", "    "); /* fake tabs */
+	RNA_string_set(WM_keymap_add_item(keymap, "CONSOLE_OT_insert", TABKEY, KM_PRESS, 0, 0)->ptr, "text", "\t"); /* fake tabs */
 	WM_keymap_add_item(keymap, "CONSOLE_OT_insert", KM_TEXTINPUT, KM_ANY, KM_ANY, 0); // last!
 }
 
 /****************** header region ******************/
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void console_header_area_init(wmWindowManager *wm, ARegion *ar)
+static void console_header_area_init(wmWindowManager *UNUSED(wm), ARegion *ar)
 {
 	ED_region_header_init(ar);
 }

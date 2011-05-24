@@ -42,6 +42,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
+#include "BLI_math.h"
 #include "BLI_mempool.h"
 
 #include "BKE_customdata.h"
@@ -452,6 +453,7 @@ static void layerSwap_mdisps(void *data, const int *ci)
 	int corners, cornersize, S;
 
 	/* this function is untested .. */
+	if(s->disps) {
 	corners = mdisp_corners(s);
 	cornersize = s->totdisp/corners;
 
@@ -464,10 +466,14 @@ static void layerSwap_mdisps(void *data, const int *ci)
 		MEM_freeN(s->disps);
 	s->disps = d;
 }
+}
 
 static void layerInterp_mdisps(void **sources, float *weights, float *sub_weights,
 				   int count, void *dest)
 {
+	MDisps *d = dest;
+	int i;
+
 	// XXX
 #if 0
 	MDisps *d = dest;
@@ -513,6 +519,11 @@ static void layerInterp_mdisps(void **sources, float *weights, float *sub_weight
 			mdisps_bilinear(srcdisp, s->disps, st, mid3[0], mid3[1]);
 			copy_v3_v3(d->disps[y * st + x], srcdisp);
 		}
+	}
+#else
+	if(d->disps) {
+		for(i = 0; i < d->totdisp; ++i)
+			zero_v3(d->disps[i]);
 	}
 #endif
 }

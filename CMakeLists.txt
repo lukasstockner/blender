@@ -127,12 +127,9 @@ IF(APPLE)
 	OPTION(WITH_LIBS10.5  "Use 10.5 libs (needed for 64bit builds)" OFF)
 ENDIF(APPLE)
 
-IF(NOT WITH_BULLET AND WITH_GAMEENGINE)
-	MESSAGE("WARNING: WITH_GAMEENGINE needs WITH_BULLET")
-ENDIF(NOT WITH_BULLET AND WITH_GAMEENGINE)
 
 IF(NOT WITH_GAMEENGINE AND WITH_PLAYER)
-	MESSAGE("WARNING: WITH_PLAYER needs WITH_GAMEENGINE")
+	MESSAGE(FATAL_ERROR "WITH_PLAYER needs WITH_GAMEENGINE")
 ENDIF(NOT WITH_GAMEENGINE AND WITH_PLAYER)
 
 IF(NOT WITH_INSTALL AND WITH_PYTHON_INSTALL)
@@ -150,7 +147,7 @@ TEST_SSE_SUPPORT()
 # On Macs: 
 #   cmake -D PYTHON_INC=/System/Library/Frameworks/Python.framework/Versions/3.1/include/python3.1 -D PYTHON_LIBPATH=/System/Library/Frameworks/Python.framework/Versions/3.1/lib/python3.1/config -G Xcode ../blender
 #
-# When changing any of this remember to update the notes in doc/blender-cmake.txt
+# When changing any of this remember to update the notes in doc/build_systems/cmake.txt
 
 #-----------------------------------------------------------------------------
 #Platform specifics
@@ -298,6 +295,7 @@ IF(UNIX AND NOT APPLE)
 
 	FIND_PACKAGE(X11 REQUIRED)
 
+	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
 	SET(LLIBS "-lutil -lc -lm -lpthread -lstdc++ ${X11_X11_LIB} ${X11_Xinput_LIB}")
 
 	IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -325,6 +323,7 @@ IF(UNIX AND NOT APPLE)
 	SET(PLATFORM_LINKFLAGS "-pthread")
 
 	# Better warnings
+	# note: -Wunused-parameter should be added but for now only apply to ./source/blender
 	SET(C_WARNINGS "-Wall -Wno-char-subscripts -Wpointer-arith -Wcast-align -Wdeclaration-after-statement -Wno-unknown-pragmas")
 	SET(CXX_WARNINGS "-Wall -Wno-invalid-offsetof -Wno-sign-compare")
 
@@ -341,7 +340,7 @@ IF(WIN32)
 
 	# Setup 64bit and 64bit windows systems
 	IF(CMAKE_CL_64)
-		message("64 bit compiler detected.")
+		MESSAGE("64 bit compiler detected.")
 		SET(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/win64)
 	ENDIF(CMAKE_CL_64)
 	
@@ -368,15 +367,6 @@ IF(WIN32)
 	SET(JPEG_LIBPATH ${JPEG}/lib)
 
 	SET(WINTAB_INC ${LIBDIR}/wintab/include) 
-
-	IF(WITH_PYTHON)
-		SET(PYTHON ${LIBDIR}/python)
-		SET(PYTHON_VERSION 3.1)
-		SET(PYTHON_INC "${PYTHON}/include/python${PYTHON_VERSION}")
-		# SET(PYTHON_BINARY python) # not used yet
-		SET(PYTHON_LIB python31mw)
-		SET(PYTHON_LIBPATH ${PYTHON}/lib)
-	ENDIF(WITH_PYTHON)
 
 	IF(WITH_OPENAL)
 		SET(OPENAL ${LIBDIR}/openal)
@@ -495,13 +485,15 @@ IF(WIN32)
 			SET(OPENCOLLADA_INC ${OPENCOLLADA}/include)
 			SET(OPENCOLLADA_LIBPATH ${OPENCOLLADA}/lib)
 			SET(OPENCOLLADA_LIB OpenCOLLADASaxFrameworkLoader OpenCOLLADAFramework OpenCOLLADABaseUtils OpenCOLLADAStreamWriter MathMLSolver GeneratedSaxParser xml2 buffer ftoa)
-			#pcre is bundled with openCollada
-			#SET(PCRE ${LIBDIR}/pcre)
-			#SET(PCRE_LIBPATH ${PCRE}/lib)
 			SET(PCRE_LIB pcre)
 		ENDIF(WITH_OPENCOLLADA)
 		
-		# TODO: IF(WITH_LCMS)
+		IF(WITH_LCMS)
+			SET(LCMS ${LIBDIR}/lcms)
+			SET(LCMS_INCLUDE_DIR ${LCMS}/include)
+			SET(LCMS_LIBPATH ${LCMS}/lib)
+			SET(LCMS_LIB lcms)
+		ENDIF(WITH_LCMS)
         
 		IF(WITH_FFMPEG)
 			SET(FFMPEG ${LIBDIR}/ffmpeg)
@@ -538,6 +530,15 @@ IF(WIN32)
 			SET(JACK_LIBPATH ${JACK}/lib)
 		ENDIF(WITH_JACK)
 
+		IF(WITH_PYTHON)
+			SET(PYTHON ${LIBDIR}/python)
+			SET(PYTHON_VERSION 3.1)
+			SET(PYTHON_INC "${PYTHON}/include/python${PYTHON_VERSION}")
+			# SET(PYTHON_BINARY python) # not used yet
+			SET(PYTHON_LIB python31)
+			SET(PYTHON_LIBPATH ${PYTHON}/lib)
+		ENDIF(WITH_PYTHON)
+
 		# MSVC only, Mingw doesnt need
 		IF(CMAKE_CL_64)
 			SET(PLATFORM_LINKFLAGS "/MACHINE:X64 /NODEFAULTLIB:libc.lib;MSVCRT.lib ")
@@ -557,6 +558,20 @@ IF(WIN32)
 
 		ADD_DEFINITIONS(-DFREE_WINDOWS)
 		
+		SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
+		SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -D_DEBUG")
+
+
+		SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG")
+		SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG")
+
+		SET(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} -DNDEBUG")
+		SET(CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL} -DNDEBUG")
+
+		SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DNDEBUG")
+		SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -DNDEBUG")
+
+
 		IF(WITH_OPENMP)
 			SET(LLIBS "${LLIBS} -lgomp")
 			SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
@@ -600,9 +615,6 @@ IF(WIN32)
 			SET(OPENCOLLADA_INC ${OPENCOLLADA}/include)
 			SET(OPENCOLLADA_LIBPATH ${OPENCOLLADA}/lib ${OPENCOLLADA}/lib)
 			SET(OPENCOLLADA_LIB OpenCOLLADAStreamWriter OpenCOLLADASaxFrameworkLoader OpenCOLLADAFramework OpenCOLLADABaseUtils GeneratedSaxParser UTF MathMLSolver expat pcre buffer ftoa)
-			#pcre is bundled with openCollada
-			#SET(PCRE ${LIBDIR}/pcre)
-			#SET(PCRE_LIBPATH ${PCRE}/lib)
 			SET(PCRE_LIB pcre)
 		ENDIF(WITH_OPENCOLLADA)
 		
@@ -639,6 +651,15 @@ IF(WIN32)
 			# TODO, gives linking errors, force off
 			SET(WITH_JACK OFF)
 		ENDIF(WITH_JACK)
+
+		IF(WITH_PYTHON)
+			SET(PYTHON ${LIBDIR}/python)
+			SET(PYTHON_VERSION 3.1)
+			SET(PYTHON_INC "${PYTHON}/include/python${PYTHON_VERSION}")
+			# SET(PYTHON_BINARY python) # not used yet
+			SET(PYTHON_LIB python31mw)
+			SET(PYTHON_LIBPATH ${PYTHON}/lib)
+		ENDIF(WITH_PYTHON)
 
 	ENDIF(MSVC)
 
@@ -923,9 +944,9 @@ ENDIF(WITH_CXX_GUARDEDALLOC)
 #-----------------------------------------------------------------------------
 # Libraries
 FILE(WRITE ${CMAKE_BINARY_DIR}/cmake_blender_libs.txt "")
+ADD_SUBDIRECTORY(source)
 ADD_SUBDIRECTORY(intern)
 ADD_SUBDIRECTORY(extern)
-ADD_SUBDIRECTORY(source)
 
 
 #-----------------------------------------------------------------------------

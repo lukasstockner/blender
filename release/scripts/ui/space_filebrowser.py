@@ -59,6 +59,12 @@ class FILEBROWSER_HT_header(bpy.types.Header):
             row.active = params.use_filter
 
             row.prop(params, "use_filter_folder", text="")
+            
+            if params.filter_glob:
+                #if st.operator and hasattr(st.operator, "filter_glob"):
+                #    row.prop(params, "filter_glob", text="")
+                row.label(params.filter_glob)
+            else:
             row.prop(params, "use_filter_blender", text="")
             row.prop(params, "use_filter_image", text="")
             row.prop(params, "use_filter_movie", text="")

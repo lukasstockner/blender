@@ -48,6 +48,12 @@
 
 #include "GHOST_Path-api.h"
 
+#if defined WIN32 && !defined _LIBC
+# include "BLI_fnmatch.h" /* use fnmatch included in blenlib */
+#else
+# define _GNU_SOURCE
+# include <fnmatch.h>
+#endif
 
 #ifdef WIN32
 #include <io.h>
@@ -313,8 +319,15 @@ void BLI_cleanup_file(const char *relabase, char *dir)
 	   return;
 	}	
 
+	/* support for odd paths: eg /../home/me --> /home/me
+	 * this is a valid path in blender but we cant handle this the useual way below
+	 * simply strip this prefix then evaluate the path as useual. pythons os.path.normpath() does this */
+	while((strncmp(dir, "/../", 4)==0)) {
+		memmove( dir, dir + 4, strlen(dir + 4) + 1 );
+	}
+
 	while ( (start = strstr(dir, "/../")) ) {
-		eind = start + strlen("/../") - 1;
+		eind = start + (4 - 1) /* strlen("/../") - 1 */;
 		a = start-dir-1;
 		while (a>0) {
 			if (dir[a] == '/') break;
@@ -328,12 +341,12 @@ void BLI_cleanup_file(const char *relabase, char *dir)
 	}
 
 	while ( (start = strstr(dir,"/./")) ){
-		eind = start + strlen("/./") - 1;
+		eind = start + (3 - 1) /* strlen("/./") - 1 */;
 		memmove( start, eind, strlen(eind)+1 );
 	}
 
 	while ( (start = strstr(dir,"//" )) ){
-		eind = start + strlen("//") - 1;
+		eind = start + (2 - 1) /* strlen("//") - 1 */;
 		memmove( start, eind, strlen(eind)+1 );
 	}
 
@@ -464,7 +477,7 @@ int BLI_parent_dir(char *path)
 	static char *parent_dir="../";
 #endif
 	char tmp[FILE_MAXDIR+FILE_MAXFILE+4];
-	BLI_strncpy(tmp, path, sizeof(tmp));
+	BLI_strncpy(tmp, path, sizeof(tmp)-4);
 	BLI_add_slash(tmp);
 	strcat(tmp, parent_dir);
 	BLI_cleanup_dir(NULL, tmp);
@@ -825,9 +838,6 @@ static int get_path_local(char *targetpath, char *folder_name, char *subfolder_n
 	extern char bprogname[]; /* argv[0] from creator.c */
 	char bprogdir[FILE_MAX];
 	char relfolder[FILE_MAX];
-	char cwd[FILE_MAX];
-	char *s;
-	int i;
 	
 #ifdef PATH_DEBUG2
 	printf("get_path_local...\n");
@@ -840,28 +850,10 @@ static int get_path_local(char *targetpath, char *folder_name, char *subfolder_n
 	}
 	
 	/* use argv[0] (bprogname) to get the path to the executable */
-	s = BLI_last_slash(bprogname);
-	i = s - bprogname + 1;
-	BLI_strncpy(bprogdir, bprogname, i);
+	BLI_split_dirfile(bprogname, bprogdir, NULL);
 	
-	/* try EXECUTABLE_DIR/folder_name */
-	if(test_path(targetpath, bprogdir, "", relfolder))
-		return 1;
-	
-	/* try CWD/release/folder_name */
-	if(test_path(targetpath, BLI_getwdN(cwd), "release", relfolder))
-		return 1;
-	
-	/* try EXECUTABLE_DIR/release/folder_name */
-	if(test_path(targetpath, bprogdir, "release", relfolder))
-		return 1;
-	
-	/* try EXECUTABLE_DIR/2.5/folder_name - new default directory for local blender installed files */
+	/* try EXECUTABLE_DIR/2.5x/folder_name - new default directory for local blender installed files */
 	if(test_path(targetpath, bprogdir, blender_version_decimal(), relfolder))
-		return 1;
-
-	/* try ./.blender/folder_name -- DEPRECATED, need to update build systems */
-	if(test_path(targetpath, bprogdir, ".blender", relfolder))
 		return 1;
 
 	return 0;
@@ -908,6 +900,34 @@ static int get_path_system(char *targetpath, char *folder_name, char *subfolder_
 {
 	char system_path[FILE_MAX];
 	const char *system_base_path;
+
+
+	/* first allow developer only overrides to the system path
+	 * these are only used when running blender from source */
+	extern char bprogname[]; /* argv[0] from creator.c */
+	char cwd[FILE_MAX];
+	char relfolder[FILE_MAX];
+	char bprogdir[FILE_MAX];
+
+	/* use argv[0] (bprogname) to get the path to the executable */
+	BLI_split_dirfile(bprogname, bprogdir, NULL);
+
+	if (subfolder_name) {
+		BLI_join_dirfile(relfolder, folder_name, subfolder_name);
+	} else {
+		BLI_strncpy(relfolder, folder_name, FILE_MAX);
+	}
+
+	/* try CWD/release/folder_name */
+	if(test_path(targetpath, BLI_getwdN(cwd), "release", relfolder))
+		return 1;
+	
+	/* try EXECUTABLE_DIR/release/folder_name */
+	if(test_path(targetpath, bprogdir, "release", relfolder))
+		return 1;
+	/* end developer overrides */
+
+
 
 	system_path[0] = '\0';
 
@@ -1015,7 +1035,7 @@ char *BLI_get_folder(int folder_id, char *subfolder)
 	return path;
 }
 
-static char *BLI_get_user_folder_notest(int folder_id, char *subfolder)
+char *BLI_get_user_folder_notest(int folder_id, char *subfolder)
 {
 	static char path[FILE_MAX] = "";
 
@@ -1029,6 +1049,9 @@ static char *BLI_get_user_folder_notest(int folder_id, char *subfolder)
 		case BLENDER_USER_AUTOSAVE:
 			get_path_user(path, "autosave", subfolder, "BLENDER_USER_AUTOSAVE");
 			break;
+		case BLENDER_USER_SCRIPTS:
+			get_path_user(path, "scripts", subfolder, "BLENDER_USER_SCRIPTS");
+			break;
 	}
 	if ('\0' == path[0]) {
 		return NULL;
@@ -1041,7 +1064,7 @@ char *BLI_get_folder_create(int folder_id, char *subfolder)
 	char *path;
 
 	/* only for user folders */
-	if (!ELEM3(folder_id, BLENDER_USER_DATAFILES, BLENDER_USER_CONFIG, BLENDER_USER_AUTOSAVE))
+	if (!ELEM4(folder_id, BLENDER_USER_DATAFILES, BLENDER_USER_CONFIG, BLENDER_USER_SCRIPTS, BLENDER_USER_AUTOSAVE))
 		return NULL;
 	
 	path = BLI_get_folder(folder_id, subfolder);
@@ -1196,8 +1219,7 @@ void BLI_make_file_string(const char *relabase, char *string,  const char *dir, 
 		/* Get the file name, chop everything past the last slash (ie. the filename) */
 		strcpy(string, relabase);
 		
-		lslash= (strrchr(string, '/')>strrchr(string, '\\'))?strrchr(string, '/'):strrchr(string, '\\');
-		
+		lslash= BLI_last_slash(string);
 		if(lslash) *(lslash+1)= 0;
 
 		dir+=2; /* Skip over the relative reference */
@@ -1277,6 +1299,36 @@ int BLI_testextensie_array(const char *str, const char **ext_array)
 	}
 	return 0;
 }
+
+/* semicolon separated wildcards, eg:
+ *  '*.zip;*.py;*.exe' */
+int BLI_testextensie_glob(const char *str, const char *ext_fnmatch)
+{
+	const char *ext_step= ext_fnmatch;
+	char pattern[16];
+
+	while(ext_step[0]) {
+		char *ext_next;
+		int len_ext;
+
+		if((ext_next=strchr(ext_step, ';'))) {
+			len_ext= (int)(ext_next - ext_step) + 1;
+		}
+		else {
+			len_ext= sizeof(pattern);
+		}
+
+		BLI_strncpy(pattern, ext_step, len_ext);
+
+		if(fnmatch(pattern, str, FNM_CASEFOLD)==0) {
+			return 1;
+		}
+		ext_step += len_ext;
+	}
+
+	return 0;
+}
+
 
 int BLI_replace_extension(char *path, int maxlen, const char *ext)
 {
@@ -1613,6 +1665,9 @@ void BLI_where_is_temp(char *fullname, int usertemp)
 	} else {
 		/* add a trailing slash if needed */
 		BLI_add_slash(fullname);
+#ifdef WIN32
+		strcpy(U.tempdir, fullname); /* also set user pref to show %TEMP%. /tmp/ is just plain confusing for Windows users. */
+#endif
 	}
 }
 

@@ -302,7 +302,7 @@ MINLINE void star_m3_v3(float mat[][3], float *vec)
 
 MINLINE float len_v2(const float v[2])
 {
-	return (float)sqrt(v[0]*v[0] + v[1]*v[1]);
+	return (float)sqrtf(v[0]*v[0] + v[1]*v[1]);
 }
 
 MINLINE float len_v2v2(const float v1[2], const float v2[2])
@@ -311,12 +311,20 @@ MINLINE float len_v2v2(const float v1[2], const float v2[2])
 
 	x = v1[0]-v2[0];
 	y = v1[1]-v2[1];
-	return (float)sqrt(x*x+y*y);
+	return (float)sqrtf(x*x+y*y);
 }
 
 MINLINE float len_v3(const float a[3])
 {
 	return sqrtf(dot_v3v3(a, a));
+}
+
+MINLINE float len_squared_v2v2(const float a[3], const float b[3])
+{
+	float d[2];
+
+	sub_v2_v2v2(d, b, a);
+	return dot_v2v2(d, d);
 }
 
 MINLINE float len_v3v3(const float a[3], const float b[3])
@@ -444,6 +452,12 @@ MINLINE int compare_v4v4(float *v1, float *v2, float limit)
 					return 1;
 
 	return 0;
+}
+
+MINLINE float line_point_side_v2(const float *l1, const float *l2, const float *pt)
+{
+	return	((l1[0]-pt[0]) * (l2[1]-pt[1])) -
+			((l2[0]-pt[0]) * (l1[1]-pt[1]));
 }
 
 #endif /* BLI_MATH_VECTOR_INLINE */

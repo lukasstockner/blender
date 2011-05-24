@@ -31,6 +31,10 @@
 /* dna-savable wmStructs here */
 #include "DNA_windowmanager_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct bContext;
 struct IDProperty;
 struct wmEvent;
@@ -80,7 +84,7 @@ void		WM_window_open_temp	(struct bContext *C, struct rcti *position, int type);
 int			WM_read_homefile	(struct bContext *C, struct wmOperator *op);
 int			WM_write_homefile	(struct bContext *C, struct wmOperator *op);
 void		WM_read_file		(struct bContext *C, char *name, struct ReportList *reports);
-int			WM_write_file		(struct bContext *C, char *target, int fileflags, struct ReportList *reports, int copy);
+int			WM_write_file		(struct bContext *C, const char *target, int fileflags, struct ReportList *reports, int copy);
 void		WM_read_autosavefile(struct bContext *C);
 void		WM_autosave_init	(struct wmWindowManager *wm);
 
@@ -103,7 +107,7 @@ wmKeyConfig *WM_keyconfig_new	(struct wmWindowManager *wm, char *idname);
 wmKeyConfig *WM_keyconfig_new_user(struct wmWindowManager *wm, char *idname);
 void 		WM_keyconfig_remove	(struct wmWindowManager *wm, struct wmKeyConfig *keyconf);
 void 		WM_keyconfig_free	(struct wmKeyConfig *keyconf);
-void		WM_keyconfig_userdef(struct wmWindowManager *wm);
+void		WM_keyconfig_userdef(void);
 
 void		WM_keymap_init		(struct bContext *C);
 void		WM_keymap_free		(struct wmKeyMap *keymap);
@@ -337,6 +341,10 @@ void		WM_clipboard_text_set(char *buf, int selection);
 			/* progress */
 void		WM_progress_set(struct wmWindow *win, float progress);
 void		WM_progress_clear(struct wmWindow *win);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* WM_API_H */
 

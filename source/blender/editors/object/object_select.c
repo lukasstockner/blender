@@ -72,7 +72,8 @@
  * this takes into account the 'restrict selection in 3d view' flag.
  * deselect works always, the restriction just prevents selection */
 
-/* Note: send a NC_SCENE|ND_OB_SELECT notifier yourself! */
+/* Note: send a NC_SCENE|ND_OB_SELECT notifier yourself! (or 
+ * or a NC_SCENE|ND_OB_VISIBLE in case of visibility toggling */
 
 void ED_base_object_select(Base *base, short mode)
 {
@@ -659,7 +660,7 @@ static int object_select_by_layer_exec(bContext *C, wmOperator *op)
 void OBJECT_OT_select_by_layer(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "select by layer";
+	ot->name= "Select by Layer";
 	ot->description = "Select all visible objects on a layer";
 	ot->idname= "OBJECT_OT_select_by_layer";
 	
@@ -678,7 +679,7 @@ void OBJECT_OT_select_by_layer(wmOperatorType *ot)
 
 /************************** Select Inverse *************************/
 
-static int object_select_inverse_exec(bContext *C, wmOperator *op)
+static int object_select_inverse_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	CTX_DATA_BEGIN(C, Base*, base, visible_bases) {
 		if (base->flag & SELECT)
@@ -808,7 +809,7 @@ void OBJECT_OT_select_same_group(wmOperatorType *ot)
 {
 	
 	/* identifiers */
-	ot->name= "select same group";
+	ot->name= "Select Same Group";
 	ot->description = "Select object in the same group";
 	ot->idname= "OBJECT_OT_select_same_group";
 	

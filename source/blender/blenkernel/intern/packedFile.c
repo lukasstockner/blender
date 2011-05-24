@@ -215,9 +215,16 @@ void packAll(Main *bmain, ReportList *reports)
 	VFont *vf;
 	bSound *sound;
 
-	for(ima=bmain->image.first; ima; ima=ima->id.next)
-		if(ima->packedfile == NULL && ima->id.lib==NULL && ELEM3(ima->source, IMA_SRC_FILE, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE))
+	for(ima=bmain->image.first; ima; ima=ima->id.next) {
+		if(ima->packedfile == NULL && ima->id.lib==NULL) { 
+			if(ima->source==IMA_SRC_FILE) {
 			ima->packedfile = newPackedFile(reports, ima->name);
+			}
+			else if(ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
+				BKE_reportf(reports, RPT_WARNING, "Image '%s' skipped, movies and image sequences not supported.", ima->id.name+2);
+			}
+		}
+	}
 
 	for(vf=bmain->vfont.first; vf; vf=vf->id.next)
 		if(vf->packedfile == NULL && vf->id.lib==NULL && strcmp(vf->name, "<builtin>") != 0)

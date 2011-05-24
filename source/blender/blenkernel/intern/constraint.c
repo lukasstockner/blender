@@ -851,6 +851,13 @@ static void childof_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 		 */
 		copy_m4_m4(tempmat, cob->matrix);
 		mul_m4_m4m4(cob->matrix, tempmat, parmat); 
+
+		/* without this, changes to scale and rotation can change location
+		 * of a parentless bone or a disconnected bone. Even though its set
+		 * to zero above. */
+		if (!(data->flag & CHILDOF_LOCX)) cob->matrix[3][0]= tempmat[3][0];
+		if (!(data->flag & CHILDOF_LOCY)) cob->matrix[3][1]= tempmat[3][1];
+		if (!(data->flag & CHILDOF_LOCZ)) cob->matrix[3][2]= tempmat[3][2];	
 	}
 }
 
@@ -1194,7 +1201,7 @@ static void followpath_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstr
 	
 	if (VALID_CONS_TARGET(ct)) {
 		Curve *cu= ct->tar->data;
-		float q[4], vec[4], dir[3], quat[4], radius, x1;
+		float vec[4], dir[3], radius;
 		float totmat[4][4];
 		float curvetime;
 		
@@ -1210,6 +1217,7 @@ static void followpath_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstr
 			makeDispListCurveTypes(cob->scene, ct->tar, 0);
 		
 		if (cu->path && cu->path->data) {
+			float quat[4];
 			if ((data->followflag & FOLLOWPATH_STATIC) == 0) { 
 				/* animated position along curve depending on time */
 				if (cob->scene)
@@ -1231,8 +1239,10 @@ static void followpath_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstr
 				curvetime= data->offset_fac;
 			}
 			
-			if ( where_on_path(ct->tar, curvetime, vec, dir, NULL, &radius, NULL) ) {
+			if ( where_on_path(ct->tar, curvetime, vec, dir, (data->followflag & FOLLOWPATH_FOLLOW) ? quat : NULL, &radius, NULL) ) { /* quat_pt is quat or NULL*/
 				if (data->followflag & FOLLOWPATH_FOLLOW) {
+#if 0
+					float x1, q[4];
 					vec_to_quat(quat, dir, (short)data->trackflag, (short)data->upflag);
 					
 					normalize_v3(dir);
@@ -1242,6 +1252,9 @@ static void followpath_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstr
 					q[2]= -x1*dir[1];
 					q[3]= -x1*dir[2];
 					mul_qt_qtqt(quat, q, quat);
+#else
+					quat_apply_track(quat, data->trackflag, data->upflag);
+#endif
 					
 					quat_to_mat4(totmat, quat);
 				}
@@ -1629,8 +1642,9 @@ static void rotlike_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 		mat4_to_size(size, cob->matrix);
 		
 		/* to allow compatible rotations, must get both rotations in the order of the owner... */
-		mat4_to_eulO(eul, cob->rotOrder, ct->matrix);
 		mat4_to_eulO(obeul, cob->rotOrder, cob->matrix);
+		/* we must get compatible eulers from the beginning because some of them can be modified below (see bug #21875) */
+		mat4_to_compatible_eulO(eul, obeul, cob->rotOrder, ct->matrix);
 		
 		if ((data->flag & ROTLIKE_X)==0)
 			eul[0] = obeul[0];
@@ -1662,6 +1676,7 @@ static void rotlike_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 				eul[2] *= -1;
 		}
 		
+		/* good to make eulers compatible again, since we don't know how much they were changed above */
 		compatible_eul(eul, obeul);
 		loc_eulO_size_to_mat4(cob->matrix, loc, eul, size, cob->rotOrder);
 	}
@@ -4349,8 +4364,7 @@ void get_constraint_target_matrix (struct Scene *scene, bConstraint *con, int n,
 void solve_constraints (ListBase *conlist, bConstraintOb *cob, float ctime)
 {
 	bConstraint *con;
-	float solution[4][4], delta[4][4];
-	float oldmat[4][4], imat[4][4];
+	float oldmat[4][4];
 	float enf;
 
 	/* check that there is a valid constraint object to evaluate */
@@ -4402,7 +4416,7 @@ void solve_constraints (ListBase *conlist, bConstraintOb *cob, float ctime)
 			}
 		}
 		
-		/* Solve the constraint */
+		/* Solve the constraint and put result in cob->matrix */
 		cti->evaluate_constraint(con, cob, &targets);
 		
 		/* clear targets after use 
@@ -4414,22 +4428,12 @@ void solve_constraints (ListBase *conlist, bConstraintOb *cob, float ctime)
 		}
 		
 		/* Interpolate the enforcement, to blend result of constraint into final owner transform */
-		/* 1. Remove effects of original matrix from constraint solution ==> delta */
-		invert_m4_m4(imat, oldmat);
-		copy_m4_m4(solution, cob->matrix);
-		mul_m4_m4m4(delta, solution, imat);
-		
-		/* 2. If constraint influence is not full strength, then interpolate
-		 * 	identity_matrix --> delta_matrix to get the effect the constraint actually exerts
-		 */
+		/* Note: all kind of stuff here before (caused trouble), much easier to just interpolate, or did I miss something? -jahka */
 		if (enf < 1.0) {
-			float identity[4][4];
-			unit_m4(identity);
-			blend_m4_m4m4(delta, identity, delta, enf);
+			float solution[4][4];
+		copy_m4_m4(solution, cob->matrix);
+			blend_m4_m4m4(cob->matrix, oldmat, solution, enf);
 		}
-		
-		/* 3. Now multiply the delta by the matrix in use before the evaluation */
-		mul_m4_m4m4(cob->matrix, delta, oldmat);
 		
 		/* move owner back into worldspace for next constraint/other business */
 		if ((con->flag & CONSTRAINT_SPACEONCE) == 0) 

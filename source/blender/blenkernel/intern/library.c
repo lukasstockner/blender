@@ -39,6 +39,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <assert.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -70,6 +71,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_dynstr.h"
 
+#include "BKE_utildefines.h"
 #include "BKE_animsys.h"
 #include "BKE_context.h"
 #include "BKE_library.h"
@@ -650,9 +652,7 @@ void *copy_libblock(void *rt)
 	lb= which_libbase(G.main, GS(id->name));
 	idn= alloc_libblock(lb, GS(id->name), id->name+2);
 	
-	if(idn==NULL) {
-		printf("ERROR: Illegal ID name for %s (Crashing now)\n", id->name);
-	}
+	assert(idn != NULL);
 	
 	idn_len= MEM_allocN_len(idn);
 	if(idn_len - sizeof(ID) > 0) {
@@ -669,7 +669,7 @@ void *copy_libblock(void *rt)
 	return idn;
 }
 
-static void free_library(Library *lib)
+static void free_library(Library *UNUSED(lib))
 {
 	/* no freeing needed for libraries yet */
 }
@@ -681,7 +681,7 @@ void set_free_windowmanager_cb(void (*func)(bContext *C, wmWindowManager *) )
 	free_windowmanager_cb= func;
 }
 
-void animdata_dtar_clear_cb(ID *id, AnimData *adt, void *userdata)
+void animdata_dtar_clear_cb(ID *UNUSED(id), AnimData *adt, void *userdata)
 {
 	ChannelDriver *driver;
 	FCurve *fcu;

@@ -38,6 +38,7 @@
 
 extern "C" {
 	#include "bpy_internal_import.h"  /* from the blender python api, but we want to import text too! */
+	#include "py_capi_utils.h"
 	#include "mathutils.h" // Blender.Mathutils module copied here so the blenderlayer can use.
 	#include "geometry.h" // Blender.Geometry module copied here so the blenderlayer can use.
 	#include "bgl.h"
@@ -135,11 +136,14 @@ static RAS_ICanvas* gp_Canvas = NULL;
 static char gp_GamePythonPath[FILE_MAXDIR + FILE_MAXFILE] = "";
 static char gp_GamePythonPathOrig[FILE_MAXDIR + FILE_MAXFILE] = ""; // not super happy about this, but we need to remember the first loaded file for the global/dict load save
 
+static SCA_PythonKeyboard* gp_PythonKeyboard = NULL;
+static SCA_PythonMouse* gp_PythonMouse = NULL;
 #endif // DISABLE_PYTHON
 
 static KX_Scene*	gp_KetsjiScene = NULL;
 static KX_KetsjiEngine*	gp_KetsjiEngine = NULL;
 static RAS_IRasterizer* gp_Rasterizer = NULL;
+
 
 void KX_SetActiveScene(class KX_Scene* scene)
 {
@@ -1295,11 +1299,13 @@ PyObject* initGameLogic(KX_KetsjiEngine *engine, KX_Scene* scene) // quick hack 
 	PyDict_SetItemString(d, "globalDict", item=PyDict_New()); Py_DECREF(item);
 
 	// Add keyboard and mouse attributes to this module
-	SCA_PythonKeyboard* pykeyb = new SCA_PythonKeyboard(gp_KetsjiEngine->GetKeyboardDevice());
-	PyDict_SetItemString(d, "keyboard", pykeyb->NewProxy(true));
+	MT_assert(!gp_PythonKeyboard);
+	gp_PythonKeyboard = new SCA_PythonKeyboard(gp_KetsjiEngine->GetKeyboardDevice());
+	PyDict_SetItemString(d, "keyboard", gp_PythonKeyboard->NewProxy(true));
 
-	SCA_PythonMouse* pymouse = new SCA_PythonMouse(gp_KetsjiEngine->GetMouseDevice(), gp_Canvas);
-	PyDict_SetItemString(d, "mouse", pymouse->NewProxy(true));
+	MT_assert(!gp_PythonMouse);
+	gp_PythonMouse = new SCA_PythonMouse(gp_KetsjiEngine->GetMouseDevice(), gp_Canvas);
+	PyDict_SetItemString(d, "mouse", gp_PythonMouse->NewProxy(true));
 
 	ErrorObject = PyUnicode_FromString("GameLogic.error");
 	PyDict_SetItemString(d, "error", ErrorObject);
@@ -1759,8 +1765,8 @@ static void setSandbox(TPythonSecurityLevel level)
 	*/
 	default:
 			/* Allow importing internal text, from bpy_internal_import.py */
-			PyDict_SetItemString(d, "reload", item=PyCFunction_New(bpy_reload_meth, NULL));		Py_DECREF(item);
-			PyDict_SetItemString(d, "__import__", item=PyCFunction_New(bpy_import_meth, NULL));	Py_DECREF(item);
+			PyDict_SetItemString(d, "reload", item=PyCFunction_New(&bpy_reload_meth, NULL));		Py_DECREF(item);
+			PyDict_SetItemString(d, "__import__", item=PyCFunction_New(&bpy_import_meth, NULL));	Py_DECREF(item);
 		break;
 	}
 }
@@ -1920,11 +1926,18 @@ PyObject* initGamePlayerPythonScripting(const STR_String& progname, TPythonSecur
 	
 	PyObjectPlus::ClearDeprecationWarning();
 	
-	return bpy_namespace_dict_new(NULL);
+	return PyC_DefaultNameSpace(NULL);
 }
 
 void exitGamePlayerPythonScripting()
 {	
+	/* Clean up the Python mouse and keyboard */
+	delete gp_PythonKeyboard;
+	gp_PythonKeyboard = NULL;
+
+	delete gp_PythonMouse;
+	gp_PythonMouse = NULL;
+
 	/* since python restarts we cant let the python backup of the sys.path hang around in a global pointer */
 	restorePySysObjects(); /* get back the original sys.path and clear the backup */
 	
@@ -1956,11 +1969,18 @@ PyObject* initGamePythonScripting(const STR_String& progname, TPythonSecurityLev
 
 	PyObjectPlus::NullDeprecationWarning();
 	
-	return bpy_namespace_dict_new(NULL);
+	return PyC_DefaultNameSpace(NULL);
 }
 
 void exitGamePythonScripting()
 {
+	/* Clean up the Python mouse and keyboard */
+	delete gp_PythonKeyboard;
+	gp_PythonKeyboard = NULL;
+
+	delete gp_PythonMouse;
+	gp_PythonMouse = NULL;
+
 	restorePySysObjects(); /* get back the original sys.path and clear the backup */
 	bpy_import_main_set(NULL);
 	PyObjectPlus::ClearDeprecationWarning();
@@ -2213,6 +2233,7 @@ PyObject* initGameKeys()
 	KX_MACRO_addTypesToDict(d, ESCKEY, SCA_IInputDevice::KX_ESCKEY);
 	KX_MACRO_addTypesToDict(d, TABKEY, SCA_IInputDevice::KX_TABKEY);
 	KX_MACRO_addTypesToDict(d, RETKEY, SCA_IInputDevice::KX_RETKEY);
+	KX_MACRO_addTypesToDict(d, ENTERKEY, SCA_IInputDevice::KX_RETKEY);
 	KX_MACRO_addTypesToDict(d, SPACEKEY, SCA_IInputDevice::KX_SPACEKEY);
 	KX_MACRO_addTypesToDict(d, LINEFEEDKEY, SCA_IInputDevice::KX_LINEFEEDKEY);		
 	KX_MACRO_addTypesToDict(d, BACKSPACEKEY, SCA_IInputDevice::KX_BACKSPACEKEY);

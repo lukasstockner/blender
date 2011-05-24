@@ -35,6 +35,7 @@
 
 #include "BLI_math.h"
 
+#include "BKE_utildefines.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_modifier.h"
 #include "BKE_texture.h"
@@ -75,7 +76,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 	strncpy(tdmd->uvlayer_name, dmd->uvlayer_name, 32);
 }
 
-static CustomDataMask requiredDataMask(Object *ob, ModifierData *md)
+static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 {
 	DisplaceModifierData *dmd = (DisplaceModifierData *)md;
 	CustomDataMask dataMask = 0;
@@ -103,6 +104,12 @@ static int dependsOnTime(ModifierData *md)
 	}
 }
 
+static int dependsOnNormals(ModifierData *md)
+{
+	DisplaceModifierData *dmd = (DisplaceModifierData *)md;
+	return (dmd->direction == MOD_DISP_DIR_NOR);
+}
+
 static void foreachObjectLink(ModifierData *md, Object *ob,
 						   ObjectWalkFunc walk, void *userData)
 {
@@ -121,20 +128,21 @@ static void foreachIDLink(ModifierData *md, Object *ob,
 	foreachObjectLink(md, ob, (ObjectWalkFunc)walk, userData);
 }
 
-static int isDisabled(ModifierData *md, int useRenderParams)
+static int isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 {
 	DisplaceModifierData *dmd = (DisplaceModifierData*) md;
 
 	return (!dmd->texture || dmd->strength == 0.0f);
 }
 
-static void updateDepgraph(
-						ModifierData *md, DagForest *forest, struct Scene *scene,
-	 Object *ob, DagNode *obNode)
+static void updateDepgraph(ModifierData *md, DagForest *forest,
+						struct Scene *UNUSED(scene),
+						Object *UNUSED(ob),
+						DagNode *obNode)
 {
 	DisplaceModifierData *dmd = (DisplaceModifierData*) md;
 
-	if(dmd->map_object) {
+	if(dmd->map_object && dmd->texmapping == MOD_DISP_MAP_OBJECT) {
 		DagNode *curNode = dag_get_node(forest, dmd->map_object);
 
 		dag_add_relation(forest, curNode, obNode,
@@ -302,11 +310,14 @@ static void displaceModifier_do(
 	MEM_freeN(tex_co);
 }
 
-static void deformVerts(
-					 ModifierData *md, Object *ob, DerivedMesh *derivedData,
-	  float (*vertexCos)[3], int numVerts, int useRenderParams, int isFinalCalc)
+static void deformVerts(ModifierData *md, Object *ob,
+						DerivedMesh *derivedData,
+						float (*vertexCos)[3],
+						int numVerts,
+						int UNUSED(useRenderParams),
+						int UNUSED(isFinalCalc))
 {
-	DerivedMesh *dm= get_cddm(md->scene, ob, NULL, derivedData, vertexCos);
+	DerivedMesh *dm= get_cddm(ob, NULL, derivedData, vertexCos);
 
 	displaceModifier_do((DisplaceModifierData *)md, ob, dm,
 				 vertexCos, numVerts);
@@ -319,7 +330,7 @@ static void deformVertsEM(
 					   ModifierData *md, Object *ob, struct EditMesh *editData,
 	DerivedMesh *derivedData, float (*vertexCos)[3], int numVerts)
 {
-	DerivedMesh *dm= get_cddm(md->scene, ob, editData, derivedData, vertexCos);
+	DerivedMesh *dm= get_cddm(ob, editData, derivedData, vertexCos);
 
 	displaceModifier_do((DisplaceModifierData *)md, ob, dm,
 				 vertexCos, numVerts);
@@ -349,6 +360,7 @@ ModifierTypeInfo modifierType_Displace = {
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    updateDepgraph,
 	/* dependsOnTime */     dependsOnTime,
+	/* dependsOnNormals */	dependsOnNormals,
 	/* foreachObjectLink */ foreachObjectLink,
 	/* foreachIDLink */     foreachIDLink,
 };

@@ -84,10 +84,11 @@ class RENDER_PT_layers(RenderButtonsPanel, bpy.types.Panel):
         col.operator("scene.render_layer_add", icon='ZOOMIN', text="")
         col.operator("scene.render_layer_remove", icon='ZOOMOUT', text="")
 
+        row = layout.row()
         rl = rd.layers.active
-
         if rl:
-            layout.prop(rl, "name")
+            row.prop(rl, "name")
+        row.prop(rd, "use_single_layer", text="", icon_only=True)
 
         split = layout.split()
 
@@ -543,8 +544,13 @@ class RENDER_PT_dimensions(RenderButtonsPanel, bpy.types.Panel):
         sub.prop(scene, "frame_step", text="Step")
 
         sub.label(text="Frame Rate:")
+
+        sub = col.column(align=True)
         sub.prop(rd, "fps")
         sub.prop(rd, "fps_base", text="/")
+        subrow = sub.row(align=True)
+        subrow.prop(rd, "frame_map_old", text="Old")
+        subrow.prop(rd, "frame_map_new", text="New")
 
 
 class RENDER_PT_stamp(RenderButtonsPanel, bpy.types.Panel):

@@ -31,7 +31,10 @@
 
 #include "rna_internal.h"
 
+#include "BKE_key.h"
+
 #include "DNA_action_types.h"
+#include "DNA_key_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_space_types.h"
@@ -477,6 +480,7 @@ static void rna_SpaceImageEditor_curves_update(Main *bmain, Scene *scene, Pointe
 	void *lock;
 
 	ibuf= ED_space_image_acquire_buffer(sima, &lock);
+	if(ibuf->rect_float)
 	curvemapping_do_ibuf(sima->cumap, ibuf);
 	ED_space_image_release_buffer(sima, lock);
 
@@ -633,11 +637,27 @@ static void rna_SpaceDopeSheetEditor_action_update(Main *bmain, Scene *scene, Po
 
 	/* we must set this action to be the one used by active object (if not pinned) */
 	if(obact/* && saction->pin == 0*/) {
-		AnimData *adt= BKE_id_add_animdata(&obact->id); /* this only adds if non-existant */
+		AnimData *adt = NULL;
+		
+		if (saction->mode == SACTCONT_ACTION) {
+			// TODO: context selector could help decide this with more control?
+			adt= BKE_id_add_animdata(&obact->id); /* this only adds if non-existant */
+		}
+		else if (saction->mode == SACTCONT_SHAPEKEY) {
+			Key *key = ob_get_key(obact);
+			if (key)
+				adt= BKE_id_add_animdata(&key->id); /* this only adds if non-existant */
+		}
 		
 		/* set action */
+		if (adt) {
+			/* fix id-count of action we're replacing */
+			id_us_min(&adt->action->id);
+			
+			/* show new id-count of action we're replacing */
 		adt->action= saction->action;
 		id_us_plus(&adt->action->id);
+		}
 		
 		/* force depsgraph flush too */
 		DAG_id_flush_update(&obact->id, OB_RECALC_OB|OB_RECALC_DATA);
@@ -647,14 +667,33 @@ static void rna_SpaceDopeSheetEditor_action_update(Main *bmain, Scene *scene, Po
 static void rna_SpaceDopeSheetEditor_mode_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	SpaceAction *saction= (SpaceAction*)(ptr->data);
+	Object *obact= (scene->basact)? scene->basact->object: NULL;
 	
-	/* special exception for ShapeKey Editor mode:
-	 * 		enable 'show sliders' by default, since one of the main
+	/* special exceptions for ShapeKey Editor mode */
+	if (saction->mode == SACTCONT_SHAPEKEY) {
+		Key *key = ob_get_key(obact);
+		
+		/* 1)	update the action stored for the editor */
+		if (key)
+			saction->action = (key->adt)? key->adt->action : NULL;
+		else
+			saction->action = NULL;
+		
+		/* 2)	enable 'show sliders' by default, since one of the main
 	 *		points of the ShapeKey Editor is to provide a one-stop shop
 	 *		for controlling the shapekeys, whose main control is the value
 	 */
-	if (saction->mode == SACTCONT_SHAPEKEY)
 		saction->flag |= SACTION_SLIDERS;
+}
+	/* make sure action stored is valid */
+	else if (saction->mode == SACTCONT_ACTION) {
+		/* 1)	update the action stored for the editor */
+		// TODO: context selector could help decide this with more control?
+		if (obact)
+			saction->action = (obact->adt)? obact->adt->action : NULL;
+		else
+			saction->action = NULL;
+	}
 }
 
 /* Space Graph Editor */
@@ -1237,7 +1276,7 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, -10000.0, 10000.0, 10, 4);
 	RNA_def_property_update(prop, NC_WINDOW, NULL);
 	
-	prop= RNA_def_property(srna, "view_rotate_method", PROP_FLOAT, PROP_QUATERNION);
+	prop= RNA_def_property(srna, "view_rotation", PROP_FLOAT, PROP_QUATERNION);
 	RNA_def_property_float_sdna(prop, NULL, "viewquat");
 	RNA_def_property_ui_text(prop, "View Rotation", "Rotation in quaternions (keep normalized)");
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_VIEW3D, NULL);
@@ -2146,6 +2185,11 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 	RNA_def_property_ui_icon(prop, ICON_FILE_FOLDER, 0);
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_FILE_PARAMS, NULL);
 
+	prop= RNA_def_property(srna, "filter_glob", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "filter_glob");
+	RNA_def_property_ui_text(prop, "Extension Filter", "");
+	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_FILE_LIST, NULL);
+
 }
 
 static void rna_def_space_filebrowser(BlenderRNA *brna)
@@ -2160,6 +2204,10 @@ static void rna_def_space_filebrowser(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "params", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "params");
 	RNA_def_property_ui_text(prop, "Filebrowser Parameter", "Parameters and Settings for the Filebrowser");
+	
+	prop= RNA_def_property(srna, "operator", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "op");
+	RNA_def_property_ui_text(prop, "Operator", "");
 }
 
 static void rna_def_space_info(BlenderRNA *brna)
@@ -2228,7 +2276,8 @@ static void rna_def_space_node(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "ID From", "Datablock from which the edited datablock is linked");
 
-	prop= RNA_def_property(srna, "nodetree", PROP_POINTER, PROP_NONE);
+	prop= RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "nodetree");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Node Tree", "Node tree being displayed and edited");
 

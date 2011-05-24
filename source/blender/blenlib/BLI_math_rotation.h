@@ -147,6 +147,7 @@ void mat4_to_eulO(float eul[3], short order, float mat[4][4]);
 void axis_angle_to_eulO(float eul[3], short order, float axis[3], float angle);
 
 void mat3_to_compatible_eulO(float eul[3], float old[3], short order, float mat[3][3]);
+void mat4_to_compatible_eulO(float eul[3], float old[3], short order, float mat[4][4]);
 
 void rotate_eulO(float eul[3], short order, char axis, float angle);
 
@@ -167,6 +168,9 @@ void mul_v3m3_dq(float r[3], float R[3][3], DualQuat *dq);
 
 void mat4_to_dquat(DualQuat *r, float base[4][4], float M[4][4]);
 void dquat_to_mat4(float R[4][4], DualQuat *dq);
+
+void quat_apply_track(float quat[4], short axis, short upflag);
+void vec_apply_track(float vec[3], short axis);
 
 float lens_to_angle(float lens);
 float angle_to_lens(float angle);

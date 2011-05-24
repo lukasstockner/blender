@@ -336,20 +336,19 @@ static short IsectLLPt2Df(float x0,float y0,float x1,float y1,
 	return 1; 
 } // end Intersect_Lines
 
-#define SIDE_OF_LINE(pa,pb,pp)	((pa[0]-pp[0])*(pb[1]-pp[1]))-((pb[0]-pp[0])*(pa[1]-pp[1]))
 /* point in tri */
-// XXX was called IsectPT2Df
+
 int isect_point_tri_v2(float pt[2], float v1[2], float v2[2], float v3[2])
 {
-	if (SIDE_OF_LINE(v1,v2,pt)>=0.0) {
-		if (SIDE_OF_LINE(v2,v3,pt)>=0.0) {
-			if (SIDE_OF_LINE(v3,v1,pt)>=0.0) {
+	if (line_point_side_v2(v1,v2,pt)>=0.0) {
+		if (line_point_side_v2(v2,v3,pt)>=0.0) {
+			if (line_point_side_v2(v3,v1,pt)>=0.0) {
 				return 1;
 			}
 		}
 	} else {
-		if (! (SIDE_OF_LINE(v2,v3,pt)>=0.0)) {
-			if (! (SIDE_OF_LINE(v3,v1,pt)>=0.0)) {
+		if (! (line_point_side_v2(v2,v3,pt)>=0.0)) {
+			if (! (line_point_side_v2(v3,v1,pt)>=0.0)) {
 				return -1;
 			}
 		}
@@ -360,18 +359,18 @@ int isect_point_tri_v2(float pt[2], float v1[2], float v2[2], float v3[2])
 /* point in quad - only convex quads */
 int isect_point_quad_v2(float pt[2], float v1[2], float v2[2], float v3[2], float v4[2])
 {
-	if (SIDE_OF_LINE(v1,v2,pt)>=0.0) {
-		if (SIDE_OF_LINE(v2,v3,pt)>=0.0) {
-			if (SIDE_OF_LINE(v3,v4,pt)>=0.0) {
-				if (SIDE_OF_LINE(v4,v1,pt)>=0.0) {
+	if (line_point_side_v2(v1,v2,pt)>=0.0) {
+		if (line_point_side_v2(v2,v3,pt)>=0.0) {
+			if (line_point_side_v2(v3,v4,pt)>=0.0) {
+				if (line_point_side_v2(v4,v1,pt)>=0.0) {
 					return 1;
 				}
 			}
 		}
 	} else {
-		if (! (SIDE_OF_LINE(v2,v3,pt)>=0.0)) {
-			if (! (SIDE_OF_LINE(v3,v4,pt)>=0.0)) {
-				if (! (SIDE_OF_LINE(v4,v1,pt)>=0.0)) {
+		if (! (line_point_side_v2(v2,v3,pt)>=0.0)) {
+			if (! (line_point_side_v2(v3,v4,pt)>=0.0)) {
+				if (! (line_point_side_v2(v4,v1,pt)>=0.0)) {
 					return -1;
 				}
 			}
@@ -1645,6 +1644,25 @@ void perspective_m4(float mat[][4],float left, float right, float bottom, float 
 		mat[1][0] = mat[1][2] = mat[1][3] =
 		mat[3][0] = mat[3][1] = mat[3][3] = 0.0;
 
+}
+
+/* translate a matrix created by orthographic_m4 or perspective_m4 in XY coords (used to jitter the view) */
+void window_translate_m4(float winmat[][4], float perspmat[][4], float x, float y)
+{
+	if(winmat[2][3] == -1.0f) {
+		/* in the case of a win-matrix, this means perspective always */
+		float v1[3]= {perspmat[0][0], perspmat[1][0], perspmat[2][0]};
+		float v2[3]= {perspmat[0][1], perspmat[1][1], perspmat[2][1]};
+		float len1= (1.0f / len_v3(v1));
+		float len2= (1.0f / len_v3(v2));
+		
+		winmat[2][0] += len1 * winmat[0][0] * x;
+		winmat[2][1] += len2 * winmat[1][1] * y;
+	}
+	else {
+		winmat[3][0] += x;
+		winmat[3][1] += y;
+	}
 }
 
 static void i_multmatrix(float icand[][4], float Vm[][4])

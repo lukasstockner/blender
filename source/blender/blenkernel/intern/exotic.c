@@ -557,7 +557,7 @@ static int write_derivedmesh_stl(FILE *fpSTL, Object *ob, DerivedMesh *dm)
 	return numfacets;
 }
 
-static int write_object_stl(FILE *fpSTL, Scene *scene, Object *ob, Mesh *me)
+static int write_object_stl(FILE *fpSTL, Scene *scene, Object *ob)
 {
 	int  numfacets = 0;
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
@@ -572,20 +572,12 @@ static int write_object_stl(FILE *fpSTL, Scene *scene, Object *ob, Mesh *me)
 void write_stl(Scene *scene, char *str)
 {
 	Object *ob;
-	Mesh   *me;
 	Base   *base;
 	FILE   *fpSTL;
 	int    numfacets = 0;
 	ReportList *reports= NULL; /* XXX */
 	
-	if(BLI_testextensie(str,".blend")) str[ strlen(str)-6]= 0;
-	if(BLI_testextensie(str,".ble")) str[ strlen(str)-4]= 0;
-	if(BLI_testextensie(str,".stl")==0) strcat(str, ".stl");
-
-	if (BLI_exists(str)) {
-		; //XXX if(saveover(str)==0)
-		//XXX   return;
-	}
+	/* XXX, operator needs to manage filename extension */
 
 	fpSTL= fopen(str, "wb");
 	
@@ -612,9 +604,8 @@ void write_stl(Scene *scene, char *str)
 		if (base->flag & SELECT) {
 			ob = base->object;
 			if (ob->type == OB_MESH) {
-				me = ob->data;
-				if (me)
-					numfacets += write_object_stl(fpSTL, scene, ob, me);
+				if(ob->data)
+					numfacets += write_object_stl(fpSTL, scene, ob);
 			}
 		}
 		base= base->next;
@@ -872,15 +863,7 @@ void write_dxf(struct Scene *scene, char *str)
 	Base *base;
 	FILE *fp;
 	
-	if(BLI_testextensie(str,".blend")) str[ strlen(str)-6]= 0;
-	if(BLI_testextensie(str,".ble")) str[ strlen(str)-4]= 0;
-	if(BLI_testextensie(str,".dxf")==0) strcat(str, ".dxf");
-
-	
-	if (BLI_exists(str)) {
-		; //XXX if(saveover(str)==0)
-		//	return;
-	}
+	/* XXX, operator needs to handle overwrite & rename */
 
 	fp= fopen(str, "w");
 	
@@ -993,7 +976,7 @@ static int all_digits(char *str)
 	return 1;
 }
 
-static int dxf_get_layer_col(char *layer) 
+static int dxf_get_layer_col(char *UNUSED(layer)) 
 {
 	return 1;
 }
@@ -1031,8 +1014,8 @@ static void myfgets(char *str, int len, FILE *fp)
 		/* three types of enters, \n \r and \r\n  */
 		if(c == '\n') break;
 		if(c=='\r') {
-			c= getc(dxf_fp);				// read the linefeed from stream
-			if(c != 10) ungetc(c, dxf_fp);	// put back, if it's not one...
+			c= getc(fp);				// read the linefeed from stream
+			if(c != 10) ungetc(c, fp);	// put back, if it's not one...
 			break;
 		}
 	}

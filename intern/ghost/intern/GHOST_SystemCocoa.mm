@@ -853,7 +853,7 @@ GHOST_TSuccess GHOST_SystemCocoa::setMouseCursorPosition(GHOST_TInt32 x, GHOST_T
 
 GHOST_TSuccess GHOST_SystemCocoa::getModifierKeys(GHOST_ModifierKeys& keys) const
 {
-	keys.set(GHOST_kModifierKeyCommand, (m_modifierMask & NSCommandKeyMask) ? true : false);
+	keys.set(GHOST_kModifierKeyOS, (m_modifierMask & NSCommandKeyMask) ? true : false);
 	keys.set(GHOST_kModifierKeyLeftAlt, (m_modifierMask & NSAlternateKeyMask) ? true : false);
 	keys.set(GHOST_kModifierKeyLeftShift, (m_modifierMask & NSShiftKeyMask) ? true : false);
 	keys.set(GHOST_kModifierKeyLeftControl, (m_modifierMask & NSControlKeyMask) ? true : false);
@@ -987,6 +987,8 @@ bool GHOST_SystemCocoa::processEvents(bool waitForEvent)
 		return true;
 	}
 	
+	m_ignoreWindowSizedMessages = false;
+	
     return anyProcessed;
 }
 
@@ -1016,7 +1018,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleApplicationBecomeActiveEvent()
 		pushEvent( new GHOST_EventKey(getMilliSeconds(), (modifiers & NSAlternateKeyMask)?GHOST_kEventKeyDown:GHOST_kEventKeyUp, window, GHOST_kKeyLeftAlt) );
 	}
 	if ((modifiers & NSCommandKeyMask) != (m_modifierMask & NSCommandKeyMask)) {
-		pushEvent( new GHOST_EventKey(getMilliSeconds(), (modifiers & NSCommandKeyMask)?GHOST_kEventKeyDown:GHOST_kEventKeyUp, window, GHOST_kKeyCommand) );
+		pushEvent( new GHOST_EventKey(getMilliSeconds(), (modifiers & NSCommandKeyMask)?GHOST_kEventKeyDown:GHOST_kEventKeyUp, window, GHOST_kKeyOS) );
 	}
 	
 	m_modifierMask = modifiers;
@@ -1054,8 +1056,12 @@ GHOST_TSuccess GHOST_SystemCocoa::handleWindowEvent(GHOST_TEventType eventType, 
 			case GHOST_kEventWindowSize:
 				if (!m_ignoreWindowSizedMessages)
 				{
+					//Enforce only one resize message per event loop (coalescing all the live resize messages)					
 					window->updateDrawingContext();
 					pushEvent( new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowSize, window) );
+					//Mouse up event is trapped by the resizing event loop, so send it anyway to the window manager
+					pushEvent(new GHOST_EventButton(getMilliSeconds(), GHOST_kEventButtonUp, window, convertButton(0)));
+					m_ignoreWindowSizedMessages = true;
 				}
 				break;
 			default:
@@ -1692,7 +1698,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
 				pushEvent( new GHOST_EventKey([event timestamp]*1000, (modifiers & NSAlternateKeyMask)?GHOST_kEventKeyDown:GHOST_kEventKeyUp, window, GHOST_kKeyLeftAlt) );
 			}
 			if ((modifiers & NSCommandKeyMask) != (m_modifierMask & NSCommandKeyMask)) {
-				pushEvent( new GHOST_EventKey([event timestamp]*1000, (modifiers & NSCommandKeyMask)?GHOST_kEventKeyDown:GHOST_kEventKeyUp, window, GHOST_kKeyCommand) );
+				pushEvent( new GHOST_EventKey([event timestamp]*1000, (modifiers & NSCommandKeyMask)?GHOST_kEventKeyDown:GHOST_kEventKeyUp, window, GHOST_kKeyOS) );
 			}
 			
 			m_modifierMask = modifiers;

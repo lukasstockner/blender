@@ -34,6 +34,7 @@
 #include "DNA_object_fluidsim.h"
 #include "DNA_object_types.h"
 
+#include "BKE_utildefines.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_modifier.h"
 
@@ -125,7 +126,7 @@ static void updateDepgraph(
 	}
 }
 
-static int dependsOnTime(ModifierData *md) 
+static int dependsOnTime(ModifierData *UNUSED(md)) 
 {
 	return 1;
 }
@@ -153,6 +154,7 @@ ModifierTypeInfo modifierType_Fluidsim = {
 	/* isDisabled */        0,
 	/* updateDepgraph */    updateDepgraph,
 	/* dependsOnTime */     dependsOnTime,
+	/* dependsOnNormals */	0,
 	/* foreachObjectLink */ 0,
 	/* foreachIDLink */     0,
 };

@@ -53,6 +53,7 @@
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_screen_types.h"
+#include "ED_fileselect.h"
 
 #include "UI_interface.h"
 
@@ -308,7 +309,7 @@ static void screen_delarea(bContext *C, bScreen *sc, ScrArea *sa)
 
 /* return 0: no split possible */
 /* else return (integer) screencoordinate split point */
-static short testsplitpoint(wmWindow *win, ScrArea *sa, char dir, float fac)
+static short testsplitpoint(ScrArea *sa, char dir, float fac)
 {
 	short x, y;
 	
@@ -344,7 +345,7 @@ static short testsplitpoint(wmWindow *win, ScrArea *sa, char dir, float fac)
 	}
 }
 
-ScrArea *area_split(wmWindow *win, bScreen *sc, ScrArea *sa, char dir, float fac)
+ScrArea *area_split(bScreen *sc, ScrArea *sa, char dir, float fac)
 {
 	ScrArea *newa=NULL;
 	ScrVert *sv1, *sv2;
@@ -352,7 +353,7 @@ ScrArea *area_split(wmWindow *win, bScreen *sc, ScrArea *sa, char dir, float fac
 	
 	if(sa==NULL) return NULL;
 	
-	split= testsplitpoint(win, sa, dir, fac);
+	split= testsplitpoint(sa, dir, fac);
 	if(split==0) return NULL;
 	
 	if(dir=='h') {
@@ -483,7 +484,7 @@ static void screen_copy(bScreen *to, bScreen *from)
 /* with sa as center, sb is located at: 0=W, 1=N, 2=E, 3=S */
 /* -1 = not valid check */
 /* used with join operator */
-int area_getorientation(bScreen *screen, ScrArea *sa, ScrArea *sb)
+int area_getorientation(ScrArea *sa, ScrArea *sb)
 {
 	ScrVert *sav1, *sav2, *sav3, *sav4;
 	ScrVert *sbv1, *sbv2, *sbv3, *sbv4;
@@ -522,7 +523,7 @@ int screen_area_join(bContext *C, bScreen* scr, ScrArea *sa1, ScrArea *sa2)
 {
 	int dir;
 	
-	dir = area_getorientation(scr, sa1, sa2);
+	dir = area_getorientation(sa1, sa2);
 	/*printf("dir is : %i \n", dir);*/
 	
 	if (dir < 0)
@@ -860,7 +861,7 @@ static void scrarea_draw_shape_dark(ScrArea *sa, char dir)
 }
 
 /* draw screen area ligher with arrow shape ("eraser" of previous dark shape) */
-static void scrarea_draw_shape_light(ScrArea *sa, char dir)
+static void scrarea_draw_shape_light(ScrArea *sa, char UNUSED(dir))
 {
 	glBlendFunc(GL_DST_COLOR, GL_SRC_ALPHA);
 	glEnable(GL_BLEND);
@@ -992,7 +993,7 @@ void ED_screen_draw(wmWindow *win)
 	
 	/* blended join arrow */
 	if (sa1 && sa2) {
-		dir = area_getorientation(win->screen, sa1, sa2);
+		dir = area_getorientation(sa1, sa2);
 		if (dir >= 0) {
 			switch(dir) {
 				case 0: /* W */
@@ -1090,6 +1091,10 @@ void ED_area_exit(bContext *C, ScrArea *sa)
 	ScrArea *prevsa= CTX_wm_area(C);
 	ARegion *ar;
 
+	if (sa->spacetype == SPACE_FILE) {
+		ED_fileselect_exit(C, (SpaceFile*)(sa) ? sa->spacedata.first : CTX_wm_space_data(C));
+	}
+
 	CTX_wm_area_set(C, sa);
 	for(ar= sa->regionbase.first; ar; ar= ar->next)
 		ED_region_exit(C, ar);
@@ -1157,7 +1162,7 @@ static void screen_cursor_set(wmWindow *win, wmEvent *event)
 		if(az->type==AZONE_AREA)
 			WM_cursor_set(win, CURSOR_EDIT);
 		else if(az->type==AZONE_REGION) {
-			if(az->edge == 'l' || az->edge == 'r')
+			if(az->edge == AE_LEFT_TO_TOPRIGHT || az->edge == AE_RIGHT_TO_TOPLEFT)
 				WM_cursor_set(win, CURSOR_X_MOVE);
 			else
 				WM_cursor_set(win, CURSOR_Y_MOVE);
@@ -1307,6 +1312,7 @@ void ED_screen_set(bContext *C, bScreen *sc)
 		
 		ED_screen_refresh(CTX_wm_manager(C), CTX_wm_window(C));
 		WM_event_add_notifier(C, NC_WINDOW, NULL);
+		WM_event_add_notifier(C, NC_SCREEN|ND_SCREENSET, sc);
 		
 		/* makes button hilites work */
 		WM_event_add_mousemove(C);
@@ -1607,7 +1613,7 @@ ScrArea *ED_screen_full_toggle(bContext *C, wmWindow *win, ScrArea *sa)
 		oldscreen->animtimer= NULL;
 
 		/* returns the top small area */
-		newa= area_split(win, sc, (ScrArea *)sc->areabase.first, 'h', 0.99f);
+		newa= area_split(sc, (ScrArea *)sc->areabase.first, 'h', 0.99f);
 		ED_area_newspace(C, newa, SPACE_INFO);
 
 		/* use random area when we have no active one, e.g. when the

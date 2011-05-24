@@ -159,7 +159,7 @@ static void rna_Image_end_frame_set(PointerRNA *ptr, int value)
 
 static void node_update(Main *bmain, Scene *scene, bNodeTree *ntree, bNode *node)
 {
-	ED_node_generic_update(bmain, scene, ntree, node);
+	ED_node_generic_update(bmain, ntree, node);
 }
 
 static void rna_Node_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -180,7 +180,7 @@ static void rna_NodeGroup_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 	node_update(bmain, scene, ntree, node);
 }
 
-static void rna_Node_update_name(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_Node_name_set(PointerRNA *ptr, const char *value)
 {
 	bNodeTree *ntree= (bNodeTree*)ptr->id.data;
 	bNode *node= (bNode*)ptr->data;
@@ -188,14 +188,14 @@ static void rna_Node_update_name(Main *bmain, Scene *scene, PointerRNA *ptr)
 	
 	/* make a copy of the old name first */
 	BLI_strncpy(oldname, node->name, sizeof(node->name));
+	/* set new name */
+	BLI_strncpy(node->name, value, sizeof(node->name));
 	
 	nodeUniqueName(ntree, node);
 	node->flag |= NODE_CUSTOM_NAME;
 	
 	/* fix all the animation data which may link to this */
 	BKE_all_animdata_fix_paths_rename("nodes", oldname, node->name);
-	
-	node_update(bmain, scene, ntree, node);
 }
 
 /* this should be done at display time! if no custom names are set */
@@ -515,15 +515,12 @@ static void init(void)
 {
 	memset(nodes, 0, sizeof nodes);
 	
-	#define Str(x) #x
-	
 	#define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
-		reg_node(ID, Category_##Category, EnumName, Str(Category##StructName), #Category, UIName, UIDesc);
+		reg_node(ID, Category_##Category, EnumName, STRINGIFY_ARG(Category##StructName), #Category, UIName, UIDesc);
 		
 	#include "rna_nodetree_types.h"
 	
 	#undef DefNode
-	#undef Str
 	
 	reg_node(NODE_GROUP, Category_GroupNode, "GROUP", "NodeGroup", "Node", "Group", "");
 }
@@ -593,7 +590,7 @@ static void def_group(StructRNA *srna)
 {
 	PropertyRNA *prop;
 	
-	prop = RNA_def_property(srna, "nodetree", PROP_POINTER, PROP_NONE);
+	prop = RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "id");
 	RNA_def_property_struct_type(prop, "NodeTree");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
@@ -871,13 +868,13 @@ static void def_cmp_blur(StructRNA *srna)
 	
 	prop = RNA_def_property(srna, "size_x", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "sizex");
-	RNA_def_property_range(prop, 0, 256);
+	RNA_def_property_range(prop, 0, 2048);
 	RNA_def_property_ui_text(prop, "Size X", "");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
 	prop = RNA_def_property(srna, "size_y", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "sizey");
-	RNA_def_property_range(prop, 0, 256);
+	RNA_def_property_range(prop, 0, 2048);
 	RNA_def_property_ui_text(prop, "Size Y", "");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 
@@ -2266,7 +2263,8 @@ static void rna_def_node(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Name", "Node name");
 	RNA_def_struct_name_property(srna, prop);
-	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update_name");
+	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_Node_name_set");
+	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
 	prop = RNA_def_property(srna, "inputs", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "inputs", NULL);

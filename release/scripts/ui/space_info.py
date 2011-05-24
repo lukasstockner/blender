@@ -97,7 +97,7 @@ class INFO_MT_file(bpy.types.Menu):
         layout.operator("screen.userpref_show", text="User Preferences...", icon='PREFERENCES')
 
         layout.operator_context = 'EXEC_AREA'
-        layout.operator("wm.read_homefile", text="Load Factory Settings").factory = True
+        layout.operator("wm.read_factory_settings")
 
         layout.separator()
 
@@ -119,7 +119,7 @@ class INFO_MT_file(bpy.types.Menu):
         layout.separator()
 
         layout.operator_context = 'EXEC_AREA'
-        layout.operator("wm.exit_blender", text="Quit", icon='QUIT')
+        layout.operator("wm.quit_blender", text="Quit", icon='QUIT')
 
 
 class INFO_MT_file_import(bpy.types.Menu):
@@ -189,6 +189,21 @@ class INFO_MT_curve_add(bpy.types.Menu):
         layout.operator("curve.primitive_nurbs_circle_add", icon='CURVE_NCIRCLE', text="Nurbs Circle")
         layout.operator("curve.primitive_nurbs_path_add", icon='CURVE_PATH', text="Path")
 
+class INFO_MT_edit_curve_add(bpy.types.Menu):
+    bl_idname = "INFO_MT_edit_curve_add"
+    bl_label = "Add"
+
+    def draw(self, context):
+        is_surf = context.active_object.type == 'SURFACE'
+
+        layout = self.layout
+        layout.operator_context = 'INVOKE_REGION_WIN'
+
+        if is_surf:
+          INFO_MT_surface_add.draw(self, context)
+        else:
+          INFO_MT_curve_add.draw(self, context)
+
 
 class INFO_MT_surface_add(bpy.types.Menu):
     bl_idname = "INFO_MT_surface_add"
@@ -203,6 +218,18 @@ class INFO_MT_surface_add(bpy.types.Menu):
         layout.operator("surface.primitive_nurbs_surface_cylinder_add", icon='SURFACE_NCYLINDER', text="NURBS Cylinder")
         layout.operator("surface.primitive_nurbs_surface_sphere_add", icon='SURFACE_NSPHERE', text="NURBS Sphere")
         layout.operator("surface.primitive_nurbs_surface_torus_add", icon='SURFACE_NTORUS', text="NURBS Torus")
+
+class INFO_MT_curve_handle_type_set(bpy.types.Menu):
+    bl_idname = "INFO_MT_curve_handle_type_set"
+    bl_label = "Handle Type"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator("curve.handle_type_set", text="Automatic").type = "AUTOMATIC"
+        layout.operator("curve.handle_type_set", text="Vector").type = "VECTOR"
+        layout.operator("curve.handle_type_set", text="Align").type = "ALIGN"
+        layout.operator("curve.handle_type_set", text="Free Align").type = "FREE_ALIGN"
 
 
 class INFO_MT_armature_add(bpy.types.Menu):
@@ -231,10 +258,10 @@ class INFO_MT_add(bpy.types.Menu):
         #layout.operator_menu_enum("object.surface_add", "type", text="Surface", icon='OUTLINER_OB_SURFACE')
         layout.menu("INFO_MT_surface_add", icon='OUTLINER_OB_SURFACE')
         layout.operator_menu_enum("object.metaball_add", "type", text="Metaball", icon='OUTLINER_OB_META')
+        layout.operator_context = 'INVOKE_REGION_WIN'
         layout.operator("object.text_add", text="Text", icon='OUTLINER_OB_FONT')
         layout.separator()
 
-        layout.operator_context = 'INVOKE_REGION_WIN'
         layout.menu("INFO_MT_armature_add", icon='OUTLINER_OB_ARMATURE')
         layout.operator("object.add", text="Lattice", icon='OUTLINER_OB_LATTICE').type = 'LATTICE'
         layout.operator("object.add", text="Empty", icon='OUTLINER_OB_EMPTY').type = 'EMPTY'
@@ -305,7 +332,7 @@ class INFO_MT_help(bpy.types.Menu):
         layout = self.layout
 
         layout.operator("wm.url_open", text="Manual", icon='HELP').url = 'http://wiki.blender.org/index.php/Doc:Manual'
-        layout.operator("wm.url_open", text="Release Log", icon='URL').url = 'http://www.blender.org/development/release-logs/blender-250/'
+        layout.operator("wm.url_open", text="Release Log", icon='URL').url = 'http://www.blender.org/development/release-logs/blender-254-beta/'
 
         layout.separator()
 
@@ -339,7 +366,7 @@ class HELP_OT_operator_cheat_sheet(bpy.types.Operator):
             for op_submodule_name in dir(op_module):
                 op = getattr(op_module, op_submodule_name)
                 text = repr(op)
-                if text.startswith('bpy.ops.'):
+                if text.split("\n")[-1].startswith('bpy.ops.'):
                     op_strings.append(text)
                     tot += 1
 

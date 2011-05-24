@@ -53,14 +53,11 @@ PyObject*	bpy_text_reimport( PyObject *module, int *found );
 
 void bpy_text_filename_get(char *fn, struct Text *text);
 
-extern PyMethodDef bpy_import_meth[];
-extern PyMethodDef bpy_reload_meth[];
+extern PyMethodDef bpy_import_meth;
+extern PyMethodDef bpy_reload_meth;
 
 /* The game engine has its own Main struct, if this is set search this rather then G.main */
 struct Main *bpy_import_main_get(void);
 void bpy_import_main_set(struct Main *maggie);
-
-/* name namespace function for bpy & bge */
-PyObject *bpy_namespace_dict_new(const char *filename);
 
 #endif				/* EXPP_bpy_import_h */

@@ -211,6 +211,9 @@ Scene *copy_scene(Main *bmain, Scene *sce, int type)
 		ID_NEW(scen->camera);
 	}
 
+	/* before scene copy */
+	sound_create_scene(scen);
+
 	/* world */
 	if(type == SCE_COPY_FULL) {
 		if(scen->world) {
@@ -221,11 +224,9 @@ Scene *copy_scene(Main *bmain, Scene *sce, int type)
 		if(sce->ed) {
 			scen->ed= MEM_callocN( sizeof(Editing), "addseq");
 			scen->ed->seqbasep= &scen->ed->seqbase;
-			seqbase_dupli_recursive(sce, &scen->ed->seqbase, &sce->ed->seqbase, SEQ_DUPE_ALL);
+			seqbase_dupli_recursive(sce, scen, &scen->ed->seqbase, &sce->ed->seqbase, SEQ_DUPE_ALL);
 		}
 	}
-
-	sound_create_scene(scen);
 
 	return scen;
 }

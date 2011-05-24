@@ -30,14 +30,18 @@ import os
 
 def guess_player_path(preset):
     import platform
+    try:
     system = platform.system()
+    except UnicodeDecodeError:
+        import sys
+        system = sys.platform
 
     if preset == 'BLENDER24':
         player_path = "blender"
 
         if system == 'Darwin':
             test_path = "/Applications/blender 2.49.app/Contents/MacOS/blender"
-        elif system == 'Windows':
+        elif system in ('Windows', 'win32'):
             test_path = "/Program Files/Blender Foundation/Blender/blender.exe"
 
             if os.path.exists(test_path):
@@ -99,7 +103,7 @@ class PlayRenderedAnim(bpy.types.Operator):
                 file_b = rd.frame_path(frame=frame_tmp)
             file_b = rd.frame_path(frame=int(frame_tmp / 10))
 
-            file = ''.join([(c if file_b[i] == c else "#") for i, c in enumerate(file_a)])
+            file = "".join((c if file_b[i] == c else "#") for i, c in enumerate(file_a))
         else:
             # works for movies and images
             file = rd.frame_path(frame=scene.frame_start)

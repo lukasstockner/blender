@@ -70,6 +70,11 @@ extern "C" {
 #define M_LN10          2.30258509299404568402
 #endif
 
+/* non-standard defines, used in some places */
+#ifndef MAXFLOAT
+#define MAXFLOAT  ((float)3.40282347e+38)
+#endif
+
 #ifndef sqrtf
 #define sqrtf(a) ((float)sqrt(a))
 #endif
@@ -154,6 +159,8 @@ MINLINE float interpf(float a, float b, float t);
 
 MINLINE float minf(float a, float b);
 MINLINE float maxf(float a, float b);
+
+MINLINE float signf(float f);
 
 MINLINE float power_of_2(float f);
 

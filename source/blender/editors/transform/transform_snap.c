@@ -141,15 +141,14 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 			TransSnapPoint *p;
 			View3D *v3d = CTX_wm_view3d(C);
 			RegionView3D *rv3d = CTX_wm_region_view3d(C);
-			float tmat[4][4], imat[4][4];
+			float imat[4][4];
 			float size;
 			
 			glDisable(GL_DEPTH_TEST);
 	
 			size = 0.5f * UI_GetThemeValuef(TH_VERTEX_SIZE);
 			
-			copy_m4_m4(tmat, rv3d->viewmat);
-			invert_m4_m4(imat, tmat);
+			invert_m4_m4(imat, rv3d->viewmat);
 
 			for (p = t->tsnap.points.first; p; p = p->next) {
 				drawcircball(GL_LINE_LOOP, p->co, size * get_drawsize(t->ar, p->co), imat);
@@ -785,6 +784,10 @@ void CalcSnapGeometry(TransInfo *t, float *vec)
 			if (dist != FLT_MAX)
 			{
 				VECCOPY(loc, p);
+				/* XXX, is there a correct normal in this case ???, for now just z up */
+				no[0]= 0.0;
+				no[1]= 0.0;
+				no[2]= 1.0;
 				found = 1;
 			}
 			
@@ -1298,15 +1301,18 @@ int snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMesh *dm, E
 					BVHTreeRayHit hit;
 					BVHTreeFromMesh treeData;
 
+					/* local scale in normal direction */
+					float local_scale = len_v3(ray_normal_local);
+
 					bvhtree_from_mesh_faces(&treeData, dm, 0.0f, 4, 6);
 
 					hit.index = -1;
-					hit.dist = *depth;
+					hit.dist = *depth * (*depth == FLT_MAX ? 1.0f : local_scale);
 
 					if(treeData.tree && BLI_bvhtree_ray_cast(treeData.tree, ray_start_local, ray_normal_local, 0.0f, &hit, treeData.raycast_callback, &treeData) != -1)
 					{
-						if(hit.dist<=*depth) {
-							*depth= hit.dist;
+						if(hit.dist/local_scale <= *depth) {
+							*depth= hit.dist/local_scale;
 							copy_v3_v3(loc, hit.co);
 							copy_v3_v3(no, hit.no);
 
@@ -1581,7 +1587,7 @@ int snapObjects(Scene *scene, View3D *v3d, ARegion *ar, Object *obedit, float mv
 	
 	base= FIRSTBASE;
 	for ( base = FIRSTBASE; base != NULL; base = base->next ) {
-		if ( BASE_SELECTABLE(v3d, base) && (base->flag & (BA_HAS_RECALC_OB|BA_HAS_RECALC_DATA)) == 0 && ((mode == SNAP_NOT_SELECTED && (base->flag & (SELECT|BA_WAS_SEL)) == 0) || (ELEM(mode, SNAP_ALL, SNAP_NOT_OBEDIT) && base != BASACT)) ) {
+		if ( BASE_VISIBLE(v3d, base) && (base->flag & (BA_HAS_RECALC_OB|BA_HAS_RECALC_DATA)) == 0 && ((mode == SNAP_NOT_SELECTED && (base->flag & (SELECT|BA_WAS_SEL)) == 0) || (ELEM(mode, SNAP_ALL, SNAP_NOT_OBEDIT) && base != BASACT)) ) {
 			Object *ob = base->object;
 			
 			if (ob->transflag & OB_DUPLI)

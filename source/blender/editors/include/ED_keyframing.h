@@ -28,6 +28,10 @@
 #ifndef ED_KEYFRAMING_H
 #define ED_KEYFRAMING_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ListBase;
 struct ID;
 struct Scene;
@@ -193,6 +197,9 @@ struct KeyingSet *ANIM_scene_get_active_keyingset(struct Scene *scene);
 /* Get the index of the Keying Set provided, for the given Scene */
 int ANIM_scene_get_keyingset_index(struct Scene *scene, struct KeyingSet *ks);
 
+/* Get Keying Set to use for Auto-Keyframing some transforms */
+struct KeyingSet *ANIM_get_keyingset_for_autokeying(struct Scene *scene, const char *tranformKSName);
+
 /* Create (and show) a menu containing all the Keying Sets which can be used in the current context */
 void ANIM_keying_sets_menu_setup(struct bContext *C, char title[], char op_name[]);
 
@@ -276,5 +283,9 @@ typedef enum eAnimFilterFlags {
 	ANIMFILTER_KEYS_NOMAT		= (1<<9),		/* don't include material keyframes */
 	ANIMFILTER_KEYS_NOSKEY		= (1<<10),		/* don't include shape keys (for geometry) */
 } eAnimFilterFlags;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /*  ED_KEYFRAMING_H */

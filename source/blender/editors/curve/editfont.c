@@ -236,10 +236,7 @@ static int insert_into_textbuf(Object *obedit, uintptr_t c)
 		ef->textbuf[cu->pos]= c;
 		ef->textbufinfo[cu->pos] = cu->curinfo;
 		ef->textbufinfo[cu->pos].kern = 0;
-		if(obedit->actcol>0)
 			ef->textbufinfo[cu->pos].mat_nr = obedit->actcol;
-		else
-			ef->textbufinfo[cu->pos].mat_nr = 0;
 					
 		cu->pos++;
 		cu->len++;
@@ -257,16 +254,14 @@ static void text_update_edited(bContext *C, Scene *scene, Object *obedit, int re
 {
 	Curve *cu= obedit->data;
 	EditFont *ef= cu->editfont;
+	cu->curinfo = ef->textbufinfo[cu->pos?cu->pos-1:0];
 
-	if(cu->pos)
-		cu->curinfo = ef->textbufinfo[cu->pos-1];
-	else
-		cu->curinfo = ef->textbufinfo[0];
-	
 	if(obedit->totcol>0)
-		obedit->actcol= ef->textbufinfo[cu->pos-1].mat_nr;
+		obedit->actcol= ef->textbufinfo[cu->pos?cu->pos-1:0].mat_nr;
 
+	if(mode == FO_EDIT)
 	update_string(cu);
+
 	BKE_text_to_curve(scene, obedit, mode);
 
 	if(recalc)
@@ -276,7 +271,7 @@ static void text_update_edited(bContext *C, Scene *scene, Object *obedit, int re
 
 /********************** insert lorem operator *********************/
 
-static int insert_lorem_exec(bContext *C, wmOperator *op)
+static int insert_lorem_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *obedit= CTX_data_edit_object(C);
 	char *p, *p2;
@@ -371,7 +366,7 @@ static int paste_file(bContext *C, ReportList *reports, char *filename)
 	}
 	MEM_freeN(strp);
 
-	text_update_edited(C, scene, obedit, 1, 0);
+	text_update_edited(C, scene, obedit, 1, FO_EDIT);
 
 	return OPERATOR_FINISHED;
 }
@@ -388,7 +383,7 @@ static int paste_file_exec(bContext *C, wmOperator *op)
 	return retval;
 }
 
-static int paste_file_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int paste_file_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	if(RNA_property_is_set(op->ptr, "filepath"))
 		return paste_file_exec(C, op);
@@ -419,7 +414,7 @@ void FONT_OT_file_paste(wmOperatorType *ot)
 
 /******************* paste buffer operator ********************/
 
-static int paste_buffer_exec(bContext *C, wmOperator *op)
+static int paste_buffer_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	char *filename;
 
@@ -719,7 +714,7 @@ static void copy_selection(Object *obedit)
 	}
 }
 
-static int copy_text_exec(bContext *C, wmOperator *op)
+static int copy_text_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *obedit= CTX_data_edit_object(C);
 
@@ -742,7 +737,7 @@ void FONT_OT_text_copy(wmOperatorType *ot)
 
 /******************* cut text operator ********************/
 
-static int cut_text_exec(bContext *C, wmOperator *op)
+static int cut_text_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Scene *scene= CTX_data_scene(C);
 	Object *obedit= CTX_data_edit_object(C);
@@ -754,7 +749,7 @@ static int cut_text_exec(bContext *C, wmOperator *op)
 	copy_selection(obedit);
 	kill_selection(obedit, 0);
 
-	text_update_edited(C, scene, obedit, 1, 0);
+	text_update_edited(C, scene, obedit, 1, FO_EDIT);
 
 	return OPERATOR_FINISHED;
 }
@@ -812,7 +807,7 @@ static int paste_text_exec(bContext *C, wmOperator *op)
 	if(!paste_selection(obedit, op->reports))
 		return OPERATOR_CANCELLED;
 
-	text_update_edited(C, scene, obedit, 1, 0);
+	text_update_edited(C, scene, obedit, 1, FO_EDIT);
 
 	return OPERATOR_FINISHED;
 }
@@ -853,7 +848,7 @@ static int move_cursor(bContext *C, int type, int select)
 	Object *obedit= CTX_data_edit_object(C);
 	Curve *cu= obedit->data;
 	EditFont *ef= cu->editfont;
-	int cursmove= 0;
+	int cursmove= -1;
 
 	switch(type) {
 		case LINE_BEGIN:
@@ -923,7 +918,7 @@ static int move_cursor(bContext *C, int type, int select)
 			break;
 	}
 		
-	if(!cursmove)
+	if(cursmove == -1)
 		return OPERATOR_CANCELLED;
 
 	if(select == 0) {
@@ -1017,7 +1012,7 @@ static int change_spacing_exec(bContext *C, wmOperator *op)
 
 	ef->textbufinfo[cu->pos-1].kern = kern;
 
-	text_update_edited(C, scene, obedit, 1, 0);
+	text_update_edited(C, scene, obedit, 1, FO_EDIT);
 
 	return OPERATOR_FINISHED;
 }
@@ -1062,7 +1057,7 @@ static int change_character_exec(bContext *C, wmOperator *op)
 
 	ef->textbuf[cu->pos - 1]= character;
 
-	text_update_edited(C, scene, obedit, 1, 0);
+	text_update_edited(C, scene, obedit, 1, FO_EDIT);
 
 	return OPERATOR_FINISHED;
 }
@@ -1105,7 +1100,7 @@ static int line_break_exec(bContext *C, wmOperator *op)
 
 	cu->selstart = cu->selend = 0;
 
-	text_update_edited(C, scene, obedit, 1, 0);
+	text_update_edited(C, scene, obedit, 1, FO_EDIT);
 
 	return OPERATOR_FINISHED;
 }
@@ -1195,7 +1190,7 @@ static int delete_exec(bContext *C, wmOperator *op)
 			return OPERATOR_CANCELLED;
 	}
 
-	text_update_edited(C, scene, obedit, 1, 0);
+	text_update_edited(C, scene, obedit, 1, FO_EDIT);
 
 	return OPERATOR_FINISHED;
 }
@@ -1245,7 +1240,7 @@ static int insert_text_exec(bContext *C, wmOperator *op)
 	MEM_freeN(inserted_utf8);
 
 	kill_selection(obedit, 1);
-	text_update_edited(C, scene, obedit, 1, 0);
+	text_update_edited(C, scene, obedit, 1, FO_EDIT);
 
 	return OPERATOR_FINISHED;
 }
@@ -1313,12 +1308,12 @@ static int insert_text_invoke(bContext *C, wmOperator *op, wmEvent *evt)
 			}
 			
 			kill_selection(obedit, 1);
-			text_update_edited(C, scene, obedit, 1, 0);
+			text_update_edited(C, scene, obedit, 1, FO_EDIT);
 		}
 		else {
 			inserted_text[0]= ascii;
 			insert_into_textbuf(obedit, ascii);
-			text_update_edited(C, scene, obedit, 1, 0);
+			text_update_edited(C, scene, obedit, 1, FO_EDIT);
 		}
 	}
 	else if(val && event == BACKSPACEKEY) {
@@ -1372,7 +1367,7 @@ static int textbox_poll(bContext *C)
 	return 1;
 }
 
-static int textbox_add_exec(bContext *C, wmOperator *op)
+static int textbox_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *obedit= CTX_data_active_object(C);
 	Curve *cu= obedit->data;
@@ -1560,7 +1555,7 @@ static int set_case(bContext *C, int ccase)
 		}
 	}
 
-	text_update_edited(C, scene, obedit, 1, 0);
+	text_update_edited(C, scene, obedit, 1, FO_EDIT);
 
 	return OPERATOR_FINISHED;
 }
@@ -1590,7 +1585,7 @@ void FONT_OT_case_set(wmOperatorType *ot)
 
 /********************** toggle case operator *********************/
 
-static int toggle_case_exec(bContext *C, wmOperator *op)
+static int toggle_case_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *obedit= CTX_data_edit_object(C);
 	Curve *cu= obedit->data;
@@ -1638,7 +1633,7 @@ static void open_init(bContext *C, wmOperator *op)
 	uiIDContextProperty(C, &pprop->ptr, &pprop->prop);
 }
 
-static int open_cancel(bContext *C, wmOperator *op)
+static int open_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	MEM_freeN(op->customdata);
 	op->customdata= NULL;
@@ -1691,7 +1686,7 @@ static int open_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int open_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int open_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	Object *ob = CTX_data_active_object(C);
 	Curve *cu;

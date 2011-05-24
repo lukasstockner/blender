@@ -45,6 +45,7 @@
  * - toQuat --> to_quat
  * - Vector.toTrackQuat --> Vector.to_track_quat
  * - Quaternion * Quaternion --> cross product (not dot product)
+ * - Euler.rotate(angle, axis) --> Euler.rotate_axis(axis, angle)
  *
  * moved into class functions.
  * - Mathutils.RotationMatrix -> mathutils.Matrix.Rotation
@@ -59,6 +60,8 @@
 #include "mathutils.h"
 
 #include "BLI_math.h"
+
+#include "BKE_utildefines.h"
 
 //-------------------------DOC STRINGS ---------------------------
 static char M_Mathutils_doc[] =
@@ -202,7 +205,7 @@ int _BaseMathObject_WriteIndexCallback(BaseMathObject *self, int index)
 
 /* BaseMathObject generic functions for all mathutils types */
 char BaseMathObject_Owner_doc[] = "The item this is wrapping or None  (readonly).";
-PyObject *BaseMathObject_getOwner( BaseMathObject * self, void *type )
+PyObject *BaseMathObject_getOwner(BaseMathObject *self, void *UNUSED(closure))
 {
 	PyObject *ret= self->cb_user ? self->cb_user : Py_None;
 	Py_INCREF(ret);
@@ -210,7 +213,7 @@ PyObject *BaseMathObject_getOwner( BaseMathObject * self, void *type )
 }
 
 char BaseMathObject_Wrapped_doc[] = "True when this object wraps external data (readonly).\n\n:type: boolean";
-PyObject *BaseMathObject_getWrapped( BaseMathObject *self, void *type )
+PyObject *BaseMathObject_getWrapped(BaseMathObject *self, void *UNUSED(closure))
 {
 	return PyBool_FromLong((self->wrapped == Py_WRAP) ? 1:0);
 }

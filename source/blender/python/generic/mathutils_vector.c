@@ -45,7 +45,7 @@ static PyObject *Vector_ToTupleExt(VectorObject *self, int ndigits);
 //----------------------------------mathutils.Vector() ------------------
 // Supports 2D, 3D, and 4D vector objects both int and float values
 // accepted. Mixed float and int values accepted. Ints are parsed to float 
-static PyObject *Vector_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+static PyObject *Vector_new(PyTypeObject *type, PyObject *args, PyObject *UNUSED(kwds))
 {
 	float vec[4]= {0.0f, 0.0f, 0.0f, 0.0f};
 	int size= 3; /* default to a 3D vector */
@@ -684,6 +684,45 @@ static PyObject *Vector_Lerp(VectorObject *self, PyObject *args)
 		vec[x] = (ifac * self->vec[x]) + (fac * vec2->vec[x]);
 	}
 	return newVectorObject(vec, self->size, Py_NEW, NULL);
+}
+
+/*---------------------------- Vector.rotate(angle, axis) ----------------------*/
+static char Vector_Rotate_doc[] =
+".. function:: rotate(axis, angle)\n"
+"\n"
+"   Return vector rotated around axis by angle.\n"
+"\n"
+"   :arg axis: rotation axis.\n"
+"   :type axis: :class:`Vector`\n"
+"   :arg angle: angle in radians.\n"
+"   :type angle: float\n"
+"   :return: an instance of itself\n"
+"   :rtype: :class:`Vector`\n";
+
+static PyObject *Vector_Rotate(VectorObject *self, PyObject *args)
+{
+	VectorObject *axis_vec = NULL;
+	float angle, vec[3];
+
+	if(!PyArg_ParseTuple(args, "O!f", &vector_Type, &axis_vec, &angle)){
+		PyErr_SetString(PyExc_TypeError, "vec.rotate(angle, axis): expected angle (float) and 3D axis");
+		return NULL;
+	}
+
+	if(self->size != 3 || axis_vec->size != 3) {
+		PyErr_SetString(PyExc_AttributeError, "vec.rotate(angle, axis): expects both vectors to be 3D\n");
+		return NULL;
+	}
+
+	if(!BaseMath_ReadCallback(self) || !BaseMath_ReadCallback(axis_vec))
+		return NULL;
+
+	rotate_v3_v3v3fl(vec, self->vec, axis_vec->vec, angle);
+
+	copy_v3_v3(self->vec, vec);
+
+	Py_INCREF(self);
+	return (PyObject *)self;
 }
 
 /*----------------------------Vector.copy() -------------------------------------- */
@@ -1406,7 +1445,7 @@ static int Vector_setAxis(VectorObject *self, PyObject * value, void * type )
 }
 
 /* vector.length */
-static PyObject *Vector_getLength(VectorObject *self, void *type )
+static PyObject *Vector_getLength(VectorObject *self, void *UNUSED(closure))
 {
 	double dot = 0.0f;
 	int i;
@@ -2050,6 +2089,7 @@ static struct PyMethodDef Vector_methods[] = {
 	{"difference", ( PyCFunction ) Vector_Difference, METH_O, Vector_Difference_doc},
 	{"project", ( PyCFunction ) Vector_Project, METH_O, Vector_Project_doc},
 	{"lerp", ( PyCFunction ) Vector_Lerp, METH_VARARGS, Vector_Lerp_doc},
+	{"rotate", ( PyCFunction ) Vector_Rotate, METH_VARARGS, Vector_Rotate_doc},
 	{"copy", (PyCFunction) Vector_copy, METH_NOARGS, Vector_copy_doc},
 	{"__copy__", (PyCFunction) Vector_copy, METH_NOARGS, NULL},
 	{NULL, NULL, 0, NULL}

@@ -111,6 +111,7 @@ def classes_recursive(base_type, clss=None):
 
 
 def find_path_new(id_data, data_path, rna_update_dict, rna_update_from_map):
+    # note!, id_data can be ID type or a node tree
     # ignore ID props for now
     if data_path.startswith("["):
         return data_path
@@ -156,7 +157,14 @@ def update_data_paths(rna_update):
         rna_update_from_map.setdefault(ren_from, []).append(ren_to)
 
     for id_data in id_iter():
-        anim_data = getattr(id_data, "animation_data", None)
+
+        # check node-trees too
+        anim_data_ls = [(id_data, getattr(id_data, "animation_data", None))]
+        node_tree = getattr(id_data, "node_tree", None)
+        if node_tree:
+            anim_data_ls.append((node_tree, node_tree.animation_data))
+
+        for anim_data_base, anim_data in anim_data_ls:
         if anim_data is None:
             continue
         
@@ -180,7 +188,7 @@ def update_data_paths(rna_update):
         for action in anim_data_actions(anim_data):
             for fcu in action.fcurves:
                 data_path = fcu.data_path
-                data_path_new = find_path_new(id_data, data_path, rna_update_dict, rna_update_from_map)
+                    data_path_new = find_path_new(anim_data_base, data_path, rna_update_dict, rna_update_from_map)
                 # print(data_path_new)
                 if data_path_new != data_path:
                     if not IS_TESTING:

@@ -421,6 +421,9 @@ static int parent_clear_exec(bContext *C, wmOperator *op)
 	
 	CTX_DATA_BEGIN(C, Object*, ob, selected_editable_objects) {
 
+		if(ob->parent == NULL)
+			continue;
+		
 		if(type == 0) {
 			ob->parent= NULL;
 		}			
@@ -569,7 +572,7 @@ static int parent_set_exec(bContext *C, wmOperator *op)
 				Object workob;
 				
 				/* apply transformation of previous parenting */
-				object_apply_mat4(ob, ob->obmat);
+				/* object_apply_mat4(ob, ob->obmat); */ /* removed because of bug [#23577] */
 				
 				/* set the parent (except for follow-path constraint option) */
 				if(partype != PAR_PATH_CONST)
@@ -638,11 +641,11 @@ static int parent_set_exec(bContext *C, wmOperator *op)
 				}
 				else if(pararm && ob->type==OB_MESH && par->type == OB_ARMATURE) {
 					if(partype == PAR_ARMATURE_NAME)
-						create_vgroups_from_armature(scene, ob, par, ARM_GROUPS_NAME, 0);
+						create_vgroups_from_armature(op->reports, scene, ob, par, ARM_GROUPS_NAME, 0);
 					else if(partype == PAR_ARMATURE_ENVELOPE)
-						create_vgroups_from_armature(scene, ob, par, ARM_GROUPS_ENVELOPE, 0);
+						create_vgroups_from_armature(op->reports, scene, ob, par, ARM_GROUPS_ENVELOPE, 0);
 					else if(partype == PAR_ARMATURE_AUTO)
-						create_vgroups_from_armature(scene, ob, par, ARM_GROUPS_AUTO, 0);
+						create_vgroups_from_armature(op->reports, scene, ob, par, ARM_GROUPS_AUTO, 0);
 					
 					/* get corrected inverse */
 					ob->partype= PAROBJECT;
@@ -669,7 +672,7 @@ static int parent_set_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int parent_set_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int parent_set_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *UNUSED(event))
 {
 	Object *ob= CTX_data_active_object(C);
 	uiPopupMenu *pup= uiPupMenuBegin(C, "Set Parent To", 0);
@@ -776,7 +779,7 @@ void OBJECT_OT_parent_no_inverse_set(wmOperatorType *ot)
 
 /************************ Clear Slow Parent Operator *********************/
 
-static int object_slow_parent_clear_exec(bContext *C, wmOperator *op)
+static int object_slow_parent_clear_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
@@ -818,7 +821,7 @@ void OBJECT_OT_slow_parent_clear(wmOperatorType *ot)
 
 /********************** Make Slow Parent Operator *********************/
 
-static int object_slow_parent_set_exec(bContext *C, wmOperator *op)
+static int object_slow_parent_set_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
@@ -1108,7 +1111,7 @@ static int move_to_layer_exec(bContext *C, wmOperator *op)
 	
 	/* warning, active object may be hidden now */
 	
-	WM_event_add_notifier(C, NC_SCENE|NC_OBJECT|ND_DRAW, scene); /* is NC_SCENE needed ? */
+	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, scene);
 	WM_event_add_notifier(C, NC_SCENE|ND_LAYER_CONTENT, scene);
 
 	DAG_scene_sort(bmain, scene);
@@ -1889,7 +1892,7 @@ void OBJECT_OT_make_single_user(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	/* properties */
-	ot->prop= RNA_def_enum(ot->srna, "type", type_items, 0, "Type", "");
+	ot->prop= RNA_def_enum(ot->srna, "type", type_items, SELECT, "Type", "");
 
 	RNA_def_boolean(ot->srna, "object", 0, "Object", "Make single user objects");
 	RNA_def_boolean(ot->srna, "obdata", 0, "Object Data", "Make single user object data");

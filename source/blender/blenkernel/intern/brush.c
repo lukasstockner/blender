@@ -485,7 +485,7 @@ int brush_clone_image_delete(Brush *brush)
 }
 
 /* Brush Sampling */
-void brush_sample_tex(Brush *brush, float *xy, float *rgba)
+void brush_sample_tex(Brush *brush, float *xy, float *rgba, const int thread)
 {
 	MTex *mtex= &brush->mtex;
 
@@ -498,7 +498,7 @@ void brush_sample_tex(Brush *brush, float *xy, float *rgba)
 		co[1]= xy[1]/radius;
 		co[2]= 0.0f;
 
-		hasrgb= externtex(mtex, co, &tin, &tr, &tg, &tb, &ta);
+		hasrgb= externtex(mtex, co, &tin, &tr, &tg, &tb, &ta, thread);
 
 		if (hasrgb) {
 			rgba[0]= tr;
@@ -552,12 +552,12 @@ void brush_imbuf_new(Brush *brush, short flt, short texfall, int bufsize, ImBuf 
 					dstf[3]= alpha*brush_curve_strength_clamp(brush, dist, radius);
 				}
 				else if (texfall == 1) {
-					brush_sample_tex(brush, xy, dstf);
+					brush_sample_tex(brush, xy, dstf, 0);
 				}
 				else {
 					dist = sqrt(xy[0]*xy[0] + xy[1]*xy[1]);
 
-					brush_sample_tex(brush, xy, rgba);
+					brush_sample_tex(brush, xy, rgba, 0);
 
 					dstf[0] = rgba[0]*brush->rgb[0];
 					dstf[1] = rgba[1]*brush->rgb[1];
@@ -588,7 +588,7 @@ void brush_imbuf_new(Brush *brush, short flt, short texfall, int bufsize, ImBuf 
 					dst[3]= FTOCHAR(alpha*brush_curve_strength(brush, dist, radius));
 				}
 				else if (texfall == 1) {
-					brush_sample_tex(brush, xy, rgba);
+					brush_sample_tex(brush, xy, rgba, 0);
 					dst[0]= FTOCHAR(rgba[0]);
 					dst[1]= FTOCHAR(rgba[1]);
 					dst[2]= FTOCHAR(rgba[2]);
@@ -597,7 +597,7 @@ void brush_imbuf_new(Brush *brush, short flt, short texfall, int bufsize, ImBuf 
 				else {
 					dist = sqrt(xy[0]*xy[0] + xy[1]*xy[1]);
 
-					brush_sample_tex(brush, xy, rgba);
+					brush_sample_tex(brush, xy, rgba, 0);
 					dst[0] = FTOCHAR(rgba[0]*brush->rgb[0]);
 					dst[1] = FTOCHAR(rgba[1]*brush->rgb[1]);
 					dst[2] = FTOCHAR(rgba[2]*brush->rgb[2]);
@@ -744,7 +744,7 @@ static void brush_painter_do_partial(BrushPainter *painter, ImBuf *oldtexibuf, i
 					xy[0] = x + xoff;
 					xy[1] = y + yoff;
 
-					brush_sample_tex(brush, xy, tf);
+					brush_sample_tex(brush, xy, tf, 0);
 				}
 
 				bf[0] = tf[0]*mf[0];
@@ -775,7 +775,7 @@ static void brush_painter_do_partial(BrushPainter *painter, ImBuf *oldtexibuf, i
 					xy[0] = x + xoff;
 					xy[1] = y + yoff;
 
-					brush_sample_tex(brush, xy, rgba);
+					brush_sample_tex(brush, xy, rgba, 0);
 					t[0]= FTOCHAR(rgba[0]);
 					t[1]= FTOCHAR(rgba[1]);
 					t[2]= FTOCHAR(rgba[2]);

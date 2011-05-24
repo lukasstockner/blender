@@ -179,7 +179,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 	strcpy(tsmd->defgrp_name, smd->defgrp_name);
 }
 
-static CustomDataMask requiredDataMask(Object *ob, ModifierData *md)
+static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 {
 	SolidifyModifierData *smd = (SolidifyModifierData*) md;
 	CustomDataMask dataMask = 0;
@@ -191,11 +191,10 @@ static CustomDataMask requiredDataMask(Object *ob, ModifierData *md)
 }
 
 
-static DerivedMesh *applyModifier(ModifierData *md,
-						   Object *ob, 
+static DerivedMesh *applyModifier(ModifierData *md, Object *ob, 
 						   DerivedMesh *dm,
-						   int useRenderParams,
-						   int isFinalCalc)
+						int UNUSED(useRenderParams),
+						int UNUSED(isFinalCalc))
 {
 	int i;
 	DerivedMesh *result;
@@ -442,12 +441,12 @@ static DerivedMesh *applyModifier(ModifierData *md,
 				j= 2;
 			}
 
-			for(; j>=0; j--) {
+			do {
 				vidx = *(&mf->v1 + j);
 				vert_accum[vidx] += face_angles[j];
 				vert_angles[vidx]+= shell_angle_to_dist(angle_normalized_v3v3(vert_nors[vidx], face_nors[i])) * face_angles[j];
+			} while(j--);
 			}
-		}
 
 		/* vertex group support */
 		if(dvert) {
@@ -630,7 +629,7 @@ static DerivedMesh *applyModifier(ModifierData *md,
 
 static DerivedMesh *applyModifierEM(ModifierData *md,
 							 Object *ob,
-							 struct EditMesh *editData,
+							 struct EditMesh *UNUSED(editData),
 							 DerivedMesh *derivedData)
 {
 	return applyModifier(md, ob, derivedData, 0, 1);
@@ -661,6 +660,7 @@ ModifierTypeInfo modifierType_Solidify = {
 	/* isDisabled */        0,
 	/* updateDepgraph */    0,
 	/* dependsOnTime */     0,
+	/* dependsOnNormals */	0,
 	/* foreachObjectLink */ 0,
 	/* foreachIDLink */     0,
 };

@@ -23,7 +23,8 @@
  */
 
 #include <stdlib.h>
-#include <math.h>
+
+#include "BLI_math.h"
 
 #include "RNA_define.h"
 
@@ -37,8 +38,6 @@
 #include "WM_types.h"
 
 #ifdef RNA_RUNTIME
-
-#include "BLI_math.h"
 
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
@@ -582,6 +581,8 @@ static void rna_def_bone(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "arm_head");
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_ui_text(prop, "Armature-Relative Head", "Location of head end of the bone relative to armature");
+
+	RNA_api_bone(srna);
 }
 
 static void rna_def_edit_bone(BlenderRNA *brna)

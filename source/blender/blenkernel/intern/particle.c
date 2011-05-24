@@ -272,7 +272,7 @@ int psys_check_enabled(Object *ob, ParticleSystem *psys)
 	}
 
 	psmd= psys_get_modifier(ob, psys);
-	if(psys->renderdata) {
+	if(psys->renderdata || G.rendering) {
 		if(!(psmd->modifier.mode & eModifierMode_Render))
 			return 0;
 	}
@@ -402,6 +402,7 @@ void free_hair(Object *ob, ParticleSystem *psys, int dynamics)
 			modifier_free((ModifierData*)psys->clmd);
 			
 			psys->clmd = NULL;
+			psys->pointcache = BKE_ptcache_add(&psys->ptcaches);
 		}
 		else {
 			cloth_free_modifier(ob, psys->clmd);
@@ -3686,7 +3687,7 @@ static void get_cpa_texture(DerivedMesh *dm, Material *ma, int face_index, float
 			else
 				VECCOPY(texco,orco);
 
-			externtex(mtex, texco, &value, rgba, rgba+1, rgba+2, rgba+3);
+			externtex(mtex, texco, &value, rgba, rgba+1, rgba+2, rgba+3, 0);
 			if((event & mtex->pmapto) & MAP_PA_TIME){
 				if((setvars&MAP_PA_TIME)==0){
 					ptex->time=0.0;
@@ -3740,7 +3741,7 @@ void psys_get_texture(ParticleSimulationData *sim, Material *ma, ParticleData *p
 				psys_particle_on_emitter(sim->psmd,sim->psys->part->from,pa->num,pa->num_dmcache,pa->fuv,pa->foffset,co,0,0,0,texco, 0);
 			}
 
-			externtex(mtex, texco, &value, rgba, rgba+1, rgba+2, rgba+3);
+			externtex(mtex, texco, &value, rgba, rgba+1, rgba+2, rgba+3, 0);
 
 			if((event & mtex->pmapto) & MAP_PA_TIME){
 				/* the first time has to set the base value for time regardless of blend mode */

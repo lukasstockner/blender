@@ -1421,7 +1421,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, v
 				DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
 		}
 
-		if(!doDraw || (setDrawOptions && !setDrawOptions(userData, origIndex))) {
+		if(!doDraw || (setDrawOptions && (origIndex != ORIGINDEX_NONE) && !setDrawOptions(userData, origIndex))) {
 			a += gridFaces*gridFaces*numVerts;
 			continue;
 		}
@@ -1619,9 +1619,12 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 
 		if(drawParams)
 			flag = drawParams(tf, mcol, mat_nr);
-		else
+		else if (index != ORIGINDEX_NONE)
 			flag= (drawParamsMapped)? drawParamsMapped(userData, index): 1;
+		else
+			flag= GPU_enable_material(mat_nr, NULL) ? 1:0;
 		
+
 		if (flag == 0) { /* flag 0 == the face is hidden or invisible */
 			if(tf) tf += gridFaces*gridFaces*numVerts;
 			if(mcol) mcol += gridFaces*gridFaces*numVerts*4;
@@ -1761,7 +1764,7 @@ static void ccgDM_drawUVEdges(DerivedMesh *dm)
 	}
 }
 
-static void ccgDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r), void *userData, int useColors) {
+static void ccgDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r), void *userData, int useColors, int (*setMaterial)(int, void *attribs)) {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	MCol *mcol= NULL;
@@ -1793,10 +1796,14 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *u
 			mcol += gridFaces*gridFaces*numVerts*4;
 		}
 
-		if (index!=-1) {
-			int draw;
-			draw = setDrawOptions==NULL ? 1 : setDrawOptions(userData, index, &drawSmooth);
+		{
+			int draw= 1;
 			
+			if(index == ORIGINDEX_NONE)
+				draw= setMaterial(faceFlags ? faceFlags[origIndex*2 + 1] + 1: 1, NULL); /* XXX, no faceFlags no material */
+			else if (setDrawOptions)
+				draw= setDrawOptions(userData, index, &drawSmooth);
+
 			if (draw) {
 				if (draw==2) {
 					  glEnable(GL_POLYGON_STIPPLE);

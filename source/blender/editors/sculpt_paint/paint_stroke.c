@@ -256,7 +256,7 @@ static void make_snap(Snapshot* snap, Brush* brush, ARegion *ar)
 	snap->winy = ar->winy;
 }
 
-static int paint_load_overlay_tex(Sculpt *sd, Brush* br, ARegion *ar)
+static int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 {
 	static GLuint overlay_texture = 0;
 	static int init = 0;
@@ -271,6 +271,10 @@ static int paint_load_overlay_tex(Sculpt *sd, Brush* br, ARegion *ar)
 	int j;
 	int refresh;
 
+#ifndef _OPENMP
+	(void)sd; /* quied unused warning */
+#endif
+	
 	if (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && !br->mtex.tex) return 0;
 
 	refresh = 

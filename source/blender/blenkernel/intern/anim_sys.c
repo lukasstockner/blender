@@ -1607,7 +1607,7 @@ static void animsys_evaluate_nla (PointerRNA *ptr, AnimData *adt, float ctime)
 	
 	/* 1. get the stack of strips to evaluate at current time (influence calculated here) */
 	for (nlt=adt->nla_tracks.first; nlt; nlt=nlt->next, track_index++) { 
-		/* if tweaking is on and this strip is the tweaking track, stop on this one */
+		/* stop here if tweaking is on and this strip is the tweaking track (it will be the first one that's 'disabled')... */
 		if ((adt->flag & ADT_NLA_EDIT_ON) && (nlt->flag & NLATRACK_DISABLED))
 			break;
 			
@@ -1634,11 +1634,18 @@ static void animsys_evaluate_nla (PointerRNA *ptr, AnimData *adt, float ctime)
 	 */
 	if ((adt->action) && !(adt->flag & ADT_NLA_SOLO_TRACK)) {
 		/* if there are strips, evaluate action as per NLA rules */
-		if (has_strips) {
+		if ((has_strips) || (adt->actstrip)) {
 			/* make dummy NLA strip, and add that to the stack */
 			memset(&dummy_strip, 0, sizeof(NlaStrip));
 			dummy_trackslist.first= dummy_trackslist.last= &dummy_strip;
 			
+			if ((nlt) && !(adt->flag & ADT_NLA_EDIT_NOMAP)) {
+				/* edit active action in-place according to its active strip, so copy the data  */
+				memcpy(&dummy_strip, adt->actstrip, sizeof(NlaStrip));
+				dummy_strip.next = dummy_strip.prev = NULL;
+			}
+			else {
+				/* set settings of dummy NLA strip from AnimData settings */
 			dummy_strip.act= adt->action;
 			dummy_strip.remap= adt->remap;
 			
@@ -1650,6 +1657,7 @@ static void animsys_evaluate_nla (PointerRNA *ptr, AnimData *adt, float ctime)
 			dummy_strip.blendmode= adt->act_blendmode;
 			dummy_strip.extendmode= adt->act_extendmode;
 			dummy_strip.influence= adt->act_influence;
+			}
 			
 			/* add this to our list of evaluation strips */
 			nlastrips_ctime_get_strip(&estrips, &dummy_trackslist, -1, ctime);

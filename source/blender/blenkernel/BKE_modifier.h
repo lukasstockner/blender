@@ -245,6 +245,17 @@ typedef struct ModifierTypeInfo {
 	 */
 	int (*dependsOnTime)(struct ModifierData *md);
 
+
+	/* True when a deform modifier uses normals, the requiredDataMask
+	 * cant be used here because that refers to a normal layer where as
+	 * in this case we need to know if the deform modifier uses normals.
+	 * 
+	 * this is needed because applying 2 deform modifiers will give the
+	 * second modifier bogus normals.
+	 * */
+	int (*dependsOnNormals)(struct ModifierData *md);
+
+
 	/* Should call the given walk function on with a pointer to each Object
 	 * pointer that the modifier data stores. This is used for linking on file
 	 * load and for unlinking objects or forwarding object references.
@@ -304,7 +315,7 @@ int           modifiers_isParticleEnabled(struct Object *ob);
 struct Object *modifiers_isDeformedByArmature(struct Object *ob);
 struct Object *modifiers_isDeformedByLattice(struct Object *ob);
 int           modifiers_usesArmature(struct Object *ob, struct bArmature *arm);
-int           modifiers_isCorrectableDeformed(struct Scene *scene, struct Object *ob);
+int           modifiers_isCorrectableDeformed(struct Object *ob);
 void          modifier_freeTemporaryData(struct ModifierData *md);
 
 int           modifiers_indexInObject(struct Object *ob, struct ModifierData *md);

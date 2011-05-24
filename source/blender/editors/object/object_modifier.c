@@ -132,6 +132,9 @@ ModifierData *ED_object_modifier_add(ReportList *reports, Main *bmain, Scene *sc
 		}
 		else if(type == eModifierType_Surface)
 			DAG_scene_sort(bmain, scene);
+		else if(type == eModifierType_Multires)
+			/* set totlvl from existing MDISPS layer if object already had it */
+			multiresModifier_set_levels_from_disps((MultiresModifierData *)new_md, ob);
 	}
 
 	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
@@ -431,7 +434,12 @@ static int modifier_apply_obdata(ReportList *reports, Scene *scene, Object *ob, 
 			DM_to_mesh(dm, me);
 
 			dm->release(dm);
+
+			if(md->type == eModifierType_Multires) {
+				CustomData_external_remove(&me->fdata, &me->id, CD_MDISPS, me->totface);
+				CustomData_free_layer_active(&me->fdata, CD_MDISPS, me->totface);
 		}
+	} 
 	} 
 	else if (ELEM(ob->type, OB_CURVE, OB_SURF)) {
 		Curve *cu;
@@ -659,7 +667,7 @@ static int modifier_remove_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int modifier_remove_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int modifier_remove_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	if (edit_modifier_invoke_properties(C, op))
 		return modifier_remove_exec(C, op);
@@ -698,7 +706,7 @@ static int modifier_move_up_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int modifier_move_up_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int modifier_move_up_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	if (edit_modifier_invoke_properties(C, op))
 		return modifier_move_up_exec(C, op);
@@ -737,7 +745,7 @@ static int modifier_move_down_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int modifier_move_down_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int modifier_move_down_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	if (edit_modifier_invoke_properties(C, op))
 		return modifier_move_down_exec(C, op);
@@ -779,7 +787,7 @@ static int modifier_apply_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int modifier_apply_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int modifier_apply_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	if (edit_modifier_invoke_properties(C, op))
 		return modifier_apply_exec(C, op);
@@ -827,7 +835,7 @@ static int modifier_convert_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int modifier_convert_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int modifier_convert_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	if (edit_modifier_invoke_properties(C, op))
 		return modifier_convert_exec(C, op);
@@ -866,7 +874,7 @@ static int modifier_copy_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int modifier_copy_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int modifier_copy_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	if (edit_modifier_invoke_properties(C, op))
 		return modifier_copy_exec(C, op);
@@ -911,7 +919,7 @@ static int multires_higher_levels_delete_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int multires_higher_levels_delete_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int multires_higher_levels_delete_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	if (edit_modifier_invoke_properties(C, op))
 		return multires_higher_levels_delete_exec(C, op);
@@ -951,7 +959,7 @@ static int multires_subdivide_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int multires_subdivide_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int multires_subdivide_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	if (edit_modifier_invoke_properties(C, op))
 		return multires_subdivide_exec(C, op);
@@ -1009,7 +1017,7 @@ static int multires_reshape_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int multires_reshape_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int multires_reshape_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	if (edit_modifier_invoke_properties(C, op))
 		return multires_reshape_exec(C, op);
@@ -1058,7 +1066,7 @@ static int multires_external_save_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int multires_external_save_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int multires_external_save_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	Object *ob = ED_object_active_context(C);
 	MultiresModifierData *mmd;
@@ -1112,7 +1120,7 @@ void OBJECT_OT_multires_external_save(wmOperatorType *ot)
 
 /****************** multires pack operator *********************/
 
-static int multires_external_pack_exec(bContext *C, wmOperator *op)
+static int multires_external_pack_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = ED_object_active_context(C);
 	Mesh *me= ob->data;
@@ -1202,7 +1210,7 @@ static int meshdeform_bind_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int meshdeform_bind_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int meshdeform_bind_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	if (edit_modifier_invoke_properties(C, op))
 		return meshdeform_bind_exec(C, op);
@@ -1250,7 +1258,7 @@ static int explode_refresh_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int explode_refresh_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int explode_refresh_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	if (edit_modifier_invoke_properties(C, op))
 		return explode_refresh_exec(C, op);

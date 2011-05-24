@@ -311,7 +311,7 @@ class VIEW3D_PT_tools_armatureedit(View3DPanel, bpy.types.Panel):
         col = layout.column(align=True)
         col.label(text="Modeling:")
         col.operator("armature.extrude_move")
-        col.operator("armature.subdivide_multi", text="Subdivide")
+        col.operator("armature.subdivide", text="Subdivide")
 
         col = layout.column(align=True)
         col.label(text="Repeat:")
@@ -772,7 +772,7 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel, bpy.types.Panel):
 
                 col = split.column()
 
-            col.prop(tex_slot, "size")
+            col.prop(tex_slot, "scale")
 
             col = layout.column()
 

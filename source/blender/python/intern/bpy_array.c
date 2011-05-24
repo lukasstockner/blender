@@ -237,7 +237,7 @@ static char *copy_values(PyObject *seq, PointerRNA *ptr, PropertyRNA *prop, int 
 	return data;
 }
 
-static int py_to_array(PyObject *py, PointerRNA *ptr, PropertyRNA *prop, ParameterList *parms, char *param_data, ItemTypeCheckFunc check_item_type, const char *item_type_str, int item_size, ItemConvertFunc convert_item, RNA_SetArrayFunc rna_set_array, const char *error_prefix)
+static int py_to_array(PyObject *py, PointerRNA *ptr, PropertyRNA *prop, char *param_data, ItemTypeCheckFunc check_item_type, const char *item_type_str, int item_size, ItemConvertFunc convert_item, RNA_SetArrayFunc rna_set_array, const char *error_prefix)
 {
 	int totdim, dim_size[MAX_ARRAY_DIMENSION];
 	int totitem;
@@ -358,18 +358,18 @@ static void bool_set_index(PointerRNA *ptr, PropertyRNA *prop, int index, void *
 	RNA_property_boolean_set_index(ptr, prop, index, *(int*)value);
 }
 
-int pyrna_py_to_array(PointerRNA *ptr, PropertyRNA *prop, ParameterList *parms, char *param_data, PyObject *py, const char *error_prefix)
+int pyrna_py_to_array(PointerRNA *ptr, PropertyRNA *prop, char *param_data, PyObject *py, const char *error_prefix)
 {
 	int ret;
 	switch (RNA_property_type(prop)) {
 	case PROP_FLOAT:
-		ret= py_to_array(py, ptr, prop, parms, param_data, py_float_check, "float", sizeof(float), py_to_float, (RNA_SetArrayFunc)RNA_property_float_set_array, error_prefix);
+		ret= py_to_array(py, ptr, prop, param_data, py_float_check, "float", sizeof(float), py_to_float, (RNA_SetArrayFunc)RNA_property_float_set_array, error_prefix);
 		break;
 	case PROP_INT:
-		ret= py_to_array(py, ptr, prop, parms, param_data, py_int_check, "int", sizeof(int), py_to_int, (RNA_SetArrayFunc)RNA_property_int_set_array, error_prefix);
+		ret= py_to_array(py, ptr, prop, param_data, py_int_check, "int", sizeof(int), py_to_int, (RNA_SetArrayFunc)RNA_property_int_set_array, error_prefix);
 		break;
 	case PROP_BOOLEAN:
-		ret= py_to_array(py, ptr, prop, parms, param_data, py_bool_check, "boolean", sizeof(int), py_to_bool, (RNA_SetArrayFunc)RNA_property_boolean_set_array, error_prefix);
+		ret= py_to_array(py, ptr, prop, param_data, py_bool_check, "boolean", sizeof(int), py_to_bool, (RNA_SetArrayFunc)RNA_property_boolean_set_array, error_prefix);
 		break;
 	default:
 		PyErr_SetString(PyExc_TypeError, "not an array type");
@@ -400,7 +400,7 @@ int pyrna_py_to_array_index(PointerRNA *ptr, PropertyRNA *prop, int arraydim, in
 	return ret;
 }
 
-static PyObject *pyrna_array_item(PointerRNA *ptr, PropertyRNA *prop, int index)
+PyObject *pyrna_array_index(PointerRNA *ptr, PropertyRNA *prop, int index)
 {
 	PyObject *item;
 
@@ -441,7 +441,7 @@ static PyObject *pyrna_py_from_array_internal(PointerRNA *ptr, PropertyRNA *prop
 		if (dim + 1 < totdim)
 			item= pyrna_py_from_array_internal(ptr, prop, dim + 1, index);
 		else {
-			item= pyrna_array_item(ptr, prop, *index);
+			item= pyrna_array_index(ptr, prop, *index);
 			*index= *index + 1;
 		}
 
@@ -496,7 +496,7 @@ PyObject *pyrna_py_from_array_index(BPy_PropertyArrayRNA *self, PointerRNA *ptr,
 	}
 	else {
 		index = arrayoffset + index;
-		ret= (BPy_PropertyArrayRNA *)pyrna_array_item(ptr, prop, index);
+		ret= (BPy_PropertyArrayRNA *)pyrna_array_index(ptr, prop, index);
 	}
 
 	return (PyObject*)ret;

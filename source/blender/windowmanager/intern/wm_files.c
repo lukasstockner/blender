@@ -259,8 +259,7 @@ static void wm_init_userdef(bContext *C)
 	/* set the python auto-execute setting from user prefs */
 	/* disabled by default, unless explicitly enabled in the command line */
 	if ((U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0) G.f |=  G_SCRIPT_AUTOEXEC;
-
-	if(U.tempdir[0]) strncpy(btempdir, U.tempdir, FILE_MAXDIR+FILE_MAXFILE);
+	if(U.tempdir[0]) BLI_where_is_temp(btempdir, 1);
 }
 
 void WM_read_file(bContext *C, char *name, ReportList *reports)
@@ -284,7 +283,7 @@ void WM_read_file(bContext *C, char *name, ReportList *reports)
 		/* also exit screens and editors */
 		wm_window_match_init(C, &wmbase); 
 		
-		retval= BKE_read_file(C, name, NULL, reports);
+		retval= BKE_read_file(C, name, reports);
 		G.save_over = 1;
 
 		/* this flag is initialized by the operator but overwritten on read.
@@ -343,7 +342,7 @@ int WM_read_homefile(bContext *C, wmOperator *op)
 {
 	ListBase wmbase;
 	char tstr[FILE_MAXDIR+FILE_MAXFILE], scestr[FILE_MAXDIR];
-	int from_memory= op?RNA_boolean_get(op->ptr, "factory"):0;
+	int from_memory= op && strcmp(op->type->idname, "WM_OT_read_factory_settings")==0;
 	int success;
 	
 	free_ttfont(); /* still weird... what does it here? */
@@ -370,9 +369,9 @@ int WM_read_homefile(bContext *C, wmOperator *op)
 	wm_window_match_init(C, &wmbase); 
 	
 	if (!from_memory && BLI_exists(tstr)) {
-		success = BKE_read_file(C, tstr, NULL, NULL);
+		success = BKE_read_file(C, tstr, NULL);
 	} else {
-		success = BKE_read_file_from_memory(C, datatoc_startup_blend, datatoc_startup_blend_size, NULL, NULL);
+		success = BKE_read_file_from_memory(C, datatoc_startup_blend, datatoc_startup_blend_size, NULL);
 		if (wmbase.first == NULL) wm_clear_default_size(C);
 	}
 	
@@ -527,7 +526,7 @@ static void do_history(char *name, ReportList *reports)
 		BKE_report(reports, RPT_ERROR, "Unable to make version backup");
 }
 
-static ImBuf *blend_file_thumb(const char *path, Scene *scene, int **thumb_pt)
+static ImBuf *blend_file_thumb(Scene *scene, int **thumb_pt)
 {
 	/* will be scaled down, but gives some nice oversampling */
 	ImBuf *ibuf;
@@ -585,7 +584,7 @@ int write_crash_blend(void)
 	}
 }
 
-int WM_write_file(bContext *C, char *target, int fileflags, ReportList *reports, int copy)
+int WM_write_file(bContext *C, const char *target, int fileflags, ReportList *reports, int copy)
 {
 	Library *li;
 	int len;
@@ -606,25 +605,20 @@ int WM_write_file(bContext *C, char *target, int fileflags, ReportList *reports,
 		return -1;
 	}
  
+	BLI_strncpy(di, target, FILE_MAX);
+	BLI_replace_extension(di, FILE_MAX, ".blend");
+	/* dont use 'target' anymore */
+	
 	/* send the OnSave event */
 	for (li= G.main->library.first; li; li= li->id.next) {
-		if (BLI_streq(li->name, target)) {
-			BKE_report(reports, RPT_ERROR, "Cannot overwrite used library");
+		if (strcmp(li->filepath, di) == 0) {
+			BKE_reportf(reports, RPT_ERROR, "Can't overwrite used library '%f'", di);
 			return -1;
 		}
 	}
 	
-	if (!BLO_has_bfile_extension(target) && (len+6 < FILE_MAX)) {
-		sprintf(di, "%s.blend", target);
-	} else {
-		strcpy(di, target);
-	}
+	/* operator now handles overwrite checks */
 
-//	if (BLI_exists(di)) {
-// XXX		if(!saveover(di))
-// XXX			return; 
-//	}
-	
 	if (G.fileflags & G_AUTOPACK) {
 		packAll(G.main, reports);
 	}
@@ -633,7 +627,7 @@ int WM_write_file(bContext *C, char *target, int fileflags, ReportList *reports,
 	ED_sculpt_force_update(C);
 
 	/* blend file thumbnail */
-	ibuf_thumb= blend_file_thumb(di, CTX_data_scene(C), &thumb);
+	ibuf_thumb= blend_file_thumb(CTX_data_scene(C), &thumb);
 
 	/* rename to .blend1, do this as last before write */
 	do_history(di, reports);
@@ -686,13 +680,18 @@ int WM_write_homefile(bContext *C, wmOperator *op)
 		wm_window_close(C, wm, win);
 	
 	BLI_make_file_string("/", tstr, BLI_get_folder_create(BLENDER_USER_CONFIG, NULL), BLENDER_STARTUP_FILE);
-	printf("trying to save homefile at %s \n", tstr);
+	printf("trying to save homefile at %s ", tstr);
 	
 	/*  force save as regular blend file */
 	fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_AUTOPLAY | G_FILE_LOCK | G_FILE_SIGN);
 
-	BLO_write_file(CTX_data_main(C), tstr, fileflags, op->reports, NULL);
+	if(BLO_write_file(CTX_data_main(C), tstr, fileflags, op->reports, NULL) == 0) {
+		printf("fail\n");
+		return OPERATOR_CANCELLED;
+	}
 	
+	printf("ok\n");
+
 	G.save_over= 0;
 	
 	return OPERATOR_FINISHED;
@@ -736,7 +735,7 @@ void WM_autosave_init(wmWindowManager *wm)
 		wm->autosavetimer= WM_event_add_timer(wm, NULL, TIMERAUTOSAVE, U.savetime*60.0);
 }
 
-void wm_autosave_timer(const bContext *C, wmWindowManager *wm, wmTimer *wt)
+void wm_autosave_timer(const bContext *C, wmWindowManager *wm, wmTimer *UNUSED(wt))
 {
 	wmWindow *win;
 	wmEventHandler *handler;

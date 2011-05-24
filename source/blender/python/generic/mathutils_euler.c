@@ -39,13 +39,18 @@
 
 //----------------------------------mathutils.Euler() -------------------
 //makes a new euler for you to play with
-static PyObject *Euler_new(PyTypeObject * type, PyObject * args, PyObject * kwargs)
+static PyObject *Euler_new(PyTypeObject *UNUSED(type), PyObject *args, PyObject *kwds)
 {
 	PyObject *seq= NULL;
 	char *order_str= NULL;
 
 	float eul[EULER_SIZE]= {0.0f, 0.0f, 0.0f};
 	short order= EULER_ORDER_XYZ;
+
+	if(kwds && PyDict_Size(kwds)) {
+		PyErr_SetString(PyExc_TypeError, "mathutils.Euler(): takes no keyword args");
+		return NULL;
+	}
 
 	if(!PyArg_ParseTuple(args, "|Os:mathutils.Euler", &seq, &order_str))
 		return NULL;
@@ -229,24 +234,24 @@ static PyObject *Euler_Zero(EulerObject * self)
 	return (PyObject *)self;
 }
 
-static char Euler_Rotate_doc[] =
-".. method:: rotate(angle, axis)\n"
+static char Euler_rotate_axis_doc[] =
+".. method:: rotate_axis(axis, angle)\n"
 "\n"
 "   Rotates the euler a certain amount and returning a unique euler rotation (no 720 degree pitches).\n"
 "\n"
-"   :arg angle: angle in radians.\n"
-"   :type angle: float\n"
 "   :arg axis: single character in ['X, 'Y', 'Z'].\n"
 "   :type axis: string\n"
+"   :arg angle: angle in radians.\n"
+"   :type angle: float\n"
 "   :return: an instance of itself\n"
 "   :rtype: :class:`Euler`";
 
-static PyObject *Euler_Rotate(EulerObject * self, PyObject *args)
+static PyObject *Euler_rotate_axis(EulerObject * self, PyObject *args)
 {
 	float angle = 0.0f;
 	char *axis;
 
-	if(!PyArg_ParseTuple(args, "fs:rotate", &angle, &axis)){
+	if(!PyArg_ParseTuple(args, "sf:rotate", &axis, &angle)){
 		PyErr_SetString(PyExc_TypeError, "euler.rotate(): expected angle (float) and axis (x,y,z)");
 		return NULL;
 	}
@@ -313,7 +318,7 @@ static char Euler_copy_doc[] =
 "\n"
 "   .. note:: use this to get a copy of a wrapped euler with no reference to the original data.\n";
 
-static PyObject *Euler_copy(EulerObject * self, PyObject *args)
+static PyObject *Euler_copy(EulerObject *self)
 {
 	if(!BaseMath_ReadCallback(self))
 		return NULL;
@@ -388,7 +393,7 @@ static PyObject* Euler_richcmpr(PyObject *objectA, PyObject *objectB, int compar
 //---------------------SEQUENCE PROTOCOLS------------------------
 //----------------------------len(object)------------------------
 //sequence length
-static int Euler_len(EulerObject * self)
+static int Euler_len(EulerObject *UNUSED(self))
 {
 	return EULER_SIZE;
 }
@@ -588,7 +593,7 @@ static int Euler_setAxis( EulerObject * self, PyObject * value, void * type )
 }
 
 /* rotation order */
-static PyObject *Euler_getOrder(EulerObject *self, void *type)
+static PyObject *Euler_getOrder(EulerObject *self, void *UNUSED(closure))
 {
 	const char order[][4] = {"XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX"};
 
@@ -598,7 +603,7 @@ static PyObject *Euler_getOrder(EulerObject *self, void *type)
 	return PyUnicode_FromString(order[self->order-EULER_ORDER_XYZ]);
 }
 
-static int Euler_setOrder( EulerObject * self, PyObject * value, void * type )
+static int Euler_setOrder(EulerObject *self, PyObject *value, void *UNUSED(closure))
 {
 	char *order_str= _PyUnicode_AsString(value);
 	short order= euler_order_from_string(order_str, "euler.order");
@@ -632,10 +637,10 @@ static struct PyMethodDef Euler_methods[] = {
 	{"unique", (PyCFunction) Euler_Unique, METH_NOARGS, Euler_Unique_doc},
 	{"to_matrix", (PyCFunction) Euler_ToMatrix, METH_NOARGS, Euler_ToMatrix_doc},
 	{"to_quat", (PyCFunction) Euler_ToQuat, METH_NOARGS, Euler_ToQuat_doc},
-	{"rotate", (PyCFunction) Euler_Rotate, METH_VARARGS, Euler_Rotate_doc},
+	{"rotate_axis", (PyCFunction) Euler_rotate_axis, METH_VARARGS, Euler_rotate_axis_doc},
 	{"make_compatible", (PyCFunction) Euler_MakeCompatible, METH_O, Euler_MakeCompatible_doc},
-	{"__copy__", (PyCFunction) Euler_copy, METH_VARARGS, Euler_copy_doc},
-	{"copy", (PyCFunction) Euler_copy, METH_VARARGS, Euler_copy_doc},
+	{"__copy__", (PyCFunction) Euler_copy, METH_NOARGS, Euler_copy_doc},
+	{"copy", (PyCFunction) Euler_copy, METH_NOARGS, Euler_copy_doc},
 	{NULL, NULL, 0, NULL}
 };
 

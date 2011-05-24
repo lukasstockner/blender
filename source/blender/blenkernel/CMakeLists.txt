@@ -31,7 +31,6 @@ SET(INC
 	../avi
 	../blenlib
 	../blenloader
-	../editors/include
 	../gpu
 	../ikplugin
 	../imbuf
@@ -39,6 +38,7 @@ SET(INC
 	../makesrna
 	../modifiers
 	../nodes
+	../editors/include
 	../render/extern/include
 	../../../extern/glew/include
 	../../../intern/audaspace/intern
@@ -114,6 +114,10 @@ ENDIF(WITH_OPENMP)
 IF(NOT WITH_FLUID)
 	ADD_DEFINITIONS(-DDISABLE_ELBEEM)
 ENDIF(NOT WITH_FLUID)
+
+IF(WITH_JACK)
+	ADD_DEFINITIONS(-DWITH_JACK)
+ENDIF(WITH_JACK)
 
 IF(WITH_LZO)
 	LIST(APPEND INC ../../../extern/lzo/minilzo)

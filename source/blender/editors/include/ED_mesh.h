@@ -28,6 +28,10 @@
 #ifndef ED_MESH_H
 #define ED_MESH_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ID;
 struct View3D;
 struct ARegion;
@@ -155,6 +159,8 @@ void		EM_solidify(struct EditMesh *em, float dist);
 
 int			EM_deselect_nth(struct EditMesh *em, int nth);
 
+void EM_project_snap_verts(struct bContext *C, struct ARegion *ar, struct Object *obedit, struct EditMesh *em);
+
 /* editmesh_mods.c */
 extern unsigned int em_vertoffs, em_solidoffs, em_wireoffs;
 
@@ -223,6 +229,10 @@ int ED_mesh_uv_texture_add(struct bContext *C, struct Scene *scene, struct Objec
 int ED_mesh_uv_texture_remove(struct bContext *C, struct Object *ob, struct Mesh *me);
 int ED_mesh_color_add(struct bContext *C, struct Scene *scene, struct Object *ob, struct Mesh *me, const char *name, int active_set);
 int ED_mesh_color_remove(struct bContext *C, struct Object *ob, struct Mesh *me);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ED_MESH_H */
 

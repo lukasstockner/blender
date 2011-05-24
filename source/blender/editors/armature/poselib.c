@@ -268,9 +268,9 @@ static KeyingSet *poselib_ks_locrotscale = NULL;		/* the only keyingset we'll ne
 
 /* ----- */
 
-static void poselib_add_menu_invoke__replacemenu (bContext *C, uiLayout *layout, void *arg)
+static void poselib_add_menu_invoke__replacemenu (bContext *C, uiLayout *layout, void *UNUSED(arg))
 {
-	Object *ob= CTX_data_active_object(C);
+	Object *ob= ED_object_pose_armature(CTX_data_active_object(C));
 	bAction *act= ob->poselib;
 	TimeMarker *marker;
 	
@@ -290,10 +290,10 @@ static void poselib_add_menu_invoke__replacemenu (bContext *C, uiLayout *layout,
 }
 }
 
-static int poselib_add_menu_invoke (bContext *C, wmOperator *op, wmEvent *evt)
+static int poselib_add_menu_invoke (bContext *C, wmOperator *op, wmEvent *UNUSED(evt))
 {
 	Scene *scene= CTX_data_scene(C);
-	Object *ob= CTX_data_active_object(C);
+	Object *ob= ED_object_pose_armature(CTX_data_active_object(C));
 	bArmature *arm= (ob) ? ob->data : NULL;
 	bPose *pose= (ob) ? ob->pose : NULL;
 	uiPopupMenu *pup;
@@ -329,7 +329,7 @@ static int poselib_add_menu_invoke (bContext *C, wmOperator *op, wmEvent *evt)
 
 static int poselib_add_exec (bContext *C, wmOperator *op)
 {
-	Object *ob= CTX_data_active_object(C);
+	Object *ob= ED_object_pose_armature(CTX_data_active_object(C));
 	bAction *act = poselib_validate(ob);
 	bArmature *arm= (ob) ? ob->data : NULL;
 	bPose *pose= (ob) ? ob->pose : NULL;
@@ -402,9 +402,9 @@ void POSELIB_OT_pose_add (wmOperatorType *ot)
 
 /* ----- */
 
-static EnumPropertyItem *poselib_stored_pose_itemf(bContext *C, PointerRNA *ptr, int *free)
+static EnumPropertyItem *poselib_stored_pose_itemf(bContext *C, PointerRNA *UNUSED(ptr), int *free)
 {
-	Object *ob= CTX_data_active_object(C);
+	Object *ob= ED_object_pose_armature(CTX_data_active_object(C));
 	bAction *act= (ob) ? ob->poselib : NULL;
 	TimeMarker *marker;
 	EnumPropertyItem *item= NULL, item_tmp;
@@ -436,7 +436,7 @@ static EnumPropertyItem *poselib_stored_pose_itemf(bContext *C, PointerRNA *ptr,
 
 static int poselib_remove_exec (bContext *C, wmOperator *op)
 {
-	Object *ob= CTX_data_active_object(C);
+	Object *ob= ED_object_pose_armature(CTX_data_active_object(C));
 	bAction *act= (ob) ? ob->poselib : NULL;
 	TimeMarker *marker;
 	FCurve *fcu;
@@ -505,7 +505,7 @@ void POSELIB_OT_pose_remove (wmOperatorType *ot)
 
 static int poselib_rename_invoke (bContext *C, wmOperator *op, wmEvent *evt)
 {
-	Object *ob= CTX_data_active_object(C);
+	Object *ob= ED_object_pose_armature(CTX_data_active_object(C));
 	bAction *act= (ob) ? ob->poselib : NULL;
 	TimeMarker *marker;
 	
@@ -533,7 +533,7 @@ static int poselib_rename_invoke (bContext *C, wmOperator *op, wmEvent *evt)
 
 static int poselib_rename_exec (bContext *C, wmOperator *op)
 {
-	Object *ob= CTX_data_active_object(C);
+	Object *ob= ED_object_pose_armature(CTX_data_active_object(C));
 	bAction *act= (ob) ? ob->poselib : NULL;
 	TimeMarker *marker;
 	char newname[64];
@@ -773,20 +773,10 @@ static void poselib_keytag_pose (bContext *C, Scene *scene, tPoseLib_PreviewData
 			if (pchan) {
 				if (autokeyframe_cfra_can_key(scene, &pld->ob->id)) {
 					ListBase dsources = {NULL, NULL};
-					KeyingSet *ks = NULL;
 					
-					/* get KeyingSet to use 
-					 *	- use the active KeyingSet if defined (and user wants to use it for all autokeying), 
-					 * 	  or otherwise key transforms only
-					 */
-					if (poselib_ks_locrotscale == NULL)
-						poselib_ks_locrotscale= ANIM_builtin_keyingset_get_named(NULL, "LocRotScale");
+					/* get KeyingSet to use */
+					KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, "LocRotScale");
 					 
-					if (IS_AUTOKEY_FLAG(ONLYKEYINGSET) && (scene->active_keyingset))
-						ks = ANIM_scene_get_active_keyingset(scene);
-					else 
-						ks = ANIM_builtin_keyingset_get_named(NULL, "LocRotScale");
-					
 					/* now insert the keyframe(s) using the Keying Set
 					 *	1) add datasource override for the PoseChannel
 					 *	2) insert keyframes
@@ -1044,7 +1034,7 @@ static void poselib_preview_handle_search (tPoseLib_PreviewData *pld, unsigned s
 }
 
 /* handle events for poselib_preview_poses */
-static int poselib_preview_handle_event (bContext *C, wmOperator *op, wmEvent *event)
+static int poselib_preview_handle_event (bContext *UNUSED(C), wmOperator *op, wmEvent *event)
 {
 	tPoseLib_PreviewData *pld= op->customdata; 
 	int ret = OPERATOR_RUNNING_MODAL;
@@ -1247,7 +1237,7 @@ static int poselib_preview_handle_event (bContext *C, wmOperator *op, wmEvent *e
 static void poselib_preview_init_data (bContext *C, wmOperator *op)
 {
 	tPoseLib_PreviewData *pld;
-	Object *ob= CTX_data_active_object(C);
+	Object *ob= ED_object_pose_armature(CTX_data_active_object(C));
 	int pose_index = RNA_int_get(op->ptr, "pose_index");
 	
 	/* set up preview state info */
@@ -1421,7 +1411,7 @@ static int poselib_preview_modal (bContext *C, wmOperator *op, wmEvent *event)
 }
 
 /* Modal Operator init */
-static int poselib_preview_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int poselib_preview_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	tPoseLib_PreviewData *pld;
 	

@@ -425,7 +425,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 				ketsjiengine->SetAnimFrameRate(FPS);
 				
 				// the mainloop
-				printf("\nBlender Game Engine Started\n\n");
+				printf("\nBlender Game Engine Started\n");
 				while (!exitrequested)
 				{
 					// first check if we want to exit
@@ -440,7 +440,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 						ketsjiengine->Render();
 					}
 					
-					wm_window_process_events_nosleep(C);
+					wm_window_process_events_nosleep();
 					
 					// test for the ESC key
 					//XXX while (qtest())
@@ -472,7 +472,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 					}
 					
 				}
-				printf("\nBlender Game Engine Finished\n\n");
+				printf("Blender Game Engine Finished\n");
 				exitstring = ketsjiengine->GetExitString();
 
 
