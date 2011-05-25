@@ -120,6 +120,7 @@ Render R;
 
 /* ********* alloc and free ******** */
 
+static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, ReportList *reports, const char *name_override);
 
 static volatile int g_break= 0;
 static int thread_break(void *unused)
@@ -128,12 +129,12 @@ static int thread_break(void *unused)
 }
 
 /* default callbacks, set in each new render */
-static void result_nothing(void *unused, RenderResult *rr) {}
-static void result_rcti_nothing(void *unused, RenderResult *rr, volatile struct rcti *rect) {}
-static void stats_nothing(void *unused, RenderStats *rs) {}
-static void float_nothing(void *unused, float val) {}
-static void print_error(void *unused, char *str) {printf("ERROR: %s\n", str);}
-static int default_break(void *unused) {return G.afbreek == 1;}
+static void result_nothing(void *UNUSED(arg), RenderResult *UNUSED(rr)) {}
+static void result_rcti_nothing(void *UNUSED(arg), RenderResult *UNUSED(rr), volatile struct rcti *UNUSED(rect)) {}
+static void stats_nothing(void *UNUSED(arg), RenderStats *UNUSED(rs)) {}
+static void float_nothing(void *UNUSED(arg), float UNUSED(val)) {}
+static void print_error(void *UNUSED(arg), const char *str) {printf("ERROR: %s\n", str);}
+static int default_break(void *UNUSED(arg)) {return G.afbreek == 1;}
 
 static void stats_background(void *unused, RenderStats *rs)
 {
@@ -277,7 +278,7 @@ static void pop_render_result(Render *re)
 
 /* NOTE: OpenEXR only supports 32 chars for layer+pass names
    In blender we now use max 10 chars for pass, max 20 for layer */
-static char *get_pass_name(int passtype, int channel)
+static const char *get_pass_name(int passtype, int channel)
 {
 	
 	if(passtype == SCE_PASS_COMBINED) {
@@ -465,7 +466,7 @@ static void render_unique_exr_name(Render *re, char *str, int sample)
 
 static void render_layer_add_pass(RenderResult *rr, RenderLayer *rl, int channels, int passtype)
 {
-	char *typestr= get_pass_name(passtype, 0);
+	const char *typestr= get_pass_name(passtype, 0);
 	RenderPass *rpass= MEM_callocN(sizeof(RenderPass), typestr);
 	int rectsize= rr->rectx*rr->recty*channels;
 	
@@ -802,7 +803,7 @@ static char *make_pass_name(RenderPass *rpass, int chan)
 
 /* filename already made absolute */
 /* called from within UI, saves both rendered result as a file-read result */
-void RE_WriteRenderResult(RenderResult *rr, char *filename, int compress)
+void RE_WriteRenderResult(RenderResult *rr, const char *filename, int compress)
 {
 	RenderLayer *rl;
 	RenderPass *rpass;
@@ -919,7 +920,7 @@ static void renderresult_add_names(RenderResult *rr)
 }
 
 /* called for reading temp files, and for external engines */
-static int read_render_result_from_file(char *filename, RenderResult *rr)
+static int read_render_result_from_file(const char *filename, RenderResult *rr)
 {
 	RenderLayer *rl;
 	RenderPass *rpass;
@@ -1387,7 +1388,7 @@ void RE_test_break_cb(Render *re, void *handle, int (*f)(void *handle))
 	re->test_break= f;
 	re->tbh= handle;
 }
-void RE_error_cb(Render *re, void *handle, void (*f)(void *handle, char *str))
+void RE_error_cb(Render *re, void *handle, void (*f)(void *handle, const char *str))
 {
 	re->error= f;
 	re->erh= handle;
@@ -2188,6 +2189,7 @@ static void ntree_render_scenes(Render *re)
 {
 	bNode *node;
 	int cfra= re->scene->r.cfra;
+	int restore_scene= 0;
 	
 	if(re->scene->nodetree==NULL) return;
 	
@@ -2199,12 +2201,19 @@ static void ntree_render_scenes(Render *re)
 		if(node->type==CMP_NODE_R_LAYERS) {
 			if(node->id && node->id != (ID *)re->scene) {
 				if(node->id->flag & LIB_DOIT) {
-					render_scene(re, (Scene *)node->id, cfra);
+					Scene *scene = (Scene*)node->id;
+
+					render_scene(re, scene, cfra);
+					restore_scene= (scene != re->scene);
 					node->id->flag &= ~LIB_DOIT;
 				}
 			}
 		}
 	}
+
+	/* restore scene if we rendered another last */
+	if(restore_scene)
+		set_scene_bg(re->main, re->scene);
 }
 
 /* helper call to detect if theres a composite with render-result node */
@@ -2453,6 +2462,7 @@ static void do_render_seq(Render * re)
 	struct ImBuf *ibuf;
 	RenderResult *rr = re->result;
 	int cfra = re->r.cfra;
+	SeqRenderData context;
 
 	re->i.cfra= cfra;
 
@@ -2463,7 +2473,11 @@ static void do_render_seq(Render * re)
 
 	recurs_depth++;
 
-	ibuf= give_ibuf_seq(re->main, re->scene, rr->rectx, rr->recty, cfra, 0, 100.0);
+	context = seq_new_render_data(re->main, re->scene,
+				      re->result->rectx, re->result->recty, 
+				      100);
+
+	ibuf = give_ibuf_seq(context, cfra, 0);
 
 	recurs_depth--;
 	
@@ -2589,10 +2603,22 @@ static int is_rendering_allowed(Render *re)
 		}
 	}
 	
-	if(re->r.mode & R_BORDER) {
-		if(re->r.border.xmax <= re->r.border.xmin || 
-		   re->r.border.ymax <= re->r.border.ymin) {
-			re->error(re->erh, "No border area selected.");
+				node= node->next;
+			}
+		} else return scene->camera != NULL;
+	}
+
+	return 1;
+}
+
+int RE_is_rendering_allowed(Scene *scene, void *erh, void (*error)(void *handle, const char *str))
+{
+	SceneRenderLayer *srl;
+	
+	/* forbidden combinations */
+	if(scene->r.mode & R_PANORAMA) {
+		if(scene->r.mode & R_ORTHO) {
+			error(erh, "No Ortho render possible for Panorama");
 			return 0;
 		}
 	}
@@ -2764,7 +2790,7 @@ static int render_initialize_from_main(Render *re, Main *bmain, Scene *scene, Sc
 }
 
 /* general Blender frame render call */
-void RE_BlenderFrame(Render *re, Main *bmain, Scene *scene, SceneRenderLayer *srl, unsigned int lay, int frame)
+void RE_BlenderFrame(Render *re, Main *bmain, Scene *scene, SceneRenderLayer *srl, unsigned int lay, int frame, const short write_still)
 {
 	/* ugly global still... is to prevent preview events and signal subsurfs etc to make full resol */
 	G.rendering= 1;
@@ -2774,13 +2800,27 @@ void RE_BlenderFrame(Render *re, Main *bmain, Scene *scene, SceneRenderLayer *sr
 	if(render_initialize_from_main(re, bmain, scene, srl, lay, 0, 0)) {
 		MEM_reset_peak_memory();
 		do_render_all_options(re);
+
+		if(write_still && !G.afbreek) {
+			if(BKE_imtype_is_movie(scene->r.imtype)) {
+				/* operator checks this but incase its called from elsewhere */
+				printf("Error: cant write single images with a movie format!\n");
 	}
+			else {
+				char name[FILE_MAX];
+				BKE_makepicstring(name, scene->r.pic, scene->r.cfra, scene->r.imtype, scene->r.scemode & R_EXTENSION, FALSE);
 		
+				/* reports only used for Movie */
+				do_write_image_or_movie(re, scene, NULL, NULL, name);
+			}
+		}
+	}
+
 	/* UGLY WARNING */
 	G.rendering= 0;
 }
 
-static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, ReportList *reports)
+static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, ReportList *reports, const char *name_override)
 {
 	char name[FILE_MAX];
 	RenderResult rres;
@@ -2804,7 +2844,10 @@ static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, R
 		printf("Append frame %d", scene->r.cfra);
 	} 
 	else {
-		BKE_makepicstring(name, scene->r.pic, scene->r.cfra, scene->r.imtype, scene->r.scemode & R_EXTENSION);
+		if(name_override)
+			BLI_strncpy(name, name_override, sizeof(name));
+		else
+			BKE_makepicstring(name, scene->r.pic, scene->r.cfra, scene->r.imtype, scene->r.scemode & R_EXTENSION, TRUE);
 		
 		if(re->r.imtype==R_MULTILAYER) {
 			if(re->result) {
@@ -2894,7 +2937,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, unsigned int lay, int
 				do_render_all_options(re);
 
 				if(re->test_break(re->tbh) == 0) {
-					if(!do_write_image_or_movie(re, scene, mh, reports))
+					if(!do_write_image_or_movie(re, scene, mh, reports, NULL))
 						G.afbreek= 1;
 				}
 			} else {
@@ -2931,7 +2974,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, unsigned int lay, int
 			/* Touch/NoOverwrite options are only valid for image's */
 			if(BKE_imtype_is_movie(scene->r.imtype) == 0) {
 				if(scene->r.mode & (R_NO_OVERWRITE | R_TOUCH))
-					BKE_makepicstring(name, scene->r.pic, scene->r.cfra, scene->r.imtype, scene->r.scemode & R_EXTENSION);
+					BKE_makepicstring(name, scene->r.pic, scene->r.cfra, scene->r.imtype, scene->r.scemode & R_EXTENSION, TRUE);
 
 				if(scene->r.mode & R_NO_OVERWRITE && BLI_exist(name)) {
 					printf("skipping existing frame \"%s\"\n", name);
@@ -2949,7 +2992,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, unsigned int lay, int
 			
 			if(re->test_break(re->tbh) == 0) {
 				if(!G.afbreek)
-					if(!do_write_image_or_movie(re, scene, mh, reports))
+					if(!do_write_image_or_movie(re, scene, mh, reports, NULL))
 						G.afbreek= 1;
 			}
 			else
@@ -3140,7 +3183,7 @@ int RE_engine_test_break(RenderEngine *engine)
 	return re->test_break(re->tbh);
 }
 
-void RE_engine_update_stats(RenderEngine *engine, char *stats, char *info)
+void RE_engine_update_stats(RenderEngine *engine, const char *stats, const char *info)
 {
 	Render *re= engine->re;
 
@@ -3153,7 +3196,7 @@ void RE_engine_update_stats(RenderEngine *engine, char *stats, char *info)
 
 /* loads in image into a result, size must match
  * x/y offsets are only used on a partial copy when dimensions dont match */
-void RE_layer_load_from_file(RenderLayer *layer, ReportList *reports, char *filename)
+void RE_layer_load_from_file(RenderLayer *layer, ReportList *reports, const char *filename)
 {
 	ImBuf *ibuf = IMB_loadiffname(filename, IB_rect);
 
@@ -3193,7 +3236,7 @@ void RE_layer_load_from_file(RenderLayer *layer, ReportList *reports, char *file
 	}
 }
 
-void RE_result_load_from_file(RenderResult *result, ReportList *reports, char *filename)
+void RE_result_load_from_file(RenderResult *result, ReportList *reports, const char *filename)
 {
 	if(!read_render_result_from_file(filename, result)) {
 		BKE_reportf(reports, RPT_ERROR, "RE_result_rect_from_file: failed to load '%s'\n", filename);

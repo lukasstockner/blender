@@ -154,6 +154,7 @@ static void postConstraintChecks(TransInfo *t, float vec[3], float pvec[3]) {
 
 	if (hasNumInput(&t->num)) {
 		applyNumInput(&t->num, vec);
+		removeAspectRatio(t, vec);
 		constraintNumInput(t, vec);
 	}
 
@@ -558,9 +559,8 @@ void setUserConstraint(TransInfo *t, short orientation, int mode, const char fte
 	switch(orientation) {
 	case V3D_MANIP_GLOBAL:
 		{
-			float mtx[3][3];
+			float mtx[3][3]= MAT3_UNITY;
 			sprintf(text, ftext, "global");
-			unit_m3(mtx);
 			setConstraint(t, mtx, mode, text);
 		}
 		break;

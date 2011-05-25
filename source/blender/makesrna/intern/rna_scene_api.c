@@ -55,7 +55,12 @@ static void rna_Scene_frame_set(Scene *scene, int frame, float subframe)
 	CLAMP(scene->r.cfra, MINAFRAME, MAXFRAME);
 	scene_update_for_newframe(G.main, scene, (1<<20) - 1);
 
-	WM_main_add_notifier(NC_SCENE|ND_FRAME, scene);
+	/* cant use NC_SCENE|ND_FRAME because this casues wm_event_do_notifiers to call 
+	 * scene_update_for_newframe which will loose any un-keyed changes [#24690] */
+	/* WM_main_add_notifier(NC_SCENE|ND_FRAME, scene); */
+	
+	/* instead just redraw the views */
+	WM_main_add_notifier(NC_WINDOW, NULL);
 }
 
 static void rna_Scene_update_tagged(Scene *scene)
@@ -68,8 +73,21 @@ static void rna_SceneRender_get_frame_path(RenderData *rd, int frame, char *name
 	if(BKE_imtype_is_movie(rd->imtype))
 		BKE_makeanimstring(name, rd);
 	else
-		BKE_makepicstring(name, rd->pic, (frame==INT_MIN) ? rd->cfra : frame, rd->imtype, rd->scemode & R_EXTENSION);
+		BKE_makepicstring(name, rd->pic, (frame==INT_MIN) ? rd->cfra : frame, rd->imtype, rd->scemode & R_EXTENSION, TRUE);
 }
+
+#ifdef WITH_COLLADA
+
+#include "../../collada/collada.h"
+
+static void rna_Scene_collada_export(Scene *scene, const char *filepath)
+{
+	/* XXX not really nice, as this will bring essentially in COLLADA as dependency for
+	 * blenderplayer. For now stubbing in blc. */
+	collada_export(scene, filepath);
+}
+
+#endif
 
 #else
 

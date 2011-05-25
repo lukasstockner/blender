@@ -709,7 +709,7 @@ static void rna_Scene_glsl_update(Main *bmain, Scene *unused, PointerRNA *ptr)
 {
 	Scene *scene= (Scene*)ptr->id.data;
 
-	DAG_id_flush_update(&scene->id, 0);
+	DAG_id_tag_update(&scene->id, 0);
 }
 
 static void rna_RenderSettings_color_management_update(Main *bmain, Scene *unused, PointerRNA *ptr)
@@ -917,7 +917,7 @@ static void rna_GameSettings_auto_start_set(PointerRNA *ptr, int value)
 }
 
 
-static TimeMarker *rna_TimeLine_add(Scene *scene, char name[])
+static TimeMarker *rna_TimeLine_add(Scene *scene, const char name[])
 {
 	TimeMarker *marker = MEM_callocN(sizeof(TimeMarker), "TimeMarker");
 	marker->flag= SELECT;
@@ -939,7 +939,7 @@ static void rna_TimeLine_remove(Scene *scene, ReportList *reports, TimeMarker *m
 	MEM_freeN(marker);
 }
 
-static KeyingSet *rna_Scene_keying_set_new(Scene *sce, ReportList *reports, char name[])
+static KeyingSet *rna_Scene_keying_set_new(Scene *sce, ReportList *reports, const char name[])
 {
 	KeyingSet *ks= NULL;
 	
@@ -1197,7 +1197,7 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 
 	prop= RNA_def_property(srna, "etch_subdivision_number", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "skgen_subdivision_number");
-	RNA_def_property_range(prop, 1, 10000);
+	RNA_def_property_range(prop, 1, 255);
 	RNA_def_property_ui_text(prop, "Subdivisions", "Number of bones in the subdivided stroke");
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_VIEW3D, NULL);
 
@@ -1263,6 +1263,11 @@ static void rna_def_unit_settings(BlenderRNA  *brna)
 	RNA_def_property_ui_text(prop, "Unit System", "The unit system to use for button display");
 	RNA_def_property_update(prop, NC_WINDOW, NULL);
 
+	prop= RNA_def_property(srna, "system_rotation", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, rotation_units);
+	RNA_def_property_ui_text(prop, "Rotation Units", "Unit to use for displaying/editing rotation values");
+	RNA_def_property_update(prop, NC_WINDOW, NULL);
+
 	prop= RNA_def_property(srna, "scale_length", PROP_FLOAT, PROP_UNSIGNED);
 	RNA_def_property_ui_text(prop, "Unit Scale", "Scale to use when converting between blender units and dimensions");
 	RNA_def_property_range(prop, 0.00001, 100000.0);
@@ -1272,12 +1277,6 @@ static void rna_def_unit_settings(BlenderRNA  *brna)
 	prop= RNA_def_property(srna, "use_separate", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_UNIT_OPT_SPLIT);
 	RNA_def_property_ui_text(prop, "Separate Units", "Display units in pairs");
-	RNA_def_property_update(prop, NC_WINDOW, NULL);
-	
-	prop= RNA_def_property(srna, "rotation_units", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
-	RNA_def_property_enum_items(prop, rotation_units);
-	RNA_def_property_ui_text(prop, "Rotation Units", "Unit to use for displaying/editing rotation values");
 	RNA_def_property_update(prop, NC_WINDOW, NULL);
 }
 
@@ -1640,8 +1639,9 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "frame_color", PROP_FLOAT, PROP_COLOR);
 	RNA_def_property_float_sdna(prop, NULL, "framing.col");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_array(prop, 3);
-	RNA_def_property_ui_text(prop, "Framing Color", "Set colour of the bars");
+	RNA_def_property_ui_text(prop, "Framing Color", "Set color of the bars");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 	
 	/* Stereo */

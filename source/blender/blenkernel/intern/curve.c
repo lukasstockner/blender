@@ -130,7 +130,7 @@ void free_curve(Curve *cu)
 	if(cu->tb) MEM_freeN(cu->tb);
 }
 
-Curve *add_curve(char *name, int type)
+Curve *add_curve(const char *name, int type)
 {
 	Curve *cu;
 
@@ -2897,6 +2897,8 @@ void switchdirectionNurb(Nurb *nu)
 			bp2--;
 		}
 		if(nu->type == CU_NURBS) {
+			/* no knots for too short paths */
+			if(nu->knotsu) {
 			/* inverse knots */
 			a= KNOTSU(nu);
 			fp1= nu->knotsu;
@@ -2930,6 +2932,7 @@ void switchdirectionNurb(Nurb *nu)
 			}
 			MEM_freeN(tempf);
 		}
+	}
 	}
 	else {
 		
@@ -3047,7 +3050,7 @@ void curve_applyKeyVertexTilts(Curve *cu, ListBase *lb, float *key)
 			for(i=0; i<nu->pntsu; i++,bezt++) {
 				key+=3*3;
 				bezt->alfa= *key;
-				key++;
+				key+=3;
 			}
 		}
 		else {

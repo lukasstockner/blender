@@ -155,7 +155,7 @@ static int ED_object_shape_key_remove(bContext *C, Object *ob)
 		free_libblock_us(&(bmain->key), key);
 	}
 	
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 
 	return 1;
@@ -216,7 +216,7 @@ static int object_shape_key_mirror(bContext *C, Object *ob)
 		MEM_freeN(tag_elem);
 	}
 	
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 
 	return 1;
@@ -253,8 +253,8 @@ void OBJECT_OT_shape_key_add(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Add Shape Key";
-	ot->name= "Add shape key to the object.";
 	ot->idname= "OBJECT_OT_shape_key_add";
+	ot->description= "Add shape key to the object";
 	
 	/* api callbacks */
 	ot->poll= shape_key_mode_poll;
@@ -281,8 +281,8 @@ void OBJECT_OT_shape_key_remove(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Remove Shape Key";
-	ot->name= "Remove shape key from the object.";
 	ot->idname= "OBJECT_OT_shape_key_remove";
+	ot->description= "Remove shape key from the object";
 	
 	/* api callbacks */
 	ot->poll= shape_key_mode_poll;
@@ -304,7 +304,7 @@ static int shape_key_clear_exec(bContext *C, wmOperator *UNUSED(op))
 	for(kb=key->block.first; kb; kb=kb->next)
 		kb->curval= 0.0f;
 
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 	
 	return OPERATOR_FINISHED;
@@ -392,7 +392,7 @@ static int shape_key_move_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 
 	return OPERATOR_FINISHED;

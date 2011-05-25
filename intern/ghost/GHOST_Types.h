@@ -29,6 +29,10 @@
 #ifndef _GHOST_TYPES_H_
 #define _GHOST_TYPES_H_
 
+#ifdef WITH_CXX_GUARDEDALLOC
+#include "MEM_guardedalloc.h"
+#endif
+
 typedef	char				GHOST_TInt8;
 typedef	unsigned char		GHOST_TUns8;
 typedef short				GHOST_TInt16;
@@ -444,7 +448,7 @@ typedef struct {
    GHOST_TUns64 delta;
 } GHOST_TEventNDOFData;
 
-typedef int     (*GHOST_NDOFLibraryInit_fp)();
+typedef int     (*GHOST_NDOFLibraryInit_fp)(void);
 typedef void    (*GHOST_NDOFLibraryShutdown_fp)(void* deviceHandle);
 typedef void*   (*GHOST_NDOFDeviceOpen_fp)(void* platformData);
 

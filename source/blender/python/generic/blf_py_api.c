@@ -23,7 +23,7 @@
  */
 
 #include <Python.h>
-#include "blf_api.h"
+#include "blf_py_api.h"
 
 #include "../../blenfont/BLF_api.h"
 #include "BKE_utildefines.h"
@@ -99,7 +99,7 @@ static PyObject *py_blf_aspect(PyObject *UNUSED(self), PyObject *args)
 	if (!PyArg_ParseTuple(args, "if:blf.aspect", &fontid, &aspect))
 		return NULL;
 
-	BLF_aspect(fontid, aspect);
+	BLF_aspect(fontid, aspect, aspect, 1.0);
 
 	Py_RETURN_NONE;
 }
@@ -141,12 +141,13 @@ static char py_blf_draw_doc[] =
 static PyObject *py_blf_draw(PyObject *UNUSED(self), PyObject *args)
 {
 	char *text;
+	int text_length;
 	int fontid;
 
-	if (!PyArg_ParseTuple(args, "is:blf.draw", &fontid, &text))
+	if (!PyArg_ParseTuple(args, "is#:blf.draw", &fontid, &text, &text_length))
 		return NULL;
 
-	BLF_draw(fontid, text);
+	BLF_draw(fontid, text, (unsigned int)text_length);
 
 	Py_RETURN_NONE;
 }
@@ -366,7 +367,7 @@ struct PyMethodDef BLF_methods[] = {
 	{"dimensions", (PyCFunction) py_blf_dimensions, METH_VARARGS, py_blf_dimensions_doc},
 	{"draw", (PyCFunction) py_blf_draw, METH_VARARGS, py_blf_draw_doc},
 	{"enable", (PyCFunction) py_blf_enable, METH_VARARGS, py_blf_enable_doc},
-	{"position", (PyCFunction)py_blf_position, METH_VARARGS, py_blf_position_doc},
+	{"position", (PyCFunction) py_blf_position, METH_VARARGS, py_blf_position_doc},
 	{"rotation", (PyCFunction) py_blf_rotation, METH_VARARGS, py_blf_rotation_doc},
 	{"shadow", (PyCFunction) py_blf_shadow, METH_VARARGS, py_blf_shadow_doc},
 	{"shadow_offset", (PyCFunction) py_blf_shadow_offset, METH_VARARGS, py_blf_shadow_offset_doc},
@@ -390,17 +391,16 @@ static struct PyModuleDef BLF_module_def = {
 	0,  /* m_free */
 };
 
-PyObject *BLF_Init(void)
+PyObject *BPyInit_blf(void)
 {
 	PyObject *submodule;
 
 	submodule = PyModule_Create(&BLF_module_def);
-	PyDict_SetItemString(PyImport_GetModuleDict(), BLF_module_def.m_name, submodule);
 
 	PyModule_AddIntConstant(submodule, "ROTATION", BLF_ROTATION);
 	PyModule_AddIntConstant(submodule, "CLIPPING", BLF_CLIPPING);
 	PyModule_AddIntConstant(submodule, "SHADOW", BLF_SHADOW);
 	PyModule_AddIntConstant(submodule, "KERNING_DEFAULT", BLF_KERNING_DEFAULT);
 
-	return (submodule);
+	return submodule;
 }

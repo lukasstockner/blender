@@ -25,6 +25,7 @@
 /* This file defines the '_bpy' module which is used by python's 'bpy' package.
  * a script writer should never directly access this module */
  
+#define WITH_PYTHON /* for AUD_PyInit.h, possibly others */
 
 #include "bpy_util.h" 
 #include "bpy_rna.h"
@@ -36,11 +37,14 @@
 #include "BLI_bpath.h"
  
 #include "BKE_utildefines.h"
+#include "BKE_global.h" /* XXX, G.main only */
+
+#include "MEM_guardedalloc.h"
 
  /* external util modules */
 #include "../generic/geometry.h"
 #include "../generic/bgl.h"
-#include "../generic/blf_api.h"
+#include "../generic/blf_py_api.h"
 #include "../generic/IDProp.h"
 
 #include "AUD_PyInit.h"
@@ -77,39 +81,41 @@ static char bpy_blend_paths_doc[] =
 "   :rtype: list of strigs\n";
 static PyObject *bpy_blend_paths(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
 {
-	struct BPathIterator bpi;
-	PyObject *list = PyList_New(0), *st; /* stupidly big string to be safe */
+	struct BPathIterator *bpi;
+	PyObject *list, *st; /* stupidly big string to be safe */
 	/* be sure there is low chance of the path being too short */
 	char filepath_expanded[1024];
 	char *lib;
 
 	int absolute = 0;
-	static char *kwlist[] = {"absolute", NULL};
+	static const char *kwlist[] = {"absolute", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "|i:blend_paths", kwlist, &absolute))
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "|i:blend_paths", (char **)kwlist, &absolute))
 		return NULL;
 
-	for(BLI_bpathIterator_init(&bpi, NULL); !BLI_bpathIterator_isDone(&bpi); BLI_bpathIterator_step(&bpi)) {
+	list= PyList_New(0);
+
+	for(BLI_bpathIterator_init(&bpi, G.main, NULL); !BLI_bpathIterator_isDone(bpi); BLI_bpathIterator_step(bpi)) {
 		/* build the list */
 		if (absolute) {
-			BLI_bpathIterator_getPathExpanded(&bpi, filepath_expanded);
+			BLI_bpathIterator_getPathExpanded(bpi, filepath_expanded);
 		}
 		else {
-			lib = BLI_bpathIterator_getLib(&bpi);
-			if (lib && (strcmp(lib, bpi.base_path))) { /* relative path to the library is NOT the same as our blendfile path, return an absolute path */
-				BLI_bpathIterator_getPathExpanded(&bpi, filepath_expanded);
+			lib = BLI_bpathIterator_getLib(bpi);
+			if (lib && (strcmp(lib, BLI_bpathIterator_getBasePath(bpi)))) { /* relative path to the library is NOT the same as our blendfile path, return an absolute path */
+				BLI_bpathIterator_getPathExpanded(bpi, filepath_expanded);
 			}
 			else {
-				BLI_bpathIterator_getPath(&bpi, filepath_expanded);
+				BLI_bpathIterator_getPath(bpi, filepath_expanded);
 			}
 		}
-		st = PyUnicode_FromString(filepath_expanded);
+		st= PyUnicode_DecodeFSDefault(filepath_expanded);
 
 		PyList_Append(list, st);
 		Py_DECREF(st);
 	}
 
-	BLI_bpathIterator_free(&bpi);
+	BLI_bpathIterator_free(bpi);
 
 	return list;
 }
@@ -131,11 +137,11 @@ static PyObject *bpy_user_resource(PyObject *UNUSED(self), PyObject *args, PyObj
 	char *type;
 	char *subdir= NULL;
 	int folder_id;
-	static char *kwlist[] = {"type", "subdir", NULL};
+	static const char *kwlist[] = {"type", "subdir", NULL};
 
 	char *path;
 
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "s|s:user_resource", kwlist, &type, &subdir))
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "s|s:user_resource", (char **)kwlist, &type, &subdir))
 		return NULL;
 	
 	/* stupid string compare */
@@ -161,9 +167,9 @@ static PyMethodDef meth_bpy_script_paths = {"script_paths", (PyCFunction)bpy_scr
 static PyMethodDef meth_bpy_blend_paths = {"blend_paths", (PyCFunction)bpy_blend_paths, METH_VARARGS|METH_KEYWORDS, bpy_blend_paths_doc};
 static PyMethodDef meth_bpy_user_resource = {"user_resource", (PyCFunction)bpy_user_resource, METH_VARARGS|METH_KEYWORDS, bpy_user_resource_doc};
 
-static void bpy_import_test(char *modname)
+static void bpy_import_test(const char *modname)
 {
-	PyObject *mod= PyImport_ImportModuleLevel(modname, NULL, NULL, NULL, 0);
+	PyObject *mod= PyImport_ImportModuleLevel((char *)modname, NULL, NULL, NULL, 0);
 	if(mod) {
 		Py_DECREF(mod);
 	}
@@ -223,7 +229,7 @@ void BPy_init_modules( void )
 	PyModule_AddObject( mod, "app", BPY_app_struct() );
 
 	/* bpy context */
-	RNA_pointer_create(NULL, &RNA_Context, BPy_GetContext(), &ctx_ptr);
+	RNA_pointer_create(NULL, &RNA_Context, (void *)BPy_GetContext(), &ctx_ptr);
 	bpy_context_module= (BPy_StructRNA *)pyrna_struct_CreatePyObject(&ctx_ptr);
 	/* odd that this is needed, 1 ref on creation and another for the module
 	 * but without we get a crash on exit */

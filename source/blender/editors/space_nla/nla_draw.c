@@ -171,7 +171,7 @@ static void nla_strip_get_color_inside (AnimData *adt, NlaStrip *strip, float co
 	}	
 	else if (strip->type == NLASTRIP_TYPE_META) {
 		/* Meta Clip */
-		// TODO: should temporary metas get different colours too?
+		// TODO: should temporary metas get different colors too?
 		if (strip->flag & NLASTRIP_FLAG_SELECT) {
 			/* selected - use a bold purple color */
 			// FIXME: hardcoded temp-hack colors
@@ -272,7 +272,7 @@ static void nla_draw_strip_curves (NlaStrip *strip, View2D *v2d, float yminc, fl
 	}
 	
 	/* time -------------------------- */
-	// XXX do we want to draw this curve? in a different colour too?
+	// XXX do we want to draw this curve? in a different color too?
 	
 	/* turn off AA'd lines */
 	glDisable(GL_LINE_SMOOTH);
@@ -417,6 +417,7 @@ static void nla_draw_strip (SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStr
 static void nla_draw_strip_text (NlaTrack *nlt, NlaStrip *strip, int index, View2D *v2d, float yminc, float ymaxc)
 {
 	char str[256], dir[3];
+	char col[4];
 	rctf rect;
 	
 	/* 'dir' - direction that strip is played in */
@@ -431,11 +432,14 @@ static void nla_draw_strip_text (NlaTrack *nlt, NlaStrip *strip, int index, View
 	else
 		sprintf(str, "%s | %.2f %s %.2f", strip->name, strip->start, dir, strip->end);
 	
-	/* set text colour - if colours (see above) are light, draw black text, otherwise draw white */
-	if (strip->flag & (NLASTRIP_FLAG_ACTIVE|NLASTRIP_FLAG_SELECT|NLASTRIP_FLAG_TWEAKUSER))
-		glColor3f(0.0f, 0.0f, 0.0f);
-	else
-		glColor3f(1.0f, 1.0f, 1.0f);
+	/* set text color - if colors (see above) are light, draw black text, otherwise draw white */
+	if (strip->flag & (NLASTRIP_FLAG_ACTIVE|NLASTRIP_FLAG_SELECT|NLASTRIP_FLAG_TWEAKUSER)) {
+		col[0]= col[1]= col[2]= 0;
+	}
+	else {
+		col[0]= col[1]= col[2]= 255;
+	}
+	col[3]= 1.0;
 	
 	/* set bounding-box for text 
 	 *	- padding of 2 'units' on either side
@@ -447,7 +451,8 @@ static void nla_draw_strip_text (NlaTrack *nlt, NlaStrip *strip, int index, View
 	rect.ymax= ymaxc;
 	
 	/* add this string to the cache of texts to draw*/
-	UI_view2d_text_cache_rectf(v2d, &rect, str);
+
+	UI_view2d_text_cache_rectf(v2d, &rect, str, col);
 }
 
 /* ---------------------- */

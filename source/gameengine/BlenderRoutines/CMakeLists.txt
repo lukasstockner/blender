@@ -1,7 +1,5 @@
 
-FILE(GLOB SRC *.cpp)
-
-SET(INC
+set(INC
 	.
 	../../../source/kernel/gen_system
 	../../../intern/string
@@ -37,16 +35,29 @@ SET(INC
 	../../../extern/glew/include
 )
 
-ADD_DEFINITIONS(-DGLEW_STATIC)
+set(SRC
+	BL_KetsjiEmbedStart.cpp
+	KX_BlenderCanvas.cpp
+	KX_BlenderGL.cpp
+	KX_BlenderInputDevice.cpp
+	KX_BlenderKeyboardDevice.cpp
+	KX_BlenderMouseDevice.cpp
+	KX_BlenderRenderTools.cpp
+	KX_BlenderSystem.cpp
 
-IF(WITH_FFMPEG)
-	ADD_DEFINITIONS(-DWITH_FFMPEG)
-ENDIF(WITH_FFMPEG)
+	KX_BlenderCanvas.h
+	KX_BlenderGL.h
+	KX_BlenderInputDevice.h
+	KX_BlenderKeyboardDevice.h
+	KX_BlenderMouseDevice.h
+	KX_BlenderRenderTools.h
+	KX_BlenderSystem.h
+)
 
-IF(WITH_PYTHON)
-	LIST(APPEND INC ${PYTHON_INC})
-ELSE(WITH_PYTHON)
-	ADD_DEFINITIONS(-DDISABLE_PYTHON)
-ENDIF(WITH_PYTHON)
+add_definitions(-DGLEW_STATIC)
 
-BLENDERLIB(bf_blroutines "${SRC}" "${INC}")
+if(WITH_CODEC_FFMPEG)
+	add_definitions(-DWITH_FFMPEG)
+endif()
+
+blenderlib(ge_blen_routines "${SRC}" "${INC}")

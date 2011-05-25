@@ -91,7 +91,7 @@ static void engine_render(RenderEngine *engine, struct Scene *scene)
 
 	RNA_parameter_list_create(&list, &ptr, func);
 	RNA_parameter_set_lookup(&list, "scene", &scene);
-	engine->type->ext.call(&ptr, func, &list);
+	engine->type->ext.call(NULL, &ptr, func, &list);
 
 	RNA_parameter_list_free(&list);
 }
@@ -108,7 +108,7 @@ static void rna_RenderEngine_unregister(const bContext *C, StructRNA *type)
 	RNA_struct_free(&BLENDER_RNA, type);
 }
 
-static StructRNA *rna_RenderEngine_register(const bContext *C, ReportList *reports, void *data, const char *identifier, StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
+static StructRNA *rna_RenderEngine_register(bContext *C, ReportList *reports, void *data, const char *identifier, StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
 {
 	RenderEngineType *et, dummyet = {0};
 	RenderEngine dummyengine= {0};
@@ -124,7 +124,7 @@ static StructRNA *rna_RenderEngine_register(const bContext *C, ReportList *repor
 		return NULL;
 
 	if(strlen(identifier) >= sizeof(dummyet.idname)) {
-		BKE_reportf(reports, RPT_ERROR, "registering render engine class: '%s' is too long, maximum length is %d.", identifier, sizeof(dummyet.idname));
+		BKE_reportf(reports, RPT_ERROR, "registering render engine class: '%s' is too long, maximum length is %d.", identifier, (int)sizeof(dummyet.idname));
 		return NULL;
 	}
 

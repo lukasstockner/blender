@@ -365,7 +365,7 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 	glShadeModel(GL_SMOOTH);
 }
 
-static void draw_textured_end()
+static void draw_textured_end(void)
 {
 	/* switch off textures */
 	GPU_set_tpage(NULL, 0);
@@ -508,10 +508,10 @@ static int draw_tface_mapped__set_draw(void *userData, int index)
 {
 	Mesh *me = (Mesh*)userData;
 	MTFace *tface = (me->mtface)? &me->mtface[index]: NULL;
-	MFace *mface = (me->mface)? &me->mface[index]: NULL;
+	MFace *mface = &me->mface[index];
 	MCol *mcol = (me->mcol)? &me->mcol[index]: NULL;
-	int matnr = me->mface[index].mat_nr;
-	if (mface && mface->flag&ME_HIDE) return 0;
+	const int matnr = mface->mat_nr;
+	if (mface->flag & ME_HIDE) return 0;
 	return draw_tface__set_draw(tface, mcol, matnr);
 }
 
@@ -643,20 +643,20 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *o
 	/* draw the textured mesh */
 	draw_textured_begin(scene, v3d, rv3d, ob);
 
+	glColor4f(1.0f,1.0f,1.0f,1.0f);
+
 	if(ob->mode & OB_MODE_EDIT) {
-		glColor4f(1.0f,1.0f,1.0f,1.0f);
 		dm->drawMappedFacesTex(dm, draw_em_tf_mapped__set_draw, me->edit_mesh);
 	} else if(faceselect) {
 		if(ob->mode & OB_MODE_WEIGHT_PAINT)
 			dm->drawMappedFaces(dm, wpaint__setSolidDrawOptions, me, 1, GPU_enable_material);
 		else
-			dm->drawMappedFacesTex(dm, draw_tface_mapped__set_draw, me);
+			dm->drawMappedFacesTex(dm, me->mface ? draw_tface_mapped__set_draw : NULL, me);
 	}
 	else {
 		if( GPU_buffer_legacy(dm) )
 			dm->drawFacesTex(dm, draw_tface__set_draw_legacy);
 		else {
-			glColor4f(1.0f,1.0f,1.0f,1.0f);
 			if( !CustomData_has_layer(&dm->faceData,CD_TEXTURE_MCOL) )
 				add_tface_color_layer(dm);
 			dm->drawFacesTex(dm, draw_tface__set_draw);

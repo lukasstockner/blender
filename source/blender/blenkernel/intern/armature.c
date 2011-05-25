@@ -69,7 +69,7 @@
 
 /*	**************** Generic Functions, data level *************** */
 
-bArmature *add_armature(char *name)
+bArmature *add_armature(const char *name)
 {
 	bArmature *arm;
 	
@@ -584,7 +584,7 @@ static void pchan_b_bone_defmats(bPoseChannel *pchan, int use_quaternion)
 	Mat4 *b_bone_rest= b_bone_spline_setup(pchan, 1);
 	Mat4 *b_bone_mats;
 	DualQuat *b_bone_dual_quats= NULL;
-	float tmat[4][4];
+	float tmat[4][4]= MAT4_UNITY;
 	int a;
 	
 	/* allocate b_bone matrices and dual quats */
@@ -605,7 +605,6 @@ static void pchan_b_bone_defmats(bPoseChannel *pchan, int use_quaternion)
 		- translate over the curve to the bbone mat space
 		- transform with b_bone matrix
 		- transform back into global space */
-	unit_m4(tmat);
 
 	for(a=0; a<bone->segments; a++) {
 		invert_m4_m4(tmat, b_bone_rest[a].mat);
@@ -804,9 +803,9 @@ void armature_deform_verts(Object *armOb, Object *target, DerivedMesh *dm,
 	bDeformGroup *dg;
 	DualQuat *dualquats= NULL;
 	float obinv[4][4], premat[4][4], postmat[4][4];
-	int use_envelope = deformflag & ARM_DEF_ENVELOPE;
-	int use_quaternion = deformflag & ARM_DEF_QUATERNION;
-	int invert_vgroup= deformflag & ARM_DEF_INVERT_VGROUP;
+	const short use_envelope = deformflag & ARM_DEF_ENVELOPE;
+	const short use_quaternion = deformflag & ARM_DEF_QUATERNION;
+	const short invert_vgroup= deformflag & ARM_DEF_INVERT_VGROUP;
 	int numGroups = 0;		/* safety for vertexgroup index overflow */
 	int i, target_totvert = 0;	/* safety for vertexgroup overflow */
 	int use_dverts = 0;
@@ -1085,11 +1084,10 @@ void armature_mat_world_to_pose(Object *ob, float inmat[][4], float outmat[][4])
  */
 void armature_loc_world_to_pose(Object *ob, float *inloc, float *outloc) 
 {
-	float xLocMat[4][4];
+	float xLocMat[4][4]= MAT4_UNITY;
 	float nLocMat[4][4];
 	
 	/* build matrix for location */
-	unit_m4(xLocMat);
 	VECCOPY(xLocMat[3], inloc);
 
 	/* get bone-space cursor matrix and extract location */
@@ -1137,11 +1135,10 @@ void armature_mat_pose_to_bone(bPoseChannel *pchan, float inmat[][4], float outm
  */
 void armature_loc_pose_to_bone(bPoseChannel *pchan, float *inloc, float *outloc) 
 {
-	float xLocMat[4][4];
+	float xLocMat[4][4]= MAT4_UNITY;
 	float nLocMat[4][4];
 	
 	/* build matrix for location */
-	unit_m4(xLocMat);
 	VECCOPY(xLocMat[3], inloc);
 
 	/* get bone-space cursor matrix and extract location */
@@ -1206,6 +1203,7 @@ void BKE_rotMode_change_values (float quat[4], float eul[3], float axis[3], floa
 		}
 		else if (oldMode == ROT_MODE_QUAT) {
 			/* quat to euler */
+			normalize_qt(quat);
 			quat_to_eulO( eul, newMode,quat);
 		}
 		/* else { no conversion needed } */
@@ -1228,6 +1226,7 @@ void BKE_rotMode_change_values (float quat[4], float eul[3], float axis[3], floa
 		}
 		else if (oldMode == ROT_MODE_QUAT) {
 			/* quat to axis angle */
+			normalize_qt(quat);
 			quat_to_axis_angle( axis, angle,quat);
 		}
 		
@@ -1410,10 +1409,6 @@ static void pose_proxy_synchronize(Object *ob, Object *from, int layer_protected
 
 	if(error)
 		return;
-	
-	/* exception, armature local layer should be proxied too */
-	if (pose->proxy_layer)
-		((bArmature *)ob->data)->layer= pose->proxy_layer;
 	
 	/* clear all transformation values from library */
 	rest_pose(frompose);
@@ -1689,30 +1684,27 @@ static void splineik_init_tree_from_pchan(Scene *scene, Object *ob, bPoseChannel
 		ikData->numpoints= ikData->chainlen+1; 
 		ikData->points= MEM_callocN(sizeof(float)*ikData->numpoints, "Spline IK Binding");
 		
+		/* bind 'tip' of chain (i.e. first joint = tip of bone with the Spline IK Constraint) */
+		ikData->points[0] = 1.0f;
+		
 		/* perform binding of the joints to parametric positions along the curve based 
 		 * proportion of the total length that each bone occupies
 		 */
 		for (i = 0; i < segcount; i++) {
-			if (i != 0) {
-				/* 'head' joints 
+			/* 'head' joints, travelling towards the root of the chain
 				 * 	- 2 methods; the one chosen depends on whether we've got usable lengths
 				 */
 				if ((ikData->flag & CONSTRAINT_SPLINEIK_EVENSPLITS) || (totLength == 0.0f)) {
 					/* 1) equi-spaced joints */
-					ikData->points[i]= ikData->points[i-1] - segmentLen;
+				ikData->points[i+1]= ikData->points[i] - segmentLen;
 				}
 				else {
 					 /*	2) to find this point on the curve, we take a step from the previous joint
 					  *	  a distance given by the proportion that this bone takes
 					  */
-					ikData->points[i]= ikData->points[i-1] - (boneLengths[i] / totLength);
+				ikData->points[i+1]= ikData->points[i] - (boneLengths[i] / totLength);
 				}
 			}
-			else {
-				/* 'tip' of chain, special exception for the first joint */
-				ikData->points[0]= 1.0f;
-			}
-		}
 		
 		/* spline has now been bound */
 		ikData->flag |= CONSTRAINT_SPLINEIK_BOUND;
@@ -2055,8 +2047,7 @@ void pchan_to_mat4(bPoseChannel *pchan, float chan_mat[4][4])
 		 * but if this proves to be too problematic, switch back to the old system of operating directly on 
 		 * the stored copy
 		 */
-		QUATCOPY(quat, pchan->quat);
-		normalize_qt(quat);
+		normalize_qt_qt(quat, pchan->quat);
 		quat_to_mat3(rmat, quat);
 	}
 	

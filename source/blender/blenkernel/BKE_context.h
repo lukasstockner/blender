@@ -114,7 +114,7 @@ bContext *CTX_copy(const bContext *C);
 
 /* Stored Context */
 
-bContextStore *CTX_store_add(ListBase *contexts, char *name, PointerRNA *ptr);
+bContextStore *CTX_store_add(ListBase *contexts, const char *name, PointerRNA *ptr);
 void CTX_store_set(bContext *C, bContextStore *store);
 bContextStore *CTX_store_copy(bContextStore *store);
 void CTX_store_free(bContextStore *store);
@@ -124,7 +124,7 @@ void CTX_store_free_list(ListBase *contexts);
 int CTX_py_init_get(bContext *C);
 void CTX_py_init_set(bContext *C, int value);
 
-void *CTX_py_dict_get(bContext *C);
+void *CTX_py_dict_get(const bContext *C);
 void CTX_py_dict_set(bContext *C, void *value);
 
 /* Window Manager Context */
@@ -225,7 +225,7 @@ struct Main *CTX_data_main(const bContext *C);
 struct Scene *CTX_data_scene(const bContext *C);
 struct ToolSettings *CTX_data_tool_settings(const bContext *C);
 
-char *CTX_data_mode_string(const bContext *C);
+const char *CTX_data_mode_string(const bContext *C);
 int CTX_data_mode_enum(const bContext *C);
 
 void CTX_data_main_set(bContext *C, struct Main *bmain);

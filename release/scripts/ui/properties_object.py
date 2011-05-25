@@ -70,6 +70,28 @@ class OBJECT_PT_transform(ObjectButtonsPanel, bpy.types.Panel):
             layout.prop(ob, "rotation_mode")
 
 
+    def draw(self, context):
+        layout = self.layout
+
+        ob = context.object
+
+        row = layout.row()
+
+        row.column().prop(ob, "delta_location")
+        if ob.rotation_mode == 'QUATERNION':
+            row.column().prop(ob, "delta_rotation_quaternion", text="Rotation")
+        elif ob.rotation_mode == 'AXIS_ANGLE':
+            #row.column().label(text="Rotation")
+            #row.column().prop(pchan, "delta_rotation_angle", text="Angle")
+            #row.column().prop(pchan, "delta_rotation_axis", text="Axis")
+            #row.column().prop(ob, "delta_rotation_axis_angle", text="Rotation")
+            row.column().label(text="Not for Axis-Angle")
+        else:
+            row.column().prop(ob, "delta_rotation_euler", text="Rotation")
+
+        row.column().prop(ob, "delta_scale")
+
+
 class OBJECT_PT_transform_locks(ObjectButtonsPanel, bpy.types.Panel):
     bl_label = "Transform Locks"
     bl_options = {'DEFAULT_CLOSED'}
@@ -192,6 +214,7 @@ class OBJECT_PT_display(ObjectButtonsPanel, bpy.types.Panel):
             col = split.column()
         col.prop(ob, "show_texture_space", text="Texture Space")
         col.prop(ob, "show_x_ray", text="X-Ray")
+        if ob.type == 'MESH':
         col.prop(ob, "show_transparent", text="Transparency")
 
 

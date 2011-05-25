@@ -207,7 +207,7 @@ void IMB_close_anim(struct anim *anim);
  * @attention Defined in anim.c
  */
 
-int ismovie(char *name);
+int ismovie(const char *name);
 void IMB_anim_set_preseek(struct anim *anim, int preseek);
 int IMB_anim_get_preseek(struct anim *anim);
 
@@ -245,6 +245,7 @@ void IMB_filter(struct ImBuf *ibuf);
 void IMB_filterN(struct ImBuf *out, struct ImBuf *in);
 void IMB_filter_extend(struct ImBuf *ibuf, char *mask);
 void IMB_makemipmap(struct ImBuf *ibuf, int use_filter);
+void IMB_remakemipmap(struct ImBuf *ibuf, int use_filter);
 struct ImBuf *IMB_getmipmap(struct ImBuf *ibuf, int level);
 
 /**
@@ -284,7 +285,7 @@ struct ImBuf *IMB_scalefastImBuf(struct ImBuf *ibuf, unsigned int newx, unsigned
  *
  * @attention Defined in writeimage.c
  */
-short IMB_saveiff(struct ImBuf *ibuf,char *naam,int flags);
+short IMB_saveiff(struct ImBuf *ibuf, const char *filepath, int flags);
 
 /**
  * Encodes a png image from an ImBuf
@@ -297,19 +298,19 @@ short IMB_png_encode(struct ImBuf *ibuf, int file, int flags);
  *
  * @attention Defined in util.c
  */
-int IMB_ispic(char *name);
+int IMB_ispic(const char *name);
 
 /**
  *
  * @attention Defined in util.c
  */
-int IMB_isanim(char *name);
+int IMB_isanim(const char *name);
 
 /**
  *
  * @attention Defined in util.c
  */
-int imb_get_anim_type(char *name);
+int imb_get_anim_type(const char *name);
 
 /**
  *
@@ -322,6 +323,7 @@ void IMB_float_from_rect(struct ImBuf *ibuf);
 void IMB_float_from_rect_simple(struct ImBuf *ibuf); /* no profile conversion */
 /* note, check that the conversion exists, only some are supported */
 void IMB_convert_profile(struct ImBuf *ibuf, int profile);
+float *IMB_float_profile_ensure(struct ImBuf *ibuf, int profile, int *alloc);
 
 /**
  * Change the ordering of the color bytes pointed to by rect from

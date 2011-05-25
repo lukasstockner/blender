@@ -347,6 +347,8 @@ static ScrArea *find_area_showing_r_result(bContext *C)
 					break;
 			}
 		}
+		if(sa)
+			break;
 	}
 
 	return sa;
@@ -388,7 +390,7 @@ static ScrArea *find_empty_image_area(bContext *C)
 }
 #endif // XXX not used
 
-static void render_error_reports(void *reports, char *str)
+static void render_error_reports(void *reports, const char *str)
 {
 	BKE_report(reports, RPT_ERROR, str);
 }
@@ -402,6 +404,13 @@ static int screen_render_exec(bContext *C, wmOperator *op)
 	View3D *v3d= CTX_wm_view3d(C);
 	Main *mainp= CTX_data_main(C);
 	int lay= (v3d)? v3d->lay: scene->lay;
+	const short is_animation= RNA_boolean_get(op->ptr, "animation");
+	const short is_write_still= RNA_boolean_get(op->ptr, "write_still");
+
+	if(!is_animation && is_write_still && BKE_imtype_is_movie(scene->r.imtype)) {
+		BKE_report(op->reports, RPT_ERROR, "Can't write a single file with an animation format selected.");
+		return OPERATOR_CANCELLED;
+	}
 
 	if(re==NULL) {
 		re= RE_NewRender(scene->id.name);
@@ -421,10 +430,10 @@ static int screen_render_exec(bContext *C, wmOperator *op)
 	   since sequence rendering can call that recursively... (peter) */
 	seq_stripelem_cache_cleanup();
 
-	if(RNA_boolean_get(op->ptr, "animation"))
+	if(is_animation)
 		RE_BlenderAnim(re, mainp, scene, lay, scene->r.sfra, scene->r.efra, scene->r.frame_step, op->reports);
 	else
-		RE_BlenderFrame(re, mainp, scene, NULL, lay, scene->r.cfra);
+		RE_BlenderFrame(re, mainp, scene, NULL, lay, scene->r.cfra, is_write_still);
 
 	// no redraw needed, we leave state as we entered it
 	ED_update_for_newframe(C, 1);
@@ -441,7 +450,7 @@ typedef struct RenderJob {
 	wmWindow *win;
 	SceneRenderLayer *srl;
 	int lay;
-	int anim;
+	short anim, write_still;
 	Image *image;
 	ImageUser iuser;
 	short *stop;
@@ -568,7 +577,7 @@ static void render_startjob(void *rjv, short *stop, short *do_update, float *pro
 	if(rj->anim)
 		RE_BlenderAnim(rj->re, rj->main, rj->scene, rj->lay, rj->scene->r.sfra, rj->scene->r.efra, rj->scene->r.frame_step, rj->reports);
 	else
-		RE_BlenderFrame(rj->re, rj->main, rj->scene, rj->srl, rj->lay, rj->scene->r.cfra);
+		RE_BlenderFrame(rj->re, rj->main, rj->scene, rj->srl, rj->lay, rj->scene->r.cfra, rj->write_still);
 }
 
 static void render_endjob(void *rjv)
@@ -625,11 +634,18 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	wmJob *steve;
 	RenderJob *rj;
 	Image *ima;
+	const short is_animation= RNA_boolean_get(op->ptr, "animation");
+	const short is_write_still= RNA_boolean_get(op->ptr, "write_still");
 
 	/* only one render job at a time */
 	if(WM_jobs_test(CTX_wm_manager(C), scene))
 		return OPERATOR_CANCELLED;
 
+	if(!is_animation && is_write_still && BKE_imtype_is_movie(scene->r.imtype)) {
+		BKE_report(op->reports, RPT_ERROR, "Can't write a single file with an animation format selected.");
+		return OPERATOR_CANCELLED;
+	}	
+	
 	/* stop all running jobs, currently previews frustrate Render */
 	WM_jobs_stop_all(CTX_wm_manager(C));
 
@@ -692,7 +708,8 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	rj->win= CTX_wm_window(C);
 	rj->srl = srl;
 	rj->lay = (v3d)? v3d->lay: scene->lay;
-	rj->anim= RNA_boolean_get(op->ptr, "animation");
+	rj->anim= is_animation;
+	rj->write_still= is_write_still && !is_animation;
 	rj->iuser.scene= scene;
 	rj->iuser.ok= 1;
 	rj->reports= op->reports;
@@ -753,7 +770,8 @@ void RENDER_OT_render(wmOperatorType *ot)
 
 	ot->poll= ED_operator_screenactive;
 
-	RNA_def_boolean(ot->srna, "animation", 0, "Animation", "");
+	RNA_def_boolean(ot->srna, "animation", 0, "Animation", "Render files from the animation range of this scene");
+	RNA_def_boolean(ot->srna, "write_still", 0, "Write Image", "Save rendered the image to the output path (used only when animation is disabled)");
 	RNA_def_string(ot->srna, "layer", "", RE_MAXNAME, "Render Layer", "Single render layer to re-render");
 	RNA_def_string(ot->srna, "scene", "", 19, "Scene", "Re-render single layer in this scene");
 }
@@ -814,12 +832,23 @@ static int render_view_show_invoke(bContext *C, wmOperator *UNUSED(unused), wmEv
 {
 	ScrArea *sa= find_area_showing_r_result(C);
 
-	/* test if we have a temp screen in front */
+	/* test if we have a temp screen active */
 	if(CTX_wm_window(C)->screen->full==SCREENTEMP) {
 		wm_window_lower(CTX_wm_window(C));
 	}
+	else { 
+		/* is there another window? */
+		wmWindow *win;
+		
+		for(win= CTX_wm_manager(C)->windows.first; win; win= win->next) {
+			if(win->screen->temp) {
+				wm_window_raise(win);
+				return OPERATOR_FINISHED;
+			}
+		}
+		
 	/* determine if render already shows */
-	else if(sa) {
+		if(sa) {
 		SpaceImage *sima= sa->spacedata.first;
 
 		if(sima->flag & SI_PREVSPACE) {
@@ -837,6 +866,7 @@ static int render_view_show_invoke(bContext *C, wmOperator *UNUSED(unused), wmEv
 	}
 	else {
 		screen_set_image_output(C, event->x, event->y);
+	}
 	}
 
 	return OPERATOR_FINISHED;

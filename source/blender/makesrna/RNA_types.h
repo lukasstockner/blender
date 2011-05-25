@@ -192,7 +192,7 @@ typedef enum PropertyFlag {
 	PROP_RAW_ARRAY = 1<<14,
 	PROP_FREE_POINTERS = 1<<15,
 	PROP_DYNAMIC = 1<<17, /* for dynamic arrays, and retvals of type string */
-	PROP_ENUM_NO_CONTEXT = 1<<18 /* for enum that shouldn't be contextual */
+	PROP_ENUM_NO_CONTEXT = 1<<24 /* for enum that shouldn't be contextual */
 } PropertyFlag;
 
 typedef struct CollectionPropertyIterator {
@@ -307,13 +307,13 @@ typedef enum StructFlag {
 	STRUCT_RUNTIME = 4,
 	STRUCT_GENERATED = 8,
 	STRUCT_FREE_POINTERS = 16,
-	STRUCT_NO_IDPROPERTIES = 32, /* Menu's and Panels don't need properties */
+	STRUCT_NO_IDPROPERTIES = 32 /* Menu's and Panels don't need properties */
 } StructFlag;
 
 typedef int (*StructValidateFunc)(struct PointerRNA *ptr, void *data, int *have_function);
-typedef int (*StructCallbackFunc)(struct PointerRNA *ptr, struct FunctionRNA *func, ParameterList *list);
+typedef int (*StructCallbackFunc)(struct bContext *C, struct PointerRNA *ptr, struct FunctionRNA *func, ParameterList *list);
 typedef void (*StructFreeFunc)(void *data);
-typedef struct StructRNA *(*StructRegisterFunc)(const struct bContext *C, struct ReportList *reports, void *data,
+typedef struct StructRNA *(*StructRegisterFunc)(struct bContext *C, struct ReportList *reports, void *data,
 	const char *identifier, StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free);
 typedef void (*StructUnregisterFunc)(const struct bContext *C, struct StructRNA *type);
 
@@ -333,9 +333,9 @@ typedef struct BlenderRNA BlenderRNA;
 typedef struct ExtensionRNA {
 	void *data;
 	StructRNA *srna;
+	StructCallbackFunc call;
+	StructFreeFunc free;
 
-	int (*call)(PointerRNA *, FunctionRNA *, ParameterList *);
-	void (*free)(void *data);
 } ExtensionRNA;
 
 /* fake struct definitions, needed otherwise collections end up owning the C

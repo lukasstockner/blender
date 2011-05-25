@@ -40,6 +40,8 @@
 #include "BKE_utildefines.h"
 #include "BKE_colortools.h"
 
+#include "MEM_guardedalloc.h"
+
 void IMB_de_interlace(struct ImBuf *ibuf)
 {
 	struct ImBuf * tbuf1, * tbuf2;
@@ -181,24 +183,29 @@ void IMB_rect_from_float(struct ImBuf *ibuf)
 	}
 }
 
-void IMB_float_from_rect(struct ImBuf *ibuf)
+static void imb_float_from_rect_nonlinear(struct ImBuf *ibuf, float *fbuf)
 {
-	/* quick method to convert byte to floatbuf */
-	float *tof = ibuf->rect_float;
+	float *tof = fbuf;
 	int i;
 	unsigned char *to = (unsigned char *) ibuf->rect;
 	
-	if(to==NULL) return;
-	if(tof==NULL) {
-		if (imb_addrectfloatImBuf(ibuf) == 0) return;
-		tof = ibuf->rect_float;
+	for (i = ibuf->x * ibuf->y; i > 0; i--) 
+	{
+		tof[0] = ((float)to[0])*(1.0f/255.0f);
+		tof[1] = ((float)to[1])*(1.0f/255.0f);
+		tof[2] = ((float)to[2])*(1.0f/255.0f);
+		tof[3] = ((float)to[3])*(1.0f/255.0f);
+		to += 4; 
+		tof += 4;
 	}
+}
 	
-	/* Float bufs should be stored linear */
 
-	if (ibuf->profile != IB_PROFILE_NONE) {
-		/* if the image has been given a profile then we're working 
-		 * with color management in mind, so convert it to linear space */
+static void imb_float_from_rect_linear(struct ImBuf *ibuf, float *fbuf)
+{
+	float *tof = fbuf;
+	int i;
+	unsigned char *to = (unsigned char *) ibuf->rect;
 		
 		for (i = ibuf->x * ibuf->y; i > 0; i--) 
 		{
@@ -209,31 +216,37 @@ void IMB_float_from_rect(struct ImBuf *ibuf)
 			to += 4; 
 			tof += 4;
 		}
-	} else {
-		for (i = ibuf->x * ibuf->y; i > 0; i--) 
+}
+
+void IMB_float_from_rect(struct ImBuf *ibuf)
 		{
-			tof[0] = ((float)to[0])*(1.0f/255.0f);
-			tof[1] = ((float)to[1])*(1.0f/255.0f);
-			tof[2] = ((float)to[2])*(1.0f/255.0f);
-			tof[3] = ((float)to[3])*(1.0f/255.0f);
-			to += 4; 
-			tof += 4;
+	/* quick method to convert byte to floatbuf */
+	float *tof = ibuf->rect_float;
+
+	unsigned char *to = (unsigned char *) ibuf->rect;
+	if(to==NULL) return;
+	if(tof==NULL) {
+		if (imb_addrectfloatImBuf(ibuf) == 0) return;
+		tof = ibuf->rect_float;
 		}
+	
+	/* Float bufs should be stored linear */
+
+	if (ibuf->profile != IB_PROFILE_NONE) {
+		/* if the image has been given a profile then we're working 
+		 * with color management in mind, so convert it to linear space */
+		imb_float_from_rect_linear(ibuf, ibuf->rect_float);
+	} else {
+		imb_float_from_rect_nonlinear(ibuf, ibuf->rect_float);
 	}
 }
 
 /* no profile conversion */
 void IMB_float_from_rect_simple(struct ImBuf *ibuf)
 {
-	int profile = IB_PROFILE_NONE;
-
-	/* no color management:
-	 * don't disturb the existing profiles */
-	SWAP(int, ibuf->profile, profile);
-
-	IMB_float_from_rect(ibuf);
-
-	SWAP(int, ibuf->profile, profile);
+	if(ibuf->rect_float==NULL)
+		imb_addrectfloatImBuf(ibuf);
+	imb_float_from_rect_nonlinear(ibuf, ibuf->rect_float);
 }
 
 void IMB_convert_profile(struct ImBuf *ibuf, int profile)
@@ -292,4 +305,49 @@ void IMB_convert_profile(struct ImBuf *ibuf, int profile)
 	}
 
 	ibuf->profile= profile;
+}
+
+/* use when you need to get a buffer with a certain profile
+ * if the return  */
+float *IMB_float_profile_ensure(struct ImBuf *ibuf, int profile, int *alloc)
+{
+	/* stupid but it works like this everywhere now */
+	const short is_lin_from= (ibuf->profile != IB_PROFILE_NONE);
+	const short is_lin_to= (profile != IB_PROFILE_NONE);
+
+	
+	if(is_lin_from == is_lin_to) {
+		*alloc= 0;
+
+		/* simple case, just allocate the buffer and return */
+		if(ibuf->rect_float == NULL) {
+			IMB_float_from_rect(ibuf);
+		}
+
+		return ibuf->rect_float;
+	}
+	else {
+		/* conversion is needed, first check */
+		float *fbuf= MEM_mallocN(ibuf->x * ibuf->y * sizeof(float) * 4, "IMB_float_profile_ensure");
+		*alloc= 1;
+
+		if(ibuf->rect_float == NULL) {
+			if(is_lin_to) {
+				imb_float_from_rect_linear(ibuf, fbuf);
+			}
+			else {
+				imb_float_from_rect_nonlinear(ibuf, fbuf);
+			}
+		}
+		else {
+			if(is_lin_to) { /* lin -> nonlin */
+				linearrgb_to_srgb_rgba_rgba_buf(fbuf, ibuf->rect_float, ibuf->x * ibuf->y);
+			}
+			else { /* nonlin -> lin */
+				srgb_to_linearrgb_rgba_rgba_buf(fbuf, ibuf->rect_float, ibuf->x * ibuf->y);
+			}
+		}
+
+		return fbuf;
+	}
 }

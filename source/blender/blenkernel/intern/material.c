@@ -204,7 +204,7 @@ void init_material(Material *ma)
 	ma->preview = NULL;
 }
 
-Material *add_material(char *name)
+Material *add_material(const char *name)
 {
 	Material *ma;
 
@@ -464,7 +464,7 @@ Material ***give_matarar_id(ID *id)
 		return &(((Curve *)id)->mat);
 		break;
 	case ID_MB:
-		return &(((Curve *)id)->mat);
+		return &(((MetaBall *)id)->mat);
 		break;
 	}
 	return NULL;
@@ -480,7 +480,7 @@ short *give_totcolp_id(ID *id)
 		return &(((Curve *)id)->totcol);
 		break;
 	case ID_MB:
-		return &(((Curve *)id)->totcol);
+		return &(((MetaBall *)id)->totcol);
 		break;
 	}
 	return NULL;
@@ -548,6 +548,10 @@ Material *give_current_material(Object *ob, int act)
 	totcolp= give_totcolp(ob);
 	if(totcolp==NULL || ob->totcol==0) return NULL;
 	
+	if(act<0) {
+		printf("no!\n");
+	}
+	
 	if(act>ob->totcol) act= ob->totcol;
 	else if(act<=0) act= 1;
 
@@ -608,38 +612,11 @@ Material *give_node_material(Material *ma)
 /* from misc_util: flip the bytes from x  */
 /*  #define GS(x) (((unsigned char *)(x))[0] << 8 | ((unsigned char *)(x))[1]) */
 
-void test_object_materials(ID *id)
+void resize_object_material(Object *ob, const short totcol)
 {
-	/* make the ob mat-array same size as 'ob->data' mat-array */
-	Object *ob;
-	Mesh *me;
-	Curve *cu;
-	MetaBall *mb;
 	Material **newmatar;
 	char *newmatbits;
-	int totcol=0;
 
-	if(id==0) return;
-
-	if( GS(id->name)==ID_ME ) {
-		me= (Mesh *)id;
-		totcol= me->totcol;
-	}
-	else if( GS(id->name)==ID_CU ) {
-		cu= (Curve *)id;
-		totcol= cu->totcol;
-	}
-	else if( GS(id->name)==ID_MB ) {
-		mb= (MetaBall *)id;
-		totcol= mb->totcol;
-	}
-	else return;
-
-	ob= G.main->object.first;
-	while(ob) {
-		
-		if(ob->data==id) {
-		
 			if(totcol==0) {
 				if(ob->totcol) {
 					MEM_freeN(ob->mat);
@@ -664,10 +641,23 @@ void test_object_materials(ID *id)
 			if(ob->totcol && ob->actcol==0) ob->actcol= 1;
 			if(ob->actcol>ob->totcol) ob->actcol= ob->totcol;
 		}
-		ob= ob->id.next;
+
+void test_object_materials(ID *id)
+{
+	/* make the ob mat-array same size as 'ob->data' mat-array */
+	Object *ob;
+	short *totcol;
+
+	if(id==NULL || (totcol=give_totcolp_id(id))==NULL) {
+		return;
+	}
+
+	for(ob= G.main->object.first; ob; ob= ob->id.next) {
+		if(ob->data==id) {
+			resize_object_material(ob, *totcol);
+}
 	}
 }
-
 
 void assign_material(Object *ob, Material *ma, int act)
 {
@@ -1420,7 +1410,7 @@ void paste_matcopybuf(Material *ma)
 		MEM_freeN(ma->nodetree);
 	}
 
-	GPU_materials_free(ma);
+	GPU_material_free(ma);
 
 	id= (ma->id);
 	memcpy(ma, &matcopybuf, sizeof(Material));

@@ -201,10 +201,9 @@ static PyObject *blender_import(PyObject *UNUSED(self), PyObject *args,  PyObjec
 	PyObject *newmodule;
 	
 	//PyObject_Print(args, stderr, 0);
-	int dummy_val; /* what does this do?*/
-	static char *kwlist[] = {"name", "globals", "locals", "fromlist", "level", 0};
+	static const char *kwlist[] = {"name", "globals", "locals", "fromlist", "level", 0};
 	
-	if( !PyArg_ParseTupleAndKeywords( args, kw, "s|OOOi:bpy_import_meth", kwlist,
+	if( !PyArg_ParseTupleAndKeywords(args, kw, "s|OOOi:bpy_import_meth", (char **)kwlist,
 				   &name, &globals, &locals, &fromlist, &dummy_val) )
 		return NULL;
 

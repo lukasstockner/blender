@@ -72,7 +72,7 @@
 
 /* ************* XXX *************** */
 static int pupmenu(const char *UNUSED(dummy)) {return 0;}
-static void error(const char *UNUSED(dummy)) {};
+static void error(const char *UNUSED(dummy)) {}
 static void BIF_undo_push(const char *UNUSED(dummy)) {}
 /* ************* XXX *************** */
 
@@ -164,7 +164,7 @@ void ED_armature_exit_posemode(bContext *C, Base *base)
 
 /* if a selected or active bone is protected, throw error (oonly if warn==1) and return 1 */
 /* only_selected==1 : the active bone is allowed to be protected */
-static short pose_has_protected_selected(Object *ob, short only_selected, short warn)
+static short pose_has_protected_selected(Object *ob, short warn)
 {
 	/* check protection */
 	if (ob->proxy) {
@@ -174,8 +174,7 @@ static short pose_has_protected_selected(Object *ob, short only_selected, short 
 		for (pchan= ob->pose->chanbase.first; pchan; pchan= pchan->next) {
 			if (pchan->bone && (pchan->bone->layer & arm->layer)) {
 				if (pchan->bone->layer & arm->layer_protected) {
-					if (only_selected && (pchan->bone == arm->act_bone));
-					else if (pchan->bone->flag & BONE_SELECTED || pchan->bone == arm->act_bone)
+					if (pchan->bone->flag & BONE_SELECTED)
 					   break;
 				}
 			}
@@ -363,13 +362,12 @@ void POSE_OT_paths_clear (wmOperatorType *ot)
 static int pose_select_constraint_target_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob= ED_object_pose_armature(CTX_data_active_object(C));
-	bArmature *arm= ob->data;
 	bConstraint *con;
 	int found= 0;
 	
 	CTX_DATA_BEGIN(C, bPoseChannel *, pchan, visible_pose_bones) 
 	{
-		if ((pchan->bone->flag & BONE_SELECTED) || (pchan->bone == arm->act_bone)) {
+		if (pchan->bone->flag & BONE_SELECTED) {
 			for (con= pchan->constraints.first; con; con= con->next) {
 				bConstraintTypeInfo *cti= constraint_get_typeinfo(con);
 				ListBase targets = {NULL, NULL};
@@ -527,7 +525,7 @@ static short pose_select_same_group (bContext *C, Object *ob, short extend)
 	CTX_DATA_BEGIN(C, bPoseChannel *, pchan, visible_pose_bones) 
 	{
 		/* keep track of group as group to use later? */
-		if ((pchan->bone->flag & BONE_SELECTED) || (pchan->bone == arm->act_bone)) {
+		if (pchan->bone->flag & BONE_SELECTED) {
 			group_flags[pchan->agrp_index] = 1;
 			tagged= 1;
 		}
@@ -574,7 +572,7 @@ static short pose_select_same_layer (bContext *C, Object *ob, short extend)
 	CTX_DATA_BEGIN(C, bPoseChannel *, pchan, visible_pose_bones) 
 	{
 		/* keep track of layers to use later? */
-		if ((pchan->bone->flag & BONE_SELECTED) || (pchan->bone == arm->act_bone))
+		if (pchan->bone->flag & BONE_SELECTED)
 			layers |= pchan->bone->layer;
 			
 		/* deselect all bones before selecting new ones? */
@@ -681,7 +679,7 @@ void pose_copy_menu(Scene *scene)
 	/* if proxy-protected bones selected, some things (such as locks + displays) shouldn't be changable, 
 	 * but for constraints (just add local constraints)
 	 */
-	if (pose_has_protected_selected(ob, 1, 0)) {
+	if (pose_has_protected_selected(ob, 0)) {
 		i= BLI_countlist(&(pchanact->constraints)); /* if there are 24 or less, allow for the user to select constraints */
 		if (i < 25)
 			nr= pupmenu("Copy Pose Attributes %t|Local Location%x1|Local Rotation%x2|Local Size%x3|%l|Visual Location %x9|Visual Rotation%x10|Visual Size%x11|%l|Constraints (All)%x4|Constraints...%x5");
@@ -834,8 +832,6 @@ void pose_copy_menu(Scene *scene)
 				 */
 				copy_constraints(&tmp_constraints, &const_copy, TRUE);
 				if ((ob->proxy) && (pchan->bone->layer & arm->layer_protected)) {
-					bConstraint *con;
-					
 					/* add proxy-local tags */
 					for (con= tmp_constraints.first; con; con= con->next)
 						con->flag |= CONSTRAINT_PROXY_LOCAL;
@@ -853,7 +849,7 @@ void pose_copy_menu(Scene *scene)
 			ob->pose->flag |= POSE_RECALC;
 	}
 	
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);	// and all its relations
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);	// and all its relations
 	
 	BIF_undo_push("Copy Pose Attributes");
 	
@@ -1017,6 +1013,7 @@ static int pose_paste_exec (bContext *C, wmOperator *op)
 					else {
 						float eul[3];
 						
+						normalize_qt(pchan->quat);
 						quat_to_eul(eul, pchan->quat);
 						eul[1]*= -1;
 						eul[2]*= -1;
@@ -1071,7 +1068,7 @@ static int pose_paste_exec (bContext *C, wmOperator *op)
 	}
 	
 	/* Update event for pose and deformation children */
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		
 	/* notifiers for updates */
 	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
@@ -1473,7 +1470,7 @@ static int pose_flip_names_exec (bContext *C, wmOperator *UNUSED(op))
 	CTX_DATA_END;
 	
 	/* since we renamed stuff... */
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 	/* note, notifier might evolve */
 	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
@@ -1520,7 +1517,7 @@ static int pose_autoside_names_exec (bContext *C, wmOperator *op)
 	CTX_DATA_END;
 	
 	/* since we renamed stuff... */
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 	/* note, notifier might evolve */
 	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
@@ -1583,7 +1580,7 @@ void pose_activate_flipped_bone(Scene *scene)
 				/* in weightpaint we select the associated vertex group too */
 				if(ob->mode & OB_MODE_WEIGHT_PAINT) {
 					ED_vgroup_select_by_name(OBACT, name);
-					DAG_id_flush_update(&OBACT->id, OB_RECALC_DATA);
+					DAG_id_tag_update(&OBACT->id, OB_RECALC_DATA);
 				}
 				
 				// XXX notifiers need to be sent to other editors to update
@@ -1871,7 +1868,7 @@ static int pose_flip_quats_exec (bContext *C, wmOperator *UNUSED(op))
 	CTX_DATA_END;
 	
 	/* notifiers and updates */
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, ob);
 	
 	return OPERATOR_FINISHED;
@@ -1960,7 +1957,7 @@ static void pose_clear_user_transforms(Object *ob)
 		rest_pose(ob->pose);
 	}
 	
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	BIF_undo_push("Clear User Transform");
 }
 

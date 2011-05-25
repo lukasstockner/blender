@@ -17,37 +17,9 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Campbell Barton
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __GPU_POLYGONMATERIAL_H
-#define __GPU_POLYGONMATERIAL_H
-
-#include "BP_PolygonMaterial.h"
-
-class GPU_PolygonMaterial : public BP_PolygonMaterial
-{
-public:
-	GPUPolygonMaterial(const STR_String& texname, bool ba,const STR_String& matname,
-			int tile, int tileXrep, int tileYrep, int mode, int transparant,
-			int lightlayer,,void* tpage) :
-			BP_PolygonMaterial(texname, ba,matname, tile, tileXrep, tileYrep,
-					mode, transparant, lightlayer),
-			m_tface(tpage)
-	{
-	}
-    
-	virtual ~GPU_PolygonMaterial()
-	{
-	}
-};
-
-#endif  // __GPU_POLYGONMATERIAL_H
-
+PyObject *BPyInit_blf(void);

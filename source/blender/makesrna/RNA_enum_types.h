@@ -36,6 +36,7 @@ extern EnumPropertyItem DummyRNA_NULL_items[];
 extern EnumPropertyItem DummyRNA_DEFAULT_items[];
 
 extern EnumPropertyItem object_mode_items[];
+extern EnumPropertyItem metaelem_type_items[];
 
 extern EnumPropertyItem proportional_falloff_items[];
 extern EnumPropertyItem proportional_editing_items[];
@@ -55,6 +56,9 @@ extern EnumPropertyItem beztriple_handle_type_items[];
 extern EnumPropertyItem beztriple_interpolation_mode_items[];
 
 extern EnumPropertyItem keyingset_path_grouping_items[];
+
+extern EnumPropertyItem keyframe_paste_offset_items[];
+extern EnumPropertyItem keyframe_paste_merge_items[];
 
 extern EnumPropertyItem fmodifier_type_items[];
 
@@ -78,8 +82,6 @@ extern EnumPropertyItem object_type_items[];
 extern EnumPropertyItem object_type_curve_items[];
 
 extern EnumPropertyItem controller_type_items[];
-
-extern EnumPropertyItem space_type_items[];
 
 extern EnumPropertyItem keymap_propvalue_items[];
 

@@ -226,8 +226,17 @@ void ED_space_image_uv_aspect(SpaceImage *sima, float *aspx, float *aspy)
 	ED_space_image_aspect(sima, aspx, aspy);
 	ED_space_image_size(sima, &w, &h);
 	
-	*aspx *= (float)w/256.0f;
-	*aspy *= (float)h/256.0f;
+	*aspx *= (float)w;
+	*aspy *= (float)h;
+	
+	if(*aspx < *aspy) {
+		*aspy= *aspy / *aspx;
+		*aspx= 1.0f;
+}
+	else {
+		*aspx= *aspx / *aspy;
+		*aspy= 1.0f;		
+	}
 }
 
 void ED_image_uv_aspect(Image *ima, float *aspx, float *aspy)
@@ -496,6 +505,7 @@ void image_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "IMAGE_OT_scopes", PKEY, KM_PRESS, 0, 0);
 
 	WM_keymap_add_item(keymap, "IMAGE_OT_cycle_render_slot", JKEY, KM_PRESS, 0, 0);
+	RNA_boolean_set(WM_keymap_add_item(keymap, "IMAGE_OT_cycle_render_slot", JKEY, KM_PRESS, KM_ALT, 0)->ptr, "reverse", TRUE);
 	
 	keymap= WM_keymap_find(keyconf, "Image", SPACE_IMAGE, 0);
 	
@@ -633,6 +643,7 @@ static void image_listener(ScrArea *sa, wmNotifier *wmn)
 			switch(wmn->data) {
 				case ND_DATA:
 				case ND_SELECT:
+					image_scopes_tag_refresh(sa);
 					ED_area_tag_refresh(sa);
 					ED_area_tag_redraw(sa);
 					break;

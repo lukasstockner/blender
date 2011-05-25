@@ -115,6 +115,17 @@ class bpy_ops_submodule_op(object):
     def _get_doc(self):
         return op_as_string(self.idname())
 
+    @staticmethod
+    def _scene_update(context):
+        scene = context.scene
+        if scene: # None in backgroud mode
+            scene.update()
+        else:
+            import bpy
+            for scene in bpy.data.scenes:
+                scene.update()
+        
+
     __doc__ = property(_get_doc)
 
     def __init__(self, module, func):
@@ -133,12 +144,14 @@ class bpy_ops_submodule_op(object):
         return self.module + "." + self.func
 
     def __call__(self, *args, **kw):
+        import bpy
+        context = bpy.context
 
         # Get the operator from blender
-        if len(args) > 2:
-            raise ValueError("1 or 2 args execution context is supported")
+        wm = context.window_manager
 
-        C_dict = None
+        # run to account for any rna values the user changes.
+        __class__._scene_update(context)
 
         if args:
 
@@ -161,14 +174,8 @@ class bpy_ops_submodule_op(object):
         else:
             ret = op_call(self.idname_py(), C_dict, kw)
 
-        if 'FINISHED' in ret:
-            import bpy
-            scene = bpy.context.scene
-            if scene: # None in backgroud mode
-                scene.update()
-            else:
-                for scene in bpy.data.scenes:
-                    scene.update()
+        if 'FINISHED' in ret and context.window_manager == wm:
+            __class__._scene_update(context)
 
         return ret
 

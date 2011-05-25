@@ -1317,12 +1317,16 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 			else {
 				/* first key */
 				state.time = ctime;
-				if(psys_get_particle_state(&sim, a, &state, 0) == 0)
+				if(psys_get_particle_state(&sim, a, &state, 0) == 0) {
 					continue;
-
-				quat_to_mat4( pamat,state.rot);
-				VECCOPY(pamat[3], state.co);
+				}
+				else {
+					float tquat[4];
+					normalize_qt_qt(tquat, state.rot);
+					quat_to_mat4(pamat, tquat);
+					copy_v3_v3(pamat[3], state.co);
 				pamat[3][3]= 1.0f;
+			}
 			}
 
 			if(part->ren_as==PART_DRAW_GR && psys->part->draw & PART_DRAW_WHOLE_GR) {
@@ -1419,7 +1423,7 @@ static Object *find_family_object(Object **obar, char *family, char ch)
 
 static void font_duplilist(ListBase *lb, Scene *scene, Object *par, int level, int animated)
 {
-	Object *ob, *obar[256];
+	Object *ob, *obar[256]= {0};
 	Curve *cu;
 	struct chartrans *ct, *chartransdata;
 	float vec[3], obmat[4][4], pmat[4][4], fsize, xof, yof;
@@ -1434,8 +1438,6 @@ static void font_duplilist(ListBase *lb, Scene *scene, Object *par, int level, i
 	
 	chartransdata= BKE_text_to_curve(scene, par, FO_DUPLI);
 	if(chartransdata==0) return;
-	
-	memset(obar, 0, 256*sizeof(void *));
 	
 	cu= par->data;
 	slen= strlen(cu->str);

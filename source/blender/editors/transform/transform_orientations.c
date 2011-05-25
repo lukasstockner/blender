@@ -337,30 +337,26 @@ void BIF_removeTransformOrientation(bContext *C, TransformOrientation *target) {
 
 void BIF_removeTransformOrientationIndex(bContext *C, int index) {
 	ListBase *transform_spaces = &CTX_data_scene(C)->transform_spaces;
-	TransformOrientation *ts = transform_spaces->first;
-	int i;
+	TransformOrientation *ts= BLI_findlink(transform_spaces, index);
 	
-	for (i = 0, ts = transform_spaces->first; ts; ts = ts->next, i++) {
-		if (i == index) {
+	if (ts) {
 			View3D *v3d = CTX_wm_view3d(C);
 			if(v3d) {
 				int selected_index = (v3d->twmode - V3D_MANIP_CUSTOM);
 				
 				// Transform_fix_me NEED TO DO THIS FOR ALL VIEW3D
-				if (selected_index == i) {
+			if (selected_index == index) {
 					v3d->twmode = V3D_MANIP_GLOBAL;	/* fallback to global	*/
 				}
-				else if (selected_index > i) {
+			else if (selected_index > index) {
 					v3d->twmode--;
 				}
 				
 			}
 
 			BLI_freelinkN(transform_spaces, ts);
-			break;
 		}
 	}
-}
 
 void BIF_selectTransformOrientation(bContext *C, TransformOrientation *target) {
 	ListBase *transform_spaces = &CTX_data_scene(C)->transform_spaces;
@@ -425,7 +421,7 @@ EnumPropertyItem *BIF_enumTransformOrientation(bContext *C)
 	return item;
 }
 
-char * BIF_menustringTransformOrientation(const bContext *C, char *title) {
+const char * BIF_menustringTransformOrientation(const bContext *C, const char *title) {
 	char menu[] = "%t|Global%x0|Local%x1|Gimbal%x4|Normal%x2|View%x3";
 	ListBase *transform_spaces = &CTX_data_scene(C)->transform_spaces;
 	TransformOrientation *ts;
@@ -830,14 +826,14 @@ int getTransformOrientation(const bContext *C, float normal[3], float plane[3], 
 				{
 					if (ebone->flag & BONE_SELECTED)
 					{
-						float mat[3][3];
+						float tmat[3][3];
 						float vec[3];
 						sub_v3_v3v3(vec, ebone->tail, ebone->head);
 						normalize_v3(vec);
 						add_v3_v3(normal, vec);
 						
-						vec_roll_to_mat3(vec, ebone->roll, mat);
-						add_v3_v3(plane, mat[2]);
+						vec_roll_to_mat3(vec, ebone->roll, tmat);
+						add_v3_v3(plane, tmat[2]);
 					}
 				}
 			}

@@ -26,6 +26,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#include <math.h>
 #include <string.h>
 
 #include "BLI_blenlib.h"
@@ -134,7 +135,7 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 	ARegion*		  artmp;
 	
 	/* Initialize UI block. */
-	sprintf(name, "win %p", ar);
+	sprintf(name, "win %p", (void *)ar);
 	block = uiBeginBlock(C, ar, name, UI_EMBOSS);
 	uiBlockSetHandleFunc(block, do_file_buttons, NULL);
 
@@ -341,23 +342,20 @@ static void file_draw_icon(uiBlock *block, char *path, int sx, int sy, int icon,
 
 static void file_draw_string(int sx, int sy, const char* string, float width, int height, int flag)
 {
-	uiStyle *style= U.uistyles.first;
-	int soffs;
-	char fname[FILE_MAXFILE];
-	float sw;
 	float x,y;
+	rcti rect;
+	char fname[FILE_MAXFILE];
 
 
 	BLI_strncpy(fname,string, FILE_MAXFILE);
-	sw = shorten_string(fname, width, flag );
 
-	soffs = (width - sw) / 2;
-	x = (float)(sx);
-	y = (float)(sy-height);
-
-	uiStyleFontSet(&style->widget);
-	BLF_position(style->widget.uifont_id, x, y, 0);
-	BLF_draw(style->widget.uifont_id, fname);
+	/* no text clipping needed, uiStyleFontDraw does it but is a bit too strict (for buttons it works) */
+	rect.xmin = sx;
+	rect.xmax = sx + ceil(width+4.0f);
+	rect.ymin = sy - height;
+	rect.ymax = sy;
+	
+	uiStyleFontDraw(&fs, &rect, fname);
 }
 
 void file_calc_previews(const bContext *C, ARegion *ar)

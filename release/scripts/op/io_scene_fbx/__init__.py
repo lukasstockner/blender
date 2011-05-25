@@ -20,9 +20,9 @@
 
 # To support reload properly, try to access a package var, if it's there, reload everything
 if "bpy" in locals():
-    # only reload if we alredy loaded, highly annoying
-    import sys
-    reload(sys.modules.get("io_scene_fbx.export_fbx", sys))
+    from imp import reload
+    if "export_fbx" in locals():
+        reload(export_fbx)
 
 
 import bpy
@@ -36,6 +36,7 @@ class ExportFBX(bpy.types.Operator, ExportHelper):
     bl_label = "Export FBX"
 
     filename_ext = ".fbx"
+    filter_glob = StringProperty(default="*.fbx", options={'HIDDEN'})
 
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
@@ -85,26 +86,11 @@ class ExportFBX(bpy.types.Operator, ExportHelper):
         if self.TX_ZROT90:
             GLOBAL_MATRIX = mtx4_z90n * GLOBAL_MATRIX
 
+        keywords = self.as_keywords(ignore=("TX_XROT90", "TX_YROT90", "TX_ZROT90", "TX_SCALE", "check_existing", "filter_glob"))
+        keywords["GLOBAL_MATRIX"] = GLOBAL_MATRIX
+
         import io_scene_fbx.export_fbx
-        return io_scene_fbx.export_fbx.save(self, context, self.filepath,
-            GLOBAL_MATRIX=GLOBAL_MATRIX,
-            EXP_OBS_SELECTED=self.EXP_OBS_SELECTED,
-            EXP_MESH=self.EXP_MESH,
-            EXP_MESH_APPLY_MOD=self.EXP_MESH_APPLY_MOD,
-            EXP_ARMATURE=self.EXP_ARMATURE,
-            EXP_LAMP=self.EXP_LAMP,
-            EXP_CAMERA=self.EXP_CAMERA,
-            EXP_EMPTY=self.EXP_EMPTY,
-            EXP_IMAGE_COPY=self.EXP_IMAGE_COPY,
-            ANIM_ENABLE=self.ANIM_ENABLE,
-            ANIM_OPTIMIZE=self.ANIM_OPTIMIZE,
-            ANIM_OPTIMIZE_PRECISSION=self.ANIM_OPTIMIZE_PRECISSION,
-            ANIM_ACTION_ALL=self.ANIM_ACTION_ALL,
-            BATCH_ENABLE=self.BATCH_ENABLE,
-            BATCH_GROUP=self.BATCH_GROUP,
-            BATCH_FILE_PREFIX=self.BATCH_FILE_PREFIX,
-            BATCH_OWN_DIR=self.BATCH_OWN_DIR,
-            )
+        return io_scene_fbx.export_fbx.save(self, context, **keywords)
 
 
 def menu_func(self, context):

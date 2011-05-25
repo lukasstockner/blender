@@ -310,7 +310,7 @@ static int endwrite(WriteData *wd)
 
 /* ********** WRITE FILE ****************** */
 
-static void writestruct(WriteData *wd, int filecode, char *structname, int nr, void *adr)
+static void writestruct(WriteData *wd, int filecode, const char *structname, int nr, void *adr)
 {
 	BHead bh;
 	short *sp;
@@ -362,7 +362,6 @@ static void writedata(WriteData *wd, int filecode, int len, void *adr)	/* do not
 /*These functions are used by blender's .blend system for file saving/loading.*/
 void IDP_WriteProperty_OnlyData(IDProperty *prop, void *wd);
 void IDP_WriteProperty(IDProperty *prop, void *wd);
-static void write_animdata(WriteData *wd, AnimData *adt); // XXX code needs reshuffling, but not before NLA SoC is merged back into 2.5
 
 static void IDP_WriteArray(IDProperty *prop, void *wd)
 {
@@ -432,6 +431,200 @@ void IDP_WriteProperty(IDProperty *prop, void *wd)
 {
 	writestruct(wd, DATA, "IDProperty", 1, prop);
 	IDP_WriteProperty_OnlyData(prop, wd);
+}
+
+static void write_fmodifiers(WriteData *wd, ListBase *fmodifiers)
+{
+	FModifier *fcm;
+	
+	/* Modifiers */
+	for (fcm= fmodifiers->first; fcm; fcm= fcm->next) {
+		FModifierTypeInfo *fmi= fmodifier_get_typeinfo(fcm);
+		
+		/* Write the specific data */
+		if (fmi && fcm->data) {
+			/* firstly, just write the plain fmi->data struct */
+			writestruct(wd, DATA, fmi->structName, 1, fcm->data);
+			
+			/* do any modifier specific stuff */
+			switch (fcm->type) {
+				case FMODIFIER_TYPE_GENERATOR:
+				{
+					FMod_Generator *data= (FMod_Generator *)fcm->data;
+					
+					/* write coefficients array */
+					if (data->coefficients)
+						writedata(wd, DATA, sizeof(float)*(data->arraysize), data->coefficients);
+				}
+					break;
+				case FMODIFIER_TYPE_ENVELOPE:
+				{
+					FMod_Envelope *data= (FMod_Envelope *)fcm->data;
+					
+					/* write envelope data */
+					if (data->data)
+						writedata(wd, DATA, sizeof(FCM_EnvelopeData)*(data->totvert), data->data);
+				}
+					break;
+				case FMODIFIER_TYPE_PYTHON:
+				{
+					FMod_Python *data = (FMod_Python *)fcm->data;
+					
+					/* Write ID Properties -- and copy this comment EXACTLY for easy finding
+					 of library blocks that implement this.*/
+					IDP_WriteProperty(data->prop, wd);
+				}
+					break;
+			}
+		}
+		
+		/* Write the modifier */
+		writestruct(wd, DATA, "FModifier", 1, fcm);
+	}
+}
+
+static void write_fcurves(WriteData *wd, ListBase *fcurves)
+{
+	FCurve *fcu;
+	
+	for (fcu=fcurves->first; fcu; fcu=fcu->next) {
+		/* F-Curve */
+		writestruct(wd, DATA, "FCurve", 1, fcu);
+		
+		/* curve data */
+		if (fcu->bezt)  	
+			writestruct(wd, DATA, "BezTriple", fcu->totvert, fcu->bezt);
+		if (fcu->fpt)
+			writestruct(wd, DATA, "FPoint", fcu->totvert, fcu->fpt);
+			
+		if (fcu->rna_path)
+			writedata(wd, DATA, strlen(fcu->rna_path)+1, fcu->rna_path);
+		
+		/* driver data */
+		if (fcu->driver) {
+			ChannelDriver *driver= fcu->driver;
+			DriverVar *dvar;
+			
+			writestruct(wd, DATA, "ChannelDriver", 1, driver);
+			
+			/* variables */
+			for (dvar= driver->variables.first; dvar; dvar= dvar->next) {
+				writestruct(wd, DATA, "DriverVar", 1, dvar);
+				
+				DRIVER_TARGETS_USED_LOOPER(dvar)
+				{
+					if (dtar->rna_path)
+						writedata(wd, DATA, strlen(dtar->rna_path)+1, dtar->rna_path);
+				}
+				DRIVER_TARGETS_LOOPER_END
+			}
+		}
+		
+		/* write F-Modifiers */
+		write_fmodifiers(wd, &fcu->modifiers);
+	}
+}
+
+static void write_actions(WriteData *wd, ListBase *idbase)
+{
+	bAction	*act;
+	bActionGroup *grp;
+	TimeMarker *marker;
+	
+	for(act=idbase->first; act; act= act->id.next) {
+		if (act->id.us>0 || wd->current) {
+			writestruct(wd, ID_AC, "bAction", 1, act);
+			if (act->id.properties) IDP_WriteProperty(act->id.properties, wd);
+			
+			write_fcurves(wd, &act->curves);
+			
+			for (grp=act->groups.first; grp; grp=grp->next) {
+				writestruct(wd, DATA, "bActionGroup", 1, grp);
+			}
+			
+			for (marker=act->markers.first; marker; marker=marker->next) {
+				writestruct(wd, DATA, "TimeMarker", 1, marker);
+			}
+		}
+	}
+	
+	/* flush helps the compression for undo-save */
+	mywrite(wd, MYWRITE_FLUSH, 0);
+}
+
+static void write_keyingsets(WriteData *wd, ListBase *list)
+{
+	KeyingSet *ks;
+	KS_Path *ksp;
+	
+	for (ks= list->first; ks; ks= ks->next) {
+		/* KeyingSet */
+		writestruct(wd, DATA, "KeyingSet", 1, ks);
+		
+		/* Paths */
+		for (ksp= ks->paths.first; ksp; ksp= ksp->next) {
+			/* Path */
+			writestruct(wd, DATA, "KS_Path", 1, ksp);
+			
+			if (ksp->rna_path)
+				writedata(wd, DATA, strlen(ksp->rna_path)+1, ksp->rna_path);
+		}
+	}
+}
+
+static void write_nlastrips(WriteData *wd, ListBase *strips)
+{
+	NlaStrip *strip;
+	
+	for (strip= strips->first; strip; strip= strip->next) {
+		/* write the strip first */
+		writestruct(wd, DATA, "NlaStrip", 1, strip);
+		
+		/* write the strip's F-Curves and modifiers */
+		write_fcurves(wd, &strip->fcurves);
+		write_fmodifiers(wd, &strip->modifiers);
+		
+		/* write the strip's children */
+		write_nlastrips(wd, &strip->strips);
+	}
+}
+
+static void write_nladata(WriteData *wd, ListBase *nlabase)
+{
+	NlaTrack *nlt;
+	
+	/* write all the tracks */
+	for (nlt= nlabase->first; nlt; nlt= nlt->next) {
+		/* write the track first */
+		writestruct(wd, DATA, "NlaTrack", 1, nlt);
+		
+		/* write the track's strips */
+		write_nlastrips(wd, &nlt->strips);
+	}
+}
+
+static void write_animdata(WriteData *wd, AnimData *adt)
+{
+	AnimOverride *aor;
+	
+	/* firstly, just write the AnimData block */
+	writestruct(wd, DATA, "AnimData", 1, adt);
+	
+	/* write drivers */
+	write_fcurves(wd, &adt->drivers);
+	
+	/* write overrides */
+	// FIXME: are these needed?
+	for (aor= adt->overrides.first; aor; aor= aor->next) {
+		/* overrides consist of base data + rna_path */
+		writestruct(wd, DATA, "AnimOverride", 1, aor);
+		writedata(wd, DATA, strlen(aor->rna_path)+1, aor->rna_path);
+	}
+	
+	// TODO write the remaps (if they are needed)
+	
+	/* write NLA data */
+	write_nladata(wd, &adt->nla_tracks);
 }
 
 static void write_curvemapping(WriteData *wd, CurveMapping *cumap)
@@ -844,200 +1037,6 @@ static void write_actuators(WriteData *wd, ListBase *lb)
 
 		act= act->next;
 	}
-}
-
-static void write_fmodifiers(WriteData *wd, ListBase *fmodifiers)
-{
-	FModifier *fcm;
-	
-	/* Modifiers */
-	for (fcm= fmodifiers->first; fcm; fcm= fcm->next) {
-		FModifierTypeInfo *fmi= fmodifier_get_typeinfo(fcm);
-		
-		/* Write the specific data */
-		if (fmi && fcm->data) {
-			/* firstly, just write the plain fmi->data struct */
-			writestruct(wd, DATA, fmi->structName, 1, fcm->data);
-			
-			/* do any modifier specific stuff */
-			switch (fcm->type) {
-				case FMODIFIER_TYPE_GENERATOR:
-				{
-					FMod_Generator *data= (FMod_Generator *)fcm->data;
-					
-					/* write coefficients array */
-					if (data->coefficients)
-						writedata(wd, DATA, sizeof(float)*(data->arraysize), data->coefficients);
-				}
-					break;
-				case FMODIFIER_TYPE_ENVELOPE:
-				{
-					FMod_Envelope *data= (FMod_Envelope *)fcm->data;
-					
-					/* write envelope data */
-					if (data->data)
-						writedata(wd, DATA, sizeof(FCM_EnvelopeData)*(data->totvert), data->data);
-				}
-					break;
-				case FMODIFIER_TYPE_PYTHON:
-				{
-					FMod_Python *data = (FMod_Python *)fcm->data;
-					
-					/* Write ID Properties -- and copy this comment EXACTLY for easy finding
-					 of library blocks that implement this.*/
-					IDP_WriteProperty(data->prop, wd);
-				}
-					break;
-			}
-		}
-		
-		/* Write the modifier */
-		writestruct(wd, DATA, "FModifier", 1, fcm);
-	}
-}
-
-static void write_fcurves(WriteData *wd, ListBase *fcurves)
-{
-	FCurve *fcu;
-	
-	for (fcu=fcurves->first; fcu; fcu=fcu->next) {
-		/* F-Curve */
-		writestruct(wd, DATA, "FCurve", 1, fcu);
-		
-		/* curve data */
-		if (fcu->bezt)  	
-			writestruct(wd, DATA, "BezTriple", fcu->totvert, fcu->bezt);
-		if (fcu->fpt)
-			writestruct(wd, DATA, "FPoint", fcu->totvert, fcu->fpt);
-			
-		if (fcu->rna_path)
-			writedata(wd, DATA, strlen(fcu->rna_path)+1, fcu->rna_path);
-		
-		/* driver data */
-		if (fcu->driver) {
-			ChannelDriver *driver= fcu->driver;
-			DriverVar *dvar;
-			
-			writestruct(wd, DATA, "ChannelDriver", 1, driver);
-			
-			/* variables */
-			for (dvar= driver->variables.first; dvar; dvar= dvar->next) {
-				writestruct(wd, DATA, "DriverVar", 1, dvar);
-				
-				DRIVER_TARGETS_USED_LOOPER(dvar)
-				{
-					if (dtar->rna_path)
-						writedata(wd, DATA, strlen(dtar->rna_path)+1, dtar->rna_path);
-				}
-				DRIVER_TARGETS_LOOPER_END
-			}
-		}
-		
-		/* write F-Modifiers */
-		write_fmodifiers(wd, &fcu->modifiers);
-	}
-}
-
-static void write_actions(WriteData *wd, ListBase *idbase)
-{
-	bAction	*act;
-	bActionGroup *grp;
-	TimeMarker *marker;
-	
-	for(act=idbase->first; act; act= act->id.next) {
-		if (act->id.us>0 || wd->current) {
-			writestruct(wd, ID_AC, "bAction", 1, act);
-			if (act->id.properties) IDP_WriteProperty(act->id.properties, wd);
-			
-			write_fcurves(wd, &act->curves);
-			
-			for (grp=act->groups.first; grp; grp=grp->next) {
-				writestruct(wd, DATA, "bActionGroup", 1, grp);
-			}
-			
-			for (marker=act->markers.first; marker; marker=marker->next) {
-				writestruct(wd, DATA, "TimeMarker", 1, marker);
-			}
-		}
-	}
-	
-	/* flush helps the compression for undo-save */
-	mywrite(wd, MYWRITE_FLUSH, 0);
-}
-
-static void write_keyingsets(WriteData *wd, ListBase *list)
-{
-	KeyingSet *ks;
-	KS_Path *ksp;
-	
-	for (ks= list->first; ks; ks= ks->next) {
-		/* KeyingSet */
-		writestruct(wd, DATA, "KeyingSet", 1, ks);
-		
-		/* Paths */
-		for (ksp= ks->paths.first; ksp; ksp= ksp->next) {
-			/* Path */
-			writestruct(wd, DATA, "KS_Path", 1, ksp);
-			
-			if (ksp->rna_path)
-				writedata(wd, DATA, strlen(ksp->rna_path)+1, ksp->rna_path);
-		}
-	}
-}
-
-static void write_nlastrips(WriteData *wd, ListBase *strips)
-{
-	NlaStrip *strip;
-	
-	for (strip= strips->first; strip; strip= strip->next) {
-		/* write the strip first */
-		writestruct(wd, DATA, "NlaStrip", 1, strip);
-		
-		/* write the strip's F-Curves and modifiers */
-		write_fcurves(wd, &strip->fcurves);
-		write_fmodifiers(wd, &strip->modifiers);
-		
-		/* write the strip's children */
-		write_nlastrips(wd, &strip->strips);
-	}
-}
-
-static void write_nladata(WriteData *wd, ListBase *nlabase)
-{
-	NlaTrack *nlt;
-	
-	/* write all the tracks */
-	for (nlt= nlabase->first; nlt; nlt= nlt->next) {
-		/* write the track first */
-		writestruct(wd, DATA, "NlaTrack", 1, nlt);
-		
-		/* write the track's strips */
-		write_nlastrips(wd, &nlt->strips);
-	}
-}
-
-static void write_animdata(WriteData *wd, AnimData *adt)
-{
-	AnimOverride *aor;
-	
-	/* firstly, just write the AnimData block */
-	writestruct(wd, DATA, "AnimData", 1, adt);
-	
-	/* write drivers */
-	write_fcurves(wd, &adt->drivers);
-	
-	/* write overrides */
-	// FIXME: are these needed?
-	for (aor= adt->overrides.first; aor; aor= aor->next) {
-		/* overrides consist of base data + rna_path */
-		writestruct(wd, DATA, "AnimOverride", 1, aor);
-		writedata(wd, DATA, strlen(aor->rna_path)+1, aor->rna_path);
-	}
-	
-	// TODO write the remaps (if they are needed)
-	
-	/* write NLA data */
-	write_nladata(wd, &adt->nla_tracks);
 }
 
 static void write_motionpath(WriteData *wd, bMotionPath *mpath)
@@ -1475,7 +1474,7 @@ static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data,
 
 	for (i=0; i<data->totlayer; i++) {
 		CustomDataLayer *layer= &data->layers[i];
-		char *structname;
+		const char *structname;
 		int structnum, datasize;
 
 		if (layer->type == CD_MDEFORMVERT) {
@@ -1558,6 +1557,9 @@ static void write_lattices(WriteData *wd, ListBase *idbase)
 			writestruct(wd, ID_LT, "Lattice", 1, lt);
 			if (lt->id.properties) IDP_WriteProperty(lt->id.properties, wd);
 
+			/* write animdata */
+			if (lt->adt) write_animdata(wd, lt->adt);
+			
 			/* direct data */
 			writestruct(wd, DATA, "BPoint", lt->pntsu*lt->pntsv*lt->pntsw, lt->def);
 			
@@ -2471,14 +2473,14 @@ int BLO_write_file(Main *mainvar, char *dir, int write_flags, ReportList *report
 		if(strcmp(dir1, dir2)==0)
 			write_flags &= ~G_FILE_RELATIVE_REMAP;
 		else
-			makeFilesAbsolute(G.sce, NULL);
+			makeFilesAbsolute(mainvar, G.main->name, NULL);
 	}
 
 	BLI_make_file_string(G.sce, userfilename, BLI_get_folder_create(BLENDER_USER_CONFIG, NULL), BLENDER_STARTUP_FILE);
 	write_user_block= BLI_streq(dir, userfilename);
 
 	if(write_flags & G_FILE_RELATIVE_REMAP)
-		makeFilesRelative(dir, NULL); /* note, making relative to something OTHER then G.sce */
+		makeFilesRelative(mainvar, dir, NULL); /* note, making relative to something OTHER then G.main->name */
 
 	/* actual file writing */
 	err= write_file_handle(mainvar, file, NULL,NULL, write_user_block, write_flags, thumb);

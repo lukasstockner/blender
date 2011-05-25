@@ -128,7 +128,7 @@ static void rna_Texture_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Tex *tex= ptr->id.data;
 
-	DAG_id_flush_update(&tex->id, 0);
+	DAG_id_tag_update(&tex->id, 0);
 	WM_main_add_notifier(NC_TEXTURE, tex);
 }
 
@@ -153,7 +153,7 @@ static void rna_Texture_nodes_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Tex *tex= ptr->id.data;
 
-	DAG_id_flush_update(&tex->id, 0);
+	DAG_id_tag_update(&tex->id, 0);
 	WM_main_add_notifier(NC_TEXTURE|ND_NODES, tex);
 }
 
@@ -168,7 +168,7 @@ void rna_TextureSlot_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	ID *id= ptr->id.data;
 
-	DAG_id_flush_update(id, 0);
+	DAG_id_tag_update(id, 0);
 
 	switch(GS(id->name)) {
 		case ID_MA: 
@@ -474,7 +474,7 @@ static void rna_def_mtex(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR);
 	RNA_def_property_float_sdna(prop, NULL, "r");
 	RNA_def_property_array(prop, 3);
-	RNA_def_property_ui_text(prop, "Color", "The default color for textures that don't return RGB");
+	RNA_def_property_ui_text(prop, "Color", "The default color for textures that don't return RGB or when RGB to intensity is enabled");
 	RNA_def_property_update(prop, 0, "rna_TextureSlot_update");
 
 	prop= RNA_def_property(srna, "blend_type", PROP_ENUM, PROP_NONE);

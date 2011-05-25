@@ -81,7 +81,7 @@ typedef enum ReportType {
 enum ReportListFlags {
 	RPT_PRINT = 1,
 	RPT_STORE = 2,
-	RPT_FREE = 4,
+	RPT_FREE = 4
 };
 #
 #
@@ -90,8 +90,8 @@ typedef struct Report {
 	short type; /* ReportType */
 	short flag;
 	int len; /* strlen(message), saves some time calculating the word wrap  */
-	char *typestr;
-	char *message;
+	const char *typestr;
+	const char *message;
 } Report;
 
 /* saved in the wm, dont remove */
@@ -146,8 +146,8 @@ typedef struct wmWindowManager {
 } wmWindowManager;
 
 /* wmWindowManager.initialized */
-#define WM_INIT_WINDOW		1<<0
-#define WM_INIT_KEYMAP		1<<1
+#define WM_INIT_WINDOW		(1<<0)
+#define WM_INIT_KEYMAP		(1<<1)
 
 /* the savable part, rest of data is local in ghostwinlay */
 typedef struct wmWindow {
@@ -228,7 +228,7 @@ typedef struct wmKeyMapItem {
 
 	/* runtime */
 	short maptype;					/* keymap editor */
-	short id;						/* unique identifier */
+	short id;						/* unique identifier. Positive for kmi that override builtins, negative otherwise */
 	short pad;
 	struct PointerRNA *ptr;			/* rna pointer to access properties */
 } wmKeyMapItem;
@@ -313,7 +313,7 @@ typedef struct wmOperator {
 typedef enum wmRadialControlMode {
 	WM_RADIALCONTROL_SIZE,
 	WM_RADIALCONTROL_STRENGTH,
-	WM_RADIALCONTROL_ANGLE,
+	WM_RADIALCONTROL_ANGLE
 } wmRadialControlMode;
 
 #endif /* DNA_WINDOWMANAGER_TYPES_H */

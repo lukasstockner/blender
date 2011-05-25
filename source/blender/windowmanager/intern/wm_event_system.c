@@ -248,8 +248,6 @@ void wm_event_do_notifiers(bContext *C)
 	
 	/* the notifiers are sent without context, to keep it clean */
 	while( (note=wm_notifier_next(wm)) ) {
-		wmWindow *win;
-		
 		for(win= wm->windows.first; win; win= win->next) {
 			
 			/* filter out notifiers */
@@ -379,9 +377,10 @@ int WM_operator_poll(bContext *C, wmOperatorType *ot)
 	return 1;
 }
 
-static void wm_operator_print(wmOperator *op)
+static void wm_operator_print(bContext *C, wmOperator *op)
 {
-	char *buf = WM_operator_pystring(NULL, op->type, op->ptr, 1);
+	/* context is needed for enum function */
+	char *buf = WM_operator_pystring(C, op->type, op->ptr, 1);
 	printf("%s\n", buf);
 	MEM_freeN(buf);
 }
@@ -398,7 +397,7 @@ static void wm_operator_reports(bContext *C, wmOperator *op, int retval, int pop
 	
 	if(retval & OPERATOR_FINISHED) {
 		if(G.f & G_DEBUG)
-			wm_operator_print(op); /* todo - this print may double up, might want to check more flags then the FINISHED */
+			wm_operator_print(C, op); /* todo - this print may double up, might want to check more flags then the FINISHED */
 		
 		if (op->type->flag & OPTYPE_REGISTER) {
 			/* Report the python string representation of the operator */
@@ -418,7 +417,7 @@ static void wm_operator_reports(bContext *C, wmOperator *op, int retval, int pop
 		WM_event_remove_timer(wm, NULL, reports->reporttimer);
 		
 		/* Records time since last report was added */
-		reports->reporttimer= WM_event_add_timer(wm, CTX_wm_window(C), TIMER, 0.02);
+		reports->reporttimer= WM_event_add_timer(wm, CTX_wm_window(C), TIMER, 0.05);
 		
 		rti = MEM_callocN(sizeof(ReportTimerInfo), "ReportTimerInfo");
 		reports->reporttimer->customdata = rti;
@@ -430,7 +429,7 @@ static void wm_operator_reports(bContext *C, wmOperator *op, int retval, int pop
  */
 static int wm_operator_register_check(wmWindowManager *wm, wmOperatorType *ot)
 {
-	return (wm->op_undo_depth == 0) && (ot->flag & OPTYPE_REGISTER);
+	return wm && (wm->op_undo_depth == 0) && (ot->flag & OPTYPE_REGISTER);
 }
 
 static void wm_operator_finished(bContext *C, wmOperator *op, int repeat)
@@ -506,6 +505,14 @@ int WM_operator_call(bContext *C, wmOperator *op)
 int WM_operator_repeat(bContext *C, wmOperator *op)
 {
 	return wm_operator_exec(C, op, 1);
+}
+/* TRUE if WM_operator_repeat can run
+ * simple check for now but may become more involved.
+ * To be sure the operator can run call WM_operator_poll(C, op->type) also, since this call
+ * checks if WM_operator_repeat() can run at all, not that it WILL run at any time. */
+int WM_operator_repeat_check(const bContext *UNUSED(C), wmOperator *op)
+{
+	return op->type->exec != NULL;
 }
 
 static wmOperator *wm_operator_create(wmWindowManager *wm, wmOperatorType *ot, PointerRNA *properties, ReportList *reports)
@@ -664,12 +671,22 @@ int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event, PointerR
 				}
 
 				if(wrap) {
+					rcti *winrect= NULL;
 					ARegion *ar= CTX_wm_region(C);
-					if(ar) {
-						bounds[0]= ar->winrct.xmin;
-						bounds[1]= ar->winrct.ymax;
-						bounds[2]= ar->winrct.xmax;
-						bounds[3]= ar->winrct.ymin;
+					ScrArea *sa= CTX_wm_area(C);
+
+					if(ar && ar->regiontype == RGN_TYPE_WINDOW && BLI_in_rcti(&ar->winrct, event->x, event->y)) {
+						winrect= &ar->winrct;
+					}
+					else if(sa) {
+						winrect= &sa->totrct;
+				}
+
+					if(winrect) {
+						bounds[0]= winrect->xmin;
+						bounds[1]= winrect->ymax;
+						bounds[2]= winrect->xmax;
+						bounds[3]= winrect->ymin;
 					}
 				}
 
@@ -739,6 +756,7 @@ static int wm_operator_call_internal(bContext *C, wmOperatorType *ot, int contex
 					case WM_OP_EXEC_REGION_CHANNELS:
 					case WM_OP_INVOKE_REGION_CHANNELS:
 						type = RGN_TYPE_CHANNELS;
+						break;
 					
 					case WM_OP_EXEC_REGION_PREVIEW:
 					case WM_OP_INVOKE_REGION_PREVIEW:
@@ -819,7 +837,6 @@ int WM_operator_name_call(bContext *C, const char *opstring, int context, Pointe
 */
 int WM_operator_call_py(bContext *C, wmOperatorType *ot, int context, PointerRNA *properties, ReportList *reports)
 {
-	wmWindowManager *wm=	CTX_wm_manager(C);
 	int retval= OPERATOR_CANCELLED;
 
 #if 0
@@ -843,7 +860,7 @@ int WM_operator_call_py(bContext *C, wmOperatorType *ot, int context, PointerRNA
 	
 	/* keep the reports around if needed later */
 	if (	(retval & OPERATOR_RUNNING_MODAL) ||
-			((retval & OPERATOR_FINISHED) && wm_operator_register_check(wm, ot))
+			((retval & OPERATOR_FINISHED) && wm_operator_register_check(CTX_wm_manager(C), ot))
 	) {
 		reports->flag |= RPT_FREE; /* let blender manage freeing */
 	}
@@ -1278,7 +1295,7 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 						
 						if (retval & OPERATOR_FINISHED)
 							if(G.f & G_DEBUG)
-								wm_operator_print(handler->op);
+								wm_operator_print(C, handler->op);
 						
 						if(wm->op_undo_depth == 0)
 							if(handler->op->type->flag & OPTYPE_UNDO)
@@ -1696,6 +1713,10 @@ void wm_event_do_handlers(bContext *C)
 									
 									action |= wm_handlers_do(C, event, &ar->handlers);
 									
+									/* fileread case (python), [#29489] */
+									if(CTX_wm_window(C)==NULL)
+										return;
+
 									doit |= (BLI_in_rcti(&ar->winrct, event->x, event->y));
 									
 									if(action & WM_HANDLER_BREAK)
@@ -1774,11 +1795,11 @@ void wm_event_do_handlers(bContext *C)
 		
 		/* only add mousemove when queue was read entirely */
 		if(win->addmousemove && win->eventstate) {
-			wmEvent event= *(win->eventstate);
-			event.type= MOUSEMOVE;
-			event.prevx= event.x;
-			event.prevy= event.y;
-			wm_event_add(win, &event);
+			wmEvent tevent= *(win->eventstate);
+			tevent.type= MOUSEMOVE;
+			tevent.prevx= tevent.x;
+			tevent.prevy= tevent.y;
+			wm_event_add(win, &tevent);
 			win->addmousemove= 0;
 		}
 		

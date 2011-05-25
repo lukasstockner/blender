@@ -42,7 +42,7 @@ extern "C" {
 	#include "mathutils.h" // Blender.Mathutils module copied here so the blenderlayer can use.
 	#include "geometry.h" // Blender.Geometry module copied here so the blenderlayer can use.
 	#include "bgl.h"
-	#include "blf_api.h"
+	#include "blf_py_api.h"
 
 	#include "marshal.h" /* python header for loading/saving dicts */
 }

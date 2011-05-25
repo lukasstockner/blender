@@ -144,6 +144,8 @@ void WM_init(bContext *C, int argc, char **argv)
 #ifndef DISABLE_PYTHON
 	BPY_set_context(C); /* necessary evil */
 	BPY_start_python(argc, argv);
+
+	BPY_reset_driver();
 	BPY_load_user_modules(C);
 #endif
 
@@ -318,10 +320,10 @@ extern wchar_t *copybuf;
 extern wchar_t *copybufinfo;
 
 	// XXX copy/paste buffer stuff...
-extern void free_anim_copybuf(); 
-extern void free_anim_drivers_copybuf(); 
-extern void free_fmodifiers_copybuf(); 
-extern void free_posebuf(); 
+extern void free_anim_copybuf(void); 
+extern void free_anim_drivers_copybuf(void); 
+extern void free_fmodifiers_copybuf(void); 
+extern void free_posebuf(void); 
 
 /* called in creator.c even... tsk, split this! */
 void WM_exit(bContext *C)

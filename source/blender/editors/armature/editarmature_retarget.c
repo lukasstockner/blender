@@ -185,12 +185,12 @@ float rollBoneByQuatAligned(EditBone *bone, float old_up_axis[3], float qrot[4],
 	if (angle_normalized_v3v3(x_axis, new_up_axis) < angle_normalized_v3v3(z_axis, new_up_axis))
 	{
 		rotation_between_vecs_to_quat(qroll, new_up_axis, x_axis); /* set roll rotation quat */
-		return ED_rollBoneToVector(bone, x_axis);
+		return ED_rollBoneToVector(bone, x_axis, FALSE);
 	}
 	else
 	{
 		rotation_between_vecs_to_quat(qroll, new_up_axis, z_axis); /* set roll rotation quat */
-		return ED_rollBoneToVector(bone, z_axis);
+		return ED_rollBoneToVector(bone, z_axis, FALSE);
 	}
 }
 
@@ -240,7 +240,7 @@ float rollBoneByQuatJoint(RigEdge *edge, RigEdge *previous, float qrot[4], float
 		/* real qroll between normal and up_axis */
 		rotation_between_vecs_to_quat(qroll, new_up_axis, normal);
 
-		return ED_rollBoneToVector(edge->bone, normal);
+		return ED_rollBoneToVector(edge->bone, normal, FALSE);
 	}
 }
 
@@ -251,9 +251,7 @@ float rollBoneByQuat(EditBone *bone, float old_up_axis[3], float qrot[4])
 	VECCOPY(new_up_axis, old_up_axis);
 	mul_qt_v3(qrot, new_up_axis);
 	
-	normalize_v3(new_up_axis);
-	
-	return ED_rollBoneToVector(bone, new_up_axis);
+	return ED_rollBoneToVector(bone, new_up_axis, FALSE);
 }
 
 /************************************ DESTRUCTORS ******************************************************/
@@ -306,7 +304,7 @@ void RIG_freeRigGraph(BGraph *rg)
 
 /************************************* ALLOCATORS ******************************************************/
 
-static RigGraph *newRigGraph()
+static RigGraph *newRigGraph(void)
 {
 	RigGraph *rg;
 	int totthread;
@@ -1415,9 +1413,9 @@ static void RIG_findHead(RigGraph *rg)
 
 /*******************************************************************************************************/
 
-void RIG_printNode(RigNode *node, char name[])
+void RIG_printNode(RigNode *node, const char name[])
 {
-	printf("%s %p %i <%0.3f, %0.3f, %0.3f>\n", name, node, node->degree, node->p[0], node->p[1], node->p[2]);
+	printf("%s %p %i <%0.3f, %0.3f, %0.3f>\n", name, (void *)node, node->degree, node->p[0], node->p[1], node->p[2]);
 	
 	if (node->symmetry_flag & SYM_TOPOLOGICAL)
 	{
@@ -1537,8 +1535,7 @@ RigGraph *RIG_graphFromArmature(const bContext *C, Object *ob, bArmature *arm)
 	
 	if (obedit == ob)
 	{
-		bArmature *arm = obedit->data;
-		rg->editbones = arm->edbo;
+		rg->editbones = ((bArmature *)obedit->data)->edbo;
 	}
 	else
 	{
@@ -2751,7 +2748,7 @@ static void retargetGraphs(bContext *C, RigGraph *rigg)
 	ED_armature_from_edit(rigg->ob);
 }
 
-char *RIG_nameBone(RigGraph *rg, int arc_index, int bone_index)
+const char *RIG_nameBone(RigGraph *rg, int arc_index, int bone_index)
 {
 	RigArc *arc = BLI_findlink(&rg->arcs, arc_index);
 	RigEdge *iedge;
@@ -2796,7 +2793,7 @@ int RIG_nbJoints(RigGraph *rg)
 	return total;
 }
 
-void BIF_freeRetarget()
+void BIF_freeRetarget(void)
 {
 	if (GLOBAL_RIGG)
 	{

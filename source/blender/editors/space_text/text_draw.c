@@ -56,14 +56,11 @@
 #include "text_intern.h"
 
 /******************** text font drawing ******************/
-static int mono= -1; // XXX needs proper storage and change all the BLF_* here
+// XXX, fixme
+#define mono blf_mono_font
 
 static void text_font_begin(SpaceText *st)
 {
-	if(mono == -1)
-		mono= BLF_load_mem("monospace", (unsigned char*)datatoc_bmonofont_ttf, datatoc_bmonofont_ttf_size);
-
-	BLF_aspect(mono, 1.0);
 	BLF_size(mono, st->lheight, 72);
 }
 
@@ -1421,7 +1418,7 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 			UI_ThemeColor(TH_SHADE2);
 			glRecti(x+16, y-3, x+16+w, y+st->lheight-3);
 		}
-		b=1; /* b=1 colour block, text is default. b=0 no block, colour text */
+		b=1; /* b=1 color block, text is default. b=0 no block, color text */
 		switch (item->type) {
 			case 'k': UI_ThemeColor(TH_SYNTAX_B); b=0; break;
 			case 'm': UI_ThemeColor(TH_TEXT); break;
@@ -1445,10 +1442,11 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 {
 	Text *text= st->text;
 	int vcurl, vcurc, vsell, vselc, hidden=0;
-	int offl, offc, x, y, w, i;
+	int x, y, w, i;
 	
 	/* Draw the selection */
 	if(text->curl!=text->sell || text->curc!=text->selc) {
+		int offl, offc;
 		/* Convert all to view space character coordinates */
 		wrap_offset(st, ar, text->curl, text->curc, &offl, &offc);
 		vcurl = txt_get_span(text->lines.first, text->curl) - st->top + offl;
@@ -1492,6 +1490,7 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 		}
 	}
 	else {
+		int offl, offc;
 		wrap_offset(st, ar, text->sell, text->selc, &offl, &offc);
 		vsell = txt_get_span(text->lines.first, text->sell) - st->top + offl;
 		vselc = text_get_char_pos(st, text->sell->line, text->selc) - st->left + offc;

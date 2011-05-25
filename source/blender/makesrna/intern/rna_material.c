@@ -40,7 +40,7 @@ static EnumPropertyItem prop_texture_coordinates_items[] = {
 {TEXCO_OBJECT, "OBJECT", 0, "Object", "Uses linked object's coordinates for texture coordinates"},
 {TEXCO_UV, "UV", 0, "UV", "Uses UV coordinates for texture coordinates"},
 {TEXCO_ORCO, "ORCO", 0, "Generated", "Uses the original undeformed coordinates of the object"},
-{TEXCO_STRAND, "STRAND", 0, "Strand", "Uses normalized strand texture coordinate (1D)"},
+{TEXCO_STRAND, "STRAND", 0, "Strand / Particle", "Uses normalized strand texture coordinate (1D) or particle age (X) and trail position (Y)"},
 {TEXCO_STICKY, "STICKY", 0, "Sticky", "Uses mesh's sticky coordinates for the texture coordinates"},
 {TEXCO_WINDOW, "WINDOW", 0, "Window", "Uses screen coordinates as texture coordinates"},
 {TEXCO_NORM, "NORMAL", 0, "Normal", "Uses normal vector as texture coordinates"},
@@ -67,7 +67,7 @@ static void rna_Material_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Material *ma= ptr->id.data;
 
-	DAG_id_flush_update(&ma->id, 0);
+	DAG_id_tag_update(&ma->id, 0);
 	if(scene->gm.matmode == GAME_MAT_GLSL)
 		WM_main_add_notifier(NC_MATERIAL|ND_SHADING_DRAW, ma);
 	else
@@ -78,7 +78,7 @@ static void rna_Material_draw_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Material *ma= ptr->id.data;
 
-	DAG_id_flush_update(&ma->id, 0);
+	DAG_id_tag_update(&ma->id, 0);
 	WM_main_add_notifier(NC_MATERIAL|ND_SHADING_DRAW, ma);
 }
 
@@ -1121,7 +1121,7 @@ static void rna_def_material_volume(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "reflection_color", PROP_FLOAT, PROP_COLOR);
 	RNA_def_property_float_sdna(prop, NULL, "reflection_col");
 	RNA_def_property_array(prop, 3);
-	RNA_def_property_ui_text(prop, "Reflection Color", "Colour of light scattered out of the volume (does not affect transmission)");
+	RNA_def_property_ui_text(prop, "Reflection Color", "Color of light scattered out of the volume (does not affect transmission)");
 	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 	
 	prop= RNA_def_property(srna, "reflection", PROP_FLOAT, PROP_NONE);
@@ -1425,8 +1425,10 @@ static void rna_def_material_strand(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Tangent Shading", "Uses direction of strands as normal for tangent-shading");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 	
+	/* this flag is only set when rendering, not to be edited manually */
 	prop= RNA_def_property(srna, "use_surface_diffuse", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", MA_STR_SURFDIFF);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Surface Diffuse", "Make diffuse shading more similar to shading the surface");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 

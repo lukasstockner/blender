@@ -291,7 +291,8 @@ static short copy_action_keys (bAnimContext *ac)
 }
 
 
-static short paste_action_keys (bAnimContext *ac)
+static short paste_action_keys (bAnimContext *ac,
+	const eKeyPasteOffset offset_mode, const eKeyMergeMode merge_mode)
 {	
 	ListBase anim_data = {NULL, NULL};
 	int filter, ok=0;
@@ -301,7 +302,7 @@ static short paste_action_keys (bAnimContext *ac)
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 	
 	/* paste keyframes */
-	ok= paste_animedit_keys(ac, &anim_data);
+	ok= paste_animedit_keys(ac, &anim_data, offset_mode, merge_mode);
 	
 	/* clean up */
 	BLI_freelistN(&anim_data);
@@ -341,11 +342,15 @@ void ACTION_OT_copy (wmOperatorType *ot)
 	ot->description= "Copy selected keyframes to the copy/paste buffer";
 	
 	/* api callbacks */
+//	ot->invoke= WM_operator_props_popup; // better wait for graph redo panel
 	ot->exec= actkeys_copy_exec;
 	ot->poll= ED_operator_action_active;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	RNA_def_enum(ot->srna, "offset", keyframe_paste_offset_items, KEYFRAME_PASTE_OFFSET_CFRA_START, "Offset", "Paste time offset of keys");
+	RNA_def_enum(ot->srna, "merge", keyframe_paste_merge_items, KEYFRAME_PASTE_MERGE_MIX, "Type", "Method of merking pasted keys and existing");
 }
 
 
@@ -354,16 +359,23 @@ static int actkeys_paste_exec(bContext *C, wmOperator *op)
 {
 	bAnimContext ac;
 	
+	const eKeyPasteOffset offset_mode= RNA_enum_get(op->ptr, "offset");
+	const eKeyMergeMode merge_mode= RNA_enum_get(op->ptr, "merge");
+	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
+	
+	if(ac.reports==NULL) {
+		ac.reports= op->reports;
+	}
 	
 	/* paste keyframes */
 	if (ac.datatype == ANIMCONT_GPENCIL) {
 		// FIXME...
 	}
 	else {
-		if (paste_action_keys(&ac)) {
+		if (paste_action_keys(&ac, offset_mode, merge_mode)) {
 			BKE_report(op->reports, RPT_ERROR, "No keyframes to paste");
 			return OPERATOR_CANCELLED;
 		}
@@ -410,6 +422,7 @@ static void insert_action_keys(bAnimContext *ac, short mode)
 	bAnimListElem *ale;
 	int filter;
 	
+	ReportList *reports = ac->reports;
 	Scene *scene= ac->scene;
 	float cfra= (float)CFRA;
 	short flag = 0;
@@ -437,7 +450,7 @@ static void insert_action_keys(bAnimContext *ac, short mode)
 			
 		/* if there's an id */
 		if (ale->id)
-			insert_keyframe(ale->id, NULL, ((fcu->grp)?(fcu->grp->name):(NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
+			insert_keyframe(reports, ale->id, NULL, ((fcu->grp)?(fcu->grp->name):(NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
 		else
 			insert_vert_fcurve(fcu, cfra, fcu->curval, 0);
 	}

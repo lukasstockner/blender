@@ -53,6 +53,7 @@ class SCENE_PT_unit(SceneButtonsPanel, bpy.types.Panel):
 
         col = layout.column()
         col.row().prop(unit, "system", expand=True)
+        col.row().prop(unit, "system_rotation", expand=True)
 
         split = layout.split()
         split.active = (unit.system != 'NONE')
@@ -62,8 +63,6 @@ class SCENE_PT_unit(SceneButtonsPanel, bpy.types.Panel):
 
             col = split.column()
         col.prop(unit, "use_separate")
-
-        layout.column().prop(unit, "rotation_units")
 
 
 class SCENE_PT_keying_sets(SceneButtonsPanel, bpy.types.Panel):
@@ -306,7 +305,7 @@ class ANIM_OT_keying_set_export(bpy.types.Operator):
 
     def invoke(self, context, event):
         wm = context.window_manager
-        wm.add_fileselect(self)
+        wm.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
 

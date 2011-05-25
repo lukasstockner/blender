@@ -38,6 +38,8 @@
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
+#include "BKE_object.h"
+#include "BKE_material.h"
 #include "BKE_texture.h"
 #include "BKE_report.h"
 
@@ -54,7 +56,7 @@
 
 #include "BLF_api.h"
 
-void ui_template_fix_linking()
+void ui_template_fix_linking(void)
 {
 }
 
@@ -95,7 +97,7 @@ static void id_search_call_cb(bContext *C, void *arg_template, void *item)
 }
 
 /* ID Search browse menu, do the search */
-static void id_search_cb(const bContext *C, void *arg_template, char *str, uiSearchItems *items)
+static void id_search_cb(const bContext *C, void *arg_template, const char *str, uiSearchItems *items)
 {
 	TemplateID *template= (TemplateID*)arg_template;
 	ListBase *lb= template->idlb;
@@ -287,7 +289,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
 	}
 }
 
-static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, StructRNA *type, int flag, char *newop, char *openop, char *unlinkop)
+static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, StructRNA *type, int flag, const char *newop, const char *openop, const char *unlinkop)
 {
 	uiBut *but;
 	uiBlock *block;
@@ -414,6 +416,8 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 	if(id && (flag & UI_ID_DELETE)) {
 		if(unlinkop) {
 			but= uiDefIconButO(block, BUT, unlinkop, WM_OP_INVOKE_REGION_WIN, ICON_X, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL);
+			/* so we can access the template from operators, font unlinking needs this */
+			uiButSetNFunc(but, NULL, MEM_dupallocN(template), 0);
 		}
 		else {
 			but= uiDefIconBut(block, BUT, 0, ICON_X, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, "Unlink datablock, Shift + Click to force removal on save");
@@ -430,7 +434,7 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 	uiBlockEndAlign(block);
 }
 
-static void ui_template_id(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propname, char *newop, char *openop, char *unlinkop, int flag, int prv_rows, int prv_cols)
+static void ui_template_id(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop, const char *openop, const char *unlinkop, int flag, int prv_rows, int prv_cols)
 {
 	TemplateID *template;
 	PropertyRNA *prop;
@@ -468,17 +472,17 @@ static void ui_template_id(uiLayout *layout, bContext *C, PointerRNA *ptr, char 
 	MEM_freeN(template);
 }
 
-void uiTemplateID(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propname, char *newop, char *openop, char *unlinkop)
+void uiTemplateID(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop, const char *openop, const char *unlinkop)
 {
 	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop, UI_ID_BROWSE|UI_ID_RENAME|UI_ID_DELETE, 0, 0);
 }
 
-void uiTemplateIDBrowse(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propname, char *newop, char *openop, char *unlinkop)
+void uiTemplateIDBrowse(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop, const char *openop, const char *unlinkop)
 {
 	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop, UI_ID_BROWSE|UI_ID_RENAME, 0, 0);
 }
 
-void uiTemplateIDPreview(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propname, char *newop, char *openop, char *unlinkop, int rows, int cols)
+void uiTemplateIDPreview(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop, const char *openop, const char *unlinkop, int rows, int cols)
 {
 	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop, UI_ID_BROWSE|UI_ID_RENAME|UI_ID_DELETE|UI_ID_PREVIEWS, rows, cols);
 }
@@ -490,7 +494,7 @@ void uiTemplateIDPreview(uiLayout *layout, bContext *C, PointerRNA *ptr, char *p
  * - propname: property identifier for property that ID-pointer gets stored to
  * - proptypename: property identifier for property used to determine the type of ID-pointer that can be used
  */
-void uiTemplateAnyID(uiLayout *layout, PointerRNA *ptr, char *propname, char *proptypename, char *text)
+void uiTemplateAnyID(uiLayout *layout, PointerRNA *ptr, const char *propname, const char *proptypename, const char *text)
 {
 	PropertyRNA *propID, *propType;
 	uiLayout *row;
@@ -535,7 +539,7 @@ void uiTemplateAnyID(uiLayout *layout, PointerRNA *ptr, char *propname, char *pr
  * - propname: property identifier for property that path gets stored to
  * - root_ptr: struct that path gets built from
  */
-void uiTemplatePathBuilder(uiLayout *layout, PointerRNA *ptr, char *propname, PointerRNA *UNUSED(root_ptr), char *text)
+void uiTemplatePathBuilder(uiLayout *layout, PointerRNA *ptr, const char *propname, PointerRNA *UNUSED(root_ptr), const char *text)
 {
 	PropertyRNA *propPath;
 	uiLayout *row;
@@ -594,7 +598,7 @@ static void modifiers_setOnCage(bContext *C, void *ob_v, void *md_v)
 	}
 
 	WM_event_add_notifier(C, NC_OBJECT|ND_MODIFIER, ob);
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 }
 
 static void modifiers_convertToReal(bContext *C, void *ob_v, void *md_v)
@@ -613,7 +617,7 @@ static void modifiers_convertToReal(bContext *C, void *ob_v, void *md_v)
 	ob->partype = PAROBJECT;
 
 	WM_event_add_notifier(C, NC_OBJECT|ND_MODIFIER, ob);
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 	ED_undo_push(C, "Modifier convert to real");
 }
@@ -816,17 +820,14 @@ uiLayout *uiTemplateModifier(uiLayout *layout, bContext *C, PointerRNA *ptr)
 #define REMAKEIPO					8
 #define B_DIFF						9
 
-void do_constraint_panels(bContext *C, void *UNUSED(arg), int event)
+void do_constraint_panels(bContext *C, void *ob_pt, int event)
 {
 	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
-	Object *ob= CTX_data_active_object(C);
+	Object *ob= (Object *)ob_pt;
 	
 	switch(event) {
 	case B_CONSTRAINT_TEST:
-		// XXX allqueue(REDRAWVIEW3D, 0);
-		// XXX allqueue(REDRAWBUTSOBJECT, 0);
-		// XXX allqueue(REDRAWBUTSEDIT, 0);
 		break;  // no handling
 	case B_CONSTRAINT_CHANGETARGET:
 		if (ob->pose) ob->pose->flag |= POSE_RECALC;	// checks & sorts pose channels
@@ -842,14 +843,10 @@ void do_constraint_panels(bContext *C, void *UNUSED(arg), int event)
 	// object_test_constraints(ob);
 	// if(ob->pose) update_pose_constraint_flags(ob->pose);
 	
-	if(ob->type==OB_ARMATURE) DAG_id_flush_update(&ob->id, OB_RECALC_DATA|OB_RECALC_OB);
-	else DAG_id_flush_update(&ob->id, OB_RECALC_OB);
+	if(ob->type==OB_ARMATURE) DAG_id_tag_update(&ob->id, OB_RECALC_DATA|OB_RECALC_OB);
+	else DAG_id_tag_update(&ob->id, OB_RECALC_OB);
 
 	WM_event_add_notifier(C, NC_OBJECT|ND_CONSTRAINT, ob);
-	
-	// XXX allqueue(REDRAWVIEW3D, 0);
-	// XXX allqueue(REDRAWBUTSOBJECT, 0);
-	// XXX allqueue(REDRAWBUTSEDIT, 0);
 }
 
 static void constraint_active_func(bContext *UNUSED(C), void *ob_v, void *con_v)
@@ -889,7 +886,7 @@ static uiLayout *draw_constraint(uiLayout *layout, Object *ob, bConstraint *con)
 
 	/* unless button has own callback, it adds this callback to button */
 	block= uiLayoutGetBlock(layout);
-	uiBlockSetHandleFunc(block, do_constraint_panels, NULL);
+	uiBlockSetHandleFunc(block, do_constraint_panels, ob);
 	uiBlockSetFunc(block, constraint_active_func, ob, con);
 
 	RNA_pointer_create(&ob->id, &RNA_Constraint, con, &ptr);
@@ -911,17 +908,19 @@ static uiLayout *draw_constraint(uiLayout *layout, Object *ob, bConstraint *con)
 	uiItemR(row, &ptr, "show_expanded", UI_ITEM_R_ICON_ONLY, "", 0);
 	uiBlockSetEmboss(block, UI_EMBOSS);
 	
-	/* XXX if (con->flag & CONSTRAINT_DISABLE)
-		uiBlockSetCol(block, TH_REDALERT);*/
-	
 	/* name */
 	uiDefBut(block, LABEL, B_CONSTRAINT_TEST, typestr, xco+10, yco, 100, 18, NULL, 0.0, 0.0, 0.0, 0.0, ""); 
 
+	if (con->flag & CONSTRAINT_DISABLE)
+		uiLayoutSetRedAlert(row, 1);
+	
 	if(proxy_protected == 0) {
 		uiItemR(row, &ptr, "name", 0, "", 0);
 	}
 	else
 		uiItemL(row, con->name, 0);
+	
+	uiLayoutSetRedAlert(row, 0);
 	
 	/* proxy-protected constraints cannot be edited, so hide up/down + close buttons */
 	if (proxy_protected) {
@@ -1049,7 +1048,7 @@ static void do_preview_buttons(bContext *C, void *arg, int event)
 	}
 }
 
-void uiTemplatePreview(uiLayout *layout, ID *id, ID *parent, MTex *slot)
+void uiTemplatePreview(uiLayout *layout, ID *id, int show_buttons, ID *parent, MTex *slot)
 {
 	uiLayout *row, *col;
 	uiBlock *block;
@@ -1097,7 +1096,7 @@ void uiTemplatePreview(uiLayout *layout, ID *id, ID *parent, MTex *slot)
 	uiBlockSetHandleFunc(block, do_preview_buttons, NULL);
 	
 	/* add buttons */
-	if(pid) {
+	if (pid && show_buttons) {
 		if(GS(pid->name) == ID_MA || (pparent && GS(pparent->name) == ID_MA)) {
 			if(GS(pid->name) == ID_MA) ma= (Material*)pid;
 			else ma= (Material*)pparent;
@@ -1288,7 +1287,7 @@ static void colorband_buttons_layout(uiLayout *layout, uiBlock *block, ColorBand
 		colorband_buttons_large(layout, block, coba, 0, 0, cb);
 }
 
-void uiTemplateColorRamp(uiLayout *layout, PointerRNA *ptr, char *propname, int expand)
+void uiTemplateColorRamp(uiLayout *layout, PointerRNA *ptr, const char *propname, int expand)
 {
 	PropertyRNA *prop= RNA_struct_find_property(ptr, propname);
 	PointerRNA cptr;
@@ -1318,7 +1317,7 @@ void uiTemplateColorRamp(uiLayout *layout, PointerRNA *ptr, char *propname, int 
 
 /********************* Histogram Template ************************/
 
-void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, char *propname)
+void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, const char *propname)
 {
 	PropertyRNA *prop= RNA_struct_find_property(ptr, propname);
 	PointerRNA cptr;
@@ -1357,7 +1356,7 @@ void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, char *propname)
 
 /********************* Waveform Template ************************/
 
-void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, char *propname)
+void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const char *propname)
 {
 	PropertyRNA *prop= RNA_struct_find_property(ptr, propname);
 	PointerRNA cptr;
@@ -1393,7 +1392,7 @@ void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, char *propname)
 
 /********************* Vectorscope Template ************************/
 
-void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, char *propname)
+void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, const char *propname)
 {
 	PropertyRNA *prop= RNA_struct_find_property(ptr, propname);
 	PointerRNA cptr;
@@ -1757,7 +1756,7 @@ static void curvemap_buttons_layout(uiLayout *layout, PointerRNA *ptr, char labe
 	uiBlockSetNFunc(block, NULL, NULL, NULL);
 }
 
-void uiTemplateCurveMapping(uiLayout *layout, PointerRNA *ptr, char *propname, int type, int levels, int brush)
+void uiTemplateCurveMapping(uiLayout *layout, PointerRNA *ptr, const char *propname, int type, int levels, int brush)
 {
 	RNAUpdateCb *cb;
 	PropertyRNA *prop= RNA_struct_find_property(ptr, propname);
@@ -1783,7 +1782,7 @@ void uiTemplateCurveMapping(uiLayout *layout, PointerRNA *ptr, char *propname, i
 
 #define WHEEL_SIZE	100
 
-void uiTemplateColorWheel(uiLayout *layout, PointerRNA *ptr, char *propname, int value_slider, int lock, int lock_luminosity, int cubic)
+void uiTemplateColorWheel(uiLayout *layout, PointerRNA *ptr, const char *propname, int value_slider, int lock, int lock_luminosity, int cubic)
 {
 	PropertyRNA *prop= RNA_struct_find_property(ptr, propname);
 	uiBlock *block= uiLayoutGetBlock(layout);
@@ -1848,8 +1847,8 @@ static void handle_layer_buttons(bContext *C, void *arg1, void *arg2)
 //	- for now, grouping of layers is determined by dividing up the length of 
 //	  the array of layer bitflags
 
-void uiTemplateLayers(uiLayout *layout, PointerRNA *ptr, char *propname,
-			  PointerRNA *used_ptr, char *used_propname, int active_layer)
+void uiTemplateLayers(uiLayout *layout, PointerRNA *ptr, const char *propname,
+			  PointerRNA *used_ptr, const char *used_propname, int active_layer)
 {
 	uiLayout *uRow, *uCol;
 	PropertyRNA *prop, *used_prop= NULL;
@@ -1951,13 +1950,13 @@ static int list_item_icon_get(bContext *C, PointerRNA *itemptr, int rnaicon)
 	return rnaicon;
 }
 
-static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *itemptr, int i, int rnaicon, PointerRNA *activeptr, char *activepropname)
+static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *itemptr, int i, int rnaicon, PointerRNA *activeptr, const char *activepropname)
 {
-	Object *ob;
 	uiBlock *block= uiLayoutGetBlock(layout);
 	uiBut *but;
 	uiLayout *split, *overlap, *sub, *row;
-	char *name, *namebuf;
+	char *namebuf;
+	const char *name;
 	int icon;
 
 	overlap= uiLayoutOverlap(layout);
@@ -1995,8 +1994,30 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 		uiBlockSetEmboss(block, UI_EMBOSS);
 		uiDefButR(block, OPTION, 0, "", 0, 0, UI_UNIT_X, UI_UNIT_Y, itemptr, "use", 0, 0, 0, 0, 0,  NULL);
 	}
+	else if(RNA_struct_is_a(itemptr->type, &RNA_MaterialSlot)) {
+		/* provision to draw active node name */
+		Material *ma, *manode;
+		Object *ob= (Object*)ptr->id.data;
+		int index= (Material**)itemptr->data - ob->mat;
+		
+		/* default item with material base name */
+		uiItemL(sub, name, icon);
+		
+		ma= give_current_material(ob, index+1);
+		if(ma) {
+			manode= give_node_material(ma);
+			if(manode) {
+				char str[MAX_ID_NAME + 12];
+				sprintf(str, "Node %s", manode->id.name+2);
+				uiItemL(sub, str, ui_id_icon_get(C, &manode->id, 1));
+			}
+			else if(ma->use_nodes) {
+				uiItemL(sub, "Node <none>", 0);
+			}
+		}
+	}
 	else if(itemptr->type == &RNA_ShapeKey) {
-		ob= (Object*)activeptr->data;
+		Object *ob= (Object*)activeptr->data;
 
 		split= uiLayoutSplit(sub, 0.75f, 0);
 
@@ -2020,7 +2041,7 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 		MEM_freeN(namebuf);
 }
 
-void uiTemplateList(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propname, PointerRNA *activeptr, char *activepropname, int rows, int maxrows, int listtype)
+void uiTemplateList(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, PointerRNA *activeptr, const char *activepropname, int rows, int maxrows, int listtype)
 {
 	//Scene *scene= CTX_data_scene(C);
 	PropertyRNA *prop= NULL, *activeprop;
@@ -2207,7 +2228,7 @@ static void operator_call_cb(bContext *C, void *UNUSED(arg1), void *arg2)
 		WM_operator_name_call(C, ot->idname, WM_OP_INVOKE_DEFAULT, NULL);
 }
 
-static void operator_search_cb(const bContext *C, void *UNUSED(arg), char *str, uiSearchItems *items)
+static void operator_search_cb(const bContext *C, void *UNUSED(arg), const char *str, uiSearchItems *items)
 {
 	wmOperatorType *ot = WM_operatortype_first();
 	
@@ -2296,9 +2317,9 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
 	}
 
 	if(WM_jobs_test(wm, owner)) {
-		uiLayout *abs;
+		uiLayout *ui_abs;
 		
-		abs = uiLayoutAbsolute(layout, 0);
+		ui_abs= uiLayoutAbsolute(layout, 0);
 		
 		uiDefIconBut(block, BUT, handle_event, ICON_PANEL_CLOSE, 
 				0, UI_UNIT_Y*0.1, UI_UNIT_X*0.8, UI_UNIT_Y*0.8, NULL, 0.0f, 0.0f, 0, 0, "Stop this job");
@@ -2321,11 +2342,12 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
 	Report *report= BKE_reports_last_displayable(reports);
 	ReportTimerInfo *rti;
 	
-	uiLayout *abs;
+	uiLayout *ui_abs;
 	uiBlock *block;
 	uiBut *but;
 	uiStyle *style= U.uistyles.first;
 	int width;
+	int icon=0;
 	
 	/* if the report display has timed out, don't show */
 	if (!reports->reporttimer) return;
@@ -2334,8 +2356,8 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
 	
 	if (!rti || rti->widthfac==0.0 || !report) return;
 	
-	abs = uiLayoutAbsolute(layout, 0);
-	block= uiLayoutGetBlock(abs);
+	ui_abs= uiLayoutAbsolute(layout, 0);
+	block= uiLayoutGetBlock(ui_abs);
 
 	width = BLF_width(style->widget.uifont_id, report->message);
 	width = MIN2(rti->widthfac*width, width);
@@ -2344,7 +2366,7 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
 	/* make a box around the report to make it stand out */
 	uiBlockBeginAlign(block);
 	but= uiDefBut(block, ROUNDBOX, 0, "", 0, 0, UI_UNIT_X+10, UI_UNIT_Y, NULL, 0.0f, 0.0f, 0, 0, "");
-	/* set the report's bg colour in but->col - ROUNDBOX feature */
+	/* set the report's bg color in but->col - ROUNDBOX feature */
 	but->col[0]= FTOCHAR(rti->col[0]);
 	but->col[1]= FTOCHAR(rti->col[1]);
 	but->col[2]= FTOCHAR(rti->col[2]);
@@ -2359,13 +2381,24 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
 	
 	/* icon and report message on top */
 	if(report->type & RPT_ERROR_ALL)
-		uiDefIconBut(block, LABEL, 0, ICON_ERROR, 2, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0.0f, 0.0f, 0, 0, "");
+		icon = ICON_ERROR;
 	else if(report->type & RPT_WARNING_ALL)
-		uiDefIconBut(block, LABEL, 0, ICON_ERROR, 2, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0.0f, 0.0f, 0, 0, "");
+		icon = ICON_ERROR;
 	else if(report->type & RPT_INFO_ALL)
-		uiDefIconBut(block, LABEL, 0, ICON_INFO, 2, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0.0f, 0.0f, 0, 0, "");
+		icon = ICON_INFO;
+	
+	/* XXX: temporary operator to dump all reports to a text block, but only if more than 1 report 
+	 * to be shown instead of icon when appropriate...
+	 */
+	uiBlockSetEmboss(block, UI_EMBOSSN);
+
+	if (reports->list.first != reports->list.last)
+		uiDefIconButO(block, BUT, "UI_OT_reports_to_textblock", WM_OP_INVOKE_REGION_WIN, icon, 2, 0, UI_UNIT_X, UI_UNIT_Y, "Click to see rest of reports in textblock: 'Recent Reports'");
+	else
+		uiDefIconBut(block, LABEL, 0, icon, 2, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0.0f, 0.0f, 0, 0, "");
+
+	uiBlockSetEmboss(block, UI_EMBOSS);
 	
 	uiDefBut(block, LABEL, 0, report->message, UI_UNIT_X+10, 0, UI_UNIT_X+width, UI_UNIT_Y, NULL, 0.0f, 0.0f, 0, 0, "");
-
 }
 

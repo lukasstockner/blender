@@ -79,8 +79,8 @@ void VIEW3D_OT_view_center_cursor(struct wmOperatorType *ot);
 void VIEW3D_OT_view_center_camera(struct wmOperatorType *ot);
 void VIEW3D_OT_view_pan(struct wmOperatorType *ot);
 void VIEW3D_OT_view_persportho(struct wmOperatorType *ot);
-void VIEW3D_OT_add_background_image(struct wmOperatorType *ot);
-void VIEW3D_OT_remove_background_image(struct wmOperatorType *ot);
+void VIEW3D_OT_background_image_add(struct wmOperatorType *ot);
+void VIEW3D_OT_background_image_remove(struct wmOperatorType *ot);
 void VIEW3D_OT_view_orbit(struct wmOperatorType *ot);
 void VIEW3D_OT_clip_border(struct wmOperatorType *ot);
 void VIEW3D_OT_cursor3d(struct wmOperatorType *ot);
@@ -91,6 +91,7 @@ void VIEW3D_OT_zoom_border(struct wmOperatorType *ot);
 void VIEW3D_OT_drawtype(struct wmOperatorType *ot);
 
 void view3d_boxview_copy(ScrArea *sa, ARegion *ar);
+int region3d_unlocked_poll(struct bContext *C);
 
 /* drawanim.c */
 void draw_motion_paths_init(View3D *v3d, struct ARegion *ar);
@@ -130,7 +131,6 @@ void add_view3d_after(ListBase *lb, Base *base, int flag);
 
 void circf(float x, float y, float rad);
 void circ(float x, float y, float rad);
-void view3d_update_depths(struct ARegion *ar);
 
 /* view3d_select.c */
 void VIEW3D_OT_select(struct wmOperatorType *ot);

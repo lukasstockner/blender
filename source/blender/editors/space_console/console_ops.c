@@ -45,12 +45,20 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "UI_view2d.h"
 #include "ED_screen.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
 
 #include "console_intern.h"
+
+static void console_textview_update_rect(SpaceConsole *sc, ARegion *ar)
+{
+	View2D *v2d= &ar->v2d;
+
+	UI_view2d_totRect_set(v2d, ar->winx-1, console_textview_height(sc, ar));
+}
 
 static void console_select_offset(SpaceConsole *sc, const int offset)
 {
@@ -370,13 +378,15 @@ void CONSOLE_OT_move(wmOperatorType *ot)
 #define TAB_LENGTH 4
 static int insert_exec(bContext *C, wmOperator *op)
 {
+	SpaceConsole *sc= CTX_wm_space_console(C);
+	ARegion *ar= CTX_wm_region(C);
 	ConsoleLine *ci= console_history_verify(C);
 	char *str= RNA_string_get_alloc(op->ptr, "text", NULL, 0);
 	int len;
 	
 	// XXX, alligned tab key hack
 	if(str[0]=='\t' && str[1]=='\0') {
-		int len= TAB_LENGTH - (ci->cursor % TAB_LENGTH);
+		len= TAB_LENGTH - (ci->cursor % TAB_LENGTH);
 		MEM_freeN(str);
 		str= MEM_mallocN(len + 1, "insert_exec");
 		memset(str, ' ', len);
@@ -391,10 +401,10 @@ static int insert_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	else {
-		SpaceConsole *sc= CTX_wm_space_console(C);
 		console_select_offset(sc, len);
 	}
 		
+	console_textview_update_rect(sc, ar);
 	ED_area_tag_redraw(CTX_wm_area(C));
 	
 	return OPERATOR_FINISHED;
@@ -440,14 +450,13 @@ static EnumPropertyItem delete_type_items[]= {
 
 static int delete_exec(bContext *C, wmOperator *op)
 {
-	
+	SpaceConsole *sc= CTX_wm_space_console(C);
+	ARegion *ar= CTX_wm_region(C);
 	ConsoleLine *ci= console_history_verify(C);
 	
-	
+	const short type= RNA_enum_get(op->ptr, "type");
 	int done = 0;
 
-	int type= RNA_enum_get(op->ptr, "type");
-	
 	if(ci->len==0) {
 		return OPERATOR_CANCELLED;
 	}
@@ -474,10 +483,10 @@ static int delete_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	else {
-		SpaceConsole *sc= CTX_wm_space_console(C);
 		console_select_offset(sc, -1);
 	}
 	
+	console_textview_update_rect(sc, ar);
 	ED_area_tag_redraw(CTX_wm_area(C));
 	
 	return OPERATOR_FINISHED;
@@ -504,6 +513,7 @@ void CONSOLE_OT_delete(wmOperatorType *ot)
 static int clear_exec(bContext *C, wmOperator *op)
 {
 	SpaceConsole *sc= CTX_wm_space_console(C);
+	ARegion *ar= CTX_wm_region(C);
 	
 	short scrollback= RNA_boolean_get(op->ptr, "scrollback");
 	short history= RNA_boolean_get(op->ptr, "history");
@@ -520,6 +530,7 @@ static int clear_exec(bContext *C, wmOperator *op)
 			console_history_free(sc, sc->history.first);
 	}
 	
+	console_textview_update_rect(sc, ar);
 	ED_area_tag_redraw(CTX_wm_area(C));
 	
 	return OPERATOR_FINISHED;
@@ -547,6 +558,8 @@ void CONSOLE_OT_clear(wmOperatorType *ot)
 static int history_cycle_exec(bContext *C, wmOperator *op)
 {
 	SpaceConsole *sc= CTX_wm_space_console(C);
+	ARegion *ar= CTX_wm_region(C);
+
 	ConsoleLine *ci= console_history_verify(C); /* TODO - stupid, just prevernts crashes when no command line */
 	short reverse= RNA_boolean_get(op->ptr, "reverse"); /* assumes down, reverse is up */
 	int prev_len= ci->len;
@@ -582,6 +595,8 @@ static int history_cycle_exec(bContext *C, wmOperator *op)
 	ci= sc->history.last;
 	console_select_offset(sc, ci->len - prev_len);
 
+	/* could be wrapped so update scroll rect */
+	console_textview_update_rect(sc, ar);
 	ED_area_tag_redraw(CTX_wm_area(C));
 
 	return OPERATOR_FINISHED;
@@ -607,6 +622,7 @@ void CONSOLE_OT_history_cycle(wmOperatorType *ot)
 static int history_append_exec(bContext *C, wmOperator *op)
 {
 	SpaceConsole *sc= CTX_wm_space_console(C);
+	ScrArea *sa= CTX_wm_area(C);
 	ConsoleLine *ci= console_history_verify(C);
 	char *str= RNA_string_get_alloc(op->ptr, "text", NULL, 0); /* own this text in the new line, dont free */
 	int cursor= RNA_int_get(op->ptr, "current_character");
@@ -614,7 +630,6 @@ static int history_append_exec(bContext *C, wmOperator *op)
 	int prev_len= ci->len;
 
 	if(rem_dupes) {
-		SpaceConsole *sc= CTX_wm_space_console(C);
 		ConsoleLine *cl;
 
 		while((cl= console_history_find(sc, ci->line, ci)))
@@ -630,7 +645,7 @@ static int history_append_exec(bContext *C, wmOperator *op)
 	console_select_offset(sc, ci->len - prev_len);
 	console_line_cursor_set(ci, cursor);
 	
-	ED_area_tag_redraw(CTX_wm_area(C));
+	ED_area_tag_redraw(sa);
 	
 	return OPERATOR_FINISHED;
 }
@@ -657,6 +672,8 @@ void CONSOLE_OT_history_append(wmOperatorType *ot)
 static int scrollback_append_exec(bContext *C, wmOperator *op)
 {
 	SpaceConsole *sc= CTX_wm_space_console(C);
+	ARegion *ar= CTX_wm_region(C);
+
 	ConsoleLine *ci= console_history_verify(C);
 	
 	char *str= RNA_string_get_alloc(op->ptr, "text", NULL, 0); /* own this text in the new line, dont free */
@@ -667,6 +684,7 @@ static int scrollback_append_exec(bContext *C, wmOperator *op)
 	
 	console_scrollback_limit(sc);
 	
+	console_textview_update_rect(sc, ar);
 	ED_area_tag_redraw(CTX_wm_area(C));
 	
 	return OPERATOR_FINISHED;
@@ -781,6 +799,7 @@ void CONSOLE_OT_copy(wmOperatorType *ot)
 static int paste_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	SpaceConsole *sc= CTX_wm_space_console(C);
+	ARegion *ar= CTX_wm_region(C);
 	ConsoleLine *ci= console_history_verify(C);
 
 	char *buf_str= WM_clipboard_text_get(0);
@@ -809,6 +828,7 @@ static int paste_exec(bContext *C, wmOperator *UNUSED(op))
 
 	MEM_freeN(buf_str);
 
+	console_textview_update_rect(sc, ar);
 	ED_area_tag_redraw(CTX_wm_area(C));
 
 	return OPERATOR_FINISHED;
@@ -837,7 +857,7 @@ typedef struct SetConsoleCursor {
 static void set_cursor_to_pos(SpaceConsole *sc, ARegion *ar, SetConsoleCursor *scu, int mval[2], int UNUSED(sel))
 {
 	int pos;
-	pos= console_char_pick(sc, ar, NULL, mval);
+	pos= console_char_pick(sc, ar, mval);
 
 	if(scu->sel_init == INT_MAX) {
 		scu->sel_init= pos;
@@ -864,9 +884,17 @@ static void console_modal_select_apply(bContext *C, wmOperator *op, wmEvent *eve
 	ARegion *ar= CTX_wm_region(C);
 	SetConsoleCursor *scu= op->customdata;
 	int mval[2] = {event->mval[0], event->mval[1]};
+	int sel_prev[2];
 
+	sel_prev[0]= sc->sel_start;
+	sel_prev[1]= sc->sel_end;
+	
 	set_cursor_to_pos(sc, ar, scu, mval, TRUE);
+
+	/* only redraw if the selection changed */
+	if(sel_prev[0] != sc->sel_start || sel_prev[1] != sc->sel_end) {
 	ED_area_tag_redraw(CTX_wm_area(C));
+}
 }
 
 static void set_cursor_exit(bContext *UNUSED(C), wmOperator *op)

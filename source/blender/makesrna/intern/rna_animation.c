@@ -86,7 +86,7 @@ static int RKS_POLL_rna_internal(KeyingSetInfo *ksi, bContext *C)
 		RNA_parameter_set_lookup(&list, "context", &C);
 		
 		/* execute the function */
-		ksi->ext.call(&ptr, func, &list);
+		ksi->ext.call(C, &ptr, func, &list);
 		
 		/* read the result */
 		RNA_parameter_get_lookup(&list, "ok", &ret);
@@ -113,7 +113,7 @@ static void RKS_ITER_rna_internal(KeyingSetInfo *ksi, bContext *C, KeyingSet *ks
 		RNA_parameter_set_lookup(&list, "ks", &ks);
 		
 		/* execute the function */
-		ksi->ext.call(&ptr, func, &list);
+		ksi->ext.call(C, &ptr, func, &list);
 	RNA_parameter_list_free(&list);
 }
 
@@ -135,7 +135,7 @@ static void RKS_GEN_rna_internal(KeyingSetInfo *ksi, bContext *C, KeyingSet *ks,
 		RNA_parameter_set_lookup(&list, "data", data);
 		
 		/* execute the function */
-		ksi->ext.call(&ptr, func, &list);
+		ksi->ext.call(C, &ptr, func, &list);
 	RNA_parameter_list_free(&list);
 }
 
@@ -163,7 +163,7 @@ static void rna_KeyingSetInfo_unregister(const bContext *C, StructRNA *type)
 	ANIM_keyingset_info_unregister(C, ksi);
 }
 
-static StructRNA *rna_KeyingSetInfo_register(const bContext *C, ReportList *reports, void *data, const char *identifier, StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
+static StructRNA *rna_KeyingSetInfo_register(bContext *C, ReportList *reports, void *data, const char *identifier, StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
 {
 	KeyingSetInfo dummyksi = {0};
 	KeyingSetInfo *ksi;
@@ -179,7 +179,7 @@ static StructRNA *rna_KeyingSetInfo_register(const bContext *C, ReportList *repo
 		return NULL;
 	
 	if (strlen(identifier) >= sizeof(dummyksi.idname)) {
-		BKE_reportf(reports, RPT_ERROR, "registering keying set info class: '%s' is too long, maximum length is %d.", identifier, sizeof(dummyksi.idname));
+		BKE_reportf(reports, RPT_ERROR, "registering keying set info class: '%s' is too long, maximum length is %d.", identifier, (int)sizeof(dummyksi.idname));
 		return NULL;
 	}
 	
@@ -327,7 +327,7 @@ static PointerRNA rna_KeyingSet_typeinfo_get(PointerRNA *ptr)
 
 
 static KS_Path *rna_KeyingSet_paths_add(KeyingSet *keyingset, ReportList *reports, 
-		ID *id, char rna_path[], int index, int group_method, char group_name[])
+		ID *id, const char rna_path[], int index, int group_method, const char group_name[])
 {
 	KS_Path *ksp = NULL;
 	short flag = 0;

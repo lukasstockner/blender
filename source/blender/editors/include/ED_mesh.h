@@ -98,10 +98,6 @@ void		ED_keymap_mesh(struct wmKeyConfig *keyconf);
 
 
 /* editmesh.c */
-
-void		ED_spacetypes_init(void);
-void		ED_keymap_mesh(struct wmKeyConfig *keyconf);
-
 void		make_editMesh(struct Scene *scene, struct Object *ob);
 void		load_editMesh(struct Scene *scene, struct Object *ob);
 void		remake_editMesh(struct Scene *scene, struct Object *ob);
@@ -117,7 +113,7 @@ struct EditFace	*EM_get_face_for_index(int index);
 int			EM_texFaceCheck(struct EditMesh *em);
 int			EM_vertColorCheck(struct EditMesh *em);
 
-void		undo_push_mesh(struct bContext *C, char *name);
+void		undo_push_mesh(struct bContext *C, const char *name);
 
 
 /* editmesh_lib.c */
@@ -195,7 +191,7 @@ int minmax_tface(struct Object *ob, float *min, float *max);
 #define WEIGHT_SUBTRACT 3
 
 struct bDeformGroup		*ED_vgroup_add(struct Object *ob);
-struct bDeformGroup		*ED_vgroup_add_name(struct Object *ob, char *name);
+struct bDeformGroup		*ED_vgroup_add_name(struct Object *ob, const char *name);
 void					ED_vgroup_select_by_name(struct Object *ob, char *name);
 void					ED_vgroup_data_create(struct ID *id);
 int						ED_vgroup_give_array(struct ID *id, struct MDeformVert **dvert_arr, int *dvert_tot);

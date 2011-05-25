@@ -38,6 +38,8 @@
 
 #include "BKE_blender.h"
 #include "BKE_context.h"
+#include "BKE_global.h"
+#include "BKE_screen.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_editVert.h"
@@ -63,7 +65,7 @@
 
 /* ***************** generic undo system ********************* */
 
-void ED_undo_push(bContext *C, char *str)
+void ED_undo_push(bContext *C, const char *str)
 {
 	wmWindowManager *wm= CTX_wm_manager(C);
 	Object *obedit= CTX_data_edit_object(C);
@@ -156,9 +158,10 @@ static int ed_undo_step(bContext *C, int step, const char *undoname)
 		
 		if(do_glob_undo) {
 			if(U.uiflag & USER_GLOBALUNDO) {
-#ifndef DISABLE_PYTHON
+				// note python defines not valid here anymore.
+				//#ifdef WITH_PYTHON
 				// XXX		BPY_scripts_clear_pyobjects();
-#endif
+				//#endif
 				if(undoname)
 					BKE_undo_name(C, undoname);
 				else
@@ -260,3 +263,53 @@ void ED_OT_redo(wmOperatorType *ot)
 }
 
 
+/* ui callbacks should call this rather then calling WM_operator_repeat() themselves */
+int ED_undo_operator_repeat(bContext *C, struct wmOperator *op)
+{
+	int ret= 0;
+
+	if(op) {
+		ARegion *ar= CTX_wm_region(C);
+		ARegion *ar1= BKE_area_find_region_type(CTX_wm_area(C), RGN_TYPE_WINDOW);
+
+		if(ar1)
+			CTX_wm_region_set(C, ar1);
+
+		if(WM_operator_repeat_check(C, op) && WM_operator_poll(C, op->type)) {
+			int retval;
+
+			if (G.f & G_DEBUG)
+				printf("redo_cb: operator redo %s\n", op->type->name);
+			ED_undo_pop_op(C, op);
+			retval= WM_operator_repeat(C, op);
+			if((retval & OPERATOR_FINISHED)==0) {
+				if (G.f & G_DEBUG)
+					printf("redo_cb: operator redo failed: %s, return %d\n", op->type->name, retval);
+				ED_undo_redo(C);
+			}
+			else {
+				ret= 1;
+			}
+		}
+
+		/* set region back */
+		CTX_wm_region_set(C, ar);
+	}
+	else {
+		if (G.f & G_DEBUG) {
+			printf("redo_cb: WM_operator_repeat_check returned false %s\n", op->type->name);
+		}
+	}
+
+	return ret;
+}
+
+void ED_undo_operator_repeat_cb(bContext *C, void *arg_op, void *UNUSED(arg_unused))
+{
+	ED_undo_operator_repeat(C, (wmOperator *)arg_op);
+}
+
+void ED_undo_operator_repeat_cb_evt(bContext *C, void *arg_op, int UNUSED(arg_event))
+{
+	ED_undo_operator_repeat(C, (wmOperator *)arg_op);
+}

@@ -129,7 +129,9 @@ typedef struct EffectorWeights {
 */
 #define BPHYS_DATA_INDEX		0
 #define BPHYS_DATA_LOCATION		1
+#define BPHYS_DATA_SMOKE_LOW	1
 #define BPHYS_DATA_VELOCITY		2
+#define BPHYS_DATA_SMOKE_HIGH	2
 #define BPHYS_DATA_ROTATION		3
 #define BPHYS_DATA_AVELOCITY	4	/* used for particles */
 #define BPHYS_DATA_XCONST		4	/* used for cloth */
@@ -152,7 +154,19 @@ typedef struct PTCacheMem {
 typedef struct PointCache {
 	struct PointCache *next, *prev;
 	int flag;		/* generic flag */
-	int step;		/* frames between cached frames */
+	
+	int step;		/* The number of frames between cached frames.
+					 * This should probably be an upper bound for a per point adaptive step in the future,
+					 * buf for now it's the same for all points. Without adaptivity this can effect the perceived
+					 * simulation quite a bit though. If for example particles are colliding with a horizontal
+					 * plane (with high damping) they quickly come to a stop on the plane, however there are still
+					 * forces acting on the particle (gravity and collisions), so the particle velocity isn't necessarily
+					 * zero for the whole duration of the frame even if the particle seems stationary. If all simulation
+					 * frames aren't cached (step > 1) these velocities are interpolated into movement for the non-cached
+					 * frames. The result will look like the point is oscillating around the collision location. So for
+					 * now cache step should be set to 1 for accurate reproduction of collisions.
+					 */
+
 	int simframe;	/* current frame of simulation (only if SIMULATION_VALID) */
 	int startframe;	/* simulation start frame */
 	int endframe;	/* simulation end frame */

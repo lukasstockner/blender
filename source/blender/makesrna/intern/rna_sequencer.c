@@ -660,6 +660,16 @@ static void rna_def_strip_element(BlenderRNA *brna)
 	RNA_def_property_string_sdna(prop, NULL, "name");
 	RNA_def_property_ui_text(prop, "Filename", "");
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
+
+	prop= RNA_def_property(srna, "orig_width", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "orig_width");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Orig Width", "Original image width");
+
+	prop= RNA_def_property(srna, "orig_height", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "orig_height");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Orig Height", "Original image height");
 }
 
 static void rna_def_strip_crop(BlenderRNA *brna)
@@ -1248,6 +1258,11 @@ static void rna_def_movie(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "MPEG Preseek", "For MPEG movies, preseek this many frames");
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 
+	prop= RNA_def_property(srna, "elements", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "strip->stripdata", "strip->len");
+	RNA_def_property_struct_type(prop, "SequenceElement");
+	RNA_def_property_ui_text(prop, "Elements", "");
+
 	prop= RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
 	RNA_def_property_ui_text(prop, "File", "");
 	RNA_def_property_string_funcs(prop, "rna_Sequence_filepath_get", "rna_Sequence_filepath_length",
@@ -1281,7 +1296,7 @@ static void rna_def_sound(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "attenuation", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_range(prop, -100.0f, +40.0f);
-	RNA_def_property_ui_text(prop, "Attenuation/db", "Attenuation in dezibel");
+	RNA_def_property_ui_text(prop, "Attenuation/dB", "Attenuation in decibel");
 	RNA_def_property_float_funcs(prop, "rna_Sequence_attenuation_get", "rna_Sequence_attenuation_set", NULL); 
 
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");

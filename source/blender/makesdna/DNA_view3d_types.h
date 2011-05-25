@@ -94,9 +94,9 @@ typedef struct RegionView3D {
 	float camdx, camdy;				/* camera view offsets, 1.0 = viewplane moves entire width/height */
 	float pixsize;
 	float ofs[3];
-	short camzoom, viewbut;
+	short camzoom;
 	short twdrawflag;
-	short pad;
+	int pad;
 	
 	short rflag, viewlock;
 	short persp;
@@ -120,7 +120,7 @@ typedef struct RegionView3D {
 	
 	/* last view */
 	float lviewquat[4];
-	short lpersp, lview;
+	short lpersp, lview; /* lpersp can never be set to 'RV3D_CAMOB' */
 	float gridview;
 	
 	float twangle[3];
@@ -203,20 +203,22 @@ typedef struct View3D {
 	struct Image *matcap_ima;
 } View3D;
 
-/* XXX this needs cleaning */
 
 /* View3D->flag (short) */
-#define V3D_MODE			(16+32+64+128+256+512)
 #define V3D_DISPIMAGE		1
 #define V3D_DISPBGPICS		2
 #define V3D_HIDE_HELPLINES	4
 #define V3D_INVALID_BACKBUF	8
+/* deprecated */
+/*
+#define V3D_MODE			(16+32+64+128+256+512)
 #define V3D_EDITMODE		16
 #define V3D_VERTEXPAINT		32
 #define V3D_FACESELECT		64
 #define V3D_POSEMODE		128
 #define V3D_TEXTUREPAINT	256
 #define V3D_WEIGHTPAINT		512
+*/
 #define V3D_ALIGN			1024
 #define V3D_SELECT_OUTLINE	2048
 #define V3D_ZBUF_SELECT		4096

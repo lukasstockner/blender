@@ -31,8 +31,8 @@
 #include "../generic/py_capi_utils.h"
 
 bContext*	__py_context = NULL;
-bContext*	BPy_GetContext(void) { return __py_context; };
-void		BPy_SetContext(bContext *C) { __py_context= C; };
+bContext*	BPy_GetContext(void) { return __py_context; }
+void		BPy_SetContext(bContext *C) { __py_context= C; }
 
 int BPY_class_validate(const char *class_type, PyObject *class, PyObject *base_class, BPY_class_attr_check* class_attrs, PyObject **py_class_attrs)
 {
@@ -201,7 +201,7 @@ int BPy_errors_to_report(ReportList *reports)
 }
 
 /* array utility function */
-int PyC_AsArray(void *array, PyObject *value, int length, PyTypeObject *type, char *error_prefix)
+int PyC_AsArray(void *array, PyObject *value, int length, PyTypeObject *type, const char *error_prefix)
 {
 	PyObject *value_fast;
 	int value_len;
@@ -215,7 +215,7 @@ int PyC_AsArray(void *array, PyObject *value, int length, PyTypeObject *type, ch
 
 	if(value_len != length) {
 		Py_DECREF(value);
-		PyErr_Format(PyExc_TypeError, "%s: invalid sequence length. expected %d, got %d.", error_prefix, length, value_len);
+		PyErr_Format(PyExc_TypeError, "%.200s: invalid sequence length. expected %d, got %d", error_prefix, length, value_len);
 		return -1;
 	}
 
@@ -240,14 +240,14 @@ int PyC_AsArray(void *array, PyObject *value, int length, PyTypeObject *type, ch
 	}
 	else {
 		Py_DECREF(value_fast);
-		PyErr_Format(PyExc_TypeError, "%s: internal error %s is invalid.", error_prefix, type->tp_name);
+		PyErr_Format(PyExc_TypeError, "%s: internal error %s is invalid", error_prefix, type->tp_name);
 		return -1;
 	}
 
 	Py_DECREF(value_fast);
 
 	if(PyErr_Occurred()) {
-		PyErr_Format(PyExc_TypeError, "%s: one or more items could not be used as a %s.", error_prefix, type->tp_name);
+		PyErr_Format(PyExc_TypeError, "%s: one or more items could not be used as a %s", error_prefix, type->tp_name);
 		return -1;
 	}
 

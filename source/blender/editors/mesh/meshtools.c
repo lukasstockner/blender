@@ -33,7 +33,6 @@
 
 #include <stddef.h>
 #include <stdlib.h>
-#include <string.h>
 #include <math.h>
 #include <float.h>
 
@@ -507,7 +506,15 @@ int join_mesh_exec(bContext *C, wmOperator *UNUSED(op))
 	
 	ED_object_enter_editmode(C, EM_WAITCURSOR);
 	ED_object_exit_editmode(C, EM_FREEDATA|EM_WAITCURSOR|EM_DO_UNDO);
-
+#else
+	/* toggle editmode using lower level functions so this can be called from python */
+	make_editMesh(scene, ob);
+	load_editMesh(scene, ob);
+	free_editMesh(me->edit_mesh);
+	MEM_freeN(me->edit_mesh);
+	me->edit_mesh= NULL;
+	DAG_id_tag_update(&ob->id, OB_RECALC_OB|OB_RECALC_DATA);
+#endif
 	WM_event_add_notifier(C, NC_SCENE|ND_OB_ACTIVE, scene);
 
 	return OPERATOR_FINISHED;
@@ -1166,9 +1173,9 @@ float *editmesh_get_mirror_uv(int axis, float *uv, float *mirrCent, float *face_
 }
 #endif
 
-static unsigned int mirror_facehash(void *ptr)
+static unsigned int mirror_facehash(const void *ptr)
 {
-	MFace *mf= ptr;
+	const MFace *mf= ptr;
 	int v0, v1;
 
 	if(mf->v4) {
@@ -1207,7 +1214,7 @@ static int mirror_facerotation(MFace *a, MFace *b)
 	return -1;
 }
 
-static int mirror_facecmp(void *a, void *b)
+static int mirror_facecmp(const void *a, const void *b)
 {
 	return (mirror_facerotation((MFace*)a, (MFace*)b) == -1);
 }

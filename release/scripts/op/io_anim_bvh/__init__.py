@@ -20,9 +20,9 @@
 
 # To support reload properly, try to access a package var, if it's there, reload everything
 if "bpy" in locals():
-    # only reload if we alredy loaded, highly annoying
-    import sys
-    reload(sys.modules.get("io_anim_bvh.import_bvh", sys))
+    from imp import reload
+    if "import_bvh" in locals():
+        reload(import_bvh)
 
 
 import bpy
@@ -56,14 +56,8 @@ class BvhImporter(bpy.types.Operator, ImportHelper):
                 default='NATIVE')
 
     def execute(self, context):
-        import io_anim_bvh.import_bvh
-        return io_anim_bvh.import_bvh.load(self, context,
-                                           filepath=self.filepath,
-                                           rotate_mode=self.rotate_mode,
-                                           scale=self.scale,
-                                           use_cyclic=self.use_cyclic,
-                                           frame_start=self.frame_start,
-                                           )
+        from . import import_bvh
+        return import_bvh.load(self, context, **self.as_keywords(ignore=("filter_glob",)))
 
 
 def menu_func(self, context):

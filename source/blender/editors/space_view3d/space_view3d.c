@@ -38,6 +38,7 @@
 #include "BLI_math.h"
 #include "BLI_rand.h"
 
+#include "BKE_object.h"
 #include "BKE_context.h"
 #include "BKE_screen.h"
 #include "BKE_material.h"
@@ -326,6 +327,10 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 
 	/* object ops. */
 	
+	/* important to be before Pose keymap since they can both be enabled at once */
+	keymap= WM_keymap_find(wm->defaultconf, "Face Mask", 0, 0);
+	WM_event_add_keymap_handler(&ar->handlers, keymap);
+	
 	/* pose is not modal, operator poll checks for this */
 	keymap= WM_keymap_find(wm->defaultconf, "Pose", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
@@ -342,9 +347,6 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 	keymap= WM_keymap_find(wm->defaultconf, "Weight Paint", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 	
-	keymap= WM_keymap_find(wm->defaultconf, "Face Mask", 0, 0);
-	WM_event_add_keymap_handler(&ar->handlers, keymap);
-
 	keymap= WM_keymap_find(wm->defaultconf, "Sculpt", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 	
@@ -487,7 +489,7 @@ static void view3d_dropboxes(void)
 	WM_dropbox_add(lb, "OBJECT_OT_add_named_cursor", view3d_ob_drop_poll, view3d_ob_drop_copy);
 	WM_dropbox_add(lb, "OBJECT_OT_drop_named_material", view3d_mat_drop_poll, view3d_id_drop_copy);
 	WM_dropbox_add(lb, "MESH_OT_drop_named_image", view3d_ima_ob_drop_poll, view3d_id_path_drop_copy);
-	WM_dropbox_add(lb, "VIEW3D_OT_add_background_image", view3d_ima_bg_drop_poll, view3d_id_path_drop_copy);
+	WM_dropbox_add(lb, "VIEW3D_OT_background_image_add", view3d_ima_bg_drop_poll, view3d_id_path_drop_copy);
 }
 
 
@@ -647,6 +649,11 @@ static void view3d_main_area_listener(ARegion *ar, wmNotifier *wmn)
 					ED_region_tag_redraw(ar);
 					break;
 			}
+			switch(wmn->action) {
+				case NA_ADDED:
+					ED_region_tag_redraw(ar);
+			break;
+			}
 			break;
 		case NC_GEOM:
 			switch(wmn->data) {
@@ -718,6 +725,7 @@ static void view3d_main_area_listener(ARegion *ar, wmNotifier *wmn)
 			switch(wmn->data) {
 				case ND_GPENCIL:
 				case ND_ANIMPLAY:
+				case ND_SKETCH:
 				ED_region_tag_redraw(ar);
 					break;
 				case ND_SCREENBROWSE:

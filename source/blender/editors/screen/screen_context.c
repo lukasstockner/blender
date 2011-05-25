@@ -33,8 +33,9 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
 #include "BKE_utildefines.h"
+#include "BKE_context.h"
+#include "BKE_object.h"
 #include "BKE_action.h"
 #include "BKE_sequencer.h"
 
@@ -233,7 +234,7 @@ int ed_screen_context(const bContext *C, const char *member, bContextDataResult 
 			for (pchan= obpose->pose->chanbase.first; pchan; pchan= pchan->next) {
 				/* ensure that PoseChannel is on visible layer and is not hidden in PoseMode */
 				if ((pchan->bone) && (arm->layer & pchan->bone->layer) && !(pchan->bone->flag & BONE_HIDDEN_P)) {
-					if (pchan->bone->flag & BONE_SELECTED || pchan->bone == arm->act_bone)
+					if (pchan->bone->flag & BONE_SELECTED)
 						CTX_data_list_add(result, &obpose->id, &RNA_PoseBone, pchan);
 				}
 			}

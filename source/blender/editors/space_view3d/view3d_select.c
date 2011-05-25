@@ -359,14 +359,7 @@ static void do_lasso_select_pose(ViewContext *vc, Object *ob, short mcords[][2],
 			else pchan->bone->flag &= ~BONE_SELECTED;
 		}
 	}
-	
-	{
-		bArmature *arm= ob->data;
-		if(arm->act_bone && (arm->act_bone->flag & BONE_SELECTED)==0) {
-			arm->act_bone= NULL;
 		}
-	}
-}
 
 
 static void do_lasso_select_objects(ViewContext *vc, short mcords[][2], short moves, short select)
@@ -2035,9 +2028,12 @@ static void armature_circle_select(ViewContext *vc, int selecting, short *mval, 
 				ebone->flag &= ~(BONE_SELECTED|BONE_TIPSEL|BONE_ROOTSEL);
 			change= TRUE;
 		}
+		
+		change |= didpoint;
 	}
 
 	if(change) {
+		ED_armature_sync_selection(arm->edbo);
 	ED_armature_validate_active(arm);
 		WM_main_add_notifier(NC_OBJECT|ND_BONE_SELECT, vc->obedit);
 }

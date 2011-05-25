@@ -343,7 +343,7 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, float pixelx, short dire
 	}
 	
 	if(G.moving || (seq->flag & whichsel)) {
-		cpack(0xFFFFFF);
+		const char col[4]= {255, 255, 255, 255};
 		if (direction == SEQ_LEFTHANDLE) {
 			sprintf(str, "%d", seq->startdisp);
 			x1= rx1;
@@ -353,7 +353,7 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, float pixelx, short dire
 			x1= x2 - handsize*0.75;
 			y1= y2 + 0.05;
 		}
-		UI_view2d_text_cache_add(v2d, x1, y1, str);
+		UI_view2d_text_cache_add(v2d, x1, y1, str, col);
 	}	
 }
 
@@ -467,6 +467,7 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 	rctf rect;
 	char str[32 + FILE_MAXDIR+FILE_MAXFILE];
 	const char *name= seq->name+2;
+	char col[4];
 	
 	if(name[0]=='\0')
 		name= give_seqname(seq);
@@ -511,18 +512,19 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 	}
 	
 	if(seq->flag & SELECT){
-		cpack(0xFFFFFF);
+		col[0]= col[1]= col[2]= 255;
 	}else if ((((int)background_col[0] + (int)background_col[1] + (int)background_col[2]) / 3) < 50){
-		cpack(0x505050); /* use lighter text colour for dark background */
+		col[0]= col[1]= col[2]= 80; /* use lighter text color for dark background */
 	}else{
-		cpack(0);
+		col[0]= col[1]= col[2]= 0;
 	}
+	col[3]= 255;
 	
 	rect.xmin= x1;
 	rect.ymin= y1;
 	rect.xmax= x2;
 	rect.ymax= y2;
-	UI_view2d_text_cache_rectf(v2d, &rect, str);
+	UI_view2d_text_cache_rectf(v2d, &rect, str, col);
 }
 
 /* draws a shaded strip, made from gradient + flat color + gradient */
@@ -693,6 +695,7 @@ void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	float proxy_size = 100.0;
 	GLuint texid;
 	GLuint last_texid;
+	SeqRenderData context;
 
 	render_size = sseq->render_size;
 	if (render_size == 0) {
@@ -728,12 +731,14 @@ void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	UI_view2d_totRect_set(v2d, viewrectx + 0.5f, viewrecty + 0.5f);
 	UI_view2d_curRect_validate(v2d);
 
+	context = seq_new_render_data(bmain, scene, rectx, recty, proxy_size);
+
 	if (special_seq_update)
-		ibuf= give_ibuf_seq_direct(bmain, scene, rectx, recty, cfra + frame_ofs, proxy_size, special_seq_update);
+		ibuf= give_ibuf_seq_direct(context, cfra + frame_ofs, special_seq_update);
 	else if (!U.prefetchframes) // XXX || (G.f & G_PLAYANIM) == 0) {
-		ibuf= (ImBuf *)give_ibuf_seq(bmain, scene, rectx, recty, cfra + frame_ofs, sseq->chanshown, proxy_size);
+		ibuf= (ImBuf *)give_ibuf_seq(context, cfra + frame_ofs, sseq->chanshown);
 	else
-		ibuf= (ImBuf *)give_ibuf_seq_threaded(bmain, scene, rectx, recty, cfra + frame_ofs, sseq->chanshown, proxy_size);
+		ibuf= (ImBuf *)give_ibuf_seq_threaded(context, cfra + frame_ofs, sseq->chanshown);
 
 	if(ibuf==NULL) 
 		return;
@@ -866,7 +871,8 @@ void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	UI_view2d_view_restore(C);
 }
 
-void drawprefetchseqspace(Scene *scene, ARegion *ar, SpaceSeq *sseq)
+#if 0
+void drawprefetchseqspace(Scene *scene, ARegion *UNUSED(ar), SpaceSeq *sseq)
 {
 	int rectx, recty;
 	int render_size = sseq->render_size;
@@ -889,6 +895,7 @@ void drawprefetchseqspace(Scene *scene, ARegion *ar, SpaceSeq *sseq)
 			proxy_size);
 	}
 }
+#endif
 
 /* draw backdrop of the sequencer strips view */
 static void draw_seq_backdrop(View2D *v2d)

@@ -124,6 +124,7 @@ static int space_image_buffer_exists_poll(bContext *C)
 static int space_image_file_exists_poll(bContext *C)
 {
 	if(space_image_buffer_exists_poll(C)) {
+		Main *bmain= CTX_data_main(C);
 		SpaceImage *sima= CTX_wm_space_image(C);
 		ImBuf *ibuf;
 		void *lock;
@@ -133,7 +134,7 @@ static int space_image_file_exists_poll(bContext *C)
 		ibuf= ED_space_image_acquire_buffer(sima, &lock);
 		if(ibuf) {
 			BLI_strncpy(name, ibuf->name, FILE_MAX);
-			BLI_path_abs(name, G.sce);
+			BLI_path_abs(name, bmain->name);
 			poll= (BLI_exists(name) && BLI_is_writable(name));
 		}
 		ED_space_image_release_buffer(sima, lock);
@@ -853,50 +854,54 @@ static void save_image_doit(bContext *C, SpaceImage *sima, Scene *scene, wmOpera
 	ImBuf *ibuf= ED_space_image_acquire_buffer(sima, &lock);
 
 	if (ibuf) {
-		int relative= (RNA_struct_find_property(op->ptr, "relative_path") && RNA_boolean_get(op->ptr, "relative_path"));
-		int save_copy= (RNA_struct_find_property(op->ptr, "copy") && RNA_boolean_get(op->ptr, "copy"));
+		Main *bmain= CTX_data_main(C);
+		const short relative= (RNA_struct_find_property(op->ptr, "relative_path") && RNA_boolean_get(op->ptr, "relative_path"));
+		const short save_copy= (RNA_struct_find_property(op->ptr, "copy") && RNA_boolean_get(op->ptr, "copy"));
+		short ok= FALSE;
 
-		BLI_path_abs(path, G.sce);
+		BLI_path_abs(path, bmain->name);
+		
+		WM_cursor_wait(1);
+		
+		if(ima->type == IMA_TYPE_R_RESULT) {
+		/* enforce user setting for RGB or RGBA, but skip BW */
+			if(scene->r.planes==32) {
+			ibuf->depth= 32;
+			}
+			else if(scene->r.planes==24) {
+			ibuf->depth= 24;
+			}
+		}
+		else {
+			/* TODO, better solution, if a 24bit image is painted onto it may contain alpha */
+			if(ibuf->userflags & IB_BITMAPDIRTY) { /* it has been painted onto */
+				/* checks each pixel, not ideal */
+				ibuf->depth= BKE_alphatest_ibuf(ibuf) ? 32 : 24;
+			}
+		}
 		
 		if(scene->r.scemode & R_EXTENSION)  {
 			BKE_add_image_extension(path, sima->imtypenr);
 		}
-		
-		/* enforce user setting for RGB or RGBA, but skip BW */
-		if(scene->r.planes==32)
-			ibuf->depth= 32;
-		else if(scene->r.planes==24)
-			ibuf->depth= 24;
-		
-		WM_cursor_wait(1);
 
 		if(sima->imtypenr==R_MULTILAYER) {
 			RenderResult *rr= BKE_image_acquire_renderresult(scene, ima);
 			if(rr) {
 				RE_WriteRenderResult(rr, path, scene->r.quality);
-
-				if(relative)
-					BLI_path_rel(path, G.sce); /* only after saving */
-
-				if(!save_copy) {
-					if(do_newpath) {
-					BLI_strncpy(ima->name, path, sizeof(ima->name));
-					BLI_strncpy(ibuf->name, path, sizeof(ibuf->name));
-					}
-
-					/* should be function? nevertheless, saving only happens here */
-					for(ibuf= ima->ibufs.first; ibuf; ibuf= ibuf->next)
-						ibuf->userflags &= ~IB_BITMAPDIRTY;
-				}
+				ok= TRUE;
 			}
-			else
+			else {
 				BKE_report(op->reports, RPT_ERROR, "Did not write, no Multilayer Image");
+					}
 			BKE_image_release_renderresult(scene, ima);
 		}
 		else if (BKE_write_ibuf(scene, ibuf, path, sima->imtypenr, scene->r.subimtype, scene->r.quality)) {
+			ok= TRUE;
+		}
 
+		if(ok)	{
 			if(relative)
-				BLI_path_rel(path, G.sce); /* only after saving */
+				BLI_path_rel(path, bmain->name); /* only after saving */
 
 			if(!save_copy) {
 				if(do_newpath) {
@@ -926,13 +931,12 @@ static void save_image_doit(bContext *C, SpaceImage *sima, Scene *scene, wmOpera
 					ima->source= IMA_SRC_FILE;
 					ima->type= IMA_TYPE_IMAGE;
 				}
-
-				/* name image as how we saved it */
-				rename_id(&ima->id, BLI_path_basename(path));
 			}
 		} 
-		else
+		else {
 			BKE_reportf(op->reports, RPT_ERROR, "Couldn't write image: %s", path);
+		}
+
 
 		WM_event_add_notifier(C, NC_IMAGE|NA_EDITED, sima->image);
 
@@ -1052,6 +1056,7 @@ void IMAGE_OT_save_as(wmOperatorType *ot)
 
 static int save_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain= CTX_data_main(C);
 	SpaceImage *sima= CTX_wm_space_image(C);
 	Image *ima = ED_space_image(sima);
 	void *lock;
@@ -1071,7 +1076,7 @@ static int save_exec(bContext *C, wmOperator *op)
 	if(name[0]==0)
 		BLI_strncpy(name, G.ima, FILE_MAX);
 	else
-		BLI_path_abs(name, G.sce);
+		BLI_path_abs(name, bmain->name);
 	
 	if(BLI_exists(name) && BLI_is_writable(name)) {
 		rr= BKE_image_acquire_renderresult(scene, ima);
@@ -1114,6 +1119,7 @@ void IMAGE_OT_save(wmOperatorType *ot)
 
 static int save_sequence_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain= CTX_data_main(C);
 	SpaceImage *sima= CTX_wm_space_image(C);
 	ImBuf *ibuf;
 	int tot= 0;
@@ -1157,7 +1163,7 @@ static int save_sequence_exec(bContext *C, wmOperator *op)
 			char name[FILE_MAX];
 			BLI_strncpy(name, ibuf->name, sizeof(name));
 			
-			BLI_path_abs(name, G.sce);
+			BLI_path_abs(name, bmain->name);
 
 			if(0 == IMB_saveiff(ibuf, name, IB_rect | IB_zbuf | IB_zbuffloat)) {
 				BKE_reportf(op->reports, RPT_ERROR, "Could not write image %s.", name);
@@ -1219,7 +1225,7 @@ void IMAGE_OT_reload(wmOperatorType *ot)
 
 /********************** new image operator *********************/
 
-static int new_exec(bContext *C, wmOperator *op)
+static int image_new_exec(bContext *C, wmOperator *op)
 {
 	SpaceImage *sima;
 	Scene *scene;
@@ -1276,6 +1282,13 @@ static int new_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
+/* XXX, Ton is not a fan of OK buttons but using this function to avoid undo/redo bug while in mesh-editmode, - campbell */
+static int image_new_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
+{
+	return WM_operator_props_dialog_popup(C, op, 300, 100);
+
+}
+
 void IMAGE_OT_new(wmOperatorType *ot)
 {
 	PropertyRNA *prop;
@@ -1286,14 +1299,14 @@ void IMAGE_OT_new(wmOperatorType *ot)
 	ot->idname= "IMAGE_OT_new";
 	
 	/* api callbacks */
-	ot->exec= new_exec;
-	ot->invoke= WM_operator_props_popup;
+	ot->exec= image_new_exec;
+	ot->invoke= image_new_invoke;
 
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	/* properties */
-	RNA_def_string(ot->srna, "name", "Untitled", 21, "Name", "Image datablock name.");
+	RNA_def_string(ot->srna, "name", "untitled", 21, "Name", "Image datablock name.");
 	RNA_def_int(ot->srna, "width", 1024, 1, INT_MAX, "Width", "Image width.", 1, 16384);
 	RNA_def_int(ot->srna, "height", 1024, 1, INT_MAX, "Height", "Image height.", 1, 16384);
 	prop= RNA_def_float_color(ot->srna, "color", 4, NULL, 0.0f, FLT_MAX, "Color", "Default fill color.", 0.0f, 1.0f);
@@ -1390,7 +1403,7 @@ void IMAGE_OT_pack(wmOperatorType *ot)
 
 /********************* unpack operator *********************/
 
-void unpack_menu(bContext *C, char *opname, Image *ima, char *folder, PackedFile *pf)
+static void unpack_menu(bContext *C, const char *opname, Image *ima, const char *folder, PackedFile *pf)
 {
 	PointerRNA props_ptr;
 	uiPopupMenu *pup;
@@ -1586,16 +1599,16 @@ static void sample_apply(bContext *C, wmOperator *op, wmEvent *event)
 	ImBuf *ibuf= ED_space_image_acquire_buffer(sima, &lock);
 	ImageSampleInfo *info= op->customdata;
 	float fx, fy;
-	int x, y;
+	int mx, my;
 	
 	if(ibuf == NULL) {
 		ED_space_image_release_buffer(sima, lock);
 		return;
 	}
 
-	x= event->x - ar->winrct.xmin;
-	y= event->y - ar->winrct.ymin;
-	UI_view2d_region_to_view(&ar->v2d, x, y, &fx, &fy);
+	mx= event->x - ar->winrct.xmin;
+	my= event->y - ar->winrct.ymin;
+	UI_view2d_region_to_view(&ar->v2d, mx, my, &fx, &fy);
 
 	if(fx>=0.0 && fy>=0.0 && fx<1.0 && fy<1.0) {
 		float *fp;
@@ -2052,13 +2065,15 @@ static int cycle_render_slot_poll(bContext *C)
 	return (ima && ima->type == IMA_TYPE_R_RESULT);
 }
 
-static int cycle_render_slot_exec(bContext *C, wmOperator *UNUSED(op))
+static int cycle_render_slot_exec(bContext *C, wmOperator *op)
 {
 	Image *ima= CTX_data_edit_image(C);
 	int a, slot, cur= ima->render_slot;
+	const short use_reverse= RNA_boolean_get(op->ptr, "reverse");
 
 	for(a=1; a<IMA_MAX_RENDER_SLOT; a++) {
-		slot= (cur+a)%IMA_MAX_RENDER_SLOT;
+		slot= (cur + (use_reverse ? -a:a))%IMA_MAX_RENDER_SLOT;
+		if(slot<0) slot+=IMA_MAX_RENDER_SLOT;
 
 		if(ima->renders[slot] || slot == ima->last_render_slot) {
 			ima->render_slot= slot;
@@ -2090,6 +2105,8 @@ void IMAGE_OT_cycle_render_slot(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	RNA_def_boolean(ot->srna, "reverse", 0, "Cycle in Reverse", "");
 }
 
 /******************** TODO ********************/

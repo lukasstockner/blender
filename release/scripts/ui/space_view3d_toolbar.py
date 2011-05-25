@@ -193,7 +193,7 @@ class VIEW3D_PT_tools_curveedit(View3DPanel, bpy.types.Panel):
         row.operator("curve.handle_type_set", text="Auto").type = 'AUTOMATIC'
         row.operator("curve.handle_type_set", text="Vector").type = 'VECTOR'
         row = col.row()
-        row.operator("curve.handle_type_set", text="Align").type = 'ALIGN'
+        row.operator("curve.handle_type_set", text="Align").type = 'ALIGNED'
         row.operator("curve.handle_type_set", text="Free").type = 'FREE_ALIGN'
 
         col = layout.column(align=True)
@@ -1168,7 +1168,7 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         brush = context.tool_settings.image_paint.brush
-        return (brush and brush.imagepaint_tool != 'SMEAR')
+        return (brush and brush.imagepaint_tool != 'SOFTEN')
 
     def draw_header(self, context):
         ipaint = context.tool_settings.image_paint

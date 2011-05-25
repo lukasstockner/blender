@@ -114,10 +114,10 @@ class DATA_PT_shape_curve(CurveButtonsPanel, bpy.types.Panel):
             sub.label(text="Fill:")
             sub.prop(curve, "use_fill_front")
             sub.prop(curve, "use_fill_back")
-            sub.prop(curve, "use_fill_deform", text="Use Deformed")
+            sub.prop(curve, "use_fill_deform", text="Fill Deformed")
 
         col.label(text="Textures:")
-        col.prop(curve, "use_map_on_length")
+        col.prop(curve, "use_uv_as_generated")
         col.prop(curve, "use_auto_texspace")
 
 
@@ -269,7 +269,18 @@ class DATA_PT_font(CurveButtonsPanel, bpy.types.Panel):
         text = context.curve
         char = context.curve.edit_format
 
-        layout.template_ID(text, "font", open="font.open", unlink="font.unlink")
+        row = layout.split(percentage=0.25)
+        row.label(text="Regular")
+        row.template_ID(text, "font", open="font.open", unlink="font.unlink")
+        row = layout.split(percentage=0.25)
+        row.label(text="Bold")
+        row.template_ID(text, "font_bold", open="font.open", unlink="font.unlink")
+        row = layout.split(percentage=0.25)
+        row.label(text="Italic")
+        row.template_ID(text, "font_italic", open="font.open", unlink="font.unlink")
+        row = layout.split(percentage=0.25)
+        row.label(text="Bold & Italic")
+        row.template_ID(text, "font_bold_italic", open="font.open", unlink="font.unlink")
 
         #    layout.prop(text, "font")
 

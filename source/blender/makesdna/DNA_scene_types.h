@@ -221,8 +221,8 @@ typedef struct RenderData {
 	float edgeR, edgeG, edgeB;
 	
 	short fullscreen, xplay, yplay, freqplay;	/* standalone player */  //  XXX deprecated since 2.5
-	short depth, attrib, rt2;			/* standalone player */  //  XXX deprecated since 2.5
-	short frame_step;		/* frames to jump during render/playback */
+	short depth, attrib;			/* standalone player */  //  XXX deprecated since 2.5
+	int frame_step;		/* frames to jump during render/playback */
 
 	short stereomode;	/* standalone player stereo settings */  //  XXX deprecated since 2.5
 	
@@ -453,7 +453,7 @@ typedef struct GameData {
 
 	/* stereo/dome mode */
 	struct GameDome dome;
-	short stereoflag, stereomode, xsch, ysch; //xsch and ysch can be deleted !!!
+	short stereoflag, stereomode, xsch, ysch; //xsch and ysch used for backwards compat.
 	float eyeseparation, pad1;
 } GameData;
 
@@ -743,8 +743,10 @@ typedef struct bStats {
 typedef struct UnitSettings {
 	/* Display/Editing unit options for each scene */
 	float scale_length; /* maybe have other unit conversions? */
-	short system;
-	short flag; /* imperial, metric etc */
+	char system; /* imperial, metric etc */
+	char system_rotation; /* not implimented as a propper unit system yet */
+	short flag;
+	
 } UnitSettings;
 
 typedef struct PhysicsSettings {
@@ -1158,8 +1160,9 @@ typedef enum SculptFlags {
 
 /* ImagePaintSettings.flag */
 #define IMAGEPAINT_DRAWING				1
-#define IMAGEPAINT_DRAW_TOOL			2
-#define IMAGEPAINT_DRAW_TOOL_DRAWING	4
+// #define IMAGEPAINT_DRAW_TOOL			2 // deprecated
+// #define IMAGEPAINT_DRAW_TOOL_DRAWING	4 // deprecated
+
 /* projection painting only */
 #define IMAGEPAINT_PROJECT_DISABLE		8	/* Non projection 3D painting */
 #define IMAGEPAINT_PROJECT_XRAY			16

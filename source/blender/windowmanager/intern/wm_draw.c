@@ -79,13 +79,13 @@ static void wm_paintcursor_draw(bContext *C, ARegion *ar)
 		if(screen->subwinactive == ar->swinid) {
 			for(pc= wm->paintcursors.first; pc; pc= pc->next) {
 				if(pc->poll == NULL || pc->poll(C)) {
-					ARegion *ar= CTX_wm_region(C);
+					ARegion *ar_other= CTX_wm_region(C);
 					if (ELEM(win->grabcursor, GHOST_kGrabWrap, GHOST_kGrabHide)) {
 						int x = 0, y = 0;
 						wm_get_cursor_position(win, &x, &y);
-						pc->draw(C, x - ar->winrct.xmin, y - ar->winrct.ymin, pc->customdata);
+						pc->draw(C, x - ar_other->winrct.xmin, y - ar_other->winrct.ymin, pc->customdata);
 					} else {
-						pc->draw(C, win->eventstate->x - ar->winrct.xmin, win->eventstate->y - ar->winrct.ymin, pc->customdata);
+						pc->draw(C, win->eventstate->x - ar_other->winrct.xmin, win->eventstate->y - ar_other->winrct.ymin, pc->customdata);
 					}
 				}
 			}
@@ -257,7 +257,6 @@ static void wm_method_draw_overlap_all(bContext *C, wmWindow *win, int exchange)
 						CTX_wm_region_set(C, NULL);
 
 						ar->swap= WIN_BOTH_OK;
-						printf("draws swap exchange %d\n", ar->swinid);
 					}
 					else if(ar->swap == WIN_BACK_OK)
 						ar->swap= WIN_FRONT_OK;
@@ -1070,7 +1069,8 @@ static void wm_method_draw_triple(bContext *C, wmWindow *win)
 		}
 	}
 
-	if(screen->do_draw_gesture)
+	/* always draw, not only when screen tagged */
+	if(win->gesture.first)
 		wm_gesture_draw(win);
 
 	if(wm->paintcursors.first) {

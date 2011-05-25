@@ -43,6 +43,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_editVert.h"
 #include "BLI_rand.h"
+#include "BLI_listbase.h"
 
 #include "BKE_anim.h"
 #include "BKE_action.h"
@@ -406,7 +407,9 @@ static int view3d_setcameratoview_exec(bContext *C, wmOperator *UNUSED(op))
 
 	copy_qt_qt(rv3d->lviewquat, rv3d->viewquat);
 	rv3d->lview= rv3d->view;
+	if(rv3d->persp != RV3D_CAMOB) {
 	rv3d->lpersp= rv3d->persp;
+	}
 
 	setcameratoview3d(rv3d, v3d->camera);
 	rv3d->persp = RV3D_CAMOB;
@@ -477,7 +480,7 @@ void VIEW3D_OT_object_as_camera(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= view3d_setobjectascamera_exec;	
-	ot->poll= ED_operator_region_view3d_active;
+	ot->poll= region3d_unlocked_poll;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -1631,9 +1634,8 @@ void VIEW3D_OT_localview(wmOperatorType *ot)
 #if GAMEBLENDER == 1
 
 static ListBase queue_back;
-static void SaveState(bContext *C)
+static void SaveState(bContext *C, wmWindow *win)
 {
-	wmWindow *win= CTX_wm_window(C);
 	Object *obact = CTX_data_active_object(C);
 	
 	glPushAttrib(GL_ALL_ATTRIB_BITS);
@@ -1648,9 +1650,8 @@ static void SaveState(bContext *C)
 	//XXX waitcursor(1);
 }
 
-static void RestoreState(bContext *C)
+static void RestoreState(bContext *C, wmWindow *win)
 {
-	wmWindow *win= CTX_wm_window(C);
 	Object *obact = CTX_data_active_object(C);
 	
 	if(obact && obact->mode & OB_MODE_TEXTURE_PAINT)
@@ -1664,6 +1665,7 @@ static void RestoreState(bContext *C)
 	//XXX waitcursor(0);
 	//XXX G.qual= 0;
 	
+	if(win) /* check because closing win can set to NULL */
 	win->queue= queue_back;
 	
 	GPU_state_init();
@@ -1809,16 +1811,25 @@ static int game_engine_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 
 
-	SaveState(C);
+	SaveState(C, prevwin);
 
 	StartKetsjiShell(C, ar, &cam_frame, 1);
 	
+	/* window wasnt closed while the BGE was running */
+	if(BLI_findindex(&CTX_wm_manager(C)->windows, prevwin) == -1) {
+		prevwin= NULL;
+		CTX_wm_window_set(C, NULL);
+	}
+	
+	if(prevwin) {
 	/* restore context, in case it changed in the meantime, for
 	   example by working in another window or closing it */
 	CTX_wm_region_set(C, prevar);
 	CTX_wm_window_set(C, prevwin);
 	CTX_wm_area_set(C, prevsa);
-	RestoreState(C);
+	}
+
+	RestoreState(C, prevwin);
 
 	//XXX restore_all_scene_cfra(scene_cfra_store);
 	set_scene_bg(CTX_data_main(C), startscene);

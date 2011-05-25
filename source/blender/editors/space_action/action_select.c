@@ -416,7 +416,7 @@ static void columnselect_action_keys (bAnimContext *ac, short mode)
 	Scene *scene= ac->scene;
 	CfraElem *ce;
 	KeyframeEditFunc select_cb, ok_cb;
-	KeyframeEditData ked;
+	KeyframeEditData ked= {{0}};
 	
 	/* initialise keyframe editing data */
 	memset(&ked, 0, sizeof(KeyframeEditData));

@@ -167,7 +167,7 @@ static int new_particle_settings_exec(bContext *C, wmOperator *UNUSED(op))
 	psys_check_boid_data(psys);
 
 	DAG_scene_sort(bmain, scene);
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 	WM_event_add_notifier(C, NC_OBJECT|ND_PARTICLE, ob);
 	
@@ -216,7 +216,7 @@ static int new_particle_target_exec(bContext *C, wmOperator *UNUSED(op))
 	BLI_addtail(&psys->targets, pt);
 
 	DAG_scene_sort(bmain, scene);
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 	WM_event_add_notifier(C, NC_OBJECT|ND_PARTICLE, ob);
 	
@@ -265,7 +265,7 @@ static int remove_particle_target_exec(bContext *C, wmOperator *UNUSED(op))
 		pt->flag |= PTARGET_CURRENT;
 
 	DAG_scene_sort(bmain, scene);
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 	WM_event_add_notifier(C, NC_OBJECT|ND_PARTICLE, ob);
 	
@@ -304,7 +304,7 @@ static int target_move_up_exec(bContext *C, wmOperator *UNUSED(op))
 			BLI_remlink(&psys->targets, pt);
 			BLI_insertlink(&psys->targets, pt->prev->prev, pt);
 
-			DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 			WM_event_add_notifier(C, NC_OBJECT|ND_PARTICLE, ob);
 			break;
 		}
@@ -342,7 +342,7 @@ static int target_move_down_exec(bContext *C, wmOperator *UNUSED(op))
 			BLI_remlink(&psys->targets, pt);
 			BLI_insertlink(&psys->targets, pt->next, pt);
 
-			DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 			WM_event_add_notifier(C, NC_OBJECT|ND_PARTICLE, ob);
 			break;
 		}
@@ -595,7 +595,7 @@ static int disconnect_hair_exec(bContext *C, wmOperator *op)
 		disconnect_hair(scene, ob, psys);
 	}
 
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT|ND_PARTICLE, ob);
 
 	return OPERATOR_FINISHED;
@@ -623,7 +623,7 @@ static void connect_hair(Scene *scene, Object *ob, ParticleSystem *psys)
 	PTCacheEditPoint *point;
 	PTCacheEditKey *ekey = NULL;
 	HairKey *key;
-	BVHTreeFromMesh bvhtree;
+	BVHTreeFromMesh bvhtree= {0};
 	BVHTreeNearest nearest;
 	MFace *mface;
 	DerivedMesh *dm = NULL;
@@ -645,8 +645,6 @@ static void connect_hair(Scene *scene, Object *ob, ParticleSystem *psys)
 		dm= mesh_get_derived_deform(scene, ob, CD_MASK_BAREMESH);
 
 	numverts = dm->getNumVerts (dm);
-
-	memset( &bvhtree, 0, sizeof(bvhtree) );
 
 	/* convert to global coordinates */
 	for (i=0; i<numverts; i++)
@@ -735,7 +733,7 @@ static int connect_hair_exec(bContext *C, wmOperator *op)
 		connect_hair(scene, ob, psys);
 	}
 
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT|ND_PARTICLE, ob);
 
 	return OPERATOR_FINISHED;

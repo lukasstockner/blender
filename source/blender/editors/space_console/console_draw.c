@@ -335,45 +335,45 @@ static int console_text_main__internal(struct SpaceConsole *sc, struct ARegion *
 	if(pos_pick)
 		*pos_pick = 0;
 
-	/* constants for the sequencer context */
-	cdc.cwidth= cwidth;
-	cdc.lheight= sc->lheight;
-	cdc.console_width= console_width;
-	cdc.winx= ar->winx-(CONSOLE_DRAW_MARGIN+CONSOLE_DRAW_SCROLL);
-	cdc.ymin= v2d->cur.ymin;
-	cdc.ymax= v2d->cur.ymax;
-	cdc.xy= xy;
-	cdc.sel= sel;
-	cdc.pos_pick= pos_pick;
-	cdc.mval= mval;
-	cdc.draw= draw;
+static int console_textview_line_color(struct TextViewContext *tvc, unsigned char fg[3], unsigned char UNUSED(bg[3]))
+{
+	ConsoleLine *cl_iter= (ConsoleLine *)tvc->iter;
 
-	if(sc->type==CONSOLE_TYPE_PYTHON) {
-		ConsoleLine cl_dummy= {0};
-		int prompt_len= strlen(sc->prompt);
+	/* annoying hack, to draw the prompt */
+	if(tvc->iter_index == 0) {
+		const SpaceConsole *sc= (SpaceConsole *)tvc->arg1;
+		const ConsoleLine *cl= (ConsoleLine *)sc->history.last;
+		const int prompt_len= strlen(sc->prompt);
+		const int cursor_loc= cl->cursor + prompt_len;
+		int xy[2] = {CONSOLE_DRAW_MARGIN, CONSOLE_DRAW_MARGIN};
+		int pen[2];
+		xy[1] += tvc->lheight/6;
 
-		if(sc->sel_start != sc->sel_end) {
-			sel[0]= sc->sel_start;
-			sel[1]= sc->sel_end;
+		/* account for wrapping */
+		if(cl->len < tvc->console_width) {
+			/* simple case, no wrapping */
+			pen[0]= tvc->cwidth * cursor_loc;
+			pen[1]= -2;
 		}
-		
-		/* text */
-		if(draw) {
+		else {
+			/* wrap */
+			pen[0]= tvc->cwidth * (cursor_loc % tvc->console_width);
+			pen[1]= -2 + (((cl->len / tvc->console_width) - (cursor_loc / tvc->console_width)) * tvc->lheight);
+		}
+
 			/* cursor */
 			UI_GetThemeColor3ubv(TH_CONSOLE_CURSOR, (char *)fg);
 			glColor3ubv(fg);
 			glRecti(xy[0]+(cwidth*(cl->cursor+prompt_len)) -1, xy[1]-2, xy[0]+(cwidth*(cl->cursor+prompt_len)) +1, xy[1]+sc->lheight-2);
 
-			xy[0]= x_orig; /* remove prompt offset */
+		glRecti(	(xy[0] + pen[0]) - 1,
+					(xy[1] + pen[1]),
+					(xy[0] + pen[0]) + 1,
+					(xy[1] + pen[1] + tvc->lheight)
+		);
 		}
 		
-		console_scrollback_prompt_begin(sc, &cl_dummy);
-		
-		for(cl= sc->scrollback.last; cl; cl= cl->prev) {
-			y_prev= xy[1];
-
-			if(draw)
-				console_line_color(fg, cl->type);
+	console_line_color(fg, cl_iter->type);
 
 			if(!console_draw_string(&cdc, cl->line, cl->len, fg, NULL)) {
 				/* when drawing, if we pass v2d->cur.ymax, then quit */
@@ -388,21 +388,20 @@ static int console_text_main__internal(struct SpaceConsole *sc, struct ARegion *
 			}
 		}
 
-		console_scrollback_prompt_end(sc, &cl_dummy);
-	}
-	else { 
-		Report *report;
-		int report_mask= 0;
-		int bool= 0;
-		unsigned char bg[3];
+static int console_textview_main__internal(struct SpaceConsole *sc, struct ARegion *ar, int draw, int mval[2], void **mouse_pick, int *pos_pick)
+{
+	ConsoleLine cl_dummy= {0};
+	int ret= 0;
 
 		if(draw) {
 			glClearColor(120.0/255.0, 120.0/255.0, 120.0/255.0, 1.0);
 			glClear(GL_COLOR_BUFFER_BIT);
 		}
 
-		/* convert our display toggles into a flag compatible with BKE_report flags */
-		report_mask= console_report_mask(sc);
+	TextViewContext tvc= {0};
+
+	tvc.begin= console_textview_begin;
+	tvc.end= console_textview_end;
 		
 		for(report=reports->list.last; report; report=report->prev) {
 			
@@ -430,30 +429,32 @@ static int console_text_main__internal(struct SpaceConsole *sc, struct ARegion *
 	xy[1] += sc->lheight*2;
 
 	
-	return xy[1]-y_orig;
-}
-
-void console_text_main(struct SpaceConsole *sc, struct ARegion *ar, ReportList *reports)
+void console_textview_main(struct SpaceConsole *sc, struct ARegion *ar)
 {
 	int mval[2] = {INT_MAX, INT_MAX};
-	console_text_main__internal(sc, ar, reports, 1,  mval, NULL, NULL);
+	console_textview_main__internal(sc, ar, 1,  mval, NULL, NULL);
 }
 
-int console_text_height(struct SpaceConsole *sc, struct ARegion *ar, ReportList *reports)
+int console_textview_height(struct SpaceConsole *sc, struct ARegion *ar)
 {
 	int mval[2] = {INT_MAX, INT_MAX};
-	return console_text_main__internal(sc, ar, reports, 0,  mval, NULL, NULL);
+	return console_textview_main__internal(sc, ar, 0,  mval, NULL, NULL);
 }
 
-void *console_text_pick(struct SpaceConsole *sc, struct ARegion *ar, ReportList *reports, int mouse_y)
+void *console_text_pick(struct SpaceConsole *sc, struct ARegion *ar, int mouse_y)
 {
 	int mval[2] = {0, mouse_y};
 	void *mouse_pick= NULL;
-	console_text_main__internal(sc, ar, reports, 0, mval, &mouse_pick, NULL);
+	int mval[2];
+
+	mval[0]= 0;
+	mval[1]= mouse_y;
+
+	console_textview_main__internal(sc, ar, 0, mval, &mouse_pick, NULL);
 	return (void *)mouse_pick;
 }
 
-int console_char_pick(struct SpaceConsole *sc, struct ARegion *ar, ReportList *reports, int mval[2])
+int console_char_pick(struct SpaceConsole *sc, struct ARegion *ar, int mval[2])
 {
 	int pos_pick= 0;
 	void *mouse_pick= NULL;
@@ -462,6 +463,6 @@ int console_char_pick(struct SpaceConsole *sc, struct ARegion *ar, ReportList *r
 	mval_clamp[0]= CLAMPIS(mval[0], CONSOLE_DRAW_MARGIN, ar->winx-(CONSOLE_DRAW_SCROLL + CONSOLE_DRAW_MARGIN));
 	mval_clamp[1]= CLAMPIS(mval[1], CONSOLE_DRAW_MARGIN, ar->winy-CONSOLE_DRAW_MARGIN);
 
-	console_text_main__internal(sc, ar, reports, 0, mval_clamp, &mouse_pick, &pos_pick);
+	console_textview_main__internal(sc, ar, 0, mval_clamp, &mouse_pick, &pos_pick);
 	return pos_pick;
 }

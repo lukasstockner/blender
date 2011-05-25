@@ -145,9 +145,8 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
 			CTX_wm_window_set(C, NULL);
 	}	
 
-	if(wm->windrawable==win)
+	/* always set drawable and active to NULL, prevents non-drawable state of main windows (bugs #22967 and #25071, possibly #22477 too) */
 		wm->windrawable= NULL;
-	if(wm->winactive==win)
 		wm->winactive= NULL;
 
 	/* end running jobs, a job end also removes its timer */
@@ -290,7 +289,7 @@ void wm_window_title(wmWindowManager *wm, wmWindow *win)
 }
 
 /* belongs to below */
-static void wm_window_add_ghostwindow(bContext *C, char *title, wmWindow *win)
+static void wm_window_add_ghostwindow(bContext *C, const char *title, wmWindow *win)
 {
 	GHOST_WindowHandle ghostwin;
 	int scr_w, scr_h, posy;
@@ -994,6 +993,9 @@ char *WM_clipboard_text_get(int selection)
 {
 	char *p, *p2, *buf, *newbuf;
 
+	if(G.background)
+		return NULL;
+
 	buf= (char*)GHOST_getClipboard(selection);
 	if(!buf)
 		return NULL;
@@ -1014,6 +1016,7 @@ char *WM_clipboard_text_get(int selection)
 
 void WM_clipboard_text_set(char *buf, int selection)
 {
+	if(!G.background) {
 #ifdef _WIN32
 	/* do conversion from \n to \r\n on Windows */
 	char *p, *p2, *newbuf;
@@ -1041,6 +1044,7 @@ void WM_clipboard_text_set(char *buf, int selection)
 #else
 	GHOST_putClipboard((GHOST_TInt8*)buf, selection);
 #endif
+}
 }
 
 /* ******************* progress bar **************** */

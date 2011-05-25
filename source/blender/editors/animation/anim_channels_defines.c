@@ -2905,6 +2905,7 @@ static void achannel_setting_slider_cb(bContext *C, void *id_poin, void *fcu_poi
 	ID *id= (ID *)id_poin;
 	FCurve *fcu= (FCurve *)fcu_poin;
 	
+	ReportList *reports = CTX_wm_reports(C);
 	Scene *scene= CTX_data_scene(C);
 	PointerRNA id_ptr, ptr;
 	PropertyRNA *prop;
@@ -2928,7 +2929,7 @@ static void achannel_setting_slider_cb(bContext *C, void *id_poin, void *fcu_poi
 			flag |= INSERTKEY_REPLACE;
 		
 		/* insert a keyframe for this F-Curve */
-		done= insert_keyframe_direct(ptr, prop, fcu, cfra, flag);
+		done= insert_keyframe_direct(reports, ptr, prop, fcu, cfra, flag);
 		
 		if (done)
 			WM_event_add_notifier(C, NC_ANIMATION|ND_ANIMCHAN|NA_EDITED, NULL);
@@ -2942,6 +2943,7 @@ static void achannel_setting_slider_shapekey_cb(bContext *C, void *key_poin, voi
 	KeyBlock *kb= (KeyBlock *)kb_poin;
 	char *rna_path= key_get_curValue_rnaPath(key, kb);
 	
+	ReportList *reports = CTX_wm_reports(C);
 	Scene *scene= CTX_data_scene(C);
 	PointerRNA id_ptr, ptr;
 	PropertyRNA *prop;
@@ -2970,7 +2972,7 @@ static void achannel_setting_slider_shapekey_cb(bContext *C, void *key_poin, voi
 			flag |= INSERTKEY_REPLACE;
 		
 		/* insert a keyframe for this F-Curve */
-		done= insert_keyframe_direct(ptr, prop, fcu, cfra, flag);
+		done= insert_keyframe_direct(reports, ptr, prop, fcu, cfra, flag);
 		
 		if (done)
 			WM_event_add_notifier(C, NC_ANIMATION|ND_ANIMCHAN|NA_EDITED, NULL);
@@ -2987,7 +2989,7 @@ static void draw_setting_widget (bAnimContext *ac, bAnimListElem *ale, bAnimChan
 	short negflag, ptrsize, enabled, butType;
 	int flag, icon;
 	void *ptr;
-	char *tooltip;
+	const char *tooltip;
 	uiBut *but = NULL;
 	
 	/* get the flag and the pointer to that flag */

@@ -201,7 +201,7 @@ double BLI_diskfree(char *dir)
 #endif
 }
 
-void BLI_builddir(char *dirname, char *relname)
+void BLI_builddir(const char *dirname, const char *relname)
 {
 	struct dirent *fname;
 	struct dirlink *dlink;
@@ -289,12 +289,12 @@ void BLI_builddir(char *dirname, char *relname)
 	}
 }
 
-void BLI_adddirstrings()
+void BLI_adddirstrings(void)
 {
 	char datum[100];
 	char buf[512];
 	char size[250];
-	static char * types[8] = {"---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx"};
+	static const char * types[8] = {"---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx"};
 	int num, mode;
 #ifdef WIN32
 	__int64 st_size;
@@ -474,7 +474,7 @@ int BLI_exist(char *name)
 }
 
 /* would be better in fileops.c except that it needs stat.h so add here */
-int BLI_is_dir(char *file) {
+int BLI_is_dir(const char *file) {
 	return S_ISDIR(BLI_exist(file));
 }
 

@@ -57,7 +57,7 @@ enum {
 		/* headers (this is basically the same as listview, but no y-panning) */
 	V2D_COMMONVIEW_HEADER,
 		/* ui region containing panels */
-	V2D_COMMONVIEW_PANELS_UI,
+	V2D_COMMONVIEW_PANELS_UI
 } eView2D_CommonViewTypes;
 
 /* ---- Defines for Scroller/Grid Arguments ----- */
@@ -76,13 +76,13 @@ enum {
 	V2D_UNIT_VALUES,
 	V2D_UNIT_DEGREES,
 	V2D_UNIT_TIME,
-	V2D_UNIT_SECONDSSEQ,
+	V2D_UNIT_SECONDSSEQ
 } eView2D_Units;
 
 /* clamping of grid values to whole numbers */
 enum {
 	V2D_GRID_NOCLAMP = 0,
-	V2D_GRID_CLAMP,
+	V2D_GRID_CLAMP
 } eView2D_Clamp;
 
 /* flags for grid-lines to draw */
@@ -191,8 +191,8 @@ void UI_view2d_getscale(struct View2D *v2d, float *x, float *y);
 short UI_view2d_mouse_in_scrollers(const struct bContext *C, struct View2D *v2d, int x, int y);
 
 /* cached text drawing in v2d, to allow pixel-aligned draw as post process */
-void UI_view2d_text_cache_add(struct View2D *v2d, float x, float y, char *str);
-void UI_view2d_text_cache_rectf(struct View2D *v2d, struct rctf *rect, char *str);
+void UI_view2d_text_cache_add(struct View2D *v2d, float x, float y, const char *str, const char col[4]);
+void UI_view2d_text_cache_rectf(struct View2D *v2d, struct rctf *rect, const char *str, const char col[4]);
 void UI_view2d_text_cache_draw(struct ARegion *ar);
 
 /* operators */

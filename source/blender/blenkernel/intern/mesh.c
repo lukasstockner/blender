@@ -184,7 +184,7 @@ void free_dverts(MDeformVert *dvert, int totvert)
 	MEM_freeN (dvert);
 }
 
-Mesh *add_mesh(char *name)
+Mesh *add_mesh(const char *name)
 {
 	Mesh *me;
 	
@@ -1214,8 +1214,6 @@ void mesh_set_smooth_flag(Object *meshOb, int enableSmooth)
 			mf->flag &= ~ME_SMOOTH;
 		}
 	}
-
-// XXX do this in caller	DAG_id_flush_update(&me->id, OB_RECALC_DATA);
 }
 
 void mesh_calc_normals(MVert *mverts, int numVerts, MFace *mfaces, int numFaces, float **faceNors_r) 
@@ -1475,8 +1473,6 @@ void mesh_pmv_revert(Object *ob, Mesh *me)
 		me->pv->edge_map= NULL;
 		MEM_freeN(me->pv->vert_map);
 		me->pv->vert_map= NULL;
-
-// XXX do this in caller		DAG_id_flush_update(&me->id, OB_RECALC_DATA);
 	}
 }
 

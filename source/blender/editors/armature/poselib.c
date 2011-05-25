@@ -73,7 +73,7 @@
 
 /* ******* XXX ********** */
 
-static void action_set_activemarker() {}
+static void action_set_activemarker(void *UNUSED(a), void *UNUSED(b), void *UNUSED(c)) {}
 
 /* ************************************************************* */
 /* == POSE-LIBRARY TOOL FOR BLENDER == 
@@ -743,7 +743,7 @@ static void poselib_apply_pose (tPoseLib_PreviewData *pld)
 				}
 				else if (pchan->bone) {
 					/* only ok if bone is visible and selected */
-					if ( (pchan->bone->flag & BONE_SELECTED || pchan->bone == arm->act_bone) &&
+					if ( (pchan->bone->flag & BONE_SELECTED) &&
 						 (pchan->bone->flag & BONE_HIDDEN_P)==0 &&
 						 (pchan->bone->layer & arm->layer) )
 						ok = 1;
@@ -829,7 +829,7 @@ static void poselib_preview_apply (bContext *C, wmOperator *op)
 		 */
 		// FIXME: shouldn't this use the builtin stuff?
 		if ((pld->arm->flag & ARM_DELAYDEFORM)==0)
-			DAG_id_flush_update(&pld->ob->id, OB_RECALC_DATA);  /* sets recalc flags */
+			DAG_id_tag_update(&pld->ob->id, OB_RECALC_DATA);  /* sets recalc flags */
 		else
 			where_is_pose(pld->scene, pld->ob);
 	}
@@ -1333,7 +1333,7 @@ static void poselib_preview_cleanup (bContext *C, wmOperator *op)
 		 *	- note: code copied from transform_generics.c -> recalcData()
 		 */
 		if ((arm->flag & ARM_DELAYDEFORM)==0)
-			DAG_id_flush_update(&ob->id, OB_RECALC_DATA);  /* sets recalc flags */
+			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);  /* sets recalc flags */
 		else
 			where_is_pose(scene, ob);
 		
@@ -1347,7 +1347,7 @@ static void poselib_preview_cleanup (bContext *C, wmOperator *op)
 		action_set_activemarker(act, marker, 0);
 		
 		/* Update event for pose and deformation children */
-		DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		
 		/* updates */
 		if (IS_AUTOKEY_MODE(scene, NORMAL)) {

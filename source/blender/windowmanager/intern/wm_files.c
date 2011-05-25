@@ -250,8 +250,6 @@ static void wm_window_match_do(bContext *C, ListBase *oldwmlist)
 /* in case UserDef was read, we re-initialize all, and do versioning */
 static void wm_init_userdef(bContext *C)
 {
-	extern char btempdir[];
-
 	UI_init_userdef();
 	MEM_CacheLimiter_set_maximum(U.memcachelimit * 1024 * 1024);
 	sound_init(CTX_data_main(C));
@@ -262,12 +260,14 @@ static void wm_init_userdef(bContext *C)
 	if(U.tempdir[0]) BLI_where_is_temp(btempdir, 1);
 }
 
-void WM_read_file(bContext *C, char *name, ReportList *reports)
+void WM_read_file(bContext *C, const char *name, ReportList *reports)
 {
 	int retval;
 
 	/* so we can get the error message */
 	errno = 0;
+
+	WM_cursor_wait(1);
 
 	/* first try to append data from exotic file formats... */
 	/* it throws error box when file doesnt exist and returns -1 */
@@ -319,6 +319,7 @@ void WM_read_file(bContext *C, char *name, ReportList *reports)
 
 #ifndef DISABLE_PYTHON
 		/* run any texts that were loaded in and flagged as modules */
+		BPY_reset_driver();
 		BPY_load_user_modules(C);
 #endif
 		CTX_wm_window_set(C, NULL); /* exits queues */
@@ -329,6 +330,9 @@ void WM_read_file(bContext *C, char *name, ReportList *reports)
 		if(reports)
 			BKE_reportf(reports, RPT_ERROR, "Can't read file: \"%s\", %s.", name, errno ? strerror(errno) : "Incompatible file format");
 	}
+	
+	WM_cursor_wait(0);
+
 }
 
 
@@ -356,7 +360,7 @@ int WM_read_homefile(bContext *C, wmOperator *op)
 			tstr[0] = '\0';
 			from_memory = 1;
 			if (op) {
-				BKE_report(op->reports, RPT_INFO, "Config directory with startup.blend file found."); 
+				BKE_report(op->reports, RPT_INFO, "Config directory with startup.blend file not found."); 
 			}
 		}
 	}
@@ -409,6 +413,9 @@ int WM_read_homefile(bContext *C, wmOperator *op)
 	if(CTX_py_init_get(C)) {
 		/* sync addons, these may have changed from the defaults */
 		BPY_eval_string(C, "__import__('bpy').utils.addon_reset_all()");
+
+		BPY_reset_driver();
+		BPY_load_user_modules(C);
 	}
 #endif
 	
@@ -612,12 +619,15 @@ int WM_write_file(bContext *C, const char *target, int fileflags, ReportList *re
 	/* send the OnSave event */
 	for (li= G.main->library.first; li; li= li->id.next) {
 		if (strcmp(li->filepath, di) == 0) {
-			BKE_reportf(reports, RPT_ERROR, "Can't overwrite used library '%f'", di);
+			BKE_reportf(reports, RPT_ERROR, "Can't overwrite used library '%.200s'", di);
 			return -1;
 		}
 	}
 	
 	/* operator now handles overwrite checks */
+
+	/* don't forget not to return without! */
+	WM_cursor_wait(1);
 
 	if (G.fileflags & G_AUTOPACK) {
 		packAll(G.main, reports);
@@ -660,10 +670,13 @@ int WM_write_file(bContext *C, const char *target, int fileflags, ReportList *re
 	else {
 		if(ibuf_thumb) IMB_freeImBuf(ibuf_thumb);
 		if(thumb) MEM_freeN(thumb);
+		
+		WM_cursor_wait(0);
 		return -1;
 	}
 
-// XXX	waitcursor(0);
+	WM_cursor_wait(0);
+	
 	return 0;
 }
 

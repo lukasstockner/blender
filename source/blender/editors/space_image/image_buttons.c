@@ -477,7 +477,7 @@ static void image_panel_preview(ScrArea *sa, short cntrl)	// IMAGE_HANDLER_PREVI
 
 /* ********************* callbacks for standard image buttons *************** */
 
-static char *slot_menu()
+static char *slot_menu(void)
 {
 	char *str;
 	int a, slot;
@@ -754,7 +754,7 @@ static void rna_update_cb(bContext *C, void *arg_cb, void *UNUSED(arg))
 	RNA_property_update(C, &cb->ptr, cb->prop);
 }
 
-void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propname, PointerRNA *userptr, int compact)
+void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, PointerRNA *userptr, int compact)
 {
 	PropertyRNA *prop;
 	PointerRNA imaptr;
@@ -1012,6 +1012,7 @@ void IMAGE_OT_properties(wmOperatorType *ot)
 {
 	ot->name= "Properties";
 	ot->idname= "IMAGE_OT_properties";
+	ot->description= "Toggle display properties panel";
 	
 	ot->exec= image_properties;
 	ot->poll= ED_operator_image_active;
@@ -1035,6 +1036,7 @@ void IMAGE_OT_scopes(wmOperatorType *ot)
 {
 	ot->name= "Scopes";
 	ot->idname= "IMAGE_OT_scopes";
+	ot->description= "Toggle display scopes panel";
 	
 	ot->exec= image_scopes;
 	ot->poll= ED_operator_image_active;

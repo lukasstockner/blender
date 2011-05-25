@@ -377,6 +377,9 @@ typedef struct UserDef {
 	short autokey_mode;		/* autokeying mode */
 	short autokey_flag;		/* flags for autokeying */
 
+	short text_render, pad9;		/*options for text rendering*/
+	float pad10;
+
 	struct ColorBand coba_weight;	/* from texture.h */
 
 	float sculpt_paint_overlay_col[4];
@@ -424,6 +427,7 @@ extern UserDef U; /* from blenkernel blender.c */
 #define USER_FILENOUI			(1 << 23)
 #define USER_NONEGFRAMES		(1 << 24)
 #define USER_TXT_TABSTOSPACES_DISABLE	(1 << 25)
+#define USER_TOOLTIPS_PYTHON    (1 << 26)
 
 /* helper macro for checking frame clamping */
 #define FRAMENUMBER_MIN_CLAMP(cfra) \
@@ -526,6 +530,9 @@ extern UserDef U; /* from blenkernel blender.c */
 #define USER_DRAW_FULL			2
 #define USER_DRAW_AUTOMATIC		3
 #define USER_DRAW_OVERLAP_FLIP	4
+
+/* text draw options*/
+#define USER_TEXT_DISABLE_AA	(1 << 0)
 
 /* tw_flag (transform widget) */
 

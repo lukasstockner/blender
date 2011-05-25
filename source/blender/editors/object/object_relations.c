@@ -341,7 +341,7 @@ static int make_proxy_exec (bContext *C, wmOperator *op)
 		
 		/* depsgraph flushes are needed for the new data */
 		DAG_scene_sort(bmain, scene);
-		DAG_id_flush_update(&newob->id, OB_RECALC_ALL);
+		DAG_id_tag_update(&newob->id, OB_RECALC_ALL);
 		WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, newob);
 	}
 	else {
@@ -355,7 +355,7 @@ static int make_proxy_exec (bContext *C, wmOperator *op)
 /* Generic itemf's for operators that take library args */
 static EnumPropertyItem *proxy_group_object_itemf(bContext *C, PointerRNA *ptr, int *free)
 {
-	EnumPropertyItem *item= NULL, item_tmp;
+	EnumPropertyItem item_tmp= {0}, *item= NULL;
 	int totitem= 0;
 	int i= 0;
 	Object *ob= CTX_data_active_object(C);
@@ -363,8 +363,6 @@ static EnumPropertyItem *proxy_group_object_itemf(bContext *C, PointerRNA *ptr, 
 
 	if(!ob || !ob->dup_group)
 		return DummyRNA_DEFAULT_items;
-
-	memset(&item_tmp, 0, sizeof(item_tmp));
 
 	/* find the object to affect */
 	for (go= ob->dup_group->gobject.first; go; go= go->next) {
@@ -1301,6 +1299,7 @@ void OBJECT_OT_make_links_scene(wmOperatorType *ot)
 	ot->idname= "OBJECT_OT_make_links_scene";
 
 	/* api callbacks */
+	ot->invoke= WM_enum_search_invoke;
 	ot->exec= make_links_scene_exec;
 	/* better not run the poll check */
 
@@ -1743,7 +1742,7 @@ static int make_local_exec(bContext *C, wmOperator *op)
 	Material *ma, ***matarar;
 	Lamp *la;
 	ID *id;
-	int a, b, mode= RNA_enum_get(op->ptr, "type");;
+	int a, b, mode= RNA_enum_get(op->ptr, "type");
 	
 	if(mode==3) {
 		all_local(NULL, 0);	/* NULL is all libs */

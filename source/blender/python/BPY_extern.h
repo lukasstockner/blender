@@ -31,7 +31,6 @@
 #define BPY_EXTERN_H
 
 extern char bprogname[];	/* holds a copy of argv[0], from creator.c */
-extern char btempdir[];		/* use this to store a valid temp directory */
 
 struct Text; /* defined in DNA_text_types.h */
 struct ID; /* DNA_ID.h */
@@ -101,7 +100,7 @@ extern "C" {
 	int BPY_run_python_script( struct bContext *C, const char *filename, struct Text *text, struct ReportList *reports ); // 2.5 working
 	int BPY_run_script_space_draw(const struct bContext *C, struct SpaceScript * sc); // 2.5 working
 //	int BPY_run_script_space_listener(struct bContext *C, struct SpaceScript * sc, struct ARegion *ar, struct wmNotifier *wmn); // 2.5 working
-	void BPY_update_modules( void ); // XXX - annoying, need this for pointers that get out of date
+	void BPY_update_modules(struct bContext *C); // XXX - annoying, need this for pointers that get out of date
 //
 	int BPY_context_get(struct bContext *C, const char *member, struct bContextDataResult *result);
 //
@@ -118,7 +117,7 @@ extern "C" {
 //	int BPY_do_spacehandlers(struct ScrArea *sa, unsigned short event,
 //		short eventValue, unsigned short space_event);
 //
-//	void BPY_pydriver_update(void);
+	void BPY_reset_driver(void);
 	float BPY_eval_driver(struct ChannelDriver *driver);
 //
 	int BPY_eval_button(struct bContext *C, const char *expr, double *value);
@@ -126,7 +125,7 @@ extern "C" {
 	int BPY_eval_string(struct bContext *C, const char *expr);
 
 /* format importer hook */
-	int BPY_call_importloader( char *name );
+	int BPY_call_importloader(const char *name);
 //
 //	void BPY_spacescript_do_pywin_draw( struct SpaceScript *sc );
 //	void BPY_spacescript_do_pywin_event( struct SpaceScript *sc,

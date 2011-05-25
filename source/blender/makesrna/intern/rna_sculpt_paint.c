@@ -81,7 +81,7 @@ static EnumPropertyItem particle_edit_cache_brush_items[] = {
 static PointerRNA rna_ParticleEdit_brush_get(PointerRNA *ptr)
 {
 	ParticleEditSettings *pset= (ParticleEditSettings*)ptr->data;
-	ParticleBrushData *brush= NULL;;
+	ParticleBrushData *brush= NULL;
 
 	if(pset->brushtype != PE_BRUSH_NONE)
 		brush= &pset->brush[pset->brushtype];
@@ -109,7 +109,7 @@ static void rna_ParticleEdit_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Object *ob= (scene->basact)? scene->basact->object: NULL;
 
-	if(ob) DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	if(ob) DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 }
 static void rna_ParticleEdit_tool_set(PointerRNA *ptr, int value)
 {
@@ -119,7 +119,7 @@ static void rna_ParticleEdit_tool_set(PointerRNA *ptr, int value)
 	if((pset->brushtype == PE_BRUSH_WEIGHT || value == PE_BRUSH_WEIGHT) && pset->scene) {
 		Object *ob = (pset->scene->basact)? pset->scene->basact->object: NULL;
 		if(ob) {
-			DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 			WM_main_add_notifier(NC_OBJECT|ND_PARTICLE|NA_EDITED, NULL);
 		}
 	}
@@ -297,15 +297,6 @@ static void rna_def_image_paint(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Image Paint", "Properties of image and texture painting mode");
 	
 	/* booleans */
-
-	prop= RNA_def_property(srna, "show_brush_draw", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", IMAGEPAINT_DRAW_TOOL);
-	RNA_def_property_ui_text(prop, "Show Brush Draw", "Enables brush shape while drawing");
-
-	prop= RNA_def_property(srna, "show_brush", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", IMAGEPAINT_DRAW_TOOL_DRAWING);
-	RNA_def_property_ui_text(prop, "Show Brush", "Enables brush shape while not drawing");
-		
 	prop= RNA_def_property(srna, "use_projection", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", IMAGEPAINT_PROJECT_DISABLE);
 	RNA_def_property_ui_text(prop, "Project Paint", "Use projection painting for improved consistency in the brush strokes");
@@ -432,7 +423,7 @@ static void rna_def_particle_edit(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "default_key_count", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "totaddkey");
-	RNA_def_property_range(prop, 2, INT_MAX);
+	RNA_def_property_range(prop, 2, SHRT_MAX);
 	RNA_def_property_ui_range(prop, 2, 20, 10, 3);
 	RNA_def_property_ui_text(prop, "Keys", "How many keys to make new particles with");
 
@@ -479,7 +470,7 @@ static void rna_def_particle_edit(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Particle Brush", "Particle editing brush");
 
 	prop= RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
-	RNA_def_property_range(prop, 1, INT_MAX);
+	RNA_def_property_range(prop, 1, SHRT_MAX);
 	RNA_def_property_ui_range(prop, 1, 100, 10, 3);
 	RNA_def_property_ui_text(prop, "Size", "Brush size");
 
@@ -494,7 +485,7 @@ static void rna_def_particle_edit(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "steps", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "step");
-	RNA_def_property_range(prop, 1, INT_MAX);
+	RNA_def_property_range(prop, 1, SHRT_MAX);
 	RNA_def_property_ui_range(prop, 1, 50, 10, 3);
 	RNA_def_property_ui_text(prop, "Steps", "Brush steps");
 

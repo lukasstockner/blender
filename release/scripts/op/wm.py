@@ -30,11 +30,12 @@ class MESH_OT_delete_edgeloop(bpy.types.Operator):
     bl_label = "Delete Edge Loop"
 
     def execute(self, context):
-        bpy.ops.transform.edge_slide(value=1.0)
+        if 'FINISHED' in bpy.ops.transform.edge_slide(value=1.0):
         bpy.ops.mesh.select_more()
         bpy.ops.mesh.remove_doubles()
-
         return {'FINISHED'}
+
+        return {'CANCELLED'}
 
 rna_path_prop = StringProperty(name="Context Attributes",
         description="rna context string", maxlen=1024, default="")
@@ -241,8 +242,8 @@ class WM_OT_context_toggle_enum(bpy.types.Operator):
 
 
 class WM_OT_context_cycle_int(bpy.types.Operator):
-    '''Set a context value. Useful for cycling active material,
-    vertex keys, groups' etc.'''
+    '''Set a context value. Useful for cycling active material, '''
+    '''vertex keys, groups' etc.'''
     bl_idname = "wm.context_cycle_int"
     bl_label = "Context Int Cycle"
     bl_options = {'UNDO'}
@@ -478,7 +479,7 @@ class WM_OT_context_modal_mouse(bpy.types.Operator):
         else:
             self.initial_x = event.mouse_x
 
-            context.window_manager.add_modal_handler(self)
+            context.window_manager.modal_handler_add(self)
             return {'RUNNING_MODAL'}
 
 

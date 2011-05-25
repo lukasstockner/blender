@@ -24,9 +24,7 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-SET(SRC openexr_api.cpp)
-
-SET(INC 
+set(INC 
 	.
 	../../../blenkernel
 	../../
@@ -38,8 +36,12 @@ SET(INC
 	${OPENEXR_INC}
 )
 
-IF(WITH_IMAGE_OPENEXR)
-	ADD_DEFINITIONS(-DWITH_OPENEXR)
-ENDIF(WITH_IMAGE_OPENEXR)
+set(SRC
+	openexr_api.cpp
+)
 
-BLENDERLIB(bf_openexr "${SRC}" "${INC}")                 
+if(WITH_IMAGE_OPENEXR)
+	add_definitions(-DWITH_OPENEXR)
+endif()
+
+blenderlib(bf_imbuf_openexr "${SRC}" "${INC}")                 

@@ -63,27 +63,6 @@
 
 /* ******************* view3d space & buttons ************** */
 
-
-/* op->invoke */
-static void redo_cb(bContext *C, void *arg_op, void *UNUSED(arg2))
-{
-	wmOperator *lastop= arg_op;
-	
-	if(lastop) {
-		int retval;
-		
-		if (G.f & G_DEBUG)
-			printf("operator redo %s\n", lastop->type->name);
-		ED_undo_pop_op(C, lastop);
-		retval= WM_operator_repeat(C, lastop);
-		if((retval & OPERATOR_FINISHED)==0) {
-			if (G.f & G_DEBUG)
-				printf("operator redo failed %s\n", lastop->type->name);
-			ED_undo_redo(C);
-		}
-	}
-}
-
 static wmOperator *view3d_last_operator(const bContext *C)
 {
 	wmWindowManager *wm= CTX_wm_manager(C);
@@ -99,24 +78,9 @@ static wmOperator *view3d_last_operator(const bContext *C)
 
 static void view3d_panel_operator_redo_buts(const bContext *C, Panel *pa, wmOperator *op)
 {
-	wmWindowManager *wm= CTX_wm_manager(C);
-	PointerRNA ptr;
-	
-	if(!op->properties) {
-		IDPropertyTemplate val = {0};
-		op->properties= IDP_New(IDP_GROUP, val, "wmOperatorProperties");
+	uiLayoutOperatorButs(C, pa->layout, op, NULL, 'V', 0);
 	}
 	
-	RNA_pointer_create(&wm->id, op->type->srna, op->properties, &ptr);
-	if(op->type->ui) {
-		op->layout= pa->layout;
-		op->type->ui((bContext*)C, op);
-		op->layout= NULL;
-	}
-	else
-		uiDefAutoButsRNA(pa->layout, &ptr, 1);
-}
-
 static void view3d_panel_operator_redo_header(const bContext *C, Panel *pa)
 {
 	wmOperator *op= view3d_last_operator(C);
@@ -150,7 +114,7 @@ static void view3d_panel_operator_redo(const bContext *C, Panel *pa)
 	
 	block= uiLayoutGetBlock(pa->layout);
 
-	uiBlockSetFunc(block, redo_cb, op, NULL);
+	uiBlockSetFunc(block, ED_undo_operator_repeat_cb, op, NULL);
 	
 	view3d_panel_operator_redo_operator(C, pa, op);
 }
@@ -177,7 +141,7 @@ static void operator_call_cb(struct bContext *C, void *arg_listbase, void *arg2)
 		
 }
 
-static void operator_search_cb(const struct bContext *C, void *UNUSED(arg), char *str, uiSearchItems *items)
+static void operator_search_cb(const struct bContext *C, void *UNUSED(arg), const char *str, uiSearchItems *items)
 {
 	wmOperatorType *ot = WM_operatortype_first();
 	

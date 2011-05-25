@@ -851,7 +851,7 @@ void free_main(Main *mainvar)
 /* ***************** ID ************************ */
 
 
-ID *find_id(char *type, char *name)		/* type: "OB" or "MA" etc */
+ID *find_id(const char *type, const char *name)		/* type: "OB" or "MA" etc */
 {
 	ListBase *lb= which_libbase(G.main, GS(type));
 	return BLI_findstring(lb, name, offsetof(ID, name) + 2);
@@ -940,7 +940,7 @@ static void IDnames_to_dyn_pupstring(DynStr *pupds, ListBase *lb, ID *link, shor
 
 /* used by headerbuttons.c buttons.c editobject.c editseq.c */
 /* if nr==NULL no MAX_IDPUP, this for non-header browsing */
-void IDnames_to_pupstring(char **str, char *title, char *extraops, ListBase *lb, ID *link, short *nr)
+void IDnames_to_pupstring(const char **str, const char *title, const char *extraops, ListBase *lb, ID *link, short *nr)
 {
 	DynStr *pupds= BLI_dynstr_new();
 
@@ -962,7 +962,7 @@ void IDnames_to_pupstring(char **str, char *title, char *extraops, ListBase *lb,
 }
 
 /* skips viewer images */
-void IMAnames_to_pupstring(char **str, char *title, char *extraops, ListBase *lb, ID *link, short *nr)
+void IMAnames_to_pupstring(const char **str, const char *title, const char *extraops, ListBase *lb, ID *link, short *nr)
 {
 	DynStr *pupds= BLI_dynstr_new();
 	
@@ -1040,7 +1040,7 @@ static void sort_alpha_id(ListBase *lb, ID *id)
  * Check to see if there is an ID with the same name as 'name'.
  * Returns the ID if so, if not, returns NULL
  */
-static ID *is_dupid(ListBase *lb, ID *id, char *name)
+static ID *is_dupid(ListBase *lb, ID *id, const char *name)
 {
 	ID *idtest=NULL;
 	
@@ -1389,7 +1389,7 @@ void text_idbutton(struct ID *id, char *text)
 }
 }
 
-void rename_id(ID *id, char *name)
+void rename_id(ID *id, const char *name)
 {
 	ListBase *lb;
 
@@ -1402,7 +1402,7 @@ void rename_id(ID *id, char *name)
 void name_uiprefix_id(char *name, ID *id)
 {
 	name[0] = id->lib ? 'L':' ';
-	name[1] = id->flag & LIB_FAKEUSER ? 'F':' ';
+	name[1] = id->flag & LIB_FAKEUSER ? 'F': (id->us==0)?'0':' ';
 	name[2] = ' ';
 
 	strcpy(name+3, id->name+2);

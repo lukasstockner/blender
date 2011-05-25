@@ -157,6 +157,7 @@ extern StructRNA RNA_CompositorNodeTexture;
 extern StructRNA RNA_CompositorNodeTime;
 extern StructRNA RNA_CompositorNodeTonemap;
 extern StructRNA RNA_CompositorNodeTranslate;
+extern StructRNA RNA_CompositorNodeTree;
 extern StructRNA RNA_CompositorNodeValToRGB;
 extern StructRNA RNA_CompositorNodeValue;
 extern StructRNA RNA_CompositorNodeVecBlur;
@@ -416,6 +417,7 @@ extern StructRNA RNA_ShaderNodeRGBToBW;
 extern StructRNA RNA_ShaderNodeSeparateRGB;
 extern StructRNA RNA_ShaderNodeSqueeze;
 extern StructRNA RNA_ShaderNodeTexture;
+extern StructRNA RNA_ShaderNodeTree;
 extern StructRNA RNA_ShaderNodeValToRGB;
 extern StructRNA RNA_ShaderNodeValue;
 extern StructRNA RNA_ShaderNodeVectorCurve;
@@ -495,6 +497,7 @@ extern StructRNA RNA_TextureNodeRotate;
 extern StructRNA RNA_TextureNodeScale;
 extern StructRNA RNA_TextureNodeTexture;
 extern StructRNA RNA_TextureNodeTranslate;
+extern StructRNA RNA_TextureNodeTree;
 extern StructRNA RNA_TextureNodeValToNor;
 extern StructRNA RNA_TextureNodeValToRGB;
 extern StructRNA RNA_TextureNodeViewer;
@@ -582,7 +585,7 @@ void RNA_pointer_create(struct ID *id, StructRNA *type, void *data, PointerRNA *
 void RNA_blender_rna_pointer_create(PointerRNA *r_ptr);
 void RNA_pointer_recast(PointerRNA *ptr, PointerRNA *r_ptr);
 
-extern PointerRNA PointerRNA_NULL;
+extern const PointerRNA PointerRNA_NULL;
 
 /* Structs */
 
@@ -678,6 +681,7 @@ int RNA_property_editable_index(PointerRNA *ptr, PropertyRNA *prop, int index);
 int RNA_property_editable_flag(PointerRNA *ptr, PropertyRNA *prop); /* without lib check, only checks the flag */
 int RNA_property_animateable(PointerRNA *ptr, PropertyRNA *prop);
 int RNA_property_animated(PointerRNA *ptr, PropertyRNA *prop);
+int RNA_property_path_from_ID_check(PointerRNA *ptr, PropertyRNA *prop); /* slow, use with care */
 
 void RNA_property_update(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop);
 void RNA_property_update_main(struct Main *bmain, struct Scene *scene, PointerRNA *ptr, PropertyRNA *prop);
@@ -923,8 +927,16 @@ void RNA_parameter_length_set_data(ParameterList *parms, PropertyRNA *parm, void
 int RNA_function_call(struct bContext *C, struct ReportList *reports, PointerRNA *ptr, FunctionRNA *func, ParameterList *parms);
 int RNA_function_call_lookup(struct bContext *C, struct ReportList *reports, PointerRNA *ptr, const char *identifier, ParameterList *parms);
 
-int RNA_function_call_direct(struct bContext *C, struct ReportList *reports, PointerRNA *ptr, FunctionRNA *func, const char *format, ...);
-int RNA_function_call_direct_lookup(struct bContext *C, struct ReportList *reports, PointerRNA *ptr, const char *identifier, const char *format, ...);
+int RNA_function_call_direct(struct bContext *C, struct ReportList *reports, PointerRNA *ptr, FunctionRNA *func, const char *format, ...)
+#ifdef __GNUC__
+__attribute__ ((format (printf, 5, 6)));
+#endif
+;
+int RNA_function_call_direct_lookup(struct bContext *C, struct ReportList *reports, PointerRNA *ptr, const char *identifier, const char *format, ...)
+#ifdef __GNUC__
+__attribute__ ((format (printf, 5, 6)));
+#endif
+;
 int RNA_function_call_direct_va(struct bContext *C, struct ReportList *reports, PointerRNA *ptr, FunctionRNA *func, const char *format, va_list args);
 int RNA_function_call_direct_va_lookup(struct bContext *C, struct ReportList *reports, PointerRNA *ptr, const char *identifier, const char *format, va_list args);
 

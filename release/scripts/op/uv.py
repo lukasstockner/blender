@@ -126,6 +126,19 @@ def write_png(fw, mesh_source, image_width, image_height, face_iter):
     for f in mesh_source.faces:
         tot_verts += len(f.vertices)
 
+
+    faces_source = mesh_source.faces
+
+    # get unique UV's incase there are many overlapping which slow down filling.
+    face_hash_3 = set()
+    face_hash_4 = set()
+    for i, uv in face_iter:
+        material_index = faces_source[i].material_index
+        if len(uv) == 3:
+            face_hash_3.add((uv[0][0], uv[0][1], uv[1][0], uv[1][1], uv[2][0], uv[2][1], material_index))
+        else:
+            face_hash_4.add((uv[0][0], uv[0][1], uv[1][0], uv[1][1], uv[2][0], uv[2][1], uv[3][0], uv[3][1], material_index))
+
     # now set the faces coords and locations
     # build mesh data
     mesh_new_vertices = []
@@ -134,19 +147,18 @@ def write_png(fw, mesh_source, image_width, image_height, face_iter):
     
     
     current_vert = 0
-    faces_source = mesh_source.faces
-    for i, uv in face_iter:
-        if len(uv) == 3:
-            mesh_new_vertices.extend([uv[0][0], uv[0][1], 0.0, uv[1][0], uv[1][1], 0.0, uv[2][0], uv[2][1], 0.0])
+
+    for face_data in face_hash_3:
+        mesh_new_vertices.extend([face_data[0], face_data[1], 0.0, face_data[2], face_data[3], 0.0, face_data[4], face_data[5], 0.0])
             mesh_new_face_vertices.extend([current_vert, current_vert + 1, current_vert + 2, 0])
+        mesh_new_materials.append(face_data[6])
             current_vert += 3
-        else:
-            mesh_new_vertices.extend([uv[0][0], uv[0][1], 0.0, uv[1][0], uv[1][1], 0.0, uv[2][0], uv[2][1], 0.0, uv[3][0], uv[3][1], 0.0])
+    for face_data in face_hash_4:
+        mesh_new_vertices.extend([face_data[0], face_data[1], 0.0, face_data[2], face_data[3], 0.0, face_data[4], face_data[5], 0.0, face_data[6], face_data[7], 0.0])
             mesh_new_face_vertices.extend([current_vert, current_vert + 1, current_vert + 2, current_vert + 3])
+        mesh_new_materials.append(face_data[8])
             current_vert += 4
 
-        mesh_new_materials.append(faces_source[i].material_index)
-    
     mesh.vertices.add(len(mesh_new_vertices) // 3)
     mesh.faces.add(len(mesh_new_face_vertices) // 4)
 
@@ -212,12 +224,7 @@ def write_png(fw, mesh_source, image_width, image_height, face_iter):
     scene.render.filepath = filepath
 
     data_context = {"blend_data": bpy.context.blend_data, "scene": scene}
-    bpy.ops.render.render(data_context, animation=True)
-    
-    # stupid
-    import os
-    animpath = scene.render.frame_path(1)
-    os.rename(animpath, os.path.abspath(filepath))
+    bpy.ops.render.render(data_context, write_still=True)
     
     # cleanup
     bpy.data.scenes.remove(scene)
@@ -256,11 +263,11 @@ class ExportUVLayout(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return (obj and obj.type == 'MESH')
+        return (obj and obj.type == 'MESH' and obj.data.uv_textures)
 
     def _space_image(self, context):
         space_data = context.space_data
-        if type(space_data) == bpy.types.SpaceImageEditor:
+        if isinstance(space_data, bpy.types.SpaceImageEditor):
             return space_data
         else:
             return None
@@ -351,11 +358,10 @@ class ExportUVLayout(bpy.types.Operator):
         else:
             return False
 
-
     def invoke(self, context, event):
         self.size = self._image_size(context)
         wm = context.window_manager
-        wm.add_fileselect(self)
+        wm.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
 

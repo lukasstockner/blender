@@ -77,6 +77,8 @@
 
 /* local */
 
+extern char bprogname[];
+
 static int add_win32_extension(char *name);
 static char *blender_version_decimal(void);
 
@@ -374,7 +376,7 @@ void BLI_path_rel(char *file, const char *relfile)
 	if (relfile[0] == 0) return;
 
 #ifdef WIN32 
-	if (strlen(relfile) > 2 && relfile[1] != ':') {
+	if (BLI_strnlen(relfile, 3) > 2 && relfile[1] != ':') {
 		char* ptemp;
 		/* fix missing volume name in relative base,
 		   can happen with old recent-files.txt files */
@@ -388,7 +390,7 @@ void BLI_path_rel(char *file, const char *relfile)
 		BLI_strncpy(temp, relfile, FILE_MAXDIR + FILE_MAXFILE);
 	}
 
-	if (strlen(file) > 2) {
+	if (BLI_strnlen(file, 3) > 2) {
 		if ( temp[1] == ':' && file[1] == ':' && temp[0] != file[0] )
 			return;
 	}
@@ -565,9 +567,18 @@ int BLI_path_frame_range(char *path, int sta, int end, int digits)
 
 	if (stringframe_chars(path, &ch_sta, &ch_end)) { /* warning, ch_end is the last # +1 */
 		char tmp[FILE_MAX], format[64];
+#if 0	// neat but breaks on non ascii strings.
 		sprintf(format, "%%.%ds%%.%dd_%%.%dd%%s", ch_sta, ch_end-ch_sta, ch_end-ch_sta); /* example result: "%.12s%.5d-%.5d%s" */
 		sprintf(tmp, format, path, sta, end, path+ch_end);
 		strcpy(path, tmp);
+#else
+		char *tmp_pt;
+		BLI_snprintf(format, sizeof(format), "%%.%dd-%%.%dd%%s", digits, digits);
+		memcpy(tmp, path, ch_sta * sizeof(char));
+		tmp_pt = &tmp[ch_sta];
+		tmp_pt += BLI_snprintf(tmp_pt, sizeof(tmp)-ch_sta, format, sta, end, &path[ch_end]);
+		memcpy(path, tmp, (int)(tmp_pt - tmp) + 1);
+#endif
 		return 1;
 	}
 	return 0;
@@ -795,7 +806,7 @@ static char *blender_version_decimal(void)
 	return version_str;
 }
 
-static int test_path(char *targetpath, char *path_base, char *path_sep, char *folder_name)
+static int test_path(char *targetpath, const char *path_base, const char *path_sep, const char *folder_name)
 {
 	char tmppath[FILE_MAX];
 	
@@ -819,7 +830,7 @@ static int test_path(char *targetpath, char *path_base, char *path_sep, char *fo
 	}
 }
 
-static int test_env_path(char *path, char *envvar)
+static int test_env_path(char *path, const char *envvar)
 {
 	char *env = envvar?getenv(envvar):NULL;
 	if (!env) return 0;
@@ -833,9 +844,8 @@ static int test_env_path(char *path, char *envvar)
 	}
 }
 
-static int get_path_local(char *targetpath, char *folder_name, char *subfolder_name)
+static int get_path_local(char *targetpath, const char *folder_name, const char *subfolder_name)
 {
-	extern char bprogname[]; /* argv[0] from creator.c */
 	char bprogdir[FILE_MAX];
 	char relfolder[FILE_MAX];
 	
@@ -859,7 +869,7 @@ static int get_path_local(char *targetpath, char *folder_name, char *subfolder_n
 	return 0;
 }
 
-static int get_path_user(char *targetpath, char *folder_name, char *subfolder_name, char *envvar)
+static int get_path_user(char *targetpath, const char *folder_name, const char *subfolder_name, const char *envvar)
 {
 	char user_path[FILE_MAX];
 	const char *user_base_path;
@@ -896,7 +906,7 @@ static int get_path_user(char *targetpath, char *folder_name, char *subfolder_na
 	}
 }
 
-static int get_path_system(char *targetpath, char *folder_name, char *subfolder_name, char *envvar)
+static int get_path_system(char *targetpath, const char *folder_name, const char *subfolder_name, const char *envvar)
 {
 	char system_path[FILE_MAX];
 	const char *system_base_path;
@@ -904,7 +914,6 @@ static int get_path_system(char *targetpath, char *folder_name, char *subfolder_
 
 	/* first allow developer only overrides to the system path
 	 * these are only used when running blender from source */
-	extern char bprogname[]; /* argv[0] from creator.c */
 	char cwd[FILE_MAX];
 	char relfolder[FILE_MAX];
 	char bprogdir[FILE_MAX];
@@ -963,7 +972,7 @@ static int get_path_system(char *targetpath, char *folder_name, char *subfolder_
 
 /* get a folder out of the 'folder_id' presets for paths */
 /* returns the path if found, NULL string if not */
-char *BLI_get_folder(int folder_id, char *subfolder)
+char *BLI_get_folder(int folder_id, const char *subfolder)
 {
 	static char path[FILE_MAX] = "";
 	
@@ -1035,7 +1044,7 @@ char *BLI_get_folder(int folder_id, char *subfolder)
 	return path;
 }
 
-char *BLI_get_user_folder_notest(int folder_id, char *subfolder)
+char *BLI_get_user_folder_notest(int folder_id, const char *subfolder)
 {
 	static char path[FILE_MAX] = "";
 
@@ -1059,7 +1068,7 @@ char *BLI_get_user_folder_notest(int folder_id, char *subfolder)
 	return path;
 }
 
-char *BLI_get_folder_create(int folder_id, char *subfolder)
+char *BLI_get_folder_create(int folder_id, const char *subfolder)
 {
 	char *path;
 
@@ -1122,8 +1131,9 @@ void BLI_setenv_if_new(const char *env, const char* val)
 void BLI_clean(char *path)
 {
 	if(path==0) return;
+
 #ifdef WIN32
-	if(path && strlen(path)>2) {
+	if(path && BLI_strnlen(path, 3) > 2) {
 		BLI_char_switch(path+2, '/', '\\');
 	}
 #else
@@ -1181,7 +1191,7 @@ void BLI_make_exist(char *dir) {
 #endif
 }
 
-void BLI_make_existing_file(char *name)
+void BLI_make_existing_file(const char *name)
 {
 	char di[FILE_MAXDIR+FILE_MAXFILE], fi[FILE_MAXFILE];
 
@@ -1226,7 +1236,7 @@ void BLI_make_file_string(const char *relabase, char *string,  const char *dir, 
 	}
 #ifdef WIN32
 	else {
-		if (strlen(dir) >= 2 && dir[1] == ':' ) {
+		if (BLI_strnlen(dir, 3) >= 2 && dir[1] == ':' ) {
 			BLI_strncpy(string, dir, 3);
 			dir += 2;
 		}
@@ -1543,10 +1553,10 @@ void BLI_where_am_i(char *fullname, const char *name)
 	char *path = NULL, *temp;
 	
 #ifdef _WIN32
-	char *separator = ";";
+	const char *separator = ";";
 	char slash = '\\';
 #else
-	char *separator = ":";
+	const char *separator = ":";
 	char slash = '/';
 #endif
 
@@ -1672,7 +1682,6 @@ void BLI_where_is_temp(char *fullname, int usertemp)
 }
 
 char *get_install_dir(void) {
-	extern char bprogname[];
 	char *tmpname = BLI_strdup(bprogname);
 	char *cut;
 

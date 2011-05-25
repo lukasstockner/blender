@@ -78,6 +78,7 @@ void window_to_3d_delta(struct ARegion *ar, float *vec, short mx, short my);
 void view3d_unproject(struct bglMats *mats, float out[3], const short x, const short y, const float z);
 
 /* Depth buffer */
+void view3d_update_depths(struct ARegion *ar);
 float read_cached_depth(struct ViewContext *vc, int x, int y);
 void request_depth_update(struct RegionView3D *rv3d);
 
@@ -118,7 +119,7 @@ void ED_view3d_local_clipping(struct RegionView3D *rv3d, float mat[][4]);
 int view3d_test_clipping(struct RegionView3D *rv3d, float *vec, int local);
 void view3d_align_axis_to_vector(struct View3D *v3d, struct RegionView3D *rv3d, int axisidx, float vec[3]);
 
-void drawcircball(int mode, float *cent, float rad, float tmat[][4]);
+void drawcircball(int mode, const float cent[3], float rad, float tmat[][4]);
 
 /* backbuffer select and draw support */
 void view3d_validate_backbuf(struct ViewContext *vc);

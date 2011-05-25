@@ -56,6 +56,7 @@
 #include "DNA_sound_types.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_bpath.h"
 #include "BLI_dynstr.h"
 #include "BLI_path_util.h"
 
@@ -155,50 +156,33 @@ static void clear_global(void)
 /* make sure path names are correct for OS */
 static void clean_paths(Main *main)
 {
-	Image *image= main->image.first;
-	bSound *sound= main->sound.first;
-	Scene *scene= main->scene.first;
-	Editing *ed;
-	Sequence *seq;
-	Strip *strip;
+	struct BPathIterator *bpi;
+	char filepath_expanded[1024];
+	Scene *scene;
 	
-	while(image) {
-		BLI_clean(image->name);
-		image= image->id.next;
-	}
+	for(BLI_bpathIterator_init(&bpi, main, main->name); !BLI_bpathIterator_isDone(bpi); BLI_bpathIterator_step(bpi)) {
+		BLI_bpathIterator_getPath(bpi, filepath_expanded);
 	
-	while(sound) {
-		BLI_clean(sound->name);
-		sound= sound->id.next;
-	}
+		BLI_clean(filepath_expanded);
 	
-	while(scene) {
-		ed= seq_give_editing(scene, 0);
-		if(ed) {
-			seq= ed->seqbasep->first;
-			while(seq) {
-				if(seq->plugin) {
-					BLI_clean(seq->plugin->name);
+		BLI_bpathIterator_setPath(bpi, filepath_expanded);
 				}
-				strip= seq->strip;
-				while(strip) {
-					BLI_clean(strip->dir);
-					strip= strip->next;
-				}
-				seq= seq->next;
-			}
-		}
+
+	BLI_bpathIterator_free(bpi);
+
+	for(scene= main->scene.first; scene; scene= scene->id.next) {
 		BLI_clean(scene->r.backbuf);
 		BLI_clean(scene->r.pic);
-		
-		scene= scene->id.next;
 	}
 }
 
 /* context matching */
 /* handle no-ui case */
 
-static void setup_app_data(bContext *C, BlendFileData *bfd, char *filename) 
+/* note, this is called on Undo so any slow conversion functions here
+ * should be avoided or check (mode!='u') */
+
+static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filename) 
 {
 	bScreen *curscreen= NULL;
 	Scene *curscene= NULL;
@@ -212,7 +196,10 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, char *filename)
 
 	recover= (G.fileflags & G_FILE_RECOVER);
 	
+	/* Only make filepaths compatible when loading for real (not undo) */
+	if(mode != 'u') {
 	clean_paths(bfd->main);
+	}
 	
 	/* XXX here the complex windowmanager matching */
 	
@@ -238,6 +225,7 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, char *filename)
 	}
 	
 	/* free G.main Main database */
+//	CTX_wm_manager_set(C, NULL);
 	clear_global();	
 	
 	G.main= bfd->main;
@@ -262,7 +250,7 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, char *filename)
 		G.winpos= bfd->winpos;
 		G.displaymode= bfd->displaymode;
 		G.fileflags= bfd->fileflags;
-		
+		CTX_wm_manager_set(C, bfd->main->wm.first);
 		CTX_wm_screen_set(C, bfd->curscreen);
 		CTX_data_scene_set(C, bfd->curscreen->scene);
 		CTX_wm_area_set(C, NULL);
@@ -365,7 +353,7 @@ void BKE_userdef_free(void)
    2: OK, and with new user settings
 */
 
-int BKE_read_file(bContext *C, char *dir, ReportList *reports) 
+int BKE_read_file(bContext *C, const char *dir, ReportList *reports) 
 {
 	BlendFileData *bfd;
 	int retval= 1;
@@ -490,7 +478,7 @@ static int read_undosave(bContext *C, UndoElem *uel)
 }
 
 /* name can be a dynamic string */
-void BKE_write_undo(bContext *C, char *name)
+void BKE_write_undo(bContext *C, const char *name)
 {
 	uintptr_t maxmem, totmem, memused;
 	int nr, success;

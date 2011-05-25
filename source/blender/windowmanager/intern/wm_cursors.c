@@ -155,8 +155,9 @@ void WM_cursor_restore(wmWindow *win)
 /* to allow usage all over, we do entire WM */
 void WM_cursor_wait(int val)
 {
+	if(!G.background) {
 	wmWindowManager *wm= G.main->wm.first;
-	wmWindow *win= wm->windows.first; 
+		wmWindow *win= wm?wm->windows.first:NULL; 
 	
 	for(; win; win= win->next) {
 		if(val) {
@@ -165,6 +166,7 @@ void WM_cursor_wait(int val)
 			WM_cursor_restore(win);
 		}
 	}
+}
 }
 
 void WM_cursor_grab(wmWindow *win, int wrap, int hide, int *bounds)
@@ -217,13 +219,12 @@ void WM_timecursor(wmWindow *win, int nr)
 	{0,  56,  68,  68, 120,  64,  68,  56} 
 	};
 	unsigned char mask[16][2];
-	unsigned char bitmap[16][2];
+	unsigned char bitmap[16][2]= {{0}};
 	int i, idx;
 	
 	if(win->lastcursor == 0)
 		win->lastcursor= win->cursor; 
 	
-	memset(&bitmap, 0x00, sizeof(bitmap));
 	memset(&mask, 0xFF, sizeof(mask));
 	
 	/* print number bottom right justified */

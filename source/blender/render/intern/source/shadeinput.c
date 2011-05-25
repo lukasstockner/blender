@@ -142,6 +142,11 @@ void shade_material_loop(ShadeInput *shi, ShadeResult *shr)
 			if((shi->layflag & SCE_LAY_SKY) && (R.r.alphamode==R_ADDSKY))
 				shr->alpha= 1.0f;
 	}	
+	
+	if(R.r.mode & R_RAYTRACE) {
+		if (R.render_volumes_inside.first)
+			shade_volume_inside(shi, shr);
+}
 }
 
 
@@ -164,9 +169,6 @@ void shade_input_do_shade(ShadeInput *shi, ShadeResult *shr)
 		
 		if (shi->mat->material_type == MA_TYPE_VOLUME) {
 			if(R.r.mode & R_RAYTRACE) {			
-				if (R.render_volumes_inside.first)
-					shade_volume_inside(shi, shr);
-				else
 					shade_volume_outside(shi, shr);
 			}
 		} else { /* MA_TYPE_SURFACE, MA_TYPE_WIRE */

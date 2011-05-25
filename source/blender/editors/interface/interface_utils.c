@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "DNA_object_types.h"
 
@@ -40,7 +41,7 @@
 
 /*************************** RNA Utilities ******************************/
 
-uiBut *uiDefAutoButR(uiBlock *block, PointerRNA *ptr, PropertyRNA *prop, int index, char *name, int icon, int x1, int y1, int x2, int y2)
+uiBut *uiDefAutoButR(uiBlock *block, PointerRNA *ptr, PropertyRNA *prop, int index, const char *name, int icon, int x1, int y1, int x2, int y2)
 {
 	uiBut *but=NULL;
 	const char *propname= RNA_property_identifier(prop);
@@ -131,35 +132,50 @@ uiBut *uiDefAutoButR(uiBlock *block, PointerRNA *ptr, PropertyRNA *prop, int ind
 	return but;
 }
 
-void uiDefAutoButsRNA(uiLayout *layout, PointerRNA *ptr, int columns)
+int uiDefAutoButsRNA(uiLayout *layout, PointerRNA *ptr, int (*check_prop)(PropertyRNA *), const char label_align)
 {
 	uiLayout *split, *col;
 	int flag;
-	char *name;
+	const char *name;
+	int tot= 0;
+
+	assert(ELEM3(label_align, '\0', 'H', 'V'));
 
 	RNA_STRUCT_BEGIN(ptr, prop) {
 		flag= RNA_property_flag(prop);
-		if(flag & PROP_HIDDEN)
+		if(flag & PROP_HIDDEN || (check_prop && check_prop(prop)==FALSE))
 			continue;
 
-		name= (char*)RNA_property_ui_name(prop);
+		if(label_align != '\0') {
+			name= RNA_property_ui_name(prop);
 
-		if(columns == 1) {
+			if(label_align=='V') {
 			col= uiLayoutColumn(layout, 1);
 			uiItemL(col, name, 0);
 		}
-		else if(columns == 2) {
+			else if(label_align=='H') {
 			split = uiLayoutSplit(layout, 0.5f, 0);
 
 			uiItemL(uiLayoutColumn(split, 0), name, 0);
 			col= uiLayoutColumn(split, 0);
 		}
-		else
+			else {
 			col= NULL;
+			}
 
-		uiItemFullR(col, ptr, prop, -1, 0, 0, "", 0);
+			name= ""; /* name is shown above, empty name for button below */
+	}
+		else {
+			col= layout;
+			name= NULL; /* no smart label alignment, show default name with button */
+		}
+
+		uiItemFullR(col, ptr, prop, -1, 0, 0, name, 0);
+		tot++;
 	}
 	RNA_STRUCT_END;
+
+	return tot;
 }
 
 /***************************** ID Utilities *******************************/

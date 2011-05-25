@@ -24,10 +24,9 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-FILE(GLOB SRC *.cpp)
+remove_strict_flags()
 
-IF(APPLE)
-SET(INC
+set(INC
   .
   ../blenlib
   ../blenkernel
@@ -36,33 +35,68 @@ SET(INC
   ../makesrna
   ../editors/include
   ../../../intern/guardedalloc
+)
+
+if(APPLE)
+	list(APPEND INC
   ${OPENCOLLADA_INC}/COLLADAStreamWriter
   ${OPENCOLLADA_INC}/COLLADABaseUtils
   ${OPENCOLLADA_INC}/COLLADAFramework
   ${OPENCOLLADA_INC}/COLLADASaxFrameworkLoader 
 )
-
-ELSE(APPLE)
-
-SET(INC
-  .
-  ../blenlib
-  ../blenkernel
-  ../windowmanager
-  ../makesdna
-  ../makesrna
-  ../editors/include
-  ../../../intern/guardedalloc
+else()
+	list(APPEND INC
   ${OPENCOLLADA_INC}/COLLADAStreamWriter/include
   ${OPENCOLLADA_INC}/COLLADABaseUtils/include
   ${OPENCOLLADA_INC}/COLLADAFramework/include
   ${OPENCOLLADA_INC}/COLLADASaxFrameworkLoader/include 
 )
+endif()
 
-ENDIF(APPLE)
+set(SRC
+	AnimationImporter.cpp
+	ArmatureExporter.cpp
+	ArmatureImporter.cpp
+	CameraExporter.cpp
+	DocumentExporter.cpp
+	DocumentImporter.cpp
+	EffectExporter.cpp
+	GeometryExporter.cpp
+	ImageExporter.cpp
+	InstanceWriter.cpp
+	LightExporter.cpp
+	MaterialExporter.cpp
+	MeshImporter.cpp
+	SkinInfo.cpp
+	TransformReader.cpp
+	TransformWriter.cpp
+	collada.cpp
+	collada_internal.cpp
+	collada_utils.cpp
 
-IF(WITH_BUILDINFO)
-	ADD_DEFINITIONS(-DNAN_BUILDINFO)
-ENDIF(WITH_BUILDINFO)
+	AnimationImporter.h
+	ArmatureExporter.h
+	ArmatureImporter.h
+	CameraExporter.h
+	DocumentExporter.h
+	DocumentImporter.h
+	EffectExporter.h
+	GeometryExporter.h
+	ImageExporter.h
+	InstanceWriter.h
+	LightExporter.h
+	MaterialExporter.h
+	MeshImporter.h
+	SkinInfo.h
+	TransformReader.h
+	TransformWriter.h
+	collada.h
+	collada_internal.h
+	collada_utils.h
+)
 
-BLENDERLIB(bf_collada "${SRC}" "${INC}")
+if(WITH_BUILDINFO)
+	add_definitions(-DNAN_BUILDINFO)
+endif()
+
+blenderlib(bf_collada "${SRC}" "${INC}")

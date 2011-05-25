@@ -172,6 +172,7 @@ typedef struct wmNotifier {
 #define ND_GPENCIL			(5<<16)
 #define ND_EDITOR_CHANGED	(6<<16) /*sent to new editors after switching to them*/
 #define ND_SCREENSET		(7<<16)
+#define ND_SKETCH			(8<<16)
 
 	/* NC_SCENE Scene */
 #define ND_SCENEBROWSE		(1<<16)
@@ -385,9 +386,9 @@ typedef struct wmTimer {
 typedef struct wmOperatorType {
 	struct wmOperatorType *next, *prev;
 
-	char *name;		/* text for ui, undo */
-	char *idname;		/* unique identifier */
-	char *description;	/* tooltips and python docs */
+	const char *name;		/* text for ui, undo */
+	const char *idname;		/* unique identifier */
+	const char *description;	/* tooltips and python docs */
 
 	/* this callback executes the operator without any interactive input,
 	 * parameters may be provided through operator properties. cannot use
@@ -459,9 +460,9 @@ enum {
 
 typedef struct wmReport {
 	struct wmReport *next, *prev;
-	int type;
 	const char *typestr;
 	char *message;
+	int type;
 } wmReport;
 
 /* *************** Drag and drop *************** */

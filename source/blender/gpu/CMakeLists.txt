@@ -24,9 +24,7 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-FILE(GLOB SRC intern/*.c)
-
-SET(INC 
+set(INC
 	.
 	../blenlib
 	../blenkernel
@@ -39,11 +37,23 @@ SET(INC
 	../../../intern/smoke/extern
 )
 
-IF(WIN32)
-	INCLUDE_DIRECTORIES(${PTHREADS_INC})
-ENDIF(WIN32)
+set(SRC
+	intern/gpu_buffers.c
+	intern/gpu_codegen.c
+	intern/gpu_draw.c
+	intern/gpu_extensions.c
+	intern/gpu_material.c
+	intern/gpu_shader_material.glsl.c
+	intern/gpu_shader_vertex.glsl.c
 
-ADD_DEFINITIONS(-DGLEW_STATIC)
+	GPU_buffers.h
+	GPU_draw.h
+	GPU_extensions.h
+	GPU_material.h
+	intern/gpu_codegen.h
+)
 
-BLENDERLIB(bf_gpu "${SRC}" "${INC}")
+add_definitions(-DGLEW_STATIC)
+
+blenderlib(bf_gpu "${SRC}" "${INC}")
 

@@ -731,7 +731,7 @@ static int texnoise(Tex *tex, TexResult *texres)
 		div*= 3.0;
 	}
 	
-	texres->tin= ((float)val)/div;;
+	texres->tin= ((float)val)/div;
 
 	BRICONT;
 	return TEX_INT;
@@ -1348,9 +1348,16 @@ int multitex_mtex(ShadeInput *shi, MTex *mtex, float *texvec, float *dxt, float 
 
 /* Warning, if the texres's values are not declared zero, check the return value to be sure
  * the color values are set before using the r/g/b values, otherwise you may use uninitialized values - Campbell */
+/* extern-tex doesn't support nodes (ntreeBeginExec() can't be called when rendering is going on) */
 int multitex_ext(Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexResult *texres)
 {
-	return multitex_nodes(tex, texvec, dxt, dyt, osatex, texres, 0, 0, NULL, NULL);
+	int use_nodes= tex->use_nodes, retval;
+	
+	tex->use_nodes= 0;
+	retval= multitex_nodes(tex, texvec, dxt, dyt, osatex, texres, 0, 0, NULL, NULL);
+	tex->use_nodes= use_nodes;
+	
+	return retval;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -2677,10 +2684,19 @@ void do_sky_tex(float *rco, float *lo, float *dxyview, float *hor, float *zen, f
 			case TEXCO_ANGMAP:
 				/* only works with texture being "real" */
 				/* use saacos(), fixes bug [#22398], float precission caused lo[2] to be slightly less then -1.0 */
+				if(lo[0] || lo[1]) { /* check for zero case [#24807] */
 				fact= (1.0/M_PI)*saacos(lo[2])/(sqrt(lo[0]*lo[0] + lo[1]*lo[1])); 
 				tempvec[0]= lo[0]*fact;
 				tempvec[1]= lo[1]*fact;
 				tempvec[2]= 0.0;
+				}
+				else {
+					/* this value has no angle, the vector is directly along the view.
+					 * avoide divide by zero and use a dummy value. */
+					tempvec[0]= 1.0f;
+					tempvec[1]= 0.0;
+					tempvec[2]= 0.0;
+				}
 				co= tempvec;
 				break;
 				

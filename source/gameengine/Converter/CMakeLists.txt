@@ -24,9 +24,7 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-FILE(GLOB SRC *.cpp)
-
-SET(INC
+set(INC
 	.
 	../../../source/kernel/gen_system
 	../../../intern/string
@@ -63,14 +61,54 @@ SET(INC
 	../../../extern/bullet2/src
 )
 
-IF(WITH_PYTHON)
-	LIST(APPEND INC ${PYTHON_INC})
-ELSE(WITH_PYTHON)
-	ADD_DEFINITIONS(-DDISABLE_PYTHON)
-ENDIF(WITH_PYTHON)
+set(SRC
+	BL_ActionActuator.cpp
+	BL_ArmatureActuator.cpp
+	BL_ArmatureChannel.cpp
+	BL_ArmatureConstraint.cpp
+	BL_ArmatureObject.cpp
+	BL_BlenderDataConversion.cpp
+	BL_DeformableGameObject.cpp
+	BL_MeshDeformer.cpp
+	BL_ModifierDeformer.cpp
+	BL_ShapeActionActuator.cpp
+	BL_ShapeDeformer.cpp
+	BL_SkinDeformer.cpp
+	BlenderWorldInfo.cpp
+	KX_BlenderScalarInterpolator.cpp
+	KX_BlenderSceneConverter.cpp
+	KX_ConvertActuators.cpp
+	KX_ConvertControllers.cpp
+	KX_ConvertProperties.cpp
+	KX_ConvertSensors.cpp
+	KX_IpoConvert.cpp
+	KX_SoftBodyDeformer.cpp
 
-IF(WITH_BULLET)
-	ADD_DEFINITIONS(-DUSE_BULLET)
-ENDIF(WITH_BULLET)
+	BL_ActionActuator.h
+	BL_ArmatureActuator.h
+	BL_ArmatureChannel.h
+	BL_ArmatureConstraint.h
+	BL_ArmatureObject.h
+	BL_BlenderDataConversion.h
+	BL_DeformableGameObject.h
+	BL_MeshDeformer.h
+	BL_ModifierDeformer.h
+	BL_ShapeActionActuator.h
+	BL_ShapeDeformer.h
+	BL_SkinDeformer.h
+	BlenderWorldInfo.h
+	KX_BlenderScalarInterpolator.h
+	KX_BlenderSceneConverter.h
+	KX_ConvertActuators.h
+	KX_ConvertControllers.h
+	KX_ConvertProperties.h
+	KX_ConvertSensors.h
+	KX_IpoConvert.h
+	KX_SoftBodyDeformer.h
+)
 
-BLENDERLIB(bf_converter "${SRC}" "${INC}")
+if(WITH_BULLET)
+	add_definitions(-DUSE_BULLET)
+endif()
+
+blenderlib(ge_converter "${SRC}" "${INC}")

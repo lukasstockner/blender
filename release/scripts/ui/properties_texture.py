@@ -94,7 +94,12 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel, bpy.types.Panel):
         space = context.space_data
         tex = context.texture
         idblock = context_tex_datablock(context)
-        tex_collection = space.pin_id is None and type(idblock) != bpy.types.Brush and not node
+        pin_id = space.pin_id
+
+        if not isinstance(pin_id, bpy.types.Material):
+            pin_id = None
+
+        tex_collection = (pin_id is None) and (node is None) and (not isinstance(idblock, bpy.types.Brush))
 
         if tex_collection:
             row = layout.row()
@@ -116,7 +121,7 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel, bpy.types.Panel):
         elif idblock:
             col.template_ID(idblock, "texture", new="texture.new")
 
-        if space.pin_id:
+        if pin_id:
             col.template_ID(space, "pin_id")
 
             col = split.column()
@@ -136,6 +141,7 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel, bpy.types.Panel):
             else:
                     split.label(text="Type:")
                     split.prop(tex, "type", text="")
+
 
 
 class TEXTURE_PT_preview(TextureButtonsPanel, bpy.types.Panel):
@@ -198,216 +204,6 @@ class TextureSlotPanel(TextureButtonsPanel):
         engine = context.scene.render.engine
         return TextureButtonsPanel.poll(self, context) and (engine in cls.COMPAT_ENGINES)
 
-
-class TEXTURE_PT_mapping(TextureSlotPanel, bpy.types.Panel):
-    bl_label = "Mapping"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
-
-    @classmethod
-    def poll(cls, context):
-        idblock = context_tex_datablock(context)
-        if type(idblock) == bpy.types.Brush and not context.sculpt_object:
-            return False
-
-        if not getattr(context, "texture_slot", None):
-            return False
-
-        engine = context.scene.render.engine
-        return (engine in cls.COMPAT_ENGINES)
-
-    def draw(self, context):
-        layout = self.layout
-
-        idblock = context_tex_datablock(context)
-
-        tex = context.texture_slot
-        # textype = context.texture
-
-        if type(idblock) != bpy.types.Brush:
-            split = layout.split(percentage=0.3)
-            col = split.column()
-            col.label(text="Coordinates:")
-            col = split.column()
-            col.prop(tex, "texture_coords", text="")
-
-            if tex.texture_coords == 'ORCO':
-                """
-                ob = context.object
-                if ob and ob.type == 'MESH':
-                    split = layout.split(percentage=0.3)
-                    split.label(text="Mesh:")
-                    split.prop(ob.data, "texco_mesh", text="")
-                """
-            elif tex.texture_coords == 'UV':
-                split = layout.split(percentage=0.3)
-                split.label(text="Layer:")
-                ob = context.object
-                if ob and ob.type == 'MESH':
-                    split.prop_search(tex, "uv_layer", ob.data, "uv_textures", text="")
-                else:
-                    split.prop(tex, "uv_layer", text="")
-
-            elif tex.texture_coords == 'OBJECT':
-                split = layout.split(percentage=0.3)
-                split.label(text="Object:")
-                split.prop(tex, "object", text="")
-
-        if type(idblock) == bpy.types.Brush:
-            if context.sculpt_object:
-                layout.label(text="Brush Mapping:")
-                layout.prop(tex, "map_mode", expand=True)
-
-                row = layout.row()
-                row.active = tex.map_mode in ('FIXED', 'TILED')
-                row.prop(tex, "angle")
-        else:
-            if type(idblock) == bpy.types.Material:
-                split = layout.split(percentage=0.3)
-                split.label(text="Projection:")
-                split.prop(tex, "mapping", text="")
-
-                split = layout.split()
-
-                col = split.column()
-                if tex.texture_coords in ('ORCO', 'UV'):
-                    col.prop(tex, "use_from_dupli")
-                elif tex.texture_coords == 'OBJECT':
-                    col.prop(tex, "use_from_original")
-                else:
-                    col.label()
-
-                    col = split.column()
-                row = col.row()
-                row.prop(tex, "mapping_x", text="")
-                row.prop(tex, "mapping_y", text="")
-                row.prop(tex, "mapping_z", text="")
-
-        split = layout.split()
-
-        col = split.column()
-        col.prop(tex, "offset")
-
-            col = split.column()
-
-        col.prop(tex, "scale")
-
-
-class TEXTURE_PT_influence(TextureSlotPanel, bpy.types.Panel):
-    bl_label = "Influence"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
-
-    @classmethod
-    def poll(cls, context):
-        idblock = context_tex_datablock(context)
-        if type(idblock) == bpy.types.Brush:
-            return False
-
-        if not getattr(context, "texture_slot", None):
-            return False
-
-        engine = context.scene.render.engine
-        return (engine in cls.COMPAT_ENGINES)
-
-    def draw(self, context):
-
-        layout = self.layout
-
-        idblock = context_tex_datablock(context)
-
-        # textype = context.texture
-        tex = context.texture_slot
-
-        def factor_but(layout, active, toggle, factor, name):
-            row = layout.row(align=True)
-            row.prop(tex, toggle, text="")
-            sub = row.row()
-            sub.active = active
-            sub.prop(tex, factor, text=name, slider=True)
-
-        if type(idblock) == bpy.types.Material:
-            if idblock.type in ('SURFACE', 'HALO', 'WIRE'):
-                split = layout.split()
-
-                col = split.column()
-                col.label(text="Diffuse:")
-                factor_but(col, tex.use_map_diffuse, "use_map_diffuse", "diffuse_factor", "Intensity")
-                factor_but(col, tex.use_map_color_diffuse, "use_map_color_diffuse", "diffuse_color_factor", "Color")
-                factor_but(col, tex.use_map_alpha, "use_map_alpha", "alpha_factor", "Alpha")
-                factor_but(col, tex.use_map_translucency, "use_map_translucency", "translucency_factor", "Translucency")
-
-                col.label(text="Specular:")
-                factor_but(col, tex.use_map_specular, "use_map_specular", "specular_factor", "Intensity")
-                factor_but(col, tex.use_map_color_spec, "use_map_color_spec", "specular_color_factor", "Color")
-                factor_but(col, tex.use_map_hardness, "use_map_hardness", "hardness_factor", "Hardness")
-
-                    col = split.column()
-                col.label(text="Shading:")
-                factor_but(col, tex.use_map_ambient, "use_map_ambient", "ambient_factor", "Ambient")
-                factor_but(col, tex.use_map_emit, "use_map_emit", "emit_factor", "Emit")
-                factor_but(col, tex.use_map_mirror, "use_map_mirror", "mirror_factor", "Mirror")
-                factor_but(col, tex.use_map_raymir, "use_map_raymir", "raymir_factor", "Ray Mirror")
-
-                col.label(text="Geometry:")
-                # XXX replace 'or' when displacement is fixed to not rely on normal influence value.
-                factor_but(col, (tex.use_map_normal or tex.use_map_displacement), "use_map_normal", "normal_factor", "Normal")
-                factor_but(col, tex.use_map_warp, "use_map_warp", "warp_factor", "Warp")
-                factor_but(col, tex.use_map_displacement, "use_map_displacement", "displacement_factor", "Displace")
-
-                #sub = col.column()
-                #sub.active = tex.use_map_translucency or tex.map_emit or tex.map_alpha or tex.map_raymir or tex.map_hardness or tex.map_ambient or tex.map_specularity or tex.map_reflection or tex.map_mirror
-                #sub.prop(tex, "default_value", text="Amount", slider=True)
-            elif idblock.type == 'VOLUME':
-                split = layout.split()
-
-                col = split.column()
-                factor_but(col, tex.use_map_density, "use_map_density", "density_factor", "Density")
-                factor_but(col, tex.use_map_emission, "use_map_emission", "emission_factor", "Emission")
-                factor_but(col, tex.use_map_scatter, "use_map_scatter", "scattering_factor", "Scattering")
-                factor_but(col, tex.use_map_reflect, "use_map_reflect", "reflection_factor", "Reflection")
-
-                    col = split.column()
-                    col.label(text=" ")
-                factor_but(col, tex.use_map_color_emission, "use_map_color_emission", "emission_color_factor", "Emission Color")
-                factor_but(col, tex.use_map_color_transmission, "use_map_color_transmission", "transmission_color_factor", "Transmission Color")
-                factor_but(col, tex.use_map_color_reflection, "use_map_color_reflection", "reflection_color_factor", "Reflection Color")
-
-        elif type(idblock) == bpy.types.Lamp:
-            split = layout.split()
-
-            col = split.column()
-            factor_but(col, tex.use_map_color, "map_color", "color_factor", "Color")
-
-                col = split.column()
-            factor_but(col, tex.use_map_shadow, "map_shadow", "shadow_factor", "Shadow")
-
-        elif type(idblock) == bpy.types.World:
-            split = layout.split()
-
-            col = split.column()
-            factor_but(col, tex.use_map_blend, "use_map_blend", "blend_factor", "Blend")
-            factor_but(col, tex.use_map_horizon, "use_map_horizon", "horizon_factor", "Horizon")
-
-                col = split.column()
-            factor_but(col, tex.use_map_zenith_up, "use_map_zenith_up", "zenith_up_factor", "Zenith Up")
-            factor_but(col, tex.use_map_zenith_down, "use_map_zenith_down", "zenith_down_factor", "Zenith Down")
-
-        layout.separator()
-
-        split = layout.split()
-
-        col = split.column()
-        col.prop(tex, "blend_type", text="Blend")
-        col.prop(tex, "use_rgb_to_intensity")
-        sub = col.column()
-        sub.active = tex.use_rgb_to_intensity
-        sub.prop(tex, "color", text="")
-
-            col = split.column()
-        col.prop(tex, "invert", text="Negative")
-        col.prop(tex, "use_stencil")
-
-        if type(idblock) in (bpy.types.Material, bpy.types.World):
-            col.prop(tex, "default_value", text="DVar", slider=True)
 
 # Texture Type Panels #
 
@@ -751,12 +547,14 @@ class TEXTURE_PT_musgrave(TextureTypePanel, bpy.types.Panel):
         col.prop(tex, "lacunarity")
         col.prop(tex, "octaves")
 
+        musgrave_type = tex.musgrave_type
             col = split.column()
-        if (tex.musgrave_type in ('HETERO_TERRAIN', 'RIDGED_MULTIFRACTAL', 'HYBRID_MULTIFRACTAL')):
+        if musgrave_type in ('HETERO_TERRAIN', 'RIDGED_MULTIFRACTAL', 'HYBRID_MULTIFRACTAL'):
             col.prop(tex, "offset")
-        if (tex.musgrave_type in ('RIDGED_MULTIFRACTAL', 'HYBRID_MULTIFRACTAL')):
-            col.prop(tex, "gain")
+        if musgrave_type in ('MULTIFRACTAL', 'RIDGED_MULTIFRACTAL', 'HYBRID_MULTIFRACTAL'):
             col.prop(tex, "noise_intensity", text="Intensity")
+        if musgrave_type in ('RIDGED_MULTIFRACTAL', 'HYBRID_MULTIFRACTAL'):
+            col.prop(tex, "gain")
 
         layout.label(text="Noise:")
 
@@ -969,6 +767,237 @@ class TEXTURE_PT_pointdensity_turbulence(TextureButtonsPanel, bpy.types.Panel):
         col.prop(pd, "turbulence_scale")
         col.prop(pd, "turbulence_depth")
         col.prop(pd, "turbulence_strength")
+
+
+class TEXTURE_PT_mapping(TextureSlotPanel, bpy.types.Panel):
+    bl_label = "Mapping"
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        idblock = context_tex_datablock(context)
+        if isinstance(idblock, bpy.types.Brush) and not context.sculpt_object:
+            return False
+
+        if not getattr(context, "texture_slot", None):
+            return False
+
+        engine = context.scene.render.engine
+        return (engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+
+        idblock = context_tex_datablock(context)
+
+        tex = context.texture_slot
+        # textype = context.texture
+
+        if not isinstance(idblock, bpy.types.Brush):
+            split = layout.split(percentage=0.3)
+            col = split.column()
+            col.label(text="Coordinates:")
+            col = split.column()
+            col.prop(tex, "texture_coords", text="")
+
+            if tex.texture_coords == 'ORCO':
+                """
+                ob = context.object
+                if ob and ob.type == 'MESH':
+                    split = layout.split(percentage=0.3)
+                    split.label(text="Mesh:")
+                    split.prop(ob.data, "texco_mesh", text="")
+                """
+            elif tex.texture_coords == 'UV':
+                split = layout.split(percentage=0.3)
+                split.label(text="Layer:")
+                ob = context.object
+                if ob and ob.type == 'MESH':
+                    split.prop_search(tex, "uv_layer", ob.data, "uv_textures", text="")
+                else:
+                    split.prop(tex, "uv_layer", text="")
+
+            elif tex.texture_coords == 'OBJECT':
+                split = layout.split(percentage=0.3)
+                split.label(text="Object:")
+                split.prop(tex, "object", text="")
+
+        if isinstance(idblock, bpy.types.Brush):
+            if context.sculpt_object:
+                layout.label(text="Brush Mapping:")
+                layout.prop(tex, "map_mode", expand=True)
+
+                row = layout.row()
+                row.active = tex.map_mode in ('FIXED', 'TILED')
+                row.prop(tex, "angle")
+        else:
+            if isinstance(idblock, bpy.types.Material):
+                split = layout.split(percentage=0.3)
+                split.label(text="Projection:")
+                split.prop(tex, "mapping", text="")
+
+                split = layout.split()
+
+                col = split.column()
+                if tex.texture_coords in ('ORCO', 'UV'):
+                    col.prop(tex, "use_from_dupli")
+                elif tex.texture_coords == 'OBJECT':
+                    col.prop(tex, "use_from_original")
+                else:
+                    col.label()
+
+                col = split.column()
+                row = col.row()
+                row.prop(tex, "mapping_x", text="")
+                row.prop(tex, "mapping_y", text="")
+                row.prop(tex, "mapping_z", text="")
+
+        split = layout.split()
+
+        col = split.column()
+        col.prop(tex, "offset")
+
+        col = split.column()
+
+        col.prop(tex, "scale")
+
+
+class TEXTURE_PT_influence(TextureSlotPanel, bpy.types.Panel):
+    bl_label = "Influence"
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        idblock = context_tex_datablock(context)
+        if isinstance(idblock, bpy.types.Brush):
+            return False
+
+        if not getattr(context, "texture_slot", None):
+            return False
+
+        engine = context.scene.render.engine
+        return (engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+
+        layout = self.layout
+
+        idblock = context_tex_datablock(context)
+
+        # textype = context.texture
+        tex = context.texture_slot
+
+        def factor_but(layout, toggle, factor, name):
+            row = layout.row(align=True)
+            row.prop(tex, toggle, text="")
+            sub = row.row()
+            sub.active = getattr(tex, toggle)
+            sub.prop(tex, factor, text=name, slider=True)
+            return sub # XXX, temp. use_map_normal needs to override.
+
+        if isinstance(idblock, bpy.types.Material):
+            if idblock.type in ('SURFACE', 'WIRE'):
+                split = layout.split()
+
+                col = split.column()
+                col.label(text="Diffuse:")
+                factor_but(col, "use_map_diffuse", "diffuse_factor", "Intensity")
+                factor_but(col, "use_map_color_diffuse", "diffuse_color_factor", "Color")
+                factor_but(col, "use_map_alpha", "alpha_factor", "Alpha")
+                factor_but(col, "use_map_translucency", "translucency_factor", "Translucency")
+
+                col.label(text="Specular:")
+                factor_but(col, "use_map_specular", "specular_factor", "Intensity")
+                factor_but(col, "use_map_color_spec", "specular_color_factor", "Color")
+                factor_but(col, "use_map_hardness", "hardness_factor", "Hardness")
+
+                col = split.column()
+                col.label(text="Shading:")
+                factor_but(col, "use_map_ambient", "ambient_factor", "Ambient")
+                factor_but(col, "use_map_emit", "emit_factor", "Emit")
+                factor_but(col, "use_map_mirror", "mirror_factor", "Mirror")
+                factor_but(col, "use_map_raymir", "raymir_factor", "Ray Mirror")
+
+                col.label(text="Geometry:")
+                # XXX replace 'or' when displacement is fixed to not rely on normal influence value.
+                sub_tmp = factor_but(col, "use_map_normal", "normal_factor", "Normal")
+                sub_tmp.active = (tex.use_map_normal or tex.use_map_displacement)
+                # END XXX
+
+                factor_but(col, "use_map_warp", "warp_factor", "Warp")
+                factor_but(col, "use_map_displacement", "displacement_factor", "Displace")
+
+                #sub = col.column()
+                #sub.active = tex.use_map_translucency or tex.map_emit or tex.map_alpha or tex.map_raymir or tex.map_hardness or tex.map_ambient or tex.map_specularity or tex.map_reflection or tex.map_mirror
+                #sub.prop(tex, "default_value", text="Amount", slider=True)
+            elif idblock.type == 'HALO':
+                layout.label(text="Halo:")
+                
+                split = layout.split()
+                
+                col = split.column()
+                factor_but(col, "use_map_color_diffuse", "diffuse_color_factor", "Color")
+                factor_but(col, "use_map_alpha", "alpha_factor", "Alpha")
+                
+                col = split.column()
+                factor_but(col, "use_map_raymir", "raymir_factor", "Size")
+                factor_but(col, "use_map_hardness", "hardness_factor", "Hardness")
+                factor_but(col, "use_map_translucency", "translucency_factor", "Add")
+            elif idblock.type == 'VOLUME':
+                split = layout.split()
+
+                col = split.column()
+                factor_but(col, "use_map_density", "density_factor", "Density")
+                factor_but(col, "use_map_emission", "emission_factor", "Emission")
+                factor_but(col, "use_map_scatter", "scattering_factor", "Scattering")
+                factor_but(col, "use_map_reflect", "reflection_factor", "Reflection")
+
+                col = split.column()
+                col.label(text=" ")
+                factor_but(col, "use_map_color_emission", "emission_color_factor", "Emission Color")
+                factor_but(col, "use_map_color_transmission", "transmission_color_factor", "Transmission Color")
+                factor_but(col, "use_map_color_reflection", "reflection_color_factor", "Reflection Color")
+
+        elif isinstance(idblock, bpy.types.Lamp):
+            split = layout.split()
+
+            col = split.column()
+            factor_but(col, "use_map_color", "color_factor", "Color")
+
+            col = split.column()
+            factor_but(col, "use_map_shadow", "shadow_factor", "Shadow")
+
+        elif isinstance(idblock, bpy.types.World):
+            split = layout.split()
+
+            col = split.column()
+            factor_but(col, "use_map_blend", "blend_factor", "Blend")
+            factor_but(col, "use_map_horizon", "horizon_factor", "Horizon")
+
+            col = split.column()
+            factor_but(col, "use_map_zenith_up", "zenith_up_factor", "Zenith Up")
+            factor_but(col, "use_map_zenith_down", "zenith_down_factor", "Zenith Down")
+
+        layout.separator()
+
+        split = layout.split()
+
+        col = split.column()
+        col.prop(tex, "blend_type", text="Blend")
+        col.prop(tex, "use_rgb_to_intensity")
+        # color is used on grayscale textures even when use_rgb_to_intensity is disabled.
+        col.prop(tex, "color", text="")
+
+        if isinstance(idblock, bpy.types.Material):
+            # XXX, dont remove since old files have this users need to be able to disable!
+            col.prop(tex, "use_old_bump", text="Old Bump Mapping")
+
+        col = split.column()
+        col.prop(tex, "invert", text="Negative")
+        col.prop(tex, "use_stencil")
+
+        if isinstance(idblock, bpy.types.Material) or isinstance(idblock, bpy.types.World):
+            col.prop(tex, "default_value", text="DVar", slider=True)
 
 
 class TEXTURE_PT_custom_props(TextureButtonsPanel, PropertyPanel, bpy.types.Panel):

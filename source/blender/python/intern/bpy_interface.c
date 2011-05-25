@@ -89,7 +89,7 @@ void bpy_context_set(bContext *C, PyGILState_STATE *gilstate)
 			fprintf(stderr, "ERROR: Python context called with a NULL Context. this should not happen!\n");
 		}
 
-		BPY_update_modules(); /* can give really bad results if this isnt here */
+		BPY_update_modules(C); /* can give really bad results if this isnt here */
 
 #ifdef TIME_PY_RUN
 		if(bpy_timer_count==0) {
@@ -137,7 +137,7 @@ void BPY_free_compiled_text( struct Text *text )
 	}
 }
 
-void BPY_update_modules( void )
+void BPY_update_modules(bContext *C)
 {
 #if 0 // slow, this runs all the time poll, draw etc 100's of time a sec.
 	PyObject *mod= PyImport_ImportModuleLevel("bpy", NULL, NULL, NULL, 0);
@@ -147,7 +147,7 @@ void BPY_update_modules( void )
 
 	/* refreshes the main struct */
 	BPY_update_rna_module();
-	bpy_context_module->ptr.data= (void *)BPy_GetContext();
+	bpy_context_module->ptr.data= (void *)C;
 }
 
 /* must be called before Py_Initialize */
@@ -196,6 +196,24 @@ void BPY_set_context(bContext *C)
 {
 	BPy_SetContext(C);
 }
+
+/* init-tab */
+extern PyObject *BPyInit_noise(void);
+extern PyObject *BPyInit_mathutils(void);
+// extern PyObject *BPyInit_mathutils_geometry(void); // BPyInit_mathutils calls, py doesnt work with thos :S
+extern PyObject *BPyInit_bgl(void);
+extern PyObject *BPyInit_blf(void);
+extern PyObject *AUD_initPython(void);
+
+static struct _inittab bpy_internal_modules[]= {
+	{(char *)"noise", BPyInit_noise},
+	{(char *)"mathutils", BPyInit_mathutils},
+//	{(char *)"mathutils.geometry", BPyInit_mathutils_geometry},
+	{(char *)"bgl", BPyInit_bgl},
+	{(char *)"blf", BPyInit_blf},
+	{(char *)"aud", AUD_initPython},
+	{NULL, NULL}
+};
 
 /* call BPY_set_context first */
 void BPY_start_python( int argc, char **argv )
@@ -282,7 +300,7 @@ void BPY_end_python( void )
 /* Can run a file or text block */
 int BPY_run_python_script( bContext *C, const char *fn, struct Text *text, struct ReportList *reports)
 {
-	PyObject *py_dict, *py_result= NULL;
+	PyObject *py_dict= NULL, *py_result= NULL;
 	PyGILState_STATE gilstate;
 	
 	if (fn==NULL && text==NULL) {
@@ -354,7 +372,24 @@ int BPY_run_python_script( bContext *C, const char *fn, struct Text *text, struc
 		Py_DECREF( py_result );
 	}
 	
+/* super annoying, undo _PyModule_Clear() */	
+#define PYMODULE_CLEAR_WORKAROUND
+
+	if(py_dict) {
+#ifdef PYMODULE_CLEAR_WORKAROUND
+		PyObject *py_dict_back= PyDict_Copy(py_dict);
+		Py_INCREF(py_dict);
+#endif
+		/* normal */
 	PyDict_SetItemString(PyThreadState_GET()->interp->modules, "__main__", Py_None);
+#ifdef PYMODULE_CLEAR_WORKAROUND
+		PyDict_Clear(py_dict);
+		PyDict_Update(py_dict, py_dict_back);
+		Py_DECREF(py_dict);
+		Py_DECREF(py_dict_back);
+#endif
+#undef PYMODULE_CLEAR_WORKAROUND
+	}
 	
 	bpy_context_clear(C, &gilstate);
 

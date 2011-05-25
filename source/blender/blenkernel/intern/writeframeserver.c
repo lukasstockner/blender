@@ -61,31 +61,31 @@ static int render_height;
 
 
 #if defined(_WIN32)
-static int startup_socket_system()
+static int startup_socket_system(void)
 {
 	WSADATA wsa;
 	return (WSAStartup(MAKEWORD(2,0),&wsa) == 0);
 }
 
-static void shutdown_socket_system()
+static void shutdown_socket_system(void)
 {
 	WSACleanup();
 }
-static int select_was_interrupted_by_signal()
+static int select_was_interrupted_by_signal(void)
 {
 	return (WSAGetLastError() == WSAEINTR);
 }
 #else
-static int startup_socket_system()
+static int startup_socket_system(void)
 {
 	return 1;
 }
 
-static void shutdown_socket_system()
+static void shutdown_socket_system(void)
 {
 }
 
-static int select_was_interrupted_by_signal()
+static int select_was_interrupted_by_signal(void)
 {
 	return (errno == EINTR);
 }
@@ -364,7 +364,7 @@ int append_frameserver(RenderData *rd, int frame, int *pixels, int rectx, int re
 	return 0;
 }
 
-void end_frameserver()
+void end_frameserver(void)
 {
 	if (connsock != -1) {
 		closesocket(connsock);

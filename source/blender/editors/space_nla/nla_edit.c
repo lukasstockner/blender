@@ -1639,6 +1639,7 @@ void NLA_OT_fmodifier_add (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Add F-Modifier";
 	ot->idname= "NLA_OT_fmodifier_add";
+	ot->description= "Add F-Modifier of the secified type to the selected NLA-Strips";
 	
 	/* api callbacks */
 	ot->invoke= nla_fmodifier_add_invoke;
@@ -1702,7 +1703,7 @@ void NLA_OT_fmodifier_copy (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Copy F-Modifiers";
 	ot->idname= "NLA_OT_fmodifier_copy";
-	ot->description= "Copy the F-Modifier(s) of the active NLA-Strip.";
+	ot->description= "Copy the F-Modifier(s) of the active NLA-Strip";
 	
 	/* api callbacks */
 	ot->exec= nla_fmodifier_copy_exec;

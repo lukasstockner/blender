@@ -24,7 +24,6 @@
  */
 
 #include <limits.h>
-#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -35,6 +34,7 @@
 #include "BLI_math.h"
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
+#include "BLI_string.h"
 
 #include "BKE_context.h"
 #include "BKE_curve.h"
@@ -961,6 +961,9 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 //	int transopts;
 	char *cpoin = NULL;
 	
+	/* for underline drawing */
+	float font_xofs, font_yofs;
+
 	uiStyleFontSet(fstyle);
 	
 	if(but->editstr || (but->flag & UI_TEXT_LEFT))
@@ -1038,7 +1041,40 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	}
 	
 	glColor3ubv((unsigned char*)wcol->text);
-	uiStyleFontDraw(fstyle, rect, but->drawstr+but->ofs);
+
+	uiStyleFontDrawExt(fstyle, rect, but->drawstr+but->ofs, &font_xofs, &font_yofs);
+
+	if(but->menu_key != '\0') {
+		char fixedbuf[128];
+		char *str;
+
+		BLI_strncpy(fixedbuf, but->drawstr + but->ofs, sizeof(fixedbuf));
+
+		str= strchr(fixedbuf, but->menu_key-32); /* upper case */
+		if(str==NULL)
+			str= strchr(fixedbuf, but->menu_key);
+
+		if(str) {
+			int ul_index= -1;
+			float ul_advance;
+
+			ul_index= (int)(str - fixedbuf);
+
+			if (fstyle->kerning == 1) {
+				BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+			}
+
+			fixedbuf[ul_index]= '\0';
+			ul_advance= BLF_width(fstyle->uifont_id, fixedbuf);
+
+			BLF_position(fstyle->uifont_id, rect->xmin+font_xofs + ul_advance, rect->ymin+font_yofs, 0.0f);
+			BLF_draw(fstyle->uifont_id, "_", 2);
+
+			if (fstyle->kerning == 1) {
+				BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+			}
+		}
+	}
 
 	/* part text right aligned */
 	if(cpoin) {
@@ -1119,7 +1155,7 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
  
 */
 
-static struct uiWidgetStateColors wcol_state= {
+static struct uiWidgetStateColors wcol_state_colors= {
 	{115, 190, 76, 255},
 	{90, 166, 51, 255},
 	{240, 235, 100, 255},
@@ -1389,7 +1425,7 @@ void ui_widget_color_init(ThemeUI *tui)
 	tui->wcol_list_item= wcol_list_item;
 	tui->wcol_progress= wcol_progress;
 
-	tui->wcol_state= wcol_state;
+	tui->wcol_state= wcol_state_colors;
 }
 
 /* ************ button callbacks, state ***************** */
@@ -2318,10 +2354,10 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 	ui_get_but_vectorf(but, col);
 	
 	if(state & (UI_BUT_ANIMATED|UI_BUT_ANIMATED_KEY|UI_BUT_DRIVEN|UI_BUT_REDALERT)) {
-		// draw based on state - colour for keyed etc
+		// draw based on state - color for keyed etc
 		widgetbase_draw(&wtb, wcol);
 		
-		// inset to draw swatch colour
+		// inset to draw swatch color
 		rect->xmin+= SWATCH_KEYED_BORDER;
 		rect->xmax-= SWATCH_KEYED_BORDER;
 		rect->ymin+= SWATCH_KEYED_BORDER;
@@ -2342,6 +2378,20 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 
 	widgetbase_draw(&wtb, wcol);
 	
+}
+
+static void widget_icon_has_anim(uiBut *UNUSED(but), uiWidgetColors *wcol, rcti *rect, int state, int UNUSED(roundboxalign))
+{
+	if(state & (UI_BUT_ANIMATED|UI_BUT_ANIMATED_KEY|UI_BUT_DRIVEN|UI_BUT_REDALERT)) {
+		uiWidgetBase wtb;
+
+		widget_init(&wtb);
+		wtb.outline= 0;
+		
+		/* rounded */
+		round_box_edges(&wtb, 15, rect, 10.0f);
+		widgetbase_draw(&wtb, wcol);
+	}	
 }
 
 
@@ -2489,7 +2539,7 @@ static void widget_box(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(
 	
 	VECCOPY(old_col, wcol->inner);
 	
-	/* abuse but->hsv - if it's non-zero, use this colour as the box's background */
+	/* abuse but->hsv - if it's non-zero, use this color as the box's background */
 	if (but->col[3]) {
 		wcol->inner[0] = but->col[0];
 		wcol->inner[1] = but->col[1];
@@ -2687,7 +2737,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			
 			/* specials */
 		case UI_WTYPE_ICON:
-			wt.draw= NULL;
+			wt.custom= widget_icon_has_anim;
 			break;
 			
 		case UI_WTYPE_SWATCH:

@@ -265,7 +265,7 @@ static void text_update_edited(bContext *C, Scene *scene, Object *obedit, int re
 	BKE_text_to_curve(scene, obedit, mode);
 
 	if(recalc)
-		DAG_id_flush_update(obedit->data, OB_RECALC_DATA);
+		DAG_id_tag_update(obedit->data, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_GEOM|ND_DATA, obedit->data);
 }
 
@@ -274,9 +274,9 @@ static void text_update_edited(bContext *C, Scene *scene, Object *obedit, int re
 static int insert_lorem_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *obedit= CTX_data_edit_object(C);
-	char *p, *p2;
+	const char *p, *p2;
 	int i;
-	static char *lastlorem;
+	static const char *lastlorem;
 	
 	if(lastlorem)
 		p= lastlorem;
@@ -299,7 +299,7 @@ static int insert_lorem_exec(bContext *C, wmOperator *UNUSED(op))
 	insert_into_textbuf(obedit, '\n');
 	insert_into_textbuf(obedit, '\n');	
 
-	DAG_id_flush_update(obedit->data, OB_RECALC_DATA);
+	DAG_id_tag_update(obedit->data, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_GEOM|ND_DATA, obedit->data);
 
 	return OPERATOR_FINISHED;
@@ -325,7 +325,7 @@ void FONT_OT_insert_lorem(wmOperatorType *ot)
 /* note this handles both ascii and utf8 unicode, previously
  * there were 3 functions that did effectively the same thing. */
 
-static int paste_file(bContext *C, ReportList *reports, char *filename)
+static int paste_file(bContext *C, ReportList *reports, const char *filename)
 {
 	Scene *scene= CTX_data_scene(C);
 	Object *obedit= CTX_data_edit_object(C);
@@ -416,7 +416,7 @@ void FONT_OT_file_paste(wmOperatorType *ot)
 
 static int paste_buffer_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	char *filename;
+	const char *filename;
 
 #ifdef WIN32
 	filename= "C:\\windows\\temp\\cutbuf.txt";
@@ -626,7 +626,7 @@ static int set_style(bContext *C, int style, int clear)
 			ef->textbufinfo[i].flag |= style;
 	}
 
-	DAG_id_flush_update(obedit->data, OB_RECALC_DATA);
+	DAG_id_tag_update(obedit->data, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_GEOM|ND_DATA, obedit->data);
 
 	return OPERATOR_FINISHED;
@@ -1260,6 +1260,12 @@ static int insert_text_invoke(bContext *C, wmOperator *op, wmEvent *evt)
 	if(RNA_property_is_set(op->ptr, "text"))
 		return insert_text_exec(C, op);
 	
+	if(RNA_property_is_set(op->ptr, "accent")) {
+		if(cu->len!=0 && cu->pos>0)
+			accentcode= 1;
+		return OPERATOR_FINISHED;
+	}
+	
 	/* tab should exit editmode, but we allow it to be typed using modifier keys */
 	if(event==TABKEY) {
 		if((alt||ctrl||shift) == 0)
@@ -1333,6 +1339,9 @@ static int insert_text_invoke(bContext *C, wmOperator *op, wmEvent *evt)
 		RNA_string_set(op->ptr, "text", inserted_utf8);
 	}
 
+	/* reset property? */
+	accentcode= 0;
+	
 	return OPERATOR_FINISHED;
 }
 
@@ -1353,6 +1362,7 @@ void FONT_OT_text_insert(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_string(ot->srna, "text", "", 0, "Text", "Text to insert at the cursor position.");
+	RNA_def_boolean(ot->srna, "accent", 0, "Accent mode", "Next typed character will strike through previous, for special character input.");
 }
 
 
@@ -1625,7 +1635,7 @@ void FONT_OT_case_toggle(wmOperatorType *ot)
 
 /* **************** Open Font ************** */
 
-static void open_init(bContext *C, wmOperator *op)
+static void font_ui_template_init(bContext *C, wmOperator *op)
 {
 	PropertyPointerRNA *pprop;
 	
@@ -1642,13 +1652,10 @@ static int open_cancel(bContext *UNUSED(C), wmOperator *op)
 
 static int open_exec(bContext *C, wmOperator *op)
 {
-	Object *ob = CTX_data_active_object(C);
-	Curve *cu;
 	VFont *font;
 	PropertyPointerRNA *pprop;
 	PointerRNA idptr;
 	char str[FILE_MAX];
-	
 	RNA_string_get(op->ptr, "filepath", str);
 
 	font = load_vfont(str);
@@ -1659,7 +1666,7 @@ static int open_exec(bContext *C, wmOperator *op)
 	}
 	
 	if(!op->customdata)
-		open_init(C, op);
+		font_ui_template_init(C, op);
 	
 	/* hook into UI */
 	pprop= op->customdata;
@@ -1672,14 +1679,7 @@ static int open_exec(bContext *C, wmOperator *op)
 		RNA_id_pointer_create(&font->id, &idptr);
 		RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr);
 		RNA_property_update(C, &pprop->ptr, pprop->prop);
-	} else if(ob && ob->type == OB_FONT) {
-		cu = ob->data;
-		id_us_min(&cu->vfont->id);
-		cu->vfont = font;
 	}
-	
-	DAG_id_flush_update(ob->data, OB_RECALC_DATA);
-	WM_event_add_notifier(C, NC_GEOM|ND_DATA|NA_EDITED, ob->data);
 	
 	MEM_freeN(op->customdata);
 	
@@ -1688,20 +1688,26 @@ static int open_exec(bContext *C, wmOperator *op)
 
 static int open_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
-	Object *ob = CTX_data_active_object(C);
-	Curve *cu;
 	VFont *font=NULL;
 	char *path;
-	if (ob && ob->type == OB_FONT) {
-		cu = ob->data;
-		font = cu->vfont;
+
+	PointerRNA idptr;
+	PropertyPointerRNA *pprop;
+
+	font_ui_template_init(C, op);
+
+	/* hook into UI */
+	pprop= op->customdata;
+
+	if(pprop->prop) {
+		idptr= RNA_property_pointer_get((PointerRNA *)pprop, pprop->prop);
+		font= idptr.id.data;
 	}
-	path = (font && font->name)? font->name: U.fontdir;
+
+	path = (font && strcmp(font->name, FO_BUILTIN_NAME) != 0)? font->name: U.fontdir;
 	 
 	if(RNA_property_is_set(op->ptr, "filepath"))
 		return open_exec(C, op);
-	
-	open_init(C, op);
 	
 	RNA_string_set(op->ptr, "filepath", path);
 	WM_event_add_fileselect(C, op); 
@@ -1728,47 +1734,26 @@ void FONT_OT_open(wmOperatorType *ot)
 }
 
 /******************* delete operator *********************/
-static int font_unlink_poll(bContext *C)
-{
-	Object *ob = CTX_data_active_object(C);
-	Curve *cu;
 	
-	if (!ED_operator_object_active_editable(C) ) return 0;
-	if (ob->type != OB_FONT) return 0;
-	
-	cu = ob->data;
-	if (cu && strcmp(cu->vfont->name, "<builtin>")==0) return 0;
-	return 1;
-}
-
 static int font_unlink_exec(bContext *C, wmOperator *op)
 {
-	Object *ob = CTX_data_active_object(C);
-	Curve *cu;
-	VFont *font, *builtin_font;
+	VFont *builtin_font;
 		
-	cu = ob->data;
-	font = cu->vfont;
+	PointerRNA idptr;
+	PropertyPointerRNA pprop;
 	
-	if (!font) {
-		BKE_report(op->reports, RPT_ERROR, "No font datablock available to unlink.");
+	uiIDContextProperty(C, &pprop.ptr, &pprop.prop);
+	
+	if(pprop.prop==NULL) {
+		BKE_report(op->reports, RPT_ERROR, "Incorrect context for running font unlink");
 		return OPERATOR_CANCELLED;
 	}
 	
-	if (strcmp(font->name, "<builtin>")==0) {
-		BKE_report(op->reports, RPT_WARNING, "Can't unlink the default builtin font.");
-		return OPERATOR_FINISHED;
-	}
-
-	/* revert back to builtin font */
 	builtin_font = get_builtin_font();
 
-	cu->vfont = builtin_font;
-	id_us_plus(&cu->vfont->id);
-	id_us_min(&font->id);
-	
-	DAG_id_flush_update(ob->data, OB_RECALC_DATA);
-	WM_event_add_notifier(C, NC_GEOM|ND_DATA|NA_EDITED, ob->data);
+	RNA_id_pointer_create(&builtin_font->id, &idptr);
+	RNA_property_pointer_set(&pprop.ptr, pprop.prop, idptr);
+	RNA_property_update(C, &pprop.ptr, pprop.prop);
 	
 	return OPERATOR_FINISHED;
 }
@@ -1782,7 +1767,6 @@ void FONT_OT_unlink(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= font_unlink_exec;
-	ot->poll= font_unlink_poll;
 }
 
 
@@ -1839,7 +1823,7 @@ static void *get_undoFont(bContext *C)
 }
 
 /* and this is all the undo system needs to know */
-void undo_push_font(bContext *C, char *name)
+void undo_push_font(bContext *C, const char *name)
 {
 	undo_editmode_push(C, name, get_undoFont, free_undoFont, undoFont_to_editFont, editFont_to_undoFont, NULL);
 }

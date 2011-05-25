@@ -906,6 +906,7 @@ void ANIM_OT_channels_move_bottom (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Move Channel(s) to Bottom";
 	ot->idname= "ANIM_OT_channels_move_to_bottom";
+	ot->description = "Rearrange selected animation channels";
 	
 	/* api callbacks */
 	ot->exec= animchannels_rearrange_exec;
@@ -1056,7 +1057,7 @@ static int animchannels_visibility_set_exec(bContext *C, wmOperator *UNUSED(op))
 	BLI_freelistN(&anim_data);
 	
 	/* make all the selected channels visible */
-	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_SEL | ANIMFILTER_NODUPLIS);
+	filter= (ANIMFILTER_SEL | ANIMFILTER_NODUPLIS);
 	ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 	
 	for (ale= anim_data.first; ale; ale= ale->next) {

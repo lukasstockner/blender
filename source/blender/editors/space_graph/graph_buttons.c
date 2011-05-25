@@ -620,7 +620,6 @@ static void graph_panel_drivers(const bContext *C, Panel *pa)
 			
 		/* value of variable */
 		if (driver->flag & DRIVER_FLAG_SHOWDEBUG) {
-			uiLayout *row;
 			char valBuf[32];
 			
 			box= uiLayoutBox(col);
@@ -747,6 +746,7 @@ void GRAPH_OT_properties(wmOperatorType *ot)
 {
 	ot->name= "Properties";
 	ot->idname= "GRAPH_OT_properties";
+	ot->description= "Toggle display properties panel";
 	
 	ot->exec= graph_properties;
 	ot->poll= ED_operator_ipo_active; // xxx

@@ -24,25 +24,29 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-# this warning on generated files gets annoying
-STRING(REGEX REPLACE "-Wunused-parameter" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+# Generated code has some unused vars we can ignore.
+remove_strict_flags()
 
-FILE(GLOB DEFSRC RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.c")
-FILE(GLOB APISRC RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*_api.c")
-LIST(REMOVE_ITEM DEFSRC rna_access.c rna_define.c makesrna.c)
-LIST(REMOVE_ITEM DEFSRC ${APISRC})
+message(STATUS "Configuring makesrna")
+
+file(GLOB DEFSRC RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.c")
+file(GLOB APISRC RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*_api.c")
+list(REMOVE_ITEM DEFSRC rna_access.c rna_define.c makesrna.c)
+list(REMOVE_ITEM DEFSRC ${APISRC})
  
-STRING(REGEX REPLACE "rna_([a-zA-Z0-9_-]*).c" "${CMAKE_CURRENT_BINARY_DIR}/rna_\\1_gen.c" GENSRC "${DEFSRC}")
+string(REGEX REPLACE "rna_([a-zA-Z0-9_-]*).c" "${CMAKE_CURRENT_BINARY_DIR}/rna_\\1_gen.c" GENSRC "${DEFSRC}")
+set_source_files_properties(GENSRC PROPERTIES GENERATED true)
 
-SET(SRC
+set(SRC
 	makesrna.c
 	rna_define.c
 	${DEFSRC}
 	${APISRC}
 	../../../../intern/guardedalloc/intern/mallocn.c
-	../../../../intern/guardedalloc/intern/mmap_win.c)
+	../../../../intern/guardedalloc/intern/mmap_win.c
+)
 
-INCLUDE_DIRECTORIES(
+include_directories(
 	../../../../intern/audaspace/intern
 	../../../../intern/guardedalloc
 	../../../../intern/memutil
@@ -50,6 +54,7 @@ INCLUDE_DIRECTORIES(
 	../../makesdna
 	../../blenkernel
 	../../blenlib
+	../../blenfont
 	../../ikplugin
 	../../windowmanager
 	../../editors/include
@@ -57,95 +62,107 @@ INCLUDE_DIRECTORIES(
 	../../imbuf
 	../../render/extern/include
 	../../../../extern/glew/include
-	. )
+	.
+)
 
-FILE(GLOB INC_FILES ../*.h ../../makesdna/*.h)
+file(GLOB INC_FILES ../*.h ../../makesdna/*.h)
 
-IF(NOT WITH_PYTHON)
-	ADD_DEFINITIONS(-DDISABLE_PYTHON)
-ENDIF(NOT WITH_PYTHON)
+if(WITH_PYTHON)
+	add_definitions(-DWITH_PYTHON)
+endif()
 
-IF(WIN32)
-	LIST(APPEND INC ${PTHREADS_INC})
-ENDIF(WIN32)
+if(WITH_GAMEENGINE)
+	add_definitions(-DWITH_GAMEENGINE)
+endif()
 
-IF(WITH_GAMEENGINE)
-	ADD_DEFINITIONS(-DGAMEBLENDER)
-ENDIF(WITH_GAMEENGINE)
+if(WITH_IMAGE_OPENEXR)
+	add_definitions(-DWITH_OPENEXR)
+endif()
 
-IF(WITH_IMAGE_OPENEXR)
-	ADD_DEFINITIONS(-DWITH_OPENEXR)
-ENDIF(WITH_IMAGE_OPENEXR)
+if(WITH_IMAGE_TIFF)
+	add_definitions(-DWITH_TIFF)
+endif()
 
-IF(WITH_IMAGE_TIFF)
-	ADD_DEFINITIONS(-DWITH_TIFF)
-ENDIF(WITH_IMAGE_TIFF)
+if(WITH_IMAGE_OPENJPEG)
+	add_definitions(-DWITH_OPENJPEG)
+endif()
 
-IF(WITH_IMAGE_OPENJPEG)
-	ADD_DEFINITIONS(-DWITH_OPENJPEG)
-ENDIF(WITH_IMAGE_OPENJPEG)
+if(WITH_IMAGE_DDS)
+	add_definitions(-DWITH_DDS)
+endif()
 
-IF(WITH_IMAGE_DDS)
-	ADD_DEFINITIONS(-DWITH_DDS)
-ENDIF(WITH_IMAGE_DDS)
+if(WITH_IMAGE_CINEON)
+	add_definitions(-DWITH_CINEON)
+endif()
 
-IF(WITH_IMAGE_CINEON)
-	ADD_DEFINITIONS(-DWITH_CINEON)
-ENDIF(WITH_IMAGE_CINEON)
+if(WITH_IMAGE_HDR)
+	add_definitions(-DWITH_HDR)
+endif()
 
-IF(WITH_IMAGE_HDR)
-	ADD_DEFINITIONS(-DWITH_HDR)
-ENDIF(WITH_IMAGE_HDR)
+if(WITH_CODEC_QUICKTIME)
+	list(APPEND INC ../../quicktime)
+	add_definitions(-DWITH_QUICKTIME)
+endif()
 
-IF(WITH_QUICKTIME)
-	LIST(APPEND INC ../../quicktime)
-	ADD_DEFINITIONS(-DWITH_QUICKTIME)
-ENDIF(WITH_QUICKTIME)
+if(WITH_CODEC_FFMPEG)
+	list(APPEND INC ${FFMPEG_INC})
+	add_definitions(-DWITH_FFMPEG)
+endif()
 
-IF(WITH_FFMPEG)
-	LIST(APPEND INC ${FFMPEG_INC})
-	ADD_DEFINITIONS(-DWITH_FFMPEG)
-ENDIF(WITH_FFMPEG)
+if(WITH_LCMS)
+	list(APPEND INC ${LCMS_INCLUDE_DIR})
+	add_definitions(-DWITH_LCMS)
+endif()
 
-IF(WITH_LCMS)
-	LIST(APPEND INC ${LCMS_INCLUDE_DIR})
-	ADD_DEFINITIONS(-DWITH_LCMS)
-ENDIF(WITH_LCMS)
+if(NOT WITH_MOD_FLUID)
+	add_definitions(-DDISABLE_ELBEEM)
+endif()
 
-IF(NOT WITH_FLUID)
-	ADD_DEFINITIONS(-DDISABLE_ELBEEM)
-ENDIF(NOT WITH_FLUID)
+if(WITH_FFTW3)
+	add_definitions(-DFFTW3=1)
+endif()
 
-IF(WITH_FFTW3)
-	ADD_DEFINITIONS(-DFFTW3=1)
-ENDIF(WITH_FFTW3)
+if(WITH_SDL)
+	add_definitions(-DWITH_SDL)
+endif()
 
-IF(WITH_SDL)
-	ADD_DEFINITIONS(-DWITH_SDL)
-ENDIF(WITH_SDL)
+if(WITH_OPENAL)
+	add_definitions(-DWITH_OPENAL)
+endif()
 
-IF(WITH_OPENAL)
-	ADD_DEFINITIONS(-DWITH_OPENAL)
-ENDIF(WITH_OPENAL)
+if(WITH_JACK)
+	add_definitions(-DWITH_JACK)
+endif()
 
-IF(WITH_JACK)
-	ADD_DEFINITIONS(-DWITH_JACK)
-ENDIF(WITH_JACK)
+if(WITH_OPENCOLLADA)
+	add_definitions(-DWITH_COLLADA)
+endif()
 
 # Build makesrna executable
-ADD_EXECUTABLE(makesrna ${SRC} ${INC_FILES})
-TARGET_LINK_LIBRARIES(makesrna bf_dna)
+add_executable(makesrna ${SRC} ${INC_FILES})
+target_link_libraries(makesrna bf_dna)
 
 # Output rna_*_gen.c
 # note (linux only): with crashes try add this after COMMAND: valgrind --leak-check=full --track-origins=yes
-ADD_CUSTOM_COMMAND(
+add_custom_command(
 	OUTPUT ${GENSRC}
 	COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/makesrna ${CMAKE_CURRENT_BINARY_DIR}/
 	DEPENDS makesrna
 )
 
 # Build bf_rna
-SET(SRC rna_access.c ${GENSRC})
-BLENDERLIB(bf_rna "${SRC}" "${INC}")
+set(SRC
+	rna_access.c
+	${GENSRC}
 
-MESSAGE(STATUS "Configuring makesrna")
+	../RNA_access.h
+	../RNA_define.h
+	../RNA_enum_types.h
+	../RNA_types.h
+
+	rna_internal.h
+	rna_internal_types.h
+	rna_nodetree_types.h
+)
+
+blenderlib(bf_rna "${SRC}" "${INC}")
