@@ -26,7 +26,14 @@
  *
  */
 
+/** \file blender/editors/sculpt_paint/paint_stroke.c
+ *  \ingroup edsculpt
+ */
+
 #include "MEM_guardedalloc.h"
+
+#include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -42,9 +49,6 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "BLI_math.h"
-
-
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
@@ -52,6 +56,8 @@
 #include "ED_view3d.h"
 
 #include "paint_intern.h"
+/* still needed for sculpt_stroke_get_location, should be
+   removed eventually (TODO) */
 #include "sculpt_intern.h" // XXX, for expedience in getting this working, refactor later (or this just shows that this needs unification)
 
 #include "BKE_DerivedMesh.h"
@@ -75,6 +81,9 @@ typedef struct PaintStroke {
 	   e.g. in sculpt mode, stroke doesn't start until cursor
 	   passes over the mesh */
 	int stroke_started;
+
+	/* event that started stroke, for modal() return */
+	int event_type;
 
 	StrokeGetLocation get_location;
 	StrokeTestStart test_start;
@@ -203,8 +212,6 @@ static void load_grid()
 
 #endif
 
-extern float get_tex_pixel(Brush* br, float u, float v);
-
 typedef struct Snapshot {
 	float size[3];
 	float ofs[3];
@@ -256,7 +263,7 @@ static void make_snap(Snapshot* snap, Brush* brush, ARegion *ar)
 	snap->winy = ar->winy;
 }
 
-static int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
+static int paint_load_overlay_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 {
 	static GLuint overlay_texture = 0;
 	static int init = 0;
@@ -265,7 +272,7 @@ static int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 	static Snapshot snap;
 	static int old_size = -1;
 
-	GLubyte* buffer = 0;
+	GLubyte* buffer = NULL;
 
 	int size;
 	int j;
@@ -365,12 +372,12 @@ static int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 					   atan2, sqrtf, sin, and cos. */
 					if ((br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED) &&
 						 br->mtex.tex &&
-						 (rotation > 0.001 || rotation < -0.001))
+						 (rotation > 0.001f || rotation < -0.001f))
 					{
 						const float angle= atan2(y, x) + rotation;
 
-						x = len * cos(angle);
-						y = len * sin(angle);
+						x = len * cosf(angle);
+						y = len * sinf(angle);
 					}
 
 					x *= br->mtex.size[0];
@@ -379,7 +386,7 @@ static int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 					x += br->mtex.ofs[0];
 					y += br->mtex.ofs[1];
 
-					avg = br->mtex.tex ? get_tex_pixel(br, x, y) : 1;
+					avg = br->mtex.tex ? paint_get_tex_pixel(br, x, y) : 1;
 
 					avg += br->texture_sample_bias;
 
@@ -473,17 +480,17 @@ void ED_draw_paint_overlay(const bContext* C, ARegion *ar)
 				brush->texture_overlay_alpha / 100.0f);
 
 			glBegin(GL_QUADS);
-				glTexCoord2f(0, 0);
-				glVertex2f(0, 0);
+				glTexCoord2f(0.0f, 0.0f);
+				glVertex2f(0.0f, 0.0f);
 
-				glTexCoord2f(1, 0);
-				glVertex2f(ar->winx, 0);
+				glTexCoord2f(1.0f, 0.0f);
+				glVertex2f(ar->winx, 0.0f);
 
-				glTexCoord2f(1, 1);
+				glTexCoord2f(1.0f, 1.0f);
 				glVertex2f(ar->winx, ar->winy);
 
-				glTexCoord2f(0, 1);
-				glVertex2f(0, ar->winy);
+				glTexCoord2f(0.0f, 1.0f);
+				glVertex2f(0.0f, ar->winy);
 			glEnd();
 
 			glPopMatrix();
@@ -495,40 +502,28 @@ void ED_draw_paint_overlay(const bContext* C, ARegion *ar)
 	}
 }
 
-/* Convert a point in model coordinates to 2D screen coordinates. */
-// XXX duplicated from sculpt.c, deal with this later.
-static void projectf(bglMats *mats, const float v[3], float p[2])
-{
-	double ux, uy, uz;
-
-	gluProject(v[0],v[1],v[2], mats->modelview, mats->projection,
-		   (GLint *)mats->viewport, &ux, &uy, &uz);
-	p[0]= ux;
-	p[1]= uy;
-}
-
 static int project_brush_radius(RegionView3D* rv3d, float radius, float location[3], bglMats* mats)
 {
 	float view[3], nonortho[3], ortho[3], offset[3], p1[2], p2[2];
 
-	viewvector(rv3d, location, view);
+	ED_view3d_global_to_vector(rv3d, location, view);
 
 	// create a vector that is not orthogonal to view
 
-	if (fabsf(view[0]) < 0.1) {
-		nonortho[0] = view[0] + 1;
+	if (fabsf(view[0]) < 0.1f) {
+		nonortho[0] = view[0] + 1.0f;
 		nonortho[1] = view[1];
 		nonortho[2] = view[2];
 	}
-	else if (fabsf(view[1]) < 0.1) {
+	else if (fabsf(view[1]) < 0.1f) {
 		nonortho[0] = view[0];
-		nonortho[1] = view[1] + 1;
+		nonortho[1] = view[1] + 1.0f;
 		nonortho[2] = view[2];
 	}
 	else {
 		nonortho[0] = view[0];
 		nonortho[1] = view[1];
-		nonortho[2] = view[2] + 1;
+		nonortho[2] = view[2] + 1.0f;
 	}
 
 	// get a vector in the plane of the view
@@ -547,13 +542,21 @@ static int project_brush_radius(RegionView3D* rv3d, float radius, float location
 	return len_v2v2(p1, p2);
 }
 
-int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radius, float location[3], float modelview[16], float projection[16], int viewport[4])
+static int sculpt_get_brush_geometry(
+	bContext* C,
+	int x,
+	int y,
+	int* pixel_radius,
+	float location[3],
+	float modelview[16],
+	float projection[16],
+	int viewport[4])
 {
 	struct PaintStroke *stroke;
 	float window[2];
 	int hit;
 
-	stroke = paint_stroke_new(C, NULL, NULL, NULL, NULL);
+	stroke = paint_stroke_new(C, NULL, NULL, NULL, NULL, 0);
 
 	window[0] = x + stroke->vc.ar->winrct.xmin;
 	window[1] = y + stroke->vc.ar->winrct.ymin;
@@ -562,13 +565,21 @@ int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radius, floa
 	memcpy(projection, stroke->vc.rv3d->winmat, sizeof(float[16]));
 	memcpy(viewport, stroke->mats.viewport, sizeof(int[4]));
 
-	if (stroke->vc.obact->sculpt && stroke->vc.obact->sculpt->pbvh && sculpt_stroke_get_location(C, stroke, location, window)) {
-		*pixel_radius = project_brush_radius(stroke->vc.rv3d, brush_unprojected_radius(stroke->brush), location, &stroke->mats);
+	if (stroke->vc.obact->sculpt &&
+		stroke->vc.obact->sculpt->pbvh &&
+		sculpt_stroke_get_location(C, stroke, location, window)) 
+	{
+		*pixel_radius = 
+			project_brush_radius(
+				stroke->vc.rv3d,
+				brush_unprojected_radius(stroke->brush),
+				location,
+				&stroke->mats);
 
 		if (*pixel_radius == 0)
 			*pixel_radius = brush_size(stroke->brush);
 
-		mul_m4_v3(stroke->vc.obact->sculpt->ob->obmat, location);
+		mul_m4_v3(stroke->vc.obact->obmat, location);
 
 		hit = 1;
 	}
@@ -585,22 +596,6 @@ int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radius, floa
 	return hit;
 }
 
-// XXX duplicated from sculpt.c
-float unproject_brush_radius(Object *ob, ViewContext *vc, float center[3], float offset)
-{
-	float delta[3], scale, loc[3];
-
-	mul_v3_m4v3(loc, ob->obmat, center);
-
-	initgrabz(vc->rv3d, loc[0], loc[1], loc[2]);
-	window_to_3d_delta(vc->ar, delta, offset, 0);
-
-	scale= fabsf(mat4_to_scale(ob->obmat));
-	scale= (scale == 0.0f)? 1.0f: scale;
-
-	return len_v3(delta)/scale;
-}
-
 static void set_brush_dot_location(float *modelview, float location[3], const char symm, const char axis, float angle)
 {
 	glLoadMatrixf(modelview);
@@ -609,15 +604,15 @@ static void set_brush_dot_location(float *modelview, float location[3], const ch
 
 	switch (axis) {
 		case 'X':
-			glRotatef(angle, 1, 0, 0);
+			glRotatef(angle, 1.0f, 0.0f, 0.0f);
 			break;
 
 		case 'Y':
-			glRotatef(angle, 0, 1, 0);
+			glRotatef(angle, 0.0f, 1.0f, 0.0f);
 			break;
 
 		case 'Z':
-			glRotatef(angle, 0, 0, 1);
+			glRotatef(angle, 0.0f, 0.0f, 1.0f);
 			break;
 	}
 
@@ -702,18 +697,14 @@ static void draw_symmetric_brush_dots(Sculpt *sd, float location[3], float col[3
 	glPopAttrib();
 }
 
-static void draw_fixed_overlay(Sculpt *sd, Brush *brush, ViewContext *vc, float t, float b, float l, float r, float angle)
+static void draw_fixed_overlay(Sculpt *sd, Brush *brush, ViewContext *vc, rctf* quad, float angle)
 {
 	glPushAttrib(
 		GL_COLOR_BUFFER_BIT|
-		GL_CURRENT_BIT|
 		GL_DEPTH_BUFFER_BIT|
 		GL_ENABLE_BIT|
-		GL_LINE_BIT|
-		GL_POLYGON_BIT|
-		GL_STENCIL_BUFFER_BIT|
 		GL_TRANSFORM_BIT|
-		GL_VIEWPORT_BIT|
+		GL_CURRENT_BIT|
 		GL_TEXTURE_BIT);
 
 	if (paint_load_overlay_tex(sd, brush, vc->ar)) {
@@ -731,16 +722,16 @@ static void draw_fixed_overlay(Sculpt *sd, Brush *brush, ViewContext *vc, float 
 		glPushMatrix();
 		glLoadIdentity();
 
-		glTranslatef(0.5f, 0.5f, 0);
+		glTranslatef(0.5f, 0.5f, 0.0f);
 
-		glRotatef(angle, 0, 0, 1);
+		glRotatef(angle, 0.0f, 0.0f, 1.0f);
 
-		glTranslatef(-0.5f, -0.5f, 0);
+		glTranslatef(-0.5f, -0.5f, 0.0f);
 
 		if (sd->draw_pressure && (brush->flag & BRUSH_SIZE_PRESSURE)) {
-			glTranslatef(0.5f, 0.5f, 0);
+			glTranslatef(0.5f, 0.5f, 0.0f);
 			glScalef(1.0f/sd->pressure_value, 1.0f/sd->pressure_value, 1);
-			glTranslatef(-0.5f, -0.5f, 0);
+			glTranslatef(-0.5f, -0.5f, 0.0f);
 		}
 
 		glColor4f(
@@ -750,17 +741,17 @@ static void draw_fixed_overlay(Sculpt *sd, Brush *brush, ViewContext *vc, float 
 			brush->texture_overlay_alpha / 100.0f);
 
 		glBegin(GL_QUADS);
-			glTexCoord2f(0, 0);
-			glVertex2f(l, b);
+			glTexCoord2f(0.0f, 0.0f);
+			glVertex2f(quad->xmin, quad->ymin);
 
-			glTexCoord2f(1, 0);
-			glVertex2f(r, b);
+			glTexCoord2f(1.0f, 0.0f);
+			glVertex2f(quad->xmax, quad->ymin);
 
-			glTexCoord2f(1, 1);
-			glVertex2f(r, t);
+			glTexCoord2f(1.0f, 1.0f);
+			glVertex2f(quad->xmax, quad->ymax);
 
-			glTexCoord2f(0, 1);
-			glVertex2f(l, t);
+			glTexCoord2f(0.0f, 1.0f);
+			glVertex2f(quad->xmin, quad->ymax);
 		glEnd();
 
 		glPopMatrix();
@@ -913,7 +904,7 @@ static void stencil_brush_on_surface(float modelview[16], float projection[16], 
 	glPopAttrib();
 }
 
-void ED_draw_fixed_overlay_on_surface(float modelview[16], float projection[16], float size[3], int viewport[4], float location[3], float outer_radius, Sculpt *sd, Brush *brush, ViewContext *vc, float t, float b, float l, float r, float angle)
+void ED_draw_fixed_overlay_on_surface(float modelview[16], float projection[16], float size[3], int viewport[4], float location[3], float outer_radius, Sculpt *sd, Brush *brush, ViewContext *vc, rctf* quad, float angle)
 {
 	stencil_brush_on_surface(modelview, projection, size, viewport, location, outer_radius);
 
@@ -923,7 +914,7 @@ void ED_draw_fixed_overlay_on_surface(float modelview[16], float projection[16],
 	glStencilFunc(GL_EQUAL, 2, 0xFF);
 	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-	draw_fixed_overlay(sd, brush, vc, t, b, l, r, angle);
+	draw_fixed_overlay(sd, brush, vc, quad, angle);
 
 	glPopAttrib();
 }
@@ -1242,18 +1233,25 @@ static void update_rake_delta(float out[3], float location[3], int x, int y, Vie
 // Functions should be refactored so that they can be used between sculpt.c and
 // paint_stroke.c clearly and optimally and the lines of communication between the
 // two modules should be more clearly defined.
-static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
+static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 {
+	Paint *paint = paint_get_active(CTX_data_scene(C));
+	Brush *brush = paint_brush(paint);
+
 	ViewContext vc;
 
-	(void)unused;
+	/* sd->last_angle, sd->last_y, sd->last_x, and set_brush_size need to be
+       updated even if we are not drawing the cursor, so we cannot return
+	   until they are updated. */
 
+	/* can't use stroke vc here because this will be called during
+	   mouse over too, not just during a stroke */	
 	view3d_set_viewcontext(C, &vc);
 
+	/* TODO: as sculpt and other paint modes are unified, this
+	   special mode of drawing will go away */
 	if (vc.obact->sculpt) {
-		Paint *paint = paint_get_active(CTX_data_scene(C));
 		Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
-		Brush *brush = paint_brush(paint);
 
 		int pixel_radius, viewport[4];
 		float location[3], modelview[16], projection[16];
@@ -1272,10 +1270,15 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 		const float min_alpha = sd->sculpting ? 0.10f : 0.20f;
 		const float max_alpha = sd->sculpting ? 0.40f : 0.80f;
 
-		float t, b, l, r, angle;
+		float angle;
+
+		rctf quad;
 
 		float rake_delta[3];
 
+		/* XXX: This is here so that rake takes into
+		   account the brush movements before the stroke
+		   starts.  Is there a cleaner way? */
 		{
 			const float u = 0.5f;
 			const float v = 1 - u;
@@ -1292,6 +1295,8 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 			}
 		}
 
+		/* can leave now if brush size is not locked and
+		   drawing brush is not enabled */
 		if(!brush_use_locked_size(brush) && !(paint->flags & PAINT_SHOW_BRUSH)) 
 			return;
 
@@ -1300,30 +1305,45 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 		if (brush_use_locked_size(brush))
 			brush_set_size(brush, pixel_radius);
 
-		// XXX: no way currently to know state of pen flip or invert key modifier without starting a stroke
-		flip = 1;
+		/* XXX: need to determine if there is a condition that allows exiting
+		   from this point */
+
+		/* check if brush is subtracting, use different color then */
+		/* XXX: no way currently to know state of pen flip or
+		   invert key modifier without starting a stroke */
+		flip = brush->flag & BRUSH_INVERTED ? -1 : 1;
 
 		sign = flip * ((brush->flag & BRUSH_DIR_IN)? -1 : 1);
 
-		if (sign < 0 && ELEM5(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_GRAVITY, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_PINCH))
+		if (sign < 0 &&
+            ELEM6(brush->sculpt_tool,
+				SCULPT_TOOL_DRAW,
+				SCULPT_TOOL_GRAVITY,
+				SCULPT_TOOL_INFLATE,
+				SCULPT_TOOL_CLAY,
+				SCULPT_TOOL_PINCH,
+				SCULPT_TOOL_CREASE))
+		{
 			col = brush->sub_col;
-		else
+		}
+		else {
 			col = brush->add_col;
+		}
 
 		alpha = (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) ? min_alpha + (visual_strength*(max_alpha-min_alpha)) : 0.50f;
 
 		if (sd->draw_anchored) {
-			l = sd->anchored_initial_mouse[0]-sd->anchored_size - vc.ar->winrct.xmin;
-			b = sd->anchored_initial_mouse[1]-sd->anchored_size - vc.ar->winrct.ymin;
-			r = sd->anchored_initial_mouse[0]+sd->anchored_size - vc.ar->winrct.xmin;
-			t = sd->anchored_initial_mouse[1]+sd->anchored_size - vc.ar->winrct.ymin;
+			quad.xmin = sd->anchored_initial_mouse[0]-sd->anchored_size - vc.ar->winrct.xmin;
+			quad.ymin = sd->anchored_initial_mouse[1]-sd->anchored_size - vc.ar->winrct.ymin;
+			quad.xmax = sd->anchored_initial_mouse[0]+sd->anchored_size - vc.ar->winrct.xmin;
+			quad.ymax = sd->anchored_initial_mouse[1]+sd->anchored_size - vc.ar->winrct.ymin;
 		}
 		else {
 			const int size= brush_size(brush);
-			l= (float)x-size;
-			b= (float)y-size;
-			r= (float)x+size;
-			t= (float)y+size;
+			quad.xmin= (float)x-size;
+			quad.ymin= (float)y-size;
+			quad.xmax= (float)x+size;
+			quad.ymax= (float)y+size;
 		}
 
 		if (brush->flag & BRUSH_RAKE) {
@@ -1337,12 +1357,13 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 
 		update_rake_delta(rake_delta, location, x+vc.ar->winrct.xmin, y+vc.ar->winrct.ymin, &vc, CTX_data_active_object(C)->obmat);
 
+		/* draw overlay */
 		if (!sd->sculpting &&
 			(!hit || !(paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE)) &&
 			brush->flag & BRUSH_TEXTURE_OVERLAY)
 		{
 			if (!hit || brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
-				draw_fixed_overlay(sd, brush, &vc, t, b, l, r, angle);
+				draw_fixed_overlay(sd, brush, &vc, &quad, angle);
 			}
 			else if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_WRAP) {
 					float up_vec[3]= {0,1,0};
@@ -1361,11 +1382,10 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 			}
 		}
 
+		/* only do if brush is over the mesh */
 		if (hit) {
+			float projected_radius;
 			float unprojected_radius;
-
-			// XXX duplicated from brush_strength & paint_stroke_add_step, refactor later
-			//wmEvent* event = CTX_wm_window(C)->eventstate;
 
 			if (sd->draw_pressure && (brush->flag & BRUSH_ALPHA_PRESSURE))
 				visual_strength *= sd->pressure_value;
@@ -1373,15 +1393,18 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 			// don't show effect of strength past the soft limit
 			if (visual_strength > 1) visual_strength = 1;
 
-			if (sd->draw_anchored) {
-				unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, sd->anchored_size);
+			if(sd->draw_anchored) {
+				projected_radius = sd->anchored_size;
 			}
 			else {
-				if (brush->flag & BRUSH_ANCHORED)
-					unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, 8);
+				if(brush->flag & BRUSH_ANCHORED)
+					projected_radius = 8;
 				else
-					unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, brush_size(brush));
+					projected_radius = brush_size(brush);
 			}
+
+			unprojected_radius =
+				paint_calc_object_space_radius(vc, location, projected_radius);
 
 			if (sd->draw_pressure && (brush->flag & BRUSH_SIZE_PRESSURE))
 				unprojected_radius *= sd->pressure_value;
@@ -1389,6 +1412,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 			if (!brush_use_locked_size(brush))
 				brush_set_unprojected_radius(brush, unprojected_radius);
 
+			/* can leave now if brush drawing is off */
 			if(!(paint->flags & PAINT_SHOW_BRUSH))
 				return;
 
@@ -1405,7 +1429,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 
 				if (!sd->sculpting && brush->flag & BRUSH_TEXTURE_OVERLAY) {
 					if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED)
-						ED_draw_fixed_overlay_on_surface(modelview, projection, ob->size, viewport, location0, outer_radius, sd, brush, &vc, t, b, l, r, angle);
+						ED_draw_fixed_overlay_on_surface(modelview, projection, ob->size, viewport, location0, outer_radius, sd, brush, &vc, &quad, angle);
 					else if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_WRAP) {
 						float up_vec[3]= {0,1,0};
 
@@ -1455,12 +1479,12 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 
 			if (sd->draw_anchored) {
 				glTranslatef(sd->anchored_initial_mouse[0] - vc.ar->winrct.xmin, sd->anchored_initial_mouse[1] - vc.ar->winrct.ymin, 0.0f);
-				glutil_draw_lined_arc(0.0, M_PI*2.0, sd->anchored_size, 40);
+				glutil_draw_lined_arc(0.0f, (float)(M_PI*2.0), sd->anchored_size, 40);
 				glTranslatef(-sd->anchored_initial_mouse[0] + vc.ar->winrct.xmin, -sd->anchored_initial_mouse[1] + vc.ar->winrct.xmin, 0.0f);
 			}
 			else {
 				glTranslatef((float)x, (float)y, 0.0f);
-				glutil_draw_lined_arc(0.0, M_PI*2.0, brush_size(brush), 40);
+				glutil_draw_lined_arc(0.0f, (float)(M_PI*2.0), brush_size(brush), 40);
 				glTranslatef(-(float)x, -(float)y, 0.0f);
 			}
 
@@ -1470,9 +1494,6 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 #endif
 	}
 	else {
-		Paint *paint = paint_get_active(CTX_data_scene(C));
-		Brush *brush = paint_brush(paint);
-
 		if(!(paint->flags & PAINT_SHOW_BRUSH))
 			return;
 
@@ -1481,7 +1502,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 		glEnable(GL_BLEND);
 
 		glTranslatef((float)x, (float)y, 0.0f);
-		glutil_draw_lined_arc(0.0, M_PI*2.0, brush_size(brush), 40); // XXX: for now use the brushes size instead of potentially using the unified size because the feature has been enabled for sculpt
+		glutil_draw_lined_arc(0.0, M_PI*2.0, brush_size(brush), 40); // XXX: make sure this the right size to use in non-sculpt modes
 		glTranslatef((float)-x, (float)-y, 0.0f);
 
 		glDisable(GL_BLEND);
@@ -1584,14 +1605,6 @@ static int paint_smooth_stroke(PaintStroke *stroke, float output[2], wmEvent *ev
 	return 1;
 }
 
-/* Returns zero if the stroke dots should not be spaced, non-zero otherwise */
-static int paint_space_stroke_enabled(Brush *br)
-{
-	return (br->flag & BRUSH_SPACE) &&
-	       !(br->flag & BRUSH_ANCHORED) &&
-	       !ELEM4(br->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_THUMB, SCULPT_TOOL_ROTATE, SCULPT_TOOL_SNAKE_HOOK);
-}
-
 /* For brushes with stroke spacing enabled, moves mouse in steps
    towards the final mouse location. */
 static int paint_space_stroke(bContext *C, wmOperator *op, wmEvent *event, const float final_mouse[2])
@@ -1614,16 +1627,15 @@ static int paint_space_stroke(bContext *C, wmOperator *op, wmEvent *event, const
 			float dvec[2];
 			float mouse[2];
 
-			// XXX duplicate code
-			if(event->custom == EVT_DATA_TABLET) {
-				wmTabletData *wmtab= event->customdata;
-				if(wmtab->Active != EVT_TABLET_NONE)
-					pressure = stroke->brush->flag & BRUSH_SIZE_PRESSURE ? wmtab->Pressure : 1;
-			}
+			pressure = brush_use_size_pressure(stroke->brush) ? event_tablet_data(event, NULL) : 1.0;
 
 			scale = (brush_size(stroke->brush)*pressure*stroke->brush->spacing/50.0f) / length;
 
-			if (scale < FLT_EPSILON) // paranoia here: make sure scale is big enough have an effect when added
+			// XXX: this code checks for very small numbers, which could lead to 
+			// a large number of iterations.  perhaps this code should just
+			// bail out or break if numbers are too small.  Investigate this.
+
+			if (scale < FLT_EPSILON) // make sure scale is big enough have an effect when added
 				scale= FLT_EPSILON;
 
 			if (stroke->brush->flag & BRUSH_ADAPTIVE_SPACE) {
@@ -1637,7 +1649,7 @@ static int paint_space_stroke(bContext *C, wmOperator *op, wmEvent *event, const
 					CLAMP(f, 0.1f, 1); // make sure that adaptive strength never sets spacing to zero
 
 					d= f*scale;
-					CLAMP(d, FLT_EPSILON, scale); // paranoia here: d has to be big enough to increment t
+					CLAMP(d, FLT_EPSILON, scale); // d has to be big enough to increment t
 
 					t += d;
 
@@ -1676,7 +1688,7 @@ PaintStroke *paint_stroke_new(bContext *C,
 				  StrokeGetLocation get_location,
 				  StrokeTestStart test_start,
 				  StrokeUpdateStep update_step,
-				  StrokeDone done)
+                  StrokeDone done, int event_type)
 {
 	PaintStroke *stroke = MEM_callocN(sizeof(PaintStroke), "PaintStroke");
 
@@ -1688,6 +1700,7 @@ PaintStroke *paint_stroke_new(bContext *C,
 	stroke->test_start = test_start;
 	stroke->update_step = update_step;
 	stroke->done = done;
+	stroke->event_type= event_type;	/* for modal, return event */
 
 	return stroke;
 }
@@ -1695,6 +1708,14 @@ PaintStroke *paint_stroke_new(bContext *C,
 void paint_stroke_free(PaintStroke *stroke)
 {
 	MEM_freeN(stroke);
+}
+
+/* Returns zero if the stroke dots should not be spaced, non-zero otherwise */
+int paint_space_stroke_enabled(Brush *br)
+{
+	return (br->flag & BRUSH_SPACE) &&
+	       !(br->flag & BRUSH_ANCHORED) &&
+	       !ELEM4(br->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_THUMB, SCULPT_TOOL_ROTATE, SCULPT_TOOL_SNAKE_HOOK);
 }
 
 int paint_stroke_modal(bContext *C, wmOperator *op, wmEvent *event)
@@ -1720,8 +1741,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, wmEvent *event)
 		//ED_region_tag_redraw(ar);
 	}
 
-	/* TODO: fix hardcoded events here */
-	if(event->type == LEFTMOUSE && event->val == KM_RELEASE) {
+	if(event->type == stroke->event_type && event->val == KM_RELEASE) {
 		/* exit stroke, free data */
 		if(stroke->smooth_stroke_cursor)
 			WM_paint_cursor_end(CTX_wm_manager(C), stroke->smooth_stroke_cursor);
@@ -1747,8 +1767,8 @@ int paint_stroke_modal(bContext *C, wmOperator *op, wmEvent *event)
 			}
 			else {
 				;//ED_region_tag_redraw(ar);
+			}
 		}
-	}
 	}
 
 	/* we want the stroke to have the first daub at the start location instead of waiting till we have moved the space distance */
@@ -1768,10 +1788,19 @@ int paint_stroke_exec(bContext *C, wmOperator *op)
 {
 	PaintStroke *stroke = op->customdata;
 
+	/* only when executed for the first time */
+	if(stroke->stroke_started == 0) {
+		/* XXX stroke->last_mouse_position is unset, this may cause problems */
+		stroke->test_start(C, op, NULL);
+		stroke->stroke_started= 1;
+	}
+
 	RNA_BEGIN(op->ptr, itemptr, "stroke") {
 		stroke->update_step(C, stroke, &itemptr);
 	}
 	RNA_END;
+
+	stroke->done(C, stroke);
 
 	MEM_freeN(stroke);
 	op->customdata = NULL;
