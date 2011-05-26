@@ -34,6 +34,13 @@ class RENDER_MT_ffmpeg_presets(bpy.types.Menu):
     draw = bpy.types.Menu.draw_preset
 
 
+class RENDER_MT_framerate_presets(bpy.types.Menu):
+    bl_label = "Frame Rate Presets"
+    preset_subdir = "framerate"
+    preset_operator = "script.execute_preset"
+    draw = bpy.types.Menu.draw_preset
+
+
 class RenderButtonsPanel():
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -550,8 +557,29 @@ class RENDER_PT_dimensions(RenderButtonsPanel, bpy.types.Panel):
         sub.prop(scene, "frame_step", text="Step")
 
         sub.label(text="Frame Rate:")
+        if rd.fps_base == 1:
+            fps_rate = round(rd.fps / rd.fps_base)
+        else:
+            fps_rate = round(rd.fps / rd.fps_base, 2)
+
+        # TODO: Change the following to iterate over existing presets
+        if (fps_rate in (23.98, 24, 25, 29.97, 30, 50, 59.94, 60)):
+            custom_framerate = False
+        else:
+            custom_framerate = True
+
+        if custom_framerate == True:
+            fps_label_text = "Custom (" + str(fps_rate) + " fps)"
+        else:
+            fps_label_text = str(fps_rate) + " fps"
+
+        sub.menu("RENDER_MT_framerate_presets", text=fps_label_text)
+
+        if (bpy.types.RENDER_MT_framerate_presets.bl_label == "Custom") or (custom_framerate == True):
         sub.prop(rd, "fps")
         sub.prop(rd, "fps_base", text="/")
+        subrow = sub.row(align=True)
+        subrow.label(text="Time Remapping:")
         subrow = sub.row(align=True)
         subrow.prop(rd, "frame_map_old", text="Old")
         subrow.prop(rd, "frame_map_new", text="New")
@@ -642,11 +670,11 @@ class RENDER_PT_bake(RenderButtonsPanel, bpy.types.Panel):
 
 
 def register():
-    pass
+    bpy.utils.register_module(__name__)
 
 
 def unregister():
-    pass
+    bpy.utils.unregister_module(__name__)
 
 if __name__ == "__main__":
     register()

@@ -91,7 +91,6 @@ static void deformVerts(ModifierData *md, Object *ob,
 						int UNUSED(isFinalCalc))
 {
 	SurfaceModifierData *surmd = (SurfaceModifierData*) md;
-	unsigned int numverts = 0, i = 0;
 	
 	if(surmd->dm)
 		surmd->dm->release(surmd->dm);
@@ -108,6 +107,7 @@ static void deformVerts(ModifierData *md, Object *ob,
 	
 	if(surmd->dm)
 	{
+		unsigned int numverts = 0, i = 0;
 		int init = 0;
 		float *vec;
 		MVert *x, *v;
@@ -173,6 +173,7 @@ ModifierTypeInfo modifierType_Surface = {
 
 	/* copyData */          0,
 	/* deformVerts */       deformVerts,
+	/* deformMatrices */    0,
 	/* deformVertsEM */     0,
 	/* deformMatricesEM */  0,
 	/* applyModifier */     0,

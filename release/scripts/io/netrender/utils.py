@@ -28,7 +28,7 @@ try:
 except:
   bpy = None
 
-VERSION = bytes("1.2", encoding='utf8')
+VERSION = bytes("1.3", encoding='utf8')
 
 # Jobs status
 JOB_WAITING = 0 # before all data has been entered
@@ -97,7 +97,7 @@ def clientScan(report = None):
 
         return ("", 8000) # return default values
 
-def clientConnection(address, port, report = None, scan = True):
+def clientConnection(address, port, report = None, scan = True, timeout = 5):
     if address == "[default]":
 #            calling operator from python is fucked, scene isn't in context
 #			if bpy:
@@ -111,7 +111,7 @@ def clientConnection(address, port, report = None, scan = True):
             return None
 
     try:
-        conn = http.client.HTTPConnection(address, port, timeout = 5)
+        conn = http.client.HTTPConnection(address, port, timeout = timeout)
 
         if conn:
             if clientVerifyVersion(conn):
@@ -168,7 +168,10 @@ def hashData(data):
     
 
 def prefixPath(prefix_directory, file_path, prefix_path, force = False):
-    if os.path.isabs(file_path):
+    if (os.path.isabs(file_path) or
+        len(file_path) >= 3 and (file_path[1:3] == ":/" or file_path[1:3] == ":\\") or # Windows absolute path don't count as absolute on unix, have to handle them myself
+        file_path[0] == "/" or file_path[0] == "\\"): # and vice versa
+
         # if an absolute path, make sure path exists, if it doesn't, use relative local path
         full_path = file_path
         if force or not os.path.exists(full_path):
@@ -190,6 +193,10 @@ def prefixPath(prefix_directory, file_path, prefix_path, force = False):
     return full_path
 
 def getResults(server_address, server_port, job_id, resolution_x, resolution_y, resolution_percentage, frame_ranges):
+    if bpy.app.debug:
+        print("=============================================")
+        print("============= FETCHING RESULTS ==============")
+
     frame_arguments = []
     for r in frame_ranges:
         if len(r) == 2:
@@ -200,13 +207,27 @@ def getResults(server_address, server_port, job_id, resolution_x, resolution_y, 
     filepath = os.path.join(bpy.app.tempdir, "netrender_temp.blend")
     bpy.ops.wm.save_as_mainfile(filepath=filepath, copy=True, check_existing=False)
             
-    process = subprocess.Popen([sys.argv[0], "-b", "-noaudio", filepath, "-P", __file__] + frame_arguments + ["--", "GetResults", server_address, str(server_port), job_id, str(resolution_x), str(resolution_y), str(resolution_percentage)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    arguments = [sys.argv[0], "-b", "-noaudio", filepath, "-o", bpy.path.abspath(bpy.context.scene.render.filepath), "-P", __file__] + frame_arguments + ["--", "GetResults", server_address, str(server_port), job_id, str(resolution_x), str(resolution_y), str(resolution_percentage)]
+    if bpy.app.debug:
+        print("Starting subprocess:")
+        print(" ".join(arguments))
+
+    process = subprocess.Popen(arguments, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     while process.poll() is None:
-        process.stdout.read(1024) # empty buffer to be sure
-    process.stdout.read()
+        stdout = process.stdout.read(1024)
+        if bpy.app.debug:
+            print(str(stdout, encoding='utf-8'), end="")
+    
+
+    # read leftovers if needed
+    stdout = process.stdout.read()
+    if bpy.app.debug:
+        print(str(stdout, encoding='utf-8'))
     
     os.remove(filepath)
     
+    if bpy.app.debug:
+        print("=============================================")
     return
 
 def _getResults(server_address, server_port, job_id, resolution_x, resolution_y, resolution_percentage):
@@ -223,6 +244,10 @@ def _getResults(server_address, server_port, job_id, resolution_x, resolution_y,
     render.resolution_y = int(resolution_y)
     render.resolution_percentage = int(resolution_percentage)
     
+    render.use_full_sample = False
+    render.use_compositing = False
+    render.use_border = False
+
 
 def getFileInfo(filepath, infos):
     process = subprocess.Popen([sys.argv[0], "-b", "-noaudio", filepath, "-P", __file__, "--", "FileInfo"] + infos, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

@@ -64,6 +64,7 @@
 #include "BKE_scene.h"
 #include "BKE_utildefines.h"
 #include "BKE_depsgraph.h"
+#include "BKE_anim.h"
 
 
 // XXX bad level call...
@@ -1142,13 +1143,13 @@ static void face_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, floa
 static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, float par_space_mat[][4], ParticleSystem *psys, int level, int animated)
 {
 	GroupObject *go;
-	Object *ob=0, **oblist=0, obcopy, *obcopylist=0;
+	Object *ob=NULL, **oblist=NULL, obcopy, *obcopylist=NULL;
 	DupliObject *dob;
 	ParticleDupliWeight *dw;
 	ParticleSimulationData sim = {scene, par, psys, psys_get_modifier(par, psys)};
 	ParticleSettings *part;
 	ParticleData *pa;
-	ChildParticle *cpa=0;
+	ChildParticle *cpa=NULL;
 	ParticleKey state;
 	ParticleCacheKey *cache;
 	float ctime, pa_time, scale = 1.0f;
@@ -1157,18 +1158,23 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 	int lay, a, b, counter, hair = 0;
 	int totpart, totchild, totgroup=0, pa_num;
 
-	if(psys==0) return;
+	int no_draw_flag = PARS_UNEXIST;
+	
+	if(psys==NULL) return;
 	
 	/* simple preventing of too deep nested groups */
 	if(level>MAX_DUPLI_RECUR) return;
 	
 	part=psys->part;
 
-	if(part==0)
+	if(part==NULL)
 		return;
 
 	if(!psys_check_enabled(par, psys))
 		return;
+	
+	if(G.rendering == 0)
+		no_draw_flag |= PARS_NO_DISP;
 	
 	ctime = bsystem_time(scene, par, (float)scene->r.cfra, 0.0);
 
@@ -1178,6 +1184,11 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 	BLI_srandom(31415926 + psys->seed);
 	
 	if((psys->renderdata || part->draw_as==PART_DRAW_REND) && ELEM(part->ren_as, PART_DRAW_OB, PART_DRAW_GR)) {
+		ParticleSimulationData sim= {NULL};
+		sim.scene= scene;
+		sim.ob= par;
+		sim.psys= psys;
+		sim.psmd= psys_get_modifier(par, psys);
 
 		/* first check for loops (particle system object used as dupli object) */
 		if(part->ren_as == PART_DRAW_OB) {
@@ -1259,7 +1270,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 		for(pa=psys->particles,counter=0; a<totpart+totchild; a++,pa++,counter++) {
 			if(a<totpart) {
 				/* handle parent particle */
-				if(pa->flag & (PARS_UNEXIST+PARS_NO_DISP))
+				if(pa->flag & no_draw_flag)
 					continue;
 
 				pa_num = pa->num;
@@ -1272,7 +1283,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 
 				pa_num = a;
 				pa_time = psys->particles[cpa->parent].time;
-				size = psys_get_child_size(psys, cpa, ctime, 0);
+				size = psys_get_child_size(psys, cpa, ctime, NULL);
 			}
 
 			/* some hair paths might be non-existent so they can't be used for duplication */
@@ -1303,11 +1314,11 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 				/* hair we handle separate and compute transform based on hair keys */
 				if(a < totpart) {
 					cache = psys->pathcache[a];
-					psys_get_dupli_path_transform(&sim, pa, 0, cache, pamat, &scale);
+					psys_get_dupli_path_transform(&sim, pa, NULL, cache, pamat, &scale);
 				}
 				else {
 					cache = psys->childcache[a-totpart];
-					psys_get_dupli_path_transform(&sim, 0, cpa, cache, pamat, &scale);
+					psys_get_dupli_path_transform(&sim, NULL, cpa, cache, pamat, &scale);
 				}
 
 				VECCOPY(pamat[3], cache->co);
@@ -1354,7 +1365,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 				/* Normal particles and cached hair live in global space so we need to
 				 * remove the real emitter's transformation before 2nd order duplication.
 				 */
-				if(par_space_mat)
+				if(par_space_mat && GS(id->name) != ID_GR)
 					mul_m4_m4m4(mat, pamat, psys->imat);
 				else
 				copy_m4_m4(mat, pamat);
@@ -1370,7 +1381,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 				if(part->draw & PART_DRAW_GLOBAL_OB)
 					VECADD(mat[3], mat[3], vec);
 
-				dob= new_dupli_object(lb, ob, mat, ob->lay, counter, OB_DUPLIPARTS, animated);
+				dob= new_dupli_object(lb, ob, mat, ob->lay, counter, GS(id->name) == ID_GR ? OB_DUPLIGROUP : OB_DUPLIPARTS, animated);
 				copy_m4_m4(dob->omat, oldobmat);
 				if(G.rendering)
 					psys_get_dupli_texture(par, part, sim.psmd, pa, cpa, dob->uv, dob->orco);
@@ -1423,7 +1434,7 @@ static Object *find_family_object(Object **obar, char *family, char ch)
 
 static void font_duplilist(ListBase *lb, Scene *scene, Object *par, int level, int animated)
 {
-	Object *ob, *obar[256]= {0};
+	Object *ob, *obar[256]= {NULL};
 	Curve *cu;
 	struct chartrans *ct, *chartransdata;
 	float vec[3], obmat[4][4], pmat[4][4], fsize, xof, yof;
@@ -1437,7 +1448,7 @@ static void font_duplilist(ListBase *lb, Scene *scene, Object *par, int level, i
 	/* in par the family name is stored, use this to find the other objects */
 	
 	chartransdata= BKE_text_to_curve(scene, par, FO_DUPLI);
-	if(chartransdata==0) return;
+	if(chartransdata==NULL) return;
 	
 	cu= par->data;
 	slen= strlen(cu->str);

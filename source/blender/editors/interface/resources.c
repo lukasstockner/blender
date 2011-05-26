@@ -1006,10 +1006,8 @@ void init_userdef_do_versions(void)
 		U.tb_rightmouse= 5;
 	}
 	if(U.mixbufsize==0) U.mixbufsize= 2048;
-	if (BLI_streq(U.tempdir, "/")) {
-		char *tmp= getenv("TEMP");
-		
-		strcpy(U.tempdir, tmp?tmp:"/tmp/");
+	if (strcmp(U.tempdir, "/") == 0) {
+		BLI_where_is_temp(U.tempdir, sizeof(U.tempdir), FALSE);
 	}
 	if (U.autokey_mode == 0) {
 		/* 'add/replace' but not on */
@@ -1017,7 +1015,7 @@ void init_userdef_do_versions(void)
 	}
 	if (U.savetime <= 0) {
 		U.savetime = 1;
-// XXX		error("startup.blend is buggy, please consider removing it.\n");
+// XXX		error(STRINGIFY(BLENDER_STARTUP_FILE)" is buggy, please consider removing it.\n");
 	}
 	/* transform widget settings */
 	if(U.tw_hotspot==0) {
@@ -1511,6 +1509,11 @@ void init_userdef_do_versions(void)
 			SETCOL(btheme->tv3d.extra_face_angle, 0, 32, 0, 255);
 			SETCOL(btheme->tv3d.extra_face_area, 0, 0, 128, 255);
 		}
+	}
+	
+	if (bmain->versionfile < 257) {
+		/* clear "AUTOKEY_FLAG_ONLYKEYINGSET" flag from userprefs, so that it doesn't linger around from old configs like a ghost */
+		U.autokey_flag &= ~AUTOKEY_FLAG_ONLYKEYINGSET;
 	}
 	
 	/* GL Texture Garbage Collection (variable abused above!) */

@@ -47,13 +47,14 @@
 
 #include "depsgraph_private.h"
 
+#include "MOD_util.h"
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
 	MaskModifierData *mmd = (MaskModifierData*) md;
 	MaskModifierData *tmmd = (MaskModifierData*) target;
 	
-	strcpy(tmmd->vgroup, mmd->vgroup);
+	BLI_strncpy(tmmd->vgroup, mmd->vgroup, sizeof(tmmd->vgroup));
 	tmmd->flag = mmd->flag;
 }
 
@@ -134,7 +135,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 			return derivedData;		
 		
 		/* hashes for finding mapping of:
-		 * 	- vgroups to indicies -> vgroupHash  (string, int)
+		 * 	- vgroups to indices -> vgroupHash  (string, int)
 		 *	- bones to vgroup indices -> boneHash (index of vgroup, dummy)
 		 */
 		vgroupHash= BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp, "mask vgroup gh");
@@ -399,6 +400,7 @@ ModifierTypeInfo modifierType_Mask = {
 
 	/* copyData */          copyData,
 	/* deformVerts */       0,
+	/* deformMatrices */    0,
 	/* deformVertsEM */     0,
 	/* deformMatricesEM */  0,
 	/* applyModifier */     applyModifier,

@@ -3966,35 +3966,31 @@ static void but_shortcut_name_func(bContext *C, void *arg1, int UNUSED(event))
 	uiBut *but = (uiBut *)arg1;
 	
 	if (but->optype) {
-	char buf[512], *butstr, *cpoin;
+		char buf[512], *cpoin;
 	
 		IDProperty *prop= (but->opptr)? but->opptr->data: NULL;
 		
 		/* complex code to change name of button */
 		if(WM_key_event_operator_string(C, but->optype->idname, but->opcontext, prop, buf, sizeof(buf))) {
 			wmKeyMap *km= NULL;
-			
-			butstr= MEM_mallocN(strlen(but->str)+strlen(buf)+2, "menu_block_set_keymaps");
+			char *butstr_orig;
 			
 			// XXX but->str changed... should not, remove the hotkey from it
 			cpoin= strchr(but->str, '|');
 			if(cpoin) *cpoin= 0;		
 			
-			strcpy(butstr, but->str);
-			strcat(butstr, "|");
-			strcat(butstr, buf);
-			
+			butstr_orig= BLI_strdup(but->str);
+			BLI_snprintf(but->strdata, sizeof(but->strdata), "%s|%s", butstr_orig, buf);
+			MEM_freeN(butstr_orig);
 			but->str= but->strdata;
-			BLI_strncpy(but->str, butstr, sizeof(but->strdata));
-			MEM_freeN(butstr);
 			
 			ui_check_but(but);
 			
 			/* set the keymap editable else the key wont save */
 			WM_key_event_operator_id(C, but->optype->idname, but->opcontext, prop, 1, &km);
 			WM_keymap_copy_to_user(km);
-				
-		} else {
+		}
+		else {
 			/* shortcut was removed */
 			cpoin= strchr(but->str, '|');
 			if(cpoin) *cpoin= 0;
@@ -4109,7 +4105,7 @@ static int ui_but_menu(bContext *C, uiBut *but)
 	button_timers_tooltip_remove(C, but);
 
 	if(but->rnaprop)
-		name= (char*)RNA_property_ui_name(but->rnaprop);
+		name= RNA_property_ui_name(but->rnaprop);
 	else if (but->optype)
 		name= but->optype->name;
 	else
@@ -4350,8 +4346,9 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, wmEvent *event)
 		/* reset to default */
 		/* XXX hardcoded keymap check.... */
 		else if(ELEM(event->type, ZEROKEY,PAD0) && event->val == KM_PRESS) {
+			/* ctrl-0 = for arrays, only the active one gets done (vs whole array for just 0) */
 			if (!(ELEM3(but->type, HSVCIRCLE, HSVCUBE, HISTOGRAM)))
-				ui_set_but_default(C, but);
+				ui_set_but_default(C, but, !event->ctrl);
 		}
 		/* handle menu */
 		else if(event->type == RIGHTMOUSE && event->val == KM_PRESS) {
@@ -4673,6 +4670,7 @@ static void button_timers_tooltip_remove(bContext *C, uiBut *but)
 	uiHandleButtonData *data;
 
 	data= but->active;
+	if(data) {
 
 	if(data->tooltiptimer) {
 		WM_event_remove_timer(data->wm, data->window, data->tooltiptimer);
@@ -4687,6 +4685,7 @@ static void button_timers_tooltip_remove(bContext *C, uiBut *but)
 		WM_event_remove_timer(data->wm, data->window, data->autoopentimer);
 		data->autoopentimer= NULL;
 	}
+}
 }
 
 static void button_tooltip_timer_reset(bContext *C, uiBut *but)
@@ -5227,8 +5226,15 @@ static int ui_handle_button_event(bContext *C, wmEvent *event, uiBut *but)
 		retval= WM_UI_HANDLER_CONTINUE;
 	}
 	else if(data->state == BUTTON_STATE_MENU_OPEN) {
+		/* check for exit because of mouse-over another button */
 		switch(event->type) {
-			case MOUSEMOVE: {
+			case MOUSEMOVE:
+				
+				if(data->menu && data->menu->region)
+					if(ui_mouse_inside_region(data->menu->region, event->x, event->y))
+						break;
+			
+			{
 				uiBut *bt= ui_but_find_mouse_over(ar, event->x, event->y);
 
 				if(bt && bt->active != data) {
@@ -5451,7 +5457,7 @@ static int ui_mouse_motion_towards_check(uiBlock *block, uiPopupBlockHandle *men
 	return menu->dotowards;
 }
 
-int ui_handle_menu_event(bContext *C, wmEvent *event, uiPopupBlockHandle *menu, int UNUSED(topmenu))
+static int ui_handle_menu_event(bContext *C, wmEvent *event, uiPopupBlockHandle *menu, int UNUSED(topmenu))
 {
 	ARegion *ar;
 	uiBlock *block;
@@ -5711,7 +5717,7 @@ int ui_handle_menu_event(bContext *C, wmEvent *event, uiPopupBlockHandle *menu, 
 
 				if(ELEM3(event->type, LEFTMOUSE, MIDDLEMOUSE, RIGHTMOUSE) && event->val==KM_PRESS) {
 					if(saferct && !BLI_in_rctf(&saferct->parent, event->x, event->y)) {
-						if(block->flag & (UI_BLOCK_OUT_1|UI_BLOCK_KEEP_OPEN))
+						if(block->flag & (UI_BLOCK_OUT_1))
 							menu->menuretval= UI_RETURN_OK;
 						else
 							menu->menuretval= UI_RETURN_OUT;
@@ -5752,7 +5758,7 @@ int ui_handle_menu_event(bContext *C, wmEvent *event, uiPopupBlockHandle *menu, 
 
 					/* strict check, and include the parent rect */
 					if(!menu->dotowards && !saferct) {
-						if(block->flag & (UI_BLOCK_OUT_1|UI_BLOCK_KEEP_OPEN))
+						if(block->flag & (UI_BLOCK_OUT_1))
 							menu->menuretval= UI_RETURN_OK;
 						else
 							menu->menuretval= UI_RETURN_OUT;

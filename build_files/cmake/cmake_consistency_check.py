@@ -21,6 +21,8 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
+# <pep8 compliant>
+
 IGNORE = \
     "/test/",\
     "/decimate_glut_test/",\
@@ -45,6 +47,8 @@ global_c = set()
 
 import os
 from os.path import  splitext
+
+
 def source_list(path, filename_check=None):
     for dirpath, dirnames, filenames in os.walk(path):
 
@@ -56,25 +60,26 @@ def source_list(path, filename_check=None):
             if filename_check is None or filename_check(filename):
                 yield os.path.join(dirpath, filename)
 
-# extension checking
-def is_c_header(filename):
-    ext = splitext(filename)[1]
-    return (ext in (".h", ".hpp", ".hxx"))
 
+# extension checking
 def is_cmake(filename):
     ext = splitext(filename)[1]
     return (ext == ".cmake") or (filename == "CMakeLists.txt")
 
+
 def is_c_header(filename):
     ext = splitext(filename)[1]
     return (ext in (".h", ".hpp", ".hxx"))
+
 
 def is_c(filename):
     ext = splitext(filename)[1]
     return (ext in (".c", ".cpp", ".cxx", ".m", ".mm", ".rc"))
 
+
 def is_c_any(filename):
     return is_c(filename) or is_c_header(filename)
+
 
 def cmake_get_src(f):
     
@@ -128,6 +133,9 @@ def cmake_get_src(f):
                             raise Exception("strict formatting not kept '*)' %s:%d" % (f, i))
                         break
 
+                    # replace dirs
+                    l = l.replace("${CMAKE_CURRENT_SOURCE_DIR}", cmake_base)
+
                     if not l:
                         pass
                     elif l.startswith("$"):
@@ -141,6 +149,9 @@ def cmake_get_src(f):
                             sources_h.append(new_file)
                         elif is_c(new_file):
                             sources_c.append(new_file)
+                        elif l in ("PARENT_SCOPE", ):
+                            # cmake var, ignore
+                            pass
                         else:
                             raise Exception("unknown file type - not c or h %s -> %s" % (f, new_file))
 
@@ -167,6 +178,7 @@ def cmake_get_src(f):
 
 for cmake in source_list(base, is_cmake):
     cmake_get_src(cmake)
+
 
 def is_ignore(f):
     for ig in IGNORE:
@@ -199,6 +211,9 @@ for hf in sorted(source_list(base, is_c_header)):
 import traceback
 for files in (global_c, global_h):
     for f in sorted(files):
+        if os.path.exists(f):
+            # ignore outside of our source tree
+            if "extern" not in f:
         i = 1
         try:
             for l in open(f, "r", encoding="utf8"):

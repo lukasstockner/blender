@@ -41,6 +41,7 @@
 #include "depsgraph_private.h"
 
 #include "MOD_boolean_util.h"
+#include "MOD_util.h"
 
 
 static void copyData(ModifierData *md, ModifierData *target)
@@ -130,6 +131,7 @@ ModifierTypeInfo modifierType_Boolean = {
 
 	/* copyData */          copyData,
 	/* deformVerts */       0,
+	/* deformMatrices */    0,
 	/* deformVertsEM */     0,
 	/* deformMatricesEM */  0,
 	/* applyModifier */     applyModifier,

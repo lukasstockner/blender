@@ -486,8 +486,8 @@ class MakeDupliFace(bpy.types.Operator):
 
         def matrix_to_quat(matrix):
             # scale = matrix.median_scale
-            trans = matrix.translation_part()
-            rot = matrix.rotation_part() # also contains scale
+            trans = matrix.to_translation()
+            rot = matrix.to_3x3()  # also contains scale
 
             return [(b * rot) + trans for b in base_tri]
         scene = bpy.context.scene
@@ -567,11 +567,11 @@ class ClearAllRestrictRender(bpy.types.Operator):
 
 
 def register():
-    pass
+    bpy.utils.register_module(__name__)
 
 
 def unregister():
-    pass
+    bpy.utils.unregister_module(__name__)
 
 if __name__ == "__main__":
     register()

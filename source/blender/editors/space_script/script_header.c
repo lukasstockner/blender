@@ -78,11 +78,11 @@ static uiBlock *dummy_viewmenu(bContext *C, ARegion *ar, void *arg_unused)
 	return block;
 }
 
-static void do_script_buttons(bContext *C, void *arg, int event)
+static void do_script_buttons(bContext *UNUSED(C), void *UNUSED(arg), int UNUSED(event))
 {
-	switch(event) {
+	//switch(event) {
+	//}
 	}
-}
 
 
 void script_header_buttons(const bContext *C, ARegion *ar)

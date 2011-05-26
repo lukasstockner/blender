@@ -90,7 +90,7 @@ static int text_font_draw_character(SpaceText *st, int x, int y, char c)
 	return st->cwidth;
 }
 
-int text_font_width(SpaceText *st, char *str)
+int text_font_width(SpaceText *UNUSED(st), const char *str)
 {
 	return BLF_width(mono, str);
 }
@@ -125,7 +125,7 @@ static void flatten_string_append(FlattenString *fs, char c, int accum)
 	fs->pos++;
 }
 
-int flatten_string(SpaceText *st, FlattenString *fs, char *in)
+int flatten_string(SpaceText *st, FlattenString *fs, const char *in)
 {
 	int r = 0, i = 0;
 
@@ -251,7 +251,7 @@ static int find_bool(char *string)
 
 /* Ensures the format string for the given line is long enough, reallocating
  as needed. Allocation is done here, alone, to ensure consistency. */
-int text_check_format_len(TextLine *line, unsigned int len)
+static int text_check_format_len(TextLine *line, unsigned int len)
 {
 	if(line->format) {
 		if(strlen(line->format) < len) {
@@ -646,7 +646,7 @@ void wrap_offset_in_line(SpaceText *st, ARegion *ar, TextLine *linein, int cursi
 	}
 }
 
-int text_get_char_pos(SpaceText *st, char *line, int cur)
+int text_get_char_pos(SpaceText *st, const char *line, int cur)
 {
 	int a=0, i;
 	
@@ -955,14 +955,14 @@ void text_free_caches(SpaceText *st)
 /************************ word-wrap utilities *****************************/
 
 /* cache should be updated in caller */
-int text_get_visible_lines_no(SpaceText *st, int lineno)
+static int text_get_visible_lines_no(SpaceText *st, int lineno)
 {
 	DrawCache *drawcache= (DrawCache *)st->drawcache;
 
 	return drawcache->line_height[lineno];
 }
 
-int text_get_visible_lines(SpaceText *st, ARegion *ar, char *str)
+int text_get_visible_lines(SpaceText *st, ARegion *ar, const char *str)
 {
 	int i, j, start, end, max, lines, chars;
 	char ch;

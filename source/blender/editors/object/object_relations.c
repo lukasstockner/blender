@@ -1036,7 +1036,8 @@ static unsigned int move_to_layer_init(bContext *C, wmOperator *op)
 	unsigned int lay= 0;
 
 	if(!RNA_property_is_set(op->ptr, "layers")) {
-		CTX_DATA_BEGIN(C, Base*, base, selected_editable_bases) {
+		/* note: layers are set in bases, library objects work for this */
+		CTX_DATA_BEGIN(C, Base*, base, selected_bases) {
 			lay |= base->lay;
 		}
 		CTX_DATA_END;
@@ -1084,8 +1085,8 @@ static int move_to_layer_exec(bContext *C, wmOperator *op)
 	
 	if(v3d && v3d->localvd) {
 		/* now we can move out of localview. */
-		// XXX if (!okee("Move from localview")) return;
-		CTX_DATA_BEGIN(C, Base*, base, selected_editable_bases) {
+		/* note: layers are set in bases, library objects work for this */
+		CTX_DATA_BEGIN(C, Base*, base, selected_bases) {
 			lay= base->lay & ~v3d->lay;
 			base->lay= lay;
 			base->object->lay= lay;
@@ -1097,7 +1098,8 @@ static int move_to_layer_exec(bContext *C, wmOperator *op)
 	}
 	else {
 		/* normal non localview operation */
-		CTX_DATA_BEGIN(C, Base*, base, selected_editable_bases) {
+		/* note: layers are set in bases, library objects work for this */
+		CTX_DATA_BEGIN(C, Base*, base, selected_bases) {
 			/* upper byte is used for local view */
 			local= base->lay & 0xFF000000;  
 			base->lay= lay + local;
@@ -1140,7 +1142,7 @@ void OBJECT_OT_move_to_layer(wmOperatorType *ot)
 
 /************************** Link to Scene Operator *****************************/
 
-void link_to_scene(Main *bmain, unsigned short nr)
+static void link_to_scene(Main *UNUSED(bmain), unsigned short UNUSED(nr))
 {
 #if 0
 	Scene *sce= (Scene*) BLI_findlink(&bmain->scene, G.curscreen->scenenr-1);
@@ -1285,6 +1287,8 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
 	}
 	CTX_DATA_END;
 
+	DAG_scene_sort(bmain, CTX_data_scene(C));
+	
 	DAG_ids_flush_update(bmain, 0);
 	WM_event_add_notifier(C, NC_SPACE|ND_SPACE_VIEW3D, CTX_wm_view3d(C));
 	return OPERATOR_FINISHED;
@@ -1348,7 +1352,7 @@ static void single_object_users__forwardModifierLinks(void *userData, Object *ob
 	ID_NEW(*obpoin);
 }
 
-void single_object_users(Scene *scene, View3D *v3d, int flag)	
+static void single_object_users(Scene *scene, View3D *v3d, int flag)	
 {
 	Base *base;
 	Object *ob, *obn;
@@ -1358,6 +1362,11 @@ void single_object_users(Scene *scene, View3D *v3d, int flag)
 	/* duplicate (must set newid) */
 	for(base= FIRSTBASE; base; base= base->next) {
 		ob= base->object;
+		
+		/* newid may still have some trash from Outliner tree building,
+		 * so clear that first to avoid errors [#26002]
+		 */
+		ob->id.newid = NULL;
 		
 		if( (base->flag & flag)==flag ) {
 			if(ob->id.lib==NULL && ob->id.us>1) {
@@ -1392,7 +1401,7 @@ void single_object_users(Scene *scene, View3D *v3d, int flag)
 	set_sca_new_poins();
 }
 
-void new_id_matar(Material **matar, int totcol)
+static void new_id_matar(Material **matar, int totcol)
 {
 	ID *id;
 	int a;
@@ -1414,7 +1423,7 @@ void new_id_matar(Material **matar, int totcol)
 	}
 }
 
-void single_obdata_users(Main *bmain, Scene *scene, int flag)
+static void single_obdata_users(Main *bmain, Scene *scene, int flag)
 {
 	Object *ob;
 	Lamp *la;
@@ -1548,7 +1557,7 @@ static void single_mat_users(Scene *scene, int flag, int do_textures)
 	}
 }
 
-void do_single_tex_user(Tex **from)
+static void do_single_tex_user(Tex **from)
 {
 	Tex *tex, *texn;
 	
@@ -1569,7 +1578,7 @@ void do_single_tex_user(Tex **from)
 	}
 }
 
-void single_tex_users_expand(Main *bmain)
+static void single_tex_users_expand(Main *bmain)
 {
 	/* only when 'parent' blocks are LIB_NEW */
 	Material *ma;

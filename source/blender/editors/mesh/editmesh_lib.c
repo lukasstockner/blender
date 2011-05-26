@@ -360,7 +360,7 @@ void EM_editselection_plane(float *plane, EditSelection *ese)
 		however selecting different edges can swap the direction of the y axis.
 		this makes it less likely for the y axis of the manipulator
 		(running along the edge).. to flip less often.
-		at least its more pradictable */
+		at least its more predictable */
 		if (eed->v2->co[1] > eed->v1->co[1]) /*check which to do first */
 			sub_v3_v3v3(plane, eed->v2->co, eed->v1->co);
 		else
@@ -2442,7 +2442,7 @@ void EM_make_hq_normals(EditMesh *em)
 
 
 	for(edge_iter = BLI_edgehashIterator_new(edge_hash); !BLI_edgehashIterator_isDone(edge_iter); BLI_edgehashIterator_step(edge_iter)) {
-		/* Get the edge vert indicies, and edge value (the face indicies that use it)*/
+		/* Get the edge vert indices, and edge value (the face indices that use it)*/
 		BLI_edgehashIterator_getKey(edge_iter, (int*)&ed_v1, (int*)&ed_v2);
 		edge_ref = BLI_edgehashIterator_getValue(edge_iter);
 
@@ -2551,7 +2551,7 @@ static int tag_face_edges_test(EditFace *efa)
 		return (efa->e1->tmp.l || efa->e2->tmp.l || efa->e3->tmp.l) ? 1:0;
 }
 
-void em_deselect_nth_face(EditMesh *em, int nth, EditFace *efa_act)
+static void em_deselect_nth_face(EditMesh *em, int nth, EditFace *efa_act)
 {
 	EditFace *efa;
 	EditEdge *eed;
@@ -2618,7 +2618,7 @@ static int tag_edge_verts_test(EditEdge *eed)
 	return (eed->v1->tmp.l || eed->v2->tmp.l) ? 1:0;
 }
 
-void em_deselect_nth_edge(EditMesh *em, int nth, EditEdge *eed_act)
+static void em_deselect_nth_edge(EditMesh *em, int nth, EditEdge *eed_act)
 {
 	EditEdge *eed;
 	EditVert *eve;
@@ -2689,7 +2689,7 @@ void em_deselect_nth_edge(EditMesh *em, int nth, EditEdge *eed_act)
 	EM_nfaces_selected(em);
 }
 
-void em_deselect_nth_vert(EditMesh *em, int nth, EditVert *eve_act)
+static void em_deselect_nth_vert(EditMesh *em, int nth, EditVert *eve_act)
 {
 	EditVert *eve;
 	EditEdge *eed;

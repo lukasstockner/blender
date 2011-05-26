@@ -135,7 +135,7 @@ void view3d_get_transformation(ARegion *ar, RegionView3D *rv3d, Object *ob, bglM
 
 /* local prototypes */
 
-void EM_backbuf_checkAndSelectVerts(EditMesh *em, int select)
+static void EM_backbuf_checkAndSelectVerts(EditMesh *em, int select)
 {
 	EditVert *eve;
 	int index= em_wireoffs;
@@ -149,7 +149,7 @@ void EM_backbuf_checkAndSelectVerts(EditMesh *em, int select)
 	}
 }
 
-void EM_backbuf_checkAndSelectEdges(EditMesh *em, int select)
+static void EM_backbuf_checkAndSelectEdges(EditMesh *em, int select)
 {
 	EditEdge *eed;
 	int index= em_solidoffs;
@@ -163,7 +163,7 @@ void EM_backbuf_checkAndSelectEdges(EditMesh *em, int select)
 	}
 }
 
-void EM_backbuf_checkAndSelectFaces(EditMesh *em, int select)
+static void EM_backbuf_checkAndSelectFaces(EditMesh *em, int select)
 {
 	EditFace *efa;
 	int index= 1;
@@ -177,7 +177,7 @@ void EM_backbuf_checkAndSelectFaces(EditMesh *em, int select)
 	}
 }
 
-void EM_backbuf_checkAndSelectTFaces(Mesh *me, int select)
+static void EM_backbuf_checkAndSelectTFaces(Mesh *me, int select)
 {
 	MFace *mface = me->mface;
 	int a;
@@ -220,11 +220,21 @@ static int view3d_selectable_data(bContext *C)
 	if (!ED_operator_region_view3d_active(C))
 		return 0;
 	
-	if (!CTX_data_edit_object(C))
-		if (ob && ob->mode & OB_MODE_SCULPT)
+	if(ob) {
+		if (ob->mode & OB_MODE_EDIT) {
+			if(ob->type == OB_FONT) {
 			return 0;
-		if (ob && ob->mode & (OB_MODE_VERTEX_PAINT|OB_MODE_WEIGHT_PAINT|OB_MODE_TEXTURE_PAINT) && !paint_facesel_test(ob))
+			}
+		}
+		else {
+			if (ob->mode & OB_MODE_SCULPT) {
 			return 0;
+			}
+			if (ob->mode & (OB_MODE_VERTEX_PAINT|OB_MODE_WEIGHT_PAINT|OB_MODE_TEXTURE_PAINT) && !paint_facesel_test(ob)) {
+				return 0;
+			}
+		}
+	}
 	
 	return 1;
 }

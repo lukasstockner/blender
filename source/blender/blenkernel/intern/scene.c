@@ -172,7 +172,7 @@ Scene *copy_scene(Main *bmain, Scene *sce, int type)
 		BKE_keyingsets_copy(&(scen->keyingsets), &(sce->keyingsets));
 		
 		if(sce->nodetree) {
-		scen->nodetree= ntreeCopyTree(sce->nodetree, 0);
+			scen->nodetree= ntreeCopyTree(sce->nodetree); /* copies actions */
 			ntreeSwitchID(scen->nodetree, &sce->id, &scen->id);
 		}
 		
@@ -373,6 +373,7 @@ Scene *add_scene(const char *name)
 	sce->r.fg_stamp[3]= 1.0f;
 	sce->r.bg_stamp[0]= sce->r.bg_stamp[1]= sce->r.bg_stamp[2]= 0.0f;
 	sce->r.bg_stamp[3]= 0.25f;
+	sce->r.raytrace_options = R_RAYTRACE_USE_INSTANCES;
 
 	sce->r.seq_prev_type= OB_SOLID;
 	sce->r.seq_rend_type= OB_SOLID;
@@ -580,7 +581,7 @@ void set_scene_bg(Main *bmain, Scene *scene)
 }
 
 /* called from creator.c */
-Scene *set_scene_name(Main *bmain, char *name)
+Scene *set_scene_name(Main *bmain, const char *name)
 {
 	Scene *sce= (Scene *)find_id("SC", name);
 	if(sce) {
@@ -944,9 +945,46 @@ float BKE_curframe(Scene *scene)
 	return ctime;
 }
 
+/* drivers support/hacks 
+ * 	- this method is called from scene_update_tagged_recursive(), so gets included in viewport + render
+ *	- these are always run since the depsgraph can't handle non-object data
+ *	- these happen after objects are all done so that we can read in their final transform values,
+ *	  though this means that objects can't refer to scene info for guidance...
+ */
+static void scene_update_drivers(Main *UNUSED(bmain), Scene *scene)
+{
+	float ctime = BKE_curframe(scene);
+	
+	/* scene itself */
+	if (scene->adt && scene->adt->drivers.first) {
+		BKE_animsys_evaluate_animdata(&scene->id, scene->adt, ctime, ADT_RECALC_DRIVERS);
+	}
+	
+	/* world */
+	// TODO: what about world textures? but then those have nodes too...
+	if (scene->world) {
+		ID *wid = (ID *)scene->world;
+		AnimData *adt= BKE_animdata_from_id(wid);
+		
+		if (adt && adt->drivers.first)
+			BKE_animsys_evaluate_animdata(wid, adt, ctime, ADT_RECALC_DRIVERS);
+	}
+	
+	/* nodes */
+	if (scene->nodetree) {
+		ID *nid = (ID *)scene->nodetree;
+		AnimData *adt= BKE_animdata_from_id(nid);
+		
+		if (adt && adt->drivers.first)
+			BKE_animsys_evaluate_animdata(nid, adt, ctime, ADT_RECALC_DRIVERS);
+	}
+}
+
 static void scene_update_tagged_recursive(Main *bmain, Scene *scene, Scene *scene_parent)
 {
 	Base *base;
+	
+	
 	scene->customdata_mask= scene_parent->customdata_mask;
 
 	/* sets first, we allow per definition current scene to have
@@ -954,6 +992,7 @@ static void scene_update_tagged_recursive(Main *bmain, Scene *scene, Scene *scen
 	if(scene->set)
 		scene_update_tagged_recursive(bmain, scene->set, scene_parent);
 
+	/* scene objects */
 	for(base= scene->base.first; base; base= base->next) {
 		Object *ob= base->object;
 
@@ -965,6 +1004,9 @@ static void scene_update_tagged_recursive(Main *bmain, Scene *scene, Scene *scen
 		/* always update layer, so that animating layers works */
 		base->lay= ob->lay;
 	}
+	
+	/* scene drivers... */
+	scene_update_drivers(bmain, scene);
 }
 
 /* this is called in main loop, doing tagged updates before redraw */
@@ -981,8 +1023,8 @@ void scene_update_tagged(Main *bmain, Scene *scene)
 
 	/* recalc scene animation data here (for sequencer) */
 	{
-		float ctime = BKE_curframe(scene); 
 		AnimData *adt= BKE_animdata_from_id(&scene->id);
+		float ctime = BKE_curframe(scene); 
 
 		if(adt && (adt->recalc & ADT_RECALC_ANIM))
 			BKE_animsys_evaluate_animdata(&scene->id, adt, ctime, 0);

@@ -157,7 +157,8 @@ static void rna_Object_internal_update(Main *bmain, Scene *scene, PointerRNA *pt
 
 static void rna_Object_matrix_world_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-	object_apply_mat4(ptr->id.data, ((Object *)ptr->id.data)->obmat);
+	/* dont use compat so we get predictable rotation */
+	object_apply_mat4(ptr->id.data, ((Object *)ptr->id.data)->obmat, FALSE, TRUE);
 	rna_Object_internal_update(bmain, scene, ptr);
 }
 
@@ -191,7 +192,8 @@ static void rna_Object_matrix_local_set(PointerRNA *ptr, const float values[16])
 		copy_m4_m4(ob->obmat, (float(*)[4])values);
 	}
 
-	object_apply_mat4(ob, ob->obmat);
+	/* dont use compat so we get predictable rotation */
+	object_apply_mat4(ob, ob->obmat, FALSE, FALSE);
 }
 
 void rna_Object_internal_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -1661,9 +1663,9 @@ static void rna_def_object(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem empty_drawtype_items[] = {
+		{OB_PLAINAXES, "PLAIN_AXES", 0, "Plain Axes", ""},
 		{OB_ARROWS, "ARROWS", 0, "Arrows", ""},
 		{OB_SINGLE_ARROW, "SINGLE_ARROW", 0, "Single Arrow", ""},
-		{OB_PLAINAXES, "PLAIN_AXES", 0, "Plain Axes", ""},
 		{OB_CIRCLE, "CIRCLE", 0, "Circle", ""},
 		{OB_CUBE, "CUBE", 0, "Cube", ""},
 		{OB_EMPTY_SPHERE, "SPHERE", 0, "Sphere", ""},
@@ -1825,7 +1827,7 @@ static void rna_def_object(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "material_slots", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "mat", "totcol");
 	RNA_def_property_struct_type(prop, "MaterialSlot");
-	RNA_def_property_collection_funcs(prop, NULL, NULL, NULL, "rna_iterator_array_get", 0, 0, 0); /* don't dereference pointer! */
+	RNA_def_property_collection_funcs(prop, NULL, NULL, NULL, "rna_iterator_array_get", NULL, NULL, NULL); /* don't dereference pointer! */
 	RNA_def_property_ui_text(prop, "Material Slots", "Material slots in the object");
 
 	prop= RNA_def_property(srna, "active_material", PROP_POINTER, PROP_NONE);
@@ -2241,6 +2243,7 @@ static void rna_def_object(BlenderRNA *brna)
 	/* pose */
 	prop= RNA_def_property(srna, "pose_library", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "poselib");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_struct_type(prop, "Action");
 	RNA_def_property_ui_text(prop, "Pose Library", "Action used as a pose library for armatures");
 

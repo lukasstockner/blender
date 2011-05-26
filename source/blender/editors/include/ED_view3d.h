@@ -47,6 +47,7 @@ struct RegionView3D;
 struct Scene;
 struct View3D;
 struct ViewContext;
+struct wmWindow;
 
 
 /* for derivedmesh drawing callbacks, for view3d_select, .... */
@@ -133,8 +134,9 @@ int view_autodist(struct Scene *scene, struct ARegion *ar, struct View3D *v3d, s
 
 /* only draw so view_autodist_simple can be called many times after */
 int view_autodist_init(struct Scene *scene, struct ARegion *ar, struct View3D *v3d, int mode);
-int view_autodist_simple(struct ARegion *ar, short *mval, float mouse_worldloc[3], int margin, float *force_depth);
-int view_autodist_depth(struct ARegion *ar, short *mval, int margin, float *depth);
+int view_autodist_simple(struct ARegion *ar, short mval[2], float mouse_worldloc[3], int margin, float *force_depth);
+int view_autodist_depth(struct ARegion *ar, short mval[2], int margin, float *depth);
+int view_autodist_depth_segment(struct ARegion *ar, short mval_sta[2], short mval_end[2], int margin, float *depth);
 
 /* select */
 #define MAXPICKBUF      10000
@@ -142,6 +144,7 @@ short view3d_opengl_select(struct ViewContext *vc, unsigned int *buffer, unsigne
 
 void view3d_set_viewcontext(const struct bContext *C, struct ViewContext *vc);
 void view3d_operator_needs_opengl(const struct bContext *C);
+void view3d_region_operator_needs_opengl(struct wmWindow *win, struct ARegion *ar);
 void view3d_get_view_aligned_coordinate(struct ViewContext *vc, float *fp, short mval[2]);
 void view3d_get_transformation(struct ARegion *ar, struct RegionView3D *rv3d, struct Object *ob, struct bglMats *mats);
 

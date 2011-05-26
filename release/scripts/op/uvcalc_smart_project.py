@@ -169,7 +169,7 @@ def island2Edge(island):
     #	e.pop(2)
 
     # return edges and unique points
-    return length_sorted_edges, [v.__copy__().resize3D() for v in unique_points.values()]
+    return length_sorted_edges, [v.to_3d() for v in unique_points.values()]
 
 # ========================= NOT WORKING????
 # Find if a points inside an edge loop, un-orderd.
@@ -228,7 +228,7 @@ def islandIntersectUvIsland(source, target, SourceOffset):
                 return 1 # LINE INTERSECTION
 
     # 1 test for source being totally inside target
-    SourceOffset.resize3D()
+    SourceOffset.resize_3d()
     for pv in source[7]:
         if pointInIsland(pv+SourceOffset, target[0]):
             return 2 # SOURCE INSIDE TARGET
@@ -774,7 +774,7 @@ def packIslands(islandList):
 
 
 def VectoQuat(vec):
-    vec = vec.copy().normalize()
+    vec = vec.normalized()
     if abs(vec.x) > 0.5:
         return vec.to_track_quat('Z', 'X')
     else:
@@ -927,7 +927,7 @@ def main(context, island_margin, projection_limit):
         # Initialize projectVecs
         if USER_VIEW_INIT:
             # Generate Projection
-            projectVecs = [Vector(Window.GetViewVector()) * ob.matrix_world.copy().invert().rotation_part()] # We add to this allong the way
+            projectVecs = [Vector(Window.GetViewVector()) * ob.matrix_world.inverted().to_3x3()] # We add to this allong the way
         else:
             projectVecs = []
 
@@ -964,7 +964,7 @@ def main(context, island_margin, projection_limit):
                     averageVec += fprop.no
 
             if averageVec.x != 0 or averageVec.y != 0 or averageVec.z != 0: # Avoid NAN
-                projectVecs.append(averageVec.normalize())
+                projectVecs.append(averageVec.normalized())
 
 
             # Get the next vec!
@@ -1131,10 +1131,12 @@ menu_func = (lambda self, context: self.layout.operator(SmartProject.bl_idname,
 
 
 def register():
+    bpy.utils.register_module(__name__)
     bpy.types.VIEW3D_MT_uv_map.append(menu_func)
 
 
 def unregister():
+    bpy.utils.unregister_module(__name__)
     bpy.types.VIEW3D_MT_uv_map.remove(menu_func)
 
 if __name__ == "__main__":

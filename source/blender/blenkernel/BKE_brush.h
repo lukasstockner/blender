@@ -111,5 +111,8 @@ void  brush_set_unprojected_radius(struct Brush *brush, float value);
 float brush_alpha(const struct Brush *brush);
 void  brush_set_alpha(struct Brush *brush, float value);
 
+/* debugging only */
+void brush_debug_print_state(struct Brush *br);
+
 #endif
 

@@ -637,7 +637,7 @@ static void wm_region_mouse_co(bContext *C, wmEvent *event)
 	}
 }
 
-int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event, PointerRNA *properties, ReportList *reports)
+static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event, PointerRNA *properties, ReportList *reports, short poll_only)
 {
 	wmWindowManager *wm= CTX_wm_manager(C);
 	int retval= OPERATOR_PASS_THROUGH;
@@ -1456,21 +1456,26 @@ static int wm_handlers_do(bContext *C, wmEvent *event, ListBase *handlers)
 						if(event->custom==EVT_DATA_LISTBASE) {
 							ListBase *lb= (ListBase *)event->customdata;
 							wmDrag *drag;
+							
 							for(drag= lb->first; drag; drag= drag->next) {
 								if(drop->poll(C, drag, event)) {
+									
 									drop->copy(drag, drop);
 									
+									/* free the drags before calling operator */
+									BLI_freelistN(event->customdata);
+									event->customdata= NULL;
+									event->custom= 0;
+									
 									WM_operator_name_call(C, drop->ot->idname, drop->opcontext, drop->ptr);
-									//wm_operator_invoke(C, drop->ot, event, drop->ptr, NULL, FALSE);
 									action |= WM_HANDLER_BREAK;
 									
 									/* XXX fileread case */
 									if(CTX_wm_window(C)==NULL)
 										return action;
 									
-									BLI_freelistN(event->customdata);
-									event->customdata= NULL;
-									event->custom= 0;
+									/* escape from drag loop, got freed */
+									break;
 								}
 							}
 						}
@@ -1902,7 +1907,7 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
 }
 
 /* lets not expose struct outside wm? */
-void WM_event_set_handler_flag(wmEventHandler *handler, int flag)
+static void WM_event_set_handler_flag(wmEventHandler *handler, int flag)
 {
 	handler->flag= flag;
 }
@@ -2051,7 +2056,7 @@ void WM_event_remove_area_handler(ListBase *handlers, void *area)
 	}
 }
 
-void WM_event_remove_handler(ListBase *handlers, wmEventHandler *handler)
+static void WM_event_remove_handler(ListBase *handlers, wmEventHandler *handler)
 {
 	BLI_remlink(handlers, handler);
 	wm_event_free_handler(handler);

@@ -124,10 +124,10 @@ static void deselect_action_keys (bAnimContext *ac, short test, short sel)
 	
 	/* Now set the flags */
 	for (ale= anim_data.first; ale; ale= ale->next) {
-		if (ale->type == ANIMTYPE_FCURVE)
-			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, sel_cb, NULL);
-		else if (ale->type == ANIMTYPE_GPLAYER)
+		if (ale->type == ANIMTYPE_GPLAYER)
 			set_gplayer_frame_selection(ale->data, sel);
+		else
+			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, sel_cb, NULL);
 	}
 	
 	/* Cleanup */
@@ -183,7 +183,7 @@ void ACTION_OT_select_all_toggle (wmOperatorType *ot)
  */
 
 /* defines for borderselect mode */
-enum {
+static enum {
 	ACTKEYS_BORDERSEL_ALLKEYS	= 0,
 	ACTKEYS_BORDERSEL_FRAMERANGE,
 	ACTKEYS_BORDERSEL_CHANNELS,
@@ -254,10 +254,10 @@ static void borderselect_action (bAnimContext *ac, rcti rect, short mode, short 
 			!((ymax < rectf.ymin) || (ymin > rectf.ymax)) )
 		{
 			/* loop over data selecting */
-			if (ale->type == ANIMTYPE_FCURVE)
-				ANIM_animchannel_keyframes_loop(&ked, ale, ok_cb, select_cb, NULL, filterflag);
-			else if (ale->type == ANIMTYPE_GPLAYER)
+			if (ale->type == ANIMTYPE_GPLAYER)
 				borderselect_gplayer_frames(ale->data, rectf.xmin, rectf.xmax, selectmode);
+			else
+				ANIM_animchannel_keyframes_loop(&ked, ale, ok_cb, select_cb, NULL, filterflag);
 		}
 		
 		/* set minimum extent to be the maximum of the next channel */
@@ -487,10 +487,10 @@ static void columnselect_action_keys (bAnimContext *ac, short mode)
 				ked.f1= ce->cfra;
 			
 			/* select elements with frame number matching cfraelem */
-			if (ale->type == ANIMTYPE_FCURVE)
-			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, ok_cb, select_cb, NULL);
-			else if (ale->type == ANIMTYPE_GPLAYER)
+			if (ale->type == ANIMTYPE_GPLAYER)
 				select_gpencil_frame(ale->data, ce->cfra, SELECT_ADD);
+			else
+			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, ok_cb, select_cb, NULL);
 				}
 			}
 	
@@ -709,54 +709,20 @@ void ACTION_OT_select_less (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER/*|OPTYPE_UNDO*/;
 }
 
-/* ******************** Mouse-Click Select Operator *********************** */
-/* This operator works in one of three ways:
- *	- 1) keyframe under mouse - no special modifiers
- *	- 2) all keyframes on the same side of current frame indicator as mouse - ALT modifier
- *	- 3) column select all keyframes in frame under mouse - CTRL modifier
- *
- * In addition to these basic options, the SHIFT modifier can be used to toggle the 
- * selection mode between replacing the selection (without) and inverting the selection (with).
- */
+/* ******************** Select Left/Right Operator ************************* */
+/* Select keyframes left/right of the current frame indicator */
 
 /* defines for left-right select tool */
 static EnumPropertyItem prop_actkeys_leftright_select_types[] = {
 	{ACTKEYS_LRSEL_TEST, "CHECK", 0, "Check if Select Left or Right", ""},
-	{ACTKEYS_LRSEL_NONE, "OFF", 0, "Don't select", ""},
 	{ACTKEYS_LRSEL_LEFT, "LEFT", 0, "Before current frame", ""},
 	{ACTKEYS_LRSEL_RIGHT, "RIGHT", 0, "After current frame", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
-/* sensitivity factor for frame-selections */
-#define FRAME_CLICK_THRESH 		0.1f
+/* --------------------------------- */
 
-/* ------------------- */
- 
-/* option 1) select keyframe directly under mouse */
-static void actkeys_mselect_single (bAnimContext *ac, bAnimListElem *ale, short select_mode, float selx)
-{
-	bDopeSheet *ads= (ac->datatype == ANIMCONT_DOPESHEET) ? ac->data : NULL;
-	int ds_filter = ((ads) ? (ads->filterflag) : (0));
-	
-	KeyframeEditData ked;
-	KeyframeEditFunc select_cb, ok_cb;
-	
-	/* get functions for selecting keyframes */
-	select_cb= ANIM_editkeyframes_select(select_mode);
-	ok_cb= ANIM_editkeyframes_ok(BEZT_OK_FRAME);
-	memset(&ked, 0, sizeof(KeyframeEditData)); 
-	ked.f1= selx;
-	
-	/* select the nominated keyframe on the given frame */
-	if (ale->type == ANIMTYPE_GPLAYER)
-		select_gpencil_frame(ale->data, selx, select_mode);
-	else
-	ANIM_animchannel_keyframes_loop(&ked, ale, ok_cb, select_cb, NULL, ds_filter);
-}
-
-/* Option 2) Selects all the keyframes on either side of the current frame (depends on which side the mouse is on) */
-static void actkeys_mselect_leftright (bAnimContext *ac, short leftright, short select_mode)
+static void actkeys_select_leftright (bAnimContext *ac, short leftright, short select_mode)
 {
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
@@ -782,10 +748,10 @@ static void actkeys_mselect_leftright (bAnimContext *ac, short leftright, short 
 	memset(&ked, 0, sizeof(KeyframeEditFunc));
 	if (leftright == ACTKEYS_LRSEL_LEFT) {
 		ked.f1 = MINAFRAMEF;
-		ked.f2 = (float)(CFRA + FRAME_CLICK_THRESH);
+		ked.f2 = (float)(CFRA + 0.1f);
 	} 
 	else {
-		ked.f1 = (float)(CFRA - FRAME_CLICK_THRESH);
+		ked.f1 = (float)(CFRA - 0.1f);
 		ked.f2 = MAXFRAMEF;
 	}
 	
@@ -796,7 +762,7 @@ static void actkeys_mselect_leftright (bAnimContext *ac, short leftright, short 
 		filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVESONLY | ANIMFILTER_NODUPLIS);
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 		
-	/* select keys on the side where most data occurs */
+	/* select keys */
 	for (ale= anim_data.first; ale; ale= ale->next) {
 		AnimData *adt= ANIM_nla_mapping_get(ac, ale);
 		
@@ -812,7 +778,7 @@ static void actkeys_mselect_leftright (bAnimContext *ac, short leftright, short 
 	}
 	
 	/* Sync marker support */
-	if ((select_mode==SELECT_ADD) && ELEM(leftright, ACTKEYS_LRSEL_LEFT, ACTKEYS_LRSEL_RIGHT)) {
+	if (select_mode==SELECT_ADD) {
 		SpaceAction *saction= ac->sa->spacedata.first;
 		
 		if ((saction) && (saction->flag & SACTION_MARKERS_MOVE)) {
@@ -835,6 +801,130 @@ static void actkeys_mselect_leftright (bAnimContext *ac, short leftright, short 
 	/* Cleanup */
 	BLI_freelistN(&anim_data);
 }
+
+/* ----------------- */
+
+static int actkeys_select_leftright_exec (bContext *C, wmOperator *op)
+{
+	bAnimContext ac;
+	short leftright = RNA_enum_get(op->ptr, "mode");
+	short selectmode;
+	
+	/* get editor data */
+	if (ANIM_animdata_get_context(C, &ac) == 0)
+		return OPERATOR_CANCELLED;
+	
+	/* select mode is either replace (deselect all, then add) or add/extend */
+	if (RNA_boolean_get(op->ptr, "extend"))
+		selectmode= SELECT_INVERT;
+	else
+		selectmode= SELECT_REPLACE;
+		
+	/* if "test" mode is set, we don't have any info to set this with */
+	if (leftright == ACTKEYS_LRSEL_TEST)
+		return OPERATOR_CANCELLED;
+	
+	/* do the selecting now */
+	actkeys_select_leftright(&ac, leftright, selectmode);
+	
+	/* set notifier that keyframe selection (and channels too) have changed */
+	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|ND_ANIMCHAN|NA_SELECTED, NULL);
+	
+	return OPERATOR_FINISHED;
+}
+
+static int actkeys_select_leftright_invoke (bContext *C, wmOperator *op, wmEvent *event)
+{
+	bAnimContext ac;
+	short leftright = RNA_enum_get(op->ptr, "mode");
+	
+	/* get editor data */
+	if (ANIM_animdata_get_context(C, &ac) == 0)
+		return OPERATOR_CANCELLED;
+		
+	/* handle mode-based testing */
+	if (leftright == ACTKEYS_LRSEL_TEST) {
+		Scene *scene= ac.scene;
+		ARegion *ar= ac.ar;
+		View2D *v2d= &ar->v2d;
+		
+		int mval[2];
+		float x;
+		
+		/* get mouse coordinates (in region coordinates) */
+		mval[0]= (event->x - ar->winrct.xmin);
+		mval[1]= (event->y - ar->winrct.ymin);
+		
+		/* determine which side of the current frame mouse is on */
+		UI_view2d_region_to_view(v2d, mval[0], mval[1], &x, NULL);
+		if (x < CFRA)
+			RNA_int_set(op->ptr, "mode", ACTKEYS_LRSEL_LEFT);
+		else 	
+			RNA_int_set(op->ptr, "mode", ACTKEYS_LRSEL_RIGHT);
+	}
+	
+	/* perform selection */
+	return actkeys_select_leftright_exec(C, op);
+}
+
+void ACTION_OT_select_leftright (wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Select Left/Right";
+	ot->idname= "ACTION_OT_select_leftright";
+	ot->description= "Select keyframes to the left or the right of the current frame";
+	
+	/* api callbacks  */
+	ot->invoke= actkeys_select_leftright_invoke;
+	ot->exec= actkeys_select_leftright_exec;
+	ot->poll= ED_operator_action_active;
+	
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+	
+	/* id-props */
+	ot->prop= RNA_def_enum(ot->srna, "mode", prop_actkeys_leftright_select_types, ACTKEYS_LRSEL_TEST, "Mode", "");
+	RNA_def_boolean(ot->srna, "extend", 0, "Extend Select", "");
+}
+
+/* ******************** Mouse-Click Select Operator *********************** */
+/* This operator works in one of three ways:
+ *	- 1) keyframe under mouse - no special modifiers
+ *	- 2) all keyframes on the same side of current frame indicator as mouse - ALT modifier
+ *	- 3) column select all keyframes in frame under mouse - CTRL modifier
+ *
+ * In addition to these basic options, the SHIFT modifier can be used to toggle the 
+ * selection mode between replacing the selection (without) and inverting the selection (with).
+ */
+
+/* sensitivity factor for frame-selections */
+#define FRAME_CLICK_THRESH 		0.1f
+
+/* ------------------- */
+ 
+/* option 1) select keyframe directly under mouse */
+static void actkeys_mselect_single (bAnimContext *ac, bAnimListElem *ale, short select_mode, float selx)
+{
+	bDopeSheet *ads= (ac->datatype == ANIMCONT_DOPESHEET) ? ac->data : NULL;
+	int ds_filter = ((ads) ? (ads->filterflag) : (0));
+	
+	KeyframeEditData ked= {{0}};
+	KeyframeEditFunc select_cb, ok_cb;
+	
+	/* get functions for selecting keyframes */
+	select_cb= ANIM_editkeyframes_select(select_mode);
+	ok_cb= ANIM_editkeyframes_ok(BEZT_OK_FRAME);
+	ked.f1= selx;
+	
+	/* select the nominated keyframe on the given frame */
+	if (ale->type == ANIMTYPE_GPLAYER)
+		select_gpencil_frame(ale->data, selx, select_mode);
+	else
+		ANIM_animchannel_keyframes_loop(&ked, ale, ok_cb, select_cb, NULL, ds_filter);
+}
+
+/* Option 2) Selects all the keyframes on either side of the current frame (depends on which side the mouse is on) */
+/* (see actkeys_select_leftright) */
 
 /* Option 3) Selects all visible keyframes in the same frame as the mouse click */
 static void actkeys_mselect_column(bAnimContext *ac, short select_mode, float selx)
@@ -872,10 +962,10 @@ static void actkeys_mselect_column(bAnimContext *ac, short select_mode, float se
 			ked.f1= selx;
 		
 		/* select elements with frame number matching cfra */
-		if (ale->type == ANIMTYPE_FCURVE)
-		ANIM_fcurve_keyframes_loop(&ked, ale->key_data, ok_cb, select_cb, NULL);
-		else if (ale->type == ANIMTYPE_GPLAYER)
+		if (ale->type == ANIMTYPE_GPLAYER)
 			select_gpencil_frame(ale->key_data, selx, select_mode);
+		else 
+		ANIM_fcurve_keyframes_loop(&ked, ale->key_data, ok_cb, select_cb, NULL);
 				}
 	
 	/* free elements */
@@ -1096,23 +1186,8 @@ static int actkeys_clickselect_invoke(bContext *C, wmOperator *op, wmEvent *even
 	/* column selection */
 	column= RNA_boolean_get(op->ptr, "column");
 	
-	/* figure out action to take */
-	if (RNA_enum_get(op->ptr, "left_right")) {
-		/* select all keys on same side of current frame as mouse */
-		float x;
-		
-		UI_view2d_region_to_view(v2d, mval[0], mval[1], &x, NULL);
-		if (x < CFRA)
-			RNA_int_set(op->ptr, "left_right", ACTKEYS_LRSEL_LEFT);
-		else 	
-			RNA_int_set(op->ptr, "left_right", ACTKEYS_LRSEL_RIGHT);
-		
-		actkeys_mselect_leftright(&ac, RNA_enum_get(op->ptr, "left_right"), selectmode);
-	}
-	else {
 		/* select keyframe(s) based upon mouse position*/
 		mouse_action_keys(&ac, mval, selectmode, column);
-	}
 	
 	/* set notifier that keyframe selection (and channels too) have changed */
 	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|ND_ANIMCHAN|NA_SELECTED, NULL);
@@ -1136,8 +1211,6 @@ void ACTION_OT_clickselect (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* id-props */
-	// XXX should we make this into separate operators?
-	RNA_def_enum(ot->srna, "left_right", prop_actkeys_leftright_select_types, 0, "Left Right", ""); // CTRLKEY
 	RNA_def_boolean(ot->srna, "extend", 0, "Extend Select", ""); // SHIFTKEY
 	RNA_def_boolean(ot->srna, "column", 0, "Column Select", ""); // ALTKEY
 }

@@ -211,6 +211,7 @@ typedef struct uiLayout uiLayout;
 #define TOGBUT		(37<<9)
 #define OPTION		(38<<9)
 #define OPTIONN		(39<<9)
+		/* buttons with value >= SEARCH_MENU don't get undo pushes */
 #define SEARCH_MENU	(40<<9)
 #define BUT_EXTRA	(41<<9)
 #define HSVCIRCLE	(42<<9)
@@ -547,6 +548,8 @@ void	uiButSetCompleteFunc(uiBut *but,		uiButCompleteFunc func, void *arg);
 
 void 	uiBlockSetDrawExtraFunc(uiBlock *block, void (*func)(const struct bContext *C, void *, void *, void *, struct rcti *rect), void *arg1, void *arg2);
 
+void uiButSetFocusOnEnter	(struct wmWindow *win, uiBut *but);
+
 /* Autocomplete
  *
  * Tab complete helper functions, for use in uiButCompleteFunc callbacks.
@@ -759,6 +762,10 @@ void uiStyleFontDrawRotated(struct uiFontStyle *fs, struct rcti *rect, const cha
 
 int UI_GetStringWidth(const char *str); // XXX temp
 void UI_DrawString(float x, float y, const char *str); // XXX temp
+void UI_DrawTriIcon(float x, float y, char dir);
+
+/* linker workaround ack! */
+void UI_template_fix_linking(void);
 
 #endif /*  UI_INTERFACE_H */
 

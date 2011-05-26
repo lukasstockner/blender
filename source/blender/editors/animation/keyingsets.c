@@ -288,7 +288,7 @@ static int add_keyingset_button_exec (bContext *C, wmOperator *op)
 	Scene *scene= CTX_data_scene(C);
 	KeyingSet *ks = NULL;
 	PropertyRNA *prop= NULL;
-	PointerRNA ptr;
+	PointerRNA ptr= {{NULL}};
 	char *path = NULL;
 	short success= 0;
 	int index=0, pflag=0;
@@ -308,7 +308,7 @@ static int add_keyingset_button_exec (bContext *C, wmOperator *op)
 		
 		keyingflag |= ANIM_get_keyframing_flags(scene, 0);
 		
-		if (IS_AUTOKEY_FLAG(XYZ2RGB)) 
+		if (IS_AUTOKEY_FLAG(scene, XYZ2RGB)) 
 			keyingflag |= INSERTKEY_XYZ2RGB;
 			
 		/* call the API func, and set the active keyingset index */
@@ -389,7 +389,7 @@ static int remove_keyingset_button_exec (bContext *C, wmOperator *op)
 	Scene *scene= CTX_data_scene(C);
 	KeyingSet *ks = NULL;
 	PropertyRNA *prop= NULL;
-	PointerRNA ptr;
+	PointerRNA ptr= {{NULL}};
 	char *path = NULL;
 	short success= 0;
 	int index=0;
@@ -502,7 +502,7 @@ void ANIM_OT_keying_set_active_set (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* keyingset to use
-	 *	- here the type is int not enum, since many of the indicies here are determined dynamically
+	 *	- here the type is int not enum, since many of the indices here are determined dynamically
 	 */
 	RNA_def_int(ot->srna, "type", 0, INT_MIN, INT_MAX, "Keying Set Number", "Index (determined internally) of the Keying Set to use", 0, 1);
 }
@@ -511,7 +511,7 @@ void ANIM_OT_keying_set_active_set (wmOperatorType *ot)
 /* REGISTERED KEYING SETS */
 
 /* Keying Set Type Info declarations */
-ListBase keyingset_type_infos = {NULL, NULL};
+static ListBase keyingset_type_infos = {NULL, NULL};
 
 /* Built-In Keying Sets (referencing type infos)*/
 ListBase builtin_keyingsets = {NULL, NULL};
@@ -682,9 +682,9 @@ KeyingSet *ANIM_get_keyingset_for_autokeying(Scene *scene, const char *tranformK
 	 *	- use the active KeyingSet if defined (and user wants to use it for all autokeying), 
 	 * 	  or otherwise key transforms only
 	 */
-	if (IS_AUTOKEY_FLAG(ONLYKEYINGSET) && (scene->active_keyingset))
+	if (IS_AUTOKEY_FLAG(scene, ONLYKEYINGSET) && (scene->active_keyingset))
 		return ANIM_scene_get_active_keyingset(scene);
-	else if (IS_AUTOKEY_FLAG(INSERTAVAIL))
+	else if (IS_AUTOKEY_FLAG(scene, INSERTAVAIL))
 		return ANIM_builtin_keyingset_get_named(NULL, "Available");
 	else 
 		return ANIM_builtin_keyingset_get_named(NULL, tranformKSName);

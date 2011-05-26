@@ -36,8 +36,6 @@
 #ifndef BGL_H
 #define BGL_H
 
-#include <Python.h>
-
 PyObject *BGL_Init(void);
 
 /*@ Create a buffer object */

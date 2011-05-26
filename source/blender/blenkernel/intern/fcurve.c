@@ -221,7 +221,7 @@ FCurve *list_find_fcurve (ListBase *list, const char rna_path[], const int array
 	for (fcu= list->first; fcu; fcu= fcu->next) {
 		/* simple string-compare (this assumes that they have the same root...) */
 		if (fcu->rna_path && !strcmp(fcu->rna_path, rna_path)) {
-			/* now check indicies */
+			/* now check indices */
 			if (fcu->array_index == array_index)
 				return fcu;
 		}
@@ -1202,7 +1202,7 @@ static float dvar_eval_transChan (ChannelDriver *driver, DriverVar *dvar)
 /* ......... */
 
 /* Table of Driver Varaiable Type Info Data */
-DriverVarTypeInfo dvar_types[MAX_DVAR_TYPES] = {
+static DriverVarTypeInfo dvar_types[MAX_DVAR_TYPES] = {
 	BEGIN_DVAR_TYPEDEF(DVAR_TYPE_SINGLE_PROP)
 		dvar_eval_singleProp, /* eval callback */
 		1, /* number of targets used */
@@ -1233,7 +1233,7 @@ DriverVarTypeInfo dvar_types[MAX_DVAR_TYPES] = {
 };
 
 /* Get driver variable typeinfo */
-DriverVarTypeInfo *get_dvar_typeinfo (int type)
+static DriverVarTypeInfo *get_dvar_typeinfo (int type)
 {
 	/* check if valid type */
 	if ((type >= 0) && (type < MAX_DVAR_TYPES))

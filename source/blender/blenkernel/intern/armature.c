@@ -136,19 +136,19 @@ void make_local_armature(bArmature *arm)
 	Object *ob;
 	bArmature *newArm;
 	
-	if (arm->id.lib==0)
+	if (arm->id.lib==NULL)
 		return;
 	if (arm->id.us==1) {
-		arm->id.lib= 0;
+		arm->id.lib= NULL;
 		arm->id.flag= LIB_LOCAL;
-		new_id(0, (ID*)arm, 0);
+		new_id(NULL, (ID*)arm, NULL);
 		return;
 	}
 	
 	if(local && lib==0) {
-		arm->id.lib= 0;
+		arm->id.lib= NULL;
 		arm->id.flag= LIB_LOCAL;
-		new_id(0, (ID *)arm, 0);
+		new_id(NULL, (ID *)arm, NULL);
 	}
 	else if(local && lib) {
 		newArm= copy_armature(arm);
@@ -158,7 +158,7 @@ void make_local_armature(bArmature *arm)
 		while(ob) {
 			if(ob->data==arm) {
 				
-				if(ob->id.lib==0) {
+				if(ob->id.lib==NULL) {
 					ob->data= newArm;
 					newArm->id.us++;
 					arm->id.us--;
@@ -248,16 +248,15 @@ Bone *get_named_bone (bArmature *arm, const char *name)
 }
 
 /* Finds the best possible extension to the name on a particular axis. (For renaming, check for unique names afterwards)
- * This assumes that bone names are at most 32 chars long!
  * 	strip_number: removes number extensions  (TODO: not used)
  *	axis: the axis to name on
  *	head/tail: the head/tail co-ordinate of the bone on the specified axis
  */
-int bone_autoside_name (char *name, int strip_number, short axis, float head, float tail)
+int bone_autoside_name (char name[MAXBONENAME], int UNUSED(strip_number), short axis, float head, float tail)
 {
 	unsigned int len;
-	char	basename[32]={""};
-	char 	extension[5]={""};
+	char	basename[MAXBONENAME]= "";
+	char 	extension[5]= "";
 
 	len= strlen(name);
 	if (len == 0) return 0;
@@ -351,11 +350,11 @@ int bone_autoside_name (char *name, int strip_number, short axis, float head, fl
 			}
 		}
 		
-		if ((32 - len) < strlen(extension) + 1) { /* add 1 for the '.' */
+		if ((MAXBONENAME - len) < strlen(extension) + 1) { /* add 1 for the '.' */
 			strncpy(name, basename, len-strlen(extension));
 		}
 		
-		sprintf(name, "%s.%s", basename, extension);
+		BLI_snprintf(name, MAXBONENAME, "%s.%s", basename, extension);
 		
 		return 1;
 	}
@@ -1356,13 +1355,6 @@ void where_is_armature_bone(Bone *bone, Bone *prevbone)
 		VECCOPY(bone->arm_mat[3], bone->head);
 	}
 	
-	/* head */
-	VECCOPY(bone->arm_head, bone->arm_mat[3]);
-	/* tail is in current local coord system */
-	VECCOPY(vec, bone->arm_mat[1]);
-	mul_v3_fl(vec, bone->length);
-	add_v3_v3v3(bone->arm_tail, bone->arm_head, vec);
-	
 	/* and the kiddies */
 	prevbone= bone;
 	for(bone= bone->childbase.first; bone; bone= bone->next) {
@@ -2061,7 +2053,7 @@ void pchan_to_mat4(bPoseChannel *pchan, float chan_mat[4][4])
 
 /* loc/rot/size to mat4 */
 /* used in constraint.c too */
-void chan_calc_mat(bPoseChannel *pchan)
+void pchan_calc_mat(bPoseChannel *pchan)
 {
 	/* this is just a wrapper around the copy of this function which calculates the matrix 
 	 * and stores the result in any given channel
@@ -2208,7 +2200,7 @@ void where_is_pose_bone(Scene *scene, Object *ob, bPoseChannel *pchan, float cti
 	parchan= pchan->parent;
 	
 	/* this gives a chan_mat with actions (ipos) results */
-	if(do_extra)	chan_calc_mat(pchan);
+	if(do_extra)	pchan_calc_mat(pchan);
 	else			unit_m4(pchan->chan_mat);
 
 	/* construct the posemat based on PoseChannels, that we do before applying constraints */

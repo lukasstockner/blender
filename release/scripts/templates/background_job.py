@@ -3,11 +3,16 @@
 # This example also shows how you can parse command line options to python scripts.
 # 
 # Example usage for this test.
-#  blender -b -P $HOME/background_job.py -- --text="Hello World" --render="/tmp/hello" --save="/tmp/hello.blend"
+#  blender --background --factory-startup --python $HOME/background_job.py -- --text="Hello World" --render="/tmp/hello" --save="/tmp/hello.blend"
 # 
-# Notice all python args are after the "--" argument.
+# Notice:
+# '--factory-startup' is used to avoid the user default settings from interfearing with automated scene generation.
+# '--' causes blender to ignore all following arguments so python can use them.
+#
+# See blender --help for details.
 
 import bpy
+
 
 def example_function(body_text, save_path, render_path):
     
@@ -63,6 +68,7 @@ def example_function(body_text, save_path, render_path):
 import sys        # to get command line args
 import optparse    # to parse options for us and print a nice help message
 
+
 def main():
     
     # get the args passed to blender after "--", all of which are ignored by blender specifically
@@ -76,11 +82,10 @@ def main():
     
     # When --help or no args are given, print this help
     usage_text = "Run blender in background mode with this script:"
-    usage_text += "  blender -b -P " + __file__ + " -- [options]"
+    usage_text += "  blender --background --python " + __file__ + " -- [options]"
             
     parser = optparse.OptionParser(usage=usage_text)
     
-
     # Example background utility, add some text and renders or saves it (with options)
     # Possible types are: string, int, long, choice, float and complex.
     parser.add_option("-t", "--text", dest="body_text", help="This text will be used to render an image", type="string")

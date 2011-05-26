@@ -50,6 +50,7 @@
 #include "DNA_property_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
+#include "DNA_object_force.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_vfont_types.h"
 
@@ -59,6 +60,7 @@
 #include "BKE_constraint.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
+#include "BKE_effect.h"
 #include "BKE_depsgraph.h"
 #include "BKE_font.h"
 #include "BKE_image.h"
@@ -585,12 +587,12 @@ void OBJECT_OT_posemode_toggle(wmOperatorType *ot)
 	ot->poll= ED_operator_object_active_editable;
 	
 	/* flag */
-	ot->flag= OPTYPE_REGISTER;
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
 
 /* *********************** */
 
-void check_editmode(int type)
+static void check_editmode(int type)
 {
 	Object *obedit= NULL; // XXX
 	
@@ -723,7 +725,7 @@ static void spot_interactive(Object *ob, int mode)
 }
 #endif
 
-void special_editmenu(Scene *scene, View3D *v3d)
+static void special_editmenu(Scene *scene, View3D *v3d)
 {
 // XXX	static short numcuts= 2;
 	Object *ob= OBACT;
@@ -743,7 +745,7 @@ void special_editmenu(Scene *scene, View3D *v3d)
 			MFace *mface;
 			int a;
 			
-			if(me==0 || me->mtface==0) return;
+			if(me==NULL || me->mtface==NULL) return;
 			
 			nr= pupmenu("Specials%t|Set     Tex%x1|         Shared%x2|         Light%x3|         Invisible%x4|         Collision%x5|         TwoSide%x6|Clr     Tex%x7|         Shared%x8|         Light%x9|         Invisible%x10|         Collision%x11|         TwoSide%x12");
 			
@@ -766,7 +768,7 @@ void special_editmenu(Scene *scene, View3D *v3d)
 						tface->mode |= TF_TWOSIDE; break;
 					case 7:
 						tface->mode &= ~TF_TEX;
-						tface->tpage= 0;
+						tface->tpage= NULL;
 						break;
 					case 8:
 						tface->mode &= ~TF_SHAREDCOL; break;
@@ -786,7 +788,7 @@ void special_editmenu(Scene *scene, View3D *v3d)
 		else if(ob->mode & OB_MODE_VERTEX_PAINT) {
 			Mesh *me= get_mesh(ob);
 			
-			if(me==0 || (me->mcol==NULL && me->mtface==NULL) ) return;
+			if(me==NULL || (me->mcol==NULL && me->mtface==NULL) ) return;
 			
 			nr= pupmenu("Specials%t|Shared VertexCol%x1");
 			if(nr==1) {
@@ -1198,7 +1200,7 @@ static void copy_texture_space(Object *to, Object *ob)
 	
 }
 
-void copy_attr(Main *bmain, Scene *scene, View3D *v3d, short event)
+static void copy_attr(Main *bmain, Scene *scene, View3D *v3d, short event)
 {
 	Object *ob;
 	Base *base;
@@ -1239,9 +1241,9 @@ void copy_attr(Main *bmain, Scene *scene, View3D *v3d, short event)
 				else if(event==2) {  /* rot */
 					VECCOPY(base->object->rot, ob->rot);
 					VECCOPY(base->object->drot, ob->drot);
-					/* Quats arnt used yet */
-					/*VECCOPY(base->object->quat, ob->quat);
-					VECCOPY(base->object->dquat, ob->dquat);*/
+
+					QUATCOPY(base->object->quat, ob->quat);
+					QUATCOPY(base->object->dquat, ob->dquat);
 				}
 				else if(event==3) {  /* size */
 					VECCOPY(base->object->size, ob->size);
@@ -1446,7 +1448,7 @@ void copy_attr(Main *bmain, Scene *scene, View3D *v3d, short event)
 	DAG_ids_flush_update(bmain, 0);
 }
 
-void copy_attr_menu(Main *bmain, Scene *scene, View3D *v3d)
+static void copy_attr_menu(Main *bmain, Scene *scene, View3D *v3d)
 {
 	Object *ob;
 	short event;
@@ -1498,6 +1500,39 @@ void copy_attr_menu(Main *bmain, Scene *scene, View3D *v3d)
 	if(event<= 0) return;
 	
 	copy_attr(bmain, scene, v3d, event);
+}
+
+/* ******************* force field toggle operator ***************** */
+
+static int forcefield_toggle_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *ob = CTX_data_active_object(C);
+
+	if(ob->pd == NULL)
+		ob->pd = object_add_collision_fields(PFIELD_FORCE);
+
+	if(ob->pd->forcefield == 0)
+		ob->pd->forcefield = PFIELD_FORCE;
+	else
+		ob->pd->forcefield = 0;
+	
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_forcefield_toggle(wmOperatorType *ot)
+{
+	
+	/* identifiers */
+	ot->name= "Toggle Force Field";
+	ot->description = "Toggle object's force field";
+	ot->idname= "OBJECT_OT_forcefield_toggle";
+	
+	/* api callbacks */
+	ot->exec= forcefield_toggle_exec;
+	ot->poll= ED_operator_object_active_editable;
+	
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
 
 /* ********************************************** */
@@ -1686,7 +1721,7 @@ void OBJECT_OT_shade_smooth(wmOperatorType *ot)
 
 /* ********************** */
 
-void image_aspect(Scene *scene, View3D *v3d)
+static void image_aspect(Scene *scene, View3D *v3d)
 {
 	/* all selected objects with an image map: scale in image aspect */
 	Base *base;
@@ -1745,7 +1780,7 @@ void image_aspect(Scene *scene, View3D *v3d)
 	
 }
 
-int vergbaseco(const void *a1, const void *a2)
+static int vergbaseco(const void *a1, const void *a2)
 {
 	Base **x1, **x2;
 	
@@ -1761,7 +1796,7 @@ int vergbaseco(const void *a1, const void *a2)
 }
 
 
-void auto_timeoffs(Scene *scene, View3D *v3d)
+static void auto_timeoffs(Scene *scene, View3D *v3d)
 {
 	Base *base, **basesort, **bs;
 	float start, delta;
@@ -1802,7 +1837,7 @@ void auto_timeoffs(Scene *scene, View3D *v3d)
 
 }
 
-void ofs_timeoffs(Scene *scene, View3D *v3d)
+static void ofs_timeoffs(Scene *scene, View3D *v3d)
 {
 	float offset=0.0f;
 
@@ -1821,7 +1856,7 @@ void ofs_timeoffs(Scene *scene, View3D *v3d)
 }
 
 
-void rand_timeoffs(Scene *scene, View3D *v3d)
+static void rand_timeoffs(Scene *scene, View3D *v3d)
 {
 	Base *base;
 	float rand_ofs=0.0f;

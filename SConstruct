@@ -28,6 +28,8 @@
 # Main entry-point for the SCons building system
 # Set up some custom actions and target/argument handling
 # Then read all SConscripts and build
+#
+# TODO: fix /FORCE:MULTIPLE on windows to get proper debug builds.
 
 import platform as pltfrm
 
@@ -139,7 +141,6 @@ else:
 if not env:
 	print "Could not create a build environment"
 	Exit()
-
 
 cc = B.arguments.get('CC', None)
 cxx = B.arguments.get('CXX', None)
@@ -488,11 +489,13 @@ if  env['OURPLATFORM']!='darwin':
 						dn.remove('.svn')
                     if '_svn' in dn:
                         dn.remove('_svn')
+                    if '__pycache__' in dn:  # py3.2 cache dir
+                        dn.remove('__pycache__')
 					
 					dir = os.path.join(env['BF_INSTALLDIR'], VERSION)
 					dir += os.sep + os.path.basename(scriptpath) + dp[len(scriptpath):]
 					
-					source=[os.path.join(dp, f) for f in df if f[-3:]!='pyc']
+                    source=[os.path.join(dp, f) for f in df if not f.endswith(".pyc")]
                     # To ensure empty dirs are created too
                     if len(source)==0:
                         env.Execute(Mkdir(dir))

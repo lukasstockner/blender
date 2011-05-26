@@ -105,6 +105,7 @@
 #include "WM_api.h"
 #include "WM_types.h"
 #include "wm.h"
+#include "wm_files.h"
 #include "wm_window.h"
 #include "wm_event_system.h"
 
@@ -259,7 +260,7 @@ static void wm_init_userdef(bContext *C)
 	/* set the python auto-execute setting from user prefs */
 	/* disabled by default, unless explicitly enabled in the command line */
 	if ((U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0) G.f |=  G_SCRIPT_AUTOEXEC;
-	if(U.tempdir[0]) BLI_where_is_temp(btempdir, 1);
+	if(U.tempdir[0]) BLI_where_is_temp(btempdir, FILE_MAX, 1);
 }
 
 void WM_read_file(bContext *C, const char *name, ReportList *reports)
@@ -352,14 +353,10 @@ void WM_read_file(bContext *C, const char *name, ReportList *reports)
 /* called on startup,  (context entirely filled with NULLs) */
 /* or called for 'New File' */
 /* op can be NULL */
-/* note: G.sce is used to store the last saved path so backup and restore after loading
- * G.main->name is similar to G.sce but when loading from memory set the name to startup.blend 
- * ...this could be changed but seems better then setting to "" */
-int WM_read_homefile(bContext *C, wmOperator *op)
+int WM_read_homefile(bContext *C, ReportList *reports, short from_memory)
 {
 	ListBase wmbase;
 	char tstr[FILE_MAXDIR+FILE_MAXFILE], scestr[FILE_MAXDIR];
-	int from_memory= op && strcmp(op->type->idname, "WM_OT_read_factory_settings")==0;
 	int success;
 	
 	free_ttfont(); /* still weird... what does it here? */
@@ -372,11 +369,9 @@ int WM_read_homefile(bContext *C, wmOperator *op)
 		} else {
 			tstr[0] = '\0';
 			from_memory = 1;
-			if (op) {
-				BKE_report(op->reports, RPT_INFO, "Config directory with startup.blend file not found."); 
+			BKE_report(reports, RPT_INFO, "Config directory with "STRINGIFY(BLENDER_STARTUP_FILE)" file not found.");
 			}
 		}
-	}
 	strcpy(scestr, G.sce);	/* temporary store */
 	
 	/* prevent loading no UI */
@@ -387,7 +382,13 @@ int WM_read_homefile(bContext *C, wmOperator *op)
 	
 	if (!from_memory && BLI_exists(tstr)) {
 		success = (BKE_read_file(C, tstr, NULL) != BKE_READ_FILE_FAIL);
-	} else {
+		
+		if(U.themes.first==NULL) {
+			printf("\nError: No valid "STRINGIFY(BLENDER_STARTUP_FILE)", fall back to built-in default.\n\n");
+			success = 0;
+		}
+	}
+	if(success==0) {
 		success = BKE_read_file_from_memory(C, datatoc_startup_blend, datatoc_startup_blend_size, NULL);
 		if (wmbase.first == NULL) wm_clear_default_size(C);
 	}
@@ -433,13 +434,22 @@ int WM_read_homefile(bContext *C, wmOperator *op)
 #endif
 	
 	WM_event_add_notifier(C, NC_WM|ND_FILEREAD, NULL);
-	CTX_wm_window_set(C, NULL); /* exits queues */
 
-	return OPERATOR_FINISHED;
+	/* in background mode the scene will stay NULL */
+	if(!G.background) {
+	CTX_wm_window_set(C, NULL); /* exits queues */
+	}
+
+	return TRUE;
 }
 
+int WM_read_homefile_exec(bContext *C, wmOperator *op)
+{
+	int from_memory= strcmp(op->type->idname, "WM_OT_read_factory_settings") == 0;
+	return WM_read_homefile(C, op->reports, from_memory) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+}
 
-void read_history(void)
+void WM_read_history(void)
 {
 	char name[FILE_MAX];
 	LinkNode *l, *lines;
@@ -465,10 +475,7 @@ void read_history(void)
 			
 			recent = (RecentFile*)MEM_mallocN(sizeof(RecentFile),"RecentFile");
 			BLI_addtail(&(G.recent_files), recent);
-			recent->filepath = (char*)MEM_mallocN(sizeof(char)*(strlen(line)+1), "name of file");
-			recent->filepath[0] = '\0';
-			
-			strcpy(recent->filepath, line);
+			recent->filepath = BLI_strdup(line);
 			num++;
 		}
 	}
@@ -493,9 +500,7 @@ static void write_history(void)
 		if (fp) {
 			/* add current file to the beginning of list */
 			recent = (RecentFile*)MEM_mallocN(sizeof(RecentFile),"RecentFile");
-			recent->filepath = (char*)MEM_mallocN(sizeof(char)*(strlen(G.sce)+1), "name of file");
-			recent->filepath[0] = '\0';
-			strcpy(recent->filepath, G.sce);
+			recent->filepath = BLI_strdup(G.main->name);
 			BLI_addhead(&(G.recent_files), recent);
 			/* write current file to recent-files.txt */
 			fprintf(fp, "%s\n", recent->filepath);
@@ -533,8 +538,8 @@ static void do_history(char *name, ReportList *reports)
 	if(strlen(name)<2) return;
 		
 	while(hisnr > 1) {
-		sprintf(tempname1, "%s%d", name, hisnr-1);
-		sprintf(tempname2, "%s%d", name, hisnr);
+		BLI_snprintf(tempname1, sizeof(tempname1), "%s%d", name, hisnr-1);
+		BLI_snprintf(tempname2, sizeof(tempname2), "%s%d", name, hisnr);
 	
 		if(BLI_rename(tempname1, tempname2))
 			BKE_report(reports, RPT_ERROR, "Unable to make version backup");
@@ -543,7 +548,7 @@ static void do_history(char *name, ReportList *reports)
 	}
 		
 	/* is needed when hisnr==1 */
-	sprintf(tempname1, "%s%d", name, hisnr);
+	BLI_snprintf(tempname1, sizeof(tempname1), "%s%d", name, hisnr);
 	
 	if(BLI_rename(name, tempname1))
 		BKE_report(reports, RPT_ERROR, "Unable to make version backup");
@@ -662,7 +667,7 @@ int WM_write_file(bContext *C, const char *target, int fileflags, ReportList *re
 		if(!copy) {
 			strcpy(G.sce, di);
 			G.relbase_valid = 1;
-			strcpy(G.main->name, di);	/* is guaranteed current file */
+			BLI_strncpy(G.main->name, di, sizeof(G.main->name));	/* is guaranteed current file */
 	
 			G.save_over = 1; /* disable untitled.blend convention */
 		}
@@ -735,7 +740,7 @@ void wm_autosave_location(char *filename)
 	char *savedir;
 #endif
 
-	sprintf(pidstr, "%d.blend", abs(getpid()));
+	BLI_snprintf(pidstr, sizeof(pidstr), "%d.blend", abs(getpid()));
 	
 #ifdef WIN32
 	/* XXX Need to investigate how to handle default location of '/tmp/'

@@ -1070,10 +1070,7 @@ class VIEW3D_MT_sculpt(bpy.types.Menu):
         sculpt_tool = brush.sculpt_tool
 
         if sculpt_tool != 'GRAB':
-            layout.prop(brush, "use_airbrush")
-
-            if sculpt_tool != 'LAYER':
-                layout.prop(brush, "use_anchor")
+            layout.prop_menu_enum(brush, "stroke_method")
 
             if sculpt_tool in ('DRAW', 'PINCH', 'INFLATE', 'LAYER', 'CLAY'):
                 layout.prop_menu_enum(brush, "direction")
@@ -1938,8 +1935,7 @@ class VIEW3D_MT_edit_armature_roll(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("armature.calculate_roll", text="Recalculate with Z-Axis Up").type = 'GLOBALUP'
-        layout.operator("armature.calculate_roll", text="Recalculate with Z-Axis to Cursor").type = 'CURSOR'
+        layout.operator_menu_enum("armature.calculate_roll", "type")
 
         layout.separator()
 
@@ -2316,11 +2312,11 @@ class VIEW3D_PT_context_properties(bpy.types.Panel):
 
 
 def register():
-    pass
+    bpy.utils.register_module(__name__)
 
 
 def unregister():
-    pass
+    bpy.utils.unregister_module(__name__)
 
 if __name__ == "__main__":
     register()

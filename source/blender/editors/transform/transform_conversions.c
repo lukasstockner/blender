@@ -85,6 +85,7 @@
 #include "ED_types.h"
 #include "ED_uvedit.h"
 #include "ED_curve.h" /* for ED_curve_editnurbs */
+#include "ED_util.h"  /* for crazyspace correction */
 
 #include "UI_view2d.h"
 
@@ -568,16 +569,16 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
 		if (constraints_list_needinv(t, &pchan->constraints)) {
 			copy_m3_m4(tmat, pchan->constinv);
 			invert_m3_m3(cmat, tmat);
-			mul_serie_m3(td->mtx, bmat, pmat, omat, cmat, 0,0,0,0);    // dang mulserie swaps args
+			mul_serie_m3(td->mtx, bmat, pmat, omat, cmat, NULL,NULL,NULL,NULL);    // dang mulserie swaps args
 		}
 		else
-			mul_serie_m3(td->mtx, bmat, pmat, omat, 0,0,0,0,0);    // dang mulserie swaps args
+			mul_serie_m3(td->mtx, bmat, pmat, omat, NULL,NULL,NULL,NULL,NULL);    // dang mulserie swaps args
 	}
 	else {
 		if (constraints_list_needinv(t, &pchan->constraints)) {
 			copy_m3_m4(tmat, pchan->constinv);
 			invert_m3_m3(cmat, tmat);
-			mul_serie_m3(td->mtx, bmat, omat, cmat, 0,0,0,0,0);    // dang mulserie swaps args
+			mul_serie_m3(td->mtx, bmat, omat, cmat, NULL,NULL,NULL,NULL,NULL);    // dang mulserie swaps args
 		}
 		else
 			mul_m3_m3m3(td->mtx, omat, bmat);  // Mat3MulMat3 has swapped args!
@@ -809,9 +810,9 @@ static void pose_grab_with_ik_clear(Object *ob)
 /* adds the IK to pchan - returns if added */
 static short pose_grab_with_ik_add(bPoseChannel *pchan)
 {
+	bKinematicConstraint *targetless = NULL;
 	bKinematicConstraint *data;
 	bConstraint *con;
-	bConstraint *targetless = 0;
 
 	/* Sanity check */
 	if (pchan == NULL)
@@ -820,15 +821,31 @@ static short pose_grab_with_ik_add(bPoseChannel *pchan)
 	/* Rule: not if there's already an IK on this channel */
 	for (con= pchan->constraints.first; con; con= con->next) {
 		if (con->type==CONSTRAINT_TYPE_KINEMATIC) {
-			bKinematicConstraint *data= con->data;
-			if(data->tar==NULL || (data->tar->type==OB_ARMATURE && data->subtarget[0]==0)) {
-				targetless = con;
+			data= con->data;
+			
+			if (data->tar==NULL || (data->tar->type==OB_ARMATURE && data->subtarget[0]=='\0')) {
+				/* make reference to constraint to base things off later (if it's the last targetless constraint encountered) */
+				targetless = (bKinematicConstraint *)con->data;
+				
 				/* but, if this is a targetless IK, we make it auto anyway (for the children loop) */
 				if (con->enforce!=0.0f) {
-					targetless->flag |= CONSTRAINT_IK_AUTO;
+					data->flag |= CONSTRAINT_IK_AUTO;
+					
+					/* if no chain length has been specified, just make things obey standard rotation locks too */
+					if (data->rootbone == 0) {
+						for (; pchan; pchan=pchan->parent) {
+							/* here, we set ik-settings for bone from pchan->protectflag */
+							// XXX: careful with quats/axis-angle rotations where we're locking 4d components
+							if (pchan->protectflag & OB_LOCK_ROTX) pchan->ikflag |= BONE_IK_NO_XDOF_TEMP;
+							if (pchan->protectflag & OB_LOCK_ROTY) pchan->ikflag |= BONE_IK_NO_YDOF_TEMP;
+							if (pchan->protectflag & OB_LOCK_ROTZ) pchan->ikflag |= BONE_IK_NO_ZDOF_TEMP;
+						}
+					}
+					
 					return 0;
 				}
 			}
+			
 			if ((con->flag & CONSTRAINT_DISABLE)==0 && (con->enforce!=0.0f))
 				return 0;
 		}
@@ -837,18 +854,20 @@ static short pose_grab_with_ik_add(bPoseChannel *pchan)
 	con = add_pose_constraint(NULL, pchan, "TempConstraint", CONSTRAINT_TYPE_KINEMATIC);
 	pchan->constflag |= (PCHAN_HAS_IK|PCHAN_HAS_TARGET);	/* for draw, but also for detecting while pose solving */
 	data= con->data;
-	if (targetless) { /* if exists use values from last targetless IK-constraint as base */
-		*data = *((bKinematicConstraint*)targetless->data);
+	if (targetless) { 
+		/* if exists, use values from last targetless (but disabled) IK-constraint as base */
+		*data = *targetless;
 	}
 	else
 		data->flag= CONSTRAINT_IK_TIP;
 	data->flag |= CONSTRAINT_IK_TEMP|CONSTRAINT_IK_AUTO;
 	VECCOPY(data->grabtarget, pchan->pose_tail);
-	data->rootbone= 1;
+	data->rootbone= 0; /* watch-it! has to be 0 here, since we're still on the same bone for the first time through the loop [#25885] */
 
 	/* we include only a connected chain */
 	while ((pchan) && (pchan->bone->flag & BONE_CONNECTED)) {
 		/* here, we set ik-settings for bone from pchan->protectflag */
+		// XXX: careful with quats/axis-angle rotations where we're locking 4d components
 		if (pchan->protectflag & OB_LOCK_ROTX) pchan->ikflag |= BONE_IK_NO_XDOF_TEMP;
 		if (pchan->protectflag & OB_LOCK_ROTY) pchan->ikflag |= BONE_IK_NO_YDOF_TEMP;
 		if (pchan->protectflag & OB_LOCK_ROTZ) pchan->ikflag |= BONE_IK_NO_ZDOF_TEMP;
@@ -1317,7 +1336,7 @@ static void calc_distanceCurveVerts(TransData *head, TransData *tail) {
 }
 
 /* Utility function for getting the handle data from bezier's */
-TransDataCurveHandleFlags *initTransDataCurveHandles(TransData *td, struct BezTriple *bezt) {
+static TransDataCurveHandleFlags *initTransDataCurveHandles(TransData *td, struct BezTriple *bezt) {
 	TransDataCurveHandleFlags *hdata;
 	td->flag |= TD_BEZTRIPLE;
 	hdata = td->hdata = MEM_mallocN(sizeof(TransDataCurveHandleFlags), "CuHandle Data");
@@ -1899,148 +1918,7 @@ static void VertsToTransData(TransInfo *t, TransData *td, EditMesh *em, EditVert
 	}
 }
 
-/* *********************** CrazySpace correction. Now without doing subsurf optimal ****************** */
-
-static void make_vertexcos__mapFunc(void *userData, int index, float *co, float *no_f, short *no_s)
-{
-	float *vec = userData;
-
-	vec+= 3*index;
-	VECCOPY(vec, co);
-}
-
-static int modifiers_disable_subsurf_temporary(Object *ob)
-{
-	ModifierData *md;
-	int disabled = 0;
-
-	for(md=ob->modifiers.first; md; md=md->next)
-		if(md->type==eModifierType_Subsurf)
-			if(md->mode & eModifierMode_OnCage) {
-				md->mode ^= eModifierMode_DisableTemporary;
-				disabled= 1;
-			}
-
-	return disabled;
-}
-
-/* disable subsurf temporal, get mapped cos, and enable it */
-static float *get_crazy_mapped_editverts(TransInfo *t)
-{
-	Mesh *me= t->obedit->data;
-	DerivedMesh *dm;
-	float *vertexcos;
-
-	/* disable subsurf temporal, get mapped cos, and enable it */
-	if(modifiers_disable_subsurf_temporary(t->obedit)) {
-		/* need to make new derivemesh */
-		makeDerivedMesh(t->scene, t->obedit, me->edit_mesh, CD_MASK_BAREMESH);
-	}
-
-	/* now get the cage */
-	dm= editmesh_get_derived_cage(t->scene, t->obedit, me->edit_mesh, CD_MASK_BAREMESH);
-
-	vertexcos= MEM_mallocN(3*sizeof(float)*me->edit_mesh->totvert, "vertexcos map");
-	dm->foreachMappedVert(dm, make_vertexcos__mapFunc, vertexcos);
-
-	dm->release(dm);
-
-	/* set back the flag, no new cage needs to be built, transform does it */
-	modifiers_disable_subsurf_temporary(t->obedit);
-
-	return vertexcos;
-}
-
-#define TAN_MAKE_VEC(a, b, c)	a[0]= b[0] + 0.2f*(b[0]-c[0]); a[1]= b[1] + 0.2f*(b[1]-c[1]); a[2]= b[2] + 0.2f*(b[2]-c[2])
-static void set_crazy_vertex_quat(float *quat, float *v1, float *v2, float *v3, float *def1, float *def2, float *def3)
-{
-	float vecu[3], vecv[3];
-	float q1[4], q2[4];
-
-	TAN_MAKE_VEC(vecu, v1, v2);
-	TAN_MAKE_VEC(vecv, v1, v3);
-	tri_to_quat( q1,v1, vecu, vecv);
-
-	TAN_MAKE_VEC(vecu, def1, def2);
-	TAN_MAKE_VEC(vecv, def1, def3);
-	tri_to_quat( q2,def1, vecu, vecv);
-
-	sub_qt_qtqt(quat, q2, q1);
-}
-#undef TAN_MAKE_VEC
-
-static void set_crazyspace_quats(EditMesh *em, float *origcos, float *mappedcos, float *quats)
-{
-	EditVert *eve, *prev;
-	EditFace *efa;
-	float *v1, *v2, *v3, *v4, *co1, *co2, *co3, *co4;
-	intptr_t index= 0;
-
-	/* two abused locations in vertices */
-	for(eve= em->verts.first; eve; eve= eve->next, index++) {
-		eve->tmp.p = NULL;
-		eve->prev= (EditVert *)index;
-	}
-
-	/* first store two sets of tangent vectors in vertices, we derive it just from the face-edges */
-	for(efa= em->faces.first; efa; efa= efa->next) {
-
-		/* retrieve mapped coordinates */
-		v1= mappedcos + 3*(intptr_t)(efa->v1->prev);
-		v2= mappedcos + 3*(intptr_t)(efa->v2->prev);
-		v3= mappedcos + 3*(intptr_t)(efa->v3->prev);
-
-		co1= (origcos)? origcos + 3*(intptr_t)(efa->v1->prev): efa->v1->co;
-		co2= (origcos)? origcos + 3*(intptr_t)(efa->v2->prev): efa->v2->co;
-		co3= (origcos)? origcos + 3*(intptr_t)(efa->v3->prev): efa->v3->co;
-
-		if(efa->v2->tmp.p==NULL && efa->v2->f1) {
-			set_crazy_vertex_quat(quats, co2, co3, co1, v2, v3, v1);
-			efa->v2->tmp.p= (void*)quats;
-			quats+= 4;
-		}
-
-		if(efa->v4) {
-			v4= mappedcos + 3*(intptr_t)(efa->v4->prev);
-			co4= (origcos)? origcos + 3*(intptr_t)(efa->v4->prev): efa->v4->co;
-
-			if(efa->v1->tmp.p==NULL && efa->v1->f1) {
-				set_crazy_vertex_quat(quats, co1, co2, co4, v1, v2, v4);
-				efa->v1->tmp.p= (void*)quats;
-				quats+= 4;
-			}
-			if(efa->v3->tmp.p==NULL && efa->v3->f1) {
-				set_crazy_vertex_quat(quats, co3, co4, co2, v3, v4, v2);
-				efa->v3->tmp.p= (void*)quats;
-				quats+= 4;
-			}
-			if(efa->v4->tmp.p==NULL && efa->v4->f1) {
-				set_crazy_vertex_quat(quats, co4, co1, co3, v4, v1, v3);
-				efa->v4->tmp.p= (void*)quats;
-				quats+= 4;
-			}
-		}
-		else {
-			if(efa->v1->tmp.p==NULL && efa->v1->f1) {
-				set_crazy_vertex_quat(quats, co1, co2, co3, v1, v2, v3);
-				efa->v1->tmp.p= (void*)quats;
-				quats+= 4;
-			}
-			if(efa->v3->tmp.p==NULL && efa->v3->f1) {
-				set_crazy_vertex_quat(quats, co3, co1, co2, v3, v1, v2);
-				efa->v3->tmp.p= (void*)quats;
-				quats+= 4;
-			}
-		}
-	}
-
-	/* restore abused prev pointer */
-	for(prev= NULL, eve= em->verts.first; eve; prev= eve, eve= eve->next)
-		eve->prev= prev;
-
-}
-
-void createTransBMeshVerts(TransInfo *t, BME_Mesh *bm, BME_TransData_Head *td) {
+static void createTransBMeshVerts(TransInfo *t, BME_Mesh *bm, BME_TransData_Head *td) {
 	BME_Vert *v;
 	BME_TransData *vtd;
 	TransData *tob;
@@ -2159,9 +2037,9 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 				   correction with quats, relative to the coordinates after
 				   the modifiers that support deform matrices (defcos) */
 				if(totleft > 0) {
-					mappedcos= get_crazy_mapped_editverts(t);
+					mappedcos= crazyspace_get_mapped_editverts(t->scene, t->obedit);
 					quats= MEM_mallocN( (t->total)*sizeof(float)*4, "crazy quats");
-					set_crazyspace_quats(em, (float*)defcos, mappedcos, quats);
+					crazyspace_set_quats_editmesh(em, (float*)defcos, mappedcos, quats);
 					if(mappedcos)
 						MEM_freeN(mappedcos);
 				}
@@ -3800,47 +3678,7 @@ void flushTransGraphData(TransInfo *t)
 	}
 }
 
-/* *************************** Object Transform data ******************* */
-
-/* Little helper function for ObjectToTransData used to give certain
- * constraints (ChildOf, FollowPath, and others that may be added)
- * inverse corrections for transform, so that they aren't in CrazySpace.
- * These particular constraints benefit from this, but others don't, hence
- * this semi-hack ;-)    - Aligorith
- */
-static short constraints_list_needinv(TransInfo *t, ListBase *list)
-{
-	bConstraint *con;
-
-	/* loop through constraints, checking if there's one of the mentioned
-	 * constraints needing special crazyspace corrections
-	 */
-	if (list) {
-		for (con= list->first; con; con=con->next) {
-			/* only consider constraint if it is enabled, and has influence on result */
-			if ((con->flag & CONSTRAINT_DISABLE)==0 && (con->enforce!=0.0)) {
-				/* (affirmative) returns for specific constraints here... */
-					/* constraints that require this regardless  */
-				if (con->type == CONSTRAINT_TYPE_CHILDOF) return 1;
-				if (con->type == CONSTRAINT_TYPE_FOLLOWPATH) return 1;
-				if (con->type == CONSTRAINT_TYPE_CLAMPTO) return 1;
-
-					/* constraints that require this only under special conditions */
-				if (con->type == CONSTRAINT_TYPE_ROTLIKE) {
-					/* CopyRot constraint only does this when rotating, and offset is on */
-					bRotateLikeConstraint *data = (bRotateLikeConstraint *)con->data;
-
-					if ((data->flag & ROTLIKE_OFFSET) && (t->mode == TFM_ROTATION))
-						return 1;
-				}
-			}
-		}
-	}
-
-	/* no appropriate candidates found */
-	return 0;
-}
-
+/* ******************* Sequencer Transform data ******************* */
 
 /* This function applies the rules for transforming a strip so duplicate
  * checks dont need to be added in multiple places.
@@ -4240,6 +4078,47 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 }
 
 
+/* *********************** Object Transform data ******************* */
+
+/* Little helper function for ObjectToTransData used to give certain
+ * constraints (ChildOf, FollowPath, and others that may be added)
+ * inverse corrections for transform, so that they aren't in CrazySpace.
+ * These particular constraints benefit from this, but others don't, hence
+ * this semi-hack ;-)    - Aligorith
+ */
+static short constraints_list_needinv(TransInfo *t, ListBase *list)
+{
+	bConstraint *con;
+
+	/* loop through constraints, checking if there's one of the mentioned
+	 * constraints needing special crazyspace corrections
+	 */
+	if (list) {
+		for (con= list->first; con; con=con->next) {
+			/* only consider constraint if it is enabled, and has influence on result */
+			if ((con->flag & CONSTRAINT_DISABLE)==0 && (con->enforce!=0.0)) {
+				/* (affirmative) returns for specific constraints here... */
+					/* constraints that require this regardless  */
+				if (con->type == CONSTRAINT_TYPE_CHILDOF) return 1;
+				if (con->type == CONSTRAINT_TYPE_FOLLOWPATH) return 1;
+				if (con->type == CONSTRAINT_TYPE_CLAMPTO) return 1;
+				
+					/* constraints that require this only under special conditions */
+				if (con->type == CONSTRAINT_TYPE_ROTLIKE) {
+					/* CopyRot constraint only does this when rotating, and offset is on */
+					bRotateLikeConstraint *data = (bRotateLikeConstraint *)con->data;
+					
+					if ((data->flag & ROTLIKE_OFFSET) && (t->mode == TFM_ROTATION))
+						return 1;
+				}
+			}
+		}
+	}
+
+	/* no appropriate candidates found */
+	return 0;
+}
+
 /* transcribe given object into TransData for Transforming */
 static void ObjectToTransData(bContext *C, TransInfo *t, TransData *td, Object *ob)
 {
@@ -4537,13 +4416,13 @@ void autokeyframe_ob_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob,
 		/* add datasource override for the camera object */
 		ANIM_relative_keyingset_add_source(&dsources, id, NULL, NULL); 
 		
-		if (IS_AUTOKEY_FLAG(ONLYKEYINGSET) && (active_ks)) {
+		if (IS_AUTOKEY_FLAG(scene, ONLYKEYINGSET) && (active_ks)) {
 			/* only insert into active keyingset 
 			 * NOTE: we assume here that the active Keying Set does not need to have its iterator overridden spe
 			 */
 			ANIM_apply_keyingset(C, &dsources, NULL, active_ks, MODIFYKEY_MODE_INSERT, cfra);
 		}
-		else if (IS_AUTOKEY_FLAG(INSERTAVAIL)) {
+		else if (IS_AUTOKEY_FLAG(scene, INSERTAVAIL)) {
 			AnimData *adt= ob->adt;
 			
 			/* only key on available channels */
@@ -4554,7 +4433,7 @@ void autokeyframe_ob_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob,
 				}
 			}
 		}
-		else if (IS_AUTOKEY_FLAG(INSERTNEEDED)) {
+		else if (IS_AUTOKEY_FLAG(scene, INSERTNEEDED)) {
 			short doLoc=0, doRot=0, doScale=0;
 			
 			/* filter the conditions when this happens (assume that curarea->spacetype==SPACE_VIE3D) */
@@ -4651,12 +4530,12 @@ void autokeyframe_pose_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *o
 				ANIM_relative_keyingset_add_source(&dsources, id, &RNA_PoseBone, pchan); 
 				
 				/* only insert into active keyingset? */
-				if (IS_AUTOKEY_FLAG(ONLYKEYINGSET) && (active_ks)) {
+				if (IS_AUTOKEY_FLAG(scene, ONLYKEYINGSET) && (active_ks)) {
 					/* run the active Keying Set on the current datasource */
 					ANIM_apply_keyingset(C, &dsources, NULL, active_ks, MODIFYKEY_MODE_INSERT, cfra);
 				}
 				/* only insert into available channels? */
-				else if (IS_AUTOKEY_FLAG(INSERTAVAIL)) {
+				else if (IS_AUTOKEY_FLAG(scene, INSERTAVAIL)) {
 					if (act) {
 						for (fcu= act->curves.first; fcu; fcu= fcu->next) {
 							/* only insert keyframes for this F-Curve if it affects the current bone */
@@ -4675,7 +4554,7 @@ void autokeyframe_pose_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *o
 					}
 				}
 				/* only insert keyframe if needed? */
-				else if (IS_AUTOKEY_FLAG(INSERTNEEDED)) {
+				else if (IS_AUTOKEY_FLAG(scene, INSERTNEEDED)) {
 					short doLoc=0, doRot=0, doScale=0;
 					
 					/* filter the conditions when this happens (assume that curarea->spacetype==SPACE_VIE3D) */
@@ -5186,7 +5065,7 @@ static void NodeToTransData(TransData *td, TransData2D *td2d, bNode *node)
 	unit_m3(td->smtx);
 }
 
-void createTransNodeData(bContext *C, TransInfo *t)
+static void createTransNodeData(bContext *C, TransInfo *t)
 {
 	TransData *td;
 	TransData2D *td2d;

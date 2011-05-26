@@ -67,6 +67,7 @@ enum {
 
 void NLA_OT_select_all_toggle(wmOperatorType *ot);
 void NLA_OT_select_border(wmOperatorType *ot);
+void NLA_OT_select_leftright(wmOperatorType *ot);
 void NLA_OT_click_select(wmOperatorType *ot);
 
 /* **************************************** */
@@ -100,6 +101,7 @@ void NLA_OT_split(wmOperatorType *ot);
 
 void NLA_OT_mute_toggle(wmOperatorType *ot);
 
+void NLA_OT_swap(wmOperatorType *ot);
 void NLA_OT_move_up(wmOperatorType *ot);
 void NLA_OT_move_down(wmOperatorType *ot);
 

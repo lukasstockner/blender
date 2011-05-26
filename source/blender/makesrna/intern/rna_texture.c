@@ -174,6 +174,7 @@ void rna_TextureSlot_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 	switch(GS(id->name)) {
 		case ID_MA: 
 			WM_main_add_notifier(NC_MATERIAL|ND_SHADING, id);
+			WM_main_add_notifier(NC_MATERIAL|ND_SHADING_DRAW, id);
 			break;
 		case ID_WO: 
 			WM_main_add_notifier(NC_WORLD, id);
@@ -185,7 +186,21 @@ void rna_TextureSlot_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 			WM_main_add_notifier(NC_BRUSH, id);
 			WM_main_add_notifier(NC_SPACE|ND_SPACE_VIEW3D, NULL);
 			break;
+		case ID_PA:
+		{
+			MTex *mtex= ptr->data;
+			int recalc = OB_RECALC_DATA;
+
+			if(mtex->mapto & PAMAP_INIT)
+				recalc |= PSYS_RECALC_RESET;
+			if(mtex->mapto & PAMAP_CHILD)
+				recalc |= PSYS_RECALC_CHILD;
+
+			DAG_id_tag_update(id, recalc);
+			WM_main_add_notifier(NC_OBJECT|ND_PARTICLE|NA_EDITED, NULL);
+			break;
 	}
+}
 }
 
 char *rna_TextureSlot_path(PointerRNA *ptr)

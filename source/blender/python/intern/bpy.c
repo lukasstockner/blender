@@ -27,6 +27,9 @@
  
 #define WITH_PYTHON /* for AUD_PyInit.h, possibly others */
 
+#include <Python.h>
+
+#include "bpy.h" 
 #include "bpy_util.h" 
 #include "bpy_rna.h"
 #include "bpy_app.h"
@@ -58,7 +61,7 @@ static char bpy_script_paths_doc[] =
 "   :return: (system, user) strings will be empty when not found.\n"
 "   :rtype: tuple of strigs\n";
 
-PyObject *bpy_script_paths(PyObject *UNUSED(self))
+static PyObject *bpy_script_paths(PyObject *UNUSED(self))
 {
 	PyObject *ret= PyTuple_New(2);
 	char *path;
@@ -96,7 +99,7 @@ static PyObject *bpy_blend_paths(PyObject *UNUSED(self), PyObject *args, PyObjec
 
 	list= PyList_New(0);
 
-	for(BLI_bpathIterator_init(&bpi, G.main, NULL); !BLI_bpathIterator_isDone(bpi); BLI_bpathIterator_step(bpi)) {
+	for(BLI_bpathIterator_init(&bpi, G.main, NULL, 0); !BLI_bpathIterator_isDone(bpi); BLI_bpathIterator_step(bpi)) {
 		/* build the list */
 		if (absolute) {
 			BLI_bpathIterator_getPathExpanded(bpi, filepath_expanded);
@@ -210,7 +213,7 @@ void BPy_init_modules( void )
 	BPY_rna_init();
 
 	PyModule_AddObject( mod, "types", BPY_rna_types() ); /* needs to be first so bpy_types can run */
-	PyModule_AddObject(mod, "StructMetaIDProp", (PyObject *)&pyrna_struct_meta_idprop_Type); /* metaclass for idprop types, bpy_types.py needs access */
+	PyModule_AddObject(mod, "StructMetaPropGroup", (PyObject *)&pyrna_struct_meta_idprop_Type); /* metaclass for idprop types, bpy_types.py needs access */
 			
 	bpy_import_test("bpy_types");
 	PyModule_AddObject( mod, "data", BPY_rna_module() ); /* imports bpy_types by running this */
@@ -232,6 +235,10 @@ void BPy_init_modules( void )
 	PyModule_AddObject(mod, meth_bpy_script_paths.ml_name, (PyObject *)PyCFunction_New(&meth_bpy_script_paths, NULL));
 	PyModule_AddObject(mod, meth_bpy_blend_paths.ml_name, (PyObject *)PyCFunction_New(&meth_bpy_blend_paths, NULL));
 	PyModule_AddObject(mod, meth_bpy_user_resource.ml_name, (PyObject *)PyCFunction_New(&meth_bpy_user_resource, NULL));
+
+	/* register funcs (bpy_rna.c) */
+	PyModule_AddObject(mod, meth_bpy_register_class.ml_name, (PyObject *)PyCFunction_New(&meth_bpy_register_class, NULL));
+	PyModule_AddObject(mod, meth_bpy_unregister_class.ml_name, (PyObject *)PyCFunction_New(&meth_bpy_unregister_class, NULL));
 
 	/* add our own modules dir, this is a python package */
 	bpy_import_test("bpy");

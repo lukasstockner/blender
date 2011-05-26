@@ -266,6 +266,15 @@ protected:
 	static GHOST_EventKey* processKeyEvent(GHOST_IWindow *window, bool keyDown, WPARAM wParam, LPARAM lParam);
 
 	/** 
+	 * Process special keys (VK_OEM_*), to see if current key layout
+	 * gives us anything special, like ! on french AZERTY.
+	 * @param window	The window receiving the event (the active window).
+	 * @param wParam	The wParam from the wndproc
+	 * @param lParam	The lParam from the wndproc
+	 */
+	virtual GHOST_TKey processSpecialKey(GHOST_IWindow *window, WPARAM wParam, LPARAM lParam) const;
+
+	/** 
 	 * Creates a window event.
 	 * @param type		The type of event to create.
 	 * @param window	The window receiving the event (the active window).
@@ -292,6 +301,11 @@ protected:
 	inline virtual void storeModifierKeys(const GHOST_ModifierKeys& keys);
 
 	/**
+	 * Check current key layout for AltGr
+	 */
+	inline virtual void handleKeyboardChange(void);
+
+	/**
 	 * Windows call back routine for our window class.
 	 */
 	static LRESULT WINAPI s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -304,6 +318,14 @@ protected:
 	__int64 m_freq;
 	/** High frequency timer variable. */
 	__int64 m_start;
+	/** AltGr on current keyboard layout. */
+	bool m_hasAltGr;
+	/** language identifier. */
+	WORD m_langId;
+	/** holding hook handle for low-level keyboard handling */
+	HHOOK m_llKeyboardHook;
+	bool m_prevKeyStatus[255]; /* VK_* codes 0x01-0xFF, with 0xFF reserved */
+	bool m_curKeyStatus[255]; /* VK_* codes 0x01-0xFF, with 0xFF reserved */
 };
 
 inline void GHOST_SystemWin32::retrieveModifierKeys(GHOST_ModifierKeys& keys) const
@@ -314,6 +336,32 @@ inline void GHOST_SystemWin32::retrieveModifierKeys(GHOST_ModifierKeys& keys) co
 inline void GHOST_SystemWin32::storeModifierKeys(const GHOST_ModifierKeys& keys)
 {
 	m_modifierKeys = keys;
+}
+
+inline void GHOST_SystemWin32::handleKeyboardChange(void)
+{
+	HKL keylayout = GetKeyboardLayout(0); // get keylayout for current thread
+	int i;
+	SHORT s;
+
+	// save the language identifier.
+	m_langId = LOWORD(keylayout);
+
+	for(m_hasAltGr = false, i = 32; i < 256; ++i) {
+		s = VkKeyScanEx((char)i, keylayout);
+		// s == -1 means no key that translates passed char code
+		// high byte contains shift state. bit 2 ctrl pressed, bit 4 alt pressed
+		// if both are pressed, we have AltGr keycombo on keylayout
+		if(s!=-1 && (s & 0x600) == 0x600) {
+			m_hasAltGr = true;
+			break;
+		}
+	}
+}
+
+inline bool GHOST_SystemWin32::shiftPressed(void)
+{
+	return (m_curKeyStatus[VK_SHIFT] || m_curKeyStatus[VK_RSHIFT] || m_curKeyStatus[VK_LSHIFT]);
 }
 
 #endif // _GHOST_SYSTEM_WIN32_H_

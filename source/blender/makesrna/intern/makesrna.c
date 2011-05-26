@@ -948,7 +948,7 @@ static char *rna_def_property_begin_func(FILE *f, StructRNA *srna, PropertyRNA *
 
 static char *rna_def_property_lookup_int_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp, char *manualfunc, char *nextfunc)
 {
-	/* note on indicies, this is for external functions and ignores skipped values.
+	/* note on indices, this is for external functions and ignores skipped values.
 	 * so the the index can only be checked against the length when there is no 'skip' funcion. */
 	char *func;
 
@@ -1013,7 +1013,7 @@ static char *rna_def_property_lookup_int_func(FILE *f, StructRNA *srna, Property
 		fprintf(f, "		else {\n");
 		fprintf(f, "			while(index-- > 0 && internal->link)\n");
 		fprintf(f, "				internal->link= internal->link->next;\n");
-		fprintf(f, "			found= 1;\n");
+		fprintf(f, "			found= (index == -1 && internal->link);\n");
 		fprintf(f, "		}\n");
 	}
 
@@ -1679,7 +1679,7 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 	dfunc->gencall= funcname;
 }
 
-static void rna_auto_types()
+static void rna_auto_types(void)
 {
 	StructDefRNA *ds;
 	PropertyDefRNA *dp;
@@ -2296,11 +2296,9 @@ static void rna_generate_struct(BlenderRNA *brna, StructRNA *srna, FILE *f)
 	prop= srna->cont.properties.last;
 	if(prop) fprintf(f, "(PropertyRNA*)&rna_%s_%s}},\n", srna->identifier, prop->identifier);
 	else fprintf(f, "NULL}},\n");
-
-	fprintf(f, "\tNULL,NULL,\n"); /* PyType - Cant initialize here */
-	
 	fprintf(f, "\t");
 	rna_print_c_string(f, srna->identifier);
+	fprintf(f, "\t, NULL,NULL\n"); /* PyType - Cant initialize here */
 	fprintf(f, ", %d, ", srna->flag);
 	rna_print_c_string(f, srna->name);
 	fprintf(f, ", ");
@@ -2359,7 +2357,7 @@ typedef struct RNAProcessItem {
 	void (*define)(BlenderRNA *brna);
 } RNAProcessItem;
 
-RNAProcessItem PROCESS_ITEMS[]= {
+static RNAProcessItem PROCESS_ITEMS[]= {
 	{"rna_rna.c", NULL, RNA_def_rna},
 	{"rna_ID.c", NULL, RNA_def_ID},
 	{"rna_texture.c", NULL, RNA_def_texture},

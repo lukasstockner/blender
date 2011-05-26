@@ -4131,7 +4131,6 @@ static void sculpt_flush_update(bContext *C)
 		rcti r;
 
 		BLI_pbvh_update(ss->pbvh, PBVH_UpdateBB, NULL);
-
 		if (sculpt_get_redraw_rect(ar, CTX_wm_region_view3d(C), ob, &r)) {
 			if (ss->cache)
 				ss->cache->previous_r= r;
@@ -4483,4 +4482,3 @@ void ED_operatortypes_sculpt(void)
 	WM_operatortype_append(SCULPT_OT_sculptmode_toggle);
 	WM_operatortype_append(SCULPT_OT_set_persistent_base);
 }
-

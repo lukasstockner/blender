@@ -51,6 +51,7 @@ struct DerivedMesh *multires_dm_create_from_derived(struct MultiresModifierData*
 
 struct MultiresModifierData *find_multires_modifier_before(struct Scene *scene,
 	struct ModifierData *lastmd);
+struct MultiresModifierData *get_multires_modifier(struct Scene *scene, struct Object *ob, int use_first);
 struct DerivedMesh *get_multires_dm(struct Scene *scene, struct MultiresModifierData *mmd,
 				struct Object *ob);
 void multiresModifier_join(struct Object *);
@@ -79,15 +80,15 @@ int multires_mdisp_corners(struct MDisps *s);
 void multires_mdisp_smooth_bounds(struct MDisps *disps);
 
 /* update multires data after topology changing */
-void multires_topology_changed(struct Object *ob);
+void multires_topology_changed(struct Scene *scene, struct Object *ob);
 
 /**** interpolation stuff ****/
-void old_mdisps_bilinear(float out[3], float (*disps)[3], int st, float u, float v);
-void mdisp_rot_crn_to_face(int S, int corners, int face_side, float x, float y, float *u, float *v);
-int mdisp_rot_face_to_crn(int corners, int face_side, float u, float v, float *x, float *y);
-void mdisp_apply_weight(int S, int corners, int x, int y, int face_side, float crn_weight[4][2], float *u_r, float *v_r);
-void mdisp_flip_disp(int S, int corners, float axis_x[2], float axis_y[2], float disp[3]);
+void old_mdisps_bilinear(float out[3], float (*disps)[3], const int st, float u, float v);
+void mdisp_rot_crn_to_face(const int S, const int corners, const int face_side, const float x, const float y, float *u, float *v);
+int mdisp_rot_face_to_crn(const int corners, const int face_side, const float u, const float v, float *x, float *y);
+void mdisp_apply_weight(const int S, const int corners, int x, int y, const int face_side, float crn_weight[4][2], float *u_r, float *v_r);
+void mdisp_flip_disp(const int S, const int corners, const float axis_x[2], const float axis_y[2], float disp[3]);
 void mdisp_join_tris(struct MDisps *dst, struct MDisps *tri1, struct MDisps *tri2);
 
-#endif
+#endif // BKE_MULTIRES_H
 

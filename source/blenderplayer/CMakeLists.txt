@@ -119,6 +119,7 @@ if(UNIX)
 		extern_binreloc
 		extern_glew
 		extern_minilzo
+		bf_intern_mikktspace
 	)
   
 	if(WITH_CODEC_QUICKTIME)

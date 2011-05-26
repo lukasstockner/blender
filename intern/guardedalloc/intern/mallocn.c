@@ -57,7 +57,7 @@
 
 /* Only for debugging:
  * lets you count the allocations so as to find the allocator of unfreed memory
- * in situations where the leak is pradictable */
+ * in situations where the leak is predictable */
 
 // #define DEBUG_MEMCOUNTER
 
@@ -167,12 +167,13 @@ static int malloc_debug_memset= 0;
 
 static void print_error(const char *str, ...)
 {
-	char buf[1024];
+	char buf[512];
 	va_list ap;
 
 	va_start(ap, str);
-	vsprintf(buf, str, ap);
+	vsnprintf(buf, sizeof(buf), str, ap);
 	va_end(ap);
+	buf[sizeof(buf) - 1] = '\0';
 
 	if (error_callback) error_callback(buf);
 }

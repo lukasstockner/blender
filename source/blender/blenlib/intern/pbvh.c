@@ -44,22 +44,22 @@
 /* Bitmap */
 typedef char* BLI_bitmap;
 
-BLI_bitmap BLI_bitmap_new(int tot)
+static BLI_bitmap BLI_bitmap_new(int tot)
 {
 	return MEM_callocN((tot >> 3) + 1, "BLI bitmap");
 }
 
-int BLI_bitmap_get(BLI_bitmap b, int index)
+static int BLI_bitmap_get(BLI_bitmap b, int index)
 {
 	return b[index >> 3] & (1 << (index & 7));
 }
 
-void BLI_bitmap_set(BLI_bitmap b, int index)
+static void BLI_bitmap_set(BLI_bitmap b, int index)
 {
 	b[index >> 3] |= (1 << (index & 7));
 }
 
-void BLI_bitmap_clear(BLI_bitmap b, int index)
+static void BLI_bitmap_clear(BLI_bitmap b, int index)
 {
 	b[index >> 3] &= ~(1 << (index & 7));
 }
@@ -264,7 +264,7 @@ static int partition_indices(int *prim_indices, int lo, int hi, int axis,
 	}
 }
 
-void check_partitioning(int *prim_indices, int lo, int hi, int axis,
+static void check_partitioning(int *prim_indices, int lo, int hi, int axis,
 				   float mid, BBC *prim_bbc, int index_of_2nd_partition)
 {
 	int i;
@@ -406,7 +406,7 @@ static void build_grids_leaf_node(PBVH *bvh, PBVHNode *node)
    offset and start indicate a range in the array of primitive indices
 */
 
-void build_sub(PBVH *bvh, int node_index, BB *cb, BBC *prim_bbc,
+static void build_sub(PBVH *bvh, int node_index, BB *cb, BBC *prim_bbc,
 		   int offset, int count)
 {
 	int i, axis, end;
@@ -842,7 +842,7 @@ float BLI_pbvh_node_get_tmin(PBVHNode* node)
     return node->tmin;
 }
 
-void BLI_pbvh_search_callback_occluded(PBVH *bvh,
+static void BLI_pbvh_search_callback_occluded(PBVH *bvh,
 	BLI_pbvh_SearchCallback scb, void *search_data,
 	BLI_pbvh_HitOccludedCallback hcb, void *hit_data)
 {
@@ -1478,13 +1478,6 @@ void BLI_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3], int smo
 	}
 }
 
-void BLI_pbvh_grids_update(PBVH *bvh, DMGridData **grids, DMGridAdjacency *gridadj, void **gridfaces)
-{
-	bvh->grids= grids;
-	bvh->gridadj= gridadj;
-	bvh->gridfaces= gridfaces;
-}
-
 float (*BLI_pbvh_get_vertCos(PBVH *pbvh))[3]
 {
 	int a;
@@ -1523,13 +1516,22 @@ void BLI_pbvh_apply_vertCos(PBVH *pbvh, float (*vertCos)[3])
 	}
 
 	if (pbvh->verts) {
+		MVert *mvert= pbvh->verts;
 		/* copy new verts coords */
-		for (a= 0; a < pbvh->totvert; ++a) {
-			copy_v3_v3(pbvh->verts[a].co, vertCos[a]);
+		for (a= 0; a < pbvh->totvert; ++a, ++mvert) {
+			copy_v3_v3(mvert->co, vertCos[a]);
+			mvert->flag |= ME_VERT_PBVH_UPDATE;
 		}
 
 		/* coordinates are new -- normals should also be updated */
 		mesh_calc_normals(pbvh->verts, pbvh->totvert, pbvh->faces, pbvh->totprim, NULL);
+
+		for (a= 0; a < pbvh->totnode; ++a)
+			BLI_pbvh_node_mark_update(&pbvh->nodes[a]);
+
+		BLI_pbvh_update(pbvh, PBVH_UpdateBB, NULL);
+		BLI_pbvh_update(pbvh, PBVH_UpdateOriginalBB, NULL);
+
 	}
 }
 

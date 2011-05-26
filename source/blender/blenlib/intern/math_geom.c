@@ -236,51 +236,39 @@ float dist_to_line_segment_v3(float *v1, float *v2, float *v3)
 /* intersect Line-Line, shorts */
 int isect_line_line_v2_short(const short *v1, const short *v2, const short *v3, const short *v4)
 {
-	/* return:
-	-1: colliniar
-	 0: no intersection of segments
-	 1: exact intersection of segments
-	 2: cross-intersection of segments
-	*/
 	float div, labda, mu;
 	
 	div= (float)((v2[0]-v1[0])*(v4[1]-v3[1])-(v2[1]-v1[1])*(v4[0]-v3[0]));
-	if(div==0.0f) return -1;
+	if(div==0.0f) return ISECT_LINE_LINE_COLINEAR;
 	
 	labda= ((float)(v1[1]-v3[1])*(v4[0]-v3[0])-(v1[0]-v3[0])*(v4[1]-v3[1]))/div;
 	
 	mu= ((float)(v1[1]-v3[1])*(v2[0]-v1[0])-(v1[0]-v3[0])*(v2[1]-v1[1]))/div;
 	
 	if(labda>=0.0f && labda<=1.0f && mu>=0.0f && mu<=1.0f) {
-		if(labda==0.0f || labda==1.0f || mu==0.0f || mu==1.0f) return 1;
-		return 2;
+		if(labda==0.0f || labda==1.0f || mu==0.0f || mu==1.0f) return ISECT_LINE_LINE_EXACT;
+		return ISECT_LINE_LINE_CROSS;
 	}
-	return 0;
+	return ISECT_LINE_LINE_NONE;
 }
 
 /* intersect Line-Line, floats */
 int isect_line_line_v2(const float *v1, const float *v2, const float *v3, const float *v4)
 {
-	/* return:
-	-1: colliniar
-0: no intersection of segments
-1: exact intersection of segments
-2: cross-intersection of segments
-	*/
 	float div, labda, mu;
 	
 	div= (v2[0]-v1[0])*(v4[1]-v3[1])-(v2[1]-v1[1])*(v4[0]-v3[0]);
-	if(div==0.0) return -1;
+	if(div==0.0) return ISECT_LINE_LINE_COLINEAR;
 	
 	labda= ((float)(v1[1]-v3[1])*(v4[0]-v3[0])-(v1[0]-v3[0])*(v4[1]-v3[1]))/div;
 	
 	mu= ((float)(v1[1]-v3[1])*(v2[0]-v1[0])-(v1[0]-v3[0])*(v2[1]-v1[1]))/div;
 	
 	if(labda>=0.0 && labda<=1.0 && mu>=0.0 && mu<=1.0) {
-		if(labda==0.0 || labda==1.0 || mu==0.0 || mu==1.0) return 1;
-		return 2;
+		if(labda==0.0 || labda==1.0 || mu==0.0 || mu==1.0) return ISECT_LINE_LINE_EXACT;
+		return ISECT_LINE_LINE_CROSS;
 	}
-	return 0;
+	return ISECT_LINE_LINE_NONE;
 }
 
 /* get intersection point of two 2D segments and return intersection type:
@@ -1370,6 +1358,71 @@ int clip_line_plane(float p1[3], float p2[3], float plane[4])
 	}
 }
 
+
+void plot_line_v2v2i(int p1[2], int p2[2], int (*callback)(int, int, void *), void *userData)
+{
+	int x1= p1[0];
+	int y1= p1[1];
+	int x2= p2[0];
+	int y2= p2[1];
+
+	signed char ix;
+	signed char iy;
+
+	// if x1 == x2 or y1 == y2, then it does not matter what we set here
+	int delta_x = (x2 > x1?(ix = 1, x2 - x1):(ix = -1, x1 - x2)) << 1;
+	int delta_y = (y2 > y1?(iy = 1, y2 - y1):(iy = -1, y1 - y2)) << 1;
+
+	if(callback(x1, y1, userData) == 0) {
+		return;
+	}
+
+	if (delta_x >= delta_y) {
+		// error may go below zero
+		int error = delta_y - (delta_x >> 1);
+
+		while (x1 != x2) {
+			if (error >= 0) {
+				if (error || (ix > 0)) {
+					y1 += iy;
+					error -= delta_x;
+				}
+				// else do nothing
+			}
+			// else do nothing
+
+			x1 += ix;
+			error += delta_y;
+
+			if(callback(x1, y1, userData) == 0) {
+				return ;
+			}
+		}
+	}
+	else {
+		// error may go below zero
+		int error = delta_x - (delta_y >> 1);
+
+		while (y1 != y2) {
+			if (error >= 0) {
+				if (error || (iy > 0)) {
+					x1 += ix;
+					error -= delta_y;
+				}
+				// else do nothing
+			}
+			// else do nothing
+
+			y1 += iy;
+			error += delta_x;
+
+			if(callback(x1, y1, userData) == 0) {
+				return;
+			}
+		}
+	}
+}
+
 /****************************** Interpolation ********************************/
 
 static float tri_signed_area(float *v1, float *v2, float *v3, int i, int j)
@@ -2017,7 +2070,7 @@ pointers may be NULL if not needed
 
 */
 /* can't believe there is none in math utils */
-float _det_m3(float m2[3][3])
+static float _det_m3(float m2[3][3])
 {
 	float det = 0.f;
 	if (m2){
@@ -2568,4 +2621,3 @@ float form_factor_hemi_poly(float p[3], float n[3], float v1[3], float v2[3], fl
 
 	return contrib;
 }
-

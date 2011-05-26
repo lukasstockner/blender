@@ -110,7 +110,7 @@ Object *ED_object_pose_armature(Object *ob)
 
 
 /* This function is used to indicate that a bone is selected and needs keyframes inserted */
-void set_pose_keys (Object *ob)
+static void set_pose_keys (Object *ob)
 {
 	bArmature *arm= ob->data;
 	bPoseChannel *chan;
@@ -295,7 +295,7 @@ void POSE_OT_paths_calculate (wmOperatorType *ot)
 /* --------- */
 
 /* for the object with pose/action: clear path curves for selected bones only */
-void ED_pose_clear_paths(Object *ob)
+static void ED_pose_clear_paths(Object *ob)
 {
 	bPoseChannel *pchan;
 	short skipped = 0;
@@ -663,7 +663,7 @@ void POSE_OT_select_grouped (wmOperatorType *ot)
 
 /* ********************************************** */
 
-void pose_copy_menu(Scene *scene)
+static void pose_copy_menu(Scene *scene)
 {
 	Object *obedit= scene->obedit; // XXX context
 	Object *ob= OBACT;
@@ -932,6 +932,7 @@ static int pose_paste_exec (bContext *C, wmOperator *op)
 	Object *ob= ED_object_pose_armature(CTX_data_active_object(C));
 	bPoseChannel *chan, *pchan;
 	int flip= RNA_boolean_get(op->ptr, "flipped");
+	int selOnly= RNA_boolean_get(op->ptr, "selected_mask");
 	
 	/* sanity checks */
 	if ELEM(NULL, ob, ob->pose)
@@ -945,17 +946,28 @@ static int pose_paste_exec (bContext *C, wmOperator *op)
 	/* Safely merge all of the channels in the buffer pose into any existing pose */
 	for (chan= g_posebuf->chanbase.first; chan; chan=chan->next) {
 		if (chan->flag & POSE_KEY) {
-			/* get the name - if flipping, we must flip this first */
 			char name[32];
+			short paste_ok;
+			
+			/* get the name - if flipping, we must flip this first */
 			if (flip)
 				flip_side_name(name, chan->name, 0);		/* 0 = don't strip off number extensions */
 			else
 				BLI_strncpy(name, chan->name, sizeof(name));
 				
-			/* only copy when channel exists, poses are not meant to add random channels to anymore */
+			/* only copy when:
+			 * 	1) channel exists - poses are not meant to add random channels to anymore
+			 * 	2) if selection-masking is on, channel is selected - only selected bones get pasted on, allowing making both sides symmetrical
+			 */
 			pchan= get_pose_channel(ob->pose, name);
 			
-			if (pchan) {
+			if (selOnly)
+				paste_ok= ((pchan) && (pchan->bone->flag & BONE_SELECTED));
+			else
+				paste_ok= ((pchan != NULL));
+			
+			/* continue? */
+			if (paste_ok) {
 				/* only loc rot size 
 				 *	- only copies transform info for the pose 
 				 */
@@ -1098,6 +1110,7 @@ void POSE_OT_paste (wmOperatorType *ot)
 	
 	/* properties */
 	RNA_def_boolean(ot->srna, "flipped", 0, "Flipped on X-Axis", "Paste the stored pose flipped on to current pose");
+	RNA_def_boolean(ot->srna, "selected_mask", 0, "On Selected Only", "Only paste the stored post on to selected bones in the current pose");
 }
 
 /* ********************************************** */
@@ -1554,7 +1567,7 @@ void POSE_OT_autoside_names (wmOperatorType *ot)
 /* ********************************************** */
 
 /* context active object, or weightpainted object with armature in posemode */
-void pose_activate_flipped_bone(Scene *scene)
+static void pose_activate_flipped_bone(Scene *scene)
 {
 	Object *ob= OBACT;
 	
@@ -1896,10 +1909,7 @@ static int pose_flip_quats_exec (bContext *C, wmOperator *UNUSED(op))
 		/* only if bone is using quaternion rotation */
 		if (pchan->rotmode == ROT_MODE_QUAT) {
 			/* quaternions have 720 degree range */
-			pchan->quat[0]= -pchan->quat[0];
-			pchan->quat[1]= -pchan->quat[1];
-			pchan->quat[2]= -pchan->quat[2];
-			pchan->quat[3]= -pchan->quat[3];
+			negate_v4(pchan->quat);
 			
 			/* tagging */
 			if (autokeyframe_cfra_can_key(scene, &ob->id)) {

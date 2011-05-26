@@ -32,7 +32,7 @@ set(INC
 	../gpu
 	../../../intern/ghost
 	../../../intern/guardedalloc
-	${ZLIB_INC}
+	${ZLIB_INCLUDE_DIRS}
 	${FREETYPE_INCLUDE_DIRS}
 )
 

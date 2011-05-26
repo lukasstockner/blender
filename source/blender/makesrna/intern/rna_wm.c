@@ -844,6 +844,40 @@ static StructRNA *rna_Operator_register(bContext *C, ReportList *reports, void *
 
 	{	/* convert foo.bar to FOO_OT_bar
 		 * allocate the description and the idname in 1 go */
+
+		/* inconveniently long name sanity check */
+		{
+			char *ch= _operator_idname;
+			int i;
+			int dot= 0;
+			for(i=0; *ch; i++) {
+				if((*ch >= 'a' && *ch <= 'z') || (*ch >= '0' && *ch <= '9') || *ch == '_') {
+					/* pass */
+				}
+				else if(*ch == '.') {
+					dot++;
+				}
+				else {
+					BKE_reportf(reports, RPT_ERROR, "registering operator class: '%s', invalid bl_idname '%s', at position %d", identifier, _operator_idname, i);
+					return NULL;
+				}
+
+				ch++;
+			}
+
+			if(i > ((int)sizeof(dummyop.idname)) - 3) {
+				BKE_reportf(reports, RPT_ERROR, "registering operator class: '%s', invalid bl_idname '%s', is too long, maximum length is %d.", identifier, _operator_idname, (int)sizeof(dummyop.idname) - 3);
+				return NULL;
+			}
+
+			if(dot != 1) {
+				BKE_reportf(reports, RPT_ERROR, "registering operator class: '%s', invalid bl_idname '%s', must contain 1 '.' character", identifier, _operator_idname);
+				return NULL;
+			}
+		}
+		/* end sanity check */
+
+		{
 		int idlen = strlen(_operator_idname) + 4;
 		int namelen = strlen(_operator_name) + 1;
 		int desclen = strlen(_operator_descr) + 1;
@@ -858,10 +892,6 @@ static StructRNA *rna_Operator_register(bContext *C, ReportList *reports, void *
 		strcpy(ch, _operator_descr);
 		dummyot.description = ch;
 	}
-
-	if(strlen(identifier) >= sizeof(dummyop.idname)) {
-		BKE_reportf(reports, RPT_ERROR, "registering operator class: '%s' is too long, maximum length is %d.", identifier, (int)sizeof(dummyop.idname));
-		return NULL;
 	}
 
 	/* check if we have registered this operator type before, and remove it */
@@ -1118,10 +1148,10 @@ static void rna_def_operator(BlenderRNA *brna)
 	/* Registration */
 	prop= RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "type->idname");
-	RNA_def_property_string_maxlength(prop, OP_MAX_TYPENAME); /* else it uses the pointer size! */
+	RNA_def_property_string_maxlength(prop, OP_MAX_TYPENAME-3); /* else it uses the pointer size!. -3 because '.' -> '_OT_' */
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_Operator_bl_idname_set");
 	// RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_flag(prop, PROP_REGISTER);
+	RNA_def_property_flag(prop, PROP_REGISTER|PROP_NEVER_CLAMP);
 	RNA_def_struct_name_property(srna, prop);
 
 	prop= RNA_def_property(srna, "bl_label", PROP_STRING, PROP_NONE);
@@ -1182,7 +1212,7 @@ static void rna_def_macro_operator(BlenderRNA *brna)
 	RNA_def_property_string_maxlength(prop, OP_MAX_TYPENAME); /* else it uses the pointer size! */
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_Operator_bl_idname_set");
 	// RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_flag(prop, PROP_REGISTER);
+	RNA_def_property_flag(prop, PROP_REGISTER|PROP_NEVER_CLAMP);
 	RNA_def_struct_name_property(srna, prop);
 
 	prop= RNA_def_property(srna, "bl_label", PROP_STRING, PROP_NONE);
@@ -1235,7 +1265,7 @@ static void rna_def_operator_utils(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	srna= RNA_def_struct(brna, "OperatorMousePath", "IDPropertyGroup");
+	srna= RNA_def_struct(brna, "OperatorMousePath", "PropertyGroup");
 	RNA_def_struct_ui_text(srna, "Operator Mouse Path", "Mouse path values for operators that record such paths");
 
 	prop= RNA_def_property(srna, "loc", PROP_FLOAT, PROP_XYZ);
@@ -1253,7 +1283,7 @@ static void rna_def_operator_filelist_element(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	srna= RNA_def_struct(brna, "OperatorFileListElement", "IDPropertyGroup");
+	srna= RNA_def_struct(brna, "OperatorFileListElement", "PropertyGroup");
 	RNA_def_struct_ui_text(srna, "Operator File List Element", "");
 	
 	

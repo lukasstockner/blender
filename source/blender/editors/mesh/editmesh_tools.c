@@ -524,7 +524,7 @@ static void xsortvert_flag__doSetX(void *userData, EditVert *eve, int x, int y, 
 }
 
 /* all verts with (flag & 'flag') are sorted */
-void xsortvert_flag(bContext *C, int flag)
+static void xsortvert_flag(bContext *C, int flag)
 {
 	ViewContext vc;
 	EditVert *eve;
@@ -563,7 +563,7 @@ void xsortvert_flag(bContext *C, int flag)
 }
 
 /* called from buttons */
-void hashvert_flag(EditMesh *em, int flag)
+static void hashvert_flag(EditMesh *em, int flag)
 {
 	/* switch vertex order using hash table */
 	EditVert *eve;
@@ -701,7 +701,7 @@ static int mesh_extrude_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-EnumPropertyItem extrude_items[] = {
+static EnumPropertyItem extrude_items[] = {
 		{1, "REGION", 0, "Region", ""},
 		{2, "FACES", 0, "Individual Faces", ""},
 		{3, "EDGES", 0, "Only Edges", ""},
@@ -3460,7 +3460,7 @@ void join_triangles(EditMesh *em)
 #define FACE_MARKCLEAR(f) (f->f1 = 1)
 
 /* quick hack, basically a copy of beautify_fill */
-void edge_flip(EditMesh *em)
+static void edge_flip(EditMesh *em)
 {
 	EditVert *v1, *v2, *v3, *v4;
 	EditEdge *eed, *nexted;
@@ -3835,7 +3835,7 @@ void MESH_OT_edge_rotate(wmOperatorType *ot)
 
   /* XXX old bevel not ported yet */
 
-void bevel_menu(EditMesh *em)
+static void bevel_menu(EditMesh *em)
 {
 	BME_Mesh *bm;
 	BME_TransData_Head *td;
@@ -5985,7 +5985,6 @@ static int select_vertex_path_exec(bContext *C, wmOperator *op)
 	EditMesh *em= BKE_mesh_get_editmesh((Mesh *)obedit->data);
 	EditVert *eve, *s, *t;
 	EditEdge *eed;
-	EditSelection *ese;
 	PathEdge *newpe, *currpe;
 	PathNode *currpn;
 	PathNode *Q;
@@ -5996,17 +5995,24 @@ static int select_vertex_path_exec(bContext *C, wmOperator *op)
 	Heap *heap; /*binary heap for sorting pointers to PathNodes based upon a 'cost'*/
 
 	s = t = NULL;
+	for(eve=em->verts.first; eve; eve=eve->next) {
+		if(eve->f&SELECT) {
+			if(s == NULL) s= eve;
+			else if(t == NULL) t= eve;
+			else {
+				/* more than two vertices are selected,
+				   show warning message and cancel operator */
+				s = t = NULL;
+				break;
+			}
 
-	ese = ((EditSelection*)em->selected.last);
-	if(ese && ese->type == EDITVERT && ese->prev && ese->prev->type == EDITVERT) {
-		t = (EditVert*)ese->data;
-		s = (EditVert*)ese->prev->data;
+		}
 
 		/*need to find out if t is actually reachable by s....*/
-		for(eve=em->verts.first; eve; eve=eve->next){
 			eve->f1 = 0;
 		}
 
+	if(s != NULL && t != NULL) {
 		s->f1 = 1;
 
 		unbalanced = 1;
@@ -7151,7 +7157,7 @@ static int sort_faces_exec(bContext *C, wmOperator *op)
 	if (!v3d) return OPERATOR_CANCELLED;
 
 	/* This operator work in Object Mode, not in edit mode.
-	 * After talk with Cambell we agree that there is no point to port this to EditMesh right now.
+	 * After talk with Campbell we agree that there is no point to port this to EditMesh right now.
 	 * so for now, we just exit_editmode and enter_editmode at the end of this function.
 	 */
 	ED_object_exit_editmode(C, EM_FREEDATA);

@@ -413,6 +413,8 @@ static Object *effector_add_type(bContext *C, wmOperator *op, int type)
 
 	ob->pd= object_add_collision_fields(type);
 
+	DAG_scene_sort(CTX_data_main(C), CTX_data_scene(C));
+
 	return ob;
 }
 
@@ -500,7 +502,7 @@ void OBJECT_OT_camera_add(wmOperatorType *ot)
 static int object_metaball_add_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit= CTX_data_edit_object(C);
-	MetaElem *elem;
+	/*MetaElem *elem;*/ /*UNUSED*/
 	int newob= 0;
 	int enter_editmode;
 	unsigned int layer;
@@ -520,7 +522,7 @@ static int object_metaball_add_exec(bContext *C, wmOperator *op)
 	
 	ED_object_new_primitive_matrix(C, obedit, loc, rot, mat);
 	
-	elem= (MetaElem*)add_metaball_primitive(C, mat, RNA_enum_get(op->ptr, "type"), newob);
+	/* elem= (MetaElem *) */ add_metaball_primitive(C, mat, RNA_enum_get(op->ptr, "type"), newob);
 	
 	/* userdef */
 	if (newob && !enter_editmode) {
@@ -1125,6 +1127,15 @@ static int convert_exec(bContext *C, wmOperator *op)
 			if (ob->type != target) {
 				base->flag &= ~SELECT;
 				ob->flag &= ~SELECT;
+			}
+
+			/* obdata already modified */
+			if(!IS_TAGGED(ob->data)) {
+				/* When 2 objects with linked data are selected, converting both
+				 * would keep modifiers on all but the converted object [#26003] */
+				if(ob->type == OB_MESH) {
+					object_free_modifiers(ob);	/* after derivedmesh calls! */
+		}
 			}
 		}
 		else if (ob->type==OB_MESH && target == OB_CURVE) {

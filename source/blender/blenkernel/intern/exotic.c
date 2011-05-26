@@ -363,10 +363,16 @@ static void read_stl_mesh_ascii(Scene *scene, const char *str)
 		 * sure we have enough storage for some more faces
 		 */
 		if ( (totface) && ( (totface % 10000) == 0 ) ) {
+			float  *vertdata_old= vertdata;
 			++numtenthousand;
 			vertdata = realloc(vertdata, 
 							   numtenthousand*3*30000*sizeof(float));
-			if (!vertdata) { STLALLOCERROR; }
+			if (!vertdata) {
+				if(vertdata_old) {
+					free(vertdata_old);
+		}
+				STLALLOCERROR;
+			}
 		}
 		
 		/* Don't read normal, but check line for proper syntax anyway
@@ -506,9 +512,6 @@ int BKE_read_exotic(Scene *scene, const char *name)
 
 /* ************************ WRITE ************************** */
 
-
-char temp_dir[160]= {0, 0};
-
 static void write_vert_stl(Object *ob, MVert *verts, int index, FILE *fpSTL)
 {
 	float vert[3];
@@ -581,7 +584,6 @@ void write_stl(Scene *scene, char *str)
 		BKE_reportf(reports, RPT_ERROR, "Can't open file: %s.", strerror(errno));
 		return;
 	}
-	strcpy(temp_dir, str);
 	
 	//XXX waitcursor(1);
 	
@@ -867,7 +869,6 @@ void write_dxf(struct Scene *scene, char *str)
 		//XXX error("Can't write file");
 		return;
 	}
-	strcpy(temp_dir, str);
 	
 	//XXX waitcursor(1);
 	
@@ -1127,7 +1128,7 @@ static void dxf_add_mat (Object *ob, Mesh *me, float color[3], char *layer)
 						
 	ma= G.main->mat.first;
 	while(ma) {
-		if(ma->mtex[0]==0) {
+		if(ma->mtex[0]==NULL) {
 			if(color[0]==ma->r && color[1]==ma->g && color[2]==ma->b) {
 				me->mat[0]= ma;
 				ma->id.us++;
@@ -1136,7 +1137,7 @@ static void dxf_add_mat (Object *ob, Mesh *me, float color[3], char *layer)
 		}
 		ma= ma->id.next;
 	}
-	if(ma==0) {
+	if(ma==NULL) {
 		ma= add_material("ext");
 		me->mat[0]= ma;
 		ma->r= color[0];
@@ -1645,7 +1646,7 @@ static void dxf_read_arc(Scene *scene, int noob)
 	cent[2]= center[2];
 
 	dxf_get_mesh(scene, &me, &ob, noob);
-	strcpy(oldllay, layname);		
+	BLI_strncpy(oldllay, layname, sizeof(oldllay));
 	if(ob) VECCOPY(ob->loc, cent);
 	dxf_add_mat (ob, me, color, layname);
 

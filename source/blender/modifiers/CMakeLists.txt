@@ -34,8 +34,7 @@ set(INC
     ../../../intern/guardedalloc
 	../../../intern/decimation/extern
 	../../../intern/elbeem/extern
-	../../../intern/bsp/extern
-	${ZLIB_INC}
+	${ZLIB_INCLUDE_DIRS}
 )
 
 set(SRC

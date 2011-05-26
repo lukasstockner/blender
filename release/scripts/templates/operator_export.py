@@ -1,5 +1,6 @@
 import bpy
 
+
 def write_some_data(context, filepath, use_some_setting):
     print("running write_some_data...")
     f = open(filepath, 'w')
@@ -47,7 +48,19 @@ class ExportSomeData(bpy.types.Operator, ExportHelper):
 def menu_func_export(self, context):
     self.layout.operator(ExportSomeData.bl_idname, text="Text Export Operator")
 
+
+def register():
+    bpy.utils.register_class(ExportSomeData)
 bpy.types.INFO_MT_file_export.append(menu_func_export)
 
+
+def unregister():
+    bpy.utils.unregister_class(ExportSomeData)
+    bpy.types.INFO_MT_file_export.remove(menu_func_export)
+
+
 if __name__ == "__main__":
+    register()
+
+    # test call
     bpy.ops.export.some_data('INVOKE_DEFAULT')

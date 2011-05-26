@@ -21,12 +21,15 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
+# <pep8 compliant>
+
 import os
 from os.path import join, dirname, normpath, abspath, splitext, relpath, exists
 
 base = join(os.path.dirname(__file__), "..", "..")
 base = normpath(base)
 base = abspath(base)
+
 
 def source_list(path, filename_check=None):
     for dirpath, dirnames, filenames in os.walk(path):
@@ -40,30 +43,37 @@ def source_list(path, filename_check=None):
             if filename_check is None or filename_check(filepath):
                 yield filepath
 
+
 # extension checking
 def is_c_header(filename):
     ext = splitext(filename)[1]
     return (ext in (".h", ".hpp", ".hxx"))
 
+
 def is_cmake(filename):
     ext = splitext(filename)[1]
     return (ext == ".cmake") or (filename == "CMakeLists.txt")
+
 
 def is_c_header(filename):
     ext = splitext(filename)[1]
     return (ext in (".h", ".hpp", ".hxx"))
 
+
 def is_c(filename):
     ext = splitext(filename)[1]
     return (ext in (".c", ".cpp", ".cxx", ".m", ".mm", ".rc"))
 
+
 def is_c_any(filename):
     return is_c(filename) or is_c_header(filename)
+
 
 def is_svn_file(filename):
 	dn, fn = os.path.split(filename)
 	filename_svn = join(dn, ".svn", "text-base", "%s.svn-base" % fn)
 	return exists(filename_svn)
+
 
 def is_project_file(filename):
 	return (is_c_any(filename) or is_cmake(filename)) and is_svn_file(filename)

@@ -45,6 +45,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_gpencil_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "UI_view2d.h"
 
@@ -66,6 +67,8 @@
 /* Temporary 'Stroke' Operation data */
 typedef struct tGPsdata {
 	Scene *scene;       /* current scene from context */
+	
+	wmWindow *win;		/* window where painting originated */
 	ScrArea *sa;		/* area where painting originated */
 	ARegion *ar;        /* region where painting originated */
 	View2D *v2d;		/* needed for GP_STROKE_2DSPACE */
@@ -540,7 +543,7 @@ static void gp_stroke_newfrombuffer (tGPsdata *p)
 
 		/* get an array of depths, far depths are blended */
 		if(gpencil_project_check(p)) {
-			short mval[2];
+			short mval[2], mval_prev[2]= {0};
 			int interp_depth = 0;
 			int found_depth = 0;
 
@@ -548,12 +551,19 @@ static void gp_stroke_newfrombuffer (tGPsdata *p)
 
 			for (i=0, ptc=gpd->sbuffer; i < gpd->sbuffer_size; i++, ptc++, pt++) {
 				mval[0]= ptc->x; mval[1]= ptc->y;
-				if(view_autodist_depth(p->ar, mval, depth_margin, depth_arr+i) == 0)
+
+				if ((view_autodist_depth(p->ar, mval, depth_margin, depth_arr+i) == 0) &&
+					(i && (view_autodist_depth_segment(p->ar, mval, mval_prev, depth_margin + 1, depth_arr+i) == 0))
+				) {
 					interp_depth= TRUE;
-				else
+				}
+				else {
 					found_depth= TRUE;
 			}
 
+				VECCOPY2D(mval_prev, mval);
+			}
+			
 			if(found_depth==FALSE) {
 				/* eeh... not much we can do.. :/, ignore depth in this case, use the 3D cursor */
 				for (i=gpd->sbuffer_size-1; i >= 0; i--)
@@ -884,15 +894,16 @@ static tGPsdata *gp_session_initpaint (bContext *C)
 	/* create new context data */
 	p= MEM_callocN(sizeof(tGPsdata), "GPencil Drawing Data");
 	
-	/* pass on current scene */
+	/* pass on current scene and window */
 	p->scene= CTX_data_scene(C);
+	p->win= CTX_wm_window(C);
 	
 	switch (curarea->spacetype) {
 		/* supported views first */
 		case SPACE_VIEW3D:
 		{
-			View3D *v3d= curarea->spacedata.first;
-			RegionView3D *rv3d= ar->regiondata;
+			// View3D *v3d= curarea->spacedata.first;
+			// RegionView3D *rv3d= ar->regiondata;
 			
 			/* set current area 
 			 *	- must verify that region data is 3D-view (and not something else)
@@ -907,12 +918,6 @@ static tGPsdata *gp_session_initpaint (bContext *C)
 				return p;
 			}
 			
-			/* for camera view set the subrect */
-			if(rv3d->persp == RV3D_CAMOB) {
-				view3d_calc_camera_border(p->scene, p->ar, NULL, v3d, &p->subrect_data);
-				p->subrect= &p->subrect_data;
-			}
-
 #if 0 // XXX will this sort of antiquated stuff be restored?
 			/* check that gpencil data is allowed to be drawn */
 			if ((v3d->flag2 & V3D_DISPGP)==0) {
@@ -1093,9 +1098,17 @@ static void gp_paint_initstroke (tGPsdata *p, short paintmode)
 		switch (p->sa->spacetype) {
 			case SPACE_VIEW3D:
 			{
+				View3D *v3d= p->sa->spacedata.first;
 				RegionView3D *rv3d= p->ar->regiondata;
 				float rvec[3];
 				
+				/* for camera view set the subrect */
+				if (rv3d->persp == RV3D_CAMOB) {
+					view3d_calc_camera_border(p->scene, p->ar, NULL, v3d, &p->subrect_data, -1); /* negative shift */
+					p->subrect= &p->subrect_data;
+				}
+				
+				/* get reference point for 3d space placement */
 				gp_get_3d_reference(p, rvec);
 				initgrabz(rv3d, rvec[0], rvec[1], rvec[2]);
 				
@@ -1168,6 +1181,17 @@ static void gp_paint_initstroke (tGPsdata *p, short paintmode)
 /* finish off a stroke (clears buffer, but doesn't finish the paint operation) */
 static void gp_paint_strokeend (tGPsdata *p)
 {
+	/* for surface sketching, need to set the right OpenGL context stuff so that 
+	 * the conversions will project the values correctly...
+	 */
+	if (gpencil_project_check(p)) {
+		View3D *v3d= p->sa->spacedata.first;
+		
+		/* need to restore the original projection settings before packing up */
+		view3d_region_operator_needs_opengl(p->win, p->ar);
+		view_autodist_init(p->scene, p->ar, v3d, (p->gpd->flag & GP_DATA_DEPTH_STROKE) ? 1:0);
+	}
+	
 	/* check if doing eraser or not */
 	if ((p->gpd->sbuffer_sflag & GP_STROKE_ERASER) == 0) {
 		/* smooth stroke before transferring? */
@@ -1243,14 +1267,6 @@ static void gpencil_draw_exit (bContext *C, wmOperator *op)
 	}
 	
 	/* cleanup */
-	if(gpencil_project_check(p)) {
-		View3D *v3d= p->sa->spacedata.first;
-		
-		/* need to restore the original projection settings before packing up */
-		view3d_operator_needs_opengl(C);
-		view_autodist_init(p->scene, p->ar, v3d, (p->gpd->flag & GP_DATA_DEPTH_STROKE) ? 1:0);
-	}
-
 	gp_paint_cleanup(p);
 	gp_session_cleanup(p);
 	
@@ -1569,7 +1585,7 @@ static int gpencil_draw_modal (bContext *C, wmOperator *op, wmEvent *event)
 			if (GPENCIL_SKETCH_SESSIONS_ON(p->scene)) {
 				/* end stroke only, and then wait to resume painting soon */
 				//printf("\t\tGP - end stroke only\n");
-				gp_paint_strokeend(p);
+				gp_paint_cleanup(p);
 				p->status= GP_STATUS_IDLING;
 				
 				/* we've just entered idling state, so this event was processed (but no others yet) */

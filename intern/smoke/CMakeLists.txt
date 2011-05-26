@@ -29,8 +29,8 @@ set(INC
 	../memutil
 	../guardealloc
 	../../extern/bullet2/src
-	${PNG_INC}
-	${ZLIB_INC}
+	${PNG_INCLUDE_DIR}
+	${ZLIB_INCLUDE_DIRS}
 )
 
 set(SRC

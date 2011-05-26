@@ -127,6 +127,7 @@ typedef struct Library {
 #define PREVIEW_MIPMAP_LARGE 1
 
 typedef struct PreviewImage {
+	/* All values of 2 are really PREVIEW_MIPMAPS */
 	unsigned int w[2];
 	unsigned int h[2];	
 	short changed[2];

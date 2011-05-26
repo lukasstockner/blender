@@ -41,6 +41,7 @@
 #include "PIL_time.h"
 
 #include "BLI_threads.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "IMB_imbuf.h"
@@ -83,7 +84,7 @@ static void image_verify_buffer_float(Image *ima, ImBuf *ibuf, int color_manage)
 	   NOTE: if float buffer changes, we have to manually remove the rect
 	*/
 
-	if(ibuf->rect_float && ibuf->rect==NULL) {
+	if(ibuf->rect_float && (ibuf->rect==NULL || (ibuf->userflags & IB_RECT_INVALID)) ) {
 		if(color_manage) {
 			if(ima && ima->source == IMA_SRC_VIEWER)
 				ibuf->profile = IB_PROFILE_LINEAR_RGB;
@@ -129,25 +130,26 @@ static void draw_render_info(Scene *scene, Image *ima, ARegion *ar)
 void draw_image_info(ARegion *ar, int channels, int x, int y, char *cp, float *fp, int *zp, float *zpf)
 {
 	char str[256];
-	int ofs;
+	int ofs= 0;
 	
-	ofs= sprintf(str, "X: %4d Y: %4d ", x, y);
+	ofs += BLI_snprintf(str + ofs, sizeof(str)-ofs, "X: %4d Y: %4d ", x, y);
 	if(cp)
-		ofs+= sprintf(str+ofs, "| R: %3d G: %3d B: %3d A: %3d ", cp[0], cp[1], cp[2], cp[3]);
+		ofs+= BLI_snprintf(str + ofs, sizeof(str)-ofs, "| R: %3d G: %3d B: %3d A: %3d ", cp[0], cp[1], cp[2], cp[3]);
 
 	if(fp) {
 		if(channels==4)
-			ofs+= sprintf(str+ofs, "| R: %.3f G: %.3f B: %.3f A: %.3f ", fp[0], fp[1], fp[2], fp[3]);
+			ofs+= BLI_snprintf(str + ofs, sizeof(str)-ofs, "| R: %.3f G: %.3f B: %.3f A: %.3f ", fp[0], fp[1], fp[2], fp[3]);
 		else if(channels==1)
-			ofs+= sprintf(str+ofs, "| Val: %.3f ", fp[0]);
+			ofs+= BLI_snprintf(str + ofs, sizeof(str)-ofs, "| Val: %.3f ", fp[0]);
 		else if(channels==3)
-			ofs+= sprintf(str+ofs, "| R: %.3f G: %.3f B: %.3f ", fp[0], fp[1], fp[2]);
+			ofs+= BLI_snprintf(str + ofs, sizeof(str)-ofs, "| R: %.3f G: %.3f B: %.3f ", fp[0], fp[1], fp[2]);
 	}
 
 	if(zp)
-		ofs+= sprintf(str+ofs, "| Z: %.4f ", 0.5+0.5*(((float)*zp)/(float)0x7fffffff));
+		ofs+= BLI_snprintf(str + ofs, sizeof(str)-ofs, "| Z: %.4f ", 0.5+0.5*(((float)*zp)/(float)0x7fffffff));
 	if(zpf)
-		ofs+= sprintf(str+ofs, "| Z: %.3f ", *zpf);
+		ofs+= BLI_snprintf(str + ofs, sizeof(str)-ofs, "| Z: %.3f ", *zpf);
+	(void)ofs;
 	
 	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
@@ -390,7 +392,7 @@ static void draw_image_buffer(SpaceImage *sima, ARegion *ar, Scene *scene, Image
 			sima_draw_alpha_backdrop(x, y, ibuf->x, ibuf->y, zoomx, zoomy, col1, col2);
 
 			glEnable(GL_BLEND);
-			glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		}
 
 		/* we don't draw floats buffers directly but
@@ -473,13 +475,18 @@ static void draw_image_buffer_tiled(SpaceImage *sima, ARegion *ar, Scene *scene,
 
 static void draw_image_buffer_repeated(SpaceImage *sima, ARegion *ar, Scene *scene, Image *ima, ImBuf *ibuf, float zoomx, float zoomy)
 {
-	float x, y;
-	double time_current;
+	const double time_current= PIL_check_seconds_timer();
 	
-	time_current = PIL_check_seconds_timer();
+	const int xmax= ceil(ar->v2d.cur.xmax);
+	const int ymax= ceil(ar->v2d.cur.ymax);
+	const int xmin= floor(ar->v2d.cur.xmin);
+	const int ymin= floor(ar->v2d.cur.ymin);
 
-	for(x=floor(ar->v2d.cur.xmin); x<ar->v2d.cur.xmax; x += 1.0f) { 
-		for(y=floor(ar->v2d.cur.ymin); y<ar->v2d.cur.ymax; y += 1.0f) { 
+	int x;
+
+	for(x=xmin; x<xmax; x++) {
+		int y;
+		for(y=ymin; y<ymax; y++) { 
 			if(ima && (ima->tpageflag & IMA_TILES))
 				draw_image_buffer_tiled(sima, ar, scene, ima, ibuf, x, y, zoomx, zoomy);
 			else

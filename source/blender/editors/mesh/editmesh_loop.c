@@ -192,7 +192,7 @@ static void edgering_sel(EditMesh *em, EditEdge *startedge, int select, int prev
 	}
 }
 
-void CutEdgeloop(Object *obedit, wmOperator *op, EditMesh *em, int numcuts)
+static void CutEdgeloop(Object *obedit, wmOperator *op, EditMesh *em, int numcuts)
 {
 	ViewContext vc; // XXX
 	EditEdge *nearest=NULL, *eed;
@@ -221,8 +221,7 @@ void CutEdgeloop(Object *obedit, wmOperator *op, EditMesh *em, int numcuts)
 			nearest = findnearestedge(&vc, &dist);	// returns actual distance in dist
 //			scrarea_do_windraw(curarea);	// after findnearestedge, backbuf!
 			
-			sprintf(msg,"Number of Cuts: %d (S)mooth: ",numcuts);
-			strcat(msg, smooth ? "on":"off");
+			BLI_snprintf(msg, sizeof(msg),"Number of Cuts: %d (S)mooth: %s", numcuts, smooth ? "on":"off");
 			
 //			headerprint(msg);
 			/* Need to figure preview */

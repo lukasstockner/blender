@@ -129,7 +129,7 @@ static int ED_uvedit_ensure_uvs(bContext *C, Scene *scene, Object *obedit)
 
 /****************** Parametrizer Conversion ***************/
 
-ParamHandle *construct_param_handle(Scene *scene, EditMesh *em, short implicit, short fill, short sel, short correct_aspect)
+static ParamHandle *construct_param_handle(Scene *scene, EditMesh *em, short implicit, short fill, short sel, short correct_aspect)
 {
 	ParamHandle *handle;
 	EditFace *efa;
@@ -154,7 +154,7 @@ ParamHandle *construct_param_handle(Scene *scene, EditMesh *em, short implicit, 
 		}
 	}
 	
-	/* we need the vert indicies */
+	/* we need the vert indices */
 	for(ev= em->verts.first, a=0; ev; ev= ev->next, a++)
 		ev->tmp.l = a;
 	

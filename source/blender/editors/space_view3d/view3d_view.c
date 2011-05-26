@@ -84,15 +84,21 @@
    opengl drawing context */
 void view3d_operator_needs_opengl(const bContext *C)
 {
+	wmWindow *win = CTX_wm_window(C);
 	ARegion *ar= CTX_wm_region(C);
 
+	view3d_region_operator_needs_opengl(win, ar);
+}
+
+void view3d_region_operator_needs_opengl(wmWindow *win, ARegion *ar)
+{
 	/* for debugging purpose, context should always be OK */
-	if(ar->regiontype!=RGN_TYPE_WINDOW)
-		printf("view3d_operator_needs_opengl error, wrong region\n");
+	if ((ar == NULL) || (ar->regiontype!=RGN_TYPE_WINDOW))
+		printf("view3d_region_operator_needs_opengl error, wrong region\n");
 	else {
 		RegionView3D *rv3d= ar->regiondata;
 		
-		wmSubWindowSet(CTX_wm_window(C), ar->swinid);
+		wmSubWindowSet(win, ar->swinid);
 		glMatrixMode(GL_PROJECTION);
 		glLoadMatrixf(rv3d->winmat);
 		glMatrixMode(GL_MODELVIEW);
@@ -421,7 +427,7 @@ static int view3d_setcameratoview_exec(bContext *C, wmOperator *UNUSED(op))
 
 }
 
-int view3d_setcameratoview_poll(bContext *C)
+static int view3d_setcameratoview_poll(bContext *C)
 {
 	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d= CTX_wm_region_view3d(C);
@@ -470,6 +476,13 @@ static int view3d_setobjectascamera_exec(bContext *C, wmOperator *UNUSED(op))
 	
 	return OPERATOR_FINISHED;
 }
+
+static int region3d_unlocked_poll(bContext *C)
+{
+	RegionView3D *rv3d= CTX_wm_region_view3d(C);
+	return (rv3d && rv3d->viewlock==0);
+}
+
 
 void VIEW3D_OT_object_as_camera(wmOperatorType *ot)
 {
@@ -1725,7 +1738,7 @@ extern void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *cam_f
 
 #endif // GAMEBLENDER == 1
 
-int game_engine_poll(bContext *C)
+static int game_engine_poll(bContext *C)
 {
 	/* we need a context and area to launch BGE
 	it's a temporary solution to avoid crash at load time

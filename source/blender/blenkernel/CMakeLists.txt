@@ -48,8 +48,9 @@ set(INC
 	../../../intern/memutil
 	../../../intern/opennl/extern
 	../../../intern/smoke/extern
+	../../../intern/mikktspace
     ../../../source/blender/windowmanager # XXX - BAD LEVEL CALL WM_api.h
-	${ZLIB_INC}
+	${ZLIB_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -105,6 +106,7 @@ set(SRC
 	intern/material.c
 	intern/mball.c
 	intern/mesh.c
+	intern/mesh_validate.c
 	intern/modifier.c
 	intern/multires.c
 	intern/nla.c
@@ -273,7 +275,7 @@ if(WITH_LCMS)
 endif()
 
 if(WITH_PYTHON)
-	list(APPEND INC ../python ${PYTHON_INC})
+	list(APPEND INC ../python ${PYTHON_INCLUDE_DIRS})
 	add_definitions(-DWITH_PYTHON)
 endif()
 

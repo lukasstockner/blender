@@ -37,10 +37,6 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#ifdef WITH_ONSURFACEBRUSH
-#include "GL/glew.h"
-#endif
-
 static EnumPropertyItem particle_edit_hair_brush_items[] = {
 	{PE_BRUSH_NONE, "NONE", 0, "None", "Don't use any brush"},
 	{PE_BRUSH_COMB, "COMB", 0, "Comb", "Comb hairs"},
@@ -153,20 +149,34 @@ static int rna_ParticleEdit_hair_get(PointerRNA *ptr)
 	ParticleEditSettings *pset= (ParticleEditSettings*)ptr->data;
 
 	if(pset->scene) {
-	PTCacheEdit *edit = PE_get_current(pset->scene, pset->object);
+		PTCacheEdit *edit = PE_get_current(pset->scene, pset->object);
 
-	return (edit && edit->psys);
-}
-
+		return (edit && edit->psys);
+	}
+	
 	return 0;
 }
 
 static int rna_Brush_mode_poll(PointerRNA *ptr, PointerRNA value)
 {
 	Scene *scene= (Scene *)ptr->id.data;
-	Object *ob = OBACT;
+	ToolSettings *ts = scene->toolsettings;
 	Brush *brush= value.id.data;
-	return ob->mode & brush->ob_mode;
+	int mode = 0;
+
+	/* check the origin of the Paint struct to see which paint
+	   mode to select from */
+
+	if(ptr->data == &ts->imapaint)
+		mode = OB_MODE_TEXTURE_PAINT;
+	else if(ptr->data == ts->sculpt)
+		mode = OB_MODE_SCULPT;
+	else if(ptr->data == ts->vpaint)
+		mode = OB_MODE_VERTEX_PAINT;
+	else if(ptr->data == ts->wpaint)
+		mode = OB_MODE_WEIGHT_PAINT;
+
+	return brush->ob_mode & mode;
 }
 static int rna_Paint_is_on_surface_brush_capable(Paint* unused)
 {

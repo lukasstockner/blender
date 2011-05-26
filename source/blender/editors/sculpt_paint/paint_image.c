@@ -432,7 +432,8 @@ static void image_undo_restore(bContext *C, ListBase *lb)
 
 		GPU_free_image(ima); /* force OpenGL reload */
 		if(ibuf->rect_float)
-			imb_freerectImBuf(ibuf); /* force recreate of char rect */
+			ibuf->userflags |= IB_RECT_INVALID; /* force recreate of char rect */
+
 	}
 
 	IMB_freeImBuf(tmpibuf);
@@ -935,7 +936,7 @@ static int pixel_bounds_array(float (* uv)[2], rcti *bounds_px, const int ibuf_x
 
 #ifndef PROJ_DEBUG_NOSEAMBLEED
 
-/* This function returns 1 if this face has a seam along the 2 face-vert indicies
+/* This function returns 1 if this face has a seam along the 2 face-vert indices
  * 'orig_i1_fidx' and 'orig_i2_fidx' */
 static int check_seam(const ProjPaintState *ps, const int orig_face, const int orig_i1_fidx, const int orig_i2_fidx, int *other_face, int *orig_fidx)
 {
@@ -948,7 +949,7 @@ static int check_seam(const ProjPaintState *ps, const int orig_face, const int o
 	const MFace *orig_mf = ps->dm_mface + orig_face;  
 	const MTFace *orig_tf = ps->dm_mtface + orig_face;
 	
-	/* vert indicies from face vert order indicies */
+	/* vert indices from face vert order indices */
 	i1 = (*(&orig_mf->v1 + orig_i1_fidx));
 	i2 = (*(&orig_mf->v1 + orig_i2_fidx));
 	
@@ -1234,7 +1235,7 @@ static void project_face_pixel(const MTFace *tf_other, ImBuf *ibuf_other, const 
 }
 
 /* run this outside project_paint_uvpixel_init since pixels with mask 0 dont need init */
-float project_paint_uvpixel_mask(
+static float project_paint_uvpixel_mask(
 		const ProjPaintState *ps,
 		const int face_index,
 		const int side,
@@ -2137,7 +2138,7 @@ if __name__ == '__main__':
 	
 /* checks if pt is inside a convex 2D polyline, the polyline must be ordered rotating clockwise
  * otherwise it would have to test for mixed (line_point_side_v2 > 0.0f) cases */
-int IsectPoly2Df(const float pt[2], float uv[][2], const int tot)
+static int IsectPoly2Df(const float pt[2], float uv[][2], const int tot)
 {
 	int i;
 	if (line_point_side_v2(uv[tot-1], uv[0], pt) < 0.0f)
@@ -2573,7 +2574,7 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 }
 
 
-/* takes floating point screenspace min/max and returns int min/max to be used as indicies for ps->bucketRect, ps->bucketFlags */
+/* takes floating point screenspace min/max and returns int min/max to be used as indices for ps->bucketRect, ps->bucketFlags */
 static void project_paint_bucket_bounds(const ProjPaintState *ps, const float min[2], const float max[2], int bucketMin[2], int bucketMax[2])
 {
 	/* divide by bucketWidth & bucketHeight so the bounds are offset in bucket grid units */
@@ -4019,7 +4020,7 @@ static void imapaint_image_update(SpaceImage *sima, Image *image, ImBuf *ibuf, s
 {
 	if(ibuf->rect_float)
 		/* TODO - should just update a portion from imapaintpartial! */
-		imb_freerectImBuf(ibuf); /* force recreate of char rect */
+		ibuf->userflags |= IB_RECT_INVALID; /* force recreate of char rect */
 	
 	if(ibuf->mipmap[0])
 		ibuf->userflags |= IB_MIPMAP_INVALID;
@@ -5433,10 +5434,10 @@ static int texture_paint_camera_project_exec(bContext *C, wmOperator *op)
 	idgroup= IDP_GetProperties(&image->id, 0);
 
 	if(idgroup) {
-		view_data= IDP_GetPropertyFromGroup(idgroup, PROJ_VIEW_DATA_ID);
+		view_data= IDP_GetPropertyTypeFromGroup(idgroup, PROJ_VIEW_DATA_ID, IDP_ARRAY);
 
 		/* type check to make sure its ok */
-		if(view_data->len != PROJ_VIEW_DATA_SIZE || view_data->type != IDP_ARRAY || view_data->subtype != IDP_FLOAT) {
+		if(view_data->len != PROJ_VIEW_DATA_SIZE || view_data->subtype != IDP_FLOAT) {
 			BKE_report(op->reports, RPT_ERROR, "Image project data invalid.");
 			return OPERATOR_CANCELLED;
 		}

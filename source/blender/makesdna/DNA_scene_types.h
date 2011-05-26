@@ -492,6 +492,7 @@ typedef struct GameData {
 #define GAME_GLSL_NO_EXTRA_TEX				(1 << 11)
 #define GAME_IGNORE_DEPRECATION_WARNINGS	(1 << 12)
 #define GAME_ENABLE_ANIMATION_RECORD		(1 << 13)
+#define GAME_SHOW_MOUSE						(1 << 14)
 
 /* GameData.matmode */
 #define GAME_MAT_TEXFACE	0
@@ -923,7 +924,7 @@ typedef struct Scene {
 #define R_COMP_FREE			0x0800
 #define R_NO_IMAGE_LOAD		0x1000
 #define R_NO_TEX			0x2000
-/*#define R_STAMP_INFO		0x4000	deprecated */
+#define R_NO_FRAME_UPDATE	0x4000
 #define R_FULL_SAMPLE		0x8000
 /* #define R_DEPRECATED		0x10000 */
 /* #define R_RECURS_PROTECTION	0x20000 */
@@ -1042,7 +1043,7 @@ typedef struct Scene {
 #define FIRSTBASE		scene->base.first
 #define LASTBASE		scene->base.last
 #define BASACT			(scene->basact)
-#define OBACT			(BASACT? BASACT->object: 0)
+#define OBACT			(BASACT? BASACT->object: NULL)
 
 #define ID_NEW(a)		if( (a) && (a)->id.newid ) (a)= (void *)(a)->id.newid
 #define ID_NEW_US(a)	if( (a)->id.newid) {(a)= (void *)(a)->id.newid; (a)->id.us++;}
@@ -1171,7 +1172,7 @@ typedef enum SculptFlags {
 
 /* toolsettings->uvcalc_flag */
 #define UVCALC_FILLHOLES			1
-#define UVCALC_NO_ASPECT_CORRECT	2	/* would call this UVCALC_ASPECT_CORRECT, except it should be default with old file */
+/*#define UVCALC_NO_ASPECT_CORRECT	2*/	/* would call this UVCALC_ASPECT_CORRECT, except it should be default with old file */
 #define UVCALC_TRANSFORM_CORRECT	4	/* adjust UV's while transforming to avoid distortion */
 
 /* toolsettings->uv_flag */
@@ -1229,10 +1230,10 @@ typedef enum SculptFlags {
 #define RETOPO 1
 #define RETOPO_PAINT 2
 
-/* toolsettings->retopo_paint_tool */
-#define RETOPO_PEN 1
-#define RETOPO_LINE 2
-#define RETOPO_ELLIPSE 4
+/* toolsettings->retopo_paint_tool */ /*UNUSED*/
+/* #define RETOPO_PEN 1 */
+/* #define RETOPO_LINE 2 */
+/* #define RETOPO_ELLIPSE 4 */
 
 /* toolsettings->skgen_options */
 #define SKGEN_FILTER_INTERNAL	(1 << 0)

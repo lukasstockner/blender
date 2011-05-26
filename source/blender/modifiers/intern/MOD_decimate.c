@@ -45,6 +45,7 @@
 
 #include "LOD_decimation.h"
 
+#include "MOD_util.h"
 
 static void initData(ModifierData *md)
 {
@@ -187,6 +188,7 @@ ModifierTypeInfo modifierType_Decimate = {
 	/* flags */             eModifierTypeFlag_AcceptsMesh,
 	/* copyData */          copyData,
 	/* deformVerts */       0,
+	/* deformMatrices */    0,
 	/* deformVertsEM */     0,
 	/* deformMatricesEM */  0,
 	/* applyModifier */     applyModifier,

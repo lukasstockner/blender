@@ -50,6 +50,7 @@
 
 #include "BKE_animsys.h"
 #include "BKE_action.h"
+#include "BKE_armature.h"
 #include "BKE_constraint.h"
 #include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
@@ -88,15 +89,15 @@ short ANIM_get_keyframing_flags (Scene *scene, short incl_mode)
 	/* standard flags */
 	{
 		/* visual keying */
-		if (IS_AUTOKEY_FLAG(AUTOMATKEY)) 
+		if (IS_AUTOKEY_FLAG(scene, AUTOMATKEY)) 
 			flag |= INSERTKEY_MATRIX;
 		
 		/* only needed */
-		if (IS_AUTOKEY_FLAG(INSERTNEEDED)) 
+		if (IS_AUTOKEY_FLAG(scene, INSERTNEEDED)) 
 			flag |= INSERTKEY_NEEDED;
 		
-		/* default F-Curve color mode - RGB from XYZ indicies */
-		if (IS_AUTOKEY_FLAG(XYZ2RGB)) 
+		/* default F-Curve color mode - RGB from XYZ indices */
+		if (IS_AUTOKEY_FLAG(scene, XYZ2RGB)) 
 			flag |= INSERTKEY_XYZ2RGB;
 	}
 		
@@ -348,7 +349,7 @@ int insert_vert_fcurve (FCurve *fcu, float x, float y, short flag)
 
 /* -------------- 'Smarter' Keyframing Functions -------------------- */
 /* return codes for new_key_needed */
-enum {
+static enum {
 	KEYNEEDED_DONTADD = 0,
 	KEYNEEDED_JUSTADD,
 	KEYNEEDED_DELPREV,
@@ -642,51 +643,48 @@ static float visualkey_get_value (PointerRNA *ptr, PropertyRNA *prop, int array_
 			if (strstr(identifier, "location")) {
 				return ob->obmat[3][array_index];
 			}
-			else if (strstr(identifier, "rotation")) {
+			else if (strstr(identifier, "rotation_euler")) {
 				float eul[3];
 				
-				mat4_to_eul( eul,ob->obmat);
+				mat4_to_eulO(eul, ob->rotmode, ob->obmat);
 				return eul[array_index];
 			}
+			// FIXME: other types of rotation don't work
 		}
 	}
 	else if (ptr->type == &RNA_PoseBone) {
-		Object *ob= (Object *)ptr->id.data; /* we assume that this is always set, and is an object */
 		bPoseChannel *pchan= (bPoseChannel *)ptr->data;
-		float tmat[4][4];
+		bPoseChannel tchan;
 		
-		/* Although it is not strictly required for this particular space conversion, 
-		 * arg1 must not be null, as there is a null check for the other conversions to
-		 * be safe. Therefore, the active object is passed here, and in many cases, this
-		 * will be what owns the pose-channel that is getting this anyway.
+		/* make a copy of pchan so that we can apply and decompose its chan_mat, thus getting the 
+		 * rest-pose to pose-mode transform that got stored there at the end of posing calculations
+		 * for B-Bone deforms to use
+		 *	- it should be safe to just make a local copy like this, since we're not doing anything with the copied pointers
 		 */
-		copy_m4_m4(tmat, pchan->pose_mat);
-		constraint_mat_convertspace(ob, pchan, tmat, CONSTRAINT_SPACE_POSE, CONSTRAINT_SPACE_LOCAL);
+		memcpy(&tchan, pchan, sizeof(bPoseChannel));
+		pchan_apply_mat4(&tchan, pchan->chan_mat, TRUE);
 		
 		/* Loc, Rot/Quat keyframes are supported... */
 		if (strstr(identifier, "location")) {
 			/* only use for non-connected bones */
 			if ((pchan->bone->parent) && !(pchan->bone->flag & BONE_CONNECTED))
-				return tmat[3][array_index];
+				return tchan.loc[array_index];
 			else if (pchan->bone->parent == NULL)
-				return tmat[3][array_index];
+				return tchan.loc[array_index];
 		}
 		else if (strstr(identifier, "rotation_euler")) {
-			float eul[3];
-			
-			/* euler-rotation test before standard rotation, as standard rotation does quats */
-			mat4_to_eulO( eul, pchan->rotmode,tmat);
-			return eul[array_index];
+			return tchan.eul[array_index];
 		}
 		else if (strstr(identifier, "rotation_quaternion")) {
-			float trimat[3][3], quat[4];
-			
-			copy_m3_m4(trimat, tmat);
-			mat3_to_quat_is_ok( quat,trimat);
-			
-			return quat[array_index];
+			return tchan.quat[array_index];
 		}
-		// TODO: axis-angle...
+		else if (strstr(identifier, "rotation_axisangle")) {
+			/* w = 0, x,y,z = 1,2,3 */
+			if (array_index == 0)
+				return tchan.rotAngle;
+			else
+				return tchan.rotAxis[array_index - 1];
+	}
 	}
 	
 	/* as the function hasn't returned yet, read value from system in the default way */
@@ -1036,7 +1034,7 @@ short delete_keyframe (ReportList *reports, ID *id, bAction *act, const char gro
 /* KEYFRAME MODIFICATION */
 
 /* mode for commonkey_modifykey */
-enum {
+static enum {
 	COMMONKEY_MODE_INSERT = 0,
 	COMMONKEY_MODE_DELETE,
 } eCommonModifyKey_Modes;
@@ -1369,7 +1367,7 @@ static int insert_key_button_exec (bContext *C, wmOperator *op)
 {
 	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
-	PointerRNA ptr= {{0}};
+	PointerRNA ptr= {{NULL}};
 	PropertyRNA *prop= NULL;
 	char *path;
 	float cfra= (float)CFRA; // XXX for now, don't bother about all the yucky offset crap
@@ -1458,7 +1456,7 @@ static int delete_key_button_exec (bContext *C, wmOperator *op)
 {
 	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
-	PointerRNA ptr;
+	PointerRNA ptr= {{NULL}};
 	PropertyRNA *prop= NULL;
 	char *path;
 	float cfra= (float)CFRA; // XXX for now, don't bother about all the yucky offset crap
@@ -1581,7 +1579,7 @@ short fcurve_frame_has_keyframe (FCurve *fcu, float frame, short filter)
 /* Checks whether an Action has a keyframe for a given frame 
  * Since we're only concerned whether a keyframe exists, we can simply loop until a match is found...
  */
-short action_frame_has_keyframe (bAction *act, float frame, short filter)
+static short action_frame_has_keyframe (bAction *act, float frame, short filter)
 {
 	FCurve *fcu;
 	
@@ -1609,7 +1607,7 @@ short action_frame_has_keyframe (bAction *act, float frame, short filter)
 }
 
 /* Checks whether an Object has a keyframe for a given frame */
-short object_frame_has_keyframe (Object *ob, float frame, short filter)
+static short object_frame_has_keyframe (Object *ob, float frame, short filter)
 {
 	/* error checking */
 	if (ob == NULL)

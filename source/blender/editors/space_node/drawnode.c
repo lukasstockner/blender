@@ -44,6 +44,7 @@
 
 #include "BKE_context.h"
 #include "BKE_curve.h"
+#include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
@@ -53,6 +54,8 @@
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
+
+#include "BLF_api.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -72,11 +75,6 @@
 
 
 /* ****************** BUTTON CALLBACKS FOR ALL TREES ***************** */
-
-void node_buts_group(uiLayout *layout, bContext *C, PointerRNA *ptr)
-{
-	uiTemplateIDBrowse(layout, C, ptr, "node_tree", NULL, NULL, "");
-}
 
 static void node_buts_value(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
@@ -150,7 +148,7 @@ static void node_buts_curvevec(uiLayout *layout, bContext *UNUSED(C), PointerRNA
 }
 
 static float *_sample_col= NULL;	// bad bad, 2.5 will do better?
-void node_curvemap_sample(float *col)
+static void node_curvemap_sample(float *col)
 {
 	_sample_col= col;
 }
@@ -527,7 +525,7 @@ static void node_composit_buts_renderlayers(uiLayout *layout, bContext *C, Point
 
 static void node_composit_buts_blur(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
-	uiLayout *col;
+	uiLayout *col, *row;
 	
 	col= uiLayoutColumn(layout, 0);
 	
@@ -538,12 +536,18 @@ static void node_composit_buts_blur(uiLayout *layout, bContext *UNUSED(C), Point
 	}
 	
 	uiItemR(col, ptr, "use_relative", 0, NULL, ICON_NULL);
-	col= uiLayoutColumn(layout, 1);
+	
 	if (RNA_boolean_get(ptr, "use_relative")) {
+		uiItemL(col, "Aspect Correction", 0);
+		row= uiLayoutRow(layout, 1);
+		uiItemR(row, ptr, "aspect_correction", UI_ITEM_R_EXPAND, NULL, 0);
+		
+	col= uiLayoutColumn(layout, 1);
 		uiItemR(col, ptr, "factor_x", 0, "X", ICON_NULL);
 		uiItemR(col, ptr, "factor_y", 0, "Y", ICON_NULL);
 	}
 	else {
+		col= uiLayoutColumn(layout, 1);
 		uiItemR(col, ptr, "size_x", 0, "X", ICON_NULL);
 		uiItemR(col, ptr, "size_y", 0, "Y", ICON_NULL);
 	}
@@ -1351,9 +1355,32 @@ void draw_nodespace_back_pix(ARegion *ar, SpaceNode *snode, int color_manage)
 			}
 
 			if(ibuf->rect) {
+				if (snode->flag & SNODE_SHOW_ALPHA) {
 				glPixelZoom(snode->zoom, snode->zoom);
+					/* swap bytes, so alpha is most significant one, then just draw it as luminance int */
+					if(ENDIAN_ORDER == B_ENDIAN)
+						glPixelStorei(GL_UNPACK_SWAP_BYTES, 1);
+					
+					glaDrawPixelsSafe(x, y, ibuf->x, ibuf->y, ibuf->x, GL_LUMINANCE, GL_UNSIGNED_INT, ibuf->rect);
+					
+					glPixelStorei(GL_UNPACK_SWAP_BYTES, 0);
+					glPixelZoom(1.0f, 1.0f);
+				} else if (snode->flag & SNODE_USE_ALPHA) {
+					glEnable(GL_BLEND);
+					glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+					glPixelZoom(snode->zoom, snode->zoom);
+					
 				glaDrawPixelsSafe(x, y, ibuf->x, ibuf->y, ibuf->x, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
+					
 				glPixelZoom(1.0f, 1.0f);
+					glDisable(GL_BLEND);
+				} else {
+					glPixelZoom(snode->zoom, snode->zoom);
+					
+					glaDrawPixelsSafe(x, y, ibuf->x, ibuf->y, ibuf->x, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
+					
+					glPixelZoom(1.0f, 1.0f);
+			}
 			}
 			
 			glMatrixMode(GL_PROJECTION);
@@ -1364,6 +1391,47 @@ void draw_nodespace_back_pix(ARegion *ar, SpaceNode *snode, int color_manage)
 
 		BKE_image_release_ibuf(ima, lock);
 	}
+}
+
+void draw_nodespace_color_info(ARegion *ar, int channels, int x, int y, char *cp, float *fp)
+{
+	char str[256];
+	int ofs;
+	
+	ofs= sprintf(str, "X: %4d Y: %4d ", x, y);
+
+	if(channels==4) {
+		if(cp)
+			ofs+= sprintf(str+ofs, "| R: %3d G: %3d B: %3d A: %3d ", cp[0], cp[1], cp[2], cp[3]);
+		if (fp)
+			ofs+= sprintf(str+ofs, "| R: %.3f G: %.3f B: %.3f A: %.3f ", fp[0], fp[1], fp[2], fp[3]);
+	}
+	else if(channels==1) {
+		if(cp)
+			ofs+= sprintf(str+ofs, "| Val: %3d ", cp[0]);
+		if (fp)
+			ofs+= sprintf(str+ofs, "| Val: %.3f ", fp[0]);
+	}
+	else if(channels==3) {
+		if(cp)
+			ofs+= sprintf(str+ofs, "| R: %3d G: %3d B: %3d ", cp[0], cp[1], cp[2]);
+		if (fp)
+			ofs+= sprintf(str+ofs, "| R: %.3f G: %.3f B: %.3f ", fp[0], fp[1], fp[2]);
+	}
+
+	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_BLEND);
+	
+	glColor4f(.0,.0,.0,.25);
+	glRecti(0.0, 0.0, ar->winrct.xmax - ar->winrct.xmin + 1, 20);
+	glDisable(GL_BLEND);
+	
+	glColor3ub(255, 255, 255);
+	
+	// UI_DrawString(6, 6, str); // works ok but fixed width is nicer.
+	BLF_size(blf_mono_font, 11, 72);
+	BLF_position(blf_mono_font, 6, 6, 0);
+	BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 }
 
 #if 0

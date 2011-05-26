@@ -20,8 +20,62 @@
 
 import bpy
 
-#cachetype can be 'PSYS' 'HAIR' 'SMOKE' etc
 
+class PhysicButtonsPanel():
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "physics"
+
+    @classmethod
+    def poll(cls, context):
+        rd = context.scene.render
+        return (context.object) and (not rd.use_game_engine)
+
+
+def physics_add(self, layout, md, name, type, typeicon, toggles):
+    sub = layout.row(align=True)
+    if md:
+        sub.context_pointer_set("modifier", md)
+        sub.operator("object.modifier_remove", text=name, icon='X')
+        if(toggles):
+            sub.prop(md, "show_render", text="")
+            sub.prop(md, "show_viewport", text="")
+    else:
+        sub.operator("object.modifier_add", text=name, icon=typeicon).type = type
+
+
+class PHYSICS_PT_add(PhysicButtonsPanel, bpy.types.Panel):
+    bl_label = ""
+    bl_options = {'HIDE_HEADER'}
+
+    def draw(self, context):
+        ob = context.object
+
+        layout = self.layout
+        layout.label("Enable physics for:")
+        split = layout.split()
+        col = split.column()
+
+        if(context.object.field.type == 'NONE'):
+            col.operator("object.forcefield_toggle", text="Force Field", icon='FORCE_FORCE')
+        else:
+            col.operator("object.forcefield_toggle", text="Force Field", icon='X')
+
+        if(ob.type == 'MESH'):
+            physics_add(self, col, context.collision, "Collision", 'COLLISION', 'MOD_PHYSICS', False)
+            physics_add(self, col, context.cloth, "Cloth", 'CLOTH', 'MOD_CLOTH', True)
+
+        col = split.column()
+
+        if(ob.type == 'MESH' or ob.type == 'LATTICE'or ob.type == 'CURVE'):
+            physics_add(self, col, context.soft_body, "Soft Body", 'SOFT_BODY', 'MOD_SOFT', True)
+
+        if(ob.type == 'MESH'):
+            physics_add(self, col, context.fluid, "Fluid", 'FLUID_SIMULATION', 'MOD_FLUIDSIM', True)
+            physics_add(self, col, context.smoke, "Smoke", 'SMOKE', 'MOD_SMOKE', True)
+
+
+#cachetype can be 'PSYS' 'HAIR' 'SMOKE' etc
 
 def point_cache_ui(self, context, cache, enabled, cachetype):
     layout = self.layout
@@ -209,27 +263,32 @@ def basic_force_field_falloff_ui(self, context, field):
 
     col = split.column()
     col.prop(field, "z_direction", text="")
-    col.prop(field, "use_min_distance", text="Use Minimum")
-    col.prop(field, "use_max_distance", text="Use Maximum")
 
         col = split.column()
     col.prop(field, "falloff_power", text="Power")
 
-    sub = col.column()
+    split = layout.split()
+    col = split.column()
+    row = col.row(align=True)
+    row.prop(field, "use_min_distance", text="")
+    sub = row.row()
     sub.active = field.use_min_distance
-    sub.prop(field, "distance_min", text="Distance")
+    sub.prop(field, "distance_min", text="Minimum")
 
-    sub = col.column()
+    col = split.column()
+    row = col.row(align=True)
+    row.prop(field, "use_max_distance", text="")
+    sub = row.row()
     sub.active = field.use_max_distance
-    sub.prop(field, "distance_max", text="Distance")
+    sub.prop(field, "distance_max", text="Maximum")
 
 
 def register():
-    pass
+    bpy.utils.register_module(__name__)
 
 
 def unregister():
-    pass
+    bpy.utils.unregister_module(__name__)
 
 if __name__ == "__main__":
     register()

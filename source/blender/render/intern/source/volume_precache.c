@@ -42,10 +42,11 @@
 #include "PIL_time.h"
 
 #include "RE_shader_ext.h"
-#include "RE_raytrace.h"
 
 #include "DNA_material_types.h"
 
+#include "rayintersection.h"
+#include "rayobject.h"
 #include "render_types.h"
 #include "rendercore.h"
 #include "renderdatabase.h"
@@ -74,11 +75,11 @@ int intersect_outside_volume(RayObject *tree, Isect *isect, float *offset, int l
 	
 	if (RE_rayobject_raycast(tree, isect)) {
 		
-		isect->start[0] = isect->start[0] + isect->labda*isect->vec[0];
-		isect->start[1] = isect->start[1] + isect->labda*isect->vec[1];
-		isect->start[2] = isect->start[2] + isect->labda*isect->vec[2];
+		isect->start[0] = isect->start[0] + isect->dist*isect->dir[0];
+		isect->start[1] = isect->start[1] + isect->dist*isect->dir[1];
+		isect->start[2] = isect->start[2] + isect->dist*isect->dir[2];
 		
-		isect->labda = FLT_MAX;
+		isect->dist = FLT_MAX;
 		isect->skip = RE_SKIP_VLR_NEIGHBOUR;
 		isect->orig.face= isect->hit.face;
 		isect->orig.ob= isect->hit.ob;
@@ -93,22 +94,22 @@ int intersect_outside_volume(RayObject *tree, Isect *isect, float *offset, int l
 int point_inside_obi(RayObject *tree, ObjectInstanceRen *obi, float *co)
 {
 	Isect isect;
-	float vec[3] = {0.0f,0.0f,1.0f};
+	float dir[3] = {0.0f,0.0f,1.0f};
 	int final_depth=0, depth=0, limit=20;
 	
 	/* set up the isect */
 	memset(&isect, 0, sizeof(isect));
 	VECCOPY(isect.start, co);
-	VECCOPY(isect.vec, vec);
+	VECCOPY(isect.dir, dir);
 	isect.mode= RE_RAY_MIRROR;
 	isect.last_hit= NULL;
 	isect.lay= -1;
 	
-	isect.labda = FLT_MAX;
+	isect.dist = FLT_MAX;
 	isect.orig.face= NULL;
 	isect.orig.ob = NULL;
 
-	final_depth = intersect_outside_volume(tree, &isect, vec, limit, depth);
+	final_depth = intersect_outside_volume(tree, &isect, dir, limit, depth);
 	
 	/* even number of intersections: point is outside
 	 * odd number: point is inside */
@@ -397,7 +398,7 @@ void multiple_scattering_diffusion(Render *re, VolumePrecache *vp, Material *ma)
 					/* Displays progress every second */
 					if(time-lasttime>1.0f) {
 						char str[64];
-						sprintf(str, "Simulating multiple scattering: %d%%", (int)(100.0f * (c / total)));
+						BLI_snprintf(str, sizeof(str), "Simulating multiple scattering: %d%%", (int)(100.0f * (c / total)));
 						re->i.infostr= str;
 						re->stats_draw(re->sdh, &re->i);
 						re->i.infostr= NULL;
@@ -738,7 +739,7 @@ void vol_precache_objectinstance_threads(Render *re, ObjectInstanceRen *obi, Mat
 		time= PIL_check_seconds_timer();
 		if(time-lasttime>1.0f) {
 			char str[64];
-			sprintf(str, "Precaching volume: %d%%", (int)(100.0f * ((float)counter / (float)totparts)));
+			BLI_snprintf(str, sizeof(str), "Precaching volume: %d%%", (int)(100.0f * ((float)counter / (float)totparts)));
 			re->i.infostr= str;
 			re->stats_draw(re->sdh, &re->i);
 			re->i.infostr= NULL;

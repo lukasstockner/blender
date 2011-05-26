@@ -28,12 +28,15 @@
 #ifndef ED_UTIL_H
 #define ED_UTIL_H
 
+struct Scene;
 struct Object;
 struct bContext;
 struct ARegion;
 struct uiBlock;
 struct wmOperator;
 struct wmOperatorType;
+struct EditMesh;
+struct Mesh;
 
 /* ed_util.c */
 
@@ -73,10 +76,22 @@ void	undo_editmode_menu			(struct bContext *C);
 void	undo_editmode_clear			(void);
 void	undo_editmode_step			(struct bContext *C, int step);
 
+/* crazyspace.c */
+float *crazyspace_get_mapped_editverts(struct Scene *scene, struct Object *obedit);
+void crazyspace_set_quats_editmesh(struct EditMesh *em, float *origcos, float *mappedcos, float *quats);
+void crazyspace_set_quats_mesh(struct Mesh *me, float *origcos, float *mappedcos, float *quats);
+int editmesh_get_first_deform_matrices(struct Scene *scene, struct Object *ob, struct EditMesh *em, float (**deformmats)[3][3], float (**deformcos)[3]);
+int sculpt_get_first_deform_matrices(struct Scene *scene, struct Object *ob, float (**deformmats)[3][3], float (**deformcos)[3]);
+void crazyspace_build_sculpt(struct Scene *scene, struct Object *ob, float (**deformmats)[3][3], float (**deformcos)[3]);
+
+
 /* ************** XXX OLD CRUFT WARNING ************* */
 
 void apply_keyb_grid(int shift, int ctrl, float *val, float fac1, float fac2, float fac3, int invert);
 int GetButStringLength(const char *str);
+
+/* where else to go ? */
+void unpack_menu(struct bContext *C, const char *opname, const char *id_name, const char *abs_name, const char *folder, struct PackedFile *pf);
 
 #endif /* ED_UTIL_H */
 

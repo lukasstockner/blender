@@ -26,7 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
 #include "MEM_guardedalloc.h"
+
+#include "BLI_utildefines.h"
+
 #include "vbvh.h"
 #include "svbvh.h"
 #include "reorganize.h"
@@ -72,25 +76,29 @@ void bvh_done<QBVHTree>(QBVHTree *obj)
 	}
 	
 	pushup_simd<VBVHNode,4>(root);					   
+
 	obj->root = Reorganize_SVBVH<VBVHNode>(arena2).transform(root);
 	
-	//Cleanup
+	//Free data
 	BLI_memarena_free(arena1);	
 	
+	obj->node_arena = arena2;
+	obj->cost = 1.0;
+
 	rtbuild_free( obj->builder );
 	obj->builder = NULL;
-
-	obj->node_arena = arena2;
-	obj->cost = 1.0;	
 }
-
 
 template<int StackSize>
 int intersect(QBVHTree *obj, Isect* isec)
 {
 	//TODO renable hint support
-	if(RE_rayobject_isAligned(obj->root))
-		return bvh_node_stack_raycast<SVBVHNode,StackSize,false>( obj->root, isec);
+	if(RE_rayobject_isAligned(obj->root)) {
+		if(isec->mode == RE_RAY_SHADOW)
+			return svbvh_node_stack_raycast<StackSize,true>(obj->root, isec);
+	else
+			return svbvh_node_stack_raycast<StackSize,false>(obj->root, isec);
+	}
 	else
 		return RE_rayobject_intersect( (RayObject*) obj->root, isec );
 }
@@ -132,12 +140,10 @@ RayObjectAPI* bvh_get_api(int maxstacksize)
 	return 0;
 }
 
-
 RayObject *RE_rayobject_qbvh_create(int size)
 {
 	return bvh_create_tree<QBVHTree,DFS_STACK_SIZE>(size);
 }
-
 
 #else
 

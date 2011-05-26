@@ -80,17 +80,17 @@ static void ui_free_but(const bContext *C, uiBut *but);
 
 /* ************* translation ************** */
 
-int ui_translate_buttons()
+int ui_translate_buttons(void)
 {
 	return (U.transopts & USER_TR_BUTTONS);
 }
 
-int ui_translate_menus()
+int ui_translate_menus(void)
 {
 	return (U.transopts & USER_TR_MENUS);
 }
 
-int ui_translate_tooltips()
+int ui_translate_tooltips(void)
 {
 	return (U.transopts & USER_TR_TOOLTIPS);
 }
@@ -501,10 +501,10 @@ static int ui_but_equals_old(uiBut *but, uiBut *oldbut)
 	return 1;
 }
 
-static int ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBut *but)
+static int ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBut **butpp)
 {
 	uiBlock *oldblock;
-	uiBut *oldbut;
+	uiBut *oldbut, *but= *butpp;
 	int found= 0;
 
 	oldblock= block->oldblock;
@@ -514,29 +514,51 @@ static int ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBut
 	for(oldbut=oldblock->buttons.first; oldbut; oldbut=oldbut->next) {
 		if(ui_but_equals_old(oldbut, but)) {
 			if(oldbut->active) {
-				but->flag= oldbut->flag;
-				but->active= oldbut->active;
-				but->pos= oldbut->pos;
-				but->editstr= oldbut->editstr;
-				but->editval= oldbut->editval;
-				but->editvec= oldbut->editvec;
-				but->editcoba= oldbut->editcoba;
-				but->editcumap= oldbut->editcumap;
-				but->selsta= oldbut->selsta;
-				but->selend= oldbut->selend;
-				but->softmin= oldbut->softmin;
-				but->softmax= oldbut->softmax;
-				but->linkto[0]= oldbut->linkto[0];
-				but->linkto[1]= oldbut->linkto[1];
+//				but->flag= oldbut->flag;
+#else
+				/* exception! redalert flag can't be update from old button. 
+				 * perhaps it should only copy spesific flags rather then all. */
+//				but->flag= (oldbut->flag & ~UI_BUT_REDALERT) | (but->flag & UI_BUT_REDALERT);
+#endif
+//				but->active= oldbut->active;
+//				but->pos= oldbut->pos;
+//				but->ofs= oldbut->ofs;
+//				but->editstr= oldbut->editstr;
+//				but->editval= oldbut->editval;
+//				but->editvec= oldbut->editvec;
+//				but->editcoba= oldbut->editcoba;
+//				but->editcumap= oldbut->editcumap;
+//				but->selsta= oldbut->selsta;
+//				but->selend= oldbut->selend;
+//				but->softmin= oldbut->softmin;
+//				but->softmax= oldbut->softmax;
+//				but->linkto[0]= oldbut->linkto[0];
+//				but->linkto[1]= oldbut->linkto[1];
 				found= 1;
+//				oldbut->active= NULL;
 
-				oldbut->active= NULL;
+				/* move button over from oldblock to new block */
+				BLI_remlink(&oldblock->buttons, oldbut);
+				BLI_insertlink(&block->buttons, but, oldbut);
+				oldbut->block= block;
+				*butpp= oldbut;
+				
+				/* still stuff needs to be copied */
+				oldbut->x1= but->x1; oldbut->y1= but->y1;
+				oldbut->x2= but->x2; oldbut->y2= but->y2;
+				oldbut->context= but->context; /* set by Layout */
+				
+				BLI_remlink(&block->buttons, but);
+				ui_free_but(C, but);
+				
+				/* note: if layout hasn't been applied yet, it uses old button pointers... */
 			}
-
+			else {
 			/* ensures one button can get activated, and in case the buttons
 			 * draw are the same this gives O(1) lookup for each button */
 			BLI_remlink(&oldblock->buttons, oldbut);
 			ui_free_but(C, oldbut);
+			}
 			
 			break;
 		}
@@ -653,11 +675,11 @@ static void ui_menu_block_set_keyaccels(uiBlock *block)
 }
 
 
-void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
+static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
 {
 	uiBut *but;
 	IDProperty *prop;
-	char buf[512], *butstr;
+	char buf[512];
 
 	/* only do it before bounding */
 	if(block->minx != block->maxx)
@@ -668,15 +690,10 @@ void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
 			prop= (but->opptr)? but->opptr->data: NULL;
 
 			if(WM_key_event_operator_string(C, but->optype->idname, but->opcontext, prop, buf, sizeof(buf))) {
-				butstr= MEM_mallocN(strlen(but->str)+strlen(buf)+2, "menu_block_set_keymaps");
-				strcpy(butstr, but->str);
-				strcat(butstr, "|");
-				strcat(butstr, buf);
-
+				char *butstr_orig= BLI_strdup(but->str);
+				BLI_snprintf(but->strdata, sizeof(but->strdata), "%s|%s", butstr_orig, buf);
+				MEM_freeN(butstr_orig);
 				but->str= but->strdata;
-				BLI_strncpy(but->str, butstr, sizeof(but->strdata));
-				MEM_freeN(butstr);
-
 				ui_check_but(but);
 			}
 		}
@@ -693,7 +710,7 @@ void uiEndBlock(const bContext *C, uiBlock *block)
 	 * blocking, while still alowing buttons to be remade each redraw as it
 	 * is expected by blender code */
 	for(but=block->buttons.first; but; but=but->next) {
-		if(ui_but_update_from_old_block(C, block, but))
+		if(ui_but_update_from_old_block(C, block, &but))
 			ui_check_but(but);
 		
 		/* temp? Proper check for greying out */
@@ -910,14 +927,14 @@ static void ui_is_but_sel(uiBut *but)
 }
 
 /* XXX 2.50 no links supported yet */
-
+#if 0
 static int uibut_contains_pt(uiBut *UNUSED(but), short *UNUSED(mval))
 {
 	return 0;
 
 }
 
-uiBut *ui_get_valid_link_button(uiBlock *block, uiBut *but, short *mval)
+static uiBut *ui_get_valid_link_button(uiBlock *block, uiBut *but, short *mval)
 {
 	uiBut *bt;
 	
@@ -941,7 +958,7 @@ uiBut *ui_get_valid_link_button(uiBlock *block, uiBut *but, short *mval)
 
 	return NULL;
 }
-
+#endif
 
 static uiBut *ui_find_inlink(uiBlock *block, void *poin)
 {
@@ -1696,7 +1713,7 @@ int ui_set_but_string(bContext *C, uiBut *but, const char *str)
 	}
 	else if(but->type == IDPOIN) {
 		/* ID pointer */
-		but->idpoin_func(C, (char*)str, but->idpoin_idpp);
+		but->idpoin_func(C, str, but->idpoin_idpp);
 		return 1;
 	}
 	else if(but->type == TEX) {
@@ -1755,11 +1772,13 @@ int ui_set_but_string(bContext *C, uiBut *but, const char *str)
 	return 0;
 }
 
-void ui_set_but_default(bContext *C, uiBut *but)
+void ui_set_but_default(bContext *C, uiBut *but, short all)
 {
 	/* if there is a valid property that is editable... */
 	if (but->rnapoin.data && but->rnaprop && RNA_property_editable(&but->rnapoin, but->rnaprop)) {
-		if(RNA_property_reset(&but->rnapoin, but->rnaprop, -1)) {
+		int index = (all)? -1 : but->rnaindex;
+		
+		if(RNA_property_reset(&but->rnapoin, but->rnaprop, index)) {
 			/* perform updates required for this property */
 			RNA_property_update(C, &but->rnapoin, but->rnaprop);
 		}
@@ -2155,8 +2174,7 @@ void ui_check_but(uiBut *but)
 
 			ui_get_but_string(but, str, UI_MAX_DRAW_STR-strlen(but->str));
 
-			strcpy(but->drawstr, but->str);
-			strcat(but->drawstr, str);
+			BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%s%s", but->str, str);
 		}
 		break;
 	
@@ -2499,8 +2517,10 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str, 
 		}
 	}
 
-	if(ELEM8(but->type, BLOCK, BUT, LABEL, PULLDOWN, ROUNDBOX, LISTBOX, SEARCH_MENU, BUTM));
+	/* keep track of UI_interface.h */
+	if(ELEM7(but->type, BLOCK, BUT, LABEL, PULLDOWN, ROUNDBOX, LISTBOX, BUTM));
 	else if(ELEM5(but->type, SCROLL, SEPR, LINK, INLINK, FTPREVIEW));
+	else if(but->type >= SEARCH_MENU);
 	else but->flag |= UI_BUT_UNDO;
 
 	BLI_addtail(&block->buttons, but);
@@ -2565,18 +2585,18 @@ static uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, const char *s
 				RNA_property_enum_items(block->evil_C, ptr, prop, &item, &totitem, &free);
 				for(i=0; i<totitem; i++) {
 					if(item[i].identifier[0] && item[i].value == (int)max) {
-						str= (char*)item[i].name;
+						str= item[i].name;
 						icon= item[i].icon;
 					}
 				}
 
 				if(!str)
-					str= (char*)RNA_property_ui_name(prop);
+					str= RNA_property_ui_name(prop);
 				if(free)
 					MEM_freeN(item);
 			}
 			else {
-				str= (char*)RNA_property_ui_name(prop);
+				str= RNA_property_ui_name(prop);
 				icon= RNA_property_ui_icon(prop);
 			}
 		}
@@ -2591,7 +2611,7 @@ static uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, const char *s
 				for(i=0; i<totitem; i++) {
 					if(item[i].identifier[0] && item[i].value == (int)max) {
 						if(item[i].description[0])
-							tip= (char*)item[i].description;
+							tip= item[i].description;
 						break;
 					}
 				}
@@ -2602,7 +2622,7 @@ static uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, const char *s
 		}
 		
 		if(!tip)
-			tip= (char*)RNA_property_ui_description(prop);
+			tip= RNA_property_ui_description(prop);
 
 		if(min == max || a1 == -1 || a2 == -1) {
 			if(proptype == PROP_INT) {
@@ -2645,7 +2665,7 @@ static uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, const char *s
 	}
 	else {
 		printf("ui_def_but_rna: property not found: %s.%s\n", RNA_struct_identifier(ptr->type), propname);
-		str= (char*)propname;
+		str= propname;
 	}
 
 	/* now create button */
@@ -3487,6 +3507,22 @@ void uiButSetSearchFunc(uiBut *but, uiButSearchFunc sfunc, void *arg, uiButHandl
 		if(but->drawstr[0])
 			ui_but_search_test(but);
 }
+}
+
+/* push a new event onto event queue to activate the given button 
+ * (usually a text-field) upon entering a popup
+ */
+void uiButSetFocusOnEnter(wmWindow *win, uiBut *but)
+{
+	wmEvent event;
+	
+	event= *(win->eventstate);
+	event.type= EVT_BUT_OPEN;
+	event.val= KM_PRESS;
+	event.customdata= but;
+	event.customdatafree= FALSE;
+	
+	wm_event_add(win, &event);
 }
 
 /* Program Init/Exit */

@@ -98,7 +98,7 @@ void object_facesel_flush_dm(Object *ob)
 }
 
 /* returns 0 if not found, otherwise 1 */
-int facesel_face_pick(struct bContext *C, Mesh *me, short *mval, unsigned int *index, short rect)
+static int facesel_face_pick(struct bContext *C, Mesh *me, short *mval, unsigned int *index, short rect)
 {
 	ViewContext vc;
 	view3d_set_viewcontext(C, &vc);
@@ -157,7 +157,7 @@ MTFace *EM_get_active_mtface(EditMesh *em, EditFace **act_efa, MCol **mcol, int 
 	return NULL;
 }
 
-void reveal_tface(Scene *scene)
+static void paintface_unhide(Scene *scene)
 {
 	Mesh *me;
 	MFace *mface;
@@ -180,7 +180,7 @@ void reveal_tface(Scene *scene)
 // XXX notifier!	object_tface_flags_changed(OBACT, 0);
 }
 
-void hide_tface(Scene *scene)
+static void paintface_hide(Scene *scene)
 {
 	Mesh *me;
 	MFace *mface;
@@ -405,7 +405,7 @@ void selectall_tface(Object *ob, int action)
 // XXX notifier!		object_tface_flags_changed(OBACT, 0);
 }
 
-void selectswap_tface(Scene *scene)
+static void paintface_select_swap(Scene *scene)
 {
 	Mesh *me;
 	MFace *mface;

@@ -781,7 +781,13 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 		return;
 	}
 
+	if(RNA_property_type(prop) != PROP_POINTER) {
+		printf("uiTemplateImage: expected pointer property for %s.%s\n", RNA_struct_identifier(ptr->type), propname);
+		return;
+	}
+
 	block= uiLayoutGetBlock(layout);
+
 
 	imaptr= RNA_property_pointer_get(ptr, prop);
 	ima= imaptr.data;

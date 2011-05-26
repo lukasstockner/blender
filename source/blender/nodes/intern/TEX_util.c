@@ -57,7 +57,7 @@ void tex_call_delegate(TexDelegate *dg, float *out, TexParams *params, short thr
 	}
 }
 
-void tex_input(float *out, int sz, bNodeStack *in, TexParams *params, short thread)
+static void tex_input(float *out, int sz, bNodeStack *in, TexParams *params, short thread)
 {
 	TexDelegate *dg = in->data;
 	if(dg) {
@@ -181,6 +181,7 @@ int ntreeTexExecTree(
 	MTex *mtex
 ){
 	TexCallData data;
+	float *nor= texres->nor;
 	int retval = TEX_INT;
 
 	data.co = co;
@@ -199,6 +200,9 @@ int ntreeTexExecTree(
 
 	if(texres->nor) retval |= TEX_NOR;
 	retval |= TEX_RGB;
+	/* confusing stuff; the texture output node sets this to NULL to indicate no normal socket was set
+	   however, the texture code checks this for other reasons (namely, a normal is required for material) */
+	texres->nor= nor;
 
 	return retval;
 }

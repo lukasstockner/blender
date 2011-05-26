@@ -77,6 +77,7 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -213,7 +214,7 @@ static int wm_macro_exec(bContext *C, wmOperator *op)
 	return wm_macro_end(op, retval);
 }
 
-int wm_macro_invoke_internal(bContext *C, wmOperator *op, wmEvent *event, wmOperator *opm)
+static int wm_macro_invoke_internal(bContext *C, wmOperator *op, wmEvent *event, wmOperator *opm)
 {
 	int retval= OPERATOR_FINISHED;
 
@@ -617,6 +618,7 @@ void WM_operator_properties_free(PointerRNA *ptr)
 	if(properties) {
 		IDP_FreeProperty(properties);
 		MEM_freeN(properties);
+		ptr->data= NULL; /* just incase */
 	}
 }
 
@@ -628,8 +630,6 @@ int WM_menu_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 	PropertyRNA *prop= op->type->prop;
 	uiPopupMenu *pup;
 	uiLayout *layout;
-
-	(void)event;
 
 	if(prop==NULL) {
 		printf("WM_menu_invoke: %s has no enum property set\n", op->type->idname);
@@ -732,8 +732,6 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *ar, void *arg_op)
 
 int WM_enum_search_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
-	(void)event;
-
 	uiPupBlock(C, wm_enum_search_menu, op);
 	return OPERATOR_CANCELLED;
 }
@@ -761,16 +759,12 @@ int WM_operator_confirm_message(bContext *C, wmOperator *op, const char *message
 
 int WM_operator_confirm(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
-	(void)event;
-
 	return WM_operator_confirm_message(C, op, NULL);
 }
 
 /* op->invoke, opens fileselect if path property not set, otherwise executes */
 int WM_operator_filesel(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
-	(void)event;
-
 	if (RNA_property_is_set(op->ptr, "filepath")) {
 		return WM_operator_call(C, op);
 	} 
@@ -915,7 +909,7 @@ static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
 	uiPupBlockClose(C, block);
 }
 
-void dialog_check_cb(bContext *C, void *op_ptr, void *UNUSED(arg))
+static void dialog_check_cb(bContext *C, void *op_ptr, void *UNUSED(arg))
 {
 	wmOperator *op= op_ptr;
 	if(op->type->check) {
@@ -982,22 +976,21 @@ static uiBlock *wm_operator_create_ui(bContext *C, ARegion *ar, void *userData)
 	return block;
 }
 
+/* operator menu needs undo, for redo callback */
 int WM_operator_props_popup(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
-	int retval= OPERATOR_CANCELLED;
 	
-	(void)event;
-
-	if(op->type->exec) {
-		retval= op->type->exec(C, op);
-
-		/* ED_undo_push_op(C, op), called by wm_operator_finished now. */
+	if((op->type->flag & OPTYPE_REGISTER)==0) {
+		BKE_reportf(op->reports, RPT_ERROR, "Operator '%s' does not have register enabled, incorrect invoke function.", op->type->idname);
+		return OPERATOR_CANCELLED;
 	}
 
-	if(retval != OPERATOR_CANCELLED)
+	ED_undo_push_op(C, op);
+	wm_operator_register(C, op);
+
 		uiPupBlock(C, wm_block_create_redo, op);
 
-	return retval;
+	return OPERATOR_RUNNING_MODAL;
 }
 
 int WM_operator_props_dialog_popup(bContext *C, wmOperator *op, int width, int height)
@@ -1026,6 +1019,11 @@ int WM_operator_ui_popup(bContext *C, wmOperator *op, int width, int height)
 
 int WM_operator_redo_popup(bContext *C, wmOperator *op)
 {
+	if((op->type->flag & OPTYPE_REGISTER)==0) {
+		BKE_reportf(op->reports, RPT_ERROR, "Operator '%s' does not have register enabled, incorrect invoke function.", op->type->idname);
+		return OPERATOR_CANCELLED;
+	}
+	
 	uiPupBlock(C, wm_block_create_redo, op);
 
 	return OPERATOR_CANCELLED;
@@ -1066,8 +1064,6 @@ static void WM_OT_debug_menu(wmOperatorType *ot)
 
 static void wm_block_splash_close(bContext *C, void *arg_block, void *UNUSED(arg))
 {
-	(void)arg_unused;
-
 	uiPupBlockClose(C, arg_block);
 }
 
@@ -1075,12 +1071,8 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *arg_unuse
 
 /* XXX: hack to refresh splash screen with updated prest menu name,
  * since popup blocks don't get regenerated like panels do */
-void wm_block_splash_refreshmenu (bContext *UNUSED(C), void *UNUSED(arg_block), void *UNUSED(arg))
+static void wm_block_splash_refreshmenu (bContext *UNUSED(C), void *UNUSED(arg_block), void *UNUSED(arg))
 {
-	(void)C;
-	(void)unused;
-	(void)arg_block;
-
 	/* ugh, causes crashes in other buttons, disabling for now until 
 	 * a better fix
 	uiPupBlockClose(C, arg_block);
@@ -1099,7 +1091,6 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	MenuType *mt= WM_menutype_find("USERPREF_MT_splash", TRUE);
 	char url[64];
 	
-
 #ifdef NAN_BUILDINFO
 	int ver_width, rev_width;
 	char *version_str = NULL;
@@ -1118,8 +1109,6 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	ver_width = BLF_width(style->widgetlabel.uifont_id, version_str)+5;
 	rev_width = BLF_width(style->widgetlabel.uifont_id, revision_str)+5;
 #endif //NAN_BUILDINFO
-
-	(void)arg_unused;
 
 	block= uiBeginBlock(C, ar, "_popup", UI_EMBOSS);
 	uiBlockSetFlag(block, UI_BLOCK_KEEP_OPEN);
@@ -1179,9 +1168,6 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 
 static int wm_splash_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *UNUSED(event))
 {
-	(void)op;
-	(void)event;
-
 	uiPupBlock(C, wm_block_create_splash, NULL);
 	
 	return OPERATOR_FINISHED;
@@ -1203,8 +1189,6 @@ static void operator_call_cb(struct bContext *C, void *UNUSED(arg1), void *arg2)
 {
 	wmOperatorType *ot= arg2;
 	
-	(void)arg1;
-
 	if(ot)
 		WM_operator_name_call(C, ot->idname, WM_OP_INVOKE_DEFAULT, NULL);
 }
@@ -1213,8 +1197,6 @@ static void operator_search_cb(const struct bContext *C, void *UNUSED(arg), cons
 {
 	wmOperatorType *ot = WM_operatortype_first();
 	
-	(void)arg;
-
 	for(; ot; ot= ot->next) {
 		
 		if(BLI_strcasestr(ot->name, str)) {
@@ -1246,8 +1228,6 @@ static uiBlock *wm_block_search_menu(bContext *C, ARegion *ar, void *UNUSED(arg_
 	uiBlock *block;
 	uiBut *but;
 	
-	(void)arg_op;
-
 	block= uiBeginBlock(C, ar, "_popup", UI_EMBOSS);
 	uiBlockSetFlag(block, UI_BLOCK_LOOP|UI_BLOCK_RET_1|UI_BLOCK_MOVEMOUSE_QUIT);
 	
@@ -1364,8 +1344,8 @@ static void WM_OT_read_homefile(wmOperatorType *ot)
 	ot->description="Open the default file (doesn't save the current file)";
 	
 	ot->invoke= WM_operator_confirm;
-	ot->exec= WM_read_homefile;
-	ot->poll= WM_operator_winactive;
+	ot->exec= WM_read_homefile_exec;
+	/* ommit poll to run in background mode */
 }
 	
 static void WM_OT_read_factory_settings(wmOperatorType *ot)
@@ -1375,8 +1355,8 @@ static void WM_OT_read_factory_settings(wmOperatorType *ot)
 	ot->description="Load default file and user preferences";
 	
 	ot->invoke= WM_operator_confirm;
-	ot->exec= WM_read_homefile;
-	ot->poll= WM_operator_winactive;
+	ot->exec= WM_read_homefile_exec;
+	/* ommit poll to run in background mode */
 }
 
 /* *************** open file **************** */
@@ -1395,9 +1375,15 @@ static void open_set_use_scripts(wmOperator *op)
 
 static int wm_open_mainfile_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
-	(void)event;
+	const char *openname= G.main->name;
 
-	RNA_string_set(op->ptr, "filepath", G.sce);
+	/* if possible, get the name of the most recently used .blend file */
+	if (G.recent_files.first) {
+		struct RecentFile *recent = G.recent_files.first;
+		openname = recent->filepath;
+	}
+
+	RNA_string_set(op->ptr, "filepath", openname);
 	open_set_load_ui(op);
 	open_set_use_scripts(op);
 
@@ -1453,8 +1439,6 @@ static void WM_OT_open_mainfile(wmOperatorType *ot)
 
 static int wm_link_append_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
-	(void)event;
-
 	if(!RNA_property_is_set(op->ptr, "relative_path"))
 		RNA_boolean_set(op->ptr, "relative_path", U.flag & USER_RELPATHS);
 
@@ -1682,8 +1666,6 @@ static int wm_recover_auto_save_invoke(bContext *C, wmOperator *op, wmEvent *UNU
 {
 	char filename[FILE_MAX];
 
-	(void)event;
-
 	wm_autosave_location(filename);
 	RNA_string_set(op->ptr, "filepath", filename);
 	WM_event_add_fileselect(C, op);
@@ -1732,11 +1714,16 @@ static int wm_save_as_mainfile_invoke(bContext *C, wmOperator *op, wmEvent *UNUS
 {
 	char name[FILE_MAX];
 
-	(void)event;
-
 	save_set_compress(op);
 	
-	BLI_strncpy(name, G.sce, FILE_MAX);
+	/* if not saved before, get the name of the most recently used .blend file */
+	if(G.main->name[0]==0 && G.recent_files.first) {
+		struct RecentFile *recent = G.recent_files.first;
+		BLI_strncpy(name, recent->filepath, FILE_MAX);
+	}
+	else
+		BLI_strncpy(name, G.main->name, FILE_MAX);
+	
 	untitled(name);
 	RNA_string_set(op->ptr, "filepath", name);
 	
@@ -1757,7 +1744,7 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 	if(RNA_property_is_set(op->ptr, "filepath"))
 		RNA_string_get(op->ptr, "filepath", path);
 	else {
-		BLI_strncpy(path, G.sce, FILE_MAX);
+		BLI_strncpy(path, G.main->name, FILE_MAX);
 		untitled(path);
 	}
 
@@ -1801,7 +1788,7 @@ static void WM_OT_save_as_mainfile(wmOperatorType *ot)
 	ot->invoke= wm_save_as_mainfile_invoke;
 	ot->exec= wm_save_as_mainfile_exec;
 	ot->check= blend_save_check;
-	ot->poll= WM_operator_winactive;
+	/* ommit window poll so this can work in background mode */
 	
 	WM_operator_properties_filesel(ot, FOLDERFILE|BLENDERFILE, FILE_BLENDER, FILE_SAVE, WM_FILESEL_FILEPATH);
 	RNA_def_boolean(ot->srna, "compress", 0, "Compress", "Write compressed .blend file");
@@ -1816,16 +1803,22 @@ static int wm_save_mainfile_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(
 	char name[FILE_MAX];
 	int check_existing=1;
 	
-	(void)event;
-
 	/* cancel if no active window */
 	if (CTX_wm_window(C) == NULL)
 		return OPERATOR_CANCELLED;
 
 	save_set_compress(op);
 	
-	BLI_strncpy(name, G.sce, FILE_MAX);
+	/* if not saved before, get the name of the most recently used .blend file */
+	if(G.main->name[0]==0 && G.recent_files.first) {
+		struct RecentFile *recent = G.recent_files.first;
+		BLI_strncpy(name, recent->filepath, FILE_MAX);
+	}
+	else
+		BLI_strncpy(name, G.main->name, FILE_MAX);
+
 	untitled(name);
+	
 	RNA_string_set(op->ptr, "filepath", name);
 	
 	if (RNA_struct_find_property(op->ptr, "check_existing"))
@@ -1866,11 +1859,11 @@ static void WM_OT_save_mainfile(wmOperatorType *ot)
 
 #include "../../collada/collada.h"
 
-static int wm_collada_export_invoke(bContext *C, wmOperator *op, wmEvent *event)
+static int wm_collada_export_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {	
 	if(!RNA_property_is_set(op->ptr, "filepath")) {
 		char filepath[FILE_MAX];
-		BLI_strncpy(filepath, G.sce, sizeof(filepath));
+		BLI_strncpy(filepath, G.main->name, sizeof(filepath));
 		BLI_replace_extension(filepath, sizeof(filepath), ".dae");
 		RNA_string_set(op->ptr, "filepath", filepath);
 	}
@@ -2402,8 +2395,6 @@ static void gesture_lasso_apply(bContext *C, wmOperator *op)
 	int i;
 	short *lasso= gesture->customdata;
 
-	(void)event_type;
-
 	/* operator storage as path. */
 
 	for(i=0; i<gesture->points; i++, lasso+=2) {
@@ -2624,7 +2615,7 @@ void WM_OT_straightline_gesture(wmOperatorType *ot)
 
 /* *********************** radial control ****************** */
 
-const int WM_RADIAL_CONTROL_DISPLAY_SIZE = 200;
+static const int WM_RADIAL_CONTROL_DISPLAY_SIZE = 200;
 
 typedef struct wmRadialControl {
 	int mode;
@@ -2928,8 +2919,6 @@ void WM_radial_control_string(wmOperator *op, char str[], int maxlen)
 	int mode = RNA_int_get(op->ptr, "mode");
 	float v = RNA_float_get(op->ptr, "new_value");
 
-	(void)maxlen;
-
 	if(mode == WM_RADIALCONTROL_SIZE)
 		BLI_snprintf(str, maxlen, "Size: %d", (int)v);
 	else if(mode == WM_RADIALCONTROL_STRENGTH)
@@ -3006,7 +2995,8 @@ static int redraw_timer_exec(bContext *C, wmOperator *op)
 
 	for(a=0; a<iter; a++) {
 		if (type==0) {
-			ED_region_do_draw(C, ar);
+			if(ar)
+				ED_region_do_draw(C, ar);
 		} 
 		else if (type==1) {
 			wmWindow *win= CTX_wm_window(C);
@@ -3104,9 +3094,6 @@ static void WM_OT_redraw_timer(wmOperatorType *ot)
 
 static int memory_statistics_exec(bContext *UNUSED(C), wmOperator *UNUSED(op))
 {
-	(void)C;
-	(void)op;
-
 	MEM_printmemlist_stats();
 	return OPERATOR_FINISHED;
 }
@@ -3159,6 +3146,9 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_splash);
 	WM_operatortype_append(WM_OT_search_menu);
 	WM_operatortype_append(WM_OT_call_menu);
+#if defined(WIN32)
+	WM_operatortype_append(WM_OT_toggle_console);
+#endif
 
 #ifdef WITH_COLLADA
 	/* XXX: move these */
@@ -3285,7 +3275,7 @@ static void gesture_border_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_assign(keymap, "ACTION_OT_select_border");
 	WM_modalkeymap_assign(keymap, "ANIM_OT_channels_select_border");
 	WM_modalkeymap_assign(keymap, "ANIM_OT_previewrange_set");
-	WM_modalkeymap_assign(keymap, "CONSOLE_OT_select_border");
+	WM_modalkeymap_assign(keymap, "INFO_OT_select_border");
 	WM_modalkeymap_assign(keymap, "FILE_OT_select_border");
 	WM_modalkeymap_assign(keymap, "GRAPH_OT_select_border");
 	WM_modalkeymap_assign(keymap, "MARKER_OT_select_border");

@@ -933,7 +933,7 @@ void view3d_calc_camera_border(Scene *scene, ARegion *ar, RegionView3D *rv3d, Vi
 	}
 }
 
-void view3d_set_1_to_1_viewborder(Scene *scene, ARegion *ar)
+static void view3d_set_1_to_1_viewborder(Scene *scene, ARegion *ar)
 {
 	RegionView3D *rv3d= ar->regiondata;
 	float size[2];
@@ -1955,7 +1955,7 @@ static void view3d_main_area_setup_view(Scene *scene, View3D *v3d, ARegion *ar, 
 	/* calculate pixelsize factor once, is used for lamps and obcenters */
 	{
 		/* note:  '1.0f / len_v3(v1)'  replaced  'len_v3(rv3d->viewmat[0])'
-		 * because of float point precission problems at large values [#23908] */
+		 * because of float point precision problems at large values [#23908] */
 		float v1[3]= {rv3d->persmat[0][0], rv3d->persmat[1][0], rv3d->persmat[2][0]};
 		float v2[3]= {rv3d->persmat[0][1], rv3d->persmat[1][1], rv3d->persmat[2][1]};
 		float len1= 1.0f / len_v3(v1);

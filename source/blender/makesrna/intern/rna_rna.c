@@ -321,7 +321,7 @@ int rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, Point
 				return TRUE;
 			}
 		}
-
+		else {
 		for(prop=srna->cont.properties.first; prop; prop=prop->next) {
 			if(!(prop->flag & PROP_BUILTIN) && strcmp(prop->identifier, key)==0) {
 				propptr.type= &RNA_Property;
@@ -330,6 +330,7 @@ int rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, Point
 				*r_ptr= propptr;
 				return TRUE;
 			}
+		}
 		}
 	} while((srna=srna->base));
 

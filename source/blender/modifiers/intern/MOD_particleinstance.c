@@ -45,6 +45,7 @@
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 
+#include "MOD_util.h"
 
 #include "depsgraph_private.h"
 
@@ -330,6 +331,7 @@ ModifierTypeInfo modifierType_ParticleInstance = {
 
 	/* copyData */          copyData,
 	/* deformVerts */       0,
+	/* deformMatrices */    0,
 	/* deformVertsEM */     0,
 	/* deformMatricesEM */  0,
 	/* applyModifier */     applyModifier,

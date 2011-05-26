@@ -380,7 +380,7 @@ void uiRoundRect(float minx, float miny, float maxx, float maxy, float rad)
 }
 
 /* plain fake antialiased unfilled round rectangle */
-void uiRoundRectFakeAA(float minx, float miny, float maxx, float maxy, float rad, float asp)
+static void uiRoundRectFakeAA(float minx, float miny, float maxx, float maxy, float rad, float asp)
 {
 	float color[4], alpha;
 	float raddiff;
@@ -552,8 +552,6 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 	/* Set the font, in case it is not <builtin> font */
 	if(G.selfont && strcmp(G.selfont->name, "<builtin>"))
 	{
-		char tmpStr[256];
-
 		// Is the font file packed, if so then use the packed file
 		if(G.selfont->packedfile)
 		{
@@ -562,9 +560,10 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 		}
 		else
 		{
+			char tmpStr[256];
 			int err;
 
-			strcpy(tmpStr, G.selfont->name);
+			BLI_strncpy(tmpStr, G.selfont->name, sizeof(tmpStr));
 			BLI_path_abs(tmpStr, G.sce);
 			err = FTF_SetFont((unsigned char *)tmpStr, 0, 14.0);
 		}
@@ -715,7 +714,7 @@ static void draw_scope_end(rctf *rect, GLint *scissor)
 	uiDrawBox(GL_LINE_LOOP, rect->xmin-1, rect->ymin, rect->xmax+1, rect->ymax+1, 3.0f);
 }
 
-void histogram_draw_one(float r, float g, float b, float alpha, float x, float y, float w, float h, float *data, int res)
+static void histogram_draw_one(float r, float g, float b, float alpha, float x, float y, float w, float h, float *data, int res)
 {
 	int i;
 	
@@ -961,17 +960,17 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 	draw_scope_end(&rect, scissor);
 }
 
-float polar_to_x(float center, float diam, float ampli, float angle)
+static float polar_to_x(float center, float diam, float ampli, float angle)
 {
 	return center + diam * ampli * cosf(angle);
 }
 
-float polar_to_y(float center, float diam, float ampli, float angle)
+static float polar_to_y(float center, float diam, float ampli, float angle)
 {
 	return center + diam * ampli * sinf(angle);
 }
 
-void vectorscope_draw_target(float centerx, float centery, float diam, float r, float g, float b)
+static void vectorscope_draw_target(float centerx, float centery, float diam, float r, float g, float b)
 {
 	float y,u,v;
 	float tangle=0.f, tampli;
@@ -1569,6 +1568,7 @@ void uiDrawBoxShadow(unsigned char alpha, float minx, float miny, float maxx, fl
 
 void ui_dropshadow(rctf *rct, float radius, float aspect, int select)
 {
+	int i;
 	float rad;
 	float a;
 	char alpha= 2;
@@ -1580,8 +1580,9 @@ void ui_dropshadow(rctf *rct, float radius, float aspect, int select)
 	else
 		rad= radius;
 	
-	if(select) a= 12.0f*aspect; else a= 12.0f*aspect;
-	for(; a>0.0f; a-=aspect) {
+	i= 12;
+	if(select) a= i*aspect; else a= i*aspect;
+	for(; i--; a-=aspect) {
 		/* alpha ranges from 2 to 20 or so */
 		glColor4ub(0, 0, 0, alpha);
 		alpha+= 2;

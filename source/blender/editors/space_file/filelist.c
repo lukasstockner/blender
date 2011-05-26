@@ -27,7 +27,6 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-
 /* global includes */
 
 #include <stdlib.h>
@@ -62,6 +61,7 @@
 
 #include "DNA_space_types.h"
 
+#include "ED_fileselect.h"
 #include "ED_datafiles.h"
 
 #include "IMB_imbuf.h"
@@ -395,7 +395,7 @@ void filelist_free_icons(void)
 }
 
 //-----------------FOLDERLIST (previous/next) --------------//
-struct ListBase* folderlist_new()
+struct ListBase* folderlist_new(void)
 {
 	ListBase* p = MEM_callocN( sizeof(ListBase), "folderlist" );
 	return p;
@@ -562,7 +562,7 @@ void filelist_freelib(struct FileList* filelist)
 	filelist->libfiledata= 0;
 }
 
-struct BlendHandle *filelist_lib(struct FileList* filelist)
+static struct BlendHandle *filelist_lib(struct FileList* filelist)
 {
 	return filelist->libfiledata;
 }
@@ -593,7 +593,7 @@ short filelist_changed(struct FileList* filelist)
 	return filelist->changed;
 }
 
-struct ImBuf * filelist_loadimage(struct FileList* filelist, int index)
+static struct ImBuf * filelist_loadimage(struct FileList* filelist, int index)
 {
 	ImBuf *imb = NULL;
 	int fidx = 0;
@@ -722,10 +722,38 @@ void filelist_setfilter_types(struct FileList* filelist, const char *filter_glob
 	BLI_strncpy(filelist->filter_glob, filter_glob, sizeof(filelist->filter_glob));
 }
 
+static int file_is_blend_backup(const char *str)
+{
+	short a, b;
+	int retval= 0;
+	
+	a= strlen(str);
+	b= 7;
+	
+	if(a==0 || b>=a);
+	else {
+		char *loc;
+		
+		if(a > b+1)
+			b++;
+		
+		/* allow .blend1 .blend2 .blend32 */
+		loc= BLI_strcasestr(str+a-b, ".blend");
+		
+		if(loc)
+			retval= 1;
+	}
+	
+	return (retval);
+}
+
+
 static int file_extension_type(char *relname)
 {
 	if(BLO_has_bfile_extension(relname)) {
 		return BLENDERFILE;
+	} else if(file_is_blend_backup(relname)) {
+		return BLENDERFILE_BACKUP;
 	} else if(BLI_testextensie(relname, ".py")) {
 		return PYSCRIPTFILE;
 	} else if(BLI_testextensie(relname, ".txt")
@@ -757,7 +785,7 @@ int ED_file_extension_icon(char *relname)
 {
 	int type= file_extension_type(relname);
 	
-	if (type == BLENDERFILE)
+	if (type == BLENDERFILE || type==BLENDERFILE_BACKUP)
 		return ICON_FILE_BLEND;
 	else if (type ==  IMAGEFILE)
 		return ICON_FILE_IMAGE;
@@ -779,7 +807,7 @@ int ED_file_extension_icon(char *relname)
 	return ICON_FILE_BLANK;
 }
 
-void filelist_setfiletypes(struct FileList* filelist)
+static void filelist_setfiletypes(struct FileList* filelist)
 {
 	struct direntry *file;
 	int num;
@@ -805,13 +833,13 @@ void filelist_setfiletypes(struct FileList* filelist)
 
 static void filelist_read_dir(struct FileList* filelist)
 {
-	char wdir[FILE_MAX];
+	char wdir[FILE_MAX]= "";
 	if (!filelist) return;
 
 	filelist->fidx = 0;
 	filelist->filelist = 0;
 
-	BLI_getwdN(wdir);	 
+	BLI_getwdN(wdir, sizeof(wdir));	 /* backup cwd to restore after */
 
 	BLI_cleanup_dir(G.sce, filelist->dir);
 	filelist->numfiles = BLI_getdir(filelist->dir, &(filelist->filelist));

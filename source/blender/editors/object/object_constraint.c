@@ -140,7 +140,7 @@ bConstraint *get_active_constraint (Object *ob)
 /* ------------- PyConstraints ------------------ */
 
 /* this callback sets the text-file to be used for selected menu item */
-void validate_pyconstraint_cb (void *arg1, void *arg2)
+static void validate_pyconstraint_cb (void *arg1, void *arg2)
 {
 	bPythonConstraint *data = arg1;
 	Text *text= NULL;
@@ -157,7 +157,7 @@ void validate_pyconstraint_cb (void *arg1, void *arg2)
 
 #ifndef DISABLE_PYTHON
 /* this returns a string for the list of usable pyconstraint script names */
-char *buildmenu_pyconstraints (Text *con_text, int *pyconindex)
+static char *buildmenu_pyconstraints (Text *con_text, int *pyconindex)
 {
 	DynStr *pupds= BLI_dynstr_new();
 	Text *text;
@@ -199,7 +199,7 @@ char *buildmenu_pyconstraints (Text *con_text, int *pyconindex)
 #endif /* DISABLE_PYTHON */
 
 /* this callback gets called when the 'refresh' button of a pyconstraint gets pressed */
-void update_pyconstraint_cb (void *arg1, void *arg2)
+static void update_pyconstraint_cb (void *arg1, void *arg2)
 {
 #ifndef DISABLE_PYTHON
 	Object *owner= (Object *)arg1;
@@ -402,11 +402,26 @@ static void test_constraints (Object *owner, bPoseChannel *pchan)
 				for (ct= targets.first; ct; ct= ct->next) {
 					/* general validity checks (for those constraints that need this) */
 					if (exist_object(ct->tar) == 0) {
+						/* object doesn't exist, but constraint requires target */
 						ct->tar = NULL;
 						curcon->flag |= CONSTRAINT_DISABLE;
 					}
 					else if (ct->tar == owner) {
+						if (type == CONSTRAINT_OBTYPE_BONE) {
 						if (!get_named_bone(get_armature(owner), ct->subtarget)) {
+								/* bone must exist in armature... */
+								// TODO: clear subtarget?
+							curcon->flag |= CONSTRAINT_DISABLE;
+						}
+							else if (strcmp(pchan->name, ct->subtarget) == 0) {
+								/* cannot target self */
+								ct->subtarget[0] = '\0';
+								curcon->flag |= CONSTRAINT_DISABLE;
+					}
+						}
+						else {
+							/* cannot use self as target */
+							ct->tar = NULL;
 							curcon->flag |= CONSTRAINT_DISABLE;
 						}
 					}
@@ -469,7 +484,7 @@ static int edit_constraint_poll_generic(bContext *C, StructRNA *rna_type)
 	Object *ob= (ptr.id.data)?ptr.id.data:ED_object_active_context(C);
 	
 	if (!ob || ob->id.lib) return 0;
-	if (ptr.data && ((ID*)ptr.id.data)->lib) return 0;
+	if (ptr.id.data && ((ID*)ptr.id.data)->lib) return 0;
 	
 	return 1;
 }
@@ -528,11 +543,20 @@ static bConstraint *edit_constraint_property_get(wmOperator *op, Object *ob, int
 		bPoseChannel *pchan= get_active_posechannel(ob);
 		if (pchan)
 			list = &pchan->constraints;
-		else
+		else {
+			//if (G.f & G_DEBUG)
+			//printf("edit_constraint_property_get: No active bone for object '%s'\n", (ob)? ob->id.name+2 : "<None>");
 			return NULL;
+	}
+	}
+	else {
+		//if (G.f & G_DEBUG)
+		//printf("edit_constraint_property_get: defaulting to getting list in the standard way\n");
+		list = get_active_constraints(ob);
 	}
 	
 	con = constraints_findByName(list, constraint_name);
+	printf("constraint found = %p, %s\n", con, (con)?con->name:"<Not found>");
 	
 	if (con && (type != 0) && (con->type != type))
 		con = NULL;
@@ -642,8 +666,11 @@ static int childof_set_inverse_exec (bContext *C, wmOperator *op)
 	bPoseChannel *pchan= NULL;
 	
 	/* despite 3 layers of checks, we may still not be able to find a constraint */
-	if (data == NULL)
+	if (data == NULL) {
+		printf("DEBUG: Child-Of Set Inverse - object = '%s'\n", (ob)? ob->id.name+2 : "<None>");
+		BKE_report(op->reports, RPT_ERROR, "Couldn't find constraint data for Child-Of Set Inverse");
 		return OPERATOR_CANCELLED;
+	}
 	
 	/* try to find a pose channel */
 	// TODO: get from context instead?
@@ -1292,19 +1319,7 @@ static int constraint_add_exec(bContext *C, wmOperator *op, Object *ob, ListBase
 	}
 	
 	/* do type-specific tweaking to the constraint settings  */
-	// TODO: does action constraint need anything here - i.e. spaceonce?
 	switch (type) {
-		case CONSTRAINT_TYPE_CHILDOF:
-		{
-			/* if this constraint is being added to a posechannel, make sure
-			 * the constraint gets evaluated in pose-space */
-			if (pchan) {
-				con->ownspace = CONSTRAINT_SPACE_POSE;
-				con->flag |= CONSTRAINT_SPACEONCE;
-			}
-		}
-			break;
-			
 		case CONSTRAINT_TYPE_PYTHON: // FIXME: this code is not really valid anymore
 		{
 #ifndef DISABLE_PYTHON

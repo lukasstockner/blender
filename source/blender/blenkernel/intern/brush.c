@@ -191,13 +191,13 @@ void make_local_brush(Brush *brush)
 	Scene *scene;
 	int local= 0, lib= 0;
 
-	if(brush->id.lib==0) return;
+	if(brush->id.lib==NULL) return;
 
 	if(brush->clone.image) {
 		/* special case: ima always local immediately */
-		brush->clone.image->id.lib= 0;
+		brush->clone.image->id.lib= NULL;
 		brush->clone.image->id.flag= LIB_LOCAL;
-		new_id(0, (ID *)brush->clone.image, 0);
+		new_id(NULL, (ID *)brush->clone.image, NULL);
 	}
 
 	for(scene= G.main->scene.first; scene; scene=scene->id.next)
@@ -207,9 +207,9 @@ void make_local_brush(Brush *brush)
 		}
 
 	if(local && lib==0) {
-		brush->id.lib= 0;
+		brush->id.lib= NULL;
 		brush->id.flag= LIB_LOCAL;
-		new_id(0, (ID *)brush, 0);
+		new_id(NULL, (ID *)brush, NULL);
 
 		/* enable fake user by default */
 		if (!(brush->id.flag & LIB_FAKEUSER)) {
@@ -224,7 +224,7 @@ void make_local_brush(Brush *brush)
 		
 		for(scene= G.main->scene.first; scene; scene=scene->id.next)
 			if(paint_brush(&scene->toolsettings->imapaint.paint)==brush)
-				if(scene->id.lib==0) {
+				if(scene->id.lib==NULL) {
 					paint_brush_set(&scene->toolsettings->imapaint.paint, brushn);
 					brushn->id.us++;
 					brush->id.us--;
@@ -237,7 +237,7 @@ void brush_debug_print_state(Brush *br)
 	Brush def;
 
 	/* create a fake brush and set it to the defaults */
-	memset(&def, 0, sizeof(Brush));
+	Brush def= {{NULL}};
 	brush_set_defaults(&def);
 	
 #define BR_TEST(field, t)					\
@@ -431,7 +431,7 @@ int brush_texture_set_nr(Brush *brush, int nr)
 	id= (ID *)brush->mtex.tex;
 
 	idtest= (ID*)BLI_findlink(&G.main->tex, nr-1);
-	if(idtest==0) { /* new tex */
+	if(idtest==NULL) { /* new tex */
 		if(id) idtest= (ID *)copy_texture((Tex *)id);
 		else idtest= (ID *)add_texture("Tex");
 		idtest->us--;
@@ -914,7 +914,13 @@ static void brush_apply_pressure(BrushPainter *painter, Brush *brush, float pres
 
 void brush_jitter_pos(Brush *brush, float *pos, float *jitterpos)
 {
-	if(brush->jitter){
+	int use_jitter= brush->jitter != 0;
+
+	/* jitter-ed brush gives wierd and unpredictable result for this
+	   kinds of stroke, so manyally disable jitter usage (sergey) */
+	use_jitter&= (brush->flag & (BRUSH_RESTORE_MESH|BRUSH_ANCHORED)) == 0;
+
+	if(use_jitter){
 		float rand_pos[2];
 		const int radius= brush_size(brush);
 		const int diameter= 2*radius;

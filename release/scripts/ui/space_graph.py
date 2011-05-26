@@ -81,6 +81,9 @@ class GRAPH_MT_view(bpy.types.Menu):
         layout.prop(st, "use_auto_merge_keyframes")
 
         layout.separator()
+        layout.prop(st, "use_fancy_drawing")
+
+        layout.separator()
         if st.show_handles:
             layout.operator("graph.handles_view_toggle", icon='CHECKBOX_HLT', text="Show All Handles")
         else:
@@ -125,6 +128,10 @@ class GRAPH_MT_select(bpy.types.Menu):
 
         layout.operator("graph.select_column", text="Columns on Selected Markers").mode = 'MARKERS_COLUMN'
         layout.operator("graph.select_column", text="Between Selected Markers").mode = 'MARKERS_BETWEEN'
+
+        layout.separator()
+        layout.operator("graph.select_leftright", text="Before Current Frame").mode = 'LEFT'
+        layout.operator("graph.select_leftright", text="After Current Frame").mode = 'RIGHT'
 
         layout.separator()
         layout.operator("graph.select_more")
@@ -210,6 +217,7 @@ class GRAPH_MT_key(bpy.types.Menu):
 
         layout.separator()
         layout.operator("graph.clean")
+        layout.operator("graph.smooth")
         layout.operator("graph.sample")
         layout.operator("graph.bake")
 
@@ -232,11 +240,11 @@ class GRAPH_MT_key_transform(bpy.types.Menu):
 
 
 def register():
-    pass
+    bpy.utils.register_module(__name__)
 
 
 def unregister():
-    pass
+    bpy.utils.unregister_module(__name__)
 
 if __name__ == "__main__":
     register()

@@ -62,7 +62,7 @@
 #include "BLI_utildefines.h"
 
 
-
+#include "BKE_ipo.h"
 #include "BKE_animsys.h"
 #include "BKE_action.h"
 #include "BKE_fcurve.h"
@@ -316,7 +316,7 @@ static const char *constraint_adrcodes_to_paths (int adrcode, int *array_index)
 
 /* ShapeKey types 
  * NOTE: as we don't have access to the keyblock where the data comes from (for now), 
- *	 	we'll just use numerical indicies for now... 
+ *	 	we'll just use numerical indices for now... 
  */
 static char *shapekey_adrcodes_to_paths (int adrcode, int *array_index)
 {
@@ -710,6 +710,11 @@ static const char *world_adrcodes_to_paths (int adrcode, int *array_index)
 			*array_index= 1; return "stars.color";
 		case WO_STAR_B:
 			*array_index= 2; return "stars.color"; */
+		case WO_STAR_R:
+		case WO_STAR_G:
+		case WO_STAR_B:
+			printf("WARNING: WO_STAR_R/G/B deprecated\n");
+			return NULL;
 		
 		case WO_STARDIST:
 			return "stars.min_distance";
@@ -915,8 +920,17 @@ static char *get_rna_access (int blocktype, int adrcode, char actname[], char co
 		sprintf(buf, "pose.bones[\"%s\"].constraints[\"%s\"]", actname, constname);
 	}
 	else if (actname && actname[0]) {
+		if ((blocktype == ID_OB) && strcmp(actname, "Object")==0) {
+			/* Actionified "Object" IPO's... no extra path stuff needed */
+		}
+		else if ((blocktype == ID_KE) && strcmp(actname, "Shape")==0) {
+			/* Actionified "Shape" IPO's - these are forced onto object level via the action container there... */
+			strcpy(buf, "data.shape_keys");
+		}
+		else {
 		/* Pose-Channel */
 		sprintf(buf, "pose.bones[\"%s\"]", actname);
+	}
 	}
 	else if (constname && constname[0]) {
 		/* Constraint in Object */
@@ -924,8 +938,7 @@ static char *get_rna_access (int blocktype, int adrcode, char actname[], char co
 	}
 	else if (seq) {
 		/* Sequence names in Scene */
-		sprintf(buf, "sequence_editor.sequences_all[\"%s\"]", 
-			seq->name+2);
+		sprintf(buf, "sequence_editor.sequences_all[\"%s\"]", seq->name+2);
 	}
 	else
 		strcpy(buf, ""); /* empty string */
@@ -1318,11 +1331,8 @@ static void icu_to_fcurves (ID *id, ListBase *groups, ListBase *list, IpoCurve *
 					}
 				}
 				
-				/* correct values for sequencer curves,
-				   that were not locked to frame */
-
-				if (seq && 
-				    (seq->flag & SEQ_IPO_FRAME_LOCKED) == 0) {
+				/* correct values for sequencer curves, that were not locked to frame */
+				if (seq && (seq->flag & SEQ_IPO_FRAME_LOCKED) == 0) {
 					double mul= (seq->enddisp-seq->startdisp)/100.0f;
 					double offset= seq->startdisp;
 					
@@ -1509,8 +1519,12 @@ static void ipo_to_animdata (ID *id, Ipo *ipo, char actname[], char constname[],
 		if (G.f & G_DEBUG) printf("\thas anim \n");
 		/* try to get action */
 		if (adt->action == NULL) {
-			adt->action= add_empty_action("ConvData_Action"); // XXX we need a better name for this
-			if (G.f & G_DEBUG) printf("\t\tadded new action \n");
+			char nameBuf[MAX_ID_NAME];
+			
+			BLI_snprintf(nameBuf, sizeof(nameBuf), "CDA:%s", ipo->id.name+2);
+			
+			adt->action= add_empty_action(nameBuf);
+			if (G.f & G_DEBUG) printf("\t\tadded new action - '%s' \n", nameBuf);
 		}
 		
 		/* add F-Curves to action */

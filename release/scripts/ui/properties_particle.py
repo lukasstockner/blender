@@ -41,7 +41,7 @@ def particle_panel_poll(cls, context):
         return False
     if psys.settings is None:
         return False
-    return psys.settings.type in ('EMITTER', 'REACTOR', 'HAIR') and (engine in cls.COMPAT_ENGINES)
+    return psys.settings.is_fluid == False and (engine in cls.COMPAT_ENGINES)
 
 
 class ParticleButtonsPanel():
@@ -95,13 +95,13 @@ class PARTICLE_PT_context_particles(ParticleButtonsPanel, bpy.types.Panel):
             split = layout.split(percentage=0.32)
             col = split.column()
             col.label(text="Name:")
-            if part.type in ('EMITTER', 'REACTOR', 'HAIR'):
+            if part.is_fluid == False:
                 col.label(text="Settings:")
                 col.label(text="Type:")
 
             col = split.column()
             col.prop(psys, "name", text="")
-            if part.type in ('EMITTER', 'REACTOR', 'HAIR'):
+            if part.is_fluid == False:
                 row = col.row()
                 row.enabled = particle_panel_enabled(context, psys)
                 row.template_ID(psys, "settings", new="particle.new")
@@ -111,8 +111,8 @@ class PARTICLE_PT_context_particles(ParticleButtonsPanel, bpy.types.Panel):
             #row.label(text="Render")
 
             if part:
-                if part.type not in ('EMITTER', 'REACTOR', 'HAIR'):
-                    layout.label(text="No settings for fluid particles")
+                if part.is_fluid:
+                    layout.label(text=str(part.count) + " fluid particles for this frame.")
                     return
 
                 row = col.row()
@@ -128,6 +128,7 @@ class PARTICLE_PT_context_particles(ParticleButtonsPanel, bpy.types.Panel):
                     row = split.row()
                     row.enabled = particle_panel_enabled(context, psys)
                         row.prop(part, "regrow_hair")
+                        row.prop(part, "use_advanced_hair")
                     row = split.row()
                     row.enabled = particle_panel_enabled(context, psys)
                     row.prop(part, "hair_step")
@@ -150,9 +151,15 @@ class PARTICLE_PT_emission(ParticleButtonsPanel, bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
+        psys = context.particle_system
+        if psys is None:
+            return False
+        if psys.settings is None:
+            return False
+        if psys.settings.is_fluid:
+            return False
         if particle_panel_poll(PARTICLE_PT_emission, context):
             return not context.particle_system.point_cache.use_external
-        else:
             return False
 
     def draw(self, context):
@@ -166,6 +173,10 @@ class PARTICLE_PT_emission(ParticleButtonsPanel, bpy.types.Panel):
         row = layout.row()
         row.active = part.distribution != 'GRID'
         row.prop(part, "count")
+
+        if part.type == 'HAIR' and not part.use_advanced_hair:
+            row.prop(part, "hair_length")
+            return
 
         if part.type != 'HAIR':
             split = layout.split()
@@ -184,8 +195,11 @@ class PARTICLE_PT_emission(ParticleButtonsPanel, bpy.types.Panel):
             row.prop(part, "emit_from", expand=True)
 
         row = layout.row()
+        if part.distribution == 'GRID':
+            row.prop(part, "invert_grid")
+            row.prop(part, "hexagonal_grid")
+        else:
         row.prop(part, "use_emit_random")
-        if part.distribution != 'GRID':
             row.prop(part, "use_even_distribution")
 
         if part.emit_from == 'FACE' or part.emit_from == 'VOLUME':
@@ -200,6 +214,7 @@ class PARTICLE_PT_emission(ParticleButtonsPanel, bpy.types.Panel):
                 row.prop(part, "jitter_factor", text="Jittering Amount", slider=True)
             elif part.distribution == 'GRID':
                 row.prop(part, "grid_resolution")
+                row.prop(part, "grid_random", text="Random", slider=True)
 
 
 class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, bpy.types.Panel):
@@ -273,6 +288,8 @@ class PARTICLE_PT_cache(ParticleButtonsPanel, bpy.types.Panel):
             return False
         if psys.settings is None:
             return False
+        if psys.settings.is_fluid:
+            return False
         phystype = psys.settings.physics_type
         if phystype == 'NO' or phystype == 'KEYED':
             return False
@@ -292,6 +309,8 @@ class PARTICLE_PT_velocity(ParticleButtonsPanel, bpy.types.Panel):
     def poll(cls, context):
         if particle_panel_poll(PARTICLE_PT_velocity, context):
             psys = context.particle_system
+            if psys.settings.type == 'HAIR' and not psys.settings.use_advanced_hair:
+                return False
             return psys.settings.physics_type != 'BOIDS' and not psys.point_cache.use_external
         else:
             return False
@@ -340,6 +359,8 @@ class PARTICLE_PT_rotation(ParticleButtonsPanel, bpy.types.Panel):
     def poll(cls, context):
         if particle_panel_poll(PARTICLE_PT_rotation, context):
             psys = context.particle_system
+            if psys.settings.type == 'HAIR' and not psys.settings.use_advanced_hair:
+                return False
             return psys.settings.physics_type != 'BOIDS' and not psys.point_cache.use_external
         else:
             return False
@@ -382,7 +403,10 @@ class PARTICLE_PT_physics(ParticleButtonsPanel, bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         if particle_panel_poll(PARTICLE_PT_physics, context):
-            return not context.particle_system.point_cache.use_external
+            psys = context.particle_system
+            if psys.settings.type == 'HAIR' and not psys.settings.use_advanced_hair:
+                return False
+            return not psys.point_cache.use_external
         else:
             return False
 
@@ -798,6 +822,8 @@ class PARTICLE_PT_render(ParticleButtonsPanel, bpy.types.Panel):
                     row.prop(weight, "count")
 
         elif part.render_type == 'BILLBOARD':
+            ob = context.object
+
             sub.label(text="Align:")
 
             row = layout.row()
@@ -810,21 +836,22 @@ class PARTICLE_PT_render(ParticleButtonsPanel, bpy.types.Panel):
             col = row.column(align=True)
             col.label(text="Tilt:")
             col.prop(part, "billboard_tilt", text="Angle", slider=True)
-            col.prop(part, "billboard_tilt_random", slider=True)
+            col.prop(part, "billboard_tilt_random", text="Random", slider=True)
             col = row.column()
             col.prop(part, "billboard_offset")
 
-            row = layout.row()
-            row.prop(psys, "billboard_normal_uv")
-            row = layout.row()
-            row.prop(psys, "billboard_time_index_uv")
+            col = layout.column()
+            col.prop_search(psys, "billboard_normal_uv", ob.data, "uv_textures")
+            col.prop_search(psys, "billboard_time_index_uv", ob.data, "uv_textures")
 
-            row = layout.row()
-            row.label(text="Split uv's:")
-            row.prop(part, "billboard_uv_split", text="Number of splits")
-            row = layout.row()
-            row.prop(psys, "billboard_split_uv")
-            row = layout.row()
+            split = layout.split(percentage=0.33)
+            split.label(text="Split uv's:")
+            split.prop(part, "billboard_uv_split", text="Number of splits")
+            col = layout.column()
+            col.active = part.billboard_uv_split > 1
+            col.prop_search(psys, "billboard_split_uv", ob.data, "uv_textures")
+
+            row = col.row()
             row.label(text="Animate:")
             row.prop(part, "billboard_animation", text="")
             row.label(text="Offset:")
@@ -1012,12 +1039,20 @@ class PARTICLE_PT_field_weights(ParticleButtonsPanel, bpy.types.Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER'}
 
+    @classmethod
+    def poll(cls, context):
+        return particle_panel_poll(cls, context)
+
     def draw(self, context):
         part = context.particle_system.settings
         effector_weights_ui(self, context, part.effector_weights)
 
         if part.type == 'HAIR':
-            self.layout.prop(part.effector_weights, "apply_to_hair_growing")
+            row = self.layout.row()
+            row.prop(part.effector_weights, "apply_to_hair_growing")
+            row.prop(part, "apply_effector_to_children")
+            row = self.layout.row()
+            row.prop(part, "effect_hair", slider=True)
 
 
 class PARTICLE_PT_force_fields(ParticleButtonsPanel, bpy.types.Panel):
@@ -1030,12 +1065,16 @@ class PARTICLE_PT_force_fields(ParticleButtonsPanel, bpy.types.Panel):
 
         part = context.particle_system.settings
 
-        layout.prop(part, "use_self_effect")
+        row = layout.row()
+        row.prop(part, "use_self_effect")
+        row.prop(part, "effector_amount", text="Amount")
 
         split = layout.split(percentage=0.2)
         split.label(text="Type 1:")
         split.prop(part.force_field_1, "type", text="")
         basic_force_field_settings_ui(self, context, part.force_field_1)
+        if part.force_field_1.type != 'NONE':
+            layout.label(text="Falloff:")
         basic_force_field_falloff_ui(self, context, part.force_field_1)
 
         if part.force_field_1.type != 'NONE':
@@ -1045,6 +1084,8 @@ class PARTICLE_PT_force_fields(ParticleButtonsPanel, bpy.types.Panel):
         split.label(text="Type 2:")
         split.prop(part.force_field_2, "type", text="")
         basic_force_field_settings_ui(self, context, part.force_field_2)
+        if part.force_field_2.type != 'NONE':
+            layout.label(text="Falloff:")
         basic_force_field_falloff_ui(self, context, part.force_field_2)
 
 
@@ -1052,6 +1093,10 @@ class PARTICLE_PT_vertexgroups(ParticleButtonsPanel, bpy.types.Panel):
     bl_label = "Vertexgroups"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    @classmethod
+    def poll(cls, context):
+        return particle_panel_poll(cls, context)
 
     def draw(self, context):
         layout = self.layout
@@ -1123,11 +1168,11 @@ class PARTICLE_PT_custom_props(ParticleButtonsPanel, PropertyPanel, bpy.types.Pa
 
 
 def register():
-    pass
+    bpy.utils.register_module(__name__)
 
 
 def unregister():
-    pass
+    bpy.utils.unregister_module(__name__)
 
 if __name__ == "__main__":
     register()

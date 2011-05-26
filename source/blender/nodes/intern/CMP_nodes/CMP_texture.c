@@ -118,7 +118,7 @@ static void node_composit_exec_texture(void *data, bNode *node, bNodeStack **in,
 			VECCOPY(stackbuf->procedural_offset, in[0]->vec);
 			VECCOPY(stackbuf->procedural_size, in[1]->vec);
 			stackbuf->procedural_type= CB_VAL;
-			composit1_pixel_processor(node, prevbuf, prevbuf, out[0]->vec, do_copy_value, CB_VAL);
+			composit1_pixel_processor(node, stackbuf, stackbuf, out[0]->vec, do_copy_value, CB_VAL);
 			stackbuf->rect_procedural= NULL;
 			
 			out[0]->data= stackbuf; 
@@ -131,7 +131,7 @@ static void node_composit_exec_texture(void *data, bNode *node, bNodeStack **in,
 			VECCOPY(stackbuf->procedural_offset, in[0]->vec);
 			VECCOPY(stackbuf->procedural_size, in[1]->vec);
 			stackbuf->procedural_type= CB_RGBA;
-			composit1_pixel_processor(node, prevbuf, prevbuf, out[0]->vec, do_copy_rgba, CB_RGBA);
+			composit1_pixel_processor(node, stackbuf, stackbuf, out[0]->vec, do_copy_rgba, CB_RGBA);
 			stackbuf->rect_procedural= NULL;
 			
 			out[1]->data= stackbuf;
@@ -139,22 +139,17 @@ static void node_composit_exec_texture(void *data, bNode *node, bNodeStack **in,
 	}
 }
 
-bNodeType cmp_node_texture= {
-	/* *next,*prev */	NULL, NULL,
-	/* type code   */	CMP_NODE_TEXTURE,
-	/* name        */	"Texture",
-	/* width+range */	120, 80, 240,
-	/* class+opts  */	NODE_CLASS_INPUT, NODE_OPTIONS|NODE_PREVIEW,
-	/* input sock  */	cmp_node_texture_in,
-	/* output sock */	cmp_node_texture_out,
-	/* storage     */	"",
-	/* execfunc    */	node_composit_exec_texture,
-	/* butfunc     */	NULL,
-	/* initfunc    */	NULL,
-	/* freestoragefunc    */	NULL,
-	/* copystoragefunc    */	NULL,
-	/* id          */	NULL
+void register_node_type_cmp_texture(ListBase *lb)
+{
+	static bNodeType ntype;
 	
-};
+	node_type_base(&ntype, CMP_NODE_TEXTURE, "Texture", NODE_CLASS_INPUT, NODE_OPTIONS|NODE_PREVIEW,
+		cmp_node_texture_in, cmp_node_texture_out);
+	node_type_size(&ntype, 120, 80, 240);
+	node_type_exec(&ntype, node_composit_exec_texture);
+
+	nodeRegisterType(lb, &ntype);
+}
+
 
 

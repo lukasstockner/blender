@@ -122,6 +122,7 @@ void nla_operatortypes(void)
 	WM_operatortype_append(NLA_OT_click_select);
 	WM_operatortype_append(NLA_OT_select_border);
 	WM_operatortype_append(NLA_OT_select_all_toggle);
+	WM_operatortype_append(NLA_OT_select_leftright);
 	
 	/* edit */
 	WM_operatortype_append(NLA_OT_tweakmode_enter);
@@ -139,6 +140,7 @@ void nla_operatortypes(void)
 	
 	WM_operatortype_append(NLA_OT_mute_toggle);
 	
+	WM_operatortype_append(NLA_OT_swap);
 	WM_operatortype_append(NLA_OT_move_up);
 	WM_operatortype_append(NLA_OT_move_down);
 	
@@ -208,8 +210,17 @@ static void nla_keymap_main (wmKeyConfig *keyconf, wmKeyMap *keymap)
 	WM_keymap_add_item(keymap, "NLA_OT_click_select", SELECTMOUSE, KM_PRESS, 0, 0);
 	kmi= WM_keymap_add_item(keymap, "NLA_OT_click_select", SELECTMOUSE, KM_PRESS, KM_SHIFT, 0);
 		RNA_boolean_set(kmi->ptr, "extend", 1);
-	kmi= WM_keymap_add_item(keymap, "NLA_OT_click_select", SELECTMOUSE, KM_PRESS, KM_CTRL, 0);
-		RNA_enum_set(kmi->ptr, "left_right", NLAEDIT_LRSEL_TEST);	
+	
+		/* select left/right */
+	WM_keymap_add_item(keymap, "NLA_OT_select_leftright", SELECTMOUSE, KM_PRESS, KM_CTRL, 0);
+	kmi= WM_keymap_add_item(keymap, "NLA_OT_select_leftright", SELECTMOUSE, KM_PRESS, KM_CTRL|KM_SHIFT, 0);
+		RNA_boolean_set(kmi->ptr, "extend", 1);
+	
+	kmi= WM_keymap_add_item(keymap, "NLA_OT_select_leftright", LEFTBRACKETKEY, KM_PRESS, 0, 0);
+		RNA_enum_set(kmi->ptr, "mode", NLAEDIT_LRSEL_LEFT);
+	kmi= WM_keymap_add_item(keymap, "NLA_OT_select_leftright", RIGHTBRACKETKEY, KM_PRESS, 0, 0);
+		RNA_enum_set(kmi->ptr, "mode", NLAEDIT_LRSEL_RIGHT);
+		
 	
 		/* deselect all */
 	WM_keymap_add_item(keymap, "NLA_OT_select_all_toggle", AKEY, KM_PRESS, 0, 0);
@@ -249,6 +260,9 @@ static void nla_keymap_main (wmKeyConfig *keyconf, wmKeyMap *keymap)
 		/* toggles */
 	WM_keymap_add_item(keymap, "NLA_OT_mute_toggle", HKEY, KM_PRESS, 0, 0);
 	
+		/* swap */
+	WM_keymap_add_item(keymap, "NLA_OT_swap", FKEY, KM_PRESS, KM_ALT, 0);
+		
 		/* move up */
 	WM_keymap_add_item(keymap, "NLA_OT_move_up", PAGEUPKEY, KM_PRESS, 0, 0);
 		/* move down */

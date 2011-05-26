@@ -214,8 +214,6 @@ static void writedata_free(WriteData *wd)
 
 /***/
 
-int mywfile;
-
 /**
  * Low level WRITE(2) wrapper that buffers data
  * @param adr Pointer to new chunk of data
@@ -343,7 +341,7 @@ static void writedata(WriteData *wd, int filecode, int len, void *adr)	/* do not
 {
 	BHead bh;
 
-	if(adr==0) return;
+	if(adr==NULL) return;
 	if(len==0) return;
 
 	len+= 3;
@@ -823,6 +821,7 @@ static void write_particlesettings(WriteData *wd, ListBase *idbase)
 {
 	ParticleSettings *part;
 	ParticleDupliWeight *dw;
+	int a;
 
 	part= idbase->first;
 	while(part) {
@@ -850,6 +849,10 @@ static void write_particlesettings(WriteData *wd, ListBase *idbase)
 			if(part->fluid && part->phystype == PART_PHYS_FLUID){
 				writestruct(wd, DATA, "SPHFluidSettings", 1, part->fluid); 
 			}
+
+			for(a=0; a<MAX_MTEX; a++) {
+				if(part->mtex[a]) writestruct(wd, DATA, "MTex", 1, part->mtex[a]);
+		}
 		}
 		part= part->id.next;
 	}
@@ -1291,7 +1294,7 @@ static void write_objects(WriteData *wd, ListBase *idbase)
 			if (ob->type == OB_ARMATURE) {
 				bArmature *arm = ob->data;
 				if (arm && ob->pose && arm->act_bone) {
-					strcpy(ob->pose->proxy_act_bone, arm->act_bone->name);
+					BLI_strncpy(ob->pose->proxy_act_bone, arm->act_bone->name, sizeof(ob->pose->proxy_act_bone));
 				}
 			}
 
@@ -1948,6 +1951,7 @@ static void write_gpencils(WriteData *wd, ListBase *lb)
 	bGPDstroke *gps;
 	
 	for (gpd= lb->first; gpd; gpd= gpd->id.next) {
+		if (gpd->id.us>0 || wd->current) {
 		/* write gpd data block to file */
 		writestruct(wd, ID_GD, "bGPdata", 1, gpd);
 		
@@ -1967,6 +1971,7 @@ static void write_gpencils(WriteData *wd, ListBase *lb)
 			}
 		}
 	}
+}
 }
 
 static void write_windowmanagers(WriteData *wd, ListBase *lb)
@@ -2137,6 +2142,7 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 					ConsoleLine *cl;
 
 					for (cl=con->history.first; cl; cl=cl->next) {
+						/* 'len_alloc' is invalid on write, set from 'len' on read */
 						writestruct(wd, DATA, "ConsoleLine", 1, cl);
 						writedata(wd, DATA, cl->len+1, cl->line);
 					}
@@ -2386,6 +2392,10 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
 	bScreen *screen;
 	char subvstr[8];
 	
+	/* prevent mem checkers from complaining */
+	fg.pads= fg.pad= 0;
+	memset(fg.filename, 0, sizeof(fg.filename));
+
 	current_screen_compat(mainvar, &screen);
 
 	/* XXX still remap G */
@@ -2411,7 +2421,6 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
 #else
 	fg.revision= 0;
 #endif
-	fg.pads= fg.pad= 0; /* prevent mem checkers from complaining */
 	writestruct(wd, GLOB, "FileGlobal", 1, &fg);
 }
 
@@ -2595,28 +2604,19 @@ int BLO_write_file_mem(Main *mainvar, MemFile *compare, MemFile *current, int wr
 
 	/* Runtime writing */
 
-#ifdef WIN32
-#define PATHSEPERATOR		"\\"
-#else
-#define PATHSEPERATOR		"/"
-#endif
-
 static char *get_runtime_path(char *exename) {
 	char *installpath= get_install_dir();
 
 	if (!installpath) {
 		return NULL;
-	} else {
-		char *path= MEM_mallocN(strlen(installpath)+strlen(PATHSEPERATOR)+strlen(exename)+1, "runtimepath");
+	}
+	else {
+		char *path= BLI_sprintfN("%s%c%s", installpath, SEP, exename);
 
 		if (path == NULL) {
 			MEM_freeN(installpath);
 			return NULL;
 		}
-
-		strcpy(path, installpath);
-		strcat(path, PATHSEPERATOR);
-		strcat(path, exename);
 
 		MEM_freeN(installpath);
 
@@ -2626,7 +2626,7 @@ static char *get_runtime_path(char *exename) {
 
 #ifdef __APPLE__
 
-static int recursive_copy_runtime(char *outname, char *exename, ReportList *reports)
+static int recursive_copy_runtime(const char *outname, char *exename, ReportList *reports)
 {
 	char *runtime = get_runtime_path(exename);
 	char command[2 * (FILE_MAXDIR+FILE_MAXFILE) + 32];
@@ -2662,7 +2662,7 @@ cleanup:
 	return !error;
 }
 
-int BLO_write_runtime(Main *mainvar, char *file, char *exename, ReportList *reports) 
+int BLO_write_runtime(Main *mainvar, const char *file, char *exename, ReportList *reports) 
 {
 	char gamename[FILE_MAXDIR+FILE_MAXFILE];
 	int outfd = -1, error= 0;
@@ -2676,8 +2676,7 @@ int BLO_write_runtime(Main *mainvar, char *file, char *exename, ReportList *repo
 		goto cleanup;
 	}
 
-	strcpy(gamename, file);
-	strcat(gamename, "/Contents/Resources/game.blend");
+	BLI_snprintf(gamename, sizeof(gamename), "%s/Contents/Resources/game.blend", file);
 	//printf("gamename %s\n", gamename);
 	outfd= open(gamename, O_BINARY|O_WRONLY|O_CREAT|O_TRUNC, 0777);
 	if (outfd != -1) {
@@ -2751,7 +2750,7 @@ static int handle_write_msb_int(int handle, int i)
 	return (write(handle, buf, 4)==4);
 }
 
-int BLO_write_runtime(Main *mainvar, char *file, char *exename, ReportList *reports)
+int BLO_write_runtime(Main *mainvar, const char *file, char *exename, ReportList *reports)
 {
 	int outfd= open(file, O_BINARY|O_WRONLY|O_CREAT|O_TRUNC, 0777);
 	int datastart, error= 0;

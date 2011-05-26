@@ -126,7 +126,8 @@ typedef struct SpaceButs {
 	short mainb, mainbo, mainbuser;	/* context tabs */
 	short re_align, align;			/* align for panels */
 	short preview;					/* preview is signal to refresh */
-	char flag, pad[3];
+	short texture_context;			/* texture context selector (material, world, brush)*/
+	char flag, pad;
 	
 	void *path;						/* runtime */
 	int pathflag, dataicon;			/* runtime */
@@ -367,7 +368,7 @@ typedef struct SpaceTime {
 	ListBase caches;
 	int cache_display, pad;
 	
-	int flag, redraws;
+	int flag, redraws; /* redraws is deprecated... moved to screen */
 	
 } SpaceTime;
 
@@ -392,7 +393,8 @@ typedef struct SpaceNode {
 	
 	struct bNodeTree *nodetree, *edittree;
 	int treetype;			/* treetype: as same nodetree->type */
-	short texfrom, pad;		/* texfrom object, world or brush */
+	short texfrom;		/* texfrom object, world or brush */
+	short recalc;		/* currently on 0/1, for auto compo */
 	
 	struct bGPdata *gpd;		/* grease-pencil data */
 } SpaceNode;
@@ -400,6 +402,9 @@ typedef struct SpaceNode {
 /* snode->flag */
 #define SNODE_BACKDRAW		2
 #define SNODE_DISPGP		4
+#define SNODE_USE_ALPHA		8
+#define SNODE_SHOW_ALPHA	16
+#define SNODE_AUTO_RENDER	32
 
 /* snode->texfrom */
 #define SNODE_TEX_OBJECT	0
@@ -635,9 +640,15 @@ typedef struct SpaceSound {
 /* sbuts->flag */
 #define SB_PRV_OSA			1
 #define SB_PIN_CONTEXT		2
-#define SB_WORLD_TEX		4
-#define SB_BRUSH_TEX		8
+//#define SB_WORLD_TEX		4	//not used anymore
+//#define SB_BRUSH_TEX		8	//not used anymore	
 #define SB_SHADING_CONTEXT	16
+
+/* sbuts->texture_context */
+#define SB_TEXC_MAT_OR_LAMP	0
+#define SB_TEXC_WORLD		1
+#define SB_TEXC_BRUSH		2
+#define SB_TEXC_PARTICLES	3
 
 /* sbuts->align */
 #define BUT_FREE  		0
@@ -710,7 +721,7 @@ enum FileSortTypeE {
 #define EDITING				(1<<0)
 #define ACTIVEFILE			(1<<1)
 #define BLENDERFILE			(1<<2)
-#define PSXFILE				(1<<3)
+#define BLENDERFILE_BACKUP	(1<<3)
 #define IMAGEFILE			(1<<4)
 #define MOVIEFILE			(1<<5)
 #define PYSCRIPTFILE		(1<<6)
@@ -797,6 +808,8 @@ enum FileSortTypeE {
 #define SIPO_TEMP_NEEDCHANSYNC	(1<<10)
 	/* don't perform realtime updates */
 #define SIPO_NOREALTIMEUPDATES	(1<<11)
+	/* don't draw curves with AA ("beauty-draw") for performance */
+#define SIPO_BEAUTYDRAW_OFF		(1<<12)
 
 /* SpaceIpo->mode (Graph Editor Mode) */
 enum {
@@ -854,12 +867,6 @@ enum {
 #define B_IMASELHOME		451
 #define B_IMASELREMOVEBIP	452
 
-#define C_BACK  0xBAAAAA
-#define C_DARK  0x665656
-#define C_DERK  0x766666
-#define C_HI	0xCBBBBB
-#define C_LO	0x544444
-
 /* nla->flag */
 /* flags (1<<0), (1<<1), and (1<<3) are depreceated flags from old blenders */
 	/* draw timing in seconds instead of frames */
@@ -879,7 +886,7 @@ enum {
 	/* only keyframes from active/selected channels get shown */
 #define TIME_ONLYACTSEL		4
 
-/* time->redraws */
+/* time->redraws (now screen->redraws_flag) */
 #define TIME_REGION				1
 #define TIME_ALL_3D_WIN			2
 #define TIME_ALL_ANIM_WIN		4

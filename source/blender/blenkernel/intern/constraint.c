@@ -372,7 +372,7 @@ void constraint_mat_convertspace (Object *ob, bPoseChannel *pchan, float mat[][4
 	else {
 		/* objects */
 		if (from==CONSTRAINT_SPACE_WORLD && to==CONSTRAINT_SPACE_LOCAL) {
-			/* check if object has a parent - otherwise this won't work */
+			/* check if object has a parent */
 			if (ob->parent) {
 				/* 'subtract' parent's effects from owner */
 				mul_m4_m4m4(diff_mat, ob->parentinv, ob->parent->obmat);
@@ -380,6 +380,18 @@ void constraint_mat_convertspace (Object *ob, bPoseChannel *pchan, float mat[][4
 				copy_m4_m4(tempmat, mat);
 				mul_m4_m4m4(mat, tempmat, imat);
 			}
+			else {
+				/* Local space in this case will have to be defined as local to the owner's 
+				 * transform-property-rotated axes. So subtract this rotation component.
+				 */
+				object_to_mat4(ob, diff_mat);
+				normalize_m4(diff_mat);
+				zero_v3(diff_mat[3]);
+				
+				invert_m4_m4(imat, diff_mat);
+				copy_m4_m4(tempmat, mat);
+				mul_m4_m4m4(mat, tempmat, imat);
+		}
 		}
 		else if (from==CONSTRAINT_SPACE_LOCAL && to==CONSTRAINT_SPACE_WORLD) {
 			/* check that object has a parent - otherwise this won't work */
@@ -389,14 +401,25 @@ void constraint_mat_convertspace (Object *ob, bPoseChannel *pchan, float mat[][4
 				mul_m4_m4m4(diff_mat, ob->parentinv, ob->parent->obmat);
 				mul_m4_m4m4(mat, tempmat, diff_mat);
 			}
+			else {
+				/* Local space in this case will have to be defined as local to the owner's 
+				 * transform-property-rotated axes. So add back this rotation component.
+				 */
+				object_to_mat4(ob, diff_mat);
+				normalize_m4(diff_mat);
+				zero_v3(diff_mat[3]);
+				
+				copy_m4_m4(tempmat, mat);
+				mul_m4_m4m4(mat, tempmat, diff_mat);
 		}
 	}
+}
 }
 
 /* ------------ General Target Matrix Tools ---------- */
 
 /* function that sets the given matrix based on given vertex group in mesh */
-static void contarget_get_mesh_mat (Scene *scene, Object *ob, char *substring, float mat[][4])
+static void contarget_get_mesh_mat (Scene *scene, Object *ob, const char *substring, float mat[][4])
 {
 	DerivedMesh *dm = NULL;
 	Mesh *me= ob->data;
@@ -501,7 +524,7 @@ static void contarget_get_mesh_mat (Scene *scene, Object *ob, char *substring, f
 }
 
 /* function that sets the given matrix based on given vertex group in lattice */
-static void contarget_get_lattice_mat (Object *ob, char *substring, float mat[][4])
+static void contarget_get_lattice_mat (Object *ob, const char *substring, float mat[][4])
 {
 	Lattice *lt= (Lattice *)ob->data;
 	
@@ -559,7 +582,7 @@ static void contarget_get_lattice_mat (Object *ob, char *substring, float mat[][
 
 /* generic function to get the appropriate matrix for most target cases */
 /* The cases where the target can be object data have not been implemented */
-static void constraint_target_to_mat4 (Scene *scene, Object *ob, char *substring, float mat[][4], short from, short to, float headtail)
+static void constraint_target_to_mat4 (Scene *scene, Object *ob, const char *substring, float mat[][4], short from, short to, float headtail)
 {
 	/*	Case OBJECT */
 	if (!strlen(substring)) {
@@ -729,7 +752,7 @@ static void default_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstrain
 			bConstraintTarget *ctn = ct->next; \
 			if (nocopy == 0) { \
 				datatar= ct->tar; \
-				strcpy(datasubtarget, ct->subtarget); \
+				BLI_strncpy(datasubtarget, ct->subtarget, sizeof(datasubtarget)); \
 				con->tarspace= (char)ct->space; \
 			} \
 			 \
@@ -811,7 +834,23 @@ static void childof_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 	
 	/* only evaluate if there is a target */
 	if (VALID_CONS_TARGET(ct)) {
-		float parmat[4][4], invmat[4][4], tempmat[4][4];
+		float parmat[4][4];
+		
+		/* simple matrix parenting */
+		if(data->flag == CHILDOF_ALL) {
+			
+			/* multiply target (parent matrix) by offset (parent inverse) to get 
+			 * the effect of the parent that will be exherted on the owner
+			 */
+			mul_m4_m4m4(parmat, data->invmat, ct->matrix);
+			
+			/* now multiply the parent matrix by the owner matrix to get the 
+			 * the effect of this constraint (i.e.  owner is 'parented' to parent)
+			 */
+			mul_m4_m4m4(cob->matrix, cob->matrix, parmat);
+		}
+		else {
+			float invmat[4][4], tempmat[4][4];
 		float loc[3], eul[3], size[3];
 		float loco[3], eulo[3], sizo[3];
 		
@@ -860,6 +899,7 @@ static void childof_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 		if (!(data->flag & CHILDOF_LOCY)) cob->matrix[3][1]= tempmat[3][1];
 		if (!(data->flag & CHILDOF_LOCZ)) cob->matrix[3][2]= tempmat[3][2];	
 	}
+}
 }
 
 /* XXX note, con->flag should be CONSTRAINT_SPACEONCE for bone-childof, patched in readfile.c */
@@ -2108,7 +2148,6 @@ static void actcon_flush_tars (bConstraint *con, ListBase *list, short nocopy)
 
 static void actcon_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float ctime)
 {
-	extern void chan_calc_mat(bPoseChannel *chan);
 	bActionConstraint *data = con->data;
 	
 	if (VALID_CONS_TARGET(ct)) {
@@ -2176,7 +2215,7 @@ static void actcon_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraint
 			what_does_obaction(cob->scene, cob->ob, &workob, pose, data->act, pchan->name, t);
 			
 			/* convert animation to matrices for use here */
-			chan_calc_mat(tchan);
+			pchan_calc_mat(tchan);
 			copy_m4_m4(ct->matrix, tchan->chan_mat);
 			
 			/* Clean up */
@@ -3428,8 +3467,7 @@ static void shrinkwrap_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstr
 		BVHTreeRayHit hit;
 		BVHTreeNearest nearest;
 		
-		BVHTreeFromMesh treeData;
-		memset(&treeData, 0, sizeof(treeData));
+		BVHTreeFromMesh treeData= {NULL};
 		
 		nearest.index = -1;
 		nearest.dist = FLT_MAX;
@@ -4104,6 +4142,21 @@ static bConstraint *add_new_constraint (Object *ob, bPoseChannel *pchan, const c
 		
 		/* make this constraint the active one */
 		constraints_set_active(list, con);
+	}
+	
+	/* set type+owner specific immutable settings */
+	// TODO: does action constraint need anything here - i.e. spaceonce?
+	switch (type) {
+		case CONSTRAINT_TYPE_CHILDOF:
+		{
+			/* if this constraint is being added to a posechannel, make sure
+			 * the constraint gets evaluated in pose-space */
+			if (pchan) {
+				con->ownspace = CONSTRAINT_SPACE_POSE;
+				con->flag |= CONSTRAINT_SPACEONCE;
+			}
+		}
+			break;
 	}
 	
 	return con;

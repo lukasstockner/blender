@@ -35,6 +35,15 @@ def draw_repeat_tools(context, layout):
     col.operator("screen.repeat_history", text="History...")
 
 
+# Keyframing tools
+def draw_keyframing_tools(context, layout):
+    col = layout.column(align=True)
+    col.label(text="Keyframes:")
+    row = col.row()
+    row.operator("anim.keyframe_insert_menu", text="Insert")
+    row.operator("anim.keyframe_delete_v3d", text="Remove")
+
+
 # Grease Pencil tools
 def draw_gpencil_tools(context, layout):
     col = layout.column(align=True)
@@ -82,10 +91,12 @@ class VIEW3D_PT_tools_objectmode(View3DPanel, bpy.types.Panel):
             col.operator("object.shade_smooth", text="Smooth")
             col.operator("object.shade_flat", text="Flat")
 
+        draw_keyframing_tools(context, layout)
+
         col = layout.column(align=True)
-        col.label(text="Keyframes:")
-        col.operator("anim.keyframe_insert_menu", text="Insert")
-        col.operator("anim.keyframe_delete_v3d", text="Remove")
+        col.label(text="Motion Paths:")
+        col.operator("object.paths_calculate", text="Calculate Paths")
+        col.operator("object.paths_clear", text="Clear Paths")
 
         draw_repeat_tools(context, layout)
 
@@ -395,11 +406,12 @@ class VIEW3D_PT_tools_posemode(View3DPanel, bpy.types.Panel):
         col = layout.column(align=True)
         col.operator("poselib.pose_add", text="Add To Library")
 
-        col = layout.column(align=True)
-        col.label(text="Keyframes:")
+        draw_keyframing_tools(context, layout)
 
-        col.operator("anim.keyframe_insert_menu", text="Insert")
-        col.operator("anim.keyframe_delete_v3d", text="Remove")
+        col = layout.column(align=True)
+        col.label(text="Motion Paths:")
+        col.operator("pose.paths_calculate", text="Calculate Paths")
+        col.operator("pose.paths_clear", text="Clear Paths")
 
         draw_repeat_tools(context, layout)
 
@@ -416,7 +428,6 @@ class VIEW3D_PT_tools_posemode_options(View3DPanel, bpy.types.Panel):
         arm = context.active_object.data
 
         col = layout.column(align=True)
-        col.prop(arm, "use_mirror_x")
         col.prop(arm, "use_auto_ik")
 
 # ********** default tools for paint modes ****************
@@ -1300,11 +1311,11 @@ class VIEW3D_PT_tools_particlemode(View3DPanel, bpy.types.Panel):
 
 
 def register():
-    pass
+    bpy.utils.register_module(__name__)
 
 
 def unregister():
-    pass
+    bpy.utils.unregister_module(__name__)
 
 if __name__ == "__main__":
     register()

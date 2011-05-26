@@ -35,3 +35,5 @@ endif()
 if(WINDOWS)
 	add_subdirectory(icons)
 endif()
+
+add_subdirectory(tests)

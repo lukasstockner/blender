@@ -33,7 +33,17 @@
 /* used to test is a quat is not normalized */
 #define QUAT_EPSILON 0.0001
 
-void unit_qt(float *q)
+/* convenience, avoids setting Y axis everywhere */
+void unit_axis_angle(float axis[3], float *angle)
+{
+	axis[0]= 0.0f;
+	axis[1]= 1.0f;
+	axis[2]= 0.0f;
+	*angle= 0.0f;
+}
+
+
+void unit_qt(float q[4])
 {
 	q[0]= 1.0f;
 	q[1]= q[2]= q[3]= 0.0f;
@@ -1410,7 +1420,7 @@ void mat4_to_dquat(DualQuat *dq,float basemat[][4], float mat[][4])
 		mul_m4_m4m4(S, baseRS, baseRinv);
 
 		/* set scaling part */
-		mul_serie_m4(dq->scale, basemat, S, baseinv, 0, 0, 0, 0, 0);
+		mul_serie_m4(dq->scale, basemat, S, baseinv, NULL, NULL, NULL, NULL, NULL);
 		dq->scale_weight= 1.0f;
 	}
 	else {

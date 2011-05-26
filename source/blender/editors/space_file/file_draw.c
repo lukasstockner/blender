@@ -75,7 +75,7 @@
 #define TILE_BORDER_Y 8
 
 /* button events */
-enum {
+static enum {
 	B_FS_DIRNAME,
 	B_FS_FILENAME
 } eFile_ButEvents;
@@ -305,6 +305,8 @@ static int get_file_icon(struct direntry *file)
 	}
 	else if (file->flags & BLENDERFILE)
 		return ICON_FILE_BLEND;
+	else if (file->flags & BLENDERFILE_BACKUP)
+		return ICON_FILE_BLEND;
 	else if (file->flags & IMAGEFILE)
 		return ICON_FILE_IMAGE;
 	else if (file->flags & MOVIEFILE)
@@ -349,6 +351,7 @@ static void file_draw_string(int sx, int sy, const char* string, float width, in
 
 
 	BLI_strncpy(fname,string, FILE_MAXFILE);
+	file_shorten_string(fname, width+1.0, 0);
 
 	/* no text clipping needed, uiStyleFontDraw does it but is a bit too strict (for buttons it works) */
 	rect.xmin = sx;

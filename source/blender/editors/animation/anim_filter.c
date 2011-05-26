@@ -427,7 +427,7 @@ short ANIM_animdata_get_context (const bContext *C, bAnimContext *ac)
 /* this function allocates memory for a new bAnimListElem struct for the 
  * provided animation channel-data. 
  */
-bAnimListElem *make_new_animlistelem (void *data, short datatype, void *owner, short ownertype, ID *owner_id)
+static bAnimListElem *make_new_animlistelem (void *data, short datatype, void *owner, short ownertype, ID *owner_id)
 {
 	bAnimListElem *ale= NULL;
 	
@@ -2560,7 +2560,7 @@ static short animdata_filter_dopesheet_summary (bAnimContext *ac, ListBase *anim
 	
 	/* dopesheet summary 
 	 *	- only for drawing and/or selecting keyframes in channels, but not for real editing 
-	 *	- only useful for DopeSheet Editor, where the summary is useful
+	 *	- only useful for DopeSheet/Action/etc. editors where it is actually useful
 	 */
 	// TODO: we should really check if some other prohibited filters are also active, but that can be for later
 	if ((filter_mode & ANIMFILTER_CHANNELS) && (ads->filterflag & ADS_FILTER_SUMMARY)) {
@@ -2661,9 +2661,12 @@ int ANIM_animdata_filter (bAnimContext *ac, ListBase *anim_data, int filter_mode
 		switch (datatype) {
 			case ANIMCONT_ACTION:	/* 'Action Editor' */
 			{
+				SpaceAction *saction = (SpaceAction *)ac->sa->spacedata.first;
+				bDopeSheet *ads = (saction)? &saction->ads : NULL;
+				
 				/* the check for the DopeSheet summary is included here since the summary works here too */
 				if (animdata_filter_dopesheet_summary(ac, anim_data, filter_mode, &items))
-					items += animdata_filter_action(ac, anim_data, NULL, data, filter_mode, NULL, ANIMTYPE_NONE, (ID *)obact);
+					items += animdata_filter_action(ac, anim_data, ads, data, filter_mode, NULL, ANIMTYPE_NONE, (ID *)obact);
 			}
 				break;
 				

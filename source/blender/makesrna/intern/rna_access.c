@@ -61,7 +61,7 @@ const PointerRNA PointerRNA_NULL= {{0}};
 
 /* Init/Exit */
 
-void RNA_init()
+void RNA_init(void)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
@@ -77,7 +77,7 @@ void RNA_init()
 	}
 }
 
-void RNA_exit()
+void RNA_exit(void)
 {
 	StructRNA *srna;
 
@@ -236,8 +236,9 @@ IDProperty *rna_idproperty_ui(PropertyRNA *prop)
 		}
 	}
 
-	if (idprop)
-		return IDP_GetPropertyFromGroup(idprop, ((IDProperty *)prop)->name);
+	if (idprop) {
+		return IDP_GetPropertyTypeFromGroup(idprop, ((IDProperty *)prop)->name, IDP_GROUP);
+	}
 
 	return NULL;
 }
@@ -360,20 +361,20 @@ static int rna_idproperty_verify_valid(PointerRNA *ptr, PropertyRNA *prop, IDPro
 }
 
 static PropertyRNA *typemap[IDP_NUMTYPES] =
-	{(PropertyRNA*)&rna_IDProperty_string,
-	 (PropertyRNA*)&rna_IDProperty_int,
-	 (PropertyRNA*)&rna_IDProperty_float,
+	{(PropertyRNA*)&rna_PropertyGroupItem_string,
+	 (PropertyRNA*)&rna_PropertyGroupItem_int,
+	 (PropertyRNA*)&rna_PropertyGroupItem_float,
 	 NULL, NULL, NULL,
-	 (PropertyRNA*)&rna_IDProperty_group, NULL,
-	 (PropertyRNA*)&rna_IDProperty_double,
-	 (PropertyRNA*)&rna_IDProperty_idp_array};
+	 (PropertyRNA*)&rna_PropertyGroupItem_group, NULL,
+	 (PropertyRNA*)&rna_PropertyGroupItem_double,
+	 (PropertyRNA*)&rna_PropertyGroupItem_idp_array};
 
 static PropertyRNA *arraytypemap[IDP_NUMTYPES] =
-	{NULL, (PropertyRNA*)&rna_IDProperty_int_array,
-	 (PropertyRNA*)&rna_IDProperty_float_array,
+	{NULL, (PropertyRNA*)&rna_PropertyGroupItem_int_array,
+	 (PropertyRNA*)&rna_PropertyGroupItem_float_array,
 	 NULL, NULL, NULL,
-	 (PropertyRNA*)&rna_IDProperty_collection, NULL,
-	 (PropertyRNA*)&rna_IDProperty_double_array};
+	 (PropertyRNA*)&rna_PropertyGroupItem_collection, NULL,
+	 (PropertyRNA*)&rna_PropertyGroupItem_double_array};
 
 IDProperty *rna_idproperty_check(PropertyRNA **prop, PointerRNA *ptr)
 {
@@ -448,11 +449,10 @@ static const char *rna_ensure_property_description(PropertyRNA *prop)
 		/* attempt to get the local ID values */
 		IDProperty *idp_ui= rna_idproperty_ui(prop);
 
-		if(idp_ui) { /* TODO, type checking on ID props */
-
-			IDProperty *item= IDP_GetPropertyFromGroup(idp_ui, "description");
+		if(idp_ui) {
+			IDProperty *item= IDP_GetPropertyTypeFromGroup(idp_ui, "description", IDP_STRING);
 			if(item)
-				return (char *)item->data.pointer ;
+				return IDP_String(item);
 		}
 
 		return ((IDProperty*)prop)->name; /* XXX - not correct */
@@ -570,9 +570,15 @@ PropertyRNA *RNA_struct_find_nested(PointerRNA *ptr, StructRNA *srna)
 	return prop;
 }
 
-const struct ListBase *RNA_struct_defined_properties(StructRNA *srna)
+/* low level direct access to type->properties, note this ignores parent classes so should be used with care */
+const struct ListBase *RNA_struct_type_properties(StructRNA *srna)
 {
 	return &srna->cont.properties;
+}
+
+PropertyRNA *RNA_struct_type_find_property(StructRNA *srna, const char *identifier)
+{
+	return BLI_findstring_ptr(&srna->cont.properties, identifier, offsetof(PropertyRNA, identifier));
 }
 
 FunctionRNA *RNA_struct_find_function(PointerRNA *ptr, const char *identifier)
@@ -611,7 +617,7 @@ FunctionRNA *RNA_struct_find_function(PointerRNA *ptr, const char *identifier)
 #endif
 }
 
-const struct ListBase *RNA_struct_defined_functions(StructRNA *srna)
+const struct ListBase *RNA_struct_type_functions(StructRNA *srna)
 {
 	return &srna->functions;
 }
@@ -798,14 +804,15 @@ void RNA_property_int_range(PointerRNA *ptr, PropertyRNA *prop, int *hardmin, in
 	if(prop->magic != RNA_MAGIC) {
 		/* attempt to get the local ID values */
 		IDProperty *idp_ui= rna_idproperty_ui(prop);
+
+		if(idp_ui) {
 		IDProperty *item;
 
-		if(idp_ui) { /* TODO, type checking on ID props */
-			item= IDP_GetPropertyFromGroup(idp_ui, "min");
-			*hardmin= item ? item->data.val : INT_MIN;
+			item= IDP_GetPropertyTypeFromGroup(idp_ui, "min", IDP_INT);
+			*hardmin= item ? IDP_Int(item) : INT_MIN;
 
-			item= IDP_GetPropertyFromGroup(idp_ui, "max");
-			*hardmax= item ? item->data.val : INT_MAX;
+			item= IDP_GetPropertyTypeFromGroup(idp_ui, "max", IDP_INT);
+			*hardmax= item ? IDP_Int(item) : INT_MAX;
 
 			return;
 		}
@@ -828,17 +835,18 @@ void RNA_property_int_ui_range(PointerRNA *ptr, PropertyRNA *prop, int *softmin,
 	if(prop->magic != RNA_MAGIC) {
 		/* attempt to get the local ID values */
 		IDProperty *idp_ui= rna_idproperty_ui(prop);
+
+		if(idp_ui) {
 		IDProperty *item;
 
-		if(idp_ui) { /* TODO, type checking on ID props */
-			item= IDP_GetPropertyFromGroup(idp_ui, "soft_min");
-			*softmin= item ? item->data.val : INT_MIN;
+			item= IDP_GetPropertyTypeFromGroup(idp_ui, "soft_min", IDP_INT);
+			*softmin= item ? IDP_Int(item) : INT_MIN;
 
-			item= IDP_GetPropertyFromGroup(idp_ui, "soft_max");
-			*softmax= item ? item->data.val : INT_MAX;
+			item= IDP_GetPropertyTypeFromGroup(idp_ui, "soft_max", IDP_INT);
+			*softmax= item ? IDP_Int(item) : INT_MAX;
 
-			item= IDP_GetPropertyFromGroup(idp_ui, "step");
-			*step= item ? item->data.val : 1;
+			item= IDP_GetPropertyTypeFromGroup(idp_ui, "step", IDP_INT);
+			*step= item ? IDP_Int(item) : 1;
 
 			return;
 		}
@@ -864,14 +872,15 @@ void RNA_property_float_range(PointerRNA *ptr, PropertyRNA *prop, float *hardmin
 	if(prop->magic != RNA_MAGIC) {
 		/* attempt to get the local ID values */
 		IDProperty *idp_ui= rna_idproperty_ui(prop);
+
+		if(idp_ui) {
 		IDProperty *item;
 
-		if(idp_ui) { /* TODO, type checking on ID props */
-			item= IDP_GetPropertyFromGroup(idp_ui, "min");
-			*hardmin= item ? *(double*)&item->data.val : FLT_MIN;
+			item= IDP_GetPropertyTypeFromGroup(idp_ui, "min", IDP_DOUBLE);
+			*hardmin= item ? IDP_Double(item) : FLT_MIN; 
 
-			item= IDP_GetPropertyFromGroup(idp_ui, "max");
-			*hardmax= item ? *(double*)&item->data.val : FLT_MAX;
+			item= IDP_GetPropertyTypeFromGroup(idp_ui, "max", IDP_DOUBLE);
+			*hardmax= item ? IDP_Double(item) : FLT_MAX;
 
 			return;
 		}
@@ -894,20 +903,21 @@ void RNA_property_float_ui_range(PointerRNA *ptr, PropertyRNA *prop, float *soft
 	if(prop->magic != RNA_MAGIC) {
 		/* attempt to get the local ID values */
 		IDProperty *idp_ui= rna_idproperty_ui(prop);
+
+		if(idp_ui) {
 		IDProperty *item;
 
-		if(idp_ui) { /* TODO, type checking on ID props */
-			item= IDP_GetPropertyFromGroup(idp_ui, "soft_min");
-			*softmin= item ? *(double*)&item->data.val : FLT_MIN;
+			item= IDP_GetPropertyTypeFromGroup(idp_ui, "soft_min", IDP_DOUBLE);
+			*softmin= item ? IDP_Double(item) : FLT_MIN;
 
-			item= IDP_GetPropertyFromGroup(idp_ui, "soft_max");
-			*softmax= item ? *(double*)&item->data.val : FLT_MAX;
+			item= IDP_GetPropertyTypeFromGroup(idp_ui, "soft_max", IDP_DOUBLE);
+			*softmax= item ? IDP_Double(item) : FLT_MAX;
 
-			item= IDP_GetPropertyFromGroup(idp_ui, "step");
-			*step= item ? *(double*)&item->data.val : 1.0f;
+			item= IDP_GetPropertyTypeFromGroup(idp_ui, "step", IDP_DOUBLE);
+			*step= item ? IDP_Double(item) : 1.0f;
 
-			item= IDP_GetPropertyFromGroup(idp_ui, "precision");
-			*precision= item ? *(double*)&item->data.val : 3.0f;
+			item= IDP_GetPropertyTypeFromGroup(idp_ui, "precision", IDP_DOUBLE);
+			*precision= item ? IDP_Double(item) : 3.0f;
 
 			return;
 		}
@@ -2447,7 +2457,7 @@ int RNA_raw_type_sizeof(RawPropertyType type)
 	}
 }
 
-static int rna_raw_access(ReportList *reports, PointerRNA *ptr, PropertyRNA *prop, char *propname, void *inarray, RawPropertyType intype, int inlen, int set)
+static int rna_raw_access(ReportList *reports, PointerRNA *ptr, PropertyRNA *prop, const char *propname, void *inarray, RawPropertyType intype, int inlen, int set)
 {
 	StructRNA *ptype;
 	PointerRNA itemptr;
@@ -2749,12 +2759,12 @@ RawPropertyType RNA_property_raw_type(PropertyRNA *prop)
 	return prop->rawtype;
 }
 
-int RNA_property_collection_raw_get(ReportList *reports, PointerRNA *ptr, PropertyRNA *prop, char *propname, void *array, RawPropertyType type, int len)
+int RNA_property_collection_raw_get(ReportList *reports, PointerRNA *ptr, PropertyRNA *prop, const char *propname, void *array, RawPropertyType type, int len)
 {
 	return rna_raw_access(reports, ptr, prop, propname, array, type, len, 0);
 }
 
-int RNA_property_collection_raw_set(ReportList *reports, PointerRNA *ptr, PropertyRNA *prop, char *propname, void *array, RawPropertyType type, int len)
+int RNA_property_collection_raw_set(ReportList *reports, PointerRNA *ptr, PropertyRNA *prop, const char *propname, void *array, RawPropertyType type, int len)
 {
 	return rna_raw_access(reports, ptr, prop, propname, array, type, len, 1);
 }
@@ -3228,7 +3238,7 @@ char *RNA_path_append(const char *path, PointerRNA *ptr, PropertyRNA *prop, int 
 			BLI_dynstr_append(dynstr, "\"");
 		}
 		else {
-			sprintf(appendstr, "%d", intkey);
+			BLI_snprintf(appendstr, sizeof(appendstr), "%d", intkey);
 			BLI_dynstr_append(dynstr, appendstr);
 		}
 
@@ -3410,12 +3420,19 @@ static char *rna_path_from_ID_to_idpgroup(PointerRNA *ptr)
 	IDProperty *needle;
 
 	BLI_assert(ptr->id.data != NULL);
+
+	/* TODO, Support Bones/PoseBones. no pointers stored to the bones from here, only the ID. See example in [#25746]
+	 * unless this is added only way to find this is to also search all bones and pose bones of an armature or object */
 	RNA_id_pointer_create(ptr->id.data, &id_ptr);
 
 	haystack= RNA_struct_idprops(&id_ptr, FALSE);
+	if(haystack) { /* can fail when called on bones */
 	needle= ptr->data;
-
 	return rna_idp_path(&id_ptr, haystack, needle, NULL);
+}
+	else {
+		return NULL;
+	}
 }
 
 char *RNA_path_from_ID_to_struct(PointerRNA *ptr)
@@ -3445,7 +3462,7 @@ char *RNA_path_from_ID_to_struct(PointerRNA *ptr)
 			else
 				return NULL; // can't do anything about this case yet...
 		}
-		else if (RNA_struct_is_a(ptr->type, &RNA_IDPropertyGroup)) {
+		else if (RNA_struct_is_a(ptr->type, &RNA_PropertyGroup)) {
 			/* special case, easier to deal with here then in ptr->type->path() */
 			return rna_path_from_ID_to_idpgroup(ptr);
 		}
@@ -4196,7 +4213,7 @@ void RNA_parameter_list_begin(ParameterList *parms, ParameterIterator *iter)
 
 	if(iter->valid) {
 		iter->size= rna_parameter_size_alloc(iter->parm);
-		iter->data= (((char*)iter->parms->data)+iter->offset);
+		iter->data= (((char*)iter->parms->data)); /* +iter->offset, always 0 */
 	}
 }
 
@@ -4390,7 +4407,7 @@ static int rna_function_format_array_length(const char *format, int ofs, int fle
 		for (; ofs<flen && format[ofs]!=']' && idx<sizeof(*lenbuf)-1; idx++, ofs++)
 			lenbuf[idx]= format[ofs];
 
-	if (ofs<flen && format[ofs++]==']') {
+	if (ofs<flen && format[ofs+1]==']') {
 		/* XXX put better error reporting for ofs>=flen or idx over lenbuf capacity */
 		lenbuf[idx]= '\0';
 		return atoi(lenbuf);

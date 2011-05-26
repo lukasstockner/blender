@@ -51,6 +51,8 @@
 
 #include "depsgraph_private.h"
 
+#include "MOD_util.h"
+
 static void initData(ModifierData *md)
 {
 	ArrayModifierData *amd = (ArrayModifierData*) md;
@@ -518,12 +520,10 @@ static DerivedMesh *arrayModifier_doArray(ArrayModifierData *amd,
 				  if (inMF.v4)
 					  mf2->v4 = calc_mapping(indexMap, inMF.v4, j);
 
-				  test_index_face(mf2, &result->faceData, numFaces, inMF.v4?4:3);
 				  numFaces++;
 
 				  /* if the face has fewer than 3 vertices, don't create it */
-				  if(mf2->v3 == 0 || (mf2->v1 && (mf2->v1 == mf2->v3 || mf2->v1 ==
-								 mf2->v4))) {
+				  if(test_index_face_maxvert(mf2, &result->faceData, numFaces-1, inMF.v4?4:3, numVerts) < 3) {
 					  numFaces--;
 					  DM_free_face_data(result, numFaces, 1);
 								 }
@@ -778,6 +778,7 @@ ModifierTypeInfo modifierType_Array = {
 
 	/* copyData */          copyData,
 	/* deformVerts */       0,
+	/* deformMatrices */    0,
 	/* deformVertsEM */     0,
 	/* deformMatricesEM */  0,
 	/* applyModifier */     applyModifier,

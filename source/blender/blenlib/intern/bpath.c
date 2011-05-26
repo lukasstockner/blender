@@ -84,6 +84,7 @@ typedef struct BPathIterator {
 	void*	data;
 	int		len;
 	int		type;
+	int		flag; /* iterator options */
 
 	void (*setpath_callback)(struct BPathIterator *, const char *);
 	void (*getpath_callback)(struct BPathIterator *, char *);
@@ -113,7 +114,8 @@ enum BPathTypes {
 	 BPATH_DONE
 };
 
-void BLI_bpathIterator_init(struct BPathIterator **bpi_pt, Main *bmain, const char *basedir) {
+void BLI_bpathIterator_init(struct BPathIterator **bpi_pt, Main *bmain, const char *basedir, const int flag)
+{
 	BPathIterator *bpi;
 
 	bpi= MEM_mallocN(sizeof(BPathIterator), "BLI_bpathIterator_init");
@@ -131,13 +133,15 @@ void BLI_bpathIterator_init(struct BPathIterator **bpi_pt, Main *bmain, const ch
 	bpi->seqdata.seqar = NULL;
 	bpi->seqdata.scene = NULL;
 	
+	bpi->flag= flag;
+
 	bpi->base_path= basedir; /* normally bmain->name */
 	bpi->bmain= bmain;
 
 	BLI_bpathIterator_step(bpi);
 }
 
-void BLI_bpathIterator_alloc(struct BPathIterator **bpi) {
+static void BLI_bpathIterator_alloc(struct BPathIterator **bpi) {
 	*bpi= MEM_mallocN(sizeof(BPathIterator), "BLI_bpathIterator_alloc");
 }
 
@@ -196,7 +200,8 @@ const char* BLI_bpathIterator_getBasePath(struct BPathIterator *bpi) {
 }
 
 /* gets the first or the next image that has a path - not a viewer node or generated image */
-static struct Image *ima_stepdata__internal(struct Image *ima, int step_next) {
+static struct Image *ima_stepdata__internal(struct Image *ima, const int step_next, const int flag)
+{
 	if (ima==NULL)
 		return NULL;
 	
@@ -204,15 +209,19 @@ static struct Image *ima_stepdata__internal(struct Image *ima, int step_next) {
 		ima = ima->id.next;
 	
 	while (ima) {
-		if (ima->packedfile==NULL && ELEM3(ima->source, IMA_SRC_FILE, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE))
+		if (ELEM3(ima->source, IMA_SRC_FILE, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE)) {
+			if(ima->packedfile==NULL || (flag & BPATH_USE_PACKED)) {
 			break;
+			}
+		}
 		/* image is not a image with a path, skip it */
 		ima = ima->id.next;
 	}	
 	return ima;
 }
 
-static struct Tex *tex_stepdata__internal(struct Tex *tex, int step_next) {
+static struct Tex *tex_stepdata__internal(struct Tex *tex, const int step_next, const int UNUSED(flag))
+{
 	if (tex==NULL)
 		return NULL;
 
@@ -228,7 +237,8 @@ static struct Tex *tex_stepdata__internal(struct Tex *tex, int step_next) {
 	return tex;
 }
 
-static struct Text *text_stepdata__internal(struct Text *text, int step_next) {
+static struct Text *text_stepdata__internal(struct Text *text, const int step_next, const int UNUSED(flag))
+{
 	if (text==NULL)
 		return NULL;
 
@@ -244,7 +254,8 @@ static struct Text *text_stepdata__internal(struct Text *text, int step_next) {
 	return text;
 }
 
-static struct VFont *vf_stepdata__internal(struct VFont *vf, int step_next) {
+static struct VFont *vf_stepdata__internal(struct VFont *vf, const int step_next, const int flag)
+{
 	if (vf==NULL)
 		return NULL;
 	
@@ -252,8 +263,10 @@ static struct VFont *vf_stepdata__internal(struct VFont *vf, int step_next) {
 		vf = vf->id.next;
 	
 	while (vf) {
-		if (vf->packedfile==NULL && BLI_streq(vf->name, "<builtin>")==0) {
+		if (strcmp(vf->name, FO_BUILTIN_NAME)!=0) {
+			if(vf->packedfile==NULL || (flag & BPATH_USE_PACKED)) {
 			break;
+		}
 		}
 		
 		/* font with no path, skip it */
@@ -262,7 +275,8 @@ static struct VFont *vf_stepdata__internal(struct VFont *vf, int step_next) {
 	return vf;
 }
 
-static struct bSound *snd_stepdata__internal(struct bSound *snd, int step_next) {
+static struct bSound *snd_stepdata__internal(struct bSound *snd, int step_next, const int flag)
+{
 	if (snd==NULL)
 		return NULL;
 	
@@ -270,7 +284,7 @@ static struct bSound *snd_stepdata__internal(struct bSound *snd, int step_next) 
 		snd = snd->id.next;
 	
 	while (snd) {
-		if (snd->packedfile==NULL) {
+		if(snd->packedfile==NULL || (flag & BPATH_USE_PACKED)) {
 			break;
 		}
 		
@@ -439,8 +453,8 @@ void BLI_bpathIterator_step( struct BPathIterator *bpi) {
 		
 		if  ((bpi->type) == BPATH_IMAGE) {
 			/*if (bpi->data)	bpi->data = ((ID *)bpi->data)->next;*/
-			if (bpi->data)	bpi->data = ima_stepdata__internal( (Image *)bpi->data, 1 ); /* must skip images that have no path */
-			else 			bpi->data= ima_stepdata__internal(bpi->bmain->image.first, 0);
+			if (bpi->data)	bpi->data= ima_stepdata__internal((Image *)bpi->data, 1, bpi->flag); /* must skip images that have no path */
+			else 			bpi->data= ima_stepdata__internal(bpi->bmain->image.first, 0, bpi->flag);
 			
 			if (bpi->data) {
 				/* get the path info from this datatype */
@@ -461,8 +475,8 @@ void BLI_bpathIterator_step( struct BPathIterator *bpi) {
 			
 		if  ((bpi->type) == BPATH_TEXTURE) {
 			/*if (bpi->data)	bpi->data= ((ID *)bpi->data)->next;*/
-			if (bpi->data)	bpi->data= tex_stepdata__internal( (Tex *)bpi->data, 1 ); /* must skip images that have no path */
-			else 			bpi->data= tex_stepdata__internal(bpi->bmain->tex.first, 0);
+			if (bpi->data)	bpi->data= tex_stepdata__internal( (Tex *)bpi->data, 1, bpi->flag); /* must skip images that have no path */
+			else 			bpi->data= tex_stepdata__internal(bpi->bmain->tex.first, 0, bpi->flag);
 			
 			if (bpi->data) {
 				/* get the path info from this datatype */
@@ -488,8 +502,8 @@ void BLI_bpathIterator_step( struct BPathIterator *bpi) {
 
 		if  ((bpi->type) == BPATH_TEXT) {
 			/*if (bpi->data)	bpi->data= ((ID *)bpi->data)->next;*/
-			if (bpi->data)	bpi->data= text_stepdata__internal( (Text *)bpi->data, 1 ); /* must skip images that have no path */
-			else 			bpi->data= text_stepdata__internal(bpi->bmain->text.first, 0);
+			if (bpi->data)	bpi->data= text_stepdata__internal((Text *)bpi->data, 1, bpi->flag); /* must skip images that have no path */
+			else 			bpi->data= text_stepdata__internal(bpi->bmain->text.first, 0, bpi->flag);
 
 			if (bpi->data) {
 				/* get the path info from this datatype */
@@ -509,8 +523,8 @@ void BLI_bpathIterator_step( struct BPathIterator *bpi) {
 		}
 
 		else if  ((bpi->type) == BPATH_SOUND) {
-			if (bpi->data)	bpi->data = snd_stepdata__internal( (bSound *)bpi->data, 1 ); /* must skip images that have no path */
-			else 			bpi->data= snd_stepdata__internal(bpi->bmain->sound.first, 0);
+			if (bpi->data)	bpi->data= snd_stepdata__internal((bSound *)bpi->data, 1, bpi->flag); /* must skip images that have no path */
+			else 			bpi->data= snd_stepdata__internal(bpi->bmain->sound.first, 0, bpi->flag);
 			
 			if (bpi->data) {
 				/* get the path info from this datatype */
@@ -530,8 +544,8 @@ void BLI_bpathIterator_step( struct BPathIterator *bpi) {
 			
 		} else if  ((bpi->type) == BPATH_FONT) {
 			
-			if (bpi->data)	bpi->data = vf_stepdata__internal( (VFont *)bpi->data, 1 );
-			else 			bpi->data= vf_stepdata__internal( bpi->bmain->vfont.first, 0 );
+			if (bpi->data)	bpi->data= vf_stepdata__internal((VFont *)bpi->data, 1, bpi->flag);
+			else 			bpi->data= vf_stepdata__internal(bpi->bmain->vfont.first, 0, bpi->flag);
 			
 			if (bpi->data) {
 				/* get the path info from this datatype */
@@ -657,7 +671,7 @@ void checkMissingFiles(Main *bmain, ReportList *reports) {
 	/* be sure there is low chance of the path being too short */
 	char filepath_expanded[FILE_MAXDIR*2]; 
 	
-	BLI_bpathIterator_init(&bpi, bmain, bmain->name);
+	BLI_bpathIterator_init(&bpi, bmain, bmain->name, 0);
 	while (!BLI_bpathIterator_isDone(bpi)) {
 		BLI_bpathIterator_getPathExpanded(bpi, filepath_expanded);
 		
@@ -678,7 +692,7 @@ void makeFilesRelative(Main *bmain, const char *basedir, ReportList *reports) {
 	/* be sure there is low chance of the path being too short */
 	char filepath_relative[(FILE_MAXDIR * 2) + FILE_MAXFILE];
 	
-	BLI_bpathIterator_init(&bpi, bmain, basedir);
+	BLI_bpathIterator_init(&bpi, bmain, basedir, 0);
 	while (!BLI_bpathIterator_isDone(bpi)) {
 		BLI_bpathIterator_getPath(bpi, filepath);
 		libpath= BLI_bpathIterator_getLib(bpi);
@@ -728,7 +742,7 @@ void makeFilesAbsolute(Main *bmain, const char *basedir, ReportList *reports)
 	/* be sure there is low chance of the path being too short */
 	char filepath_absolute[(FILE_MAXDIR * 2) + FILE_MAXFILE];
 	
-	BLI_bpathIterator_init(&bpi, bmain, basedir);
+	BLI_bpathIterator_init(&bpi, bmain, basedir, 0);
 	while (!BLI_bpathIterator_isDone(bpi)) {
 		BLI_bpathIterator_getPath(bpi, filepath);
 		libpath= BLI_bpathIterator_getLib(bpi);
@@ -781,7 +795,7 @@ static int findFileRecursive(char *filename_new, const char *dirname, const char
 	
 	dir = opendir(dirname);
 	
-	if (dir==0)
+	if (dir==NULL)
 		return 0;
 	
 	if (*filesize == -1)
@@ -792,7 +806,7 @@ static int findFileRecursive(char *filename_new, const char *dirname, const char
 		if (strcmp(".", de->d_name)==0 || strcmp("..", de->d_name)==0)
 			continue;
 		
-		BLI_join_dirfile(path, dirname, de->d_name);
+		BLI_join_dirfile(path, sizeof(path), dirname, de->d_name);
 		
 		if (stat(path, &status) != 0)
 			continue; /* cant stat, dont bother with this file, could print debug info here */
@@ -833,7 +847,7 @@ void findMissingFiles(Main *bmain, const char *str) {
 	
 	BLI_split_dirfile(str, dirname, NULL);
 	
-	BLI_bpathIterator_init(&bpi, bmain, bmain->name);
+	BLI_bpathIterator_init(&bpi, bmain, bmain->name, 0);
 	
 	while (!BLI_bpathIterator_isDone(bpi)) {
 		BLI_bpathIterator_getPath(bpi, filepath);
