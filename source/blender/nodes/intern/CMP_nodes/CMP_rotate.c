@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -26,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/nodes/intern/CMP_nodes/CMP_rotate.c
+ *  \ingroup cmpnodes
+ */
+
 
 #include "../CMP_util.h"
 
@@ -110,9 +115,10 @@ static void node_composit_exec_rotate(void *data, bNode *node, bNodeStack **in, 
 		
 		/* pass on output and free */
 		out[0]->data= stackbuf;
-		if(cbuf!=in[0]->data)
+		if(cbuf!=in[0]->data) {
 			free_compbuf(cbuf);
 	}
+}
 }
 
 static void node_composit_init_rotate(bNode *node)

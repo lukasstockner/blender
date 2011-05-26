@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -24,6 +24,15 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/animation/anim_channels_edit.c
+ *  \ingroup edanimation
+ */
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h> 
 
 #include "MEM_guardedalloc.h"
 
@@ -160,9 +169,9 @@ void ANIM_set_active_channel (bAnimContext *ac, void *data, short datatype, int 
 			case ANIMTYPE_DSLAT:
 			{
 				/* need to verify that this data is valid for now */
-				// XXX: ale may be null!
-				if (ale->adt)
+				if (ale && ale->adt) {
 					ale->adt->flag |= ADT_UI_ACTIVE;
+			}
 			}
 				break;
 		}
@@ -1010,7 +1019,7 @@ static void rearrange_action_channels (bAnimContext *ac, bAction *act, short mod
 			
 		for (agrp= act->groups.first; agrp; agrp= agrp->next) {
 			/* only consider F-Curves if they're visible (group expanded) */
-			if (EXPANDED_AGRP(agrp)) {
+			if (EXPANDED_AGRP(ac, agrp)) {
 				rearrange_animchannel_islands(&agrp->channels, rearrange_func, mode, ANIMTYPE_FCURVE);
 				}
 			}
@@ -1720,7 +1729,16 @@ static int animchannels_enable_exec (bContext *C, wmOperator *UNUSED(op))
 	/* loop through filtered data and clean curves */
 	for (ale= anim_data.first; ale; ale= ale->next) {
 		FCurve *fcu = (FCurve *)ale->data;
+		
+		/* remove disabled flags from F-Curves */
 		fcu->flag &= ~FCURVE_DISABLED;
+		
+		/* for drivers, let's do the same too */
+		if (fcu->driver)
+			fcu->driver->flag &= ~DRIVER_FLAG_INVALID;
+			
+		/* tag everything for updates - in particular, this is needed to get drivers working again */
+		ANIM_list_elem_update(ac.scene, ale);
 	}
 	
 	/* free temp data */
@@ -2149,7 +2167,7 @@ static int animchannels_mouseclick_invoke(bContext *C, wmOperator *op, wmEvent *
 	bAnimContext ac;
 	ARegion *ar;
 	View2D *v2d;
-	int mval[2], channel_index;
+	int channel_index;
 	int notifierFlags = 0;
 	short selectmode;
 	float x, y;
@@ -2162,10 +2180,6 @@ static int animchannels_mouseclick_invoke(bContext *C, wmOperator *op, wmEvent *
 	/* get useful pointers from animation context data */
 	ar= ac.ar;
 	v2d= &ar->v2d;
-	
-	/* get mouse coordinates (in region coordinates) */
-	mval[0]= (event->x - ar->winrct.xmin);
-	mval[1]= (event->y - ar->winrct.ymin);
 	
 	/* select mode is either replace (deselect all, then add) or add/extend */
 	if (RNA_boolean_get(op->ptr, "extend"))
@@ -2180,7 +2194,7 @@ static int animchannels_mouseclick_invoke(bContext *C, wmOperator *op, wmEvent *
 	 *		so that the tops of channels get caught ok. Since ACHANNEL_FIRST is really ACHANNEL_HEIGHT, we simply use
 	 *		ACHANNEL_HEIGHT_HALF.
 	 */
-	UI_view2d_region_to_view(v2d, mval[0], mval[1], &x, &y);
+	UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &x, &y);
 	UI_view2d_listview_view_to_cell(v2d, ACHANNEL_NAMEWIDTH, ACHANNEL_STEP, 0, (float)ACHANNEL_HEIGHT_HALF, x, y, NULL, &channel_index);
 	
 	/* handle mouse-click in the relevant channel then */

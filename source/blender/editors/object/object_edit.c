@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -24,6 +24,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/object/object_edit.c
+ *  \ingroup edobj
+ */
+
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -170,7 +175,7 @@ static int object_hide_view_set_exec(bContext *C, wmOperator *op)
 	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	short changed = 0;
-	int unselected= RNA_boolean_get(op->ptr, "unselected");
+	const int unselected= RNA_boolean_get(op->ptr, "unselected");
 	
 	CTX_DATA_BEGIN(C, Base*, base, visible_bases) {
 		if(!unselected) {
@@ -259,7 +264,7 @@ void OBJECT_OT_hide_render_clear(wmOperatorType *ot)
 
 static int object_hide_render_set_exec(bContext *C, wmOperator *op)
 {
-	int unselected= RNA_boolean_get(op->ptr, "unselected");
+	const int unselected= RNA_boolean_get(op->ptr, "unselected");
 
 	CTX_DATA_BEGIN(C, Base*, base, visible_bases) {
 		if(!unselected) {
@@ -592,15 +597,6 @@ void OBJECT_OT_posemode_toggle(wmOperatorType *ot)
 
 /* *********************** */
 
-static void check_editmode(int type)
-{
-	Object *obedit= NULL; // XXX
-	
-	if (obedit==NULL || obedit->type==type) return;
-
-// XXX	ED_object_exit_editmode(C, EM_FREEDATA|EM_FREEUNDO|EM_WAITCURSOR|EM_DO_UNDO); /* freedata, and undo */
-}
-
 #if 0
 // XXX should be in view3d?
 
@@ -611,7 +607,7 @@ static void spot_interactive(Object *ob, int mode)
 	Lamp *la= ob->data;
 	float transfac, dx, dy, ratio, origval;
 	int keep_running= 1, center2d[2];
-	short mval[2], mvalo[2];
+	int mval[2], mvalo[2];
 	
 //	getmouseco_areawin(mval);
 //	getmouseco_areawin(mvalo);
@@ -1695,6 +1691,7 @@ void OBJECT_OT_shade_flat(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Shade Flat";
+	ot->description= "Display faces 'smooth' (using vertext normals)";
 	ot->idname= "OBJECT_OT_shade_flat";
 	
 	/* api callbacks */
@@ -1709,6 +1706,7 @@ void OBJECT_OT_shade_smooth(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Shade Smooth";
+	ot->description= "Display faces 'flat'";
 	ot->idname= "OBJECT_OT_shade_smooth";
 	
 	/* api callbacks */
@@ -1803,7 +1801,7 @@ static void auto_timeoffs(Scene *scene, View3D *v3d)
 	int tot=0, a;
 	short offset=25;
 
-	if(BASACT==0 || v3d==NULL) return;
+	if(BASACT==NULL || v3d==NULL) return;
 // XXX	if(button(&offset, 0, 1000,"Total time")==0) return;
 
 	/* make array of all bases, xco yco (screen) */
@@ -1841,7 +1839,7 @@ static void ofs_timeoffs(Scene *scene, View3D *v3d)
 {
 	float offset=0.0f;
 
-	if(BASACT==0 || v3d==NULL) return;
+	if(BASACT==NULL || v3d==NULL) return;
 	
 // XXX	if(fbutton(&offset, -10000.0f, 10000.0f, 10, 10, "Offset")==0) return;
 
@@ -1861,7 +1859,7 @@ static void rand_timeoffs(Scene *scene, View3D *v3d)
 	Base *base;
 	float rand_ofs=0.0f;
 
-	if(BASACT==0 || v3d==NULL) return;
+	if(BASACT==NULL || v3d==NULL) return;
 	
 // XXX	if(fbutton(&rand_ofs, 0.0f, 10000.0f, 10, 10, "Randomize")==0) return;
 	
@@ -1869,7 +1867,7 @@ static void rand_timeoffs(Scene *scene, View3D *v3d)
 	
 	for(base= FIRSTBASE; base; base= base->next) {
 		if(TESTBASELIB(v3d, base)) {
-			base->object->sf += (BLI_drand()-0.5) * rand_ofs;
+			base->object->sf += ((float)BLI_drand()-0.5f) * rand_ofs;
 			if (base->object->sf < -MAXFRAMEF)		base->object->sf = -MAXFRAMEF;
 			else if (base->object->sf > MAXFRAMEF)	base->object->sf = MAXFRAMEF;
 		}
@@ -2059,6 +2057,7 @@ void OBJECT_OT_game_property_new(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "New Game Property";
+	ot->description= "Create a new property available to the game engine";
 	ot->idname= "OBJECT_OT_game_property_new";
 
 	/* api callbacks */
@@ -2096,6 +2095,7 @@ void OBJECT_OT_game_property_remove(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Remove Game Property";
+	ot->description= "Remove game property";
 	ot->idname= "OBJECT_OT_game_property_remove";
 
 	/* api callbacks */

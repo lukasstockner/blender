@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -23,6 +23,10 @@
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
+ */
+
+/** \file ED_image.h
+ *  \ingroup editors
  */
 
 #ifndef ED_IMAGE_H
@@ -58,9 +62,6 @@ int ED_space_image_show_uvshadow(struct SpaceImage *sima, struct Object *obedit)
 
 /* UI level image (texture) updating... render calls own stuff (too) */
 void ED_image_update_frame(const struct bContext *C);
-
-/* image_render.c, export for screen_ops.c, render operator */
-void ED_space_image_output(struct bContext *C);
 
 #endif /* ED_IMAGE_H */
 

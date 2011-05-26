@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/space_buttons/buttons_intern.h
+ *  \ingroup spbuttons
+ */
+
 #ifndef ED_BUTTONS_INTERN_H
 #define ED_BUTTONS_INTERN_H
 
@@ -49,9 +54,6 @@ struct ID;
 #define BUTS_ACT_LINK		256
 #define BUTS_SENS_STATE		512
 #define BUTS_ACT_STATE		1024
-
-#define BUTS_HEADERY		(HEADERY*1.2)
-#define BUTS_UI_UNIT		(UI_UNIT_Y*1.2)
 
 /* internal exports only */
 

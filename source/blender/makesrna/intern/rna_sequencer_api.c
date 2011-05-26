@@ -1,4 +1,4 @@
-/**
+/*
  * $Id: rna_sequencer_api.c 29601 2010-06-21 22:16:13Z gsrb3d $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -21,6 +21,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/makesrna/intern/rna_sequencer_api.c
+ *  \ingroup RNA
+ */
+
 
 
 #include <stdlib.h>

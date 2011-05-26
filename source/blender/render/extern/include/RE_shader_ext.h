@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -26,6 +26,10 @@
  *
  * ***** END GPL/BL DUAL LICENSE BLOCK *****
  */
+/** \file RE_shader_ext.h
+ *  \ingroup render
+ */
+
 
 #ifndef RE_SHADER_EXT_H
 #define RE_SHADER_EXT_H
@@ -170,6 +174,7 @@ typedef struct ShadeInput
 
 	/* from initialize, part or renderlayer */
 	short do_preview;		/* for nodes, in previewrender */
+	short do_manage;		/* color management flag */
 	short thread, sample;	/* sample: ShadeSample array index */
 	short nodes;			/* indicate node shading, temp hack to prevent recursion */
 	

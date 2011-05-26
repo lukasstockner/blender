@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -27,7 +27,15 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef DISABLE_PYTHON
+/** \file blender/nodes/intern/SHD_nodes/SHD_dynamic.c
+ *  \ingroup shdnodes
+ */
+
+
+/* TODO, support python3.x */
+#undef WITH_PYTHON 
+
+#ifdef WITH_PYTHON
 #include <Python.h>
 #include <compile.h>
 #include <eval.h>
@@ -762,7 +770,7 @@ void register_node_type_sh_dynamic(ListBase *lb)
 {
 	static bNodeType ntype;
 
-	node_type_base(&ntype, SH_NODE_DYNAMIC, "Dynamic", NODE_CLASS_OP_DYNAMIC, NODE_OPTIONS, NULL, NULL);
+	node_type_base(&ntype, NODE_DYNAMIC, "Dynamic", NODE_CLASS_OP_DYNAMIC, NODE_OPTIONS, NULL, NULL);
 	node_type_size(&ntype, 150, 60, 300);
 	node_type_init(&ntype, node_dynamic_init_cb);
 	node_type_storage(&ntype, "NodeScriptDict", node_dynamic_free_storage_cb, node_dynamic_copy_cb);
@@ -777,7 +785,7 @@ void register_node_type_sh_dynamic(ListBase *lb)
 {
 	static bNodeType ntype;
 
-	node_type_base(&ntype, 0, "", 0, 0, NULL, NULL);
+	node_type_base(&ntype, NODE_DYNAMIC, "Dynamic", NODE_CLASS_OP_DYNAMIC, 0, NULL, NULL);
 	
 	nodeRegisterType(lb, &ntype);
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -21,6 +21,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/makesrna/intern/rna_userdef.c
+ *  \ingroup RNA
+ */
+
 
 #include <stdlib.h>
 
@@ -73,6 +78,12 @@ static void rna_userdef_script_autoexec_update(Main *bmain, Scene *scene, Pointe
 static void rna_userdef_mipmap_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	GPU_set_mipmap(!(U.gameflags & USER_DISABLE_MIPMAP));
+	rna_userdef_update(bmain, scene, ptr);
+}
+
+static void rna_userdef_gl_texture_limit_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	GPU_free_images();
 	rna_userdef_update(bmain, scene, ptr);
 }
 
@@ -937,6 +948,11 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_ui_text(prop, "Current Frame", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop= RNA_def_property(srna, "outline_width", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 1, 5);
+	RNA_def_property_ui_text(prop, "Outline Width", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
 }
 
 static void rna_def_userdef_theme_space_graph(BlenderRNA *brna)
@@ -1679,7 +1695,7 @@ static void rna_def_userdef_themes(BlenderRNA *brna)
 	
 	static EnumPropertyItem active_theme_area[] = {
 		{0, "USER_INTERFACE", ICON_UI, "User Interface", ""},
-		{18, "COLOR_SETS", ICON_COLOR, "Bone Color Sets", ""}, 
+		{18, "BONE_COLOR_SETS", ICON_COLOR, "Bone Color Sets", ""},
 		{1, "VIEW_3D", ICON_VIEW3D, "3D View", ""},
 		{2, "TIMELINE", ICON_TIME, "Timeline", ""},
 		{3, "GRAPH_EDITOR", ICON_IPO, "Graph Editor", ""},
@@ -1994,6 +2010,10 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "use_mouse_auto_depth", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_ORBIT_ZBUF);
 	RNA_def_property_ui_text(prop, "Auto Depth", "Use the depth under the mouse to improve view pan/rotate/zoom functionality");
+
+	prop= RNA_def_property(srna, "use_camera_lock_parent", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "uiflag", USER_CAM_LOCK_NO_PARENT);
+	RNA_def_property_ui_text(prop, "Camera Parent Lock", "When the camera is locked to the view and in fly mode, transform the parent rather then the camera");
 
 	/* view zoom */
 	prop= RNA_def_property(srna, "use_zoom_to_mouse", PROP_BOOLEAN, PROP_NONE);
@@ -2510,7 +2530,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "glreslimit");
 	RNA_def_property_enum_items(prop, gl_texture_clamp_items);
 	RNA_def_property_ui_text(prop, "GL Texture Limit", "Limit the texture size to save graphics memory");
-	RNA_def_property_update(prop, 0, "rna_userdef_mipmap_update");
+	RNA_def_property_update(prop, 0, "rna_userdef_gl_texture_limit_update");
 
 	prop= RNA_def_property(srna, "texture_time_out", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "textimeout");
@@ -2607,7 +2627,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 	
 	static EnumPropertyItem view_zoom_axes[] = {
 		{0,						"VERTICAL", 0, "Vertical", "Zooms in and out based on vertical mouse movement"},
-		{USER_ZOOM_DOLLY_HORIZ, "HORIZONTAL", 0, "Horizontal", "Zooms in and out based on horizontal mouse movement"},
+		{USER_ZOOM_HORIZ, "HORIZONTAL", 0, "Horizontal", "Zooms in and out based on horizontal mouse movement"},
 		{0, NULL, 0, NULL, NULL}};
 		
 	srna= RNA_def_struct(brna, "UserPreferencesInput", NULL);
@@ -2631,7 +2651,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, view_zoom_axes);
 	RNA_def_property_ui_text(prop, "Zoom Axis", "Axis of mouse movement to zoom in or out on");
 	
-	prop= RNA_def_property(srna, "invert_mouse_wheel_zoom", PROP_BOOLEAN, PROP_NONE);
+	prop= RNA_def_property(srna, "invert_mouse_zoom", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_ZOOM_INVERT);
 	RNA_def_property_ui_text(prop, "Invert Zoom Direction", "Invert the axis of mouse movement for zooming");
 	
@@ -2760,7 +2780,8 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "script_directory", PROP_STRING, PROP_DIRPATH);
 	RNA_def_property_string_sdna(prop, NULL, "pythondir");
-	RNA_def_property_ui_text(prop, "Python Scripts Directory", "The default directory to search for Python scripts (resets python module search path: sys.path)");
+	RNA_def_property_ui_text(prop, "Python Scripts Directory", "Alternate script path, matching the default layout with subdirs: startup, addons & modules (requires restart)");
+	/* TODO, editing should reset sys.path! */
 
 	prop= RNA_def_property(srna, "sound_directory", PROP_STRING, PROP_DIRPATH);
 	RNA_def_property_string_sdna(prop, NULL, "sounddir");

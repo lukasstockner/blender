@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -24,6 +24,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/mesh/editface.c
+ *  \ingroup edmesh
+ */
+
 
 
 #include <math.h>
@@ -98,7 +103,7 @@ void object_facesel_flush_dm(Object *ob)
 }
 
 /* returns 0 if not found, otherwise 1 */
-static int facesel_face_pick(struct bContext *C, Mesh *me, short *mval, unsigned int *index, short rect)
+static int facesel_face_pick(struct bContext *C, Mesh *me, const int mval[2], unsigned int *index, short rect)
 {
 	ViewContext vc;
 	view3d_set_viewcontext(C, &vc);
@@ -157,52 +162,22 @@ MTFace *EM_get_active_mtface(EditMesh *em, EditFace **act_efa, MCol **mcol, int 
 	return NULL;
 }
 
-static void paintface_unhide(Scene *scene)
+void paintface_hide(Object *ob, const int unselected)
 {
 	Mesh *me;
 	MFace *mface;
 	int a;
 	
-	me= get_mesh(OBACT);
-	if(me==0 || me->totface==0) return;
+	me= get_mesh(ob);
+	if(me==NULL || me->totface==0) return;
 	
 	mface= me->mface;
 	a= me->totface;
 	while(a--) {
-		if(mface->flag & ME_HIDE) {
-			mface->flag |= ME_FACE_SEL;
-			mface->flag -= ME_HIDE;
-		}
-		mface++;
-	}
-
-	object_facesel_flush_dm(OBACT);
-// XXX notifier!	object_tface_flags_changed(OBACT, 0);
-}
-
-static void paintface_hide(Scene *scene)
-{
-	Mesh *me;
-	MFace *mface;
-	int a;
-	int shift=0, alt= 0; // XXX
-	
-	me= get_mesh(OBACT);
-	if(me==0 || me->totface==0) return;
-	
-	if(alt) {
-		reveal_tface(scene);
-		return;
-	}
-	
-	mface= me->mface;
-	a= me->totface;
-	while(a--) {
-		if(mface->flag & ME_HIDE);
-		else {
-			if(shift) {
+		if((mface->flag & ME_HIDE) == 0) {
+			if(unselected) {
 				if( (mface->flag & ME_FACE_SEL)==0) mface->flag |= ME_HIDE;
-			}
+		}
 			else {
 				if( (mface->flag & ME_FACE_SEL)) mface->flag |= ME_HIDE;
 			}
@@ -211,9 +186,31 @@ static void paintface_hide(Scene *scene)
 		
 		mface++;
 	}
+
+	paintface_flush_flags(ob);
+}
+
+
+void paintface_reveal(Object *ob)
+{
+	Mesh *me;
+	MFace *mface;
+	int a;
 	
-	object_facesel_flush_dm(OBACT);
-// XXX notifier!		object_tface_flags_changed(OBACT, 0);
+	me= get_mesh(ob);
+	if(me==NULL || me->totface==0) return;
+	
+	mface= me->mface;
+	a= me->totface;
+	while(a--) {
+		if(mface->flag & ME_HIDE) {
+			mface->flag |= ME_FACE_SEL;
+			mface->flag -= ME_HIDE;
+			}
+		mface++;
+	}
+	
+	paintface_flush_flags(ob);
 }
 
 /* Set tface seams based on edge data, uses hash table to find seam edges. */
@@ -338,13 +335,13 @@ void select_linked_tfaces_with_seams(int mode, Mesh *me, unsigned int index)
 	// object_tface_flags_changed(OBACT, 0);
 }
 
-void select_linked_tfaces(bContext *C, Object *ob, short mval[2], int mode)
+void paintface_select_linked(bContext *UNUSED(C), Object *ob, int UNUSED(mval[2]), int mode)
 {
 	Mesh *me;
 	unsigned int index=0;
 
 	me = get_mesh(ob);
-	if(me==0 || me->totface==0) return;
+	if(me==NULL || me->totface==0) return;
 
 	if (mode==0 || mode==1) {
 		// XXX - Causes glitches, not sure why
@@ -366,8 +363,19 @@ void selectall_tface(Object *ob, int action)
 	int a;
 
 	me= get_mesh(ob);
-	if(me==0) return;
+	if(me==NULL) return;
 	
+	if(action == SEL_INVERT) {
+		mface= me->mface;
+		a= me->totface;
+		while(a--) {
+			if((mface->flag & ME_HIDE) == 0) {
+				mface->flag ^= ME_FACE_SEL;
+			}
+			mface++;
+		}
+	}
+	else {
 	if (action == SEL_TOGGLE) {
 		action = SEL_SELECT;
 
@@ -400,32 +408,9 @@ void selectall_tface(Object *ob, int action)
 		}
 		mface++;
 	}
+	}
 
 	object_facesel_flush_dm(ob);
-// XXX notifier!		object_tface_flags_changed(OBACT, 0);
-}
-
-static void paintface_select_swap(Scene *scene)
-{
-	Mesh *me;
-	MFace *mface;
-	int a;
-		
-	me= get_mesh(OBACT);
-	if(me==0) return;
-	
-	mface= me->mface;
-	a= me->totface;
-	while(a--) {
-		if(mface->flag & ME_HIDE);
-		else {
-			if(mface->flag & ME_FACE_SEL) mface->flag &= ~ME_FACE_SEL;
-			else mface->flag |= ME_FACE_SEL;
-		}
-		mface++;
-	}
-	
-	object_facesel_flush_dm(OBACT);
 // XXX notifier!		object_tface_flags_changed(OBACT, 0);
 }
 
@@ -473,7 +458,7 @@ static float edgetag_cut_cost(EditMesh *em, int e1, int e2, int vert)
 	sub_v3_v3v3(d1, v->co, v1->co);
 	sub_v3_v3v3(d2, v2->co, v->co);
 
-	cost = cost + 0.5f*cost*(2.0f - fabs(d1[0]*d2[0] + d1[1]*d2[1] + d1[2]*d2[2]));
+	cost = cost + 0.5f*cost*(2.0f - fabsf(d1[0]*d2[0] + d1[1]*d2[1] + d1[2]*d2[2]));
 
 	return cost;
 }
@@ -738,7 +723,7 @@ void seam_mark_clear_tface(Scene *scene, short mode)
 // XXX notifier!		object_tface_flags_changed(OBACT, 1);
 }
 
-int face_select(struct bContext *C, Object *ob, short mval[2], int extend)
+int paintface_mouse_select(struct bContext *C, Object *ob, const int mval[2], int extend)
 {
 	Mesh *me;
 	MFace *mface, *msel;

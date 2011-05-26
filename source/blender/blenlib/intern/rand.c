@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -27,6 +27,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/blenlib/intern/rand.c
+ *  \ingroup bli
+ */
+
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -53,6 +58,8 @@ typedef unsigned long long	r_uint64;
 
 #define LOWSEED		0x330E
 
+extern unsigned char hash[];	// noise.c
+
 /***/
 
 struct RNG {
@@ -78,8 +85,6 @@ void rng_seed(RNG *rng, unsigned int seed) {
 }
 
 void rng_srandom(RNG *rng, unsigned int seed) {
-	extern unsigned char hash[];	// noise.c
-	
 	rng_seed(rng, seed + hash[seed & 255]);
 	seed= rng_getInt(rng);
 	rng_seed(rng, seed + hash[seed & 255]);
@@ -175,8 +180,6 @@ static RNG rng_tab[BLENDER_MAX_THREADS];
 
 void BLI_thread_srandom(int thread, unsigned int seed)
 {
-	extern unsigned char hash[];	// noise.c
-	
 	if(thread >= BLENDER_MAX_THREADS)
 		thread= 0;
 	

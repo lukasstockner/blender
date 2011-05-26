@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/windowmanager/intern/wm.c
+ *  \ingroup wm
+ */
+
 
 #include <string.h>
 #include <stddef.h>
@@ -132,9 +137,8 @@ void wm_operator_register(bContext *C, wmOperator *op)
 }
 
 
-void WM_operator_stack_clear(bContext *C)
+void WM_operator_stack_clear(wmWindowManager *wm)
 {
-	wmWindowManager *wm= CTX_wm_manager(C);
 	wmOperator *op;
 	
 	while((op= wm->operators.first)) {
@@ -142,7 +146,7 @@ void WM_operator_stack_clear(bContext *C)
 		WM_operator_free(op);
 	}
 	
-	WM_event_add_notifier(C, NC_WM|ND_HISTORY, NULL);
+	WM_main_add_notifier(NC_WM|ND_HISTORY, NULL);
 }
 
 /* ****************************************** */

@@ -29,7 +29,6 @@ set(INC
 	../blenlib
 	../blenkernel
 	../makesdna
-	../readblenfile
 	../include
 	../makesrna
 	../render/extern/include
@@ -40,10 +39,12 @@ set(INC
 set(SRC
 	intern/readblenentry.c
 	intern/readfile.c
+	intern/runtime.c
 	intern/undofile.c
 	intern/writefile.c
 
 	BLO_readfile.h
+	BLO_runtime.h
 	BLO_soundfile.h
 	BLO_sys_types.h
 	BLO_undofile.h

@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -27,6 +27,11 @@
  * ***** END GPL LICENSE BLOCK *****
  * .blend file reading entry point
  */
+
+/** \file blender/blenloader/intern/readblenentry.c
+ *  \ingroup blenloader
+ */
+
 
 #include <stddef.h>
 #include "BLI_storage.h" /* _LARGEFILE_SOURCE */
@@ -57,8 +62,6 @@
 
 #include "readfile.h"
 
-#include "BLO_readblenfile.h"
-
 #include "BLO_sys_types.h" // needed for intptr_t
 
 #ifdef _WIN32
@@ -70,11 +73,11 @@ void BLO_blendhandle_print_sizes(BlendHandle *, void *);
 
 	/* Access routines used by filesel. */
 	 
-BlendHandle *BLO_blendhandle_from_file(char *file) 
+BlendHandle *BLO_blendhandle_from_file(char *file, ReportList *reports)
 {
 	BlendHandle *bh;
 
-	bh= (BlendHandle*)blo_openblenderfile(file, NULL);
+	bh= (BlendHandle*)blo_openblenderfile(file, reports);
 
 	return bh;
 }
@@ -118,38 +121,41 @@ void BLO_blendhandle_print_sizes(BlendHandle *bh, void *fp)
 	fprintf(fp, "]\n");
 }
 
-LinkNode *BLO_blendhandle_get_datablock_names(BlendHandle *bh, int ofblocktype) 
+LinkNode *BLO_blendhandle_get_datablock_names(BlendHandle *bh, int ofblocktype, int *tot_names)
 {
 	FileData *fd= (FileData*) bh;
 	LinkNode *names= NULL;
 	BHead *bhead;
+	int tot= 0;
 
 	for (bhead= blo_firstbhead(fd); bhead; bhead= blo_nextbhead(fd, bhead)) {
 		if (bhead->code==ofblocktype) {
 			char *idname= bhead_id_name(fd, bhead);
 			
 			BLI_linklist_prepend(&names, strdup(idname+2));
+			tot++;
 		} else if (bhead->code==ENDB)
 			break;
 	}
 	
+	*tot_names= tot;
 	return names;
 }
 
-LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype) 
+LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype, int *tot_prev)
 {
 	FileData *fd= (FileData*) bh;
 	LinkNode *previews= NULL;
 	BHead *bhead;
 	int looking=0;
-	int npreviews = 0;
 	PreviewImage* prv = NULL;
 	PreviewImage* new_prv = NULL;
+	int tot= 0;
 	
 	for (bhead= blo_firstbhead(fd); bhead; bhead= blo_nextbhead(fd, bhead)) {
 		if (bhead->code==ofblocktype) {
-			ID *id= (ID*) (bhead+1);
-			switch(GS(id->name))
+			char *idname= bhead_id_name(fd, bhead);
+			switch(GS(idname))
 			{
 				case ID_MA: /* fall through */
 				case ID_TE: /* fall through */
@@ -158,6 +164,7 @@ LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype)
 				case ID_LA: /* fall through */
 					new_prv = MEM_callocN(sizeof(PreviewImage), "newpreview");
 					BLI_linklist_prepend(&previews, new_prv);
+					tot++;
 					looking = 1;
 					break;
 				default:
@@ -166,16 +173,14 @@ LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype)
 		} else if (bhead->code==DATA) {
 			if (looking) {
 				if (bhead->SDNAnr == DNA_struct_find_nr(fd->filesdna, "PreviewImage") ) {
-					prv = (PreviewImage*) (bhead+1);
-					npreviews = 0;				
+					prv = BLO_library_read_struct(fd, bhead, "PreviewImage");	
+					if (prv) {
 					memcpy(new_prv, prv, sizeof(PreviewImage));
 					if (prv->rect[0]) {
 						unsigned int *rect = NULL;
-						// int rectlen = 0;
 						new_prv->rect[0] = MEM_callocN(new_prv->w[0]*new_prv->h[0]*sizeof(unsigned int), "prvrect");
 						bhead= blo_nextbhead(fd, bhead);
 						rect = (unsigned int*)(bhead+1);
-						// rectlen = new_prv->w[0]*new_prv->h[0]*sizeof(unsigned int);
 						memcpy(new_prv->rect[0], rect, bhead->len);					
 					} else {
 						new_prv->rect[0] = NULL;
@@ -183,21 +188,19 @@ LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype)
 					
 					if (prv->rect[1]) {
 						unsigned int *rect = NULL;
-						// int rectlen = 0;
 						new_prv->rect[1] = MEM_callocN(new_prv->w[1]*new_prv->h[1]*sizeof(unsigned int), "prvrect");
 						bhead= blo_nextbhead(fd, bhead);
 						rect = (unsigned int*)(bhead+1);
-						// rectlen = new_prv->w[1]*new_prv->h[1]*sizeof(unsigned int);
 						memcpy(new_prv->rect[1], rect, bhead->len);							
 					} else {
 						new_prv->rect[1] = NULL;
 					}
+						MEM_freeN(prv);
 				}
+			}
 			}
 		} else if (bhead->code==ENDB) {
 			break;
-		} else if (bhead->code==DATA) {
-			/* DATA blocks between IDBlock and Preview */
 		} else {
 			looking = 0;
 			new_prv = NULL;
@@ -206,6 +209,7 @@ LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype)
 		
 	}
 	
+	*tot_prev= tot;
 	return previews;
 }
 
@@ -244,15 +248,15 @@ void BLO_blendhandle_close(BlendHandle *bh) {
 
 	/**********/
 
-BlendFileData *BLO_read_from_file(const char *file, ReportList *reports)
+BlendFileData *BLO_read_from_file(const char *filepath, ReportList *reports)
 {
 	BlendFileData *bfd = NULL;
 	FileData *fd;
 		
-	fd = blo_openblenderfile(file, reports);
+	fd = blo_openblenderfile(filepath, reports);
 	if (fd) {
 		fd->reports= reports;
-		bfd= blo_read_file_internal(fd, file);
+		bfd= blo_read_file_internal(fd, filepath);
 		blo_freefiledata(fd);			
 	}
 

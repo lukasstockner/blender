@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -26,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/nodes/intern/CMP_nodes/CMP_distanceMatte.c
+ *  \ingroup cmpnodes
+ */
+
 
 #include "../CMP_util.h"
 
@@ -82,8 +87,8 @@ static void do_distance_matte(bNode *node, float *out, float *in)
 static void node_composit_exec_distance_matte(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	/*
-	Losely based on the Sequencer chroma key plug-in, but enhanced to work in other color spaces and
-	uses a differnt difference function (suggested in forums of vfxtalk.com).
+	Loosely based on the Sequencer chroma key plug-in, but enhanced to work in other color spaces and
+	uses a different difference function (suggested in forums of vfxtalk.com).
 	*/
 	CompBuf *workbuf;
 	CompBuf *inbuf;

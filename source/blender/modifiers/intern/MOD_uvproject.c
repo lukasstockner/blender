@@ -30,6 +30,11 @@
 *
 */
 
+/** \file blender/modifiers/intern/MOD_uvproject.c
+ *  \ingroup modifiers
+ */
+
+
 /* UV Project modifier: Generates UVs projected from an object */
 
 #include "DNA_meshdata_types.h"
@@ -189,7 +194,7 @@ static DerivedMesh *uvprojectModifier_do(UVProjectModifierData *umd,
 				free_uci= 1;
 			}
 			else {
-				float scale= (cam->type == CAM_PERSP) ? cam->clipsta * 32.0 / cam->lens : cam->ortho_scale;
+				float scale= (cam->type == CAM_PERSP) ? cam->clipsta * 32.0f / cam->lens : cam->ortho_scale;
 				float xmax, xmin, ymax, ymin;
 
 				if(aspect > 1.0f) {
@@ -266,7 +271,7 @@ static DerivedMesh *uvprojectModifier_do(UVProjectModifierData *umd,
 	/* if only one projector, project coords to UVs */
 	if(num_projectors == 1 && projectors[0].uci==NULL)
 		for(i = 0, co = coords; i < numVerts; ++i, ++co)
-			mul_project_m4_v4(projectors[0].projmat, *co);
+			mul_project_m4_v3(projectors[0].projmat, *co);
 
 	mface = dm->getFaceArray(dm);
 	numFaces = dm->getNumFaces(dm);
@@ -340,11 +345,11 @@ static DerivedMesh *uvprojectModifier_do(UVProjectModifierData *umd,
 						project_from_camera(tface->uv[3], coords[mf->v4], best_projector->uci);
 				}
 				else {
-					mul_project_m4_v4(best_projector->projmat, co1);
-					mul_project_m4_v4(best_projector->projmat, co2);
-					mul_project_m4_v4(best_projector->projmat, co3);
+					mul_project_m4_v3(best_projector->projmat, co1);
+					mul_project_m4_v3(best_projector->projmat, co2);
+					mul_project_m4_v3(best_projector->projmat, co3);
 					if(mf->v4)
-						mul_project_m4_v4(best_projector->projmat, co4);
+						mul_project_m4_v3(best_projector->projmat, co4);
 
 					/* apply transformed coords as UVs */
 					tface->uv[0][0] = co1[0];
@@ -412,19 +417,19 @@ ModifierTypeInfo modifierType_UVProject = {
 							| eModifierTypeFlag_EnableInEditmode,
 
 	/* copyData */          copyData,
-	/* deformVerts */       0,
-	/* deformMatrices */    0,
-	/* deformVertsEM */     0,
-	/* deformMatricesEM */  0,
+	/* deformVerts */       NULL,
+	/* deformMatrices */    NULL,
+	/* deformVertsEM */     NULL,
+	/* deformMatricesEM */  NULL,
 	/* applyModifier */     applyModifier,
 	/* applyModifierEM */   applyModifierEM,
 	/* initData */          initData,
 	/* requiredDataMask */  requiredDataMask,
-	/* freeData */          0,
-	/* isDisabled */        0,
+	/* freeData */          NULL,
+	/* isDisabled */        NULL,
 	/* updateDepgraph */    updateDepgraph,
-	/* dependsOnTime */     0,
-	/* dependsOnNormals */	0,
+	/* dependsOnTime */     NULL,
+	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ foreachObjectLink,
 	/* foreachIDLink */     foreachIDLink,
 };

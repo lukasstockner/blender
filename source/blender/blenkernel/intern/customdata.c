@@ -32,6 +32,11 @@
 *
 */ 
 
+/** \file blender/blenkernel/intern/customdata.c
+ *  \ingroup bke
+ */
+ 
+
 #include <math.h>
 #include <string.h>
 
@@ -495,7 +500,7 @@ static void layerInterp_mdisps(void **sources, float *UNUSED(weights),
 	}
 
 	/* Initialize the destination */
-	out = disps = MEM_callocN(3*d->totdisp*sizeof(float), "iterp disps");
+	disps = MEM_callocN(3*d->totdisp*sizeof(float), "iterp disps");
 
 	side = sqrt(d->totdisp / dst_corners);
 	st = (side<<1)-1;

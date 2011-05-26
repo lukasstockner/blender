@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -24,6 +24,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/space_sequencer/sequencer_edit.c
+ *  \ingroup spseq
+ */
+
 
 #include <stdlib.h>
 #include <math.h>
@@ -57,6 +62,7 @@
 #include "WM_types.h"
 
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 /* for menu/popup icons etc etc*/
 
@@ -94,6 +100,7 @@ EnumPropertyItem sequencer_prop_effect_types[] = {
 	{SEQ_COLOR, "COLOR", 0, "Color", "Color effect strip type"},
 	{SEQ_SPEED, "SPEED", 0, "Speed", "Color effect strip type"},
 	{SEQ_MULTICAM, "MULTICAM", 0, "Multicam Selector", ""},
+	{SEQ_ADJUSTMENT, "ADJUSTMENT", 0, "Adjustment Layer", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -120,28 +127,6 @@ typedef struct TransSeq {
 	int final_left, final_right;
 	int len;
 } TransSeq;
-
-static Sequence *get_foreground_frame_seq(Scene *scene, int frame)
-{
-	Editing *ed= seq_give_editing(scene, FALSE);
-	Sequence *seq, *best_seq=NULL;
-	int best_machine = -1;
-	
-	if(!ed) return NULL;
-	
-	for (seq=ed->seqbasep->first; seq; seq= seq->next) {
-		if(seq->flag & SEQ_MUTE || seq->startdisp > frame || seq->enddisp <= frame)
-			continue;
-		/* only use elements you can see - not */
-		if (ELEM5(seq->type, SEQ_IMAGE, SEQ_META, SEQ_SCENE, SEQ_MOVIE, SEQ_COLOR)) {
-			if (seq->machine > best_machine) {
-				best_seq = seq;
-				best_machine = seq->machine;
-			}
-		}
-	}
-	return best_seq;
-}
 
 void seq_rectf(Sequence *seq, rctf *rectf)
 {
@@ -193,7 +178,7 @@ void boundbox_seq(Scene *scene, rctf *rect)
 
 		if( min[0] > seq->startdisp-1) min[0]= seq->startdisp-1;
 		if( max[0] < seq->enddisp+1) max[0]= seq->enddisp+1;
-		if( max[1] < seq->machine+2.0) max[1]= seq->machine+2.0;
+		if( max[1] < seq->machine+2) max[1]= seq->machine+2;
 
 		seq= seq->next;
 	}
@@ -207,7 +192,7 @@ void boundbox_seq(Scene *scene, rctf *rect)
 
 static int mouse_frame_side(View2D *v2d, short mouse_x, int frame ) 
 {
-	short mval[2];
+	int mval[2];
 	float mouseloc[2];
 	
 	mval[0]= mouse_x;
@@ -300,7 +285,7 @@ static Sequence *find_next_prev_sequence(Scene *scene, Sequence *test, int lr, i
 }
 
 
-Sequence *find_nearest_seq(Scene *scene, View2D *v2d, int *hand, short mval[2])
+Sequence *find_nearest_seq(Scene *scene, View2D *v2d, int *hand, const int mval[2])
 {
 	Sequence *seq;
 	Editing *ed= seq_give_editing(scene, FALSE);
@@ -353,7 +338,7 @@ Sequence *find_nearest_seq(Scene *scene, View2D *v2d, int *hand, short mval[2])
 		}
 		seq= seq->next;
 	}
-	return 0;
+	return NULL;
 }
 
 
@@ -422,6 +407,7 @@ int event_to_efftype(int event)
 	if(event==15) return SEQ_TRANSFORM;
 	if(event==16) return SEQ_COLOR;
 	if(event==17) return SEQ_SPEED;
+	if(event==18) return SEQ_ADJUSTMENT;
 	return 0;
 }
 
@@ -477,12 +463,12 @@ static void reload_image_strip(Scene *scene, char *name)
 
 
 
-	if(last_seq==0 || last_seq->type!=SEQ_IMAGE) return;
+	if(last_seq==NULL || last_seq->type!=SEQ_IMAGE) return;
 	seqact= last_seq;	/* last_seq changes in alloc_sequence */
 
 	/* search sfile */
 //	sfile= scrarea_find_space_of_type(curarea, SPACE_FILE);
-	if(sfile==0) return;
+	if(sfile == NULL) return;
 
 	waitcursor(1);
 
@@ -495,7 +481,7 @@ static void reload_image_strip(Scene *scene, char *name)
 		seqact->len= seq->len;
 		calc_sequence(scene, seqact);
 
-		seq->strip= 0;
+		seq->strip= NULL;
 		seq_free_sequence(scene, seq);
 		BLI_remlink(ed->seqbasep, seq);
 
@@ -513,7 +499,7 @@ static void change_sequence(Scene *scene)
 	Scene *sce;
 	short event;
 
-	if(last_seq==0) return;
+	if(last_seq == NULL) return;
 
 	if(last_seq->type & SEQ_EFFECT) {
 		event = pupmenu("Change Effect%t"
@@ -533,7 +519,8 @@ static void change_sequence(Scene *scene)
 				"|Glow%x14"
 				"|Transform%x15"
 				"|Color Generator%x16"
-				"|Speed Control%x17");
+				"|Speed Control%x17"
+				"|Adjustment Layer%x18");
 		if(event > 0) {
 			if(event==1) {
 				SWAP(Sequence *,last_seq->seq1,last_seq->seq2);
@@ -606,7 +593,7 @@ static void change_sequence(Scene *scene)
 int seq_effect_find_selected(Scene *scene, Sequence *activeseq, int type, Sequence **selseq1, Sequence **selseq2, Sequence **selseq3, const char **error_str)
 {
 	Editing *ed = seq_give_editing(scene, FALSE);
-	Sequence *seq1= 0, *seq2= 0, *seq3= 0, *seq;
+	Sequence *seq1= NULL, *seq2= NULL, *seq3= NULL, *seq;
 	
 	*error_str= NULL;
 
@@ -620,9 +607,9 @@ int seq_effect_find_selected(Scene *scene, Sequence *activeseq, int type, Sequen
 				return 0;
 			}
 			if((seq != activeseq) && (seq != seq2)) {
-								if(seq2==0) seq2= seq;
-								else if(seq1==0) seq1= seq;
-								else if(seq3==0) seq3= seq;
+								if(seq2 == NULL) seq2= seq;
+								else if(seq1 == NULL) seq1= seq;
+								else if(seq3 == NULL) seq3= seq;
 								else {
 									*error_str= "Can't apply effect to more than 3 sequence strips";
 									return 0;
@@ -633,7 +620,7 @@ int seq_effect_find_selected(Scene *scene, Sequence *activeseq, int type, Sequen
        
 	/* make sequence selection a little bit more intuitive
 	   for 3 strips: the last-strip should be sequence3 */
-	if (seq3 != 0 && seq2 != 0) {
+	if (seq3 != NULL && seq2 != NULL) {
 		Sequence *tmp = seq2;
 		seq2 = seq3;
 		seq3 = tmp;
@@ -642,21 +629,21 @@ int seq_effect_find_selected(Scene *scene, Sequence *activeseq, int type, Sequen
 
 	switch(get_sequence_effect_num_inputs(type)) {
 	case 0:
-		*selseq1 = *selseq2 = *selseq3 = 0;
+		*selseq1 = *selseq2 = *selseq3 = NULL;
 		return 1; /* succsess */
 	case 1:
-		if(seq2==0)  {
+		if(seq2==NULL)  {
 			*error_str= "Need at least one selected sequence strip";
 			return 0;
 		}
-		if(seq1==0) seq1= seq2;
-		if(seq3==0) seq3= seq2;
+		if(seq1==NULL) seq1= seq2;
+		if(seq3==NULL) seq3= seq2;
 	case 2:
-		if(seq1==0 || seq2==0) {
+		if(seq1==NULL || seq2==NULL) {
 			*error_str= "Need 2 selected sequence strips";
 			return 0;
 		}
-		if(seq3==0) seq3= seq2;
+		if(seq3 == NULL) seq3= seq2;
 	}
 	
 	if (seq1==NULL && seq2==NULL && seq3==NULL) {
@@ -719,15 +706,9 @@ static void recurs_del_seq_flag(Scene *scene, ListBase *lb, short flag, short de
 	while(seq) {
 		seqn= seq->next;
 		if((seq->flag & flag) || deleteall) {
-			if(seq->type==SEQ_SOUND && seq->sound) {
-				((ID *)seq->sound)->us--; /* TODO, could be moved into seq_free_sequence() */
-			}
-
 			BLI_remlink(lb, seq);
 			if(seq==last_seq) seq_active_set(scene, NULL);
 			if(seq->type==SEQ_META) recurs_del_seq_flag(scene, &seq->seqbase, flag, 1);
-			/* if(seq->ipo) seq->ipo->id.us--; */
-			/* XXX, remove fcurve */
 			seq_free_sequence(scene, seq);
 		}
 		seq= seqn;
@@ -738,7 +719,7 @@ static void recurs_del_seq_flag(Scene *scene, ListBase *lb, short flag, short de
 static Sequence *cut_seq_hard(Main *bmain, Scene *scene, Sequence * seq, int cutframe)
 {
 	TransSeq ts;
-	Sequence *seqn = 0;
+	Sequence *seqn = NULL;
 	int skip_dup = FALSE;
 
 	/* backup values */
@@ -832,7 +813,7 @@ static Sequence *cut_seq_hard(Main *bmain, Scene *scene, Sequence * seq, int cut
 static Sequence *cut_seq_soft(Main *bmain, Scene *scene, Sequence * seq, int cutframe)
 {
 	TransSeq ts;
-	Sequence *seqn = 0;
+	Sequence *seqn = NULL;
 	int skip_dup = FALSE;
 
 	/* backup values */
@@ -1099,7 +1080,7 @@ static int seq_get_snaplimit(View2D *v2d)
 	/* fake mouse coords to get the snap value
 	a bit lazy but its only done once pre transform */
 	float xmouse, ymouse, x;
-	short mval[2] = {24, 0}; /* 24 screen px snap */
+	int mval[2] = {24, 0}; /* 24 screen px snap */
 	
 	UI_view2d_region_to_view(v2d, mval[0], mval[1], &xmouse, &ymouse);
 	x = xmouse;
@@ -1558,14 +1539,13 @@ static int sequencer_cut_exec(bContext *C, wmOperator *op)
 static int sequencer_cut_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
 	Scene *scene = CTX_data_scene(C);
-	ARegion *ar= CTX_wm_region(C);
 	View2D *v2d= UI_view2d_fromcontext(C);
 
 	int cut_side= SEQ_SIDE_BOTH;
 	int cut_frame= CFRA;
 
 	if (ED_operator_sequencer_active(C) && v2d)
-		cut_side= mouse_frame_side(v2d, event->x - ar->winrct.xmin, cut_frame);
+		cut_side= mouse_frame_side(v2d, event->mval[0], cut_frame);
 	
 	RNA_int_set(op->ptr, "frame", cut_frame);
 	RNA_enum_set(op->ptr, "side", cut_side);
@@ -1639,7 +1619,7 @@ static int sequencer_add_duplicate_invoke(bContext *C, wmOperator *op, wmEvent *
 {
 	sequencer_add_duplicate_exec(C, op);
 
-	RNA_int_set(op->ptr, "mode", TFM_TRANSLATION);
+	RNA_enum_set(op->ptr, "mode", TFM_TRANSLATION);
 	WM_operator_name_call(C, "TRANSFORM_OT_transform", WM_OP_INVOKE_REGION_WIN, op->ptr);
 
 	return OPERATOR_FINISHED;
@@ -1648,7 +1628,7 @@ static int sequencer_add_duplicate_invoke(bContext *C, wmOperator *op, wmEvent *
 void SEQUENCER_OT_duplicate(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Duplicate";
+	ot->name= "Duplicate Strips";
 	ot->idname= "SEQUENCER_OT_duplicate";
 	ot->description="Duplicate the selected strips";
 	
@@ -1661,7 +1641,7 @@ void SEQUENCER_OT_duplicate(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* to give to transform */
-	RNA_def_int(ot->srna, "mode", TFM_TRANSLATION, 0, INT_MAX, "Mode", "", 0, INT_MAX);
+	RNA_def_enum(ot->srna, "mode", transform_mode_types, TFM_TRANSLATION, "Mode", "");
 }
 
 /* delete operator */
@@ -1687,11 +1667,6 @@ static int sequencer_delete_exec(bContext *C, wmOperator *UNUSED(op))
 
 	if (nothingSelected)
 		return OPERATOR_FINISHED;
-
-	/* free imbufs of all dependent strips */
-	for(seq=ed->seqbasep->first; seq; seq=seq->next)
-		if(seq->flag & SELECT)
-			update_changed_seq_and_deps(scene, seq, 1, 0);
 
 	/* for effects, try to find a replacement input */
 	for(seq=ed->seqbasep->first; seq; seq=seq->next)
@@ -1995,8 +1970,8 @@ static int sequencer_meta_separate_exec(bContext *C, wmOperator *UNUSED(op))
 
 	BLI_movelisttolist(ed->seqbasep, &last_seq->seqbase);
 
-	last_seq->seqbase.first= 0;
-	last_seq->seqbase.last= 0;
+	last_seq->seqbase.first= NULL;
+	last_seq->seqbase.last= NULL;
 
 	BLI_remlink(ed->seqbasep, last_seq);
 	seq_free_sequence(scene, last_seq);
@@ -2596,6 +2571,8 @@ static int sequencer_copy_exec(bContext *C, wmOperator *op)
 	Editing *ed= seq_give_editing(scene, FALSE);
 	Sequence *seq;
 
+	ListBase nseqbase= {NULL, NULL};
+
 	seq_free_clipboard();
 
 	if(seqbase_isolated_sel_check(ed->seqbasep)==FALSE) {
@@ -2603,7 +2580,28 @@ static int sequencer_copy_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	seqbase_dupli_recursive(scene, NULL, &seqbase_clipboard, ed->seqbasep, SEQ_DUPE_UNIQUE_NAME);
+	seqbase_dupli_recursive(scene, NULL, &nseqbase, ed->seqbasep, SEQ_DUPE_UNIQUE_NAME);
+
+	/* To make sure the copied strips have unique names between each other add
+	 * them temporarily to the end of the original seqbase. (bug 25932)
+	 */
+	if(nseqbase.first) {
+		Sequence *seq, *first_seq = nseqbase.first;
+		BLI_movelisttolist(ed->seqbasep, &nseqbase);
+
+		for(seq=first_seq; seq; seq=seq->next)
+			seq_recursive_apply(seq, apply_unique_name_cb, scene);
+
+		seqbase_clipboard.first = first_seq;
+		seqbase_clipboard.last = ed->seqbasep->last;
+
+		if(first_seq->prev) {
+			first_seq->prev->next = NULL;
+			ed->seqbasep->last = first_seq->prev;
+			first_seq->prev = NULL;
+		}
+	}
+
 	seqbase_clipboard_frame= scene->r.cfra;
 
 	/* Need to remove anything that references the current scene */
@@ -2631,21 +2629,6 @@ void SEQUENCER_OT_copy(wmOperatorType *ot)
 	/* properties */
 }
 
-static void seq_offset(Scene *scene, Sequence *seq, int ofs)
-{
-	if(seq->type == SEQ_META) {
-		Sequence *iseq;
-		for(iseq= seq->seqbase.first; iseq; iseq= iseq->next) {
-			seq_offset(scene, iseq, ofs);
-		}
-	}
-	else {
-		seq->start += ofs;
-	}
-
-	calc_sequence_disp(scene, seq);
-}
-
 static int sequencer_paste_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Scene *scene= CTX_data_scene(C);
@@ -2662,11 +2645,18 @@ static int sequencer_paste_exec(bContext *C, wmOperator *UNUSED(op))
 	/* transform pasted strips before adding */
 	if(ofs) {
 		for(iseq= nseqbase.first; iseq; iseq= iseq->next) {
-			seq_offset(scene, iseq, ofs);
+			seq_translate(scene, iseq, ofs);
+			seq_sound_init(scene, iseq);
 		}
 	}
 
+	iseq = nseqbase.first;
+
 	BLI_movelisttolist(ed->seqbasep, &nseqbase);
+
+	/* make sure the pasted strips have unique names between them */
+	for(; iseq; iseq=iseq->next)
+		seq_recursive_apply(iseq, apply_unique_name_cb, scene);
 
 	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER, scene);
 
@@ -2762,10 +2752,10 @@ static int view_ghost_border_exec(bContext *C, wmOperator *op)
 	rect.xmax /=  (float)(ABS(v2d->tot.xmax - v2d->tot.xmin));
 	rect.ymax /=  (float)(ABS(v2d->tot.ymax - v2d->tot.ymin));
 
-	rect.xmin+=0.5;
-	rect.xmax+=0.5;
-	rect.ymin+=0.5;
-	rect.ymax+=0.5;
+	rect.xmin+=0.5f;
+	rect.xmax+=0.5f;
+	rect.ymin+=0.5f;
+	rect.ymax+=0.5f;
 
 	CLAMP(rect.xmin, 0.0f, 1.0f);
 	CLAMP(rect.ymin, 0.0f, 1.0f);

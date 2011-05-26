@@ -1,8 +1,4 @@
-/**
- * blenlib/DNA_ID.h (mar-2001 nzc)
- *
- * ID and Library types, which are fundamental for sdna,
- *
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -32,6 +28,11 @@
  */
 #ifndef DNA_ID_H
 #define DNA_ID_H
+
+/** \file DNA_ID.h
+ *  \ingroup DNA
+ *  \brief ID and Library types, which are fundamental for sdna.
+ */
 
 #include "DNA_listBase.h"
 
@@ -122,12 +123,14 @@ typedef struct Library {
 	struct Library *parent;	/* set for indirectly linked libs, used in the outliner and while reading */
 } Library;
 
-#define PREVIEW_MIPMAPS 2
-#define PREVIEW_MIPMAP_ZERO 0
-#define PREVIEW_MIPMAP_LARGE 1
+enum eIconSizes {
+	ICON_SIZE_ICON,
+	ICON_SIZE_PREVIEW,
+};
+#define NUM_ICON_SIZES (ICON_SIZE_PREVIEW + 1)
 
 typedef struct PreviewImage {
-	/* All values of 2 are really PREVIEW_MIPMAPS */
+	/* All values of 2 are really NUM_ICON_SIZES */
 	unsigned int w[2];
 	unsigned int h[2];	
 	short changed[2];

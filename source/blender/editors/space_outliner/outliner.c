@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -26,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/space_outliner/outliner.c
+ *  \ingroup spoutliner
+ */
+
 
 #include <math.h>
 #include <string.h>
@@ -56,7 +61,9 @@
 #if defined WIN32 && !defined _LIBC
 # include "BLI_fnmatch.h" /* use fnmatch included in blenlib */
 #else
+#  ifndef _GNU_SOURCE
 # define _GNU_SOURCE
+#  endif
 # include <fnmatch.h>
 #endif
 
@@ -1722,7 +1729,7 @@ void OUTLINER_OT_renderability_toggle(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Toggle Renderability";
 	ot->idname= "OUTLINER_OT_renderability_toggle";
-	ot->description= "Toggle the renderbility of selected items";
+	ot->description= "Toggle the renderability of selected items";
 	
 	/* callbacks */
 	ot->exec= outliner_toggle_renderability_exec;
@@ -2475,7 +2482,7 @@ static int tree_element_type_active(bContext *C, Scene *scene, SpaceOops *soops,
 	return 0;
 }
 
-static int do_outliner_item_activate(bContext *C, Scene *scene, ARegion *ar, SpaceOops *soops, TreeElement *te, int extend, float *mval)
+static int do_outliner_item_activate(bContext *C, Scene *scene, ARegion *ar, SpaceOops *soops, TreeElement *te, int extend, const float mval[2])
 {
 	
 	if(mval[1]>te->ys && mval[1]<te->ys+OL_H) {
@@ -2573,7 +2580,7 @@ static int outliner_item_activate(bContext *C, wmOperator *op, wmEvent *event)
 	float fmval[2];
 	int extend= RNA_boolean_get(op->ptr, "extend");
 	
-	UI_view2d_region_to_view(&ar->v2d, event->x - ar->winrct.xmin, event->y - ar->winrct.ymin, fmval, fmval+1);
+	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], fmval, fmval+1);
 	
 	if(!ELEM3(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF, SO_KEYMAP) && !(soops->flag & SO_HIDE_RESTRICTCOLS) && fmval[0] > ar->v2d.cur.xmax - OL_TOG_RESTRICT_VIEWX)
 		return OPERATOR_CANCELLED;
@@ -2621,7 +2628,7 @@ void OUTLINER_OT_item_activate(wmOperatorType *ot)
 
 /* *********** */
 
-static int do_outliner_item_openclose(bContext *C, SpaceOops *soops, TreeElement *te, int all, float *mval)
+static int do_outliner_item_openclose(bContext *C, SpaceOops *soops, TreeElement *te, int all, const float mval[2])
 {
 	
 	if(mval[1]>te->ys && mval[1]<te->ys+OL_H) {
@@ -2657,7 +2664,7 @@ static int outliner_item_openclose(bContext *C, wmOperator *op, wmEvent *event)
 	float fmval[2];
 	int all= RNA_boolean_get(op->ptr, "all");
 	
-	UI_view2d_region_to_view(&ar->v2d, event->x - ar->winrct.xmin, event->y - ar->winrct.ymin, fmval, fmval+1);
+	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], fmval, fmval+1);
 	
 	for(te= soops->tree.first; te; te= te->next) {
 		if(do_outliner_item_openclose(C, soops, te, all, fmval)) 
@@ -2686,7 +2693,7 @@ void OUTLINER_OT_item_openclose(wmOperatorType *ot)
 
 /* ********************************************** */
 
-static int do_outliner_item_rename(bContext *C, ARegion *ar, SpaceOops *soops, TreeElement *te, float *mval)
+static int do_outliner_item_rename(bContext *C, ARegion *ar, SpaceOops *soops, TreeElement *te, const float mval[2])
 {
 	
 	if(mval[1]>te->ys && mval[1]<te->ys+OL_H) {
@@ -2729,7 +2736,7 @@ static int outliner_item_rename(bContext *C, wmOperator *UNUSED(op), wmEvent *ev
 	TreeElement *te;
 	float fmval[2];
 	
-	UI_view2d_region_to_view(&ar->v2d, event->x - ar->winrct.xmin, event->y - ar->winrct.ymin, fmval, fmval+1);
+	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], fmval, fmval+1);
 	
 	for(te= soops->tree.first; te; te= te->next) {
 		if(do_outliner_item_rename(C, ar, soops, te, fmval)) break;
@@ -3283,7 +3290,7 @@ static void id_local_cb(bContext *C, Scene *scene, TreeElement *te, TreeStoreEle
 	if(tselem->id->lib && (tselem->id->flag & LIB_EXTERN)) {
 		tselem->id->lib= NULL;
 		tselem->id->flag= LIB_LOCAL;
-		new_id(0, tselem->id, 0);
+		new_id(NULL, tselem->id, NULL);
 	}
 }
 
@@ -3720,7 +3727,7 @@ void OUTLINER_OT_data_operation(wmOperatorType *ot)
 /* ******************** */
 
 
-static int do_outliner_operation_event(bContext *C, Scene *scene, ARegion *ar, SpaceOops *soops, TreeElement *te, wmEvent *event, float *mval)
+static int do_outliner_operation_event(bContext *C, Scene *scene, ARegion *ar, SpaceOops *soops, TreeElement *te, wmEvent *event, const float mval[2])
 {
 	
 	if(mval[1]>te->ys && mval[1]<te->ys+OL_H) {
@@ -3783,7 +3790,7 @@ static int outliner_operation(bContext *C, wmOperator *UNUSED(op), wmEvent *even
 	TreeElement *te;
 	float fmval[2];
 	
-	UI_view2d_region_to_view(&ar->v2d, event->x - ar->winrct.xmin, event->y - ar->winrct.ymin, fmval, fmval+1);
+	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], fmval, fmval+1);
 	
 	for(te= soops->tree.first; te; te= te->next) {
 		if(do_outliner_operation_event(C, scene, ar, soops, te, event, fmval)) break;
@@ -3961,10 +3968,10 @@ static void tree_element_to_path(SpaceOops *soops, TreeElement *te, TreeStoreEle
 /* These operators are only available in databrowser mode for now, as
  * they depend on having RNA paths and/or hierarchies available.
  */
-static enum {
+enum {
 	DRIVERS_EDITMODE_ADD	= 0,
 	DRIVERS_EDITMODE_REMOVE,
-} eDrivers_EditModes;
+} /*eDrivers_EditModes*/;
 
 /* Utilities ---------------------------------- */ 
 
@@ -4115,10 +4122,10 @@ void OUTLINER_OT_drivers_delete_selected(wmOperatorType *ot)
 /* These operators are only available in databrowser mode for now, as
  * they depend on having RNA paths and/or hierarchies available.
  */
-static enum {
+enum {
 	KEYINGSET_EDITMODE_ADD	= 0,
 	KEYINGSET_EDITMODE_REMOVE,
-} eKeyingSet_EditModes;
+} /*eKeyingSet_EditModes*/;
 
 /* Utilities ---------------------------------- */ 
  
@@ -4659,16 +4666,24 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 				Object *ob= (Object *)tselem->id;
 				
 				if(ob==OBACT || (ob->flag & SELECT)) {
-					char col[4];
+					char col[4]= {0, 0, 0, 0};
 					
-					active= 2;
+					/* outliner active ob: always white text, circle color now similar to view3d */
+					
+					active= 2; /* means it draws a color circle */
 					if(ob==OBACT) {
+						if(ob->flag & SELECT) {
 						UI_GetThemeColorType4ubv(TH_ACTIVE, SPACE_VIEW3D, col);
-						/* so black text is drawn when active and not selected */
-						if (ob->flag & SELECT) active= 1;
+							col[3]= 100;
 					}
-					else UI_GetThemeColorType4ubv(TH_SELECT, SPACE_VIEW3D, col);
+						
+						active= 1; /* means it draws white text */
+					}
+					else if(ob->flag & SELECT) {
+						UI_GetThemeColorType4ubv(TH_SELECT, SPACE_VIEW3D, col);
 					col[3]= 100;
+					}
+					
 					glColor4ubv((GLubyte *)col);
 				}
 
@@ -5243,15 +5258,15 @@ static void outliner_draw_restrictbuts(uiBlock *block, Scene *scene, ARegion *ar
 				uiBlockSetEmboss(block, UI_EMBOSSN);
 
 				restrict_bool= group_restrict_flag(gr, OB_RESTRICT_VIEW);
-				bt = uiDefIconBut(block, BUT, 0, restrict_bool ? ICON_RESTRICT_VIEW_ON : ICON_RESTRICT_VIEW_OFF, (int)ar->v2d.cur.xmax-OL_TOG_RESTRICT_VIEWX, (int)te->ys, 17, OL_H-1, 0, 0, 0, 0, 0, "Restrict/Allow visibility in the 3D View");
+				bt = uiDefIconBut(block, BUT, 0, restrict_bool ? ICON_RESTRICT_VIEW_ON : ICON_RESTRICT_VIEW_OFF, (int)ar->v2d.cur.xmax-OL_TOG_RESTRICT_VIEWX, (int)te->ys, 17, OL_H-1, NULL, 0, 0, 0, 0, "Restrict/Allow visibility in the 3D View");
 				uiButSetFunc(bt, restrictbutton_gr_restrict_view, scene, gr);
 
 				restrict_bool= group_restrict_flag(gr, OB_RESTRICT_SELECT);
-				bt = uiDefIconBut(block, BUT, 0, restrict_bool ? ICON_RESTRICT_SELECT_ON : ICON_RESTRICT_SELECT_OFF, (int)ar->v2d.cur.xmax-OL_TOG_RESTRICT_SELECTX, (int)te->ys, 17, OL_H-1, 0, 0, 0, 0, 0, "Restrict/Allow selection in the 3D View");
+				bt = uiDefIconBut(block, BUT, 0, restrict_bool ? ICON_RESTRICT_SELECT_ON : ICON_RESTRICT_SELECT_OFF, (int)ar->v2d.cur.xmax-OL_TOG_RESTRICT_SELECTX, (int)te->ys, 17, OL_H-1, NULL, 0, 0, 0, 0, "Restrict/Allow selection in the 3D View");
 				uiButSetFunc(bt, restrictbutton_gr_restrict_select, scene, gr);
 
 				restrict_bool= group_restrict_flag(gr, OB_RESTRICT_RENDER);
-				bt = uiDefIconBut(block, BUT, 0, restrict_bool ? ICON_RESTRICT_RENDER_ON : ICON_RESTRICT_RENDER_OFF, (int)ar->v2d.cur.xmax-OL_TOG_RESTRICT_RENDERX, (int)te->ys, 17, OL_H-1, 0, 0, 0, 0, 0, "Restrict/Allow renderability");
+				bt = uiDefIconBut(block, BUT, 0, restrict_bool ? ICON_RESTRICT_RENDER_ON : ICON_RESTRICT_RENDER_OFF, (int)ar->v2d.cur.xmax-OL_TOG_RESTRICT_RENDERX, (int)te->ys, 17, OL_H-1, NULL, 0, 0, 0, 0, "Restrict/Allow renderability");
 				uiButSetFunc(bt, restrictbutton_gr_restrict_render, scene, gr);
 
 				uiBlockSetEmboss(block, UI_EMBOSS);
@@ -5367,13 +5382,13 @@ static void outliner_draw_rnabuts(uiBlock *block, Scene *scene, ARegion *ar, Spa
 				prop= te->directdata;
 				
 				if(!(RNA_property_type(prop) == PROP_POINTER && (tselem->flag & TSE_CLOSED)==0))
-					uiDefAutoButR(block, ptr, prop, -1, "", ICON_NULL, sizex, (int)te->ys, OL_RNA_COL_SIZEX, OL_H-1);
+					uiDefAutoButR(block, ptr, prop, -1, "", ICON_NONE, sizex, (int)te->ys, OL_RNA_COL_SIZEX, OL_H-1);
 			}
 			else if(tselem->type == TSE_RNA_ARRAY_ELEM) {
 				ptr= &te->rnaptr;
 				prop= te->directdata;
 				
-				uiDefAutoButR(block, ptr, prop, te->index, "", ICON_NULL, sizex, (int)te->ys, OL_RNA_COL_SIZEX, OL_H-1);
+				uiDefAutoButR(block, ptr, prop, te->index, "", ICON_NONE, sizex, (int)te->ys, OL_RNA_COL_SIZEX, OL_H-1);
 			}
 		}
 		
@@ -5624,10 +5639,11 @@ static void outliner_draw_keymapbuts(uiBlock *block, ARegion *ar, SpaceOops *soo
 				xstart+= butw3+5;
 				
 				/* rna property */
-				if(kmi->ptr && kmi->ptr->data)
+				if(kmi->ptr && kmi->ptr->data) {
 					uiDefBut(block, LABEL, 0, "(RNA property)",	xstart, (int)te->ys+1, butw2, OL_H-1, &kmi->oskey, 0, 0, 0, 0, ""); xstart+= butw2;
+				}
 					
-				
+				(void)xstart;
 			}
 		}
 		
@@ -5657,7 +5673,7 @@ static void outliner_buttons(const bContext *C, uiBlock *block, ARegion *ar, Spa
 				if(tselem->type==TSE_EBONE) len = sizeof(((EditBone*) 0)->name);
 				else if (tselem->type==TSE_MODIFIER) len = sizeof(((ModifierData*) 0)->name);
 				else if(tselem->id && GS(tselem->id->name)==ID_LI) len = sizeof(((Library*) 0)->name);
-				else len= sizeof(((ID*) 0)->name)-2;
+				else len= MAX_ID_NAME-2;
 				
 
 				dx= (int)UI_GetStringWidth(te->name);

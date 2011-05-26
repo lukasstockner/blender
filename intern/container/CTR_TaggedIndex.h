@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -26,6 +26,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file container/CTR_TaggedIndex.h
+ *  \ingroup ctr
+ */
+
+
 /**
 
  * $Id$
@@ -46,6 +51,8 @@
  */
 
 #include <functional>
+
+#include "MEM_sys_types.h"
 
 enum {
 
@@ -95,9 +102,9 @@ public:
 
 #if defined(_WIN64)
 	CTR_TaggedIndex(
-		const unsigned __int64 val
+		const uint64_t val
 	) :
-		m_val ( ((unsigned __int64)val & index_mask)
+		m_val ( ((uint64_t)val & index_mask)
 				| ( (empty_tag << tag_shift)
 					& (~index_mask) ) ) {
 	}
@@ -135,8 +142,8 @@ public:
 	}
 
 #if defined(_WIN64)
-	operator unsigned __int64 () const {
-			return (unsigned __int64)(m_val & index_mask);
+	operator uint64_t () const {
+			return (uint64_t)(m_val & index_mask);
 		}
 #endif
 

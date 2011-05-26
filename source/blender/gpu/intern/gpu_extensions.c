@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -30,6 +30,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/gpu/intern/gpu_extensions.c
+ *  \ingroup gpu
+ */
+
+
 #include "GL/glew.h"
 
 #include "DNA_image_types.h"
@@ -48,6 +53,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "BLI_winstuff.h"
 
 /* Extensions support */
 
@@ -215,38 +222,43 @@ int GPU_print_error(const char *str)
 	return 0;
 }
 
-static void GPU_print_framebuffer_error(GLenum status)
+static void GPU_print_framebuffer_error(GLenum status, char err_out[256])
 {
-	fprintf(stderr, "GPUFrameBuffer: framebuffer incomplete error %d\n",
-		(int)status);
+	const char *err= "unknown";
 
 	switch(status) {
 		case GL_FRAMEBUFFER_COMPLETE_EXT:
 			break;
 		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT_EXT:
-			fprintf(stderr, "Incomplete attachment.\n");
+			err= "Incomplete attachment";
 			break;
 		case GL_FRAMEBUFFER_UNSUPPORTED_EXT:
-			fprintf(stderr, "Unsupported framebuffer format.\n");
+			err= "Unsupported framebuffer format";
 			break;
 		case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT_EXT:
-			fprintf(stderr, "Missing attachment.\n");
+			err= "Missing attachment";
 			break;
 		case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS_EXT:
-			fprintf(stderr, "Attached images must have same dimensions.\n");
+			err= "Attached images must have same dimensions";
 			break;
 		case GL_FRAMEBUFFER_INCOMPLETE_FORMATS_EXT:
-			 fprintf(stderr, "Attached images must have same format.\n");
+			err= "Attached images must have same format";
 			break;
 		case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER_EXT:
-			fprintf(stderr, "Missing draw buffer.\n");
+			err= "Missing draw buffer";
 			break;
 		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER_EXT:
-			fprintf(stderr, "Missing read buffer.\n");
+			err= "Missing read buffer";
 			break;
-		default:
-			fprintf(stderr, "Unknown.\n");
-			break;
+	}
+
+	if(err_out) {
+		BLI_snprintf(err_out, 256, "GPUFrameBuffer: framebuffer incomplete error %d '%s'",
+			(int)status, err);
+}
+	else {
+		fprintf(stderr, "GPUFrameBuffer: framebuffer incomplete error %d '%s'\n",
+			(int)status, err);
 	}
 }
 
@@ -308,7 +320,7 @@ static void GPU_glTexSubImageEmpty(GLenum target, GLenum format, int x, int y, i
 	MEM_freeN(pixels);
 }
 
-static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, int depth)
+static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, int depth, char err_out[256])
 {
 	GPUTexture *tex;
 	GLenum type, format, internalformat;
@@ -328,8 +340,14 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 	glGenTextures(1, &tex->bindcode);
 
 	if (!tex->bindcode) {
+		if(err_out) {
+			BLI_snprintf(err_out, 256, "GPUTexture: texture create failed: %d",
+				(int)glGetError());
+		}
+		else {
 		fprintf(stderr, "GPUTexture: texture create failed: %d\n",
 			(int)glGetError());
+		}
 		GPU_texture_free(tex);
 		return NULL;
 	}
@@ -357,7 +375,7 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 	}
 
 	if (tex->target == GL_TEXTURE_1D) {
-		glTexImage1D(tex->target, 0, internalformat, tex->w, 0, format, type, 0);
+		glTexImage1D(tex->target, 0, internalformat, tex->w, 0, format, type, NULL);
 
 		if (fpixels) {
 			glTexSubImage1D(tex->target, 0, 0, w, format, type,
@@ -370,7 +388,7 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 	}
 	else {
 		glTexImage2D(tex->target, 0, internalformat, tex->w, tex->h, 0,
-			format, type, 0);
+			format, type, NULL);
 
 		if (fpixels) {
 			glTexSubImage2D(tex->target, 0, 0, 0, w, h,
@@ -545,9 +563,9 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, double time, 
 	return tex;
 }
 
-GPUTexture *GPU_texture_create_1D(int w, float *fpixels)
+GPUTexture *GPU_texture_create_1D(int w, float *fpixels, char err_out[256])
 {
-	GPUTexture *tex = GPU_texture_create_nD(w, 1, 1, fpixels, 0);
+	GPUTexture *tex = GPU_texture_create_nD(w, 1, 1, fpixels, 0, err_out);
 
 	if (tex)
 		GPU_texture_unbind(tex);
@@ -555,9 +573,9 @@ GPUTexture *GPU_texture_create_1D(int w, float *fpixels)
 	return tex;
 }
 
-GPUTexture *GPU_texture_create_2D(int w, int h, float *fpixels)
+GPUTexture *GPU_texture_create_2D(int w, int h, float *fpixels, char err_out[256])
 {
-	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, fpixels, 0);
+	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, fpixels, 0, err_out);
 
 	if (tex)
 		GPU_texture_unbind(tex);
@@ -565,9 +583,9 @@ GPUTexture *GPU_texture_create_2D(int w, int h, float *fpixels)
 	return tex;
 }
 
-GPUTexture *GPU_texture_create_depth(int w, int h)
+GPUTexture *GPU_texture_create_depth(int w, int h, char err_out[256])
 {
-	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, NULL, 1);
+	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, NULL, 1, err_out);
 
 	if (tex)
 		GPU_texture_unbind(tex);
@@ -695,7 +713,7 @@ GPUFrameBuffer *GPU_framebuffer_create(void)
 	return fb;
 }
 
-int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex)
+int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, char err_out[256])
 {
 	GLenum status;
 	GLenum attachment;
@@ -724,7 +742,7 @@ int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex)
 
 	if (status != GL_FRAMEBUFFER_COMPLETE_EXT) {
 		GPU_framebuffer_restore();
-		GPU_print_framebuffer_error(status);
+		GPU_print_framebuffer_error(status, err_out);
 		return 0;
 	}
 
@@ -836,7 +854,7 @@ struct GPUOffScreen {
 	GPUTexture *depth;
 };
 
-GPUOffScreen *GPU_offscreen_create(int *width, int *height)
+GPUOffScreen *GPU_offscreen_create(int *width, int *height, char err_out[256])
 {
 	GPUOffScreen *ofs;
 
@@ -848,7 +866,7 @@ GPUOffScreen *GPU_offscreen_create(int *width, int *height)
 		return NULL;
 	}
 
-	ofs->depth = GPU_texture_create_depth(*width, *height);
+	ofs->depth = GPU_texture_create_depth(*width, *height, err_out);
 	if(!ofs->depth) {
 		GPU_offscreen_free(ofs);
 		return NULL;
@@ -860,18 +878,18 @@ GPUOffScreen *GPU_offscreen_create(int *width, int *height)
 		printf("Offscreen size differs from given size!\n");
 	}
 	
-	if(!GPU_framebuffer_texture_attach(ofs->fb, ofs->depth)) {
+	if(!GPU_framebuffer_texture_attach(ofs->fb, ofs->depth, err_out)) {
 		GPU_offscreen_free(ofs);
 		return NULL;
 	}
 
-	ofs->color = GPU_texture_create_2D(*width, *height, NULL);
+	ofs->color = GPU_texture_create_2D(*width, *height, NULL, err_out);
 	if(!ofs->color) {
 		GPU_offscreen_free(ofs);
 		return NULL;
 	}
 
-	if(!GPU_framebuffer_texture_attach(ofs->fb, ofs->color)) {
+	if(!GPU_framebuffer_texture_attach(ofs->fb, ofs->color, err_out)) {
 		GPU_offscreen_free(ofs);
 		return NULL;
 	}

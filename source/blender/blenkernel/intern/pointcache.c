@@ -1,4 +1,5 @@
-/**
+/*
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -23,6 +24,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/blenkernel/intern/pointcache.c
+ *  \ingroup bke
+ */
+
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -276,6 +282,8 @@ static void ptcache_particle_read(int index, void *psys_v, void **data, float cf
 	/* set frames cached before birth to birth time */
 	if(cfra < pa->time)
 		pa->state.time = pa->time;
+	else if(cfra > pa->dietime)
+		pa->state.time = pa->dietime;
 
 	if(data[BPHYS_DATA_SIZE])
 		PTCACHE_DATA_TO(data, BPHYS_DATA_SIZE, 0, &pa->size);
@@ -926,7 +934,7 @@ static int ptcache_filename(PTCacheID *pid, char *filename, int cfra, short do_p
 		len = ptcache_path(pid, filename);
 		newname += len;
 	}
-	if(strcmp(pid->cache->name, "")==0 && (pid->cache->flag & PTCACHE_EXTERNAL)==0) {
+	if(pid->cache->name[0] == '\0' && (pid->cache->flag & PTCACHE_EXTERNAL)==0) {
 		idname = (pid->ob->id.name+2);
 		/* convert chars to hex so they are always a valid filename */
 		while('\0' != *idname) {
@@ -1016,7 +1024,6 @@ static int ptcache_file_compressed_read(PTCacheFile *pf, unsigned char *result, 
 	size_t in_len;
 #ifdef WITH_LZO
 	size_t out_len = len;
-	size_t sizeOfIt = 5;
 #endif
 	unsigned char *in;
 	unsigned char *props = MEM_callocN(16*sizeof(char), "tmp");
@@ -1039,6 +1046,7 @@ static int ptcache_file_compressed_read(PTCacheFile *pf, unsigned char *result, 
 #ifdef WITH_LZMA
 			if(compressed == 2)
 			{
+				size_t sizeOfIt;
 				size_t leni = in_len, leno = out_len;
 				ptcache_file_read(pf, &size, 1, sizeof(unsigned int));
 				sizeOfIt = (size_t)size;
@@ -1361,14 +1369,16 @@ static void ptcache_find_frames_around(PTCacheID *pid, unsigned int frame, int *
 		while(pm->next && pm->next->frame < frame)
 			pm= pm->next;
 
-		if(pm2 && pm2->frame < frame)
+		if(pm2->frame < frame) {
 			pm2 = NULL;
+		}
 		else {
-			while(pm2->prev && pm2->prev->frame > frame)
+			while(pm2->prev && pm2->prev->frame > frame) {
 				pm2= pm2->prev;
 		}
+		}
 
-		if(pm && !pm2) {
+		if(!pm2) {
 			*fra1 = 0;
 			*fra2 = pm->frame;
 			}
@@ -1386,7 +1396,7 @@ static PTCacheMem *ptcache_disk_frame_to_mem(PTCacheID *pid, int cfra)
 	unsigned int i, error = 0;
 
 	if(pf == NULL)
-		return 0;
+		return NULL;
 
 	if(!ptcache_file_header_begin_read(pf))
 		error = 1;
@@ -1830,7 +1840,8 @@ static int ptcache_write(PTCacheID *pid, int cfra, int overwrite)
 	if(cache->flag & PTCACHE_DISK_CACHE) {
 		error += !ptcache_mem_frame_to_disk(pid, pm);
 
-		if(pm) {
+		// if(pm) /* pm is always set */
+		{
 			ptcache_data_free(pm);
 			ptcache_extra_free(pm);
 			MEM_freeN(pm);
@@ -2505,14 +2516,55 @@ typedef struct {
 	Scene *scene;
 } ptcache_bake_data;
 
+static void ptcache_dt_to_str(char *str, double dtime)
+{
+	if(dtime > 60.0) {
+		if(dtime > 3600.0)
+			sprintf(str, "%ih %im %is", (int)(dtime/3600), ((int)(dtime/60))%60, ((int)dtime) % 60);
+		else
+			sprintf(str, "%im %is", ((int)(dtime/60))%60, ((int)dtime) % 60);
+	}
+	else
+		sprintf(str, "%is", ((int)dtime) % 60);
+}
+
 static void *ptcache_bake_thread(void *ptr) {
+	int usetimer = 0, sfra, efra;
+	double stime, ptime, ctime, fetd;
+	char run[32], cur[32], etd[32];
+
 	ptcache_bake_data *data = (ptcache_bake_data*)ptr;
+
+	stime = ptime = PIL_check_seconds_timer();
+	sfra = *data->cfra_ptr;
+	efra = data->endframe;
 
 	for(; (*data->cfra_ptr <= data->endframe) && !data->break_operation; *data->cfra_ptr+=data->step) {
 		scene_update_for_newframe(data->main, data->scene, data->scene->lay);
 		if(G.background) {
 			printf("bake: frame %d :: %d\n", (int)*data->cfra_ptr, data->endframe);
 		}
+		else {
+			ctime = PIL_check_seconds_timer();
+
+			fetd = (ctime-ptime)*(efra-*data->cfra_ptr)/data->step;
+
+			if(usetimer || fetd > 60.0) {
+				usetimer = 1;
+
+				ptcache_dt_to_str(cur, ctime-ptime);
+				ptcache_dt_to_str(run, ctime-stime);
+				ptcache_dt_to_str(etd, fetd);
+
+				printf("Baked for %s, current frame: %i/%i (%.3fs), ETC: %s          \r", run, *data->cfra_ptr-sfra+1, efra-sfra+1, ctime-ptime, etd);
+	}
+			ptime = ctime;
+		}
+	}
+
+	if(usetimer) {
+		ptcache_dt_to_str(run, PIL_check_seconds_timer()-stime);
+		printf("Bake %s %s (%i frames simulated).                       \n", (data->break_operation ? "canceled after" : "finished in"), run, *data->cfra_ptr-sfra);
 	}
 
 	data->thread_ended = TRUE;

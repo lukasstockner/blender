@@ -1,4 +1,4 @@
-/**
+/*
 * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -26,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/blenkernel/intern/sequencer.c
+ *  \ingroup bke
+ */
+
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -76,9 +81,15 @@
 #define snprintf _snprintf
 #endif
 
-/* **** XXX ******** */
-//static void waitcursor(int val) {}
-//static int blender_test_break() {return 0;}
+
+static ImBuf* seq_render_strip_stack( 
+	SeqRenderData context, ListBase *seqbasep, float cfra, int chanshown);
+
+static ImBuf * seq_render_strip(
+	SeqRenderData context, Sequence * seq, float cfra);
+
+static void seq_free_animdata(Scene *scene, Sequence *seq);
+
 
 /* **** XXX ******** */
 #define SELECT 1
@@ -174,8 +185,6 @@ void seq_free_strip(Strip *strip)
 	MEM_freeN(strip);
 }
 
-static void seq_free_animdata(Scene *scene, Sequence *seq);
-
 void seq_free_sequence(Scene *scene, Sequence *seq)
 {
 	if(seq->strip) seq_free_strip(seq->strip);
@@ -188,6 +197,10 @@ void seq_free_sequence(Scene *scene, Sequence *seq)
 		sh.free(seq);
 	}
 
+	if(seq->sound) {
+		((ID *)seq->sound)->us--; 
+	}
+
 	/* clipboard has no scene and will never have a sound handle or be active */
 	if(scene) {
 		Editing *ed = scene->ed;
@@ -195,7 +208,7 @@ void seq_free_sequence(Scene *scene, Sequence *seq)
 		if (ed->act_seq==seq)
 			ed->act_seq= NULL;
 
-		if(seq->scene_sound)
+		if(seq->scene_sound && ELEM(seq->type, SEQ_SOUND, SEQ_SCENE))
 			sound_remove_scene_sound(scene, seq->scene_sound);
 
 		seq_free_animdata(scene, seq);
@@ -215,13 +228,25 @@ Editing *seq_give_editing(Scene *scene, int alloc)
 	return scene->ed;
 }
 
+static void seq_free_clipboard_recursive(Sequence *seq_parent)
+{
+	Sequence *seq, *nseq;
+
+	for(seq= seq_parent->seqbase.first; seq; seq= nseq) {
+		nseq= seq->next;
+		seq_free_clipboard_recursive(seq);
+	}
+
+	seq_free_sequence(NULL, seq_parent);
+}
+
 void seq_free_clipboard(void)
 {
 	Sequence *seq, *nseq;
 
 	for(seq= seqbase_clipboard.first; seq; seq= nseq) {
 		nseq= seq->next;
-		seq_free_sequence(NULL, seq);
+		seq_free_clipboard_recursive(seq);
 	}
 	seqbase_clipboard.first= seqbase_clipboard.last= NULL;
 }
@@ -330,7 +355,7 @@ unsigned int seq_hash_render_data(const SeqRenderData * a)
 	rval ^= a->preview_render_size;
 	rval ^= ((intptr_t) a->bmain) << 6;
 	rval ^= ((intptr_t) a->scene) << 6;
-	rval ^= (int) (a->motion_blur_shutter * 100.0) << 10;
+	rval ^= (int) (a->motion_blur_shutter * 100.0f) << 10;
 	rval ^= a->motion_blur_samples << 24;
 	
 	return rval;
@@ -431,51 +456,6 @@ void seq_end(SeqIterator *iter)
   * in metastrips!)
   **********************************************************************
 */
-#if 0 /* UNUSED */
-static void do_seq_count(ListBase *seqbase, int *totseq)
-{
-	Sequence *seq;
-
-	seq= seqbase->first;
-	while(seq) {
-		(*totseq)++;
-		if(seq->seqbase.first) do_seq_count(&seq->seqbase, totseq);
-		seq= seq->next;
-	}
-}
-
-static void do_build_seqar(ListBase *seqbase, Sequence ***seqar, int depth)
-{
-	Sequence *seq;
-
-	seq= seqbase->first;
-	while(seq) {
-		seq->depth= depth;
-		if(seq->seqbase.first) do_build_seqar(&seq->seqbase, seqar, depth+1);
-		**seqar= seq;
-		(*seqar)++;
-		seq= seq->next;
-	}
-}
-
-static void build_seqar(ListBase *seqbase, Sequence  ***seqar, int *totseq)
-{
-	Sequence **tseqar;
-
-	*totseq= 0;
-	do_seq_count(seqbase, totseq);
-
-	if(*totseq==0) {
-		*seqar= 0;
-		return;
-	}
-	*seqar= MEM_mallocN(sizeof(void *)* *totseq, "seqar");
-	tseqar= *seqar;
-
-	do_build_seqar(seqbase, seqar, 0);
-	*seqar= tseqar;
-}
-#endif /* UNUSED */
 
 static void do_seq_count_cb(ListBase *seqbase, int *totseq,
 				int (*test_func)(Sequence * seq))
@@ -895,6 +875,7 @@ static const char *give_seqname_by_type(int type)
 	case SEQ_TRANSFORM:  return "Transform";
 	case SEQ_COLOR:      return "Color";
 	case SEQ_MULTICAM:   return "Multicam";
+	case SEQ_ADJUSTMENT: return "Adjustment";
 	case SEQ_SPEED:      return "Speed";
 	default:
 		return 0;
@@ -953,7 +934,7 @@ static void multibuf(ImBuf *ibuf, float fmul)
 
 	int a, mul, icol;
 
-	mul= (int)(256.0*fmul);
+	mul= (int)(256.0f * fmul);
 	rt= (char *)ibuf->rect;
 	rt_float = ibuf->rect_float;
 
@@ -990,20 +971,26 @@ static float give_stripelem_index(Sequence *seq, float cfra)
 {
 	float nr;
 
-	if(seq->len == 0) return -1;
+	if (seq->type & SEQ_EFFECT) {
+		end = seq->enddisp;
+	} 
+	if(end < sta) {
+		return -1;
+	}
+
 	if(seq->flag&SEQ_REVERSE_FRAMES) {	
 		/*reverse frame in this sequence */
-		if(cfra <= seq->start) nr= seq->len-1;
-		else if(cfra >= seq->start+seq->len-1) nr= 0;
-		else nr= (seq->start + seq->len - 1) - cfra;
+		if(cfra <= sta) nr= end - sta;
+		else if(cfra >= end) nr= 0;
+		else nr= end - cfra;
 	} else {
-		if(cfra <= seq->start) nr= 0;
-		else if(cfra >= seq->start+seq->len-1) nr= seq->len-1;
-		else nr= cfra-seq->start;
+		if(cfra <= sta) nr= 0;
+		else if(cfra >= end) nr= end - sta;
+		else nr= cfra - sta;
 	}
-	if (seq->strobe < 1.0) seq->strobe = 1.0;
-	if (seq->strobe > 1.0) {
-		nr -= fmod((double)nr, (double)seq->strobe);
+	if (seq->strobe < 1.0f) seq->strobe = 1.0f;
+	if (seq->strobe > 1.0f) {
+		nr -= fmodf((double)nr, (double)seq->strobe);
 	}
 
 	return nr;
@@ -1013,10 +1000,11 @@ StripElem *give_stripelem(Sequence *seq, int cfra)
 {
 	StripElem *se= seq->strip->stripdata;
 
-	if(seq->type == SEQ_MOVIE) {
-		/* use the first */
-	}
-	else {
+	if(seq->type == SEQ_IMAGE) { /* only 
+					IMAGE strips use the whole array,
+					MOVIE strips use only 
+					the first element, all other strips
+					don't use this... */
 		int nr = (int) give_stripelem_index(seq, cfra);
 
 		if (nr == -1 || se == NULL) return NULL;
@@ -1072,18 +1060,15 @@ static int get_shown_sequences(	ListBase * seqbasep, int cfra, int chanshown, Se
 	}
 
 	if(evaluate_seq_frame_gen(seq_arr, seqbasep, cfra)) {
-		if (b > 0) {
-			if (seq_arr[b] == NULL) {
-				return 0;
+		if (b == 0) {
+			b = MAXSEQ;
 			}
-		} else {
-			for (b = MAXSEQ; b > 0; b--) {
+		for (; b > 0; b--) {
 				if (video_seq_is_rendered(seq_arr[b])) {
 					break;
 				}
 			}
 		}
-	}
 	
 	chanshown = b;
 
@@ -1365,7 +1350,7 @@ static StripColorBalance calc_cb(StripColorBalance * cb_)
 			/* tweak to give more subtle results
 			 * values above 1.0 are scaled */
 			if(cb.lift[c] > 1.0f)
-				cb.lift[c] = pow(cb.lift[c] - 1.0f, 2.0f) + 1.0f;
+				cb.lift[c] = pow(cb.lift[c] - 1.0f, 2.0) + 1.0;
 
 			cb.lift[c] = 2.0f - cb.lift[c];
 		}
@@ -1373,8 +1358,8 @@ static StripColorBalance calc_cb(StripColorBalance * cb_)
 
 	if (cb.flag & SEQ_COLOR_BALANCE_INVERSE_GAIN) {
 		for (c = 0; c < 3; c++) {
-			if (cb.gain[c] != 0.0) {
-				cb.gain[c] = 1.0/cb.gain[c];
+			if (cb.gain[c] != 0.0f) {
+				cb.gain[c] = 1.0f / cb.gain[c];
 			} else {
 				cb.gain[c] = 1000000; /* should be enough :) */
 			}
@@ -1383,8 +1368,8 @@ static StripColorBalance calc_cb(StripColorBalance * cb_)
 
 	if (!(cb.flag & SEQ_COLOR_BALANCE_INVERSE_GAMMA)) {
 		for (c = 0; c < 3; c++) {
-			if (cb.gamma[c] != 0.0) {
-				cb.gamma[c] = 1.0/cb.gamma[c];
+			if (cb.gamma[c] != 0.0f) {
+				cb.gamma[c] = 1.0f/cb.gamma[c];
 			} else {
 				cb.gamma[c] = 1000000; /* should be enough :) */
 			}
@@ -1411,7 +1396,7 @@ static void make_cb_table_byte(float lift, float gain, float gamma,
 	int y;
 
 	for (y = 0; y < 256; y++) {
-		float v= color_balance_fl((float)y * (1.0 / 255.0f), lift, gain, gamma, mul);
+		float v= color_balance_fl((float)y * (1.0f / 255.0f), lift, gain, gamma, mul);
 		CLAMP(v, 0.0f, 1.0f);
 		table[y] = v * 255;
 	}
@@ -1423,7 +1408,7 @@ static void make_cb_table_float(float lift, float gain, float gamma,
 	int y;
 
 	for (y = 0; y < 256; y++) {
-		float v= color_balance_fl((float)y * (1.0 / 255.0f), lift, gain, gamma, mul);
+		float v= color_balance_fl((float)y * (1.0f / 255.0f), lift, gain, gamma, mul);
 		table[y] = v;
 	}
 }
@@ -1548,14 +1533,14 @@ int input_have_to_preprocess(
 	mul = seq->mul;
 
 	if(seq->blend_mode == SEQ_BLEND_REPLACE) {
-		mul *= seq->blend_opacity / 100.0;
+		mul *= seq->blend_opacity / 100.0f;
 	}
 
-	if (mul != 1.0) {
+	if (mul != 1.0f) {
 		return TRUE;
 	}
 
-	if (seq->sat != 1.0) {
+	if (seq->sat != 1.0f) {
 		return TRUE;
 	}
 		
@@ -1657,7 +1642,7 @@ static ImBuf * input_preprocess(
 	mul = seq->mul;
 
 	if(seq->blend_mode == SEQ_BLEND_REPLACE) {
-		mul *= seq->blend_opacity / 100.0;
+		mul *= seq->blend_opacity / 100.0f;
 	}
 
 	if(seq->flag & SEQ_USE_COLOR_BALANCE && seq->strip->color_balance) {
@@ -1674,7 +1659,7 @@ static ImBuf * input_preprocess(
 		}
 	}
 
-	if(mul != 1.0) {
+	if(mul != 1.0f) {
 		multibuf(ibuf, mul);
 	}
 
@@ -1722,17 +1707,26 @@ static ImBuf * copy_from_ibuf_still(SeqRenderData context, Sequence * seq,
 static void copy_to_ibuf_still(SeqRenderData context, Sequence * seq, float nr,
 			       ImBuf * ibuf)
 {
+	if (nr == 0 || nr == seq->len - 1) {
+		/* we have to store a copy, since the passed ibuf
+		   could be preprocessed afterwards (thereby silently
+		   changing the cached image... */
+		ibuf = IMB_dupImBuf(ibuf);
+
 	if (nr == 0) {
 		seq_stripelem_cache_put(
 			context, seq, seq->start, 
-			SEQ_STRIPELEM_IBUF_STARTSTILL, IMB_dupImBuf(ibuf));
+				SEQ_STRIPELEM_IBUF_STARTSTILL, ibuf);
 	}
 
 	if (nr == seq->len - 1) {
 		seq_stripelem_cache_put(
 			context, seq, seq->start, 
-			SEQ_STRIPELEM_IBUF_ENDSTILL, IMB_dupImBuf(ibuf));
+				SEQ_STRIPELEM_IBUF_ENDSTILL, ibuf);
 	}
+
+		IMB_freeImBuf(ibuf);
+}
 }
 
 /* **********************************************************************
@@ -1778,7 +1772,7 @@ static ImBuf* seq_render_effect_strip_impl(
 		if (fcu) {
 			fac = facf = evaluate_fcurve(fcu, cfra);
 			if( context.scene->r.mode & R_FIELDS ) {
-				facf = evaluate_fcurve(fcu, cfra + 0.5);
+				facf = evaluate_fcurve(fcu, cfra + 0.5f);
 			}
 		} else {
 			fac = facf = seq->effect_fader;
@@ -1878,7 +1872,7 @@ static ImBuf * seq_render_scene_strip_impl(
 	ImBuf * ibuf = NULL;
 	float frame= seq->sfra + nr + seq->anim_startofs;
 	float oldcfra;
-	Object *oldcamera;
+	Object *camera;
 	ListBase oldmarkers;
 	
 	/* Hack! This function can be called from do_render_seq(), in that case
@@ -1897,55 +1891,65 @@ static ImBuf * seq_render_scene_strip_impl(
 	int doseq;
 	int doseq_gl= G.rendering ? /*(scene->r.seq_flag & R_SEQ_GL_REND)*/ 0 : (scene->r.seq_flag & R_SEQ_GL_PREV);
 	int have_seq= FALSE;
-	Scene *sce= seq->scene; /* dont refer to seq->scene above this point!, it can be NULL */
-	int sce_valid= FALSE;
+	Scene *scene;
 
-	if(sce) {
-		have_seq= (sce->r.scemode & R_DOSEQ) && sce->ed && sce->ed->seqbase.first;
-		sce_valid= (sce->camera || have_seq);
+	/* dont refer to seq->scene above this point!, it can be NULL */
+	if(seq->scene == NULL) {
+		return NULL;
 	}
 
-	if (!sce_valid)
-		return NULL;
+	scene= seq->scene;
 
-	oldcfra= seq->scene->r.cfra;
-	oldcamera= seq->scene->camera;
-	
+	have_seq= (scene->r.scemode & R_DOSEQ) && scene->ed && scene->ed->seqbase.first;
+
+	oldcfra= scene->r.cfra;	
+	scene->r.cfra= frame;
+
+	if(seq->scene_camera)	
+		camera= seq->scene_camera;
+	else {	
+		scene_camera_switch_update(scene);
+		camera= scene->camera;
+	}
+
+	if(have_seq==FALSE && camera==NULL) {
+		scene->r.cfra= oldcfra;
+		return NULL;
+	}
+
 	/* prevent eternal loop */
 	doseq= context.scene->r.scemode & R_DOSEQ;
 	context.scene->r.scemode &= ~R_DOSEQ;
 	
-	seq->scene->r.cfra= frame;
-	if(seq->scene_camera)	
-		seq->scene->camera= seq->scene_camera;
-	else	
-		scene_camera_switch_update(seq->scene);
-	
 #ifdef DURIAN_CAMERA_SWITCH
 	/* stooping to new low's in hackyness :( */
-	oldmarkers= seq->scene->markers;
-	seq->scene->markers.first= seq->scene->markers.last= NULL;
+	oldmarkers= scene->markers;
+	scene->markers.first= scene->markers.last= NULL;
 #endif
 	
-	if(sequencer_view3d_cb && BLI_thread_is_main() && doseq_gl && (seq->scene == context.scene || have_seq==0) && seq->scene->camera) {
+	if(sequencer_view3d_cb && BLI_thread_is_main() && doseq_gl && (scene == context.scene || have_seq==0) && camera) {
+		char err_out[256]= "unknown";
 		/* for old scened this can be uninitialized, should probably be added to do_versions at some point if the functionality stays */
 		if(context.scene->r.seq_prev_type==0)
 			context.scene->r.seq_prev_type = 3 /* ==OB_SOLID */; 
 
 		/* opengl offscreen render */
-		scene_update_for_newframe(context.bmain, seq->scene, seq->scene->lay);
-		ibuf= sequencer_view3d_cb(seq->scene, context.rectx, context.recty, IB_rect, context.scene->r.seq_prev_type);
+		scene_update_for_newframe(context.bmain, scene, scene->lay);
+		ibuf= sequencer_view3d_cb(scene, camera, context.rectx, context.recty, IB_rect, context.scene->r.seq_prev_type, err_out);
+		if(ibuf == NULL) {
+			fprintf(stderr, "seq_render_scene_strip_impl failed to get opengl buffer: %s\n", err_out);
+	}
 	}
 	else {
-		Render *re;
+		Render *re = RE_GetRender(scene->id.name);
 		RenderResult rres;
 		
 		/* XXX: this if can be removed when sequence preview rendering uses the job system */
-		if(rendering || context.scene != sce) {
+		if(rendering || context.scene != scene) {
 			if(re==NULL)
-			re= RE_NewRender(sce->id.name);
+				re= RE_NewRender(scene->id.name);
 		
-			RE_BlenderFrame(re, context.bmain, sce, NULL, sce->lay, frame, FALSE);
+			RE_BlenderFrame(re, context.bmain, scene, NULL, camera, scene->lay, frame, FALSE);
 		
 		RE_AcquireResultImage(re, &rres);
 		
@@ -1974,14 +1978,14 @@ static ImBuf * seq_render_scene_strip_impl(
 	/* restore */
 	context.scene->r.scemode |= doseq;
 	
-	seq->scene->r.cfra = oldcfra;
-	seq->scene->camera= oldcamera;
+	scene->r.cfra = oldcfra;
+
 	if(frame != oldcfra)
-		scene_update_for_newframe(context.bmain, seq->scene, seq->scene->lay);
+		scene_update_for_newframe(context.bmain, scene, scene->lay);
 	
 #ifdef DURIAN_CAMERA_SWITCH
 	/* stooping to new low's in hackyness :( */
-	seq->scene->markers= oldmarkers;
+	scene->markers= oldmarkers;
 #endif
 
 	return ibuf;
@@ -2064,7 +2068,8 @@ static ImBuf * seq_render_strip(SeqRenderData context, Sequence * seq, float cfr
 		}
 		case SEQ_EFFECT:
 		{	
-			ibuf = seq_render_effect_strip_impl(context, seq, cfra);
+			ibuf = seq_render_effect_strip_impl(
+				context, seq, seq->start + nr);
 		}
 	} else if(seq->type == SEQ_IMAGE) {
 		StripElem * s_elem = give_stripelem(seq, cfra);
@@ -2181,7 +2186,7 @@ static int seq_must_swap_input_in_blend_mode(Sequence * seq)
 static int seq_get_early_out_for_blend_mode(Sequence * seq)
 {
 	struct SeqEffectHandle sh = get_sequence_blend(seq);
-	float facf = seq->blend_opacity / 100.0;
+	float facf = seq->blend_opacity / 100.0f;
 	int early_out = sh.early_out(seq, facf, facf);
 	
 	if (early_out < 1) {
@@ -2290,7 +2295,7 @@ static ImBuf* seq_render_strip_stack(
 			ImBuf * ibuf1 = out;
 			ImBuf * ibuf2 = seq_render_strip(context, seq, cfra);
 
-			float facf = seq->blend_opacity / 100.0;
+			float facf = seq->blend_opacity / 100.0f;
 			int swap_input 
 				= seq_must_swap_input_in_blend_mode(seq);
 
@@ -2868,11 +2873,10 @@ void seq_tx_set_final_right(Sequence *seq, int val)
    since they work a bit differently to normal image seq's (during transform) */
 int seq_single_check(Sequence *seq)
 {
-	if ( seq->len==1 && (seq->type == SEQ_IMAGE || seq->type == SEQ_COLOR
-			     || seq->type == SEQ_MULTICAM))
-		return 1;
-	else
-		return 0;
+	return (seq->len==1 && (
+			seq->type == SEQ_IMAGE 
+			|| ((seq->type & SEQ_EFFECT) && 
+			    get_sequence_effect_num_inputs(seq->type) == 0)));
 }
 
 /* check if the selected seq's reference unselected seq's */
@@ -3017,6 +3021,46 @@ static void seq_translate(Scene *evil_scene, Sequence *seq, int delta)
 	}
 
 	calc_sequence_disp(evil_scene, seq);
+}
+
+void seq_sound_init(Scene *scene, Sequence *seq)
+{
+	if(seq->type==SEQ_META) {
+		Sequence *seq_child;
+		for(seq_child= seq->seqbase.first; seq_child; seq_child= seq_child->next) {
+			seq_sound_init(scene, seq_child);
+		}
+	}
+	else {
+		if(seq->sound) {
+			seq->scene_sound = sound_add_scene_sound(scene, seq, seq->startdisp, seq->enddisp, seq->startofs + seq->anim_startofs);
+		}
+		if(seq->scene) {
+			sound_scene_add_scene_sound(scene, seq, seq->startdisp, seq->enddisp, seq->startofs + seq->anim_startofs);
+		}
+	}
+}
+
+Sequence *seq_foreground_frame_get(Scene *scene, int frame)
+{
+	Editing *ed= seq_give_editing(scene, FALSE);
+	Sequence *seq, *best_seq=NULL;
+	int best_machine = -1;
+	
+	if(!ed) return NULL;
+	
+	for (seq=ed->seqbasep->first; seq; seq= seq->next) {
+		if(seq->flag & SEQ_MUTE || seq->startdisp > frame || seq->enddisp <= frame)
+			continue;
+		/* only use elements you can see - not */
+		if (ELEM5(seq->type, SEQ_IMAGE, SEQ_META, SEQ_SCENE, SEQ_MOVIE, SEQ_COLOR)) {
+			if (seq->machine > best_machine) {
+				best_seq = seq;
+				best_machine = seq->machine;
+			}
+		}
+	}
+	return best_seq;
 }
 
 /* return 0 if there werent enough space */
@@ -3186,6 +3230,24 @@ ListBase *seq_seqbase(ListBase *seqbase, Sequence *seq)
 		}
 		else if(iseq->seqbase.first && (lb= seq_seqbase(&iseq->seqbase, seq))) {
 			return lb;
+		}
+	}
+
+	return NULL;
+}
+
+Sequence *seq_metastrip(ListBase * seqbase, Sequence * meta, Sequence *seq)
+{
+	Sequence * iseq;
+
+	for(iseq = seqbase->first; iseq; iseq = iseq->next) {
+		Sequence * rval;
+
+		if (seq == iseq) {
+			return meta;
+		} else if(iseq->seqbase.first && 
+			(rval = seq_metastrip(&iseq->seqbase, iseq, seq))) {
+			return rval;
 		}
 	}
 
@@ -3431,6 +3493,7 @@ Sequence *alloc_sequence(ListBase *lb, int cfra, int machine)
 	seq->mul= 1.0;
 	seq->blend_opacity = 100.0;
 	seq->volume = 1.0f;
+	seq->scene_sound = NULL;
 
 	return seq;
 }
@@ -3500,7 +3563,8 @@ Sequence *sequencer_add_sound_strip(bContext *C, ListBase *seqbasep, SeqLoadInfo
 	strip->len = seq->len = ceil(info.length * FPS);
 	strip->us= 1;
 
-	strip->stripdata= se= MEM_callocN(seq->len*sizeof(StripElem), "stripelem");
+	/* we only need 1 element to store the filename */
+	strip->stripdata= se= MEM_callocN(sizeof(StripElem), "stripelem");
 
 	BLI_split_dirfile(seq_load->path, strip->dir, se->name);
 
@@ -3549,7 +3613,8 @@ Sequence *sequencer_add_movie_strip(bContext *C, ListBase *seqbasep, SeqLoadInfo
 	strip->len = seq->len = IMB_anim_get_duration( an );
 	strip->us= 1;
 
-	strip->stripdata= se= MEM_callocN(seq->len*sizeof(StripElem), "stripelem");
+	/* we only need 1 element for MOVIE strips */
+	strip->stripdata= se= MEM_callocN(sizeof(StripElem), "stripelem");
 
 	BLI_split_dirfile(seq_load->path, strip->dir, se->name);
 

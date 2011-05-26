@@ -29,6 +29,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/blenkernel/intern/texture.c
+ *  \ingroup bke
+ */
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,9 +41,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "PIL_dynlib.h"
-
 #include "BLI_blenlib.h"
+#include "BLI_dynlib.h"
 #include "BLI_math.h"
 #include "BLI_kdopbvh.h"
 #include "BLI_utildefines.h"
@@ -68,7 +72,7 @@
 #include "BKE_icons.h"
 #include "BKE_node.h"
 #include "BKE_animsys.h"
-
+#include "BKE_colortools.h"
 
 /* ------------------------------------------------------------------------- */
 
@@ -77,7 +81,7 @@ int test_dlerr(const char *name, const char *symbol)
 {
 	char *err;
 	
-	err= PIL_dynlib_get_error_as_string(NULL);
+	err= BLI_dynlib_get_error_as_string(NULL);
 	if(err) {
 		printf("var1: %s, var2: %s, var3: %s\n", name, symbol, err);
 		return 1;
@@ -103,19 +107,19 @@ void open_plugin_tex(PluginTex *pit)
 	pit->instance_init= NULL;
 	
 	/* clear the error list */
-	PIL_dynlib_get_error_as_string(NULL);
+	BLI_dynlib_get_error_as_string(NULL);
 
-	/* no PIL_dynlib_close! multiple opened plugins... */
-	/* if(pit->handle) PIL_dynlib_close(pit->handle); */
+	/* no BLI_dynlib_close! multiple opened plugins... */
+	/* if(pit->handle) BLI_dynlib_close(pit->handle); */
 	/* pit->handle= 0; */
 
 	/* open the needed object */
-	pit->handle= PIL_dynlib_open(pit->name);
+	pit->handle= BLI_dynlib_open(pit->name);
 	if(test_dlerr(pit->name, pit->name)) return;
 
 	if (pit->handle != NULL) {
 		/* find the address of the version function */
-		version= (int (*)(void)) PIL_dynlib_find_symbol(pit->handle, "plugin_tex_getversion");
+		version= (int (*)(void)) BLI_dynlib_find_symbol(pit->handle, "plugin_tex_getversion");
 		if (test_dlerr(pit->name, "plugin_tex_getversion")) return;
 		
 		if (version != NULL) {
@@ -124,7 +128,7 @@ void open_plugin_tex(PluginTex *pit)
 				int (*info_func)(PluginInfo *);
 				PluginInfo *info= (PluginInfo*) MEM_mallocN(sizeof(PluginInfo), "plugin_info"); 
 
-				info_func= (int (*)(PluginInfo *))PIL_dynlib_find_symbol(pit->handle, "plugin_getinfo");
+				info_func= (int (*)(PluginInfo *))BLI_dynlib_find_symbol(pit->handle, "plugin_getinfo");
 				if (!test_dlerr(pit->name, "plugin_getinfo")) {
 					info->instance_init = NULL;
 
@@ -195,7 +199,7 @@ void free_plugin_tex(PluginTex *pit)
 {
 	if(pit==NULL) return;
 		
-	/* no PIL_dynlib_close: same plugin can be opened multiple times, 1 handle */
+	/* no BLI_dynlib_close: same plugin can be opened multiple times, 1 handle */
 	MEM_freeN(pit);	
 }
 
@@ -218,9 +222,9 @@ void init_mapping(TexMapping *texmap)
 	
 	size_to_mat3( smat,texmap->size);
 	
-	eul[0]= (M_PI/180.0f)*texmap->rot[0];
-	eul[1]= (M_PI/180.0f)*texmap->rot[1];
-	eul[2]= (M_PI/180.0f)*texmap->rot[2];
+	eul[0]= DEG2RADF(texmap->rot[0]);
+	eul[1]= DEG2RADF(texmap->rot[1]);
+	eul[2]= DEG2RADF(texmap->rot[2]);
 	eul_to_mat3( rmat,eul);
 	
 	mul_m3_m3m3(mat, rmat, smat);
@@ -337,8 +341,11 @@ int do_colorband(ColorBand *coba, float in, float out[4])
 		
 				if(cbd2->pos!=cbd1->pos)
 					fac= (in-cbd1->pos)/(cbd2->pos-cbd1->pos);
-				else
-					fac= 0.0f;
+				else {
+					/* was setting to 0.0 in 2.56 & previous, but this
+					 * is incorrect for the last element, see [#26732] */
+					fac= (a != coba->tot) ? 0.0f : 1.0f;
+				}
 				
 				if (coba->ipotype==4) {
 					/* constant */
@@ -368,10 +375,10 @@ int do_colorband(ColorBand *coba, float in, float out[4])
 					out[1]= t[3]*cbd3->g +t[2]*cbd2->g +t[1]*cbd1->g +t[0]*cbd0->g;
 					out[2]= t[3]*cbd3->b +t[2]*cbd2->b +t[1]*cbd1->b +t[0]*cbd0->b;
 					out[3]= t[3]*cbd3->a +t[2]*cbd2->a +t[1]*cbd1->a +t[0]*cbd0->a;
-					CLAMP(out[0], 0.0, 1.0);
-					CLAMP(out[1], 0.0, 1.0);
-					CLAMP(out[2], 0.0, 1.0);
-					CLAMP(out[3], 0.0, 1.0);
+					CLAMP(out[0], 0.0f, 1.0f);
+					CLAMP(out[1], 0.0f, 1.0f);
+					CLAMP(out[2], 0.0f, 1.0f);
+					CLAMP(out[3], 0.0f, 1.0f);
 				}
 				else {
 				
@@ -475,11 +482,13 @@ int colorband_element_remove(struct ColorBand *coba, int index)
 void free_texture(Tex *tex)
 {
 	free_plugin_tex(tex->plugin);
+	
 	if(tex->coba) MEM_freeN(tex->coba);
 	if(tex->env) BKE_free_envmap(tex->env);
 	if(tex->pd) BKE_free_pointdensity(tex->pd);
 	if(tex->vd) BKE_free_voxeldata(tex->vd);
 	BKE_free_animdata((struct ID *)tex);
+	
 	BKE_previewimg_free(&tex->preview);
 	BKE_icon_delete((struct ID*)tex);
 	tex->id.icon_id = 0;
@@ -744,10 +753,6 @@ Tex *copy_texture(Tex *tex)
 	if(texn->type==TEX_IMAGE) id_us_plus((ID *)texn->ima);
 	else texn->ima= NULL;
 	
-#if 0 // XXX old animation system
-	id_us_plus((ID *)texn->ipo);
-#endif // XXX old animation system
-	
 	if(texn->plugin) {
 		texn->plugin= MEM_dupallocN(texn->plugin);
 		open_plugin_tex(texn->plugin);
@@ -755,18 +760,54 @@ Tex *copy_texture(Tex *tex)
 	
 	if(texn->coba) texn->coba= MEM_dupallocN(texn->coba);
 	if(texn->env) texn->env= BKE_copy_envmap(texn->env);
-	if(texn->pd) texn->pd= MEM_dupallocN(texn->pd);
+	if(texn->pd) texn->pd= BKE_copy_pointdensity(texn->pd);
 	if(texn->vd) texn->vd= MEM_dupallocN(texn->vd);
-	
 	if(tex->preview) texn->preview = BKE_previewimg_copy(tex->preview);
 
 	if(tex->nodetree) {
 		ntreeEndExecTree(tex->nodetree);
-		texn->nodetree= ntreeCopyTree(tex->nodetree); /* 0 == full new tree */
+		texn->nodetree= ntreeCopyTree(tex->nodetree); 
 	}
 	
 	return texn;
 }
+
+/* texture copy without adding to main dbase */
+Tex *localize_texture(Tex *tex)
+{
+	Tex *texn;
+	
+	texn= copy_libblock(tex);
+	BLI_remlink(&G.main->tex, texn);
+	
+	/* image texture: free_texture also doesn't decrease */
+	
+	if(texn->plugin) {
+		texn->plugin= MEM_dupallocN(texn->plugin);
+		open_plugin_tex(texn->plugin);
+	}
+	
+	if(texn->coba) texn->coba= MEM_dupallocN(texn->coba);
+	if(texn->env) {
+		texn->env= BKE_copy_envmap(texn->env);
+		id_us_min(&texn->env->ima->id);
+	}
+	if(texn->pd) texn->pd= BKE_copy_pointdensity(texn->pd);
+	if(texn->vd) {
+		texn->vd= MEM_dupallocN(texn->vd);
+		if(texn->vd->dataset)
+			texn->vd->dataset= MEM_dupallocN(texn->vd->dataset);
+	}
+	
+	texn->preview = NULL;
+	
+	if(tex->nodetree) {
+		texn->nodetree= ntreeLocalize(tex->nodetree);
+	}
+	
+	return texn;
+}
+
 
 /* ------------------------------------------------------------------------- */
 
@@ -792,13 +833,13 @@ void make_local_texture(Tex *tex)
 	if(tex->ima) {
 		tex->ima->id.lib= NULL;
 		tex->ima->id.flag= LIB_LOCAL;
-		new_id(NULL, (ID *)tex->ima, NULL);
+		new_id(&bmain->image, (ID *)tex->ima, NULL);
 	}
 
 	if(tex->id.us==1) {
 		tex->id.lib= NULL;
 		tex->id.flag= LIB_LOCAL;
-		new_id(NULL, (ID *)tex, NULL);
+		new_id(&bmain->tex, (ID *)tex, NULL);
 
 		return;
 	}
@@ -855,7 +896,7 @@ void make_local_texture(Tex *tex)
 	if(local && lib==0) {
 		tex->id.lib= NULL;
 		tex->id.flag= LIB_LOCAL;
-		new_id(NULL, (ID *)tex, NULL);
+		new_id(&bmain->tex, (ID *)tex, NULL);
 	}
 	else if(local && lib) {
 		texn= copy_texture(tex);
@@ -1316,6 +1357,13 @@ PointDensity *BKE_add_pointdensity(void)
 	pd->object = NULL;
 	pd->psys = 0;
 	pd->psys_cache_space= TEX_PD_WORLDSPACE;
+	pd->falloff_curve = curvemapping_add(1, 0, 0, 1, 1);
+
+	pd->falloff_curve->preset = CURVE_PRESET_LINE;
+	pd->falloff_curve->cm->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
+	curvemap_reset(pd->falloff_curve->cm, &pd->falloff_curve->clipr, pd->falloff_curve->preset, CURVEMAP_SLOPE_POSITIVE);
+	curvemapping_changed(pd->falloff_curve, 0);
+
 	return pd;
 } 
 
@@ -1327,7 +1375,7 @@ PointDensity *BKE_copy_pointdensity(PointDensity *pd)
 	pdn->point_tree = NULL;
 	pdn->point_data = NULL;
 	if(pdn->coba) pdn->coba= MEM_dupallocN(pdn->coba);
-	
+	pdn->falloff_curve = curvemapping_copy(pdn->falloff_curve); /* can be NULL */
 	return pdn;
 }
 
@@ -1341,7 +1389,12 @@ void BKE_free_pointdensitydata(PointDensity *pd)
 		MEM_freeN(pd->point_data);
 		pd->point_data = NULL;
 	}
-	if(pd->coba) MEM_freeN(pd->coba);
+	if(pd->coba) {
+		MEM_freeN(pd->coba);
+		pd->coba = NULL;
+}
+
+	curvemapping_free(pd->falloff_curve); /* can be NULL */
 }
 
 void BKE_free_pointdensity(PointDensity *pd)

@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -21,6 +21,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/makesrna/intern/rna_actuator.c
+ *  \ingroup RNA
+ */
+
 
 #include <stdlib.h>
 
@@ -48,7 +53,7 @@ EnumPropertyItem actuator_type_items[] ={
 	{ACT_2DFILTER, "FILTER_2D", 0, "Filter 2D", ""},
 	{ACT_GAME, "GAME", 0, "Game", ""},
 	{ACT_MESSAGE, "MESSAGE", 0, "Message", ""},
-	{ACT_OBJECT, "OBJECT", 0, "Motion", ""},
+	{ACT_OBJECT, "MOTION", 0, "Motion", ""},
 	{ACT_PARENT, "PARENT", 0, "Parent", ""},
 	{ACT_PROPERTY, "PROPERTY", 0, "Property", ""},
 	{ACT_RANDOM, "RANDOM", 0, "Random", ""},
@@ -549,6 +554,7 @@ static void rna_def_action_actuator(BlenderRNA *brna)
 
 	static EnumPropertyItem prop_type_items[] ={
 		{ACT_ACTION_PLAY, "PLAY", 0, "Play", ""},
+		{ACT_ACTION_PINGPONG, "PINGPONG", 0, "Ping Pong", ""},
 		{ACT_ACTION_FLIPPER, "FLIPPER", 0, "Flipper", ""},
 		{ACT_ACTION_LOOP_STOP, "LOOPSTOP", 0, "Loop Stop", ""},
 		{ACT_ACTION_LOOP_END, "LOOPEND", 0, "Loop End", ""},
@@ -1167,7 +1173,7 @@ static void rna_def_constraint_actuator(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "distance", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_funcs(prop, "rna_ConstraintActuator_distance_get", "rna_ConstraintActuator_distance_set", NULL);
 	RNA_def_property_ui_range(prop, -2000.f, 2000.f, 1, 2);
-	RNA_def_property_ui_text(prop, "Distance", "Set the maximum length of ray");
+	RNA_def_property_ui_text(prop, "Distance", "Keep this distance to target");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	//XXX to use a pointer or add a material lookup
@@ -1208,35 +1214,37 @@ static void rna_def_constraint_actuator(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Reference Direction", "Reference Direction");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	prop= RNA_def_property(srna, "angle_min", PROP_FLOAT, PROP_ANGLE);
+	//XXX TODO - use radians internally then change to PROP_ANGLE
+	prop= RNA_def_property(srna, "angle_min", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "minloc[0]");
 	RNA_def_property_range(prop, 0.0, 180.0);
-	RNA_def_property_ui_text(prop, "Min Angle", "Minimum angle to maintain with target direction. No correction is done if angle with target direction is between min and max");
+	RNA_def_property_ui_text(prop, "Min Angle", "Minimum angle (in degree) to maintain with target direction. No correction is done if angle with target direction is between min and max");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	prop= RNA_def_property(srna, "angle_max", PROP_FLOAT, PROP_ANGLE);
+	//XXX TODO - use radians internally then change to PROP_ANGLE
+	prop= RNA_def_property(srna, "angle_max", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "maxloc[0]");
 	RNA_def_property_range(prop, 0.0, 180.0);
-	RNA_def_property_ui_text(prop, "Max Angle", "Maximum angle allowed with target direction. No correction is done if angle with target direction is between min and max");
+	RNA_def_property_ui_text(prop, "Max Angle", "Maximum angle (in degree) allowed with target direction. No correction is done if angle with target direction is between min and max");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	/* ACT_CONST_TYPE_FH */
 	prop= RNA_def_property(srna, "fh_height", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_funcs(prop, "rna_ConstraintActuator_fhheight_get", "rna_ConstraintActuator_fhheight_set", NULL);
 	RNA_def_property_ui_range(prop, 0.01, 2000.0, 10, 2);
-	RNA_def_property_ui_text(prop, "Distance", "Height of the Fh area");
+	RNA_def_property_ui_text(prop, "Distance", "Height of the force field area");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	prop= RNA_def_property(srna, "spring", PROP_FLOAT, PROP_PERCENTAGE);
+	prop= RNA_def_property(srna, "fh_force", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_funcs(prop, "rna_ConstraintActuator_spring_get", "rna_ConstraintActuator_spring_set", NULL);
 	RNA_def_property_ui_range(prop, 0.0, 1.0, 10, 2);
-	RNA_def_property_ui_text(prop, "Fh", "Spring force within the Fh area");
+	RNA_def_property_ui_text(prop, "Force", "Spring force within the force field area");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop= RNA_def_property(srna, "fh_damping", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "maxrot[0]");
 	RNA_def_property_ui_range(prop, 0.0, 1.0, 10, 2);
-	RNA_def_property_ui_text(prop, "Damping", "Damping factor of the Fh spring force");
+	RNA_def_property_ui_text(prop, "Damping", "Damping factor of the force field spring");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	/* booleans */
@@ -1452,16 +1460,16 @@ static void rna_def_random_actuator(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem prop_distribution_items[] ={
-		{ACT_RANDOM_BOOL_CONST, "RESTART", 0, "Bool Constant", ""},
-		{ACT_RANDOM_BOOL_UNIFORM, "SET", 0, "Bool Uniform", ""},
-		{ACT_RANDOM_BOOL_BERNOUILLI, "CAMERA", 0, "Bool Bernoulli", ""},
-		{ACT_RANDOM_INT_CONST, "ADDFRONT", 0, "Int Constant", ""},
-		{ACT_RANDOM_INT_UNIFORM, "ADDBACK", 0, "Int Uniform", ""},
-		{ACT_RANDOM_INT_POISSON, "REMOVE", 0, "Int Poisson", ""},
-		{ACT_RANDOM_FLOAT_CONST, "SUSPEND", 0, "Float Constant", ""},
-		{ACT_RANDOM_FLOAT_UNIFORM, "RESUME", 0, "Float Uniform", ""},
-		{ACT_RANDOM_FLOAT_NORMAL, "RESUME", 0, "Float Normal", ""},
-		{ACT_RANDOM_FLOAT_NEGATIVE_EXPONENTIAL, "RESUME", 0, "Float Neg. Exp.", ""},
+		{ACT_RANDOM_BOOL_CONST, "BOOL_CONSTANT", 0, "Bool Constant", ""},
+		{ACT_RANDOM_BOOL_UNIFORM, "BOOL_UNIFORM", 0, "Bool Uniform", ""},
+		{ACT_RANDOM_BOOL_BERNOUILLI, "BOOL_BERNOUILLI", 0, "Bool Bernoulli", ""},
+		{ACT_RANDOM_INT_CONST, "INT_CONSTANT", 0, "Int Constant", ""},
+		{ACT_RANDOM_INT_UNIFORM, "INT_UNIFORM", 0, "Int Uniform", ""},
+		{ACT_RANDOM_INT_POISSON, "INT_POISSON", 0, "Int Poisson", ""},
+		{ACT_RANDOM_FLOAT_CONST, "FLOAT_CONSTANT", 0, "Float Constant", ""},
+		{ACT_RANDOM_FLOAT_UNIFORM, "FLOAT_UNIFORM", 0, "Float Uniform", ""},
+		{ACT_RANDOM_FLOAT_NORMAL, "FLOAT_NORMAL", 0, "Float Normal", ""},
+		{ACT_RANDOM_FLOAT_NEGATIVE_EXPONENTIAL, "FLOAT_NEGATIVE_EXPONENTIAL", 0, "Float Neg. Exp.", ""},
 		{0, NULL, 0, NULL, NULL}};	
 
 	srna= RNA_def_struct(brna, "RandomActuator", "Actuator");
@@ -1778,6 +1786,7 @@ static void rna_def_shape_action_actuator(BlenderRNA *brna)
 
 	static EnumPropertyItem prop_type_items[] ={
 		{ACT_ACTION_PLAY, "PLAY", 0, "Play", ""},
+		{ACT_ACTION_PINGPONG, "PINGPONG", 0, "Ping Pong", ""},
 		{ACT_ACTION_FLIPPER, "FLIPPER", 0, "Flipper", ""},
 		{ACT_ACTION_LOOP_STOP, "LOOPSTOP", 0, "Loop Stop", ""},
 		{ACT_ACTION_LOOP_END, "LOOPEND", 0, "Loop End", ""},

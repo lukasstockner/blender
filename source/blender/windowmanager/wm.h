@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/windowmanager/wm.h
+ *  \ingroup wm
+ */
+
 #ifndef WM_H
 #define WM_H
 
@@ -73,7 +78,7 @@ void wm_autosave_timer(const bContext *C, wmWindowManager *wm, wmTimer *wt);
 void wm_autosave_timer_ended(wmWindowManager *wm);
 void wm_autosave_delete(void);
 void wm_autosave_read(bContext *C, struct ReportList *reports);
-void wm_autosave_location(char *filename);
+void wm_autosave_location(char *filepath);
 
 /* hack to store circle select size - campbell, must replace with nice operator memory */
 #define GESTURE_MEMORY

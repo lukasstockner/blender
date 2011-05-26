@@ -1,4 +1,4 @@
-/**
+/*
 * $Id$
 *
 * ***** BEGIN GPL LICENSE BLOCK *****
@@ -27,6 +27,11 @@
 * ***** END GPL/BL DUAL LICENSE BLOCK *****
 */
 
+/** \file blender/windowmanager/intern/wm_cursors.c
+ *  \ingroup wm
+ */
+
+
 #include <stdio.h>
 #include <string.h>
 
@@ -42,6 +47,7 @@
 #include "BKE_main.h"
 
 #include "WM_api.h"
+#include "WM_types.h"
 #include "wm_cursors.h"
 
 /* XXX this still is mess from old code */
@@ -205,6 +211,29 @@ void WM_cursor_ungrab(wmWindow *win)
 		}
 	}
 }
+
+/* give it a modal keymap one day? */
+int wm_cursor_arrow_move(wmWindow *win, wmEvent *event)
+{
+	if(win && event->val==KM_PRESS) {
+		
+		if(event->type==UPARROWKEY) {
+			WM_cursor_warp(win, event->x, event->y+1);
+			return 1;
+		} else if(event->type==DOWNARROWKEY) {
+			WM_cursor_warp(win, event->x, event->y-1);
+			return 1;
+		} else if(event->type==LEFTARROWKEY) {
+			WM_cursor_warp(win, event->x-1, event->y);
+			return 1;
+		} else if(event->type==RIGHTARROWKEY) {
+			WM_cursor_warp(win, event->x+1, event->y);
+			return 1;
+		}
+	}
+	return 0;
+}
+
 
 /* afer this you can call restore too */
 void WM_timecursor(wmWindow *win, int nr)

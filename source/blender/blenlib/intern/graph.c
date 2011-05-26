@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -22,6 +22,11 @@
  * ***** END GPL LICENSE BLOCK *****
  * graph.c: Common graph interface and methods
  */
+
+/** \file blender/blenlib/intern/graph.c
+ *  \ingroup bli
+ */
+
 
 #include <float.h> 
 #include <math.h>

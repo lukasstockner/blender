@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -24,6 +24,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/interface/view2d_ops.c
+ *  \ingroup edinterface
+ */
+
 
 #include <math.h>
 
@@ -79,6 +84,7 @@ typedef struct v2dViewPanData {
 		/* options for version 1 */
 	int startx, starty;		/* mouse x/y values in window when operator was initiated */
 	int lastx, lasty;		/* previous x/y values of mouse in window */
+	int invoke_event;		/* event starting pan, for modal exit */
 	
 	short in_scroller;		/* for MMB in scrollers (old feature in past, but now not that useful) */
 } v2dViewPanData;
@@ -195,6 +201,7 @@ static int view_pan_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	/* set initial settings */
 	vpd->startx= vpd->lastx= event->x;
 	vpd->starty= vpd->lasty= event->y;
+	vpd->invoke_event= event->type;
 
 	if (event->type == MOUSEPAN) {
 		RNA_int_set(op->ptr, "deltax", event->prevx - event->x);
@@ -254,8 +261,9 @@ static int view_pan_modal(bContext *C, wmOperator *op, wmEvent *event)
 				WM_operator_name_call(C, "VIEW2D_OT_zoom", WM_OP_INVOKE_DEFAULT, NULL);
 				return OPERATOR_FINISHED;
 			}
-		case MIDDLEMOUSE:
-		case ESCKEY:
+			
+		default:
+			if (event->type == vpd->invoke_event || event->type==ESCKEY) {
 			if (event->val==KM_RELEASE) {
 				/* calculate overall delta mouse-movement for redo */
 				RNA_int_set(op->ptr, "deltax", (vpd->startx - vpd->lastx));
@@ -265,6 +273,7 @@ static int view_pan_modal(bContext *C, wmOperator *op, wmEvent *event)
 				WM_cursor_restore(CTX_wm_window(C));
 				
 				return OPERATOR_FINISHED;
+			}
 			}
 			break;
 	}
@@ -508,6 +517,7 @@ typedef struct v2dViewZoomData {
 	ARegion *ar;
 	
 	int lastx, lasty;		/* previous x/y values of mouse in window */
+	int invoke_event;		/* event type that invoked, for modal exits */
 	float dx, dy;			/* running tally of previous delta values (for obtaining final zoom) */
 	float mx_2d, my_2d;		/* initial mouse location in v2d coords */
 } v2dViewZoomData;
@@ -596,7 +606,7 @@ static void view_zoomstep_apply(bContext *C, wmOperator *op)
 		else {
 			if (U.uiflag & USER_ZOOM_TO_MOUSEPOS) {
 				float mval_fac = (vzd->mx_2d - v2d->cur.xmin) / (v2d->cur.xmax-v2d->cur.xmin);
-				float mval_faci = 1.0 - mval_fac;
+				float mval_faci = 1.0f - mval_fac;
 				float ofs= (mval_fac * dx) - (mval_faci * dx);
 				
 				v2d->cur.xmin += ofs + dx;
@@ -621,7 +631,7 @@ static void view_zoomstep_apply(bContext *C, wmOperator *op)
 		else {
 			if (U.uiflag & USER_ZOOM_TO_MOUSEPOS) {
 				float mval_fac = (vzd->my_2d - v2d->cur.ymin) / (v2d->cur.ymax-v2d->cur.ymin);
-				float mval_faci = 1.0 - mval_fac;
+				float mval_faci = 1.0f - mval_fac;
 				float ofs= (mval_fac * dy) - (mval_faci * dy);
 				
 				v2d->cur.ymin += ofs + dy;
@@ -686,7 +696,7 @@ static int view_zoomin_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		
 		/* store initial mouse position (in view space) */
 		UI_view2d_region_to_view(&ar->v2d, 
-				event->x - ar->winrct.xmin, event->y - ar->winrct.ymin, 
+				event->mval[0], event->mval[1],
 				&vzd->mx_2d, &vzd->my_2d);
 	}
 	
@@ -743,7 +753,7 @@ static int view_zoomout_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		
 		/* store initial mouse position (in view space) */
 		UI_view2d_region_to_view(&ar->v2d, 
-				event->x - ar->winrct.xmin, event->y - ar->winrct.ymin, 
+				event->mval[0], event->mval[1],
 				&vzd->mx_2d, &vzd->my_2d);
 	}
 	
@@ -795,7 +805,7 @@ static void view_zoomdrag_apply(bContext *C, wmOperator *op)
 		else {
 			if (U.uiflag & USER_ZOOM_TO_MOUSEPOS) {
 				float mval_fac = (vzd->mx_2d - v2d->cur.xmin) / (v2d->cur.xmax-v2d->cur.xmin);
-				float mval_faci = 1.0 - mval_fac;
+				float mval_faci = 1.0f - mval_fac;
 				float ofs= (mval_fac * dx) - (mval_faci * dx);
 				
 				v2d->cur.xmin += ofs + dx;
@@ -814,7 +824,7 @@ static void view_zoomdrag_apply(bContext *C, wmOperator *op)
 		else {
 			if (U.uiflag & USER_ZOOM_TO_MOUSEPOS) {
 				float mval_fac = (vzd->my_2d - v2d->cur.ymin) / (v2d->cur.ymax-v2d->cur.ymin);
-				float mval_faci = 1.0 - mval_fac;
+				float mval_faci = 1.0f - mval_fac;
 				float ofs= (mval_fac * dy) - (mval_faci * dy);
 				
 				v2d->cur.ymin += ofs + dy;
@@ -896,12 +906,15 @@ static int view_zoomdrag_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	RNA_float_set(op->ptr, "deltax", 0);
 	RNA_float_set(op->ptr, "deltay", 0);
 	
+	/* for modal exit test */
+	vzd->invoke_event= event->type;
+	
 	if (U.uiflag & USER_ZOOM_TO_MOUSEPOS) {
 		ARegion *ar= CTX_wm_region(C);
 		
 		/* store initial mouse position (in view space) */
 		UI_view2d_region_to_view(&ar->v2d, 
-				event->x - ar->winrct.xmin, event->y - ar->winrct.ymin, 
+				event->mval[0], event->mval[1],
 				&vzd->mx_2d, &vzd->my_2d);
 	}
 
@@ -981,11 +994,9 @@ static int view_zoomdrag_modal(bContext *C, wmOperator *op, wmEvent *event)
 			/* apply zooming */
 			view_zoomdrag_apply(C, op);
 		}
-			break;
-			
-		case LEFTMOUSE:
-		case MIDDLEMOUSE:
+	else if (event->type == vzd->invoke_event || event->type==ESCKEY) {
 			if (event->val==KM_RELEASE) {
+			
 				/* for redo, store the overall deltas - need to respect zoom-locks here... */
 				if ((v2d->keepzoom & V2D_LOCKZOOM_X)==0)
 					RNA_float_set(op->ptr, "deltax", vzd->dx);
@@ -1012,7 +1023,7 @@ static int view_zoomdrag_modal(bContext *C, wmOperator *op, wmEvent *event)
 static void VIEW2D_OT_zoom(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Zoom View";
+	ot->name= "Zoom 2D View";
 	ot->description= "Zoom in/out the view";
 	ot->idname= "VIEW2D_OT_zoom";
 	
@@ -1172,13 +1183,13 @@ struct View2DScrollers {
 };
 
 /* quick enum for vsm->zone (scroller handles) */
-static enum {
+enum {
 	SCROLLHANDLE_MIN= -1,
 	SCROLLHANDLE_BAR,
 	SCROLLHANDLE_MAX,
 	SCROLLHANDLE_MIN_OUTSIDE,
 	SCROLLHANDLE_MAX_OUTSIDE
-} eV2DScrollerHandle_Zone;
+} /*eV2DScrollerHandle_Zone*/;
 
 /* ------------------------ */
 
@@ -1241,7 +1252,6 @@ static void scroller_activate_init(bContext *C, wmOperator *op, wmEvent *event, 
 	ARegion *ar= CTX_wm_region(C);
 	View2D *v2d= &ar->v2d;
 	float mask_size;
-	int x, y;
 	
 	/* set custom-data for operator */
 	vsm= MEM_callocN(sizeof(v2dScrollerMove), "v2dScrollerMove");
@@ -1255,8 +1265,6 @@ static void scroller_activate_init(bContext *C, wmOperator *op, wmEvent *event, 
 	/* store mouse-coordinates, and convert mouse/screen coordinates to region coordinates */
 	vsm->lastx = event->x;
 	vsm->lasty = event->y;
-	x= event->x - ar->winrct.xmin;
-	y= event->y - ar->winrct.ymin;
 	
 	/* 'zone' depends on where mouse is relative to bubble 
 	 *	- zooming must be allowed on this axis, otherwise, default to pan
@@ -1268,7 +1276,7 @@ static void scroller_activate_init(bContext *C, wmOperator *op, wmEvent *event, 
 		vsm->fac= (v2d->tot.xmax - v2d->tot.xmin) / mask_size;
 		
 		/* get 'zone' (i.e. which part of scroller is activated) */
-		vsm->zone= mouse_in_scroller_handle(x, v2d->hor.xmin, v2d->hor.xmax, scrollers->hor_min, scrollers->hor_max); 
+		vsm->zone= mouse_in_scroller_handle(event->mval[0], v2d->hor.xmin, v2d->hor.xmax, scrollers->hor_min, scrollers->hor_max);
 		
 		if ((v2d->keepzoom & V2D_LOCKZOOM_X) && ELEM(vsm->zone, SCROLLHANDLE_MIN, SCROLLHANDLE_MAX)) {
 			/* default to scroll, as handles not usable */
@@ -1283,7 +1291,7 @@ static void scroller_activate_init(bContext *C, wmOperator *op, wmEvent *event, 
 		vsm->fac= (v2d->tot.ymax - v2d->tot.ymin) / mask_size;
 		
 		/* get 'zone' (i.e. which part of scroller is activated) */
-		vsm->zone= mouse_in_scroller_handle(y, v2d->vert.ymin, v2d->vert.ymax, scrollers->vert_min, scrollers->vert_max); 
+		vsm->zone= mouse_in_scroller_handle(event->mval[1], v2d->vert.ymin, v2d->vert.ymax, scrollers->vert_min, scrollers->vert_max);
 			
 		if ((v2d->keepzoom & V2D_LOCKZOOM_Y) && ELEM(vsm->zone, SCROLLHANDLE_MIN, SCROLLHANDLE_MAX)) {
 			/* default to scroll, as handles not usable */
@@ -1412,9 +1420,9 @@ static int scroller_activate_modal(bContext *C, wmOperator *op, wmEvent *event)
 				/* single-click was in empty space outside bubble, so scroll by 1 'page' */
 				if (ELEM(vsm->zone, SCROLLHANDLE_MIN_OUTSIDE, SCROLLHANDLE_MAX_OUTSIDE)) {
 					if (vsm->zone == SCROLLHANDLE_MIN_OUTSIDE)
-						vsm->delta = -vsm->scrollbarwidth * 0.8;
+						vsm->delta = -vsm->scrollbarwidth * 0.8f;
 					else if (vsm->zone == SCROLLHANDLE_MAX_OUTSIDE)
-						vsm->delta = vsm->scrollbarwidth * 0.8;
+						vsm->delta = vsm->scrollbarwidth * 0.8f;
 					
 					scroller_activate_apply(C, op);
 					scroller_activate_exit(C, op);

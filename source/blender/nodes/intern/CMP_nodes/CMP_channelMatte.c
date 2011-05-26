@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -26,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/nodes/intern/CMP_nodes/CMP_channelMatte.c
+ *  \ingroup cmpnodes
+ */
+
 
 #include "../CMP_util.h"
 
@@ -119,7 +124,6 @@ static void do_channel_matte(bNode *node, float *out, float *in)
 	else {
 		out[3]=in[3];
 	}
-
 }
 
 static void node_composit_exec_channel_matte(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
@@ -210,4 +214,3 @@ void register_node_type_cmp_channel_matte(ListBase *lb)
 
 	nodeRegisterType(lb, &ntype);
 }
-

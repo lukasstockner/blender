@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/screen/screen_intern.h
+ *  \ingroup edscr
+ */
+
 #ifndef ED_SCREEN_INTERN_H
 #define ED_SCREEN_INTERN_H
 

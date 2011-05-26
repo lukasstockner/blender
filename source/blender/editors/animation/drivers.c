@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -26,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+ 
+/** \file blender/editors/animation/drivers.c
+ *  \ingroup edanimation
+ */
+
  
 #include <stdio.h>
 #include <string.h>

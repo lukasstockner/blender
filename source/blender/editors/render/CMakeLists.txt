@@ -32,7 +32,7 @@ set(INC
 	../../render/extern/include
 	../../windowmanager
 	../../../../intern/guardedalloc
-	../../../../extern/glew/include
+	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
@@ -41,6 +41,8 @@ set(SRC
 	render_ops.c
 	render_preview.c
 	render_shading.c
+	render_update.c
+	render_view.c
 
 	render_intern.h
 )

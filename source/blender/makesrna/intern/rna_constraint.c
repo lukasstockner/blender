@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -21,6 +21,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/makesrna/intern/rna_constraint.c
+ *  \ingroup RNA
+ */
+
 
 #include <stdlib.h>
 
@@ -70,31 +75,26 @@ EnumPropertyItem constraint_type_items[] ={
 	{CONSTRAINT_TYPE_SHRINKWRAP, "SHRINKWRAP", ICON_CONSTRAINT_DATA, "Shrinkwrap", ""},
 	{0, NULL, 0, NULL, NULL}};
 
-EnumPropertyItem space_pchan_items[] = {
-	{0, "WORLD", 0, "World Space", ""},
-	{2, "POSE", 0, "Pose Space", ""},
-	{3, "LOCAL_WITH_PARENT", 0, "Local With Parent", ""},
-	{1, "LOCAL", 0, "Local Space", ""},
+static EnumPropertyItem target_space_pchan_items[] = {
+	{0, "WORLD", 0, "World Space", "The transformation of the target is evaluated relative to the world coordinate system"},
+	{2, "POSE", 0, "Pose Space", "The transformation of the target is only evaluated in the Pose Space, the target armature object transformation is ignored"},
+	{3, "LOCAL_WITH_PARENT", 0, "Local With Parent", "The transformation of the target bone is evaluated relative its local coordinate system, with the parent transformation added"},
+	{1, "LOCAL", 0, "Local Space", "The transformation of the target is evaluated relative to its local coordinate system"},
 	{0, NULL, 0, NULL, NULL}};
 
-EnumPropertyItem space_object_items[] = {
-	{0, "WORLD", 0, "World Space", ""},
-	{1, "LOCAL", 0, "Local Space", ""},
+static EnumPropertyItem owner_space_pchan_items[] = {
+	{0, "WORLD", 0, "World Space", "The constraint is applied relative to the world coordinate system"},
+	{2, "POSE", 0, "Pose Space", "The constraint is applied in Pose Space, the object transformation is ignored"},
+	{3, "LOCAL_WITH_PARENT", 0, "The constraint is applied relative to the local coordinate system of the object, with the parent transformation added"},
+	{1, "LOCAL", 0, "Local Space", "The constraint is applied relative to the local coordinate sytem of the object"},
 	{0, NULL, 0, NULL, NULL}};
-
-EnumPropertyItem constraint_ik_type_items[] ={
-	{CONSTRAINT_IK_COPYPOSE, "COPY_POSE", 0, "Copy Pose", ""},
-	{CONSTRAINT_IK_DISTANCE, "DISTANCE", 0, "Distance", ""},
-	{0, NULL, 0, NULL, NULL},
-};
-
-EnumPropertyItem constraint_ik_axisref_items[] ={
-	{0, "BONE", 0, "Bone", ""},
-	{CONSTRAINT_IK_TARGETAXIS, "TARGET", 0, "Target", ""},
-	{0, NULL, 0, NULL, NULL},
-};
 
 #ifdef RNA_RUNTIME
+
+static EnumPropertyItem space_object_items[] = {
+	{0, "WORLD", 0, "World Space", "The transformation of the target is evaluated relative to the world coordinate system"},
+	{1, "LOCAL", 0, "Local Space", "The transformation of the target is evaluated relative to its local coordinate system"},
+	{0, NULL, 0, NULL, NULL}};
 
 #include "BKE_animsys.h"
 #include "BKE_action.h"
@@ -249,7 +249,7 @@ static EnumPropertyItem *rna_Constraint_owner_space_itemf(bContext *C, PointerRN
 	bConstraint *con= (bConstraint*)ptr->data;
 	
 	if(BLI_findindex(&ob->constraints, con) == -1)
-		return space_pchan_items;
+		return owner_space_pchan_items;
 	else /* object */
 		return space_object_items;
 }
@@ -272,7 +272,7 @@ static EnumPropertyItem *rna_Constraint_target_space_itemf(bContext *C, PointerR
 			cti->flush_constraint_targets(con, &targets, 1);
 
 		if(ct)
-			return space_pchan_items;
+			return target_space_pchan_items;
 	}
 
 	return space_object_items;
@@ -322,53 +322,12 @@ static void rna_SplineIKConstraint_joint_bindings_set(PointerRNA *ptr, const flo
 	memcpy(ikData->points, values, ikData->numpoints * sizeof(float));
 }
 
-/* Array Get/Set Functions for RigidBodyJointConstraint Min/Max Cone Limits */
-void rna_RigidBodyJointConstraint_limit_cone_min_get(PointerRNA *ptr, float values[3])
-{
-	bRigidBodyJointConstraint *data= (bRigidBodyJointConstraint*)(((bConstraint*)ptr->data)->data);
-	float *limit = data->minLimit;
-	
-	values[0]= limit[3];
-	values[1]= limit[4];
-	values[2]= limit[5];
-}
-
-static void rna_RigidBodyJointConstraint_limit_cone_min_set(PointerRNA *ptr, const float values[3])
-{
-	bRigidBodyJointConstraint *data= (bRigidBodyJointConstraint*)(((bConstraint*)ptr->data)->data);
-	float *limit = data->minLimit;
-	
-	limit[3]= values[0];
-	limit[4]= values[1];
-	limit[5]= values[2];
-}
-
-void rna_RigidBodyJointConstraint_limit_cone_max_get(PointerRNA *ptr, float values[3])
-{
-	bRigidBodyJointConstraint *data= (bRigidBodyJointConstraint*)(((bConstraint*)ptr->data)->data);
-	float *limit = data->maxLimit;
-	
-	values[0]= limit[3];
-	values[1]= limit[4];
-	values[2]= limit[5];
-}
-
-static void rna_RigidBodyJointConstraint_limit_cone_max_set(PointerRNA *ptr, const float values[3])
-{
-	bRigidBodyJointConstraint *data= (bRigidBodyJointConstraint*)(((bConstraint*)ptr->data)->data);
-	float *limit = data->maxLimit;
-	
-	limit[3]= values[0];
-	limit[4]= values[1];
-	limit[5]= values[2];
-}
-
 #else
 
 EnumPropertyItem constraint_distance_items[] = {
-	{LIMITDIST_INSIDE, "LIMITDIST_INSIDE", 0, "Inside", ""},
-	{LIMITDIST_OUTSIDE, "LIMITDIST_OUTSIDE", 0, "Outside", ""},
-	{LIMITDIST_ONSURFACE, "LIMITDIST_ONSURFACE", 0, "On Surface", ""},
+	{LIMITDIST_INSIDE, "LIMITDIST_INSIDE", 0, "Inside", "The object is constrained inside a virtual sphere around the target object, with a radius defined by the limit distance"},
+	{LIMITDIST_OUTSIDE, "LIMITDIST_OUTSIDE", 0, "Outside", "The object is constrained outside a virtual sphere around the target object, with a radius defined by the limit distance"},
+	{LIMITDIST_ONSURFACE, "LIMITDIST_ONSURFACE", 0, "On Surface", "The object is constrained on the surface of a virtual sphere around the target object, with a radius defined by the limit distance"},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -501,6 +460,18 @@ static void rna_def_constraint_kinematic(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
+
+	static EnumPropertyItem constraint_ik_axisref_items[] ={
+		{0, "BONE", 0, "Bone", ""},
+		{CONSTRAINT_IK_TARGETAXIS, "TARGET", 0, "Target", ""},
+		{0, NULL, 0, NULL, NULL},
+	};
+
+	static EnumPropertyItem constraint_ik_type_items[] ={
+		{CONSTRAINT_IK_COPYPOSE, "COPY_POSE", 0, "Copy Pose", ""},
+		{CONSTRAINT_IK_DISTANCE, "DISTANCE", 0, "Distance", ""},
+		{0, NULL, 0, NULL, NULL},
+	};
 
 	srna= RNA_def_struct(brna, "KinematicConstraint", "Constraint");
 	RNA_def_struct_ui_text(srna, "Kinematic Constraint", "Inverse Kinematics");
@@ -1002,7 +973,7 @@ static void rna_def_constraint_action(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "action", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "act");
-	RNA_def_property_ui_text(prop, "Action", "");
+	RNA_def_property_ui_text(prop, "Action", "The constraining action");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
 
@@ -1158,7 +1129,7 @@ static void rna_def_constraint_stretch_to(BlenderRNA *brna)
 
 	static EnumPropertyItem volume_items[] = {
 		{VOLUME_XZ, "VOLUME_XZX", 0, "XZ", ""},
-		{VOLUME_X, "VOLUME_X", 0, "Y", ""},
+		{VOLUME_X, "VOLUME_X", 0, "X", ""},
 		{VOLUME_Z, "VOLUME_Z", 0, "Z", ""},
 		{NO_VOLUME, "NO_VOLUME", 0, "None", ""},
 		{0, NULL, 0, NULL, NULL}};
@@ -1219,10 +1190,10 @@ static void rna_def_constraint_rigid_body_joint(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem pivot_items[] = {
-		{CONSTRAINT_RB_BALL, "BALL", 0, "Ball", ""},
-		{CONSTRAINT_RB_HINGE, "HINGE", 0, "Hinge", ""},
-		{CONSTRAINT_RB_CONETWIST, "CONE_TWIST", 0, "Cone Twist", ""},
-		{CONSTRAINT_RB_GENERIC6DOF, "GENERIC_6_DOF", 0, "Generic 6 DoF", ""},
+		{CONSTRAINT_RB_BALL, "BALL", 0, "Ball", "Allows rotations around all axes"},
+		{CONSTRAINT_RB_HINGE, "HINGE", 0, "Hinge", "Works in one plane, allows rotations around one axis only"},
+		{CONSTRAINT_RB_CONETWIST, "CONE_TWIST", 0, "Cone Twist", "Allows rotations around all axes with limits for the cone and twist axes"},
+		{CONSTRAINT_RB_GENERIC6DOF, "GENERIC_6_DOF", 0, "Generic 6 DoF", "No constraints by default, limits can be set individually"},
 		{0, NULL, 0, NULL, NULL}};
 
 	srna= RNA_def_struct(brna, "RigidBodyJointConstraint", "Constraint");
@@ -1293,64 +1264,93 @@ static void rna_def_constraint_rigid_body_joint(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
 	
 	
-	/* Limit */
+	/* Limits */
+	/* Limit Min/Max */
+	prop= RNA_def_property(srna, "limit_min_x", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "minLimit[0]");
+	RNA_def_property_ui_text(prop, "Minimum Limit X", "");
     
-    /* Limit Min/Max for genereic 6 DoF */
-	prop= RNA_def_property(srna, "limit_generic_min", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "minLimit");
-	RNA_def_property_array(prop, 6);
-	RNA_def_property_ui_text(prop, "Minimum Limit", "");
+	prop= RNA_def_property(srna, "limit_min_y", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "minLimit[1]");
+	RNA_def_property_ui_text(prop, "Minimum Limit Y", "");
 	
-	prop= RNA_def_property(srna, "limit_generic_max", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "maxLimit");
-	RNA_def_property_array(prop, 6);
-	RNA_def_property_ui_text(prop, "Maximum Limit", "");
+	prop= RNA_def_property(srna, "limit_min_z", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "minLimit[2]");
+	RNA_def_property_ui_text(prop, "Minimum Limit Z", "");
 
-    /* Limit Min/Max for Cone Twist */
-	prop= RNA_def_property(srna, "limit_cone_min", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "minLimit");
-	RNA_def_property_float_funcs(prop, "rna_RigidBodyJointConstraint_limit_cone_min_get", "rna_RigidBodyJointConstraint_limit_cone_min_set", NULL);
-	RNA_def_property_array(prop, 3);
-	RNA_def_property_ui_text(prop, "Minimum Limit", "");
+	prop= RNA_def_property(srna, "limit_max_x", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "maxLimit[0]");
+	RNA_def_property_ui_text(prop, "Maximum Limit X", "");
 
-	prop= RNA_def_property(srna, "limit_cone_max", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "maxLimit");
-	RNA_def_property_float_funcs(prop, "rna_RigidBodyJointConstraint_limit_cone_max_get", "rna_RigidBodyJointConstraint_limit_cone_max_set", NULL);
-	RNA_def_property_array(prop, 3);
-	RNA_def_property_ui_text(prop, "Maximum Limit", "");
+	prop= RNA_def_property(srna, "limit_max_y", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "maxLimit[1]");
+	RNA_def_property_ui_text(prop, "Maximum Limit Y", "");
 
+	prop= RNA_def_property(srna, "limit_max_z", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "maxLimit[2]");
+	RNA_def_property_ui_text(prop, "Maximum Limit Z", "");
     
+	/* Limit Min/Max for angle */
+	prop= RNA_def_property(srna, "limit_angle_min_x", PROP_FLOAT, PROP_ANGLE);
+	RNA_def_property_float_sdna(prop, NULL, "minLimit[3]");
+	RNA_def_property_range(prop, -M_PI*2, M_PI*2);
+	RNA_def_property_ui_text(prop, "Minimum Angular Limit X", "");
+
+	prop= RNA_def_property(srna, "limit_angle_min_y", PROP_FLOAT, PROP_ANGLE);
+	RNA_def_property_float_sdna(prop, NULL, "minLimit[4]");
+	RNA_def_property_range(prop, -M_PI*2, M_PI*2);
+	RNA_def_property_ui_text(prop, "Minimum Angular Limit Y", "");
+
+	prop= RNA_def_property(srna, "limit_angle_min_z", PROP_FLOAT, PROP_ANGLE);
+	RNA_def_property_float_sdna(prop, NULL, "minLimit[5]");
+	RNA_def_property_range(prop, -M_PI*2, M_PI*2);
+	RNA_def_property_ui_text(prop, "Minimum Angular Limit Z", "");
+
+	prop= RNA_def_property(srna, "limit_angle_max_x", PROP_FLOAT, PROP_ANGLE);
+	RNA_def_property_float_sdna(prop, NULL, "maxLimit[3]");
+	RNA_def_property_range(prop, -M_PI*2, M_PI*2);
+	RNA_def_property_ui_text(prop, "Maximum Angular Limit X", "");
+	
+	prop= RNA_def_property(srna, "limit_angle_max_y", PROP_FLOAT, PROP_ANGLE);
+	RNA_def_property_float_sdna(prop, NULL, "maxLimit[4]");
+	RNA_def_property_range(prop, -M_PI*2, M_PI*2);
+	RNA_def_property_ui_text(prop, "Maximum Angular Limit Y", "");
+
+	prop= RNA_def_property(srna, "limit_angle_max_z", PROP_FLOAT, PROP_ANGLE);
+	RNA_def_property_float_sdna(prop, NULL, "maxLimit[5]");
+	RNA_def_property_range(prop, -M_PI*2, M_PI*2);
+	RNA_def_property_ui_text(prop, "Maximum Angular Limit Z", "");
+
     /* Limit Booleans */
 	prop= RNA_def_property(srna, "use_limit_x", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", 1);
-	RNA_def_property_ui_text(prop, "Use X Limit", "Use minimum/maximum x limit");
+	RNA_def_property_ui_text(prop, "Limit X", "Use minimum/maximum x limit");
 	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
 
 	prop= RNA_def_property(srna, "use_limit_y", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", 2);
-	RNA_def_property_ui_text(prop, "Use Y Limit", "Use minimum/maximum y limit");
+	RNA_def_property_ui_text(prop, "Limit Y", "Use minimum/maximum y limit");
 	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
 	
 	prop= RNA_def_property(srna, "use_limit_z", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", 4);
-	RNA_def_property_ui_text(prop, "Use Z Limit", "Use minimum/maximum z limit");
+	RNA_def_property_ui_text(prop, "Limit Z", "Use minimum/maximum z limit");
 	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
     
 	prop= RNA_def_property(srna, "use_angular_limit_x", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", 8);
-	RNA_def_property_ui_text(prop, "Use Angular X Limit", "Use minimum/maximum x angular limit");
+	RNA_def_property_ui_text(prop, "Angular X Limit", "Use minimum/maximum x angular limit");
 	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
 	
 	prop= RNA_def_property(srna, "use_angular_limit_y", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", 16);
-	RNA_def_property_ui_text(prop, "Use Angular Y Limit", "Use minimum/maximum y angular limit");
+	RNA_def_property_ui_text(prop, "Angular Y Limit", "Use minimum/maximum y angular limit");
 	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
 	
 	prop= RNA_def_property(srna, "use_angular_limit_z", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", 32);
-	RNA_def_property_ui_text(prop, "Use Angular Z Limit", "Use minimum/maximum z angular limit");
+	RNA_def_property_ui_text(prop, "Angular Z Limit", "Use minimum/maximum z angular limit");
 	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
-    
 }
 
 static void rna_def_constraint_clamp_to(BlenderRNA *brna)
@@ -1795,9 +1795,9 @@ static void rna_def_constraint_shrinkwrap(BlenderRNA *brna)
 	PropertyRNA *prop;
 	
 	static EnumPropertyItem type_items[] = {
-		{MOD_SHRINKWRAP_NEAREST_SURFACE, "NEAREST_SURFACE", 0, "Nearest Surface Point", ""},
-		{MOD_SHRINKWRAP_PROJECT, "PROJECT", 0, "Project", ""},
-		{MOD_SHRINKWRAP_NEAREST_VERTEX, "NEAREST_VERTEX", 0, "Nearest Vertex", ""},
+		{MOD_SHRINKWRAP_NEAREST_SURFACE, "NEAREST_SURFACE", 0, "Nearest Surface Point", "Shrinks the location to the nearest target surface"},
+		{MOD_SHRINKWRAP_PROJECT, "PROJECT", 0, "Project", "Shrinks the location to the nearest target surface along a given axis"},
+		{MOD_SHRINKWRAP_NEAREST_VERTEX, "NEAREST_VERTEX", 0, "Nearest Vertex", "Shrinks the location to the nearest target vertex"},
 		{0, NULL, 0, NULL, NULL}};
 	
 	srna= RNA_def_struct(brna, "ShrinkwrapConstraint", "Constraint"); 
@@ -1947,13 +1947,13 @@ static void rna_def_constraint_pivot(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem pivot_rotAxis_items[] = {
-		{PIVOTCON_AXIS_NONE, "ALWAYS_ACTIVE", 0, "Always", ""},
-		{PIVOTCON_AXIS_X_NEG, "NX", 0, "-X Rot", ""},
-		{PIVOTCON_AXIS_Y_NEG, "NY", 0, "-Y Rot", ""},
-		{PIVOTCON_AXIS_Z_NEG, "NZ", 0, "-Z Rot", ""},
-		{PIVOTCON_AXIS_X, "X", 0, "X Rot", ""},
-		{PIVOTCON_AXIS_Y, "Y", 0, "Y Rot", ""},
-		{PIVOTCON_AXIS_Z, "Z", 0, "Z Rot", ""},
+		{PIVOTCON_AXIS_NONE, "ALWAYS_ACTIVE", 0, "Always", "Use the pivot point in every rotation"},
+		{PIVOTCON_AXIS_X_NEG, "NX", 0, "-X Rot", "Use the pivot point in the negative rotation range around the X-axis"},
+		{PIVOTCON_AXIS_Y_NEG, "NY", 0, "-Y Rot", "Use the pivot point in the negative rotation range around the Y-axis"},
+		{PIVOTCON_AXIS_Z_NEG, "NZ", 0, "-Z Rot", "Use the pivot point in the negative rotation range around the Z-axis"},
+		{PIVOTCON_AXIS_X, "X", 0, "X Rot", "Use the pivot point in the positive rotation range around the X-axis"},
+		{PIVOTCON_AXIS_Y, "Y", 0, "Y Rot", "Use the pivot point in the positive rotation range around the Y-axis"},
+		{PIVOTCON_AXIS_Z, "Z", 0, "Z Rot", "Use the pivot point in the positive rotation range around the Z-axis"},
 		{0, NULL, 0, NULL, NULL}};
 
 	srna= RNA_def_struct(brna, "PivotConstraint", "Constraint");
@@ -2026,13 +2026,13 @@ void RNA_def_constraint(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "owner_space", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "ownspace");
-	RNA_def_property_enum_items(prop, space_pchan_items);
+	RNA_def_property_enum_items(prop, owner_space_pchan_items);
 	RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_Constraint_owner_space_itemf");
 	RNA_def_property_ui_text(prop, "Owner Space", "Space that owner is evaluated in");
 
 	prop= RNA_def_property(srna, "target_space", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "tarspace");
-	RNA_def_property_enum_items(prop, space_pchan_items);
+	RNA_def_property_enum_items(prop, target_space_pchan_items);
 	RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_Constraint_target_space_itemf");
 	RNA_def_property_ui_text(prop, "Target Space", "Space that target is evaluated in");
 
@@ -2050,7 +2050,7 @@ void RNA_def_constraint(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "is_valid", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", CONSTRAINT_DISABLE);
-	RNA_def_property_ui_text(prop, "Disabled", "Constraint has invalid settings and will not be evaluated");
+	RNA_def_property_ui_text(prop, "Valid", "Constraint has valid settings and can be evaluated");
 	
 		// TODO: setting this to true must ensure that all others in stack are turned off too...
 	prop= RNA_def_property(srna, "active", PROP_BOOLEAN, PROP_NONE);

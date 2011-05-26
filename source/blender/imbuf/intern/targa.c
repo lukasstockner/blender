@@ -1,4 +1,4 @@
-/**
+/*
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -26,6 +26,11 @@
  * ***** END GPL LICENSE BLOCK *****
  * $Id$
  */
+
+/** \file blender/imbuf/intern/targa.c
+ *  \ingroup imbuf
+ */
+
 
 #ifdef WIN32
 #include <io.h>
@@ -191,8 +196,8 @@ static int dumptarga(struct ImBuf * ibuf, FILE * file)
 	int size;
 	uchar *rect;
 
-	if (ibuf == 0) return (0);
-	if (ibuf->rect == 0) return (0);
+	if (ibuf == NULL) return (0);
+	if (ibuf->rect == NULL) return (0);
 
 	size = ibuf->x * ibuf->y;
 	rect = (uchar *) ibuf->rect;
@@ -359,8 +364,8 @@ static void decodetarga(struct ImBuf *ibuf, unsigned char *mem, size_t mem_size,
 	unsigned int *rect;
 	uchar * cp = (uchar *) &col;
 	
-	if (ibuf == 0) return;
-	if (ibuf->rect == 0) return;
+	if (ibuf == NULL) return;
+	if (ibuf->rect == NULL) return;
 
 	size = ibuf->x * ibuf->y;
 	rect = ibuf->rect;
@@ -470,8 +475,8 @@ static void ldtarga(struct ImBuf * ibuf,unsigned char * mem, size_t mem_size, in
 	unsigned int *rect;
 	uchar * cp = (uchar *) &col;
 
-	if (ibuf == 0) return;
-	if (ibuf->rect == 0) return;
+	if (ibuf == NULL) return;
+	if (ibuf->rect == NULL) return;
 
 	size = ibuf->x * ibuf->y;
 	rect = ibuf->rect;
@@ -525,15 +530,15 @@ struct ImBuf *imb_loadtarga(unsigned char *mem, size_t mem_size, int flags)
 	TARGA tga;
 	struct ImBuf * ibuf;
 	int col, count, size;
-	unsigned int *rect, *cmap= NULL, mincol= 0, maxcol= 0;
+	unsigned int *rect, *cmap= NULL /*, mincol= 0*/, maxcol= 0;
 	uchar * cp = (uchar *) &col;
 	
-	if (checktarga(&tga,mem) == 0) return(0);
+	if (checktarga(&tga,mem) == 0) return(NULL);
 
 	if (flags & IB_test) ibuf = IMB_allocImBuf(tga.xsize,tga.ysize,tga.pixsize, 0, 0);
 	else ibuf = IMB_allocImBuf(tga.xsize,tga.ysize,(tga.pixsize + 0x7) & ~0x7, IB_rect, 0);
 
-	if (ibuf == 0) return(0);
+	if (ibuf == NULL) return(NULL);
 	ibuf->ftype = TGA;
 	ibuf->profile = IB_PROFILE_SRGB;
 	mem = mem + 18 + tga.numid;
@@ -543,7 +548,7 @@ struct ImBuf *imb_loadtarga(unsigned char *mem, size_t mem_size, int flags)
 	
 	if (tga.mapsize){
 		/* load color map */
-		mincol = tga.maporig;
+		/*mincol = tga.maporig;*/ /*UNUSED*/
 		maxcol = tga.mapsize;
 		cmap = MEM_callocN(sizeof(unsigned int)*maxcol, "targa cmap");
 

@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -26,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/mesh/meshtools.c
+ *  \ingroup edmesh
+ */
+
 
 /*
 	meshtools.c: no editmode (violated already :), tools operating on meshes
@@ -216,8 +221,9 @@ int join_mesh_exec(bContext *C, wmOperator *UNUSED(op))
 						}
 						if(b==totcol) {
 							matar[b]= ma;
-							if(ma)
-								ma->id.us++;
+							if(ma) {
+								id_us_plus(&ma->id);
+							}
 							totcol++;
 						}
 						if(totcol>=MAXMAT-1) 

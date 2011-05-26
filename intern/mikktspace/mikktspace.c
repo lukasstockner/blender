@@ -1,3 +1,6 @@
+/** \file mikktspace/mikktspace.c
+ *  \ingroup mikktspace
+ */
 /**
  *  Copyright (C) 2011 by Morten S. Mikkelsen
  *
@@ -23,12 +26,7 @@
 #include <math.h>
 #include <string.h>
 #include <float.h>
-
-#ifdef __APPLE__
-#include <stdlib.h>  /* OSX gets its malloc stuff through here */
-#else
-#include <malloc.h> 
-#endif
+#include <stdlib.h>
 
 #include "mikktspace.h"
 
@@ -52,7 +50,7 @@ static tbool			veq( const SVec3 v1, const SVec3 v2 )
 	return (v1.x == v2.x) && (v1.y == v2.y) && (v1.z == v2.z);
 }
 
-static const SVec3		vadd( const SVec3 v1, const SVec3 v2 )
+static SVec3		vadd( const SVec3 v1, const SVec3 v2 )
 {
 	SVec3 vRes;
 
@@ -64,7 +62,7 @@ static const SVec3		vadd( const SVec3 v1, const SVec3 v2 )
 }
 
 
-static const SVec3		vsub( const SVec3 v1, const SVec3 v2 )
+static SVec3		vsub( const SVec3 v1, const SVec3 v2 )
 {
 	SVec3 vRes;
 
@@ -75,7 +73,7 @@ static const SVec3		vsub( const SVec3 v1, const SVec3 v2 )
 	return vRes;
 }
 
-static const SVec3		vscale(const float fS, const SVec3 v)
+static SVec3		vscale(const float fS, const SVec3 v)
 {
 	SVec3 vRes;
 
@@ -96,12 +94,12 @@ static float			Length( const SVec3 v )
 	return sqrtf(LengthSquared(v));
 }
 
-static const SVec3		Normalize( const SVec3 v )
+static SVec3		Normalize( const SVec3 v )
 {
 	return vscale(1 / Length(v), v);
 }
 
-static const float		vdot( const SVec3 v1, const SVec3 v2)
+static float		vdot( const SVec3 v1, const SVec3 v2)
 {
 	return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
 }
@@ -188,7 +186,7 @@ static void IndexToData(int * piFace, int * piVert, const int iIndexIn)
 	piFace[0] = iIndexIn>>2;
 }
 
-static const STSpace AvgTSpace(const STSpace * pTS0, const STSpace * pTS1)
+static STSpace AvgTSpace(const STSpace * pTS0, const STSpace * pTS1)
 {
 	STSpace ts_res;
 
@@ -218,9 +216,9 @@ static const STSpace AvgTSpace(const STSpace * pTS0, const STSpace * pTS1)
 
 
 
-const SVec3 GetPosition(const SMikkTSpaceContext * pContext, const int index);
-const SVec3 GetNormal(const SMikkTSpaceContext * pContext, const int index);
-const SVec3 GetTexCoord(const SMikkTSpaceContext * pContext, const int index);
+SVec3 GetPosition(const SMikkTSpaceContext * pContext, const int index);
+SVec3 GetNormal(const SMikkTSpaceContext * pContext, const int index);
+SVec3 GetTexCoord(const SMikkTSpaceContext * pContext, const int index);
 
 
 // degen triangles
@@ -245,7 +243,7 @@ tbool genTangSpace(const SMikkTSpaceContext * pContext, const float fAngularThre
 	int iNrActiveGroups = 0, index = 0;
 	const int iNrFaces = pContext->m_pInterface->m_getNumFaces(pContext);
 	tbool bRes = TFALSE;
-	const float fThresCos = (const float) cos((fAngularThreshold*M_PI)/180);
+	const float fThresCos = (const float) cos((fAngularThreshold*(float)M_PI)/180.0f);
 
 	// verify all call-backs have been set
 	if( pContext->m_pInterface->m_getNumFaces==NULL ||
@@ -284,7 +282,6 @@ tbool genTangSpace(const SMikkTSpaceContext * pContext, const float fAngularThre
 
 	// Mark all degenerate triangles
 	iTotTris = iNrTrianglesIn;
-	iNrTrianglesIn = 0;
 	iDegenTriangles = 0;
 	for(t=0; t<iTotTris; t++)
 	{
@@ -435,20 +432,21 @@ typedef struct
 	int index;
 } STmpVert;
 
-static const int g_iCells = 2048;
+const int g_iCells = 2048;
 
-// it is IMPORTANT that this function is called to evaluate the hash since
-// inlining could potentially reorder instructions and generate different
-// results for the same effective input value fVal.
-#if defined(_MSC_VER) && !defined(FREE_WINDOWS)
+#ifdef _MSC_VER
 	#define NOINLINE __declspec(noinline)
 #else
 	#define NOINLINE __attribute__((noinline))
 #endif
-static NOINLINE int FindGridCell(const float fMin, const float fMax, const float fVal)
+
+// it is IMPORTANT that this function is called to evaluate the hash since
+// inlining could potentially reorder instructions and generate different
+// results for the same effective input value fVal.
+NOINLINE int FindGridCell(const float fMin, const float fMax, const float fVal)
 {
-	const float fIndex = (g_iCells-1) * ((fVal-fMin)/(fMax-fMin));
-	const int iIndex = fIndex<0?0:((int) (fIndex+0.5f));
+	const float fIndex = g_iCells * ((fVal-fMin)/(fMax-fMin));
+	const int iIndex = fIndex<0?0:((int)fIndex);
 	return iIndex<g_iCells?iIndex:(g_iCells-1);
 }
 
@@ -647,7 +645,7 @@ void MergeVertsFast(int piTriList_in_and_out[], STmpVert pTmpVert[], const SMikk
 		int iL=iL_in, iR=iR_in;
 		assert((iR_in-iL_in)>0);	// at least 2 entries
 
-		// seperate (by fSep) all points between iL_in and iR_in in pTmpVert[]
+		// separate (by fSep) all points between iL_in and iR_in in pTmpVert[]
 		while(iL < iR)
 		{
 			tbool bReadyLeftSwap = TFALSE, bReadyRightSwap = TFALSE;
@@ -880,7 +878,7 @@ int GenerateInitialVerticesIndexList(STriInfo pTriInfos[], int piTriList_out[], 
 	return iTSpacesOffs;
 }
 
-const SVec3 GetPosition(const SMikkTSpaceContext * pContext, const int index)
+SVec3 GetPosition(const SMikkTSpaceContext * pContext, const int index)
 {
 	int iF, iI;
 	SVec3 res; float pos[3];
@@ -890,7 +888,7 @@ const SVec3 GetPosition(const SMikkTSpaceContext * pContext, const int index)
 	return res;
 }
 
-const SVec3 GetNormal(const SMikkTSpaceContext * pContext, const int index)
+SVec3 GetNormal(const SMikkTSpaceContext * pContext, const int index)
 {
 	int iF, iI;
 	SVec3 res; float norm[3];
@@ -900,7 +898,7 @@ const SVec3 GetNormal(const SMikkTSpaceContext * pContext, const int index)
 	return res;
 }
 
-const SVec3 GetTexCoord(const SMikkTSpaceContext * pContext, const int index)
+SVec3 GetTexCoord(const SMikkTSpaceContext * pContext, const int index)
 {
 	int iF, iI;
 	SVec3 res; float texc[2];

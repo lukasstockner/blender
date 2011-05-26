@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -26,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/nodes/intern/CMP_nodes/CMP_colorSpill.c
+ *  \ingroup cmpnodes
+ */
+
 
 
 #include "../CMP_util.h"
@@ -184,9 +189,8 @@ static void do_apply_spillmap_blue(bNode *node, float* out, float *in, float *ma
 
 static void node_composit_exec_color_spill(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
 {
-	/*
-	Originally based on the information from the book "The Art and Science of Digital Composition" and 
-	discussions from vfxtalk.com.*/
+	/* Originally based on the information from the book "The Art and Science of Digital Composition" and
+	 * discussions from vfxtalk.com .*/
 	CompBuf *cbuf;
    CompBuf *mask;
 	CompBuf *rgbbuf;

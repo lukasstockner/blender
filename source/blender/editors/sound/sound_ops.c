@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/sound/sound_ops.c
+ *  \ingroup edsnd
+ */
+
 
 #include <string.h>
 #include <stdlib.h>
@@ -214,7 +219,7 @@ static int sound_unpack_exec(bContext *C, wmOperator *op)
 
 	/* find the suppplied image by name */
 	if (RNA_property_is_set(op->ptr, "id")) {
-		char sndname[22];
+		char sndname[MAX_ID_NAME-2];
 		RNA_string_get(op->ptr, "id", sndname);
 		sound = BLI_findstring(&CTX_data_main(C)->sound, sndname, offsetof(ID, name) + 2);
 		}
@@ -249,7 +254,7 @@ static int sound_unpack_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(even
 	if(G.fileflags & G_AUTOPACK)
 		BKE_report(op->reports, RPT_WARNING, "AutoPack is enabled, so image will be packed again on file save.");
 
-	unpack_menu(C, "SOUND_OT_unpack", sound->id.name+2, sound->name, "audio", sound->packedfile);
+	unpack_menu(C, "SOUND_OT_unpack", sound->id.name+2, sound->name, "sounds", sound->packedfile);
 
 	return OPERATOR_FINISHED;
 }
@@ -271,7 +276,7 @@ static void SOUND_OT_unpack(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_enum(ot->srna, "method", unpack_method_items, PF_USE_LOCAL, "Method", "How to unpack.");
-	RNA_def_string(ot->srna, "id", "", 21, "Sound Name", "Sound datablock name to unpack."); /* XXX, weark!, will fail with library, name collisions */
+	RNA_def_string(ot->srna, "id", "", MAX_ID_NAME-2, "Sound Name", "Sound datablock name to unpack."); /* XXX, weark!, will fail with library, name collisions */
 }
 
 /* ******************************************************* */

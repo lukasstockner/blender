@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -21,6 +21,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/python/intern/bpy_rna_callback.h
+ *  \ingroup pythonintern
+ */
+
 
 struct BPy_StructRNA;
 struct PyObject;

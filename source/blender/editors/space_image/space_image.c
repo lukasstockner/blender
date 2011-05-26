@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/space_image/space_image.c
+ *  \ingroup spimage
+ */
+
 
 #include <string.h>
 #include <stdio.h>
@@ -199,7 +204,7 @@ void ED_image_aspect(Image *ima, float *aspx, float *aspy)
 	*aspx= *aspy= 1.0;
 	
 	if((ima == NULL) || (ima->type == IMA_TYPE_R_RESULT) || (ima->type == IMA_TYPE_COMPOSITE) ||
-	   (ima->aspx==0.0 || ima->aspy==0.0))
+	   (ima->aspx==0.0f || ima->aspy==0.0f))
 		return;
 	
 	/* x is always 1 */
@@ -324,14 +329,11 @@ ARegion *image_has_buttons_region(ScrArea *sa)
 {
 	ARegion *ar, *arnew;
 	
-	for(ar= sa->regionbase.first; ar; ar= ar->next)
-		if(ar->regiontype==RGN_TYPE_UI)
-			return ar;
+	ar= BKE_area_find_region_type(sa, RGN_TYPE_UI);
+	if(ar) return ar;
 	
 	/* add subdiv level; after header */
-	for(ar= sa->regionbase.first; ar; ar= ar->next)
-		if(ar->regiontype==RGN_TYPE_HEADER)
-			break;
+	ar= BKE_area_find_region_type(sa, RGN_TYPE_HEADER);
 	
 	/* is error! */
 	if(ar==NULL) return NULL;
@@ -351,14 +353,11 @@ ARegion *image_has_scope_region(ScrArea *sa)
 {
 	ARegion *ar, *arnew;
 	
-	for(ar= sa->regionbase.first; ar; ar= ar->next)
-		if(ar->regiontype==RGN_TYPE_PREVIEW)
-			return ar;
+	ar= BKE_area_find_region_type(sa, RGN_TYPE_PREVIEW);
+	if(ar) return ar;
 	
 	/* add subdiv level; after buttons */
-	for(ar= sa->regionbase.first; ar; ar= ar->next)
-		if(ar->regiontype==RGN_TYPE_UI)
-			break;
+	ar= BKE_area_find_region_type(sa, RGN_TYPE_UI);
 	
 	/* is error! */
 	if(ar==NULL) return NULL;
@@ -456,6 +455,8 @@ static SpaceLink *image_duplicate(SpaceLink *sl)
 	if(simagen->cumap)
 		simagen->cumap= curvemapping_copy(simagen->cumap);
 	
+	scopes_new(&simagen->scopes);
+
 	return (SpaceLink *)simagen;
 }
 
@@ -479,6 +480,8 @@ static void image_operatortypes(void)
 	WM_operatortype_append(IMAGE_OT_pack);
 	WM_operatortype_append(IMAGE_OT_unpack);
 
+	WM_operatortype_append(IMAGE_OT_invert);
+
 	WM_operatortype_append(IMAGE_OT_cycle_render_slot);
 
 	WM_operatortype_append(IMAGE_OT_sample);
@@ -487,7 +490,6 @@ static void image_operatortypes(void)
 
 	WM_operatortype_append(IMAGE_OT_record_composite);
 
-	WM_operatortype_append(IMAGE_OT_toolbox);
 	WM_operatortype_append(IMAGE_OT_properties);
 	WM_operatortype_append(IMAGE_OT_scopes);
 }
@@ -503,7 +505,7 @@ static void image_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "IMAGE_OT_save", SKEY, KM_PRESS, KM_ALT, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_save_as", F3KEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_properties", NKEY, KM_PRESS, 0, 0);
-	WM_keymap_add_item(keymap, "IMAGE_OT_scopes", PKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "IMAGE_OT_scopes", TKEY, KM_PRESS, 0, 0);
 
 	WM_keymap_add_item(keymap, "IMAGE_OT_cycle_render_slot", JKEY, KM_PRESS, 0, 0);
 	RNA_boolean_set(WM_keymap_add_item(keymap, "IMAGE_OT_cycle_render_slot", JKEY, KM_PRESS, KM_ALT, 0)->ptr, "reverse", TRUE);
@@ -534,8 +536,6 @@ static void image_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "IMAGE_OT_sample", ACTIONMOUSE, KM_PRESS, 0, 0);
 	RNA_enum_set(WM_keymap_add_item(keymap, "IMAGE_OT_curves_point_set", ACTIONMOUSE, KM_PRESS, KM_CTRL, 0)->ptr, "point", 0);
 	RNA_enum_set(WM_keymap_add_item(keymap, "IMAGE_OT_curves_point_set", ACTIONMOUSE, KM_PRESS, KM_SHIFT, 0)->ptr, "point", 1);
-
-	WM_keymap_add_item(keymap, "IMAGE_OT_toolbox", SPACEKEY, KM_PRESS, 0, 0);
 
 	/* toggle editmode is handy to have while UV unwrapping */
 	kmi= WM_keymap_add_item(keymap, "OBJECT_OT_mode_set", TABKEY, KM_PRESS, 0, 0);
@@ -976,6 +976,7 @@ void ED_spacetype_image(void)
 	BLI_addhead(&st->regiontypes, art);
 
 	image_buttons_register(art);
+	ED_uvedit_buttons_register(art);
 	
 	/* regions: statistics/scope buttons */
 	art= MEM_callocN(sizeof(ARegionType), "spacetype image region");

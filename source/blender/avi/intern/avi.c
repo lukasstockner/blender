@@ -1,9 +1,7 @@
-/**
- * avi.c
+/*
+ * $Id$
  *
  * This is external code.
- *
- * $Id$ 
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -31,6 +29,11 @@
  * ***** END GPL LICENSE BLOCK *****
  *
  */
+
+/** \file blender/avi/intern/avi.c
+ *  \ingroup avi
+ */
+
 
 #include <stdlib.h>
 #include <string.h>
@@ -213,7 +216,7 @@ int AVI_is_avi (char *name) {
 
 int AVI_is_avi (const char *name) {
 	int temp, fcca, j;
-	AviMovie movie= {0};
+	AviMovie movie= {NULL};
 	AviMainHeader header;
 	AviBitmapInfoHeader bheader;
 	int movie_tracks = 0;

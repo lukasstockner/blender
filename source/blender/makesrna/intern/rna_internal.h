@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -21,6 +21,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/makesrna/intern/rna_internal.h
+ *  \ingroup RNA
+ */
+
 
 #ifndef RNA_INTERNAL_H
 #define RNA_INTERNAL_H
@@ -192,8 +197,8 @@ struct StructRNA *rna_ID_refine(struct PointerRNA *ptr);
 struct IDProperty *rna_ID_idprops(struct PointerRNA *ptr, int create);
 void rna_ID_fake_user_set(struct PointerRNA *ptr, int value);
 struct IDProperty *rna_PropertyGroup_idprops(struct PointerRNA *ptr, int create);
-void rna_PropertyGroup_unregister(const struct bContext *C, struct StructRNA *type);
-struct StructRNA *rna_PropertyGroup_register(struct bContext *C, struct ReportList *reports, void *data, const char *identifier, StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free);
+void rna_PropertyGroup_unregister(struct Main *bmain, struct StructRNA *type);
+struct StructRNA *rna_PropertyGroup_register(struct Main *bmain, struct ReportList *reports, void *data, const char *identifier, StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free);
 struct StructRNA* rna_PropertyGroup_refine(struct PointerRNA *ptr);
 
 void rna_object_vgroup_name_index_get(struct PointerRNA *ptr, char *value, int index);
@@ -217,6 +222,9 @@ int rna_Curve_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
 int rna_Lattice_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
 int rna_Mesh_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
 
+/* basic poll functions for actions (to prevent actions getting set in wrong places) */
+int rna_Action_id_poll(struct PointerRNA *ptr, struct PointerRNA value);
+int rna_Action_actedit_assign_poll(struct PointerRNA *ptr, struct PointerRNA value);
 
 char *rna_TextureSlot_path(struct PointerRNA *ptr);
 

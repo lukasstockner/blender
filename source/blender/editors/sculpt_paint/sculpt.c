@@ -193,7 +193,6 @@ static int sculpt_modifiers_active(Scene *scene, Sculpt *sd, Object *ob)
 	/* exception for shape keys because we can edit those */
 	for(; md; md= md->next) {
 		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
-
 		if (!modifier_isEnabled(scene, md, eModifierMode_Realtime))
 			continue;
 
@@ -358,6 +357,12 @@ static int sculpt_get_redraw_rect(
 	else {
 		return rect->xmin < rect->xmax && rect->ymin < rect->ymax;
 	}
+}
+
+		return 1;
+	}
+
+	return 0;
 }
 
 void sculpt_get_redraw_planes(float planes[4][4], ARegion *ar,
@@ -1852,7 +1857,7 @@ static void do_thumb_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
 	}
 }
 
-static void do_rotate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
+static void do_rotate_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 {
 	SculptSession *ss = ob->sculpt;
 	Brush *brush= paint_brush(&sd->paint);
@@ -1910,7 +1915,7 @@ static void do_layer_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
 	Brush *brush = paint_brush(&sd->paint);
 	float bstrength= ss->cache->bstrength;
 	float an[3], offset[3];
-	float lim= ss->cache->radius / 4;
+	float lim= brush->height;
 	int n;
 
 	if(bstrength < 0)
@@ -1959,7 +1964,7 @@ static void do_layer_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
 				*disp+= fade;
 
 				/* Don't let the displacement go past the limit */
-				if((lim < 0 && *disp < lim) || (lim > 0 && *disp > lim))
+				if((lim < 0 && *disp < lim) || (lim >= 0 && *disp > lim))
 					*disp = lim;
 
 				mul_v3_v3fl(val, offset, *disp);
@@ -2085,6 +2090,7 @@ static void calc_flatten_center(Sculpt *sd, Object *ob, PBVHNode **nodes, int to
 amortizing the memory bandwidth and loop overhead to calculate both at the same time */
 static void calc_area_normal_and_flatten_center(Sculpt *sd, Ojbect *ob, PBVHNode **nodes, int totnode, float range, float an[3], float fc[3])
 {
+	SculptSession *ss = ob->sculpt;
 	int n;
 
 	// an
@@ -2645,6 +2651,7 @@ static void do_fill_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 
 static void do_scrape_brush(Sculpt *sd, Object* ob, PBVHNode **nodes, int totnode)
 {
+	SculptSession *ss = ob->sculpt;
 	Brush *brush = paint_brush(&sd->paint);
 
 	float bstrength = ss->cache->bstrength;
@@ -3062,6 +3069,7 @@ static void sculpt_combine_proxies(Sculpt *sd, Object *ob)
 				BLI_pbvh_vertex_iter_end;
 
 				BLI_pbvh_node_free_proxies(nodes[n]);
+			PBVHVertexIter vd;
 
 			}
 
@@ -3163,6 +3171,7 @@ static void do_symmetrical_brush_actions(Sculpt *sd, Object *ob)
 {
 	SculptSession *ss = ob->sculpt;
 	Brush *brush = paint_brush(&sd->paint);
+	SculptSession *ss = ob->sculpt;
 	StrokeCache *cache = ss->cache;
 	const char symm = sd->flags & 7;
 	int i;

@@ -25,6 +25,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/render/intern/source/envmap.c
+ *  \ingroup render
+ */
+
+
 #include <math.h>
 #include <string.h>
 
@@ -70,21 +75,27 @@ static void envmap_split_ima(EnvMap *env, ImBuf *ibuf)
 {
 	int dx, part;
 	
+	/* after lock we test cube[1], if set the other thread has done it fine */
+	BLI_lock_thread(LOCK_IMAGE);
+	if(env->cube[1]==NULL) {
+
 	BKE_free_envmapdata(env);	
 	
 	dx= ibuf->y;
 	dx/= 2;
 	if (3*dx == ibuf->x) {
 		env->type = ENV_CUBE;
+			env->ok= ENV_OSA;
 	} else if (ibuf->x == ibuf->y) {
 		env->type = ENV_PLANE;
+			env->ok= ENV_OSA;
 	} else {
 		printf("Incorrect envmap size\n");
 		env->ok= 0;
 		env->ima->ok= 0;
-		return;
 	}
 	
+		if(env->ok) {
 	if (env->type == ENV_CUBE) {
 		for(part=0; part<6; part++) {
 			env->cube[part]= IMB_allocImBuf(dx, dx, 24, IB_rect|IB_rectfloat, 0);
@@ -103,14 +114,15 @@ static void envmap_split_ima(EnvMap *env, ImBuf *ibuf)
 			0, 0, dx, dx, dx, dx);
 		IMB_rectcpy(env->cube[5], ibuf, 
 			0, 0, 2*dx, dx, dx, dx);
-		env->ok= ENV_OSA;
+				
 	}
 	else { /* ENV_PLANE */
 		env->cube[1]= IMB_dupImBuf(ibuf);
 		IMB_float_from_rect(env->cube[1]);
-		
-		env->ok= ENV_OSA;
 	}
+}
+	}	
+	BLI_unlock_thread(LOCK_IMAGE);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -718,6 +730,7 @@ int envmaptex(Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexRe
 			TexResult texr1, texr2;
 	
 			texr1.nor= texr2.nor= NULL;
+			texr1.talpha= texr2.talpha= texres->talpha; /* boxclip expects this initialized */
 
 			add_v3_v3(vec, dxt);
 			face1= envcube_isect(env, vec, sco);

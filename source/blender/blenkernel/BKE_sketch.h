@@ -1,5 +1,4 @@
-/**
- *	
+/*
  * $Id$ 
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -24,6 +23,10 @@
  */
 #ifndef BKE_SKETCH_H
 #define BKE_SKETCH_H
+
+/** \file BKE_sketch.h
+ *  \ingroup bke
+ */
 
 typedef enum SK_PType
 {
@@ -70,8 +73,8 @@ typedef struct SK_Overdraw
 
 typedef struct SK_DrawData
 {
-	short mval[2];
-	short previous_mval[2];
+	int mval[2];
+	int previous_mval[2];
 	SK_PType type;
 } SK_DrawData;
 
@@ -149,7 +152,7 @@ void sk_endContinuousStroke(SK_Stroke *stk);
 
 void sk_updateNextPoint(SK_Sketch *sketch, SK_Stroke *stk);
 
-void sk_initDrawData(SK_DrawData *dd, short mval[2]);
+void sk_initDrawData(SK_DrawData *dd, const int mval[2]);
 
 void sk_deleteSelectedStrokes(SK_Sketch *sketch);
 void sk_selectAllSketch(SK_Sketch *sketch, int mode);

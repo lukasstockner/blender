@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -24,6 +24,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file ED_armature.h
+ *  \ingroup editors
+ */
+
 #ifndef ED_ARMATURE_H
 #define ED_ARMATURE_H
 
@@ -111,7 +116,7 @@ void ED_armature_deselectall(struct Object *obedit, int toggle);
 
 int ED_do_pose_selectbuffer(struct Scene *scene, struct Base *base, unsigned int *buffer, 
 							short hits, short extend);
-int mouse_armature(struct bContext *C, short mval[2], int extend);
+int mouse_armature(struct bContext *C, const int mval[2], int extend);
 int join_armature_exec(struct bContext *C, struct wmOperator *op);
 struct Bone *get_indexed_bone (struct Object *ob, int index);
 float ED_rollBoneToVector(EditBone *bone, const float new_up_axis[3], const short axis_only);

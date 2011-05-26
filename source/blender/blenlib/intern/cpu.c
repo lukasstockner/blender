@@ -1,4 +1,4 @@
-/**
+/*
  *
  * $Id: cpu.c 29675 2010-06-24 19:26:12Z gsrb3d $
  *
@@ -20,6 +20,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/blenlib/intern/cpu.c
+ *  \ingroup bli
+ */
+
 
 #include "BLI_cpu.h"
 

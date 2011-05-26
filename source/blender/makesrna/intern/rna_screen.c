@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -21,6 +21,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/makesrna/intern/rna_screen.c
+ *  \ingroup RNA
+ */
+
 
 #include <stdlib.h>
 #include <stddef.h>
@@ -111,6 +116,23 @@ static void rna_Area_type_update(bContext *C, PointerRNA *ptr)
 
 #else
 
+/* Area.spaces */
+static void rna_def_area_spaces(BlenderRNA *brna, PropertyRNA *cprop)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	RNA_def_property_srna(cprop, "AreaSpaces");
+	srna= RNA_def_struct(brna, "AreaSpaces", NULL);
+	RNA_def_struct_sdna(srna, "ScrArea");
+	RNA_def_struct_ui_text(srna, "Area Spaces", "Collection of spaces");
+
+	prop= RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "spacedata.first");
+	RNA_def_property_struct_type(prop, "Space");
+	RNA_def_property_ui_text(prop, "Active Space", "Space currently being displayed in this area");
+}
+
 static void rna_def_area(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -125,11 +147,7 @@ static void rna_def_area(BlenderRNA *brna)
 	RNA_def_property_collection_sdna(prop, NULL, "spacedata", NULL);
 	RNA_def_property_struct_type(prop, "Space");
 	RNA_def_property_ui_text(prop, "Spaces", "Spaces contained in this area, the first being the active space. NOTE: Useful for example to restore a previously used 3d view space in a certain area to get the old view orientation.");
-
-	prop= RNA_def_property(srna, "active_space", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_sdna(prop, NULL, "spacedata.first");
-	RNA_def_property_struct_type(prop, "Space");
-	RNA_def_property_ui_text(prop, "Active Space", "Space currently being displayed in this area");
+	rna_def_area_spaces(brna, prop);
 
 	prop= RNA_def_property(srna, "regions", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "regionbase", NULL);
@@ -147,6 +165,16 @@ static void rna_def_area(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Type", "Space type");
 	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 	RNA_def_property_update(prop, 0, "rna_Area_type_update");
+
+	prop= RNA_def_property(srna, "width", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "winx");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Width", "Area width");
+
+	prop= RNA_def_property(srna, "height", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "winy");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Height", "Area height");
 
 	RNA_def_function(srna, "tag_redraw", "ED_area_tag_redraw");
 

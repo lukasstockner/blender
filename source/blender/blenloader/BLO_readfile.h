@@ -25,10 +25,14 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- * external readfile function prototypes
  */
 #ifndef BLO_READFILE_H
 #define BLO_READFILE_H
+
+/** \file BLO_readfile.h
+ *  \ingroup blenloader
+ *  \brief external readfile function prototypes.
+ */
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,6 +49,8 @@ struct SpaceFile;
 struct SpaceImaSel;
 struct UserDef;
 struct bContext;
+struct BHead;
+struct FileData;
 
 typedef struct BlendHandle	BlendHandle;
 
@@ -75,12 +81,12 @@ typedef struct BlendFileData {
 	 * returns NULL and sets a report in the list if
 	 * it cannot open the file.
 	 * 
-	 * @param file The path of the file to open.
+	 * @param filepath The path of the file to open.
 	 * @param reports If the return value is NULL, errors
 	 * indicating the cause of the failure.
 	 * @return The data of the file.
 	 */
-BlendFileData*	BLO_read_from_file(const char *file, struct ReportList *reports);
+BlendFileData*	BLO_read_from_file(const char *filepath, struct ReportList *reports);
 
 	/**
 	 * Open a blender file from memory. The function
@@ -116,11 +122,13 @@ BLO_blendfiledata_free(
  * Open a blendhandle from a file path.
  * 
  * @param file The file path to open.
+ * @param reports Report errors in opening the file (can be NULL).
  * @return A handle on success, or NULL on failure.
  */
 	BlendHandle*
 BLO_blendhandle_from_file(
-	char *file);
+	char *file,
+	struct ReportList *reports);
 
 /**
  * Open a blendhandle from memory.
@@ -142,13 +150,15 @@ BLO_blendhandle_from_memory(
  * 
  * @param bh The blendhandle to access.
  * @param ofblocktype The type of names to get.
+ * @param tot_names The length of the returned list.
  * @return A BLI_linklist of strings. The string links
  * should be freed with malloc.
  */
 	struct LinkNode*
 BLO_blendhandle_get_datablock_names(
 	BlendHandle *bh, 
-	int ofblocktype);
+	int ofblocktype,
+	int *tot_names);
 
 /**
  * Gets the previews of all the datablocks in a file
@@ -157,13 +167,15 @@ BLO_blendhandle_get_datablock_names(
  * 
  * @param bh The blendhandle to access.
  * @param ofblocktype The type of names to get.
+ * @param tot_prev The length of the returned list.
  * @return A BLI_linklist of PreviewImage. The PreviewImage links
  * should be freed with malloc.
  */
 	struct LinkNode*
 BLO_blendhandle_get_previews(
 	BlendHandle *bh, 
-	int ofblocktype);
+	int ofblocktype,
+	int *tot_prev);
 
 /**
  * Gets the names of all the datablock groups in a
@@ -199,9 +211,23 @@ int BLO_has_bfile_extension(char *str);
  */
 int BLO_is_a_library(const char *path, char *dir, char *group);
 
-struct Main* BLO_library_append_begin(const struct bContext *C, BlendHandle** bh, char *dir);
-void BLO_library_append_named_part(const struct bContext *C, struct Main *mainl, BlendHandle** bh, const char *name, int idcode, short flag);
+struct Main* BLO_library_append_begin(const struct bContext *C, BlendHandle** bh, const char *filepath);
+
+/**
+ * Link/Append a named datablock from an external blend file.
+ *
+ * @param C The context, when NULL instancing object in the scene isnt done.
+ * @param mainl The main database to link from (not the active one).
+ * @param bh The blender file handle.
+ * @param idname The name of the datablock (without the 2 char ID prefix)
+ * @param idcode The kind of datablock to link.
+ * @param flag Options for linking, used for instancing.
+ * @return Boolean, 0 when the datablock could not be found.
+ */
+struct ID *BLO_library_append_named_part(const struct bContext *C, struct Main *mainl, BlendHandle** bh, const char *idname, int idcode, short flag);
 void BLO_library_append_end(const struct bContext *C, struct Main *mainl, BlendHandle** bh, int idcode, short flag);
+
+void *BLO_library_read_struct(struct FileData *fd, struct BHead *bh, const char *blockname);
 
 /* deprecated */
 #if 1

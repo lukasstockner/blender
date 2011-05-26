@@ -1,4 +1,4 @@
-/**
+/*
  * bmfont.c
  *
  * 04-10-2000 frank
@@ -31,6 +31,11 @@
  * ***** END GPL LICENSE BLOCK *****
  *
  */
+
+/** \file blender/blenkernel/intern/bmfont.c
+ *  \ingroup bke
+ */
+
 
 /**
  * Two external functions:

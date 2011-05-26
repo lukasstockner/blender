@@ -1,3 +1,6 @@
+/** \file blender/imbuf/intern/cineon/logmemfile.c
+ *  \ingroup imbcineon
+ */
 /*
  *	 Cineon image file format library routines.
  *
@@ -23,6 +26,8 @@
 #include <string.h>
 
 #include "logImageCore.h"
+
+#include "logmemfile.h" /* own include */
 
 int logimage_fseek(void* logfile, intptr_t offsett, int origin)
 {	

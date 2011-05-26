@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/sculpt_paint/paint_intern.h
+ *  \ingroup edsculpt
+ */
+
 
 #ifndef ED_PAINT_INTERN_H
 #define ED_PAINT_INTERN_H
@@ -53,7 +58,7 @@ typedef void (*StrokeDone)(struct bContext *C, struct PaintStroke *stroke);
 
 struct PaintStroke *paint_stroke_new(struct bContext *C,
 					 StrokeGetLocation get_location, StrokeTestStart test_start,
-					 StrokeUpdateStep update_step, StrokeDone done);
+					 StrokeUpdateStep update_step, StrokeDone done, int event_type);
 void paint_stroke_free(struct PaintStroke *stroke);
 
 int paint_space_stroke_enabled(struct Brush *br);
@@ -76,12 +81,12 @@ void vpaint_fill(struct Object *ob, unsigned int paintcol);
 void wpaint_fill(struct VPaint *wp, struct Object *ob, float paintweight);
 
 void PAINT_OT_weight_paint_toggle(struct wmOperatorType *ot);
-void PAINT_OT_weight_paint_radial_control(struct wmOperatorType *ot);
 void PAINT_OT_weight_paint(struct wmOperatorType *ot);
 void PAINT_OT_weight_set(struct wmOperatorType *ot);
 void PAINT_OT_weight_from_bones(struct wmOperatorType *ot);
+void PAINT_OT_weight_sample(struct wmOperatorType *ot);
+void PAINT_OT_weight_sample_group(struct wmOperatorType *ot);
 
-void PAINT_OT_vertex_paint_radial_control(struct wmOperatorType *ot);
 void PAINT_OT_vertex_paint_toggle(struct wmOperatorType *ot);
 void PAINT_OT_vertex_paint(struct wmOperatorType *ot);
 
@@ -91,12 +96,10 @@ unsigned int vpaint_get_current_col(struct VPaint *vp);
 int image_texture_paint_poll(struct bContext *C);
 
 void PAINT_OT_image_paint(struct wmOperatorType *ot);
-void PAINT_OT_image_paint_radial_control(struct wmOperatorType *ot);
 void PAINT_OT_grab_clone(struct wmOperatorType *ot);
 void PAINT_OT_sample_color(struct wmOperatorType *ot);
 void PAINT_OT_clone_cursor_set(struct wmOperatorType *ot);
 void PAINT_OT_texture_paint_toggle(struct wmOperatorType *ot);
-void PAINT_OT_texture_paint_radial_control(struct wmOperatorType *ot);
 void PAINT_OT_project_image(struct wmOperatorType *ot);
 void PAINT_OT_image_from_view(struct wmOperatorType *ot);
 
@@ -105,8 +108,8 @@ void PAINT_OT_image_from_view(struct wmOperatorType *ot);
 void projectf(struct bglMats *mats, const float v[3], float p[2]);
 float paint_calc_object_space_radius(struct ViewContext *vc, float center[3], float pixel_radius);
 float paint_get_tex_pixel(struct Brush* br, float u, float v);
-int imapaint_pick_face(struct ViewContext *vc, struct Mesh *me, int *mval, unsigned int *index);
-void imapaint_pick_uv(struct Scene *scene, struct Object *ob, unsigned int faceindex, int *xy, float *uv);
+int imapaint_pick_face(struct ViewContext *vc, struct Mesh *me, const int mval[2], unsigned int *index);
+void imapaint_pick_uv(struct Scene *scene, struct Object *ob, unsigned int faceindex, const int xy[2], float uv[2]);
 
 void paint_sample_color(struct Scene *scene, struct ARegion *ar, int x, int y);
 void BRUSH_OT_curve_preset(struct wmOperatorType *ot);
@@ -114,6 +117,9 @@ void BRUSH_OT_curve_preset(struct wmOperatorType *ot);
 void PAINT_OT_face_select_linked(struct wmOperatorType *ot);
 void PAINT_OT_face_select_linked_pick(struct wmOperatorType *ot);
 void PAINT_OT_face_select_all(struct wmOperatorType *ot);
+void PAINT_OT_face_select_inverse(struct wmOperatorType *ot);
+void PAINT_OT_face_select_hide(struct wmOperatorType *ot);
+void PAINT_OT_face_select_reveal(struct wmOperatorType *ot);
 
 int facemask_paint_poll(struct bContext *C);
 

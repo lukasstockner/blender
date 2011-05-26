@@ -30,6 +30,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/editors/physics/physics_intern.h
+ *  \ingroup edphys
+ */
+
+
 #ifndef ED_PHYSICS_INTERN_H
 #define ED_PHYSICS_INTERN_H
 
@@ -55,7 +60,6 @@ void PARTICLE_OT_delete(struct wmOperatorType *ot);
 void PARTICLE_OT_mirror(struct wmOperatorType *ot);
 
 void PARTICLE_OT_brush_edit(struct wmOperatorType *ot);
-void PARTICLE_OT_brush_radial_control(struct wmOperatorType *ot);
 
 void PARTICLE_OT_particle_edit_toggle(struct wmOperatorType *ot);
 void PARTICLE_OT_edited_clear(struct wmOperatorType *ot);

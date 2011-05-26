@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -23,6 +23,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/space_graph/graph_draw.c
+ *  \ingroup spgraph
+ */
+
 
 #include <stdio.h>
 #include <math.h>
@@ -315,7 +320,9 @@ static int draw_fcurve_handles_check(SpaceIpo *sipo, FCurve *fcu)
 	/* don't draw handle lines if handles are not to be shown */
 	if (	(sipo->flag & SIPO_NOHANDLES) || /* handles shouldn't be shown anywhere */
 			(fcu->flag & FCURVE_PROTECTED) || /* keyframes aren't editable */
+#if 0		/* handles can still be selected and handle types set, better draw - campbell */
 			(fcu->flag & FCURVE_INT_VALUES) || /* editing the handles here will cause weird/incorrect interpolation issues */
+#endif
 			((fcu->grp) && (fcu->grp->flag & AGRP_PROTECTED)) || /* group that curve belongs to is not editable */
 			(fcu->totvert <= 1) /* do not show handles if there is only 1 keyframe, otherwise they all clump together in an ugly ball */
 		) 

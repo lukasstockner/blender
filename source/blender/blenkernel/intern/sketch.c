@@ -1,4 +1,4 @@
-/**
+/*
  *
  * $Id$
  *
@@ -22,6 +22,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/blenkernel/intern/sketch.c
+ *  \ingroup bke
+ */
+
 
 #include <string.h>
 #include <math.h>
@@ -538,7 +543,7 @@ int sk_stroke_filtermval(SK_DrawData *dd)
 	return retval;
 }
 
-void sk_initDrawData(SK_DrawData *dd, short mval[2])
+void sk_initDrawData(SK_DrawData *dd, const int mval[2])
 {
 	dd->mval[0] = mval[0];
 	dd->mval[1] = mval[1];

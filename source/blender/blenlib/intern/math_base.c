@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,11 +25,16 @@
  * ***** END GPL LICENSE BLOCK *****
  * */
 
+/** \file blender/blenlib/intern/math_base.c
+ *  \ingroup bli
+ */
+
+
 
 #include "BLI_math.h"
 
 /* WARNING: MSVC compiling hack for double_round() */
-#if (WIN32 || WIN64) && !(FREE_WINDOWS)
+#if (defined(WIN32) || defined(WIN64)) && !(defined(FREE_WINDOWS))
 
 /* from python 3.1 pymath.c */
 double copysign(double x, double y)

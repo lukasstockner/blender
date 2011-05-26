@@ -1,4 +1,4 @@
-/**
+/*
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/blenlib/intern/BLI_kdopbvh.c
+ *  \ingroup bli
+ */
+
 
 #include <assert.h>
 
@@ -161,6 +166,7 @@ static float KDOP_AXES[13][3] =
 	heap[parent] = element;							\
 }
 
+#if 0
 static int ADJUST_MEMORY(void *local_memblock, void **memblock, int new_size, int *max_size, int size_per_item)
 {
 	int   new_max_size = *max_size * 2;
@@ -186,7 +192,7 @@ static int ADJUST_MEMORY(void *local_memblock, void **memblock, int new_size, in
 	else
 		return FALSE;
 }
-
+#endif
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 // Introsort 
@@ -1680,13 +1686,13 @@ static void dfs_range_query(RangeQueryData *data, BVHNode *node)
 {
 	if(node->totnode == 0)
 	{
-
+#if 0	/*UNUSED*/
 		//Calculate the node min-coords (if the node was a point then this is the point coordinates)
 		float co[3];
 		co[0] = node->bv[0];
 		co[1] = node->bv[2];
 		co[2] = node->bv[4];
-
+#endif
 	}
 	else
 	{

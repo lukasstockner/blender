@@ -1,6 +1,6 @@
 /*
 Bullet Continuous Collision Detection and Physics Library
-Copyright (c) 2003-2006 Erwin Coumans  http://continuousphysics.com/Bullet/
+Copyright (c) 2003-2009 Erwin Coumans  http://bulletphysics.org
 
 This software is provided 'as-is', without any express or implied warranty.
 In no event will the authors be held liable for any damages arising from the use of this software.
@@ -33,10 +33,26 @@ ATTRIBUTE_ALIGNED16( struct)	btIndexedMesh
 	int			m_numVertices;
 	const unsigned char *		m_vertexBase;
 	int			m_vertexStride;
+
 	// The index type is set when adding an indexed mesh to the
 	// btTriangleIndexVertexArray, do not set it manually
 	PHY_ScalarType		m_indexType;
-	int			pad;
+
+   // The vertex type has a default type similar to Bullet's precision mode (float or double)
+   // but can be set manually if you for example run Bullet with double precision but have
+   // mesh data in single precision..
+   PHY_ScalarType m_vertexType;
+
+
+   btIndexedMesh()
+	   :m_indexType(PHY_INTEGER),
+#ifdef BT_USE_DOUBLE_PRECISION
+      m_vertexType(PHY_DOUBLE)
+#else // BT_USE_DOUBLE_PRECISION
+      m_vertexType(PHY_FLOAT)
+#endif // BT_USE_DOUBLE_PRECISION
+      {
+}
 }
 ;
 

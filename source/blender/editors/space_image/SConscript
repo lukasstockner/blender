@@ -5,13 +5,10 @@ sources = env.Glob('*.c')
 
 incs = '../include ../../blenfont ../../blenlib ../../blenkernel ../../makesdna ../../imbuf'
 incs += ' ../../windowmanager #/intern/guardedalloc #/extern/glew/include'
-incs += ' ../../render/extern/include ../../makesrna'
+incs += ' ../../render/extern/include ../../makesrna ../../blenloader'
 
 defs = []
 
-if env['WITH_BF_LCMS']:
-	defs.append('WITH_LCMS')
-	incs += ' ' + env['BF_LCMS_INC']
 if env['WITH_BF_OPENEXR']:
 	defs.append('WITH_OPENEXR')
 if env['WITH_BF_OPENJPEG']:

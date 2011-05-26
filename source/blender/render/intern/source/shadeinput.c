@@ -1,4 +1,4 @@
-/**
+/*
 * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -24,6 +24,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/render/intern/source/shadeinput.c
+ *  \ingroup render
+ */
+
 
 #include <stdio.h>
 #include <math.h>
@@ -133,13 +138,13 @@ void shade_material_loop(ShadeInput *shi, ShadeResult *shr)
 	/* depth >= 1 when ray-shading */
 	if(shi->depth==0 || shi->volume_depth > 0) {
 		if(R.r.mode & R_RAYTRACE) {
-			if(shi->ray_mirror!=0.0f || ((shi->mat->mode & MA_TRANSP) && (shi->mat->mode & MA_RAYTRANSP) && shr->alpha!=1.0f)) {
+			if(shi->ray_mirror!=0.0f || ((shi->mode & MA_TRANSP) && (shi->mode & MA_RAYTRANSP) && shr->alpha!=1.0f)) {
 				/* ray trace works on combined, but gives pass info */
 				ray_trace(shi, shr);
 			}
 		}
 		/* disable adding of sky for raytransp */
-		if((shi->mat->mode & MA_TRANSP) && (shi->mat->mode & MA_RAYTRANSP))
+		if((shi->mode & MA_TRANSP) && (shi->mode & MA_RAYTRANSP))
 			if((shi->layflag & SCE_LAY_SKY) && (R.r.alphamode==R_ADDSKY))
 				shr->alpha= 1.0f;
 	}	
@@ -577,7 +582,7 @@ void shade_input_set_strand_texco(ShadeInput *shi, StrandRen *strand, StrandVert
 		}
 	}
 	
-	if (R.r.color_mgt_flag & R_COLOR_MANAGEMENT) {
+	if (shi->do_manage) {
 		if(mode & (MA_VERTEXCOL|MA_VERTEXCOLP|MA_FACETEXTURE)) {
 			srgb_to_linearrgb_v3_v3(shi->vcol, shi->vcol);
 		}
@@ -839,6 +844,36 @@ void shade_input_set_normals(ShadeInput *shi)
 		if(dot_v3v3(shi->facenor, shi->view) < 0.0f)
 			shade_input_flip_normals(shi);
 }
+
+/* XXX shi->flippednor messes up otherwise */
+void shade_input_set_vertex_normals(ShadeInput *shi)
+{
+	float u= shi->u, v= shi->v;
+	float l= 1.0f+u+v;
+	
+	/* calculate vertexnormals */
+	if(shi->vlr->flag & R_SMOOTH) {
+		float *n1= shi->n1, *n2= shi->n2, *n3= shi->n3;
+		
+		shi->vn[0]= l*n3[0]-u*n1[0]-v*n2[0];
+		shi->vn[1]= l*n3[1]-u*n1[1]-v*n2[1];
+		shi->vn[2]= l*n3[2]-u*n1[2]-v*n2[2];
+		
+		// use unnormalized normal (closer to games)
+		VECCOPY(shi->nmapnorm, shi->vn);
+		
+		normalize_v3(shi->vn);
+	}
+	else
+	{
+		VECCOPY(shi->vn, shi->facenor);
+		VECCOPY(shi->nmapnorm, shi->vn);
+	}
+	
+	/* used in nodes */
+	VECCOPY(shi->vno, shi->vn);
+}
+
 
 /* use by raytrace, sss, bake to flip into the right direction */
 void shade_input_flip_normals(ShadeInput *shi)
@@ -1280,7 +1315,7 @@ void shade_input_set_shade_texco(ShadeInput *shi)
 	} /* else {
 	 Note! For raytracing winco is not set, important because thus means all shader input's need to have their variables set to zero else in-initialized values are used
 	*/
-	if (R.r.color_mgt_flag & R_COLOR_MANAGEMENT) {
+	if (shi->do_manage) {
 		if(mode & (MA_VERTEXCOL|MA_VERTEXCOLP|MA_FACETEXTURE)) {
 			srgb_to_linearrgb_v3_v3(shi->vcol, shi->vcol);
 		}
@@ -1299,6 +1334,7 @@ void shade_input_initialize(ShadeInput *shi, RenderPart *pa, RenderLayer *rl, in
 	shi->sample= sample;
 	shi->thread= pa->thread;
 	shi->do_preview= (R.r.scemode & R_MATNODE_PREVIEW) != 0;
+	shi->do_manage= (R.r.color_mgt_flag & R_COLOR_MANAGEMENT);
 	shi->lay= rl->lay;
 	shi->layflag= rl->layflag;
 	shi->passflag= rl->passflag;
@@ -1379,7 +1415,10 @@ void shade_samples_fill_with_ps(ShadeSample *ssamp, PixStr *ps, int x, int y)
 						shi->samplenr= R.shadowsamplenr[shi->thread]++;	/* this counter is not being reset per pixel */
 						shade_input_set_viewco(shi, x, y, xs, ys, (float)ps->z);
 						shade_input_set_uv(shi);
+						if(shi_cp==0)
 						shade_input_set_normals(shi);
+						else  /* XXX shi->flippednor messes up otherwise */
+							shade_input_set_vertex_normals(shi);
 						
 						shi_cp= 1;
 						shi++;

@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/space_image/image_intern.h
+ *  \ingroup spimage
+ */
+
 
 #ifndef ED_IMAGE_INTERN_H
 #define ED_IMAGE_INTERN_H
@@ -55,7 +60,7 @@ void IMAGE_OT_toolbox(struct wmOperatorType *ot);
 
 /* image_draw.c */
 void draw_image_main(struct SpaceImage *sima, struct ARegion *ar, struct Scene *scene);
-void draw_image_info(struct ARegion *ar, int channels, int x, int y, char *cp, float *fp, int *zp, float *zpf);
+void draw_image_info(struct ARegion *ar, int color_manage, int channels, int x, int y, char *cp, float *fp, int *zp, float *zpf);
 void draw_image_grease_pencil(struct bContext *C, short onlyv2d);
 
 /* image_ops.c */
@@ -78,6 +83,8 @@ void IMAGE_OT_save_as(struct wmOperatorType *ot);
 void IMAGE_OT_save_sequence(struct wmOperatorType *ot);
 void IMAGE_OT_pack(struct wmOperatorType *ot);
 void IMAGE_OT_unpack(struct wmOperatorType *ot);
+
+void IMAGE_OT_invert(struct wmOperatorType *ot);
 
 void IMAGE_OT_cycle_render_slot(struct wmOperatorType *ot);
 

@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -26,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/object/object_constraint.c
+ *  \ingroup edobj
+ */
+
 
 #include <stdio.h>
 #include <string.h>
@@ -70,6 +75,7 @@
 #include "ED_screen.h"
 
 #include "UI_interface.h"
+#include "UI_resources.h"
 
 #include "object_intern.h"
 
@@ -198,6 +204,7 @@ static char *buildmenu_pyconstraints (Text *con_text, int *pyconindex)
 }
 #endif /* DISABLE_PYTHON */
 
+#if 0 // UNUSED, until pyconstraints are added back.
 /* this callback gets called when the 'refresh' button of a pyconstraint gets pressed */
 static void update_pyconstraint_cb (void *arg1, void *arg2)
 {
@@ -208,6 +215,7 @@ static void update_pyconstraint_cb (void *arg1, void *arg2)
 		BPY_pyconstraint_update(owner, con);
 #endif
 }
+#endif // UNUSED
 
 /* helper function for add_constriant - sets the last target for the active constraint */
 static void set_constraint_nth_target (bConstraint *con, Object *target, const char subtarget[], int index)
@@ -556,7 +564,7 @@ static bConstraint *edit_constraint_property_get(wmOperator *op, Object *ob, int
 	}
 	
 	con = constraints_findByName(list, constraint_name);
-	printf("constraint found = %p, %s\n", con, (con)?con->name:"<Not found>");
+	printf("constraint found = %p, %s\n", (void *)con, (con)?con->name:"<Not found>");
 	
 	if (con && (type != 0) && (con->type != type))
 		con = NULL;
@@ -828,6 +836,7 @@ static int constraint_delete_exec (bContext *C, wmOperator *UNUSED(op))
 	Object *ob= ptr.id.data;
 	bConstraint *con= ptr.data;
 	ListBase *lb = get_constraint_lb(ob, con, NULL);
+	const short is_ik= ELEM(con->type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK);
 	
 	/* free the constraint */
 	if (remove_constraint(lb, con)) {
@@ -835,6 +844,11 @@ static int constraint_delete_exec (bContext *C, wmOperator *UNUSED(op))
 		constraints_set_active(lb, NULL);
 		
 		ED_object_constraint_update(ob); /* needed to set the flags on posebones correctly */
+
+		/* ITASC needs to be rebuilt once a constraint is removed [#26920] */
+		if(is_ik) {
+			BIK_clear_data(ob->pose);
+		}
 
 		/* notifiers */
 		WM_event_add_notifier(C, NC_OBJECT|ND_CONSTRAINT|NA_REMOVED, ob);
@@ -977,6 +991,8 @@ static int pose_constraints_clear_exec(bContext *C, wmOperator *UNUSED(op))
 	/* force depsgraph to get recalculated since relationships removed */
 	DAG_scene_sort(bmain, scene);		/* sort order of objects */	
 	
+	/* note, calling BIK_clear_data() isnt needed here */
+
 	/* do updates */
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT|ND_CONSTRAINT, ob);
@@ -987,7 +1003,7 @@ static int pose_constraints_clear_exec(bContext *C, wmOperator *UNUSED(op))
 void POSE_OT_constraints_clear(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Clear Constraints";
+	ot->name = "Clear Pose Constraints";
 	ot->idname= "POSE_OT_constraints_clear";
 	ot->description= "Clear all the constraints for the selected bones";
 	
@@ -1022,7 +1038,7 @@ static int object_constraints_clear_exec(bContext *C, wmOperator *UNUSED(op))
 void OBJECT_OT_constraints_clear(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Clear Constraints";
+	ot->name = "Clear Object Constraints";
 	ot->idname= "OBJECT_OT_constraints_clear";
 	ot->description= "Clear all the constraints for the active Object only";
 	
@@ -1521,7 +1537,7 @@ static int pose_ik_add_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(evt))
 	}
 	
 	/* prepare popup menu to choose targetting options */
-	pup= uiPupMenuBegin(C, "Add IK", ICON_NULL);
+	pup= uiPupMenuBegin(C, "Add IK", ICON_NONE);
 	layout= uiPupMenuLayout(pup);
 	
 	/* the type of targets we'll set determines the menu entries to show... */
@@ -1530,14 +1546,14 @@ static int pose_ik_add_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(evt))
 		 *	- the only thing that matters is that we want a target...
 		 */
 		if (tar_pchan)
-			uiItemBooleanO(layout, "To Active Bone", ICON_NULL, "POSE_OT_ik_add", "with_targets", 1);
+			uiItemBooleanO(layout, "To Active Bone", ICON_NONE, "POSE_OT_ik_add", "with_targets", 1);
 		else
-			uiItemBooleanO(layout, "To Active Object", ICON_NULL, "POSE_OT_ik_add", "with_targets", 1);
+			uiItemBooleanO(layout, "To Active Object", ICON_NONE, "POSE_OT_ik_add", "with_targets", 1);
 	}
 	else {
 		/* we have a choice of adding to a new empty, or not setting any target (targetless IK) */
-		uiItemBooleanO(layout, "To New Empty Object", ICON_NULL, "POSE_OT_ik_add", "with_targets", 1);
-		uiItemBooleanO(layout, "Without Targets", ICON_NULL, "POSE_OT_ik_add", "with_targets", 0);
+		uiItemBooleanO(layout, "To New Empty Object", ICON_NONE, "POSE_OT_ik_add", "with_targets", 1);
+		uiItemBooleanO(layout, "Without Targets", ICON_NONE, "POSE_OT_ik_add", "with_targets", 0);
 	}
 	
 	/* finish building the menu, and process it (should result in calling self again) */

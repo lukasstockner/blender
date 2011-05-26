@@ -1,4 +1,4 @@
-/**
+/*
 * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -23,6 +23,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/render/intern/include/shading.h
+ *  \ingroup render
+ */
+
+
 struct ShadeInput;
 struct ShadeResult;
 struct RenderPart;
@@ -32,7 +37,7 @@ struct LampRen;
 struct VlakRen;
 struct StrandSegment;
 struct StrandPoint;
-struct ObjectInstanceRen obi;
+struct ObjectInstanceRen;
 struct Isect;
 
 /* shadeinput.c */
@@ -62,6 +67,7 @@ void shade_input_calc_viewco(struct ShadeInput *shi, float x, float y, float z, 
 void shade_input_set_viewco(struct ShadeInput *shi, float x, float y, float sx, float sy, float z);
 void shade_input_set_uv(struct ShadeInput *shi);
 void shade_input_set_normals(struct ShadeInput *shi);
+void shade_input_set_vertex_normals(struct ShadeInput *shi);
 void shade_input_flip_normals(struct ShadeInput *shi);
 void shade_input_set_shade_texco(struct ShadeInput *shi);
 void shade_input_set_strand(struct ShadeInput *shi, struct StrandRen *strand, struct StrandPoint *spoint);

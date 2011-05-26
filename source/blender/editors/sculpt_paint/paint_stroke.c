@@ -81,6 +81,8 @@ typedef struct PaintStroke {
 	   e.g. in sculpt mode, stroke doesn't start until cursor
 	   passes over the mesh */
 	int stroke_started;
+	/* event that started stroke, for modal() return */
+	int event_type;
 
 	/* event that started stroke, for modal() return */
 	int event_type;
@@ -1590,7 +1592,7 @@ static int paint_smooth_stroke(PaintStroke *stroke, float output[2], wmEvent *ev
 	    !(stroke->brush->flag & BRUSH_ANCHORED) &&
 	    !(stroke->brush->flag & BRUSH_RESTORE_MESH))
 	{
-		float u = stroke->brush->smooth_stroke_factor, v = 1.0 - u;
+		float u = stroke->brush->smooth_stroke_factor, v = 1.0f - u;
 		float dx = stroke->last_mouse_position[0] - event->x, dy = stroke->last_mouse_position[1] - event->y;
 
 		/* If the mouse is moving within the radius of the last move,

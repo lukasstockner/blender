@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/space_buttons/space_buttons.c
+ *  \ingroup spbuttons
+ */
+
 
 #include <string.h>
 #include <stdio.h>
@@ -63,7 +68,7 @@ static SpaceLink *buttons_new(const bContext *C)
 	
 	sbuts= MEM_callocN(sizeof(SpaceButs), "initbuts");
 	sbuts->spacetype= SPACE_BUTS;
-	sbuts->align= BUT_AUTO;
+	sbuts->align= BUT_VERTICAL;
 
 	/* header */
 	ar= MEM_callocN(sizeof(ARegion), "header for buts");
@@ -351,8 +356,12 @@ static void buttons_area_listener(ScrArea *sa, wmNotifier *wmn)
 			}
 			break;
 		case NC_NODE:
-			if(wmn->action==NA_SELECTED)
+			if(wmn->action==NA_SELECTED) {
 				ED_area_tag_redraw(sa);
+				/* new active node, update texture preview */
+				if(sbuts->mainb == BCONTEXT_TEXTURE)
+					sbuts->preview= 1;
+			}
 			break;
 		/* Listener for preview render, when doing an global undo. */
 		case NC_WINDOW:
@@ -396,7 +405,7 @@ void ED_spacetype_buttons(void)
 	/* regions: header */
 	art= MEM_callocN(sizeof(ARegionType), "spacetype buttons region");
 	art->regionid = RGN_TYPE_HEADER;
-	art->prefsizey= BUTS_HEADERY;
+	art->prefsizey= HEADERY;
 	art->keymapflag= ED_KEYMAP_UI|ED_KEYMAP_VIEW2D|ED_KEYMAP_FRAMES|ED_KEYMAP_HEADER;
 	
 	art->init= buttons_header_area_init;

@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -23,6 +23,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/render/render_shading.c
+ *  \ingroup edrend
+ */
+
 
 #include <stdlib.h>
 #include <string.h>
@@ -71,189 +76,16 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "ED_render.h"
 #include "ED_curve.h"
 #include "ED_mesh.h"
+#include "ED_render.h"
+#include "ED_screen.h"
 
 #include "RNA_define.h"
 
 #include "UI_interface.h"
 
 #include "render_intern.h"	// own include
-
-/***************************** Updates ***********************************
- * ED_render_id_flush_update gets called from DAG_id_tag_update, to do *
- * editor level updates when the ID changes. when these ID blocks are in *
- * the dependency graph, we can get rid of the manual dependency checks  */
-
-static int mtex_use_tex(MTex **mtex, int tot, Tex *tex)
-{
-	int a;
-
-	if(!mtex)
-		return 0;
-
-	for(a=0; a<tot; a++)
-		if(mtex[a] && mtex[a]->tex == tex)
-			return 1;
-	
-	return 0;
-}
-
-static int nodes_use_tex(bNodeTree *ntree, Tex *tex)
-{
-	bNode *node;
-
-	for(node=ntree->nodes.first; node; node= node->next) {
-		if(node->id) {
-			if(node->id == (ID*)tex) {
-				return 1;
-			}
-			else if(node->type==NODE_GROUP) {
-				if(nodes_use_tex((bNodeTree *)node->id, tex))
-					return 1;
-			}
-		}
-	}
-
-	return 0;
-}
-
-static void material_changed(Main *bmain, Material *ma)
-{
-	/* icons */
-	BKE_icon_changed(BKE_icon_getid(&ma->id));
-
-	/* glsl */
-	if(ma->gpumaterial.first)
-		GPU_material_free(ma);
-}
-
-static void texture_changed(Main *bmain, Tex *tex)
-{
-	Material *ma;
-	Lamp *la;
-	World *wo;
-
-	/* icons */
-	BKE_icon_changed(BKE_icon_getid(&tex->id));
-
-	/* find materials */
-	for(ma=bmain->mat.first; ma; ma=ma->id.next) {
-		if(mtex_use_tex(ma->mtex, MAX_MTEX, tex));
-		else if(ma->use_nodes && ma->nodetree && nodes_use_tex(ma->nodetree, tex));
-		else continue;
-
-		BKE_icon_changed(BKE_icon_getid(&ma->id));
-
-		if(ma->gpumaterial.first)
-			GPU_material_free(ma);
-	}
-
-	/* find lamps */
-	for(la=bmain->lamp.first; la; la=la->id.next) {
-		if(mtex_use_tex(la->mtex, MAX_MTEX, tex));
-		else continue;
-
-		BKE_icon_changed(BKE_icon_getid(&la->id));
-	}
-
-	/* find worlds */
-	for(wo=bmain->world.first; wo; wo=wo->id.next) {
-		if(mtex_use_tex(wo->mtex, MAX_MTEX, tex));
-		else continue;
-
-		BKE_icon_changed(BKE_icon_getid(&wo->id));
-	}
-}
-
-static void lamp_changed(Main *bmain, Lamp *la)
-{
-	Object *ob;
-	Material *ma;
-
-	/* icons */
-	BKE_icon_changed(BKE_icon_getid(&la->id));
-
-	/* glsl */
-	for(ob=bmain->object.first; ob; ob=ob->id.next)
-		if(ob->data == la && ob->gpulamp.first)
-			GPU_lamp_free(ob);
-
-	for(ma=bmain->mat.first; ma; ma=ma->id.next)
-		if(ma->gpumaterial.first)
-			GPU_material_free(ma);
-}
-
-static void world_changed(Main *bmain, World *wo)
-{
-	Material *ma;
-
-	/* icons */
-	BKE_icon_changed(BKE_icon_getid(&wo->id));
-
-	/* glsl */
-	for(ma=bmain->mat.first; ma; ma=ma->id.next)
-		if(ma->gpumaterial.first)
-			GPU_material_free(ma);
-}
-
-static void image_changed(Main *bmain, Image *ima)
-{
-	Tex *tex;
-
-	/* icons */
-	BKE_icon_changed(BKE_icon_getid(&ima->id));
-
-	/* textures */
-	for(tex=bmain->tex.first; tex; tex=tex->id.next)
-		if(tex->ima == ima)
-			texture_changed(bmain, tex);
-}
-
-static void scene_changed(Main *bmain, Scene *sce)
-{
-	Object *ob;
-	Material *ma;
-
-	/* glsl */
-	for(ob=bmain->object.first; ob; ob=ob->id.next)
-		if(ob->gpulamp.first)
-			GPU_lamp_free(ob);
-
-	for(ma=bmain->mat.first; ma; ma=ma->id.next)
-		if(ma->gpumaterial.first)
-			GPU_material_free(ma);
-}
-
-void ED_render_id_flush_update(Main *bmain, ID *id)
-{
-	if(!id)
-		return;
-
-	switch(GS(id->name)) {
-		case ID_MA:
-			material_changed(bmain, (Material*)id);
-			break;
-		case ID_TE:
-			texture_changed(bmain, (Tex*)id);
-			break;
-		case ID_WO:
-			world_changed(bmain, (World*)id);
-			break;
-		case ID_LA:
-			lamp_changed(bmain, (Lamp*)id);
-			break;
-		case ID_IM:
-			image_changed(bmain, (Image*)id);
-			break;
-		case ID_SCE:
-			scene_changed(bmain, (Scene*)id);
-			break;
-		default:
-			break;
-	}
-}
 
 /********************** material slot operators *********************/
 
@@ -280,6 +112,7 @@ void OBJECT_OT_material_slot_add(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= material_slot_add_exec;
+	ot->poll= ED_operator_object_active_editable;
 
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -315,6 +148,7 @@ void OBJECT_OT_material_slot_remove(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= material_slot_remove_exec;
+	ot->poll= ED_operator_object_active_editable;
 
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -354,7 +188,7 @@ static int material_slot_assign_exec(bContext *C, wmOperator *UNUSED(op))
 
 			if(ef && BKE_font_getselection(ob, &selstart, &selend)) {
 				for(i=selstart; i<=selend; i++)
-					ef->textbufinfo[i].mat_nr = ob->actcol-1;
+					ef->textbufinfo[i].mat_nr = ob->actcol;
 			}
 		}
 	}
@@ -374,6 +208,7 @@ void OBJECT_OT_material_slot_assign(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= material_slot_assign_exec;
+	ot->poll= ED_operator_object_active_editable;
 
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -863,7 +698,7 @@ static int save_envmap(wmOperator *op, Scene *scene, EnvMap *env, char *str, int
 	/* to save, we first get absolute path */
 	BLI_path_abs(str, G.sce);
 	
-	if (BKE_write_ibuf(scene, ibuf, str, imtype, scene->r.subimtype, scene->r.quality)) {
+	if (BKE_write_ibuf(ibuf, str, imtype, scene->r.subimtype, scene->r.quality)) {
 		retval = OPERATOR_FINISHED;
 	}
 	else {
@@ -1146,6 +981,9 @@ static void paste_mtex_copybuf(ID *id)
 		case ID_PA:
 			mtex= &(((ParticleSettings *)id)->mtex[(int)((ParticleSettings *)id)->texact]);
 			break;
+		default:
+			BLI_assert("invalid id type");
+			return;
 	}
 	
 	if(mtex) {
@@ -1245,3 +1083,4 @@ void TEXTURE_OT_slot_paste(wmOperatorType *ot)
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
+

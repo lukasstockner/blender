@@ -13,19 +13,26 @@ subject to the following restrictions:
 */
 
 
-#ifndef btMatrix3x3_H
-#define btMatrix3x3_H
-
-#include "btScalar.h"
+#ifndef	BT_MATRIX3x3_H
+#define BT_MATRIX3x3_H
 
 #include "btVector3.h"
 #include "btQuaternion.h"
 
+#ifdef BT_USE_DOUBLE_PRECISION
+#define btMatrix3x3Data	btMatrix3x3DoubleData 
+#else
+#define btMatrix3x3Data	btMatrix3x3FloatData
+#endif //BT_USE_DOUBLE_PRECISION
 
 
 /**@brief The btMatrix3x3 class implements a 3x3 rotation matrix, to perform linear algebra in combination with btQuaternion, btTransform and btVector3.
  * Make sure to only include a pure orthogonal matrix without scaling. */
 class btMatrix3x3 {
+
+	///Data storage for the matrix, each vector is a row of the matrix
+	btVector3 m_el[3];
+
 	public:
   /** @brief No initializaion constructor */
 		btMatrix3x3 () {}
@@ -103,8 +110,18 @@ class btMatrix3x3 {
    * Equivilant to this = this * m */
 		btMatrix3x3& operator*=(const btMatrix3x3& m); 
 		
-  /** @brief Set from a carray of btScalars 
-   *  @param m A pointer to the beginning of an array of 9 btScalars */
+	/** @brief Adds by the target matrix on the right
+	*  @param m matrix to be applied 
+	* Equivilant to this = this + m */
+	btMatrix3x3& operator+=(const btMatrix3x3& m); 
+
+	/** @brief Substractss by the target matrix on the right
+	*  @param m matrix to be applied 
+	* Equivilant to this = this - m */
+	btMatrix3x3& operator-=(const btMatrix3x3& m); 
+
+	/** @brief Set from the rotational part of a 4x4 OpenGL matrix
+	*  @param m A pointer to the beginning of the array of scalars*/
 	void setFromOpenGLSubMatrix(const btScalar *m)
 		{
 			m_el[0].setValue(m[0],m[4],m[8]);
@@ -201,7 +218,7 @@ class btMatrix3x3 {
 			return identityMatrix;
 		}
 
-  /**@brief Fill the values of the matrix into a 9 element array 
+	/**@brief Fill the rotational part of an OpenGL matrix and clear the shear/perspective
    * @param m The array to be filled */
 		void getOpenGLSubMatrix(btScalar *m) const 
 		{
@@ -290,7 +307,13 @@ class btMatrix3x3 {
    * @param solution_number Which solution of two possible solutions ( 1 or 2) are possible values*/	
   void getEulerZYX(btScalar& yaw, btScalar& pitch, btScalar& roll, unsigned int solution_number = 1) const
   {
-    struct Euler{btScalar yaw, pitch, roll;};
+		struct Euler
+		{
+			btScalar yaw;
+			btScalar pitch;
+			btScalar roll;
+		};
+
     Euler euler_out;
     Euler euler_out2; //second solution
     //get the pointer to the raw data
@@ -475,7 +498,7 @@ class btMatrix3x3 {
 
 
 		
-	protected:
+
   /**@brief Calculate the matrix cofactor 
    * @param r1 The first row to use for calculating the cofactor
    * @param c1 The first column to use for calculating the cofactor
@@ -487,10 +510,20 @@ class btMatrix3x3 {
 		{
 			return m_el[r1][c1] * m_el[r2][c2] - m_el[r1][c2] * m_el[r2][c1];
 		}
-  ///Data storage for the matrix, each vector is a row of the matrix
-		btVector3 m_el[3];
+
+	void	serialize(struct	btMatrix3x3Data& dataOut) const;
+
+	void	serializeFloat(struct	btMatrix3x3FloatData& dataOut) const;
+
+	void	deSerialize(const struct	btMatrix3x3Data& dataIn);
+
+	void	deSerializeFloat(const struct	btMatrix3x3FloatData& dataIn);
+
+	void	deSerializeDouble(const struct	btMatrix3x3DoubleData& dataIn);
+
 	};
 	
+
 	SIMD_FORCE_INLINE btMatrix3x3& 
 	btMatrix3x3::operator*=(const btMatrix3x3& m)
 	{
@@ -500,10 +533,83 @@ class btMatrix3x3 {
 		return *this;
 	}
 	
+SIMD_FORCE_INLINE btMatrix3x3& 
+btMatrix3x3::operator+=(const btMatrix3x3& m)
+{
+	setValue(
+		m_el[0][0]+m.m_el[0][0], 
+		m_el[0][1]+m.m_el[0][1],
+		m_el[0][2]+m.m_el[0][2],
+		m_el[1][0]+m.m_el[1][0], 
+		m_el[1][1]+m.m_el[1][1],
+		m_el[1][2]+m.m_el[1][2],
+		m_el[2][0]+m.m_el[2][0], 
+		m_el[2][1]+m.m_el[2][1],
+		m_el[2][2]+m.m_el[2][2]);
+	return *this;
+}
+
+SIMD_FORCE_INLINE btMatrix3x3
+operator*(const btMatrix3x3& m, const btScalar & k)
+{
+	return btMatrix3x3(
+		m[0].x()*k,m[0].y()*k,m[0].z()*k,
+		m[1].x()*k,m[1].y()*k,m[1].z()*k,
+		m[2].x()*k,m[2].y()*k,m[2].z()*k);
+}
+
+ SIMD_FORCE_INLINE btMatrix3x3 
+operator+(const btMatrix3x3& m1, const btMatrix3x3& m2)
+{
+	return btMatrix3x3(
+	m1[0][0]+m2[0][0], 
+	m1[0][1]+m2[0][1],
+	m1[0][2]+m2[0][2],
+	m1[1][0]+m2[1][0], 
+	m1[1][1]+m2[1][1],
+	m1[1][2]+m2[1][2],
+	m1[2][0]+m2[2][0], 
+	m1[2][1]+m2[2][1],
+	m1[2][2]+m2[2][2]);
+}
+
+SIMD_FORCE_INLINE btMatrix3x3 
+operator-(const btMatrix3x3& m1, const btMatrix3x3& m2)
+{
+	return btMatrix3x3(
+	m1[0][0]-m2[0][0], 
+	m1[0][1]-m2[0][1],
+	m1[0][2]-m2[0][2],
+	m1[1][0]-m2[1][0], 
+	m1[1][1]-m2[1][1],
+	m1[1][2]-m2[1][2],
+	m1[2][0]-m2[2][0], 
+	m1[2][1]-m2[2][1],
+	m1[2][2]-m2[2][2]);
+}
+
+
+SIMD_FORCE_INLINE btMatrix3x3& 
+btMatrix3x3::operator-=(const btMatrix3x3& m)
+{
+	setValue(
+	m_el[0][0]-m.m_el[0][0], 
+	m_el[0][1]-m.m_el[0][1],
+	m_el[0][2]-m.m_el[0][2],
+	m_el[1][0]-m.m_el[1][0], 
+	m_el[1][1]-m.m_el[1][1],
+	m_el[1][2]-m.m_el[1][2],
+	m_el[2][0]-m.m_el[2][0], 
+	m_el[2][1]-m.m_el[2][1],
+	m_el[2][2]-m.m_el[2][2]);
+	return *this;
+}
+
+
 	SIMD_FORCE_INLINE btScalar 
 	btMatrix3x3::determinant() const
 	{ 
-		return triple((*this)[0], (*this)[1], (*this)[2]);
+	return btTriple((*this)[0], (*this)[1], (*this)[2]);
 	}
 	
 
@@ -615,4 +721,51 @@ SIMD_FORCE_INLINE bool operator==(const btMatrix3x3& m1, const btMatrix3x3& m2)
             m1[0][2] == m2[0][2] && m1[1][2] == m2[1][2] && m1[2][2] == m2[2][2] );
 }
 
-#endif
+///for serialization
+struct	btMatrix3x3FloatData
+{
+	btVector3FloatData m_el[3];
+};
+
+///for serialization
+struct	btMatrix3x3DoubleData
+{
+	btVector3DoubleData m_el[3];
+};
+
+
+	
+
+SIMD_FORCE_INLINE	void	btMatrix3x3::serialize(struct	btMatrix3x3Data& dataOut) const
+{
+	for (int i=0;i<3;i++)
+		m_el[i].serialize(dataOut.m_el[i]);
+}
+
+SIMD_FORCE_INLINE	void	btMatrix3x3::serializeFloat(struct	btMatrix3x3FloatData& dataOut) const
+{
+	for (int i=0;i<3;i++)
+		m_el[i].serializeFloat(dataOut.m_el[i]);
+}
+
+
+SIMD_FORCE_INLINE	void	btMatrix3x3::deSerialize(const struct	btMatrix3x3Data& dataIn)
+{
+	for (int i=0;i<3;i++)
+		m_el[i].deSerialize(dataIn.m_el[i]);
+}
+
+SIMD_FORCE_INLINE	void	btMatrix3x3::deSerializeFloat(const struct	btMatrix3x3FloatData& dataIn)
+{
+	for (int i=0;i<3;i++)
+		m_el[i].deSerializeFloat(dataIn.m_el[i]);
+}
+
+SIMD_FORCE_INLINE	void	btMatrix3x3::deSerializeDouble(const struct	btMatrix3x3DoubleData& dataIn)
+{
+	for (int i=0;i<3;i++)
+		m_el[i].deSerializeDouble(dataIn.m_el[i]);
+}
+
+#endif //BT_MATRIX3x3_H
+

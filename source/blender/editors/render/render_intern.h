@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/render/render_intern.h
+ *  \ingroup edrend
+ */
+
 
 #ifndef RENDER_INTERN_H
 #define RENDER_INTERN_H
@@ -60,13 +65,16 @@ void TEXTURE_OT_envmap_clear(struct wmOperatorType *ot);
 void TEXTURE_OT_envmap_clear_all(struct wmOperatorType *ot);
 
 /* render_internal.c */
-void RENDER_OT_view_show(struct wmOperatorType *ot);
 void RENDER_OT_render(struct wmOperatorType *ot);
-void RENDER_OT_view_cancel(struct wmOperatorType *ot);
 
-/*render_opengl.c uses these */
+/* render_opengl.c uses this */
 void image_buffer_rect_update(struct Scene *scene, struct RenderResult *rr, struct ImBuf *ibuf, volatile struct rcti *renrect);
-void screen_set_image_output(struct bContext *C, int mx, int my);
+
+/* render_view.c */
+void render_view_open(struct bContext *C, int mx, int my);
+
+void RENDER_OT_view_show(struct wmOperatorType *ot);
+void RENDER_OT_view_cancel(struct wmOperatorType *ot);
 
 /* render_opengl.c */
 void RENDER_OT_opengl(struct wmOperatorType *ot);

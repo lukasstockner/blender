@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -22,6 +22,11 @@
  * ***** END GPL LICENSE BLOCK *****
  * autoarmature.c: Interface for automagically manipulating armature (retarget, created, ...)
  */
+
+/** \file blender/editors/armature/editarmature_retarget.c
+ *  \ingroup edarmature
+ */
+
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -1429,7 +1434,7 @@ static void RIG_printNode(RigNode *node, const char name[])
 	}
 }
 
-static void RIG_printArcBones(RigArc *arc)
+void RIG_printArcBones(RigArc *arc)
 {
 	RigEdge *edge;
 
@@ -1480,7 +1485,7 @@ static void RIG_printLinkedCtrl(RigGraph *rg, EditBone *bone, int tabs)
 	}
 }
 
-static void RIG_printArc(RigGraph *rg, RigArc *arc)
+void RIG_printArc(RigGraph *rg, RigArc *arc)
 {
 	RigEdge *edge;
 
@@ -1502,7 +1507,7 @@ static void RIG_printArc(RigGraph *rg, RigArc *arc)
 	RIG_printNode((RigNode*)arc->tail, "tail");
 }
 
-static void RIG_printGraph(RigGraph *rg)
+void RIG_printGraph(RigGraph *rg)
 {
 	RigArc *arc;
 
@@ -1656,6 +1661,7 @@ static EditBone *add_editbonetolist(char *name, ListBase *list)
 }
 #endif
 
+#if 0 /* UNUSED */
 static void generateMissingArcsFromNode(RigGraph *rigg, ReebNode *node, int multi_level_limit)
 {
 	while (node->multi_level > multi_level_limit && node->link_up)
@@ -1708,6 +1714,7 @@ static void generateMissingArcs(RigGraph *rigg)
 		}
 	}
 }
+#endif
 
 /************************************ RETARGETTING *****************************************************/
 
@@ -2801,7 +2808,7 @@ static void BIF_freeRetarget(void)
 	}
 }
 
-static void BIF_retargetArmature(bContext *C)
+void BIF_retargetArmature(bContext *C)
 {
 	ReebGraph *reebg;
 	double start_time, end_time;
@@ -2934,7 +2941,7 @@ void BIF_retargetArc(bContext *C, ReebArc *earc, RigGraph *template_rigg)
 //	allqueue(REDRAWVIEW3D, 0);
 }
 
-static void BIF_adjustRetarget(bContext *C)
+void BIF_adjustRetarget(bContext *C)
 {
 	if (GLOBAL_RIGG)
 	{

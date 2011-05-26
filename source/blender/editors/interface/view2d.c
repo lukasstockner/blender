@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/editors/interface/view2d.c
+ *  \ingroup edinterface
+ */
+
+
 #include <float.h>
 #include <limits.h>
 #include <math.h>
@@ -39,6 +44,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.h"
+#include "BKE_screen.h"
 #include "BKE_global.h"
 
 
@@ -991,12 +997,12 @@ void UI_view2d_view_ortho(View2D *v2d)
 	
 	/* XXX ton: this flag set by outliner, for icons */
 	if(v2d->flag & V2D_PIXELOFS_X) {
-		curmasked.xmin= floor(curmasked.xmin) - 0.001f;
-		curmasked.xmax= floor(curmasked.xmax) - 0.001f;
+		curmasked.xmin= floorf(curmasked.xmin) - 0.001f;
+		curmasked.xmax= floorf(curmasked.xmax) - 0.001f;
 	}
 	if(v2d->flag & V2D_PIXELOFS_Y) {
-		curmasked.ymin= floor(curmasked.ymin) - 0.001f;
-		curmasked.ymax= floor(curmasked.ymax) - 0.001f;
+		curmasked.ymin= floorf(curmasked.ymin) - 0.001f;
+		curmasked.ymax= floorf(curmasked.ymax) - 0.001f;
 	}
 	
 	/* set matrix on all appropriate axes */
@@ -1810,8 +1816,8 @@ void UI_view2d_listview_view_to_cell(View2D *v2d, short columnwidth, short rowhe
 						float viewx, float viewy, int *column, int *row)
 {
 	/* adjust view coordinates to be all positive ints, corrected for the start offset */
-	const int x= (int)(floor(fabs(viewx) + 0.5f) - startx); 
-	const int y= (int)(floor(fabs(viewy) + 0.5f) - starty);
+	const int x= (int)(floorf(fabsf(viewx) + 0.5f) - startx);
+	const int y= (int)(floorf(fabsf(viewy) + 0.5f) - starty);
 	
 	/* sizes must not be negative */
 	if ( (v2d == NULL) || ((columnwidth <= 0) && (rowheight <= 0)) ) {
@@ -1954,17 +1960,14 @@ View2D *UI_view2d_fromcontext(const bContext *C)
 /* same as above, but it returns regionwindow. Utility for pulldowns or buttons */
 View2D *UI_view2d_fromcontext_rwin(const bContext *C)
 {
-	ScrArea *area= CTX_wm_area(C);
+	ScrArea *sa= CTX_wm_area(C);
 	ARegion *region= CTX_wm_region(C);
 
-	if (area == NULL) return NULL;
+	if (sa == NULL) return NULL;
 	if (region == NULL) return NULL;
 	if (region->regiontype!=RGN_TYPE_WINDOW) {
-		ARegion *ar= area->regionbase.first;
-		for(; ar; ar= ar->next)
-			if(ar->regiontype==RGN_TYPE_WINDOW)
-				return &(ar->v2d);
-		return NULL;
+		ARegion *ar= BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
+		return ar ? &(ar->v2d) : NULL;
 	}
 	return &(region->v2d);
 }
@@ -2023,7 +2026,7 @@ typedef struct View2DString {
 		unsigned char ub[4];
 		int pack;
 	} col;
-	short mval[2];
+	int mval[2];
 	rcti rect;
 } View2DString;
 

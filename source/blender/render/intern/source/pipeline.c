@@ -1,4 +1,4 @@
-/**  
+/*  
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -26,10 +26,16 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/render/intern/source/pipeline.c
+ *  \ingroup render
+ */
+
+
 #include <math.h>
 #include <limits.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stddef.h>
 
 #include "DNA_group_types.h"
 #include "DNA_image_types.h"
@@ -41,18 +47,18 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_utildefines.h"
+#include "BKE_animsys.h"	/* <------ should this be here?, needed for sequencer update */
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
 #include "BKE_object.h"
+#include "BKE_pointcache.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-#include "BKE_writeavi.h"	/* <------ should be replaced once with generic movie module */
 #include "BKE_sequencer.h"
-#include "BKE_pointcache.h"
-#include "BKE_animsys.h"	/* <------ should this be here?, needed for sequencer update */
+#include "BKE_utildefines.h"
+#include "BKE_writeavi.h"	/* <------ should be replaced once with generic movie module */
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -167,6 +173,7 @@ static void stats_background(void *unused, RenderStats *rs)
 		else 
 			fprintf(stdout, "Sce: %s Ve:%d Fa:%d La:%d", rs->scenename, rs->totvert, rs->totface, rs->totlamp);
 	}
+	fputc('\n', stdout);
 	fflush(stdout);
 }
 
@@ -1383,6 +1390,12 @@ void RE_progress_cb(Render *re, void *handle, void (*f)(void *handle, float))
 	re->prh= handle;
 }
 
+void RE_draw_lock_cb(Render *re, void *handle, void (*f)(void *handle, int i))
+{
+	re->draw_lock= f;
+	re->tbh= handle;
+}
+
 void RE_test_break_cb(Render *re, void *handle, int (*f)(void *handle))
 {
 	re->test_break= f;
@@ -1768,11 +1781,19 @@ static void do_render_3d(Render *re)
 //	re->cfra= cfra;	/* <- unused! */
 	re->scene->r.subframe = re->mblur_offs + re->field_offs;
 	
+	/* lock drawing in UI during data phase */
+	if(re->draw_lock)
+		re->draw_lock(re->dlh, 1);
+	
 	/* make render verts/faces/halos/lamps */
 	if(render_scene_needs_vector(re))
 		RE_Database_FromScene_Vectors(re, re->main, re->scene, re->lay);
 	else
 	   RE_Database_FromScene(re, re->main, re->scene, re->lay, 1);
+	
+	/* clear UI drawing locks */
+	if(re->draw_lock)
+		re->draw_lock(re->dlh, 0);
 	
 	threaded_tile_processor(re);
 	
@@ -1954,6 +1975,7 @@ static void merge_renderresult_fields(RenderResult *rr, RenderResult *rr1, Rende
 /* interleaves 2 frames */
 static void do_render_fields_3d(Render *re)
 {
+	Object *camera= RE_GetCamera(re);
 	RenderResult *rr1, *rr2= NULL;
 	
 	/* no render result was created, we can safely halve render y */
@@ -1965,7 +1987,7 @@ static void do_render_fields_3d(Render *re)
 	re->i.curfield= 1;	/* stats */
 	
 	/* first field, we have to call camera routine for correct aspect and subpixel offset */
-	RE_SetCamera(re, re->scene->camera);
+	RE_SetCamera(re, camera);
 	if(re->r.mode & R_MBLUR)
 		do_render_blur_3d(re);
 	else
@@ -1985,7 +2007,7 @@ static void do_render_fields_3d(Render *re)
 		if((re->r.mode & R_FIELDSTILL)==0) {
 			re->field_offs = 0.5f;
 		}
-		RE_SetCamera(re, re->scene->camera);
+		RE_SetCamera(re, camera);
 		if(re->r.mode & R_MBLUR)
 			do_render_blur_3d(re);
 		else
@@ -2060,8 +2082,9 @@ static void load_backbuffer(Render *re)
 /* main render routine, no compositing */
 static void do_render_fields_blur_3d(Render *re)
 {
+	Object *camera= RE_GetCamera(re);
 	/* also check for camera here */
-	if(re->scene->camera==NULL) {
+	if(camera == NULL) {
 		printf("ERROR: Cannot render, no camera\n");
 		G.afbreek= 1;
 		return;
@@ -2072,7 +2095,7 @@ static void do_render_fields_blur_3d(Render *re)
 		load_backbuffer(re);
 
 	/* now use renderdata and camera to set viewplane */
-	RE_SetCamera(re, re->scene->camera);
+	RE_SetCamera(re, camera);
 	
 	if(re->r.mode & R_FIELDS)
 		do_render_fields_3d(re);
@@ -2134,6 +2157,8 @@ static void render_scene(Render *re, Scene *sce, int cfra)
 	
 	sce->r.cfra= cfra;
 		
+	scene_camera_switch_update(sce);
+
 	/* exception: scene uses own size (unfinished code) */
 	if(0) {
 		winx= (sce->r.size*sce->r.xsch)/100;
@@ -2267,9 +2292,12 @@ static void do_merge_fullsample(Render *re, bNodeTree *ntree)
 			
 			tag_scenes_for_render(re);
 			for(re1= RenderGlobal.renderlist.first; re1; re1= re1->next) {
-				if(re1->scene->id.flag & LIB_DOIT)
-					if(re1->r.scemode & R_FULL_SAMPLE)
+				if(re1->scene->id.flag & LIB_DOIT) {
+					if(re1->r.scemode & R_FULL_SAMPLE) {
 						read_render_result(re1, sample);
+						ntreeCompositTagRender(re1->scene); /* ensure node gets exec to put buffers on stack */
+			}
+		}
 			}
 		}
 
@@ -2435,14 +2463,13 @@ static void do_render_composite_fields_blur_3d(Render *re)
 	re->display_draw(re->ddh, re->result, NULL);
 }
 
-static void renderresult_stampinfo(Scene *scene)
+static void renderresult_stampinfo(Render *re)
 {
 	RenderResult rres;
-	Render *re= RE_GetRender(scene->id.name);
 
 	/* this is the basic trick to get the displayed float or char rect from render result */
 	RE_AcquireResultImage(re, &rres);
-	BKE_stamp_buf(scene, (unsigned char *)rres.rect32, rres.rectf, rres.rectx, rres.recty, 4);
+	BKE_stamp_buf(re->scene, RE_GetCamera(re), (unsigned char *)rres.rect32, rres.rectf, rres.rectx, rres.recty, 4);
 	RE_ReleaseResultImage(re);
 }
 
@@ -2590,19 +2617,33 @@ static void do_render_all_options(Render *re)
 	
 	/* stamp image info here */
 	if((re->r.stamp & R_STAMP_ALL) && (re->r.stamp & R_STAMP_DRAW)) {
-		renderresult_stampinfo(re->scene);
+		renderresult_stampinfo(re);
 		re->display_draw(re->ddh, re->result, NULL);
 	}
 }
 
-static int is_rendering_allowed(Render *re)
+static int check_valid_camera(Scene *scene, Object *camera_override)
 {
 	SceneRenderLayer *srl;
 	
-	/* forbidden combinations */
-	if(re->r.mode & R_PANORAMA) {
-		if(re->r.mode & R_BORDER) {
-			re->error(re->erh, "No border supported for Panorama");
+	if (camera_override == NULL && scene->camera == NULL)
+		scene->camera= scene_find_camera(scene);
+
+	if(scene->r.scemode&R_DOSEQ) {
+		if(scene->ed) {
+			Sequence *seq= scene->ed->seqbase.first;
+
+			check_comp= 0;
+
+			while(seq) {
+				if(seq->type == SEQ_SCENE) {
+					if(!seq->scene_camera) {
+						if(!seq->scene->camera && !scene_find_camera(seq->scene)) {
+							if(seq->scene == scene) {
+								/* for current scene camera could be unneeded due to compisite nodes */
+								check_comp= 1;
+							} else {
+								/* for other scenes camera is necessary */
 			return 0;
 		}
 		if(re->r.mode & R_ORTHO) {
@@ -2613,23 +2654,17 @@ static int is_rendering_allowed(Render *re)
 	
 				node= node->next;
 			}
-		} else return scene->camera != NULL;
+		} else {
+			return (camera_override != NULL || scene->camera != NULL);
+	}
 	}
 
 	return 1;
 }
 
-int RE_is_rendering_allowed(Scene *scene, void *erh, void (*error)(void *handle, const char *str))
+int RE_is_rendering_allowed(Scene *scene, Object *camera_override, void *erh, void (*error)(void *handle, const char *str))
 {
 	SceneRenderLayer *srl;
-	
-	/* forbidden combinations */
-	if(scene->r.mode & R_PANORAMA) {
-		if(scene->r.mode & R_ORTHO) {
-			error(erh, "No Ortho render possible for Panorama");
-			return 0;
-		}
-	}
 	
 	if(re->r.scemode & (R_EXR_TILE_FILE|R_FULL_SAMPLE)) {
 		char str[FILE_MAX];
@@ -2684,16 +2719,23 @@ int RE_is_rendering_allowed(Scene *scene, void *erh, void (*error)(void *handle,
 	}
 	
 	 /* check valid camera, without camera render is OK (compo, seq) */
-	if(re->scene->camera==NULL)
-		re->scene->camera= scene_find_camera(re->scene);
-	
-	if(!(re->r.scemode & (R_DOSEQ|R_DOCOMP))) {
-		if(re->scene->camera==NULL) {
-			re->error(re->erh, "No camera");
+	if(!check_valid_camera(scene, camera_override)) {
+		error(erh, "No camera");
 			return 0;
 		}
 	}
 	
+	/* get panorama & ortho, only after camera is set */
+	object_camera_mode(&scene->r, camera_override ? camera_override : scene->camera);
+
+	/* forbidden combinations */
+	if(scene->r.mode & R_PANORAMA) {
+		if(scene->r.mode & R_ORTHO) {
+			error(erh, "No Ortho render possible for Panorama");
+			return 0;
+		}
+	}
+
 	/* layer flag tests */
 	if(re->r.scemode & R_SINGLE_LAYER) {
 		srl= BLI_findlink(&re->scene->r.layers, re->r.actlay);
@@ -2735,7 +2777,7 @@ static void update_physics_cache(Render *re, Scene *scene, int anim_init)
 	BKE_ptcache_bake(&baker);
 }
 /* evaluating scene options for general Blender render */
-static int render_initialize_from_main(Render *re, Main *bmain, Scene *scene, SceneRenderLayer *srl, unsigned int lay, int anim, int anim_init)
+static int render_initialize_from_main(Render *re, Main *bmain, Scene *scene, SceneRenderLayer *srl, Object *camera_override, unsigned int lay, int anim, int anim_init)
 {
 	int winx, winy;
 	rcti disprect;
@@ -2763,6 +2805,7 @@ static int render_initialize_from_main(Render *re, Main *bmain, Scene *scene, Sc
 	
 	re->main= bmain;
 	re->scene= scene;
+	re->camera_override= camera_override;
 	re->lay= lay;
 	
 	/* not too nice, but it survives anim-border render */
@@ -2804,14 +2847,14 @@ static int render_initialize_from_main(Render *re, Main *bmain, Scene *scene, Sc
 }
 
 /* general Blender frame render call */
-void RE_BlenderFrame(Render *re, Main *bmain, Scene *scene, SceneRenderLayer *srl, unsigned int lay, int frame, const short write_still)
+void RE_BlenderFrame(Render *re, Main *bmain, Scene *scene, SceneRenderLayer *srl, Object *camera_override, unsigned int lay, int frame, const short write_still)
 {
 	/* ugly global still... is to prevent preview events and signal subsurfs etc to make full resol */
 	G.rendering= 1;
 	
 	scene->r.cfra= frame;
 	
-	if(render_initialize_from_main(re, bmain, scene, srl, lay, 0, 0)) {
+	if(render_initialize_from_main(re, bmain, scene, srl, camera_override, lay, 0, 0)) {
 		MEM_reset_peak_memory();
 		do_render_all_options(re);
 
@@ -2838,6 +2881,7 @@ static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, R
 {
 	char name[FILE_MAX];
 	RenderResult rres;
+	Object *camera= RE_GetCamera(re);
 	int ok= 1;
 	
 	RE_AcquireResultImage(re, &rres);
@@ -2892,7 +2936,7 @@ static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, R
 				}
 			}
 
-			ok= BKE_write_ibuf(scene, ibuf, name, scene->r.imtype, scene->r.subimtype, scene->r.quality);
+			ok= BKE_write_ibuf_stamp(scene, camera, ibuf, name, scene->r.imtype, scene->r.subimtype, scene->r.quality);
 			
 			if(ok==0) {
 				printf("Render error: cannot save %s\n", name);
@@ -2905,7 +2949,7 @@ static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, R
 					name[strlen(name)-4]= 0;
 				BKE_add_image_extension(name, R_JPEG90);
 				ibuf->depth= 24; 
-				BKE_write_ibuf(scene, ibuf, name, R_JPEG90, scene->r.subimtype, scene->r.quality);
+				BKE_write_ibuf_stamp(scene, camera, ibuf, name, R_JPEG90, scene->r.subimtype, scene->r.quality);
 				printf("\nSaved: %s", name);
 			}
 			
@@ -2924,14 +2968,14 @@ static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, R
 }
 
 /* saves images to disk */
-void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, unsigned int lay, int sfra, int efra, int tfra, ReportList *reports)
+void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_override, unsigned int lay, int sfra, int efra, int tfra, ReportList *reports)
 {
 	bMovieHandle *mh= BKE_get_movie_handle(scene->r.imtype);
 	int cfrao= scene->r.cfra;
 	int nfra;
 	
 	/* do not fully call for each frame, it initializes & pops output window */
-	if(!render_initialize_from_main(re, bmain, scene, NULL, lay, 0, 1))
+	if(!render_initialize_from_main(re, bmain, scene, NULL, camera_override, lay, 0, 1))
 		return;
 	
 	/* ugly global still... is to prevent renderwin events and signal subsurfs etc to make full resol */
@@ -2964,7 +3008,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, unsigned int lay, int
 			char name[FILE_MAX];
 			
 			/* only border now, todo: camera lens. (ton) */
-			render_initialize_from_main(re, bmain, scene, NULL, lay, 1, 0);
+			render_initialize_from_main(re, bmain, scene, NULL, camera_override, lay, 1, 0);
 
 			if(nfra!=scene->r.cfra) {
 				/*
@@ -3037,6 +3081,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, unsigned int lay, int
 
 void RE_PreviewRender(Render *re, Main *bmain, Scene *sce)
 {
+	Object *camera;
 	int winx, winy;
 
 	winx= (sce->r.size*sce->r.xsch)/100;
@@ -3048,7 +3093,8 @@ void RE_PreviewRender(Render *re, Main *bmain, Scene *sce)
 	re->scene = sce;
 	re->lay = sce->lay;
 
-	RE_SetCamera(re, sce->camera);
+	camera = RE_GetCamera(re);
+	RE_SetCamera(re, camera);
 
 	do_render_3d(re);
 }
@@ -3260,12 +3306,8 @@ void RE_result_load_from_file(RenderResult *result, ReportList *reports, const c
 
 static int external_render_3d(Render *re, int do_all)
 {
-	RenderEngineType *type;
+	RenderEngineType *type= BLI_findstring(&R_engines, re->r.engine, offsetof(RenderEngineType, idname));
 	RenderEngine engine;
-
-	for(type=R_engines.first; type; type=type->next)
-		if(strcmp(type->idname, re->r.engine) == 0)
-			break;
 
 	if(!(type && type->render))
 		return 0;

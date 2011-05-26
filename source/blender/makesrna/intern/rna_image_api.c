@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  * 
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/makesrna/intern/rna_image_api.c
+ *  \ingroup RNA
+ */
+
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -74,7 +79,7 @@ static void rna_Image_save_render(Image *image, bContext *C, ReportList *reports
 			BKE_reportf(reports, RPT_ERROR, "Couldn't acquire buffer from image");
 		}
 
-		if (!BKE_write_ibuf(NULL, ibuf, path, scene->r.imtype, scene->r.subimtype, scene->r.quality)) {
+			if (!BKE_write_ibuf(ibuf, path, scene->r.imtype, scene->r.subimtype, scene->r.quality)) {
 			BKE_reportf(reports, RPT_ERROR, "Couldn't write image: %s", path);
 		}
 

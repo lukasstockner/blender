@@ -1,4 +1,4 @@
-/**
+/*
  * fluidsim.c
  * 
  * $Id$
@@ -28,6 +28,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/physics/physics_fluid.c
+ *  \ingroup edphys
+ */
+
 
 
 
@@ -78,10 +83,11 @@
 
 #include "LBM_fluidsim.h"
 
-
 #include "ED_screen.h"
+#include "ED_fluidsim.h"
 
 #include "WM_types.h"
+#include "WM_api.h"
 
 #include "physics_intern.h" // own include
 
@@ -437,15 +443,20 @@ static void fluid_init_all_channels(bContext *C, Object *fsDomain, FluidsimSetti
 			Object *ob = fobj->object;
 			FluidsimModifierData *fluidmd = (FluidsimModifierData *)modifiers_findByType(ob, eModifierType_Fluidsim);
 			float active= (float)(fluidmd->fss->flag & OB_FLUIDSIM_ACTIVE);
-			float rot_d[3], rot_360[3] = {360.f, 360.f, 360.f};
+			float rot_d[3], old_rot[3] = {0.f, 0.f, 0.f};
 			
 			if (ELEM(fluidmd->fss->type, OB_FLUIDSIM_DOMAIN, OB_FLUIDSIM_PARTICLE))
 				continue;
 			
 			/* init euler rotation values and convert to elbeem format */
-			BKE_rotMode_change_values(ob->quat, ob->rot, ob->rotAxis, &ob->rotAngle, ob->rotmode, ROT_MODE_EUL);
-			mul_v3_v3fl(rot_d, ob->rot, 180.f/M_PI);
-			sub_v3_v3v3(rot_d, rot_360, rot_d);
+			/* get the rotation from ob->obmat rather than ob->rot to account for parent animations */
+			if(i) {
+				copy_v3_v3(old_rot, fobj->Rotation + 4*(i-1));
+				mul_v3_fl(old_rot, -M_PI/180.f);
+			}
+			
+			mat4_to_compatible_eulO(rot_d, old_rot, 0, ob->obmat);
+			mul_v3_fl(rot_d, -180.f/M_PI);
 			
 			set_channel(fobj->Translation, timeAtFrame, ob->loc, i, CHANNEL_VEC);
 			set_channel(fobj->Rotation, timeAtFrame, rot_d, i, CHANNEL_VEC);
@@ -643,7 +654,7 @@ static int fluid_init_filepaths(Object *fsDomain, char *targetDir, char *targetF
 	BLI_path_abs(targetDir, G.sce); // fixed #frame-no 
 	
 	// .tmp: dont overwrite/delete original file
-	BLI_snprintf(targetFile, sizeof(targetFile), "%s%s.tmp", targetDir, suffixConfig);
+	BLI_snprintf(targetFile, FILE_MAXDIR+FILE_MAXFILE, "%s%s.tmp", targetDir, suffixConfig);
 
 	// make sure all directories exist
 	// as the bobjs use the same dir, this only needs to be checked
@@ -664,13 +675,13 @@ static int fluid_init_filepaths(Object *fsDomain, char *targetDir, char *targetF
 		char blendFile[FILE_MAXDIR+FILE_MAXFILE];
 		
 		// invalid dir, reset to current/previous
-		BLI_strncpy(blendDir, G.main->name, sizeof(blendDir));
+		BLI_strncpy(blendDir, G.main->name, FILE_MAXDIR+FILE_MAXFILE);
 		BLI_splitdirstring(blendDir, blendFile);
-		BLI_replace_extension(blendFile, sizeof(blendFile), ""); /* strip .blend */
+		BLI_replace_extension(blendFile, FILE_MAXDIR+FILE_MAXFILE, ""); /* strip .blend */
 		
-		BLI_snprintf(newSurfdataPath, sizeof(newSurfdataPath) ,"//fluidsimdata/%s_%s_", blendFile, fsDomain->id.name);
+		BLI_snprintf(newSurfdataPath, FILE_MAXDIR+FILE_MAXFILE ,"//fluidsimdata/%s_%s_", blendFile, fsDomain->id.name);
 		
-		BLI_snprintf(debugStrBuffer, sizeof(debugStrBuffer), "fluidsimBake::error - warning resetting output dir to '%s'\n", newSurfdataPath);
+		BLI_snprintf(debugStrBuffer, 256, "fluidsimBake::error - warning resetting output dir to '%s'\n", newSurfdataPath);
 		elbeemDebugOut(debugStrBuffer);
 		outStringsChanged=1;
 	}
@@ -798,7 +809,7 @@ static void fluidbake_free_data(FluidAnimChannels *channels, ListBase *fobjects,
 	}
 }
 
-int fluidsimBake(bContext *C, ReportList *reports, Object *fsDomain)
+static int fluidsimBake(bContext *C, ReportList *reports, Object *fsDomain)
 {
 	Scene *scene= CTX_data_scene(C);
 	int i;
@@ -952,7 +963,7 @@ int fluidsimBake(bContext *C, ReportList *reports, Object *fsDomain)
 
 	/* ********  start writing / exporting ******** */
 	// use .tmp, dont overwrite/delete original file
-	BLI_snprintf(targetFile, sizeof(targetFile), "%s%s.tmp", targetDir, suffixConfig);
+	BLI_snprintf(targetFile, 240, "%s%s.tmp", targetDir, suffixConfig);
 	
 	// make sure these directories exist as well
 	if(outStringsChanged) {
@@ -980,7 +991,7 @@ int fluidsimBake(bContext *C, ReportList *reports, Object *fsDomain)
 	fsset->aniFrameTime = channels->aniFrameTime;
 	fsset->noOfFrames = noFrames; // is otherwise subtracted in parser
 
-	BLI_snprintf(targetFile, sizeof(targetFile), "%s%s", targetDir, suffixSurface);
+	BLI_snprintf(targetFile, 240, "%s%s", targetDir, suffixSurface);
 
 	// defaults for compressibility and adaptive grids
 	fsset->gstar = domainSettings->gstar;
@@ -990,7 +1001,7 @@ int fluidsimBake(bContext *C, ReportList *reports, Object *fsDomain)
 	fsset->surfaceSmoothing = domainSettings->surfaceSmoothing; 
 	fsset->surfaceSubdivs = domainSettings->surfaceSubdivs; 
 	fsset->farFieldSize = domainSettings->farFieldSize; 
-	BLI_strncpy(fsset->outputPath, targetFile, sizeof(fsset->outputPath));
+	BLI_strncpy(fsset->outputPath, targetFile, 240);
 
 	// domain channels
 	fsset->channelSizeFrameTime = 
@@ -1050,16 +1061,16 @@ void fluidsimFreeBake(Object *ob)
 
 /* compile dummy functions for disabled fluid sim */
 
-static FluidsimSettings *fluidsimSettingsNew(Object *UNUSED(srcob))
+FluidsimSettings *fluidsimSettingsNew(Object *UNUSED(srcob))
 {
 	return NULL;
 }
 
-static void fluidsimSettingsFree(FluidsimSettings *UNUSED(fss))
+void fluidsimSettingsFree(FluidsimSettings *UNUSED(fss))
 {
 }
 
-static FluidsimSettings* fluidsimSettingsCopy(FluidsimSettings *UNUSED(fss))
+FluidsimSettings* fluidsimSettingsCopy(FluidsimSettings *UNUSED(fss))
 {
 	return NULL;
 }
@@ -1070,19 +1081,17 @@ static int fluidsimBake(bContext *UNUSED(C), ReportList *UNUSED(reports), Object
 	return 0;
 }
 
-static void fluidsimFreeBake(Object *UNUSED(ob))
-{
-}
-
 #endif /* DISABLE_ELBEEM */
 
 /***************************** Operators ******************************/
 
 static int fluid_bake_exec(bContext *C, wmOperator *op)
 {
-	Object *ob= CTX_data_active_object(C);
+	/* only one bake job at a time */
+	if(WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C)))
+		return 0;
 
-	if(!fluidsimBake(C, op->reports, ob))
+	if(!fluidsimBake(C, op->reports, CTX_data_active_object(C)))
 		return OPERATOR_CANCELLED;
 
 	return OPERATOR_FINISHED;

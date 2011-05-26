@@ -1,4 +1,4 @@
-/**
+/*
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/render/intern/source/volumetric.c
+ *  \ingroup render
+ */
+
 
 #include <math.h>
 #include <stdlib.h>
@@ -300,7 +305,7 @@ float vol_get_density(struct ShadeInput *shi, float *co)
 /* Color of light that gets scattered out by the volume */
 /* Uses same physically based scattering parameter as in transmission calculations, 
  * along with artificial reflection scale/reflection color tint */
-void vol_get_reflection_color(ShadeInput *shi, float *ref_col, float *co)
+static void vol_get_reflection_color(ShadeInput *shi, float *ref_col, float *co)
 {
 	float scatter = shi->mat->vol.scattering;
 	float reflection= shi->mat->vol.reflection;
@@ -320,7 +325,7 @@ void vol_get_reflection_color(ShadeInput *shi, float *ref_col, float *co)
 
 /* compute emission component, amount of radiance to add per segment
  * can be textured with 'emit' */
-void vol_get_emission(ShadeInput *shi, float *emission_col, float *co)
+static void vol_get_emission(ShadeInput *shi, float *emission_col, float *co)
 {
 	float emission = shi->mat->vol.emission;
 	VECCOPY(emission_col, shi->mat->vol.emission_col);
@@ -338,7 +343,7 @@ void vol_get_emission(ShadeInput *shi, float *emission_col, float *co)
  * This can possibly use a specific scattering color, 
  * and absorption multiplier factor too, but these parameters are left out for simplicity.
  * It's easy enough to get a good wide range of results with just these two parameters. */
-void vol_get_sigma_t(ShadeInput *shi, float *sigma_t, float *co)
+static void vol_get_sigma_t(ShadeInput *shi, float *sigma_t, float *co)
 {
 	/* technically absorption, but named transmission color 
 	 * since it describes the effect of the coloring *after* absorption */
@@ -356,7 +361,7 @@ void vol_get_sigma_t(ShadeInput *shi, float *sigma_t, float *co)
 /* phase function - determines in which directions the light 
  * is scattered in the volume relative to incoming direction 
  * and view direction */
-float vol_get_phasefunc(ShadeInput *shi, float g, float *w, float *wp)
+static float vol_get_phasefunc(ShadeInput *UNUSED(shi), float g, float *w, float *wp)
 {
 	const float normalize = 0.25f; // = 1.f/4.f = M_PI/(4.f*M_PI)
 	
@@ -403,7 +408,7 @@ float vol_get_phasefunc(ShadeInput *shi, float g, float *w, float *wp)
 }
 
 /* Compute transmittance = e^(-attenuation) */
-void vol_get_transmittance_seg(ShadeInput *shi, float *tr, float stepsize, float *co, float density)
+static void vol_get_transmittance_seg(ShadeInput *shi, float *tr, float stepsize, float *co, float density)
 {
 	/* input density = density at co */
 	float tau[3] = {0.f, 0.f, 0.f};
@@ -459,7 +464,7 @@ static void vol_get_transmittance(ShadeInput *shi, float *tr, float *co, float *
 	tr[2] = expf(-tau[2]);
 }
 
-void vol_shade_one_lamp(struct ShadeInput *shi, float *co, LampRen *lar, float *lacol)
+static void vol_shade_one_lamp(struct ShadeInput *shi, float *co, LampRen *lar, float *lacol)
 {
 	float visifac, lv[3], lampdist;
 	float tr[3]={1.0,1.0,1.0};

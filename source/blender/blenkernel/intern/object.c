@@ -29,6 +29,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/blenkernel/intern/object.c
+ *  \ingroup bke
+ */
+
+
 #include <string.h>
 #include <math.h>
 #include <stdio.h>			
@@ -92,10 +97,11 @@
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
 #include "BKE_softbody.h"
+#include "BKE_material.h"
 
 #include "LBM_fluidsim.h"
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 #include "BPY_extern.h"
 #endif
 
@@ -203,8 +209,8 @@ void object_link_modifiers(struct Object *ob, struct Object *from)
 		BLI_addtail(&ob->modifiers, nmd);
 	}
 
-	copy_object_particlesystems(from, ob);
-	copy_object_softbody(from, ob);
+	copy_object_particlesystems(ob, from);
+	copy_object_softbody(ob, from);
 
 	// TODO: smoke?, cloth?
 }
@@ -326,7 +332,7 @@ static void unlink_object__unlinkModifierLinks(void *userData, Object *ob, Objec
 	}
 }
 
-void unlink_object(Scene *scene, Object *ob)
+void unlink_object(Object *ob)
 {
 	Main *bmain= G.main;
 	Object *obt;
@@ -542,7 +548,7 @@ void unlink_object(Scene *scene, Object *ob)
 		if(tex->env && (ob==tex->env->object)) tex->env->object= NULL;
 		if(tex->pd  && (ob==tex->pd->object))  tex->pd->object= NULL;
 		if(tex->vd  && (ob==tex->vd->object))  tex->vd->object= NULL;
-		}
+	}
 
 	/* worlds */
 	wrld= bmain->world.first;
@@ -721,7 +727,6 @@ Camera *copy_camera(Camera *cam)
 	Camera *camn;
 	
 	camn= copy_libblock(cam);
-	camn->adt= BKE_copy_animdata(cam->adt);
 	
 	return camn;
 }
@@ -732,51 +737,45 @@ void make_local_camera(Camera *cam)
 {
 	Main *bmain= G.main;
 	Object *ob;
-	Camera *camn;
 	int local=0, lib=0;
 
 	/* - only lib users: do nothing
-		* - only local users: set flag
-		* - mixed: make copy
-		*/
+	 * - only local users: set flag
+	 * - mixed: make copy
+	 */
 	
 	if(cam->id.lib==NULL) return;
 	if(cam->id.us==1) {
 		cam->id.lib= NULL;
 		cam->id.flag= LIB_LOCAL;
-		new_id(NULL, (ID *)cam, NULL);
+		new_id(&bmain->camera, (ID *)cam, NULL);
 		return;
 	}
 	
-	ob= bmain->object.first;
-	while(ob) {
+	for(ob= bmain->object.first; ob && ELEM(0, lib, local); ob= ob->id.next) {
 		if(ob->data==cam) {
 			if(ob->id.lib) lib= 1;
 			else local= 1;
 		}
-		ob= ob->id.next;
 	}
 	
 	if(local && lib==0) {
 		cam->id.lib= NULL;
 		cam->id.flag= LIB_LOCAL;
-		new_id(NULL, (ID *)cam, NULL);
+		new_id(&bmain->camera, (ID *)cam, NULL);
 	}
 	else if(local && lib) {
-		camn= copy_camera(cam);
+		Camera *camn= copy_camera(cam);
 		camn->id.us= 0;
 		
-		ob= bmain->object.first;
-		while(ob) {
-			if(ob->data==cam) {
-				
+		for(ob= bmain->object.first; ob; ob= ob->id.next) {
+			if(ob->data == cam) {
 				if(ob->id.lib==NULL) {
 					ob->data= camn;
 					camn->id.us++;
 					cam->id.us--;
 				}
 			}
-			ob= ob->id.next;
 		}
 	}
 }
@@ -868,11 +867,32 @@ Lamp *copy_lamp(Lamp *la)
 	
 	lan->curfalloff = curvemapping_copy(la->curfalloff);
 	
-#if 0 // XXX old animation system
-	id_us_plus((ID *)lan->ipo);
-#endif // XXX old animation system
+	if(la->preview)
+		lan->preview = BKE_previewimg_copy(la->preview);
+	
+	return lan;
+}
 
-	if (la->preview) lan->preview = BKE_previewimg_copy(la->preview);
+Lamp *localize_lamp(Lamp *la)
+{
+	Lamp *lan;
+	int a;
+	
+	lan= copy_libblock(la);
+	BLI_remlink(&G.main->lamp, lan);
+
+	for(a=0; a<MAX_MTEX; a++) {
+		if(lan->mtex[a]) {
+			lan->mtex[a]= MEM_mallocN(sizeof(MTex), "localize_lamp");
+			memcpy(lan->mtex[a], la->mtex[a], sizeof(MTex));
+			/* free lamp decrements */
+			id_us_plus((ID *)lan->mtex[a]->tex);
+		}
+	}
+	
+	lan->curfalloff = curvemapping_copy(la->curfalloff);
+
+	lan->preview= NULL;
 	
 	return lan;
 }
@@ -893,7 +913,7 @@ void make_local_lamp(Lamp *la)
 	if(la->id.us==1) {
 		la->id.lib= NULL;
 		la->id.flag= LIB_LOCAL;
-		new_id(NULL, (ID *)la, NULL);
+		new_id(&bmain->lamp, (ID *)la, NULL);
 		return;
 	}
 	
@@ -909,7 +929,7 @@ void make_local_lamp(Lamp *la)
 	if(local && lib==0) {
 		la->id.lib= NULL;
 		la->id.flag= LIB_LOCAL;
-		new_id(NULL, (ID *)la, NULL);
+		new_id(&bmain->lamp, (ID *)la, NULL);
 	}
 	else if(local && lib) {
 		lan= copy_lamp(la);
@@ -1027,7 +1047,9 @@ Object *add_only_object(int type, const char *name)
 	unit_m4(ob->constinv);
 	unit_m4(ob->parentinv);
 	unit_m4(ob->obmat);
+
 	ob->dt= OB_MATCAP;
+
 	ob->empty_drawtype= OB_PLAINAXES;
 	ob->empty_drawsize= 1.0;
 
@@ -1334,7 +1356,7 @@ Object *copy_object(Object *ob)
 	id_us_plus((ID *)obn->data);
 	id_us_plus((ID *)obn->gpd);
 	id_lib_extern((ID *)obn->dup_group);
-	
+
 	for(a=0; a<obn->totcol; a++) id_us_plus((ID *)obn->mat[a]);
 	
 	obn->disp.first= obn->disp.last= NULL;
@@ -1356,17 +1378,16 @@ Object *copy_object(Object *ob)
 
 	obn->gpulamp.first = obn->gpulamp.last = NULL;
 	obn->pc_ids.first = obn->pc_ids.last = NULL;
-	
+
 	obn->mpath= NULL;
 	
 	return obn;
 }
 
-void expand_local_object(Object *ob)
+static void extern_local_object(Object *ob)
 {
 	//bActionStrip *strip;
 	ParticleSystem *psys;
-	int a;
 
 #if 0 // XXX old animation system
 	id_lib_extern((ID *)ob->action);
@@ -1374,10 +1395,11 @@ void expand_local_object(Object *ob)
 #endif // XXX old animation system
 	id_lib_extern((ID *)ob->data);
 	id_lib_extern((ID *)ob->dup_group);
-	
-	for(a=0; a<ob->totcol; a++) {
-		id_lib_extern((ID *)ob->mat[a]);
-	}
+	id_lib_extern((ID *)ob->poselib);
+	id_lib_extern((ID *)ob->gpd);
+
+	extern_local_matarar(ob->mat, ob->totcol);
+
 #if 0 // XXX old animation system
 	for (strip=ob->nlastrips.first; strip; strip=strip->next) {
 		id_lib_extern((ID *)strip->act);
@@ -1390,16 +1412,15 @@ void expand_local_object(Object *ob)
 void make_local_object(Object *ob)
 {
 	Main *bmain= G.main;
-	Object *obn;
 	Scene *sce;
 	Base *base;
 	int local=0, lib=0;
 
 	/* - only lib users: do nothing
-		* - only local users: set flag
-		* - mixed: make copy
-		*/
-	
+	 * - only local users: set flag
+	 * - mixed: make copy
+	 */
+
 	if(ob->id.lib==NULL) return;
 	
 	ob->proxy= ob->proxy_from= NULL;
@@ -1407,36 +1428,28 @@ void make_local_object(Object *ob)
 	if(ob->id.us==1) {
 		ob->id.lib= NULL;
 		ob->id.flag= LIB_LOCAL;
-		new_id(0, (ID *)ob, 0);
-
+		new_id(&bmain->object, (ID *)ob, NULL);
 	}
 	else {
-		sce= bmain->scene.first;
-		while(sce) {
-			base= sce->base.first;
-			while(base) {
-				if(base->object==ob) {
-					if(sce->id.lib) lib++;
-					else local++;
-					break;
-				}
-				base= base->next;
+		for(sce= bmain->scene.first; sce && ELEM(0, lib, local); sce= sce->id.next) {
+			if(object_in_scene(ob, sce)) {
+				if(sce->id.lib) lib= 1;
+				else local= 1;
 			}
-			sce= sce->id.next;
 		}
-		
+
 		if(local && lib==0) {
-			ob->id.lib= 0;
+			ob->id.lib= NULL;
 			ob->id.flag= LIB_LOCAL;
-			new_id(0, (ID *)ob, 0);
+			new_id(&bmain->object, (ID *)ob, NULL);
 		}
 		else if(local && lib) {
-			obn= copy_object(ob);
+			Object *obn= copy_object(ob);
 			obn->id.us= 0;
 			
 			sce= bmain->scene.first;
 			while(sce) {
-				if(sce->id.lib==0) {
+				if(sce->id.lib==NULL) {
 					base= sce->base.first;
 					while(base) {
 						if(base->object==ob) {
@@ -1452,7 +1465,7 @@ void make_local_object(Object *ob)
 		}
 	}
 	
-	expand_local_object(ob);
+	extern_local_object(ob);
 }
 
 /*
@@ -1485,7 +1498,7 @@ static void armature_set_id_extern(Object *ob)
 {
 	bArmature *arm= ob->data;
 	bPoseChannel *pchan;
-	int lay= arm->layer_protected;
+	unsigned int lay= arm->layer_protected;
 	
 	for (pchan = ob->pose->chanbase.first; pchan; pchan=pchan->next) {
 		if(!(pchan->bone->layer & lay))
@@ -1559,12 +1572,18 @@ void object_make_proxy(Object *ob, Object *target, Object *gob)
 	if(gob) {
 		ob->rotmode= target->rotmode;
 		mul_m4_m4m4(ob->obmat, target->obmat, gob->obmat);
-		object_apply_mat4(ob, ob->obmat);
+		if(gob->dup_group) { /* should always be true */
+			float tvec[3];
+			copy_v3_v3(tvec, gob->dup_group->dupli_ofs);
+			mul_mat3_m4_v3(ob->obmat, tvec);
+			sub_v3_v3(ob->obmat[3], tvec);
+		}
+		object_apply_mat4(ob, ob->obmat, FALSE, TRUE);
 	}
 	else {
 		copy_object_transform(ob, target);
-	ob->parent= target->parent;	/* libdata */
-	copy_m4_m4(ob->parentinv, target->parentinv);
+		ob->parent= target->parent;	/* libdata */
+		copy_m4_m4(ob->parentinv, target->parentinv);
 	}
 	
 	/* copy animdata stuff - drivers only for now... */
@@ -1607,7 +1626,11 @@ void object_make_proxy(Object *ob, Object *target, Object *gob)
 		
 		armature_set_id_extern(ob);
 	}
-	
+	else if (target->type == OB_EMPTY) {
+		ob->empty_drawtype = target->empty_drawtype;
+		ob->empty_drawsize = target->empty_drawsize;
+	}
+
 	/* copy IDProperties */
 	if(ob->id.properties) {
 		IDP_FreeProperty(ob->id.properties);
@@ -1627,16 +1650,10 @@ void object_make_proxy(Object *ob, Object *target, Object *gob)
 
 /* there is also a timing calculation in drawobject() */
 
-static int no_speed_curve= 0;
-
-void disable_speed_curve(int val)
-{
-	no_speed_curve= val;
-}
 
 // XXX THIS CRUFT NEEDS SERIOUS RECODING ASAP!
 /* ob can be NULL */
-float bsystem_time(struct Scene *scene, Object *ob, float cfra, float ofs)
+float bsystem_time(struct Scene *scene, Object *UNUSED(ob), float cfra, float ofs)
 {
 	/* returns float ( see BKE_curframe in scene.c) */
 	cfra += scene->r.subframe;
@@ -1665,49 +1682,48 @@ void object_scale_to_mat3(Object *ob, float mat[][3])
 	size_to_mat3( mat,vec);
 }
 
-// TODO: this should take rotation orders into account later...
+
 void object_rot_to_mat3(Object *ob, float mat[][3])
 {
 	float rmat[3][3], dmat[3][3];
 	
-	/* initialise the delta-rotation matrix, which will get (pre)multiplied 
+	/* 'dmat' is the delta-rotation matrix, which will get (pre)multiplied
 	 * with the rotation matrix to yield the appropriate rotation
 	 */
-	unit_m3(dmat);
-	
+
 	/* rotations may either be quats, eulers (with various rotation orders), or axis-angle */
 	if (ob->rotmode > 0) {
 		/* euler rotations (will cause gimble lock, but this can be alleviated a bit with rotation orders) */
-		eulO_to_mat3( rmat,ob->rot, ob->rotmode);
-		eulO_to_mat3( dmat,ob->drot, ob->rotmode);
+		eulO_to_mat3(rmat, ob->rot, ob->rotmode);
+		eulO_to_mat3(dmat, ob->drot, ob->rotmode);
 	}
 	else if (ob->rotmode == ROT_MODE_AXISANGLE) {
 		/* axis-angle -  not really that great for 3D-changing orientations */
-		axis_angle_to_mat3( rmat,ob->rotAxis, ob->rotAngle);
-		axis_angle_to_mat3( dmat,ob->drotAxis, ob->drotAngle);
+		axis_angle_to_mat3(rmat, ob->rotAxis, ob->rotAngle);
+		axis_angle_to_mat3(dmat, ob->drotAxis, ob->drotAngle);
 	}
 	else {
 		/* quats are normalised before use to eliminate scaling issues */
 		float tquat[4];
-
+		
 		normalize_qt_qt(tquat, ob->quat);
 		quat_to_mat3(rmat, tquat);
-
+		
 		normalize_qt_qt(tquat, ob->dquat);
 		quat_to_mat3(dmat, tquat);
 	}
 	
 	/* combine these rotations */
-	// XXX is this correct? if errors, change the order of multiplication...
 	mul_m3_m3m3(mat, dmat, rmat);
 }
 
-void object_mat3_to_rot(Object *ob, float mat[][3], int use_compat)
+void object_mat3_to_rot(Object *ob, float mat[][3], short use_compat)
 {
-	if (ob->rotmode == ROT_MODE_QUAT)
+	switch(ob->rotmode) {
+	case ROT_MODE_QUAT:
 		{
 			float dquat[4];
-		mat3_to_quat(ob->quat, mat);
+			mat3_to_quat(ob->quat, mat);
 			normalize_qt_qt(dquat, ob->dquat);
 			invert_qt(dquat);
 			mul_qt_qtqt(ob->quat, dquat, ob->quat);
@@ -1715,43 +1731,53 @@ void object_mat3_to_rot(Object *ob, float mat[][3], int use_compat)
 		break;
 	case ROT_MODE_AXISANGLE:
 		mat3_to_axis_angle(ob->rotAxis, &ob->rotAngle, mat);
-	else {
-		if(use_compat) {
-			float eul[3];
-			VECCOPY(eul, ob->rot);
-			mat3_to_compatible_eulO(ob->rot, eul, ob->rotmode, mat);
+		sub_v3_v3(ob->rotAxis, ob->drotAxis);
+		ob->rotAngle -= ob->drotAngle;
+		break;
+	default: /* euler */
+		{
+			float quat[4];
+			float dquat[4];
+			float tmat[3][3];
+
+			/* without drot we could apply 'mat' directly */
+			mat3_to_quat(quat, mat);
+			eulO_to_quat(dquat, ob->drot, ob->rotmode);
+			invert_qt(dquat);
+			mul_qt_qtqt(quat, dquat, quat);
+			quat_to_mat3(tmat, quat);
+			/* end drot correction */
+
+			if(use_compat)	mat3_to_compatible_eulO(ob->rot, ob->rot, ob->rotmode, tmat);
+			else			mat3_to_eulO(ob->rot, ob->rotmode, tmat);
 		}
-		else
-			mat3_to_eulO(ob->rot, ob->rotmode, mat);
 	}
 }
 
 /* see pchan_apply_mat4() for the equivalent 'pchan' function */
-void object_apply_mat4(Object *ob, float mat[][4])
+void object_apply_mat4(Object *ob, float mat[][4], const short use_compat, const short use_parent)
 {
-	float mat3[3][3], tmat[3][3], imat[3][3];
+	float rot[3][3];
 
-	/* location */
-	copy_v3_v3(ob->loc, mat[3]);
+	if(use_parent && ob->parent) {
+		float rmat[4][4], diff_mat[4][4], imat[4][4];
+		mul_m4_m4m4(diff_mat, ob->parentinv, ob->parent->obmat);
+		invert_m4_m4(imat, diff_mat);
+		mul_m4_m4m4(rmat, mat, imat); /* get the parent relative matrix */
+		object_apply_mat4(ob, rmat, use_compat, FALSE);
+		
+		/* same as below, use rmat rather then mat */
+		mat4_to_loc_rot_size(ob->loc, rot, ob->size, rmat);
+		object_mat3_to_rot(ob, rot, use_compat);
+	}
+	else {
+		mat4_to_loc_rot_size(ob->loc, rot, ob->size, mat);
+		object_mat3_to_rot(ob, rot, use_compat);
+	}
 	
-	/* rotation */
-	copy_m3_m4(mat3, mat);
-	object_mat3_to_rot(ob, mat3, 0);
-	
-	/* scale */
-#if 0
-	/* works fine except for neg scales */
-	mat4_to_size(ob->size, mat);
-#else
-	/* this is more complicated but works for negative scales */
-	object_rot_to_mat3(ob, tmat);
-	invert_m3_m3(imat, tmat);
-	mul_m3_m3m3(tmat, imat, mat3);
-
-	ob->size[0]= tmat[0][0];
-	ob->size[1]= tmat[1][1];
-	ob->size[2]= tmat[2][2];
-#endif
+	sub_v3_v3(ob->loc, ob->dloc);
+	sub_v3_v3(ob->size, ob->dsize);
+	/* object_mat3_to_rot handles delta rotations */
 }
 
 void object_to_mat3(Object *ob, float mat[][3])	/* no parent */
@@ -1813,14 +1839,19 @@ static void ob_parcurve(Scene *scene, Object *ob, Object *par, float mat[][4])
 		 * we divide the curvetime calculated in the previous step by the length of the path, to get a time
 		 * factor, which then gets clamped to lie within 0.0 - 1.0 range
 		 */
-		ctime= cu->ctime / cu->pathlen;
-		CLAMP(ctime, 0.0, 1.0);
+		if (IS_EQF(cu->pathlen, 0.0f) == 0)
+			ctime= cu->ctime / cu->pathlen;
+		else
+			ctime= cu->ctime;
+
+		CLAMP(ctime, 0.0f, 1.0f);
 	}
 	else {
 		ctime= scene->r.cfra - give_timeoffset(ob);
-		ctime /= cu->pathlen;
+		if (IS_EQF(cu->pathlen, 0.0f) == 0)
+			ctime /= cu->pathlen;
 		
-		CLAMP(ctime, 0.0, 1.0);
+		CLAMP(ctime, 0.0f, 1.0f);
 	}
 	
 	/* time calculus is correct, now apply distance offset */
@@ -1852,7 +1883,7 @@ static void ob_parcurve(Scene *scene, Object *ob, Object *par, float mat[][4])
 			quat_apply_track(quat, ob->trackflag, ob->upflag);
 #endif
 			normalize_qt(quat);
-			quat_to_mat4( mat,quat);
+			quat_to_mat4(mat, quat);
 		}
 		
 		if(cu->flag & CU_PATH_RADIUS) {
@@ -1907,35 +1938,36 @@ static void give_parvert(Object *par, int nr, float *vec)
 
 		em = BKE_mesh_get_editmesh(me);
 		dm = (em)? em->derivedFinal: par->derivedFinal;
+			
+		if(dm) {
+			MVert *mvert= dm->getVertArray(dm);
+			int *index = (int *)dm->getVertDataArray(dm, CD_ORIGINDEX);
+			int i, vindex, numVerts = dm->getNumVerts(dm);
 
-			if(dm) {
-				MVert *mvert= dm->getVertArray(dm);
-				int *index = (int *)dm->getVertDataArray(dm, CD_ORIGINDEX);
-				int i, count = 0, vindex, numVerts = dm->getNumVerts(dm);
+			/* get the average of all verts with (original index == nr) */
+			count= 0;
+			for(i = 0; i < numVerts; i++) {
+				vindex= (index)? index[i]: i;
 
-				/* get the average of all verts with (original index == nr) */
-				for(i = 0; i < numVerts; i++) {
-					vindex= (index)? index[i]: i;
-
-					if(vindex == nr) {
-						add_v3_v3(vec, mvert[i].co);
-						count++;
-					}
-				}
-
-				if (count==0) {
-					/* keep as 0,0,0 */
-				} else if(count > 0) {
-					mul_v3_fl(vec, 1.0f / count);
-				} else {
-					/* use first index if its out of range */
-					dm->getVertCo(dm, 0, vec);
+				if(vindex == nr) {
+					add_v3_v3(vec, mvert[i].co);
+					count++;
 				}
 			}
 
+			if (count==0) {
+				/* keep as 0,0,0 */
+			} else if(count > 0) {
+				mul_v3_fl(vec, 1.0f / count);
+			} else {
+				/* use first index if its out of range */
+				dm->getVertCo(dm, 0, vec);
+			}
+		}
+
 		if(em)
 			BKE_mesh_end_editmesh(me, em);
-		}
+	}
 	else if (ELEM(par->type, OB_CURVE, OB_SURF)) {
 		Nurb *nu;
 		Curve *cu;
@@ -2181,7 +2213,7 @@ static void solve_parenting (Scene *scene, Object *ob, Object *par, float obmat[
 		copy_m3_m4(originmat, tmat);
 		
 		// origin, voor help line
-		if( (ob->partype & 15)==PARSKEL ) {
+		if( (ob->partype & PARTYPE)==PARSKEL ) {
 			VECCOPY(ob->orig, par->obmat[3]);
 		}
 		else {
@@ -2262,7 +2294,7 @@ void what_does_parent(Scene *scene, Object *ob, Object *workob)
 	workob->constraints.first = ob->constraints.first;
 	workob->constraints.last = ob->constraints.last;
 
-	strcpy(workob->parsubstr, ob->parsubstr); 
+	BLI_strncpy(workob->parsubstr, ob->parsubstr, sizeof(workob->parsubstr));
 
 	where_is_object(scene, workob);
 }
@@ -2326,9 +2358,9 @@ void object_get_dimensions(Object *ob, float *value)
 		
 		mat4_to_size( scale,ob->obmat);
 		
-		value[0] = fabs(scale[0]) * (bb->vec[4][0] - bb->vec[0][0]);
-		value[1] = fabs(scale[1]) * (bb->vec[2][1] - bb->vec[0][1]);
-		value[2] = fabs(scale[2]) * (bb->vec[1][2] - bb->vec[0][2]);
+		value[0] = fabsf(scale[0]) * (bb->vec[4][0] - bb->vec[0][0]);
+		value[1] = fabsf(scale[1]) * (bb->vec[2][1] - bb->vec[0][1]);
+		value[2] = fabsf(scale[2]) * (bb->vec[1][2] - bb->vec[0][2]);
 	} else {
 		value[0] = value[1] = value[2] = 0.f;
 	}
@@ -2550,6 +2582,9 @@ void object_handle_update(Scene *scene, Object *ob)
 					Object *obg= ob->proxy_from->proxy_group;
 					invert_m4_m4(obg->imat, obg->obmat);
 					mul_m4_m4m4(ob->obmat, ob->proxy_from->obmat, obg->imat);
+					if(obg->dup_group) { /* should always be true */
+						add_v3_v3(ob->obmat[3], obg->dup_group->dupli_ofs);
+					}
 				}
 				else
 					copy_m4_m4(ob->obmat, ob->proxy_from->obmat);
@@ -2567,13 +2602,13 @@ void object_handle_update(Scene *scene, Object *ob)
 			
 			if (G.f & G_DEBUG)
 				printf("recalcdata %s\n", ob->id.name+2);
-			
+
 			if(adt) {
 				/* evaluate drivers */
 				// XXX: for mesh types, should we push this to derivedmesh instead?
 				BKE_animsys_evaluate_animdata(data_id, adt, ctime, ADT_RECALC_DRIVERS);
 			}
-				
+
 			/* includes all keys and modifiers */
 			switch(ob->type) {
 			case OB_MESH:
@@ -2581,10 +2616,10 @@ void object_handle_update(Scene *scene, Object *ob)
 #if 0				// XXX, comment for 2.56a release, background wont set 'scene->customdata_mask'
 					EditMesh *em = (ob == scene->obedit)? BKE_mesh_get_editmesh(ob->data): NULL;
 					BLI_assert((scene->customdata_mask & CD_MASK_BAREMESH) == CD_MASK_BAREMESH);
-				if(em) {
+					if(em) {
 						makeDerivedMesh(scene, ob, em,  scene->customdata_mask); /* was CD_MASK_BAREMESH */
-					BKE_mesh_end_editmesh(ob->data, em);
-				} else
+						BKE_mesh_end_editmesh(ob->data, em);
+					} else
 						makeDerivedMesh(scene, ob, NULL, scene->customdata_mask);
 
 #else				/* ensure CD_MASK_BAREMESH for now */
@@ -2596,9 +2631,9 @@ void object_handle_update(Scene *scene, Object *ob)
 						makeDerivedMesh(scene, ob, NULL, scene->customdata_mask | CD_MASK_BAREMESH);
 #endif
 
-			}
+				}
 				break;
-				
+
 			case OB_ARMATURE:
 				if(ob->id.lib && ob->proxy_from) {
 					// printf("pose proxy copy, lib ob %s proxy %s\n", ob->id.name, ob->proxy_from->id.name);
@@ -2806,6 +2841,16 @@ int object_insert_ptcache(Object *ob)
 	return i;
 }
 
+void object_camera_mode(RenderData *rd, Object *camera)
+{
+	rd->mode &= ~(R_ORTHO|R_PANORAMA);
+	if(camera && camera->type==OB_CAMERA) {
+		Camera *cam= camera->data;
+		if(cam->type == CAM_ORTHO) rd->mode |= R_ORTHO;
+		if(cam->flag & CAM_PANORAMA) rd->mode |= R_PANORAMA;
+	}
+}
+
 /* 'lens' may be set for envmap only */
 void object_camera_matrix(
 		RenderData *rd, Object *camera, int winx, int winy, short field_second,
@@ -2815,8 +2860,7 @@ void object_camera_matrix(
 	Camera *cam=NULL;
 	float pixsize;
 	float shiftx=0.0, shifty=0.0, winside, viewfac;
-
-	rd->mode &= ~(R_ORTHO|R_PANORAMA);
+	short is_ortho= FALSE;
 
 	/* question mark */
 	(*ycor)= rd->yasp / rd->xasp;
@@ -2826,8 +2870,9 @@ void object_camera_matrix(
 	if(camera->type==OB_CAMERA) {
 		cam= camera->data;
 
-		if(cam->type==CAM_ORTHO) rd->mode |= R_ORTHO;
-		if(cam->flag & CAM_PANORAMA) rd->mode |= R_PANORAMA;
+		if(cam->type == CAM_ORTHO) {
+			is_ortho= TRUE;
+		}
 
 		/* solve this too... all time depending stuff is in convertblender.c?
 		 * Need to update the camera early because it's used for projection matrices
@@ -2847,18 +2892,18 @@ void object_camera_matrix(
 	}
 	else if(camera->type==OB_LAMP) {
 		Lamp *la= camera->data;
-		float fac= cos( M_PI*la->spotsize/360.0 );
+		float fac= cosf((float)M_PI*la->spotsize/360.0f);
 		float phi= acos(fac);
 
-		(*lens)= 16.0*fac/sin(phi);
+		(*lens)= 16.0f*fac/sinf(phi);
 		if((*lens)==0.0f)
-			(*lens)= 35.0;
+			(*lens)= 35.0f;
 		(*clipsta)= la->clipsta;
 		(*clipend)= la->clipend;
 	}
 	else {	/* envmap exception... */;
 		if((*lens)==0.0f)
-			(*lens)= 16.0;
+			(*lens)= 16.0f;
 
 		if((*clipsta)==0.0f || (*clipend)==0.0f) {
 			(*clipsta)= 0.1f;
@@ -2867,7 +2912,7 @@ void object_camera_matrix(
 	}
 
 	/* ortho only with camera available */
-	if(cam && rd->mode & R_ORTHO) {
+	if(cam && is_ortho) {
 		if(rd->xasp*winx >= rd->yasp*winy) {
 			viewfac= winx;
 		}
@@ -2878,8 +2923,8 @@ void object_camera_matrix(
 		pixsize= cam->ortho_scale/viewfac;
 	}
 	else {
-		if(rd->xasp*winx >= rd->yasp*winy)	viewfac= ((*lens) * winx)/32.0;
-		else								viewfac= (*ycor) * ((*lens) * winy)/32.0;
+		if(rd->xasp*winx >= rd->yasp*winy)	viewfac= ((*lens) * winx)/32.0f;
+		else								viewfac= (*ycor) * ((*lens) * winy)/32.0f;
 		pixsize= (*clipsta) / viewfac;
 	}
 
@@ -2892,12 +2937,12 @@ void object_camera_matrix(
 
 	if(field_second) {
 		if(rd->mode & R_ODDFIELD) {
-			viewplane->ymin-= 0.5 * (*ycor);
-			viewplane->ymax-= 0.5 * (*ycor);
+			viewplane->ymin-= 0.5f * (*ycor);
+			viewplane->ymax-= 0.5f * (*ycor);
 		}
 		else {
-			viewplane->ymin+= 0.5 * (*ycor);
-			viewplane->ymax+= 0.5 * (*ycor);
+			viewplane->ymin+= 0.5f * (*ycor);
+			viewplane->ymax+= 0.5f * (*ycor);
 		}
 	}
 	/* the window matrix is used for clipping, and not changed during OSA steps */
@@ -2910,7 +2955,7 @@ void object_camera_matrix(
 	(*viewdx)= pixsize;
 	(*viewdy)= (*ycor) * pixsize;
 
-	if(rd->mode & R_ORTHO)
+	if(is_ortho)
 		orthographic_m4(winmat, viewplane->xmin, viewplane->xmax, viewplane->ymin, viewplane->ymax, *clipsta, *clipend);
 	else
 		perspective_m4(winmat, viewplane->xmin, viewplane->xmax, viewplane->ymin, viewplane->ymax, *clipsta, *clipend);
@@ -3055,3 +3100,53 @@ KeyBlock *object_insert_shape_key(Scene *scene, Object *ob, const char *name, in
 	else									 return NULL;
 }
 
+/* most important if this is modified it should _always_ return True, in certain
+ * cases false positives are hard to avoid (shape keys for eg)
+ */
+int object_is_modified(Scene *scene, Object *ob)
+{
+	int flag= 0;
+
+	if(ob_get_key(ob)) {
+		flag |= eModifierMode_Render | eModifierMode_Render;
+	}
+	else {
+		ModifierData *md;
+		/* cloth */
+		for(md=modifiers_getVirtualModifierList(ob); md && (flag != (eModifierMode_Render | eModifierMode_Realtime)); md=md->next) {
+			if((flag & eModifierMode_Render) == 0	&& modifier_isEnabled(scene, md, eModifierMode_Render))		flag |= eModifierMode_Render;
+			if((flag & eModifierMode_Realtime) == 0	&& modifier_isEnabled(scene, md, eModifierMode_Realtime))	flag |= eModifierMode_Realtime;
+		}
+	}
+
+	return flag;
+}
+
+static void copy_object__forwardModifierLinks(void *UNUSED(userData), Object *UNUSED(ob), ID **idpoin)
+{
+	/* this is copied from ID_NEW; it might be better to have a macro */
+	if(*idpoin && (*idpoin)->newid) *idpoin = (*idpoin)->newid;
+}
+
+void object_relink(Object *ob)
+{
+	if(ob->id.lib)
+		return;
+
+	relink_constraints(&ob->constraints);
+	if (ob->pose){
+		bPoseChannel *chan;
+		for (chan = ob->pose->chanbase.first; chan; chan=chan->next){
+			relink_constraints(&chan->constraints);
+		}
+	}
+	modifiers_foreachIDLink(ob, copy_object__forwardModifierLinks, NULL);
+
+	if(ob->adt)
+		BKE_relink_animdata(ob->adt);
+
+	ID_NEW(ob->parent);
+
+	ID_NEW(ob->proxy);
+	ID_NEW(ob->proxy_group);
+}

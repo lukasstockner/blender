@@ -27,6 +27,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/editors/render/render_preview.c
+ *  \ingroup edrend
+ */
+
+
 /* global includes */
 
 #include <stdlib.h>
@@ -62,12 +67,16 @@
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
+#include "BKE_idprop.h"
 #include "BKE_image.h"
 #include "BKE_icons.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_node.h"
+#include "BKE_object.h"
+#include "BKE_texture.h"
+#include "BKE_world.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -89,15 +98,6 @@
 #include "UI_interface.h"
 
 #include "render_intern.h"
-
-#define PR_XMIN		10
-#define PR_YMIN		5
-#define PR_XMAX		200
-#define PR_YMAX		195
-
-/* XXX */
-static int qtest(void) {return 0;}
-/* XXX */
 
 ImBuf* get_brush_icon(Brush *brush)
 {
@@ -128,14 +128,15 @@ ImBuf* get_brush_icon(Brush *brush)
 					if (path[0])
 						brush->icon_imbuf= IMB_loadiffname(path, flags);
 				}
+
+				if (brush->icon_imbuf)
+					BKE_icon_changed(BKE_icon_getid(&brush->id));
 			}
 		}
 	}
 
 	if (!(brush->icon_imbuf))
 		brush->id.icon_id = 0;
-	else
-		BKE_icon_changed(BKE_icon_getid(&(brush->id)));
 
 	return brush->icon_imbuf;
 }
@@ -150,8 +151,12 @@ typedef struct ShaderPreview {
 	ID *parent;
 	MTex *slot;
 	
-	/* node materials need full copy during preview render, glsl uses it too */
+	/* datablocks with nodes need full copy during preview render, glsl uses it too */
 	Material *matcopy;
+	Tex *texcopy;
+	Lamp *lampcopy;
+	World *worldcopy;
+	
 	float col[4];		/* active object color */
 	
 	int sizex, sizey;
@@ -159,123 +164,6 @@ typedef struct ShaderPreview {
 	int pr_method;
 	
 } ShaderPreview;
-
-
-
-/* unused now */
-void draw_tex_crop(Tex *tex)
-{
-	rcti rct;
-	int ret= 0;
-	
-	if(tex==0) return;
-	
-	if(tex->type==TEX_IMAGE) {
-		if(tex->cropxmin==0.0f) ret++;
-		if(tex->cropymin==0.0f) ret++;
-		if(tex->cropxmax==1.0f) ret++;
-		if(tex->cropymax==1.0f) ret++;
-		if(ret==4) return;
-		
-		rct.xmin= PR_XMIN+2+tex->cropxmin*(PR_XMAX-PR_XMIN-4);
-		rct.xmax= PR_XMIN+2+tex->cropxmax*(PR_XMAX-PR_XMIN-4);
-		rct.ymin= PR_YMIN+2+tex->cropymin*(PR_YMAX-PR_YMIN-4);
-		rct.ymax= PR_YMIN+2+tex->cropymax*(PR_YMAX-PR_YMIN-4);
-
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); 
-
-		glColor3ub(0, 0, 0);
-		glRecti(rct.xmin+1,  rct.ymin-1,  rct.xmax+1,  rct.ymax-1); 
-
-		glColor3ub(255, 255, 255);
-		glRecti(rct.xmin,  rct.ymin,  rct.xmax,  rct.ymax);
-
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);			
-	}
-	
-}
-
-/* temporal abuse; if id_code is -1 it only does texture.... solve! */
-void BIF_preview_changed(short id_code)
-{
-#if 0	
-	ScrArea *sa;
-	
-	for(sa= G.curscreen->areabase.first; sa; sa= sa->next) {
-		if(sa->spacetype==SPACE_BUTS) {
-			SpaceButs *sbuts= sa->spacedata.first;
-			if(sbuts->mainb==CONTEXT_SHADING) {
-				int tab= sbuts->tab[CONTEXT_SHADING];
-				if(tab==TAB_SHADING_MAT && (id_code==ID_MA || id_code==ID_TE)) {
-					if (sbuts->ri) sbuts->ri->curtile= 0;
-					addafterqueue(sa->win, RENDERPREVIEW, 1);
-				}
-				else if(tab==TAB_SHADING_TEX && (id_code==ID_TE || id_code==-1)) {
-					if (sbuts->ri) sbuts->ri->curtile= 0;
-					addafterqueue(sa->win, RENDERPREVIEW, 1);
-				}
-				else if(tab==TAB_SHADING_LAMP && (id_code==ID_LA || id_code==ID_TE)) {
-					if (sbuts->ri) sbuts->ri->curtile= 0;
-					addafterqueue(sa->win, RENDERPREVIEW, 1);
-				}
-				else if(tab==TAB_SHADING_WORLD && (id_code==ID_WO || id_code==ID_TE)) {
-					if (sbuts->ri) sbuts->ri->curtile= 0;
-					addafterqueue(sa->win, RENDERPREVIEW, 1);
-				}
-			}
-			else if (sbuts->ri) 
-				sbuts->ri->curtile= 0;	/* ensure changes always result in re-render when context is restored */
-		}
-		else if(sa->spacetype==SPACE_NODE) {
-			SpaceNode *snode= sa->spacedata.first;
-			if(snode->treetype==NTREE_SHADER && (id_code==ID_MA || id_code==ID_TE)) {
-				snode_tag_dirty(snode);
-			}
-		}
-		else if(sa->spacetype==SPACE_VIEW3D) {
-			View3D *vd= sa->spacedata.first;
-			/* if is has a renderinfo, we consider that reason for signalling */
-			if (vd->ri) {
-				vd->ri->curtile= 0;
-				addafterqueue(sa->win, RENDERPREVIEW, 1);
-			}
-		}
-	}
-
-	if(ELEM4(id_code, ID_MA, ID_TE, ID_LA, ID_WO)) {
-		Object *ob;
-		Material *ma;
-
-		if(id_code == ID_WO) {
-			for(ma=G.main->mat.first; ma; ma=ma->id.next) {
-				if(ma->gpumaterial.first) {
-					GPU_material_free(ma);
-				}
-			}
-		}
-		else if(id_code == ID_LA) {
-			for(ob=G.main->object.first; ob; ob=ob->id.next) {
-				if(ob->gpulamp.first) {
-					GPU_lamp_free(ob);
-				}
-			}
-
-			for(ma=G.main->mat.first; ma; ma=ma->id.next) {
-				if(ma->gpumaterial.first) {
-					GPU_material_free(ma);
-				}
-			}
-		} else if(OBACT) {
-			Object *ob = OBACT;
-
-			ma= give_current_material(ob, ob->actcol);
-			if(ma && ma->gpumaterial.first) {
-				GPU_material_free(ma);
-			}
-		}
-	}
-#endif
-}
 
 /* *************************** Preview for buttons *********************** */
 
@@ -286,6 +174,7 @@ void ED_preview_init_dbase(void)
 	BlendFileData *bfd;
 	extern int datatoc_preview_blend_size;
 	extern char datatoc_preview_blend[];
+	const int fileflags= G.fileflags;
 	
 	G.fileflags |= G_FILE_NO_UI;
 	bfd= BLO_read_from_memory(datatoc_preview_blend, datatoc_preview_blend_size, NULL);
@@ -294,22 +183,13 @@ void ED_preview_init_dbase(void)
 		
 		MEM_freeN(bfd);
 	}
-	G.fileflags &= ~G_FILE_NO_UI;
+	G.fileflags= fileflags;
 }
 
 void ED_preview_free_dbase(void)
 {
 	if(pr_main)
 		free_main(pr_main);
-}
-
-static Object *find_object(ListBase *lb, const char *name)
-{
-	Object *ob;
-	for(ob= lb->first; ob; ob= ob->id.next)
-		if(strcmp(ob->id.name+2, name)==0)
-			break;
-	return ob;
 }
 
 static int preview_mat_has_sss(Material *mat, bNodeTree *ntree)
@@ -383,7 +263,7 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 		if(id_type==ID_MA) {
 			Material *mat= NULL, *origmat= (Material *)id;
 			
-			if(id) {
+			if(origmat) {
 				/* work on a copy */
 				mat= localize_material(origmat);
 				sp->matcopy= mat;
@@ -475,8 +355,13 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 			}
 		}
 		else if(id_type==ID_TE) {
-			Tex *tex= (Tex *)id;
+			Tex *tex= NULL, *origtex= (Tex *)id;
 			
+			if(origtex) {
+				tex= localize_texture(origtex);
+				sp->texcopy= tex;
+				BLI_addtail(&pr_main->tex, tex);
+			}			
 			sce->lay= 1<<MA_TEXTURE;
 			
 			for(base= sce->base.first; base; base= base->next) {
@@ -501,21 +386,31 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 				}
 			}
 
-			if(tex && tex->nodetree && sp->pr_method==PR_NODE_RENDER)
+			if(tex && tex->nodetree && sp->pr_method==PR_NODE_RENDER) {
+				/* two previews, they get copied by wmJob */
+				ntreeInitPreview(origtex->nodetree, sp->sizex, sp->sizey);
 				ntreeInitPreview(tex->nodetree, sp->sizex, sp->sizey);
 		}
+		}
 		else if(id_type==ID_LA) {
-			Lamp *la= (Lamp *)id;
+			Lamp *la= NULL, *origla= (Lamp *)id;
+			
+			/* work on a copy */
+			if(origla) {
+				la= localize_lamp(origla);
+				sp->lampcopy= la;
+				BLI_addtail(&pr_main->lamp, la);
+			}
 			
 			if(la && la->type==LA_SUN && (la->sun_effect_type & LA_SUN_EFFECT_SKY)) {
 				sce->lay= 1<<MA_ATMOS;
 				sce->world= scene->world;
-				sce->camera= (Object *)find_object(&pr_main->object, "CameraAtmo");
+				sce->camera= (Object *)BLI_findstring(&pr_main->object, "CameraAtmo", offsetof(ID, name)+2);
 			}
 			else {
 				sce->lay= 1<<MA_LAMP;
 				sce->world= NULL;
-				sce->camera= (Object *)find_object(&pr_main->object, "Camera");
+				sce->camera= (Object *)BLI_findstring(&pr_main->object, "Camera", offsetof(ID, name)+2);
 			}
 			sce->r.mode &= ~R_SHADOW;
 			
@@ -527,8 +422,16 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 			}
 		}
 		else if(id_type==ID_WO) {
+			World *wrld= NULL, *origwrld= (World *)id;
+
+			if(origwrld) {
+				wrld= localize_world(origwrld);
+				sp->worldcopy= wrld;
+				BLI_addtail(&pr_main->world, wrld);
+			}
+
 			sce->lay= 1<<MA_SKY;
-			sce->world= (World *)id;
+			sce->world= wrld;
 		}
 		
 		return sce;
@@ -626,321 +529,6 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
 	}	
 }
 
-/* ******************************** Icon Preview **************************** */
-
-void ED_preview_icon_draw(const bContext *C, void *idp, void *arg1, void *arg2, rcti *rect)
-{
-}
-
-/* *************************** Preview for 3d window *********************** */
-
-void view3d_previewrender_progress(RenderResult *rr, volatile rcti *renrect)
-{
-//	ScrArea *sa= NULL; // XXX
-//	View3D *v3d= NULL; // XXX
-	RenderLayer *rl;
-	int ofsx=0, ofsy=0;
-	
-	if(renrect) return;
-	
-	rl= rr->layers.first;
-	
-	/* this case is when we render envmaps... */
-//	if(rr->rectx > v3d->ri->pr_rectx || rr->recty > v3d->ri->pr_recty)
-//		return;
-	
-//	ofsx= v3d->ri->disprect.xmin + rr->tilerect.xmin;
-//	ofsy= v3d->ri->disprect.ymin + rr->tilerect.ymin;
-	
-	glDrawBuffer(GL_FRONT);
-//	glaDefine2DArea(&sa->winrct);
-	glaDrawPixelsSafe_to32(ofsx, ofsy, rr->rectx, rr->recty, rr->rectx, rl->rectf, 0);
-	bglFlush();
-	glDrawBuffer(GL_BACK);
-
-}
-
-void BIF_view3d_previewrender_signal(ScrArea *sa, short signal)
-{
-#if 0
-	View3D *v3d= sa->spacedata.first;
-	
-	/* this can be called from other window... solve! */
-	if(sa->spacetype!=SPACE_VIEW3D)
-		return; // XXX
-	   
-	if(v3d && v3d->ri) {
-		RenderInfo *ri= v3d->ri;
-		ri->status &= ~signal;
-		ri->curtile= 0;
-		//printf("preview signal %d\n", signal);
-		if(ri->re && (signal & PR_DBASE))
-			RE_Database_Free(ri->re);
-
-//		addafterqueue(sa->win, RENDERPREVIEW, 1);
-	}
-#endif
-}
-
-void BIF_view3d_previewrender_free(View3D *v3d)
-{
-#if 0
-	if(v3d->ri) {
-		RenderInfo *ri= v3d->ri;
-		if(ri->re) {
-//			printf("free render\n");
-			RE_Database_Free(ri->re);
-			RE_FreeRender(ri->re);
-			ri->re= NULL;
-		}
-		if (v3d->ri->rect) MEM_freeN(v3d->ri->rect);
-		MEM_freeN(v3d->ri);
-		v3d->ri= NULL;
-	}
-#endif
-}
-
-/* returns 1 if OK, do not call while in panel space!  */
-static int view3d_previewrender_get_rects(ScrArea *sa, rctf *viewplane, RenderInfo *ri, float *clipsta, float *clipend, int *ortho, float *pixsize)
-{
-	View3D *v3d= NULL; // XXX
-	RegionView3D *rv3d= NULL; // XXX
-	int rectx, recty;
-//	uiBlock *block;
-	
-//	block= uiFindOpenPanelBlockName(&sa->uiblocks, "Preview");
-//	if(block==NULL) return 0;
-	
-	/* calculate preview rect size */
-//	BLI_init_rctf(viewplane, 15.0f, (block->maxx - block->minx)-15.0f, 15.0f, (block->maxy - block->miny)-15.0f);
-//	uiPanelPush(block);
-//	ui_graphics_to_window_rct(sa->win, viewplane, &ri->disprect);
-//	uiPanelPop(block);
-	
-	/* correction for gla draw */
-//	BLI_translate_rcti(&ri->disprect, -sa->winrct.xmin, -sa->winrct.ymin);
-	
-	*ortho= get_view3d_viewplane(v3d, rv3d, sa->winx, sa->winy, viewplane, clipsta, clipend, pixsize);
-
-	rectx= ri->disprect.xmax - ri->disprect.xmin;
-	recty= ri->disprect.ymax - ri->disprect.ymin;
-	
-	if(rectx<4 || recty<4) return 0;
-	
-	if(ri->rect && (rectx!=ri->pr_rectx || recty!=ri->pr_recty)) {
-		MEM_freeN(ri->rect);
-		ri->rect= NULL;
-		ri->curtile= 0;
-		printf("changed size\n");
-	}
-	ri->pr_rectx= rectx;
-	ri->pr_recty= recty;
-	
-	return 1;
-}
-
-/* called before a panel gets moved/scaled, makes sure we can see through */
-void BIF_view3d_previewrender_clear(ScrArea *sa)
-{
-#if 0
-	View3D *v3d= sa->spacedata.first;
-
-	if(v3d->ri) {
-		RenderInfo *ri= v3d->ri;
-		ri->curtile= 0;
-		if(ri->rect)
-			MEM_freeN(ri->rect);
-		ri->rect= NULL;
-	}
-#endif
-}
-
-/* afterqueue call */
-void BIF_view3d_previewrender(Main *bmain, Scene *scene, ScrArea *sa)
-{
-	View3D *v3d= sa->spacedata.first;
-	RegionView3D *rv3d= NULL; // XXX
-	Render *re;
-	RenderInfo *ri=NULL;	/* preview struct! */
-	RenderStats *rstats;
-	RenderData rdata;
-	rctf viewplane;
-	float clipsta, clipend, pixsize;
-	int orth;
-	
-	/* first get the render info right */
-//	if (!v3d->ri) {
-//		ri= v3d->ri= MEM_callocN(sizeof(RenderInfo), "butsrenderinfo");
-//		ri->tottile= 10000;
-//	}
-//	ri= v3d->ri;
-	
-	if(0==view3d_previewrender_get_rects(sa, &viewplane, ri, &clipsta, &clipend, &orth, &pixsize))
-		return;
-	
-	/* render is finished, so return */
-	if(ri->tottile && ri->curtile>=ri->tottile) return;
-
-	/* or return with a new event */
-	if(qtest()) {
-//		addafterqueue(sa->win, RENDERPREVIEW, 1);
-		return;
-	}
-	//printf("Enter previewrender\n");
-	/* ok, are we rendering all over? */
-	if(ri->re==NULL) {
-		char name[32];
-		
-		ri->status= 0;
-		
-		sprintf(name, "View3dPreview %p", (void *)sa);
-		re= ri->re= RE_NewRender(name);
-		//RE_display_draw_cb(re, view3d_previewrender_progress);
-		//RE_stats_draw_cb(re, view3d_previewrender_stats);
-		//RE_test_break_cb(re, qtest);
-		
-		/* no osa, blur, seq, layers, etc for preview render */
-		rdata= scene->r;
-		rdata.mode &= ~(R_OSA|R_MBLUR);
-		rdata.scemode &= ~(R_DOSEQ|R_DOCOMP|R_FREE_IMAGE);
-		rdata.layers.first= rdata.layers.last= NULL;
-		rdata.renderer= R_INTERN;
-		 
-		RE_InitState(re, NULL, &rdata, NULL, sa->winx, sa->winy, &ri->disprect);
-	
-		if(orth)
-			RE_SetOrtho(re, &viewplane, clipsta, clipend);
-		else
-			RE_SetWindow(re, &viewplane, clipsta, clipend);
-		RE_SetPixelSize(re, pixsize);
-		
-		/* until here are no escapes */
-		ri->status |= PR_DISPRECT;
-		ri->curtile= 0;
-		//printf("new render\n");
-	}
-
-	re= ri->re;
-	
-	PIL_sleep_ms(100);	/* wait 0.1 second if theres really no event... */
-	if(qtest()==0)	{
-		
-		/* check status */
-		if((ri->status & PR_DISPRECT)==0) {
-			RE_SetDispRect(ri->re, &ri->disprect);
-			if(orth)
-				RE_SetOrtho(ri->re, &viewplane, clipsta, clipend);
-			else
-				RE_SetWindow(ri->re, &viewplane, clipsta, clipend);
-			RE_SetPixelSize(re, pixsize);
-			ri->status |= PR_DISPRECT;
-			ri->curtile= 0;
-			//printf("disprect update\n");
-		}
-		if((ri->status & PR_DBASE)==0) {
-			unsigned int lay= scene->lay;
-			
-			RE_SetView(re, rv3d->viewmat);
-			
-			/* allow localview render for objects with lights in normal layers */
-			if(v3d->lay & 0xFF000000)
-				lay |= v3d->lay;
-			else lay= v3d->lay;
-			
-			RE_Database_FromScene(re, bmain, scene, lay, 0);		// 0= dont use camera view
-			
-			rstats= RE_GetStats(re);
-			if(rstats->convertdone) 
-				ri->status |= PR_DBASE|PR_PROJECTED|PR_ROTATED;
-			ri->curtile= 0;
-			
-			/* database can have created render-resol data... */
-			if(rstats->convertdone) 
-				DAG_scene_flush_update(bmain, scene, scene->lay, 0);
-			
-			//printf("dbase update\n");
-		}
-		if((ri->status & PR_PROJECTED)==0) {
-			if(ri->status & PR_DBASE) {
-				if(orth)
-					RE_SetOrtho(ri->re, &viewplane, clipsta, clipend);
-				else
-					RE_SetWindow(ri->re, &viewplane, clipsta, clipend);
-				RE_DataBase_ApplyWindow(re);
-				ri->status |= PR_PROJECTED;
-			}
-			ri->curtile= 0;
-			//printf("project update\n");
-		}
-	
-		/* OK, can we enter render code? */
-		if(ri->status==(PR_DISPRECT|PR_DBASE|PR_PROJECTED|PR_ROTATED)) {
-			//printf("curtile %d tottile %d\n", ri->curtile, ri->tottile);
-			RE_TileProcessor(ri->re); //, ri->curtile, 0);
-	
-			if(ri->rect==NULL)
-				ri->rect= MEM_mallocN(sizeof(int)*ri->pr_rectx*ri->pr_recty, "preview view3d rect");
-			
-			RE_ResultGet32(ri->re, ri->rect);
-		}
-		
-		rstats= RE_GetStats(ri->re);
-//		if(rstats->totpart==rstats->partsdone && rstats->partsdone)
-//			addqueue(sa->win, REDRAW, 1);
-//		else
-//			addafterqueue(sa->win, RENDERPREVIEW, 1);
-		
-		ri->curtile= rstats->partsdone;
-		ri->tottile= rstats->totpart;
-	}
-	else {
-//		addafterqueue(sa->win, RENDERPREVIEW, 1);
-	}
-	
-	//printf("\n");
-}
-
-/* in panel space! */
-static void view3d_previewdraw_rect(ScrArea *sa, uiBlock *block, RenderInfo *ri)
-{
-//	rctf dispf;
-	
-	if(ri->rect==NULL)
-		return;
-	
-//	BLI_init_rctf(&dispf, 15.0f, (block->maxx - block->minx)-15.0f, 15.0f, (block->maxy - block->miny)-15.0f);
-//	ui_graphics_to_window_rct(sa->win, &dispf, &ri->disprect);
-
-	/* correction for gla draw */
-//	BLI_translate_rcti(&ri->disprect, -sa->winrct.xmin, -sa->winrct.ymin);
-	
-	/* when panel scale changed, free rect */
-	if(ri->disprect.xmax-ri->disprect.xmin != ri->pr_rectx ||
-	   ri->disprect.ymax-ri->disprect.ymin != ri->pr_recty) {
-		MEM_freeN(ri->rect);
-		ri->rect= NULL;
-	}
-	else {
-//		glaDefine2DArea(&sa->winrct);
-		glaDrawPixelsSafe(ri->disprect.xmin, ri->disprect.ymin, ri->pr_rectx, ri->pr_recty, ri->pr_rectx, GL_RGBA, GL_UNSIGNED_BYTE, ri->rect);
-	}	
-}
-
-/* is panel callback, supposed to be called with correct panel offset matrix */
-void BIF_view3d_previewdraw(struct ScrArea *sa, struct uiBlock *block)
-{
-	RegionView3D *rv3d= NULL;
-
-//	if (v3d->ri==NULL || v3d->ri->rect==NULL) 
-//		addafterqueue(sa->win, RENDERPREVIEW, 1);
-//	else {
-		view3d_previewdraw_rect(sa, block, rv3d->ri);
-//		if(v3d->ri->curtile==0) 
-//			addafterqueue(sa->win, RENDERPREVIEW, 1);
-//	}
-}
-
-
 /* **************************** new shader preview system ****************** */
 
 /* inside thread, called by renderer, sets job update value */
@@ -964,12 +552,22 @@ static void shader_preview_updatejob(void *spv)
 {
 	ShaderPreview *sp= spv;
 	
-	if(sp->id && GS(sp->id->name) == ID_MA) {
+	if(sp->id) {
+		if(sp->pr_method==PR_NODE_RENDER) {
+			if( GS(sp->id->name) == ID_MA) {
 		Material *mat= (Material *)sp->id;
 		
 		if(sp->matcopy && mat->nodetree && sp->matcopy->nodetree)
 			ntreeLocalSync(sp->matcopy->nodetree, mat->nodetree);
 }
+			else if( GS(sp->id->name) == ID_TE) {
+				Tex *tex= (Tex *)sp->id;
+				
+				if(sp->texcopy && tex->nodetree && sp->texcopy->nodetree)
+					ntreeLocalSync(sp->texcopy->nodetree, tex->nodetree);
+}
+		}		
+	}
 }
 
 static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int first)
@@ -1025,8 +623,10 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 	/* callbacs are cleared on GetRender() */
 	if(ELEM(sp->pr_method, PR_BUTS_RENDER, PR_NODE_RENDER)) {
 		RE_display_draw_cb(re, sp, shader_preview_draw);
-		RE_test_break_cb(re, sp, shader_preview_break);
 	}
+	/* set this for all previews, default is react to G.afbreek still */
+	RE_test_break_cb(re, sp, shader_preview_break);
+	
 	/* lens adjust */
 	oldlens= ((Camera *)sce->camera->data)->lens;
 	if(sizex > sp->sizey)
@@ -1053,6 +653,14 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 
 	/* unassign the pointers, reset vars */
 	preview_prepare_scene(sp->scene, NULL, GS(id->name), sp);
+	
+	/* XXX bad exception, end-exec is not being called in render, because it uses local main */
+//	if(idtype == ID_TE) {
+//		Tex *tex= (Tex *)id;
+//		if(tex->use_nodes && tex->nodetree)
+//			ntreeEndExecTree(tex->nodetree);
+//	}
+
 }
 
 /* runs inside thread for material and icons */
@@ -1078,13 +686,77 @@ static void shader_preview_free(void *customdata)
 	ShaderPreview *sp= customdata;
 	
 	if(sp->matcopy) {
+		struct IDProperty *properties;
+		int a;
+		
 		/* node previews */
 		shader_preview_updatejob(sp);
 		
 		/* get rid of copied material */
 		BLI_remlink(&pr_main->mat, sp->matcopy);
+		
+		/* free_material decrements texture, prevent this. hack alert! */
+		for(a=0; a<MAX_MTEX; a++) {
+			MTex *mtex= sp->matcopy->mtex[a];
+			if(mtex && mtex->tex) mtex->tex= NULL;
+		}
+		
 		free_material(sp->matcopy);
+
+		properties= IDP_GetProperties((ID *)sp->matcopy, FALSE);
+		if (properties) {
+			IDP_FreeProperty(properties);
+			MEM_freeN(properties);
+		}
 		MEM_freeN(sp->matcopy);
+	}
+	if(sp->texcopy) {
+		struct IDProperty *properties;
+		/* node previews */
+		shader_preview_updatejob(sp);
+	
+		/* get rid of copied texture */
+		BLI_remlink(&pr_main->tex, sp->texcopy);
+		free_texture(sp->texcopy);
+		
+		properties= IDP_GetProperties((ID *)sp->texcopy, FALSE);
+		if (properties) {
+			IDP_FreeProperty(properties);
+			MEM_freeN(properties);
+		}
+		MEM_freeN(sp->texcopy);
+	}
+	if(sp->worldcopy) {
+		struct IDProperty *properties;
+		/* node previews */
+		shader_preview_updatejob(sp);
+		
+		/* get rid of copied world */
+		BLI_remlink(&pr_main->world, sp->worldcopy);
+		free_world(sp->worldcopy);
+		
+		properties= IDP_GetProperties((ID *)sp->worldcopy, FALSE);
+		if (properties) {
+			IDP_FreeProperty(properties);
+			MEM_freeN(properties);
+		}
+		MEM_freeN(sp->worldcopy);
+	}
+	if(sp->lampcopy) {
+		struct IDProperty *properties;
+		/* node previews */
+		shader_preview_updatejob(sp);
+		
+		/* get rid of copied lamp */
+		BLI_remlink(&pr_main->lamp, sp->lampcopy);
+		free_lamp(sp->lampcopy);
+		
+		properties= IDP_GetProperties((ID *)sp->lampcopy, FALSE);
+		if (properties) {
+			IDP_FreeProperty(properties);
+			MEM_freeN(properties);
+		}
+		MEM_freeN(sp->lampcopy);
 	}
 	
 	MEM_freeN(sp);
@@ -1160,7 +832,7 @@ static void icon_preview_startjob(void *customdata, short *stop, short *do_updat
 	if(idtype == ID_IM) {
 		Image *ima= (Image*)id;
 		ImBuf *ibuf= NULL;
-		ImageUser iuser= {0};
+		ImageUser iuser= {NULL};
 
 		/* ima->ok is zero when Image cannot load */
 		if(ima==NULL || ima->ok==0)
@@ -1186,10 +858,11 @@ static void icon_preview_startjob(void *customdata, short *stop, short *do_updat
 
 		br->icon_imbuf= get_brush_icon(br);
 
+		memset(sp->pr_rect, 0x888888, sp->sizex*sp->sizey*sizeof(unsigned int));
+
 		if(!(br->icon_imbuf) || !(br->icon_imbuf->rect))
 			return;
 
-		memset(sp->pr_rect, 0x888888, sp->sizex*sp->sizey*sizeof(unsigned int));
 		icon_copy_rect(br->icon_imbuf, sp->sizex, sp->sizey, sp->pr_rect);
 
 		*do_update= 1;

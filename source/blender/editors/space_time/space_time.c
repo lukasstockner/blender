@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/space_time/space_time.c
+ *  \ingroup sptime
+ */
+
 
 #include <string.h>
 #include <stdio.h>
@@ -190,9 +195,9 @@ static void time_draw_cache(SpaceTime *stime, Object *ob)
 		
 		glRectf((float)sta, 0.0, (float)end, 1.0);
 		
-		col[3] = 0.4;
+		col[3] = 0.4f;
 		if (pid->cache->flag & PTCACHE_BAKED) {
-			col[0] -= 0.4;	col[1] -= 0.4;	col[2] -= 0.4;
+			col[0] -= 0.4f;	col[1] -= 0.4f;	col[2] -= 0.4f;
 		}
 		glColor4fv(col);
 		
@@ -267,7 +272,7 @@ static ActKeyColumn *time_cfra_find_ak (ActKeyColumn *ak, float cframe)
 /* helper for time_draw_keyframes() */
 static void time_draw_idblock_keyframes(View2D *v2d, ID *id, short onlysel)
 {
-	bDopeSheet ads;
+	bDopeSheet ads= {NULL};
 	DLRBT_Tree keys;
 	ActKeyColumn *ak;
 	
@@ -366,17 +371,13 @@ static void time_draw_keyframes(const bContext *C, SpaceTime *stime, ARegion *ar
 
 static void time_refresh(const bContext *UNUSED(C), ScrArea *sa)
 {
-	SpaceTime *stime = (SpaceTime *)sa->spacedata.first;
-	ARegion *ar;
-	
 	/* find the main timeline region and refresh cache display*/
-	for (ar= sa->regionbase.first; ar; ar= ar->next) {
-		if (ar->regiontype==RGN_TYPE_WINDOW) {
+	ARegion *ar= BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
+	if(ar) {
+	SpaceTime *stime = (SpaceTime *)sa->spacedata.first;
 			time_cache_refresh(stime);
-			break;
 		}
 	}
-}
 
 /* editor level listener */
 static void time_listener(ScrArea *sa, wmNotifier *wmn)
@@ -641,7 +642,7 @@ static SpaceLink *time_duplicate(SpaceLink *sl)
 	SpaceTime *stime= (SpaceTime *)sl;
 	SpaceTime *stimen= MEM_dupallocN(stime);
 	
-	time_cache_free(stimen);
+	stimen->caches.first = stimen->caches.last = NULL;
 	
 	return (SpaceLink *)stimen;
 }

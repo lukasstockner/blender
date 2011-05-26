@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -26,6 +26,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/editors/animation/anim_ops.c
+ *  \ingroup edanimation
+ */
+
+
 #include <stdlib.h>
 #include <math.h>
 
@@ -37,6 +42,7 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_context.h"
+#include "BKE_global.h"
 #include "BKE_sound.h"
 
 #include "UI_view2d.h"
@@ -58,6 +64,9 @@
 static int change_frame_poll(bContext *C)
 {
 	ScrArea *curarea= CTX_wm_area(C);
+	
+	/* XXX temp? prevent changes during render */
+	if(G.rendering) return 0;
 	
 	/* as long as there is an active area, and it isn't a Graph Editor 
 	 * (since the Graph Editor has its own version which does extra stuff),
@@ -98,14 +107,9 @@ static int frame_from_event(bContext *C, wmEvent *event)
 {
 	ARegion *region= CTX_wm_region(C);
 	float viewx;
-	int x, y;
-	
-	/* convert screen coordinates to region coordinates */
-	x= event->x - region->winrct.xmin;
-	y= event->y - region->winrct.ymin;
 	
 	/* convert from region coordinates to View2D 'tot' space */
-	UI_view2d_region_to_view(&region->v2d, x, y, &viewx, NULL);
+	UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &viewx, NULL);
 	
 	/* round result to nearest int (frames are ints!) */
 	return (int)floor(viewx+0.5f);

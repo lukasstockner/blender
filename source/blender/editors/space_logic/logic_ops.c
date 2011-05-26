@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/space_logic/logic_ops.c
+ *  \ingroup splogic
+ */
+
 #include <stddef.h>
 
 #include "DNA_object_types.h"
@@ -576,7 +581,7 @@ static void LOGIC_OT_sensor_move(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Move Sensor";
-	ot->description = "Move Densor";
+	ot->description = "Move Sensor";
 	ot->idname= "LOGIC_OT_sensor_move";
 	
 	/* api callbacks */

@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/space_action/space_action.c
+ *  \ingroup spaction
+ */
+
 
 #include <string.h>
 #include <stdio.h>
@@ -192,7 +197,7 @@ static void action_main_area_draw(const bContext *C, ARegion *ar)
 	/* markers */
 	UI_view2d_view_orthoSpecial(ar, v2d, 1);
 	
-	flag = (saction->flag & SACTION_POSEMARKERS_SHOW)? DRAW_MARKERS_LOCAL : 0;
+	flag = (ac.markers && (ac.markers != &ac.scene->markers))? DRAW_MARKERS_LOCAL : 0;
 	draw_markers_time(C, flag);
 	
 	/* preview range */
@@ -360,8 +365,13 @@ static void action_listener(ScrArea *sa, wmNotifier *wmn)
 			}
 			break;
 		case NC_ANIMATION:
+			/* for NLA tweakmode enter/exit, need complete refresh */
+			if (wmn->data == ND_NLA_ACTCHANGE) {
+				saction->flag |= SACTION_TEMP_NEEDCHANSYNC;
+				ED_area_tag_refresh(sa);
+			}
 			/* for selection changes of animation data, we can just redraw... otherwise autocolor might need to be done again */
-			if (ELEM(wmn->data, ND_KEYFRAME, ND_ANIMCHAN) && (wmn->action == NA_SELECTED))
+			else if (ELEM(wmn->data, ND_KEYFRAME, ND_ANIMCHAN) && (wmn->action == NA_SELECTED))
 				ED_area_tag_redraw(sa);
 			else
 				ED_area_tag_refresh(sa);

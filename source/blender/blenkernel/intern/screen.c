@@ -27,6 +27,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/blenkernel/intern/screen.c
+ *  \ingroup bke
+ */
+
+#include "BLI_winstuff.h"
+
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
@@ -231,6 +237,26 @@ void BKE_spacedata_copylist(ListBase *lb1, ListBase *lb2)
 	}
 }
 
+/* facility to set locks for drawing to survive (render) threads accessing drawing data */
+/* lock can become bitflag too */
+/* should be replaced in future by better local data handling for threads */
+void BKE_spacedata_draw_locks(int set)
+{
+	SpaceType *st;
+	
+	for(st= spacetypes.first; st; st= st->next) {
+		ARegionType *art;
+	
+		for(art= st->regiontypes.first; art; art= art->next) {
+			if(set) 
+				art->do_lock= art->lock;
+			else 
+				art->do_lock= 0;
+		}
+	}
+}
+
+
 /* not region itself */
 void BKE_area_region_free(SpaceType *st, ARegion *ar)
 {
@@ -389,4 +415,22 @@ void BKE_screen_view3d_main_sync(ListBase *screen_lb, Scene *scene)
 				if(sl->spacetype==SPACE_VIEW3D)
 					BKE_screen_view3d_sync((View3D*)sl, scene);
 	}
+}
+
+/* magic zoom calculation, no idea what
+ * it signifies, if you find out, tell me! -zr
+ */
+
+/* simple, its magic dude!
+ * well, to be honest, this gives a natural feeling zooming
+ * with multiple keypad presses (ton)
+ */
+float BKE_screen_view3d_zoom_to_fac(float camzoom)
+{
+	return powf(((float)M_SQRT2 + camzoom/50.0f), 2.0f) / 4.0f;
+}
+
+float BKE_screen_view3d_zoom_from_fac(float zoomfac)
+{
+	return ((sqrtf(4.0f * zoomfac) - (float)M_SQRT2) * 50.0f);
 }

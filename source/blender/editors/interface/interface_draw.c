@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -24,6 +24,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/interface/interface_draw.c
+ *  \ingroup edinterface
+ */
+
 
 #include <math.h>
 #include <string.h>
@@ -138,9 +143,9 @@ static void round_box_shade_col(float *col1, float *col2, float fac)
 {
 	float col[3];
 
-	col[0]= (fac*col1[0] + (1.0-fac)*col2[0]);
-	col[1]= (fac*col1[1] + (1.0-fac)*col2[1]);
-	col[2]= (fac*col1[2] + (1.0-fac)*col2[2]);
+	col[0]= (fac*col1[0] + (1.0f-fac)*col2[0]);
+	col[1]= (fac*col1[1] + (1.0f-fac)*col2[1]);
+	col[2]= (fac*col1[2] + (1.0f-fac)*col2[2]);
 	
 	glColor3fv(col);
 }
@@ -164,12 +169,12 @@ void uiDrawBoxShade(int mode, float minx, float miny, float maxx, float maxy, fl
 	glGetFloatv(GL_CURRENT_COLOR, color);
 
 	/* 'shade' defines strength of shading */	
-	coltop[0]= color[0]+shadetop; if(coltop[0]>1.0) coltop[0]= 1.0;
-	coltop[1]= color[1]+shadetop; if(coltop[1]>1.0) coltop[1]= 1.0;
-	coltop[2]= color[2]+shadetop; if(coltop[2]>1.0) coltop[2]= 1.0;
-	coldown[0]= color[0]+shadedown; if(coldown[0]<0.0) coldown[0]= 0.0;
-	coldown[1]= color[1]+shadedown; if(coldown[1]<0.0) coldown[1]= 0.0;
-	coldown[2]= color[2]+shadedown; if(coldown[2]<0.0) coldown[2]= 0.0;
+	coltop[0]= color[0]+shadetop; if(coltop[0]>1.0f) coltop[0]= 1.0f;
+	coltop[1]= color[1]+shadetop; if(coltop[1]>1.0f) coltop[1]= 1.0f;
+	coltop[2]= color[2]+shadetop; if(coltop[2]>1.0f) coltop[2]= 1.0f;
+	coldown[0]= color[0]+shadedown; if(coldown[0]<0.0f) coldown[0]= 0.0f;
+	coldown[1]= color[1]+shadedown; if(coldown[1]<0.0f) coldown[1]= 0.0f;
+	coldown[2]= color[2]+shadedown; if(coldown[2]<0.0f) coldown[2]= 0.0f;
 
 	glShadeModel(GL_SMOOTH);
 	glBegin(mode);
@@ -271,12 +276,12 @@ void uiDrawBoxVerticalShade(int mode, float minx, float miny, float maxx, float 
 	glGetFloatv(GL_CURRENT_COLOR, color);
 
 	/* 'shade' defines strength of shading */	
-	colLeft[0]= color[0]+shadeLeft; if(colLeft[0]>1.0) colLeft[0]= 1.0;
-	colLeft[1]= color[1]+shadeLeft; if(colLeft[1]>1.0) colLeft[1]= 1.0;
-	colLeft[2]= color[2]+shadeLeft; if(colLeft[2]>1.0) colLeft[2]= 1.0;
-	colRight[0]= color[0]+shadeRight; if(colRight[0]<0.0) colRight[0]= 0.0;
-	colRight[1]= color[1]+shadeRight; if(colRight[1]<0.0) colRight[1]= 0.0;
-	colRight[2]= color[2]+shadeRight; if(colRight[2]<0.0) colRight[2]= 0.0;
+	colLeft[0]= color[0]+shadeLeft; if(colLeft[0]>1.0f) colLeft[0]= 1.0f;
+	colLeft[1]= color[1]+shadeLeft; if(colLeft[1]>1.0f) colLeft[1]= 1.0f;
+	colLeft[2]= color[2]+shadeLeft; if(colLeft[2]>1.0f) colLeft[2]= 1.0f;
+	colRight[0]= color[0]+shadeRight; if(colRight[0]<0.0f) colRight[0]= 0.0f;
+	colRight[1]= color[1]+shadeRight; if(colRight[1]<0.0f) colRight[1]= 0.0f;
+	colRight[2]= color[2]+shadeRight; if(colRight[2]<0.0f) colRight[2]= 0.0f;
 
 	glShadeModel(GL_SMOOTH);
 	glBegin(mode);
@@ -380,6 +385,7 @@ void uiRoundRect(float minx, float miny, float maxx, float maxy, float rad)
 }
 
 /* plain fake antialiased unfilled round rectangle */
+#if 0 /* UNUSED 2.5 */
 static void uiRoundRectFakeAA(float minx, float miny, float maxx, float maxy, float rad, float asp)
 {
 	float color[4], alpha;
@@ -407,6 +413,7 @@ static void uiRoundRectFakeAA(float minx, float miny, float maxx, float maxy, fl
 	color[3] = alpha;
 	glColor4fv(color);
 }
+#endif
 
 /* (old, used in outliner) plain antialiased filled box */
 void uiRoundBox(float minx, float miny, float maxx, float maxy, float rad)
@@ -757,8 +764,6 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 	//float alpha;
 	GLint scissor[4];
 	
-	if (hist==NULL) { printf("hist is null \n"); return; }
-	
 	rect.xmin = (float)recti->xmin+1;
 	rect.xmax = (float)recti->xmax-1;
 	rect.ymin = (float)recti->ymin+SCOPE_RESIZE_PAD+2;
@@ -943,9 +948,9 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 			/* min max */
 			for (c=0; c<3; c++) {
 				if (scopes->wavefrm_mode == SCOPES_WAVEFRM_RGB)
-					glColor3f(colors[c][0]*0.75, colors[c][1]*0.75, colors[c][2]*0.75);
+					glColor3f(colors[c][0]*0.75f, colors[c][1]*0.75f, colors[c][2]*0.75f);
 				else
-					glColor3f(colorsycc[c][0]*0.75, colorsycc[c][1]*0.75, colorsycc[c][2]*0.75);
+					glColor3f(colorsycc[c][0]*0.75f, colorsycc[c][1]*0.75f, colorsycc[c][2]*0.75f);
 				min= yofs+scopes->minmax[c][0]*h;
 				max= yofs+scopes->minmax[c][1]*h;
 				CLAMP(min, rect.ymin, rect.ymax);
@@ -978,15 +983,15 @@ static void vectorscope_draw_target(float centerx, float centery, float diam, fl
 
 	rgb_to_yuv(r,g,b, &y, &u, &v);
 	if (u>0 && v>=0) tangle=atanf(v/u);
-	else if (u>0 && v<0) tangle=atanf(v/u)+2*M_PI;
-	else if (u<0) tangle=atanf(v/u)+M_PI;
-	else if (u==0 && v>0) tangle=M_PI/2.0f;
-	else if (u==0 && v<0) tangle=-M_PI/2.0f;
+	else if (u>0 && v<0) tangle= atanf(v/u) + 2.0f * (float)M_PI;
+	else if (u<0) tangle=atanf(v/u) + (float)M_PI;
+	else if (u==0 && v > 0.0f) tangle= (float)M_PI/2.0f;
+	else if (u==0 && v < 0.0f) tangle=-(float)M_PI/2.0f;
 	tampli= sqrtf(u*u+v*v);
 
 	/* small target vary by 2.5 degree and 2.5 IRE unit */
 	glColor4f(1.0f, 1.0f, 1.0, 0.12f);
-	dangle= 2.5*M_PI/180.0f;
+	dangle= 2.5f*(float)M_PI/180.0f;
 	dampli= 2.5f/200.0f;
 	glBegin(GL_LINE_STRIP);
 	glVertex2f(polar_to_x(centerx,diam,tampli+dampli,tangle+dangle), polar_to_y(centery,diam,tampli+dampli,tangle+dangle));
@@ -997,9 +1002,9 @@ static void vectorscope_draw_target(float centerx, float centery, float diam, fl
 	glEnd();
 	/* big target vary by 10 degree and 20% amplitude */
 	glColor4f(1.0f, 1.0f, 1.0, 0.12f);
-	dangle= 10*M_PI/180.0f;
-	dampli= 0.2*tampli;
-	dangle2= 5.0f*M_PI/180.0f;
+	dangle= 10.0f*(float)M_PI/180.0f;
+	dampli= 0.2f*tampli;
+	dangle2= 5.0f*(float)M_PI/180.0f;
 	dampli2= 0.5f*dampli;
 	glBegin(GL_LINE_STRIP);
 	glVertex2f(polar_to_x(centerx,diam,tampli+dampli-dampli2,tangle+dangle), polar_to_y(centery,diam,tampli+dampli-dampli2,tangle+dangle));
@@ -1123,13 +1128,13 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 	sizey= rect->ymax-y1;
 	
 	/* first background, to show tranparency */
-	dx= sizex/12.0;
+	dx= sizex/12.0f;
 	v1[0]= x1;
 	for(a=0; a<12; a++) {
 		if(a & 1) glColor3f(0.3, 0.3, 0.3); else glColor3f(0.8, 0.8, 0.8);
-		glRectf(v1[0], y1, v1[0]+dx, y1+0.5*sizey);
+		glRectf(v1[0], y1, v1[0]+dx, y1+0.5f*sizey);
 		if(a & 1) glColor3f(0.8, 0.8, 0.8); else glColor3f(0.3, 0.3, 0.3);
-		glRectf(v1[0], y1+0.5*sizey, v1[0]+dx, y1+sizey);
+		glRectf(v1[0], y1+0.5f*sizey, v1[0]+dx, y1+sizey);
 		v1[0]+= dx;
 	}
 	
@@ -1170,9 +1175,9 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 	/* help lines */
 	v1[0]= v2[0]=v3[0]= x1;
 	v1[1]= y1;
-	v1a[1]= y1+0.25*sizey;
-	v2[1]= y1+0.5*sizey;
-	v2a[1]= y1+0.75*sizey;
+	v1a[1]= y1+0.25f*sizey;
+	v2[1]= y1+0.5f*sizey;
+	v2a[1]= y1+0.75f*sizey;
 	v3[1]= y1+sizey;
 	
 	
@@ -1322,7 +1327,7 @@ static void ui_draw_but_curve_grid(rcti *rect, float zoomx, float zoomy, float o
 	glBegin(GL_LINES);
 	dx= step*zoomx;
 	fx= rect->xmin + zoomx*(-offsx);
-	if(fx > rect->xmin) fx -= dx*( floor(fx-rect->xmin));
+	if(fx > rect->xmin) fx -= dx*(floorf(fx-rect->xmin));
 	while(fx < rect->xmax) {
 		glVertex2f(fx, rect->ymin); 
 		glVertex2f(fx, rect->ymax);
@@ -1331,7 +1336,7 @@ static void ui_draw_but_curve_grid(rcti *rect, float zoomx, float zoomy, float o
 	
 	dy= step*zoomy;
 	fy= rect->ymin + zoomy*(-offsy);
-	if(fy > rect->ymin) fy -= dy*( floor(fy-rect->ymin));
+	if(fy > rect->ymin) fy -= dy*(floorf(fy-rect->ymin));
 	while(fy < rect->ymax) {
 		glVertex2f(rect->xmin, fy); 
 		glVertex2f(rect->xmax, fy);
@@ -1365,8 +1370,8 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 	glScissor(ar->winrct.xmin + rect->xmin, ar->winrct.ymin+rect->ymin, rect->xmax-rect->xmin, rect->ymax-rect->ymin);
 	
 	/* calculate offset and zoom */
-	zoomx= (rect->xmax-rect->xmin-2.0*but->aspect)/(cumap->curr.xmax - cumap->curr.xmin);
-	zoomy= (rect->ymax-rect->ymin-2.0*but->aspect)/(cumap->curr.ymax - cumap->curr.ymin);
+	zoomx= (rect->xmax-rect->xmin-2.0f*but->aspect)/(cumap->curr.xmax - cumap->curr.xmin);
+	zoomy= (rect->ymax-rect->ymin-2.0f*but->aspect)/(cumap->curr.ymax - cumap->curr.ymin);
 	offsx= cumap->curr.xmin-but->aspect/zoomx;
 	offsy= cumap->curr.ymin-but->aspect/zoomy;
 	
@@ -1526,9 +1531,9 @@ static void ui_shadowbox(float minx, float miny, float maxx, float maxy, float s
 	glBegin(GL_POLYGON);
 	glColor4ub(0, 0, 0, alpha);
 	glVertex2f(maxx, miny);
-	glVertex2f(maxx, maxy-0.3*shadsize);
+	glVertex2f(maxx, maxy-0.3f*shadsize);
 	glColor4ub(0, 0, 0, 0);
-	glVertex2f(maxx+shadsize, maxy-0.75*shadsize);
+	glVertex2f(maxx+shadsize, maxy-0.75f*shadsize);
 	glVertex2f(maxx+shadsize, miny);
 	glEnd();
 	
@@ -1538,18 +1543,18 @@ static void ui_shadowbox(float minx, float miny, float maxx, float maxy, float s
 	glVertex2f(maxx, miny);
 	glColor4ub(0, 0, 0, 0);
 	glVertex2f(maxx+shadsize, miny);
-	glVertex2f(maxx+0.7*shadsize, miny-0.7*shadsize);
+	glVertex2f(maxx+0.7f*shadsize, miny-0.7f*shadsize);
 	glVertex2f(maxx, miny-shadsize);
 	glEnd();
 	
 	/* bottom quad */		
 	glBegin(GL_POLYGON);
 	glColor4ub(0, 0, 0, alpha);
-	glVertex2f(minx+0.3*shadsize, miny);
+	glVertex2f(minx+0.3f*shadsize, miny);
 	glVertex2f(maxx, miny);
 	glColor4ub(0, 0, 0, 0);
 	glVertex2f(maxx, miny-shadsize);
-	glVertex2f(minx+0.5*shadsize, miny-shadsize);
+	glVertex2f(minx+0.5f*shadsize, miny-shadsize);
 	glEnd();
 	
 	glDisable(GL_BLEND);
@@ -1566,7 +1571,7 @@ void uiDrawBoxShadow(unsigned char alpha, float minx, float miny, float maxx, fl
 }
 
 
-void ui_dropshadow(rctf *rct, float radius, float aspect, int select)
+void ui_dropshadow(rctf *rct, float radius, float aspect, int UNUSED(select))
 {
 	int i;
 	float rad;
@@ -1581,7 +1586,17 @@ void ui_dropshadow(rctf *rct, float radius, float aspect, int select)
 		rad= radius;
 	
 	i= 12;
-	if(select) a= i*aspect; else a= i*aspect;
+#if 0
+	if(select) {
+		a= i*aspect; /* same as below */
+	}
+	else
+#endif
+	{
+		a= i*aspect;
+
+	}
+
 	for(; i--; a-=aspect) {
 		/* alpha ranges from 2 to 20 or so */
 		glColor4ub(0, 0, 0, alpha);

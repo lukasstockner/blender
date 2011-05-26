@@ -1,4 +1,5 @@
-/**
+/*
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -20,6 +21,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/blenkernel/intern/unit.c
+ *  \ingroup bke
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -93,7 +99,7 @@ typedef struct bUnitDef {
 /* define a single unit */
 typedef struct bUnitCollection {
 	struct bUnitDef *units;
-	int base_unit;				/* basic unit index (when user desn't specify unit explicitly) */
+	int base_unit;				/* basic unit index (when user doesn't specify unit explicitly) */
 	int flag;					/* options for this system */
 	int length;					/* to quickly find the last item */
 } bUnitCollection;
@@ -342,8 +348,7 @@ static int unit_as_string(char *str, int len_max, double value, int prec, bUnitC
 
 	/* Convert to a string */
 	{
-		char conv_str[6] = {'%', '.', '0'+prec, 'l', 'f', '\0'}; /* "%.2lf" when prec is 2, must be under 10 */
-		len= snprintf(str, len_max, conv_str, (float)value_conv);
+		len= snprintf(str, len_max, "%.*lf", prec, value_conv);
 
 		if(len >= len_max)
 			len= len_max;

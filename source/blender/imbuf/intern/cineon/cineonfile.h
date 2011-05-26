@@ -1,3 +1,6 @@
+/** \file blender/imbuf/intern/cineon/cineonfile.h
+ *  \ingroup imbcineon
+ */
 /*
  *	 Cineon image file format library definitions.
  *	 Cineon file format structures.
@@ -122,19 +125,6 @@ typedef struct {
 	ASCII slate[200];
 	ASCII reserved[740];
 } CineonMPISpecificInformation;
-
-#if 0
-/* create CineonFile from data in header */
-/* return 0 for OK */
-int readCineonGenericHeader(CineonFile* cineon, CineonGenericHeader* header);
-
-/* create header from data in CineonFile */
-int initCineonGenericHeader(
-	CineonFile* cineon, CineonGenericHeader* header, const char* imagename);
-
-/* Note: dump routine assumes network byte order */
-void dumpCineonGenericHeader(CineonGenericHeader* header);
-#endif
 
 #ifdef __cplusplus
 }

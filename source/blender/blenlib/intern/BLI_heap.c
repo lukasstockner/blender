@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -27,6 +27,11 @@
  * ***** END GPL LICENSE BLOCK *****
  * A heap / priority queue ADT.
  */
+
+/** \file blender/blenlib/intern/BLI_heap.c
+ *  \ingroup bli
+ */
+
 
 #include <string.h>
 

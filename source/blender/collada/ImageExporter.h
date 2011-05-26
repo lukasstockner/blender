@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -23,6 +23,10 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file ImageExporter.h
+ *  \ingroup collada
+ */
+
 #ifndef __IMAGEEXPORTER_H__
 #define __IMAGEEXPORTER_H__
 
@@ -45,6 +49,8 @@ public:
 	
 	void exportImages(Scene *sce);
 	void operator()(Material *ma, Object *ob);
+private:
+	bool hasImages(Scene *sce);
 };
 
 #endif

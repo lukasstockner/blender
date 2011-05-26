@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/editors/animation/anim_channels_defines.c
+ *  \ingroup edanimation
+ */
+
+
+#include <stdio.h>
 
 
 #include "MEM_guardedalloc.h"
@@ -3207,7 +3213,7 @@ void ANIM_channel_draw_widgets (bAnimContext *ac, bAnimListElem *ale, uiBlock *b
 {
 	bAnimChannelType *acf= ANIM_channel_get_typeinfo(ale);
 	View2D *v2d= &ac->ar->v2d;
-	float y, ymid, ytext;
+	float y, ymid /*, ytext*/;
 	short offset;
 	
 	/* sanity checks - don't draw anything */
@@ -3226,7 +3232,7 @@ void ANIM_channel_draw_widgets (bAnimContext *ac, bAnimListElem *ale, uiBlock *b
 	y= (ymaxc - yminc)/2 + yminc;
 	ymid= y - 7;
 	/* y-coordinates for text is only 4 down from middle */
-	ytext= y - 4;
+	/* ytext= y - 4; */
 	
 	/* no button backdrop behind icons */
 	uiBlockSetEmboss(block, UI_EMBOSSN);
@@ -3258,6 +3264,7 @@ void ANIM_channel_draw_widgets (bAnimContext *ac, bAnimListElem *ale, uiBlock *b
 			draw_setting_widget(ac, ale, acf, block, offset, ymid, ACHANNEL_SETTING_SOLO);
 			offset += ICON_WIDTH; 
 		}
+		(void)offset;
 	}
 	
 	/* step 4) draw text... */
@@ -3352,7 +3359,7 @@ void ANIM_channel_draw_widgets (bAnimContext *ac, bAnimListElem *ale, uiBlock *b
 						uiBut *but;
 						
 						/* create the slider button, and assign relevant callback to ensure keyframes are inserted... */
-						but= uiDefAutoButR(block, &ptr, prop, array_index, "", ICON_NULL, (int)v2d->cur.xmax-offset, ymid, SLIDER_WIDTH, (int)ymaxc-yminc);
+						but= uiDefAutoButR(block, &ptr, prop, array_index, "", ICON_NONE, (int)v2d->cur.xmax-offset, ymid, SLIDER_WIDTH, (int)ymaxc-yminc);
 						
 						/* assign keyframing function according to slider type */
 						if (ale->type == ANIMTYPE_SHAPEKEY)

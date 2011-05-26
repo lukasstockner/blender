@@ -30,6 +30,11 @@
 *
 */
 
+/** \file blender/modifiers/intern/MOD_hook.c
+ *  \ingroup modifiers
+ */
+
+
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -131,8 +136,8 @@ static float hook_falloff(float *co_1, float *co_2, const float falloff_squared,
 		if(len_squared > falloff_squared) {
 			return 0.0f;
 		}
-		else if(len_squared > 0.0) {
-			return fac * (1.0 - (len_squared / falloff_squared));
+		else if(len_squared > 0.0f) {
+			return fac * (1.0f - (len_squared / falloff_squared));
 		}
 	}
 
@@ -245,7 +250,6 @@ static void deformVerts(ModifierData *md, Object *ob,
 	} 
 			}
 	else if(dvert) {	/* vertex group hook */
-		int i;
 		const float fac_orig= hmd->force;
 
 		for(i = 0; i < max_dvert; i++, dvert++) {
@@ -286,18 +290,18 @@ ModifierTypeInfo modifierType_Hook = {
 							| eModifierTypeFlag_SupportsEditmode,
 	/* copyData */          copyData,
 	/* deformVerts */       deformVerts,
-	/* deformMatrices */    0,
+	/* deformMatrices */    NULL,
 	/* deformVertsEM */     deformVertsEM,
-	/* deformMatricesEM */  0,
-	/* applyModifier */     0,
-	/* applyModifierEM */   0,
+	/* deformMatricesEM */  NULL,
+	/* applyModifier */     NULL,
+	/* applyModifierEM */   NULL,
 	/* initData */          initData,
 	/* requiredDataMask */  requiredDataMask,
 	/* freeData */          freeData,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    updateDepgraph,
-	/* dependsOnTime */     0,
-	/* dependsOnNormals */	0,
+	/* dependsOnTime */     NULL,
+	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ foreachObjectLink,
-	/* foreachIDLink */     0,
+	/* foreachIDLink */     NULL,
 };

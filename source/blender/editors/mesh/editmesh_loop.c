@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -26,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/mesh/editmesh_loop.c
+ *  \ingroup edmesh
+ */
+
 
 /*
 
@@ -71,14 +76,10 @@ editmesh_loop: tools with own drawing subloops, select, knife, subdiv
 #include "mesh_intern.h"
 
 /* **** XXX ******** */
-static void BIF_undo_push(const char *dummy) {}
-static void BIF_undo(void) {}
 static void error(const char *dummy) {}
-static int qtest(void) {return 0;}
 /* **** XXX ******** */
 
-
-/* New LoopCut */
+#if 0 /* UNUSED 2.5 */
 static void edgering_sel(EditMesh *em, EditEdge *startedge, int select, int previewlines)
 {
 	EditEdge *eed;
@@ -198,7 +199,7 @@ static void CutEdgeloop(Object *obedit, wmOperator *op, EditMesh *em, int numcut
 	EditEdge *nearest=NULL, *eed;
 	float fac;
 	int keys = 0, holdnum=0, selectmode, dist;
-	short mvalo[2] = {0, 0}, mval[2] = {0, 0};
+	int mvalo[2] = {0, 0}, mval[2] = {0, 0};
 	short event=0, val, choosing=1, cancel=0, cuthalf = 0, smooth=0;
 	short hasHidden = 0;
 	char msg[128];
@@ -380,7 +381,7 @@ static void CutEdgeloop(Object *obedit, wmOperator *op, EditMesh *em, int numcut
 //	DAG_id_tag_update(obedit->data, 0);
 	return;
 }
-
+#endif
 
 /* *************** LOOP SELECT ************* */
 #if 0
@@ -623,7 +624,7 @@ static int knife_cut_exec(bContext *C, wmOperator *op)
 	float  *scr, co[4];
 	int len=0;
 	short numcuts= RNA_int_get(op->ptr, "num_cuts"); 
-	short mode= RNA_int_get(op->ptr, "type");
+	short mode= RNA_enum_get(op->ptr, "type");
 //	int corner_cut_pattern= RNA_enum_get(op->ptr,"corner_cut_pattern");
 	
 	/* edit-object needed for matrix, and ar->regiondata for projections to work */

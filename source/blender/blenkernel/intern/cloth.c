@@ -1,5 +1,5 @@
-/*  cloth.c
-*
+/*
+ * $Id$
 *
 * ***** BEGIN GPL LICENSE BLOCK *****
 *
@@ -24,6 +24,11 @@
 *
 * ***** END GPL LICENSE BLOCK *****
 */
+
+/** \file blender/blenkernel/intern/cloth.c
+ *  \ingroup bke
+ */
+
 
 #include "MEM_guardedalloc.h"
 
@@ -913,7 +918,7 @@ static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *d
 	if(!first)
 		implicit_set_positions(clmd);
 
-	clmd->clothObject->bvhtree = bvhtree_build_from_cloth ( clmd, clmd->coll_parms->epsilon );
+	clmd->clothObject->bvhtree = bvhtree_build_from_cloth ( clmd, MAX2(clmd->coll_parms->epsilon, clmd->coll_parms->distance_repel) );
 	
 	for(i = 0; i < dm->getNumVerts(dm); i++)
 	{

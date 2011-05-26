@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -24,6 +24,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/interface/interface_ops.c
+ *  \ingroup edinterface
+ */
+
 
 #include <stdio.h>
 #include <math.h>
@@ -92,7 +97,7 @@ static int eyedropper_cancel(bContext *C, wmOperator *op)
 	return OPERATOR_CANCELLED;
 }
 
-static void eyedropper_sample(bContext *C, Eyedropper *eye, short mx, short my)
+static void eyedropper_sample(bContext *C, Eyedropper *eye, int mx, int my)
 {
 	if(RNA_property_type(eye->prop) == PROP_FLOAT) {
 		const int color_manage = CTX_data_scene(C)->r.color_mgt_flag & R_COLOR_MANAGEMENT;

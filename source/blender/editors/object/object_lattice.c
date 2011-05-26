@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -24,6 +24,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/object/object_lattice.c
+ *  \ingroup edobj
+ */
+
 
 #include <stdlib.h>
 #include <string.h>
@@ -300,7 +305,7 @@ void LATTICE_OT_make_regular(wmOperatorType *ot)
 
 static void findnearestLattvert__doClosest(void *userData, BPoint *bp, int x, int y)
 {
-	struct { BPoint *bp; short dist, select, mval[2]; } *data = userData;
+	struct { BPoint *bp; short dist, select; int mval[2]; } *data = userData;
 	float temp = abs(data->mval[0]-x) + abs(data->mval[1]-y);
 	
 	if((bp->f1 & SELECT)==data->select)
@@ -313,12 +318,12 @@ static void findnearestLattvert__doClosest(void *userData, BPoint *bp, int x, in
 	}
 }
 
-static BPoint *findnearestLattvert(ViewContext *vc, short mval[2], int sel)
+static BPoint *findnearestLattvert(ViewContext *vc, const int mval[2], int sel)
 {
 		/* sel==1: selected gets a disadvantage */
 		/* in nurb and bezt or bp the nearest is written */
 		/* return 0 1 2: handlepunt */
-	struct { BPoint *bp; short dist, select, mval[2]; } data = {0};
+	struct { BPoint *bp; short dist, select; int mval[2]; } data = {NULL};
 
 	data.dist = 100;
 	data.select = sel;
@@ -331,7 +336,7 @@ static BPoint *findnearestLattvert(ViewContext *vc, short mval[2], int sel)
 	return data.bp;
 }
 
-int mouse_lattice(bContext *C, short mval[2], int extend)
+int mouse_lattice(bContext *C, const int mval[2], int extend)
 {
 	ViewContext vc;
 	BPoint *bp= NULL;

@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -24,6 +24,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+ 
+/** \file blender/editors/gpencil/editaction_gpencil.c
+ *  \ingroup edgpencil
+ */
+
  
 #include <stdio.h>
 #include <string.h>
@@ -59,7 +64,7 @@
 /* Generics - Loopers */
 
 /* Loops over the gp-frames for a gp-layer, and applies the given callback */
-static short gplayer_frames_looper (bGPDlayer *gpl, Scene *scene, short (*gpf_cb)(bGPDframe *, Scene *))
+short gplayer_frames_looper (bGPDlayer *gpl, Scene *scene, short (*gpf_cb)(bGPDframe *, Scene *))
 {
 	bGPDframe *gpf;
 	

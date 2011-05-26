@@ -1,5 +1,5 @@
-/**
- * shrinkwrap.c
+/*
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -26,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/blenkernel/intern/shrinkwrap.c
+ *  \ingroup bke
+ */
+
 #include <string.h>
 #include <float.h>
 #include <math.h>
@@ -259,21 +264,25 @@ int normal_projection_project_vertex(char options, const float *vert, const floa
 
 	BLI_bvhtree_ray_cast(tree, co, no, 0.0f, &hit_tmp, callback, userdata);
 
-	if(hit_tmp.index != -1)
-	{
-		float dot = INPR( dir, hit_tmp.no);
+	if(hit_tmp.index != -1) {
+		/* invert the normal first so face culling works on rotated objects */
+		if(transf) {
+			space_transform_invert_normal(transf, hit_tmp.no);
+		}
 
-		if(((options & MOD_SHRINKWRAP_CULL_TARGET_FRONTFACE) && dot <= 0.0f)
-		|| ((options & MOD_SHRINKWRAP_CULL_TARGET_BACKFACE) && dot >= 0.0f))
-			return FALSE; //Ignore hit
+		if (options & (MOD_SHRINKWRAP_CULL_TARGET_FRONTFACE|MOD_SHRINKWRAP_CULL_TARGET_BACKFACE)) {
+			/* apply backface */
+			const float dot= dot_v3v3(dir, hit_tmp.no);
+			if(	((options & MOD_SHRINKWRAP_CULL_TARGET_FRONTFACE) && dot <= 0.0f) ||
+				((options & MOD_SHRINKWRAP_CULL_TARGET_BACKFACE) && dot >= 0.0f)
+			) {
+				return FALSE; /* Ignore hit */
+			}
+		}
 
-
-		//Inverting space transform (TODO make coeherent with the initial dist readjust)
-		if(transf)
-		{
+		if(transf) {
+			/* Inverting space transform (TODO make coeherent with the initial dist readjust) */
 			space_transform_invert( transf, hit_tmp.co );
-			space_transform_invert_normal( transf, hit_tmp.no );
-
 			hit_tmp.dist = len_v3v3( (float*)vert, hit_tmp.co );
 		}
 
@@ -553,12 +562,11 @@ void shrinkwrapModifier_deform(ShrinkwrapModifierData *smd, Object *ob, DerivedM
 		//Using vertexs positions/normals as if a subsurface was applied 
 		if(smd->subsurfLevels)
 		{
-			SubsurfModifierData ssmd;
-			memset(&ssmd, 0, sizeof(ssmd));
+			SubsurfModifierData ssmd= {{NULL}};
 			ssmd.subdivType	= ME_CC_SUBSURF;		//catmull clark
 			ssmd.levels		= smd->subsurfLevels;	//levels
 
-			ss_mesh = subsurf_make_derived_from_derived(dm, &ssmd, FALSE, NULL, 0, 0);
+			ss_mesh = subsurf_make_derived_from_derived(dm, &ssmd, FALSE, NULL, 0, 0, (ob->mode & OB_MODE_EDIT));
 
 			if(ss_mesh)
 			{

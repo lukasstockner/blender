@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -23,6 +23,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/space_action/action_select.c
+ *  \ingroup spaction
+ */
+
 
 #include <math.h>
 #include <stdlib.h>
@@ -85,7 +90,7 @@ static void deselect_action_keys (bAnimContext *ac, short test, short sel)
 	bAnimListElem *ale;
 	int filter;
 	
-	KeyframeEditData ked;
+	KeyframeEditData ked= {{NULL}};
 	KeyframeEditFunc test_cb, sel_cb;
 	
 	/* determine type-based settings */
@@ -183,11 +188,11 @@ void ACTION_OT_select_all_toggle (wmOperatorType *ot)
  */
 
 /* defines for borderselect mode */
-static enum {
+enum {
 	ACTKEYS_BORDERSEL_ALLKEYS	= 0,
 	ACTKEYS_BORDERSEL_FRAMERANGE,
 	ACTKEYS_BORDERSEL_CHANNELS,
-} eActKeys_BorderSelect_Mode;
+} /*eActKeys_BorderSelect_Mode*/;
 
 
 static void borderselect_action (bAnimContext *ac, rcti rect, short mode, short selectmode)
@@ -367,7 +372,7 @@ static void markers_selectkeys_between (bAnimContext *ac)
 	int filter;
 	
 	KeyframeEditFunc ok_cb, select_cb;
-	KeyframeEditData ked;
+	KeyframeEditData ked= {{NULL}};
 	float min, max;
 	
 	/* get extreme markers */
@@ -419,7 +424,7 @@ static void columnselect_action_keys (bAnimContext *ac, short mode)
 	Scene *scene= ac->scene;
 	CfraElem *ce;
 	KeyframeEditFunc select_cb, ok_cb;
-	KeyframeEditData ked= {{0}};
+	KeyframeEditData ked= {{NULL}};
 	
 	/* initialise keyframe editing data */
 	memset(&ked, 0, sizeof(KeyframeEditData));
@@ -453,7 +458,7 @@ static void columnselect_action_keys (bAnimContext *ac, short mode)
 			break;
 			
 		case ACTKEYS_COLUMNSEL_MARKERS_COLUMN: /* list of selected markers */
-			ED_markers_make_cfra_list(ac->markers, &ked.list, 1);
+			ED_markers_make_cfra_list(ac->markers, &ked.list, SELECT);
 			break;
 			
 		default: /* invalid option */
@@ -606,7 +611,7 @@ static void select_moreless_action_keys (bAnimContext *ac, short mode)
 	bAnimListElem *ale;
 	int filter;
 	
-	KeyframeEditData ked;
+	KeyframeEditData ked= {{NULL}};
 	KeyframeEditFunc build_cb;
 	
 	
@@ -729,7 +734,7 @@ static void actkeys_select_leftright (bAnimContext *ac, short leftright, short s
 	int filter;
 	
 	KeyframeEditFunc ok_cb, select_cb;
-	KeyframeEditData ked;
+	KeyframeEditData ked= {{NULL}};
 	Scene *scene= ac->scene;
 	
 	/* if select mode is replace, deselect all keyframes (and channels) first */
@@ -847,20 +852,14 @@ static int actkeys_select_leftright_invoke (bContext *C, wmOperator *op, wmEvent
 		Scene *scene= ac.scene;
 		ARegion *ar= ac.ar;
 		View2D *v2d= &ar->v2d;
-		
-		int mval[2];
 		float x;
 		
-		/* get mouse coordinates (in region coordinates) */
-		mval[0]= (event->x - ar->winrct.xmin);
-		mval[1]= (event->y - ar->winrct.ymin);
-		
 		/* determine which side of the current frame mouse is on */
-		UI_view2d_region_to_view(v2d, mval[0], mval[1], &x, NULL);
+		UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &x, NULL);
 		if (x < CFRA)
-			RNA_int_set(op->ptr, "mode", ACTKEYS_LRSEL_LEFT);
+			RNA_enum_set(op->ptr, "mode", ACTKEYS_LRSEL_LEFT);
 		else 	
-			RNA_int_set(op->ptr, "mode", ACTKEYS_LRSEL_RIGHT);
+			RNA_enum_set(op->ptr, "mode", ACTKEYS_LRSEL_RIGHT);
 	}
 	
 	/* perform selection */
@@ -908,7 +907,7 @@ static void actkeys_mselect_single (bAnimContext *ac, bAnimListElem *ale, short 
 	bDopeSheet *ads= (ac->datatype == ANIMCONT_DOPESHEET) ? ac->data : NULL;
 	int ds_filter = ((ads) ? (ads->filterflag) : (0));
 	
-	KeyframeEditData ked= {{0}};
+	KeyframeEditData ked= {{NULL}};
 	KeyframeEditFunc select_cb, ok_cb;
 	
 	/* get functions for selecting keyframes */
@@ -934,7 +933,7 @@ static void actkeys_mselect_column(bAnimContext *ac, short select_mode, float se
 	int filter;
 	
 	KeyframeEditFunc select_cb, ok_cb;
-	KeyframeEditData ked;
+	KeyframeEditData ked= {{NULL}};
 	
 	/* initialise keyframe editing data */
 	memset(&ked, 0, sizeof(KeyframeEditData));
@@ -975,7 +974,7 @@ static void actkeys_mselect_column(bAnimContext *ac, short select_mode, float se
  
 /* ------------------- */
 
-static void mouse_action_keys (bAnimContext *ac, int mval[2], short select_mode, short column)
+static void mouse_action_keys (bAnimContext *ac, const int mval[2], short select_mode, short column)
 {
 	ListBase anim_data = {NULL, NULL};
 	DLRBT_Tree anim_keys;
@@ -1158,24 +1157,15 @@ static void mouse_action_keys (bAnimContext *ac, int mval[2], short select_mode,
 static int actkeys_clickselect_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
 	bAnimContext ac;
-	Scene *scene;
 	ARegion *ar;
-	View2D *v2d;
 	short selectmode, column;
-	int mval[2];
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
 		
 	/* get useful pointers from animation context data */
-	scene= ac.scene;
 	ar= ac.ar;
-	v2d= &ar->v2d;
-	
-	/* get mouse coordinates (in region coordinates) */
-	mval[0]= (event->x - ar->winrct.xmin);
-	mval[1]= (event->y - ar->winrct.ymin);
 	
 	/* select mode is either replace (deselect all, then add) or add/extend */
 	if (RNA_boolean_get(op->ptr, "extend"))
@@ -1187,7 +1177,7 @@ static int actkeys_clickselect_invoke(bContext *C, wmOperator *op, wmEvent *even
 	column= RNA_boolean_get(op->ptr, "column");
 	
 		/* select keyframe(s) based upon mouse position*/
-		mouse_action_keys(&ac, mval, selectmode, column);
+	mouse_action_keys(&ac, event->mval, selectmode, column);
 	
 	/* set notifier that keyframe selection (and channels too) have changed */
 	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|ND_ANIMCHAN|NA_SELECTED, NULL);

@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -27,6 +27,11 @@
  * ***** END GPL LICENSE BLOCK *****
  * Blender's Ketsji startpoint
  */
+
+/** \file gameengine/BlenderRoutines/BL_KetsjiEmbedStart.cpp
+ *  \ingroup blroutines
+ */
+
 
 #include <signal.h>
 #include <stdlib.h>
@@ -59,7 +64,7 @@
 
 #include "NG_LoopBackNetworkDeviceInterface.h"
 
-#include "SYS_System.h"
+#include "BL_System.h"
 
 #include "GPU_extensions.h"
 #include "Value.h"
@@ -76,6 +81,8 @@ extern "C" {
 #include "DNA_windowmanager_types.h"
 #include "BKE_global.h"
 #include "BKE_report.h"
+/* #include "BKE_screen.h" */ /* cant include this because of 'new' function name */
+extern float BKE_screen_view3d_zoom_to_fac(float camzoom);
 
 
 //XXX #include "BIF_screen.h"
@@ -249,9 +256,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 				camzoom = 1.0f;
 			}
 			else {
-				camzoom = (1.41421 + (rv3d->camzoom / 50.0));
-				camzoom *= camzoom;
-				camzoom = 4.0 / camzoom;
+				camzoom = BKE_screen_view3d_zoom_to_fac(rv3d->camzoom);
 			}
 		}
 		else {
@@ -422,6 +427,13 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 				{
 					// first check if we want to exit
 					exitrequested = ketsjiengine->GetExitCode();
+					
+					// Clear screen to border color
+					// We do this here since we set the canvas to be within the frames. This means the engine
+					// itself is unaware of the extra space, so we clear the whole region for it.
+					glClearColor(scene->gm.framing.col[0], scene->gm.framing.col[1], scene->gm.framing.col[2], 1.0f);
+					glViewport(ar->winrct.xmin, ar->winrct.ymin, ar->winrct.xmax, ar->winrct.ymax);
+					glClear(GL_COLOR_BUFFER_BIT);
 					
 					// kick the engine
 					bool render = ketsjiengine->NextFrame();

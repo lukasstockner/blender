@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -24,6 +24,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/blenfont/intern/blf_lang.c
+ *  \ingroup blf
+ */
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,11 +76,17 @@ void BLF_lang_init(void)
 		BLI_strncpy(global_messagepath, messagepath, sizeof(global_messagepath));
 	else
 		global_messagepath[0]= '\0';
+	
 }
 
-
+/* XXX WARNING!!! IN osx somehow the previous function call jumps in this one??? (ton, ppc) */
 void BLF_lang_set(const char *str)
 {
+	if(str==NULL) {
+		return;
+	}
+	else {
+	
 #if defined (_WIN32) || defined(__APPLE__)
 	BLI_setenv("LANG", str);
 #else
@@ -97,9 +108,11 @@ void BLF_lang_set(const char *str)
 	bindtextdomain(DOMAIN_NAME, global_messagepath);
 	/* bind_textdomain_codeset(DOMAIN_NAME, global_encoding_name); */
 	BLI_strncpy(global_language, str, sizeof(global_language));
+		
+}
 }
 
-static void BLF_lang_encoding(const char *str)
+void BLF_lang_encoding(const char *str)
 {
 	BLI_strncpy(global_encoding_name, str, sizeof(global_encoding_name));
 	/* bind_textdomain_codeset(DOMAIN_NAME, encoding_name); */
@@ -112,7 +125,7 @@ void BLF_lang_init(void)
 	return;
 }
 
-static void BLF_lang_encoding(const char *str)
+void BLF_lang_encoding(const char *str)
 {
 	return;
 }

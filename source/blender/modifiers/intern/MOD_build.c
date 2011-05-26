@@ -30,6 +30,11 @@
 *
 */
 
+/** \file blender/modifiers/intern/MOD_build.c
+ *  \ingroup modifiers
+ */
+
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
@@ -82,7 +87,6 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	BuildModifierData *bmd = (BuildModifierData*) md;
 	int i;
 	int numFaces, numEdges;
-	int maxVerts, maxEdges, maxFaces;
 	int *vertMap, *edgeMap, *faceMap;
 	float frac;
 	GHashIterator *hashIter;
@@ -93,19 +97,15 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	GHash *edgeHash = BLI_ghash_new(BLI_ghashutil_inthash,
 					BLI_ghashutil_intcmp, "build ed apply gh");
 
-	maxVerts = dm->getNumVerts(dm);
-	vertMap = MEM_callocN(sizeof(*vertMap) * maxVerts,
-				  "build modifier vertMap");
+	const int maxVerts= dm->getNumVerts(dm);
+	const int maxEdges= dm->getNumEdges(dm);
+	const int maxFaces= dm->getNumFaces(dm);
+
+	vertMap = MEM_callocN(sizeof(*vertMap) * maxVerts, "build modifier vertMap");
 	for(i = 0; i < maxVerts; ++i) vertMap[i] = i;
-
-	maxEdges = dm->getNumEdges(dm);
-	edgeMap = MEM_callocN(sizeof(*edgeMap) * maxEdges,
-				  "build modifier edgeMap");
+	edgeMap = MEM_callocN(sizeof(*edgeMap) * maxEdges, "build modifier edgeMap");
 	for(i = 0; i < maxEdges; ++i) edgeMap[i] = i;
-
-	maxFaces = dm->getNumFaces(dm);
-	faceMap = MEM_callocN(sizeof(*faceMap) * maxFaces,
-				  "build modifier faceMap");
+	faceMap = MEM_callocN(sizeof(*faceMap) * maxFaces, "build modifier faceMap");
 	for(i = 0; i < maxFaces; ++i) faceMap[i] = i;
 
 	if (ob) {
@@ -114,15 +114,13 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	} else {
 		frac = BKE_curframe(md->scene) - bmd->start / bmd->length;
 	}
-	CLAMP(frac, 0.0, 1.0);
+	CLAMP(frac, 0.0f, 1.0f);
 
 	numFaces = dm->getNumFaces(dm) * frac;
 	numEdges = dm->getNumEdges(dm) * frac;
 
 	/* if there's at least one face, build based on faces */
 	if(numFaces) {
-		int maxEdges;
-
 		if(bmd->randomize)
 			BLI_array_randomize(faceMap, sizeof(*faceMap),
 						maxFaces, bmd->seed);
@@ -151,7 +149,6 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		/* get the set of edges that will be in the new mesh (i.e. all edges
 		* that have both verts in the new mesh)
 		*/
-		maxEdges = dm->getNumEdges(dm);
 		for(i = 0; i < maxEdges; ++i) {
 			MEdge me;
 			dm->getEdge(dm, i, &me);
@@ -213,7 +210,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	/* copy the vertices across */
 	for(hashIter = BLI_ghashIterator_new(vertHash);
 		   !BLI_ghashIterator_isDone(hashIter);
-		   BLI_ghashIterator_step(hashIter)) {
+			BLI_ghashIterator_step(hashIter)
+	) {
 			   MVert source;
 			   MVert *dest;
 			   int oldIndex = GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(hashIter));
@@ -287,19 +285,19 @@ ModifierTypeInfo modifierType_Build = {
 	/* flags */             eModifierTypeFlag_AcceptsMesh
 							| eModifierTypeFlag_AcceptsCVs,
 	/* copyData */          copyData,
-	/* deformVerts */       0,
-	/* deformMatrices */    0,
-	/* deformVertsEM */     0,
-	/* deformMatricesEM */  0,
+	/* deformVerts */       NULL,
+	/* deformMatrices */    NULL,
+	/* deformVertsEM */     NULL,
+	/* deformMatricesEM */  NULL,
 	/* applyModifier */     applyModifier,
-	/* applyModifierEM */   0,
+	/* applyModifierEM */   NULL,
 	/* initData */          initData,
-	/* requiredDataMask */  0,
-	/* freeData */          0,
-	/* isDisabled */        0,
-	/* updateDepgraph */    0,
+	/* requiredDataMask */  NULL,
+	/* freeData */          NULL,
+	/* isDisabled */        NULL,
+	/* updateDepgraph */    NULL,
 	/* dependsOnTime */     dependsOnTime,
-	/* dependsOnNormals */	0,
-	/* foreachObjectLink */ 0,
-	/* foreachIDLink */     0,
+	/* dependsOnNormals */	NULL,
+	/* foreachObjectLink */ NULL,
+	/* foreachIDLink */     NULL
 };

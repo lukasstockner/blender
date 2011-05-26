@@ -21,6 +21,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/collada/DocumentImporter.cpp
+ *  \ingroup collada
+ */
+
 // TODO:
 // * name imported objects
 // * import object rotation as euler
@@ -44,6 +49,7 @@
 #include "COLLADAFWLight.h"
 
 #include "COLLADASaxFWLLoader.h"
+#include "COLLADASaxFWLIExtraDataCallbackHandler.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math.h"
@@ -69,9 +75,11 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "ExtraHandler.h"
 #include "DocumentImporter.h"
-#include "collada_internal.h"
+#include "TransformReader.h"
 
+#include "collada_internal.h"
 #include "collada_utils.h"
 
 
@@ -84,42 +92,6 @@
 // creates empties for each imported bone on layer 2, for debugging
 // #define ARMATURE_TEST
 
-/** Class that needs to be implemented by a writer. 
-	IMPORTANT: The write functions are called in arbitrary order.*/
-/*
-private:
-	std::string mFilename;
-	
-	bContext *mContext;
-
-	UnitConverter unit_converter;
-	ArmatureImporter armature_importer;
-	MeshImporter mesh_importer;
-	AnimationImporter anim_importer;
-
-	std::map<COLLADAFW::UniqueId, Image*> uid_image_map;
-	std::map<COLLADAFW::UniqueId, Material*> uid_material_map;
-	std::map<COLLADAFW::UniqueId, Material*> uid_effect_map;
-	std::map<COLLADAFW::UniqueId, Camera*> uid_camera_map;
-	std::map<COLLADAFW::UniqueId, Lamp*> uid_lamp_map;
-	std::map<Material*, TexIndexTextureArrayMap> material_texture_mapping_map;
-	std::map<COLLADAFW::UniqueId, Object*> object_map;
-	std::map<COLLADAFW::UniqueId, COLLADAFW::Node*> node_map;
-	std::vector<const COLLADAFW::VisualScene*> vscenes;
-	std::vector<Object*> libnode_ob;
-
-	std::map<COLLADAFW::UniqueId, COLLADAFW::Node*> root_map; 
-	*/
-	// find root joint by child joint uid, for bone tree evaluation during resampling
-
-	// animation
-	// std::map<COLLADAFW::UniqueId, std::vector<FCurve*> > uid_fcurve_map;
-	// Nodes don't share AnimationLists (Arystan)
-	// std::map<COLLADAFW::UniqueId, Animation> uid_animated_map; // AnimationList->uniqueId to AnimatedObject map
-
-//public:
-
-	/** Constructor. */
 	DocumentImporter::DocumentImporter(bContext *C, const char *filename) :
 		mImportStage(General),
 		mFilename(filename),
@@ -129,14 +101,25 @@ private:
 		anim_importer(&unit_converter, &armature_importer, CTX_data_scene(C))
 	{}
 
-	/** Destructor. */
-	DocumentImporter::~DocumentImporter() {}
+DocumentImporter::~DocumentImporter()
+{
+	TagsMap::iterator etit;
+	etit = uid_tags_map.begin();
+	while(etit!=uid_tags_map.end()) {
+		delete etit->second;
+		etit++;
+	}
+}
 
 	bool DocumentImporter::import()
 	{
 		/** TODO Add error handler (implement COLLADASaxFWL::IErrorHandler */
 		COLLADASaxFWL::Loader loader;
 		COLLADAFW::Root root(&loader, this);
+	ExtraHandler *ehandler = new ExtraHandler(this);
+
+	loader.registerExtraDataCallbackHandler(ehandler);
+	
 
 		if (!root.loadDocument(mFilename))
 			return false;
@@ -151,6 +134,8 @@ private:
 		if (!root2.loadDocument(mFilename))
 			return false;
 		
+
+	delete ehandler;
 
 		return true;
 	}
@@ -167,7 +152,6 @@ private:
 
 	void DocumentImporter::start(){}
 
-	/** This method is called after the last write* method. No other methods will be called after this.*/
 	void DocumentImporter::finish()
 	{
 		if(mImportStage!=General)
@@ -331,10 +315,29 @@ private:
 		obn->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;
 		scene_add_base(sce, obn);
 
-		if (instance_node)
+	if (instance_node) {
 			anim_importer.read_node_transform(instance_node, obn);
-		else
+		// if we also have a source_node (always ;), take its
+		// transformation matrix and apply it to the newly instantiated
+		// object to account for node hierarchy transforms in
+		// .dae
+		if(source_node) {
+			COLLADABU::Math::Matrix4 mat4 = source_node->getTransformationMatrix();
+			COLLADABU::Math::Matrix4 bmat4 = mat4.transpose(); // transpose to get blender row-major order
+			float mat[4][4];
+			for (int i = 0; i < 4; i++) {
+				for (int j = 0; j < 4; j++) {
+					mat[i][j] = bmat4[i][j];
+				}
+			}
+			// calc new matrix and apply
+			mul_m4_m4m4(obn->obmat, mat, obn->obmat);
+			object_apply_mat4(obn, obn->obmat, 0, 0);
+		}
+	}
+	else {
 			anim_importer.read_node_transform(source_node, obn);
+	}
 
 		DAG_scene_sort(CTX_data_main(mContext), sce);
 		DAG_ids_flush_update(CTX_data_main(mContext), 0);
@@ -348,7 +351,7 @@ private:
 					continue;
 				COLLADAFW::InstanceNodePointerArray &inodes = child_node->getInstanceNodes();
 				Object *new_child = NULL;
-				if (inodes.getCount()) {
+			if (inodes.getCount()) { // \todo loop through instance nodes
 					const COLLADAFW::UniqueId& id = inodes[0]->getInstanciatedObjectId();
 					new_child = create_instance_node(object_map[id], node_map[id], child_node, sce, is_library_node);
 				}
@@ -362,7 +365,10 @@ private:
 			}
 		}
 
-		return obn;
+	// when we have an instance_node, don't return the object, because otherwise
+	// its correct location gets overwritten in write_node(). Fixes bug #26012.
+	if(instance_node) return NULL;
+	else return obn;
 	}
 	
 	void DocumentImporter::write_node (COLLADAFW::Node *node, COLLADAFW::Node *parent_node, Scene *sce, Object *par, bool is_library_node)
@@ -439,7 +445,7 @@ private:
 				libnode_ob.push_back(ob);
 		}
 
-		anim_importer.read_node_transform(node, ob);
+	anim_importer.read_node_transform(node, ob); // overwrites location set earlier
 
 		if (!is_joint) {
 			// if par was given make this object child of the previous 
@@ -568,7 +574,7 @@ private:
 		// default - lambert
 		else {
 			ma->diff_shader = MA_DIFF_LAMBERT;
-			fprintf(stderr, "Current shader type is not supported.\n");
+		fprintf(stderr, "Current shader type is not supported, default to lambert.\n");
 		}
 		// reflectivity
 		ma->ray_mirror = ef->getReflectivity().getFloatValue();
@@ -861,6 +867,12 @@ private:
 		Lamp *lamp = NULL;
 		std::string la_id, la_name;
 		
+	TagsMap::iterator etit;
+	ExtraTags *et = 0;
+	etit = uid_tags_map.find(light->getUniqueId().toAscii());
+	if(etit != uid_tags_map.end())
+		et = etit->second;
+
 		la_id = light->getOriginalId();
 		la_name = light->getName();
 		if (la_name.size()) lamp = (Lamp*)add_lamp((char*)la_name.c_str());
@@ -870,43 +882,100 @@ private:
 			fprintf(stderr, "Cannot create lamp. \n");
 			return true;
 		}
-		if (light->getColor().isValid()) {
-			COLLADAFW::Color col = light->getColor();
-			lamp->r = col.getRed();
-			lamp->g = col.getGreen();
-			lamp->b = col.getBlue();
+
+	// if we find an ExtraTags for this, use that instead.
+	if(et && et->isProfile("blender")) {
+		et->setData("type", &(lamp->type));
+		et->setData("flag", &(lamp->flag));
+		et->setData("mode", &(lamp->mode));
+		et->setData("gamma", &(lamp->k));
+		et->setData("red", &(lamp->r));
+		et->setData("green", &(lamp->g));
+		et->setData("blue", &(lamp->b));
+		et->setData("shadow_r", &(lamp->shdwr));
+		et->setData("shadow_g", &(lamp->shdwg));
+		et->setData("shadow_b", &(lamp->shdwb));
+		et->setData("energy", &(lamp->energy));
+		et->setData("dist", &(lamp->dist));
+		et->setData("spotsize", &(lamp->spotsize));
+		et->setData("spotblend", &(lamp->spotblend));
+		et->setData("halo_intensity", &(lamp->haint));
+		et->setData("att1", &(lamp->att1));
+		et->setData("att2", &(lamp->att2));
+		et->setData("falloff_type", &(lamp->falloff_type));
+		et->setData("clipsta", &(lamp->clipsta));
+		et->setData("clipend", &(lamp->clipend));
+		et->setData("shadspotsize", &(lamp->shadspotsize));
+		et->setData("bias", &(lamp->bias));
+		et->setData("soft", &(lamp->soft));
+		et->setData("compressthresh", &(lamp->compressthresh));
+		et->setData("bufsize", &(lamp->bufsize));
+		et->setData("samp", &(lamp->samp));
+		et->setData("buffers", &(lamp->buffers));
+		et->setData("filtertype", &(lamp->filtertype));
+		et->setData("bufflag", &(lamp->bufflag));
+		et->setData("buftype", &(lamp->buftype));
+		et->setData("ray_samp", &(lamp->ray_samp));
+		et->setData("ray_sampy", &(lamp->ray_sampy));
+		et->setData("ray_sampz", &(lamp->ray_sampz));
+		et->setData("ray_samp_type", &(lamp->ray_samp_type));
+		et->setData("area_shape", &(lamp->area_shape));
+		et->setData("area_size", &(lamp->area_size));
+		et->setData("area_sizey", &(lamp->area_sizey));
+		et->setData("area_sizez", &(lamp->area_sizez));
+		et->setData("adapt_thresh", &(lamp->adapt_thresh));
+		et->setData("ray_samp_method", &(lamp->ray_samp_method));
+		et->setData("shadhalostep", &(lamp->shadhalostep));
+		et->setData("sun_effect_type", &(lamp->shadhalostep));
+		et->setData("skyblendtype", &(lamp->skyblendtype));
+		et->setData("horizon_brightness", &(lamp->horizon_brightness));
+		et->setData("spread", &(lamp->spread));
+		et->setData("sun_brightness", &(lamp->sun_brightness));
+		et->setData("sun_size", &(lamp->sun_size));
+		et->setData("backscattered_light", &(lamp->backscattered_light));
+		et->setData("sun_intensity", &(lamp->sun_intensity));
+		et->setData("atm_turbidity", &(lamp->atm_turbidity));
+		et->setData("atm_extinction_factor", &(lamp->atm_extinction_factor));
+		et->setData("atm_distance_factor", &(lamp->atm_distance_factor));
+		et->setData("skyblendfac", &(lamp->skyblendfac));
+		et->setData("sky_exposure", &(lamp->sky_exposure));
+		et->setData("sky_colorspace", &(lamp->sky_colorspace));
 		}
+	else {
 		float constatt = light->getConstantAttenuation().getValue();
 		float linatt = light->getLinearAttenuation().getValue();
 		float quadatt = light->getQuadraticAttenuation().getValue();
 		float d = 25.0f;
 		float att1 = 0.0f;
 		float att2 = 0.0f;
+		float e = 1.0f;
 		
-		float e = 1.0f/constatt;
+		if (light->getColor().isValid()) {
+			COLLADAFW::Color col = light->getColor();
+			lamp->r = col.getRed();
+			lamp->g = col.getGreen();
+			lamp->b = col.getBlue();
+		}
 		
-		/* NOTE: We assume for now that inv square is used for quadratic light
-		 * and inv linear for linear light. Exported blender lin/quad weighted
-		 * most likely will result in wrong import. */
-		/* quadratic light */
 		if(IS_EQ(linatt, 0.0f) && quadatt > 0.0f) {
-			//quadatt = att2/(d*d*(e*2));
-			float invquadatt = 1.0f/quadatt;
-			float d2 = invquadatt / (2 * e);
-			d = sqrtf(d2);
+			att2 = quadatt;
+			d = (1.0f/quadatt) * 2;
 		}
 		// linear light
 		else if(IS_EQ(quadatt, 0.0f) && linatt > 0.0f) {
-			//linatt = att1/(d*e);
-			float invlinatt = 1.0f/linatt;
-			d = invlinatt / e;
+			att1 = linatt;
+			d = (1.0f/linatt) * 2;
+		} else if (IS_EQ(constatt, 1.0f)) {
+			att1 = 1.0f;
 		} else {
-			printf("no linear nor quad light, using defaults for attenuation, import will be incorrect: Lamp %s\n", lamp->id.name);
-			att2 = 1.0f;
+			// assuming point light (const att = 1.0);
+			att1 = 1.0f;
 		}
 		
-		lamp->dist = d;
+		d *= ( 1.0f / unit_converter.getLinearMeter());
+
 		lamp->energy = e;
+		lamp->dist = d;
 		
 		COLLADAFW::Light::LightType type = light->getLightType();
 		switch(type) {
@@ -927,7 +996,9 @@ private:
 			break;
 		case COLLADAFW::Light::DIRECTIONAL_LIGHT:
 			{
+					/* our sun is very strong, so pick a smaller energy level */
 				lamp->type = LA_SUN;
+					lamp->mode |= LA_NO_SPEC;
 			}
 			break;
 		case COLLADAFW::Light::POINT_LIGHT:
@@ -945,6 +1016,7 @@ private:
 			}
 			break;
 		}
+	}
 			
 		this->uid_lamp_map[light->getUniqueId()] = lamp;
 		return true;
@@ -996,5 +1068,17 @@ private:
 		return true;
 	}
 
+ExtraTags* DocumentImporter::getExtraTags(const COLLADAFW::UniqueId &uid)
+{
+	if(uid_tags_map.find(uid.toAscii())==uid_tags_map.end()) {
+		return NULL;
+	}
+	return uid_tags_map[uid.toAscii()];
+}
 
+bool DocumentImporter::addExtraTags( const COLLADAFW::UniqueId &uid, ExtraTags *extra_tags)
+{
+	uid_tags_map[uid.toAscii()] = extra_tags;
+	return true;
+}
 

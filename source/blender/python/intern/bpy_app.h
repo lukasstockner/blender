@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -21,6 +21,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/python/intern/bpy_app.h
+ *  \ingroup pythonintern
+ */
+
 #ifndef BPY_APP_H
 #define BPY_APP_H
 

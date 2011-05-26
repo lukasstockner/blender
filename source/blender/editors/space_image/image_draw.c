@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/editors/space_image/image_draw.c
+ *  \ingroup spimage
+ */
+
+
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,6 +45,7 @@
 
 #include "PIL_time.h"
 
+#include "BLI_math.h"
 #include "BLI_threads.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -51,10 +57,6 @@
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_paint.h"
-
-#ifdef WITH_LCMS
-#include "BKE_colortools.h"
-#endif
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -127,44 +129,207 @@ static void draw_render_info(Scene *scene, Image *ima, ARegion *ar)
 	BKE_image_release_renderresult(scene, ima);
 }
 
-void draw_image_info(ARegion *ar, int channels, int x, int y, char *cp, float *fp, int *zp, float *zpf)
+void draw_image_info(ARegion *ar, int color_manage, int channels, int x, int y, char *cp, float *fp, int *zp, float *zpf)
 {
 	char str[256];
-	int ofs= 0;
-	
-	ofs += BLI_snprintf(str + ofs, sizeof(str)-ofs, "X: %4d Y: %4d ", x, y);
-	if(cp)
-		ofs+= BLI_snprintf(str + ofs, sizeof(str)-ofs, "| R: %3d G: %3d B: %3d A: %3d ", cp[0], cp[1], cp[2], cp[3]);
-
-	if(fp) {
-		if(channels==4)
-			ofs+= BLI_snprintf(str + ofs, sizeof(str)-ofs, "| R: %.3f G: %.3f B: %.3f A: %.3f ", fp[0], fp[1], fp[2], fp[3]);
-		else if(channels==1)
-			ofs+= BLI_snprintf(str + ofs, sizeof(str)-ofs, "| Val: %.3f ", fp[0]);
-		else if(channels==3)
-			ofs+= BLI_snprintf(str + ofs, sizeof(str)-ofs, "| R: %.3f G: %.3f B: %.3f ", fp[0], fp[1], fp[2]);
-	}
-
-	if(zp)
-		ofs+= BLI_snprintf(str + ofs, sizeof(str)-ofs, "| Z: %.4f ", 0.5+0.5*(((float)*zp)/(float)0x7fffffff));
-	if(zpf)
-		ofs+= BLI_snprintf(str + ofs, sizeof(str)-ofs, "| Z: %.3f ", *zpf);
-	(void)ofs;
+	float dx= 6;
+	/* text colors */
+	/* XXX colored text not allowed in Blender UI */
+	#if 0
+	unsigned char red[3] = {255, 50, 50};
+	unsigned char green[3] = {0, 255, 0};
+	unsigned char blue[3] = {100, 100, 255};
+	#else
+	unsigned char red[3] = {255, 255, 255};
+	unsigned char green[3] = {255, 255, 255};
+	unsigned char blue[3] = {255, 255, 255};
+	#endif
+	float hue=0, sat=0, val=0, lum=0, u=0, v=0;
+	float col[4], finalcol[4];
 	
 	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
-	
-	glColor4f(.0,.0,.0,.25);
+
+	/* noisy, high contrast make impossible to read if lower alpha is used. */
+	glColor4ub(0, 0, 0, 190);
 	glRecti(0.0, 0.0, ar->winrct.xmax - ar->winrct.xmin + 1, 20);
 	glDisable(GL_BLEND);
+
+	BLF_size(blf_mono_font, 11, 72);
+
+	glColor3ub(255, 255, 255);
+	sprintf(str, "X:%-4d  Y:%-4d |", x, y);
+	// UI_DrawString(6, 6, str); // works ok but fixed width is nicer.
+	BLF_position(blf_mono_font, dx, 6, 0);
+	BLF_draw_ascii(blf_mono_font, str, sizeof(str));
+	dx += BLF_width(blf_mono_font, str);
+
+	if(zp) {
+		glColor3ub(255, 255, 255);
+		sprintf(str, " Z:%-.4f |", 0.5f+0.5f*(((float)*zp)/(float)0x7fffffff));
+		BLF_position(blf_mono_font, dx, 6, 0);
+		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
+		dx += BLF_width(blf_mono_font, str);
+	}
+	if(zpf) {
+		glColor3ub(255, 255, 255);
+		sprintf(str, " Z:%-.3f |", *zpf);
+		BLF_position(blf_mono_font, dx, 6, 0);
+		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
+		dx += BLF_width(blf_mono_font, str);
+	}
+
+	if(channels >= 3) {
+		glColor3ubv(red);
+		if (fp)
+			sprintf(str, "  R:%-.4f", fp[0]);
+		else if (cp)
+			sprintf(str, "  R:%-3d", cp[0]);
+		else
+			sprintf(str, "  R:-");
+		BLF_position(blf_mono_font, dx, 6, 0);
+		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
+		dx += BLF_width(blf_mono_font, str);
+	
+		glColor3ubv(green);
+		if (fp)
+			sprintf(str, "  G:%-.4f", fp[1]);
+		else if (cp)
+			sprintf(str, "  G:%-3d", cp[1]);
+		else
+			sprintf(str, "  G:-");
+		BLF_position(blf_mono_font, dx, 6, 0);
+		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
+		dx += BLF_width(blf_mono_font, str);
+	
+		glColor3ubv(blue);
+		if (fp)
+			sprintf(str, "  B:%-.4f", fp[2]);
+		else if (cp)
+			sprintf(str, "  B:%-3d", cp[2]);
+		else
+			sprintf(str, "  B:-");
+		BLF_position(blf_mono_font, dx, 6, 0);
+		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
+		dx += BLF_width(blf_mono_font, str);
+		
+		if(channels == 4) {
+			glColor3ub(255, 255, 255);
+			if (fp)
+				sprintf(str, "  A:%-.4f", fp[3]);
+			else if (cp)
+				sprintf(str, "  A:%-3d", cp[3]);
+			else
+				sprintf(str, "- ");
+			BLF_position(blf_mono_font, dx, 6, 0);
+			BLF_draw_ascii(blf_mono_font, str, sizeof(str));
+			dx += BLF_width(blf_mono_font, str);
+		}
+	}
+	
+	/* color rectangle */
+	if (channels==1) {
+		if (fp)
+			col[0] = col[1] = col[2] = fp[0];
+		else if (cp)
+			col[0] = col[1] = col[2] = (float)cp[0]/255.0f;
+		else
+			col[0] = col[1] = col[2] = 0.0f;
+	}
+	else if (channels==3) {
+		if (fp)
+			copy_v3_v3(col, fp);
+		else if (cp) {
+			col[0] = (float)cp[0]/255.0f;
+			col[1] = (float)cp[1]/255.0f;
+			col[2] = (float)cp[2]/255.0f;
+		}
+		else
+			zero_v3(col);
+	}
+	else if (channels==4) {
+		if (fp)
+			copy_v4_v4(col, fp);
+		else if (cp) {
+			col[0] = (float)cp[0]/255.0f;
+			col[1] = (float)cp[1]/255.0f;
+			col[2] = (float)cp[2]/255.0f;
+			col[3] = (float)cp[3]/255.0f;
+		}
+		else
+			zero_v4(col);
+	}
+	if (color_manage) {
+		linearrgb_to_srgb_v3_v3(finalcol, col);
+		finalcol[3] = col[3];
+	}
+	else {
+		copy_v4_v4(finalcol, col);
+	}
+	glDisable(GL_BLEND);
+	glColor3fv(finalcol);
+	dx += 5;
+	glBegin(GL_QUADS);
+	glVertex2f(dx, 3);
+	glVertex2f(dx, 17);
+	glVertex2f(dx+30, 17);
+	glVertex2f(dx+30, 3);
+	glEnd();
+	dx += 35;
 	
 	glColor3ub(255, 255, 255);
+	if(channels == 1) {
+		if (fp) {
+			rgb_to_hsv(fp[0], fp[0], fp[0], &hue, &sat, &val);
+			rgb_to_yuv(fp[0], fp[0], fp[0], &lum, &u, &v);
+		}
+		else if (cp) {
+			rgb_to_hsv((float)cp[0]/255.0f, (float)cp[0]/255.0f, (float)cp[0]/255.0f, &hue, &sat, &val);
+			rgb_to_yuv((float)cp[0]/255.0f, (float)cp[0]/255.0f, (float)cp[0]/255.0f, &lum, &u, &v);
+		}
 	
-	// UI_DrawString(6, 6, str); // works ok but fixed width is nicer.
-	BLF_size(blf_mono_font, 11, 72);
-	BLF_position(blf_mono_font, 6, 6, 0);
+		sprintf(str, "V:%-.4f", val);
+		BLF_position(blf_mono_font, dx, 6, 0);
 	BLF_draw_ascii(blf_mono_font, str, sizeof(str));
+		dx += BLF_width(blf_mono_font, str);
 	
+		sprintf(str, "   L:%-.4f", lum);
+		BLF_position(blf_mono_font, dx, 6, 0);
+		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
+		dx += BLF_width(blf_mono_font, str);
+}
+	else if(channels >= 3) {
+		if (fp) {
+			rgb_to_hsv(fp[0], fp[1], fp[2], &hue, &sat, &val);
+			rgb_to_yuv(fp[0], fp[1], fp[2], &lum, &u, &v);
+		}
+		else if (cp) {
+			rgb_to_hsv((float)cp[0]/255.0f, (float)cp[1]/255.0f, (float)cp[2]/255.0f, &hue, &sat, &val);
+			rgb_to_yuv((float)cp[0]/255.0f, (float)cp[1]/255.0f, (float)cp[2]/255.0f, &lum, &u, &v);
+		}
+
+		sprintf(str, "H:%-.4f", hue);
+		BLF_position(blf_mono_font, dx, 6, 0);
+		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
+		dx += BLF_width(blf_mono_font, str);
+
+		sprintf(str, "  S:%-.4f", sat);
+		BLF_position(blf_mono_font, dx, 6, 0);
+		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
+		dx += BLF_width(blf_mono_font, str);
+
+		sprintf(str, "  V:%-.4f", val);
+		BLF_position(blf_mono_font, dx, 6, 0);
+		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
+		dx += BLF_width(blf_mono_font, str);
+
+		sprintf(str, "   L:%-.4f", lum);
+		BLF_position(blf_mono_font, dx, 6, 0);
+		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
+		dx += BLF_width(blf_mono_font, str);
+	}
+
+	(void)dx;
 }
 
 /* image drawing */
@@ -188,21 +353,21 @@ static void draw_image_grid(ARegion *ar, float zoomx, float zoomy)
 	
 	if(gridsize<1.0f) {
 		while(gridsize<1.0f) {
-			gridsize*= 4.0;
-			gridstep*= 4.0;
+			gridsize*= 4.0f;
+			gridstep*= 4.0f;
 		}
 	}
 	else {
 		while(gridsize>=4.0f) {
-			gridsize/= 4.0;
-			gridstep/= 4.0;
+			gridsize/= 4.0f;
+			gridstep/= 4.0f;
 		}
 	}
 	
 	/* the fine resolution level */
-	blendfac= 0.25*gridsize - floor(0.25*gridsize);
-	CLAMP(blendfac, 0.0, 1.0);
-	UI_ThemeColorShade(TH_BACK, (int)(20.0*(1.0-blendfac)));
+	blendfac= 0.25f*gridsize - floorf(0.25f*gridsize);
+	CLAMP(blendfac, 0.0f, 1.0f);
+	UI_ThemeColorShade(TH_BACK, (int)(20.0f*(1.0f-blendfac)));
 	
 	fac= 0.0f;
 	glBegin(GL_LINES);
@@ -283,20 +448,6 @@ static void sima_draw_alpha_pixelsf(float x1, float y1, int rectx, int recty, fl
 //	glColorMask(1, 1, 1, 1);
 }
 
-#ifdef WITH_LCMS
-static int sima_draw_colorcorrected_pixels(float x1, float y1, ImBuf *ibuf)
-{
-	colorcorrection_do_ibuf(ibuf, "MONOSCNR.ICM"); /* path is hardcoded here, find some place better */
-	
-	if(ibuf->crect) {
-	glaDrawPixelsSafe(x1, y1, ibuf->x, ibuf->y, ibuf->x, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->crect);
-		return 1;
-}
-
-	return 0;
-}
-#endif
-
 static void sima_draw_zbuf_pixels(float x1, float y1, int rectx, int recty, int *recti)
 {
 	/* zbuffer values are signed, so we need to shift color range */
@@ -375,17 +526,6 @@ static void draw_image_buffer(SpaceImage *sima, ARegion *ar, Scene *scene, Image
 		else if(ibuf->channels==1)
 			sima_draw_zbuffloat_pixels(scene, x, y, ibuf->x, ibuf->y, ibuf->rect_float);
 	}
-#ifdef WITH_LCMS
-	else if(sima->flag & SI_COLOR_CORRECTION) {
-		image_verify_buffer_float(ima, ibuf, color_manage);
-		
-		if(sima_draw_colorcorrected_pixels(x, y, ibuf)==0) {
-			unsigned char col1[3]= {100, 0, 100}, col2[3]= {160, 0, 160}; /* pink says 'warning' in blender land */
-			sima_draw_alpha_backdrop(x, y, ibuf->x, ibuf->y, zoomx, zoomy, col1, col2);
-		}
-
-	}
-#endif
 	else {
 		if(sima->flag & SI_USE_ALPHA) {
 			unsigned char col1[3]= {100, 100, 100}, col2[3]= {160, 160, 160};
@@ -533,7 +673,7 @@ static void draw_image_view_tool(Scene *scene)
 {
 	ToolSettings *settings= scene->toolsettings;
 	Brush *brush= settings->imapaint.brush;
-	short mval[2];
+	int mval[2];
 	float radius;
 	int draw= 0;
 

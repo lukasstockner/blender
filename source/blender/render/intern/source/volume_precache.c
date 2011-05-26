@@ -1,4 +1,4 @@
-/**
+/*
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/render/intern/source/volume_precache.c
+ *  \ingroup render
+ */
+
 
 #include <math.h>
 #include <stdlib.h>
@@ -69,7 +74,7 @@ extern struct Render R;
 
 /* Recursive test for intersections, from a point inside the mesh, to outside
  * Number of intersections (depth) determine if a point is inside or outside the mesh */
-int intersect_outside_volume(RayObject *tree, Isect *isect, float *offset, int limit, int depth)
+static int intersect_outside_volume(RayObject *tree, Isect *isect, float *offset, int limit, int depth)
 {
 	if (limit == 0) return depth;
 	
@@ -91,7 +96,7 @@ int intersect_outside_volume(RayObject *tree, Isect *isect, float *offset, int l
 }
 
 /* Uses ray tracing to check if a point is inside or outside an ObjectInstanceRen */
-int point_inside_obi(RayObject *tree, ObjectInstanceRen *obi, float *co)
+static int point_inside_obi(RayObject *tree, ObjectInstanceRen *UNUSED(obi), float *co)
 {
 	Isect isect;
 	float dir[3] = {0.0f,0.0f,1.0f};
@@ -346,7 +351,7 @@ static void ms_diffuse(float *x0, float *x, float diff, int *n) //n is the unpad
 	}
 }
 
-void multiple_scattering_diffusion(Render *re, VolumePrecache *vp, Material *ma)
+static void multiple_scattering_diffusion(Render *re, VolumePrecache *vp, Material *ma)
 {
 	const float diff = ma->vol.ms_diff * 0.001f; 	/* compensate for scaling for a nicer UI range */
 	const int simframes = (int)(ma->vol.ms_spread * (float)MAX3(vp->res[0], vp->res[1], vp->res[2]));
@@ -499,6 +504,9 @@ static void *vol_precache_part(void *data)
 			for (x=pa->minx; x < pa->maxx; x++) {
 				co[0] = pa->bbmin[0] + (pa->voxel[0] * (x + 0.5f));
 				
+				if (pa->re->test_break && pa->re->test_break(pa->re->tbh))
+					break;
+				
 				/* convert from world->camera space for shading */
 				mul_v3_m4v3(cco, pa->viewmat, co);
 				
@@ -527,7 +535,7 @@ static void *vol_precache_part(void *data)
 	
 	pa->done = 1;
 	
-	return 0;
+	return NULL;
 }
 
 
@@ -596,6 +604,7 @@ static void precache_init_parts(Render *re, RayObject *tree, ShadeInput *shi, Ob
 				pa->done = 0;
 				pa->working = 0;
 				
+				pa->re = re;
 				pa->num = i;
 				pa->tree = tree;
 				pa->shi = shi;
@@ -664,7 +673,7 @@ static int precache_resolution(Render *re, VolumePrecache *vp, ObjectInstanceRen
  * in camera space, aligned with the ObjectRen's bounding box.
  * Resolution is defined by the user.
  */
-void vol_precache_objectinstance_threads(Render *re, ObjectInstanceRen *obi, Material *ma)
+static void vol_precache_objectinstance_threads(Render *re, ObjectInstanceRen *obi, Material *ma)
 {
 	VolumePrecache *vp;
 	VolPrecachePart *nextpa, *pa;
@@ -697,9 +706,8 @@ void vol_precache_objectinstance_threads(Render *re, ObjectInstanceRen *obi, Mat
 	vp->data_r = MEM_callocN(sizeof(float)*vp->res[0]*vp->res[1]*vp->res[2], "volume light cache data red channel");
 	vp->data_g = MEM_callocN(sizeof(float)*vp->res[0]*vp->res[1]*vp->res[2], "volume light cache data green channel");
 	vp->data_b = MEM_callocN(sizeof(float)*vp->res[0]*vp->res[1]*vp->res[2], "volume light cache data blue channel");
-	if (vp->data_r==0 || vp->data_g==0 || vp->data_b==0) {
+	if (vp->data_r==NULL || vp->data_g==NULL || vp->data_b==NULL) {
 		MEM_freeN(vp);
-		vp = NULL;
 		return;
 	}
 

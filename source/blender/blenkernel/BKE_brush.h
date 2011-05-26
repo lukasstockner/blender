@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -30,6 +30,10 @@
 
 #ifndef BKE_BRUSH_H
 #define BKE_BRUSH_H
+
+/** \file BKE_brush.h
+ *  \ingroup bke
+ */
 
 struct ID;
 struct Brush;
@@ -88,8 +92,7 @@ void brush_painter_free(BrushPainter *painter);
 unsigned int *brush_gen_texture_cache(struct Brush *br, int half_side);
 
 /* radial control */
-void brush_radial_control_invoke(struct wmOperator *op, struct Brush *br, float size_weight);
-int brush_radial_control_exec(struct wmOperator *op, struct Brush *br, float size_weight);
+struct ImBuf *brush_gen_radial_control_imbuf(struct Brush *br);
 
 /* unified strength and size */
 

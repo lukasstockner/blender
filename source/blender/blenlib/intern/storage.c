@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -28,6 +28,11 @@
  * Reorganised mar-01 nzc
  * Some really low-level file thingies.
  */
+
+/** \file blender/blenlib/intern/storage.c
+ *  \ingroup bli
+ */
+
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -71,10 +76,6 @@
 #include <pwd.h>
 #endif
 
-#if !defined(__FreeBSD__) && !defined(__APPLE__)
-#include <malloc.h>
-#endif
-
 #ifdef WIN32
 #include <io.h>
 #include <direct.h>
@@ -99,8 +100,7 @@
 static int totnum,actnum;
 static struct direntry *files;
 
-static struct ListBase dirbase_={
-	0,0};
+static struct ListBase dirbase_={NULL, NULL};
 static struct ListBase *dirbase = &dirbase_;
 
 /* can return NULL when the size is not big enough */
@@ -399,7 +399,7 @@ unsigned int BLI_getdir(char *dirname,  struct direntry **filelist)
 	// filesel.c:freefilelist()
 
 	actnum = totnum = 0;
-	files = 0;
+	files = NULL;
 
 	BLI_builddir(dirname,"");
 	BLI_adddirstrings();

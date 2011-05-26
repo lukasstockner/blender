@@ -1,3 +1,8 @@
+
+/** \file BL_Material.h
+ *  \ingroup ketsji
+ */
+
 #ifndef __BL_MATERIAL_H__
 #define __BL_MATERIAL_H__
 
@@ -139,7 +144,7 @@ enum BL_flag
 	USEALPHA=4,		// use actual alpha channel
 	TEXALPHA=8,		// use alpha combiner functions
 	TEXNEG=16,		// negate blending
-	HASIPO=32,
+	/*HASIPO=32,*/	// unused, commeted for now.
 	USENEGALPHA=64
 };
 

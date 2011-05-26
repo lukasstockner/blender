@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/render/intern/source/rendercore.c
+ *  \ingroup render
+ */
+
 
 /* system includes */
 #include <stdio.h>
@@ -1538,6 +1543,7 @@ static void shade_sample_sss(ShadeSample *ssamp, Material *mat, ObjectInstanceRe
 	if(shi->obr->ob && shi->obr->ob->transflag & OB_NEG_SCALE) {
 		negate_v3(shi->vn);
 		negate_v3(shi->vno);
+		negate_v3(shi->nmapnorm);
 	}
 
 	/* if nodetree, use the material that we are currently preprocessing
@@ -2137,7 +2143,9 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 	
 		shade_input_set_shade_texco(shi);
 		
-		if(!ELEM3(bs->type, RE_BAKE_NORMALS, RE_BAKE_TEXTURE, RE_BAKE_SHADOW))
+		/* only do AO for a full bake (and obviously AO bakes)
+			AO for light bakes is a leftover and might not be needed */
+		if( ELEM3(bs->type, RE_BAKE_ALL, RE_BAKE_AO, RE_BAKE_LIGHT))
 			shade_samples_do_AO(ssamp);
 		
 		if(shi->mat->nodetree && shi->mat->use_nodes) {
@@ -2174,14 +2182,20 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 				mul_m3_v3(imat, nor);
 			}
 			else if(R.r.bake_normal_space == R_BAKE_SPACE_OBJECT)
-				mul_mat3_m4_v3(ob->imat, nor); /* ob->imat includes viewinv! */
+				mul_mat3_m4_v3(ob->imat_ren, nor); /* ob->imat_ren includes viewinv! */
 			else if(R.r.bake_normal_space == R_BAKE_SPACE_WORLD)
 				mul_mat3_m4_v3(R.viewinv, nor);
 
 			normalize_v3(nor); /* in case object has scaling */
 
-			shr.combined[0]= nor[0]/2.0f + 0.5f;
-			shr.combined[1]= 0.5f - nor[1]/2.0f;
+			// The invert of the red channel is to make
+			// the normal map compliant with the outside world.
+			// It needs to be done because in Blender
+			// the normal used in the renderer points inward. It is generated
+			// this way in calc_vertexnormals(). Should this ever change
+			// this negate must be removed.
+			shr.combined[0]= (-nor[0])/2.0f + 0.5f;
+			shr.combined[1]= nor[1]/2.0f + 0.5f;
 			shr.combined[2]= nor[2]/2.0f + 0.5f;
 		}
 		else if(bs->type==RE_BAKE_TEXTURE) {
@@ -2193,6 +2207,42 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 		else if(bs->type==RE_BAKE_SHADOW) {
 			VECCOPY(shr.combined, shr.shad);
 			shr.alpha = shi->alpha;
+		}
+		else if(bs->type==RE_BAKE_SPEC_COLOR) {
+			shr.combined[0]= shi->specr;
+			shr.combined[1]= shi->specg;
+			shr.combined[2]= shi->specb;
+			shr.alpha = 1.0f;
+	}
+		else if(bs->type==RE_BAKE_SPEC_INTENSITY) {
+			shr.combined[0]=
+			shr.combined[1]=
+			shr.combined[2]= shi->spec;
+			shr.alpha = 1.0f;
+		}
+		else if(bs->type==RE_BAKE_MIRROR_COLOR) {
+			shr.combined[0]= shi->mirr;
+			shr.combined[1]= shi->mirg;
+			shr.combined[2]= shi->mirb;
+			shr.alpha = 1.0f;
+		}
+		else if(bs->type==RE_BAKE_MIRROR_INTENSITY) {
+			shr.combined[0]=
+			shr.combined[1]=
+			shr.combined[2]= shi->ray_mirror;
+			shr.alpha = 1.0f;
+		}
+		else if(bs->type==RE_BAKE_ALPHA) {
+			shr.combined[0]=
+			shr.combined[1]=
+			shr.combined[2]= shi->alpha;
+			shr.alpha = 1.0f;
+		}
+		else if(bs->type==RE_BAKE_EMIT) {
+			shr.combined[0]=
+			shr.combined[1]=
+			shr.combined[2]= shi->emit;
+			shr.alpha = 1.0f;
 		}
 	}
 	

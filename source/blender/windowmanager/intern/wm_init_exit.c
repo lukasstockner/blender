@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -26,6 +26,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/windowmanager/intern/wm_init_exit.c
+ *  \ingroup wm
+ */
+
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -43,6 +48,7 @@
 
 #include "BKE_blender.h"
 #include "BKE_context.h"
+#include "BKE_screen.h"
 #include "BKE_curve.h"
 #include "BKE_displist.h"
 #include "BKE_DerivedMesh.h"
@@ -58,6 +64,7 @@
 #include "BKE_material.h" /* clear_matcopybuf */
 
 #include "BLI_blenlib.h"
+#include "BLI_winstuff.h"
 
 #include "RE_pipeline.h"		/* RE_ free stuff */
 
@@ -65,8 +72,9 @@
 #include "BPY_extern.h"
 #endif
 
-#include "SYS_System.h"
+#include "BL_System.h"
 #include "GHOST_Path-api.h"
+#include "GHOST_C-api.h"
 
 #include "RNA_define.h"
 
@@ -96,7 +104,6 @@
 
 #include "BKE_depsgraph.h"
 #include "BKE_sound.h"
-#include "GHOST_C-api.h"
 
 static void wm_init_reports(bContext *C)
 {
@@ -107,18 +114,16 @@ static void wm_free_reports(bContext *C)
 	BKE_reports_clear(CTX_wm_reports(C));
 }
 
-
+int wm_start_with_console = 0;
 
 /* only called once, for startup */
-void WM_init(bContext *C, int argc, char **argv)
+void WM_init(bContext *C, int argc, const char **argv)
 {
-
 	if (!G.background) {
 		wm_ghost_init(C);	/* note: it assigns C to ghost! */
 		wm_init_cursor_data();
 	}
 	GHOST_CreateSystemPaths();
-
 	wm_operatortype_init();
 	
 	set_free_windowmanager_cb(wm_close_and_free);	/* library.c */
@@ -132,7 +137,6 @@ void WM_init(bContext *C, int argc, char **argv)
 	
 	BLF_init(11, U.dpi);
 	BLF_lang_init();
-	
 	/* get the default database, plus a wm */
 	WM_read_homefile(C, NULL, G.factory_startup);
 
@@ -151,6 +155,9 @@ void WM_init(bContext *C, int argc, char **argv)
 	BPY_driver_reset();
 	BPY_modules_load_user(C);
 #endif
+
+	if (!G.background && !wm_start_with_console)
+		GHOST_toggleConsole(3);
 
 	wm_init_reports(C); /* reports cant be initialized before the wm */
 
@@ -179,7 +186,6 @@ void WM_init(bContext *C, int argc, char **argv)
 	*/
 
 	BLI_strncpy(G.lib, G.sce, FILE_MAX);
-
 }
 
 void WM_init_splash(bContext *C)
@@ -237,15 +243,7 @@ int WM_init_game(bContext *C)
 		CTX_wm_window_set(C, win);
 
 	sa = biggest_view3d(C);
-
-	if(sa)
-	{
-		for(ar=sa->regionbase.first; ar; ar=ar->next) {
-			if(ar->regiontype == RGN_TYPE_WINDOW) {
-				break;
-			}
-		}
-	}
+	ar= BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
 
 	// if we have a valid 3D view
 	if (sa && ar) {
@@ -269,7 +267,7 @@ int WM_init_game(bContext *C)
 
 		/* full screen the area */
 		if(!sa->full) {
-			ED_screen_full_toggle(C, wm->windows.first, sa);
+			ED_screen_full_toggle(C, win, sa);
 		}
 
 		/* Fullscreen */
@@ -341,6 +339,7 @@ void WM_exit(bContext *C)
 	wmWindow *win;
 
 	sound_exit();
+
 
 	/* first wrap up running stuff, we assume only the active WM is running */
 	/* modal handlers are on window level freed, others too? */
@@ -420,7 +419,7 @@ void WM_exit(bContext *C)
 // XXX		UI_filelist_free_icons();
 	}
 	
-	GPU_buffer_pool_free(0);
+	GPU_buffer_pool_free(NULL);
 	GPU_free_unused_buffers();
 	GPU_extensions_exit();
 	
@@ -448,7 +447,7 @@ void WM_exit(bContext *C)
 	GHOST_DisposeSystemPaths();
 
 	if(MEM_get_memory_blocks_in_use()!=0) {
-		printf("Error Totblock: %d\n", MEM_get_memory_blocks_in_use());
+		printf("Error: Not freed memory blocks: %d\n", MEM_get_memory_blocks_in_use());
 		MEM_printmemlist();
 	}
 	wm_autosave_delete();
@@ -462,7 +461,6 @@ void WM_exit(bContext *C)
 		getchar();
 	}
 #endif 
-	
 	exit(G.afbreek==1);
 }
 

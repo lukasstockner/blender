@@ -20,10 +20,16 @@ class btIDebugDraw;
 class btCollisionWorld;
 
 #include "LinearMath/btScalar.h"
+#include "btRigidBody.h"
 
 ///Basic interface to allow actions such as vehicles and characters to be updated inside a btDynamicsWorld
 class btActionInterface
 {
+protected:
+
+	static btRigidBody& getFixedBody();
+	
+	
 	public:
 
 	virtual ~btActionInterface()
@@ -37,3 +43,4 @@ class btActionInterface
 };
 
 #endif //_BT_ACTION_INTERFACE_H
+

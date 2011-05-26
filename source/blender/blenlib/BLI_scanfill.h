@@ -1,8 +1,4 @@
-/**
- * blenlib/BLI_scanfill.h    mar 2001 Nzc
- *
- * Filling meshes.
- *
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -34,6 +30,13 @@
 #ifndef BLI_SCANFILL_H
 #define BLI_SCANFILL_H
 
+/** \file BLI_storage.h
+ *  \ingroup bli
+ *  \since March 2001
+ *  \author nzc
+ *  \brief Filling meshes.
+ */
+
 /**
  * @attention Defined in scanfill.c
  */
@@ -50,7 +53,7 @@ extern "C" {
 /* scanfill.c: used in displist only... */
 struct EditVert *BLI_addfillvert(float *vec);
 struct EditEdge *BLI_addfilledge(struct EditVert *v1, struct EditVert *v2);
-int BLI_edgefill(int mat_nr);
+int BLI_edgefill(short mat_nr);
 void BLI_end_edgefill(void);
 
 /* These callbacks are needed to make the lib finction properly */

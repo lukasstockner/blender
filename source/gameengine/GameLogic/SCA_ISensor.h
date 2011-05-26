@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,7 +25,11 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- * Interface Class for all logic Sensors. Implements
+ */
+
+/** \file SCA_IController.h
+ *  \ingroup gamelogic
+ *  \brief Interface Class for all logic Sensors. Implements
  * pulsemode and pulsefrequency, and event suppression.
  */
 

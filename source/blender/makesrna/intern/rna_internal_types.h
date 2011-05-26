@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -21,6 +21,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/makesrna/intern/rna_internal_types.h
+ *  \ingroup RNA
+ */
+
 
 #ifndef RNA_INTERNAL_TYPES_H
 #define RNA_INTERNAL_TYPES_H
@@ -325,6 +330,7 @@ struct StructRNA {
 	/* function to register/unregister subclasses */
 	StructRegisterFunc reg; 
 	StructUnregisterFunc unreg; 
+	StructInstanceFunc instance;
 
 	/* callback to get id properties */
 	IDPropertiesFunc idproperties;
@@ -341,6 +347,6 @@ struct BlenderRNA {
 	ListBase structs;
 };
 
-#define CONTAINER_RNA_ID(cont) (const char *)(((ContainerRNA *)(cont))+1)
+#define CONTAINER_RNA_ID(cont) (*(const char **)(((ContainerRNA *)(cont))+1))
 
 #endif /* RNA_INTERNAL_TYPES_H */

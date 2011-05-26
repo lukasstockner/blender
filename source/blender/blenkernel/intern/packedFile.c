@@ -1,4 +1,4 @@
-/**
+/*
  * blenkernel/packedFile.c - (cleaned up mar-01 nzc)
  *
  * $Id$
@@ -28,6 +28,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/blenkernel/intern/packedFile.c
+ *  \ingroup bke
+ */
+
 
 #include <stdio.h>
 #include <fcntl.h>

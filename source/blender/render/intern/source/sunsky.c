@@ -1,4 +1,4 @@
- /**
+ /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -17,6 +17,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/render/intern/source/sunsky.c
+ *  \ingroup render
+ */
+
 
 
 #include "sunsky.h"
@@ -108,7 +113,7 @@ static void DirectionToThetaPhi(float *toSun, float *theta, float *phi)
  * PerezFunction:
  * compute perez function value based on input paramters
  * */
-float PerezFunction(struct SunSky *sunsky, const float *lam, float theta, float gamma, float lvz)
+static float PerezFunction(struct SunSky *sunsky, const float *lam, float theta, float gamma, float lvz)
 {
 	float den, num;
 	
@@ -137,7 +142,6 @@ void InitSunSky(struct SunSky *sunsky, float turb, float *toSun, float horizon_b
 				float spread,float sun_brightness, float sun_size, float back_scatter,
 				float skyblendfac, short skyblendtype, float sky_exposure, float sky_colorspace)
 {
-    
 	   float theta2;
 	float theta3;
 	float T;
@@ -309,7 +313,7 @@ void GetSkyXYZRadiancef(struct SunSky* sunsky, const float varg[3], float color_
  * turbidity: is atmosphere turbidity
  * fTau: contains computed attenuated sun light
  * */
-void ComputeAttenuatedSunlight(float theta, int turbidity, float fTau[3])
+static void ComputeAttenuatedSunlight(float theta, int turbidity, float fTau[3])
 {
 	float fBeta ;
 	float fTauR, fTauA;

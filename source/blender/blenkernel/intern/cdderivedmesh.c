@@ -32,6 +32,11 @@
 *
 */ 
 
+/** \file blender/blenkernel/intern/cdderivedmesh.c
+ *  \ingroup bke
+ */
+ 
+
 /* TODO maybe BIF_gl.h should include string.h? */
 #include <string.h>
 #include "BIF_gl.h"
@@ -167,11 +172,7 @@ static void cdDM_getVertCos(DerivedMesh *dm, float (*cos_r)[3])
 static void cdDM_getVertNo(DerivedMesh *dm, int index, float no_r[3])
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
-	short *no = cddm->mvert[index].no;
-
-	no_r[0] = no[0]/32767.f;
-	no_r[1] = no[1]/32767.f;
-	no_r[2] = no[2]/32767.f;
+	normal_short_to_float_v3(no_r, cddm->mvert[index].no);
 }
 
 static ListBase *cdDM_getFaceMap(Object *ob, DerivedMesh *dm)
@@ -192,8 +193,20 @@ static int can_pbvh_draw(Object *ob, DerivedMesh *dm)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
 	Mesh *me= ob->data;
+	int deformed= 0;
 
-	if(ob->sculpt->modifiers_active) return 0;
+	/* active modifiers means extra deformation, which can't be handled correct
+	   on bith of PBVH and sculpt "layer" levels, so use PBVH only for internal brush
+	   stuff and show final DerivedMesh so user would see actual object shape */
+	deformed|= ob->sculpt->modifiers_active;
+
+	/* as in case with modifiers, we can't synchronize deformation made against
+	   PBVH and non-locked keyblock, so also use PBVH only for brushes and
+	   final DM to give final result to user */
+	deformed|= ob->sculpt->kb && (ob->shapeflag&OB_SHAPE_LOCK) == 0;
+
+	if(deformed)
+		return 0;
 
 	return (cddm->mvert == me->mvert) || ob->sculpt->kb;
 }
@@ -218,19 +231,21 @@ static struct PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 	   this derivedmesh is just original mesh. it's the multires subsurf dm
 	   that this is actually for, to support a pbvh on a modified mesh */
 	if(!cddm->pbvh && ob->type == OB_MESH) {
+		SculptSession *ss= ob->sculpt;
 		Mesh *me= ob->data;
 		cddm->pbvh = BLI_pbvh_new();
 		cddm->pbvh_draw = can_pbvh_draw(ob, dm);
 		BLI_pbvh_build_mesh(cddm->pbvh, me->mface, me->mvert,
 				   me->totface, me->totvert);
 
-		if(ob->sculpt->modifiers_active) {
+		if(ss->modifiers_active && ob->derivedDeform) {
+			DerivedMesh *deformdm= ob->derivedDeform;
 			float (*vertCos)[3];
 			int totvert;
 
-			totvert= dm->getNumVerts(dm);
+			totvert= deformdm->getNumVerts(deformdm);
 			vertCos= MEM_callocN(3*totvert*sizeof(float), "cdDM_getPBVH vertCos");
-			dm->getVertCos(dm, vertCos);
+			deformdm->getVertCos(deformdm, vertCos);
 			BLI_pbvh_apply_vertCos(cddm->pbvh, vertCos);
 			MEM_freeN(vertCos);
 	}
@@ -563,8 +578,9 @@ static void cdDM_drawFacesColored(DerivedMesh *dm, int useTwoSided, unsigned cha
 	/* there's a conflict here... twosided colors versus culling...? */
 	/* defined by history, only texture faces have culling option */
 	/* we need that as mesh option builtin, next to double sided lighting */
-	if(col1 && col2)
+	if(col2) {
 		glEnable(GL_CULL_FACE);
+	}
 
 	cdDM_update_normals_from_pbvh(dm);
 
@@ -580,26 +596,26 @@ static void cdDM_drawFacesColored(DerivedMesh *dm, int useTwoSided, unsigned cha
 				glBegin(glmode = new_glmode);
 			}
 				
-			glColor3ub(cp1[0], cp1[1], cp1[2]);
+			glColor3ubv(cp1+0);
 			glVertex3fv(mvert[mface->v1].co);
-			glColor3ub(cp1[4], cp1[5], cp1[6]);
+			glColor3ubv(cp1+4);
 			glVertex3fv(mvert[mface->v2].co);
-			glColor3ub(cp1[8], cp1[9], cp1[10]);
+			glColor3ubv(cp1+8);
 			glVertex3fv(mvert[mface->v3].co);
 			if(mface->v4) {
-				glColor3ub(cp1[12], cp1[13], cp1[14]);
+				glColor3ubv(cp1+12);
 				glVertex3fv(mvert[mface->v4].co);
 			}
 				
 			if(useTwoSided) {
-				glColor3ub(cp2[8], cp2[9], cp2[10]);
+				glColor3ubv(cp2+8);
 				glVertex3fv(mvert[mface->v3].co );
-				glColor3ub(cp2[4], cp2[5], cp2[6]);
+				glColor3ubv(cp2+4);
 				glVertex3fv(mvert[mface->v2].co );
-				glColor3ub(cp2[0], cp2[1], cp2[2]);
+				glColor3ubv(cp2+0);
 				glVertex3fv(mvert[mface->v1].co );
 				if(mface->v4) {
-					glColor3ub(cp2[12], cp2[13], cp2[14]);
+					glColor3ubv(cp2+12);
 					glVertex3fv(mvert[mface->v4].co );
 				}
 			}
@@ -756,6 +772,19 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 		}
 
 		if( !GPU_buffer_legacy(dm) ) {
+			/* warning!, this logic is incorrect, see bug [#27175]
+			 * firstly, there are no checks for changes in context, such as texface image.
+			 * secondly, drawParams() sets the GL context, so checking if there is a change
+			 * from lastFlag is too late once glDrawArrays() runs, since drawing the arrays
+			 * will use the modified, OpenGL settings.
+			 * 
+			 * However its tricky to fix this without duplicating the internal logic
+			 * of drawParams(), perhaps we need an argument like...
+			 * drawParams(..., keep_gl_state_but_return_when_changed) ?.
+			 *
+			 * We could also just disable VBO's here, since texface may be deprecated - campbell.
+			 */
+			
 			glShadeModel( GL_SMOOTH );
 			lastFlag = 0;
 			for(i = 0; i < dm->drawObject->nelements/3; i++) {
@@ -1599,9 +1628,7 @@ DerivedMesh *CDDM_from_editmesh(EditMesh *em, Mesh *me)
 
 		VECCOPY(mv->co, eve->co);
 
-		mv->no[0] = eve->no[0] * 32767.0;
-		mv->no[1] = eve->no[1] * 32767.0;
-		mv->no[2] = eve->no[2] * 32767.0;
+		normal_float_to_short_v3(mv->no, eve->no);
 		mv->bweight = (unsigned char) (eve->bweight * 255.0f);
 
 		mv->flag = 0;
@@ -1782,26 +1809,15 @@ void CDDM_apply_vert_normals(DerivedMesh *dm, short (*vertNormals)[3])
 		VECCOPY(vert->no, vertNormals[i]);
 }
 
-/* adapted from mesh_calc_normals */
 void CDDM_calc_normals(DerivedMesh *dm)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh*)dm;
-	float (*temp_nors)[3];
 	float (*face_nors)[3];
-	int i;
-	int numVerts = dm->numVertData;
-	int numFaces = dm->numFaceData;
-	MFace *mf;
-	MVert *mv;
 
-	if(numVerts == 0) return;
-
-	temp_nors = MEM_callocN(numVerts * sizeof(*temp_nors),
-							"CDDM_calc_normals temp_nors");
+	if(dm->numVertData == 0) return;
 
 	/* we don't want to overwrite any referenced layers */
-	mv = CustomData_duplicate_referenced_layer(&dm->vertData, CD_MVERT);
-	cddm->mvert = mv;
+	cddm->mvert = CustomData_duplicate_referenced_layer(&dm->vertData, CD_MVERT);
 
 	/* make a face normal layer if not present */
 	face_nors = CustomData_get_layer(&dm->faceData, CD_NORMAL);
@@ -1809,35 +1825,9 @@ void CDDM_calc_normals(DerivedMesh *dm)
 		face_nors = CustomData_add_layer(&dm->faceData, CD_NORMAL, CD_CALLOC,
 										 NULL, dm->numFaceData);
 
-	/* calculate face normals and add to vertex normals */
-	mf = CDDM_get_faces(dm);
-	for(i = 0; i < numFaces; i++, mf++) {
-		float *f_no = face_nors[i];
-
-		if(mf->v4)
-			normal_quad_v3( f_no,mv[mf->v1].co, mv[mf->v2].co, mv[mf->v3].co, mv[mf->v4].co);
-		else
-			normal_tri_v3( f_no,mv[mf->v1].co, mv[mf->v2].co, mv[mf->v3].co);
-		
-		add_v3_v3(temp_nors[mf->v1], f_no);
-		add_v3_v3(temp_nors[mf->v2], f_no);
-		add_v3_v3(temp_nors[mf->v3], f_no);
-		if(mf->v4)
-			add_v3_v3(temp_nors[mf->v4], f_no);
+	/* calculate face normals */
+	mesh_calc_normals(cddm->mvert, dm->numVertData, CDDM_get_faces(dm), dm->numFaceData, face_nors);
 	}
-
-	/* normalize vertex normals and assign */
-	for(i = 0; i < numVerts; i++, mv++) {
-		float *no = temp_nors[i];
-		
-		if (normalize_v3(no) == 0.0)
-			normalize_v3_v3(no, mv->co);
-
-		normal_float_to_short_v3(mv->no, no);
-	}
-	
-	MEM_freeN(temp_nors);
-}
 
 void CDDM_calc_edges(DerivedMesh *dm)
 {

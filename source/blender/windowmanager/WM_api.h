@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -27,6 +27,17 @@
  */
 #ifndef WM_API_H
 #define WM_API_H
+
+/** \file WM_api.h
+ *  \ingroup wm
+ *
+ *  \page wmpage windowmanager
+ *  \section wmabout About windowmanager
+ *  \ref wm handles events received from \ref GHOST and manages
+ *  the screens, areas and input for Blender
+ *  \section wmnote NOTE
+ *  \todo document
+ */
 
 /* dna-savable wmStructs here */
 #include "DNA_windowmanager_types.h"
@@ -59,7 +70,7 @@ void		WM_setprefsize		(int stax, int stay, int sizx, int sizy);
 void		WM_setinitialstate_fullscreen(void);
 void		WM_setinitialstate_normal(void);
 
-void		WM_init				(struct bContext *C, int argc, char **argv);
+void		WM_init				(struct bContext *C, int argc, const char **argv);
 void		WM_exit				(struct bContext *C);
 void		WM_main				(struct bContext *C);
 
@@ -84,7 +95,7 @@ void		WM_window_open_temp	(struct bContext *C, struct rcti *position, int type);
 int			WM_read_homefile_exec(struct bContext *C, struct wmOperator *op);
 int			WM_read_homefile	(struct bContext *C, struct ReportList *reports, short from_memory);
 int			WM_write_homefile	(struct bContext *C, struct wmOperator *op);
-void		WM_read_file		(struct bContext *C, const char *name, struct ReportList *reports);
+void		WM_read_file		(struct bContext *C, const char *filepath, struct ReportList *reports);
 int			WM_write_file		(struct bContext *C, const char *target, int fileflags, struct ReportList *reports, int copy);
 void		WM_read_autosavefile(struct bContext *C);
 void		WM_autosave_init	(struct wmWindowManager *wm);
@@ -162,7 +173,7 @@ struct wmEventHandler *WM_event_add_ui_handler(const struct bContext *C, ListBas
 			void (*remove)(struct bContext *C, void *userdata), void *userdata);
 void		WM_event_remove_ui_handler(ListBase *handlers,
 			int (*func)(struct bContext *C, struct wmEvent *event, void *userdata),
-			void (*remove)(struct bContext *C, void *userdata), void *userdata);
+			void (*remove)(struct bContext *C, void *userdata), void *userdata, int postpone);
 void		WM_event_remove_area_handler(struct ListBase *handlers, void *area);
 
 struct wmEventHandler *WM_event_add_modal_handler(struct bContext *C, struct wmOperator *op);
@@ -205,7 +216,7 @@ int			WM_operator_confirm_message(struct bContext *C, struct wmOperator *op, con
 
 		/* operator api */
 void		WM_operator_free		(struct wmOperator *op);
-void		WM_operator_stack_clear(struct bContext *C);
+void		WM_operator_stack_clear(struct wmWindowManager *wm);
 
 struct wmOperatorType *WM_operatortype_find(const char *idnamem, int quiet);
 struct wmOperatorType *WM_operatortype_first(void);
@@ -234,6 +245,8 @@ void		WM_operator_properties_filesel(struct wmOperatorType *ot, int filter, shor
 void		WM_operator_properties_gesture_border(struct wmOperatorType *ot, int extend);
 void		WM_operator_properties_gesture_straightline(struct wmOperatorType *ot, int cursor);
 void		WM_operator_properties_select_all(struct wmOperatorType *ot);
+
+wmOperator *WM_operator_last_redo(const struct bContext *C);
 
 /* MOVE THIS SOMEWHERE ELSE */
 #define	SEL_TOGGLE		0
@@ -280,12 +293,6 @@ void		WM_OT_tweak_gesture(struct wmOperatorType *ot);
 struct wmGesture *WM_gesture_new(struct bContext *C, struct wmEvent *event, int type);
 void		WM_gesture_end(struct bContext *C, struct wmGesture *gesture);
 void		WM_gestures_remove(struct bContext *C);
-
-			/* radial control operator */
-int			WM_radial_control_invoke(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
-int			WM_radial_control_modal(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
-void		WM_OT_radial_control_partial(struct wmOperatorType *ot);
-void		WM_radial_control_string(struct wmOperator *op, char str[], int maxlen);
 
 			/* fileselecting support */
 void		WM_event_add_fileselect(struct bContext *C, struct wmOperator *op);
@@ -344,6 +351,11 @@ void		WM_clipboard_text_set(char *buf, int selection);
 			/* progress */
 void		WM_progress_set(struct wmWindow *win, float progress);
 void		WM_progress_clear(struct wmWindow *win);
+
+#ifdef WIN32
+			/* Windows System Console */
+void		WM_console_toggle(struct bContext *C, short show);
+#endif
 
 /* debugging only, convenience function to write on crash */
 int write_crash_blend(void);

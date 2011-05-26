@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -30,6 +30,10 @@
 
 #ifndef BKE_SEQUENCER_H
 #define BKE_SEQUENCER_H
+
+/** \file BKE_sequencer.h
+ *  \ingroup bke
+ */
 
 struct bContext;
 struct Editing;
@@ -208,9 +212,16 @@ void seq_stripelem_cache_destruct(void);
 
 void seq_stripelem_cache_cleanup(void);
 
+/* returned ImBuf is properly refed and has to be freed */
 struct ImBuf * seq_stripelem_cache_get(
 	SeqRenderData context, struct Sequence * seq, 
 	float cfra, seq_stripelem_ibuf_t type);
+
+/* passed ImBuf is properly refed, so ownership is *not* 
+   transfered to the cache.
+   you can pass the same ImBuf multiple times to the cache without problems.
+*/
+   
 void seq_stripelem_cache_put(
 	SeqRenderData context, struct Sequence * seq, 
 	float cfra, seq_stripelem_ibuf_t type, struct ImBuf * nval);
@@ -248,7 +259,13 @@ int seq_tx_test(struct Sequence * seq);
 int seq_single_check(struct Sequence *seq);
 void seq_single_fix(struct Sequence *seq);
 int seq_test_overlap(struct ListBase * seqbasep, struct Sequence *test);
+void seq_sound_init(struct Scene *scene, struct Sequence *seq);
+struct Sequence *seq_foreground_frame_get(struct Scene *scene, int frame);
 struct ListBase *seq_seqbase(struct ListBase *seqbase, struct Sequence *seq);
+struct Sequence *seq_metastrip(
+	ListBase * seqbase /* = ed->seqbase */, 
+	struct Sequence * meta /* = NULL */, struct Sequence *seq);
+
 void seq_offset_animdata(struct Scene *scene, struct Sequence *seq, int ofs);
 void seq_dupe_animdata(struct Scene *scene, char *name_from, char *name_to);
 int shuffle_seq(struct ListBase * seqbasep, struct Sequence *test, struct Scene *evil_scene);
@@ -311,7 +328,7 @@ struct Sequence *sequencer_add_sound_strip(struct bContext *C, ListBase *seqbase
 struct Sequence *sequencer_add_movie_strip(struct bContext *C, ListBase *seqbasep, struct SeqLoadInfo *seq_load);
 
 /* view3d draw callback, run when not in background view */
-typedef struct ImBuf *(*SequencerDrawView)(struct Scene *, int, int, unsigned int, int);
+typedef struct ImBuf *(*SequencerDrawView)(struct Scene *, struct Object *, int, int, unsigned int, int, char[256]);
 extern SequencerDrawView sequencer_view3d_cb;
 
 /* copy/paste */

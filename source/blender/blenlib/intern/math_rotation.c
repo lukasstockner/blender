@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,7 +25,13 @@
  * ***** END GPL LICENSE BLOCK *****
  * */
 
+/** \file blender/blenlib/intern/math_rotation.c
+ *  \ingroup bli
+ */
 
+
+
+#include <assert.h>
 #include "BLI_math.h"
 
 /******************************** Quaternions ********************************/
@@ -156,10 +162,10 @@ static void quat_to_mat3_no_error(float m[][3], const float q[4])
 {
 	double q0, q1, q2, q3, qda,qdb,qdc,qaa,qab,qac,qbb,qbc,qcc;
 
-	q0= M_SQRT2 * q[0];
-	q1= M_SQRT2 * q[1];
-	q2= M_SQRT2 * q[2];
-	q3= M_SQRT2 * q[3];
+	q0= M_SQRT2 * (double)q[0];
+	q1= M_SQRT2 * (double)q[1];
+	q2= M_SQRT2 * (double)q[2];
+	q3= M_SQRT2 * (double)q[3];
 
 	qda= q0*q1;
 	qdb= q0*q2;
@@ -189,7 +195,7 @@ void quat_to_mat3(float m[][3], const float q[4])
 {
 #ifdef DEBUG
 	float f;
-	if(!((f=dot_qtqt(q, q))==0.0 || (fabs(f-1.0) < QUAT_EPSILON))) {
+	if(!((f=dot_qtqt(q, q))==0.0f || (fabsf(f-1.0f) < (float)QUAT_EPSILON))) {
 		fprintf(stderr, "Warning! quat_to_mat3() called with non-normalized: size %.8f *** report a bug ***\n", f);
 	}
 #endif
@@ -202,15 +208,15 @@ void quat_to_mat4(float m[][4], const float q[4])
 	double q0, q1, q2, q3, qda,qdb,qdc,qaa,qab,qac,qbb,qbc,qcc;
 
 #ifdef DEBUG
-	if(!((q0=dot_qtqt(q, q))==0.0 || (fabs(q0-1.0) < QUAT_EPSILON))) {
+	if(!((q0=dot_qtqt(q, q))==0.0f || (fabsf(q0-1.0f) < (float)QUAT_EPSILON))) {
 		fprintf(stderr, "Warning! quat_to_mat4() called with non-normalized: size %.8f *** report a bug ***\n", (float)q0);
 	}
 #endif
 
-	q0= M_SQRT2 * q[0];
-	q1= M_SQRT2 * q[1];
-	q2= M_SQRT2 * q[2];
-	q3= M_SQRT2 * q[3];
+	q0= M_SQRT2 * (double)q[0];
+	q1= M_SQRT2 * (double)q[1];
+	q2= M_SQRT2 * (double)q[2];
+	q3= M_SQRT2 * (double)q[3];
 
 	qda= q0*q1;
 	qdb= q0*q2;
@@ -250,9 +256,9 @@ void mat3_to_quat(float *q, float wmat[][3])
 	copy_m3_m3(mat, wmat);
 	normalize_m3(mat);			/* this is needed AND a NormalQuat in the end */
 	
-	tr= 0.25*(1.0+mat[0][0]+mat[1][1]+mat[2][2]);
+	tr= 0.25* (double)(1.0f+mat[0][0]+mat[1][1]+mat[2][2]);
 	
-	if(tr>FLT_EPSILON) {
+	if(tr>(double)FLT_EPSILON) {
 		s= sqrt(tr);
 		q[0]= (float)s;
 		s= 1.0/(4.0*s);
@@ -262,7 +268,7 @@ void mat3_to_quat(float *q, float wmat[][3])
 	}
 	else {
 		if(mat[0][0] > mat[1][1] && mat[0][0] > mat[2][2]) {
-			s= 2.0*sqrtf(1.0 + mat[0][0] - mat[1][1] - mat[2][2]);
+			s= 2.0*sqrtf(1.0f + mat[0][0] - mat[1][1] - mat[2][2]);
 			q[1]= (float)(0.25*s);
 
 			s= 1.0/s;
@@ -271,7 +277,7 @@ void mat3_to_quat(float *q, float wmat[][3])
 			q[3]= (float)((mat[2][0] + mat[0][2])*s);
 		}
 		else if(mat[1][1] > mat[2][2]) {
-			s= 2.0*sqrtf(1.0 + mat[1][1] - mat[0][0] - mat[2][2]);
+			s= 2.0*sqrtf(1.0f + mat[1][1] - mat[0][0] - mat[2][2]);
 			q[2]= (float)(0.25*s);
 
 			s= 1.0/s;
@@ -350,7 +356,7 @@ float normalize_qt(float *q)
 	float len;
 	
 	len= (float)sqrt(dot_qtqt(q, q));
-	if(len!=0.0) {
+	if(len!=0.0f) {
 		mul_qt_fl(q, 1.0f/len);
 	}
 	else {
@@ -414,7 +420,7 @@ void vec_to_quat(float *q,float *vec, short axis, short upflag)
 	q[1]=q[2]=q[3]= 0.0;
 
 	len1= (float)sqrt(x2*x2+y2*y2+z2*z2);
-	if(len1 == 0.0) return;
+	if(len1 == 0.0f) return;
 
 	/* nasty! I need a good routine for this...
 	 * problem is a rotation of an Y axis to the negative Y-axis for example.
@@ -621,7 +627,7 @@ void tri_to_quat(float *quat, float *v1,  float *v2,  float *v3)
 	mul_qt_qtqt(quat, q1, q2);
 }
 
-void print_qt(char *str,  float q[4])
+void print_qt(const char *str,  const float q[4])
 {
 	printf("%s: %.3f %.3f %.3f %.3f\n", str, q[0], q[1], q[2], q[3]);
 }
@@ -650,7 +656,7 @@ void quat_to_axis_angle(float axis[3], float *angle,float q[4])
 	float ha, si;
 	
 #ifdef DEBUG
-	if(!((ha=dot_qtqt(q, q))==0.0 || (fabs(ha-1.0) < QUAT_EPSILON))) {
+	if(!((ha=dot_qtqt(q, q))==0.0f || (fabsf(ha-1.0f) < (float)QUAT_EPSILON))) {
 		fprintf(stderr, "Warning! quat_to_axis_angle() called with non-normalized: size %.8f *** report a bug ***\n", ha);
 	}
 #endif
@@ -826,8 +832,8 @@ void vec_rot_to_quat(float *quat,float *vec, float phi)
 		unit_qt(quat);
 	}
 	else {
-		quat[0]= (float)cos(phi/2.0);
-		si= (float)sin(phi/2.0);
+		quat[0]= (float)cos((double)phi/2.0);
+		si= (float)sin((double)phi/2.0);
 		quat[1] *= si;
 		quat[2] *= si;
 		quat[3] *= si;
@@ -908,7 +914,7 @@ static void mat3_to_eul2(float tmat[][3], float *eul1, float *eul2)
 	
 	cy = (float)sqrt(mat[0][0]*mat[0][0] + mat[0][1]*mat[0][1]);
 	
-	if (cy > 16.0*FLT_EPSILON) {
+	if (cy > 16.0f*FLT_EPSILON) {
 		
 		eul1[0] = (float)atan2(mat[1][2], mat[2][2]);
 		eul1[1] = (float)atan2(-mat[0][2], cy);
@@ -1023,13 +1029,13 @@ void compatible_eul(float *eul, float *oldrot)
 	
 	/* is 1 of the axis rotations larger than 180 degrees and the other small? NO ELSE IF!! */	
 	if(fabs(dx) > 3.2 && fabs(dy)<1.6 && fabs(dz)<1.6) {
-		if(dx > 0.0) eul[0] -= 2.0f*(float)M_PI; else eul[0]+= 2.0f*(float)M_PI;
+		if(dx > 0.0f) eul[0] -= 2.0f*(float)M_PI; else eul[0]+= 2.0f*(float)M_PI;
 	}
 	if(fabs(dy) > 3.2 && fabs(dz)<1.6 && fabs(dx)<1.6) {
-		if(dy > 0.0) eul[1] -= 2.0f*(float)M_PI; else eul[1]+= 2.0f*(float)M_PI;
+		if(dy > 0.0f) eul[1] -= 2.0f*(float)M_PI; else eul[1]+= 2.0f*(float)M_PI;
 	}
 	if(fabs(dz) > 3.2 && fabs(dx)<1.6 && fabs(dy)<1.6) {
-		if(dz > 0.0) eul[2] -= 2.0f*(float)M_PI; else eul[2]+= 2.0f*(float)M_PI;
+		if(dz > 0.0f) eul[2] -= 2.0f*(float)M_PI; else eul[2]+= 2.0f*(float)M_PI;
 	}
 	
 	/* the method below was there from ancient days... but why! probably because the code sucks :)
@@ -1247,7 +1253,7 @@ static void mat3_to_eulo2(float M[3][3], float *e1, float *e2, short order)
 	
 	cy= sqrt(m[i][i]*m[i][i] + m[i][j]*m[i][j]);
 	
-	if (cy > 16*FLT_EPSILON) {
+	if (cy > 16.0*(double)FLT_EPSILON) {
 		e1[i] = atan2(m[j][k], m[k][k]);
 		e1[j] = atan2(-m[i][k], cy);
 		e1[k] = atan2(m[i][j], m[i][i]);
@@ -1273,6 +1279,45 @@ static void mat3_to_eulo2(float M[3][3], float *e1, float *e2, short order)
 		e2[1] = -e2[1]; 
 		e2[2] = -e2[2];
 	}
+}
+
+/* Construct 4x4 matrix from Euler angles (in radians). */
+void eulO_to_mat4(float M[4][4], const float e[3], const short order)
+{
+	float m[3][3];
+	
+	/* for now, we'll just do this the slow way (i.e. copying matrices) */
+	normalize_m3(m);
+	eulO_to_mat3(m,e, order);
+	copy_m4_m3(M, m);
+}
+
+
+/* Convert 3x3 matrix to Euler angles (in radians). */
+void mat3_to_eulO(float eul[3], const short order,float M[3][3])
+{
+	float eul1[3], eul2[3];
+	
+	mat3_to_eulo2(M, eul1, eul2, order);
+		
+	/* return best, which is just the one with lowest values it in */
+	if(fabs(eul1[0])+fabs(eul1[1])+fabs(eul1[2]) > fabs(eul2[0])+fabs(eul2[1])+fabs(eul2[2])) {
+		copy_v3_v3(eul, eul2);
+	}
+	else {
+		copy_v3_v3(eul, eul1);
+	}
+}
+
+/* Convert 4x4 matrix to Euler angles (in radians). */
+void mat4_to_eulO(float e[3], const short order,float M[4][4])
+{
+	float m[3][3];
+	
+	/* for now, we'll just do this the slow way (i.e. copying matrices) */
+	copy_m3_m4(m, M);
+	normalize_m3(m);
+	mat3_to_eulO(e, order,m);
 }
 
 /* uses 2 methods to retrieve eulers, and picks the closest */
@@ -1401,7 +1446,7 @@ void mat4_to_dquat(DualQuat *dq,float basemat[][4], float mat[][4])
 	copy_v3_v3(dscale, scale);
 	dscale[0] -= 1.0f; dscale[1] -= 1.0f; dscale[2] -= 1.0f;
 
-	if((determinant_m4(mat) < 0.0f) || len_v3(dscale) > 1e-4) {
+	if((determinant_m4(mat) < 0.0f) || len_v3(dscale) > 1e-4f) {
 		/* extract R and S  */
 		float tmp[4][4];
 
@@ -1647,10 +1692,26 @@ void vec_apply_track(float vec[3], short axis)
 /* lens/angle conversion (radians) */
 float lens_to_angle(float lens)
 {
-	return 2.0f * atan(16.0f/lens);
+	return 2.0f * atanf(16.0f/lens);
 }
 
 float angle_to_lens(float angle)
 {
-	return 16.0f / tan(angle * 0.5f);
+	return 16.0f / tanf(angle * 0.5f);
+}
+
+/* 'mod_inline(-3,4)= 1', 'fmod(-3,4)= -3' */
+static float mod_inline(float a, float b)
+{
+	return a - (b * floorf(a / b));
+}
+
+float angle_wrap_rad(float angle)
+{
+	return mod_inline(angle + (float)M_PI, (float)M_PI*2.0f) - (float)M_PI;
+}
+
+float angle_wrap_deg(float angle)
+{
+	return mod_inline(angle + 180.0f, 360.0f) - 180.0f;
 }

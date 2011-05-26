@@ -1,6 +1,4 @@
-/**
- * blenlib/BKE_text.h (mar-2001 nzc)
- *	
+/*
  * $Id$ 
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -31,6 +29,12 @@
 #ifndef BKE_TEXT_H
 #define BKE_TEXT_H
 
+/** \file BKE_text.h
+ *  \ingroup bke
+ *  \since March 2001
+ *  \author nzc
+ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -54,7 +58,7 @@ void			write_text(struct Text *text, const char *str);
 char*	txt_to_buf			(struct Text *text);
 void	txt_clean_text		(struct Text *text);
 void	txt_order_cursors	(struct Text *text);
-int		txt_find_string		(struct Text *text, char *findstr, int wrap);
+int		txt_find_string		(struct Text *text, char *findstr, int wrap, int match_case);
 int		txt_has_sel			(struct Text *text);
 int		txt_get_span		(struct TextLine *from, struct TextLine *to);
 void	txt_move_up			(struct Text *text, short sel);
@@ -85,13 +89,14 @@ void	txt_split_curline	(struct Text *text);
 void	txt_backspace_char	(struct Text *text);
 void	txt_backspace_word	(struct Text *text);
 int		txt_add_char		(struct Text *text, char add);
+int		txt_add_raw_char	(struct Text *text, char add);
 int		txt_replace_char	(struct Text *text, char add);
 void	txt_export_to_object	(struct Text *text);
 void	txt_export_to_objects(struct Text *text);
-void	unindent		(struct Text *text);
-void 	comment			(struct Text *text);
-void 	indent			(struct Text *text);
-void	uncomment		(struct Text *text);
+void	txt_unindent		(struct Text *text);
+void 	txt_comment			(struct Text *text);
+void 	txt_indent			(struct Text *text);
+void	txt_uncomment		(struct Text *text);
 int	setcurr_tab_spaces	(struct Text *text, int space);
 
 void	txt_add_marker						(struct Text *text, struct TextLine *line, int start, int end, const unsigned char color[4], int group, int flags);

@@ -29,6 +29,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/blenkernel/intern/displist.c
+ *  \ingroup bke
+ */
+
+
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -65,6 +70,8 @@
 #include "BLO_sys_types.h" // for intptr_t support
 
 #include "ED_curve.h" /* for BKE_curve_nurbs */
+
+extern Material defmaterial;	/* material.c */
 
 static void boundbox_displist(Object *ob);
 
@@ -172,8 +179,8 @@ void addnormalsDispList(ListBase *lb)
 		if(dl->type==DL_INDEX3) {
 			if(dl->nors==NULL) {
 				dl->nors= MEM_callocN(sizeof(float)*3, "dlnors");
-				if(dl->verts[2]<0.0) dl->nors[2]= -1.0;
-				else dl->nors[2]= 1.0;
+				if(dl->verts[2] < 0.0f) dl->nors[2]= -1.0f;
+				else dl->nors[2]= 1.0f;
 			}
 		}
 		else if(dl->type==DL_SURF) {
@@ -324,19 +331,12 @@ void fastshade_free_render(void)
 	}
 }
 
-static int fastshade_customdata_layer_num(int n, int active)
-{   
-	/* make the active layer the first */
-	if (n == active) return 0;
-	else if (n < active) return n+1;
-	else return n;
-}
 
 static void fastshade_customdata(CustomData *fdata, int a, int j, Material *ma)
 {
 	CustomDataLayer *layer;
 	MTFace *mtface;
-	int index, n, needuv= ma->texco & TEXCO_UV;
+	int index, needuv= ma->texco & TEXCO_UV;
 	char *vertcol;
 
 	shi.totuv= 0;
@@ -346,7 +346,6 @@ static void fastshade_customdata(CustomData *fdata, int a, int j, Material *ma)
 		layer= &fdata->layers[index];
 		
 		if(needuv && layer->type == CD_MTFACE && shi.totuv < MAX_MTFACE) {
-			n= fastshade_customdata_layer_num(shi.totuv, layer->active_rnd);
 			mtface= &((MTFace*)layer->data)[a];
 
 			shi.uv[shi.totuv].uv[0]= 2.0f*mtface->uv[j][0]-1.0f;
@@ -357,7 +356,6 @@ static void fastshade_customdata(CustomData *fdata, int a, int j, Material *ma)
 			shi.totuv++;
 		}
 		else if(layer->type == CD_MCOL && shi.totcol < MAX_MCOL) {
-			n= fastshade_customdata_layer_num(shi.totcol, layer->active_rnd);
 			vertcol= (char*)&((MCol*)layer->data)[a*4 + j];
 
 			shi.col[shi.totcol].col[0]= ((float)vertcol[3])/255.0f;
@@ -407,10 +405,10 @@ static void fastshade(float *co, float *nor, float *orco, Material *ma, char *co
 			VECCOPY(shi.orn, shi.vn);
 		}
 		if(ma->texco & TEXCO_REFL) {
-			float inp= 2.0*(shi.vn[2]);
+			float inp= 2.0f * (shi.vn[2]);
 			shi.ref[0]= (inp*shi.vn[0]);
 			shi.ref[1]= (inp*shi.vn[1]);
-			shi.ref[2]= (-1.0+inp*shi.vn[2]);
+			shi.ref[2]= (-1.0f + inp*shi.vn[2]);
 		}
 	}
 	
@@ -546,7 +544,6 @@ static void mesh_create_shadedColors(Render *re, Object *ob, int onlyForMesh, un
 	}		
 
 	for (i=0; i<totface; i++) {
-		extern Material defmaterial;	/* material.c */
 		MFace *mf= &mface[i];
 		Material *ma= give_current_material(ob, mf->mat_nr+1);
 		int j, vidx[4], nverts= mf->v4?4:3;
@@ -583,9 +580,7 @@ static void mesh_create_shadedColors(Render *re, Object *ob, int onlyForMesh, un
 
 			mul_v3_m4v3(vec, mat, mv->co);
 
-			vec[0]+= 0.001*vn[0];
-			vec[1]+= 0.001*vn[1];
-			vec[2]+= 0.001*vn[2];
+			mul_v3_v3fl(vec, vn, 0.001f);
 
 			fastshade_customdata(&dm->faceData, i, j, ma);
 			fastshade(vec, vn, orco?&orco[vidx[j]*3]:mv->co, ma, col1, col2);
@@ -660,8 +655,6 @@ void shadeDispList(Scene *scene, Base *base)
 			dl= ob->disp.first;
 			
 			while(dl) {
-				extern Material defmaterial;	/* material.c */
-				
 				dlob= MEM_callocN(sizeof(DispList), "displistshade");
 				BLI_addtail(&ob->disp, dlob);
 				dlob->type= DL_VERTCOL;
@@ -730,8 +723,6 @@ void shadeDispList(Scene *scene, Base *base)
 				
 				if(dl->type==DL_INDEX4) {
 					if(dl->nors) {
-						extern Material defmaterial;	/* material.c */
-						
 						if(dl->col1) MEM_freeN(dl->col1);
 						col1= dl->col1= MEM_mallocN(sizeof(int)*dl->nr, "col1");
 				
@@ -980,16 +971,7 @@ void filldisplist(ListBase *dispbase, ListBase *to, int flipnormal)
 			dl= dl->next;
 		}
 		
-		if(totvert && BLI_edgefill(0)) { // XXX (obedit && obedit->actcol)?(obedit->actcol-1):0)) {
-
-			/* count faces  */
-			tot= 0;
-			efa= fillfacebase.first;
-			while(efa) {
-				tot++;
-				efa= efa->next;
-			}
-
+		if(totvert && (tot= BLI_edgefill(0))) { // XXX (obedit && obedit->actcol)?(obedit->actcol-1):0)) {
 			if(tot) {
 				dlnew= MEM_callocN(sizeof(DispList), "filldisplist");
 				dlnew->type= DL_INDEX3;
@@ -1154,7 +1136,7 @@ float calc_taper(Scene *scene, Object *taperobj, int cur, int tot)
 		/* horizontal size */
 		minx= dl->verts[0];
 		dx= dl->verts[3*(dl->nr-1)] - minx;
-		if(dx>0.0) {
+		if(dx > 0.0f) {
 		
 			fp= dl->verts;
 			for(a=0; a<dl->nr; a++, fp+=3) {
@@ -1728,7 +1710,7 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 		if (!dlbev.first && cu->width==1.0f) {
 			curve_to_displist(cu, nubase, dispbase);
 		} else {
-			float widfac= cu->width-1.0;
+			float widfac= cu->width - 1.0f;
 			BevList *bl= cu->bev.first;
 			Nurb *nu= nubase->first;
 
@@ -1928,11 +1910,6 @@ float *makeOrcoDispList(Scene *scene, Object *ob, DerivedMesh *derivedFinal, int
 	return orco;
 }
 
-void imagestodisplist(void)
-{
-	/* removed */
-}
-
 /* this is confusing, there's also min_max_object, appplying the obmat... */
 static void boundbox_displist(Object *ob)
 {
@@ -1967,8 +1944,9 @@ static void boundbox_displist(Object *ob)
 		}
 		
 		if(!doit) {
-			min[0] = min[1] = min[2] = -1.0f;
-			max[0] = max[1] = max[2] = 1.0f;
+			/* there's no geometry in displist, use zero-sized boundbox */
+			zero_v3(min);
+			zero_v3(max);
 		}
 		
 	}

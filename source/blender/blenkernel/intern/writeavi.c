@@ -1,4 +1,4 @@
-/**
+/*
  * Functions for writing avi-format files.
  * Added interface for generic movie support (ton)
  *
@@ -30,6 +30,11 @@
  * ***** END GPL LICENSE BLOCK *****
  * 
  */
+
+/** \file blender/blenkernel/intern/writeavi.c
+ *  \ingroup bke
+ */
+
 
 #include <string.h>
 

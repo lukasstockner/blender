@@ -1,4 +1,4 @@
-/**
+/*
  * smoke.c
  *
  * $Id$
@@ -28,6 +28,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/blenkernel/intern/smoke.c
+ *  \ingroup bke
+ */
+
 
 /* Part of the code copied from elbeem fluid library, copyright by Nils Thuerey */
 

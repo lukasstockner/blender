@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -26,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/nodes/intern/CMP_util.c
+ *  \ingroup nodes
+ */
+
 
 #include "CMP_util.h"
 
@@ -118,7 +123,7 @@ void free_compbuf(CompBuf *cbuf)
 
 void print_compbuf(char *str, CompBuf *cbuf)
 {
-	printf("Compbuf %s %d %d %p\n", str, cbuf->x, cbuf->y, cbuf->rect);
+	printf("Compbuf %s %d %d %p\n", str, cbuf->x, cbuf->y, (void *)cbuf->rect);
 	
 }
 

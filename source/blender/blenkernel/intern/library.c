@@ -1,4 +1,4 @@
-/** 
+/* 
  * $Id$
  * 
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -26,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/blenkernel/intern/library.c
+ *  \ingroup bke
+ */
+
 
 /*
  *  Contains management of ID's and libraries
@@ -103,6 +108,10 @@
 #include "BKE_particle.h"
 #include "BKE_gpencil.h"
 #include "BKE_fcurve.h"
+
+#ifdef WITH_PYTHON
+#include "BPY_extern.h"
+#endif
 
 #define MAX_IDPUP		60	/* was 24 */
 
@@ -716,6 +725,10 @@ void free_libblock(ListBase *lb, void *idv)
 {
 	ID *id= idv;
 	
+#ifdef WITH_PYTHON
+	BPY_id_release(id);
+#endif
+
 	switch( GS(id->name) ) {	/* GetShort from util.h */
 		case ID_SCE:
 			free_scene((Scene *)id);
@@ -1172,7 +1185,7 @@ static int check_for_dupid(ListBase *lb, ID *id, char *name)
 int new_id(ListBase *lb, ID *id, const char *tname)
 {
 	int result;
-	char name[22];
+	char name[MAX_ID_NAME-2];
 
 	/* if library, don't rename */
 	if(id->lib) return 0;
@@ -1396,7 +1409,7 @@ void text_idbutton(struct ID *id, char *text)
 	if(id) {
 		if(GS(id->name)==ID_SCE)
 			strcpy(text, "SCE: ");
-		else if(GS(id->name)==ID_SCE)
+		else if(GS(id->name)==ID_SCR)
 			strcpy(text, "SCR: ");
 		else if(GS(id->name)==ID_MA && ((Material*)id)->use_nodes)
 			strcpy(text, "NT: ");

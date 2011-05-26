@@ -30,6 +30,7 @@ set(INC
 		../..
 		intern/include
 		../../../blenkernel
+		../../../blenloader
 		../../../blenlib
 		../../../makesdna
 		../../../../../intern/guardedalloc

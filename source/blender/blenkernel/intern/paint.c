@@ -1,4 +1,6 @@
 /*
+ * $Id$
+ *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */ 
+
+/** \file blender/blenkernel/intern/paint.c
+ *  \ingroup bke
+ */
+
 
 
 #include "DNA_object_types.h"

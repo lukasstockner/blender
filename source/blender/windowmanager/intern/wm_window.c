@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/windowmanager/intern/wm_window.c
+ *  \ingroup wm
+ */
+
 
 #include <math.h>
 #include <stdlib.h>
@@ -230,14 +235,23 @@ wmWindow *wm_window_copy(bContext *C, wmWindow *winorig)
 /* this is event from ghost, or exit-blender op */
 void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 {
+	bScreen *screen= win->screen;
+	
 	BLI_remlink(&wm->windows, win);
 	
 	wm_draw_window_clear(win);
 	CTX_wm_window_set(C, win);	/* needed by handlers */
 	WM_event_remove_handlers(C, &win->handlers);
 	WM_event_remove_handlers(C, &win->modalhandlers);
-	ED_screen_exit(C, win, win->screen); /* will free the current screen if it is a temp layout */
+	ED_screen_exit(C, win, win->screen); 
+	
 	wm_window_free(C, wm, win);
+	
+	/* if temp screen, delete it after window free (it stops jobs that can access it) */
+	if(screen->temp) {
+		Main *bmain= CTX_data_main(C);
+		free_libblock(&bmain->screen, screen);
+	}
 	
 	/* check remaining windows */
 	if(wm->windows.first) {
@@ -509,7 +523,12 @@ int wm_window_duplicate_exec(bContext *C, wmOperator *UNUSED(op))
 int wm_window_fullscreen_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	wmWindow *window= CTX_wm_window(C);
-	GHOST_TWindowState state = GHOST_GetWindowState(window->ghostwin);
+	GHOST_TWindowState state;
+
+	if(G.background)
+		return OPERATOR_CANCELLED;
+
+	state= GHOST_GetWindowState(window->ghostwin);
 	if(state!=GHOST_kWindowStateFullScreen)
 		GHOST_SetWindowState(window->ghostwin, GHOST_kWindowStateFullScreen);
 	else

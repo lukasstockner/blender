@@ -34,6 +34,11 @@
 *
 */
 
+/** \file blender/blenkernel/intern/modifier.c
+ *  \ingroup bke
+ */
+
+
 #include <stddef.h>
 #include <string.h>
 #include <stdarg.h>
@@ -246,6 +251,11 @@ int modifiers_getCageIndex(struct Scene *scene, Object *ob, int *lastPossibleCag
 {
 	ModifierData *md = (virtual_)? modifiers_getVirtualModifierList(ob): ob->modifiers.first;
 	int i, cageIndex = -1;
+
+	if(lastPossibleCageIndex_r) {
+		/* ensure the value is initialized */
+		*lastPossibleCageIndex_r= -1;
+	}
 
 	/* Find the last modifier acting on the cage. */
 	for (i=0; md; i++,md=md->next) {

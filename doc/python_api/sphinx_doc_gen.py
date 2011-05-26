@@ -27,7 +27,7 @@ For HTML generation
 -------------------
 - Run this script from blenders root path once you have compiled blender
 
-    ./blender.bin -b -P doc/python_api/sphinx_doc_gen.py
+    ./blender.bin --background --python doc/python_api/sphinx_doc_gen.py
 
   This will generate python files in doc/python_api/sphinx-in/,
   assuming that ./blender.bin is or links to the blender executable
@@ -36,7 +36,7 @@ For HTML generation
     
     sphinx-build doc/python_api/sphinx-in doc/python_api/sphinx-out
 
-  assuming that you have sphinx 0.6.7 installed
+  assuming that you have sphinx 1.0.7 installed
   
 For PDF generation
 ------------------
@@ -63,6 +63,7 @@ else:
         "bpy.data",
         "bpy.props",
         "bpy.utils",
+        "bpy.context",
         #"bpy.types",  # supports filtering
         "bpy.ops",  # supports filtering
         "bge",
@@ -73,8 +74,8 @@ else:
         "mathutils.geometry",
     )
 
-    FILTER_BPY_TYPES = ("Mesh", )  # allow 
-    FILTER_BPY_OPS = ("import_scene", )  # allow 
+    FILTER_BPY_TYPES = ("bpy_struct", "Panel", "Menu", "Operator", "RenderEngine")  # allow
+    FILTER_BPY_OPS = ("import.scene", )  # allow
 
     # for quick rebuilds
     """
@@ -101,7 +102,13 @@ EXAMPLE_SET = set()
 EXAMPLE_SET_USED = set()
 
 _BPY_STRUCT_FAKE = "bpy_struct"
+_BPY_PROP_COLLECTION_FAKE = "bpy_prop_collection"
 _BPY_FULL_REBUILD = False
+
+if _BPY_PROP_COLLECTION_FAKE:
+    _BPY_PROP_COLLECTION_ID = ":class:`%s`" % _BPY_PROP_COLLECTION_FAKE
+else:
+    _BPY_PROP_COLLECTION_ID = "collection"
 
 
 def undocumented_message(module_name, type_name, identifier):
@@ -131,13 +138,64 @@ def range_str(val):
         return str(val)
 
 
+def example_extract_docstring(filepath):
+    file = open(filepath, 'r')
+    line = file.readline()
+    line_no = 0
+    text = []
+    if line.startswith('"""'):  # assume nothing here
+        line_no += 1
+    else:
+        file.close()
+        return "", 0
+
+    for line in file.readlines():
+        line_no += 1
+        if line.startswith('"""'):
+            break
+        else:
+            text.append(line.rstrip())
+
+    line_no += 1
+    file.close()
+    return "\n".join(text), line_no
+
+
+def write_title(fw, text, heading_char):
+    fw("%s\n%s\n\n" % (text, len(text) * heading_char))
+
+
 def write_example_ref(ident, fw, example_id, ext="py"):
     if example_id in EXAMPLE_SET:
-        fw("%s.. literalinclude:: ../examples/%s.%s\n\n" % (ident, example_id, ext))
+
+        # extract the comment
+        filepath = "../examples/%s.%s" % (example_id, ext)
+        filepath_full = os.path.join(os.path.dirname(fw.__self__.name), filepath)
+
+        text, line_no = example_extract_docstring(filepath_full)
+
+        for line in text.split("\n"):
+            fw("%s\n" % (ident + line).rstrip())
+        fw("\n")
+
+        fw("%s.. literalinclude:: %s\n" % (ident, filepath))
+        if line_no > 0:
+            fw("%s   :lines: %d-\n" % (ident, line_no))
+        fw("\n")
         EXAMPLE_SET_USED.add(example_id)
     else:
         if bpy.app.debug:
             print("\tskipping example:", example_id)
+
+    # Support for numbered files bpy.types.Operator -> bpy.types.Operator.1.py
+    i = 1
+    while True:
+        example_id_num = "%s.%d" % (example_id, i)
+        if example_id_num in EXAMPLE_SET:
+            write_example_ref(ident, fw, example_id_num, ext)
+            i += 1
+        else:
+            break
 
 
 def write_indented_lines(ident, fn, text, strip=True):
@@ -214,7 +272,7 @@ def py_descr2sphinx(ident, fw, descr, module_name, type_name, identifier):
     else:
         raise TypeError("type was not GetSetDescriptorType, MethodDescriptorType or ClassMethodDescriptorType")
 
-    write_example_ref(ident, fw, module_name + "." + type_name + "." + identifier)
+    write_example_ref(ident + "   ", fw, module_name + "." + type_name + "." + identifier)
     fw("\n")
 
 
@@ -230,6 +288,13 @@ def py_c_func2sphinx(ident, fw, module_name, type_name, identifier, py_func, is_
     else:
         fw(ident + ".. function:: %s()\n\n" % identifier)
         fw(ident + "   " + undocumented_message(module_name, type_name, identifier))
+
+    if is_class:
+        write_example_ref(ident + "   ", fw, module_name + "." + type_name + "." + identifier)
+    else:
+        write_example_ref(ident + "   ", fw, module_name + "." + identifier)
+
+    fw("\n")
 
 
 def pyprop2sphinx(ident, fw, identifier, py_prop):
@@ -255,8 +320,7 @@ def pymodule2sphinx(BASEPATH, module_name, module, title):
 
     fw = file.write
     
-    fw(title + "\n")
-    fw(("=" * len(title)) + "\n\n")
+    write_title(fw, title, "=")
     
     fw(".. module:: %s\n\n" % module_name)
     
@@ -308,7 +372,7 @@ def pymodule2sphinx(BASEPATH, module_name, module, title):
             elif value_type in (types.BuiltinMethodType, types.BuiltinFunctionType): # both the same at the moment but to be future proof
                 # note: can't get args from these, so dump the string as is
                 # this means any module used like this must have fully formatted docstrings.
-                py_c_func2sphinx("", fw, module_name, module, attribute, value, is_class=False)
+                py_c_func2sphinx("", fw, module_name, None, attribute, value, is_class=False)
             elif value_type == type:
                 classes.append((attribute, value))
             elif value_type in (bool, int, float, str, tuple):
@@ -397,6 +461,7 @@ def pycontext2sphinx(BASEPATH):
         "edit_text": ("Text", False),
         "editable_bones": ("EditBone", True),
         "fluid": ("FluidSimulationModifier", False),
+        "image_paint_object": ("Object", False),
         "lamp": ("Lamp", False),
         "lattice": ("Lattice", False),
         "material": ("Material", False),
@@ -426,7 +491,6 @@ def pycontext2sphinx(BASEPATH):
         "smoke": ("SmokeModifier", False),
         "soft_body": ("SoftBodyModifier", False),
         "texture": ("Texture", False),
-        "texture_paint_object": ("Object", False),
         "texture_slot": ("MaterialTextureSlot", False),
         "vertex_paint_object": ("Object", False),
         "visible_bases": ("ObjectBase", True),
@@ -463,6 +527,8 @@ def pycontext2sphinx(BASEPATH):
     else:
         pass  # will have raised an error above
     
+    file.close()
+
 
 def pyrna2sphinx(BASEPATH):
     """ bpy.types and bpy.ops
@@ -478,13 +544,17 @@ def pyrna2sphinx(BASEPATH):
         if is_return:
             id_name = "return"
             id_type = "rtype"
-            kwargs = {"as_ret": True, "class_fmt": ":class:`%s`"}
+            kwargs = {"as_ret": True}
             identifier = ""
         else:
             id_name = "arg"
             id_type = "type"
-            kwargs = {"as_arg": True, "class_fmt": ":class:`%s`"}
+            kwargs = {"as_arg": True}
             identifier = " %s" % prop.identifier
+
+        kwargs["class_fmt"] = ":class:`%s`"
+
+        kwargs["collection_id"] = _BPY_PROP_COLLECTION_ID
 
         type_descr = prop.get_type_description(**kwargs)
         if prop.name or prop.description:
@@ -513,10 +583,13 @@ def pyrna2sphinx(BASEPATH):
         else:
             title = struct.identifier
 
-        fw("%s\n%s\n\n" % (title, "=" * len(title)))
+        write_title(fw, title, "=")
         
         fw(".. module:: bpy.types\n\n")
         
+        # docs first?, ok
+        write_example_ref("", fw, "bpy.types.%s" % struct.identifier)
+
         base_ids = [base.identifier for base in struct.get_bases()]
 
         if _BPY_STRUCT_FAKE:
@@ -555,7 +628,7 @@ def pyrna2sphinx(BASEPATH):
         sorted_struct_properties.sort(key=lambda prop: prop.identifier)
 
         for prop in sorted_struct_properties:
-            type_descr = prop.get_type_description(class_fmt=":class:`%s`")
+            type_descr = prop.get_type_description(class_fmt=":class:`%s`", collection_id=_BPY_PROP_COLLECTION_ID)
             # readonly properties use "data" directive, variables properties use "attribute" directive
             if 'readonly' in type_descr:
                 fw("   .. data:: %s\n\n" % prop.identifier)
@@ -586,7 +659,7 @@ def pyrna2sphinx(BASEPATH):
             elif func.return_values: # multiple return values
                 fw("      :return (%s):\n" % ", ".join(prop.identifier for prop in func.return_values))
                 for prop in func.return_values:
-                    type_descr = prop.get_type_description(as_ret=True, class_fmt=":class:`%s`")
+                    type_descr = prop.get_type_description(as_ret=True, class_fmt=":class:`%s`", collection_id=_BPY_PROP_COLLECTION_ID)
                     descr = prop.description
                     if not descr:
                         descr = prop.name
@@ -601,6 +674,12 @@ def pyrna2sphinx(BASEPATH):
         for identifier, py_func in py_funcs:
             pyfunc2sphinx("   ", fw, identifier, py_func, is_class=True)
         del py_funcs, py_func
+
+        py_funcs = struct.get_py_c_functions()
+        py_func = None
+
+        for identifier, py_func in py_funcs:
+            py_c_func2sphinx("   ", fw, "bpy.types", struct.identifier, identifier, py_func, is_class=True)
 
         lines = []
 
@@ -678,6 +757,10 @@ def pyrna2sphinx(BASEPATH):
                 fw("   * :class:`%s`\n" % ref)
             fw("\n")
 
+        # docs last?, disable for now
+        # write_example_ref("", fw, "bpy.types.%s" % struct.identifier)
+        file.close()
+
     if "bpy.types" not in EXCLUDE_MODULES:
     for struct in structs.values():
         # TODO, rna_info should filter these out!
@@ -685,57 +768,71 @@ def pyrna2sphinx(BASEPATH):
             continue
         write_struct(struct)
         
-    # special case, bpy_struct
-    if _BPY_STRUCT_FAKE:
-        filepath = os.path.join(BASEPATH, "bpy.types.%s.rst" % _BPY_STRUCT_FAKE)
+        def fake_bpy_type(class_value, class_name, descr_str, use_subclasses=True):
+            filepath = os.path.join(BASEPATH, "bpy.types.%s.rst" % class_name)
         file = open(filepath, "w")
         fw = file.write
 
-        fw("%s\n" % _BPY_STRUCT_FAKE)
-        fw("=" * len(_BPY_STRUCT_FAKE) + "\n")
-        fw("\n")
+            write_title(fw, class_name, "=")
+
         fw(".. module:: bpy.types\n")
         fw("\n")
 
+            if use_subclasses:
         subclass_ids = [s.identifier for s in structs.values() if s.base is None if not rna_info.rna_id_ignore(s.identifier)]
         if subclass_ids:
             fw("subclasses --- \n" + ", ".join((":class:`%s`" % s) for s in sorted(subclass_ids)) + "\n\n")
 
-        fw(".. class:: %s\n\n" % _BPY_STRUCT_FAKE)
-        fw("   built-in base class for all classes in bpy.types.\n\n")
+            fw(".. class:: %s\n\n" % class_name)
+            fw("   %s\n\n" % descr_str)
         fw("   .. note::\n\n")
-        fw("      Note that bpy.types.%s is not actually available from within blender, it only exists for the purpose of documentation.\n\n" % _BPY_STRUCT_FAKE)
+            fw("      Note that bpy.types.%s is not actually available from within blender, it only exists for the purpose of documentation.\n\n" % class_name)
 
-        descr_items = [(key, descr) for key, descr in sorted(bpy.types.Struct.__bases__[0].__dict__.items()) if not key.startswith("__")]
+            descr_items = [(key, descr) for key, descr in sorted(class_value.__dict__.items()) if not key.startswith("__")]
 
         for key, descr in descr_items:
             if type(descr) == MethodDescriptorType: # GetSetDescriptorType, GetSetDescriptorType's are not documented yet
-                py_descr2sphinx("   ", fw, descr, "bpy.types", _BPY_STRUCT_FAKE, key)
+                    py_descr2sphinx("   ", fw, descr, "bpy.types", class_name, key)
 
         for key, descr in descr_items:
             if type(descr) == GetSetDescriptorType:
-                py_descr2sphinx("   ", fw, descr, "bpy.types", _BPY_STRUCT_FAKE, key)
+                    py_descr2sphinx("   ", fw, descr, "bpy.types", class_name, key)
+            file.close()
+
+        # write fake classes
+        if _BPY_STRUCT_FAKE:
+            class_value = bpy.types.Struct.__bases__[0]
+            fake_bpy_type(class_value, _BPY_STRUCT_FAKE, "built-in base class for all classes in bpy.types.", use_subclasses=True)
+
+        if _BPY_PROP_COLLECTION_FAKE:
+            class_value = bpy.data.objects.__class__
+            fake_bpy_type(class_value, _BPY_PROP_COLLECTION_FAKE, "built-in class used for all collections.", use_subclasses=False)
 
     # operators
     def write_ops():
-        API_BASEURL = "https://svn.blender.org/svnroot/bf-blender/trunk/blender/release/scripts"
-        fw = None
-        last_mod = ''
+        API_BASEURL = "http://svn.blender.org/svnroot/bf-blender/trunk/blender/release/scripts"
+        API_BASEURL_ADDON = "http://svn.blender.org/svnroot/bf-extensions/trunk/py/scripts"
+        API_BASEURL_ADDON_CONTRIB = "http://svn.blender.org/svnroot/bf-extensions/contrib/py/scripts"
         
-        for op_key in sorted(ops.keys()):
-            op = ops[op_key]
+        op_modules = {}
+        for op in ops.values():
+            op_modules.setdefault(op.module_name, []).append(op)
+        del op
             
-            if last_mod != op.module_name:
-                filepath = os.path.join(BASEPATH, "bpy.ops.%s.rst" % op.module_name)
+        for op_module_name, ops_mod in op_modules.items():
+            filepath = os.path.join(BASEPATH, "bpy.ops.%s.rst" % op_module_name)
                 file = open(filepath, "w")
                 fw = file.write
                 
-                title = "%s Operators"  % (op.module_name[0].upper() + op.module_name[1:])
-                fw("%s\n%s\n\n" % (title, "=" * len(title)))
+            title = "%s Operators" % op_module_name.replace("_", " ").title()
                 
-                fw(".. module:: bpy.ops.%s\n\n" % op.module_name)
-                last_mod = op.module_name
+            write_title(fw, title, "=")
 
+            fw(".. module:: bpy.ops.%s\n\n" % op_module_name)
+
+            ops_mod.sort(key=lambda op: op.func_name)
+
+            for op in ops_mod:
             args_str = ", ".join(prop.get_arg_default(force=True) for prop in op.args)
             fw(".. function:: %s(%s)\n\n" % (op.func_name, args_str))
 
@@ -754,8 +851,17 @@ def pyrna2sphinx(BASEPATH):
 
             location = op.get_location()
             if location != (None, None):
-                fw("   :file: `%s <%s/%s>`_:%d\n\n" % (location[0],API_BASEURL,location[0],location[1]))
+                    if location[0].startswith("addons_contrib" + os.sep):
+                        url_base = API_BASEURL_ADDON_CONTRIB
+                    elif location[0].startswith("addons" + os.sep):
+                        url_base = API_BASEURL_ADDON
+                    else:
+                        url_base = API_BASEURL
     
+                    fw("   :file: `%s <%s/%s>`_:%d\n\n" % (location[0], url_base, location[0], location[1]))
+
+            file.close()
+
     if "bpy.ops" not in EXCLUDE_MODULES:
     write_ops()
 
@@ -776,14 +882,18 @@ def rna2sphinx(BASEPATH):
     if bpy.app.build_revision != "Unknown":
         version_string = version_string + " r" + bpy.app.build_revision
 
-    # for use with files
     version_string_fp = "_".join(str(v) for v in bpy.app.version)
+
+    if bpy.app.version_cycle == "release":
+        version_string_pdf = "%s%s_release" % ("_".join(str(v) for v in bpy.app.version[:2]), bpy.app.version_char)
+    else:
+        version_string_pdf = version_string_fp
 
     fw("project = 'Blender'\n")
     # fw("master_doc = 'index'\n")
     fw("copyright = u'Blender Foundation'\n")
-    fw("version = '%s - UNSTABLE API'\n" % version_string)
-    fw("release = '%s - UNSTABLE API'\n" % version_string)
+    fw("version = '%s - API'\n" % version_string)
+    fw("release = '%s - API'\n" % version_string)
     fw("html_theme = 'blender-org'\n")
     fw("html_theme_path = ['../']\n")
     fw("html_favicon = 'favicon.ico'\n")
@@ -804,29 +914,19 @@ def rna2sphinx(BASEPATH):
     fw(" Blender Documentation contents\n")
     fw("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n")
     fw("\n")
-    fw("This document is an API reference for Blender %s. built %s.\n" % (version_string, bpy.app.build_date))
+    fw("Welcome, this document is an API reference for Blender %s. built %s.\n" % (version_string, bpy.app.build_date))
     fw("\n")
-    fw("An introduction to Blender and Python can be found at <http://wiki.blender.org/index.php/Dev:2.5/Py/API/Intro>\n")
+    fw("`A PDF version of this document is also available <blender_python_reference_%s.pdf>`_\n" % version_string_pdf)
+
     fw("\n")
-    fw("`A PDF version of this document is also available <blender_python_reference_%s.pdf>`__\n" % version_string_fp)
+
+    fw("============================\n")
+    fw("Blender/Python Documentation\n")
+    fw("============================\n")
     fw("\n")
-    fw(".. warning:: The Python API in Blender is **UNSTABLE**, It should only be used for testing, any script written now may break in future releases.\n")
     fw("   \n")
-    fw("   The following areas are subject to change.\n")
-    fw("      * operator names and arguments\n")
-    fw("      * render api\n")
-    fw("      * function calls with the data api (any function calls with values accessed from bpy.data), including functions for importing and exporting meshes\n")
-    fw("      * class registration (Operator, Panels, Menus, Headers)\n")
-    fw("      * modules: bpy.props, blf)\n")
-    fw("      * members in the bpy.context have to be reviewed\n")
-    fw("      * python defined modal operators, especially drawing callbacks are highly experemental\n")
-    fw("   \n")
-    fw("   These parts of the API are relatively stable and are unlikely to change significantly\n")
-    fw("      * data API, access to attributes of blender data such as mesh verts, material color, timeline frames and scene objects\n")
-    fw("      * user interface functions for defining buttons, creation of menus, headers, panels\n")
-    fw("      * modules: bgl and mathutils\n")
-    fw("      * game engine modules\n")
-    fw("\n")
+    fw("* `Quickstart Intro <http://wiki.blender.org/index.php/Dev:2.5/Py/API/Intro>`_ if you are new to scripting in blender and want to get you're feet wet!\n")
+    fw("* `Blender/Python Overview <http://wiki.blender.org/index.php/Dev:2.5/Py/API/Overview>`_ for a more complete explanation of python integration in blender\n")
 
     fw("===================\n")
     fw("Application Modules\n")
@@ -886,6 +986,30 @@ def rna2sphinx(BASEPATH):
         fw("   bge.render.rst\n\n")
         fw("   bge.events.rst\n\n")
 
+    # rna generated change log
+    fw("========\n")
+    fw("API Info\n")
+    fw("========\n")
+    fw("\n")
+    fw(".. toctree::\n")
+    fw("   :maxdepth: 1\n\n")
+    fw("   change_log.rst\n\n")
+
+    fw("\n")
+    fw("\n")
+    fw(".. note:: The Blender Python API has areas which are still in development.\n")
+    fw("   \n")
+    fw("   The following areas are subject to change.\n")
+    fw("      * operator behavior, names and arguments\n")
+    fw("      * mesh creation and editing functions\n")
+    fw("   \n")
+    fw("   These parts of the API are relatively stable and are unlikely to change significantly\n")
+    fw("      * data API, access to attributes of blender data such as mesh verts, material color, timeline frames and scene objects\n")
+    fw("      * user interface functions for defining buttons, creation of menus, headers, panels\n")
+    fw("      * render engine integration\n")
+    fw("      * modules: bgl, mathutils & game engine.\n")
+    fw("\n")
+
     file.close()
 
     # internal modules
@@ -895,6 +1019,7 @@ def rna2sphinx(BASEPATH):
         fw = file.write
         fw("Operators (bpy.ops)\n")
         fw("===================\n\n")
+        write_example_ref("", fw, "bpy.ops")
         fw(".. toctree::\n")
         fw("   :glob:\n\n")
         fw("   bpy.ops.*\n\n")
@@ -962,7 +1087,6 @@ def rna2sphinx(BASEPATH):
         import mathutils as module
         pymodule2sphinx(BASEPATH, "mathutils", module, "Math Types & Utilities (mathutils)")
 
-
     if "mathutils.geometry" not in EXCLUDE_MODULES:
         import mathutils.geometry as module
         pymodule2sphinx(BASEPATH, "mathutils.geometry", module, "Geometry Utilities (mathutils.geometry)")
@@ -990,6 +1114,8 @@ def rna2sphinx(BASEPATH):
         shutil.copy2(os.path.join(BASEPATH, "..", "rst", "bge.render.rst"), BASEPATH)
         shutil.copy2(os.path.join(BASEPATH, "..", "rst", "bge.events.rst"), BASEPATH)
 
+    shutil.copy2(os.path.join(BASEPATH, "..", "rst", "change_log.rst"), BASEPATH)
+
     if 0:
         filepath = os.path.join(BASEPATH, "bpy.rst")
         file = open(filepath, "w")
@@ -998,7 +1124,9 @@ def rna2sphinx(BASEPATH):
         fw("\n")
 
         title = ":mod:`bpy` --- Blender Python Module"
-        fw("%s\n%s\n\n" % (title, "=" * len(title)))
+
+        write_title(fw, title, "=")
+
         fw(".. module:: bpy.types\n\n")
         file.close()
 

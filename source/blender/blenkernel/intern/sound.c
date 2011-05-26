@@ -1,3 +1,6 @@
+/** \file blender/blenkernel/intern/sound.c
+ *  \ingroup bke
+ */
 /**
  * sound.c (mar-2001 nzc)
  *
@@ -55,7 +58,7 @@ static void sound_sync_callback(void* data, int mode, float time)
 }
 #endif
 
-int sound_define_from_str(char *str)
+int sound_define_from_str(const char *str)
 {
 	if (BLI_strcaseeq(str, "NULL"))
 		return AUD_NULL_DEVICE;
@@ -324,7 +327,7 @@ static float sound_get_volume(Scene* scene, Sequence* sequence, float time)
 		fcu= list_find_fcurve(&adt->action->curves, buf, 0);
 	
 	if(fcu)
-		return evaluate_fcurve(fcu, time * FPS);
+		return evaluate_fcurve(fcu, time * (float)FPS);
 	else
 		return sequence->volume;
 }
@@ -342,7 +345,7 @@ AUD_Device* sound_mixdown(struct Scene *scene, AUD_DeviceSpecs specs, int start,
 
 void sound_create_scene(struct Scene *scene)
 {
-	scene->sound_scene = AUD_createSequencer(scene, (AUD_volumeFunction)&sound_get_volume);
+	scene->sound_scene = AUD_createSequencer(scene->audio.flag & AUDIO_MUTE, scene, (AUD_volumeFunction)&sound_get_volume);
 }
 
 void sound_destroy_scene(struct Scene *scene)
@@ -351,6 +354,12 @@ void sound_destroy_scene(struct Scene *scene)
 		AUD_stop(scene->sound_scene_handle);
 	if(scene->sound_scene)
 		AUD_destroySequencer(scene->sound_scene);
+}
+
+void sound_mute_scene(struct Scene *scene, int muted)
+{
+	if(scene->sound_scene)
+		AUD_setSequencerMuted(scene->sound_scene, muted);
 }
 
 void* sound_scene_add_scene_sound(struct Scene *scene, struct Sequence* sequence, int startframe, int endframe, int frameskip)

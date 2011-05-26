@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -24,6 +24,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/object/object_modifier.c
+ *  \ingroup edobj
+ */
+
 
 #include <math.h>
 #include <stdio.h>
@@ -199,8 +204,18 @@ int ED_object_modifier_remove(ReportList *reports, Main *bmain, Scene *scene, Ob
 		ob->dt = OB_TEXTURE;
 	}
 	else if(md->type == eModifierType_Multires) {
+		int ok= 1;
 		Mesh *me= ob->data;
+		ModifierData *tmpmd;
 
+		/* ensure MDISPS CustomData layer is't used by another multires modifiers */
+		for(tmpmd= ob->modifiers.first; tmpmd; tmpmd= tmpmd->next)
+			if(tmpmd!=md && tmpmd->type == eModifierType_Multires) {
+				ok= 0;
+				break;
+			}
+
+		if(ok) {
 		if(me->edit_mesh) {
 			EditMesh *em= me->edit_mesh;
 			/* CustomData_external_remove is used here only to mark layer as non-external
@@ -210,6 +225,7 @@ int ED_object_modifier_remove(ReportList *reports, Main *bmain, Scene *scene, Ob
 		} else {
 		CustomData_external_remove(&me->fdata, &me->id, CD_MDISPS, me->totface);
 		CustomData_free_layer_active(&me->fdata, CD_MDISPS, me->totface);
+	}
 	}
 	}
 
@@ -286,7 +302,7 @@ int ED_object_modifier_convert(ReportList *reports, Main *bmain, Scene *scene, O
 	psys=((ParticleSystemModifierData *)md)->psys;
 	part= psys->part;
 
-	if(part->ren_as != PART_DRAW_PATH || psys->pathcache == 0)
+	if(part->ren_as != PART_DRAW_PATH || psys->pathcache == NULL)
 		return 0;
 
 	totpart= psys->totcached;
@@ -299,15 +315,21 @@ int ED_object_modifier_convert(ReportList *reports, Main *bmain, Scene *scene, O
 	cache= psys->pathcache;
 	for(a=0; a<totpart; a++) {
 		key= cache[a];
+
+		if(key->steps > 0) {
 		totvert+= key->steps+1;
 		totedge+= key->steps;
+	}
 	}
 
 	cache= psys->childcache;
 	for(a=0; a<totchild; a++) {
 		key= cache[a];
+
+		if(key->steps > 0) {
 		totvert+= key->steps+1;
 		totedge+= key->steps;
+	}
 	}
 
 	if(totvert==0) return 0;
@@ -947,6 +969,7 @@ static int multires_higher_levels_delete_invoke(bContext *C, wmOperator *op, wmE
 void OBJECT_OT_multires_higher_levels_delete(wmOperatorType *ot)
 {
 	ot->name= "Delete Higher Levels";
+	ot->description= "Deletes the higher resolution mesh, potential loss of detail";
 	ot->idname= "OBJECT_OT_multires_higher_levels_delete";
 
 	ot->poll= multires_poll;

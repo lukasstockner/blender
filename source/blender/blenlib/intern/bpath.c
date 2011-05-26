@@ -1,4 +1,4 @@
-/**
+/*
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/blenlib/intern/bpath.c
+ *  \ingroup bli
+ */
+
 
 #include <sys/stat.h>
 
@@ -63,21 +68,16 @@
 #include "BKE_utildefines.h"
 #include "BKE_report.h"
 
-//XXX #include "BIF_screen.h" /* only for wait cursor */
-//
-/* for sequence */
-//XXX #include "BSE_sequence.h"
-//XXX define below from BSE_sequence.h - otherwise potentially odd behaviour
-
-
-typedef struct BPathIteratorSeqData {
+typedef struct BPathIteratorSeqData
+{
 	int totseq;
 	int seq;
 	struct Sequence **seqar; /* Sequence */
 	struct Scene *scene;			/* Current scene */
 } BPathIteratorSeqData;
 
-typedef struct BPathIterator {
+typedef struct BPathIterator
+{
 	char*	_path; /* never access directly, use BLI_bpathIterator_getPath */
 	const char*	_lib;
 	const char*	_name;
@@ -89,7 +89,7 @@ typedef struct BPathIterator {
 	void (*setpath_callback)(struct BPathIterator *, const char *);
 	void (*getpath_callback)(struct BPathIterator *, char *);
 
-	const char*	base_path; /* base path, the directry the blend file is in - normally bmain->name */
+	const char*	base_path; /* base path, the directory the blend file is in - normally bmain->name */
 
 	Main *bmain;
 
@@ -141,11 +141,15 @@ void BLI_bpathIterator_init(struct BPathIterator **bpi_pt, Main *bmain, const ch
 	BLI_bpathIterator_step(bpi);
 }
 
-static void BLI_bpathIterator_alloc(struct BPathIterator **bpi) {
+#if 0
+static void BLI_bpathIterator_alloc(struct BPathIterator **bpi)
+{
 	*bpi= MEM_mallocN(sizeof(BPathIterator), "BLI_bpathIterator_alloc");
 }
+#endif
 
-void BLI_bpathIterator_free( struct BPathIterator *bpi ) {
+void BLI_bpathIterator_free(struct BPathIterator *bpi)
+{
 	if (bpi->seqdata.seqar)
 		MEM_freeN((void *)bpi->seqdata.seqar);
 	bpi->seqdata.seqar = NULL;
@@ -154,23 +158,28 @@ void BLI_bpathIterator_free( struct BPathIterator *bpi ) {
 	MEM_freeN(bpi);
 }
 
-void BLI_bpathIterator_getPath( struct BPathIterator *bpi, char *path) {
+void BLI_bpathIterator_getPath(struct BPathIterator *bpi, char *path)
+{
 	if (bpi->getpath_callback) {
 		bpi->getpath_callback( bpi, path );
-	} else {
+	}
+	else {
 		strcpy(path, bpi->_path); /* warning, we assume 'path' are long enough */
 	}
 }
 
-void BLI_bpathIterator_setPath( struct BPathIterator *bpi, char *path) {
+void BLI_bpathIterator_setPath(struct BPathIterator *bpi, const char *path)
+{
 	if (bpi->setpath_callback) {
 		bpi->setpath_callback( bpi, path );
-	} else {
+	}
+	else {
 		strcpy(bpi->_path, path); /* warning, we assume 'path' are long enough */
 	}
 }
 
-void BLI_bpathIterator_getPathExpanded( struct BPathIterator *bpi, char *path_expanded) {
+void BLI_bpathIterator_getPathExpanded(struct BPathIterator *bpi, char *path_expanded)
+{
 	char *libpath;
 	
 	BLI_bpathIterator_getPath(bpi, path_expanded);
@@ -178,24 +187,30 @@ void BLI_bpathIterator_getPathExpanded( struct BPathIterator *bpi, char *path_ex
 	
 	if (libpath) { /* check the files location relative to its library path */
 		BLI_path_abs(path_expanded, libpath);
-	} else { /* local data, use the blend files path */
+	}
+	else { /* local data, use the blend files path */
 		BLI_path_abs(path_expanded, bpi->base_path);
 	}
 	BLI_cleanup_file(NULL, path_expanded);
 }
-char* BLI_bpathIterator_getLib( struct BPathIterator *bpi) {
+const char* BLI_bpathIterator_getLib(struct BPathIterator *bpi)
+{
 	return bpi->_lib;
 }
-char* BLI_bpathIterator_getName( struct BPathIterator *bpi) {
+const char* BLI_bpathIterator_getName(struct BPathIterator *bpi)
+{
 	return bpi->_name;
 }
-int	BLI_bpathIterator_getType( struct BPathIterator *bpi) {
+int	BLI_bpathIterator_getType(struct BPathIterator *bpi)
+{
 	return bpi->type;
 }
-int	BLI_bpathIterator_getPathMaxLen( struct BPathIterator *bpi) {
+unsigned int	BLI_bpathIterator_getPathMaxLen(struct BPathIterator *bpi)
+{
 	return bpi->len;
 }
-const char* BLI_bpathIterator_getBasePath(struct BPathIterator *bpi) {
+const char* BLI_bpathIterator_getBasePath(struct BPathIterator *bpi)
+{
 	return bpi->base_path;
 }
 
@@ -319,7 +334,8 @@ static struct Sequence *seq_stepdata__internal(struct BPathIterator *bpi, int st
 			
 			if (bpi->seqdata.seq >= bpi->seqdata.totseq) {
 				seq = NULL;
-			} else {
+			}
+			else {
 				seq = bpi->seqdata.seqar[bpi->seqdata.seq];
 				while (!SEQ_HAS_PATH(seq) && seq->plugin==NULL) {
 					bpi->seqdata.seq++;
@@ -332,7 +348,8 @@ static struct Sequence *seq_stepdata__internal(struct BPathIterator *bpi, int st
 			}
 			if (seq) {
 				return seq;
-			} else {
+			}
+			else {
 				/* keep looking through the next scene, reallocate seq array */
 				if (bpi->seqdata.seqar) {
 					MEM_freeN((void *)bpi->seqdata.seqar);
@@ -340,7 +357,8 @@ static struct Sequence *seq_stepdata__internal(struct BPathIterator *bpi, int st
 				}
 				bpi->seqdata.scene = bpi->seqdata.scene->id.next;
 			}
-		} else {
+		}
+		else {
 			/* no seq data in this scene, next */
 			bpi->seqdata.scene = bpi->seqdata.scene->id.next;
 		}
@@ -349,7 +367,8 @@ static struct Sequence *seq_stepdata__internal(struct BPathIterator *bpi, int st
 	return NULL;
 }
 
-static void seq_getpath(struct BPathIterator *bpi, char *path) {
+static void seq_getpath(struct BPathIterator *bpi, char *path)
+{
 	Sequence *seq = (Sequence *)bpi->data;
 
 	
@@ -374,7 +393,8 @@ static void seq_getpath(struct BPathIterator *bpi, char *path) {
 }
 }
 
-static void seq_setpath(struct BPathIterator *bpi, char *path) {
+static void seq_setpath(struct BPathIterator *bpi, const char *path)
+{
 	Sequence *seq = (Sequence *)bpi->data;
 	if (seq==NULL) return; 
 	
@@ -392,7 +412,8 @@ static void seq_setpath(struct BPathIterator *bpi, char *path) {
 }
 }
 
-static void text_getpath(struct BPathIterator *bpi, char *path) {
+static void text_getpath(struct BPathIterator *bpi, char *path)
+{
 	Text *text= (Text *)bpi->data;
 	path[0]= '\0'; /* incase we cant get the path */
 	if(text->name) {
@@ -400,7 +421,8 @@ static void text_getpath(struct BPathIterator *bpi, char *path) {
 	}
 }
 
-static void text_setpath(struct BPathIterator *bpi, const char *path) {
+static void text_setpath(struct BPathIterator *bpi, const char *path)
+{
 	Text *text= (Text *)bpi->data;
 	if (text==NULL) return; 
 
@@ -411,7 +433,8 @@ static void text_setpath(struct BPathIterator *bpi, const char *path) {
 	text->name= BLI_strdup(path);
 }
 
-static struct Mesh *cdata_stepdata__internal(struct Mesh *me, int step_next) {
+static struct Mesh *cdata_stepdata__internal(struct Mesh *me, int step_next)
+{
 	if (me==NULL)
 		return NULL;
 	
@@ -428,7 +451,8 @@ static struct Mesh *cdata_stepdata__internal(struct Mesh *me, int step_next) {
 	return me;
 }
 
-static void bpi_type_step__internal( struct BPathIterator *bpi) {
+static void bpi_type_step__internal(struct BPathIterator *bpi)
+{
 	bpi->type++; /* advance to the next type */
 	bpi->data = NULL;
 	
@@ -448,7 +472,8 @@ static void bpi_type_step__internal( struct BPathIterator *bpi) {
 	}
 }
 
-void BLI_bpathIterator_step( struct BPathIterator *bpi) {
+void BLI_bpathIterator_step(struct BPathIterator *bpi)
+{
 	while (bpi->type != BPATH_DONE) {
 		
 		if  ((bpi->type) == BPATH_IMAGE) {
@@ -468,7 +493,8 @@ void BLI_bpathIterator_step( struct BPathIterator *bpi) {
 				/* we are done, advancing to the next item, this type worked fine */
 				break;
 				
-			} else {
+			}
+			else {
 				bpi_type_step__internal(bpi);
 			}
 		}
@@ -495,7 +521,8 @@ void BLI_bpathIterator_step( struct BPathIterator *bpi) {
 				/* we are done, advancing to the next item, this type worked fine */
 				break;
 
-			} else {
+			}
+			else {
 				bpi_type_step__internal(bpi);
 			}
 		}
@@ -517,11 +544,11 @@ void BLI_bpathIterator_step( struct BPathIterator *bpi) {
 				/* we are done, advancing to the next item, this type worked fine */
 				break;
 
-			} else {
+			}
+			else {
 				bpi_type_step__internal(bpi);
 			}
 		}
-
 		else if  ((bpi->type) == BPATH_SOUND) {
 			if (bpi->data)	bpi->data= snd_stepdata__internal((bSound *)bpi->data, 1, bpi->flag); /* must skip images that have no path */
 			else 			bpi->data= snd_stepdata__internal(bpi->bmain->sound.first, 0, bpi->flag);
@@ -537,12 +564,12 @@ void BLI_bpathIterator_step( struct BPathIterator *bpi) {
 				
 				/* we are done, advancing to the next item, this type worked fine */
 				break;
-			} else {
+			}
+			else {
 				bpi_type_step__internal(bpi);
 			}
-			
-			
-		} else if  ((bpi->type) == BPATH_FONT) {
+		}
+		else if  ((bpi->type) == BPATH_FONT) {
 			
 			if (bpi->data)	bpi->data= vf_stepdata__internal((VFont *)bpi->data, 1, bpi->flag);
 			else 			bpi->data= vf_stepdata__internal(bpi->bmain->vfont.first, 0, bpi->flag);
@@ -558,11 +585,13 @@ void BLI_bpathIterator_step( struct BPathIterator *bpi) {
 				
 				/* we are done, advancing to the next item, this type worked fine */
 				break;
-			} else {
+			}
+			else {
 				bpi_type_step__internal(bpi);
 			}
 			
-		} else if  ((bpi->type) == BPATH_LIB) {
+		}
+		else if  ((bpi->type) == BPATH_LIB) {
 			if (bpi->data)	bpi->data = ((ID *)bpi->data)->next;
 			else 			bpi->data= bpi->bmain->library.first;
 			
@@ -577,10 +606,12 @@ void BLI_bpathIterator_step( struct BPathIterator *bpi) {
 				
 				/* we are done, advancing to the next item, this type worked fine */
 				break;
-			} else {
+			}
+			else {
 				bpi_type_step__internal(bpi);
 			}
-		} else if  ((bpi->type) == BPATH_SEQ) {
+		}
+		else if  ((bpi->type) == BPATH_SEQ) {
 			if (bpi->data)	bpi->data = seq_stepdata__internal( bpi, 1 );
 			else 			bpi->data = seq_stepdata__internal( bpi, 0 );
 			if (bpi->data) {
@@ -589,10 +620,12 @@ void BLI_bpathIterator_step( struct BPathIterator *bpi) {
 				bpi->_name= seq->name+2;
 				bpi->len= seq->plugin ? sizeof(seq->plugin->name) : sizeof(seq->strip->dir) + sizeof(seq->strip->stripdata->name);
 				break;
-			} else {
+			}
+			else {
 				bpi_type_step__internal(bpi);
 			}
-		} else if  ((bpi->type) == BPATH_CDATA) {
+		}
+		else if  ((bpi->type) == BPATH_CDATA) {
 			if (bpi->data)	bpi->data = cdata_stepdata__internal( bpi->data, 1 );
 			else 			bpi->data= cdata_stepdata__internal( bpi->bmain->mesh.first, 0 );
 
@@ -603,7 +636,8 @@ void BLI_bpathIterator_step( struct BPathIterator *bpi) {
 				bpi->_name= me->id.name+2;
 				bpi->len = sizeof(me->fdata.external->filename);
 				break;
-			} else {
+			}
+			else {
 				bpi_type_step__internal(bpi);
 			}
 		}
@@ -692,6 +726,11 @@ void makeFilesRelative(Main *bmain, const char *basedir, ReportList *reports) {
 	/* be sure there is low chance of the path being too short */
 	char filepath_relative[(FILE_MAXDIR * 2) + FILE_MAXFILE];
 	
+	if(basedir[0] == '\0') {
+		printf("makeFilesRelative: basedir='', this is a bug\n");
+		return;
+	}
+
 	BLI_bpathIterator_init(&bpi, bmain, basedir, 0);
 	while (!BLI_bpathIterator_isDone(bpi)) {
 		BLI_bpathIterator_getPath(bpi, filepath);
@@ -700,7 +739,8 @@ void makeFilesRelative(Main *bmain, const char *basedir, ReportList *reports) {
 		if(strncmp(filepath, "//", 2)) {
 			if (libpath) { /* cant make relative if we are library - TODO, LOG THIS */
 				linked++;
-			} else { /* local data, use the blend files path */
+			}
+			else { /* local data, use the blend files path */
 				BLI_strncpy(filepath_relative, filepath, sizeof(filepath_relative));
 				/* Important BLI_cleanup_dir runs before the path is made relative
 				 * because it wont work for paths that start with "//../" */ 
@@ -710,11 +750,13 @@ void makeFilesRelative(Main *bmain, const char *basedir, ReportList *reports) {
 				if (BLI_bpathIterator_getPathMaxLen(bpi) <= strlen(filepath_relative)) {
 					bpath_as_report(bpi, "couldn't make path relative (too long)", reports);
 					failed++;
-				} else {
+				}
+				else {
 					if(strncmp(filepath_relative, "//", 2)==0) {
 						BLI_bpathIterator_setPath(bpi, filepath_relative);
 						changed++;
-					} else {
+					}
+					else {
 						bpath_as_report(bpi, "couldn't make path relative", reports);
 						failed++;
 					}
@@ -742,6 +784,11 @@ void makeFilesAbsolute(Main *bmain, const char *basedir, ReportList *reports)
 	/* be sure there is low chance of the path being too short */
 	char filepath_absolute[(FILE_MAXDIR * 2) + FILE_MAXFILE];
 	
+	if(basedir[0] == '\0') {
+		printf("makeFilesAbsolute: basedir='', this is a bug\n");
+		return;
+	}
+
 	BLI_bpathIterator_init(&bpi, bmain, basedir, 0);
 	while (!BLI_bpathIterator_isDone(bpi)) {
 		BLI_bpathIterator_getPath(bpi, filepath);
@@ -750,18 +797,21 @@ void makeFilesAbsolute(Main *bmain, const char *basedir, ReportList *reports)
 		if(strncmp(filepath, "//", 2)==0) {
 			if (libpath) { /* cant make absolute if we are library - TODO, LOG THIS */
 				linked++;
-			} else { /* get the expanded path and check it is relative or too long */
+			}
+			else { /* get the expanded path and check it is relative or too long */
 				BLI_bpathIterator_getPathExpanded(bpi, filepath_absolute);
 				BLI_cleanup_file(bpi->base_path, filepath_absolute); /* fix any /foo/../foo/ */
 				/* to be safe, check the length */
 				if (BLI_bpathIterator_getPathMaxLen(bpi) <= strlen(filepath_absolute)) {
 					bpath_as_report(bpi, "couldn't make absolute (too long)", reports);
 					failed++;
-				} else {
+				}
+				else {
 					if(strncmp(filepath_absolute, "//", 2)) {
 						BLI_bpathIterator_setPath(bpi, filepath_absolute);
 						changed++;
-					} else {
+					}
+					else {
 						bpath_as_report(bpi, "couldn't make absolute", reports);
 						failed++;
 					}
@@ -820,7 +870,8 @@ static int findFileRecursive(char *filename_new, const char *dirname, const char
 					BLI_strncpy(filename_new, path, FILE_MAX);
 				}
 			}
-		} else if (S_ISDIR(status.st_mode)) { /* is subdir */
+		}
+		else if (S_ISDIR(status.st_mode)) { /* is subdir */
 			if (*recur_depth <= MAX_RECUR) {
 				(*recur_depth)++;
 				findFileRecursive(filename_new, path, filename, filesize, recur_depth);
@@ -877,7 +928,8 @@ void findMissingFiles(Main *bmain, const char *str) {
 					
 					if (BLI_bpathIterator_getPathMaxLen(bpi) < strlen(filename_new)) { 
 						printf("cannot set path \"%s\" too long!", filename_new);
-					} else {
+					}
+					else {
 						/* copy the found path into the old one */
 						if (G.relbase_valid)
 							BLI_path_rel(filename_new, bpi->base_path);

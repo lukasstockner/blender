@@ -28,6 +28,10 @@ else:
 	if env['BF_DEBUG']:
 		defs.append('_DEBUG')
 
+if env['WITH_BF_ELTOPO']:
+    incs += ' ../../../extern/eltopo'
+    defs.append('WITH_ELTOPO')
+        
 if env['WITH_BF_QUICKTIME']:
 	incs += ' ../quicktime'
 
@@ -74,10 +78,6 @@ if env['OURPLATFORM'] == 'darwin':
 
 if env['BF_NO_ELBEEM']:
 	defs.append('DISABLE_ELBEEM')
-
-if env['WITH_BF_LCMS']:
-	defs.append('WITH_LCMS')
-	incs += ' ' + env['BF_LCMS_INC']
 
 if env['WITH_BF_LZO']:
 	incs += ' #/extern/lzo/minilzo'

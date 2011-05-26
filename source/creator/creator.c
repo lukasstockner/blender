@@ -27,18 +27,23 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file creator/creator.c
+ *  \ingroup creator
+ */
+
+
 #if defined(__linux__) && defined(__GNUC__)
 #define _GNU_SOURCE
 #include <fenv.h>
 #endif
 
-#define OSX_SSE_FPE (defined(__APPLE__) && (defined(__i386__) || defined(__x86_64__)))
-
-#if OSX_SSE_FPE
+#if (defined(__APPLE__) && (defined(__i386__) || defined(__x86_64__)))
+#define OSX_SSE_FPE
 #include <xmmintrin.h>
 #endif
 
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 
 /* for setuid / getuid */
@@ -69,7 +74,7 @@
 #include "BKE_utildefines.h"
 #include "BKE_blender.h"
 #include "BKE_context.h"
-#include "BKE_depsgraph.h" // for DAG_on_load_update
+#include "BKE_depsgraph.h" // for DAG_on_visible_update
 #include "BKE_font.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
@@ -98,8 +103,13 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 
+#ifdef WITH_BUILDINFO_HEADER
+#define BUILD_DATE
+#endif
+
 /* for passing information between creator and gameengine */
-#include "SYS_System.h"
+#ifdef WITH_GAMEENGINE
+#include "BL_System.h"
 
 #include <signal.h>
 
@@ -123,8 +133,8 @@ extern char build_type[];
 #endif
 
 /*	Local Function prototypes */
-static int print_help(int argc, char **argv, void *data);
-static int print_version(int argc, char **argv, void *data);
+static int print_help(int argc, const char **argv, void *data);
+static int print_version(int argc, const char **argv, void *data);
 
 /* for the callbacks: */
 
@@ -133,19 +143,20 @@ extern int pluginapi_force_ref(void);  /* from blenpluginapi:pluginapi.c */
 char bprogname[FILE_MAX]; /* from blenpluginapi:pluginapi.c */
 char btempdir[FILE_MAX];
 
-#define BLEND_VERSION_STRING_FMT "Blender %d.%02d (sub %d) Build\n", BLENDER_VERSION/100, BLENDER_VERSION%100, BLENDER_SUBVERSION
+#define BLEND_VERSION_STRING_FMT "Blender %d.%02d (sub %d)\n", BLENDER_VERSION/100, BLENDER_VERSION%100, BLENDER_SUBVERSION
 
-/* Initialise callbacks for the modules that need them */
+/* Initialize callbacks for the modules that need them */
 static void setCallbacks(void); 
 
 /* set breakpoints here when running in debug mode, useful to catch floating point errors */
-#if defined(__sgi) || defined(__linux__) || defined(_WIN32) || OSX_SSE_FPE
+#if defined(__sgi) || defined(__linux__) || defined(_WIN32) || defined(OSX_SSE_FPE)
 static void fpe_handler(int sig)
 {
 	// printf("SIGFPE trapped\n");
 }
 #endif
 
+#ifndef WITH_PYTHON_MODULE
 /* handling ctrl-c event in console */
 static void blender_esc(int sig)
 {
@@ -162,6 +173,7 @@ static void blender_esc(int sig)
 		count++;
 	}
 }
+#endif
 
 /* buildinfo can have quotes */
 #ifdef BUILD_DATE
@@ -177,7 +189,7 @@ static void strip_quotes(char *str)
 }
 #endif
 
-static int print_version(int argc, char **argv, void *data)
+static int print_version(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
 	printf (BLEND_VERSION_STRING_FMT);
 #ifdef BUILD_DATE
@@ -192,7 +204,7 @@ static int print_version(int argc, char **argv, void *data)
 	return 0;
 }
 
-static int print_help(int argc, char **argv, void *data)
+static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 {
 	bArgs *ba = (bArgs*)data;
 
@@ -225,6 +237,7 @@ static int print_help(int argc, char **argv, void *data)
 	BLI_argsPrintArgDoc(ba, "--window-border");
 	BLI_argsPrintArgDoc(ba, "--window-borderless");
 	BLI_argsPrintArgDoc(ba, "--window-geometry");
+	BLI_argsPrintArgDoc(ba, "--start-console");
 
 	printf("\n");
 	printf ("Game Engine Specific Options:\n");
@@ -265,6 +278,7 @@ static int print_help(int argc, char **argv, void *data)
 
 #ifdef WIN32
 	BLI_argsPrintArgDoc(ba, "-R");
+	BLI_argsPrintArgDoc(ba, "-r");
 #endif
 	BLI_argsPrintArgDoc(ba, "--version");
 
@@ -314,42 +328,32 @@ static int print_help(int argc, char **argv, void *data)
 
 double PIL_check_seconds_timer(void);
 
-/* XXX This was here to fix a crash when running python scripts
- * with -P that used the screen.
- *
- * static void main_init_screen( void )
-{
-	setscreen(G.curscreen);
-	
-	if(G.main->scene.first==0) {
-		set_scene( add_scene("1") );
-	}
-}*/
-
-static int end_arguments(int argc, char **argv, void *data)
+static int end_arguments(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
 	return -1;
 }
 
-static int enable_python(int argc, char **argv, void *data)
+static int enable_python(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
 	G.f |= G_SCRIPT_AUTOEXEC;
+	G.f |= G_SCRIPT_OVERRIDE_PREF;
 	return 0;
 }
 
-static int disable_python(int argc, char **argv, void *data)
+static int disable_python(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
 	G.f &= ~G_SCRIPT_AUTOEXEC;
+	G.f |= G_SCRIPT_OVERRIDE_PREF;
 	return 0;
 }
 
-static int background_mode(int argc, char **argv, void *data)
+static int background_mode(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
 	G.background = 1;
 	return 0;
 }
 
-static int debug_mode(int argc, char **argv, void *data)
+static int debug_mode(int UNUSED(argc), const char **UNUSED(argv), void *data)
 {
 	G.f |= G_DEBUG;		/* std output printf's */
 	printf(BLEND_VERSION_STRING_FMT);
@@ -363,9 +367,9 @@ static int debug_mode(int argc, char **argv, void *data)
 	return 0;
 }
 
-static int set_fpe(int argc, char **argv, void *data)
+static int set_fpe(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
-#if defined(__sgi) || defined(__linux__) || defined(_WIN32) || OSX_SSE_FPE
+#if defined(__sgi) || defined(__linux__) || defined(_WIN32) || defined(OSX_SSE_FPE)
 	/* zealous but makes float issues a heck of a lot easier to find!
 	 * set breakpoints on fpe_handler */
 	signal(SIGFPE, fpe_handler);
@@ -373,7 +377,7 @@ static int set_fpe(int argc, char **argv, void *data)
 # if defined(__linux__) && defined(__GNUC__)
 	feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW );
 # endif	/* defined(__linux__) && defined(__GNUC__) */
-# if OSX_SSE_FPE
+# if defined(OSX_SSE_FPE)
 	/* OSX uses SSE for floating point by default, so here 
 	 * use SSE instructions to throw floating point exceptions */
 	_MM_SET_EXCEPTION_MASK(_MM_MASK_MASK &~
@@ -388,19 +392,19 @@ static int set_fpe(int argc, char **argv, void *data)
 	return 0;
 }
 
-static int set_factory_startup(int UNUSED(argc), char **UNUSED(argv), void *UNUSED(data))
+static int set_factory_startup(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
 	G.factory_startup= 1;
 	return 0;
 }
 
-static int set_env(int argc, char **argv, void *UNUSED(data))
+static int set_env(int argc, const char **argv, void *UNUSED(data))
 {
 	/* "--env-system-scripts" --> "BLENDER_SYSTEM_SCRIPTS" */
 
 	char env[64]= "BLENDER";
 	char *ch_dst= env + 7; /* skip BLENDER */
-	char *ch_src= argv[0] + 5; /* skip --env */
+	const char *ch_src= argv[0] + 5; /* skip --env */
 
 	if (argc < 2) {
 		printf("%s requires one argument\n", argv[0]);
@@ -416,7 +420,7 @@ static int set_env(int argc, char **argv, void *UNUSED(data))
 	return 1;
 }
 
-static int playback_mode(int UNUSED(argc), char **UNUSED(argv), void *UNUSED(data))
+static int playback_mode(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
 	/* not if -b was given first */
 	if (G.background == 0) {
@@ -428,7 +432,7 @@ static int playback_mode(int UNUSED(argc), char **UNUSED(argv), void *UNUSED(dat
 	return -2;
 }
 
-static int prefsize(int argc, char **argv, void *data)
+static int prefsize(int argc, const char **argv, void *UNUSED(data))
 {
 	int stax, stay, sizx, sizy;
 
@@ -447,29 +451,36 @@ static int prefsize(int argc, char **argv, void *data)
 	return 4;
 }
 
-static int with_borders(int argc, char **argv, void *data)
+static int with_borders(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
 	WM_setinitialstate_normal();
 	return 0;
 }
 
-static int without_borders(int argc, char **argv, void *data)
+static int without_borders(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
 	WM_setinitialstate_fullscreen();
 	return 0;
 }
 
-static int register_extension(int argc, char **argv, void *data)
+extern int wm_start_with_console; // blender/windowmanager/intern/wm_init_exit.c
+static int start_with_console(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
-#ifdef WIN32
-	char *path = BLI_argsArgv(data)[0];
-	RegisterBlendExtension(path);
-#endif
-
+	wm_start_with_console = 1;
 	return 0;
 }
 
-static int no_joystick(int argc, char **argv, void *data)
+static int register_extension(int UNUSED(argc), const char **UNUSED(argv), void *data)
+{
+#ifdef WIN32
+	if (data)
+		G.background = 1;
+	RegisterBlendExtension();
+#endif
+	return 0;
+}
+
+static int no_joystick(int UNUSED(argc), const char **UNUSED(argv), void *data)
 {
 	SYS_SystemHandle *syshandle = data;
 
@@ -483,19 +494,19 @@ static int no_joystick(int argc, char **argv, void *data)
 	return 0;
 }
 
-static int no_glsl(int argc, char **argv, void *data)
+static int no_glsl(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
 	GPU_extensions_disable();
 	return 0;
 }
 
-static int no_audio(int argc, char **argv, void *data)
+static int no_audio(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
 	sound_force_device(0);
 	return 0;
 }
 
-static int set_audio(int argc, char **argv, void *data)
+static int set_audio(int argc, const char **argv, void *UNUSED(data))
 {
 	if (argc < 1) {
 		printf("-setaudio require one argument\n");
@@ -506,7 +517,7 @@ static int set_audio(int argc, char **argv, void *data)
 	return 1;
 }
 
-static int set_output(int argc, char **argv, void *data)
+static int set_output(int argc, const char **argv, void *data)
 {
 	bContext *C = data;
 	if (argc >= 1){
@@ -523,7 +534,7 @@ static int set_output(int argc, char **argv, void *data)
 	}
 }
 
-static int set_engine(int argc, char **argv, void *data)
+static int set_engine(int argc, const char **argv, void *data)
 {
 	bContext *C = data;
 	if (argc >= 1)
@@ -544,21 +555,15 @@ static int set_engine(int argc, char **argv, void *data)
 			{
 				printf("\nError: no blend loaded. order the arguments so '-E  / --engine ' is after a blend is loaded.\n");
 			}
-			else
-			{
+			else {
 				Scene *scene= CTX_data_scene(C);
 				RenderData *rd = &scene->r;
-				RenderEngineType *type = NULL;
 
-				for( type = R_engines.first; type; type = type->next )
-				{
-					if (!strcmp(argv[1],type->idname))
-					{
-						BLI_strncpy(rd->engine, type->idname, sizeof(rd->engine));
+				if(BLI_findstring(&R_engines, argv[1], offsetof(RenderEngineType, idname))) {
+					BLI_strncpy(rd->engine, argv[1], sizeof(rd->engine));
 					}
 				}
 			}
-		}
 
 		return 1;
 	}
@@ -569,11 +574,11 @@ static int set_engine(int argc, char **argv, void *data)
 	}
 }
 
-static int set_image_type(int argc, char **argv, void *data)
+static int set_image_type(int argc, const char **argv, void *data)
 {
 	bContext *C = data;
 	if (argc >= 1){
-		char *imtype = argv[1];
+		const char *imtype = argv[1];
 		if (CTX_data_scene(C)==NULL) {
 			printf("\nError: no blend loaded. order the arguments so '-F  / --render-format' is after the blend is loaded.\n");
 		} else {
@@ -608,7 +613,7 @@ static int set_image_type(int argc, char **argv, void *data)
 			else if (!strcmp(imtype,"CINEON")) scene->r.imtype = R_CINEON;
 			else if (!strcmp(imtype,"DPX")) scene->r.imtype = R_DPX;
 #endif
-#if WITH_OPENJPEG
+#ifdef WITH_OPENJPEG
 			else if (!strcmp(imtype,"JP2")) scene->r.imtype = R_JP2;
 #endif
 			else printf("\nError: Format from '-F / --render-format' not known or not compiled in this release.\n");
@@ -620,7 +625,7 @@ static int set_image_type(int argc, char **argv, void *data)
 	}
 }
 
-static int set_threads(int argc, char **argv, void *data)
+static int set_threads(int argc, const char **argv, void *UNUSED(data))
 {
 	if (argc >= 1) {
 		if(G.background) {
@@ -635,7 +640,7 @@ static int set_threads(int argc, char **argv, void *data)
 	}
 }
 
-static int set_extension(int argc, char **argv, void *data)
+static int set_extension(int argc, const char **argv, void *data)
 {
 	bContext *C = data;
 	if (argc >= 1) {
@@ -658,7 +663,7 @@ static int set_extension(int argc, char **argv, void *data)
 	}
 }
 
-static int set_ge_parameters(int argc, char **argv, void *data)
+static int set_ge_parameters(int argc, const char **argv, void *data)
 {
 	SYS_SystemHandle syshandle = *(SYS_SystemHandle*)data;
 	int a = 0;
@@ -673,7 +678,7 @@ example:
 
 	if(argc >= 1)
 	{
-		char* paramname = argv[a];
+		const char *paramname = argv[a];
 		/* check for single value versus assignment */
 		if (a+1 < argc && (*(argv[a+1]) == '='))
 		{
@@ -711,7 +716,7 @@ example:
 	return a;
 }
 
-static int render_frame(int argc, char **argv, void *data)
+static int render_frame(int argc, const char **argv, void *data)
 {
 	bContext *C = data;
 	if (CTX_data_scene(C)) {
@@ -739,7 +744,7 @@ static int render_frame(int argc, char **argv, void *data)
 
 			frame = MIN2(MAXFRAME, MAX2(MINAFRAME, frame));
 
-			RE_BlenderAnim(re, bmain, scene, scene->lay, frame, frame, scene->r.frame_step, &reports);
+			RE_BlenderAnim(re, bmain, scene, NULL, scene->lay, frame, frame, scene->r.frame_step, &reports);
 			return 1;
 		} else {
 			printf("\nError: frame number must follow '-f / --render-frame'.\n");
@@ -751,7 +756,7 @@ static int render_frame(int argc, char **argv, void *data)
 	}
 }
 
-static int render_animation(int argc, char **argv, void *data)
+static int render_animation(int UNUSED(argc), const char **UNUSED(argv), void *data)
 {
 	bContext *C = data;
 	if (CTX_data_scene(C)) {
@@ -760,14 +765,14 @@ static int render_animation(int argc, char **argv, void *data)
 		Render *re= RE_NewRender(scene->id.name);
 		ReportList reports;
 		BKE_reports_init(&reports, RPT_PRINT);
-		RE_BlenderAnim(re, bmain, scene, scene->lay, scene->r.sfra, scene->r.efra, scene->r.frame_step, &reports);
+		RE_BlenderAnim(re, bmain, scene, NULL, scene->lay, scene->r.sfra, scene->r.efra, scene->r.frame_step, &reports);
 	} else {
 		printf("\nError: no blend loaded. cannot use '-a'.\n");
 	}
 	return 0;
 }
 
-static int set_scene(int argc, char **argv, void *data)
+static int set_scene(int argc, const char **argv, void *data)
 {
 	if(argc > 1) {
 		bContext *C= data;
@@ -782,7 +787,7 @@ static int set_scene(int argc, char **argv, void *data)
 	}
 }
 
-static int set_start_frame(int argc, char **argv, void *data)
+static int set_start_frame(int argc, const char **argv, void *data)
 {
 	bContext *C = data;
 	if (CTX_data_scene(C)) {
@@ -801,7 +806,7 @@ static int set_start_frame(int argc, char **argv, void *data)
 	}
 }
 
-static int set_end_frame(int argc, char **argv, void *data)
+static int set_end_frame(int argc, const char **argv, void *data)
 {
 	bContext *C = data;
 	if (CTX_data_scene(C)) {
@@ -820,7 +825,7 @@ static int set_end_frame(int argc, char **argv, void *data)
 	}
 }
 
-static int set_skip_frame(int argc, char **argv, void *data)
+static int set_skip_frame(int argc, const char **argv, void *data)
 {
 	bContext *C = data;
 	if (CTX_data_scene(C)) {
@@ -860,7 +865,7 @@ static int set_skip_frame(int argc, char **argv, void *data)
 
 #endif /* DISABLE_PYTHON */
 
-static int run_python(int argc, char **argv, void *data)
+static int run_python(int argc, const char **argv, void *data)
 {
 #ifndef DISABLE_PYTHON
 	bContext *C = data;
@@ -885,7 +890,7 @@ static int run_python(int argc, char **argv, void *data)
 #endif /* DISABLE_PYTHON */
 }
 
-static int run_python_console(int argc, char **argv, void *data)
+static int run_python_console(int UNUSED(argc), const char **argv, void *data)
 {
 #ifndef DISABLE_PYTHON
 	bContext *C = data;	
@@ -899,15 +904,15 @@ static int run_python_console(int argc, char **argv, void *data)
 #endif /* DISABLE_PYTHON */
 }
 
-static int set_addons(int argc, char **argv, void *data)
+static int set_addons(int argc, const char **argv, void *data)
 {
 	/* workaround for scripts not getting a bpy.context.scene, causes internal errors elsewhere */
 	if (argc > 1) {
 #ifdef WITH_PYTHON
-		const int slen= strlen(argv[1]) + 10;
+		const int slen= strlen(argv[1]) + 128;
 		char *str= malloc(slen);
 		bContext *C= data;
-		BLI_snprintf(str, slen, "[__import__('bpy').utils.addon_enable(i) for i in '%s'.split(',')]", argv[1]);
+		BLI_snprintf(str, slen, "[__import__('addon_utils').enable(i, default_set=False) for i in '%s'.split(',')]", argv[1]);
 		BPY_CTX_SETUP(BPY_string_exec(C, str));
 		free(str);
 #else
@@ -922,7 +927,7 @@ static int set_addons(int argc, char **argv, void *data)
 }
 
 
-static int load_file(int UNUSED(argc), char **argv, void *data)
+static int load_file(int UNUSED(argc), const char **argv, void *data)
 {
 	bContext *C = data;
 
@@ -953,7 +958,7 @@ static int load_file(int UNUSED(argc), char **argv, void *data)
 			G.relbase_valid = 1;
 			if (CTX_wm_manager(C) == NULL) CTX_wm_manager_set(C, wm); /* reset wm */
 
-			DAG_on_load_update(CTX_data_main(C), TRUE);
+			DAG_on_visible_update(CTX_data_main(C), TRUE);
 		}
 
 		/* WM_read_file() runs normally but since we're in background mode do here */
@@ -1031,9 +1036,21 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 
 	BLI_argsAdd(ba, 1, "-v", "--version", "\n\tPrint Blender version and exit", print_version, NULL);
 
-	BLI_argsAdd(ba, 1, "-y", "--enable-autoexec", "\n\tEnable automatic python script execution (default)", enable_python, NULL);
-	BLI_argsAdd(ba, 1, "-Y", "--disable-autoexec", "\n\tDisable automatic python script execution (pydrivers, pyconstraints, pynodes)", disable_python, NULL);
+	/* only to give help message */
+#ifndef WITH_PYTHON_SECURITY /* default */
+#  define 	PY_ENABLE_AUTO ", (default)"
+#  define 	PY_DISABLE_AUTO ""
+#else
+#  define 	PY_ENABLE_AUTO ""
+#  define 	PY_DISABLE_AUTO ", (compiled as non-standard default)"
+#endif
 
+	BLI_argsAdd(ba, 1, "-y", "--enable-autoexec", "\n\tEnable automatic python script execution" PY_ENABLE_AUTO, enable_python, NULL);
+	BLI_argsAdd(ba, 1, "-Y", "--disable-autoexec", "\n\tDisable automatic python script execution (pydrivers, pyconstraints, pynodes)" PY_DISABLE_AUTO, disable_python, NULL);
+
+#undef PY_ENABLE_AUTO
+#undef PY_DISABLE_AUTO
+	
 	BLI_argsAdd(ba, 1, "-b", "--background", "<file>\n\tLoad <file> in background (often used for UI-less rendering)", background_mode, NULL);
 
 	BLI_argsAdd(ba, 1, "-a", NULL, playback_doc, playback_mode, NULL);
@@ -1054,7 +1071,9 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 	BLI_argsAdd(ba, 2, "-p", "--window-geometry", "<sx> <sy> <w> <h>\n\tOpen with lower left corner at <sx>, <sy> and width and height as <w>, <h>", prefsize, NULL);
 	BLI_argsAdd(ba, 2, "-w", "--window-border", "\n\tForce opening with borders (default)", with_borders, NULL);
 	BLI_argsAdd(ba, 2, "-W", "--window-borderless", "\n\tForce opening with without borders", without_borders, NULL);
-	BLI_argsAdd(ba, 2, "-R", NULL, "\n\tRegister .blend extension (windows only)", register_extension, ba);
+	BLI_argsAdd(ba, 2, "-con", "--start-console", "\n\tStart with the console window open (ignored if -b is set)", start_with_console, NULL);
+	BLI_argsAdd(ba, 2, "-R", NULL, "\n\tRegister .blend extension, then exit (Windows only)", register_extension, NULL);
+	BLI_argsAdd(ba, 2, "-r", NULL, "\n\tSilently register .blend extension, then exit (Windows only)", register_extension, ba);
 
 	/* third pass: disabling things and forcing settings */
 	BLI_argsAddCase(ba, 3, "-nojoystick", 1, NULL, 0, "\n\tDisable joystick support", no_joystick, syshandle);
@@ -1083,11 +1102,20 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 
 }
 
-int main(int argc, char **argv)
+#ifdef WITH_PYTHON_MODULE
+/* allow python module to call main */
+#define main main_python
+#endif
+
+int main(int argc, const char **argv)
 {
 	SYS_SystemHandle syshandle;
 	bContext *C= CTX_create();
 	bArgs *ba;
+
+#ifdef WITH_PYTHON_MODULE
+#undef main
+#endif
 
 #ifdef WITH_BINRELOC
 	br_init( NULL );
@@ -1144,7 +1172,6 @@ int main(int argc, char **argv)
 	IMB_init();
 
 	syshandle = SYS_GetSystem();
-	GEN_init_messaging_system();
 
 	/* first test for background */
 	ba = BLI_argsInit(argc, argv); /* skip binary path */
@@ -1156,9 +1183,12 @@ int main(int argc, char **argv)
 	setuid(getuid()); /* end superuser */
 #endif
 
-
+#ifdef WITH_PYTHON_MODULE
+	G.background= 1; /* python module mode ALWAYS runs in background mode (for now) */
+#else
 	/* for all platforms, even windos has it! */
 	if(G.background) signal(SIGINT, blender_esc);	/* ctrl c out bg render */
+#endif
 	
 	/* background render uses this font too */
 	BKE_font_register_builtin(datatoc_Bfont, datatoc_Bfont_size);
@@ -1217,6 +1247,10 @@ int main(int argc, char **argv)
 	BLI_argsParse(ba, 4, load_file, C);
 
 	BLI_argsFree(ba);
+
+#ifdef WITH_PYTHON_MODULE
+	return 0; /* keep blender in background mode running */
+#endif
 
 	if(G.background) {
 		/* actually incorrect, but works for now (ton) */

@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/editors/space_buttons/buttons_ops.c
+ *  \ingroup spbuttons
+ */
+
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -45,10 +50,12 @@
 #include "WM_types.h"
 
 #include "ED_screen.h"
+#include "ED_util.h"
 
 #include "RNA_access.h"
 
 #include "UI_interface.h"
+#include "UI_resources.h"
 
 #include "buttons_intern.h"	// own include
 
@@ -64,7 +71,7 @@ static int toolbox_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *UNUSED(e
 
 	RNA_pointer_create(&sc->id, &RNA_SpaceProperties, sbuts, &ptr);
 
-	pup= uiPupMenuBegin(C, "Align", ICON_NULL);
+	pup= uiPupMenuBegin(C, "Align", ICON_NONE);
 	layout= uiPupMenuLayout(pup);
 	uiItemsEnumR(layout, &ptr, "align");
 	uiPupMenuEnd(C, pup);
@@ -100,7 +107,7 @@ static int file_browse_exec(bContext *C, wmOperator *op)
 	if (RNA_property_is_set(op->ptr, "filepath")==0 || fbo==NULL)
 		return OPERATOR_CANCELLED;
 	
-	str= RNA_string_get_alloc(op->ptr, "filepath", 0, 0);
+	str= RNA_string_get_alloc(op->ptr, "filepath", NULL, 0);
 
 	/* add slash for directories, important for some properties */
 	if(RNA_property_subtype(fbo->prop) == PROP_DIRPATH) {
@@ -124,7 +131,19 @@ static int file_browse_exec(bContext *C, wmOperator *op)
 	RNA_property_update(C, &fbo->ptr, fbo->prop);
 	MEM_freeN(str);
 
+
+	/* special, annoying exception, filesel on redo panel [#26618] */
+	{
+		wmOperator *redo_op= WM_operator_last_redo(C);
+		if(redo_op) {
+			if(fbo->ptr.data == redo_op->ptr->data) {
+				ED_undo_operator_repeat(C, redo_op);
+			}
+		}
+	}
+
 	MEM_freeN(op->customdata);
+
 	return OPERATOR_FINISHED;
 }
 
@@ -148,6 +167,29 @@ static int file_browse_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	if(!prop)
 		return OPERATOR_CANCELLED;
 	
+	str= RNA_property_string_get_alloc(&ptr, prop, NULL, 0);
+
+	/* useful yet irritating feature, Shift+Click to open the file
+	 * Alt+Click to browse a folder in the OS's browser */
+	if(event->shift || event->alt) {
+		PointerRNA props_ptr;
+
+		if(event->alt) {
+			char *lslash= BLI_last_slash(str);
+			if(lslash)
+				*lslash= '\0';
+		}
+
+
+		WM_operator_properties_create(&props_ptr, "WM_OT_path_open");
+		RNA_string_set(&props_ptr, "filepath", str);
+		WM_operator_name_call(C, "WM_OT_path_open", WM_OP_EXEC_DEFAULT, &props_ptr);
+		WM_operator_properties_free(&props_ptr);
+
+		MEM_freeN(str);
+		return OPERATOR_CANCELLED;
+	}
+	else {
 	fbo= MEM_callocN(sizeof(FileBrowseOp), "FileBrowseOp");
 	fbo->ptr= ptr;
 	fbo->prop= prop;

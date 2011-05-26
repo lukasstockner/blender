@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -21,6 +21,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/python/intern/bpy_driver.c
+ *  \ingroup pythonintern
+ */
+
 /* ****************************************** */
 /* Drivers - PyExpression Evaluation */
 
@@ -236,7 +241,8 @@ float BPY_driver_exec(ChannelDriver *driver)
 	/* process the result */
 	if (retval == NULL) {
 		pydriver_error(driver);
-	} else if((result= PyFloat_AsDouble(retval)) == -1.0 && PyErr_Occurred()) {
+	}
+	else if((result= PyFloat_AsDouble(retval)) == -1.0 && PyErr_Occurred()) {
 		pydriver_error(driver);
 		Py_DECREF(retval);
 		result = 0.0;

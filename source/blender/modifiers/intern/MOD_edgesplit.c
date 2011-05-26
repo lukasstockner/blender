@@ -30,8 +30,15 @@
 *
 */
 
+/** \file blender/modifiers/intern/MOD_edgesplit.c
+ *  \ingroup modifiers
+ */
+
+
 /* EdgeSplit modifier: Splits edges in the mesh according to sharpness flag
  * or edge angle (can be used to achieve autosmoothing) */
+
+#include <assert.h>
 
 #include "DNA_meshdata_types.h"
 
@@ -119,6 +126,8 @@ typedef struct SmoothMesh {
 static SmoothVert *smoothvert_copy(SmoothVert *vert, SmoothMesh *mesh)
 {
 	SmoothVert *copy = &mesh->verts[mesh->num_verts];
+
+	assert(vert != NULL);
 
 	if(mesh->num_verts >= mesh->max_verts) {
 		printf("Attempted to add a SmoothMesh vert beyond end of array\n");
@@ -843,6 +852,12 @@ static void split_single_vert(SmoothVert *vert, SmoothFace *face,
 
 	copy_vert = smoothvert_copy(vert, mesh);
 
+	if(copy_vert == NULL) {
+		/* bug [#26316], this prevents a segfault
+		 * but this still needs fixing */
+		return;
+	}
+
 	repdata.find = vert;
 	repdata.replace = copy_vert;
 	face_replace_vert(face, &repdata);
@@ -931,10 +946,13 @@ static void propagate_split(SmoothEdge *edge, SmoothVert *vert,
 				/* vert has more than one fan of faces attached; split it */
 				vert2 = smoothvert_copy(vert, mesh);
 
+				/* fails in rare cases, see [#26993] */
+				if(vert2) {
 				/* replace vert with its copy in visited_faces */
 				repdata.find = vert;
 				repdata.replace = vert2;
 				BLI_linklist_apply(visited_faces, face_replace_vert, &repdata);
+			}
 			}
 		} else {
 			/* edge is not loose, so it must be sharp; split it */
@@ -1041,7 +1059,7 @@ static void tag_and_count_extra_edges(SmoothMesh *mesh, float split_angle,
 	/* if normal1 dot normal2 < threshold, angle is greater, so split */
 	/* FIXME not sure if this always works */
 	/* 0.00001 added for floating-point rounding */
-	float threshold = cos((split_angle + 0.00001) * M_PI / 180.0);
+	float threshold = cos((split_angle + 0.00001f) * (float)M_PI / 180.0f);
 	int i;
 
 	*extra_edges = 0;
@@ -1102,7 +1120,7 @@ static void split_sharp_edges(SmoothMesh *mesh, float split_angle, int flags)
 	/* if normal1 dot normal2 < threshold, angle is greater, so split */
 	/* FIXME not sure if this always works */
 	/* 0.00001 added for floating-point rounding */
-	mesh->threshold = cos((split_angle + 0.00001) * M_PI / 180.0);
+	mesh->threshold = cosf((split_angle + 0.00001f) * (float)M_PI / 180.0f);
 	mesh->flags = flags;
 
 	/* loop through edges, splitting sharp ones */
@@ -1278,19 +1296,19 @@ ModifierTypeInfo modifierType_EdgeSplit = {
 							| eModifierTypeFlag_EnableInEditmode,
 
 	/* copyData */          copyData,
-	/* deformVerts */       0,
-	/* deformMatrices */    0,
-	/* deformVertsEM */     0,
-	/* deformMatricesEM */  0,
+	/* deformVerts */       NULL,
+	/* deformMatrices */    NULL,
+	/* deformVertsEM */     NULL,
+	/* deformMatricesEM */  NULL,
 	/* applyModifier */     applyModifier,
 	/* applyModifierEM */   applyModifierEM,
 	/* initData */          initData,
-	/* requiredDataMask */  0,
-	/* freeData */          0,
-	/* isDisabled */        0,
-	/* updateDepgraph */    0,
-	/* dependsOnTime */     0,
-	/* dependsOnNormals */	0,
-	/* foreachObjectLink */ 0,
-	/* foreachIDLink */     0,
+	/* requiredDataMask */  NULL,
+	/* freeData */          NULL,
+	/* isDisabled */        NULL,
+	/* updateDepgraph */    NULL,
+	/* dependsOnTime */     NULL,
+	/* dependsOnNormals */	NULL,
+	/* foreachObjectLink */ NULL,
+	/* foreachIDLink */     NULL,
 };

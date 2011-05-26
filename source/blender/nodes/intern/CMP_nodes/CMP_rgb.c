@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -27,6 +27,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/nodes/intern/CMP_nodes/CMP_rgb.c
+ *  \ingroup cmpnodes
+ */
+
+
 #include "../CMP_util.h"
 
 
@@ -40,7 +45,7 @@ static void node_composit_exec_rgb(void *data, bNode *node, bNodeStack **in, bNo
 {
 	bNodeSocket *sock= node->outputs.first;
 	
-	VECCOPY(out[0]->vec, sock->ns.vec);
+	QUATCOPY(out[0]->vec, sock->ns.vec);
 }
 
 void register_node_type_cmp_rgb(ListBase *lb)

@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,10 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file ED_keyframing.h
+ *  \ingroup editors
+ */
+
 #ifndef ED_KEYFRAMING_H
 #define ED_KEYFRAMING_H
 
@@ -32,6 +36,7 @@
 extern "C" {
 #endif
 
+struct Main;
 struct ListBase;
 struct ID;
 struct Scene;
@@ -186,7 +191,7 @@ KeyingSetInfo *ANIM_keyingset_info_find_named(const char name[]);
 
 /* for RNA type registrations... */
 void ANIM_keyingset_info_register(const struct bContext *C, KeyingSetInfo *ksi);
-void ANIM_keyingset_info_unregister(const struct bContext *C, KeyingSetInfo *ksi);
+void ANIM_keyingset_info_unregister(struct Main *bmain, KeyingSetInfo *ksi);
 
 /* cleanup on exit */
 void ANIM_keyingset_infos_exit(void);

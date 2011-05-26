@@ -22,6 +22,10 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file DocumentImporter.h
+ *  \ingroup collada
+ */
+
 #ifndef __DOCUMENTIMPORTER_H__
 #define __DOCUMENTIMPORTER_H__
 
@@ -41,6 +45,7 @@
 #include "AnimationImporter.h"
 #include "ArmatureImporter.h"
 #include "MeshImporter.h"
+#include "ExtraTags.h"
 
 
 struct Main;
@@ -117,6 +122,11 @@ class DocumentImporter : COLLADAFW::IWriter
 
 	bool writeKinematicsScene(const COLLADAFW::KinematicsScene*);
 
+	/** Add element and data for UniqueId */
+	bool addExtraTags(const COLLADAFW::UniqueId &uid, ExtraTags *extra_tags);
+	/** Get an extisting ExtraTags for uid */
+	ExtraTags* getExtraTags(const COLLADAFW::UniqueId &uid);
+
  private:
 
 	/** Current import stage we're in. */
@@ -129,6 +139,11 @@ class DocumentImporter : COLLADAFW::IWriter
     ArmatureImporter armature_importer;
     MeshImporter mesh_importer;
     AnimationImporter anim_importer;
+
+	/** TagsMap typedef for uid_tags_map. */
+	typedef std::map<std::string, ExtraTags*> TagsMap;
+	/** Tags map of unique id as a string and ExtraTags instance. */
+	TagsMap uid_tags_map;
 
     std::map<COLLADAFW::UniqueId, Image*> uid_image_map;
     std::map<COLLADAFW::UniqueId, Material*> uid_material_map;

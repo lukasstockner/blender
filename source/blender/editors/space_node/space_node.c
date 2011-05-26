@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/space_node/space_node.c
+ *  \ingroup spnode
+ */
+
 
 #include <string.h>
 #include <stdio.h>
@@ -66,14 +71,11 @@ ARegion *node_has_buttons_region(ScrArea *sa)
 {
 	ARegion *ar, *arnew;
 	
-	for(ar= sa->regionbase.first; ar; ar= ar->next)
-		if(ar->regiontype==RGN_TYPE_UI)
-			return ar;
+	ar= BKE_area_find_region_type(sa, RGN_TYPE_UI);
+	if(ar) return ar;
 	
 	/* add subdiv level; after header */
-	for(ar= sa->regionbase.first; ar; ar= ar->next)
-		if(ar->regiontype==RGN_TYPE_HEADER)
-			break;
+	ar= BKE_area_find_region_type(sa, RGN_TYPE_HEADER);
 	
 	/* is error! */
 	if(ar==NULL) return NULL;
@@ -227,7 +229,7 @@ static void node_area_listener(ScrArea *sa, wmNotifier *wmn)
 				if(type==NTREE_COMPOSIT) {
 					Scene *scene= wmn->window->screen->scene;
 					
-					/* note that NodeTagIDChanged is alredy called by BKE_image_signal() on all
+					/* note that NodeTagIDChanged is already called by BKE_image_signal() on all
 					 * scenes so really this is just to know if the images is used in the compo else
 					 * painting on images could become very slow when the compositor is open. */
 					if(NodeTagIDChanged(scene->nodetree, wmn->reference))
@@ -278,6 +280,7 @@ static SpaceLink *node_duplicate(SpaceLink *sl)
 	
 	/* clear or remove stuff from old */
 	snoden->nodetree= NULL;
+	snoden->linkdrag.first= snoden->linkdrag.last= NULL;
 	
 	return (SpaceLink *)snoden;
 }
@@ -425,7 +428,7 @@ static int node_context(const bContext *C, const char *member, bContextDataResul
 		bNode *node;
 		
 		for(next_node(snode->edittree); (node=next_node(NULL));) {
-			if(node->flag & SELECT) {
+			if(node->flag & NODE_SELECT) {
 				CTX_data_list_add(result, &snode->edittree->id, &RNA_Node, node);
 			}
 		}

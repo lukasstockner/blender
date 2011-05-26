@@ -23,6 +23,7 @@ set(INC
 	../include
 	../../blenfont
 	../../blenkernel
+	../../blenloader
 	../../blenlib
 	../../imbuf
 	../../makesdna
@@ -30,14 +31,13 @@ set(INC
 	../../windowmanager
 	../../render/extern/include
 	../../../../intern/guardedalloc
+	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
 	image_buttons.c
 	image_draw.c
-	image_header.c
 	image_ops.c
-	image_render.c
 	space_image.c
 
 	image_intern.h
@@ -57,11 +57,6 @@ endif()
 
 if(WITH_IMAGE_CINEON)
 	add_definitions(-DWITH_CINEON)
-endif()
-
-if(WITH_LCMS)
-	set(INC ${INC} ${LCMS_INCLUDE_DIR})
-	add_definitions(-DWITH_LCMS)
 endif()
 
 blender_add_lib(bf_editor_space_image "${SRC}" "${INC}")

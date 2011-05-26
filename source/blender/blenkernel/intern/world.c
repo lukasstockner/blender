@@ -30,6 +30,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/blenkernel/intern/world.c
+ *  \ingroup bke
+ */
+
+
 #include <string.h>
 #include <math.h>
 #include "MEM_guardedalloc.h"
@@ -37,6 +42,9 @@
 #include "DNA_world_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
+
+#include "BLI_listbase.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_world.h"
 #include "BKE_library.h"
@@ -110,17 +118,36 @@ World *copy_world(World *wrld)
 	
 	for(a=0; a<MAX_MTEX; a++) {
 		if(wrld->mtex[a]) {
-			wrldn->mtex[a]= MEM_mallocN(sizeof(MTex), "copymaterial");
+			wrldn->mtex[a]= MEM_mallocN(sizeof(MTex), "copy_world");
 			memcpy(wrldn->mtex[a], wrld->mtex[a], sizeof(MTex));
 			id_us_plus((ID *)wrldn->mtex[a]->tex);
 		}
 	}
 	
-	if (wrld->preview) wrldn->preview = BKE_previewimg_copy(wrld->preview);
+	if(wrld->preview)
+		wrldn->preview = BKE_previewimg_copy(wrld->preview);
 
-#if 0 // XXX old animation system
-	id_us_plus((ID *)wrldn->ipo);
-#endif // XXX old animation system
+	return wrldn;
+}
+	
+World *localize_world(World *wrld)
+{
+	World *wrldn;
+	int a;
+	
+	wrldn= copy_libblock(wrld);
+	BLI_remlink(&G.main->world, wrldn);
+	
+	for(a=0; a<MAX_MTEX; a++) {
+		if(wrld->mtex[a]) {
+			wrldn->mtex[a]= MEM_mallocN(sizeof(MTex), "localize_world");
+			memcpy(wrldn->mtex[a], wrld->mtex[a], sizeof(MTex));
+			/* free world decrements */
+			id_us_plus((ID *)wrldn->mtex[a]->tex);
+		}
+	}
+
+	wrldn->preview= NULL;
 	
 	return wrldn;
 }
@@ -129,7 +156,6 @@ void make_local_world(World *wrld)
 {
 	Main *bmain= G.main;
 	Scene *sce;
-	World *wrldn;
 	int local=0, lib=0;
 
 	/* - only lib users: do nothing
@@ -145,26 +171,23 @@ void make_local_world(World *wrld)
 		return;
 	}
 	
-	sce= bmain->scene.first;
-	while(sce) {
+	for(sce= bmain->scene.first; sce && ELEM(0, lib, local); sce= sce->id.next) {
 		if(sce->world==wrld) {
 			if(sce->id.lib) lib= 1;
 			else local= 1;
 		}
-		sce= sce->id.next;
 	}
 	
 	if(local && lib==0) {
-		wrld->id.lib= 0;
+		wrld->id.lib= NULL;
 		wrld->id.flag= LIB_LOCAL;
 		new_id(NULL, (ID *)wrld, NULL);
 	}
 	else if(local && lib) {
-		wrldn= copy_world(wrld);
+		World *wrldn= copy_world(wrld);
 		wrldn->id.us= 0;
 		
-		sce= bmain->scene.first;
-		while(sce) {
+		for(sce= bmain->scene.first; sce; sce= sce->id.next) {
 			if(sce->world==wrld) {
 				if(sce->id.lib==NULL) {
 					sce->world= wrldn;
@@ -172,7 +195,6 @@ void make_local_world(World *wrld)
 					wrld->id.us--;
 				}
 			}
-			sce= sce->id.next;
 		}
 	}
 }

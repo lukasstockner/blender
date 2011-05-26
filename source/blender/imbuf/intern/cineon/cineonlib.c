@@ -1,3 +1,6 @@
+/** \file blender/imbuf/intern/cineon/cineonlib.c
+ *  \ingroup imbcineon
+ */
 /*
  *	 Cineon image file format library routines.
  *
@@ -269,7 +272,7 @@ dumpCineonOriginationInfo(CineonOriginationInformation* originInfo) {
 	d_printf("Input device gamma %f\n", ntohf(originInfo->input_device_gamma));
 }
 
-int
+static int
 initCineonGenericHeader(CineonFile* cineon, CineonGenericHeader* header, const char* imagename) {
 
 	fillCineonFileInfo(cineon, &header->fileInfo, imagename);
@@ -280,7 +283,7 @@ initCineonGenericHeader(CineonFile* cineon, CineonGenericHeader* header, const c
 	return 0;
 }
 
-void
+static void
 dumpCineonGenericHeader(CineonGenericHeader* header) {
 	dumpCineonFileInfo(&header->fileInfo);
 	dumpCineonImageInfo(&header->imageInfo);
@@ -599,7 +602,6 @@ CineonFile*
 cineonOpenFromMem(unsigned char *mem, unsigned int size) {
 
 	CineonGenericHeader header;
-	int i;
 	
 	CineonFile* cineon = (CineonFile* )malloc(sizeof(CineonFile));
 	if (cineon == 0) {
@@ -664,8 +666,6 @@ cineonOpenFromMem(unsigned char *mem, unsigned int size) {
 	}
 	cineon->pixelBufferUsed = 0;
 
-	i = cineon->imageOffset;
-	
 	if (logimage_fseek(cineon, cineon->imageOffset, SEEK_SET) != 0) {
 		if (verbose) d_printf("Couldn't seek to image data at %d\n", cineon->imageOffset);
 		cineonClose(cineon);

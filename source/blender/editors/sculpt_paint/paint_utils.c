@@ -1,3 +1,6 @@
+/** \file blender/editors/sculpt_paint/paint_utils.c
+ *  \ingroup edsculpt
+ */
 
 #include <math.h>
 #include <stdlib.h>
@@ -55,11 +58,15 @@ float paint_calc_object_space_radius(ViewContext *vc, float center[3],
 {
 	Object *ob = vc->obact;
 	float delta[3], scale, loc[3];
+	float mval_f[2];
 
 	mul_v3_m4v3(loc, ob->obmat, center);
 
 	initgrabz(vc->rv3d, loc[0], loc[1], loc[2]);
-	window_to_3d_delta(vc->ar, delta, pixel_radius, 0);
+
+	mval_f[0]= pixel_radius;
+	mval_f[1]= 0.0f;
+	ED_view3d_win_to_delta(vc->ar, mval_f, delta);
 
 	scale= fabsf(mat4_to_scale(ob->obmat));
 	scale= (scale == 0.0f)? 1.0f: scale;
@@ -81,7 +88,7 @@ float paint_get_tex_pixel(Brush* br, float u, float v)
 	hasrgb = multitex_ext(br->mtex.tex, co, NULL, NULL, 0, &texres);
 
 	if (hasrgb & TEX_RGB)
-		texres.tin = (0.35*texres.tr + 0.45*texres.tg + 0.2*texres.tb)*texres.ta;
+		texres.tin = (0.35f*texres.tr + 0.45f*texres.tg + 0.2f*texres.tb)*texres.ta;
 
 	return texres.tin;
 }
@@ -141,10 +148,10 @@ static void imapaint_tri_weights(Object *ob, float *v1, float *v2, float *v3, fl
 }
 
 /* compute uv coordinates of mouse in face */
-void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, int *xy, float *uv)
+void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, const int xy[2], float uv[2])
 {
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
-	int *index = dm->getFaceDataArray(dm, CD_ORIGINDEX);
+	const int *index = dm->getFaceDataArray(dm, CD_ORIGINDEX);
 	MTFace *tface = dm->getFaceDataArray(dm, CD_MTFACE), *tf;
 	int numfaces = dm->getNumFaces(dm), a, findex;
 	float p[2], w[3], absw, minabsw;
@@ -156,7 +163,7 @@ void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, int *xy,
 
 	/* test all faces in the derivedmesh with the original index of the picked face */
 	for(a = 0; a < numfaces; a++) {
-		findex= (index)? index[a]: a;
+		findex= index ? index[a]: a;
 
 		if(findex == faceindex) {
 			dm->getFace(dm, a, &mf);
@@ -207,7 +214,7 @@ void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, int *xy,
 }
 
 ///* returns 0 if not found, otherwise 1 */
-int imapaint_pick_face(ViewContext *vc, Mesh *me, int *mval, unsigned int *index)
+int imapaint_pick_face(ViewContext *vc, Mesh *me, const int mval[2], unsigned int *index)
 {
 	if(!me || me->totface==0)
 		return 0;
@@ -348,4 +355,70 @@ void PAINT_OT_face_select_all(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	WM_operator_properties_select_all(ot);
+}
+
+static int face_select_inverse_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *ob= CTX_data_active_object(C);
+	paintface_deselect_all_visible(ob, SEL_INVERT, TRUE);
+	ED_region_tag_redraw(CTX_wm_region(C));
+	return OPERATOR_FINISHED;
+}
+
+
+void PAINT_OT_face_select_inverse(wmOperatorType *ot)
+{
+	ot->name= "Face Select Invert";
+	ot->description= "Invert selection of faces";
+	ot->idname= "PAINT_OT_face_select_inverse";
+
+	ot->exec= face_select_inverse_exec;
+	ot->poll= facemask_paint_poll;
+
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+
+static int face_select_hide_exec(bContext *C, wmOperator *op)
+{
+	const int unselected= RNA_boolean_get(op->ptr, "unselected");
+	Object *ob= CTX_data_active_object(C);
+	paintface_hide(ob, unselected);
+	ED_region_tag_redraw(CTX_wm_region(C));
+	return OPERATOR_FINISHED;
+}
+
+void PAINT_OT_face_select_hide(wmOperatorType *ot)
+{
+	ot->name= "Face Select Hide";
+	ot->description= "Hide selected faces";
+	ot->idname= "PAINT_OT_face_select_hide";
+
+	ot->exec= face_select_hide_exec;
+	ot->poll= facemask_paint_poll;
+
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	RNA_def_boolean(ot->srna, "unselected", 0, "Unselected", "Hide unselected rather than selected objects.");
+}
+
+static int face_select_reveal_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *ob= CTX_data_active_object(C);
+	paintface_reveal(ob);
+	ED_region_tag_redraw(CTX_wm_region(C));
+	return OPERATOR_FINISHED;
+}
+
+void PAINT_OT_face_select_reveal(wmOperatorType *ot)
+{
+	ot->name= "Face Select Reveal";
+	ot->description= "Reveal hidden faces";
+	ot->idname= "PAINT_OT_face_select_reveal";
+
+	ot->exec= face_select_reveal_exec;
+	ot->poll= facemask_paint_poll;
+
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	RNA_def_boolean(ot->srna, "unselected", 0, "Unselected", "Hide unselected rather than selected objects.");
 }

@@ -30,6 +30,11 @@
 *
 */
 
+/** \file blender/modifiers/intern/MOD_simpledeform.c
+ *  \ingroup modifiers
+ */
+
+
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
@@ -51,7 +56,7 @@
 
 
 /* Clamps/Limits the given coordinate to:  limits[0] <= co[axis] <= limits[1]
- * The ammount of clamp is saved on dcut */
+ * The amount of clamp is saved on dcut */
 static void axis_limit(int axis, const float limits[2], float co[3], float dcut[3])
 {
 	float val = co[axis];
@@ -84,11 +89,11 @@ static void simpleDeform_stretch(const float factor, const float dcut[3], float 
 	float x = co[0], y = co[1], z = co[2];
 	float scale;
 
-	scale = (z*z*factor-factor + 1.0);
+	scale = (z*z*factor-factor + 1.0f);
 
 	co[0] = x*scale;
 	co[1] = y*scale;
-	co[2] = z*(1.0+factor);
+	co[2] = z*(1.0f+factor);
 
 
 	if(dcut)
@@ -129,7 +134,7 @@ static void simpleDeform_bend(const float factor, const float dcut[3], float *co
 	sint = sin(theta);
 	cost = cos(theta);
 
-	if(fabs(factor) > 1e-7f)
+	if(fabsf(factor) > 1e-7f)
 	{
 		co[0] = -(y-1.0f/factor)*sint;
 		co[1] =  (y-1.0f/factor)*cost + 1.0f/factor;
@@ -163,8 +168,8 @@ static void SimpleDeformModifier_do(SimpleDeformModifierData *smd, struct Object
 	//Safe-check
 	if(smd->origin == ob) smd->origin = NULL;					//No self references
 
-	if(smd->limit[0] < 0.0) smd->limit[0] = 0.0f;
-	if(smd->limit[0] > 1.0) smd->limit[0] = 1.0f;
+	if(smd->limit[0] < 0.0f) smd->limit[0] = 0.0f;
+	if(smd->limit[0] > 1.0f) smd->limit[0] = 1.0f;
 
 	smd->limit[0] = MIN2(smd->limit[0], smd->limit[1]);			//Upper limit >= than lower limit
 
@@ -376,18 +381,18 @@ ModifierTypeInfo modifierType_SimpleDeform = {
 
 	/* copyData */          copyData,
 	/* deformVerts */       deformVerts,
-	/* deformMatrices */    0,
+	/* deformMatrices */    NULL,
 	/* deformVertsEM */     deformVertsEM,
-	/* deformMatricesEM */  0,
-	/* applyModifier */     0,
-	/* applyModifierEM */   0,
+	/* deformMatricesEM */  NULL,
+	/* applyModifier */     NULL,
+	/* applyModifierEM */   NULL,
 	/* initData */          initData,
 	/* requiredDataMask */  requiredDataMask,
-	/* freeData */          0,
-	/* isDisabled */        0,
+	/* freeData */          NULL,
+	/* isDisabled */        NULL,
 	/* updateDepgraph */    updateDepgraph,
-	/* dependsOnTime */     0,
-	/* dependsOnNormals */	0,
+	/* dependsOnTime */     NULL,
+	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ foreachObjectLink,
-	/* foreachIDLink */     0,
+	/* foreachIDLink */     NULL,
 };

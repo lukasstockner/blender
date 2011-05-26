@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -27,6 +27,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/editors/mesh/editmesh_add.c
+ *  \ingroup edmesh
+ */
+
+
 
 #include <stdlib.h>
 #include <string.h>
@@ -40,6 +45,7 @@
 
 #include "RNA_define.h"
 #include "RNA_access.h"
+#include "RNA_enum_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -84,21 +90,21 @@ static float icovert[12][3] = {
 	{0.0f,0.0f,200.0f}
 };
 static short icoface[20][3] = {
-	{1,0,2},
+	{2,0,1},
 	{1,0,5},
-	{2,0,3},
-	{3,0,4},
-	{4,0,5},
+	{3,0,2},
+	{4,0,3},
+	{5,0,4},
 	{1,5,10},
 	{2,1,6},
 	{3,2,7},
 	{4,3,8},
 	{5,4,9},
-	{10,1,6},
-	{6,2,7},
-	{7,3,8},
-	{8,4,9},
-	{9,5,10},
+	{6,1,10},
+	{7,2,6},
+	{8,3,7},
+	{9,4,8},
+	{10,5,9},
 	{6,10,11},
 	{7,6,11},
 	{8,7,11},
@@ -133,7 +139,7 @@ static int dupli_extrude_cursor(bContext *C, wmOperator *op, wmEvent *event)
 
 	/* call extrude? */
 	if(done) {
-		short rot_src= RNA_boolean_get(op->ptr, "rotate_source");
+		const short rot_src= RNA_boolean_get(op->ptr, "rotate_source");
 		EditEdge *eed;
 		float vec[3], cent[3], mat[3][3];
 		float nor[3]= {0.0, 0.0, 0.0};
@@ -189,7 +195,7 @@ static int dupli_extrude_cursor(bContext *C, wmOperator *op, wmEvent *event)
 		copy_v3_v3(min, cent);
 		
 		mul_m4_v3(vc.obedit->obmat, min);	// view space
-		view3d_get_view_aligned_coordinate(&vc, min, event->mval);
+		view3d_get_view_aligned_coordinate(&vc, min, event->mval, TRUE);
 		mul_m4_v3(vc.obedit->imat, min); // back in object space
 		
 		sub_v3_v3(min, cent);
@@ -237,20 +243,16 @@ static int dupli_extrude_cursor(bContext *C, wmOperator *op, wmEvent *event)
 	}
 	else if(vc.em->selectmode & SCE_SELECT_VERTEX) {
 
-		float mat[3][3],imat[3][3];
-		float *curs= give_cursor(vc.scene, vc.v3d);
+		float imat[4][4];
+		const float *curs= give_cursor(vc.scene, vc.v3d);
 		
 		copy_v3_v3(min, curs);
-		view3d_get_view_aligned_coordinate(&vc, min, event->mval);
+		view3d_get_view_aligned_coordinate(&vc, min, event->mval, TRUE);
 		
 		eve= addvertlist(vc.em, 0, NULL);
 
-		copy_m3_m4(mat, vc.obedit->obmat);
-		invert_m3_m3(imat, mat);
-		
-		copy_v3_v3(eve->co, min);
-		mul_m3_v3(imat, eve->co);
-		sub_v3_v3v3(eve->co, eve->co, vc.obedit->obmat[3]);
+		invert_m4_m4(imat, vc.obedit->obmat);
+		mul_v3_m4v3(eve->co, imat, min);
 		
 		eve->f= SELECT;
 	}
@@ -1077,6 +1079,7 @@ static void make_prim(Object *obedit, int type, float mat[4][4], int tot, int se
 			}
 			eve= eve->next;
 		}
+		recalc_editnormals(em);
 		break;
 			
 	case PRIM_UVSPHERE: /*  UVsphere */
@@ -1092,13 +1095,13 @@ static void make_prim(Object *obedit, int type, float mat[4][4], int tot, int se
 		phi= 0; 
 		phid/=2;
 		for(a=0; a<=tot; a++) {
-			vec[0]= dia*sin(phi);
+			vec[0]= dia*sinf(phi);
 			vec[1]= 0.0;
-			vec[2]= dia*cos(phi);
+			vec[2]= dia*cosf(phi);
 			eve= addvertlist(em, vec, NULL);
 			eve->f= 1+2+4;
 			if(a==0) v1= eve;
-			else addedgelist(em, eve->prev, eve, NULL);
+			else addedgelist(em, eve, eve->prev, NULL);
 			phi+= phid;
 		}
 		
@@ -1124,6 +1127,7 @@ static void make_prim(Object *obedit, int type, float mat[4][4], int tot, int se
 			}
 			eve= eve->next;
 		}
+		recalc_editnormals(em);
 		break;
 	case PRIM_ICOSPHERE: /* Icosphere */
 		{
@@ -1219,8 +1223,8 @@ static void make_prim(Object *obedit, int type, float mat[4][4], int tot, int se
 		for(b=0; b<=ext; b++) {
 			for(a=0; a<tot; a++) {
 				
-				vec[0]= dia*sin(phi);
-				vec[1]= dia*cos(phi);
+				vec[0]= dia*sinf(phi);
+				vec[1]= dia*cosf(phi);
 				vec[2]= b?depth:-depth;
 				
 				mul_m4_v3(mat, vec);
@@ -1317,8 +1321,8 @@ static void make_prim(Object *obedit, int type, float mat[4][4], int tot, int se
 	/* simple selection flush OK, based on fact it's a single model */
 	EM_select_flush(em); /* flushes vertex -> edge -> face selection */
 	
-	if(type!=PRIM_PLANE && type!=PRIM_MONKEY)
-		EM_recalc_normal_direction(em, 0, 0);	/* otherwise monkey has eyes in wrong direction */
+	if(!ELEM5(type, PRIM_GRID, PRIM_PLANE, PRIM_ICOSPHERE, PRIM_UVSPHERE, PRIM_MONKEY))
+		EM_recalc_normal_direction(em, FALSE, TRUE);	/* otherwise monkey has eyes in wrong direction */
 
 	BKE_mesh_end_editmesh(obedit->data, em);
 }
@@ -1750,7 +1754,7 @@ static int mesh_duplicate_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(ev
 void MESH_OT_duplicate(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Duplicate";
+	ot->name= "Duplicate Mesh";
 	ot->description= "Duplicate selected vertices, edges or faces";
 	ot->idname= "MESH_OT_duplicate";
 	
@@ -1761,6 +1765,6 @@ void MESH_OT_duplicate(wmOperatorType *ot)
 	ot->poll= ED_operator_editmesh;
 	
 	/* to give to transform */
-	RNA_def_int(ot->srna, "mode", TFM_TRANSLATION, 0, INT_MAX, "Mode", "", 0, INT_MAX);
+	RNA_def_enum(ot->srna, "mode", transform_mode_types, TFM_TRANSLATION, "Mode", "");
 }
 

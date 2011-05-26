@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,9 +25,12 @@
 #ifndef RNA_ACCESS_H
 #define RNA_ACCESS_H
 
+/** \file RNA_access.h
+ *  \ingroup RNA
+ */
+
 #include <stdarg.h>
 
-#include "DNA_listBase.h"
 #include "RNA_types.h"
 
 #ifdef __cplusplus
@@ -36,6 +39,7 @@ extern "C" {
 
 struct bContext;
 struct ID;
+struct ListBase;
 struct Main;
 struct ReportList;
 struct Scene;
@@ -49,6 +53,7 @@ extern StructRNA RNA_ActionGroup;
 extern StructRNA RNA_Actuator;
 extern StructRNA RNA_ActuatorSensor;
 extern StructRNA RNA_Addon;
+extern StructRNA RNA_AdjustmentSequence;
 extern StructRNA RNA_AlwaysSensor;
 extern StructRNA RNA_AndController;
 extern StructRNA RNA_AnimData;
@@ -527,6 +532,7 @@ extern StructRNA RNA_ThemeView3D;
 extern StructRNA RNA_ThemeWidgetColors;
 extern StructRNA RNA_ThemeWidgetStateColors;
 extern StructRNA RNA_TimelineMarker;
+extern StructRNA RNA_Timer;
 extern StructRNA RNA_ToolSettings;
 extern StructRNA RNA_TouchSensor;
 extern StructRNA RNA_TrackToConstraint;
@@ -553,6 +559,7 @@ extern StructRNA RNA_VertexPaint;
 extern StructRNA RNA_VoronoiTexture;
 extern StructRNA RNA_VoxelData;
 extern StructRNA RNA_VoxelDataTexture;
+extern StructRNA RNA_WarpModifier;
 extern StructRNA RNA_WaveModifier;
 extern StructRNA RNA_Window;
 extern StructRNA RNA_WindowManager;
@@ -603,6 +610,7 @@ int RNA_struct_is_a(StructRNA *type, StructRNA *srna);
 
 StructRegisterFunc RNA_struct_register(StructRNA *type);
 StructUnregisterFunc RNA_struct_unregister(StructRNA *type);
+void **RNA_struct_instance(PointerRNA *ptr);
 
 void *RNA_struct_py_type_get(StructRNA *srna);
 void RNA_struct_py_type_set(StructRNA *srna, void *py_type);
@@ -613,9 +621,10 @@ void RNA_struct_blender_type_set(StructRNA *srna, void *blender_type);
 struct IDProperty *RNA_struct_idprops(PointerRNA *ptr, int create);
 int RNA_struct_idprops_check(StructRNA *srna);
 int RNA_struct_idprops_register_check(StructRNA *type);
-
+int RNA_struct_idprops_unset(PointerRNA *ptr, const char *identifier);
 
 PropertyRNA *RNA_struct_find_property(PointerRNA *ptr, const char *identifier);
+int RNA_struct_contains_property(PointerRNA *ptr, PropertyRNA *prop_test);
 
 /* lower level functions for access to type properties */
 const struct ListBase *RNA_struct_type_properties(StructRNA *srna);
@@ -893,7 +902,7 @@ int RNA_property_is_idprop(PropertyRNA *prop);
 
 /* python compatible string representation of this property, (must be freed!) */
 char *RNA_property_as_string(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop);
-char *RNA_pointer_as_string(PointerRNA *ptr);
+char *RNA_pointer_as_string(struct bContext *C, PointerRNA *ptr);
 
 /* Function */
 
@@ -932,12 +941,12 @@ int RNA_function_call_lookup(struct bContext *C, struct ReportList *reports, Poi
 
 int RNA_function_call_direct(struct bContext *C, struct ReportList *reports, PointerRNA *ptr, FunctionRNA *func, const char *format, ...)
 #ifdef __GNUC__
-__attribute__ ((format (printf, 5, 6)));
+__attribute__ ((format (printf, 5, 6)))
 #endif
 ;
 int RNA_function_call_direct_lookup(struct bContext *C, struct ReportList *reports, PointerRNA *ptr, const char *identifier, const char *format, ...)
 #ifdef __GNUC__
-__attribute__ ((format (printf, 5, 6)));
+__attribute__ ((format (printf, 5, 6)))
 #endif
 ;
 int RNA_function_call_direct_va(struct bContext *C, struct ReportList *reports, PointerRNA *ptr, FunctionRNA *func, const char *format, va_list args);
@@ -947,6 +956,12 @@ int RNA_function_call_direct_va_lookup(struct bContext *C, struct ReportList *re
 
 short RNA_type_to_ID_code(StructRNA *type);
 StructRNA *ID_code_to_RNA_type(short idcode);
+
+void RNA_warning(const char *format, ...)
+#ifdef __GNUC__
+__attribute__ ((format (printf, 1, 2)))
+#endif
+;
 
 #ifdef __cplusplus
 }

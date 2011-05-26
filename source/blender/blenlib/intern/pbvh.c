@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -19,6 +19,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/blenlib/intern/pbvh.c
+ *  \ingroup bli
+ */
+
 
 
 
@@ -59,10 +64,12 @@ static void BLI_bitmap_set(BLI_bitmap b, int index)
 	b[index >> 3] |= (1 << (index & 7));
 }
 
+#if 0 /* UNUSED */
 static void BLI_bitmap_clear(BLI_bitmap b, int index)
 {
 	b[index >> 3] &= ~(1 << (index & 7));
 }
+#endif
 
 /* Axis-aligned bounding box */
 typedef struct {
@@ -1433,7 +1440,7 @@ int BLI_pbvh_node_planes_contain_AABB(PBVHNode *node, void *data)
 {
 	float (*planes)[4] = data;
 	int i, axis;
-	float vmin[3], vmax[3], bb_min[3], bb_max[3];
+	float vmin[3] /*, vmax[3]*/, bb_min[3], bb_max[3];
 
 	BLI_pbvh_node_get_BB(node, bb_min, bb_max);
 
@@ -1441,11 +1448,11 @@ int BLI_pbvh_node_planes_contain_AABB(PBVHNode *node, void *data)
 		for(axis = 0; axis < 3; ++axis) {
 			if(planes[i][axis] > 0) { 
 				vmin[axis] = bb_min[axis];
-				vmax[axis] = bb_max[axis];
+				/*vmax[axis] = bb_max[axis];*/ /*UNUSED*/
 			}
 			else {
 				vmin[axis] = bb_max[axis];
-				vmax[axis] = bb_min[axis];
+				/*vmax[axis] = bb_min[axis];*/ /*UNUSED*/
 			}
 		}
 		
@@ -1476,6 +1483,13 @@ void BLI_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3], int smo
 	else {
 		BLI_pbvh_search_callback(bvh, NULL, NULL, BLI_pbvh_node_draw, NULL);
 	}
+}
+
+void BLI_pbvh_grids_update(PBVH *bvh, DMGridData **grids, DMGridAdjacency *gridadj, void **gridfaces)
+{
+	bvh->grids= grids;
+	bvh->gridadj= gridadj;
+	bvh->gridfaces= gridfaces;
 }
 
 float (*BLI_pbvh_get_vertCos(PBVH *pbvh))[3]

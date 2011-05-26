@@ -29,16 +29,15 @@ set(INC
 	../../../../intern/string
 	../../../../intern/ghost
 	../../../../intern/guardedalloc
+	../../../../intern/container
 	../../../../intern/moto/include
 	../../../../source/gameengine/Rasterizer/RAS_OpenGLRasterizer
-	../../../../source/kernel/gen_system
-	../../../../source/kernel/gen_messaging
+	../../../../source/gameengine/BlenderRoutines
 	../../../../source/gameengine/Converter
 	../../../../source/blender/imbuf
 	../../../../source/gameengine/Ketsji
 	../../../../source/blender/blenlib
 	../../../../source/blender/blenkernel
-	../../../../source/blender/readblenfile
 	../../../../source/blender
 	../../../../source/blender/include
 	../../../../source/blender/makesdna
@@ -54,7 +53,7 @@ set(INC
 	../../../../source/blender/misc
 	../../../../source/blender/blenloader
 	../../../../source/blender/gpu
-	../../../../extern/glew/include
+	${GLEW_INCLUDE_PATH}
 	${PYTHON_INCLUDE_DIRS}
 )
 

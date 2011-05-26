@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/blenfont/intern/blf_internal.h
+ *  \ingroup blf
+ */
+
+
 #ifndef BLF_INTERNAL_H
 #define BLF_INTERNAL_H
 
@@ -39,7 +44,7 @@ int blf_utf8_next(unsigned char *buf, int *iindex);
 
 char *blf_dir_search(const char *file);
 char *blf_dir_metrics_search(char *filename);
-int blf_dir_split(const char *str, char *file, int *size);
+// int blf_dir_split(const char *str, char *file, int *size); // UNUSED
 
 int blf_font_init(void);
 void blf_font_exit(void);

@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -27,6 +27,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
  
+/** \file blender/editors/animation/keyingsets.c
+ *  \ingroup edanimation
+ */
+
+ 
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
@@ -54,6 +59,7 @@
 #include "ED_screen.h"
 
 #include "UI_interface.h"
+#include "UI_resources.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -574,9 +580,8 @@ void ANIM_keyingset_info_register (const bContext *C, KeyingSetInfo *ksi)
 }
 
 /* Remove the given KeyingSetInfo from the list of type infos, and also remove the builtin set if appropriate */
-void ANIM_keyingset_info_unregister (const bContext *C, KeyingSetInfo *ksi)
+void ANIM_keyingset_info_unregister (Main *bmain, KeyingSetInfo *ksi)
 {
-	Main *bmain= CTX_data_main(C);
 	KeyingSet *ks, *ksn;
 	
 	/* find relevant builtin KeyingSets which use this, and remove them */
@@ -762,14 +767,14 @@ void ANIM_keying_sets_menu_setup (bContext *C, const char title[], const char op
 	uiLayout *layout;
 	int i = 0;
 	
-	pup= uiPupMenuBegin(C, title, ICON_NULL);
+	pup= uiPupMenuBegin(C, title, ICON_NONE);
 	layout= uiPupMenuLayout(pup);
 	
 	/* active Keying Set 
 	 *	- only include entry if it exists
 	 */
 	if (scene->active_keyingset) {
-		uiItemIntO(layout, "Active Keying Set", ICON_NULL, op_name, "type", i++);
+		uiItemIntO(layout, "Active Keying Set", ICON_NONE, op_name, "type", i++);
 		uiItemS(layout);
 	}
 	else
@@ -781,7 +786,7 @@ void ANIM_keying_sets_menu_setup (bContext *C, const char title[], const char op
 	if (scene->keyingsets.first) {
 		for (ks= scene->keyingsets.first; ks; ks= ks->next) {
 			if (ANIM_keyingset_context_ok_poll(C, ks))
-				uiItemIntO(layout, ks->name, ICON_NULL, op_name, "type", i++);
+				uiItemIntO(layout, ks->name, ICON_NONE, op_name, "type", i++);
 		}
 		uiItemS(layout);
 	}
@@ -791,7 +796,7 @@ void ANIM_keying_sets_menu_setup (bContext *C, const char title[], const char op
 	for (ks= builtin_keyingsets.first; ks; ks= ks->next) {
 		/* only show KeyingSet if context is suitable */
 		if (ANIM_keyingset_context_ok_poll(C, ks))
-			uiItemIntO(layout, ks->name, ICON_NULL, op_name, "type", i--);
+			uiItemEnumO_value(layout, ks->name, ICON_NONE, op_name, "type", i--);
 	}
 	
 	uiPupMenuEnd(C, pup);
@@ -939,6 +944,14 @@ int ANIM_apply_keyingset (bContext *C, ListBase *dsources, bAction *act, KeyingS
 		int arraylen, i;
 		short kflag2;
 		
+		/* skip path if no ID pointer is specified */
+		if (ksp->id == NULL) {
+			BKE_reportf(reports, RPT_WARNING,
+				"Skipping path in Keying Set, as it has no ID (KS = '%s', Path = '%s'[%d])",
+				ks->name, ksp->rna_path, ksp->array_index);
+			continue;
+		}
+		
 		/* since keying settings can be defined on the paths too, extend the path before using it */
 		kflag2 = (kflag | ksp->keyingflag);
 		
@@ -982,7 +995,6 @@ int ANIM_apply_keyingset (bContext *C, ListBase *dsources, bAction *act, KeyingS
 		}
 		
 		/* set recalc-flags */
-		if (ksp->id) {
 			switch (GS(ksp->id->name)) {
 				case ID_OB: /* Object (or Object-Related) Keyframes */
 				{
@@ -996,7 +1008,6 @@ int ANIM_apply_keyingset (bContext *C, ListBase *dsources, bAction *act, KeyingS
 			/* send notifiers for updates (this doesn't require context to work!) */
 			WM_main_add_notifier(NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
 		}
-	}
 	
 	/* return the number of channels successfully affected */
 	return success;

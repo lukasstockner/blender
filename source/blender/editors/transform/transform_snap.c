@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -26,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+ 
+/** \file blender/editors/transform/transform_snap.c
+ *  \ingroup edtransform
+ */
+
  
 #include <stdlib.h>
 #include <math.h>
@@ -82,6 +87,8 @@
 #include "transform.h"
 
 //#include "blendef.h" /* for selection modes */
+
+#define USE_BVH_FACE_SNAP
 
 /********************* PROTOTYPES ***********************/
 
@@ -155,11 +162,11 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 			invert_m4_m4(imat, rv3d->viewmat);
 
 			for (p = t->tsnap.points.first; p; p = p->next) {
-				drawcircball(GL_LINE_LOOP, p->co, size * get_drawsize(t->ar, p->co), imat);
+				drawcircball(GL_LINE_LOOP, p->co, ED_view3d_pixel_size(rv3d, p->co) * size, imat);
 			}
 
 			if (t->tsnap.status & POINT_INIT) {
-				drawcircball(GL_LINE_LOOP, t->tsnap.snapPoint, size * get_drawsize(t->ar, t->tsnap.snapPoint), imat);
+				drawcircball(GL_LINE_LOOP, t->tsnap.snapPoint, ED_view3d_pixel_size(rv3d, t->tsnap.snapPoint) * size, imat);
 			}
 			
 			/* draw normal if needed */
@@ -638,7 +645,7 @@ float RotationBetween(TransInfo *t, float p1[3], float p2[3])
 		
 		cross_v3_v3v3(tmp, start, end);
 		
-		if (dot_v3v3(tmp, axis) < 0.0)
+		if (dot_v3v3(tmp, axis) < 0.0f)
 			angle = -acos(dot_v3v3(start, end));
 		else	
 			angle = acos(dot_v3v3(start, end));
@@ -654,11 +661,11 @@ float RotationBetween(TransInfo *t, float p1[3], float p2[3])
 		angle = atan2(start[1],start[0]) - atan2(end[1],end[0]);
 	}
 	
-	if (angle > M_PI) {
-		angle = angle - 2 * M_PI;
+	if (angle > (float)M_PI) {
+		angle = angle - 2 * (float)M_PI;
 	}
-	else if (angle < -(M_PI)) {
-		angle = 2 * M_PI + angle;
+	else if (angle < -((float)M_PI)) {
+		angle = 2.0f * (float)M_PI + angle;
 	}
 	
 	return angle;
@@ -1020,7 +1027,7 @@ void TargetSnapClosest(TransInfo *t)
 	}
 }
 /*================================================================*/
-
+#ifndef USE_BVH_FACE_SNAP
 static int snapFace(ARegion *ar, float v1co[3], float v2co[3], float v3co[3], float *v4co, float mval[2], float ray_start[3], float ray_start_local[3], float ray_normal_local[3], float obmat[][4], float timat[][3], float *loc, float *no, int *dist, float *depth)
 {
 	float lambda;
@@ -1071,6 +1078,7 @@ static int snapFace(ARegion *ar, float v1co[3], float v2co[3], float v3co[3], fl
 	
 	return retval;
 }
+#endif
 
 static int snapEdge(ARegion *ar, float v1co[3], short v1no[3], float v2co[3], short v2no[3], float mval[2], float ray_start[3], float ray_start_local[3], float ray_normal_local[3], float obmat[][4], float timat[][3], float *loc, float *no, int *dist, float *depth)
 {
@@ -1126,7 +1134,7 @@ static int snapEdge(ARegion *ar, float v1co[3], short v1no[3], float v2co[3], sh
 			 * this takes care of series of connected edges a bit slanted w.r.t the viewport
 			 * otherwise, it would stick to the verts of the closest edge and not slide along merrily 
 			 * */
-			if (new_dist <= *dist && new_depth < *depth * 1.001)
+			if (new_dist <= *dist && new_depth < *depth * 1.001f)
 			{
 				float n1[3], n2[3];
 				
@@ -1304,7 +1312,7 @@ static int snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMesh
 			{
 				case SCE_SNAP_MODE_FACE:
 				{ 
-#if 1				// Added for durian
+#ifdef USE_BVH_FACE_SNAP				// Added for durian
 					BVHTreeRayHit hit;
 					BVHTreeFromMesh treeData;
 
@@ -1573,7 +1581,7 @@ static int snapObjects(Scene *scene, View3D *v3d, ARegion *ar, Object *obedit, f
 	int retval = 0;
 	float ray_start[3], ray_normal[3];
 	
-	viewray(ar, v3d, mval, ray_start, ray_normal);
+	ED_view3d_win_to_ray(ar, v3d, mval, ray_start, ray_normal);
 
 	if (mode == SNAP_ALL && obedit)
 	{
@@ -1605,9 +1613,9 @@ static int snapObjects(Scene *scene, View3D *v3d, ARegion *ar, Object *obedit, f
 				
 				for(dupli_ob = lb->first; dupli_ob; dupli_ob = dupli_ob->next)
 				{
-					Object *ob = dupli_ob->ob;
+					Object *dob = dupli_ob->ob;
 					
-					retval |= snapObject(scene, ar, ob, 0, dupli_ob->mat, ray_start, ray_normal, mval, loc, no, dist, &depth);
+					retval |= snapObject(scene, ar, dob, 0, dupli_ob->mat, ray_start, ray_normal, mval, loc, no, dist, &depth);
 				}
 				
 				free_object_duplilist(lb);
@@ -1662,7 +1670,7 @@ static void removeDoublesPeel(ListBase *depth_peels)
 	{
 		DepthPeel *next_peel = peel->next;
 		
-		if (peel && next_peel && ABS(peel->depth - next_peel->depth) < 0.0015)
+		if (next_peel && ABS(peel->depth - next_peel->depth) < 0.0015f)
 		{
 			peel->next = next_peel->next;
 			
@@ -1804,7 +1812,7 @@ static int peelObjects(Scene *scene, View3D *v3d, ARegion *ar, Object *obedit, L
 	int retval = 0;
 	float ray_start[3], ray_normal[3];
 	
-	viewray(ar, v3d, mval, ray_start, ray_normal);
+	ED_view3d_win_to_ray(ar, v3d, mval, ray_start, ray_normal);
 
 	for ( base = scene->base.first; base != NULL; base = base->next ) {
 		if ( BASE_SELECTABLE(v3d, base) ) {
@@ -1931,7 +1939,7 @@ static void applyGrid(TransInfo *t, float *val, int max_index, float fac[3], Gea
 	float asp[3] = {1.0f, 1.0f, 1.0f}; // TODO: Remove hard coded limit here (3)
 
 	// Early bailing out if no need to snap
-	if (fac[action] == 0.0)
+	if (fac[action] == 0.0f)
 		return;
 	
 	/* evil hack - snapping needs to be adapted for image aspect ratio */
@@ -1940,6 +1948,6 @@ static void applyGrid(TransInfo *t, float *val, int max_index, float fac[3], Gea
 	}
 
 	for (i=0; i<=max_index; i++) {
-		val[i]= fac[action]*asp[i]*(float)floor(val[i]/(fac[action]*asp[i]) +.5);
+		val[i]= fac[action]*asp[i]*(float)floor(val[i]/(fac[action]*asp[i]) +0.5f);
 	}
 }

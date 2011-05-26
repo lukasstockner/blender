@@ -1,7 +1,6 @@
-/**
- * fluidsim.c
+/*
+ * $Id$
  * 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/blenkernel/intern/fluidsim.c
+ *  \ingroup bke
+ */
+
 
 #include <stddef.h>
 #include "BLI_storage.h" /* _LARGEFILE_SOURCE */

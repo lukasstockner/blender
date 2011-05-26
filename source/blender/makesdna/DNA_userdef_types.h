@@ -1,6 +1,4 @@
-/**
- * blenkernel/DNA_userdef_types.h (mar-2001 nzc)
- *
+/*
  *	$Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -31,6 +29,12 @@
 
 #ifndef DNA_USERDEF_TYPES_H
 #define DNA_USERDEF_TYPES_H
+/** \file DNA_userdef_types.h
+ *  \ingroup DNA
+ *  \since mar-2001
+ *  \author nzc
+ *
+ */
 
 #include "DNA_listBase.h"
 #include "DNA_texture_types.h" /* ColorBand */
@@ -215,8 +219,8 @@ typedef struct ThemeSpace {
 	char console_output[4], console_input[4], console_info[4], console_error[4];
 	char console_cursor[4];
 	
-	char vertex_size, facedot_size;
-	char bpad[2];
+	char vertex_size, outline_width, facedot_size;
+	char bpad;
 
 	char syntaxl[4], syntaxn[4], syntaxb[4]; // syntax for textwindow and nodes
 	char syntaxv[4], syntaxc[4];
@@ -465,14 +469,14 @@ extern UserDef U; /* from blenkernel blender.c */
 #define USER_HIDE_DOT			(1 << 16)
 #define USER_SHOW_ROTVIEWICON	(1 << 17)
 #define USER_SHOW_VIEWPORTNAME	(1 << 18)
-// old flag for #define USER_KEYINSERTNEED		(1 << 19)
+#define USER_CAM_LOCK_NO_PARENT	(1 << 19)
 #define USER_ZOOM_TO_MOUSEPOS	(1 << 20)
 #define USER_SHOW_FPS			(1 << 21)
 #define USER_MMB_PASTE			(1 << 22)
 #define USER_MENUFIXEDORDER		(1 << 23)
 #define USER_CONTINUOUS_MOUSE	(1 << 24)
 #define USER_ZOOM_INVERT		(1 << 25)
-#define USER_ZOOM_DOLLY_HORIZ	(1 << 26)
+#define USER_ZOOM_HORIZ		(1 << 26) /* for CONTINUE and DOLLY zoom */
 #define USER_SPLASH_DISABLE		(1 << 27)
 
 /* Auto-Keying mode */

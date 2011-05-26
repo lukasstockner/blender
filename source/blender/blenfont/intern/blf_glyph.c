@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -26,6 +26,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/blenfont/intern/blf_glyph.c
+ *  \ingroup blf
+ */
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,7 +55,6 @@
 #include "blf_internal_types.h"
 #include "blf_internal.h"
 
-static FT_Library global_ft_lib;
 
 GlyphCacheBLF *blf_glyph_cache_find(FontBLF *font, int size, int dpi)
 {
@@ -130,6 +134,8 @@ void blf_glyph_cache_clear(FontBLF *font)
 			}
 		}
 	}
+
+	memset(font->glyph_ascii_table, 0, sizeof(font->glyph_ascii_table));
 }
 
 void blf_glyph_cache_free(GlyphCacheBLF *gc)
@@ -228,6 +234,16 @@ GlyphBLF *blf_glyph_add(FontBLF *font, unsigned int index, unsigned int c)
 	/* get the glyph. */
 	slot= font->face->glyph;
 
+	if (sharp) {
+		err = FT_Render_Glyph(slot, FT_RENDER_MODE_MONO);
+
+		/* Convert result from 1 bit per pixel to 8 bit per pixel */
+		/* Accum errors for later, fine if not interested beyond "ok vs any error" */
+		FT_Bitmap_New(&tempbitmap);
+		err += FT_Bitmap_Convert(font->ft_lib, &slot->bitmap, &tempbitmap, 1); /* Does Blender use Pitch 1 always? It works so far */
+		err += FT_Bitmap_Copy(font->ft_lib, &tempbitmap, &slot->bitmap);
+		err += FT_Bitmap_Done(font->ft_lib, &tempbitmap);
+	} else {
 	err= FT_Render_Glyph(slot, FT_RENDER_MODE_NORMAL);
 	if (err || slot->format != FT_GLYPH_FORMAT_BITMAP)
 		return(NULL);

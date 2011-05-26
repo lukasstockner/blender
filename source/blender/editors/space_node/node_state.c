@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/space_node/node_state.c
+ *  \ingroup spnode
+ */
+
 
 #include <stdio.h>
 
@@ -117,21 +122,21 @@ static int do_header_node(SpaceNode *snode, bNode *node, float mx, float my)
 			node->flag ^= NODE_PREVIEW;
 			return 1;
 		}
-		totr.xmin-=18.0f;
+		totr.xmin-=15.0f;
 	}
 	if(node->type == NODE_GROUP) {
 		if(BLI_in_rctf(&totr, mx, my)) {
 			snode_make_group_editable(snode, node);
 			return 1;
 		}
-		totr.xmin-=18.0f;
+		totr.xmin-=15.0f;
 	}
 	if(node->typeinfo->flag & NODE_OPTIONS) {
 		if(BLI_in_rctf(&totr, mx, my)) {
 			node->flag ^= NODE_OPTIONS;
 			return 1;
 		}
-		totr.xmin-=18.0f;
+		totr.xmin-=15.0f;
 	}
 	/* hide unused sockets */
 	if(BLI_in_rctf(&totr, mx, my)) {
@@ -153,7 +158,7 @@ static int do_header_hidden_node(SpaceNode *snode, bNode *node, float mx, float 
 	return 0;
 }
 
-static int node_toggle_visibility(SpaceNode *snode, ARegion *ar, short *mval)
+static int node_toggle_visibility(SpaceNode *snode, ARegion *ar, const int mval[2])
 {
 	bNode *node;
 	float mx, my;
@@ -184,7 +189,7 @@ static int node_toggle_visibility_exec(bContext *C, wmOperator *op)
 {
 	SpaceNode *snode= CTX_wm_space_node(C);
 	ARegion *ar= CTX_wm_region(C);
-	short mval[2];
+	int mval[2];
 
 	mval[0] = RNA_int_get(op->ptr, "mouse_x");
 	mval[1] = RNA_int_get(op->ptr, "mouse_y");
@@ -196,15 +201,9 @@ static int node_toggle_visibility_exec(bContext *C, wmOperator *op)
 
 static int node_toggle_visibility_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
-	ARegion *ar= CTX_wm_region(C);
-	short mval[2];	
+	RNA_int_set(op->ptr, "mouse_x", event->mval[0]);
+	RNA_int_set(op->ptr, "mouse_y", event->mval[1]);
 	
-	mval[0]= event->x - ar->winrct.xmin;
-	mval[1]= event->y - ar->winrct.ymin;
-	
-	RNA_int_set(op->ptr, "mouse_x", mval[0]);
-	RNA_int_set(op->ptr, "mouse_y", mval[1]);
-
 	return node_toggle_visibility_exec(C,op);
 }
 

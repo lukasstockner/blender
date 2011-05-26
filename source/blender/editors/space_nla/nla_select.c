@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -25,6 +25,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/space_nla/nla_select.c
+ *  \ingroup spnla
+ */
+
 
 #include <string.h>
 #include <stdio.h>
@@ -86,11 +91,11 @@ static short selmodes_to_flagmodes (short sel)
  *	3) (de)select all - no testing is done; only for use internal tools as normal function...
  */
 
-static enum {
+enum {
 	DESELECT_STRIPS_NOTEST = 0,
 	DESELECT_STRIPS_TEST,
 	DESELECT_STRIPS_CLEARACTIVE,
-} eDeselectNlaStrips;
+} /*eDeselectNlaStrips*/;
  
 /* Deselects strips in the NLA Editor
  *	- This is called by the deselect all operator, as well as other ones!
@@ -206,11 +211,11 @@ void NLA_OT_select_all_toggle (wmOperatorType *ot)
  */
 
 /* defines for borderselect mode */
-static enum {
+enum {
 	NLA_BORDERSEL_ALLSTRIPS	= 0,
 	NLA_BORDERSEL_FRAMERANGE,
 	NLA_BORDERSEL_CHANNELS,
-} eNLAEDIT_BorderSelect_Mode;
+} /* eNLAEDIT_BorderSelect_Mode */;
 
 
 static void borderselect_nla_strips (bAnimContext *ac, rcti rect, short mode, short selectmode)
@@ -454,16 +459,10 @@ static int nlaedit_select_leftright_invoke (bContext *C, wmOperator *op, wmEvent
 		Scene *scene= ac.scene;
 		ARegion *ar= ac.ar;
 		View2D *v2d= &ar->v2d;
-		
-		int mval[2];
 		float x;
 		
-		/* get mouse coordinates (in region coordinates) */
-		mval[0]= (event->x - ar->winrct.xmin);
-		mval[1]= (event->y - ar->winrct.ymin);
-		
 		/* determine which side of the current frame mouse is on */
-		UI_view2d_region_to_view(v2d, mval[0], mval[1], &x, NULL);
+		UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &x, NULL);
 		if (x < CFRA)
 			RNA_int_set(op->ptr, "mode", NLAEDIT_LRSEL_LEFT);
 		else 	
@@ -498,7 +497,7 @@ void NLA_OT_select_leftright (wmOperatorType *ot)
 /* ******************** Mouse-Click Select Operator *********************** */
 
 /* select strip directly under mouse */
-static void mouse_nla_strips (bContext *C, bAnimContext *ac, int mval[2], short select_mode)
+static void mouse_nla_strips (bContext *C, bAnimContext *ac, const int mval[2], short select_mode)
 {
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale = NULL;
@@ -607,9 +606,8 @@ static int nlaedit_clickselect_invoke(bContext *C, wmOperator *op, wmEvent *even
 	bAnimContext ac;
 	Scene *scene;
 	ARegion *ar;
-	View2D *v2d;
+	// View2D *v2d; /*UNUSED*/
 	short selectmode;
-	int mval[2];
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
@@ -618,11 +616,7 @@ static int nlaedit_clickselect_invoke(bContext *C, wmOperator *op, wmEvent *even
 	/* get useful pointers from animation context data */
 	scene= ac.scene;
 	ar= ac.ar;
-	v2d= &ar->v2d;
-	
-	/* get mouse coordinates (in region coordinates) */
-	mval[0]= (event->x - ar->winrct.xmin);
-	mval[1]= (event->y - ar->winrct.ymin);
+	// v2d= &ar->v2d;
 	
 	/* select mode is either replace (deselect all, then add) or add/extend */
 	if (RNA_boolean_get(op->ptr, "extend"))
@@ -631,7 +625,7 @@ static int nlaedit_clickselect_invoke(bContext *C, wmOperator *op, wmEvent *even
 		selectmode= SELECT_REPLACE;
 	
 		/* select strips based upon mouse position */
-		mouse_nla_strips(C, &ac, mval, selectmode);
+	mouse_nla_strips(C, &ac, event->mval, selectmode);
 	
 	/* set notifier that things have changed */
 	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_SELECTED, NULL);

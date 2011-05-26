@@ -1,6 +1,4 @@
-/**
- * blenlib/BKE_texture.h (mar-2001 nzc)
- *	
+/*
  * $Id$ 
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -30,6 +28,12 @@
  */
 #ifndef BKE_TEXTURE_H
 #define BKE_TEXTURE_H
+
+/** \file BKE_texture.h
+ *  \ingroup bke
+ *  \since March 2001
+ *  \author nzc
+ */
 
 #ifdef __cplusplus
 extern "C" {
@@ -77,6 +81,7 @@ void default_mtex(struct MTex *mtex);
 struct MTex *add_mtex(void);
 struct MTex *add_mtex_id(struct ID *id, int slot);
 struct Tex *copy_texture(struct Tex *tex);
+struct Tex *localize_texture(struct Tex *tex);
 void make_local_texture(struct Tex *tex);
 void autotexname(struct Tex *tex);
 

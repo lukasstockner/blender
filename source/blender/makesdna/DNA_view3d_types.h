@@ -1,6 +1,4 @@
-/**
- * blenlib/DNA_view3d_types.h (mar-2001 nzc)
- *
+/*
  * $Id$ 
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -31,6 +29,10 @@
 #ifndef DNA_VIEW3D_TYPES_H
 #define DNA_VIEW3D_TYPES_H
 
+/** \file DNA_view3d_types.h
+ *  \ingroup DNA
+ */
+
 struct ViewDepths;
 struct Object;
 struct Image;
@@ -39,7 +41,6 @@ struct SpaceLink;
 struct Base;
 struct BoundBox;
 struct RenderInfo;
-struct RetopoViewData;
 struct bGPdata;
 struct SmoothViewStore;
 struct wmTimer;
@@ -95,10 +96,13 @@ typedef struct RegionView3D {
 	float zfac;					/* initgrabz() result */
 	float camdx, camdy;				/* camera view offsets, 1.0 = viewplane moves entire width/height */
 	float pixsize;				/* runtime only */
-	float ofs[3];				/* view center & orbit pivot, negative of worldspace location */
-	short camzoom;
+	float ofs[3];				/* view center & orbit pivot, negative of worldspace location,
+								 * also matches -viewinv[3][0:3] in ortho mode.*/
+	short camzoom;				/* viewport zoom on the camera frame, see BKE_screen_view3d_zoom_to_fac */
 	short twdrawflag;
-	int pad;
+	char is_persp;				/* check if persp/ortho view, since 'persp' cant be used for this since
+								 * it can have cameras assigned as well. (only set in setwinmatrixview3d) */
+	char pad[3];
 	
 	short rflag, viewlock;
 	short persp;
@@ -111,9 +115,8 @@ typedef struct RegionView3D {
 	
 	struct bGPdata *gpd;		/* Grease-Pencil Data (annotation layers) */
 	
-	struct RegionView3D *localvd;
+	struct RegionView3D *localvd; /* allocated backup of its self while in localview */
 	struct RenderInfo *ri;
-	struct RetopoViewData *retopo_view_data;
 	struct ViewDepths *depths;
 	
 	/* animated smooth view */
@@ -151,7 +154,7 @@ typedef struct View3D {
 	struct ListBase bgpicbase;
 	struct BGpic *bgpic; /* deprecated, use bgpicbase, only kept for do_versions(...) */
 
-	struct View3D *localvd;
+	struct View3D *localvd; /* allocated backup of its self while in localview */
 	
 	char ob_centre_bone[32];		/* optional string for armature bone to define center */
 	
@@ -162,26 +165,21 @@ typedef struct View3D {
 	 * OB_SHADED, OB_TEXTURE, or OB_MATCAP */
 	short drawtype;
 	short pad2;
-	short scenelock, around, pad3;
+	short scenelock, around;
 	short flag, flag2;
 	
-	short pivot_last; /* pivot_last is for rotating around the last edited element */
-	
 	float lens, grid;
-	float gridview; /* XXX deprecated, now in RegionView3D */
 	float near, far;
 	float ofs[3];			/* XXX deprecated */
 	float cursor[3];
 
-	short gridlines, pad4;
-	short gridflag;
-	short gridsubdiv;	/* Number of subdivisions in the grid between each highlighted grid line */
 	short modeselect;
-	short keyflags;		/* flags for display of keyframes */
+	short gridlines;
+	short gridsubdiv;	/* Number of subdivisions in the grid between each highlighted grid line */
+	char gridflag;
 	
 	/* transform widget info */
-	short twtype, twmode, twflag;
-	short twdrawflag; /* XXX deprecated */
+	char twtype, twmode, twflag, pad2[2];
 	
 	/* afterdraw, for xray & transparent */
 	struct ListBase afterdraw_transp;
@@ -194,7 +192,7 @@ typedef struct View3D {
 	char ndofmode;			/* mode of transform for 6DOF devices -1 not found, 0 normal, 1 fly, 2 ob transform */
 	char ndoffilter;		/* filter for 6DOF devices 0 normal, 1 dominant */
 	
-	void *properties_storage;	/* Nkey panel stores stuff here, not in file */
+	void *properties_storage;	/* Nkey panel stores stuff here (runtime only!) */
 	
 	/* XXX depricated? */
 	struct bGPdata *gpd;		/* Grease-Pencil Data (annotation layers) */
@@ -231,6 +229,7 @@ typedef struct View3D {
 #define RV3D_BOXCLIP		4
 
 /* RegionView3d->view */
+#define RV3D_VIEW_USER			 0
 #define RV3D_VIEW_FRONT		 1
 #define RV3D_VIEW_BACK			 2
 #define RV3D_VIEW_LEFT			 3
@@ -244,6 +243,7 @@ typedef struct View3D {
 #define V3D_RENDER_OVERRIDE		4
 #define V3D_SOLID_TEX			8
 #define V3D_DISPGP				16
+#define V3D_LOCK_CAMERA			32
 
 /* View3D->around */
 #define V3D_CENTER		 0

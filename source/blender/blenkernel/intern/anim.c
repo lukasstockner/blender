@@ -1,4 +1,4 @@
-/** anim.c
+/* anim.c
  *
  *
  * $Id$
@@ -29,6 +29,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/blenkernel/intern/anim.c
+ *  \ingroup bke
+ */
+
+
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
@@ -49,6 +54,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_vfont_types.h"
 
+#include "BKE_animsys.h"
 #include "BKE_curve.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_depsgraph.h"
@@ -742,41 +748,69 @@ static void group_duplilist(ListBase *lb, Scene *scene, Object *ob, int level, i
 static void frames_duplilist(ListBase *lb, Scene *scene, Object *ob, int level, int animated)
 {
 	extern int enable_cu_speed;	/* object.c */
-	Object copyob;
-	DupliObject *dob;
-	int cfrao, ok;
+	Object copyob = {{NULL}};
+	int cfrao = scene->r.cfra;
 	
-	/* simple preventing of too deep nested groups */
+	/* simple prevention of too deep nested groups */
 	if(level>MAX_DUPLI_RECUR) return;
 	
-	cfrao= scene->r.cfra;
-	if(ob->parent==NULL && ob->constraints.first==NULL) return;
+	/* if we don't have any data/settings which will lead to object movement,
+	 * don't waste time trying, as it will all look the same...
+	 */
+	if (ob->parent==NULL && ob->constraints.first==NULL && ob->adt==NULL) 
+		return;
 
+	/* make a copy of the object's original data (before any dupli-data overwrites it) 
+	 * as we'll need this to keep track of unkeyed data
+	 *	- this doesn't take into account other data that can be reached from the object,
+	 *	  for example it's shapekeys or bones, hence the need for an update flush at the end
+	 */
+	copyob = *ob;
+	
+	/* duplicate over the required range */
 	if(ob->transflag & OB_DUPLINOSPEED) enable_cu_speed= 0;
-	copyob= *ob;	/* store transform info */
 
 	for(scene->r.cfra= ob->dupsta; scene->r.cfra<=ob->dupend; scene->r.cfra++) {
+		short ok= 1;
 
-		ok= 1;
+		/* - dupoff = how often a frames within the range shouldn't be made into duplis
+		 * - dupon = the length of each "skipping" block in frames
+		 */
 		if(ob->dupoff) {
 			ok= scene->r.cfra - ob->dupsta;
 			ok= ok % (ob->dupon+ob->dupoff);
-			if(ok < ob->dupon) ok= 1;
-			else ok= 0;
+			ok= (ok < ob->dupon);
 		}
+		
 		if(ok) {
-#if 0 // XXX old animation system
-			do_ob_ipo(scene, ob);
-#endif // XXX old animation system
+			DupliObject *dob;
+			
+			/* WARNING: doing animation updates in this way is not terribly accurate, as the dependencies
+			 * and/or other objects which may affect this object's transforms are not updated either.
+			 * However, this has always been the way that this worked (i.e. pre 2.5), so I guess that it'll be fine!
+			 */
+			BKE_animsys_evaluate_animdata(&ob->id, ob->adt, (float)scene->r.cfra, ADT_RECALC_ANIM); /* ob-eval will do drivers, so we don't need to do them */
 			where_is_object_time(scene, ob, (float)scene->r.cfra);
+			
 			dob= new_dupli_object(lb, ob, ob->obmat, ob->lay, scene->r.cfra, OB_DUPLIFRAMES, animated);
 			copy_m4_m4(dob->omat, copyob.obmat);
 		}
 	}
 
-	*ob= copyob;	/* restore transform info */
-	scene->r.cfra= cfrao;
 	enable_cu_speed= 1;
+	
+	/* reset frame to original frame, then re-evaluate animation as above 
+	 * as 2.5 animation data may have far-reaching consequences
+	 */
+	scene->r.cfra= cfrao;
+	
+	BKE_animsys_evaluate_animdata(&ob->id, ob->adt, (float)scene->r.cfra, ADT_RECALC_ANIM); /* ob-eval will do drivers, so we don't need to do them */
+	where_is_object_time(scene, ob, (float)scene->r.cfra);
+	
+	/* but, to make sure unkeyed object transforms are still sane, 
+	 * let's copy object's original data back over
+	 */
+	*ob = copyob;
 }
 
 typedef struct vertexDupliData {
@@ -1074,7 +1108,7 @@ static void face_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, floa
 						/* scale */
 						if(par->transflag & OB_DUPLIFACES_SCALE) {
 							float size= v4? area_quad_v3(v1, v2, v3, v4): area_tri_v3(v1, v2, v3);
-							size= sqrt(size) * par->dupfacesca;
+							size= sqrtf(size) * par->dupfacesca;
 							mul_m3_fl(mat, size);
 						}
 						
@@ -1156,7 +1190,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 	float tmat[4][4], mat[4][4], pamat[4][4], vec[3], size=0.0;
 	float (*obmat)[4], (*oldobmat)[4];
 	int lay, a, b, counter, hair = 0;
-	int totpart, totchild, totgroup=0, pa_num;
+	int totpart, totchild, totgroup=0 /*, pa_num */;
 
 	int no_draw_flag = PARS_UNEXIST;
 	
@@ -1273,7 +1307,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 				if(pa->flag & no_draw_flag)
 					continue;
 
-				pa_num = pa->num;
+				/* pa_num = pa->num; */ /* UNUSED */
 				pa_time = pa->time;
 				size = pa->size;
 			}
@@ -1281,7 +1315,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 				/* handle child particle */
 				cpa = &psys->child[a - totpart];
 
-				pa_num = a;
+				/* pa_num = a; */ /* UNUSED */
 				pa_time = psys->particles[cpa->parent].time;
 				size = psys_get_child_size(psys, cpa, ctime, NULL);
 			}
@@ -1296,8 +1330,6 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 				/* for groups, pick the object based on settings */
 				if(part->draw&PART_DRAW_RAND_GR)
 					b= BLI_rand() % totgroup;
-				else if(part->from==PART_FROM_PARTICLE)
-					b= pa_num % totgroup;
 				else
 					b= a % totgroup;
 
@@ -1352,7 +1384,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 					dob= new_dupli_object(lb, go->ob, mat, par->lay, counter, OB_DUPLIPARTS, animated);
 					copy_m4_m4(dob->omat, obcopylist[b].obmat);
 					if(G.rendering)
-						psys_get_dupli_texture(par, part, sim.psmd, pa, cpa, dob->uv, dob->orco);
+						psys_get_dupli_texture(psys, part, sim.psmd, pa, cpa, dob->uv, dob->orco);
 				}
 			}
 			else {
@@ -1384,7 +1416,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 				dob= new_dupli_object(lb, ob, mat, ob->lay, counter, GS(id->name) == ID_GR ? OB_DUPLIGROUP : OB_DUPLIPARTS, animated);
 				copy_m4_m4(dob->omat, oldobmat);
 				if(G.rendering)
-					psys_get_dupli_texture(par, part, sim.psmd, pa, cpa, dob->uv, dob->orco);
+					psys_get_dupli_texture(psys, part, sim.psmd, pa, cpa, dob->uv, dob->orco);
 			}
 		}
 

@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -24,6 +24,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/editors/interface/interface_icons.c
+ *  \ingroup edinterface
+ */
+
 
 #include <math.h>
 #include <stdlib.h>
@@ -124,7 +129,7 @@ typedef struct IconTexture {
 /* ******************* STATIC LOCAL VARS ******************* */
 /* static here to cache results of icon directory scan, so it's not 
  * scanning the filesystem each time the menu is drawn */
-static struct ListBase iconfilelist = {0, 0};
+static struct ListBase iconfilelist = {NULL, NULL};
 static IconTexture icongltex = {0, 0, 0, 0.0f, 0.0f};
 
 /* **************************************************** */
@@ -139,7 +144,7 @@ static void def_internal_icon(ImBuf *bbuf, int icon_id, int xofs, int yofs, int 
 
 	new_icon = MEM_callocN(sizeof(Icon), "texicon");
 
-	new_icon->obj = 0; /* icon is not for library object */
+	new_icon->obj = NULL; /* icon is not for library object */
 	new_icon->type = 0;	
 
 	di = MEM_callocN(sizeof(DrawInfo), "drawinfo");
@@ -179,14 +184,14 @@ static void def_internal_vicon( int icon_id, VectorDrawFunc drawFunc)
 
 	new_icon = MEM_callocN(sizeof(Icon), "texicon");
 
-	new_icon->obj = 0; /* icon is not for library object */
+	new_icon->obj = NULL; /* icon is not for library object */
 	new_icon->type = 0;
 
 	di = MEM_callocN(sizeof(DrawInfo), "drawinfo");
 	di->type= ICON_TYPE_VECTOR;
 	di->data.vector.func =drawFunc;
 
-	new_icon->drawinfo_free = 0;
+	new_icon->drawinfo_free = NULL;
 	new_icon->drawinfo = di;
 
 	BKE_icon_set(icon_id, new_icon);
@@ -509,21 +514,17 @@ static void init_internal_icons(void)
 	char iconfilestr[FILE_MAXDIR+FILE_MAXFILE];
 	
 	if ((btheme!=NULL) && btheme->tui.iconfile[0]) {
-		char *datadir= BLI_get_folder(BLENDER_DATAFILES, NULL);
-		if (datadir) {
-			BLI_make_file_string("/", iconfilestr, datadir, btheme->tui.iconfile);
-			
-			if (BLI_exists(iconfilestr)) {
-				bbuf = IMB_loadiffname(iconfilestr, IB_rect);
-				if(bbuf->x < ICON_IMAGE_W || bbuf->y < ICON_IMAGE_H) {
-					if (G.f & G_DEBUG)
+		char *icondir= BLI_get_folder(BLENDER_DATAFILES, "icons");
+		if (icondir) {
+			BLI_join_dirfile(iconfilestr, sizeof(iconfilestr), icondir, btheme->tui.iconfile);
+			bbuf = IMB_loadiffname(iconfilestr, IB_rect); /* if the image is missing bbuf will just be NULL */
+			if(bbuf && (bbuf->x < ICON_IMAGE_W || bbuf->y < ICON_IMAGE_H)) {
 						printf("\n***WARNING***\nIcons file %s too small.\nUsing built-in Icons instead\n", iconfilestr);
 					IMB_freeImBuf(bbuf);
 					bbuf= NULL;
 				}
 			}
 		}
-	}
 	if(bbuf==NULL)
 		bbuf = IMB_ibImageFromMemory((unsigned char*)datatoc_blenderbuttons, datatoc_blenderbuttons_size, IB_rect);
 
@@ -592,31 +593,23 @@ static void init_internal_icons(void)
 static void init_iconfile_list(struct ListBase *list)
 {
 	IconFile *ifile;
-	ImBuf *bbuf= NULL;
 	struct direntry *dir;
 	int restoredir = 1; /* restore to current directory */
 	int totfile, i, index=1;
-	int ifilex, ifiley;
-	char icondirstr[FILE_MAX];
-	char iconfilestr[FILE_MAX+16]; /* allow 256 chars for file+dir */
+	const char *icondir;
 	char olddir[FILE_MAX];
-	char *datadir= NULL;
 
 	list->first = list->last = NULL;
-	datadir = BLI_get_folder(BLENDER_DATAFILES, NULL);
+	icondir = BLI_get_folder(BLENDER_DATAFILES, "icons");
 
-	if (!datadir) return;
-
-	BLI_make_file_string("/", icondirstr, datadir, "");
-	
-	if(BLI_exists(icondirstr)==0)
+	if(icondir==NULL)
 		return;
 	
 	/* since BLI_getdir changes the current working directory, restore it 
 	   back to old value afterwards */
 	if(!BLI_getwdN(olddir, sizeof(olddir))) 
 		restoredir = 0;
-	totfile = BLI_getdir(icondirstr, &dir);
+	totfile = BLI_getdir(icondir, &dir);
 	if (restoredir && !chdir(olddir)) {} /* fix warning about checking return value */
 
 	for(i=0; i<totfile; i++) {
@@ -624,17 +617,18 @@ static void init_iconfile_list(struct ListBase *list)
 			char *filename = dir[i].relname;
 			
 			if(BLI_testextensie(filename, ".png")) {
-			
+				/* loading all icons on file start is overkill & slows startup
+				 * its possible they change size after blender load anyway. */
+#if 0
+				int ifilex, ifiley;
+				char iconfilestr[FILE_MAX+16]; /* allow 256 chars for file+dir */
+				ImBuf *bbuf= NULL;
 				/* check to see if the image is the right size, continue if not */
 				/* copying strings here should go ok, assuming that we never get back
 				   a complete path to file longer than 256 chars */
-				sprintf(iconfilestr, "%s/%s", icondirstr, filename);
-				if(BLI_exists(iconfilestr))
+				BLI_join_dirfile(iconfilestr, sizeof(iconfilestr), icondir, filename);
 					bbuf= IMB_loadiffname(iconfilestr, IB_rect);
-				else
-					bbuf= NULL;
 				
-
 				if(bbuf) {
 				ifilex = bbuf->x;
 				ifiley = bbuf->y;
@@ -645,8 +639,11 @@ static void init_iconfile_list(struct ListBase *list)
 				}
 				
 				/* bad size or failed to load */
-				if ((ifilex != ICON_IMAGE_W) || (ifiley != ICON_IMAGE_H))
+				if ((ifilex != ICON_IMAGE_W) || (ifiley != ICON_IMAGE_H)) {
+					printf("icon '%s' is wrong size %dx%d\n", iconfilestr, ifilex, ifiley);
 					continue;
+				}
+#endif			/* removed */
 			
 				/* found a potential icon file, so make an entry for it in the cache list */
 				ifile = MEM_callocN(sizeof(IconFile), "IconFile");
@@ -670,7 +667,7 @@ static void init_iconfile_list(struct ListBase *list)
 		if (dir[i].string) MEM_freeN(dir[i].string);
 	}
 	free(dir);
-	dir= 0;
+	dir= NULL;
 }
 
 static void free_iconfile_list(struct ListBase *list)
@@ -689,7 +686,7 @@ int UI_iconfile_get_index(const char *filename)
 	ListBase *list=&(iconfilelist);
 	
 	for(ifile=list->first; ifile; ifile=ifile->next) {
-		if ( BLI_streq(filename, ifile->filename)) {
+		if (BLI_path_cmp(filename, ifile->filename) == 0) {
 			return ifile->index;
 		}
 	}
@@ -749,7 +746,7 @@ int UI_icon_get_width(int icon_id)
 
 	icon = BKE_icon_get(icon_id);
 	
-	if (icon==ICON_NULL) {
+	if (icon==NULL) {
 		if (G.f & G_DEBUG)
 			printf("UI_icon_get_width: Internal error, no icon for icon ID: %d\n", icon_id);
 		return 0;
@@ -774,7 +771,7 @@ int UI_icon_get_height(int icon_id)
 
 	icon = BKE_icon_get(icon_id);
 	
-	if (icon==ICON_NULL) {
+	if (icon==NULL) {
 		if (G.f & G_DEBUG)
 			printf("UI_icon_get_height: Internal error, no icon for icon ID: %d\n", icon_id);
 		return 0;
@@ -801,36 +798,39 @@ void UI_icons_init(int first_dyn_id)
 	init_brush_icons();
 }
 
-/* Render size for preview images at level miplevel */
-static int preview_render_size(int miplevel)
+/* Render size for preview images and icons
+ */
+static int preview_render_size(enum eIconSizes size)
 {
-	switch (miplevel) {
-		case 0: return 32;
-		case 1: return PREVIEW_DEFAULT_HEIGHT;
+	switch (size) {
+		case ICON_SIZE_ICON:	return 32;
+		case ICON_SIZE_PREVIEW: return PREVIEW_DEFAULT_HEIGHT;
 	}
 	return 0;
 }
 
-static void icon_create_mipmap(struct PreviewImage* prv_img, int miplevel) 
+/* Create rect for the icon
+ */
+static void icon_create_rect(struct PreviewImage* prv_img, enum eIconSizes size) 
 {
-	unsigned int size = preview_render_size(miplevel);
+	unsigned int render_size = preview_render_size(size);
 
 	if (!prv_img) {
 		if (G.f & G_DEBUG)
 			printf("Error: requested preview image does not exist");
 	}
-	if (!prv_img->rect[miplevel]) {
-		prv_img->w[miplevel] = size;
-		prv_img->h[miplevel] = size;
-		prv_img->changed[miplevel] = 1;
-		prv_img->changed_timestamp[miplevel] = 0;
-		prv_img->rect[miplevel] = MEM_callocN(size*size*sizeof(unsigned int), "prv_rect"); 
+	if (!prv_img->rect[size]) {
+		prv_img->w[size] = render_size;
+		prv_img->h[size] = render_size;
+		prv_img->changed[size] = 1;
+		prv_img->changed_timestamp[size] = 0;
+		prv_img->rect[size] = MEM_callocN(render_size*render_size*sizeof(unsigned int), "prv_rect"); 
 	}
 }
 
 /* only called when icon has changed */
 /* only call with valid pointer from UI_icon_draw */
-static void icon_set_image(bContext *C, ID *id, PreviewImage* prv_img, int miplevel)
+static void icon_set_image(bContext *C, ID *id, PreviewImage* prv_img, enum eIconSizes size)
 {
 	if (!prv_img) {
 		if (G.f & G_DEBUG)
@@ -838,11 +838,10 @@ static void icon_set_image(bContext *C, ID *id, PreviewImage* prv_img, int miple
 		return;
 	}	
 
-	/* create the preview rect */
-	icon_create_mipmap(prv_img, miplevel);
+	icon_create_rect(prv_img, size);
 
-	ED_preview_icon_job(C, prv_img, id, prv_img->rect[miplevel],
-		prv_img->w[miplevel], prv_img->h[miplevel]);
+	ED_preview_icon_job(C, prv_img, id, prv_img->rect[size],
+		prv_img->w[size], prv_img->h[size]);
 }
 
 static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect), int rw, int rh, unsigned int *rect, float alpha, float *rgb)
@@ -939,17 +938,17 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	glDisable(GL_TEXTURE_2D);
 }
 
-/* Drawing size for preview images at level miplevel */
-static int preview_size(int miplevel)
+/* Drawing size for preview images */
+static int get_draw_size(enum eIconSizes size)
 {
-	switch (miplevel) {
-		case 0: return ICON_DEFAULT_HEIGHT;
-		case 1: return PREVIEW_DEFAULT_HEIGHT;
+	switch (size) {
+		case ICON_SIZE_ICON: return ICON_DEFAULT_HEIGHT;
+		case ICON_SIZE_PREVIEW: return PREVIEW_DEFAULT_HEIGHT;
 	}
 	return 0;
 }
 
-static void icon_draw_size(float x, float y, int icon_id, float aspect, float alpha, float *rgb, int miplevel, int draw_size, int UNUSED(nocreate))
+static void icon_draw_size(float x, float y, int icon_id, float aspect, float alpha, float *rgb, enum eIconSizes size, int draw_size, int UNUSED(nocreate), int is_preview)
 {
 	Icon *icon = NULL;
 	DrawInfo *di = NULL;
@@ -958,7 +957,7 @@ static void icon_draw_size(float x, float y, int icon_id, float aspect, float al
 	
 	icon = BKE_icon_get(icon_id);
 	
-	if (icon==ICON_NULL) {
+	if (icon==NULL) {
 		if (G.f & G_DEBUG)
 			printf("icon_draw_mipmap: Internal error, no icon for icon ID: %d\n", icon_id);
 		return;
@@ -980,10 +979,10 @@ static void icon_draw_size(float x, float y, int icon_id, float aspect, float al
 	if(di->type == ICON_TYPE_VECTOR) {
 		/* vector icons use the uiBlock transformation, they are not drawn
 		with untransformed coordinates like the other icons */
-		di->data.vector.func(x, y, ICON_DEFAULT_HEIGHT, ICON_DEFAULT_HEIGHT, 1.0f); 
+		di->data.vector.func((int)x, (int)y, ICON_DEFAULT_HEIGHT, ICON_DEFAULT_HEIGHT, 1.0f); 
 	} 
 	else if(di->type == ICON_TYPE_TEXTURE) {
-		icon_draw_texture(x, y, w, h, di->data.texture.x, di->data.texture.y,
+		icon_draw_texture(x, y, (float)w, (float)h, di->data.texture.x, di->data.texture.y,
 			di->data.texture.w, di->data.texture.h, alpha, rgb);
 	}
 	else if(di->type == ICON_TYPE_BUFFER) {
@@ -999,11 +998,11 @@ static void icon_draw_size(float x, float y, int icon_id, float aspect, float al
 
 		if(pi) {			
 			/* no create icon on this level in code */
-			if(!pi->rect[miplevel]) return; /* something has gone wrong! */
+			if(!pi->rect[size]) return; /* something has gone wrong! */
 			
 			/* preview images use premul alpha ... */
 			glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-			icon_draw_rect(x, y, w, h, aspect, pi->w[miplevel], pi->h[miplevel], pi->rect[miplevel], 1.0f, NULL);
+			icon_draw_rect(x, y, w, h, aspect, pi->w[size], pi->h[size], pi->rect[size], 1.0f, NULL, is_preview);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		}
 	}
@@ -1035,7 +1034,7 @@ static void ui_id_brush_render(bContext *C, ID *id)
 	if(!pi)
 		return;
 	
-	for(i = 0; i < PREVIEW_MIPMAPS; i++) {
+	for(i = 0; i < NUM_ICON_SIZES; i++) {
 		/* check if rect needs to be created; changed
 		 only set by dynamic icons */
 		if((pi->changed[i] || !pi->rect[i])) {
@@ -1083,11 +1082,11 @@ static int ui_id_brush_get_icon(bContext *C, ID *id)
 			tool = br->sculpt_tool;
 		}
 		else if(mode == OB_MODE_VERTEX_PAINT) {
-			items = brush_vertexpaint_tool_items;
+			items = brush_vertex_tool_items;
 			tool = br->vertexpaint_tool;
 		}
 		else if(mode == OB_MODE_TEXTURE_PAINT) {
-			items = brush_imagepaint_tool_items;
+			items = brush_image_tool_items;
 			tool = br->imagepaint_tool;
 		}
 
@@ -1124,21 +1123,21 @@ int ui_id_icon_get(bContext *C, ID *id, int big)
 	return iconid;
 }
 
-static void icon_draw_mipmap(float x, float y, int icon_id, float aspect, float alpha, int miplevel, int nocreate)
+static void icon_draw_at_size(float x, float y, int icon_id, float aspect, float alpha, enum eIconSizes size, int nocreate)
 {
-	int draw_size = preview_size(miplevel);
-	icon_draw_size(x, y, icon_id, aspect, alpha, NULL, miplevel, draw_size, nocreate);
+	int draw_size = get_draw_size(size);
+	icon_draw_size(x, y, icon_id, aspect, alpha, NULL, size, draw_size, nocreate, FALSE);
 }
 
 void UI_icon_draw_aspect(float x, float y, int icon_id, float aspect, float alpha)
 {
-	icon_draw_mipmap(x, y, icon_id, aspect, alpha, PREVIEW_MIPMAP_ZERO, 0);
+	icon_draw_at_size(x, y, icon_id, aspect, alpha, ICON_SIZE_ICON, 0);
 }
 
 void UI_icon_draw_aspect_color(float x, float y, int icon_id, float aspect, float *rgb)
 {
-	int draw_size = preview_size(PREVIEW_MIPMAP_ZERO);
-	icon_draw_size(x, y, icon_id, aspect, 1.0f, rgb, PREVIEW_MIPMAP_ZERO, draw_size, 0);
+	int draw_size = get_draw_size(ICON_SIZE_ICON);
+	icon_draw_size(x, y, icon_id, aspect, 1.0f, rgb, ICON_SIZE_ICON, draw_size, FALSE, FALSE);
 }
 
 void UI_icon_draw(float x, float y, int icon_id)
@@ -1148,21 +1147,21 @@ void UI_icon_draw(float x, float y, int icon_id)
 
 void UI_icon_draw_size(float x, float y, int size, int icon_id, float alpha)
 {
-	icon_draw_size(x, y, icon_id, 1.0f, alpha, NULL, 0, size, 1);
+	icon_draw_size(x, y, icon_id, 1.0f, alpha, NULL, ICON_SIZE_ICON, size, TRUE, FALSE);
 }
 
 void UI_icon_draw_preview(float x, float y, int icon_id)
 {
-	icon_draw_mipmap(x, y, icon_id, 1.0f, 1.0f, PREVIEW_MIPMAP_LARGE, 0);
+	icon_draw_at_size(x, y, icon_id, 1.0f, 1.0f, ICON_SIZE_PREVIEW, 0);
 }
 
 void UI_icon_draw_preview_aspect(float x, float y, int icon_id, float aspect)
 {
-	icon_draw_mipmap(x, y, icon_id, aspect, 1.0f, PREVIEW_MIPMAP_LARGE, 0);
+	icon_draw_at_size(x, y, icon_id, aspect, 1.0f, ICON_SIZE_PREVIEW, 0);
 }
 
 void UI_icon_draw_preview_aspect_size(float x, float y, int icon_id, float aspect, int size)
 {
-	icon_draw_size(x, y, icon_id, aspect, 1.0f, NULL, PREVIEW_MIPMAP_LARGE, size, 0);
+	icon_draw_size(x, y, icon_id, aspect, 1.0f, NULL, ICON_SIZE_PREVIEW, size, FALSE, TRUE);
 }
 
