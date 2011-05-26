@@ -58,10 +58,11 @@
 #include <string.h>
 
 #include "MEM_guardedalloc.h"
-#include "BKE_utildefines.h"
+
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_memarena.h"
 
@@ -294,7 +295,7 @@ MTFace *RE_vlakren_get_tface(ObjectRen *obr, VlakRen *vlr, int n, char **name, i
 	if(verify) {
 		if(n>=node->totmtface) {
 			MTFace *mtface= node->mtface;
-			int size= size= (n+1)*256;
+			int size= (n+1)*256;
 
 			node->mtface= MEM_callocN(size*sizeof(MTFace), "Vlak mtface");
 
@@ -1398,19 +1399,21 @@ int clip_render_object(float boundbox[][3], float *bounds, float winmat[][4])
 
 		fl= 0;
 		if(bounds) {
-			if(vec[0] > bounds[1]*vec[3]) fl |= 1;
-			if(vec[0]< bounds[0]*vec[3]) fl |= 2;
+			if(vec[0] < bounds[0]*vec[3]) fl |= 1;
+			else if(vec[0] > bounds[1]*vec[3]) fl |= 2;
+			
 			if(vec[1] > bounds[3]*vec[3]) fl |= 4;
-			if(vec[1]< bounds[2]*vec[3]) fl |= 8;
+			else if(vec[1]< bounds[2]*vec[3]) fl |= 8;
 		}
 		else {
 			if(vec[0] < -vec[3]) fl |= 1;
-			if(vec[0] > vec[3]) fl |= 2;
-			if(vec[1] < -vec[3]) fl |= 4;
-			if(vec[1] > vec[3]) fl |= 8;
+			else if(vec[0] > vec[3]) fl |= 2;
+			
+			if(vec[1] > vec[3]) fl |= 4;
+			else if(vec[1] < -vec[3]) fl |= 8;
 		}
 		if(vec[2] < -vec[3]) fl |= 16;
-		if(vec[2] > vec[3]) fl |= 32;
+		else if(vec[2] > vec[3]) fl |= 32;
 
 		flag &= fl;
 		if(flag==0) return 0;

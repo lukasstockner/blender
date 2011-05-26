@@ -267,8 +267,6 @@ class RENDER_PT_network_slaves(NeedValidAddress, NetRenderButtonsPanel, bpy.type
         sub.operator("render.netclientslaves", icon='FILE_REFRESH', text="")
         sub.operator("render.netclientblacklistslave", icon='ZOOMOUT', text="")
 
-        init_data(netsettings)
-
         if netsettings.active_slave_index >= 0 and len(netsettings.slaves) > 0:
             layout.separator()
 
@@ -299,8 +297,6 @@ class RENDER_PT_network_slaves_blacklist(NeedValidAddress, NetRenderButtonsPanel
 
         sub = row.column(align=True)
         sub.operator("render.netclientwhitelistslave", icon='ZOOMOUT', text="")
-
-        init_data(netsettings)
 
         if netsettings.active_blacklisted_slave_index >= 0 and len(netsettings.slaves_blacklist) > 0:
             layout.separator()
@@ -336,8 +332,6 @@ class RENDER_PT_network_jobs(NeedValidAddress, NetRenderButtonsPanel, bpy.types.
         sub.operator("render.netclientcancelall", icon='PANEL_CLOSE', text="")
         sub.operator("render.netclientdownload", icon='RENDER_ANIMATION', text="")
 
-        init_data(netsettings)
-
         if netsettings.active_job_index >= 0 and len(netsettings.jobs) > 0:
             layout.separator()
 
@@ -347,6 +341,18 @@ class RENDER_PT_network_jobs(NeedValidAddress, NetRenderButtonsPanel, bpy.types.
             layout.label(text="Length: %04i" % len(job))
             layout.label(text="Done: %04i" % job.results[DONE])
             layout.label(text="Error: %04i" % job.results[ERROR])
+
+import properties_render
+class RENDER_PT_network_output(NeedValidAddress, NetRenderButtonsPanel, bpy.types.Panel):
+    bl_label = "Output"
+    COMPAT_ENGINES = {'NET_RENDER'}
+
+    @classmethod
+    def poll(cls, context):
+        netsettings = context.scene.network_render
+        return super().poll(context) and netsettings.mode == "RENDER_CLIENT"
+    
+    draw = properties_render.RENDER_PT_output.draw
 
 class NetRenderSettings(bpy.types.IDPropertyGroup):
     pass

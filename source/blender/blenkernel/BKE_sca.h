@@ -1,6 +1,4 @@
 /**
- * blenlib/BKE_sca.h (mar-2001 nzc)
- *	
  * $Id$ 
  *
  * ***** BEGIN GPL LICENSE BLOCK *****

@@ -6,8 +6,9 @@
 #include "BLI_rand.h"
 #include "BLI_heap.h"
 #include "BLI_boxpack2d.h"
+#include "BLI_utildefines.h"
 
-#include "BKE_utildefines.h"
+
 
 #include "ONL_opennl.h"
 
@@ -3735,7 +3736,7 @@ static void p_smooth(PChart *chart)
 	int j, it2, maxiter2, it;
 	int nedges = chart->nedges, nwheel, gridx, gridy;
 	int edgesx, edgesy, nsize, esize, i, x, y, maxiter, totiter;
-	float minv[2], maxv[2], median, invmedian, distortion, avglen2d, avglen3d;
+	float minv[2], maxv[2], median, invmedian, avglen2d, avglen3d;
 	float center[2], dx, dy, *nodes, dlimit, d, *oldnodesx, *oldnodesy;
 	float *nodesx, *nodesy, *hedges, *vedges, climit, moved, padding;
 	SmoothTriangle *triangles, *t, *t2, **tri, **trip;
@@ -3754,7 +3755,6 @@ static void p_smooth(PChart *chart)
 	invmedian = 1.0/median;
 
 	/* compute edge distortion */
-	distortion = 0.0;
 	avglen2d = avglen3d = 0.0;
 
 	for (e=chart->edges; e; e=e->nextlink) {

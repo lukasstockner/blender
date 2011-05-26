@@ -128,6 +128,7 @@ class USERPREF_MT_keyconfigs(bpy.types.Menu):
     bl_label = "KeyPresets"
     preset_subdir = "keyconfig"
     preset_operator = "wm.keyconfig_activate"
+
     def draw(self, context):
         props = self.layout.operator("wm.context_set_value", text="Blender (default)")
         props.data_path = "window_manager.keyconfigs.active"

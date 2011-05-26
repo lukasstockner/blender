@@ -90,5 +90,5 @@ if(WITH_FFTW3)
 	list(APPEND INC ${FFTW3_INC})
 endif()
 
-blenderlib(bf_intern_smoke "${SRC}" "${INC}")
+blender_add_lib(bf_intern_smoke "${SRC}" "${INC}")
 

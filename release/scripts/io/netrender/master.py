@@ -27,6 +27,7 @@ from netrender.utils import *
 import netrender.model
 import netrender.balancing
 import netrender.master_html
+import netrender.thumbnail as thumbnail
 
 class MRenderFile(netrender.model.RenderFile):
     def __init__(self, filepath, index, start, end, signature):
@@ -81,8 +82,6 @@ class MRenderJob(netrender.model.RenderJob):
         self.last_update = 0
         self.save_path = ""
         self.files = [MRenderFile(rfile.filepath, rfile.index, rfile.start, rfile.end, rfile.signature) for rfile in job_info.files]
-
-        self.resolution = None
 
     def initInfo(self):
         if not self.resolution:
@@ -201,6 +200,15 @@ class RenderHandler(http.server.BaseHTTPRequestHandler):
         # is extremely slow due to some timeout..
         sys.stderr.write("[%s] %s\n" % (self.log_date_time_string(), format%args))
 
+    def getInfoMap(self):
+        length = int(self.headers['content-length'])
+
+        if length > 0:
+            msg = str(self.rfile.read(length), encoding='utf8')
+            return json.loads(msg)
+        else:
+            return {}
+
     def send_head(self, code = http.client.OK, headers = {}, content = "application/octet-stream"):
         self.send_response(code)
         self.send_header("Content-type", content)
@@ -297,7 +305,7 @@ class RenderHandler(http.server.BaseHTTPRequestHandler):
                         elif frame.status == DONE:
                             filename = os.path.join(job.save_path, "%06d.exr" % frame_number)
 
-                            thumbname = thumbnail(filename)
+                            thumbname = thumbnail.generate(filename)
 
                             if thumbname:
                                 f = open(thumbname, 'rb')
@@ -516,8 +524,7 @@ class RenderHandler(http.server.BaseHTTPRequestHandler):
                 job = self.server.getJobID(job_id)
 
                 if job:
-                    length = int(self.headers['content-length'])
-                    info_map = eval(str(self.rfile.read(length), encoding='utf8'))
+                    info_map = self.getInfoMap()
 
                     job.edit(info_map)
                     self.send_head()
@@ -529,8 +536,7 @@ class RenderHandler(http.server.BaseHTTPRequestHandler):
                 self.send_head(http.client.NO_CONTENT)
         # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
         elif self.path == "/balance_limit":
-            length = int(self.headers['content-length'])
-            info_map = eval(str(self.rfile.read(length), encoding='utf8'))
+            info_map = self.getInfoMap()
             for rule_id, limit in info_map.items():
                 try:
                     rule = self.server.balancer.ruleByID(rule_id)
@@ -542,8 +548,7 @@ class RenderHandler(http.server.BaseHTTPRequestHandler):
             self.send_head()
         # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
         elif self.path == "/balance_enable":
-            length = int(self.headers['content-length'])
-            info_map = eval(str(self.rfile.read(length), encoding='utf8'))
+            info_map = self.getInfoMap()
             for rule_id, enabled in info_map.items():
                 rule = self.server.balancer.ruleByID(rule_id)
                 if rule:
@@ -555,13 +560,8 @@ class RenderHandler(http.server.BaseHTTPRequestHandler):
             match = cancel_pattern.match(self.path)
 
             if match:
-                length = int(self.headers['content-length'])
-
-                if length > 0:
-                    info_map = eval(str(self.rfile.read(length), encoding='utf8'))
+                info_map = self.getInfoMap()
                     clear = info_map.get("clear", False)
-                else:
-                    clear = False
 
                 job_id = match.groups()[0]
 
@@ -582,13 +582,8 @@ class RenderHandler(http.server.BaseHTTPRequestHandler):
             match = pause_pattern.match(self.path)
 
             if match:
-                length = int(self.headers['content-length'])
-
-                if length > 0:
-                    info_map = eval(str(self.rfile.read(length), encoding='utf8'))
+                info_map = self.getInfoMap()
                     status = info_map.get("status", None)
-                else:
-                    status = None
 
                 job_id = match.groups()[0]
 
@@ -607,13 +602,8 @@ class RenderHandler(http.server.BaseHTTPRequestHandler):
         # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
         elif self.path == "/clear":
             # cancel all jobs
-            length = int(self.headers['content-length'])
-
-            if length > 0:
-                info_map = eval(str(self.rfile.read(length), encoding='utf8'))
+            info_map = self.getInfoMap()
                 clear = info_map.get("clear", False)
-            else:
-                clear = False
 
             self.server.stats("", "Clearing jobs")
             self.server.clear(clear)

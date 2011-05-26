@@ -56,32 +56,39 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
                 layout.label(text="Cache is disabled until the file is saved")
                 layout.enabled = False
 
+        if cache.use_disk_cache:
         layout.prop(cache, "name", text="File Name")
+        else:
+            layout.prop(cache, "name", text="Cache Name")
 
-        split = layout.split()
-        col = split.column(align=True)
+        row = layout.row(align=True)
 
         if cachetype != 'PSYS':
-            col.enabled = enabled
-            col.prop(cache, "frame_start")
-            col.prop(cache, "frame_end")
+            row.enabled = enabled
+            row.prop(cache, "frame_start")
+            row.prop(cache, "frame_end")
         if cachetype not in ('SMOKE', 'CLOTH'):
-            col.prop(cache, "frame_step")
-
-            col = split.column()
+            row.prop(cache, "frame_step")
+            row.prop(cache, "use_quick_cache")
+        if cachetype != 'SMOKE':
+            layout.label(text=cache.info)
 
         if cachetype != 'SMOKE':
-            sub = col.column()
-            sub.enabled = enabled
-            sub.prop(cache, "use_quick_cache")
+            split = layout.split()
+            split.enabled = enabled and (not bpy.data.is_dirty)
 
-            sub = col.column()
-            sub.enabled = (not bpy.data.is_dirty)
-            sub.prop(cache, "use_disk_cache")
-            col.label(text=cache.info)
+            col = split.column()
+            col.prop(cache, "use_disk_cache")
 
-            sub = col.column()
-            sub.prop(cache, "use_library_path", "Use Lib Path")
+            col = split.column()
+            col.active = cache.use_disk_cache
+            col.prop(cache, "use_library_path", "Use Lib Path")
+
+            row = layout.row()
+            row.enabled = enabled and (not bpy.data.is_dirty)
+            row.active = cache.use_disk_cache
+            row.label(text="Compression:")
+            row.prop(cache, "compression", expand=True)
 
         layout.separator()
 

@@ -36,6 +36,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_constraint_types.h"
 #include "DNA_controller_types.h"
@@ -51,9 +52,9 @@
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_text.h"
-#include "BKE_utildefines.h"
 
-#ifndef DISABLE_PYTHON
+
+#ifdef WITH_PYTHON
 #include "BPY_extern.h"
 #endif
 
@@ -168,7 +169,7 @@ void free_text(Text *text)
 	if(text->name) MEM_freeN(text->name);
 	MEM_freeN(text->undo_buf);
 #ifndef DISABLE_PYTHON
-	if (text->compiled) BPY_free_compiled_text(text);
+	if (text->compiled) BPY_text_free_code(text);
 #endif
 }
 
@@ -279,7 +280,6 @@ int reopen_text(Text *text)
 	text->mtime= st.st_mtime;
 	
 	text->nlines=0;
-	i=0;
 	llen=0;
 	for(i=0; i<len; i++) {
 		if (buffer[i]=='\n') {
@@ -684,7 +684,7 @@ static void txt_make_dirty (Text *text)
 {
 	text->flags |= TXT_ISDIRTY;
 #ifndef DISABLE_PYTHON
-	if (text->compiled) BPY_free_compiled_text(text);
+	if (text->compiled) BPY_text_free_code(text);
 #endif
 }
 
@@ -1232,7 +1232,7 @@ int txt_find_string(Text *text, char *findstr, int wrap)
 {
 	TextLine *tl, *startl;
 	char *s= NULL;
-	int oldcl, oldsl, oldcc, oldsc;
+	int oldcl, oldsl;
 
 	if (!text || !text->curl || !text->sell) return 0;
 	
@@ -1241,8 +1241,6 @@ int txt_find_string(Text *text, char *findstr, int wrap)
 	oldcl= txt_get_span(text->lines.first, text->curl);
 	oldsl= txt_get_span(text->lines.first, text->sell);
 	tl= startl= text->sell;
-	oldcc= text->curc;
-	oldsc= text->selc;
 	
 	s= strstr(&tl->line[text->selc], findstr);
 	while (!s) {
@@ -2219,7 +2217,6 @@ static void txt_combine_lines (Text *text, TextLine *linea, TextLine *lineb)
 		} while (mrk && mrk->lineno==lineno);
 	}
 	if (lineno==-1) lineno= txt_get_span(text->lines.first, lineb);
-	if (!mrk) mrk= text->markers.first;
 	
 	tmp= MEM_mallocN(linea->len+lineb->len+1, "textline_string");
 	
@@ -2710,9 +2707,13 @@ int setcurr_tab_spaces (Text *text, int space)
 	}
 	if(strstr(text->curl->line, word))
 	{
-		//if we find a : then add a tab but not if it is in a comment
+		/* if we find a ':' on this line, then add a tab but not if it is:
+		 * 	1) in a comment
+		 * 	2) within an identifier
+		 *	3) after the cursor (text->curc), i.e. when creating space before a function def [#25414] 
+		 */
 		int a, indent = 0;
-		for(a=0; text->curl->line[a] != '\0'; a++)
+		for(a=0; (a < text->curc) && (text->curl->line[a] != '\0'); a++)
 		{
 			if (text->curl->line[a]=='#') {
 				break;
@@ -2746,7 +2747,7 @@ int setcurr_tab_spaces (Text *text, int space)
 /*********************************/
 
 /* Creates and adds a marker to the list maintaining sorted order */
-void txt_add_marker(Text *text, TextLine *line, int start, int end, char color[4], int group, int flags) {
+void txt_add_marker(Text *text, TextLine *line, int start, int end, const unsigned char color[4], int group, int flags) {
 	TextMarker *tmp, *marker;
 
 	marker= MEM_mallocN(sizeof(TextMarker), "text_marker");

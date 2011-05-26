@@ -43,6 +43,7 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_storage_types.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_brush_types.h"
 #include "DNA_object_types.h"
@@ -747,7 +748,7 @@ int UI_icon_get_width(int icon_id)
 
 	icon = BKE_icon_get(icon_id);
 	
-	if (!icon) {
+	if (icon==ICON_NULL) {
 		if (G.f & G_DEBUG)
 			printf("UI_icon_get_width: Internal error, no icon for icon ID: %d\n", icon_id);
 		return 0;
@@ -772,7 +773,7 @@ int UI_icon_get_height(int icon_id)
 
 	icon = BKE_icon_get(icon_id);
 	
-	if (!icon) {
+	if (icon==ICON_NULL) {
 		if (G.f & G_DEBUG)
 			printf("UI_icon_get_height: Internal error, no icon for icon ID: %d\n", icon_id);
 		return 0;
@@ -845,6 +846,15 @@ static void icon_set_image(bContext *C, ID *id, PreviewImage* prv_img, int miple
 
 static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect), int rw, int rh, unsigned int *rect, float alpha, float *rgb)
 {
+	ImBuf *ima= NULL;
+
+	/* sanity check */
+	if(w<=0 || h<=0 || w>2000 || h>2000) {
+		printf("icon_draw_rect: icons are %i x %i pixels?\n", w, h);
+		BLI_assert(!"invalid icon size");
+		return;
+	}
+
 	/* modulate color */
 	if(alpha != 1.0f)
 		glPixelTransferf(GL_ALPHA_SCALE, alpha);
@@ -947,7 +957,7 @@ static void icon_draw_size(float x, float y, int icon_id, float aspect, float al
 	
 	icon = BKE_icon_get(icon_id);
 	
-	if (!icon) {
+	if (icon==ICON_NULL) {
 		if (G.f & G_DEBUG)
 			printf("icon_draw_mipmap: Internal error, no icon for icon ID: %d\n", icon_id);
 		return;

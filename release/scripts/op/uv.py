@@ -21,6 +21,7 @@
 import bpy
 from bpy.props import *
 
+
 def write_svg(fw, mesh, image_width, image_height, face_iter):
     # for making an XML compatible string
     from xml.sax.saxutils import escape
@@ -126,7 +127,6 @@ def write_png(fw, mesh_source, image_width, image_height, face_iter):
     for f in mesh_source.faces:
         tot_verts += len(f.vertices)
 
-
     faces_source = mesh_source.faces
 
     # get unique UV's incase there are many overlapping which slow down filling.
@@ -144,7 +144,6 @@ def write_png(fw, mesh_source, image_width, image_height, face_iter):
     mesh_new_vertices = []
     mesh_new_materials = []
     mesh_new_face_vertices = []
-    
     
     current_vert = 0
 
@@ -181,7 +180,6 @@ def write_png(fw, mesh_source, image_width, image_height, face_iter):
     obj_wire.material_slots[0].link = 'OBJECT'
     obj_wire.material_slots[0].material = material_wire
     
-    
     # setup the camera
     cam = bpy.data.cameras.new("uv_temp")
     cam.type = 'ORTHO'
@@ -201,7 +199,6 @@ def write_png(fw, mesh_source, image_width, image_height, face_iter):
     material_wire.type = 'WIRE'
     material_wire.use_shadeless = True
     material_wire.diffuse_color = 0, 0, 0
-
 
     # scene render settings
     scene.render.use_raytrace = False
@@ -238,7 +235,6 @@ def write_png(fw, mesh_source, image_width, image_height, face_iter):
     bpy.data.materials.remove(material_wire)
     for mat_solid in material_solids:
         bpy.data.materials.remove(mat_solid)
-
 
 
 class ExportUVLayout(bpy.types.Operator):
@@ -326,7 +322,6 @@ class ExportUVLayout(bpy.types.Operator):
         if is_editmode:
             bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
-        
         mesh = obj.data
 
         mode = self.mode

@@ -37,6 +37,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_object.h"
 #include "BKE_context.h"
@@ -198,12 +199,14 @@ static SpaceLink *view3d_new(const bContext *C)
 	v3d->grid= 1.0f;
 	v3d->gridlines= 16;
 	v3d->gridsubdiv = 10;
-	v3d->drawtype= OB_WIRE;
+	v3d->drawtype= OB_SOLID;
 	
 	v3d->gridflag |= V3D_SHOW_X;
 	v3d->gridflag |= V3D_SHOW_Y;
 	v3d->gridflag |= V3D_SHOW_FLOOR;
 	v3d->gridflag &= ~V3D_SHOW_Z;
+	
+	v3d->flag |= V3D_SELECT_OUTLINE;
 	
 	v3d->lens= 35.0f;
 	v3d->near= 0.01f;

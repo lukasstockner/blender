@@ -122,6 +122,7 @@ set(SRC
 	BLI_storage_types.h
 	BLI_string.h
 	BLI_threads.h
+	BLI_utildefines.h
 	BLI_uvproject.h
 	BLI_vfontdata.h
 	BLI_voxel.h
@@ -140,4 +141,4 @@ if(WITH_OPENMP)
 	add_definitions(-DPARALLEL=1)
 endif()
 
-blenderlib(bf_blenlib "${SRC}" "${INC}")
+blender_add_lib(bf_blenlib "${SRC}" "${INC}")

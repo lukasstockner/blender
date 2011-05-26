@@ -25,7 +25,9 @@
 #include "mathutils.h"
 
 #include "BLI_math.h"
-#include "BKE_utildefines.h"
+#include "BLI_utildefines.h"
+
+
 
 #define COLOR_SIZE 3
 
@@ -213,7 +215,7 @@ static int Color_ass_item(ColorObject * self, int i, PyObject * value)
 //sequence slice (get)
 static PyObject *Color_slice(ColorObject * self, int begin, int end)
 {
-	PyObject *list = NULL;
+	PyObject *tuple;
 	int count;
 
 	if(!BaseMath_ReadCallback(self))
@@ -224,12 +226,12 @@ static PyObject *Color_slice(ColorObject * self, int begin, int end)
 	CLAMP(end, 0, COLOR_SIZE);
 	begin = MIN2(begin,end);
 
-	list = PyList_New(end - begin);
+	tuple= PyTuple_New(end - begin);
 	for(count = begin; count < end; count++) {
-		PyList_SET_ITEM(list, count - begin, PyFloat_FromDouble(self->col[count]));
+		PyTuple_SET_ITEM(tuple, count - begin, PyFloat_FromDouble(self->col[count]));
 	}
 
-	return list;
+	return tuple;
 }
 //----------------------------object[z:y]------------------------
 //sequence slice (set)

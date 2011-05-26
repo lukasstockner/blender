@@ -34,9 +34,6 @@
 extern "C" {
 #endif
 
-#define OPENEXR_FLOATRGB	0x1
-#define OPENEXR_ZBUF		0x2
-  
 #include <stdio.h>
   
   /**

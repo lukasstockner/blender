@@ -188,7 +188,16 @@ void AUD_SequencerReader::read(int & length, sample_t* & buffer)
 					delete strip->reader;
 
 				if(strip->old_sound)
+				{
+					try
+					{
 					strip->reader = m_mixer->prepare(strip->old_sound->createReader());
+					}
+					catch(AUD_Exception)
+					{
+						strip->reader = NULL;
+					}
+				}
 				else
 					strip->reader = NULL;
 			}

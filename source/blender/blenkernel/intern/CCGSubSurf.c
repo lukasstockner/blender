@@ -1514,7 +1514,7 @@ static void ccgSubSurf__calcSubdivLevel(CCGSubSurf *ss,
 			}
 		}
 
-		if (seam && seamEdges < 2)
+		if (seamEdges < 2 || seamEdges != v->numEdges)
 			seam = 0;
 
 		if (!v->numEdges) {
@@ -1942,7 +1942,7 @@ static void ccgSubSurf__sync(CCGSubSurf *ss) {
 			}
 		}
 
-		if (seam && seamEdges < 2)
+		if (seamEdges < 2 || seamEdges != v->numEdges)
 			seam = 0;
 
 		if (!v->numEdges) {

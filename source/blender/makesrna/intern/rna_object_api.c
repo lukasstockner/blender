@@ -166,6 +166,8 @@ static Mesh *rna_Object_create_mesh(Object *ob, ReportList *reports, Scene *sce,
 	/* Copy materials to new mesh */
 	switch (ob->type) {
 	case OB_SURF:
+	case OB_FONT:
+	case OB_CURVE:
 		tmpmesh->totcol = tmpcu->totcol;		
 		
 		/* free old material list (if it exists) and adjust user counts */
@@ -259,25 +261,6 @@ static void rna_Object_free_duplilist(Object *ob, ReportList *reports)
 		free_object_duplilist(ob->duplilist);
 		ob->duplilist= NULL;
 	}
-}
-
-/* copied from old API Object.makeDisplayList (Object.c)
- * use _ suffix because this exists for internal rna */
-static void rna_Object_update(Object *ob, Scene *sce, int object, int data, int time)
-{
-	int flag= 0;
-
-	if (ob->type == OB_FONT) {
-		Curve *cu = ob->data;
-		freedisplist(&cu->disp);
-		BKE_text_to_curve(sce, ob, CU_LEFT);
-	}
-
-	if(object) flag |= OB_RECALC_OB;
-	if(data) flag |= OB_RECALC_DATA;
-	if(time) flag |= OB_RECALC_TIME;
-
-	DAG_id_tag_update(&ob->id, flag);
 }
 
 static PointerRNA rna_Object_shape_key_add(Object *ob, bContext *C, ReportList *reports, const char *name, int from_mix)
@@ -433,8 +416,8 @@ void RNA_api_object(StructRNA *srna)
 	func= RNA_def_function(srna, "shape_key_add", "rna_Object_shape_key_add");
 	RNA_def_function_ui_description(func, "Add shape key to an object.");
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT|FUNC_USE_REPORTS);
-	parm= RNA_def_string(func, "name", "Key", 0, "", "Unique name for the new keylock."); /* optional */
-	parm= RNA_def_boolean(func, "from_mix", 1, "", "Create new shape from existing mix of shapes.");
+	RNA_def_string(func, "name", "Key", 0, "", "Unique name for the new keylock."); /* optional */
+	RNA_def_boolean(func, "from_mix", 1, "", "Create new shape from existing mix of shapes.");
 	parm= RNA_def_pointer(func, "key", "ShapeKey", "", "New shape keyblock.");
 	RNA_def_property_flag(parm, PROP_RNAPTR);
 	RNA_def_function_return(func, parm);
@@ -460,16 +443,6 @@ void RNA_api_object(StructRNA *srna)
 	
 	parm= RNA_def_int(func, "index", 0, 0, 0, "", "The face index, -1 when no intersection is found.", 0, 0);
 	RNA_def_function_output(func, parm);
-
-	
-	/* DAG */
-	func= RNA_def_function(srna, "update", "rna_Object_update");
-	RNA_def_function_ui_description(func, "Tag the object to update its display data.");
-	parm= RNA_def_pointer(func, "scene", "Scene", "", "");
-	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_NEVER_NULL);
-	RNA_def_boolean(func, "object", 1, "", "Tag the object for updating");
-	RNA_def_boolean(func, "data", 1, "", "Tag the objects display data for updating");
-	RNA_def_boolean(func, "time", 1, "", "Tag the object time related data for updating");
 
 	/* View */
 	func= RNA_def_function(srna, "is_visible", "rna_Object_is_visible");

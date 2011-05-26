@@ -37,11 +37,11 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
-
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
 #include "BLI_dlrbTree.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_fcurve.h"
 #include "BKE_nla.h"
@@ -141,7 +141,7 @@ static void nla_action_draw_keyframes (AnimData *adt, bAction *act, View2D *v2d,
 	 *	- size is 3.0f which is smaller than the editable keyframes, so that there is a distinction
 	 */
 	for (ak= keys.first; ak; ak= ak->next)
-		draw_keyframe_shape(ak->cfra, y, xscale, 3.0f, 0, ak->key_type, KEYFRAME_SHAPE_FRAME);
+		draw_keyframe_shape(ak->cfra, y, xscale, 3.0f, 0, ak->key_type, KEYFRAME_SHAPE_FRAME, 1.0f);
 	
 	/* free icons */
 	BLI_dlrbTree_free(&keys);

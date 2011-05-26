@@ -37,6 +37,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
@@ -221,9 +222,21 @@ static void text_keymap(struct wmKeyConfig *keyconf)
 	
 	#ifdef __APPLE__
 	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move", LEFTARROWKEY, KM_PRESS, KM_OSKEY, 0)->ptr, "type", LINE_BEGIN);
-	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move", RIGHTARROWKEY, KM_PRESS, KM_OSKEY, 0)->ptr, "type", LINE_BEGIN);
+	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move", RIGHTARROWKEY, KM_PRESS, KM_OSKEY, 0)->ptr, "type", LINE_END);
+	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move", LEFTARROWKEY, KM_PRESS, KM_ALT, 0)->ptr, "type", PREV_WORD);
+	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move", RIGHTARROWKEY, KM_PRESS, KM_ALT, 0)->ptr, "type", NEXT_WORD);
+	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move", UPARROWKEY, KM_PRESS, KM_OSKEY, 0)->ptr, "type", FILE_TOP);
+	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move", DOWNARROWKEY, KM_PRESS, KM_OSKEY, 0)->ptr, "type", FILE_BOTTOM);
+	
 	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move_select", LEFTARROWKEY, KM_PRESS, KM_SHIFT|KM_OSKEY, 0)->ptr, "type", LINE_BEGIN);
-	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move_select", RIGHTARROWKEY, KM_PRESS, KM_SHIFT|KM_OSKEY, 0)->ptr, "type", LINE_BEGIN);
+	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move_select", RIGHTARROWKEY, KM_PRESS, KM_SHIFT|KM_OSKEY, 0)->ptr, "type", LINE_END);
+	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move_select", LEFTARROWKEY, KM_PRESS, KM_SHIFT|KM_ALT, 0)->ptr, "type", PREV_WORD);
+	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move_select", RIGHTARROWKEY, KM_PRESS, KM_SHIFT|KM_ALT, 0)->ptr, "type", NEXT_WORD);
+	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move_select", UPARROWKEY, KM_PRESS, KM_SHIFT|KM_OSKEY, 0)->ptr, "type", FILE_TOP);
+	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move_select", DOWNARROWKEY, KM_PRESS, KM_SHIFT|KM_OSKEY, 0)->ptr, "type", FILE_BOTTOM);
+	
+	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_delete", BACKSPACEKEY, KM_PRESS, KM_ALT, 0)->ptr, "type", DEL_PREV_WORD);
+	
 	WM_keymap_add_item(keymap, "TEXT_OT_save", SKEY, KM_PRESS, KM_ALT|KM_OSKEY, 0);
 	WM_keymap_add_item(keymap, "TEXT_OT_save_as", SKEY, KM_PRESS, KM_ALT|KM_SHIFT|KM_OSKEY, 0);
 	WM_keymap_add_item(keymap, "TEXT_OT_cut", XKEY, KM_PRESS, KM_OSKEY, 0);
@@ -407,7 +420,7 @@ static void text_cursor(wmWindow *win, ScrArea *sa, ARegion *ar)
 static int text_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
 {
 	if(drag->type==WM_DRAG_PATH)
-		if(ELEM(drag->icon, 0, ICON_FILE_BLANK))	/* rule might not work? */
+		if(ELEM(drag->icon, ICON_FILE_SCRIPT, ICON_FILE_BLANK))	/* rule might not work? */
 			return 1;
 	return 0;
 }

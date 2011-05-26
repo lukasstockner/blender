@@ -32,11 +32,11 @@
 #include <stdio.h>
 
 #include "DNA_ID.h"
+#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
-#include "DNA_object_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -46,12 +46,16 @@
 #include "BLI_dynstr.h" /*for WM_operator_pystring */
 #include "BLI_editVert.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_blender.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
-#include "BKE_scene.h"
 #include "BKE_mesh.h"
+#include "BKE_modifier.h"
+#include "BKE_report.h"
+#include "BKE_scene.h"
+#include "BKE_array_mallocn.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h" /* for paint cursor */
@@ -265,9 +269,12 @@ static void ringsel_finish(bContext *C, wmOperator *op)
 	int cuts= (lcd->do_cut)? RNA_int_get(op->ptr,"number_cuts"): 0;
 
 	if (lcd->eed) {
+		EditMesh *em = BKE_mesh_get_editmesh(lcd->ob->data);
+		
 		edgering_sel(lcd, cuts, 1);
+		
 		if (lcd->do_cut) {
-			EditMesh *em = BKE_mesh_get_editmesh(lcd->ob->data);
+
 			esubdivideflag(lcd->ob, em, SELECT, 0.0f, 0.0f, 0, cuts, 0, SUBDIV_SELECT_LOOPCUT);
 
 			/* force edge slide to edge select mode in in face select mode */
@@ -282,10 +289,17 @@ static void ringsel_finish(bContext *C, wmOperator *op)
 				WM_event_add_notifier(C, NC_SCENE|ND_TOOLSETTINGS, CTX_data_scene(C));
 			}
 			
-			DAG_id_tag_update(lcd->ob->data, OB_RECALC_DATA);
+			DAG_id_tag_update(lcd->ob->data, 0);
 			WM_event_add_notifier(C, NC_GEOM|ND_DATA, lcd->ob->data);
 		}
 		else {
+			
+			/* sets as active, useful for other tools */
+			if(em->selectmode & SCE_SELECT_VERTEX)
+				EM_store_selection(em, lcd->eed->v1, EDITVERT);
+			if(em->selectmode & SCE_SELECT_EDGE)
+				EM_store_selection(em, lcd->eed, EDITEDGE);
+			
 			EM_selectmode_flush(lcd->em);
 			WM_event_add_notifier(C, NC_GEOM|ND_SELECT, lcd->ob->data);
 		}
@@ -378,10 +392,14 @@ static int ringsel_invoke (bContext *C, wmOperator *op, wmEvent *evt)
 
 static int ringcut_invoke (bContext *C, wmOperator *op, wmEvent *evt)
 {
+	Object *obedit= CTX_data_edit_object(C);
 	tringselOpData *lcd;
 	EditEdge *edge;
 	int dist = 75;
 
+	if(modifiers_isDeformedByLattice(obedit) || modifiers_isDeformedByArmature(obedit))
+		BKE_report(op->reports, RPT_WARNING, "Loop cut doesn't work well on deformed edit mesh display");
+	
 	view3d_operator_needs_opengl(C);
 
 	if (!ringsel_init(C, op, 1))
@@ -399,6 +417,7 @@ static int ringcut_invoke (bContext *C, wmOperator *op, wmEvent *evt)
 		lcd->eed = edge;
 		ringsel_find_edge(lcd, C, lcd->ar, 1);
 	}
+	ED_area_headerprint(CTX_wm_area(C), "Select a ring to be cut, use mouse-wheel or page-up/down for number of cuts");
 
 	return OPERATOR_RUNNING_MODAL;
 }
@@ -419,6 +438,7 @@ static int ringcut_modal (bContext *C, wmOperator *op, wmEvent *event)
 				
 				ringsel_finish(C, op);
 				ringsel_exit(C, op);
+				ED_area_headerprint(CTX_wm_area(C), NULL);
 				
 				return OPERATOR_FINISHED;
 			}
@@ -430,6 +450,7 @@ static int ringcut_modal (bContext *C, wmOperator *op, wmEvent *event)
 			if (event->val == KM_RELEASE) {
 				/* cancel */
 				ED_region_tag_redraw(lcd->ar);
+				ED_area_headerprint(CTX_wm_area(C), NULL);
 				
 				return ringcut_cancel(C, op);
 			}

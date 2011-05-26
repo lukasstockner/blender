@@ -334,19 +334,36 @@ static void rna_FCurve_RnaPath_set(PointerRNA *ptr, const char *value)
 
 static void rna_FCurve_group_set(PointerRNA *ptr, PointerRNA value)
 {
-	AnimData *adt= BKE_animdata_from_id(ptr->id.data);
-	bAction *act= (adt) ? adt->action : NULL;
+	ID *pid = (ID *)ptr->id.data;
+	ID *vid = (ID *)value.id.data;
 	FCurve *fcu= ptr->data;
+	bAction *act = NULL;
 
-	/* same ID? */
-	if (value.data && (ptr->id.data != value.id.data)) {
-		/* id's differ, cant do this, should raise an error */
+	/* get action */
+	if (ELEM(NULL, pid, vid)) {
+		printf("ERROR: one of the ID's for the groups to assign to is invalid (ptr=%p, val=%p)\n", pid, vid);
 		return;
 	}
+	else if (value.data && (pid != vid)) {
+		/* id's differ, cant do this, should raise an error */
+		printf("ERROR: ID's differ - ptr=%p vs value=%p \n", pid, vid);
+		return;
+	}
+	
+	if (GS(pid->name)==ID_AC && GS(vid->name)==ID_AC) {
+		/* the ID given is the action already - usually when F-Curve is obtained from an action's pointer */
+		act = (bAction *)pid;
+	}
+	else {
+		/* the ID given is the owner of the F-Curve (for drivers) */
+		AnimData *adt = BKE_animdata_from_id(ptr->id.data);
+		act = (adt)? adt->action : NULL;
+	}
+	
 	/* already belongs to group? */
 	if (fcu->grp == value.data) {
 		/* nothing to do */
-		printf("ERROR: F-Curve already belongs to the group\n");
+		printf("ERROR: F-Curve already belongs to this group\n");
 		return; 
 	}
 	
@@ -358,16 +375,14 @@ static void rna_FCurve_group_set(PointerRNA *ptr, PointerRNA value)
 		printf("ERROR: cannot assign F-Curve to group, since F-Curve is not attached to any ID\n");
 		return;
 	}	
-	
-	/* try to remove F-Curve from action (including from any existing groups) 
-	 *	- if after this op it is still attached to something, then it is a driver 
-	 *	  not an animation curve as we thought, and we should exit
-	 */
-	action_groups_remove_channel(act, fcu);
-	if (fcu->next) {
-		/* F-Curve is not one that exists in the action, since the above op couldn't remove it from the list */
+	/* make sure F-Curve exists in this action first, otherwise we could still have been tricked */
+	else if (BLI_findindex(&act->curves, fcu) == -1) {
+		printf("ERROR: F-Curve (%p) doesn't exist in action '%s'\n", fcu, act->id.name);
 		return;
 	}
+	
+	/* try to remove F-Curve from action (including from any existing groups) */
+	action_groups_remove_channel(act, fcu);
 	
 	/* add the F-Curve back to the action now in the right place */
 	// TODO: make the api function handle the case where there isn't any group to assign to 
@@ -531,17 +546,9 @@ static void rna_FModifierStepped_end_frame_range(PointerRNA *ptr, float *min, fl
 	*max= MAXFRAMEF;
 }
 
-static BezTriple *rna_FKeyframe_points_add(FCurve *fcu, float frame, float value, int do_replace, int do_needed, int do_fast)
+static BezTriple *rna_FKeyframe_points_add(FCurve *fcu, float frame, float value, int flag)
 {
-	int index;
-	int flag= 0;
-
-	if(do_replace) flag |= INSERTKEY_REPLACE;
-	if(do_needed) flag |= INSERTKEY_NEEDED;
-	if(do_fast) flag |= INSERTKEY_FAST;
-
-
-	index= insert_vert_fcurve(fcu, frame, value, flag);
+	int index= insert_vert_fcurve(fcu, frame, value, flag);
 	return index >= 0 ? fcu->bezt + index : NULL;
 }
 
@@ -747,8 +754,8 @@ static void rna_def_fmodifier_cycles(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Before Mode", "Cycling mode to use before first keyframe");
 	RNA_def_property_update(prop, NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
 	
-	prop= RNA_def_property(srna, "cycles_before", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "before_cycles");
+	prop= RNA_def_property(srna, "cycles_before", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "before_cycles");
 	RNA_def_property_ui_text(prop, "Before Cycles", "Maximum number of cycles to allow before first keyframe. (0 = infinite)");
 	RNA_def_property_update(prop, NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
 	
@@ -759,8 +766,8 @@ static void rna_def_fmodifier_cycles(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "After Mode", "Cycling mode to use after last keyframe");
 	RNA_def_property_update(prop, NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
 	
-	prop= RNA_def_property(srna, "cycles_after", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "after_cycles");
+	prop= RNA_def_property(srna, "cycles_after", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "after_cycles");
 	RNA_def_property_ui_text(prop, "After Cycles", "Maximum number of cycles to allow after last keyframe. (0 = infinite)");
 	RNA_def_property_update(prop, NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
 }
@@ -1308,6 +1315,12 @@ static void rna_def_fcurve_keyframe_points(BlenderRNA *brna, PropertyRNA *cprop)
 	FunctionRNA *func;
 	PropertyRNA *parm;
 
+	static EnumPropertyItem keyframe_flag_items[] = {
+		{INSERTKEY_REPLACE, "REPLACE", 0, "Replace", "Don't add any new keyframes, but just replace existing ones"},
+		{INSERTKEY_NEEDED, "NEEDED", 0, "Needed", "Only adds keyframes that are needed"},
+		{INSERTKEY_FAST, "FAST", 0, "Fast", "Fast keyframe insertion to avoid recalculating the curve each time"},
+		{0, NULL, 0, NULL, NULL}};
+
 	RNA_def_property_srna(cprop, "FCurveKeyframePoints");
 	srna= RNA_def_struct(brna, "FCurveKeyframePoints", NULL);
 	RNA_def_struct_sdna(srna, "FCurve");
@@ -1319,10 +1332,8 @@ static void rna_def_fcurve_keyframe_points(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm= RNA_def_float(func, "value", 0.0f, -FLT_MAX, FLT_MAX, "", "Y Value of this keyframe point", -FLT_MAX, FLT_MAX);
 	RNA_def_property_flag(parm, PROP_REQUIRED);
-	/* optional */
-	parm= RNA_def_boolean(func, "replace", 0, "Replace", "Replace existing keyframes");
-	parm= RNA_def_boolean(func, "needed", 0, "Needed", "Only adds keyframes that are needed");
-	parm= RNA_def_boolean(func, "fast", 0, "Fast", "Fast keyframe insertion to avoid recalculating the curve each time");
+
+	RNA_def_enum_flag(func, "options", keyframe_flag_items, 0, "", "Keyframe options.");
 
 	parm= RNA_def_pointer(func, "keyframe", "Keyframe", "", "Newly created keyframe");
 	RNA_def_function_return(func, parm);
@@ -1334,7 +1345,7 @@ static void rna_def_fcurve_keyframe_points(BlenderRNA *brna, PropertyRNA *cprop)
 	parm= RNA_def_pointer(func, "keyframe", "Keyframe", "", "Keyframe to remove.");
 	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_NEVER_NULL);
 	/* optional */
-	parm= RNA_def_boolean(func, "fast", 0, "Fast", "Fast keyframe removal to avoid recalculating the curve each time");
+	RNA_def_boolean(func, "fast", 0, "Fast", "Fast keyframe removal to avoid recalculating the curve each time");
 }
 
 static void rna_def_fcurve(BlenderRNA *brna)

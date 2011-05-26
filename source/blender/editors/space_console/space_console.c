@@ -37,6 +37,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
@@ -45,7 +46,6 @@
 #include "ED_screen.h"
 
 #include "BIF_gl.h"
-
 
 #include "RNA_access.h"
 

@@ -27,12 +27,15 @@ import bpy as _bpy
 import os as _os
 
 
-def abspath(path):
+def abspath(path, start=None):
     """
     Returns the absolute path relative to the current blend file using the "//" prefix.
+
+    :arg start: Relative to this path, when not set the current filename is used.
+    :type start: string
     """
     if path.startswith("//"):
-        return _os.path.join(_os.path.dirname(_bpy.data.filepath), path[2:])
+        return _os.path.join(_os.path.dirname(_bpy.data.filepath if start is None else start), path[2:])
 
     return path
 
@@ -108,6 +111,13 @@ def display_name(name):
         return name_base.lower().title()
     else:
         return name_base
+
+
+def display_name_from_filepath(name):
+    """
+    Returns the path stripped of directort and extension, ensured to be utf8 compatible.
+    """
+    return _os.path.splitext(_os.path.basename(name))[0].encode("utf8", "replace").decode("utf8")
 
 
 def resolve_ncase(path):

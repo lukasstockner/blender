@@ -48,4 +48,4 @@ set(SRC
 	PHY_Pro.h
 )
 
-blenderlib(ge_phys_common "${SRC}" "${INC}")
+blender_add_lib(ge_phys_common "${SRC}" "${INC}")

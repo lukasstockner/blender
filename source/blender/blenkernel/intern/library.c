@@ -67,11 +67,11 @@
 #include "DNA_world_types.h"
 #include "DNA_gpencil_types.h"
 
-
 #include "BLI_blenlib.h"
 #include "BLI_dynstr.h"
+#include "BLI_utildefines.h"
 
-#include "BKE_utildefines.h"
+
 #include "BKE_animsys.h"
 #include "BKE_context.h"
 #include "BKE_library.h"
@@ -138,8 +138,14 @@ void id_us_plus(ID *id)
 
 void id_us_min(ID *id)
 {
-	if(id)
+	if(id) {
+		if(id->us<2 && (id->flag & LIB_FAKEUSER))
+		   id->us= 1;
+		else if(id->us<=0)
+			printf("ID user decrement error: %s \n", id->name);
+		else
 		id->us--;
+}
 }
 
 int id_make_local(ID *id, int test)
@@ -444,7 +450,7 @@ void recalc_all_library_objects(Main *main)
 	/* flag for full recalc */
 	for(ob=main->object.first; ob; ob=ob->id.next)
 		if(ob->id.lib)
-			ob->recalc |= OB_RECALC_ALL;
+			ob->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;
 }
 
 /* note: MAX_LIBARRAY define should match this code */
@@ -1279,20 +1285,38 @@ static void lib_indirect_test_id(ID *id, Library *lib)
 	}
 }
 
-void tag_main(struct Main *mainvar, int tag)
+void tag_main_lb(ListBase *lb, const short tag)
+{
+	ID *id;
+	if(tag) {
+		for(id= lb->first; id; id= id->next) {
+			id->flag |= LIB_DOIT;
+		}
+	}
+	else {
+		for(id= lb->first; id; id= id->next) {
+			id->flag &= ~LIB_DOIT;
+		}
+	}
+}
+
+void tag_main_idcode(struct Main *mainvar, const short type, const short tag)
+{
+	ListBase *lb= which_libbase(mainvar, type);
+
+	tag_main_lb(lb, tag);
+}
+
+void tag_main(struct Main *mainvar, const short tag)
 {
 	ListBase *lbarray[MAX_LIBARRAY];
-	ID *id;
 	int a;
 
 	a= set_listbasepointers(mainvar, lbarray);
 	while(a--) {
-		for(id= lbarray[a]->first; id; id= id->next) {
-			if(tag)	id->flag |= LIB_DOIT;
-			else	id->flag &= ~LIB_DOIT;
+		tag_main_lb(lbarray[a], tag);
 		}
 	}
-}
 
 /* if lib!=NULL, only all from lib local */
 void all_local(Library *lib, int untagged_only)

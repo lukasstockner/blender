@@ -38,10 +38,11 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h" /* windows needs for M_PI */
+#include "BLI_utildefines.h"
 
 #include "BKE_fcurve.h"
 #include "BKE_idprop.h"
-#include "BKE_utildefines.h"
+
 
 #define SMALL -1.0e-10
 #define SELECT 1
@@ -1008,6 +1009,10 @@ FModifier *add_fmodifier (ListBase *modifiers, int type)
 	fcm->type = type;
 	fcm->flag = FMODIFIER_FLAG_EXPANDED;
 	BLI_addtail(modifiers, fcm);
+	
+	/* tag modifier as "active" if no other modifiers exist in the stack yet */
+	if (modifiers->first == modifiers->last)
+		fcm->flag |= FMODIFIER_FLAG_ACTIVE;
 	
 	/* add modifier's data */
 	fcm->data= MEM_callocN(fmi->size, fmi->structName);

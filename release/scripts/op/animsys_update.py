@@ -691,13 +691,13 @@ class UpdateAnimData(bpy.types.Operator):
 
     def execute(self, context):
         import animsys_refactor
-        reload(animsys_refactor)
         animsys_refactor.update_data_paths(data_path_update)
         return {'FINISHED'}
 
 
 if __name__ == "__main__":
     bpy.ops.anim.update_data_paths()
+
 
 def register():
     pass

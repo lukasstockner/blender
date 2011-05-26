@@ -32,12 +32,13 @@
 #include "BLI_blenlib.h"
 #include "BLI_rand.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "imbuf.h"
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 #include "IMB_allocimbuf.h"
-#include "BKE_utildefines.h"
+
 #include "BKE_colortools.h"
 
 #include "MEM_guardedalloc.h"
@@ -221,13 +222,9 @@ static void imb_float_from_rect_linear(struct ImBuf *ibuf, float *fbuf)
 void IMB_float_from_rect(struct ImBuf *ibuf)
 		{
 	/* quick method to convert byte to floatbuf */
-	float *tof = ibuf->rect_float;
-
-	unsigned char *to = (unsigned char *) ibuf->rect;
-	if(to==NULL) return;
-	if(tof==NULL) {
+	if(ibuf->rect==NULL) return;
+	if(ibuf->rect_float==NULL) {
 		if (imb_addrectfloatImBuf(ibuf) == 0) return;
-		tof = ibuf->rect_float;
 		}
 	
 	/* Float bufs should be stored linear */
@@ -271,9 +268,9 @@ void IMB_convert_profile(struct ImBuf *ibuf, int profile)
 			}
 			if(ibuf->rect) {
 				for (i = ibuf->x * ibuf->y; i > 0; i--, rct+=4) {
-					rctf[0]= (unsigned char)((srgb_to_linearrgb((float)rctf[0]/255.0f) * 255.0f) + 0.5f);
-					rctf[1]= (unsigned char)((srgb_to_linearrgb((float)rctf[1]/255.0f) * 255.0f) + 0.5f);
-					rctf[2]= (unsigned char)((srgb_to_linearrgb((float)rctf[2]/255.0f) * 255.0f) + 0.5f);
+					rct[0]= (unsigned char)((srgb_to_linearrgb((float)rct[0]/255.0f) * 255.0f) + 0.5f);
+					rct[1]= (unsigned char)((srgb_to_linearrgb((float)rct[1]/255.0f) * 255.0f) + 0.5f);
+					rct[2]= (unsigned char)((srgb_to_linearrgb((float)rct[2]/255.0f) * 255.0f) + 0.5f);
 				}
 			}
 			ok= TRUE;
@@ -290,9 +287,9 @@ void IMB_convert_profile(struct ImBuf *ibuf, int profile)
 			}
 			if(ibuf->rect) {
 				for (i = ibuf->x * ibuf->y; i > 0; i--, rct+=4) {
-					rctf[0]= (unsigned char)((linearrgb_to_srgb((float)rctf[0]/255.0f) * 255.0f) + 0.5f);
-					rctf[1]= (unsigned char)((linearrgb_to_srgb((float)rctf[1]/255.0f) * 255.0f) + 0.5f);
-					rctf[2]= (unsigned char)((linearrgb_to_srgb((float)rctf[2]/255.0f) * 255.0f) + 0.5f);
+					rct[0]= (unsigned char)((linearrgb_to_srgb((float)rct[0]/255.0f) * 255.0f) + 0.5f);
+					rct[1]= (unsigned char)((linearrgb_to_srgb((float)rct[1]/255.0f) * 255.0f) + 0.5f);
+					rct[2]= (unsigned char)((linearrgb_to_srgb((float)rct[2]/255.0f) * 255.0f) + 0.5f);
 				}
 			}
 			ok= TRUE;

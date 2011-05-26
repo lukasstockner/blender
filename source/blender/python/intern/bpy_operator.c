@@ -32,6 +32,8 @@
 #include "bpy_rna.h" /* for setting arg props only - pyrna_py_to_prop() */
 #include "bpy_util.h"
 
+#include "BLI_utildefines.h"
+
 #include "RNA_enum_types.h"
 
 #include "WM_api.h"
@@ -158,7 +160,7 @@ static PyObject *pyop_call(PyObject *UNUSED(self), PyObject *args)
 
 			operator_ret= WM_operator_call_py(C, ot, context, &ptr, reports);
 
-			if(BPy_reports_to_error(reports))
+			if(BPy_reports_to_error(reports, FALSE))
 				error_val = -1;
 
 			/* operator output is nice to have in the terminal/console too */

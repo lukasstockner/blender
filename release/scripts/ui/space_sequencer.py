@@ -134,6 +134,7 @@ class SEQUENCER_MT_view(bpy.types.Menu):
         if (st.view_type == 'PREVIEW') or (st.view_type == 'SEQUENCER_PREVIEW'):
             layout.operator_context = 'INVOKE_REGION_PREVIEW'
             layout.operator("sequencer.view_all_preview", text='Fit preview in window')
+            layout.operator("sequencer.view_zoom_ratio", text='Show preview 1:1').ratio = 1.0
             layout.operator_context = 'INVOKE_DEFAULT'
 
             # # XXX, invokes in the header view
@@ -181,13 +182,17 @@ class SEQUENCER_MT_marker(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
 
+        #layout.operator_context = 'EXEC_REGION_WIN'
+
         layout.column()
-        layout.operator("marker.add", text="Add Marker")
+        layout.operator("marker.add", "Add Marker")
         layout.operator("marker.duplicate", text="Duplicate Marker")
-        layout.operator("marker.move", text="Grab/Move Marker")
         layout.operator("marker.delete", text="Delete Marker")
+
         layout.separator()
-        layout.label(text="ToDo: Name Marker")
+
+        layout.operator("marker.rename", text="Rename Marker")
+        layout.operator("marker.move", text="Grab/Move Marker")
 
         #layout.operator("sequencer.sound_strip_add", text="Transform Markers") # toggle, will be rna - (sseq->flag & SEQ_MARKER_TRANS)
 
@@ -599,7 +604,12 @@ class SEQUENCER_PT_input(SequencerButtonsPanel, bpy.types.Panel):
             col.prop(strip.crop, "max_x")
 
         col = layout.column(align=True)
-        col.label(text="Trim Duration:")
+        col.label(text="Trim Duration (hard):")
+        col.prop(strip, "animation_offset_start", text="Start")
+        col.prop(strip, "animation_offset_end", text="End")
+
+        col = layout.column(align=True)
+        col.label(text="Trim Duration (soft):")
         col.prop(strip, "frame_offset_start", text="Start")
         col.prop(strip, "frame_offset_end", text="End")
 
@@ -669,6 +679,8 @@ class SEQUENCER_PT_scene(SequencerButtonsPanel, bpy.types.Panel):
         layout.label(text="Camera Override")
         layout.template_ID(strip, "scene_camera")
 
+        sce = strip.scene
+        layout.label(text="Original frame range: %d-%d (%d)" % (sce.frame_start, sce.frame_end, sce.frame_end - sce.frame_start + 1))
 
 class SEQUENCER_PT_filter(SequencerButtonsPanel, bpy.types.Panel):
     bl_label = "Filter"

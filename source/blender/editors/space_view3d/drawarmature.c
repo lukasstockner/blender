@@ -43,6 +43,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_dlrbTree.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_animsys.h"
 #include "BKE_action.h"
@@ -50,7 +51,7 @@
 #include "BKE_global.h"
 #include "BKE_modifier.h"
 #include "BKE_nla.h"
-#include "BKE_utildefines.h"
+
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -629,7 +630,7 @@ static float co[16] ={
 /* smat, imat = mat & imat to draw screenaligned */
 static void draw_sphere_bone_dist(float smat[][4], float imat[][4], bPoseChannel *pchan, EditBone *ebone)
 {
-	float head, tail, length, dist;
+	float head, tail, dist /*, length*/;
 	float *headvec, *tailvec, dirvec[3];
 	
 	/* figure out the sizes of spheres */
@@ -637,7 +638,7 @@ static void draw_sphere_bone_dist(float smat[][4], float imat[][4], bPoseChannel
 		/* this routine doesn't call get_matrix_editbone() that calculates it */
 		ebone->length = len_v3v3(ebone->head, ebone->tail);
 		
-		length= ebone->length;
+		/*length= ebone->length;*/ /*UNUSED*/
 		tail= ebone->rad_tail;
 		dist= ebone->dist;
 		if (ebone->parent && (ebone->flag & BONE_CONNECTED))
@@ -648,7 +649,7 @@ static void draw_sphere_bone_dist(float smat[][4], float imat[][4], bPoseChannel
 		tailvec= ebone->tail;
 	}
 	else {
-		length= pchan->bone->length;
+		/*length= pchan->bone->length;*/ /*UNUSED*/
 		tail= pchan->bone->rad_tail;
 		dist= pchan->bone->dist;
 		if (pchan->parent && (pchan->bone->flag & BONE_CONNECTED))
@@ -759,7 +760,7 @@ static void draw_sphere_bone_dist(float smat[][4], float imat[][4], bPoseChannel
 /* smat, imat = mat & imat to draw screenaligned */
 static void draw_sphere_bone_wire(float smat[][4], float imat[][4], int armflag, int boneflag, int constflag, unsigned int id, bPoseChannel *pchan, EditBone *ebone)
 {
-	float head, tail, length;
+	float head, tail /*, length*/;
 	float *headvec, *tailvec, dirvec[3];
 	
 	/* figure out the sizes of spheres */
@@ -767,7 +768,7 @@ static void draw_sphere_bone_wire(float smat[][4], float imat[][4], int armflag,
 		/* this routine doesn't call get_matrix_editbone() that calculates it */
 		ebone->length = len_v3v3(ebone->head, ebone->tail);
 		
-		length= ebone->length;
+		/*length= ebone->length;*/ /*UNUSED*/
 		tail= ebone->rad_tail;
 		if (ebone->parent && (boneflag & BONE_CONNECTED))
 			head= ebone->parent->rad_tail;
@@ -777,7 +778,7 @@ static void draw_sphere_bone_wire(float smat[][4], float imat[][4], int armflag,
 		tailvec= ebone->tail;
 	}
 	else {
-		length= pchan->bone->length;
+		/*length= pchan->bone->length;*/ /*UNUSED*/
 		tail= pchan->bone->rad_tail;
 		if ((pchan->parent) && (boneflag & BONE_CONNECTED))
 			head= pchan->parent->bone->rad_tail;
@@ -1887,6 +1888,12 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base, 
 		if ((G.f & G_PICKSEL) == 0) {
 			float vec[3];
 			
+			unsigned char col[4];
+			float col_f[3];
+			glGetFloatv(GL_CURRENT_COLOR, col_f); /* incase this is not set below */
+			rgb_float_to_byte(col_f, col);
+			col[3]= 255;
+			
 			if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
 			
 			for (pchan=ob->pose->chanbase.first; pchan; pchan=pchan->next) {
@@ -1894,17 +1901,16 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base, 
 					if (pchan->bone->layer & arm->layer) {
 						if (arm->flag & (ARM_EDITMODE|ARM_POSEMODE)) {
 							bone= pchan->bone;
-							
-							if (bone->flag & BONE_SELECTED) UI_ThemeColor(TH_TEXT_HI);
-							else UI_ThemeColor(TH_TEXT);
+							UI_GetThemeColor3ubv((bone->flag & BONE_SELECTED) ? TH_TEXT_HI : TH_TEXT, col);
 						}
-						else if (dt > OB_WIRE)
-							UI_ThemeColor(TH_TEXT);
+						else if (dt > OB_WIRE) {
+							UI_GetThemeColor3ubv(TH_TEXT, col);
+						}
 						
 						/* 	Draw names of bone 	*/
 						if (arm->flag & ARM_DRAWNAMES) {
 							mid_v3_v3v3(vec, pchan->pose_head, pchan->pose_tail);
-							view3d_cached_text_draw_add(vec[0], vec[1], vec[2], pchan->name, 10, 0);
+							view3d_cached_text_draw_add(vec, pchan->name, 10, 0, col);
 						}	
 						
 						/*	Draw additional axes on the bone tail  */
@@ -1914,6 +1920,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base, 
 							bone_matrix_translate_y(bmat, pchan->bone->length);
 							glMultMatrixf(bmat);
 							
+							glColor3ubv(col);
 							drawaxes(pchan->bone->length*0.25f, OB_ARROWS);
 
 							glPopMatrix();
@@ -2088,6 +2095,8 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, int dt)
 		// patch for several 3d cards (IBM mostly) that crash on glSelect with text drawing
 		if ((G.f & G_PICKSEL) == 0) {
 			float vec[3];
+			unsigned char col[4];
+			col[3]= 255;
 			
 			if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
 			
@@ -2095,14 +2104,13 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, int dt)
 				if(eBone->layer & arm->layer) {
 					if ((eBone->flag & BONE_HIDDEN_A)==0) {
 						
-						if (eBone->flag & BONE_SELECTED) UI_ThemeColor(TH_TEXT_HI);
-						else UI_ThemeColor(TH_TEXT);
+						UI_GetThemeColor3ubv((eBone->flag & BONE_SELECTED) ? TH_TEXT_HI : TH_TEXT, col);
 						
 						/*	Draw name */
 						if (arm->flag & ARM_DRAWNAMES) {
 							mid_v3_v3v3(vec, eBone->head, eBone->tail);
 							glRasterPos3fv(vec);
-							view3d_cached_text_draw_add(vec[0], vec[1], vec[2], eBone->name, 10, 0);
+							view3d_cached_text_draw_add(vec, eBone->name, 10, 0, col);
 						}					
 						/*	Draw additional axes */
 						if (arm->flag & ARM_DRAWAXES) {
@@ -2111,6 +2119,7 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, int dt)
 							bone_matrix_translate_y(bmat, eBone->length);
 							glMultMatrixf(bmat);
 							
+							glColor3ubv(col);
 							drawaxes(eBone->length*0.25f, OB_ARROWS);
 							
 							glPopMatrix();

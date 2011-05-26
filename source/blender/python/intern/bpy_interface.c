@@ -31,6 +31,8 @@
 #endif
 
 
+#include "MEM_guardedalloc.h"
+
 #include "bpy.h"
 #include "bpy_rna.h"
 #include "bpy_util.h"
@@ -38,12 +40,12 @@
 #include "DNA_space_types.h"
 #include "DNA_text_types.h"
 
-#include "MEM_guardedalloc.h"
 #include "BLI_path_util.h"
 #include "BLI_math_base.h"
 #include "BLI_string.h"
+#include "BLI_utildefines.h"
 
-#include "BKE_utildefines.h"
+
 #include "BKE_context.h"
 #include "BKE_text.h"
 #include "BKE_font.h" /* only for utf8towchar */
@@ -89,7 +91,7 @@ void bpy_context_set(bContext *C, PyGILState_STATE *gilstate)
 			fprintf(stderr, "ERROR: Python context called with a NULL Context. this should not happen!\n");
 		}
 
-		BPY_update_modules(C); /* can give really bad results if this isnt here */
+		BPY_modules_update(C); /* can give really bad results if this isnt here */
 
 #ifdef TIME_PY_RUN
 		if(bpy_timer_count==0) {
@@ -129,7 +131,7 @@ void bpy_context_clear(bContext *UNUSED(C), PyGILState_STATE *gilstate)
 	}
 }
 
-void BPY_free_compiled_text( struct Text *text )
+void BPY_text_free_code(Text *text)
 {
 	if( text->compiled ) {
 		Py_DECREF( ( PyObject * ) text->compiled );
@@ -137,7 +139,7 @@ void BPY_free_compiled_text( struct Text *text )
 	}
 }
 
-void BPY_update_modules(bContext *C)
+void BPY_modules_update(bContext *C)
 {
 #if 0 // slow, this runs all the time poll, draw etc 100's of time a sec.
 	PyObject *mod= PyImport_ImportModuleLevel("bpy", NULL, NULL, NULL, 0);
@@ -151,7 +153,7 @@ void BPY_update_modules(bContext *C)
 }
 
 /* must be called before Py_Initialize */
-void BPY_start_python_path(void)
+void BPY_python_start_path(void)
 {
 	char *py_path_bundle= BLI_get_folder(BLENDER_PYTHON, NULL);
 
@@ -192,7 +194,7 @@ void BPY_start_python_path(void)
 
 
 
-void BPY_set_context(bContext *C)
+void BPY_context_set(bContext *C)
 {
 	BPy_SetContext(C);
 }
@@ -215,8 +217,8 @@ static struct _inittab bpy_internal_modules[]= {
 	{NULL, NULL}
 };
 
-/* call BPY_set_context first */
-void BPY_start_python( int argc, char **argv )
+/* call BPY_context_set first */
+void BPY_python_start( int argc, char **argv )
 {
 	PyThreadState *py_tstate = NULL;
 	
@@ -225,7 +227,7 @@ void BPY_start_python( int argc, char **argv )
 	utf8towchar(bprogname_wchar, bprogname);
 	Py_SetProgramName(bprogname_wchar);
 
-	BPY_start_python_path(); /* allow to use our own included python */
+	BPY_python_start_path(); /* allow to use our own included python */
 
 	Py_Initialize(  );
 	
@@ -250,11 +252,24 @@ void BPY_start_python( int argc, char **argv )
 
 	{ /* our own import and reload functions */
 		PyObject *item;
+		PyObject *mod;
 		//PyObject *m = PyImport_AddModule("__builtin__");
 		//PyObject *d = PyModule_GetDict(m);
 		PyObject *d = PyEval_GetBuiltins(  );
-		PyDict_SetItemString(d, "reload",		item=PyCFunction_New(&bpy_reload_meth, NULL));	Py_DECREF(item);
+//		PyDict_SetItemString(d, "reload",		item=PyCFunction_New(&bpy_reload_meth, NULL));	Py_DECREF(item);
 		PyDict_SetItemString(d, "__import__",	item=PyCFunction_New(&bpy_import_meth, NULL));	Py_DECREF(item);
+
+		/* move reload here
+		 * XXX, use import hooks */
+		mod= PyImport_ImportModuleLevel((char *)"imp", NULL, NULL, NULL, 0);
+		if(mod) {
+			PyDict_SetItemString(PyModule_GetDict(mod), "reload",		item=PyCFunction_New(&bpy_reload_meth, NULL));	Py_DECREF(item);
+			Py_DECREF(mod);
+	}
+		else {
+			BLI_assert(!"unable to load 'imp' module.");
+		}
+	
 	}
 	
 	pyrna_alloc_types();
@@ -263,7 +278,7 @@ void BPY_start_python( int argc, char **argv )
 	PyEval_ReleaseThread(py_tstate);
 }
 
-void BPY_end_python( void )
+void BPY_python_end(void)
 {
 	// fprintf(stderr, "Ending Python!\n");
 
@@ -297,12 +312,13 @@ void BPY_end_python( void )
 
 }
 
-/* Can run a file or text block */
-int BPY_run_python_script( bContext *C, const char *fn, struct Text *text, struct ReportList *reports)
+static int python_script_exec(bContext *C, const char *fn, struct Text *text, struct ReportList *reports)
 {
 	PyObject *py_dict= NULL, *py_result= NULL;
 	PyGILState_STATE gilstate;
 	
+	BLI_assert(fn || text);
+
 	if (fn==NULL && text==NULL) {
 		return 0;
 	}
@@ -322,7 +338,7 @@ int BPY_run_python_script( bContext *C, const char *fn, struct Text *text, struc
 			MEM_freeN( buf );
 
 			if( PyErr_Occurred(  ) ) {
-				BPY_free_compiled_text( text );
+				BPY_text_free_code(text);
 			}
 		}
 
@@ -393,89 +409,19 @@ int BPY_run_python_script( bContext *C, const char *fn, struct Text *text, struc
 	
 	bpy_context_clear(C, &gilstate);
 
-	return py_result ? 1:0;
+	return (py_result != NULL);
 }
 
-
-/* TODO - move into bpy_space.c ? */
-/* GUI interface routines */
-
-/* Copied from Draw.c */
-static void exit_pydraw( SpaceScript * sc, short err )
+/* Can run a file or text block */
+int BPY_filepath_exec(bContext *C, const char *filepath, struct ReportList *reports)
 {
-	Script *script = NULL;
-
-	if( !sc || !sc->script )
-		return;
-
-	script = sc->script;
-
-	if( err ) {
-		BPy_errors_to_report(NULL); // TODO, reports
-		script->flags = 0;	/* mark script struct for deletion */
-		SCRIPT_SET_NULL(script);
-		script->scriptname[0] = '\0';
-		script->scriptarg[0] = '\0';
-// XXX 2.5		error_pyscript();
-// XXX 2.5		scrarea_queue_redraw( sc->area );
+	return python_script_exec(C, filepath, NULL, reports);
 	}
 
-#if 0 // XXX 2.5
-	BPy_Set_DrawButtonsList(sc->but_refs);
-	BPy_Free_DrawButtonsList(); /*clear all temp button references*/
-#endif
 
-	sc->but_refs = NULL;
-	
-	Py_XDECREF( ( PyObject * ) script->py_draw );
-	Py_XDECREF( ( PyObject * ) script->py_event );
-	Py_XDECREF( ( PyObject * ) script->py_button );
-
-	script->py_draw = script->py_event = script->py_button = NULL;
-}
-
-static int bpy_run_script_init(bContext *C, SpaceScript * sc)
+int BPY_text_exec(bContext *C, struct Text *text, struct ReportList *reports)
 {
-	if (sc->script==NULL) 
-		return 0;
-	
-	if (sc->script->py_draw==NULL && sc->script->scriptname[0] != '\0')
-		BPY_run_python_script(C, sc->script->scriptname, NULL, NULL);
-		
-	if (sc->script->py_draw==NULL)
-		return 0;
-	
-	return 1;
-}
-
-int BPY_run_script_space_draw(const struct bContext *C, SpaceScript * sc)
-{
-	if (bpy_run_script_init( (bContext *)C, sc)) {
-		PyGILState_STATE gilstate = PyGILState_Ensure();
-		PyObject *result = PyObject_CallObject( sc->script->py_draw, NULL );
-		
-		if (result==NULL)
-			exit_pydraw(sc, 1);
-			
-		PyGILState_Release(gilstate);
-	}
-	return 1;
-}
-
-// XXX - not used yet, listeners dont get a context
-int BPY_run_script_space_listener(bContext *C, SpaceScript * sc)
-{
-	if (bpy_run_script_init(C, sc)) {
-		PyGILState_STATE gilstate = PyGILState_Ensure();
-		
-		PyObject *result = PyObject_CallObject( sc->script->py_draw, NULL );
-		
-		if (result==NULL)
-			exit_pydraw(sc, 1);
-			
-		PyGILState_Release(gilstate);
-	}
-	return 1;
+	return python_script_exec(C, NULL, text, reports);
 }
 
 void BPY_DECREF(void *pyob_ptr)
@@ -485,57 +431,7 @@ void BPY_DECREF(void *pyob_ptr)
 	PyGILState_Release(gilstate);
 }
 
-#if 0
-/* called from the the scripts window, assume context is ok */
-int BPY_run_python_script_space(const char *modulename, const char *func)
-{
-	PyObject *py_dict, *py_result= NULL;
-	char pystring[512];
-	PyGILState_STATE gilstate;
-	
-	/* for calling the module function */
-	PyObject *py_func, 
-	
-	gilstate = PyGILState_Ensure();
-	
-	py_dict = PyC_DefaultNameSpace("<dummy>");
-	
-	PyObject *module = PyImport_ImportModule(scpt->script.filename);
-	if (module==NULL) {
-		PyErr_SetFormat(PyExc_SystemError, "could not import '%s'", scpt->script.filename);
-	}
-	else {
-		py_func = PyObject_GetAttrString(modulename, func);
-		if (py_func==NULL) {
-			PyErr_SetFormat(PyExc_SystemError, "module has no function '%s.%s'\n", scpt->script.filename, func);
-		}
-		else {
-			Py_DECREF(py_func);
-			if (!PyCallable_Check(py_func)) {
-				PyErr_SetFormat(PyExc_SystemError, "module item is not callable '%s.%s'\n", scpt->script.filename, func);
-			}
-			else {
-				py_result= PyObject_CallObject(py_func, NULL); // XXX will need args eventually
-			}
-		}
-	}
-	
-	if (!py_result) {
-		BPy_errors_to_report(NULL); // TODO - reports
-	} else
-		Py_DECREF( py_result );
-	
-	Py_XDECREF(module);
-	
-	PyDict_SetItemString(PyThreadState_GET()->interp->modules, "__main__", Py_None);
-	
-	PyGILState_Release(gilstate);
-	return 1;
-}
-#endif
-
-
-int BPY_eval_button(bContext *C, const char *expr, double *value)
+int BPY_button_exec(bContext *C, const char *expr, double *value)
 {
 	PyGILState_STATE gilstate;
 	PyObject *py_dict, *mod, *retval;
@@ -607,7 +503,7 @@ int BPY_eval_button(bContext *C, const char *expr, double *value)
 	return error_ret;
 }
 
-int BPY_eval_string(bContext *C, const char *expr)
+int BPY_string_exec(bContext *C, const char *expr)
 {
 	PyGILState_STATE gilstate;
 	PyObject *py_dict, *retval;
@@ -642,7 +538,7 @@ int BPY_eval_string(bContext *C, const char *expr)
 }
 
 
-void BPY_load_user_modules(bContext *C)
+void BPY_modules_load_user(bContext *C)
 {
 	PyGILState_STATE gilstate;
 	Main *bmain= CTX_data_main(C);
@@ -675,7 +571,7 @@ void BPY_load_user_modules(bContext *C)
 	bpy_context_clear(C, &gilstate);
 }
 
-int BPY_context_get(bContext *C, const char *member, bContextDataResult *result)
+int BPY_context_member_get(bContext *C, const char *member, bContextDataResult *result)
 {
 	PyObject *pyctx= (PyObject *)CTX_py_dict_get(C);
 	PyObject *item= PyDict_GetItemString(pyctx, member);

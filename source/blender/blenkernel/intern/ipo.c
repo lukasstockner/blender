@@ -59,8 +59,9 @@
 #include "BLI_math.h" /* windows needs for M_PI */
 #include "BLI_blenlib.h"
 #include "BLI_dynstr.h"
+#include "BLI_utildefines.h"
 
-#include "BKE_utildefines.h"
+
 
 #include "BKE_animsys.h"
 #include "BKE_action.h"
@@ -1513,14 +1514,14 @@ static void ipo_to_animdata (ID *id, Ipo *ipo, char actname[], char constname[],
 		}
 		
 		/* add F-Curves to action */
-		addlisttolist(&adt->action->curves, &anim);
+		BLI_movelisttolist(&adt->action->curves, &anim);
 	}
 	
 	/* deal with drivers */
 	if (drivers.first) {
 		if (G.f & G_DEBUG) printf("\thas drivers \n");
 		/* add drivers to end of driver stack */
-		addlisttolist(&adt->drivers, &drivers);
+		BLI_movelisttolist(&adt->drivers, &drivers);
 	}
 }
 

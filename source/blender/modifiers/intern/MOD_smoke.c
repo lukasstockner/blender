@@ -39,7 +39,9 @@
 #include "DNA_scene_types.h"
 #include "DNA_smoke_types.h"
 
-#include "BKE_utildefines.h"
+#include "BLI_utildefines.h"
+
+
 #include "BKE_cdderivedmesh.h"
 #include "BKE_modifier.h"
 #include "BKE_smoke.h"
@@ -83,7 +85,7 @@ static void deformVerts(ModifierData *md, Object *ob,
 						int isFinalCalc)
 {
 	SmokeModifierData *smd = (SmokeModifierData*) md;
-	DerivedMesh *dm = dm= get_cddm(ob, NULL, derivedData, vertexCos);
+	DerivedMesh *dm = get_cddm(ob, NULL, derivedData, vertexCos);
 
 	smokeModifier_do(smd, md->scene, ob, dm, useRenderParams, isFinalCalc);
 

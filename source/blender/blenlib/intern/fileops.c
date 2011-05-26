@@ -280,7 +280,7 @@ int BLI_copy_fileops(const char *file, const char *to) {
 	return err;
 }
 
-int BLI_link(const char *UNUSED(file), const char *UNUSED(to)) {
+int BLI_link(const char *file, const char *to) {
 	callLocalErrorCallBack("Linking files is unsupported on Windows");
 	
 	return 1;
@@ -326,7 +326,7 @@ int BLI_rename(const char *from, const char *to) {
 	return rename(from, to);
 }
 
-#else /* The weirdo UNIX world */
+#else /* The UNIX world */
 
 /*
  * but the UNIX world is tied to the interface, and the system

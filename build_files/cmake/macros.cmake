@@ -1,11 +1,27 @@
-macro(blenderlib_nolist
+# -*- mode: cmake; indent-tabs-mode: t; -*-
+# $Id$
+
+# Nicer makefiles with -I/1/foo/ instead of -I/1/2/3/../../foo/
+# use it instead of include_directories()
+macro(blender_include_dirs
+	includes)
+
+	foreach(inc ${ARGV})
+		get_filename_component(abs_inc ${inc} ABSOLUTE)
+		list(APPEND all_incs ${abs_inc})
+	endforeach()
+	include_directories(${all_incs})
+endmacro()
+
+# only MSVC uses SOURCE_GROUP
+macro(blender_add_lib_nolist
 	name
 	sources
 	includes)
 
-	message(STATUS "Configuring library ${name}")
+	# message(STATUS "Configuring library ${name}")
 
-	include_directories(${includes})
+	blender_include_dirs("${includes}")
 	add_library(${name} ${sources})
 		 
 	# Group by location on disk
@@ -21,7 +37,7 @@ macro(blenderlib_nolist
 endmacro()
 
 #	# works fine but having the includes listed is helpful for IDE's (QtCreator/MSVC)
-#	macro(blenderlib_nolist
+#	macro(blender_add_lib_nolist
 #		name
 #		sources
 #		includes)
@@ -31,13 +47,12 @@ endmacro()
 #		add_library(${name} ${sources})
 #	endmacro()
 
-
-macro(blenderlib
+macro(blender_add_lib
 	name
 	sources
 	includes)
 
-	blenderlib_nolist(${name} "${sources}" "${includes}")
+	blender_add_lib_nolist(${name} "${sources}" "${includes}")
 
 	set_property(GLOBAL APPEND PROPERTY BLENDER_LINK_LIBS ${name})
 
@@ -203,34 +218,39 @@ endmacro()
 macro(TEST_SSE_SUPPORT)
 	include(CheckCSourceRuns)
 
-	message(STATUS "Detecting SSE support")
+	# message(STATUS "Detecting SSE support")
 	if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
 		set(CMAKE_REQUIRED_FLAGS "-msse -msse2")
 	elseif(MSVC)
 		set(CMAKE_REQUIRED_FLAGS "/arch:SSE2") # TODO, SSE 1 ?
 	endif()
 
+	if(NOT DEFINED ${SUPPORT_SSE_BUILD})
 	check_c_source_runs("
 		#include <xmmintrin.h>
 		int main() { __m128 v = _mm_setzero_ps(); return 0; }"
 	SUPPORT_SSE_BUILD)
 
+		if(SUPPORT_SSE_BUILD)
+			message(STATUS "SSE Support: detected.")
+		else()
+			message(STATUS "SSE Support: missing.")
+		endif()
+		set(${SUPPORT_SSE_BUILD} ${SUPPORT_SSE_BUILD} CACHE INTERNAL "SSE Test")
+	endif()	
+
+	if(NOT DEFINED ${SUPPORT_SSE2_BUILD})
 	check_c_source_runs("
 		#include <emmintrin.h>
 		int main() { __m128d v = _mm_setzero_pd(); return 0; }"
 	SUPPORT_SSE2_BUILD)
-	message(STATUS "Detecting SSE support")
-
-	if(SUPPORT_SSE_BUILD)
-		message(STATUS "   ...SSE support found.")
-	else()
-		message(STATUS "   ...SSE support missing.")
-	endif()
 
 	if(SUPPORT_SSE2_BUILD)
-		message(STATUS "   ...SSE2 support found.")
+			message(STATUS "SSE2 Support: detected.")
 	else()
-		message(STATUS "   ...SSE2 support missing.")
+			message(STATUS "SSE2 Support: missing.")
+	endif()
+		set(${SUPPORT_SSE2_BUILD} ${SUPPORT_SSE2_BUILD} CACHE INTERNAL "SSE2 Test")
 	endif()
 
 endmacro()
@@ -272,6 +292,55 @@ macro(remove_strict_flags)
 endmacro()
 
 
+# XXX, until cmake 2.8.4 is released.
+INCLUDE(CheckCSourceCompiles)
+MACRO (CHECK_C_COMPILER_FLAG__INTERNAL _FLAG _RESULT)
+   SET(SAFE_CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}")
+   SET(CMAKE_REQUIRED_DEFINITIONS "${_FLAG}")
+   CHECK_C_SOURCE_COMPILES("int main(void) { return 0;}" ${_RESULT}
+     # Some compilers do not fail with a bad flag
+     FAIL_REGEX "unrecognized .*option"                     # GNU
+     FAIL_REGEX "ignoring unknown option"                   # MSVC
+     FAIL_REGEX "[Uu]nknown option"                         # HP
+     FAIL_REGEX "[Ww]arning: [Oo]ption"                     # SunPro
+     FAIL_REGEX "command option .* is not recognized"       # XL
+     )
+   SET (CMAKE_REQUIRED_DEFINITIONS "${SAFE_CMAKE_REQUIRED_DEFINITIONS}")
+ENDMACRO (CHECK_C_COMPILER_FLAG__INTERNAL)
+# XXX, end duplicate code.
+
+macro(ADD_CHECK_C_COMPILER_FLAG
+	_CFLAGS
+	_CACHE_VAR
+	_FLAG)
+
+	# include(CheckCCompilerFlag)
+
+	CHECK_C_COMPILER_FLAG__INTERNAL("${_FLAG}" "${_CACHE_VAR}")
+	if(${_CACHE_VAR})
+		# message(STATUS "Using CFLAG: ${_FLAG}")
+		set(${_CFLAGS} "${${_CFLAGS}} ${_FLAG}")
+	else()
+		message(STATUS "Unsupported CFLAG: ${_FLAG}")
+	endif()
+endmacro()
+
+macro(ADD_CHECK_CXX_COMPILER_FLAG
+	_CXXFLAGS
+	_CACHE_VAR
+	_FLAG)
+
+	include(CheckCXXCompilerFlag)
+
+	CHECK_CXX_COMPILER_FLAG("${_FLAG}" "${_CACHE_VAR}")
+	if(${_CACHE_VAR})
+		# message(STATUS "Using CXXFLAG: ${_FLAG}")
+		set(${_CXXFLAGS} "${${_CXXFLAGS}} ${_FLAG}")
+	else()
+		message(STATUS "Unsupported CXXFLAG: ${_FLAG}")
+	endif()
+endmacro()
+
 macro(get_blender_version)
 	file(READ ${CMAKE_SOURCE_DIR}/source/blender/blenkernel/BKE_blender.h CONTENT)
 	string(REGEX REPLACE "\n" ";" CONTENT "${CONTENT}")
@@ -302,6 +371,6 @@ macro(get_blender_version)
 		set(LASTITEM ${ITEM})
 	endforeach()
 	
-	message(STATUS "Version major: ${BLENDER_VERSION_MAJOR}, Version minor: ${BLENDER_VERSION_MINOR}, Subversion: ${BLENDER_SUBVERSION}, Version: ${BLENDER_VERSION}")
-	message(STATUS "Minversion major: ${BLENDER_MINVERSION_MAJOR}, Minversion minor: ${BLENDER_MINVERSION_MINOR}, MinSubversion: ${BLENDER_MINSUBVERSION}, Minversion: ${BLENDER_MINVERSION}")
+	# message(STATUS "Version major: ${BLENDER_VERSION_MAJOR}, Version minor: ${BLENDER_VERSION_MINOR}, Subversion: ${BLENDER_SUBVERSION}, Version: ${BLENDER_VERSION}")
+	# message(STATUS "Minversion major: ${BLENDER_MINVERSION_MAJOR}, Minversion minor: ${BLENDER_MINVERSION_MINOR}, MinSubversion: ${BLENDER_MINSUBVERSION}, Minversion: ${BLENDER_MINVERSION}")
 endmacro()

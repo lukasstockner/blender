@@ -39,6 +39,7 @@
 #include "BLI_editVert.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -296,7 +297,7 @@ static void motionpaths_calc_update_scene(Scene *scene)
 	Base *base, *last=NULL;
 	
 	/* only stuff that moves or needs display still */
-	DAG_scene_update_flags(G.main, scene, scene->lay);
+	DAG_scene_update_flags(G.main, scene, scene->lay, TRUE);
 	
 	/* find the last object with the tag 
 	 *	- all those afterwards are assumed to not be relevant for our calculations
@@ -1176,7 +1177,6 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 
 	BLI_srandom(31415926 + psys->seed);
 	
-	lay= scene->lay;
 	if((psys->renderdata || part->draw_as==PART_DRAW_REND) && ELEM(part->ren_as, PART_DRAW_OB, PART_DRAW_GR)) {
 
 		/* first check for loops (particle system object used as dupli object) */

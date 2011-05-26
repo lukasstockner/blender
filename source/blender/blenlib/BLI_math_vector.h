@@ -25,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  * */
 
-#ifndef BLI_MATH_VECTOR
-#define BLI_MATH_VECTOR
+#ifndef BLI_MATH_VECTOR_H
+#define BLI_MATH_VECTOR_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,7 +34,7 @@ extern "C" {
 
 #include "BLI_math_inline.h"
 
-#ifdef BLI_MATH_INLINE
+#ifdef BLI_MATH_INLINE_H
 #include "intern/math_vector_inline.c"
 #endif
 
@@ -167,9 +167,20 @@ MINLINE void normal_float_to_short_v3(short r[3], const float n[3]);
 
 void minmax_v3v3_v3(float min[3], float max[3], const float vec[3]);
 
+/***************************** Array Functions *******************************/
+/* attempted to follow fixed length vertex functions. names could be improved*/
+void range_vni(int *array, const int size, const int start);
+void mul_vn_fl(float *array, const int size, const float f);
+void mul_vn_vn_fl(float *array_tar, const float *array_src, const int size, const float f);
+void add_vn_vn(float *array_tar, const float *array_src, const int size);
+void add_vn_vnvn(float *array_tar, const float *array_src_a, const float *array_src_b, const int size);
+void sub_vn_vnvn(float *array_tar, const float *array_src_a, const float *array_src_b, const int size);
+void fill_vni(int *array_tar, const int size, const int val);
+void fill_vn(float *array_tar, const int size, const float val);
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* BLI_MATH_VECTOR */
+#endif /* BLI_MATH_VECTOR_H */
 

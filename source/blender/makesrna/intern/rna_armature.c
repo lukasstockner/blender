@@ -51,7 +51,7 @@ static void rna_Armature_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	ID *id= ptr->id.data;
 
-	DAG_id_tag_update(id, OB_RECALC_DATA);
+	DAG_id_tag_update(id, 0);
 	WM_main_add_notifier(NC_GEOM|ND_DATA, id);
 	//WM_main_add_notifier(NC_OBJECT|ND_POSE, NULL);
 }
@@ -516,6 +516,18 @@ static void rna_def_bone_common(StructRNA *srna, int editbone)
 	RNA_def_property_float_sdna(prop, NULL, "ease2");
 	RNA_def_property_range(prop, 0.0f, 2.0f);
 	RNA_def_property_ui_text(prop, "B-Bone Ease Out", "Length of second Bezier Handle (for B-Bones only)");
+	RNA_def_property_update(prop, 0, "rna_Armature_update_data");
+
+	prop= RNA_def_property(srna, "bbone_x", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "xwidth");
+	RNA_def_property_range(prop, 0.0f, 1000.0f);
+	RNA_def_property_ui_text(prop, "B-Bone Display X Width", "B-Bone X size");
+	RNA_def_property_update(prop, 0, "rna_Armature_update_data");
+	
+	prop= RNA_def_property(srna, "bbone_z", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "zwidth");
+	RNA_def_property_range(prop, 0.0f, 1000.0f);
+	RNA_def_property_ui_text(prop, "B-Bone Display Z Width", "B-Bone Z size");
 	RNA_def_property_update(prop, 0, "rna_Armature_update_data");
 }
 

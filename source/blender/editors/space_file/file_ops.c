@@ -32,6 +32,7 @@
 #include "BKE_report.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
 #include "BLI_storage_types.h"
 #ifdef WIN32
 #include "BLI_winstuff.h"
@@ -259,7 +260,6 @@ static int file_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
 	ARegion *ar= CTX_wm_region(C);
 	SpaceFile *sfile= CTX_wm_space_file(C);
-	short val;
 	rcti rect;
 	int extend = RNA_boolean_get(op->ptr, "extend");
 	int fill = RNA_boolean_get(op->ptr, "fill");
@@ -269,7 +269,6 @@ static int file_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
 
 	rect.xmin = rect.xmax = event->x - ar->winrct.xmin;
 	rect.ymin = rect.ymax = event->y - ar->winrct.ymin;
-	val = event->val;
 
 	if(!BLI_in_rcti(&ar->v2d.mask, rect.xmin, rect.ymin))
 		return OPERATOR_CANCELLED;
@@ -1010,7 +1009,47 @@ int file_directory_exec(bContext *C, wmOperator *UNUSED(unused))
 		if (sfile->params->dir[0] == '\0')
 			get_default_root(sfile->params->dir);
 #endif
-		BLI_cleanup_dir(G.sce, sfile->params->dir);
+	}
+}
+
+int file_directory_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
+{
+	SpaceFile *sfile= CTX_wm_space_file(C);
+
+	if(sfile->params) {
+		file_expand_directory(C);
+		
+		if (!BLI_exists(sfile->params->dir)) {
+			return WM_operator_confirm_message(C, op, "Create new directory?");
+		} 
+
+		return file_directory_exec(C, op);
+	}
+
+	return OPERATOR_CANCELLED;
+}
+
+
+
+int file_directory_exec(bContext *C, wmOperator *UNUSED(unused))
+{
+	SpaceFile *sfile= CTX_wm_space_file(C);
+	
+	if(sfile->params) {
+		file_expand_directory(C);
+
+		if (!BLI_exists(sfile->params->dir)) {
+			BLI_recurdir_fileops(sfile->params->dir);
+		}
+
+		/* special case, user may have pasted a fulepath into the directory */
+		if(BLI_exists(sfile->params->dir) && BLI_is_dir(sfile->params->dir) == 0) {
+			char path[sizeof(sfile->params->dir)];
+			BLI_strncpy(path, sfile->params->dir, sizeof(path));
+			BLI_split_dirfile(path, sfile->params->dir, sfile->params->file);
+		}
+
+		BLI_cleanup_dir(G.main->name, sfile->params->dir);
 		BLI_add_slash(sfile->params->dir);
 		file_change_dir(C, 1);
 

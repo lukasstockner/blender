@@ -565,6 +565,14 @@ static void rna_SpaceProperties_pin_id_update(Main *bmain, Scene *scene, Pointer
 }
 
 
+static void rna_SpaceProperties_context_set(PointerRNA *ptr, int value)
+{
+	SpaceButs *sbuts= (SpaceButs*)(ptr->data);
+	
+	sbuts->mainb= value;
+	sbuts->mainbuser = value;
+}
+
 static void rna_SpaceProperties_align_set(PointerRNA *ptr, int value)
 {
 	SpaceButs *sbuts= (SpaceButs*)(ptr->data);
@@ -1321,6 +1329,7 @@ static void rna_def_space_buttons(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "context", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "mainb");
 	RNA_def_property_enum_items(prop, buttons_context_items);
+	RNA_def_property_enum_funcs(prop, NULL, "rna_SpaceProperties_context_set", NULL);
 	RNA_def_property_ui_text(prop, "Context", "Type of active data to display and edit");
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_PROPERTIES, NULL);
 	
@@ -1671,7 +1680,7 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
 		{SACTCONT_DOPESHEET, "DOPESHEET", 0, "DopeSheet", ""},
 		{SACTCONT_ACTION, "ACTION", 0, "Action Editor", ""},
 		{SACTCONT_SHAPEKEY, "SHAPEKEY", 0, "ShapeKey Editor", ""},
-		//{SACTCONT_GPENCIL, "GPENCIL", 0, "Grease Pencil", ""}, // XXX: to be reimplemented, but not enough time before 2.53 - Aligorith, 2010Jul14
+		{SACTCONT_GPENCIL, "GPENCIL", 0, "Grease Pencil", ""},
 		{0, NULL, 0, NULL, NULL}};
 		
 	
@@ -1708,6 +1717,11 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "show_sliders", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SACTION_SLIDERS);
 	RNA_def_property_ui_text(prop, "Show Sliders", "Show sliders beside F-Curve channels");
+	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_DOPESHEET, NULL);
+	
+	prop= RNA_def_property(srna, "show_pose_markers", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SACTION_POSEMARKERS_SHOW);
+	RNA_def_property_ui_text(prop, "Show Pose Markers", "Show markers belonging to the active action instead of Scene markers (Action and Shape Key Editors only)");
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_DOPESHEET, NULL);
 	
 	/* editing */

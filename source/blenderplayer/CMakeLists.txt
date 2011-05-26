@@ -1,3 +1,4 @@
+# -*- mode: cmake; indent-tabs-mode: t; -*-
 # $Id$
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
@@ -24,7 +25,7 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-message(STATUS "Configuring blenderplayer")
+# message(STATUS "Configuring blenderplayer")
 
 setup_libdirs()
 
@@ -34,7 +35,7 @@ endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
 	add_definitions(-DWITH_BINRELOC)
-	include_directories(${BINRELOC_INC})
+	blender_include_dirs(${BINRELOC_INC})
 endif()
 
 add_custom_command(
@@ -136,11 +137,15 @@ if(UNIX)
 			endif()
 		endforeach()
 		if(REMLIB)
-			message(STATUS "Removing library ${REMLIB} from blenderplayer linking because: not configured")
+			# message(STATUS "Removing library ${REMLIB} from blenderplayer linking because: not configured")
+			list(APPEND REM_MSG ${REMLIB})
 			list(REMOVE_ITEM BLENDER_SORTED_LIBS ${REMLIB})
 		endif()
 	endforeach()
-
+	if(REM_MSG)
+		list(SORT REM_MSG)
+		message(STATUS "Player Skipping: (${REM_MSG})")
+	endif()
 	target_link_libraries(blenderplayer ${BLENDER_SORTED_LIBS})
 else()
 	target_link_libraries(blenderplayer ${BLENDER_LINK_LIBS})

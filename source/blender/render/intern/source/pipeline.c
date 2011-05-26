@@ -58,6 +58,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_rand.h"
 #include "BLI_threads.h"
+#include "BLI_utildefines.h"
 
 #include "PIL_time.h"
 #include "IMB_imbuf.h"
@@ -1479,14 +1480,15 @@ static void *do_part_thread(void *pa_v)
 float panorama_pixel_rot(Render *re)
 {
 	float psize, phi, xfac;
+	float borderfac= (float)(re->disprect.xmax - re->disprect.xmin) / (float)re->winx;
 	
 	/* size of 1 pixel mapped to viewplane coords */
-	psize= (re->viewplane.xmax-re->viewplane.xmin)/(float)re->winx;
+	psize= (re->viewplane.xmax-re->viewplane.xmin)/(float)(re->winx);
 	/* angle of a pixel */
 	phi= atan(psize/re->clipsta);
 	
 	/* correction factor for viewplane shifting, first calculate how much the viewplane angle is */
-	xfac= ((re->viewplane.xmax-re->viewplane.xmin))/(float)re->xparts;
+	xfac= borderfac*((re->viewplane.xmax-re->viewplane.xmin))/(float)re->xparts;
 	xfac= atan(0.5f*xfac/re->clipsta); 
 	/* and how much the same viewplane angle is wrapped */
 	psize= 0.5f*phi*((float)re->partx);
@@ -1519,7 +1521,7 @@ static RenderPart *find_next_pano_slice(Render *re, int *minx, rctf *viewplane)
 		float phi= panorama_pixel_rot(re);
 
 		R.panodxp= (re->winx - (best->disprect.xmin + best->disprect.xmax) )/2;
-		R.panodxv= ((viewplane->xmax-viewplane->xmin)*R.panodxp)/(float)R.winx;
+		R.panodxv= ((viewplane->xmax-viewplane->xmin)*R.panodxp)/(float)(re->winx);
 		
 		/* shift viewplane */
 		R.viewplane.xmin = viewplane->xmin + R.panodxv;
@@ -2033,7 +2035,7 @@ static void load_backbuffer(Render *re)
 		char name[256];
 		
 		strcpy(name, re->r.backbuf);
-		BLI_path_abs(name, G.sce);
+		BLI_path_abs(name, re->main->name);
 		BLI_path_frame(name, re->r.cfra, 0);
 		
 		if(re->backbuf) {
@@ -2321,10 +2323,16 @@ static void do_merge_fullsample(Render *re, bNodeTree *ntree)
 	BLI_rw_mutex_unlock(&re->resultmutex);
 }
 
-void RE_MergeFullSample(Render *re, Scene *sce, bNodeTree *ntree)
+/* called externally, via compositor */
+void RE_MergeFullSample(Render *re, Main *bmain, Scene *sce, bNodeTree *ntree)
 {
 	Scene *scene;
 	bNode *node;
+	
+	/* default start situation */
+	G.afbreek= 0;
+	
+	re->main= bmain;
 	
 	/* first call RE_ReadRenderResult on every renderlayer scene. this creates Render structs */
 	
@@ -2661,11 +2669,17 @@ int RE_is_rendering_allowed(Scene *scene, void *erh, void (*error)(void *handle,
 				if(node->type==CMP_NODE_COMPOSITE)
 					break;
 			
-			
 			if(node==NULL) {
 				re->error(re->erh, "No Render Output Node in Scene");
 				return 0;
 			}
+			
+			if(scene->r.scemode & R_FULL_SAMPLE) {
+				if(composite_needs_render(scene)==0) {
+					error(erh, "Full Sample AA not supported without 3d rendering");
+					return 0;
+		}
+	}
 		}
 	}
 	
@@ -2718,7 +2732,7 @@ static void update_physics_cache(Render *re, Scene *scene, int anim_init)
 	baker.break_data = re->tbh;
 	baker.progressbar = NULL;
 
-	BKE_ptcache_make_cache(&baker);
+	BKE_ptcache_bake(&baker);
 }
 /* evaluating scene options for general Blender render */
 static int render_initialize_from_main(Render *re, Main *bmain, Scene *scene, SceneRenderLayer *srl, unsigned int lay, int anim, int anim_init)

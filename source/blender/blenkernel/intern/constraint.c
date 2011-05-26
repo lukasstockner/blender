@@ -39,6 +39,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_editVert.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
@@ -52,7 +53,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_text_types.h"
 
-#include "BKE_utildefines.h"
+
 #include "BKE_action.h"
 #include "BKE_anim.h" /* for the curve calculation part */
 #include "BKE_armature.h"
@@ -861,6 +862,7 @@ static void childof_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 	}
 }
 
+/* XXX note, con->flag should be CONSTRAINT_SPACEONCE for bone-childof, patched in readfile.c */
 static bConstraintTypeInfo CTI_CHILDOF = {
 	CONSTRAINT_TYPE_CHILDOF, /* type */
 	sizeof(bChildOfConstraint), /* size */
@@ -2031,7 +2033,7 @@ static void pycon_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *targ
 #endif
 	
 	/* Now, run the actual 'constraint' function, which should only access the matrices */
-	BPY_pyconstraint_eval(data, cob, targets);
+	BPY_pyconstraint_exec(data, cob, targets);
 #endif /* DISABLE_PYTHON */
 }
 
@@ -3422,7 +3424,7 @@ static void shrinkwrap_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstr
 		float dist;
 		
 		SpaceTransform transform;
-		DerivedMesh *target = object_get_derived_final(cob->scene, ct->tar, CD_MASK_BAREMESH);
+		DerivedMesh *target = object_get_derived_final(ct->tar);
 		BVHTreeRayHit hit;
 		BVHTreeNearest nearest;
 		

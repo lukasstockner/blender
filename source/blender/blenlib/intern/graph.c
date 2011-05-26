@@ -31,8 +31,9 @@
 #include "BLI_graph.h"
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
-#include "BKE_utildefines.h"
+
 
 static void testRadialSymmetry(BGraph *graph, BNode* root_node, RadialArc* ring, int total, float axis[3], float limit, int group);
 
@@ -409,7 +410,7 @@ int	BLI_isGraphCyclic(BGraph *graph)
 
 BArc * BLI_findConnectedArc(BGraph *graph, BArc *arc, BNode *v)
 {
-	BArc *nextArc = arc->next;
+	BArc *nextArc;
 	
 	for(nextArc = graph->arcs.first; nextArc; nextArc = nextArc->next)
 	{

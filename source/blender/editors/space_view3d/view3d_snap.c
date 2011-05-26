@@ -43,6 +43,7 @@
 #include "BLI_math.h"
 #include "BLI_editVert.h"
 #include "BLI_linklist.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_armature.h"
 #include "BKE_context.h"
@@ -87,7 +88,7 @@ static void special_transvert_update(Object *obedit)
 	
 	if(obedit) {
 		
-		DAG_id_tag_update(obedit->data, OB_RECALC_DATA);
+		DAG_id_tag_update(obedit->data, 0);
 		
 		if(obedit->type==OB_MESH) {
 			Mesh *me= obedit->data;
@@ -510,7 +511,12 @@ static int snap_sel_to_grid(bContext *C, wmOperator *UNUSED(op))
 								armature_loc_pose_to_bone(pchan, vec, vecN);
 								
 								/* adjust location */
-								VECCOPY(pchan->loc, vecN);
+								if ((pchan->protectflag & OB_LOCK_LOCX)==0)	
+									pchan->loc[0]= vecN[0];
+								if ((pchan->protectflag & OB_LOCK_LOCY)==0)	
+									pchan->loc[0]= vecN[1];
+								if ((pchan->protectflag & OB_LOCK_LOCZ)==0)	
+									pchan->loc[0]= vecN[2];
 							}
 							/* if the bone has a parent and is connected to the parent, 
 							 * don't do anything - will break chain unless we do auto-ik. 
@@ -536,15 +542,13 @@ static int snap_sel_to_grid(bContext *C, wmOperator *UNUSED(op))
 					
 					invert_m3_m3(imat, originmat);
 					mul_m3_v3(imat, vec);
-					ob->loc[0]+= vec[0];
-					ob->loc[1]+= vec[1];
-					ob->loc[2]+= vec[2];
 				}
-				else {
+				if ((ob->protectflag & OB_LOCK_LOCX)==0)
 					ob->loc[0]+= vec[0];
+				if ((ob->protectflag & OB_LOCK_LOCY)==0)
 					ob->loc[1]+= vec[1];
+				if ((ob->protectflag & OB_LOCK_LOCZ)==0)
 					ob->loc[2]+= vec[2];
-				}
 			
 				/* auto-keyframing */
 // XXX				autokeyframe_ob_cb_func(ob, TFM_TRANSLATION);
@@ -633,8 +637,13 @@ static int snap_sel_to_curs(bContext *C, wmOperator *UNUSED(op))
 								/* get location of cursor in bone-space */
 								armature_loc_pose_to_bone(pchan, cursp, curspn);
 								
-								/* calculate new position */
-								VECCOPY(pchan->loc, curspn);
+								/* copy new position */
+								if ((pchan->protectflag & OB_LOCK_LOCX)==0)	
+									pchan->loc[0]= curspn[0];
+								if ((pchan->protectflag & OB_LOCK_LOCY)==0)	
+									pchan->loc[1]= curspn[1];
+								if ((pchan->protectflag & OB_LOCK_LOCZ)==0)	
+									pchan->loc[2]= curspn[2];
 							}
 							/* if the bone has a parent and is connected to the parent, 
 							 * don't do anything - will break chain unless we do auto-ik. 
@@ -660,15 +669,14 @@ static int snap_sel_to_curs(bContext *C, wmOperator *UNUSED(op))
 					
 					invert_m3_m3(imat, originmat);
 					mul_m3_v3(imat, vec);
-					ob->loc[0]+= vec[0];
-					ob->loc[1]+= vec[1];
-					ob->loc[2]+= vec[2];
 				}
-				else {
+				if ((ob->protectflag & OB_LOCK_LOCX)==0)
 					ob->loc[0]+= vec[0];
+				if ((ob->protectflag & OB_LOCK_LOCY)==0)
 					ob->loc[1]+= vec[1];
+				if ((ob->protectflag & OB_LOCK_LOCZ)==0)
 					ob->loc[2]+= vec[2];
-				}
+				
 				/* auto-keyframing */
 // XXX				autokeyframe_ob_cb_func(ob, TFM_TRANSLATION);
 			}

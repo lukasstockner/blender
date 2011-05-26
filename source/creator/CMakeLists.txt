@@ -1,3 +1,4 @@
+# -*- mode: cmake; indent-tabs-mode: t; -*-
 # $Id$
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
@@ -29,7 +30,7 @@ cmake_policy(SET CMP0005 NEW)
 
 setup_libdirs()
 
-include_directories(
+blender_include_dirs(
 	../../intern/guardedalloc
 	../blender/blenlib
 	../blender/blenkernel
@@ -69,12 +70,12 @@ if(WITH_IMAGE_HDR)
 endif()
 
 if(WITH_PYTHON)
-	include_directories(../blender/python)
+	blender_include_dirs(../blender/python)
 	add_definitions(-DWITH_PYTHON)
 endif()
 
 if(WITH_GAMEENGINE)
-	include_directories(
+	blender_include_dirs(
 		../kernel/gen_messaging
 		../kernel/gen_system
 	)
@@ -88,7 +89,7 @@ endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
 	add_definitions(-DWITH_BINRELOC)
-	include_directories(${BINRELOC_INC})
+	blender_include_dirs(${BINRELOC_INC})
 endif()
 
 # Setup the exe sources and buildinfo
@@ -119,7 +120,7 @@ if(WITH_BUILDINFO)
 	)
 endif()
 
-message(STATUS "Configuring blender")
+# message(STATUS "Configuring blender")
 
 add_executable(blender ${EXETYPE} ${SRC})
 
@@ -311,8 +312,8 @@ if(WITH_INSTALL)
 					COMMAND if \"$(ConfigurationName)\" == \"\" xcopy /E /Y \"${LIBDIR}\\release\\python31\\*.*\" \"${TARGETDIR}\\${BLENDER_VERSION}\\python\\lib\\\"
 					COMMAND if \"$(ConfigurationName)\" == \"Debug\" copy /Y \"${LIBDIR}\\python\\lib\\python31_d.dll\" \"${TARGETDIR}\\\"
 					COMMAND if \"$(ConfigurationName)\" == \"Debug\" xcopy /E /Y \"${LIBDIR}\\release\\python31_d\\*.*\" \"${TARGETDIR}\\${BLENDER_VERSION}\\python\\lib\\\"
-					COMMAND if \"$(ConfigurationName)\" == \"RelWithDebInfo\" copy /Y \"${LIBDIR}\\python\\lib\\python31_d.dll\" \"${TARGETDIR}\\\"
-					COMMAND if \"$(ConfigurationName)\" == \"RelWithDebInfo\" xcopy /E /Y \"${LIBDIR}\\release\\python31_d\\*.*\" \"${TARGETDIR}\\${BLENDER_VERSION}\\python\\lib\\\"
+					COMMAND if \"$(ConfigurationName)\" == \"RelWithDebInfo\" copy /Y \"${LIBDIR}\\python\\lib\\python31.dll\" \"${TARGETDIR}\\\"
+					COMMAND if \"$(ConfigurationName)\" == \"RelWithDebInfo\" xcopy /E /Y \"${LIBDIR}\\release\\python31\\*.*\" \"${TARGETDIR}\\${BLENDER_VERSION}\\python\\lib\\\"
 					COMMAND if \"$(ConfigurationName)\" == \"Release\" copy /Y \"${LIBDIR}\\python\\lib\\python31.dll\" \"${TARGETDIR}\\\"
 					COMMAND if \"$(ConfigurationName)\" == \"Release\" xcopy /E /Y \"${LIBDIR}\\release\\python31\\*.*\" \"${TARGETDIR}\\${BLENDER_VERSION}\\python\\lib\\\"
 					COMMAND if \"$(ConfigurationName)\" == \"MinSizeRel\" copy /Y \"${LIBDIR}\\python\\lib\\python31.dll\" \"${TARGETDIR}\\\"
@@ -554,6 +555,7 @@ endif()
 		ge_scenegraph 
 		ge_logic_network 
 		bf_gen_system
+		bf_python # duplicate for BPY_driver_exec
 		ge_logic_ngnetwork 
 		extern_bullet 
 		ge_logic_loopbacknetwork 
@@ -591,7 +593,6 @@ endif()
 		list(APPEND BLENDER_SORTED_LIBS bf_quicktime)
 	endif()
 
-
 	foreach(SORTLIB ${BLENDER_SORTED_LIBS})
 		set(REMLIB ${SORTLIB})
 		foreach(SEARCHLIB ${BLENDER_LINK_LIBS})
@@ -600,10 +601,15 @@ endif()
 			endif()
 		endforeach()
 		if(REMLIB)
-			message(STATUS "Removing library ${REMLIB} from blender linking because: not configured")
+			# message(STATUS "Removing library ${REMLIB} from blender linking because: not configured")
+			list(APPEND REM_MSG ${REMLIB})
 			list(REMOVE_ITEM BLENDER_SORTED_LIBS ${REMLIB})
 		endif()
 	endforeach()
+	if(REM_MSG)
+		list(SORT REM_MSG)
+		message(STATUS "Blender Skipping: (${REM_MSG})")
+	endif()
 	target_link_libraries(blender ${BLENDER_SORTED_LIBS})
 #else()
 #	target_link_libraries(blender ${BLENDER_LINK_LIBS})

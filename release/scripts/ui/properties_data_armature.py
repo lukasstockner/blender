@@ -42,13 +42,10 @@ class DATA_PT_context_arm(ArmatureButtonsPanel, bpy.types.Panel):
         arm = context.armature
         space = context.space_data
 
-            split = layout.split(percentage=0.65)
             if ob:
-                split.template_ID(ob, "data")
-                split.separator()
+            layout.template_ID(ob, "data")
             elif arm:
-                split.template_ID(space, "pin_id")
-                split.separator()
+            layout.template_ID(space, "pin_id")
 
 
 class DATA_PT_skeleton(ArmatureButtonsPanel, bpy.types.Panel):
@@ -101,6 +98,7 @@ class DATA_PT_display(ArmatureButtonsPanel, bpy.types.Panel):
 
             col = split.column()
         col.prop(arm, "show_group_colors", text="Colors")
+        if ob:
         col.prop(ob, "show_x_ray", text="X-Ray")
         col.prop(arm, "use_deform_delay", text="Delay Refresh")
 
@@ -287,6 +285,7 @@ class DATA_PT_onion_skinning(OnionSkinButtonsPanel): #, bpy.types.Panel): # inhe
 class DATA_PT_custom_props_arm(ArmatureButtonsPanel, PropertyPanel, bpy.types.Panel):
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
     _context_path = "object.data"
+    _property_type = bpy.types.Armature
 
 
 def register():

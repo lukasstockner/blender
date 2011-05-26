@@ -32,6 +32,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "IMB_imbuf_types.h"
 
@@ -44,7 +45,7 @@
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_sequencer.h"
-#include "BKE_utildefines.h"
+
 #include "BKE_sound.h"
 
 #include "IMB_imbuf.h"
@@ -71,11 +72,11 @@
 /* Note, Dont use WHILE_SEQ while drawing! - it messes up transform, - Campbell */
 
 int no_rightbox=0, no_leftbox= 0;
-static void draw_shadedstrip(Sequence *seq, char *col, float x1, float y1, float x2, float y2);
+static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, float x2, float y2);
 
-static void get_seq_color3ubv(Scene *curscene, Sequence *seq, char *col)
+static void get_seq_color3ubv(Scene *curscene, Sequence *seq, unsigned char col[3])
 {
-	char blendcol[3];
+	unsigned char blendcol[3];
 	SolidColorVars *colvars = (SolidColorVars *)seq->effectdata;
 
 	switch(seq->type) {
@@ -212,7 +213,7 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
 	/* Note, this used to use WHILE_SEQ, but it messes up the seq->depth value, (needed by transform when doing overlap checks)
 	 * so for now, just use the meta's immediate children, could be fixed but its only drawing - Campbell */
 	Sequence *seq;
-	char col[4];
+	unsigned char col[4];
 
 	int chan_min= MAXSEQ;
 	int chan_max= 0;
@@ -248,7 +249,7 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
 
 			get_seq_color3ubv(scene, seq, col);
 
-			glColor4ubv((GLubyte *)col);
+			glColor4ubv(col);
 			
 			/* clamp within parent sequence strip bounds */
 			if(x1_chan < x1) x1_chan= x1;
@@ -260,7 +261,7 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
 			glRectf(x1_chan,  y1_chan, x2_chan,  y2_chan);
 
 			UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, -30);
-			glColor4ubv((GLubyte *)col);
+			glColor4ubv(col);
 			fdrawbox(x1_chan,  y1_chan, x2_chan,  y2_chan);
 
 			if((seqm->flag & SEQ_MUTE) == 0 && (seq->flag & SEQ_MUTE))
@@ -360,7 +361,7 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, float pixelx, short dire
 static void draw_seq_extensions(Scene *scene, ARegion *ar, SpaceSeq *sseq, Sequence *seq)
 {
 	float x1, x2, y1, y2, pixely, a;
-	char col[3], blendcol[3];
+	unsigned char col[3], blendcol[3];
 	View2D *v2d= &ar->v2d;
 	
 	if(seq->type >= SEQ_EFFECT) return;
@@ -462,7 +463,7 @@ static void draw_seq_extensions(Scene *scene, ARegion *ar, SpaceSeq *sseq, Seque
 }
 
 /* draw info text on a sequence strip */
-static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float y1, float y2, char *background_col)
+static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float y1, float y2, const unsigned char background_col[3])
 {
 	rctf rect;
 	char str[32 + FILE_MAXDIR+FILE_MAXFILE];
@@ -528,7 +529,7 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 }
 
 /* draws a shaded strip, made from gradient + flat color + gradient */
-static void draw_shadedstrip(Sequence *seq, char *col, float x1, float y1, float x2, float y2)
+static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, float x2, float y2)
 {
 	float ymid1, ymid2;
 	
@@ -546,7 +547,7 @@ static void draw_shadedstrip(Sequence *seq, char *col, float x1, float y1, float
 	if(seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, -50);
 	else UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 0);
 	
-	glColor3ubv((GLubyte *)col);
+	glColor3ubv(col);
 	
 	glVertex2f(x1,y1);
 	glVertex2f(x2,y1);
@@ -592,7 +593,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, SpaceSeq *sseq, Sequence *
 {
 	View2D *v2d= &ar->v2d;
 	float x1, x2, y1, y2;
-	char col[3], background_col[3], is_single_image;
+	unsigned char col[3], background_col[3], is_single_image;
 
 	/* we need to know if this is a single image/color or not for drawing */
 	is_single_image = (char)seq_single_check(seq);

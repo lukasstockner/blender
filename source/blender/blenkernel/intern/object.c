@@ -57,8 +57,9 @@
 #include "BLI_editVert.h"
 #include "BLI_math.h"
 #include "BLI_pbvh.h"
+#include "BLI_utildefines.h"
 
-#include "BKE_utildefines.h"
+
 
 #include "BKE_main.h"
 #include "BKE_global.h"
@@ -316,7 +317,7 @@ static void unlink_object__unlinkModifierLinks(void *userData, Object *ob, Objec
 
 	if (*obpoin==unlinkOb) {
 		*obpoin = NULL;
-		ob->recalc |= OB_RECALC_ALL; // XXX: should this just be OB_RECALC_DATA?
+		ob->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME; // XXX: should this just be OB_RECALC_DATA?
 	}
 }
 
@@ -357,7 +358,7 @@ void unlink_object(Scene *scene, Object *ob)
 		
 		if(obt->parent==ob) {
 			obt->parent= NULL;
-			obt->recalc |= OB_RECALC_ALL;
+			obt->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;
 		}
 		
 		modifiers_foreachObjectLink(obt, unlink_object__unlinkModifierLinks, ob);
@@ -367,15 +368,15 @@ void unlink_object(Scene *scene, Object *ob)
 
 			if(cu->bevobj==ob) {
 				cu->bevobj= NULL;
-				obt->recalc |= OB_RECALC_ALL;
+				obt->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;
 			}
 			if(cu->taperobj==ob) {
 				cu->taperobj= NULL;
-				obt->recalc |= OB_RECALC_ALL;
+				obt->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;
 			}
 			if(cu->textoncurve==ob) {
 				cu->textoncurve= NULL;
-				obt->recalc |= OB_RECALC_ALL;
+				obt->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;
 			}
 		}
 		else if(obt->type==OB_ARMATURE && obt->pose) {
@@ -1079,7 +1080,7 @@ Object *add_object(struct Scene *scene, int type)
 	
 	base= scene_add_base(scene, ob);
 	scene_select_base(scene, base);
-	ob->recalc |= OB_RECALC_ALL;
+	ob->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;
 
 	return ob;
 }
@@ -1539,7 +1540,7 @@ void object_make_proxy(Object *ob, Object *target, Object *gob)
 	ob->proxy_group= gob;
 	id_lib_extern(&target->id);
 	
-	ob->recalc= target->recalc= OB_RECALC_ALL;
+	ob->recalc= target->recalc= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;
 	
 	/* copy transform
 	 * - gob means this proxy comes from a group, just apply the matrix
@@ -2551,13 +2552,24 @@ void object_handle_update(Scene *scene, Object *ob)
 			switch(ob->type) {
 			case OB_MESH:
 				{
+#if 0				// XXX, comment for 2.56a release, background wont set 'scene->customdata_mask'
 					EditMesh *em = (ob == scene->obedit)? BKE_mesh_get_editmesh(ob->data): NULL;
-					// here was vieweditdatamask? XXX
+					BLI_assert((scene->customdata_mask & CD_MASK_BAREMESH) == CD_MASK_BAREMESH);
 				if(em) {
-					makeDerivedMesh(scene, ob, em, CD_MASK_BAREMESH);
+						makeDerivedMesh(scene, ob, em,  scene->customdata_mask); /* was CD_MASK_BAREMESH */
 					BKE_mesh_end_editmesh(ob->data, em);
 				} else
-					makeDerivedMesh(scene, ob, NULL, CD_MASK_BAREMESH);
+						makeDerivedMesh(scene, ob, NULL, scene->customdata_mask);
+
+#else				/* ensure CD_MASK_BAREMESH for now */
+					EditMesh *em = (ob == scene->obedit)? BKE_mesh_get_editmesh(ob->data): NULL;
+					if(em) {
+						makeDerivedMesh(scene, ob, em,  scene->customdata_mask | CD_MASK_BAREMESH); /* was CD_MASK_BAREMESH */
+						BKE_mesh_end_editmesh(ob->data, em);
+					} else
+						makeDerivedMesh(scene, ob, NULL, scene->customdata_mask | CD_MASK_BAREMESH);
+#endif
+
 			}
 				break;
 				

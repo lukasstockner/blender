@@ -48,12 +48,13 @@ editmesh_lib: generic (no UI, no menus) operations/evaluators for editmesh data
 #include "BLI_math.h"
 #include "BLI_editVert.h"
 #include "BLI_edgehash.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_customdata.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_mesh.h"
-#include "BKE_utildefines.h"
+
 
 #include "ED_mesh.h"
 #include "ED_screen.h"
@@ -698,7 +699,7 @@ static void check_fgons_selection(EditMesh *em)
 			if(sel) efa->f |= SELECT;
 			else efa->f &= ~SELECT;
 		}
-		addlisttolist(&em->faces, &lbar[index]);
+		BLI_movelisttolist(&em->faces, &lbar[index]);
 	}
 	
 	MEM_freeN(lbar);
@@ -1391,21 +1392,16 @@ static short extrudeflag_edge(Object *obedit, EditMesh *em, short flag, float *n
 			if (efa->v4 && (efa->v4->tmp.v == NULL))
 				efa->v4->tmp.v = addvertlist(em, efa->v4->co, efa->v4);
 			
-			if(del_old==0) {	// keep old faces means flipping normal
-				if(efa->v4)
-					efan = addfacelist(em, efa->v4->tmp.v, efa->v3->tmp.v, 
-								efa->v2->tmp.v, efa->v1->tmp.v, efa, efa);
-				else
-					efan = addfacelist(em, efa->v3->tmp.v, efa->v2->tmp.v, 
-								efa->v1->tmp.v, NULL, efa, efa);
-			}
-			else {
 				if(efa->v4)
 					efan = addfacelist(em, efa->v1->tmp.v, efa->v2->tmp.v, 
 								efa->v3->tmp.v, efa->v4->tmp.v, efa, efa);
 				else
 					efan = addfacelist(em, efa->v1->tmp.v, efa->v2->tmp.v, 
 								efa->v3->tmp.v, NULL, efa, efa);
+
+			/* keep old faces means flipping normal, reverse vertex order gives bad UV's & VCols etc - [#25260] */
+			if(del_old==0) {
+				flipface(em, efan);
 			}
 			
 			if (em->act_face == efa) {
@@ -1641,10 +1637,10 @@ short extrudeflag_vert(Object *obedit, EditMesh *em, short flag, float *nor, int
 			VECCOPY(v1->co, eve->co);
 			VECCOPY(v1->no, eve->no);
 			v1->f= eve->f;
-			eve->f-= flag;
+			eve->f &= ~flag;
 			eve->tmp.v = v1;
 		}
-		else eve->tmp.v = 0;
+		else eve->tmp.v = NULL;
 		eve= eve->prev;
 	}
 
@@ -1702,17 +1698,7 @@ short extrudeflag_vert(Object *obedit, EditMesh *em, short flag, float *nor, int
 
 		eed= nexted;
 	}
-	if(del_old) {
-		eed= em->edges.first;
-		while(eed) {
-			nexted= eed->next;
-			if(eed->f2==3 && eed->f1==1) {
-				remedge(em, eed);
-				free_editedge(em, eed);
-			}
-			eed= nexted;
-		}
-	}
+	
 	/* duplicate faces, if necessary remove old ones  */
 	efa= em->faces.first;
 	while(efa) {
@@ -1725,7 +1711,7 @@ short extrudeflag_vert(Object *obedit, EditMesh *em, short flag, float *nor, int
 			if(efa->v4) 
 				v4 = efa->v4->tmp.v; 
 			else
-				v4= 0;
+				v4= NULL;
 
 			/* hmm .. not sure about edges here */
 			if(del_old==0)	// if we keep old, we flip normal
@@ -1742,6 +1728,18 @@ short extrudeflag_vert(Object *obedit, EditMesh *em, short flag, float *nor, int
 			}
 		}
 		efa= nextvl;
+	}
+	/* delete edges after copying edges above! */
+	if(del_old) {
+		eed= em->edges.first;
+		while(eed) {
+			nexted= eed->next;
+			if(eed->f2==3 && eed->f1==1) {
+				remedge(em, eed);
+				free_editedge(em, eed);
+			}
+			eed= nexted;
+		}
 	}
 	
 	normalize_v3(nor);	// for grab
@@ -1828,7 +1826,7 @@ static EditVert *adduplicate_vertex(EditMesh *em, EditVert *eve, int flag)
 	EditVert *v1= addvertlist(em, eve->co, eve);
 	
 	v1->f= eve->f;
-	eve->f-= flag;
+	eve->f &= ~flag;
 	eve->f|= 128;
 	
 	eve->tmp.v = v1;
@@ -1867,7 +1865,7 @@ void adduplicateflag(EditMesh *em, int flag)
 			newed= addedgelist(em, v1, v2, eed);
 			
 			newed->f= eed->f;
-			eed->f -= flag;
+			eed->f &= ~flag;
 			eed->f |= 128;
 		}
 	}
@@ -1894,7 +1892,7 @@ void adduplicateflag(EditMesh *em, int flag)
 			}
 			
 			newfa->f= efa->f;
-			efa->f -= flag;
+			efa->f &= ~flag;
 			efa->f |= 128;
 		}
 	}

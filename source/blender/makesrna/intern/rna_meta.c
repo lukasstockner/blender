@@ -98,7 +98,7 @@ static void rna_MetaBall_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
 		if(ob->data == mb)
 			copy_mball_properties(scene, ob);
 
-		DAG_id_tag_update(&mb->id, OB_RECALC_DATA);
+		DAG_id_tag_update(&mb->id, 0);
 	WM_main_add_notifier(NC_GEOM|ND_DATA, mb);
 }
 }
@@ -116,7 +116,7 @@ static MetaElem *rna_MetaBall_elements_new(MetaBall *mb, int type)
 
 	/* cheating way for importers to avoid slow updates */
 	if(mb->id.us > 0) {
-		DAG_id_tag_update(&mb->id, OB_RECALC_DATA);
+		DAG_id_tag_update(&mb->id, 0);
 		WM_main_add_notifier(NC_GEOM|ND_DATA, &mb->id);
 	}
 
@@ -139,7 +139,7 @@ static void rna_MetaBall_elements_remove(MetaBall *mb, ReportList *reports, Meta
 
 	/* cheating way for importers to avoid slow updates */
 	if(mb->id.us > 0) {
-		DAG_id_tag_update(&mb->id, OB_RECALC_DATA);
+		DAG_id_tag_update(&mb->id, 0);
 		WM_main_add_notifier(NC_GEOM|ND_DATA, &mb->id);
 	}
 }
@@ -232,7 +232,7 @@ static void rna_def_metaball_elements(BlenderRNA *brna, PropertyRNA *cprop)
 
 	func= RNA_def_function(srna, "new", "rna_MetaBall_elements_new");
 	RNA_def_function_ui_description(func, "Add a new spline to the curve.");
-	parm= RNA_def_enum(func, "type", metaelem_type_items, MB_BALL, "", "type for the new meta element.");
+	RNA_def_enum(func, "type", metaelem_type_items, MB_BALL, "", "type for the new meta element.");
 	parm= RNA_def_pointer(func, "element", "MetaElement", "", "The newly created metaelement.");
 	RNA_def_function_return(func, parm);
 

@@ -35,6 +35,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
@@ -94,8 +95,6 @@ MetaElem *add_metaball_primitive(bContext *C, float mat[4][4], int type, int new
 	Object *obedit= CTX_data_edit_object(C);
 	MetaBall *mball = (MetaBall*)obedit->data;
 	MetaElem *ml;
-
-	if(!obedit) return NULL;
 
 	/* Deselect all existing metaelems */
 	ml= mball->editelems->first;
@@ -284,7 +283,7 @@ static int duplicate_metaelems_exec(bContext *C, wmOperator *UNUSED(op))
 			ml= ml->prev;
 		}
 		WM_event_add_notifier(C, NC_GEOM|ND_DATA, mb);
-		DAG_id_tag_update(obedit->data, OB_RECALC_DATA);
+		DAG_id_tag_update(obedit->data, 0);
 	}
 
 	return OPERATOR_FINISHED;
@@ -343,7 +342,7 @@ static int delete_metaelems_exec(bContext *C, wmOperator *UNUSED(op))
 			ml= next;
 		}
 		WM_event_add_notifier(C, NC_GEOM|ND_DATA, mb);
-		DAG_id_tag_update(obedit->data, OB_RECALC_DATA);
+		DAG_id_tag_update(obedit->data, 0);
 	}
 
 	return OPERATOR_FINISHED;
@@ -393,7 +392,7 @@ static int hide_metaelems_exec(bContext *C, wmOperator *op)
 			}
 		}
 		WM_event_add_notifier(C, NC_GEOM|ND_DATA, mb);
-		DAG_id_tag_update(obedit->data, OB_RECALC_DATA);
+		DAG_id_tag_update(obedit->data, 0);
 	}
 
 	return OPERATOR_FINISHED;
@@ -434,7 +433,7 @@ static int reveal_metaelems_exec(bContext *C, wmOperator *UNUSED(op))
 			ml= ml->next;
 		}
 		WM_event_add_notifier(C, NC_GEOM|ND_DATA, mb);
-		DAG_id_tag_update(obedit->data, OB_RECALC_DATA);
+		DAG_id_tag_update(obedit->data, 0);
 	}
 	
 	return OPERATOR_FINISHED;

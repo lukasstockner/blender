@@ -68,7 +68,6 @@ class INFO_HT_header(bpy.types.Header):
         # XXX: this should be right-aligned to the RHS of the region
         layout.operator("wm.window_fullscreen_toggle", icon='FULLSCREEN_ENTER', text="")
 
-
 class INFO_MT_file(bpy.types.Menu):
     bl_label = "File"
 
@@ -188,6 +187,7 @@ class INFO_MT_curve_add(bpy.types.Menu):
         layout.operator("curve.primitive_nurbs_curve_add", icon='CURVE_NCURVE', text="Nurbs Curve")
         layout.operator("curve.primitive_nurbs_circle_add", icon='CURVE_NCIRCLE', text="Nurbs Circle")
         layout.operator("curve.primitive_nurbs_path_add", icon='CURVE_PATH', text="Path")
+
 
 class INFO_MT_edit_curve_add(bpy.types.Menu):
     bl_idname = "INFO_MT_edit_curve_add"
@@ -317,10 +317,12 @@ class INFO_MT_help(bpy.types.Menu):
     bl_label = "Help"
 
     def draw(self, context):
+        import sys
+
         layout = self.layout
 
         layout.operator("wm.url_open", text="Manual", icon='HELP').url = 'http://wiki.blender.org/index.php/Doc:Manual'
-        layout.operator("wm.url_open", text="Release Log", icon='URL').url = 'http://www.blender.org/development/release-logs/blender-254-beta/'
+        layout.operator("wm.url_open", text="Release Log", icon='URL').url = 'http://www.blender.org/development/release-logs/blender-256-beta/'
 
         layout.separator()
 
@@ -334,6 +336,9 @@ class INFO_MT_help(bpy.types.Menu):
         layout.operator("wm.url_open", text="Python API Reference", icon='URL').url = "http://www.blender.org/documentation/blender_python_api_%s/contents.html" % "_".join(str(v) for v in bpy.app.version)
         layout.operator("help.operator_cheat_sheet", icon='TEXT')
         layout.separator()
+        if sys.platform == "win32":
+            layout.operator("wm.toggle_console", icon='CONSOLE')
+            layout.separator()
         layout.operator("anim.update_data_paths", text="FCurve/Driver 2.54 fix", icon='HELP')
         layout.separator()
         layout.operator("wm.splash")

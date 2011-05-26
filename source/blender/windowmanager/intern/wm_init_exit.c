@@ -52,7 +52,7 @@
 #include "BKE_main.h"
 #include "BKE_mball.h"
 #include "BKE_report.h"
-#include "BKE_utildefines.h"
+
 #include "BKE_packedFile.h"
 #include "BKE_sequencer.h" /* free seq clipboard */
 #include "BKE_material.h" /* clear_matcopybuf */
@@ -66,6 +66,7 @@
 #endif
 
 #include "SYS_System.h"
+#include "GHOST_Path-api.h"
 
 #include "RNA_define.h"
 
@@ -116,6 +117,8 @@ void WM_init(bContext *C, int argc, char **argv)
 		wm_ghost_init(C);	/* note: it assigns C to ghost! */
 		wm_init_cursor_data();
 	}
+	GHOST_CreateSystemPaths();
+
 	wm_operatortype_init();
 	
 	set_free_windowmanager_cb(wm_close_and_free);	/* library.c */
@@ -142,11 +145,11 @@ void WM_init(bContext *C, int argc, char **argv)
 	 * Will try fix when the crash can be repeated. - campbell. */
 
 #ifndef DISABLE_PYTHON
-	BPY_set_context(C); /* necessary evil */
-	BPY_start_python(argc, argv);
+	BPY_context_set(C); /* necessary evil */
+	BPY_python_start(argc, argv);
 
-	BPY_reset_driver();
-	BPY_load_user_modules(C);
+	BPY_driver_reset();
+	BPY_modules_load_user(C);
 #endif
 
 	wm_init_reports(C); /* reports cant be initialized before the wm */
@@ -270,12 +273,16 @@ int WM_init_game(bContext *C)
 		if(scene->gm.fullscreen) {
 			WM_operator_name_call(C, "WM_OT_window_fullscreen_toggle", WM_OP_EXEC_DEFAULT, NULL);
 			wm_get_screensize(&ar->winrct.xmax, &ar->winrct.ymax);
+			ar->winx = ar->winrct.xmax + 1;
+			ar->winy = ar->winrct.ymax + 1;
 		}
 		else
 		{
 			GHOST_RectangleHandle rect = GHOST_GetClientBounds(win->ghostwin);
 			ar->winrct.ymax = GHOST_GetHeightRectangle(rect);
 			ar->winrct.xmax = GHOST_GetWidthRectangle(rect);
+			ar->winx = ar->winrct.xmax + 1;
+			ar->winy = ar->winrct.ymax + 1;
 			GHOST_DisposeRectangle(rect);
 		}
 
@@ -403,7 +410,7 @@ void WM_exit(bContext *C)
 	/* Update for blender 2.5, move after free_blender because blender now holds references to PyObject's
 	 * so decref'ing them after python ends causes bad problems every time
 	 * the pyDriver bug can be fixed if it happens again we can deal with it then */
-	BPY_end_python();
+	BPY_python_end();
 #endif
 
 	if (!G.background) {
@@ -426,13 +433,16 @@ void WM_exit(bContext *C)
 	UI_exit();
 	BKE_userdef_free();
 
-	RNA_exit(); /* should be after BPY_end_python so struct python slots are cleared */
+	RNA_exit(); /* should be after BPY_python_end so struct python slots are cleared */
 	
 	wm_ghost_exit();
 
 	CTX_free(C);
 	
 	SYS_DeleteSystem(SYS_GetSystem());
+
+	
+	GHOST_DisposeSystemPaths();
 
 	if(MEM_get_memory_blocks_in_use()!=0) {
 		printf("Error Totblock: %d\n", MEM_get_memory_blocks_in_use());

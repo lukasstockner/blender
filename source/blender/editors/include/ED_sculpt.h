@@ -51,6 +51,7 @@ void ED_keymap_paint(struct wmKeyConfig *keyconf);
 
 int ED_undo_paint_step(struct bContext *C, int type, int step, const char *name);
 void ED_undo_paint_free(void);
+int ED_undo_paint_valid(int type, const char *name);
 
 void ED_draw_paint_overlay(const struct bContext *C, struct ARegion *ar);
 void ED_draw_on_surface_cursor(float modelview[16], float projection[16], float col[3], float alpha, float size[3], int viewport[4], float location[3], float inner_radius, float outer_radius, int brush_size);

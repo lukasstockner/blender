@@ -482,7 +482,7 @@ static void rna_FieldSettings_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 			part->pd2->tex= 0;
 		}
 
-		DAG_id_tag_update(&part->id, OB_RECALC_ALL|PSYS_RECALC_RESET);
+		DAG_id_tag_update(&part->id, OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME|PSYS_RECALC_RESET);
 		WM_main_add_notifier(NC_OBJECT|ND_DRAW, NULL);
 
 	}
@@ -524,7 +524,7 @@ static void rna_FieldSettings_shape_update(Main *bmain, Scene *scene, PointerRNA
 static void rna_FieldSettings_dependency_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	if(particle_id_check(ptr)) {
-		DAG_id_tag_update((ID*)ptr->id.data, OB_RECALC_ALL|PSYS_RECALC_RESET);
+		DAG_id_tag_update((ID*)ptr->id.data, OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME|PSYS_RECALC_RESET);
 	}
 	else {
 		Object *ob= (Object*)ptr->id.data;
@@ -541,7 +541,7 @@ static void rna_FieldSettings_dependency_update(Main *bmain, Scene *scene, Point
 		DAG_scene_sort(bmain, scene);
 
 		if(ob->type == OB_CURVE && ob->pd->forcefield == PFIELD_GUIDE)
-			DAG_id_tag_update(&ob->id, OB_RECALC_ALL);
+			DAG_id_tag_update(&ob->id, OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME);
 		else
 			DAG_id_tag_update(&ob->id, OB_RECALC_OB);
 
@@ -651,7 +651,7 @@ static void rna_CollisionSettings_update(Main *bmain, Scene *scene, PointerRNA *
 {
 	Object *ob= (Object*)ptr->id.data;
 
-	DAG_id_tag_update(&ob->id, OB_RECALC_ALL);
+	DAG_id_tag_update(&ob->id, OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME);
 	WM_main_add_notifier(NC_OBJECT|ND_DRAW, ob);
 }
 
@@ -720,6 +720,12 @@ static void rna_def_pointcache(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
+	static EnumPropertyItem point_cache_compress_items[] = {
+		{PTCACHE_COMPRESS_NO, "NO", 0, "No", "No compression"},
+		{PTCACHE_COMPRESS_LZO, "LIGHT", 0, "Light", "Fast but not so effective compression"},
+		{PTCACHE_COMPRESS_LZMA, "HEAVY", 0, "Heavy", "Effective but slow compression"},
+		{0, NULL, 0, NULL, NULL}};
+
 	srna= RNA_def_struct(brna, "PointCache", NULL);
 	RNA_def_struct_ui_text(srna, "Point Cache", "Point cache for physics simulations");
 	RNA_def_struct_ui_icon(srna, ICON_PHYSICS);
@@ -746,6 +752,11 @@ static void rna_def_pointcache(BlenderRNA *brna)
 	RNA_def_property_range(prop, -1, 100);
 	RNA_def_property_ui_text(prop, "Cache Index", "Index number of cache files");
 	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_idname_change");
+
+	prop= RNA_def_property(srna, "compression", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, point_cache_compress_items);
+	RNA_def_property_ui_text(prop, "Cache Compression", "Compression method to be used");
+	RNA_def_property_update(prop, 0, NULL);
 
 	/* flags */
 	prop= RNA_def_property(srna, "is_baked", PROP_BOOLEAN, PROP_NONE);
@@ -1552,20 +1563,20 @@ static void rna_def_softbody(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Damp", "Edge spring friction");
 	RNA_def_property_update(prop, 0, "rna_softbody_update");
 	
-	prop= RNA_def_property(srna, "spring_length", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "springpreload");
+	prop= RNA_def_property(srna, "spring_length", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "springpreload");
 	RNA_def_property_range(prop, 0.0f, 200.0f);
 	RNA_def_property_ui_text(prop, "SL", "Alter spring length to shrink/blow up (unit %) 0 to disable");
 	RNA_def_property_update(prop, 0, "rna_softbody_update");
 	
-	prop= RNA_def_property(srna, "aero", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "aeroedge");
+	prop= RNA_def_property(srna, "aero", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "aeroedge");
 	RNA_def_property_range(prop, 0.0f, 30000.0f);
 	RNA_def_property_ui_text(prop, "Aero", "Make edges 'sail'");
 	RNA_def_property_update(prop, 0, "rna_softbody_update");
 	
-	prop= RNA_def_property(srna, "plastic", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "plastic");
+	prop= RNA_def_property(srna, "plastic", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "plastic");
 	RNA_def_property_range(prop, 0.0f, 100.0f);
 	RNA_def_property_ui_text(prop, "Plastic", "Permanent deform");
 	RNA_def_property_update(prop, 0, "rna_softbody_update");

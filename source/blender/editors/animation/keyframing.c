@@ -38,6 +38,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_dynstr.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -72,6 +73,7 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "anim_intern.h"
 
@@ -572,6 +574,7 @@ static short visualkey_can_use (PointerRNA *ptr, PropertyRNA *prop)
 				case CONSTRAINT_TYPE_CHILDOF:
 					return 1;
 				case CONSTRAINT_TYPE_TRANSFORM:
+				case CONSTRAINT_TYPE_TRANSLIKE:
 					return 1;
 				case CONSTRAINT_TYPE_FOLLOWPATH:
 					return 1;
@@ -1073,7 +1076,7 @@ static int insert_key_exec (bContext *C, wmOperator *op)
 	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	KeyingSet *ks= NULL;
-	int type= RNA_int_get(op->ptr, "type");
+	int type= RNA_enum_get(op->ptr, "type");
 	float cfra= (float)CFRA; // XXX for now, don't bother about all the yucky offset crap
 	short success;
 	
@@ -1138,11 +1141,12 @@ void ANIM_OT_keyframe_insert (wmOperatorType *ot)
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
-	/* keyingset to use
-	 *	- here the type is int not enum, since many of the indicies here are determined dynamically
-	 */
-	prop= RNA_def_int(ot->srna, "type", 0, INT_MIN, INT_MAX, "Keying Set Number", "Index (determined internally) of the Keying Set to use", 0, 1);
+	/* keyingset to use (dynamic enum) */
+	prop= RNA_def_enum(ot->srna, "type", DummyRNA_DEFAULT_items, 0, "Keying Set", "The Keying Set to use");
+	RNA_def_enum_funcs(prop, ANIM_keying_sets_enum_itemf);
 	RNA_def_property_flag(prop, PROP_HIDDEN);
+	ot->prop= prop;
+	
 	/* confirm whether a keyframe was added by showing a popup 
 	 *	- by default, this is enabled, since this operator is assumed to be called independently
 	 */
@@ -1167,7 +1171,7 @@ static int insert_key_menu_invoke (bContext *C, wmOperator *op, wmEvent *UNUSED(
 	}
 	else {
 		/* just call the exec() on the active keyingset */
-		RNA_int_set(op->ptr, "type", 0);
+		RNA_enum_set(op->ptr, "type", 0);
 		RNA_boolean_set(op->ptr, "confirm_success", 1);
 		
 		return op->type->exec(C, op);
@@ -1191,17 +1195,19 @@ void ANIM_OT_keyframe_insert_menu (wmOperatorType *ot)
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
-	/* keyingset to use
-	 *	- here the type is int not enum, since many of the indicies here are determined dynamically
-	 */
-	prop= RNA_def_int(ot->srna, "type", 0, INT_MIN, INT_MAX, "Keying Set Number", "Index (determined internally) of the Keying Set to use", 0, 1);
+	/* keyingset to use (dynamic enum) */
+	prop= RNA_def_enum(ot->srna, "type", DummyRNA_DEFAULT_items, 0, "Keying Set", "The Keying Set to use");
+	RNA_def_enum_funcs(prop, ANIM_keying_sets_enum_itemf);
 	RNA_def_property_flag(prop, PROP_HIDDEN);
+	ot->prop= prop;
+	
 	/* confirm whether a keyframe was added by showing a popup 
 	 *	- by default, this is disabled so that if a menu is shown, this doesn't come up too
 	 */
 	// XXX should this just be always on?
 	prop= RNA_def_boolean(ot->srna, "confirm_success", 0, "Confirm Successful Insert", "Show a popup when the keyframes get successfully added");
 	RNA_def_property_flag(prop, PROP_HIDDEN);
+	
 	/* whether the menu should always be shown 
 	 *	- by default, the menu should only be shown when there is no active Keying Set (2.5 behaviour),
 	 *	  although in some cases it might be useful to always shown (pre 2.5 behaviour)
@@ -1217,7 +1223,7 @@ static int delete_key_exec (bContext *C, wmOperator *op)
 	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	KeyingSet *ks= NULL;	
-	int type= RNA_int_get(op->ptr, "type");
+	int type= RNA_enum_get(op->ptr, "type");
 	float cfra= (float)CFRA; // XXX for now, don't bother about all the yucky offset crap
 	short success;
 	
@@ -1268,6 +1274,8 @@ static int delete_key_exec (bContext *C, wmOperator *op)
 
 void ANIM_OT_keyframe_delete (wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+	
 	/* identifiers */
 	ot->name= "Delete Keyframe";
 	ot->idname= "ANIM_OT_keyframe_delete";
@@ -1280,10 +1288,12 @@ void ANIM_OT_keyframe_delete (wmOperatorType *ot)
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
-	/* keyingset to use
-	 *	- here the type is int not enum, since many of the indicies here are determined dynamically
-	 */
-	RNA_def_int(ot->srna, "type", 0, INT_MIN, INT_MAX, "Keying Set Number", "Index (determined internally) of the Keying Set to use", 0, 1);
+	/* keyingset to use (dynamic enum) */
+	prop= RNA_def_enum(ot->srna, "type", DummyRNA_DEFAULT_items, 0, "Keying Set", "The Keying Set to use");
+	RNA_def_enum_funcs(prop, ANIM_keying_sets_enum_itemf);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+	ot->prop= prop;
+	
 	/* confirm whether a keyframe was added by showing a popup 
 	 *	- by default, this is enabled, since this operator is assumed to be called independently
 	 */

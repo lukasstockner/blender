@@ -36,6 +36,7 @@ set(INC
 	../../../intern/moto/include
 	../../../source/gameengine/Ketsji 
 	../../../source/blender/blenlib
+	../../../source/blender/blenfont
 	../../../source/blender/blenkernel
 	../../../source/blender/python
 	../../../source/blender/python/generic
@@ -73,6 +74,7 @@ set(SRC
 	KX_ConvertPhysicsObjects.cpp
 	KX_Dome.cpp
 	KX_EmptyObject.cpp
+	KX_FontObject.cpp
 	KX_GameActuator.cpp
 	KX_GameObject.cpp
 	KX_IPO_SGController.cpp
@@ -138,6 +140,7 @@ set(SRC
 	KX_ConvertPhysicsObject.h
 	KX_Dome.h
 	KX_EmptyObject.h
+	KX_FontObject.h
 	KX_GameActuator.h
 	KX_GameObject.h
 	KX_IInterpolator.h
@@ -221,4 +224,4 @@ if(WITH_BULLET)
 	list(APPEND INC ../../../source/gameengine/Physics/Bullet )
 endif()
 
-blenderlib(ge_logic_ketsji "${SRC}" "${INC}")
+blender_add_lib(ge_logic_ketsji "${SRC}" "${INC}")

@@ -235,6 +235,12 @@ static void rna_def_dopesheet(BlenderRNA *brna)
 	RNA_def_property_ui_icon(prop, ICON_MESH_DATA, 0);
 	RNA_def_property_update(prop, NC_ANIMATION|ND_ANIMCHAN|NA_EDITED, NULL);
 	
+	prop= RNA_def_property(srna, "show_lattices", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "filterflag", ADS_FILTER_NOLAT);
+	RNA_def_property_ui_text(prop, "Display Lattices", "Include visualization of Lattice related Animation data");
+	RNA_def_property_ui_icon(prop, ICON_LATTICE_DATA, 0);
+	RNA_def_property_update(prop, NC_ANIMATION|ND_ANIMCHAN|NA_EDITED, NULL);
+	
 	prop= RNA_def_property(srna, "show_cameras", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "filterflag", ADS_FILTER_NOCAM);
 	RNA_def_property_ui_text(prop, "Display Camera", "Include visualization of Camera related Animation data");
@@ -399,8 +405,8 @@ static void rna_def_action_fcurves(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 	parm= RNA_def_string(func, "data_path", "", 0, "Data Path", "FCurve data path to use.");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
-	parm= RNA_def_int(func, "array_index", 0, 0, INT_MAX, "Index", "Array index.", 0, INT_MAX);
-	parm= RNA_def_string(func, "action_group", "", 0, "Action Group", "Acton group to add this fcurve into.");
+	RNA_def_int(func, "array_index", 0, 0, INT_MAX, "Index", "Array index.", 0, INT_MAX);
+	RNA_def_string(func, "action_group", "", 0, "Action Group", "Acton group to add this fcurve into.");
 
 	parm= RNA_def_pointer(func, "fcurve", "FCurve", "", "Newly created fcurve");
 	RNA_def_function_return(func, parm);

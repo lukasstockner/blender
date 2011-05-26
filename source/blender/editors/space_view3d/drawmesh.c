@@ -34,7 +34,7 @@
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
 #include "BLI_editVert.h"
-
+#include "BLI_utildefines.h"
 
 #include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
@@ -50,7 +50,7 @@
 #include "BKE_material.h"
 #include "BKE_paint.h"
 #include "BKE_property.h"
-#include "BKE_utildefines.h"
+
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -93,12 +93,9 @@ static EdgeHash *get_tface_mesh_marked_edge_info(Mesh *me)
 	EdgeHash *eh = BLI_edgehash_new();
 	int i;
 	MFace *mf;
-	MTFace *tf = NULL;
 	
 	for (i=0; i<me->totface; i++) {
 		mf = &me->mface[i];
-		if (me->mtface)
-			tf = &me->mtface[i];
 		
 		if (mf->v3) {
 			if (!(mf->flag&ME_HIDE)) {

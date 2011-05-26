@@ -48,6 +48,7 @@
 #include "BLI_math.h"
 #include "BLI_editVert.h"
 #include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
 
 //#include "BDR_drawobject.h"
 //
@@ -133,9 +134,10 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 	if (validSnap(t) && activeSnap(t))
 		{
 		
-		char col[4] = {1, 0, 1};
+		unsigned char col[4];
 		UI_GetThemeColor3ubv(TH_TRANSFORM, col);
-		glColor4ub(col[0], col[1], col[2], 128);
+		col[3]= 128;
+		glColor4ubv(col);
 		
 		if (t->spacetype == SPACE_VIEW3D) {
 			TransSnapPoint *p;
@@ -261,7 +263,7 @@ void applyProject(TransInfo *t)
 			}
 			else if (t->flag & T_OBJECT)
 			{
-				td->ob->recalc |= OB_RECALC_ALL;
+				td->ob->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;
 				object_handle_update(t->scene, td->ob);
 				VECCOPY(iloc, td->ob->obmat[3]);
 			}
@@ -1590,7 +1592,6 @@ int snapObjects(Scene *scene, View3D *v3d, ARegion *ar, Object *obedit, float mv
 		retval |= snapObject(scene, ar, ob, 0, ob->obmat, ray_start, ray_normal, mval, loc, no, dist, &depth);
 	}
 	
-	base= FIRSTBASE;
 	for ( base = FIRSTBASE; base != NULL; base = base->next ) {
 		if ( BASE_VISIBLE(v3d, base) && (base->flag & (BA_HAS_RECALC_OB|BA_HAS_RECALC_DATA)) == 0 && ((mode == SNAP_NOT_SELECTED && (base->flag & (SELECT|BA_WAS_SEL)) == 0) || (ELEM(mode, SNAP_ALL, SNAP_NOT_OBEDIT) && base != BASACT)) ) {
 			Object *ob = base->object;

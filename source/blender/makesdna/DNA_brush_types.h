@@ -141,6 +141,10 @@ typedef struct Brush {
 #define BRUSH_SYMMETRY_FEATHER (1<<29)
 #define BRUSH_LAYER (1<<30)
 
+/* temporary flag which sets up autmatically for correct
+   brush drawing when inverted modal operator is running */
+#define BRUSH_INVERTED (1<<29)
+
 /* Brush.sculpt_tool */
 #define SCULPT_TOOL_DRAW         1
 #define SCULPT_TOOL_SMOOTH       2

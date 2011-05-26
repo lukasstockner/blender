@@ -91,6 +91,7 @@
 #include "BLI_linklist.h"
 #include "BLI_storage_types.h"
 #include "BLI_string.h"
+
 #include "BKE_utildefines.h"
 
 /* vars: */
@@ -205,7 +206,7 @@ void BLI_builddir(const char *dirname, const char *relname)
 {
 	struct dirent *fname;
 	struct dirlink *dlink;
-	int rellen, newnum = 0, len;
+	int rellen, newnum = 0;
 	char buf[256];
 	DIR *dir;
 
@@ -224,8 +225,6 @@ void BLI_builddir(const char *dirname, const char *relname)
 
 	if ( (dir = (DIR *)opendir(".")) ){
 		while ((fname = (struct dirent*) readdir(dir)) != NULL) {
-			len= strlen(fname->d_name);
-			
 			dlink = (struct dirlink *)malloc(sizeof(struct dirlink));
 			if (dlink){
 				strcpy(buf+rellen,fname->d_name);

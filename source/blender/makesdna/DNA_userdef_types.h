@@ -49,7 +49,7 @@ struct ColorBand;
 
 /* default uifont_id offered by Blender */
 #define UIFONT_DEFAULT	0
-#define UIFONT_BITMAP	1
+/*#define UIFONT_BITMAP	1*/ /*UNUSED*/
 /* free slots */
 #define UIFONT_CUSTOM1	2
 #define UIFONT_CUSTOM2	3
@@ -88,6 +88,7 @@ typedef struct uiFontStyle {
 
 
 /* this is fed to the layout engine and widget code */
+
 typedef struct uiStyle {
 	struct uiStyle *next, *prev;
 	
@@ -199,6 +200,7 @@ typedef struct ThemeSpace {
 	char edge_seam[4], edge_sharp[4], edge_facesel[4], edge_crease[4];
 	char face[4], face_select[4];	// solid faces
 	char face_dot[4];				// selected color
+	char extra_edge_len[4], extra_face_angle[4], extra_face_area[4], pad3[4];
 	char normal[4];
 	char vertex_normal[4];
 	char bone_solid[4], bone_pose[4];
@@ -348,7 +350,8 @@ typedef struct UserDef {
 	short sculpt_paint_settings; /* user preferences for sculpt and paint */
 	short tw_hotspot, tw_flag, tw_handlesize, tw_size;
 	short textimeout,texcollectrate;
-	short wmdrawmethod;
+	short wmdrawmethod; /* removed wmpad */
+	short dragthreshold;
 	int memcachelimit;
 	int prefetchframes;
 	short frameserverport;
@@ -402,16 +405,16 @@ extern UserDef U; /* from blenkernel blender.c */
 
 /* flag */
 #define USER_AUTOSAVE			(1 << 0)
-#define USER_AUTOGRABGRID		(1 << 1)	/* deprecated */
-#define USER_AUTOROTGRID		(1 << 2)	/* deprecated */
-#define USER_AUTOSIZEGRID		(1 << 3)	/* deprecated */
+/*#define USER_AUTOGRABGRID		(1 << 1)	deprecated */
+/*#define USER_AUTOROTGRID		(1 << 2)	deprecated */
+/*#define USER_AUTOSIZEGRID		(1 << 3)	deprecated */
 #define USER_SCENEGLOBAL		(1 << 4)
 #define USER_TRACKBALL			(1 << 5)
-#define USER_DUPLILINK			(1 << 6)
-#define USER_FSCOLLUM			(1 << 7)
+/*#define USER_DUPLILINK		(1 << 6)	deprecated */
+/*#define USER_FSCOLLUM			(1 << 7)	deprecated */
 #define USER_MAT_ON_OB			(1 << 8)
 /*#define USER_NO_CAPSLOCK		(1 << 9)*/ /* not used anywhere */
-#define USER_VIEWMOVE			(1 << 10)
+/*#define USER_VIEWMOVE			(1 << 10)*/ /* not used anywhere */
 #define USER_TOOLTIPS			(1 << 11)
 #define USER_TWOBUTTONMOUSE		(1 << 12)
 #define USER_NONUMPAD			(1 << 13)
@@ -449,10 +452,10 @@ extern UserDef U; /* from blenkernel blender.c */
 #define USER_DRAWVIEWINFO		(1 << 4)
 #define USER_PLAINMENUS			(1 << 5)		// old EVTTOCONSOLE print ghost events, here for tuhopuu compat. --phase
 								// old flag for hide pulldown was here 
-#define USER_FLIPFULLSCREEN		(1 << 7)
+/*#define USER_FLIPFULLSCREEN		(1 << 7)*/ /* deprecated */
 #define USER_ALLWINCODECS		(1 << 8)
 #define USER_MENUOPENAUTO		(1 << 9)
-#define USER_PANELPINNED		(1 << 10)		/* deprecated */
+/*#define USER_PANELPINNED		(1 << 10)		deprecated */
 #define USER_AUTOPERSP     		(1 << 11)
 #define USER_LOCKAROUND     	(1 << 12)
 #define USER_GLOBALUNDO     	(1 << 13)
@@ -496,11 +499,11 @@ extern UserDef U; /* from blenkernel blender.c */
 #define	USER_TR_TOOLTIPS		(1 << 0)
 #define	USER_TR_BUTTONS			(1 << 1)
 #define USER_TR_MENUS			(1 << 2)
-#define USER_TR_FILESELECT		(1 << 3)
-#define USER_TR_TEXTEDIT		(1 << 4)
+/*#define USER_TR_FILESELECT	(1 << 3)	deprecated*/
+/*#define USER_TR_TEXTEDIT		(1 << 4)	deprecated*/
 #define USER_DOTRANSLATE		(1 << 5)
 #define USER_USETEXTUREFONT		(1 << 6)
-#define CONVERT_TO_UTF8			(1 << 7)
+/*#define CONVERT_TO_UTF8			(1 << 7)	deprecated*/
 
 /* dupflag */
 #define USER_DUP_MESH			(1 << 0)
@@ -517,7 +520,7 @@ extern UserDef U; /* from blenkernel blender.c */
 #define	USER_DUP_PSYS			(1 << 11)
 
 /* gameflags */
-#define USER_DEPRECATED_FLAG	1
+// #define USER_DEPRECATED_FLAG	1
 // #define USER_DISABLE_SOUND		2 deprecated, don't use without checking for
 // backwards compatibilty in do_versions!
 #define USER_DISABLE_MIPMAP		4

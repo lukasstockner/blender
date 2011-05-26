@@ -112,7 +112,7 @@ void yuv_to_rgb(float y, float u, float v, float *lr, float *lg, float *lb)
 void rgb_to_ycc(float r, float g, float b, float *ly, float *lcb, float *lcr, int colorspace)
 {
 	float sr,sg, sb;
-	float y, cr, cb;
+	float y = 128.f, cr = 128.f, cb = 128.f;
 	
 	sr=255.0f*r;
 	sg=255.0f*g;
@@ -144,11 +144,12 @@ void rgb_to_ycc(float r, float g, float b, float *ly, float *lcb, float *lcr, in
 }
 
 
-/* YCC input have a range of 16-235 and 16-240 exepect with JFIF_0_255 where the range is 0-255 */
+/* YCC input have a range of 16-235 and 16-240 except with JFIF_0_255 where the range is 0-255 */
 /* RGB outputs are in the range 0 - 1.0f */
+/* FIXME comment above must be wrong because BLI_YCC_ITU_BT601 y 16.0 cr 16.0 -> r -0.7009 */
 void ycc_to_rgb(float y, float cb, float cr, float *lr, float *lg, float *lb, int colorspace)
 {
-	float r,g,b;
+	float r = 128.f, g = 128.f, b = 128.f;
 	
 	switch (colorspace) {
 	case BLI_YCC_ITU_BT601 :
@@ -208,7 +209,6 @@ void rgb_to_hsv(float r, float g, float b, float *lh, float *ls, float *lv)
 		s = (cmax - cmin)/cmax;
 	else {
 		s = 0.0f;
-		h = 0.0f;
 	}
 	if (s == 0.0f)
 		h = -1.0f;
@@ -326,14 +326,14 @@ void cpack_to_rgb(unsigned int col, float *r, float *g, float *b)
 	*b /= 255.0f;
 }
 
-void rgb_byte_to_float(char *in, float *out)
+void rgb_byte_to_float(const unsigned char *in, float *out)
 {
 	out[0]= ((float)in[0]) / 255.0f;
 	out[1]= ((float)in[1]) / 255.0f;
 	out[2]= ((float)in[2]) / 255.0f;
 }
 
-void rgb_float_to_byte(float *in, char *out)
+void rgb_float_to_byte(const float *in, unsigned char *out)
 {
 	int r, g, b;
 	
@@ -511,7 +511,7 @@ void rgb_float_set_hue_float_offset(float rgb[3], float hue_offset)
 }
 
 /* Applies an hue offset to a byte rgb color */
-void rgb_byte_set_hue_float_offset(char rgb[3], float hue_offset)
+void rgb_byte_set_hue_float_offset(unsigned char rgb[3], float hue_offset)
 {
 	float rgb_float[3];
 	

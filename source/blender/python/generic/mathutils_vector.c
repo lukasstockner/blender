@@ -28,8 +28,10 @@
 #include "mathutils.h"
 
 #include "BLI_blenlib.h"
-#include "BKE_utildefines.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
+
+
 
 #define MAX_DIMENSIONS 4
 /* Swizzle axes get packed into a single value that is used as a closure. Each
@@ -808,7 +810,7 @@ static int Vector_ass_item(VectorObject *self, int i, PyObject * ob)
   sequence slice (get) */
 static PyObject *Vector_slice(VectorObject *self, int begin, int end)
 {
-	PyObject *list = NULL;
+	PyObject *tuple;
 	int count;
 
 	if(!BaseMath_ReadCallback(self))
@@ -819,52 +821,32 @@ static PyObject *Vector_slice(VectorObject *self, int begin, int end)
 	CLAMP(end, 0, self->size);
 	begin = MIN2(begin,end);
 
-	list = PyList_New(end - begin);
+	tuple= PyTuple_New(end - begin);
 	for(count = begin; count < end; count++) {
-		PyList_SET_ITEM(list, count - begin, PyFloat_FromDouble(self->vec[count]));
+		PyTuple_SET_ITEM(tuple, count - begin, PyFloat_FromDouble(self->vec[count]));
 	}
 
-	return list;
+	return tuple;
 }
 /*----------------------------object[z:y]------------------------
   sequence slice (set) */
 static int Vector_ass_slice(VectorObject *self, int begin, int end,
 				 PyObject * seq)
 {
-	int i, y, size = 0;
-	float vec[4], scalar;
-	PyObject *v;
+	int y, size = 0;
+	float vec[MAX_DIMENSIONS];
 
 	if(!BaseMath_ReadCallback(self))
 		return -1;
 	
 	CLAMP(begin, 0, self->size);
-	if (end<0) end= self->size+end+1;
 	CLAMP(end, 0, self->size);
 	begin = MIN2(begin,end);
 
-	size = PySequence_Length(seq);
-	if(size != (end - begin)){
-		PyErr_SetString(PyExc_TypeError, "vector[begin:end] = []: size mismatch in slice assignment");
+	size = (end - begin);
+	if(mathutils_array_parse(vec, size, size, seq, "vector[begin:end] = [...]:") == -1)
 		return -1;
-	}
 
-	for (i = 0; i < size; i++) {
-		v = PySequence_GetItem(seq, i);
-		if (v == NULL) { /* Failed to read sequence */
-			PyErr_SetString(PyExc_RuntimeError, "vector[begin:end] = []: unable to read sequence");
-			return -1;
-		}
-		
-		if((scalar=PyFloat_AsDouble(v)) == -1.0f && PyErr_Occurred()) { /* parsed item not a number */
-			Py_DECREF(v);
-			PyErr_SetString(PyExc_TypeError, "vector[begin:end] = []: sequence argument not a number");
-			return -1;
-		}
-
-		vec[i] = scalar;
-		Py_DECREF(v);
-	}
 	/*parsed well - now set in vector*/
 	for(y = 0; y < size; y++){
 		self->vec[begin + y] = vec[y];
@@ -1005,6 +987,17 @@ static PyObject *Vector_isub(PyObject * v1, PyObject * v2)
 
 /*------------------------obj * obj------------------------------
   mulplication*/
+static PyObject *vector_mul_float(VectorObject *vec, const float scalar)
+{
+	float tvec[MAX_DIMENSIONS];
+	int i;
+
+	for(i = 0; i < vec->size; i++) {
+		tvec[i] = vec->vec[i] * scalar;
+	}
+	return newVectorObject(tvec, vec->size, Py_NEW, Py_TYPE(vec));
+}
+
 static PyObject *Vector_mul(PyObject * v1, PyObject * v2)
 {
 	VectorObject *vec1 = NULL, *vec2 = NULL;
@@ -1038,24 +1031,15 @@ static PyObject *Vector_mul(PyObject * v1, PyObject * v2)
 		}
 		return PyFloat_FromDouble(dot);
 	}
-	
-	/*swap so vec1 is always the vector */
-	/* note: it would seem from this code that the matrix multiplication below
-	 * is communicative. however the matrix class will always handle the
-	 * (matrix * vector) case so we can ignore it here.
-	 * This is NOT so for Quaternions: TODO, check if communicative (vec * quat) is correct */
-	if (vec2) {
-		vec1= vec2;
-		v2= v1;
-	}
-	
+	else if (vec1) {
 	if (MatrixObject_Check(v2)) {
 		/* VEC * MATRIX */
 		float tvec[4];
 		if(row_vector_multiplication(tvec, vec1, (MatrixObject*)v2) == -1)
 			return NULL;
 		return newVectorObject(tvec, vec1->size, Py_NEW, Py_TYPE(vec1));
-	} else if (QuaternionObject_Check(v2)) {
+		}
+		else if (QuaternionObject_Check(v2)) {
 		/* VEC * QUAT */
 		QuaternionObject *quat2 = (QuaternionObject*)v2;
 		float tvec[4];
@@ -1072,17 +1056,19 @@ static PyObject *Vector_mul(PyObject * v1, PyObject * v2)
 		return newVectorObject(tvec, 3, Py_NEW, Py_TYPE(vec1));
 	}
 	else if (((scalar= PyFloat_AsDouble(v2)) == -1.0 && PyErr_Occurred())==0) { /* VEC*FLOAT */
-		int i;
-		float vec[4];
-		
-		for(i = 0; i < vec1->size; i++) {
-			vec[i] = vec1->vec[i] * scalar;
+			return vector_mul_float(vec1, scalar);
 		}
-		return newVectorObject(vec, vec1->size, Py_NEW, Py_TYPE(vec1));
-		
+	}
+	else if (vec2) {
+		if (((scalar= PyFloat_AsDouble(v1)) == -1.0 && PyErr_Occurred())==0) { /* VEC*FLOAT */
+			return vector_mul_float(vec2, scalar);
+		}
+	}
+	else {
+		BLI_assert(!"internal error");
 	}
 	
-	PyErr_SetString(PyExc_TypeError, "Vector multiplication: arguments not acceptable for this operation");
+	PyErr_Format(PyExc_TypeError, "Vector multiplication: not supported between '%.200s' and '%.200s' types", Py_TYPE(v1)->tp_name, Py_TYPE(v2)->tp_name);
 	return NULL;
 }
 

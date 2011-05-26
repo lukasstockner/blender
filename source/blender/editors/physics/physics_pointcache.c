@@ -31,6 +31,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
+
 #include "DNA_scene_types.h"
 
 #include "BKE_context.h"
@@ -41,12 +44,9 @@
 #include "BKE_pointcache.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-#include "BKE_utildefines.h" 
 
-#include "BLI_blenlib.h"
 
 #include "ED_particle.h"
-
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -116,7 +116,7 @@ static int ptcache_bake_all_exec(bContext *C, wmOperator *op)
 		baker.progresscontext = NULL;
 	}
 
-	BKE_ptcache_make_cache(&baker);
+	BKE_ptcache_bake(&baker);
 
 	WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
 	WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, NULL);
@@ -218,7 +218,7 @@ static int ptcache_bake_exec(bContext *C, wmOperator *op)
 		baker.progresscontext = NULL;
 	}
 
-	BKE_ptcache_make_cache(&baker);
+	BKE_ptcache_bake(&baker);
 
 	BLI_freelistN(&pidlist);
 

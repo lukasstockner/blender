@@ -33,14 +33,14 @@
 #include <stddef.h>
 
 
+#include "MEM_guardedalloc.h"
+
 #include "DNA_ID.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "BLF_api.h"
 
@@ -49,6 +49,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_dynstr.h" /*for WM_operator_pystring */
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "BLO_readfile.h"
 
@@ -62,7 +63,7 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h" /* BKE_ST_MAXNAME */
-#include "BKE_utildefines.h"
+
 #include "BKE_idcode.h"
 
 #include "BIF_gl.h"
@@ -223,6 +224,8 @@ int wm_macro_invoke_internal(bContext *C, wmOperator *op, wmEvent *event, wmOper
 		else if(opm->type->exec)
 			retval= opm->type->exec(C, opm);
 
+		BLI_movelisttolist(&op->reports->list, &opm->reports->list);
+		
 		if (retval & OPERATOR_FINISHED) {
 			MacroData *md = op->customdata;
 			md->retval = OPERATOR_FINISHED; /* keep in mind that at least one operator finished */
@@ -638,7 +641,7 @@ int WM_menu_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 		return op->type->exec(C, op);
 	}
 	else {
-		pup= uiPupMenuBegin(C, op->type->name, 0);
+		pup= uiPupMenuBegin(C, op->type->name, ICON_NULL);
 		layout= uiPupMenuLayout(pup);
 		uiItemsFullEnumO(layout, op->type->idname, (char*)RNA_property_identifier(prop), op->ptr->data, WM_OP_EXEC_REGION_WIN, 0);
 		uiPupMenuEnd(C, pup);
@@ -749,7 +752,7 @@ int WM_operator_confirm_message(bContext *C, wmOperator *op, const char *message
 
 	pup= uiPupMenuBegin(C, "OK?", ICON_QUESTION);
 	layout= uiPupMenuLayout(pup);
-	uiItemFullO(layout, op->type->idname, message, 0, properties, WM_OP_EXEC_REGION_WIN, 0);
+	uiItemFullO(layout, op->type->idname, message, ICON_NULL, properties, WM_OP_EXEC_REGION_WIN, 0);
 	uiPupMenuEnd(C, pup);
 	
 	return OPERATOR_CANCELLED;
@@ -889,6 +892,9 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *ar, void *arg_op)
 
 	uiBlockSetHandleFunc(block, ED_undo_operator_repeat_cb_evt, arg_op);
 	layout= uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, width, 20, style);
+
+	if(ED_undo_valid(C, op->type->name)==0)
+		uiLayoutSetEnabled(layout, 0);
 
 	uiLayoutOperatorButs(C, layout, op, NULL, 'H', UI_LAYOUT_OP_SHOW_TITLE);
 
@@ -1138,7 +1144,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 		mt->draw(C, &menu);
 
 //		wmWindowManager *wm= CTX_wm_manager(C);
-//		uiItemM(layout, C, "USERPREF_MT_keyconfigs", U.keyconfigstr, 0);
+//		uiItemM(layout, C, "USERPREF_MT_keyconfigs", U.keyconfigstr, ICON_NULL);
 	}
 	
 	uiBlockSetEmboss(block, UI_EMBOSSP);
@@ -1146,24 +1152,24 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	
 	split = uiLayoutSplit(layout, 0, 0);
 	col = uiLayoutColumn(split, 0);
-	uiItemL(col, "Links", 0);
+	uiItemL(col, "Links", ICON_NULL);
 	uiItemStringO(col, "Donations", ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org/blenderorg/blender-foundation/donation-payment/");
-	uiItemStringO(col, "Release Log", ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org/development/release-logs/blender-254-beta/");
+	uiItemStringO(col, "Release Log", ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org/development/release-logs/blender-256-beta/");
 	uiItemStringO(col, "Manual", ICON_URL, "WM_OT_url_open", "url", "http://wiki.blender.org/index.php/Doc:Manual");
 	uiItemStringO(col, "Blender Website", ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org/");
 	uiItemStringO(col, "User Community", ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org/community/user-community/"); // 
 	BLI_snprintf(url, sizeof(url), "http://www.blender.org/documentation/blender_python_api_%d_%d_%d", BLENDER_VERSION/100, BLENDER_VERSION%100, BLENDER_SUBVERSION);
 	uiItemStringO(col, "Python API Reference", ICON_URL, "WM_OT_url_open", "url", url);
-	uiItemL(col, "", 0);
+	uiItemL(col, "", ICON_NULL);
 	
 	col = uiLayoutColumn(split, 0);
-	uiItemL(col, "Recent", 0);
+	uiItemL(col, "Recent", ICON_NULL);
 	for(recent = G.recent_files.first, i=0; (i<5) && (recent); recent = recent->next, i++) {
 		uiItemStringO(col, BLI_path_basename(recent->filepath), ICON_FILE_BLEND, "WM_OT_open_mainfile", "filepath", recent->filepath);
 	}
 	uiItemS(col);
 	uiItemO(col, NULL, ICON_RECOVER_LAST, "WM_OT_recover_last_session");
-	uiItemL(col, "", 0);
+	uiItemL(col, "", ICON_NULL);
 	
 	uiCenteredBoundsBlock(block, 0.0f);
 	uiEndBlock(C, block);
@@ -2766,8 +2772,6 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 		glutil_draw_lined_arc(0.0, M_PI*2.0, r1, 40);
 		glutil_draw_lined_arc(0.0, M_PI*2.0, r2, 40);
 		glDisable(GL_BLEND);
-		
-		glPopMatrix();
 #ifdef WITH_ONSURFACEBRUSH
 	}
 #endif

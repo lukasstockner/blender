@@ -45,10 +45,12 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_threads.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_world_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_material_types.h"
+#include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_space_types.h"
@@ -150,6 +152,7 @@ typedef struct ShaderPreview {
 	
 	/* node materials need full copy during preview render, glsl uses it too */
 	Material *matcopy;
+	float col[4];		/* active object color */
 	
 	int sizex, sizey;
 	unsigned int *pr_rect;
@@ -309,6 +312,32 @@ static Object *find_object(ListBase *lb, const char *name)
 	return ob;
 }
 
+static int preview_mat_has_sss(Material *mat, bNodeTree *ntree)
+{
+	if(mat) {
+		if(mat->sss_flag & MA_DIFF_SSS)
+			return 1;
+		if(mat->nodetree)
+			if( preview_mat_has_sss(NULL, mat->nodetree))
+				return 1;
+	}
+	else if(ntree) {
+		bNode *node;
+		for(node= ntree->nodes.first; node; node= node->next) {
+			if(node->type==NODE_GROUP && node->id) {
+				if( preview_mat_has_sss(NULL, (bNodeTree *)node->id))
+					return 1;
+			}
+			else if(node->id && ELEM(node->type, SH_NODE_MATERIAL, SH_NODE_MATERIAL_EXT)) {
+				mat= (Material *)node->id;
+				if(mat->sss_flag & MA_DIFF_SSS)
+					return 1;
+			}
+		}
+	}
+	return 0;
+}
+
 /* call this with a pointer to initialize preview scene */
 /* call this with NULL to restore assigned ID pointers in preview scene */
 static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPreview *sp)
@@ -320,6 +349,7 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 	
 	sce= pr_main->scene.first;
 	if(sce) {
+		
 		/* this flag tells render to not execute depsgraph or ipos etc */
 		sce->r.scemode |= R_PREVIEWBUTS;
 		/* set world always back, is used now */
@@ -331,9 +361,17 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 		}
 		
 		sce->r.color_mgt_flag = scene->r.color_mgt_flag;
+		
+		/* prevent overhead for small renders and icons (32) */
+		if(id && sp->sizex < 40)
+			sce->r.xparts= sce->r.yparts= 1;
+		else
+			sce->r.xparts= sce->r.yparts= 4;
+		
 		/* exception: don't color manage texture previews or icons */
 		if((id && sp->pr_method==PR_ICON_RENDER) || id_type == ID_TE)
 			sce->r.color_mgt_flag &= ~R_COLOR_MANAGEMENT;
+		
 		if((id && sp->pr_method==PR_ICON_RENDER) && id_type != ID_WO)
 			sce->r.alphamode= R_ALPHAPREMUL;
 		else
@@ -343,17 +381,21 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 		strcpy(sce->r.engine, scene->r.engine);
 		
 		if(id_type==ID_MA) {
-			Material *mat= NULL;
+			Material *mat= NULL, *origmat= (Material *)id;
 			
 			if(id) {
 				/* work on a copy */
-				mat= copy_material((Material *)id);
+				mat= localize_material(origmat);
 				sp->matcopy= mat;
-				BLI_remlink(&G.main->mat, mat);
+				BLI_addtail(&pr_main->mat, mat);
 				
 				init_render_material(mat, 0, NULL);		/* call that retrieves mode_l */
 				end_render_material(mat);
 				
+				/* un-useful option */
+				if(sp->pr_method==PR_ICON_RENDER)
+					mat->shade_flag &= ~MA_OBCOLOR;
+
 				/* turn on raytracing if needed */
 				if(mat->mode_l & MA_RAYMIRROR)
 					sce->r.mode |= R_RAYTRACE;
@@ -361,7 +403,7 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 					sce->r.mode |= R_RAYTRACE;
 				if((mat->mode_l & MA_RAYTRANSP) && (mat->mode_l & MA_TRANSP))
 					sce->r.mode |= R_RAYTRACE;
-				if(mat->sss_flag & MA_DIFF_SSS)
+				if(preview_mat_has_sss(mat, NULL))
 					sce->r.mode |= R_SSS;
 				
 				/* turn off fake shadows if needed */
@@ -402,20 +444,23 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 				}
 				else {
 					sce->lay= 1<<mat->pr_type;
-					if(mat->nodetree && sp->pr_method==PR_NODE_RENDER)
+					if(mat->nodetree && sp->pr_method==PR_NODE_RENDER) {
+						/* two previews, they get copied by wmJob */
 						ntreeInitPreview(mat->nodetree, sp->sizex, sp->sizey);
+						ntreeInitPreview(origmat->nodetree, sp->sizex, sp->sizey);
 				}
+			}
 			}
 			else {
 				sce->r.mode &= ~(R_OSA|R_RAYTRACE|R_SSS);
 				
-				free_material(sp->matcopy);
-				MEM_freeN(sp->matcopy);
-				sp->matcopy= NULL;
 			}
 			
 			for(base= sce->base.first; base; base= base->next) {
 				if(base->object->id.name[2]=='p') {
+					/* copy over object color, in case material uses it */
+					copy_v4_v4(base->object->col, sp->col);
+					
 					if(ELEM4(base->object->type, OB_MESH, OB_CURVE, OB_SURF, OB_MBALL)) {
 						/* don't use assign_material, it changed mat->id.us, which shows in the UI */
 						Material ***matar= give_matarar(base->object);
@@ -917,8 +962,14 @@ static int shader_preview_break(void *spv)
 /* outside thread, called before redraw notifiers, it moves finished preview over */
 static void shader_preview_updatejob(void *spv)
 {
-//	ShaderPreview *sp= spv;
+	ShaderPreview *sp= spv;
 	
+	if(sp->id && GS(sp->id->name) == ID_MA) {
+		Material *mat= (Material *)sp->id;
+		
+		if(sp->matcopy && mat->nodetree && sp->matcopy->nodetree)
+			ntreeLocalSync(sp->matcopy->nodetree, mat->nodetree);
+}
 }
 
 static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int first)
@@ -953,7 +1004,7 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 	else if(sp->pr_method==PR_NODE_RENDER) {
 		if(idtype == ID_MA) sce->r.scemode |= R_MATNODE_PREVIEW;
 		else if(idtype == ID_TE) sce->r.scemode |= R_TEXNODE_PREVIEW;
-		sce->r.mode |= R_OSA;
+		sce->r.mode &= ~R_OSA;
 	}
 	else {	/* PR_BUTS_RENDER */
 		sce->r.mode |= R_OSA;
@@ -982,12 +1033,14 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 		((Camera *)sce->camera->data)->lens *= (float)sp->sizey/(float)sizex;
 
 	/* entire cycle for render engine */
-	RE_PreviewRender(re, G.main, sce);
+	RE_PreviewRender(re, pr_main, sce);
 
 	((Camera *)sce->camera->data)->lens= oldlens;
 
 	/* handle results */
 	if(sp->pr_method==PR_ICON_RENDER) {
+		// char *rct= (char *)(sp->pr_rect + 32*16 + 16);
+		
 		if(sp->pr_rect)
 			RE_ResultGet32(re, sp->pr_rect);
 	}
@@ -1023,6 +1076,16 @@ static void shader_preview_startjob(void *customdata, short *stop, short *do_upd
 static void shader_preview_free(void *customdata)
 {
 	ShaderPreview *sp= customdata;
+	
+	if(sp->matcopy) {
+		/* node previews */
+		shader_preview_updatejob(sp);
+		
+		/* get rid of copied material */
+		BLI_remlink(&pr_main->mat, sp->matcopy);
+		free_material(sp->matcopy);
+		MEM_freeN(sp->matcopy);
+	}
 	
 	MEM_freeN(sp);
 }
@@ -1177,7 +1240,8 @@ void ED_preview_icon_job(const bContext *C, void *owner, ID *id, unsigned int *r
 	wmJob *steve;
 	ShaderPreview *sp;
 
-	steve= WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), owner, "Icon Preview", WM_JOB_EXCL_RENDER);
+	/* suspended start means it starts after 1 timer step, see WM_jobs_timer below */
+	steve= WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), owner, "Icon Preview", WM_JOB_EXCL_RENDER|WM_JOB_SUSPEND);
 	sp= MEM_callocN(sizeof(ShaderPreview), "shader preview");
 
 	/* customdata for preview thread */
@@ -1191,7 +1255,7 @@ void ED_preview_icon_job(const bContext *C, void *owner, ID *id, unsigned int *r
 	
 	/* setup job */
 	WM_jobs_customdata(steve, sp, shader_preview_free);
-	WM_jobs_timer(steve, 0.1, NC_MATERIAL, NC_MATERIAL);
+	WM_jobs_timer(steve, 0.25, NC_MATERIAL, NC_MATERIAL);
 	WM_jobs_callbacks(steve, common_preview_startjob, NULL, NULL, common_preview_endjob);
 
 	WM_jobs_start(CTX_wm_manager(C), steve);
@@ -1199,6 +1263,7 @@ void ED_preview_icon_job(const bContext *C, void *owner, ID *id, unsigned int *r
 
 void ED_preview_shader_job(const bContext *C, void *owner, ID *id, ID *parent, MTex *slot, int sizex, int sizey, int method)
 {
+	Object *ob= CTX_data_active_object(C);
 	wmJob *steve;
 	ShaderPreview *sp;
 
@@ -1214,6 +1279,8 @@ void ED_preview_shader_job(const bContext *C, void *owner, ID *id, ID *parent, M
 	sp->id = id;
 	sp->parent= parent;
 	sp->slot= slot;
+	if(ob && ob->totcol) copy_v4_v4(sp->col, ob->col);
+	else sp->col[0]= sp->col[1]= sp->col[2]= sp->col[3]= 1.0f;
 	
 	/* setup job */
 	WM_jobs_customdata(steve, sp, shader_preview_free);

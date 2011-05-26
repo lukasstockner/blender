@@ -34,4 +34,4 @@ set(SRC
 	BLO_readblenfile.h
 )
 
-blenderlib(bf_readblenfile "${SRC}" "${INC}")
+blender_add_lib(bf_readblenfile "${SRC}" "${INC}")

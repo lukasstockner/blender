@@ -37,6 +37,7 @@ set(INC
 	../../../../source/blender/imbuf
 	../../../../source/gameengine/Ketsji
 	../../../../source/blender/blenlib
+	../../../../source/blender/blenfont
 	../../../../source/blender/blenkernel
 	../../../../source/blender
 	../../../../source/blender/include
@@ -83,4 +84,4 @@ set(SRC
 
 add_definitions(-DGLEW_STATIC)
 
-blenderlib_nolist(ge_player_common "${SRC}" "${INC}")
+blender_add_lib_nolist(ge_player_common "${SRC}" "${INC}")

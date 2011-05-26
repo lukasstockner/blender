@@ -37,6 +37,11 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_math.h"
+#include "BLI_blenlib.h"
+#include "BLI_editVert.h"
+#include "BLI_utildefines.h"
+
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_effect.h"
@@ -57,11 +62,6 @@
 
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
-
-
-#include "BLI_math.h"
-#include "BLI_blenlib.h"
-#include "BLI_editVert.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -201,7 +201,7 @@ static int layers_exec(bContext *C, wmOperator *op)
 	if(v3d->scenelock) handle_view3d_lock(C);
 	
 	/* new layers might need unflushed events events */
-	DAG_scene_update_flags(bmain, scene, v3d->lay);	/* tags all that moves and flushes */
+	DAG_scene_update_flags(bmain, scene, v3d->lay, FALSE);	/* tags all that moves and flushes */
 
 	ED_area_tag_redraw(sa);
 	
@@ -450,7 +450,7 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 	uiBlockEndAlign(block);
 	
 	/* Draw type */
-	uiItemR(layout, &v3dptr, "viewport_shade", UI_ITEM_R_ICON_ONLY, "", 0);
+	uiItemR(layout, &v3dptr, "viewport_shade", UI_ITEM_R_ICON_ONLY, "", ICON_NULL);
 
 	if (obedit==NULL && ((ob && ob->mode & (OB_MODE_VERTEX_PAINT|OB_MODE_WEIGHT_PAINT|OB_MODE_TEXTURE_PAINT)))) {
 		/* Manipulators aren't used in weight paint mode */
@@ -458,13 +458,13 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 		PointerRNA meshptr;
 
 		RNA_pointer_create(&ob->id, &RNA_Mesh, ob->data, &meshptr);
-		uiItemR(layout, &meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", 0);
+		uiItemR(layout, &meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", ICON_NULL);
 	} else {
 		const char *str_menu;
 
 		row= uiLayoutRow(layout, 1);
-		uiItemR(row, &v3dptr, "pivot_point", UI_ITEM_R_ICON_ONLY, "", 0);
-		uiItemR(row, &v3dptr, "use_pivot_point_align", UI_ITEM_R_ICON_ONLY, "", 0);
+		uiItemR(row, &v3dptr, "pivot_point", UI_ITEM_R_ICON_ONLY, "", ICON_NULL);
+		uiItemR(row, &v3dptr, "use_pivot_point_align", UI_ITEM_R_ICON_ONLY, "", ICON_NULL);
 
 		/* NDOF */
 		/* Not implemented yet
@@ -479,7 +479,7 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 
 		/* Transform widget / manipulators */
 		row= uiLayoutRow(layout, 1);
-		uiItemR(row, &v3dptr, "show_manipulator", UI_ITEM_R_ICON_ONLY, "", 0);
+		uiItemR(row, &v3dptr, "show_manipulator", UI_ITEM_R_ICON_ONLY, "", ICON_NULL);
 		block= uiLayoutGetBlock(row);
 		
 		if(v3d->twflag & V3D_USE_MANIPULATOR) {
@@ -507,7 +507,7 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 			uiTemplateLayers(layout, &v3dptr, "layers", &v3dptr, "layers_used", ob_lay);
 
 		/* Scene lock */
-		uiItemR(layout, &v3dptr, "lock_camera_and_layers", UI_ITEM_R_ICON_ONLY, "", 0);
+		uiItemR(layout, &v3dptr, "lock_camera_and_layers", UI_ITEM_R_ICON_ONLY, "", ICON_NULL);
 	}
 	
 	/* selection modus, dont use python for this since it cant do the toggle buttons with shift+click as well as clicking to set one. */

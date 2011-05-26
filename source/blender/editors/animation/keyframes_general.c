@@ -34,6 +34,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
@@ -550,9 +551,7 @@ short copy_animedit_keys (bAnimContext *ac, ListBase *anim_data)
 				*nbezt= *bezt;
 				
 				/* ensure copy buffer is selected so pasted keys are selected */
-				nbezt->f1 |= SELECT;
-				nbezt->f2 |= SELECT;
-				nbezt->f3 |= SELECT;
+				BEZ_SEL(nbezt);
 
 				/* free old array and set the new */
 				if (aci->bezt) MEM_freeN(aci->bezt);
@@ -580,23 +579,27 @@ short copy_animedit_keys (bAnimContext *ac, ListBase *anim_data)
 	return 0;
 }
 
-static tAnimCopybufItem *pastebuf_match_path_full(FCurve *fcu, const short from_single, const short to_simple) {
+/* ------------------- */
+
+/* most strict method: exact matches only */
+static tAnimCopybufItem *pastebuf_match_path_full(FCurve *fcu, const short from_single, const short to_simple)
+{
 	tAnimCopybufItem *aci;
 	
 	for (aci= animcopybuf.first; aci; aci= aci->next) {
 		/* check that paths exist */
 		if (to_simple || (aci->rna_path && fcu->rna_path)) {
 			if (to_simple || (strcmp(aci->rna_path, fcu->rna_path) == 0)) {
-				if ((from_single) || (aci->array_index == fcu->array_index)) {
+				if ((from_single) || (aci->array_index == fcu->array_index))
 					break;
 	}
 			}
 		}
-	}
 	
 	return aci;
 }
 		
+/* medium match strictness: path match only (i.e. ignore ID) */
 static tAnimCopybufItem *pastebuf_match_path_property(FCurve *fcu, const short from_single, const short UNUSED(to_simple))
 {
 	tAnimCopybufItem *aci;
@@ -604,12 +607,12 @@ static tAnimCopybufItem *pastebuf_match_path_property(FCurve *fcu, const short f
 		for (aci= animcopybuf.first; aci; aci= aci->next) {
 			/* check that paths exist */
 			if (aci->rna_path && fcu->rna_path) {
-	
 			/* find the property of the fcurve and compare against the end of the tAnimCopybufItem
-			 * more involves since it needs to to path lookups.
+			 * more involved since it needs to to path lookups.
 			 * This is not 100% reliable since the user could be editing the curves on a path that wont
 			 * resolve, or a bone could be renamed after copying for eg. but in normal copy & paste
-			 * this should work out ok. */
+			 * this should work out ok. 
+			 */
 			if(BLI_findindex(which_libbase(G.main, aci->id_type), aci->id) == -1) {
 				/* pedantic but the ID could have been removed, and beats crashing! */
 				printf("paste_animedit_keys: error ID has been removed!\n");
@@ -628,12 +631,11 @@ static tAnimCopybufItem *pastebuf_match_path_property(FCurve *fcu, const short f
 					if(len_id <= len_path) {
 						/* note, paths which end with "] will fail with this test - Animated ID Props */
 						if(strcmp(identifier, fcu->rna_path + (len_path-len_id))==0) {
-							if ((from_single) || (aci->array_index == fcu->array_index)) {
+							if ((from_single) || (aci->array_index == fcu->array_index))
 						break;
 				}
 			}
 		}
-				}
 				else {
 					printf("paste_animedit_keys: failed to resolve path id:%s, '%s'!\n", aci->id->name, aci->rna_path);
 				}
@@ -644,6 +646,7 @@ static tAnimCopybufItem *pastebuf_match_path_property(FCurve *fcu, const short f
 	return aci;
 }
 		
+/* least strict matching heuristic: indices only */
 static tAnimCopybufItem *pastebuf_match_index_only(FCurve *fcu, const short from_single, const short UNUSED(to_simple))
 {
 	tAnimCopybufItem *aci;
@@ -658,6 +661,9 @@ static tAnimCopybufItem *pastebuf_match_index_only(FCurve *fcu, const short from
 	return aci;
 }
 
+/* ................ */
+
+/* helper for paste_animedit_keys() - performs the actual pasting */
 static void paste_animedit_keys_fcurve(FCurve *fcu, tAnimCopybufItem *aci, float offset, const eKeyMergeMode merge_mode)
 {
 	BezTriple *bezt;
@@ -673,10 +679,12 @@ static void paste_animedit_keys_fcurve(FCurve *fcu, tAnimCopybufItem *aci, float
 		case KEYFRAME_PASTE_MERGE_MIX:
 			/* do-nothing */
 			break;
+			
 		case KEYFRAME_PASTE_MERGE_OVER:
 			/* remove all keys */
 			clear_fcurve_keys(fcu);
 			break;
+			
 		case KEYFRAME_PASTE_MERGE_OVER_RANGE:
 		case KEYFRAME_PASTE_MERGE_OVER_RANGE_ALL:
 		{
@@ -693,7 +701,6 @@ static void paste_animedit_keys_fcurve(FCurve *fcu, tAnimCopybufItem *aci, float
 			}
 
 			/* remove keys in range */
-
 			if(f_min < f_max) {
 				/* select verts in range for removal */
 				for (i=0, bezt=fcu->bezt; i < fcu->totvert; i++, bezt++) {
@@ -708,7 +715,6 @@ static void paste_animedit_keys_fcurve(FCurve *fcu, tAnimCopybufItem *aci, float
 			break;
 		}
 	}
-
 
 			/* just start pasting, with the the first keyframe on the current frame, and so on */
 			for (i=0, bezt=aci->bezt; i < aci->totvert; i++, bezt++) {						
@@ -732,6 +738,8 @@ static void paste_animedit_keys_fcurve(FCurve *fcu, tAnimCopybufItem *aci, float
 			calchandles_fcurve(fcu);
 		}
 
+/* ------------------- */
+
 EnumPropertyItem keyframe_paste_offset_items[] = {
 	{KEYFRAME_PASTE_OFFSET_CFRA_START, "START", 0, "Frame Start", "Paste keys starting at current frame"},
 	{KEYFRAME_PASTE_OFFSET_CFRA_END, "END", 0, "Frame End", "Paste keys ending at current frame"},
@@ -752,10 +760,13 @@ short paste_animedit_keys (bAnimContext *ac, ListBase *anim_data,
 	const eKeyPasteOffset offset_mode, const eKeyMergeMode merge_mode)
 {
 	bAnimListElem *ale;
+	
 	const Scene *scene= (ac->scene);
-	float offset;
+	
 	const short from_single= (animcopybuf.first == animcopybuf.last);
 	const short to_simple= (anim_data->first == anim_data->last);
+	
+	float offset = 0.0f;
 	int pass;
 
 	/* check if buffer is empty */
@@ -797,11 +808,15 @@ short paste_animedit_keys (bAnimContext *ac, ListBase *anim_data,
 		paste_animedit_keys_fcurve(fcu, aci, offset, merge_mode);
 	}
 	else {
-		/* from selected channels */
+		/* from selected channels 
+		 * 	This "passes" system aims to try to find "matching" channels to paste keyframes
+		 * 	into with increasingly loose matching heuristics. The process finishes when at least
+		 * 	one F-Curve has been pasted into.
+		 */
 		for(pass= 0; pass < 3; pass++) {
-			int totmatch= 0;
+			unsigned int totmatch= 0;
+			
 			for (ale= anim_data->first; ale; ale= ale->next) {
-				
 				/* find buffer item to paste from 
 				 *	- if names don't matter (i.e. only 1 channel in buffer), don't check id/group
 				 *	- if names do matter, only check if id-type is ok for now (group check is not that important)
@@ -835,11 +850,10 @@ short paste_animedit_keys (bAnimContext *ac, ListBase *anim_data,
 			}
 			
 			/* dont continue if some fcurves were pasted */
-			if(totmatch) {
+			if (totmatch)
 				break;
 			}
 		}
-	}
 
 	return 0;
 }

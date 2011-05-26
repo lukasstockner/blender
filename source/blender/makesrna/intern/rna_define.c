@@ -34,10 +34,11 @@
 #include "DNA_genfile.h"
 #include "DNA_sdna_types.h"
 
-#include "RNA_define.h"
-
-#include "BLI_ghash.h"
 #include "BLI_string.h"
+#include "BLI_utildefines.h"
+#include "BLI_ghash.h"
+
+#include "RNA_define.h"
 
 #include "rna_internal.h"
 
@@ -1381,7 +1382,22 @@ void RNA_def_property_enum_default(PropertyRNA *prop, int value)
 			EnumPropertyRNA *eprop= (EnumPropertyRNA*)prop;
 			eprop->defaultvalue= value;
 
+			if(prop->flag & PROP_ENUM_FLAG) {
+				/* check all bits are accounted for */
+				int totflag= 0;
 			for(i=0; i<eprop->totitem; i++) {
+					if(eprop->item[i].identifier[0]) {
+						totflag |= eprop->item[i].value;
+					}
+				}
+
+				if(eprop->defaultvalue & ~totflag) {
+					fprintf(stderr, "RNA_def_property_enum_default: \"%s.%s\", default includes unused bits (%d).\n", srna->identifier, prop->identifier, eprop->defaultvalue & ~totflag);
+					DefRNA.error= 1;
+				}
+			}
+			else {
+				for(i=0; i<eprop->totitem; i++) {
 				if(eprop->item[i].identifier[0] && eprop->item[i].value == eprop->defaultvalue)
 					defaultfound= 1;
 			}
@@ -1394,6 +1410,7 @@ void RNA_def_property_enum_default(PropertyRNA *prop, int value)
 					fprintf(stderr, "RNA_def_property_enum_default: \"%s.%s\", default is not in items.\n", srna->identifier, prop->identifier);
 					DefRNA.error= 1;
 				}
+			}
 			}
 
 			break;
@@ -1481,8 +1498,19 @@ void RNA_def_property_boolean_sdna(PropertyRNA *prop, const char *structname, co
 		return;
 	}
 
-	if((dp=rna_def_property_sdna(prop, structname, propname)))
+	if((dp=rna_def_property_sdna(prop, structname, propname))) {
+
+		if(DefRNA.silent == 0) {
+			/* error check to ensure floats are not wrapped as ints/bools */
+			if(dp->dnatype && *dp->dnatype && IS_DNATYPE_INT_COMPAT(dp->dnatype) == 0) {
+				fprintf(stderr, "RNA_def_property_boolean_sdna: %s.%s is a '%s' but wrapped as type '%s'.\n", srna->identifier, prop->identifier, dp->dnatype, RNA_property_typename(prop->type));
+				DefRNA.error= 1;
+				return;
+			}
+		}
+
 		dp->booleanbit= bit;
+}
 }
 
 void RNA_def_property_boolean_negative_sdna(PropertyRNA *prop, const char *structname, const char *propname, int booleanbit)
@@ -1515,6 +1543,16 @@ void RNA_def_property_int_sdna(PropertyRNA *prop, const char *structname, const 
 	}
 
 	if((dp= rna_def_property_sdna(prop, structname, propname))) {
+
+		/* error check to ensure floats are not wrapped as ints/bools */
+		if(DefRNA.silent == 0) {
+			if(dp->dnatype && *dp->dnatype && IS_DNATYPE_INT_COMPAT(dp->dnatype) == 0) {
+				fprintf(stderr, "RNA_def_property_int_sdna: %s.%s is a '%s' but wrapped as type '%s'.\n", srna->identifier, prop->identifier, dp->dnatype, RNA_property_typename(prop->type));
+				DefRNA.error= 1;
+				return;
+			}
+		}
+
 		/* SDNA doesn't pass us unsigned unfortunately .. */
 		if(dp->dnatype && strcmp(dp->dnatype, "char") == 0) {
 			iprop->hardmin= iprop->softmin= CHAR_MIN;
@@ -1539,6 +1577,7 @@ void RNA_def_property_int_sdna(PropertyRNA *prop, const char *structname, const 
 
 void RNA_def_property_float_sdna(PropertyRNA *prop, const char *structname, const char *propname)
 {
+	PropertyDefRNA *dp;
 	StructRNA *srna= DefRNA.laststruct;
 
 	if(!DefRNA.preprocess) {
@@ -1552,12 +1591,25 @@ void RNA_def_property_float_sdna(PropertyRNA *prop, const char *structname, cons
 		return;
 	}
 
+	if((dp= rna_def_property_sdna(prop, structname, propname))) {
+		/* silent is for internal use */
+		if(DefRNA.silent == 0) {
+			if(dp->dnatype && *dp->dnatype && IS_DNATYPE_FLOAT_COMPAT(dp->dnatype) == 0) {
+				if(prop->subtype != PROP_COLOR_GAMMA) { /* colors are an exception. these get translated */
+					fprintf(stderr, "RNA_def_property_float_sdna: %s.%s is a '%s' but wrapped as type '%s'.\n", srna->identifier, prop->identifier, dp->dnatype, RNA_property_typename(prop->type));
+					DefRNA.error= 1;
+					return;
+				}
+			}
+		}
+	}
+
 	rna_def_property_sdna(prop, structname, propname);
 }
 
 void RNA_def_property_enum_sdna(PropertyRNA *prop, const char *structname, const char *propname)
 {
-	PropertyDefRNA *dp;
+	/* PropertyDefRNA *dp; */
 	StructRNA *srna= DefRNA.laststruct;
 	
 	if(!DefRNA.preprocess) {
@@ -1571,7 +1623,7 @@ void RNA_def_property_enum_sdna(PropertyRNA *prop, const char *structname, const
 		return;
 	}
 
-	if((dp=rna_def_property_sdna(prop, structname, propname))) {
+	if(( /* dp= */ rna_def_property_sdna(prop, structname, propname))) {
 		if(prop->arraydimension) {
 			prop->arraydimension= 0;
 			prop->totarraylength= 0;
@@ -1598,7 +1650,7 @@ void RNA_def_property_enum_bitflag_sdna(PropertyRNA *prop, const char *structnam
 
 void RNA_def_property_string_sdna(PropertyRNA *prop, const char *structname, const char *propname)
 {
-	PropertyDefRNA *dp;
+	/* PropertyDefRNA *dp; */
 	StringPropertyRNA *sprop= (StringPropertyRNA*)prop;
 	StructRNA *srna= DefRNA.laststruct;
 
@@ -1613,7 +1665,7 @@ void RNA_def_property_string_sdna(PropertyRNA *prop, const char *structname, con
 		return;
 	}
 
-	if((dp=rna_def_property_sdna(prop, structname, propname))) {
+	if((/* dp= */ rna_def_property_sdna(prop, structname, propname))) {
 		if(prop->arraydimension) {
 			sprop->maxlength= prop->totarraylength;
 			prop->arraydimension= 0;
@@ -1624,7 +1676,7 @@ void RNA_def_property_string_sdna(PropertyRNA *prop, const char *structname, con
 
 void RNA_def_property_pointer_sdna(PropertyRNA *prop, const char *structname, const char *propname)
 {
-	PropertyDefRNA *dp;
+	/* PropertyDefRNA *dp; */
 	StructRNA *srna= DefRNA.laststruct;
 	
 	if(!DefRNA.preprocess) {
@@ -1638,7 +1690,7 @@ void RNA_def_property_pointer_sdna(PropertyRNA *prop, const char *structname, co
 		return;
 	}
 
-	if((dp=rna_def_property_sdna(prop, structname, propname))) {
+	if((/* dp= */ rna_def_property_sdna(prop, structname, propname))) {
 		if(prop->arraydimension) {
 			prop->arraydimension= 0;
 			prop->totarraylength= 0;
@@ -2158,6 +2210,27 @@ PropertyRNA *RNA_def_enum(StructOrFunctionRNA *cont_, const char *identifier, co
 	}
 	
 	prop= RNA_def_property(cont, identifier, PROP_ENUM, PROP_NONE);
+	if(items) RNA_def_property_enum_items(prop, items);
+	RNA_def_property_enum_default(prop, default_value);
+	RNA_def_property_ui_text(prop, ui_name, ui_description);
+
+	return prop;
+}
+
+/* same as above but sets 'PROP_ENUM_FLAG' before setting the default value */
+PropertyRNA *RNA_def_enum_flag(StructOrFunctionRNA *cont_, const char *identifier, const EnumPropertyItem *items, int default_value,
+	const char *ui_name, const char *ui_description)
+{
+	ContainerRNA *cont= cont_;
+	PropertyRNA *prop;
+
+	if(!items) {
+		printf("RNA_def_enum_flag: items not allowed to be NULL.\n");
+		return NULL;
+	}
+
+	prop= RNA_def_property(cont, identifier, PROP_ENUM, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_ENUM_FLAG); /* important to run before default set */
 	if(items) RNA_def_property_enum_items(prop, items);
 	RNA_def_property_enum_default(prop, default_value);
 	RNA_def_property_ui_text(prop, ui_name, ui_description);
@@ -2785,3 +2858,17 @@ int RNA_def_property_free_identifier(StructOrFunctionRNA *cont_, const char *ide
 }
 #endif
 
+const char *RNA_property_typename(PropertyType type)
+{
+	switch(type) {
+		case PROP_BOOLEAN: return "PROP_BOOLEAN";
+		case PROP_INT: return "PROP_INT";
+		case PROP_FLOAT: return "PROP_FLOAT";
+		case PROP_STRING: return "PROP_STRING";
+		case PROP_ENUM: return "PROP_ENUM";
+		case PROP_POINTER: return "PROP_POINTER";
+		case PROP_COLLECTION: return "PROP_COLLECTION";
+	}
+
+	return "PROP_UNKNOWN";
+}

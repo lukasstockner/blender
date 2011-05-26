@@ -39,6 +39,11 @@
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 
+#include "BLI_blenlib.h"
+#include "BLI_math.h"
+#include "BLI_utildefines.h"
+#include "BLI_ghash.h"
+
 #include "BKE_animsys.h"
 #include "BKE_action.h"
 #include "BKE_anim.h"
@@ -48,14 +53,10 @@
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
-#include "BKE_utildefines.h"
+
 #include "BKE_idprop.h"
 
 #include "BIK_api.h"
-
-#include "BLI_blenlib.h"
-#include "BLI_ghash.h"
-#include "BLI_math.h"
 
 #include "RNA_access.h"
 
@@ -96,7 +97,6 @@ void make_local_action(bAction *act)
 	if (act->id.us==1) {
 		act->id.lib= 0;
 		act->id.flag= LIB_LOCAL;
-		//make_local_action_channels(act);
 		new_id(0, (ID *)act, 0);
 		return;
 	}
@@ -376,6 +376,20 @@ bActionGroup *action_groups_find_named (bAction *act, const char name[])
 	return BLI_findstring(&act->groups, name, offsetof(bActionGroup, name));
 	}
 	
+/* Clear all 'temp' flags on all groups */
+void action_groups_clear_tempflags (bAction *act)
+{
+	bActionGroup *agrp;
+	
+	/* sanity checks */
+	if (ELEM(NULL, act, act->groups.first))
+		return;
+		
+	/* flag clearing loop */
+	for (agrp = act->groups.first; agrp; agrp = agrp->next)
+		agrp->flag &= ~AGRP_TEMP;
+}
+
 /* *************** Pose channels *************** */
 
 /* usually used within a loop, so we got a N^2 slowdown */

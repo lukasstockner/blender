@@ -152,6 +152,13 @@ class VIEW3D_MT_transform(bpy.types.Menu):
         layout.operator("transform.warp", text="Warp")
         layout.operator("transform.push_pull", text="Push/Pull")
 
+        layout.separator()
+
+        layout.operator("transform.translate", text="Move Texture Space").texture_space = True
+        layout.operator("transform.resize", text="Scale Texture Space").texture_space = True
+
+        layout.separator()
+
         obj = context.object
         if obj.type == 'ARMATURE' and obj.mode in ('EDIT', 'POSE') and obj.data.draw_type in ('BBONE', 'ENVELOPE'):
             layout.operator("transform.transform", text="Scale Envelope/BBone").mode = 'BONE_SIZE'
@@ -584,7 +591,7 @@ class VIEW3D_MT_select_edit_metaball(bpy.types.Menu):
 
         layout.separator()
 
-        layout.operator("mball.select_deselect_all_metaelems")
+        layout.operator("mball.select_all").action = 'TOGGLE'
         layout.operator("mball.select_inverse_metaelems")
 
         layout.separator()
@@ -647,6 +654,7 @@ class VIEW3D_MT_select_face(bpy.types.Menu):# XXX no matching enum
 
 # ********** Object menu **********
 
+
 class VIEW3D_MT_object(bpy.types.Menu):
     bl_context = "objectmode"
     bl_label = "Object"
@@ -676,7 +684,7 @@ class VIEW3D_MT_object(bpy.types.Menu):
         layout.operator("object.delete", text="Delete...")
         layout.operator("object.proxy_make", text="Make Proxy...")
         layout.menu("VIEW3D_MT_make_links", text="Make Links...")
-        layout.operator("object.make_dupli_face", text="Make Dupliface...")
+        layout.operator("object.make_dupli_face")
         layout.operator_menu_enum("object.make_local", "type", text="Make Local...")
         layout.menu("VIEW3D_MT_make_single_user")
 
@@ -897,16 +905,16 @@ class VIEW3D_MT_make_single_user(bpy.types.Menu):
         props = layout.operator("object.make_single_user", text="Object")
         props.object = True
 
-        props = layout.operator("object.make_single_user", text="Object & ObData")
+        props = layout.operator("object.make_single_user", text="Object & Data")
         props.object = props.obdata = True
 
-        props = layout.operator("object.make_single_user", text="Object & ObData & Materials+Tex")
+        props = layout.operator("object.make_single_user", text="Object & Data & Materials+Tex")
         props.object = props.obdata = props.material = props.texture = True
 
         props = layout.operator("object.make_single_user", text="Materials+Tex")
         props.material = props.texture = True
 
-        props = layout.operator("object.make_single_user", text="Animation")
+        props = layout.operator("object.make_single_user", text="Object Animation")
         props.animation = True
 
 
@@ -1219,7 +1227,7 @@ class VIEW3D_MT_pose_transform(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.label(text="User Transform")
+        layout.operator("pose.transforms_clear", text="All")
 
         layout.operator("pose.loc_clear", text="Location")
         layout.operator("pose.rot_clear", text="Rotation")
@@ -1673,7 +1681,7 @@ class VIEW3D_MT_edit_curve_ctrlpoints(bpy.types.Menu):
         edit_object = context.edit_object
 
         if edit_object.type == 'CURVE':
-            layout.operator("transform.transform").mode = 'TILT'
+            layout.operator("transform.transform", text="Tilt").mode = 'TILT'
             layout.operator("curve.tilt_clear")
             layout.operator("curve.separate")
 
@@ -2119,7 +2127,7 @@ class VIEW3D_PT_view3d_meshdisplay(bpy.types.Panel):
         col.separator()
         col.label(text="Numerics:")
         col.prop(mesh, "show_extra_edge_length")
-        col.prop(mesh, "show_extra_edge_angle")
+        col.prop(mesh, "show_extra_face_angle")
         col.prop(mesh, "show_extra_face_area")
 
 
@@ -2300,12 +2308,11 @@ class VIEW3D_PT_context_properties(bpy.types.Panel):
 
     def draw(self, context):
         import rna_prop_ui
-        # reload(rna_prop_ui)
         member = __class__._active_context_member(context)
 
         if member:
             # Draw with no edit button
-            rna_prop_ui.draw(self.layout, context, member, False)
+            rna_prop_ui.draw(self.layout, context, member, object, False)
 
 
 def register():

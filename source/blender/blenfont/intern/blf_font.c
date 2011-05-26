@@ -148,6 +148,63 @@ void blf_font_draw(FontBLF *font, char *str)
 
 void blf_font_buffer(FontBLF *font, char *str)
 {
+	char c;
+	GlyphBLF *g, *g_prev;
+	FT_Vector delta;
+	FT_UInt glyph_index;
+	int pen_x, pen_y;
+	int i, has_kerning, st;
+
+	if (!font->glyph_cache)
+		return;
+
+	pen_x= 0;
+	pen_y= 0;
+	has_kerning= FT_HAS_KERNING(font->face);
+	g_prev= NULL;
+
+	/* build ascii on demand */
+	if(font->glyph_ascii_table['0']==NULL) {
+		for(i=0; i<256; i++) {
+			g= blf_glyph_search(font->glyph_cache, i);
+			if (!g) {
+				glyph_index= FT_Get_Char_Index(font->face, i);
+				g= blf_glyph_add(font, glyph_index, i);
+			}
+			font->glyph_ascii_table[i]= g;
+		}
+	}
+	
+	while ((c= *(str++)) && len--) {
+		g= font->glyph_ascii_table[c];
+
+		/* if we don't found a glyph, skip it. */
+		if (!g)
+			continue;
+
+		if (has_kerning && g_prev) {
+			delta.x= 0;
+			delta.y= 0;
+
+			if (font->flags & BLF_KERNING_DEFAULT)
+				st= FT_Get_Kerning(font->face, g_prev->idx, g->idx, ft_kerning_default, &delta);
+			else
+				st= FT_Get_Kerning(font->face, g_prev->idx, g->idx, FT_KERNING_UNFITTED, &delta);
+
+			if (st == 0)
+				pen_x += delta.x >> 6;
+		}
+
+		/* do not return this loop if clipped, we want every character tested */
+		blf_glyph_render(font, g, (float)pen_x, (float)pen_y);
+
+		pen_x += g->advance;
+		g_prev= g;
+	}
+}
+
+void blf_font_buffer(FontBLF *font, const char *str)
+{
 	unsigned char *cbuf;
 	unsigned int c;
 	unsigned char b_col_char[3];

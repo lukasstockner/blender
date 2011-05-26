@@ -42,6 +42,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
@@ -49,7 +50,7 @@
 #include "BKE_mesh.h"
 #include "BKE_object.h"
 #include "BKE_modifier.h"
-#include "BKE_utildefines.h"
+
 #include "BKE_DerivedMesh.h"
 #ifdef USE_BULLET
 #include "Bullet-C-Api.h"
@@ -1358,9 +1359,9 @@ Object **get_collisionobjects(Scene *scene, Object *self, Group *group, int *num
 			add_collision_object(&objs, &numobj, &maxobj, go->ob, self, 0);
 	}
 	else {
-		Scene *sce; /* for SETLOOPER macro */
+		Scene *sce_iter;
 		/* add objects in same layer in scene */
-		for(SETLOOPER(scene, base)) {
+		for(SETLOOPER(scene, sce_iter, base)) {
 			if(base->lay & self->lay)
 				add_collision_object(&objs, &numobj, &maxobj, base->object, self, 0);
 
@@ -1417,11 +1418,11 @@ ListBase *get_collider_cache(Scene *scene, Object *self, Group *group)
 			add_collider_cache_object(&objs, go->ob, self, 0);
 	}
 	else {
-		Scene *sce; /* for SETLOOPER macro */
+		Scene *sce_iter;
 		Base *base;
 
 		/* add objects in same layer in scene */
-		for(SETLOOPER(scene, base)) {
+		for(SETLOOPER(scene, sce_iter, base)) {
 			if(!self || (base->lay & self->lay))
 				add_collider_cache_object(&objs, base->object, self, 0);
 
@@ -1456,13 +1457,13 @@ static void cloth_bvh_objcollisions_nearcheck ( ClothModifierData * clmd, Collis
 static int cloth_bvh_objcollisions_resolve ( ClothModifierData * clmd, CollisionModifierData *collmd, CollPair *collisions, CollPair *collisions_index)
 {
 	Cloth *cloth = clmd->clothObject;
-	int i=0, j = 0, numfaces = 0, numverts = 0;
+	int i=0, j = 0, /*numfaces = 0,*/ numverts = 0;
 	ClothVertex *verts = NULL;
 	int ret = 0;
 	int result = 0;
 	float tnull[3] = {0,0,0};
 	
-	numfaces = clmd->clothObject->numfaces;
+	/*numfaces = clmd->clothObject->numfaces;*/ /*UNUSED*/
 	numverts = clmd->clothObject->numverts;
  
 	verts = cloth->verts;

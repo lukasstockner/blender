@@ -36,6 +36,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 
 #include "DNA_anim_types.h"
@@ -46,7 +47,7 @@
 #include "BKE_nla.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
-#include "BKE_utildefines.h"
+
 
 #include "RNA_access.h"
 #include "nla_private.h"
@@ -1205,6 +1206,11 @@ void BKE_nlastrip_validate_fcurves (NlaStrip *strip)
 }
 
 /* Sanity Validation ------------------------------------ */
+
+static int nla_editbone_name_check(void *arg, const char *name)
+{
+	return BLI_ghash_haskey((GHash *)arg, (void *)name);
+}
 
 /* Find (and set) a unique name for a strip from the whole AnimData block 
  * Uses a similar method to the BLI method, but is implemented differently

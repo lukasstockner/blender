@@ -36,6 +36,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_dlrbTree.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -86,25 +87,84 @@ static void time_draw_sfra_efra(const bContext *C, SpaceTime *stime, ARegion *ar
 
 #define CACHE_DRAW_HEIGHT	3.0f
 
-static void time_draw_cache(const bContext *C, SpaceTime *stime, ARegion *ar)
+static void time_draw_cache(SpaceTime *stime, Object *ob)
 {
-	SpaceTimeCache *stc;
+	PTCacheID *pid;
+	ListBase pidlist;
+	SpaceTimeCache *stc = stime->caches.first;
 	float yoffs=0.f;
 	
-	if (!(stime->cache_display & TIME_CACHE_DISPLAY))
+	if (!(stime->cache_display & TIME_CACHE_DISPLAY) || (!ob))
 		return;
 	
-	for (stc= stime->caches.first; stc; stc=stc->next) {
-		float col[4];
+	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
 		
-		if (!stc->array || !stc->ok)
+	/* iterate over pointcaches on the active object, 
+	 * add spacetimecache and vertex array for each */
+	for(pid=pidlist.first; pid; pid=pid->next) {
+		float col[4], *fp;
+		int i, sta = pid->cache->startframe, end = pid->cache->endframe;
+		int len = (end - sta + 1)*4;
+
+		switch(pid->type) {
+			case PTCACHE_TYPE_SOFTBODY:
+				if (!(stime->cache_display & TIME_CACHE_SOFTBODY)) continue;
+				break;
+			case PTCACHE_TYPE_PARTICLES:
+				if (!(stime->cache_display & TIME_CACHE_PARTICLES))	continue;
+				break;
+			case PTCACHE_TYPE_CLOTH:
+				if (!(stime->cache_display & TIME_CACHE_CLOTH))	continue;
+				break;
+			case PTCACHE_TYPE_SMOKE_DOMAIN:
+			case PTCACHE_TYPE_SMOKE_HIGHRES:
+				if (!(stime->cache_display & TIME_CACHE_SMOKE))	continue;
+				break;
+		}
+
+		if(pid->cache->cached_frames == NULL)
 			continue;
+		
+
+		/* make sure we have stc with correct array length */
+		if(stc == NULL || MEM_allocN_len(stc->array) != len*2*sizeof(float)) {
+			if(stc) {
+				MEM_freeN(stc->array);
+			}
+			else {
+				stc = MEM_callocN(sizeof(SpaceTimeCache), "spacetimecache");
+				BLI_addtail(&stime->caches, stc);
+			}
+
+			stc->array = MEM_callocN(len*2*sizeof(float), "SpaceTimeCache array");
+		}
+
+		/* fill the vertex array with a quad for each cached frame */
+		for (i=sta, fp=stc->array; i<=end; i++) {
+			if (pid->cache->cached_frames[i-sta]) {
+				fp[0] = (float)i-0.5f;
+				fp[1] = 0.0;
+				fp+=2;
+				
+				fp[0] = (float)i-0.5f;
+				fp[1] = 1.0;
+				fp+=2;
+				
+				fp[0] = (float)i+0.5f;
+				fp[1] = 1.0;
+				fp+=2;
+				
+				fp[0] = (float)i+0.5f;
+				fp[1] = 0.0;
+				fp+=2;
+			}
+		}
 		
 		glPushMatrix();
 		glTranslatef(0.0, (float)V2D_SCROLL_HEIGHT+yoffs, 0.0);
 		glScalef(1.0, CACHE_DRAW_HEIGHT, 0.0);
 		
-		switch(stc->type) {
+		switch(pid->type) {
 			case PTCACHE_TYPE_SOFTBODY:
 				col[0] = 1.0;	col[1] = 0.4;	col[2] = 0.02;
 				col[3] = 0.1;
@@ -127,17 +187,17 @@ static void time_draw_cache(const bContext *C, SpaceTime *stime, ARegion *ar)
 		
 		glEnable(GL_BLEND);
 		
-		glRectf((float)stc->startframe, 0.0, (float)stc->endframe, 1.0);
+		glRectf((float)sta, 0.0, (float)end, 1.0);
 		
 		col[3] = 0.4;
-		if (stc->flag & PTCACHE_BAKED) {
+		if (pid->cache->flag & PTCACHE_BAKED) {
 			col[0] -= 0.4;	col[1] -= 0.4;	col[2] -= 0.4;
 		}
 		glColor4fv(col);
 		
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glVertexPointer(2, GL_FLOAT, 0, stc->array);
-		glDrawArrays(GL_QUADS, 0, stc->len);
+		glDrawArrays(GL_QUADS, 0, (fp-stc->array)/2);
 		glDisableClientState(GL_VERTEX_ARRAY);
 		
 		glDisable(GL_BLEND);
@@ -145,7 +205,20 @@ static void time_draw_cache(const bContext *C, SpaceTime *stime, ARegion *ar)
 		glPopMatrix();
 		
 		yoffs += CACHE_DRAW_HEIGHT;
+
+		stc = stc->next;
 	}
+
+	BLI_freelistN(&pidlist);
+
+	/* free excessive caches */
+	while(stc) {
+		SpaceTimeCache *tmp = stc->next;
+		BLI_remlink(&stime->caches, stc);
+		MEM_freeN(stc->array);
+		MEM_freeN(stc);
+		stc = tmp;
+}
 }
 
 static void time_cache_free(SpaceTime *stime)
@@ -162,103 +235,12 @@ static void time_cache_free(SpaceTime *stime)
 	BLI_freelistN(&stime->caches);
 }
 
-static void time_cache_refresh(const bContext *C, SpaceTime *stime, ARegion *ar)
+static void time_cache_refresh(SpaceTime *stime)
 {
-	Object *ob = CTX_data_active_object(C);
-	PTCacheID *pid;
-	ListBase pidlist;
-	
+	/* Free previous caches to indicate full refresh */
 	time_cache_free(stime);
-	
-	if (!(stime->cache_display & TIME_CACHE_DISPLAY) || (!ob))
-		return;
-	
-	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
-	
-	/* iterate over pointcaches on the active object, 
-	 * add spacetimecache and vertex array for each */
-	for(pid=pidlist.first; pid; pid=pid->next) {
-		SpaceTimeCache *stc;
-		float *fp, *array;
-		int i, len;
-		int sta, end;
-		
-		switch(pid->type) {
-			case PTCACHE_TYPE_SOFTBODY:
-				if (!(stime->cache_display & TIME_CACHE_SOFTBODY)) continue;
-				break;
-			case PTCACHE_TYPE_PARTICLES:
-				if (!(stime->cache_display & TIME_CACHE_PARTICLES))	continue;
-				break;
-			case PTCACHE_TYPE_CLOTH:
-				if (!(stime->cache_display & TIME_CACHE_CLOTH))	continue;
-				break;
-			case PTCACHE_TYPE_SMOKE_DOMAIN:
-			case PTCACHE_TYPE_SMOKE_HIGHRES:
-				if (!(stime->cache_display & TIME_CACHE_SMOKE))	continue;
-				break;
 		}
 		
-		BKE_ptcache_id_time(pid, CTX_data_scene(C), 0, &sta, &end, NULL);
-		
-		if(pid->cache->cached_frames==NULL)
-			continue;
-		
-		stc= MEM_callocN(sizeof(SpaceTimeCache), "spacetimecache");
-		
-		stc->type = pid->type;
-		
-		if (pid->cache->flag & PTCACHE_BAKED)
-			stc->flag |= PTCACHE_BAKED;
-		if (pid->cache->flag & PTCACHE_DISK_CACHE)
-			stc->flag |= PTCACHE_DISK_CACHE;
-		
-		/* first allocate with maximum number of frames needed */
-		stc->startframe = sta;
-		stc->endframe = end;
-		len = (end - sta + 1)*4;
-		fp = array = MEM_callocN(len*2*sizeof(float), "temporary timeline cache array");
-		
-		/* fill the vertex array with a quad for each cached frame */
-		for (i=sta; i<=end; i++) {
-			
-			if (pid->cache->cached_frames[i-sta]) {
-				fp[0] = (float)i;
-				fp[1] = 0.0;
-				fp+=2;
-				
-				fp[0] = (float)i;
-				fp[1] = 1.0;
-				fp+=2;
-				
-				fp[0] = (float)(i+1);
-				fp[1] = 1.0;
-				fp+=2;
-				
-				fp[0] = (float)(i+1);
-				fp[1] = 0.0;
-				fp+=2;
-			}
-		}
-		/* update with final number of frames */
-		stc->len = (i-stc->startframe)*4;
-		stc->array = MEM_mallocN(stc->len*2*sizeof(float), "SpaceTimeCache array");
-		memcpy(stc->array, array, stc->len*2*sizeof(float));
-		
-		MEM_freeN(array);
-		array = NULL;
-		
-		stc->ok = 1;
-		
-		BLI_addtail(&stime->caches, stc);
-	}
-	
-	/* todo: sort time->caches list for consistent order */
-	// ...
-	
-	BLI_freelistN(&pidlist);
-}
-
 /* helper function - find actkeycolumn that occurs on cframe, or the nearest one if not found */
 static ActKeyColumn *time_cfra_find_ak (ActKeyColumn *ak, float cframe)
 {
@@ -381,7 +363,7 @@ static void time_draw_keyframes(const bContext *C, SpaceTime *stime, ARegion *ar
 
 /* ---------------- */
 
-static void time_refresh(const bContext *C, ScrArea *sa)
+static void time_refresh(const bContext *UNUSED(C), ScrArea *sa)
 {
 	SpaceTime *stime = (SpaceTime *)sa->spacedata.first;
 	ARegion *ar;
@@ -389,7 +371,7 @@ static void time_refresh(const bContext *C, ScrArea *sa)
 	/* find the main timeline region and refresh cache display*/
 	for (ar= sa->regionbase.first; ar; ar= ar->next) {
 		if (ar->regiontype==RGN_TYPE_WINDOW) {
-			time_cache_refresh(C, stime, ar);
+			time_cache_refresh(stime);
 			break;
 		}
 	}
@@ -405,6 +387,8 @@ static void time_listener(ScrArea *sa, wmNotifier *wmn)
 			switch (wmn->data) {
 				case ND_BONE_ACTIVE:
 				case ND_POINTCACHE:
+				case ND_MODIFIER:
+				case ND_PARTICLE:
 					ED_area_tag_refresh(sa);
 					ED_area_tag_redraw(sa);
 					break;
@@ -437,7 +421,13 @@ static void time_listener(ScrArea *sa, wmNotifier *wmn)
 					ED_area_tag_refresh(sa);
 					break;
 			}
+		case NC_WM:
+			switch (wmn->data) {
+				case ND_FILEREAD:
+					ED_area_tag_refresh(sa);
+					break;
 	}
+}
 }
 
 /* ---------------- */
@@ -458,6 +448,7 @@ static void time_main_area_draw(const bContext *C, ARegion *ar)
 {
 	/* draw entirely, view changes should be handled here */
 	SpaceTime *stime= CTX_wm_space_time(C);
+	Object *obact = CTX_data_active_object(C);
 	View2D *v2d= &ar->v2d;
 	View2DGrid *grid;
 	View2DScrollers *scrollers;
@@ -492,7 +483,7 @@ static void time_main_area_draw(const bContext *C, ARegion *ar)
 	draw_markers_time(C, 0);
 	
 	/* caches */
-	time_draw_cache(C, stime, ar);
+	time_draw_cache(stime, obact);
 	
 	/* reset view matrix */
 	UI_view2d_view_restore(C);

@@ -34,6 +34,7 @@
 #include "DNA_action_types.h"
 #include "DNA_customdata_types.h"
 #include "DNA_controller_types.h"
+#include "DNA_group_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_force.h"
@@ -41,6 +42,8 @@
 #include "DNA_property_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_meta_types.h"
+
+#include "BKE_group.h" /* needed for object_in_group() */
 
 #include "BLO_sys_types.h" /* needed for intptr_t used in ED_mesh.h */
 #include "ED_mesh.h"
@@ -92,14 +95,14 @@ EnumPropertyItem metaelem_type_items[] = {
 /* used for 2 enums */
 #define OBTYPE_CU_CURVE {OB_CURVE, "CURVE", 0, "Curve", ""}
 #define OBTYPE_CU_SURF {OB_SURF, "SURFACE", 0, "Surface", ""}
-#define OBTYPE_CU_TEXT {OB_FONT, "TEXT", 0, "Text", ""}
+#define OBTYPE_CU_FONT {OB_FONT, "FONT", 0, "Font", ""}
     
 EnumPropertyItem object_type_items[] = {
 	{OB_MESH, "MESH", 0, "Mesh", ""},
 	OBTYPE_CU_CURVE,
 	OBTYPE_CU_SURF,
 	{OB_MBALL, "META", 0, "Meta", ""},
-	OBTYPE_CU_TEXT,
+	OBTYPE_CU_FONT,
 	{0, "", 0, NULL, NULL},
 	{OB_ARMATURE, "ARMATURE", 0, "Armature", ""},
 	{OB_LATTICE, "LATTICE", 0, "Lattice", ""},
@@ -112,7 +115,7 @@ EnumPropertyItem object_type_items[] = {
 EnumPropertyItem object_type_curve_items[] = {
 	OBTYPE_CU_CURVE,
 	OBTYPE_CU_SURF,
-	OBTYPE_CU_TEXT,
+	OBTYPE_CU_FONT,
 	{0, NULL, 0, NULL, NULL}};
     
 
@@ -122,6 +125,7 @@ EnumPropertyItem object_type_curve_items[] = {
 
 #include "DNA_key_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_lattice_types.h"
 
 #include "BKE_armature.h"
 #include "BKE_bullet.h"
@@ -412,6 +416,20 @@ static void rna_Object_parent_bone_set(PointerRNA *ptr, const char *value)
 	ED_object_parent(ob, ob->parent, ob->partype, value);
 }
 
+static void rna_Object_dup_group_set(PointerRNA *ptr, PointerRNA value)
+{
+	Object *ob= (Object *)ptr->data;
+	Group *grp = (Group *)value.data;
+	
+	/* must not let this be set if the object belongs in this group already,
+	 * thus causing a cycle/infinite-recursion leading to crashes on load [#25298]
+	 */
+	if (object_in_group(ob, grp) == 0)
+		ob->dup_group = grp;
+	else
+		BKE_report(NULL, RPT_ERROR, "Cannot set dupli-group as object belongs in group being instanced thus causing a cycle");
+}
+
 static int rna_VertexGroup_index_get(PointerRNA *ptr)
 {
 	Object *ob= (Object*)ptr->id.data;
@@ -556,6 +574,7 @@ static void rna_Object_active_material_index_range(PointerRNA *ptr, int *min, in
 	*max= MAX2(ob->totcol-1, 0);
 }
 
+/* returns active base material */
 static PointerRNA rna_Object_active_material_get(PointerRNA *ptr)
 {
 	Object *ob= (Object*)ptr->id.data;
@@ -1077,15 +1096,65 @@ static void rna_Object_boundbox_get(PointerRNA *ptr, float *values)
 		memcpy(values, bb->vec, sizeof(bb->vec));
 	}
 	else {
-		memset(values, -1.0f, sizeof(bb->vec));
+		fill_vn(values, sizeof(bb->vec)/sizeof(float), 0.0f);
 	}
 
 }
 
-static void rna_Object_add_vertex_to_group(Object *ob, int index_len, int *index, bDeformGroup *def, float weight, int assignmode)
+static bDeformGroup *rna_Object_vgroup_new(Object *ob, const char *name)
 {
+	bDeformGroup *defgroup = ED_vgroup_add_name(ob, name);
+
+	WM_main_add_notifier(NC_OBJECT|ND_DRAW, ob);
+
+	return defgroup;
+}
+
+static void rna_Object_vgroup_remove(Object *ob, bDeformGroup *defgroup)
+{
+	ED_vgroup_delete(ob, defgroup);
+
+	WM_main_add_notifier(NC_OBJECT|ND_DRAW, ob);
+}
+
+static void rna_VertexGroup_vertex_add(ID *id, bDeformGroup *def, ReportList *reports, int index_len, int *index, float weight, int assignmode)
+{
+	Object *ob = (Object *)id;
+
+	if(ED_vgroup_object_is_edit_mode(ob)) {
+		BKE_reportf(reports, RPT_ERROR, "VertexGroup.add(): Can't be called while object is in edit mode.");
+		return;
+	}
+
 	while(index_len--)
-		ED_vgroup_vert_add(ob, def, *index++, weight, assignmode);
+		ED_vgroup_vert_add(ob, def, *index++, weight, assignmode); /* XXX, not efficient calling within loop*/
+
+	WM_main_add_notifier(NC_GEOM|ND_DATA, (ID *)ob->data);
+}
+
+static void rna_VertexGroup_vertex_remove(ID *id, bDeformGroup *dg, ReportList *reports, int index_len, int *index)
+{
+	Object *ob = (Object *)id;
+
+	if(ED_vgroup_object_is_edit_mode(ob)) {
+		BKE_reportf(reports, RPT_ERROR, "VertexGroup.remove(): Can't be called while object is in edit mode.");
+		return;
+	}
+
+	while(index_len--)
+		ED_vgroup_vert_remove(ob, dg, *index++);
+
+	WM_main_add_notifier(NC_GEOM|ND_DATA, (ID *)ob->data);
+}
+
+static float rna_VertexGroup_weight(ID *id, bDeformGroup *dg, ReportList *reports, int index)
+{
+	float weight = ED_vgroup_vert_weight((Object *)id, dg, index);
+
+	if(weight < 0) {
+		BKE_reportf(reports, RPT_ERROR, "Vertex not in group");
+	}
+	return weight;		
 }
 
 /* generic poll functions */
@@ -1122,6 +1191,14 @@ static void rna_def_vertex_group(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
+	FunctionRNA *func;
+
+	static EnumPropertyItem assign_mode_items[] = {
+		{WEIGHT_REPLACE,  "REPLACE",  0, "Replace",  "Replace"},
+		{WEIGHT_ADD,      "ADD",      0, "Add",      "Add"},
+		{WEIGHT_SUBTRACT, "SUBTRACT", 0, "Subtract", "Subtract"},
+		{0, NULL, 0, NULL, NULL}
+	};
 
 	srna= RNA_def_struct(brna, "VertexGroup", NULL);
 	RNA_def_struct_sdna(srna, "bDeformGroup");
@@ -1137,6 +1214,32 @@ static void rna_def_vertex_group(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_int_funcs(prop, "rna_VertexGroup_index_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Index", "Index number of the vertex group");
+
+	func= RNA_def_function(srna, "add", "rna_VertexGroup_vertex_add");
+	RNA_def_function_ui_description(func, "Add vertices to the group.");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS|FUNC_USE_SELF_ID);
+	/* TODO, see how array size of 0 works, this shouldnt be used */
+	prop= RNA_def_int_array(func, "index", 1, NULL, 0, 0, "", "Index List.", 0, 0); 	 
+	RNA_def_property_flag(prop, PROP_DYNAMIC|PROP_REQUIRED);
+	prop= RNA_def_float(func, "weight", 0, 0.0f, 1.0f, "", "Vertex weight.", 0.0f, 1.0f);
+	RNA_def_property_flag(prop, PROP_REQUIRED);
+	prop= RNA_def_enum(func, "type", assign_mode_items, 0, "", "Vertex assign mode.");
+	RNA_def_property_flag(prop, PROP_REQUIRED);
+
+	func= RNA_def_function(srna, "remove", "rna_VertexGroup_vertex_remove");
+	RNA_def_function_ui_description(func, "Remove a vertex from the group.");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS|FUNC_USE_SELF_ID);
+	/* TODO, see how array size of 0 works, this shouldnt be used */
+	prop= RNA_def_int_array(func, "index", 1, NULL, 0, 0, "", "Index List.", 0, 0); 	 
+	RNA_def_property_flag(prop, PROP_DYNAMIC|PROP_REQUIRED);
+
+	func= RNA_def_function(srna, "weight", "rna_VertexGroup_weight");
+	RNA_def_function_ui_description(func, "Get a vertex weight from the group.");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS|FUNC_USE_SELF_ID);
+	prop=RNA_def_int(func, "index", 0, 0, INT_MAX, "Index", "The index of the vertex.", 0, INT_MAX);
+	RNA_def_property_flag(prop, PROP_REQUIRED);
+	prop= RNA_def_float(func, "weight", 0, 0.0f, 1.0f, "", "Vertex weight.", 0.0f, 1.0f);
+	RNA_def_function_return(func, prop);
 }
 
 static void rna_def_material_slot(BlenderRNA *brna)
@@ -1513,13 +1616,6 @@ static void rna_def_object_particle_systems(BlenderRNA *brna, PropertyRNA *cprop
 /* object.vertex_groups */
 static void rna_def_object_vertex_groups(BlenderRNA *brna, PropertyRNA *cprop)
 {
-	static EnumPropertyItem assign_mode_items[] = {
-		{WEIGHT_REPLACE, "REPLACE", 0, "Replace", "Replace"},
-		{WEIGHT_ADD, "ADD", 0, "Add", "Add"},
-		{WEIGHT_SUBTRACT, "SUBTRACT", 0, "Subtract", "Subtract"},
-		{0, NULL, 0, NULL, NULL}
-	};
-	
 	StructRNA *srna;
 	
 	PropertyRNA *prop;
@@ -1546,24 +1642,16 @@ static void rna_def_object_vertex_groups(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_update(prop, NC_GEOM|ND_DATA, "rna_Object_internal_update_data");
 	
 	/* vertex groups */ // add_vertex_group
-	func= RNA_def_function(srna, "new", "ED_vgroup_add_name");
+	func= RNA_def_function(srna, "new", "rna_Object_vgroup_new");
 	RNA_def_function_ui_description(func, "Add vertex group to object.");
-	parm= RNA_def_string(func, "name", "Group", 0, "", "Vertex group name."); /* optional */
+	RNA_def_string(func, "name", "Group", 0, "", "Vertex group name."); /* optional */
 	parm= RNA_def_pointer(func, "group", "VertexGroup", "", "New vertex group.");
 	RNA_def_function_return(func, parm);
 
-	func= RNA_def_function(srna, "assign", "rna_Object_add_vertex_to_group");
-	RNA_def_function_ui_description(func, "Add vertex to a vertex group.");
-	/* TODO, see how array size of 0 works, this shouldnt be used */
-	parm= RNA_def_int_array(func, "index", 1, NULL, 0, 0, "", "Index List.", 0, 0); 	 
-	RNA_def_property_flag(parm, PROP_DYNAMIC);
-	RNA_def_property_flag(parm, PROP_REQUIRED);
-	parm= RNA_def_pointer(func, "group", "VertexGroup", "", "Vertex group to add vertex to.");
-	RNA_def_property_flag(parm, PROP_REQUIRED);
-	parm= RNA_def_float(func, "weight", 0, 0.0f, 1.0f, "", "Vertex weight.", 0.0f, 1.0f);
-	RNA_def_property_flag(parm, PROP_REQUIRED);
-	parm= RNA_def_enum(func, "type", assign_mode_items, 0, "", "Vertex assign mode.");
-	RNA_def_property_flag(parm, PROP_REQUIRED);
+	func= RNA_def_function(srna, "remove", "rna_Object_vgroup_remove");
+	RNA_def_function_ui_description(func, "Delete vertex group from object.");
+	parm= RNA_def_pointer(func, "group", "VertexGroup", "", "Vertex group to remove.");
+	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_NEVER_NULL);
 }
 
 
@@ -1571,19 +1659,6 @@ static void rna_def_object(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-
-	static EnumPropertyItem object_type_items[] = {
-		{OB_EMPTY, "EMPTY", 0, "Empty", ""},
-		{OB_MESH, "MESH", 0, "Mesh", ""},
-		{OB_CURVE, "CURVE", 0, "Curve", ""},
-		{OB_SURF, "SURFACE", 0, "Surface", ""},
-		{OB_FONT, "TEXT", 0, "Text", ""},
-		{OB_MBALL, "META", 0, "Meta", ""},
-		{OB_LAMP, "LAMP", 0, "Lamp", ""},
-		{OB_CAMERA, "CAMERA", 0, "Camera", ""},
-		{OB_LATTICE, "LATTICE", 0, "Lattice", ""},
-		{OB_ARMATURE, "ARMATURE", 0, "Armature", ""},
-		{0, NULL, 0, NULL, NULL}};
 
 	static EnumPropertyItem empty_drawtype_items[] = {
 		{OB_ARROWS, "ARROWS", 0, "Arrows", ""},
@@ -1662,7 +1737,7 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "ID");
 	RNA_def_property_pointer_funcs(prop, NULL, "rna_Object_data_set", "rna_Object_data_typef", NULL);
 	RNA_def_property_editable_func(prop, "rna_Object_data_editable");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_flag(prop, PROP_EDITABLE|PROP_NEVER_UNLINK);
 	RNA_def_property_ui_text(prop, "Data", "Object data");
 	RNA_def_property_update(prop, 0, "rna_Object_internal_update_data");
 
@@ -1696,7 +1771,7 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_multi_array(prop, 2, boundbox_dimsize);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_float_funcs(prop, "rna_Object_boundbox_get", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Bound Box", "Objects bound box in object-space coordinates");
+	RNA_def_property_ui_text(prop, "Bound Box", "Objects bound box in object-space coordinates, all values are -1.0 when not available.");
 
 	/* parent */
 	prop= RNA_def_property(srna, "parent", PROP_POINTER, PROP_NONE);
@@ -2043,6 +2118,7 @@ static void rna_def_object(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "dupli_group", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "dup_group");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_pointer_funcs(prop, NULL, "rna_Object_dup_group_set", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Dupli Group", "Instance an existing group");
 	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, "rna_Object_dependency_update");
 

@@ -34,6 +34,7 @@
 #include "BLI_math.h"
 #include "BLI_threads.h"
 #include "BLI_rand.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_scene_types.h"
 
@@ -43,6 +44,7 @@
 #include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
+#include "BKE_node.h"
 #include "BKE_multires.h"
 #include "BKE_report.h"
 #include "BKE_sequencer.h"
@@ -587,6 +589,11 @@ static void render_endjob(void *rjv)
 	if(rj->main != G.main)
 		free_main(rj->main);
 
+	if(rj->srl) {
+		NodeTagIDChanged(rj->scene->nodetree, &rj->scene->id);
+		WM_main_add_notifier(NC_NODE|NA_EDITED, rj->scene);
+	}
+	
 	/* XXX render stability hack */
 	G.rendering = 0;
 	WM_main_add_notifier(NC_WINDOW, NULL);
@@ -849,6 +856,8 @@ static int render_view_show_invoke(bContext *C, wmOperator *UNUSED(unused), wmEv
 		
 	/* determine if render already shows */
 		if(sa) {
+			/* but don't close it when rendering */
+			if(!G.rendering) {
 		SpaceImage *sima= sa->spacedata.first;
 
 		if(sima->flag & SI_PREVSPACE) {
@@ -864,6 +873,7 @@ static int render_view_show_invoke(bContext *C, wmOperator *UNUSED(unused), wmEv
 			}
 		}
 	}
+		}
 	else {
 		screen_set_image_output(C, event->x, event->y);
 	}

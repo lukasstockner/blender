@@ -31,6 +31,7 @@
 #include <math.h>
 #include <float.h>
 
+#include "DNA_action_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_meta_types.h"
@@ -45,12 +46,14 @@
 #include "BLI_editVert.h"
 #include "BLI_rand.h"
 #include "BLI_linklist.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_paint.h"
 
 
 #include "BIF_gl.h"
+#include "BIF_glutil.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -63,7 +66,6 @@
 #include "ED_particle.h"
 #include "ED_mesh.h"
 #include "ED_object.h"
-#include "ED_retopo.h"
 #include "ED_screen.h"
 #include "ED_mball.h"
 
@@ -918,7 +920,7 @@ static Base *mouse_select_menu(bContext *C, ViewContext *vc, unsigned int *buffe
 	}
 	else {
 		/* UI */
-		uiPopupMenu *pup= uiPupMenuBegin(C, "Select Object", 0);
+		uiPopupMenu *pup= uiPupMenuBegin(C, "Select Object", ICON_NULL);
 		uiLayout *layout= uiPupMenuLayout(pup);
 		uiLayout *split= uiLayoutSplit(layout, 0, 0);
 		uiLayout *column= uiLayoutColumn(split, 0);
@@ -1661,10 +1663,12 @@ static int view3d_borderselect_exec(bContext *C, wmOperator *op)
 							bone = get_indexed_bone(base->object, *col & ~(BONESEL_ANY));
 							if(bone) {
 								if(selecting) {
+								if ((bone->flag & BONE_UNSELECTABLE)==0) {
 									bone->flag |= BONE_SELECTED;
 									bone_selected=1;
 // XXX									select_actionchannel_by_name(base->object->action, bone->name, 1);
 								}
+							}
 								else {
 									bArmature *arm= base->object->data;
 									bone->flag &= ~BONE_SELECTED;
@@ -1959,6 +1963,67 @@ static void lattice_circle_select(ViewContext *vc, int selecting, short *mval, f
 }
 
 
+// NOTE: pose-bone case is copied from editbone case...
+static short pchan_circle_doSelectJoint(void *userData, bPoseChannel *pchan, int x, int y)
+{
+	struct {ViewContext *vc; short select, mval[2]; float radius; } *data = userData;
+	int mx = x - data->mval[0], my = y - data->mval[1];
+	float r = sqrt(mx*mx + my*my);
+	
+	if (r <= data->radius) {
+		if (data->select)
+			pchan->bone->flag |= BONE_SELECTED;
+		else
+			pchan->bone->flag &= ~BONE_SELECTED;
+		return 1;
+	}
+	return 0;
+}
+static void pose_circle_select(ViewContext *vc, int select, short *mval, float rad)
+{
+	struct {ViewContext *vc; short select, mval[2]; float radius; } data;
+	bPose *pose = vc->obact->pose;
+	bPoseChannel *pchan;
+	int change= FALSE;
+	
+	/* set vc->edit data */
+	data.select = select;
+	data.mval[0] = mval[0];
+	data.mval[1] = mval[1];
+	data.radius = rad;
+
+	ED_view3d_init_mats_rv3d(vc->obact, vc->rv3d); /* for foreach's screen/vert projection */
+	
+	/* check each PoseChannel... */
+	// TODO: could be optimised at some point
+	for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
+		short sco1[2], sco2[2], didpoint=0;
+		float vec[3];
+		
+		/* project head location to screenspace */
+		mul_v3_m4v3(vec, vc->obact->obmat, pchan->pose_head);
+		project_short(vc->ar, vec, sco1);
+		
+		/* project tail location to screenspace */
+		mul_v3_m4v3(vec, vc->obact->obmat, pchan->pose_tail);
+		project_short(vc->ar, vec, sco2);
+		
+		/* check if the head and/or tail is in the circle 
+		 *	- the call to check also does the selection already
+		 */
+		if (pchan_circle_doSelectJoint(&data, pchan, sco1[0], sco1[1]))
+			didpoint= 1;
+		if (pchan_circle_doSelectJoint(&data, pchan, sco2[0], sco2[1]))
+			didpoint= 1;
+		
+		change |= didpoint;
+	}
+
+	if (change) {
+		WM_main_add_notifier(NC_OBJECT|ND_BONE_SELECT, vc->obact);
+	}
+}
+
 static short armature_circle_doSelectJoint(void *userData, EditBone *ebone, int x, int y, short head)
 {
 	struct {ViewContext *vc; short select, mval[2]; float radius; } *data = userData;
@@ -2079,7 +2144,8 @@ static int view3d_circle_select_exec(bContext *C, wmOperator *op)
 	selecting= (gesture_mode==GESTURE_MODAL_SELECT);
     
 	if(CTX_data_edit_object(C) || paint_facesel_test(obact) ||
-		(obact && obact->mode & OB_MODE_PARTICLE_EDIT)) {
+		(obact && (obact->mode & (OB_MODE_PARTICLE_EDIT|OB_MODE_POSE))) )
+	{
 		ViewContext vc;
 		short mval[2];
 		
@@ -2097,6 +2163,8 @@ static int view3d_circle_select_exec(bContext *C, wmOperator *op)
 			paint_facesel_circle_select(&vc, selecting, mval, (float)radius);
 			WM_event_add_notifier(C, NC_GEOM|ND_SELECT, obact->data);
 		}
+		else if(obact->mode & OB_MODE_POSE)
+			pose_circle_select(&vc, select, mval, (float)radius);
 		else
 			return PE_circle_select(C, selecting, mval, (float)radius);
 	}

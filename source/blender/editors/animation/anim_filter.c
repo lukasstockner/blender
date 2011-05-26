@@ -69,6 +69,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 
 #include "BKE_animsys.h"
@@ -78,11 +79,14 @@
 #include "BKE_global.h"
 #include "BKE_group.h"
 #include "BKE_key.h"
+#include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_node.h"
 #include "BKE_sequencer.h"
+#include "BKE_utildefines.h"
 
 #include "ED_anim_api.h"
+#include "ED_markers.h"
 
 /* ************************************************************ */
 /* Blender Context <-> Animation Context mapping */
@@ -105,24 +109,8 @@ static Key *actedit_get_shapekeys (bAnimContext *ac)
 	//if (saction->pin) return NULL;
 	
 	/* shapekey data is stored with geometry data */
-	switch (ob->type) {
-		case OB_MESH:
-			key= ((Mesh *)ob->data)->key;
-			break;
+	key= ob_get_key(ob);
 			
-		case OB_LATTICE:
-			key= ((Lattice *)ob->data)->key;
-			break;
-			
-		case OB_CURVE:
-		case OB_SURF:
-			key= ((Curve *)ob->data)->key;
-			break;
-			
-		default:
-			return NULL;
-	}
-	
 	if (key) {
 		if (key->type == KEY_RELATIVE)
 			return key;
@@ -159,9 +147,11 @@ static short actedit_get_context (bAnimContext *ac, SpaceAction *saction)
 			return 1;
 			
 		case SACTCONT_GPENCIL: /* Grease Pencil */ // XXX review how this mode is handled...
+			/* update scene-pointer (no need to check for pinning yet, as not implemented) */
+			saction->ads.source= (ID *)ac->scene;
+			
 			ac->datatype=ANIMCONT_GPENCIL;
-			//ac->data= CTX_wm_screen(C); // FIXME: add that dopesheet type thing here!
-			ac->data= NULL; // !!!
+			ac->data= &saction->ads;
 			
 			ac->mode= saction->mode;
 			return 1;
@@ -317,7 +307,7 @@ short ANIM_animdata_get_context (const bContext *C, bAnimContext *ac)
 	/* get useful default context settings from context */
 	ac->scene= scene;
 	if (scene) {
-		ac->markers= &scene->markers;		
+		ac->markers= ED_context_get_markers(C);		
 		ac->obact= (scene->basact)?  scene->basact->object : NULL;
 	}
 	ac->sa= sa;
@@ -641,6 +631,19 @@ bAnimListElem *make_new_animlistelem (void *data, short datatype, void *owner, s
 				
 				ale->adt= BKE_animdata_from_id(data);
 			}
+				break;
+			case ANIMTYPE_DSLAT:
+			{
+				Lattice *lt= (Lattice *)data;
+				AnimData *adt= lt->adt;
+				
+				ale->flag= FILTER_LATTICE_OBJD(lt);
+				
+				ale->key_data= (adt) ? adt->action : NULL;
+				ale->datatype= ALE_ACT;
+				
+				ale->adt= BKE_animdata_from_id(data);
+			}	
 				break;
 			case ANIMTYPE_DSSKEY:
 			{
@@ -1182,38 +1185,28 @@ static int animdata_filter_shapekey (bAnimContext *ac, ListBase *anim_data, Key 
 	return items;
 }
 
-#if 0
-// FIXME: switch this to use the bDopeSheet...
-static int animdata_filter_gpencil (ListBase *anim_data, bScreen *sc, int filter_mode)
+/* Grab all Grase Pencil datablocks in file */
+// TODO: should this be amalgamated with the dopesheet filtering code?
+static int animdata_filter_gpencil (ListBase *anim_data, void *UNUSED(data), int filter_mode)
 {
 	bAnimListElem *ale;
-	ScrArea *sa, *curarea;
 	bGPdata *gpd;
 	bGPDlayer *gpl;
 	int items = 0;
 	
 	/* check if filtering types are appropriate */
+	if (!(filter_mode & (ANIMFILTER_ACTGROUPED|ANIMFILTER_CURVESONLY)))
 	{
-		/* special hack for fullscreen area (which must be this one then):
-		 * 	- we use the curarea->full as screen to get spaces from, since the
-		 * 	  old (pre-fullscreen) screen was stored there...
-		 *	- this is needed as all data would otherwise disappear
-		 */
-		// XXX need to get new alternative for curarea
-		if ((curarea->full) && (curarea->spacetype==SPACE_ACTION))
-			sc= curarea->full;
+		/* for now, grab grease pencil datablocks directly from main*/
+		for (gpd = G.main->gpencil.first; gpd; gpd = gpd->id.next) {
+			/* only show if gpd is used by something... */
+			if (ID_REAL_USERS(gpd) < 1)
+				continue;
 		
-		/* loop over spaces in current screen, finding gpd blocks (could be slow!) */
-		for (sa= sc->areabase.first; sa; sa= sa->next) {
-			/* try to get gp data */
-			// XXX need to put back grease pencil api...
-			gpd= gpencil_data_get_active(sa);
-			if (gpd == NULL) continue;
-			
 			/* add gpd as channel too (if for drawing, and it has layers) */
 			if ((filter_mode & ANIMFILTER_CHANNELS) && (gpd->layers.first)) {
 				/* add to list */
-				ale= make_new_animlistelem(gpd, ANIMTYPE_GPDATABLOCK, sa, ANIMTYPE_SPECIALDATA);
+				ale= make_new_animlistelem(gpd, ANIMTYPE_GPDATABLOCK, NULL, ANIMTYPE_NONE, NULL);
 				if (ale) {
 					BLI_addtail(anim_data, ale);
 					items++;
@@ -1229,7 +1222,7 @@ static int animdata_filter_gpencil (ListBase *anim_data, bScreen *sc, int filter
 						/* only if editable */
 						if (!(filter_mode & ANIMFILTER_FOREDIT) || EDITABLE_GPL(gpl)) {
 							/* add to list */
-							ale= make_new_animlistelem(gpl, ANIMTYPE_GPLAYER, gpd, ANIMTYPE_GPDATABLOCK);
+							ale= make_new_animlistelem(gpl, ANIMTYPE_GPLAYER, gpd, ANIMTYPE_GPDATABLOCK, (ID*)gpd);
 							if (ale) {
 								BLI_addtail(anim_data, ale);
 								items++;
@@ -1244,7 +1237,6 @@ static int animdata_filter_gpencil (ListBase *anim_data, bScreen *sc, int filter
 	/* return the number of items added to the list */
 	return items;
 }
-#endif 
 
 /* NOTE: owner_id is either material, lamp, or world block, which is the direct owner of the texture stack in question */
 static int animdata_filter_dopesheet_texs (bAnimContext *ac, ListBase *anim_data, bDopeSheet *ads, ID *owner_id, int filter_mode)
@@ -1594,6 +1586,14 @@ static int animdata_filter_dopesheet_obdata (bAnimContext *ac, ListBase *anim_da
 			expanded= FILTER_MESH_OBJD(me);
 		}
 			break;
+		case OB_LATTICE: /* ---- Lattice ---- */
+		{
+			Lattice *lt = (Lattice *)ob->data;
+			
+			type= ANIMTYPE_DSLAT;
+			expanded= FILTER_LATTICE_OBJD(lt);
+	}
+			break;
 	}
 	
 	/* special exception for drivers instead of action */
@@ -1850,6 +1850,19 @@ static int animdata_filter_dopesheet_ob (bAnimContext *ac, ListBase *anim_data, 
 					obdata_ok= 1;,
 					obdata_ok= 1;)
 			}
+		}
+			break;
+		case OB_LATTICE: /* ------- Lattice ---------- */
+		{
+			Lattice *lt= (Lattice *)ob->data;
+			
+			if ((ads->filterflag & ADS_FILTER_NOLAT) == 0) {
+				ANIMDATA_FILTER_CASES(lt,
+					{ /* AnimData blocks - do nothing... */ },
+					obdata_ok= 1;,
+					obdata_ok= 1;,
+					obdata_ok= 1;)
+	}
 		}
 			break;
 	}
@@ -2365,6 +2378,23 @@ static int animdata_filter_dopesheet (bAnimContext *ac, ListBase *anim_data, bDo
 							dataOk= !(ads->filterflag & ADS_FILTER_NOMESH);)
 					}
 						break;
+					case OB_LATTICE: /* ------- Lattice ---------- */
+					{
+						Lattice *lt= (Lattice *)ob->data;
+						dataOk= 0;
+						ANIMDATA_FILTER_CASES(lt, 
+							if ((ads->filterflag & ADS_FILTER_NOLAT)==0) {
+								/* for the special AnimData blocks only case, we only need to add
+								 * the block if it is valid... then other cases just get skipped (hence ok=0)
+								 */
+								ANIMDATA_ADD_ANIMDATA(lt);
+								dataOk=0;
+							},
+							dataOk= !(ads->filterflag & ADS_FILTER_NOLAT);, 
+							dataOk= !(ads->filterflag & ADS_FILTER_NOLAT);, 
+							dataOk= !(ads->filterflag & ADS_FILTER_NOLAT);)
+					}
+						break;
 					default: /* --- other --- */
 						dataOk= 0;
 						break;
@@ -2647,7 +2677,7 @@ int ANIM_animdata_filter (bAnimContext *ac, ListBase *anim_data, int filter_mode
 				
 			case ANIMCONT_GPENCIL:
 			{
-				//items= animdata_filter_gpencil(anim_data, data, filter_mode);
+				items= animdata_filter_gpencil(anim_data, data, filter_mode);
 			}
 				break;
 				

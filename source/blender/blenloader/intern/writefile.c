@@ -129,6 +129,7 @@ Any case: direct data is ALWAYS after the lib block
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
 #include "BLI_bpath.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_action.h"
 #include "BKE_blender.h"
@@ -140,9 +141,10 @@ Any case: direct data is ALWAYS after the lib block
 #include "BKE_node.h"
 #include "BKE_report.h"
 #include "BKE_sequencer.h"
-#include "BKE_utildefines.h" // for defines
+#include "BKE_utildefines.h"
 #include "BKE_modifier.h"
 #include "BKE_fcurve.h"
+#include "BKE_pointcache.h"
 
 #include "BLO_writefile.h"
 #include "BLO_readfile.h"
@@ -766,9 +768,22 @@ static void write_boid_state(WriteData *wd, BoidState *state)
 	//for(; cond; cond=cond->next)
 	//	writestruct(wd, DATA, "BoidCondition", 1, cond);
 }
-/* TODO: replace *cache with *cachelist once it's coded */
-#define PTCACHE_WRITE_PSYS	0
-#define PTCACHE_WRITE_CLOTH	1
+
+/* update this also to readfile.c */
+static const char *ptcache_data_struct[] = {
+	"", // BPHYS_DATA_INDEX
+	"", // BPHYS_DATA_LOCATION
+	"", // BPHYS_DATA_VELOCITY
+	"", // BPHYS_DATA_ROTATION
+	"", // BPHYS_DATA_AVELOCITY / BPHYS_DATA_XCONST */
+	"", // BPHYS_DATA_SIZE:
+	"", // BPHYS_DATA_TIMES:	
+	"BoidData" // case BPHYS_DATA_BOIDS:
+};
+static const char *ptcache_extra_struct[] = {
+	"",
+	"ParticleSpring"
+};
 static void write_pointcaches(WriteData *wd, ListBase *ptcaches)
 {
 	PointCache *cache = ptcaches->first;
@@ -781,16 +796,27 @@ static void write_pointcaches(WriteData *wd, ListBase *ptcaches)
 			PTCacheMem *pm = cache->mem_cache.first;
 
 			for(; pm; pm=pm->next) {
+				PTCacheExtra *extra = pm->extradata.first;
+
 				writestruct(wd, DATA, "PTCacheMem", 1, pm);
-				if(pm->index_array)
-					writedata(wd, DATA, MEM_allocN_len(pm->index_array), pm->index_array);
 				
 				for(i=0; i<BPHYS_TOT_DATA; i++) {
-					if(pm->data[i] && pm->data_types & (1<<i))
+					if(pm->data[i] && pm->data_types & (1<<i)) {
+						if(strcmp(ptcache_data_struct[i], "")==0)
 						writedata(wd, DATA, MEM_allocN_len(pm->data[i]), pm->data[i]);
+						else
+							writestruct(wd, DATA, ptcache_data_struct[i], pm->totpoint, pm->data[i]);
 				}
 			}
+
+				for(; extra; extra=extra->next) {
+					if(strcmp(ptcache_extra_struct[extra->type], "")==0)
+						continue;
+					writestruct(wd, DATA, "PTCacheExtra", 1, extra);
+					writestruct(wd, DATA, ptcache_extra_struct[extra->type], extra->totdata, extra->data);
 		}
+	}
+}
 	}
 }
 static void write_particlesettings(WriteData *wd, ListBase *idbase)
@@ -849,6 +875,9 @@ static void write_particlesystems(WriteData *wd, ListBase *particles)
 
 			if(psys->particles->boid && psys->part->phystype == PART_PHYS_BOIDS)
 				writestruct(wd, DATA, "BoidParticle", psys->totpart, psys->particles->boid);
+
+			if(psys->part->fluid && psys->part->phystype == PART_PHYS_FLUID && (psys->part->fluid->flag & SPH_VISCOELASTIC_SPRINGS))
+				writestruct(wd, DATA, "ParticleSpring", psys->tot_fluidsprings, psys->fluid_springs);
 		}
 		pt = psys->targets.first;
 		for(; pt; pt=pt->next)
@@ -1176,20 +1205,33 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 			
 			if(smd->type & MOD_SMOKE_TYPE_DOMAIN)
 			{
+				if(smd->domain)
+				{
+					write_pointcaches(wd, &(smd->domain->ptcaches[0]));
+
+					/* create fake pointcache so that old blender versions can read it */
+					smd->domain->point_cache[1] = BKE_ptcache_add(&smd->domain->ptcaches[1]);
+					smd->domain->point_cache[1]->flag |= PTCACHE_DISK_CACHE;
+					smd->domain->point_cache[1]->step = 1;
+
+					write_pointcaches(wd, &(smd->domain->ptcaches[1]));
+				}
+				
 				writestruct(wd, DATA, "SmokeDomainSettings", 1, smd->domain);
+
+				if(smd->domain) {
+					/* cleanup the fake pointcache */
+					BKE_ptcache_free_list(&smd->domain->ptcaches[1]);
+					smd->domain->point_cache[1] = NULL;
+					
 				writestruct(wd, DATA, "EffectorWeights", 1, smd->domain->effector_weights);
+			}
 			}
 			else if(smd->type & MOD_SMOKE_TYPE_FLOW)
 				writestruct(wd, DATA, "SmokeFlowSettings", 1, smd->flow);
 			else if(smd->type & MOD_SMOKE_TYPE_COLL)
 				writestruct(wd, DATA, "SmokeCollSettings", 1, smd->coll);
-
-			if((smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain)
-			{
-				write_pointcaches(wd, &(smd->domain->ptcaches[0]));
-				write_pointcaches(wd, &(smd->domain->ptcaches[1]));
 			}
-		} 
 		else if(md->type==eModifierType_Fluidsim) {
 			FluidsimModifierData *fluidmd = (FluidsimModifierData*) md;
 			
@@ -2361,7 +2403,15 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
 	fg.subversion= BLENDER_SUBVERSION;
 	fg.minversion= BLENDER_MINVERSION;
 	fg.minsubversion= BLENDER_MINSUBVERSION;
-	fg.pads= 0; /* prevent mem checkers from complaining */
+#ifdef NAN_BUILDINFO
+	{
+		extern char build_rev[];
+		fg.revision= atoi(build_rev);
+	}
+#else
+	fg.revision= 0;
+#endif
+	fg.pads= fg.pad= 0; /* prevent mem checkers from complaining */
 	writestruct(wd, GLOB, "FileGlobal", 1, &fg);
 }
 

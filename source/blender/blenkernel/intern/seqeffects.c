@@ -35,6 +35,7 @@
 #include "PIL_dynlib.h"
 
 #include "BLI_math.h" /* windows needs for M_PI */
+#include "BLI_utildefines.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
@@ -1591,16 +1592,11 @@ static void precalc_wipe_zone(WipeZone *wipezone, WipeVars *wipe, int xo, int yo
 // This function calculates the blur band for the wipe effects
 static float in_band(WipeZone *wipezone,float width,float dist,float perc,int side,int dir)
 {
-	float t1,t2,alpha,percwidth;
+	float t1,t2,alpha;
 
 	if(width == 0)
 		return (float)side;
 
-	if(side == 1)
-		percwidth = width * perc;
-	else
-		percwidth = width * (1 - perc);
-	
 	if(width < dist)
 		return side;
 	
@@ -2736,8 +2732,8 @@ static struct ImBuf * do_solid_color(
 
 	unsigned char *rect;
 	float *rect_float;
-	int x = context.rectx;
-	int y = context.recty;
+	int x; /*= context.rectx;*/ /*UNUSED*/
+	int y; /*= context.recty;*/ /*UNUSED*/
 
 	if (out->rect) {
 		unsigned char col0[3];

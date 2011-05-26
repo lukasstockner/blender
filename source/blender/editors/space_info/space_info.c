@@ -29,12 +29,12 @@
 #include <string.h>
 #include <stdio.h>
 
-
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -189,7 +189,7 @@ static void recent_files_menu_draw(const bContext *UNUSED(C), Menu *menu)
 			uiItemStringO(layout, BLI_path_basename(recent->filepath), ICON_FILE_BLEND, "WM_OT_open_mainfile", "filepath", recent->filepath);
 		}
 	} else {
-		uiItemL(layout, "No Recent Files", 0);
+		uiItemL(layout, "No Recent Files", ICON_NULL);
 	}
 }
 

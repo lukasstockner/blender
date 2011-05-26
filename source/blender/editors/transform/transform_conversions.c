@@ -47,6 +47,7 @@
 #include "DNA_constraint_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_gpencil_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -57,6 +58,7 @@
 #include "BKE_constraint.h"
 #include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
+#include "BKE_gpencil.h"
 #include "BKE_global.h"
 #include "BKE_key.h"
 #include "BKE_main.h"
@@ -89,6 +91,7 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_editVert.h"
+#include "BLI_utildefines.h"
 
 #include "RNA_access.h"
 
@@ -268,6 +271,7 @@ static void createTransTexspace(bContext *C, TransInfo *t)
 	invert_m3_m3(td->smtx, td->mtx);
 
 	if (give_obdata_texspace(ob, &texflag, &td->loc, &td->ext->size, &td->ext->rot)) {
+		ob->dtx |= OB_TEXSPACE;
 		*texflag &= ~AUTOSPACE;
 	}
 
@@ -689,7 +693,6 @@ int count_set_pose_transflags(int *out_mode, short around, Object *ob)
 	for(pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		bone = pchan->bone;
 		if(bone->flag & BONE_TRANSFORM) {
-
 			total++;
 
 			if(mode == TFM_TRANSLATION) {
@@ -783,6 +786,7 @@ static void pose_grab_with_ik_clear(Object *ob)
 		pchan->ikflag &= ~(BONE_IK_NO_XDOF_TEMP|BONE_IK_NO_YDOF_TEMP|BONE_IK_NO_ZDOF_TEMP);
 
 		pchan->constflag &= ~(PCHAN_HAS_IK|PCHAN_HAS_TARGET);
+		
 		/* remove all temporary IK-constraints added */
 		for (con= pchan->constraints.first; con; con= next) {
 			next= con->next;
@@ -2424,7 +2428,7 @@ static void createTransUVs(bContext *C, TransInfo *t)
 	EditMesh *em = ((Mesh *)t->obedit->data)->edit_mesh;
 	EditFace *efa;
 
-	if(!ED_uvedit_test(t->obedit)) return;
+	if(!ED_space_image_show_uvedit(sima, t->obedit)) return;
 
 	/* count */
 	for (efa= em->faces.first; efa; efa= efa->next) {
@@ -2768,7 +2772,6 @@ static void createTransNlaData(bContext *C, TransInfo *t)
  * It also makes sure gp-frames are still stored in chronological order after
  * transform.
  */
-#if 0
 static void posttrans_gpd_clean (bGPdata *gpd)
 {
 	bGPDlayer *gpl;
@@ -2838,8 +2841,7 @@ static void posttrans_gpd_clean (bGPdata *gpd)
 					BLI_insertlinkbefore(&gpl->frames, gpf, gfs);
 
 					/* get rid of current frame */
-					// TRANSFORM_FIX_ME
-					//gpencil_layer_delframe(gpl, gpf);
+					gpencil_layer_delframe(gpl, gpf);
 				}
 			}
 		}
@@ -2853,7 +2855,6 @@ static void posttrans_gpd_clean (bGPdata *gpd)
 		}
 	}
 }
-#endif
 
 /* Called during special_aftertrans_update to make sure selected keyframes replace
  * any other keyframes which may reside on that frame (that is not selected).
@@ -2976,7 +2977,6 @@ static int count_fcurve_keys(FCurve *fcu, char side, float cfra)
 }
 
 /* fully select selected beztriples, but only include if it's on the right side of cfra */
-#if 0
 static int count_gplayer_frames(bGPDlayer *gpl, char side, float cfra)
 {
 	bGPDframe *gpf;
@@ -2995,7 +2995,6 @@ static int count_gplayer_frames(bGPDlayer *gpl, char side, float cfra)
 
 	return count;
 }
-#endif
 
 /* This function assigns the information to transdata */
 static void TimeToTransData(TransData *td, float *time, AnimData *adt)
@@ -3083,7 +3082,6 @@ void flushTransGPactionData (TransInfo *t)
  * The 'side' argument is needed for the extend mode. 'B' = both sides, 'R'/'L' mean only data
  * on the named side are used.
  */
-#if 0
 static int GPLayerToTransData (TransData *td, tGPFtransdata *tfd, bGPDlayer *gpl, char side, float cfra)
 {
 	bGPDframe *gpf;
@@ -3110,7 +3108,6 @@ static int GPLayerToTransData (TransData *td, tGPFtransdata *tfd, bGPDlayer *gpl
 
 	return count;
 }
-#endif
 
 static void createTransActionData(bContext *C, TransInfo *t)
 {
@@ -3163,10 +3160,10 @@ static void createTransActionData(bContext *C, TransInfo *t)
 		else
 			cfra = (float)CFRA;
 		
-		//if (ale->type == ANIMTYPE_GPLAYER)
-		//	count += count_gplayer_frames(ale->data, t->frame_side, cfra);
-		//else
+		if (ale->type == ANIMTYPE_FCURVE)
 			count += count_fcurve_keys(ale->key_data, t->frame_side, cfra);
+		else
+			count += count_gplayer_frames(ale->data, t->frame_side, cfra);
 	}
 	
 	/* stop if trying to build list if nothing selected */
@@ -3199,15 +3196,15 @@ static void createTransActionData(bContext *C, TransInfo *t)
 	
 	/* loop 2: build transdata array */
 	for (ale= anim_data.first; ale; ale= ale->next) {
-		//if (ale->type == ANIMTYPE_GPLAYER) {
-		//	bGPDlayer *gpl= (bGPDlayer *)ale->data;
-		//	int i;
-		//
-		//	i = GPLayerToTransData(td, tfd, gpl, t->frame_side, cfra);
-		//	td += i;
-		//	tfd += i;
-		//}
-		//else {
+		if (ale->type == ANIMTYPE_GPLAYER) {
+			bGPDlayer *gpl= (bGPDlayer *)ale->data;
+			int i;
+			
+			i = GPLayerToTransData(td, tfd, gpl, t->frame_side, cfra);
+			td += i;
+			tfd += i;
+		}
+		else {
 			AnimData *adt= ANIM_nla_mapping_get(&ac, ale);
 			FCurve *fcu= (FCurve *)ale->key_data;
 			
@@ -3220,7 +3217,7 @@ static void createTransActionData(bContext *C, TransInfo *t)
 				cfra = (float)CFRA;
 			
 			td= ActionFCurveToTransData(td, &td2d, fcu, adt, t->frame_side, cfra);
-		//}
+	}
 	}
 	
 	/* check if we're supposed to be setting minx/maxx for TimeSlide */
@@ -3554,11 +3551,11 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 
 /* ------------------------ */
 
-/* struct for use in re-sorting BezTriples during IPO transform */
+/* struct for use in re-sorting BezTriples during Graph Editor transform */
 typedef struct BeztMap {
 	BezTriple *bezt;
-	int oldIndex; 		/* index of bezt in icu->bezt array before sorting */
-	int newIndex;		/* index of bezt in icu->bezt array after sorting */
+	unsigned int oldIndex; 		/* index of bezt in fcu->bezt array before sorting */
+	unsigned int newIndex;		/* index of bezt in fcu->bezt array after sorting */
 	short swapHs; 		/* swap order of handles (-1=clear; 0=not checked, 1=swap) */
 	char pipo, cipo;	/* interpolation of current and next segments */
 } BeztMap;
@@ -4842,7 +4839,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			// fixme... some of this stuff is not good
 			if (ob) {
 				if (ob->pose || ob_get_key(ob))
-					DAG_id_tag_update(&ob->id, OB_RECALC_ALL);
+					DAG_id_tag_update(&ob->id, OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME);
 				else
 					DAG_id_tag_update(&ob->id, OB_RECALC_OB);
 			}
@@ -4872,26 +4869,20 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 		}
 		}
 
-#if 0 // XXX future of this is still not clear
 		else if (ac.datatype == ANIMCONT_GPENCIL) {
 			/* remove duplicate frames and also make sure points are in order! */
 			if ((cancelled == 0) || (duplicate))
 			{
-				bScreen *sc= (bScreen *)ac.data;
-				ScrArea *sa;
+				bGPdata *gpd;
 				
-				/* BAD... we need to loop over all screen areas for current screen...
-				 * 	- sync this with actdata_filter_gpencil() in editaction.c
-				 */
-				for (sa= sc->areabase.first; sa; sa= sa->next) {
-					bGPdata *gpd= gpencil_data_get_active(sa);
-					
-					if (gpd)
+				// XXX: BAD! this get gpencil datablocks directly from main db...
+				// but that's how this currently works :/
+				for (gpd = G.main->gpencil.first; gpd; gpd = gpd->id.next) {
+					if (ID_REAL_USERS(gpd) > 1)
 						posttrans_gpd_clean(gpd);
 				}
 			}
 		}
-#endif // XXX future of this is still not clear
 		
 		/* make sure all F-Curves are set correctly */
 		ANIM_editkeyframes_refresh(&ac);
@@ -5080,16 +5071,6 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 	}
 
 	clear_trans_object_base_flags(t);
-
-	if(t->spacetype == SPACE_VIEW3D)
-	{
-		View3D *v3d = t->view;
-
-		/* restore manipulator */
-		if (t->flag & T_MODAL) {
-			v3d->twtype = t->twtype;
-		}
-	}
 
 
 #if 0 // TRANSFORM_FIX_ME
@@ -5359,6 +5340,13 @@ void createTransData(bContext *C, TransInfo *t)
 			set_prop_dist(t, 1);
 			sort_trans_data_dist(t);
 		}
+	}
+	else if (ob && (ob->mode & (OB_MODE_SCULPT|OB_MODE_TEXTURE_PAINT))) {
+		/* sculpt mode and project paint have own undo stack
+		 * transform ops redo clears sculpt/project undo stack.
+		 *
+		 * Could use 'OB_MODE_ALL_PAINT' since there are key conflicts,
+		 * transform + paint isnt well supported. */
 	}
 	else {
 		createTransObject(C, t);

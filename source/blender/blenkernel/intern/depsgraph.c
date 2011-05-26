@@ -29,7 +29,11 @@
 #include <string.h>
 #include <math.h>
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_winstuff.h"
+#include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_camera_types.h"
@@ -40,10 +44,6 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_windowmanager_types.h"
-
-#include "MEM_guardedalloc.h"
-
-#include "BLI_ghash.h"
 
 #include "BKE_animsys.h"
 #include "BKE_action.h"
@@ -61,6 +61,7 @@
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
+#include "BKE_utildefines.h"
 
  #include "depsgraph_private.h"
  
@@ -1923,7 +1924,7 @@ static void dag_scene_flush_layers(Scene *sce, int lay)
 }
 
 /* flushes all recalc flags in objects down the dependency tree */
-void DAG_scene_flush_update(Main *bmain, Scene *sce, unsigned int lay, int time)
+void DAG_scene_flush_update(Main *bmain, Scene *sce, unsigned int lay, const short time)
 {
 	DagNode *firstnode;
 	DagAdjList *itA;
@@ -2132,27 +2133,31 @@ static void dag_object_time_update_flags(Object *ob)
 	}		
 }
 /* flag all objects that need recalc, for changes in time for example */
-void DAG_scene_update_flags(Main *bmain, Scene *scene, unsigned int lay)
+/* do_time: make this optional because undo resets objects to their animated locations without this */
+void DAG_scene_update_flags(Main *bmain, Scene *scene, unsigned int lay, const short do_time)
 {
 	Base *base;
 	Object *ob;
 	Group *group;
 	GroupObject *go;
-	Scene *sce;
+	Scene *sce_iter;
 	
 	/* set ob flags where animated systems are */
-	for(SETLOOPER(scene, base)) {
+	for(SETLOOPER(scene, sce_iter, base)) {
 		ob= base->object;
 		
+		if(do_time) {
 		/* now if DagNode were part of base, the node->lay could be checked... */
 		/* we do all now, since the scene_flush checks layers and clears recalc flags even */
 		dag_object_time_update_flags(ob);
+		}
 		
 		/* handled in next loop */
 		if(ob->dup_group) 
 			ob->dup_group->id.flag |= LIB_DOIT;
 	}	
 	
+	if(do_time) {
 	/* we do groups each once */
 	for(group= bmain->group.first; group; group= group->id.next) {
 		if(group->id.flag & LIB_DOIT) {
@@ -2161,12 +2166,14 @@ void DAG_scene_update_flags(Main *bmain, Scene *scene, unsigned int lay)
 			}
 		}
 	}
+	}
 	
-	for(sce= scene; sce; sce= sce->set)
-		DAG_scene_flush_update(bmain, sce, lay, 1);
+	for(sce_iter= scene; sce_iter; sce_iter= sce_iter->set)
+		DAG_scene_flush_update(bmain, sce_iter, lay, 1);
 	
+	if(do_time) {
 	/* test: set time flag, to disable baked systems to update */
-	for(SETLOOPER(scene, base)) {
+		for(SETLOOPER(scene, sce_iter, base)) {
 		ob= base->object;
 		if(ob->recalc)
 			ob->recalc |= OB_RECALC_TIME;
@@ -2175,6 +2182,7 @@ void DAG_scene_update_flags(Main *bmain, Scene *scene, unsigned int lay)
 	/* hrmf... an exception to look at once, for invisible camera object we do it over */
 	if(scene->camera)
 		dag_object_time_update_flags(scene->camera);
+	}
 	
 	/* and store the info in groupobject */
 	for(group= bmain->group.first; group; group= group->id.next) {
@@ -2231,9 +2239,9 @@ void DAG_ids_flush_update(Main *bmain, int time)
 		DAG_scene_flush_update(bmain, sce, lay, time);
 }
 
-void DAG_on_load_update(Main *bmain)
+void DAG_on_load_update(Main *bmain, const short do_time)
 {
-	Scene *scene, *sce;
+	Scene *scene;
 	Base *base;
 	Object *ob;
 	Group *group;
@@ -2244,19 +2252,20 @@ void DAG_on_load_update(Main *bmain)
 	dag_current_scene_layers(bmain, &scene, &lay);
 
 	if(scene && scene->theDag) {
+		Scene *sce_iter;
 		/* derivedmeshes and displists are not saved to file so need to be
 		   remade, tag them so they get remade in the scene update loop,
 		   note armature poses or object matrices are preserved and do not
 		   require updates, so we skip those */
 		dag_scene_flush_layers(scene, lay);
 
-		for(SETLOOPER(scene, base)) {
+		for(SETLOOPER(scene, sce_iter, base)) {
 			ob= base->object;
-			node= (sce->theDag)? dag_get_node(sce->theDag, ob): NULL;
+			node= (sce_iter->theDag)? dag_get_node(sce_iter->theDag, ob): NULL;
 			oblay= (node)? node->lay: ob->lay;
 
 			if(oblay & lay) {
-				if(ELEM5(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL))
+				if(ELEM6(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE))
 					ob->recalc |= OB_RECALC_DATA;
 				if(ob->dup_group) 
 					ob->dup_group->id.flag |= LIB_DOIT;
@@ -2266,7 +2275,7 @@ void DAG_on_load_update(Main *bmain)
 		for(group= bmain->group.first; group; group= group->id.next) {
 			if(group->id.flag & LIB_DOIT) {
 				for(go= group->gobject.first; go; go= go->next) {
-					if(ELEM5(go->ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL))
+					if(ELEM6(go->ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE))
 						go->ob->recalc |= OB_RECALC_DATA;
 					if(go->ob->proxy_from)
 						go->ob->recalc |= OB_RECALC_OB;
@@ -2277,7 +2286,7 @@ void DAG_on_load_update(Main *bmain)
 		}
 
 		/* now tag update flags, to ensure deformers get calculated on redraw */
-		DAG_scene_update_flags(bmain, scene, lay);
+		DAG_scene_update_flags(bmain, scene, lay, do_time);
 	}
 }
 
@@ -2322,23 +2331,10 @@ static void dag_id_flush_update(Scene *sce, ID *id)
 		idtype= GS(id->name);
 
 		if(ELEM7(idtype, ID_ME, ID_CU, ID_MB, ID_LA, ID_LT, ID_CA, ID_AR)) {
-			int first_ob= 1;
 			for(obt=bmain->object.first; obt; obt= obt->id.next) {
 				if(!(ob && obt == ob) && obt->data == id) {
-
-					/* try to avoid displist recalculation for linked curves */
-					if (!first_ob && ELEM(obt->type, OB_CURVE, OB_SURF)) {
-						/* if curve object has got derivedFinal it means this
-						   object has got constructive modifiers and object
-						   should be recalculated anyhow */
-						if (!obt->derivedFinal)
-							continue;
-					}
-
 					obt->recalc |= OB_RECALC_DATA;
 					BKE_ptcache_object_reset(sce, obt, PTCACHE_RESET_DEPSGRAPH);
-
-					first_ob= 0;
 				}
 			}
 		}
@@ -2453,7 +2449,10 @@ void DAG_id_tag_update(ID *id, short flag)
 				}
 			}
 		}
+		else {
+			BLI_assert(!"invalid flag for this 'idtype'");
 	}
+}
 }
 
 #if 0 // UNUSED

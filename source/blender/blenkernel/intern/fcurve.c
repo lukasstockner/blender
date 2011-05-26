@@ -41,6 +41,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_fcurve.h"
 #include "BKE_animsys.h"
@@ -471,11 +472,7 @@ void calc_fcurve_bounds (FCurve *fcu, float *xmin, float *xmax, float *ymin, flo
 		foundvert=1;
 	}
 	
-	/* minimum sizes are 1.0f */
 	if (foundvert) {
-		if (xminv == xmaxv) xmaxv += 1.0f;
-		if (yminv == ymaxv) ymaxv += 1.0f;
-		
 		if (xmin) *xmin= xminv;
 		if (xmax) *xmax= xmaxv;
 		
@@ -483,10 +480,13 @@ void calc_fcurve_bounds (FCurve *fcu, float *xmin, float *xmax, float *ymin, flo
 		if (ymax) *ymax= ymaxv;
 	}
 	else {
+		if (G.f & G_DEBUG)
+			printf("F-Curve calc bounds didn't find anything, so assuming minimum bounds of 1.0\n");
+			
 		if (xmin) *xmin= 0.0f;
-		if (xmax) *xmax= 0.0f;
+		if (xmax) *xmax= 1.0f;
 		
-		if (ymin) *ymin= 1.0f;
+		if (ymin) *ymin= 0.0f;
 		if (ymax) *ymax= 1.0f;
 	}
 }
@@ -1514,7 +1514,7 @@ static float evaluate_driver (ChannelDriver *driver, float evaltime)
 				/* this evaluates the expression using Python,and returns its result:
 				 * 	- on errors it reports, then returns 0.0f
 				 */
-				driver->curval= BPY_eval_driver(driver);
+				driver->curval= BPY_driver_exec(driver);
 			}
 #endif /* DISABLE_PYTHON*/
 		}

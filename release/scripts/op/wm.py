@@ -75,6 +75,7 @@ def execute_context_assign(self, context):
     return {'FINISHED'}
 
 
+
 class WM_OT_context_set_boolean(bpy.types.Operator):
     '''Set a context value.'''
     bl_idname = "wm.context_set_boolean"
@@ -501,7 +502,7 @@ class WM_OT_path_open(bpy.types.Operator):
     bl_idname = "wm.path_open"
     bl_label = ""
 
-    filepath = StringProperty(name="File Path", maxlen=1024)
+    filepath = StringProperty(name="File Path", maxlen=1024, subtype='FILE_PATH')
 
     def execute(self, context):
         import sys
@@ -642,7 +643,6 @@ class WM_OT_doc_edit(bpy.types.Operator):
         return wm.invoke_props_dialog(self, width=600)
 
 
-
 from bpy.props import *
 
 
@@ -723,8 +723,7 @@ class WM_OT_properties_edit(bpy.types.Operator):
             self.description = prop_ui.get("description", "")
 
         wm = context.window_manager
-        # This crashes, TODO - fix
-        #return wm.invoke_props_popup(self, event)
+        return wm.invoke_props_dialog(self)
 
         wm.invoke_props_popup(self, event)
         return {'RUNNING_MODAL'}
@@ -779,6 +778,12 @@ class WM_OT_keyconfig_activate(bpy.types.Operator):
     def execute(self, context):
         bpy.utils.keyconfig_set(self.filepath)
         return {'FINISHED'}
+
+
+class WM_OT_sysinfo(bpy.types.Operator):
+    '''Generate System Info'''
+    bl_idname = "wm.sysinfo"
+    bl_label = "System Info"
 
 
 def register():

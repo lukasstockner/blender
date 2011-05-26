@@ -189,18 +189,17 @@ typedef struct ARegion {
 
 #define SCREENNORMAL    0
 #define SCREENFULL      1
-#define SCREENAUTOPLAY  2
-#define SCREENTEMP		3
+#define SCREENFULLTEMP	2
 
 
 /* Panel->snap - for snapping to screen edges */
 #define PNL_SNAP_NONE		0
-#define PNL_SNAP_TOP		1
-#define PNL_SNAP_RIGHT		2
+/* #define PNL_SNAP_TOP		1 */
+/* #define PNL_SNAP_RIGHT		2 */
 #define PNL_SNAP_BOTTOM	4
-#define PNL_SNAP_LEFT		8
+/* #define PNL_SNAP_LEFT		8 */
 
-#define PNL_SNAP_DIST		9.0
+/* #define PNL_SNAP_DIST		9.0 */
 
 /* paneltype flag */
 #define PNL_DEFAULT_CLOSED		1

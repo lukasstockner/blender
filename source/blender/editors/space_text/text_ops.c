@@ -38,6 +38,8 @@
 #include "DNA_userdef_types.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
+
 #include "PIL_time.h"
 
 #include "BKE_context.h"
@@ -314,7 +316,7 @@ static int reload_exec(bContext *C, wmOperator *op)
 
 #ifndef DISABLE_PYTHON
 	if(text->compiled)
-		BPY_free_compiled_text(text);
+		BPY_text_free_code(text);
 #endif
 
 	text_update_edited(text);
@@ -567,7 +569,7 @@ static int run_script_exec(bContext *C, wmOperator *op)
 	Text *text= CTX_data_edit_text(C);
 	SpaceText *st= CTX_wm_space_text(C);
 
-	if (BPY_run_python_script(C, NULL, text, op->reports))
+	if (BPY_text_exec(C, text, op->reports))
 		return OPERATOR_FINISHED;
 	
 	/* Dont report error messages while live editing */
@@ -1342,16 +1344,17 @@ static EnumPropertyItem move_type_items[]= {
 /* get cursor position in line by relative wrapped line and column positions */
 static int text_get_cursor_rel(SpaceText* st, ARegion *ar, TextLine *linein, int rell, int relc)
 {
-	int i, j, start, end, chars, max, chop, curs, loop, endj, found, selc;
+	int i, j, start, end, max, chop, curs, loop, endj, found, selc;
 	char ch;
 
 	max= wrap_width(st, ar);
 
-	selc= start= chars= endj= curs= found= 0;
+	selc= start= endj= curs= found= 0;
 	end= max;
 	chop= loop= 1;
 
 	for(i=0, j=0; loop; j++) {
+		int chars;
 		/* Mimic replacement of tabs */
 		ch= linein->line[j];
 		if(ch=='\t') {
@@ -1507,7 +1510,7 @@ static void wrap_move_bol(SpaceText *st, ARegion *ar, short sel)
 	Text *text= st->text;
 	TextLine **linep;
 	int *charp;
-	int oldl, oldc, i, j, max, start, end, chars, endj, chop, loop;
+	int oldl, oldc, i, j, max, start, end, endj, chop, loop;
 	char ch;
 
 	text_update_character_width(st);
@@ -1520,12 +1523,13 @@ static void wrap_move_bol(SpaceText *st, ARegion *ar, short sel)
 
 	max= wrap_width(st, ar);
 
-	start= chars= endj= 0;
+	start= endj= 0;
 	end= max;
 	chop= loop= 1;
 	*charp= 0;
 
 	for(i=0, j=0; loop; j++) {
+		int chars;
 		/* Mimic replacement of tabs */
 		ch= (*linep)->line[j];
 		if(ch=='\t') {
@@ -1539,6 +1543,7 @@ static void wrap_move_bol(SpaceText *st, ARegion *ar, short sel)
 				*charp= endj;
 
 				if(j>=oldc) {
+					if(ch=='\0') *charp= start;
 					loop= 0;
 					break;
 	}
@@ -1547,10 +1552,11 @@ static void wrap_move_bol(SpaceText *st, ARegion *ar, short sel)
 
 				start= end;
 				end += max;
-				chop= 0;
+				chop= 1;
 		}
 			else if(ch==' ' || ch=='-' || ch=='\0') {
 				if(j>=oldc) {
+					*charp= start;
 					loop= 0;
 					break;
 	} 
@@ -1572,7 +1578,7 @@ static void wrap_move_eol(SpaceText *st, ARegion *ar, short sel)
 	Text *text= st->text;
 	TextLine **linep;
 	int *charp;
-	int oldl, oldc, i, j, max, start, end, chars, endj, chop, loop;
+	int oldl, oldc, i, j, max, start, end, endj, chop, loop;
 	char ch;
 
 	text_update_character_width(st);
@@ -1585,12 +1591,13 @@ static void wrap_move_eol(SpaceText *st, ARegion *ar, short sel)
 
 	max= wrap_width(st, ar);
 
-	start= chars= endj= 0;
+	start= endj= 0;
 	end= max;
 	chop= loop= 1;
 	*charp= 0;
 
 	for(i=0, j=0; loop; j++) {
+		int chars;
 		/* Mimic replacement of tabs */
 		ch= (*linep)->line[j];
 		if(ch=='\t') {
@@ -1601,17 +1608,18 @@ static void wrap_move_eol(SpaceText *st, ARegion *ar, short sel)
 
 		while(chars--) {
 			if(i-start>=max) {
+				if(chop) endj= j-1;
+
 				if(endj>=oldc) {
-					*charp= endj;
+					if(ch=='\0') *charp= (*linep)->len;
+					else *charp= endj;
 					loop= 0;
 					break;
 		}
 
-				if(chop) endj= j;
-
 				start= end;
 				end += max;
-				chop= 0;
+				chop= 1;
 			} else if(ch=='\0') {
 				*charp= (*linep)->len;
 				loop= 0;
@@ -1649,6 +1657,7 @@ static void wrap_move_up(SpaceText *st, ARegion *ar, short sel)
 	col= text_get_char_pos(st, (*linep)->line, *charp) + offc;
 	if(offl) {
 		*charp= text_get_cursor_rel(st, ar, *linep, offl-1, col);
+		newl= BLI_findindex(&text->lines, linep);
 	} else {
 		if((*linep)->prev) {
 			int visible_lines;
@@ -1656,6 +1665,7 @@ static void wrap_move_up(SpaceText *st, ARegion *ar, short sel)
 			*linep= (*linep)->prev;
 			visible_lines= text_get_visible_lines(st, ar, (*linep)->line);
 			*charp= text_get_cursor_rel(st, ar, *linep, visible_lines-1, col);
+			newl--;
 		} else *charp= 0;
 	} 
 
@@ -1684,10 +1694,12 @@ static void wrap_move_down(SpaceText *st, ARegion *ar, short sel)
 	visible_lines= text_get_visible_lines(st, ar, (*linep)->line);
 	if(offl<visible_lines-1) {
 		*charp= text_get_cursor_rel(st, ar, *linep, offl+1, col);
+		newl= BLI_findindex(&text->lines, linep);
 	} else {
 		if((*linep)->next) {
 			*linep= (*linep)->next;
 			*charp= text_get_cursor_rel(st, ar, *linep, 0, col);
+			newl++;
 		} else *charp= (*linep)->len;
 	}
 
@@ -2218,14 +2230,14 @@ static void set_cursor_to_pos(SpaceText *st, ARegion *ar, int x, int y, int sel)
 	Text *text= st->text;
 	TextLine **linep;
 	int *charp;
-	int w, tabs;
+	int w;
 
 	text_update_character_width(st);
 
 	if(sel) { linep= &text->sell; charp= &text->selc; } 
 	else { linep= &text->curl; charp= &text->curc; }
 	
-	y= (ar->winy - y)/st->lheight;
+	y= (ar->winy - 2 - y)/st->lheight;
 
 	if(st->showlinenrs)
 		x-= TXT_OFFSET+TEXTXLOC;
@@ -2236,7 +2248,7 @@ static void set_cursor_to_pos(SpaceText *st, ARegion *ar, int x, int y, int sel)
 	x = (x/st->cwidth) + st->left;
 	
 	if(st->wordwrap) {
-		int i, j, endj, curs, max, chop, start, end, chars, loop, found;
+		int i, j, endj, curs, max, chop, start, end, loop, found;
 		char ch;
 
 		/* Point to first visible line */
@@ -2262,17 +2274,15 @@ static void set_cursor_to_pos(SpaceText *st, ARegion *ar, int x, int y, int sel)
 			start= 0;
 			end= max;
 			chop= 1;
-			chars= 0;
 			curs= 0;
 			endj= 0;
-			tabs= 0;
 			for(i=0, j=0; loop; j++) {
+				int chars;
 
 				/* Mimic replacement of tabs */
 				ch= (*linep)->line[j];
 				if(ch=='\t') {
 					chars= st->tabnumber-i%st->tabnumber;
-					tabs+= chars-1;
 					ch= ' ';
 				}
 				else
@@ -2300,7 +2310,7 @@ static void set_cursor_to_pos(SpaceText *st, ARegion *ar, int x, int y, int sel)
 						if(found) {
 							/* exact cursor position was found, check if it's */
 							/* still on needed line (hasn't been wrapped) */
-							if(*charp>endj && !chop) (*charp)= endj;
+							if(*charp>endj && !chop && ch!='\0') (*charp)= endj;
 							loop= 0;
 							break;
 						}
@@ -2309,7 +2319,7 @@ static void set_cursor_to_pos(SpaceText *st, ARegion *ar, int x, int y, int sel)
 						start= end;
 						end += max;
 
-						if(start-tabs<(*linep)->len)
+						if(j<(*linep)->len)
 							y--;
 
 						chop= 1;
@@ -2338,7 +2348,7 @@ static void set_cursor_to_pos(SpaceText *st, ARegion *ar, int x, int y, int sel)
 				}
 				if(ch=='\0') break;
 			}
-			if(!loop || y<0) break;
+			if(!loop || found) break;
 
 			if(!(*linep)->next) {
 				*charp= (*linep)->len;
@@ -2681,7 +2691,7 @@ static int find_and_replace(bContext *C, wmOperator *op, short mode)
 					text_drawcache_tag_update(CTX_wm_space_text(C), 1);
 				}
 				else if(mode==TEXT_MARK_ALL) {
-					char color[4];
+					unsigned char color[4];
 					UI_GetThemeColor4ubv(TH_SHADE2, color);
 
 					if(txt_find_marker(text, text->curl, text->selc, TMARK_GRP_FINDALL, 0)) {
@@ -2932,7 +2942,7 @@ static int resolve_conflict_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(
 		case 1:
 			if(text->flags & TXT_ISDIRTY) {
 				/* modified locally and externally, ahhh. offer more possibilites. */
-				pup= uiPupMenuBegin(C, "File Modified Outside and Inside Blender", 0);
+				pup= uiPupMenuBegin(C, "File Modified Outside and Inside Blender", ICON_NULL);
 				layout= uiPupMenuLayout(pup);
 				uiItemEnumO(layout, op->type->idname, "Reload from disk (ignore local changes)", 0, "resolution", RESOLVE_RELOAD);
 				uiItemEnumO(layout, op->type->idname, "Save to disk (ignore outside changes)", 0, "resolution", RESOLVE_SAVE);
@@ -2940,7 +2950,7 @@ static int resolve_conflict_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(
 				uiPupMenuEnd(C, pup);
 			}
 			else {
-				pup= uiPupMenuBegin(C, "File Modified Outside Blender", 0);
+				pup= uiPupMenuBegin(C, "File Modified Outside Blender", ICON_NULL);
 				layout= uiPupMenuLayout(pup);
 				uiItemEnumO(layout, op->type->idname, "Reload from disk", 0, "resolution", RESOLVE_RELOAD);
 				uiItemEnumO(layout, op->type->idname, "Make text internal (separate copy)", 0, "resolution", RESOLVE_MAKE_INTERNAL);
@@ -2949,7 +2959,7 @@ static int resolve_conflict_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(
 			}
 			break;
 		case 2:
-			pup= uiPupMenuBegin(C, "File Deleted Outside Blender", 0);
+			pup= uiPupMenuBegin(C, "File Deleted Outside Blender", ICON_NULL);
 			layout= uiPupMenuLayout(pup);
 			uiItemEnumO(layout, op->type->idname, "Make text internal", 0, "resolution", RESOLVE_MAKE_INTERNAL);
 			uiItemEnumO(layout, op->type->idname, "Recreate file", 0, "resolution", RESOLVE_SAVE);

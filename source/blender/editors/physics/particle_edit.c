@@ -41,6 +41,13 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
+#include "BLI_math.h"
+#include "BLI_blenlib.h"
+#include "BLI_dynstr.h"
+#include "BLI_kdtree.h"
+#include "BLI_rand.h"
+#include "BLI_utildefines.h"
+
 #include "BKE_DerivedMesh.h"
 #include "BKE_depsgraph.h"
 
@@ -52,15 +59,8 @@
 #include "BKE_particle.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-#include "BKE_utildefines.h"
+
 #include "BKE_pointcache.h"
-
-#include "BLI_math.h"
-#include "BLI_blenlib.h"
-#include "BLI_dynstr.h"
-#include "BLI_kdtree.h"
-#include "BLI_rand.h"
-
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -1035,10 +1035,8 @@ static void recalc_emitter_field(Object *ob, ParticleSystem *psys)
 {
 	DerivedMesh *dm=psys_get_modifier(ob,psys)->dm;
 	PTCacheEdit *edit= psys->edit;
-	MFace *mface;
-	MVert *mvert;
 	float *vec, *nor;
-	int i, totface, totvert;
+	int i, totface /*, totvert*/;
 
 	if(!dm)
 		return;
@@ -1049,7 +1047,7 @@ static void recalc_emitter_field(Object *ob, ParticleSystem *psys)
 	BLI_kdtree_free(edit->emitter_field);
 
 	totface=dm->getNumFaces(dm);
-	totvert=dm->getNumVerts(dm);
+	/*totvert=dm->getNumVerts(dm);*/ /*UNSUED*/
 
 	edit->emitter_cosnos=MEM_callocN(totface*6*sizeof(float),"emitter cosnos");
 
@@ -1058,9 +1056,9 @@ static void recalc_emitter_field(Object *ob, ParticleSystem *psys)
 	vec=edit->emitter_cosnos;
 	nor=vec+3;
 
-	mvert=dm->getVertDataArray(dm,CD_MVERT);
 	for(i=0; i<totface; i++, vec+=6, nor+=6) {
-		mface=dm->getFaceData(dm,i,CD_MFACE);
+		MFace *mface=dm->getFaceData(dm,i,CD_MFACE);
+		MVert *mvert;
 
 		mvert=dm->getVertData(dm,mface->v1,CD_MVERT);
 		VECCOPY(vec,mvert->co);
@@ -2047,12 +2045,11 @@ static int remove_tagged_particles(Scene *scene, Object *ob, ParticleSystem *psy
 	POINT_P;
 	PTCacheEditPoint *npoint=0, *new_points=0;
 	ParticleSystemModifierData *psmd;
-	int i, totpart, new_totpart= psys->totpart, removed= 0;
+	int i, new_totpart= psys->totpart, removed= 0;
 
 	if(mirror) {
 		/* mirror tags */
 		psmd= psys_get_modifier(ob, psys);
-		totpart= psys->totpart;
 
 		LOOP_TAGGED_POINTS {
 			PE_mirror_particle(ob, psmd->dm, psys, psys->particles + p, NULL);
@@ -3689,8 +3686,6 @@ static void make_PTCacheUndo(PTCacheEdit *edit, PTCacheUndo *undo)
 		for(; pm; pm=pm->next) {
 			for(i=0; i<BPHYS_TOT_DATA; i++)
 				pm->data[i] = MEM_dupallocN(pm->data[i]);
-
-			pm->index_array = MEM_dupallocN(pm->index_array);
 		}
 	}
 
@@ -3765,9 +3760,7 @@ static void get_PTCacheUndo(PTCacheEdit *edit, PTCacheUndo *undo)
 			for(i=0; i<BPHYS_TOT_DATA; i++)
 				pm->data[i] = MEM_dupallocN(pm->data[i]);
 
-			pm->index_array = MEM_dupallocN(pm->index_array);
-
-			BKE_ptcache_mem_init_pointers(pm);
+			BKE_ptcache_mem_pointers_init(pm);
 
 			LOOP_POINTS {
 				LOOP_KEYS {
@@ -3778,7 +3771,7 @@ static void get_PTCacheUndo(PTCacheEdit *edit, PTCacheUndo *undo)
 						key->time = &key->ftime;
 					}
 				}
-				BKE_ptcache_mem_incr_pointers(pm);
+				BKE_ptcache_mem_pointers_incr(pm);
 			}
 		}
 	}
@@ -3856,6 +3849,16 @@ void PE_undo_step(Scene *scene, int step)
 	}
 
 	DAG_id_tag_update(&OBACT->id, OB_RECALC_DATA);
+}
+
+int PE_undo_valid(Scene *scene)
+{
+	PTCacheEdit *edit= PE_get_current(scene, OBACT);
+	
+	if(edit) {
+		return (edit->undo.last != edit->undo.first);
+	}
+	return 0;
 }
 
 static void PTCacheUndo_number(Scene *scene, PTCacheEdit *edit, int nr)
@@ -4027,25 +4030,9 @@ static void PE_create_particle_edit(Scene *scene, Object *ob, PointCache *cache,
 				totframe++;
 
 			for(pm=cache->mem_cache.first; pm; pm=pm->next) {
-				BKE_ptcache_mem_init_pointers(pm);
-
 				LOOP_POINTS {
-					if(psys) {
-						if(pm->index_array) {
-							if(pm->index_array[p])
-								BKE_ptcache_mem_seek_pointers(p, pm);
-							else
+					if(BKE_ptcache_mem_pointers_seek(p, pm) == 0)
 								continue;
-						}
-						else {
-							pa = psys->particles + p;
-							if((pm->next && pm->next->frame < pa->time)
-								|| (pm->prev && pm->prev->frame >= pa->dietime)) {
-									BKE_ptcache_mem_incr_pointers(pm);
-									continue;
-								}
-						}
-					}
 
 					if(!point->totkey) {
 						key = point->keys = MEM_callocN(totframe*sizeof(PTCacheEditKey),"ParticleEditKeys");
@@ -4059,7 +4046,7 @@ static void PE_create_particle_edit(Scene *scene, Object *ob, PointCache *cache,
 					key->rot = pm->cur[BPHYS_DATA_ROTATION];
 					key->ftime = (float)pm->frame;
 					key->time = &key->ftime;
-					BKE_ptcache_mem_incr_pointers(pm);
+					BKE_ptcache_mem_pointers_incr(pm);
 
 					point->totkey++;
 				}

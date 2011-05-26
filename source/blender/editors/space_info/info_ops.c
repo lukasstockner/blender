@@ -38,6 +38,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_bpath.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -154,7 +155,7 @@ static int unpack_all_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event)
 	else
 		sprintf(title, "Unpack %d files", count);
 	
-	pup= uiPupMenuBegin(C, title, 0);
+	pup= uiPupMenuBegin(C, title, ICON_NULL);
 	layout= uiPupMenuLayout(pup);
 
 	uiLayoutSetOperatorContext(layout, WM_OP_EXEC_DEFAULT);

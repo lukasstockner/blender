@@ -38,6 +38,12 @@
 #include "DNA_space_types.h"
 #include "DNA_world_types.h"
 
+#include "BLI_blenlib.h"
+#include "BLI_math.h"
+#include "BLI_editVert.h"
+#include "BLI_listbase.h"
+#include "BLI_utildefines.h"
+
 #include "BKE_animsys.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
@@ -56,11 +62,6 @@
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
-
-#include "BLI_blenlib.h"
-#include "BLI_math.h"
-#include "BLI_editVert.h"
-#include "BLI_listbase.h"
 
 #include "GPU_material.h"
 
@@ -296,6 +297,7 @@ static int material_slot_remove_exec(bContext *C, wmOperator *op)
 	}
 
 	object_remove_material_slot(ob);
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 	WM_event_add_notifier(C, NC_OBJECT|ND_OB_SHADING, ob);
 	
@@ -846,6 +848,10 @@ static int save_envmap(wmOperator *op, Scene *scene, EnvMap *env, char *str, int
 	else if (env->type == ENV_PLANE) {
 		ibuf = IMB_allocImBuf(dx, dx, 24, IB_rectfloat, 0);
 		IMB_rectcpy(ibuf, env->cube[1], 0, 0, 0, 0, dx, dx);		
+	}
+	else {
+		BKE_report(op->reports, RPT_ERROR, "Invalid environment map type");
+		return OPERATOR_CANCELLED;
 	}
 	
 	if (scene->r.color_mgt_flag & R_COLOR_MANAGEMENT)

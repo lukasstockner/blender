@@ -35,6 +35,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_gpencil.h"
 #include "BKE_context.h"
@@ -142,14 +143,26 @@ static void gp_session_validatebuffer(tGPsdata *p);
 static int gpencil_draw_poll (bContext *C)
 {
 	/* check if current context can support GPencil data */
-	return (gpencil_data_get_pointers(C, NULL) != NULL);
+		if (gpencil_data_get_pointers(C, NULL) != NULL) {
+			/* check if Grease Pencil isn't already running */
+			if ((G.f & G_GREASEPENCIL) == 0)
+				return 1;
+			else
+				CTX_wm_operator_poll_msg_set(C, "Grease Pencil operator is already active");
 }
+		else {
+			CTX_wm_operator_poll_msg_set(C, "Failed to find Grease Pencil data to draw into");
+		}
+	}
+	else {
+		CTX_wm_operator_poll_msg_set(C, "Active region not set");
+	}
 
 /* check if projecting strokes into 3d-geometry in the 3D-View */
 static int gpencil_project_check (tGPsdata *p)
 {
 	bGPdata *gpd= p->gpd;
-	return ((gpd->sbuffer_sflag & GP_STROKE_3DSPACE) && (p->gpd->flag & (GP_DATA_DEPTH_VIEW | GP_DATA_DEPTH_STROKE))) ? 1:0;
+	return ((gpd->sbuffer_sflag & GP_STROKE_3DSPACE) && (p->gpd->flag & (GP_DATA_DEPTH_VIEW | GP_DATA_DEPTH_STROKE)));
 }
 
 /* ******************************************* */
@@ -164,7 +177,7 @@ static void gp_get_3d_reference (tGPsdata *p, float *vec)
 	float *fp= give_cursor(p->scene, v3d);
 	
 	/* the reference point used depends on the owner... */
-#if 0 // XXX: disabled for now, since we can't draw relative ot the owner yet
+#if 0 // XXX: disabled for now, since we can't draw relative to the owner yet
 	if (p->ownerPtr.type == &RNA_Object) 
 	{
 		Object *ob= (Object *)p->ownerPtr.data;
@@ -194,13 +207,17 @@ static short gp_stroke_filtermval (tGPsdata *p, int mval[2], int pmval[2])
 	if (p->gpd->sbuffer_size == 0)
 		return 1;
 	
-	/* check if mouse moved at least certain distance on both axes (best case) */
+	/* check if mouse moved at least certain distance on both axes (best case) 
+	 *	- aims to eliminate some jitter-noise from input when trying to draw straight lines freehand
+	 */
 	else if ((dx > MIN_MANHATTEN_PX) && (dy > MIN_MANHATTEN_PX))
 		return 1;
 	
-	/* check if the distance since the last point is significant enough */
-	// future optimisation: sqrt here may be too slow?
-	else if (sqrt(dx*dx + dy*dy) > MIN_EUCLIDEAN_PX)
+	/* check if the distance since the last point is significant enough 
+	 *	- prevents points being added too densely
+	 *	- distance here doesn't use sqrt to prevent slowness... we should still be safe from overflows though
+	 */
+	else if ((dx*dx + dy*dy) > MIN_EUCLIDEAN_PX*MIN_EUCLIDEAN_PX)
 		return 1;
 	
 	/* mouse 'didn't move' */
@@ -394,12 +411,12 @@ static void gp_stroke_simplify (tGPsdata *p)
 	short flag= gpd->sbuffer_sflag;
 	short i, j;
 	
-	/* only simplify if simlification is enabled, and we're not doing a straight line */
+	/* only simplify if simplification is enabled, and we're not doing a straight line */
 	if (!(U.gp_settings & GP_PAINT_DOSIMPLIFY) || (p->paintmode == GP_PAINTMODE_DRAW_STRAIGHT))
 		return;
 	
 	/* don't simplify if less than 4 points in buffer */
-	if ((num_points <= 2) || (old_points == NULL))
+	if ((num_points <= 4) || (old_points == NULL))
 		return;
 		
 	/* clear buffer (but don't free mem yet) so that we can write to it 
@@ -548,14 +565,16 @@ static void gp_stroke_newfrombuffer (tGPsdata *p)
 					int first_valid = 0;
 					int last_valid = 0;
 
-					for (i=0; i < gpd->sbuffer_size; i++)
+					for (i=0; i < gpd->sbuffer_size; i++) {
 						if(depth_arr[i] != FLT_MAX)
 							break;
+					}
 					first_valid= i;
 
-					for (i=gpd->sbuffer_size-1; i >= 0; i--)
+					for (i=gpd->sbuffer_size-1; i >= 0; i--) {
 						if(depth_arr[i] != FLT_MAX)
 							break;
+					}
 					last_valid= i;
 
 					/* invalidate non-endpoints, so only blend between first and last */
@@ -1003,9 +1022,6 @@ static tGPsdata *gp_session_initpaint (bContext *C)
 	/* set edit flags - so that buffer will get drawn */
 	G.f |= G_GREASEPENCIL;
 	
-	/* set initial run flag */
-	p->flags |= GP_PAINTFLAG_FIRSTRUN;
-	
 	/* clear out buffer (stored in gp-data), in case something contaminated it */
 	gp_session_validatebuffer(p);
 	
@@ -1068,6 +1084,9 @@ static void gp_paint_initstroke (tGPsdata *p, short paintmode)
 	p->paintmode= paintmode;
 	if (p->paintmode == GP_PAINTMODE_ERASER)
 		p->gpd->sbuffer_sflag |= GP_STROKE_ERASER;
+	
+	/* set 'initial run' flag, which is only used to denote when a new stroke is starting */
+	p->flags |= GP_PAINTFLAG_FIRSTRUN;
 	
 	/* check if points will need to be made in view-aligned space */
 	if (p->gpd->flag & GP_DATA_VIEWALIGN) {
@@ -1249,6 +1268,46 @@ static int gpencil_draw_cancel (bContext *C, wmOperator *op)
 
 /* ------------------------------- */
 
+/* update UI indicators of status, including cursor and header prints */
+static void gpencil_draw_status_indicators (tGPsdata *p)
+{
+	/* header prints */
+	switch (p->status) {
+		case GP_STATUS_PAINTING:
+			/* only print this for paint-sessions, otherwise it gets annoying */
+			if (GPENCIL_SKETCH_SESSIONS_ON(p->scene))
+				ED_area_headerprint(p->sa, "Grease Pencil: Drawing/erasing stroke... Release to end stroke");
+			break;
+		
+		case GP_STATUS_IDLING:
+			/* print status info */
+			switch (p->paintmode) {
+				case GP_PAINTMODE_ERASER:
+					ED_area_headerprint(p->sa, "Grease Pencil Erase Session: Hold and drag LMB or RMB to erase | ESC/Enter to end");
+					break;
+				case GP_PAINTMODE_DRAW_STRAIGHT:
+					ED_area_headerprint(p->sa, "Grease Pencil Line Session: Hold and drag LMB to draw | ESC/Enter to end");
+					break;
+				case GP_PAINTMODE_DRAW:
+					ED_area_headerprint(p->sa, "Grease Pencil Freehand Session: Hold and drag LMB to draw | ESC/Enter to end");
+					break;
+					
+				default: /* unhandled future cases */
+					ED_area_headerprint(p->sa, "Grease Pencil Session: ESC/Enter to end");
+					break;
+			}
+			break;
+			
+		case GP_STATUS_ERROR:
+		case GP_STATUS_DONE:
+			/* clear status string */
+			ED_area_headerprint(p->sa, NULL);
+			break;
+	}
+}
+
+/* ------------------------------- */
+
 /* create a new stroke point at the point indicated by the painting context */
 static void gpencil_draw_apply (bContext *C, wmOperator *op, tGPsdata *p)
 {
@@ -1313,11 +1372,21 @@ static void gpencil_draw_apply_event (bContext *C, wmOperator *op, wmEvent *even
 		
 		tablet= (wmtab->Active != EVT_TABLET_NONE);
 		p->pressure= wmtab->Pressure;
+		
 		//if (wmtab->Active == EVT_TABLET_ERASER)
 			// TODO... this should get caught by the keymaps which call drawing in the first place
 	}
 	else
 		p->pressure= 1.0f;
+	
+	/* fill in stroke data (not actually used directly by gpencil_draw_apply) */
+	RNA_collection_add(op->ptr, "stroke", &itemptr);
+	
+	mousef[0]= p->mval[0];
+	mousef[1]= p->mval[1];
+	RNA_float_set_array(&itemptr, "mouse", mousef);
+	RNA_float_set(&itemptr, "pressure", p->pressure);
+	RNA_boolean_set(&itemptr, "is_start", (p->flags & GP_PAINTFLAG_FIRSTRUN));
 	
 	/* special exception for start of strokes (i.e. maybe for just a dot) */
 	if (p->flags & GP_PAINTFLAG_FIRSTRUN) {
@@ -1333,14 +1402,6 @@ static void gpencil_draw_apply_event (bContext *C, wmOperator *op, wmEvent *even
 		if (tablet && (p->pressure >= 0.99f))
 			return;
 	}
-	
-	/* fill in stroke data (not actually used directly by gpencil_draw_apply) */
-	RNA_collection_add(op->ptr, "stroke", &itemptr);
-
-	mousef[0]= p->mval[0];
-	mousef[1]= p->mval[1];
-	RNA_float_set_array(&itemptr, "mouse", mousef);
-	RNA_float_set(&itemptr, "pressure", p->pressure);
 	
 	/* apply the current latest drawing point */
 	gpencil_draw_apply(C, op, p);
@@ -1383,6 +1444,17 @@ static int gpencil_draw_exec (bContext *C, wmOperator *op)
 		p->mval[0] = (short)mousef[0];
 		p->mval[1] = (short)mousef[1];
 		p->pressure= RNA_float_get(&itemptr, "pressure");
+		
+		if (RNA_boolean_get(&itemptr, "is_start")) {
+			/* if first-run flag isn't set already (i.e. not true first stroke),
+			 * then we must terminate the previous one first before continuing
+			 */
+			if ((p->flags & GP_PAINTFLAG_FIRSTRUN) == 0) {
+				// TODO: both of these ops can set error-status, but we probably don't need to worry
+				gp_paint_strokeend(p);
+				gp_paint_initstroke(p, p->paintmode);
+			}
+		}
 		
 		/* if first run, set previous data too */
 		if (p->flags & GP_PAINTFLAG_FIRSTRUN) {
@@ -1435,6 +1507,8 @@ static int gpencil_draw_invoke (bContext *C, wmOperator *op, wmEvent *event)
 	// TODO: set any additional settings that we can take from the events?
 	// TODO? if tablet is erasing, force eraser to be on?
 	
+	// TODO: move cursor setting stuff to stroke-start so that paintmode can be changed midway...
+	
 	/* if eraser is on, draw radial aid */
 	if (p->paintmode == GP_PAINTMODE_ERASER) {
 		// TODO: this involves mucking around with radial control, so we leave this for now..
@@ -1472,27 +1546,43 @@ static int gpencil_draw_invoke (bContext *C, wmOperator *op, wmEvent *event)
 static int gpencil_draw_modal (bContext *C, wmOperator *op, wmEvent *event)
 {
 	tGPsdata *p= op->customdata;
+	int estate = OPERATOR_PASS_THROUGH; /* default exit state - not handled, so let others have a share of the pie */
 	
 	//printf("\tGP - handle modal event...\n");
 	
-	switch (event->type) {
-		/* end of stroke -> ONLY when a mouse-button release occurs 
-		 * otherwise, carry on to mouse-move...
-		 */
-		case LEFTMOUSE:
-		case RIGHTMOUSE: 
+	/* exit painting mode (and/or end current stroke) */
+	if (ELEM4(event->type, RETKEY, PADENTER, ESCKEY, SPACEKEY)) {
+		/* exit() ends the current stroke before cleaning up */
+		//printf("\t\tGP - end of paint op + end of stroke\n");
+		gpencil_draw_exit(C, op);
+		p->status= GP_STATUS_DONE;
+		estate = OPERATOR_FINISHED;
+	}
+	
+	/* toggle painting mode upon mouse-button movement */
+	if (ELEM(event->type, LEFTMOUSE, RIGHTMOUSE)) {
 			/* if painting, end stroke */
 			if (p->status == GP_STATUS_PAINTING) {
-				/* basically, this should be mouse-button up */
-				//printf("\t\tGP - end of stroke \n");
-				gpencil_draw_exit(C, op);
+			/* basically, this should be mouse-button up = end stroke 
+			 * BUT what happens next depends on whether we 'painting sessions' is enabled
+			 */
+			if (GPENCIL_SKETCH_SESSIONS_ON(p->scene)) {
+				/* end stroke only, and then wait to resume painting soon */
+				//printf("\t\tGP - end stroke only\n");
+				gp_paint_strokeend(p);
+				p->status= GP_STATUS_IDLING;
 				
-				/* one last flush before we're done */
-				WM_event_add_notifier(C, NC_SCREEN|ND_GPENCIL|NA_EDITED, NULL); // XXX need a nicer one that will work	
-				
-				return OPERATOR_FINISHED;
+				/* we've just entered idling state, so this event was processed (but no others yet) */
+				estate = OPERATOR_RUNNING_MODAL;
 			}
 			else {
+				//printf("\t\tGP - end of stroke + op\n");
+				gpencil_draw_exit(C, op);
+				p->status= GP_STATUS_DONE;
+				estate = OPERATOR_FINISHED;
+			}
+		}
+		else {
 				/* not painting, so start stroke (this should be mouse-button down) */
 				
 				/* we must check that we're still within the area that we're set up to work from
@@ -1501,38 +1591,91 @@ static int gpencil_draw_modal (bContext *C, wmOperator *op, wmEvent *event)
 				if (CTX_wm_area(C) != p->sa) {
 					//printf("\t\t\tGP - wrong area execution abort! \n");
 					gpencil_draw_exit(C, op);
-					return OPERATOR_CANCELLED;
+				p->status= GP_STATUS_ERROR;
+				estate = OPERATOR_CANCELLED;
 				}
-				 
+			else {
 				//printf("\t\tGP - start stroke \n");
 				p->status= GP_STATUS_PAINTING;
-				/* no break now, since we should immediately start painting */
+				
+				/* we may need to set up paint env again if we're resuming */
+				// XXX: watch it with the paintmode! in future, it'd be nice to allow changing paint-mode when in sketching-sessions
+				// XXX: with tablet events, we may event want to check for eraser here, for nicer tablet support
+				gp_paint_initstroke(p, p->paintmode);
+				
+				if (p->status == GP_STATUS_ERROR) {
+					gpencil_draw_exit(C, op);
+					estate = OPERATOR_CANCELLED;
 			}
+			}
+		}
+	}
 		
-		/* moving mouse - assumed that mouse button is down if in painting status */
-		case MOUSEMOVE:
-		case INBETWEEN_MOUSEMOVE:
-			/* check if we're currently painting */
+	/* handle mode-specific events */
 			if (p->status == GP_STATUS_PAINTING) {
+		/* handle painting mouse-movements? */
+		if (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE) || (p->flags & GP_PAINTFLAG_FIRSTRUN)) 
+		{
 				/* handle drawing event */
 				//printf("\t\tGP - add point\n");
 				gpencil_draw_apply_event(C, op, event);
 				
 				/* finish painting operation if anything went wrong just now */
 				if (p->status == GP_STATUS_ERROR) {
-					//printf("\t\t\tGP - error done! \n");
+				//printf("\t\t\t\tGP - add error done! \n");
 					gpencil_draw_exit(C, op);
-					return OPERATOR_CANCELLED;
+				estate = OPERATOR_CANCELLED;
 				}
+			else {
+				/* event handled, so just tag as running modal */
+				//printf("\t\t\t\tGP - add point handled!\n");
+				estate = OPERATOR_RUNNING_MODAL;
 			}
+		}
+		/* there shouldn't be any other events, but just in case there are, let's swallow them 
+		 * (i.e. to prevent problems with with undo)
+		 */
+		else {
+			/* swallow event to save ourselves trouble */
+			estate = OPERATOR_RUNNING_MODAL;
+		}
+	}
+	else if (p->status == GP_STATUS_IDLING) {
+		/* standard undo/redo shouldn't be allowed to execute or else it causes crashes, so catch it here */
+		// FIXME: this is a hardcoded hotkey that can't be changed
+		// TODO: catch redo as well, but how?
+		if (event->type == ZKEY) {
+			/* oskey = cmd key on macs as they seem to use cmd-z for undo as well? */
+			if ((event->ctrl) || (event->oskey)) {
+				/* just delete last stroke, which will look like undo to the end user */
+				//printf("caught attempted undo event... deleting last stroke \n");
+				gpencil_frame_delete_laststroke(p->gpl, p->gpf);
+				
+				/* event handled, so force refresh */
+				ED_region_tag_redraw(p->ar); /* just active area for now, since doing whole screen is too slow */
+				estate = OPERATOR_RUNNING_MODAL; 
+			}
+		}
+	}
+	
+	/* update status indicators - cursor, header, etc. */
+	gpencil_draw_status_indicators(p);
+	
+	/* process last operations before exiting */
+	switch (estate) {
+		case OPERATOR_FINISHED:
+			/* one last flush before we're done */
+			WM_event_add_notifier(C, NC_SCREEN|ND_GPENCIL|NA_EDITED, NULL); // XXX need a nicer one that will work
 			break;
 		
-		default:
-			//printf("\t\tGP unknown event - %d \n", event->type);
+		case OPERATOR_RUNNING_MODAL|OPERATOR_PASS_THROUGH:
+			/* event doesn't need to be handled */
+			//printf("unhandled event -> %d (mmb? = %d | mmv? = %d)\n", event->type, event->type == MIDDLEMOUSE, event->type==MOUSEMOVE);
 			break;
 	}
 	
-	return OPERATOR_RUNNING_MODAL;
+	/* return status code */
+	return estate;
 }
 
 /* ------------------------------- */
@@ -1546,8 +1689,6 @@ static EnumPropertyItem prop_gpencil_drawmodes[] = {
 
 void GPENCIL_OT_draw (wmOperatorType *ot)
 {
-	PropertyRNA *prop;
-	
 	/* identifiers */
 	ot->name= "Grease Pencil Draw";
 	ot->idname= "GPENCIL_OT_draw";
@@ -1564,8 +1705,7 @@ void GPENCIL_OT_draw (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;
 	
 	/* settings for drawing */
-	prop= RNA_def_enum(ot->srna, "mode", prop_gpencil_drawmodes, 0, "Mode", "Way to intepret mouse movements.");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_enum(ot->srna, "mode", prop_gpencil_drawmodes, 0, "Mode", "Way to intepret mouse movements.");
 	
 	RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
 }

@@ -46,6 +46,7 @@
  * - Vector.toTrackQuat --> Vector.to_track_quat
  * - Quaternion * Quaternion --> cross product (not dot product)
  * - Euler.rotate(angle, axis) --> Euler.rotate_axis(axis, angle)
+ * - Euler.unique() *removed*, not a standard function only toggled different rotations.
  *
  * moved into class functions.
  * - Mathutils.RotationMatrix -> mathutils.Matrix.Rotation
@@ -55,13 +56,26 @@
  * - Mathutils.OrthoProjectionMatrix -> mathutils.Matrix.OrthoProjection
  *
  * Moved to Geometry module: Intersect, TriangleArea, TriangleNormal, QuadNormal, LineIntersect
+ * - geometry.Intersect -> intersect_ray_tri
+ * - geometry.ClosestPointOnLine -> intersect_point_line
+ * - geometry.PointInTriangle2D -> intersect_point_tri_2d
+ * - geometry.PointInQuad2D -> intersect_point_quad_2d
+ * - geometry.LineIntersect -> intersect_line_line
+ * - geometry.LineIntersect2D -> intersect_line_line_2d
+ * - geometry.BezierInterp -> interpolate_bezier
+ * - geometry.TriangleArea -> area_tri
+ * - geometry.QuadNormal, TriangleNormal -> normal
+ * - geometry.PolyFill -> tesselate_polygon
+ * - geometry.BoxPack2D -> box_pack_2d
+ * - geometry.BarycentricTransform -> barycentric_transform
  */
 
 #include "mathutils.h"
 
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
-#include "BKE_utildefines.h"
+
 
 //-------------------------DOC STRINGS ---------------------------
 static char M_Mathutils_doc[] =

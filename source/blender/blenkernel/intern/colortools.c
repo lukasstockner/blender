@@ -41,13 +41,14 @@
 #include "DNA_color_types.h"
 #include "DNA_curve_types.h"
 
+#include "BLI_blenlib.h"
+#include "BLI_math.h"
+#include "BLI_utildefines.h"
+
 #include "BKE_colortools.h"
 #include "BKE_curve.h"
 #include "BKE_fcurve.h"
-#include "BKE_utildefines.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_math.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -1006,6 +1007,9 @@ void scopes_update(Scopes *scopes, ImBuf *ibuf, int use_color_management)
 	int savedlines, saveline;
 	float rgb[3], ycc[3], luma;
 	int ycc_mode=-1;
+	const short is_float = (ibuf->rect_float != NULL);
+
+	if (ibuf->rect==NULL && ibuf->rect_float==NULL) return;
 
 	if (scopes->ok == 1 ) return;
 
@@ -1013,6 +1017,7 @@ void scopes_update(Scopes *scopes, ImBuf *ibuf, int use_color_management)
 
 	/* hmmmm */
 	if (!(ELEM(ibuf->channels, 3, 4))) return;
+
 	scopes->hist.channels = 3;
 	scopes->hist.x_resolution = 256;
 
@@ -1067,9 +1072,9 @@ void scopes_update(Scopes *scopes, ImBuf *ibuf, int use_color_management)
 	scopes->waveform_3= MEM_callocN(scopes->waveform_tot * 2 * sizeof(float), "waveform point channel 3");
 	scopes->vecscope= MEM_callocN(scopes->waveform_tot * 2 * sizeof(float), "vectorscope point channel");
 	
-	if (ibuf->rect_float)
+	if (is_float)
 		rf = ibuf->rect_float;
-	else if (ibuf->rect)
+	else
 		rc = (unsigned char *)ibuf->rect;
 
 	for (y = 0; y < ibuf->y; y++) {
@@ -1078,13 +1083,13 @@ void scopes_update(Scopes *scopes, ImBuf *ibuf, int use_color_management)
 		} else saveline=0;
 		for (x = 0; x < ibuf->x; x++) {
 
-			if (ibuf->rect_float) {
+			if (is_float) {
 				if (use_color_management)
 					linearrgb_to_srgb_v3_v3(rgb, rf);
 				else
 					copy_v3_v3(rgb, rf);
 			}
-			else if (ibuf->rect) {
+			else {
 				for (c=0; c<3; c++)
 					rgb[c] = rc[c] * INV_255;
 			}

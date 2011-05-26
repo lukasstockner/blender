@@ -795,7 +795,6 @@ void GPG_Application::exitEngine()
 		m_canvas = 0;
 	}
 
-	IMB_exit();
 	GPU_extensions_exit();
 
 	m_exitRequested = 0;

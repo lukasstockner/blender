@@ -143,6 +143,8 @@ class RenderJob:
         self.priority = 0
         self.blacklist = []
 
+        self.resolution = None
+
         self.usage = 0.0
         self.last_dispatched = 0.0
         self.frames = []
@@ -225,7 +227,9 @@ class RenderJob:
                             "priority": self.priority,
                             "usage": self.usage,
                             "blacklist": self.blacklist,
-                            "last_dispatched": self.last_dispatched
+                            "last_dispatched": self.last_dispatched,
+                            "version_info": self.version_info.serialize() if self.version_info else None,
+                            "resolution": self.resolution
                         }
 
     @staticmethod
@@ -246,6 +250,7 @@ class RenderJob:
         job.usage = data["usage"]
         job.blacklist = data["blacklist"]
         job.last_dispatched = data["last_dispatched"]
+        job.resolution = data["resolution"]
 
         return job
 

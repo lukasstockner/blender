@@ -27,7 +27,7 @@
 set(INC 
 		.
 		..
-		../../
+		../..
 		intern/include
 		../../../blenkernel
 		../../../blenlib
@@ -44,4 +44,4 @@ set(SRC
 	logmemfile.c
 )
 
-blenderlib(bf_imbuf_cineon "${SRC}" "${INC}")
+blender_add_lib(bf_imbuf_cineon "${SRC}" "${INC}")

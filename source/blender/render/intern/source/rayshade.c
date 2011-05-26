@@ -37,15 +37,16 @@
 #include "DNA_material_types.h"
 #include "DNA_lamp_types.h"
 
-#include "BKE_global.h"
-#include "BKE_node.h"
-#include "BKE_utildefines.h"
-
 #include "BLI_blenlib.h"
 #include "BLI_cpu.h"
 #include "BLI_jitter.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
+#include "BLI_utildefines.h"
+
+#include "BKE_global.h"
+#include "BKE_node.h"
+
 
 #include "PIL_time.h"
 
@@ -481,13 +482,44 @@ void makeraytree(Render *re)
 #endif
 }
 
+/* 	if(shi->osatex)  */
+static void shade_ray_set_derivative(ShadeInput *shi)
+{
+	float *v1= shi->v1->co;
+	float *v2= shi->v2->co;
+	float *v3= shi->v3->co;
+	float detsh, t00, t10, t01, t11, xn, yn, zn;
+	int axis1, axis2;
+
+	/* find most stable axis to project */
+	xn= fabs(shi->facenor[0]);
+	yn= fabs(shi->facenor[1]);
+	zn= fabs(shi->facenor[2]);
+
+	if(zn>=xn && zn>=yn) { axis1= 0; axis2= 1; }
+	else if(yn>=xn && yn>=zn) { axis1= 0; axis2= 2; }
+	else { axis1= 1; axis2= 2; }
+	
+	/* compute u,v and derivatives */
+	t00= v3[axis1]-v1[axis1]; t01= v3[axis2]-v1[axis2];
+	t10= v3[axis1]-v2[axis1]; t11= v3[axis2]-v2[axis2];
+	
+	detsh= 1.0f/(t00*t11-t10*t01);
+	t00*= detsh; t01*=detsh; 
+	t10*=detsh; t11*=detsh;
+	
+	shi->dx_u=  shi->dxco[axis1]*t11- shi->dxco[axis2]*t10;
+	shi->dx_v=  shi->dxco[axis2]*t00- shi->dxco[axis1]*t01;
+	shi->dy_u=  shi->dyco[axis1]*t11- shi->dyco[axis2]*t10;
+	shi->dy_v=  shi->dyco[axis2]*t00- shi->dyco[axis1]*t01;
+	
+}
 
 
 void shade_ray(Isect *is, ShadeInput *shi, ShadeResult *shr)
 {
 	ObjectInstanceRen *obi= (ObjectInstanceRen*)is->hit.ob;
 	VlakRen *vlr= (VlakRen*)is->hit.face;
-	int osatex= 0;
 	
 	/* set up view vector */
 	VECCOPY(shi->view, is->vec);
@@ -505,18 +537,6 @@ void shade_ray(Isect *is, ShadeInput *shi, ShadeResult *shr)
 	shi->mat= vlr->mat;
 	shade_input_init_material(shi);
 	
-	// Osa structs we leave unchanged now
-	SWAP(int, osatex, shi->osatex);
-	
-	shi->dxco[0]= shi->dxco[1]= shi->dxco[2]= 0.0f;
-	shi->dyco[0]= shi->dyco[1]= shi->dyco[2]= 0.0f;
-	
-	// but, set Osa stuff to zero where it can confuse texture code
-	if(shi->mat->texco & (TEXCO_NORM|TEXCO_REFL) ) {
-		shi->dxno[0]= shi->dxno[1]= shi->dxno[2]= 0.0f;
-		shi->dyno[0]= shi->dyno[1]= shi->dyno[2]= 0.0f;
-	}
-
 	if(vlr->v4) {
 		if(is->isect==2) 
 			shade_input_set_triangle_i(shi, obi, vlr, 2, 1, 3);
@@ -531,6 +551,8 @@ void shade_ray(Isect *is, ShadeInput *shi, ShadeResult *shr)
 	shi->v= is->v;
 	shi->dx_u= shi->dx_v= shi->dy_u= shi->dy_v=  0.0f;
 
+	if(shi->osatex)
+		shade_ray_set_derivative(shi);
 	shade_input_set_normals(shi);
 
 	shade_input_set_shade_texco(shi);
@@ -563,8 +585,6 @@ void shade_ray(Isect *is, ShadeInput *shi, ShadeResult *shr)
 		VECSUB(shr->diff, shr->combined, shr->spec);
 	}	
 	
-	SWAP(int, osatex, shi->osatex);  // XXXXX!!!!
-
 }
 
 static int refraction(float *refract, float *n, float *view, float index)
@@ -707,7 +727,8 @@ static void traceray(ShadeInput *origshi, ShadeResult *origshr, short depth, flo
 	VECCOPY(isec.vec, vec );
 	isec.labda = dist_mir > 0 ? dist_mir : RE_RAYTRACE_MAXDIST;
 	isec.mode= RE_RAY_MIRROR;
-	isec.skip = RE_SKIP_VLR_NEIGHBOUR | RE_SKIP_VLR_RENDER_CHECK;
+	isec.check = RE_CHECK_VLR_RENDER;
+	isec.skip = RE_SKIP_VLR_NEIGHBOUR;
 	isec.hint = 0;
 
 	isec.orig.ob   = obi;
@@ -717,6 +738,10 @@ static void traceray(ShadeInput *origshi, ShadeResult *origshr, short depth, flo
 	if(RE_rayobject_raycast(R.raytree, &isec)) {
 		ShadeResult shr= {{0}};
 		float d= 1.0f;
+		
+		/* for as long we don't have proper dx/dy transform for rays we copy over original */
+		VECCOPY(shi.dxco, origshi->dxco);
+		VECCOPY(shi.dyco, origshi->dyco);
 		
 		shi.mask= origshi->mask;
 		shi.osatex= origshi->osatex;
@@ -1492,7 +1517,7 @@ void ray_trace(ShadeInput *shi, ShadeResult *shr)
 		if(!(shi->combinedflag & SCE_PASS_REFRACT))
 			VECSUB(diff, diff, shr->refr);
 		
-		shr->alpha= tracol[3];
+		shr->alpha= MIN2(1.0f, tracol[3]);
 	}
 	
 	if(do_mir) {
@@ -1850,7 +1875,8 @@ static void ray_ao_qmc(ShadeInput *shi, float *ao, float *env)
 	RE_RC_INIT(isec, *shi);
 	isec.orig.ob   = shi->obi;
 	isec.orig.face = shi->vlr;
-	isec.skip = RE_SKIP_VLR_NEIGHBOUR|RE_SKIP_VLR_NON_SOLID_MATERIAL;
+	isec.check = RE_CHECK_VLR_NON_SOLID_MATERIAL;
+	isec.skip = RE_SKIP_VLR_NEIGHBOUR;
 	isec.hint = 0;
 
 	isec.hit.ob   = 0;
@@ -1989,7 +2015,8 @@ static void ray_ao_spheresamp(ShadeInput *shi, float *ao, float *env)
 	RE_RC_INIT(isec, *shi);
 	isec.orig.ob   = shi->obi;
 	isec.orig.face = shi->vlr;
-	isec.skip = RE_SKIP_VLR_NEIGHBOUR | RE_SKIP_VLR_RENDER_CHECK;
+	isec.check = RE_CHECK_VLR_RENDER;
+	isec.skip = RE_SKIP_VLR_NEIGHBOUR;
 	isec.hint = 0;
 
 	isec.hit.ob   = 0;
@@ -2209,7 +2236,8 @@ static void ray_shadow_qmc(ShadeInput *shi, LampRen *lar, float *lampco, float *
 	RE_rayobject_hint_bb( R.raytree, &bb_hint, min, max);
 	
 	isec->hint = &bb_hint;
-	isec->skip = RE_SKIP_VLR_NEIGHBOUR | RE_SKIP_VLR_RENDER_CHECK;
+	isec->check = RE_CHECK_VLR_RENDER;
+	isec->skip = RE_SKIP_VLR_NEIGHBOUR;
 	VECCOPY(vec, lampco);
 	
 	while (samples < max_samples) {
@@ -2378,7 +2406,8 @@ static void ray_shadow_jitter(ShadeInput *shi, LampRen *lar, float *lampco, floa
 		isec->vec[1] = vec[1]+lampco[1]-isec->start[1];
 		isec->vec[2] = vec[2]+lampco[2]-isec->start[2];
 		isec->labda = 1.0f;
-		isec->skip = RE_SKIP_VLR_NEIGHBOUR | RE_SKIP_VLR_RENDER_CHECK;
+		isec->check = RE_CHECK_VLR_RENDER;
+		isec->skip = RE_SKIP_VLR_NEIGHBOUR;
 		
 		if(isec->mode==RE_RAY_SHADOW_TRA) {
 			/* isec.col is like shadfac, so defines amount of light (0.0 is full shadow) */

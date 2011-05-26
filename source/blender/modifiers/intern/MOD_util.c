@@ -36,10 +36,12 @@
 #include "DNA_object_types.h"
 #include "DNA_curve_types.h"
 
+#include "BLI_utildefines.h"
+
 #include "BKE_cdderivedmesh.h"
 #include "BKE_mesh.h"
 #include "BKE_displist.h"
-#include "BKE_utildefines.h"
+
 #include "BKE_modifier.h"
 
 #include "MOD_util.h"
@@ -53,7 +55,8 @@ void get_texture_value(Tex *texture, float *tex_co, TexResult *texres)
 {
 	int result_type;
 
-	result_type = multitex_ext(texture, tex_co, NULL, NULL, 0, texres);
+	/* no node textures for now */
+	result_type = multitex_ext_safe(texture, tex_co, texres);
 
 	/* if the texture gave an RGB value, we assume it didn't give a valid
 	* intensity, so calculate one (formula from do_material_tex).

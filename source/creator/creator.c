@@ -57,6 +57,7 @@
 
 #include "BLI_args.h"
 #include "BLI_threads.h"
+#include "BLI_utildefines.h"
 
 #include "GEN_messaging.h"
 
@@ -835,7 +836,7 @@ static int run_python(int argc, char **argv, void *data)
 		BLI_strncpy(filename, argv[1], sizeof(filename));
 		BLI_path_cwd(filename);
 
-		BPY_CTX_SETUP( BPY_run_python_script(C, filename, NULL, NULL) )
+		BPY_CTX_SETUP(BPY_filepath_exec(C, filename, NULL))
 
 		return 1;
 	} else {
@@ -852,9 +853,8 @@ static int run_python_console(int argc, char **argv, void *data)
 {
 #ifndef DISABLE_PYTHON
 	bContext *C = data;	
-	const char *expr= "__import__('code').interact()";
 
-	BPY_CTX_SETUP( BPY_eval_string(C, expr) )
+	BPY_CTX_SETUP(BPY_string_exec(C, "__import__('code').interact()"))
 
 	return 0;
 #else
@@ -877,7 +877,7 @@ static int load_file(int argc, char **argv, void *data)
 
 		/*we successfully loaded a blend file, get sure that
 		pointcache works */
-		if (retval!=0) {
+		if (retval != BKE_READ_FILE_FAIL) {
 			wmWindowManager *wm= CTX_wm_manager(C);
 
 			/* special case, 2.4x files */
@@ -898,8 +898,8 @@ static int load_file(int argc, char **argv, void *data)
 		/* WM_read_file() runs normally but since we're in background mode do here */
 #ifndef DISABLE_PYTHON
 		/* run any texts that were loaded in and flagged as modules */
-		BPY_reset_driver();
-		BPY_load_user_modules(C);
+		BPY_driver_reset();
+		BPY_modules_load_user(C);
 #endif
 
 		/* happens for the UI on file reading too (huh? (ton))*/
@@ -1130,7 +1130,7 @@ int main(int argc, char **argv)
 	 * NOTE: the U.pythondir string is NULL until WM_init() is executed,
 	 * so we provide the BPY_ function below to append the user defined
 	 * pythondir to Python's sys.path at this point.  Simply putting
-	 * WM_init() before BPY_start_python() crashes Blender at startup.
+	 * WM_init() before BPY_python_start() crashes Blender at startup.
 	 * Update: now this function also inits the bpymenus, which also depend
 	 * on U.pythondir.
 	 */

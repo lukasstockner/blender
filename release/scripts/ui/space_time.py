@@ -57,6 +57,14 @@ class TIME_HT_header(bpy.types.Header):
         row.operator("screen.frame_jump", text="", icon='REW').end = False
         row.operator("screen.keyframe_jump", text="", icon='PREV_KEYFRAME').next = False
         if not screen.is_animation_playing:
+            # if using JACK and A/V sync:
+            #   hide the play-reversed button
+            #   since JACK transport doesn't support reversed playback
+            if (context.user_preferences.system.audio_device == 'JACK' and scene.sync_mode == 'AUDIO_SYNC'):
+                sub = row.row()
+                sub.scale_x = 2.0
+                sub.operator("screen.animation_play", text="", icon='PLAY')
+            else:
             row.operator("screen.animation_play", text="", icon='PLAY_REVERSE').reverse = True
             row.operator("screen.animation_play", text="", icon='PLAY')
         else:
@@ -66,15 +74,15 @@ class TIME_HT_header(bpy.types.Header):
         row.operator("screen.keyframe_jump", text="", icon='NEXT_KEYFRAME').next = True
         row.operator("screen.frame_jump", text="", icon='FF').end = True
 
+        layout.prop(scene, "sync_mode", text="")
+
+        layout.separator()
+
         row = layout.row(align=True)
         row.prop(tools, "use_keyframe_insert_auto", text="", toggle=True)
         if screen.is_animation_playing and tools.use_keyframe_insert_auto:
             subsub = row.row()
             subsub.prop(tools, "use_record_with_nla", toggle=True)
-
-        layout.prop(scene, "sync_mode", text="")
-
-        layout.separator()
 
         row = layout.row(align=True)
         row.prop_search(scene.keying_sets_all, "active", scene, "keying_sets_all", text="")
@@ -136,15 +144,12 @@ class TIME_MT_frame(bpy.types.Menu):
 
         layout.operator("marker.add", text="Add Marker")
         layout.operator("marker.duplicate", text="Duplicate Marker")
-        layout.operator("marker.move", text="Grab/Move Marker")
         layout.operator("marker.delete", text="Delete Marker")
 
-        # it was ok for riscos... ok TODO, operator
-        for marker in context.scene.timeline_markers:
-            if marker.select:
                 layout.separator()
-                layout.prop(marker, "name", text="", icon='MARKER_HLT')
-                break
+
+        layout.operator("marker.rename", text="Rename Marker")
+        layout.operator("marker.move", text="Grab/Move Marker")
 
         layout.separator()
 

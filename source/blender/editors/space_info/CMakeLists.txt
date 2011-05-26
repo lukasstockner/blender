@@ -42,4 +42,4 @@ set(SRC
 	textview.h
 )
 
-blenderlib(bf_editor_space_info "${SRC}" "${INC}")
+blender_add_lib(bf_editor_space_info "${SRC}" "${INC}")

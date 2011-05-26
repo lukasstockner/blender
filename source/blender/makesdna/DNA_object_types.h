@@ -198,7 +198,7 @@ typedef struct Object {
 	float bbsize[3];
 	short index;			/* custom index, for renderpasses */
 	unsigned short actdef;	/* current deformation group, note: index starts at 1 */
-	float col[4];			/* object color, adjusted via IPO's only */
+	float col[4];			/* object color */
 	/**
 	 * Settings for game objects
 	 * bit 0: Object has dynamic behaviour
@@ -321,8 +321,7 @@ extern Object workob;
 
 /* (short) transflag */
 #define OB_OFFS_LOCAL		1
-	// XXX OB_QUAT was never used, but is now depreceated in favour of standard rotation handling...
-#define OB_QUAT				2
+/* #define OB_QUAT				2 */ /* never used, free flag */
 #define OB_NEG_SCALE		4
 #define OB_DUPLI			(8+16+256+512+2048)
 #define OB_DUPLIFRAMES		8
@@ -402,7 +401,7 @@ extern Object workob;
 #define OB_BOUND_CONE		3
 #define OB_BOUND_POLYH		4
 #define OB_BOUND_POLYT		5
-#define OB_BOUND_DYN_MESH   6
+/* #define OB_BOUND_DYN_MESH   6 */ /*UNUSED*/
 #define OB_BOUND_CAPSULE	7
 
 
@@ -438,7 +437,8 @@ extern Object workob;
 #define OB_RECALC_DATA		2
 		/* time flag is set when time changes need recalc, so baked systems can ignore it */
 #define OB_RECALC_TIME		4
-#define OB_RECALC_ALL		7
+		/* only use for matching any flag, NOT as an argument since more flags may be added. */
+#define OB_RECALC_ALL		(OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME)
 
 /* controller state */
 #define OB_MAX_STATES		30
@@ -476,7 +476,7 @@ extern Object workob;
 #define OB_LOCK_RIGID_BODY_Y_ROT_AXIS	64
 #define OB_LOCK_RIGID_BODY_Z_ROT_AXIS	128
 
-#define OB_LIFE			(OB_PROP|OB_DYNAMIC|OB_ACTOR|OB_MAINACTOR|OB_CHILD)
+/* #define OB_LIFE			(OB_PROP|OB_DYNAMIC|OB_ACTOR|OB_MAINACTOR|OB_CHILD) */
 
 /* ob->body_type */
 #define OB_BODY_TYPE_NO_COLLISION	0

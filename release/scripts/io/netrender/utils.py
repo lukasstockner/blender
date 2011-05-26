@@ -28,7 +28,7 @@ try:
 except:
   bpy = None
 
-VERSION = bytes("0.9", encoding='utf8')
+VERSION = bytes("1.2", encoding='utf8')
 
 # Jobs status
 JOB_WAITING = 0 # before all data has been entered
@@ -185,12 +185,47 @@ def prefixPath(prefix_directory, file_path, prefix_path, force = False):
             else:
                 full_path = os.path.join(prefix_directory, n)
     else:
-        full_path = (prefix_directory, file_path)
+        full_path = os.path.join(prefix_directory, file_path)
 
     return full_path
 
+def getResults(server_address, server_port, job_id, resolution_x, resolution_y, resolution_percentage, frame_ranges):
+    frame_arguments = []
+    for r in frame_ranges:
+        if len(r) == 2:
+            frame_arguments.extend(["-s", str(r[0]), "-e", str(r[1]), "-a"])
+        else:
+            frame_arguments.extend(["-f", str(r[0])])
+            
+    filepath = os.path.join(bpy.app.tempdir, "netrender_temp.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=filepath, copy=True, check_existing=False)
+            
+    process = subprocess.Popen([sys.argv[0], "-b", "-noaudio", filepath, "-P", __file__] + frame_arguments + ["--", "GetResults", server_address, str(server_port), job_id, str(resolution_x), str(resolution_y), str(resolution_percentage)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    while process.poll() is None:
+        process.stdout.read(1024) # empty buffer to be sure
+    process.stdout.read()
+    
+    os.remove(filepath)
+    
+    return
+
+def _getResults(server_address, server_port, job_id, resolution_x, resolution_y, resolution_percentage):
+    render = bpy.context.scene.render
+    
+    netsettings = bpy.context.scene.network_render
+
+    netsettings.server_address = server_address
+    netsettings.server_port = int(server_port)
+    netsettings.job_id = job_id
+
+    render.engine = 'NET_RENDER'
+    render.resolution_x = int(resolution_x)
+    render.resolution_y = int(resolution_y)
+    render.resolution_percentage = int(resolution_percentage)
+    
+
 def getFileInfo(filepath, infos):
-    process = subprocess.Popen([sys.argv[0], "-b", "-noaudio", filepath, "-P", __file__, "--"] + infos, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    process = subprocess.Popen([sys.argv[0], "-b", "-noaudio", filepath, "-P", __file__, "--", "FileInfo"] + infos, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     stdout = bytes()
     while process.poll() is None:
         stdout += process.stdout.read(1024)
@@ -204,32 +239,16 @@ def getFileInfo(filepath, infos):
 
     return values
 
-def thumbnail(filename):
-    root = os.path.splitext(filename)[0]
-    imagename = os.path.split(filename)[1]
-    thumbname = root + ".jpg"
-
-    if os.path.exists(thumbname):
-        return thumbname
-
-    if bpy:
-        scene = bpy.data.scenes[0] # FIXME, this is dodgy!
-        scene.render.file_format = "JPEG"
-        scene.render.file_quality = 90
-        bpy.ops.image.open(filepath=filename)
-        img = bpy.data.images[imagename]
-        img.save_render(thumbname, scene=scene)
-
-        try:
-            process = subprocess.Popen(["convert", thumbname, "-resize", "300x300", thumbname])
-            process.wait()
-            return thumbname
-        except:
-            pass
-
-    return None
 
 if __name__ == "__main__":
-    import bpy
-    for info in sys.argv[7:]:
+        try:
+        start = sys.argv.index("--") + 1
+    except ValueError:
+        start = 0
+    action, *args = sys.argv[start:]
+
+    if action == "FileInfo": 
+        for info in args:
         print("$", eval(info))
+    elif action == "GetResults":
+        _getResults(args[0], args[1], args[2], args[3], args[4], args[5])

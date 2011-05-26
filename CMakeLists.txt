@@ -1,3 +1,4 @@
+# -*- mode: cmake; indent-tabs-mode: t; -*-
 # $Id$
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
@@ -129,7 +130,7 @@ OPTION(WITH_ONSURFACEBRUSH   "Enable use of the 'on-surface brush' for paint/scu
 option(WITH_CXX_GUARDEDALLOC "Enable GuardedAlloc for C++ memory allocation tracking" OFF)
 mark_as_advanced(WITH_CXX_GUARDEDALLOC)
 
-option(WITH_ASSERT_ABORT "Call abort() when raising an assertion through BKE_assert()" OFF)
+option(WITH_ASSERT_ABORT "Call abort() when raising an assertion through BLI_assert()" OFF)
 mark_as_advanced(WITH_ASSERT_ABORT)
 
 if(APPLE)
@@ -361,13 +362,6 @@ if(UNIX AND NOT APPLE)
 		ADD_DEFINITIONS(-DWITH_ONSURFACEBRUSH)
 	ENDIF(WITH_ONSURFACEBRUSH)
 
-	SET(PLATFORM_LINKFLAGS "-pthread")
-
-	# Better warnings
-	# note: -Wunused-parameter should be added but for now only apply to ./source/blender
-		set(C_WARNINGS "-Wall -Wno-char-subscripts -Wpointer-arith -Wcast-align -Wdeclaration-after-statement -Wno-unknown-pragmas")
-		set(CXX_WARNINGS "-Wall -Wno-invalid-offsetof -Wno-sign-compare")
-
 	# Intel C++ Compiler
 	elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
 		# think these next two are broken
@@ -386,13 +380,8 @@ if(UNIX AND NOT APPLE)
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fp-model precise -prec_div -parallel")
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fp-model precise -prec_div -parallel")
 
-		set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing")
-
 		# set(PLATFORM_CFLAGS "${PLATFORM_CFLAGS} -diag-enable sc3")
-
-		set(C_WARNINGS "-Wall -Wpointer-arith -Wno-unknown-pragmas")
-		set(CXX_WARNINGS "-Wall -Wno-invalid-offsetof -Wno-sign-compare")
-
+		set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing")
 		set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -static-intel")
 	endif()
 
@@ -616,10 +605,6 @@ elseif(WIN32)
 			set(LLIBS "-lshell32 -lshfolder -lgdi32 -lmsvcrt -lwinmm -lmingw32 -lm -lws2_32 -lz -lstdc++ -lole32 -luuid")
 			set(PLATFORM_CFLAGS "-pipe -funsigned-char -fno-strict-aliasing")
 
-		# Better warnings
-			set(C_WARNINGS "-Wall -Wno-char-subscripts -Wpointer-arith -Wcast-align -Wdeclaration-after-statement -Wno-unknown-pragmas")
-			set(CXX_WARNINGS "-Wall -Wno-invalid-offsetof -Wno-sign-compare")
-
 			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE")
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE")
 		endif()
@@ -715,7 +700,7 @@ elseif(WIN32)
 	endif()
 
 	# used in many places so include globally, like OpenGL
-	include_directories(${PTHREADS_INC})
+	blender_include_dirs("${PTHREADS_INC}")
 
 elseif(APPLE)
 
@@ -907,11 +892,6 @@ elseif(APPLE)
 		set(CMAKE_C_FLAGS_RELEASE "-mdynamic-no-pic -fno-strict-aliasing")
 		set(CMAKE_CXX_FLAGS_RELEASE "-mdynamic-no-pic -fno-strict-aliasing")
 	endif()
-
-	# Better warnings
-	set(C_WARNINGS "-Wall -Wno-char-subscripts -Wpointer-arith -Wcast-align -Wdeclaration-after-statement -Wno-unknown-pragmas")
-	set(CXX_WARNINGS "-Wall -Wno-invalid-offsetof -Wno-sign-compare")
-
 endif()
 
 
@@ -919,18 +899,18 @@ endif()
 if(WITH_BUILDINFO)
 	# BUILD_PLATFORM and BUILD_PLATFORM are taken from CMake
 	if(UNIX)
-		EXEC_PROGRAM("date \"+%Y-%m-%d\"" OUTPUT_VARIABLE BUILD_DATE)
-		EXEC_PROGRAM("date \"+%H:%M:%S\"" OUTPUT_VARIABLE BUILD_TIME)  
-		EXEC_PROGRAM("svnversion ${CMAKE_SOURCE_DIR}" OUTPUT_VARIABLE BUILD_REV RETURN_VALUE BUILD_REV_RETURN)
+		execute_process(COMMAND date "+%Y-%m-%d" OUTPUT_VARIABLE BUILD_DATE OUTPUT_STRIP_TRAILING_WHITESPACE)
+		execute_process(COMMAND date "+%H:%M:%S" OUTPUT_VARIABLE BUILD_TIME OUTPUT_STRIP_TRAILING_WHITESPACE)  
+		execute_process(COMMAND svnversion ${CMAKE_SOURCE_DIR} OUTPUT_VARIABLE BUILD_REV RESULT_VARIABLE BUILD_REV_RETURN OUTPUT_STRIP_TRAILING_WHITESPACE)
 		if(BUILD_REV_RETURN)
 			set(BUILD_REV "unknown")
 		endif()
 	endif()
 	
 	if(WIN32)
-		EXEC_PROGRAM("cmd /c date /t" OUTPUT_VARIABLE BUILD_DATE)
-		EXEC_PROGRAM("cmd /c time /t" OUTPUT_VARIABLE BUILD_TIME)  
-		EXEC_PROGRAM("svnversion ${CMAKE_SOURCE_DIR}" OUTPUT_VARIABLE BUILD_REV RETURN_VALUE BUILD_REV_RETURN)
+		execute_process(COMMAND cmd /c date /t OUTPUT_VARIABLE BUILD_DATE OUTPUT_STRIP_TRAILING_WHITESPACE)
+		execute_process(COMMAND cmd /c time /t OUTPUT_VARIABLE BUILD_TIME OUTPUT_STRIP_TRAILING_WHITESPACE)  
+		execute_process(COMMAND svnversion ${CMAKE_SOURCE_DIR} OUTPUT_VARIABLE BUILD_REV RESULT_VARIABLE BUILD_REV_RETURN OUTPUT_STRIP_TRAILING_WHITESPACE)
 		if(BUILD_REV_RETURN)
 			set(BUILD_REV "unknown")
 		endif()
@@ -979,7 +959,7 @@ endif()
 #-----------------------------------------------------------------------------
 # Configure OpenGL.
 find_package(OpenGL)
-include_directories(${OPENGL_INCLUDE_DIR})
+blender_include_dirs("${OPENGL_INCLUDE_DIR}")
 # unset(OPENGL_LIBRARIES CACHE) # not compat with older cmake 
 # unset(OPENGL_xmesa_INCLUDE_DIR CACHE) # not compat with older cmake 
 
@@ -997,6 +977,9 @@ if(WITH_OPENMP)
 	else()
 		set(WITH_OPENMP OFF)
 	endif()
+
+	mark_as_advanced(OpenMP_C_FLAGS)
+	mark_as_advanced(OpenMP_CXX_FLAGS)
 endif() 
 
 #-----------------------------------------------------------------------------
@@ -1018,8 +1001,35 @@ if((NOT WIN32) AND (NOT MSVC))
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCC)
-	set(C_WARNINGS "${C_WARNINGS} -Wunused-parameter -Wwrite-strings -Werror=strict-prototypes -Werror=declaration-after-statement -Werror=implicit-function-declaration -Werror=return-type")
+
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_ALL -Wall)
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_CAST_ALIGN -Wcast-align)
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_ERROR_DECLARATION_AFTER_STATEMENT -Werror=declaration-after-statement)
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_ERROR_IMPLICIT_FUNCTION_DECLARATION -Werror=implicit-function-declaration)
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_ERROR_RETURN_TYPE -Werror=return-type)
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_ERROR_STRICT_PROTOTYPES -Werror=strict-prototypes)
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_NO_CHAR_SUBSCRIPTS -Wno-char-subscripts)
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_NO_UNKNOWN_PRAGMAS -Wno-unknown-pragmas)
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_POINTER_ARITH -Wpointer-arith)
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_UNUSED_PARAMETER -Wunused-parameter)
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_WRITE_STRINGS -Wwrite-strings)
+
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_ALL -Wall)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_INVALID_OFFSETOF -Wno-invalid-offsetof)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_SIGN_COMPARE -Wno-sign-compare)
+
+elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
+
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_ALL -Wall)
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_POINTER_ARITH -Wpointer-arith)
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_NO_UNKNOWN_PRAGMAS -Wno-unknown-pragmas)
+
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_ALL -Wall)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_INVALID_OFFSETOF -Wno-invalid-offsetof)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_SIGN_COMPARE -Wno-sign-compare)
+
 endif()
+
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PLATFORM_CFLAGS} ${C_WARNINGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PLATFORM_CFLAGS} ${CXX_WARNINGS}")
@@ -1032,6 +1042,9 @@ endif()
 if(WITH_ASSERT_ABORT)
 	add_definitions(-DWITH_ASSERT_ABORT)
 endif()
+
+# message(STATUS "Using CFLAGS: ${CMAKE_C_FLAGS}")
+# message(STATUS "Using CXXFLAGS: ${CMAKE_CXX_FLAGS}")
 
 #-----------------------------------------------------------------------------
 # Libraries

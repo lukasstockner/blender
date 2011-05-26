@@ -251,6 +251,7 @@ class IMAGE_MT_uvs(bpy.types.Menu):
 
         layout.menu("IMAGE_MT_uvs_showhide")
 
+
 class IMAGE_MT_uvs_select_mode(bpy.types.Menu):
     bl_label = "UV Select Mode"
 

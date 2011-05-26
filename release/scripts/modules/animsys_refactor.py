@@ -27,6 +27,7 @@ The main function to use is: update_data_paths(...)
 
 IS_TESTING = False
 
+
 class DataPathBuilder(object):
     __slots__ = ("data_path", )
     """ Dummy class used to parse fcurve and driver data paths.
@@ -183,8 +184,6 @@ def update_data_paths(rna_update):
                                     tar.data_path = data_path_new
                                 print("driver (%s): %s -> %s" % (id_data_other.name, data_path, data_path_new))
                 
-            
-        
         for action in anim_data_actions(anim_data):
             for fcu in action.fcurves:
                 data_path = fcu.data_path

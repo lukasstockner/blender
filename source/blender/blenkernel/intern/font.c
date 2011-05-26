@@ -41,6 +41,7 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_vfontdata.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_packedFile_types.h"
 #include "DNA_curve_types.h"
@@ -49,9 +50,7 @@
 #include "DNA_object_types.h"
 
 #include "BKE_utildefines.h"
-
 #include "BKE_packedFile.h"
-
 #include "BKE_library.h"
 #include "BKE_font.h"
 #include "BKE_global.h"
@@ -670,7 +669,7 @@ struct chartrans *BKE_text_to_curve(Scene *scene, Object *ob, int mode)
 	VFont *vfont, *oldvfont;
 	VFontData *vfd= NULL;
 	Curve *cu;
-	CharInfo *info, *custrinfo;
+	CharInfo *info = NULL, *custrinfo;
 	TextBox *tb;
 	VChar *che;
 	struct chartrans *chartransdata=NULL, *ct;
@@ -697,7 +696,7 @@ struct chartrans *BKE_text_to_curve(Scene *scene, Object *ob, int mode)
 
 	// Create unicode string
 	utf8len = utf8slen(cu->str);
-	tmp = mem = MEM_callocN(((utf8len + 1) * sizeof(wchar_t)), "convertedmem");
+	mem = MEM_callocN(((utf8len + 1) * sizeof(wchar_t)), "convertedmem");
 	
 	utf8towchar(mem, cu->str);
 
@@ -758,7 +757,6 @@ struct chartrans *BKE_text_to_curve(Scene *scene, Object *ob, int mode)
 	for (i = 0 ; i<=slen ; i++) {
 	makebreak:
 		// Characters in the list
-		che = vfd->characters.first;
 		info = &(custrinfo[i]);
 		ascii = mem[i];
 		if(info->flag & CU_CHINFO_SMALLCAPS) {
@@ -860,12 +858,15 @@ struct chartrans *BKE_text_to_curve(Scene *scene, Object *ob, int mode)
 				yof= cu->yof + tb->y/cu->fsize;
 			}
 
+			/* XXX, has been unused for years, need to check if this is useful, r4613 r5282 - campbell */
+#if 0
 			if(ascii == '\n' || ascii == '\r')
 				xof = cu->xof;
 			else
 				xof= cu->xof + (tb->x/cu->fsize);
-
+#else
 			xof= cu->xof + (tb->x/cu->fsize);
+#endif
 			lnr++;
 			cnr= 0;
 			wsnr= 0;
@@ -1041,8 +1042,7 @@ struct chartrans *BKE_text_to_curve(Scene *scene, Object *ob, int mode)
 	
 				twidth = char_width(cu, che, info);
 				
-				dtime= distfac*0.35f*twidth;	/* why not 0.5? */
-				dtime= distfac*0.5f*twidth;	/* why not 0.5? */
+				dtime= distfac*0.5f*twidth;
 				
 				ctime= timeofs + distfac*( ct->xof - minx);
 				CLAMP(ctime, 0.0, 1.0);

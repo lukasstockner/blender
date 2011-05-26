@@ -35,6 +35,7 @@
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_curve.h"
@@ -554,7 +555,7 @@ static void widget_check_trias(uiWidgetTrias *tria, rcti *rect)
 
 
 /* prepares shade colors */
-static void shadecolors4(char *coltop, char *coldown, char *color, short shadetop, short shadedown)
+static void shadecolors4(char *coltop, char *coldown, const char *color, short shadetop, short shadedown)
 {
 	
 	coltop[0]= CLAMPIS(color[0]+shadetop, 0, 255);
@@ -568,7 +569,7 @@ static void shadecolors4(char *coltop, char *coldown, char *color, short shadeto
 	coldown[3]= color[3];	
 }
 
-static void round_box_shade_col4(char *col1, char *col2, float fac)
+static void round_box_shade_col4(const char *col1, const char *col2, float fac)
 {
 	int faci, facm;
 	unsigned char col[4];
@@ -746,9 +747,9 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 
 static void widget_draw_preview(BIFIconID icon, float aspect, float UNUSED(alpha), rcti *rect)
 {
-	int w, h, x, y, size;
+	int w, h, size;
 
-	if(!icon)
+	if(icon==ICON_NULL)
 		return;
 
 	w = rect->xmax - rect->xmin;
@@ -756,10 +757,12 @@ static void widget_draw_preview(BIFIconID icon, float aspect, float UNUSED(alpha
 	size = MIN2(w, h);
 	size -= PREVIEW_PAD*2;	/* padding */
 	
-	x = rect->xmin + w/2 - size/2;
-	y = rect->ymin + h/2 - size/2;
+	if(size > 0) {
+		int x = rect->xmin + w/2 - size/2;
+		int y = rect->ymin + h/2 - size/2;
 	
 	UI_icon_draw_preview_aspect_size(x, y, icon, aspect, size);
+}
 }
 
 
@@ -1430,7 +1433,7 @@ void ui_widget_color_init(ThemeUI *tui)
 
 /* ************ button callbacks, state ***************** */
 
-static void widget_state_blend(char *cp, char *cpstate, float fac)
+static void widget_state_blend(char *cp, const char *cpstate, const float fac)
 {
 	if(fac != 0.0f) {
 		cp[0]= (int)((1.0f-fac)*cp[0] + fac*cpstate[0]);
@@ -1522,9 +1525,9 @@ static void widget_state_label(uiWidgetType *wt, int state)
 	widget_state(wt, state);
 
 	if(state & UI_SELECT)
-		UI_GetThemeColor4ubv(TH_TEXT_HI, wt->wcol.text);
+		UI_GetThemeColor4ubv(TH_TEXT_HI, (unsigned char *)wt->wcol.text);
 	else
-		UI_GetThemeColor4ubv(TH_TEXT, wt->wcol.text);
+		UI_GetThemeColor4ubv(TH_TEXT, (unsigned char *)wt->wcol.text);
 	
 }
 
@@ -2587,7 +2590,7 @@ static void widget_roundbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state),
 static void widget_draw_extra_mask(const bContext *C, uiBut *but, uiWidgetType *wt, rcti *rect)
 {
 	uiWidgetBase wtb;
-	char col[4];
+	unsigned char col[4];
 	
 	/* state copy! */
 	wt->wcol= *(wt->wcol_theme);
@@ -2600,7 +2603,7 @@ static void widget_draw_extra_mask(const bContext *C, uiBut *but, uiWidgetType *
 		
 		/* make mask to draw over image */
 		UI_GetThemeColor3ubv(TH_BACK, col);
-		glColor3ubv((unsigned char*)col);
+		glColor3ubv(col);
 		
 		round_box__edges(&wtb, 15, rect, 0.0f, 4.0);
 		widgetbase_outline(&wtb);

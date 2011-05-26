@@ -148,6 +148,7 @@ static void rna_Texture_voxeldata_image_update(Main *bmain, Scene *scene, Pointe
 	rna_Texture_voxeldata_update(bmain, scene, ptr);
 }
 
+
 /* Used for Texture Properties, used (also) for/in Nodes */
 static void rna_Texture_nodes_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
@@ -326,9 +327,6 @@ static void rna_ImageTexture_mipmap_set(PointerRNA *ptr, int value)
 
 	if(value) tex->imaflag |= TEX_MIPMAP;
 	else tex->imaflag &= ~TEX_MIPMAP;
-
-	if(tex->imaflag & TEX_MIPMAP)
-		tex->texfilter = TXF_EWA;
 }
 
 static void rna_Envmap_source_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -362,6 +360,16 @@ static void rna_PointDensity_psys_set(PointerRNA *ptr, PointerRNA value)
 
 	if(ob && value.id.data == ob)
 		pd->psys= BLI_findindex(&ob->particlesystem, value.data) + 1;
+}
+
+static char *rna_PointDensity_path(PointerRNA *ptr)
+{
+	return BLI_sprintfN("point_density");
+}
+
+static char *rna_VoxelData_path(PointerRNA *ptr)
+{
+	return BLI_sprintfN("voxel_data");
 }
 
 #else
@@ -981,13 +989,6 @@ static void rna_def_texture_image(BlenderRNA *brna)
 		{TEX_CHECKER, "CHECKER", 0, "Checker", "Causes the image to repeat in checker board pattern"},
 		{0, NULL, 0, NULL, NULL}};
 		
-	static EnumPropertyItem prop_normal_space[] = {
-		{MTEX_NSPACE_CAMERA, "CAMERA", 0, "Camera", ""},
-		{MTEX_NSPACE_WORLD, "WORLD", 0, "World", ""},
-		{MTEX_NSPACE_OBJECT, "OBJECT", 0, "Object", ""},
-		{MTEX_NSPACE_TANGENT, "TANGENT", 0, "Tangent", ""},
-		{0, NULL, 0, NULL, NULL}};
-
 	srna= RNA_def_struct(brna, "ImageTexture", "Texture");
 	RNA_def_struct_ui_text(srna, "Image Texture", "");
 	RNA_def_struct_sdna(srna, "Tex");
@@ -1123,15 +1124,6 @@ static void rna_def_texture_image(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "use_normal_map", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "imaflag", TEX_NORMALMAP);
 	RNA_def_property_ui_text(prop, "Normal Map", "Uses image RGB values for normal mapping");
-	RNA_def_property_update(prop, 0, "rna_Texture_update");
-	
-	/*	not sure why this goes in mtex instead of texture directly? */
-	RNA_def_struct_sdna(srna, "MTex");
-	
-	prop= RNA_def_property(srna, "normal_space", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "normapspace");
-	RNA_def_property_enum_items(prop, prop_normal_space);
-	RNA_def_property_ui_text(prop, "Normal Space", "Sets space of normal map image");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 }
 
@@ -1433,6 +1425,7 @@ static void rna_def_texture_pointdensity(BlenderRNA *brna)
 	srna= RNA_def_struct(brna, "PointDensity", NULL);
 	RNA_def_struct_sdna(srna, "PointDensity");
 	RNA_def_struct_ui_text(srna, "PointDensity", "Point density settings");
+	RNA_def_struct_path_func(srna, "rna_PointDensity_path");
 	
 	prop= RNA_def_property(srna, "point_source", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "source");
@@ -1585,6 +1578,7 @@ static void rna_def_texture_voxeldata(BlenderRNA *brna)
 	srna= RNA_def_struct(brna, "VoxelData", NULL);
 	RNA_def_struct_sdna(srna, "VoxelData");
 	RNA_def_struct_ui_text(srna, "VoxelData", "Voxel data settings");
+	RNA_def_struct_path_func(srna, "rna_VoxelData_path");
 	
 	prop= RNA_def_property(srna, "interpolation", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "interp_type");

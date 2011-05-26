@@ -33,17 +33,16 @@
 #include <sys/stat.h>
 #include <limits.h>
 
-
 #include "BLF_api.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
 
-// #include "BKE_suggestions.h"
 #include "BKE_report.h"
-#include "BKE_utildefines.h"
+
 
 #include "MEM_guardedalloc.h"
 
@@ -73,16 +72,16 @@ static void console_line_color(unsigned char *fg, int type)
 {
 	switch(type) {
 	case CONSOLE_LINE_OUTPUT:
-		UI_GetThemeColor3ubv(TH_CONSOLE_OUTPUT, (char *)fg);
+		UI_GetThemeColor3ubv(TH_CONSOLE_OUTPUT, fg);
 		break;
 	case CONSOLE_LINE_INPUT:
-		UI_GetThemeColor3ubv(TH_CONSOLE_INPUT, (char *)fg);
+		UI_GetThemeColor3ubv(TH_CONSOLE_INPUT, fg);
 		break;
 	case CONSOLE_LINE_INFO:
-		UI_GetThemeColor3ubv(TH_CONSOLE_INFO, (char *)fg);
+		UI_GetThemeColor3ubv(TH_CONSOLE_INFO, fg);
 		break;
 	case CONSOLE_LINE_ERROR:
-		UI_GetThemeColor3ubv(TH_CONSOLE_ERROR, (char *)fg);
+		UI_GetThemeColor3ubv(TH_CONSOLE_ERROR, fg);
 		break;
 	}
 }
@@ -362,7 +361,7 @@ static int console_textview_line_color(struct TextViewContext *tvc, unsigned cha
 		}
 
 			/* cursor */
-			UI_GetThemeColor3ubv(TH_CONSOLE_CURSOR, (char *)fg);
+		UI_GetThemeColor3ubv(TH_CONSOLE_CURSOR, fg);
 			glColor3ubv(fg);
 			glRecti(xy[0]+(cwidth*(cl->cursor+prompt_len)) -1, xy[1]-2, xy[0]+(cwidth*(cl->cursor+prompt_len)) +1, xy[1]+sc->lheight-2);
 

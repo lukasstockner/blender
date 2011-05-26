@@ -40,6 +40,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_editVert.h"
 #include "BLI_rand.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_idprop.h"
@@ -93,7 +94,7 @@ static void view3d_panel_operator_redo_operator(const bContext *C, Panel *pa, wm
 {
 	if(op->type->flag & OPTYPE_MACRO) {
 		for(op= op->macro.first; op; op= op->next) {
-			uiItemL(pa->layout, op->type->name, 0);
+			uiItemL(pa->layout, op->type->name, ICON_NULL);
 			view3d_panel_operator_redo_operator(C, pa, op);
 		}
 	}
@@ -113,6 +114,9 @@ static void view3d_panel_operator_redo(const bContext *C, Panel *pa)
 		return;
 	
 	block= uiLayoutGetBlock(pa->layout);
+
+	if(ED_undo_valid(C, op->type->name)==0)
+		uiLayoutSetEnabled(pa->layout, 0);
 
 	uiBlockSetFunc(block, ED_undo_operator_repeat_cb, op, NULL);
 	
@@ -210,7 +214,7 @@ static void view3d_panel_tool_shelf(const bContext *C, Panel *pa)
 		for(ct= st->toolshelf.first; ct; ct= ct->next) {
 			if(0==strncmp(context, ct->context, OP_MAX_TYPENAME)) {
 				col= uiLayoutColumn(pa->layout, 1);
-				uiItemFullO(col, ct->opname, NULL, 0, NULL, WM_OP_INVOKE_REGION_WIN, 0);
+				uiItemFullO(col, ct->opname, NULL, ICON_NULL, NULL, WM_OP_INVOKE_REGION_WIN, 0);
 			}
 		}
 	}

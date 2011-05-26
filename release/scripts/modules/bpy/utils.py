@@ -23,12 +23,14 @@ This module contains utility functions specific to blender but
 not assosiated with blenders internal data.
 """
 
-from _bpy import blend_paths, user_resource
+from _bpy import blend_paths
 from _bpy import script_paths as _bpy_script_paths
+from _bpy import user_resource as _user_resource
 
 import bpy as _bpy
 import os as _os
 import sys as _sys
+
 
 def _test_import(module_name, loaded_modules):
     import traceback
@@ -139,6 +141,7 @@ def load_scripts(reload_scripts=False, refresh_scripts=False):
                 traceback.print_exc()
 
     def test_reload(mod):
+        import imp
         # reloading this causes internal errors
         # because the classes from this module are stored internally
         # possibly to refresh internal references too but for now, best not to.
@@ -146,7 +149,7 @@ def load_scripts(reload_scripts=False, refresh_scripts=False):
             return mod
 
         try:
-            return reload(mod)
+            return imp.reload(mod)
         except:
             traceback.print_exc()
 
@@ -201,12 +204,10 @@ def load_scripts(reload_scripts=False, refresh_scripts=False):
     # deal with addons seperately
     addon_reset_all(reload_scripts)
 
-
     # run the active integration preset
     filepath = preset_find(_bpy.context.user_preferences.inputs.active_keyconfig, "keyconfig")
     if filepath:
         keyconfig_set(filepath)
-
 
     if reload_scripts:
         import gc
@@ -364,7 +365,7 @@ def addon_enable(module_name, default_set=True):
     import os
     import sys
     import bpy_types as _bpy_types
-
+    import imp
 
     _bpy_types._register_immediate = False
 
@@ -372,7 +373,6 @@ def addon_enable(module_name, default_set=True):
         import traceback
         traceback.print_exc()
         _bpy_types._register_immediate = True
-
 
     # reload if the mtime changes
     mod = sys.modules.get(module_name)
@@ -384,7 +384,7 @@ def addon_enable(module_name, default_set=True):
             print("module changed on disk:", mod.__file__, "reloading...")
 
             try:
-                reload(mod)
+                imp.reload(mod)
             except:
                 handle_error()
                 del sys.modules[module_name]
@@ -430,6 +430,7 @@ def addon_enable(module_name, default_set=True):
 
     mod.__addon_enabled__ = True
 
+    if _bpy.app.debug:
     print("\tbpy.utils.addon_enable", mod.__name__)
 
     return mod
@@ -469,6 +470,7 @@ def addon_disable(module_name, default_set=True):
             if addon:
                 addons.remove(addon)
     
+    if _bpy.app.debug:
     print("\tbpy.utils.addon_disable", module_name)
 
 
@@ -476,6 +478,7 @@ def addon_reset_all(reload_scripts=False):
     """
     Sets the addon state based on the user preferences.
     """
+    import imp
 
     paths = script_paths("addons") + script_paths("addons_contrib")
 
@@ -488,7 +491,7 @@ def addon_reset_all(reload_scripts=False):
             if reload_scripts:
                 mod = _sys.modules.get(mod_name)
                 if mod:
-                    reload(mod)
+                    imp.reload(mod)
 
             if is_enabled == is_loaded:
                 pass
@@ -552,3 +555,35 @@ def keyconfig_set(filepath):
     keyconfigs.active = kc_new
 
 
+def user_resource(type, path="", create=False):
+    """
+    Return a user resource path (normally from the users home directory).
+
+    :arg type: Resource type in ['DATAFILES', 'CONFIG', 'SCRIPTS', 'AUTOSAVE'].
+    :type type: string
+    :arg subdir: Optional subdirectory.
+    :type subdir: string
+    :arg create: Treat the path as a directory and create it if its not existing.
+    :type create: boolean
+    :return: a path.
+    :rtype: string
+    """
+
+    target_path = _user_resource(type, path)
+
+    if create:
+        # should always be true.
+        if target_path:
+            # create path if not existing.
+            if not _os.path.exists(target_path):
+                try:
+                    _os.makedirs(target_path)
+                except:
+                    import traceback
+                    traceback.print_exc()
+                    target_path = ""
+            elif not _os.path.isdir(target_path):
+                print("Path %r found but isn't a directory!" % target_path)
+                target_path = ""
+
+    return target_path

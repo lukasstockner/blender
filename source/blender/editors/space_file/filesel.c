@@ -61,6 +61,7 @@
 #include "BLI_linklist.h"
 #include "BLI_storage_types.h"
 #include "BLI_dynstr.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -290,12 +291,18 @@ float file_string_width(const char* str)
 
 float file_font_pointsize()
 {
+#if 0
 	float s;
 	char tmp[2] = "X";
 	uiStyle *style= U.uistyles.first;
 	uiStyleFontSet(&style->widget);
 	s = BLF_height(style->widget.uifont_id, tmp);
 	return style->widget.points;
+#else
+	uiStyle *style= U.uistyles.first;
+	uiStyleFontSet(&style->widget);
+	return style->widget.points;
+#endif
 }
 
 static void column_widths(struct FileList* files, struct FileLayout* layout)

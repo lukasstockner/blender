@@ -26,16 +26,22 @@ def align_objects(align_x, align_y, align_z, align_mode, relative_to):
 
     cursor = bpy.context.scene.cursor_location
 
-    Left_Up_Front_SEL = [[], [], []]
-    Right_Down_Back_SEL = [[], [], []]
+    Left_Up_Front_SEL = [0.0, 0.0, 0.0]
+    Right_Down_Back_SEL = [0.0, 0.0, 0.0]
 
     flag_first = True
 
+    objs = []
+
     for obj in bpy.context.selected_objects:
-        if obj.type == 'MESH':
+        matrix_world = obj.matrix_world
+        bb_world = [Vector(v[:]) * matrix_world for v in obj.bound_box]
+        objs.append((obj, bb_world))
 
-            bb_world = [Vector(v[:]) * obj.matrix_world for v in obj.bound_box]
+    if not objs:
+        return False
 
+    for obj, bb_world in objs:
             Left_Up_Front = bb_world[1]
             Right_Down_Back = bb_world[7]
 
@@ -43,13 +49,13 @@ def align_objects(align_x, align_y, align_z, align_mode, relative_to):
 
             if obj == bpy.context.active_object:
 
-                center_active_x = (Left_Up_Front[0] + Right_Down_Back[0]) / 2
-                center_active_y = (Left_Up_Front[1] + Right_Down_Back[1]) / 2
-                center_active_z = (Left_Up_Front[2] + Right_Down_Back[2]) / 2
+            center_active_x = (Left_Up_Front[0] + Right_Down_Back[0]) / 2.0
+            center_active_y = (Left_Up_Front[1] + Right_Down_Back[1]) / 2.0
+            center_active_z = (Left_Up_Front[2] + Right_Down_Back[2]) / 2.0
 
-                size_active_x = (Right_Down_Back[0] - Left_Up_Front[0]) / 2
-                size_active_y = (Right_Down_Back[1] - Left_Up_Front[1]) / 2
-                size_active_z = (Left_Up_Front[2] - Right_Down_Back[2]) / 2
+            size_active_x = (Right_Down_Back[0] - Left_Up_Front[0]) / 2.0
+            size_active_y = (Right_Down_Back[1] - Left_Up_Front[1]) / 2.0
+            size_active_z = (Left_Up_Front[2] - Right_Down_Back[2]) / 2.0
 
             # Selection Center
 
@@ -85,14 +91,13 @@ def align_objects(align_x, align_y, align_z, align_mode, relative_to):
                 if Right_Down_Back[2] < Right_Down_Back_SEL[2]:
                     Right_Down_Back_SEL[2] = Right_Down_Back[2]
 
-    center_sel_x = (Left_Up_Front_SEL[0] + Right_Down_Back_SEL[0]) / 2
-    center_sel_y = (Left_Up_Front_SEL[1] + Right_Down_Back_SEL[1]) / 2
-    center_sel_z = (Left_Up_Front_SEL[2] + Right_Down_Back_SEL[2]) / 2
+    center_sel_x = (Left_Up_Front_SEL[0] + Right_Down_Back_SEL[0]) / 2.0
+    center_sel_y = (Left_Up_Front_SEL[1] + Right_Down_Back_SEL[1]) / 2.0
+    center_sel_z = (Left_Up_Front_SEL[2] + Right_Down_Back_SEL[2]) / 2.0
 
     # Main Loop
 
-    for obj in bpy.context.selected_objects:
-        if obj.type == 'MESH':
+    for obj, bb_world in objs:
 
             loc_world = obj.location
             bb_world = [Vector(v[:]) * obj.matrix_world for v in obj.bound_box]
@@ -100,9 +105,9 @@ def align_objects(align_x, align_y, align_z, align_mode, relative_to):
             Left_Up_Front = bb_world[1]
             Right_Down_Back = bb_world[7]
 
-            center_x = (Left_Up_Front[0] + Right_Down_Back[0]) / 2
-            center_y = (Left_Up_Front[1] + Right_Down_Back[1]) / 2
-            center_z = (Left_Up_Front[2] + Right_Down_Back[2]) / 2
+        center_x = (Left_Up_Front[0] + Right_Down_Back[0]) / 2.0
+        center_y = (Left_Up_Front[1] + Right_Down_Back[1]) / 2.0
+        center_z = (Left_Up_Front[2] + Right_Down_Back[2]) / 2.0
 
             positive_x = Right_Down_Back[0]
             positive_y = Right_Down_Back[1]
@@ -151,9 +156,7 @@ def align_objects(align_x, align_y, align_z, align_mode, relative_to):
 
                 obj.location[0] = loc_x
 
-
             if align_y:
-
                 # Align Mode
 
                 if relative_to == 'OPT_4': # Active relative
@@ -189,11 +192,8 @@ def align_objects(align_x, align_y, align_z, align_mode, relative_to):
 
                 obj.location[1] = loc_y
 
-
             if align_z:
-
                 # Align Mode
-
                 if relative_to == 'OPT_4': # Active relative
                     if align_mode == 'OPT_1':
                         obj_z = obj_loc[2] - negative_z - size_active_z
@@ -227,6 +227,8 @@ def align_objects(align_x, align_y, align_z, align_mode, relative_to):
 
                 obj.location[2] = loc_z
 
+    return True
+
 
 from bpy.props import *
 
@@ -254,22 +256,27 @@ class AlignObjects(bpy.types.Operator):
         description="",
         default='OPT_4')
 
-    align_x = BoolProperty(name="Align X",
-        description="Align in the X axis", default=False)
-
-    align_y = BoolProperty(name="Align Y",
-        description="Align in the Y axis", default=False)
-
-    align_z = BoolProperty(name="Align Z",
-        description="Align in the Z axis", default=False)
+    align_axis = EnumProperty(items=(
+            ('X', "X", ""),
+            ('Y', "Y", ""),
+            ('Z', "Z", ""),
+            ),
+                name="Align",
+                description="Align to axis",
+                options={'ENUM_FLAG'})
 
     @classmethod
     def poll(cls, context):
         return context.mode == 'OBJECT'
 
     def execute(self, context):
-        align_objects(self.align_x, self.align_y, self.align_z, self.align_mode, self.relative_to)
+        align_axis = self.align_axis
+        ret = align_objects('X' in align_axis, 'Y' in align_axis, 'Z' in align_axis, self.align_mode, self.relative_to)
 
+        if not ret:
+            self.report({'WARNING'}, "No objects with bound-box selected")
+            return {'CANCELLED'}
+        else:
         return {'FINISHED'}
 
 

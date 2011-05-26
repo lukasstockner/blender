@@ -25,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  * */
 
-#ifndef BLI_MATH_MATRIX
-#define BLI_MATH_MATRIX
+#ifndef BLI_MATH_MATRIX_H
+#define BLI_MATH_MATRIX_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -161,12 +161,12 @@ int is_negative_m4(float mat[4][4]);
 
 /*********************************** Other ***********************************/
 
-void print_m3(char *str, float M[3][3]);
-void print_m4(char *str, float M[3][4]);
+void print_m3(const char *str, float M[3][3]);
+void print_m4(const char *str, float M[3][4]);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* BLI_MATH_MATRIX */
+#endif /* BLI_MATH_MATRIX_H */
 

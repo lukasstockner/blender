@@ -31,6 +31,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
@@ -69,7 +70,8 @@ static int screenshot_exec(bContext *C, wmOperator *op)
 {
 	ScreenshotData *scd= op->customdata;
 	
-	if(scd && scd->dumprect) {
+	if(scd) {
+		if(scd->dumprect) {
 		Scene *scene= CTX_data_scene(C);
 		ImBuf *ibuf;
 		char path[FILE_MAX];
@@ -92,6 +94,7 @@ static int screenshot_exec(bContext *C, wmOperator *op)
 		IMB_freeImBuf(ibuf);
 
 		MEM_freeN(scd->dumprect);
+		}
 		MEM_freeN(scd);
 		op->customdata= NULL;
 	}
@@ -158,6 +161,18 @@ static int screenshot_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event)
 	return OPERATOR_CANCELLED;
 }
 
+static int screenshot_cancel(bContext *UNUSED(C), wmOperator *op)
+{
+	ScreenshotData *scd= op->customdata;
+
+	if(scd) {
+		if(scd->dumprect)
+			MEM_freeN(scd->dumprect);
+		MEM_freeN(scd);
+		op->customdata= NULL;
+	}
+	return OPERATOR_CANCELLED;
+}
 
 void SCREEN_OT_screenshot(wmOperatorType *ot)
 {
@@ -167,6 +182,7 @@ void SCREEN_OT_screenshot(wmOperatorType *ot)
 	ot->invoke= screenshot_invoke;
 	ot->exec= screenshot_exec;
 	ot->poll= WM_operator_winactive;
+	ot->cancel= screenshot_cancel;
 	
 	ot->flag= 0;
 	

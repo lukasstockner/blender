@@ -29,7 +29,9 @@
 #include "mathutils.h"
 
 #include "BLI_math.h"
-#include "BKE_utildefines.h"
+#include "BLI_utildefines.h"
+
+
 
 #define QUAT_SIZE 4
 
@@ -480,7 +482,7 @@ static int Quaternion_ass_item(QuaternionObject * self, int i, PyObject * ob)
 //sequence slice (get)
 static PyObject *Quaternion_slice(QuaternionObject * self, int begin, int end)
 {
-	PyObject *list = NULL;
+	PyObject *tuple;
 	int count;
 
 	if(!BaseMath_ReadCallback(self))
@@ -491,12 +493,12 @@ static PyObject *Quaternion_slice(QuaternionObject * self, int begin, int end)
 	CLAMP(end, 0, QUAT_SIZE);
 	begin = MIN2(begin,end);
 
-	list = PyList_New(end - begin);
+	tuple= PyTuple_New(end - begin);
 	for(count = begin; count < end; count++) {
-		PyList_SET_ITEM(list, count - begin, PyFloat_FromDouble(self->quat[count]));
+		PyTuple_SET_ITEM(tuple, count - begin, PyFloat_FromDouble(self->quat[count]));
 	}
 
-	return list;
+	return tuple;
 }
 //----------------------------object[z:y]------------------------
 //sequence slice (set)
@@ -639,6 +641,15 @@ static PyObject *Quaternion_sub(PyObject * q1, PyObject * q2)
 
 	return newQuaternionObject(quat, Py_NEW, Py_TYPE(q1));
 }
+
+static PyObject *quat_mul_float(QuaternionObject *quat, const float scalar)
+{
+	float tquat[4];
+	copy_qt_qt(tquat, quat->quat);
+	mul_qt_fl(tquat, scalar);
+	return newQuaternionObject(tquat, Py_NEW, Py_TYPE(quat));
+}
+
 //------------------------obj * obj------------------------------
 //mulplication
 static PyObject *Quaternion_mul(PyObject * q1, PyObject * q2)
@@ -662,44 +673,22 @@ static PyObject *Quaternion_mul(PyObject * q1, PyObject * q2)
 		mul_qt_qtqt(quat, quat1->quat, quat2->quat);
 		return newQuaternionObject(quat, Py_NEW, Py_TYPE(q1));
 	}
-	
 	/* the only case this can happen (for a supported type is "FLOAT*QUAT" ) */
-	if(!QuaternionObject_Check(q1)) {
-		scalar= PyFloat_AsDouble(q1);
-		if ((scalar == -1.0 && PyErr_Occurred())==0) { /* FLOAT*QUAT */
-			QUATCOPY(quat, quat2->quat);
-			mul_qt_fl(quat, scalar);
-			return newQuaternionObject(quat, Py_NEW, Py_TYPE(q2));
+	else if(quat2) { /* FLOAT*QUAT */
+		if(((scalar= PyFloat_AsDouble(q1)) == -1.0 && PyErr_Occurred())==0) {
+			return quat_mul_float(quat2, scalar);
 		}
-		PyErr_SetString(PyExc_TypeError, "Quaternion multiplication: val * quat, val is not an acceptable type");
-		return NULL;
 	}
-	else { /* QUAT*SOMETHING */
-		if(VectorObject_Check(q2)){  /* QUAT*VEC */
-			float tvec[3];
-			vec = (VectorObject*)q2;
-			if(vec->size != 3){
-				PyErr_SetString(PyExc_TypeError, "Quaternion multiplication: only 3D vector rotations currently supported\n");
-				return NULL;
+	else if (quat1) { /* QUAT*FLOAT */
+		if((((scalar= PyFloat_AsDouble(q2)) == -1.0 && PyErr_Occurred())==0)) {
+			return quat_mul_float(quat1, scalar);
 			}
-			if(!BaseMath_ReadCallback(vec)) {
-				return NULL;
 		}
-		
-			copy_v3_v3(tvec, vec->vec);
-			mul_qt_v3(quat1->quat, tvec);
-			return newVectorObject(tvec, 3, Py_NEW, NULL);
-		}
-		
-		scalar= PyFloat_AsDouble(q2);
-		if ((scalar == -1.0 && PyErr_Occurred())==0) { /* QUAT*FLOAT */
-			QUATCOPY(quat, quat1->quat);
-			mul_qt_fl(quat, scalar);
-			return newQuaternionObject(quat, Py_NEW, Py_TYPE(q1));
-		}
+	else {
+		BLI_assert(!"internal error");
 	}
 	
-	PyErr_SetString(PyExc_TypeError, "Quaternion multiplication: arguments not acceptable for this operation");
+	PyErr_Format(PyExc_TypeError, "Quaternion multiplication: not supported between '%.200s' and '%.200s' types", Py_TYPE(q1)->tp_name, Py_TYPE(q2)->tp_name);
 	return NULL;
 }
 
@@ -794,14 +783,14 @@ static int Quaternion_setAngle(QuaternionObject * self, PyObject * value, void *
 	float tquat[4];
 	float len;
 	
-	float axis[3];
-	float angle;
+	float axis[3], angle_dummy;
+	double angle;
 
 	if(!BaseMath_ReadCallback(self))
 		return -1;
 
 	len= normalize_qt_qt(tquat, self->quat);
-	quat_to_axis_angle(axis, &angle, tquat);
+	quat_to_axis_angle(axis, &angle_dummy, tquat);
 
 	angle = PyFloat_AsDouble(value);
 
@@ -809,6 +798,8 @@ static int Quaternion_setAngle(QuaternionObject * self, PyObject * value, void *
 		PyErr_SetString(PyExc_TypeError, "quaternion.angle = value: float expected");
 		return -1;
 	}
+
+	angle= fmod(angle + M_PI*2, M_PI*4) - M_PI*2;
 
 	/* If the axis of rotation is 0,0,0 set it to 1,0,0 - for zero-degree rotations */
 	if( EXPP_FloatsAreEqual(axis[0], 0.0f, 10) &&
@@ -890,7 +881,7 @@ static int Quaternion_setAxisVec(QuaternionObject *self, PyObject *value, void *
 static PyObject *Quaternion_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
 	PyObject *seq= NULL;
-	float angle = 0.0f;
+	double angle = 0.0f;
 	float quat[QUAT_SIZE]= {0.0f, 0.0f, 0.0f, 0.0f};
 
 	if(kwds && PyDict_Size(kwds)) {
@@ -898,7 +889,7 @@ static PyObject *Quaternion_new(PyTypeObject *type, PyObject *args, PyObject *kw
 		return NULL;
 	}
 	
-	if(!PyArg_ParseTuple(args, "|Of:mathutils.Quaternion", &seq, &angle))
+	if(!PyArg_ParseTuple(args, "|Od:mathutils.Quaternion", &seq, &angle))
 		return NULL;
 
 	switch(PyTuple_GET_SIZE(args)) {
@@ -911,7 +902,7 @@ static PyObject *Quaternion_new(PyTypeObject *type, PyObject *args, PyObject *kw
 	case 2:
 		if (mathutils_array_parse(quat, 3, 3, seq, "mathutils.Quaternion()") == -1)
 			return NULL;
-
+		angle= fmod(angle + M_PI*2, M_PI*4) - M_PI*2; /* clamp because of precission issues */
 		axis_angle_to_quat(quat, quat, angle);
 		break;
 	/* PyArg_ParseTuple assures no more then 2 */

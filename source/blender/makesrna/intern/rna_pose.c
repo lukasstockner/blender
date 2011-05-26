@@ -283,6 +283,21 @@ static void rna_Itasc_update_rebuild(Main *bmain, Scene *scene, PointerRNA *ptr)
 	rna_Itasc_update(bmain, scene, ptr);
 }
 
+static void rna_PoseChannel_bone_custom_set(PointerRNA *ptr, PointerRNA value)
+{
+	bPoseChannel *pchan = (bPoseChannel*)ptr->data;
+
+
+	if (pchan->custom) {
+		id_us_min(&pchan->custom->id);
+		pchan->custom = NULL;
+	}
+
+	pchan->custom = value.data;
+
+	id_us_plus(&pchan->custom->id);
+}
+
 static PointerRNA rna_PoseChannel_bone_group_get(PointerRNA *ptr)
 {
 	Object *ob= (Object*)ptr->id.data;
@@ -532,13 +547,17 @@ static int rna_PoseChannel_rotation_4d_editable(PointerRNA *ptr, int index)
 }
 
 /* not essential, but much faster then the default lookup function */
-PointerRNA rna_PoseBones_lookup_string(PointerRNA *ptr, const char *key)
+int rna_PoseBones_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)
 {
-	PointerRNA rptr;
 	bPose *pose= (bPose*)ptr->data;
 	bPoseChannel *pchan= get_pose_channel(pose, key);
-	RNA_pointer_create(ptr->id.data, &RNA_PoseBone, pchan, &rptr);
-	return rptr;
+	if(pchan) {
+		RNA_pointer_create(ptr->id.data, &RNA_PoseBone, pchan, r_ptr);
+		return TRUE;
+}
+	else {
+		return FALSE;
+	}
 }
 
 static void rna_PoseChannel_matrix_local_get(PointerRNA *ptr, float *values)
@@ -953,6 +972,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "custom");
 	RNA_def_property_struct_type(prop, "Object");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_pointer_funcs(prop, NULL, "rna_PoseChannel_bone_custom_set", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Custom Object", "Object that defines custom draw type for this bone");
 	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
 	RNA_def_property_update(prop, NC_OBJECT|ND_POSE, "rna_Pose_update");

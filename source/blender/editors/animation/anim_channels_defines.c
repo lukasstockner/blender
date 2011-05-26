@@ -31,6 +31,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -42,16 +43,20 @@
 #include "DNA_space_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lamp_types.h"
+#include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_node_types.h"
 #include "DNA_world_types.h"
+#include "DNA_gpencil_types.h"
 
 #include "RNA_access.h"
+
 #include "BKE_curve.h"
 #include "BKE_key.h"
 #include "BKE_context.h"
+#include "BKE_utildefines.h" /* FILE_MAX */
 
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
@@ -73,6 +78,8 @@
 
 /* size of indent steps */
 #define INDENT_STEP_SIZE 	7
+
+#define ANIM_CHAN_NAME_SIZE 256
 
 /* macros used for type defines */
 	/* get the pointer used for some flag */
@@ -161,7 +168,7 @@ static void acf_generic_channel_color(bAnimContext *ac, bAnimListElem *ale, floa
 	if ( (saction && !(saction->flag & SACTION_NODRAWGCOLORS)) && 
 		 ((grp) && (grp->customCol)) ) 
 	{
-		char cp[3];
+		unsigned char cp[3];
 		
 		if (indent == 2) {
 			VECCOPY(cp, grp->cs.solid);
@@ -298,7 +305,7 @@ static void acf_generic_idblock_name(bAnimListElem *ale, char *name)
 	
 	/* just copy the name... */
 	if (id && name)
-		strcpy(name, id->name+2);
+		BLI_strncpy(name, id->name+2, ANIM_CHAN_NAME_SIZE);
 }
 
 /* Settings ------------------------------------------- */
@@ -407,7 +414,7 @@ static void acf_summary_backdrop(bAnimContext *ac, bAnimListElem *ale, float ymi
 static void acf_summary_name(bAnimListElem *ale, char *name)
 {
 	if (name)
-		strcpy(name, "DopeSheet Summary");
+		BLI_strncpy(name, "DopeSheet Summary", ANIM_CHAN_NAME_SIZE);
 }
 
 // TODO: this is really a temp icon I think
@@ -623,7 +630,7 @@ static void acf_object_name(bAnimListElem *ale, char *name)
 	
 	/* just copy the name... */
 	if (ob && name)
-		strcpy(name, ob->id.name+2);
+		BLI_strncpy(name, ob->id.name+2, ANIM_CHAN_NAME_SIZE);
 }
 
 /* check if some setting exists for this channel */
@@ -760,7 +767,7 @@ static void acf_group_name(bAnimListElem *ale, char *name)
 	
 	/* just copy the name... */
 	if (agrp && name)
-		strcpy(name, agrp->name);
+		BLI_strncpy(name, agrp->name, ANIM_CHAN_NAME_SIZE);
 }
 
 /* check if some setting exists for this channel */
@@ -1020,7 +1027,7 @@ static int acf_filldrivers_icon(bAnimListElem *ale)
 
 static void acf_filldrivers_name(bAnimListElem *ale, char *name)
 {
-	strcpy(name, "Drivers");
+	BLI_strncpy(name, "Drivers", ANIM_CHAN_NAME_SIZE);
 }
 
 /* check if some setting exists for this channel */
@@ -1098,7 +1105,7 @@ static int acf_fillmatd_icon(bAnimListElem *ale)
 
 static void acf_fillmatd_name(bAnimListElem *ale, char *name)
 {
-	strcpy(name, "Materials");
+	BLI_strncpy(name, "Materials", ANIM_CHAN_NAME_SIZE);
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
@@ -1144,7 +1151,7 @@ static int acf_fillpartd_icon(bAnimListElem *ale)
 
 static void acf_fillpartd_name(bAnimListElem *ale, char *name)
 {
-	strcpy(name, "Particles");
+	BLI_strncpy(name, "Particles", ANIM_CHAN_NAME_SIZE);
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
@@ -1212,7 +1219,7 @@ static int acf_filltexd_icon(bAnimListElem *ale)
 
 static void acf_filltexd_name(bAnimListElem *ale, char *name)
 {
-	strcpy(name, "Textures");
+	BLI_strncpy(name, "Textures", ANIM_CHAN_NAME_SIZE);
 }
 
 /* get pointer to the setting (category only) */
@@ -2233,6 +2240,82 @@ static bAnimChannelType ACF_DSMESH=
 	acf_dsmesh_setting_ptr					/* pointer for setting */
 };
 
+/* Lattice Expander  ------------------------------------------- */
+
+// TODO: just get this from RNA?
+static int acf_dslat_icon(bAnimListElem *UNUSED(ale))
+{
+	return ICON_LATTICE_DATA;
+}
+
+/* get the appropriate flag(s) for the setting when it is valid  */
+static int acf_dslat_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
+{
+	/* clear extra return data first */
+	*neg= 0;
+	
+	switch (setting) {
+		case ACHANNEL_SETTING_EXPAND: /* expanded */
+			return LT_DS_EXPAND;
+			
+		case ACHANNEL_SETTING_MUTE: /* mute (only in NLA) */
+			return ADT_NLA_EVAL_OFF;
+			
+		case ACHANNEL_SETTING_VISIBLE: /* visible (only in Graph Editor) */
+			*neg= 1;
+			return ADT_CURVES_NOT_VISIBLE;
+			
+		case ACHANNEL_SETTING_SELECT: /* selected */
+			return ADT_UI_SELECTED;
+			
+		default: /* unsupported */
+			return 0;
+	}
+}
+
+/* get pointer to the setting */
+static void *acf_dslat_setting_ptr(bAnimListElem *ale, int setting, short *type)
+{
+	Lattice *lt= (Lattice *)ale->data;
+	
+	/* clear extra return data first */
+	*type= 0;
+	
+	switch (setting) {
+		case ACHANNEL_SETTING_EXPAND: /* expanded */
+			GET_ACF_FLAG_PTR(lt->flag);
+			
+		case ACHANNEL_SETTING_SELECT: /* selected */
+		case ACHANNEL_SETTING_MUTE: /* muted (for NLA only) */
+		case ACHANNEL_SETTING_VISIBLE: /* visible (for Graph Editor only) */
+			if (lt->adt)
+				GET_ACF_FLAG_PTR(lt->adt->flag)
+				else
+					return NULL;
+			
+		default: /* unsupported */
+			return NULL;
+	}
+}
+
+/* node tree expander type define */
+static bAnimChannelType ACF_DSLAT= 
+{
+	"Lattice Expander",				/* type name */
+	
+	acf_generic_dataexpand_color,	/* backdrop color */
+	acf_generic_dataexpand_backdrop,/* backdrop */
+	acf_generic_indention_1,		/* indent level */		// XXX this only works for compositing
+	acf_generic_basic_offset,		/* offset */
+	
+	acf_generic_idblock_name,		/* name */
+	acf_dslat_icon,					/* icon */
+	
+	acf_generic_dataexpand_setting_valid,	/* has setting */
+	acf_dslat_setting_flag,					/* flag for setting */
+	acf_dslat_setting_ptr					/* pointer for setting */
+};
+
 /* ShapeKey Entry  ------------------------------------------- */
 
 /* name for ShapeKey */
@@ -2244,9 +2327,9 @@ static void acf_shapekey_name(bAnimListElem *ale, char *name)
 	if (kb && name) {
 		/* if the KeyBlock had a name, use it, otherwise use the index */
 		if (kb->name[0])
-			strcpy(name, kb->name);
+			BLI_strncpy(name, kb->name, ANIM_CHAN_NAME_SIZE);
 		else
-			sprintf(name, "Key %d", ale->index);
+			BLI_snprintf(name, ANIM_CHAN_NAME_SIZE, "Key %d", ale->index);
 	}
 }
 
@@ -2323,126 +2406,154 @@ static bAnimChannelType ACF_SHAPEKEY=
 	acf_shapekey_setting_ptr		/* pointer for setting */
 };
 
-/* Grease Pencil entries  ------------------------------------------- */
-// XXX ... this is currently not restored yet
+/* GPencil Datablock ------------------------------------------- */
 
-#if 0
-static void dummy_olddraw_gpencil ()
+/* get backdrop color for gpencil datablock widget */
+static void acf_gpd_color(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale), float *color)
 {
-	/* determine what needs to be drawn */
-	switch (ale->type) {
-		case ANIMTYPE_GPDATABLOCK: /* gpencil datablock */
+	/* these are ID-blocks, but not exactly standalone... */
+	UI_GetThemeColorShade3fv(TH_DOPESHEET_CHANNELSUBOB, 20, color);
+}
+
+// TODO: just get this from RNA?
+static int acf_gpd_icon(bAnimListElem *UNUSED(ale))
 		{
-			bGPdata *gpd = (bGPdata *)ale->data;
-			ScrArea *sa = (ScrArea *)ale->owner; // XXX depreceated...
+	return ICON_GREASEPENCIL;
+}
 			
-			indent = 0;
-			group= 3;
+/* check if some setting exists for this channel */
+static short acf_gpd_setting_valid(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale), int setting)
+{
+	switch (setting) {
+		/* only select and expand supported */
+		case ACHANNEL_SETTING_SELECT:
+		case ACHANNEL_SETTING_EXPAND:
+			return 1;
 			
-			/* only show expand if there are any channels */
-			if (gpd->layers.first) {
-				if (gpd->flag & GP_DATA_EXPAND)
-					expand = ICON_TRIA_DOWN;
-				else
-					expand = ICON_TRIA_RIGHT;
+		default:
+			return 0;
 			}
+}
 			
-			switch (sa->spacetype) {
-				case SPACE_VIEW3D:
+/* get the appropriate flag(s) for the setting when it is valid  */
+static int acf_gpd_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 				{
-					/* this shouldn't cause any overflow... */
-					//sprintf(name, "View3D:%s", view3d_get_name(sa->spacedata.first)); // XXX missing func..
-					strcpy(name, "View3D");
-					special= ICON_VIEW3D;
+	/* clear extra return data first */
+	*neg= 0;
+	
+	switch (setting) {
+		case ACHANNEL_SETTING_SELECT: /* selected */
+			return AGRP_SELECTED;
+			
+		case ACHANNEL_SETTING_EXPAND: /* expanded */
+			return GP_DATA_EXPAND;
 				}
-					break;
-				case SPACE_NODE:
+	
+	/* this shouldn't happen */
+	return 0;
+}
+
+/* get pointer to the setting */
+static void *acf_gpd_setting_ptr(bAnimListElem *ale, int UNUSED(setting), short *type)
 				{
-					SpaceNode *snode= sa->spacedata.first;
-					char treetype[12];
+	bGPdata *gpd= (bGPdata *)ale->data;
 					
-					if (snode->treetype == 1)
-						strcpy(treetype, "Composite");
-					else
-						strcpy(treetype, "Material");
-					sprintf(name, "Nodes:%s", treetype);
+	/* all flags are just in gpd->flag for now... */
+	GET_ACF_FLAG_PTR(gpd->flag);
+}
 					
-					special= ICON_NODETREE;
-				}
-					break;
-				case SPACE_SEQ:
+/* gpencil datablock type define */
+static bAnimChannelType ACF_GPD = 
 				{
-					SpaceSeq *sseq= sa->spacedata.first;
-					char imgpreview[10];
+	"GPencil Datablock",			/* type name */
 					
-					switch (sseq->mainb) {
-						case 1: 	sprintf(imgpreview, "Image..."); 	break;
-						case 2: 	sprintf(imgpreview, "Luma..."); 	break;
-						case 3: 	sprintf(imgpreview, "Chroma...");	break;
-						case 4: 	sprintf(imgpreview, "Histogram");	break;
+	acf_gpd_color,					/* backdrop color */
+	acf_group_backdrop,				/* backdrop */
+	acf_generic_indention_0,		/* indent level */
+	acf_generic_group_offset,		/* offset */
 						
-						default:	sprintf(imgpreview, "Sequence");	break;
-					}
-					sprintf(name, "Sequencer:%s", imgpreview);
+	acf_generic_idblock_name,		/* name */
+	acf_gpd_icon,					/* icon */
 					
-					special= ICON_SEQUENCE;
-				}
-					break;
-				case SPACE_IMAGE:
+	acf_gpd_setting_valid,			/* has setting */
+	acf_gpd_setting_flag,			/* flag for setting */
+	acf_gpd_setting_ptr				/* pointer for setting */
+};
+
+/* GPencil Layer ------------------------------------------- */
+
+/* name for grase pencil layer entries */
+static void acf_gpl_name(bAnimListElem *ale, char *name)
 				{
-					SpaceImage *sima= sa->spacedata.first;
+	bGPDlayer *gpl = (bGPDlayer *)ale->data;
 					
-					if (sima->image)
-						sprintf(name, "Image:%s", sima->image->id.name+2);
-					else
-						strcpy(name, "Image:<None>");
-						
-					special= ICON_IMAGE_COL;
+	if (gpl && name)
+		BLI_strncpy(name, gpl->info, ANIM_CHAN_NAME_SIZE);
 				}
-					break;
 				
+/* check if some setting exists for this channel */
+static short acf_gpl_setting_valid(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale), int setting)
+{
+	switch (setting) {
+		/* unsupported */
+		case ACHANNEL_SETTING_EXPAND: /* gpencil layers are more like F-Curves than groups */
+		case ACHANNEL_SETTING_VISIBLE: /* graph editor only */
+			return 0;
+		
+		/* always available */
 				default:
-				{
-					sprintf(name, "<Unknown GP-Data Source>");
-					special= -1;
+			return 1;
 				}
-					break;
 			}
-		}
-			break;
-		case ANIMTYPE_GPLAYER: /* gpencil layer */
+
+/* get the appropriate flag(s) for the setting when it is valid  */
+static int acf_gpl_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 		{
-			bGPDlayer *gpl = (bGPDlayer *)ale->data;
+	/* clear extra return data first */
+	*neg= 0;
 			
-			indent = 0;
-			special = -1;
-			expand = -1;
-			group = 1;
+	switch (setting) {
+		case ACHANNEL_SETTING_SELECT: /* selected */
+			return GP_LAYER_SELECT;
 			
-			if (EDITABLE_GPL(gpl))
-				protect = ICON_UNLOCKED;
-			else
-				protect = ICON_LOCKED;
+		case ACHANNEL_SETTING_MUTE: /* muted */
+			return GP_LAYER_HIDE;
 				
-			if (gpl->flag & GP_LAYER_HIDE)
-				mute = ICON_MUTE_IPO_ON;
-			else
-				mute = ICON_MUTE_IPO_OFF;
+		case ACHANNEL_SETTING_PROTECT: /* protected */
+			//*neg= 1; - if we change this to edtiability
+			return GP_LAYER_LOCKED;
 			
-			sel = SEL_GPL(gpl);
-			BLI_snprintf(name, 32, gpl->info);
+		default: /* unsupported */
+			return 0;
 		}
-			break;
 	}	
 	
-	if (group == 3) {
-		/* only for gp-data channels */
-		UI_ThemeColorShade(TH_GROUP, 20);
-		uiSetRoundBox((expand == ICON_TRIA_DOWN)? (1):(1|8));
-		gl_round_box(GL_POLYGON, x+offset,  yminc, (float)ACHANNEL_NAMEWIDTH, ymaxc, 8);
+/* get pointer to the setting */
+static void *acf_gpl_setting_ptr(bAnimListElem *ale, int UNUSED(setting), short *type)
+{
+	bGPDlayer *gpl= (bGPDlayer *)ale->data;
+	
+	/* all flags are just in agrp->flag for now... */
+	GET_ACF_FLAG_PTR(gpl->flag);
 	}
-}
-#endif
+
+/* grease pencil layer type define */
+static bAnimChannelType ACF_GPL = 
+{
+	"GPencil Layer",				/* type name */
+	
+	acf_generic_channel_color,		/* backdrop color */
+	acf_generic_channel_backdrop,	/* backdrop */
+	acf_generic_indention_flexible,	/* indent level */
+	acf_generic_group_offset,		/* offset */
+	
+	acf_gpl_name,					/* name */
+	NULL,							/* icon */
+	
+	acf_gpl_setting_valid,			/* has setting */
+	acf_gpl_setting_flag,			/* flag for setting */
+	acf_gpl_setting_ptr				/* pointer for setting */
+};
 
 /* *********************************************** */
 /* Type Registration and General Access */
@@ -2489,12 +2600,12 @@ void ANIM_init_channel_typeinfo_data (void)
 		animchannelTypeInfo[type++]= &ACF_DSARM;		/* Armature Channel */
 		animchannelTypeInfo[type++]= &ACF_DSMESH;		/* Mesh Channel */
 		animchannelTypeInfo[type++]= &ACF_DSTEX;		/* Texture Channel */
+		animchannelTypeInfo[type++]= &ACF_DSLAT;		/* Lattice Channel */
 		
 		animchannelTypeInfo[type++]= &ACF_SHAPEKEY;		/* ShapeKey */
 		
-			// XXX not restored yet
-		animchannelTypeInfo[type++]= NULL;				/* Grease Pencil Datablock */ 
-		animchannelTypeInfo[type++]= NULL;				/* Grease Pencil Layer */ 
+		animchannelTypeInfo[type++]= &ACF_GPD;			/* Grease Pencil Datablock */ 
+		animchannelTypeInfo[type++]= &ACF_GPL;			/* Grease Pencil Layer */ 
 		
 			// TODO: these types still need to be implemented!!!
 			// probably need a few extra flags for these special cases...
@@ -2533,13 +2644,13 @@ void ANIM_channel_debug_print_info (bAnimListElem *ale, short indent_level)
 	
 	/* print info */
 	if (acf) {
-		char name[256]; /* hopefully this will be enough! */
+		char name[ANIM_CHAN_NAME_SIZE]; /* hopefully this will be enough! */
 		
 		/* get UI name */
 		if (acf->name)
 			acf->name(ale, name);
 		else
-			sprintf(name, "<No name>");
+			BLI_strncpy(name, "<No name>", sizeof(name));
 			
 		/* print type name + ui name */
 		printf("ChanType: <%s> Name: \"%s\"\n", acf->channel_type_name, name);
@@ -2772,7 +2883,7 @@ void ANIM_channel_draw (bAnimContext *ac, bAnimListElem *ale, float yminc, float
 	
 	/* step 5) draw name ............................................... */
 	if (acf->name) {
-		char name[256]; /* hopefully this will be enough! */
+		char name[ANIM_CHAN_NAME_SIZE]; /* hopefully this will be enough! */
 		
 		/* set text color */
 		if (selected)
@@ -3241,7 +3352,7 @@ void ANIM_channel_draw_widgets (bAnimContext *ac, bAnimListElem *ale, uiBlock *b
 						uiBut *but;
 						
 						/* create the slider button, and assign relevant callback to ensure keyframes are inserted... */
-						but= uiDefAutoButR(block, &ptr, prop, array_index, "", 0, (int)v2d->cur.xmax-offset, ymid, SLIDER_WIDTH, (int)ymaxc-yminc);
+						but= uiDefAutoButR(block, &ptr, prop, array_index, "", ICON_NULL, (int)v2d->cur.xmax-offset, ymid, SLIDER_WIDTH, (int)ymaxc-yminc);
 						
 						/* assign keyframing function according to slider type */
 						if (ale->type == ANIMTYPE_SHAPEKEY)

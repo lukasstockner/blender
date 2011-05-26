@@ -35,6 +35,7 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_voxel.h"
+#include "BLI_utildefines.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -262,8 +263,6 @@ static void cache_voxeldata(struct Render *re,Tex *tex)
 	FILE *fp;
 	int curframe;
 	char path[sizeof(vd->source_path)];
-	
-	if (!vd) return;
 	
 	/* only re-cache if dataset needs updating */
 	if ((vd->flag & TEX_VD_STILL) || (vd->cachedframe == re->r.cfra))

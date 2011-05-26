@@ -175,6 +175,14 @@ static void rna_BezTriple_ctrlpoint_set(PointerRNA *ptr, const float *values)
 	bt->vec[1][2]= values[2];
 }
 
+static void rna_Curve_texspace_set(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	Curve *cu= (Curve*)ptr->data;
+	
+	if (cu->texflag & CU_AUTOSPACE)
+		tex_space_curve(cu);
+}
+
 static int rna_Curve_texspace_editable(PointerRNA *ptr)
 {
 	Curve *cu= (Curve*)ptr->data;
@@ -278,7 +286,7 @@ static void rna_BPoint_array_begin(CollectionPropertyIterator *iter, PointerRNA 
 
 static void rna_Curve_update_data_id(Main *bmain, Scene *scene, ID *id)
 {
-	DAG_id_tag_update(id, OB_RECALC_DATA);
+	DAG_id_tag_update(id, 0);
 	WM_main_add_notifier(NC_GEOM|ND_DATA, id);
 }
 
@@ -1100,7 +1108,7 @@ static void rna_def_curve_spline_points(BlenderRNA *brna, PropertyRNA *cprop)
 	//PropertyRNA *prop;
 
 	FunctionRNA *func;
-	PropertyRNA *parm;
+	//PropertyRNA *parm;
 
 	RNA_def_property_srna(cprop, "SplinePoints");
 	srna= RNA_def_struct(brna, "SplinePoints", NULL);
@@ -1110,7 +1118,7 @@ static void rna_def_curve_spline_points(BlenderRNA *brna, PropertyRNA *cprop)
 	func= RNA_def_function(srna, "add", "rna_Curve_spline_points_add");
 	RNA_def_function_ui_description(func, "Add a number of points to this spline.");
 	RNA_def_function_flag(func, FUNC_USE_SELF_ID|FUNC_USE_REPORTS);
-	parm= RNA_def_int(func, "number", 1, INT_MIN, INT_MAX, "Number", "Number of points to add to the spline", 0, INT_MAX);
+	RNA_def_int(func, "number", 1, INT_MIN, INT_MAX, "Number", "Number of points to add to the spline", 0, INT_MAX);
 
 	/*
 	func= RNA_def_function(srna, "remove", "rna_Curve_spline_remove");
@@ -1127,7 +1135,7 @@ static void rna_def_curve_spline_bezpoints(BlenderRNA *brna, PropertyRNA *cprop)
 	//PropertyRNA *prop;
 
 	FunctionRNA *func;
-	PropertyRNA *parm;
+	//PropertyRNA *parm;
 
 	RNA_def_property_srna(cprop, "SplineBezierPoints");
 	srna= RNA_def_struct(brna, "SplineBezierPoints", NULL);
@@ -1137,7 +1145,7 @@ static void rna_def_curve_spline_bezpoints(BlenderRNA *brna, PropertyRNA *cprop)
 	func= RNA_def_function(srna, "add", "rna_Curve_spline_bezpoints_add");
 	RNA_def_function_ui_description(func, "Add a number of points to this spline.");
 	RNA_def_function_flag(func, FUNC_USE_SELF_ID|FUNC_USE_REPORTS);
-	parm= RNA_def_int(func, "number", 1, INT_MIN, INT_MAX, "Number", "Number of points to add to the spline", 0, INT_MAX);
+	RNA_def_int(func, "number", 1, INT_MIN, INT_MAX, "Number", "Number of points to add to the spline", 0, INT_MAX);
 
 	/*
 	func= RNA_def_function(srna, "remove", "rna_Curve_spline_remove");
@@ -1355,6 +1363,7 @@ static void rna_def_curve(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "use_auto_texspace", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "texflag", CU_AUTOSPACE);
 	RNA_def_property_ui_text(prop, "Auto Texture Space", "Adjusts active object's texture space automatically when transforming object");
+	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, "rna_Curve_texspace_set");
 	
 	prop= RNA_def_property(srna, "texspace_location", PROP_FLOAT, PROP_TRANSLATION);
 	RNA_def_property_array(prop, 3);

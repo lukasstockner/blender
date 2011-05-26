@@ -37,7 +37,7 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "BKE_utildefines.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_sound.h"
 
@@ -891,6 +891,21 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
 	rna_def_userdef_theme_spaces_edge(srna);
 	rna_def_userdef_theme_spaces_face(srna);
 	rna_def_userdef_theme_spaces_curves(srna, 1);
+
+	prop= RNA_def_property(srna, "extra_edge_len", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Edge Length Text", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop= RNA_def_property(srna, "extra_face_angle", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Face Angle Text", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop= RNA_def_property(srna, "extra_face_area", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Face Area Text", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
 	prop= RNA_def_property(srna, "editmesh_active", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_array(prop, 4);
@@ -2632,6 +2647,12 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_CONTINUOUS_MOUSE);
 	RNA_def_property_ui_text(prop, "Continuous Grab", "Allow moving the mouse outside the view on some manipulations (transform, ui control drag)");
 	
+	/* tweak tablet & mouse preset */
+	prop= RNA_def_property(srna, "drag_threshold", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "dragthreshold");
+	RNA_def_property_range(prop, 3, 40);
+	RNA_def_property_ui_text(prop, "Drag Threshold", "Amount of pixels you have to drag before dragging UI items happens");
+	
 	prop= RNA_def_property(srna, "ndof_pan_speed", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "ndof_pan");
 	RNA_def_property_range(prop, 0, 200);
@@ -2738,7 +2759,7 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "render_output_directory", PROP_STRING, PROP_DIRPATH);
 	RNA_def_property_string_sdna(prop, NULL, "renderdir");
-	RNA_def_property_ui_text(prop, "Render Output Directory", "The default directory for rendering output");
+	RNA_def_property_ui_text(prop, "Render Output Directory", "The default directory for rendering output, for new scenes");
 
 	prop= RNA_def_property(srna, "script_directory", PROP_STRING, PROP_DIRPATH);
 	RNA_def_property_string_sdna(prop, NULL, "pythondir");

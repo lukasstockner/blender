@@ -144,6 +144,7 @@ set(SRC
 	BKE_anim.h
 	BKE_animsys.h
 	BKE_armature.h
+	BKE_array_mallocn.h
 	BKE_blender.h
 	BKE_bmesh.h
 	BKE_bmeshCustomData.h
@@ -302,4 +303,4 @@ if(MSVC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX")
 endif()
 
-blenderlib(bf_blenkernel "${SRC}" "${INC}")
+blender_add_lib(bf_blenkernel "${SRC}" "${INC}")

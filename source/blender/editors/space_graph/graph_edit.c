@@ -38,6 +38,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
@@ -60,6 +61,7 @@
 #include "ED_keyframes_edit.h"
 #include "ED_screen.h"
 #include "ED_transform.h"
+#include "ED_markers.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -119,6 +121,10 @@ void get_graph_keyframe_extents (bAnimContext *ac, float *xmin, float *xmax, flo
 			if ((ymax) && (tymax > *ymax)) 		*ymax= tymax;
 		}
 		
+		/* ensure that the extents are not too extreme that view implodes...*/
+		if ((xmin && xmax) && (fabs(*xmax - *xmin) < 0.1)) *xmax += 0.1;
+		if ((ymin && ymax) && (fabs(*ymax - *ymin) < 0.1)) *ymax += 0.1;
+		
 		/* free memory */
 		BLI_freelistN(&anim_data);
 	}
@@ -175,7 +181,7 @@ void GRAPH_OT_previewrange_set (wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= graphkeys_previewrange_exec;
-	ot->poll= graphop_visible_keyframes_poll;
+	ot->poll= ED_operator_ipo_active; // XXX: unchecked poll to get fsamples working too, but makes modifier damage trickier...
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -223,7 +229,7 @@ void GRAPH_OT_view_all (wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= graphkeys_viewall_exec;
-	ot->poll= graphop_visible_keyframes_poll;
+	ot->poll= ED_operator_ipo_active; // XXX: unchecked poll to get fsamples working too, but makes modifier damage trickier...
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -408,7 +414,6 @@ static void insert_graph_keys(bAnimContext *ac, short mode)
 	
 	ReportList *reports = ac->reports;
 	Scene *scene= ac->scene;
-	float cfra= (float)CFRA;
 	short flag = 0;
 	
 	/* filter data */
@@ -424,6 +429,7 @@ static void insert_graph_keys(bAnimContext *ac, short mode)
 	for (ale= anim_data.first; ale; ale= ale->next) {
 		AnimData *adt= ANIM_nla_mapping_get(ac, ale);
 		FCurve *fcu= (FCurve *)ale->key_data;
+		float cfra;
 		
 		/* adjust current frame for NLA-mapping */
 		if (adt)
@@ -1769,13 +1775,7 @@ static void mirror_graph_keys(bAnimContext *ac, short mode)
 		TimeMarker *marker= NULL;
 		
 		/* find first selected marker */
-		if (ac->markers) {
-			for (marker= ac->markers->first; marker; marker=marker->next) {
-				if (marker->flag & SELECT) {
-					break;
-				}
-			}
-		}
+		marker= ED_markers_get_first_selected(ac->markers);
 		
 		/* store marker's time (if available) */
 		if (marker)
@@ -1922,7 +1922,7 @@ static int graph_fmodifier_add_invoke (bContext *C, wmOperator *op, wmEvent *UNU
 	uiLayout *layout;
 	int i;
 	
-	pup= uiPupMenuBegin(C, "Add F-Curve Modifier", 0);
+	pup= uiPupMenuBegin(C, "Add F-Curve Modifier", ICON_NULL);
 	layout= uiPupMenuLayout(pup);
 	
 	/* start from 1 to skip the 'Invalid' modifier type */
@@ -1935,7 +1935,7 @@ static int graph_fmodifier_add_invoke (bContext *C, wmOperator *op, wmEvent *UNU
 			continue;
 		
 		/* create operator menu item with relevant properties filled in */
-		props_ptr= uiItemFullO(layout, "GRAPH_OT_fmodifier_add", fmi->name, 0, NULL, WM_OP_EXEC_REGION_WIN, UI_ITEM_O_RETURN_PROPS);
+		props_ptr= uiItemFullO(layout, "GRAPH_OT_fmodifier_add", fmi->name, ICON_NULL, NULL, WM_OP_EXEC_REGION_WIN, UI_ITEM_O_RETURN_PROPS);
 			/* the only thing that gets set from the menu is the type of F-Modifier to add */
 		RNA_enum_set(&props_ptr, "type", i);
 			/* the following properties are just repeats of existing ones... */
@@ -1966,7 +1966,7 @@ static int graph_fmodifier_add_exec(bContext *C, wmOperator *op)
 	/* filter data */
 	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_CURVESONLY | ANIMFILTER_NODUPLIS);
 	if (RNA_boolean_get(op->ptr, "only_active"))
-		filter |= ANIMFILTER_ACTIVE;
+		filter |= ANIMFILTER_ACTIVE; // FIXME: enforce in this case only a single channel to get handled?
 	else
 		filter |= (ANIMFILTER_SEL|ANIMFILTER_CURVEVISIBLE);
 	ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
@@ -1980,7 +1980,7 @@ static int graph_fmodifier_add_exec(bContext *C, wmOperator *op)
 		fcm= add_fmodifier(&fcu->modifiers, type);
 		if (fcm)
 			set_active_fmodifier(&fcu->modifiers, fcm);
-		else { // TODO: stop when this happens?
+		else {
 			BKE_report(op->reports, RPT_ERROR, "Modifier couldn't be added. See console for details.");
 			break;
 		}

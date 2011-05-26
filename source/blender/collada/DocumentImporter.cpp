@@ -45,6 +45,11 @@
 
 #include "COLLADASaxFWLLoader.h"
 
+#include "BLI_listbase.h"
+#include "BLI_math.h"
+#include "BLI_string.h"
+#include "BLI_utildefines.h"
+
 #include "BKE_main.h"
 #include "BKE_library.h"
 #include "BKE_texture.h"
@@ -56,10 +61,6 @@
 #include "BKE_material.h"
 #include "BKE_utildefines.h"
 #include "BKE_image.h"
-
-#include "BLI_listbase.h"
-#include "BLI_math.h"
-#include "BLI_string.h"
 
 #include "DNA_camera_types.h"
 #include "DNA_lamp_types.h"
@@ -308,7 +309,7 @@ private:
 	Object* DocumentImporter::create_instance_node(Object *source_ob, COLLADAFW::Node *source_node, COLLADAFW::Node *instance_node, Scene *sce, bool is_library_node)
 	{
 		Object *obn = copy_object(source_ob);
-		obn->recalc |= OB_RECALC_ALL;
+		obn->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;
 		scene_add_base(sce, obn);
 
 		if (instance_node)

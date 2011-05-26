@@ -39,6 +39,7 @@
 #include "BLI_math.h"
 #include "BLI_editVert.h"
 #include "BLI_rand.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_colortools.h"
 #include "BKE_context.h"
@@ -265,9 +266,7 @@ int ED_space_image_show_paint(SpaceImage *sima)
 
 int ED_space_image_show_uvedit(SpaceImage *sima, Object *obedit)
 {
-	if(ED_space_image_show_render(sima))
-		return 0;
-	if(ED_space_image_show_paint(sima))
+	if(sima && (ED_space_image_show_render(sima) || ED_space_image_show_paint(sima)))
 		return 0;
 	
 	if(obedit && obedit->type == OB_MESH) {
@@ -393,6 +392,7 @@ static SpaceLink *image_new(const bContext *UNUSED(C))
 	simage->iuser.frames= 100;
 	
 	scopes_new(&simage->scopes);
+	simage->sample_line_hist.height= 100;
 
 	/* header */
 	ar= MEM_callocN(sizeof(ARegion), "header for image");
@@ -586,13 +586,13 @@ static void image_refresh(const bContext *C, ScrArea *UNUSED(sa))
 		MTFace *tf;
 		
 		if(em && EM_texFaceCheck(em)) {
-			sima->image= ima= NULL;
+			sima->image= NULL;
 			
 			tf = EM_get_active_mtface(em, NULL, NULL, 1); /* partially selected face is ok */
 			
 			if(tf && (tf->mode & TF_TEX)) {
 				/* don't need to check for pin here, see above */
-				sima->image= ima= tf->tpage;
+				sima->image= tf->tpage;
 				
 				if(sima->flag & SI_EDITTILE);
 				else sima->curtile= tf->tile;
@@ -763,6 +763,9 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 	View2D *v2d= &ar->v2d;
 	//View2DScrollers *scrollers;
 	float col[3];
+	
+	/* XXX not supported yet, disabling for now */
+	scene->r.scemode &= ~R_COMP_CROP;
 	
 	/* clear and setup matrix */
 	UI_GetThemeColor3fv(TH_BACK, col);

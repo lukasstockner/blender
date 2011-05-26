@@ -41,6 +41,7 @@
 #include "BKE_texture.h"
 
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "WM_types.h"
 
@@ -318,8 +319,7 @@ static void rna_Node_image_layer_update(Main *bmain, Scene *scene, PointerRNA *p
 	ImageUser *iuser= node->storage;
 	
 	BKE_image_multilayer_index(ima->rr, iuser);
-	/* do not call below function, it frees the multilayer exr */
-	/* BKE_image_signal(ima, iuser, IMA_SIGNAL_SRC_CHANGE); */
+	BKE_image_signal(ima, iuser, IMA_SIGNAL_SRC_CHANGE);
 	
 	rna_Node_update(bmain, scene, ptr);
 }
@@ -1298,7 +1298,7 @@ static void def_cmp_output_file(StructRNA *srna)
 	
 	RNA_def_struct_sdna_from(srna, "NodeImageFile", "storage");
 	
-	prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_DIRPATH);
+	prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
 	RNA_def_property_string_sdna(prop, NULL, "name");
 	RNA_def_property_ui_text(prop, "File Path", "Output path for the image, same functionality as render output.");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
@@ -2012,9 +2012,9 @@ static void def_cmp_glare(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Streaks", "Total number of streaks");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
-	prop = RNA_def_property(srna, "angle_offset", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "angle_ofs");
-	RNA_def_property_range(prop, 0.0f, 180.0f);
+	prop = RNA_def_property(srna, "angle_offset", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "angle_ofs");
+	RNA_def_property_range(prop, 0, 180);
 	RNA_def_property_ui_text(prop, "Angle Offset", "Streak angle offset in degrees");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
@@ -2383,7 +2383,7 @@ static void rna_def_composite_nodetree_api(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT|FUNC_USE_REPORTS);
 	parm= RNA_def_enum(func, "type", compositor_node_type_items, 0, "Type", "Type of node to add");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
-	parm= RNA_def_pointer(func, "group", "NodeTree", "", "The group tree");
+	RNA_def_pointer(func, "group", "NodeTree", "", "The group tree");
 	/* return value */
 	parm= RNA_def_pointer(func, "node", "Node", "", "New node.");
 	RNA_def_function_return(func, parm);
@@ -2411,7 +2411,7 @@ static void rna_def_shader_nodetree_api(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT|FUNC_USE_REPORTS);
 	parm= RNA_def_enum(func, "type", shader_node_type_items, 0, "Type", "Type of node to add");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
-	parm= RNA_def_pointer(func, "group", "NodeTree", "", "The group tree");
+	RNA_def_pointer(func, "group", "NodeTree", "", "The group tree");
 	/* return value */
 	parm= RNA_def_pointer(func, "node", "Node", "", "New node.");
 	RNA_def_function_return(func, parm);
@@ -2439,7 +2439,7 @@ static void rna_def_texture_nodetree_api(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT|FUNC_USE_REPORTS);
 	parm= RNA_def_enum(func, "type", texture_node_type_items, 0, "Type", "Type of node to add");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
-	parm= RNA_def_pointer(func, "group", "NodeTree", "", "The group tree");
+	RNA_def_pointer(func, "group", "NodeTree", "", "The group tree");
 	/* return value */
 	parm= RNA_def_pointer(func, "node", "Node", "", "New node.");
 	RNA_def_function_return(func, parm);

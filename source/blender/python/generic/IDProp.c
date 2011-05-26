@@ -24,11 +24,13 @@
  */
 
 #include "IDProp.h"
+#include "MEM_guardedalloc.h"
+
+#include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_idprop.h"
-#include "BKE_utildefines.h"
-#include "BLI_string.h"
-#include "MEM_guardedalloc.h"
+
 
 #define USE_STRING_COERCE
 
@@ -259,7 +261,7 @@ static int idp_sequence_type(PyObject *seq)
 	PyObject *item;
 	int type= IDP_INT;
 
-	int i, len = PySequence_Length(seq);
+	int i, len = PySequence_Size(seq);
 	for (i=0; i < len; i++) {
 		item = PySequence_GetItem(seq, i);
 		if (PyFloat_Check(item)) {
@@ -329,7 +331,7 @@ const char *BPy_IDProperty_Map_ValidateAndCreate(const char *name, IDProperty *g
 		we assume IDP_INT unless we hit a float
 		number; then we assume it's */
 
-		val.array.len = PySequence_Length(ob);
+		val.array.len = PySequence_Size(ob);
 
 		switch(val.array.type) {
 		case IDP_DOUBLE:

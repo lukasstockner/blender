@@ -36,6 +36,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 #include "BLI_editVert.h"
 #include "BLI_ghash.h"
 #include "BLI_rand.h"
@@ -460,7 +461,7 @@ void ED_object_enter_editmode(bContext *C, int flag)
 		scene->obedit= ob;
 		ED_armature_to_edit(ob);
 		/* to ensure all goes in restposition and without striding */
-		DAG_id_tag_update(&ob->id, OB_RECALC_ALL); // XXX: should this be OB_RECALC_DATA?
+		DAG_id_tag_update(&ob->id, OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME); // XXX: should this be OB_RECALC_DATA?
 
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_EDITMODE_ARMATURE, scene);
 	}
@@ -524,7 +525,10 @@ static int editmode_toggle_poll(bContext *C)
 	if(ELEM(NULL, ob, ob->data) || ((ID *)ob->data)->lib)
 		return 0;
 
-	return ob && (ob->type == OB_MESH || ob->type == OB_ARMATURE ||
+	if (ob->restrictflag & OB_RESTRICT_VIEW)
+		return 0;
+
+	return (ob->type == OB_MESH || ob->type == OB_ARMATURE ||
 			  ob->type == OB_FONT || ob->type == OB_MBALL ||
 			  ob->type == OB_LATTICE || ob->type == OB_SURF ||
 			  ob->type == OB_CURVE);

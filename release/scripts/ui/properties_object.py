@@ -36,11 +36,11 @@ class OBJECT_PT_context_object(ObjectButtonsPanel, bpy.types.Panel):
         space = context.space_data
         ob = context.object
 
+        if space.use_pin_id:
+            layout.template_ID(space, "pin_id")
+        else:
         row = layout.row()
         row.label(text="", icon='OBJECT_DATA')
-        if space.use_pin_id:
-            row.template_ID(space, "pin_id")
-        else:
             row.prop(ob, "name", text="")
 
 
@@ -69,6 +69,10 @@ class OBJECT_PT_transform(ObjectButtonsPanel, bpy.types.Panel):
 
             layout.prop(ob, "rotation_mode")
 
+
+class OBJECT_PT_delta_transform(ObjectButtonsPanel, bpy.types.Panel):
+    bl_label = "Delta Transform"
+    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         layout = self.layout
@@ -332,9 +336,10 @@ class OBJECT_PT_onion_skinning(OnionSkinButtonsPanel): #, bpy.types.Panel): # in
         self.draw_settings(context, ob.animation_visualisation)
 
 
-class OBJECT_PT_custom_props(bpy.types.Panel, PropertyPanel, ObjectButtonsPanel):
+class OBJECT_PT_custom_props(ObjectButtonsPanel, PropertyPanel, bpy.types.Panel):
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
     _context_path = "object"
+    _property_type = bpy.types.Object
 
 
 def register():

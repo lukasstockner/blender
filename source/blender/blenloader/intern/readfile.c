@@ -89,6 +89,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_anim.h"
 #include "BKE_action.h"
@@ -382,10 +383,10 @@ static void add_main_to_main(Main *mainvar, Main *from)
 	ListBase *lbarray[MAX_LIBARRAY], *fromarray[MAX_LIBARRAY];
 	int a;
 
-	a= set_listbasepointers(mainvar, lbarray);
+	set_listbasepointers(mainvar, lbarray);
 	a= set_listbasepointers(from, fromarray);
 	while(a--) {
-		addlisttolist(lbarray[a], fromarray[a]);
+		BLI_movelisttolist(lbarray[a], fromarray[a]);
 	}
 }
 
@@ -2104,8 +2105,11 @@ static void direct_link_nodetree(FileData *fd, bNodeTree *ntree)
 				else if(ELEM3(node->type, CMP_NODE_IMAGE, CMP_NODE_VIEWER, CMP_NODE_SPLITVIEWER))
 					((ImageUser *)node->storage)->ok= 1;
 			}
-			else if( ntree->type==NTREE_TEXTURE && (node->type==TEX_NODE_CURVE_RGB || node->type==TEX_NODE_CURVE_TIME) ) {
+			else if( ntree->type==NTREE_TEXTURE) {
+				if(node->type==TEX_NODE_CURVE_RGB || node->type==TEX_NODE_CURVE_TIME)
 				direct_link_curvemapping(fd, node->storage);
+				else if(node->type==TEX_NODE_IMAGE)
+					((ImageUser *)node->storage)->ok= 1;
 			}
 		}
 		link_list(fd, &node->inputs);
@@ -2201,6 +2205,12 @@ static void direct_link_constraints(FileData *fd, ListBase *lb)
 				con->lin_error = 0.f;
 				con->rot_error = 0.f;
 			}
+			case CONSTRAINT_TYPE_CHILDOF:
+			{
+				/* XXX version patch, in older code this flag wasn't always set, and is inherent to type */
+				if(con->ownspace == CONSTRAINT_SPACE_POSE)
+					con->flag |= CONSTRAINT_SPACEONCE;
+			}
 				break;
 		}
 	}
@@ -2238,7 +2248,7 @@ static void lib_link_pose(FileData *fd, Object *ob, bPose *pose)
 		/* hurms... loop in a loop, but yah... later... (ton) */
 		pchan->bone= get_named_bone(arm, pchan->name);
 		
-		pchan->custom= newlibadr(fd, arm->id.lib, pchan->custom);
+		pchan->custom= newlibadr_us(fd, arm->id.lib, pchan->custom);
 		if(pchan->bone==NULL)
 			rebuild= 1;
 		else if(ob->id.lib==NULL && arm->id.lib) {
@@ -2249,7 +2259,7 @@ static void lib_link_pose(FileData *fd, Object *ob, bPose *pose)
 	}
 	
 	if(rebuild) {
-		ob->recalc= OB_RECALC_ALL;
+		ob->recalc= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;
 		pose->flag |= POSE_RECALC;
 	}
 }
@@ -2918,11 +2928,22 @@ static void direct_link_material(FileData *fd, Material *ma)
 }
 
 /* ************ READ PARTICLE SETTINGS ***************** */
-
+/* update this also to writefile.c */
+static const char *ptcache_data_struct[] = {
+	"", // BPHYS_DATA_INDEX
+	"", // BPHYS_DATA_LOCATION
+	"", // BPHYS_DATA_VELOCITY
+	"", // BPHYS_DATA_ROTATION
+	"", // BPHYS_DATA_AVELOCITY / BPHYS_DATA_XCONST */
+	"", // BPHYS_DATA_SIZE:
+	"", // BPHYS_DATA_TIMES:	
+	"BoidData" // case BPHYS_DATA_BOIDS:
+};
 static void direct_link_pointcache(FileData *fd, PointCache *cache)
 {
 	if((cache->flag & PTCACHE_DISK_CACHE)==0) {
 		PTCacheMem *pm;
+		PTCacheExtra *extra;
 		int i;
 
 		link_list(fd, &cache->mem_cache);
@@ -2930,28 +2951,23 @@ static void direct_link_pointcache(FileData *fd, PointCache *cache)
 		pm = cache->mem_cache.first;
 
 		for(; pm; pm=pm->next) {
-			if(pm->index_array)
-				pm->index_array = newdataadr(fd, pm->index_array);
-			
-			/* writedata saved array of ints */
-			if(pm->index_array && (fd->flags & FD_FLAGS_SWITCH_ENDIAN)) {
-				for(i=0; i<pm->totpoint; i++)
-					SWITCH_INT(pm->index_array[i]);
-			}
-			
 			for(i=0; i<BPHYS_TOT_DATA; i++) {
 					pm->data[i] = newdataadr(fd, pm->data[i]);
 				
-				/* XXX the cache saves structs and data without DNA */
-				if(pm->data[i] && (fd->flags & FD_FLAGS_SWITCH_ENDIAN)) {
+				/* the cache saves non-struct data without DNA */
+				if(pm->data[i] && strcmp(ptcache_data_struct[i], "")==0 && (fd->flags & FD_FLAGS_SWITCH_ENDIAN)) {
 					int j, tot= (BKE_ptcache_data_size (i) * pm->totpoint)/4; /* data_size returns bytes */
 					int *poin= pm->data[i];
 					
-					/* XXX fails for boid struct, it has 2 shorts */
 					for(j= 0; j<tot; j++)
 						SWITCH_INT(poin[j]);
 			}
 		}
+			
+			link_list(fd, &pm->extradata);
+
+			for(extra=pm->extradata.first; extra; extra=extra->next)
+				extra->data = newdataadr(fd, extra->data);
 	}
 	}
 	else
@@ -3155,11 +3171,12 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 			for(a=1,pa++; a<psys->totpart; a++, pa++)
 				pa->boid = (pa-1)->boid + 1;
 		}
-		else {
+		else if(psys->particles) {
 			for(a=0,pa=psys->particles; a<psys->totpart; a++, pa++)
 				pa->boid = NULL;
 		}
 
+		psys->fluid_springs = newdataadr(fd, psys->fluid_springs);
 
 		psys->child = newdataadr(fd,psys->child);
 		psys->effectors = NULL;
@@ -3494,7 +3511,7 @@ static void lib_link_object(FileData *fd, Main *main)
 					/* this triggers object_update to always use a copy */
 					ob->proxy->proxy_from= ob;
 					/* force proxy updates after load/undo, a bit weak */
-					ob->recalc= ob->proxy->recalc= OB_RECALC_ALL;
+					ob->recalc= ob->proxy->recalc= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;
 				}
 			}
 			ob->proxy_group= newlibadr(fd, ob->id.lib, ob->proxy_group);
@@ -3790,9 +3807,10 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 					clmd->sim_parms->presets = 0;
 
 				clmd->sim_parms->reset = 0;
+
+				clmd->sim_parms->effector_weights = newdataadr(fd, clmd->sim_parms->effector_weights);
 			}
 
-			clmd->sim_parms->effector_weights = newdataadr(fd, clmd->sim_parms->effector_weights);
 			if(!clmd->sim_parms->effector_weights)
 				clmd->sim_parms->effector_weights = BKE_add_effector_weights(NULL);
 			
@@ -3906,9 +3924,10 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 		} else if (md->type==eModifierType_ParticleSystem) {
 			ParticleSystemModifierData *psmd = (ParticleSystemModifierData*) md;
 
-			psmd->dm=0;
+			psmd->dm= NULL;
 			psmd->psys=newdataadr(fd, psmd->psys);
 			psmd->flag &= ~eParticleSystemFlag_psys_updated;
+			psmd->flag |= eParticleSystemFlag_file_loaded;
 		} else if (md->type==eModifierType_Explode) {
 			ExplodeModifierData *psmd = (ExplodeModifierData*) md;
 
@@ -4294,9 +4313,8 @@ static void link_recurs_seq(FileData *fd, ListBase *lb)
 
 static void direct_link_paint(FileData *fd, Paint **paint)
 {
-	Paint *p;
 /* TODO. is this needed */
-	p= (*paint)= newdataadr(fd, (*paint));
+	(*paint)= newdataadr(fd, (*paint));
 	}
 
 static void direct_link_scene(FileData *fd, Scene *sce)
@@ -4518,6 +4536,7 @@ static void direct_link_windowmanager(FileData *fd, wmWindowManager *wm)
 	wm->drags.first= wm->drags.last= NULL;
 	
 	wm->windrawable= NULL;
+	wm->winactive= NULL;
 	wm->initialized= 0;
 	wm->op_undo_depth= 0;
 }
@@ -5634,12 +5653,14 @@ static BHead *read_global(BlendFileData *bfd, FileData *fd, BHead *bhead)
 	bfd->main->subversionfile= fg->subversion;
 	bfd->main->minversionfile= fg->minversion;
 	bfd->main->minsubversionfile= fg->minsubversion;
+	bfd->main->revision= fg->revision;
 	
 	bfd->winpos= fg->winpos;
 	bfd->fileflags= fg->fileflags;
 	bfd->displaymode= fg->displaymode;
 	bfd->globalf= fg->globalf;
 	BLI_strncpy(bfd->filename, fg->filename, sizeof(bfd->filename));
+	
 	if(G.fileflags & G_FILE_RECOVER)
 		BLI_strncpy(fd->relabase, fg->filename, sizeof(fd->relabase));
 	
@@ -6622,7 +6643,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	/* WATCH IT!!!: pointers from libdata have not been converted */
 
 	if(G.f & G_DEBUG)
-		printf("read file %s\n  Version %d sub %d\n", fd->relabase, main->versionfile, main->subversionfile);
+		printf("read file %s\n  Version %d sub %d svn r%d\n", fd->relabase, main->versionfile, main->subversionfile, main->revision);
 	
 	if(main->versionfile == 100) {
 		/* tex->extend and tex->imageflag have changed: */
@@ -7942,7 +7963,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			if(ob->type==OB_ARMATURE) {
 				if(ob->pose)
 					ob->pose->flag |= POSE_RECALC;
-				ob->recalc |= OB_RECALC_ALL;	// cannot call stuff now (pointers!), done in setup_app_data
+				ob->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;	// cannot call stuff now (pointers!), done in setup_app_data
 
 				/* new generic xray option */
 				arm= newlibadr(fd, lib, ob->data);
@@ -10183,6 +10204,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					ob->pd->shape = PFIELD_SHAPE_PLANE;
 				else if(ob->pd->flag & PFIELD_SURFACE)
 					ob->pd->shape = PFIELD_SHAPE_SURFACE;
+
+				ob->pd->flag |= PFIELD_DO_LOCATION;
 			}
 		}
 	}
@@ -11224,6 +11247,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				part->boids->pitch = 1.0f;
 
 			part->flag &= ~PART_HAIR_REGROW; /* this was a deprecated flag before */
+			part->kink_amp_clump = 1.f; /* keep old files looking similar */
 		}
 
 		for (sc= main->screen.first; sc; sc= sc->id.next) {
@@ -11268,7 +11292,42 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	}
 
 	/* put compatibility code here until next subversion bump */
+	
 	{
+		/* Fix for sample line scope initializing with no height */
+		bScreen *sc;
+		ScrArea *sa;
+		for(sc= main->screen.first; sc; sc= sc->id.next) {
+			sa= sc->areabase.first;
+			while(sa) {
+				SpaceLink *sl;
+				for (sl= sa->spacedata.first; sl; sl= sl->next) {
+					if(sl->spacetype==SPACE_IMAGE) {
+						SpaceImage *sima= (SpaceImage *)sl;
+						if (sima->sample_line_hist.height == 0 )
+							sima->sample_line_hist.height = 100;
+	}
+				}
+				sa= sa->next;
+			}
+		}
+	}
+
+	{
+		Key *key;
+		
+		/* old files could have been saved with slidermin = slidermax = 0.0, but the UI in
+		 * 2.4x would never reveal this to users as a dummy value always ended up getting used
+		 * instead
+		 */
+		for (key = main->key.first; key; key = key->id.next) {
+			KeyBlock *kb;
+			
+			for (kb = key->block.first; kb; kb = kb->next) {
+				if (IS_EQ(kb->slidermin, kb->slidermax) && IS_EQ(kb->slidermax, 0))
+					kb->slidermax = kb->slidermin + 1.0f;
+			}
+		}
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
@@ -12403,7 +12462,7 @@ static void give_base_to_groups(Main *mainvar, Scene *scene)
 			base= scene_add_base(scene, ob);
 			base->flag |= SELECT;
 			base->object->flag= base->flag;
-			ob->recalc |= OB_RECALC_ALL;
+			ob->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;
 			scene->basact= base;
 
 			/* assign the group */
@@ -12583,7 +12642,7 @@ static void append_do_cursor(Scene *scene, Library *curlib, short flag)
 
 static void library_append_end(const bContext *C, Main *mainl, FileData **fd, int idcode, short flag)
 {
-	Main *mainvar= CTX_data_main(C);
+	Main *mainvar;
 	Scene *scene= CTX_data_scene(C);
 	Library *curlib;
 
@@ -12686,7 +12745,7 @@ static int mainvar_count_libread_blocks(Main *mainvar)
 
 	a= set_listbasepointers(mainvar, lbarray);
 	while(a--) {
-		ID *id= lbarray[a]->first;
+		ID *id;
 
 		for (id= lbarray[a]->first; id; id= id->next)
 			if (id->flag & LIB_READ)

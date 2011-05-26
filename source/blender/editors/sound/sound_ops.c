@@ -32,6 +32,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
+
 #include "DNA_packedFile_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
@@ -44,9 +47,6 @@
 #include "BKE_report.h"
 #include "BKE_packedFile.h"
 #include "BKE_sound.h"
-
-#include "BLI_blenlib.h"
-
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -214,7 +214,7 @@ static void unpack_menu(bContext *C, const char *opname, const char *abs_name, c
 	BLI_splitdirstring(local_name, fi);
 	sprintf(local_name, "//%s/%s", folder, fi);
 
-	pup= uiPupMenuBegin(C, "Unpack file", 0);
+	pup= uiPupMenuBegin(C, "Unpack file", ICON_NULL);
 	layout= uiPupMenuLayout(pup);
 
 	uiItemEnumO(layout, opname, "Remove Pack", 0, "method", PF_REMOVE);

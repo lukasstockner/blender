@@ -25,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  * */
 
-#ifndef BLI_MATH_GEOM
-#define BLI_MATH_GEOM
+#ifndef BLI_MATH_GEOM_H
+#define BLI_MATH_GEOM_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,7 +34,7 @@ extern "C" {
 
 #include "BLI_math_inline.h"
 
-#ifdef BLI_MATH_INLINE
+#ifdef BLI_MATH_INLINE_H
 #include "intern/math_geom_inline.c"
 #endif
 
@@ -58,7 +58,8 @@ float dist_to_line_v2(float p[2], float l1[2], float l2[2]);
 float dist_to_line_segment_v2(float p[2], float l1[2], float l2[2]);
 
 float dist_to_line_segment_v3(float p[3], float l1[3], float l2[3]);
-float closest_to_line_v3(float r[3], float p[3], float l1[3], float l2[3]);
+float closest_to_line_v3(float r[3], const float p[3], const float l1[3], const float l2[3]);
+float closest_to_line_v2(float r[2], const float p[2], const float l1[2], const float l2[2]);
 void closest_to_line_segment_v3(float r[3], float p[3], float l1[3], float l2[3]);
 
 /******************************* Intersection ********************************/
@@ -207,5 +208,5 @@ float form_factor_hemi_poly(float p[3], float n[3],
 }
 #endif
 
-#endif /* BLI_MATH_GEOM */
+#endif /* BLI_MATH_GEOM_H */
 

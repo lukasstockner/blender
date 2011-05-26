@@ -41,6 +41,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_editVert.h"
+#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_graph.h"
 #include "BLI_rand.h"
@@ -1690,7 +1691,7 @@ void generateMissingArcsFromNode(RigGraph *rigg, ReebNode *node, int multi_level
 
 void generateMissingArcs(RigGraph *rigg)
 {
-	ReebGraph *reebg = rigg->link_mesh;
+	ReebGraph *reebg;
 	int multi_level_limit = 5;
 	
 	for (reebg = rigg->link_mesh; reebg; reebg = reebg->link_up)
@@ -2731,8 +2732,6 @@ static void retargetGraphs(bContext *C, RigGraph *rigg)
 	BIF_flagMultiArcs(reebg, ARC_FREE);
 	
 	/* return to first level */
-	reebg = rigg->link_mesh;
-	
 	inode = rigg->head;
 	
 	matchMultiResolutionStartingNode(rigg, reebg, inode);
@@ -2888,7 +2887,6 @@ void BIF_retargetArc(bContext *C, ReebArc *earc, RigGraph *template_rigg)
 	Object *ob;
 	RigGraph *rigg;
 	RigArc *iarc;
-	bArmature *arm;
 	char *side_string = scene->toolsettings->skgen_side_string;
 	char *num_string = scene->toolsettings->skgen_num_string;
 	int free_template = 0;
@@ -2896,14 +2894,12 @@ void BIF_retargetArc(bContext *C, ReebArc *earc, RigGraph *template_rigg)
 	if (template_rigg)
 	{
 		ob = template_rigg->ob; 	
-		arm = ob->data;
 	}
 	else
 	{
 		free_template = 1;
 		ob = obedit; 	
-		arm = ob->data;
-		template_rigg = armatureSelectedToGraph(C, ob, arm);
+		template_rigg = armatureSelectedToGraph(C, ob, ob->data);
 	}
 	
 	if (template_rigg->arcs.first == NULL)

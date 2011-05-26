@@ -87,7 +87,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_editVert.h"
 #include "BLI_rand.h"
-
+#include "BLI_utildefines.h"
 
 #include "WM_types.h"
 #include "WM_api.h"
@@ -351,6 +351,12 @@ void recalcData(TransInfo *t)
 		
 		ANIM_animdata_context_getdata(&ac);
 		
+		/* perform flush */
+		if (ac.datatype == ANIMCONT_GPENCIL) {
+			/* flush transform values back to actual coordinates */
+			flushTransGPactionData(t);
+		}
+		else {
 		/* get animdata blocks visible in editor, assuming that these will be the ones where things changed */
 		filter= (ANIMFILTER_VISIBLE | ANIMFILTER_ANIMDATA);
 		ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
@@ -367,6 +373,7 @@ void recalcData(TransInfo *t)
 		
 		/* now free temp channels */
 		BLI_freelistN(&anim_data);
+	}
 	}
 	else if (t->spacetype == SPACE_IPO) {
 		Scene *scene;
@@ -618,7 +625,7 @@ void recalcData(TransInfo *t)
 			if(sima->flag & SI_LIVE_UNWRAP)
 				ED_uvedit_live_unwrap_re_solve();
 			
-			DAG_id_tag_update(t->obedit->data, OB_RECALC_DATA);
+			DAG_id_tag_update(t->obedit->data, 0);
 		}
 	}
 	else if (t->spacetype == SPACE_VIEW3D) {
@@ -638,7 +645,7 @@ void recalcData(TransInfo *t)
 					clipMirrorModifier(t, t->obedit);
 				}
 
-				DAG_id_tag_update(t->obedit->data, OB_RECALC_DATA);  /* sets recalc flags */
+				DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
 
 				if (t->state == TRANS_CANCEL) {
 					while(nu) {
@@ -656,7 +663,7 @@ void recalcData(TransInfo *t)
 			}
 			else if(t->obedit->type==OB_LATTICE) {
 				Lattice *la= t->obedit->data;
-				DAG_id_tag_update(t->obedit->data, OB_RECALC_DATA);  /* sets recalc flags */
+				DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
 	
 				if(la->editlatt->latt->flag & LT_OUTSIDE) outside_lattice(la->editlatt->latt);
 			}
@@ -669,7 +676,7 @@ void recalcData(TransInfo *t)
 				if((t->options & CTX_NO_MIRROR) == 0 && (t->flag & T_MIRROR))
 					editmesh_apply_to_mirror(t);
 					
-				DAG_id_tag_update(t->obedit->data, OB_RECALC_DATA);  /* sets recalc flags */
+				DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
 				
 				recalc_editnormals(em);
 			}
@@ -752,7 +759,7 @@ void recalcData(TransInfo *t)
 				
 			}
 			else
-				DAG_id_tag_update(t->obedit->data, OB_RECALC_DATA);  /* sets recalc flags */
+				DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
 		}
 		else if( (t->flag & T_POSE) && t->poseobj) {
 			Object *ob= t->poseobj;
@@ -820,7 +827,7 @@ void recalcData(TransInfo *t)
 void drawLine(TransInfo *t, float *center, float *dir, char axis, short options)
 {
 	float v1[3], v2[3], v3[3];
-	char col[3], col2[3];
+	unsigned char col[3], col2[3];
 
 	if (t->spacetype == SPACE_VIEW3D)
 	{
@@ -844,7 +851,7 @@ void drawLine(TransInfo *t, float *center, float *dir, char axis, short options)
 			UI_GetThemeColor3ubv(TH_GRID, col);
 		}
 		UI_make_axis_color(col, col2, axis);
-		glColor3ubv((GLubyte *)col2);
+		glColor3ubv(col2);
 		
 		setlinestyle(0);
 		glBegin(GL_LINE_STRIP);
@@ -966,6 +973,13 @@ int initTransInfo (bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 		else
 		{
 			t->current_orientation = v3d->twmode;
+		}
+
+		/* exceptional case */
+		if(t->around==V3D_LOCAL && (t->settings->selectmode & SCE_SELECT_FACE)) {
+			if(ELEM3(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL)) {
+				t->options |= CTX_NO_PET;
+	}
 		}
 	}
 	else if(t->spacetype==SPACE_IMAGE || t->spacetype==SPACE_NODE)
@@ -1142,6 +1156,13 @@ void postTrans (bContext *C, TransInfo *t)
 		SpaceImage *sima= t->sa->spacedata.first;
 		if(sima->flag & SI_LIVE_UNWRAP)
 			ED_uvedit_live_unwrap_end(t->state == TRANS_CANCEL);
+	}
+	else if(t->spacetype==SPACE_VIEW3D) {
+		View3D *v3d = t->sa->spacedata.first;
+		/* restore manipulator */
+		if (t->flag & T_MODAL) {
+			v3d->twtype = t->twtype;
+		}
 	}
 	
 	if (t->mouse.data)

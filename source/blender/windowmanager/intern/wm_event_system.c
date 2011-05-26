@@ -41,6 +41,7 @@
 #include "GHOST_C-api.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_blender.h"
 #include "BKE_context.h"
@@ -50,12 +51,13 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
-#include "BKE_utildefines.h"
+
 #include "BKE_sound.h"
 
 #include "ED_fileselect.h"
 #include "ED_info.h"
 #include "ED_screen.h"
+#include "ED_view3d.h"
 #include "ED_util.h"
 
 #include "RNA_access.h"
@@ -292,12 +294,23 @@ void wm_event_do_notifiers(bContext *C)
 		}
 		
 		/* XXX make lock in future, or separated derivedmesh users in scene */
-		if(!G.rendering)
+		if(!G.rendering) {
 			/* depsgraph & animation: update tagged datablocks */
+
+			/* copied to set's in scene_update_tagged_recursive() */
+			win->screen->scene->customdata_mask= ED_viewedit_datamask(win->screen);
+
 			scene_update_tagged(CTX_data_main(C), win->screen->scene);
+	}
 	}
 
 	CTX_wm_window_set(C, NULL);
+}
+
+static int wm_event_always_pass(wmEvent *event)
+{
+	/* some events we always pass on, to ensure proper communication */
+	return ISTIMER(event->type) || (event->type == WINDEACTIVATE);
 }
 
 /* ********************* ui handler ******************* */
@@ -307,8 +320,19 @@ static int wm_handler_ui_call(bContext *C, wmEventHandler *handler, wmEvent *eve
 	ScrArea *area= CTX_wm_area(C);
 	ARegion *region= CTX_wm_region(C);
 	ARegion *menu= CTX_wm_menu(C);
+	static int do_wheel_ui= 1;
+	int is_wheel= ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE);
 	int retval;
 			
+	/* UI is quite agressive with swallowing events, like scrollwheel */
+	/* I realize this is not extremely nice code... when UI gets keymaps it can be maybe smarter */
+	if(do_wheel_ui==0) {
+		if(is_wheel)
+			return WM_HANDLER_CONTINUE;
+		else if(wm_event_always_pass(event)==0)
+			do_wheel_ui= 1;
+	}
+	
 	/* we set context to where ui handler came from */
 	if(handler->ui_area) CTX_wm_area_set(C, handler->ui_area);
 	if(handler->ui_region) CTX_wm_region_set(C, handler->ui_region);
@@ -332,6 +356,10 @@ static int wm_handler_ui_call(bContext *C, wmEventHandler *handler, wmEvent *eve
 	if(retval == WM_UI_HANDLER_BREAK)
 		return WM_HANDLER_BREAK;
 
+	/* event not handled in UI, if wheel then we temporarily disable it */
+	if(is_wheel)
+		do_wheel_ui= 0;
+	
 	return WM_HANDLER_CONTINUE;
 }
 
@@ -387,10 +415,6 @@ static void wm_operator_print(bContext *C, wmOperator *op)
 
 static void wm_operator_reports(bContext *C, wmOperator *op, int retval, int popup)
 {
-	wmWindowManager *wm = CTX_wm_manager(C);
-	ReportList *reports = CTX_wm_reports(C);
-	char *buf;
-	
 	if(popup)
 		if(op->reports->list.first)
 			uiPupMenuReports(C, op->reports);
@@ -401,26 +425,29 @@ static void wm_operator_reports(bContext *C, wmOperator *op, int retval, int pop
 		
 		if (op->type->flag & OPTYPE_REGISTER) {
 			/* Report the python string representation of the operator */
-			buf = WM_operator_pystring(C, op->type, op->ptr, 1);
+			char *buf = WM_operator_pystring(C, op->type, op->ptr, 1);
 			BKE_report(CTX_wm_reports(C), RPT_OPERATOR, buf);
 			MEM_freeN(buf);
 		}
 	}
 
 	if (op->reports->list.first) {
+
+		wmWindowManager *wm = CTX_wm_manager(C);
+		ReportList *wm_reports= CTX_wm_reports(C);
 		ReportTimerInfo *rti;
 		
 		/* add reports to the global list, otherwise they are not seen */
-		addlisttolist(&CTX_wm_reports(C)->list, &op->reports->list);
+		BLI_movelisttolist(&wm_reports->list, &op->reports->list);
 		
 		/* After adding reports to the global list, reset the report timer. */
-		WM_event_remove_timer(wm, NULL, reports->reporttimer);
+		WM_event_remove_timer(wm, NULL, wm_reports->reporttimer);
 		
 		/* Records time since last report was added */
-		reports->reporttimer= WM_event_add_timer(wm, CTX_wm_window(C), TIMER, 0.05);
+		wm_reports->reporttimer= WM_event_add_timer(wm, CTX_wm_window(C), TIMER, 0.05);
 		
 		rti = MEM_callocN(sizeof(ReportTimerInfo), "ReportTimerInfo");
-		reports->reporttimer->customdata = rti;
+		wm_reports->reporttimer->customdata = rti;
 	}
 }
 
@@ -675,7 +702,7 @@ int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event, PointerR
 					ARegion *ar= CTX_wm_region(C);
 					ScrArea *sa= CTX_wm_area(C);
 
-					if(ar && ar->regiontype == RGN_TYPE_WINDOW && BLI_in_rcti(&ar->winrct, event->x, event->y)) {
+					if(ar && ar->regiontype == RGN_TYPE_WINDOW && event && BLI_in_rcti(&ar->winrct, event->x, event->y)) {
 						winrect= &ar->winrct;
 					}
 					else if(sa) {
@@ -1088,11 +1115,6 @@ static int wm_eventmatch(wmEvent *winevent, wmKeyMapItem *kmi)
 	return 1;
 }
 
-static int wm_event_always_pass(wmEvent *event)
-{
-	/* some events we always pass on, to ensure proper communication */
-	return ISTIMER(event->type) || (event->type == WINDEACTIVATE);
-}
 
 /* operator exists */
 static void wm_event_modalkeymap(const bContext *C, wmOperator *op, wmEvent *event)
@@ -1315,7 +1337,7 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 
 							/* XXX - copied from 'wm_operator_finished()' */
 							/* add reports to the global list, otherwise they are not seen */
-							addlisttolist(&CTX_wm_reports(C)->list, &handler->op->reports->list);
+							BLI_movelisttolist(&CTX_wm_reports(C)->list, &handler->op->reports->list);
 
 							CTX_wm_window_set(C, win_prev);
 						}
@@ -1438,8 +1460,17 @@ static int wm_handlers_do(bContext *C, wmEvent *event, ListBase *handlers)
 								if(drop->poll(C, drag, event)) {
 									drop->copy(drag, drop);
 									
-									wm_operator_invoke(C, drop->ot, event, drop->ptr, NULL);
+									WM_operator_name_call(C, drop->ot->idname, drop->opcontext, drop->ptr);
+									//wm_operator_invoke(C, drop->ot, event, drop->ptr, NULL, FALSE);
 									action |= WM_HANDLER_BREAK;
+									
+									/* XXX fileread case */
+									if(CTX_wm_window(C)==NULL)
+										return action;
+									
+									BLI_freelistN(event->customdata);
+									event->customdata= NULL;
+									event->custom= 0;
 								}
 							}
 						}
@@ -1459,7 +1490,7 @@ static int wm_handlers_do(bContext *C, wmEvent *event, ListBase *handlers)
 			}
 		}
 		
-		/* fileread case */
+		/* XXX fileread case */
 		if(CTX_wm_window(C)==NULL)
 			return action;
 	}
@@ -1835,14 +1866,20 @@ void WM_event_fileselect_event(bContext *C, void *ophandle, int eventval)
 
 void WM_event_add_fileselect(bContext *C, wmOperator *op)
 {
-	wmEventHandler *handler;
+	wmEventHandler *handler, *handlernext;
 	wmWindow *win= CTX_wm_window(C);
 	int full= 1;	// XXX preset?
 	
-	/* only allow file selector open per window bug [#23553] */
-	for(handler= win->modalhandlers.first; handler; handler=handler->next) {
-		if(handler->type == WM_HANDLER_FILESELECT)
-			return;
+	/* only allow 1 file selector open per window */
+	for(handler= win->modalhandlers.first; handler; handler=handlernext) {
+		handlernext= handler->next;
+		
+		if(handler->type == WM_HANDLER_FILESELECT) {
+			if(handler->op)
+				WM_operator_free(handler->op);
+			BLI_remlink(&win->modalhandlers, handler);
+			wm_event_free_handler(handler);
+	}
 	}
 	
 	handler = MEM_callocN(sizeof(wmEventHandler), "fileselect handler");

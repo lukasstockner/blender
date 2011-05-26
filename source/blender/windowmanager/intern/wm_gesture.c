@@ -37,9 +37,10 @@
 #include "BLI_editVert.h"	/* lasso tessellation */
 #include "BLI_math.h"
 #include "BLI_scanfill.h"	/* lasso tessellation */
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
-#include "BKE_utildefines.h"
+
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -272,7 +273,6 @@ static void wm_gesture_draw_lasso(wmGesture *gt)
 	glColor3ub(96, 96, 96);
 	glLineStipple(1, 0xAAAA);
 	glBegin(GL_LINE_STRIP);
-	lasso= (short *)gt->customdata;
 	for(i=0; i<gt->points; i++, lasso+=2)
 		glVertex2sv(lasso);
 	if(gt->type==WM_GESTURE_LASSO)
@@ -321,8 +321,8 @@ void wm_gesture_draw(wmWindow *win)
 		
 		if(gt->type==WM_GESTURE_RECT)
 			wm_gesture_draw_rect(gt);
-		else if(gt->type==WM_GESTURE_TWEAK)
-			wm_gesture_draw_line(gt);
+//		else if(gt->type==WM_GESTURE_TWEAK)
+//			wm_gesture_draw_line(gt);
 		else if(gt->type==WM_GESTURE_CIRCLE)
 			wm_gesture_draw_circle(gt);
 		else if(gt->type==WM_GESTURE_CROSS_RECT) {

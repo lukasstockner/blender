@@ -27,8 +27,8 @@
  *
  */
 
-#ifndef EXPP_matrix_h
-#define EXPP_matrix_h
+#ifndef MATHUTILS_MATRIX_H
+#define MATHUTILS_MATRIX_H
 
 #include <Python.h>
 
@@ -49,10 +49,10 @@ be stored in py_data) or be a wrapper for data allocated through
 blender (stored in blend_data). This is an either/or struct not both*/
 
 /*prototypes*/
-PyObject *newMatrixObject(float *mat, int rowSize, int colSize, int type, PyTypeObject *base_type);
+PyObject *newMatrixObject(float *mat, const unsigned short rowSize, const unsigned short colSize, int type, PyTypeObject *base_type);
 PyObject *newMatrixObject_cb(PyObject *user, int rowSize, int colSize, int cb_type, int cb_subtype);
 
 extern int mathutils_matrix_vector_cb_index;
 extern struct Mathutils_Callback mathutils_matrix_vector_cb;
 
-#endif				/* EXPP_matrix_H */
+#endif /* MATHUTILS_MATRIX_H */

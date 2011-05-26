@@ -41,11 +41,12 @@
 #include "GHOST_C-api.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_blender.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
-#include "BKE_utildefines.h"
+
 
 #include "BIF_gl.h"
 
@@ -58,6 +59,7 @@
 #include "wm_event_system.h"
 
 #include "ED_screen.h"
+#include "ED_fileselect.h"
 
 #include "PIL_time.h"
 
@@ -399,6 +401,11 @@ void wm_window_add_ghostwindows(bContext* C, wmWindowManager *wm)
 		keymap= WM_keymap_find(wm->defaultconf, "Screen Editing", 0, 0);
 		WM_event_add_keymap_handler(&win->modalhandlers, keymap);
 		
+		/* add drop boxes */
+		{
+			ListBase *lb= WM_dropboxmap_find("Window", 0, 0);
+			WM_event_add_dropbox_handler(&win->handlers, lb);
+		}
 		wm_window_title(wm, win);
 	}
 }
@@ -806,15 +813,17 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr private)
 				/* printf("Drop detected\n"); */
 				
 				/* add drag data to wm for paths: */
-				/* need icon type, some dropboxes check for that... see filesel code for this */
 				
 				if(ddd->dataType == GHOST_kDragnDropTypeFilenames) {
 					GHOST_TStringArray *stra= ddd->data;
-					int a;
+					int a, icon;
 					
 					for(a=0; a<stra->count; a++) {
 						printf("drop file %s\n", stra->strings[a]);
-						WM_event_start_drag(C, 0, WM_DRAG_PATH, stra->strings[a], 0.0);
+						/* try to get icon type from extension */
+						icon= ED_file_extension_icon((char *)stra->strings[a]);
+						
+						WM_event_start_drag(C, icon, WM_DRAG_PATH, stra->strings[a], 0.0);
 						/* void poin should point to string, it makes a copy */
 						break; // only one drop element supported now 
 					}

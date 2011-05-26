@@ -33,6 +33,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_threads.h"
 
@@ -51,6 +52,8 @@
 
 #include "WM_api.h"
 #include "WM_types.h"
+
+#include "GPU_buffers.h"
 
 #include "ED_sculpt.h"
 #include "paint_intern.h"
@@ -170,6 +173,9 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 
 		if(ss->modifiers_active || ((Mesh*)ob->data)->id.us > 1)
 			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+
+		/* for non-PBVH drawing, need to recreate VBOs */
+		GPU_drawobject_free(ob->derivedFinal);
 	}
 }
 

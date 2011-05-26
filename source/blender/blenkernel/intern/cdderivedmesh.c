@@ -36,17 +36,18 @@
 #include <string.h>
 #include "BIF_gl.h"
 
-#include "BKE_cdderivedmesh.h"
-#include "BKE_global.h"
-#include "BKE_mesh.h"
-#include "BKE_paint.h"
-#include "BKE_utildefines.h"
-
 #include "BLI_blenlib.h"
 #include "BLI_edgehash.h"
 #include "BLI_editVert.h"
 #include "BLI_math.h"
 #include "BLI_pbvh.h"
+#include "BLI_utildefines.h"
+
+#include "BKE_cdderivedmesh.h"
+#include "BKE_global.h"
+#include "BKE_mesh.h"
+#include "BKE_paint.h"
+
 
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -189,7 +190,7 @@ static ListBase *cdDM_getFaceMap(Object *ob, DerivedMesh *dm)
 static int can_pbvh_draw(Object *ob, DerivedMesh *dm)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
-	Mesh *me= (ob)? ob->data: NULL;
+	Mesh *me= ob->data;
 
 	if(ob->sculpt->modifiers_active) return 0;
 
@@ -199,7 +200,6 @@ static int can_pbvh_draw(Object *ob, DerivedMesh *dm)
 static struct PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
-	Mesh *me= (ob)? ob->data: NULL;
 
 	if(!ob) {
 		cddm->pbvh= NULL;
@@ -217,6 +217,7 @@ static struct PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 	   this derivedmesh is just original mesh. it's the multires subsurf dm
 	   that this is actually for, to support a pbvh on a modified mesh */
 	if(!cddm->pbvh && ob->type == OB_MESH) {
+		Mesh *me= ob->data;
 		cddm->pbvh = BLI_pbvh_new();
 		cddm->pbvh_draw = can_pbvh_draw(ob, dm);
 		BLI_pbvh_build_mesh(cddm->pbvh, me->mface, me->mvert,
@@ -744,6 +745,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 
 		if( !GPU_buffer_legacy(dm) ) {
 			glShadeModel( GL_SMOOTH );
+			lastFlag = 0;
 			for(i = 0; i < dm->drawObject->nelements/3; i++) {
 				int actualFace = dm->drawObject->faceRemap[i];
 				int flag = 1;
@@ -754,6 +756,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 				else {
 					if(index) {
 						orig = index[actualFace];
+						if(orig == ORIGINDEX_NONE) continue;
 						if(drawParamsMapped)
 							flag = drawParamsMapped(userData, orig);
 					}
@@ -955,14 +958,13 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 	MFace *mface = cddm->mface;
 	MTFace *tf = dm->getFaceDataArray(dm, CD_MTFACE);
 	float (*nors)[3] = dm->getFaceDataArray(dm, CD_NORMAL);
-	int a, b, dodraw, smoothnormal, matnr, new_matnr;
+	int a, b, dodraw, matnr, new_matnr;
 	int transp, new_transp, orig_transp;
 	int orig, *index = dm->getFaceDataArray(dm, CD_ORIGINDEX);
 
 	cdDM_update_normals_from_pbvh(dm);
 
 	matnr = -1;
-	smoothnormal = 0;
 	dodraw = 0;
 	transp = GPU_get_material_blend_mode();
 	orig_transp = transp;
@@ -976,6 +978,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 		glBegin(GL_QUADS);
 
 		for(a = 0; a < dm->numFaceData; a++, mface++) {
+			const int smoothnormal = (mface->flag & ME_SMOOTH);
 			new_matnr = mface->mat_nr + 1;
 
 			if(new_matnr != matnr) {
@@ -1019,8 +1022,6 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 					glBegin(GL_QUADS);
 				}
 			}
-
-			smoothnormal = (mface->flag & ME_SMOOTH);
 
 			if(!smoothnormal) {
 				if(nors) {
@@ -1642,7 +1643,7 @@ DerivedMesh *CDDM_from_editmesh(EditMesh *em, Mesh *me)
 
 DerivedMesh *CDDM_from_curve(Object *ob)
 {
-	return CDDM_from_curve_customDB(ob, &((Curve *)ob->data)->disp);
+	return CDDM_from_curve_customDB(ob, &ob->disp);
 }
 
 DerivedMesh *CDDM_from_curve_customDB(Object *ob, ListBase *dispbase)

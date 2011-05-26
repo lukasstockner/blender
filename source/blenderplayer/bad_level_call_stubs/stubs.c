@@ -105,6 +105,7 @@ void ibuf_sample(struct ImBuf *ibuf, float fx, float fy, float dx, float dy, flo
 /* texture.c */
 int multitex_thread(struct Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, struct TexResult *texres, short thread, short which_output) {return 0;}
 int multitex_ext(struct Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, struct TexResult *texres){return 0;}
+int multitex_ext_safe(struct Tex *tex, float *texvec, struct TexResult *texres){return 0;}
 int multitex_nodes(struct Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, struct TexResult *texres, short thread, short which_output, struct ShadeInput *shi, struct MTex *mtex) {return 0;}
 
 /* nodes */
@@ -261,6 +262,11 @@ void ED_object_constraint_dependency_update(struct Scene *scene, struct Object *
 void ED_object_constraint_update(struct Object *ob){}
 struct bDeformGroup *ED_vgroup_add_name(struct Object *ob, char *name){return (struct bDeformGroup *) NULL;}
 void ED_vgroup_vert_add(struct Object *ob, struct bDeformGroup *dg, int vertnum, float weight, int assignmode){}
+void ED_vgroup_vert_remove(struct Object *ob, struct bDeformGroup *dg, int vertnum){}
+void ED_vgroup_vert_weight(struct Object *ob, struct bDeformGroup *dg, int vertnum){}
+void ED_vgroup_delete(struct Object *ob, struct bDeformGroup *defgroup){}
+void ED_vgroup_object_is_edit_mode(struct Object *ob){}
+
 void ED_sequencer_update_view(struct bContext *C, int view){}
 float ED_rollBoneToVector(struct EditBone *bone, float new_up_axis[3]){return 0.0f;}
 void ED_space_image_size(struct SpaceImage *sima, int *width, int *height){}
@@ -289,6 +295,8 @@ struct uiLayout *uiLayoutColumn(struct uiLayout *layout, int align){return (stru
 struct uiLayout *uiLayoutColumnFlow(struct uiLayout *layout, int number, int align){return (struct uiLayout *) NULL;}
 struct uiLayout *uiLayoutBox(struct uiLayout *layout){return (struct uiLayout *) NULL;}
 struct uiLayout *uiLayoutSplit(struct uiLayout *layout, float percentage, int align){return (struct uiLayout *) NULL;}
+int uiLayoutGetRedAlert(struct uiLayout *layout){return 0;}
+void uiLayoutSetRedAlert(struct uiLayout *layout, int redalert){}
 void uiItemsEnumR(struct uiLayout *layout, struct PointerRNA *ptr, char *propname){}
 void uiItemMenuEnumR(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, char *name, int icon){}
 void uiItemEnumR_string(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, char *value, char *name, int icon){}
@@ -374,10 +382,12 @@ struct wmKeyMapItem *WM_modalkeymap_add_item(struct wmKeyMap *km, int type, int 
 struct wmKeyMap *WM_modalkeymap_add(struct wmKeyConfig *keyconf, char *idname, EnumPropertyItem *items){return (struct wmKeyMap *) NULL;}
 
 /* intern/decimation */
+#if 1
 int LOD_FreeDecimationData(struct LOD_Decimation_Info *info){return 0;}
 int LOD_CollapseEdge(struct LOD_Decimation_Info *info){return 0;}
 int LOD_PreprocessMesh(struct LOD_Decimation_Info *info){return 0;}
 int LOD_LoadMesh(struct LOD_Decimation_Info *info){return 0;}
+#endif
 
 /* smoke */
 void LzmaCompress(void) { return; }
@@ -423,6 +433,7 @@ void sculpt_set_brush_alpha(struct Brush *brush, float alpha){}
 char blender_path[] = "";
 
 /* CSG */
+#if 1
 struct CSG_BooleanOperation * CSG_NewBooleanFunction( void ){return (struct CSG_BooleanOperation *) NULL;}
 void CSG_FreeBooleanOperation(struct CSG_BooleanOperation *operation){return;}
 void CSG_FreeFaceDescriptor(struct CSG_FaceIteratorDescriptor * f_descriptor){return;}
@@ -443,4 +454,5 @@ int CSG_PerformBooleanOperation(
 	CSG_VertexIteratorDescriptor	obBVertices)
 	{ return 0;}
 
-#endif // GAMEBLENDER == 1
+#endif
+#endif // WITH_GAMEENGINE

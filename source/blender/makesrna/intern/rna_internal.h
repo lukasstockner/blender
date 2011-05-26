@@ -301,7 +301,7 @@ void rna_builtin_properties_begin(struct CollectionPropertyIterator *iter, struc
 void rna_builtin_properties_next(struct CollectionPropertyIterator *iter);
 PointerRNA rna_builtin_properties_get(struct CollectionPropertyIterator *iter);
 PointerRNA rna_builtin_type_get(struct PointerRNA *ptr);
-PointerRNA rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key);
+int rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr);
 
 /* Iterators */
 
@@ -321,9 +321,15 @@ PointerRNA rna_listbase_lookup_int(PointerRNA *ptr, StructRNA *type, struct List
 
 typedef struct ArrayIterator {
 	char *ptr;
-	char *endptr;
+	char *endptr;	/* past the last valid pointer, only for comparisons, ignores skipped values */
 	void *free_ptr; /* will be free'd if set */
 	int itemsize;
+
+	/* array length with no skip functins applied, take care not to compare against index from animsys or python indicies */
+	int length;
+
+	/* optional skip function, when set the array as viewed by rna can contain only a subset of the members.
+	 * this changes indicies so quick array index lookups are not possible when skip function is used. */
 	IteratorSkipFunc skip;
 } ArrayIterator;
 

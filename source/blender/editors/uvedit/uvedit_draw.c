@@ -35,12 +35,13 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "BKE_DerivedMesh.h"
-#include "BKE_mesh.h"
-#include "BKE_utildefines.h"
-
 #include "BLI_math.h"
 #include "BLI_editVert.h"
+#include "BLI_utildefines.h"
+
+#include "BKE_DerivedMesh.h"
+#include "BKE_mesh.h"
+
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -423,9 +424,9 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 	EditFace *efa, *efa_act;
 	MTFace *tf, *activetf = NULL;
 	DerivedMesh *finaldm, *cagedm;
-	char col1[4], col2[4];
+	unsigned char col1[4], col2[4];
 	float pointsize;
-	int drawfaces, interpedges, lastsel, sel;
+	int drawfaces, interpedges;
 	Image *ima= sima->image;
  	
 	em= BKE_mesh_get_editmesh(me);
@@ -626,8 +627,8 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 			glColor4ubv((unsigned char *)col2); 
 			
 			if(me->drawflag & ME_DRAWEDGES) {
+				int lastsel= 0, sel;
 				UI_GetThemeColor4ubv(TH_VERTEX_SELECT, col1);
-				lastsel = sel = 0;
 
 				if(interpedges) {
 					glShadeModel(GL_SMOOTH);

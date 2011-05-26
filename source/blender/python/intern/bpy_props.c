@@ -26,7 +26,9 @@
 #include "bpy_rna.h"
 #include "bpy_util.h"
 
-#include "BKE_utildefines.h"
+#include "BLI_utildefines.h"
+
+
 
 #include "RNA_define.h" /* for defining our own rna */
 #include "RNA_enum_types.h"
@@ -600,7 +602,7 @@ static EnumPropertyItem *enum_items_from_py(PyObject *value, PyObject *def, int 
 		return NULL;
 	}
 
-	seq_len = PySequence_Length(value);
+	seq_len= PySequence_Size(value);
 
 	if(is_enum_flag) {
 		if(seq_len > RNA_ENUM_BITFLAG_SIZE) {

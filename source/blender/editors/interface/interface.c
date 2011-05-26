@@ -40,10 +40,12 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_dynstr.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_library.h"
 #include "BKE_unit.h"
+#include "BKE_utildefines.h" /* FILE_MAX */
 
 #include "BIF_gl.h"
 
@@ -1728,7 +1730,7 @@ int ui_set_but_string(bContext *C, uiBut *but, const char *str)
 				bUnit_ReplaceString(str_unit_convert, sizeof(str_unit_convert), but->drawstr, ui_get_but_scale_unit(but, 1.0), scene->unit.system, unit_type>>16);
 			}
 
-			if(BPY_eval_button(C, str_unit_convert, &value)) {
+			if(BPY_button_exec(C, str_unit_convert, &value)) {
 				value = ui_get_but_val(but); /* use its original value */
 
 				if(str[0])
@@ -1793,7 +1795,7 @@ static double soft_range_round_down(double value, double max)
 void ui_set_but_soft_range(uiBut *but, double value)
 {
 	PropertyType type;
-	double softmin, softmax, step, precision;
+	double softmin, softmax /*, step, precision*/;
 	
 	if(but->rnaprop) {
 		type= RNA_property_type(but->rnaprop);
@@ -1806,8 +1808,8 @@ void ui_set_but_soft_range(uiBut *but, double value)
 			RNA_property_int_ui_range(&but->rnapoin, but->rnaprop, &imin, &imax, &istep);
 			softmin= (imin == INT_MIN)? -1e4: imin;
 			softmax= (imin == INT_MAX)? 1e4: imax;
-			step= istep;
-			precision= 1;
+			/*step= istep;*/ /*UNUSED*/
+			/*precision= 1;*/ /*UNUSED*/
 		}
 		else if(type == PROP_FLOAT) {
 			float fmin, fmax, fstep, fprecision;
@@ -1815,8 +1817,8 @@ void ui_set_but_soft_range(uiBut *but, double value)
 			RNA_property_float_ui_range(&but->rnapoin, but->rnaprop, &fmin, &fmax, &fstep, &fprecision);
 			softmin= (fmin == -FLT_MAX)? -1e4: fmin;
 			softmax= (fmax == FLT_MAX)? 1e4: fmax;
-			step= fstep;
-			precision= fprecision;
+			/*step= fstep;*/ /*UNUSED*/
+			/*precision= fprecision;*/ /*UNUSED*/
 		}
 		else
 			return;

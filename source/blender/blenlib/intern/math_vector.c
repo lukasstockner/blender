@@ -364,3 +364,68 @@ void minmax_v3v3_v3(float min[3], float max[3], const float vec[3])
 	if(max[2]<vec[2]) max[2]= vec[2];
 }
 
+
+/***************************** Array Functions *******************************/
+
+void range_vni(int *array_tar, const int size, const int start)
+{
+	int *array_pt= array_tar + (size-1);
+	int j= start + (size-1);
+	int i= size;
+	while(i--) { *(array_pt--) = j--; }
+}
+
+void mul_vn_fl(float *array_tar, const int size, const float f)
+{
+	float *array_pt= array_tar + (size-1);
+	int i= size;
+	while(i--) { *(array_pt--) *= f; }
+}
+
+void mul_vn_vn_fl(float *array_tar, const float *array_src, const int size, const float f)
+{
+	float *tar= array_tar + (size-1);
+	const float *src= array_src + (size-1);
+	int i= size;
+	while(i--) { *(tar--) = *(src--) * f; }
+}
+
+void add_vn_vn(float *array_tar, const float *array_src, const int size)
+{
+	float *tar= array_tar + (size-1);
+	const float *src= array_src + (size-1);
+	int i= size;
+	while(i--) { *(tar--) += *(src--); }
+}
+
+void add_vn_vnvn(float *array_tar, const float *array_src_a, const float *array_src_b, const int size)
+{
+	float *tar= array_tar + (size-1);
+	const float *src_a= array_src_a + (size-1);
+	const float *src_b= array_src_b + (size-1);
+	int i= size;
+	while(i--) { *(tar--) = *(src_a--) + *(src_b--); }
+}
+
+void sub_vn_vnvn(float *array_tar, const float *array_src_a, const float *array_src_b, const int size)
+{
+	float *tar= array_tar + (size-1);
+	const float *src_a= array_src_a + (size-1);
+	const float *src_b= array_src_b + (size-1);
+	int i= size;
+	while(i--) { *(tar--) = *(src_a--) - *(src_b--); }
+}
+
+void fill_vni(int *array_tar, const int size, const int val)
+{
+	int *tar= array_tar + (size-1);
+	int i= size;
+	while(i--) { *(tar--) = val; }
+}
+
+void fill_vn(float *array_tar, const int size, const float val)
+{
+	float *tar= array_tar + (size-1);
+	int i= size;
+	while(i--) { *(tar--) = val; }
+}

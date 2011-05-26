@@ -40,6 +40,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_curve_types.h"
 #include "DNA_object_types.h"
@@ -265,7 +266,7 @@ static void text_update_edited(bContext *C, Scene *scene, Object *obedit, int re
 	BKE_text_to_curve(scene, obedit, mode);
 
 	if(recalc)
-		DAG_id_tag_update(obedit->data, OB_RECALC_DATA);
+		DAG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM|ND_DATA, obedit->data);
 }
 
@@ -299,7 +300,7 @@ static int insert_lorem_exec(bContext *C, wmOperator *UNUSED(op))
 	insert_into_textbuf(obedit, '\n');
 	insert_into_textbuf(obedit, '\n');	
 
-	DAG_id_tag_update(obedit->data, OB_RECALC_DATA);
+	DAG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM|ND_DATA, obedit->data);
 
 	return OPERATOR_FINISHED;
@@ -626,7 +627,7 @@ static int set_style(bContext *C, int style, int clear)
 			ef->textbufinfo[i].flag |= style;
 	}
 
-	DAG_id_tag_update(obedit->data, OB_RECALC_DATA);
+	DAG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM|ND_DATA, obedit->data);
 
 	return OPERATOR_FINISHED;
@@ -1220,7 +1221,7 @@ static int insert_text_exec(bContext *C, wmOperator *op)
 	Scene *scene= CTX_data_scene(C);
 	Object *obedit= CTX_data_edit_object(C);
 	char *inserted_utf8;
-	wchar_t *inserted_text, first;
+	wchar_t *inserted_text;
 	int a, len;
 
 	if(!RNA_property_is_set(op->ptr, "text"))
@@ -1231,7 +1232,6 @@ static int insert_text_exec(bContext *C, wmOperator *op)
 
 	inserted_text= MEM_callocN(sizeof(wchar_t)*(len+1), "FONT_insert_text");
 	utf8towchar(inserted_text, inserted_utf8);
-	first= inserted_text[0];
 
 	for(a=0; a<len; a++)
 		insert_into_textbuf(obedit, inserted_text[a]);
@@ -1706,6 +1706,9 @@ static int open_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 
 	path = (font && strcmp(font->name, FO_BUILTIN_NAME) != 0)? font->name: U.fontdir;
 	 
+	if(!RNA_property_is_set(op->ptr, "relative_path"))
+		RNA_boolean_set(op->ptr, "relative_path", U.flag & USER_RELPATHS);
+		
 	if(RNA_property_is_set(op->ptr, "filepath"))
 		return open_exec(C, op);
 	
@@ -1730,7 +1733,7 @@ void FONT_OT_open(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* properties */
-	WM_operator_properties_filesel(ot, FOLDERFILE|FTFONTFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH);
+	WM_operator_properties_filesel(ot, FOLDERFILE|FTFONTFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH|WM_FILESEL_RELPATH);
 }
 
 /******************* delete operator *********************/

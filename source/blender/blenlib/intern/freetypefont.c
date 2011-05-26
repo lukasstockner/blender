@@ -47,11 +47,12 @@
 #include "BLI_vfontdata.h"
 #include "BLI_blenlib.h"
 #include "BLI_math.h"  
+#include "BLI_utildefines.h"
 
 //XXX #include "BIF_toolbox.h"
 
 #include "BKE_font.h"
-#include "BKE_utildefines.h"
+
 
 #include "DNA_vfont_types.h"
 #include "DNA_packedFile_types.h"
@@ -126,7 +127,6 @@ static void freetypechar_to_vchar(FT_Face face, FT_ULong charcode, VFontData *vf
 
 		// get number of on-curve points for beziertriples (including conic virtual on-points) 
 		for(j = 0; j < ftoutline.n_contours; j++) {
-			l = 0;
 			for(k = 0; k < npoints[j]; k++) {
 				if(j > 0) l = k + ftoutline.contours[j - 1] + 1; else l = k;
 					if(ftoutline.tags[l] == FT_Curve_Tag_On)

@@ -70,13 +70,10 @@ class DATA_PT_context_mesh(MeshButtonsPanel, bpy.types.Panel):
         mesh = context.mesh
         space = context.space_data
 
-            split = layout.split(percentage=0.65)
             if ob:
-                split.template_ID(ob, "data")
-                split.separator()
+            layout.template_ID(ob, "data")
             elif mesh:
-                split.template_ID(space, "pin_id")
-                split.separator()
+            layout.template_ID(space, "pin_id")
 
 
 class DATA_PT_normals(MeshButtonsPanel, bpy.types.Panel):
@@ -111,6 +108,7 @@ class DATA_PT_settings(MeshButtonsPanel, bpy.types.Panel):
         mesh = context.mesh
 
         layout.prop(mesh, "texture_mesh")
+        layout.prop(mesh, "use_auto_texspace")
 
 
 class DATA_PT_vertex_groups(MeshButtonsPanel, bpy.types.Panel):
@@ -352,6 +350,7 @@ class DATA_PT_vertex_colors(MeshButtonsPanel, bpy.types.Panel):
 class DATA_PT_custom_props_mesh(MeshButtonsPanel, PropertyPanel, bpy.types.Panel):
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
     _context_path = "object.data"
+    _property_type = bpy.types.Mesh
 
 
 def register():

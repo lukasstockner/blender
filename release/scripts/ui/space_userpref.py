@@ -92,6 +92,7 @@ class USERPREF_HT_header(bpy.types.Header):
             layout.operator("wm.keyconfig_import")
         elif userpref.active_section == 'ADDONS':
             layout.operator("wm.addon_install")
+            layout.menu("USERPREF_MT_addons_dev_guides", text="  Addons Developer Guides", icon='INFO')
         elif userpref.active_section == 'THEMES':
             layout.operator("ui.reset_default_theme")
 
@@ -742,6 +743,7 @@ class USERPREF_PT_input(InputKeyMapPanel):
         sub1.active = (inputs.select_mouse == 'RIGHT')
         sub1.prop(inputs, "use_mouse_emulate_3_button")
         sub.prop(inputs, "use_mouse_continuous")
+        sub.prop(inputs, "drag_threshold")
 
         sub.label(text="Select With:")
         sub.row().prop(inputs, "select_mouse", expand=True)
@@ -806,6 +808,7 @@ class USERPREF_PT_input(InputKeyMapPanel):
 
         #print("runtime", time.time() - start)
 
+
 class USERPREF_MT_addons_dev_guides(bpy.types.Menu):
     bl_label = "Addons develoment guides"
 
@@ -827,6 +830,7 @@ class USERPREF_PT_addons(bpy.types.Panel):
     bl_options = {'HIDE_HEADER'}
 
     _addons_cats = None
+    _addons_sups = None
     _addons_fake_modules = {}
 
     @classmethod
@@ -864,7 +868,7 @@ class USERPREF_PT_addons(bpy.types.Panel):
                 lines = []
                 line_iter = iter(file_mod)
                 l = ""
-                while not l.startswith("bl_addon_info"):
+                while not l.startswith("bl_info"):
                     l = line_iter.readline()
                     if len(l) == 0:
                         break
@@ -878,18 +882,27 @@ class USERPREF_PT_addons(bpy.types.Panel):
 
             file_mod.close()
 
+            try:
             ast_data = ast.parse(data, filename=mod_path)
+            except:
+                print("Syntax error 'ast.parse' can't read %r" % mod_path)
+                import traceback
+                traceback.print_exc()
+                ast_data = None
+
             body_info = None
+
+            if ast_data:
             for body in ast_data.body:
                 if body.__class__ == ast.Assign:
                     if len(body.targets) == 1:
-                        if getattr(body.targets[0], "id", "") == "bl_addon_info":
+                            if getattr(body.targets[0], "id", "") == "bl_info":
                             body_info = body
                             break
 
             if body_info:
                 mod = ModuleType(mod_name)
-                mod.bl_addon_info = ast.literal_eval(body.value)
+                mod.bl_info = ast.literal_eval(body.value)
                 mod.__file__ = mod_path
                 mod.__time__ = os.path.getmtime(mod_path)
                 return mod
@@ -919,7 +932,7 @@ class USERPREF_PT_addons(bpy.types.Panel):
         del modules_stale
 
         mod_list = list(USERPREF_PT_addons._addons_fake_modules.values())
-        mod_list.sort(key=lambda mod: (mod.bl_addon_info['category'], mod.bl_addon_info['name']))
+        mod_list.sort(key=lambda mod: (mod.bl_info['category'], mod.bl_info['name']))
         return mod_list
 
     def draw(self, context):
@@ -939,25 +952,34 @@ class USERPREF_PT_addons(bpy.types.Panel):
             bpy.types.WindowManager.addon_search = bpy.props.StringProperty(name="Search", description="Search within the selected filter")
             USERPREF_PT_addons._addons_cats = cats
 
+        sups = {info["support"] for mod, info in addons}
+        sups.discard("")
+
+        if USERPREF_PT_addons._addons_sups != sups:
+            bpy.types.WindowManager.addon_support = bpy.props.EnumProperty(items=[(sup, sup.title(), "") for  sup in reversed(sorted(sups))], name="Support", description="Display support level", default={'OFFICIAL', 'COMMUNITY'}, options={'ENUM_FLAG'})
+            USERPREF_PT_addons._addons_sups = sups
+
         split = layout.split(percentage=0.2)
         col = split.column()
         col.prop(context.window_manager, "addon_search", text="", icon='VIEWZOOM')
-        col.prop(context.window_manager, "addon_filter", text="Filter", expand=True)
+        col.prop(context.window_manager, "addon_filter", expand=True)
 
-        # menu to open webpages with addons development guides
-        col.separator()
-        col.label(text = ' Online Documentation', icon = 'INFO')
-        col.menu('USERPREF_MT_addons_dev_guides', text='Addons Developer Guides')
+        col.label(text="Supported Level")
+        col.prop(context.window_manager, "addon_support", expand=True)
 
         col = split.column()
 
         filter = context.window_manager.addon_filter
         search = context.window_manager.addon_search.lower()
+        support = context.window_manager.addon_support
 
         for mod, info in addons:
             module_name = mod.__name__
 
             is_enabled = module_name in used_ext
+
+            if info["support"] not in support:
+                continue
 
             # check if add-on should be visible with current filters
             if (filter == "All") or \
@@ -984,6 +1006,14 @@ class USERPREF_PT_addons(bpy.types.Panel):
                 rowsub.label(text='%s: %s' % (info['category'], info["name"]))
                 if info["warning"]:
                     rowsub.label(icon='ERROR')
+
+                # icon showing support level.
+                if info["support"] == 'OFFICIAL':
+                    rowsub.label(icon='FILE_BLEND')
+                elif info["support"] == 'COMMUNITY':
+                    rowsub.label(icon='POSE_DATA')
+                else:
+                    rowsub.label(icon='QUESTION')
 
                 if is_enabled:
                     row.operator("wm.addon_disable", icon='CHECKBOX_HLT', text="", emboss=False).module = module_name
@@ -1052,15 +1082,15 @@ class USERPREF_PT_addons(bpy.types.Panel):
 from bpy.props import *
 
 
-def addon_info_get(mod, info_basis={"name": "", "author": "", "version": (), "blender": (), "api": 0, "location": "", "description": "", "wiki_url": "", "tracker_url": "", "category": "", "warning": "", "show_expanded": False}):
-    addon_info = getattr(mod, "bl_addon_info", {})
+def addon_info_get(mod, info_basis={"name": "", "author": "", "version": (), "blender": (), "api": 0, "location": "", "description": "", "wiki_url": "", "tracker_url": "", "support": 'COMMUNITY', "category": "", "warning": "", "show_expanded": False}):
+    addon_info = getattr(mod, "bl_info", {})
 
     # avoid re-initializing
     if "_init" in addon_info:
         return addon_info
 
     if not addon_info:
-        mod.bl_addon_info = addon_info
+        mod.bl_info = addon_info
 
     for key, value in info_basis.items():
         addon_info.setdefault(key, value)
@@ -1123,22 +1153,11 @@ class WM_OT_addon_install(bpy.types.Operator):
         pyfile = self.filepath
 
         # dont use bpy.utils.script_paths("addons") because we may not be able to write to it.
-        path_addons = bpy.utils.user_resource('SCRIPTS', 'addons')
+        path_addons = bpy.utils.user_resource('SCRIPTS', "addons", create=True)
 
-        # should never happen.
         if not path_addons:
             self.report({'WARNING'}, "Failed to get addons path\n")
             return {'CANCELLED'}
-
-        # create path if not existing.
-        if not os.path.exists(path_addons):
-            try:
-                os.makedirs(path_addons)
-            except:
-                self.report({'WARNING'}, "Failed to create %r\n" % path_addons)
-
-                traceback.print_exc()
-                return {'CANCELLED'}
 
         contents = set(os.listdir(path_addons))
 

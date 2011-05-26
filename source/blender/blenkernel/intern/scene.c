@@ -39,6 +39,8 @@
 #include <io.h>
 #endif
 
+#include "MEM_guardedalloc.h"
+
 #include "DNA_anim_types.h"
 #include "DNA_group_types.h"
 #include "DNA_object_types.h"
@@ -46,7 +48,9 @@
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
 
-#include "MEM_guardedalloc.h"
+#include "BLI_math.h"
+#include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_anim.h"
 #include "BKE_animsys.h"
@@ -63,14 +67,11 @@
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
 #include "BKE_world.h"
-#include "BKE_utildefines.h"
+
 #include "BKE_sound.h"
 
 //XXX #include "BIF_previewrender.h"
 //XXX #include "BIF_editseq.h"
-
-#include "BLI_math.h"
-#include "BLI_blenlib.h"
 
 //XXX #include "nla.h"
 
@@ -946,6 +947,7 @@ float BKE_curframe(Scene *scene)
 static void scene_update_tagged_recursive(Main *bmain, Scene *scene, Scene *scene_parent)
 {
 	Base *base;
+	scene->customdata_mask= scene_parent->customdata_mask;
 
 	/* sets first, we allow per definition current scene to have
 	   dependencies on sets, but not the other way around. */
@@ -1010,7 +1012,7 @@ void scene_update_for_newframe(Main *bmain, Scene *sce, unsigned int lay)
 
 	/* Following 2 functions are recursive
 	 * so dont call within 'scene_update_tagged_recursive' */
-	DAG_scene_update_flags(bmain, sce, lay);   // only stuff that moves or needs display still
+	DAG_scene_update_flags(bmain, sce, lay, TRUE);   // only stuff that moves or needs display still
 
 	/* All 'standard' (i.e. without any dependencies) animation is handled here,
 	 * with an 'local' to 'macro' order of evaluation. This should ensure that
@@ -1077,20 +1079,20 @@ float get_render_aosss_error(RenderData *r, float error)
 }
 
 /* helper function for the SETLOOPER macro */
-Base *_setlooper_base_step(Scene **sce, Base *base)
+Base *_setlooper_base_step(Scene **sce_iter, Base *base)
 {
     if(base && base->next) {
         /* common case, step to the next */
         return base->next;
     }
-    else if(base==NULL && (*sce)->base.first) {
+	else if(base==NULL && (*sce_iter)->base.first) {
         /* first time looping, return the scenes first base */
-        return (Base *)(*sce)->base.first;
+		return (Base *)(*sce_iter)->base.first;
     }
     else {
         /* reached the end, get the next base in the set */
-        while((*sce= (*sce)->set)) {
-            base= (Base *)(*sce)->base.first;
+		while((*sce_iter= (*sce_iter)->set)) {
+			base= (Base *)(*sce_iter)->base.first;
             if(base) {
                 return base;
             }
