@@ -163,13 +163,13 @@ typedef struct ThemeSpace {
 	/* main window colors */
 	char back[4];
 	char title[4];
-	char text[4];	
+	char text[4];
 	char text_hi[4];
 	
 	/* header colors */
 	char header[4];
 	char header_title[4];
-	char header_text[4];	
+	char header_text[4];
 	char header_text_hi[4];
 
 	/* button/tool regions */
@@ -181,7 +181,7 @@ typedef struct ThemeSpace {
 	/* listview regions */
 	char list[4];
 	char list_title[4];
-	char list_text[4];	
+	char list_text[4];
 	char list_text_hi[4];
 	
 	/* float panel */
@@ -383,7 +383,7 @@ typedef struct UserDef {
 	
 	short autokey_mode;		/* autokeying mode */
 	short autokey_flag;		/* flags for autokeying */
-
+	
 	short text_render, pad9;		/*options for text rendering*/
 	float pad10;
 

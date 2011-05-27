@@ -150,7 +150,7 @@ static void rna_Texture_voxeldata_image_update(Main *bmain, Scene *scene, Pointe
 	Tex *tex= ptr->id.data;
 	
 	if(tex->ima) { /* may be getting cleared too */
-	tex->ima->source = IMA_SRC_SEQUENCE;
+		tex->ima->source = IMA_SRC_SEQUENCE;
 	}
 	rna_Texture_voxeldata_update(bmain, scene, ptr);
 }
@@ -206,8 +206,8 @@ void rna_TextureSlot_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 			DAG_id_tag_update(id, recalc);
 			WM_main_add_notifier(NC_OBJECT|ND_PARTICLE|NA_EDITED, NULL);
 			break;
+		}
 	}
-}
 }
 
 char *rna_TextureSlot_path(PointerRNA *ptr)
@@ -460,8 +460,8 @@ static void rna_def_mtex(BlenderRNA *brna)
 		{MTEX_BLEND_SAT, "SATURATION", 0, "Saturation", ""},
 		{MTEX_BLEND_VAL, "VALUE", 0, "Value", ""},
 		{MTEX_BLEND_COLOR, "COLOR", 0, "Color", ""},
-		{MTEX_SOFT_LIGHT, "SOFT LIGHT", 0, "Soft Light", ""}, 
-		{MTEX_LIN_LIGHT    , "LINEAR LIGHT", 0, "Linear Light", ""}, 
+		{MTEX_SOFT_LIGHT, "SOFT_LIGHT", 0, "Soft Light", ""}, 
+		{MTEX_LIN_LIGHT    , "LINEAR_LIGHT", 0, "Linear Light", ""}, 
 		{0, NULL, 0, NULL, NULL}};
 
 	static EnumPropertyItem output_node_items[] = {
@@ -707,8 +707,8 @@ static void rna_def_texture_clouds(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "noise_depth", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "noisedepth");
-	RNA_def_property_range(prop, 0, INT_MAX);
-	RNA_def_property_ui_range(prop, 0, 6, 0, 2);
+	RNA_def_property_range(prop, 0, 30);
+	RNA_def_property_ui_range(prop, 0, 24, 0, 2);
 	RNA_def_property_ui_text(prop, "Noise Depth", "Sets the depth of the cloud calculation");
 	RNA_def_property_update(prop, 0, "rna_Texture_nodes_update");
 
@@ -842,8 +842,8 @@ static void rna_def_texture_marble(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "noise_depth", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "noisedepth");
-	RNA_def_property_range(prop, 0, INT_MAX);
-	RNA_def_property_ui_range(prop, 0, 6, 0, 2);
+	RNA_def_property_range(prop, 0, 30);
+	RNA_def_property_ui_range(prop, 0, 24, 0, 2);
 	RNA_def_property_ui_text(prop, "Noise Depth", "Sets the depth of the cloud calculation");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 
@@ -897,8 +897,8 @@ static void rna_def_texture_magic(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "noise_depth", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "noisedepth");
-	RNA_def_property_range(prop, 0, INT_MAX);
-	RNA_def_property_ui_range(prop, 0, 6, 0, 2);
+	RNA_def_property_range(prop, 0, 30);
+	RNA_def_property_ui_range(prop, 0, 24, 0, 2);
 	RNA_def_property_ui_text(prop, "Noise Depth", "Sets the depth of the cloud calculation");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 }
@@ -1010,7 +1010,7 @@ static void rna_def_texture_image(BlenderRNA *brna)
 		{TEX_REPEAT, "REPEAT", 0, "Repeat", "Causes the image to repeat horizontally and vertically"},
 		{TEX_CHECKER, "CHECKER", 0, "Checker", "Causes the image to repeat in checker board pattern"},
 		{0, NULL, 0, NULL, NULL}};
-		
+
 	srna= RNA_def_struct(brna, "ImageTexture", "Texture");
 	RNA_def_struct_ui_text(srna, "Image Texture", "");
 	RNA_def_struct_sdna(srna, "Tex");
@@ -1524,7 +1524,7 @@ static void rna_def_texture_pointdensity(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "ColorRamp");
 	RNA_def_property_ui_text(prop, "Color Ramp", "");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
-	
+
 	prop= RNA_def_property(srna, "falloff_curve", PROP_POINTER, PROP_NEVER_NULL);
 	RNA_def_property_pointer_sdna(prop, NULL, "falloff_curve");
 	RNA_def_property_struct_type(prop, "CurveMapping");
@@ -1555,7 +1555,7 @@ static void rna_def_texture_pointdensity(BlenderRNA *brna)
 	
 	prop= RNA_def_property(srna, "turbulence_depth", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "noise_depth");
-	RNA_def_property_range(prop, 0, INT_MAX);
+	RNA_def_property_range(prop, 0, 30);
 	RNA_def_property_ui_text(prop, "Depth", "Level of detail in the added turbulent noise");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 	

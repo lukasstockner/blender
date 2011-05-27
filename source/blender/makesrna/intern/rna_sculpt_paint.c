@@ -194,8 +194,6 @@ static void rna_Sculpt_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 	}
 }
 
-
-
 static int rna_Paint_is_on_surface_brush_capable(Paint* unused)
 {
 #ifdef WITH_ONSURFACEBRUSH
@@ -310,7 +308,7 @@ static void rna_def_vertex_paint(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "use_all_faces", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", VP_AREA);
 	RNA_def_property_ui_text(prop, "All Faces", "Paint on all faces inside brush");
-		
+	
 	prop= RNA_def_property(srna, "use_normal", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", VP_NORMALS);
 	RNA_def_property_ui_text(prop, "Normals", "Applies the vertex normal before painting");

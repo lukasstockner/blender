@@ -25,7 +25,7 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- */ 
+ */
 
 /** \file blender/editors/sculpt_paint/sculpt_intern.h
  *  \ingroup edsculpt

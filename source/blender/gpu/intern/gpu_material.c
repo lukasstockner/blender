@@ -788,7 +788,7 @@ static void material_lights(GPUShadeInput *shi, GPUShadeResult *shr)
 			
 			for(dob=lb->first; dob; dob=dob->next) {
 				Object *ob_iter = dob->ob;
-				
+
 				if(ob_iter->type==OB_LAMP) {
 					copy_m4_m4(ob_iter->obmat, dob->mat);
 
@@ -1015,7 +1015,7 @@ static void do_material_tex(GPUShadeInput *shi)
 					else
 						GPU_link(mat, "set_value_one", &tin);
 				}
-				
+
 				if(tex->type==TEX_IMAGE)
 					if(gpu_do_color_management(mat))
 						GPU_link(mat, "srgb_to_linearrgb", tcol, &tcol);
@@ -1050,9 +1050,9 @@ static void do_material_tex(GPUShadeInput *shi)
 
 						if(mtex->normapspace == MTEX_NSPACE_TANGENT)
 							{
-								if(iFirstTimeNMap!=0)
-								{
-									// use unnormalized normal (this is how we bake it - closer to gamedev)
+							if(iFirstTimeNMap!=0)
+							{
+								// use unnormalized normal (this is how we bake it - closer to gamedev)
 								GPUNodeLink *vNegNorm;
 								GPU_link(mat, "vec_math_negate", GPU_builtin(GPU_VIEW_NORMAL), &vNegNorm);
 								GPU_link(mat, "mtex_nspace_tangent", GPU_attribute(CD_TANGENT, ""), vNegNorm, tnor, &newnor);
@@ -1060,23 +1060,23 @@ static void do_material_tex(GPUShadeInput *shi)
 							}
 							else	// otherwise use accumulated perturbations
 							{
-						GPU_link(mat, "mtex_nspace_tangent", GPU_attribute(CD_TANGENT, ""), shi->vn, tnor, &newnor);
+								GPU_link(mat, "mtex_nspace_tangent", GPU_attribute(CD_TANGENT, ""), shi->vn, tnor, &newnor);
 							}
 						}
 						else
 							newnor = tnor;
 
-							norfac = MIN2(fabsf(mtex->norfac), 1.0f);
+						norfac = MIN2(fabsf(mtex->norfac), 1.0f);
 						
 						if(norfac == 1.0f && !GPU_link_changed(stencil)) {
 							shi->vn = newnor;
 						}
 						else {
 							tnorfac = GPU_uniform(&norfac);
-
+	
 							if(GPU_link_changed(stencil))
 								GPU_link(mat, "math_multiply", tnorfac, stencil, &tnorfac);
-
+	
 							GPU_link(mat, "mtex_blend_normal", tnorfac, shi->vn, newnor, &shi->vn);
 						}
 						
@@ -1104,7 +1104,7 @@ static void do_material_tex(GPUShadeInput *shi)
 							iBumpSpacePrev = 0;
 							init_done = 1;
 						}
-
+	
 						// find current bump space
 						if( mtex->texflag & MTEX_BUMP_OBJECTSPACE )
 							iBumpSpace = 1;

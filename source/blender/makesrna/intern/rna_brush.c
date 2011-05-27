@@ -119,7 +119,7 @@ static void rna_Brush_reset_icon(Brush *br, const char *UNUSED(type))
 	if(id->icon_id >= BIFICONID_LAST) {
 		BKE_icon_delete(id);
 		BKE_previewimg_free_id(id);
- 	}
+	}
 
 	id->icon_id = 0;
 }
@@ -443,7 +443,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, brush_sculpt_plane_items);
 	RNA_def_property_ui_text(prop, "Sculpt Plane", "");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
-
+	
 	/* number values */
 	prop= RNA_def_property(srna, "size", PROP_INT, PROP_DISTANCE);
 	RNA_def_property_int_funcs(prop, "rna_Brush_get_size", "rna_Brush_set_size", NULL);
@@ -765,7 +765,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "mtex");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Texture Slot", "");
-
+	
 	prop= RNA_def_property(srna, "texture", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "mtex.tex");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
@@ -862,7 +862,7 @@ static void rna_def_operator_stroke_element(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "time", PROP_FLOAT, PROP_UNSIGNED);
 	RNA_def_property_flag(prop, PROP_IDPROPERTY);
 	RNA_def_property_ui_text(prop, "Time", "");
-
+	
 	/* used for Grease Pencil sketching sessions */
 	prop= RNA_def_property(srna, "is_start", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_IDPROPERTY);

@@ -90,11 +90,11 @@ typedef struct RegionView3D {
 
 	/* transform widget matrix */
 	float twmat[4][4];
-	
+
 	float viewquat[4];			/* view rotation, must be kept normalized */
 	float dist;					/* distance from 'ofs' along -viewinv[2] vector, where result is negative as is 'ofs' */
 	float zfac;					/* initgrabz() result */
-	float camdx, camdy;				/* camera view offsets, 1.0 = viewplane moves entire width/height */
+	float camdx, camdy;			/* camera view offsets, 1.0 = viewplane moves entire width/height */
 	float pixsize;				/* runtime only */
 	float ofs[3];				/* view center & orbit pivot, negative of worldspace location,
 								 * also matches -viewinv[3][0:3] in ortho mode.*/
@@ -178,7 +178,7 @@ typedef struct View3D {
 	short gridlines;
 	short gridsubdiv;	/* Number of subdivisions in the grid between each highlighted grid line */
 	char gridflag;
-	
+
 	/* transform widget info */
 	char twtype, twmode, twflag, pad2[2];
 	
@@ -231,10 +231,10 @@ typedef struct View3D {
 
 /* RegionView3d->view */
 #define RV3D_VIEW_USER			 0
-#define RV3D_VIEW_FRONT		 1
+#define RV3D_VIEW_FRONT			 1
 #define RV3D_VIEW_BACK			 2
 #define RV3D_VIEW_LEFT			 3
-#define RV3D_VIEW_RIGHT		 4
+#define RV3D_VIEW_RIGHT		 	 4
 #define RV3D_VIEW_TOP			 5
 #define RV3D_VIEW_BOTTOM		 6
 #define RV3D_VIEW_PERSPORTHO	 7

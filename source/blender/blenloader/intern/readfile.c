@@ -1205,7 +1205,7 @@ void blo_end_image_pointer_map(FileData *fd, Main *oldmain)
 	
 	/* used entries were restored, so we put them to zero */
 	for (i=0; i<fd->imamap->nentries; i++, entry++) {
-		 if (entry->nr>0)
+		if (entry->nr>0)
 			entry->newp= NULL;
 	}
 	
@@ -2111,7 +2111,7 @@ static void lib_verify_nodetree(Main *main, int UNUSED(open))
 	/* now create the own typeinfo structs an verify nodes */
 	/* here we still assume no groups in groups */
 	for(ntree= main->nodetree.first; ntree; ntree= ntree->id.next) {
-		ntreeVerifyTypes(ntree);	/* internal nodes, no groups! */
+		ntreeVerifyTypes(ntree);		/* internal nodes, no groups! */
 	}
 	
 	{
@@ -2235,7 +2235,7 @@ static void direct_link_nodetree(FileData *fd, bNodeTree *ntree)
 		link->fromsock= newdataadr(fd, link->fromsock);
 		link->tosock= newdataadr(fd, link->tosock);
 	}
-		
+	
 	/* type verification is in lib-link */
 }
 
@@ -3415,7 +3415,7 @@ static void lib_link_mesh(FileData *fd, Main *main)
 
 static void direct_link_dverts(FileData *fd, int count, MDeformVert *mdverts)
 {
-	int	i;
+	int i;
 
 	if (mdverts == NULL) {
 		return;
@@ -3424,10 +3424,10 @@ static void direct_link_dverts(FileData *fd, int count, MDeformVert *mdverts)
 	for (i= count; i > 0; i--, mdverts++) {
 		if(mdverts->dw) {
 			mdverts->dw= newdataadr(fd, mdverts->dw);
-	}
+		}
 		if (mdverts->dw == NULL) {
 			mdverts->totweight= 0;
-}
+		}
 	}
 }
 
@@ -3697,7 +3697,7 @@ static void lib_link_object(FileData *fd, Main *main)
 
 			ob->gpd= newlibadr_us(fd, ob->id.lib, ob->gpd);
 			ob->duplilist= NULL;
-            
+ 
 			ob->id.flag -= LIB_NEEDLINK;
 			/* if id.us==0 a new base will be created later on */
 			
@@ -4127,7 +4127,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			tmd->curfalloff= newdataadr(fd, tmd->curfalloff);
 			if(tmd->curfalloff)
 				direct_link_curvemapping(fd, tmd->curfalloff);
-	}
+		}
 }
 }
 
@@ -5534,13 +5534,13 @@ static void fix_relpaths_library(const char *basepath, Main *main)
 	else {
 		for(lib= main->library.first; lib; lib= lib->id.next) {
 			/* Libraries store both relative and abs paths, recreate relative paths,
-			* relative to the blend file since indirectly linked libs will be relative to their direct linked library */
+			 * relative to the blend file since indirectly linked libs will be relative to their direct linked library */
 			if (strncmp(lib->name, "//", 2)==0) { /* if this is relative to begin with? */
 				strncpy(lib->name, lib->filepath, sizeof(lib->name));
 				BLI_path_rel(lib->name, basepath);
 			}
+		}
 	}
-}
 }
 
 /* ************** READ SOUND ******************* */
@@ -6533,7 +6533,7 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
 				
 				ar->v2d.min[0]= 0.0f;
 				ar->v2d.min[1]= 0.0f;
-				
+
 				ar->v2d.max[0]= MAXFRAMEF;
 				ar->v2d.max[1]= FLT_MAX;
 			 	
@@ -11254,7 +11254,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				SEQ_END
 			}
 		}
-	}
 
 	/* Sanity check on Sculpt/Paint settings */
 	/* These sanity checks apply to all versions */
@@ -11551,7 +11550,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 	if (main->versionfile < 256 || (main->versionfile == 256 && main->subversionfile < 2)) {
 		bNodeTree *ntree;
-	
+		
 		/* node sockets are not exposed automatically any more,
 		 * this mimics the old behaviour by adding all unlinked sockets to groups.
 		 */
@@ -11597,10 +11596,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				sc->redraws_flag = TIME_ALL_3D_WIN|TIME_ALL_ANIM_WIN;
 			}
 		}
-
-		for (brush= main->brush.first; brush; brush= brush->id.next) {
-			if(brush->height == 0)
-				brush->height= 0.4f;
 	}
 
 		/* replace 'rim material' option for in offset*/
@@ -12168,7 +12163,7 @@ static void expand_particlesettings(FileData *fd, Main *mainvar, ParticleSetting
 		if(part->mtex[a]) {
 			expand_doit(fd, mainvar, part->mtex[a]->tex);
 			expand_doit(fd, mainvar, part->mtex[a]->object);
-}
+		}
 	}
 }
 
@@ -12445,7 +12440,7 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 	int a;
 
 	expand_doit(fd, mainvar, ob->data);
-	
+
 	/* expand_object_expandModifier() */
 	if(ob->modifiers.first) {
 		struct { FileData *fd; Main *mainvar; } data;
@@ -12782,7 +12777,7 @@ static void give_base_to_objects(Main *mainvar, Scene *sce, Library *lib, const 
 				else if(idcode==ID_GR) {
 					if(ob->id.us==1 && is_link==FALSE && ob->id.lib==lib) {
 						if((ob->flag & OB_FROMGROUP) && object_in_any_scene(mainvar, ob)==0) {
-						do_it= 1;
+							do_it= 1;
 						}
 					}
 				}
@@ -12795,7 +12790,7 @@ static void give_base_to_objects(Main *mainvar, Scene *sce, Library *lib, const 
 						}
 					}
 				}
-						
+
 				if(do_it) {
 					base= MEM_callocN( sizeof(Base), "add_ext_base");
 					BLI_addtail(&(sce->base), base);
@@ -12883,7 +12878,7 @@ static ID *append_named_part(const bContext *C, Main *mainl, FileData *fd, const
 					BLI_addtail(&scene->base, base);
 
 					ob= (Object *)id;
-					
+
 					/* link at active layer (view3d->lay if in context, else scene->lay */
 					if((flag & FILE_ACTIVELAY)) {
 						View3D *v3d = CTX_wm_view3d(C);

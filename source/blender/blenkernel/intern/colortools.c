@@ -55,7 +55,7 @@
 #include "IMB_imbuf_types.h"
 
 
-void floatbuf_to_srgb_byte(float *rectf, unsigned char *rectc, int x1, int x2, int y1, int y2, int w)
+void floatbuf_to_srgb_byte(float *rectf, unsigned char *rectc, int x1, int x2, int y1, int y2, int UNUSED(w))
 {
 	int x, y;
 	float *rf= rectf;
@@ -76,7 +76,7 @@ void floatbuf_to_srgb_byte(float *rectf, unsigned char *rectc, int x1, int x2, i
 	}
 }
 
-void floatbuf_to_byte(float *rectf, unsigned char *rectc, int x1, int x2, int y1, int y2, int w)
+void floatbuf_to_byte(float *rectf, unsigned char *rectc, int x1, int x2, int y1, int y2, int UNUSED(w))
 {
 	int x, y;
 	float *rf= rectf;
@@ -358,7 +358,7 @@ void curvemap_sethandle(CurveMap *cuma, int type)
 /* *********************** Making the tables and display ************** */
 
 /* reduced copy of garbled calchandleNurb() code in curve.c */
-static void calchandle_curvemap(BezTriple *bezt, BezTriple *prev, BezTriple *next, int mode)
+static void calchandle_curvemap(BezTriple *bezt, BezTriple *prev, BezTriple *next, int UNUSED(mode))
 {
 	float *p1,*p2,*p3,pt[3];
 	float dx1,dy1, dx,dy, vx,vy, len,len1,len2;
@@ -817,7 +817,7 @@ void curvemapping_do_ibuf(CurveMapping *cumap, ImBuf *ibuf)
 	if(ibuf->channels)
 		stride= ibuf->channels;
 	
-	for(pixel= ibuf->x*ibuf->y; pixel>0; pixel--, pix_in+=stride, pix_out+=4) {
+	for(pixel= ibuf->x*ibuf->y; pixel>0; pixel--, pix_in+=stride, pix_out+=stride) {
 		if(stride<3) {
 			col[0]= curvemap_evaluateF(cumap->cm, *pix_in);
 			
@@ -908,7 +908,7 @@ DO_INLINE int get_bin_float(float f)
 
 	/* note: clamp integer instead of float to avoid problems with NaN */
 	CLAMP(bin, 0, 255);
-	
+
 	return bin;
 }
 
@@ -950,7 +950,8 @@ DO_INLINE void save_sample_line(Scopes *scopes, const int idx, const float fx, f
 
 void scopes_update(Scopes *scopes, ImBuf *ibuf, int use_color_management)
 {
-	int x, y, c, n, nl;
+	int x, y, c;
+	unsigned int n, nl;
 	double div, divl;
 	float *rf=NULL;
 	unsigned char *rc=NULL;

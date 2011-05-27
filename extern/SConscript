@@ -20,7 +20,7 @@ if env['WITH_BF_BINRELOC']:
     SConscript(['binreloc/SConscript']);
 
 if env['WITH_BF_LZO']:
-	SConscript(['lzo/SConscript'])
+    SConscript(['lzo/SConscript'])
 
 if env['WITH_BF_LZMA']:
-	SConscript(['lzma/SConscript'])
+    SConscript(['lzma/SConscript'])

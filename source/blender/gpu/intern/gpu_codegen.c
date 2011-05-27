@@ -921,7 +921,7 @@ static GPUNode *GPU_node_begin(const char *name)
 {
 	GPUNode *node = MEM_callocN(sizeof(GPUNode), "GPUNode");
 
-	node->name = name;
+	node->name= name;
 
 	return node;
 }

@@ -32,8 +32,7 @@ set(INC
 	../blenkernel
 	../blenkernel/intern
 	../render/extern/include
-    ../../../intern/guardedalloc
-	../../../intern/decimation/extern
+	../../../intern/guardedalloc
 	../../../intern/elbeem/extern
 	${ZLIB_INCLUDE_DIRS}
 )

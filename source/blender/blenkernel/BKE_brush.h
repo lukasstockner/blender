@@ -40,7 +40,7 @@ struct Brush;
 struct ImBuf;
 struct Scene;
 struct wmOperator;
-enum CurveMappingPreset;
+//enum CurveMappingPreset;
 
 /* datablock functions */
 struct Brush *add_brush(const char *name);
@@ -52,8 +52,6 @@ void brush_reset_sculpt(struct Brush *brush);
 
 /* image icon function */
 struct ImBuf *get_brush_icon(struct Brush *brush);
-
-
 
 /* brush library operations used by different paint panels */
 int brush_delete(struct Brush **current_brush);

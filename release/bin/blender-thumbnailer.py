@@ -56,14 +56,14 @@ def blend_extract_thumb(path):
     open_wrapper = open_wrapper_get()
 
     # def MAKE_ID(tag): ord(tag[0])<<24 | ord(tag[1])<<16 | ord(tag[2])<<8 | ord(tag[3])
-    REND = 1145980242 # MAKE_ID(b'REND')
-    TEST = 1414743380 # MAKE_ID(b'TEST')
+    REND = 1145980242  # MAKE_ID(b'REND')
+    TEST = 1414743380  # MAKE_ID(b'TEST')
 
     blendfile = open_wrapper(path, 'rb')
 
     head = blendfile.read(12)
 
-    if head[0:2] == b'\x1f\x8b': # gzip magic
+    if head[0:2] == b'\x1f\x8b':  # gzip magic
         import gzip
         blendfile.close()
         blendfile = gzip.GzipFile('', 'rb', 0, open_wrapper(path, 'rb'))
@@ -91,22 +91,22 @@ def blend_extract_thumb(path):
         if len(bhead) < sizeof_bhead:
             return None, 0, 0
 
-        code, length = struct.unpack(int_endian_pair, bhead[0:8]) # 8 == sizeof(int) * 2
+        code, length = struct.unpack(int_endian_pair, bhead[0:8])  # 8 == sizeof(int) * 2
 
         if code == REND:
             blendfile.seek(length, os.SEEK_CUR)
         else:
             break
-            
+
     if code != TEST:
         return None, 0, 0
 
     try:
-        x, y = struct.unpack(int_endian_pair, blendfile.read(8)) # 8 == sizeof(int) * 2
+        x, y = struct.unpack(int_endian_pair, blendfile.read(8))  # 8 == sizeof(int) * 2
     except struct.error:
         return None, 0, 0
 
-    length -= 8 # sizeof(int) * 2
+    length -= 8  # sizeof(int) * 2
 
     if length != x * y * 4:
         return None, 0, 0
@@ -146,7 +146,7 @@ if __name__ == '__main__':
         file_in = sys.argv[-2]
 
         buf, width, height = blend_extract_thumb(file_in)
-        
+
         if buf:
             file_out = sys.argv[-1]
 

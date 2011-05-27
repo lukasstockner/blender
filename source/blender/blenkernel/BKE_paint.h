@@ -70,7 +70,7 @@ typedef struct SculptSession {
 	int totvert, totface;
 	float *face_normals;
 	struct KeyBlock *kb;
-
+	
 	/* Mesh connectivity */
 	struct ListBase *fmap;
 

@@ -137,7 +137,7 @@ void BKE_previewimg_freefunc(void *link)
 	PreviewImage *prv = (PreviewImage *)link;
 	if (prv) {
 		int i;
-		
+
 		for (i=0; i<NUM_ICON_SIZES;++i) {
 			if (prv->rect[i]) {
 				MEM_freeN(prv->rect[i]);

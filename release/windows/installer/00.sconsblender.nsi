@@ -15,6 +15,7 @@ RequestExecutionLevel admin
 !include "FileFunc.nsh"
 !include "WordFunc.nsh"
 !include "nsDialogs.nsh"
+!include "x64.nsh"
 
 !define MUI_ABORTWARNING
 
@@ -25,6 +26,7 @@ RequestExecutionLevel admin
 !define MUI_COMPONENTSPAGE_SMALLDESC
 !define MUI_FINISHPAGE_RUN "$INSTDIR\blender.exe"
 !define MUI_CHECKBITMAP "[RELDIR]\00.checked.bmp"
+!define MUI_UNWELCOMEFINISHPAGE_BITMAP "[RELDIR]\01.installer.bmp"
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_LICENSE "[DISTDIR]\Copyright.txt"
@@ -85,6 +87,7 @@ Var HWND_INSTDIR
 Var HWND_HOMEDIR
 
 Function .onInit
+  ClearErrors
   StrCpy $SHORTVERSION "[SHORTVERSION]"
 
   ${If} ${RunningX64}
@@ -161,6 +164,9 @@ Section "Blender [VERSION] (required)" InstallFiles
   [DODATAFILES]
   
   SetOutPath $INSTDIR
+  ${If} ${RunningX64}
+    SetRegView 64
+  ${EndIf}
   ; Write the installation path into the registry
   WriteRegStr HKLM "SOFTWARE\BlenderFoundation" "Install_Dir" "$INSTDIR"
   WriteRegStr HKLM "SOFTWARE\BlenderFoundation" "ConfigData_Dir" "$BLENDERHOME"
@@ -171,30 +177,25 @@ Section "Blender [VERSION] (required)" InstallFiles
   WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Blender" "URLInfoAbout" "http://www.blender.org/"
   WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Blender" "DisplayVersion" "[VERSION]"
   WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Blender" "DisplayIcon" "$INSTDIR\blender.exe"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Blender" "UninstallString" '"$INSTDIR\uninstall.exe"'
+  WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Blender" "UninstallString" '"$INSTDIR\uninstall.exe"'
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Blender" "NoModify" 1
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Blender" "NoRepair " 1
   WriteUninstaller "uninstall.exe"
 
-  ; Let's now run silent vcredist installer
-  SetOutPath $TEMP
-  [VCREDIST]
-
 SectionEnd
 
 Section "Add Start Menu Shortcuts" StartMenu
-  SetOutPath $INSTDIR
+  SetShellVarContext all
   CreateDirectory "$SMPROGRAMS\Blender Foundation\Blender\"
   CreateShortCut "$SMPROGRAMS\Blender Foundation\Blender\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "$INSTDIR\uninstall.exe" 0
   CreateShortCut "$SMPROGRAMS\Blender Foundation\Blender\Blender.lnk" "$INSTDIR\Blender.exe" "" "$INSTDIR\blender.exe" 0
-  CreateShortCut "$SMPROGRAMS\Blender Foundation\Blender\Readme.lnk" "$INSTDIR\Blender.html" "" "" 0
+  CreateShortCut "$SMPROGRAMS\Blender Foundation\Blender\Readme.lnk" "$INSTDIR\readme.html" "" "" 0
   CreateShortCut "$SMPROGRAMS\Blender Foundation\Blender\Copyright.lnk" "$INSTDIR\Copyright.txt" "" "$INSTDIR\copyright.txt" 0
   CreateShortCut "$SMPROGRAMS\Blender Foundation\Blender\GPL-license.lnk" "$INSTDIR\GPL-license.txt" "" "$INSTDIR\GPL-license.txt" 0
   System::Call 'shell32.dll::SHChangeNotify(i, i, i, i) v (0x08000000, 0, 0, 0)' ; refresh icons
 SectionEnd
 
 Section "Add Desktop Shortcut" DesktopShortcut
-  SetOutPath $INSTDIR
   CreateShortCut "$DESKTOP\Blender.lnk" "$INSTDIR\blender.exe" "" "$INSTDIR\blender.exe" 0
   System::Call 'shell32.dll::SHChangeNotify(i, i, i, i) v (0x08000000, 0, 0, 0)' ; refresh icons
 SectionEnd
@@ -207,6 +208,9 @@ UninstallText "This will uninstall Blender [VERSION], and all installed files. B
 
 Section "Uninstall"
   ; Remove registry keys
+  ${If} ${RunningX64}
+    SetRegView 64
+  ${EndIf}
   
   ReadRegStr $BLENDERHOME HKLM "SOFTWARE\BlenderFoundation" "ConfigData_Dir"
   ReadRegStr $SHORTVERSION HKLM "SOFTWARE\BlenderFoundation" "ShortVersion"

@@ -73,7 +73,7 @@ static void brush_set_defaults(Brush *brush)
 	brush->blend = 0;
 	brush->flag = 0;
 
-	brush->ob_mode = (OB_MODE_SCULPT|OB_MODE_VERTEX_PAINT|OB_MODE_WEIGHT_PAINT|OB_MODE_TEXTURE_PAINT);
+	brush->ob_mode = OB_MODE_ALL_PAINT;
 
 	/* BRUSH SCULPT TOOL SETTINGS */
 	brush->size= 35; /* radius of the brush in pixels */
@@ -167,7 +167,7 @@ Brush *copy_brush(Brush *brush)
 		brushn->id.flag |= LIB_FAKEUSER;
 		brushn->id.us++;
 	}
-
+	
 	return brushn;
 }
 
@@ -194,9 +194,9 @@ void make_local_brush(Brush *brush)
 {
 
 	/* - only lib users: do nothing
-		* - only local users: set flag
-		* - mixed: make copy
-		*/
+	 * - only local users: set flag
+	 * - mixed: make copy
+	 */
 	
 	Main *bmain= G.main;
 	Scene *scene;
@@ -243,15 +243,13 @@ void make_local_brush(Brush *brush)
 					brushn->id.us++;
 					brush->id.us--;
 				}
-	}
-}
+			}
+		}
 	}
 }
 
 void brush_debug_print_state(Brush *br)
 {
-	Brush def;
-
 	/* create a fake brush and set it to the defaults */
 	Brush def= {{NULL}};
 	brush_set_defaults(&def);
@@ -545,7 +543,7 @@ void brush_imbuf_new(Brush *brush, short flt, short texfall, int bufsize, ImBuf 
 	if (*outbuf)
 		ibuf= *outbuf;
 	else
-		ibuf= IMB_allocImBuf(bufsize, bufsize, 32, imbflag, 0);
+		ibuf= IMB_allocImBuf(bufsize, bufsize, 32, imbflag);
 
 	if (flt) {
 		for (y=0; y < ibuf->y; y++) {
@@ -825,11 +823,11 @@ static void brush_painter_fixed_tex_partial_update(BrushPainter *painter, float 
 
 	imbflag= (cache->flt)? IB_rectfloat: IB_rect;
 	if (!cache->ibuf)
-		cache->ibuf= IMB_allocImBuf(diameter, diameter, 32, imbflag, 0);
+		cache->ibuf= IMB_allocImBuf(diameter, diameter, 32, imbflag);
 	ibuf= cache->ibuf;
 
 	oldtexibuf= cache->texibuf;
-	cache->texibuf= IMB_allocImBuf(diameter, diameter, 32, imbflag, 0);
+	cache->texibuf= IMB_allocImBuf(diameter, diameter, 32, imbflag);
 
 	if (oldtexibuf) {
 		srcx= srcy= 0;
@@ -1036,30 +1034,30 @@ int brush_painter_paint(BrushPainter *painter, BrushFunc func, float *pos, doubl
 		painter->accumdistance += len;
 
 		if (brush->flag & BRUSH_SPACE) {
-		/* do paint op over unpainted distance */
-		while ((len > 0.0f) && (painter->accumdistance >= spacing)) {
-			step= spacing - startdistance;
-			paintpos[0]= painter->lastmousepos[0] + dmousepos[0]*step;
-			paintpos[1]= painter->lastmousepos[1] + dmousepos[1]*step;
+			/* do paint op over unpainted distance */
+			while ((len > 0.0f) && (painter->accumdistance >= spacing)) {
+				step= spacing - startdistance;
+				paintpos[0]= painter->lastmousepos[0] + dmousepos[0]*step;
+				paintpos[1]= painter->lastmousepos[1] + dmousepos[1]*step;
 
-			t = step/len;
-			press= (1.0f-t)*painter->lastpressure + t*pressure;
-			brush_apply_pressure(painter, brush, press);
-			spacing= MAX2(1.0f, radius)*brush->spacing*0.01f;
+				t = step/len;
+				press= (1.0f-t)*painter->lastpressure + t*pressure;
+				brush_apply_pressure(painter, brush, press);
+				spacing= MAX2(1.0f, radius)*brush->spacing*0.01f;
 
-			brush_jitter_pos(brush, paintpos, finalpos);
+				brush_jitter_pos(brush, paintpos, finalpos);
 
-			if (painter->cache.enabled)
-				brush_painter_refresh_cache(painter, finalpos);
+				if (painter->cache.enabled)
+					brush_painter_refresh_cache(painter, finalpos);
 
-			totpaintops +=
-				func(user, painter->cache.ibuf, painter->lastpaintpos, finalpos);
+				totpaintops +=
+					func(user, painter->cache.ibuf, painter->lastpaintpos, finalpos);
 
-			painter->lastpaintpos[0]= paintpos[0];
-			painter->lastpaintpos[1]= paintpos[1];
-			painter->accumdistance -= spacing;
-			startdistance -= spacing;
-		}
+				painter->lastpaintpos[0]= paintpos[0];
+				painter->lastpaintpos[1]= paintpos[1];
+				painter->accumdistance -= spacing;
+				startdistance -= spacing;
+			}
 		} else {
 			brush_jitter_pos(brush, pos, finalpos);
 
@@ -1130,12 +1128,12 @@ float brush_curve_strength_clamp(Brush *br, float p, const float len)
  * used for sculpt only */
 float brush_curve_strength(Brush *br, float p, const float len)
 {
-    if(p >= len)
-        p= 1.0f;
-    else
-        p= p/len;
+	if(p >= len)
+		p= 1.0f;
+	else
+		p= p/len;
 
-    return curvemapping_evaluateF(br->curve, 0, p);
+	return curvemapping_evaluateF(br->curve, 0, p);
 }
 
 /* TODO: should probably be unified with BrushPainter stuff? */
@@ -1143,12 +1141,10 @@ unsigned int *brush_gen_texture_cache(Brush *br, int half_side)
 {
 	unsigned int *texcache = NULL;
 	MTex *mtex = &br->mtex;
-	TexResult texres;
+	TexResult texres= {0};
 	int hasrgb, ix, iy;
 	int side = half_side * 2;
 
-	memset(&texres, 0, sizeof(TexResult));
-	
 	if(mtex->tex) {
 		float x, y, step = 2.0 / side, co[3];
 
@@ -1215,6 +1211,8 @@ struct ImBuf *brush_gen_radial_control_imbuf(Brush *br)
 			}
 		}
 
+		/* XXX: combine with loop above */
+		/* XXX: sqrt and pow seem like they could be eliminated */
 		/* invert the texture */
 		for(i=0; i<side; ++i) {
 			for(j=0; j<side; ++j) {
@@ -1230,6 +1228,14 @@ struct ImBuf *brush_gen_radial_control_imbuf(Brush *br)
 }
 
 /* Unified Size and Strength */
+
+// XXX: unified settings are stored in scene toolsettings
+// to simplify things (from an API standpoint, not implementation),
+// all of the flags in each scene are set to the same value.
+// the 'get' functions return first value, since all should be the same
+// This arrangement seems odd, is there a better whay?
+// At this point, I think UserPrefs had been ruled out, but I do not know why.
+// ~~~~jwilkins
 
 static void set_unified_settings(const Brush *brush, short flag, int value)
 {

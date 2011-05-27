@@ -25,7 +25,6 @@
 # ***** END GPL LICENSE BLOCK *****
 
 add_subdirectory(blender)
-ADD_SUBDIRECTORY(kernel)
 
 if(WITH_GAMEENGINE)
 	add_subdirectory(gameengine)

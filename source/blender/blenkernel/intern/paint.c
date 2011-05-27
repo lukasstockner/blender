@@ -25,7 +25,7 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- */ 
+ */
 
 /** \file blender/blenkernel/intern/paint.c
  *  \ingroup bke
@@ -78,7 +78,7 @@ Paint *paint_get_active(Scene *sce)
 	return NULL;
 }
 
-Brush *paint_brush(const Paint *p)
+Brush *paint_brush(Paint *p)
 {
 	return p ? p->brush : NULL;
 }
@@ -87,8 +87,8 @@ void paint_brush_set(Paint *p, Brush *br)
 {
 	if(p)
 		p->brush= br;
-	}
-	
+}
+
 int paint_facesel_test(Object *ob)
 {
 	return (ob && ob->type==OB_MESH && ob->data && (((Mesh *)ob->data)->editflag & ME_EDIT_PAINT_MASK) && (ob->mode & (OB_MODE_VERTEX_PAINT|OB_MODE_WEIGHT_PAINT|OB_MODE_TEXTURE_PAINT)));
@@ -110,7 +110,7 @@ void paint_init(Paint *p, const char col[3])
 	p->flags |= PAINT_SHOW_BRUSH;
 }
 
-void free_paint(Paint *paint)
+void free_paint(Paint *UNUSED(paint))
 {
 	/* nothing */
 }
@@ -118,4 +118,4 @@ void free_paint(Paint *paint)
 void copy_paint(Paint *src, Paint *tar)
 {
 	tar->brush= src->brush;
-	}
+}

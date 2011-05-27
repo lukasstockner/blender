@@ -61,7 +61,6 @@
 #include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_node.h"
-#include "BKE_texture.h"
 
 
 #include "GPU_material.h"
@@ -69,21 +68,17 @@
 /* used in UI and render */
 Material defmaterial;
 
-Material    matcap_ma;
-static MTex matcap_mtex;
-static Tex  matcap_tex;
-
-/* called on startup, creator.c */
-void init_def_material(void)
+// initialize a slot for the current MatCap
+static void init_matcap(void)
 {
-	init_material(&defmaterial);
-
 	default_tex(&matcap_tex);
 	matcap_tex.type = TEX_IMAGE;
 
 	default_mtex(&matcap_mtex);
 	matcap_mtex.texco = TEXCO_NORM;
 	matcap_mtex.tex = &matcap_tex;
+
+	//XXX: this is a hack to eliminate artifacts around the edges
 	//matcap_mtex.size[0] = 0.95f;
 	//matcap_mtex.size[1] = 0.95f;
 
@@ -91,6 +86,13 @@ void init_def_material(void)
 	matcap_ma.mode |= MA_SHLESS;
 	matcap_ma.shade_flag |= MA_OBCOLOR;
 	matcap_ma.mtex[0] = &matcap_mtex;
+}
+
+/* called on startup, creator.c */
+void init_def_material(void)
+{
+	init_material(&defmaterial);
+	init_matcap();
 }
 
 /* not material itself */
@@ -111,7 +113,7 @@ void free_material(Material *ma)
 	BKE_free_animdata((ID *)ma);
 	
 	if(ma->preview)
-	BKE_previewimg_free(&ma->preview);
+		BKE_previewimg_free(&ma->preview);
 	BKE_icon_delete((struct ID*)ma);
 	ma->id.icon_id = 0;
 	
@@ -312,7 +314,7 @@ void make_local_material(Material *ma)
 	if(ma->id.us==1) {
 		ma->id.lib= NULL;
 		ma->id.flag= LIB_LOCAL;
-		
+
 		new_id(&bmain->mat, (ID *)ma, NULL);
 		extern_local_material(ma);
 		return;
@@ -374,10 +376,10 @@ void make_local_material(Material *ma)
 	if(local && lib==0) {
 		ma->id.lib= NULL;
 		ma->id.flag= LIB_LOCAL;
-		
+
 		new_id(&bmain->mat, (ID *)ma, NULL);
 		extern_local_material(ma);
-		}
+	}
 	else if(local && lib) {
 		
 		man= copy_material(ma);
@@ -559,6 +561,7 @@ Material *material_pop_id(ID *id, int index)
 		short *totcol= give_totcolp_id(id);
 		if(index >= 0 && index < (*totcol)) {
 			ret= (*matar)[index];
+			id_us_min((ID *)ret);			
 			if(*totcol <= 1) {
 				*totcol= 0;
 				MEM_freeN(*matar);
@@ -665,30 +668,30 @@ void resize_object_material(Object *ob, const short totcol)
 	Material **newmatar;
 	char *newmatbits;
 
-			if(totcol==0) {
-				if(ob->totcol) {
-					MEM_freeN(ob->mat);
-					MEM_freeN(ob->matbits);
-					ob->mat= NULL;
-					ob->matbits= NULL;
-				}
-			}
-			else if(ob->totcol<totcol) {
-				newmatar= MEM_callocN(sizeof(void *)*totcol, "newmatar");
-				newmatbits= MEM_callocN(sizeof(char)*totcol, "newmatbits");
-				if(ob->totcol) {
-					memcpy(newmatar, ob->mat, sizeof(void *)*ob->totcol);
-					memcpy(newmatbits, ob->matbits, sizeof(char)*ob->totcol);
-					MEM_freeN(ob->mat);
-					MEM_freeN(ob->matbits);
-				}
-				ob->mat= newmatar;
-				ob->matbits= newmatbits;
-			}
-			ob->totcol= totcol;
-			if(ob->totcol && ob->actcol==0) ob->actcol= 1;
-			if(ob->actcol>ob->totcol) ob->actcol= ob->totcol;
+	if(totcol==0) {
+		if(ob->totcol) {
+			MEM_freeN(ob->mat);
+			MEM_freeN(ob->matbits);
+			ob->mat= NULL;
+			ob->matbits= NULL;
 		}
+	}
+	else if(ob->totcol<totcol) {
+		newmatar= MEM_callocN(sizeof(void *)*totcol, "newmatar");
+		newmatbits= MEM_callocN(sizeof(char)*totcol, "newmatbits");
+		if(ob->totcol) {
+			memcpy(newmatar, ob->mat, sizeof(void *)*ob->totcol);
+			memcpy(newmatbits, ob->matbits, sizeof(char)*ob->totcol);
+			MEM_freeN(ob->mat);
+			MEM_freeN(ob->matbits);
+		}
+		ob->mat= newmatar;
+		ob->matbits= newmatbits;
+	}
+	ob->totcol= totcol;
+	if(ob->totcol && ob->actcol==0) ob->actcol= 1;
+	if(ob->actcol>ob->totcol) ob->actcol= ob->totcol;
+}
 
 void test_object_materials(ID *id)
 {
@@ -703,7 +706,7 @@ void test_object_materials(ID *id)
 	for(ob= G.main->object.first; ob; ob= ob->id.next) {
 		if(ob->data==id) {
 			resize_object_material(ob, *totcol);
-}
+		}
 	}
 }
 
@@ -845,7 +848,7 @@ static void do_init_render_material(Material *ma, int r_mode, float *amb)
 			ma->mapto |= mtex->mapto;
 
 			/* always get derivatives for these textures */
-				if ELEM3(mtex->tex->type, TEX_IMAGE, TEX_PLUGIN, TEX_ENVMAP) ma->texco |= TEXCO_OSA;
+			if ELEM3(mtex->tex->type, TEX_IMAGE, TEX_PLUGIN, TEX_ENVMAP) ma->texco |= TEXCO_OSA;
 			else if(mtex->texflag & (MTEX_COMPAT_BUMP|MTEX_3TAP_BUMP|MTEX_5TAP_BUMP)) ma->texco |= TEXCO_OSA;
 			
 			if(ma->texco & (TEXCO_ORCO|TEXCO_REFL|TEXCO_NORM|TEXCO_STRAND|TEXCO_STRESS)) needuv= 1;
@@ -1343,12 +1346,12 @@ void ramp_blend(int type, float *r, float *g, float *b, float fac, float *col)
 		case MA_RAMP_SOFT: 
 			if (g){ 
 				float scr, scg, scb; 
-                 
+
 				/* first calculate non-fac based Screen mix */ 
 				scr = 1.0f - (1.0f - col[0]) * (1.0f - *r); 
 				scg = 1.0f - (1.0f - col[1]) * (1.0f - *g); 
 				scb = 1.0f - (1.0f - col[2]) * (1.0f - *b); 
-                 
+
 				*r = facm*(*r) + fac*(((1.0f - *r) * col[0] * (*r)) + (*r * scr)); 
 				*g = facm*(*g) + fac*(((1.0f - *g) * col[1] * (*g)) + (*g * scg)); 
 				*b = facm*(*b) + fac*(((1.0f - *b) * col[2] * (*b)) + (*b * scb)); 
@@ -1375,7 +1378,7 @@ void ramp_blend(int type, float *r, float *g, float *b, float fac, float *col)
 
 /* copy/paste buffer, if we had a propper py api that would be better */
 Material matcopybuf;
-static short matcopied=0;
+static short matcopied= 0;
 
 void clear_matcopybuf(void)
 {

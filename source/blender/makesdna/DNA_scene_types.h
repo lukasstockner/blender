@@ -664,7 +664,7 @@ typedef struct ToolSettings {
 	short uvcalc_flag;
 	short uv_flag, uv_selectmode;
 	short uv_pad;
-
+	
 	/* Grease Pencil */
 	short gpencil_flags;
 	

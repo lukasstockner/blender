@@ -207,12 +207,12 @@ static GLboolean _glewStrSame1 (GLubyte** a, GLuint* na, const GLubyte* b, GLuin
   {
     GLuint i=0;
     while (i < nb && (*a)+i != NULL && b+i != NULL && (*a)[i] == b[i]) i++;
-	if(i == nb)
-	{
-		*a = *a + nb;
-		*na = *na - nb;
-		return GL_TRUE;
-	}
+    if(i == nb)
+    {
+      *a = *a + nb;
+      *na = *na - nb;
+      return GL_TRUE;
+    }
   }
   return GL_FALSE;
 }
@@ -223,12 +223,12 @@ static GLboolean _glewStrSame2 (GLubyte** a, GLuint* na, const GLubyte* b, GLuin
   {
     GLuint i=0;
     while (i < nb && (*a)+i != NULL && b+i != NULL && (*a)[i] == b[i]) i++;
-	if(i == nb)
-	{
-		*a = *a + nb;
-		*na = *na - nb;
-		return GL_TRUE;
-	}
+    if(i == nb)
+    {
+      *a = *a + nb;
+      *na = *na - nb;
+      return GL_TRUE;
+    }
   }
   return GL_FALSE;
 }
@@ -7993,7 +7993,7 @@ GLenum glewContextInit (GLEW_CONTEXT_ARG_DEF_LIST)
 
   if (major == 1 && minor == 0)
   {
-	return GLEW_ERROR_GL_VERSION_10_ONLY;
+    return GLEW_ERROR_GL_VERSION_10_ONLY;
   }
   else
   {
@@ -8011,7 +8011,7 @@ GLenum glewContextInit (GLEW_CONTEXT_ARG_DEF_LIST)
     CONST_CAST(GLEW_VERSION_1_2_1) = GLEW_VERSION_1_3   == GL_TRUE                                 ? GL_TRUE : GL_FALSE; 
     CONST_CAST(GLEW_VERSION_1_2)   = GLEW_VERSION_1_2_1 == GL_TRUE || ( major == 1 && minor >= 2 ) ? GL_TRUE : GL_FALSE;
     CONST_CAST(GLEW_VERSION_1_1)   = GLEW_VERSION_1_2   == GL_TRUE || ( major == 1 && minor >= 1 ) ? GL_TRUE : GL_FALSE;
-      }
+  }
   /* initialize extensions */
 #ifdef GL_VERSION_1_2
   if (glewExperimental || GLEW_VERSION_1_2) CONST_CAST(GLEW_VERSION_1_2) = !_glewInit_GL_VERSION_1_2(GLEW_CONTEXT_ARG_VAR_INIT);
@@ -11465,7 +11465,7 @@ GLboolean glewIsSupported (const char* name)
         {
           ret = GLEW_VERSION_3_1;
           continue;
-      }
+        }
 #endif
 #ifdef GL_VERSION_3_2
         if (_glewStrSame3(&pos, &len, (const GLubyte*)"3_2", 3))
@@ -14857,7 +14857,7 @@ GLboolean glxewIsSupported (const char* name)
         {
           ret = GLXEW_ARB_vertex_buffer_object;
           continue;
-      }
+        }
 #endif
       }
       if (_glewStrSame2(&pos, &len, (const GLubyte*)"ATI_", 4))
