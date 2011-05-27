@@ -3039,9 +3039,14 @@ static KeyBlock *insert_lattkey(Scene *scene, Object *ob, const char *name, int 
 
 	if(newkey || from_mix==FALSE) {
 		kb= add_keyblock(key, name);
-
-		/* create from lattice */
-		latt_to_key(lt, kb);
+		if (!newkey) {
+			KeyBlock *basekb= (KeyBlock *)key->block.first;
+			kb->data= MEM_dupallocN(basekb->data);
+			kb->totelem= basekb->totelem;
+		}
+		else {
+			latt_to_key(lt, kb);
+		}
 	}
 	else {
 		/* copy from current values */
@@ -3077,7 +3082,10 @@ static KeyBlock *insert_curvekey(Scene *scene, Object *ob, const char *name, int
 			KeyBlock *basekb= (KeyBlock *)key->block.first;
 			kb->data= MEM_dupallocN(basekb->data);
 			kb->totelem= basekb->totelem;
-		} else curve_to_key(cu, kb, lb);
+		}
+		else {
+			curve_to_key(cu, kb, lb);
+		}
 	}
 	else {
 		/* copy from current values */

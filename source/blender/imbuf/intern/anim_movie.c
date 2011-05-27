@@ -1,7 +1,7 @@
 /*
  * anim.c
  *
- * $Id: anim_movie.c 36271 2011-04-21 13:11:51Z campbellbarton $
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -106,6 +106,14 @@
 #if (LIBAVCODEC_VERSION_MAJOR >= 52) && (LIBAVCODEC_VERSION_MINOR >= 29) && \
 	 (LIBSWSCALE_VERSION_MAJOR >= 0) && (LIBSWSCALE_VERSION_MINOR >= 10)
 #define FFMPEG_SWSCALE_COLOR_SPACE_SUPPORT
+#endif
+
+#if (LIBAVFORMAT_VERSION_MAJOR > 52) || ((LIBAVFORMAT_VERSION_MAJOR >= 52) && (LIBAVFORMAT_VERSION_MINOR >= 101))
+#define FFMPEG_HAVE_AV_DUMP_FORMAT 1
+#endif
+
+#ifndef FFMPEG_HAVE_AV_DUMP_FORMAT
+#define av_dump_format dump_format
 #endif
 
 #endif //WITH_FFMPEG
@@ -559,14 +567,14 @@ static int startffmpeg(struct anim * anim) {
 		return -1;
 	}
 
-	dump_format(pFormatCtx, 0, anim->name, 0);
+	av_dump_format(pFormatCtx, 0, anim->name, 0);
 
 
 		/* Find the first video stream */
 	videoStream=-1;
 	for(i=0; i<pFormatCtx->nb_streams; i++)
 		if(get_codec_from_stream(pFormatCtx->streams[i])->codec_type
-		   == CODEC_TYPE_VIDEO)	{
+		   == AVMEDIA_TYPE_VIDEO) {
 			videoStream=i;
 			break;
 		}
@@ -830,10 +838,10 @@ static ImBuf * ffmpeg_fetchibuf(struct anim * anim, int position) {
 			&& position - (anim->curposition + 1) < anim->preseek) {
 			while(av_read_frame(anim->pFormatCtx, &packet)>=0) {
 				if (packet.stream_index == anim->videoStream) {
-					avcodec_decode_video(
+					avcodec_decode_video2(
 						anim->pCodecCtx, 
 						anim->pFrame, &frameFinished, 
-						packet.data, packet.size);
+						&packet);
 
 					if (frameFinished) {
 						anim->curposition++;
@@ -915,9 +923,9 @@ static ImBuf * ffmpeg_fetchibuf(struct anim * anim, int position) {
 
 	while(av_read_frame(anim->pFormatCtx, &packet)>=0) {
 		if(packet.stream_index == anim->videoStream) {
-			avcodec_decode_video(anim->pCodecCtx, 
-						 anim->pFrame, &frameFinished, 
-						 packet.data, packet.size);
+			avcodec_decode_video2(anim->pCodecCtx, 
+					      anim->pFrame, &frameFinished, 
+					      &packet);
 
 			if (seek_by_bytes && preseek_count > 0) {
 				preseek_count--;

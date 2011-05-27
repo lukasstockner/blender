@@ -1,5 +1,5 @@
 /*
- * $Id: mathutils_Color.c 36871 2011-05-24 16:05:51Z campbellbarton $
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -93,7 +93,8 @@ PyDoc_STRVAR(Color_copy_doc,
 "   :return: A copy of the color.\n"
 "   :rtype: :class:`Color`\n"
 "\n"
-"   .. note:: use this to get a copy of a wrapped color with no reference to the original data.\n"
+"   .. note:: use this to get a copy of a wrapped color with\n"
+"      no reference to the original data.\n"
 );
 static PyObject *Color_copy(ColorObject *self)
 {
