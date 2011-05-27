@@ -184,6 +184,9 @@ typedef struct FontBLF {
 
 	/* current glyph cache, size and dpi. */
 	GlyphCacheBLF *glyph_cache;
+	
+	/* fast ascii lookip */
+	GlyphBLF *glyph_ascii_table[256];
 
 	/* freetype2 lib handle. */
 	FT_Library ft_lib;

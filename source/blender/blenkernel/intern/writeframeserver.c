@@ -101,10 +101,12 @@ static int closesocket(int fd)
 }
 #endif
 
-int start_frameserver(struct Scene *scene, RenderData *rd, int rectx, int recty, ReportList *reports)
+int start_frameserver(struct Scene *scene, RenderData *UNUSED(rd), int rectx, int recty, ReportList *reports)
 {
 	struct sockaddr_in addr;
 	int arg = 1;
+	
+	(void)scene; /* unused */
 
 	if (!startup_socket_system()) {
 		BKE_report(reports, RPT_ERROR, "Can't startup socket system");
@@ -248,7 +250,7 @@ static int handle_request(RenderData *rd, char * req)
 	return -1;
 }
 
-int frameserver_loop(RenderData *rd, ReportList *reports)
+int frameserver_loop(RenderData *rd, ReportList *UNUSED(reports))
 {
 	fd_set readfds;
 	struct timeval tv;
@@ -355,7 +357,7 @@ static void serve_ppm(int *pixels, int rectx, int recty)
 	connsock = -1;
 }
 
-int append_frameserver(RenderData *rd, int frame, int *pixels, int rectx, int recty, ReportList *reports)
+int append_frameserver(RenderData *UNUSED(rd), int frame, int *pixels, int rectx, int recty, ReportList *UNUSED(reports))
 {
 	fprintf(stderr, "Serving frame: %d\n", frame);
 	if (write_ppm) {

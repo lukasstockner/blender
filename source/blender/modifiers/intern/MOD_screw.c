@@ -105,7 +105,7 @@ static void screwvert_iter_step(ScrewVertIter *iter)
 		iter->v_poin= NULL;
 	}
 }
-	
+
 
 static void initData(ModifierData *md)
 {
@@ -135,7 +135,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 }
 
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
-										DerivedMesh *derivedData,
+						DerivedMesh *derivedData,
 						int useRenderParams,
 						int UNUSED(isFinalCalc))
 {
@@ -305,7 +305,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	medge_new =		result->getEdgeArray(result);
 	
 	origindex= result->getFaceDataArray(result, CD_ORIGINDEX);
-	
+
 	DM_copy_vert_data(dm, result, 0, 0, totvert); /* copy first otherwise this overwrites our own vertex normals */
 	
 	/* Set the locations of the first set of verts */
@@ -407,11 +407,11 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 			for (i=0; i<totedge; i++, med_new++) {
 				vc= &vert_connect[med_new->v1];
 
-				if (vc->v[0]==-1) { /* unused */
+				if (vc->v[0] == -1) { /* unused */
 					vc->v[0]= med_new->v2;
 					vc->e[0]= med_new;
 				}
-				else if (vc->v[1]==-1) {
+				else if (vc->v[1] == -1) {
 					vc->v[1]= med_new->v2;
 					vc->e[1]= med_new;
 				}
@@ -422,11 +422,11 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 				vc= &vert_connect[med_new->v2];
 
 				/* same as above but swap v1/2 */
-				if (vc->v[0]==-1) { /* unused */
+				if (vc->v[0] == -1) { /* unused */
 					vc->v[0]= med_new->v1;
 					vc->e[0]= med_new;
 				}
-				else if (vc->v[1]==-1) {
+				else if (vc->v[1] == -1) {
 					vc->v[1]= med_new->v1;
 					vc->e[1]= med_new;
 				}
@@ -442,17 +442,17 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 				 * so resulting faces are flipped the right way */
 				vc_tot_linked= 0; /* count the number of linked verts for this loop */
 				if (vc->flag == 0) {
-				int v_best=-1, ed_loop_closed=0; /* vert and vert new */
+					int v_best=-1, ed_loop_closed=0; /* vert and vert new */
 					ScrewVertIter lt_iter;
-				int ed_loop_flip= 0; /* compiler complains if not initialized, but it should be initialized below */
-				float fl= -1.0f;
+					int ed_loop_flip= 0; /* compiler complains if not initialized, but it should be initialized below */
+					float fl= -1.0f;
 
 					/*printf("Loop on connected vert: %i\n", i);*/
 
 					for(j=0; j<2; j++) {
 						/*printf("\tSide: %i\n", j);*/
 						screwvert_iter_init(&lt_iter, vert_connect, i, j);
-						if (j==1) {
+						if (j == 1) {
 							screwvert_iter_step(&lt_iter);
 						}
 						while (lt_iter.v_poin) {
@@ -562,7 +562,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 							/* If this is the vert off the best vert and
 							 * the best vert has 2 edges connected too it
 							 * then swap the flip direction */
-							if (j==1 && (vc_tmp->v[0] > -1) && (vc_tmp->v[1] > -1))
+							if (j == 1 && (vc_tmp->v[0] > -1) && (vc_tmp->v[1] > -1))
 								ed_loop_flip= !ed_loop_flip;
 
 							while (lt_iter.v_poin && lt_iter.v_poin->flag != 2) {
@@ -571,7 +571,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 								lt_iter.v_poin->flag= 2;
 								if (lt_iter.e) {
 									if (lt_iter.v == lt_iter.e->v1) {
-										if (ed_loop_flip==0) {
+										if (ed_loop_flip == 0) {
 											/*printf("\t\t\tFlipping 0\n");*/
 											SWAP(int, lt_iter.e->v1, lt_iter.e->v2);
 										}/* else {
@@ -579,7 +579,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 										}*/
 									}
 									else if (lt_iter.v == lt_iter.e->v2) {
-										if (ed_loop_flip==1) {
+										if (ed_loop_flip == 1) {
 											/*printf("\t\t\tFlipping 1\n");*/
 											SWAP(int, lt_iter.e->v1, lt_iter.e->v2);
 										}/* else {
@@ -603,8 +603,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 				 *
 				 * calculate vertex normals that can be propodated on lathing
 				 * use edge connectivity work this out */
-				if (vc->v[0]>=0) {
-					if (vc->v[1]>=0) {
+				if (vc->v[0] >= 0) {
+					if (vc->v[1] >= 0) {
 						/* 2 edges connedted */
 						/* make 2 connecting vert locations relative to the middle vert */
 						sub_v3_v3v3(tmp_vec1, mvert_new[vc->v[0]].co, mvert_new[i].co);
@@ -659,13 +659,13 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		}
 	}
 	else {
-			mv_orig= mvert_orig;
-			mv_new= mvert_new;
+		mv_orig= mvert_orig;
+		mv_new= mvert_new;
 
-			for (i=0; i < totvert; i++, mv_new++, mv_orig++) {
-				copy_v3_v3(mv_new->co, mv_orig->co);
-			}
+		for (i=0; i < totvert; i++, mv_new++, mv_orig++) {
+			copy_v3_v3(mv_new->co, mv_orig->co);
 		}
+	}
 	/* done with edge connectivity based normal flipping */
 	
 	/* Add Faces */
@@ -755,7 +755,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		/* for each edge, make a cylinder of quads */
 		i1= med_new_firstloop->v1;
 		i2= med_new_firstloop->v2;
-		
+
 		for (step=0; step < step_tot-1; step++) {
 			
 			/* new face */
@@ -766,10 +766,10 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 				mf_new->v1= i1 + totvert;
 			}
 			else {
-			mf_new->v1= i1;
-			mf_new->v2= i2;
-			mf_new->v3= i2 + totvert;
-			mf_new->v4= i1 + totvert;
+				mf_new->v1= i1;
+				mf_new->v2= i2;
+				mf_new->v3= i2 + totvert;
+				mf_new->v4= i1 + totvert;
 			}
 			
 			if( !mf_new->v3 || !mf_new->v4 ) {
@@ -802,10 +802,10 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 				mf_new->v1= med_new_firstloop->v1;
 			}
 			else {
-			mf_new->v1= i1;
-			mf_new->v2= i2;
-			mf_new->v3= med_new_firstloop->v2;
-			mf_new->v4= med_new_firstloop->v1;
+				mf_new->v1= i1;
+				mf_new->v2= i2;
+				mf_new->v3= med_new_firstloop->v2;
+				mf_new->v4= med_new_firstloop->v1;
 			}
 
 			if( !mf_new->v3 || !mf_new->v4 ) {
@@ -826,7 +826,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		med_new++;
 	}
 	
-	if((ltmd->flag & MOD_SCREW_NORMAL_CALC)==0) {
+	if((ltmd->flag & MOD_SCREW_NORMAL_CALC) == 0) {
 		CDDM_calc_normals(result);
 	}
 

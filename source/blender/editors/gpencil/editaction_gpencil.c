@@ -24,7 +24,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/editors/gpencil/editaction_gpencil.c
  *  \ingroup edgpencil
  */
@@ -171,16 +171,16 @@ void set_gplayer_frame_selection (bGPDlayer *gpl, short mode)
 	/* error checking */
 	if (gpl == NULL) 
 		return;
-		
+	
 	/* now call the standard function */
-	select_gpencil_frames (gpl, mode);
+	select_gpencil_frames(gpl, mode);
 }
 
 /* select the frame in this layer that occurs on this frame (there should only be one at most) */
 void select_gpencil_frame (bGPDlayer *gpl, int selx, short select_mode)
 {
 	bGPDframe *gpf;
-   
+	
 	if (gpl == NULL) 
 		return;
 	
@@ -678,10 +678,10 @@ static short mirror_gpf_marker (bGPDframe *gpf, Scene *scene)
 			/* try to find a marker */
 			marker= ED_markers_get_first_selected(&scene->markers);
 			if(marker) {
-					initialised = 1;
-				}
+				initialised= 1;
 			}
 		}
+	}
 	
 	return 0;
 }

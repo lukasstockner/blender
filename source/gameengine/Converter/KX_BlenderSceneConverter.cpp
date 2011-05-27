@@ -32,7 +32,7 @@
 
 
 #if defined(WIN32) && !defined(FREE_WINDOWS)
-	#pragma warning (disable:4786) // suppress stl-MSVC debug info warning
+#pragma warning (disable:4786) // suppress stl-MSVC debug info warning
 #endif
 
 #include "KX_Scene.h"
@@ -628,12 +628,6 @@ void KX_BlenderSceneConverter::RegisterWorldInfo(
 	m_worldinfos.push_back(pair<KX_Scene*,KX_WorldInfo*>(m_currentScene,worldinfo));
 }
 
-//quick hack
-extern "C"
-{
-	void mat3_to_compatible_eul( float *eul, float *oldrot,float mat[][3]);
-}
-
 void	KX_BlenderSceneConverter::ResetPhysicsObjectsAnimationIpo(bool clearIpo)
 {
 
@@ -917,7 +911,7 @@ void	KX_BlenderSceneConverter::TestHandlesPhysicsObjectToAnimationIpo()
 
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 PyObject *KX_BlenderSceneConverter::GetPyNamespace()
 {
 	return m_ketsjiEngine->GetPyNamespace();
@@ -993,7 +987,7 @@ bool KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openlib, const cha
 
 	/* here appending/linking starts */
 	main_tmp = BLO_library_append_begin(C, &bpy_openlib, (char *)path);
-	
+
 	int totnames_dummy;
 	names = BLO_blendhandle_get_datablock_names( bpy_openlib, idcode, &totnames_dummy);
 	
@@ -1082,7 +1076,7 @@ bool KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openlib, const cha
 				if (options & LIB_LOAD_VERBOSE)
 					printf("ActionName: %s\n", action->name+2);
 				scene_merge->GetLogicManager()->RegisterActionName(action->name+2, action);
-	}
+			}
 		}
 	}
 	
@@ -1146,7 +1140,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(struct Main *maggie)
 					}
 				}
 			}
-			
+
 			/* Now unregister actions */
 			{
 				CTR_Map<STR_HashedString,void*> &mapStringToActions = scene->GetLogicManager()->GetActionMap();
@@ -1208,11 +1202,11 @@ bool KX_BlenderSceneConverter::FreeBlendFile(struct Main *maggie)
 								BL_ActionActuator *act = (BL_ActionActuator*)gameobj->GetActuators()[act_idx];
 								if(IS_TAGGED(act->GetAction()))
 									act->SetAction(NULL);
+							}
+						}
 					}
 				}
 			}
-		}
-	}
 		}
 	}
 

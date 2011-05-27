@@ -49,7 +49,7 @@ static bNodeSocketType cmp_node_vecblur_out[]= {
 
 
 
-static void node_composit_exec_vecblur(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_vecblur(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	NodeBlurData *nbd= node->storage;
 	CompBuf *new, *img= in[0]->data, *vecbuf= in[2]->data, *zbuf= in[1]->data;
@@ -89,10 +89,10 @@ static void node_composit_exec_vecblur(void *data, bNode *node, bNodeStack **in,
 
 static void node_composit_init_vecblur(bNode* node)
 {
-   NodeBlurData *nbd= MEM_callocN(sizeof(NodeBlurData), "node blur data");
-   node->storage= nbd;
-   nbd->samples= 32;
-   nbd->fac= 1.0f;
+	NodeBlurData *nbd= MEM_callocN(sizeof(NodeBlurData), "node blur data");
+	node->storage= nbd;
+	nbd->samples= 32;
+	nbd->fac= 1.0f;
 }
 
 /* custom1: itterations, custom2: maxspeed (0 = nolimit) */

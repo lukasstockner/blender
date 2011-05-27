@@ -47,6 +47,7 @@
 
 #include "BKE_context.h"
 #include "BKE_global.h"
+#include "BKE_main.h"
 
 #include "BLF_api.h"
 
@@ -86,7 +87,7 @@ enum {
 } /*eFile_ButEvents*/;
 
 
-static void do_file_buttons(bContext *C, void *arg, int event)
+static void do_file_buttons(bContext *C, void *UNUSED(arg), int event)
 {
 	switch(event) {
 		case B_FS_FILENAME:
@@ -183,7 +184,7 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 		/* callbacks for operator check functions */
 		uiBlockSetFunc(block, file_draw_check_cb, NULL, NULL);
 
-		but = uiDefBut(block, TEX, B_FS_DIRNAME, "",
+		but = uiDefButTextO(block, TEX, "FILE_OT_directory", 0, "",
 				 min_x, line1_y, line1_w-chan_offs, btn_h, 
 				 params->dir, 0.0, (float)FILE_MAX-1, 0, 0, 
 				 "File path.");
@@ -200,8 +201,8 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 		/* check if this overrides a file and if the operator option is used */
 		if(overwrite_alert) {
 			uiButSetFlag(but, UI_BUT_REDALERT);
-	}
-	
+		}
+		
 		/* clear func */
 		uiBlockSetFunc(block, NULL, NULL, NULL);
 	}
@@ -242,60 +243,10 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 static void draw_tile(int sx, int sy, int width, int height, int colorid, int shade)
 {	
 	UI_ThemeColorShade(colorid, shade);
-	uiSetRoundBox(15);	
+	uiSetRoundBox(15);
 	uiRoundBox((float)sx, (float)(sy - height), (float)(sx + width), (float)sy, 5.0f);
 }
 
-#define FILE_SHORTEN_END				0
-#define FILE_SHORTEN_FRONT				1
-
-static float shorten_string(char* string, float w, int flag)
-{	
-	char temp[FILE_MAX];
-	short shortened = 0;
-	float sw = 0;
-	float pad = 0;
-
-	if (w <= 0) {
-		*string = '\0';
-		return 0.0;
-	}
-
-	sw = file_string_width(string);
-	if (flag == FILE_SHORTEN_FRONT) {
-		char *s = string;
-		BLI_strncpy(temp, "...", 4);
-		pad = file_string_width(temp);
-		while ((*s) && (sw+pad>w)) {
-			s++;
-			sw = file_string_width(s);
-			shortened = 1;
-		}
-		if (shortened) {
-			int slen = strlen(s);			
-			BLI_strncpy(temp+3, s, slen+1);
-			temp[slen+4] = '\0';
-			BLI_strncpy(string, temp, slen+4);
-		}
-	} else {
-		char *s = string;
-		while (sw>w) {
-			int slen = strlen(string);
-			string[slen-1] = '\0';
-			sw = file_string_width(s);
-			shortened = 1;
-		}
-
-		if (shortened) {
-			int slen = strlen(string);
-			if (slen > 3) {
-				BLI_strncpy(string+slen-3, "...", 4);				
-			}
-		}
-	}
-	
-	return sw;
-}
 
 static int get_file_icon(struct direntry *file)
 {
@@ -340,18 +291,20 @@ static void file_draw_icon(uiBlock *block, char *path, int sx, int sy, int icon,
 	y = sy-height;
 	
 	/*if (icon == ICON_FILE_BLANK) alpha = 0.375f;*/
-		
+
 	but= uiDefIconBut(block, LABEL, 0, icon, x, y, width, height, NULL, 0.0f, 0.0f, 0.0f, 0.0f, "");
 	uiButSetDragPath(but, path);
 }
 
 
-static void file_draw_string(int sx, int sy, const char* string, float width, int height, int flag)
+static void file_draw_string(int sx, int sy, const char* string, float width, int height, short align)
 {
-	float x,y;
+	uiStyle *style= U.uistyles.first;
+	uiFontStyle fs = style->widgetlabel;
 	rcti rect;
 	char fname[FILE_MAXFILE];
 
+	fs.align = align;
 
 	BLI_strncpy(fname,string, FILE_MAXFILE);
 	file_shorten_string(fname, width + 1.0f, 0);
@@ -416,7 +369,7 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int
 		/* shadow */
 		if (dropshadow)
 			uiDrawBoxShadow(220, (float)xco, (float)yco, (float)(xco + ex), (float)(yco + ey));
-		
+
 		glEnable(GL_BLEND);
 		
 		/* the image */
@@ -438,7 +391,7 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int
 	}
 }
 
-static void renamebutton_cb(bContext *C, void *arg1, char *oldname)
+static void renamebutton_cb(bContext *C, void *UNUSED(arg1), char *oldname)
 {
 	char newname[FILE_MAX+12];
 	char orgname[FILE_MAX+12];
@@ -446,9 +399,9 @@ static void renamebutton_cb(bContext *C, void *arg1, char *oldname)
 	SpaceFile *sfile= (SpaceFile*)CTX_wm_space_data(C);
 	ARegion* ar = CTX_wm_region(C);
 
-	BLI_make_file_string(G.sce, orgname, sfile->params->dir, oldname);
+	BLI_make_file_string(G.main->name, orgname, sfile->params->dir, oldname);
 	BLI_strncpy(filename, sfile->params->renameedit, sizeof(filename));
-	BLI_make_file_string(G.sce, newname, sfile->params->dir, filename);
+	BLI_make_file_string(G.main->name, newname, sfile->params->dir, filename);
 
 	if( strcmp(orgname, newname) != 0 ) {
 		if (!BLI_exists(newname)) {
@@ -456,7 +409,7 @@ static void renamebutton_cb(bContext *C, void *arg1, char *oldname)
 			/* to make sure we show what is on disk */
 			ED_fileselect_clear(C, sfile);
 		}
-		
+
 		ED_region_tag_redraw(ar);
 	}
 }
@@ -508,9 +461,11 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	int numfiles_layout;
 	int sx, sy;
 	int offset;
+	int textwidth, textheight;
 	int i;
-	float sw, spos;
 	short is_icon;
+	short align;
+
 
 	numfiles = filelist_numfiles(files);
 	
@@ -548,14 +503,13 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		
 		UI_ThemeColor4(TH_TEXT);
 
-		spos = ( FILE_IMGDISPLAY == params->display ) ? sx : sx + ICON_DEFAULT_WIDTH + 4;
 
 		if (!(file->selflag & EDITING_FILE)) {
 			if  ((params->active_file == i) || (file->selflag & HILITED_FILE) || (file->selflag & SELECTED_FILE) ) {
 				int colorid = (file->selflag & SELECTED_FILE) ? TH_HILITE : TH_BACK;
 				int shade = (params->active_file == i) || (file->selflag & HILITED_FILE) ? 20 : 0;
 				draw_tile(sx, sy-1, layout->tile_w+4, sfile->layout->tile_h+layout->tile_border_y, colorid, shade);
-			} 
+			}
 		}
 		uiSetRoundBox(0);
 
@@ -568,9 +522,9 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			}
 			
 			file_draw_preview(block, file, sx, sy, imb, layout, !is_icon && (file->flags & IMAGEFILE));
-
 		} else {
 			file_draw_icon(block, file->path, sx, sy-3, get_file_icon(file), ICON_DEFAULT_WIDTH, ICON_DEFAULT_WIDTH);
+			sx += ICON_DEFAULT_WIDTH + 4;
 		}
 
 		UI_ThemeColor4(TH_TEXT);
@@ -601,21 +555,17 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 #ifndef WIN32
 			/* rwx rwx rwx */
-			sw = file_string_width(file->mode1);
-			file_draw_string(spos, sy, file->mode1, sw, layout->tile_h, FILE_SHORTEN_END); 
-			spos += layout->column_widths[COLUMN_MODE1] + 12;
+			file_draw_string(sx, sy, file->mode1, layout->column_widths[COLUMN_MODE1], layout->tile_h, align); 
+			sx += layout->column_widths[COLUMN_MODE1] + 12;
 
-			sw = file_string_width(file->mode2);
-			file_draw_string(spos, sy, file->mode2, sw, layout->tile_h, FILE_SHORTEN_END);
-			spos += layout->column_widths[COLUMN_MODE2] + 12;
+			file_draw_string(sx, sy, file->mode2, layout->column_widths[COLUMN_MODE2], layout->tile_h, align);
+			sx += layout->column_widths[COLUMN_MODE2] + 12;
 
-			sw = file_string_width(file->mode3);
-			file_draw_string(spos, sy, file->mode3, sw, layout->tile_h, FILE_SHORTEN_END);
-			spos += layout->column_widths[COLUMN_MODE3] + 12;
+			file_draw_string(sx, sy, file->mode3, layout->column_widths[COLUMN_MODE3], layout->tile_h, align);
+			sx += layout->column_widths[COLUMN_MODE3] + 12;
 
-			sw = file_string_width(file->owner);
-			file_draw_string(spos, sy, file->owner, sw, layout->tile_h, FILE_SHORTEN_END);
-			spos += layout->column_widths[COLUMN_OWNER] + 12;
+			file_draw_string(sx, sy, file->owner, layout->column_widths[COLUMN_OWNER] , layout->tile_h, align);
+			sx += layout->column_widths[COLUMN_OWNER] + 12;
 #endif
 
 			file_draw_string(sx, sy, file->date, layout->column_widths[COLUMN_DATE], layout->tile_h, align);

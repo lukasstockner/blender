@@ -129,7 +129,7 @@ World *copy_world(World *wrld)
 
 	return wrldn;
 }
-	
+
 World *localize_world(World *wrld)
 {
 	World *wrldn;
@@ -172,12 +172,12 @@ void make_local_world(World *wrld)
 	}
 	
 	for(sce= bmain->scene.first; sce && ELEM(0, lib, local); sce= sce->id.next) {
-		if(sce->world==wrld) {
+		if(sce->world == wrld) {
 			if(sce->id.lib) lib= 1;
 			else local= 1;
 		}
 	}
-	
+
 	if(local && lib==0) {
 		wrld->id.lib= NULL;
 		wrld->id.flag= LIB_LOCAL;
@@ -188,7 +188,7 @@ void make_local_world(World *wrld)
 		wrldn->id.us= 0;
 		
 		for(sce= bmain->scene.first; sce; sce= sce->id.next) {
-			if(sce->world==wrld) {
+			if(sce->world == wrld) {
 				if(sce->id.lib==NULL) {
 					sce->world= wrldn;
 					wrldn->id.us++;

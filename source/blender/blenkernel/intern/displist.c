@@ -49,6 +49,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_editVert.h"
+#include "BLI_scanfill.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_global.h"
@@ -156,7 +157,7 @@ void copy_displist(ListBase *lbn, ListBase *lb)
 		dln->index= MEM_dupallocN(dl->index);
 		dln->col1= MEM_dupallocN(dl->col1);
 		dln->col2= MEM_dupallocN(dl->col2);
-		
+
 		if(dl->bevelSplitFlag)
 			dln->bevelSplitFlag= MEM_dupallocN(dl->bevelSplitFlag);
 
@@ -299,7 +300,7 @@ static void init_fastshade_shadeinput(Render *re)
 	shi.combinedflag= -1;
 }
 
-static Render *fastshade_get_render(Scene *scene)
+static Render *fastshade_get_render(Scene *UNUSED(scene))
 {
 	// XXX 2.5: this crashes combined with previewrender
 	// due to global R so disabled for now
@@ -780,7 +781,7 @@ void reshadeall_displist(Scene *scene)
 
 /* ****************** make displists ********************* */
 
-static void curve_to_displist(Curve *cu, ListBase *nubase, ListBase *dispbase)
+static void curve_to_displist(Curve *cu, ListBase *nubase, ListBase *dispbase, int forRender)
 {
 	Nurb *nu;
 	DispList *dl;
@@ -793,7 +794,7 @@ static void curve_to_displist(Curve *cu, ListBase *nubase, ListBase *dispbase)
 	while(nu) {
 		if(nu->hide==0) {
 			
-			if(G.rendering && cu->resolu_ren!=0) 
+			if(forRender && cu->resolu_ren!=0)
 				resolu= cu->resolu_ren;
 			else
 				resolu= nu->resolu;
@@ -930,7 +931,7 @@ void filldisplist(ListBase *dispbase, ListBase *to, int flipnormal)
 
 	while(cont) {
 		cont= 0;
-		totvert=0;
+		totvert= 0;
 		nextcol= 0;
 		
 		dl= dispbase->first;
@@ -940,33 +941,33 @@ void filldisplist(ListBase *dispbase, ListBase *to, int flipnormal)
 				if(charidx<dl->charidx) cont= 1;
 				else if(charidx==dl->charidx) { /* character with needed index */
 					if(colnr==dl->col) {
-					/* make editverts and edges */
-					f1= dl->verts;
-					a= dl->nr;
+						/* make editverts and edges */
+						f1= dl->verts;
+						a= dl->nr;
 						eve= v1= NULL;
-					
-					while(a--) {
-						vlast= eve;
 						
-						eve= BLI_addfillvert(f1);
-						totvert++;
-						
+						while(a--) {
+							vlast= eve;
+
+							eve= BLI_addfillvert(f1);
+							totvert++;
+
 							if(vlast==NULL) v1= eve;
-						else {
-							BLI_addfilledge(vlast, eve);
+							else {
+								BLI_addfilledge(vlast, eve);
+							}
+							f1+=3;
 						}
-						f1+=3;
-					}
-				
+
 						if(eve!=NULL && v1!=NULL) {
-						BLI_addfilledge(eve, v1);
-					}
+							BLI_addfilledge(eve, v1);
+						}
 					} else if (colnr<dl->col) {
 						/* got poly with next material at current char */
 						cont= 1;
 						nextcol= 1;
+					}
 				}
-			}
 			}
 			dl= dl->next;
 		}
@@ -1023,9 +1024,9 @@ void filldisplist(ListBase *dispbase, ListBase *to, int flipnormal)
 			colnr++;
 		} else {
 			/* switch to next char and start filling from first material */
-		charidx++;
+			charidx++;
 			colnr= 0;
-	}
+		}
 	}
 	
 	/* do not free polys, needed for wireframe display */
@@ -1100,7 +1101,7 @@ static void bevels_to_filledpoly(Curve *cu, ListBase *dispbase)
 	
 }
 
-static void curve_to_filledpoly(Curve *cu, ListBase *nurb, ListBase *dispbase)
+static void curve_to_filledpoly(Curve *cu, ListBase *UNUSED(nurb), ListBase *dispbase)
 {
 	if(cu->flag & CU_3D) return;
 
@@ -1207,7 +1208,7 @@ static ModifierData *curve_get_tesselate_point(Scene *scene, Object *ob, int for
 		if (mti->type == eModifierTypeType_Constructive) return preTesselatePoint;
 
 		if (ELEM3(md->type, eModifierType_Hook, eModifierType_Softbody, eModifierType_MeshDeform)) {
-			preTesselatePoint  = md;
+			preTesselatePoint = md;
 
 			/* this modifiers are moving point of tesselation automatically
 			   (some of them even can't be applied on tesselated curve), set flag
@@ -1606,8 +1607,15 @@ void makeDispListSurf(Scene *scene, Object *ob, ListBase *dispbase,
 
 	for (nu=nubase->first; nu; nu=nu->next) {
 		if(forRender || nu->hide==0) {
+			int resolu= nu->resolu, resolv= nu->resolv;
+
+			if(forRender){
+				if(cu->resolu_ren) resolu= cu->resolu_ren;
+				if(cu->resolv_ren) resolv= cu->resolv_ren;
+			}
+
 			if(nu->pntsv==1) {
-				len= SEGMENTSU(nu)*nu->resolu;
+				len= SEGMENTSU(nu)*resolu;
 
 				dl= MEM_callocN(sizeof(DispList), "makeDispListsurf");
 				dl->verts= MEM_callocN(len*3*sizeof(float), "dlverts");
@@ -1626,10 +1634,10 @@ void makeDispListSurf(Scene *scene, Object *ob, ListBase *dispbase,
 				if(nu->flagu & CU_NURB_CYCLIC) dl->type= DL_POLY;
 				else dl->type= DL_SEGM;
 
-				makeNurbcurve(nu, data, NULL, NULL, NULL, nu->resolu, 3*sizeof(float));
+				makeNurbcurve(nu, data, NULL, NULL, NULL, resolu, 3*sizeof(float));
 			}
 			else {
-				len= (nu->pntsu*nu->resolu) * (nu->pntsv*nu->resolv);
+				len= (nu->pntsu*resolu) * (nu->pntsv*resolv);
 				
 				dl= MEM_callocN(sizeof(DispList), "makeDispListsurf");
 				dl->verts= MEM_callocN(len*3*sizeof(float), "dlverts");
@@ -1645,12 +1653,12 @@ void makeDispListSurf(Scene *scene, Object *ob, ListBase *dispbase,
 				data= dl->verts;
 				dl->type= DL_SURF;
 
-				dl->parts= (nu->pntsu*nu->resolu);	/* in reverse, because makeNurbfaces works that way */
-				dl->nr= (nu->pntsv*nu->resolv);
+				dl->parts= (nu->pntsu*resolu);	/* in reverse, because makeNurbfaces works that way */
+				dl->nr= (nu->pntsv*resolv);
 				if(nu->flagv & CU_NURB_CYCLIC) dl->flag|= DL_CYCL_U;	/* reverse too! */
 				if(nu->flagu & CU_NURB_CYCLIC) dl->flag|= DL_CYCL_V;
 
-				makeNurbfaces(nu, data, 0);
+				makeNurbfaces(nu, data, 0, resolu, resolv);
 				
 				/* gl array drawing: using indices */
 				displist_surf_indices(dl);
@@ -1708,7 +1716,7 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 
 		/* no bevel or extrude, and no width correction? */
 		if (!dlbev.first && cu->width==1.0f) {
-			curve_to_displist(cu, nubase, dispbase);
+			curve_to_displist(cu, nubase, dispbase, forRender);
 		} else {
 			float widfac= cu->width - 1.0f;
 			BevList *bl= cu->bev.first;
@@ -1840,9 +1848,9 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 		   already applied, thats how it worked for years, so keep for compatibility (sergey) */
 		copy_displist(&cu->disp, dispbase);
 
-		 if (!forRender) {
-			 tex_space_curve(cu);
-		 }
+		if (!forRender) {
+			tex_space_curve(cu);
+		}
 
 		if(!forOrco) curve_calc_modifiers_post(scene, ob, dispbase, derivedFinal, forRender, originalVerts, deformedVerts);
 
@@ -1854,7 +1862,7 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 
 void makeDispListCurveTypes(Scene *scene, Object *ob, int forOrco)
 {
-	Curve *cu = ob->data;
+	Curve *cu= ob->data;
 	ListBase *dispbase;
 
 	freedisplist(&(ob->disp));

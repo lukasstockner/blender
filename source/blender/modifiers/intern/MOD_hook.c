@@ -82,8 +82,8 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 	CustomDataMask dataMask = 0;
 
 	/* ask for vertexgroups if we need them */
-	if(hmd->name[0]) dataMask |= (1 << CD_MDEFORMVERT);
-	// if(hmd->indexar) dataMask |= CD_MASK_ORIGINDEX;
+	if(hmd->name[0]) dataMask |= CD_MASK_MDEFORMVERT;
+	if(hmd->indexar) dataMask |= CD_MASK_ORIGINDEX;
 
 	return dataMask;
 }
@@ -145,7 +145,7 @@ static float hook_falloff(float *co_1, float *co_2, const float falloff_squared,
 }
 
 static void deformVerts(ModifierData *md, Object *ob,
-						DerivedMesh *derivedData,
+						DerivedMesh *dm,
 						float (*vertexCos)[3],
 						int numVerts,
 						int UNUSED(useRenderParams),
@@ -155,7 +155,6 @@ static void deformVerts(ModifierData *md, Object *ob,
 	bPoseChannel *pchan= get_pose_channel(hmd->object->pose, hmd->subtarget);
 	float vec[3], mat[4][4], dmat[4][4];
 	int i, *index_pt;
-	DerivedMesh *dm = derivedData;
 	const float falloff_squared= hmd->falloff * hmd->falloff; /* for faster comparisons */
 	
 	int max_dvert= 0;
@@ -194,11 +193,11 @@ static void deformVerts(ModifierData *md, Object *ob,
 	/* Regarding index range checking below.
 	 *
 	 * This should always be true and I don't generally like 
-			* "paranoid" style code like this, but old files can have
-			* indices that are out of range because old blender did
-			* not correct them on exit editmode. - zr
-			*/
-
+	 * "paranoid" style code like this, but old files can have
+	 * indices that are out of range because old blender did
+	 * not correct them on exit editmode. - zr
+	 */
+	
 	if(hmd->force == 0.0f) {
 		/* do nothing, avoid annoying checks in the loop */
 	}
@@ -207,9 +206,9 @@ static void deformVerts(ModifierData *md, Object *ob,
 		float fac;
 		const int *origindex_ar;
 
-				/* if DerivedMesh is present and has original index data,
-				* use it
-				*/
+		/* if DerivedMesh is present and has original index data,
+		* use it
+		*/
 		if(dm && (origindex_ar= dm->getVertDataArray(dm, CD_ORIGINDEX))) {
 			for(i= 0, index_pt= hmd->indexar; i < hmd->totindex; i++, index_pt++) {
 				if(*index_pt < numVerts) {
@@ -223,11 +222,11 @@ static void deformVerts(ModifierData *md, Object *ob,
 									fac *= defvert_find_weight(dvert+j, defgrp_index);
 
 								if(fac) {
-								mul_v3_m4v3(vec, mat, co);
-								interp_v3_v3v3(co, co, vec, fac);
+									mul_v3_m4v3(vec, mat, co);
+									interp_v3_v3v3(co, co, vec, fac);
+								}
 							}
 						}
-					}
 					}
 				}
 			}
@@ -241,20 +240,20 @@ static void deformVerts(ModifierData *md, Object *ob,
 							fac *= defvert_find_weight(dvert+(*index_pt), defgrp_index);
 
 						if(fac) {
-						mul_v3_m4v3(vec, mat, co);
-						interp_v3_v3v3(co, co, vec, fac);
+							mul_v3_m4v3(vec, mat, co);
+							interp_v3_v3v3(co, co, vec, fac);
+						}
 					}
 				}
 			}
 		}
-	} 
-			}
+	}
 	else if(dvert) {	/* vertex group hook */
 		const float fac_orig= hmd->force;
 
 		for(i = 0; i < max_dvert; i++, dvert++) {
 			float fac;
-					float *co = vertexCos[i];
+			float *co = vertexCos[i];
 
 			if((fac= hook_falloff(hmd->cent, co, falloff_squared, fac_orig))) {
 				fac *= defvert_find_weight(dvert, defgrp_index);

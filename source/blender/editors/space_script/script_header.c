@@ -52,12 +52,12 @@
 
 /* ************************ header area region *********************** */
 
-static void do_viewmenu(bContext *C, void *arg, int event)
+static void do_viewmenu(bContext *UNUSED(C), void *UNUSED(arg), int UNUSED(event))
 {
 	
 }
 
-static uiBlock *dummy_viewmenu(bContext *C, ARegion *ar, void *arg_unused)
+static uiBlock *dummy_viewmenu(bContext *C, ARegion *ar, void *UNUSED(arg))
 {
 	ScrArea *curarea= CTX_wm_area(C);
 	uiBlock *block;
@@ -87,7 +87,7 @@ static void do_script_buttons(bContext *UNUSED(C), void *UNUSED(arg), int UNUSED
 {
 	//switch(event) {
 	//}
-	}
+}
 
 
 void script_header_buttons(const bContext *C, ARegion *ar)

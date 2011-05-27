@@ -158,7 +158,7 @@ void BL_ConvertControllers(
 				bPythonCont* pycont = (bPythonCont*) bcontr->data;
 				SCA_PythonController* pyctrl = new SCA_PythonController(gameobj, pycont->mode);
 				gamecontroller = pyctrl;
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 				pyctrl->SetNamespace(converter->GetPyNamespace());
 				
@@ -182,13 +182,13 @@ void BL_ConvertControllers(
 					pyctrl->SetScriptText(STR_String(pycont->module)); 
 					pyctrl->SetScriptName(pycont->module); /* will be something like module.func so using it as the name is OK */
 
-				if(pycont->flag & CONT_PY_DEBUG) {
-					printf("\nDebuging \"%s\", module for object %s\n\texpect worse performance.\n", pycont->module, blenderobject->id.name+2);
-					pyctrl->SetDebug(true);
-				}
+					if(pycont->flag & CONT_PY_DEBUG) {
+						printf("\nDebuging \"%s\", module for object %s\n\texpect worse performance.\n", pycont->module, blenderobject->id.name+2);
+						pyctrl->SetDebug(true);
+					}
 				}
 				
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON
 
 				break;
 			}
@@ -215,7 +215,7 @@ void BL_ConvertControllers(
 			
 			converter->RegisterGameController(gamecontroller, bcontr);
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 			if (bcontr->type==CONT_PYTHON) {
 				SCA_PythonController *pyctrl= static_cast<SCA_PythonController*>(gamecontroller);
 				/* not strictly needed but gives syntax errors early on and
@@ -230,7 +230,7 @@ void BL_ConvertControllers(
 					// pyctrl->Import();
 				}
 			}
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON
 
 			//done with gamecontroller
 			gamecontroller->Release();

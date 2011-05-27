@@ -91,13 +91,13 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 	CustomDataMask dataMask = 0;
 
 	if(emd->vgroup)
-		dataMask |= (1 << CD_MDEFORMVERT);
+		dataMask |= CD_MASK_MDEFORMVERT;
 
 	return dataMask;
 }
 
 static void createFacepa(ExplodeModifierData *emd,
-					 ParticleSystemModifierData *psmd,
+						ParticleSystemModifierData *psmd,
 						DerivedMesh *dm)
 {
 	ParticleSystem *psys=psmd->psys;
@@ -573,19 +573,19 @@ static DerivedMesh * cutEdges(ExplodeModifierData *emd, DerivedMesh *dm){
 
 	/* mark edges for splitting and how to split faces */
 	for (i=0,mf=mface,fs=facesplit; i<totface; i++,mf++,fs++) {
-			v1=vertpa[mf->v1];
-			v2=vertpa[mf->v2];
-			v3=vertpa[mf->v3];
+		v1=vertpa[mf->v1];
+		v2=vertpa[mf->v2];
+		v3=vertpa[mf->v3];
 
-			if(v1!=v2){
-				BLI_edgehash_insert(edgehash, mf->v1, mf->v2, NULL);
+		if(v1!=v2){
+			BLI_edgehash_insert(edgehash, mf->v1, mf->v2, NULL);
 			(*fs) |= 1;
-			}
+		}
 
-			if(v2!=v3){
-				BLI_edgehash_insert(edgehash, mf->v2, mf->v3, NULL);
+		if(v2!=v3){
+			BLI_edgehash_insert(edgehash, mf->v2, mf->v3, NULL);
 			(*fs) |= 2;
-			}
+		}
 
 		if(mf->v4){
 			v4=vertpa[mf->v4];
@@ -603,16 +603,16 @@ static DerivedMesh * cutEdges(ExplodeModifierData *emd, DerivedMesh *dm){
 			/* mark center vertex as a fake edge split */
 			if(*fs == 15)
 				BLI_edgehash_insert(edgehash, mf->v1, mf->v3, NULL);
-				}
-				else{ 
+		}
+		else {
 			(*fs) |= 16; /* mark face as tri */
 
 			if(v1!=v3){
 				BLI_edgehash_insert(edgehash, mf->v1, mf->v3, NULL);
 				(*fs) |= 4;
-				}
 			}
 		}
+	}
 
 	/* count splits & create indexes for new verts */
 	ehi= BLI_edgehashIterator_new(edgehash);
@@ -626,7 +626,7 @@ static DerivedMesh * cutEdges(ExplodeModifierData *emd, DerivedMesh *dm){
 	/* count new faces due to splitting */
 	for(i=0,fs=facesplit; i<totface; i++,fs++)
 		totfsplit += add_faces[*fs];
-
+	
 	splitdm= CDDM_from_template(dm, totesplit, 0, totface+totfsplit);
 	numlayer = CustomData_number_of_layers(&splitdm->faceData, CD_MTFACE);
 
@@ -701,7 +701,7 @@ static DerivedMesh * cutEdges(ExplodeModifierData *emd, DerivedMesh *dm){
 		case 22:
 			SET_VERTS(3, 1, 2, 4)
 			break;
-				}
+		}
 
 		switch(*fs) {
 		case 3:
@@ -753,15 +753,15 @@ static DerivedMesh * cutEdges(ExplodeModifierData *emd, DerivedMesh *dm){
 			else
 				df1->flag &= ~ME_FACE_SEL;
 			break;
-			}
+		}
 
 		curdupface += add_faces[*fs]+1;
-					}
+	}
 
 	for(i=0; i<curdupface; i++) {
 		mf = CDDM_get_face(splitdm, i);
 		test_index_face(mf, &splitdm->faceData, i, (mf->flag & ME_FACE_SEL ? 4 : 3));
-					}
+	}
 
 	BLI_edgehash_free(edgehash, NULL);
 	MEM_freeN(facesplit);
@@ -795,6 +795,11 @@ static DerivedMesh * explodeMesh(ExplodeModifierData *emd,
 	totvert= dm->getNumVerts(dm);
 	mface= dm->getFaceArray(dm);
 	totpart= psmd->psys->totpart;
+
+	sim.scene= scene;
+	sim.ob= ob;
+	sim.psys= psmd->psys;
+	sim.psmd= psmd;
 
 	/* timestep= psys_get_timestep(&sim); */
 
@@ -991,20 +996,20 @@ static DerivedMesh * applyModifier(ModifierData *md, Object *ob,
 				emd->flag &= ~eExplodeFlag_CalcFaces;
 
 			createFacepa(emd,psmd,derivedData);
-				 }
-				 /* 2. create new mesh */
+		}
+		/* 2. create new mesh */
 		if(emd->flag & eExplodeFlag_EdgeCut){
-					 int *facepa = emd->facepa;
+			int *facepa = emd->facepa;
 			DerivedMesh *splitdm=cutEdges(emd,dm);
-					 DerivedMesh *explode=explodeMesh(emd, psmd, md->scene, ob, splitdm);
+			DerivedMesh *explode=explodeMesh(emd, psmd, md->scene, ob, splitdm);
 
-					 MEM_freeN(emd->facepa);
-					 emd->facepa=facepa;
-					 splitdm->release(splitdm);
-					 return explode;
-				 }
-				 else
-					 return explodeMesh(emd, psmd, md->scene, ob, derivedData);
+			MEM_freeN(emd->facepa);
+			emd->facepa=facepa;
+			splitdm->release(splitdm);
+			return explode;
+		}
+		else
+			return explodeMesh(emd, psmd, md->scene, ob, derivedData);
 	}
 	return derivedData;
 }

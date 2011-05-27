@@ -33,11 +33,7 @@
 #include <assert.h>
 #include "BKE_unit.h"
 
-#ifdef WIN32
-#define _USE_MATH_DEFINES
-#endif
-#include <math.h>
-
+#include "BLI_math.h"
 #include "BLI_winstuff.h"
 
 
@@ -404,7 +400,7 @@ void bUnit_AsString(char *str, int len_max, double value, int prec, int system, 
 
 	if(usys==NULL || usys->units[0].name==NULL)
 		usys= &buDummyCollecton;
-
+   
 	/* split output makes sense only for length, mass and time */
 	if(split && (type==B_UNIT_LENGTH || type==B_UNIT_MASS || type==B_UNIT_TIME)) {
 		bUnitDef *unit_a, *unit_b;
@@ -607,15 +603,15 @@ int bUnit_ReplaceString(char *str, int len_max, char *str_prev, double scale_pre
 				usys_iter= unit_get_system(system_iter, type);
 				if (usys_iter) {
 					for(unit= usys_iter->units; unit->name; unit++) {
-							int ofs = 0;
-							/* incase there are multiple instances */
-							while((ofs=unit_replace(str+ofs, len_max-ofs, str_tmp, scale_pref, unit)))
-								change= 1;
-						}
+						int ofs = 0;
+						/* incase there are multiple instances */
+						while((ofs=unit_replace(str+ofs, len_max-ofs, str_tmp, scale_pref, unit)))
+							change= 1;
 					}
 				}
 			}
 		}
+	}
 	unit= NULL;
 	
 	if(change==0) {
@@ -696,7 +692,7 @@ void bUnit_ToUnitAltName(char *str, int len_max, char *orig_str, int system, int
 
 			found= unit_find_str(orig_str, unit->name_short);
 			if(found) {
-				int offset= found - orig_str;
+				int offset= (int)(found - orig_str);
 				int len_name= 0;
 
 				/* copy everything before the unit */

@@ -444,6 +444,7 @@ void animviz_calc_motionpaths(Scene *scene, ListBase *targets)
 
 /* free curve path data 
  * NOTE: frees the path itself!
+ * NOTE: this is increasingly innacurate with non-uniform BevPoint subdivisions [#24633]
  */
 void free_path(Path *path)
 {
@@ -452,7 +453,7 @@ void free_path(Path *path)
 }
 
 /* calculate a curve-deform path for a curve 
- * 	- only called from displist.c -> makeDispListCurveTypes
+ * 	- only called from displist.c -> do_makeDispListCurveTypes
  */
 void calc_curvepath(Object *ob)
 {
@@ -515,7 +516,7 @@ void calc_curvepath(Object *ob)
 	
 		/* the path verts  in path->data */
 		/* now also with TILT value */
-	pp= path->data = (PathPoint *)MEM_callocN(sizeof(PathPoint)*4*path->len, "pathdata"); // XXX - why *4? - in 2.4x each element was 4 and the size was 16, so better leave for now - Campbell
+	pp= path->data = (PathPoint *)MEM_callocN(sizeof(PathPoint)*path->len, "pathdata");
 	
 	bevp= bevpfirst;
 	bevpn= bevp+1;
@@ -645,14 +646,13 @@ int where_on_path(Object *ob, float ctime, float *vec, float *dir, float *quat, 
 	vec[1]= data[0]*p0->vec[1] + data[1]*p1->vec[1] + data[2]*p2->vec[1] + data[3]*p3->vec[1] ; /* Y */
 	vec[2]= data[0]*p0->vec[2] + data[1]*p1->vec[2] + data[2]*p2->vec[2] + data[3]*p3->vec[2] ; /* Z */
 	vec[3]= data[0]*p0->vec[3] + data[1]*p1->vec[3] + data[2]*p2->vec[3] + data[3]*p3->vec[3] ; /* Tilt, should not be needed since we have quat still used */
-	/* Need to verify the quat interpolation is correct - XXX */
 
 	if (quat) {
 		float totfac, q1[4], q2[4];
 
 		totfac= data[0]+data[3];
 		if(totfac>FLT_EPSILON)	interp_qt_qtqt(q1, p0->quat, p3->quat, data[3] / totfac);
-		else				QUATCOPY(q1, p1->quat);
+		else					QUATCOPY(q1, p1->quat);
 
 		totfac= data[1]+data[2];
 		if(totfac>FLT_EPSILON)	interp_qt_qtqt(q2, p1->quat, p2->quat, data[2] / totfac);
@@ -660,7 +660,7 @@ int where_on_path(Object *ob, float ctime, float *vec, float *dir, float *quat, 
 
 		totfac = data[0]+data[1]+data[2]+data[3];
 		if(totfac>FLT_EPSILON)	interp_qt_qtqt(quat, q1, q2, (data[1]+data[2]) / totfac);
-		else				QUATCOPY(quat, q2);
+		else					QUATCOPY(quat, q2);
 	}
 
 	if(radius)
@@ -752,14 +752,14 @@ static void frames_duplilist(ListBase *lb, Scene *scene, Object *ob, int level, 
 	int cfrao = scene->r.cfra;
 	
 	/* simple prevention of too deep nested groups */
-	if(level>MAX_DUPLI_RECUR) return;
+	if (level > MAX_DUPLI_RECUR) return;
 	
 	/* if we don't have any data/settings which will lead to object movement,
 	 * don't waste time trying, as it will all look the same...
 	 */
 	if (ob->parent==NULL && ob->constraints.first==NULL && ob->adt==NULL) 
 		return;
-
+	
 	/* make a copy of the object's original data (before any dupli-data overwrites it) 
 	 * as we'll need this to keep track of unkeyed data
 	 *	- this doesn't take into account other data that can be reached from the object,
@@ -768,21 +768,21 @@ static void frames_duplilist(ListBase *lb, Scene *scene, Object *ob, int level, 
 	copyob = *ob;
 	
 	/* duplicate over the required range */
-	if(ob->transflag & OB_DUPLINOSPEED) enable_cu_speed= 0;
-
-	for(scene->r.cfra= ob->dupsta; scene->r.cfra<=ob->dupend; scene->r.cfra++) {
+	if (ob->transflag & OB_DUPLINOSPEED) enable_cu_speed= 0;
+	
+	for (scene->r.cfra= ob->dupsta; scene->r.cfra<=ob->dupend; scene->r.cfra++) {
 		short ok= 1;
-
+		
 		/* - dupoff = how often a frames within the range shouldn't be made into duplis
 		 * - dupon = the length of each "skipping" block in frames
 		 */
-		if(ob->dupoff) {
+		if (ob->dupoff) {
 			ok= scene->r.cfra - ob->dupsta;
 			ok= ok % (ob->dupon+ob->dupoff);
 			ok= (ok < ob->dupon);
 		}
 		
-		if(ok) {
+		if (ok) {	
 			DupliObject *dob;
 			
 			/* WARNING: doing animation updates in this way is not terribly accurate, as the dependencies
@@ -832,6 +832,7 @@ static void vertex_dupli__mapFunc(void *userData, int index, float *co, float *n
 	DupliObject *dob;
 	vertexDupliData *vdd= userData;
 	float vec[3], q2[4], mat[3][3], tmat[4][4], obmat[4][4];
+	int origlay;
 	
 	mul_v3_m4v3(vec, vdd->pmat, co);
 	sub_v3_v3(vec, vdd->pmat[3]);
@@ -854,7 +855,14 @@ static void vertex_dupli__mapFunc(void *userData, int index, float *co, float *n
 		copy_m4_m4(tmat, obmat);
 		mul_m4_m4m3(obmat, tmat, mat);
 	}
+
+	origlay = vdd->ob->lay;
+	
 	dob= new_dupli_object(vdd->lb, vdd->ob, obmat, vdd->par->lay, index, OB_DUPLIVERTS, vdd->animated);
+
+	/* restore the original layer so that each dupli will have proper dob->origlay */
+	vdd->ob->lay = origlay;
+
 	if(vdd->orco)
 		VECCOPY(dob->orco, vdd->orco[index]);
 	
@@ -879,7 +887,8 @@ static void vertex_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, fl
 	GroupObject * go = NULL;
 	EditMesh *em;
 	float vec[3], no[3], pmat[4][4];
-	int lay, totvert, a, oblay;
+	int totvert, a, oblay;
+	unsigned int lay;
 	
 	copy_m4_m4(pmat, par->obmat);
 	
@@ -962,6 +971,14 @@ static void vertex_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, fl
 							
 							vertex_dupli__mapFunc(&vdd, a, vec, no, NULL);
 						}
+					}
+					if(sce) {
+						/* Set proper layer in case of scene looping,
+						 * in case of groups the object layer will be
+						 * changed when it's duplicated due to the
+						 * group duplication.
+						 */
+						ob->lay = vdd.par->lay;
 					}
 					
 					break;
@@ -1180,7 +1197,6 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 	Object *ob=NULL, **oblist=NULL, obcopy, *obcopylist=NULL;
 	DupliObject *dob;
 	ParticleDupliWeight *dw;
-	ParticleSimulationData sim = {scene, par, psys, psys_get_modifier(par, psys)};
 	ParticleSettings *part;
 	ParticleData *pa;
 	ChildParticle *cpa=NULL;
@@ -1189,11 +1205,11 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 	float ctime, pa_time, scale = 1.0f;
 	float tmat[4][4], mat[4][4], pamat[4][4], vec[3], size=0.0;
 	float (*obmat)[4], (*oldobmat)[4];
-	int lay, a, b, counter, hair = 0;
+	int a, b, counter, hair = 0;
 	int totpart, totchild, totgroup=0 /*, pa_num */;
 
 	int no_draw_flag = PARS_UNEXIST;
-	
+
 	if(psys==NULL) return;
 	
 	/* simple preventing of too deep nested groups */
@@ -1206,7 +1222,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 
 	if(!psys_check_enabled(par, psys))
 		return;
-	
+
 	if(G.rendering == 0)
 		no_draw_flag |= PARS_NO_DISP;
 	
@@ -1216,7 +1232,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 	totchild = psys->totchild;
 
 	BLI_srandom(31415926 + psys->seed);
-	
+
 	if((psys->renderdata || part->draw_as==PART_DRAW_REND) && ELEM(part->ren_as, PART_DRAW_OB, PART_DRAW_GR)) {
 		ParticleSimulationData sim= {NULL};
 		sim.scene= scene;
@@ -1368,8 +1384,8 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 					normalize_qt_qt(tquat, state.rot);
 					quat_to_mat4(pamat, tquat);
 					copy_v3_v3(pamat[3], state.co);
-				pamat[3][3]= 1.0f;
-			}
+					pamat[3][3]= 1.0f;
+				}
 			}
 
 			if(part->ren_as==PART_DRAW_GR && psys->part->draw & PART_DRAW_WHOLE_GR) {
@@ -1400,7 +1416,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 				if(par_space_mat && GS(id->name) != ID_GR)
 					mul_m4_m4m4(mat, pamat, psys->imat);
 				else
-				copy_m4_m4(mat, pamat);
+					copy_m4_m4(mat, pamat);
 
 				mul_m4_m4m4(tmat, obmat, mat);
 				mul_mat3_m4_fl(tmat, size*scale);
@@ -1481,7 +1497,7 @@ static void font_duplilist(ListBase *lb, Scene *scene, Object *par, int level, i
 	
 	chartransdata= BKE_text_to_curve(scene, par, FO_DUPLI);
 	if(chartransdata==NULL) return;
-	
+
 	cu= par->data;
 	slen= strlen(cu->str);
 	fsize= cu->fsize;

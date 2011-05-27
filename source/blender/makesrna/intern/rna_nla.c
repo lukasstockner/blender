@@ -327,9 +327,9 @@ static void rna_NlaStrip_remove(NlaTrack *track, bContext *C, ReportList *report
 		return;
 	}
 	else {
-	free_nlastrip(&track->strips, strip);
-	WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_REMOVED, NULL);
-}
+		free_nlastrip(&track->strips, strip);
+		WM_event_add_notifier(C, NC_ANIMATION|ND_NLA|NA_REMOVED, NULL);
+	}
 }
 
 #else
@@ -496,7 +496,7 @@ static void rna_def_nlastrip(BlenderRNA *brna)
 	RNA_def_property_boolean_funcs(prop, NULL, "rna_NlaStrip_animated_time_set");
 	RNA_def_property_ui_text(prop, "Animated Strip Time", "Strip time is controlled by an F-Curve rather than automatically determined");
 	RNA_def_property_update(prop, NC_ANIMATION|ND_NLA, NULL); /* this will do? */
-
+	
 	prop= RNA_def_property(srna, "use_animated_time_cyclic", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", NLASTRIP_FLAG_USR_TIME_CYCLIC);
 	RNA_def_property_ui_text(prop, "Cyclic Strip Time", "Cycle the animated time within the action start & end");
@@ -572,7 +572,7 @@ static void rna_def_nlatrack(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "strips", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_struct_type(prop, "NlaStrip");
 	RNA_def_property_ui_text(prop, "NLA Strips", "NLA Strips on this NLA-track");
-	
+
 	rna_api_nlatrack_strips(brna, prop);
 
 	/* name property */

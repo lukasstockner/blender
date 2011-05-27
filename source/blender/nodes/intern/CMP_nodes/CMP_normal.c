@@ -57,7 +57,7 @@ static void do_normal(bNode *node, float *out, float *in)
 }
 
 /* generates normal, does dot product */
-static void node_composit_exec_normal(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_normal(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	bNodeSocket *sock= node->outputs.first;
 	/* stack order input:  normal */
@@ -85,7 +85,7 @@ static void node_composit_exec_normal(void *data, bNode *node, bNodeStack **in, 
 void register_node_type_cmp_normal(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, CMP_NODE_NORMAL, "Normal", NODE_CLASS_OP_VECTOR, NODE_OPTIONS,
 		cmp_node_normal_in, cmp_node_normal_out);
 	node_type_size(&ntype, 100, 60, 200);

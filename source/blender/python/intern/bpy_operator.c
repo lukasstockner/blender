@@ -61,7 +61,10 @@ static PyObject *pyop_poll(PyObject *UNUSED(self), PyObject *args)
 	char		*opname;
 	PyObject	*context_dict= NULL; /* optional args */
 	PyObject	*context_dict_back;
+	char		*context_str= NULL;
 	PyObject	*ret;
+
+	int context= WM_OP_EXEC_DEFAULT;
 
 	// XXX Todo, work out a better solution for passing on context, could make a tuple from self and pack the name and Context into it...
 	bContext *C= (bContext *)BPy_GetContext();
@@ -112,7 +115,7 @@ static PyObject *pyop_poll(PyObject *UNUSED(self), PyObject *args)
 	Py_XINCREF(context_dict); /* so we done loose it */
 	
 	/* main purpose of thsi function */
-	ret= WM_operator_poll((bContext*)C, ot) ? Py_True : Py_False;
+	ret= WM_operator_poll_context((bContext*)C, ot, context) ? Py_True : Py_False;
 	
 	/* restore with original context dict, probably NULL but need this for nested operator calls */
 	Py_XDECREF(context_dict);
@@ -125,7 +128,7 @@ static PyObject *pyop_poll(PyObject *UNUSED(self), PyObject *args)
 static PyObject *pyop_call(PyObject *UNUSED(self), PyObject *args)
 {
 	wmOperatorType *ot;
-	int error_val = 0;
+	int error_val= 0;
 	PointerRNA ptr;
 	int operator_ret= OPERATOR_CANCELLED;
 
@@ -139,7 +142,7 @@ static PyObject *pyop_call(PyObject *UNUSED(self), PyObject *args)
 	int context= WM_OP_EXEC_DEFAULT;
 
 	// XXX Todo, work out a better solution for passing on context, could make a tuple from self and pack the name and Context into it...
-	bContext *C = (bContext *)BPy_GetContext();
+	bContext *C= (bContext *)BPy_GetContext();
 	
 	if(C==NULL) {
 		PyErr_SetString(PyExc_RuntimeError, "Context is None, cant poll any operators");
@@ -178,7 +181,7 @@ static PyObject *pyop_call(PyObject *UNUSED(self), PyObject *args)
 		}
 	}
 
-	if(!PyDict_Check(context_dict))
+	if(context_dict==NULL || context_dict==Py_None) {
 		context_dict= NULL;
 	}
 	else if (!PyDict_Check(context_dict)) {
@@ -194,7 +197,7 @@ static PyObject *pyop_call(PyObject *UNUSED(self), PyObject *args)
 	CTX_py_dict_set(C, (void *)context_dict);
 	Py_XINCREF(context_dict); /* so we done loose it */
 
-	if(WM_operator_poll((bContext*)C, ot) == FALSE) {
+	if(WM_operator_poll_context((bContext*)C, ot, context) == FALSE) {
 		const char *msg= CTX_wm_operator_poll_msg_get(C);
 		PyErr_Format(PyExc_RuntimeError,
 		             "Operator bpy.ops.%.200s.poll() %.200s",
@@ -283,13 +286,13 @@ static PyObject *pyop_as_string(PyObject *UNUSED(self), PyObject *args)
 
 	char		*opname;
 	PyObject	*kw= NULL; /* optional args */
-	int all_args = 1;
+	int all_args= 1;
 	int error_val= 0;
 
-	char *buf = NULL;
+	char *buf= NULL;
 	PyObject *pybuf;
 
-	bContext *C = (bContext *)BPy_GetContext();
+	bContext *C= (bContext *)BPy_GetContext();
 
 	if(C==NULL) {
 		PyErr_SetString(PyExc_RuntimeError, "Context is None, cant get the string representation of this object.");
@@ -337,11 +340,11 @@ static PyObject *pyop_as_string(PyObject *UNUSED(self), PyObject *args)
 
 static PyObject *pyop_dir(PyObject *UNUSED(self))
 {
-	PyObject *list = PyList_New(0), *name;
+	PyObject *list= PyList_New(0), *name;
 	wmOperatorType *ot;
 	
 	for(ot= WM_operatortype_first(); ot; ot= ot->next) {
-		name = PyUnicode_FromString(ot->idname);
+		name= PyUnicode_FromString(ot->idname);
 		PyList_Append(list, name);
 		Py_DECREF(name);
 	}
@@ -379,7 +382,7 @@ static PyObject *pyop_getrna(PyObject *UNUSED(self), PyObject *value)
 	return (PyObject *)pyrna;
 }
 
-static struct PyMethodDef bpy_ops_methods[] = {
+static struct PyMethodDef bpy_ops_methods[]= {
 	{"poll", (PyCFunction) pyop_poll, METH_VARARGS, NULL},
 	{"call", (PyCFunction) pyop_call, METH_VARARGS, NULL},
 	{"as_string", (PyCFunction) pyop_as_string, METH_VARARGS, NULL},
@@ -389,7 +392,7 @@ static struct PyMethodDef bpy_ops_methods[] = {
 	{NULL, NULL, 0, NULL}
 };
 
-static struct PyModuleDef bpy_ops_module = {
+static struct PyModuleDef bpy_ops_module= {
 	PyModuleDef_HEAD_INIT,
 	"_bpy.ops",
 	NULL,
@@ -398,17 +401,11 @@ static struct PyModuleDef bpy_ops_module = {
 	NULL, NULL, NULL, NULL
 };
 
-PyObject *BPY_operator_module( void )
+PyObject *BPY_operator_module(void)
 {
 	PyObject *submodule;
 
 	submodule= PyModule_Create(&bpy_ops_module);
-	PyDict_SetItemString(PyImport_GetModuleDict(), bpy_ops_module.m_name, submodule);
-
-	/* INCREF since its its assumed that all these functions return the
-	 * module with a new ref like PyDict_New, since they are passed to
-	  * PyModule_AddObject which steals a ref */
-	Py_INCREF(submodule);
 
 	return submodule;
 }

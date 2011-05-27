@@ -345,8 +345,6 @@ void recalcData(TransInfo *t)
 		
 		/* initialise relevant anim-context 'context' data from TransInfo data */
 			/* NOTE: sync this with the code in ANIM_animdata_get_context() */
-		memset(&ac, 0, sizeof(bAnimContext));
-		
 		ac.scene= t->scene;
 		ac.obact= OBACT;
 		ac.sa= t->sa;
@@ -362,23 +360,23 @@ void recalcData(TransInfo *t)
 			flushTransGPactionData(t);
 		}
 		else {
-		/* get animdata blocks visible in editor, assuming that these will be the ones where things changed */
-		filter= (ANIMFILTER_VISIBLE | ANIMFILTER_ANIMDATA);
-		ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
-		
-		/* just tag these animdata-blocks to recalc, assuming that some data there changed 
-		 * BUT only do this if realtime updates are enabled
-		 */
-		if ((saction->flag & SACTION_NOREALTIMEUPDATES) == 0) {
-			for (ale= anim_data.first; ale; ale= ale->next) {
-				/* set refresh tags for objects using this animation */
-				ANIM_list_elem_update(t->scene, ale);
+			/* get animdata blocks visible in editor, assuming that these will be the ones where things changed */
+			filter= (ANIMFILTER_VISIBLE | ANIMFILTER_ANIMDATA);
+			ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
+			
+			/* just tag these animdata-blocks to recalc, assuming that some data there changed 
+			 * BUT only do this if realtime updates are enabled
+			 */
+			if ((saction->flag & SACTION_NOREALTIMEUPDATES) == 0) {
+				for (ale= anim_data.first; ale; ale= ale->next) {
+					/* set refresh tags for objects using this animation */
+					ANIM_list_elem_update(t->scene, ale);
+				}
 			}
+			
+			/* now free temp channels */
+			BLI_freelistN(&anim_data);
 		}
-		
-		/* now free temp channels */
-		BLI_freelistN(&anim_data);
-	}
 	}
 	else if (t->spacetype == SPACE_IPO) {
 		Scene *scene;
@@ -595,7 +593,7 @@ void recalcData(TransInfo *t)
 							BKE_nlatrack_add_strip(track, strip);
 							
 							tdn->nlt= track;
-							tdn->trackIndex += (n + 1); /* + 1, since n==0 would mean that we didn't change track */
+							tdn->trackIndex++;
 						}
 						else /* can't move any further */
 							break;
@@ -613,7 +611,7 @@ void recalcData(TransInfo *t)
 							BKE_nlatrack_add_strip(track, strip);
 							
 							tdn->nlt= track;
-							tdn->trackIndex -= (n - 1); /* - 1, since n==0 would mean that we didn't change track */
+							tdn->trackIndex--;
 						}
 						else /* can't move any further */
 							break;
@@ -635,11 +633,6 @@ void recalcData(TransInfo *t)
 	}
 	else if (t->spacetype == SPACE_VIEW3D) {
 		
-		/* project */
-		if(t->state != TRANS_CANCEL) {
-			applyProject(t);
-		}
-		
 		if (t->obedit) {
 			if ELEM(t->obedit->type, OB_CURVE, OB_SURF) {
 				Curve *cu= t->obedit->data;
@@ -648,6 +641,7 @@ void recalcData(TransInfo *t)
 
 				if(t->state != TRANS_CANCEL) {
 					clipMirrorModifier(t, t->obedit);
+					applyProject(t);
 				}
 
 				DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
@@ -668,6 +662,11 @@ void recalcData(TransInfo *t)
 			}
 			else if(t->obedit->type==OB_LATTICE) {
 				Lattice *la= t->obedit->data;
+
+				if(t->state != TRANS_CANCEL) {
+					applyProject(t);
+				}
+
 				DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
 	
 				if(la->editlatt->latt->flag & LT_OUTSIDE) outside_lattice(la->editlatt->latt);
@@ -677,6 +676,7 @@ void recalcData(TransInfo *t)
 				/* mirror modifier clipping? */
 				if(t->state != TRANS_CANCEL) {
 					clipMirrorModifier(t, t->obedit);
+					applyProject(t);
 				}
 				if((t->options & CTX_NO_MIRROR) == 0 && (t->flag & T_MIRROR))
 					editmesh_apply_to_mirror(t);
@@ -692,6 +692,10 @@ void recalcData(TransInfo *t)
 				TransData *td = t->data;
 				int i;
 				
+				if(t->state != TRANS_CANCEL) {
+					applyProject(t);
+				}
+
 				/* Ensure all bones are correctly adjusted */
 				for (ebo = edbo->first; ebo; ebo = ebo->next){
 					
@@ -764,7 +768,12 @@ void recalcData(TransInfo *t)
 				
 			}
 			else
+			{
+				if(t->state != TRANS_CANCEL) {
+					applyProject(t);
+				}
 				DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
+			}
 		}
 		else if( (t->flag & T_POSE) && t->poseobj) {
 			Object *ob= t->poseobj;
@@ -792,11 +801,18 @@ void recalcData(TransInfo *t)
 				where_is_pose(t->scene, ob);
 		}
 		else if(base && (base->object->mode & OB_MODE_PARTICLE_EDIT) && PE_get_current(t->scene, base->object)) {
+			if(t->state != TRANS_CANCEL) {
+				applyProject(t);
+			}
 			flushTransParticles(t);
 		}
 		else {
 			int i;
 			
+			if(t->state != TRANS_CANCEL) {
+				applyProject(t);
+			}
+
 			for (i = 0; i < t->total; i++) {
 				TransData *td = t->data + i;
 				Object *ob = td->ob;
@@ -958,7 +974,7 @@ int initTransInfo (bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 	}
 	else {
 		/* normal operation */
-	t->spacetype = sa->spacetype;
+		t->spacetype= sa->spacetype;
 	}
 
 
@@ -997,13 +1013,13 @@ int initTransInfo (bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 		if(t->around==V3D_LOCAL && (t->settings->selectmode & SCE_SELECT_FACE)) {
 			if(ELEM3(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL)) {
 				t->options |= CTX_NO_PET;
-	}
+			}
 		}
 	}
 	else if(t->spacetype==SPACE_IMAGE)
 	{
 		SpaceImage *sima = sa->spacedata.first;
-		// XXX for now, get View2D  from the active region
+		// XXX for now, get View2D from the active region
 		t->view = &ar->v2d;
 		t->around = sima->around;
 	}
@@ -1022,9 +1038,9 @@ int initTransInfo (bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 	else
 	{
 		if(ar) {
-		// XXX for now, get View2D  from the active region
-		t->view = &ar->v2d;
-		// XXX for now, the center point is the midpoint of the data
+			// XXX for now, get View2D  from the active region
+			t->view = &ar->v2d;
+			// XXX for now, the center point is the midpoint of the data
 		}
 		else {
 			t->view= NULL;
@@ -1088,16 +1104,16 @@ int initTransInfo (bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 				{
 					if (t->obedit && ts->proportional != PROP_EDIT_OFF)
 					{
-					t->flag |= T_PROP_EDIT;
+						t->flag |= T_PROP_EDIT;
 
-					if(ts->proportional == PROP_EDIT_CONNECTED)
-						t->flag |= T_PROP_CONNECTED;
-				}
+						if(ts->proportional == PROP_EDIT_CONNECTED)
+							t->flag |= T_PROP_CONNECTED;
+					}
 					else if (t->obedit == NULL && ts->proportional_objects)
 					{
 						t->flag |= T_PROP_EDIT;
-			}
-		}
+					}
+				}
 			}
 		}
 		
@@ -1229,6 +1245,13 @@ static void restoreElement(TransData *td) {
 		if (td->ext->rot) {
 			VECCOPY(td->ext->rot, td->ext->irot);
 		}
+		if(td->ext->rotAngle) {
+			*td->ext->rotAngle= td->ext->irotAngle;
+		}
+		if(td->ext->rotAxis) {
+			VECCOPY(td->ext->rotAxis, td->ext->irotAxis);
+		}
+		/* XXX, drotAngle & drotAxis not used yet */
 		if (td->ext->size) {
 			VECCOPY(td->ext->size, td->ext->isize);
 		}
@@ -1614,13 +1637,4 @@ void calculatePropRatio(TransInfo *t)
 		}
 		strcpy(t->proptext, "");
 	}
-}
-
-float get_drawsize(ARegion *ar, float *co)
-{
-	RegionView3D *rv3d= ar->regiondata;
-	float vec[3]= {rv3d->persmat[0][3], rv3d->persmat[1][3], rv3d->persmat[2][3]};
-	float size= rv3d->pixsize * 5;
-	size *= dot_v3v3(vec, co) + rv3d->persmat[3][3];
-	return size;
 }

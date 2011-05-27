@@ -710,7 +710,7 @@ static void write_renderinfo(WriteData *wd, Main *mainvar)		/* for renderdeamon 
 			data[1]= sce->r.efra;
 
 			memset(data+2, 0, sizeof(int)*6);
-			strncpy((char *)(data+2), sce->id.name+2, 21);
+			BLI_strncpy((char *)(data+2), sce->id.name+2, sizeof(sce->id.name)-2);
 
 			writedata(wd, REND, 32, data);
 		}
@@ -812,20 +812,20 @@ static void write_pointcaches(WriteData *wd, ListBase *ptcaches)
 				for(i=0; i<BPHYS_TOT_DATA; i++) {
 					if(pm->data[i] && pm->data_types & (1<<i)) {
 						if(strcmp(ptcache_data_struct[i], "")==0)
-						writedata(wd, DATA, MEM_allocN_len(pm->data[i]), pm->data[i]);
+							writedata(wd, DATA, MEM_allocN_len(pm->data[i]), pm->data[i]);
 						else
 							writestruct(wd, DATA, ptcache_data_struct[i], pm->totpoint, pm->data[i]);
+					}
 				}
-			}
 
 				for(; extra; extra=extra->next) {
 					if(strcmp(ptcache_extra_struct[extra->type], "")==0)
 						continue;
 					writestruct(wd, DATA, "PTCacheExtra", 1, extra);
 					writestruct(wd, DATA, ptcache_extra_struct[extra->type], extra->totdata, extra->data);
+				}
+			}
 		}
-	}
-}
 	}
 }
 static void write_particlesettings(WriteData *wd, ListBase *idbase)
@@ -863,7 +863,7 @@ static void write_particlesettings(WriteData *wd, ListBase *idbase)
 
 			for(a=0; a<MAX_MTEX; a++) {
 				if(part->mtex[a]) writestruct(wd, DATA, "MTex", 1, part->mtex[a]);
-		}
+			}
 		}
 		part= part->id.next;
 	}
@@ -1238,14 +1238,14 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 					BKE_ptcache_free_list(&smd->domain->ptcaches[1]);
 					smd->domain->point_cache[1] = NULL;
 					
-				writestruct(wd, DATA, "EffectorWeights", 1, smd->domain->effector_weights);
-			}
+					writestruct(wd, DATA, "EffectorWeights", 1, smd->domain->effector_weights);
+				}
 			}
 			else if(smd->type & MOD_SMOKE_TYPE_FLOW)
 				writestruct(wd, DATA, "SmokeFlowSettings", 1, smd->flow);
 			else if(smd->type & MOD_SMOKE_TYPE_COLL)
 				writestruct(wd, DATA, "SmokeCollSettings", 1, smd->coll);
-			}
+		} 
 		else if(md->type==eModifierType_Fluidsim) {
 			FluidsimModifierData *fluidmd = (FluidsimModifierData*) md;
 			
@@ -1278,8 +1278,8 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 			WarpModifierData *tmd = (WarpModifierData*) md;
 			if(tmd->curfalloff) {
 				write_curvemapping(wd, tmd->curfalloff);
-	}
-}
+			}
+		}
 	}
 }
 
@@ -1618,7 +1618,7 @@ static void write_lattices(WriteData *wd, ListBase *idbase)
 			/* write LibData */
 			writestruct(wd, ID_LT, "Lattice", 1, lt);
 			if (lt->id.properties) IDP_WriteProperty(lt->id.properties, wd);
-
+			
 			/* write animdata */
 			if (lt->adt) write_animdata(wd, lt->adt);
 			
@@ -1970,26 +1970,26 @@ static void write_gpencils(WriteData *wd, ListBase *lb)
 	
 	for (gpd= lb->first; gpd; gpd= gpd->id.next) {
 		if (gpd->id.us>0 || wd->current) {
-		/* write gpd data block to file */
-		writestruct(wd, ID_GD, "bGPdata", 1, gpd);
-		
-		/* write grease-pencil layers to file */
-		for (gpl= gpd->layers.first; gpl; gpl= gpl->next) {
-			writestruct(wd, DATA, "bGPDlayer", 1, gpl);
+			/* write gpd data block to file */
+			writestruct(wd, ID_GD, "bGPdata", 1, gpd);
 			
-			/* write this layer's frames to file */
-			for (gpf= gpl->frames.first; gpf; gpf= gpf->next) {
-				writestruct(wd, DATA, "bGPDframe", 1, gpf);
+			/* write grease-pencil layers to file */
+			for (gpl= gpd->layers.first; gpl; gpl= gpl->next) {
+				writestruct(wd, DATA, "bGPDlayer", 1, gpl);
 				
-				/* write strokes */
-				for (gps= gpf->strokes.first; gps; gps= gps->next) {
-					writestruct(wd, DATA, "bGPDstroke", 1, gps);
-					writestruct(wd, DATA, "bGPDspoint", gps->totpoints, gps->points);				
+				/* write this layer's frames to file */
+				for (gpf= gpl->frames.first; gpf; gpf= gpf->next) {
+					writestruct(wd, DATA, "bGPDframe", 1, gpf);
+					
+					/* write strokes */
+					for (gps= gpf->strokes.first; gps; gps= gps->next) {
+						writestruct(wd, DATA, "bGPDstroke", 1, gps);
+						writestruct(wd, DATA, "bGPDspoint", gps->totpoints, gps->points);				
+					}
 				}
 			}
 		}
 	}
-}
 }
 
 static void write_windowmanagers(WriteData *wd, ListBase *lb)
@@ -2556,12 +2556,12 @@ int BLO_write_file(Main *mainvar, const char *filepath, int write_flags, ReportL
 				 * we should not have any relative paths, but if there
 				 * is somehow, an invalid or empty G.main->name it will
 				 * print an error, dont try make the absolute in this case. */
-			makeFilesAbsolute(mainvar, G.main->name, NULL);
-	}
+				makeFilesAbsolute(mainvar, G.main->name, NULL);
+			}
 		}
 	}
 
-	BLI_make_file_string(G.sce, userfilename, BLI_get_folder_create(BLENDER_USER_CONFIG, NULL), BLENDER_STARTUP_FILE);
+	BLI_make_file_string(G.main->name, userfilename, BLI_get_folder_create(BLENDER_USER_CONFIG, NULL), BLENDER_STARTUP_FILE);
 	write_user_block= (BLI_path_cmp(filepath, userfilename) == 0);
 
 	if(write_flags & G_FILE_RELATIVE_REMAP)

@@ -58,7 +58,7 @@ EnumPropertyItem fmodifier_type_items[] = {
 	{FMODIFIER_TYPE_CYCLES, "CYCLES", 0, "Cycles", ""},
 	{FMODIFIER_TYPE_NOISE, "NOISE", 0, "Noise", ""},
 	{FMODIFIER_TYPE_FILTER, "FILTER", 0, "Filter", ""},
-	{FMODIFIER_TYPE_PYTHON, "PYTHON", 0, "Python", ""},
+	//{FMODIFIER_TYPE_PYTHON, "PYTHON", 0, "Python", ""},	// FIXME: not implemented yet!
 	{FMODIFIER_TYPE_LIMITS, "LIMITS", 0, "Limits", ""},
 	{FMODIFIER_TYPE_STEPPED, "STEPPED", 0, "Stepped Interpolation", ""},
 	{0, NULL, 0, NULL, NULL}};
@@ -164,8 +164,8 @@ static void rna_DriverTarget_update_name(Main *bmain, Scene *scene, PointerRNA *
 /* note: this function exists only to avoid id refcounting */
 static void rna_DriverTarget_id_set(PointerRNA *ptr, PointerRNA value)
 {
-    DriverTarget *dtar= (DriverTarget*)ptr->data;
-    dtar->id= value.data;
+	DriverTarget *dtar= (DriverTarget*)ptr->data;
+	dtar->id= value.data;
 }
 
 static StructRNA *rna_DriverTarget_id_typef(PointerRNA *ptr)
@@ -344,7 +344,7 @@ static void rna_FCurve_group_set(PointerRNA *ptr, PointerRNA value)
 	ID *vid = (ID *)value.id.data;
 	FCurve *fcu= ptr->data;
 	bAction *act = NULL;
-
+	
 	/* get action */
 	if (ELEM(NULL, pid, vid)) {
 		printf("ERROR: one of the ID's for the groups to assign to is invalid (ptr=%p, val=%p)\n", pid, vid);
@@ -380,7 +380,7 @@ static void rna_FCurve_group_set(PointerRNA *ptr, PointerRNA value)
 		/* can't change the grouping of F-Curve when it doesn't belong to an action */
 		printf("ERROR: cannot assign F-Curve to group, since F-Curve is not attached to any ID\n");
 		return;
-	}	
+	}
 	/* make sure F-Curve exists in this action first, otherwise we could still have been tricked */
 	else if (BLI_findindex(&act->curves, fcu) == -1) {
 		printf("ERROR: F-Curve (%p) doesn't exist in action '%s'\n", fcu, act->id.name);
@@ -442,7 +442,7 @@ static void rna_FCurve_modifiers_remove(FCurve *fcu, ReportList *reports, FModif
 	if(BLI_findindex(&fcu->modifiers, fcm) == -1) {
 		BKE_reportf(reports, RPT_ERROR, "FCurveModifier '%s' not found in fcurve.", fcm->name);
 		return;
-}
+	}
 	remove_fmodifier(&fcu->modifiers, fcm);
 }
 
@@ -555,7 +555,7 @@ static void rna_FModifierStepped_end_frame_range(PointerRNA *ptr, float *min, fl
 static BezTriple *rna_FKeyframe_points_insert(FCurve *fcu, float frame, float value, int flag)
 {
 	int index= insert_vert_fcurve(fcu, frame, value, flag);
-	return index >= 0 ? fcu->bezt + index : NULL;
+	return ((fcu->bezt) && (index >= 0))? (fcu->bezt + index) : NULL;
 }
 
 static void rna_FKeyframe_points_add(FCurve *fcu, int tot)
@@ -581,15 +581,15 @@ static void rna_FKeyframe_points_add(FCurve *fcu, int tot)
 			bezt->ipo= BEZT_IPO_BEZ;
 			bezt->h1= bezt->h2= HD_AUTO;
 			bezt++;
+		}
 	}
-}
 }
 
 static void rna_FKeyframe_points_remove(FCurve *fcu, ReportList *reports, BezTriple *bezt, int do_fast)
 {
 	int index= (int)(bezt - fcu->bezt);
 	if (index < 0 || index >= fcu->totvert) {
-		BKE_report(reports, RPT_ERROR, "bezier not in fcurve.");
+		BKE_report(reports, RPT_ERROR, "Keyframe not in F-Curve.");
 		return;
 	}
 
@@ -1044,7 +1044,7 @@ static void rna_def_drivertarget(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "ID");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_editable_func(prop, "rna_DriverTarget_id_editable");
-    /* note: custom set function is ONLY to avoid rna setting a user for this. */
+	/* note: custom set function is ONLY to avoid rna setting a user for this. */
 	RNA_def_property_pointer_funcs(prop, NULL, "rna_DriverTarget_id_set", "rna_DriverTarget_id_typef", NULL);
 	RNA_def_property_ui_text(prop, "ID", "ID-block that the specific property used can be found from (id_type property must be set first)");
 	RNA_def_property_update(prop, 0, "rna_DriverTarget_update_data");
@@ -1144,9 +1144,9 @@ static void rna_def_channeldriver_variables(BlenderRNA *brna, PropertyRNA *cprop
 
 	/* remove variable */
 	func= RNA_def_function(srna, "remove", "rna_Driver_remove_variable");
-		RNA_def_function_ui_description(func, "Remove an existing variable from the driver.");
+	RNA_def_function_ui_description(func, "Remove an existing variable from the driver.");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
-		/* target to remove */
+	/* target to remove */
 	parm= RNA_def_pointer(func, "variable", "DriverVariable", "", "Variable to remove from the driver.");
 	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_NEVER_NULL);
 }
@@ -1429,7 +1429,7 @@ static void rna_def_fcurve(BlenderRNA *brna)
 	RNA_def_property_string_funcs(prop, "rna_FCurve_RnaPath_get", "rna_FCurve_RnaPath_length", "rna_FCurve_RnaPath_set");
 	RNA_def_property_ui_text(prop, "Data Path", "RNA Path to property affected by F-Curve");
 	RNA_def_property_update(prop, NC_ANIMATION, NULL);	// XXX need an update callback for this to that animation gets evaluated
-	
+
 	/* called 'index' when given as function arg */
 	prop= RNA_def_property(srna, "array_index", PROP_INT, PROP_NONE);
 	RNA_def_property_ui_text(prop, "RNA Array Index", "Index to the specific property affected by F-Curve if applicable");

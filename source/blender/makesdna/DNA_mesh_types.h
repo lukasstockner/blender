@@ -58,7 +58,7 @@ typedef struct Mesh {
 	struct AnimData *adt;		/* animation data (must be immediately after id for utilities to use it) */
 
 	struct BoundBox *bb;
-
+	
 	struct Ipo *ipo;		// XXX depreceated... old animation system
 	struct Key *key;
 	struct Material **mat;
@@ -85,12 +85,12 @@ typedef struct Mesh {
 	 * of the last selected face and is similar to the old active face flag where
 	 * the face does not need to be selected, -1 is inactive */
 	int act_face; 
-	
+
 	/* texture space, copied as one block in editobject.c */
 	float loc[3];
 	float size[3];
 	float rot[3];
-	
+
 	short texflag, drawflag;
 	short smoothresh, flag;
 

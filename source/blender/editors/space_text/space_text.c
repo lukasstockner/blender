@@ -66,7 +66,7 @@
 
 /* ******************** default callbacks for text space ***************** */
 
-static SpaceLink *text_new(const bContext *C)
+static SpaceLink *text_new(const bContext *UNUSED(C))
 {
 	ARegion *ar;
 	SpaceText *stext;
@@ -105,7 +105,7 @@ static void text_free(SpaceLink *sl)
 
 
 /* spacetype; init callback */
-static void text_init(struct wmWindowManager *wm, ScrArea *sa)
+static void text_init(struct wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
 {
 
 }
@@ -113,9 +113,9 @@ static void text_init(struct wmWindowManager *wm, ScrArea *sa)
 static SpaceLink *text_duplicate(SpaceLink *sl)
 {
 	SpaceText *stextn= MEM_dupallocN(sl);
-	
+
 	/* clear or remove stuff from old */
-	
+
 	stextn->drawcache= NULL; /* space need it's own cache */
 
 	return (SpaceLink *)stextn;
@@ -137,7 +137,7 @@ static void text_listener(ScrArea *sa, wmNotifier *wmn)
 			switch(wmn->data) {
 				case ND_DISPLAY:
 				case ND_CURSOR:
-				ED_area_tag_redraw(sa);
+					ED_area_tag_redraw(sa);
 					break;
 			}
 
@@ -146,14 +146,14 @@ static void text_listener(ScrArea *sa, wmNotifier *wmn)
 					if(st->text) {
 						text_drawcache_tag_update(st, 1);
 						text_update_edited(st->text);
-			}
+					}
 
 					ED_area_tag_redraw(sa);
 					/* no break -- fall down to tag redraw */
 				case NA_ADDED:
 				case NA_REMOVED:
 					ED_area_tag_redraw(sa);
-			break;
+					break;
 			}
 
 			break;
@@ -346,7 +346,7 @@ static void text_keymap(struct wmKeyConfig *keyconf)
 	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_delete", BACKSPACEKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "type", DEL_PREV_CHAR); /* same as above [#26623] */
 	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_delete", DELKEY, KM_PRESS, KM_CTRL, 0)->ptr, "type", DEL_NEXT_WORD);
 	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_delete", BACKSPACEKEY, KM_PRESS, KM_CTRL, 0)->ptr, "type", DEL_PREV_WORD);
-
+	
 	WM_keymap_add_item(keymap, "TEXT_OT_overwrite_toggle", INSERTKEY, KM_PRESS, 0, 0);
 
 	WM_keymap_add_item(keymap, "TEXT_OT_scroll", MIDDLEMOUSE, KM_PRESS, 0, 0);
@@ -426,7 +426,7 @@ static void text_main_area_draw(const bContext *C, ARegion *ar)
 	/* scrollers? */
 }
 
-static void text_cursor(wmWindow *win, ScrArea *sa, ARegion *ar)
+static void text_cursor(wmWindow *win, ScrArea *UNUSED(sa), ARegion *UNUSED(ar))
 {
 	WM_cursor_set(win, BC_TEXTEDITCURSOR);
 }
@@ -435,7 +435,7 @@ static void text_cursor(wmWindow *win, ScrArea *sa, ARegion *ar)
 
 /* ************* dropboxes ************* */
 
-static int text_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
+static int text_drop_poll(bContext *UNUSED(C), wmDrag *drag, wmEvent *UNUSED(event))
 {
 	if(drag->type==WM_DRAG_PATH)
 		if(ELEM(drag->icon, ICON_FILE_SCRIPT, ICON_FILE_BLANK))	/* rule might not work? */
@@ -464,7 +464,7 @@ static void text_dropboxes(void)
 /****************** header region ******************/
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void text_header_area_init(wmWindowManager *wm, ARegion *ar)
+static void text_header_area_init(wmWindowManager *UNUSED(wm), ARegion *ar)
 {
 	ED_region_header_init(ar);
 }

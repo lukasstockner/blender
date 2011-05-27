@@ -369,7 +369,7 @@ static float nlastrip_get_frame_actionclip (NlaStrip *strip, float cframe, short
 			return strip->end - scale*(cframe - strip->actstart);
 		}
 		else if (mode == NLATIME_CONVERT_UNMAP) {
-			return strip->actend - (strip->end - cframe) / scale;	
+			return (strip->end + (strip->actstart * scale - cframe)) / scale;
 		}
 		else /* if (mode == NLATIME_CONVERT_EVAL) */{
 			if (IS_EQF(cframe, strip->end) && IS_EQF(strip->repeat, ((int)strip->repeat))) {
@@ -930,6 +930,7 @@ short BKE_nlatrack_has_space (NlaTrack *nlt, float start, float end)
 	 */
 	if ((nlt == NULL) || (nlt->flag & NLATRACK_PROTECTED) || IS_EQF(start, end))
 		return 0;
+	
 	if (start > end) {
 		puts("BKE_nlatrack_has_space() error... start and end arguments swapped");
 		SWAP(float, start, end);
@@ -1275,28 +1276,8 @@ void BKE_nlastrip_validate_name (AnimData *adt, NlaStrip *strip)
 	/* if the hash-table has a match for this name, try other names... 
 	 *	- in an extreme case, it might not be able to find a name, but then everything else in Blender would fail too :)
 	 */
-	if (BLI_ghash_haskey(gh, strip->name)) {
-		char tempname[128];
-		int	number = 1;
-		char *dot;
-		
-		/* Strip off the suffix */
-		dot = strrchr(strip->name, '.');
-		if (dot) *dot=0;
-		
-		/* Try different possibilities */
-		for (number = 1; number <= 999; number++) {
-			/* assemble alternative name */
-			BLI_snprintf(tempname, 128, "%s.%03d", strip->name, number);
-			
-			/* if hash doesn't have this, set it */
-			if (BLI_ghash_haskey(gh, tempname) == 0) {
-				BLI_strncpy(strip->name, tempname, sizeof(strip->name));
-				break;
-			}
-		}
-	}
-	
+	BLI_uniquename_cb(nla_editbone_name_check, (void *)gh, "NlaStrip", '.', strip->name, sizeof(strip->name));
+
 	/* free the hash... */
 	BLI_ghash_free(gh, NULL, NULL);
 }

@@ -52,7 +52,7 @@ static bNodeSocketType sh_node_geom_out[]= {
 };
 
 /* node execute callback */
-static void node_shader_exec_geom(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_shader_exec_geom(void *data, bNode *node, bNodeStack **UNUSED(in), bNodeStack **out)
 {
 	if(data) {
 		ShadeInput *shi= ((ShaderCallData *)data)->shi;
@@ -120,7 +120,7 @@ static void node_shader_exec_geom(void *data, bNode *node, bNodeStack **in, bNod
 
 static void node_shader_init_geometry(bNode *node)
 {
-   node->storage= MEM_callocN(sizeof(NodeGeometry), "NodeGeometry");
+	node->storage= MEM_callocN(sizeof(NodeGeometry), "NodeGeometry");
 }
 
 static int gpu_shader_geom(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
@@ -139,7 +139,7 @@ static int gpu_shader_geom(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUN
 void register_node_type_sh_geom(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, SH_NODE_GEOMETRY, "Geometry", NODE_CLASS_INPUT, NODE_OPTIONS,
 		NULL, sh_node_geom_out);
 	node_type_size(&ntype, 120, 80, 160);

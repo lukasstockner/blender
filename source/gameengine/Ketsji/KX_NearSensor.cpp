@@ -247,7 +247,7 @@ bool	KX_NearSensor::NewHandleCollision(void* obj1,void* obj2,const PHY_CollData 
 	return false; // was DT_CONTINUE; but this was defined in Sumo as false
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */
 /* Python Functions															 */
@@ -290,4 +290,4 @@ PyAttributeDef KX_NearSensor::Attributes[] = {
 	{NULL} //Sentinel
 };
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON

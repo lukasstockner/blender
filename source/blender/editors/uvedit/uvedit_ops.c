@@ -157,7 +157,7 @@ static int uvedit_set_tile(Object *obedit, Image *ima, int curtile)
 	/* verify if we have something to do */
 	if(!ima || !ED_uvedit_test(obedit))
 		return 0;
-	
+
 	if((ima->tpageflag & IMA_TILES) == 0)
 		return 0;
 
@@ -425,31 +425,31 @@ static int ED_uvedit_median(Scene *scene, Image *ima, Object *obedit, float co[3
 	EditFace *efa;
 	MTFace *tf;
 	unsigned int sel= 0;
-	
+
 	zero_v3(co);
-		
-		for(efa= em->faces.first; efa; efa= efa->next) {
-			tf = CustomData_em_get(&em->fdata, efa->data, CD_MTFACE);
-			if(uvedit_face_visible(scene, ima, efa, tf)) {
+
+	for(efa= em->faces.first; efa; efa= efa->next) {
+		tf = CustomData_em_get(&em->fdata, efa->data, CD_MTFACE);
+		if(uvedit_face_visible(scene, ima, efa, tf)) {
 			if(uvedit_uv_selected(scene, efa, tf, 0))				{ add_v3_v3(co, tf->uv[0]); sel++; }
 			if(uvedit_uv_selected(scene, efa, tf, 1))				{ add_v3_v3(co, tf->uv[1]); sel++; }
 			if(uvedit_uv_selected(scene, efa, tf, 2))				{ add_v3_v3(co, tf->uv[2]); sel++; }
 			if(efa->v4 && (uvedit_uv_selected(scene, efa, tf, 3)))	{ add_v3_v3(co, tf->uv[3]); sel++; }
-			}
 		}
+	}
 
 	mul_v3_fl(co, 1.0f/(float)sel);
 
 	BKE_mesh_end_editmesh(obedit->data, em);
 	return (sel != 0);
-	}
-	
+}
+
 static int uvedit_center(Scene *scene, Image *ima, Object *obedit, float *cent, char mode)
 {
 	EditMesh *em= BKE_mesh_get_editmesh((Mesh*)obedit->data);
 	float min[2], max[2];
 	int change= 0;
-		
+	
 	if(mode==V3D_CENTER) { /* bounding box */
 		if(ED_uvedit_minmax(scene, ima, obedit, min, max)) {
 			change = 1;
@@ -955,9 +955,9 @@ static void select_linked(Scene *scene, Image *ima, EditMesh *em, float limit[2]
 				const char select_flag= efa->v4 ? (TF_SEL1|TF_SEL2|TF_SEL3|TF_SEL4) : (TF_SEL1|TF_SEL2|TF_SEL3);
 				tf = CustomData_em_get(&em->fdata, efa->data, CD_MTFACE);
 				if((tf->flag & select_flag))
-						break;
-				}
+					break;
 			}
+		}
 
 		if(efa) {
 			for(a=0, efa= em->faces.first; efa; efa= efa->next, a++) {
@@ -1133,7 +1133,7 @@ static int stitch_exec(bContext *C, wmOperator *op)
 	EditVert *eve;
 	Image *ima;
 	MTFace *tf;
-	
+
 	scene= CTX_data_scene(C);
 	obedit= CTX_data_edit_object(C);
 	em= BKE_mesh_get_editmesh((Mesh*)obedit->data);
@@ -1439,7 +1439,7 @@ static int mouse_select(bContext *C, float co[2], int extend, int loop)
 	int a, i, select = 1, selectmode, sticky, sync, hitv[4], nvert;
 	int flush = 0; /* 0 == dont flush, 1 == sel, -1 == desel;  only use when selection sync is enabled */
 	float limit[2], *hituv[4], penalty[2];
-	
+
 	/* notice 'limit' is the same no matter the zoom level, since this is like
 	 * remove doubles and could annoying if it joined points when zoomed out.
 	 * 'penalty' is in screen pixel space otherwise zooming in on a uv-vert and
@@ -1918,8 +1918,8 @@ static int unlink_selection_exec(bContext *C, wmOperator *op)
 			if(~tf->flag & select_flag)
 				tf->flag &= ~select_flag;
 
-			}
-			}
+		}
+	}
 	
 	DAG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM|ND_SELECT, obedit->data);
@@ -2262,7 +2262,7 @@ static int circle_select_exec(bContext *C, wmOperator *op)
 	int x, y, radius, width, height, select;
 	float zoomx, zoomy, offset[2], ellipse[2];
 	int gesture_mode= RNA_int_get(op->ptr, "gesture_mode");
-    
+
 	/* get operator properties */
 	select= (gesture_mode == GESTURE_MODAL_SELECT);
 	x= RNA_int_get(op->ptr, "x");
@@ -2601,7 +2601,7 @@ static int snap_selection_exec(bContext *C, wmOperator *op)
 
 	if(!change)
 		return OPERATOR_CANCELLED;
-	
+
 	uvedit_live_unwrap_update(sima, scene, obedit);
 	DAG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM|ND_DATA, obedit->data);
@@ -2776,7 +2776,7 @@ static int hide_exec(bContext *C, wmOperator *op)
 				else if(em->selectmode == SCE_SELECT_FACE) {
 					const char select_flag= efa->v4 ? (TF_SEL1|TF_SEL2|TF_SEL3|TF_SEL4) : (TF_SEL1|TF_SEL2|TF_SEL3);
 					if((tf->flag & select_flag)==0) {
-							EM_select_face(efa, 0);
+						EM_select_face(efa, 0);
 						tf->flag &= ~(TF_SEL1|TF_SEL2|TF_SEL3|TF_SEL4);
 					}
 				}
@@ -3009,6 +3009,9 @@ static int set_2d_cursor_exec(bContext *C, wmOperator *op)
 	SpaceImage *sima = CTX_wm_space_image(C);
 	float location[2];
 
+	if(!sima)
+		return OPERATOR_CANCELLED;
+
 	RNA_float_get_array(op->ptr, "location", location);
 	sima->cursor[0]= location[0];
 	sima->cursor[1]= location[1];
@@ -3060,11 +3063,11 @@ static int set_tile_exec(bContext *C, wmOperator *op)
 
 	if(uvedit_set_tile(obedit, ima, tile[0] + ima->xrep*tile[1])) {
 		WM_event_add_notifier(C, NC_GEOM|ND_DATA, obedit->data);
-	WM_event_add_notifier(C, NC_SPACE|ND_SPACE_IMAGE, NULL);
+		WM_event_add_notifier(C, NC_SPACE|ND_SPACE_IMAGE, NULL);
 
-	return OPERATOR_FINISHED;
-}
-
+		return OPERATOR_FINISHED;
+	}
+	
 	return OPERATOR_CANCELLED;
 }
 
@@ -3156,6 +3159,7 @@ void ED_operatortypes_uvedit(void)
 void ED_keymap_uvedit(wmKeyConfig *keyconf)
 {
 	wmKeyMap *keymap;
+	wmKeyMapItem *kmi;
 	
 	keymap= WM_keymap_find(keyconf, "UV Editor", 0, 0);
 	keymap->poll= ED_operator_uvedit;
@@ -3207,6 +3211,19 @@ void ED_keymap_uvedit(wmKeyConfig *keyconf)
 	/* menus */
 	WM_keymap_add_menu(keymap, "IMAGE_MT_uvs_snap", SKEY, KM_PRESS, KM_SHIFT, 0);
 	WM_keymap_add_menu(keymap, "IMAGE_MT_uvs_select_mode", TABKEY, KM_PRESS, KM_CTRL, 0);
+
+	/* pivot */
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", COMMAKEY, KM_PRESS, 0, 0);
+	RNA_string_set(kmi->ptr, "data_path", "space_data.uv_editor.pivot_point");
+	RNA_string_set(kmi->ptr, "value", "CENTER");
+
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", COMMAKEY, KM_PRESS, KM_CTRL, 0);
+	RNA_string_set(kmi->ptr, "data_path", "space_data.uv_editor.pivot_point");
+	RNA_string_set(kmi->ptr, "value", "MEDIAN");
+
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", PERIODKEY, KM_PRESS, 0, 0);
+	RNA_string_set(kmi->ptr, "data_path", "space_data.uv_editor.pivot_point");
+	RNA_string_set(kmi->ptr, "value", "CURSOR");
 
 	ED_object_generic_keymap(keyconf, keymap, 2);
 

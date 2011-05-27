@@ -29,7 +29,7 @@
  * I hearby donate this code and all rights to the Blender Foundation.
  * $Id$
  */
- 
+
 /** \file blender/imbuf/intern/cineon/cineon_dpx.c
  *  \ingroup imbcineon
  */
@@ -95,7 +95,7 @@ static struct ImBuf *imb_load_dpx_cineon(unsigned char *mem, int use_cineon, int
 		return NULL;
 	}
 	
-	ibuf = IMB_allocImBuf(width, height, 32, IB_rectfloat | flags, 0);
+	ibuf = IMB_allocImBuf(width, height, 32, IB_rectfloat | flags);
 
 	row = MEM_mallocN(sizeof(unsigned short)*width*depth, "row in cineon_dpx.c");
 	frow = ibuf->rect_float+width*height*4;
@@ -135,6 +135,8 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filename, int use_cineon
 	float *fline;
 	float *fbuf;
 	int is_alloc= 0;
+	
+	(void)flags; /* unused */
 
 	// cineon_conversion_parameters(&conversion);
 	logImageGetByteConversionDefaults(&conversion);
@@ -144,10 +146,10 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filename, int use_cineon
 	 */
 
 	fbuf= IMB_float_profile_ensure(ibuf, conversion.doLogarithm ? IB_PROFILE_LINEAR_RGB : IB_PROFILE_NONE, &is_alloc);
-	
+
 	if (fbuf == NULL) { /* in the unlikely event that converting to a float buffer fails */
-			return 0;
-		}
+		return 0;
+	}
 	
 	logImageSetVerbose((G.f & G_DEBUG) ? 1:0);
 	logImage = logImageCreate(filename, use_cineon, width, height, depth);

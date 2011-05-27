@@ -57,11 +57,7 @@
 #include "BKE_mesh.h"
 #include "BKE_subsurf.h"
 
-
 /* Util macros */
-#define TO_STR(a)	#a
-#define JOIN(a,b)	a##b
-
 #define OUT_OF_MEMORY()	((void)printf("Shrinkwrap: Out of memory\n"))
 
 /* Benchmark macros */
@@ -282,8 +278,8 @@ int normal_projection_project_vertex(char options, const float *vert, const floa
 
 		if(transf) {
 			/* Inverting space transform (TODO make coeherent with the initial dist readjust) */
-			space_transform_invert( transf, hit_tmp.co );
-			hit_tmp.dist = len_v3v3( (float*)vert, hit_tmp.co );
+			space_transform_invert(transf, hit_tmp.co);
+			hit_tmp.dist = len_v3v3((float *)vert, hit_tmp.co);
 		}
 
 		memcpy(hit, &hit_tmp, sizeof(hit_tmp) );
@@ -396,8 +392,8 @@ static void shrinkwrap_calc_normal_projection(ShrinkwrapCalcData *calc)
 			//Project over negative direction of axis
 			if(use_normal & MOD_SHRINKWRAP_PROJECT_ALLOW_NEG_DIR && hit.index == -1)
 			{
-				float inv_no[3] = { -tmp_no[0], -tmp_no[1], -tmp_no[2] };
-
+				float inv_no[3];
+				negate_v3_v3(inv_no, tmp_no);
 
 				if(auxData.tree)
 					normal_projection_project_vertex(0, tmp_co, inv_no, &local2aux, auxData.tree, &hit, auxData.raycast_callback, &auxData);

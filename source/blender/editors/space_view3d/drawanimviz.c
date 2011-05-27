@@ -36,6 +36,7 @@
 #include <string.h>
 #include <math.h>
 
+#include "BLO_sys_types.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -83,7 +84,6 @@ void draw_motion_paths_init(View3D *v3d, ARegion *ar)
  * 	- assumes that the viewport has already been initialised properly
  *		i.e. draw_motion_paths_init() has been called
  */
-// FIXME: the text is still drawn in the wrong space - it includes the current transforms of the object still...
 void draw_motion_path_instance(Scene *scene, 
 			Object *ob, bPoseChannel *pchan, bAnimVizSettings *avs, bMotionPath *mpath)
 {
@@ -206,6 +206,9 @@ void draw_motion_path_instance(Scene *scene,
 		UI_ThemeColor(TH_TEXT_HI);
 	}
 	
+	// XXX, this isnt up to date but probably should be kept so.
+	invert_m4_m4(ob->imat, ob->obmat);
+	
 	/* Draw frame numbers at each framestep value */
 	if (avs->path_viewflag & MOTIONPATH_VIEW_FNUMS) {
 		unsigned char col[4];
@@ -214,6 +217,7 @@ void draw_motion_path_instance(Scene *scene,
 
 		for (i=0, mpv=mpv_start; i < len; i+=stepsize, mpv+=stepsize) {
 			char str[32];
+			float co[3];
 			
 			/* only draw framenum if several consecutive highlighted points don't occur on same point */
 			if (i == 0) {
@@ -282,6 +286,7 @@ void draw_motion_path_instance(Scene *scene,
 		
 		/* Draw frame numbers of keyframes  */
 		if (avs->path_viewflag & MOTIONPATH_VIEW_KFNOS) {
+			float co[3];
 			for (i=0, mpv=mpv_start; i < len; i++, mpv++) {
 				float mframe= (float)(sfra + i);
 				

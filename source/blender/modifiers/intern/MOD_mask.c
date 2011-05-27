@@ -65,7 +65,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *UNUSED(md))
 {
-	return (1 << CD_MDEFORMVERT);
+	return CD_MASK_MDEFORMVERT;
 }
 
 static void foreachObjectLink(
@@ -94,7 +94,7 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 }
 
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
-		DerivedMesh *derivedData,
+						DerivedMesh *derivedData,
 						int UNUSED(useRenderParams),
 						int UNUSED(isFinalCalc))
 {

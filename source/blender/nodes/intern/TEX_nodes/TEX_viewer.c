@@ -31,7 +31,7 @@
  */
 
 
-#include "../TEX_util.h"                                                   
+#include "../TEX_util.h"
 #include "TEX_node.h"
 #include <math.h>
 
@@ -43,7 +43,7 @@ static bNodeSocketType outputs[]= {
 	{ -1, 0, "" }
 };
 
-static void exec(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void exec(void *data, bNode *node, bNodeStack **in, bNodeStack **UNUSED(out))
 {
 	TexCallData *cdata = (TexCallData *)data;
 

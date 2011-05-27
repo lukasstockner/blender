@@ -26,7 +26,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file SG_BBox.h
  *  \ingroup bgesg
  *  \brief Bounding Box

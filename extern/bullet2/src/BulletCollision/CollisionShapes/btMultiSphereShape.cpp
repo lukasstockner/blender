@@ -32,8 +32,8 @@ btMultiSphereShape::btMultiSphereShape (const btVector3* positions,const btScala
 	{
 		m_localPositionArray[i] = positions[i];
 		m_radiArray[i] = radi[i];
-
-}
+		
+	}
 
 	recalcLocalAabb();
 
@@ -157,10 +157,10 @@ const char*	btMultiSphereShape::serialize(void* dataBuffer, btSerializer* serial
 		{
 			m_localPositionArray[i].serializeFloat(memPtr->m_pos);
 			memPtr->m_radius = float(m_radiArray[i]);
-}
+		}
 		serializer->finalizeChunk(chunk,"btPositionAndRadius",BT_ARRAY_CODE,(void*)&m_localPositionArray[0]);
 	}
-
+	
 	return "btMultiSphereShapeData";
 }
 

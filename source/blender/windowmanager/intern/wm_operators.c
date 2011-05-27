@@ -81,7 +81,6 @@
 
 #include "ED_screen.h"
 #include "ED_util.h"
-#include "ED_sculpt.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -111,11 +110,11 @@ wmOperatorType *WM_operatortype_find(const char *idname, int quiet)
 	
 	char idname_bl[OP_MAX_TYPENAME]; // XXX, needed to support python style names without the _OT_ syntax
 	WM_operator_bl_idname(idname_bl, idname);
-	
+
 	if (idname_bl[0]) {
 		ot= (wmOperatorType *)BLI_findstring_ptr(&global_ops, idname_bl, offsetof(wmOperatorType, idname));
 		if(ot) {
-			   return ot;
+			return ot;
 		}
 	}
 	
@@ -384,24 +383,24 @@ void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType*, void*), vo
 wmOperatorTypeMacro *WM_operatortype_macro_define(wmOperatorType *ot, const char *idname)
 {
 	wmOperatorTypeMacro *otmacro= MEM_callocN(sizeof(wmOperatorTypeMacro), "wmOperatorTypeMacro");
-	
+
 	BLI_strncpy(otmacro->idname, idname, OP_MAX_TYPENAME);
 
 	/* do this on first use, since operatordefinitions might have been not done yet */
 	WM_operator_properties_alloc(&(otmacro->ptr), &(otmacro->properties), idname);
 	WM_operator_properties_sanitize(otmacro->ptr, 1);
-	
+
 	BLI_addtail(&ot->macro, otmacro);
 
 	{
 		/* operator should always be found but in the event its not. dont segfault */
 		wmOperatorType *otsub = WM_operatortype_find(idname, 0);
 		if(otsub) {
-		RNA_def_pointer_runtime(ot->srna, otsub->idname, otsub->srna,
-		otsub->name, otsub->description);
+			RNA_def_pointer_runtime(ot->srna, otsub->idname, otsub->srna,
+			otsub->name, otsub->description);
+		}
 	}
-	}
-	
+
 	return otmacro;
 }
 
@@ -962,11 +961,11 @@ static uiBlock *wm_block_create_dialog(bContext *C, ARegion *ar, void *userData)
 	uiBlockSetFlag(block, UI_BLOCK_KEEP_OPEN|UI_BLOCK_RET_1|UI_BLOCK_MOVEMOUSE_QUIT);
 
 	layout= uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, data->width, data->height, style);
-
+	
 	uiBlockSetFunc(block, dialog_check_cb, op, NULL);
 
 	uiLayoutOperatorButs(C, layout, op, NULL, 'H', UI_LAYOUT_OP_SHOW_TITLE);
-
+	
 	/* clear so the OK button is left alone */
 	uiBlockSetFunc(block, NULL, NULL, NULL);
 
@@ -978,7 +977,7 @@ static uiBlock *wm_block_create_dialog(bContext *C, ARegion *ar, void *userData)
 
 		col= uiLayoutColumn(layout, FALSE);
 		col_block= uiLayoutGetBlock(col);
-	/* Create OK button, the callback of which will execute op */
+		/* Create OK button, the callback of which will execute op */
 		btn= uiDefBut(col_block, BUT, 0, "OK", 0, -30, 0, 20, NULL, 0, 0, 0, 0, "");
 		uiButSetFunc(btn, dialog_exec_cb, op, col_block);
 	}
@@ -1021,11 +1020,11 @@ int WM_operator_props_popup(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 		BKE_reportf(op->reports, RPT_ERROR, "Operator '%s' does not have register enabled, incorrect invoke function.", op->type->idname);
 		return OPERATOR_CANCELLED;
 	}
-
+	
 	ED_undo_push_op(C, op);
 	wm_operator_register(C, op);
 
-		uiPupBlock(C, wm_block_create_redo, op);
+	uiPupBlock(C, wm_block_create_redo, op);
 
 	return OPERATOR_RUNNING_MODAL;
 }
@@ -1078,7 +1077,7 @@ static int wm_debug_menu_exec(bContext *C, wmOperator *op)
 	G.rt= RNA_int_get(op->ptr, "debug_value");
 	ED_screen_refresh(CTX_wm_manager(C), CTX_wm_window(C));
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
-	
+
 	return OPERATOR_FINISHED;	
 }
 
@@ -1216,11 +1215,11 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 		BLI_snprintf(url, sizeof(url), "http://www.blender.org/documentation/blender_python_api_%d_%d" STRINGIFY(BLENDER_VERSION_CHAR) "_release", BLENDER_VERSION/100, BLENDER_VERSION%100);
 	}
 	else {
-	BLI_snprintf(url, sizeof(url), "http://www.blender.org/documentation/blender_python_api_%d_%d_%d", BLENDER_VERSION/100, BLENDER_VERSION%100, BLENDER_SUBVERSION);
+		BLI_snprintf(url, sizeof(url), "http://www.blender.org/documentation/blender_python_api_%d_%d_%d", BLENDER_VERSION/100, BLENDER_VERSION%100, BLENDER_SUBVERSION);
 	}
 	uiItemStringO(col, "Python API Reference", ICON_URL, "WM_OT_url_open", "url", url);
 	uiItemL(col, "", ICON_NONE);
-	
+
 	col = uiLayoutColumn(split, 0);
 
 	if(wm_resource_check_prev()) {
@@ -1335,7 +1334,7 @@ static int wm_search_menu_exec(bContext *UNUSED(C), wmOperator *UNUSED(op))
 static int wm_search_menu_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	uiPupBlock(C, wm_block_search_menu, op);
-
+	
 	return OPERATOR_CANCELLED;
 }
 
@@ -1435,7 +1434,7 @@ static void WM_OT_read_homefile(wmOperatorType *ot)
 	ot->exec= WM_read_homefile_exec;
 	/* ommit poll to run in background mode */
 }
-	
+
 static void WM_OT_read_factory_settings(wmOperatorType *ot)
 {
 	ot->name= "Load Factory Settings";
@@ -1462,7 +1461,7 @@ static void open_set_use_scripts(wmOperator *op)
 		 * the flag has been disabled from the command line, then opening
 		 * from the menu wont enable this setting. */
 		RNA_boolean_set(op->ptr, "use_scripts", (G.f & G_SCRIPT_AUTOEXEC));
-}
+	}
 }
 
 static int wm_open_mainfile_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
@@ -1880,7 +1879,7 @@ static void WM_OT_save_as_mainfile(wmOperatorType *ot)
 	ot->exec= wm_save_as_mainfile_exec;
 	ot->check= blend_save_check;
 	/* ommit window poll so this can work in background mode */
-	
+
 	WM_operator_properties_filesel(ot, FOLDERFILE|BLENDERFILE, FILE_BLENDER, FILE_SAVE, WM_FILESEL_FILEPATH);
 	RNA_def_boolean(ot->srna, "compress", 0, "Compress", "Write compressed .blend file");
 	RNA_def_boolean(ot->srna, "relative_remap", 1, "Remap Relative", "Remap relative paths when saving in a different directory");
@@ -1899,7 +1898,7 @@ static int wm_save_mainfile_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(
 		return OPERATOR_CANCELLED;
 
 	save_set_compress(op);
-	
+
 	/* if not saved before, get the name of the most recently used .blend file */
 	if(G.main->name[0]==0 && G.recent_files.first) {
 		struct RecentFile *recent = G.recent_files.first;
@@ -1973,11 +1972,11 @@ static int wm_collada_export_exec(bContext *C, wmOperator *op)
 		BKE_report(op->reports, RPT_ERROR, "No filename given");
 		return OPERATOR_CANCELLED;
 	}
-	
+
 	RNA_string_get(op->ptr, "filepath", filename);
 	if(collada_export(CTX_data_scene(C), filename)) {
-	return OPERATOR_FINISHED;
-}
+		return OPERATOR_FINISHED;
+	}
 	else {
 		return OPERATOR_CANCELLED;
 	}
@@ -2135,14 +2134,14 @@ static int border_apply_rect(wmOperator *op)
 	
 	if(rect->xmin==rect->xmax || rect->ymin==rect->ymax)
 		return 0;
-		
+
 	
 	/* operator arguments and storage. */
 	RNA_int_set(op->ptr, "xmin", MIN2(rect->xmin, rect->xmax) );
 	RNA_int_set(op->ptr, "ymin", MIN2(rect->ymin, rect->ymax) );
 	RNA_int_set(op->ptr, "xmax", MAX2(rect->xmin, rect->xmax) );
 	RNA_int_set(op->ptr, "ymax", MAX2(rect->ymin, rect->ymax) );
-	
+
 	return 1;
 }
 
@@ -2372,10 +2371,10 @@ static void tweak_gesture_modal(bContext *C, wmEvent *event)
 		case INBETWEEN_MOUSEMOVE:
 			
 			wm_subwindow_getorigin(window, gesture->swinid, &sx, &sy);
-
+			
 			rect->xmax= event->x - sx;
 			rect->ymax= event->y - sy;
-
+			
 			if((val= wm_gesture_evaluate(gesture))) {
 				wmEvent tevent;
 
@@ -2476,7 +2475,7 @@ static void gesture_lasso_apply(bContext *C, wmOperator *op)
 	float loc[2];
 	int i;
 	short *lasso= gesture->customdata;
-
+	
 	/* operator storage as path. */
 
 	for(i=0; i<gesture->points; i++, lasso+=2) {
@@ -2527,10 +2526,10 @@ int WM_gesture_lasso_modal(bContext *C, wmOperator *op, wmEvent *event)
 				   add only when at least 2 pixels between this and previous location */
 				if((x*x+y*y) > 4) {
 					lasso += 2;
-				lasso[0] = event->x - sx;
-				lasso[1] = event->y - sy;
-				gesture->points++;
-			}
+					lasso[0] = event->x - sx;
+					lasso[1] = event->y - sy;
+					gesture->points++;
+				}
 			}
 			break;
 			

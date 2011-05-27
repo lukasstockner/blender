@@ -80,7 +80,7 @@ static void do_invert_fac(bNode *node, float *out, float *in, float *fac)
 	QUATCOPY(out, col);
 }
 
-static void node_composit_exec_invert(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_invert(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	/* stack order in: fac, Image, Image */
 	/* stack order out: Image */
@@ -116,14 +116,14 @@ static void node_composit_exec_invert(void *data, bNode *node, bNodeStack **in, 
 
 static void node_composit_init_invert(bNode *node)
 {
-   node->custom1 |= CMP_CHAN_RGB;
+	node->custom1 |= CMP_CHAN_RGB;
 }
 
 /* custom1 = mix type */
 void register_node_type_cmp_invert(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, CMP_NODE_INVERT, "Invert", NODE_CLASS_OP_COLOR, NODE_OPTIONS,
 		cmp_node_invert_in, cmp_node_invert_out);
 	node_type_size(&ntype, 120, 120, 140);

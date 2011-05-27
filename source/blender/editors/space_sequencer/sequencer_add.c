@@ -109,7 +109,7 @@ static void sequencer_generic_invoke_path__internal(bContext *C, wmOperator *op,
 		if(last_seq && last_seq->strip && SEQ_HAS_PATH(last_seq)) {
 			char path[sizeof(last_seq->strip->dir)];
 			BLI_strncpy(path, last_seq->strip->dir, sizeof(path));
-			BLI_path_abs(path, G.sce);
+			BLI_path_abs(path, G.main->name);
 			RNA_string_set(op->ptr, identifier, path);
 		}
 	}
@@ -122,7 +122,7 @@ static void sequencer_generic_invoke_xy__internal(bContext *C, wmOperator *op, w
 	float mval_v2d[2];
 	
 	UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mval_v2d[0], &mval_v2d[1]);
-
+	
 	RNA_int_set(op->ptr, "channel", (int)mval_v2d[1]+0.5f);
 	RNA_int_set(op->ptr, "frame_start", (int)mval_v2d[0]);
 	
@@ -130,9 +130,9 @@ static void sequencer_generic_invoke_xy__internal(bContext *C, wmOperator *op, w
 		RNA_int_set(op->ptr, "frame_end", (int)mval_v2d[0] + 25); // XXX arbitary but ok for now.
 
 	if (!(flag & SEQPROP_NOPATHS)) {
-	sequencer_generic_invoke_path__internal(C, op, "filepath");
-	sequencer_generic_invoke_path__internal(C, op, "directory");
-}
+		sequencer_generic_invoke_path__internal(C, op, "filepath");
+		sequencer_generic_invoke_path__internal(C, op, "directory");
+	}
 }
 
 static void seq_load_operator_info(SeqLoadInfo *seq_load, wmOperator *op)
@@ -156,7 +156,7 @@ static void seq_load_operator_info(SeqLoadInfo *seq_load, wmOperator *op)
 	}
 
 	if((is_file != -1) && relative)
-		BLI_path_rel(seq_load->path, G.sce);
+		BLI_path_rel(seq_load->path, G.main->name);
 
 	
 	if (RNA_struct_find_property(op->ptr, "frame_end")) {
@@ -358,9 +358,9 @@ static int sequencer_add_movie_strip_invoke(bContext *C, wmOperator *op, wmEvent
 		sequencer_generic_invoke_xy__internal(C, op, event, SEQPROP_NOPATHS);
 		return sequencer_add_movie_strip_exec(C, op);
 	}
-
+	
 	sequencer_generic_invoke_xy__internal(C, op, event, 0);
-
+	
 	if(!RNA_property_is_set(op->ptr, "relative_path"))
 		RNA_boolean_set(op->ptr, "relative_path", U.flag & USER_RELPATHS);
 	
@@ -407,15 +407,15 @@ static int sequencer_add_sound_strip_invoke(bContext *C, wmOperator *op, wmEvent
 		BKE_report(op->reports, RPT_ERROR, "Sequencer area not active");
 		return OPERATOR_CANCELLED;
 	}
-
+	
 	/* This is for drag and drop */
 	if(RNA_collection_length(op->ptr, "files") || RNA_property_is_set(op->ptr, "filepath")) {
 		sequencer_generic_invoke_xy__internal(C, op, event, SEQPROP_NOPATHS);
 		return sequencer_add_sound_strip_exec(C, op);
 	}
-
+	
 	sequencer_generic_invoke_xy__internal(C, op, event, 0);
-
+	
 	if(!RNA_property_is_set(op->ptr, "relative_path"))
 		RNA_boolean_set(op->ptr, "relative_path", U.flag & USER_RELPATHS);
 	

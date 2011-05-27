@@ -333,12 +333,12 @@ void free_actuator(bActuator *act)
 
 	if(act->data) {
 		switch (act->type) {
-			case ACT_SOUND:
-				sa = (bSoundActuator *) act->data;
-                        	if(sa->sound)
-                                	id_us_min((ID *) sa->sound);
-                	        break;
-        	}
+		case ACT_SOUND:
+			sa = (bSoundActuator *) act->data;
+			if(sa->sound)
+				id_us_min((ID *) sa->sound);
+			break;
+		}
 
 		MEM_freeN(act->data);
 	}
@@ -584,7 +584,7 @@ void set_sca_new_poins_ob(Object *ob)
 			else if(act->type==ACT_PARENT) {
 				bParentActuator *para = act->data;
 				ID_NEW(para->ob);
-		}
+			}
 			else if(act->type==ACT_ARMATURE) {
 				bArmatureActuator *aa = act->data;
 				ID_NEW(aa->target);

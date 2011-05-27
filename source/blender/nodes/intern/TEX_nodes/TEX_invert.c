@@ -45,7 +45,7 @@ static bNodeSocketType outputs[]= {
 	{ -1, 0, "" } 
 };
 
-static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void colorfn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **in, short thread)
 {
 	float col[4];
 	
@@ -67,7 +67,7 @@ static void exec(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
 void register_node_type_tex_invert(ListBase *lb)
 {
 	static bNodeType ntype;
-
+	
 	node_type_base(&ntype, TEX_NODE_INVERT, "Invert", NODE_CLASS_OP_COLOR, NODE_OPTIONS,
 				   inputs, outputs);
 	node_type_size(&ntype, 90, 80, 100);

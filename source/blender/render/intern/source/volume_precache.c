@@ -98,12 +98,11 @@ static int intersect_outside_volume(RayObject *tree, Isect *isect, float *offset
 /* Uses ray tracing to check if a point is inside or outside an ObjectInstanceRen */
 static int point_inside_obi(RayObject *tree, ObjectInstanceRen *UNUSED(obi), float *co)
 {
-	Isect isect;
+	Isect isect= {{0}};
 	float dir[3] = {0.0f,0.0f,1.0f};
 	int final_depth=0, depth=0, limit=20;
 	
 	/* set up the isect */
-	memset(&isect, 0, sizeof(isect));
 	VECCOPY(isect.start, co);
 	VECCOPY(isect.dir, dir);
 	isect.mode= RE_RAY_MIRROR;
@@ -415,7 +414,7 @@ static void multiple_scattering_diffusion(Render *re, VolumePrecache *vp, Materi
 		SWAP(float *,sr,sr0);
 		SWAP(float *,sg,sg0);
 		SWAP(float *,sb,sb0);
-               
+
 		/* main diffusion simulation */
 		ms_diffuse(sr0, sr, diff, n);
 		ms_diffuse(sg0, sg, diff, n);
@@ -493,7 +492,11 @@ static void *vol_precache_part(void *data)
 	float scatter_col[3] = {0.f, 0.f, 0.f};
 	float co[3], cco[3];
 	int x, y, z, i;
-	const int res[3]= {pa->res[0], pa->res[1], pa->res[2]};
+	int res[3];
+
+	res[0]= pa->res[0];
+	res[1]= pa->res[1];
+	res[2]= pa->res[2];
 
 	for (z= pa->minz; z < pa->maxz; z++) {
 		co[2] = pa->bbmin[2] + (pa->voxel[2] * (z + 0.5f));

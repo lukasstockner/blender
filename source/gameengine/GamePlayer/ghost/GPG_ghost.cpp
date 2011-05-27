@@ -76,6 +76,11 @@ extern "C"
 extern char bprogname[];	/* holds a copy of argv[0], from creator.c */
 extern char btempdir[];		/* use this to store a valid temp directory */
 
+// For BLF
+#include "BLF_api.h"
+extern int datatoc_bfont_ttf_size;
+extern char datatoc_bfont_ttf[];
+
 #ifdef __cplusplus
 }
 #endif // __cplusplus
@@ -99,9 +104,9 @@ extern char btempdir[];		/* use this to store a valid temp directory */
 
 #ifdef WIN32
 #include <windows.h>
-#ifdef NDEBUG
+#if !defined(DEBUG)
 #include <wincon.h>
-#endif // NDEBUG
+#endif // !defined(DEBUG)
 #endif // WIN32
 
 const int kMinWindowWidth = 100;
@@ -182,7 +187,7 @@ void usage(const char* program, bool isBlenderPlayer)
 #else
 	consoleoption = "";
 #endif
-	
+
 	if (isBlenderPlayer) {
 		filename = "filename.blend";
 #ifdef _WIN32
@@ -364,7 +369,7 @@ int main(int argc, char** argv)
 	bool isBlenderPlayer = false;
 	int validArguments=0;
 	GHOST_TUns16 aasamples = 0;
-
+	
 #ifdef __linux__
 #ifdef __alpha__
 	signal (SIGFPE, SIG_IGN);
@@ -400,9 +405,14 @@ int main(int argc, char** argv)
 	initglobals();
 
 	IMB_init();
+
+	// Setup builtin font for BLF (mostly copied from creator.c, wm_init_exit.c and interface_style.c)
+	BLF_init(11, U.dpi);
+	BLF_lang_init();
+	BLF_load_mem("default", (unsigned char*)datatoc_bfont_ttf, datatoc_bfont_ttf_size);
  
 	// Parse command line options
-#ifndef NDEBUG
+#if defined(DEBUG)
 	printf("argv[0] = '%s'\n", argv[0]);
 #endif
 
@@ -449,7 +459,7 @@ int main(int argc, char** argv)
 		;)
 
 	{
-#ifndef NDEBUG
+#if defined(DEBUG)
 		printf("argv[%d] = '%s'   , %i\n", i, argv[i],argc);
 #endif
 		if (argv[i][0] == '-')
@@ -480,7 +490,7 @@ int main(int argc, char** argv)
 								SYS_WriteCommandLineInt(syshandle, paramname, atoi(argv[i]));
 								SYS_WriteCommandLineFloat(syshandle, paramname, atof(argv[i]));
 								SYS_WriteCommandLineString(syshandle, paramname, argv[i]);
-#ifndef NDEBUG
+#if defined(DEBUG)
 								printf("%s = '%s'\n", paramname, argv[i]);
 #endif
 								i++;
@@ -546,14 +556,14 @@ int main(int argc, char** argv)
 			case 'i':
 				i++;
 				if ( (i + 1) <= validArguments )
-					parentWindow = atoi(argv[i++]); 					
+					parentWindow = atoi(argv[i++]); 
 				else {
 					error = true;
 					printf("error: too few options for parent window argument.\n");
 				}
-#ifndef NDEBUG
+#if defined(DEBUG)
 				printf("XWindows ID = %d\n", parentWindow);
-#endif //NDEBUG
+#endif // defined(DEBUG)
 				break;
 			case 'm':
 				i++;
@@ -760,12 +770,12 @@ int main(int argc, char** argv)
 					else 
 					{
 #ifdef WIN32
-#ifdef NDEBUG
+#if !defined(DEBUG)
 						if (closeConsole)
 						{
 							//::FreeConsole();    // Close a console window
 						}
-#endif // NDEBUG
+#endif // !defined(DEBUG)
 #endif // WIN32
 						Main *maggie = bfd->main;
 						Scene *scene = bfd->curscene;

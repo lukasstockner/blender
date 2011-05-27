@@ -79,7 +79,7 @@ static void foreachObjectLink(
 static void updateDepgraph(ModifierData *md, DagForest *forest,
 						struct Scene *UNUSED(scene),
 						Object *UNUSED(ob),
-	DagNode *obNode)
+						DagNode *obNode)
 {
 	BooleanModifierData *bmd = (BooleanModifierData*) md;
 
@@ -91,7 +91,7 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 	}
 }
 
-
+#ifdef WITH_MOD_BOOLEAN
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 						DerivedMesh *derivedData,
 						int UNUSED(useRenderParams),
@@ -116,12 +116,21 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	
 	return derivedData;
 }
+#else // WITH_MOD_BOOLEAN
+static DerivedMesh *applyModifier(ModifierData *UNUSED(md), Object *UNUSED(ob),
+						DerivedMesh *derivedData,
+						int UNUSED(useRenderParams),
+						int UNUSED(isFinalCalc))
+{
+	return derivedData;
+}
+#endif // WITH_MOD_BOOLEAN
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *UNUSED(md))
 {
-	CustomDataMask dataMask = (1 << CD_MTFACE) + (1 << CD_MEDGE);
+	CustomDataMask dataMask = CD_MASK_MTFACE | CD_MASK_MEDGE;
 
-	dataMask |= (1 << CD_MDEFORMVERT);
+	dataMask |= CD_MASK_MDEFORMVERT;
 	
 	return dataMask;
 }

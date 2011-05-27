@@ -68,8 +68,8 @@
 
 
 /* ************* XXX *************** */
-static void waitcursor(int val) {}
-static void progress_bar(int dummy_val, const char *dummy) {}
+static void waitcursor(int UNUSED(val)) {}
+static void progress_bar(int UNUSED(dummy_val), const char *UNUSED(dummy)) {}
 static void start_progress_bar(void) {}
 static void end_progress_bar(void) {}
 static void error(const char *str) { printf("error: %s\n", str); }
@@ -369,7 +369,7 @@ void laplacian_begin_solve(LaplacianSystem *sys, int index)
 	}
 }
 
-void laplacian_add_right_hand_side(LaplacianSystem *sys, int v, float value)
+void laplacian_add_right_hand_side(LaplacianSystem *UNUSED(sys), int v, float value)
 {
 	nlRightHandSideAdd(0, v, value);
 }
@@ -405,7 +405,7 @@ typedef struct BVHCallbackUserData {
 	LaplacianSystem *sys;
 } BVHCallbackUserData;
 
-static void bvh_callback(void *userdata, int index, const BVHTreeRay *ray, BVHTreeRayHit *hit)
+static void bvh_callback(void *userdata, int index, const BVHTreeRay *UNUSED(ray), BVHTreeRayHit *hit)
 {
 	BVHCallbackUserData *data = (struct BVHCallbackUserData*)userdata;
 	MFace *mf = data->sys->heat.mface + index;
@@ -471,7 +471,7 @@ static void heat_ray_tree_create(LaplacianSystem *sys)
 
 static int heat_ray_source_visible(LaplacianSystem *sys, int vertex, int source)
 {
-    BVHTreeRayHit hit;
+	BVHTreeRayHit hit;
 	BVHCallbackUserData data;
 	MFace *mface;
 	float end[3];
@@ -1123,7 +1123,7 @@ static int meshdeform_tri_intersect(float orig[3], float end[3], float vert0[3],
 	det = INPR(edge1, pvec);
 
 	if (det == 0.0f)
-	  return 0;
+		return 0;
 	inv_det = 1.0f / det;
 
 	/* calculate distance from vert0 to ray origin */
@@ -1132,7 +1132,7 @@ static int meshdeform_tri_intersect(float orig[3], float end[3], float vert0[3],
 	/* calculate U parameter and test bounds */
 	u = INPR(tvec, pvec) * inv_det;
 	if (u < -EPSILON || u > 1.0f+EPSILON)
-	  return 0;
+		return 0;
 
 	/* prepare to test V parameter */
 	cross_v3_v3v3(qvec, tvec, edge1);
@@ -1140,7 +1140,7 @@ static int meshdeform_tri_intersect(float orig[3], float end[3], float vert0[3],
 	/* calculate V parameter and test bounds */
 	v = INPR(dir, qvec) * inv_det;
 	if (v < -EPSILON || u + v > 1.0f+EPSILON)
-	  return 0;
+		return 0;
 
 	isectco[0]= (1.0f - u - v)*vert0[0] + u*vert1[0] + v*vert2[0];
 	isectco[1]= (1.0f - u - v)*vert0[1] + u*vert1[1] + v*vert2[1];
@@ -1405,7 +1405,7 @@ static void meshdeform_bind_floodfill(MeshDeformBind *mdb)
 	MEM_freeN(stack);
 }
 
-static float meshdeform_boundary_phi(MeshDeformBind *mdb, MDefBoundIsect *isect, int cagevert)
+static float meshdeform_boundary_phi(MeshDeformBind *UNUSED(mdb), MDefBoundIsect *isect, int cagevert)
 {
 	int a;
 
@@ -1416,7 +1416,7 @@ static float meshdeform_boundary_phi(MeshDeformBind *mdb, MDefBoundIsect *isect,
 	return 0.0f;
 }
 
-static float meshdeform_interp_w(MeshDeformBind *mdb, float *gridvec, float *vec, int cagevert)
+static float meshdeform_interp_w(MeshDeformBind *mdb, float *gridvec, float *UNUSED(vec), int UNUSED(cagevert))
 {
 	float dvec[3], ivec[3], wx, wy, wz, result=0.0f;
 	float weight, totweight= 0.0f;
@@ -1567,7 +1567,7 @@ static void meshdeform_matrix_add_semibound_phi(MeshDeformBind *mdb, int x, int 
 	}
 }
 
-static void meshdeform_matrix_add_exterior_phi(MeshDeformBind *mdb, int x, int y, int z, int cagevert)
+static void meshdeform_matrix_add_exterior_phi(MeshDeformBind *mdb, int x, int y, int z, int UNUSED(cagevert))
 {
 	float phi, totweight;
 	int i, a, acenter;
@@ -1716,7 +1716,7 @@ static void meshdeform_matrix_solve(MeshDeformBind *mdb)
 	nlDeleteContext(context);
 }
 
-static void harmonic_coordinates_bind(Scene *scene, MeshDeformModifierData *mmd, MeshDeformBind *mdb)
+static void harmonic_coordinates_bind(Scene *UNUSED(scene), MeshDeformModifierData *mmd, MeshDeformBind *mdb)
 {
 	MDefBindInfluence *inf;
 	MDefInfluence *mdinf;

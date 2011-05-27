@@ -66,13 +66,13 @@
 ARegion *sequencer_has_buttons_region(ScrArea *sa)
 {
 	ARegion *ar, *arnew;
-	
+
 	ar= BKE_area_find_region_type(sa, RGN_TYPE_UI);
 	if(ar) return ar;
 	
 	/* add subdiv level; after header */
 	ar= BKE_area_find_region_type(sa, RGN_TYPE_HEADER);
-	
+
 	/* is error! */
 	if(ar==NULL) return NULL;
 	
@@ -241,7 +241,7 @@ static SpaceLink *sequencer_new(const bContext *C)
 }
 
 /* not spacelink itself */
-static void sequencer_free(SpaceLink *sl)
+static void sequencer_free(SpaceLink *UNUSED(sl))
 {	
 //	SpaceSeq *sseq= (SpaceSequencer*) sl;
 	
@@ -251,7 +251,7 @@ static void sequencer_free(SpaceLink *sl)
 
 
 /* spacetype; init callback */
-static void sequencer_init(struct wmWindowManager *wm, ScrArea *sa)
+static void sequencer_init(struct wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
 {
 	
 }
@@ -301,7 +301,7 @@ static void sequencer_main_area_draw(const bContext *C, ARegion *ar)
 
 /* ************* dropboxes ************* */
 
-static int image_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
+static int image_drop_poll(bContext *UNUSED(C), wmDrag *drag, wmEvent *UNUSED(event))
 {
 	if(drag->type==WM_DRAG_PATH)
 		if(ELEM(drag->icon, ICON_FILE_IMAGE, ICON_FILE_BLANK))	/* rule might not work? */
@@ -309,7 +309,7 @@ static int image_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
 	return 0;
 }
 
-static int movie_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
+static int movie_drop_poll(bContext *UNUSED(C), wmDrag *drag, wmEvent *UNUSED(event))
 {
 	if(drag->type==WM_DRAG_PATH)
 		if(ELEM3(drag->icon, 0, ICON_FILE_MOVIE, ICON_FILE_BLANK))	/* rule might not work? */
@@ -317,7 +317,7 @@ static int movie_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
 	return 0;
 }
 
-static int sound_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
+static int sound_drop_poll(bContext *UNUSED(C), wmDrag *drag, wmEvent *UNUSED(event))
 {
 	if(drag->type==WM_DRAG_PATH)
 		if(ELEM(drag->icon, ICON_FILE_SOUND, ICON_FILE_BLANK))	/* rule might not work? */
@@ -358,7 +358,7 @@ static void sequencer_dropboxes(void)
 /* ************* end drop *********** */
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void sequencer_header_area_init(wmWindowManager *wm, ARegion *ar)
+static void sequencer_header_area_init(wmWindowManager *UNUSED(wm), ARegion *ar)
 {
 	ED_region_header_init(ar);
 }

@@ -67,7 +67,7 @@ AUD_IReader* AUD_DefaultMixer::prepare(AUD_IReader* reader)
 #else
 		reader = new AUD_LinearResampleReader(reader, m_specs.specs);
 #endif
-
+	
 	// rechannel
 	if(specs.channels != m_specs.channels)
 		reader = new AUD_ChannelMapperReader(reader,

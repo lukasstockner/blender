@@ -24,7 +24,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/editors/gpencil/gpencil_edit.c
  *  \ingroup edgpencil
  */
@@ -390,13 +390,13 @@ static void gp_strokepoint_convertcoords (bContext *C, bGPDstroke *gps, bGPDspoi
 			if(subrect) {
 				mvalf[0]= (((float)pt->x/100.0f) * (subrect->xmax - subrect->xmin)) + subrect->xmin;
 				mvalf[1]= (((float)pt->y/100.0f) * (subrect->ymax - subrect->ymin)) + subrect->ymin;
-		}
+			}
 			else {
 				mvalf[0]= (float)pt->x / 100.0f * ar->winx;
 				mvalf[1]= (float)pt->y / 100.0f * ar->winy;
 			}
 		}
-		
+
 		/* convert screen coordinate to 3d coordinates 
 		 *	- method taken from editview.c - mouse_cursor() 
 		 */
@@ -413,7 +413,7 @@ static void gp_stroke_to_path (bContext *C, bGPDlayer *gpl, bGPDstroke *gps, Cur
 	Nurb *nu;
 	BPoint *bp;
 	int i;
-	
+
 	/* create new 'nurb' within the curve */
 	nu = (Nurb *)MEM_callocN(sizeof(Nurb), "gpstroke_to_path(nurb)");
 	
@@ -533,7 +533,7 @@ static void gp_layer_to_curve (bContext *C, bGPdata *gpd, bGPDlayer *gpl, short 
 	bGPDstroke *gps;
 	Object *ob;
 	Curve *cu;
-	
+
 	/* camera framing */
 	rctf subrect, *subrect_ptr= NULL;
 
@@ -583,7 +583,7 @@ static int gp_convert_poll (bContext *C)
 	bGPdata *gpd= gpencil_data_get_active(C);
 	ScrArea *sa= CTX_wm_area(C);
 	Scene *scene= CTX_data_scene(C);
-	
+
 	/* only if there's valid data, and the current view is 3D View */
 	return ((sa && sa->spacetype == SPACE_VIEW3D) && gpencil_layer_getactive(gpd) && (scene->obedit == NULL));
 }

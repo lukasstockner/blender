@@ -454,7 +454,7 @@ static void reload_sound_strip(Scene *scene, char *name)
 }
 #endif
 
-static void reload_image_strip(Scene *scene, char *name)
+static void reload_image_strip(Scene *scene, char *UNUSED(name))
 {
 	Editing *ed= seq_give_editing(scene, FALSE);
 	Sequence *seq=NULL, *seqact;
@@ -617,7 +617,7 @@ int seq_effect_find_selected(Scene *scene, Sequence *activeseq, int type, Sequen
 			}
 		}
 	}
-       
+
 	/* make sequence selection a little bit more intuitive
 	   for 3 strips: the last-strip should be sequence3 */
 	if (seq3 != NULL && seq2 != NULL) {
@@ -716,7 +716,7 @@ static void recurs_del_seq_flag(Scene *scene, ListBase *lb, short flag, short de
 }
 
 
-static Sequence *cut_seq_hard(Main *bmain, Scene *scene, Sequence * seq, int cutframe)
+static Sequence *cut_seq_hard(Scene *scene, Sequence * seq, int cutframe)
 {
 	TransSeq ts;
 	Sequence *seqn = NULL;
@@ -763,7 +763,7 @@ static Sequence *cut_seq_hard(Main *bmain, Scene *scene, Sequence * seq, int cut
 		}
 	}
 	
-	reload_sequence_new_file(bmain, scene, seq, FALSE);
+	reload_sequence_new_file(scene, seq, FALSE);
 	calc_sequence(scene, seq);
 	new_tstripdata(seq); 
 
@@ -803,14 +803,14 @@ static Sequence *cut_seq_hard(Main *bmain, Scene *scene, Sequence * seq, int cut
 			seqn->startstill = 0;
 		}
 		
-		reload_sequence_new_file(bmain, scene, seqn, FALSE);
+		reload_sequence_new_file(scene, seqn, FALSE);
 		calc_sequence(scene, seqn);
 		new_tstripdata(seqn);
 	}
 	return seqn;
 }
 
-static Sequence *cut_seq_soft(Main *bmain, Scene *scene, Sequence * seq, int cutframe)
+static Sequence *cut_seq_soft(Scene *scene, Sequence * seq, int cutframe)
 {
 	TransSeq ts;
 	Sequence *seqn = NULL;
@@ -900,8 +900,8 @@ static Sequence *cut_seq_soft(Main *bmain, Scene *scene, Sequence * seq, int cut
 
 /* like duplicate, but only duplicate and cut overlapping strips,
  * strips to the left of the cutframe are ignored and strips to the right are moved into the new list */
-static int cut_seq_list(Main *bmain, Scene *scene, ListBase *old, ListBase *new, int cutframe,
-			Sequence * (*cut_seq)(Main *, Scene *, Sequence *, int))
+static int cut_seq_list(Scene *scene, ListBase *old, ListBase *new, int cutframe,
+			Sequence * (*cut_seq)(Scene *, Sequence *, int))
 {
 	int did_something = FALSE;
 	Sequence *seq, *seq_next_iter;
@@ -915,7 +915,7 @@ static int cut_seq_list(Main *bmain, Scene *scene, ListBase *old, ListBase *new,
 		if(seq->flag & SELECT) {
 			if(cutframe > seq->startdisp && 
 			   cutframe < seq->enddisp) {
-				Sequence * seqn = cut_seq(bmain, scene, seq, cutframe);
+				Sequence * seqn = cut_seq(scene, seq, cutframe);
 				if (seqn) {
 					BLI_addtail(new, seqn);
 				}
@@ -973,7 +973,7 @@ static void touch_seq_files(Scene *scene)
 		if(seq->flag & SELECT) {
 			if(seq->type==SEQ_MOVIE) {
 				if(seq->strip && seq->strip->stripdata) {
-					BLI_make_file_string(G.sce, str, seq->strip->dir, seq->strip->stripdata->name);
+					BLI_make_file_string(G.main->name, str, seq->strip->dir, seq->strip->stripdata->name);
 					BLI_touch(seq->name);
 				}
 			}
@@ -985,7 +985,8 @@ static void touch_seq_files(Scene *scene)
 	waitcursor(0);
 }
 
-void set_filter_seq(Main *bmain, Scene *scene)
+/*
+static void set_filter_seq(Scene *scene)
 {
 	Sequence *seq;
 	Editing *ed= seq_give_editing(scene, FALSE);
@@ -999,15 +1000,15 @@ void set_filter_seq(Main *bmain, Scene *scene)
 		if(seq->flag & SELECT) {
 			if(seq->type==SEQ_MOVIE) {
 				seq->flag |= SEQ_FILTERY;
-				reload_sequence_new_file(bmain, scene, seq, FALSE);
+				reload_sequence_new_file(scene, seq, FALSE);
 				calc_sequence(scene, seq);
 			}
 
 		}
 	}
 	SEQ_END
-
 }
+*/
 
 static void seq_remap_paths(Scene *scene)
 {
@@ -1117,14 +1118,15 @@ static int sequencer_snap_exec(bContext *C, wmOperator *op)
 
 	snap_frame= RNA_int_get(op->ptr, "frame");
 
-	/* problem: contents of meta's are all shifted to the same position... */
-
 	/* also check metas */
-	SEQP_BEGIN(ed, seq) {
+	for(seq= ed->seqbasep->first; seq; seq= seq->next) {
 		if (seq->flag & SELECT && !(seq->depth==0 && seq->flag & SEQ_LOCK) &&
 			seq_tx_test(seq)) {
 			if((seq->flag & (SEQ_LEFTSEL+SEQ_RIGHTSEL))==0) {
-				seq->start= snap_frame-seq->startofs+seq->startstill;
+				/* simple but no anim update */
+				/* seq->start= snap_frame-seq->startofs+seq->startstill; */
+
+				seq_translate(scene, seq, (snap_frame-seq->startofs+seq->startstill) - seq->start);
 			} else { 
 				if(seq->flag & SEQ_LEFTSEL) {
 					seq_tx_set_final_left(seq, snap_frame);
@@ -1136,10 +1138,10 @@ static int sequencer_snap_exec(bContext *C, wmOperator *op)
 			calc_sequence(scene, seq);
 		}
 	}
-	SEQ_END
 
-	/* test for effects and overlap */
-	SEQP_BEGIN(ed, seq) {
+	/* test for effects and overlap
+	 * dont use SEQP_BEGIN since that would be recursive */
+	for(seq= ed->seqbasep->first; seq; seq= seq->next) {
 		if(seq->flag & SELECT && !(seq->depth==0 && seq->flag & SEQ_LOCK)) {
 			seq->flag &= ~SEQ_OVERLAP;
 			if( seq_test_overlap(ed->seqbasep, seq) ) {
@@ -1155,7 +1157,6 @@ static int sequencer_snap_exec(bContext *C, wmOperator *op)
 				calc_sequence(scene, seq);
 		}
 	}
-	SEQ_END;
 
 	/* as last: */
 	sort_seq(scene);
@@ -1477,6 +1478,42 @@ void SEQUENCER_OT_reassign_inputs(struct wmOperatorType *ot)
 }
 
 
+static int sequencer_swap_inputs_exec(bContext *C, wmOperator *op)
+{
+	Scene *scene= CTX_data_scene(C);
+	Sequence *seq, *last_seq = seq_active_get(scene);
+
+	if(last_seq->seq1==NULL || last_seq->seq2 == NULL) {
+		BKE_report(op->reports, RPT_ERROR, "No valid inputs to swap");
+		return OPERATOR_CANCELLED;
+	}
+
+	seq = last_seq->seq1;
+	last_seq->seq1 = last_seq->seq2;
+	last_seq->seq2 = seq;
+
+	update_changed_seq_and_deps(scene, last_seq, 1, 1);
+
+	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER, scene);
+
+	return OPERATOR_FINISHED;
+}
+void SEQUENCER_OT_swap_inputs(struct wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Swap Inputs";
+	ot->idname= "SEQUENCER_OT_swap_inputs";
+	ot->description="Swap the first two inputs for the effects strip";
+
+	/* api callbacks */
+	ot->exec= sequencer_swap_inputs_exec;
+	ot->poll= sequencer_effect_poll;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+
+
 /* cut operator */
 static EnumPropertyItem prop_cut_types[] = {
 	{SEQ_CUT_SOFT, "SOFT", 0, "Soft", ""},
@@ -1486,7 +1523,6 @@ static EnumPropertyItem prop_cut_types[] = {
 
 static int sequencer_cut_exec(bContext *C, wmOperator *op)
 {
-	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 	Editing *ed= seq_give_editing(scene, FALSE);
 	int cut_side, cut_hard, cut_frame;
@@ -1501,11 +1537,9 @@ static int sequencer_cut_exec(bContext *C, wmOperator *op)
 	newlist.first= newlist.last= NULL;
 
 	if (cut_hard==SEQ_CUT_HARD) {
-		changed = cut_seq_list(bmain, scene,
-			ed->seqbasep, &newlist, cut_frame, cut_seq_hard);
+		changed = cut_seq_list(scene, ed->seqbasep, &newlist, cut_frame, cut_seq_hard);
 	} else {
-		changed = cut_seq_list(bmain, scene,
-			ed->seqbasep, &newlist, cut_frame, cut_seq_soft);
+		changed = cut_seq_list(scene, ed->seqbasep, &newlist, cut_frame, cut_seq_soft);
 	}
 	
 	if (newlist.first) { /* got new strips ? */
@@ -1983,16 +2017,16 @@ static int sequencer_meta_separate_exec(bContext *C, wmOperator *UNUSED(op))
 
 	recurs_del_seq_flag(scene, ed->seqbasep, SEQ_FLAG_DELETE, 0);
 
-	/* test for effects and overlap */
-	SEQP_BEGIN(ed, seq) {
+	/* test for effects and overlap
+	 * dont use SEQP_BEGIN since that would be recursive */
+	for(seq= ed->seqbasep->first; seq; seq= seq->next) {
 		if(seq->flag & SELECT) {
 			seq->flag &= ~SEQ_OVERLAP;
-			if( seq_test_overlap(ed->seqbasep, seq) ) {
+			if(seq_test_overlap(ed->seqbasep, seq)) {
 				shuffle_seq(ed->seqbasep, seq, scene);
 			}
 		}
 	}
-	SEQ_END;
 
 	sort_seq(scene);
 	seq_update_muting(scene, ed);
@@ -2504,7 +2538,7 @@ static int sequencer_rendersize_exec(bContext *C, wmOperator *UNUSED(op))
 
 
 	if (active_seq->strip) {
-	switch (active_seq->type) {
+		switch (active_seq->type) {
 		case SEQ_IMAGE:
 			se = give_stripelem(active_seq, scene->r.cfra);
 			break;
@@ -2517,7 +2551,7 @@ static int sequencer_rendersize_exec(bContext *C, wmOperator *UNUSED(op))
 		case SEQ_HD_SOUND:
 		default:
 			break;
-	}
+		}
 	}
 
 	if (se) {

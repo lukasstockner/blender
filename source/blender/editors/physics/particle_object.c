@@ -709,7 +709,7 @@ static void connect_hair(Scene *scene, Object *ob, ParticleSystem *psys)
 	}
 
 	free_bvhtree_from_mesh(&bvhtree);
-		dm->release(dm);
+	dm->release(dm);
 
 	psys_free_path_cache(psys, psys->edit);
 

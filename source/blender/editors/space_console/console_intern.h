@@ -17,10 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
- * All rights reserved.
- *
- * 
  * Contributor(s): Campbell Barton
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -71,19 +67,6 @@ void CONSOLE_OT_history_cycle(struct wmOperatorType *ot);
 void CONSOLE_OT_copy(struct wmOperatorType *ot);
 void CONSOLE_OT_paste(struct wmOperatorType *ot);
 void CONSOLE_OT_select_set(struct wmOperatorType *ot);
-
-
-
-/* console_report.c */
-void CONSOLE_OT_select_pick(struct wmOperatorType *ot); /* report selection */
-void CONSOLE_OT_select_all_toggle(struct wmOperatorType *ot);
-void CONSOLE_OT_select_border(struct wmOperatorType *ot);
-
-void CONSOLE_OT_report_replay(struct wmOperatorType *ot);
-void CONSOLE_OT_report_delete(struct wmOperatorType *ot);
-void CONSOLE_OT_report_copy(struct wmOperatorType *ot);
-
-
 
 enum { LINE_BEGIN, LINE_END, PREV_CHAR, NEXT_CHAR, PREV_WORD, NEXT_WORD };
 enum { DEL_ALL, DEL_NEXT_CHAR, DEL_PREV_CHAR, DEL_SELECTION, DEL_NEXT_SEL, DEL_PREV_SEL };

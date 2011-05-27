@@ -101,7 +101,7 @@
 static void image_info(Scene *scene, ImageUser *iuser, Image *ima, ImBuf *ibuf, char *str)
 {
 	int ofs= 0;
-	
+
 	str[0]= 0;
 	
 	if(ima==NULL) return;
@@ -110,40 +110,40 @@ static void image_info(Scene *scene, ImageUser *iuser, Image *ima, ImBuf *ibuf, 
 		ofs+= sprintf(str, "Can't Load Image");
 	}
 	else {
-	if(ima->source==IMA_SRC_MOVIE) {
+		if(ima->source==IMA_SRC_MOVIE) {
 			ofs+= sprintf(str, "Movie");
-		if(ima->anim) 
-			ofs+= sprintf(str+ofs, "%d frs", IMB_anim_get_duration(ima->anim));
-	}
-	else
-			ofs+= sprintf(str, "Image");
-	
-	ofs+= sprintf(str+ofs, ": size %d x %d,", ibuf->x, ibuf->y);
-	
-	if(ibuf->rect_float) {
-		if(ibuf->channels!=4) {
-			sprintf(str+ofs, "%d float channel(s)", ibuf->channels);
+			if(ima->anim)
+				ofs+= sprintf(str+ofs, "%d frs", IMB_anim_get_duration(ima->anim));
 		}
-		else if(ibuf->depth==32)
-			strcat(str, " RGBA float");
 		else
-			strcat(str, " RGB float");
-	}
-	else {
-		if(ibuf->depth==32)
-			strcat(str, " RGBA byte");
-		else
-			strcat(str, " RGB byte");
-	}
-	if(ibuf->zbuf || ibuf->zbuf_float)
-		strcat(str, " + Z");
-	
+			ofs+= sprintf(str, "Image");
+
+		ofs+= sprintf(str+ofs, ": size %d x %d,", ibuf->x, ibuf->y);
+
+		if(ibuf->rect_float) {
+			if(ibuf->channels!=4) {
+				ofs+= sprintf(str+ofs, "%d float channel(s)", ibuf->channels);
+			}
+			else if(ibuf->depth==32)
+				ofs+= sprintf(str+ofs, " RGBA float");
+			else
+				ofs+= sprintf(str+ofs, " RGB float");
+		}
+		else {
+			if(ibuf->depth==32)
+				ofs+= sprintf(str+ofs, " RGBA byte");
+			else
+				ofs+= sprintf(str+ofs, " RGB byte");
+		}
+		if(ibuf->zbuf || ibuf->zbuf_float)
+			ofs+= sprintf(str+ofs, " + Z");
+
 		if(ima->source==IMA_SRC_SEQUENCE) {
 			char *file= BLI_last_slash(ibuf->name);
 			if(file==NULL)	file= ibuf->name;
 			else			file++;
 			ofs+= sprintf(str+ofs, ", %s", file);
-}
+		}
 	}
 
 	/* the frame number, even if we cant */
@@ -173,14 +173,14 @@ struct ImageUser *ntree_get_active_iuser(bNodeTree *ntree)
 /* ************ panel stuff ************* */
 
 /* is used for both read and write... */
-	
+
 static int image_panel_poll(const bContext *C, PanelType *UNUSED(pt))
 {
 	SpaceImage *sima= CTX_wm_space_image(C);
 	ImBuf *ibuf;
 	void *lock;
 	int result;
-	
+
 	ibuf= ED_space_image_acquire_buffer(sima, &lock);
 	result= ibuf && ibuf->rect_float;
 	ED_space_image_release_buffer(sima, lock);
@@ -314,7 +314,7 @@ static int is_preview_allowed(ScrArea *cur)
 	for(sa=G.curscreen->areabase.first; sa; sa= sa->next) {
 		if(sa!=cur && sa->spacetype==SPACE_IMAGE) {
 			if(image_preview_active(sa, NULL, NULL))
-			   return 0;
+				return 0;
 		}
 	}
 	/* check image type */
@@ -648,7 +648,7 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 
 	if(!ptr->data)
 		return;
-	
+
 	prop= RNA_struct_find_property(ptr, propname);
 	if(!prop) {
 		printf("uiTemplateImage: property not found: %s.%s\n", RNA_struct_identifier(ptr->type), propname);

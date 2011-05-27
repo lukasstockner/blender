@@ -49,4 +49,4 @@ AUD_IReader* AUD_VolumeFactory::createReader() const
 	a.push_back(1);
 	b.push_back(m_volume);
 	return new AUD_IIRFilterReader(getReader(), b, a);
-	}
+}

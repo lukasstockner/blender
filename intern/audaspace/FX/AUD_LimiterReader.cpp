@@ -85,7 +85,7 @@ void AUD_LimiterReader::read(int & length, sample_t* & buffer)
 	if(m_end >= 0)
 	{
 		int position = m_reader->getPosition();
-		if(position+length > m_end)
+		if(position + length > m_end)
 			length = m_end - position;
 		if(length < 0)
 		{

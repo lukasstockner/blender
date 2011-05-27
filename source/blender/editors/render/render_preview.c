@@ -113,7 +113,7 @@ ImBuf* get_brush_icon(Brush *brush)
 				// first use the path directly to try and load the file
 
 				BLI_strncpy(path, brush->icon_filepath, sizeof(brush->icon_filepath));
-				BLI_path_abs(path, G.sce);
+				BLI_path_abs(path, G.main->name);
 
 				brush->icon_imbuf= IMB_loadiffname(path, flags);
 
@@ -123,7 +123,7 @@ ImBuf* get_brush_icon(Brush *brush)
 
 					path[0]= 0;
 
-					BLI_make_file_string(G.sce, path, folder, brush->icon_filepath);
+					BLI_make_file_string(G.main->name, path, folder, brush->icon_filepath);
 
 					if (path[0])
 						brush->icon_imbuf= IMB_loadiffname(path, flags);
@@ -328,8 +328,8 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 						/* two previews, they get copied by wmJob */
 						ntreeInitPreview(mat->nodetree, sp->sizex, sp->sizey);
 						ntreeInitPreview(origmat->nodetree, sp->sizex, sp->sizey);
+					}
 				}
-			}
 			}
 			else {
 				sce->r.mode &= ~(R_OSA|R_RAYTRACE|R_SSS);
@@ -390,11 +390,11 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 				/* two previews, they get copied by wmJob */
 				ntreeInitPreview(origtex->nodetree, sp->sizex, sp->sizey);
 				ntreeInitPreview(tex->nodetree, sp->sizex, sp->sizey);
-		}
+			}
 		}
 		else if(id_type==ID_LA) {
 			Lamp *la= NULL, *origla= (Lamp *)id;
-			
+
 			/* work on a copy */
 			if(origla) {
 				la= localize_lamp(origla);
@@ -522,7 +522,7 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
 			sbuts->preview= 0;
 			ok= 0;
 		}
-		
+	
 		if(ok==0) {
 			ED_preview_shader_job(C, sa, id, parent, slot, newx, newy, PR_BUTS_RENDER);
 		}
@@ -532,7 +532,7 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
 /* **************************** new shader preview system ****************** */
 
 /* inside thread, called by renderer, sets job update value */
-static void shader_preview_draw(void *spv, RenderResult *rr, volatile struct rcti *rect)
+static void shader_preview_draw(void *spv, RenderResult *UNUSED(rr), volatile struct rcti *UNUSED(rect))
 {
 	ShaderPreview *sp= spv;
 	
@@ -543,7 +543,7 @@ static void shader_preview_draw(void *spv, RenderResult *rr, volatile struct rct
 static int shader_preview_break(void *spv)
 {
 	ShaderPreview *sp= spv;
-	
+
 	return *(sp->stop);
 }
 
@@ -555,17 +555,17 @@ static void shader_preview_updatejob(void *spv)
 	if(sp->id) {
 		if(sp->pr_method==PR_NODE_RENDER) {
 			if( GS(sp->id->name) == ID_MA) {
-		Material *mat= (Material *)sp->id;
-		
-		if(sp->matcopy && mat->nodetree && sp->matcopy->nodetree)
-			ntreeLocalSync(sp->matcopy->nodetree, mat->nodetree);
-}
+				Material *mat= (Material *)sp->id;
+				
+				if(sp->matcopy && mat->nodetree && sp->matcopy->nodetree)
+					ntreeLocalSync(sp->matcopy->nodetree, mat->nodetree);
+			}
 			else if( GS(sp->id->name) == ID_TE) {
 				Tex *tex= (Tex *)sp->id;
 				
 				if(sp->texcopy && tex->nodetree && sp->texcopy->nodetree)
 					ntreeLocalSync(sp->texcopy->nodetree, tex->nodetree);
-}
+			}
 		}		
 	}
 }
@@ -578,7 +578,7 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 	short idtype= GS(id->name);
 	char name[32];
 	int sizex;
-
+	
 	/* get the stuff from the builtin preview dbase */
 	sce= preview_prepare_scene(sp->scene, id, idtype, sp); // XXX sizex
 	if(sce==NULL) return;
@@ -714,7 +714,7 @@ static void shader_preview_free(void *customdata)
 		struct IDProperty *properties;
 		/* node previews */
 		shader_preview_updatejob(sp);
-	
+		
 		/* get rid of copied texture */
 		BLI_remlink(&pr_main->tex, sp->texcopy);
 		free_texture(sp->texcopy);
@@ -888,7 +888,7 @@ static void icon_preview_startjob(void *customdata, short *stop, short *do_updat
 /* use same function for icon & shader, so the job manager
    does not run two of them at the same time. */
 
-static void common_preview_startjob(void *customdata, short *stop, short *do_update, float *progress)
+static void common_preview_startjob(void *customdata, short *stop, short *do_update, float *UNUSED(progress))
 {
 	ShaderPreview *sp= customdata;
 
@@ -912,7 +912,7 @@ void ED_preview_icon_job(const bContext *C, void *owner, ID *id, unsigned int *r
 {
 	wmJob *steve;
 	ShaderPreview *sp;
-
+	
 	/* suspended start means it starts after 1 timer step, see WM_jobs_timer below */
 	steve= WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), owner, "Icon Preview", WM_JOB_EXCL_RENDER|WM_JOB_SUSPEND);
 	sp= MEM_callocN(sizeof(ShaderPreview), "shader preview");
@@ -925,7 +925,7 @@ void ED_preview_icon_job(const bContext *C, void *owner, ID *id, unsigned int *r
 	sp->pr_method= PR_ICON_RENDER;
 	sp->pr_rect= rect;
 	sp->id = id;
-	
+
 	/* setup job */
 	WM_jobs_customdata(steve, sp, shader_preview_free);
 	WM_jobs_timer(steve, 0.25, NC_MATERIAL, NC_MATERIAL);

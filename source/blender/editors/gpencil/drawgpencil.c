@@ -24,7 +24,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/editors/gpencil/drawgpencil.c
  *  \ingroup edgpencil
  */
@@ -784,7 +784,7 @@ void draw_gpencil_view3d_ext (Scene *scene, View3D *v3d, ARegion *ar, short only
 
 	/* check that we have grease-pencil stuff to draw */
 	gpd= gpencil_data_get_active_v3d(scene); // XXX
-	if(gpd == NULL) return;
+	if (gpd == NULL) return;
 
 	/* when rendering to the offscreen buffer we dont want to
 	 * deal with the camera border, otherwise map the coords to the camera border. */

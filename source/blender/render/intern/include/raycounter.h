@@ -62,10 +62,10 @@ extern RayCounter re_rc_counter[];
 
 /* ray counter stubs */
 
-#	define RE_RC_INIT(isec,shi)
-#	define RE_RC_INFO(rc)
-#	define RE_RC_MERGE(dest,src)
-#	define	RE_RC_COUNT(var)
+#define RE_RC_INIT(isec,shi)
+#define RE_RC_INFO(rc)
+#define RE_RC_MERGE(dest,src)
+#define	RE_RC_COUNT(var)
 		
 #endif
 

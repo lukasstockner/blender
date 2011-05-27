@@ -25,7 +25,7 @@ env.BlenderLib( libname = 'bf_python_ext', sources = Split(sources), includes = 
 defs = []
 
 if is_debug:
-	defs.append('_DEBUG')
+    defs.append('_DEBUG')
 
 if env['WITH_BF_PYTHON_SAFETY']:
     defs.append('WITH_PYTHON_SAFETY')

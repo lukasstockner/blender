@@ -49,11 +49,12 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_main.h"
 #include "BKE_fluidsim.h" /* ensure definitions here match */
 #include "BKE_cdderivedmesh.h"
 #include "BKE_mesh.h"
 #include "BKE_utildefines.h"
-#include "BKE_global.h" /* G.sce only */
+#include "BKE_global.h" /* G.main->name only */
 
 #include "MOD_fluidsim_util.h"
 #include "MOD_modifiertypes.h"
@@ -145,6 +146,8 @@ void fluidsim_init(FluidsimModifierData *fluidmd)
 		fss->flag |= OB_FLUIDSIM_ACTIVE;
 
 	}
+#else
+	(void)fluidmd; /* unused */
 #endif
 	return;
 }
@@ -161,7 +164,10 @@ void fluidsim_free(FluidsimModifierData *fluidmd)
 		}
 		MEM_freeN(fluidmd->fss);
 	}
+#else
+	(void)fluidmd; /* unused */
 #endif
+	
 	return;
 }
 
@@ -198,14 +204,14 @@ static DerivedMesh *fluidsim_read_obj(const char *filename)
 
 	// read number of normals
 	if(gotBytes)
-	gotBytes = gzread(gzf, &wri, sizeof(wri));
+		gotBytes = gzread(gzf, &wri, sizeof(wri));
 
 	// skip normals
 	gotBytes = gzseek(gzf, numverts * 3 * sizeof(float), SEEK_CUR) != -1;
 
 	/* get no. of triangles */
 	if(gotBytes)
-	gotBytes = gzread(gzf, &wri, sizeof(wri));
+		gotBytes = gzread(gzf, &wri, sizeof(wri));
 	numfaces = wri;
 
 	gzclose( gzf );
@@ -474,7 +480,7 @@ static DerivedMesh *fluidsim_read_cache(DerivedMesh *orgdm, FluidsimModifierData
 		strcat(targetDir,"fluidsurface_final_####");
 	}
 
-	BLI_path_abs(targetDir, G.sce);
+	BLI_path_abs(targetDir, G.main->name);
 	BLI_path_frame(targetDir, curFrame, 0); // fixed #frame-no
 
 	BLI_snprintf(targetFile, sizeof(targetFile), "%s.bobj.gz", targetDir);
@@ -556,7 +562,7 @@ DerivedMesh *fluidsimModifier_do(FluidsimModifierData *fluidmd, Scene *scene,
 	
 	// timescale not supported yet
 	// clmd->sim_parms->timescale= timescale;
-	
+
 	// support reversing of baked fluid frames here
 	if((fss->flag & OB_FLUIDSIM_REVERSE) && (fss->lastgoodframe >= 0))
 	{
@@ -568,9 +574,14 @@ DerivedMesh *fluidsimModifier_do(FluidsimModifierData *fluidmd, Scene *scene,
 	/* if the frame is there, fine, otherwise don't do anything */
 	if((result = fluidsim_read_cache(dm, fluidmd, framenr, useRenderParams)))
 		return result;
-			
+	
 	return dm;
 #else
+	/* unused */
+	(void)fluidmd;
+	(void)scene;
+	(void)dm;
+	(void)useRenderParams;
 	return NULL;
 #endif
 }

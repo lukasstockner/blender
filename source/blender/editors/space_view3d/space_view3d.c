@@ -147,8 +147,8 @@ RegionView3D *ED_view3d_context_rv3d(bContext *C)
 			ARegion *ar= BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
 			if(ar) {
 				rv3d= ar->regiondata;
+			}
 		}
-	}
 	}
 	return rv3d;
 }
@@ -986,7 +986,7 @@ static void space_view3d_listener(struct ScrArea *sa, struct wmNotifier *wmn)
 					if(v3d->drawtype == OB_TEXTURE)
 						ED_area_tag_redraw_regiontype(sa, RGN_TYPE_WINDOW);
 					break;
-	}
+			}
 			break;
 	}
 

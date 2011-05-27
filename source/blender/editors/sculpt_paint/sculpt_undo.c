@@ -1,5 +1,5 @@
 /*
- * $Id: sculpt.c 29425 2010-06-12 15:05:19Z jwilkins $
+ * $Id: sculpt_undo.c 36485 2011-05-04 13:15:42Z nazgul $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -76,8 +76,8 @@ static void update_cb(PBVHNode *node, void *unused)
 static void sculpt_restore_deformed(SculptSession *ss, SculptUndoNode *unode, int uindex, int oindex, float coord[3])
 {
 	if(unode->orig_co) {
-	swap_v3_v3(coord, unode->orig_co[uindex]);
-	copy_v3_v3(unode->co[uindex], ss->deform_cos[oindex]);
+		swap_v3_v3(coord, unode->orig_co[uindex]);
+		copy_v3_v3(unode->co[uindex], ss->deform_cos[oindex]);
 	} else swap_v3_v3(coord, unode->co[uindex]);
 }
 
@@ -133,8 +133,8 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 					if(ss->modifiers_active) sculpt_restore_deformed(ss, unode, i, index[i], vertCos[index[i]]);
 					else {
 						if(unode->orig_co) swap_v3_v3(vertCos[index[i]], unode->orig_co[i]);
-					else swap_v3_v3(vertCos[index[i]], unode->co[i]);
-				}
+						else swap_v3_v3(vertCos[index[i]], unode->co[i]);
+					}
 				}
 
 				/* propagate new coords to keyblock */
@@ -150,7 +150,7 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 					if(ss->modifiers_active) sculpt_restore_deformed(ss, unode, i, index[i], mvert[index[i]].co);
 					else {
 						if(unode->orig_co) swap_v3_v3(mvert[index[i]].co, unode->orig_co[i]);
-					else swap_v3_v3(mvert[index[i]].co, unode->co[i]);
+						else swap_v3_v3(mvert[index[i]].co, unode->co[i]);
 					}
 					mvert[index[i]].flag |= ME_VERT_PBVH_UPDATE;
 				}

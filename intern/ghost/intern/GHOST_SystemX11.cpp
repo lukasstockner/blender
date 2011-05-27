@@ -709,14 +709,14 @@ GHOST_SystemX11::processEvent(XEvent *xe)
 			*/
 			XCrossingEvent &xce = xe->xcrossing;
 			if( xce.mode == NotifyNormal ) {
-			g_event = new 
-			GHOST_EventCursor(
-				getMilliSeconds(),
-				GHOST_kEventCursorMove,
-				window,
-				xce.x_root,
-				xce.y_root
-			);
+				g_event = new 
+				GHOST_EventCursor(
+					getMilliSeconds(),
+					GHOST_kEventCursorMove,
+					window,
+					xce.x_root,
+					xce.y_root
+				);
 			}
 			break;
 		}
@@ -1490,7 +1490,7 @@ void GHOST_SystemX11::putClipboard(GHOST_TInt8 *buffer, bool selection) const
 			txt_select_buffer = (char*) malloc(strlen(buffer)+1);
 			strcpy(txt_select_buffer, buffer);
 		}
-	
+
 		if (owner != m_window)
 			fprintf(stderr, "failed to own primary\n");
 	}

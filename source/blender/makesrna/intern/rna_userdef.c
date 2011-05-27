@@ -38,6 +38,7 @@
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_brush_types.h"
+#include "DNA_view3d_types.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -67,6 +68,34 @@ static void rna_userdef_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	WM_main_add_notifier(NC_WINDOW, NULL);
 }
+
+static void rna_userdef_show_manipulator_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	UserDef *userdef = (UserDef *)ptr->data;
+
+	/* lame, loop over all views and set */
+	bScreen *sc;
+	ScrArea *sa;
+	SpaceLink *sl;
+
+	/* from scene copy to the other views */
+	for(sc=bmain->screen.first; sc; sc=sc->id.next) {
+		for(sa=sc->areabase.first; sa; sa=sa->next) {
+			for(sl=sa->spacedata.first; sl; sl=sl->next) {
+				if(sl->spacetype==SPACE_VIEW3D) {
+					View3D *v3d= (View3D *)sl;
+					if(userdef->tw_flag & V3D_USE_MANIPULATOR)
+						v3d->twflag |= V3D_USE_MANIPULATOR;
+					else
+						v3d->twflag &= ~V3D_USE_MANIPULATOR;
+				}
+			}
+		}
+	}
+	
+	rna_userdef_update(bmain, scene, ptr);
+}
+
 
 static void rna_userdef_script_autoexec_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
@@ -1711,7 +1740,7 @@ static void rna_def_userdef_themes(BlenderRNA *brna)
 		{14, "USER_PREFERENCES", ICON_PREFERENCES, "User Preferences", ""},
 		{15, "INFO", ICON_INFO, "Info", ""},
 		{16, "FILE_BROWSER", ICON_FILESEL, "File Browser", ""},
-		{17, "CONSOLE", ICON_CONSOLE, "Console", ""},
+		{17, "CONSOLE", ICON_CONSOLE, "Python Console", ""},
 		{0, NULL, 0, NULL, NULL}};
 
 	srna= RNA_def_struct(brna, "Theme", NULL);
@@ -1959,7 +1988,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_SHOW_VIEWPORTNAME);
 	RNA_def_property_ui_text(prop, "Show View Name", "Show the name of the view's direction in each 3D View");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
-    
+
 	prop= RNA_def_property(srna, "show_splash", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "uiflag", USER_SPLASH_DISABLE);
 	RNA_def_property_ui_text(prop, "Show Splash", "Display splash screen on startup");
@@ -2059,9 +2088,9 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 
 	/* 3D transform widget */
 	prop= RNA_def_property(srna, "show_manipulator", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "tw_flag", 1);
+	RNA_def_property_boolean_sdna(prop, NULL, "tw_flag", V3D_USE_MANIPULATOR);
 	RNA_def_property_ui_text(prop, "Manipulator", "Use 3D transform manipulator");
-	RNA_def_property_update(prop, 0, "rna_userdef_update");
+	RNA_def_property_update(prop, 0, "rna_userdef_show_manipulator_update");
 
 	prop= RNA_def_property(srna, "manipulator_size", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "tw_size");
@@ -2145,7 +2174,7 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "use_drag_immediately", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_RELEASECONFIRM);
-	RNA_def_property_ui_text(prop, "Release confirm", "Moving things with a mouse drag confirms when releasing the button");
+	RNA_def_property_ui_text(prop, "Release confirms", "Moving things with a mouse drag confirms when releasing the button");
 	
 	/* Undo */
 	prop= RNA_def_property(srna, "undo_steps", PROP_INT, PROP_NONE);
@@ -2626,7 +2655,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}};
 	
 	static EnumPropertyItem view_zoom_axes[] = {
-		{0,						"VERTICAL", 0, "Vertical", "Zooms in and out based on vertical mouse movement"},
+		{0, "VERTICAL", 0, "Vertical", "Zooms in and out based on vertical mouse movement"},
 		{USER_ZOOM_HORIZ, "HORIZONTAL", 0, "Horizontal", "Zooms in and out based on horizontal mouse movement"},
 		{0, NULL, 0, NULL, NULL}};
 		
@@ -2687,7 +2716,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "use_mouse_emulate_3_button", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_TWOBUTTONMOUSE);
-	RNA_def_property_ui_text(prop, "Emulate 3 Button Mouse", "Emulates Middle Mouse with Alt+LeftMouse (doesn't work with Left Mouse Select option)");
+	RNA_def_property_ui_text(prop, "Emulate 3 Button Mouse", "Emulates Middle Mouse with Alt+Left Mouse (doesn't work with Left Mouse Select option)");
 
 	prop= RNA_def_property(srna, "use_emulate_numpad", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_NONUMPAD);
@@ -2746,10 +2775,18 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_FILTERFILEEXTS);
 	RNA_def_property_ui_text(prop, "Filter File Extensions", "Display only files with extensions in the image select window");
 	
+	prop= RNA_def_property(srna, "hide_recent_locations", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_HIDE_RECENT);
+	RNA_def_property_ui_text(prop, "Hide Recent Locations", "Hide recent locations in the file selector");
+
+	prop= RNA_def_property(srna, "show_thumbnails", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_SHOW_THUMBNAILS);
+	RNA_def_property_ui_text(prop, "Show Thumbnails", "Open in thumbnail view for images and movies");
+
 	prop= RNA_def_property(srna, "use_relative_paths", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_RELPATHS);
 	RNA_def_property_ui_text(prop, "Relative Paths", "Default relative path option for the file selector");
-
+	
 	prop= RNA_def_property(srna, "use_file_compression", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_FILECOMPRESS);
 	RNA_def_property_ui_text(prop, "Compress File", "Enable file compression when saving .blend files");
@@ -2792,11 +2829,11 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Temporary Directory", "The directory for storing temporary save files");
 	RNA_def_property_update(prop, 0, "rna_userdef_temp_update");
 
-	prop= RNA_def_property(srna, "image_editor", PROP_STRING, PROP_DIRPATH);
+	prop= RNA_def_property(srna, "image_editor", PROP_STRING, PROP_FILEPATH);
 	RNA_def_property_string_sdna(prop, NULL, "image_editor");
 	RNA_def_property_ui_text(prop, "Image Editor", "Path to an image editor");
 	
-	prop= RNA_def_property(srna, "animation_player", PROP_STRING, PROP_DIRPATH);
+	prop= RNA_def_property(srna, "animation_player", PROP_STRING, PROP_FILEPATH);
 	RNA_def_property_string_sdna(prop, NULL, "anim_player");
 	RNA_def_property_ui_text(prop, "Animation Player", "Path to a custom animation/frame sequence player");
 

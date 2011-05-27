@@ -40,20 +40,20 @@ SCA_PythonMouse::SCA_PythonMouse(SCA_IInputDevice* mouse, RAS_ICanvas* canvas)
 m_mouse(mouse),
 m_canvas(canvas)
 {
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	m_event_dict = PyDict_New();
 #endif
 }
 
 SCA_PythonMouse::~SCA_PythonMouse()
 {
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	PyDict_Clear(m_event_dict);
 	Py_DECREF(m_event_dict);
 #endif
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */
 /* Python functions                                                          */
@@ -96,16 +96,16 @@ PyAttributeDef SCA_PythonMouse::Attributes[] = {
 PyObject* SCA_PythonMouse::pyattr_get_events(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonMouse* self = static_cast<SCA_PythonMouse*>(self_v);
-
+	
 	for (int i=SCA_IInputDevice::KX_BEGINMOUSE; i<=SCA_IInputDevice::KX_ENDMOUSE; i++)
 	{
 		const SCA_InputEvent & inevent = self->m_mouse->GetEventValue((SCA_IInputDevice::KX_EnumInputs)i);
 		
 		PyDict_SetItem(self->m_event_dict, PyLong_FromSsize_t(i), PyLong_FromSsize_t(inevent.m_status));
-		}
+	}
 	Py_INCREF(self->m_event_dict);
 	return self->m_event_dict;
-	}
+}
 
 
 PyObject* SCA_PythonMouse::pyattr_get_position(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

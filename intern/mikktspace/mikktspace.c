@@ -437,7 +437,7 @@ const int g_iCells = 2048;
 #ifdef _MSC_VER
 	#define NOINLINE __declspec(noinline)
 #else
-	#define NOINLINE __attribute__((noinline))
+	#define NOINLINE __attribute__ ((noinline))
 #endif
 
 // it is IMPORTANT that this function is called to evaluate the hash since

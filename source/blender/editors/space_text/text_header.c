@@ -64,7 +64,7 @@
 
 
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 // XXX #include "BPY_menus.h"
 #endif
 
@@ -79,13 +79,13 @@
 static ARegion *text_has_properties_region(ScrArea *sa)
 {
 	ARegion *ar, *arnew;
-	
+
 	ar= BKE_area_find_region_type(sa, RGN_TYPE_UI);
 	if(ar) return ar;
 	
 	/* add subdiv level; after header */
 	ar= BKE_area_find_region_type(sa, RGN_TYPE_HEADER);
-	
+
 	/* is error! */
 	if(ar==NULL) return NULL;
 	

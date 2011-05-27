@@ -111,7 +111,7 @@ void ED_object_single_users(struct Main *bmain, struct Scene *scene, int full);
 
 
 /* object motion paths */
-void ED_objects_clear_paths(struct bContext *C, struct Scene *scene);
+void ED_objects_clear_paths(struct bContext *C);
 void ED_objects_recalculate_paths(struct bContext *C, struct Scene *scene);
 
 /* constraints */

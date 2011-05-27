@@ -458,7 +458,7 @@ void RE_vlakren_get_normal(Render *re, ObjectInstanceRen *obi, VlakRen *vlr, flo
 	}
 	else
 		VECCOPY(nor, vlr->n);
-		}
+}
 
 void RE_set_customdata_names(ObjectRen *obr, CustomData *data)
 {
@@ -1131,7 +1131,7 @@ HaloRen *RE_inithalo_particle(Render *re, ObjectRen *obr, DerivedMesh *dm, Mater
 			else if(mtex->texco & TEXCO_OBJECT) {
 				if(mtex->object)
 					mul_m4_v3(mtex->object->imat_ren,texvec);
-				}
+			}
 			else if(mtex->texco & TEXCO_GLOB){
 				VECCOPY(texvec,vec);
 			}

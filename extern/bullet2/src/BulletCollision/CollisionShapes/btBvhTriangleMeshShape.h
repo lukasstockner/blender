@@ -87,7 +87,7 @@ public:
 	void	setTriangleInfoMap(btTriangleInfoMap* triangleInfoMap)
 	{
 		m_triangleInfoMap = triangleInfoMap;
-}
+	}
 
 	const btTriangleInfoMap*	getTriangleInfoMap() const
 	{

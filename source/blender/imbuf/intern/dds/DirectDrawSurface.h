@@ -156,7 +156,7 @@ public:
 	
 	bool isValid() const;
 	bool isSupported() const;
-	
+
 	bool hasAlpha() const;
 	
 	uint mipmapCount() const;
@@ -171,7 +171,7 @@ public:
 	void setNormalFlag(bool b);
 	void setHasAlphaFlag(bool b);
         void setUserVersion(int version);
-
+	
 	void mipmap(Image * img, uint f, uint m);
 	//	void mipmap(FloatImage * img, uint f, uint m);
 	

@@ -90,7 +90,7 @@ void ED_node_changed_update(ID *id, bNode *node)
 
 	if(treetype==NTREE_SHADER) {
 		DAG_id_tag_update(id, 0);
-		WM_main_add_notifier(NC_MATERIAL|ND_SHADING, id);
+		WM_main_add_notifier(NC_MATERIAL|ND_SHADING_DRAW, id);
 	}
 	else if(treetype==NTREE_COMPOSIT) {
 		NodeTagChanged(edittree, node);
@@ -284,7 +284,7 @@ static void node_update(const bContext *C, bNodeTree *ntree, bNode *node)
 		node->butr.xmax= node->width - 2*NODE_DYS;
 		node->butr.ymin= 0;
 		node->butr.ymax= 0;
-
+		
 		RNA_pointer_create(&ntree->id, &RNA_Node, node, &ptr);
 
 		layout= uiBlockLayout(node->block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
@@ -467,8 +467,6 @@ static void node_draw_mute_line(View2D *v2d, SpaceNode *snode, bNode *node)
 	bNodeLink link= {NULL};
 	int a;
 	
-	memset(&link, 0, sizeof(bNodeLink));
-	
 	/* connect the first value buffer in with first value out */
 	/* connect the first RGBA buffer in with first RGBA out */
 	
@@ -569,7 +567,7 @@ static void socket_circle_draw(bNodeSocket *sock, float size)
 	else { 
 		col[0]= 100; col[1]= 200; col[2]= 100;
 	}
-	
+
 	circle_draw(sock->locx, sock->locy, size, col);
 }
 
@@ -746,7 +744,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		UI_ThemeColorShade(color_id, -20);
 	else
 		UI_ThemeColor(color_id);
-		
+	
 	if(node->flag & NODE_MUTED)
 	   UI_ThemeColorBlend(color_id, TH_REDALERT, 0.5f);
 		
@@ -839,7 +837,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 			else
 				UI_ThemeColorShadeAlpha(TH_TEXT_HI, -20, -120);
 			uiSetRoundBox(15-4); // round all corners except lower right
-		uiDrawBox(GL_LINE_LOOP, rct->xmin, rct->ymin, rct->xmax, rct->ymax, BASIS_RAD);
+			uiDrawBox(GL_LINE_LOOP, rct->xmin, rct->ymin, rct->xmax, rct->ymax, BASIS_RAD);
 			
 		glDisable( GL_LINE_SMOOTH );
 		glDisable(GL_BLEND);
@@ -857,7 +855,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 			
 			if(node->block && sock->link==NULL) {
 				node_draw_socket_button(ntree, sock, sock->name, node->block, sock->locx+NODE_DYS, sock->locy-NODE_DYS, node->width-NODE_DY, node_sync_cb, snode, node);
-				}
+			}
 			else {
 				uiDefBut(node->block, LABEL, 0, sock->name, (short)(sock->locx+7), (short)(sock->locy-9.0f), 
 						 (short)(node->width-NODE_DY), NODE_DY,  NULL, 0, 0, 0, 0, "");
@@ -914,7 +912,7 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 	ui_dropshadow(rct, hiddenrad, snode->aspect, node->flag & SELECT);
 
 	/* body */
-	UI_ThemeColor(color_id);	
+	UI_ThemeColor(color_id);
 	if(node->flag & NODE_MUTED)
 	   UI_ThemeColorBlend(color_id, TH_REDALERT, 0.5f);	
 	uiRoundBox(rct->xmin, rct->ymin, rct->xmax, rct->ymax, hiddenrad);
@@ -928,7 +926,7 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 				UI_ThemeColorShadeAlpha(TH_TEXT_HI, 0, -40);
 			else
 				UI_ThemeColorShadeAlpha(TH_TEXT_HI, -20, -120);
-		uiDrawBox(GL_LINE_LOOP, rct->xmin, rct->ymin, rct->xmax, rct->ymax, hiddenrad);
+			uiDrawBox(GL_LINE_LOOP, rct->xmin, rct->ymin, rct->xmax, rct->ymax, hiddenrad);
 		glDisable( GL_LINE_SMOOTH );
 		glDisable(GL_BLEND);
 	}
@@ -958,7 +956,7 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 			BLI_strncpy(showname, node->typeinfo->labelfunc(node), sizeof(showname));
 		else
 			BLI_strncpy(showname, node->typeinfo->name, sizeof(showname));
-	
+		
 		//if(node->flag & NODE_MUTED)
 		//	sprintf(showname, "[%s]", showname);
 
@@ -1038,8 +1036,8 @@ static void group_verify_cb(bContext *UNUSED(C), void *UNUSED(snode_v), void *ng
 	bNodeTree *ngroup= (bNodeTree*)ngroup_v;
 	
 	nodeGroupVerify(ngroup);
-			}
-	
+}
+
 /* groups are, on creation, centered around 0,0 */
 static void node_draw_group(const bContext *C, ARegion *ar, SpaceNode *snode, bNodeTree *ntree, bNode *gnode)
 {
@@ -1061,7 +1059,7 @@ static void node_draw_group(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	UI_ThemeColorShadeAlpha(TH_BACK, -8, -70);
 	uiSetRoundBox(0);
 	uiDrawBox(GL_POLYGON, rect.xmin, rect.ymin, rect.xmax, rect.ymax, BASIS_RAD);
-	
+
 	/* input column */
 	UI_ThemeColorShadeAlpha(TH_BACK, 10, -50);
 	uiSetRoundBox(8);
@@ -1118,7 +1116,7 @@ static void node_draw_group(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 					  sock->locx-114, sock->locy+1, 72, NODE_DY,
 					  sock->name, 0, 31, 0, 0, "");
 		uiButSetFunc(bt, group_verify_cb, snode, ngroup);
-	
+		
 		node_draw_socket_button(ngroup, sock, "", gnode->block,
 								sock->locx-114, sock->locy-NODE_DY, 72,
 								NULL, NULL, NULL);
@@ -1149,19 +1147,19 @@ static void node_draw_group(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	}
 	
 	for(sock=ngroup->outputs.first, index=0; sock; sock=sock->next, ++index) {
-			socket_circle_draw(sock, NODE_SOCKSIZE);
+		socket_circle_draw(sock, NODE_SOCKSIZE);
 		/* small hack to use socket_circle_draw function with offset */
 		sock->locx += NODE_GROUP_FRAME;
-			socket_circle_draw(sock, NODE_SOCKSIZE);
+		socket_circle_draw(sock, NODE_SOCKSIZE);
 		sock->locx -= NODE_GROUP_FRAME;
-
+		
 		uiBlockSetEmboss(gnode->block, UI_EMBOSSN);
 		bt = uiDefIconButO(gnode->block, BUT, "NODE_OT_group_socket_remove", 0, ICON_X,
 						   sock->locx+6, sock->locy-8, 16, 16, "");
 		RNA_int_set(uiButGetOperatorPtrRNA(bt), "index", index);
 		RNA_enum_set(uiButGetOperatorPtrRNA(bt), "in_out", SOCK_OUT);
 		uiBlockSetEmboss(gnode->block, UI_EMBOSS);
-
+		
 		uiBlockSetDirection(gnode->block, UI_TOP);
 		uiBlockBeginAlign(gnode->block);
 		bt = uiDefIconButO(gnode->block, BUT, "NODE_OT_group_socket_move_up", 0, ICON_TRIA_UP,
@@ -1178,19 +1176,19 @@ static void node_draw_group(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		RNA_enum_set(uiButGetOperatorPtrRNA(bt), "in_out", SOCK_OUT);
 		uiBlockEndAlign(gnode->block);
 		uiBlockSetDirection(gnode->block, 0);
-	
+		
 		if (sock->link) {
 			bt = uiDefBut(gnode->block, TEX, 0, "", 
 						  sock->locx+42, sock->locy-NODE_DYS+1, 72, NODE_DY,
 						  sock->name, 0, 31, 0, 0, "");
 			uiButSetFunc(bt, group_verify_cb, snode, ngroup);
-}
+		}
 		else {
 			bt = uiDefBut(gnode->block, TEX, 0, "", 
 						  sock->locx+42, sock->locy+1, 72, NODE_DY,
 						  sock->name, 0, 31, 0, 0, "");
 			uiButSetFunc(bt, group_verify_cb, snode, ngroup);
-
+			
 			node_draw_socket_button(ngroup, sock, "", gnode->block, sock->locx+42, sock->locy-NODE_DY, 72, NULL, NULL, NULL);
 		}
 	}

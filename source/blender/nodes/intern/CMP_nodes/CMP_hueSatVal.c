@@ -70,7 +70,7 @@ static void do_hue_sat_fac(bNode *node, float *out, float *in, float *fac)
 	}
 }
 
-static void node_composit_exec_hue_sat(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_hue_sat(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	/* stack order in: Fac, Image */
 	/* stack order out: Image */
@@ -97,17 +97,17 @@ static void node_composit_exec_hue_sat(void *data, bNode *node, bNodeStack **in,
 
 static void node_composit_init_hue_sat(bNode* node)
 {
-   NodeHueSat *nhs= MEM_callocN(sizeof(NodeHueSat), "node hue sat");
-   node->storage= nhs;
-   nhs->hue= 0.5f;
-   nhs->sat= 1.0f;
-   nhs->val= 1.0f;
+	NodeHueSat *nhs= MEM_callocN(sizeof(NodeHueSat), "node hue sat");
+	node->storage= nhs;
+	nhs->hue= 0.5f;
+	nhs->sat= 1.0f;
+	nhs->val= 1.0f;
 }
 
 void register_node_type_cmp_hue_sat(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, CMP_NODE_HUE_SAT, "Hue Saturation Value", NODE_CLASS_OP_COLOR, NODE_OPTIONS,
 		cmp_node_hue_sat_in, cmp_node_hue_sat_out);
 	node_type_size(&ntype, 150, 80, 250);

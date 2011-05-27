@@ -37,6 +37,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -58,9 +59,9 @@
 # include "BLI_fnmatch.h" /* use fnmatch included in blenlib */
 #else
 #  ifndef _GNU_SOURCE
-# define _GNU_SOURCE
+#    define _GNU_SOURCE
 #  endif
-# include <fnmatch.h>
+#  include <fnmatch.h>
 #endif
 
 #ifdef WIN32
@@ -84,6 +85,7 @@
 #endif /* WIN32 */
 
 /* local */
+#define UNIQUE_NAME_MAX 128
 
 extern char bprogname[];
 
@@ -146,10 +148,41 @@ void BLI_stringenc(char *string, const char *head, const char *tail, unsigned sh
 	sprintf(string, fmtstr, head, pic, tail);
 }
 
+/* Foo.001 -> "Foo", 1
+ * Returns the length of "Foo" */
+int BLI_split_name_num(char *left, int *nr, const char *name, const char delim)
+{
+	int a;
+	
+	*nr= 0;
+	a= strlen(name);
+	memcpy(left, name, (a + 1) * sizeof(char));
+
+	if(a>1 && name[a-1]==delim) return a;
+	
+	while(a--) {
+		if( name[a]==delim ) {
+			left[a]= 0;
+			*nr= atol(name+a+1);
+			/* casting down to an int, can overflow for large numbers */
+			if(*nr < 0)
+				*nr= 0;
+			return a;
+		}
+		if( isdigit(name[a])==0 ) break;
+		
+		left[a]= 0;
+	}
+
+	for(a= 0; name[a]; a++)
+		left[a]= name[a];
+
+	return a;
+}
 
 void BLI_newname(char *name, int add)
 {
-	char head[128], tail[128];
+	char head[UNIQUE_NAME_MAX], tail[UNIQUE_NAME_MAX];
 	int pic;
 	unsigned short digits;
 	
@@ -205,7 +238,7 @@ int BLI_uniquename_cb(int (*unique_check)(void *, const char *), void *arg, cons
 #endif
 
 /* Generic function to set a unique name. It is only designed to be used in situations
- * where the name is part of the struct, and also that the name is at most 128 chars long.
+ * where the name is part of the struct, and also that the name is at most UNIQUE_NAME_MAX chars long.
  * 
  * For places where this is used, see constraint.c for example...
  *
@@ -214,64 +247,44 @@ int BLI_uniquename_cb(int (*unique_check)(void *, const char *), void *arg, cons
  *	defname: the name that should be used by default if none is specified already
  *	delim: the character which acts as a delimeter between parts of the name
  */
-void BLI_uniquename(ListBase *list, void *vlink, const char defname[], char delim, short name_offs, short len)
+static int uniquename_find_dupe(ListBase *list, void *vlink, const char *name, short name_offs)
 {
 	Link *link;
-	char tempname[128];
-	int	number = 1, exists = 0;
-	char *dot;
-	
-	/* Make sure length can be handled */
-	if ((len < 0) || (len > 128))
-		return;
-	
+
+	for (link = list->first; link; link= link->next) {
+		if (link != vlink) {
+			if (!strcmp(GIVE_STRADDR(link, name_offs), name)) {
+				return 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int uniquename_unique_check(void *arg, const char *name)
+{
+	struct {ListBase *lb; void *vlink; short name_offs;} *data= arg;
+	return uniquename_find_dupe(data->lb, data->vlink, name, data->name_offs);
+}
+
+void BLI_uniquename(ListBase *list, void *vlink, const char defname[], char delim, short name_offs, short name_len)
+{
+	struct {ListBase *lb; void *vlink; short name_offs;} data;
+	data.lb= list;
+	data.vlink= vlink;
+	data.name_offs= name_offs;
+
+	assert((name_len > 1) && (name_len <= UNIQUE_NAME_MAX));
+
 	/* See if we are given an empty string */
 	if (ELEM(NULL, vlink, defname))
 		return;
-	
-	if (GIVE_STRADDR(vlink, name_offs) == '\0') {
-		/* give it default name first */
-		BLI_strncpy(GIVE_STRADDR(vlink, name_offs), defname, len);
-	}
-	
-	/* See if we even need to do this */
-	if (list == NULL)
-		return;
-	
-	for (link = list->first; link; link= link->next) {
-		if (link != vlink) {
-			if (!strcmp(GIVE_STRADDR(link, name_offs), GIVE_STRADDR(vlink, name_offs))) {
-				exists = 1;
-				break;
-			}
-		}
-	}
-	if (exists == 0)
-		return;
 
-	/* Strip off the suffix */
-	dot = strrchr(GIVE_STRADDR(vlink, name_offs), delim);
-	if (dot)
-		*dot=0;
-	
-	for (number = 1; number <= 999; number++) {
-		BLI_snprintf(tempname, sizeof(tempname), "%s%c%03d", GIVE_STRADDR(vlink, name_offs), delim, number);
-		
-		exists = 0;
-		for (link= list->first; link; link= link->next) {
-			if (vlink != link) {
-				if (!strcmp(GIVE_STRADDR(link, name_offs), tempname)) {
-					exists = 1;
-					break;
-				}
-			}
-		}
-		if (exists == 0) {
-			BLI_strncpy(GIVE_STRADDR(vlink, name_offs), tempname, len);
-			return;
-		}
-	}
+	BLI_uniquename_cb(uniquename_unique_check, &data, defname, delim, GIVE_STRADDR(vlink, name_offs), name_len);
 }
+
+
 
 /* ******************** string encoding ***************** */
 
@@ -311,8 +324,8 @@ void BLI_cleanup_path(const char *relabase, char *dir)
 	/* Note, this should really be moved to the file selector,
 	 * since this function is used in many areas */
 	if(strcmp(dir, ".")==0) {	/* happens for example in FILE_MAIN */
-	   get_default_root(dir);
-	   return;
+		get_default_root(dir);
+		return;
 	}	
 
 	while ( (start = strstr(dir, "\\..\\")) ) {
@@ -340,10 +353,10 @@ void BLI_cleanup_path(const char *relabase, char *dir)
 	}
 #else
 	if(dir[0]=='.') {	/* happens, for example in FILE_MAIN */
-	   dir[0]= '/';
-	   dir[1]= 0;
-	   return;
-	}	
+		dir[0]= '/';
+		dir[1]= 0;
+		return;
+	}
 
 	/* support for odd paths: eg /../home/me --> /home/me
 	 * this is a valid path in blender but we cant handle this the useual way below
@@ -383,13 +396,13 @@ void BLI_cleanup_dir(const char *relabase, char *dir)
 	BLI_cleanup_path(relabase, dir);
 	BLI_add_slash(dir);
 
-		}
+}
 
 void BLI_cleanup_file(const char *relabase, char *dir)
 {
 	BLI_cleanup_path(relabase, dir);
 	BLI_del_slash(dir);
-	}
+}
 
 void BLI_path_rel(char *file, const char *relfile)
 {
@@ -403,7 +416,7 @@ void BLI_path_rel(char *file, const char *relfile)
 	/* also bail out if relative path is not set */
 	if (relfile[0] == 0) return;
 
-#ifdef WIN32 
+#ifdef WIN32
 	if (BLI_strnlen(relfile, 3) > 2 && relfile[1] != ':') {
 		char* ptemp;
 		/* fix missing volume name in relative base,
@@ -506,17 +519,13 @@ int BLI_has_parent(char *path)
 
 int BLI_parent_dir(char *path)
 {
-#ifdef WIN32
-	static char *parent_dir="..\\";
-#else
-	static char *parent_dir="../";
-#endif
+	static char parent_dir[]= {'.', '.', SEP, '\0'}; /* "../" or "..\\" */
 	char tmp[FILE_MAXDIR+FILE_MAXFILE+4];
 	BLI_strncpy(tmp, path, sizeof(tmp)-4);
 	BLI_add_slash(tmp);
 	strcat(tmp, parent_dir);
 	BLI_cleanup_dir(NULL, tmp);
- 	
+
 	if (!BLI_testextensie(tmp, parent_dir)) {
 		BLI_strncpy(path, tmp, sizeof(tmp));	
 		return 1;
@@ -650,7 +659,7 @@ int BLI_path_abs(char *path, const char *basepath)
 #endif
 
 	BLI_strncpy(base, basepath, sizeof(base));
-	
+
 	/* file component is ignored, so dont bother with the trailing slash */
 	BLI_cleanup_path(NULL, base);
 	
@@ -681,9 +690,9 @@ int BLI_path_abs(char *path, const char *basepath)
 	} else {
 		BLI_strncpy(path, tmp, FILE_MAX);
 	}
-	
+
 	BLI_cleanup_path(NULL, path);
-	
+
 #ifdef WIN32
 	/* skip first two chars, which in case of
 	   absolute path will be drive:/blabla and
@@ -827,13 +836,13 @@ static int test_path(char *targetpath, const char *path_base, const char *path_s
 	
 	if(path_sep)	BLI_join_dirfile(tmppath, sizeof(tmppath), path_base, path_sep);
 	else			BLI_strncpy(tmppath, path_base, sizeof(tmppath));
-	
+
 	/* rare cases folder_name is omitted (when looking for ~/.blender/2.xx dir only) */
 	if(folder_name)
-	BLI_make_file_string("/", targetpath, tmppath, folder_name);
+		BLI_make_file_string("/", targetpath, tmppath, folder_name);
 	else
 		BLI_strncpy(targetpath, tmppath, sizeof(tmppath));
-	
+
 	if (BLI_is_dir(targetpath)) {
 #ifdef PATH_DEBUG2
 		printf("\tpath found: %s\n", targetpath);
@@ -871,13 +880,13 @@ static int get_path_local(char *targetpath, const char *folder_name, const char 
 #ifdef PATH_DEBUG2
 	printf("get_path_local...\n");
 #endif
-	
+
 	if(folder_name) {
-	if (subfolder_name) {
-		BLI_join_dirfile(relfolder, sizeof(relfolder), folder_name, subfolder_name);
-	} else {
-		BLI_strncpy(relfolder, folder_name, sizeof(relfolder));
-	}
+		if (subfolder_name) {
+			BLI_join_dirfile(relfolder, sizeof(relfolder), folder_name, subfolder_name);
+		} else {
+			BLI_strncpy(relfolder, folder_name, sizeof(relfolder));
+		}
 	}
 	else {
 		relfolder[0]= '\0';
@@ -946,11 +955,11 @@ static int get_path_system(char *targetpath, const char *folder_name, const char
 	BLI_split_dirfile(bprogname, bprogdir, NULL);
 
 	if(folder_name) {
-	if (subfolder_name) {
-		BLI_join_dirfile(relfolder, sizeof(relfolder), folder_name, subfolder_name);
-	} else {
-		BLI_strncpy(relfolder, folder_name, sizeof(relfolder));
-	}
+		if (subfolder_name) {
+			BLI_join_dirfile(relfolder, sizeof(relfolder), folder_name, subfolder_name);
+		} else {
+			BLI_strncpy(relfolder, folder_name, sizeof(relfolder));
+		}
 	}
 	else {
 		relfolder[0]= '\0';
@@ -959,10 +968,10 @@ static int get_path_system(char *targetpath, const char *folder_name, const char
 	/* try CWD/release/folder_name */
 	if(BLI_getwdN(cwd, sizeof(cwd))) {
 		if(test_path(targetpath, cwd, "release", relfolder)) {
-		return 1;
+			return 1;
 		}
 	}
-	
+
 	/* try EXECUTABLE_DIR/release/folder_name */
 	if(test_path(targetpath, bprogdir, "release", relfolder))
 		return 1;
@@ -1213,42 +1222,28 @@ void BLI_char_switch(char *string, char from, char to)
 void BLI_make_exist(char *dir) {
 	int a;
 
-	#ifdef WIN32
-		BLI_char_switch(dir, '/', '\\');
-	#else
-		BLI_char_switch(dir, '\\', '/');
-	#endif	
-	
+	BLI_char_switch(dir, ALTSEP, SEP);
+
 	a = strlen(dir);
-	
-#ifdef WIN32	
+
 	while(BLI_is_dir(dir) == 0){
 		a --;
-		while(dir[a] != '\\'){
+		while(dir[a] != SEP){
 			a--;
 			if (a <= 0) break;
 		}
-		if (a >= 0) dir[a+1] = 0;
+		if (a >= 0) {
+			dir[a+1] = '\0';
+		}
 		else {
-			/* defaulting to drive (usually 'C:') of Windows installation */
+#ifdef WIN32
 			get_default_root(dir);
-			break;
-		}
-	}
 #else
-	while(BLI_is_dir(dir) == 0){
-		a --;
-		while(dir[a] != '/'){
-			a--;
-			if (a <= 0) break;
-		}
-		if (a >= 0) dir[a+1] = 0;
-		else {
 			strcpy(dir,"/");
+#endif
 			break;
 		}
 	}
-#endif
 }
 
 void BLI_make_existing_file(const char *name)
@@ -1342,10 +1337,10 @@ int BLI_testextensie(const char *str, const char *ext)
 {
 	short a, b;
 	int retval;
-
+	
 	a= strlen(str);
 	b= strlen(ext);
-
+	
 	if(a==0 || b==0 || b>=a) {
 		retval = 0;
 	} else if (BLI_strcasecmp(ext, str + a - b)) {
@@ -1353,7 +1348,7 @@ int BLI_testextensie(const char *str, const char *ext)
 	} else {
 		retval = 1;
 	}
-
+	
 	return (retval);
 }
 
@@ -1568,6 +1563,67 @@ int BKE_rebase_path(char *abs, size_t abs_len, char *rel, size_t rel_len, const 
 	return 1;
 }
 
+char *BLI_first_slash(char *string) {
+	char *ffslash, *fbslash;
+	
+	ffslash= strchr(string, '/');	
+	fbslash= strchr(string, '\\');
+	
+	if (!ffslash) return fbslash;
+	else if (!fbslash) return ffslash;
+	
+	if ((intptr_t)ffslash < (intptr_t)fbslash) return ffslash;
+	else return fbslash;
+}
+
+char *BLI_last_slash(const char *string) {
+	char *lfslash, *lbslash;
+	
+	lfslash= strrchr(string, '/');	
+	lbslash= strrchr(string, '\\');
+
+	if (!lfslash) return lbslash; 
+	else if (!lbslash) return lfslash;
+	
+	if ((intptr_t)lfslash < (intptr_t)lbslash) return lbslash;
+	else return lfslash;
+}
+
+/* adds a slash if there isnt one there already */
+int BLI_add_slash(char *string) {
+	int len = strlen(string);
+#ifdef WIN32
+	if (len==0 || string[len-1]!='\\') {
+		string[len] = '\\';
+		string[len+1] = '\0';
+		return len+1;
+	}
+#else
+	if (len==0 || string[len-1]!='/') {
+		string[len] = '/';
+		string[len+1] = '\0';
+		return len+1;
+	}
+#endif
+	return len;
+}
+
+/* removes a slash if there is one */
+void BLI_del_slash(char *string) {
+	int len = strlen(string);
+	while (len) {
+#ifdef WIN32
+		if (string[len-1]=='\\') {
+#else
+		if (string[len-1]=='/') {
+#endif
+			string[len-1] = '\0';
+			len--;
+		} else {
+			break;
+		}
+	}
+}
 
 static int add_win32_extension(char *name)
 {
@@ -1615,7 +1671,7 @@ void BLI_where_am_i(char *fullname, const size_t maxlen, const char *name)
 {
 	char filename[FILE_MAXDIR+FILE_MAXFILE];
 	const char *path = NULL, *temp;
-	
+
 #ifdef _WIN32
 	const char *separator = ";";
 #else
@@ -1650,13 +1706,13 @@ void BLI_where_am_i(char *fullname, const size_t maxlen, const char *name)
 		if (name[0] == '.') {
 			char wdir[FILE_MAX]= "";
 			BLI_getwdN(wdir, sizeof(wdir));	 /* backup cwd to restore after */
-			
+
 			// not needed but avoids annoying /./ in name
 			if(name[1]==SEP)
 				BLI_join_dirfile(fullname, maxlen, wdir, name+2);
 			else
 				BLI_join_dirfile(fullname, maxlen, wdir, name);
-			
+
 			add_win32_extension(fullname); /* XXX, doesnt respect length */
 		}
 		else if (BLI_last_slash(name)) {
@@ -1684,7 +1740,7 @@ void BLI_where_am_i(char *fullname, const size_t maxlen, const char *name)
 				} while (temp);
 			}
 		}
-#ifndef NDEBUG
+#if defined(DEBUG)
 		if (strcmp(name, fullname)) {
 			printf("guessing '%s' == '%s'\n", name, fullname);
 		}
@@ -1697,7 +1753,7 @@ void BLI_where_am_i(char *fullname, const size_t maxlen, const char *name)
 		// with spawnv(P_WAIT, bprogname, argv) instead of system() but
 		// that's even uglier
 		GetShortPathName(fullname, fullname, maxlen);
-#ifndef NDEBUG
+#if defined(DEBUG)
 		printf("Shortname = '%s'\n", fullname);
 #endif
 #endif

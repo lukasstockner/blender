@@ -47,4 +47,4 @@ float AUD_DelayFactory::getDelay() const
 AUD_IReader* AUD_DelayFactory::createReader() const
 {
 	return new AUD_DelayReader(getReader(), m_delay);
-	}
+}

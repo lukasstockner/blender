@@ -243,10 +243,10 @@ static void rna_Sensor_Armature_update(Main *bmain, Scene *scene, PointerRNA *pt
 /* note: the following set functions exists only to avoid id refcounting */
 static void rna_Sensor_touch_material_set(PointerRNA *ptr, PointerRNA value)
 {
-        bSensor *sens = (bSensor *)ptr->data;
-        bTouchSensor *ts = (bTouchSensor *) sens->data;
+	bSensor *sens = (bSensor *)ptr->data;
+	bTouchSensor *ts = (bTouchSensor *) sens->data;
 
-        ts->ma = value.data;
+	ts->ma = value.data;
 }
 #else
 
@@ -431,12 +431,12 @@ static void rna_def_keyboard_sensor(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "target", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "targetName");
-	RNA_def_property_ui_text(prop, "Target", "Property that indicates whether to log keystrokes as a string");
+	RNA_def_property_ui_text(prop, "Target", "Property that receive the keystrokes in case a string is logged");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop= RNA_def_property(srna, "log", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "toggleName");
-	RNA_def_property_ui_text(prop, "Log Toggle", "Property that receive the keystrokes in case a string is logged");
+	RNA_def_property_ui_text(prop, "Log Toggle", "Property that indicates whether to log keystrokes as a string");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop= RNA_def_property(srna, "use_all_keys", PROP_BOOLEAN, PROP_NONE);
@@ -497,7 +497,7 @@ static void rna_def_armature_sensor(BlenderRNA *brna)
 		{SENS_ARM_LIN_ERROR_BELOW, "LINERRORBELOW", 0, "Lin error below", ""},
 		{SENS_ARM_LIN_ERROR_ABOVE, "LINERRORABOVE", 0, "Lin error above", ""},
 		{SENS_ARM_ROT_ERROR_BELOW, "ROTERRORBELOW", 0, "Rot error below", ""},
-		{SENS_ARM_ROT_ERROR_ABOVE, "ROTERRORBELOW", 0, "Rot error above", ""},
+		{SENS_ARM_ROT_ERROR_ABOVE, "ROTERRORABOVE", 0, "Rot error above", ""},
 		{0, NULL, 0, NULL, NULL}};
 
 	srna= RNA_def_struct(brna, "ArmatureSensor", "Sensor");

@@ -326,7 +326,7 @@ static void view_zoom_init(bContext *C, wmOperator *op, wmEvent *event)
 	vpd->y= event->y;
 	vpd->zoom= sima->zoom;
 	vpd->event_type= event->type;
-
+	
 	WM_event_add_modal_handler(C, op);
 }
 
@@ -698,9 +698,10 @@ static int open_cancel(bContext *UNUSED(C), wmOperator *op)
 
 static int open_exec(bContext *C, wmOperator *op)
 {
-	SpaceImage *sima= CTX_wm_space_image(C);
+	SpaceImage *sima= CTX_wm_space_image(C); /* XXX other space types can call */
 	Scene *scene= CTX_data_scene(C);
 	Object *obedit= CTX_data_edit_object(C);
+	ImageUser *iuser= NULL;
 	PropertyPointerRNA *pprop;
 	PointerRNA idptr;
 	Image *ima= NULL;
@@ -734,9 +735,15 @@ static int open_exec(bContext *C, wmOperator *op)
 		RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr);
 		RNA_property_update(C, &pprop->ptr, pprop->prop);
 	}
-	else if(sima)
+	else if(sima) {
 		ED_space_image_set(C, sima, scene, obedit, ima);
-
+		iuser= &sima->iuser;
+	}
+	else {
+		Tex *tex= CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data;
+		if(tex && tex->type==TEX_IMAGE)
+			iuser= &tex->iuser;
+		
 	}
 	
 	/* initialize because of new image */
@@ -759,18 +766,18 @@ static int open_exec(bContext *C, wmOperator *op)
 
 static int open_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
-	SpaceImage *sima= CTX_wm_space_image(C);
+	SpaceImage *sima= CTX_wm_space_image(C); /* XXX other space types can call */
 	char *path=U.textudir;
 	Image *ima= NULL;
 
 	if(sima) {
-		 ima= sima->image;
+		ima= sima->image;
 	}
 
 	if (ima==NULL) {
-		 Tex *tex= CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data;
-		 if(tex && tex->type==TEX_IMAGE)
-			 ima= tex->ima;
+		Tex *tex= CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data;
+		if(tex && tex->type==TEX_IMAGE)
+			ima= tex->ima;
 	}
 
 	if(ima)
@@ -790,6 +797,7 @@ static int open_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 	return OPERATOR_RUNNING_MODAL;
 }
 
+/* called by other space types too */
 void IMAGE_OT_open(wmOperatorType *ot)
 {
 	/* identifiers */
@@ -820,7 +828,7 @@ static int replace_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	
 	RNA_string_get(op->ptr, "filepath", str);
-	BLI_strncpy(sima->image->name, str, sizeof(sima->image->name)-1); /* we cant do much if the str is longer then 240 :/ */
+	BLI_strncpy(sima->image->name, str, sizeof(sima->image->name)); /* we cant do much if the str is longer then 240 :/ */
 
 	/* XXX unpackImage frees image buffers */
 	ED_preview_kill_jobs(C);
@@ -886,16 +894,16 @@ static void save_image_doit(bContext *C, SpaceImage *sima, Scene *scene, wmOpera
 		BLI_path_abs(path, bmain->name);
 		/* old global to ensure a 2nd save goes to same dir */
 		BLI_strncpy(G.ima, path, sizeof(G.ima));
-		
+
 		WM_cursor_wait(1);
-		
+
 		if(ima->type == IMA_TYPE_R_RESULT) {
-		/* enforce user setting for RGB or RGBA, but skip BW */
+			/* enforce user setting for RGB or RGBA, but skip BW */
 			if(scene->r.planes==32) {
-			ibuf->depth= 32;
+				ibuf->depth= 32;
 			}
 			else if(scene->r.planes==24) {
-			ibuf->depth= 24;
+				ibuf->depth= 24;
 			}
 		}
 		else {
@@ -905,11 +913,11 @@ static void save_image_doit(bContext *C, SpaceImage *sima, Scene *scene, wmOpera
 				ibuf->depth= BKE_alphatest_ibuf(ibuf) ? 32 : 24;
 			}
 		}
-		
+
 		if(scene->r.scemode & R_EXTENSION)  {
 			BKE_add_image_extension(path, sima->imtypenr);
 		}
-
+		
 		if(sima->imtypenr==R_MULTILAYER) {
 			RenderResult *rr= BKE_image_acquire_renderresult(scene, ima);
 			if(rr) {
@@ -918,7 +926,7 @@ static void save_image_doit(bContext *C, SpaceImage *sima, Scene *scene, wmOpera
 			}
 			else {
 				BKE_report(op->reports, RPT_ERROR, "Did not write, no Multilayer Image");
-					}
+			}
 			BKE_image_release_renderresult(scene, ima);
 		}
 		else if (BKE_write_ibuf(ibuf, path, sima->imtypenr, scene->r.subimtype, scene->r.quality)) {
@@ -929,10 +937,15 @@ static void save_image_doit(bContext *C, SpaceImage *sima, Scene *scene, wmOpera
 			if(relative)
 				BLI_path_rel(path, bmain->name); /* only after saving */
 
+			if(ibuf->name[0]==0) {
+				BLI_strncpy(ibuf->name, path, sizeof(ibuf->name));
+				BLI_strncpy(ima->name, path, sizeof(ima->name));
+			}
+
 			if(!save_copy) {
 				if(do_newpath) {
-				BLI_strncpy(ima->name, path, sizeof(ima->name));
-				BLI_strncpy(ibuf->name, path, sizeof(ibuf->name));
+					BLI_strncpy(ima->name, path, sizeof(ima->name));
+					BLI_strncpy(ibuf->name, path, sizeof(ibuf->name));
 				}
 
 				ibuf->userflags &= ~IB_BITMAPDIRTY;
@@ -958,7 +971,7 @@ static void save_image_doit(bContext *C, SpaceImage *sima, Scene *scene, wmOpera
 					ima->type= IMA_TYPE_IMAGE;
 				}
 			}
-		} 
+		}
 		else {
 			BKE_reportf(op->reports, RPT_ERROR, "Couldn't write image: %s", path);
 		}
@@ -1008,6 +1021,8 @@ static int save_as_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 	Image *ima = ED_space_image(sima);
 	Scene *scene= CTX_data_scene(C);
 	ImBuf *ibuf;
+	char filename[FILE_MAX];
+	
 	void *lock;
 
 	if(!RNA_property_is_set(op->ptr, "relative_path"))
@@ -1036,15 +1051,21 @@ static int save_as_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 		RNA_enum_set(op->ptr, "file_type", sima->imtypenr);
 		
 		if(ibuf->name[0]==0)
-			BLI_strncpy(ibuf->name, G.ima, FILE_MAX);
-
+			if ( (G.ima[0] == '/') && (G.ima[1] == '/') && (G.ima[2] == '\0') ) {
+				BLI_strncpy(filename, "//untitled", FILE_MAX);
+			} else {
+				BLI_strncpy(filename, G.ima, FILE_MAX);
+			}
+		else
+			BLI_strncpy(filename, ibuf->name, FILE_MAX);
+		
 		/* enable save_copy by default for render results */
 		if(ELEM(ima->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE) && !RNA_property_is_set(op->ptr, "copy")) {
 			RNA_boolean_set(op->ptr, "copy", TRUE);
 		}
 
 		// XXX note: we can give default menu enums to operator for this 
-		image_filesel(C, op, ibuf->name);
+		image_filesel(C, op, filename);
 
 		ED_space_image_release_buffer(sima, lock);
 		
@@ -1331,7 +1352,7 @@ void IMAGE_OT_new(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec= image_new_exec;
 	ot->invoke= image_new_invoke;
-
+	
 	/* flags */
 	ot->flag= OPTYPE_UNDO;
 
@@ -1541,7 +1562,7 @@ static int image_unpack_exec(bContext *C, wmOperator *op)
 
 	if(G.fileflags & G_AUTOPACK)
 		BKE_report(op->reports, RPT_WARNING, "AutoPack is enabled, so image will be packed again on file save.");
-		
+	
 	/* XXX unpackImage frees image buffers */
 	ED_preview_kill_jobs(C);
 	
@@ -1569,7 +1590,7 @@ static int image_unpack_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(even
 
 	if(G.fileflags & G_AUTOPACK)
 		BKE_report(op->reports, RPT_WARNING, "AutoPack is enabled, so image will be packed again on file save.");
-	
+
 	unpack_menu(C, "IMAGE_OT_unpack", ima->id.name+2, ima->name, "textures", ima->packedfile);
 
 	return OPERATOR_FINISHED;
@@ -1588,7 +1609,7 @@ void IMAGE_OT_unpack(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
-
+	
 	/* properties */
 	RNA_def_enum(ot->srna, "method", unpack_method_items, PF_USE_LOCAL, "Method", "How to unpack.");
 	RNA_def_string(ot->srna, "id", "", MAX_ID_NAME-2, "Image Name", "Image datablock name to unpack."); /* XXX, weark!, will fail with library, name collisions */
@@ -1621,7 +1642,7 @@ static void sample_draw(const bContext *UNUSED(C), ARegion *ar, void *arg_info)
 	if(info->draw) {
 		/* no color management needed for images (color_manage=0) */
 		draw_image_info(ar, 0, info->channels, info->x, info->y, info->colp, info->colfp, info->zp, info->zfp);
-}
+	}
 }
 
 static void sample_apply(bContext *C, wmOperator *op, wmEvent *event)
@@ -1700,12 +1721,12 @@ static void sample_apply(bContext *C, wmOperator *op, wmEvent *event)
 				if(point == 1) {
 					curvemapping_set_black_white(sima->cumap, NULL, info->colfp);
 					if(ibuf->rect_float)
-					curvemapping_do_ibuf(sima->cumap, ibuf);
+						curvemapping_do_ibuf(sima->cumap, ibuf);
 				}
 				else if(point == 0) {
 					curvemapping_set_black_white(sima->cumap, info->colfp, NULL);
 					if(ibuf->rect_float)
-					curvemapping_do_ibuf(sima->cumap, ibuf);
+						curvemapping_do_ibuf(sima->cumap, ibuf);
 				}
 			}
 		}
@@ -2112,7 +2133,7 @@ static int cycle_render_slot_exec(bContext *C, wmOperator *op)
 		else if((slot - 1) == ima->last_render_slot && slot < IMA_MAX_RENDER_SLOT) {
 			ima->render_slot= slot;
 			break;
-	}
+		}
 	}
 
 	if(a == IMA_MAX_RENDER_SLOT)
@@ -2149,11 +2170,9 @@ void IMAGE_OT_cycle_render_slot(wmOperatorType *ot)
 
 /* goes over all ImageUsers, and sets frame numbers if auto-refresh is set */
 
-void ED_image_update_frame(const bContext *C)
+void ED_image_update_frame(const Main *mainp, int cfra)
 {
-	Main *mainp= CTX_data_main(C);
-	Scene *scene= CTX_data_scene(C);
-	wmWindowManager *wm= CTX_wm_manager(C);
+	wmWindowManager *wm;
 	wmWindow *win;
 	Tex *tex;
 	
@@ -2162,13 +2181,13 @@ void ED_image_update_frame(const bContext *C)
 		if(tex->type==TEX_IMAGE && tex->ima) {
 			if(ELEM(tex->ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE)) {
 				if(tex->iuser.flag & IMA_ANIM_ALWAYS)
-					BKE_image_user_calc_frame(&tex->iuser, scene->r.cfra, 0);
+					BKE_image_user_calc_frame(&tex->iuser, cfra, 0);
 			}
 		}
 	}
 	
 	/* image window, compo node users */
-	if(wm) {
+	for(wm=mainp->wm.first; wm; wm= wm->id.next) { /* only 1 wm */
 		for(win= wm->windows.first; win; win= win->next) {
 			ScrArea *sa;
 			for(sa= win->screen->areabase.first; sa; sa= sa->next) {
@@ -2177,12 +2196,12 @@ void ED_image_update_frame(const bContext *C)
 					BGpic *bgpic;
 					for(bgpic= v3d->bgpicbase.first; bgpic; bgpic= bgpic->next)
 						if(bgpic->iuser.flag & IMA_ANIM_ALWAYS)
-							BKE_image_user_calc_frame(&bgpic->iuser, scene->r.cfra, 0);
+							BKE_image_user_calc_frame(&bgpic->iuser, cfra, 0);
 				}
 				else if(sa->spacetype==SPACE_IMAGE) {
 					SpaceImage *sima= sa->spacedata.first;
 					if(sima->iuser.flag & IMA_ANIM_ALWAYS)
-						BKE_image_user_calc_frame(&sima->iuser, scene->r.cfra, 0);
+						BKE_image_user_calc_frame(&sima->iuser, cfra, 0);
 				}
 				else if(sa->spacetype==SPACE_NODE) {
 					SpaceNode *snode= sa->spacedata.first;
@@ -2194,7 +2213,7 @@ void ED_image_update_frame(const bContext *C)
 								ImageUser *iuser= node->storage;
 								if(ELEM(ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE))
 									if(iuser->flag & IMA_ANIM_ALWAYS)
-										BKE_image_user_calc_frame(iuser, scene->r.cfra, 0);
+										BKE_image_user_calc_frame(iuser, cfra, 0);
 							}
 						}
 					}

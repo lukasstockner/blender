@@ -94,12 +94,12 @@ void make_editMball(Object *obedit)
 /* This function is called, when MetaBall Object switched from
  * edit mode to object mode. List od MetaElements is copied
  * from object->data->edit_elems to object->data->elems. */
-void load_editMball(Object *obedit)
+void load_editMball(Object *UNUSED(obedit))
 {
 }
 
 /* Add metaelem primitive to metaball object (which is in edit mode) */
-MetaElem *add_metaball_primitive(bContext *C, float mat[4][4], int type, int newname)
+MetaElem *add_metaball_primitive(bContext *C, float mat[4][4], int type, int UNUSED(newname))
 {
 	Object *obedit= CTX_data_edit_object(C);
 	MetaBall *mball = (MetaBall*)obedit->data;
@@ -111,7 +111,7 @@ MetaElem *add_metaball_primitive(bContext *C, float mat[4][4], int type, int new
 		ml->flag &= ~SELECT;
 		ml= ml->next;
 	}
-
+	
 	ml= add_metaball_element(mball, type);
 	copy_v3_v3(&ml->x, mat[3]);
 
@@ -385,11 +385,11 @@ static int hide_metaelems_exec(bContext *C, wmOperator *op)
 	ml= mb->editelems->first;
 
 	if(ml) {
-			while(ml){
+		while(ml){
 			if((ml->flag & SELECT) != invert)
-					ml->flag |= MB_HIDE;
-				ml= ml->next;
-			}
+				ml->flag |= MB_HIDE;
+			ml= ml->next;
+		}
 		WM_event_add_notifier(C, NC_GEOM|ND_DATA, mb);
 		DAG_id_tag_update(obedit->data, 0);
 	}

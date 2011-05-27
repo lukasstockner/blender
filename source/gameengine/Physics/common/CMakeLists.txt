@@ -27,7 +27,6 @@
 set(INC
 	.
 	../Dummy
-	../../../intern/moto/include
 )
 
 set(SRC

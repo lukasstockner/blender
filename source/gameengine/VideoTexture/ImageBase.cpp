@@ -60,7 +60,7 @@ ImageBase::~ImageBase (void)
 {
 	// release image
 	if (m_image)
-	delete [] m_image;
+		delete [] m_image;
 }
 
 
@@ -203,7 +203,7 @@ void ImageBase::init (short width, short height)
 			m_imgSize = newSize;
 			// release previous and create new buffer
 			if (m_image)
-			delete [] m_image;
+				delete [] m_image;
 			m_image = new unsigned int[m_imgSize];
 		}
 		// new image size

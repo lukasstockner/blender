@@ -49,7 +49,7 @@ EnumPropertyItem actuator_type_items[] ={
 	{ACT_CAMERA, "CAMERA", 0, "Camera", ""},
 	{ACT_CONSTRAINT, "CONSTRAINT", 0, "Constraint", ""},
 	{ACT_EDIT_OBJECT, "EDIT_OBJECT", 0, "Edit Object", ""},
-	{ACT_IPO, "F-Curve", 0, "F-Curve", ""},
+	{ACT_IPO, "FCURVE", 0, "F-Curve", ""},
 	{ACT_2DFILTER, "FILTER_2D", 0, "Filter 2D", ""},
 	{ACT_GAME, "GAME", 0, "Game", ""},
 	{ACT_MESSAGE, "MESSAGE", 0, "Message", ""},
@@ -497,18 +497,18 @@ static void rna_Actuator_Armature_update(Main *bmain, Scene *scene, PointerRNA *
 /* note: the following set functions exists only to avoid id refcounting */
 static void rna_Actuator_editobject_mesh_set(PointerRNA *ptr, PointerRNA value)
 {
-        bActuator *act = (bActuator *)ptr->data;
-        bEditObjectActuator *eoa = (bEditObjectActuator *) act->data;
+	bActuator *act = (bActuator *)ptr->data;
+	bEditObjectActuator *eoa = (bEditObjectActuator *) act->data;
 
-        eoa->me = value.data;
+	eoa->me = value.data;
 }
 
 static void rna_Actuator_action_action_set(PointerRNA *ptr, PointerRNA value)
 {
-        bActuator *act = (bActuator *)ptr->data;
-        bActionActuator *aa = (bActionActuator *) act->data;
+	bActuator *act = (bActuator *)ptr->data;
+	bActionActuator *aa = (bActionActuator *) act->data;
 
-        aa->act = value.data;
+	aa->act = value.data;
 }
 
 #else
@@ -579,8 +579,8 @@ static void rna_def_action_actuator(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "Action");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Action", "");
-        /* note: custom set function is ONLY to avoid rna setting a user for this. */
-        RNA_def_property_pointer_funcs(prop, NULL, "rna_Actuator_action_action_set", NULL, NULL);
+	/* note: custom set function is ONLY to avoid rna setting a user for this. */
+	RNA_def_property_pointer_funcs(prop, NULL, "rna_Actuator_action_action_set", NULL, NULL);
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop= RNA_def_property(srna, "use_continue_last_frame", PROP_BOOLEAN, PROP_NONE);
@@ -1407,8 +1407,8 @@ static void rna_def_scene_actuator(BlenderRNA *brna)
 		{ACT_SCENE_RESTART, "RESTART", 0, "Restart", ""},
 		{ACT_SCENE_SET, "SET", 0, "Set Scene", ""},
 		{ACT_SCENE_CAMERA, "CAMERA", 0, "Set Camera", ""},
-		{ACT_SCENE_ADD_FRONT, "ADDFRONT", 0, "Add OverlayScene", ""},
-		{ACT_SCENE_ADD_BACK, "ADDBACK", 0, "Add BackgroundScene", ""},
+		{ACT_SCENE_ADD_FRONT, "ADDFRONT", 0, "Add Overlay Scene", ""},
+		{ACT_SCENE_ADD_BACK, "ADDBACK", 0, "Add Background Scene", ""},
 		{ACT_SCENE_REMOVE, "REMOVE", 0, "Remove Scene", ""},
 		{ACT_SCENE_SUSPEND, "SUSPEND", 0, "Suspend Scene", ""},
 		{ACT_SCENE_RESUME, "RESUME", 0, "Resume Scene", ""},
@@ -1811,8 +1811,8 @@ static void rna_def_shape_action_actuator(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "Action");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Action", "");
-        /* note: custom set function is ONLY to avoid rna setting a user for this. */
-        RNA_def_property_pointer_funcs(prop, NULL, "rna_Actuator_action_action_set", NULL, NULL);
+	/* note: custom set function is ONLY to avoid rna setting a user for this. */
+	RNA_def_property_pointer_funcs(prop, NULL, "rna_Actuator_action_action_set", NULL, NULL);
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop= RNA_def_property(srna, "use_continue_last_frame", PROP_BOOLEAN, PROP_NONE);

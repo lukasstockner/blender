@@ -112,7 +112,7 @@ public:
 				m_internalPreTickCallback = cb;
 			} else
 			{
-			m_internalTickCallback = cb; 
+				m_internalTickCallback = cb; 
 			}
 			m_worldUserInfo = worldUserInfo;
 		}

@@ -41,7 +41,7 @@ static bNodeSocketType cmp_node_splitviewer_in[]= {
 	{	-1, 0, ""	}
 };
 
-static void do_copy_split_rgba(bNode *node, float *out, float *in1, float *in2, float *fac)
+static void do_copy_split_rgba(bNode *UNUSED(node), float *out, float *in1, float *in2, float *fac)
 {
 	if(*fac==0.0f) {
 		QUATCOPY(out, in1);
@@ -51,7 +51,7 @@ static void do_copy_split_rgba(bNode *node, float *out, float *in1, float *in2, 
 	}
 }
 
-static void node_composit_exec_splitviewer(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_splitviewer(void *data, bNode *node, bNodeStack **in, bNodeStack **UNUSED(out))
 {
 	/* image assigned to output */
 	/* stack order input sockets: image image */
@@ -143,12 +143,12 @@ static void node_composit_exec_splitviewer(void *data, bNode *node, bNodeStack *
 
 static void node_composit_init_splitviewer(bNode* node)
 {
-   ImageUser *iuser= MEM_callocN(sizeof(ImageUser), "node image user");
-   node->storage= iuser;
-   iuser->sfra= 1;
-   iuser->fie_ima= 2;
-   iuser->ok= 1;
-   node->custom1= 50;	/* default 50% split */
+	ImageUser *iuser= MEM_callocN(sizeof(ImageUser), "node image user");
+	node->storage= iuser;
+	iuser->sfra= 1;
+	iuser->fie_ima= 2;
+	iuser->ok= 1;
+	node->custom1= 50;	/* default 50% split */
 }
 
 void register_node_type_cmp_splitviewer(ListBase *lb)

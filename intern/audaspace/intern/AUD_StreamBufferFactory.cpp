@@ -71,7 +71,7 @@ AUD_StreamBufferFactory::AUD_StreamBufferFactory(AUD_IFactory* factory) :
 		index += length;
 	}
 
-	m_buffer.get()->resize(index*sample_size, true);
+	m_buffer.get()->resize(index * sample_size, true);
 	delete reader;
 }
 

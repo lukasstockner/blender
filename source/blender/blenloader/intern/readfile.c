@@ -2128,9 +2128,9 @@ static void lib_verify_nodetree(Main *main, int UNUSED(open))
 				/*has_old_groups = 1;*/ /*UNUSED*/
 			}
 		}
-	/* now verify all types in material trees, groups are set OK now */
-	for(ma= main->mat.first; ma; ma= ma->id.next) {
-		if(ma->nodetree)
+		/* now verify all types in material trees, groups are set OK now */
+		for(ma= main->mat.first; ma; ma= ma->id.next) {
+			if(ma->nodetree)
 				lib_nodetree_do_versions_group(ma->nodetree);
 		}
 		/* and scene trees */
@@ -2793,8 +2793,8 @@ static void direct_link_image(FileData *fd, Image *ima)
 			ima->renders[a]= newimaadr(fd, ima->renders[a]);
 	}
 	else {
-	memset(ima->renders, 0, sizeof(ima->renders));
-	ima->last_render_slot= ima->render_slot;
+		memset(ima->renders, 0, sizeof(ima->renders));
+		ima->last_render_slot= ima->render_slot;
 	}
 	
 	ima->packedfile = direct_link_packedfile(fd, ima->packedfile);
@@ -2965,7 +2965,7 @@ static void direct_link_texture(FileData *fd, Tex *tex)
 		tex->pd->falloff_curve= newdataadr(fd, tex->pd->falloff_curve);
 		if(tex->pd->falloff_curve) {
 			direct_link_curvemapping(fd, tex->pd->falloff_curve);
-	}
+		}
 	}
 	
 	tex->vd= newdataadr(fd, tex->vd);
@@ -3772,8 +3772,8 @@ static void lib_link_object(FileData *fd, Main *main)
 						init_actuator(act);
 					}
 					else {
-					oa->reference= newlibadr(fd, ob->id.lib, oa->reference);
-				}
+						oa->reference= newlibadr(fd, ob->id.lib, oa->reference);
+					}
 				}
 				else if(act->type==ACT_EDIT_OBJECT) {
 					bEditObjectActuator *eoa= act->data;
@@ -3999,7 +3999,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 						if(cache->flag & PTCACHE_FAKE_SMOKE)
 							; /* Smoke was already saved in "new format" and this cache is a fake one. */
 						else
-					printf("High resolution smoke cache not available due to pointcache update. Please reset the simulation.\n");
+							printf("High resolution smoke cache not available due to pointcache update. Please reset the simulation.\n");
 						BKE_ptcache_free(cache);
 					}
 					smd->domain->ptcaches[1].first = NULL;
@@ -5520,7 +5520,7 @@ static void fix_relpaths_library(const char *basepath, Main *main)
 	Library *lib;
 	/* BLO_read_from_memory uses a blank filename */
 	if (basepath==NULL || basepath[0] == '\0') {
-	for(lib= main->library.first; lib; lib= lib->id.next) {
+		for(lib= main->library.first; lib; lib= lib->id.next) {
 			/* when loading a linked lib into a file which has not been saved,
 			 * there is nothing we can be relative to, so instead we need to make
 			 * it absolute. This can happen when appending an object with a relative
@@ -5533,12 +5533,12 @@ static void fix_relpaths_library(const char *basepath, Main *main)
 	}
 	else {
 		for(lib= main->library.first; lib; lib= lib->id.next) {
-		/* Libraries store both relative and abs paths, recreate relative paths,
-		 * relative to the blend file since indirectly linked libs will be relative to their direct linked library */
-		if (strncmp(lib->name, "//", 2)==0) { /* if this is relative to begin with? */
-			strncpy(lib->name, lib->filepath, sizeof(lib->name));
-			BLI_path_rel(lib->name, basepath);
-		}
+			/* Libraries store both relative and abs paths, recreate relative paths,
+			* relative to the blend file since indirectly linked libs will be relative to their direct linked library */
+			if (strncmp(lib->name, "//", 2)==0) { /* if this is relative to begin with? */
+				strncpy(lib->name, lib->filepath, sizeof(lib->name));
+				BLI_path_rel(lib->name, basepath);
+			}
 	}
 }
 }
@@ -11256,9 +11256,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
-	/* GSOC Sculpt 2010 - Sanity check on Sculpt/Paint settings */
-	/* These sanity checks are useful for any version so do not
-	   put a condition on them */
+	/* Sanity check on Sculpt/Paint settings */
+	/* These sanity checks apply to all versions */
 	{
 		Scene *sce;
 		for (sce= main->scene.first; sce; sce= sce->id.next) {
@@ -11274,14 +11273,10 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	}
 
 	{
-		/* GSOC 2010 Sculpt - New settings for Brush */
-
 		Brush *brush;
 		for (brush= main->brush.first; brush; brush= brush->id.next) {
-			/* Sanity Check */
 			/* Sanity Check for Brushes 2.52 */
-			/* These sanity checks are useful for any version so do not
-			   put a condition on them */
+			/* These sanity checks apply to all versions */
 
 			// infinite number of dabs
 			if (brush->spacing == 0)
@@ -11339,7 +11334,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			if (brush->layer_distance== 0)
 				brush->layer_distance= 0.25f;
 
-			/* New Settings */
 			if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 5)) {
 				brush->flag |= BRUSH_SPACE_ATTEN; // explicitly enable adaptive space
 				brush->flag |= BRUSH_SPACE_ATTEN; // explicitly enable adaptive strength
@@ -11355,9 +11349,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					brush->add_col[0] = 1.00f;
 					brush->add_col[1] = 0.39f;
 					brush->add_col[2] = 0.39f;
-					brush->add_col[0] = 1.00;
-					brush->add_col[1] = 0.39;
-					brush->add_col[2] = 0.39;
 				}
 
 				if (brush->sub_col[0] == 0 &&
@@ -11367,9 +11358,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					brush->sub_col[0] = 0.39f;
 					brush->sub_col[1] = 0.39f;
 					brush->sub_col[2] = 1.00f;
-					brush->sub_col[0] = 0.39;
-					brush->sub_col[1] = 0.39;
-					brush->sub_col[2] = 1.00;
 				}
 			}
 
@@ -11378,28 +11366,19 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
-	/* GSOC Sculpt 2010 - Sanity check on Sculpt/Paint settings */
-	{
+	/* GSOC Sculpt 2011 - MatCap */
+	if (main->versionfile < 253) {
 		Object *ob;
 
 		/* MatCaps */
 		for (ob=main->object.first; ob; ob=ob->id.next) {
-			if (main->versionfile < 253) {
-		Scene *sce;
-		for (sce= main->scene.first; sce; sce= sce->id.next) {
-			if (sce->toolsettings->sculpt_paint_unified_alpha == 0)
-				sce->toolsettings->sculpt_paint_unified_alpha = 0.5f;
+			Scene *sce;
 
-			if (sce->toolsettings->sculpt_paint_unified_unprojected_radius == 0) 
-				sce->toolsettings->sculpt_paint_unified_unprojected_radius = 0.125f;
-
-			if (sce->toolsettings->sculpt_paint_unified_size == 0)
-				sce->toolsettings->sculpt_paint_unified_size = 35;
-			/* If max drawtype is textured then assume user won't mind if we bump it up to use MatCaps, */
-			/* Otherwise, assume that if max drawtype is less than textured then user doesn't want to use MatCaps */
+			for (sce= main->scene.first; sce; sce= sce->id.next) {
+				/* If max drawtype is textured then assume user won't mind if we bump it up to use MatCaps, */
+				/* Otherwise, assume that if max drawtype is less than textured then user doesn't want to use MatCaps */
 				if (ob->dt == OB_TEXTURE)
 					ob->dt = OB_MATCAP;
-			}
 		}
 	}
 

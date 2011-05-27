@@ -24,7 +24,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/editors/armature/reeb.c
  *  \ingroup edarmature
  */
@@ -1732,7 +1732,7 @@ static int filterCyclesReebGraph(ReebGraph *rg, float UNUSED(distance_threshold)
 	return filtered;
 }
 
-int filterSmartReebGraph(ReebGraph *rg, float threshold)
+int filterSmartReebGraph(ReebGraph *UNUSED(rg), float UNUSED(threshold))
 {
 	int value = 0;
 #if 0 //XXX
@@ -2189,7 +2189,7 @@ void addFacetoArc(ReebArc *arc, EditFace *efa)
 	BLI_ghash_insert(arc->faces, efa, efa);
 }
 
-void mergeArcFaces(ReebGraph *rg, ReebArc *aDst, ReebArc *aSrc)
+void mergeArcFaces(ReebGraph *UNUSED(rg), ReebArc *aDst, ReebArc *aSrc)
 {
 	GHashIterator ghi;
 	
@@ -2572,7 +2572,7 @@ ReebGraph * generateReebGraph(EditMesh *em, int subdivisions)
 	int totfaces;
 	int countfaces = 0;
 #endif
- 	
+
 	rg = newReebGraph();
 	
 	rg->resolution = subdivisions;

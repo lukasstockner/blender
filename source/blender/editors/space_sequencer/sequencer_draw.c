@@ -102,13 +102,13 @@ static void get_seq_color3ubv(Scene *curscene, Sequence *seq, unsigned char col[
 			UI_GetColorPtrBlendShade3ubv(col, col, col, 1.0, 20);
 		}
 		break;
-
+		
 	/* transitions */
 	case SEQ_CROSS:
 	case SEQ_GAMCROSS:
 	case SEQ_WIPE:
 		UI_GetThemeColor3ubv(TH_SEQ_TRANSITION, col);
-		
+
 		/* slightly offset hue to distinguish different effects */
 		if (seq->type == SEQ_CROSS)			rgb_byte_set_hue_float_offset(col,0.04);
 		if (seq->type == SEQ_GAMCROSS)		rgb_byte_set_hue_float_offset(col,0.08);
@@ -364,7 +364,7 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, float pixelx, short dire
 	}	
 }
 
-static void draw_seq_extensions(Scene *scene, ARegion *ar, SpaceSeq *sseq, Sequence *seq)
+static void draw_seq_extensions(Scene *scene, ARegion *ar, Sequence *seq)
 {
 	float x1, x2, y1, y2, pixely, a;
 	unsigned char col[3], blendcol[3];
@@ -526,7 +526,7 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 		col[0]= col[1]= col[2]= 0;
 	}
 	col[3]= 255;
-	
+
 	rect.xmin= x1;
 	rect.ymin= y1;
 	rect.xmax= x2;
@@ -595,7 +595,7 @@ Draw a sequence strip, bounds check already made
 ARegion is currently only used to get the windows width in pixels
 so wave file sample drawing precision is zoom adjusted
 */
-static void draw_seq_strip(Scene *scene, ARegion *ar, SpaceSeq *sseq, Sequence *seq, int outline_tint, float pixelx)
+static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline_tint, float pixelx)
 {
 	View2D *v2d= &ar->v2d;
 	float x1, x2, y1, y2;
@@ -625,7 +625,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, SpaceSeq *sseq, Sequence *
 	
 	/* draw additional info and controls */
 	if (!is_single_image)
-		draw_seq_extensions(scene, ar, sseq, seq);
+		draw_seq_extensions(scene, ar, seq);
 	
 	draw_seq_handle(v2d, seq, pixelx, SEQ_LEFTHANDLE);
 	draw_seq_handle(v2d, seq, pixelx, SEQ_RIGHTHANDLE);
@@ -738,6 +738,10 @@ void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	UI_view2d_totRect_set(v2d, viewrectx + 0.5f, viewrecty + 0.5f);
 	UI_view2d_curRect_validate(v2d);
 
+	/* only initialize the preview if a render is in progress */
+	if(G.rendering)
+		return;
+
 	context = seq_new_render_data(bmain, scene, rectx, recty, proxy_size);
 
 	if (special_seq_update)
@@ -746,7 +750,7 @@ void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		ibuf= (ImBuf *)give_ibuf_seq(context, cfra + frame_ofs, sseq->chanshown);
 	else
 		ibuf= (ImBuf *)give_ibuf_seq_threaded(context, cfra + frame_ofs, sseq->chanshown);
-
+	
 	if(ibuf==NULL) 
 		return;
 
@@ -950,7 +954,6 @@ static void draw_seq_backdrop(View2D *v2d)
 static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar)
 {
 	Scene *scene= CTX_data_scene(C);
-	SpaceSeq *sseq= CTX_wm_space_seq(C);
 	View2D *v2d= &ar->v2d;
 	Sequence *last_seq = seq_active_get(scene);
 	int sel = 0, j;
@@ -972,7 +975,7 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar)
 			else if (seq->machine > v2d->cur.ymax) continue;
 			
 			/* strip passed all tests unscathed... so draw it now */
-			draw_seq_strip(scene, ar, sseq, seq, outline_tint, pixelx);
+			draw_seq_strip(scene, ar, seq, outline_tint, pixelx);
 		}
 		
 		/* draw selected next time round */
@@ -981,14 +984,11 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar)
 	
 	/* draw the last selected last (i.e. 'active' in other parts of Blender), removes some overlapping error */
 	if (last_seq)
-		draw_seq_strip(scene, ar, sseq, last_seq, 120, pixelx);
+		draw_seq_strip(scene, ar, last_seq, 120, pixelx);
 }
 
-static void seq_draw_sfra_efra(const bContext *C, SpaceSeq *sseq, ARegion *ar)
-{
-	View2D *v2d= UI_view2d_fromcontext(C);
-	Scene *scene= CTX_data_scene(C);
-	
+static void seq_draw_sfra_efra(Scene *scene, View2D *v2d)
+{	
 	glEnable(GL_BLEND);
 	
 	/* draw darkened area outside of active timeline 
@@ -1045,7 +1045,7 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	/* regular grid-pattern over the rest of the view (i.e. frame grid lines) */
 	UI_view2d_constant_grid_draw(v2d);
 
-	seq_draw_sfra_efra(C, sseq, ar);	
+	seq_draw_sfra_efra(scene, v2d);	
 
 	/* sequence strips (if there is data available to be drawn) */
 	if (ed) {

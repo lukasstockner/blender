@@ -199,8 +199,8 @@ static int view3d_layers_exec(bContext *C, wmOperator *op)
 				v3d->lay |= (1<<nr);
 		} else {
 			v3d->lay = (1<<nr);
-					}
-		
+		}
+
 		view3d_layers_editmode_ensure(scene, v3d);
 
 		/* set active layer, ensure to always have one */
@@ -482,7 +482,7 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 		v3d->modeselect = ob->mode;
 	else
 		v3d->modeselect = OB_MODE_OBJECT;
-		
+
 	uiBlockBeginAlign(block);
 	uiDefIconTextButS(block, MENU, B_MODESELECT, object_mode_icon(v3d->modeselect), view3d_modeselect_pup(scene) , 
 			  0,0,126 * dpi_fac,20, &(v3d->modeselect), 0, 0, 0, 0, "Mode");
@@ -507,12 +507,12 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 
 		/* NDOF */
 		/* Not implemented yet
-		 if (G.ndofdevice ==0 ) {
+		if (G.ndofdevice ==0 ) {
 			uiDefIconTextButC(block, ICONTEXTROW,B_NDOF, ICON_NDOF_TURN, ndof_pup(), 0,0,XIC+10,YIC, &(v3d->ndofmode), 0, 3.0, 0, 0, "Ndof mode");
-		
+
 			uiDefIconButC(block, TOG, B_NDOF,  ICON_NDOF_DOM,
-					  0,0,XIC,YIC,
-					  &v3d->ndoffilter, 0, 1, 0, 0, "dominant axis");	
+					0,0,XIC,YIC,
+					&v3d->ndoffilter, 0, 1, 0, 0, "dominant axis");
 		}
 		 */
 
@@ -535,9 +535,9 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 		uiDefButC(block, MENU, B_MAN_MODE, str_menu,0,0,70 * dpi_fac, YIC, &v3d->twmode, 0, 0, 0, 0, "Transform Orientation");
 		MEM_freeN((void *)str_menu);
 	}
- 		
+
 	if(obedit==NULL && v3d->localvd==NULL) {
-		int ob_lay = ob ? ob->lay : 0;
+		unsigned int ob_lay = ob ? ob->lay : 0;
 		
 		/* Layers */
 		if (v3d->scenelock)

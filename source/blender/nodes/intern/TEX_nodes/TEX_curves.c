@@ -42,7 +42,7 @@ static bNodeSocketType time_outputs[]= {
 	{ -1, 0, "" }
 };
 
-static void time_colorfn(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void time_colorfn(float *out, TexParams *p, bNode *node, bNodeStack **UNUSED(in), short UNUSED(thread))
 {
 	/* stack order output: fac */
 	float fac= 0.0f;
@@ -62,15 +62,15 @@ static void time_exec(void *data, bNode *node, bNodeStack **in, bNodeStack **out
 
 static void time_init(bNode* node)
 {
-   node->custom1= 1;
-   node->custom2= 250;
-   node->storage= curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+	node->custom1= 1;
+	node->custom2= 250;
+	node->storage= curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
 }
 
 void register_node_type_tex_curve_time(ListBase *lb)
 {
 	static bNodeType ntype;
-
+	
 	node_type_base(&ntype, TEX_NODE_CURVE_TIME, "Time", NODE_CLASS_INPUT, NODE_OPTIONS,
 				   NULL, time_outputs);
 	node_type_size(&ntype, 140, 100, 320);
@@ -114,7 +114,7 @@ static void rgb_init(bNode *node)
 void register_node_type_tex_curve_rgb(ListBase *lb)
 {
 	static bNodeType ntype;
-
+	
 	node_type_base(&ntype, TEX_NODE_CURVE_RGB, "RGB Curves", NODE_CLASS_OP_COLOR, NODE_OPTIONS,
 				   rgb_inputs, rgb_outputs);
 	node_type_size(&ntype, 200, 140, 320);

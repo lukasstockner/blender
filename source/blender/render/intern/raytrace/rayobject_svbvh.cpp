@@ -83,7 +83,7 @@ void bvh_done<SVBVHTree>(SVBVHTree *obj)
 	//Build and optimize the tree
 	if(0)
 	{
-		VBVHNode *root = BuildBinaryVBVH<VBVHNode>(arena1,&obj->rayobj.control).transform(obj->builder);
+		VBVHNode *root = BuildBinaryVBVH<VBVHNode>(arena1, &obj->rayobj.control).transform(obj->builder);
 
 		if(RE_rayobjectcontrol_test_break(&obj->rayobj.control))
 		{
@@ -95,11 +95,11 @@ void bvh_done<SVBVHTree>(SVBVHTree *obj)
 		reorganize(root);
 		remove_useless(root, &root);
 		bvh_refit(root);
-	
+
 		pushup(root);
 		pushdown(root);
 		pushup_simd<VBVHNode,4>(root);
-	
+
 		obj->root = Reorganize_SVBVH<VBVHNode>(arena2).transform(root);
 	}
 	else
@@ -116,19 +116,19 @@ void bvh_done<SVBVHTree>(SVBVHTree *obj)
 		}
 
 		if(root) {
-		VBVH_optimalPackSIMD<OVBVHNode,PackCost>(PackCost()).transform(root);
-		obj->root = Reorganize_SVBVH<OVBVHNode>(arena2).transform(root);
-	}
+			VBVH_optimalPackSIMD<OVBVHNode,PackCost>(PackCost()).transform(root);
+			obj->root = Reorganize_SVBVH<OVBVHNode>(arena2).transform(root);
+		}
 		else
 			obj->root = NULL;
 	}
-
+	
 	//Free data
 	BLI_memarena_free(arena1);
 	
 	obj->node_arena = arena2;
 	obj->cost = 1.0;
-	
+
 	rtbuild_free( obj->builder );
 	obj->builder = NULL;
 }
@@ -140,7 +140,7 @@ int intersect(SVBVHTree *obj, Isect* isec)
 	if(RE_rayobject_isAligned(obj->root)) {
 		if(isec->mode == RE_RAY_SHADOW)
 			return svbvh_node_stack_raycast<StackSize,true>(obj->root, isec);
-	else
+		else
 			return svbvh_node_stack_raycast<StackSize,false>(obj->root, isec);
 	}
 	else

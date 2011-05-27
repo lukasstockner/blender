@@ -45,7 +45,7 @@ static bNodeSocketType cmp_node_setalpha_out[]= {
 	{	-1, 0, ""	}
 };
 
-static void node_composit_exec_setalpha(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_setalpha(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	/* stack order out: RGBA image */
 	/* stack order in: col, alpha */
@@ -78,7 +78,7 @@ static void node_composit_exec_setalpha(void *data, bNode *node, bNodeStack **in
 void register_node_type_cmp_setalpha(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, CMP_NODE_SETALPHA, "Set Alpha", NODE_CLASS_CONVERTOR, NODE_OPTIONS,
 		cmp_node_setalpha_in, cmp_node_setalpha_out);
 	node_type_size(&ntype, 120, 40, 140);

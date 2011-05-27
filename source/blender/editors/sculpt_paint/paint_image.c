@@ -392,7 +392,7 @@ static void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int 
 			return tile->rect;
 	
 	if (*tmpibuf==NULL)
-		*tmpibuf = IMB_allocImBuf(IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE, 32, IB_rectfloat|IB_rect, 0);
+		*tmpibuf = IMB_allocImBuf(IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE, 32, IB_rectfloat|IB_rect);
 	
 	tile= MEM_callocN(sizeof(UndoImageTile), "UndoImageTile");
 	strcpy(tile->idname, ima->id.name);
@@ -419,7 +419,7 @@ static void image_undo_restore(bContext *C, ListBase *lb)
 	UndoImageTile *tile;
 
 	tmpibuf= IMB_allocImBuf(IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE, 32,
-							IB_rectfloat|IB_rect, 0);
+							IB_rectfloat|IB_rect);
 	
 	for(tile=lb->first; tile; tile=tile->next) {
 		/* find image based on name, pointer becomes invalid with global undo */
@@ -488,22 +488,22 @@ static int project_bucket_offset_safe(const ProjPaintState *ps, const float proj
 /* still use 2D X,Y space but this works for verts transformed by a perspective matrix, using their 4th component as a weight */
 static void barycentric_weights_v2_persp(float v1[4], float v2[4], float v3[4], float co[2], float w[3])
 {
-   float wtot_inv, wtot;
+	float wtot_inv, wtot;
 
-   w[0] = area_tri_signed_v2(v2, v3, co) / v1[3];
-   w[1] = area_tri_signed_v2(v3, v1, co) / v2[3];
-   w[2] = area_tri_signed_v2(v1, v2, co) / v3[3];
-   wtot = w[0]+w[1]+w[2];
+	w[0] = area_tri_signed_v2(v2, v3, co) / v1[3];
+	w[1] = area_tri_signed_v2(v3, v1, co) / v2[3];
+	w[2] = area_tri_signed_v2(v1, v2, co) / v3[3];
+	wtot = w[0]+w[1]+w[2];
 
-   if (wtot != 0.0f) {
-	   wtot_inv = 1.0f/wtot;
+	if (wtot != 0.0f) {
+		wtot_inv = 1.0f/wtot;
 
-	   w[0] = w[0]*wtot_inv;
-	   w[1] = w[1]*wtot_inv;
-	   w[2] = w[2]*wtot_inv;
-   }
-   else /* dummy values for zero area face */
-	   w[0] = w[1] = w[2] = 1.0f/3.0f;
+		w[0] = w[0]*wtot_inv;
+		w[1] = w[1]*wtot_inv;
+		w[2] = w[2]*wtot_inv;
+	}
+	else /* dummy values for zero area face */
+		w[0] = w[1] = w[2] = 1.0f/3.0f;
 }
 
 static float VecZDepthOrtho(float pt[2], float v1[3], float v2[3], float v3[3], float w[3])
@@ -536,7 +536,7 @@ static float VecZDepthPersp(float pt[2], float v1[3], float v2[3], float v3[3], 
 		w_tmp[0] = w_tmp[0]*wtot_inv;
 		w_tmp[1] = w_tmp[1]*wtot_inv;
 		w_tmp[2] = w_tmp[2]*wtot_inv;
-}
+	}
 	else /* dummy values for zero area face */
 		w_tmp[0] = w_tmp[1] = w_tmp[2] = 1.0f/3.0f;
 	/* done mimicing barycentric_weights_v2() */
@@ -1048,8 +1048,11 @@ static void uv_image_outset(float (*orig_uv)[2], float (*outset_uv)[2], const fl
 	float puv[4][2]; /* pixelspace uv's */
 	float no1[2], no2[2], no3[2], no4[2]; /* normals */
 	float dir1[2], dir2[2], dir3[2], dir4[2];
-	float ibuf_inv[2] = {1.0f / (float)ibuf_x, 1.0f / (float)ibuf_y};
-	
+	float ibuf_inv[2];
+
+	ibuf_inv[0]= 1.0f / (float)ibuf_x;
+	ibuf_inv[1]= 1.0f / (float)ibuf_y;
+
 	/* make UV's in pixel space so we can */
 	puv[0][0] = orig_uv[0][0] * ibuf_x;
 	puv[0][1] = orig_uv[0][1] * ibuf_y;
@@ -1739,7 +1742,7 @@ static int project_bucket_isect_circle(const float cent[2], const float radius_s
 	 */
 	
 	if((bucket_bounds->xmin <= cent[0] && bucket_bounds->xmax >= cent[0]) || (bucket_bounds->ymin <= cent[1] && bucket_bounds->ymax >= cent[1]) ) {
-	   return 1;
+		return 1;
 	}
 	
 	/* out of bounds left */
@@ -4226,7 +4229,7 @@ static void imapaint_lift_smear(ImBuf *ibuf, ImBuf *ibufb, int *pos)
 	int a, tot;
 
 	imapaint_set_region(region, 0, 0, pos[0], pos[1], ibufb->x, ibufb->y);
-	tot= imapaint_torus_split_region(region, ibuf, ibufb);
+	tot= imapaint_torus_split_region(region, ibufb, ibuf);
 
 	for(a=0; a<tot; a++)
 		IMB_rectblend(ibufb, ibuf, region[a].destx, region[a].desty,
@@ -4239,7 +4242,7 @@ static ImBuf *imapaint_lift_clone(ImBuf *ibuf, ImBuf *ibufb, int *pos)
 	/* note: allocImbuf returns zero'd memory, so regions outside image will
 	   have zero alpha, and hence not be blended onto the image */
 	int w=ibufb->x, h=ibufb->y, destx=0, desty=0, srcx=pos[0], srcy=pos[1];
-	ImBuf *clonebuf= IMB_allocImBuf(w, h, ibufb->depth, ibufb->flags, 0);
+	ImBuf *clonebuf= IMB_allocImBuf(w, h, ibufb->depth, ibufb->flags);
 
 	IMB_rectclip(clonebuf, ibuf, &destx, &desty, &srcx, &srcy, &w, &h);
 	IMB_rectblend(clonebuf, ibuf, destx, desty, srcx, srcy, w, h,
@@ -4583,7 +4586,7 @@ static void paint_redraw(bContext *C, ImagePaintState *s, int final)
 
 		/* compositor listener deals with updating */
 		WM_event_add_notifier(C, NC_IMAGE|NA_EDITED, s->image);
-			}
+	}
 	else {
 		if(!s->sima || !s->sima->lock)
 			ED_region_tag_redraw(CTX_wm_region(C));
@@ -4717,7 +4720,7 @@ static int texture_paint_init(bContext *C, wmOperator *op)
 			return 0;
 		}
 	}
-
+	
 	paint_brush_init_tex(pop->s.brush);
 	
 	/* note, if we have no UVs on the derived mesh, then we must return here */
@@ -4725,7 +4728,7 @@ static int texture_paint_init(bContext *C, wmOperator *op)
 
 		/* initialize all data from the context */
 		project_state_init(C, OBACT, &pop->ps);
-
+		
 		paint_brush_init_tex(pop->ps.brush);
 
 		pop->ps.source= PROJ_SRC_VIEW;
@@ -5048,6 +5051,22 @@ static void toggle_paint_cursor(bContext *C, int enable)
 		settings->imapaint.paintcursor= WM_paint_cursor_activate(CTX_wm_manager(C), image_paint_poll, brush_drawcursor, NULL);
 }
 
+/* enable the paint cursor if it isn't already.
+
+   purpose is to make sure the paint cursor is shown if paint
+   mode is enabled in the image editor. the paint poll will
+   ensure that the cursor is hidden when not in paint mode */
+void ED_space_image_paint_update(wmWindowManager *wm, ToolSettings *settings)
+{
+	ImagePaintSettings *imapaint = &settings->imapaint;
+
+	if(!imapaint->paintcursor) {
+		imapaint->paintcursor =
+			WM_paint_cursor_activate(wm, image_paint_poll,
+						 brush_drawcursor, NULL);
+	}
+}
+
 /************************ grab clone operator ************************/
 
 typedef struct GrabClone {
@@ -5166,7 +5185,7 @@ static int sample_color_exec(bContext *C, wmOperator *op)
 static int sample_color_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
 	RNA_int_set_array(op->ptr, "location", event->mval);
-		sample_color_exec(C, op);
+	sample_color_exec(C, op);
 
 	WM_event_add_modal_handler(C, op);
 
@@ -5181,7 +5200,7 @@ static int sample_color_modal(bContext *C, wmOperator *op, wmEvent *event)
 			return OPERATOR_FINISHED;
 		case MOUSEMOVE:
 			RNA_int_set_array(op->ptr, "location", event->mval);
-				sample_color_exec(C, op);
+			sample_color_exec(C, op);
 			break;
 	}
 
@@ -5565,6 +5584,7 @@ void PAINT_OT_image_from_view(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec= texture_paint_image_from_view_exec;
+	ot->poll= ED_operator_region_view3d_active;
 
 	/* flags */
 	ot->flag= OPTYPE_REGISTER;

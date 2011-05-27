@@ -435,33 +435,33 @@ def read_opts(env, cfg, args):
         (BoolVariable('WITH_BF_PLAYER', 'Build blenderplayer if true', False)),
         (BoolVariable('WITH_BF_NOBLENDER', 'Do not build blender if true', False)),
 
-        ('CFLAGS', 'C only flags', ''),
-        ('CCFLAGS', 'Generic C and C++ flags', ''),
-        ('CXXFLAGS', 'C++ only flags', ''),
-        ('BGE_CXXFLAGS', 'C++ only flags for BGE', ''),
-        ('CPPFLAGS', 'Defines', ''),
-        ('REL_CFLAGS', 'C only release flags', ''),
-        ('REL_CCFLAGS', 'Generic C and C++ release flags', ''),
-        ('REL_CXXFLAGS', 'C++ only release flags', ''),
+        ('CFLAGS', 'C only flags', []),
+        ('CCFLAGS', 'Generic C and C++ flags', []),
+        ('CXXFLAGS', 'C++ only flags', []),
+        ('BGE_CXXFLAGS', 'C++ only flags for BGE', []),
+        ('CPPFLAGS', 'Defines', []),
+        ('REL_CFLAGS', 'C only release flags', []),
+        ('REL_CCFLAGS', 'Generic C and C++ release flags', []),
+        ('REL_CXXFLAGS', 'C++ only release flags', []),
 
-        ('C_WARN', 'C warning flags', ''),
-        ('CC_WARN', 'Generic C and C++ warning flags', ''),
-        ('CXX_WARN', 'C++ only warning flags', ''),
+        ('C_WARN', 'C warning flags', []),
+        ('CC_WARN', 'Generic C and C++ warning flags', []),
+        ('CXX_WARN', 'C++ only warning flags', []),
 
-        ('LLIBS', 'Platform libs', ''),
-        ('PLATFORM_LINKFLAGS', 'Platform linkflags', ''),
+        ('LLIBS', 'Platform libs', []),
+        ('PLATFORM_LINKFLAGS', 'Platform linkflags', []),
         ('MACOSX_ARCHITECTURE', 'python_arch.zip select', ''),
 
         (BoolVariable('BF_PROFILE', 'Add profiling information if true', False)),
-        ('BF_PROFILE_CFLAGS', 'C only profiling flags', ''),
-        ('BF_PROFILE_CCFLAGS', 'C and C++ profiling flags', ''),
-        ('BF_PROFILE_CXXFLAGS', 'C++ only profiling flags', ''),
-        ('BF_PROFILE_LINKFLAGS', 'Profile linkflags', ''),
+        ('BF_PROFILE_CFLAGS', 'C only profiling flags', []),
+        ('BF_PROFILE_CCFLAGS', 'C and C++ profiling flags', []),
+        ('BF_PROFILE_CXXFLAGS', 'C++ only profiling flags', []),
+        ('BF_PROFILE_LINKFLAGS', 'Profile linkflags', []),
 
         (BoolVariable('BF_DEBUG', 'Add debug flags if true', False)),
-        ('BF_DEBUG_CFLAGS', 'C only debug flags', ''),
-        ('BF_DEBUG_CCFLAGS', 'C and C++ debug flags', ''),
-        ('BF_DEBUG_CXXFLAGS', 'C++ only debug flags', ''),
+        ('BF_DEBUG_CFLAGS', 'C only debug flags', []),
+        ('BF_DEBUG_CCFLAGS', 'C and C++ debug flags', []),
+        ('BF_DEBUG_CXXFLAGS', 'C++ only debug flags', []),
 
         (BoolVariable('BF_BSC', 'Create .bsc files (msvc only)', False)),
 
@@ -493,7 +493,7 @@ def read_opts(env, cfg, args):
         ('BF_CONFIG', 'SCons python config file used to set default options', 'user_config.py'),
         ('BF_NUMJOBS', 'Number of build processes to spawn', '1'),
         ('BF_MSVS', 'Generate MSVS project files and solution', False),
-        
+
         ('BF_VERSION', 'The root path for Unix (non-apple)', '2.5'),
 
         (BoolVariable('BF_UNIT_TEST', 'Build with unit test support.', False)),
@@ -502,6 +502,9 @@ def read_opts(env, cfg, args):
         
         (BoolVariable('WITH_BF_RAYOPTIMIZATION', 'Enable raytracer SSE/SIMD optimization.', False)),
         ('BF_RAYOPTIMIZATION_SSE_FLAGS', 'SSE flags', ''),
+ 
+        (BoolVariable('WITH_BF_ONSURFACEBRUSH', 'Enable use of the "on-surface brush" for paint/sculpt.  Requires a stencil buffer, GL_depth_texture, and GLSL', True)),
+
         (BoolVariable('WITH_BF_CXX_GUARDEDALLOC', 'Enable GuardedAlloc for C++ memory allocation tracking.', False))
     ) # end of opts.AddOptions()
 
@@ -624,7 +627,7 @@ def NSIS_Installer(target=None, source=None, env=None):
                 for f in df:
                     outfile = os.path.join(dp,f)
                     datafiles += '  File '+outfile + "\n"
-    
+
     #### change to suit install dir ####
     inst_dir = install_base_dir + env['BF_INSTALLDIR']
     

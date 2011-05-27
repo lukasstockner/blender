@@ -86,8 +86,8 @@ static int act_new_exec(bContext *C, wmOperator *UNUSED(op))
 
 	/* hook into UI */
 	uiIDContextProperty(C, &ptr, &prop);
-
-	if(prop) {
+	
+	if (prop) {
 		bAction *action=NULL, *oldact=NULL;
 		PointerRNA oldptr;
 		
@@ -111,12 +111,12 @@ static int act_new_exec(bContext *C, wmOperator *UNUSED(op))
 		 * but RNA pointer use also increases user, so this compensates it 
 		 */
 		action->id.us--;
-
+		
 		RNA_id_pointer_create(&action->id, &idptr);
 		RNA_property_pointer_set(&ptr, prop, idptr);
 		RNA_property_update(C, &ptr, prop);
 	}
-
+	
 	/* set notifier that keyframes have changed */
 	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
 	
@@ -354,7 +354,7 @@ static int actkeys_viewall(bContext *C, const short onlySel)
 	
 	return OPERATOR_FINISHED;
 }
- 
+
 /* ......... */
 
 static int actkeys_viewall_exec(bContext *C, wmOperator *UNUSED(op))
@@ -481,7 +481,7 @@ void ACTION_OT_copy (wmOperatorType *ot)
 //	ot->invoke= WM_operator_props_popup; // better wait for graph redo panel
 	ot->exec= actkeys_copy_exec;
 	ot->poll= ED_operator_action_active;
-	
+
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
@@ -489,7 +489,7 @@ void ACTION_OT_copy (wmOperatorType *ot)
 static int actkeys_paste_exec(bContext *C, wmOperator *op)
 {
 	bAnimContext ac;
-	
+
 	const eKeyPasteOffset offset_mode= RNA_enum_get(op->ptr, "offset");
 	const eKeyMergeMode merge_mode= RNA_enum_get(op->ptr, "merge");
 	
@@ -575,7 +575,7 @@ static void insert_action_keys(bAnimContext *ac, short mode)
 		AnimData *adt= ANIM_nla_mapping_get(ac, ale);
 		FCurve *fcu= (FCurve *)ale->key_data;
 		float cfra;
-		
+
 		/* adjust current frame for NLA-scaling */
 		if (adt)
 			cfra= BKE_nla_tweakedit_remap(adt, (float)CFRA, NLATIME_CONVERT_UNMAP);
@@ -1252,9 +1252,7 @@ static int actkeys_framejump_exec(bContext *C, wmOperator *UNUSED(op))
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
 	
-	/* init edit data */
-	memset(&ked, 0, sizeof(KeyframeEditData));
-	
+	/* init edit data */	
 	/* loop over action data, averaging values */
 	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVESONLY | ANIMFILTER_NODUPLIS);
 	ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
@@ -1330,8 +1328,7 @@ static void snap_action_keys(bAnimContext *ac, short mode)
 	
 	/* get beztriple editing callbacks */
 	edit_cb= ANIM_editkeyframes_snap(mode);
-	
-	memset(&ked, 0, sizeof(KeyframeEditData)); 
+
 	ked.scene= ac->scene;
 	if (mode == ACTKEYS_SNAP_NEAREST_MARKER) {
 		ked.list.first= (ac->markers) ? ac->markers->first : NULL;
@@ -1423,8 +1420,7 @@ static void mirror_action_keys(bAnimContext *ac, short mode)
 	
 	/* get beztriple editing callbacks */
 	edit_cb= ANIM_editkeyframes_mirror(mode);
-	
-	memset(&ked, 0, sizeof(KeyframeEditData)); 
+
 	ked.scene= ac->scene;
 	
 	/* for 'first selected marker' mode, need to find first selected marker first! */

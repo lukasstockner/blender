@@ -25,7 +25,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file ghost/intern/GHOST_DropTargetWin32.cpp
  *  \ingroup GHOST
  */

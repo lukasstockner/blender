@@ -158,7 +158,7 @@ struct BuildBinaryVBVH
 	Node *_transform(RTBuilder *builder)
 	{
 		int size = rtbuild_size(builder);
-		
+
 		if(size == 0) {
 			return NULL;
 		}

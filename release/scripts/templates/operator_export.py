@@ -18,9 +18,9 @@ from bpy.props import StringProperty, BoolProperty, EnumProperty
 
 class ExportSomeData(bpy.types.Operator, ExportHelper):
     '''This appears in the tooltip of the operator and in the generated docs.'''
-    bl_idname = "export.some_data" # this is important since its how bpy.ops.export.some_data is constructed
+    bl_idname = "export.some_data"  # this is important since its how bpy.ops.export.some_data is constructed
     bl_label = "Export Some Data"
-    
+
     # ExportHelper mixin class uses this
     filename_ext = ".txt"
 
@@ -28,7 +28,7 @@ class ExportSomeData(bpy.types.Operator, ExportHelper):
 
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
-    use_setting = BoolProperty(name="Example Boolean", description="Example Tooltip", default= True)
+    use_setting = BoolProperty(name="Example Boolean", description="Example Tooltip", default=True)
 
     type = EnumProperty(items=(('OPT_A', "First Option", "Description one"),
                                ('OPT_B', "Second Option", "Description two."),
@@ -52,7 +52,7 @@ def menu_func_export(self, context):
 
 def register():
     bpy.utils.register_class(ExportSomeData)
-bpy.types.INFO_MT_file_export.append(menu_func_export)
+    bpy.types.INFO_MT_file_export.append(menu_func_export)
 
 
 def unregister():

@@ -294,7 +294,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *pa)
 			/* samples only */
 			uiItemL(layout, "F-Curve doesn't have any keyframes as it only contains sampled points", ICON_NONE);
 		}
-	else
+		else
 			uiItemL(layout, "No active keyframe on F-Curve", ICON_NONE);
 	}
 	
@@ -406,8 +406,8 @@ static void graph_panel_driverVar__singleProp(uiLayout *layout, ID *id, DriverVa
 		RNA_id_pointer_create(dtar->id, &root_ptr);
 		
 		col= uiLayoutColumn(layout, 1);
-			/* rna path */
-			uiTemplatePathBuilder(col, &dtar_ptr, "data_path", &root_ptr, "Path");
+		/* rna path */
+		uiTemplatePathBuilder(col, &dtar_ptr, "data_path", &root_ptr, "Path");
 	}
 }
 
@@ -766,7 +766,7 @@ void GRAPH_OT_properties(wmOperatorType *ot)
 	
 	ot->exec= graph_properties;
 	ot->poll= ED_operator_graphedit_active;
- 	
+
 	/* flags */
 	ot->flag= 0;
 }

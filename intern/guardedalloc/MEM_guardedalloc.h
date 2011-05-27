@@ -33,7 +33,7 @@
  *  \brief Read \ref MEMPage
  */
 
-/**
+/** 
  * \page MEMPage Guarded memory(de)allocation
  *
  * \section aboutmem c-style guarded memory allocation
@@ -53,7 +53,7 @@
  * \subsection memdependencies Dependencies
  * - stdlib
  * - stdio
- *
+ * 
  * \subsection memdocs API Documentation
  * See \ref MEM_guardedalloc.h
  */
@@ -65,11 +65,11 @@
 #include "MEM_sys_types.h" /* needed for uintptr_t */
 
 #ifndef WARN_UNUSED
-#ifdef __GNUC__
-#  define WARN_UNUSED  __attribute__((warn_unused_result))
-#else
-#  define WARN_UNUSED
-#endif
+#  ifdef __GNUC__
+#    define WARN_UNUSED  __attribute__((warn_unused_result))
+#  else
+#    define WARN_UNUSED
+#  endif
 #endif
 
 #ifdef __cplusplus
@@ -165,6 +165,10 @@ extern "C" {
 	/** Get the peak memory usage in bytes, including mmap allocations. */
 	uintptr_t MEM_get_peak_memory(void) WARN_UNUSED;
 
+#ifndef NDEBUG
+const char *MEM_name_ptr(void *vmemh);
+#endif
+	
 #ifdef __cplusplus
 }
 #endif

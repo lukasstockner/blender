@@ -78,7 +78,7 @@ static int dependsOnTime(ModifierData *UNUSED(md))
 }
 
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
-		DerivedMesh *derivedData,
+						DerivedMesh *derivedData,
 						int UNUSED(useRenderParams),
 						int UNUSED(isFinalCalc))
 {
@@ -208,72 +208,72 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 					BLI_ghash_size(edgeHash), numFaces);
 
 	/* copy the vertices across */
-	for(hashIter = BLI_ghashIterator_new(vertHash);
-		   !BLI_ghashIterator_isDone(hashIter);
+	for(	hashIter = BLI_ghashIterator_new(vertHash);
+			!BLI_ghashIterator_isDone(hashIter);
 			BLI_ghashIterator_step(hashIter)
 	) {
-			   MVert source;
-			   MVert *dest;
-			   int oldIndex = GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(hashIter));
-			   int newIndex = GET_INT_FROM_POINTER(BLI_ghashIterator_getValue(hashIter));
+		MVert source;
+		MVert *dest;
+		int oldIndex = GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(hashIter));
+		int newIndex = GET_INT_FROM_POINTER(BLI_ghashIterator_getValue(hashIter));
 
-			   dm->getVert(dm, oldIndex, &source);
-			   dest = CDDM_get_vert(result, newIndex);
+		dm->getVert(dm, oldIndex, &source);
+		dest = CDDM_get_vert(result, newIndex);
 
-			   DM_copy_vert_data(dm, result, oldIndex, newIndex, 1);
-			   *dest = source;
-		   }
-		   BLI_ghashIterator_free(hashIter);
+		DM_copy_vert_data(dm, result, oldIndex, newIndex, 1);
+		*dest = source;
+	}
+	BLI_ghashIterator_free(hashIter);
+	
+	/* copy the edges across, remapping indices */
+	for(i = 0; i < BLI_ghash_size(edgeHash); ++i) {
+		MEdge source;
+		MEdge *dest;
+		int oldIndex = GET_INT_FROM_POINTER(BLI_ghash_lookup(edgeHash, SET_INT_IN_POINTER(i)));
+		
+		dm->getEdge(dm, oldIndex, &source);
+		dest = CDDM_get_edge(result, i);
+		
+		source.v1 = GET_INT_FROM_POINTER(BLI_ghash_lookup(vertHash, SET_INT_IN_POINTER(source.v1)));
+		source.v2 = GET_INT_FROM_POINTER(BLI_ghash_lookup(vertHash, SET_INT_IN_POINTER(source.v2)));
+		
+		DM_copy_edge_data(dm, result, oldIndex, i, 1);
+		*dest = source;
+	}
 
-		   /* copy the edges across, remapping indices */
-		   for(i = 0; i < BLI_ghash_size(edgeHash); ++i) {
-			   MEdge source;
-			   MEdge *dest;
-			   int oldIndex = GET_INT_FROM_POINTER(BLI_ghash_lookup(edgeHash, SET_INT_IN_POINTER(i)));
+	/* copy the faces across, remapping indices */
+	for(i = 0; i < numFaces; ++i) {
+		MFace source;
+		MFace *dest;
+		int orig_v4;
+		
+		dm->getFace(dm, faceMap[i], &source);
+		dest = CDDM_get_face(result, i);
+		
+		orig_v4 = source.v4;
+		
+		source.v1 = GET_INT_FROM_POINTER(BLI_ghash_lookup(vertHash, SET_INT_IN_POINTER(source.v1)));
+		source.v2 = GET_INT_FROM_POINTER(BLI_ghash_lookup(vertHash, SET_INT_IN_POINTER(source.v2)));
+		source.v3 = GET_INT_FROM_POINTER(BLI_ghash_lookup(vertHash, SET_INT_IN_POINTER(source.v3)));
+		if(source.v4)
+			source.v4 = GET_INT_FROM_POINTER(BLI_ghash_lookup(vertHash, SET_INT_IN_POINTER(source.v4)));
+		
+		DM_copy_face_data(dm, result, faceMap[i], i, 1);
+		*dest = source;
+		
+		test_index_face(dest, &result->faceData, i, (orig_v4 ? 4 : 3));
+	}
 
-			   dm->getEdge(dm, oldIndex, &source);
-			   dest = CDDM_get_edge(result, i);
-
-			   source.v1 = GET_INT_FROM_POINTER(BLI_ghash_lookup(vertHash, SET_INT_IN_POINTER(source.v1)));
-			   source.v2 = GET_INT_FROM_POINTER(BLI_ghash_lookup(vertHash, SET_INT_IN_POINTER(source.v2)));
-
-			   DM_copy_edge_data(dm, result, oldIndex, i, 1);
-			   *dest = source;
-		   }
-
-		   /* copy the faces across, remapping indices */
-		   for(i = 0; i < numFaces; ++i) {
-			   MFace source;
-			   MFace *dest;
-			   int orig_v4;
-
-			   dm->getFace(dm, faceMap[i], &source);
-			   dest = CDDM_get_face(result, i);
-
-			   orig_v4 = source.v4;
-
-			   source.v1 = GET_INT_FROM_POINTER(BLI_ghash_lookup(vertHash, SET_INT_IN_POINTER(source.v1)));
-			   source.v2 = GET_INT_FROM_POINTER(BLI_ghash_lookup(vertHash, SET_INT_IN_POINTER(source.v2)));
-			   source.v3 = GET_INT_FROM_POINTER(BLI_ghash_lookup(vertHash, SET_INT_IN_POINTER(source.v3)));
-			   if(source.v4)
-				   source.v4 = GET_INT_FROM_POINTER(BLI_ghash_lookup(vertHash, SET_INT_IN_POINTER(source.v4)));
-
-			   DM_copy_face_data(dm, result, faceMap[i], i, 1);
-			   *dest = source;
-
-			   test_index_face(dest, &result->faceData, i, (orig_v4 ? 4 : 3));
-		   }
-
-		   CDDM_calc_normals(result);
-
-		   BLI_ghash_free(vertHash, NULL, NULL);
-		   BLI_ghash_free(edgeHash, NULL, NULL);
-
-		   MEM_freeN(vertMap);
-		   MEM_freeN(edgeMap);
-		   MEM_freeN(faceMap);
-
-		   return result;
+	CDDM_calc_normals(result);
+	
+	BLI_ghash_free(vertHash, NULL, NULL);
+	BLI_ghash_free(edgeHash, NULL, NULL);
+	
+	MEM_freeN(vertMap);
+	MEM_freeN(edgeMap);
+	MEM_freeN(faceMap);
+	
+	return result;
 }
 
 

@@ -91,8 +91,8 @@ void ColorBlock::init(uint w, uint h, const uint * data, uint x, uint y)
 	const uint bw = min(w - x, 4U);
 	const uint bh = min(h - y, 4U);
 
-	// Blocks that are smaller than 4x4 are handled by repeating the pixels.
-	// @@ Thats only correct when block size is 1, 2 or 4, but not with 3. :(
+    // Blocks that are smaller than 4x4 are handled by repeating the pixels.
+    // @@ Thats only correct when block size is 1, 2 or 4, but not with 3. :(
     // @@ Ideally we should zero the weights of the pixels out of range.
 
     for (uint i = 0; i < 4; i++)
@@ -105,8 +105,8 @@ void ColorBlock::init(uint w, uint h, const uint * data, uint x, uint y)
             const uint idx = (y + by) * w + x + bx;
 
             color(e, i).u = data[idx];
-		}
-	}
+        }
+    }
 }
 
 void ColorBlock::init(uint w, uint h, const float * data, uint x, uint y)
@@ -121,11 +121,11 @@ void ColorBlock::init(uint w, uint h, const float * data, uint x, uint y)
     uint srcPlane = w * h;
 
 	for (uint i = 0; i < 4; i++)
-{
+	{
 		const uint by = i % bh;
 		
 		for (uint e = 0; e < 4; e++)
-	{
+		{
 			const uint bx = e % bw;
             const uint idx = ((y + by) * w + x + bx);
 			
@@ -134,8 +134,8 @@ void ColorBlock::init(uint w, uint h, const float * data, uint x, uint y)
             c.g = uint8(255 * clamp(data[idx + 1 * srcPlane], 0.0f, 1.0f));
             c.b = uint8(255 * clamp(data[idx + 2 * srcPlane], 0.0f, 1.0f));
             c.a = uint8(255 * clamp(data[idx + 3 * srcPlane], 0.0f, 1.0f));
+		}
 	}
-}
 }
 
 static inline uint8 component(Color32 c, uint i)
@@ -146,11 +146,11 @@ static inline uint8 component(Color32 c, uint i)
 	if (i == 3) return c.a;
 	if (i == 4) return 0xFF;
 	return 0;
-	}
+}
 
 void ColorBlock::swizzle(uint x, uint y, uint z, uint w)
 {
-	for(int i = 0; i < 16; i++)
+	for (int i = 0; i < 16; i++)
 	{
 		Color32 c = m_color[i];
 		m_color[i].r = component(c, x);
@@ -166,7 +166,7 @@ bool ColorBlock::isSingleColor(Color32 mask/*= Color32(0xFF, 0xFF, 0xFF, 0x00)*/
 {
 	uint u = m_color[0].u & mask.u;
 	
-	for(int i = 1; i < 16; i++)
+	for (int i = 1; i < 16; i++)
 	{
 		if (u != (m_color[i].u & mask.u))
 		{
@@ -185,7 +185,7 @@ bool ColorBlock::isSingleColorNoAlpha() const
 	int i;
 	for(i = 0; i < 16; i++)
 	{
-		if (m_color[i].a != 0) c = m_color[i];
+        if (m_color[i].a != 0) c = m_color[i];
 	}
 
 	Color32 mask(0xFF, 0xFF, 0xFF, 0x00);
@@ -414,7 +414,7 @@ void ColorBlock::computeRange(Vector3::Arg axis, Color32 * start, Color32 * end)
 		if( val < min ) {
 			mini = i;
 			min = val;
-}
+		}
 		else if( val > max ) {
 			maxi = i;
 			max = val;

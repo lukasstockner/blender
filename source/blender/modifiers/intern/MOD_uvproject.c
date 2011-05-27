@@ -90,7 +90,7 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *UNUSED(
 	CustomDataMask dataMask = 0;
 
 	/* ask for UV coordinates */
-	dataMask |= (1 << CD_MTFACE);
+	dataMask |= CD_MASK_MTFACE;
 
 	return dataMask;
 }
@@ -400,7 +400,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 
 static DerivedMesh *applyModifierEM(ModifierData *md, Object *ob,
 						struct EditMesh *UNUSED(editData),
-  DerivedMesh *derivedData)
+						DerivedMesh *derivedData)
 {
 	return applyModifier(md, ob, derivedData, 0, 1);
 }

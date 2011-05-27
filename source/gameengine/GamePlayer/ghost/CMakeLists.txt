@@ -36,10 +36,10 @@ set(INC
 	../../../../source/gameengine/Converter
 	../../../../source/blender/imbuf
 	../../../../source/gameengine/Ketsji
+	../../../../source/blender/blenfont
 	../../../../source/blender/blenlib
 	../../../../source/blender/blenkernel
 	../../../../source/blender
-	../../../../source/blender/include
 	../../../../source/blender/makesdna
 	../../../../source/blender/makesrna
 	../../../../source/gameengine/Rasterizer
@@ -50,7 +50,6 @@ set(INC
 	../../../../source/gameengine/Physics/common
 	../../../../source/gameengine/Network/LoopBackNetwork
 	../../../../source/gameengine/GamePlayer/common
-	../../../../source/blender/misc
 	../../../../source/blender/blenloader
 	../../../../source/blender/gpu
 	${GLEW_INCLUDE_PATH}

@@ -224,7 +224,7 @@ void SCA_PropertyActuator::Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map)
 	}
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */
 /* Python functions                                                          */

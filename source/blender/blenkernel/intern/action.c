@@ -380,8 +380,8 @@ bActionGroup *action_groups_find_named (bAction *act, const char name[])
 		
 	/* do string comparisons */
 	return BLI_findstring(&act->groups, name, offsetof(bActionGroup, name));
-	}
-	
+}
+
 /* Clear all 'temp' flags on all groups */
 void action_groups_clear_tempflags (bAction *act)
 {
@@ -422,13 +422,13 @@ bPoseChannel *verify_pose_channel(bPose *pose, const char *name)
 	/* See if this channel exists */
 	chan= BLI_findstring(&pose->chanbase, name, offsetof(bPoseChannel, name));
 	if(chan) {
-			return chan;
+		return chan;
 	}
-	
+
 	/* If not, create it and add it */
 	chan = MEM_callocN(sizeof(bPoseChannel), "verifyPoseChannel");
 	
-	strncpy(chan->name, name, 31);
+	BLI_strncpy(chan->name, name, sizeof(chan->name));
 	/* init vars to prevent math errors */
 	unit_qt(chan->quat);
 	unit_axis_angle(chan->rotAxis, &chan->rotAngle);
@@ -795,7 +795,7 @@ void pose_add_group (Object *ob)
 		return;
 	
 	grp= MEM_callocN(sizeof(bActionGroup), "PoseGroup");
-	strcpy(grp->name, "Group");
+	BLI_strncpy(grp->name, "Group", sizeof(grp->name));
 	BLI_addtail(&pose->agroups, grp);
 	BLI_uniquename(&pose->agroups, grp, "Group", '.', offsetof(bActionGroup, name), sizeof(grp->name));
 	
@@ -833,9 +833,9 @@ void pose_remove_group (Object *ob)
 		BLI_freelinkN(&pose->agroups, grp);
 		pose->active_group--;
 		if(pose->active_group < 0 || pose->agroups.first == NULL) {
-		pose->active_group= 0;
+			pose->active_group= 0;
+		}
 	}
-}
 }
 
 /* ************** F-Curve Utilities for Actions ****************** */
@@ -1032,8 +1032,8 @@ short action_get_item_transforms (bAction *act, Object *ob, bPoseChannel *pchan,
 					if (curves)
 						BLI_addtail(curves, BLI_genericNodeN(fcu));
 					continue;
-		}
-	}
+				}
+			}
 		}
 	}
 	
@@ -1082,7 +1082,7 @@ void rest_pose(bPose *pose)
 		unit_qt(pchan->quat);
 		unit_axis_angle(pchan->rotAxis, &pchan->rotAngle);
 		pchan->size[0]= pchan->size[1]= pchan->size[2]= 1.0f;
-		
+
 		pchan->flag &= ~(POSE_LOC|POSE_ROT|POSE_SIZE);
 	}
 }
@@ -1128,7 +1128,7 @@ void copy_pose_result(bPose *to, bPose *from)
 /* For the calculation of the effects of an Action at the given frame on an object 
  * This is currently only used for the Action Constraint 
  */
-void what_does_obaction (Scene *scene, Object *ob, Object *workob, bPose *pose, bAction *act, char groupname[], float cframe)
+void what_does_obaction (Scene *UNUSED(scene), Object *ob, Object *workob, bPose *pose, bAction *act, char groupname[], float cframe)
 {
 	bActionGroup *agrp= action_groups_find_named(act, groupname);
 	
@@ -1156,8 +1156,8 @@ void what_does_obaction (Scene *scene, Object *ob, Object *workob, bPose *pose, 
 	
 	workob->pose= pose;	/* need to set pose too, since this is used for both types of Action Constraint */
 
-	strcpy(workob->parsubstr, ob->parsubstr);
-	strcpy(workob->id.name, "OB<ConstrWorkOb>"); /* we don't use real object name, otherwise RNA screws with the real thing */
+	BLI_strncpy(workob->parsubstr, ob->parsubstr, sizeof(workob->parsubstr));
+	BLI_strncpy(workob->id.name, "OB<ConstrWorkOb>", sizeof(workob->id.name)); /* we don't use real object name, otherwise RNA screws with the real thing */
 	
 	/* if we're given a group to use, it's likely to be more efficient (though a bit more dangerous) */
 	if (agrp) {
@@ -1174,7 +1174,6 @@ void what_does_obaction (Scene *scene, Object *ob, Object *workob, bPose *pose, 
 		AnimData adt= {NULL};
 		
 		/* init animdata, and attach to workob */
-		memset(&adt, 0, sizeof(AnimData));
 		workob->adt= &adt;
 		
 		adt.recalc= ADT_RECALC_ANIM;

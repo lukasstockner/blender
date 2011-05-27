@@ -63,7 +63,7 @@
 
 /* own include */
 #include "sequencer_intern.h"
-static void *find_nearest_marker(int d1, int d2) {return NULL;}
+static void *find_nearest_marker(int UNUSED(d1), int UNUSED(d2)) {return NULL;}
 	
 static void select_surrounding_handles(Scene *scene, Sequence *test) /* XXX BRING BACK */
 {
@@ -305,7 +305,7 @@ static int sequencer_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	short linked_handle= RNA_boolean_get(op->ptr, "linked_handle");
 	short left_right= RNA_boolean_get(op->ptr, "left_right");
 	short linked_time= RNA_boolean_get(op->ptr, "linked_time");
-
+	
 	Sequence *seq,*neighbor, *act_orig;
 	int hand,sel_side;
 	TimeMarker *marker;
@@ -316,7 +316,7 @@ static int sequencer_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	marker=find_nearest_marker(SCE_MARKERS, 1); //XXX - dummy function for now
 	
 	seq= find_nearest_seq(scene, v2d, &hand, event->mval);
-	
+
 	// XXX - not nice, Ctrl+RMB needs to do left_right only when not over a strip
 	if(seq && linked_time && left_right)
 		left_right= FALSE;
@@ -652,7 +652,7 @@ static int sequencer_select_linked_pick_invoke(bContext *C, wmOperator *op, wmEv
 	
 	Sequence *mouse_seq;
 	int selected, hand;
-	
+
 	/* this works like UV, not mesh */
 	mouse_seq= find_nearest_seq(scene, v2d, &hand, event->mval);
 	if (!mouse_seq)

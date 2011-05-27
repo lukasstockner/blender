@@ -18,6 +18,13 @@
 #define CCG_INLINE inline
 #endif
 
+/* copied from BKE_utildefines.h ugh */
+#ifdef __GNUC__
+#  define UNUSED(x) UNUSED_ ## x __attribute__((__unused__))
+#else
+#  define UNUSED(x) x
+#endif
+
 /* used for normalize_v3 in BLI_math_vector
  * float.h's FLT_EPSILON causes trouble with subsurf normals - campbell */
 #define EPSILON (1.0e-35f)
@@ -188,13 +195,13 @@ static int _ehashIterator_isStopped(EHashIterator *ehi) {
 
 /***/
 
-static void *_stdAllocator_alloc(CCGAllocatorHDL a, int numBytes) {
+static void *_stdAllocator_alloc(CCGAllocatorHDL UNUSED(a), int numBytes) {
 	return malloc(numBytes);
 }
-static void *_stdAllocator_realloc(CCGAllocatorHDL a, void *ptr, int newSize, int oldSize) {
+static void *_stdAllocator_realloc(CCGAllocatorHDL UNUSED(a), void *ptr, int newSize, int UNUSED(oldSize)) {
 	return realloc(ptr, newSize);
 }
-static void _stdAllocator_free(CCGAllocatorHDL a, void *ptr) {
+static void _stdAllocator_free(CCGAllocatorHDL UNUSED(a), void *ptr) {
 	free(ptr);
 }
 
@@ -1344,8 +1351,8 @@ static void ccgSubSurf__calcVertNormals(CCGSubSurf *ss,
 
 			for (x=0; x<edgeSize; x++) {
 				NormZero(EDGE_getNo(e, lvl, x));
-	}
-}
+			}
+		}
 	}
 }
 #undef FACE_getIFNo
@@ -2615,7 +2622,7 @@ float ccgSubSurf_getEdgeCrease(CCGEdge *e) {
 
 /* Face accessors */
 
-CCGFaceHDL ccgSubSurf_getFaceFaceHandle(CCGSubSurf *ss, CCGFace *f) {
+CCGFaceHDL ccgSubSurf_getFaceFaceHandle(CCGSubSurf *UNUSED(ss), CCGFace *f) {
 	return f->fHDL;
 }
 int ccgSubSurf_getFaceAge(CCGSubSurf *ss, CCGFace *f) {
@@ -2633,14 +2640,14 @@ void *ccgSubSurf_getFaceUserData(CCGSubSurf *ss, CCGFace *f) {
 int ccgSubSurf_getFaceNumVerts(CCGFace *f) {
 	return f->numVerts;
 }
-CCGVert *ccgSubSurf_getFaceVert(CCGSubSurf *ss, CCGFace *f, int index) {
+CCGVert *ccgSubSurf_getFaceVert(CCGSubSurf *UNUSED(ss), CCGFace *f, int index) {
 	if (index<0 || index>=f->numVerts) {
 		return NULL;
 	} else {
 		return FACE_getVerts(f)[index];
 	}
 }
-CCGEdge *ccgSubSurf_getFaceEdge(CCGSubSurf *ss, CCGFace *f, int index) {
+CCGEdge *ccgSubSurf_getFaceEdge(CCGSubSurf *UNUSED(ss), CCGFace *f, int index) {
 	if (index<0 || index>=f->numVerts) {
 		return NULL;
 	} else {

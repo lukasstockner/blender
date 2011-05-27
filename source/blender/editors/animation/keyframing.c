@@ -26,7 +26,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/editors/animation/keyframing.c
  *  \ingroup edanimation
  */
@@ -696,7 +696,7 @@ static float visualkey_get_value (PointerRNA *ptr, PropertyRNA *prop, int array_
 				return tchan.rotAngle;
 			else
 				return tchan.rotAxis[array_index - 1];
-	}
+		}
 	}
 	
 	/* as the function hasn't returned yet, read value from system in the default way */
@@ -1427,7 +1427,7 @@ static int insert_key_button_exec (bContext *C, wmOperator *op)
 	}
 	else if (G.f & G_DEBUG) {
 		printf("ptr.data = %p, prop = %p,", (void *)ptr.data, (void *)prop);
-		if(prop)
+		if (prop)
 			printf("animateable = %d \n", RNA_property_animateable(&ptr, prop));
 		else
 			printf("animateable = NULL \n");
@@ -1436,7 +1436,7 @@ static int insert_key_button_exec (bContext *C, wmOperator *op)
 	if (success) {
 		/* send updates */
 		uiContextAnimUpdate(C);
-
+		
 		DAG_ids_flush_update(bmain, 0);
 		
 		/* send notifiers that keyframes have been changed */
@@ -1477,7 +1477,6 @@ static int delete_key_button_exec (bContext *C, wmOperator *op)
 	int a, index, length, all= RNA_boolean_get(op->ptr, "all");
 	
 	/* try to insert keyframe using property retrieved from UI */
-	memset(&ptr, 0, sizeof(PointerRNA));
 	uiContextActiveProperty(C, &ptr, &prop, &index);
 
 	if (ptr.id.data && ptr.data && prop) {
@@ -1487,7 +1486,7 @@ static int delete_key_button_exec (bContext *C, wmOperator *op)
 			if (all) {
 				length= RNA_property_array_length(&ptr, prop);
 				
-				if(length) index= 0;
+				if (length) index= 0;
 				else length= 1;
 			}
 			else
@@ -1509,7 +1508,7 @@ static int delete_key_button_exec (bContext *C, wmOperator *op)
 	if (success) {
 		/* send updates */
 		uiContextAnimUpdate(C);
-
+		
 		DAG_ids_flush_update(bmain, 0);
 		
 		/* send notifiers that keyframes have been changed */

@@ -17,11 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
  * Contributor(s): Campbell Barton
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -278,22 +273,6 @@ static int console_line_insert(ConsoleLine *ci, char *str)
 	return len;
 }
 
-static int console_edit_poll(bContext *C)
-{
-	SpaceConsole *sc= CTX_wm_space_console(C);
-
-	if(!sc || sc->type != CONSOLE_TYPE_PYTHON)
-		return 0;
-
-	return 1;
-}
-#if 0
-static int console_poll(bContext *C)
-{
-	return (CTX_wm_space_console(C) != NULL);
-}
-#endif
-
 /* static funcs for text editing */
 
 /* similar to the text editor, with some not used. keep compatible */
@@ -375,7 +354,7 @@ void CONSOLE_OT_move(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= move_exec;
-	ot->poll= console_edit_poll;
+	ot->poll= ED_operator_console_active;
 
 	/* properties */
 	RNA_def_enum(ot->srna, "type", move_type_items, LINE_BEGIN, "Type", "Where to move cursor to.");
@@ -389,7 +368,7 @@ static int insert_exec(bContext *C, wmOperator *op)
 	ConsoleLine *ci= console_history_verify(C);
 	char *str= RNA_string_get_alloc(op->ptr, "text", NULL, 0);
 	int len;
-	
+
 	// XXX, alligned tab key hack
 	if(str[0]=='\t' && str[1]=='\0') {
 		len= TAB_LENGTH - (ci->cursor % TAB_LENGTH);
@@ -398,7 +377,7 @@ static int insert_exec(bContext *C, wmOperator *op)
 		memset(str, ' ', len);
 		str[len]= '\0';
 	}
-	
+
 	len= console_line_insert(ci, str);
 	
 	MEM_freeN(str);
@@ -409,7 +388,7 @@ static int insert_exec(bContext *C, wmOperator *op)
 	else {
 		console_select_offset(sc, len);
 	}
-		
+
 	console_textview_update_rect(sc, ar);
 	ED_area_tag_redraw(CTX_wm_area(C));
 	
@@ -420,12 +399,17 @@ static int insert_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
 	// if(!RNA_property_is_set(op->ptr, "text")) { /* always set from keymap XXX */
 	if(!RNA_string_length(op->ptr, "text")) {
-		char str[2] = {event->ascii, '\0'};
 		/* if alt/ctrl/super are pressed pass through */
-		if(event->ctrl || event->oskey)
+		if(event->ctrl || event->oskey) {
 			return OPERATOR_PASS_THROUGH;
+		}
+		else {
+			char str[2];
+			str[0]= event->ascii;
+			str[1]= '\0';
 
-		RNA_string_set(op->ptr, "text", str);
+			RNA_string_set(op->ptr, "text", str);
+		}
 	}
 	return insert_exec(C, op);
 }
@@ -440,7 +424,7 @@ void CONSOLE_OT_insert(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec= insert_exec;
 	ot->invoke= insert_invoke;
-	ot->poll= console_edit_poll;
+	ot->poll= ED_operator_console_active;
 
 	/* properties */
 	RNA_def_string(ot->srna, "text", "", 0, "Text", "Text to insert at the cursor position.");
@@ -459,10 +443,10 @@ static int delete_exec(bContext *C, wmOperator *op)
 	SpaceConsole *sc= CTX_wm_space_console(C);
 	ARegion *ar= CTX_wm_region(C);
 	ConsoleLine *ci= console_history_verify(C);
-	
+
 	const short type= RNA_enum_get(op->ptr, "type");
 	int done = 0;
-
+	
 	if(ci->len==0) {
 		return OPERATOR_CANCELLED;
 	}
@@ -491,7 +475,7 @@ static int delete_exec(bContext *C, wmOperator *op)
 	else {
 		console_select_offset(sc, -1);
 	}
-	
+
 	console_textview_update_rect(sc, ar);
 	ED_area_tag_redraw(CTX_wm_area(C));
 	
@@ -508,7 +492,7 @@ void CONSOLE_OT_delete(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= delete_exec;
-	ot->poll= console_edit_poll;
+	ot->poll= ED_operator_console_active;
 
 	/* properties */
 	RNA_def_enum(ot->srna, "type", delete_type_items, DEL_NEXT_CHAR, "Type", "Which part of the text to delete.");
@@ -535,10 +519,10 @@ static int clear_exec(bContext *C, wmOperator *op)
 		while(sc->history.first)
 			console_history_free(sc, sc->history.first);
 	}
-	
+
 	console_textview_update_rect(sc, ar);
 	ED_area_tag_redraw(CTX_wm_area(C));
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -551,7 +535,7 @@ void CONSOLE_OT_clear(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= clear_exec;
-	ot->poll= console_edit_poll;
+	ot->poll= ED_operator_console_active;
 	
 	/* properties */
 	RNA_def_boolean(ot->srna, "scrollback", 1, "Scrollback", "Clear the scrollback history");
@@ -597,7 +581,7 @@ static int history_cycle_exec(bContext *C, wmOperator *op)
 
 		console_history_add(C, (ConsoleLine *)sc->history.last);
 	}
-
+	
 	ci= sc->history.last;
 	console_select_offset(sc, ci->len - prev_len);
 
@@ -617,7 +601,7 @@ void CONSOLE_OT_history_cycle(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= history_cycle_exec;
-	ot->poll= console_edit_poll;
+	ot->poll= ED_operator_console_active;
 	
 	/* properties */
 	RNA_def_boolean(ot->srna, "reverse", 0, "Reverse", "reverse cycle history");
@@ -650,9 +634,9 @@ static int history_append_exec(bContext *C, wmOperator *op)
 	ci= console_history_add_str(sc, str, 1); /* own the string */
 	console_select_offset(sc, ci->len - prev_len);
 	console_line_cursor_set(ci, cursor);
-	
+
 	ED_area_tag_redraw(sa);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -665,7 +649,7 @@ void CONSOLE_OT_history_append(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= history_append_exec;
-	ot->poll= console_edit_poll;
+	ot->poll= ED_operator_console_active;
 	
 	/* properties */
 	RNA_def_string(ot->srna, "text", "", 0, "Text", "Text to insert at the cursor position.");	
@@ -680,17 +664,17 @@ static int scrollback_append_exec(bContext *C, wmOperator *op)
 	SpaceConsole *sc= CTX_wm_space_console(C);
 	ARegion *ar= CTX_wm_region(C);
 	ConsoleLine *ci;
-
+	
 	char *str= RNA_string_get_alloc(op->ptr, "text", NULL, 0); /* own this text in the new line, dont free */
 	int type= RNA_enum_get(op->ptr, "type");
-	
+
 	console_history_verify(C);
 	
 	ci= console_scrollback_add_str(sc, str, 1); /* own the string */
 	ci->type= type;
 	
 	console_scrollback_limit(sc);
-	
+
 	console_textview_update_rect(sc, ar);
 	ED_area_tag_redraw(CTX_wm_area(C));
 	
@@ -714,7 +698,7 @@ void CONSOLE_OT_scrollback_append(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= scrollback_append_exec;
-	ot->poll= console_edit_poll;
+	ot->poll= ED_operator_console_active;
 	
 	/* properties */
 	RNA_def_string(ot->srna, "text", "", 0, "Text", "Text to insert at the cursor position.");	
@@ -796,7 +780,7 @@ void CONSOLE_OT_copy(wmOperatorType *ot)
 	ot->idname= "CONSOLE_OT_copy";
 
 	/* api callbacks */
-	ot->poll= console_edit_poll;
+	ot->poll= ED_operator_console_active;
 	ot->exec= copy_exec;
 
 	/* properties */
@@ -847,7 +831,7 @@ void CONSOLE_OT_paste(wmOperatorType *ot)
 	ot->idname= "CONSOLE_OT_paste";
 
 	/* api callbacks */
-	ot->poll= console_edit_poll;
+	ot->poll= ED_operator_console_active;
 	ot->exec= paste_exec;
 
 	/* properties */
@@ -888,8 +872,11 @@ static void console_modal_select_apply(bContext *C, wmOperator *op, wmEvent *eve
 	SpaceConsole *sc= CTX_wm_space_console(C);
 	ARegion *ar= CTX_wm_region(C);
 	SetConsoleCursor *scu= op->customdata;
-	int mval[2] = {event->mval[0], event->mval[1]};
+	int mval[2];
 	int sel_prev[2];
+
+	mval[0]= event->mval[0];
+	mval[1]= event->mval[1];
 
 	sel_prev[0]= sc->sel_start;
 	sel_prev[1]= sc->sel_end;
@@ -898,8 +885,8 @@ static void console_modal_select_apply(bContext *C, wmOperator *op, wmEvent *eve
 
 	/* only redraw if the selection changed */
 	if(sel_prev[0] != sc->sel_start || sel_prev[1] != sc->sel_end) {
-	ED_area_tag_redraw(CTX_wm_area(C));
-}
+		ED_area_tag_redraw(CTX_wm_area(C));
+	}
 }
 
 static void set_cursor_exit(bContext *UNUSED(C), wmOperator *op)
@@ -971,5 +958,5 @@ void CONSOLE_OT_select_set(wmOperatorType *ot)
 	ot->invoke= console_modal_select_invoke;
 	ot->modal= console_modal_select;
 	ot->cancel= console_modal_select_cancel;
-	ot->poll= console_edit_poll;
+	ot->poll= ED_operator_console_active;
 }

@@ -131,7 +131,7 @@ wmKeyMapItem *WM_keymap_add_item(struct wmKeyMap *keymap, const char *idname, in
 wmKeyMapItem *WM_keymap_add_menu(struct wmKeyMap *keymap, const char *idname, int type,
 								 int val, int modifier, int keymodifier);
 
-void         WM_keymap_remove_item(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi);
+void		WM_keymap_remove_item(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi);
 char		 *WM_keymap_item_to_string(wmKeyMapItem *kmi, char *str, int len);
 
 wmKeyMap	*WM_keymap_list_find(ListBase *lb, const char *idname, int spaceid, int regionid);
@@ -142,7 +142,7 @@ wmKeyMap	*WM_keymap_guess_opname(const struct bContext *C, const char *opname);
 int			 WM_keymap_user_init(struct wmWindowManager *wm, struct wmKeyMap *keymap);
 wmKeyMap	*WM_keymap_copy_to_user(struct wmKeyMap *keymap);
 void		WM_keymap_restore_to_default(struct wmKeyMap *keymap);
-void		WM_keymap_properties_reset(struct wmKeyMapItem *kmi);
+void		WM_keymap_properties_reset(struct wmKeyMapItem *kmi, struct IDProperty *properties);
 void		WM_keymap_restore_item_to_default(struct bContext *C, struct wmKeyMap *keymap, struct wmKeyMapItem *kmi);
 
 wmKeyMapItem *WM_keymap_item_find_id(struct wmKeyMap *keymap, int id);
@@ -230,10 +230,11 @@ struct wmOperatorTypeMacro *WM_operatortype_macro_define(struct wmOperatorType *
 
 
 int			WM_operator_poll		(struct bContext *C, struct wmOperatorType *ot);
+int			WM_operator_poll_context(struct bContext *C, struct wmOperatorType *ot, int context);
 int			WM_operator_call		(struct bContext *C, struct wmOperator *op);
 int			WM_operator_repeat		(struct bContext *C, struct wmOperator *op);
 int			WM_operator_repeat_check(const struct bContext *C, struct wmOperator *op);
-int         WM_operator_name_call	(struct bContext *C, const char *opstring, int context, struct PointerRNA *properties);
+int			WM_operator_name_call	(struct bContext *C, const char *opstring, int context, struct PointerRNA *properties);
 int			WM_operator_call_py(struct bContext *C, struct wmOperatorType *ot, int context, struct PointerRNA *properties, struct ReportList *reports);
 
 void		WM_operator_properties_alloc(struct PointerRNA **ptr, struct IDProperty **properties, const char *opstring); /* used for keymap and macro items */

@@ -132,7 +132,7 @@ int graphop_visible_keyframes_poll (bContext *C)
 		if (fcurve_are_keyframes_usable(fcu)) {
 			found = 1;
 			break;
-	}
+		}
 	}
 	
 	/* cleanup and return findings */
@@ -181,7 +181,7 @@ int graphop_editable_keyframes_poll (bContext *C)
 		if (fcurve_is_keyframable(fcu)) {
 			found = 1;
 			break;
-	}
+		}
 	}
 	
 	/* cleanup and return findings */

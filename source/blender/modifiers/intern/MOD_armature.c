@@ -78,7 +78,7 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *UNUSED(
 	CustomDataMask dataMask = 0;
 
 	/* ask for vertexgroups */
-	dataMask |= (1 << CD_MDEFORMVERT);
+	dataMask |= CD_MASK_MDEFORMVERT;
 
 	return dataMask;
 }
@@ -103,7 +103,7 @@ static void foreachObjectLink(
 static void updateDepgraph(ModifierData *md, DagForest *forest,
 						struct Scene *UNUSED(scene),
 						Object *UNUSED(ob),
-	 DagNode *obNode)
+						DagNode *obNode)
 {
 	ArmatureModifierData *amd = (ArmatureModifierData*) md;
 

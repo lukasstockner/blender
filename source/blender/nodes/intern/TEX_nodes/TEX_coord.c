@@ -39,7 +39,7 @@ static bNodeSocketType outputs[]= {
 	{ -1, 0, "" }
 };
 
-static void vectorfn(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void vectorfn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **UNUSED(in), short UNUSED(thread))
 {
 	out[0] = p->co[0];
 	out[1] = p->co[1];
@@ -54,7 +54,7 @@ static void exec(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
 void register_node_type_tex_coord(ListBase *lb)
 {
 	static bNodeType ntype;
-
+	
 	node_type_base(&ntype, TEX_NODE_COORD, "Coordinates", NODE_CLASS_INPUT, NODE_OPTIONS,
 				   NULL, outputs);
 	node_type_size(&ntype, 120, 110, 160);

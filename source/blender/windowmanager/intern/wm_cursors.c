@@ -151,8 +151,8 @@ void WM_cursor_modal(wmWindow *win, int val)
 	if(win->lastcursor == 0)
 		win->lastcursor = win->cursor;
 	win->modalcursor = val;
-		WM_cursor_set(win, val);
-	}
+	WM_cursor_set(win, val);
+}
 
 void WM_cursor_restore(wmWindow *win)
 {
@@ -166,17 +166,17 @@ void WM_cursor_restore(wmWindow *win)
 void WM_cursor_wait(int val)
 {
 	if(!G.background) {
-	wmWindowManager *wm= G.main->wm.first;
+		wmWindowManager *wm= G.main->wm.first;
 		wmWindow *win= wm?wm->windows.first:NULL; 
-	
-	for(; win; win= win->next) {
-		if(val) {
+		
+		for(; win; win= win->next) {
+			if(val) {
 				WM_cursor_modal(win, BC_WAITCURSOR);
-		} else {
-			WM_cursor_restore(win);
+			} else {
+				WM_cursor_restore(win);
+			}
 		}
 	}
-}
 }
 
 void WM_cursor_grab(wmWindow *win, int wrap, int hide, int *bounds)

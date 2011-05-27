@@ -32,7 +32,6 @@
 
 #include <stdio.h>
 
-
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
@@ -72,6 +71,7 @@
 #include "ED_keyframing.h"
 
 #include "BIF_gl.h"
+#include "BIF_glutil.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -102,7 +102,7 @@
 /* Draw Backdrop ---------------------------------- */
 
 /* get backdrop color for top-level widgets (Scene and Object only) */
-static void acf_generic_root_color(bAnimContext *ac, bAnimListElem *ale, float *color)
+static void acf_generic_root_color(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale), float *color)
 {
 	/* darker blue for top-level widgets */
 	UI_GetThemeColor3fv(TH_DOPESHEET_CHANNELOB, color);
@@ -128,7 +128,7 @@ static void acf_generic_root_backdrop(bAnimContext *ac, bAnimListElem *ale, floa
 
 
 /* get backdrop color for data expanders under top-level Scene/Object */
-static void acf_generic_dataexpand_color(bAnimContext *ac, bAnimListElem *ale, float *color)
+static void acf_generic_dataexpand_color(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale), float *color)
 {
 	/* lighter color than top-level widget */
 	UI_GetThemeColor3fv(TH_DOPESHEET_CHANNELSUBOB, color);
@@ -215,11 +215,11 @@ static void acf_generic_channel_backdrop(bAnimContext *ac, bAnimListElem *ale, f
 /* Indention + Offset ------------------------------------------- */
 
 /* indention level is always the value in the name */
-static short acf_generic_indention_0(bAnimContext *ac, bAnimListElem *ale)
+static short acf_generic_indention_0(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale))
 {
 	return 0;
 }
-static short acf_generic_indention_1(bAnimContext *ac, bAnimListElem *ale)
+static short acf_generic_indention_1(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale))
 {
 	return 1;
 }
@@ -231,7 +231,7 @@ static short acf_generic_indention_2(bAnimContext *ac, bAnimListElem *ale)
 #endif
 
 /* indention which varies with the grouping status */
-static short acf_generic_indention_flexible(bAnimContext *ac, bAnimListElem *ale)
+static short acf_generic_indention_flexible(bAnimContext *UNUSED(ac), bAnimListElem *ale)
 {
 	short indent= 0;
 	
@@ -365,7 +365,7 @@ static void *acf_generic_dsexpand_setting_ptr(bAnimListElem *ale, int setting, s
 }
 
 /* check if some setting exists for this object-based data-expander (datablock only) */
-static short acf_generic_dataexpand_setting_valid(bAnimContext *ac, bAnimListElem *ale, int setting)
+static short acf_generic_dataexpand_setting_valid(bAnimContext *ac, bAnimListElem *UNUSED(ale), int setting)
 {
 	switch (setting) {
 		/* expand is always supported */
@@ -388,7 +388,7 @@ static short acf_generic_dataexpand_setting_valid(bAnimContext *ac, bAnimListEle
 /* Animation Summary ----------------------------------- */
 
 /* get backdrop color for summary widget */
-static void acf_summary_color(bAnimContext *ac, bAnimListElem *ale, float *color)
+static void acf_summary_color(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale), float *color)
 {
 	// FIXME: hardcoded color - same as the 'action' line in NLA
 		// reddish color 
@@ -417,27 +417,27 @@ static void acf_summary_backdrop(bAnimContext *ac, bAnimListElem *ale, float ymi
 }
 
 /* name for summary entries */
-static void acf_summary_name(bAnimListElem *ale, char *name)
+static void acf_summary_name(bAnimListElem *UNUSED(ale), char *name)
 {
 	if (name)
 		BLI_strncpy(name, "DopeSheet Summary", ANIM_CHAN_NAME_SIZE);
 }
 
 // TODO: this is really a temp icon I think
-static int acf_summary_icon(bAnimListElem *ale)
+static int acf_summary_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_BORDERMOVE;
 }
 
 /* check if some setting exists for this channel */
-static short acf_summary_setting_valid(bAnimContext *ac, bAnimListElem *ale, int setting)
+static short acf_summary_setting_valid(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale), int setting)
 {
 	/* only expanded is supported, as it is used for hiding all stuff which the summary covers */
 	return (setting == ACHANNEL_SETTING_EXPAND);
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_summary_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_summary_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	if (setting == ACHANNEL_SETTING_EXPAND) {
 		/* expanded */
@@ -494,13 +494,13 @@ static bAnimChannelType ACF_SUMMARY =
 /* Scene ------------------------------------------- */
 
 // TODO: just get this from RNA?
-static int acf_scene_icon(bAnimListElem *ale)
+static int acf_scene_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_SCENE_DATA;
 }
 
 /* check if some setting exists for this channel */
-static short acf_scene_setting_valid(bAnimContext *ac, bAnimListElem *ale, int setting)
+static short acf_scene_setting_valid(bAnimContext *ac, bAnimListElem *UNUSED(ale), int setting)
 {
 	switch (setting) {
 		/* muted only in NLA */
@@ -522,7 +522,7 @@ static short acf_scene_setting_valid(bAnimContext *ac, bAnimListElem *ale, int s
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_scene_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_scene_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -665,7 +665,7 @@ static short acf_object_setting_valid(bAnimContext *ac, bAnimListElem *ale, int 
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_object_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_object_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -739,7 +739,7 @@ static bAnimChannelType ACF_OBJECT =
 /* Group ------------------------------------------- */
 
 /* get backdrop color for group widget */
-static void acf_group_color(bAnimContext *ac, bAnimListElem *ale, float *color)
+static void acf_group_color(bAnimContext *UNUSED(ac), bAnimListElem *ale, float *color)
 {
 	/* highlight only for action group channels */
 	if (ale->flag & AGRP_ACTIVE)
@@ -777,7 +777,7 @@ static void acf_group_name(bAnimListElem *ale, char *name)
 }
 
 /* check if some setting exists for this channel */
-static short acf_group_setting_valid(bAnimContext *ac, bAnimListElem *ale, int setting)
+static short acf_group_setting_valid(bAnimContext *ac, bAnimListElem *UNUSED(ale), int setting)
 {
 	/* for now, all settings are supported, though some are only conditionally */
 	switch (setting) {
@@ -827,7 +827,7 @@ static int acf_group_setting_flag(bAnimContext *ac, int setting, short *neg)
 }
 
 /* get pointer to the setting */
-static void *acf_group_setting_ptr(bAnimListElem *ale, int setting, short *type)
+static void *acf_group_setting_ptr(bAnimListElem *ale, int UNUSED(setting), short *type)
 {
 	bActionGroup *agrp= (bActionGroup *)ale->data;
 	
@@ -888,7 +888,7 @@ static short acf_fcurve_setting_valid(bAnimContext *ac, bAnimListElem *ale, int 
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_fcurve_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_fcurve_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -913,7 +913,7 @@ static int acf_fcurve_setting_flag(bAnimContext *ac, int setting, short *neg)
 }
 
 /* get pointer to the setting */
-static void *acf_fcurve_setting_ptr(bAnimListElem *ale, int setting, short *type)
+static void *acf_fcurve_setting_ptr(bAnimListElem *ale, int UNUSED(setting), short *type)
 {
 	FCurve *fcu= (FCurve *)ale->data;
 	
@@ -942,13 +942,13 @@ static bAnimChannelType ACF_FCURVE =
 /* Object Action Expander  ------------------------------------------- */
 
 // TODO: just get this from RNA?
-static int acf_fillactd_icon(bAnimListElem *ale)
+static int acf_fillactd_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_ACTION;
 }
 
 /* check if some setting exists for this channel */
-static short acf_fillactd_setting_valid(bAnimContext *ac, bAnimListElem *ale, int setting)
+static short acf_fillactd_setting_valid(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale), int setting)
 {
 	switch (setting) {
 		/* only select and expand supported */
@@ -962,7 +962,7 @@ static short acf_fillactd_setting_valid(bAnimContext *ac, bAnimListElem *ale, in
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_fillactd_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_fillactd_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -1026,19 +1026,19 @@ static bAnimChannelType ACF_FILLACTD =
 /* Drivers Expander  ------------------------------------------- */
 
 // TODO: just get this from RNA?
-static int acf_filldrivers_icon(bAnimListElem *ale)
+static int acf_filldrivers_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_ANIM_DATA;
 }
 
-static void acf_filldrivers_name(bAnimListElem *ale, char *name)
+static void acf_filldrivers_name(bAnimListElem *UNUSED(ale), char *name)
 {
 	BLI_strncpy(name, "Drivers", ANIM_CHAN_NAME_SIZE);
 }
 
 /* check if some setting exists for this channel */
 // TODO: this could be made more generic
-static short acf_filldrivers_setting_valid(bAnimContext *ac, bAnimListElem *ale, int setting)
+static short acf_filldrivers_setting_valid(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale), int setting)
 {
 	switch (setting) {
 		/* only expand supported */
@@ -1051,7 +1051,7 @@ static short acf_filldrivers_setting_valid(bAnimContext *ac, bAnimListElem *ale,
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_filldrivers_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_filldrivers_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -1104,18 +1104,18 @@ static bAnimChannelType ACF_FILLDRIVERS =
 /* Materials Expander  ------------------------------------------- */
 
 // TODO: just get this from RNA?
-static int acf_fillmatd_icon(bAnimListElem *ale)
+static int acf_fillmatd_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_MATERIAL_DATA;
 }
 
-static void acf_fillmatd_name(bAnimListElem *ale, char *name)
+static void acf_fillmatd_name(bAnimListElem *UNUSED(ale), char *name)
 {
 	BLI_strncpy(name, "Materials", ANIM_CHAN_NAME_SIZE);
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_fillmatd_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_fillmatd_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -1150,18 +1150,18 @@ static bAnimChannelType ACF_FILLMATD=
 /* Particles Expander  ------------------------------------------- */
 
 // TODO: just get this from RNA?
-static int acf_fillpartd_icon(bAnimListElem *ale)
+static int acf_fillpartd_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_PARTICLE_DATA;
 }
 
-static void acf_fillpartd_name(bAnimListElem *ale, char *name)
+static void acf_fillpartd_name(bAnimListElem *UNUSED(ale), char *name)
 {
 	BLI_strncpy(name, "Particles", ANIM_CHAN_NAME_SIZE);
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_fillpartd_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_fillpartd_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -1218,12 +1218,12 @@ static short acf_filltexd_offset(bAnimContext *ac, bAnimListElem *ale)
 }
 
 // TODO: just get this from RNA?
-static int acf_filltexd_icon(bAnimListElem *ale)
+static int acf_filltexd_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_TEXTURE_DATA;
 }
 
-static void acf_filltexd_name(bAnimListElem *ale, char *name)
+static void acf_filltexd_name(bAnimListElem *UNUSED(ale), char *name)
 {
 	BLI_strncpy(name, "Textures", ANIM_CHAN_NAME_SIZE);
 }
@@ -1266,7 +1266,7 @@ static void *acf_filltexd_setting_ptr(bAnimListElem *ale, int setting, short *ty
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_filltexd_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_filltexd_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -1302,19 +1302,19 @@ static bAnimChannelType ACF_FILLTEXD=
 /* Material Expander  ------------------------------------------- */
 
 // TODO: just get this from RNA?
-static int acf_dsmat_icon(bAnimListElem *ale)
+static int acf_dsmat_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_MATERIAL_DATA;
 }
 
 /* offset for material expanders */
-static short acf_dsmat_offset(bAnimContext *ac, bAnimListElem *ale)
+static short acf_dsmat_offset(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale))
 {
 	return 21;
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_dsmat_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_dsmat_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -1384,13 +1384,13 @@ static bAnimChannelType ACF_DSMAT=
 /* Lamp Expander  ------------------------------------------- */
 
 // TODO: just get this from RNA?
-static int acf_dslam_icon(bAnimListElem *ale)
+static int acf_dslam_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_LAMP_DATA;
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_dslam_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_dslam_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -1460,13 +1460,13 @@ static bAnimChannelType ACF_DSLAM=
 /* Texture Expander  ------------------------------------------- */
 
 // TODO: just get this from RNA?
-static int acf_dstex_icon(bAnimListElem *ale)
+static int acf_dstex_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_TEXTURE_DATA;
 }
 
 /* offset for texture expanders */
-static short acf_dstex_offset(bAnimContext *ac, bAnimListElem *ale)
+static short acf_dstex_offset(bAnimContext *UNUSED(ac), bAnimListElem *ale)
 {
 	short offset = 21;
 	
@@ -1485,7 +1485,7 @@ static short acf_dstex_offset(bAnimContext *ac, bAnimListElem *ale)
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_dstex_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_dstex_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -1555,13 +1555,13 @@ static bAnimChannelType ACF_DSTEX=
 /* Camera Expander  ------------------------------------------- */
 
 // TODO: just get this from RNA?
-static int acf_dscam_icon(bAnimListElem *ale)
+static int acf_dscam_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_CAMERA_DATA;
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_dscam_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_dscam_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -1647,7 +1647,7 @@ static int acf_dscur_icon(bAnimListElem *ale)
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_dscur_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_dscur_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -1717,13 +1717,13 @@ static bAnimChannelType ACF_DSCUR=
 /* Shape Key Expander  ------------------------------------------- */
 
 // TODO: just get this from RNA?
-static int acf_dsskey_icon(bAnimListElem *ale)
+static int acf_dsskey_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_SHAPEKEY_DATA;
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_dsskey_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_dsskey_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -1793,13 +1793,13 @@ static bAnimChannelType ACF_DSSKEY=
 /* World Expander  ------------------------------------------- */
 
 // TODO: just get this from RNA?
-static int acf_dswor_icon(bAnimListElem *ale)
+static int acf_dswor_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_WORLD_DATA;
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_dswor_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_dswor_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -1869,13 +1869,13 @@ static bAnimChannelType ACF_DSWOR=
 /* Particle Expander  ------------------------------------------- */
 
 // TODO: just get this from RNA?
-static int acf_dspart_icon(bAnimListElem *ale)
+static int acf_dspart_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_PARTICLE_DATA;
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_dspart_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_dspart_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -1945,13 +1945,13 @@ static bAnimChannelType ACF_DSPART=
 /* MetaBall Expander  ------------------------------------------- */
 
 // TODO: just get this from RNA?
-static int acf_dsmball_icon(bAnimListElem *ale)
+static int acf_dsmball_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_META_DATA;
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_dsmball_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_dsmball_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -2021,13 +2021,13 @@ static bAnimChannelType ACF_DSMBALL=
 /* Armature Expander  ------------------------------------------- */
 
 // TODO: just get this from RNA?
-static int acf_dsarm_icon(bAnimListElem *ale)
+static int acf_dsarm_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_ARMATURE_DATA;
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_dsarm_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_dsarm_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -2097,13 +2097,13 @@ static bAnimChannelType ACF_DSARM=
 /* NodeTree Expander  ------------------------------------------- */
 
 // TODO: just get this from RNA?
-static int acf_dsntree_icon(bAnimListElem *ale)
+static int acf_dsntree_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_NODETREE;
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_dsntree_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_dsntree_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -2173,13 +2173,13 @@ static bAnimChannelType ACF_DSNTREE=
 /* Mesh Expander  ------------------------------------------- */
 
 // TODO: just get this from RNA?
-static int acf_dsmesh_icon(bAnimListElem *ale)
+static int acf_dsmesh_icon(bAnimListElem *UNUSED(ale))
 {
 	return ICON_MESH_DATA;
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_dsmesh_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_dsmesh_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -2340,7 +2340,7 @@ static void acf_shapekey_name(bAnimListElem *ale, char *name)
 }
 
 /* check if some setting exists for this channel */
-static short acf_shapekey_setting_valid(bAnimContext *ac, bAnimListElem *ale, int setting)
+static short acf_shapekey_setting_valid(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale), int setting)
 {
 	switch (setting) {
 		case ACHANNEL_SETTING_SELECT: /* selected */
@@ -2355,7 +2355,7 @@ static short acf_shapekey_setting_valid(bAnimContext *ac, bAnimListElem *ale, in
 }
 
 /* get the appropriate flag(s) for the setting when it is valid  */
-static int acf_shapekey_setting_flag(bAnimContext *ac, int setting, short *neg)
+static int acf_shapekey_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
 {
 	/* clear extra return data first */
 	*neg= 0;
@@ -2423,10 +2423,10 @@ static void acf_gpd_color(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale), 
 
 // TODO: just get this from RNA?
 static int acf_gpd_icon(bAnimListElem *UNUSED(ale))
-		{
+{
 	return ICON_GREASEPENCIL;
 }
-			
+
 /* check if some setting exists for this channel */
 static short acf_gpd_setting_valid(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale), int setting)
 {
@@ -2438,12 +2438,12 @@ static short acf_gpd_setting_valid(bAnimContext *UNUSED(ac), bAnimListElem *UNUS
 			
 		default:
 			return 0;
-			}
+	}
 }
-			
+
 /* get the appropriate flag(s) for the setting when it is valid  */
 static int acf_gpd_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
-				{
+{
 	/* clear extra return data first */
 	*neg= 0;
 	
@@ -2453,7 +2453,7 @@ static int acf_gpd_setting_flag(bAnimContext *UNUSED(ac), int setting, short *ne
 			
 		case ACHANNEL_SETTING_EXPAND: /* expanded */
 			return GP_DATA_EXPAND;
-				}
+	}
 	
 	/* this shouldn't happen */
 	return 0;
@@ -2461,26 +2461,26 @@ static int acf_gpd_setting_flag(bAnimContext *UNUSED(ac), int setting, short *ne
 
 /* get pointer to the setting */
 static void *acf_gpd_setting_ptr(bAnimListElem *ale, int UNUSED(setting), short *type)
-				{
+{
 	bGPdata *gpd= (bGPdata *)ale->data;
-					
+	
 	/* all flags are just in gpd->flag for now... */
 	GET_ACF_FLAG_PTR(gpd->flag);
 }
-					
+
 /* gpencil datablock type define */
 static bAnimChannelType ACF_GPD = 
-				{
+{
 	"GPencil Datablock",			/* type name */
-					
+	
 	acf_gpd_color,					/* backdrop color */
 	acf_group_backdrop,				/* backdrop */
 	acf_generic_indention_0,		/* indent level */
 	acf_generic_group_offset,		/* offset */
-						
+	
 	acf_generic_idblock_name,		/* name */
 	acf_gpd_icon,					/* icon */
-					
+	
 	acf_gpd_setting_valid,			/* has setting */
 	acf_gpd_setting_flag,			/* flag for setting */
 	acf_gpd_setting_ptr				/* pointer for setting */
@@ -2490,13 +2490,13 @@ static bAnimChannelType ACF_GPD =
 
 /* name for grase pencil layer entries */
 static void acf_gpl_name(bAnimListElem *ale, char *name)
-				{
+{
 	bGPDlayer *gpl = (bGPDlayer *)ale->data;
-					
+	
 	if (gpl && name)
 		BLI_strncpy(name, gpl->info, ANIM_CHAN_NAME_SIZE);
-				}
-				
+}
+
 /* check if some setting exists for this channel */
 static short acf_gpl_setting_valid(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale), int setting)
 {
@@ -2507,33 +2507,33 @@ static short acf_gpl_setting_valid(bAnimContext *UNUSED(ac), bAnimListElem *UNUS
 			return 0;
 		
 		/* always available */
-				default:
+		default:
 			return 1;
-				}
-			}
+	}
+}
 
 /* get the appropriate flag(s) for the setting when it is valid  */
 static int acf_gpl_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
-		{
+{
 	/* clear extra return data first */
 	*neg= 0;
-			
+	
 	switch (setting) {
 		case ACHANNEL_SETTING_SELECT: /* selected */
 			return GP_LAYER_SELECT;
 			
 		case ACHANNEL_SETTING_MUTE: /* muted */
 			return GP_LAYER_HIDE;
-				
+			
 		case ACHANNEL_SETTING_PROTECT: /* protected */
 			//*neg= 1; - if we change this to edtiability
 			return GP_LAYER_LOCKED;
 			
 		default: /* unsupported */
 			return 0;
-		}
-	}	
-	
+	}
+}
+
 /* get pointer to the setting */
 static void *acf_gpl_setting_ptr(bAnimListElem *ale, int UNUSED(setting), short *type)
 {
@@ -2541,7 +2541,7 @@ static void *acf_gpl_setting_ptr(bAnimListElem *ale, int UNUSED(setting), short 
 	
 	/* all flags are just in agrp->flag for now... */
 	GET_ACF_FLAG_PTR(gpl->flag);
-	}
+}
 
 /* grease pencil layer type define */
 static bAnimChannelType ACF_GPL = 
@@ -2657,7 +2657,7 @@ void ANIM_channel_debug_print_info (bAnimListElem *ale, short indent_level)
 			acf->name(ale, name);
 		else
 			BLI_strncpy(name, "<No name>", sizeof(name));
-			
+
 		/* print type name + ui name */
 		printf("ChanType: <%s> Name: \"%s\"\n", acf->channel_type_name, name);
 	}
@@ -2902,6 +2902,17 @@ void ANIM_channel_draw (bAnimContext *ac, bAnimListElem *ale, float yminc, float
 		
 		offset += 3;
 		UI_DrawString(offset, ytext, name);
+		
+		/* draw red underline if channel is disabled */
+		if ((ale->type == ANIMTYPE_FCURVE) && (ale->flag & FCURVE_DISABLED)) 
+		{
+			// FIXME: replace hardcoded color here, and check on extents!
+			glColor3f(1.0f, 0.0f, 0.0f);
+			glLineWidth(2.0);
+				fdrawline((float)(offset), yminc, 
+						  (float)(v2d->cur.xmax), yminc);
+			glLineWidth(1.0);
+		}
 	}
 	
 	/* step 6) draw backdrops behidn mute+protection toggles + (sliders) ....................... */
@@ -2968,7 +2979,7 @@ void ANIM_channel_draw (bAnimContext *ac, bAnimListElem *ale, float yminc, float
 /* ------------------ */
 
 /* callback for (normal) widget settings - send notifiers */
-static void achannel_setting_widget_cb(bContext *C, void *poin, void *poin2)
+static void achannel_setting_widget_cb(bContext *C, void *UNUSED(arg1), void *UNUSED(arg2))
 {
 	WM_event_add_notifier(C, NC_ANIMATION|ND_ANIMCHAN|NA_EDITED, NULL);
 }

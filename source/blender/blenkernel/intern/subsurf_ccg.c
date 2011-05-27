@@ -88,13 +88,13 @@ static void *arena_realloc(CCGAllocatorHDL a, void *ptr, int newSize, int oldSiz
 	}
 	return p2;
 }
-static void arena_free(CCGAllocatorHDL a, void *ptr) {
+static void arena_free(CCGAllocatorHDL UNUSED(a), void *UNUSED(ptr)) {
 }
 static void arena_release(CCGAllocatorHDL a) {
 	BLI_memarena_free(a);
 }
 
-static CCGSubSurf *_getSubSurf(CCGSubSurf *prevSS, int subdivLevels, int useAging, int useArena, int useFlatSubdiv) {
+static CCGSubSurf *_getSubSurf(CCGSubSurf *prevSS, int subdivLevels, int useAging, int useArena, int UNUSED(useFlatSubdiv)) {
 	CCGMeshIFC ifc;
 	CCGSubSurf *ccgSS;
 
@@ -1385,8 +1385,6 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, v
 	transp = GPU_get_material_blend_mode();
 	orig_transp = transp;
 
-	memset(&attribs, 0, sizeof(attribs));
-
 #define PASSATTRIB(dx, dy, vert) {												\
 	if(attribs.totorco) {														\
 		index = getFaceIndex(ss, f, S, x+dx, y+dy, edgeSize, gridSize); 		\
@@ -1525,7 +1523,7 @@ static void ccgDM_drawFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, void *a
 	dm->drawMappedFacesGLSL(dm, setMaterial, NULL, NULL);
 }
 
-static void ccgDM_drawFacesColored(DerivedMesh *dm, int useTwoSided, unsigned char *col1, unsigned char *col2) {
+static void ccgDM_drawFacesColored(DerivedMesh *dm, int UNUSED(useTwoSided), unsigned char *col1, unsigned char *col2) {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGFaceIterator *fi = ccgSubSurf_getFaceIterator(ss);
@@ -1636,7 +1634,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 			flag= (drawParamsMapped)? drawParamsMapped(userData, index): 1;
 		else
 			flag= GPU_enable_material(mat_nr, NULL) ? 1:0;
-		
+
 
 		if (flag == 0) { /* flag 0 == the face is hidden or invisible */
 			if(tf) tf += gridFaces*gridFaces*numVerts;
@@ -1811,7 +1809,7 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *u
 
 		{
 			int draw= 1;
-			
+
 			if(index == ORIGINDEX_NONE)
 				draw= setMaterial(faceFlags ? faceFlags[origIndex*2 + 1] + 1: 1, NULL); /* XXX, no faceFlags no material */
 			else if (setDrawOptions)
@@ -2658,7 +2656,7 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 		int useAging = smd->flags & eSubsurfModifierFlag_DebugIncr;
 		int levels= (smd->modifier.scene)? get_render_subsurf_level(&smd->modifier.scene->r, smd->levels): smd->levels;
 		CCGSubSurf *ss;
-		
+
 		/* It is quite possible there is a much better place to do this. It
 		 * depends a bit on how rigourously we expect this function to never
 		 * be called in editmode. In semi-theory we could share a single
@@ -2727,7 +2725,7 @@ void subsurf_calculate_limit_positions(Mesh *me, float (*positions_r)[3])
 		int numFaces = ccgSubSurf_getVertNumFaces(v);
 		float *co;
 		int i;
-                
+
 		edge_sum[0]= edge_sum[1]= edge_sum[2]= 0.0;
 		face_sum[0]= face_sum[1]= face_sum[2]= 0.0;
 

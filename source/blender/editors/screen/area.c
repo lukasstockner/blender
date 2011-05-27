@@ -343,12 +343,12 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 		glClear(GL_COLOR_BUFFER_BIT);
 		
 		UI_ThemeColor(TH_TEXT);
-		BLF_draw_default(20, 8, 0.0f, ar->headerstr);
+		BLF_draw_default(20, 8, 0.0f, ar->headerstr, 65535); /* XXX, use real length */
 	}
 	else if(at->draw) {
 		at->draw(C, ar);
 	}
-	
+
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_PIXEL);
 	
 	uiFreeInactiveBlocks(C, &ar->uiblocks);
@@ -410,6 +410,19 @@ void ED_area_tag_redraw(ScrArea *sa)
 			ED_region_tag_redraw(ar);
 }
 
+void ED_area_tag_redraw_regiontype(ScrArea *sa, int regiontype)
+{
+	ARegion *ar;
+	
+	if(sa) {
+		for(ar= sa->regionbase.first; ar; ar= ar->next) {
+			if(ar->regiontype == regiontype) {
+				ED_region_tag_redraw(ar);
+			}
+		}
+	}
+}
+
 void ED_area_tag_refresh(ScrArea *sa)
 {
 	if(sa)
@@ -422,7 +435,7 @@ void ED_area_tag_refresh(ScrArea *sa)
 void ED_area_headerprint(ScrArea *sa, const char *str)
 {
 	ARegion *ar;
-	
+
 	/* happens when running transform operators in backround mode */
 	if(sa == NULL)
 		return;
@@ -479,28 +492,28 @@ static void region_azone_edge(AZone *az, ARegion *ar)
 {
 	switch(az->edge) {
 		case AE_TOP_TO_BOTTOMRIGHT:
-		az->x1= ar->winrct.xmin;
-		az->y1= ar->winrct.ymax - AZONEPAD_EDGE;
-		az->x2= ar->winrct.xmax;
-		az->y2= ar->winrct.ymax;
+			az->x1= ar->winrct.xmin;
+			az->y1= ar->winrct.ymax - AZONEPAD_EDGE;
+			az->x2= ar->winrct.xmax;
+			az->y2= ar->winrct.ymax;
 			break;
 		case AE_BOTTOM_TO_TOPLEFT:
-		az->x1= ar->winrct.xmin;
-		az->y1= ar->winrct.ymin + AZONEPAD_EDGE;
-		az->x2= ar->winrct.xmax;
-		az->y2= ar->winrct.ymin;
+			az->x1= ar->winrct.xmin;
+			az->y1= ar->winrct.ymin + AZONEPAD_EDGE;
+			az->x2= ar->winrct.xmax;
+			az->y2= ar->winrct.ymin;
 			break;
 		case AE_LEFT_TO_TOPRIGHT:
-		az->x1= ar->winrct.xmin;
-		az->y1= ar->winrct.ymin;
-		az->x2= ar->winrct.xmin + AZONEPAD_EDGE;
-		az->y2= ar->winrct.ymax;
+			az->x1= ar->winrct.xmin;
+			az->y1= ar->winrct.ymin;
+			az->x2= ar->winrct.xmin + AZONEPAD_EDGE;
+			az->y2= ar->winrct.ymax;
 			break;
 		case AE_RIGHT_TO_TOPLEFT:
-		az->x1= ar->winrct.xmax;
-		az->y1= ar->winrct.ymin;
-		az->x2= ar->winrct.xmax - AZONEPAD_EDGE;
-		az->y2= ar->winrct.ymax;
+			az->x1= ar->winrct.xmax;
+			az->y1= ar->winrct.ymin;
+			az->x2= ar->winrct.xmax - AZONEPAD_EDGE;
+			az->y2= ar->winrct.ymax;
 			break;
 	}
 
@@ -521,28 +534,28 @@ static void region_azone_icon(ScrArea *sa, AZone *az, ARegion *ar)
 	
 	switch(az->edge) {
 		case AE_TOP_TO_BOTTOMRIGHT:
-		az->x1= ar->winrct.xmax - tot*2*AZONEPAD_ICON;
-		az->y1= ar->winrct.ymax + AZONEPAD_ICON;
-		az->x2= ar->winrct.xmax - tot*AZONEPAD_ICON;
-		az->y2= ar->winrct.ymax + 2*AZONEPAD_ICON;
+			az->x1= ar->winrct.xmax - tot*2*AZONEPAD_ICON;
+			az->y1= ar->winrct.ymax + AZONEPAD_ICON;
+			az->x2= ar->winrct.xmax - tot*AZONEPAD_ICON;
+			az->y2= ar->winrct.ymax + 2*AZONEPAD_ICON;
 			break;
 		case AE_BOTTOM_TO_TOPLEFT:
-		az->x1= ar->winrct.xmin + AZONEPAD_ICON;
-		az->y1= ar->winrct.ymin - 2*AZONEPAD_ICON;
-		az->x2= ar->winrct.xmin + 2*AZONEPAD_ICON;
-		az->y2= ar->winrct.ymin - AZONEPAD_ICON;
+			az->x1= ar->winrct.xmin + AZONEPAD_ICON;
+			az->y1= ar->winrct.ymin - 2*AZONEPAD_ICON;
+			az->x2= ar->winrct.xmin + 2*AZONEPAD_ICON;
+			az->y2= ar->winrct.ymin - AZONEPAD_ICON;
 			break;
 		case AE_LEFT_TO_TOPRIGHT:
-		az->x1= ar->winrct.xmin - 2*AZONEPAD_ICON;
-		az->y1= ar->winrct.ymax - tot*2*AZONEPAD_ICON;
-		az->x2= ar->winrct.xmin - AZONEPAD_ICON;
-		az->y2= ar->winrct.ymax - tot*AZONEPAD_ICON;
+			az->x1= ar->winrct.xmin - 2*AZONEPAD_ICON;
+			az->y1= ar->winrct.ymax - tot*2*AZONEPAD_ICON;
+			az->x2= ar->winrct.xmin - AZONEPAD_ICON;
+			az->y2= ar->winrct.ymax - tot*AZONEPAD_ICON;
 			break;
 		case AE_RIGHT_TO_TOPLEFT:
-		az->x1= ar->winrct.xmax + AZONEPAD_ICON;
-		az->y1= ar->winrct.ymax - tot*2*AZONEPAD_ICON;
-		az->x2= ar->winrct.xmax + 2*AZONEPAD_ICON;
-		az->y2= ar->winrct.ymax - tot*AZONEPAD_ICON;
+			az->x1= ar->winrct.xmax + AZONEPAD_ICON;
+			az->y1= ar->winrct.ymax - tot*2*AZONEPAD_ICON;
+			az->x2= ar->winrct.xmax + 2*AZONEPAD_ICON;
+			az->y2= ar->winrct.ymax - tot*AZONEPAD_ICON;
 			break;
 	}
 
@@ -556,15 +569,15 @@ static void region_azone_icon(ScrArea *sa, AZone *az, ARegion *ar)
 					az->x1+= AZONESPOT;
 					az->x2+= AZONESPOT;
 				}
-				else {
+				else{
 					az->y1-= AZONESPOT;
 					az->y2-= AZONESPOT;
 				}
-					BLI_init_rcti(&az->rect, az->x1, az->x2, az->y1, az->y2);
-				}
+				BLI_init_rcti(&az->rect, az->x1, az->x2, az->y1, az->y2);
 			}
 		}
 	}
+}
 
 static void region_azone_initialize(ScrArea *sa, ARegion *ar, AZEdge edge) 
 {
@@ -866,7 +879,7 @@ static void ed_default_handlers(wmWindowManager *wm, ScrArea *sa, ListBase *hand
 			}
 		}
 		else
-		WM_event_add_keymap_handler(handlers, keymap);
+			WM_event_add_keymap_handler(handlers, keymap);
 	}
 	if(flag & ED_KEYMAP_ANIMATION) {
 		/* frame changing and timeline operators (for time spaces) */
@@ -1110,7 +1123,7 @@ void ED_area_newspace(bContext *C, ScrArea *sa, int type)
 				
 		/*send space change notifyer*/
 		WM_event_add_notifier(C, NC_SPACE|ND_SPACE_CHANGED, sa);
-
+		
 		ED_area_tag_refresh(sa);
 	}
 	
@@ -1174,7 +1187,7 @@ static const char *editortype_pup(void)
 		   
 		   "|%l"
 		   
-		   "|Console %x18"
+		   "|Python Console %x18"
 		   );
 }
 

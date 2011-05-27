@@ -122,8 +122,8 @@ static void id_search_cb(const bContext *C, void *arg_template, const char *str,
 				PointerRNA ptr;
 				RNA_id_pointer_create(id, &ptr);
 				if(RNA_property_pointer_poll(&template->ptr, template->prop, &ptr)==0)
-							continue;
-						}
+					continue;
+			}
 
 			/* hide dot-datablocks, but only if filter does not force it visible */
 			if(U.uiflag & USER_HIDE_DOT)
@@ -357,8 +357,9 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 		
 		
 		uiLayoutRow(layout, 1);
-	} 
-	else if(flag & UI_ID_BROWSE) {
+	} else 
+		
+	if(flag & UI_ID_BROWSE) {
 		but= uiDefBlockButN(block, id_search_menu, MEM_dupallocN(template), "", 0, 0, UI_UNIT_X*1.6, UI_UNIT_Y, template_id_browse_tip(type));
 		if(type) {
 			but->icon= RNA_struct_ui_icon(type);
@@ -374,11 +375,13 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 	/* text button with name */
 	if(id) {
 		char name[UI_MAX_NAME_STR];
+		const short user_alert= (id->us <= 0);
 
 		//text_idbutton(id, name);
 		name[0]= '\0';
 		but= uiDefButR(block, TEX, 0, name, 0, 0, UI_UNIT_X*6, UI_UNIT_Y, &idptr, "name", -1, 0, 0, -1, -1, NULL);
 		uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_RENAME));
+		if(user_alert) uiButSetFlag(but, UI_BUT_REDALERT);
 
 		if(id->lib) {
 			if(id->flag & LIB_INDIRECT) {
@@ -410,6 +413,8 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 			if(!id_copy(id, NULL, 1 /* test only */) || (idfrom && idfrom->lib))
 				uiButSetFlag(but, UI_BUT_DISABLED);
 		}
+	
+		if(user_alert) uiButSetFlag(but, UI_BUT_REDALERT);
 		
 		if(id->lib == NULL && !(ELEM5(GS(id->name), ID_GR, ID_SCE, ID_SCR, ID_TXT, ID_OB))) {
 			uiDefButR(block, TOG, 0, "F", 0, 0, UI_UNIT_X, UI_UNIT_Y, &idptr, "use_fake_user", -1, 0, 0, -1, -1, NULL);
@@ -493,7 +498,7 @@ static void ui_template_id(uiLayout *layout, bContext *C, PointerRNA *ptr, const
 		flag |= UI_ID_ADD_NEW;
 	if(openop)
 		flag |= UI_ID_OPEN;
-	
+
 	type= RNA_property_pointer_type(ptr, prop);
 	template->idlb= which_libbase(CTX_data_main(C), RNA_type_to_ID_code(type));
 	
@@ -775,16 +780,16 @@ static uiLayout *draw_modifier(uiLayout *layout, Scene *scene, Object *ob, Modif
 		uiItemO(row, "", ICON_TRIA_DOWN, "OBJECT_OT_modifier_move_down");
 		uiBlockEndAlign(block);
 		
-			uiBlockSetEmboss(block, UI_EMBOSSN);
+		uiBlockSetEmboss(block, UI_EMBOSSN);
 		// When Modifier is a simulation, show button to switch to context rather than the delete button. 
 		if (modifier_can_delete(md) && !modifier_is_simulation(md))
-				uiItemO(row, "", ICON_X, "OBJECT_OT_modifier_remove");
+			uiItemO(row, "", ICON_X, "OBJECT_OT_modifier_remove");
 		if (modifier_is_simulation(md) == 1)
 			uiItemStringO(row, "", ICON_BUTS, "WM_OT_properties_context_change", "context", "PHYSICS");
 		else if (modifier_is_simulation(md) == 2)
 			uiItemStringO(row, "", ICON_BUTS, "WM_OT_properties_context_change", "context", "PARTICLES");
-			uiBlockSetEmboss(block, UI_EMBOSS);
-		}
+		uiBlockSetEmboss(block, UI_EMBOSS);
+	}
 
 	
 	/* modifier settings (under the header) --------------------------------------------------- */
@@ -1026,7 +1031,7 @@ static uiLayout *draw_constraint(uiLayout *layout, Object *ob, bConstraint *con)
 			
 		show_upbut= ((prev_proxylock == 0) && (con->prev));
 		show_downbut= (con->next) ? 1 : 0;
-
+		
 		/* enabled */
 		uiBlockSetEmboss(block, UI_EMBOSSN);
 		uiItemR(row, &ptr, "mute", 0, "", (con->flag & CONSTRAINT_OFF) ? ICON_MUTE_IPO_ON : ICON_MUTE_IPO_OFF);
@@ -1063,7 +1068,7 @@ static uiLayout *draw_constraint(uiLayout *layout, Object *ob, bConstraint *con)
 		box= uiLayoutBox(col);
 		block= uiLayoutAbsoluteBlock(box);
 		result= box;
-		}
+	}
 
 	/* clear any locks set up for proxies/lib-linking */
 	uiBlockClearButLock(block);
@@ -1229,25 +1234,25 @@ static void colorband_add_cb(bContext *C, void *cb_v, void *coba_v)
 	ColorBand *coba= coba_v;
 	float pos= 0.5f;
 
-		if(coba->tot > 1) {
+	if(coba->tot > 1) {
 		if(coba->cur > 0)	pos= (coba->data[coba->cur-1].pos + coba->data[coba->cur].pos) * 0.5f;
 		else				pos= (coba->data[coba->cur+1].pos + coba->data[coba->cur].pos) * 0.5f;
-			}
+	}
 
 	if(colorband_element_add(coba, pos)) {
 		rna_update_cb(C, cb_v, NULL);
 		ED_undo_push(C, "Add colorband");	
-		}
 	}
+}
 
 static void colorband_del_cb(bContext *C, void *cb_v, void *coba_v)
 {
 	ColorBand *coba= coba_v;
 
 	if(colorband_element_remove(coba, coba->cur)) {
-	ED_undo_push(C, "Delete colorband");
-	rna_update_cb(C, cb_v, NULL);
-}
+		ED_undo_push(C, "Delete colorband");
+		rna_update_cb(C, cb_v, NULL);
+	}
 }
 
 static void colorband_flip_cb(bContext *C, void *cb_v, void *coba_v)
@@ -1899,7 +1904,7 @@ void uiTemplateColorWheel(uiLayout *layout, PointerRNA *ptr, const char *propnam
 	uiItemS(row);
 	
 	if (value_slider)
-		uiDefButR(block, HSVCUBE, 0, "", WHEEL_SIZE+6, 0, 14, WHEEL_SIZE, ptr, propname, -1, softmin, softmax, 9, 0, "");
+		uiDefButR(block, HSVCUBE, 0, "", WHEEL_SIZE+6, 0, 14, WHEEL_SIZE, ptr, propname, -1, softmin, softmax, UI_GRAD_V_ALT, 0, "");
 }
 
 /********************* Layer Buttons Template ************************/
@@ -1938,13 +1943,13 @@ void uiTemplateLayers(uiLayout *layout, PointerRNA *ptr, const char *propname,
 	int groups, cols, layers;
 	int group, col, layer, row;
 	int cols_per_group = 5;
-	
+
 	prop= RNA_struct_find_property(ptr, propname);
 	if (!prop) {
 		RNA_warning("uiTemplateLayer: layers property not found: %s.%s\n", RNA_struct_identifier(ptr->type), propname);
 		return;
 	}
-
+	
 	/* the number of layers determines the way we group them 
 	 *	- we want 2 rows only (for now)
 	 *	- the number of columns (cols) is the total number of buttons per row
@@ -2389,7 +2394,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
 
 	if(sa->spacetype==SPACE_NODE) {
 		if(WM_jobs_test(wm, sa))
-		owner = sa;
+		   owner = sa;
 		handle_event= B_STOPCOMPO;
 	} 
 	else {
@@ -2445,7 +2450,7 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
 	
 	ui_abs= uiLayoutAbsolute(layout, 0);
 	block= uiLayoutGetBlock(ui_abs);
-
+	
 	width = BLF_width(style->widget.uifont_id, report->message);
 	width = MIN2(rti->widthfac*width, width);
 	width = MAX2(width, 10);
@@ -2458,7 +2463,7 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
 	but->col[1]= FTOCHAR(rti->col[1]);
 	but->col[2]= FTOCHAR(rti->col[2]);
 	but->col[3]= 255; 
-	
+
 	but= uiDefBut(block, ROUNDBOX, 0, "", UI_UNIT_X+10, 0, UI_UNIT_X+width, UI_UNIT_Y, NULL, 0.0f, 0.0f, 0, 0, "");
 	but->col[0]= but->col[1]= but->col[2]= FTOCHAR(rti->greyscale);
 	but->col[3]= 255;

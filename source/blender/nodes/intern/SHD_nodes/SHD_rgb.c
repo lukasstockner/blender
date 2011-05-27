@@ -40,7 +40,7 @@ static bNodeSocketType sh_node_rgb_out[]= {
 	{	-1, 0, ""	}
 };
 
-static void node_shader_exec_rgb(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_shader_exec_rgb(void *UNUSED(data), bNode *node, bNodeStack **UNUSED(in), bNodeStack **out)
 {
 	bNodeSocket *sock= node->outputs.first;
 	
@@ -58,7 +58,7 @@ static int gpu_shader_rgb(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNo
 void register_node_type_sh_rgb(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, SH_NODE_RGB, "RGB", NODE_CLASS_INPUT, NODE_OPTIONS,
 		NULL, sh_node_rgb_out);
 	node_type_size(&ntype, 140, 80, 140);

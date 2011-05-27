@@ -127,7 +127,7 @@ void	DAG_pose_sort(struct Object *ob);
 
 		/* callback for editors module to do updates */
 void	DAG_editors_update_cb(void (*func)(struct Main *bmain, struct ID *id));
-		
+
 #ifdef __cplusplus
 }
 #endif

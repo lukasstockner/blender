@@ -230,7 +230,7 @@ typedef struct Tex {
 	float vn_mexp;
 	short vn_distm, vn_coltype;
 
-	short noisedepth, noisetype;
+	short noisedepth, noisetype; /* noisedepth MUST be <= 30 else we get floating point exceptions */
 
 	/* newnoise: noisebasis type for clouds/marble/etc, noisebasis2 only used for distorted noise */
 	short noisebasis, noisebasis2;
@@ -529,7 +529,7 @@ typedef struct TexMapping {
 #define TEX_PD_WORLDSPACE	2
 
 /* flag */
-#define TEX_PD_TURBULENCE	1
+#define TEX_PD_TURBULENCE		1
 #define TEX_PD_FALLOFF_CURVE	2
 
 /* noise_influence */

@@ -96,7 +96,7 @@ def toxml(py_data, indent="    "):
     def _to_xml_iter(xml_parent, data_ls):
         for py_item in data_ls:
             xml_node = newdoc.createElement(py_item[TAG])
-            
+
             # ok if its empty
             _to_xml_iter(xml_node, py_item[CHILDREN])
 
@@ -115,7 +115,7 @@ def fromxml(data):
         for key, value in xml_node.attributes.items():
             kwargs[key] = value
         return kwargs
-    
+
     def _fromxml(xml_node):
         py_item = (xml_node.tagName, _fromxml_kwargs(xml_node), [])
         #_fromxml_iter(py_item, xml_node.childNodes)
@@ -130,15 +130,15 @@ def fromxml(data):
 
 
 def topretty_py(py_data, indent="    "):
-    
+
     if len(py_data) != 1:
         raise Exception("Expected a list with one member")
 
     lines = []
-    
+
     def _to_kwargs(kwargs):
         return ", ".join([("%s=%s" % (key, repr(value))) for key, value in sorted(kwargs.items())])
-    
+
     def _topretty(py_item, indent_ctx, last):
         if py_item[CHILDREN]:
             lines.append("%s%s(%s) [" % (indent_ctx, py_item[TAG], _to_kwargs(py_item[ARGS])))
@@ -148,21 +148,21 @@ def topretty_py(py_data, indent="    "):
             lines.append("%s]%s" % (indent_ctx, ("" if last else ",")))
         else:
             lines.append("%s%s(%s)%s" % (indent_ctx, py_item[TAG], _to_kwargs(py_item[ARGS]), ("" if last else ",")))
-    
+
     _topretty(py_data[0], "", True)
 
     return "\n".join(lines)
 
 if __name__ == "__main__":
     # testing code.
-    
+
     tag_module("bpyml_test", ("ui", "prop", "row", "column", "active", "separator", "split"))
     from bpyml_test import *
 
     draw = [
-         ui() [
-            split() [
-                column() [
+         ui()[
+            split()[
+                column()[
                     prop(data='context.scene.render', property='use_stamp_time', text='Time'),
                     prop(data='context.scene.render', property='use_stamp_date', text='Date'),
                     prop(data='context.scene.render', property='use_stamp_render_time', text='RenderTime'),
@@ -173,7 +173,7 @@ if __name__ == "__main__":
                     prop(data='context.scene.render', property='use_stamp_marker', text='Marker'),
                     prop(data='context.scene.render', property='use_stamp_sequencer_strip', text='Seq. Strip')
                 ],
-                column() [
+                column()[
                     active(expr='context.scene.render.use_stamp'),
                     prop(data='context.scene.render', property='stamp_foreground', slider=True),
                     prop(data='context.scene.render', property='stamp_background', slider=True),
@@ -181,9 +181,9 @@ if __name__ == "__main__":
                     prop(data='context.scene.render', property='stamp_font_size', text='Font Size')
                 ]
             ],
-            split(percentage=0.2) [
+            split(percentage=0.2)[
                 prop(data='context.scene.render', property='use_stamp_note', text='Note'),
-                row() [
+                row()[
                     active(expr='context.scene.render.use_stamp_note'),
                     prop(data='context.scene.render', property='stamp_note_text', text='')
                 ]
@@ -192,13 +192,13 @@ if __name__ == "__main__":
     ]
 
     xml_data = toxml(draw)
-    print(xml_data) # xml version
+    print(xml_data)  # xml version
 
     py_data = fromxml(xml_data)
-    print(py_data) # converted back to py
+    print(py_data)  # converted back to py
 
     xml_data = toxml(py_data)
-    print(xml_data) # again back to xml
+    print(xml_data)  # again back to xml
 
-    py_data = fromxml(xml_data) # pretty python version
+    py_data = fromxml(xml_data)  # pretty python version
     print(topretty_py(py_data))

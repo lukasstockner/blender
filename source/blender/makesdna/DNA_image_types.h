@@ -53,9 +53,9 @@ typedef struct ImageUser {
 	int offset, sfra;			/* offset within movie, start frame in global time */
 	char fie_ima, cycl;		/* fields/image in movie, cyclic flag */
 	char ok, pad;
-	
+
 	short multi_index, layer, pass;	 /* listbase indices, for menu browsing or retrieve buffer */
-	
+
 	short flag;
 	
 	int pad2;

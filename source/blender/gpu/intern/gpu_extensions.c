@@ -99,6 +99,11 @@ void GPU_extensions_init(void)
 	GLint r, g, b;
 	const char *vendor, *renderer;
 
+	/* can't avoid calling this multiple times, see wm_window_add_ghostwindow */
+	static char init= 0;
+	if(init) return;
+	init= 1;
+
 	glewInit();
 
 	/* glewIsSupported("GL_VERSION_2_0") */
@@ -114,8 +119,8 @@ void GPU_extensions_init(void)
 	glGetIntegerv(GL_RED_BITS, &r);
 	glGetIntegerv(GL_GREEN_BITS, &g);
 	glGetIntegerv(GL_BLUE_BITS, &b);
-    GG.colordepth = r+g+b; /* assumes same depth for RGB */
-    
+	GG.colordepth = r+g+b; /* assumes same depth for RGB */
+
 	vendor = (const char*)glGetString(GL_VENDOR);
 	renderer = (const char*)glGetString(GL_RENDERER);
 
@@ -136,7 +141,7 @@ void GPU_extensions_init(void)
 	else if(strstr(vendor, "Intel") ||
 	        /* src/mesa/drivers/dri/intel/intel_context.c */
 	        strstr(renderer, "Mesa DRI Intel") ||
-	        strstr(renderer, "Mesa DRI Mobile Intel")) {
+		strstr(renderer, "Mesa DRI Mobile Intel")) {
 		GG.device = GPU_DEVICE_INTEL;
 		GG.driver = GPU_DRIVER_OFFICIAL;
 	}
@@ -155,7 +160,7 @@ void GPU_extensions_init(void)
 		   strstr(renderer, "RS740"))
 			GG.npotdisabled = 1;
 	}
-	else if(strstr(renderer, "Nouveau")) {
+	else if(strstr(renderer, "Nouveau") || strstr(vendor, "nouveau")) {
 		GG.device = GPU_DEVICE_NVIDIA;
 		GG.driver = GPU_DRIVER_OPENSOURCE;
 	}
@@ -205,7 +210,7 @@ int GPU_non_power_of_two_support(void)
 
 int GPU_color_depth(void)
 {
-    return GG.colordepth;
+	return GG.colordepth;
 }
 
 int GPU_print_error(const char *str)
@@ -255,7 +260,7 @@ static void GPU_print_framebuffer_error(GLenum status, char err_out[256])
 	if(err_out) {
 		BLI_snprintf(err_out, 256, "GPUFrameBuffer: framebuffer incomplete error %d '%s'",
 			(int)status, err);
-}
+	}
 	else {
 		fprintf(stderr, "GPUFrameBuffer: framebuffer incomplete error %d '%s'\n",
 			(int)status, err);
@@ -345,8 +350,8 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 				(int)glGetError());
 		}
 		else {
-		fprintf(stderr, "GPUTexture: texture create failed: %d\n",
-			(int)glGetError());
+			fprintf(stderr, "GPUTexture: texture create failed: %d\n",
+				(int)glGetError());
 		}
 		GPU_texture_free(tex);
 		return NULL;
@@ -1213,15 +1218,15 @@ void GPU_pixelbuffer_texture(GPUTexture *tex, GPUPixelBuffer *pb)
 	int i;
 
 	glBindTexture(GL_TEXTURE_RECTANGLE_EXT, tex->bindcode);
- 
-	 for (i = 0; i < pb->numbuffers; i++) {
+
+	for (i = 0; i < pb->numbuffers; i++) {
 		glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, pb->bindcode[pb->current]);
 		glBufferDataARB(GL_PIXEL_UNPACK_BUFFER_EXT, pb->datasize, NULL,
-			GL_STREAM_DRAW_ARB);
-    
+		GL_STREAM_DRAW_ARB);
+
 		pixels = glMapBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, GL_WRITE_ONLY);
 		/*memcpy(pixels, _oImage.data(), pb->datasize);*/
-    
+
 		if (!glUnmapBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT)) {
 			fprintf(stderr, "Could not unmap opengl PBO\n");
 			break;

@@ -76,7 +76,7 @@ editmesh_loop: tools with own drawing subloops, select, knife, subdiv
 #include "mesh_intern.h"
 
 /* **** XXX ******** */
-static void error(const char *dummy) {}
+static void error(const char *UNUSED(arg)) {}
 /* **** XXX ******** */
 
 #if 0 /* UNUSED 2.5 */
@@ -221,7 +221,7 @@ static void CutEdgeloop(Object *obedit, wmOperator *op, EditMesh *em, int numcut
 			dist= 50;
 			nearest = findnearestedge(&vc, &dist);	// returns actual distance in dist
 //			scrarea_do_windraw(curarea);	// after findnearestedge, backbuf!
-			
+
 			BLI_snprintf(msg, sizeof(msg),"Number of Cuts: %d (S)mooth: %s", numcuts, smooth ? "on":"off");
 			
 //			headerprint(msg);

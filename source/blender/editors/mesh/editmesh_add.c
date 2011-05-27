@@ -121,10 +121,10 @@ static int dupli_extrude_cursor(bContext *C, wmOperator *op, wmEvent *event)
 	float min[3], max[3];
 	int done= 0;
 	short use_proj;
-	
+
 	em_setup_viewcontext(C, &vc);
-	
-	use_proj= ((vc.scene->toolsettings->snap_flag & (SCE_SNAP|SCE_SNAP_PROJECT))==(SCE_SNAP|SCE_SNAP_PROJECT)) &&	(vc.scene->toolsettings->snap_mode==SCE_SNAP_MODE_FACE);
+
+	use_proj= (vc.scene->toolsettings->snap_flag & SCE_SNAP) &&	(vc.scene->toolsettings->snap_mode==SCE_SNAP_MODE_FACE);
 	
 	invert_m4_m4(vc.obedit->imat, vc.obedit->obmat); 
 	
@@ -145,8 +145,11 @@ static int dupli_extrude_cursor(bContext *C, wmOperator *op, wmEvent *event)
 		float nor[3]= {0.0, 0.0, 0.0};
 		
 		/* 2D normal calc */
-		float mval_f[2]= {(float)event->mval[0], (float)event->mval[1]};
-		
+		float mval_f[2];
+
+		mval_f[0]= (float)event->mval[0];
+		mval_f[1]= (float)event->mval[1];
+
 		done= 0;
 
 		/* calculate the normal for selected edges */
@@ -174,7 +177,7 @@ static int dupli_extrude_cursor(bContext *C, wmOperator *op, wmEvent *event)
 				done= 1;
 			}
 		}
-		
+
 		if(done) {
 			float view_vec[3], cross[3];
 
@@ -223,7 +226,7 @@ static int dupli_extrude_cursor(bContext *C, wmOperator *op, wmEvent *event)
 				q1[0]= (float)cos(dot);
 				q1[1]= cross[0]*si;
 				q1[2]= cross[1]*si;
-				q1[3]= cross[2]*si;
+				q1[3]= cross[2]*si;				
 				quat_to_mat3( mat,q1);
 			}
 		}
@@ -248,7 +251,7 @@ static int dupli_extrude_cursor(bContext *C, wmOperator *op, wmEvent *event)
 		
 		copy_v3_v3(min, curs);
 		view3d_get_view_aligned_coordinate(&vc, min, event->mval, TRUE);
-		
+
 		eve= addvertlist(vc.em, 0, NULL);
 
 		invert_m4_m4(imat, vc.obedit->obmat);
@@ -256,7 +259,7 @@ static int dupli_extrude_cursor(bContext *C, wmOperator *op, wmEvent *event)
 		
 		eve->f= SELECT;
 	}
-	
+
 	if(use_proj)
 		EM_project_snap_verts(C, vc.ar, vc.obedit, vc.em);
 
@@ -1053,14 +1056,13 @@ static void make_prim(Object *obedit, int type, float mat[4][4], int tot, int se
 		/* one segment first: the X axis */		
 		phi = (2*dia)/(float)(tot-1);
 		phid = (2*dia)/(float)(seg-1);
-		for(a=0;a<tot;a++) {
+		for(a=tot-1;a>=0;a--) {
 			vec[0] = (phi*a) - dia;
 			vec[1]= - dia;
 			vec[2]= 0.0f;
 			eve= addvertlist(em, vec, NULL);
 			eve->f= 1+2+4;
 			if(a < tot -1) addedgelist(em, eve->prev, eve, NULL);
-			}
 		}
 		/* extrude and translate */
 		vec[0]= vec[2]= 0.0;
@@ -1320,7 +1322,7 @@ static void make_prim(Object *obedit, int type, float mat[4][4], int tot, int se
 	EM_stats_update(em);
 	/* simple selection flush OK, based on fact it's a single model */
 	EM_select_flush(em); /* flushes vertex -> edge -> face selection */
-	
+
 	if(!ELEM5(type, PRIM_GRID, PRIM_PLANE, PRIM_ICOSPHERE, PRIM_UVSPHERE, PRIM_MONKEY))
 		EM_recalc_normal_direction(em, FALSE, TRUE);	/* otherwise monkey has eyes in wrong direction */
 

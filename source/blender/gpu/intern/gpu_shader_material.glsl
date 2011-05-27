@@ -641,7 +641,7 @@ void valtorgb(float fac, sampler1D colormap, out vec4 outcol, out float outalpha
 	outalpha = outcol.a;
 }
 
-void rgbtobw(vec4 color, out float outval)
+void rgbtobw(vec4 color, out float outval)  
 {
 	outval = color.r*0.35 + color.g*0.45 + color.b*0.2; /* keep these factors in sync with texture.h:RGBTOBW */
 }
@@ -1095,7 +1095,7 @@ void mtex_image(vec3 texco, sampler2D ima, out float value, out vec4 color)
 	color = texture2D(ima, texco.xy);
 	value = 1.0;
 }
-	
+
 void mtex_normal(vec3 texco, sampler2D ima, out vec3 normal)
 {
 	// The invert of the red channel is to make

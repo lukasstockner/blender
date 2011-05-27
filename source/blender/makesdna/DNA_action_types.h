@@ -207,12 +207,10 @@ typedef struct bPoseChannel {
 	struct bPoseChannel *child;		/* set on read file or rebuild pose, the 'ik' child, for b-bones */
 	struct ListBase		 iktree;		/* only while evaluating pose */
 	
-	/* only while deform, stores precalculated b_bone deform mats,
-	   dual quaternions */
-	void				*b_bone_mats;	
-	void				*dual_quat;
-	void				*b_bone_dual_quats;
-	
+	bMotionPath *mpath;				/* motion path cache for this bone */
+	struct Object *custom;			/* draws custom object instead of default bone shape */
+	struct bPoseChannel *custom_tx;	/* odd feature, display with another bones transform. needed in rare cases for advanced rigs, since the alternative is highly complicated - campbell */
+
 		/* transforms - written in by actions or transform */
 	float		loc[3];				
 	float		size[3];
@@ -238,9 +236,6 @@ typedef struct bPoseChannel {
 	float		iklinweight;		/* weight of joint stretch constraint */
 
 	float		*path;				/* totpath x 3 x float */		// XXX depreceated... old animation system (armature only viz)
-	bMotionPath *mpath;				/* motion path cache for this bone */
-	struct Object *custom;			/* draws custom object instead of default bone shape */
-	struct bPoseChannel *custom_tx;	/* odd feature, display with another bones transform. needed in rare cases for advanced rigs, since the alternative is highly complicated - campbell */
 } bPoseChannel;
 
 
@@ -318,9 +313,11 @@ typedef enum eRotationModes {
 	/* NOTE: space is reserved here for 18 other possible 
 	 * euler rotation orders not implemented 
 	 */
-	ROT_MODE_MAX,	/* sentinel for Py API */
 		/* axis angle rotations */
-	ROT_MODE_AXISANGLE = -1
+	ROT_MODE_AXISANGLE = -1,
+
+	ROT_MODE_MIN = ROT_MODE_AXISANGLE,	/* sentinel for Py API */
+	ROT_MODE_MAX = ROT_MODE_ZYX
 } eRotationModes;
 
 /* Pose ------------------------------------ */
@@ -517,7 +514,7 @@ typedef struct bDopeSheet {
 	ID 		*source;			/* currently ID_SCE (for Dopesheet), and ID_SC (for Grease Pencil) */
 	ListBase chanbase;			/* cache for channels (only initialised when pinned) */  // XXX not used!
 	
-	struct Group *filter_grp;	/* object group for ADS_FILTER_ONLYOBGROUP filtering option */ 
+	struct Group *filter_grp;	/* object group for ADS_FILTER_ONLYOBGROUP filtering option */
 	char searchstr[64];			/* string to search for in displayed names of F-Curves for ADS_FILTER_BY_FCU_NAME filtering option */
 	
 	int filterflag;				/* flags to use for filtering data */

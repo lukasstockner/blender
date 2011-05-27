@@ -62,7 +62,7 @@
 
 /* ************************ add menu *********************** */
 
-static void do_node_add(bContext *C, void *arg, int event)
+static void do_node_add(bContext *C, void *UNUSED(arg), int event)
 {
 	SpaceNode *snode= CTX_wm_space_node(C);
 	ScrArea *sa= CTX_wm_area(C);

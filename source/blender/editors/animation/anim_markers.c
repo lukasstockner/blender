@@ -80,7 +80,7 @@ static ListBase *context_get_markers(Scene *scene, ScrArea *sa)
 	if (sa) {
 		if (sa->spacetype == SPACE_ACTION) {
 			SpaceAction *saction = (SpaceAction *)sa->spacedata.first;
-	
+			
 			/* local markers can only be shown when there's only a single active action to grab them from 
 			 * 	- flag only takes effect when there's an action, otherwise it can get too confusing?
 			 */
@@ -88,7 +88,7 @@ static ListBase *context_get_markers(Scene *scene, ScrArea *sa)
 			{
 				if (saction->flag & SACTION_POSEMARKERS_SHOW)
 					return &saction->action->markers;
-	}
+			}
 		}
 	}
 	
@@ -479,7 +479,7 @@ static int ed_markers_poll_selected_markers(bContext *C)
 	/* check if some marker is selected */
 	return ED_markers_get_first_selected(markers) != NULL;
 }
- 
+
 /* special poll() which checks if there are any markers at all first */
 static int ed_markers_poll_markers_exist(bContext *C)
 {
@@ -558,7 +558,7 @@ static int ed_marker_add(bContext *C, wmOperator *UNUSED(op))
 	}
 	
 	/* deselect all */
-	for(marker= markers->first; marker; marker= marker->next)
+	for (marker= markers->first; marker; marker= marker->next)
 		marker->flag &= ~SELECT;
 	
 	marker = MEM_callocN(sizeof(TimeMarker), "TimeMarker");
@@ -701,7 +701,7 @@ static int ed_marker_move_invoke_wrapper(bContext *C, wmOperator *op, wmEvent *e
 }
 
 /* note, init has to be called succesfully */
-static void ed_marker_move_apply(bContext *C, wmOperator *op)
+static void ed_marker_move_apply(wmOperator *op)
 {
 	MarkerMove *mm= op->customdata;
 	TimeMarker *marker;
@@ -720,7 +720,7 @@ static void ed_marker_move_apply(bContext *C, wmOperator *op)
 static void ed_marker_move_cancel(bContext *C, wmOperator *op)
 {
 	RNA_int_set(op->ptr, "frames", 0);
-	ed_marker_move_apply(C, op);
+	ed_marker_move_apply(op);
 	ed_marker_move_exit(C, op);	
 	
 	WM_event_add_notifier(C, NC_SCENE|ND_MARKERS, NULL);
@@ -755,7 +755,7 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, wmEvent *evt)
 		case PADENTER:
 		case LEFTMOUSE:
 		case MIDDLEMOUSE:
-			if(WM_modal_tweak_exit(evt, mm->event_type)) {
+			if (WM_modal_tweak_exit(evt, mm->event_type)) {
 				ed_marker_move_exit(C, op);
 				WM_event_add_notifier(C, NC_SCENE|ND_MARKERS, NULL);
 				WM_event_add_notifier(C, NC_ANIMATION|ND_MARKERS, NULL);
@@ -763,9 +763,9 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, wmEvent *evt)
 			}
 			break;
 		case MOUSEMOVE:
-			if(hasNumInput(&mm->num))
+			if (hasNumInput(&mm->num))
 				break;
-
+			
 			dx= v2d->mask.xmax-v2d->mask.xmin;
 			dx= (v2d->cur.xmax-v2d->cur.xmin)/dx;
 			
@@ -783,7 +783,7 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, wmEvent *evt)
 				
 				offs= (int)fac;
 				RNA_int_set(op->ptr, "frames", offs);
-				ed_marker_move_apply(C, op);
+				ed_marker_move_apply(op);
 				
 				/* cruft below is for header print */
 				for (a=0, marker= mm->markers->first; marker; marker= marker->next) {
@@ -840,22 +840,22 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, wmEvent *evt)
 			}
 	}
 
-	if(evt->val==KM_PRESS) {
+	if (evt->val==KM_PRESS) {
 		float vec[3];
 		char str_tx[256];
-
+		
 		if (handleNumInput(&mm->num, evt))
 		{
 			applyNumInput(&mm->num, vec);
 			outputNumInput(&mm->num, str_tx);
-
+			
 			RNA_int_set(op->ptr, "frames", vec[0]);
-			ed_marker_move_apply(C, op);
+			ed_marker_move_apply(op);
 			// ed_marker_header_update(C, op, str, (int)vec[0]);
 			// strcat(str, str_tx);
 			BLI_snprintf(str, sizeof(str), "Marker offset %s", str_tx);
 			ED_area_headerprint(CTX_wm_area(C), str);
-
+			
 			WM_event_add_notifier(C, NC_SCENE|ND_MARKERS, NULL);
 			WM_event_add_notifier(C, NC_ANIMATION|ND_MARKERS, NULL);
 		}
@@ -867,7 +867,7 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, wmEvent *evt)
 static int ed_marker_move_exec(bContext *C, wmOperator *op)
 {
 	if(ed_marker_move_init(C, op)) {
-		ed_marker_move_apply(C, op);
+		ed_marker_move_apply(op);
 		ed_marker_move_exit(C, op);
 		return OPERATOR_FINISHED;
 	}
@@ -915,7 +915,7 @@ callbacks:
 
 
 /* duplicate selected TimeMarkers */
-static void ed_marker_duplicate_apply(bContext *C, wmOperator *op)
+static void ed_marker_duplicate_apply(bContext *C)
 {
 	ListBase *markers= ED_context_get_markers(C);
 	TimeMarker *marker, *newmarker;
@@ -950,7 +950,7 @@ static void ed_marker_duplicate_apply(bContext *C, wmOperator *op)
 
 static int ed_marker_duplicate_exec(bContext *C, wmOperator *op)
 {
-	ed_marker_duplicate_apply(C, op);
+	ed_marker_duplicate_apply(C);
 	ed_marker_move_exec(C, op);	/* assumes frs delta set */
 	
 	return OPERATOR_FINISHED;
@@ -959,7 +959,7 @@ static int ed_marker_duplicate_exec(bContext *C, wmOperator *op)
 
 static int ed_marker_duplicate_invoke(bContext *C, wmOperator *op, wmEvent *evt)
 {
-	ed_marker_duplicate_apply(C, op);
+	ed_marker_duplicate_apply(C);
 	return ed_marker_move_invoke(C, op, evt);
 }
 
@@ -1018,7 +1018,7 @@ static int ed_marker_select(bContext *C, wmEvent *evt, int extend, int camera)
 	float viewx;
 	int x, y, cfra;
 	
-	if(markers == NULL)
+	if (markers == NULL)
 		return OPERATOR_PASS_THROUGH;
 
 	x= evt->x - CTX_wm_region(C)->winrct.xmin;
@@ -1035,27 +1035,27 @@ static int ed_marker_select(bContext *C, wmEvent *evt, int extend, int camera)
 	
 #ifdef DURIAN_CAMERA_SWITCH
 
-	if(camera) {
+	if (camera) {
 		Scene *scene= CTX_data_scene(C);
 		Base *base;
 		TimeMarker *marker;
 		int sel= 0;
-
+		
 		if (!extend)
 			scene_deselect_all(scene);
-
+		
 		for (marker= markers->first; marker; marker= marker->next) {
 			if(marker->frame==cfra) {
 				sel= (marker->flag & SELECT);
 				break;
 			}
 		}
-
+		
 		for (marker= markers->first; marker; marker= marker->next) {
-			if(marker->camera) {
-				if(marker->frame==cfra) {
+			if (marker->camera) {
+				if (marker->frame==cfra) {
 					base= object_in_scene(marker->camera, scene);
-					if(base) {
+					if (base) {
 						ED_base_object_select(base, sel);
 						if(sel)
 							ED_base_object_activate(C, base);
@@ -1063,7 +1063,7 @@ static int ed_marker_select(bContext *C, wmEvent *evt, int extend, int camera)
 				}
 			}
 		}
-
+		
 		WM_event_add_notifier(C, NC_SCENE|ND_OB_SELECT, scene);
 	}
 #endif
@@ -1146,18 +1146,18 @@ static int ed_marker_border_select_exec(bContext *C, wmOperator *op)
 	UI_view2d_region_to_view(v2d, xmin, ymin, &xminf, &yminf);	
 	UI_view2d_region_to_view(v2d, xmax, ymax, &xmaxf, &ymaxf);	
 	
-	if(markers == NULL)
+	if (markers == NULL)
 		return 0;
 	
 	/* XXX marker context */
-	for(marker= markers->first; marker; marker= marker->next) {
+	for (marker= markers->first; marker; marker= marker->next) {
 		if ((marker->frame > xminf) && (marker->frame <= xmaxf)) {
 			switch (gesture_mode) {
 				case GESTURE_MODAL_SELECT:
-						marker->flag |= SELECT;
+					marker->flag |= SELECT;
 					break;
 				case GESTURE_MODAL_DESELECT:
-						marker->flag &= ~SELECT;
+					marker->flag &= ~SELECT;
 					break;
 			}
 		}
@@ -1203,12 +1203,12 @@ static int ed_marker_select_all_exec(bContext *C, wmOperator *op)
 	TimeMarker *marker;
 	int action = RNA_enum_get(op->ptr, "action");
 
-	if(markers == NULL)
+	if (markers == NULL)
 		return OPERATOR_CANCELLED;
 
 	if (action == SEL_TOGGLE) {
 		action = (ED_markers_get_first_selected(markers) != NULL) ? SEL_DESELECT : SEL_SELECT;
-			}
+	}
 	
 	for(marker= markers->first; marker; marker= marker->next) {
 		switch (action) {
@@ -1258,12 +1258,12 @@ static int ed_marker_delete_exec(bContext *C, wmOperator *UNUSED(op))
 	TimeMarker *marker, *nmarker;
 	short changed= 0;
 	
-	if(markers == NULL)
+	if (markers == NULL)
 		return OPERATOR_CANCELLED;
 	
-	for(marker= markers->first; marker; marker= nmarker) {
+	for (marker= markers->first; marker; marker= nmarker) {
 		nmarker= marker->next;
-		if(marker->flag & SELECT) {
+		if (marker->flag & SELECT) {
 			BLI_freelinkN(markers, marker);
 			changed= 1;
 		}
@@ -1296,9 +1296,9 @@ static void MARKER_OT_delete(wmOperatorType *ot)
 	ot->poll= ed_markers_poll_selected_markers;
 	
 	/* flags */
-	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;	
 }
-	
+
 
 /* **************** rename marker ***************** */
 
@@ -1307,14 +1307,14 @@ static int ed_marker_rename_exec(bContext *C, wmOperator *op)
 {
 	TimeMarker *marker= ED_markers_get_first_selected(ED_context_get_markers(C));
 
-	if(marker) {
+	if (marker) {
 		RNA_string_get(op->ptr, "name", marker->name);
-
+		
 		WM_event_add_notifier(C, NC_SCENE|ND_MARKERS, NULL);
 		WM_event_add_notifier(C, NC_ANIMATION|ND_MARKERS, NULL);
-
+		
 		return OPERATOR_FINISHED;
-}
+	}
 	else {
 		return OPERATOR_CANCELLED;
 	}
@@ -1359,19 +1359,19 @@ static int ed_marker_make_links_scene_exec(bContext *C, wmOperator *op)
 	Scene *scene_to= BLI_findlink(&CTX_data_main(C)->scene, RNA_enum_get(op->ptr, "scene"));
 	TimeMarker *marker, *marker_new;
 
-	if(scene_to==NULL) {
+	if (scene_to==NULL) {
 		BKE_report(op->reports, RPT_ERROR, "Scene not found");
 		return OPERATOR_CANCELLED;
 	}
 
-	if(scene_to == CTX_data_scene(C)) {
+	if (scene_to == CTX_data_scene(C)) {
 		BKE_report(op->reports, RPT_ERROR, "Can't re-link markers into the same scene");
 		return OPERATOR_CANCELLED;
 	}
 
 	/* copy markers */
 	for (marker= markers->first; marker; marker= marker->next) {
-		if(marker->flag & SELECT) {
+		if (marker->flag & SELECT) {
 			marker_new= MEM_dupallocN(marker);
 			marker_new->prev= marker_new->next = NULL;
 			
@@ -1419,10 +1419,10 @@ static int ed_marker_camera_bind_exec(bContext *C, wmOperator *UNUSED(op))
 	if(marker == NULL)
 		return OPERATOR_CANCELLED;
 
-			marker->camera= scene->camera;
+	marker->camera= scene->camera;
 
-		WM_event_add_notifier(C, NC_SCENE|ND_MARKERS, NULL);
-		WM_event_add_notifier(C, NC_ANIMATION|ND_MARKERS, NULL);
+	WM_event_add_notifier(C, NC_SCENE|ND_MARKERS, NULL);
+	WM_event_add_notifier(C, NC_ANIMATION|ND_MARKERS, NULL);
 
 	return OPERATOR_FINISHED;
 }

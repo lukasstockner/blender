@@ -681,15 +681,15 @@ void DDSHeader::setFourCC(uint8 c0, uint8 c1, uint8 c2, uint8 c3)
 	this->pf.gmask = 0;
 	this->pf.bmask = 0;
 	this->pf.amask = 0;
-	}
+}
 
 void DDSHeader::setFormatCode(uint32 code)
-	{
+{
 	// set fourcc pixel format.
 	this->pf.flags = DDPF_FOURCC;
 	this->pf.fourcc = code;
 	
-		this->pf.bitcount = 0;
+	this->pf.bitcount = 0;
 	this->pf.rmask = 0;
 	this->pf.gmask = 0;
 	this->pf.bmask = 0;
@@ -723,12 +723,12 @@ void DDSHeader::setPixelFormat(uint bitcount, uint rmask, uint gmask, uint bmask
         }
         else
         {
-	this->pf.flags = DDPF_RGB;
+		    this->pf.flags = DDPF_RGB;
         }
 
-	if (amask != 0) {
-		this->pf.flags |= DDPF_ALPHAPIXELS;
-	}
+		if (amask != 0) {
+			this->pf.flags |= DDPF_ALPHAPIXELS;
+		}
 	}
 	else if (amask != 0)
 	{
@@ -930,7 +930,7 @@ bool DirectDrawSurface::isSupported() const
 			header.header10.dxgiFormat == DXGI_FORMAT_BC5_UNORM)
 		{
 			return true;
-	}
+		}
 
 		return false;
 	}
@@ -952,7 +952,7 @@ bool DirectDrawSurface::isSupported() const
 			}
 		}
         else if ((header.pf.flags & DDPF_RGB) || (header.pf.flags & DDPF_LUMINANCE))
-		{
+        {
             // All RGB and luminance formats are supported now.
 		}
 		else
@@ -1122,15 +1122,15 @@ void DirectDrawSurface::mipmap(Image * img, uint face, uint mipmap)
 	}
 	else
 	{
-	if (header.pf.flags & DDPF_RGB) 
-	{
-		readLinearImage(img);
+		if (header.pf.flags & DDPF_RGB) 
+		{
+			readLinearImage(img);
+		}
+		else if (header.pf.flags & DDPF_FOURCC)
+		{
+			readBlockImage(img);
+		}
 	}
-	else if (header.pf.flags & DDPF_FOURCC)
-	{
-		readBlockImage(img);
-	}
-}
 }
 
 void DirectDrawSurface::readLinearImage(Image * img)
@@ -1339,7 +1339,7 @@ uint DirectDrawSurface::blockSize() const
 				case DXGI_FORMAT_BC5_UNORM:
 				case DXGI_FORMAT_BC5_SNORM:
 					return 16;
-	};
+			};
 	};
 
 	// Not a block image.
@@ -1369,7 +1369,7 @@ uint DirectDrawSurface::mipmapSize(uint mipmap) const
 	else if (header.pf.flags & DDPF_RGB || (header.pf.flags & DDPF_LUMINANCE))
 	{
         uint pitch = computePitch(w, header.pf.bitcount, 8); // Asuming 8 bit alignment, which is the same D3DX expects.
-		
+	
 		return pitch * h * d;
 	}
 	else {
@@ -1393,7 +1393,7 @@ uint DirectDrawSurface::faceSize() const
 
 uint DirectDrawSurface::offset(const uint face, const uint mipmap)
 {
-	uint size = 128; //sizeof(DDSHeader);
+	uint size = 128; // sizeof(DDSHeader);
 	
 	if (header.hasDX10Header())
 	{
@@ -1450,9 +1450,9 @@ void DirectDrawSurface::printInfo() const
     if (header.pf.fourcc != 0) { 
         // Display fourcc code even when DDPF_FOURCC flag not set.
         printf("\tFourCC: '%c%c%c%c' (0x%.8X)\n",
-		((header.pf.fourcc >> 0) & 0xFF),
-		((header.pf.fourcc >> 8) & 0xFF),
-		((header.pf.fourcc >> 16) & 0xFF),
+			((header.pf.fourcc >> 0) & 0xFF),
+			((header.pf.fourcc >> 8) & 0xFF),
+			((header.pf.fourcc >> 16) & 0xFF),
             ((header.pf.fourcc >> 24) & 0xFF), 
             header.pf.fourcc);
     }
@@ -1523,6 +1523,6 @@ void DirectDrawSurface::printInfo() const
     if (header.reserved[7] == FOURCC_UVER)
     {
         printf("User Version: %d\n", header.reserved[8]);
-}
+    }
 }
 

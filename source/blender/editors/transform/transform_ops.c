@@ -212,7 +212,7 @@ static void TRANSFORM_OT_select_orientation(struct wmOperatorType *ot)
 	/* api callbacks */
 	ot->invoke = select_orientation_invoke;
 	ot->exec   = select_orientation_exec;
-	ot->poll   = ED_operator_areaactive;
+	ot->poll   = ED_operator_view3d_active;
 
 	prop= RNA_def_property(ot->srna, "orientation", PROP_ENUM, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Orientation", "Transformation orientation");
@@ -344,8 +344,8 @@ static int transformops_data(bContext *C, wmOperator *op, wmEvent *event)
 
 		/* store data */
 		if(retval) {
-		op->customdata = t;
-	}
+			op->customdata = t;
+		}
 		else {
 			MEM_freeN(t);
 		}
@@ -408,7 +408,7 @@ static int transform_exec(bContext *C, wmOperator *op)
 	transformEnd(C, t);
 
 	transformops_exit(C, op);
-
+	
 	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, NULL);
 
 	return OPERATOR_FINISHED;
@@ -490,7 +490,7 @@ void Transform_Properties(struct wmOperatorType *ot, int flags)
 			}
 		}
 	}
-
+	
 	if (flags & P_OPTIONS)
 	{
 		RNA_def_boolean(ot->srna, "texture_space", 0, "Edit Object data texture space", "");

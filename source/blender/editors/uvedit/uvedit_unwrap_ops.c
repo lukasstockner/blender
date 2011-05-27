@@ -172,7 +172,7 @@ static ParamHandle *construct_param_handle(Scene *scene, EditMesh *em, short imp
 		
 		if(scene->toolsettings->uv_flag & UV_SYNC_SELECTION) {
 			if(efa->h) {
-			continue;
+				continue;
 			}
 		}
 		else {
@@ -637,7 +637,7 @@ static void uv_map_rotation_matrix(float result[][4], RegionView3D *rv3d, Object
 	rotside[1][0]= (float)sin(sideangle);
 	rotside[1][1]= (float)cos(sideangle);
 	rotside[2][2]= 1.0f;
-      
+
 	upangle= (float)M_PI*upangledeg/180.0f;
 	rotup[1][1]= (float)cos(upangle)/radius;
 	rotup[1][2]= -(float)sin(upangle)/radius;
@@ -874,7 +874,7 @@ static int unwrap_exec(bContext *C, wmOperator *op)
 
 	if(correct_aspect)	scene->toolsettings->uvcalc_flag &= ~UVCALC_NO_ASPECT_CORRECT;
 	else				scene->toolsettings->uvcalc_flag |=  UVCALC_NO_ASPECT_CORRECT;
-	
+
 	/* execute unwrap */
 	ED_unwrap_lscm(scene, obedit, TRUE);
 

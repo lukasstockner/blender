@@ -24,7 +24,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file boolop/intern/BOP_Edge.h
  *  \ingroup boolopintern
  */

@@ -105,7 +105,7 @@ static int HashCmp(const void *a_, const void *b_)
 	}
 
 	return seq_cmp_render_data(&a->context, &b->context);
-	}
+}
 
 static void HashKeyFree(void *key)
 {

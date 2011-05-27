@@ -23,7 +23,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/editors/transform/transform_ndofinput.c
  *  \ingroup edtransform
  */
@@ -71,7 +71,7 @@ static void resetNDofInput(NDofInput *n)
 }
 
  
-int handleNDofInput(NDofInput *n, wmEvent *event)
+int handleNDofInput(NDofInput *UNUSED(n), wmEvent *UNUSED(event))
 {
 	int retval = 0;
 	// TRANSFORM_FIX_ME

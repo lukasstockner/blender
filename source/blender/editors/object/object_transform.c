@@ -53,6 +53,7 @@
 #include "BKE_mesh.h"
 #include "BKE_object.h"
 #include "BKE_report.h"
+#include "BKE_multires.h"
 #include "BKE_armature.h"
 
 #include "RNA_define.h"
@@ -74,116 +75,116 @@
 /* clear location of object */
 static void object_clear_loc(Object *ob)
 {
-			/* clear location if not locked */
-			if ((ob->protectflag & OB_LOCK_LOCX)==0)
-				ob->loc[0]= ob->dloc[0]= 0.0f;
-			if ((ob->protectflag & OB_LOCK_LOCY)==0)
-				ob->loc[1]= ob->dloc[1]= 0.0f;
-			if ((ob->protectflag & OB_LOCK_LOCZ)==0)
-				ob->loc[2]= ob->dloc[2]= 0.0f;
-			}
-		
+	/* clear location if not locked */
+	if ((ob->protectflag & OB_LOCK_LOCX)==0)
+		ob->loc[0]= ob->dloc[0]= 0.0f;
+	if ((ob->protectflag & OB_LOCK_LOCY)==0)
+		ob->loc[1]= ob->dloc[1]= 0.0f;
+	if ((ob->protectflag & OB_LOCK_LOCZ)==0)
+		ob->loc[2]= ob->dloc[2]= 0.0f;
+}
+
 /* clear rotation of object */
 static void object_clear_rot(Object *ob)
 {
-			/* clear rotations that aren't locked */
-			if (ob->protectflag & (OB_LOCK_ROTX|OB_LOCK_ROTY|OB_LOCK_ROTZ|OB_LOCK_ROTW)) {
-				if (ob->protectflag & OB_LOCK_ROT4D) {
-					/* perform clamping on a component by component basis */
-					if (ob->rotmode == ROT_MODE_AXISANGLE) {
-						if ((ob->protectflag & OB_LOCK_ROTW) == 0)
+	/* clear rotations that aren't locked */
+	if (ob->protectflag & (OB_LOCK_ROTX|OB_LOCK_ROTY|OB_LOCK_ROTZ|OB_LOCK_ROTW)) {
+		if (ob->protectflag & OB_LOCK_ROT4D) {
+			/* perform clamping on a component by component basis */
+			if (ob->rotmode == ROT_MODE_AXISANGLE) {
+				if ((ob->protectflag & OB_LOCK_ROTW) == 0)
 					ob->rotAngle= ob->drotAngle= 0.0f;
-						if ((ob->protectflag & OB_LOCK_ROTX) == 0)
+				if ((ob->protectflag & OB_LOCK_ROTX) == 0)
 					ob->rotAxis[0]= ob->drotAxis[0]= 0.0f;
-						if ((ob->protectflag & OB_LOCK_ROTY) == 0)
+				if ((ob->protectflag & OB_LOCK_ROTY) == 0)
 					ob->rotAxis[1]= ob->drotAxis[1]= 0.0f;
-						if ((ob->protectflag & OB_LOCK_ROTZ) == 0)
+				if ((ob->protectflag & OB_LOCK_ROTZ) == 0)
 					ob->rotAxis[2]= ob->drotAxis[2]= 0.0f;
-							
-						/* check validity of axis - axis should never be 0,0,0 (if so, then we make it rotate about y) */
+					
+				/* check validity of axis - axis should never be 0,0,0 (if so, then we make it rotate about y) */
 				if (IS_EQF(ob->rotAxis[0], ob->rotAxis[1]) && IS_EQF(ob->rotAxis[1], ob->rotAxis[2]))
-							ob->rotAxis[1] = 1.0f;
+					ob->rotAxis[1] = 1.0f;
 				if (IS_EQF(ob->drotAxis[0], ob->drotAxis[1]) && IS_EQF(ob->drotAxis[1], ob->drotAxis[2]))
 					ob->drotAxis[1]= 1.0f;
-					}
-					else if (ob->rotmode == ROT_MODE_QUAT) {
-						if ((ob->protectflag & OB_LOCK_ROTW) == 0)
+			}
+			else if (ob->rotmode == ROT_MODE_QUAT) {
+				if ((ob->protectflag & OB_LOCK_ROTW) == 0)
 					ob->quat[0]= ob->dquat[0]= 1.0f;
-						if ((ob->protectflag & OB_LOCK_ROTX) == 0)
+				if ((ob->protectflag & OB_LOCK_ROTX) == 0)
 					ob->quat[1]= ob->dquat[1]= 0.0f;
-						if ((ob->protectflag & OB_LOCK_ROTY) == 0)
+				if ((ob->protectflag & OB_LOCK_ROTY) == 0)
 					ob->quat[2]= ob->dquat[2]= 0.0f;
-						if ((ob->protectflag & OB_LOCK_ROTZ) == 0)
+				if ((ob->protectflag & OB_LOCK_ROTZ) == 0)
 					ob->quat[3]= ob->dquat[3]= 0.0f;
 					
 				// TODO: does this quat need normalising now?
-					}
-					else {
-						/* the flag may have been set for the other modes, so just ignore the extra flag... */
-						if ((ob->protectflag & OB_LOCK_ROTX) == 0)
+			}
+			else {
+				/* the flag may have been set for the other modes, so just ignore the extra flag... */
+				if ((ob->protectflag & OB_LOCK_ROTX) == 0)
 					ob->rot[0]= ob->drot[0]= 0.0f;
-						if ((ob->protectflag & OB_LOCK_ROTY) == 0)
+				if ((ob->protectflag & OB_LOCK_ROTY) == 0)
 					ob->rot[1]= ob->drot[1]= 0.0f;
-						if ((ob->protectflag & OB_LOCK_ROTZ) == 0)
+				if ((ob->protectflag & OB_LOCK_ROTZ) == 0)
 					ob->rot[2]= ob->drot[2]= 0.0f;
-					}
-				}
-				else {
-					/* perform clamping using euler form (3-components) */
+			}
+		}
+		else {
+			/* perform clamping using euler form (3-components) */
 			// FIXME: deltas are not handled for these cases yet...
-					float eul[3], oldeul[3], quat1[4] = {0};
-					
-					if (ob->rotmode == ROT_MODE_QUAT) {
-						QUATCOPY(quat1, ob->quat);
-						quat_to_eul( oldeul,ob->quat);
-					}
-					else if (ob->rotmode == ROT_MODE_AXISANGLE) {
-						axis_angle_to_eulO( oldeul, EULER_ORDER_DEFAULT,ob->rotAxis, ob->rotAngle);
-					}
-					else {
-						copy_v3_v3(oldeul, ob->rot);
-					}
-					
-					eul[0]= eul[1]= eul[2]= 0.0f;
-					
-					if (ob->protectflag & OB_LOCK_ROTX)
-						eul[0]= oldeul[0];
-					if (ob->protectflag & OB_LOCK_ROTY)
-						eul[1]= oldeul[1];
-					if (ob->protectflag & OB_LOCK_ROTZ)
-						eul[2]= oldeul[2];
-					
-					if (ob->rotmode == ROT_MODE_QUAT) {
-						eul_to_quat( ob->quat,eul);
-						/* quaternions flip w sign to accumulate rotations correctly */
-						if ((quat1[0]<0.0f && ob->quat[0]>0.0f) || (quat1[0]>0.0f && ob->quat[0]<0.0f)) {
-							mul_qt_fl(ob->quat, -1.0f);
-						}
-					}
-					else if (ob->rotmode == ROT_MODE_AXISANGLE) {
-						eulO_to_axis_angle( ob->rotAxis, &ob->rotAngle,eul, EULER_ORDER_DEFAULT);
-					}
-					else {
-						copy_v3_v3(ob->rot, eul);
-					}
-				}
-			}						 // Duplicated in source/blender/editors/armature/editarmature.c
-			else { 
-				if (ob->rotmode == ROT_MODE_QUAT) {
-			unit_qt(ob->quat);
-			unit_qt(ob->dquat);
-				}
-				else if (ob->rotmode == ROT_MODE_AXISANGLE) {
-			unit_axis_angle(ob->rotAxis, &ob->rotAngle);
-			unit_axis_angle(ob->drotAxis, &ob->drotAngle);
-				}
-				else {
-			zero_v3(ob->rot);
-			zero_v3(ob->drot);
+			float eul[3], oldeul[3], quat1[4] = {0};
+			
+			if (ob->rotmode == ROT_MODE_QUAT) {
+				QUATCOPY(quat1, ob->quat);
+				quat_to_eul(oldeul, ob->quat);
+			}
+			else if (ob->rotmode == ROT_MODE_AXISANGLE) {
+				axis_angle_to_eulO(oldeul, EULER_ORDER_DEFAULT, ob->rotAxis, ob->rotAngle);
+			}
+			else {
+				copy_v3_v3(oldeul, ob->rot);
+			}
+			
+			eul[0]= eul[1]= eul[2]= 0.0f;
+			
+			if (ob->protectflag & OB_LOCK_ROTX)
+				eul[0]= oldeul[0];
+			if (ob->protectflag & OB_LOCK_ROTY)
+				eul[1]= oldeul[1];
+			if (ob->protectflag & OB_LOCK_ROTZ)
+				eul[2]= oldeul[2];
+			
+			if (ob->rotmode == ROT_MODE_QUAT) {
+				eul_to_quat(ob->quat, eul);
+				/* quaternions flip w sign to accumulate rotations correctly */
+				if ((quat1[0]<0.0f && ob->quat[0]>0.0f) || (quat1[0]>0.0f && ob->quat[0]<0.0f)) {
+					mul_qt_fl(ob->quat, -1.0f);
 				}
 			}
+			else if (ob->rotmode == ROT_MODE_AXISANGLE) {
+				eulO_to_axis_angle(ob->rotAxis, &ob->rotAngle,eul, EULER_ORDER_DEFAULT);
+			}
+			else {
+				copy_v3_v3(ob->rot, eul);
+			}
+		}
+	}						 // Duplicated in source/blender/editors/armature/editarmature.c
+	else { 
+		if (ob->rotmode == ROT_MODE_QUAT) {
+			unit_qt(ob->quat);
+			unit_qt(ob->dquat);
+		}
+		else if (ob->rotmode == ROT_MODE_AXISANGLE) {
+			unit_axis_angle(ob->rotAxis, &ob->rotAngle);
+			unit_axis_angle(ob->drotAxis, &ob->drotAngle);
+		}
+		else {
+			zero_v3(ob->rot);
+			zero_v3(ob->drot);
+		}
+	}
 }
-			
+
 /* clear scale of object */
 static void object_clear_scale(Object *ob)
 {
@@ -243,10 +244,10 @@ static int object_clear_transform_generic_exec(bContext *C, wmOperator *op,
 				ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, (float)CFRA);
 				BLI_freelistN(&dsources);
 			}
-		
+			
 			/* tag for updates */
-		ob->recalc |= OB_RECALC_OB;
-	}
+			ob->recalc |= OB_RECALC_OB;
+		}
 	}
 	CTX_DATA_END;
 	
@@ -254,7 +255,7 @@ static int object_clear_transform_generic_exec(bContext *C, wmOperator *op,
 	DAG_ids_flush_update(bmain, 0);
 
 	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, NULL);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -295,7 +296,7 @@ void OBJECT_OT_rotation_clear(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= object_rotation_clear_exec;
-	ot->poll= ED_operator_object_active_editable;
+	ot->poll= ED_operator_scene_editable;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -304,8 +305,8 @@ void OBJECT_OT_rotation_clear(wmOperatorType *ot)
 static int object_scale_clear_exec(bContext *C, wmOperator *op)
 {
 	return object_clear_transform_generic_exec(C, op, object_clear_scale, "Scaling");
-			}
-			
+}
+
 void OBJECT_OT_scale_clear(wmOperatorType *ot)
 {
 	/* identifiers */
@@ -315,7 +316,7 @@ void OBJECT_OT_scale_clear(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= object_scale_clear_exec;
-	ot->poll= ED_operator_object_active_editable;
+	ot->poll= ED_operator_scene_editable;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -331,7 +332,7 @@ static int object_origin_clear_exec(bContext *C, wmOperator *UNUSED(op))
 
 	CTX_DATA_BEGIN(C, Object*, ob, selected_editable_objects) 
 	{
-		if(ob->parent) {
+		if (ob->parent) {
 			/* vectors pointed to by v1 and v3 will get modified */
 			v1= ob->loc;
 			v3= ob->parentinv[3];
@@ -344,7 +345,7 @@ static int object_origin_clear_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	CTX_DATA_END;
 
-		DAG_ids_flush_update(bmain, 0);
+	DAG_ids_flush_update(bmain, 0);
 	
 	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, NULL);
 	
@@ -360,7 +361,7 @@ void OBJECT_OT_origin_clear(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= object_origin_clear_exec;
-	ot->poll= ED_operator_object_active_editable;
+	ot->poll= ED_operator_scene_editable;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -378,7 +379,7 @@ static void ignore_parent_tx(Main *bmain, Scene *scene, Object *ob )
 	/* a change was made, adjust the children to compensate */
 	for(ob_child=bmain->object.first; ob_child; ob_child=ob_child->id.next) {
 		if(ob_child->parent == ob) {
-			object_apply_mat4(ob_child, ob_child->obmat);
+			object_apply_mat4(ob_child, ob_child->obmat, TRUE, FALSE);
 			what_does_parent(scene, ob_child, &workob);
 			invert_m4_m4(ob_child->parentinv, workob.obmat);
 		}
@@ -409,7 +410,7 @@ static int apply_objects_internal(bContext *C, ReportList *reports, int apply_lo
 		}
 		else if(ELEM(ob->type, OB_CURVE, OB_SURF)) {
 			Curve *cu;
-			
+
 			if(ID_REAL_USERS(ob->data) > 1) {
 				BKE_report(reports, RPT_ERROR, "Can't apply to a multi user curve, doing nothing.");
 				return OPERATOR_CANCELLED;
@@ -471,6 +472,8 @@ static int apply_objects_internal(bContext *C, ReportList *reports, int apply_lo
 		if(ob->type==OB_MESH) {
 			Mesh *me= ob->data;
 			MVert *mvert;
+
+			multiresModifier_scale_disp(scene, ob);
 			
 			/* adjust data */
 			mvert= me->mvert;
@@ -561,9 +564,9 @@ static int visual_transform_apply_exec(bContext *C, wmOperator *UNUSED(op))
 	
 	CTX_DATA_BEGIN(C, Object*, ob, selected_editable_objects) {
 		where_is_object(scene, ob);
-		object_apply_mat4(ob, ob->obmat);
+		object_apply_mat4(ob, ob->obmat, TRUE, TRUE);
 		where_is_object(scene, ob);
-		
+
 		/* update for any children that may get moved */
 		DAG_id_tag_update(&ob->id, OB_RECALC_OB);
 	
@@ -587,7 +590,7 @@ void OBJECT_OT_visual_transform_apply(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= visual_transform_apply_exec;
-	ot->poll= ED_operator_object_active_editable;
+	ot->poll= ED_operator_scene_editable;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -601,10 +604,10 @@ static int object_transform_apply_exec(bContext *C, wmOperator *op)
 
 	if(loc || rot || sca) {
 		return apply_objects_internal(C, op->reports, loc, rot, sca);
-}
+	}
 	else {
 		return OPERATOR_CANCELLED;
-}
+	}
 }
 
 void OBJECT_OT_transform_apply(wmOperatorType *ot)
@@ -613,18 +616,18 @@ void OBJECT_OT_transform_apply(wmOperatorType *ot)
 	ot->name= "Apply Object Transform";
 	ot->description = "Apply the object's transformation to its data";
 	ot->idname= "OBJECT_OT_transform_apply";
-	
+
 	/* api callbacks */
 	ot->exec= object_transform_apply_exec;
 	ot->poll= ED_operator_objectmode;
-	
+
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	RNA_def_boolean(ot->srna, "location", 0, "Location", "");
 	RNA_def_boolean(ot->srna, "rotation", 0, "Rotation", "");
 	RNA_def_boolean(ot->srna, "scale", 0, "Scale", "");
-		}
+}
 
 /********************* Set Object Center ************************/
 
@@ -643,14 +646,14 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 	float cursor[3], cent[3], cent_neg[3], centn[3], min[3], max[3];
 	int centermode = RNA_enum_get(op->ptr, "type");
 	int around = RNA_enum_get(op->ptr, "center"); /* initialized from v3d->around */
-	
+
 	/* keep track of what is changed */
 	int tot_change=0, tot_lib_error=0, tot_multiuser_arm_error=0;
 
 	if (obedit && centermode != GEOMETRY_TO_ORIGIN) {
 		BKE_report(op->reports, RPT_ERROR, "Operation cannot be performed in EditMode");
 		return OPERATOR_CANCELLED;
-	}	
+	}
 	else {
 		/* get the view settings if 'around' isnt set and the view is available */
 		View3D *v3d= CTX_wm_view3d(C);
@@ -658,12 +661,12 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 		if(v3d && !RNA_property_is_set(op->ptr, "around"))
 			around= v3d->around;
 	}
-	
+
 	zero_v3(cent);
 
 	if(obedit) {
 		INIT_MINMAX(min, max);
-	
+
 		if(obedit->type==OB_MESH) {
 			Mesh *me= obedit->data;
 			EditMesh *em = BKE_mesh_get_editmesh(me);
@@ -671,34 +674,34 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 
 			if(around==V3D_CENTROID) {
 				int total= 0;
-			for(eve= em->verts.first; eve; eve= eve->next) {
+				for(eve= em->verts.first; eve; eve= eve->next) {
 					total++;
 					add_v3_v3(cent, eve->co);
 				}
 				if(total) {
-				mul_v3_fl(cent, 1.0f/(float)total);
+					mul_v3_fl(cent, 1.0f/(float)total);
+				}
 			}
-			}
-				else {
+			else {
 				for(eve= em->verts.first; eve; eve= eve->next) {
 					DO_MINMAX(eve->co, min, max);
 				}
 				mid_v3_v3v3(cent, min, max);
 			}
-			
+
 			if(!is_zero_v3(cent)) {
-			for(eve= em->verts.first; eve; eve= eve->next) {
-				sub_v3_v3(eve->co, cent);			
-			}
-			
-			recalc_editnormals(em);
-			tot_change++;
-			DAG_id_tag_update(&obedit->id, OB_RECALC_DATA);
+				for(eve= em->verts.first; eve; eve= eve->next) {
+					sub_v3_v3(eve->co, cent);
+				}
+
+				recalc_editnormals(em);
+				tot_change++;
+				DAG_id_tag_update(&obedit->id, OB_RECALC_DATA);
 			}
 			BKE_mesh_end_editmesh(me, em);
 		}
 	}
-	
+
 	/* reset flags */
 	CTX_DATA_BEGIN(C, Object*, ob, selected_editable_objects) {
 			ob->flag &= ~OB_DONE;
@@ -711,18 +714,18 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 		if(tob->dup_group)
 			((ID *)tob->dup_group)->flag &= ~LIB_DOIT;
 	}
-	
+
 	CTX_DATA_BEGIN(C, Object*, ob, selected_editable_objects) {
 		if((ob->flag & OB_DONE)==0) {
 			int do_inverse_offset = FALSE;
 			ob->flag |= OB_DONE;
-				
+
 			if(centermode == ORIGIN_TO_CURSOR) {
 				copy_v3_v3(cent, cursor);
-						invert_m4_m4(ob->imat, ob->obmat);
-						mul_m4_v3(ob->imat, cent);
-						}
-					
+				invert_m4_m4(ob->imat, ob->obmat);
+				mul_m4_v3(ob->imat, cent);
+			}
+			
 			if(ob->data == NULL) {
 				/* special support for dupligroups */
 				if((ob->transflag & OB_DUPLIGROUP) && ob->dup_group && (ob->dup_group->id.flag & LIB_DOIT)==0) {
@@ -738,23 +741,23 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 							mid_v3_v3v3(cent, min, max);
 							invert_m4_m4(ob->imat, ob->obmat);
 							mul_m4_v3(ob->imat, cent);
-					}
-					
+						}
+						
 						add_v3_v3(ob->dup_group->dupli_ofs, cent);
-							
+
 						tot_change++;
 						ob->dup_group->id.flag |= LIB_DOIT;
 						do_inverse_offset= TRUE;
-							}
-						}
 					}
+				}
+			}
 			else if (((ID *)ob->data)->lib) {
 				tot_lib_error++;
-										}
-										
+			}
+
 			if(obedit==NULL && ob->type==OB_MESH) {
 				Mesh *me= ob->data;
-												
+
 				if(centermode == ORIGIN_TO_CURSOR) { /* done */ }
 				else if(around==V3D_CENTROID) { mesh_center_median(me, cent); }
 				else { mesh_center_bounds(me, cent); }
@@ -762,40 +765,40 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 				negate_v3_v3(cent_neg, cent);
 				mesh_translate(me, cent_neg, 1);
 
-										tot_change++;
+				tot_change++;
 				me->id.flag |= LIB_DOIT;
 				do_inverse_offset= TRUE;
-									}
+			}
 			else if (ELEM(ob->type, OB_CURVE, OB_SURF)) {
 				Curve *cu= ob->data;
-				
+
 				if(centermode == ORIGIN_TO_CURSOR) { /* done */ }
 				else if(around==V3D_CENTROID) { curve_center_median(cu, cent); }
 				else { curve_center_bounds(cu, cent);	}
 
-						/* don't allow Z change if curve is 2D */
+				/* don't allow Z change if curve is 2D */
 				if((ob->type == OB_CURVE) && !(cu->flag & CU_3D))
-							cent[2] = 0.0;
-						
+					cent[2] = 0.0;
+
 				negate_v3_v3(cent_neg, cent);
 				curve_translate(cu, cent_neg, 1);
-						
-					tot_change++;
-					cu->id.flag |= LIB_DOIT;
+
+				tot_change++;
+				cu->id.flag |= LIB_DOIT;
 				do_inverse_offset= TRUE;
 
-					if(obedit) {
+				if(obedit) {
 					if (centermode == GEOMETRY_TO_ORIGIN) {
 						DAG_id_tag_update(&obedit->id, OB_RECALC_DATA);
-						}
-						break;
 					}
+					break;
 				}
+			}
 			else if(ob->type==OB_FONT) {
 				/* get from bb */
-				
+
 				Curve *cu= ob->data;
-				
+
 				if(cu->bb==NULL && (centermode != ORIGIN_TO_CURSOR)) {
 					/* do nothing*/
 				}
@@ -807,7 +810,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 						cent[0]= 0.5f * ( cu->bb->vec[4][0] + cu->bb->vec[0][0]);
 						cent[1]= 0.5f * ( cu->bb->vec[0][1] + cu->bb->vec[2][1]) - 0.5f;	/* extra 0.5 is the height o above line */
 					}
-					
+
 					cent[2]= 0.0f;
 
 					cu->xof= cu->xof - (cent[0] / cu->fsize);
@@ -820,14 +823,14 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 			}
 			else if(ob->type==OB_ARMATURE) {
 				bArmature *arm = ob->data;
-				
+
 				if(ID_REAL_USERS(arm) > 1) {
 					/*BKE_report(op->reports, RPT_ERROR, "Can't apply to a multi user armature");
 					return;*/
 					tot_multiuser_arm_error++;
 				}
 				else {
-					/* Function to recenter armatures in editarmature.c 
+					/* Function to recenter armatures in editarmature.c
 					 * Bone + object locations are handled there.
 					 */
 					docenter_armature(scene, ob, cursor, centermode, around);
@@ -835,13 +838,13 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 					tot_change++;
 					arm->id.flag |= LIB_DOIT;
 					/* do_inverse_offset= TRUE; */ /* docenter_armature() handles this */
-					
+
 					where_is_object(scene, ob);
 					where_is_pose(scene, ob); /* needed for bone parents */
 
 					ignore_parent_tx(bmain, scene, ob);
-					
-					if(obedit) 
+
+					if(obedit)
 						break;
 				}
 			}
@@ -879,9 +882,9 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 							where_is_pose(scene, ob_other); /* needed for bone parents */
 						}
 						ignore_parent_tx(bmain, scene, ob_other);
-		}
-	}
-	CTX_DATA_END;
+					}
+				}
+				CTX_DATA_END;
 			}
 		}
 	}
@@ -892,21 +895,21 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 			tob->recalc= OB_RECALC_OB|OB_RECALC_DATA;
 		}
 	}
-	
+
 	if (tot_change) {
 		DAG_ids_flush_update(bmain, 0);
 		WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, NULL);
 	}
-	
+
 	/* Warn if any errors occurred */
 	if (tot_lib_error+tot_multiuser_arm_error) {
-		BKE_reportf(op->reports, RPT_WARNING, "%i Object(s) Not Centered, %i Changed:",tot_lib_error+tot_multiuser_arm_error, tot_change);		
+		BKE_reportf(op->reports, RPT_WARNING, "%i Object(s) Not Centered, %i Changed:",tot_lib_error+tot_multiuser_arm_error, tot_change);
 		if (tot_lib_error)
 			BKE_reportf(op->reports, RPT_WARNING, "|%i linked library objects",tot_lib_error);
 		if (tot_multiuser_arm_error)
 			BKE_reportf(op->reports, RPT_WARNING, "|%i multiuser armature object(s)",tot_multiuser_arm_error);
 	}
-	
+
 	return OPERATOR_FINISHED;
 }
 

@@ -74,7 +74,7 @@ typedef struct bScreen {
 	short mainwin;						/* screensize subwindow, for screenedges and global menus */
 	short subwinactive;					/* active subwindow */
 	
-	int pad2;
+	short pad;
 	
 	struct wmTimer *animtimer;			/* if set, screen has timer handler added in window */
 	void *context;						/* context callback */
@@ -197,8 +197,9 @@ typedef struct ARegion {
 #define HEADERDOWN	1
 #define HEADERTOP	2
 
-#define SCREENNORMAL    0
-#define SCREENFULL      1
+/* screen->full */
+#define SCREENNORMAL	0
+#define SCREENFULL		1
 #define SCREENFULLTEMP	2
 
 
@@ -206,7 +207,7 @@ typedef struct ARegion {
 #define PNL_SNAP_NONE		0
 /* #define PNL_SNAP_TOP		1 */
 /* #define PNL_SNAP_RIGHT		2 */
-#define PNL_SNAP_BOTTOM	4
+#define PNL_SNAP_BOTTOM		4
 /* #define PNL_SNAP_LEFT		8 */
 
 /* #define PNL_SNAP_DIST		9.0 */

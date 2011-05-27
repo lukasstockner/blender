@@ -65,8 +65,8 @@ static void rna_Mesh_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
 	/* cheating way for importers to avoid slow updates */
 	if(id->us > 0) {
 		DAG_id_tag_update(id, 0);
-	WM_main_add_notifier(NC_GEOM|ND_DATA, id);
-}
+		WM_main_add_notifier(NC_GEOM|ND_DATA, id);
+	}
 }
 
 static void rna_Mesh_update_select(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -74,8 +74,8 @@ static void rna_Mesh_update_select(Main *bmain, Scene *scene, PointerRNA *ptr)
 	ID *id= ptr->id.data;
 	/* cheating way for importers to avoid slow updates */
 	if(id->us > 0) {
-	WM_main_add_notifier(NC_GEOM|ND_SELECT, id);
-}
+		WM_main_add_notifier(NC_GEOM|ND_SELECT, id);
+	}
 }
 
 void rna_Mesh_update_draw(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -83,8 +83,8 @@ void rna_Mesh_update_draw(Main *bmain, Scene *scene, PointerRNA *ptr)
 	ID *id= ptr->id.data;
 	/* cheating way for importers to avoid slow updates */
 	if(id->us > 0) {
-	WM_main_add_notifier(NC_GEOM|ND_DATA, id);
-}
+		WM_main_add_notifier(NC_GEOM|ND_DATA, id);
+	}
 }
 
 static void rna_MeshVertex_normal_get(PointerRNA *ptr, float *value)
@@ -1117,7 +1117,7 @@ static CustomDataLayer *rna_Mesh_uv_texture_new(struct Mesh *me, struct bContext
 	CustomDataLayer *cdl= NULL;
 	int index;
 
-	if(ED_mesh_uv_texture_add(C, NULL, NULL, me, name, FALSE)) {
+	if(ED_mesh_uv_texture_add(C, me, name, FALSE)) {
 		fdata= rna_mesh_fdata(me);
 		index= CustomData_get_named_layer_index(fdata, CD_MTFACE, name);
 		cdl= (index == -1)? NULL: &fdata->layers[index];
@@ -1335,7 +1335,7 @@ static void rna_def_mtface(BlenderRNA *brna)
 		{TF_ALPHA, "ALPHA", 0, "Alpha", "Render polygon transparent, depending on alpha channel of the texture"},
 		{TF_CLIP, "CLIPALPHA", 0, "Clip Alpha", "Use the images alpha values clipped with no blending (binary alpha)"},
 		{0, NULL, 0, NULL, NULL}};
-	int uv_dim[]= {4, 2};
+	const int uv_dim[]= {4, 2};
 
 	srna= RNA_def_struct(brna, "MeshTextureFaceLayer", NULL);
 	RNA_def_struct_ui_text(srna, "Mesh Texture Face Layer", "Layer of texture faces in a Mesh datablock");
@@ -1965,7 +1965,7 @@ static void rna_def_mesh(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "Material");
 	RNA_def_property_ui_text(prop, "Materials", "");
 	RNA_def_property_srna(prop, "IDMaterials"); /* see rna_ID.c */
-	
+
 	/* Mesh Draw Options for Edit Mode*/
 	
 	prop= RNA_def_property(srna, "show_edges", PROP_BOOLEAN, PROP_NONE);

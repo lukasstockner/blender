@@ -209,7 +209,7 @@ static short do_texttools(SpaceText *st, char ascii, unsigned short evnt, short 
 		if(tools & TOOL_SUGG_LIST) {
 			if((ascii != '_' && ascii != '*' && ispunct(ascii)) || text_check_whitespace(ascii)) {
 				confirm_suggestion(st->text, 0);
-				text_update_line_edited(st->text, st->text->curl);
+				text_update_line_edited(st->text->curl);
 			}
 			else if((st->overwrite && txt_replace_char(st->text, ascii)) || txt_add_char(st->text, ascii)) {
 				get_suggest_prefix(st->text, 0);
@@ -235,7 +235,7 @@ static short do_texttools(SpaceText *st, char ascii, unsigned short evnt, short 
 			case MIDDLEMOUSE:
 				if(text_do_suggest_select(st, ar)) {
 					confirm_suggestion(st->text, 0);
-					text_update_line_edited(st->text, st->text->curl);
+					text_update_line_edited(st->text->curl);
 					swallow= 1;
 				}
 				else {
@@ -253,7 +253,7 @@ static short do_texttools(SpaceText *st, char ascii, unsigned short evnt, short 
 			case RETKEY:
 				if(tools & TOOL_SUGG_LIST) {
 					confirm_suggestion(st->text, 0);
-					text_update_line_edited(st->text, st->text->curl);
+					text_update_line_edited(st->text->curl);
 					swallow= 1;
 					draw= 1;
 				}
@@ -363,7 +363,7 @@ static short do_texttools(SpaceText *st, char ascii, unsigned short evnt, short 
 }
 
 #if 0
-#ifndef DISABLE_PYTHON	
+#ifdef WITH_PYTHON	
 	/* Run text plugin scripts if enabled */
 	if(st->doplugins && event && val) {
 		if(BPY_menu_do_shortcut(PYMENU_TEXTPLUGIN, event, qual)) {
@@ -435,11 +435,11 @@ static short do_textmarkers(SpaceText *st, char ascii, unsigned short evnt, shor
 				if(s!=c) txt_move_to(text, mrk->lineno, mrk->start+s, 1);
 				if(st->overwrite) {
 					if(txt_replace_char(text, ascii))
-						text_update_line_edited(st->text, st->text->curl);
+						text_update_line_edited(st->text->curl);
 				}
 				else {
 					if(txt_add_char(text, ascii)) {
-						text_update_line_edited(st->text, st->text->curl);
+						text_update_line_edited(st->text->curl);
 					}
 				}
 
@@ -464,7 +464,7 @@ static short do_textmarkers(SpaceText *st, char ascii, unsigned short evnt, shor
 						txt_move_to(text, mrk->lineno, mrk->start+c, 0);
 						if(s!=c) txt_move_to(text, mrk->lineno, mrk->start+s, 1);
 						txt_backspace_char(text);
-						text_update_line_edited(st->text, st->text->curl);
+						text_update_line_edited(st->text->curl);
 						if(mrk==marker || mrk==nxt) break;
 						mrk= nxt;
 					}
@@ -484,7 +484,7 @@ static short do_textmarkers(SpaceText *st, char ascii, unsigned short evnt, shor
 						txt_move_to(text, mrk->lineno, mrk->start+c, 0);
 						if(s!=c) txt_move_to(text, mrk->lineno, mrk->start+s, 1);
 						txt_delete_char(text);
-						text_update_line_edited(st->text, st->text->curl);
+						text_update_line_edited(st->text->curl);
 						if(mrk==marker || mrk==nxt) break;
 						mrk= nxt;
 					}

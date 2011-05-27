@@ -42,7 +42,7 @@ extern "C" {
 	
 struct Mesh;
 struct Ipo;
-	
+
 typedef struct FluidVertexVelocity {
 	float vel[3];
 } FluidVertexVelocity;
@@ -139,7 +139,7 @@ typedef struct FluidsimSettings {
 	float velocityforceRadius;
 
 	int lastgoodframe;
-
+	
 	int pad;
 
 } FluidsimSettings;

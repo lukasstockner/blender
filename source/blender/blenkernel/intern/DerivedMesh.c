@@ -526,7 +526,7 @@ static void emDM_drawMappedEdges(DerivedMesh *dm, int (*setDrawOptions)(void *us
 		glEnd();
 	}
 }
-static void emDM_drawEdges(DerivedMesh *dm, int drawLooseEdges, int drawAllEdges)
+static void emDM_drawEdges(DerivedMesh *dm, int UNUSED(drawLooseEdges), int UNUSED(drawAllEdges))
 {
 	emDM_drawMappedEdges(dm, NULL, NULL);
 }
@@ -637,11 +637,13 @@ static void emDM_foreachMappedFaceCenter(DerivedMesh *dm, void (*func)(void *use
 }
 
 /* note, material function is ignored for now. */
-static void emDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r), void *userData, int useColors, int (*setMaterial)(int, void *attribs))
+static void emDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r), void *userData, int UNUSED(useColors), int (*setMaterial)(int, void *attribs))
 {
 	EditMeshDerivedMesh *emdm= (EditMeshDerivedMesh*) dm;
 	EditFace *efa;
 	int i, draw;
+	
+	(void)setMaterial; /* unused */
 
 	if (emdm->vertexCos) {
 		EditVert *eve;
@@ -1698,9 +1700,6 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	if(useRenderParams) required_mode = eModifierMode_Render;
 	else required_mode = eModifierMode_Realtime;
 
-	/* we always want to keep original indices */
-	dataMask |= CD_MASK_ORIGINDEX;
-
 	datamasks = modifiers_calcDataMasks(scene, ob, md, dataMask, required_mode);
 	curr = datamasks;
 
@@ -1766,7 +1765,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 		md->scene= scene;
-		
+
 		if(!modifier_isEnabled(scene, md, required_mode)) continue;
 		if(mti->type == eModifierTypeType_OnlyDeform && !useDeform) continue;
 		if((mti->flags & eModifierTypeFlag_RequiresOriginalData) && dm) {
@@ -1835,6 +1834,12 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		} else {
 			DerivedMesh *ndm;
 
+			/* determine which data layers are needed by following modifiers */
+			if(curr->next)
+				nextmask= (CustomDataMask)GET_INT_FROM_POINTER(curr->next->link);
+			else
+				nextmask= dataMask;
+
 			/* apply vertex coordinates or build a DerivedMesh as necessary */
 			if(dm) {
 				if(deformedVerts) {
@@ -1856,28 +1861,25 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 				if((dataMask & CD_MASK_WEIGHT_MCOL) && (ob->mode & OB_MODE_WEIGHT_PAINT))
 					add_weight_mcol_dm(ob, dm);
 
-				/* constructive modifiers need to have an origindex
-				 * otherwise they wont have anywhere to copy the data from */
-				if(needMapping) {
-					int *index, i;
+				/* Constructive modifiers need to have an origindex
+				 * otherwise they wont have anywhere to copy the data from.
+				 *
+				 * Also create ORIGINDEX data if any of the following modifiers
+				 * requests it, this way Mirror, Solidify etc will keep ORIGINDEX
+				 * data by using generic DM_copy_vert_data() functions.
+				 */
+				if(needMapping || (nextmask & CD_MASK_ORIGINDEX)) {
+					/* calc */
 					DM_add_vert_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
 					DM_add_edge_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
 					DM_add_face_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
 
-					index = DM_get_vert_data_layer(dm, CD_ORIGINDEX);
-					for(i=0; i<dm->numVertData; i++) *index++= i;
-					index = DM_get_edge_data_layer(dm, CD_ORIGINDEX);
-					for(i=0; i<dm->numEdgeData; i++) *index++= i;
-					index = DM_get_face_data_layer(dm, CD_ORIGINDEX);
-					for(i=0; i<dm->numFaceData; i++) *index++= i;
+					range_vni(DM_get_vert_data_layer(dm, CD_ORIGINDEX), dm->numVertData, 0);
+					range_vni(DM_get_edge_data_layer(dm, CD_ORIGINDEX), dm->numEdgeData, 0);
+					range_vni(DM_get_face_data_layer(dm, CD_ORIGINDEX), dm->numFaceData, 0);
 				}
 			}
 
-			/* determine which data layers are needed by following modifiers */
-			if(curr->next)
-				nextmask= (CustomDataMask)GET_INT_FROM_POINTER(curr->next->link);
-			else
-				nextmask= dataMask;
 			
 			/* set the DerivedMesh to only copy needed data */
 			mask= (CustomDataMask)GET_INT_FROM_POINTER(curr->link);
@@ -1914,7 +1916,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 					orcodm= create_orco_dm(ob, me, NULL, CD_ORCO);
 
 				nextmask &= ~CD_MASK_ORCO;
-				DM_set_only_copy(orcodm, nextmask);
+				DM_set_only_copy(orcodm, nextmask | CD_MASK_ORIGINDEX);
 				ndm = mti->applyModifier(md, ob, orcodm, useRenderParams, 0);
 
 				if(ndm) {
@@ -1930,7 +1932,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 					clothorcodm= create_orco_dm(ob, me, NULL, CD_CLOTH_ORCO);
 
 				nextmask &= ~CD_MASK_CLOTH_ORCO;
-				DM_set_only_copy(clothorcodm, nextmask);
+				DM_set_only_copy(clothorcodm, nextmask | CD_MASK_ORIGINDEX);
 				ndm = mti->applyModifier(md, ob, clothorcodm, useRenderParams, 0);
 
 				if(ndm) {
@@ -2051,9 +2053,6 @@ static void editmesh_calc_modifiers(Scene *scene, Object *ob, EditMesh *em, Deri
 
 	dm = NULL;
 	md = modifiers_getVirtualModifierList(ob);
-	
-	/* we always want to keep original indices */
-	dataMask |= CD_MASK_ORIGINDEX;
 
 	datamasks = modifiers_calcDataMasks(scene, ob, md, dataMask, required_mode);
 
@@ -2132,7 +2131,7 @@ static void editmesh_calc_modifiers(Scene *scene, Object *ob, EditMesh *em, Deri
 					orcodm= create_orco_dm(ob, ob->data, em, CD_ORCO);
 
 				mask &= ~CD_MASK_ORCO;
-				DM_set_only_copy(orcodm, mask);
+				DM_set_only_copy(orcodm, mask | CD_MASK_ORIGINDEX);
 
 				if (mti->applyModifierEM)
 					ndm = mti->applyModifierEM(md, ob, em, orcodm);
@@ -2147,9 +2146,11 @@ static void editmesh_calc_modifiers(Scene *scene, Object *ob, EditMesh *em, Deri
 			}
 
 			/* set the DerivedMesh to only copy needed data */
-			DM_set_only_copy(dm, (CustomDataMask)GET_INT_FROM_POINTER(curr->link));
+			mask= (CustomDataMask)GET_INT_FROM_POINTER(curr->link); /* CD_MASK_ORCO may have been cleared above */
 
-			if(((CustomDataMask)GET_INT_FROM_POINTER(curr->link)) & CD_MASK_ORIGSPACE)
+			DM_set_only_copy(dm, mask | CD_MASK_ORIGINDEX);
+
+			if(mask & CD_MASK_ORIGSPACE)
 				if(!CustomData_has_layer(&dm->faceData, CD_ORIGSPACE))
 					DM_add_face_layer(dm, CD_ORIGSPACE, CD_DEFAULT, NULL);
 			
@@ -2247,8 +2248,8 @@ static void clear_mesh_caches(Object *ob)
 
 	if(ob->sculpt) {
 		ED_sculpt_modifiers_changed(ob);
-		}
 	}
+}
 
 static void mesh_build_data(Scene *scene, Object *ob, CustomDataMask dataMask)
 {
@@ -2424,7 +2425,7 @@ DerivedMesh *editmesh_get_derived_cage(Scene *scene, Object *obedit, EditMesh *e
 	return em->derivedCage;
 }
 
-DerivedMesh *editmesh_get_derived_base(Object *obedit, EditMesh *em)
+DerivedMesh *editmesh_get_derived_base(Object *UNUSED(obedit), EditMesh *em)
 {
 	return editmesh_get_derived(em, NULL);
 }
@@ -2521,7 +2522,7 @@ static void GetPosition(const SMikkTSpaceContext * pContext, float fPos[], const
 	SGLSLMeshToTangent * pMesh = (SGLSLMeshToTangent *) pContext->m_pUserData;
 	const float *co= pMesh->mvert[(&pMesh->mface[face_num].v1)[vert_index]].co;
 	VECCOPY(fPos, co);
-			}
+}
 
 static void GetTextureCoordinate(const SMikkTSpaceContext * pContext, float fUV[], const int face_num, const int vert_index)
 {
@@ -2531,7 +2532,7 @@ static void GetTextureCoordinate(const SMikkTSpaceContext * pContext, float fUV[
 	if(pMesh->mtface!=NULL) {
 		float * uv = pMesh->mtface[face_num].uv[vert_index];
 		fUV[0]=uv[0]; fUV[1]=uv[1];
-		}
+	}
 	else {
 		const float *orco= pMesh->orco[(&pMesh->mface[face_num].v1)[vert_index]];
 		map_to_sphere( &fUV[0], &fUV[1], orco[0], orco[1], orco[2]);
@@ -2547,7 +2548,7 @@ static void GetNormal(const SMikkTSpaceContext * pContext, float fNorm[], const 
 	if(!smoothnormal) {	// flat
 		if(pMesh->precomputedFaceNormals) {
 			VECCOPY(fNorm, &pMesh->precomputedFaceNormals[3*face_num]);
-}
+		}
 		else {
 			MFace *mf= &pMesh->mface[face_num];
 			float *p0= pMesh->mvert[mf->v1].co;
@@ -2619,7 +2620,7 @@ void DM_add_tangent_layer(DerivedMesh *dm)
 	arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "tangent layer arena");
 	BLI_memarena_use_calloc(arena);
 	vtangents= MEM_callocN(sizeof(VertexTangent*)*totvert, "VertexTangent");
-	
+
 	// new computation method
 	iCalcNewMethod = 1;
 	if(iCalcNewMethod != 0) {
@@ -2649,74 +2650,74 @@ void DM_add_tangent_layer(DerivedMesh *dm)
 	}
 
 	if(!iCalcNewMethod) {
-	/* sum tangents at connected vertices */
-	for(i=0, tf=mtface, mf=mface; i < totface; mf++, tf++, i++) {
-		v1= &mvert[mf->v1];
-		v2= &mvert[mf->v2];
-		v3= &mvert[mf->v3];
+		/* sum tangents at connected vertices */
+		for(i=0, tf=mtface, mf=mface; i < totface; mf++, tf++, i++) {
+			v1= &mvert[mf->v1];
+			v2= &mvert[mf->v2];
+			v3= &mvert[mf->v3];
 
-		if (mf->v4) {
-			v4= &mvert[mf->v4];
-			normal_quad_v3( fno,v4->co, v3->co, v2->co, v1->co);
-		}
-		else {
-			v4= NULL;
-			normal_tri_v3( fno,v3->co, v2->co, v1->co);
-		}
+			if (mf->v4) {
+				v4= &mvert[mf->v4];
+				normal_quad_v3( fno,v4->co, v3->co, v2->co, v1->co);
+			}
+			else {
+				v4= NULL;
+				normal_tri_v3( fno,v3->co, v2->co, v1->co);
+			}
 		
-		if(mtface) {
-			uv1= tf->uv[0];
-			uv2= tf->uv[1];
-			uv3= tf->uv[2];
-			uv4= tf->uv[3];
-		}
-		else {
-			uv1= uv[0]; uv2= uv[1]; uv3= uv[2]; uv4= uv[3];
-			map_to_sphere( &uv[0][0], &uv[0][1],orco[mf->v1][0], orco[mf->v1][1], orco[mf->v1][2]);
-			map_to_sphere( &uv[1][0], &uv[1][1],orco[mf->v2][0], orco[mf->v2][1], orco[mf->v2][2]);
-			map_to_sphere( &uv[2][0], &uv[2][1],orco[mf->v3][0], orco[mf->v3][1], orco[mf->v3][2]);
-			if(v4)
-				map_to_sphere( &uv[3][0], &uv[3][1],orco[mf->v4][0], orco[mf->v4][1], orco[mf->v4][2]);
-		}
+			if(mtface) {
+				uv1= tf->uv[0];
+				uv2= tf->uv[1];
+				uv3= tf->uv[2];
+				uv4= tf->uv[3];
+			}
+			else {
+				uv1= uv[0]; uv2= uv[1]; uv3= uv[2]; uv4= uv[3];
+				map_to_sphere( &uv[0][0], &uv[0][1],orco[mf->v1][0], orco[mf->v1][1], orco[mf->v1][2]);
+				map_to_sphere( &uv[1][0], &uv[1][1],orco[mf->v2][0], orco[mf->v2][1], orco[mf->v2][2]);
+				map_to_sphere( &uv[2][0], &uv[2][1],orco[mf->v3][0], orco[mf->v3][1], orco[mf->v3][2]);
+				if(v4)
+					map_to_sphere( &uv[3][0], &uv[3][1],orco[mf->v4][0], orco[mf->v4][1], orco[mf->v4][2]);
+			}
 		
-		tangent_from_uv(uv1, uv2, uv3, v1->co, v2->co, v3->co, fno, tang);
-		sum_or_add_vertex_tangent(arena, &vtangents[mf->v1], tang, uv1);
-		sum_or_add_vertex_tangent(arena, &vtangents[mf->v2], tang, uv2);
-		sum_or_add_vertex_tangent(arena, &vtangents[mf->v3], tang, uv3);
-		
-		if(mf->v4) {
-			v4= &mvert[mf->v4];
-			
-			tangent_from_uv(uv1, uv3, uv4, v1->co, v3->co, v4->co, fno, tang);
+			tangent_from_uv(uv1, uv2, uv3, v1->co, v2->co, v3->co, fno, tang);
 			sum_or_add_vertex_tangent(arena, &vtangents[mf->v1], tang, uv1);
+			sum_or_add_vertex_tangent(arena, &vtangents[mf->v2], tang, uv2);
 			sum_or_add_vertex_tangent(arena, &vtangents[mf->v3], tang, uv3);
-			sum_or_add_vertex_tangent(arena, &vtangents[mf->v4], tang, uv4);
+		
+			if(mf->v4) {
+				v4= &mvert[mf->v4];
+			
+				tangent_from_uv(uv1, uv3, uv4, v1->co, v3->co, v4->co, fno, tang);
+				sum_or_add_vertex_tangent(arena, &vtangents[mf->v1], tang, uv1);
+				sum_or_add_vertex_tangent(arena, &vtangents[mf->v3], tang, uv3);
+				sum_or_add_vertex_tangent(arena, &vtangents[mf->v4], tang, uv4);
+			}
 		}
-	}
 	
-	/* write tangent to layer */
-	for(i=0, tf=mtface, mf=mface; i < totface; mf++, tf++, i++, tangent+=4) {
-		len= (mf->v4)? 4 : 3; 
+		/* write tangent to layer */
+		for(i=0, tf=mtface, mf=mface; i < totface; mf++, tf++, i++, tangent+=4) {
+			len= (mf->v4)? 4 : 3; 
+
+			if(mtface == NULL) {
+				map_to_sphere( &uv[0][0], &uv[0][1],orco[mf->v1][0], orco[mf->v1][1], orco[mf->v1][2]);
+				map_to_sphere( &uv[1][0], &uv[1][1],orco[mf->v2][0], orco[mf->v2][1], orco[mf->v2][2]);
+				map_to_sphere( &uv[2][0], &uv[2][1],orco[mf->v3][0], orco[mf->v3][1], orco[mf->v3][2]);
+				if(len==4)
+					map_to_sphere( &uv[3][0], &uv[3][1],orco[mf->v4][0], orco[mf->v4][1], orco[mf->v4][2]);
+			}
 		
-		if(mtface == NULL) {
-			map_to_sphere( &uv[0][0], &uv[0][1],orco[mf->v1][0], orco[mf->v1][1], orco[mf->v1][2]);
-			map_to_sphere( &uv[1][0], &uv[1][1],orco[mf->v2][0], orco[mf->v2][1], orco[mf->v2][2]);
-			map_to_sphere( &uv[2][0], &uv[2][1],orco[mf->v3][0], orco[mf->v3][1], orco[mf->v3][2]);
-			if(len==4)
-				map_to_sphere( &uv[3][0], &uv[3][1],orco[mf->v4][0], orco[mf->v4][1], orco[mf->v4][2]);
-		}
+			mf_vi[0]= mf->v1;
+			mf_vi[1]= mf->v2;
+			mf_vi[2]= mf->v3;
+			mf_vi[3]= mf->v4;
 		
-		mf_vi[0]= mf->v1;
-		mf_vi[1]= mf->v2;
-		mf_vi[2]= mf->v3;
-		mf_vi[3]= mf->v4;
-		
-		for(j=0; j<len; j++) {
-			vtang= find_vertex_tangent(vtangents[mf_vi[j]], mtface ? tf->uv[j] : uv[j]);
-			normalize_v3_v3(tangent[j], vtang);
+			for(j=0; j<len; j++) {
+				vtang= find_vertex_tangent(vtangents[mf_vi[j]], mtface ? tf->uv[j] : uv[j]);
+				normalize_v3_v3(tangent[j], vtang);
 				((float *) tangent[j])[3]=1.0f;
+			}
 		}
-	}
 	}
 	
 	BLI_memarena_free(arena);

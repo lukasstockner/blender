@@ -1252,7 +1252,7 @@ static void rna_def_constraint_rigid_body_joint(BlenderRNA *brna)
 	RNA_def_property_range(prop, -M_PI*2, M_PI*2);
 	RNA_def_property_ui_text(prop, "Axis Z", "Rotate pivot on Z axis in degrees");
 	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
-	
+
 	prop= RNA_def_property(srna, "use_linked_collision", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", CONSTRAINT_DISABLE_LINKED_COLLISION);
 	RNA_def_property_ui_text(prop, "Disable Linked Collision", "Disable collision between linked bodies");
@@ -1269,11 +1269,11 @@ static void rna_def_constraint_rigid_body_joint(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "limit_min_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "minLimit[0]");
 	RNA_def_property_ui_text(prop, "Minimum Limit X", "");
-    
+
 	prop= RNA_def_property(srna, "limit_min_y", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "minLimit[1]");
 	RNA_def_property_ui_text(prop, "Minimum Limit Y", "");
-	
+
 	prop= RNA_def_property(srna, "limit_min_z", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "minLimit[2]");
 	RNA_def_property_ui_text(prop, "Minimum Limit Z", "");
@@ -1289,7 +1289,7 @@ static void rna_def_constraint_rigid_body_joint(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "limit_max_z", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "maxLimit[2]");
 	RNA_def_property_ui_text(prop, "Maximum Limit Z", "");
-    
+
 	/* Limit Min/Max for angle */
 	prop= RNA_def_property(srna, "limit_angle_min_x", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "minLimit[3]");
@@ -1321,12 +1321,12 @@ static void rna_def_constraint_rigid_body_joint(BlenderRNA *brna)
 	RNA_def_property_range(prop, -M_PI*2, M_PI*2);
 	RNA_def_property_ui_text(prop, "Maximum Angular Limit Z", "");
 
-    /* Limit Booleans */
+	/* Limit Booleans */
 	prop= RNA_def_property(srna, "use_limit_x", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", 1);
 	RNA_def_property_ui_text(prop, "Limit X", "Use minimum/maximum x limit");
 	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
-
+	
 	prop= RNA_def_property(srna, "use_limit_y", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", 2);
 	RNA_def_property_ui_text(prop, "Limit Y", "Use minimum/maximum y limit");
@@ -1336,7 +1336,7 @@ static void rna_def_constraint_rigid_body_joint(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", 4);
 	RNA_def_property_ui_text(prop, "Limit Z", "Use minimum/maximum z limit");
 	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
-    
+
 	prop= RNA_def_property(srna, "use_angular_limit_x", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", 8);
 	RNA_def_property_ui_text(prop, "Angular X Limit", "Use minimum/maximum x angular limit");

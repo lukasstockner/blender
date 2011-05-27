@@ -121,61 +121,61 @@ def display_name_from_filepath(name):
 
 
 def resolve_ncase(path):
-	"""
-	Resolve a case insensitive path on a case sensitive system,
-	returning a string with the path if found else return the original path.
-	"""
+    """
+    Resolve a case insensitive path on a case sensitive system,
+    returning a string with the path if found else return the original path.
+    """
 
-	import os
+    import os
 
-	def _ncase_path_found(path):
+    def _ncase_path_found(path):
         if not path or os.path.exists(path):
-			return path, True
+            return path, True
 
-		filename = os.path.basename(path) # filename may be a directory or a file
-		dirpath = os.path.dirname(path)
+        filename = os.path.basename(path)  # filename may be a directory or a file
+        dirpath = os.path.dirname(path)
 
         suffix = path[:0]  # "" but ensure byte/str match
-		if not filename: # dir ends with a slash?
-			if len(dirpath) < len(path):
-				suffix = path[:len(path)-len(dirpath)]
+        if not filename:  # dir ends with a slash?
+            if len(dirpath) < len(path):
+                suffix = path[:len(path) - len(dirpath)]
 
-			filename = os.path.basename(dirpath)
-			dirpath = os.path.dirname(dirpath)
+            filename = os.path.basename(dirpath)
+            dirpath = os.path.dirname(dirpath)
 
-		if not os.path.exists(dirpath):
+        if not os.path.exists(dirpath):
             if dirpath == path:
                 return path, False
 
-			dirpath, found = _ncase_path_found(dirpath)
+            dirpath, found = _ncase_path_found(dirpath)
 
-			if not found:
-				return path, False
+            if not found:
+                return path, False
 
-		# at this point, the directory exists but not the file
+        # at this point, the directory exists but not the file
 
-		# we are expecting 'dirpath' to be a directory, but it could be a file
-		if os.path.isdir(dirpath):
-			files = os.listdir(dirpath)
-		else:
-			return path, False
+        # we are expecting 'dirpath' to be a directory, but it could be a file
+        if os.path.isdir(dirpath):
+            files = os.listdir(dirpath)
+        else:
+            return path, False
 
-		filename_low = filename.lower()
-		f_iter_nocase = None
+        filename_low = filename.lower()
+        f_iter_nocase = None
 
-		for f_iter in files:
-			if f_iter.lower() == filename_low:
-				f_iter_nocase = f_iter
-				break
+        for f_iter in files:
+            if f_iter.lower() == filename_low:
+                f_iter_nocase = f_iter
+                break
 
-		if f_iter_nocase:
-			return os.path.join(dirpath, f_iter_nocase) + suffix, True
-		else:
-			# cant find the right one, just return the path as is.
-			return path, False
+        if f_iter_nocase:
+            return os.path.join(dirpath, f_iter_nocase) + suffix, True
+        else:
+            # cant find the right one, just return the path as is.
+            return path, False
 
-	ncase_path, found = _ncase_path_found(path)
-	return ncase_path if found else path
+    ncase_path, found = _ncase_path_found(path)
+    return ncase_path if found else path
 
 
 def ensure_ext(filepath, ext, case_sensitive=False):
@@ -217,7 +217,7 @@ def module_names(path, recursive=False):
 
     for filename in sorted(_os.listdir(path)):
         if filename == "modules":
-            pass # XXX, hard coded exception.
+            pass  # XXX, hard coded exception.
         elif filename.endswith(".py") and filename != "__init__.py":
             fullpath = join(path, filename)
             modules.append((filename[0:-3], fullpath))

@@ -37,7 +37,6 @@
 
 #ifndef _WIN32 
 	#include <unistd.h> // for read close
-	#include <sys/param.h> // for MAXPATHLEN
 #else
 	#include <io.h> // for open close read
 	#define open _open
@@ -141,7 +140,7 @@ void initglobals(void)
 	G.charstart = 0x0000;
 	G.charmin = 0x0000;
 	G.charmax = 0xffff;
-	
+
 #ifndef WITH_PYTHON_SECURITY /* default */
 	G.f |= G_SCRIPT_AUTOEXEC;
 #else
@@ -169,14 +168,14 @@ static void clean_paths(Main *main)
 	struct BPathIterator *bpi;
 	char filepath_expanded[1024];
 	Scene *scene;
-	
+
 	for(BLI_bpathIterator_init(&bpi, main, main->name, BPATH_USE_PACKED); !BLI_bpathIterator_isDone(bpi); BLI_bpathIterator_step(bpi)) {
 		BLI_bpathIterator_getPath(bpi, filepath_expanded);
-	
+
 		BLI_clean(filepath_expanded);
-	
+
 		BLI_bpathIterator_setPath(bpi, filepath_expanded);
-				}
+	}
 
 	BLI_bpathIterator_free(bpi);
 
@@ -205,12 +204,12 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 	else mode= 0;
 
 	recover= (G.fileflags & G_FILE_RECOVER);
-	
+
 	/* Only make filepaths compatible when loading for real (not undo) */
 	if(mode != 'u') {
-	clean_paths(bfd->main);
+		clean_paths(bfd->main);
 	}
-	
+
 	/* XXX here the complex windowmanager matching */
 	
 	/* no load screens? */
@@ -308,7 +307,7 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 	/* these are the same at times, should never copy to the same location */
 	if(G.main->name != filepath)
 		BLI_strncpy(G.main->name, filepath, FILE_MAX);
-	
+
 	/* baseflags, groups, make depsgraph, etc */
 	set_scene_bg(G.main, CTX_data_scene(C));
 	
@@ -399,7 +398,7 @@ int BKE_read_file_from_memfile(bContext *C, MemFile *memfile, ReportList *report
 {
 	BlendFileData *bfd;
 
-	bfd= BLO_read_from_memfile(CTX_data_main(C), G.sce, memfile, reports);
+	bfd= BLO_read_from_memfile(CTX_data_main(C), G.main->name, memfile, reports);
 	if (bfd)
 		setup_app_data(C, bfd, "<memory1>");
 	else
@@ -449,15 +448,13 @@ static UndoElem *curundo= NULL;
 
 static int read_undosave(bContext *C, UndoElem *uel)
 {
-	char scestr[FILE_MAXDIR+FILE_MAXFILE]; /* we should eventually just use G.main->name */
-	char mainstr[FILE_MAXDIR+FILE_MAXFILE];
+	char mainstr[sizeof(G.main->name)];
 	int success=0, fileflags;
 	
 	/* This is needed so undoing/redoing doesnt crash with threaded previews going */
 	WM_jobs_stop_all(CTX_wm_manager(C));
-	
-	strcpy(scestr, G.sce);	/* temporal store */
-	strcpy(mainstr, G.main->name);	/* temporal store */
+
+	BLI_strncpy(mainstr, G.main->name, sizeof(mainstr));	/* temporal store */
 
 	fileflags= G.fileflags;
 	G.fileflags |= G_FILE_NO_UI;
@@ -630,7 +627,7 @@ void BKE_undo_number(bContext *C, int nr)
 void BKE_undo_name(bContext *C, const char *name)
 {
 	UndoElem *uel= BLI_rfindstring(&undobase, name, offsetof(UndoElem, name));
-	
+
 	if(uel && uel->prev) {
 		curundo= uel->prev;
 		BKE_undo_step(C, 0);
@@ -711,7 +708,7 @@ void BKE_undo_save_quit(void)
 Main *BKE_undo_get_main(Scene **scene)
 {
 	Main *mainp= NULL;
-	BlendFileData *bfd= BLO_read_from_memfile(G.main, G.sce, &curundo->memfile, NULL);
+	BlendFileData *bfd= BLO_read_from_memfile(G.main, G.main->name, &curundo->memfile, NULL);
 	
 	if(bfd) {
 		mainp= bfd->main;

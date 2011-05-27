@@ -36,7 +36,7 @@ public:
 	void	setContactManifold(btPersistentManifold* contactManifold);
 
 	btPersistentManifold* getContactManifold()
-{
+	{
 		return &m_contactManifold;
 	}
 
@@ -44,17 +44,17 @@ public:
 	{
 		return &m_contactManifold;
 	}
-	
+
 	virtual ~btContactConstraint();
-					
+
 	virtual void getInfo1 (btConstraintInfo1* info);
-			
+
 	virtual void getInfo2 (btConstraintInfo2* info);
 
 	///obsolete methods
 	virtual void	buildJacobian();
 
-		
+
 };
 
 

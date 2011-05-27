@@ -101,7 +101,7 @@ EnumPropertyItem metaelem_type_items[] = {
 #define OBTYPE_CU_CURVE {OB_CURVE, "CURVE", 0, "Curve", ""}
 #define OBTYPE_CU_SURF {OB_SURF, "SURFACE", 0, "Surface", ""}
 #define OBTYPE_CU_FONT {OB_FONT, "FONT", 0, "Font", ""}
-    
+
 EnumPropertyItem object_type_items[] = {
 	{OB_MESH, "MESH", 0, "Mesh", ""},
 	OBTYPE_CU_CURVE,
@@ -122,7 +122,7 @@ EnumPropertyItem object_type_curve_items[] = {
 	OBTYPE_CU_SURF,
 	OBTYPE_CU_FONT,
 	{0, NULL, 0, NULL, NULL}};
-    
+
 
 #ifdef RNA_RUNTIME
 
@@ -201,6 +201,18 @@ static void rna_Object_matrix_local_set(PointerRNA *ptr, const float values[16])
 	object_apply_mat4(ob, ob->obmat, FALSE, FALSE);
 }
 
+static void rna_Object_matrix_basis_get(PointerRNA *ptr, float values[16])
+{
+	Object *ob= ptr->id.data;
+	object_to_mat4(ob, (float(*)[4])values);
+}
+
+static void rna_Object_matrix_basis_set(PointerRNA *ptr, const float values[16])
+{
+	Object *ob= ptr->id.data;
+	object_apply_mat4(ob, (float(*)[4])values, FALSE, FALSE);
+}
+
 void rna_Object_internal_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	DAG_id_tag_update(ptr->id.data, OB_RECALC_DATA);
@@ -215,8 +227,8 @@ void rna_Object_active_shape_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 		/* exit/enter editmode to get new shape */
 		switch(ob->type) {
 			case OB_MESH:
-		load_editMesh(scene, ob);
-		make_editMesh(scene, ob);
+				load_editMesh(scene, ob);
+				make_editMesh(scene, ob);
 				break;
 			case OB_CURVE:
 			case OB_SURF:
@@ -227,7 +239,7 @@ void rna_Object_active_shape_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 				load_editLatt(ob);
 				make_editLatt(ob);
 				break;
-	}
+		}
 	}
 
 	rna_Object_internal_update_data(bmain, scene, ptr);
@@ -302,7 +314,7 @@ static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value)
 
 	if (id == NULL || ob->mode & OB_MODE_EDIT)
 		return;
-	
+
 	if (ob->type == OB_EMPTY) {
 		if(ob->data) {
 			id_us_min((ID*)ob->data);
@@ -500,16 +512,16 @@ void rna_object_vgroup_name_index_set(PointerRNA *ptr, const char *value, short 
 {
 	Object *ob= (Object*)ptr->id.data;
 	*index= defgroup_name_index(ob, value) + 1;
-		}
+}
 
 void rna_object_vgroup_name_set(PointerRNA *ptr, const char *value, char *result, int maxlen)
 {
 	Object *ob= (Object*)ptr->id.data;
 	bDeformGroup *dg= defgroup_find_name(ob, value);
 	if(dg) {
-			BLI_strncpy(result, value, maxlen);
-			return;
-		}
+		BLI_strncpy(result, value, maxlen);
+		return;
+	}
 
 	result[0]= '\0';
 }
@@ -591,7 +603,7 @@ static PointerRNA rna_Object_active_material_get(PointerRNA *ptr)
 {
 	Object *ob= (Object*)ptr->id.data;
 	Material *ma;
-
+	
 	ma= (ob->totcol)? give_current_material(ob, ob->actcol): NULL;
 	return rna_pointer_inherit_refine(ptr, &RNA_Material, ma);
 }
@@ -1090,9 +1102,9 @@ static void rna_Object_constraints_remove(Object *object, ReportList *reports, b
 
 	remove_constraint(&object->constraints, con);
 	ED_object_constraint_update(object);
-		ED_object_constraint_set_active(object, NULL);
+	ED_object_constraint_set_active(object, NULL);
 	WM_main_add_notifier(NC_OBJECT|ND_CONSTRAINT|NA_REMOVED, object);
-	}
+}
 
 static ModifierData *rna_Object_modifier_new(Object *object, bContext *C, ReportList *reports, const char *name, int type)
 {

@@ -251,8 +251,8 @@ int testclip(float *v)
 	if( v[0] < -abs4) c+=1;
 	else if( v[0] > abs4) c+=2;
 	
-	if( v[1]>abs4) c+=4;
-	else if( v[1]< -abs4) c+=8;
+	if( v[1] > abs4) c+=4;
+	else if( v[1] < -abs4) c+=8;
 	
 	if(v[2] < -abs4) c+=16;			/* this used to be " if(v[2]<0) ", see clippz() */
 	else if(v[2]> abs4) c+= 32;
@@ -1790,7 +1790,7 @@ static int zbuf_part_project(ZbufProjectCache *cache, int index, float winmat[][
 		if(ho[0] < bounds[0]*wco) clipflag |= 1;
 		else if(ho[0] > bounds[1]*wco) clipflag |= 2;
 		if(ho[1] > bounds[3]*wco) clipflag |= 4;
-		else if(ho[1]< bounds[2]*wco) clipflag |= 8;
+		else if(ho[1] < bounds[2]*wco) clipflag |= 8;
 
 		QUATCOPY(cache[cindex].ho, ho);
 		cache[cindex].clip= clipflag;
@@ -3772,7 +3772,7 @@ static void shade_tra_samples_fill(ShadeSample *ssamp, int x, int y, int z, int 
 					shade_input_set_viewco(shi, x, y, xs, ys, (float)z);
 					shade_input_set_uv(shi);
 					if(shi_inc==0)
-					shade_input_set_normals(shi);
+						shade_input_set_normals(shi);
 					else /* XXX shi->flippednor messes up otherwise */
 						shade_input_set_vertex_normals(shi);
 					
@@ -3856,7 +3856,7 @@ static int addtosamp_shr(ShadeResult *samp_shr, ShadeSample *ssamp, int addpassf
 		ShadeInput *shi= ssamp->shi;
 		ShadeResult *shr= ssamp->shr;
 		
-		 for(sample=0; sample<ssamp->tot; sample++, shi++, shr++) {
+		for(sample=0; sample<ssamp->tot; sample++, shi++, shr++) {
 		
 			if(shi->mask & (1<<a)) {
 				float fac= (1.0f - samp_shr->combined[3])*shr->combined[3];

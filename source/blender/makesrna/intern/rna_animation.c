@@ -244,9 +244,9 @@ static StructRNA *rna_KeyingSetInfo_register(Main *bmain, ReportList *reports, v
 	ksi->poll= (have_function[0])? RKS_POLL_rna_internal: NULL;
 	ksi->iter= (have_function[1])? RKS_ITER_rna_internal: NULL;
 	ksi->generate= (have_function[2])? RKS_GEN_rna_internal: NULL;
-
+	
 	/* add and register with other info as needed */
-	ANIM_keyingset_info_register(C, ksi);
+	ANIM_keyingset_info_register(ksi);
 	
 	/* return the struct-rna added */
 	return ksi->ext.srna;
@@ -482,13 +482,13 @@ static FCurve *rna_Driver_from_existing(AnimData *adt, bContext *C, FCurve *src_
 static void rna_def_common_keying_flags(StructRNA *srna, short reg)
 {
 	PropertyRNA *prop;
-	
+
 	static EnumPropertyItem keying_flag_items[] = {
 			{INSERTKEY_NEEDED, "INSERTKEY_NEEDED", 0, "Insert Keyframes - Only Needed", "Only insert keyframes where they're needed in the relevant F-Curves"},
 			{INSERTKEY_MATRIX, "INSERTKEY_VISUAL", 0, "Insert Keyframes - Visual", "Insert keyframes based on 'visual transforms'"},
 			{INSERTKEY_XYZ2RGB, "INSERTKEY_XYZ_TO_RGB", 0, "F-Curve Colors - XYZ to RGB", "Color for newly added transformation F-Curves (Location, Rotation, Scale) and also Color is based on the transform axis"},
 			{0, NULL, 0, NULL, NULL}};
-	
+
 	prop= RNA_def_property(srna, "bl_options", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "keyingflag");
 	RNA_def_property_enum_items(prop, keying_flag_items);
@@ -604,7 +604,7 @@ static void rna_def_keyingset_path(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Data Path", "Path to property setting");
 	RNA_def_struct_name_property(srna, prop); // XXX this is the best indicator for now...
 	RNA_def_property_update(prop, NC_SCENE|ND_KEYINGSET|NA_EDITED, NULL);
-	
+
 	/* called 'index' when given as function arg */
 	prop= RNA_def_property(srna, "array_index", PROP_INT, PROP_NONE);
 	RNA_def_property_ui_text(prop, "RNA Array Index", "Index to the specific setting if applicable");
@@ -628,7 +628,7 @@ static void rna_def_keyingset_paths(BlenderRNA *brna, PropertyRNA *cprop)
 
 	FunctionRNA *func;
 	PropertyRNA *parm;
-
+	
 	PropertyRNA *prop;
 
 	RNA_def_property_srna(cprop, "KeyingSetPaths");
@@ -711,7 +711,7 @@ static void rna_def_keyingset(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "KeyingSetPath");
 	RNA_def_property_ui_text(prop, "Paths", "Keying Set Paths to define settings that get keyframed together");
 	rna_def_keyingset_paths(brna, prop);
-	
+
 	/* Flags */
 	prop= RNA_def_property(srna, "is_path_absolute", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -809,12 +809,11 @@ void rna_def_animdata(BlenderRNA *brna)
 	RNA_def_property_collection_sdna(prop, NULL, "nla_tracks", NULL);
 	RNA_def_property_struct_type(prop, "NlaTrack");
 	RNA_def_property_ui_text(prop, "NLA Tracks", "NLA Tracks (i.e. Animation Layers)");
-	
+
 	rna_api_animdata_nla_tracks(brna, prop);
 	
 	/* Active Action */
 	prop= RNA_def_property(srna, "action", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_funcs(prop, NULL, "rna_AnimData_action_set", NULL, NULL);
 	RNA_def_property_flag(prop, PROP_EDITABLE); /* this flag as well as the dynamic test must be defined for this to be editable... */
 	RNA_def_property_pointer_funcs(prop, NULL, "rna_AnimData_action_set", NULL, "rna_Action_id_poll");
 	RNA_def_property_editable_func(prop, "rna_AnimData_action_editable");

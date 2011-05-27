@@ -69,13 +69,14 @@ static void keymap_properties_set(wmKeyMapItem *kmi)
 	WM_operator_properties_sanitize(kmi->ptr, 1);
 }
 
-void WM_keymap_properties_reset(wmKeyMapItem *kmi)
+/* properties can be NULL, otherwise the arg passed is used and ownership is given to the kmi */
+void WM_keymap_properties_reset(wmKeyMapItem *kmi, struct IDProperty *properties)
 {
 	WM_operator_properties_free(kmi->ptr);
 	MEM_freeN(kmi->ptr);
 
 	kmi->ptr = NULL;
-	kmi->properties = NULL;
+	kmi->properties = properties;
 
 	keymap_properties_set(kmi);
 }
@@ -492,17 +493,17 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C, const char *op
 		}
 		else if(ELEM(opcontext, WM_OP_EXEC_REGION_CHANNELS, WM_OP_INVOKE_REGION_CHANNELS)) {
 			if (!(ar && ar->regiontype == RGN_TYPE_CHANNELS))
-					ar= BKE_area_find_region_type(sa, RGN_TYPE_CHANNELS);
-				
-				if(ar)
-					found= wm_keymap_item_find_handlers(C, &ar->handlers, opname, opcontext, properties, compare_props, hotkey, keymap_r);
+				ar= BKE_area_find_region_type(sa, RGN_TYPE_CHANNELS);
+
+			if(ar)
+				found= wm_keymap_item_find_handlers(C, &ar->handlers, opname, opcontext, properties, compare_props, hotkey, keymap_r);
 		}
 		else if(ELEM(opcontext, WM_OP_EXEC_REGION_PREVIEW, WM_OP_INVOKE_REGION_PREVIEW)) {
 			if (!(ar && ar->regiontype == RGN_TYPE_PREVIEW))
-					ar= BKE_area_find_region_type(sa, RGN_TYPE_PREVIEW);
-				
-				if(ar)
-					found= wm_keymap_item_find_handlers(C, &ar->handlers, opname, opcontext, properties, compare_props, hotkey, keymap_r);
+				ar= BKE_area_find_region_type(sa, RGN_TYPE_PREVIEW);
+
+			if(ar)
+				found= wm_keymap_item_find_handlers(C, &ar->handlers, opname, opcontext, properties, compare_props, hotkey, keymap_r);
 		}
 		else {
 			if(ar)
@@ -718,7 +719,7 @@ void WM_keymap_restore_item_to_default(bContext *C, wmKeyMap *keymap, wmKeyMapIt
 			if(strcmp(orig->idname, kmi->idname) != 0) {
 				BLI_strncpy(kmi->idname, orig->idname, sizeof(kmi->idname));
 
-				WM_keymap_properties_reset(kmi);
+				WM_keymap_properties_reset(kmi, NULL);
 			}
 			
 			if (orig->properties) {
@@ -807,7 +808,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 		/* some mesh operators are active in object mode too, like add-prim */
 		if(km && km->poll && km->poll((bContext *)C)==0) {
 			km = WM_keymap_find_all(C, "Object Mode", 0, 0);
-	}
+		}
 	}
 	else if (strstr(opname, "CURVE_OT")) {
 		km = WM_keymap_find_all(C, "Curve", 0, 0);
@@ -815,7 +816,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 		/* some curve operators are active in object mode too, like add-prim */
 		if(km && km->poll && km->poll((bContext *)C)==0) {
 			km = WM_keymap_find_all(C, "Object Mode", 0, 0);
-	}
+		}
 	}
 	else if (strstr(opname, "ARMATURE_OT")) {
 		km = WM_keymap_find_all(C, "Armature", 0, 0);
@@ -832,7 +833,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 		/* some mball operators are active in object mode too, like add-prim */
 		if(km && km->poll && km->poll((bContext *)C)==0) {
 			km = WM_keymap_find_all(C, "Object Mode", 0, 0);
-	}
+		}
 	}
 	else if (strstr(opname, "LATTICE_OT")) {
 		km = WM_keymap_find_all(C, "Lattice", 0, 0);
@@ -913,6 +914,10 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 	/* Console */
 	else if (strstr(opname, "CONSOLE_OT")) {
 		km = WM_keymap_find_all(C, "Console", sl->spacetype, 0);
+	}
+	/* Console */
+	else if (strstr(opname, "INFO_OT")) {
+		km = WM_keymap_find_all(C, "Info", sl->spacetype, 0);
 	}
 	
 	/* Transform */

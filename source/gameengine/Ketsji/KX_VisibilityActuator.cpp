@@ -84,7 +84,7 @@ KX_VisibilityActuator::Update()
 	return false;
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */
 /* Python functions                                                          */
@@ -126,4 +126,4 @@ PyAttributeDef KX_VisibilityActuator::Attributes[] = {
 	{ NULL }	//Sentinel
 };
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON

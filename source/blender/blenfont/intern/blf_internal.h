@@ -43,7 +43,7 @@ unsigned int blf_hash(unsigned int val);
 int blf_utf8_next(unsigned char *buf, int *iindex);
 
 char *blf_dir_search(const char *file);
-char *blf_dir_metrics_search(char *filename);
+char *blf_dir_metrics_search(const char *filename);
 // int blf_dir_split(const char *str, char *file, int *size); // UNUSED
 
 int blf_font_init(void);

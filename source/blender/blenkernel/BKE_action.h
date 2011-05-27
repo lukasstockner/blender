@@ -82,7 +82,7 @@ typedef enum eAction_TransformFlags {
 	ACT_TRANS_ROT	= (1<<1),
 		/* scaling */
 	ACT_TRANS_SCALE	= (1<<2),
-		
+	
 		/* strictly not a transform, but custom properties are also
 		 * quite often used in modern rigs
 		 */

@@ -191,28 +191,28 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 	CustomDataMask dataMask = 0;
 
 	/* ask for vertexgroups if we need them */
-	if(smd->defgrp_name[0]) dataMask |= (1 << CD_MDEFORMVERT);
+	if(smd->defgrp_name[0]) dataMask |= CD_MASK_MDEFORMVERT;
 
 	return dataMask;
 }
 
 
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob, 
-						   DerivedMesh *dm,
+						DerivedMesh *dm,
 						int UNUSED(useRenderParams),
 						int UNUSED(isFinalCalc))
 {
 	int i;
 	DerivedMesh *result;
-	SolidifyModifierData *smd = (SolidifyModifierData*) md;
+	const SolidifyModifierData *smd = (SolidifyModifierData*) md;
 
 	MFace *mf, *mface, *orig_mface;
 	MEdge *ed, *medge, *orig_medge;
 	MVert *mv, *mvert, *orig_mvert;
 
-	int numVerts = dm->getNumVerts(dm);
-	int numEdges = dm->getNumEdges(dm);
-	int numFaces = dm->getNumFaces(dm);
+	const int numVerts = dm->getNumVerts(dm);
+	const int numEdges = dm->getNumEdges(dm);
+	const int numFaces = dm->getNumFaces(dm);
 
 	/* only use material offsets if we have 2 or more materials  */
 	const short mat_nr_max= ob->totcol > 1 ? ob->totcol - 1 : 0;
@@ -231,13 +231,13 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 
 	float (*vert_nors)[3]= NULL;
 
-	float ofs_orig=				- (((-smd->offset_fac + 1.0f) * 0.5f) * smd->offset);
-	float ofs_new= smd->offset	- (((-smd->offset_fac + 1.0f) * 0.5f) * smd->offset);
+	float const ofs_orig=				- (((-smd->offset_fac + 1.0f) * 0.5f) * smd->offset);
+	float const ofs_new= smd->offset	- (((-smd->offset_fac + 1.0f) * 0.5f) * smd->offset);
 
 	/* weights */
 	MDeformVert *dvert= NULL, *dv= NULL;
-	int defgrp_invert = ((smd->flag & MOD_SOLIDIFY_VGROUP_INV) != 0);
-	int defgrp_index= defgroup_name_index(ob, smd->defgrp_name);
+	const int defgrp_invert = ((smd->flag & MOD_SOLIDIFY_VGROUP_INV) != 0);
+	const int defgrp_index= defgroup_name_index(ob, smd->defgrp_name);
 
 	if (defgrp_index >= 0)
 		dvert = dm->getVertDataArray(dm, CD_MDEFORMVERT);
@@ -332,7 +332,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		dm_calc_normal(dm, vert_nors);
 	}
 
-	result = CDDM_from_template(dm, numVerts * 2, (numEdges * 2) + newEdges, (numFaces * 2) + newFaces);
+	result = CDDM_from_template(dm, numVerts * 2, (numEdges * 2) + newEdges, (numFaces * 2) + newFaces);	
 
 	mface = result->getFaceArray(result);
 	medge = result->getEdgeArray(result);
@@ -369,8 +369,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 			if(mat_ofs) {
 				mf->mat_nr += mat_ofs;
 				CLAMP(mf->mat_nr, 0, mat_nr_max);
+			}
 		}
-	}
 	}
 
 	for(i=0, ed=medge+numEdges; i<numEdges; i++, ed++) {
@@ -462,7 +462,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 				vert_accum[vidx] += face_angles[j];
 				vert_angles[vidx]+= shell_angle_to_dist(angle_normalized_v3v3(vert_nors[vidx], face_nors[i])) * face_angles[j];
 			} while(j--);
-			}
+		}
 
 		/* vertex group support */
 		if(dvert) {

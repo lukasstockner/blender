@@ -102,7 +102,7 @@ void rtbuild_add(RTBuilder *b, RayObject *o)
 	float bb[6];
 
 	assert( b->primitives.begin + b->primitives.maxsize != b->primitives.end );
-	
+
 	INIT_MINMAX(bb, bb+3);
 	RE_rayobject_merge_bb(o, bb, bb+3);
 
@@ -125,7 +125,7 @@ void rtbuild_add(RTBuilder *b, RayObject *o)
 	copy_v3_v3(b->primitives.end->bb+3, bb+3);
 	b->primitives.end->obj = o;
 	b->primitives.end->cost = RE_rayobject_cost(o);
-
+	
 	for(int i=0; i<3; i++)
 	{
 		*(b->sorted_end[i]) = b->primitives.end;

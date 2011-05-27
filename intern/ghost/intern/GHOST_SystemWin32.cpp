@@ -39,6 +39,8 @@
  * @date	May 7, 2001
  */
 
+#include <iostream>
+
 #ifdef FREE_WINDOWS
 #  define WINVER 0x0501 /* GetConsoleWindow() for MinGW */
 #endif
@@ -58,7 +60,7 @@
 #ifdef WIN32
 #ifndef GWL_USERDATA
 #define GWL_USERDATA GWLP_USERDATA
-#define GWL_WNDPROC GWLP_WNDPROC
+#define GWL_WNDPROC GWLP_WNDPROC 
 #endif
 #endif
 
@@ -175,7 +177,7 @@ GHOST_SystemWin32::GHOST_SystemWin32()
 	m_displayManager = new GHOST_DisplayManagerWin32 ();
 	GHOST_ASSERT(m_displayManager, "GHOST_SystemWin32::GHOST_SystemWin32(): m_displayManager==0\n");
 	m_displayManager->initialize();
-	
+
 	m_consoleStatus = 1;
 
 	// Check if current keyboard layout uses AltGr and save keylayout ID for
@@ -255,18 +257,18 @@ GHOST_IWindow* GHOST_SystemWin32::createWindow(
 
 			// An invalid window could be one that was used to test for AA
 			window = ((GHOST_WindowWin32*)window)->getNextWindow();
-
+			
 			// If another window is found, let the wm know about that one, but not the old one
 			if (window->getValid()) {
 				m_windowManager->addWindow(window);
 			}
 			else {
-			delete window;
-			window = 0;
+				delete window;
+				window = 0;
 			}
-			
-			}
+
 		}
+	}
 	return window;
 }
 
@@ -333,23 +335,26 @@ GHOST_TSuccess GHOST_SystemWin32::setCursorPosition(GHOST_TInt32 x, GHOST_TInt32
 
 GHOST_TSuccess GHOST_SystemWin32::getModifierKeys(GHOST_ModifierKeys& keys) const
 {
-		bool down = HIBYTE(::GetKeyState(VK_LSHIFT)) != 0;
-		keys.set(GHOST_kModifierKeyLeftShift, down);
-		down = HIBYTE(::GetKeyState(VK_RSHIFT)) != 0;
-		keys.set(GHOST_kModifierKeyRightShift, down);
-		down = HIBYTE(::GetKeyState(VK_LMENU)) != 0;
-		keys.set(GHOST_kModifierKeyLeftAlt, down);
-		down = HIBYTE(::GetKeyState(VK_RMENU)) != 0;
-		keys.set(GHOST_kModifierKeyRightAlt, down);
-		down = HIBYTE(::GetKeyState(VK_LCONTROL)) != 0;
-		keys.set(GHOST_kModifierKeyLeftControl, down);
-		down = HIBYTE(::GetKeyState(VK_RCONTROL)) != 0;
-		keys.set(GHOST_kModifierKeyRightControl, down);
-		bool lwindown = HIBYTE(::GetKeyState(VK_LWIN)) != 0;
-		bool rwindown = HIBYTE(::GetKeyState(VK_RWIN)) != 0;
-		if(lwindown || rwindown)
+	bool down = HIBYTE(::GetKeyState(VK_LSHIFT)) != 0;
+	keys.set(GHOST_kModifierKeyLeftShift, down);
+	down = HIBYTE(::GetKeyState(VK_RSHIFT)) != 0;
+	keys.set(GHOST_kModifierKeyRightShift, down);
+	
+	down = HIBYTE(::GetKeyState(VK_LMENU)) != 0;
+	keys.set(GHOST_kModifierKeyLeftAlt, down);
+	down = HIBYTE(::GetKeyState(VK_RMENU)) != 0;
+	keys.set(GHOST_kModifierKeyRightAlt, down);
+	
+	down = HIBYTE(::GetKeyState(VK_LCONTROL)) != 0;
+	keys.set(GHOST_kModifierKeyLeftControl, down);
+	down = HIBYTE(::GetKeyState(VK_RCONTROL)) != 0;
+	keys.set(GHOST_kModifierKeyRightControl, down);
+	
+	bool lwindown = HIBYTE(::GetKeyState(VK_LWIN)) != 0;
+	bool rwindown = HIBYTE(::GetKeyState(VK_RWIN)) != 0;
+	if(lwindown || rwindown)
 		keys.set(GHOST_kModifierKeyOS, true);
-		else
+	else
 		keys.set(GHOST_kModifierKeyOS, false);
 	return GHOST_kSuccess;
 }
@@ -377,7 +382,7 @@ GHOST_TSuccess GHOST_SystemWin32::getButtons(GHOST_Buttons& buttons) const
 GHOST_TSuccess GHOST_SystemWin32::init()
 {
 	GHOST_TSuccess success = GHOST_System::init();
-
+	
 	/* Disable scaling on high DPI displays on Vista */
 	user32 = ::LoadLibraryA("user32.dll");
 	typedef BOOL (WINAPI * LPFNSETPROCESSDPIAWARE)();
@@ -389,7 +394,7 @@ GHOST_TSuccess GHOST_SystemWin32::init()
 		pRegisterRawInputDevices = (LPFNDLLRRID)GetProcAddress(user32, "RegisterRawInputDevices");
 		pGetRawInputData = (LPFNDLLGRID)GetProcAddress(user32, "GetRawInputData");
 	#else
-	FreeLibrary(user32);
+		FreeLibrary(user32);
 	#endif
 
 	/* 	Initiates WM_INPUT messages from keyboard */
@@ -413,8 +418,8 @@ GHOST_TSuccess GHOST_SystemWin32::init()
 		wc.cbClsExtra= 0;
 		wc.cbWndExtra= 0;
 		wc.hInstance= ::GetModuleHandle(0);
-  		wc.hIcon = ::LoadIcon(wc.hInstance, "APPICON");
-  		
+		wc.hIcon = ::LoadIcon(wc.hInstance, "APPICON");
+		
 		if (!wc.hIcon) {
 			::LoadIcon(NULL, IDI_APPLICATION);
 		}
@@ -422,12 +427,13 @@ GHOST_TSuccess GHOST_SystemWin32::init()
 		wc.hbrBackground= (HBRUSH)::GetStockObject(BLACK_BRUSH);
 		wc.lpszMenuName = 0;
 		wc.lpszClassName= GHOST_WindowWin32::getWindowClassName();
-    
+
 		// Use RegisterClassEx for setting small icon
 		if (::RegisterClass(&wc) == 0) {
 			success = GHOST_kFailure;
 		}
 	}
+	
 	return success;
 }
 
@@ -553,7 +559,7 @@ GHOST_TKey GHOST_SystemWin32::processSpecialKey(GHOST_IWindow *window, short vKe
 GHOST_TKey GHOST_SystemWin32::convertKey(GHOST_IWindow *window, short vKey, short scanCode, short extend) const
 {
 	GHOST_TKey key;
-	
+
 	if ((vKey >= '0') && (vKey <= '9')) {
 		// VK_0 thru VK_9 are the same as ASCII '0' thru '9' (0x30 - 0x39)
 		key = (GHOST_TKey)(vKey - '0' + GHOST_kKey0);
@@ -569,7 +575,7 @@ GHOST_TKey GHOST_SystemWin32::convertKey(GHOST_IWindow *window, short vKey, shor
 		switch (vKey) {
 		case VK_RETURN:
 				key = (extend)?GHOST_kKeyNumpadEnter : GHOST_kKeyEnter; break;
-
+			
 		case VK_BACK:     key = GHOST_kKeyBackSpace;		break;
 		case VK_TAB:      key = GHOST_kKeyTab;				break;
 		case VK_ESCAPE:   key = GHOST_kKeyEsc;				break;
@@ -611,7 +617,7 @@ GHOST_TKey GHOST_SystemWin32::convertKey(GHOST_IWindow *window, short vKey, shor
 
 		case VK_SNAPSHOT: key = GHOST_kKeyPrintScreen;		break;
 		case VK_PAUSE:    key = GHOST_kKeyPause;			break;
-		case VK_MULTIPLY: key = GHOST_kKeyNumpadAsterisk;	 break;
+		case VK_MULTIPLY: key = GHOST_kKeyNumpadAsterisk;	break;
 		case VK_SUBTRACT: key = GHOST_kKeyNumpadMinus;		break;
 		case VK_DIVIDE:   key = GHOST_kKeyNumpadSlash;		break;
 		case VK_ADD:      key = GHOST_kKeyNumpadPlus;		break;
@@ -748,6 +754,7 @@ GHOST_EventKey* GHOST_SystemWin32::processKeyEvent(GHOST_IWindow *window, WPARAM
 		unsigned short utf16[2]={0};
 		BYTE state[256];
 		GetKeyboardState((PBYTE)state);
+
 		if(ToAsciiEx(vk, 0, state, utf16, 0, system->m_keylayout))
 				WideCharToMultiByte(CP_ACP, 0x00000400, 
 									(wchar_t*)utf16, 1,
@@ -817,12 +824,12 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 							return 0;
 					} //else wPAram == RIM_INPUT
 					event = processKeyEvent(window, wParam, lParam);
-							if (!event) {
-								GHOST_PRINT("GHOST_SystemWin32::wndProc: key event ")
-								GHOST_PRINT(msg)
-								GHOST_PRINT(" key ignored\n")
-							}
-							break;
+					if (!event) {
+						GHOST_PRINT("GHOST_SystemWin32::wndProc: key event ")
+						GHOST_PRINT(msg)
+						GHOST_PRINT(" key ignored\n")
+					}
+					break;
 				////////////////////////////////////////////////////////////////////////
 				// Keyboard events, ignored
 				////////////////////////////////////////////////////////////////////////
@@ -1193,11 +1200,11 @@ GHOST_TUns8* GHOST_SystemWin32::getClipboard(bool selection) const
 		GlobalUnlock( hData );
 		CloseClipboard();
 		
-			return (GHOST_TUns8*)temp_buff;
-		} else {
-			return NULL;
-		}
+		return (GHOST_TUns8*)temp_buff;
+	} else {
+		return NULL;
 	}
+}
 
 void GHOST_SystemWin32::putClipboard(GHOST_TInt8 *buffer, bool selection) const
 {

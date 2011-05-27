@@ -132,7 +132,7 @@ enum eIconSizes {
 typedef struct PreviewImage {
 	/* All values of 2 are really NUM_ICON_SIZES */
 	unsigned int w[2];
-	unsigned int h[2];	
+	unsigned int h[2];
 	short changed[2];
 	short changed_timestamp[2];
 	unsigned int * rect[2];

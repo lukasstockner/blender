@@ -99,13 +99,13 @@ static void rna_MetaBall_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
 
 	/* cheating way for importers to avoid slow updates */
 	if(mb->id.us > 0) {
-	for(ob=bmain->object.first; ob; ob= ob->id.next)
-		if(ob->data == mb)
-			copy_mball_properties(scene, ob);
-
+		for(ob=bmain->object.first; ob; ob= ob->id.next)
+			if(ob->data == mb)
+				copy_mball_properties(scene, ob);
+	
 		DAG_id_tag_update(&mb->id, 0);
-	WM_main_add_notifier(NC_GEOM|ND_DATA, mb);
-}
+		WM_main_add_notifier(NC_GEOM|ND_DATA, mb);
+	}
 }
 
 static void rna_MetaBall_update_rotation(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -160,7 +160,7 @@ static void rna_def_metaelement(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "MetaElem");
 	RNA_def_struct_ui_text(srna, "Meta Element", "Blobby element in a MetaBall datablock");
 	RNA_def_struct_ui_icon(srna, ICON_OUTLINER_DATA_META);
-	
+
 	/* enums */
 	prop= RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, metaelem_type_items);

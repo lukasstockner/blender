@@ -411,7 +411,7 @@ static void UI_OT_copy_to_selected_button(wmOperatorType *ot)
 	/* properties */
 	RNA_def_boolean(ot->srna, "all", 1, "All", "Reset to default values all elements of the array.");
 }
- 
+
 /* Reports to Textblock Operator ------------------------ */
 
 /* FIXME: this is just a temporary operator so that we can see all the reports somewhere 

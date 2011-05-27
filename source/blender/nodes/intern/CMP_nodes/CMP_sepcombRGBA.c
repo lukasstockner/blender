@@ -47,7 +47,7 @@ static bNodeSocketType cmp_node_seprgba_out[]= {
 	{	-1, 0, ""	}
 };
 
-static void node_composit_exec_seprgba(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_seprgba(void *UNUSED(data), bNode *UNUSED(node), bNodeStack **in, bNodeStack **out)
 {
 	/* stack order out: bw channels */
 	/* stack order in: col */
@@ -82,7 +82,7 @@ static void node_composit_exec_seprgba(void *data, bNode *node, bNodeStack **in,
 void register_node_type_cmp_seprgba(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, CMP_NODE_SEPRGBA, "Separate RGBA", NODE_CLASS_CONVERTOR, 0,
 		cmp_node_seprgba_in, cmp_node_seprgba_out);
 	node_type_size(&ntype, 80, 40, 140);
@@ -106,7 +106,7 @@ static bNodeSocketType cmp_node_combrgba_out[]= {
 	{	-1, 0, ""	}
 };
 
-static void do_combrgba(bNode *node, float *out, float *in1, float *in2, float *in3, float *in4)
+static void do_combrgba(bNode *UNUSED(node), float *out, float *in1, float *in2, float *in3, float *in4)
 {
 	out[0] = in1[0];
 	out[1] = in2[0];
@@ -114,7 +114,7 @@ static void do_combrgba(bNode *node, float *out, float *in1, float *in2, float *
 	out[3] = in4[0];
 }
 
-static void node_composit_exec_combrgba(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_combrgba(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	/* stack order out: 1 rgba channels */
 	/* stack order in: 4 value channels */
@@ -150,7 +150,7 @@ static void node_composit_exec_combrgba(void *data, bNode *node, bNodeStack **in
 void register_node_type_cmp_combrgba(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, CMP_NODE_COMBRGBA, "Combine RGBA", NODE_CLASS_CONVERTOR, NODE_OPTIONS,
 		cmp_node_combrgba_in, cmp_node_combrgba_out);
 	node_type_size(&ntype, 80, 40, 140);

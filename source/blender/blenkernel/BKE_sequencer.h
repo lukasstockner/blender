@@ -50,6 +50,11 @@ struct StripElem;
 #define BUILD_SEQAR_COUNT_CURRENT  1
 #define BUILD_SEQAR_COUNT_CHILDREN 2
 
+#define EARLY_NO_INPUT		-1
+#define EARLY_DO_EFFECT		0
+#define EARLY_USE_INPUT_1	1
+#define EARLY_USE_INPUT_2	2
+
 /* sequence iterator */
 
 typedef struct SeqIterator {
@@ -170,7 +175,7 @@ int seqbase_recursive_apply(struct ListBase *seqbase, int (*apply_func)(struct S
 int seq_recursive_apply(struct Sequence *seq, int (*apply_func)(struct Sequence *, void *), void *arg);
 
 /* maintainance functions, mostly for RNA */
-// extern
+// extern 
 void seq_free_sequence(struct Scene *scene, struct Sequence *seq);
 void seq_free_strip(struct Strip *strip);
 void seq_free_editing(struct Scene *scene);
@@ -180,7 +185,7 @@ const char *give_seqname(struct Sequence *seq);
 void calc_sequence(struct Scene *scene, struct Sequence *seq);
 void calc_sequence_disp(struct Scene *scene, struct Sequence *seq);
 void new_tstripdata(struct Sequence *seq);
-void reload_sequence_new_file(struct Main *bmain, struct Scene *scene, struct Sequence * seq, int lock_range);
+void reload_sequence_new_file(struct Scene *scene, struct Sequence * seq, int lock_range);
 void sort_seq(struct Scene *scene);
 void build_seqar_cb(struct ListBase *seqbase, struct Sequence  ***seqar, int *totseq,
 					int (*test_func)(struct Sequence * seq));
@@ -259,6 +264,7 @@ int seq_tx_test(struct Sequence * seq);
 int seq_single_check(struct Sequence *seq);
 void seq_single_fix(struct Sequence *seq);
 int seq_test_overlap(struct ListBase * seqbasep, struct Sequence *test);
+void seq_translate(struct Scene *scene, struct Sequence *seq, int delta);
 void seq_sound_init(struct Scene *scene, struct Sequence *seq);
 struct Sequence *seq_foreground_frame_get(struct Scene *scene, int frame);
 struct ListBase *seq_seqbase(struct ListBase *seqbase, struct Sequence *seq);

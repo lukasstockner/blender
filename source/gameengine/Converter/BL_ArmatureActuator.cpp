@@ -180,7 +180,7 @@ bool BL_ArmatureActuator::Update(double curtime, bool frame)
 	return result;
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */
 /* Python Integration Hooks					                                 */
@@ -262,5 +262,5 @@ PyObject* BL_ArmatureActuator::pyattr_get_constraint(void *self, const struct KX
 		return constraint->GetProxy();
 }
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON
 

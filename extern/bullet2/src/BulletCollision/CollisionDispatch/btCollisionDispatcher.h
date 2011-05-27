@@ -42,13 +42,13 @@ typedef void (*btNearCallback)(btBroadphasePair& collisionPair, btCollisionDispa
 ///Time of Impact, Closest Points and Penetration Depth.
 class btCollisionDispatcher : public btDispatcher
 {
-	
+
 protected:
 
 	int		m_dispatcherFlags;
 
 	btAlignedObjectArray<btPersistentManifold*>	m_manifoldsPtr;
-	
+
 	btManifoldResult	m_defaultManifoldResult;
 
 	btNearCallback		m_nearCallback;
@@ -58,7 +58,7 @@ protected:
 	btPoolAllocator*	m_persistentManifoldPoolAllocator;
 
 	btCollisionAlgorithmCreateFunc* m_doubleDispatch[MAX_BROADPHASE_COLLISION_TYPES][MAX_BROADPHASE_COLLISION_TYPES];
-	
+
 	btCollisionConfiguration*	m_collisionConfiguration;
 
 

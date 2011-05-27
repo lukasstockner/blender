@@ -162,7 +162,7 @@ void KX_SCA_AddObjectActuator::Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map)
 	}
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */
 /* Python functions                                                          */
@@ -249,7 +249,7 @@ PyObject* KX_SCA_AddObjectActuator::PyInstantAddObject()
 	Py_RETURN_NONE;
 }
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON
 
 void	KX_SCA_AddObjectActuator::InstantAddObject()
 {

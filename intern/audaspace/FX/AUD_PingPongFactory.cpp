@@ -39,20 +39,20 @@ AUD_PingPongFactory::AUD_PingPongFactory(AUD_IFactory* factory) :
 }
 
 AUD_IReader* AUD_PingPongFactory::createReader() const
-	{
+{
 	AUD_IReader* reader = getReader();
-		AUD_IReader* reader2;
-		AUD_ReverseFactory factory(m_factory);
+	AUD_IReader* reader2;
+	AUD_ReverseFactory factory(m_factory);
 
-		try
-		{
-			reader2 = factory.createReader();
-		}
+	try
+	{
+		reader2 = factory.createReader();
+	}
 	catch(AUD_Exception&)
-		{
+	{
 		delete reader;
 		throw;
-		}
+	}
 
 	return new AUD_DoubleReader(reader, reader2);
-		}
+}

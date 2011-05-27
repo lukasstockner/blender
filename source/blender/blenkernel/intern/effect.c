@@ -270,6 +270,9 @@ static void add_object_to_effectors(ListBase **effectors, Scene *scene, Effector
 
 	eff = new_effector_cache(scene, ob, NULL, ob->pd);
 
+	/* make sure imat is up to date */
+	invert_m4_m4(ob->imat, ob->obmat);
+
 	BLI_addtail(*effectors, eff);
 }
 static void add_particles_to_effectors(ListBase **effectors, Scene *scene, EffectorWeights *weights, Object *ob, ParticleSystem *psys, ParticleSystem *psys_src)
@@ -364,7 +367,7 @@ void pd_point_from_particle(ParticleSimulationData *sim, ParticleData *pa, Parti
 	point->index = pa - sim->psys->particles;
 	point->size = pa->size;
 	point->charge = 0.0f;
-
+	
 	if(part->pd && part->pd->forcefield == PFIELD_CHARGE)
 		point->charge += part->pd->f_strength;
 
@@ -422,7 +425,7 @@ void pd_point_from_soft(Scene *scene, float *loc, float *vel, int index, Effecte
 /************************************************/
 
 // triangle - ray callback function
-static void eff_tri_ray_hit(void *userdata, int index, const BVHTreeRay *ray, BVHTreeRayHit *hit)
+static void eff_tri_ray_hit(void *UNUSED(userData), int UNUSED(index), const BVHTreeRay *UNUSED(ray), BVHTreeRayHit *hit)
 {	
 	// whenever we hit a bounding box, we don't check further
 	hit->dist = -1;
@@ -527,7 +530,7 @@ static float falloff_func_rad(PartDeflect *pd, float fac)
 	return falloff_func(fac, pd->flag&PFIELD_USEMINR, pd->minrad, pd->flag&PFIELD_USEMAXR, pd->maxrad, pd->f_power_r);
 }
 
-float effector_falloff(EffectorCache *eff, EffectorData *efd, EffectedPoint *point, EffectorWeights *weights)
+float effector_falloff(EffectorCache *eff, EffectorData *efd, EffectedPoint *UNUSED(point), EffectorWeights *weights)
 {
 	float temp[3];
 	float falloff = weights ? weights->weight[0] * weights->weight[eff->pd->forcefield] : 1.0f;
@@ -637,7 +640,6 @@ int get_effector_data(EffectorCache *eff, EffectorData *efd, EffectedPoint *poin
 		}
 	}
 	else if(eff->psys) {
-		ParticleSimulationData sim = {eff->scene, eff->ob, eff->psys, NULL, NULL};
 		ParticleData *pa = eff->psys->particles + *efd->index;
 		ParticleKey state;
 
@@ -692,7 +694,7 @@ int get_effector_data(EffectorCache *eff, EffectorData *efd, EffectedPoint *poin
 
 			/* for vortex the shape chooses between old / new force */
 			if(eff->pd->forcefield == PFIELD_VORTEX)
-			add_v3_v3v3(efd->loc, ob->obmat[3], translate);
+				add_v3_v3v3(efd->loc, ob->obmat[3], translate);
 			else /* normally efd->loc is closest point on effector xy-plane */
 				sub_v3_v3v3(efd->loc, point->loc, translate);
 		}
@@ -775,7 +777,7 @@ static void get_effector_tot(EffectorCache *eff, EffectorData *efd, EffectedPoin
 			int amount = eff->psys->part->effector_amount;
 
 			*step = (totpart > amount) ? totpart/amount : 1;
-	}
+		}
 	}
 	else {
 		*p = 0;
@@ -805,7 +807,7 @@ static void do_texture_effector(EffectorCache *eff, EffectorData *efd, EffectedP
 	}
 
 	if(eff->pd->flag & PFIELD_TEX_OBJECT) {
-		mul_m4_v3(eff->ob->obmat, tex_co);
+		mul_m4_v3(eff->ob->imat, tex_co);
 	}
 
 	hasrgb = multitex_ext(eff->pd->tex, tex_co, NULL,NULL, 0, result);

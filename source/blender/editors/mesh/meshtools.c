@@ -68,6 +68,7 @@
 #include "BKE_mesh.h"
 #include "BKE_material.h"
 #include "BKE_report.h"
+#include "BKE_multires.h"
 
 #include "BLO_sys_types.h" // for intptr_t support
 
@@ -89,7 +90,7 @@
 /* join selected meshes into the active mesh, context sensitive
 return 0 if no join is made (error) and 1 of the join is done */
 
-int join_mesh_exec(bContext *C, wmOperator *UNUSED(op))
+int join_mesh_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
@@ -112,11 +113,13 @@ int join_mesh_exec(bContext *C, wmOperator *UNUSED(op))
 	if(scene->obedit) {
 		BKE_report(op->reports, RPT_WARNING, "Cant join while in editmode");
 		return OPERATOR_CANCELLED;
+	}
 	
 	/* ob is the object we are adding geometry to */
 	if(!ob || ob->type!=OB_MESH) {
 		BKE_report(op->reports, RPT_WARNING, "Active object is not a mesh");
 		return OPERATOR_CANCELLED;
+	}
 	
 	/* count & check */
 	CTX_DATA_BEGIN(C, Base*, base, selected_editable_bases) {
@@ -142,6 +145,7 @@ int join_mesh_exec(bContext *C, wmOperator *UNUSED(op))
 	if(ok==0) {
 		BKE_report(op->reports, RPT_WARNING, "Active object is not a selected mesh");
 		return OPERATOR_CANCELLED;
+	}
 	
 	/* only join meshes if there are verts to join, there aren't too many, and we only had one mesh selected */
 	me= (Mesh *)ob->data;
@@ -150,6 +154,7 @@ int join_mesh_exec(bContext *C, wmOperator *UNUSED(op))
 	if(totvert==0 || totvert==me->totvert) {
 		BKE_report(op->reports, RPT_WARNING, "No mesh data to join");
 		return OPERATOR_CANCELLED;
+	}
 	
 	if(totvert > MESH_MAX_VERTS) {
 		BKE_reportf(op->reports, RPT_WARNING, "Joining results in %d vertices, limit is " STRINGIFY(MESH_MAX_VERTS), totvert);
@@ -281,7 +286,7 @@ int join_mesh_exec(bContext *C, wmOperator *UNUSED(op))
 	mvert= CustomData_add_layer(&vdata, CD_MVERT, CD_CALLOC, NULL, totvert);
 	medge= CustomData_add_layer(&edata, CD_MEDGE, CD_CALLOC, NULL, totedge);
 	mface= CustomData_add_layer(&fdata, CD_MFACE, CD_CALLOC, NULL, totface);
-	
+
 	vertofs= 0;
 	edgeofs= 0;
 	faceofs= 0;
@@ -408,6 +413,9 @@ int join_mesh_exec(bContext *C, wmOperator *UNUSED(op))
 					}
 				}
 				
+				if(base->object!=ob)
+					multiresModifier_prepare_join(scene, base->object, ob);
+
 				CustomData_merge(&me->fdata, &fdata, CD_MASK_MESH, CD_DEFAULT, totface);
 				CustomData_copy_data(&me->fdata, &fdata, 0, faceofs, me->totface);
 				
@@ -516,7 +524,8 @@ int join_mesh_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	
 	DAG_scene_sort(bmain, scene);	// removed objects, need to rebuild dag before editmode call
-	
+
+#if 0
 	ED_object_enter_editmode(C, EM_WAITCURSOR);
 	ED_object_exit_editmode(C, EM_FREEDATA|EM_WAITCURSOR|EM_DO_UNDO);
 #else
@@ -1115,7 +1124,7 @@ static EditVert *editmesh_get_x_mirror_vert_topo(Object *ob, struct EditMesh *em
 		index = BLI_findindex(&em->verts, eve);
 
 		if (index == -1) {
-		return NULL;
+			return NULL;
 		}
 	}
 
@@ -1124,7 +1133,7 @@ static EditVert *editmesh_get_x_mirror_vert_topo(Object *ob, struct EditMesh *em
 	if(poinval != -1)
 		return (EditVert *)(poinval);
 	return NULL;
-}
+}	
 
 EditVert *editmesh_get_x_mirror_vert(Object *ob, struct EditMesh *em, EditVert *eve, float *co, int index)
 {

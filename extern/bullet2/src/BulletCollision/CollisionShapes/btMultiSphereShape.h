@@ -30,7 +30,7 @@ class btMultiSphereShape : public btConvexInternalAabbCachingShape
 	
 	btAlignedObjectArray<btVector3> m_localPositionArray;
 	btAlignedObjectArray<btScalar>  m_radiArray;
-
+	
 public:
 	btMultiSphereShape (const btVector3* positions,const btScalar* radi,int numSpheres);
 

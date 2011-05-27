@@ -91,7 +91,7 @@ void RNA_def_camera(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, prop_type_items);
 	RNA_def_property_ui_text(prop, "Type", "Camera types");
 	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, NULL);
-	
+
 	prop= RNA_def_property(srna, "show_guide", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "dtx");
 	RNA_def_property_enum_items(prop, prop_draw_type_extra_items);

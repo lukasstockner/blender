@@ -99,15 +99,15 @@ void bvh_done<VBVHTree>(VBVHTree *obj)
 		}
 
 		if(root) {
-		reorganize(root);
-		remove_useless(root, &root);
-		bvh_refit(root);
-	
-		pushup(root);
-		pushdown(root);
-		obj->root = root;
-	}
-	else
+			reorganize(root);
+			remove_useless(root, &root);
+			bvh_refit(root);
+		
+			pushup(root);
+			pushdown(root);
+			obj->root = root;
+		}
+		else
 			obj->root = NULL;
 	}
 	else
@@ -142,7 +142,7 @@ int intersect(VBVHTree *obj, Isect* isec)
 	if(RE_rayobject_isAligned(obj->root)) {
 		if(isec->mode == RE_RAY_SHADOW)
 			return bvh_node_stack_raycast<VBVHNode,StackSize,false,true>( obj->root, isec);
-	else
+		else
 			return bvh_node_stack_raycast<VBVHNode,StackSize,false,false>( obj->root, isec);
 	}
 	else

@@ -564,7 +564,7 @@ static void cp_key(const int start, int end, const int tot, char *poin, Key *key
 	char *cp, elemstr[8];
 
 	/* currently always 0, in future key_pointer_size may assign */
-		ofs[1]= 0;
+	ofs[1]= 0;
 
 	if(!key_pointer_size(key, mode, &poinsize, &ofs[0]))
 		return;
@@ -641,7 +641,7 @@ static void cp_key(const int start, int end, const int tot, char *poin, Key *key
 				BLI_assert(!"invalid 'cp[1]'");
 				return;
 			}
-			
+
 			poin+= ofsp[0];	
 			cp+= 2; ofsp++;
 		}
@@ -704,7 +704,7 @@ void do_rel_key(const int start, int end, const int tot, char *basispoin, Key *k
 	int poinsize;
 
 	/* currently always 0, in future key_pointer_size may assign */
-		ofs[1]= 0;
+	ofs[1]= 0;
 
 	if(!key_pointer_size(key, mode, &poinsize, &ofs[0]))
 		return;
@@ -777,7 +777,7 @@ void do_rel_key(const int start, int end, const int tot, char *basispoin, Key *k
 							BLI_assert(!"invalid 'cp[1]'");
 							return;
 						}
-						
+
 						poin+= ofsp[0];				
 						
 						cp+= 2;
@@ -809,7 +809,7 @@ static void do_key(const int start, int end, const int tot, char *poin, Key *key
 	char *cp, elemstr[8];;
 
 	/* currently always 0, in future key_pointer_size may assign */
-		ofs[1]= 0;
+	ofs[1]= 0;
 
 	if(!key_pointer_size(key, mode, &poinsize, &ofs[0]))
 		return;
@@ -1655,7 +1655,7 @@ void curve_to_key(Curve *cu, KeyBlock *kb, ListBase *nurb)
 	}
 }
 
-void key_to_curve(KeyBlock *kb, Curve  *cu, ListBase *nurb)
+void key_to_curve(KeyBlock *kb, Curve *UNUSED(cu), ListBase *nurb)
 {
 	Nurb *nu;
 	BezTriple *bezt;

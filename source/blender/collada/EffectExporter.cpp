@@ -81,12 +81,12 @@ bool EffectsExporter::hasEffects(Scene *sce)
 void EffectsExporter::exportEffects(Scene *sce)
 {
 	if(hasEffects(sce)) {
-	openLibrary();
-	MaterialFunctor mf;
-	mf.forEachMaterialInScene<EffectsExporter>(sce, *this);
+		openLibrary();
+		MaterialFunctor mf;
+		mf.forEachMaterialInScene<EffectsExporter>(sce, *this);
 
-	closeLibrary();
-}
+		closeLibrary();
+	}
 }
 
 void EffectsExporter::writeBlinn(COLLADASW::EffectProfile &ep, Material *ma)
@@ -130,22 +130,22 @@ void EffectsExporter::operator()(Material *ma, Object *ob)
 	ep.openProfile();
 	// set shader type - one of three blinn, phong or lambert
 	if(ma->spec>0.0f) {
-	if (ma->spec_shader == MA_SPEC_BLINN) {
+		if (ma->spec_shader == MA_SPEC_BLINN) {
 			writeBlinn(ep, ma);
-	}
+		}
 		else {
 			// \todo figure out handling of all spec+diff shader combos blender has, for now write phong
 			// for now set phong in case spec shader is not blinn
 			writePhong(ep, ma);
-	}
+		}
 	} else {
 		if(ma->diff_shader == MA_DIFF_LAMBERT) {
 			writeLambert(ep, ma);
 		}
-	else {
+		else {
 		// \todo figure out handling of all spec+diff shader combos blender has, for now write phong
 		writePhong(ep, ma);
-	}
+		}
 	}
 	
 	// index of refraction

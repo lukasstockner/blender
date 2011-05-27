@@ -94,11 +94,11 @@ KX_PolyProxy::KX_PolyProxy(const RAS_MeshObject*mesh, RAS_Polygon* polygon)
 :	m_polygon(polygon),
 	m_mesh((RAS_MeshObject*)mesh)
 {
-	}
+}
 
 KX_PolyProxy::~KX_PolyProxy()
-	{
-	}
+{
+}
 
 
 // stuff for cvalue related things
@@ -114,52 +114,52 @@ CValue*		KX_PolyProxy::GetReplica() { return NULL;}
 // stuff for python integration
 
 PyObject* KX_PolyProxy::pyattr_get_material_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-	{
+{
 	KX_PolyProxy* self= static_cast<KX_PolyProxy*>(self_v);
 	return self->PygetMaterialName();
-		}
+}
 
 PyObject* KX_PolyProxy::pyattr_get_texture_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-		{
+{
 	KX_PolyProxy* self= static_cast<KX_PolyProxy*>(self_v);
 	return self->PygetTextureName();
-		}
+}
 
 PyObject* KX_PolyProxy::pyattr_get_material(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-	{
+{
 	KX_PolyProxy* self= static_cast<KX_PolyProxy*>(self_v);
 	return self->PygetMaterial();
-		}
+}
 
 PyObject* KX_PolyProxy::pyattr_get_material_id(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-	{
+{
 	KX_PolyProxy* self= static_cast<KX_PolyProxy*>(self_v);
 	return self->PygetMaterialIndex();
-	}
+}
 
 PyObject* KX_PolyProxy::pyattr_get_v1(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-	{
+{
 	KX_PolyProxy* self= static_cast<KX_PolyProxy*>(self_v);
 
 	return PyLong_FromSsize_t(self->m_polygon->GetVertexOffsetAbs(self->m_mesh, 0));
-	}
+}
 
 PyObject* KX_PolyProxy::pyattr_get_v2(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-	{
+{
 	KX_PolyProxy* self= static_cast<KX_PolyProxy*>(self_v);
 
 	return PyLong_FromSsize_t(self->m_polygon->GetVertexOffsetAbs(self->m_mesh, 1));
-	}
+}
 
 PyObject* KX_PolyProxy::pyattr_get_v3(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-	{
+{
 	KX_PolyProxy* self= static_cast<KX_PolyProxy*>(self_v);
 
 	return PyLong_FromSsize_t(self->m_polygon->GetVertexOffsetAbs(self->m_mesh, 2));
-	}
+}
 
 PyObject* KX_PolyProxy::pyattr_get_v4(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-	{
+{
 	KX_PolyProxy* self= static_cast<KX_PolyProxy*>(self_v);
 
 	if (3 < self->m_polygon->VertexCount())
@@ -181,7 +181,7 @@ PyObject* KX_PolyProxy::pyattr_get_collide(void *self_v, const KX_PYATTRIBUTE_DE
 	return self->PyisCollider();
 }
 
-KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterialIndex, 
+KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterialIndex,
 "getMaterialIndex() : return the material index of the polygon in the mesh\n")
 {
 	RAS_MaterialBucket* polyBucket = m_polygon->GetMaterial();
@@ -272,4 +272,4 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterial,
 	}
 }
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON

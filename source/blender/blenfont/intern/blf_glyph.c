@@ -41,6 +41,7 @@
 #include FT_FREETYPE_H
 #include FT_GLYPH_H
 #include FT_OUTLINE_H
+#include FT_BITMAP_H
 
 #include "MEM_guardedalloc.h"
 
@@ -244,7 +245,9 @@ GlyphBLF *blf_glyph_add(FontBLF *font, unsigned int index, unsigned int c)
 		err += FT_Bitmap_Copy(font->ft_lib, &tempbitmap, &slot->bitmap);
 		err += FT_Bitmap_Done(font->ft_lib, &tempbitmap);
 	} else {
-	err= FT_Render_Glyph(slot, FT_RENDER_MODE_NORMAL);
+		err = FT_Render_Glyph(slot, FT_RENDER_MODE_NORMAL);
+	}
+
 	if (err || slot->format != FT_GLYPH_FORMAT_BITMAP)
 		return(NULL);
 
@@ -267,6 +270,14 @@ GlyphBLF *blf_glyph_add(FontBLF *font, unsigned int index, unsigned int c)
 	g->height= bitmap.rows;
 
 	if (g->width && g->height) {
+		if (sharp) {
+			/* Font buffer uses only 0 or 1 values, Blender expects full 0..255 range */
+			int i;
+			for (i=0; i < (g->width * g->height); i++) {
+				bitmap.buffer[i] = 255 * bitmap.buffer[i];
+			}
+		}
+
 		g->bitmap= (unsigned char *)MEM_mallocN(g->width * g->height, "glyph bitmap");
 		memcpy((void *)g->bitmap, (void *)bitmap.buffer, g->width * g->height);
 	}

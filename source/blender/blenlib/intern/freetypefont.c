@@ -51,7 +51,7 @@
 
 #include "BLI_vfontdata.h"
 #include "BLI_blenlib.h"
-#include "BLI_math.h"  
+#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 //XXX #include "BIF_toolbox.h"

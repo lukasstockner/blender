@@ -31,7 +31,7 @@
  */
 
 
-#include "../TEX_util.h"                                                   
+#include "../TEX_util.h"        
 #include "TEX_node.h"
 #include <math.h>
 
@@ -47,25 +47,25 @@ static bNodeSocketType outputs[]= {
 	{ -1, 0, "" }
 };
 
-static void valuefn_r(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void valuefn_r(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **in, short thread)
 {
 	tex_input_rgba(out, in[0], p, thread);
 	*out = out[0];
 }
 
-static void valuefn_g(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void valuefn_g(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **in, short thread)
 {
 	tex_input_rgba(out, in[0], p, thread);
 	*out = out[1];
 }
 
-static void valuefn_b(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void valuefn_b(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **in, short thread)
 {
 	tex_input_rgba(out, in[0], p, thread);
 	*out = out[2];
 }
 
-static void valuefn_a(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void valuefn_a(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **in, short thread)
 {
 	tex_input_rgba(out, in[0], p, thread);
 	*out = out[3];

@@ -122,11 +122,11 @@ static int rna_idproperty_known(CollectionPropertyIterator *iter, void *data)
 	/* function to skip any id properties that are already known by RNA,
 	 * for the second loop where we go over unknown id properties */
 	do {
-	for(prop= ptype->cont.properties.first; prop; prop=prop->next)
+		for(prop= ptype->cont.properties.first; prop; prop=prop->next)
 			if((prop->flag & PROP_BUILTIN) == 0 && strcmp(prop->identifier, idprop->name) == 0)
-			return 1;
+				return 1;
 	} while((ptype=ptype->base));
-	
+
 	return 0;
 }
 
@@ -327,15 +327,15 @@ int rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, Point
 			}
 		}
 		else {
-		for(prop=srna->cont.properties.first; prop; prop=prop->next) {
-			if(!(prop->flag & PROP_BUILTIN) && strcmp(prop->identifier, key)==0) {
-				propptr.type= &RNA_Property;
-				propptr.data= prop;
+			for(prop=srna->cont.properties.first; prop; prop=prop->next) {
+				if(!(prop->flag & PROP_BUILTIN) && strcmp(prop->identifier, key)==0) {
+					propptr.type= &RNA_Property;
+					propptr.data= prop;
 
-				*r_ptr= propptr;
-				return TRUE;
+					*r_ptr= propptr;
+					return TRUE;
+				}
 			}
-		}
 		}
 	} while((srna=srna->base));
 
@@ -880,7 +880,7 @@ static int rna_BlenderRNA_structs_lookup_string(PointerRNA *ptr, const char *key
 		if(key[0] == srna->identifier[0] && strcmp(key, srna->identifier)==0) {
 			RNA_pointer_create(NULL, &RNA_Struct, srna, r_ptr);
 			return TRUE;
-	}
+		}
 	}
 
 	return FALSE;

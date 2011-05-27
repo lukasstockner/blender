@@ -164,6 +164,9 @@ bool SCA_KeyboardSensor::Evaluate()
 			case SCA_InputEvent::KX_ACTIVE:
 				active = true;
 				break;
+			case SCA_InputEvent::KX_NO_INPUTSTATUS:
+				/* do nothing */
+				break;
 			}
 		}
 
@@ -229,6 +232,9 @@ bool SCA_KeyboardSensor::Evaluate()
 				break;
 			case SCA_InputEvent::KX_JUSTACTIVATED:
 				qual_change = true;
+			case SCA_InputEvent::KX_ACTIVE:
+				/* do nothing */
+				break;
 			}
 		}
 		if (m_qual2 > 0 && qual==true) {
@@ -244,6 +250,9 @@ bool SCA_KeyboardSensor::Evaluate()
 				break;
 			case SCA_InputEvent::KX_JUSTACTIVATED:
 				qual_change = true;
+			case SCA_InputEvent::KX_ACTIVE:
+				/* do nothing */
+				break;
 			}
 		}
 		/* done reading qualifiers */
@@ -407,7 +416,7 @@ void SCA_KeyboardSensor::LogKeystrokes(void)
 	}
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */
 /* Python Functions						       */
@@ -500,7 +509,7 @@ PyObject* SCA_KeyboardSensor::pyattr_get_events(void *self_v, const KX_PYATTRIBU
 	return resultlist;
 }
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON
 
 /* Accessed from python */
 

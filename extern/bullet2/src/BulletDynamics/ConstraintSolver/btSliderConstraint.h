@@ -162,13 +162,13 @@ public:
 	// overrides
 
     virtual void getInfo1 (btConstraintInfo1* info);
-	
+
 	void getInfo1NonVirtual(btConstraintInfo1* info);
 	
 	virtual void getInfo2 (btConstraintInfo2* info);
 
 	void getInfo2NonVirtual(btConstraintInfo2* info, const btTransform& transA, const btTransform& transB,const btVector3& linVelA,const btVector3& linVelB, btScalar rbAinvMass,btScalar rbBinvMass);
-	
+
 
 	// access
     const btRigidBody& getRigidBodyA() const { return m_rbA; }
@@ -284,7 +284,7 @@ struct btSliderConstraintData
 	btTypedConstraintData	m_typeConstraintData;
 	btTransformFloatData m_rbAFrame; // constraint axii. Assumes z is hinge axis.
 	btTransformFloatData m_rbBFrame;
-
+	
 	float	m_linearUpperLimit;
 	float	m_linearLowerLimit;
 

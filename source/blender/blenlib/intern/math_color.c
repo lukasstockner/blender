@@ -183,12 +183,12 @@ void ycc_to_rgb(float y, float cb, float cr, float *lr, float *lg, float *lb, in
 void hex_to_rgb(char *hexcol, float *r, float *g, float *b)
 {
 	unsigned int ri, gi, bi;
-	
+
 	if (hexcol[0] == '#') hexcol++;
-	
+
 	if (sscanf(hexcol, "%02x%02x%02x", &ri, &gi, &bi)==3) {
 		*r = ri / 255.0f;
-		*g = gi / 255.0f;		
+		*g = gi / 255.0f;
 		*b = bi / 255.0f;
 		CLAMP(*r, 0.0f, 1.0f);
 		CLAMP(*g, 0.0f, 1.0f);
@@ -463,14 +463,14 @@ int constrain_rgb(float *r, float *g, float *b)
 	float w;
 
 	/* Amount of white needed is w = - min(0, *r, *g, *b) */
-    
+
 	w = (0 < *r) ? 0 : *r;
 	w = (w < *g) ? w : *g;
 	w = (w < *b) ? w : *b;
 	w = -w;
 
 	/* Add just enough white to make r, g, b all positive. */
-    
+
 	if (w > 0) {
 		*r += w;  *g += w; *b += w;
 		return 1;                     /* Color modified to fit RGB gamut */

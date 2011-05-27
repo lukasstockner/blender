@@ -84,7 +84,7 @@ static void texture_procedural(CompBuf *cbuf, float *out, float xco, float yco)
 	else { 
 		VECCOPY(col, nor);
 	}
-
+	
 	typecheck_compbuf_color(out, col, cbuf->type, cbuf->procedural_type);
 }
 
@@ -147,7 +147,7 @@ static void node_composit_exec_texture(void *data, bNode *node, bNodeStack **in,
 void register_node_type_cmp_texture(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, CMP_NODE_TEXTURE, "Texture", NODE_CLASS_INPUT, NODE_OPTIONS|NODE_PREVIEW,
 		cmp_node_texture_in, cmp_node_texture_out);
 	node_type_size(&ntype, 120, 80, 240);

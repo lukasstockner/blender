@@ -81,7 +81,7 @@ static void do_brightnesscontrast(bNode *UNUSED(node), float *out, float *in, fl
 	}
 }
 
-static void node_composit_exec_brightcontrast(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_brightcontrast(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	if(out[0]->hasoutput==0)
 		return;
@@ -99,7 +99,7 @@ static void node_composit_exec_brightcontrast(void *data, bNode *node, bNodeStac
 void register_node_type_cmp_brightcontrast(ListBase *lb)
 {
 	static bNodeType ntype;
-
+	
 	node_type_base(&ntype, CMP_NODE_BRIGHTCONTRAST, "Bright/Contrast", NODE_CLASS_OP_COLOR, NODE_OPTIONS,
 				   cmp_node_brightcontrast_in, cmp_node_brightcontrast_out);
 	node_type_size(&ntype, 140, 100, 320);

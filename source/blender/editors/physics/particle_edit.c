@@ -381,12 +381,12 @@ static void PE_set_view3d_data(bContext *C, PEData *data)
 			/* needed or else the draw matrix can be incorrect */
 			view3d_operator_needs_opengl(C);
 
-		view3d_validate_backbuf(&data->vc);
+			view3d_validate_backbuf(&data->vc);
 			/* we may need to force an update here by setting the rv3d as dirty
 			 * for now it seems ok, but take care!:
 			 * rv3d->depths->dirty = 1; */
 			ED_view3d_depth_update(data->vc.ar);
-}
+		}
 	}
 }
 
@@ -776,7 +776,7 @@ static void PE_mirror_particle(Object *ob, DerivedMesh *dm, ParticleSystem *psys
 	if(!mpa) {
 		if(!edit->mirror_cache)
 			PE_update_mirror_cache(ob, psys);
-
+		
 		if(!edit->mirror_cache)
 			return; /* something went wrong! */
 
@@ -797,6 +797,7 @@ static void PE_mirror_particle(Object *ob, DerivedMesh *dm, ParticleSystem *psys
 		if(mpoint->keys) MEM_freeN(mpoint->keys);
 
 		mpa->hair= MEM_dupallocN(pa->hair);
+		mpa->totkey= pa->totkey;
 		mpoint->keys= MEM_dupallocN(point->keys);
 		mpoint->totkey= point->totkey;
 
@@ -805,7 +806,7 @@ static void PE_mirror_particle(Object *ob, DerivedMesh *dm, ParticleSystem *psys
 		for(k=0; k<mpa->totkey; k++, mkey++, mhkey++) {
 			mkey->co= mhkey->co;
 			mkey->time= &mhkey->time;
-			mkey->flag &= PEK_SELECT;
+			mkey->flag &= ~PEK_SELECT;
 		}
 	}
 
@@ -1149,7 +1150,7 @@ static void update_world_cos(Object *ob, PTCacheEdit *edit)
 		}
 	}
 }
-static void update_velocities(Object *ob, PTCacheEdit *edit)
+static void update_velocities(PTCacheEdit *edit)
 {
 	/*TODO: get frs_sec properly */
 	float vec1[3], vec2[3], frs_sec, dfra;
@@ -1232,7 +1233,7 @@ void PE_update_object(Scene *scene, Object *ob, int useflag)
 	if(edit->psys)
 		update_world_cos(ob, edit);
 	if(pset->flag & PE_AUTO_VELOCITY)
-		update_velocities(ob, edit);
+		update_velocities(edit);
 	PE_hide_keys_time(scene, edit, CFRA);
 
 	/* regenerate path caches */
@@ -1267,7 +1268,7 @@ static void select_key(PEData *data, int point_index, int key_index)
 	point->flag |= PEP_EDIT_RECALC;
 }
 
-static void select_keys(PEData *data, int point_index, int key_index)
+static void select_keys(PEData *data, int point_index, int UNUSED(key_index))
 {
 	PTCacheEdit *edit = data->edit;
 	PTCacheEditPoint *point = edit->points + point_index;
@@ -1528,6 +1529,17 @@ void PARTICLE_OT_select_linked(wmOperatorType *ot)
 }
 
 /************************ border select operator ************************/
+void PE_deselect_all_visible(PTCacheEdit *edit)
+{
+	POINT_P; KEY_K;
+
+	LOOP_VISIBLE_POINTS {
+		LOOP_SELECTED_KEYS {
+			key->flag &= ~PEK_SELECT;
+			point->flag |= PEP_EDIT_RECALC;
+		}
+	}
+}
 
 int PE_border_select(bContext *C, rcti *rect, int select, int extend)
 {
@@ -1539,16 +1551,8 @@ int PE_border_select(bContext *C, rcti *rect, int select, int extend)
 	if(!PE_start_edit(edit))
 		return OPERATOR_CANCELLED;
 
-	if (extend == 0 && select) {
-		POINT_P; KEY_K;
-
-		LOOP_VISIBLE_POINTS {
-			LOOP_SELECTED_KEYS {
-				key->flag &= ~PEK_SELECT;
-				point->flag |= PEP_EDIT_RECALC;
-			}
-		}
-	}
+	if (extend == 0 && select)
+		PE_deselect_all_visible(edit);
 
 	PE_set_view3d_data(C, &data);
 	data.rect= rect;
@@ -1606,6 +1610,9 @@ int PE_lasso_select(bContext *C, int mcords[][2], short moves, short extend, sho
 
 	if(!PE_start_edit(edit))
 		return OPERATOR_CANCELLED;
+
+	if (extend == 0 && select)
+		PE_deselect_all_visible(edit);
 
 	/* only for depths */
 	PE_set_view3d_data(C, &data);
@@ -1908,7 +1915,7 @@ static void rekey_particle(PEData *data, int pa_index)
 {
 	PTCacheEdit *edit= data->edit;
 	ParticleSystem *psys= edit->psys;
-	ParticleSimulationData sim = {data->scene, data->ob, edit->psys, NULL};
+	ParticleSimulationData sim= {0};
 	ParticleData *pa= psys->particles + pa_index;
 	PTCacheEditPoint *point = edit->points + pa_index;
 	ParticleKey state;
@@ -1916,6 +1923,10 @@ static void rekey_particle(PEData *data, int pa_index)
 	PTCacheEditKey *ekey;
 	float dval, sta, end;
 	int k;
+
+	sim.scene= data->scene;
+	sim.ob= data->ob;
+	sim.psys= edit->psys;
 
 	pa->flag |= PARS_REKEY;
 
@@ -2002,7 +2013,7 @@ static void rekey_particle_to_time(Scene *scene, Object *ob, int pa_index, float
 {
 	PTCacheEdit *edit= PE_get_current(scene, ob);
 	ParticleSystem *psys;
-	ParticleSimulationData sim = {scene, ob, edit ? edit->psys : NULL, NULL};
+	ParticleSimulationData sim= {0};
 	ParticleData *pa;
 	ParticleKey state;
 	HairKey *new_keys, *key;
@@ -2012,6 +2023,10 @@ static void rekey_particle_to_time(Scene *scene, Object *ob, int pa_index, float
 	if(!edit || !edit->psys) return;
 
 	psys = edit->psys;
+
+	sim.scene= scene;
+	sim.ob= ob;
+	sim.psys= psys;
 
 	pa= psys->particles + pa_index;
 
@@ -2042,7 +2057,7 @@ static void rekey_particle_to_time(Scene *scene, Object *ob, int pa_index, float
 
 /************************* utilities **************************/
 
-static int remove_tagged_particles(Scene *scene, Object *ob, ParticleSystem *psys, int mirror)
+static int remove_tagged_particles(Object *ob, ParticleSystem *psys, int mirror)
 {
 	PTCacheEdit *edit = psys->edit;
 	ParticleData *pa, *npa=0, *new_pars=0;
@@ -2077,7 +2092,7 @@ static int remove_tagged_particles(Scene *scene, Object *ob, ParticleSystem *psy
 				if(new_points)
 					MEM_freeN(new_points);
 				return 0;
-		}
+			}
 		}
 
 		pa= psys->particles;
@@ -2120,7 +2135,7 @@ static int remove_tagged_particles(Scene *scene, Object *ob, ParticleSystem *psy
 	return removed;
 }
 
-static void remove_tagged_keys(Scene *scene, Object *ob, ParticleSystem *psys)
+static void remove_tagged_keys(Object *ob, ParticleSystem *psys)
 {
 	PTCacheEdit *edit= psys->edit;
 	ParticleData *pa;
@@ -2151,7 +2166,7 @@ static void remove_tagged_keys(Scene *scene, Object *ob, ParticleSystem *psys)
 		if(new_totkey < 2)
 			point->flag |= PEP_TAG;
 	}
-	remove_tagged_particles(scene, ob, psys, pe_x_mirror(ob));
+	remove_tagged_particles(ob, psys, pe_x_mirror(ob));
 
 	LOOP_POINTS {
 		pa = psys->particles + p;
@@ -2215,7 +2230,7 @@ static void subdivide_particle(PEData *data, int pa_index)
 {
 	PTCacheEdit *edit= data->edit;
 	ParticleSystem *psys= edit->psys;
-	ParticleSimulationData sim = {data->scene, data->ob, edit->psys, NULL};
+	ParticleSimulationData sim= {0};
 	ParticleData *pa= psys->particles + pa_index;
 	PTCacheEditPoint *point = edit->points + pa_index;
 	ParticleKey state;
@@ -2225,6 +2240,10 @@ static void subdivide_particle(PEData *data, int pa_index)
 	int k;
 	short totnewkey=0;
 	float endtime;
+
+	sim.scene= data->scene;
+	sim.ob= data->ob;
+	sim.psys= edit->psys;
 
 	for(k=0, ekey=point->keys; k<pa->totkey-1; k++,ekey++) {
 		if(ekey->flag&PEK_SELECT && (ekey+1)->flag&PEK_SELECT)
@@ -2375,7 +2394,7 @@ static int remove_doubles_exec(bContext *C, wmOperator *op)
 		BLI_kdtree_free(tree);
 
 		/* remove tagged particles - don't do mirror here! */
-		remove_tagged_particles(scene, ob, psys, 0);
+		remove_tagged_particles(ob, psys, 0);
 		totremoved += removed;
 	} while(removed);
 
@@ -2420,7 +2439,7 @@ static int weight_set_exec(bContext *C, wmOperator *op)
 	HairKey *hkey;
 	float weight;
 	ParticleBrushData *brush= &pset->brush[pset->brushtype];
-    float factor= RNA_float_get(op->ptr, "factor");
+	float factor= RNA_float_get(op->ptr, "factor");
 
 	weight= brush->strength;
 	edit= psys->edit;
@@ -2452,13 +2471,13 @@ void PARTICLE_OT_weight_set(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
-    
-    RNA_def_float(ot->srna, "factor", 1, 0, 1, "Factor", "", 0, 1);
+
+	RNA_def_float(ot->srna, "factor", 1, 0, 1, "Factor", "", 0, 1);
 }
 
 /************************ cursor drawing *******************************/
 
-static void brush_drawcursor(bContext *C, int x, int y, void *customdata)
+static void brush_drawcursor(bContext *C, int x, int y, void *UNUSED(customdata))
 {
 	ParticleEditSettings *pset= PE_settings(CTX_data_scene(C));
 	ParticleBrushData *brush;
@@ -2528,12 +2547,12 @@ static int delete_exec(bContext *C, wmOperator *op)
 
 	if(type == DEL_KEY) {
 		foreach_selected_key(&data, set_delete_particle_key);
-		remove_tagged_keys(data.scene, data.ob, data.edit->psys);
+		remove_tagged_keys(data.ob, data.edit->psys);
 		recalc_lengths(data.edit);
 	}
 	else if(type == DEL_PARTICLE) {
 		foreach_selected_point(&data, set_delete_particle);
-		remove_tagged_particles(data.scene, data.ob, data.edit->psys, pe_x_mirror(data.ob));
+		remove_tagged_particles(data.ob, data.edit->psys, pe_x_mirror(data.ob));
 		recalc_lengths(data.edit);
 	}
 
@@ -2719,7 +2738,7 @@ void PARTICLE_OT_mirror(wmOperatorType *ot)
 
 /************************* brush edit callbacks ********************/
 
-static void brush_comb(PEData *data, float mat[][4], float imat[][4], int point_index, int key_index, PTCacheEditKey *key)
+static void brush_comb(PEData *data, float UNUSED(mat[][4]), float imat[][4], int point_index, int key_index, PTCacheEditKey *key)
 {
 	ParticleEditSettings *pset= PE_settings(data->scene);
 	float cvec[3], fac;
@@ -2988,7 +3007,7 @@ static void brush_puff(PEData *data, int point_index)
 }
 
 
-static void brush_weight(PEData *data, float mat[][4], float imat[][4], int point_index, int key_index, PTCacheEditKey *key)
+static void brush_weight(PEData *data, float UNUSED(mat[][4]), float UNUSED(imat[][4]), int point_index, int key_index, PTCacheEditKey *UNUSED(key))
 {
 	/* roots have full weight allways */
 	if(key_index) {
@@ -3002,7 +3021,7 @@ static void brush_weight(PEData *data, float mat[][4], float imat[][4], int poin
 	}
 }
 
-static void brush_smooth_get(PEData *data, float mat[][4], float imat[][4], int point_index, int key_index, PTCacheEditKey *key)
+static void brush_smooth_get(PEData *data, float mat[][4], float UNUSED(imat[][4]), int UNUSED(point_index), int key_index, PTCacheEditKey *key)
 {	
 	if(key_index) {
 		float dvec[3];
@@ -3014,7 +3033,7 @@ static void brush_smooth_get(PEData *data, float mat[][4], float imat[][4], int 
 	}
 }
 
-static void brush_smooth_do(PEData *data, float mat[][4], float imat[][4], int point_index, int key_index, PTCacheEditKey *key)
+static void brush_smooth_do(PEData *data, float UNUSED(mat[][4]), float imat[][4], int point_index, int key_index, PTCacheEditKey *key)
 {
 	float vec[3], dvec[3];
 	
@@ -3184,13 +3203,13 @@ static int brush_add(PEData *data, short number)
 	ParticleSystem *psys= edit->psys;
 	ParticleData *add_pars= MEM_callocN(number*sizeof(ParticleData),"ParticleData add");
 	ParticleSystemModifierData *psmd= psys_get_modifier(ob,psys);
-	ParticleSimulationData sim = {scene, ob, psys, psmd};
+	ParticleSimulationData sim= {0};
 	ParticleEditSettings *pset= PE_settings(scene);
 	int i, k, n= 0, totpart= psys->totpart;
 	float mco[2];
 	short dmx= 0, dmy= 0;
 	float co1[3], co2[3], min_d, imat[4][4];
-	float framestep, timestep= psys_get_timestep(&sim);
+	float framestep, timestep;
 	short size= pset->brush[PE_BRUSH_ADD].size;
 	short size2= size*size;
 	DerivedMesh *dm=0;
@@ -3200,7 +3219,14 @@ static int brush_add(PEData *data, short number)
 		return 0;
 
 	BLI_srandom(psys->seed+data->mval[0]+data->mval[1]);
-	
+
+	sim.scene= scene;
+	sim.ob= ob;
+	sim.psys= psys;
+	sim.psmd= psmd;
+
+	timestep= psys_get_timestep(&sim);
+
 	/* painting onto the deformed mesh, could be an option? */
 	if(psmd->dm->deformedOnly)
 		dm= psmd->dm;
@@ -3297,6 +3323,7 @@ static int brush_add(PEData *data, short number)
 			framestep= pa->lifetime/(float)(pset->totaddkey-1);
 
 			if(tree) {
+				ParticleData *ppa;
 				HairKey *thkey;
 				ParticleKey key3[3];
 				KDTreeNearest ptn[3];
@@ -3318,6 +3345,8 @@ static int brush_add(PEData *data, short number)
 
 				for(w=0; w<maxw; w++)
 					weight[w] /= totw;
+
+				ppa= psys->particles+ptn[0].index;
 
 				for(k=0; k<pset->totaddkey; k++) {
 					thkey= (HairKey*)pa->hair + k;
@@ -3356,6 +3385,7 @@ static int brush_add(PEData *data, short number)
 				for(k=0, hkey=pa->hair; k<pset->totaddkey; k++, hkey++) {
 					VECADDFAC(hkey->co, pa->state.co, pa->state.vel, k * framestep * timestep);
 					hkey->time += k * framestep;
+					hkey->weight = 1.f - (float)k/(float)(pset->totaddkey-1);
 				}
 			}
 			for(k=0, hkey=pa->hair; k<pset->totaddkey; k++, hkey++) {
@@ -3501,7 +3531,7 @@ static void brush_edit_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 					else
 						foreach_point(&data, brush_cut);
 
-					removed= remove_tagged_particles(scene, ob, edit->psys, pe_x_mirror(ob));
+					removed= remove_tagged_particles(ob, edit->psys, pe_x_mirror(ob));
 					if(pset->flag & PE_KEEP_LENGTHS)
 						recalc_lengths(edit);
 				}
@@ -3623,7 +3653,7 @@ static void brush_edit_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	pset->flag |= lock_root;
 }
 
-static void brush_edit_exit(bContext *C, wmOperator *op)
+static void brush_edit_exit(wmOperator *op)
 {
 	BrushEdit *bedit= op->customdata;
 
@@ -3640,7 +3670,7 @@ static int brush_edit_exec(bContext *C, wmOperator *op)
 	}
 	RNA_END;
 
-	brush_edit_exit(C, op);
+	brush_edit_exit(op);
 
 	return OPERATOR_FINISHED;
 }
@@ -3680,7 +3710,7 @@ static int brush_edit_modal(bContext *C, wmOperator *op, wmEvent *event)
 		case LEFTMOUSE:
 		case MIDDLEMOUSE:
 		case RIGHTMOUSE: // XXX hardcoded
-			brush_edit_exit(C, op);
+			brush_edit_exit(op);
 			return OPERATOR_FINISHED;
 		case MOUSEMOVE:
 			brush_edit_apply_event(C, op, event);
@@ -3690,9 +3720,9 @@ static int brush_edit_modal(bContext *C, wmOperator *op, wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int brush_edit_cancel(bContext *C, wmOperator *op)
+static int brush_edit_cancel(bContext *UNUSED(C), wmOperator *op)
 {
-	brush_edit_exit(C, op);
+	brush_edit_exit(op);
 
 	return OPERATOR_CANCELLED;
 }
@@ -4093,12 +4123,16 @@ static void PE_create_particle_edit(Scene *scene, Object *ob, PointCache *cache,
 					key->co= hkey->co;
 					key->time= &hkey->time;
 					key->flag= hkey->editflag;
-					if(!(psys->flag & PSYS_GLOBAL_HAIR))
+					if(!(psys->flag & PSYS_GLOBAL_HAIR)) {
 						key->flag |= PEK_USE_WCO;
+						hkey->editflag |= PEK_USE_WCO;
+					}
+
 					hkey++;
 				}
 				pa++;
 			}
+			update_world_cos(ob, edit);
 		}
 		else {
 			PTCacheMem *pm;
@@ -4114,7 +4148,7 @@ static void PE_create_particle_edit(Scene *scene, Object *ob, PointCache *cache,
 			for(pm=cache->mem_cache.first; pm; pm=pm->next) {
 				LOOP_POINTS {
 					if(BKE_ptcache_mem_pointers_seek(p, pm) == 0)
-								continue;
+						continue;
 
 					if(!point->totkey) {
 						key = point->keys = MEM_callocN(totframe*sizeof(PTCacheEditKey),"ParticleEditKeys");

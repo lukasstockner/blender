@@ -450,7 +450,7 @@ static void modifier_object_set(Object *self, Object **ob_p, int type, PointerRN
 		if(!ob || type == OB_EMPTY || ob->type == type) {
 			id_lib_extern((ID *)ob);
 			*ob_p= ob;
-}
+		}
 	}
 }
 
@@ -906,7 +906,7 @@ static void rna_def_modifier_mirror(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_MIR_VGROUP);
 	RNA_def_property_ui_text(prop, "Mirror Vertex Groups", "Mirror vertex groups (e.g. .R->.L)");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
+	
 	prop= RNA_def_property(srna, "use_mirror_merge", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", MOD_MIR_NO_MERGE);
 	RNA_def_property_ui_text(prop, "Merge Vertices", "Merge vertices within the merge threshold");
@@ -946,7 +946,7 @@ static void rna_def_modifier_decimate(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "DecimateModifierData");
 	RNA_def_struct_ui_icon(srna, ICON_MOD_DECIM);
 
-	prop= RNA_def_property(srna, "ratio", PROP_FLOAT, PROP_PERCENTAGE);
+	prop= RNA_def_property(srna, "ratio", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "percent");
 	RNA_def_property_range(prop, 0, 1);
 	RNA_def_property_ui_range(prop, 0, 1, 1, 2);
@@ -1136,7 +1136,7 @@ static void rna_def_modifier_armature(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "deformflag", ARM_DEF_VGROUP);
 	RNA_def_property_ui_text(prop, "Use Vertex Groups", "Binds vertex group to armature modifier");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
+	
 	prop= RNA_def_property(srna, "use_deform_preserve_volume", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "deformflag", ARM_DEF_QUATERNION);
 	RNA_def_property_ui_text(prop, "Preserve Volume", "Deform rotation interpolation with quaternions");
@@ -1301,12 +1301,12 @@ static void rna_def_modifier_array(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Constant Offset Displacement", "Value for the distance between arrayed items");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
-	prop= RNA_def_property(srna, "use_relative_offset", PROP_BOOLEAN, PROP_TRANSLATION);
+	prop= RNA_def_property(srna, "use_relative_offset", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "offset_type", MOD_ARR_OFF_RELATIVE);
 	RNA_def_property_ui_text(prop, "Relative Offset", "Add an offset relative to the object's bounding box");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
-	prop= RNA_def_property(srna, "relative_offset_displace", PROP_FLOAT, PROP_TRANSLATION);
+	prop= RNA_def_property(srna, "relative_offset_displace", PROP_FLOAT, PROP_NONE); /* PROP_TRANSLATION causes units to be used which we dont want */
 	RNA_def_property_float_sdna(prop, NULL, "scale");
 	RNA_def_property_ui_text(prop, "Relative Offset Displacement", "The size of the geometry will determine the distance between arrayed items");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
@@ -1983,7 +1983,7 @@ static void rna_def_modifier_shrinkwrap(BlenderRNA *brna)
 		{MOD_SHRINKWRAP_PROJECT, "PROJECT", 0, "Project", "Shrinks the mesh to the nearest target surface along a given axis"},
 		{MOD_SHRINKWRAP_NEAREST_VERTEX, "NEAREST_VERTEX", 0, "Nearest Vertex", "Shrinks the mesh to the nearest target vertex"},
 		{0, NULL, 0, NULL, NULL}};
-
+	
 	static EnumPropertyItem shrink_face_cull_items[] = {
 		{0, "OFF", 0, "Off", ""},
 		{MOD_SHRINKWRAP_CULL_TARGET_FRONTFACE, "FRONT", 0, "Front", ""},
@@ -2026,7 +2026,7 @@ static void rna_def_modifier_shrinkwrap(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Vertex Group", "Vertex group name");
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_ShrinkwrapModifier_vgroup_set");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-	
+
 	prop= RNA_def_property(srna, "offset", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "keepDist");
 	RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
@@ -2268,7 +2268,7 @@ static void rna_def_modifier_solidify(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_SOLIDIFY_RIM);
 	RNA_def_property_ui_text(prop, "Fill Rim", "Create edge loops between the inner and outer surfaces on face edges (slow, disable when not needed)");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-	
+
 	prop= RNA_def_property(srna, "use_even_offset", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_SOLIDIFY_EVEN);
 	RNA_def_property_ui_text(prop, "Even Thickness", "Maintain thickness by adjusting for sharp corners (slow, disable when not needed)");

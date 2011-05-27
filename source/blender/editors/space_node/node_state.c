@@ -146,7 +146,7 @@ static int do_header_node(SpaceNode *snode, bNode *node, float mx, float my)
 	return 0;
 }
 
-static int do_header_hidden_node(SpaceNode *snode, bNode *node, float mx, float my)
+static int do_header_hidden_node(bNode *node, float mx, float my)
 {
 	rctf totr= node->totr;
 	
@@ -170,7 +170,7 @@ static int node_toggle_visibility(SpaceNode *snode, ARegion *ar, const int mval[
 	
 	for(next_node(snode->edittree); (node=next_node(NULL));) {
 		if(node->flag & NODE_HIDDEN) {
-			if(do_header_hidden_node(snode, node, mx, my)) {
+			if(do_header_hidden_node(node, mx, my)) {
 				ED_region_tag_redraw(ar);
 				return 1;
 			}
@@ -203,7 +203,7 @@ static int node_toggle_visibility_invoke(bContext *C, wmOperator *op, wmEvent *e
 {
 	RNA_int_set(op->ptr, "mouse_x", event->mval[0]);
 	RNA_int_set(op->ptr, "mouse_y", event->mval[1]);
-	
+
 	return node_toggle_visibility_exec(C,op);
 }
 
@@ -227,7 +227,7 @@ void NODE_OT_visibility_toggle(wmOperatorType *ot)
 
 /* **************** View All Operator ************** */
 
-static void snode_home(ScrArea *sa, ARegion *ar, SpaceNode* snode)
+static void snode_home(ScrArea *UNUSED(sa), ARegion *ar, SpaceNode* snode)
 {
 	bNode *node;
 	rctf *cur, *tot;

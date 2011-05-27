@@ -426,7 +426,7 @@ static void rna_def_color_ramp_element(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-	
+
 	srna= RNA_def_struct(brna, "ColorRampElement", NULL);
 	RNA_def_struct_sdna(srna, "CBData");
 	RNA_def_struct_path_func(srna, "rna_ColorRampElement_path");
@@ -479,7 +479,7 @@ static void rna_def_color_ramp(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 	FunctionRNA *func;
-	
+
 	static EnumPropertyItem prop_interpolation_items[] = {
 		{1, "EASE", 0, "Ease", ""},
 		{3, "CARDINAL", 0, "Cardinal", ""},
@@ -499,7 +499,7 @@ static void rna_def_color_ramp(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Elements", "");
 	RNA_def_property_update(prop, 0, "rna_ColorRamp_update");
 	rna_def_color_ramp_element_api(brna, prop);
-	
+
 	prop= RNA_def_property(srna, "interpolation", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "ipotype");
 	RNA_def_property_enum_items(prop, prop_interpolation_items);
@@ -515,7 +515,7 @@ static void rna_def_color_ramp(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Total", "Total number of elements");
 	RNA_def_property_update(prop, 0, "rna_ColorRamp_update");
 #endif
-
+	
 	func = RNA_def_function(srna, "evaluate", "rna_ColorRamp_eval");
 	RNA_def_function_ui_description(func, "Evaluate ColorRamp");
 	prop= RNA_def_float(func, "position", 1.0f, 0.0f, 1.0f, "Position", "Evaluate ColorRamp at position", 0.0f, 1.0f);

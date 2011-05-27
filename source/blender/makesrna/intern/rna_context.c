@@ -87,9 +87,9 @@ static PointerRNA rna_Context_region_data_get(PointerRNA *ptr)
 
 	/* only exists for one space still, no generic system yet */
 	if(CTX_wm_view3d(C)) {
-	PointerRNA newptr;
+		PointerRNA newptr;
 		RNA_pointer_create((ID*)CTX_wm_screen(C), &RNA_RegionView3D, CTX_wm_region_data(C), &newptr);
-	return newptr;
+		return newptr;
 	}
 
 	return PointerRNA_NULL;

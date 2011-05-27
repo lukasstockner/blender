@@ -163,7 +163,7 @@ void nla_operatortypes(void)
 
 /* ************************** registration - keymaps **********************************/
 
-static void nla_keymap_channels (wmKeyConfig *keyconf, wmKeyMap *keymap)
+static void nla_keymap_channels(wmKeyMap *keymap)
 {
 	/* NLA-specific (different to standard channels keymap) -------------------------- */
 	/* selection */
@@ -180,30 +180,6 @@ static void nla_keymap_channels (wmKeyConfig *keyconf, wmKeyMap *keymap)
 		/* delete tracks */
 	WM_keymap_add_item(keymap, "NLA_OT_delete_tracks", XKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "NLA_OT_delete_tracks", DELKEY, KM_PRESS, 0, 0);
-	
-	/* General Animation Channels keymap (see anim_channels.c) ----------------------- */
-	/* selection */
-		/* borderselect - not in tweakmode */ 
-	WM_keymap_add_item(keymap, "ANIM_OT_channels_select_border", BKEY, KM_PRESS, 0, 0);
-		
-		/* deselect all - not in tweakmode */
-	WM_keymap_add_item(keymap, "ANIM_OT_channels_select_all_toggle", AKEY, KM_PRESS, 0, 0);
-	RNA_boolean_set(WM_keymap_add_item(keymap, "ANIM_OT_channels_select_all_toggle", IKEY, KM_PRESS, KM_CTRL, 0)->ptr, "invert", 1);
-	
-	/* settings */
-	WM_keymap_add_item(keymap, "ANIM_OT_channels_setting_toggle", WKEY, KM_PRESS, KM_SHIFT, 0);
-	WM_keymap_add_item(keymap, "ANIM_OT_channels_setting_enable", WKEY, KM_PRESS, KM_CTRL|KM_SHIFT, 0);
-	WM_keymap_add_item(keymap, "ANIM_OT_channels_setting_disable", WKEY, KM_PRESS, KM_ALT, 0);
-	
-	/* settings - specialised hotkeys */
-	WM_keymap_add_item(keymap, "ANIM_OT_channels_editable_toggle", TABKEY, KM_PRESS, 0, 0);
-	
-	/* expand/collapse */
-	WM_keymap_add_item(keymap, "ANIM_OT_channels_expand", PADPLUSKEY, KM_PRESS, 0, 0);
-	WM_keymap_add_item(keymap, "ANIM_OT_channels_collapse", PADMINUS, KM_PRESS, 0, 0);
-	
-	RNA_boolean_set(WM_keymap_add_item(keymap, "ANIM_OT_channels_expand", PADPLUSKEY, KM_PRESS, KM_CTRL, 0)->ptr, "all", 1);
-	RNA_boolean_set(WM_keymap_add_item(keymap, "ANIM_OT_channels_collapse", PADMINUS, KM_PRESS, KM_CTRL, 0)->ptr, "all", 1);
 }
 
 static void nla_keymap_main (wmKeyConfig *keyconf, wmKeyMap *keymap)
@@ -215,7 +191,7 @@ static void nla_keymap_main (wmKeyConfig *keyconf, wmKeyMap *keymap)
 	WM_keymap_add_item(keymap, "NLA_OT_click_select", SELECTMOUSE, KM_PRESS, 0, 0);
 	kmi= WM_keymap_add_item(keymap, "NLA_OT_click_select", SELECTMOUSE, KM_PRESS, KM_SHIFT, 0);
 		RNA_boolean_set(kmi->ptr, "extend", 1);
-	
+		
 		/* select left/right */
 	WM_keymap_add_item(keymap, "NLA_OT_select_leftright", SELECTMOUSE, KM_PRESS, KM_CTRL, 0);
 	kmi= WM_keymap_add_item(keymap, "NLA_OT_select_leftright", SELECTMOUSE, KM_PRESS, KM_CTRL|KM_SHIFT, 0);
@@ -306,7 +282,7 @@ void nla_keymap(wmKeyConfig *keyconf)
 	 * However, those operations which involve clicking on channels and/or the placement of them in the view are implemented here instead
 	 */
 	keymap= WM_keymap_find(keyconf, "NLA Channels", SPACE_NLA, 0);
-	nla_keymap_channels(keyconf, keymap);
+	nla_keymap_channels(keymap);
 	
 	/* data */
 	keymap= WM_keymap_find(keyconf, "NLA Editor", SPACE_NLA, 0);

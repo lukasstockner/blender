@@ -27,7 +27,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file boolop/intern/BOP_Mesh.h
  *  \ingroup boolopintern
  */

@@ -119,8 +119,8 @@ static void valuefn(float *out, TexParams *p, bNode *node, bNodeStack **in, shor
 				if (y_mod_1 > 0.999f || y_mod_1 < 0.001f) {
 					*out = pow(in0, floor(in1 + 0.5f));
 				} else {
-				*out= 0.0;
-		}
+					*out = 0.0;
+				}
 			}
 		}
 		break;
@@ -188,7 +188,7 @@ static void exec(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
 void register_node_type_tex_math(ListBase *lb)
 {
 	static bNodeType ntype;
-
+	
 	node_type_base(&ntype, TEX_NODE_MATH, "Math", NODE_CLASS_CONVERTOR, NODE_OPTIONS,
 				   inputs, outputs);
 	node_type_size(&ntype, 120, 110, 160);

@@ -112,7 +112,7 @@ static bool svbvh_node_is_leaf(const SVBVHNode *node)
 
 template<int MAX_STACK_SIZE, bool SHADOW>
 static int svbvh_node_stack_raycast(SVBVHNode *root, Isect *isec)
-	{
+{
 	SVBVHNode *stack[MAX_STACK_SIZE], *node;
 	int hit = 0, stack_pos = 0;
 
@@ -131,8 +131,8 @@ static int svbvh_node_stack_raycast(SVBVHNode *root, Isect *isec)
 				int res = svbvh_bb_intersect_test_simd4(isec, ((__m128*) (child_bb)));
 				SVBVHNode **child= node->child;
 
-		RE_RC_COUNT(isec->raycounter->simd_bb.test);
-		
+				RE_RC_COUNT(isec->raycounter->simd_bb.test);
+
 				if(res & 1) { stack[stack_pos++] = child[0]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
 				if(res & 2) { stack[stack_pos++] = child[1]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
 				if(res & 4) { stack[stack_pos++] = child[2]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
@@ -142,18 +142,18 @@ static int svbvh_node_stack_raycast(SVBVHNode *root, Isect *isec)
 				float *child_bb= node->child_bb;
 				SVBVHNode **child= node->child;
 				int i;
-		
+
 				for(i=0; i<nchilds; i++)
 					if(svbvh_bb_intersect_test(isec, (float*)child_bb+6*i))
 						stack[stack_pos++] = child[i];
-	}
+			}
 		}
 		else
-	{
+		{
 			hit |= RE_rayobject_intersect((RayObject*)node, isec);
 			if(SHADOW && hit) break;
+		}
 	}
-}
 
 	return hit;
 }
@@ -164,7 +164,7 @@ inline void bvh_node_merge_bb<SVBVHNode>(SVBVHNode *node, float *min, float *max
 {
 	if(is_leaf(node))
 	{
-		RE_rayobject_merge_bb( (RayObject*)node, min, max);
+		RE_rayobject_merge_bb((RayObject*)node, min, max);
 	}
 	else
 	{
@@ -244,7 +244,7 @@ struct Reorganize_SVBVH
 	
 	void copy_bb(float *bb, const float *old_bb)
 	{
-		std::copy( old_bb, old_bb+6, bb );
+		std::copy(old_bb, old_bb+6, bb);
 	}
 	
 	void prepare_for_simd(SVBVHNode *node)
@@ -254,7 +254,7 @@ struct Reorganize_SVBVH
 		{
 			float vec_tmp[4*6];
 			float *res = node->child_bb+6*i;
-			std::copy( res, res+6*4, vec_tmp);
+			std::copy(res, res+6*4, vec_tmp);
 			
 			for(int j=0; j<6; j++)
 			{
@@ -311,7 +311,7 @@ struct Reorganize_SVBVH
 			{
 				float bb[6];
 				INIT_MINMAX(bb, bb+3);
-				RE_rayobject_merge_bb( (RayObject*)o_child, bb, bb+3);
+				RE_rayobject_merge_bb((RayObject*)o_child, bb, bb+3);
 				copy_bb(node->child_bb+i*6, bb);
 				break;
 			}
@@ -320,7 +320,7 @@ struct Reorganize_SVBVH
 				copy_bb(node->child_bb+i*6, o_child->bb);
 			}
 		}
-		assert( i == 0 );
+		assert(i == 0);
 
 		prepare_for_simd(node);
 		

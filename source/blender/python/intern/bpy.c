@@ -21,7 +21,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/python/intern/bpy.c
  *  \ingroup pythonintern
  */
@@ -45,7 +45,7 @@
 #include "BLI_string.h"
 #include "BLI_bpath.h"
 #include "BLI_utildefines.h"
- 
+
 #include "BKE_main.h"
 #include "BKE_global.h" /* XXX, G.main only */
 #include "BKE_blender.h"
@@ -55,7 +55,7 @@
 #include "MEM_guardedalloc.h"
 
  /* external util modules */
-#include "../generic/geometry.h"
+#include "../generic/mathutils.h"
 #include "../generic/bgl.h"
 #include "../generic/blf_py_api.h"
 #include "../generic/IDProp.h"
@@ -76,12 +76,12 @@ static PyObject *bpy_script_paths(PyObject *UNUSED(self))
 {
 	PyObject *ret= PyTuple_New(2);
 	char *path;
-    
+
 	path= BLI_get_folder(BLENDER_SYSTEM_SCRIPTS, NULL);
 	PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString(path?path:""));
 	path= BLI_get_folder(BLENDER_USER_SCRIPTS, NULL);
 	PyTuple_SET_ITEM(ret, 1, PyUnicode_FromString(path?path:""));
-    
+
 	return ret;
 }
 
@@ -101,10 +101,10 @@ static PyObject *bpy_blend_paths(PyObject *UNUSED(self), PyObject *args, PyObjec
 	PyObject *list, *st; /* stupidly big string to be safe */
 	/* be sure there is low chance of the path being too short */
 	char filepath_expanded[1024];
-	char *lib;
+	const char *lib;
 
-	int absolute = 0;
-	static const char *kwlist[] = {"absolute", NULL};
+	int absolute= 0;
+	static const char *kwlist[]= {"absolute", NULL};
 
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "|i:blend_paths", (char **)kwlist, &absolute))
 		return NULL;
@@ -117,7 +117,7 @@ static PyObject *bpy_blend_paths(PyObject *UNUSED(self), PyObject *args, PyObjec
 			BLI_bpathIterator_getPathExpanded(bpi, filepath_expanded);
 		}
 		else {
-			lib = BLI_bpathIterator_getLib(bpi);
+			lib= BLI_bpathIterator_getLib(bpi);
 			if (lib && (BLI_path_cmp(lib, BLI_bpathIterator_getBasePath(bpi)))) { /* relative path to the library is NOT the same as our blendfile path, return an absolute path */
 				BLI_bpathIterator_getPathExpanded(bpi, filepath_expanded);
 			}
@@ -143,7 +143,7 @@ static PyObject *bpy_user_resource(PyObject *UNUSED(self), PyObject *args, PyObj
 	char *type;
 	char *subdir= NULL;
 	int folder_id;
-	static const char *kwlist[] = {"type", "subdir", NULL};
+	static const char *kwlist[]= {"type", "subdir", NULL};
 
 	char *path;
 
@@ -164,7 +164,7 @@ static PyObject *bpy_user_resource(PyObject *UNUSED(self), PyObject *args, PyObj
 	path= BLI_get_folder(folder_id, subdir);
 
 	if (!path)
-		path = BLI_get_user_folder_notest(folder_id, subdir);
+		path= BLI_get_user_folder_notest(folder_id, subdir);
 
 	return PyUnicode_DecodeFSDefault(path ? path : "");
 }
@@ -208,9 +208,9 @@ static PyObject *bpy_resource_path(PyObject *UNUSED(self), PyObject *args, PyObj
 	return PyUnicode_DecodeFSDefault(path);
 }
 
-static PyMethodDef meth_bpy_script_paths = {"script_paths", (PyCFunction)bpy_script_paths, METH_NOARGS, bpy_script_paths_doc};
-static PyMethodDef meth_bpy_blend_paths = {"blend_paths", (PyCFunction)bpy_blend_paths, METH_VARARGS|METH_KEYWORDS, bpy_blend_paths_doc};
-static PyMethodDef meth_bpy_user_resource = {"user_resource", (PyCFunction)bpy_user_resource, METH_VARARGS|METH_KEYWORDS, NULL};
+static PyMethodDef meth_bpy_script_paths= {"script_paths", (PyCFunction)bpy_script_paths, METH_NOARGS, bpy_script_paths_doc};
+static PyMethodDef meth_bpy_blend_paths= {"blend_paths", (PyCFunction)bpy_blend_paths, METH_VARARGS|METH_KEYWORDS, bpy_blend_paths_doc};
+static PyMethodDef meth_bpy_user_resource= {"user_resource", (PyCFunction)bpy_user_resource, METH_VARARGS|METH_KEYWORDS, NULL};
 static PyMethodDef meth_bpy_resource_path= {"resource_path", (PyCFunction)bpy_resource_path, METH_VARARGS|METH_KEYWORDS, bpy_resource_path_doc};
 
 
@@ -223,7 +223,7 @@ static PyObject *bpy_import_test(const char *modname)
 	else {
 		PyErr_Print();
 		PyErr_Clear();
-	}	
+	}
 
 	return mod;
 }
@@ -251,15 +251,9 @@ void BPy_init_modules( void )
 		printf("bpy: couldnt find 'scripts/modules', blender probably wont start.\n");
 	}
 	/* stand alone utility modules not related to blender directly */
-	Geometry_Init();
-	Mathutils_Init();
-	Noise_Init();
-	BGL_Init();
-	BLF_Init();
-	IDProp_Init_Types();
-	AUD_initPython();
+	IDProp_Init_Types(); /* not actually a submodule, just types */
 
-	mod = PyModule_New("_bpy");
+	mod= PyModule_New("_bpy");
 
 	/* add the module so we can import it */
 	PyDict_SetItemString(PyImport_GetModuleDict(), "_bpy", mod);
@@ -270,7 +264,7 @@ void BPy_init_modules( void )
 
 	PyModule_AddObject( mod, "types", BPY_rna_types() ); /* needs to be first so bpy_types can run */
 	PyModule_AddObject(mod, "StructMetaPropGroup", (PyObject *)&pyrna_struct_meta_idprop_Type); /* metaclass for idprop types, bpy_types.py needs access */
-			
+
 	bpy_lib_init(mod); /* adds '_bpy._library_load', must be called before 'bpy_types' which uses it */
 
 	bpy_import_test("bpy_types");

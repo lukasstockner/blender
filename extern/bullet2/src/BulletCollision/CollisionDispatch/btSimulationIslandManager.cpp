@@ -123,12 +123,12 @@ void   btSimulationIslandManager::storeIslandActivationState(btCollisionWorld* c
 #else //STATIC_SIMULATION_ISLAND_OPTIMIZATION
 void	btSimulationIslandManager::updateActivationState(btCollisionWorld* colWorld,btDispatcher* dispatcher)
 {
-	
+
 	initUnionFind( int (colWorld->getCollisionObjectArray().size()));
-	
+
 	// put the index into m_controllers into m_tag	
 	{
-		
+
 		int index = 0;
 		int i;
 		for (i=0;i<colWorld->getCollisionObjectArray().size(); i++)
@@ -138,11 +138,11 @@ void	btSimulationIslandManager::updateActivationState(btCollisionWorld* colWorld
 			collisionObject->setCompanionId(-1);
 			collisionObject->setHitFraction(btScalar(1.));
 			index++;
-			
+
 		}
 	}
 	// do the union find
-	
+
 	findUnions(dispatcher,colWorld);
 }
 
@@ -150,8 +150,8 @@ void	btSimulationIslandManager::storeIslandActivationState(btCollisionWorld* col
 {
 	// put the islandId ('find' value) into m_tag	
 	{
-		
-		
+
+
 		int index = 0;
 		int i;
 		for (i=0;i<colWorld->getCollisionObjectArray().size();i++)

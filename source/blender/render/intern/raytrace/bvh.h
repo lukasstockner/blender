@@ -60,7 +60,7 @@ inline int test_bb_group4(__m128 *bb_group, const Isect *isec)
 	float start[3], idot_axis[3];
 	copy_v3_v3(start, isec->start);
 	copy_v3_v3(idot_axis, isec->idot_axis);
-	
+
 	const __m128 tmin1 = _mm_max_ps(tmin0, _mm_mul_ps( _mm_sub_ps( bb_group[isec->bv_index[0]], _mm_set_ps1(start[0]) ), _mm_set_ps1(idot_axis[0])) );
 	const __m128 tmax1 = _mm_min_ps(tmax0, _mm_mul_ps( _mm_sub_ps( bb_group[isec->bv_index[1]], _mm_set_ps1(start[0]) ), _mm_set_ps1(idot_axis[0])) );
 	const __m128 tmin2 = _mm_max_ps(tmin1, _mm_mul_ps( _mm_sub_ps( bb_group[isec->bv_index[2]], _mm_set_ps1(start[1]) ), _mm_set_ps1(idot_axis[1])) );
@@ -80,7 +80,7 @@ inline int test_bb_group4(__m128 *bb_group, const Isect *isec)
 static int rayobject_bb_intersect_test(const Isect *isec, const float *_bb)
 {
 	const float *bb = _bb;
-
+	
 	float t1x = (bb[isec->bv_index[0]] - isec->start[0]) * isec->idot_axis[0];
 	float t2x = (bb[isec->bv_index[1]] - isec->start[0]) * isec->idot_axis[0];
 	float t1y = (bb[isec->bv_index[2]] - isec->start[1]) * isec->idot_axis[1];
@@ -130,7 +130,7 @@ template<class Tree>
 static void bvh_bb(Tree *obj, float *min, float *max)
 {
 	if(obj->root)
-	bvh_node_merge_bb(obj->root, min, max);
+		bvh_node_merge_bb(obj->root, min, max);
 }
 
 

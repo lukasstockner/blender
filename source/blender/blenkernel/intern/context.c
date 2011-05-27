@@ -51,7 +51,7 @@
 #include "BKE_main.h"
 #include "BKE_screen.h"
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 #include "BPY_extern.h"
 #endif
 
@@ -430,7 +430,7 @@ static int ctx_data_get(bContext *C, const char *member, bContextDataResult *res
 	int ret= 0;
 
 	memset(result, 0, sizeof(bContextDataResult));
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	if(CTX_py_dict_get(C)) {
 		return BPY_context_member_get(C, member, result);
 //		if (BPY_context_member_get(C, member, result))
@@ -453,10 +453,10 @@ static int ctx_data_get(bContext *C, const char *member, bContextDataResult *res
 
 		entry= BLI_rfindstring(&C->wm.store->entries, member, offsetof(bContextStoreEntry, name));
 		if(entry) {
-				result->ptr= entry->ptr;
-				done= 1;
-			}
+			result->ptr= entry->ptr;
+			done= 1;
 		}
+	}
 	if(done!=1 && recursion < 2 && C->wm.region) {
 		C->data.recursion= 2;
 		if(C->wm.region->type && C->wm.region->type->context) {
@@ -558,8 +558,7 @@ ListBase CTX_data_collection_get(const bContext *C, const char *member)
 		return result.list;
 	}
 	else {
-		ListBase list;
-		memset(&list, 0, sizeof(list));
+		ListBase list= {NULL, NULL};
 		return list;
 	}
 }
@@ -587,12 +586,12 @@ int CTX_data_get(const bContext *C, const char *member, PointerRNA *r_ptr, ListB
 static void data_dir_add(ListBase *lb, const char *member)
 {
 	LinkData *link;
-
+	
 	if(strcmp(member, "scene") == 0) /* exception */
 		return;
 
 	if(BLI_findstring(lb, member, offsetof(LinkData, data)))
-			return;
+		return;
 	
 	link= MEM_callocN(sizeof(LinkData), "LinkData");
 	link->data= (void*)member;

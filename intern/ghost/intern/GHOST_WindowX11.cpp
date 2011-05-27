@@ -659,7 +659,7 @@ void GHOST_WindowX11::initXInputDevices()
 		}
 		XFree(version);
 	}
-}	
+}
 
 #endif /* WITH_X11_XINPUT */
 
@@ -1283,7 +1283,7 @@ GHOST_WindowX11::
 	if (m_custom_cursor) {
 		XFreeCursor(m_display, m_custom_cursor);
 	}
-	
+
 #ifdef WITH_X11_XINPUT
 	/* close tablet devices */
 	if(m_xtablet.StylusDevice)
@@ -1296,7 +1296,7 @@ GHOST_WindowX11::
 	if (m_context != s_firstContext) {
 		glXDestroyContext(m_display, m_context);
 	}
-	
+
 	if (p_owner == m_window) {
 		XSetSelectionOwner(m_display, Primary_atom, None, CurrentTime);
 	}

@@ -388,7 +388,7 @@ void ED_operatortypes_paint(void)
 }
 
 
-static void ed_keymap_paint_brush_switch(wmKeyMap *keymap, const char *path)
+static void ed_keymap_paint_brush_switch(wmKeyMap *keymap, const char *mode)
 {
 	wmKeyMapItem *kmi;
 
@@ -454,7 +454,7 @@ static void ed_keymap_paint_brush_switch(wmKeyMap *keymap, const char *path)
 	RNA_int_set(kmi->ptr, "index", 19);
 }
 
-static void ed_keymap_paint_brush_size(wmKeyMap *keymap, const char *path)
+static void ed_keymap_paint_brush_size(wmKeyMap *keymap, const char *UNUSED(path))
 {
 	wmKeyMapItem *kmi;
 
@@ -544,7 +544,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	RNA_int_set(kmi->ptr, "level", -1);
 	RNA_boolean_set(kmi->ptr, "relative", 1);
 
-	ed_keymap_paint_brush_switch(keymap, "tool_settings.sculpt.active_brush_index");
+	ed_keymap_paint_brush_switch(keymap, "sculpt");
 	ed_keymap_paint_brush_size(keymap, "tool_settings.sculpt.brush.size");
 	ed_keymap_paint_brush_radial_control(keymap, "sculpt", RC_ROTATION);
 
@@ -568,43 +568,6 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_menu_enum", RKEY, KM_PRESS, 0, 0);
 	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.brush.texture_angle_source_random");
 
-	/* brush switching */
-	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_id", DKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.brush");
-	RNA_string_set(kmi->ptr, "value", "SculptDraw");
-	
-	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_id", SKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.brush");
-	RNA_string_set(kmi->ptr, "value", "Smooth");
-	
-	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_id", PKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.brush");
-	RNA_string_set(kmi->ptr, "value", "Pinch/Magnify");
-	
-	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_id", GKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.brush");
-	RNA_string_set(kmi->ptr, "value", "Grab");
-	
-	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_id", LKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.brush");
-	RNA_string_set(kmi->ptr, "value", "Layer");
-
-	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_id", CKEY, KM_PRESS, KM_SHIFT, 0);
-	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.brush");
-	RNA_string_set(kmi->ptr, "value", "Crease");
-
-	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_id", CKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.brush");
-	RNA_string_set(kmi->ptr, "value", "Clay");
-	
-	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_id", IKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.brush");
-	RNA_string_set(kmi->ptr, "value", "Inflate/Deflate");
-	
-	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_id", TKEY, KM_PRESS, KM_SHIFT, 0); // was just T in 2.4x
-	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.brush");
-	RNA_string_set(kmi->ptr, "value", "Flatten/Contrast");
-
 	/* Vertex Paint mode */
 	keymap= WM_keymap_find(keyconf, "Vertex Paint", 0, 0);
 	keymap->poll= vertex_paint_mode_poll;
@@ -615,7 +578,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap,
 			"PAINT_OT_vertex_color_set",KKEY, KM_PRESS, KM_SHIFT, 0);
 
-	ed_keymap_paint_brush_switch(keymap, "tool_settings.vertex_paint.active_brush_index");
+	ed_keymap_paint_brush_switch(keymap, "vertex_paint");
 	ed_keymap_paint_brush_size(keymap, "tool_settings.vertex_paint.brush.size");
 	ed_keymap_paint_brush_radial_control(keymap, "vertex_paint", RC_COLOR);
 
@@ -635,7 +598,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap,
 			"PAINT_OT_weight_set", KKEY, KM_PRESS, KM_SHIFT, 0);
 
-	ed_keymap_paint_brush_switch(keymap, "tool_settings.weight_paint.active_brush_index");
+	ed_keymap_paint_brush_switch(keymap, "weight_paint");
 	ed_keymap_paint_brush_size(keymap, "tool_settings.weight_paint.brush.size");
 	ed_keymap_paint_brush_radial_control(keymap, "weight_paint", 0);
 
@@ -653,7 +616,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "PAINT_OT_sample_color", RIGHTMOUSE, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "PAINT_OT_clone_cursor_set", LEFTMOUSE, KM_PRESS, KM_CTRL, 0);
 
-	ed_keymap_paint_brush_switch(keymap, "tool_settings.image_paint.active_brush_index");
+	ed_keymap_paint_brush_switch(keymap, "image_paint");
 	ed_keymap_paint_brush_size(keymap, "tool_settings.image_paint.brush.size");
 	ed_keymap_paint_brush_radial_control(keymap, "image_paint", RC_COLOR|RC_ZOOM);
 

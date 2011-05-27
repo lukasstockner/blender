@@ -170,7 +170,7 @@ BT_DECLARE_ALIGNED_ALLOCATOR();
 	{
 		return (proxyType == BOX_2D_SHAPE_PROXYTYPE) ||	(proxyType == CONVEX_2D_SHAPE_PROXYTYPE);
 	}
-	
+
 	
 }
 ;

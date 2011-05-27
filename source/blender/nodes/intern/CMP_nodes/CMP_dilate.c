@@ -115,7 +115,7 @@ static void morpho_erode(CompBuf *cbuf)
 	
 }
 
-static void node_composit_exec_dilateerode(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_dilateerode(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	/* stack order in: mask */
 	/* stack order out: mask */
@@ -151,12 +151,12 @@ static void node_composit_exec_dilateerode(void *data, bNode *node, bNodeStack *
 void register_node_type_cmp_dilateerode(ListBase *lb)
 {
 	static bNodeType ntype;
-
+	
 	node_type_base(&ntype, CMP_NODE_DILATEERODE, "Dilate/Erode", NODE_CLASS_OP_FILTER, NODE_OPTIONS,
 				   cmp_node_dilateerode_in, cmp_node_dilateerode_out);
 	node_type_size(&ntype, 130, 100, 320);
 	node_type_exec(&ntype, node_composit_exec_dilateerode);
-
+	
 	nodeRegisterType(lb, &ntype);
 }
 

@@ -104,8 +104,8 @@ void btPoint2PointConstraint::getInfo2NonVirtual (btConstraintInfo2* info, const
    
     // set jacobian
     info->m_J1linearAxis[0] = 1;
-    info->m_J1linearAxis[info->rowskip+1] = 1;
-    info->m_J1linearAxis[2*info->rowskip+2] = 1;
+	info->m_J1linearAxis[info->rowskip+1] = 1;
+	info->m_J1linearAxis[2*info->rowskip+2] = 1;
 
 	btVector3 a1 = body0_trans.getBasis()*getPivotInA();
 	{
@@ -139,7 +139,7 @@ void btPoint2PointConstraint::getInfo2NonVirtual (btConstraintInfo2* info, const
     int j;
 	for (j=0; j<3; j++)
     {
-        info->m_constraintError[j*info->rowskip] = k * (a2[j] + body1_trans.getOrigin()[j] -                     a1[j] - body0_trans.getOrigin()[j]);
+        info->m_constraintError[j*info->rowskip] = k * (a2[j] + body1_trans.getOrigin()[j] - a1[j] - body0_trans.getOrigin()[j]);
 		//printf("info->m_constraintError[%d]=%f\n",j,info->m_constraintError[j]);
     }
 	if(m_flags & BT_P2P_FLAGS_CFM)
@@ -166,21 +166,21 @@ void btPoint2PointConstraint::getInfo2NonVirtual (btConstraintInfo2* info, const
 
 
 void	btPoint2PointConstraint::updateRHS(btScalar	timeStep)
-		{		
+{
 	(void)timeStep;
 
 }
-			
+
 ///override the default global value of a parameter (such as ERP or CFM), optionally provide the axis (0..5). 
 ///If no axis is provided, it uses the default axis for this constraint.
 void btPoint2PointConstraint::setParam(int num, btScalar value, int axis)
-			{
+{
 	if(axis != -1)
-			{
+	{
 		btAssertConstrParams(0);
-			}
-			else
-			{
+	}
+	else
+	{
 		switch(num)
 		{
 			case BT_CONSTRAINT_ERP :
@@ -195,9 +195,9 @@ void btPoint2PointConstraint::setParam(int num, btScalar value, int axis)
 				break;
 			default: 
 				btAssertConstrParams(0);
-			}
 		}
 	}
+}
 
 ///return the local value of parameter
 btScalar btPoint2PointConstraint::getParam(int num, int axis) const 
@@ -206,7 +206,7 @@ btScalar btPoint2PointConstraint::getParam(int num, int axis) const
 	if(axis != -1)
 	{
 		btAssertConstrParams(0);
-}
+	}
 	else
 	{
 		switch(num)
@@ -227,4 +227,4 @@ btScalar btPoint2PointConstraint::getParam(int num, int axis) const
 	}
 	return retVal;
 }
-
+	

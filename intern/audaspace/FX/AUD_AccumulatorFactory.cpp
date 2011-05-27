@@ -60,7 +60,7 @@ AUD_AccumulatorFactory::AUD_AccumulatorFactory(AUD_IFactory* factory,
 }
 
 AUD_IReader* AUD_AccumulatorFactory::createReader() const
-	{
+{
 	return new AUD_CallbackIIRFilterReader(getReader(), 2, 2,
 							m_additive ? accumulatorFilterAdditive : accumulatorFilter);
-	}
+}

@@ -1152,7 +1152,7 @@ void btQuantizedBvh::deSerializeFloat(struct btQuantizedBvhFloatData& quantizedB
 
 	m_curNodeIndex = quantizedBvhFloatData.m_curNodeIndex;
 	m_useQuantization = quantizedBvhFloatData.m_useQuantization!=0;
-
+	
 	{
 		int numElem = quantizedBvhFloatData.m_numContiguousLeafNodes;
 		m_contiguousNodes.resize(numElem);

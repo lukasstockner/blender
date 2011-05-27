@@ -364,7 +364,6 @@ void ANIM_nla_mapping_apply_fcurve (AnimData *adt, FCurve *fcu, short restore, s
 	 *	- AnimData is stored in 'data'
 	 *	- only_keys is stored in 'i1'
 	 */
-	memset(&ked, 0, sizeof(KeyframeEditData));
 	ked.data= (void *)adt;
 	ked.i1= (int)only_keys;
 	

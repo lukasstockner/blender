@@ -21,10 +21,9 @@ if [ "$blender_version_cycle" == "release" ]
 then
 	BLENDER_VERSION=$(expr $blender_version / 100)_$(expr $blender_version % 100)$blender_version_char"_release"
 else
-BLENDER_VERSION=$(expr $blender_version / 100)_$(expr $blender_version % 100)_$blender_subversion
+	BLENDER_VERSION=$(expr $blender_version / 100)_$(expr $blender_version % 100)_$blender_subversion
 fi
 
-BLENDER_VERSION=`$BLENDER --version | cut -f2-4 -d" " | sed 's/(//g' | sed 's/)//g' | sed 's/ sub /./g' | sed 's/\./_/g'`
 SSH_UPLOAD_FULL=$SSH_UPLOAD/"blender_python_api_"$BLENDER_VERSION
 
 SPHINXBASE=doc/python_api/

@@ -29,8 +29,8 @@
 /** \file SCA_IController.h
  *  \ingroup gamelogic
  *  \brief An abstract object that has some logic, python scripting and
- * reference counting Note: transformation stuff has been moved to
- * SceneGraph
+ *   reference counting Note: transformation stuff has been moved to
+ *   SceneGraph
  */
 
 #ifndef SCA_IOBJECT_H
@@ -44,7 +44,7 @@ class SCA_ISensor;
 class SCA_IController;
 class SCA_IActuator;
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 template<class T> T PyVecTo(PyObject*);
 #endif
 

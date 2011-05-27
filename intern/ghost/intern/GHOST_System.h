@@ -303,7 +303,7 @@ public:
 	   */
 	  virtual void putClipboard(GHOST_TInt8 *buffer, bool selection) const = 0;
 
-
+	
 protected:
 	/**
 	 * Initialize the system.

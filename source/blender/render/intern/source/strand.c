@@ -606,7 +606,7 @@ static int strand_test_clip(float winmat[][4], ZSpan *zspan, float *bounds, floa
 
 	if(hoco[0]+widthx < bounds[0]*hoco[3]) clipflag |= 1;
 	else if(hoco[0]-widthx > bounds[1]*hoco[3]) clipflag |= 2;
-
+	
 	if(hoco[1]-widthy > bounds[3]*hoco[3]) clipflag |= 4;
 	else if(hoco[1]+widthy < bounds[2]*hoco[3]) clipflag |= 8;
 
@@ -675,9 +675,9 @@ static void strand_render(Render *re, StrandSegment *sseg, float winmat[][4], St
 		obi= sseg->obi - re->objectinstance;
 		index= sseg->strand->index;
 
-		  projectvert(p1->co, winmat, hoco1);
-		  projectvert(p2->co, winmat, hoco2);
-  
+		projectvert(p1->co, winmat, hoco1);
+		projectvert(p2->co, winmat, hoco2);
+
   
 		for(a=0; a<totzspan; a++) {
 #if 0
@@ -690,7 +690,7 @@ static void strand_render(Render *re, StrandSegment *sseg, float winmat[][4], St
 		}
 	}
 }
-  
+
 static int strand_segment_recursive(Render *re, float winmat[][4], StrandPart *spart, ZSpan *zspan, int totzspan, StrandSegment *sseg, StrandPoint *p1, StrandPoint *p2, int depth)
 {
 	StrandPoint p;
@@ -857,9 +857,17 @@ int zbuffer_strands_abuf(Render *re, RenderPart *pa, APixstrand *apixbuf, ListBa
 		else
 			copy_m4_m4(obwinmat, winmat);
 
-		if(clip_render_object(obi->obr->boundbox, bounds, obwinmat))
+		/* test if we should skip it */
+		ma = obr->strandbuf->ma;
+
+		if(shadow && !(ma->mode & MA_SHADBUF))
+			continue;
+		else if(!shadow && (ma->mode & MA_ONLYCAST))
 			continue;
 
+		if(clip_render_object(obi->obr->boundbox, bounds, obwinmat))
+			continue;
+		
 		widthx= obr->strandbuf->maxwidth*obwinmat[0][0];
 		widthy= obr->strandbuf->maxwidth*obwinmat[1][1];
 
@@ -1049,7 +1057,7 @@ void strand_minmax(StrandRen *strand, float *min, float *max, float width)
 			DO_MINMAX(vec, min, max);
 			vec[0]-= width2; vec[1]-= width2; vec[2]-= width2;
 			DO_MINMAX(vec, min, max);
-}
+		}
 	}
 }
 

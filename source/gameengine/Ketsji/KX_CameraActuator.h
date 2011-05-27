@@ -118,7 +118,7 @@ private :
 	/** Methods inherited from SCA_ILogicBrick */
 	virtual void	Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map);
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 	/* --------------------------------------------------------------------- */
 	/* Python interface ---------------------------------------------------- */
@@ -128,7 +128,7 @@ private :
 	static PyObject*	pyattr_get_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON
 
 };
 

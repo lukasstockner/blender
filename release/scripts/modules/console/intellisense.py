@@ -7,9 +7,9 @@
 #  as published by the Free Software Foundation; either version 2
 #  of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
 #
 #  You should have received a copy of the GNU General Public License
@@ -80,10 +80,10 @@ def complete(line, cursor, namespace, private=True):
         # unquoted word -> module or attribute completion
         word = re_unquoted_word.group(1)
         if RE_MODULE.match(line):
-            import complete_import
+            from . import complete_import
             matches = complete_import.complete(line)
         else:
-            import complete_namespace
+            from . import complete_namespace
             matches = complete_namespace.complete(word, namespace, private)
     else:
         # for now we don't have completers for strings
@@ -117,7 +117,7 @@ def expand(line, cursor, namespace, private=True):
     'abs(number) -> number\\nReturn the absolute value of the argument.'
     """
     if line[:cursor].strip().endswith('('):
-        import complete_calltip
+        from . import complete_calltip
         matches, word, scrollback = complete_calltip.complete(line,
             cursor, namespace)
         no_calltip = False

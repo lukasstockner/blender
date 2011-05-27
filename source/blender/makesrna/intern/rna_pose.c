@@ -474,14 +474,14 @@ static void rna_PoseChannel_constraints_remove(ID *id, bPoseChannel *pchan, Repo
 		Object *ob= (Object *)id;
 		const short is_ik= ELEM(con->type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK);
 
-	remove_constraint(&pchan->constraints, con);
+		remove_constraint(&pchan->constraints, con);
 		ED_object_constraint_update(ob);
 		constraints_set_active(&pchan->constraints, NULL);
 		WM_main_add_notifier(NC_OBJECT|ND_CONSTRAINT|NA_REMOVED, id);
 
 		if (is_ik) {
 			BIK_clear_data(ob->pose);
-}
+		}
 	}
 }
 
@@ -567,19 +567,19 @@ int rna_PoseBones_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_
 	if(pchan) {
 		RNA_pointer_create(ptr->id.data, &RNA_PoseBone, pchan, r_ptr);
 		return TRUE;
-}
+	}
 	else {
 		return FALSE;
 	}
 }
 
-static void rna_PoseChannel_matrix_local_get(PointerRNA *ptr, float *values)
+static void rna_PoseChannel_matrix_basis_get(PointerRNA *ptr, float *values)
 {
 	bPoseChannel *pchan= (bPoseChannel*)ptr->data;
 	pchan_to_mat4(pchan, (float (*)[4])values);
 }
 
-static void rna_PoseChannel_matrix_local_set(PointerRNA *ptr, const float *values)
+static void rna_PoseChannel_matrix_basis_set(PointerRNA *ptr, const float *values)
 {
 	bPoseChannel *pchan= (bPoseChannel*)ptr->data;
 	pchan_apply_mat4(pchan, (float (*)[4])values, FALSE); /* no compat for predictable result */
@@ -715,6 +715,8 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 	static float default_axisAngle[4] = {0,0,1,0};	/* default axis-angle rotation values */
 	static float default_scale[3] = {1,1,1}; /* default scale values */
 	
+	const int matrix_dimsize[]= {4, 4};
+	
 	StructRNA *srna;
 	PropertyRNA *prop;
 
@@ -812,7 +814,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 	/* transform matrices - should be read-only since these are set directly by AnimSys evaluation */
 	prop= RNA_def_property(srna, "matrix_channel", PROP_FLOAT, PROP_MATRIX);
 	RNA_def_property_float_sdna(prop, NULL, "chan_mat");
-	RNA_def_property_array(prop, 16);
+	RNA_def_property_multi_array(prop, 2, matrix_dimsize);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Channel Matrix", "4x4 matrix, before constraints");
 
@@ -824,9 +826,10 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_update(prop, NC_OBJECT|ND_POSE, "rna_Pose_update");
 
+	/* final matrix */
 	prop= RNA_def_property(srna, "matrix", PROP_FLOAT, PROP_MATRIX);
 	RNA_def_property_float_sdna(prop, NULL, "pose_mat");
-	RNA_def_property_array(prop, 16);
+	RNA_def_property_multi_array(prop, 2, matrix_dimsize);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE); 
 	RNA_def_property_ui_text(prop, "Pose Matrix", "Final 4x4 matrix after constraints and drivers are applied (object space)");
 
@@ -1223,7 +1226,7 @@ static void rna_def_pose(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "BoneGroup");
 	RNA_def_property_ui_text(prop, "Bone Groups", "Groups of the bones");
 	rna_def_bone_groups(brna, prop);
-
+	
 	/* ik solvers */
 	prop= RNA_def_property(srna, "ik_solver", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "iksolver");

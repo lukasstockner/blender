@@ -833,7 +833,7 @@ static void nlaedit_split_strip_actclip (AnimData *adt, NlaTrack *nlt, NlaStrip 
 }
 
 /* split a given Meta strip */
-static void nlaedit_split_strip_meta (AnimData *adt, NlaTrack *nlt, NlaStrip *strip)
+static void nlaedit_split_strip_meta (NlaTrack *nlt, NlaStrip *strip)
 {
 	/* simply ungroup it for now...  */
 	BKE_nlastrips_clear_metastrip(&nlt->strips, strip);
@@ -875,7 +875,7 @@ static int nlaedit_split_exec (bContext *C, wmOperator *UNUSED(op))
 						break;
 						
 					case NLASTRIP_TYPE_META: /* meta-strips need special handling */
-						nlaedit_split_strip_meta(adt, nlt, strip);
+						nlaedit_split_strip_meta(nlt, strip);
 						break;
 					
 					default: /* for things like Transitions, do not split! */
@@ -1450,7 +1450,6 @@ static int nlaedit_apply_scale_exec (bContext *C, wmOperator *UNUSED(op))
 	ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 	
 	/* init the editing data */
-	memset(&ked, 0, sizeof(KeyframeEditData));
 	
 	/* for each NLA-Track, apply scale of all selected strips */
 	for (ale= anim_data.first; ale; ale= ale->next) {

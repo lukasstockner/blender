@@ -51,7 +51,7 @@
 static int AVI_DEBUG=0;
 static char DEBUG_FCC[4];
 
-#define DEBUG(x) if(AVI_DEBUG) printf("AVI DEBUG: " x);
+#define DEBUG_PRINT(x) if(AVI_DEBUG) printf("AVI DEBUG: " x);
 
 /* local functions */
 char *fcc_to_char (unsigned int fcc);
@@ -221,7 +221,7 @@ int AVI_is_avi (const char *name) {
 	AviBitmapInfoHeader bheader;
 	int movie_tracks = 0;
 	
-	DEBUG("opening movie\n");
+	DEBUG_PRINT("opening movie\n");
 
 	movie.type = AVI_MOVIE_READ;
 	movie.fp = fopen (name, "rb");
@@ -244,7 +244,7 @@ int AVI_is_avi (const char *name) {
 		GET_FCC (movie.fp) != FCC("hdrl") ||
 		(movie.header->fcc = GET_FCC (movie.fp)) != FCC("avih") ||
 		!(movie.header->size = GET_FCC (movie.fp))) {
-		DEBUG("bad initial header info\n");
+		DEBUG_PRINT("bad initial header info\n");
 		fclose(movie.fp);
 		return 0;
 	}
@@ -267,7 +267,7 @@ int AVI_is_avi (const char *name) {
 	fseek (movie.fp, movie.header->size-14*4, SEEK_CUR);
 
 	if (movie.header->Streams < 1) {
-		DEBUG("streams less than 1\n");
+		DEBUG_PRINT("streams less than 1\n");
 		fclose(movie.fp);
 		return 0;
 	}
@@ -281,7 +281,7 @@ int AVI_is_avi (const char *name) {
 			GET_FCC (movie.fp) != FCC ("strl") ||
 			(movie.streams[temp].sh.fcc = GET_FCC (movie.fp)) != FCC ("strh") ||
 			!(movie.streams[temp].sh.size = GET_FCC (movie.fp))) {
-			DEBUG("bad stream header information\n");
+			DEBUG_PRINT("bad stream header information\n");
 			
 			MEM_freeN(movie.streams);
 			fclose(movie.fp);
@@ -329,7 +329,7 @@ int AVI_is_avi (const char *name) {
 		fseek (movie.fp, movie.streams[temp].sh.size-14*4, SEEK_CUR);
 
 		if (GET_FCC (movie.fp) != FCC("strf")) {
-			DEBUG("no stream format information\n");
+			DEBUG_PRINT("no stream format information\n");
 			MEM_freeN(movie.streams);
 			fclose(movie.fp);
 			return 0;
@@ -385,7 +385,7 @@ int AVI_is_avi (const char *name) {
 		while (GET_FCC (movie.fp) != FCC("LIST")) {
 			temp= GET_FCC (movie.fp);
 			if (temp<0 || ftell(movie.fp) > movie.size) {
-				DEBUG("incorrect size in header or error in AVI\n");
+				DEBUG_PRINT("incorrect size in header or error in AVI\n");
 				
 				MEM_freeN(movie.streams);
 				fclose(movie.fp);
@@ -402,13 +402,13 @@ int AVI_is_avi (const char *name) {
 
 	/* at least one video track is needed */
 	return (movie_tracks != 0); 
-				       
+
 }
 
 AviError AVI_open_movie (const char *name, AviMovie *movie) {
 	int temp, fcca, size, j;
 	
-	DEBUG("opening movie\n");
+	DEBUG_PRINT("opening movie\n");
 
 	memset(movie, 0, sizeof(AviMovie));
 
@@ -431,7 +431,7 @@ AviError AVI_open_movie (const char *name, AviMovie *movie) {
 		GET_FCC (movie->fp) != FCC("hdrl") ||
 		(movie->header->fcc = GET_FCC (movie->fp)) != FCC("avih") ||
 		!(movie->header->size = GET_FCC (movie->fp))) {
-		DEBUG("bad initial header info\n");
+		DEBUG_PRINT("bad initial header info\n");
 		return AVI_ERROR_FORMAT;
 	}
 	
@@ -453,7 +453,7 @@ AviError AVI_open_movie (const char *name, AviMovie *movie) {
 	fseek (movie->fp, movie->header->size-14*4, SEEK_CUR);
 
 	if (movie->header->Streams < 1) {
-		DEBUG("streams less than 1\n");
+		DEBUG_PRINT("streams less than 1\n");
 		return AVI_ERROR_FORMAT;
 	}
 	
@@ -466,7 +466,7 @@ AviError AVI_open_movie (const char *name, AviMovie *movie) {
 			GET_FCC (movie->fp) != FCC ("strl") ||
 			(movie->streams[temp].sh.fcc = GET_FCC (movie->fp)) != FCC ("strh") ||
 			!(movie->streams[temp].sh.size = GET_FCC (movie->fp))) {
-			DEBUG("bad stream header information\n");
+			DEBUG_PRINT("bad stream header information\n");
 			return AVI_ERROR_FORMAT;				
 		}
 
@@ -508,7 +508,7 @@ AviError AVI_open_movie (const char *name, AviMovie *movie) {
 		fseek (movie->fp, movie->streams[temp].sh.size-14*4, SEEK_CUR);
 
 		if (GET_FCC (movie->fp) != FCC("strf")) {
-			DEBUG("no stream format information\n");
+			DEBUG_PRINT("no stream format information\n");
 			return AVI_ERROR_FORMAT;
 		}
 
@@ -561,7 +561,7 @@ AviError AVI_open_movie (const char *name, AviMovie *movie) {
 		while (GET_FCC (movie->fp) != FCC("LIST")) {
 			temp= GET_FCC (movie->fp);
 			if (temp<0 || ftell(movie->fp) > movie->size) {
-				DEBUG("incorrect size in header or error in AVI\n");
+				DEBUG_PRINT("incorrect size in header or error in AVI\n");
 				return AVI_ERROR_FORMAT;				
 			}
 			fseek(movie->fp, temp, SEEK_CUR);			
@@ -586,7 +586,7 @@ AviError AVI_open_movie (const char *name, AviMovie *movie) {
 			fseek (movie->fp, size, SEEK_CUR);
 		}
 		if (ftell(movie->fp) > movie->size) {
-			DEBUG("incorrect size in header or error in AVI\n");
+			DEBUG_PRINT("incorrect size in header or error in AVI\n");
 			return AVI_ERROR_FORMAT;
 		}
 	}
@@ -600,13 +600,13 @@ AviError AVI_open_movie (const char *name, AviMovie *movie) {
 		fseek(movie->fp, size-4, SEEK_CUR);
 
 		if (GET_FCC(movie->fp) != FCC("idx1")) {
-			DEBUG("bad index informatio\n");
+			DEBUG_PRINT("bad index informatio\n");
 			return AVI_ERROR_FORMAT;
 		}
 
 		movie->index_entries = GET_FCC (movie->fp)/sizeof(AviIndexEntry);
 		if (movie->index_entries == 0) {
-			DEBUG("no index entries\n");
+			DEBUG_PRINT("no index entries\n");
 			return AVI_ERROR_FORMAT;
 		}
 
@@ -632,7 +632,7 @@ AviError AVI_open_movie (const char *name, AviMovie *movie) {
 			movie->read_offset= 4;
 	}
 
-	DEBUG("movie succesfully opened\n");
+	DEBUG_PRINT("movie succesfully opened\n");
 	return AVI_ERROR_NONE;
 }
 

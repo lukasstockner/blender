@@ -163,6 +163,9 @@ struct Render *RE_GetRender(const char *name);
 /* returns 1 while render is working (or renders called from within render) */
 int RE_RenderInProgress(struct Render *re);
 
+/* assign default dummy callbacks */
+void RE_InitRenderCB(struct Render *re);
+
 /* use free render as signal to do everything over (previews) */
 void RE_FreeRender (struct Render *re);
 /* only called on exit */
@@ -225,7 +228,7 @@ void RE_WriteRenderResult(RenderResult *rr, const char *filename, int compress);
 struct RenderResult *RE_MultilayerConvert(void *exrhandle, int rectx, int recty);
 
 /* do a full sample buffer compo */
-void RE_MergeFullSample(struct Render *re, struct Scene *sce, struct bNodeTree *ntree);
+void RE_MergeFullSample(struct Render *re, struct Main *bmain, struct Scene *sce, struct bNodeTree *ntree);
 
 /* ancient stars function... go away! */
 void RE_make_stars(struct Render *re, struct Scene *scenev3d, void (*initfunc)(void),
@@ -248,12 +251,12 @@ void RE_zbuf_accumulate_vecblur(struct NodeBlurData *nbd, int xsize, int ysize, 
 
 /* shaded view or baking options */
 #define RE_BAKE_LIGHT				0	/* not listed in rna_scene.c -> can't be enabled! */
-#define RE_BAKE_ALL				1
-#define RE_BAKE_AO				2
-#define RE_BAKE_NORMALS			3
-#define RE_BAKE_TEXTURE			4
-#define RE_BAKE_DISPLACEMENT	5
-#define RE_BAKE_SHADOW			6
+#define RE_BAKE_ALL					1
+#define RE_BAKE_AO					2
+#define RE_BAKE_NORMALS				3
+#define RE_BAKE_TEXTURE				4
+#define RE_BAKE_DISPLACEMENT		5
+#define RE_BAKE_SHADOW				6
 #define RE_BAKE_SPEC_COLOR			7
 #define RE_BAKE_SPEC_INTENSITY		8
 #define RE_BAKE_MIRROR_COLOR		9

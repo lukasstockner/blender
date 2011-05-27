@@ -137,7 +137,7 @@ def draw(layout, context, context_member, property_type, use_edit=True):
             if key in rna_properties:
                 row.prop(rna_item, key, text="")
             else:
-            row.prop(rna_item, '["%s"]' % key, text="")
+                row.prop(rna_item, '["%s"]' % key, text="")
 
         if use_edit:
             row = split.row(align=True)

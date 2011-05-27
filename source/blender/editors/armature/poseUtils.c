@@ -146,7 +146,7 @@ void poseAnim_mapping_get (bContext *C, ListBase *pfLinks, Object *ob, bAction *
 		CTX_DATA_BEGIN(C, bPoseChannel*, pchan, visible_pose_bones)
 		{
 			fcurves_to_pchan_links_get(pfLinks, ob, act, pchan);
-}
+		}
 		CTX_DATA_END;
 	}
 }
@@ -243,12 +243,12 @@ void poseAnim_mapping_autoKeyframe (bContext *C, Scene *scene, Object *ob, ListB
 			if (pchan->bone)
 				pchan->bone->flag &= ~BONE_UNKEYED;
 		}
-				
+		
 		/* insert keyframes for all relevant bones in one go */
 		ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cframe);
-			BLI_freelistN(&dsources);
-		}
+		BLI_freelistN(&dsources);
 	}
+}
 
 /* ------------------------- */
 

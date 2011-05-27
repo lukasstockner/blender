@@ -27,16 +27,16 @@ ATTRIBUTE_ALIGNED16( struct)	btIndexedMesh
 {
 	BT_DECLARE_ALIGNED_ALLOCATOR();
 
-	int			m_numTriangles;
-	const unsigned char *		m_triangleIndexBase;
-	int			m_triangleIndexStride;
-	int			m_numVertices;
-	const unsigned char *		m_vertexBase;
-	int			m_vertexStride;
+   int                     m_numTriangles;
+   const unsigned char *   m_triangleIndexBase;
+   int                     m_triangleIndexStride;
+   int                     m_numVertices;
+   const unsigned char *   m_vertexBase;
+   int                     m_vertexStride;
 
-	// The index type is set when adding an indexed mesh to the
-	// btTriangleIndexVertexArray, do not set it manually
-	PHY_ScalarType		m_indexType;
+   // The index type is set when adding an indexed mesh to the
+   // btTriangleIndexVertexArray, do not set it manually
+   PHY_ScalarType m_indexType;
 
    // The vertex type has a default type similar to Bullet's precision mode (float or double)
    // but can be set manually if you for example run Bullet with double precision but have
@@ -52,7 +52,7 @@ ATTRIBUTE_ALIGNED16( struct)	btIndexedMesh
       m_vertexType(PHY_FLOAT)
 #endif // BT_USE_DOUBLE_PRECISION
       {
-}
+      }
 }
 ;
 

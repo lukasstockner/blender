@@ -177,7 +177,7 @@ static void Vec3PlusStVec(float *v, float s, float *v1);
 
 /*physical unit of force is [kg * m / sec^2]*/
 
-static float sb_grav_force_scale(Object *ob)
+static float sb_grav_force_scale(Object *UNUSED(ob))
 /* since unit of g is [m/sec^2] and F = mass * g we rescale unit mass of node to 1 gramm
   put it to a function here, so we can add user options later without touching simulation code
 */
@@ -185,7 +185,7 @@ static float sb_grav_force_scale(Object *ob)
 	return (0.001f);
 }
 
-static float sb_fric_force_scale(Object *ob)
+static float sb_fric_force_scale(Object *UNUSED(ob))
 /* rescaling unit of drag [1 / sec] to somehow reasonable
   put it to a function here, so we can add user options later without touching simulation code
 */
@@ -684,7 +684,7 @@ static void add_mesh_quad_diag_springs(Object *ob)
 	}
 }
 
-static void add_2nd_order_roller(Object *ob,float stiffness,int *counter, int addsprings)
+static void add_2nd_order_roller(Object *ob,float UNUSED(stiffness), int *counter, int addsprings)
 {
 	/*assume we have a softbody*/
 	SoftBody *sb= ob->soft;	/* is supposed to be there */
@@ -1035,7 +1035,7 @@ static int query_external_colliders(Scene *scene, Object *me)
 
 
 /* +++ the aabb "force" section*/
-static int sb_detect_aabb_collisionCached(	float force[3], unsigned int par_layer,struct Object *vertexowner,float time)
+static int sb_detect_aabb_collisionCached(	float UNUSED(force[3]), unsigned int UNUSED(par_layer),struct Object *vertexowner,float UNUSED(time))
 {
 	Object *ob;
 	SoftBody *sb=vertexowner->soft;
@@ -1106,7 +1106,7 @@ static int sb_detect_aabb_collisionCached(	float force[3], unsigned int par_laye
 
 /* +++ the face external section*/
 static int sb_detect_face_pointCached(float face_v1[3],float face_v2[3],float face_v3[3],float *damp,
-								   float force[3], unsigned int par_layer,struct Object *vertexowner,float time)
+								   float force[3], unsigned int UNUSED(par_layer),struct Object *vertexowner,float time)
 								   {
 	Object *ob;
 	GHash *hash;
@@ -1204,7 +1204,7 @@ static int sb_detect_face_pointCached(float face_v1[3],float face_v2[3],float fa
 
 
 static int sb_detect_face_collisionCached(float face_v1[3],float face_v2[3],float face_v3[3],float *damp,
-								   float force[3], unsigned int par_layer,struct Object *vertexowner,float time)
+								   float force[3], unsigned int UNUSED(par_layer),struct Object *vertexowner,float time)
 {
 	Object *ob;
 	GHash *hash;
@@ -1430,7 +1430,7 @@ static void scan_for_ext_face_forces(Object *ob,float timenow)
 /* +++ the spring external section*/
 
 static int sb_detect_edge_collisionCached(float edge_v1[3],float edge_v2[3],float *damp,
-								   float force[3], unsigned int par_layer,struct Object *vertexowner,float time)
+								   float force[3], unsigned int UNUSED(par_layer),struct Object *vertexowner,float time)
 {
 	Object *ob;
 	GHash *hash;
@@ -1654,12 +1654,12 @@ static void _scan_for_ext_spring_forces(Scene *scene, Object *ob, float timenow,
 
 static void scan_for_ext_spring_forces(Scene *scene, Object *ob, float timenow)
 {
-  SoftBody *sb = ob->soft;
-  ListBase *do_effector = NULL;
+	SoftBody *sb = ob->soft;
+	ListBase *do_effector = NULL;
 
-  do_effector = pdInitEffectors(scene, ob, NULL, sb->effector_weights);
-	  _scan_for_ext_spring_forces(scene, ob, timenow, 0, sb->totspring, do_effector);
-  pdEndEffectors(&do_effector);
+	do_effector = pdInitEffectors(scene, ob, NULL, sb->effector_weights);
+	_scan_for_ext_spring_forces(scene, ob, timenow, 0, sb->totspring, do_effector);
+	pdEndEffectors(&do_effector);
 }
 
 static void *exec_scan_for_ext_spring_forces(void *data)
@@ -1759,7 +1759,7 @@ static int choose_winner(float*w, float* pos,float*a,float*b,float*c,float*ca,fl
 
 
 static int sb_detect_vertex_collisionCached(float opco[3], float facenormal[3], float *damp,
-									 float force[3], unsigned int par_layer,struct Object *vertexowner,
+									 float force[3], unsigned int UNUSED(par_layer), struct Object *vertexowner,
 									 float time,float vel[3], float *intrusion)
 {
 	Object *ob= NULL;
@@ -2094,7 +2094,7 @@ static void dfdv_goal(int ia, int ic,float factor)
 	for(i=0;i<3;i++) nlMatrixAdd(ia+i,ic+i,factor);
 }
 */
-static void sb_spring_force(Object *ob,int bpi,BodySpring *bs,float iks,float forcetime,int nl_flags)
+static void sb_spring_force(Object *ob,int bpi,BodySpring *bs,float iks,float UNUSED(forcetime), int nl_flags)
 {
 	SoftBody *sb= ob->soft;	/* is supposed to be there */
 	BodyPoint  *bp1,*bp2;
@@ -2228,50 +2228,50 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene, Object *ob, flo
 		/* naive ball self collision */
 		/* needs to be done if goal snaps or not */
 		if(do_selfcollision){
-				 int attached;
-				BodyPoint   *obp;
-				BodySpring *bs;
-				int c,b;
-				float velcenter[3],dvel[3],def[3];
-				float distance;
-				float compare;
-				 float bstune = sb->ballstiff;
+			int attached;
+			BodyPoint   *obp;
+			BodySpring *bs;
+			int c,b;
+			float velcenter[3],dvel[3],def[3];
+			float distance;
+			float compare;
+			float bstune = sb->ballstiff;
 
-				for(c=sb->totpoint, obp= sb->bpoint; c>=ifirst+bb; c--, obp++) {
-					compare = (obp->colball + bp->colball);
-					sub_v3_v3v3(def, bp->pos, obp->pos);
-					/* rather check the AABBoxes before ever calulating the real distance */
-					/* mathematically it is completly nuts, but performace is pretty much (3) times faster */
-					if ((ABS(def[0]) > compare) || (ABS(def[1]) > compare) || (ABS(def[2]) > compare)) continue;
-					distance = normalize_v3(def);
-					if (distance < compare ){
-						/* exclude body points attached with a spring */
-						attached = 0;
-						for(b=obp->nofsprings;b>0;b--){
-							bs = sb->bspring + obp->springs[b-1];
-							if (( ilast-bb == bs->v2)  || ( ilast-bb == bs->v1)){
-								attached=1;
-								continue;}
-						}
-						if (!attached){
-							float f = bstune/(distance) + bstune/(compare*compare)*distance - 2.0f*bstune/compare ;
+			for(c=sb->totpoint, obp= sb->bpoint; c>=ifirst+bb; c--, obp++) {
+				compare = (obp->colball + bp->colball);
+				sub_v3_v3v3(def, bp->pos, obp->pos);
+				/* rather check the AABBoxes before ever calulating the real distance */
+				/* mathematically it is completly nuts, but performace is pretty much (3) times faster */
+				if ((ABS(def[0]) > compare) || (ABS(def[1]) > compare) || (ABS(def[2]) > compare)) continue;
+				distance = normalize_v3(def);
+				if (distance < compare ){
+					/* exclude body points attached with a spring */
+					attached = 0;
+					for(b=obp->nofsprings;b>0;b--){
+						bs = sb->bspring + obp->springs[b-1];
+						if (( ilast-bb == bs->v2)  || ( ilast-bb == bs->v1)){
+							attached=1;
+							continue;}
+					}
+					if (!attached){
+						float f = bstune/(distance) + bstune/(compare*compare)*distance - 2.0f*bstune/compare ;
 
-							mid_v3_v3v3(velcenter, bp->vec, obp->vec);
-							sub_v3_v3v3(dvel,velcenter,bp->vec);
-							mul_v3_fl(dvel,_final_mass(ob,bp));
+						mid_v3_v3v3(velcenter, bp->vec, obp->vec);
+						sub_v3_v3v3(dvel,velcenter,bp->vec);
+						mul_v3_fl(dvel,_final_mass(ob,bp));
 
-							Vec3PlusStVec(bp->force,f*(1.0f-sb->balldamp),def);
-							Vec3PlusStVec(bp->force,sb->balldamp,dvel);
+						Vec3PlusStVec(bp->force,f*(1.0f-sb->balldamp),def);
+						Vec3PlusStVec(bp->force,sb->balldamp,dvel);
 
-							/* exploit force(a,b) == -force(b,a) part2/2 */
-							sub_v3_v3v3(dvel,velcenter,obp->vec);
-							mul_v3_fl(dvel,_final_mass(ob,bp));
+						/* exploit force(a,b) == -force(b,a) part2/2 */
+						sub_v3_v3v3(dvel,velcenter,obp->vec);
+						mul_v3_fl(dvel,_final_mass(ob,bp));
 
-							Vec3PlusStVec(obp->force,sb->balldamp,dvel);
-							Vec3PlusStVec(obp->force,-f*(1.0f-sb->balldamp),def);
-						}
+						Vec3PlusStVec(obp->force,sb->balldamp,dvel);
+						Vec3PlusStVec(obp->force,-f*(1.0f-sb->balldamp),def);
 					}
 				}
+			}
 		}
 		/* naive ball self collision done */
 
@@ -2460,7 +2460,7 @@ static void sb_cf_threads_run(Scene *scene, Object *ob, float forcetime, float t
 	MEM_freeN(sb_threads);
 }
 
-static void softbody_calc_forcesEx(Scene *scene, Object *ob, float forcetime, float timenow, int nl_flags)
+static void softbody_calc_forcesEx(Scene *scene, Object *ob, float forcetime, float timenow, int UNUSED(nl_flags))
 {
 /* rule we never alter free variables :bp->vec bp->pos in here !
  * this will ruin adaptive stepsize AKA heun! (BM)
@@ -2942,7 +2942,7 @@ static void softbody_apply_forces(Object *ob, float forcetime, int mode, float *
 /* now we have individual masses   */
 /* claim a minimum mass for vertex */
 		if (_final_mass(ob,bp) > 0.009999f) timeovermass = forcetime/_final_mass(ob,bp);
-		  else timeovermass = forcetime/0.009999f;
+		else timeovermass = forcetime/0.009999f;
 
 
 		if(_final_goal(ob,bp) < SOFTGOALSNAP){

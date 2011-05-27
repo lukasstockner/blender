@@ -74,7 +74,7 @@
   out of or in connection with (i) the use of the Software by You and (ii)
   the use of any Works created with the Software by You or any third
   parties.
-  
+    
   6. Enforceability
   
   If any provision of this License Agreement is held to be unenforceable

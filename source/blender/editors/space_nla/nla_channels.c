@@ -385,22 +385,22 @@ static int nlaedit_add_tracks_exec (bContext *C, wmOperator *op)
 	/* add tracks... */
 	for (ale= anim_data.first; ale; ale= ale->next) {
 		if(ale->type == ANIMTYPE_NLATRACK) {
-		NlaTrack *nlt= (NlaTrack *)ale->data;
-		AnimData *adt= ale->adt;
-		
-		/* check if just adding a new track above this one,
-		 * or whether we're adding a new one to the top of the stack that this one belongs to
-		 */
-		if (above_sel) {
-			/* just add a new one above this one */
-			add_nlatrack(adt, nlt);
+			NlaTrack *nlt= (NlaTrack *)ale->data;
+			AnimData *adt= ale->adt;
+			
+			/* check if just adding a new track above this one,
+			 * or whether we're adding a new one to the top of the stack that this one belongs to
+			 */
+			if (above_sel) {
+				/* just add a new one above this one */
+				add_nlatrack(adt, nlt);
+			}
+			else if ((lastAdt == NULL) || (adt != lastAdt)) {
+				/* add one track to the top of the owning AnimData's stack, then don't add anymore to this stack */
+				add_nlatrack(adt, NULL);
+				lastAdt= adt;
+			}
 		}
-		else if ((lastAdt == NULL) || (adt != lastAdt)) {
-			/* add one track to the top of the owning AnimData's stack, then don't add anymore to this stack */
-			add_nlatrack(adt, NULL);
-			lastAdt= adt;
-		}
-	}
 	}
 	
 	/* free temp data */
@@ -453,18 +453,18 @@ static int nlaedit_delete_tracks_exec (bContext *C, wmOperator *UNUSED(op))
 	/* delete tracks */
 	for (ale= anim_data.first; ale; ale= ale->next) {
 		if(ale->type == ANIMTYPE_NLATRACK) {
-		NlaTrack *nlt= (NlaTrack *)ale->data;
-		AnimData *adt= ale->adt;
-		
+			NlaTrack *nlt= (NlaTrack *)ale->data;
+			AnimData *adt= ale->adt;
+			
 			/* if track is currently 'solo', then AnimData should have its
 			 * 'has solo' flag disabled
 			 */
 			if (nlt->flag & NLATRACK_SOLO)
 				adt->flag &= ~ADT_NLA_SOLO_TRACK;
 			
-		/* call delete on this track - deletes all strips too */
-		free_nlatrack(&adt->nla_tracks, nlt);
-	}
+			/* call delete on this track - deletes all strips too */
+			free_nlatrack(&adt->nla_tracks, nlt);
+		}
 	}
 	
 	/* free temp data */

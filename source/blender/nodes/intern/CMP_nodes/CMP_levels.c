@@ -330,13 +330,13 @@ static void node_composit_exec_view_levels(void *data, bNode *node, bNodeStack *
 
 static void node_composit_init_view_levels(bNode* node)
 {
-   node->custom1=1; /*All channels*/
+	node->custom1=1; /*All channels*/
 }
 
 void register_node_type_cmp_view_levels(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, CMP_NODE_VIEW_LEVELS, "Levels", NODE_CLASS_OUTPUT, NODE_OPTIONS|NODE_PREVIEW,
 		cmp_node_view_levels_in, cmp_node_view_levels_out);
 	node_type_size(&ntype, 140, 100, 320);

@@ -69,7 +69,7 @@ EnumPropertyItem space_type_items[] = {
 	{SPACE_TIME, "TIMELINE", 0, "Timeline", ""},
 	{SPACE_NODE, "NODE_EDITOR", 0, "Node Editor", ""},
 	{SPACE_LOGIC, "LOGIC_EDITOR", 0, "Logic Editor", ""},
-	{SPACE_CONSOLE, "CONSOLE", 0, "Console", ""},
+	{SPACE_CONSOLE, "CONSOLE", 0, "Python Console", ""},
 	{SPACE_USERPREF, "USER_PREFERENCES", 0, "User Preferences", ""},
 	{0, NULL, 0, NULL, NULL}};
 
@@ -352,8 +352,8 @@ static PointerRNA rna_SpaceView3D_region_3d_get(PointerRNA *ptr)
 	ScrArea *sa= rna_area_from_space(ptr);
 	void *regiondata= NULL;
 	if(sa) {
-	ListBase *regionbase= (sa->spacedata.first == v3d)? &sa->regionbase: &v3d->regionbase;
-	ARegion *ar= regionbase->last; /* always last in list, weak .. */
+		ListBase *regionbase= (sa->spacedata.first == v3d)? &sa->regionbase: &v3d->regionbase;
+		ARegion *ar= regionbase->last; /* always last in list, weak .. */
 		regiondata= ar->regiondata;
 	}
 
@@ -385,8 +385,20 @@ static void rna_RegionView3D_quadview_update(Main *main, Scene *scene, PointerRN
 
 	rna_area_region_from_regiondata(ptr, &sa, &ar);
 	if(sa && ar && ar->alignment==RGN_ALIGN_QSPLIT)
-		ED_view3d_quadview_update(sa, ar);
+		ED_view3d_quadview_update(sa, ar, FALSE);
 }
+
+/* same as above but call clip==TRUE */
+static void rna_RegionView3D_quadview_clip_update(Main *main, Scene *scene, PointerRNA *ptr)
+{
+	ScrArea *sa;
+	ARegion *ar;
+
+	rna_area_region_from_regiondata(ptr, &sa, &ar);
+	if(sa && ar && ar->alignment==RGN_ALIGN_QSPLIT)
+		ED_view3d_quadview_update(sa, ar, TRUE);
+}
+
 
 static void rna_RegionView3D_view_location_get(PointerRNA *ptr, float *values)
 {
@@ -429,6 +441,8 @@ static PointerRNA rna_SpaceImageEditor_uvedit_get(PointerRNA *ptr)
 static void rna_SpaceImageEditor_paint_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	paint_init(&scene->toolsettings->imapaint.paint, PAINT_CURSOR_TEXTURE_PAINT);
+
+	ED_space_image_paint_update(bmain->wm.first, scene->toolsettings);
 }
 
 static int rna_SpaceImageEditor_show_render_get(PointerRNA *ptr)
@@ -546,7 +560,7 @@ static void rna_SpaceImageEditor_curves_update(Main *bmain, Scene *scene, Pointe
 
 	ibuf= ED_space_image_acquire_buffer(sima, &lock);
 	if(ibuf->rect_float)
-	curvemapping_do_ibuf(sima->cumap, ibuf);
+		curvemapping_do_ibuf(sima->cumap, ibuf);
 	ED_space_image_release_buffer(sima, lock);
 
 	WM_main_add_notifier(NC_IMAGE, sima->image);
@@ -598,8 +612,8 @@ static void rna_SpaceTextEditor_updateEdited(Main *bmain, Scene *scene, PointerR
 /* note: this function exists only to avoid id refcounting */
 static void rna_SpaceProperties_pin_id_set(PointerRNA *ptr, PointerRNA value)
 {
-    SpaceButs *sbuts= (SpaceButs*)(ptr->data);
-    sbuts->pinid= value.data;
+	SpaceButs *sbuts= (SpaceButs*)(ptr->data);
+	sbuts->pinid= value.data;
 }
 
 static StructRNA *rna_SpaceProperties_pin_id_typef(PointerRNA *ptr)
@@ -703,7 +717,7 @@ static void rna_SpaceDopeSheetEditor_action_set(PointerRNA *ptr, PointerRNA valu
 	if ((act == NULL) || (act->idroot == 0)) {
 		/* just set if we're clearing the action or if the action is "amorphous" still */
 		saction->action= act;
-}
+	}
 	else {
 		/* action to set must strictly meet the mode criteria... */
 		if (saction->mode == SACTCONT_ACTION) {
@@ -732,7 +746,7 @@ static void rna_SpaceDopeSheetEditor_action_update(Main *bmain, Scene *scene, Po
 	Object *obact= (scene->basact)? scene->basact->object: NULL;
 
 	/* we must set this action to be the one used by active object (if not pinned) */
-	if(obact/* && saction->pin == 0*/) {
+	if (obact/* && saction->pin == 0*/) {
 		AnimData *adt = NULL;
 		
 		if (saction->mode == SACTCONT_ACTION) {
@@ -751,8 +765,8 @@ static void rna_SpaceDopeSheetEditor_action_update(Main *bmain, Scene *scene, Po
 			id_us_min(&adt->action->id);
 			
 			/* show new id-count of action we're replacing */
-		adt->action= saction->action;
-		id_us_plus(&adt->action->id);
+			adt->action= saction->action;
+			id_us_plus(&adt->action->id);
 		}
 		
 		/* force depsgraph flush too */
@@ -776,9 +790,9 @@ static void rna_SpaceDopeSheetEditor_mode_update(Main *bmain, Scene *scene, Poin
 			saction->action = NULL;
 		
 		/* 2)	enable 'show sliders' by default, since one of the main
-	 *		points of the ShapeKey Editor is to provide a one-stop shop
-	 *		for controlling the shapekeys, whose main control is the value
-	 */
+		*		points of the ShapeKey Editor is to provide a one-stop shop
+		*		for controlling the shapekeys, whose main control is the value
+		*/
 		saction->flag |= SACTION_SLIDERS;
 }
 	/* make sure action stored is valid */
@@ -818,6 +832,17 @@ static void rna_Sequencer_display_mode_update(bContext *C, PointerRNA *ptr)
 	ED_sequencer_update_view(C, view);
 }
 
+static float rna_BackgroundImage_opacity_get(PointerRNA *ptr)
+{
+	BGpic *bgpic= (BGpic *)ptr->data;
+	return 1.0f-bgpic->blend;
+}
+ 
+static void rna_BackgroundImage_opacity_set(PointerRNA *ptr, float value)
+{
+	BGpic *bgpic= (BGpic *)ptr->data;
+	bgpic->blend = 1.0f - value;
+}
 
 static void rna_View3D_matcap_image_changed(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
@@ -1115,9 +1140,10 @@ static void rna_def_background_image(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0, FLT_MAX);
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_VIEW3D, NULL);
 	
-	prop= RNA_def_property(srna, "transparency", PROP_FLOAT, PROP_NONE);
+	prop= RNA_def_property(srna, "opacity", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "blend");
-	RNA_def_property_ui_text(prop, "Transparency", "Amount to blend the image against the background color");
+	RNA_def_property_float_funcs(prop, "rna_BackgroundImage_opacity_get", "rna_BackgroundImage_opacity_set", NULL);
+	RNA_def_property_ui_text(prop, "Opacity", "Image opacity to blend the image against the background color");
 	RNA_def_property_range(prop, 0.0, 1.0);
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_VIEW3D, NULL);
 
@@ -1138,7 +1164,7 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-	int matrix_dimsize[]= {4, 4};
+	const int matrix_dimsize[]= {4, 4};
 		
 	static EnumPropertyItem pivot_items[] = {
 		{V3D_CENTER, "BOUNDING_BOX_CENTER", ICON_ROTATE, "Bounding Box Center", "Pivot around bounding box center of selected object(s)"},
@@ -1167,12 +1193,17 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "lock_object", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_pointer_sdna(prop, NULL, "ob_centre");
-	RNA_def_property_ui_text(prop, "Lock Object", "3D View center is locked to this object's position");
+	RNA_def_property_ui_text(prop, "Lock to Object", "3D View center is locked to this object's position");
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_VIEW3D, NULL);
 	
 	prop= RNA_def_property(srna, "lock_bone", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "ob_centre_bone");
-	RNA_def_property_ui_text(prop, "Lock Bone", "3D View center is locked to this bone's position");
+	RNA_def_property_ui_text(prop, "Lock to Bone", "3D View center is locked to this bone's position");
+	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_VIEW3D, NULL);
+
+	prop= RNA_def_property(srna, "lock_cursor", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "ob_centre_cursor", 1);
+	RNA_def_property_ui_text(prop, "Lock to Cursor", "3D View center is locked to the cursor's position");
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_VIEW3D, NULL);
 
 	prop= RNA_def_property(srna, "viewport_shade", PROP_ENUM, PROP_NONE);
@@ -1399,7 +1430,7 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "use_box_clip", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "viewlock", RV3D_BOXCLIP);
 	RNA_def_property_ui_text(prop, "Clip", "Clip objects based on what's visible in other side views");
-	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_VIEW3D, "rna_RegionView3D_quadview_update");
+	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_VIEW3D, "rna_RegionView3D_quadview_clip_update");
 	
 	prop= RNA_def_property(srna, "perspective_matrix", PROP_FLOAT, PROP_MATRIX);
 	RNA_def_property_float_sdna(prop, NULL, "persmat");
@@ -2168,11 +2199,6 @@ static void rna_def_console_line(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_CONSOLE, NULL);
 }
 
-static EnumPropertyItem console_type_items[] = {
-	{CONSOLE_TYPE_PYTHON, "PYTHON", 0, "Python", ""},
-	{CONSOLE_TYPE_REPORT, "REPORT", 0, "Report", ""},
-	{0, NULL, 0, NULL, NULL}};
-	
 static void rna_def_space_console(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -2189,12 +2215,6 @@ static void rna_def_space_console(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Font Size", "Font size to use for displaying the text");
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_CONSOLE, NULL);
 	
-	prop= RNA_def_property(srna, "console_type", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "type");
-	RNA_def_property_enum_items(prop, console_type_items);
-	RNA_def_property_ui_text(prop, "Type", "Console type");
-	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_CONSOLE, NULL);
-
 	prop= RNA_def_property(srna, "select_start", PROP_INT, PROP_UNSIGNED); /* copied from text editor */
 	RNA_def_property_int_sdna(prop, NULL, "sel_start");
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_CONSOLE, NULL);
@@ -2202,32 +2222,6 @@ static void rna_def_space_console(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "select_end", PROP_INT, PROP_UNSIGNED); /* copied from text editor */
 	RNA_def_property_int_sdna(prop, NULL, "sel_end");
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_CONSOLE, NULL);
-
-	/* reporting display */
-	prop= RNA_def_property(srna, "show_report_debug", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "rpt_mask", CONSOLE_RPT_DEBUG);
-	RNA_def_property_ui_text(prop, "Show Debug", "Display debug reporting info");
-	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_CONSOLE_REPORT, NULL);
-	
-	prop= RNA_def_property(srna, "show_report_info", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "rpt_mask", CONSOLE_RPT_INFO);
-	RNA_def_property_ui_text(prop, "Show Info", "Display general information");
-	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_CONSOLE_REPORT, NULL);
-	
-	prop= RNA_def_property(srna, "show_report_operator", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "rpt_mask", CONSOLE_RPT_OP);
-	RNA_def_property_ui_text(prop, "Show Operator", "Display the operator log");
-	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_CONSOLE_REPORT, NULL);
-	
-	prop= RNA_def_property(srna, "show_report_warning", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "rpt_mask", CONSOLE_RPT_WARN);
-	RNA_def_property_ui_text(prop, "Show Warn", "Display warnings");
-	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_CONSOLE_REPORT, NULL);
-	
-	prop= RNA_def_property(srna, "show_report_error", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "rpt_mask", CONSOLE_RPT_ERR);
-	RNA_def_property_ui_text(prop, "Show Error", "Display error text");
-	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_CONSOLE_REPORT, NULL);
 
 	prop= RNA_def_property(srna, "prompt", PROP_STRING, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Prompt", "Command line prompt");
@@ -2380,10 +2374,37 @@ static void rna_def_space_filebrowser(BlenderRNA *brna)
 static void rna_def_space_info(BlenderRNA *brna)
 {
 	StructRNA *srna;
+	PropertyRNA *prop;
 
 	srna= RNA_def_struct(brna, "SpaceInfo", "Space");
 	RNA_def_struct_sdna(srna, "SpaceInfo");
 	RNA_def_struct_ui_text(srna, "Space Info", "Info space data");
+
+	/* reporting display */
+	prop= RNA_def_property(srna, "show_report_debug", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "rpt_mask", INFO_RPT_DEBUG);
+	RNA_def_property_ui_text(prop, "Show Debug", "Display debug reporting info");
+	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_INFO_REPORT, NULL);
+	
+	prop= RNA_def_property(srna, "show_report_info", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "rpt_mask", INFO_RPT_INFO);
+	RNA_def_property_ui_text(prop, "Show Info", "Display general information");
+	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_INFO_REPORT, NULL);
+	
+	prop= RNA_def_property(srna, "show_report_operator", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "rpt_mask", INFO_RPT_OP);
+	RNA_def_property_ui_text(prop, "Show Operator", "Display the operator log");
+	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_INFO_REPORT, NULL);
+	
+	prop= RNA_def_property(srna, "show_report_warning", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "rpt_mask", INFO_RPT_WARN);
+	RNA_def_property_ui_text(prop, "Show Warn", "Display warnings");
+	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_INFO_REPORT, NULL);
+	
+	prop= RNA_def_property(srna, "show_report_error", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "rpt_mask", INFO_RPT_ERR);
+	RNA_def_property_ui_text(prop, "Show Error", "Display error text");
+	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_INFO_REPORT, NULL);	
 }
 
 static void rna_def_space_userpref(BlenderRNA *brna)
@@ -2468,7 +2489,7 @@ static void rna_def_space_node(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "zoom");
 	RNA_def_property_float_default(prop, 1.0f);
 	RNA_def_property_range(prop, 0.01f, FLT_MAX);
-    RNA_def_property_ui_range(prop, 0.01, 100, 1, 2);
+	RNA_def_property_ui_range(prop, 0.01, 100, 1, 2);
 	RNA_def_property_ui_text(prop, "Backdrop Zoom", "Backdrop zoom factor");
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_NODE_VIEW, NULL);
 	

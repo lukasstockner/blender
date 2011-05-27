@@ -30,7 +30,7 @@
 *
 * BKE_cdderivedmesh.h contains the function prototypes for this file.
 *
-*/ 
+*/
 
 /** \file blender/blenkernel/intern/cdderivedmesh.c
  *  \ingroup bke
@@ -248,7 +248,7 @@ static struct PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 			deformdm->getVertCos(deformdm, vertCos);
 			BLI_pbvh_apply_vertCos(cddm->pbvh, vertCos);
 			MEM_freeN(vertCos);
-	}
+		}
 	}
 
 	return cddm->pbvh;
@@ -332,7 +332,7 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 			GPU_uvedge_setup(dm);
 			if( !GPU_buffer_legacy(dm) ) {
 				for(i = 0; i < dm->numFaceData; i++, mf++) {
-					if(mf->flag&ME_LOOSEEDGE) {
+					if(!(mf->flag&ME_HIDE)) {
 						draw = 1;
 					} 
 					else {
@@ -461,7 +461,7 @@ static void cdDM_drawLooseEdges(DerivedMesh *dm)
 
 static void cdDM_drawFacesSolid(DerivedMesh *dm,
 				float (*partial_redraw_planes)[4],
-				int fast, int (*setMaterial)(int, void *attribs))
+				int UNUSED(fast), int (*setMaterial)(int, void *attribs))
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
 	MVert *mvert = cddm->mvert;
@@ -866,7 +866,7 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 			int draw= 1;
 
 			orig= (index==NULL) ? i : *index++;
-
+			
 			if(orig == ORIGINDEX_NONE)
 				draw= setMaterial(mf->mat_nr + 1, NULL);
 			else if (setDrawOptions != NULL)
@@ -937,7 +937,7 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 		if( !GPU_buffer_legacy(dm) ) {
 			int tottri = dm->drawObject->nelements/3;
 			glShadeModel(GL_SMOOTH);
-
+			
 			if(tottri == 0) {
 				/* avoid buffer problems in following code */
 			}
@@ -949,12 +949,12 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 				/* we need to check if the next material changes */
 				int next_actualFace= dm->drawObject->faceRemap[0];
 				
-			for( i = 0; i < tottri; i++ ) {
+				for( i = 0; i < tottri; i++ ) {
 					//int actualFace = dm->drawObject->faceRemap[i];
 					int actualFace = next_actualFace;
 					MFace *mface= mf + actualFace;
 					int drawSmooth= (mface->flag & ME_SMOOTH);
-				int draw = 1;
+					int draw = 1;
 
 					if(i != tottri-1)
 						next_actualFace= dm->drawObject->faceRemap[i+1];
@@ -966,17 +966,17 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 					else if (setDrawOptions != NULL)
 						draw= setDrawOptions(userData, orig, &drawSmooth);
 	
-				/* Goal is to draw as long of a contiguous triangle
-				   array as possible, so draw when we hit either an
-				   invisible triangle or at the end of the array */
+					/* Goal is to draw as long of a contiguous triangle
+					   array as possible, so draw when we hit either an
+					   invisible triangle or at the end of the array */
 					if(!draw || i == tottri - 1 || mf[actualFace].mat_nr != mf[next_actualFace].mat_nr) {
-					if(prevstart != i)
-						/* Add one to the length (via `draw')
-						   if we're drawing at the end of the array */
-						glDrawArrays(GL_TRIANGLES,prevstart*3, (i-prevstart+draw)*3);
-					prevstart = i + 1;
+						if(prevstart != i)
+							/* Add one to the length (via `draw')
+							   if we're drawing at the end of the array */
+							glDrawArrays(GL_TRIANGLES,prevstart*3, (i-prevstart+draw)*3);
+						prevstart = i + 1;
+					}
 				}
-			}
 			}
 
 			glShadeModel(GL_FLAT);
@@ -1554,7 +1554,7 @@ DerivedMesh *CDDM_new(int numVerts, int numEdges, int numFaces)
 	return dm;
 }
 
-DerivedMesh *CDDM_from_mesh(Mesh *mesh, Object *ob)
+DerivedMesh *CDDM_from_mesh(Mesh *mesh, Object *UNUSED(ob))
 {
 	CDDerivedMesh *cddm = cdDM_create("CDDM_from_mesh dm");
 	DerivedMesh *dm = &cddm->dm;
@@ -1583,7 +1583,7 @@ DerivedMesh *CDDM_from_mesh(Mesh *mesh, Object *ob)
 	return dm;
 }
 
-DerivedMesh *CDDM_from_editmesh(EditMesh *em, Mesh *me)
+DerivedMesh *CDDM_from_editmesh(EditMesh *em, Mesh *UNUSED(me))
 {
 	DerivedMesh *dm = CDDM_new(BLI_countlist(&em->verts),
 							   BLI_countlist(&em->edges),
@@ -1748,6 +1748,8 @@ DerivedMesh *CDDM_copy(DerivedMesh *source)
 	return dm;
 }
 
+/* note, the CD_ORIGINDEX layers are all 0, so if there is a direct
+ * relationship betwen mesh data this needs to be set by the caller. */
 DerivedMesh *CDDM_from_template(DerivedMesh *source,
 								int numVerts, int numEdges, int numFaces)
 {
@@ -1827,7 +1829,7 @@ void CDDM_calc_normals(DerivedMesh *dm)
 
 	/* calculate face normals */
 	mesh_calc_normals(cddm->mvert, dm->numVertData, CDDM_get_faces(dm), dm->numFaceData, face_nors);
-	}
+}
 
 void CDDM_calc_edges(DerivedMesh *dm)
 {

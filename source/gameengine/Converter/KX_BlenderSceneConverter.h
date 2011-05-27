@@ -176,7 +176,7 @@ public:
 #endif
 //		/printf("\t m_ketsjiEngine->m_scenes: %d\n", m_ketsjiEngine->CurrentScenes()->size());
 	}
-
+	
 	/* LibLoad Options */
 	enum 
 	{

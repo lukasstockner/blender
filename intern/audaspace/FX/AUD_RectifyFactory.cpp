@@ -41,8 +41,8 @@ sample_t rectifyFilter(AUD_CallbackIIRFilterReader* reader, void* useless)
 
 AUD_RectifyFactory::AUD_RectifyFactory(AUD_IFactory* factory) :
 		AUD_EffectFactory(factory)
-	{
-	}
+{
+}
 
 AUD_IReader* AUD_RectifyFactory::createReader() const
 {

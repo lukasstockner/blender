@@ -150,7 +150,7 @@ PointerRNA rna_object_shapekey_index_get(ID *id, int value)
 	KeyBlock *kb= NULL;
 	PointerRNA ptr;
 
-	if(key && value < key->totkey)
+	if (key && value < key->totkey)
 		kb = BLI_findlink(&key->block, value);
 	
 	RNA_pointer_create(id, &RNA_ShapeKey, kb, &ptr);
@@ -287,17 +287,17 @@ static void rna_ShapeKey_data_begin(CollectionPropertyIterator *iter, PointerRNA
 	Curve *cu;
 	Nurb *nu;
 	int tot= kb->totelem, size= key->elemsize;
-
+	
 	if(GS(key->from->name) == ID_CU) {
 		cu= (Curve*)key->from;
 		nu= cu->nurb.first;
-
+		
 		if(nu->bezt) {
 			tot /= 3;
 			size *= 3;
 		}
 	}
-
+	
 	rna_iterator_array_begin(iter, (void*)kb->data, size, tot, 0, NULL);
 }
 
@@ -308,15 +308,15 @@ static int rna_ShapeKey_data_length(PointerRNA *ptr)
 	Curve *cu;
 	Nurb *nu;
 	int tot= kb->totelem;
-
+	
 	if(GS(key->from->name) == ID_CU) {
 		cu= (Curve*)key->from;
 		nu= cu->nurb.first;
-
+		
 		if(nu->bezt)
 			tot /= 3;
 	}
-
+	
 	return tot;
 }
 
@@ -326,11 +326,11 @@ static PointerRNA rna_ShapeKey_data_get(CollectionPropertyIterator *iter)
 	StructRNA *type;
 	Curve *cu;
 	Nurb *nu;
-
+	
 	if(GS(key->from->name) == ID_CU) {
 		cu= (Curve*)key->from;
 		nu= cu->nurb.first;
-
+		
 		if(nu->bezt)
 			type= &RNA_ShapeKeyBezierPoint;
 		else

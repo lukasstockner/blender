@@ -46,7 +46,7 @@ static bNodeSocketType sh_node_mix_rgb_out[]= {
 	{	-1, 0, ""	}
 };
 
-static void node_shader_exec_mix_rgb(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_shader_exec_mix_rgb(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	/* stack order in: fac, col1, col2 */
 	/* stack order out: col */
@@ -78,7 +78,7 @@ static int gpu_shader_mix_rgb(GPUMaterial *mat, bNode *node, GPUNodeStack *in, G
 void register_node_type_sh_mix_rgb(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, SH_NODE_MIX_RGB, "Mix", NODE_CLASS_OP_COLOR, NODE_OPTIONS,
 		sh_node_mix_rgb_in, sh_node_mix_rgb_out);
 	node_type_size(&ntype, 100, 60, 150);

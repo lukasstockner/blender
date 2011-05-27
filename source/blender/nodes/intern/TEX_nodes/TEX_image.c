@@ -40,7 +40,7 @@ static bNodeSocketType outputs[]= {
 	{ -1, 0, "" }
 };
 
-static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack **UNUSED(in), short UNUSED(thread))
 {
 	float x = p->co[0];
 	float y = p->co[1];
@@ -90,17 +90,17 @@ static void exec(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
 
 static void init(bNode* node)
 {
-   ImageUser *iuser= MEM_callocN(sizeof(ImageUser), "node image user");
-   node->storage= iuser;
-   iuser->sfra= 1;
-   iuser->fie_ima= 2;
-   iuser->ok= 1;
+	ImageUser *iuser= MEM_callocN(sizeof(ImageUser), "node image user");
+	node->storage= iuser;
+	iuser->sfra= 1;
+	iuser->fie_ima= 2;
+	iuser->ok= 1;
 }
 
 void register_node_type_tex_image(ListBase *lb)
 {
 	static bNodeType ntype;
-
+	
 	node_type_base(&ntype, TEX_NODE_IMAGE, "Image", NODE_CLASS_INPUT, NODE_PREVIEW|NODE_OPTIONS,
 				   NULL, outputs);
 	node_type_size(&ntype, 120, 80, 300);

@@ -601,7 +601,7 @@ static void rna_wmKeyMapItem_idname_set(PointerRNA *ptr, const char *value)
 	if(strcmp(idname, kmi->idname) != 0) {
 		BLI_strncpy(kmi->idname, idname, sizeof(kmi->idname));
 
-		WM_keymap_properties_reset(kmi);
+		WM_keymap_properties_reset(kmi, NULL);
 	}
 }
 
@@ -668,7 +668,7 @@ static void rna_wmClipboard_set(PointerRNA *ptr, const char *value)
 	WM_clipboard_text_set((void *) value, FALSE);
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 static void rna_Operator_unregister(struct Main *bmain, StructRNA *type)
 {
 	const char *idname;
@@ -682,7 +682,7 @@ static void rna_Operator_unregister(struct Main *bmain, StructRNA *type)
 	wm= bmain->wm.first;
 	if(wm)
 		WM_operator_stack_clear(wm);
-		WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
+	WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
 
 	RNA_struct_free_extension(type, &ot->ext);
 
@@ -873,6 +873,9 @@ static StructRNA *rna_Operator_register(Main *bmain, ReportList *reports, void *
 	dummyot.description= _operator_descr; /* only assigne the pointer, string is NULL'd */
 	RNA_pointer_create(NULL, &RNA_Operator, &dummyop, &dummyotr);
 
+	/* clear incase they are left unset */
+	_operator_idname[0]= _operator_name[0]= _operator_descr[0]= '\0';
+
 	/* validate the python class */
 	if(validate(&dummyotr, data, have_function) != 0)
 		return NULL;
@@ -913,20 +916,20 @@ static StructRNA *rna_Operator_register(Main *bmain, ReportList *reports, void *
 		/* end sanity check */
 
 		{
-		int idlen = strlen(_operator_idname) + 4;
-		int namelen = strlen(_operator_name) + 1;
-		int desclen = strlen(_operator_descr) + 1;
+			int idlen = strlen(_operator_idname) + 4;
+			int namelen = strlen(_operator_name) + 1;
+			int desclen = strlen(_operator_descr) + 1;
 			char *ch;
 			ch= MEM_callocN(sizeof(char) * (idlen + namelen + desclen), "_operator_idname"); /* 2 terminators and 3 to convert a.b -> A_OT_b */
-		WM_operator_bl_idname(ch, _operator_idname); /* convert the idname from python */
-		dummyot.idname= ch;
-		ch += idlen;
-		strcpy(ch, _operator_name);
-		dummyot.name = ch;
-		ch += namelen;
-		strcpy(ch, _operator_descr);
-		dummyot.description = ch;
-	}
+			WM_operator_bl_idname(ch, _operator_idname); /* convert the idname from python */
+			dummyot.idname= ch;
+			ch += idlen;
+			strcpy(ch, _operator_name);
+			dummyot.name = ch;
+			ch += namelen;
+			strcpy(ch, _operator_descr);
+			dummyot.description = ch;
+		}
 	}
 
 	/* check if we have registered this operator type before, and remove it */
@@ -953,7 +956,7 @@ static StructRNA *rna_Operator_register(Main *bmain, ReportList *reports, void *
 	WM_operatortype_append_ptr(operator_wrapper, (void *)&dummyot);
 
 	/* update while blender is running */
-		WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
+	WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
 
 	return dummyot.ext.srna;
 }
@@ -1023,11 +1026,11 @@ static StructRNA *rna_MacroOperator_register(Main *bmain, ReportList *reports, v
 	WM_operatortype_append_macro_ptr(macro_wrapper, (void *)&dummyot);
 
 	/* update while blender is running */
-		WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
+	WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
 
 	return dummyot.ext.srna;
 }
-#endif /* DISABLE_PYTHON */
+#endif /* WITH_PYTHON */
 
 static StructRNA* rna_Operator_refine(PointerRNA *opr)
 {
@@ -1161,7 +1164,7 @@ static void rna_def_operator(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Operator", "Storage of an operator being executed, or registered after execution");
 	RNA_def_struct_sdna(srna, "wmOperator");
 	RNA_def_struct_refine_func(srna, "rna_Operator_refine");
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	RNA_def_struct_register_funcs(srna, "rna_Operator_register", "rna_Operator_unregister", "rna_Operator_instance");
 #endif
 
@@ -1230,10 +1233,10 @@ static void rna_def_macro_operator(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Macro Operator", "Storage of a macro operator being executed, or registered after execution");
 	RNA_def_struct_sdna(srna, "wmOperator");
 	RNA_def_struct_refine_func(srna, "rna_MacroOperator_refine");
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	RNA_def_struct_register_funcs(srna, "rna_MacroOperator_register", "rna_Operator_unregister", "rna_Operator_instance");
 #endif
-    
+
 	prop= RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_string_funcs(prop, "rna_Operator_name_get", "rna_Operator_name_length", NULL);
@@ -1324,8 +1327,8 @@ static void rna_def_operator_filelist_element(BlenderRNA *brna)
 
 	srna= RNA_def_struct(brna, "OperatorFileListElement", "PropertyGroup");
 	RNA_def_struct_ui_text(srna, "Operator File List Element", "");
-	
-	
+
+
 	prop= RNA_def_property(srna, "name", PROP_STRING, PROP_FILENAME);
 	RNA_def_property_flag(prop, PROP_IDPROPERTY);
 	RNA_def_property_ui_text(prop, "Name", "the name of a file or directory within a file list");
@@ -1659,7 +1662,7 @@ static void rna_def_keyconfig(BlenderRNA *brna)
 	RNA_def_property_string_sdna(prop, NULL, "idname");
 	RNA_def_property_ui_text(prop, "Name", "Name of the key configuration");
 	RNA_def_struct_name_property(srna, prop);
-	
+
 	prop= RNA_def_property(srna, "keymaps", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_struct_type(prop, "KeyMap");
 	RNA_def_property_ui_text(prop, "Key Maps", "Key maps configured as part of this configuration");

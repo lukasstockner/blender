@@ -77,29 +77,29 @@ static void drawcursor_sima(SpaceImage *sima, ARegion *ar)
 	fdrawline(0, 0.05f/h, 0.05f/w, 0.0f);
 	fdrawline(0.05f/w, 0.0f, 0.0f, -0.05f/h);
 	fdrawline(0.0f, -0.05f/h, -0.05f/w, 0.0f);
-	
+
 	setlinestyle(4);
 	cpack(0xFF);
 	fdrawline(-0.05f/w, 0.0f, 0.0f, 0.05f/h);
 	fdrawline(0.0f, 0.05f/h, 0.05f/w, 0.0f);
 	fdrawline(0.05f/w, 0.0f, 0.0f, -0.05f/h);
 	fdrawline(0.0f, -0.05f/h, -0.05f/w, 0.0f);
-	
-	
+
+
 	setlinestyle(0.0f);
 	cpack(0x0);
 	fdrawline(-0.020f/w, 0.0f, -0.1f/w, 0.0f);
 	fdrawline(0.1f/w, 0.0f, 0.020f/w, 0.0f);
 	fdrawline(0.0f, -0.020f/h, 0.0f, -0.1f/h);
 	fdrawline(0.0f, 0.1f/h, 0.0f, 0.020f/h);
-	
+
 	setlinestyle(1);
 	cpack(0xFFFFFF);
 	fdrawline(-0.020f/w, 0.0f, -0.1f/w, 0.0f);
 	fdrawline(0.1f/w, 0.0f, 0.020f/w, 0.0f);
 	fdrawline(0.0f, -0.020f/h, 0.0f, -0.1f/h);
 	fdrawline(0.0f, 0.1f/h, 0.0f, 0.020f/h);
-	
+
 	glTranslatef(-sima->cursor[0], -sima->cursor[1], 0.0);
 	setlinestyle(0);
 }
@@ -121,7 +121,7 @@ static int draw_uvs_face_check(Scene *scene)
 		return (ts->uv_selectmode == UV_SELECT_FACE);
 }
 
-static void draw_uvs_shadow(SpaceImage *sima, Object *obedit)
+static void draw_uvs_shadow(Object *obedit)
 {
 	EditMesh *em;
 	EditFace *efa;
@@ -382,7 +382,7 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, EditMesh *em, MTFac
 	}
 }
 
-static void draw_uvs_other(SpaceImage *sima, Scene *scene, Object *obedit, MTFace *activetf)
+static void draw_uvs_other(Scene *scene, Object *obedit, MTFace *activetf)
 {
 	Base *base;
 	Image *curimage;
@@ -434,7 +434,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 	float pointsize;
 	int drawfaces, interpedges;
 	Image *ima= sima->image;
- 	
+
 	em= BKE_mesh_get_editmesh(me);
 	activetf= EM_get_active_mtface(em, &efa_act, NULL, 0); /* will be set to NULL if hidden */
 
@@ -448,7 +448,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 	
 	/* draw other uvs */
 	if(sima->flag & SI_DRAW_OTHER)
-		draw_uvs_other(sima, scene, obedit, activetf);
+		draw_uvs_other(scene, obedit, activetf);
 
 	/* 1. draw shadow mesh */
 	
@@ -846,7 +846,7 @@ void draw_uvedit_main(SpaceImage *sima, ARegion *ar, Scene *scene, Object *obedi
 
 	if(show_uvedit || show_uvshadow) {
 		if(show_uvshadow)
-			draw_uvs_shadow(sima, obedit);
+			draw_uvs_shadow(obedit);
 		else
 			draw_uvs(sima, scene, obedit);
 

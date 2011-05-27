@@ -562,7 +562,7 @@ void ui_theme_init_default(void)
 	/* UI buttons */
 	ui_widget_color_init(&btheme->tui);
 	btheme->tui.iconfile[0]= 0;
-
+	
 	/* Bone Color Sets */
 	ui_theme_init_boneColorSets(btheme);
 	
@@ -1030,16 +1030,16 @@ void UI_ColorPtrBlendShade3ubv(const unsigned char cp1[3], const unsigned char c
 void UI_GetColorPtrBlendShade3ubv(const unsigned char cp1[3], const unsigned char cp2[3], unsigned char col[3], float fac, int offset)
 {
 	int r, g, b;
-	
+
 	CLAMP(fac, 0.0f, 1.0f);
 	r= offset+floor((1.0f-fac)*cp1[0] + fac*cp2[0]);
 	g= offset+floor((1.0f-fac)*cp1[1] + fac*cp2[1]);
 	b= offset+floor((1.0f-fac)*cp1[2] + fac*cp2[2]);
-	
+
 	CLAMP(r, 0, 255);
 	CLAMP(g, 0, 255);
 	CLAMP(b, 0, 255);
-	
+
 	col[0] = r;
 	col[1] = g;
 	col[2] = b;
@@ -1058,12 +1058,10 @@ void UI_make_axis_color(const unsigned char src_col[3], unsigned char dst_col[3]
 	switch(axis)
 	{
 		case 'X':
-		case 'X':
 			dst_col[0]= src_col[0]>219?255:src_col[0]+36;
 			dst_col[1]= src_col[1]<26?0:src_col[1]-26;
 			dst_col[2]= src_col[2]<26?0:src_col[2]-26;
 			break;
-		case 'Y':
 		case 'Y':
 			dst_col[0]= src_col[0]<46?0:src_col[0]-36;
 			dst_col[1]= src_col[1]>189?255:src_col[1]+66;
@@ -1307,8 +1305,8 @@ void init_userdef_do_versions(void)
 			/* bone custom-color sets */
 			if (btheme->tarm[0].solid[3] == 0)
 				ui_theme_init_boneColorSets(btheme);
-			}
 		}
+	}
 	if ((bmain->versionfile < 245) || (bmain->versionfile == 245 && bmain->subversionfile < 16)) {
 		U.flag |= USER_ADD_VIEWALIGNED|USER_ADD_EDITMODE;
 	}
@@ -1532,7 +1530,7 @@ void init_userdef_do_versions(void)
 			btheme->tui.wcol_progress= wcol_progress;
 		}
 	}
-	
+
 	if (bmain->versionfile < 255 || (bmain->versionfile == 255 && bmain->subversionfile < 2)) {
 		bTheme *btheme;
 		for(btheme= U.themes.first; btheme; btheme= btheme->next) {
@@ -1569,7 +1567,7 @@ void init_userdef_do_versions(void)
 		U.dbl_click_time = 350;
 	}
 	if (U.anim_player_preset == 0) {
-		U.anim_player_preset =1 ;
+		U.anim_player_preset = 1 ;
 	}
 	if (U.scrcastfps == 0) {
 		U.scrcastfps = 10;
@@ -1580,7 +1578,7 @@ void init_userdef_do_versions(void)
 	}
 	if (U.dragthreshold == 0 )
 		U.dragthreshold= 5;
-	
+
 	/* funny name, but it is GE stuff, moves userdef stuff to engine */
 // XXX	space_set_commmandline_options();
 	/* this timer uses U */

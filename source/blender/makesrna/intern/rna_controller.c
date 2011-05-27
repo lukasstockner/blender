@@ -56,24 +56,24 @@ static struct StructRNA* rna_Controller_refine(struct PointerRNA *ptr)
 	bController *controller= (bController*)ptr->data;
 
 	switch(controller->type) {
-		case CONT_LOGIC_AND:
-			return &RNA_AndController;
-		case CONT_LOGIC_OR:
-			return &RNA_OrController;
-		case CONT_LOGIC_NAND:
-			return &RNA_NandController;
-		case CONT_LOGIC_NOR:
-			return &RNA_NorController;
-		case CONT_LOGIC_XOR:
-			return &RNA_XorController;
-		case CONT_LOGIC_XNOR:
-			return &RNA_XnorController;
-		 case CONT_EXPRESSION:
-			return &RNA_ExpressionController;
-		case CONT_PYTHON:
-			return &RNA_PythonController;
-		default:
-			return &RNA_Controller;
+	case CONT_LOGIC_AND:
+		return &RNA_AndController;
+	case CONT_LOGIC_OR:
+		return &RNA_OrController;
+	case CONT_LOGIC_NAND:
+		return &RNA_NandController;
+	case CONT_LOGIC_NOR:
+		return &RNA_NorController;
+	case CONT_LOGIC_XOR:
+		return &RNA_XorController;
+	case CONT_LOGIC_XNOR:
+		return &RNA_XnorController;
+	case CONT_EXPRESSION:
+		return &RNA_ExpressionController;
+	case CONT_PYTHON:
+		return &RNA_PythonController;
+	default:
+		return &RNA_Controller;
 	}
 }
 
@@ -212,7 +212,6 @@ void RNA_def_controller(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "expression", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "str");
-	RNA_def_property_string_maxlength(prop, 127);
 	RNA_def_property_ui_text(prop, "Expression", "");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 

@@ -327,7 +327,7 @@ int undo_editmode_valid(const char *undoname)
 {
 	if(undoname) {
 		UndoElem *uel;
-
+		
 		for(uel= undobase.last; uel; uel= uel->prev) {
 			if(strcmp(undoname, uel->name)==0)
 				break;
@@ -364,7 +364,7 @@ void undo_editmode_menu(bContext *C)
 	if(event>0) undo_number(C, event);
 }
 
-static void do_editmode_undohistorymenu(bContext *C, void *arg, int event)
+static void do_editmode_undohistorymenu(bContext *C, void *UNUSED(arg), int event)
 {
 	Object *obedit= CTX_data_edit_object(C);
 	
@@ -374,7 +374,7 @@ static void do_editmode_undohistorymenu(bContext *C, void *arg, int event)
 	
 }
 
-uiBlock *editmode_undohistorymenu(bContext *C, ARegion *ar, void *arg_unused)
+uiBlock *editmode_undohistorymenu(bContext *C, ARegion *ar, void *UNUSED(arg))
 {
 	uiBlock *block;
 	UndoElem *uel;

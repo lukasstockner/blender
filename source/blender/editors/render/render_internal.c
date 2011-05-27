@@ -139,19 +139,19 @@ void image_buffer_rect_update(Scene *scene, RenderResult *rr, ImBuf *ibuf, volat
 	
 	rectf+= 4*(rr->rectx*ymin + xmin);
 	rectc= (char *)(ibuf->rect + ibuf->x*rymin + rxmin);
-	
+
 	do_color_management = (scene && (scene->r.color_mgt_flag & R_COLOR_MANAGEMENT));
 	
 	/* XXX make nice consistent functions for this */
-		for(y1= 0; y1<ymax; y1++) {
-			float *rf= rectf;
-			float srgb[3];
-			char *rc= rectc;
+	for(y1= 0; y1<ymax; y1++) {
+		float *rf= rectf;
+		float srgb[3];
+		char *rc= rectc;
 		const float dither = ibuf->dither / 255.0f;
 
-			/* XXX temp. because crop offset */
-			if( rectc >= (char *)(ibuf->rect)) {
-				for(x1= 0; x1<xmax; x1++, rf += 4, rc+=4) {
+		/* XXX temp. because crop offset */
+		if(rectc >= (char *)(ibuf->rect)) {
+			for(x1= 0; x1<xmax; x1++, rf += 4, rc+=4) {
 				/* color management */
 				if(do_color_management) {
 					srgb[0]= linearrgb_to_srgb(rf[0]);
@@ -160,29 +160,29 @@ void image_buffer_rect_update(Scene *scene, RenderResult *rr, ImBuf *ibuf, volat
 				}
 				else {
 					copy_v3_v3(srgb, rf);
-			}
+				}
 
 				/* dither */
 				if(dither != 0.0f) {
 					const float d = (BLI_frand()-0.5f)*dither;
-					
+
 					srgb[0] += d;
 					srgb[1] += d;
 					srgb[2] += d;
 				}
-					
+
 				/* write */
 				rc[0]= FTOCHAR(srgb[0]);
 				rc[1]= FTOCHAR(srgb[1]);
 				rc[2]= FTOCHAR(srgb[2]);
-					rc[3]= FTOCHAR(rf[3]);
-				}
+				rc[3]= FTOCHAR(rf[3]);
 			}
-
-			rectf += 4*rr->rectx;
-			rectc += 4*ibuf->x;
 		}
-	}	
+
+		rectf += 4*rr->rectx;
+		rectc += 4*ibuf->x;
+	}
+}
 
 /* ****************************** render invoking ***************** */
 
@@ -202,7 +202,7 @@ static int screen_render_exec(bContext *C, wmOperator *op)
 	Image *ima;
 	View3D *v3d= CTX_wm_view3d(C);
 	Main *mainp= CTX_data_main(C);
-	int lay= (v3d)? v3d->lay: scene->lay;
+	unsigned int lay= (v3d)? v3d->lay: scene->lay;
 	const short is_animation= RNA_boolean_get(op->ptr, "animation");
 	const short is_write_still= RNA_boolean_get(op->ptr, "write_still");
 	struct Object *camera_override= v3d ? V3D_CAMERA_LOCAL(v3d) : NULL;
@@ -232,7 +232,7 @@ static int screen_render_exec(bContext *C, wmOperator *op)
 		RE_BlenderFrame(re, mainp, scene, NULL, camera_override, lay, scene->r.cfra, is_write_still);
 
 	// no redraw needed, we leave state as we entered it
-	ED_update_for_newframe(C, 1);
+	ED_update_for_newframe(mainp, scene, CTX_wm_screen(C), 1);
 
 	WM_event_add_notifier(C, NC_SCENE|ND_RENDER_RESULT, scene);
 
@@ -338,7 +338,7 @@ static void render_progress_update(void *rjv, float progress)
 {
 	RenderJob *rj= rjv;
 	
-	if (rj->progress)
+	if(rj->progress)
 		*rj->progress = progress;
 }
 
@@ -379,7 +379,11 @@ static void render_startjob(void *rjv, short *stop, short *do_update, float *pro
 
 static void render_endjob(void *rjv)
 {
-	RenderJob *rj= rjv;
+	RenderJob *rj= rjv;	
+
+	/* this render may be used again by the sequencer without the active 'Render' where the callbacks
+	 * would be re-assigned. assign dummy callbacks to avoid referencing freed renderjobs bug [#24508] */
+	RE_InitRenderCB(rj->re);
 
 	if(rj->main != G.main)
 		free_main(rj->main);
@@ -458,7 +462,7 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	const short is_animation= RNA_boolean_get(op->ptr, "animation");
 	const short is_write_still= RNA_boolean_get(op->ptr, "write_still");
 	struct Object *camera_override= v3d ? V3D_CAMERA_LOCAL(v3d) : NULL;
-
+	
 	/* only one render job at a time */
 	if(WM_jobs_test(CTX_wm_manager(C), scene))
 		return OPERATOR_CANCELLED;
@@ -522,7 +526,7 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 
 		scn = (Scene *)BLI_findstring(&mainp->scene, scene_name, offsetof(ID, name) + 2);
 		rl = (SceneRenderLayer *)BLI_findstring(&scene->r.layers, rl_name, offsetof(SceneRenderLayer, name));
-
+		
 		if (scn && rl) {
 			/* camera switch wont have updated */
 			scn->r.cfra= scene->r.cfra;

@@ -106,7 +106,7 @@
 
 #include "GPU_draw.h"
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 #include "BPY_extern.h"
 #endif
 
@@ -206,7 +206,7 @@ static void wm_window_match_do(bContext *C, ListBase *oldwmlist)
 						else 
 							win->screen= ED_screen_duplicate(win, screen);
 						
-						BLI_strncpy(win->screenname, win->screen->id.name+2, 21);
+						BLI_strncpy(win->screenname, win->screen->id.name+2, sizeof(win->screenname));
 						win->screen->winid= win->winid;
 					}
 				}
@@ -272,7 +272,7 @@ static void wm_init_userdef(bContext *C)
 	/* set the python auto-execute setting from user prefs */
 	/* enabled by default, unless explicitly enabled in the command line which overrides */
 	if((G.f & G_SCRIPT_OVERRIDE_PREF) == 0) {
-	if ((U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0) G.f |=  G_SCRIPT_AUTOEXEC;
+		if ((U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0) G.f |=  G_SCRIPT_AUTOEXEC;
 		else											  G.f &= ~G_SCRIPT_AUTOEXEC;
 	}
 	if(U.tempdir[0]) BLI_where_is_temp(btempdir, FILE_MAX, 1);
@@ -389,7 +389,7 @@ void WM_read_file(bContext *C, const char *filepath, ReportList *reports)
 		ED_editors_init(C);
 		DAG_on_visible_update(CTX_data_main(C), TRUE);
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 		/* run any texts that were loaded in and flagged as modules */
 		BPY_driver_reset();
 		BPY_modules_load_user(C);
@@ -428,7 +428,7 @@ void WM_read_file(bContext *C, const char *filepath, ReportList *reports)
 		BKE_reportf(reports, RPT_ERROR, "Unknown error loading: \"%s\".", filepath);
 		BLI_assert(!"invalid 'retval'");
 	}
-	
+
 	WM_cursor_wait(0);
 
 }
@@ -440,8 +440,8 @@ void WM_read_file(bContext *C, const char *filepath, ReportList *reports)
 int WM_read_homefile(bContext *C, ReportList *reports, short from_memory)
 {
 	ListBase wmbase;
-	char tstr[FILE_MAXDIR+FILE_MAXFILE], scestr[FILE_MAXDIR];
-	int success;
+	char tstr[FILE_MAXDIR+FILE_MAXFILE];
+	int success= 0;
 	
 	free_ttfont(); /* still weird... what does it here? */
 		
@@ -449,14 +449,13 @@ int WM_read_homefile(bContext *C, ReportList *reports, short from_memory)
 	if (!from_memory) {
 		char *cfgdir = BLI_get_folder(BLENDER_USER_CONFIG, NULL);
 		if (cfgdir) {
-			BLI_make_file_string(G.sce, tstr, cfgdir, BLENDER_STARTUP_FILE);
+			BLI_make_file_string(G.main->name, tstr, cfgdir, BLENDER_STARTUP_FILE);
 		} else {
 			tstr[0] = '\0';
 			from_memory = 1;
 			BKE_report(reports, RPT_INFO, "Config directory with "STRINGIFY(BLENDER_STARTUP_FILE)" file not found.");
-			}
 		}
-	strcpy(scestr, G.sce);	/* temporary store */
+	}
 	
 	/* prevent loading no UI */
 	G.fileflags &= ~G_FILE_NO_UI;
@@ -491,9 +490,8 @@ int WM_read_homefile(bContext *C, ReportList *reports, short from_memory)
 	wm_window_match_do(C, &wmbase); 
 	WM_check(C); /* opens window(s), checks keymaps */
 
-	strcpy(G.sce, scestr); /* restore */
 	G.main->name[0]= '\0';
-	
+
 	wm_init_userdef(C);
 	
 	/* When loading factory settings, the reset solid OpenGL lights need to be applied. */
@@ -512,8 +510,8 @@ int WM_read_homefile(bContext *C, ReportList *reports, short from_memory)
 
 	ED_editors_init(C);
 	DAG_on_visible_update(CTX_data_main(C), TRUE);
-	
-#ifndef DISABLE_PYTHON
+
+#ifdef WITH_PYTHON
 	if(CTX_py_init_get(C)) {
 		/* sync addons, these may have changed from the defaults */
 		BPY_string_exec(C, "__import__('addon_utils').reset_all()");
@@ -522,12 +520,12 @@ int WM_read_homefile(bContext *C, ReportList *reports, short from_memory)
 		BPY_modules_load_user(C);
 	}
 #endif
-	
+
 	WM_event_add_notifier(C, NC_WM|ND_FILEREAD, NULL);
 
 	/* in background mode the scene will stay NULL */
 	if(!G.background) {
-	CTX_wm_window_set(C, NULL); /* exits queues */
+		CTX_wm_window_set(C, NULL); /* exits queues */
 	}
 
 	return TRUE;
@@ -560,9 +558,6 @@ void WM_read_history(void)
 	for (l= lines, num= 0; l && (num<U.recent_files); l= l->next) {
 		line = l->link;
 		if (line[0] && BLI_exists(line)) {
-			if (num==0) 
-				strcpy(G.sce, line); /* note: this seems highly dodgy since the file isnt actually read. please explain. - campbell */
-			
 			recent = (RecentFile*)MEM_mallocN(sizeof(RecentFile),"RecentFile");
 			BLI_addtail(&(G.recent_files), recent);
 			recent->filepath = BLI_strdup(line);
@@ -578,10 +573,16 @@ static void write_history(void)
 {
 	struct RecentFile *recent, *next_recent;
 	char name[FILE_MAXDIR+FILE_MAXFILE];
+	char *user_config_dir;
 	FILE *fp;
 	int i;
 
-	BLI_make_file_string("/", name, BLI_get_folder_create(BLENDER_USER_CONFIG, NULL), BLENDER_HISTORY_FILE);
+	/* will be NULL in background mode */
+	user_config_dir = BLI_get_folder_create(BLENDER_USER_CONFIG, NULL);
+	if(!user_config_dir)
+		return;
+
+	BLI_make_file_string("/", name, user_config_dir, BLENDER_HISTORY_FILE);
 
 	recent = G.recent_files.first;
 	/* refresh recent-files.txt of recent opened files, when current file was changed */
@@ -636,10 +637,10 @@ static void do_history(char *name, ReportList *reports)
 			
 		hisnr--;
 	}
-		
+
 	/* is needed when hisnr==1 */
 	BLI_snprintf(tempname1, sizeof(tempname1), "%s%d", name, hisnr);
-	
+
 	if(BLI_rename(name, tempname1))
 		BKE_report(reports, RPT_ERROR, "Unable to make version backup");
 }
@@ -692,7 +693,7 @@ static ImBuf *blend_file_thumb(Scene *scene, int **thumb_pt)
 int write_crash_blend(void)
 {
 	char path[FILE_MAX];
-	BLI_strncpy(path, G.sce, sizeof(path));
+	BLI_strncpy(path, G.main->name, sizeof(path));
 	BLI_replace_extension(path, sizeof(path), "_crash.blend");
 	if(BLO_write_file(G.main, path, G.fileflags, NULL, NULL)) {
 		printf("written: %s\n", path);
@@ -736,7 +737,7 @@ int WM_write_file(bContext *C, const char *target, int fileflags, ReportList *re
 			return -1;
 		}
 	}
-	
+
 	/* operator now handles overwrite checks */
 
 	if (G.fileflags & G_AUTOPACK) {
@@ -757,7 +758,6 @@ int WM_write_file(bContext *C, const char *target, int fileflags, ReportList *re
 
 	if (BLO_write_file(CTX_data_main(C), filepath, fileflags, reports, thumb)) {
 		if(!copy) {
-			strcpy(G.sce, di);
 			G.relbase_valid = 1;
 			BLI_strncpy(G.main->name, filepath, sizeof(G.main->name));	/* is guaranteed current file */
 	
@@ -802,7 +802,7 @@ int WM_write_homefile(bContext *C, wmOperator *op)
 	int fileflags;
 	
 	/* check current window and close it if temp */
-	if(win->screen->full == SCREENTEMP)
+	if(win->screen->temp)
 		wm_window_close(C, wm, win);
 	
 	BLI_make_file_string("/", filepath, BLI_get_folder_create(BLENDER_USER_CONFIG, NULL), BLENDER_STARTUP_FILE);
@@ -819,7 +819,7 @@ int WM_write_homefile(bContext *C, wmOperator *op)
 	printf("ok\n");
 
 	G.save_over= 0;
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -833,7 +833,7 @@ void wm_autosave_location(char *filepath)
 #endif
 
 	BLI_snprintf(pidstr, sizeof(pidstr), "%d.blend", abs(getpid()));
-	
+
 #ifdef WIN32
 	/* XXX Need to investigate how to handle default location of '/tmp/'
 	 * This is a relative directory on Windows, and it may be

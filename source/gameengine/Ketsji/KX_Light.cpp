@@ -264,7 +264,7 @@ void KX_LightObject::UnbindShadowBuffer(RAS_IRasterizer *ras)
 	GPU_lamp_shadow_buffer_unbind(lamp);
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 /* ------------------------------------------------------------------------- */
 /* Python Integration Hooks					                                 */
 /* ------------------------------------------------------------------------- */
@@ -389,4 +389,4 @@ int KX_LightObject::pyattr_set_type(void* self_v, const KX_PYATTRIBUTE_DEF *attr
 
 	return PY_SET_ATTR_SUCCESS;
 }
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON

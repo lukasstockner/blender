@@ -52,7 +52,7 @@
 
 static RenderEngineType internal_render_type = {
 	NULL, NULL, "BLENDER_RENDER", "Blender Render", RE_INTERNAL, NULL, {NULL, NULL, NULL, NULL}};
-#if GAMEBLENDER == 1
+#ifdef WITH_GAMEENGINE
 static RenderEngineType internal_game_type = {
 	NULL, NULL, "BLENDER_GAME", "Blender Game", RE_INTERNAL|RE_GAME, NULL, {NULL, NULL, NULL, NULL}};
 #endif
@@ -62,7 +62,7 @@ ListBase R_engines = {NULL, NULL};
 void RE_engines_init(void)
 {
 	BLI_addtail(&R_engines, &internal_render_type);
-#if GAMEBLENDER == 1
+#ifdef WITH_GAMEENGINE
 	BLI_addtail(&R_engines, &internal_game_type);
 #endif
 }
@@ -341,7 +341,7 @@ static void rna_def_render_layer(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_REQUIRED);
 	RNA_def_int(func, "x", 0, 0, INT_MAX, "Offset X", "Offset the position to copy from if the image is larger than the render layer", 0, INT_MAX);
 	RNA_def_int(func, "y", 0, 0, INT_MAX, "Offset Y", "Offset the position to copy from if the image is larger than the render layer", 0, INT_MAX);
-	
+
 	RNA_define_verify_sdna(0);
 
 	rna_def_render_layer_common(srna, 0);

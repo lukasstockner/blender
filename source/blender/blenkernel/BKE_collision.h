@@ -63,7 +63,7 @@ struct LinkNode;
 /* COLLISION FLAGS */
 typedef enum
 {
-	COLLISION_IN_FUTURE = ( 1 << 1 ),
+	COLLISION_IN_FUTURE =		(1 << 1),
 #ifdef WITH_ELTOPO
 	COLLISION_USE_COLLFACE =	(1 << 2),
 	COLLISION_IS_EDGES =		(1 << 3),
@@ -150,7 +150,7 @@ void interpolateOnTriangle ( float to[3], float v1[3], float v2[3], float v3[3],
 /////////////////////////////////////////////////
 // used in effect.c
 /////////////////////////////////////////////////
-struct Object **get_collisionobjects(struct Scene *scene, struct Object *self, struct Group *group, int *numcollobj);
+struct Object **get_collisionobjects(struct Scene *scene, struct Object *self, struct Group *group, unsigned int *numcollobj);
 
 typedef struct ColliderCache {
 	struct ColliderCache *next, *prev;

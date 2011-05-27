@@ -26,7 +26,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/blenkernel/intern/fcurve.c
  *  \ingroup bke
  */
@@ -59,7 +59,7 @@
 
 #include "RNA_access.h"
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 #include "BPY_extern.h" 
 #endif
 
@@ -304,36 +304,36 @@ int list_find_data_fcurves (ListBase *dst, ListBase *src, const char *dataPrefix
 	return matches;
 }
 
-FCurve *rna_get_fcurve(PointerRNA *ptr, PropertyRNA *prop, int rnaindex, bAction **action, int *driven)
+FCurve *rna_get_fcurve (PointerRNA *ptr, PropertyRNA *prop, int rnaindex, bAction **action, int *driven)
 {
 	FCurve *fcu= NULL;
 	
 	*driven= 0;
 	
 	/* there must be some RNA-pointer + property combon */
-	if(prop && ptr->id.data && RNA_property_animateable(ptr, prop)) {
+	if (prop && ptr->id.data && RNA_property_animateable(ptr, prop)) {
 		AnimData *adt= BKE_animdata_from_id(ptr->id.data);
 		char *path;
 		
-		if(adt) {
-			if((adt->action && adt->action->curves.first) || (adt->drivers.first)) {
+		if (adt) {
+			if ((adt->action && adt->action->curves.first) || (adt->drivers.first)) {
 				/* XXX this function call can become a performance bottleneck */
 				path= RNA_path_from_ID_to_property(ptr, prop);
 				
-				if(path) {
+				if (path) {
 					/* animation takes priority over drivers */
-					if(adt->action && adt->action->curves.first)
+					if (adt->action && adt->action->curves.first)
 						fcu= list_find_fcurve(&adt->action->curves, path, rnaindex);
 					
 					/* if not animated, check if driven */
-					if(!fcu && (adt->drivers.first)) {
+					if (!fcu && (adt->drivers.first)) {
 						fcu= list_find_fcurve(&adt->drivers, path, rnaindex);
 						
-						if(fcu)
+						if (fcu)
 							*driven= 1;
 					}
 					
-					if(fcu && action)
+					if (fcu && action)
 						*action= adt->action;
 					
 					MEM_freeN(path);
@@ -491,22 +491,22 @@ void calc_fcurve_bounds (FCurve *fcu, float *xmin, float *xmax, float *ymin, flo
 					
 					xminv= MIN2(xminv, bezt_first->vec[1][0]);
 					xmaxv= MAX2(xmaxv, bezt_last->vec[1][0]);
-			}
+				}
 			}
 			
 			/* only loop over keyframes to find extents for values if needed */
-			if (ymin || ymax) {
+			if (ymin || ymax) {	
 				BezTriple *bezt;
 				
 				for (bezt=fcu->bezt, i=0; i < fcu->totvert; bezt++, i++) {
 					if ((selOnly == 0) || BEZSELECTED(bezt)) {
-					if (bezt->vec[1][1] < yminv)
-						yminv= bezt->vec[1][1];
-					if (bezt->vec[1][1] > ymaxv)
-						ymaxv= bezt->vec[1][1];
+						if (bezt->vec[1][1] < yminv)
+							yminv= bezt->vec[1][1];
+						if (bezt->vec[1][1] > ymaxv)
+							ymaxv= bezt->vec[1][1];
+					}
 				}
 			}
-		}
 		}
 		else if (fcu->fpt) {
 			/* frame range can be directly calculated from end verts */
@@ -568,7 +568,7 @@ void calc_fcurve_range (FCurve *fcu, float *start, float *end, const short selOn
 				
 				min= MIN2(min, bezt_first->vec[1][0]);
 				max= MAX2(max, bezt_last->vec[1][0]);
-		}
+			}
 		}
 		else if (fcu->fpt) {
 			min= MIN2(min, fcu->fpt[0].vec[0]);
@@ -707,7 +707,7 @@ void bezt_add_to_cfra_elem (ListBase *lb, BezTriple *bezt)
 /* Basic sampling callback which acts as a wrapper for evaluate_fcurve() 
  *	'data' arg here is unneeded here...
  */
-float fcurve_samplingcb_evalcurve (FCurve *fcu, void *data, float evaltime)
+float fcurve_samplingcb_evalcurve (FCurve *fcu, void *UNUSED(data), float evaltime)
 {
 	/* assume any interference from drivers on the curve is intended... */
 	return evaluate_fcurve(fcu, evaltime);
@@ -1005,8 +1005,8 @@ static float dtar_get_prop_val (ChannelDriver *driver, DriverTarget *dtar)
 		if(RNA_property_array_check(&ptr, prop)) {
 			/* array */
 			if (index < RNA_property_array_length(&ptr, prop)) {	
-		switch (RNA_property_type(prop)) {
-			case PROP_BOOLEAN:
+				switch (RNA_property_type(prop)) {
+				case PROP_BOOLEAN:
 					value= (float)RNA_property_boolean_get_index(&ptr, prop, index);
 					break;
 				case PROP_INT:
@@ -1024,21 +1024,21 @@ static float dtar_get_prop_val (ChannelDriver *driver, DriverTarget *dtar)
 			/* not an array */
 			switch (RNA_property_type(prop)) {
 			case PROP_BOOLEAN:
-					value= (float)RNA_property_boolean_get(&ptr, prop);
+				value= (float)RNA_property_boolean_get(&ptr, prop);
 				break;
 			case PROP_INT:
-					value= (float)RNA_property_int_get(&ptr, prop);
+				value= (float)RNA_property_int_get(&ptr, prop);
 				break;
 			case PROP_FLOAT:
-					value= RNA_property_float_get(&ptr, prop);
+				value= RNA_property_float_get(&ptr, prop);
 				break;
 			case PROP_ENUM:
 				value= (float)RNA_property_enum_get(&ptr, prop);
 				break;
 			default:
 				break;
+			}
 		}
-	}
 
 	}
 	else {
@@ -1338,7 +1338,7 @@ void driver_free_variable (ChannelDriver *driver, DriverVar *dvar)
 	else
 		MEM_freeN(dvar);
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	/* since driver variables are cached, the expression needs re-compiling too */
 	if(driver->type==DRIVER_TYPE_PYTHON)
 		driver->flag |= DRIVER_FLAG_RENAMEVAR;
@@ -1395,9 +1395,9 @@ DriverVar *driver_add_new_variable (ChannelDriver *driver)
 	/* set the default type to 'single prop' */
 	driver_change_variable_type(dvar, DVAR_TYPE_SINGLE_PROP);
 	
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	/* since driver variables are cached, the expression needs re-compiling too */
-	if(driver->type==DRIVER_TYPE_PYTHON)
+	if (driver->type==DRIVER_TYPE_PYTHON)
 		driver->flag |= DRIVER_FLAG_RENAMEVAR;
 #endif
 
@@ -1422,7 +1422,7 @@ void fcurve_free_driver(FCurve *fcu)
 		driver_free_variable(driver, dvar);
 	}
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	/* free compiled driver expression */
 	if (driver->expr_comp)
 		BPY_DECREF(driver->expr_comp);
@@ -1495,7 +1495,7 @@ float driver_get_variable_value (ChannelDriver *driver, DriverVar *dvar)
  *	- "evaltime" is the frame at which F-Curve is being evaluated
  * 	- has to return a float value 
  */
-static float evaluate_driver (ChannelDriver *driver, float evaltime)
+static float evaluate_driver (ChannelDriver *driver, float UNUSED(evaltime))
 {
 	DriverVar *dvar;
 	
@@ -1570,7 +1570,7 @@ static float evaluate_driver (ChannelDriver *driver, float evaltime)
 			
 		case DRIVER_TYPE_PYTHON: /* expression */
 		{
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 			/* check for empty or invalid expression */
 			if ( (driver->expression[0] == '\0') ||
 				 (driver->flag & DRIVER_FLAG_INVALID) )
@@ -1584,7 +1584,7 @@ static float evaluate_driver (ChannelDriver *driver, float evaltime)
 				 */
 				driver->curval= BPY_driver_exec(driver);
 			}
-#endif /* DISABLE_PYTHON*/
+#endif /* WITH_PYTHON*/
 		}
 			break;
 		

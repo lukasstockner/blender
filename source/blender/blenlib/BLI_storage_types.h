@@ -54,7 +54,7 @@ struct direntry{
 #else
 	struct	stat s;
 #endif
-	unsigned int	flags;
+	unsigned int flags;
 	char	size[16];
 	char	mode1[4];
 	char	mode2[4];

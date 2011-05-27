@@ -42,7 +42,7 @@
 struct DynamicLibrary {
 	void *handle;
 };
- 
+
 #ifdef WIN32
 
 #include <windows.h>
@@ -56,10 +56,10 @@ DynamicLibrary *BLI_dynlib_open(char *name)
 		return NULL;
 
 	lib= MEM_callocN(sizeof(*lib), "Dynamic Library");
-		lib->handle= handle;
+	lib->handle= handle;
 		
-		return lib;
-	}
+	return lib;
+}
 
 void *BLI_dynlib_find_symbol(DynamicLibrary *lib, const char *symname)
 {
@@ -75,10 +75,10 @@ char *BLI_dynlib_get_error_as_string(DynamicLibrary *lib)
 	if(!lib)
 		SetLastError(ERROR_SUCCESS);
 
-	if (err) {
+	if(err) {
 		static char buf[1024];
 
-		if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_IGNORE_INSERTS, 
+		if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_IGNORE_INSERTS, 
 			NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 			buf, sizeof(buf), NULL))
 			return buf;
@@ -93,7 +93,7 @@ void BLI_dynlib_close(DynamicLibrary *lib)
 	MEM_freeN(lib);
 }
 
-#else	/* Unix */
+#else /* Unix */
 
 #include <dlfcn.h>
 
@@ -106,10 +106,10 @@ DynamicLibrary *BLI_dynlib_open(char *name)
 		return NULL;
 
 	lib= MEM_callocN(sizeof(*lib), "Dynamic Library");
-		lib->handle= handle;
+	lib->handle= handle;
 		
-		return lib;
-	}
+	return lib;
+}
 
 void *BLI_dynlib_find_symbol(DynamicLibrary *lib, const char *symname)
 {
@@ -118,6 +118,7 @@ void *BLI_dynlib_find_symbol(DynamicLibrary *lib, const char *symname)
 
 char *BLI_dynlib_get_error_as_string(DynamicLibrary *lib)
 {
+	(void)lib; /* unused */
 	return dlerror();
 }
 	

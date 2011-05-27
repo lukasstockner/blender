@@ -210,7 +210,7 @@ Lattice *copy_lattice(Lattice *lt)
 
 	ltn= copy_libblock(lt);
 	ltn->def= MEM_dupallocN(lt->def);
-		
+
 	ltn->key= copy_key(ltn->key);
 	if(ltn->key) ltn->key->from= (ID *)ltn;
 	
@@ -219,7 +219,7 @@ Lattice *copy_lattice(Lattice *lt)
 		ltn->dvert = MEM_mallocN (sizeof (MDeformVert)*tot, "Lattice MDeformVert");
 		copy_dverts(ltn->dvert, lt->dvert, tot);
 	}
-	
+
 	ltn->editlatt= NULL;
 
 	return ltn;
@@ -243,7 +243,7 @@ void free_lattice(Lattice *lt)
 	if (lt->adt) {
 		BKE_free_animdata(&lt->id);
 		lt->adt= NULL;
-}
+	}
 }
 
 
@@ -281,7 +281,7 @@ void make_local_lattice(Lattice *lt)
 	else if(local && lib) {
 		Lattice *ltn= copy_lattice(lt);
 		ltn->id.us= 0;
-		
+
 		for(ob= bmain->object.first; ob; ob= ob->id.next) {
 			if(ob->data==lt) {
 				if(ob->id.lib==NULL) {
@@ -657,7 +657,7 @@ static int calc_curve_deform(Scene *scene, Object *par, float *co, short axis, C
 
 		if(quatp)
 			copy_qt_qt(quatp, quat);
-		
+
 		return 1;
 	}
 	return 0;
@@ -678,7 +678,7 @@ void curve_deform_verts(Scene *scene, Object *cuOb, Object *target, DerivedMesh 
 	cu->flag |= (CU_PATH|CU_FOLLOW); // needed for path & bevlist
 
 	init_curve_deform(cuOb, target, &cd, (cu->flag & CU_STRETCH)==0);
-		
+
 	/* dummy bounds, keep if CU_DEFORM_BOUNDS_OFF is set */
 	if(defaxis < 3) {
 		cd.dmin[0]= cd.dmin[1]= cd.dmin[2]= 0.0f;
@@ -706,12 +706,12 @@ void curve_deform_verts(Scene *scene, Object *cuOb, Object *target, DerivedMesh 
 	if(vgroup && vgroup[0] && use_vgroups) {
 		Mesh *me= target->data;
 		int index= defgroup_name_index(target, vgroup);
-		
+
 		if(index != -1 && (me->dvert || dm)) {
 			MDeformVert *dvert = me->dvert;
 			float vec[3];
 			float weight;
-
+	
 
 			if(cu->flag & CU_DEFORM_BOUNDS_OFF) {
 				/* dummy bounds */
@@ -734,21 +734,21 @@ void curve_deform_verts(Scene *scene, Object *cuOb, Object *target, DerivedMesh 
 			}
 			else {
 				/* set mesh min/max bounds */
-			INIT_MINMAX(cd.dmin, cd.dmax);
-
-			for(a = 0; a < numVerts; a++, dvert++) {
-				if(dm) dvert = dm->getVertData(dm, a, CD_MDEFORMVERT);
-
+				INIT_MINMAX(cd.dmin, cd.dmax);
+	
+				for(a = 0; a < numVerts; a++, dvert++) {
+					if(dm) dvert = dm->getVertData(dm, a, CD_MDEFORMVERT);
+					
 					if(defvert_find_weight(dvert, index) > 0.0f) {
 						mul_m4_v3(cd.curvespace, vertexCos[a]);
 						DO_MINMAX(vertexCos[a], cd.dmin, cd.dmax);
 					}
 				}
-
-			dvert = me->dvert;
-			for(a = 0; a < numVerts; a++, dvert++) {
-				if(dm) dvert = dm->getVertData(dm, a, CD_MDEFORMVERT);
-
+	
+				dvert = me->dvert;
+				for(a = 0; a < numVerts; a++, dvert++) {
+					if(dm) dvert = dm->getVertData(dm, a, CD_MDEFORMVERT);
+					
 					weight= defvert_find_weight(dvert, index);
 	
 					if(weight > 0.0f) {
@@ -771,18 +771,18 @@ void curve_deform_verts(Scene *scene, Object *cuOb, Object *target, DerivedMesh 
 		}
 		else {
 			/* set mesh min max bounds */
-		INIT_MINMAX(cd.dmin, cd.dmax);
-			
-		for(a = 0; a < numVerts; a++) {
-			mul_m4_v3(cd.curvespace, vertexCos[a]);
-			DO_MINMAX(vertexCos[a], cd.dmin, cd.dmax);
+			INIT_MINMAX(cd.dmin, cd.dmax);
+				
+			for(a = 0; a < numVerts; a++) {
+				mul_m4_v3(cd.curvespace, vertexCos[a]);
+				DO_MINMAX(vertexCos[a], cd.dmin, cd.dmax);
+			}
+	
+			for(a = 0; a < numVerts; a++) {
+				calc_curve_deform(scene, cuOb, vertexCos[a], defaxis, &cd, NULL);
+				mul_m4_v3(cd.objectspace, vertexCos[a]);
+			}
 		}
-
-		for(a = 0; a < numVerts; a++) {
-			calc_curve_deform(scene, cuOb, vertexCos[a], defaxis, &cd, NULL);
-			mul_m4_v3(cd.objectspace, vertexCos[a]);
-		}
-	}
 	}
 	cu->flag = flag;
 }
@@ -1028,8 +1028,8 @@ void lattice_calc_modifiers(Scene *scene, Object *ob)
 
 struct MDeformVert* lattice_get_deform_verts(struct Object *oblatt)
 {
-		Lattice *lt = (Lattice*)oblatt->data;
+	Lattice *lt = (Lattice*)oblatt->data;
 	BLI_assert(oblatt->type == OB_LATTICE);
-		if(lt->editlatt) lt= lt->editlatt->latt;
-		return lt->dvert;
-	}
+	if(lt->editlatt) lt= lt->editlatt->latt;
+	return lt->dvert;
+}

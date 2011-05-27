@@ -56,38 +56,38 @@ void	btStridingMeshInterface::InternalProcessAllTriangles(btInternalTriangleInde
 
 			 float* graphicsbase;
 
-		switch (gfxindextype)
-		{
-		case PHY_INTEGER:
-			{
-				for (gfxindex=0;gfxindex<numtriangles;gfxindex++)
-				{
-					unsigned int* tri_indices= (unsigned int*)(indexbase+gfxindex*indexstride);
+			 switch (gfxindextype)
+			 {
+			 case PHY_INTEGER:
+				 {
+					 for (gfxindex=0;gfxindex<numtriangles;gfxindex++)
+					 {
+						 unsigned int* tri_indices= (unsigned int*)(indexbase+gfxindex*indexstride);
 						 graphicsbase = (float*)(vertexbase+tri_indices[0]*stride);
-					triangle[0].setValue(graphicsbase[0]*meshScaling.getX(),graphicsbase[1]*meshScaling.getY(),graphicsbase[2]*meshScaling.getZ());
+						 triangle[0].setValue(graphicsbase[0]*meshScaling.getX(),graphicsbase[1]*meshScaling.getY(),graphicsbase[2]*meshScaling.getZ());
 						 graphicsbase = (float*)(vertexbase+tri_indices[1]*stride);
-					triangle[1].setValue(graphicsbase[0]*meshScaling.getX(),graphicsbase[1]*meshScaling.getY(),	graphicsbase[2]*meshScaling.getZ());
+						 triangle[1].setValue(graphicsbase[0]*meshScaling.getX(),graphicsbase[1]*meshScaling.getY(),	graphicsbase[2]*meshScaling.getZ());
 						 graphicsbase = (float*)(vertexbase+tri_indices[2]*stride);
-					triangle[2].setValue(graphicsbase[0]*meshScaling.getX(),graphicsbase[1]*meshScaling.getY(),	graphicsbase[2]*meshScaling.getZ());
-					callback->internalProcessTriangleIndex(triangle,part,gfxindex);
-				}
-				break;
-			}
-		case PHY_SHORT:
-			{
-				for (gfxindex=0;gfxindex<numtriangles;gfxindex++)
-				{
-					unsigned short int* tri_indices= (unsigned short int*)(indexbase+gfxindex*indexstride);
+						 triangle[2].setValue(graphicsbase[0]*meshScaling.getX(),graphicsbase[1]*meshScaling.getY(),	graphicsbase[2]*meshScaling.getZ());
+						 callback->internalProcessTriangleIndex(triangle,part,gfxindex);
+					 }
+					 break;
+				 }
+			 case PHY_SHORT:
+				 {
+					 for (gfxindex=0;gfxindex<numtriangles;gfxindex++)
+					 {
+						 unsigned short int* tri_indices= (unsigned short int*)(indexbase+gfxindex*indexstride);
 						 graphicsbase = (float*)(vertexbase+tri_indices[0]*stride);
-					triangle[0].setValue(graphicsbase[0]*meshScaling.getX(),graphicsbase[1]*meshScaling.getY(),graphicsbase[2]*meshScaling.getZ());
+						 triangle[0].setValue(graphicsbase[0]*meshScaling.getX(),graphicsbase[1]*meshScaling.getY(),graphicsbase[2]*meshScaling.getZ());
 						 graphicsbase = (float*)(vertexbase+tri_indices[1]*stride);
-					triangle[1].setValue(graphicsbase[0]*meshScaling.getX(),graphicsbase[1]*meshScaling.getY(),	graphicsbase[2]*meshScaling.getZ());
+						 triangle[1].setValue(graphicsbase[0]*meshScaling.getX(),graphicsbase[1]*meshScaling.getY(),	graphicsbase[2]*meshScaling.getZ());
 						 graphicsbase = (float*)(vertexbase+tri_indices[2]*stride);
-					triangle[2].setValue(graphicsbase[0]*meshScaling.getX(),graphicsbase[1]*meshScaling.getY(),	graphicsbase[2]*meshScaling.getZ());
-					callback->internalProcessTriangleIndex(triangle,part,gfxindex);
-				}
-				break;
-			}
+						 triangle[2].setValue(graphicsbase[0]*meshScaling.getX(),graphicsbase[1]*meshScaling.getY(),	graphicsbase[2]*meshScaling.getZ());
+						 callback->internalProcessTriangleIndex(triangle,part,gfxindex);
+					 }
+					 break;
+				 }
 			case PHY_UCHAR:
 				 {
 					 for (gfxindex=0;gfxindex<numtriangles;gfxindex++)
@@ -103,9 +103,9 @@ void	btStridingMeshInterface::InternalProcessAllTriangles(btInternalTriangleInde
 					 }
 					 break;
 				 }
-		default:
-			btAssert((gfxindextype == PHY_INTEGER) || (gfxindextype == PHY_SHORT));
-		}
+			 default:
+				 btAssert((gfxindextype == PHY_INTEGER) || (gfxindextype == PHY_SHORT));
+			 }
 			 break;
 		 }
 
@@ -201,7 +201,7 @@ void	btStridingMeshInterface::calculateAabbBruteForce(btVector3& aabbMin,btVecto
 		}
 	};
 
-		//first calculate the total aabb for all triangles
+	//first calculate the total aabb for all triangles
 	AabbCalculationCallback	aabbCallback;
 	aabbMin.setValue(btScalar(-BT_LARGE_FLOAT),btScalar(-BT_LARGE_FLOAT),btScalar(-BT_LARGE_FLOAT));
 	aabbMax.setValue(btScalar(BT_LARGE_FLOAT),btScalar(BT_LARGE_FLOAT),btScalar(BT_LARGE_FLOAT));

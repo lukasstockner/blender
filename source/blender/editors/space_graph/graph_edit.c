@@ -201,32 +201,32 @@ static int graphkeys_viewall(bContext *C, const short selOnly)
 	bAnimContext ac;
 	View2D *v2d;
 	float extra;
-	
+
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
 	v2d= &ac.ar->v2d;
-	
+
 	/* set the horizontal range, with an extra offset so that the extreme keys will be in view */
 	get_graph_keyframe_extents(&ac, &v2d->cur.xmin, &v2d->cur.xmax, &v2d->cur.ymin, &v2d->cur.ymax, selOnly);
-	
+
 	extra= 0.1f * (v2d->cur.xmax - v2d->cur.xmin);
 	v2d->cur.xmin -= extra;
 	v2d->cur.xmax += extra;
-	
+
 	extra= 0.1f * (v2d->cur.ymax - v2d->cur.ymin);
 	v2d->cur.ymin -= extra;
 	v2d->cur.ymax += extra;
-	
+
 	/* do View2D syncing */
 	UI_view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);
-	
+
 	/* set notifier that things have changed */
 	ED_area_tag_redraw(CTX_wm_area(C));
-	
+
 	return OPERATOR_FINISHED;
 }
- 
+
 /* ......... */
 
 static int graphkeys_viewall_exec(bContext *C, wmOperator *UNUSED(op))
@@ -554,19 +554,19 @@ static int graphkeys_click_insert_exec (bContext *C, wmOperator *op)
 	 * keyframes if these will be visible after doing so...
 	 */
 	if (fcurve_is_keyframable(fcu)) {
-	/* get frame and value from props */
-	frame= RNA_float_get(op->ptr, "frame");
-	val= RNA_float_get(op->ptr, "value");
-	
-	/* apply inverse NLA-mapping to frame to get correct time in un-scaled action */
-	adt= ANIM_nla_mapping_get(&ac, ale);
-	frame= BKE_nla_tweakedit_remap(adt, frame, NLATIME_CONVERT_UNMAP);
-	
-	/* apply inverse unit-mapping to value to get correct value for F-Curves */
-	val *= ANIM_unit_mapping_get_factor(ac.scene, ale->id, fcu, 1);
-	
-	/* insert keyframe on the specified frame + value */
-	insert_vert_fcurve(fcu, frame, val, 0);
+		/* get frame and value from props */
+		frame= RNA_float_get(op->ptr, "frame");
+		val= RNA_float_get(op->ptr, "value");
+		
+		/* apply inverse NLA-mapping to frame to get correct time in un-scaled action */
+		adt= ANIM_nla_mapping_get(&ac, ale);
+		frame= BKE_nla_tweakedit_remap(adt, frame, NLATIME_CONVERT_UNMAP);
+		
+		/* apply inverse unit-mapping to value to get correct value for F-Curves */
+		val *= ANIM_unit_mapping_get_factor(ac.scene, ale->id, fcu, 1);
+		
+		/* insert keyframe on the specified frame + value */
+		insert_vert_fcurve(fcu, frame, val, 0);
 	}
 	else {
 		/* warn about why this can't happen */
@@ -719,7 +719,7 @@ void GRAPH_OT_copy (wmOperatorType *ot)
 static int graphkeys_paste_exec(bContext *C, wmOperator *op)
 {
 	bAnimContext ac;
-	
+
 	const eKeyPasteOffset offset_mode= RNA_enum_get(op->ptr, "offset");
 	const eKeyMergeMode merge_mode= RNA_enum_get(op->ptr, "merge");
 	
@@ -810,7 +810,7 @@ static int graphkeys_duplicate_exec(bContext *C, wmOperator *UNUSED(op))
 static int graphkeys_duplicate_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	graphkeys_duplicate_exec(C, op);
-	
+
 	return OPERATOR_FINISHED;
 }
  
@@ -1066,7 +1066,7 @@ typedef struct tSoundBakeInfo {
 /* Sampling callback used to determine the value from the sound to
  * save in the F-Curve at the specified frame
  */
-static float fcurve_samplingcb_sound (FCurve *fcu, void *data, float evaltime)
+static float fcurve_samplingcb_sound (FCurve *UNUSED(fcu), void *data, float evaltime)
 {
 	tSoundBakeInfo *sbi= (tSoundBakeInfo *)data;
 
@@ -1519,7 +1519,7 @@ static int graphkeys_euler_filter_exec (bContext *C, wmOperator *op)
 	int filter;
 	
 	ListBase eulers = {NULL, NULL};
-	tEulerFilter *euf= NULL;	
+	tEulerFilter *euf= NULL;
 	int groups=0, failed=0;
 	
 	/* get editor data */
@@ -1599,7 +1599,7 @@ static int graphkeys_euler_filter_exec (bContext *C, wmOperator *op)
 			/* keep track of number of failed sets, and carry on to next group */
 			failed++;
 			continue;
-	}
+		}
 		
 		/* simple method: just treat any difference between keys of greater than 180 degrees as being a flip */
 		// FIXME: there are more complicated methods that will be needed to fix more cases than just some
@@ -1662,8 +1662,8 @@ static int graphkeys_euler_filter_exec (bContext *C, wmOperator *op)
 		WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
 		
 		/* done at last */
-	return OPERATOR_FINISHED;
-}
+		return OPERATOR_FINISHED;
+	}
 }
  
 void GRAPH_OT_euler_filter (wmOperatorType *ot)

@@ -29,7 +29,7 @@ class btRaycastVehicle : public btActionInterface
 		btAlignedObjectArray<btVector3>	m_axle;
 		btAlignedObjectArray<btScalar>	m_forwardImpulse;
 		btAlignedObjectArray<btScalar>	m_sideImpulse;
-
+	
 		///backwards compatibility
 		int	m_userConstraintType;
 		int	m_userConstraintId;

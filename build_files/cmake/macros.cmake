@@ -23,12 +23,12 @@ macro(blender_add_lib_nolist
 
 	blender_include_dirs("${includes}")
 	add_library(${name} ${sources})
-		 
+
 	# Group by location on disk
 	source_group("Source Files" FILES CMakeLists.txt)
 	foreach(SRC ${sources})
 		get_filename_component(SRC_EXT ${SRC} EXT)
-		if(${SRC_EXT} MATCHES ".h" OR ${SRC_EXT} MATCHES ".hpp") 
+		if(${SRC_EXT} MATCHES ".h" OR ${SRC_EXT} MATCHES ".hpp")
 			source_group("Header Files" FILES ${SRC})
 		else()
 			source_group("Source Files" FILES ${SRC})
@@ -63,9 +63,9 @@ macro(SETUP_LIBDIRS)
 	if(COMMAND cmake_policy)
 		cmake_policy(SET CMP0003 NEW)
 	endif()
-	
+
 	link_directories(${JPEG_LIBPATH} ${PNG_LIBPATH} ${ZLIB_LIBPATH} ${FREETYPE_LIBPATH})
-	
+
 	if(WITH_PYTHON)  #  AND NOT WITH_PYTHON_MODULE  # WIN32 needs
 		link_directories(${PYTHON_LIBPATH})
 	endif()
@@ -156,7 +156,7 @@ macro(setup_liblinks
 	if(WITH_OPENAL)
 		target_link_libraries(${target} ${OPENAL_LIBRARY})
 	endif()
-	if(WITH_FFTW3)	
+	if(WITH_FFTW3)
 		target_link_libraries(${target} ${FFTW3_LIB})
 	endif()
 	if(WITH_JACK)
@@ -167,7 +167,7 @@ macro(setup_liblinks
 	endif()
 	if(WITH_SAMPLERATE)
 		target_link_libraries(${target} ${LIBSAMPLERATE_LIB})
-	endif()	
+	endif()
 	if(WITH_SDL)
 		target_link_libraries(${target} ${SDL_LIBRARY})
 	endif()
@@ -213,7 +213,7 @@ macro(setup_liblinks
 	endif()
 	if(WITH_MEM_JEMALLOC)
 		target_link_libraries(${target} ${JEMALLOC_LIBRARY})
-		endif()
+	endif()
 	if(WIN32 AND NOT UNIX)
 		target_link_libraries(${target} ${PTHREADS_LIB})
 	endif()
@@ -230,11 +230,11 @@ macro(TEST_SSE_SUPPORT)
 	endif()
 
 	if(NOT DEFINED ${SUPPORT_SSE_BUILD})
-	check_c_source_runs("
-		#include <xmmintrin.h>
-		int main() { __m128 v = _mm_setzero_ps(); return 0; }"
-	SUPPORT_SSE_BUILD)
-
+		check_c_source_runs("
+			#include <xmmintrin.h>
+			int main() { __m128 v = _mm_setzero_ps(); return 0; }"
+		SUPPORT_SSE_BUILD)
+		
 		if(SUPPORT_SSE_BUILD)
 			message(STATUS "SSE Support: detected.")
 		else()
@@ -244,26 +244,28 @@ macro(TEST_SSE_SUPPORT)
 	endif()	
 
 	if(NOT DEFINED ${SUPPORT_SSE2_BUILD})
-	check_c_source_runs("
-		#include <emmintrin.h>
-		int main() { __m128d v = _mm_setzero_pd(); return 0; }"
-	SUPPORT_SSE2_BUILD)
+		check_c_source_runs("
+			#include <emmintrin.h>
+			int main() { __m128d v = _mm_setzero_pd(); return 0; }"
+		SUPPORT_SSE2_BUILD)
 
-	if(SUPPORT_SSE2_BUILD)
+		if(SUPPORT_SSE2_BUILD)
 			message(STATUS "SSE2 Support: detected.")
-	else()
+		else()
 			message(STATUS "SSE2 Support: missing.")
-	endif()
+		endif()	
 		set(${SUPPORT_SSE2_BUILD} ${SUPPORT_SSE2_BUILD} CACHE INTERNAL "SSE2 Test")
 	endif()
 
 endmacro()
 
+# when we have warnings as errors applied globally this
+# needs to be removed for some external libs which we dont maintain.
 
 # utility macro
 macro(remove_flag
 	flag)
-	
+
 	string(REGEX REPLACE ${flag} "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 	string(REGEX REPLACE ${flag} "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
 	string(REGEX REPLACE ${flag} "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
@@ -361,7 +363,7 @@ macro(get_blender_version)
 
 	math(EXPR BLENDER_VERSION_MAJOR "${_out_version} / 100")
 	math(EXPR BLENDER_VERSION_MINOR "${_out_version} % 100")
-			set(BLENDER_VERSION "${BLENDER_VERSION_MAJOR}.${BLENDER_VERSION_MINOR}")
+	set(BLENDER_VERSION "${BLENDER_VERSION_MAJOR}.${BLENDER_VERSION_MINOR}")
 
 	set(BLENDER_SUBVERSION ${_out_subversion})
 	set(BLENDER_VERSION_CHAR ${_out_version_char})
@@ -377,8 +379,8 @@ macro(get_blender_version)
 		math(EXPR BLENDER_VERSION_CHAR_INDEX "${_out_version_char_index} + 1")
 		unset(_char_ls)
 		unset(_out_version_char_index)
-		endif()
-		
+	endif()
+
 	unset(_out_subversion)
 	unset(_out_version_char)
 	unset(_out_version_char_empty)
@@ -400,8 +402,8 @@ macro(blender_project_hack_pre)
 		set(_reset_standard_libraries OFF)
 	else()
 		set(_reset_standard_libraries ON)
-		endif()
-		
+	endif()
+
 	# ------------------
 	# GCC -O3 HACK START
 	# needed because O3 can cause problems but
@@ -410,14 +412,14 @@ macro(blender_project_hack_pre)
 		set(_reset_standard_cflags_rel OFF)
 	else()
 		set(_reset_standard_cflags_rel ON)
-		endif()
+	endif()
 	if(DEFINED CMAKE_CXX_FLAGS_RELEASE)
 		set(_reset_standard_cxxflags_rel OFF)
 	else()
 		set(_reset_standard_cxxflags_rel ON)
 	endif()
 endmacro()
-		
+
 
 macro(blender_project_hack_post)
 	# --------------
@@ -433,10 +435,10 @@ macro(blender_project_hack_post)
 		set(CMAKE_CXX_STANDARD_LIBRARIES "" CACHE STRING "" FORCE)
 		mark_as_advanced(CMAKE_C_STANDARD_LIBRARIES)
 		mark_as_advanced(CMAKE_CXX_STANDARD_LIBRARIES)
-		endif()
+	endif()
 	unset(_reset_standard_libraries)
 
-	
+
 	# ----------------
 	# GCC -O3 HACK END
 	if(_reset_standard_cflags_rel)

@@ -33,7 +33,6 @@ set(INC
 	../../../source/gameengine/Converter
 	../../../source/gameengine/BlenderRoutines
 	../../../source/blender/imbuf
-	../../../intern/ghost/include
 	../../../intern/moto/include
 	../../../source/gameengine/Ketsji 
 	../../../source/blender/blenlib
@@ -42,7 +41,6 @@ set(INC
 	../../../source/blender/python
 	../../../source/blender/python/generic
 	../../../source/blender 
-	../../../source/blender/include
 	../../../source/blender/makesdna 
 	../../../source/gameengine/Rasterizer 
 	../../../source/gameengine/GameLogic
@@ -53,7 +51,6 @@ set(INC
 	../../../source/gameengine/Physics/common
 	../../../source/gameengine/Network/LoopBackNetwork
 	../../../intern/audaspace/intern
-	../../../source/blender/misc 
 	../../../source/blender/blenloader
 	../../../source/blender/gpu
 	${GLEW_INCLUDE_PATH}

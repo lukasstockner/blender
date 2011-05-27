@@ -346,7 +346,7 @@ static int update_reports_display_invoke(bContext *C, wmOperator *UNUSED(op), wm
 	) {
 		return OPERATOR_PASS_THROUGH;
 	}
-	
+
 	rti = (ReportTimerInfo *)reports->reporttimer->customdata;
 	
 	timeout = (report->type & RPT_ERROR_ALL)?ERROR_TIMEOUT:INFO_TIMEOUT;
@@ -389,8 +389,8 @@ static int update_reports_display_invoke(bContext *C, wmOperator *UNUSED(op), wm
 		send_note= 1;
 		
 		/* fade colors out sharply according to progress through fade-out duration */
-	interp_v3_v3v3(rti->col, rti->col, neutral_col, color_progress);
-	rti->greyscale = interpf(neutral_grey, rti->greyscale, color_progress);
+		interp_v3_v3v3(rti->col, rti->col, neutral_col, color_progress);
+		rti->greyscale = interpf(neutral_grey, rti->greyscale, color_progress);
 	}
 
 	/* collapse report at end of timeout */
@@ -401,7 +401,7 @@ static int update_reports_display_invoke(bContext *C, wmOperator *UNUSED(op), wm
 	}
 	
 	if(send_note) {
-	WM_event_add_notifier(C, NC_SPACE|ND_SPACE_INFO, NULL);
+		WM_event_add_notifier(C, NC_SPACE|ND_SPACE_INFO, NULL);
 	}
 	
 	return (OPERATOR_FINISHED|OPERATOR_PASS_THROUGH);
@@ -421,3 +421,5 @@ void INFO_OT_reports_display_update(wmOperatorType *ot)
 	
 	/* properties */
 }
+
+/* report operators */

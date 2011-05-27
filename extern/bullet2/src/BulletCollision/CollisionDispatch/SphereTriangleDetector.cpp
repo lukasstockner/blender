@@ -95,7 +95,7 @@ bool SphereTriangleDetector::collide(const btVector3& sphereCenter,btVector3 &po
 {
 
 	const btVector3* vertices = &m_triangle->getVertexPtr(0);
-
+	
 	btScalar radius = m_sphere->getRadius();
 	btScalar radiusWithThreshold = radius + contactBreakingThreshold;
 
@@ -151,20 +151,20 @@ bool SphereTriangleDetector::collide(const btVector3& sphereCenter,btVector3 &po
 		{
 			if (distanceSqr>SIMD_EPSILON)
 			{
-			btScalar distance = btSqrt(distanceSqr);
-			resultNormal = contactToCentre;
-			resultNormal.normalize();
-			point = contactPoint;
+				btScalar distance = btSqrt(distanceSqr);
+				resultNormal = contactToCentre;
+				resultNormal.normalize();
+				point = contactPoint;
 				depth = -(radius-distance);
 			} else
 			{
 				btScalar distance = 0.f;
 				resultNormal = normal;
-		point = contactPoint;
+				point = contactPoint;
 				depth = -radius;
 			}
-		return true;
-	}
+			return true;
+		}
 	}
 	
 	return false;

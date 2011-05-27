@@ -31,6 +31,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 
 #include "DNA_screen_types.h"
@@ -579,12 +580,12 @@ static void round_box_shade_col4(const char col1[4], const char col2[4], const f
 	unsigned char col[4];
 	const int faci= FTOCHAR(fac);
 	const int facm= 255-faci;
-	
+
 	col[0]= (faci*col1[0] + facm*col2[0])>>8;
 	col[1]= (faci*col1[1] + facm*col2[1])>>8;
 	col[2]= (faci*col1[2] + facm*col2[2])>>8;
 	col[3]= (faci*col1[3] + facm*col2[3])>>8;
-	
+
 	glColor4ubv(col);
 }
 
@@ -759,13 +760,13 @@ static void widget_draw_preview(BIFIconID icon, float UNUSED(alpha), rcti *rect)
 	h = rect->ymax - rect->ymin;
 	size = MIN2(w, h);
 	size -= PREVIEW_PAD*2;	/* padding */
-	
+
 	if(size > 0) {
 		int x = rect->xmin + w/2 - size/2;
 		int y = rect->ymin + h/2 - size/2;
-	
+
 		UI_icon_draw_preview_aspect_size(x, y, icon, 1.0f, size);
-}
+	}
 }
 
 
@@ -882,13 +883,13 @@ static void ui_text_leftclip(uiFontStyle *fstyle, uiBut *but, rcti *rect)
 	
 	but->strwidth= BLF_width(fstyle->uifont_id, but->drawstr + but->ofs);
 	
-	while(but->strwidth > okwidth ) {
+	while(but->strwidth > okwidth) {
 		
 		/* textbut exception, clip right when... */
 		if(but->editstr && but->pos >= 0) {
 			float width;
 			char buf[UI_MAX_DRAW_STR];
-		
+			
 			/* copy draw string */
 			BLI_strncpy(buf, but->drawstr, sizeof(buf));
 			/* string position of cursor */
@@ -903,11 +904,11 @@ static void ui_text_leftclip(uiFontStyle *fstyle, uiBut *but, rcti *rect)
 				if(width < 20 && but->ofs > 0)
 					but->ofs--;
 				but->drawstr[ strlen(but->drawstr)-1 ]= 0;
-				}
 			}
+		}
 		else
 			but->ofs++;
-		
+
 		but->strwidth= BLF_width(fstyle->uifont_id, but->drawstr+but->ofs);
 		
 		if(but->strwidth < 10) break;
@@ -1168,13 +1169,13 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 
 
 /*   uiWidgetStateColors
- char inner_anim[4];
- char inner_anim_sel[4];
- char inner_key[4];
- char inner_key_sel[4];
- char inner_driven[4];
- char inner_driven_sel[4];
- float blend;
+	char inner_anim[4];
+	char inner_anim_sel[4];
+	char inner_key[4];
+	char inner_key_sel[4];
+	char inner_driven[4];
+	char inner_driven_sel[4];
+	float blend;
  
 */
 
@@ -1189,15 +1190,15 @@ static struct uiWidgetStateColors wcol_state_colors= {
 };
 
 /*  uiWidgetColors
- float outline[3];
- float inner[4];
- float inner_sel[4];
- float item[3];
- float text[3];
- float text_sel[3];
+	float outline[3];
+	float inner[4];
+	float inner_sel[4];
+	float item[3];
+	float text[3];
+	float text_sel[3];
 
- short shaded;
- float shadetop, shadedown;
+	short shaded;
+	float shadetop, shadedown;
 */	
 
 static struct uiWidgetColors wcol_num= {
@@ -1502,7 +1503,7 @@ static void widget_state(uiWidgetType *wt, int state)
 	if(state & UI_BUT_REDALERT) {
 		char red[4]= {255, 0, 0};
 		widget_state_blend(wt->wcol.inner, red, 0.4f);
-}
+	}
 }
 
 /* sliders use special hack which sets 'item' as inner when drawing filling */
@@ -1803,11 +1804,11 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 void ui_draw_gradient(rcti *rect, float *hsv, int type, float alpha)
 {
 	int a;
-	float h= hsv[0], s= hsv[1], v= hsv[0];
+	float h= hsv[0], s= hsv[1], v= hsv[2];
 	float dx, dy, sx1, sx2, sy;
 	float col0[4][3];	// left half, rect bottom to top
 	float col1[4][3];	// right half, rect bottom to top
-	
+
 	/* draw series of gouraud rects */
 	glShadeModel(GL_SMOOTH);
 	
@@ -1848,6 +1849,12 @@ void ui_draw_gradient(rcti *rect, float *hsv, int type, float alpha)
 			VECCOPY(col1[1], col1[2]);
 			VECCOPY(col1[3], col1[2]);
 			break;
+		default:
+			assert(!"invalid 'type' argument");
+			hsv_to_rgb(1.0, 1.0, 1.0,   &col1[2][0], &col1[2][1], &col1[2][2]);
+			VECCOPY(col1[0], col1[2]);
+			VECCOPY(col1[1], col1[2]);
+			VECCOPY(col1[3], col1[2]);			
 	}
 	
 	/* old below */
@@ -1941,7 +1948,7 @@ static void ui_draw_but_HSVCUBE(uiBut *but, rcti *rect)
 	
 	ui_get_but_vectorf(but, rgb);
 	rgb_to_hsv_compat(rgb[0], rgb[1], rgb[2], &h, &s, &v);
-	
+
 	hsvn[0]= h;
 	hsvn[1]= s;
 	hsvn[2]= v;
@@ -1986,7 +1993,7 @@ static void ui_draw_but_HSV_v(uiBut *but, rcti *rect)
 	int color_profile = but->block->color_profile;
 	
 	if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
-			color_profile = BLI_PR_NONE;
+		color_profile = BLI_PR_NONE;
 
 	ui_get_but_vectorf(but, rgb);
 	rgb_to_hsv(rgb[0], rgb[1], rgb[2], hsv, hsv+1, hsv+2);
@@ -2102,7 +2109,7 @@ void ui_draw_link_bezier(rcti *rect)
 		/* we can reuse the dist variable here to increment the GL curve eval amount*/
 		// const float dist= 1.0f/(float)LINK_RESOL; // UNUSED
 		int i;
-		
+
 		glEnable(GL_BLEND);
 		glEnable(GL_LINE_SMOOTH);
 		
@@ -2305,7 +2312,7 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 	double value;
 	float offs, toffs, fac;
 	char outline[3];
-	
+
 	widget_init(&wtb);
 	widget_init(&wtb1);
 	
@@ -2325,7 +2332,7 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 	VECCOPY(wcol->inner, wcol->item);
 
 	if(!(state & UI_SELECT))
-	SWAP(short, wcol->shadetop, wcol->shadedown);
+		SWAP(short, wcol->shadetop, wcol->shadedown);
 	
 	rect1= *rect;
 	
@@ -2351,7 +2358,7 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 	VECCOPY(wcol->outline, outline);
 	
 	if(!(state & UI_SELECT))
-	SWAP(short, wcol->shadetop, wcol->shadedown);
+		SWAP(short, wcol->shadetop, wcol->shadedown);
 	
 	/* outline */
 	wtb.outline= 1;
@@ -2421,7 +2428,7 @@ static void widget_icon_has_anim(uiBut *UNUSED(but), uiWidgetColors *wcol, rcti 
 {
 	if(state & (UI_BUT_ANIMATED|UI_BUT_ANIMATED_KEY|UI_BUT_DRIVEN|UI_BUT_REDALERT)) {
 		uiWidgetBase wtb;
-
+	
 		widget_init(&wtb);
 		wtb.outline= 0;
 		
@@ -2990,7 +2997,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				break;
 				
 			case HSVCUBE:
-				if(but->a1==9) // vertical V slider, uses new widget draw now
+				if(but->a1 == UI_GRAD_V_ALT) // vertical V slider, uses new widget draw now
 					ui_draw_but_HSV_v(but, rect);
 				else  // other HSV pickers...
 					ui_draw_but_HSVCUBE(but, rect);

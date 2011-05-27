@@ -103,7 +103,7 @@ static void node_composit_exec_sepycca(void *UNUSED(data), bNode *node, bNodeSta
 			break;
 		case 0:
 		default:
-		rgb_to_ycc(in[0]->vec[0], in[0]->vec[1], in[0]->vec[2], &y, &cb, &cr, BLI_YCC_ITU_BT601);
+			rgb_to_ycc(in[0]->vec[0], in[0]->vec[1], in[0]->vec[2], &y, &cb, &cr, BLI_YCC_ITU_BT601);
 			break;
 		}
 	
@@ -275,11 +275,11 @@ static void node_composit_exec_combycca(void *UNUSED(data), bNode *node, bNodeSt
 		switch(node->custom1)
 		{
 		case 1:
-		composit4_pixel_processor(node, stackbuf, in[0]->data, in[0]->vec, in[1]->data, in[1]->vec, 
-								  in[2]->data, in[2]->vec, in[3]->data, in[3]->vec, 
+			composit4_pixel_processor(node, stackbuf, in[0]->data, in[0]->vec, in[1]->data, in[1]->vec, 
+			                          in[2]->data, in[2]->vec, in[3]->data, in[3]->vec, 
 			                          do_comb_ycca_709, CB_VAL, CB_VAL, CB_VAL, CB_VAL);
 			break;
-
+		
 		case 2:
 			composit4_pixel_processor(node, stackbuf, in[0]->data, in[0]->vec, in[1]->data, in[1]->vec, 
 			                          in[2]->data, in[2]->vec, in[3]->data, in[3]->vec, 

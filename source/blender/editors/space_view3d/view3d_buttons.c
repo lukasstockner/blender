@@ -294,14 +294,14 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
 	
 	if(block) {	// buttons
 		uiBut *but;
-		
+
 		memcpy(tfp->ve_median, median, sizeof(tfp->ve_median));
 		
 		uiBlockBeginAlign(block);
 		if(tot==1) {
 			uiDefBut(block, LABEL, 0, "Vertex:",					0, 130, 200, 20, NULL, 0, 0, 0, 0, "");
 			uiBlockBeginAlign(block);
-			
+
 			but= uiDefButF(block, NUM, B_OBJECTPANELMEDIAN, "X:",		0, 110, 200, 20, &(tfp->ve_median[0]), -lim, lim, 10, 3, "");
 			uiButSetUnitType(but, PROP_UNIT_LENGTH);
 			but= uiDefButF(block, NUM, B_OBJECTPANELMEDIAN, "Y:",		0, 90, 200, 20, &(tfp->ve_median[1]), -lim, lim, 10, 3, "");
@@ -391,14 +391,14 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
 
 			/* allow for some rounding error becasue of matrix transform */
 			if(len_v3(median) > 0.000001f) {
-			EditVert *eve;
-			
+				EditVert *eve;
+
 				for(eve= em->verts.first; eve; eve= eve->next) {
-				if(eve->f & SELECT) {
-					add_v3_v3(eve->co, median);
+					if(eve->f & SELECT) {
+						add_v3_v3(eve->co, median);
+					}
 				}
-			}
-			
+
 				recalc_editnormals(em);
 			}
 
@@ -409,13 +409,13 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
 				if(fixed_crease != FLT_MAX) {
 					/* simple case */
 
-			for(eed= em->edges.first; eed; eed= eed->next) {
-				if(eed->f & SELECT) {
+					for(eed= em->edges.first; eed; eed= eed->next) {
+						if(eed->f & SELECT) {
 							eed->crease= fixed_crease;
 						}
 					}
 				}
-					else {
+				else {
 					/* scale crease to target median */
 					float median_new= ve_median[3];
 					float median_orig= ve_median[3] - median[3]; /* previous median value */
@@ -432,13 +432,13 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
 							if(eed->f & SELECT) {
 								eed->crease *= sca;
 								CLAMP(eed->crease, 0.0f, 1.0f);
+							}
+						}
 					}
-				}
-			}
 					else {
 						/* scale up */
 						const float sca= (1.0f - median_new) / (1.0f - median_orig);
-			
+
 						for(eed= em->edges.first; eed; eed= eed->next) {
 							if(eed->f & SELECT) {
 								eed->crease = 1.0f - ((1.0f - eed->crease) * sca);
@@ -941,14 +941,14 @@ static void v3d_posearmature_buts(uiLayout *layout, Object *ob)
 static void validate_editbonebutton_cb(bContext *C, void *bonev, void *namev)
 {
 	EditBone *eBone= bonev;
-	char oldname[32], newname[32];
-	
+	char oldname[sizeof(eBone->name)], newname[sizeof(eBone->name)];
+
 	/* need to be on the stack */
-	BLI_strncpy(newname, eBone->name, 32);
-	BLI_strncpy(oldname, (char *)namev, 32);
+	BLI_strncpy(newname, eBone->name, sizeof(eBone->name));
+	BLI_strncpy(oldname, (char *)namev, sizeof(eBone->name));
 	/* restore */
-	BLI_strncpy(eBone->name, oldname, 32);
-	
+	BLI_strncpy(eBone->name, oldname, sizeof(eBone->name));
+
 	ED_armature_bone_rename(CTX_data_edit_object(C)->data, oldname, newname); // editarmature.c
 	WM_event_add_notifier(C, NC_OBJECT|ND_BONE_SELECT, CTX_data_edit_object(C)); // XXX fix
 }

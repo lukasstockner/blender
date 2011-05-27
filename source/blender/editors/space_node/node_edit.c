@@ -491,7 +491,7 @@ void node_set_active(SpaceNode *snode, bNode *node)
 			/* when we select a material, active texture is cleared, for buttons */
 			if(node->id && GS(node->id->name)==ID_MA)
 				nodeClearActiveID(snode->edittree, ID_TE);
-
+			
 			if(node->type==SH_NODE_OUTPUT) {
 				bNode *tnode;
 				
@@ -519,7 +519,7 @@ void node_set_active(SpaceNode *snode, bNode *node)
 			/* make active viewer, currently only 1 supported... */
 			if( ELEM(node->type, CMP_NODE_VIEWER, CMP_NODE_SPLITVIEWER)) {
 				bNode *tnode;
-
+				
 
 				for(tnode= snode->edittree->nodes.first; tnode; tnode= tnode->next)
 					if( ELEM(tnode->type, CMP_NODE_VIEWER, CMP_NODE_SPLITVIEWER))
@@ -549,7 +549,7 @@ void node_set_active(SpaceNode *snode, bNode *node)
 				
 				node->flag |= NODE_DO_OUTPUT;
 				ED_node_changed_update(snode->id, node);
-		}
+			}
 		}
 		else if(snode->treetype==NTREE_TEXTURE) {
 			// XXX
@@ -1042,7 +1042,7 @@ static int snode_bg_viewmove_modal(bContext *C, wmOperator *op, wmEvent *event)
 			
 			MEM_freeN(nvm);
 			op->customdata= NULL;
-			
+
 			WM_event_add_notifier(C, NC_SPACE|ND_SPACE_NODE, NULL);
 			
 			return OPERATOR_FINISHED;
@@ -1077,7 +1077,7 @@ static int snode_bg_viewmove_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	nvm->xmax = ar->winx/2 + ibuf->x/2 - pad;
 	nvm->ymin = -(ar->winy/2) - ibuf->y/2 + pad;
 	nvm->ymax = ar->winy/2 + ibuf->y/2 - pad;
-	
+
 	BKE_image_release_ibuf(ima, lock);
 	
 	/* add modal handler */
@@ -1915,7 +1915,7 @@ void snode_autoconnect(SpaceNode *snode, int allow_multiple, int replace)
 	
 	if (numlinks > 0) {
 		node_tree_verify_groups(snode->nodetree);
-	ntreeSolveOrder(snode->edittree);
+		ntreeSolveOrder(snode->edittree);
 	}
 	
 	BLI_freelistN(nodelist);
@@ -1990,7 +1990,7 @@ static int node_duplicate_exec(bContext *C, wmOperator *UNUSED(op))
 	bNode *node, *newnode, *last;
 	
 	ED_preview_kill_jobs(C);
-
+	
 	last = ntree->nodes.last;
 	for(node= ntree->nodes.first; node; node= node->next) {
 		if(node->flag & SELECT) {
@@ -2001,14 +2001,14 @@ static int node_duplicate_exec(bContext *C, wmOperator *UNUSED(op))
 			newnode->flag |= NODE_SELECT;
 			
 			if(newnode->id) {
-	/* simple id user adjustment, node internal functions dont touch this
-	 * but operators and readfile.c do. */
+				/* simple id user adjustment, node internal functions dont touch this
+				 * but operators and readfile.c do. */
 				id_us_plus(newnode->id);
 				/* to ensure redraws or rerenders happen */
 				ED_node_changed_update(snode->id, newnode);
+			}
 		}
-	}
-
+		
 		/* make sure we don't copy new nodes again! */
 		if (node==last)
 			break;
@@ -2054,24 +2054,24 @@ static void node_remove_extra_links(SpaceNode *snode, bNodeSocket *tsock, bNodeL
 		if(tlink) {
 			/* try to move the existing link to the next available socket */
 			if (tlink->tonode) {
-			/* is there a free input socket with same type? */
-			for(sock= tlink->tonode->inputs.first; sock; sock= sock->next) {
-				if(sock->type==tlink->fromsock->type)
-					if(nodeCountSocketLinks(snode->edittree, sock) < sock->limit)
-						break;
+				/* is there a free input socket with same type? */
+				for(sock= tlink->tonode->inputs.first; sock; sock= sock->next) {
+					if(sock->type==tlink->fromsock->type)
+						if(nodeCountSocketLinks(snode->edittree, sock) < sock->limit)
+							break;
+				}
+				if(sock) {
+					tlink->tosock= sock;
+					sock->flag &= ~SOCK_HIDDEN;
+				}
+				else {
+					nodeRemLink(snode->edittree, tlink);
+				}
 			}
-			if(sock) {
-				tlink->tosock= sock;
-				sock->flag &= ~SOCK_HIDDEN;
-			}
-			else {
-				nodeRemLink(snode->edittree, tlink);
-			}
-		}
 			else
 				nodeRemLink(snode->edittree, tlink);
+		}
 	}
-}
 }
 
 /* loop that adds a nodelink, called by function below  */
@@ -2342,7 +2342,7 @@ static int cut_links_intersect(bNodeLink *link, float mcoords[][2], int tot)
 	if(node_link_bezier_points(NULL, NULL, link, coord_array, LINK_RESOL)) {
 
 		for(i=0; i<tot-1; i++)
-			for(b=0; b<LINK_RESOL-1; b++)
+			for(b=0; b<LINK_RESOL; b++)
 				if(isect_line_line_v2(mcoords[i], mcoords[i+1], coord_array[b], coord_array[b+1]) > 0)
 					return 1;
 	}
@@ -2465,13 +2465,14 @@ void NODE_OT_read_renderlayers(wmOperatorType *ot)
 
 static int node_read_fullsamplelayers_exec(bContext *C, wmOperator *UNUSED(op))
 {
+	Main *bmain= CTX_data_main(C);
 	SpaceNode *snode= CTX_wm_space_node(C);
 	Scene *curscene= CTX_data_scene(C);
 	Render *re= RE_NewRender(curscene->id.name);
 
 	WM_cursor_wait(1);
 
-	RE_MergeFullSample(re, curscene, snode->nodetree);
+	RE_MergeFullSample(re, bmain, curscene, snode->nodetree);
 	snode_notify(C, snode);
 	snode_dag_update(C, snode);
 	
@@ -2498,7 +2499,7 @@ int node_render_changed_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Scene *sce= CTX_data_scene(C);
 	bNode *node;
-
+	
 	for(node= sce->nodetree->nodes.first; node; node= node->next) {
 		if(node->id==(ID *)sce && node->need_exec) {
 			break;

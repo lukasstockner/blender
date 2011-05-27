@@ -108,7 +108,7 @@ KX_GameObject::KX_GameObject(
 	m_xray(false),
 	m_pHitObject(NULL),
 	m_isDeformable(false)
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	, m_attr_dict(NULL)
 #endif
 {
@@ -154,13 +154,13 @@ KX_GameObject::~KX_GameObject()
 	{
 		delete m_pGraphicController;
 	}
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	if (m_attr_dict) {
 		PyDict_Clear(m_attr_dict); /* incase of circular refs or other weird cases */
 		/* Py_CLEAR: Py_DECREF's and NULL's */
 		Py_CLEAR(m_attr_dict);
 	}
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON
 }
 
 KX_GameObject* KX_GameObject::GetClientObject(KX_ClientObjectInfo* info)
@@ -355,7 +355,7 @@ void KX_GameObject::ProcessReplica()
 	m_pClient_info->m_gameobject = this;
 	m_state = 0;
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	if(m_attr_dict)
 		m_attr_dict= PyDict_Copy(m_attr_dict);
 #endif
@@ -1265,7 +1265,7 @@ static int mathutils_kxgameob_generic_check(BaseMathObject *bmo)
 	if(self==NULL)
 		return -1;
 	
-		return 0;
+	return 0;
 }
 
 static int mathutils_kxgameob_vector_get(BaseMathObject *bmo, int subtype)
@@ -1273,7 +1273,7 @@ static int mathutils_kxgameob_vector_get(BaseMathObject *bmo, int subtype)
 	KX_GameObject* self= static_cast<KX_GameObject*>BGE_PROXY_REF(bmo->cb_user);
 	if(self==NULL)
 		return -1;
-	
+
 #define PHYS_ERR(attr) PyErr_SetString(PyExc_AttributeError, "KX_GameObject." attr ", is missing a physics controller")
 
 	switch(subtype) {
@@ -1370,7 +1370,7 @@ static int mathutils_kxgameob_vector_get_index(BaseMathObject *bmo, int subtype,
 	/* lazy, avoid repeteing the case statement */
 	if(mathutils_kxgameob_vector_get(bmo, subtype) == -1)
 		return -1;
-		return 0;
+	return 0;
 }
 
 static int mathutils_kxgameob_vector_set_index(BaseMathObject *bmo, int subtype, int index)
@@ -1459,7 +1459,7 @@ void KX_GameObject_Mathutils_Callback_Init(void)
 
 #endif // USE_MATHUTILS
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 /* ------- python stuff ---------------------------------------------------*/
 PyMethodDef KX_GameObject::Methods[] = {
 	{"applyForce", (PyCFunction)	KX_GameObject::sPyApplyForce, METH_VARARGS},
@@ -3065,4 +3065,4 @@ bool ConvertPythonToGameObject(PyObject * value, KX_GameObject **object, bool py
 	
 	return false;
 }
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON

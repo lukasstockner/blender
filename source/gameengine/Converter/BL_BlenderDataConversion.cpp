@@ -1596,8 +1596,8 @@ void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 				if (objprop.m_boundobject.c.m_height < 0.f)
 					objprop.m_boundobject.c.m_height = 0.f;
 				break;
+			}
 		}
-	}
 	}
 
 	
@@ -1635,7 +1635,7 @@ void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	if (dm) {
 		dm->needsFree = 1;
 		dm->release(dm);
-}
+	}
 }
 
 
@@ -1762,8 +1762,9 @@ static KX_GameObject *gameobject_from_blenderobject(
 		bool bHasDvert = mesh->dvert != NULL && ob->defbase.first;
 		bool bHasArmature = (BL_ModifierDeformer::HasArmatureDeformer(ob) && ob->parent && ob->parent->type == OB_ARMATURE && bHasDvert);
 		bool bHasModifier = BL_ModifierDeformer::HasCompatibleDeformer(ob);
+#ifdef USE_BULLET
 		bool bHasSoftBody = (!ob->parent && (ob->gameflag & OB_SOFT_BODY));
-
+#endif
 		if (bHasModifier) {
 			BL_ModifierDeformer *dcont = new BL_ModifierDeformer((BL_DeformableGameObject *)gameobj,
 																kxscene->GetBlenderScene(), ob,	meshobj);
@@ -2670,15 +2671,15 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 										if(dat->flag & dofbit)
 										{
 											kxscene->GetPhysicsEnvironment()->setConstraintParam(constraintId,dof,dat->minLimit[dof],dat->maxLimit[dof]);
-							}
+										}
 										else
 										{
 											//maxLimit < 0 means free(disabled limit) for this degree of freedom
 											kxscene->GetPhysicsEnvironment()->setConstraintParam(constraintId,dof,1,-1);
-						}
+										}
 										dofbit<<=1;
-					}
-				}
+									}								
+								}
 								else if (dat->type == PHY_LINEHINGE_CONSTRAINT)
 								{
 									int dof = 3; // dof for angular x
@@ -2692,9 +2693,9 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 									{
 										//minLimit > maxLimit means free(disabled limit) for this degree of freedom
 										kxscene->GetPhysicsEnvironment()->setConstraintParam(constraintId,dof,1,-1);
-			}
-		}
-	}
+									}
+								}
+							}
 						}
 					}
 				}

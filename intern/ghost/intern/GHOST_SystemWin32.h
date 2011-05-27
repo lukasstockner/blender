@@ -304,6 +304,7 @@ protected:
 	
 	/**
 	 * Converts raw WIN32 key codes from the wndproc to GHOST keys.
+	 * @param window->	The window for this handling
 	 * @param vKey		The virtual key from hardKey
 	 * @param ScanCode	The ScanCode of pressed key (simular to PS/2 Set 1)
 	 * @param extend	Flag if key is not primerly (left or right)
@@ -366,7 +367,7 @@ protected:
 	 */
 	static GHOST_EventKey* processKeyEvent(GHOST_IWindow *window, WPARAM wParam, LPARAM lParam);
 
-	/** 
+	/**
 	 * Process special keys (VK_OEM_*), to see if current key layout
 	 * gives us anything special, like ! on french AZERTY.
 	 * @param window	The window receiving the event (the active window).
@@ -400,7 +401,7 @@ protected:
 	 * @param keys The new state of the modifier keys.
 	 */
 	inline virtual void storeModifierKeys(const GHOST_ModifierKeys& keys);
-
+	
 	/**
 	 * Check current key layout for AltGr
 	 */

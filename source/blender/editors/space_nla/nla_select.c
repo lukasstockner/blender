@@ -363,7 +363,7 @@ static void nlaedit_select_leftright (bContext *C, bAnimContext *ac, short leftr
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
 	int filter;
-
+	
 	Scene *scene= ac->scene;
 	float xmin, xmax;
 	
@@ -608,7 +608,7 @@ static int nlaedit_clickselect_invoke(bContext *C, wmOperator *op, wmEvent *even
 	ARegion *ar;
 	// View2D *v2d; /*UNUSED*/
 	short selectmode;
-	
+
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
@@ -617,14 +617,14 @@ static int nlaedit_clickselect_invoke(bContext *C, wmOperator *op, wmEvent *even
 	scene= ac.scene;
 	ar= ac.ar;
 	// v2d= &ar->v2d;
-	
+
 	/* select mode is either replace (deselect all, then add) or add/extend */
 	if (RNA_boolean_get(op->ptr, "extend"))
 		selectmode= SELECT_INVERT;
 	else
 		selectmode= SELECT_REPLACE;
-	
-		/* select strips based upon mouse position */
+		
+	/* select strips based upon mouse position */
 	mouse_nla_strips(C, &ac, event->mval, selectmode);
 	
 	/* set notifier that things have changed */

@@ -254,7 +254,7 @@ class _GenericBone:
             bones = id_data.pose.bones
         elif id_data_type == bpy_types.Armature:
             bones = id_data.edit_bones
-            if not bones: # not in editmode
+            if not bones:  # not in editmode
                 bones = id_data.bones
 
         return bones
@@ -297,9 +297,9 @@ class EditBone(StructRNA, _GenericBone, metaclass=StructMetaPropGroup):
         self.head = self.head * matrix
 
         if scale:
-        scalar = matrix.median_scale
-        self.head_radius *= scalar
-        self.tail_radius *= scalar
+            scalar = matrix.median_scale
+            self.head_radius *= scalar
+            self.tail_radius *= scalar
 
         if roll:
             self.align_roll(z_vec * matrix)
@@ -343,9 +343,9 @@ class Mesh(bpy_types.ID):
                 if f[2] == 0:
                     return f[2], f[0], f[1], 0
                 else:
-                return f[0], f[1], f[2], 0
+                    return f[0], f[1], f[2], 0
             elif f[2] == 0 or f[3] == 0:
-                return f[3], f[0], f[1], f[2]
+                return f[2], f[3], f[0], f[1]
             return f
 
         faces_flat = [v for f in faces for v in treat_face(f)]
@@ -388,7 +388,7 @@ class Mesh(bpy_types.ID):
         return a list of edge vertex index lists
         """
 
-        OTHER_INDEX = 2, 3, 0, 1 # opposite face index
+        OTHER_INDEX = 2, 3, 0, 1  # opposite face index
 
         if faces is None:
             faces = self.faces
@@ -409,7 +409,7 @@ class Mesh(bpy_types.ID):
         edge_loops = []
 
         for edkey, ed_adj in edges.items():
-            if 0 < len(ed_adj) < 3: # 1 or 2
+            if 0 < len(ed_adj) < 3:  # 1 or 2
                 # Seek the first edge
                 context_loop = [edkey, ed_adj[0]]
                 edge_loops.append(context_loop)
@@ -427,11 +427,11 @@ class Mesh(bpy_types.ID):
                     ed_adj = edges[context_loop[-1]]
                     if len(ed_adj) != 2:
 
-                        if other_dir and flipped == False: # the original edge had 2 other edges
-                            flipped = True # only flip the list once
+                        if other_dir and flipped == False:  # the original edge had 2 other edges
+                            flipped = True  # only flip the list once
                             context_loop.reverse()
                             ed_adj[:] = []
-                            context_loop.append(other_dir) # save 1 lookiup
+                            context_loop.append(other_dir)  # save 1 lookiup
 
                             ed_adj = edges[context_loop[-1]]
                             if len(ed_adj) != 2:
@@ -576,7 +576,7 @@ class RNAMeta(type):
             # first part of packages only
             if "." in module:
                 module = module[:module.index(".")]
-            
+
             TypeMap.setdefault(module, []).append(ref(result))
 
         return result
@@ -630,15 +630,21 @@ class Operator(StructRNA, metaclass=OrderedMeta):
         properties = StructRNA.path_resolve(self, "properties")
         bl_rna = getattr(properties, "bl_rna", None)
         if bl_rna and attr in bl_rna.properties:
-            setattr(properties, attr, value)
+            return setattr(properties, attr, value)
         return super().__setattr__(attr, value)
 
     def __delattr__(self, attr):
         properties = StructRNA.path_resolve(self, "properties")
         bl_rna = getattr(properties, "bl_rna", None)
         if bl_rna and attr in bl_rna.properties:
-            delattr(properties, attr)
+            return delattr(properties, attr)
         return super().__delattr__(attr)
+
+    def as_keywords(self, ignore=()):
+        """ Return a copy of the properties as a dictionary.
+        """
+        ignore = ignore + ("rna_type",)
+        return {attr: getattr(self, attr) for attr in self.properties.rna_type.properties.keys() if attr not in ignore}
 
 
 class Macro(StructRNA, metaclass=OrderedMeta):
@@ -680,7 +686,7 @@ class _GenericUI:
                 for func in draw_ls._draw_funcs:
                     # so bad menu functions dont stop the entire menu from drawing.
                     try:
-                    func(self, context)
+                        func(self, context)
                     except:
                         import traceback
                         traceback.print_exc()

@@ -243,7 +243,7 @@ static int insert_into_textbuf(Object *obedit, uintptr_t c)
 		ef->textbuf[cu->pos]= c;
 		ef->textbufinfo[cu->pos] = cu->curinfo;
 		ef->textbufinfo[cu->pos].kern = 0;
-			ef->textbufinfo[cu->pos].mat_nr = obedit->actcol;
+		ef->textbufinfo[cu->pos].mat_nr = obedit->actcol;
 					
 		cu->pos++;
 		cu->len++;
@@ -262,12 +262,12 @@ static void text_update_edited(bContext *C, Scene *scene, Object *obedit, int re
 	Curve *cu= obedit->data;
 	EditFont *ef= cu->editfont;
 	cu->curinfo = ef->textbufinfo[cu->pos?cu->pos-1:0];
-
+	
 	if(obedit->totcol>0)
 		obedit->actcol= ef->textbufinfo[cu->pos?cu->pos-1:0].mat_nr;
 
 	if(mode == FO_EDIT)
-	update_string(cu);
+		update_string(cu);
 
 	BKE_text_to_curve(scene, obedit, mode);
 
@@ -1263,7 +1263,7 @@ static int insert_text_invoke(bContext *C, wmOperator *op, wmEvent *evt)
 
 	if(RNA_property_is_set(op->ptr, "text"))
 		return insert_text_exec(C, op);
-	
+
 	if(RNA_property_is_set(op->ptr, "accent")) {
 		if(cu->len!=0 && cu->pos>0)
 			accentcode= 1;
@@ -1398,7 +1398,7 @@ void FONT_OT_textbox_add(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec= textbox_add_exec;
 	ot->poll= ED_operator_object_active_editable_font;
-	
+
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
@@ -1653,30 +1653,30 @@ static int open_exec(bContext *C, wmOperator *op)
 	RNA_string_get(op->ptr, "filepath", str);
 
 	font = load_vfont(str);
-	
+
 	if(!font) {
 		if(op->customdata) MEM_freeN(op->customdata);
 		return OPERATOR_CANCELLED;
 	}
-	
+
 	if(!op->customdata)
 		font_ui_template_init(C, op);
 	
 	/* hook into UI */
 	pprop= op->customdata;
-	
+
 	if(pprop->prop) {
 		/* when creating new ID blocks, use is already 1, but RNA
 		 * pointer se also increases user, so this compensates it */
 		font->id.us--;
-		
+	
 		RNA_id_pointer_create(&font->id, &idptr);
 		RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr);
 		RNA_property_update(C, &pprop->ptr, pprop->prop);
 	}
-	
+
 	MEM_freeN(op->customdata);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -1699,13 +1699,13 @@ static int open_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 	}
 
 	path = (font && strcmp(font->name, FO_BUILTIN_NAME) != 0)? font->name: U.fontdir;
-	 
+	
 	if(!RNA_property_is_set(op->ptr, "relative_path"))
 		RNA_boolean_set(op->ptr, "relative_path", U.flag & USER_RELPATHS);
 		
 	if(RNA_property_is_set(op->ptr, "filepath"))
 		return open_exec(C, op);
-	
+
 	RNA_string_set(op->ptr, "filepath", path);
 	WM_event_add_fileselect(C, op); 
 
@@ -1731,27 +1731,27 @@ void FONT_OT_open(wmOperatorType *ot)
 }
 
 /******************* delete operator *********************/
-	
+
 static int font_unlink_exec(bContext *C, wmOperator *op)
 {
 	VFont *builtin_font;
-		
+
 	PointerRNA idptr;
 	PropertyPointerRNA pprop;
-	
+
 	uiIDContextProperty(C, &pprop.ptr, &pprop.prop);
 	
 	if(pprop.prop==NULL) {
 		BKE_report(op->reports, RPT_ERROR, "Incorrect context for running font unlink");
 		return OPERATOR_CANCELLED;
 	}
-	
+
 	builtin_font = get_builtin_font();
 
 	RNA_id_pointer_create(&builtin_font->id, &idptr);
 	RNA_property_pointer_set(&pprop.ptr, pprop.prop, idptr);
 	RNA_property_update(C, &pprop.ptr, pprop.prop);
-	
+
 	return OPERATOR_FINISHED;
 }
 

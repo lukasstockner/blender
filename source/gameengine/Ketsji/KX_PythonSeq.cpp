@@ -51,8 +51,8 @@ PyObject *KX_PythonSeq_CreatePyObject( PyObject *base, short type )
 	seq->type = type;
 	seq->iter = -1; /* init */
 	return (PyObject *)seq;
- }
- 
+}
+
 static int KX_PythonSeq_traverse(KX_PythonSeq *self, visitproc visit, void *arg)
 {
 	Py_VISIT(self->base);
@@ -65,7 +65,7 @@ static int KX_PythonSeq_clear(KX_PythonSeq *self)
 	return 0;
 }
 
- static void KX_PythonSeq_dealloc( KX_PythonSeq * self )
+static void KX_PythonSeq_dealloc(KX_PythonSeq * self)
 {
 	KX_PythonSeq_clear(self);
 	PyObject_GC_Del(self);
@@ -529,4 +529,4 @@ PyTypeObject KX_PythonSeq_Type = {
 	NULL
 };
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON

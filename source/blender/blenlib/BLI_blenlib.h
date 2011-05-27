@@ -55,7 +55,7 @@
  *
  * - The blenlib uses type defines from \ref DNA, and functions from
  * standard libraries.
-*/
+ */
 
 #ifndef BLI_BLENLIB_H
 #define BLI_BLENLIB_H
@@ -81,8 +81,6 @@ extern "C" {
 #include "BLI_fileops.h"
 
 #include "BLI_rect.h"
-
-#include "BLI_scanfill.h"
 
 #include "BLI_noise.h"
 

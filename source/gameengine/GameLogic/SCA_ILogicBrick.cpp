@@ -176,7 +176,7 @@ CValue* SCA_ILogicBrick::GetEvent()
 
 
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 /* python stuff */
 
@@ -260,4 +260,4 @@ PyObject* SCA_ILogicBrick::BoolToPyArg(bool boolarg)
 	return PyLong_FromSsize_t(boolarg? KX_TRUE: KX_FALSE);	
 }
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON

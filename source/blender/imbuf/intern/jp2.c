@@ -100,9 +100,9 @@ struct ImBuf *imb_jp2_decode(unsigned char *mem, size_t size, int flags)
 	struct ImBuf *ibuf = 0;
 	int use_float = 0; /* for precision higher then 8 use float */
 	
-	long signed_offsets[4] = {0,0,0,0};
+	long signed_offsets[4]= {0, 0, 0, 0};
 	int float_divs[4]= {1, 1, 1, 1};
-	
+
 	int index;
 	
 	int w, h, depth;
@@ -194,7 +194,7 @@ struct ImBuf *imb_jp2_decode(unsigned char *mem, size_t size, int flags)
 		float_divs[i]= (1<<image->comps[i].prec)-1;
 	}
 	
-	ibuf= IMB_allocImBuf(w, h, depth, use_float ? IB_rectfloat : IB_rect, 0);
+	ibuf= IMB_allocImBuf(w, h, depth, use_float ? IB_rectfloat : IB_rect);
 	
 	if (ibuf==NULL) {
 		if(dinfo)
@@ -674,6 +674,8 @@ int imb_savejp2(struct ImBuf *ibuf, const char *name, int flags) {
 	opj_cparameters_t parameters;	/* compression parameters */
 	opj_event_mgr_t event_mgr;		/* event manager */
 	opj_image_t *image = NULL;
+	
+	(void)flags; /* unused */
 	
 	/*
 	configure the event callbacks (not required)

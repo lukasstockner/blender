@@ -136,7 +136,7 @@ typedef struct bNode {
 	void *storage;			/* custom data, must be struct, for storage in file */
 	
 	float locx, locy;		/* root offset for drawing */
-	float width, miniwidth;			
+	float width, miniwidth;
 	char label[32];			/* custom user-defined label */
 	short custom1, custom2;	/* to be abused for buttons */
 	float custom3, custom4;
@@ -221,7 +221,7 @@ typedef struct bNodeTree {
 #define NTREE_EXEC_INIT	2
 
 /* ntree->flag */
-#define NTREE_DS_EXPAND	1	/* for animation editors */
+#define NTREE_DS_EXPAND		1	/* for animation editors */
 /* XXX not nice, but needed as a temporary flag
  * for group updates after library linking.
  */

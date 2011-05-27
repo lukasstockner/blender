@@ -643,10 +643,8 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 	}
 	else {
 		if(lamp->type == LA_AREA) {
-			float area[4][4], areasize;
+			float area[4][4]= {{0.0f}}, areasize= 0.0f;
 
-			memset(&area, 0, sizeof(area));
-			memset(&areasize, 0, sizeof(areasize));
 			mat->dynproperty |= DYN_LAMP_VEC|DYN_LAMP_CO;
 			GPU_link(mat, "shade_inp_area", GPU_builtin(GPU_VIEW_POSITION), GPU_dynamic_uniform(lamp->dynco), GPU_dynamic_uniform(lamp->dynvec), vn, GPU_uniform((float*)area),
 				GPU_uniform(&areasize), GPU_uniform(&lamp->k), &inp);
@@ -1047,14 +1045,14 @@ static void do_material_tex(GPUShadeInput *shi)
 						/* normalmap image */
 						GPU_link(mat, "mtex_normal", texco, GPU_image(tex->ima, &tex->iuser), &tnor );
 						
-					if(mtex->norfac < 0.0f)
-						GPU_link(mat, "mtex_negate_texnormal", tnor, &tnor);
+						if(mtex->norfac < 0.0f)
+							GPU_link(mat, "mtex_negate_texnormal", tnor, &tnor);
 
-					if(mtex->normapspace == MTEX_NSPACE_TANGENT)
-						{
-							if(iFirstTimeNMap!=0)
+						if(mtex->normapspace == MTEX_NSPACE_TANGENT)
 							{
-								// use unnormalized normal (this is how we bake it - closer to gamedev)
+								if(iFirstTimeNMap!=0)
+								{
+									// use unnormalized normal (this is how we bake it - closer to gamedev)
 								GPUNodeLink *vNegNorm;
 								GPU_link(mat, "vec_math_negate", GPU_builtin(GPU_VIEW_NORMAL), &vNegNorm);
 								GPU_link(mat, "mtex_nspace_tangent", GPU_attribute(CD_TANGENT, ""), vNegNorm, tnor, &newnor);
@@ -1065,22 +1063,22 @@ static void do_material_tex(GPUShadeInput *shi)
 						GPU_link(mat, "mtex_nspace_tangent", GPU_attribute(CD_TANGENT, ""), shi->vn, tnor, &newnor);
 							}
 						}
-					else
-						newnor = tnor;
+						else
+							newnor = tnor;
 
-						norfac = MIN2(fabsf(mtex->norfac), 1.0f);
+							norfac = MIN2(fabsf(mtex->norfac), 1.0f);
 						
-					if(norfac == 1.0f && !GPU_link_changed(stencil)) {
-						shi->vn = newnor;
-					}
-					else {
-						tnorfac = GPU_uniform(&norfac);
+						if(norfac == 1.0f && !GPU_link_changed(stencil)) {
+							shi->vn = newnor;
+						}
+						else {
+							tnorfac = GPU_uniform(&norfac);
 
-						if(GPU_link_changed(stencil))
-							GPU_link(mat, "math_multiply", tnorfac, stencil, &tnorfac);
+							if(GPU_link_changed(stencil))
+								GPU_link(mat, "math_multiply", tnorfac, stencil, &tnorfac);
 
-						GPU_link(mat, "mtex_blend_normal", tnorfac, shi->vn, newnor, &shi->vn);
-					}
+							GPU_link(mat, "mtex_blend_normal", tnorfac, shi->vn, newnor, &shi->vn);
+						}
 						
 					} else if( mtex->texflag & (MTEX_3TAP_BUMP|MTEX_5TAP_BUMP)) {
 						/* ntap bumpmap image */
@@ -1105,7 +1103,7 @@ static void do_material_tex(GPUShadeInput *shi)
 							GPU_link(mat, "mtex_bump_normals_init", shi->vn, &vNorg, &vNacc, &fPrevMagnitude);
 							iBumpSpacePrev = 0;
 							init_done = 1;
-				}
+						}
 
 						// find current bump space
 						if( mtex->texflag & MTEX_BUMP_OBJECTSPACE )

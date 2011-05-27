@@ -45,7 +45,7 @@ btConvexShape::~btConvexShape()
 
 
 static btVector3 convexHullSupport (const btVector3& localDirOrg, const btVector3* points, int numPoints, const btVector3& localScaling)
-{
+{	
 
 	btVector3 vec = localDirOrg * localScaling;
 

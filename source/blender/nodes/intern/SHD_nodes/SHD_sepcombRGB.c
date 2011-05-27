@@ -46,14 +46,14 @@ static bNodeSocketType sh_node_seprgb_out[]= {
 	{	-1, 0, ""	}
 };
 
-static void node_shader_exec_seprgb(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_shader_exec_seprgb(void *UNUSED(data), bNode *UNUSED(node), bNodeStack **in, bNodeStack **out)
 {
 	out[0]->vec[0] = in[0]->vec[0];
 	out[1]->vec[0] = in[0]->vec[1];
 	out[2]->vec[0] = in[0]->vec[2];
 }
 
-static int gpu_shader_seprgb(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+static int gpu_shader_seprgb(GPUMaterial *mat, bNode *UNUSED(node), GPUNodeStack *in, GPUNodeStack *out)
 {
 	return GPU_stack_link(mat, "separate_rgb", in, out);
 }
@@ -61,7 +61,7 @@ static int gpu_shader_seprgb(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GP
 void register_node_type_sh_seprgb(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, SH_NODE_SEPRGB, "Separate RGB", NODE_CLASS_CONVERTOR, 0,
 		sh_node_seprgb_in, sh_node_seprgb_out);
 	node_type_size(&ntype, 80, 40, 140);
@@ -85,14 +85,14 @@ static bNodeSocketType sh_node_combrgb_out[]= {
 	{	-1, 0, ""	}
 };
 
-static void node_shader_exec_combrgb(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_shader_exec_combrgb(void *UNUSED(data), bNode *UNUSED(node), bNodeStack **in, bNodeStack **out)
 {
 	out[0]->vec[0] = in[0]->vec[0];
 	out[0]->vec[1] = in[1]->vec[0];
 	out[0]->vec[2] = in[2]->vec[0];
 }
 
-static int gpu_shader_combrgb(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+static int gpu_shader_combrgb(GPUMaterial *mat, bNode *UNUSED(node), GPUNodeStack *in, GPUNodeStack *out)
 {
 	return GPU_stack_link(mat, "combine_rgb", in, out);
 }
@@ -100,7 +100,7 @@ static int gpu_shader_combrgb(GPUMaterial *mat, bNode *node, GPUNodeStack *in, G
 void register_node_type_sh_combrgb(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, SH_NODE_COMBRGB, "Combine RGB", NODE_CLASS_CONVERTOR, NODE_OPTIONS,
 		sh_node_combrgb_in, sh_node_combrgb_out);
 	node_type_size(&ntype, 80, 40, 140);

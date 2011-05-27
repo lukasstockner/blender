@@ -24,7 +24,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/editors/gpencil/gpencil_buttons.c
  *  \ingroup edgpencil
  */
@@ -75,7 +75,7 @@ static void gp_ui_activelayer_cb (bContext *C, void *gpd, void *gpl)
 {
 	/* make sure the layer we want to remove is the active one */
 	gpencil_layer_setactive(gpd, gpl);
-	
+
 	WM_event_add_notifier(C, NC_SCREEN|ND_GPENCIL|NA_EDITED, NULL); // XXX please work!
 }
 
@@ -129,7 +129,7 @@ static void gp_drawui_layer (uiLayout *layout, bGPdata *gpd, bGPDlayer *gpl, con
 	icon= (gpl->flag & GP_LAYER_ACTIVE) ? ICON_RADIOBUT_ON : ICON_RADIOBUT_OFF;
 	but= uiDefIconBut(block, BUT, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0.0, 0.0, 0.0, 0.0, "Set active layer");
 	uiButSetFunc(but, gp_ui_activelayer_cb, gpd, gpl);
-	
+
 	/* locked */
 	icon= (gpl->flag & GP_LAYER_LOCKED) ? ICON_LOCKED : ICON_UNLOCKED;
 	uiItemR(subrow, &ptr, "lock", 0, "", icon);
@@ -224,9 +224,9 @@ static void gp_drawui_layer (uiLayout *layout, bGPdata *gpd, bGPDlayer *gpl, con
 		if (is_v3d) {
 			subcol= uiLayoutColumn(col, 0);
 				uiItemR(subcol, &ptr, "show_x_ray", 0, "X-Ray", ICON_NONE);
-	}
+		}
 		
-} 
+	}
 } 
 
 /* stroke drawing options available */
@@ -259,7 +259,7 @@ static void draw_gpencil_panel (bContext *C, uiLayout *layout, bGPdata *gpd, Poi
 		row= uiLayoutRow(col, 1);
 		uiItemO(row, "Delete Frame", ICON_NONE, "GPENCIL_OT_active_frame_delete");
 		uiItemO(row, "Convert", ICON_NONE, "GPENCIL_OT_convert");
-	
+		
 	/* sanity checks... */
 	if (gpd == NULL)
 		return;

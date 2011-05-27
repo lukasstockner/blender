@@ -40,16 +40,16 @@ AUD_DoubleReader::AUD_DoubleReader(AUD_IReader* reader1,
 								   AUD_IReader* reader2) :
 		m_reader1(reader1), m_reader2(reader2), m_finished1(false)
 {
-		AUD_Specs s1, s2;
-		s1 = reader1->getSpecs();
-		s2 = reader2->getSpecs();
-		if(memcmp(&s1, &s2, sizeof(AUD_Specs)) != 0)
+	AUD_Specs s1, s2;
+	s1 = reader1->getSpecs();
+	s2 = reader2->getSpecs();
+	if(memcmp(&s1, &s2, sizeof(AUD_Specs)) != 0)
 	{
 		delete reader1;
 		delete reader2;
 		AUD_THROW(AUD_ERROR_SPECS, specs_error);
-		}
-		}
+	}
+}
 
 AUD_DoubleReader::~AUD_DoubleReader()
 {
@@ -72,7 +72,7 @@ void AUD_DoubleReader::seek(int position)
 		m_reader2->seek(position - pos1);
 	else
 		m_reader2->seek(0);
-	}
+}
 
 int AUD_DoubleReader::getLength() const
 {

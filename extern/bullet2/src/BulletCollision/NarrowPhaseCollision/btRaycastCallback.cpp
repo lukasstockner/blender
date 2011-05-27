@@ -125,7 +125,7 @@ btTriangleConvexcastCallback::btTriangleConvexcastCallback (const btConvexShape*
 	m_convexShapeTo = convexShapeTo;
 	m_triangleToWorld = triangleToWorld;
 	m_hitFraction = 1.0f;
-    m_triangleCollisionMargin = triangleCollisionMargin;
+	m_triangleCollisionMargin = triangleCollisionMargin;
 	m_allowedPenetration = 0.f;
 }
 

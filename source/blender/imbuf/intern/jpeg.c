@@ -95,9 +95,9 @@ int imb_is_a_jpeg(unsigned char *mem) {
 //----------------------------------------------------------
 
 typedef struct my_error_mgr {
-  struct jpeg_error_mgr pub;	/* "public" fields */
+	struct jpeg_error_mgr pub;	/* "public" fields */
 
-  jmp_buf setjmp_buffer;	/* for return to caller */
+	jmp_buf setjmp_buffer;	/* for return to caller */
 } my_error_mgr;
 
 typedef my_error_mgr * my_error_ptr;
@@ -137,6 +137,7 @@ typedef my_source_mgr * my_src_ptr;
 
 static void init_source(j_decompress_ptr cinfo)
 {
+	(void)cinfo; /* unused */
 }
 
 
@@ -173,6 +174,7 @@ static void skip_input_data(j_decompress_ptr cinfo, long num_bytes)
 
 static void term_source(j_decompress_ptr cinfo)
 {
+	(void)cinfo; /* unused */
 }
 
 static void memory_source(j_decompress_ptr cinfo, unsigned char *buffer, size_t size)
@@ -223,9 +225,9 @@ static void memory_source(j_decompress_ptr cinfo, unsigned char *buffer, size_t 
  */
 #define MAKE_BYTE_AVAIL(cinfo,action)  \
 	if (bytes_in_buffer == 0) {  \
-		if (! (*datasrc->fill_input_buffer) (cinfo))  \
-			{ action; }  \
-		  INPUT_RELOAD(cinfo);  \
+	  if (! (*datasrc->fill_input_buffer) (cinfo))  \
+	    { action; }  \
+	  INPUT_RELOAD(cinfo);  \
 	}
 
 	
@@ -257,7 +259,7 @@ handle_app1 (j_decompress_ptr cinfo)
 	char neogeo[128];
 	
 	INPUT_VARS(cinfo);
-
+	
 	length = 0;
 	INPUT_2BYTES(cinfo, length, return FALSE);
 	length -= 2;
@@ -310,9 +312,9 @@ static ImBuf * ibJpegImageFromCinfo(struct jpeg_decompress_struct * cinfo, int f
 
 		if (flags & IB_test) {
 			jpeg_abort_decompress(cinfo);
-			ibuf = IMB_allocImBuf(x, y, 8 * depth, 0, 0);
+			ibuf = IMB_allocImBuf(x, y, 8 * depth, 0);
 		}
-		else if ((ibuf = IMB_allocImBuf(x, y, 8 * depth, IB_rect, 0)) == NULL) {
+		else if ((ibuf = IMB_allocImBuf(x, y, 8 * depth, IB_rect)) == NULL) {
 			jpeg_abort_decompress(cinfo);
 		}
 		else {
@@ -437,11 +439,11 @@ next_stamp_marker:
 		
 		jpeg_destroy((j_common_ptr) cinfo);
 		if(ibuf) {
-		ibuf->ftype = ibuf_ftype;
-		ibuf->profile = IB_PROFILE_SRGB;
+			ibuf->ftype = ibuf_ftype;
+			ibuf->profile = IB_PROFILE_SRGB;
+		}
 	}
-	}
-	
+
 	return(ibuf);
 }
 
@@ -681,7 +683,7 @@ static int save_jstjpeg(const char *name, struct ImBuf *ibuf)
 	struct ImBuf * tbuf;
 	int oldy, returnval;
 
-	tbuf = IMB_allocImBuf(ibuf->x, ibuf->y / 2, 24, IB_rect, 0);
+	tbuf = IMB_allocImBuf(ibuf->x, ibuf->y / 2, 24, IB_rect);
 	tbuf->ftype = ibuf->ftype;
 	tbuf->flags = ibuf->flags;
 	

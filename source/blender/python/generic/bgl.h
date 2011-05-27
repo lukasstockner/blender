@@ -27,6 +27,11 @@
  * ***** END GPL LICENSE BLOCK *****
 */
 
+/** \file blender/python/generic/bgl.h
+ *  \ingroup pygen
+ */
+
+
 /* This is the Blender.BGL part of opy_draw.c, from the old bpython/intern
  * dir, with minor changes to adapt it to the new Python implementation.
  * The BGL submodule "wraps" OpenGL functions and constants, allowing script
@@ -36,7 +41,7 @@
 #ifndef BGL_H
 #define BGL_H
 
-PyObject *BGL_Init(void);
+PyObject *BPyInit_bgl(void);
 
 /*@ Create a buffer object */
 /*@ dimensions is an array of ndimensions integers representing the size of each dimension */

@@ -732,7 +732,7 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 static void rna_def_material_colors(StructRNA *srna)
 {
 	PropertyRNA *prop;
-	
+
 	static EnumPropertyItem prop_ramp_input_items[] = {
 		{MA_RAMP_IN_SHADER, "SHADER", 0, "Shader", ""},
 		{MA_RAMP_IN_ENERGY, "ENERGY", 0, "Energy", ""},
@@ -1097,7 +1097,7 @@ static void rna_def_material_volume(BlenderRNA *brna)
 	
 	prop= RNA_def_property(srna, "cache_resolution", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "precache_resolution");
-	RNA_def_property_range(prop, 0, 1024);
+	RNA_def_property_range(prop, 1, 1024);
 	RNA_def_property_ui_text(prop, "Resolution", "Resolution of the voxel grid, low resolutions are faster, high resolutions use more memory");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 	
@@ -1240,7 +1240,7 @@ static void rna_def_material_halo(BlenderRNA *brna)
 	
 	prop= RNA_def_property(srna, "use_flare_mode", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", MA_HALO_FLARE); /* use bitflags */
-	RNA_def_property_ui_text(prop, "Flare", "Renders halo as a lensflare");
+	RNA_def_property_ui_text(prop, "Flare", "Renders halo as a lens flare");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 	
 	prop= RNA_def_property(srna, "flare_size", PROP_FLOAT, PROP_NONE);
@@ -1437,7 +1437,7 @@ static void rna_def_material_specularity(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Specular Toon Smooth", "Smoothness of specular toon area");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
-	prop= RNA_def_property(srna, "specular_slope", PROP_FLOAT, PROP_NONE);
+	prop= RNA_def_property(srna, "specular_slope", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "rms");
 	RNA_def_property_range(prop, 0, 0.4);
 	RNA_def_property_ui_text(prop, "Specular Slope", "The standard deviation of surface slope");
@@ -1534,7 +1534,7 @@ static void rna_def_material_physics(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "reflect");
 	RNA_def_property_range(prop, 0, 1);
 	RNA_def_property_ui_text(prop, "Elasticity", "Elasticity of collisions");
-	
+
 	/* FH/Force Field Settings */
 	prop= RNA_def_property(srna, "use_fh_normal", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "dynamode", MA_FH_NOR);
@@ -1720,7 +1720,7 @@ void RNA_def_material(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", MA_ONLYSHADOW);
 	RNA_def_property_ui_text(prop, "Only Shadow", "Renders shadows as the material's alpha value, making materials transparent except for shadowed areas");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
-	
+
 	prop= RNA_def_property(srna, "shadow_only_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "shadowonly_flag");
 	RNA_def_property_enum_items(prop, prop_shadows_only_items);
@@ -1842,7 +1842,7 @@ void RNA_def_material(BlenderRNA *brna)
 	rna_def_animdata_common(srna);
 	rna_def_mtex_common(brna, srna, "rna_Material_mtex_begin", "rna_Material_active_texture_get",
 		"rna_Material_active_texture_set", "MaterialTextureSlot", "MaterialTextureSlots", "rna_Material_update");
-	
+
 	/* only material has this one */
 	prop= RNA_def_property(srna, "use_textures", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "septex", 1);

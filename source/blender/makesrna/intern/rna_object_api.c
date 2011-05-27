@@ -62,6 +62,7 @@
 #include "BKE_displist.h"
 #include "BKE_font.h"
 #include "BKE_mball.h"
+#include "BKE_modifier.h"
 
 #include "BLI_math.h"
 
@@ -86,10 +87,10 @@ static Mesh *rna_Object_to_mesh(Object *ob, ReportList *reports, Scene *sce, int
 	int cage = !apply_modifiers;
 
 	/* perform the mesh extraction based on type */
-	 switch (ob->type) {
-	 case OB_FONT:
-	 case OB_CURVE:
-	 case OB_SURF:
+	switch (ob->type) {
+	case OB_FONT:
+	case OB_CURVE:
+	case OB_SURF:
 
 		/* copies object and modifiers (but not the data) */
 		tmpobj= copy_object(ob);
@@ -129,7 +130,7 @@ static Mesh *rna_Object_to_mesh(Object *ob, ReportList *reports, Scene *sce, int
 		free_libblock_us( &G.main->object, tmpobj );
 		break;
 
-	 case OB_MBALL:
+	case OB_MBALL:
 		/* metaballs don't have modifiers, so just convert to mesh */
 		ob = find_basis_mball( sce, ob );
 		/* todo, re-generatre for render-res */
@@ -137,9 +138,9 @@ static Mesh *rna_Object_to_mesh(Object *ob, ReportList *reports, Scene *sce, int
 
 		tmpmesh = add_mesh("Mesh");
 		mball_to_mesh( &ob->disp, tmpmesh );
-		 break;
+		break;
 
-	 case OB_MESH:
+	case OB_MESH:
 		/* copies object and modifiers (but not the data) */
 		if (cage) {
 			/* copies the data */
@@ -164,10 +165,10 @@ static Mesh *rna_Object_to_mesh(Object *ob, ReportList *reports, Scene *sce, int
 		}
 		
 		break;
-	 default:
+	default:
 		BKE_report(reports, RPT_ERROR, "Object does not have geometry data");
-		 return NULL;
-	  }
+		return NULL;
+	}
 
 	/* Copy materials to new mesh */
 	switch (ob->type) {
@@ -463,7 +464,7 @@ void RNA_api_object(StructRNA *srna)
 	RNA_def_function_ui_description(func, "Free the list of dupli objects.");
 
 	/* Armature */
-	func= RNA_def_function(srna, "find_armature", "rna_Object_find_armature");
+	func= RNA_def_function(srna, "find_armature", "modifiers_isDeformedByArmature");
 	RNA_def_function_ui_description(func, "Find armature influencing this object as a parent or via a modifier.");
 	parm= RNA_def_pointer(func, "ob_arm", "Object", "", "Armature object influencing this object or NULL.");
 	RNA_def_function_return(func, parm);

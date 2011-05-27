@@ -421,9 +421,9 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 
 		/* rna info */
 		if ((U.flag & USER_TOOLTIPS_PYTHON) == 0) {
-		BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), "Python: %s.%s", RNA_struct_identifier(but->rnapoin.type), RNA_property_identifier(but->rnaprop));
-		data->color[data->totline]= 0x888888;
-		data->totline++;
+			BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), "Python: %s.%s", RNA_struct_identifier(but->rnapoin.type), RNA_property_identifier(but->rnaprop));
+			data->color[data->totline]= 0x888888;
+			data->totline++;
 		}
 		
 		if(but->rnapoin.id.data) {
@@ -444,9 +444,9 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 
 		/* operator info */
 		if ((U.flag & USER_TOOLTIPS_PYTHON) == 0) {
-		BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), "Python: %s", str);
-		data->color[data->totline]= 0x888888;
-		data->totline++;
+			BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), "Python: %s", str);
+			data->color[data->totline]= 0x888888;
+			data->totline++;
 		}
 
 		MEM_freeN(str);
@@ -455,13 +455,13 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 		if(but->flag & UI_BUT_DISABLED) {
 			const char *poll_msg;
 			CTX_wm_operator_poll_msg_set(C, NULL);
-			WM_operator_poll(C, but->optype);
+			WM_operator_poll_context(C, but->optype, but->opcontext);
 			poll_msg= CTX_wm_operator_poll_msg_get(C);
 			if(poll_msg) {
 				BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), "Disabled: %s", poll_msg);
 				data->color[data->totline]= 0x6666ff; /* alert */
 				data->totline++;			
-	}
+			}
 		}
 	}
 
@@ -641,11 +641,11 @@ int uiSearchItemAdd(uiSearchItems *items, const char *name, void *poin, int icon
 	}
 	
 	if(items->names)
-	BLI_strncpy(items->names[items->totitem], name, items->maxstrlen);
+		BLI_strncpy(items->names[items->totitem], name, items->maxstrlen);
 	if(items->pointers)
-	items->pointers[items->totitem]= poin;
+		items->pointers[items->totitem]= poin;
 	if(items->icons)
-	items->icons[items->totitem]= iconid;
+		items->icons[items->totitem]= iconid;
 	
 	items->totitem++;
 	
@@ -1143,7 +1143,7 @@ void ui_but_search_test(uiBut *but)
 		if(x1==items->totitem)
 			uiButSetFlag(but, UI_BUT_REDALERT);
 	}
-				  
+	
 	for(x1=0; x1<items->maxitem; x1++)
 		MEM_freeN(items->names[x1]);
 	MEM_freeN(items->names);
@@ -2016,7 +2016,7 @@ uiBlock *ui_block_func_COL(bContext *C, uiPopupBlockHandle *handle, void *arg_bu
 	uiBlockSetFlag(block, UI_BLOCK_MOVEMOUSE_QUIT);
 	
 	VECCOPY(handle->retvec, but->editvec);
-
+	
 	uiBlockPicker(block, handle->retvec, &but->rnapoin, but->rnaprop);
 	
 	block->flag= UI_BLOCK_LOOP|UI_BLOCK_REDRAW|UI_BLOCK_KEEP_OPEN|UI_BLOCK_OUT_1;

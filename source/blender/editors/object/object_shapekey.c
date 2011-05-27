@@ -109,7 +109,7 @@ static int ED_object_shape_key_remove(bContext *C, Object *ob)
 		key->totkey--;
 		if(key->refkey== kb) {
 			key->refkey= key->block.first;
-			
+
 			if(key->refkey) {
 				/* apply new basis key on original data */
 				switch(ob->type) {

@@ -26,7 +26,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file mmap_win.h
  *  \ingroup MEM
  *  \author Andrea Weikert

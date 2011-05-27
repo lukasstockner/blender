@@ -103,7 +103,7 @@ public:
 		}
 	};
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	// --------------------------------
 	virtual PyObject* py_repr(void) { return PyUnicode_FromString(mMaterial->matname.ReadPtr()); }
 
@@ -118,7 +118,7 @@ public:
 	KX_PYMETHOD_DOC( KX_BlenderMaterial, setTexture );
 
 	KX_PYMETHOD_DOC( KX_BlenderMaterial, setBlending );
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON
 
 	// --------------------------------
 	// pre calculate to avoid pops/lag at startup

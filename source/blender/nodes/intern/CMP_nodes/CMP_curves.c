@@ -43,7 +43,7 @@ static bNodeSocketType cmp_node_time_out[]= {
 	{	-1, 0, ""	}
 };
 
-static void node_composit_exec_curves_time(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_curves_time(void *data, bNode *node, bNodeStack **UNUSED(in), bNodeStack **out)
 {
 	RenderData *rd= data;
 	/* stack order output: fac */
@@ -59,9 +59,9 @@ static void node_composit_exec_curves_time(void *data, bNode *node, bNodeStack *
 
 static void node_composit_init_curves_time(bNode* node)
 {
-   node->custom1= 1;
-   node->custom2= 250;
-   node->storage= curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+	node->custom1= 1;
+	node->custom2= 250;
+	node->storage= curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
 }
 
 void register_node_type_cmp_curve_time(ListBase *lb)
@@ -92,7 +92,7 @@ static bNodeSocketType cmp_node_curve_vec_out[]= {
 	{	-1, 0, ""	}
 };
 
-static void node_composit_exec_curve_vec(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_curve_vec(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	/* stack order input:  vec */
 	/* stack order output: vec */
@@ -102,13 +102,13 @@ static void node_composit_exec_curve_vec(void *data, bNode *node, bNodeStack **i
 
 static void node_composit_init_curve_vec(bNode* node)
 {
-   node->storage= curvemapping_add(3, -1.0f, -1.0f, 1.0f, 1.0f);
+	node->storage= curvemapping_add(3, -1.0f, -1.0f, 1.0f, 1.0f);
 }
 
 void register_node_type_cmp_curve_vec(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, CMP_NODE_CURVE_VEC, "Vector Curves", NODE_CLASS_OP_VECTOR, NODE_OPTIONS,
 		cmp_node_curve_vec_in, cmp_node_curve_vec_out);
 	node_type_size(&ntype, 200, 140, 320);
@@ -158,7 +158,7 @@ static void do_curves_fac(bNode *node, float *out, float *in, float *fac)
 	out[3]= in[3];
 }
 
-static void node_composit_exec_curve_rgb(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_curve_rgb(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	/* stack order input:  fac, image, black level, white level */
 	/* stack order output: image */
@@ -189,7 +189,7 @@ static void node_composit_exec_curve_rgb(void *data, bNode *node, bNodeStack **i
 
 static void node_composit_init_curve_rgb(bNode* node)
 {
-   node->storage= curvemapping_add(4, 0.0f, 0.0f, 1.0f, 1.0f);
+	node->storage= curvemapping_add(4, 0.0f, 0.0f, 1.0f, 1.0f);
 }
 
 void register_node_type_cmp_curve_rgb(ListBase *lb)

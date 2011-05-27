@@ -68,11 +68,8 @@
 
 /* ************************ main time area region *********************** */
 
-static void time_draw_sfra_efra(const bContext *C, SpaceTime *stime, ARegion *ar)
-{
-	View2D *v2d= UI_view2d_fromcontext(C);
-	Scene *scene= CTX_data_scene(C);
-	
+static void time_draw_sfra_efra(Scene *scene, View2D *v2d)
+{	
 	/* draw darkened area outside of active timeline 
 	 * frame range used is preview range or scene range */
 	UI_ThemeColorShade(TH_BACK, -25);
@@ -102,9 +99,9 @@ static void time_draw_cache(SpaceTime *stime, Object *ob)
 	
 	if (!(stime->cache_display & TIME_CACHE_DISPLAY) || (!ob))
 		return;
-	
+
 	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
-		
+
 	/* iterate over pointcaches on the active object, 
 	 * add spacetimecache and vertex array for each */
 	for(pid=pidlist.first; pid; pid=pid->next) {
@@ -130,7 +127,7 @@ static void time_draw_cache(SpaceTime *stime, Object *ob)
 
 		if(pid->cache->cached_frames == NULL)
 			continue;
-		
+
 
 		/* make sure we have stc with correct array length */
 		if(stc == NULL || MEM_allocN_len(stc->array) != len*2*sizeof(float)) {
@@ -224,7 +221,7 @@ static void time_draw_cache(SpaceTime *stime, Object *ob)
 		MEM_freeN(stc->array);
 		MEM_freeN(stc);
 		stc = tmp;
-}
+	}
 }
 
 static void time_cache_free(SpaceTime *stime)
@@ -245,8 +242,8 @@ static void time_cache_refresh(SpaceTime *stime)
 {
 	/* Free previous caches to indicate full refresh */
 	time_cache_free(stime);
-		}
-		
+}
+
 /* helper function - find actkeycolumn that occurs on cframe, or the nearest one if not found */
 static ActKeyColumn *time_cfra_find_ak (ActKeyColumn *ak, float cframe)
 {
@@ -281,7 +278,6 @@ static void time_draw_idblock_keyframes(View2D *v2d, ID *id, short onlysel)
 	
 	/* init dopesheet settings */
 	// FIXME: the ob_to_keylist function currently doesn't take this into account...
-	memset(&ads, 0, sizeof(bDopeSheet));
 	if (onlysel)
 		ads.filterflag |= ADS_FILTER_ONLYSEL;
 	
@@ -374,10 +370,10 @@ static void time_refresh(const bContext *UNUSED(C), ScrArea *sa)
 	/* find the main timeline region and refresh cache display*/
 	ARegion *ar= BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
 	if(ar) {
-	SpaceTime *stime = (SpaceTime *)sa->spacedata.first;
-			time_cache_refresh(stime);
-		}
+		SpaceTime *stime = (SpaceTime *)sa->spacedata.first;
+		time_cache_refresh(stime);
 	}
+}
 
 /* editor level listener */
 static void time_listener(ScrArea *sa, wmNotifier *wmn)
@@ -397,7 +393,7 @@ static void time_listener(ScrArea *sa, wmNotifier *wmn)
 			}
 			break;
 		case NC_SCENE:
-			switch (wmn->data) {	
+			switch (wmn->data) {
 				case ND_OB_ACTIVE:
 				case ND_FRAME:
 					ED_area_tag_refresh(sa);
@@ -418,7 +414,7 @@ static void time_listener(ScrArea *sa, wmNotifier *wmn)
 					break;
 			}
 		case NC_SPACE:
-			switch (wmn->data) {	
+			switch (wmn->data) {
 				case ND_SPACE_CHANGED:
 					ED_area_tag_refresh(sa);
 					break;
@@ -428,8 +424,8 @@ static void time_listener(ScrArea *sa, wmNotifier *wmn)
 				case ND_FILEREAD:
 					ED_area_tag_refresh(sa);
 					break;
+			}
 	}
-}
 }
 
 /* ---------------- */
@@ -449,6 +445,7 @@ static void time_main_area_init(wmWindowManager *wm, ARegion *ar)
 static void time_main_area_draw(const bContext *C, ARegion *ar)
 {
 	/* draw entirely, view changes should be handled here */
+	Scene *scene= CTX_data_scene(C);
 	SpaceTime *stime= CTX_wm_space_time(C);
 	Object *obact = CTX_data_active_object(C);
 	View2D *v2d= &ar->v2d;
@@ -463,11 +460,11 @@ static void time_main_area_draw(const bContext *C, ARegion *ar)
 	UI_view2d_view_ortho(v2d);
 
 	/* start and end frame */
-	time_draw_sfra_efra(C, stime, ar);
+	time_draw_sfra_efra(scene, v2d);
 	
 	/* grid */
 	unit= (stime->flag & TIME_DRAWFRAMES)? V2D_UNIT_FRAMES: V2D_UNIT_SECONDS;
-	grid= UI_view2d_grid_calc(CTX_data_scene(C), v2d, unit, V2D_GRID_CLAMP, V2D_ARG_DUMMY, V2D_ARG_DUMMY, ar->winx, ar->winy);
+	grid= UI_view2d_grid_calc(scene, v2d, unit, V2D_GRID_CLAMP, V2D_ARG_DUMMY, V2D_ARG_DUMMY, ar->winx, ar->winy);
 	UI_view2d_grid_draw(v2d, grid, (V2D_VERTICAL_LINES|V2D_VERTICAL_AXIS));
 	UI_view2d_grid_free(grid);
 	
@@ -517,16 +514,16 @@ static void time_main_area_listener(ARegion *ar, wmNotifier *wmn)
 				case ND_FRAME_RANGE:
 				case ND_KEYINGSET:
 				case ND_RENDER_OPTIONS:
-			ED_region_tag_redraw(ar);
-			break;
+					ED_region_tag_redraw(ar);
+				break;
+			}
 	}
-}
 }
 
 /* ************************ header time area region *********************** */
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void time_header_area_init(wmWindowManager *wm, ARegion *ar)
+static void time_header_area_init(wmWindowManager *UNUSED(wm), ARegion *ar)
 {
 	ED_region_header_init(ar);
 }
@@ -625,7 +622,7 @@ static void time_free(SpaceLink *sl)
 /* spacetype; init callback in ED_area_initialize() */
 /* init is called to (re)initialize an existing editor (file read, screen changes) */
 /* validate spacedata, add own area level handlers */
-static void time_init(wmWindowManager *wm, ScrArea *sa)
+static void time_init(wmWindowManager *UNUSED(wm), ScrArea *sa)
 {
 	SpaceTime *stime= (SpaceTime *)sa->spacedata.first;
 	

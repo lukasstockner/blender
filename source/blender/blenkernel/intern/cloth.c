@@ -1,29 +1,29 @@
 /*
  * $Id$
-*
-* ***** BEGIN GPL LICENSE BLOCK *****
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software Foundation,
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-* The Original Code is Copyright (C) Blender Foundation
-* All rights reserved.
-*
-* Contributor(s): Daniel Genrich
-*
-* ***** END GPL LICENSE BLOCK *****
-*/
+ *
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) Blender Foundation
+ * All rights reserved.
+ *
+ * Contributor(s): Daniel Genrich
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
 
 /** \file blender/blenkernel/intern/cloth.c
  *  \ingroup bke
@@ -93,7 +93,7 @@ static CM_SOLVER_DEF	solvers [] =
 /* Prototypes for internal functions.
 */
 static void cloth_to_object (Object *ob,  ClothModifierData *clmd, DerivedMesh *dm);
-static void cloth_from_mesh ( Object *ob, ClothModifierData *clmd, DerivedMesh *dm );
+static void cloth_from_mesh ( ClothModifierData *clmd, DerivedMesh *dm );
 static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *dm, float framenr, int first);
 static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm );
 static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm );
@@ -389,7 +389,8 @@ static int do_step_cloth(Object *ob, ClothModifierData *clmd, DerivedMesh *resul
 	Cloth *cloth;
 	ListBase *effectors = NULL;
 	MVert *mvert;
-	int i, ret = 0;
+	unsigned int i = 0;
+	int ret = 0;
 
 	/* simulate 1 frame forward */
 	cloth = clmd->clothObject;
@@ -427,7 +428,7 @@ static int do_step_cloth(Object *ob, ClothModifierData *clmd, DerivedMesh *resul
 /************************************************
  * clothModifier_do - main simulation function
 ************************************************/
-DerivedMesh *clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, DerivedMesh *dm, int useRenderParams, int isFinalCalc)
+DerivedMesh *clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, DerivedMesh *dm)
 {
 	DerivedMesh *result;
 	PointCache *cache;
@@ -545,7 +546,7 @@ DerivedMesh *clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob,
 }
 
 /* frees all */
-void cloth_free_modifier ( Object *ob, ClothModifierData *clmd )
+void cloth_free_modifier(ClothModifierData *clmd )
 {
 	Cloth	*cloth = NULL;
 	
@@ -803,7 +804,7 @@ static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm )
 	}
 }
 
-static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *dm, float framenr, int first)
+static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *dm, float UNUSED(framenr), int first)
 {
 	int i = 0;
 	MVert *mvert = NULL;
@@ -816,7 +817,7 @@ static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *d
 	// If we have a clothObject, free it. 
 	if ( clmd->clothObject != NULL )
 	{
-		cloth_free_modifier ( ob, clmd );
+		cloth_free_modifier ( clmd );
 		if(G.rt > 0)
 			printf("cloth_free_modifier cloth_from_object\n");
 	}
@@ -840,7 +841,7 @@ static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *d
 	if ( !dm )
 		return 0;
 
-	cloth_from_mesh ( ob, clmd, dm );
+	cloth_from_mesh ( clmd, dm );
 
 	// create springs 
 	clmd->clothObject->springs = NULL;
@@ -896,7 +897,7 @@ static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *d
 
 	if ( !cloth_build_springs ( clmd, dm ) )
 	{
-		cloth_free_modifier ( ob, clmd );
+		cloth_free_modifier ( clmd );
 		modifier_setError ( & ( clmd->modifier ), "Can't build springs." );
 		printf("cloth_free_modifier cloth_build_springs\n");
 		return 0;
@@ -930,7 +931,7 @@ static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *d
 	return 1;
 }
 
-static void cloth_from_mesh ( Object *ob, ClothModifierData *clmd, DerivedMesh *dm )
+static void cloth_from_mesh ( ClothModifierData *clmd, DerivedMesh *dm )
 {
 	unsigned int numverts = dm->getNumVerts ( dm );
 	unsigned int numfaces = dm->getNumFaces ( dm );
@@ -942,7 +943,7 @@ static void cloth_from_mesh ( Object *ob, ClothModifierData *clmd, DerivedMesh *
 	clmd->clothObject->verts = MEM_callocN ( sizeof ( ClothVertex ) * clmd->clothObject->numverts, "clothVertex" );
 	if ( clmd->clothObject->verts == NULL )
 	{
-		cloth_free_modifier ( ob, clmd );
+		cloth_free_modifier ( clmd );
 		modifier_setError ( & ( clmd->modifier ), "Out of memory on allocating clmd->clothObject->verts." );
 		printf("cloth_free_modifier clmd->clothObject->verts\n");
 		return;
@@ -953,7 +954,7 @@ static void cloth_from_mesh ( Object *ob, ClothModifierData *clmd, DerivedMesh *
 	clmd->clothObject->mfaces = MEM_callocN ( sizeof ( MFace ) * clmd->clothObject->numfaces, "clothMFaces" );
 	if ( clmd->clothObject->mfaces == NULL )
 	{
-		cloth_free_modifier ( ob, clmd );
+		cloth_free_modifier ( clmd );
 		modifier_setError ( & ( clmd->modifier ), "Out of memory on allocating clmd->clothObject->mfaces." );
 		printf("cloth_free_modifier clmd->clothObject->mfaces\n");
 		return;
@@ -1005,7 +1006,7 @@ int cloth_add_spring ( ClothModifierData *clmd, unsigned int indexA, unsigned in
 	return 0;
 }
 
-static void cloth_free_errorsprings(Cloth *cloth, EdgeHash *edgehash, LinkNode **edgelist)
+static void cloth_free_errorsprings(Cloth *cloth, EdgeHash *UNUSED(edgehash), LinkNode **edgelist)
 {
 	unsigned int i = 0;
 	
@@ -1043,10 +1044,10 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 	Cloth *cloth = clmd->clothObject;
 	ClothSpring *spring = NULL, *tspring = NULL, *tspring2 = NULL;
 	unsigned int struct_springs = 0, shear_springs=0, bend_springs = 0;
-	int i = 0;
-	int numverts = dm->getNumVerts ( dm );
-	int numedges = dm->getNumEdges ( dm );
-	int numfaces = dm->getNumFaces ( dm );
+	unsigned int i = 0;
+	unsigned int numverts = (unsigned int)dm->getNumVerts ( dm );
+	unsigned int numedges = (unsigned int)dm->getNumEdges ( dm );
+	unsigned int numfaces = (unsigned int)dm->getNumFaces ( dm );
 	MEdge *medge = dm->getEdgeArray ( dm );
 	MFace *mface = dm->getFaceArray ( dm );
 	int index2 = 0; // our second vertex index

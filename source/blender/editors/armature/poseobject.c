@@ -132,12 +132,12 @@ void ED_armature_enter_posemode(bContext *C, Base *base)
 	ReportList *reports= CTX_wm_reports(C);
 	Object *ob= base->object;
 	
-	if (ob->id.lib){
+	if (ob->id.lib) {
 		BKE_report(reports, RPT_WARNING, "Can't pose libdata");
 		return;
 	}
 	
-	switch (ob->type){
+	switch (ob->type) {
 		case OB_ARMATURE:
 			ob->restore_mode = ob->mode;
 			ob->mode |= OB_MODE_POSE;
@@ -148,7 +148,7 @@ void ED_armature_enter_posemode(bContext *C, Base *base)
 		default:
 			return;
 	}
-
+	
 	// XXX: disabled as this would otherwise cause a nasty loop...
 	//ED_object_toggle_modes(C, ob->mode);
 }
@@ -204,10 +204,10 @@ static int pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan, int level)
 		if(con->type==CONSTRAINT_TYPE_KINEMATIC) {
 			bKinematicConstraint *data= con->data;
 			if(data->rootbone == 0 || data->rootbone > level) {
-			if((data->flag & CONSTRAINT_IK_AUTO)==0)
-				return 1;
+				if((data->flag & CONSTRAINT_IK_AUTO)==0)
+					return 1;
+			}
 		}
-	}
 	}
 	for(bone= pchan->bone->childbase.first; bone; bone= bone->next) {
 		pchan= get_pose_channel(ob->pose, bone->name);
@@ -443,7 +443,7 @@ static int pose_select_hierarchy_exec(bContext *C, wmOperator *op)
 					if (pchan->parent == NULL) continue;
 					else pabone= pchan->parent->bone;
 					
-					if ((arm->layer & pabone->layer) && !(pabone->flag & BONE_HIDDEN_P)) {
+					if (PBONE_VISIBLE(arm, pabone)) {
 						if (!add_to_sel) curbone->flag &= ~BONE_SELECTED;
 						pabone->flag |= BONE_SELECTED;
 						arm->act_bone= pabone;
@@ -456,7 +456,7 @@ static int pose_select_hierarchy_exec(bContext *C, wmOperator *op)
 					if (pchan->child == NULL) continue;
 					else chbone = pchan->child->bone;
 					
-					if ((arm->layer & chbone->layer) && !(chbone->flag & BONE_HIDDEN_P)) {
+					if (PBONE_VISIBLE(arm, chbone)) {
 						if (!add_to_sel) curbone->flag &= ~BONE_SELECTED;
 						chbone->flag |= BONE_SELECTED;
 						arm->act_bone= chbone;
@@ -481,9 +481,9 @@ static int pose_select_hierarchy_exec(bContext *C, wmOperator *op)
 void POSE_OT_select_hierarchy(wmOperatorType *ot)
 {
 	static EnumPropertyItem direction_items[]= {
-	{BONE_SELECT_PARENT, "PARENT", 0, "Select Parent", ""},
-	{BONE_SELECT_CHILD, "CHILD", 0, "Select Child", ""},
-	{0, NULL, 0, NULL, NULL}
+		{BONE_SELECT_PARENT, "PARENT", 0, "Select Parent", ""},
+		{BONE_SELECT_CHILD, "CHILD", 0, "Select Child", ""},
+		{0, NULL, 0, NULL, NULL}
 	};
 	
 	/* identifiers */
@@ -739,7 +739,7 @@ static void pose_copy_menu(Scene *scene)
 	if (pchan==NULL) return;
 	pchanact= pchan;
 	arm= ob->data;
-	
+
 	/* if proxy-protected bones selected, some things (such as locks + displays) shouldn't be changable, 
 	 * but for constraints (just add local constraints)
 	 */
@@ -895,7 +895,7 @@ static void pose_copy_menu(Scene *scene)
 				 * appending to list of constraints for this channel
 				 */
 				copy_constraints(&tmp_constraints, &const_copy, TRUE);
-				if ((ob->proxy) && (pchan->bone->layer & arm->layer_protected)) {
+				if ((ob->proxy) && (pchan->bone->layer & arm->layer_protected)) {					
 					/* add proxy-local tags */
 					for (con= tmp_constraints.first; con; con= con->next)
 						con->flag |= CONSTRAINT_PROXY_LOCAL;
@@ -1013,7 +1013,7 @@ static int pose_paste_exec (bContext *C, wmOperator *op)
 				flip_side_name(name, chan->name, 0);		/* 0 = don't strip off number extensions */
 			else
 				BLI_strncpy(name, chan->name, sizeof(name));
-				
+			
 			/* only copy when:
 			 * 	1) channel exists - poses are not meant to add random channels to anymore
 			 * 	2) if selection-masking is on, channel is selected - only selected bones get pasted on, allowing making both sides symmetrical
@@ -1601,7 +1601,7 @@ static int pose_autoside_names_exec (bContext *C, wmOperator *op)
 void POSE_OT_autoside_names (wmOperatorType *ot)
 {
 	static EnumPropertyItem axis_items[]= {
-		 {0, "XAXIS", 0, "X-Axis", "Left/Right"},
+		{0, "XAXIS", 0, "X-Axis", "Left/Right"},
 		{1, "YAXIS", 0, "Y-Axis", "Front/Back"},
 		{2, "ZAXIS", 0, "Z-Axis", "Top/Bottom"},
 		{0, NULL, 0, NULL, NULL}};
@@ -1710,21 +1710,21 @@ static int pose_armature_layers_exec (bContext *C, wmOperator *op)
 	Object *ob= ED_object_pose_armature(CTX_data_active_object(C));
 	PointerRNA ptr;
 	int layers[32]; /* hardcoded for now - we can only have 32 armature layers, so this should be fine... */
-	
+
 	if(ob==NULL || ob->data==NULL) {
 		return OPERATOR_CANCELLED;
 	}
 
 	/* get the values set in the operator properties */
 	RNA_boolean_get_array(op->ptr, "layers", layers);
-	
+
 	/* get pointer for armature, and write data there... */
 	RNA_id_pointer_create((ID *)ob->data, &ptr);
 	RNA_boolean_set_array(&ptr, "layers", layers);
-	
+
 	/* note, notifier might evolve */
 	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -1772,11 +1772,9 @@ void ARMATURE_OT_armature_layers (wmOperatorType *ot)
 /* Present a popup to get the layers that should be used */
 static int pose_bone_layers_invoke (bContext *C, wmOperator *op, wmEvent *evt)
 {
-	int layers[32]; /* hardcoded for now - we can only have 32 armature layers, so this should be fine... */
+	int layers[32]= {0}; /* hardcoded for now - we can only have 32 armature layers, so this should be fine... */
 	
-	/* get layers that are active already */
-	memset(&layers, 0, sizeof(layers)); /* set all layers to be off by default */
-	
+	/* get layers that are active already */	
 	CTX_DATA_BEGIN(C, bPoseChannel *, pchan, selected_pose_bones) 
 	{
 		short bit;
@@ -1802,26 +1800,26 @@ static int pose_bone_layers_exec (bContext *C, wmOperator *op)
 	Object *ob= ED_object_pose_armature(CTX_data_active_object(C));
 	PointerRNA ptr;
 	int layers[32]; /* hardcoded for now - we can only have 32 armature layers, so this should be fine... */
-	
+
 	if(ob==NULL || ob->data==NULL) {
 		return OPERATOR_CANCELLED;
 	}
 
 	/* get the values set in the operator properties */
 	RNA_boolean_get_array(op->ptr, "layers", layers);
-	
+
 	/* set layers of pchans based on the values set in the operator props */
-	CTX_DATA_BEGIN(C, bPoseChannel *, pchan, selected_pose_bones) 
+	CTX_DATA_BEGIN(C, bPoseChannel *, pchan, selected_pose_bones)
 	{
 		/* get pointer for pchan, and write flags this way */
 		RNA_pointer_create((ID *)ob->data, &RNA_Bone, pchan->bone, &ptr);
 		RNA_boolean_set_array(&ptr, "layers", layers);
 	}
 	CTX_DATA_END;
-	
+
 	/* note, notifier might evolve */
 	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -1849,11 +1847,9 @@ void POSE_OT_bone_layers (wmOperatorType *ot)
 /* Present a popup to get the layers that should be used */
 static int armature_bone_layers_invoke (bContext *C, wmOperator *op, wmEvent *evt)
 {
-	int layers[32]; /* hardcoded for now - we can only have 32 armature layers, so this should be fine... */
+	int layers[32]= {0}; /* hardcoded for now - we can only have 32 armature layers, so this should be fine... */
 	
 	/* get layers that are active already */
-	memset(&layers, 0, sizeof(layers)); /* set all layers to be off by default */
-	
 	CTX_DATA_BEGIN(C, EditBone *, ebone, selected_editable_bones) 
 	{
 		short bit;
@@ -1933,7 +1929,7 @@ static int pose_flip_quats_exec (bContext *C, wmOperator *UNUSED(op))
 		if (pchan->rotmode == ROT_MODE_QUAT) {
 			/* quaternions have 720 degree range */
 			negate_v4(pchan->quat);
-			
+
 			/* tagging */
 			if (autokeyframe_cfra_can_key(scene, &ob->id)) {
 				ListBase dsources = {NULL, NULL};

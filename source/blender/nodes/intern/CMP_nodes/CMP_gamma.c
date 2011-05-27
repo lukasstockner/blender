@@ -47,7 +47,7 @@ static bNodeSocketType cmp_node_gamma_out[]= {
 	{	-1, 0, ""	}
 };
 
-static void do_gamma(bNode *node, float *out, float *in, float *fac)
+static void do_gamma(bNode *UNUSED(node), float *out, float *in, float *fac)
 {
 	int i=0;
 	for(i=0; i<3; i++) {
@@ -56,7 +56,7 @@ static void do_gamma(bNode *node, float *out, float *in, float *fac)
 	}
 	out[3] = in[3];
 }
-static void node_composit_exec_gamma(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_gamma(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	/* stack order in: Fac, Image */
 	/* stack order out: Image */
@@ -80,11 +80,11 @@ static void node_composit_exec_gamma(void *data, bNode *node, bNodeStack **in, b
 void register_node_type_cmp_gamma(ListBase *lb)
 {
 	static bNodeType ntype;
-
+	
 	node_type_base(&ntype, CMP_NODE_GAMMA, "Gamma", NODE_CLASS_OP_COLOR, NODE_OPTIONS,
 				   cmp_node_gamma_in, cmp_node_gamma_out);
 	node_type_size(&ntype, 140, 100, 320);
 	node_type_exec(&ntype, node_composit_exec_gamma);
-
+	
 	nodeRegisterType(lb, &ntype);
 }

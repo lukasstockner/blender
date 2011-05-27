@@ -72,8 +72,8 @@
 static void view3d_panel_operator_redo_buts(const bContext *C, Panel *pa, wmOperator *op)
 {
 	uiLayoutOperatorButs(C, pa->layout, op, NULL, 'V', 0);
-	}
-	
+}
+
 static void view3d_panel_operator_redo_header(const bContext *C, Panel *pa)
 {
 	wmOperator *op= WM_operator_last_redo(C);
@@ -106,7 +106,7 @@ static void view3d_panel_operator_redo(const bContext *C, Panel *pa)
 		return;
 	
 	block= uiLayoutGetBlock(pa->layout);
-
+	
 	if(ED_undo_valid(C, op->type->name)==0)
 		uiLayoutSetEnabled(pa->layout, 0);
 

@@ -24,7 +24,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/blenkernel/intern/depsgraph.c
  *  \ingroup bke
  */
@@ -71,7 +71,7 @@
 #include "BKE_screen.h"
 #include "BKE_utildefines.h"
 
- #include "depsgraph_private.h"
+#include "depsgraph_private.h"
  
 /* Queue and stack operations for dag traversal 
  *
@@ -492,7 +492,7 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 			}
 		}
 	}
-    
+
 	/* softbody collision  */
 	if ((ob->type==OB_MESH) || (ob->type==OB_CURVE) || (ob->type==OB_LATTICE)) {
 		if(modifiers_isSoftbodyEnabled(ob) || modifiers_isClothEnabled(ob) || ob->particlesystem.first)
@@ -1092,10 +1092,10 @@ void graph_bfs(void)
 					push_queue(nqueue,itA->node);
 				}
 				
-				 else {
+				else {
 					fprintf(stderr,"bfs not dag tree edge color :%i \n",itA->node->color);
 				}
-				 
+
 				
 				itA = itA->next;
 			}
@@ -1225,7 +1225,7 @@ DagNodeQueue * graph_dfs(void)
 		while(nqueue->count) {
 			//graph_print_queue(nqueue);
 
-			 skip = 0;
+			skip = 0;
 			node = get_top_node_queue(nqueue);
 			
 			minheight = pos[node->DFS_dist];
@@ -1253,7 +1253,7 @@ DagNodeQueue * graph_dfs(void)
 						*/
 						/*if (node->DFS_dist >= itA->node->DFS_dist)
 							itA->node->DFS_dist = node->DFS_dist + 1;
-						 	
+
 							fprintf(stderr,"dfs forward or cross edge :%15s %i-%i %15s %i-%i \n",
 								((ID *) node->ob)->name,
 								node->DFS_dvtm, 
@@ -1287,17 +1287,17 @@ DagNodeQueue * graph_dfs(void)
 				/*
 				 fprintf(stderr,"DFS node : %20s %i %i %i %i\n",((ID *) node->ob)->name,node->BFS_dist, node->DFS_dist, node->DFS_dvtm, node->DFS_fntm ); 	
 				*/
-				 push_stack(retqueue,node);
+				push_stack(retqueue,node);
 				
 			}
 		}
 	}
 		node = node->next;
 	} while (node);
-//	  fprintf(stderr,"i size : %i \n", maxpos);
-	  
+//	fprintf(stderr,"i size : %i \n", maxpos);
+
 	queue_delete(nqueue);
-	  return(retqueue);
+	return(retqueue);
 }
 
 /* unused */
@@ -1867,7 +1867,7 @@ static void flush_pointcache_reset(Scene *scene, DagNode *node, int curtime, int
 	for(itA = node->child; itA; itA= itA->next) {
 		if(itA->node->type==ID_OB) {
 			if(itA->node->lasttime!=curtime) {
-				ob= (Object*)(node->ob);
+				ob= (Object*)(itA->node->ob);
 
 				if(reset || (ob->recalc & OB_RECALC_ALL)) {
 					if(BKE_ptcache_object_reset(scene, ob, PTCACHE_RESET_DEPSGRAPH))
@@ -2174,49 +2174,49 @@ void DAG_scene_update_flags(Main *bmain, Scene *scene, unsigned int lay, const s
 	Group *group;
 	GroupObject *go;
 	Scene *sce_iter;
-	
+
 	/* set ob flags where animated systems are */
 	for(SETLOOPER(scene, sce_iter, base)) {
 		ob= base->object;
-		
+
 		if(do_time) {
-		/* now if DagNode were part of base, the node->lay could be checked... */
-		/* we do all now, since the scene_flush checks layers and clears recalc flags even */
-		dag_object_time_update_flags(ob);
+			/* now if DagNode were part of base, the node->lay could be checked... */
+			/* we do all now, since the scene_flush checks layers and clears recalc flags even */
+			dag_object_time_update_flags(ob);
 		}
-		
+
 		/* handled in next loop */
-		if(ob->dup_group) 
+		if(ob->dup_group)
 			ob->dup_group->id.flag |= LIB_DOIT;
-	}	
-	
+	}
+
 	if(do_time) {
-	/* we do groups each once */
-	for(group= bmain->group.first; group; group= group->id.next) {
-		if(group->id.flag & LIB_DOIT) {
-			for(go= group->gobject.first; go; go= go->next) {
-				dag_object_time_update_flags(go->ob);
+		/* we do groups each once */
+		for(group= bmain->group.first; group; group= group->id.next) {
+			if(group->id.flag & LIB_DOIT) {
+				for(go= group->gobject.first; go; go= go->next) {
+					dag_object_time_update_flags(go->ob);
+				}
 			}
 		}
 	}
-	}
-	
+
 	for(sce_iter= scene; sce_iter; sce_iter= sce_iter->set)
 		DAG_scene_flush_update(bmain, sce_iter, lay, 1);
 	
 	if(do_time) {
-	/* test: set time flag, to disable baked systems to update */
+		/* test: set time flag, to disable baked systems to update */
 		for(SETLOOPER(scene, sce_iter, base)) {
-		ob= base->object;
-		if(ob->recalc)
-			ob->recalc |= OB_RECALC_TIME;
+			ob= base->object;
+			if(ob->recalc)
+				ob->recalc |= OB_RECALC_TIME;
+		}
+
+		/* hrmf... an exception to look at once, for invisible camera object we do it over */
+		if(scene->camera)
+			dag_object_time_update_flags(scene->camera);
 	}
-	
-	/* hrmf... an exception to look at once, for invisible camera object we do it over */
-	if(scene->camera)
-		dag_object_time_update_flags(scene->camera);
-	}
-	
+
 	/* and store the info in groupobject */
 	for(group= bmain->group.first; group; group= group->id.next) {
 		if(group->id.flag & LIB_DOIT) {
@@ -2324,7 +2324,7 @@ void DAG_on_visible_update(Main *bmain, const short do_time)
 	}
 }
 
-static void dag_id_flush_update__isDependentTexture(void *userData, Object *ob, ID **idpoin)
+static void dag_id_flush_update__isDependentTexture(void *userData, Object *UNUSED(ob), ID **idpoin)
 {
 	struct { ID *id; int is_dependent; } *data = userData;
 	
@@ -2376,8 +2376,10 @@ static void dag_id_flush_update(Scene *sce, ID *id)
 		/* set flags based on textures - can influence depgraph via modifiers */
 		if(idtype == ID_TE) {
 			for(obt=bmain->object.first; obt; obt= obt->id.next) {
-				struct { ID *id; int is_dependent; } data = {id, 0};
-				
+				struct { ID *id; int is_dependent; } data;
+				data.id= id;
+				data.is_dependent= 0;
+
 				modifiers_foreachIDLink(obt, dag_id_flush_update__isDependentTexture, &data);
 				if (data.is_dependent)
 					obt->recalc |= OB_RECALC_DATA;
@@ -2400,8 +2402,8 @@ static void dag_id_flush_update(Scene *sce, ID *id)
 									psys->recalc |= PSYS_RECALC_CHILD;
 
 								BKE_ptcache_object_reset(sce, obt, PTCACHE_RESET_DEPSGRAPH);
-			}
-		}
+							}
+						}
 					}
 				}
 			}
@@ -2425,12 +2427,12 @@ static void dag_id_flush_update(Scene *sce, ID *id)
 				for(psys=obt->particlesystem.first; psys; psys=psys->next)
 					if(&psys->part->id == id)
 						BKE_ptcache_object_reset(sce, obt, PTCACHE_RESET_DEPSGRAPH);
-					}
+		}
 
 		/* update editors */
 		dag_editors_update(bmain, id);
-				}
-			}
+	}
+}
 
 void DAG_ids_flush_tagged(Main *bmain)
 {
@@ -2458,11 +2460,11 @@ void DAG_ids_flush_tagged(Main *bmain)
 				if(id->flag & LIB_ID_RECALC) {
 					dag_id_flush_update(sce, id);
 					id->flag &= ~LIB_ID_RECALC;
-		}
+				}
 			}
 
 			have_tag = 1;
-	}
+		}
 	}
 
 	if(have_tag) {
@@ -2470,8 +2472,8 @@ void DAG_ids_flush_tagged(Main *bmain)
 		memset(bmain->id_tag_update, 0, sizeof(bmain->id_tag_update));
 
 		/* flush changes to other objects */
-	DAG_scene_flush_update(bmain, sce, lay, 0);
-}
+		DAG_scene_flush_update(bmain, sce, lay, 0);
+	}
 }
 
 void DAG_id_tag_update(ID *id, short flag)
@@ -2510,8 +2512,8 @@ void DAG_id_tag_update(ID *id, short flag)
 			/* disable because this is called on various ID types automatically.
 			 * where printing warning is not useful. for now just ignore */
 			/* BLI_assert(!"invalid flag for this 'idtype'"); */
+		}
 	}
-}
 }
 
 #if 0 // UNUSED

@@ -62,6 +62,7 @@ editmesh_mods.c, UI level access, no geometry changes
 #include "BKE_material.h"
 #include "BKE_paint.h"
 #include "BKE_report.h"
+#include "BKE_texture.h"
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
@@ -87,8 +88,8 @@ editmesh_mods.c, UI level access, no geometry changes
 #include "BLO_sys_types.h" // for intptr_t support
 
 /* XXX */
-static void waitcursor(int val) {}
-static int pupmenu(const char *dummy) {return 0;}
+static void waitcursor(int UNUSED(val)) {}
+static int pupmenu(const char *UNUSED(arg)) {return 0;}
 
 /* ****************************** MIRROR **************** */
 
@@ -279,14 +280,14 @@ int EM_mask_init_backbuf_border(ViewContext *vc, int mcords[][2], short tot, sho
 	glDisable(GL_DEPTH_TEST);
 	
 	glColor3ub(0, 0, 0);
-	
+
 	/* some opengl drivers have problems with draw direction */
 	glGetBooleanv(GL_CULL_FACE, &is_cull);
 	if(is_cull) glDisable(GL_CULL_FACE);
 	
 	/* yah, opengl doesn't do concave... tsk! */
 	ED_region_pixelspace(vc->ar);
-	 draw_triangulated(mcords, tot);	
+	draw_triangulated(mcords, tot);
 	
 	glBegin(GL_LINE_LOOP);	/* for zero sized masks, lines */
 	for(a=0; a<tot; a++) glVertex2iv(mcords[a]);
@@ -477,7 +478,7 @@ static float labda_PdistVL2Dfl( float *v1, float *v2, float *v3)
 }
 
 /* note; uses v3d, so needs active 3d window */
-static void findnearestedge__doClosest(void *userData, EditEdge *eed, int x0, int y0, int x1, int y1, int index)
+static void findnearestedge__doClosest(void *userData, EditEdge *eed, int x0, int y0, int x1, int y1, int UNUSED(index))
 {
 	struct { ViewContext vc; float mval[2]; int dist; EditEdge *closest; } *data = userData;
 	float v1[2], v2[2];
@@ -546,7 +547,7 @@ EditEdge *findnearestedge(ViewContext *vc, int *dist)
 	}
 }
 
-static void findnearestface__getDistance(void *userData, EditFace *efa, int x, int y, int index)
+static void findnearestface__getDistance(void *userData, EditFace *efa, int x, int y, int UNUSED(index))
 {
 	struct { int mval[2]; int dist; EditFace *toFace; } *data = userData;
 
@@ -1249,7 +1250,7 @@ static int select_similar_exec(bContext *C, wmOperator *op)
 		return similar_face_select_exec(C, op);
 }
 
-static EnumPropertyItem *select_similar_type_itemf(bContext *C, PointerRNA *ptr, int *free)
+static EnumPropertyItem *select_similar_type_itemf(bContext *C, PointerRNA *UNUSED(ptr), int *free)
 {
 	Object *obedit= CTX_data_edit_object(C);
 	EnumPropertyItem *item= NULL;
@@ -1914,7 +1915,7 @@ static void edgeloop_select(EditMesh *em, EditEdge *starteed, int select)
 
 	if(select == FALSE && !(em->selectmode & SCE_SELECT_VERTEX)) { /* only when not in vert sel [#26931] */
 		ensure_ed_vert_sel(em);
-}
+	}
 }
 
 /* 
@@ -1987,7 +1988,7 @@ static void edgering_select(EditMesh *em, EditEdge *startedge, int select)
 
 	if(select == FALSE && !(em->selectmode & SCE_SELECT_VERTEX)) { /* only when not in vert sel [#26931] */
 		ensure_ed_vert_sel(em);
-}
+	}
 }
 
 static int loop_multiselect(bContext *C, wmOperator *op)
@@ -2107,7 +2108,7 @@ static void mouse_mesh_loop(bContext *C, const int mval[2], short extend, short 
 			if(em->selectmode & SCE_SELECT_VERTEX)
 				EM_store_selection(em, eed->v1, EDITVERT);
 			if(em->selectmode & SCE_SELECT_EDGE)
-			EM_store_selection(em, eed, EDITEDGE);
+				EM_store_selection(em, eed, EDITEDGE);
 		}
 
 		WM_event_add_notifier(C, NC_GEOM|ND_SELECT, vc.obedit->data);
@@ -2135,7 +2136,7 @@ void MESH_OT_loop_select(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->invoke= mesh_select_loop_invoke;
-	ot->poll= ED_operator_editmesh_view3d;
+	ot->poll= ED_operator_editmesh_region_view3d;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -2195,7 +2196,7 @@ static void mouse_mesh_shortest_path(bContext *C, const int mval[2])
 			if(eed_act) {
 				if(vc.scene->toolsettings->edge_mode!=EDGE_MODE_SELECT) {
 					/* for non-select modes, always de-select the previous active edge */
-				EM_select_edge(eed_act, 0);
+					EM_select_edge(eed_act, 0);
 				}
 			}
 
@@ -2222,7 +2223,7 @@ static void mouse_mesh_shortest_path(bContext *C, const int mval[2])
 				me->drawflag |= ME_DRAWBWEIGHTS;
 				break;
 		}
-		
+
 		/* live unwrap while tagging */
 		if(	(vc.scene->toolsettings->edge_mode_live_unwrap) &&
 			(vc.scene->toolsettings->edge_mode == EDGE_MODE_TAG_SEAM) &&
@@ -2246,10 +2247,10 @@ static int mesh_shortest_path_select_invoke(bContext *C, wmOperator *UNUSED(op),
 	
 	return OPERATOR_FINISHED;
 }
-	
+
 static int mesh_shortest_path_select_poll(bContext *C)
 {
-	if(ED_operator_editmesh_view3d(C)) {
+	if(ED_operator_editmesh_region_view3d(C)) {
 		Object *obedit= CTX_data_edit_object(C);
 		EditMesh *em= BKE_mesh_get_editmesh(obedit->data);
 		return (em->selectmode & SCE_SELECT_EDGE);
@@ -2574,7 +2575,7 @@ void MESH_OT_select_linked_pick(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->invoke= select_linked_pick_invoke;
-	ot->poll= ED_operator_editmesh_view3d;
+	ot->poll= ED_operator_editmesh_region_view3d;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -4287,52 +4288,51 @@ void MESH_OT_vertices_smooth(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "zaxis", 1, "Z-Axis", "Smooth along the Z axis.");
 }
 
-void vertexnoise(Object *obedit, EditMesh *em)
+static int mesh_noise_exec(bContext *C, wmOperator *op)
 {
+	Object *obedit= CTX_data_edit_object(C);
+	EditMesh *em= BKE_mesh_get_editmesh(((Mesh *)obedit->data));
 	Material *ma;
 	Tex *tex;
 	EditVert *eve;
-	float b2, ofs, vec[3];
+	float fac= RNA_float_get(op->ptr, "factor");
 
-	if(em==NULL) return;
-	
+	if(em==NULL) return OPERATOR_FINISHED;
+
 	ma= give_current_material(obedit, obedit->actcol);
 	if(ma==0 || ma->mtex[0]==0 || ma->mtex[0]->tex==0) {
 		BKE_report(op->reports, RPT_WARNING, "Mesh has no material or texture assigned.");
 		return OPERATOR_FINISHED;
 	}
-	tex= ma->mtex[0]->tex;
-	
-	ofs= tex->turbul/200.0;
-	
-	eve= (struct EditVert *)em->verts.first;
-	while(eve) {
-		if(eve->f & SELECT) {
-			
-			if(tex->type==TEX_STUCCI) {
+	tex= give_current_material_texture(ma);
+
+
+	if(tex->type==TEX_STUCCI) {
 		float b2, vec[3];
 		float ofs= tex->turbul/200.0f;
 		for(eve= em->verts.first; eve; eve= eve->next) {
 			if(eve->f & SELECT) {
 				b2= BLI_hnoise(tex->noisesize, eve->co[0], eve->co[1], eve->co[2]);
 				if(tex->stype) ofs*=(b2*b2);
-				vec[0]= 0.2*(b2-BLI_hnoise(tex->noisesize, eve->co[0]+ofs, eve->co[1], eve->co[2]));
-				vec[1]= 0.2*(b2-BLI_hnoise(tex->noisesize, eve->co[0], eve->co[1]+ofs, eve->co[2]));
-				vec[2]= 0.2*(b2-BLI_hnoise(tex->noisesize, eve->co[0], eve->co[1], eve->co[2]+ofs));
+				vec[0]= fac*(b2-BLI_hnoise(tex->noisesize, eve->co[0]+ofs, eve->co[1], eve->co[2]));
+				vec[1]= fac*(b2-BLI_hnoise(tex->noisesize, eve->co[0], eve->co[1]+ofs, eve->co[2]));
+				vec[2]= fac*(b2-BLI_hnoise(tex->noisesize, eve->co[0], eve->co[1], eve->co[2]+ofs));
 				
 				add_v3_v3(eve->co, vec);
 			}
-			else {
+		}
+	}
+	else {
+		for(eve= em->verts.first; eve; eve= eve->next) {
+			if(eve->f & SELECT) {
 				float tin, dum;
 				externtex(ma->mtex[0], eve->co, &tin, &dum, &dum, &dum, &dum, 0);
-				eve->co[2]+= 0.05*tin;
+				eve->co[2]+= fac*tin;
 			}
 		}
-		eve= eve->next;
 	}
 
 	recalc_editnormals(em);
-//	DAG_id_flush_update(obedit->data, OB_RECALC_DATA);
 
 	BKE_mesh_end_editmesh(obedit->data, em);
 
@@ -4470,10 +4470,7 @@ static int mesh_select_nth_exec(bContext *C, wmOperator *op)
 	EditMesh *em= BKE_mesh_get_editmesh(((Mesh *)obedit->data));
 	int nth = RNA_int_get(op->ptr, "nth");
 
-	if(EM_deselect_nth(em, nth) == 0) {
-		BKE_report(op->reports, RPT_ERROR, "Mesh has no active vert/edge/face.");
-		return OPERATOR_CANCELLED;
-	}
+	EM_deselect_nth(em, nth);
 
 	BKE_mesh_end_editmesh(obedit->data, em);
 

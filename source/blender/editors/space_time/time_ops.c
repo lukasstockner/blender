@@ -53,10 +53,10 @@ static int time_set_sfra_exec (bContext *C, wmOperator *UNUSED(op))
 {
 	Scene *scene= CTX_data_scene(C);
 	int frame;
-	
+
 	if (scene == NULL)
 		return OPERATOR_CANCELLED;
-		
+
 	frame= CFRA;
 	/* if 'end frame' (Preview Range or Actual) is less than 'frame', 
 	 * clamp 'frame' to 'end frame'
@@ -94,10 +94,10 @@ static int time_set_efra_exec (bContext *C, wmOperator *UNUSED(op))
 {
 	Scene *scene= CTX_data_scene(C);
 	int frame;
-	
+
 	if (scene == NULL)
 		return OPERATOR_CANCELLED;
-		
+
 	frame= CFRA;
 
 	/* if 'start frame' (Preview Range or Actual) is greater than 'frame', 

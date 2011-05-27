@@ -63,7 +63,7 @@ void btManifoldResult::addContactPoint(const btVector3& normalOnBInWorld,const b
 {
 	btAssert(m_manifoldPtr);
 	//order in manifold needs to match
-	
+
 //	if (depth > m_manifoldPtr->getContactBreakingThreshold())
 	if (depth > m_manifoldPtr->getContactProcessingThreshold())
 		return;
@@ -103,10 +103,10 @@ void btManifoldResult::addContactPoint(const btVector3& normalOnBInWorld,const b
 		newPt.m_index1  = m_index0;
 	} else
 	{
-   newPt.m_partId0 = m_partId0;
-   newPt.m_partId1 = m_partId1;
-   newPt.m_index0  = m_index0;
-   newPt.m_index1  = m_index1;
+		newPt.m_partId0 = m_partId0;
+		newPt.m_partId1 = m_partId1;
+		newPt.m_index0  = m_index0;
+		newPt.m_index1  = m_index1;
 	}
 	//printf("depth=%f\n",depth);
 	///@todo, check this for any side effects

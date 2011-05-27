@@ -773,7 +773,6 @@ typedef struct Scene {
 	struct World *world;
 	
 	struct Scene *set;
-	struct Image *ima;
 	
 	ListBase base;
 	struct Base *basact;		/* active base */
@@ -819,7 +818,7 @@ typedef struct Scene {
 	short dagisvalid, dagflags;
 	short recalc;				/* recalc = counterpart of ob->recalc */
 
-	short jumpframe;
+	short pad6;
 	int pad5;
 
 	/* User-Defined KeyingSets */
@@ -1158,7 +1157,7 @@ typedef enum SculptFlags {
 	SCULPT_LOCK_X = (1<<3),
 	SCULPT_LOCK_Y = (1<<4),
 	SCULPT_LOCK_Z = (1<<5),
-//	SCULPT_SYMMETRY_FEATHER = (1<<6),
+//	SCULPT_SYMMETRY_FEATHER = (1<<6),// flag made per-brush, reuse flag later
 	SCULPT_USE_OPENMP = (1<<7),
 	SCULPT_ONLY_DEFORM = (1<<8),
 } SculptFlags;

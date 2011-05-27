@@ -93,7 +93,7 @@ typedef struct {
 #ifdef USE_WEAKREFS
 	PyObject *in_weakreflist;
 #endif
-	PointerRNA ptr;
+	PointerRNA	ptr;
 } BPy_DummyPointerRNA;
 
 typedef struct {

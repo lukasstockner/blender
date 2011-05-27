@@ -68,11 +68,13 @@
 
 #include "RE_pipeline.h"		/* RE_ free stuff */
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 #include "BPY_extern.h"
 #endif
 
+#ifdef WITH_GAMEENGINE
 #include "BL_System.h"
+#endif
 #include "GHOST_Path-api.h"
 #include "GHOST_C-api.h"
 
@@ -135,7 +137,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 	ED_file_init();			/* for fsmenu */
 	ED_init_node_butfuncs();	
 	
-	BLF_init(11, U.dpi);
+	BLF_init(11, U.dpi); /* Please update source/gamengine/GamePlayer/GPG_ghost.cpp if you change this */
 	BLF_lang_init();
 	/* get the default database, plus a wm */
 	WM_read_homefile(C, NULL, G.factory_startup);
@@ -148,12 +150,15 @@ void WM_init(bContext *C, int argc, const char **argv)
 	 * before WM_read_homefile() or make py-drivers check if python is running.
 	 * Will try fix when the crash can be repeated. - campbell. */
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	BPY_context_set(C); /* necessary evil */
 	BPY_python_start(argc, argv);
 
 	BPY_driver_reset();
 	BPY_modules_load_user(C);
+#else
+	(void)argc; /* unused */
+	(void)argv; /* unused */
 #endif
 
 	if (!G.background && !wm_start_with_console)
@@ -185,7 +190,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 		BLI_make_file_string("/", G.main->name, BLI_getDefaultDocumentFolder(), "untitled.blend");
 	*/
 
-	BLI_strncpy(G.lib, G.sce, FILE_MAX);
+	BLI_strncpy(G.lib, G.main->name, FILE_MAX);
 }
 
 void WM_init_splash(bContext *C)
@@ -224,9 +229,9 @@ int WM_init_game(bContext *C)
 {
 	wmWindowManager *wm= CTX_wm_manager(C);
 	wmWindow* win;
-	
+
 	ScrArea *sa;
-	ARegion *ar;
+	ARegion *ar= NULL;
 
 	Scene *scene= CTX_data_scene(C);
 
@@ -305,7 +310,7 @@ int WM_init_game(bContext *C)
 
 		rti = MEM_callocN(sizeof(ReportTimerInfo), "ReportTimerInfo");
 		wm->reports.reporttimer->customdata = rti;
-}
+	}
 	return 0;
 }
 
@@ -404,7 +409,7 @@ void WM_exit(bContext *C)
 //	free_txt_data();
 	
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	/* XXX - old note */
 	/* before free_blender so py's gc happens while library still exists */
 	/* needed at least for a rare sigsegv that can happen in pydrivers */
@@ -440,9 +445,9 @@ void WM_exit(bContext *C)
 	wm_ghost_exit();
 
 	CTX_free(C);
-	
+#ifdef WITH_GAMEENGINE
 	SYS_DeleteSystem(SYS_GetSystem());
-
+#endif
 	
 	GHOST_DisposeSystemPaths();
 

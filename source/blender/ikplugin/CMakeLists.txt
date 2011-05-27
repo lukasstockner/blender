@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 20156 2009-05-11 16:31:30Z ben2610 $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -13,44 +12,92 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+# Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
 # The Original Code is Copyright (C) 2006, Blender Foundation
 # All rights reserved.
 #
 # The Original Code is: all of this file.
 #
-# Contributor(s): Jacques Beaurain.
+# Contributor(s): Jacques Beaurain
+#                 Ben Batt
 #
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC 
+	. ./intern
 	../blenlib
+	../blenloader
 	../makesdna
 	../blenkernel
-	../include
-	../ikplugin
+	../blenkernel/intern
+	../render/extern/include
 	../../../intern/guardedalloc
-	../../../intern/iksolver/extern
+	../../../intern/elbeem/extern
+	${ZLIB_INCLUDE_DIRS}
 )
 
 set(SRC
-	intern/ikplugin_api.c
-	intern/iksolver_plugin.c
+	intern/MOD_armature.c
+	intern/MOD_array.c
+	intern/MOD_bevel.c
+	intern/MOD_boolean.c
+	intern/MOD_build.c
+	intern/MOD_cast.c
+	intern/MOD_cloth.c
+	intern/MOD_collision.c
+	intern/MOD_curve.c
+	intern/MOD_decimate.c
+	intern/MOD_displace.c
+	intern/MOD_edgesplit.c
+	intern/MOD_explode.c
+	intern/MOD_fluidsim.c
+	intern/MOD_fluidsim_util.c
+	intern/MOD_hook.c
+	intern/MOD_lattice.c
+	intern/MOD_mask.c
+	intern/MOD_meshdeform.c
+	intern/MOD_mirror.c
+	intern/MOD_multires.c
+	intern/MOD_none.c
+	intern/MOD_particleinstance.c
+	intern/MOD_particlesystem.c
+	intern/MOD_screw.c
+	intern/MOD_shapekey.c
+	intern/MOD_shrinkwrap.c
+	intern/MOD_simpledeform.c
+	intern/MOD_smoke.c
+	intern/MOD_smooth.c
+	intern/MOD_softbody.c
+	intern/MOD_solidify.c
+	intern/MOD_subsurf.c
+	intern/MOD_surface.c
+	intern/MOD_util.c
+	intern/MOD_uvproject.c
+	intern/MOD_warp.c
+	intern/MOD_wave.c
 
-	BIK_api.h
-	intern/ikplugin_api.h
-	intern/iksolver_plugin.h
-	intern/itasc_plugin.h
+	MOD_modifiertypes.h
+	intern/MOD_boolean_util.h
+	intern/MOD_fluidsim_util.h
+	intern/MOD_util.h
 )
 
-if(WITH_IK_ITASC)
-	add_definitions(-DWITH_IK_ITASC)
-	list(APPEND INC ../../../extern/Eigen2)
-	list(APPEND INC ../../../intern/itasc)
+if(WITH_MOD_BOOLEAN)
+	add_definitions(-DWITH_MOD_BOOLEAN)
 	list(APPEND SRC
-		./intern/itasc_plugin.cpp
+		intern/MOD_boolean_util.c
 	)
+	list(APPEND INC ../../../intern/bsp/extern)
 endif()
 
-blender_add_lib(bf_ikplugin "${SRC}" "${INC}")
+if(WITH_MOD_DECIMATE)
+	add_definitions(-DWITH_MOD_DECIMATE)
+	list(APPEND INC ../../../intern/decimation/extern)
+endif()
+
+if(NOT WITH_MOD_FLUID)
+	add_definitions(-DDISABLE_ELBEEM)
+endif()
+
+blender_add_lib(bf_modifiers "${SRC}" "${INC}")

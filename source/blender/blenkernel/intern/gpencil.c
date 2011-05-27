@@ -24,7 +24,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/blenkernel/intern/gpencil.c
  *  \ingroup bke
  */

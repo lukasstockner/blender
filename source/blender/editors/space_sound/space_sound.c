@@ -62,7 +62,7 @@
 
 /* ******************** default callbacks for sound space ***************** */
 
-static SpaceLink *sound_new(const bContext *C)
+static SpaceLink *sound_new(const bContext *UNUSED(C))
 {
 	ARegion *ar;
 	SpaceSound *ssound;
@@ -113,7 +113,7 @@ static SpaceLink *sound_new(const bContext *C)
 }
 
 /* not spacelink itself */
-static void sound_free(SpaceLink *sl)
+static void sound_free(SpaceLink *UNUSED(sl))
 {	
 //	SpaceSound *ssound= (SpaceSound*) sl;
 	
@@ -122,7 +122,7 @@ static void sound_free(SpaceLink *sl)
 
 
 /* spacetype; init callback */
-static void sound_init(struct wmWindowManager *wm, ScrArea *sa)
+static void sound_init(struct wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
 {
 
 }
@@ -182,7 +182,7 @@ static void sound_keymap(struct wmKeyConfig *UNUSED(keyconf))
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void sound_header_area_init(wmWindowManager *wm, ARegion *ar)
+static void sound_header_area_init(wmWindowManager *UNUSED(wm), ARegion *ar)
 {
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_HEADER, ar->winx, ar->winy);
 }
@@ -209,7 +209,7 @@ static void sound_header_area_draw(const bContext *C, ARegion *ar)
 	UI_view2d_view_restore(C);
 }
 
-static void sound_main_area_listener(ARegion *ar, wmNotifier *wmn)
+static void sound_main_area_listener(ARegion *UNUSED(ar), wmNotifier *UNUSED(wmn))
 {
 	/* context changes */
 }

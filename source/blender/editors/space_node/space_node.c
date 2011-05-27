@@ -70,13 +70,13 @@
 ARegion *node_has_buttons_region(ScrArea *sa)
 {
 	ARegion *ar, *arnew;
-	
+
 	ar= BKE_area_find_region_type(sa, RGN_TYPE_UI);
 	if(ar) return ar;
 	
 	/* add subdiv level; after header */
 	ar= BKE_area_find_region_type(sa, RGN_TYPE_HEADER);
-	
+
 	/* is error! */
 	if(ar==NULL) return NULL;
 	
@@ -93,7 +93,7 @@ ARegion *node_has_buttons_region(ScrArea *sa)
 
 /* ******************** default callbacks for node space ***************** */
 
-static SpaceLink *node_new(const bContext *C)
+static SpaceLink *node_new(const bContext *UNUSED(C))
 {
 	ARegion *ar;
 	SpaceNode *snode;
@@ -152,14 +152,14 @@ static SpaceLink *node_new(const bContext *C)
 }
 
 /* not spacelink itself */
-static void node_free(SpaceLink *sl)
+static void node_free(SpaceLink *UNUSED(sl))
 {	
 	
 }
 
 
 /* spacetype; init callback */
-static void node_init(struct wmWindowManager *wm, ScrArea *sa)
+static void node_init(struct wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa))
 {
 
 }
@@ -183,29 +183,29 @@ static void node_area_listener(ScrArea *sa, wmNotifier *wmn)
 						if(snode->flag & SNODE_AUTO_RENDER) {
 							snode->recalc= 1;
 							ED_area_tag_refresh(sa);
-			}
+						}
 					}
-			break;
+					break;
 			}
 			break;
 		case NC_WM:
 			if(wmn->data==ND_FILEREAD)
 				ED_area_tag_refresh(sa);
 			break;
-			
+		
 		/* future: add ID checks? */
 		case NC_MATERIAL:
 			if(type==NTREE_SHADER) {
-			if(wmn->data==ND_SHADING)
-				ED_area_tag_refresh(sa);
-			else if(wmn->data==ND_SHADING_DRAW)
-				ED_area_tag_refresh(sa);
+				if(wmn->data==ND_SHADING)
+					ED_area_tag_refresh(sa);
+				else if(wmn->data==ND_SHADING_DRAW)
+					ED_area_tag_refresh(sa);
 			}
 			break;
 		case NC_TEXTURE:
 			if(type==NTREE_SHADER || type==NTREE_TEXTURE) {
-			if(wmn->data==ND_NODES)
-				ED_area_tag_refresh(sa);
+				if(wmn->data==ND_NODES)
+					ED_area_tag_refresh(sa);
 			}
 			break;
 		case NC_TEXT:
@@ -234,8 +234,8 @@ static void node_area_listener(ScrArea *sa, wmNotifier *wmn)
 					 * painting on images could become very slow when the compositor is open. */
 					if(NodeTagIDChanged(scene->nodetree, wmn->reference))
 						ED_area_tag_refresh(sa);
-	}
-}
+				}
+			}
 			break;
 	}
 }
@@ -262,8 +262,8 @@ static void node_area_refresh(const struct bContext *C, struct ScrArea *sa)
 					node_render_changed_exec((struct bContext*)C, NULL);
 				}
 				else 
-				snode_composite_job(C, sa);
-		}
+					snode_composite_job(C, sa);
+			}
 		}
 		else if(snode->treetype==NTREE_TEXTURE) {
 			Tex *tex= (Tex *)snode->id;
@@ -333,7 +333,7 @@ static void node_main_area_draw(const bContext *C, ARegion *ar)
 
 /* ************* dropboxes ************* */
 
-static int node_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
+static int node_drop_poll(bContext *UNUSED(C), wmDrag *drag, wmEvent *UNUSED(event))
 {
 	if(drag->type==WM_DRAG_ID) {
 		ID *id= (ID *)drag->poin;
@@ -372,7 +372,7 @@ static void node_dropboxes(void)
 
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void node_header_area_init(wmWindowManager *wm, ARegion *ar)
+static void node_header_area_init(wmWindowManager *UNUSED(wm), ARegion *ar)
 {
 	ED_region_header_init(ar);
 }

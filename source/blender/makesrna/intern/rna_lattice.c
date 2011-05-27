@@ -191,7 +191,7 @@ static char *rna_LatticePoint_path(PointerRNA *ptr)
 	Lattice *lt= (Lattice*)ptr->id.data;
 	void *point= ptr->data;
 	BPoint *points = NULL;
-
+	
 	if (lt->editlatt && lt->editlatt->latt->def)
 		points = lt->editlatt->latt->def;
 	else

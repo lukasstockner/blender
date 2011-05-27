@@ -108,8 +108,8 @@ static void do_math(bNode *node, float *out, float *in, float *in2)
 				if (y_mod_1 > 0.999 || y_mod_1 < 0.001) {
 					out[0]= pow(in[0], floor(in2[0] + 0.5));
 				} else {
-				out[0]= 0.0;
-		}
+					out[0] = 0.0;
+				}
 			}
 		}
 		break;
@@ -162,7 +162,7 @@ static void do_math(bNode *node, float *out, float *in, float *in2)
 	}
 }
 
-static void node_composit_exec_math(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_math(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	CompBuf *cbuf=in[0]->data;
 	CompBuf *cbuf2=in[1]->data;

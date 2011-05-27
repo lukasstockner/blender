@@ -40,6 +40,6 @@ AUD_PitchFactory::AUD_PitchFactory(AUD_IFactory* factory, float pitch) :
 }
 
 AUD_IReader* AUD_PitchFactory::createReader() const
-	{
+{
 	return new AUD_PitchReader(getReader(), m_pitch);
-	}
+}

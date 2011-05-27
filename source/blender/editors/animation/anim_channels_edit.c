@@ -171,7 +171,7 @@ void ANIM_set_active_channel (bAnimContext *ac, void *data, short datatype, int 
 				/* need to verify that this data is valid for now */
 				if (ale && ale->adt) {
 					ale->adt->flag |= ADT_UI_ACTIVE;
-			}
+				}
 			}
 				break;
 		}
@@ -348,9 +348,9 @@ void ANIM_deselect_anim_channels (bAnimContext *ac, void *data, short datatype, 
 				bGPDlayer *gpl = (bGPDlayer *)ale->data;
 				
 				ACHANNEL_SET_FLAG(gpl, sel, GP_LAYER_SELECT);
-		}
+			}
 				break;
-	}
+		}
 	}
 	
 	/* Cleanup */
@@ -571,17 +571,14 @@ static int animedit_poll_channels_nla_tweakmode_off (bContext *C)
 }
 
 /* ****************** Rearrange Channels Operator ******************* */
-/* This operator only works for Action Editor mode for now, as having it elsewhere makes things difficult */
-
-#if 0 // XXX old animation system - needs to be updated for new system...
 
 /* constants for channel rearranging */
 /* WARNING: don't change exising ones without modifying rearrange func accordingly */
 enum {
-	REARRANGE_ACTCHAN_TOP= -2,
-	REARRANGE_ACTCHAN_UP= -1,
-	REARRANGE_ACTCHAN_DOWN= 1,
-	REARRANGE_ACTCHAN_BOTTOM= 2
+	REARRANGE_ANIMCHAN_TOP= -2,
+	REARRANGE_ANIMCHAN_UP= -1,
+	REARRANGE_ANIMCHAN_DOWN= 1,
+	REARRANGE_ANIMCHAN_BOTTOM= 2
 };
 
 /* defines for rearranging channels */
@@ -592,24 +589,24 @@ static EnumPropertyItem prop_animchannel_rearrange_types[] = {
 	{REARRANGE_ANIMCHAN_BOTTOM, "BOTTOM", 0, "To Bottom", ""},
 	{0, NULL, 0, NULL, NULL}
 };
-	
+
 /* Reordering "Islands" Defines ----------------------------------- */
-			
+
 /* Island definition - just a listbase container */
 typedef struct tReorderChannelIsland {
 	struct tReorderChannelIsland *next, *prev;
-		
+	
 	ListBase channels; 	/* channels within this region with the same state */
 	int flag;			/* eReorderIslandFlag */
 } tReorderChannelIsland;
-		
+
 /* flags for channel reordering islands */
 typedef enum eReorderIslandFlag {
 	REORDER_ISLAND_SELECTED 		= (1<<0),	/* island is selected */
 	REORDER_ISLAND_UNTOUCHABLE 		= (1<<1),	/* island should be ignored */
 	REORDER_ISLAND_MOVED			= (1<<2)	/* island has already been moved */
 } eReorderIslandFlag;
-	
+
 
 /* Rearrange Methods --------------------------------------------- */
 
@@ -617,7 +614,7 @@ static short rearrange_island_ok (tReorderChannelIsland *island)
 {
 	/* island must not be untouchable */
 	if (island->flag & REORDER_ISLAND_UNTOUCHABLE)
-			return 0;
+		return 0;
 	
 	/* island should be selected to be moved */
 	return (island->flag & REORDER_ISLAND_SELECTED) && !(island->flag & REORDER_ISLAND_MOVED);
@@ -671,15 +668,15 @@ static short rearrange_island_down (ListBase *list, tReorderChannelIsland *islan
 			if ((next->flag & REORDER_ISLAND_UNTOUCHABLE)==0) {
 				/* remove from current position */
 				BLI_remlink(list, island);
-			
+				
 				/* push it down */
 				BLI_insertlinkafter(list, next, island);
-			
-			return 1;
-		}
+				
+				return 1;
+			}
 		}
 		/* else: no next channel, so we're at the bottom already, so can't move */
-		}
+	}
 	
 	return 0;
 }
@@ -688,10 +685,10 @@ static short rearrange_island_bottom (ListBase *list, tReorderChannelIsland *isl
 {
 	if (rearrange_island_ok(island)) {
 		tReorderChannelIsland *last = list->last;
-			
+		
 		/* remove island from current position */
 		BLI_remlink(list, island);
-			
+		
 		/* add before or after the last channel? */
 		if ((last->flag & REORDER_ISLAND_UNTOUCHABLE)==0) {
 			/* can add after it */
@@ -701,8 +698,8 @@ static short rearrange_island_bottom (ListBase *list, tReorderChannelIsland *isl
 			/* can at most go just before it, since last cannot be moved */
 			BLI_insertlinkbefore(list, last, island);
 			
-	}
-	
+		}
+		
 		return 1;
 	}
 	
@@ -742,51 +739,51 @@ static void rearrange_animchannel_add_to_islands (ListBase *islands, ListBase *s
 {
 	tReorderChannelIsland *island = islands->last; 	/* always try to add to last island if possible */
 	short is_sel=0, is_untouchable=0;
-
+	
 	/* get flags - selected and untouchable from the channel */
 	switch (type) {
 		case ANIMTYPE_GROUP:
-{
+		{
 			bActionGroup *agrp= (bActionGroup *)channel;
 			
 			is_sel= SEL_AGRP(agrp);
 			is_untouchable= (agrp->flag & AGRP_TEMP) != 0;
-}
+		}
 			break;
 		case ANIMTYPE_FCURVE:
 		{
 			FCurve *fcu= (FCurve *)channel;
-
+			
 			is_sel= SEL_FCU(fcu);
 		}	
 			break;
 		case ANIMTYPE_NLATRACK:
-{
+		{
 			NlaTrack *nlt= (NlaTrack *)channel;
 			
 			is_sel= SEL_NLT(nlt);
-}
+		}
 			break;
-
+			
 		default:
 			printf("rearrange_animchannel_add_to_islands(): don't know how to handle channels of type %d\n", type);
 			return;
 	}
-
+	
 	/* do we need to add to a new island? */
 	if ((island == NULL) ||                                 /* 1) no islands yet */
 		((island->flag & REORDER_ISLAND_SELECTED) == 0) ||  /* 2) unselected islands have single channels only - to allow up/down movement */
 		(is_sel == 0))                                      /* 3) if channel is unselected, stop existing island (it was either wrong sel status, or full already) */
-{
+	{
 		/* create a new island now */
 		island = MEM_callocN(sizeof(tReorderChannelIsland), "tReorderChannelIsland");
 		BLI_addtail(islands, island);
-	
+		
 		if (is_sel)
 			island->flag |= REORDER_ISLAND_SELECTED;
 		if (is_untouchable)
 			island->flag |= REORDER_ISLAND_UNTOUCHABLE;
-}
+	}
 
 	/* add channel to island - need to remove it from its existing list first though */
 	BLI_remlink(srcList, channel);
@@ -880,8 +877,8 @@ static void rearrange_nla_channels (bAnimContext *UNUSED(ac), AnimData *adt, sho
 	
 	/* perform rearranging on tracks list */
 	rearrange_animchannel_islands(&adt->nla_tracks, rearrange_func, mode, ANIMTYPE_NLATRACK);
-	}
-	
+}
+
 /* Drivers Specific Stuff ------------------------------------------------- */
 
 /* Change the order drivers within AnimData block
@@ -901,8 +898,8 @@ static void rearrange_driver_channels (bAnimContext *UNUSED(ac), AnimData *adt, 
 	
 	/* perform rearranging on drivers list (drivers are really just F-Curves) */
 	rearrange_animchannel_islands(&adt->drivers, rearrange_func, mode, ANIMTYPE_FCURVE);
-	}
-	
+}
+
 /* Action Specific Stuff ------------------------------------------------- */
 
 /* make sure all action-channels belong to a group (and clear action's list) */
@@ -984,26 +981,11 @@ static void rearrange_action_channels (bAnimContext *ac, bAction *act, short mod
 	bActionGroup tgrp;
 	short do_channels;
 	
-	/* Get the active action, exit if none are selected */
-	act= (bAction *)ac->data;
+	/* get rearranging function */
+	AnimChanRearrangeFp rearrange_func = rearrange_get_mode_func(mode);
 	
-	/* exit if invalid mode */
-	switch (mode) {
-		case REARRANGE_ACTCHAN_TOP:
-			rearrange_func= rearrange_actchannel_top;
-			break;
-		case REARRANGE_ACTCHAN_UP:
-			rearrange_func= rearrange_actchannel_up;
-			break;
-		case REARRANGE_ACTCHAN_DOWN:
-			rearrange_func= rearrange_actchannel_down;
-			break;
-		case REARRANGE_ACTCHAN_BOTTOM:
-			rearrange_func= rearrange_actchannel_bottom;
-			break;
-		default:
-			return;
-	}
+	if (rearrange_func == NULL)
+		return;
 	
 	/* make sure we're only operating with groups (vs a mixture of groups+curves) */
 	split_groups_action_temp(act, &tgrp);
@@ -1013,19 +995,17 @@ static void rearrange_action_channels (bAnimContext *ac, bAction *act, short mod
 	 *	  i.e. the rearrange function returned 0
 	 */
 	do_channels = rearrange_animchannel_islands(&act->groups, rearrange_func, mode, ANIMTYPE_GROUP) == 0;
-		
+	
 	if (do_channels) {
 		bActionGroup *agrp;
-			
+		
 		for (agrp= act->groups.first; agrp; agrp= agrp->next) {
 			/* only consider F-Curves if they're visible (group expanded) */
 			if (EXPANDED_AGRP(ac, agrp)) {
 				rearrange_animchannel_islands(&agrp->channels, rearrange_func, mode, ANIMTYPE_FCURVE);
-				}
 			}
 		}
-	#undef GET_FIRST
-	#undef GET_NEXT
+	}
 	
 	/* assemble lists into one list (and clear moved tags) */
 	join_groups_action_temp(act);
@@ -1036,39 +1016,43 @@ static void rearrange_action_channels (bAnimContext *ac, bAction *act, short mod
 static int animchannels_rearrange_exec(bContext *C, wmOperator *op)
 {
 	bAnimContext ac;
+	
+	ListBase anim_data = {NULL, NULL};
+	bAnimListElem *ale;
+	int filter;
+	
 	short mode;
 	
-	/* get editor data - only for Action Editor (for now) */
+	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
-	if (ac.datatype != ANIMCONT_ACTION)
-		return OPERATOR_PASS_THROUGH;
 		
-	/* get mode, then rearrange channels */
+	/* get mode */
 	mode= RNA_enum_get(op->ptr, "direction");
-	rearrange_action_channels(&ac, mode);
 	
-	/* send notifier that things have changed */
-	WM_event_add_notifier(C, NC_ANIMATION|ND_ANIMCHAN|NA_EDITED, NULL);
+	/* get animdata blocks */
+	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_ANIMDATA);
+	ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 	
-	return OPERATOR_FINISHED;
-}
- 
-
-void ANIM_OT_channels_move_up (wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name= "Move Channel(s) Up";
-	ot->idname= "ANIM_OT_channels_move_up";
-	
+	for (ale = anim_data.first; ale; ale = ale->next) {
+		AnimData *adt= ale->data;
+		
+		switch (ac.datatype) {
+			case ANIMCONT_NLA: /* NLA-tracks only */
+				rearrange_nla_channels(&ac, adt, mode);
+				break;
+			
+			case ANIMCONT_DRIVERS: /* Drivers list only */
+				rearrange_driver_channels(&ac, adt, mode);
+				break;
+				
 			case ANIMCONT_GPENCIL: /* Grease Pencil channels */
 				// FIXME: this case probably needs to get moved out of here or treated specially...
 				printf("grease pencil not supported for moving yet\n");
 				break;
-	
-	/* flags */
-	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
-	
+				
+			case ANIMCONT_SHAPEKEY: // DOUBLE CHECK ME...
+				
 			default: /* some collection of actions */
 				// FIXME: actions should only be considered once!
 				if (adt->action)
@@ -1076,52 +1060,28 @@ void ANIM_OT_channels_move_up (wmOperatorType *ot)
 				else if (G.f & G_DEBUG)
 					printf("animdata has no action\n");
 				break;
-}
-
-void ANIM_OT_channels_move_down (wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name= "Move Channel(s) Down";
-	ot->idname= "ANIM_OT_channels_move_down";
+		}
+	}
 	
-	/* api callbacks */
-	ot->exec= animchannels_rearrange_exec;
-	ot->poll= ED_operator_areaactive;
+	/* free temp data */
+	BLI_freelistN(&anim_data);
 	
-	/* flags */
-	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+	/* send notifier that things have changed */
+	WM_event_add_notifier(C, NC_ANIMATION|ND_ANIMCHAN|NA_EDITED, NULL);
 	
-	/* props */
-	RNA_def_enum(ot->srna, "direction", NULL /* XXX add enum for this */, REARRANGE_ACTCHAN_DOWN, "Direction", "");
-}
-
-void ANIM_OT_channels_move_top (wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name= "Move Channel(s) to Top";
-	ot->idname= "ANIM_OT_channels_move_to_top";
-	
-	/* api callbacks */
-	ot->exec= animchannels_rearrange_exec;
-	ot->poll= ED_operator_areaactive;
-	
-	/* flags */
-	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
-	
-	/* props */
-	RNA_def_enum(ot->srna, "direction", NULL /* XXX add enum for this */, REARRANGE_ACTCHAN_TOP, "Direction", "");
+	return OPERATOR_FINISHED;
 }
 
 static void ANIM_OT_channels_move (wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Move Channel(s) to Bottom";
-	ot->idname= "ANIM_OT_channels_move_to_bottom";
+	ot->name= "Move Channels";
+	ot->idname= "ANIM_OT_channels_move";
 	ot->description = "Rearrange selected animation channels";
 	
 	/* api callbacks */
 	ot->exec= animchannels_rearrange_exec;
-	ot->poll= ED_operator_areaactive;
+	ot->poll= animedit_poll_channels_nla_tweakmode_off;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -1129,8 +1089,6 @@ static void ANIM_OT_channels_move (wmOperatorType *ot)
 	/* props */
 	ot->prop= RNA_def_enum(ot->srna, "direction", prop_animchannel_rearrange_types, REARRANGE_ANIMCHAN_DOWN, "Direction", "");
 }
-
-#endif // XXX old animation system - needs to be updated for new system...
 
 /* ******************** Delete Channel Operator *********************** */
 
@@ -1767,7 +1725,7 @@ static void ANIM_OT_channels_fcurves_enable (wmOperatorType *ot)
 
 /* ********************** Select All Operator *********************** */
 
-static int animchannels_deselectall_exec(bContext *C, wmOperator *op)
+static int animchannels_deselectall_exec (bContext *C, wmOperator *op)
 {
 	bAnimContext ac;
 	
@@ -1815,7 +1773,17 @@ static void borderselect_anim_channels (bAnimContext *ac, rcti *rect, short sele
 	
 	View2D *v2d= &ac->ar->v2d;
 	rctf rectf;
-	float ymin=0, ymax=(float)(-ACHANNEL_HEIGHT);
+	float ymin, ymax;
+	
+	/* set initial y extents */
+	if (ac->datatype == ANIMCONT_NLA) {
+		ymin = (float)(-NLACHANNEL_HEIGHT);
+		ymax = 0.0f;
+	}
+	else {
+		ymin = 0.0f;
+		ymax = (float)(-ACHANNEL_HEIGHT);
+	}
 	
 	/* convert border-region to view coordinates */
 	UI_view2d_region_to_view(v2d, rect->xmin, rect->ymin+2, &rectf.xmin, &rectf.ymin);
@@ -1827,7 +1795,10 @@ static void borderselect_anim_channels (bAnimContext *ac, rcti *rect, short sele
 	
 	/* loop over data, doing border select */
 	for (ale= anim_data.first; ale; ale= ale->next) {
-		ymin= ymax - ACHANNEL_STEP;
+		if (ac->datatype == ANIMCONT_NLA)
+			ymin= ymax - NLACHANNEL_STEP;
+		else
+			ymin= ymax - ACHANNEL_STEP;
 		
 		/* if channel is within border-select region, alter it */
 		if (!((ymax < rectf.ymin) || (ymin > rectf.ymax))) {
@@ -1842,6 +1813,16 @@ static void borderselect_anim_channels (bAnimContext *ac, rcti *rect, short sele
 					
 					/* always clear active flag after doing this */
 					agrp->flag &= ~AGRP_ACTIVE;
+				}
+					break;
+				case ANIMTYPE_NLATRACK:
+				{
+					NlaTrack *nlt= (NlaTrack *)ale->data;
+					
+					/* for now, it's easier just to do this here manually, as defining a new type 
+					 * currently adds complications when doing other stuff 
+					 */
+					ACHANNEL_SET_FLAG(nlt, selectmode, NLATRACK_SELECTED);
 				}
 					break;
 			}
@@ -1913,7 +1894,7 @@ static void ANIM_OT_channels_select_border(wmOperatorType *ot)
 /* ******************** Mouse-Click Operator *********************** */
 /* Handle selection changes due to clicking on channels. Settings will get caught by UI code... */
 
-static int mouse_anim_channels (bAnimContext *ac, float x, int channel_index, short selectmode)
+static int mouse_anim_channels (bAnimContext *ac, float UNUSED(x), int channel_index, short selectmode)
 {
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
@@ -2138,7 +2119,7 @@ static int mouse_anim_channels (bAnimContext *ac, float x, int channel_index, sh
 				/* invert selection status of this layer only */
 				gpl->flag ^= GP_LAYER_SELECT;
 			}
-			else {
+			else {	
 				/* select layer by itself */
 				ANIM_deselect_anim_channels(ac, ac->data, ac->datatype, 0, ACHANNEL_SETFLAG_CLEAR);
 				gpl->flag |= GP_LAYER_SELECT;
@@ -2244,17 +2225,15 @@ void ED_operatortypes_animchannels(void)
 		// XXX does this need to be a separate operator?
 	WM_operatortype_append(ANIM_OT_channels_editable_toggle);
 	
-		// XXX these need to be updated for new system... todo...
-	//WM_operatortype_append(ANIM_OT_channels_move_up);
-	//WM_operatortype_append(ANIM_OT_channels_move_down);
-	//WM_operatortype_append(ANIM_OT_channels_move_top);
-	//WM_operatortype_append(ANIM_OT_channels_move_bottom);
+	WM_operatortype_append(ANIM_OT_channels_move);
 	
 	WM_operatortype_append(ANIM_OT_channels_expand);
 	WM_operatortype_append(ANIM_OT_channels_collapse);
 	
 	WM_operatortype_append(ANIM_OT_channels_visibility_toggle);
 	WM_operatortype_append(ANIM_OT_channels_visibility_set);
+	
+	WM_operatortype_append(ANIM_OT_channels_fcurves_enable);
 }
 
 // TODO: check on a poll callback for this, to get hotkeys into menus
@@ -2296,11 +2275,11 @@ void ED_keymap_animchannels(wmKeyConfig *keyconf)
 	RNA_boolean_set(WM_keymap_add_item(keymap, "ANIM_OT_channels_expand", PADPLUSKEY, KM_PRESS, KM_CTRL, 0)->ptr, "all", 0);
 	RNA_boolean_set(WM_keymap_add_item(keymap, "ANIM_OT_channels_collapse", PADMINUS, KM_PRESS, KM_CTRL, 0)->ptr, "all", 0);
 	
-	/* rearranging - actions only */
-	//WM_keymap_add_item(keymap, "ANIM_OT_channels_move_up", PAGEUPKEY, KM_PRESS, KM_SHIFT, 0);
-	//WM_keymap_add_item(keymap, "ANIM_OT_channels_move_down", PAGEDOWNKEY, KM_PRESS, KM_SHIFT, 0);
-	//WM_keymap_add_item(keymap, "ANIM_OT_channels_move_to_top", PAGEUPKEY, KM_PRESS, KM_CTRL|KM_SHIFT, 0);
-	//WM_keymap_add_item(keymap, "ANIM_OT_channels_move_to_bottom", PAGEDOWNKEY, KM_PRESS, KM_CTRL|KM_SHIFT, 0);
+	/* rearranging */
+	RNA_enum_set(WM_keymap_add_item(keymap, "ANIM_OT_channels_move", PAGEUPKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "direction", REARRANGE_ANIMCHAN_UP);
+	RNA_enum_set(WM_keymap_add_item(keymap, "ANIM_OT_channels_move", PAGEDOWNKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "direction", REARRANGE_ANIMCHAN_DOWN);
+	RNA_enum_set(WM_keymap_add_item(keymap, "ANIM_OT_channels_move", PAGEUPKEY, KM_PRESS, KM_CTRL|KM_SHIFT, 0)->ptr, "direction", REARRANGE_ANIMCHAN_TOP);
+	RNA_enum_set(WM_keymap_add_item(keymap, "ANIM_OT_channels_move", PAGEDOWNKEY, KM_PRESS, KM_CTRL|KM_SHIFT, 0)->ptr, "direction", REARRANGE_ANIMCHAN_BOTTOM);
 	
 	/* Graph Editor only */
 	WM_keymap_add_item(keymap, "ANIM_OT_channels_visibility_set", VKEY, KM_PRESS, 0, 0);

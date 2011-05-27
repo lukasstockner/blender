@@ -207,7 +207,7 @@ public:
 		static const btTransform identityTransform(btMatrix3x3::getIdentity());
 		return identityTransform;
 	}
-	
+
 	void	serialize(struct	btTransformData& dataOut) const;
 
 	void	serializeFloat(struct	btTransformFloatData& dataOut) const;

@@ -30,7 +30,7 @@ protected:
 	static btRigidBody& getFixedBody();
 	
 	
-	public:
+public:
 
 	virtual ~btActionInterface()
 	{

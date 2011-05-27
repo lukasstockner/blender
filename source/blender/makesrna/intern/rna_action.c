@@ -114,21 +114,21 @@ static FCurve *rna_Action_fcurve_new(bAction *act, ReportList *reports, const ch
 
 static void rna_Action_fcurve_remove(bAction *act, ReportList *reports, FCurve *fcu)
 {
-	if(fcu->grp) {
+	if (fcu->grp) {
 		if (BLI_findindex(&act->groups, fcu->grp) == -1) {
 			BKE_reportf(reports, RPT_ERROR, "FCurve's ActionGroup '%s' not found in action '%s'", fcu->grp->name, act->id.name+2);
 			return;
 		}
-
+		
 		action_groups_remove_channel(act, fcu);
 		free_fcurve(fcu);
 	}
 	else {
-		if(BLI_findindex(&act->curves, fcu) == -1) {
+		if (BLI_findindex(&act->curves, fcu) == -1) {
 			BKE_reportf(reports, RPT_ERROR, "FCurve not found in action '%s'", act->id.name+2);
 			return;
 		}
-
+		
 		BLI_remlink(&act->curves, fcu);
 		free_fcurve(fcu);
 	}
@@ -181,7 +181,7 @@ static void rna_Action_active_pose_marker_index_set(PointerRNA *ptr, int value)
 
 static void rna_Action_active_pose_marker_index_range(PointerRNA *ptr, int *min, int *max)
 {
-	bAction *act= (bAction *)ptr->data;
+	bAction *act= (bAction*)ptr->data;
 
 	*min= 0;
 	*max= BLI_countlist(&act->markers)-1;
@@ -566,36 +566,36 @@ static void rna_def_action(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-
+	
 	srna= RNA_def_struct(brna, "Action", "ID");
 	RNA_def_struct_sdna(srna, "bAction");
 	RNA_def_struct_ui_text(srna, "Action", "A collection of F-Curves for animation");
 	RNA_def_struct_ui_icon(srna, ICON_ACTION);
-
+	
 	/* collections */
 	prop= RNA_def_property(srna, "fcurves", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "curves", NULL);
 	RNA_def_property_struct_type(prop, "FCurve");
 	RNA_def_property_ui_text(prop, "F-Curves", "The individual F-Curves that make up the Action");
 	rna_def_action_fcurves(brna, prop);
-
+	
 	prop= RNA_def_property(srna, "groups", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "groups", NULL);
 	RNA_def_property_struct_type(prop, "ActionGroup");
 	RNA_def_property_ui_text(prop, "Groups", "Convenient groupings of F-Curves");
 	rna_def_action_groups(brna, prop);
-
+	
 	prop= RNA_def_property(srna, "pose_markers", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "markers", NULL);
 	RNA_def_property_struct_type(prop, "TimelineMarker");
 	RNA_def_property_ui_text(prop, "Pose Markers", "Markers specific to this Action, for labeling poses");
 	rna_def_action_pose_markers(brna, prop);
-
+	
 	/* properties */
 	prop= RNA_def_float_vector(srna, "frame_range" , 2 , NULL , 0, 0, "Frame Range" , "The final frame range of all fcurves within this action" , 0 , 0);
 	RNA_def_property_float_funcs(prop, "rna_Action_frame_range_get" , NULL, NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-
+	
 	/* special "type" limiter - should not really be edited in general, but is still available/editable in 'emergencies' */
 	prop= RNA_def_property(srna, "id_root", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "idroot");

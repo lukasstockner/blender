@@ -148,15 +148,15 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 		else {
 			rctf viewplane;
 			float clipsta, clipend;
-	
+
 			int is_ortho= ED_view3d_viewplane_get(v3d, rv3d, sizex, sizey, &viewplane, &clipsta, &clipend, NULL);
 			if(is_ortho) orthographic_m4(winmat, viewplane.xmin, viewplane.xmax, viewplane.ymin, viewplane.ymax, -clipend, clipend);
 			else  perspective_m4(winmat, viewplane.xmin, viewplane.xmax, viewplane.ymin, viewplane.ymax, clipsta, clipend);
 		}
-	
+
 		if((scene->r.mode & R_OSA) == 0) { 
 			ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, winmat);
-		glReadPixels(0, 0, sizex, sizey, GL_RGBA, GL_FLOAT, rr->rectf);
+			glReadPixels(0, 0, sizex, sizey, GL_RGBA, GL_FLOAT, rr->rectf);
 		}
 		else {
 			/* simple accumulation, less hassle then FSAA FBO's */
@@ -165,8 +165,7 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 			float winmat_jitter[4][4];
 			float *accum_buffer= MEM_mallocN(sizex * sizey * sizeof(float) * 4, "accum1");
 			float *accum_tmp= MEM_mallocN(sizex * sizey * sizeof(float) * 4, "accum2");
-			int j, i;
-			float *from, *to;
+			int j;
 
 			/* first sample buffer, also initializes 'rv3d->persmat' */
 			ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, winmat);
@@ -179,19 +178,11 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 
 				ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, winmat_jitter);
 				glReadPixels(0, 0, sizex, sizey, GL_RGBA, GL_FLOAT, accum_tmp);
-				
-				i= (sizex*sizey * 4) - 1;
-				from= accum_tmp;
-				to= accum_buffer;
-				do {*to++ += *from++; } while (i--);
+				add_vn_vn(accum_buffer, accum_tmp, sizex*sizey*sizeof(float));
 			}
 
-			from= accum_buffer;
-			to= rr->rectf;
+			mul_vn_vn_fl(rr->rectf, accum_buffer, sizex*sizey*sizeof(float), 1.0/SAMPLES);
 
-			i= (sizex * sizey * 4) - 1;
-			do { *to++= *from++ * (1.0/SAMPLES); } while (i--);
-			
 			MEM_freeN(accum_buffer);
 			MEM_freeN(accum_tmp);
 		}
@@ -205,9 +196,9 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 		camera= scene->camera;
 
 		if(ibuf_view) {
-		memcpy(rr->rectf, ibuf_view->rect_float, sizeof(float) * 4 * oglrender->sizex * oglrender->sizey);
-		IMB_freeImBuf(ibuf_view);
-	}
+			memcpy(rr->rectf, ibuf_view->rect_float, sizeof(float) * 4 * oglrender->sizex * oglrender->sizey);
+			IMB_freeImBuf(ibuf_view);
+		}
 		else {
 			fprintf(stderr, "screen_opengl_render_apply: failed to get buffer, %s\n", err_out);
 		}
@@ -253,7 +244,7 @@ static int screen_opengl_render_init(bContext *C, wmOperator *op)
 	char err_out[256]= "unknown";
 
 	/* ensure we have a 3d view */
-	
+
 	if(!ED_view3d_context_activate(C)) {
 		RNA_boolean_set(op->ptr, "view_context", 0);
 		is_view_context= 0;
@@ -403,7 +394,7 @@ static int screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 
 	/* update animated image textures for gpu, etc,
 	 * call before scene_update_for_newframe so modifiers with textuers dont lag 1 frame */
-	ED_image_update_frame(C);
+	ED_image_update_frame(bmain, scene->r.cfra);
 
 	/* go to next frame */
 	while(CFRA<oglrender->nfra) {
@@ -424,10 +415,10 @@ static int screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 			 * then ED_update_for_newframe() the camera needs to be set */
 			if(scene_camera_switch_update(scene)) {
 				oglrender->v3d->camera= scene->camera;
-		}
+			}
 
 			camera= oglrender->v3d->camera;
-	}
+		}
 	}
 	else {
 		scene_camera_switch_update(scene);
@@ -512,7 +503,7 @@ static int screen_opengl_render_modal(bContext *C, wmOperator *op, wmEvent *even
 		return OPERATOR_FINISHED;
 	}
 	else
-	ret= screen_opengl_render_anim_step(C, op);
+		ret= screen_opengl_render_anim_step(C, op);
 
 	/* stop at the end or on error */
 	if(ret == 0) {
@@ -534,15 +525,15 @@ static int screen_opengl_render_invoke(bContext *C, wmOperator *op, wmEvent *eve
 		if(!screen_opengl_render_anim_initialize(C, op))
 			return OPERATOR_CANCELLED;
 	}
-
+	
 	oglrender= op->customdata;
 	render_view_open(C, event->x, event->y);
-
-		WM_event_add_modal_handler(C, op);
-		oglrender->timer= WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.01f);
-
-		return OPERATOR_RUNNING_MODAL;
-	}
+	
+	WM_event_add_modal_handler(C, op);
+	oglrender->timer= WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.01f);
+	
+	return OPERATOR_RUNNING_MODAL;
+}
 
 /* executes blocking render */
 static int screen_opengl_render_exec(bContext *C, wmOperator *op)

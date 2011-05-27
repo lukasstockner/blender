@@ -7,9 +7,9 @@
 #  as published by the Free Software Foundation; either version 2
 #  of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
 #
 #  You should have received a copy of the GNU General Public License
@@ -173,7 +173,10 @@ def complete(line, cursor, namespace):
     'abs(number) -> number\\nReturn the absolute value of the argument.'
     """
     matches = []
+    word = ''
+    scrollback = ''
     match = RE_DEF_COMPLETE.search(line[:cursor])
+
     if match:
         word = match.group(1)
         func_word = match.group(2)
@@ -181,7 +184,7 @@ def complete(line, cursor, namespace):
             func = eval(func_word, namespace)
         except Exception:
             func = None
-            scrollback = ''
+
         if func:
             doc = get_doc(func)
             argspec = get_argspec(func, doc=doc)
@@ -191,7 +194,5 @@ def complete(line, cursor, namespace):
             elif doc:
                 scrollback += '\n' + doc
             scrollback = reduce_newlines(scrollback)
-    else:
-        word = ''
-        scrollback = ''
+
     return matches, word, scrollback

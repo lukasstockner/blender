@@ -26,7 +26,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file KX_PythonSeq.h
  *  \ingroup ketsji
  *  \brief Readonly sequence wrapper for lookups on logic bricks
@@ -35,7 +35,7 @@
 #ifndef _adr_py_seq_h_				// only process once,
 #define _adr_py_seq_h_				// even if multiply included
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 #include "PyObjectPlus.h"
 
@@ -65,6 +65,6 @@ typedef struct {
 
 PyObject *KX_PythonSeq_CreatePyObject(PyObject *base, short type);
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON
 
 #endif // _adr_py_seq_h_

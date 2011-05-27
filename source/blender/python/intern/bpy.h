@@ -20,7 +20,7 @@
  * Contributor(s): Campbell Barton
  *
  * ***** END GPL LICENSE BLOCK ***** */
- 
+
 /** \file blender/python/intern/bpy.h
  *  \ingroup pythonintern
  */

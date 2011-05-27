@@ -30,8 +30,8 @@
 /** \file BKE_cdderivedmesh.h
  *  \ingroup bke
  *  \section aboutcdderivedmesh CDDerivedMesh interface
- * CDDerivedMesh (CD = Custom Data) is a DerivedMesh backend which stores
- * mesh elements (vertices, edges and faces) as layers of custom element data.
+ *   CDDerivedMesh (CD = Custom Data) is a DerivedMesh backend which stores
+ *   mesh elements (vertices, edges and faces) as layers of custom element data.
  */
 
 #ifndef BKE_CDDERIVEDMESH_H

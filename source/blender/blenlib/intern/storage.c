@@ -107,13 +107,13 @@ static struct ListBase *dirbase = &dirbase_;
 char *BLI_getwdN(char *dir, const int maxncpy)
 {
 	const char *pwd= getenv("PWD");
-		if (pwd){
+	if (pwd){
 		BLI_strncpy(dir, pwd, maxncpy);
 		return dir;
-		}
+	}
 
 	return getcwd(dir, maxncpy);
-	}
+}
 
 
 int BLI_compare(struct direntry *entry1, struct direntry *entry2)
@@ -143,7 +143,7 @@ int BLI_compare(struct direntry *entry1, struct direntry *entry2)
 }
 
 
-double BLI_diskfree(char *dir)
+double BLI_diskfree(const char *dir)
 {
 #ifdef WIN32
 	DWORD sectorspc, bytesps, freec, clusters;
@@ -242,7 +242,7 @@ void BLI_builddir(const char *dirname, const char *relname)
 					files= NULL;
 				}
 			}
-
+			
 			if(files==NULL)
 				files=(struct direntry *)malloc(newnum * sizeof(struct direntry));
 
@@ -392,7 +392,7 @@ void BLI_adddirstrings(void)
 	}
 }
 
-unsigned int BLI_getdir(char *dirname,  struct direntry **filelist)
+unsigned int BLI_getdir(const char *dirname,  struct direntry **filelist)
 {
 	// reset global variables
 	// memory stored in files is free()'d in
@@ -438,7 +438,7 @@ size_t BLI_filepathsize(const char *path)
 }
 
 
-int BLI_exist(char *name)
+int BLI_exist(const char *name)
 {
 #if defined(WIN32) && !defined(__MINGW32__)
 	struct _stat64i32 st;

@@ -35,7 +35,7 @@
 AUD_IReader* AUD_MixerFactory::getReader() const
 {
 	return m_factory->createReader();
-	}
+}
 
 AUD_MixerFactory::AUD_MixerFactory(AUD_IFactory* factory,
 								   AUD_DeviceSpecs specs) :

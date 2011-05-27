@@ -411,7 +411,7 @@ static int rna_validate_identifier(const char *identifier, char *error, int prop
 			return 0;
 		}
 	}
-	
+
 	if(property) {
 		static const char *kwlist_prop[] = {
 			/* not keywords but reserved all the same because py uses */
@@ -1027,6 +1027,11 @@ void RNA_def_property_clear_flag(PropertyRNA *prop, int flag)
 	prop->flag &= ~flag;
 }
 
+void RNA_def_property_subtype(PropertyRNA *prop, PropertySubType subtype)
+{
+	prop->subtype= subtype;
+}
+
 void RNA_def_property_array(PropertyRNA *prop, int length)
 {
 	StructRNA *srna= DefRNA.laststruct;
@@ -1039,6 +1044,12 @@ void RNA_def_property_array(PropertyRNA *prop, int length)
 
 	if(length>RNA_MAX_ARRAY_LENGTH) {
 		fprintf(stderr, "RNA_def_property_array: \"%s.%s\", array length must be smaller than %d.\n", srna->identifier, prop->identifier, RNA_MAX_ARRAY_LENGTH);
+		DefRNA.error= 1;
+		return;
+	}
+
+	if(prop->arraydimension > 1) {
+		fprintf(stderr, "RNA_def_property_array: \"%s.%s\", array dimensions has been set to %d but would be overwritten as 1.\n", srna->identifier, prop->identifier, prop->arraydimension);
 		DefRNA.error= 1;
 		return;
 	}
@@ -1058,7 +1069,7 @@ void RNA_def_property_array(PropertyRNA *prop, int length)
 	}
 }
 
-void RNA_def_property_multi_array(PropertyRNA *prop, int dimension, int length[])
+void RNA_def_property_multi_array(PropertyRNA *prop, int dimension, const int length[])
 {
 	StructRNA *srna= DefRNA.laststruct;
 	int i;
@@ -1406,7 +1417,7 @@ void RNA_def_property_enum_default(PropertyRNA *prop, int value)
 			if(prop->flag & PROP_ENUM_FLAG) {
 				/* check all bits are accounted for */
 				int totflag= 0;
-			for(i=0; i<eprop->totitem; i++) {
+				for(i=0; i<eprop->totitem; i++) {
 					if(eprop->item[i].identifier[0]) {
 						totflag |= eprop->item[i].value;
 					}
@@ -1419,19 +1430,19 @@ void RNA_def_property_enum_default(PropertyRNA *prop, int value)
 			}
 			else {
 				for(i=0; i<eprop->totitem; i++) {
-				if(eprop->item[i].identifier[0] && eprop->item[i].value == eprop->defaultvalue)
-					defaultfound= 1;
-			}
+					if(eprop->item[i].identifier[0] && eprop->item[i].value == eprop->defaultvalue)
+						defaultfound= 1;
+				}
 
-			if(!defaultfound && eprop->totitem) {
-				if(value == 0) {
-					eprop->defaultvalue= eprop->item[0].value;
+				if(!defaultfound && eprop->totitem) {
+					if(value == 0) {
+						eprop->defaultvalue= eprop->item[0].value;
+					}
+					else {
+						fprintf(stderr, "RNA_def_property_enum_default: \"%s.%s\", default is not in items.\n", srna->identifier, prop->identifier);
+						DefRNA.error= 1;
+					}
 				}
-				else {
-					fprintf(stderr, "RNA_def_property_enum_default: \"%s.%s\", default is not in items.\n", srna->identifier, prop->identifier);
-					DefRNA.error= 1;
-				}
-			}
 			}
 
 			break;
@@ -1531,7 +1542,7 @@ void RNA_def_property_boolean_sdna(PropertyRNA *prop, const char *structname, co
 		}
 
 		dp->booleanbit= bit;
-}
+	}
 }
 
 void RNA_def_property_boolean_negative_sdna(PropertyRNA *prop, const char *structname, const char *propname, int booleanbit)
@@ -2329,8 +2340,11 @@ PropertyRNA *RNA_def_float_matrix(StructOrFunctionRNA *cont_, const char *identi
 {
 	ContainerRNA *cont= cont_;
 	PropertyRNA *prop;
-	int length[2]= {rows, columns};
-	
+	int length[2];
+
+	length[0]= rows;
+	length[1]= columns;
+
 	prop= RNA_def_property(cont, identifier, PROP_FLOAT, PROP_MATRIX);
 	RNA_def_property_multi_array(prop, 2, length);
 	if(default_value) RNA_def_property_float_array_default(prop, default_value);
@@ -2855,7 +2869,7 @@ static void rna_def_property_free(StructOrFunctionRNA *cont_, PropertyRNA *prop)
 	}
 	else {
 		RNA_def_property_free_pointers(prop);
-}
+	}
 }
 
 /* note: only intended for removing dynamic props */

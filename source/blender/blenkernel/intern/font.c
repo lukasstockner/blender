@@ -89,10 +89,10 @@ size_t chtoutf8(const unsigned long c, char o[4])
 		return 3;
 	}
 	else if (c < 0x200000) {
-	o[0] = (0xf0 | (c>>18));
-	o[1] = (0x80 | (c >>12 & 0x3f));
-	o[2] = (0x80 | (c >> 6 & 0x3f));
-	o[3] = (0x80 | (c & 0x3f));
+		o[0] = (0xf0 | (c>>18));
+		o[1] = (0x80 | (c >>12 & 0x3f));
+		o[2] = (0x80 | (c >> 6 & 0x3f));
+		o[3] = (0x80 | (c & 0x3f));
 		return 4;
 	}
 
@@ -107,7 +107,7 @@ void wcs2utf8s(char *dst, const wchar_t *src)
 	}
 
 	*dst= '\0';
-	}
+}
 
 size_t wcsleninu8(wchar_t *src)
 {
@@ -124,7 +124,7 @@ size_t wcsleninu8(wchar_t *src)
 static size_t utf8slen(const char *strc)
 {
 	int len=0;
-	
+
 	while(*strc) {
 		if ((*strc & 0xe0) == 0xc0) {
 			if((strc[1] & 0x80) && (strc[1] & 0x40) == 0x00)
@@ -139,8 +139,8 @@ static size_t utf8slen(const char *strc)
 
 		strc++;
 		len++;
-		}
-	
+	}
+
 	return len;
 }
 
@@ -258,7 +258,7 @@ static PackedFile *get_builtin_packedfile(void)
 void free_ttfont(void)
 {
 	struct TmpFont *tf;
-	
+
 	for(tf= ttfdata.first; tf; tf= tf->next) {
 		if(tf->pf) freePackedFile(tf->pf); /* NULL when the font file can't be found on disk */
 		tf->pf= NULL;
@@ -298,7 +298,7 @@ static VFontData *vfont_get_data(VFont *vfont)
 	if (!vfont->data) {
 		PackedFile *pf;
 		
-		if (BLI_streq(vfont->name, "<builtin>")) {
+		if (strcmp(vfont->name, FO_BUILTIN_NAME)==0) {
 			pf= get_builtin_packedfile();
 		} else {
 			if (vfont->packedfile) {
@@ -335,7 +335,7 @@ static VFontData *vfont_get_data(VFont *vfont)
 			if(!pf) {
 				printf("Font file doesn't exist: %s\n", vfont->name);
 
-				strcpy(vfont->name, "<builtin>");
+				strcpy(vfont->name, FO_BUILTIN_NAME);
 				pf= get_builtin_packedfile();
 			}
 		}
@@ -360,7 +360,7 @@ VFont *load_vfont(const char *name)
 	int is_builtin;
 	struct TmpFont *tmpfnt;
 	
-	if (BLI_streq(name, "<builtin>")) {
+	if (strcmp(name, FO_BUILTIN_NAME)==0) {
 		BLI_strncpy(filename, name, sizeof(filename));
 		
 		pf= get_builtin_packedfile();
@@ -387,7 +387,7 @@ VFont *load_vfont(const char *name)
 
 			/* if there's a font name, use it for the ID name */
 			if (vfd->name[0] != '\0') {
-				BLI_strncpy(vfont->id.name+2, vfd->name, 21);
+				BLI_strncpy(vfont->id.name+2, vfd->name, sizeof(vfont->id.name)-2);
 			}
 			BLI_strncpy(vfont->name, name, sizeof(vfont->name));
 
@@ -396,8 +396,8 @@ VFont *load_vfont(const char *name)
 				vfont->packedfile = pf;
 			}
 			
-			// Do not add <builtin> to temporary listbase
-			if(strcmp(filename, "<builtin>"))
+			// Do not add FO_BUILTIN_NAME to temporary listbase
+			if(strcmp(filename, FO_BUILTIN_NAME))
 			{
 				tmpfnt= (struct TmpFont *) MEM_callocN(sizeof(struct TmpFont), "temp_font");
 				tmpfnt->pf= tpf;
@@ -436,10 +436,10 @@ VFont *get_builtin_font(void)
 	VFont *vf;
 	
 	for (vf= G.main->vfont.first; vf; vf= vf->id.next)
-		if (BLI_streq(vf->name, "<builtin>"))
+		if (strcmp(vf->name, FO_BUILTIN_NAME)==0)
 			return vf;
 	
-	return load_vfont("<builtin>");
+	return load_vfont(FO_BUILTIN_NAME);
 }
 
 static VChar *find_vfont_char(VFontData *vfd, intptr_t character)
@@ -773,10 +773,10 @@ struct chartrans *BKE_text_to_curve(Scene *scene, Object *ob, int mode)
 
 		/*
 		 * The character wasn't in the current curve base so load it
-		 * But if the font is <builtin> then do not try loading since
+		 * But if the font is FO_BUILTIN_NAME then do not try loading since
 		 * whole font is in the memory already
 		 */
-		if(che == NULL && strcmp(vfont->name, "<builtin>"))	{
+		if(che == NULL && strcmp(vfont->name, FO_BUILTIN_NAME))	{
 			BLI_vfontchar_from_freetypefont(vfont, ascii);
 		}
 
@@ -1039,9 +1039,9 @@ struct chartrans *BKE_text_to_curve(Scene *scene, Object *ob, int mode)
 				che= find_vfont_char(vfd, ascii);
 	
 				twidth = char_width(cu, che, info);
-				
+
 				dtime= distfac*0.5f*twidth;
-				
+
 				ctime= timeofs + distfac*( ct->xof - minx);
 				CLAMP(ctime, 0.0f, 1.0f);
 
@@ -1187,8 +1187,12 @@ struct chartrans *BKE_text_to_curve(Scene *scene, Object *ob, int mode)
 				ascii = mem[i];
 				info = &(custrinfo[i]);
 				if (cu->sepchar == (i+1)) {
-					float vecyo[3]= {ct->xof, ct->yof, 0.0f};
-					
+					float vecyo[3];
+
+					vecyo[0]= ct->xof;
+					vecyo[1]= ct->yof;
+					vecyo[2]= 0.0f;
+
 					mem[0] = ascii;
 					mem[1] = 0;
 					custrinfo[0]= *info;

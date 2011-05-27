@@ -71,17 +71,17 @@ public:
 
 	btScalar	m_limitSoftness; 
 	btScalar	m_biasFactor; 
-	btScalar    m_relaxationFactor; 
+	btScalar	m_relaxationFactor; 
 
 	bool		m_solveLimit;
 #endif
-	
+
 	btScalar	m_kHinge;
 
 
 	btScalar	m_accLimitImpulse;
 	btScalar	m_hingeAngle;
-	btScalar    m_referenceSign;
+	btScalar	m_referenceSign;
 
 	bool		m_angularOnly;
 	bool		m_enableAngularMotor;
@@ -90,7 +90,7 @@ public:
 	bool		m_useReferenceFrameA;
 
 	btScalar	m_accMotorImpulse;
-	
+
 	int			m_flags;
 	btScalar	m_normalCFM;
 	btScalar	m_stopCFM;
@@ -115,7 +115,7 @@ public:
 	void getInfo1NonVirtual(btConstraintInfo1* info);
 
 	virtual void getInfo2 (btConstraintInfo2* info);
-	
+
 	void	getInfo2NonVirtual(btConstraintInfo2* info,const btTransform& transA,const btTransform& transB,const btVector3& angVelA,const btVector3& angVelB);
 
 	void	getInfo2Internal(btConstraintInfo2* info,const btTransform& transA,const btTransform& transB,const btVector3& angVelA,const btVector3& angVelB);
@@ -141,8 +141,8 @@ public:
 	btRigidBody& getRigidBodyB()	
 	{		
 		return m_rbB;	
-	}	
-	
+	}
+
 	btTransform& getFrameOffsetA()
 	{
 	return m_rbAFrame;
@@ -219,7 +219,7 @@ public:
 #ifdef	_BT_USE_CENTER_LIMIT_
 	return m_limit.getLow();
 #else
-		return m_lowerLimit;
+	return m_lowerLimit;
 #endif
 	}
 
@@ -228,7 +228,7 @@ public:
 #ifdef	_BT_USE_CENTER_LIMIT_
 	return m_limit.getHigh();
 #else		
-		return m_upperLimit;
+	return m_upperLimit;
 #endif
 	}
 
@@ -251,7 +251,7 @@ public:
 #ifdef	_BT_USE_CENTER_LIMIT_
 	return m_limit.isLimit();
 #else
-		return m_solveLimit;
+	return m_solveLimit;
 #endif
 	}
 

@@ -471,10 +471,10 @@ void btSequentialImpulseConstraintSolver::setupContactConstraint(btSolverConstra
 
 			relaxation = 1.f;
 
-				btVector3 torqueAxis0 = rel_pos1.cross(cp.m_normalWorldOnB);
-				solverConstraint.m_angularComponentA = rb0 ? rb0->getInvInertiaTensorWorld()*torqueAxis0*rb0->getAngularFactor() : btVector3(0,0,0);
-				btVector3 torqueAxis1 = rel_pos2.cross(cp.m_normalWorldOnB);		
-				solverConstraint.m_angularComponentB = rb1 ? rb1->getInvInertiaTensorWorld()*-torqueAxis1*rb1->getAngularFactor() : btVector3(0,0,0);
+			btVector3 torqueAxis0 = rel_pos1.cross(cp.m_normalWorldOnB);
+			solverConstraint.m_angularComponentA = rb0 ? rb0->getInvInertiaTensorWorld()*torqueAxis0*rb0->getAngularFactor() : btVector3(0,0,0);
+			btVector3 torqueAxis1 = rel_pos2.cross(cp.m_normalWorldOnB);		
+			solverConstraint.m_angularComponentB = rb1 ? rb1->getInvInertiaTensorWorld()*-torqueAxis1*rb1->getAngularFactor() : btVector3(0,0,0);
 
 				{
 #ifdef COMPUTE_IMPULSE_DENOM
@@ -507,10 +507,10 @@ void btSequentialImpulseConstraintSolver::setupContactConstraint(btSolverConstra
 
 
 
-				btVector3 vel1 = rb0 ? rb0->getVelocityInLocalPoint(rel_pos1) : btVector3(0,0,0);
-				btVector3 vel2 = rb1 ? rb1->getVelocityInLocalPoint(rel_pos2) : btVector3(0,0,0);
-				vel  = vel1 - vel2;
-				rel_vel = cp.m_normalWorldOnB.dot(vel);
+			btVector3 vel1 = rb0 ? rb0->getVelocityInLocalPoint(rel_pos1) : btVector3(0,0,0);
+			btVector3 vel2 = rb1 ? rb1->getVelocityInLocalPoint(rel_pos2) : btVector3(0,0,0);
+			vel  = vel1 - vel2;
+			rel_vel = cp.m_normalWorldOnB.dot(vel);
 
 				btScalar penetration = cp.getDistance()+infoGlobal.m_linearSlop;
 
@@ -565,7 +565,7 @@ void btSequentialImpulseConstraintSolver::setupContactConstraint(btSolverConstra
 						velocityError -= penetration / infoGlobal.m_timeStep;
 					} else
 					{
-					positionalError = -penetration * infoGlobal.m_erp/infoGlobal.m_timeStep;
+						positionalError = -penetration * infoGlobal.m_erp/infoGlobal.m_timeStep;
 					}
 
 					btScalar  penetrationImpulse = positionalError*solverConstraint.m_jacDiagABInv;
@@ -573,7 +573,7 @@ void btSequentialImpulseConstraintSolver::setupContactConstraint(btSolverConstra
 					if (!infoGlobal.m_splitImpulse || (penetration > infoGlobal.m_splitImpulsePenetrationThreshold))
 					{
 						//combine position and velocity into rhs
-					solverConstraint.m_rhs = penetrationImpulse+velocityImpulse;
+						solverConstraint.m_rhs = penetrationImpulse+velocityImpulse;
 						solverConstraint.m_rhsPenetration = 0.f;
 					} else
 					{
@@ -589,14 +589,14 @@ void btSequentialImpulseConstraintSolver::setupContactConstraint(btSolverConstra
 
 
 
-							}
+}
 
 
 
 void btSequentialImpulseConstraintSolver::setFrictionConstraintImpulse( btSolverConstraint& solverConstraint, 
 																		btRigidBody* rb0, btRigidBody* rb1, 
 																 btManifoldPoint& cp, const btContactSolverInfo& infoGlobal)
-					{
+{
 					if (infoGlobal.m_solverMode & SOLVER_USE_FRICTION_WARMSTARTING)
 					{
 						{
@@ -639,7 +639,7 @@ void btSequentialImpulseConstraintSolver::setFrictionConstraintImpulse( btSolver
 							frictionConstraint2.m_appliedImpulse = 0.f;
 						}
 					}
-				}
+}
 
 
 
@@ -703,7 +703,7 @@ void	btSequentialImpulseConstraintSolver::convertContact(btPersistentManifold* m
 						applyAnisotropicFriction(colObj0,cp.m_lateralFrictionDir2);
 						applyAnisotropicFriction(colObj1,cp.m_lateralFrictionDir2);
 						addFrictionConstraint(cp.m_lateralFrictionDir2,solverBodyA,solverBodyB,frictionIndex,cp,rel_pos1,rel_pos2,colObj0,colObj1, relaxation);
-			}
+					}
 
 					applyAnisotropicFriction(colObj0,cp.m_lateralFrictionDir1);
 					applyAnisotropicFriction(colObj1,cp.m_lateralFrictionDir1);
@@ -725,18 +725,18 @@ void	btSequentialImpulseConstraintSolver::convertContact(btPersistentManifold* m
 					addFrictionConstraint(cp.m_lateralFrictionDir1,solverBodyA,solverBodyB,frictionIndex,cp,rel_pos1,rel_pos2,colObj0,colObj1, relaxation);
 
 					cp.m_lateralFrictionInitialized = true;
-		}
+				}
 
 			} else
 			{
 				addFrictionConstraint(cp.m_lateralFrictionDir1,solverBodyA,solverBodyB,frictionIndex,cp,rel_pos1,rel_pos2,colObj0,colObj1, relaxation,cp.m_contactMotion1, cp.m_contactCFM1);
 				if ((infoGlobal.m_solverMode & SOLVER_USE_2_FRICTION_DIRECTIONS))
 					addFrictionConstraint(cp.m_lateralFrictionDir2,solverBodyA,solverBodyB,frictionIndex,cp,rel_pos1,rel_pos2,colObj0,colObj1, relaxation, cp.m_contactMotion2, cp.m_contactCFM2);
-	}
+			}
 			
 			setFrictionConstraintImpulse( solverConstraint, rb0, rb1, cp, infoGlobal);
 
-}
+		}
 	}
 }
 
@@ -809,7 +809,7 @@ btScalar btSequentialImpulseConstraintSolver::solveGroupCacheFriendlySetup(btCol
 			}
 			m_tmpSolverNonContactConstraintPool.resize(totalNumRows);
 
-
+			
 			///setup the btSolverConstraints
 			int currentRow = 0;
 
@@ -829,7 +829,7 @@ btScalar btSequentialImpulseConstraintSolver::solveGroupCacheFriendlySetup(btCol
 					btRigidBody& rbA = constraint->getRigidBodyA();
 					btRigidBody& rbB = constraint->getRigidBodyB();
 
-
+					
 					int j;
 					for ( j=0;j<info1.m_numConstraintRows;j++)
 					{
@@ -970,99 +970,99 @@ btScalar btSequentialImpulseConstraintSolver::solveSingleIteration(int iteration
 
 	int j;
 
-			if (infoGlobal.m_solverMode & SOLVER_RANDMIZE_ORDER)
-			{
-				if ((iteration & 7) == 0) {
-					for (j=0; j<numConstraintPool; ++j) {
-						int tmp = m_orderTmpConstraintPool[j];
-						int swapi = btRandInt2(j+1);
-						m_orderTmpConstraintPool[j] = m_orderTmpConstraintPool[swapi];
-						m_orderTmpConstraintPool[swapi] = tmp;
-					}
-
-					for (j=0; j<numFrictionPool; ++j) {
-						int tmp = m_orderFrictionConstraintPool[j];
-						int swapi = btRandInt2(j+1);
-						m_orderFrictionConstraintPool[j] = m_orderFrictionConstraintPool[swapi];
-						m_orderFrictionConstraintPool[swapi] = tmp;
-					}
-				}
+	if (infoGlobal.m_solverMode & SOLVER_RANDMIZE_ORDER)
+	{
+		if ((iteration & 7) == 0) {
+			for (j=0; j<numConstraintPool; ++j) {
+				int tmp = m_orderTmpConstraintPool[j];
+				int swapi = btRandInt2(j+1);
+				m_orderTmpConstraintPool[j] = m_orderTmpConstraintPool[swapi];
+				m_orderTmpConstraintPool[swapi] = tmp;
 			}
 
-			if (infoGlobal.m_solverMode & SOLVER_SIMD)
-			{
-				///solve all joint constraints, using SIMD, if available
-				for (j=0;j<m_tmpSolverNonContactConstraintPool.size();j++)
-				{
-					btSolverConstraint& constraint = m_tmpSolverNonContactConstraintPool[j];
+			for (j=0; j<numFrictionPool; ++j) {
+				int tmp = m_orderFrictionConstraintPool[j];
+				int swapi = btRandInt2(j+1);
+				m_orderFrictionConstraintPool[j] = m_orderFrictionConstraintPool[swapi];
+				m_orderFrictionConstraintPool[swapi] = tmp;
+			}
+		}
+	}
+
+	if (infoGlobal.m_solverMode & SOLVER_SIMD)
+	{
+		///solve all joint constraints, using SIMD, if available
+		for (j=0;j<m_tmpSolverNonContactConstraintPool.size();j++)
+		{
+			btSolverConstraint& constraint = m_tmpSolverNonContactConstraintPool[j];
 			resolveSingleConstraintRowGenericSIMD(*constraint.m_solverBodyA,*constraint.m_solverBodyB,constraint);
-				}
+		}
 
-				for (j=0;j<numConstraints;j++)
-				{
+		for (j=0;j<numConstraints;j++)
+		{
 			constraints[j]->solveConstraintObsolete(constraints[j]->getRigidBodyA(),constraints[j]->getRigidBodyB(),infoGlobal.m_timeStep);
-				}
+		}
 
-				///solve all contact constraints using SIMD, if available
-				int numPoolConstraints = m_tmpSolverContactConstraintPool.size();
-				for (j=0;j<numPoolConstraints;j++)
-				{
-					const btSolverConstraint& solveManifold = m_tmpSolverContactConstraintPool[m_orderTmpConstraintPool[j]];
+		///solve all contact constraints using SIMD, if available
+		int numPoolConstraints = m_tmpSolverContactConstraintPool.size();
+		for (j=0;j<numPoolConstraints;j++)
+		{
+			const btSolverConstraint& solveManifold = m_tmpSolverContactConstraintPool[m_orderTmpConstraintPool[j]];
 			resolveSingleConstraintRowLowerLimitSIMD(*solveManifold.m_solverBodyA,*solveManifold.m_solverBodyB,solveManifold);
 
-				}
-				///solve all friction constraints, using SIMD, if available
-				int numFrictionPoolConstraints = m_tmpSolverContactFrictionConstraintPool.size();
-				for (j=0;j<numFrictionPoolConstraints;j++)
-				{
-					btSolverConstraint& solveManifold = m_tmpSolverContactFrictionConstraintPool[m_orderFrictionConstraintPool[j]];
-					btScalar totalImpulse = m_tmpSolverContactConstraintPool[solveManifold.m_frictionIndex].m_appliedImpulse;
+		}
+		///solve all friction constraints, using SIMD, if available
+		int numFrictionPoolConstraints = m_tmpSolverContactFrictionConstraintPool.size();
+		for (j=0;j<numFrictionPoolConstraints;j++)
+		{
+			btSolverConstraint& solveManifold = m_tmpSolverContactFrictionConstraintPool[m_orderFrictionConstraintPool[j]];
+			btScalar totalImpulse = m_tmpSolverContactConstraintPool[solveManifold.m_frictionIndex].m_appliedImpulse;
 
-					if (totalImpulse>btScalar(0))
-					{
-						solveManifold.m_lowerLimit = -(solveManifold.m_friction*totalImpulse);
-						solveManifold.m_upperLimit = solveManifold.m_friction*totalImpulse;
+			if (totalImpulse>btScalar(0))
+			{
+				solveManifold.m_lowerLimit = -(solveManifold.m_friction*totalImpulse);
+				solveManifold.m_upperLimit = solveManifold.m_friction*totalImpulse;
 
 				resolveSingleConstraintRowGenericSIMD(*solveManifold.m_solverBodyA,	*solveManifold.m_solverBodyB,solveManifold);
-					}
-				}
-			} else
-			{
+			}
+		}
+	} else
+	{
 
-				///solve all joint constraints
-				for (j=0;j<m_tmpSolverNonContactConstraintPool.size();j++)
-				{
-					btSolverConstraint& constraint = m_tmpSolverNonContactConstraintPool[j];
+		///solve all joint constraints
+		for (j=0;j<m_tmpSolverNonContactConstraintPool.size();j++)
+		{
+			btSolverConstraint& constraint = m_tmpSolverNonContactConstraintPool[j];
 			resolveSingleConstraintRowGeneric(*constraint.m_solverBodyA,*constraint.m_solverBodyB,constraint);
-				}
+		}
 
-				for (j=0;j<numConstraints;j++)
-				{
+		for (j=0;j<numConstraints;j++)
+		{
 			constraints[j]->solveConstraintObsolete(constraints[j]->getRigidBodyA(),constraints[j]->getRigidBodyB(),infoGlobal.m_timeStep);
-				}
-				///solve all contact constraints
-				int numPoolConstraints = m_tmpSolverContactConstraintPool.size();
-				for (j=0;j<numPoolConstraints;j++)
-				{
-					const btSolverConstraint& solveManifold = m_tmpSolverContactConstraintPool[m_orderTmpConstraintPool[j]];
+		}
+		///solve all contact constraints
+		int numPoolConstraints = m_tmpSolverContactConstraintPool.size();
+		for (j=0;j<numPoolConstraints;j++)
+		{
+			const btSolverConstraint& solveManifold = m_tmpSolverContactConstraintPool[m_orderTmpConstraintPool[j]];
 			resolveSingleConstraintRowLowerLimit(*solveManifold.m_solverBodyA,*solveManifold.m_solverBodyB,solveManifold);
-				}
-				///solve all friction constraints
-				int numFrictionPoolConstraints = m_tmpSolverContactFrictionConstraintPool.size();
-				for (j=0;j<numFrictionPoolConstraints;j++)
-				{
-					btSolverConstraint& solveManifold = m_tmpSolverContactFrictionConstraintPool[m_orderFrictionConstraintPool[j]];
-					btScalar totalImpulse = m_tmpSolverContactConstraintPool[solveManifold.m_frictionIndex].m_appliedImpulse;
+		}
+		///solve all friction constraints
+		int numFrictionPoolConstraints = m_tmpSolverContactFrictionConstraintPool.size();
+		for (j=0;j<numFrictionPoolConstraints;j++)
+		{
+			btSolverConstraint& solveManifold = m_tmpSolverContactFrictionConstraintPool[m_orderFrictionConstraintPool[j]];
+			btScalar totalImpulse = m_tmpSolverContactConstraintPool[solveManifold.m_frictionIndex].m_appliedImpulse;
 
-					if (totalImpulse>btScalar(0))
-					{
-						solveManifold.m_lowerLimit = -(solveManifold.m_friction*totalImpulse);
-						solveManifold.m_upperLimit = solveManifold.m_friction*totalImpulse;
+			if (totalImpulse>btScalar(0))
+			{
+				solveManifold.m_lowerLimit = -(solveManifold.m_friction*totalImpulse);
+				solveManifold.m_upperLimit = solveManifold.m_friction*totalImpulse;
 
 				resolveSingleConstraintRowGeneric(*solveManifold.m_solverBodyA,*solveManifold.m_solverBodyB,solveManifold);
-					}
-				}
 			}
+		}
+	}
 	return 0.f;
 }
 
@@ -1084,9 +1084,9 @@ void btSequentialImpulseConstraintSolver::solveGroupCacheFriendlySplitImpulseIte
 						const btSolverConstraint& solveManifold = m_tmpSolverContactConstraintPool[m_orderTmpConstraintPool[j]];
 
 						resolveSplitPenetrationSIMD(*solveManifold.m_solverBodyA,*solveManifold.m_solverBodyB,solveManifold);
-		}
-	}
-}
+					}
+				}
+			}
 		}
 		else
 		{
@@ -1119,7 +1119,7 @@ btScalar btSequentialImpulseConstraintSolver::solveGroupCacheFriendlyIterations(
 		{			
 			solveSingleIteration(iteration, bodies ,numBodies,manifoldPtr, numManifolds,constraints,numConstraints,infoGlobal,debugDrawer,stackAlloc);
 		}
-
+		
 		solveGroupCacheFriendlySplitImpulseIterations(bodies ,numBodies,manifoldPtr, numManifolds,constraints,numConstraints,infoGlobal,debugDrawer,stackAlloc);
 	}
 	return 0.f;
@@ -1199,7 +1199,7 @@ btScalar btSequentialImpulseConstraintSolver::solveGroup(btCollisionObject** bod
 	solveGroupCacheFriendlyIterations(bodies, numBodies, manifoldPtr,  numManifolds,constraints, numConstraints,infoGlobal,debugDrawer, stackAlloc);
 
 	solveGroupCacheFriendlyFinish(bodies, numBodies, manifoldPtr,  numManifolds,constraints, numConstraints,infoGlobal,debugDrawer, stackAlloc);
-
+	
 	return 0.f;
 }
 

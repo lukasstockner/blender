@@ -33,14 +33,6 @@
 
 #include "KX_BlenderGL.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-#include "BLF_api.h"
-#ifdef __cplusplus
-}
-#endif
-
 /* 
  * This little block needed for linking to Blender... 
  */
@@ -72,6 +64,7 @@ extern "C" {
 #include "DNA_windowmanager_types.h"
 
 #include "BKE_global.h"
+#include "BKE_main.h"
 #include "BKE_bmfont.h"
 #include "BKE_image.h"
 
@@ -85,6 +78,7 @@ extern "C" {
 #include "wm_event_system.h"
 #include "wm_cursors.h"
 #include "wm_window.h"
+#include "BLF_api.h"
 }
 
 /* end of blender block */
@@ -240,7 +234,7 @@ static unsigned int *screenshot(ScrArea *curarea, int *dumpsx, int *dumpsy)
 {
 	int x=0, y=0;
 	unsigned int *dumprect= NULL;
-
+	
 	x= curarea->totrct.xmin;
 	y= curarea->totrct.ymin;
 	*dumpsx= curarea->totrct.xmax-x;
@@ -270,10 +264,10 @@ void BL_MakeScreenShot(ScrArea *curarea, const char* filename)
 	dumprect= screenshot(curarea, &dumpsx, &dumpsy);
 	if(dumprect) {
 		ImBuf *ibuf;
-		BLI_path_abs(path, G.sce);
+		BLI_path_abs(path, G.main->name);
 		/* BKE_add_image_extension() checks for if extension was already set */
 		BKE_add_image_extension(path, R_PNG); /* scene->r.imtype */
-		ibuf= IMB_allocImBuf(dumpsx, dumpsy, 24, 0, 0);
+		ibuf= IMB_allocImBuf(dumpsx, dumpsy, 24, 0);
 		ibuf->rect= dumprect;
 		ibuf->ftype= PNG;
 
@@ -282,6 +276,6 @@ void BL_MakeScreenShot(ScrArea *curarea, const char* filename)
 		ibuf->rect= NULL;
 		IMB_freeImBuf(ibuf);
 		MEM_freeN(dumprect);
-}
+	}
 }
 

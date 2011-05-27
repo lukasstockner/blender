@@ -290,7 +290,7 @@ public:
 	 * @return Indication of success.
 	 */
 	virtual GHOST_TSuccess addEventConsumer(GHOST_IEventConsumer* consumer) = 0;
-	
+
 	/**
 	 * Removes the given event consumer to our list.
 	 * @param consumer The event consumer to remove.
@@ -382,7 +382,7 @@ public:
 	 */
 	virtual void putClipboard(GHOST_TInt8 *buffer, bool selection) const = 0;
 
-
+	
 protected:
 	/**
 	 * Initialize the system.

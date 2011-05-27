@@ -50,7 +50,9 @@
 
 #include "BKE_blender.h"
 #include "BKE_context.h"
+#include "BKE_library.h"
 #include "BKE_global.h"
+#include "BKE_main.h"
 
 
 #include "BIF_gl.h"
@@ -69,6 +71,7 @@
 #include "PIL_time.h"
 
 #include "GPU_draw.h"
+#include "GPU_extensions.h"
 
 /* the global to talk to ghost */
 static GHOST_SystemHandle g_system= NULL;
@@ -153,8 +156,8 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
 	}	
 
 	/* always set drawable and active to NULL, prevents non-drawable state of main windows (bugs #22967 and #25071, possibly #22477 too) */
-		wm->windrawable= NULL;
-		wm->winactive= NULL;
+	wm->windrawable= NULL;
+	wm->winactive= NULL;
 
 	/* end running jobs, a job end also removes its timer */
 	for(wt= wm->timers.first; wt; wt= wtnext) {
@@ -220,7 +223,7 @@ wmWindow *wm_window_copy(bContext *C, wmWindow *winorig)
 	
 	/* duplicate assigns to window */
 	win->screen= ED_screen_duplicate(win, winorig->screen);
-	BLI_strncpy(win->screenname, win->screen->id.name+2, 21);
+	BLI_strncpy(win->screenname, win->screen->id.name+2, sizeof(win->screenname));
 	win->screen->winid= win->winid;
 
 	win->screen->do_refresh= 1;
@@ -256,7 +259,7 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 	/* check remaining windows */
 	if(wm->windows.first) {
 		for(win= wm->windows.first; win; win= win->next)
-			if(win->screen->full!=SCREENTEMP)
+			if(win->screen->temp == 0)
 				break;
 		/* in this case we close all */
 		if(win==NULL)
@@ -269,18 +272,16 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 void wm_window_title(wmWindowManager *wm, wmWindow *win)
 {
 	/* handle the 'temp' window */
-	if(win->screen && win->screen->full==SCREENTEMP) {
+	if(win->screen && win->screen->temp) {
 		GHOST_SetTitle(win->ghostwin, "Blender");
 	}
 	else {
 		
 		/* this is set to 1 if you don't have startup.blend open */
-		if(G.save_over) {
-			char *str= MEM_mallocN(strlen(G.sce) + 16, "title");
+		if(G.save_over && G.main->name[0]) {
+			char str[sizeof(G.main->name) + 12];
 			BLI_snprintf(str, sizeof(str), "Blender%s [%s]", wm->file_saved ? "":"*", G.main->name);
 			GHOST_SetTitle(win->ghostwin, str);
-			
-			MEM_freeN(str);
 		}
 		else
 			GHOST_SetTitle(win->ghostwin, "Blender");
@@ -305,7 +306,7 @@ static void wm_window_add_ghostwindow(bContext *C, const char *title, wmWindow *
 	GHOST_WindowHandle ghostwin;
 	int scr_w, scr_h, posy;
 	GHOST_TWindowState initial_state;
-	
+
 	/* when there is no window open uses the initial state */
 	if(!CTX_wm_window(C))
 		initial_state= initialstate;
@@ -331,6 +332,8 @@ static void wm_window_add_ghostwindow(bContext *C, const char *title, wmWindow *
 								 0 /* no AA */);
 	
 	if (ghostwin) {
+		/* needed so we can detect the graphics card below */
+		GPU_extensions_init();
 		
 		/* set the state*/
 		GHOST_SetWindowState(ghostwin, initial_state);
@@ -343,7 +346,11 @@ static void wm_window_add_ghostwindow(bContext *C, const char *title, wmWindow *
 		
 		/* until screens get drawn, make it nice grey */
 		glClearColor(.55, .55, .55, 0.0);
-		glClear(GL_COLOR_BUFFER_BIT);
+		/* Crash on OSS ATI: bugs.launchpad.net/ubuntu/+source/mesa/+bug/656100 */
+		if(!GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE)) {
+			glClear(GL_COLOR_BUFFER_BIT);
+		}
+
 		wm_window_swap_buffers(win);
 		
 		//GHOST_SetWindowState(ghostwin, GHOST_kWindowStateModified);
@@ -398,7 +405,7 @@ void wm_window_add_ghostwindows(bContext* C, wmWindowManager *wm)
 		}
 		/* happens after fileread */
 		if(win->eventstate==NULL)
-		   win->eventstate= MEM_callocN(sizeof(wmEvent), "window event state");
+			win->eventstate= MEM_callocN(sizeof(wmEvent), "window event state");
 
 		/* add keymap handlers (1 handler for all keys in map!) */
 		keymap= WM_keymap_find(wm->defaultconf, "Window", 0, 0);
@@ -439,7 +446,7 @@ wmWindow *WM_window_open(bContext *C, rcti *rect)
 	return win;
 }
 
-/* uses screen->full tag to define what to do, currently it limits
+/* uses screen->temp tag to define what to do, currently it limits
    to only one "temp" window for render out, preferences, filewindow, etc */
 /* type is #define in WM_api.h */
 
@@ -453,7 +460,7 @@ void WM_window_open_temp(bContext *C, rcti *position, int type)
 	
 	/* test if we have a temp screen already */
 	for(win= CTX_wm_manager(C)->windows.first; win; win= win->next)
-		if(win->screen->full == SCREENTEMP)
+		if(win->screen->temp)
 			break;
 	
 	/* add new window? */
@@ -475,7 +482,7 @@ void WM_window_open_temp(bContext *C, rcti *position, int type)
 	/* add new screen? */
 	if(win->screen==NULL)
 		win->screen= ED_screen_add(win, CTX_data_scene(C), "temp");
-	win->screen->full = SCREENTEMP; 
+	win->screen->temp = 1; 
 	
 	/* make window active, and validate/resize */
 	CTX_wm_window_set(C, win);
@@ -557,20 +564,20 @@ static int query_qual(modifierKeyType qual)
 	
 	switch(qual) {
 		case SHIFT:
-		left= GHOST_kModifierKeyLeftShift;
-		right= GHOST_kModifierKeyRightShift;
+			left= GHOST_kModifierKeyLeftShift;
+			right= GHOST_kModifierKeyRightShift;
 			break;
 		case CONTROL:
-		left= GHOST_kModifierKeyLeftControl;
-		right= GHOST_kModifierKeyRightControl;
+			left= GHOST_kModifierKeyLeftControl;
+			right= GHOST_kModifierKeyRightControl;
 			break;
 		case OS:
 			left= right= GHOST_kModifierKeyOS;
 			break;
 		case ALT:
 		default:
-		left= GHOST_kModifierKeyLeftAlt;
-		right= GHOST_kModifierKeyRightAlt;
+			left= GHOST_kModifierKeyLeftAlt;
+			right= GHOST_kModifierKeyRightAlt;
 			break;
 	}
 	
@@ -1041,33 +1048,33 @@ void WM_clipboard_text_set(char *buf, int selection)
 {
 	if(!G.background) {
 #ifdef _WIN32
-	/* do conversion from \n to \r\n on Windows */
-	char *p, *p2, *newbuf;
-	int newlen= 0;
-	
-	for(p= buf; *p; p++) {
-		if(*p == '\n')
-			newlen += 2;
-		else
-			newlen++;
-	}
-	
-	newbuf= MEM_callocN(newlen+1, "WM_clipboard_text_set");
-
-	for(p= buf, p2= newbuf; *p; p++, p2++) {
-		if(*p == '\n') { 
-			*(p2++)= '\r'; *p2= '\n';
+		/* do conversion from \n to \r\n on Windows */
+		char *p, *p2, *newbuf;
+		int newlen= 0;
+		
+		for(p= buf; *p; p++) {
+			if(*p == '\n')
+				newlen += 2;
+			else
+				newlen++;
 		}
-		else *p2= *p;
-	}
-	*p2= '\0';
-
-	GHOST_putClipboard((GHOST_TInt8*)newbuf, selection);
-	MEM_freeN(newbuf);
+		
+		newbuf= MEM_callocN(newlen+1, "WM_clipboard_text_set");
+	
+		for(p= buf, p2= newbuf; *p; p++, p2++) {
+			if(*p == '\n') { 
+				*(p2++)= '\r'; *p2= '\n';
+			}
+			else *p2= *p;
+		}
+		*p2= '\0';
+	
+		GHOST_putClipboard((GHOST_TInt8*)newbuf, selection);
+		MEM_freeN(newbuf);
 #else
-	GHOST_putClipboard((GHOST_TInt8*)buf, selection);
+		GHOST_putClipboard((GHOST_TInt8*)buf, selection);
 #endif
-}
+	}
 }
 
 /* ******************* progress bar **************** */

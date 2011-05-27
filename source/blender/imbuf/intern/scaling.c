@@ -69,12 +69,12 @@ struct ImBuf *IMB_half_x(struct ImBuf *ibuf1)
 	
 	if (ibuf1->x <= 1) return(IMB_dupImBuf(ibuf1));
 	
-	ibuf2 = IMB_allocImBuf((ibuf1->x)/2, ibuf1->y, ibuf1->depth, ibuf1->flags, 0);
+	ibuf2 = IMB_allocImBuf((ibuf1->x)/2, ibuf1->y, ibuf1->depth, ibuf1->flags);
 	if (ibuf2==NULL) return (NULL);
 
 	_p1 = (uchar *) ibuf1->rect;
 	dest=(uchar *) ibuf2->rect;
-         
+
 	_p1f = ibuf1->rect_float;
 	destf= ibuf2->rect_float;
 
@@ -130,7 +130,7 @@ struct ImBuf *IMB_double_fast_x(struct ImBuf *ibuf1)
 	do_rect= (ibuf1->rect != NULL);
 	do_float= (ibuf1->rect_float != NULL);
 	
-	ibuf2 = IMB_allocImBuf(2 * ibuf1->x , ibuf1->y , ibuf1->depth, ibuf1->flags, 0);
+	ibuf2 = IMB_allocImBuf(2 * ibuf1->x , ibuf1->y , ibuf1->depth, ibuf1->flags);
 	if (ibuf2==NULL) return (NULL);
 
 	p1 = (int *) ibuf1->rect;
@@ -189,7 +189,7 @@ struct ImBuf *IMB_half_y(struct ImBuf *ibuf1)
 	do_rect= (ibuf1->rect != NULL);
 	do_float= (ibuf1->rect_float != NULL);
 
-	ibuf2 = IMB_allocImBuf(ibuf1->x , (ibuf1->y) / 2 , ibuf1->depth, ibuf1->flags, 0);
+	ibuf2 = IMB_allocImBuf(ibuf1->x , (ibuf1->y) / 2 , ibuf1->depth, ibuf1->flags);
 	if (ibuf2==NULL) return (NULL);
 
 	_p1 = (uchar *) ibuf1->rect;
@@ -257,7 +257,7 @@ struct ImBuf *IMB_double_fast_y(struct ImBuf *ibuf1)
 	do_rect= (ibuf1->rect != NULL);
 	do_float= (ibuf1->rect_float != NULL);
 
-	ibuf2 = IMB_allocImBuf(ibuf1->x , 2 * ibuf1->y , ibuf1->depth, ibuf1->flags, 0);
+	ibuf2 = IMB_allocImBuf(ibuf1->x , 2 * ibuf1->y , ibuf1->depth, ibuf1->flags);
 	if (ibuf2==NULL) return (NULL);
 
 	p1 = (int *) ibuf1->rect;
@@ -271,7 +271,7 @@ struct ImBuf *IMB_double_fast_y(struct ImBuf *ibuf1)
 			for(x = ibuf2->x ; x>0 ; x--) *dest1++ = *dest2++ = *p1++;
 			dest1 = dest2;
 		}
-		 if (do_float) {
+		if (do_float) {
 			dest2f = dest1f + (4*ibuf2->x);
 			for(x = ibuf2->x*4 ; x>0 ; x--) *dest1f++ = *dest2f++ = *p1f++;
 			dest1f = dest2f;
@@ -601,7 +601,7 @@ static void enlarge_picture_float(
 		if ((int) y_src == src_height - 1) {
 			line2 = line1;
 		}
-		       
+
 		x_src = 0;
 		for (x_dst = 0; x_dst < dst_width; x_dst++) {
 			const float weight1x = (float)(1.0 - (x_src - (int) x_src));
@@ -845,7 +845,7 @@ static struct ImBuf *scaledownx(struct ImBuf *ibuf, int newx)
 	rect=_newrect= newrect= NULL; 
 	nval[0]=  nval[1]= nval[2]= nval[3]= 0.0f;
 	nvalf[0]=nvalf[1]=nvalf[2]=nvalf[3]= 0.0f;
-	
+
 	if (!do_rect && !do_float) return (ibuf);
 
 	if (do_rect) {

@@ -19,7 +19,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/editors/armature/BIF_generate.h
  *  \ingroup edarmature
  */

@@ -786,7 +786,7 @@ void KX_BlenderMaterial::SetBlenderGLSLShader(int layer)
 	}
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 PyMethodDef KX_BlenderMaterial::Methods[] = 
 {
@@ -970,4 +970,4 @@ KX_PYMETHODDEF_DOC( KX_BlenderMaterial, setBlending , "setBlending( bge.logic.sr
 	return NULL;
 }
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON

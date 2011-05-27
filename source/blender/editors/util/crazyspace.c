@@ -82,9 +82,9 @@ static void make_vertexcos__mapFunc(void *userData, int index, float *co, float 
 	if(!mappedData->flags[index]) {
 		/* we need coord from prototype vertex, not it clones or images,
 		   suppose they stored in the beginning of vertex array stored in DM */
-	VECCOPY(vec, co);
+		VECCOPY(vec, co);
 		mappedData->flags[index]= 1;
-}
+	}
 }
 
 static int modifiers_disable_subsurf_temporary(Object *ob)
@@ -435,5 +435,5 @@ void crazyspace_build_sculpt(Scene *scene, Object *ob, float (**deformmats)[3][3
 
 		for(a=0; a<numVerts; a++)
 			unit_m3((*deformmats)[a]);
-}
+	}
 }

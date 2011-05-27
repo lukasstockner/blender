@@ -189,7 +189,7 @@ void AUD_SoftwareDevice::mix(data_t* buffer, int length)
 			tempbuf = tempBufs.front();
 			tempBufs.pop_front();
 			delete tempbuf;
-	}
+		}
 	}
 
 	unlock();
@@ -457,24 +457,24 @@ void AUD_SoftwareDevice::setVolume(float volume)
 }
 
 float AUD_SoftwareDevice::getVolume(AUD_Handle* handle)
-	{
-		lock();
+{
+	lock();
 	float result = std::numeric_limits<float>::quiet_NaN();
 	if(isValid(handle))
 		result = ((AUD_SoftwareHandle*)handle)->volume;
-		unlock();
+	unlock();
 	return result;
 }
 
 bool AUD_SoftwareDevice::setVolume(AUD_Handle* handle, float volume)
-		{
-			lock();
+{
+	lock();
 	bool result = isValid(handle);
 	if(result)
 		((AUD_SoftwareHandle*)handle)->volume = volume;
-			unlock();
+	unlock();
 	return result;
-		}
+}
 
 float AUD_SoftwareDevice::getPitch(AUD_Handle* handle)
 {
@@ -487,18 +487,18 @@ bool AUD_SoftwareDevice::setPitch(AUD_Handle* handle, float pitch)
 }
 
 int AUD_SoftwareDevice::getLoopCount(AUD_Handle* handle)
-	{
-		lock();
+{
+	lock();
 	int result = 0;
 	if(isValid(handle))
 		result = ((AUD_SoftwareHandle*)handle)->loopcount;
-		unlock();
+	unlock();
 	return result;
 }
 
 bool AUD_SoftwareDevice::setLoopCount(AUD_Handle* handle, int count)
-		{
-			lock();
+{
+	lock();
 	bool result = isValid(handle);
 	if(result)
 		((AUD_SoftwareHandle*)handle)->loopcount = count;
@@ -507,7 +507,7 @@ bool AUD_SoftwareDevice::setLoopCount(AUD_Handle* handle, int count)
 }
 
 bool AUD_SoftwareDevice::setStopCallback(AUD_Handle* handle, stopCallback callback, void* data)
-			{
+{
 	lock();
 	bool result = isValid(handle);
 	if(result)
@@ -515,7 +515,7 @@ bool AUD_SoftwareDevice::setStopCallback(AUD_Handle* handle, stopCallback callba
 		AUD_SoftwareHandle* h = (AUD_SoftwareHandle*)handle;
 		h->stop = callback;
 		h->stop_data = data;
-			}
-			unlock();
+	}
+	unlock();
 	return result;
 }

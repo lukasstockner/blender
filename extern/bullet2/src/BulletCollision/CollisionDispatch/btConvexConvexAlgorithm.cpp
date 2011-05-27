@@ -334,7 +334,7 @@ void btConvexConvexAlgorithm ::processCollision (btCollisionObject* body0,btColl
 #ifdef USE_SEPDISTANCE_UTIL2
 	if (dispatchInfo.m_useConvexConservativeDistanceUtil)
 	{
-	m_sepDistance.updateSeparatingDistance(body0->getWorldTransform(),body1->getWorldTransform());
+		m_sepDistance.updateSeparatingDistance(body0->getWorldTransform(),body1->getWorldTransform());
 	}
 
 	if (!dispatchInfo.m_useConvexConservativeDistanceUtil || m_sepDistance.getConservativeSeparatingDistance()<=0.f)
@@ -362,7 +362,7 @@ void btConvexConvexAlgorithm ::processCollision (btCollisionObject* body0,btColl
 			input.m_maximumDistanceSquared = min0->getMargin() + min1->getMargin() + m_manifoldPtr->getContactProcessingThreshold();
 		} else
 		{
-		input.m_maximumDistanceSquared = min0->getMargin() + min1->getMargin() + m_manifoldPtr->getContactBreakingThreshold();
+			input.m_maximumDistanceSquared = min0->getMargin() + min1->getMargin() + m_manifoldPtr->getContactBreakingThreshold();
 		}
 		input.m_maximumDistanceSquared*= input.m_maximumDistanceSquared;
 	}
@@ -383,7 +383,7 @@ void btConvexConvexAlgorithm ::processCollision (btCollisionObject* body0,btColl
 		if (sepDist>SIMD_EPSILON)
 		{
 			sepDist += dispatchInfo.m_convexConservativeDistanceThreshold;
-	//now perturbe directions to get multiple contact points
+			//now perturbe directions to get multiple contact points
 			
 		}
 	}
@@ -398,7 +398,7 @@ void btConvexConvexAlgorithm ::processCollision (btCollisionObject* body0,btColl
 		int i;
 		btVector3 v0,v1;
 		btVector3 sepNormalWorldSpace;
-
+	
 		sepNormalWorldSpace = gjkPairDetector.getCachedSeparatingAxis().normalized();
 		btPlaneSpace1(sepNormalWorldSpace,v0,v1);
 

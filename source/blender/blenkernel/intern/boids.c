@@ -65,7 +65,7 @@ typedef struct BoidValues {
 
 static int apply_boid_rule(BoidBrainData *bbd, BoidRule *rule, BoidValues *val, ParticleData *pa, float fuzziness);
 
-static int rule_none(BoidRule *rule, BoidBrainData *data, BoidValues *val, ParticleData *pa)
+static int rule_none(BoidRule *UNUSED(rule), BoidBrainData *UNUSED(data), BoidValues *UNUSED(val), ParticleData *UNUSED(pa))
 {
 	return 0;
 }
@@ -351,7 +351,7 @@ static int rule_avoid_collision(BoidRule *rule, BoidBrainData *bbd, BoidValues *
 
 	return ret;
 }
-static int rule_separate(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, ParticleData *pa)
+static int rule_separate(BoidRule *UNUSED(rule), BoidBrainData *bbd, BoidValues *val, ParticleData *pa)
 {
 	KDTreeNearest *ptn = NULL;
 	ParticleTarget *pt;
@@ -391,7 +391,7 @@ static int rule_separate(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, Pa
 	}
 	return ret;
 }
-static int rule_flock(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, ParticleData *pa)
+static int rule_flock(BoidRule *UNUSED(rule), BoidBrainData *bbd, BoidValues *UNUSED(val), ParticleData *pa)
 {
 	KDTreeNearest ptn[11];
 	float vec[3] = {0.0f, 0.0f, 0.0f}, loc[3] = {0.0f, 0.0f, 0.0f};
@@ -823,15 +823,15 @@ static Object *boid_find_ground(BoidBrainData *bbd, ParticleData *pa, float *gro
 			return col.hit;
 		}
 
-			/* default to z=0 */
-			VECCOPY(ground_co, pa->state.co);
-			ground_co[2] = 0;
-			ground_nor[0] = ground_nor[1] = 0.0f;
-			ground_nor[2] = 1.0f;
-			return NULL;
-		}
+		/* default to z=0 */
+		VECCOPY(ground_co, pa->state.co);
+		ground_co[2] = 0;
+		ground_nor[0] = ground_nor[1] = 0.0f;
+		ground_nor[2] = 1.0f;
+		return NULL;
 	}
-static int boid_rule_applies(ParticleData *pa, BoidSettings *boids, BoidRule *rule)
+}
+static int boid_rule_applies(ParticleData *pa, BoidSettings *UNUSED(boids), BoidRule *rule)
 {
 	BoidParticle *bpa = pa->boid;
 
@@ -1259,13 +1259,17 @@ void boid_body(BoidBrainData *bbd, ParticleData *pa)
 	VECADDFAC(pa->state.vel, pa->state.vel, acc, dtime);
 
 	//if(bpa->data.mode != eBoidMode_InAir)
-		bpa->ground = boid_find_ground(bbd, pa, ground_co, ground_nor);
+	bpa->ground = boid_find_ground(bbd, pa, ground_co, ground_nor);
 
 	/* change modes, constrain movement & keep track of down vector */
 	switch(bpa->data.mode) {
 		case eBoidMode_InAir:
 		{
-			float grav[3] = {0.0f, 0.0f, bbd->sim->scene->physics_settings.gravity[2] < 0.0f ? -1.0f : 0.0f};
+			float grav[3];
+
+			grav[0]= 0.0f;
+			grav[1]= 0.0f;
+			grav[2]= bbd->sim->scene->physics_settings.gravity[2] < 0.0f ? -1.0f : 0.0f;
 
 			/* don't take forward acceleration into account (better banking) */
 			if(dot_v3v3(bpa->data.acc, pa->state.vel) > 0.0f) {
@@ -1290,10 +1294,10 @@ void boid_body(BoidBrainData *bbd, ParticleData *pa)
 			else if(pa->state.co[2] <= ground_co[2] + pa->size * boids->height) {
 				/* land boid when below ground */
 				if(boids->options & BOID_ALLOW_LAND) {
-				pa->state.co[2] = ground_co[2] + pa->size * boids->height;
-				pa->state.vel[2] = 0.0f;
-				bpa->data.mode = eBoidMode_OnLand;
-			}
+					pa->state.co[2] = ground_co[2] + pa->size * boids->height;
+					pa->state.vel[2] = 0.0f;
+					bpa->data.mode = eBoidMode_OnLand;
+				}
 				/* fly above ground */
 				else if(bpa->ground) {
 					pa->state.co[2] = ground_co[2] + pa->size * boids->height;
@@ -1304,7 +1308,12 @@ void boid_body(BoidBrainData *bbd, ParticleData *pa)
 		}
 		case eBoidMode_Falling:
 		{
-			float grav[3] = {0.0f, 0.0f, bbd->sim->scene->physics_settings.gravity[2] < 0.0f ? -1.0f : 0.0f};
+			float grav[3];
+
+			grav[0]= 0.0f;
+			grav[1]= 0.0f;
+			grav[2]= bbd->sim->scene->physics_settings.gravity[2] < 0.0f ? -1.0f : 0.0f;
+
 
 			/* gather apparent gravity */
 			VECADDFAC(bpa->gravity, bpa->gravity, grav, dtime);

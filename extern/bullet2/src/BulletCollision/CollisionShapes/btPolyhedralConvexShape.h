@@ -25,7 +25,7 @@ class btPolyhedralConvexShape : public btConvexInternalShape
 {
 
 protected:
-
+	
 public:
 
 	btPolyhedralConvexShape();
@@ -34,10 +34,10 @@ public:
 
 	virtual btVector3	localGetSupportingVertexWithoutMargin(const btVector3& vec)const;
 	virtual void	batchedUnitVectorGetSupportingVertexWithoutMargin(const btVector3* vectors,btVector3* supportVerticesOut,int numVectors) const;
-
+	
 	virtual void	calculateLocalInertia(btScalar mass,btVector3& inertia) const;
-
-
+	
+	
 	virtual int	getNumVertices() const = 0 ;
 	virtual int getNumEdges() const = 0;
 	virtual void getEdge(int i,btVector3& pa,btVector3& pb) const = 0;
@@ -88,7 +88,7 @@ public:
 	}
 
 	virtual void	setLocalScaling(const btVector3& scaling);
-	
+
 	virtual void getAabb(const btTransform& t,btVector3& aabbMin,btVector3& aabbMax) const;
 
 	void	recalcLocalAabb();

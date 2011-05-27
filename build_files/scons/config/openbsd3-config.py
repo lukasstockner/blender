@@ -111,6 +111,9 @@ BF_OPENGL_LIB = 'GL GLU X11 Xi'
 BF_OPENGL_LIBPATH = '${BF_OPENGL}/lib'
 BF_OPENGL_LIB_STATIC = '${BF_OPENGL_LIBPATH}/libGL.a ${BF_OPENGL_LIBPATH}/libGLU.a ${BF_OPENGL_LIBPATH}/libXxf86vm.a ${BF_OPENGL_LIBPATH}/libX11.a ${BF_OPENGL_LIBPATH}/libXi.a ${BF_OPENGL_LIBPATH}/libXext.a ${BF_OPENGL_LIBPATH}/libXxf86vm.a'
 
+#On-Surface Brush
+WITH_BF_ONSURFACEBRUSH = True
+
 ##
 ##CC = gcc
 ##CCC = g++
@@ -147,7 +150,7 @@ BF_PROFILE_CCFLAGS = ['-pg','-g']
 BF_PROFILE_LINKFLAGS = ['-pg']
 
 BF_DEBUG = False
-BF_DEBUG_CCFLAGS = ['-g']
+BF_DEBUG_CCFLAGS = ['-g', '-D_DEBUG']
 
 BF_BUILDDIR='../build/openbsd3'
 BF_INSTALLDIR='../install/openbsd3'

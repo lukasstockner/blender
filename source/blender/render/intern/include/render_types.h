@@ -136,7 +136,8 @@ struct Render
 	ThreadRWMutex resultmutex;
 	
 	/* window size, display rect, viewplane */
-	int winx, winy;
+	int winx, winy;			/* buffer width and height with percentage applied
+							 * without border & crop. convert to long before multiplying together to avoid overflow. */
 	rcti disprect;			/* part within winx winy */
 	rctf viewplane;			/* mapped on winx winy */
 	float viewdx, viewdy;	/* size of 1 pixel */
@@ -440,7 +441,7 @@ typedef struct StrandBuffer {
 	int overrideuv;
 	int flag, maxdepth;
 	float adaptcos, minwidth, widthfade;
-
+	
 	float maxwidth;	/* for cliptest of strands in blender unit */
 	
 	float winmat[4][4];

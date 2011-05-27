@@ -50,7 +50,7 @@
 
 #include "script_intern.h"	// own include
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 #include "BPY_extern.h" /* BPY_script_exec */
 #endif
 
@@ -58,12 +58,14 @@ static int run_pyfile_exec(bContext *C, wmOperator *op)
 {
 	char path[512];
 	RNA_string_get(op->ptr, "filepath", path);
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	if(BPY_filepath_exec(C, path, op->reports)) {
 		ARegion *ar= CTX_wm_region(C);
 		ED_region_tag_redraw(ar);
 		return OPERATOR_FINISHED;
 	}
+#else
+	(void)C; /* unused */
 #endif
 	return OPERATOR_CANCELLED; /* FAIL */
 }
@@ -86,7 +88,7 @@ void SCRIPT_OT_python_file_run(wmOperatorType *ot)
 
 static int script_reload_exec(bContext *C, wmOperator *UNUSED(op))
 {
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	/* TODO, this crashes on netrender and keying sets, need to look into why
 	 * disable for now unless running in debug mode */
 	WM_cursor_wait(1);
@@ -94,6 +96,8 @@ static int script_reload_exec(bContext *C, wmOperator *UNUSED(op))
 	WM_cursor_wait(0);
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 	return OPERATOR_FINISHED;
+#else
+	(void)C; /* unused */
 #endif
 	return OPERATOR_CANCELLED;
 }

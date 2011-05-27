@@ -83,7 +83,7 @@ void RegisterBlendExtension(void) {
 	BOOL usr_mode = FALSE;
 	DWORD dwd = 0;
 	char buffer[256];
-	
+
 	char BlPath[MAX_PATH];
 	char InstallDir[FILE_MAXDIR];
 	char SysDir[FILE_MAXDIR];
@@ -166,7 +166,7 @@ void RegisterBlendExtension(void) {
 	{
 		sprintf(MBox,"File extension registered for %s.",usr_mode ? "the current user. To register for all users, run as an administrator" : "all users");
 		MessageBox(0,MBox,"Blender",MB_OK|MB_ICONINFORMATION);
-}
+	}
 	TerminateProcess(GetCurrentProcess(),0);
 }
 
@@ -299,21 +299,21 @@ int check_file_chars(char *filename)
 #include <string.h>
 char* dirname(char *path)
 {
-	   char *p;
-	   if( path == NULL || *path == '\0' )
-			   return ".";
-	   p = path + strlen(path) - 1;
-	   while( *p == '/' ) {
-			   if( p == path )
-					   return path;
-			   *p-- = '\0';
-	   }
-	   while( p >= path && *p != '/' )
-			   p--;
-	   return
-			   p < path ? "." :
-			   p == path ? "/" :
-			   (*p = '\0', path);
+	char *p;
+	if( path == NULL || *path == '\0' )
+	return ".";
+	p = path + strlen(path) - 1;
+	while( *p == '/' ) {
+		if( p == path )
+			return path;
+		*p-- = '\0';
+	}
+	while( p >= path && *p != '/' )
+	p--;
+	return
+	p < path ? "." :
+	p == path ? "/" :
+	(*p = '\0', path);
 }
 /* End of copied part */
 

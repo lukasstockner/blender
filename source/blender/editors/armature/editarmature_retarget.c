@@ -378,7 +378,7 @@ static RigNode *newRigNodeHead(RigGraph *rg, RigArc *arc, float p[3])
 	return node;
 }
 
-static void addRigNodeHead(RigGraph *rg, RigArc *arc, RigNode *node)
+static void addRigNodeHead(RigGraph *UNUSED(rg), RigArc *arc, RigNode *node)
 {
 	node->degree++;
 
@@ -1536,7 +1536,7 @@ RigGraph *RIG_graphFromArmature(const bContext *C, Object *ob, bArmature *arm)
 	Scene *scene = CTX_data_scene(C);
 	EditBone *ebone;
 	RigGraph *rg;
- 	
+
 	rg = newRigGraph();
 	
 	if (obedit == ob)
@@ -1588,7 +1588,7 @@ static RigGraph *armatureSelectedToGraph(bContext *C, Object *ob, bArmature *arm
 	Scene *scene = CTX_data_scene(C);
 	EditBone *ebone;
 	RigGraph *rg;
- 	
+
 	rg = newRigGraph();
 	
 	if (obedit == ob)
@@ -1640,7 +1640,7 @@ static EditBone *add_editbonetolist(char *name, ListBase *list)
 {
 	EditBone *bone= MEM_callocN(sizeof(EditBone), "eBone");
 	
-	BLI_strncpy(bone->name, name, 32);
+	BLI_strncpy(bone->name, name, sizeof(bone->name));
 	unique_editbone_name(list, bone->name, NULL);
 	
 	BLI_addtail(list, bone);
@@ -1789,7 +1789,7 @@ static void repositionTailControl(RigGraph *rigg, RigControl *ctrl)
 	finalizeControl(rigg, ctrl, 1); /* resize will be recalculated anyway so we don't need it */
 }
 
-static void repositionControl(RigGraph *rigg, RigControl *ctrl, float head[3], float tail[3], float qrot[4], float resize)
+static void repositionControl(RigGraph *rigg, RigControl *ctrl, float head[3], float UNUSED(tail[3]), float qrot[4], float resize)
 {
 	float parent_offset[3], tail_offset[3];
 	
@@ -1930,8 +1930,6 @@ static RetargetMode detectArcRetargetMode(RigArc *iarc)
 		mode = RETARGET_LENGTH;
 	}
 	
-	mode = RETARGET_AGGRESSIVE;
-	
 	return mode;
 }
 
@@ -2056,7 +2054,7 @@ static float calcCostLengthDistance(BArcIterator *iter, float **vec_cache, RigEd
 }
 #endif
 
-static float calcCostAngleLengthDistance(BArcIterator *iter, float **vec_cache, RigEdge *edge, float *vec0, float *vec1, float *vec2, int i1, int i2, float angle_weight, float length_weight, float distance_weight)
+static float calcCostAngleLengthDistance(BArcIterator *iter, float **UNUSED(vec_cache), RigEdge *edge, float *vec0, float *vec1, float *vec2, int i1, int i2, float angle_weight, float length_weight, float distance_weight)
 {
 	float vec_second[3], vec_first[3];
 	float length2;
@@ -2831,7 +2829,7 @@ void BIF_retargetArmature(bContext *C)
 		{
 			RigGraph *rigg;
 			bArmature *arm;
-		 	
+
 			arm = ob->data;
 		
 			/* Put the armature into editmode */
@@ -2905,7 +2903,7 @@ void BIF_retargetArc(bContext *C, ReebArc *earc, RigGraph *template_rigg)
 	else
 	{
 		free_template = 1;
-		ob = obedit; 	
+		ob = obedit;
 		template_rigg = armatureSelectedToGraph(C, ob, ob->data);
 	}
 	

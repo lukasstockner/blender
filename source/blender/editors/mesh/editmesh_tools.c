@@ -63,6 +63,7 @@ editmesh_tool.c: UI called tools for editmesh, geometry changes here, otherwise 
 #include "BLI_ghash.h"
 #include "BLI_linklist.h"
 #include "BLI_heap.h"
+#include "BLI_scanfill.h"
 
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
@@ -86,7 +87,7 @@ editmesh_tool.c: UI called tools for editmesh, geometry changes here, otherwise 
 #include "mesh_intern.h"
 
 /* XXX */
-static void waitcursor(int val) {}
+static void waitcursor(int UNUSED(val)) {}
 #define add_numbut(a, b, c, d, e, f, g) {}
 
 /* XXX */
@@ -522,7 +523,7 @@ void MESH_OT_remove_doubles(wmOperatorType *ot)
 
 // XXX is this needed?
 /* called from buttons */
-static void xsortvert_flag__doSetX(void *userData, EditVert *eve, int x, int y, int index)
+static void xsortvert_flag__doSetX(void *userData, EditVert *UNUSED(eve), int x, int UNUSED(y), int index)
 {
 	xvertsort *sortblock = userData;
 
@@ -675,7 +676,7 @@ void MESH_OT_vertices_randomize(wmOperatorType *ot)
 
 
 /* generic extern called extruder */
-void extrude_mesh(Scene *scene, Object *obedit, EditMesh *em, wmOperator *op, short type)
+static void extrude_mesh(Object *obedit, EditMesh *em, wmOperator *op, short type)
 {
 	float nor[3]= {0.0, 0.0, 0.0};
 	short transmode= 0;
@@ -725,7 +726,6 @@ void extrude_mesh(Scene *scene, Object *obedit, EditMesh *em, wmOperator *op, sh
 // XXX should be a menu item
 static int mesh_extrude_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
-	Scene *scene= CTX_data_scene(C);
 	Object *obedit= CTX_data_edit_object(C);
 	EditMesh *em= BKE_mesh_get_editmesh((Mesh *)obedit->data);
 	
@@ -742,7 +742,6 @@ static int mesh_extrude_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(even
 /* extrude without transform */
 static int mesh_extrude_exec(bContext *C, wmOperator *op)
 {
-	Scene *scene= CTX_data_scene(C);
 	Object *obedit= CTX_data_edit_object(C);
 	EditMesh *em= BKE_mesh_get_editmesh(obedit->data);
 
@@ -1255,7 +1254,7 @@ static void erase_vertices(EditMesh *em, ListBase *l)
 	}
 }
 
-void delete_mesh(Object *obedit, EditMesh *em, wmOperator *op, int event)
+static void delete_mesh(EditMesh *em, wmOperator *op, int event)
 {
 	EditFace *efa, *nextvl;
 	EditVert *eve,*nextve;
@@ -1413,7 +1412,7 @@ static int delete_mesh_exec(bContext *C, wmOperator *op)
 	if(type==6)
 		return WM_operator_name_call(C, "MESH_OT_delete_edgeloop", WM_OP_EXEC_DEFAULT, NULL);
 
-	delete_mesh(obedit, em, op, type);
+	delete_mesh(em, op, type);
 
 	DAG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM|ND_DATA, obedit->data);
@@ -2766,7 +2765,7 @@ void esubdivideflag(Object *obedit, EditMesh *em, int flag, float smooth, float 
 
 				// Beauty Long Edges
 				else {
-					 for(j=0;j<2;j++) {
+					for(j=0;j<2;j++) {
 						hold = -1;
 						for(i=0;i<4;i++) {
 							if(length[i] < 0) {
@@ -2980,8 +2979,8 @@ void esubdivideflag(Object *obedit, EditMesh *em, int flag, float smooth, float 
 			}
 		}
 	}
-	 if(em->selectmode & SCE_SELECT_VERTEX) {
-		 for(eed = em->edges.first;eed;eed = eed->next) {
+	if(em->selectmode & SCE_SELECT_VERTEX) {
+		for(eed = em->edges.first;eed;eed = eed->next) {
 			if(eed->f & SELECT) {
 				eed->v1->f |= SELECT;
 				eed->v2->f |= SELECT;
@@ -3654,7 +3653,7 @@ static void edge_rotate(EditMesh *em, wmOperator *op, EditEdge *eed, int dir)
 		return;
 
 	/* how many edges does each face have */
-	 if(face[0]->e4) fac1= 4;
+	if(face[0]->e4) fac1= 4;
 	else fac1= 3;
 
 	if(face[1]->e4) fac2= 4;
@@ -4072,8 +4071,8 @@ useless:
 		}
 		// Make sure loop is not 2 edges of same face
 		if(ct > 1) {
-		   BKE_report(op->reports, RPT_ERROR, "Loop crosses itself");
-		   return 0;
+			BKE_report(op->reports, RPT_ERROR, "Loop crosses itself");
+			return 0;
 		}
 	}
 	// Get # of selected verts
@@ -4190,11 +4189,11 @@ useless:
 			for(eed=em->edges.first;eed;eed=eed->next) {
 				if(editedge_containsVert(eed, ev)) {
 					if(!(eed->f & SELECT)) {
-						 if(!tempsv->up) {
-							 tempsv->up = eed;
-						 } else if (!(tempsv->down)) {
-							 tempsv->down = eed;
-						 }
+						if(!tempsv->up) {
+							tempsv->up = eed;
+						} else if (!(tempsv->down)) {
+							tempsv->down = eed;
+						}
 					}
 				}
 			}
@@ -4206,33 +4205,33 @@ useless:
 					for(efa = em->faces.first;efa;efa=efa->next) {
 						if(editface_containsEdge(efa, eed)) {
 							if(editedge_containsVert(efa->e1, ev) && efa->e1 != eed) {
-								 if(!tempsv->up) {
-									 tempsv->up = efa->e1;
-								 } else if (!(tempsv->down)) {
-									 tempsv->down = efa->e1;
-								 }
+								if(!tempsv->up) {
+									tempsv->up = efa->e1;
+								} else if (!(tempsv->down)) {
+									tempsv->down = efa->e1;
+								}
 							}
 							if(editedge_containsVert(efa->e2, ev) && efa->e2 != eed) {
-								 if(!tempsv->up) {
-									 tempsv->up = efa->e2;
-								 } else if (!(tempsv->down)) {
-									 tempsv->down = efa->e2;
-								 }
+								if(!tempsv->up) {
+									tempsv->up = efa->e2;
+								} else if (!(tempsv->down)) {
+									tempsv->down = efa->e2;
+								}
 							}
 							if(editedge_containsVert(efa->e3, ev) && efa->e3 != eed) {
-								 if(!tempsv->up) {
-									 tempsv->up = efa->e3;
-								 } else if (!(tempsv->down)) {
-									 tempsv->down = efa->e3;
-								 }
+								if(!tempsv->up) {
+									tempsv->up = efa->e3;
+								} else if (!(tempsv->down)) {
+									tempsv->down = efa->e3;
+								}
 							}
 							if(efa->e4) {
 								if(editedge_containsVert(efa->e4, ev) && efa->e4 != eed) {
-									 if(!tempsv->up) {
-										 tempsv->up = efa->e4;
-									 } else if (!(tempsv->down)) {
-										 tempsv->down = efa->e4;
-									 }
+									if(!tempsv->up) {
+										tempsv->up = efa->e4;
+									} else if (!(tempsv->down)) {
+										tempsv->down = efa->e4;
+									}
 								}
 							}
 
@@ -4676,7 +4675,7 @@ useless:
 							mvalo[0] = -1;
 					} else if(ELEM(event, RIGHTARROWKEY, WHEELUPMOUSE)) { // Scroll through Control Edges
 						look = vertlist;
-						 while(look) {
+						while(look) {
 							if(nearest == (EditVert*)look->link) {
 								if(look->next == NULL) {
 									nearest =  (EditVert*)vertlist->link;
@@ -4690,7 +4689,7 @@ useless:
 						}
 					} else if(ELEM(event, LEFTARROWKEY, WHEELDOWNMOUSE)) { // Scroll through Control Edges
 						look = vertlist;
-						 while(look) {
+						while(look) {
 							if(look->next) {
 								if(look->next->link == nearest) {
 									nearest = (EditVert*)look->link;
@@ -4770,7 +4769,7 @@ useless:
 }
 #endif // END OF XXX
 
-int EdgeLoopDelete(EditMesh *em, wmOperator *op)
+int EdgeLoopDelete(EditMesh *UNUSED(em), wmOperator *UNUSED(op))
 {
 #if 0 //XXX won't work with new edgeslide
 
@@ -4828,7 +4827,7 @@ void mesh_set_face_flags(EditMesh *em, short mode)
 	add_numbut(12, TOG|SHO, "Sort", 0, 0, &m_sort, NULL);
 
 	if (!do_clever_numbuts((mode ? "Set Flags" : "Clear Flags"), 13, REDRAW))
-		 return;
+		return;
 
 	/* these 2 cant both be on */
 	if (mode) /* are we seeting*/
@@ -5264,7 +5263,7 @@ static int blend_from_shape_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static EnumPropertyItem *shape_itemf(bContext *C, PointerRNA *ptr, int *free)
+static EnumPropertyItem *shape_itemf(bContext *C, PointerRNA *UNUSED(ptr), int *free)
 {	
 	Object *obedit= CTX_data_edit_object(C);
 	Mesh *me= (obedit) ? obedit->data : NULL;
@@ -5934,7 +5933,7 @@ static int merge_exec(bContext *C, wmOperator *op)
 		case 1:
 			ese= (EditSelection *)em->selected.last;
 			if(ese && ese->type == EDITVERT) {
-			count = merge_firstlast(em, 0, uvs);
+				count = merge_firstlast(em, 0, uvs);
 			} else {
 				BKE_report(op->reports, RPT_WARNING, "no last selected vertex set");
 			}
@@ -5942,7 +5941,7 @@ static int merge_exec(bContext *C, wmOperator *op)
 		case 6:
 			ese= (EditSelection *)em->selected.first;
 			if(ese && ese->type == EDITVERT) {
-			count = merge_firstlast(em, 1, uvs);
+				count = merge_firstlast(em, 1, uvs);
 			}
 			else {
 				BKE_report(op->reports, RPT_WARNING, "no last selected vertex set");
@@ -5976,7 +5975,7 @@ static EnumPropertyItem merge_type_items[]= {
 	{5, "COLLAPSE", 0, "Collapse", ""},
 	{0, NULL, 0, NULL, NULL}};
 
-static EnumPropertyItem *merge_type_itemf(bContext *C, PointerRNA *ptr, int *free)
+static EnumPropertyItem *merge_type_itemf(bContext *C, PointerRNA *UNUSED(ptr), int *free)
 {	
 	Object *obedit= CTX_data_edit_object(C);
 	EnumPropertyItem *item= NULL;
@@ -6083,8 +6082,8 @@ static int select_vertex_path_exec(bContext *C, wmOperator *op)
 		}
 
 		/*need to find out if t is actually reachable by s....*/
-			eve->f1 = 0;
-		}
+		eve->f1 = 0;
+	}
 
 	if(s != NULL && t != NULL) {
 		s->f1 = 1;
@@ -6869,7 +6868,7 @@ void MESH_OT_subdivide(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_int(ot->srna, "number_cuts", 1, 1, INT_MAX, "Number of Cuts", "", 1, 10);
-	RNA_def_float(ot->srna, "smoothness", 0.0f, 0.0f, FLT_MAX, "Smoothness", "Smoothness factor.", 0.0f, 1000.0f);
+	RNA_def_float(ot->srna, "smoothness", 0.0f, 0.0f, FLT_MAX, "Smoothness", "Smoothness factor.", 0.0f, 1.0f);
 	RNA_def_float(ot->srna, "fractal", 0.0, 0.0f, FLT_MAX, "Fractal", "Fractal randomness factor.", 0.0f, 1000.0f);
 	RNA_def_enum(ot->srna, "corner_cut_pattern", corner_type_items, SUBDIV_CORNER_INNERVERT, "Corner Cut Pattern", "Topology pattern to use to fill a face after cutting across its corner");
 }

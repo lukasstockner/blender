@@ -30,6 +30,7 @@
 
 
 #include "MaterialExporter.h"
+#include "COLLADABUUtils.h"
 #include "collada_internal.h"
 
 MaterialsExporter::MaterialsExporter(COLLADASW::StreamWriter *sw): COLLADASW::LibraryMaterials(sw){}

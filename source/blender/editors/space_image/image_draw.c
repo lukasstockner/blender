@@ -146,7 +146,7 @@ void draw_image_info(ARegion *ar, int color_manage, int channels, int x, int y, 
 	#endif
 	float hue=0, sat=0, val=0, lum=0, u=0, v=0;
 	float col[4], finalcol[4];
-	
+
 	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 
@@ -190,7 +190,7 @@ void draw_image_info(ARegion *ar, int color_manage, int channels, int x, int y, 
 		BLF_position(blf_mono_font, dx, 6, 0);
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 		dx += BLF_width(blf_mono_font, str);
-	
+		
 		glColor3ubv(green);
 		if (fp)
 			sprintf(str, "  G:%-.4f", fp[1]);
@@ -201,7 +201,7 @@ void draw_image_info(ARegion *ar, int color_manage, int channels, int x, int y, 
 		BLF_position(blf_mono_font, dx, 6, 0);
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 		dx += BLF_width(blf_mono_font, str);
-	
+		
 		glColor3ubv(blue);
 		if (fp)
 			sprintf(str, "  B:%-.4f", fp[2]);
@@ -276,7 +276,7 @@ void draw_image_info(ARegion *ar, int color_manage, int channels, int x, int y, 
 	glVertex2f(dx+30, 3);
 	glEnd();
 	dx += 35;
-	
+
 	glColor3ub(255, 255, 255);
 	if(channels == 1) {
 		if (fp) {
@@ -287,17 +287,17 @@ void draw_image_info(ARegion *ar, int color_manage, int channels, int x, int y, 
 			rgb_to_hsv((float)cp[0]/255.0f, (float)cp[0]/255.0f, (float)cp[0]/255.0f, &hue, &sat, &val);
 			rgb_to_yuv((float)cp[0]/255.0f, (float)cp[0]/255.0f, (float)cp[0]/255.0f, &lum, &u, &v);
 		}
-	
+		
 		sprintf(str, "V:%-.4f", val);
 		BLF_position(blf_mono_font, dx, 6, 0);
-	BLF_draw_ascii(blf_mono_font, str, sizeof(str));
+		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 		dx += BLF_width(blf_mono_font, str);
-	
+
 		sprintf(str, "   L:%-.4f", lum);
 		BLF_position(blf_mono_font, dx, 6, 0);
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 		dx += BLF_width(blf_mono_font, str);
-}
+	}
 	else if(channels >= 3) {
 		if (fp) {
 			rgb_to_hsv(fp[0], fp[1], fp[2], &hue, &sat, &val);
@@ -616,7 +616,7 @@ static void draw_image_buffer_tiled(SpaceImage *sima, ARegion *ar, Scene *scene,
 static void draw_image_buffer_repeated(SpaceImage *sima, ARegion *ar, Scene *scene, Image *ima, ImBuf *ibuf, float zoomx, float zoomy)
 {
 	const double time_current= PIL_check_seconds_timer();
-	
+
 	const int xmax= ceil(ar->v2d.cur.xmax);
 	const int ymax= ceil(ar->v2d.cur.ymax);
 	const int xmin= floor(ar->v2d.cur.xmin);
@@ -814,7 +814,7 @@ void draw_image_main(SpaceImage *sima, ARegion *ar, Scene *scene)
 
 	/* paint helpers */
 	if(sima->flag & SI_DRAWTOOL)
-	draw_image_paint_helpers(ar, scene, zoomx, zoomy);
+		draw_image_paint_helpers(ar, scene, zoomx, zoomy);
 
 
 	/* XXX integrate this code */

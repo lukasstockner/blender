@@ -76,6 +76,8 @@ class MeshImporter : public MeshImporterBase
 {
 private:
 
+	UnitConverter *unitconverter;
+
 	Scene *scene;
 	ArmatureImporter *armature_importer;
 
@@ -125,8 +127,6 @@ private:
 
 	bool flat_face(unsigned int *nind, COLLADAFW::MeshVertexData& nor, int count);
 	
-	UnitConverter *unitconverter;
-
 public:
 
 	MeshImporter(UnitConverter *unitconv, ArmatureImporter *arm, Scene *sce);

@@ -189,7 +189,7 @@ void BIF_makeListTemplates(const bContext *C)
 	}
 }
 
-char *BIF_listTemplates(const bContext *C)
+char *BIF_listTemplates(const bContext *UNUSED(C))
 {
 	GHashIterator ghi;
 	char menu_header[] = "Template%t|None%x0|";
@@ -314,7 +314,7 @@ const char * BIF_nameBoneTemplate(const bContext *C)
 	return RIG_nameBone(rg, 0, index);
 }
 
-void  BIF_freeTemplates(bContext *C)
+void  BIF_freeTemplates(bContext *UNUSED(C))
 {
 	if (TEMPLATES_MENU != NULL)
 	{
@@ -1782,7 +1782,7 @@ static int sk_getSegments(SK_Stroke *segments, SK_Stroke *gesture)
 	return segments->nb_points - 1;
 }
 
-int sk_detectCutGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
+int sk_detectCutGesture(bContext *UNUSED(C), SK_Gesture *gest, SK_Sketch *UNUSED(sketch))
 {
 	if (gest->nb_segments == 1 && gest->nb_intersections == 1)
 	{
@@ -1792,7 +1792,7 @@ int sk_detectCutGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
 	return 0;
 }
 
-void sk_applyCutGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
+void sk_applyCutGesture(bContext *UNUSED(C), SK_Gesture *gest, SK_Sketch *UNUSED(sketch))
 {
 	SK_Intersection *isect;
 
@@ -1809,7 +1809,7 @@ void sk_applyCutGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
 	}
 }
 
-int sk_detectTrimGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
+int sk_detectTrimGesture(bContext *UNUSED(C), SK_Gesture *gest, SK_Sketch *UNUSED(sketch))
 {
 	if (gest->nb_segments == 2 && gest->nb_intersections == 1 && gest->nb_self_intersections == 0)
 	{
@@ -1830,7 +1830,7 @@ int sk_detectTrimGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
 	return 0;
 }
 
-void sk_applyTrimGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
+void sk_applyTrimGesture(bContext *UNUSED(C), SK_Gesture *gest, SK_Sketch *UNUSED(sketch))
 {
 	SK_Intersection *isect;
 	float trim_dir[3];
@@ -1865,7 +1865,7 @@ void sk_applyTrimGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
 	}
 }
 
-int sk_detectCommandGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
+int sk_detectCommandGesture(bContext *UNUSED(C), SK_Gesture *gest, SK_Sketch *UNUSED(sketch))
 {
 	if (gest->nb_segments > 2 && gest->nb_intersections == 2 && gest->nb_self_intersections == 1)
 	{
@@ -1892,7 +1892,7 @@ int sk_detectCommandGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
 	return 0;
 }
 
-void sk_applyCommandGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
+void sk_applyCommandGesture(bContext *UNUSED(C), SK_Gesture *gest, SK_Sketch *UNUSED(sketch))
 {
 	SK_Intersection *isect;
 	int command = 1;
@@ -1927,7 +1927,7 @@ void sk_applyCommandGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
 	}
 }
 
-int sk_detectDeleteGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
+int sk_detectDeleteGesture(bContext *UNUSED(C), SK_Gesture *gest, SK_Sketch *UNUSED(sketch))
 {
 	if (gest->nb_segments == 2 && gest->nb_intersections == 2)
 	{
@@ -1948,7 +1948,7 @@ int sk_detectDeleteGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
 	return 0;
 }
 
-void sk_applyDeleteGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
+void sk_applyDeleteGesture(bContext *UNUSED(C), SK_Gesture *gest, SK_Sketch *sketch)
 {
 	SK_Intersection *isect;
 
@@ -1964,7 +1964,7 @@ void sk_applyDeleteGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
 	}
 }
 
-int sk_detectMergeGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
+int sk_detectMergeGesture(bContext *C, SK_Gesture *gest, SK_Sketch *UNUSED(sketch))
 {
 	ARegion *ar = CTX_wm_region(C);
 	if (gest->nb_segments > 2 && gest->nb_intersections == 2)
@@ -2012,7 +2012,7 @@ int sk_detectMergeGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
 	return 0;
 }
 
-void sk_applyMergeGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
+void sk_applyMergeGesture(bContext *UNUSED(C), SK_Gesture *gest, SK_Sketch *UNUSED(sketch))
 {
 	SK_Intersection *isect;
 
@@ -2043,7 +2043,7 @@ void sk_applyMergeGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
 	}
 }
 
-int sk_detectReverseGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
+int sk_detectReverseGesture(bContext *UNUSED(C), SK_Gesture *gest, SK_Sketch *UNUSED(sketch))
 {
 	if (gest->nb_segments > 2 && gest->nb_intersections == 2 && gest->nb_self_intersections == 0)
 	{
@@ -2085,7 +2085,7 @@ int sk_detectReverseGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
 	return 0;
 }
 
-void sk_applyReverseGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
+void sk_applyReverseGesture(bContext *UNUSED(C), SK_Gesture *gest, SK_Sketch *UNUSED(sketch))
 {
 	SK_Intersection *isect;
 
@@ -2102,7 +2102,7 @@ void sk_applyReverseGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
 	}
 }
 
-int sk_detectConvertGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
+int sk_detectConvertGesture(bContext *UNUSED(C), SK_Gesture *gest, SK_Sketch *UNUSED(sketch))
 {
 	if (gest->nb_segments == 3 && gest->nb_self_intersections == 1)
 	{
@@ -2111,7 +2111,7 @@ int sk_detectConvertGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
 	return 0;
 }
 
-void sk_applyConvertGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
+void sk_applyConvertGesture(bContext *C, SK_Gesture *UNUSED(gest), SK_Sketch *sketch)
 {
 	sk_convert(C, sketch);
 }

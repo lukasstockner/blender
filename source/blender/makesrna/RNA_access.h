@@ -328,6 +328,7 @@ extern StructRNA RNA_NlaStrip;
 extern StructRNA RNA_NlaTrack;
 extern StructRNA RNA_Node;
 extern StructRNA RNA_NodeGroup;
+extern StructRNA RNA_NodeLink;
 extern StructRNA RNA_NodeSocket;
 extern StructRNA RNA_NodeTree;
 extern StructRNA RNA_NoiseTexture;
@@ -697,6 +698,7 @@ int RNA_property_path_from_ID_check(PointerRNA *ptr, PropertyRNA *prop); /* slow
 
 void RNA_property_update(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop);
 void RNA_property_update_main(struct Main *bmain, struct Scene *scene, PointerRNA *ptr, PropertyRNA *prop);
+int RNA_property_update_check(struct PropertyRNA *prop);
 
 /* Property Data */
 

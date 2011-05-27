@@ -143,31 +143,31 @@ bool btMinkowskiPenetrationDepthSolver::calcPenDepth(btSimplexSolverInterface& s
 		if (norm.length2()>0.01)
 		{
 
-		seperatingAxisInA = seperatingAxisInABatch[i];
-		seperatingAxisInB = seperatingAxisInBBatch[i];
+			seperatingAxisInA = seperatingAxisInABatch[i];
+			seperatingAxisInB = seperatingAxisInBBatch[i];
 
-		pInA = supportVerticesABatch[i];
-		qInB = supportVerticesBBatch[i];
+			pInA = supportVerticesABatch[i];
+			qInB = supportVerticesBBatch[i];
 
-		pWorld = transA(pInA);	
-		qWorld = transB(qInB);
+			pWorld = transA(pInA);	
+			qWorld = transB(qInB);
 			if (check2d)
 			{
 				pWorld[2] = 0.f;
 				qWorld[2] = 0.f;
 			}
 
-		w	= qWorld - pWorld;
-		btScalar delta = norm.dot(w);
-		//find smallest delta
-		if (delta < minProj)
-		{
-			minProj = delta;
-			minNorm = norm;
-			minA = pWorld;
-			minB = qWorld;
+			w	= qWorld - pWorld;
+			btScalar delta = norm.dot(w);
+			//find smallest delta
+			if (delta < minProj)
+			{
+				minProj = delta;
+				minNorm = norm;
+				minA = pWorld;
+				minB = qWorld;
+			}
 		}
-	}	
 	}	
 #else
 
@@ -286,7 +286,7 @@ bool btMinkowskiPenetrationDepthSolver::calcPenDepth(btSimplexSolverInterface& s
 	//the penetration depth is over-estimated, relax it
 	btScalar penetration_relaxation= btScalar(1.);
 	minNorm*=penetration_relaxation;
-
+	
 
 	if (res.m_hasResult)
 	{

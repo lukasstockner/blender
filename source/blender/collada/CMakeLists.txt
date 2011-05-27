@@ -27,33 +27,33 @@
 remove_strict_flags()
 
 set(INC
-  .
-  ../blenlib
-  ../blenkernel
+	.
+	../blenlib
+	../blenkernel
 	../blenloader
-  ../windowmanager
-  ../makesdna
-  ../makesrna
-  ../editors/include
-  ../../../intern/guardedalloc
+	../windowmanager
+	../makesdna
+	../makesrna
+	../editors/include
+	../../../intern/guardedalloc
 )
 
 if(APPLE)
 	list(APPEND INC
-  ${OPENCOLLADA_INC}/COLLADAStreamWriter
-  ${OPENCOLLADA_INC}/COLLADABaseUtils
-  ${OPENCOLLADA_INC}/COLLADAFramework
-  ${OPENCOLLADA_INC}/COLLADASaxFrameworkLoader 
+		${OPENCOLLADA_INC}/COLLADAStreamWriter
+		${OPENCOLLADA_INC}/COLLADABaseUtils
+		${OPENCOLLADA_INC}/COLLADAFramework
+		${OPENCOLLADA_INC}/COLLADASaxFrameworkLoader
 		${OPENCOLLADA_INC}/GeneratedSaxParser 
-)
+	)
 else()
 	list(APPEND INC
-  ${OPENCOLLADA_INC}/COLLADAStreamWriter/include
-  ${OPENCOLLADA_INC}/COLLADABaseUtils/include
-  ${OPENCOLLADA_INC}/COLLADAFramework/include
-  ${OPENCOLLADA_INC}/COLLADASaxFrameworkLoader/include 
+		${OPENCOLLADA_INC}/COLLADAStreamWriter/include
+		${OPENCOLLADA_INC}/COLLADABaseUtils/include
+		${OPENCOLLADA_INC}/COLLADAFramework/include
+		${OPENCOLLADA_INC}/COLLADASaxFrameworkLoader/include 
 		${OPENCOLLADA_INC}/GeneratedSaxParser/include 
-)
+	)
 endif()
 
 set(SRC

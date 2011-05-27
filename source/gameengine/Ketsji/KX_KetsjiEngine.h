@@ -75,7 +75,7 @@ private:
 	class RAS_IRenderTools*				m_rendertools;
 	class KX_ISceneConverter*			m_sceneconverter;
 	class NG_NetworkDeviceInterface*		m_networkdevice;
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	/* borrowed from sys.modules["__main__"], dont manage ref's */
 	PyObject*					m_pythondictionary;
 #endif
@@ -210,7 +210,7 @@ public:
 	void			SetCanvas(RAS_ICanvas* canvas);
 	void			SetRenderTools(RAS_IRenderTools* rendertools);
 	void			SetRasterizer(RAS_IRasterizer* rasterizer);
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	void			SetPyNamespace(PyObject* pythondictionary);
 	PyObject*		GetPyNamespace(){return m_pythondictionary;};
 #endif

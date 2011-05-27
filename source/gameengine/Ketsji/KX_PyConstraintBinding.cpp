@@ -42,7 +42,7 @@
 
 #include "PyObjectPlus.h" 
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 // nasty glob variable to connect scripting language
 // if there is a better way (without global), please do so!
@@ -548,7 +548,7 @@ static PyObject* gPyExportBulletFile(PyObject*, PyObject* args)
 	char* filename;
 	if (!PyArg_ParseTuple(args,"s:exportBulletFile",&filename))
 		return NULL;
-
+		
 	if (PHY_GetActiveEnvironment())
 	{
 		PHY_GetActiveEnvironment()->exportFile(filename);

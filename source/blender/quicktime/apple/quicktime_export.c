@@ -45,6 +45,7 @@
 
 #include "BKE_context.h"
 #include "BKE_global.h"
+#include "BKE_main.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 
@@ -65,6 +66,9 @@
 #include <Movies.h>
 #include <QuickTimeComponents.h>
 #include <TextUtils.h> 
+#include <string.h>
+#include <memory.h>
+
 #endif /* _WIN32 */
 
 #ifdef __APPLE__
@@ -384,8 +388,8 @@ static void QT_StartAddVideoSamplesToMedia (const Rect *trackFrame, int rectx, i
 	SCTemporalSettings gTemporalSettings;
 	OSErr err = noErr;
 
-	qtexport->ibuf = IMB_allocImBuf (rectx, recty, 32, IB_rect, 0);
-	qtexport->ibuf2 = IMB_allocImBuf (rectx, recty, 32, IB_rect, 0);
+	qtexport->ibuf = IMB_allocImBuf (rectx, recty, 32, IB_rect);
+	qtexport->ibuf2 = IMB_allocImBuf (rectx, recty, 32, IB_rect);
 
 	err = NewGWorldFromPtr( &qtexport->theGWorld,
 							k32ARGBPixelFormat,
@@ -499,7 +503,7 @@ void filepath_qt(char *string, RenderData *rd) {
 	if (string==0) return;
 
 	strcpy(string, rd->pic);
-	BLI_path_abs(string, G.sce);
+	BLI_path_abs(string, G.main->name);
 
 	BLI_make_existing_file(string);
 
@@ -625,7 +629,9 @@ void end_qt(void) {
 		//printf("Finished QuickTime movie.\n");
 	}
 
-	ExitMoviesOnThread();
+#ifdef __APPLE__
+		ExitMoviesOnThread();
+#endif
 	
 	if(qtexport) {
 		MEM_freeN(qtexport);

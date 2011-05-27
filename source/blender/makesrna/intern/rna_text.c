@@ -104,7 +104,7 @@ static void rna_TextLine_body_set(PointerRNA *ptr, const char *value)
 
 	if(line->line)
 		MEM_freeN(line->line);
-	
+
 	line->line= MEM_mallocN((len + 1) * sizeof(char), "rna_text_body");
 	line->len= len;
 	memcpy(line->line, value, len + 1);

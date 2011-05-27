@@ -147,6 +147,24 @@ int ED_operator_scene_editable(bContext *C)
 	return 0;
 }
 
+int ED_operator_objectmode(bContext *C)
+{
+	Scene *scene= CTX_data_scene(C);
+	Object *obact= CTX_data_active_object(C);
+
+	if(scene==NULL || scene->id.lib)
+		return 0;
+	if( CTX_data_edit_object(C) )
+		return 0;
+	
+	/* add a check for ob->mode too? */
+	if(obact && obact->mode)
+		return 0;
+	
+	return 1;
+}
+
+
 static int ed_spacetype_test(bContext *C, int type)
 {
 	if(ED_operator_areaactive(C)) {
@@ -163,15 +181,24 @@ int ED_operator_view3d_active(bContext *C)
 
 int ED_operator_region_view3d_active(bContext *C)
 {
-#if 0 // correct but messes up poll() for menu items.
 	if(CTX_wm_region_view3d(C))
 		return TRUE;
-#else
-	if(ed_spacetype_test(C, SPACE_VIEW3D))
-		return TRUE;
-#endif
+
 	CTX_wm_operator_poll_msg_set(C, "expected a view3d region");
 	return FALSE;	
+}
+
+/* generic for any view2d which uses anim_ops */
+int ED_operator_animview_active(bContext *C)
+{
+	if(ED_operator_areaactive(C)) {
+		SpaceLink *sl= (SpaceLink *)CTX_wm_space_data(C);
+		if (sl && (ELEM6(sl->spacetype, SPACE_SEQ, SPACE_SOUND, SPACE_ACTION, SPACE_NLA, SPACE_IPO, SPACE_TIME)))
+			return TRUE;
+	}
+
+	CTX_wm_operator_poll_msg_set(C, "expected an timeline/animation area to be active");
+	return 0;
 }
 
 int ED_operator_timeline_active(bContext *C)
@@ -248,6 +275,17 @@ int ED_operator_logic_active(bContext *C)
 	return ed_spacetype_test(C, SPACE_LOGIC);
 }
 
+int ED_operator_info_active(bContext *C)
+{
+	return ed_spacetype_test(C, SPACE_INFO);
+}
+
+
+int ED_operator_console_active(bContext *C)
+{
+	return ed_spacetype_test(C, SPACE_CONSOLE);
+}
+
 int ED_operator_object_active(bContext *C)
 {
 	Object *ob = ED_object_active_context(C);
@@ -258,6 +296,12 @@ int ED_operator_object_active_editable(bContext *C)
 {
 	Object *ob = ED_object_active_context(C);
 	return ((ob != NULL) && !(ob->id.lib) && !(ob->restrictflag & OB_RESTRICT_VIEW));
+}
+
+int ED_operator_object_active_editable_mesh(bContext *C)
+{
+	Object *ob = ED_object_active_context(C);
+	return ((ob != NULL) && !(ob->id.lib) && !(ob->restrictflag & OB_RESTRICT_VIEW) && ob->type == OB_MESH);
 }
 
 int ED_operator_object_active_editable_font(bContext *C)
@@ -299,7 +343,7 @@ int ED_operator_editarmature(bContext *C)
 int ED_operator_posemode(bContext *C)
 {
 	Object *obact= CTX_data_active_object(C);
-	
+
 	if (obact && !(obact->mode & OB_MODE_EDIT)) {
 		Object *obpose;
 		if((obpose= ED_object_pose_armature(obact))) {
@@ -308,7 +352,7 @@ int ED_operator_posemode(bContext *C)
 			}
 		}
 	}
-	
+
 	return 0;
 }
 
@@ -318,8 +362,8 @@ int ED_operator_uvedit(bContext *C)
 	SpaceImage *sima= CTX_wm_space_image(C);
 	Object *obedit= CTX_data_edit_object(C);
 	return ED_space_image_show_uvedit(sima, obedit);
-	}
-	
+}
+
 int ED_operator_uvmap(bContext *C)
 {
 	Object *obedit= CTX_data_edit_object(C);
@@ -1080,19 +1124,19 @@ static void SCREEN_OT_area_move(wmOperatorType *ot)
 #define SPLIT_PROGRESS	2
 
 typedef struct sAreaSplitData {
-		int x, y;	/* last used mouse position */
-		
-		int origval;			/* for move areas */
-		int bigger, smaller;	/* constraints for moving new edge */
-		int delta;				/* delta move edge */
-		int origmin, origsize;	/* to calculate fac, for property storage */
-	int previewmode;		/* draw previewline, then split */
-		
-		ScrEdge *nedge;			/* new edge */
-		ScrArea *sarea;			/* start area */
-		ScrArea *narea;			/* new area */
+	int x, y;	/* last used mouse position */
 	
-	} sAreaSplitData;
+	int origval;			/* for move areas */
+	int bigger, smaller;	/* constraints for moving new edge */
+	int delta;				/* delta move edge */
+	int origmin, origsize;	/* to calculate fac, for property storage */
+	int previewmode;		/* draw previewline, then split */
+	
+	ScrEdge *nedge;			/* new edge */
+	ScrArea *sarea;			/* start area */
+	ScrArea *narea;			/* new area */
+	
+} sAreaSplitData;
 
 /* generic init, menu case, doesn't need active area */
 static int area_split_menu_init(bContext *C, wmOperator *op)
@@ -1305,11 +1349,11 @@ static int area_split_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		
 	}
 	
-		sd= (sAreaSplitData *)op->customdata;
-		
-		sd->x= event->x;
-		sd->y= event->y;
-		
+	sd= (sAreaSplitData *)op->customdata;
+	
+	sd->x= event->x;
+	sd->y= event->y;
+	
 	if(event->type==EVT_ACTIONZONE_AREA) {
 		
 		/* do the split */
@@ -1355,13 +1399,13 @@ static int area_split_cancel(bContext *C, wmOperator *op)
 	if(sd->previewmode) {
 	}
 	else {
-	if (screen_area_join(C, CTX_wm_screen(C), sd->sarea, sd->narea)) {
-		if (CTX_wm_area(C) == sd->narea) {
-			CTX_wm_area_set(C, NULL);
-			CTX_wm_region_set(C, NULL);
+		if (screen_area_join(C, CTX_wm_screen(C), sd->sarea, sd->narea)) {
+			if (CTX_wm_area(C) == sd->narea) {
+				CTX_wm_area_set(C, NULL);
+				CTX_wm_region_set(C, NULL);
+			}
+			sd->narea = NULL;
 		}
-		sd->narea = NULL;
-	}
 	}
 	area_split_exit(C, op);
 	
@@ -1381,14 +1425,14 @@ static int area_split_modal(bContext *C, wmOperator *op, wmEvent *event)
 			
 			sd->delta= (dir == 'v')? event->x - sd->origval: event->y - sd->origval;
 			if(sd->previewmode==0) 
-			area_move_apply_do(C, sd->origval, sd->delta, dir, sd->bigger, sd->smaller);
+				area_move_apply_do(C, sd->origval, sd->delta, dir, sd->bigger, sd->smaller);
 			else {
 				if(sd->sarea) {
 					sd->sarea->flag &= ~(AREA_FLAG_DRAWSPLIT_H|AREA_FLAG_DRAWSPLIT_V);
 					ED_area_tag_redraw(sd->sarea);
 				}
 				sd->sarea= screen_areahascursor(CTX_wm_screen(C), event->x, event->y);	/* area context not set */
-			
+				
 				if(sd->sarea) {
 					ED_area_tag_redraw(sd->sarea);
 					if (dir=='v') {
@@ -1419,10 +1463,10 @@ static int area_split_modal(bContext *C, wmOperator *op, wmEvent *event)
 				return OPERATOR_FINISHED;
 			}
 			else {
-			if(event->val==KM_RELEASE) { /* mouse up */
-				area_split_exit(C, op);
-				return OPERATOR_FINISHED;
-			}
+				if(event->val==KM_RELEASE) { /* mouse up */
+					area_split_exit(C, op);
+					return OPERATOR_FINISHED;
+				}
 			}
 			break;
 		case RIGHTMOUSE: /* cancel operation */
@@ -1696,7 +1740,7 @@ static int frame_jump_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene= CTX_data_scene(C);
 	wmTimer *animtimer= CTX_wm_screen(C)->animtimer;
-	
+
 	/* Don't change CFRA directly if animtimer is running as this can cause
 	 * first/last frame not to be actually shown (bad since for example physics
 	 * simulations aren't reset properly).
@@ -1706,20 +1750,20 @@ static int frame_jump_exec(bContext *C, wmOperator *op)
 		
 		sad->flag |= ANIMPLAY_FLAG_USE_NEXT_FRAME;
 		
-	if (RNA_boolean_get(op->ptr, "end"))
+		if (RNA_boolean_get(op->ptr, "end"))
 			sad->nextfra= PEFRA;
 		else
 			sad->nextfra= PSFRA;
 	}
 	else {
 		if (RNA_boolean_get(op->ptr, "end"))
-		CFRA= PEFRA;
-	else
-		CFRA= PSFRA;
-	
-	sound_seek_scene(C);
+			CFRA= PEFRA;
+		else
+			CFRA= PSFRA;
+		
+		sound_seek_scene(C);
 
-	WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
+		WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
 	}
 	
 	return OPERATOR_FINISHED;
@@ -1758,14 +1802,14 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
 	/* sanity checks */
 	if (scene == NULL)
 		return OPERATOR_CANCELLED;
-	
+
 	cfra= (float)(CFRA);
 
 	/* init binarytree-list for getting keyframes */
 	BLI_dlrbTree_init(&keys);
 	
 	/* populate tree with keyframe nodes */
-		scene_to_keylist(&ads, scene, &keys, NULL);
+	scene_to_keylist(&ads, scene, &keys, NULL);
 
 	if (ob)
 		ob_to_keylist(&ads, ob, &keys, NULL);
@@ -1834,6 +1878,10 @@ static int screen_set_exec(bContext *C, wmOperator *op)
 	ScrArea *sa= CTX_wm_area(C);
 	int tot= BLI_countlist(&CTX_data_main(C)->screen);
 	int delta= RNA_int_get(op->ptr, "delta");
+	
+	/* temp screens are for userpref or render display */
+	if(screen->temp)
+		return OPERATOR_CANCELLED;
 	
 	if(delta==1) {
 		while(tot--) {
@@ -2065,17 +2113,17 @@ static int area_join_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		RNA_int_set(op->ptr, "max_x", event->x);
 		RNA_int_set(op->ptr, "max_y", event->y);
 	}
-		
 	
-		if(!area_join_init(C, op)) 
-			return OPERATOR_PASS_THROUGH;
-		
-		/* add temp handler */
-		WM_event_add_modal_handler(C, op);
-		
-		return OPERATOR_RUNNING_MODAL;
-	}
 	
+	if(!area_join_init(C, op)) 
+		return OPERATOR_PASS_THROUGH;
+	
+	/* add temp handler */
+	WM_event_add_modal_handler(C, op);
+	
+	return OPERATOR_RUNNING_MODAL;
+}
+
 static int area_join_cancel(bContext *C, wmOperator *op)
 {
 	sAreaJoinData *jd = (sAreaJoinData *)op->customdata;
@@ -2512,7 +2560,7 @@ static void SCREEN_OT_region_quadview(wmOperatorType *ot)
 	/* api callbacks */
 	//	ot->invoke= WM_operator_confirm;
 	ot->exec= region_quadview_exec;
-	ot->poll= ED_operator_areaactive;
+	ot->poll= ED_operator_region_view3d_active;
 	ot->flag= 0;
 }
 
@@ -2569,7 +2617,7 @@ static int header_flip_exec(bContext *C, wmOperator *UNUSED(op))
 	if((ar == NULL) || (ar->regiontype != RGN_TYPE_HEADER)) {
 		ScrArea *sa= CTX_wm_area(C);
 		ar= BKE_area_find_region_type(sa, RGN_TYPE_HEADER);
-		
+
 		/* don't do anything if no region */
 		if(ar == NULL)
 			return OPERATOR_CANCELLED;
@@ -2794,7 +2842,7 @@ static int screen_animation_step(bContext *C, wmOperator *UNUSED(op), wmEvent *e
 				}
 			}
 		}
-		
+
 		/* next frame overriden by user action (pressed jump to first/last frame) */
 		if(sad->flag & ANIMPLAY_FLAG_USE_NEXT_FRAME) {
 			scene->r.cfra = sad->nextfra;
@@ -2806,7 +2854,7 @@ static int screen_animation_step(bContext *C, wmOperator *UNUSED(op), wmEvent *e
 			sound_seek_scene(C);
 		
 		/* since we follow drawflags, we can't send notifier but tag regions ourselves */
-		ED_update_for_newframe(C, 1);
+		ED_update_for_newframe(CTX_data_main(C), scene, screen, 1);
 		
 		for (sa= screen->areabase.first; sa; sa= sa->next) {
 			ARegion *ar;
@@ -2873,14 +2921,14 @@ int ED_screen_animation_play(bContext *C, int sync, int mode)
 			sound_play_scene(scene);
 		
 		ED_screen_animation_timer(C, screen->redraws_flag, refresh, sync, mode);
+		
+		if (screen->animtimer) {
+			wmTimer *wt= screen->animtimer;
+			ScreenAnimData *sad= wt->customdata;
 			
-			if(screen->animtimer) {
-				wmTimer *wt= screen->animtimer;
-				ScreenAnimData *sad= wt->customdata;
-				
-				sad->ar= CTX_wm_region(C);
-			}
+			sad->ar= CTX_wm_region(C);
 		}
+	}
 
 	return OPERATOR_FINISHED;
 }
@@ -2915,20 +2963,20 @@ static void SCREEN_OT_animation_play(wmOperatorType *ot)
 static int screen_animation_cancel_exec(bContext *C, wmOperator *op)
 {
 	bScreen *screen= CTX_wm_screen(C);
-	
-	if(screen->animtimer) {
-		if(RNA_boolean_get(op->ptr, "restore_frame")) {
-		ScreenAnimData *sad= screen->animtimer->customdata;
-		Scene *scene= CTX_data_scene(C);
-		
-		/* reset current frame before stopping, and just send a notifier to deal with the rest 
-		 * (since playback still needs to be stopped)
-		 */
-		scene->r.cfra= sad->sfra;
 
-		WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
+	if (screen->animtimer) {
+		if(RNA_boolean_get(op->ptr, "restore_frame")) {
+			ScreenAnimData *sad= screen->animtimer->customdata;
+			Scene *scene= CTX_data_scene(C);
+
+			/* reset current frame before stopping, and just send a notifier to deal with the rest
+			 * (since playback still needs to be stopped)
+			 */
+			scene->r.cfra= sad->sfra;
+
+			WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
 		}
-		
+
 		/* call the other "toggling" operator to clean up now */
 		ED_screen_animation_play(C, 0, 0);
 	}
@@ -3047,7 +3095,6 @@ static void SCREEN_OT_back_to_previous(struct wmOperatorType *ot)
 
 static int userpref_show_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *event)
 {
-	ScrArea *sa;
 	rcti rect;
 	int sizex, sizey;
 	
@@ -3062,9 +3109,6 @@ static int userpref_show_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *ev
 	
 	/* changes context! */
 	WM_window_open_temp(C, &rect, WM_WINDOW_USERPREFS);
-	
-	sa= CTX_wm_area(C);
-	
 	
 	return OPERATOR_FINISHED;
 }
@@ -3143,19 +3187,19 @@ static int scene_new_exec(bContext *C, wmOperator *op)
 	bScreen *screen= CTX_wm_screen(C);
 	Main *bmain= CTX_data_main(C);
 	int type= RNA_enum_get(op->ptr, "type");
-	
+
 	if(type == SCE_COPY_NEW) {
 		newscene= add_scene("Scene");
 	}
 	else { /* different kinds of copying */
 		newscene= copy_scene(scene, type);
-	
-	/* these can't be handled in blenkernel curently, so do them here */
+
+		/* these can't be handled in blenkernel curently, so do them here */
 		if(type == SCE_COPY_LINK_DATA) {
-		ED_object_single_users(bmain, newscene, 0);
+			ED_object_single_users(bmain, newscene, 0);
 		}
 		else if(type == SCE_COPY_FULL) {
-		ED_object_single_users(bmain, newscene, 1);
+			ED_object_single_users(bmain, newscene, 1);
 		}
 	}
 	
@@ -3302,7 +3346,7 @@ static int open_file_drop_poll(bContext *UNUSED(C), wmDrag *drag, wmEvent *UNUSE
 {
 	if(drag->type==WM_DRAG_PATH) {
 		if(drag->icon==ICON_FILE_BLEND)
-		   return 1;
+			return 1;
 	}
 	return 0;
 }

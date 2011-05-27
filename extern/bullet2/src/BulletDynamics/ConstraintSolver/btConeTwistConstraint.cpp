@@ -104,15 +104,15 @@ void btConeTwistConstraint::getInfo1 (btConstraintInfo1* info)
 		}
 	}
 }
-	
+
 void btConeTwistConstraint::getInfo1NonVirtual (btConstraintInfo1* info)
 {
 	//always reserve 6 rows: object transform is not available on SPU
 	info->m_numConstraintRows = 6;
 	info->nub = 0;
-
+		
 }
-
+	
 
 void btConeTwistConstraint::getInfo2 (btConstraintInfo2* info)
 {
@@ -155,7 +155,7 @@ void btConeTwistConstraint::getInfo2NonVirtual (btConstraintInfo2* info,const bt
 		if(m_flags & BT_CONETWIST_FLAGS_LIN_CFM)
 		{
 			info->cfm[j*info->rowskip] = m_linCFM;
-    }
+		}
     }
 	int row = 3;
     int srow = row * info->rowskip;

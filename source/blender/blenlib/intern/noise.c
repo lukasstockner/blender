@@ -1059,15 +1059,17 @@ float BLI_hnoisep(float noisesize, float x, float y, float z)
 /* Camberra omitted, didn't seem useful */
 
 /* distance squared */
-static float dist_Squared(float x, float y, float z, float e) { return (x*x + y*y + z*z); }
+static float dist_Squared(float x, float y, float z, float e) { (void)e; return (x*x + y*y + z*z); }
 /* real distance */
-static float dist_Real(float x, float y, float z, float e) { return sqrt(x*x + y*y + z*z); }
+static float dist_Real(float x, float y, float z, float e) { (void)e; return sqrt(x*x + y*y + z*z); }
 /* manhattan/taxicab/cityblock distance */
-static float dist_Manhattan(float x, float y, float z, float e) { return (fabs(x) + fabs(y) + fabs(z)); }
+static float dist_Manhattan(float x, float y, float z, float e) { (void)e; return (fabs(x) + fabs(y) + fabs(z)); }
 /* Chebychev */
 static float dist_Chebychev(float x, float y, float z, float e)
 {
 	float t;
+	(void)e;
+
 	x = fabs(x);
 	y = fabs(y);
 	z = fabs(z);
@@ -1079,12 +1081,14 @@ static float dist_Chebychev(float x, float y, float z, float e)
 static float dist_MinkovskyH(float x, float y, float z, float e)
 {
 	float d = sqrt(fabs(x)) + sqrt(fabs(y)) + sqrt(fabs(z));
+	(void)e;
 	return (d*d);
 }
 
 /* minkovsky preset exponent 4 */
 static float dist_Minkovsky4(float x, float y, float z, float e)
 {
+	(void)e;
 	x *= x;
 	y *= y;
 	z *= z;
@@ -1094,7 +1098,7 @@ static float dist_Minkovsky4(float x, float y, float z, float e)
 /* Minkovsky, general case, slow, maybe too slow to be useful */
 static float dist_Minkovsky(float x, float y, float z, float e)
 {
- return pow(pow(fabs(x), e) + pow(fabs(y), e) + pow(fabs(z), e), 1.0/e);
+	return pow(pow(fabs(x), e) + pow(fabs(y), e) + pow(fabs(z), e), 1.0/e);
 }
 
 
@@ -1271,18 +1275,18 @@ static float voronoi_CrS(float x, float y, float z)
 /* returns unsigned cellnoise */
 static float cellNoiseU(float x, float y, float z)
 {
-  int xi = (int)(floor(x));
-  int yi = (int)(floor(y));
-  int zi = (int)(floor(z));
-  unsigned int n = xi + yi*1301 + zi*314159;
-  n ^= (n<<13);
-  return ((float)(n*(n*n*15731 + 789221) + 1376312589) / 4294967296.0);
+	int xi = (int)(floor(x));
+	int yi = (int)(floor(y));
+	int zi = (int)(floor(z));
+	unsigned int n = xi + yi*1301 + zi*314159;
+	n ^= (n<<13);
+	return ((float)(n*(n*n*15731 + 789221) + 1376312589) / 4294967296.0);
 }
 
 /* idem, signed */
 float cellNoise(float x, float y, float z)
 {
-  return (2.0*cellNoiseU(x, y, z)-1.0);
+	return (2.0*cellNoiseU(x, y, z)-1.0);
 }
 
 /* returns a vector/point/color in ca, using point hasharray directly */

@@ -160,7 +160,7 @@ void    btAlignedFreeInternal   (void* ptr,int line,char* filename)
 void*	btAlignedAllocInternal	(size_t size, int alignment)
 {
 	gNumAlignedAllocs++;
-  void* ptr;
+	void* ptr;
 	ptr = sAlignedAllocFunc(size, alignment);
 //	printf("btAlignedAllocInternal %d, %x\n",size,ptr);
 	return ptr;
@@ -176,7 +176,7 @@ void	btAlignedFreeInternal	(void* ptr)
 	gNumAlignedFree++;
 //	printf("btAlignedFreeInternal %x\n",ptr);
 	sAlignedFreeFunc(ptr);
-  }
+}
 
 #endif //BT_DEBUG_MEMORY_ALLOCATIONS
 

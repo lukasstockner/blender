@@ -86,13 +86,13 @@ static void deformVerts(ModifierData *md, Object *ob,
 						DerivedMesh *derivedData,
 						float (*vertexCos)[3],
 						int UNUSED(numVerts),
-						int useRenderParams,
-						int isFinalCalc)
+						int UNUSED(useRenderParams),
+						int UNUSED(isFinalCalc))
 {
 	SmokeModifierData *smd = (SmokeModifierData*) md;
 	DerivedMesh *dm = get_cddm(ob, NULL, derivedData, vertexCos);
 
-	smokeModifier_do(smd, md->scene, ob, dm, useRenderParams, isFinalCalc);
+	smokeModifier_do(smd, md->scene, ob, dm);
 
 	if(dm != derivedData)
 		dm->release(dm);
@@ -141,8 +141,8 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 				{
 					DagNode *curNode = dag_get_node(forest, base->object);
 					dag_add_relation(forest, curNode, obNode, DAG_RL_DATA_DATA|DAG_RL_OB_DATA, "Smoke Flow");
-	}
-}
+				}
+			}
 		}
 	}
 }

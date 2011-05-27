@@ -62,7 +62,7 @@
 # include "BLI_fnmatch.h" /* use fnmatch included in blenlib */
 #else
 #  ifndef _GNU_SOURCE
-# define _GNU_SOURCE
+#    define _GNU_SOURCE
 #  endif
 # include <fnmatch.h>
 #endif
@@ -128,7 +128,7 @@
 
 /* ************* XXX **************** */
 
-static void error(const char *dummy, ...) {}
+static void error(const char *UNUSED(arg), ...) {}
 
 /* ********************************** */
 
@@ -1340,8 +1340,8 @@ static void outliner_build_tree(Main *mainvar, Scene *scene, SpaceOops *soops)
 	int show_opened= (soops->treestore==NULL); /* on first view, we open scenes */
 
 	if(soops->tree.first && (soops->storeflag & SO_TREESTORE_REDRAW))
-	   return;
-	   
+		return;
+
 	outliner_free_tree(&soops->tree);
 	outliner_storage_cleanup(soops);
 	
@@ -1599,7 +1599,7 @@ static void outliner_set_flag(SpaceOops *soops, ListBase *lb, short flag, short 
 /* same check needed for both object operation and restrict column button func
  * return 0 when in edit mode (cannot restrict view or select)
  * otherwise return 1 */
-static int common_restrict_check(bContext *C, Scene *scene, Object *ob)
+static int common_restrict_check(bContext *C, Object *ob)
 {
 	/* Don't allow hide an object in edit mode,
 	 * check the bug #22153 and #21609, #23977
@@ -1624,13 +1624,13 @@ static void object_toggle_visibility_cb(bContext *C, Scene *scene, TreeElement *
 	Object *ob = (Object *)tselem->id;
 	
 	/* add check for edit mode */
-	if(!common_restrict_check(C, scene, ob)) return;
+	if(!common_restrict_check(C, ob)) return;
 	
 	if(base || (base= object_in_scene(ob, scene))) {
 		if((base->object->restrictflag ^= OB_RESTRICT_VIEW)) {
 			ED_base_object_select(base, BA_DESELECT);
+		}
 	}
-}
 }
 
 static int outliner_toggle_visibility_exec(bContext *C, wmOperator *UNUSED(op))
@@ -1663,7 +1663,7 @@ void OUTLINER_OT_visibility_toggle(wmOperatorType *ot)
 
 /* --- */
 
-static void object_toggle_selectability_cb(bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *tsep, TreeStoreElem *tselem)
+static void object_toggle_selectability_cb(bContext *UNUSED(C), Scene *scene, TreeElement *te, TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
 {
 	Base *base= (Base *)te->directdata;
 	
@@ -1864,6 +1864,8 @@ void OUTLINER_OT_show_one_level(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "open", 1, "Open", "Expand all entries one level deep.");
 }
 
+/* This is not used anywhere at the moment */
+#if 0
 /* return 1 when levels were opened */
 static int outliner_open_back(SpaceOops *soops, TreeElement *te)
 {
@@ -1880,8 +1882,6 @@ static int outliner_open_back(SpaceOops *soops, TreeElement *te)
 	return retval;
 }
 
-/* This is not used anywhere at the moment */
-#if 0
 static void outliner_open_reveal(SpaceOops *soops, ListBase *lb, TreeElement *teFind, int *found)
 {
 	TreeElement *te;
@@ -1978,7 +1978,7 @@ static void tree_element_set_active_object(bContext *C, Scene *scene, SpaceOops 
 		if(C) {
 			ED_base_object_activate(C, base); /* adds notifier */
 			WM_event_add_notifier(C, NC_SCENE|ND_OB_SELECT, scene);
-	}
+		}
 	}
 	
 	if(ob!=scene->obedit) 
@@ -2094,13 +2094,13 @@ static int tree_element_active_texture(bContext *C, Scene *scene, SpaceOops *soo
 	}
 	
 	if(set)
-	WM_event_add_notifier(C, NC_TEXTURE, NULL);
+		WM_event_add_notifier(C, NC_TEXTURE, NULL);
 
 	return 0;
 }
 
 
-static int tree_element_active_lamp(bContext *C, Scene *scene, SpaceOops *soops, TreeElement *te, int set)
+static int tree_element_active_lamp(bContext *UNUSED(C), Scene *scene, SpaceOops *soops, TreeElement *te, int set)
 {
 	Object *ob;
 	
@@ -2257,19 +2257,19 @@ static int tree_element_active_bone(bContext *C, Scene *scene, TreeElement *te, 
 static void tree_element_active_ebone__sel(bContext *C, Scene *scene, bArmature *arm, EditBone *ebone, short sel)
 {
 	if(sel) {
-			ebone->flag |= BONE_SELECTED|BONE_ROOTSEL|BONE_TIPSEL;
-			arm->act_edbone= ebone;
-			// flush to parent?
-			if(ebone->parent && (ebone->flag & BONE_CONNECTED)) ebone->parent->flag |= BONE_TIPSEL;
+		ebone->flag |= BONE_SELECTED|BONE_ROOTSEL|BONE_TIPSEL;
+		arm->act_edbone= ebone;
+		// flush to parent?
+		if(ebone->parent && (ebone->flag & BONE_CONNECTED)) ebone->parent->flag |= BONE_TIPSEL;
 	}
 	else {
 		ebone->flag &= ~(BONE_SELECTED|BONE_ROOTSEL|BONE_TIPSEL);
 		// flush to parent?
 		if(ebone->parent && (ebone->flag & BONE_CONNECTED)) ebone->parent->flag &= ~BONE_TIPSEL;
 	}
-			
-			WM_event_add_notifier(C, NC_OBJECT|ND_BONE_ACTIVE, scene->obedit);
-		}
+
+	WM_event_add_notifier(C, NC_OBJECT|ND_BONE_ACTIVE, scene->obedit);
+}
 static int tree_element_active_ebone(bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *UNUSED(tselem), int set)
 {
 	bArmature *arm= scene->obedit->data;
@@ -2280,7 +2280,7 @@ static int tree_element_active_ebone(bContext *C, Scene *scene, TreeElement *te,
 			ED_armature_deselect_all(scene->obedit, 0);	// deselect
 			tree_element_active_ebone__sel(C, scene, arm, ebone, TRUE);
 			return 1;
-	}
+		}
 	}
 	else if (set==2) {
 		if(!(ebone->flag & BONE_HIDDEN_A)) {
@@ -2288,11 +2288,11 @@ static int tree_element_active_ebone(bContext *C, Scene *scene, TreeElement *te,
 				tree_element_active_ebone__sel(C, scene, arm, ebone, TRUE);
 				return 1;
 			}
-	else {
+			else {
 				/* entirely selected, so de-select */
 				tree_element_active_ebone__sel(C, scene, arm, ebone, FALSE);
 				return 0;
-	}
+			}
 		}
 	}
 	else if (ebone->flag & BONE_SELECTED) {
@@ -2301,7 +2301,7 @@ static int tree_element_active_ebone(bContext *C, Scene *scene, TreeElement *te,
 	return 0;
 }
 
-static int tree_element_active_modifier(bContext *C, TreeElement *te, TreeStoreElem *tselem, int set)
+static int tree_element_active_modifier(bContext *C, TreeElement *UNUSED(te), TreeStoreElem *tselem, int set)
 {
 	if(set) {
 		Object *ob= (Object *)tselem->id;
@@ -2314,7 +2314,7 @@ static int tree_element_active_modifier(bContext *C, TreeElement *te, TreeStoreE
 	return 0;
 }
 
-static int tree_element_active_psys(bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *tselem, int set)
+static int tree_element_active_psys(bContext *C, Scene *UNUSED(scene), TreeElement *UNUSED(te), TreeStoreElem *tselem, int set)
 {
 	if(set) {
 		Object *ob= (Object *)tselem->id;
@@ -2327,7 +2327,7 @@ static int tree_element_active_psys(bContext *C, Scene *scene, TreeElement *te, 
 	return 0;
 }
 
-static int tree_element_active_constraint(bContext *C, TreeElement *te, TreeStoreElem *tselem, int set)
+static int tree_element_active_constraint(bContext *C, TreeElement *UNUSED(te), TreeStoreElem *tselem, int set)
 {
 	if(set) {
 		Object *ob= (Object *)tselem->id;
@@ -2339,7 +2339,7 @@ static int tree_element_active_constraint(bContext *C, TreeElement *te, TreeStor
 	return 0;
 }
 
-static int tree_element_active_text(bContext *C, Scene *scene, SpaceOops *soops, TreeElement *te, int set)
+static int tree_element_active_text(bContext *UNUSED(C), Scene *UNUSED(scene), SpaceOops *UNUSED(soops), TreeElement *UNUSED(te), int UNUSED(set))
 {
 	// XXX removed
 	return 0;
@@ -2366,7 +2366,7 @@ static int tree_element_active(bContext *C, Scene *scene, SpaceOops *soops, Tree
 	return 0;
 }
 
-static int tree_element_active_pose(bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *tselem, int set)
+static int tree_element_active_pose(bContext *C, Scene *scene, TreeElement *UNUSED(te), TreeStoreElem *tselem, int set)
 {
 	Object *ob= (Object *)tselem->id;
 	Base *base= object_in_scene(ob, scene);
@@ -2386,7 +2386,7 @@ static int tree_element_active_pose(bContext *C, Scene *scene, TreeElement *te, 
 	return 0;
 }
 
-static int tree_element_active_sequence(bContext *C, TreeElement *te, TreeStoreElem *tselem, int set)
+static int tree_element_active_sequence(TreeElement *te, TreeStoreElem *UNUSED(tselem), int set)
 {
 	Sequence *seq= (Sequence*) te->directdata;
 
@@ -2400,7 +2400,7 @@ static int tree_element_active_sequence(bContext *C, TreeElement *te, TreeStoreE
 	return(0);
 }
 
-static int tree_element_active_sequence_dup(bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *tselem, int set)
+static int tree_element_active_sequence_dup(Scene *scene, TreeElement *te, TreeStoreElem *UNUSED(tselem), int set)
 {
 	Sequence *seq, *p;
 	Editing *ed= seq_give_editing(scene, FALSE);
@@ -2427,7 +2427,7 @@ static int tree_element_active_sequence_dup(bContext *C, Scene *scene, TreeEleme
 	return(0);
 }
 
-static int tree_element_active_keymap_item(bContext *C, TreeElement *te, TreeStoreElem *tselem, int set)
+static int tree_element_active_keymap_item(bContext *UNUSED(C), TreeElement *te, TreeStoreElem *UNUSED(tselem), int set)
 {
 	wmKeyMapItem *kmi= te->directdata;
 	
@@ -2472,9 +2472,9 @@ static int tree_element_type_active(bContext *C, Scene *scene, SpaceOops *soops,
 		case TSE_POSEGRP:
 			return tree_element_active_posegroup(C, scene, te, tselem, set);
 		case TSE_SEQUENCE:
-			return tree_element_active_sequence(C, te, tselem, set);
+			return tree_element_active_sequence(te, tselem, set);
 		case TSE_SEQUENCE_DUP:
-			return tree_element_active_sequence_dup(C, scene, te, tselem, set);
+			return tree_element_active_sequence_dup(scene, te, tselem, set);
 		case TSE_KEYMAP_ITEM:
 			return tree_element_active_keymap_item(C, te, tselem, set);
 			
@@ -2579,9 +2579,9 @@ static int outliner_item_activate(bContext *C, wmOperator *op, wmEvent *event)
 	TreeElement *te;
 	float fmval[2];
 	int extend= RNA_boolean_get(op->ptr, "extend");
-	
+
 	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], fmval, fmval+1);
-	
+
 	if(!ELEM3(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF, SO_KEYMAP) && !(soops->flag & SO_HIDE_RESTRICTCOLS) && fmval[0] > ar->v2d.cur.xmax - OL_TOG_RESTRICT_VIEWX)
 		return OPERATOR_CANCELLED;
 
@@ -2757,39 +2757,6 @@ void OUTLINER_OT_item_rename(wmOperatorType *ot)
 	ot->poll= ED_operator_outliner_active;
 }
 
-
-
-/* recursive helper for function below */
-static void outliner_set_coordinates_element(SpaceOops *soops, TreeElement *te, int startx, int *starty)
-{
-	TreeStoreElem *tselem= TREESTORE(te);
-	
-	/* store coord and continue, we need coordinates for elements outside view too */
-	te->xs= (float)startx;
-	te->ys= (float)(*starty);
-	*starty-= OL_H;
-	
-	if((tselem->flag & TSE_CLOSED)==0) {
-		TreeElement *ten;
-		for(ten= te->subtree.first; ten; ten= ten->next) {
-			outliner_set_coordinates_element(soops, ten, startx+OL_X, starty);
-		}
-	}
-	
-}
-
-/* to retrieve coordinates with redrawing the entire tree */
-static void outliner_set_coordinates(ARegion *ar, SpaceOops *soops)
-{
-	TreeElement *te;
-	int starty= (int)(ar->v2d.tot.ymax)-OL_H;
-	int startx= 0;
-	
-	for(te= soops->tree.first; te; te= te->next) {
-		outliner_set_coordinates_element(soops, te, startx, &starty);
-	}
-}
-
 static TreeElement *outliner_find_id(SpaceOops *soops, ListBase *lb, ID *id)
 {
 	TreeElement *te, *tes;
@@ -2857,6 +2824,66 @@ void OUTLINER_OT_show_active(wmOperatorType *ot)
 	ot->poll= ED_operator_outliner_active;
 }
 
+/* tse is not in the treestore, we use its contents to find a match */
+static TreeElement *outliner_find_tse(SpaceOops *soops, TreeStoreElem *tse)
+{
+	TreeStore *ts= soops->treestore;
+	TreeStoreElem *tselem;
+	int a;
+	
+	if(tse->id==NULL) return NULL;
+	
+	/* check if 'tse' is in treestore */
+	tselem= ts->data;
+	for(a=0; a<ts->usedelem; a++, tselem++) {
+		if((tse->type==0 && tselem->type==0) || (tselem->type==tse->type && tselem->nr==tse->nr)) {
+			if(tselem->id==tse->id) {
+				break;
+			}
+		}
+	}
+	if(tselem) 
+		return outliner_find_tree_element(&soops->tree, a);
+	
+	return NULL;
+}
+
+
+/* Called to find an item based on name.
+ */
+#if 0
+
+/* recursive helper for function below */
+static void outliner_set_coordinates_element(SpaceOops *soops, TreeElement *te, int startx, int *starty)
+{
+	TreeStoreElem *tselem= TREESTORE(te);
+	
+	/* store coord and continue, we need coordinates for elements outside view too */
+	te->xs= (float)startx;
+	te->ys= (float)(*starty);
+	*starty-= OL_H;
+	
+	if((tselem->flag & TSE_CLOSED)==0) {
+		TreeElement *ten;
+		for(ten= te->subtree.first; ten; ten= ten->next) {
+			outliner_set_coordinates_element(soops, ten, startx+OL_X, starty);
+		}
+	}
+	
+}
+
+/* to retrieve coordinates with redrawing the entire tree */
+static void outliner_set_coordinates(ARegion *ar, SpaceOops *soops)
+{
+	TreeElement *te;
+	int starty= (int)(ar->v2d.tot.ymax)-OL_H;
+	int startx= 0;
+	
+	for(te= soops->tree.first; te; te= te->next) {
+		outliner_set_coordinates_element(soops, te, startx, &starty);
+	}
+}
+
 /* find next element that has this name */
 static TreeElement *outliner_find_named(SpaceOops *soops, ListBase *lb, char *name, int flags, TreeElement *prev, int *prevFound)
 {
@@ -2886,34 +2913,7 @@ static TreeElement *outliner_find_named(SpaceOops *soops, ListBase *lb, char *na
 	return NULL;
 }
 
-/* tse is not in the treestore, we use its contents to find a match */
-static TreeElement *outliner_find_tse(SpaceOops *soops, TreeStoreElem *tse)
-{
-	TreeStore *ts= soops->treestore;
-	TreeStoreElem *tselem;
-	int a;
-	
-	if(tse->id==NULL) return NULL;
-	
-	/* check if 'tse' is in treestore */
-	tselem= ts->data;
-	for(a=0; a<ts->usedelem; a++, tselem++) {
-		if((tse->type==0 && tselem->type==0) || (tselem->type==tse->type && tselem->nr==tse->nr)) {
-			if(tselem->id==tse->id) {
-				break;
-			}
-		}
-	}
-	if(tselem) 
-		return outliner_find_tree_element(&soops->tree, a);
-	
-	return NULL;
-}
-
-
-/* Called to find an item based on name.
- */
-void outliner_find_panel(Scene *scene, ARegion *ar, SpaceOops *soops, int again, int flags) 
+static void outliner_find_panel(Scene *UNUSED(scene), ARegion *ar, SpaceOops *soops, int again, int flags) 
 {
 	TreeElement *te= NULL;
 	TreeElement *last_find;
@@ -2985,6 +2985,7 @@ void outliner_find_panel(Scene *scene, ARegion *ar, SpaceOops *soops, int again,
 		error("Not found: %s", name);
 	}
 }
+#endif
 
 /* helper function for tree_element_shwo_hierarchy() - recursively checks whether subtrees have any objects*/
 static int subtree_has_objects(SpaceOops *soops, ListBase *lb)
@@ -3145,7 +3146,7 @@ static void set_operation_types(SpaceOops *soops, ListBase *lb,
 	}
 }
 
-static void unlink_material_cb(bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *tsep, TreeStoreElem *tselem)
+static void unlink_material_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeElement *te, TreeStoreElem *tsep, TreeStoreElem *UNUSED(tselem))
 {
 	Material **matar=NULL;
 	int a, totcol=0;
@@ -3179,7 +3180,7 @@ static void unlink_material_cb(bContext *C, Scene *scene, TreeElement *te, TreeS
 	}
 }
 
-static void unlink_texture_cb(bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *tsep, TreeStoreElem *tselem)
+static void unlink_texture_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeElement *te, TreeStoreElem *tsep, TreeStoreElem *UNUSED(tselem))
 {
 	MTex **mtex= NULL;
 	int a;
@@ -3208,7 +3209,7 @@ static void unlink_texture_cb(bContext *C, Scene *scene, TreeElement *te, TreeSt
 	}
 }
 
-static void unlink_group_cb(bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *tsep, TreeStoreElem *tselem)
+static void unlink_group_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeElement *UNUSED(te), TreeStoreElem *tsep, TreeStoreElem *tselem)
 {
 	Group *group= (Group *)tselem->id;
 	
@@ -3245,7 +3246,7 @@ static void outliner_do_libdata_operation(bContext *C, Scene *scene, SpaceOops *
 
 /* */
 
-static void object_select_cb(bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *tsep, TreeStoreElem *tselem)
+static void object_select_cb(bContext *UNUSED(C), Scene *scene, TreeElement *te, TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
 {
 	Base *base= (Base *)te->directdata;
 	
@@ -3256,7 +3257,7 @@ static void object_select_cb(bContext *C, Scene *scene, TreeElement *te, TreeSto
 	}
 }
 
-static void object_deselect_cb(bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *tsep, TreeStoreElem *tselem)
+static void object_deselect_cb(bContext *UNUSED(C), Scene *scene, TreeElement *te, TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
 {
 	Base *base= (Base *)te->directdata;
 	
@@ -3267,7 +3268,7 @@ static void object_deselect_cb(bContext *C, Scene *scene, TreeElement *te, TreeS
 	}
 }
 
-static void object_delete_cb(bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *tsep, TreeStoreElem *tselem)
+static void object_delete_cb(bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
 {
 	Base *base= (Base *)te->directdata;
 	
@@ -3282,10 +3283,10 @@ static void object_delete_cb(bContext *C, Scene *scene, TreeElement *te, TreeSto
 		te->directdata= NULL;
 		tselem->id= NULL;
 	}
-	
+
 }
 
-static void id_local_cb(bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *tsep, TreeStoreElem *tselem)
+static void id_local_cb(bContext *UNUSED(C), Scene *UNUSED(scene), TreeElement *UNUSED(te), TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
 {
 	if(tselem->id->lib && (tselem->id->flag & LIB_EXTERN)) {
 		tselem->id->lib= NULL;
@@ -3294,7 +3295,7 @@ static void id_local_cb(bContext *C, Scene *scene, TreeElement *te, TreeStoreEle
 	}
 }
 
-static void group_linkobs2scene_cb(bContext *C, Scene *scene, TreeElement *te, TreeStoreElem *tsep, TreeStoreElem *tselem)
+static void group_linkobs2scene_cb(bContext *UNUSED(C), Scene *scene, TreeElement *UNUSED(te), TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
 {
 	Group *group= (Group *)tselem->id;
 	GroupObject *gob;
@@ -3347,7 +3348,7 @@ static void outliner_do_object_operation(bContext *C, Scene *scene_act, SpaceOop
 
 /* ******************************************** */
 
-static void pchan_cb(int event, TreeElement *te, TreeStoreElem *tselem)
+static void pchan_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tselem))
 {
 	bPoseChannel *pchan= (bPoseChannel *)te->directdata;
 	
@@ -3363,7 +3364,7 @@ static void pchan_cb(int event, TreeElement *te, TreeStoreElem *tselem)
 		pchan->bone->flag &= ~BONE_HIDDEN_P;
 }
 
-static void bone_cb(int event, TreeElement *te, TreeStoreElem *tselem)
+static void bone_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tselem))
 {
 	Bone *bone= (Bone *)te->directdata;
 	
@@ -3379,7 +3380,7 @@ static void bone_cb(int event, TreeElement *te, TreeStoreElem *tselem)
 		bone->flag &= ~BONE_HIDDEN_P;
 }
 
-static void ebone_cb(int event, TreeElement *te, TreeStoreElem *tselem)
+static void ebone_cb(int event, TreeElement *te, TreeStoreElem *UNUSED(tselem))
 {
 	EditBone *ebone= (EditBone *)te->directdata;
 	
@@ -3395,7 +3396,7 @@ static void ebone_cb(int event, TreeElement *te, TreeStoreElem *tselem)
 		ebone->flag &= ~BONE_HIDDEN_A;
 }
 
-static void sequence_cb(int event, TreeElement *te, TreeStoreElem *tselem)
+static void sequence_cb(int event, TreeElement *UNUSED(te), TreeStoreElem *UNUSED(tselem))
 {
 //	Sequence *seq= (Sequence*) te->directdata;
 	if(event==1) {
@@ -3501,7 +3502,7 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
 		str= "Toggle Renderability";
 		WM_event_add_notifier(C, NC_SCENE|ND_OB_RENDER, scene);
 	}
-	
+
 	ED_undo_push(C, str);
 	
 	return OPERATOR_FINISHED;
@@ -3532,8 +3533,8 @@ static EnumPropertyItem prop_group_op_types[] = {
 	{2, "LOCAL", 0, "Make Local", ""},
 	{3, "LINK", 0, "Link Group Objects to Scene", ""},
 	{4, "TOGVIS", 0, "Toggle Visible", ""},
- 	{5, "TOGSEL", 0, "Toggle Selectable", ""},
- 	{6, "TOGREN", 0, "Toggle Renderable", ""},
+	{5, "TOGSEL", 0, "Toggle Selectable", ""},
+	{6, "TOGREN", 0, "Toggle Renderable", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -3560,7 +3561,7 @@ static int outliner_group_operation_exec(bContext *C, wmOperator *op)
 	else if(event==3) {
 		outliner_do_libdata_operation(C, scene, soops, &soops->tree, group_linkobs2scene_cb);
 		ED_undo_push(C, "Link Group Objects to Scene");
- 	}   
+	}
 	
 	
 	WM_event_add_notifier(C, NC_GROUP, NULL);
@@ -3833,7 +3834,7 @@ static int ed_operator_outliner_datablocks_active(bContext *C)
  * this function does not do that yet 
  */
 static void tree_element_to_path(SpaceOops *soops, TreeElement *te, TreeStoreElem *tselem, 
-							ID **id, char **path, int *array_index, short *flag, short *groupmode)
+							ID **id, char **path, int *array_index, short *flag, short *UNUSED(groupmode))
 {
 	ListBase hierarchy = {NULL, NULL};
 	LinkData *ld;
@@ -4673,15 +4674,15 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 					active= 2; /* means it draws a color circle */
 					if(ob==OBACT) {
 						if(ob->flag & SELECT) {
-						UI_GetThemeColorType4ubv(TH_ACTIVE, SPACE_VIEW3D, col);
+							UI_GetThemeColorType4ubv(TH_ACTIVE, SPACE_VIEW3D, col);
 							col[3]= 100;
-					}
+						}
 						
 						active= 1; /* means it draws white text */
 					}
 					else if(ob->flag & SELECT) {
 						UI_GetThemeColorType4ubv(TH_SELECT, SPACE_VIEW3D, col);
-					col[3]= 100;
+						col[3]= 100;
 					}
 					
 					glColor4ubv((GLubyte *)col);
@@ -4788,17 +4789,17 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 	te->xend= startx+offsx;
 		
 	if((tselem->flag & TSE_CLOSED)==0) {
-	*starty-= OL_H;
-
+		*starty-= OL_H;
+		
 		for(ten= te->subtree.first; ten; ten= ten->next)
 			outliner_draw_tree_element(C, block, scene, ar, soops, ten, startx+OL_X, starty);
-		}
+	}	
 	else {
 		for(ten= te->subtree.first; ten; ten= ten->next)
 			outliner_set_coord_tree_element(soops, te, startx, starty);
 
 		*starty-= OL_H;
-	}	
+	}
 }
 
 static void outliner_draw_hierarchy(SpaceOops *soops, ListBase *lb, int startx, int *starty)
@@ -4912,7 +4913,7 @@ static void outliner_draw_tree(bContext *C, uiBlock *block, Scene *scene, ARegio
 }
 
 
-static void outliner_back(ARegion *ar, SpaceOops *soops)
+static void outliner_back(ARegion *ar)
 {
 	int ystart;
 	
@@ -4926,7 +4927,7 @@ static void outliner_back(ARegion *ar, SpaceOops *soops)
 	}
 }
 
-static void outliner_draw_restrictcols(ARegion *ar, SpaceOops *soops)
+static void outliner_draw_restrictcols(ARegion *ar)
 {
 	int ystart;
 	
@@ -4969,14 +4970,14 @@ static void restrictbutton_view_cb(bContext *C, void *poin, void *poin2)
 	Scene *scene = (Scene *)poin;
 	Object *ob = (Object *)poin2;
 
-	if(!common_restrict_check(C, scene, ob)) return;
+	if(!common_restrict_check(C, ob)) return;
 	
 	/* deselect objects that are invisible */
 	if (ob->restrictflag & OB_RESTRICT_VIEW) {
 		/* Ouch! There is no backwards pointer from Object to Base, 
 		 * so have to do loop to find it. */
 		ED_base_object_select(object_in_scene(ob, scene), BA_DESELECT);
-			}
+	}
 	WM_event_add_notifier(C, NC_SCENE|ND_OB_SELECT, scene);
 
 }
@@ -4986,29 +4987,29 @@ static void restrictbutton_sel_cb(bContext *C, void *poin, void *poin2)
 	Scene *scene = (Scene *)poin;
 	Object *ob = (Object *)poin2;
 	
-	if(!common_restrict_check(C, scene, ob)) return;
+	if(!common_restrict_check(C, ob)) return;
 	
 	/* if select restriction has just been turned on */
 	if (ob->restrictflag & OB_RESTRICT_SELECT) {
 		/* Ouch! There is no backwards pointer from Object to Base, 
 		 * so have to do loop to find it. */
 		ED_base_object_select(object_in_scene(ob, scene), BA_DESELECT);
-			}
+	}
 	WM_event_add_notifier(C, NC_SCENE|ND_OB_SELECT, scene);
 
 }
 
-static void restrictbutton_rend_cb(bContext *C, void *poin, void *poin2)
+static void restrictbutton_rend_cb(bContext *C, void *poin, void *UNUSED(poin2))
 {
 	WM_event_add_notifier(C, NC_SCENE|ND_OB_RENDER, poin);
 }
 
-static void restrictbutton_r_lay_cb(bContext *C, void *poin, void *poin2)
+static void restrictbutton_r_lay_cb(bContext *C, void *poin, void *UNUSED(poin2))
 {
 	WM_event_add_notifier(C, NC_SCENE|ND_RENDER_OPTIONS, poin);
 }
 
-static void restrictbutton_modifier_cb(bContext *C, void *poin, void *poin2)
+static void restrictbutton_modifier_cb(bContext *C, void *UNUSED(poin), void *poin2)
 {
 	Object *ob = (Object *)poin2;
 	
@@ -5017,7 +5018,7 @@ static void restrictbutton_modifier_cb(bContext *C, void *poin, void *poin2)
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 }
 
-static void restrictbutton_bone_cb(bContext *C, void *poin, void *poin2)
+static void restrictbutton_bone_cb(bContext *C, void *UNUSED(poin), void *poin2)
 {
 	Bone *bone= (Bone *)poin2;
 	if(bone && (bone->flag & BONE_HIDDEN_P))
@@ -5025,7 +5026,7 @@ static void restrictbutton_bone_cb(bContext *C, void *poin, void *poin2)
 	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, NULL);
 }
 
-static void restrictbutton_ebone_cb(bContext *C, void *poin, void *poin2)
+static void restrictbutton_ebone_cb(bContext *C, void *UNUSED(poin), void *poin2)
 {
 	EditBone *ebone= (EditBone *)poin2;
 	if(ebone && (ebone->flag & BONE_HIDDEN_A))
@@ -5057,7 +5058,7 @@ static int group_select_flag(Group *gr)
 	return 0;
 }
 
-static void restrictbutton_gr_restrict_flag(bContext *C, void *poin, void *poin2, int flag)
+static void restrictbutton_gr_restrict_flag(void *poin, void *poin2, int flag)
 {	
 	Scene *scene = (Scene *)poin;		
 	GroupObject *gob;
@@ -5076,29 +5077,29 @@ static void restrictbutton_gr_restrict_flag(bContext *C, void *poin, void *poin2
 		for(gob= gr->gobject.first; gob; gob= gob->next) {
 			/* not in editmode */
 			if(scene->obedit!=gob->ob) {
-			gob->ob->restrictflag |= flag;
+				gob->ob->restrictflag |= flag;
 
-			if(flag==OB_RESTRICT_VIEW)
-				if((gob->ob->flag & SELECT) == 0)
-					ED_base_object_select(object_in_scene(gob->ob, scene), BA_SELECT);
+				if(flag==OB_RESTRICT_VIEW)
+					if((gob->ob->flag & SELECT) == 0)
+						ED_base_object_select(object_in_scene(gob->ob, scene), BA_SELECT);
+			}
 		}
 	}
-} 
 } 
 
 static void restrictbutton_gr_restrict_view(bContext *C, void *poin, void *poin2)
 {
-	restrictbutton_gr_restrict_flag(C, poin, poin2, OB_RESTRICT_VIEW);
+	restrictbutton_gr_restrict_flag(poin, poin2, OB_RESTRICT_VIEW);
 	WM_event_add_notifier(C, NC_GROUP, NULL);
 }
 static void restrictbutton_gr_restrict_select(bContext *C, void *poin, void *poin2)
 {
-	restrictbutton_gr_restrict_flag(C, poin, poin2, OB_RESTRICT_SELECT);
+	restrictbutton_gr_restrict_flag(poin, poin2, OB_RESTRICT_SELECT);
 	WM_event_add_notifier(C, NC_GROUP, NULL);
 }
 static void restrictbutton_gr_restrict_render(bContext *C, void *poin, void *poin2)
 {
-	restrictbutton_gr_restrict_flag(C, poin, poin2, OB_RESTRICT_RENDER);
+	restrictbutton_gr_restrict_flag(poin, poin2, OB_RESTRICT_RENDER);
 	WM_event_add_notifier(C, NC_GROUP, NULL);
 }
 
@@ -5133,7 +5134,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 			if (te->idcode == ID_LI) {
 				char expanded[FILE_MAXDIR + FILE_MAXFILE];
 				BLI_strncpy(expanded, ((Library *)tselem->id)->name, FILE_MAXDIR + FILE_MAXFILE);
-				BLI_path_abs(expanded, G.sce);
+				BLI_path_abs(expanded, G.main->name);
 				if (!BLI_exists(expanded)) {
 					error("This path does not exist, correct this before saving");
 				}
@@ -5152,11 +5153,11 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 				bArmature *arm= (bArmature *)tselem->id;
 				if(arm->edbo) {
 					EditBone *ebone= te->directdata;
-					char newname[32];
+					char newname[sizeof(ebone->name)];
 					
 					/* restore bone name */
-					BLI_strncpy(newname, ebone->name, 32);
-					BLI_strncpy(ebone->name, oldname, 32);
+					BLI_strncpy(newname, ebone->name, sizeof(ebone->name));
+					BLI_strncpy(ebone->name, oldname, sizeof(ebone->name));
 					ED_armature_bone_rename(obedit->data, oldname, newname);
 					WM_event_add_notifier(C, NC_OBJECT|ND_POSE, OBACT);
 				}
@@ -5167,15 +5168,15 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 				{
 					Bone *bone= te->directdata;
 					Object *ob;
-					char newname[32];
+					char newname[sizeof(bone->name)];
 					
 					// always make current object active
 					tree_element_set_active_object(C, scene, soops, te, 1);
 					ob= OBACT;
 					
 					/* restore bone name */
-					BLI_strncpy(newname, bone->name, 32);
-					BLI_strncpy(bone->name, oldname, 32);
+					BLI_strncpy(newname, bone->name, sizeof(bone->name));
+					BLI_strncpy(bone->name, oldname, sizeof(bone->name));
 					ED_armature_bone_rename(ob->data, oldname, newname);
 					WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
 				}
@@ -5184,15 +5185,15 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 				{
 					bPoseChannel *pchan= te->directdata;
 					Object *ob;
-					char newname[32];
+					char newname[sizeof(pchan->name)];
 					
 					// always make current object active
 					tree_element_set_active_object(C, scene, soops, te, 1);
 					ob= OBACT;
 					
 					/* restore bone name */
-					BLI_strncpy(newname, pchan->name, 32);
-					BLI_strncpy(pchan->name, oldname, 32);
+					BLI_strncpy(newname, pchan->name, sizeof(pchan->name));
+					BLI_strncpy(pchan->name, oldname, sizeof(pchan->name));
 					ED_armature_bone_rename(ob->data, oldname, newname);
 					WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
 				}
@@ -5254,7 +5255,7 @@ static void outliner_draw_restrictbuts(uiBlock *block, Scene *scene, ARegion *ar
 			if(tselem->type==0 && te->idcode==ID_GR){ 
 				int restrict_bool;
 				gr = (Group *)tselem->id;
- 				
+
 				uiBlockSetEmboss(block, UI_EMBOSSN);
 
 				restrict_bool= group_restrict_flag(gr, OB_RESTRICT_VIEW);
@@ -5270,7 +5271,7 @@ static void outliner_draw_restrictbuts(uiBlock *block, Scene *scene, ARegion *ar
 				uiButSetFunc(bt, restrictbutton_gr_restrict_render, scene, gr);
 
 				uiBlockSetEmboss(block, UI_EMBOSS);
- 			}
+			}
 			/* scene render layers and passes have toggle-able flags too! */
 			else if(tselem->type==TSE_R_LAYER) {
 				uiBlockSetEmboss(block, UI_EMBOSSN);
@@ -5344,10 +5345,10 @@ static void outliner_draw_restrictbuts(uiBlock *block, Scene *scene, ARegion *ar
 	}
 }
 
-static void outliner_draw_rnacols(ARegion *ar, SpaceOops *soops, int sizex)
+static void outliner_draw_rnacols(ARegion *ar, int sizex)
 {
 	View2D *v2d= &ar->v2d;
-	
+
 	float miny = v2d->cur.ymin-V2D_SCROLL_HEIGHT;
 	if(miny<v2d->tot.ymin) miny = v2d->tot.ymin;
 
@@ -5396,7 +5397,7 @@ static void outliner_draw_rnabuts(uiBlock *block, Scene *scene, ARegion *ar, Spa
 	}
 }
 
-static void operator_call_cb(struct bContext *C, void *arg_kmi, void *arg2)
+static void operator_call_cb(struct bContext *UNUSED(C), void *arg_kmi, void *arg2)
 {
 	wmOperatorType *ot= arg2;
 	wmKeyMapItem *kmi= arg_kmi;
@@ -5483,9 +5484,9 @@ static const char *keymap_type_menu(void)
 	"|Tweak%x" STRINGIFY(OL_KM_TWEAK)
 //	"|Specials%x" STRINGIFY(OL_KM_SPECIALS)
 	;
-	
+
 	return string;
-}	
+}
 
 static const char *keymap_mouse_menu(void)
 {
@@ -5509,7 +5510,7 @@ static const char *keymap_mouse_menu(void)
 	"|Mouse/Trackpad Zoom%x" STRINGIFY(MOUSEZOOM)
 	"|Mouse/Trackpad Rotate%x" STRINGIFY(MOUSEROTATE)
 	;
-	
+
 	return string;
 }
 
@@ -5523,7 +5524,7 @@ static const char *keymap_tweak_menu(void)
 	"|Action Mouse%x" STRINGIFY(EVT_TWEAK_A)
 	"|Select Mouse%x" STRINGIFY(EVT_TWEAK_S)
 	;
-	
+
 	return string;
 }
 
@@ -5541,12 +5542,12 @@ static const char *keymap_tweak_dir_menu(void)
 	"|West%x" STRINGIFY(EVT_GESTURE_W)
 	"|North-West%x" STRINGIFY(EVT_GESTURE_NW)
 	;
-	
+
 	return string;
 }
 
 
-static void keymap_type_cb(bContext *C, void *kmi_v, void *unused_v)
+static void keymap_type_cb(bContext *C, void *kmi_v, void *UNUSED(arg_v))
 {
 	wmKeyMapItem *kmi= kmi_v;
 	short maptype= keymap_menu_type(kmi->type);
@@ -5642,7 +5643,7 @@ static void outliner_draw_keymapbuts(uiBlock *block, ARegion *ar, SpaceOops *soo
 				if(kmi->ptr && kmi->ptr->data) {
 					uiDefBut(block, LABEL, 0, "(RNA property)",	xstart, (int)te->ys+1, butw2, OL_H-1, &kmi->oskey, 0, 0, 0, 0, ""); xstart+= butw2;
 				}
-					
+
 				(void)xstart;
 			}
 		}
@@ -5680,7 +5681,7 @@ static void outliner_buttons(const bContext *C, uiBlock *block, ARegion *ar, Spa
 				if(dx<100) dx= 100;
 				spx=te->xs+2*OL_X-4;
 				if(spx+dx+10>ar->v2d.cur.xmax) dx = ar->v2d.cur.xmax-spx-10;
-				
+
 				bt= uiDefBut(block, TEX, OL_NAMEBUTTON, "", spx, (int)te->ys, dx+10, OL_H-1, (void *)te->name, 1.0, (float)len, 0, 0, "");
 				uiButSetRenameFunc(bt, namebutton_cb, tselem);
 				
@@ -5754,13 +5755,13 @@ void draw_outliner(const bContext *C)
 	UI_view2d_view_ortho(v2d);
 
 	/* draw outliner stuff (background, hierachy lines and names) */
-	outliner_back(ar, soops);
+	outliner_back(ar);
 	block= uiBeginBlock(C, ar, "outliner buttons", UI_EMBOSS);
 	outliner_draw_tree((bContext *)C, block, scene, ar, soops);
-
+	
 	if(ELEM(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF)) {
 		/* draw rna buttons */
-		outliner_draw_rnacols(ar, soops, sizex_rna);
+		outliner_draw_rnacols(ar, sizex_rna);
 		outliner_draw_rnabuts(block, scene, ar, soops, sizex_rna, &soops->tree);
 	}
 	else if(soops->outlinevis == SO_KEYMAP) {
@@ -5768,10 +5769,10 @@ void draw_outliner(const bContext *C)
 	}
 	else if (!(soops->flag & SO_HIDE_RESTRICTCOLS)) {
 		/* draw restriction columns */
-		outliner_draw_restrictcols(ar, soops);
+		outliner_draw_restrictcols(ar);
 		outliner_draw_restrictbuts(block, scene, ar, soops, &soops->tree);
 	}
-	
+
 	/* draw edit buttons if nessecery */
 	outliner_buttons(C, block, ar, soops, &soops->tree);	
 

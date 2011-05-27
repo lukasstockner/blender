@@ -24,7 +24,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#if defined(_WIN32) && defined(_DEBUG) && !defined(__MINGW32__) && !defined(__CYGWIN__)
+#if defined(_WIN32) && defined(DEBUG) && !defined(__MINGW32__) && !defined(__CYGWIN__)
 /* This does not seem necessary or present on MSVC 8, but may be needed in earlier versions? */
 #if _MSC_VER < 1400
 #include <stdint.h>
@@ -862,7 +862,7 @@ void filepath_ffmpeg(char* string, RenderData* rd) {
 	if (!string || !exts) return;
 
 	strcpy(string, rd->pic);
-	BLI_path_abs(string, G.sce);
+	BLI_path_abs(string, G.main->name);
 
 	BLI_make_existing_file(string);
 
@@ -960,7 +960,7 @@ int append_ffmpeg(RenderData *rd, int frame, int *pixels, int rectx, int recty, 
 
 void end_ffmpeg(void)
 {
-	int i;
+	unsigned int i;
 	
 	fprintf(stderr, "Closing ffmpeg...\n");
 
@@ -1063,6 +1063,8 @@ IDProperty *ffmpeg_property_add(RenderData *rd, char * type, int opt_index, int 
 	IDPropertyTemplate val;
 	int idp_type;
 	char name[256];
+	
+	val.i = 0;
 
 	avcodec_get_context_defaults(&c);
 
@@ -1070,8 +1072,6 @@ IDProperty *ffmpeg_property_add(RenderData *rd, char * type, int opt_index, int 
 	parent = c.av_class->option + parent_index;
 
 	if (!rd->ffcodecdata.properties) {
-		IDPropertyTemplate val;
-
 		rd->ffcodecdata.properties 
 			= IDP_New(IDP_GROUP, val, "ffmpeg"); 
 	}
@@ -1080,8 +1080,6 @@ IDProperty *ffmpeg_property_add(RenderData *rd, char * type, int opt_index, int 
 		rd->ffcodecdata.properties, (char*) type);
 	
 	if (!group) {
-		IDPropertyTemplate val;
-		
 		group = IDP_New(IDP_GROUP, val, (char*) type); 
 		IDP_AddToGroup(rd->ffcodecdata.properties, group);
 	}
@@ -1307,7 +1305,7 @@ void ffmpeg_set_preset(RenderData *rd, int preset)
 		ffmpeg_property_add_string(rd, "video", "flags2:dct8x8");
 		ffmpeg_property_add_string(rd, "video", "flags2:fastpskip");
 		ffmpeg_property_add_string(rd, "video", "wpredp:2");
-
+		
 		// This makes x264 output lossless. Will be a separate option later.
 		//ffmpeg_property_add_string(rd, "video", "cqp:0");
 		break;

@@ -238,36 +238,38 @@ static int material_slot_de_select(bContext *C, int select)
 		BezTriple *bezt;
 		int a;
 
-		for(nu= nurbs->first; nu; nu=nu->next) {
-			if(nu->mat_nr==ob->actcol-1) {
-				if(nu->bezt) {
-					a= nu->pntsu;
-					bezt= nu->bezt;
-					while(a--) {
-						if(bezt->hide==0) {
-							if(select) {
-								bezt->f1 |= SELECT;
-								bezt->f2 |= SELECT;
-								bezt->f3 |= SELECT;
+		if(nurbs) {
+			for(nu= nurbs->first; nu; nu=nu->next) {
+				if(nu->mat_nr==ob->actcol-1) {
+					if(nu->bezt) {
+						a= nu->pntsu;
+						bezt= nu->bezt;
+						while(a--) {
+							if(bezt->hide==0) {
+								if(select) {
+									bezt->f1 |= SELECT;
+									bezt->f2 |= SELECT;
+									bezt->f3 |= SELECT;
+								}
+								else {
+									bezt->f1 &= ~SELECT;
+									bezt->f2 &= ~SELECT;
+									bezt->f3 &= ~SELECT;
+								}
 							}
-							else {
-								bezt->f1 &= ~SELECT;
-								bezt->f2 &= ~SELECT;
-								bezt->f3 &= ~SELECT;
-							}
+							bezt++;
 						}
-						bezt++;
 					}
-				}
-				else if(nu->bp) {
-					a= nu->pntsu*nu->pntsv;
-					bp= nu->bp;
-					while(a--) {
-						if(bp->hide==0) {
-							if(select) bp->f1 |= SELECT;
-							else bp->f1 &= ~SELECT;
+					else if(nu->bp) {
+						a= nu->pntsu*nu->pntsv;
+						bp= nu->bp;
+						while(a--) {
+							if(bp->hide==0) {
+								if(select) bp->f1 |= SELECT;
+								else bp->f1 &= ~SELECT;
+							}
+							bp++;
 						}
-						bp++;
 					}
 				}
 			}
@@ -674,7 +676,7 @@ static int save_envmap(wmOperator *op, Scene *scene, EnvMap *env, char *str, int
 	dx= env->cube[1]->x;
 	
 	if (env->type == ENV_CUBE) {
-		ibuf = IMB_allocImBuf(3*dx, 2*dx, 24, IB_rectfloat, 0);
+		ibuf = IMB_allocImBuf(3*dx, 2*dx, 24, IB_rectfloat);
 
 		IMB_rectcpy(ibuf, env->cube[0], 0, 0, 0, 0, dx, dx);
 		IMB_rectcpy(ibuf, env->cube[1], dx, 0, 0, 0, dx, dx);
@@ -684,7 +686,7 @@ static int save_envmap(wmOperator *op, Scene *scene, EnvMap *env, char *str, int
 		IMB_rectcpy(ibuf, env->cube[5], 2*dx, dx, 0, 0, dx, dx);
 	}
 	else if (env->type == ENV_PLANE) {
-		ibuf = IMB_allocImBuf(dx, dx, 24, IB_rectfloat, 0);
+		ibuf = IMB_allocImBuf(dx, dx, 24, IB_rectfloat);
 		IMB_rectcpy(ibuf, env->cube[1], 0, 0, 0, 0, dx, dx);		
 	}
 	else {
@@ -696,7 +698,7 @@ static int save_envmap(wmOperator *op, Scene *scene, EnvMap *env, char *str, int
 		ibuf->profile = IB_PROFILE_LINEAR_RGB;
 	
 	/* to save, we first get absolute path */
-	BLI_path_abs(str, G.sce);
+	BLI_path_abs(str, G.main->name);
 	
 	if (BKE_write_ibuf(ibuf, str, imtype, scene->r.subimtype, scene->r.quality)) {
 		retval = OPERATOR_FINISHED;
@@ -707,7 +709,7 @@ static int save_envmap(wmOperator *op, Scene *scene, EnvMap *env, char *str, int
 	}
 	/* in case we were saving with relative paths, change back again */
 	if(relative)
-		BLI_path_rel(str, G.sce);
+		BLI_path_rel(str, G.main->name);
 	
 	IMB_freeImBuf(ibuf);
 	ibuf = NULL;
@@ -752,7 +754,7 @@ static int envmap_save_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event
 
 	//RNA_enum_set(op->ptr, "file_type", scene->r.imtype);
 	
-	RNA_string_set(op->ptr, "filepath", G.sce);
+	RNA_string_set(op->ptr, "filepath", G.main->name);
 	WM_event_add_fileselect(C, op);
 	
 	return OPERATOR_RUNNING_MODAL;

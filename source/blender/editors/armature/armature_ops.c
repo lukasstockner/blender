@@ -138,7 +138,7 @@ void ED_operatortypes_armature(void)
 	
 	WM_operatortype_append(POSE_OT_autoside_names);
 	WM_operatortype_append(POSE_OT_flip_names);
-	
+
 	WM_operatortype_append(POSE_OT_quaternions_flip);
 	
 	WM_operatortype_append(POSE_OT_flags_set);
@@ -174,28 +174,28 @@ void ED_operatormacros_armature(void)
 	
 	ot= WM_operatortype_append_macro("ARMATURE_OT_duplicate_move", "Duplicate", OPTYPE_UNDO|OPTYPE_REGISTER);
 	if(ot) {
-	WM_operatortype_macro_define(ot, "ARMATURE_OT_duplicate");
-	otmacro= WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-	RNA_enum_set(otmacro->ptr, "proportional", 0);
+		WM_operatortype_macro_define(ot, "ARMATURE_OT_duplicate");
+		otmacro= WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+		RNA_enum_set(otmacro->ptr, "proportional", 0);
 	}
 
 	ot= WM_operatortype_append_macro("ARMATURE_OT_extrude_move", "Extrude", OPTYPE_UNDO|OPTYPE_REGISTER);
 	if(ot) {
-	otmacro=WM_operatortype_macro_define(ot, "ARMATURE_OT_extrude");
+		otmacro=WM_operatortype_macro_define(ot, "ARMATURE_OT_extrude");
 		RNA_boolean_set(otmacro->ptr, "forked", 0);
-	otmacro= WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-	RNA_enum_set(otmacro->ptr, "proportional", 0);
+		otmacro= WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+		RNA_enum_set(otmacro->ptr, "proportional", 0);
 	}
 	
 	// XXX would it be nicer to just be able to have standard extrude_move, but set the forked property separate?
 	// that would require fixing a properties bug 19733
 	ot= WM_operatortype_append_macro("ARMATURE_OT_extrude_forked", "Extrude Forked", OPTYPE_UNDO|OPTYPE_REGISTER);
 	if(ot) {
-	otmacro=WM_operatortype_macro_define(ot, "ARMATURE_OT_extrude");
+		otmacro=WM_operatortype_macro_define(ot, "ARMATURE_OT_extrude");
 		RNA_boolean_set(otmacro->ptr, "forked", 1);
-	otmacro= WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-	RNA_enum_set(otmacro->ptr, "proportional", 0);
-}
+		otmacro= WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+		RNA_enum_set(otmacro->ptr, "proportional", 0);
+	}
 }
 
 void ED_keymap_armature(wmKeyConfig *keyconf)

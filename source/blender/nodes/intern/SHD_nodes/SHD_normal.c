@@ -47,7 +47,7 @@ static bNodeSocketType sh_node_normal_out[]= {
 };
 
 /* generates normal, does dot product */
-static void node_shader_exec_normal(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_shader_exec_normal(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	bNodeSocket *sock= node->outputs.first;
 	float vec[3];
@@ -73,7 +73,7 @@ static int gpu_shader_normal(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GP
 void register_node_type_sh_normal(ListBase *lb)
 {
 	static bNodeType ntype;
-
+	
 	node_type_base(&ntype, SH_NODE_NORMAL, "Normal", NODE_CLASS_OP_VECTOR, NODE_OPTIONS,
 				   sh_node_normal_in, sh_node_normal_out);
 	node_type_exec(&ntype, node_shader_exec_normal);

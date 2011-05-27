@@ -1,4 +1,4 @@
-/**
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -21,6 +21,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+/** \file blender/python/generic/IDProp.h
+ *  \ingroup pygen
+ */
+
 
 #ifndef IDPROP_H
 #define IDPROP_H

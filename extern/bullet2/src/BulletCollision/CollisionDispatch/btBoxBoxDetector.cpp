@@ -629,7 +629,7 @@ int dBoxBox2 (const btVector3& p1, const dMatrix3 R1,
 				pointInWorld[i] = point[j*3+i] + pa[i]-normal[i]*dep[j];
 				//pointInWorld[i] = point[j*3+i] + pa[i];
 			output.addContactPoint(-normal,pointInWorld,-dep[j]);
-  }
+		}
 	  }
   }
   else {
@@ -657,11 +657,11 @@ int dBoxBox2 (const btVector3& p1, const dMatrix3 R1,
 			posInWorld[i] = point[iret[j]*3+i] + pa[i];
 		if (code<4) 
 	   {
-		output.addContactPoint(-normal,posInWorld,-dep[iret[j]]);
+			output.addContactPoint(-normal,posInWorld,-dep[iret[j]]);
 		} else
 		{
 			output.addContactPoint(-normal,posInWorld-normal*dep[iret[j]],-dep[iret[j]]);
-    }
+		}
     }
     cnum = maxc;
   }

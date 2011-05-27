@@ -450,7 +450,7 @@ void makeraytree(Render *re)
 	if(re->r.raytrace_structure == R_RAYSTRUCTURE_OCTREE)
 		re->r.raytrace_options &= ~( R_RAYTRACE_USE_INSTANCES | R_RAYTRACE_USE_LOCAL_COORDS);
 
-		makeraytree_single(re);
+	makeraytree_single(re);
 
 	if(test_break(re))
 	{
@@ -494,7 +494,7 @@ static void shade_ray_set_derivative(ShadeInput *shi)
 	xn= fabs(shi->facenor[0]);
 	yn= fabs(shi->facenor[1]);
 	zn= fabs(shi->facenor[2]);
-
+	
 	if(zn>=xn && zn>=yn) { axis1= 0; axis2= 1; }
 	else if(yn>=xn && yn>=zn) { axis1= 0; axis2= 2; }
 	else { axis1= 1; axis2= 2; }
@@ -508,14 +508,14 @@ static void shade_ray_set_derivative(ShadeInput *shi)
 		mul_v3_m3v3(v3, shi->obi->nmat, shi->v3->co);
 
 		/* same as below */
-	t00= v3[axis1]-v1[axis1]; t01= v3[axis2]-v1[axis2];
-	t10= v3[axis1]-v2[axis1]; t11= v3[axis2]-v2[axis2];
+		t00= v3[axis1]-v1[axis1]; t01= v3[axis2]-v1[axis2];
+		t10= v3[axis1]-v2[axis1]; t11= v3[axis2]-v2[axis2];
 	}
 	else {
 		float *v1= shi->v1->co;
 		float *v2= shi->v2->co;
 		float *v3= shi->v3->co;
-	
+
 		/* same as above */
 		t00= v3[axis1]-v1[axis1]; t01= v3[axis2]-v1[axis2];
 		t10= v3[axis1]-v2[axis1]; t11= v3[axis2]-v2[axis2];
@@ -554,9 +554,9 @@ void shade_ray(Isect *is, ShadeInput *shi, ShadeResult *shr)
 	shi->mat= vlr->mat;
 	shade_input_init_material(shi);
 	
-		if(is->isect==2) 
+	if(is->isect==2) 
 		shade_input_set_triangle_i(shi, obi, vlr, 0, 2, 3);
-		else
+	else
 		shade_input_set_triangle_i(shi, obi, vlr, 0, 1, 2);
 
 	shi->u= is->u;
@@ -596,7 +596,7 @@ void shade_ray(Isect *is, ShadeInput *shi, ShadeResult *shr)
 		/* raytrace likes to separate the spec color */
 		VECSUB(shr->diff, shr->combined, shr->spec);
 	}	
-	
+
 }
 
 static int refraction(float *refract, float *n, float *view, float index)
@@ -734,7 +734,7 @@ static void traceray(ShadeInput *origshi, ShadeResult *origshr, short depth, flo
 	ShadeInput shi= {0};
 	Isect isec;
 	float dist_mir = origshi->mat->dist_mir;
-
+	
 	VECCOPY(isec.start, start);
 	VECCOPY(isec.dir, dir );
 	isec.dist = dist_mir > 0 ? dist_mir : RE_RAYTRACE_MAXDIST;
@@ -750,14 +750,14 @@ static void traceray(ShadeInput *origshi, ShadeResult *origshr, short depth, flo
 	if(RE_rayobject_raycast(R.raytree, &isec)) {
 		ShadeResult shr= {{0}};
 		float d= 1.0f;
-		
+
 		/* for as long we don't have proper dx/dy transform for rays we copy over original */
 		VECCOPY(shi.dxco, origshi->dxco);
 		VECCOPY(shi.dyco, origshi->dyco);
 		
 		shi.mask= origshi->mask;
 		shi.osatex= origshi->osatex;
-		shi.depth= 1;					/* only used to indicate tracing */
+		shi.depth= origshi->depth + 1;					/* only used to indicate tracing */
 		shi.thread= origshi->thread;
 		//shi.sample= 0; // memset above, so dont need this
 		shi.xs= origshi->xs;
@@ -800,7 +800,7 @@ static void traceray(ShadeInput *origshi, ShadeResult *origshr, short depth, flo
 						else {
 							/* total internal reflection (ray stays inside the material) */
 							reflection(refract, norm, shi.view, shi.vn);
-					}
+						}
 					}
 					else {
 						if (refraction(refract, shi.vn, shi.view, shi.ang)) {
@@ -810,8 +810,8 @@ static void traceray(ShadeInput *origshi, ShadeResult *origshr, short depth, flo
 						else {
 							/* total external reflection (ray doesn't enter the material) */
 							reflection(refract, shi.vn, shi.view, shi.vn);
+						}
 					}
-				}
 					traceray(origshi, origshr, depth-1, shi.co, refract, tracol, shi.obi, shi.vlr, traflag);
 				}
 				else
@@ -1346,7 +1346,7 @@ static void trace_refract(float *col, ShadeInput *shi, ShadeResult *shr)
 				reflection(v_refract, shi->vn, shi->view, shi->facenor);
 			else
 				reflection(v_refract, shi->vn, shi->view, NULL);
-		
+
 			/* can't blur total external reflection */
 			max_samples = 1;
 		}
@@ -1634,7 +1634,7 @@ static void ray_trace_shadow_tra(Isect *is, ShadeInput *origshi, int depth, int 
 		memset(&shi, 0, sizeof(ShadeInput)); 
 		/* end warning! - Campbell */
 		
-		shi.depth= 1;					/* only used to indicate tracing */
+		shi.depth= origshi->depth + 1;					/* only used to indicate tracing */
 		shi.mask= origshi->mask;
 		shi.thread= origshi->thread;
 		shi.passflag= SCE_PASS_COMBINED;
@@ -1948,7 +1948,7 @@ static void ray_ao_qmc(ShadeInput *shi, float *ao, float *env)
 	else {
 		VECCOPY(nrm, shi->facenor);
 	}
-	
+
 	ortho_basis_v3v3_v3( up, side,nrm);
 	
 	/* sampling init */
@@ -2086,7 +2086,7 @@ static void ray_ao_spheresamp(ShadeInput *shi, float *ao, float *env)
 		envcolor= WO_AOPLAIN;
 	
 	if(resol>32) resol= 32;
-	
+
 	/* get sphere samples. for faces we get the same samples for sample x/y values,
 	   for strand render we always require a new sampler because x/y are not set */
 	vec= sphere_sampler(R.wrld.aomode, resol, shi->thread, shi->xs, shi->ys, shi->strand != NULL);

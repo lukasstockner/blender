@@ -19,7 +19,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file ghost/intern/GHOST_EventNDOF.h
  *  \ingroup GHOST
  */

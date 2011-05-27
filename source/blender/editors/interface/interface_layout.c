@@ -367,7 +367,7 @@ static void ui_item_array(uiLayout *layout, uiBlock *block, const char *name, in
 		unit= UI_UNIT_X*0.75;
 		butw= unit;
 		buth= unit;
-
+		
 		if(ptr->type == &RNA_Armature) {
 			bArmature *arm= (bArmature *)ptr->data;
 			layer_used= arm->layer_used;
@@ -641,7 +641,7 @@ PointerRNA uiItemFullO(uiLayout *layout, const char *opname, const char *name, i
 		but= uiDefIconButO(block, BUT, ot->idname, context, icon, 0, 0, w, UI_UNIT_Y, NULL);
 	else
 		but= uiDefButO(block, BUT, ot->idname, context, name, 0, 0, w, UI_UNIT_Y, NULL);
-	
+
 	assert(but->optype != NULL);
 
 	/* text alignment for toolbar buttons */
@@ -975,7 +975,7 @@ void uiItemFullR(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, int index
 			int enum_value= RNA_property_enum_get(ptr, prop);
 			if(RNA_property_flag(prop) & PROP_ENUM_FLAG) {
 				icon= (enum_value & value)? ICON_CHECKBOX_HLT: ICON_CHECKBOX_DEHLT;
-	}
+			}
 			else {
 				icon= (enum_value == value)? ICON_CHECKBOX_HLT: ICON_CHECKBOX_DEHLT;
 			}
@@ -1187,7 +1187,7 @@ static void rna_search_cb(const struct bContext *C, void *arg_but, const char *s
 			if(RNA_property_pointer_poll(&but->rnapoin, but->rnaprop, &itemptr)==0)
 				continue;
 		}
-		
+
 		if(itemptr.type && RNA_struct_is_ID(itemptr.type)) {
 			ID *id= itemptr.data;
 			char name_ui[32];
@@ -1199,12 +1199,12 @@ static void rna_search_cb(const struct bContext *C, void *arg_but, const char *s
 #endif
 			name= BLI_strdup(name_ui);
 			iconid= ui_id_icon_get((bContext*)C, id, 1);
-        }
-		else {
-		name= RNA_struct_name_get_alloc(&itemptr, NULL, 0);
-            iconid = 0;
 		}
-		
+		else {
+			name= RNA_struct_name_get_alloc(&itemptr, NULL, 0);
+			iconid = 0;
+		}
+
 		if(name) {
 			if(skip_filter || BLI_strcasestr(name, str)) {
 				cis = MEM_callocN(sizeof(CollItemSearch), "CollectionItemSearch");
@@ -1213,9 +1213,9 @@ static void rna_search_cb(const struct bContext *C, void *arg_but, const char *s
 				cis->iconid = iconid;
 				BLI_addtail(items_list, cis);
 			}
-    		MEM_freeN(name);
-		}
-		
+			MEM_freeN(name);
+		}			
+
 		i++;
 	}
 	RNA_PROP_END;
@@ -2754,7 +2754,7 @@ void uiLayoutOperatorButs(const bContext *C, uiLayout *layout, wmOperator *op,in
 		int empty;
 
 		RNA_pointer_create(&wm->id, op->type->srna, op->properties, &ptr);
-		
+
 		/* menu */
 		if(op->type->flag & OPTYPE_PRESET) {
 			/* XXX, no simple way to get WM_MT_operator_presets.bl_label from python! Label remains the same always! */
@@ -2795,7 +2795,7 @@ void uiLayoutOperatorButs(const bContext *C, uiLayout *layout, wmOperator *op,in
 			 */
 			if ((but->rnaprop == op->type->prop) && (but->type == TEX)) {
 				uiButSetFocusOnEnter(CTX_wm_window(C), but);
-}
+			}
 		}
 	}
 }

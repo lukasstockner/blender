@@ -105,8 +105,8 @@ void AUD_ChannelMapperFactory::deleteMapping(int ic)
 AUD_IReader* AUD_ChannelMapperFactory::createReader() const
 {
 	AUD_IReader* reader = getReader();
-		int ic = reader->getSpecs().channels;
+	int ic = reader->getSpecs().channels;
 
 	return new AUD_ChannelMapperReader(reader,
 				   const_cast<AUD_ChannelMapperFactory*>(this)->getMapping(ic));
-	}
+}

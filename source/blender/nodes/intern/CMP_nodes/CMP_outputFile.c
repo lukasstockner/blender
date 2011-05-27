@@ -41,7 +41,7 @@ static bNodeSocketType cmp_node_output_file_in[]= {
 	{	-1, 0, ""	}
 };
 
-static void node_composit_exec_output_file(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_output_file(void *data, bNode *node, bNodeStack **in, bNodeStack **UNUSED(out))
 {
 	/* image assigned to output */
 	/* stack order input sockets: col, alpha */
@@ -59,7 +59,7 @@ static void node_composit_exec_output_file(void *data, bNode *node, bNodeStack *
 			return;
 		} else {
 			CompBuf *cbuf= typecheck_compbuf(in[0]->data, CB_RGBA);
-			ImBuf *ibuf= IMB_allocImBuf(cbuf->x, cbuf->y, 32, 0, 0);
+			ImBuf *ibuf= IMB_allocImBuf(cbuf->x, cbuf->y, 32, 0);
 			char string[256];
 			
 			ibuf->rect_float= cbuf->rect;
@@ -112,7 +112,7 @@ static void node_composit_init_output_file(bNode *node)
 void register_node_type_cmp_output_file(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, CMP_NODE_OUTPUT_FILE, "File Output", NODE_CLASS_OUTPUT, NODE_PREVIEW|NODE_OPTIONS,
 		cmp_node_output_file_in, NULL);
 	node_type_size(&ntype, 140, 80, 300);

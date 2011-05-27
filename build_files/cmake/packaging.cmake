@@ -34,13 +34,13 @@ set(BUILD_REV ${MY_WC_REVISION})
 set(CPACK_PACKAGE_FILE_NAME ${PROJECT_NAME}-${BLENDER_VERSION}-r${BUILD_REV}-${CMAKE_SYSTEM_PROCESSOR})
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-# RPM packages
-include(build_files/cmake/RpmBuild.cmake)
-if(RPMBUILD_FOUND AND NOT WIN32)
-    set(CPACK_GENERATOR "RPM")
+	# RPM packages
+	include(build_files/cmake/RpmBuild.cmake)
+	if(RPMBUILD_FOUND AND NOT WIN32)
+		set(CPACK_GENERATOR "RPM")
 		set(CPACK_RPM_PACKAGE_RELEASE "1.r${BUILD_REV}")
 		set(CPACK_SET_DESTDIR "true")
-    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_DESCRIPTION}")
+		set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_DESCRIPTION}")
 		set(CPACK_PACKAGE_RELOCATABLE "false")
 		set(CPACK_RPM_PACKAGE_LICENSE "GPLv2")
 		set(CPACK_RPM_PACKAGE_GROUP "Amusements/Graphics")
@@ -50,10 +50,10 @@ endif()
 
 # Mac Bundle
 if(APPLE)
-    set(CPACK_GENERATOR "DragNDrop")
+	set(CPACK_GENERATOR "DragNDrop")
 
-    #Libraries are bundled directly
-    set(CPACK_COMPONENT_LIBRARIES_HIDDEN TRUE)
+	# Libraries are bundled directly
+	set(CPACK_COMPONENT_LIBRARIES_HIDDEN TRUE)
 endif()
 
 set(CPACK_PACKAGE_EXECUTABLES "blender")

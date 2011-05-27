@@ -95,7 +95,7 @@ btSliderConstraint::btSliderConstraint(btRigidBody& rbA, btRigidBody& rbB, const
 btSliderConstraint::btSliderConstraint(btRigidBody& rbB, const btTransform& frameInB, bool useLinearReferenceFrameA)
         : btTypedConstraint(SLIDER_CONSTRAINT_TYPE, getFixedBody(), rbB),
 		m_useSolveConstraintObsolete(false),
-        m_frameInB(frameInB),
+		m_frameInB(frameInB),
 		m_useLinearReferenceFrameA(useLinearReferenceFrameA)
 {
 	///not providing rigidbody A means implicitly using worldspace for body A
@@ -129,13 +129,13 @@ void btSliderConstraint::getInfo1(btConstraintInfo1* info)
 		{
 			info->m_numConstraintRows++; // limit 3rd linear as well
 			info->nub--; 
-	}
+		}
 		if(getSolveAngLimit() || getPoweredAngMotor())
-	{
+		{
 			info->m_numConstraintRows++; // limit 3rd angular as well
 			info->nub--; 
+		}
 	}
-}
 }
 
 void btSliderConstraint::getInfo1NonVirtual(btConstraintInfo1* info)
@@ -173,7 +173,7 @@ void btSliderConstraint::calculateTransforms(const btTransform& transA,const btT
 	m_sliderAxis = m_calculatedTransformA.getBasis().getColumn(0); // along X
 	if(m_useLinearReferenceFrameA || m_useSolveConstraintObsolete)
 	{
-	m_delta = m_realPivotBInW - m_realPivotAInW;
+		m_delta = m_realPivotBInW - m_realPivotAInW;
 	}
 	else
 	{
@@ -188,8 +188,8 @@ void btSliderConstraint::calculateTransforms(const btTransform& transA,const btT
 		normalWorld = m_calculatedTransformA.getBasis().getColumn(i);
 		m_depth[i] = m_delta.dot(normalWorld);
     }
-	}
-
+}
+ 
 
 
 void btSliderConstraint::testLinLimits(void)
@@ -202,27 +202,27 @@ void btSliderConstraint::testLinLimits(void)
 		{
 			m_depth[0] -= m_upperLinLimit;
 			m_solveLinLim = true;
-	}
+		}
 		else if(m_depth[0] < m_lowerLinLimit)
 		{
 			m_depth[0] -= m_lowerLinLimit;
 			m_solveLinLim = true;
 		}
-	else
-	{
+		else
+		{
 			m_depth[0] = btScalar(0.);
 		}
 	}
 	else
-		{
+	{
 		m_depth[0] = btScalar(0.);
-		}
+	}
 }
 
 
 
 void btSliderConstraint::testAngLimits(void)
-		{
+{
 	m_angDepth = btScalar(0.);
 	m_solveAngLim = false;
 	if(m_lowerAngLimit <= m_upperAngLimit)
@@ -238,13 +238,13 @@ void btSliderConstraint::testAngLimits(void)
 		{
 			m_angDepth = rot - m_lowerAngLimit;
 			m_solveAngLim = true;
-		}
+		} 
 		else if(rot > m_upperAngLimit)
 		{
 			m_angDepth = rot - m_upperAngLimit;
 			m_solveAngLim = true;
+		}
 	}
-}
 }
 
 btVector3 btSliderConstraint::getAncorInA(void)
@@ -403,10 +403,10 @@ void btSliderConstraint::getInfo2NonVirtual(btConstraintInfo2* info, const btTra
 		{
 			p /= btSqrt(len2);
 		}
-	else 
-	{
+		else
+		{
 			p = trA.getBasis().getColumn(1);
-	}
+		}
 		// make one more ortho
 		q = ax1.cross(p);
 		// fill two rows
@@ -430,16 +430,16 @@ void btSliderConstraint::getInfo2NonVirtual(btConstraintInfo2* info, const btTra
 	else
 	{	// old way - maybe incorrect if bodies are not on the slider axis
 		// see discussion "Bug in slider constraint" http://bulletphysics.org/Bullet/phpBB3/viewtopic.php?f=9&t=4024&start=0
-	c = bodyB_trans.getOrigin() - bodyA_trans.getOrigin();
-	btVector3 tmp = c.cross(p);
-	for (i=0; i<3; i++) info->m_J1angularAxis[s2+i] = factA*tmp[i];
-	for (i=0; i<3; i++) info->m_J2angularAxis[s2+i] = factB*tmp[i];
-	tmp = c.cross(q);
-	for (i=0; i<3; i++) info->m_J1angularAxis[s3+i] = factA*tmp[i];
-	for (i=0; i<3; i++) info->m_J2angularAxis[s3+i] = factB*tmp[i];
+		c = bodyB_trans.getOrigin() - bodyA_trans.getOrigin();
+		btVector3 tmp = c.cross(p);
+		for (i=0; i<3; i++) info->m_J1angularAxis[s2+i] = factA*tmp[i];
+		for (i=0; i<3; i++) info->m_J2angularAxis[s2+i] = factB*tmp[i];
+		tmp = c.cross(q);
+		for (i=0; i<3; i++) info->m_J1angularAxis[s3+i] = factA*tmp[i];
+		for (i=0; i<3; i++) info->m_J2angularAxis[s3+i] = factB*tmp[i];
 
-	for (i=0; i<3; i++) info->m_J1linearAxis[s2+i] = p[i];
-	for (i=0; i<3; i++) info->m_J1linearAxis[s3+i] = q[i];
+		for (i=0; i<3; i++) info->m_J1linearAxis[s2+i] = p[i];
+		for (i=0; i<3; i++) info->m_J1linearAxis[s3+i] = q[i];
 	}
 	// compute two elements of right hand side
 
@@ -503,14 +503,14 @@ void btSliderConstraint::getInfo2NonVirtual(btConstraintInfo2* info, const btTra
 		}
 		else
 		{ // The old way. May be incorrect if bodies are not on the slider axis
-		btVector3 ltd;	// Linear Torque Decoupling vector (a torque)
-		ltd = c.cross(ax1);
-		info->m_J1angularAxis[srow+0] = factA*ltd[0];
-		info->m_J1angularAxis[srow+1] = factA*ltd[1];
-		info->m_J1angularAxis[srow+2] = factA*ltd[2];
-		info->m_J2angularAxis[srow+0] = factB*ltd[0];
-		info->m_J2angularAxis[srow+1] = factB*ltd[1];
-		info->m_J2angularAxis[srow+2] = factB*ltd[2];
+			btVector3 ltd;	// Linear Torque Decoupling vector (a torque)
+			ltd = c.cross(ax1);
+			info->m_J1angularAxis[srow+0] = factA*ltd[0];
+			info->m_J1angularAxis[srow+1] = factA*ltd[1];
+			info->m_J1angularAxis[srow+2] = factA*ltd[2];
+			info->m_J2angularAxis[srow+0] = factB*ltd[0];
+			info->m_J2angularAxis[srow+1] = factB*ltd[1];
+			info->m_J2angularAxis[srow+2] = factB*ltd[2];
 		}
 		// right-hand part
 		btScalar lostop = getLowerLinLimit();
@@ -719,118 +719,118 @@ void btSliderConstraint::setParam(int num, btScalar value, int axis)
 		{
 			m_softnessLimAng = value;
 			m_flags |= BT_SLIDER_FLAGS_ERP_LIMANG;
-	}
+		}
 		else if(axis < 6)
 		{
 			m_softnessOrthoAng = value;
 			m_flags |= BT_SLIDER_FLAGS_ERP_ORTANG;
-}
+		}
 		else
-{
+		{
 			btAssertConstrParams(0);
 		}
 		break;
 	case BT_CONSTRAINT_CFM :
 		if(axis < 1)
-			{
+		{
 			m_cfmDirLin = value;
 			m_flags |= BT_SLIDER_FLAGS_CFM_DIRLIN;
-				}
+		}
 		else if(axis == 3)
-				{
+		{
 			m_cfmDirAng = value;
 			m_flags |= BT_SLIDER_FLAGS_CFM_DIRANG;
-				}
-				else
-				{
+		}
+		else
+		{
 			btAssertConstrParams(0);
-				}
+		}
 		break;
 	case BT_CONSTRAINT_STOP_CFM :
 		if(axis < 1)
-				{
+		{
 			m_cfmLimLin = value;
 			m_flags |= BT_SLIDER_FLAGS_CFM_LIMLIN;
-				}
+		}
 		else if(axis < 3)
-	{
+		{
 			m_cfmOrthoLin = value;
 			m_flags |= BT_SLIDER_FLAGS_CFM_ORTLIN;
-	}
+		}
 		else if(axis == 3)
-	{
+		{
 			m_cfmLimAng = value;
 			m_flags |= BT_SLIDER_FLAGS_CFM_LIMANG;
-	}
+		}
 		else if(axis < 6)
-	{
+		{
 			m_cfmOrthoAng = value;
 			m_flags |= BT_SLIDER_FLAGS_CFM_ORTANG;
-	}
-	else
-	{
+		}
+		else
+		{
 			btAssertConstrParams(0);
-	}
+		}
 		break;
 	}
 }
 
 ///return the local value of parameter
 btScalar btSliderConstraint::getParam(int num, int axis) const 
-	{
+{
 	btScalar retVal(SIMD_INFINITY);
 	switch(num)
-		{
+	{
 	case BT_CONSTRAINT_STOP_ERP :
 		if(axis < 1)
-			{
+		{
 			btAssertConstrParams(m_flags & BT_SLIDER_FLAGS_ERP_LIMLIN);
 			retVal = m_softnessLimLin;
-			}
+		}
 		else if(axis < 3)
-			{
+		{
 			btAssertConstrParams(m_flags & BT_SLIDER_FLAGS_ERP_ORTLIN);
 			retVal = m_softnessOrthoLin;
-			}
+		}
 		else if(axis == 3)
-			{
+		{
 			btAssertConstrParams(m_flags & BT_SLIDER_FLAGS_ERP_LIMANG);
 			retVal = m_softnessLimAng;
-			}
+		}
 		else if(axis < 6)
-	{
+		{
 			btAssertConstrParams(m_flags & BT_SLIDER_FLAGS_ERP_ORTANG);
 			retVal = m_softnessOrthoAng;
-	}
-	else
-	{
+		}
+		else
+		{
 			btAssertConstrParams(0);
-	}
+		}
 		break;
 	case BT_CONSTRAINT_CFM :
 		if(axis < 1)
-	{
+		{
 			btAssertConstrParams(m_flags & BT_SLIDER_FLAGS_CFM_DIRLIN);
 			retVal = m_cfmDirLin;
-	}
+		}
 		else if(axis == 3)
 		{
 			btAssertConstrParams(m_flags & BT_SLIDER_FLAGS_CFM_DIRANG);
 			retVal = m_cfmDirAng;
 		}
-	else
-	{
+		else
+		{
 			btAssertConstrParams(0);
-	}
+		}
 		break;
 	case BT_CONSTRAINT_STOP_CFM :
 		if(axis < 1)
-    {
+		{
 			btAssertConstrParams(m_flags & BT_SLIDER_FLAGS_CFM_LIMLIN);
 			retVal = m_cfmLimLin;
-    }
+		}
 		else if(axis < 3)
-{
+		{
 			btAssertConstrParams(m_flags & BT_SLIDER_FLAGS_CFM_ORTLIN);
 			retVal = m_cfmOrthoLin;
 		}
@@ -844,14 +844,14 @@ btScalar btSliderConstraint::getParam(int num, int axis) const
 			btAssertConstrParams(m_flags & BT_SLIDER_FLAGS_CFM_ORTANG);
 			retVal = m_cfmOrthoAng;
 		}
-	else
-	{
+		else
+		{
 			btAssertConstrParams(0);
-	}
+		}
 		break;
-}
+	}
 	return retVal;
-		} 
-	
+}
+
 
 

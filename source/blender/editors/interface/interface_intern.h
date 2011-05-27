@@ -242,7 +242,7 @@ struct uiBut {
 	struct PointerRNA *opptr;
 	short opcontext;
 	unsigned char menu_key; /* 'a'-'z', always lower case */
-	
+
 	/* Draggable data, type is WM_DRAG_... */
 	char dragtype;
 	void *dragpoin;
@@ -310,7 +310,7 @@ struct uiBlock {
 	double auto_open_last;
 
 	const char *lockstr;
-	
+
 	char lock;
 	char active;					// to keep blocks while drawing and free them afterwards
 	char tooltipdisabled;			// to avoid tooltip after click

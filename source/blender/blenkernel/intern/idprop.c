@@ -24,7 +24,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/blenkernel/intern/idprop.c
  *  \ingroup bke
  */
@@ -81,7 +81,7 @@ IDProperty *IDP_CopyIDPArray(IDProperty *array)
 	/* dont use MEM_dupallocN because this may be part of an array */
 	IDProperty *narray = MEM_mallocN(sizeof(IDProperty), "IDP_CopyIDPArray"), *tmp;
 	int i;
-	
+
 	*narray= *array;
 
 	narray->data.pointer = MEM_dupallocN(array->data.pointer);
@@ -430,30 +430,30 @@ void IDP_SyncGroupValues(IDProperty *dest, IDProperty *src)
 	for (prop=src->data.group.first; prop; prop=prop->next) {
 		other= BLI_findstring(&dest->data.group, prop->name, offsetof(IDProperty, name));
 		if (other && prop->type==other->type) {
-					switch (prop->type) {
-						case IDP_INT:
-						case IDP_FLOAT:
-						case IDP_DOUBLE:
+			switch (prop->type) {
+				case IDP_INT:
+				case IDP_FLOAT:
+				case IDP_DOUBLE:
 					other->data= prop->data;
-							break;
-						case IDP_GROUP:
+					break;
+				case IDP_GROUP:
 					IDP_SyncGroupValues(other, prop);
-							break;
-						default:
-						{
+					break;
+				default:
+				{
 					IDProperty *tmp= other;
-							IDProperty *copy= IDP_CopyProperty(prop);
+					IDProperty *copy= IDP_CopyProperty(prop);
 
 					BLI_insertlinkafter(&dest->data.group, other, copy);
-							BLI_remlink(&dest->data.group, tmp);
+					BLI_remlink(&dest->data.group, tmp);
 
-							IDP_FreeProperty(tmp);
-							MEM_freeN(tmp);
-						}
-					}
+					IDP_FreeProperty(tmp);
+					MEM_freeN(tmp);
 				}
 			}
 		}
+	}
+}
 
 /*
  replaces all properties with the same name in a destination group from a source group.
@@ -491,16 +491,16 @@ void IDP_ReplaceInGroup(IDProperty *group, IDProperty *prop)
 {
 	IDProperty *loop;
 	if((loop= IDP_GetPropertyFromGroup(group, prop->name)))  {
-			BLI_insertlink(&group->data.group, loop, prop);
-			
-			BLI_remlink(&group->data.group, loop);
-			IDP_FreeProperty(loop);
-			MEM_freeN(loop);			
-		}
+		BLI_insertlink(&group->data.group, loop, prop);
+		
+		BLI_remlink(&group->data.group, loop);
+		IDP_FreeProperty(loop);
+		MEM_freeN(loop);			
+	}
 	else {
-	group->len++;
-	BLI_addtail(&group->data.group, prop);
-}
+		group->len++;
+		BLI_addtail(&group->data.group, prop);
+	}
 }
 
 /*returns 0 if an id property with the same name exists and it failed,
@@ -508,21 +508,21 @@ void IDP_ReplaceInGroup(IDProperty *group, IDProperty *prop)
 int IDP_AddToGroup(IDProperty *group, IDProperty *prop)
 {
 	if(IDP_GetPropertyFromGroup(group, prop->name) == NULL)  {
-	group->len++;
-	BLI_addtail(&group->data.group, prop);
-	return 1;
-}
+		group->len++;
+		BLI_addtail(&group->data.group, prop);
+		return 1;
+	}
 
 	return 0;
-	}
-	
+}
+
 int IDP_InsertToGroup(IDProperty *group, IDProperty *previous, IDProperty *pnew)
 {
 	if(IDP_GetPropertyFromGroup(group, pnew->name) == NULL)  {
-	group->len++;
-	BLI_insertlink(&group->data.group, previous, pnew);
-	return 1;
-}
+		group->len++;
+		BLI_insertlink(&group->data.group, previous, pnew);
+		return 1;
+	}
 
 	return 0;
 }
@@ -536,7 +536,7 @@ void IDP_RemFromGroup(IDProperty *group, IDProperty *prop)
 IDProperty *IDP_GetPropertyFromGroup(IDProperty *prop, const char *name)
 {
 	return (IDProperty *)BLI_findstring(&prop->data.group, name, offsetof(IDProperty, name));
-	}
+}
 
 IDProperty *IDP_GetPropertyTypeFromGroup(IDProperty *prop, const char *name, const char type)
 {

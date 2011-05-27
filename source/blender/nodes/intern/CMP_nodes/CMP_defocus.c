@@ -389,6 +389,7 @@ static void defocus_blur(bNode *node, CompBuf *new, CompBuf *img, CompBuf *zbuf,
 #else
 	#pragma omp parallel for private(y) if(!nqd->preview && img->y*img->x > 16384) schedule(guided)
 #endif
+#endif
 	for (y=0; y<img->y; y++) {
 		unsigned int p, p4, zp, cp, cp4;
 		float *ctcol, u, v, ct_crad, cR2=0;
@@ -801,7 +802,7 @@ static void defocus_blur(bNode *node, CompBuf *new, CompBuf *img, CompBuf *zbuf,
 }
 
 
-static void node_composit_exec_defocus(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_defocus(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	CompBuf *new, *old, *zbuf_use = NULL, *img = in[0]->data, *zbuf = in[1]->data;
 	NodeDefocus *nqd = node->storage;
@@ -858,19 +859,19 @@ static void node_composit_exec_defocus(void *data, bNode *node, bNodeStack **in,
 
 static void node_composit_init_defocus(bNode* node)
 {
-   /* qdn: defocus node */
-   NodeDefocus *nbd = MEM_callocN(sizeof(NodeDefocus), "node defocus data");
-   nbd->bktype = 0;
-   nbd->rotation = 0.f;
-   nbd->preview = 1;
-   nbd->gamco = 0;
-   nbd->samples = 16;
-   nbd->fstop = 128.f;
-   nbd->maxblur = 0;
-   nbd->bthresh = 1.f;
-   nbd->scale = 1.f;
-   nbd->no_zbuf = 1;
-   node->storage = nbd;
+	/* qdn: defocus node */
+	NodeDefocus *nbd = MEM_callocN(sizeof(NodeDefocus), "node defocus data");
+	nbd->bktype = 0;
+	nbd->rotation = 0.f;
+	nbd->preview = 1;
+	nbd->gamco = 0;
+	nbd->samples = 16;
+	nbd->fstop = 128.f;
+	nbd->maxblur = 0;
+	nbd->bthresh = 1.f;
+	nbd->scale = 1.f;
+	nbd->no_zbuf = 1;
+	node->storage = nbd;
 }
 
 void register_node_type_cmp_defocus(ListBase *lb)

@@ -407,7 +407,7 @@ void btGeneric6DofConstraint::calculateTransforms(const btTransform& transA,cons
 		if(miS > btScalar(0.f))
 		{
 			m_factA = miB / miS;
-}
+		}
 		else 
 		{
 			m_factA = btScalar(0.5f);
@@ -587,7 +587,7 @@ void btGeneric6DofConstraint::getInfo2 (btConstraintInfo2* info)
 	{ // for stability better to solve angular limits first
 		int row = setAngularLimits(info, 0,transA,transB,linVelA,linVelB,angVelA,angVelB);
 		setLinearLimits(info, row, transA,transB,linVelA,linVelB,angVelA,angVelB);
-}
+	}
 	else
 	{ // leave old version for compatibility
 		int row = setLinearLimits(info, 0, transA,transB,linVelA,linVelB,angVelA,angVelB);
@@ -658,9 +658,9 @@ int btGeneric6DofConstraint::setLinearLimits(btConstraintInfo2* info, int row, c
 				if(m_angularLimits[indx1].m_currentLimit && m_angularLimits[indx2].m_currentLimit)
 				{
 					rotAllowed = 0;
-		}
+				}
 				row += get_limit_motor_info2(&limot, transA,transB,linVelA,linVelB,angVelA,angVelB, info, row, axis, 0, rotAllowed);
-	}
+			}
 			else
 			{
 				row += get_limit_motor_info2(&limot, transA,transB,linVelA,linVelB,angVelA,angVelB, info, row, axis, 0);
@@ -686,13 +686,13 @@ int btGeneric6DofConstraint::setAngularLimits(btConstraintInfo2 *info, int row_o
 			if(!(flags & BT_6DOF_FLAGS_CFM_NORM))
 			{
 				m_angularLimits[i].m_normalCFM = info->cfm[0];
-		}
+			}
 			if(!(flags & BT_6DOF_FLAGS_CFM_STOP))
-{
+			{
 				m_angularLimits[i].m_stopCFM = info->cfm[0];
 			}
 			if(!(flags & BT_6DOF_FLAGS_ERP_STOP))
-		{
+			{
 				m_angularLimits[i].m_stopERP = info->erp;
 			}
 			row += get_limit_motor_info2(d6constraint->getRotationalLimitMotor(i),
@@ -831,19 +831,19 @@ int btGeneric6DofConstraint::get_limit_motor_info2(
 				for (i=0; i<3; i++) info->m_J2angularAxis[srow+i] = -tmpB[i];
 			} else
 			{
-			btVector3 ltd;	// Linear Torque Decoupling vector
+				btVector3 ltd;	// Linear Torque Decoupling vector
 				btVector3 c = m_calculatedTransformB.getOrigin() - transA.getOrigin();
-			ltd = c.cross(ax1);
-            info->m_J1angularAxis[srow+0] = ltd[0];
-            info->m_J1angularAxis[srow+1] = ltd[1];
-            info->m_J1angularAxis[srow+2] = ltd[2];
+				ltd = c.cross(ax1);
+				info->m_J1angularAxis[srow+0] = ltd[0];
+				info->m_J1angularAxis[srow+1] = ltd[1];
+				info->m_J1angularAxis[srow+2] = ltd[2];
 
 				c = m_calculatedTransformB.getOrigin() - transB.getOrigin();
-			ltd = -c.cross(ax1);
-			info->m_J2angularAxis[srow+0] = ltd[0];
-            info->m_J2angularAxis[srow+1] = ltd[1];
-            info->m_J2angularAxis[srow+2] = ltd[2];
-        }
+				ltd = -c.cross(ax1);
+				info->m_J2angularAxis[srow+0] = ltd[0];
+				info->m_J2angularAxis[srow+1] = ltd[1];
+				info->m_J2angularAxis[srow+2] = ltd[2];
+			}
         }
         // if we're limited low and high simultaneously, the joint motor is
         // ineffective
@@ -954,7 +954,7 @@ void btGeneric6DofConstraint::setParam(int num, btScalar value, int axis)
 	if((axis >= 0) && (axis < 3))
 	{
 		switch(num)
-	{
+		{
 			case BT_CONSTRAINT_STOP_ERP : 
 				m_linearLimits.m_stopERP[axis] = value;
 				m_flags |= BT_6DOF_FLAGS_ERP_STOP << (axis * BT_6DOF_FLAGS_AXIS_SHIFT);
@@ -969,12 +969,12 @@ void btGeneric6DofConstraint::setParam(int num, btScalar value, int axis)
 				break;
 			default : 
 				btAssertConstrParams(0);
+		}
 	}
-}
 	else if((axis >=3) && (axis < 6))
-{
+	{
 		switch(num)
-{
+		{
 			case BT_CONSTRAINT_STOP_ERP : 
 				m_angularLimits[axis - 3].m_stopERP = value;
 				m_flags |= BT_6DOF_FLAGS_ERP_STOP << (axis * BT_6DOF_FLAGS_AXIS_SHIFT);
@@ -989,7 +989,7 @@ void btGeneric6DofConstraint::setParam(int num, btScalar value, int axis)
 				break;
 			default : 
 				btAssertConstrParams(0);
-}
+		}
 	}
 	else
 	{
@@ -1004,7 +1004,7 @@ btScalar btGeneric6DofConstraint::getParam(int num, int axis) const
 	if((axis >= 0) && (axis < 3))
 	{
 		switch(num)
-	{
+		{
 			case BT_CONSTRAINT_STOP_ERP : 
 				btAssertConstrParams(m_flags & (BT_6DOF_FLAGS_ERP_STOP << (axis * BT_6DOF_FLAGS_AXIS_SHIFT)));
 				retVal = m_linearLimits.m_stopERP[axis];
@@ -1019,12 +1019,12 @@ btScalar btGeneric6DofConstraint::getParam(int num, int axis) const
 				break;
 			default : 
 				btAssertConstrParams(0);
+		}
 	}
-}
 	else if((axis >=3) && (axis < 6))
-{
-		switch(num)
 	{
+		switch(num)
+		{
 			case BT_CONSTRAINT_STOP_ERP : 
 				btAssertConstrParams(m_flags & (BT_6DOF_FLAGS_ERP_STOP << (axis * BT_6DOF_FLAGS_AXIS_SHIFT)));
 				retVal = m_angularLimits[axis - 3].m_stopERP;
@@ -1044,27 +1044,27 @@ btScalar btGeneric6DofConstraint::getParam(int num, int axis) const
 	else
 	{
 		btAssertConstrParams(0);
-		}
-	return retVal;
 	}
+	return retVal;
+}
 
-
+ 
 
 void btGeneric6DofConstraint::setAxis(const btVector3& axis1,const btVector3& axis2)
 {
 	btVector3 zAxis = axis1.normalized();
 	btVector3 yAxis = axis2.normalized();
 	btVector3 xAxis = yAxis.cross(zAxis); // we want right coordinate system
-
+	
 	btTransform frameInW;
 	frameInW.setIdentity();
 	frameInW.getBasis().setValue(	xAxis[0], yAxis[0], zAxis[0],	
 	                                xAxis[1], yAxis[1], zAxis[1],
 	                               xAxis[2], yAxis[2], zAxis[2]);
-
+	
 	// now get constraint frame in local coordinate systems
 	m_frameInA = m_rbA.getCenterOfMassTransform().inverse() * frameInW;
 	m_frameInB = m_rbB.getCenterOfMassTransform().inverse() * frameInW;
-
+	
 	calculateTransforms();
 }

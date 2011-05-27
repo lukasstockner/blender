@@ -80,7 +80,7 @@ namespace gjkepa2_impl
 
 		}
 #ifdef __SPU__
-		void					EnableMargin(bool enable)
+			void					EnableMargin(bool enable)
 		{
 			m_enableMargin = enable;
 		}	
@@ -299,7 +299,7 @@ namespace gjkepa2_impl
 				case	eStatus::Inside:	m_distance=0;break;
 				default:
 					{
-				}	
+					}
 				}	
 				return(m_status);
 			}
@@ -897,7 +897,7 @@ bool	btGjkEpaSolver2::Penetration(	const btConvexShape*	shape0,
 		break;
 		default:
 					{
-	}
+					}
 	}
 	return(false);
 }

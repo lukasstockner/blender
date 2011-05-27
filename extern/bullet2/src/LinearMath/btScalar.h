@@ -106,7 +106,7 @@ inline int	btGetVersion()
 #define printf spu_printf
 	#define btAssert(x) {if(!(x)){printf("Assert "__FILE__ ":%u ("#x")\n", __LINE__);spu_hcmpeq(0,0);}}
 #else
-		#define btAssert assert
+	#define btAssert assert
 #endif
 	
 #else
@@ -149,8 +149,8 @@ inline int	btGetVersion()
 	#define BT_USE_SSE
 	#include <emmintrin.h>
 
-		#define SIMD_FORCE_INLINE inline
-		///@todo: check out alignment methods for other platforms/compilers
+	#define SIMD_FORCE_INLINE inline
+///@todo: check out alignment methods for other platforms/compilers
 	#define ATTRIBUTE_ALIGNED16(a) a __attribute__ ((aligned (16)))
 	#define ATTRIBUTE_ALIGNED64(a) a __attribute__ ((aligned (64)))
 	#define ATTRIBUTE_ALIGNED128(a) a __attribute__ ((aligned (128)))

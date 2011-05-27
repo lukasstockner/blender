@@ -47,7 +47,7 @@ static bNodeSocketType outputs[]= {
 	{ -1, 0, "" }
 };
 
-static void valuefn(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void valuefn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **in, short thread)
 {
 	float co1[3], co2[3];
 
@@ -65,12 +65,12 @@ static void exec(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
 void register_node_type_tex_distance(ListBase *lb)
 {
 	static bNodeType ntype;
-
+	
 	node_type_base(&ntype, TEX_NODE_DISTANCE, "Distance", NODE_CLASS_CONVERTOR, NODE_OPTIONS,
 				   inputs, outputs);
 	node_type_size(&ntype, 120, 110, 160);
 	node_type_storage(&ntype, "node_distance", NULL, NULL);
 	node_type_exec(&ntype, exec);
-
+	
 	nodeRegisterType(lb, &ntype);
 }

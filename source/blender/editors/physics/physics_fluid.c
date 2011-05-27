@@ -349,7 +349,7 @@ static void free_all_fluidobject_channels(ListBase *fobjects)
 	}
 }
 
-static void fluid_init_all_channels(bContext *C, Object *fsDomain, FluidsimSettings *domainSettings, FluidAnimChannels *channels, ListBase *fobjects)
+static void fluid_init_all_channels(bContext *C, Object *UNUSED(fsDomain), FluidsimSettings *domainSettings, FluidAnimChannels *channels, ListBase *fobjects)
 {
 	Scene *scene = CTX_data_scene(C);
 	Base *base;
@@ -427,7 +427,7 @@ static void fluid_init_all_channels(bContext *C, Object *fsDomain, FluidsimSetti
 		/* Modifying the global scene isn't nice, but we can do it in 
 		 * this part of the process before a threaded job is created */
 		scene->r.cfra = (int)eval_time;
-		ED_update_for_newframe(C, 1);
+		ED_update_for_newframe(CTX_data_main(C), scene, CTX_wm_screen(C), 1);
 		
 		/* now scene data should be current according to animation system, so we fill the channels */
 		
@@ -454,7 +454,7 @@ static void fluid_init_all_channels(bContext *C, Object *fsDomain, FluidsimSetti
 				copy_v3_v3(old_rot, fobj->Rotation + 4*(i-1));
 				mul_v3_fl(old_rot, -M_PI/180.f);
 			}
-			
+
 			mat4_to_compatible_eulO(rot_d, old_rot, 0, ob->obmat);
 			mul_v3_fl(rot_d, -180.f/M_PI);
 			
@@ -651,8 +651,8 @@ static int fluid_init_filepaths(Object *fsDomain, char *targetDir, char *targetF
 	// prepare names...
 	strncpy(targetDir, domainSettings->surfdataPath, FILE_MAXDIR);
 	strncpy(newSurfdataPath, domainSettings->surfdataPath, FILE_MAXDIR);
-	BLI_path_abs(targetDir, G.sce); // fixed #frame-no 
-	
+	BLI_path_abs(targetDir, G.main->name); // fixed #frame-no 
+
 	// .tmp: dont overwrite/delete original file
 	BLI_snprintf(targetFile, FILE_MAXDIR+FILE_MAXFILE, "%s%s.tmp", targetDir, suffixConfig);
 
@@ -678,7 +678,7 @@ static int fluid_init_filepaths(Object *fsDomain, char *targetDir, char *targetF
 		BLI_strncpy(blendDir, G.main->name, FILE_MAXDIR+FILE_MAXFILE);
 		BLI_splitdirstring(blendDir, blendFile);
 		BLI_replace_extension(blendFile, FILE_MAXDIR+FILE_MAXFILE, ""); /* strip .blend */
-		
+
 		BLI_snprintf(newSurfdataPath, FILE_MAXDIR+FILE_MAXFILE ,"//fluidsimdata/%s_%s_", blendFile, fsDomain->id.name);
 		
 		BLI_snprintf(debugStrBuffer, 256, "fluidsimBake::error - warning resetting output dir to '%s'\n", newSurfdataPath);
@@ -700,7 +700,7 @@ static int fluid_init_filepaths(Object *fsDomain, char *targetDir, char *targetF
 		if(selection<1) return 0; // 0 from menu, or -1 aborted
 		BLI_strncpy(targetDir, newSurfdataPath, sizeof(targetDir));
 		strncpy(domainSettings->surfdataPath, newSurfdataPath, FILE_MAXDIR);
-		BLI_path_abs(targetDir, G.sce); // fixed #frame-no 
+		BLI_path_abs(targetDir, G.main->name); // fixed #frame-no 
 	}
 #endif	
 	return outStringsChanged;
@@ -726,7 +726,7 @@ static void fluidbake_free(void *customdata)
 }
 
 /* called by fluidbake, only to check job 'stop' value */
-static int fluidbake_breakjob(void *customdata)
+static int fluidbake_breakjob(void *UNUSED(customdata))
 {
 	//FluidBakeJob *fb= (FluidBakeJob *)customdata;
 	//return *(fb->stop);
@@ -916,7 +916,7 @@ static int fluidsimBake(bContext *C, ReportList *reports, Object *fsDomain)
 
 	/* reset to original current frame */
 	scene->r.cfra = origFrame;
-	ED_update_for_newframe(C, 1);
+	ED_update_for_newframe(CTX_data_main(C), scene, CTX_wm_screen(C), 1);
 	
 	
 	/* ---- XXX: No Time animation curve for now, leaving this code here for reference 
@@ -1052,7 +1052,7 @@ static int fluidsimBake(bContext *C, ReportList *reports, Object *fsDomain)
 	return 1;
 }
 
-void fluidsimFreeBake(Object *ob)
+void fluidsimFreeBake(Object *UNUSED(ob))
 {
 	/* not implemented yet */
 }

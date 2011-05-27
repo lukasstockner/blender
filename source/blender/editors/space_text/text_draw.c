@@ -70,14 +70,14 @@ static void text_font_begin(SpaceText *st)
 	BLF_size(mono, st->lheight, 72);
 }
 
-static void text_font_end(SpaceText *st)
+static void text_font_end(SpaceText *UNUSED(st))
 {
 }
 
-static int text_font_draw(SpaceText *st, int x, int y, char *str)
+static int text_font_draw(SpaceText *UNUSED(st), int x, int y, char *str)
 {
 	BLF_position(mono, x, y, 0);
-	BLF_draw(mono, str);
+	BLF_draw(mono, str, 65535); /* XXX, use real length */
 
 	return BLF_width(mono, str);
 }
@@ -85,12 +85,11 @@ static int text_font_draw(SpaceText *st, int x, int y, char *str)
 static int text_font_draw_character(SpaceText *st, int x, int y, char c)
 {
 	char str[2];
-
 	str[0]= c;
 	str[1]= '\0';
 
 	BLF_position(mono, x, y, 0);
-	BLF_draw(mono, str);
+	BLF_draw(mono, str, 1);
 
 	return st->cwidth;
 }
@@ -535,10 +534,10 @@ void wrap_offset(SpaceText *st, ARegion *ar, TextLine *linein, int cursin, int *
 		if (i-lines<0) {
 			break;
 		} else {
-		linep= linep->next;
+			linep= linep->next;
 			(*offl)+= lines-1;
 			i-= lines;
-	}
+		}
 	}
 
 	max= wrap_width(st, ar);
@@ -757,7 +756,7 @@ static int text_draw(SpaceText *st, char *str, int cshift, int maxwidth, int dra
 
 			in[amount]= 0;
 			text_font_draw(st, x, y, in);
-	}
+		}
 	}
 	else {
 		while(w-- && *acc++ < maxwidth)
@@ -1213,7 +1212,7 @@ static void draw_markers(SpaceText *st, ARegion *ar)
 	topi= BLI_findindex(&text->lines, top);
 
 	topy= txt_get_span(text->lines.first, top);
-	
+
 	for(marker= text->markers.first; marker; marker= next) {
 		next= marker->next;
 
@@ -1222,17 +1221,17 @@ static void draw_markers(SpaceText *st, ARegion *ar)
 
 		line= BLI_findlink(&text->lines, marker->lineno);
 
-				/* Remove broken markers */
-				if(marker->end>line->len || marker->start>marker->end) {
-					BLI_freelinkN(&text->markers, marker);
+		/* Remove broken markers */
+		if(marker->end>line->len || marker->start>marker->end) {
+			BLI_freelinkN(&text->markers, marker);
 			continue;
-				}
+		}
 
-				wrap_offset(st, ar, line, marker->start, &offl, &offc);
+		wrap_offset(st, ar, line, marker->start, &offl, &offc);
 		y1 = txt_get_span(top, line) - st->top + offl + topy;
 		x1 = text_get_char_pos(st, line->line, marker->start) - st->left + offc;
 
-				wrap_offset(st, ar, line, marker->end, &offl, &offc);
+		wrap_offset(st, ar, line, marker->end, &offl, &offc);
 		y2 = txt_get_span(top, line) - st->top + offl + topy;
 		x2 = text_get_char_pos(st, line->line, marker->end) - st->left + offc;
 
@@ -1240,47 +1239,47 @@ static void draw_markers(SpaceText *st, ARegion *ar)
 		if(y2 < 0 || y1 > st->top+st->viewlines) continue;
 
 		glColor3ubv(marker->color);
-				x= st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
-				y= ar->winy-3;
+		x= st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
+		y= ar->winy-3;
 
-				if(y1==y2) {
-					y -= y1*st->lheight;
-					glBegin(GL_LINE_LOOP);
-					glVertex2i(x+x2*st->cwidth+1, y);
-					glVertex2i(x+x1*st->cwidth-2, y);
-					glVertex2i(x+x1*st->cwidth-2, y-st->lheight);
-					glVertex2i(x+x2*st->cwidth+1, y-st->lheight);
-					glEnd();
-				}
-				else {
-					y -= y1*st->lheight;
-					glBegin(GL_LINE_STRIP);
-					glVertex2i(ar->winx, y);
-					glVertex2i(x+x1*st->cwidth-2, y);
-					glVertex2i(x+x1*st->cwidth-2, y-st->lheight);
-					glVertex2i(ar->winx, y-st->lheight);
-					glEnd();
-					y-=st->lheight;
-
-					for(i=y1+1; i<y2; i++) {
-						glBegin(GL_LINES);
-						glVertex2i(x, y);
-						glVertex2i(ar->winx, y);
-						glVertex2i(x, y-st->lheight);
-						glVertex2i(ar->winx, y-st->lheight);
-						glEnd();
-						y-=st->lheight;
-					}
-
-					glBegin(GL_LINE_STRIP);
-					glVertex2i(x, y);
-					glVertex2i(x+x2*st->cwidth+1, y);
-					glVertex2i(x+x2*st->cwidth+1, y-st->lheight);
-					glVertex2i(x, y-st->lheight);
-					glEnd();
-				}
-			}
+		if(y1==y2) {
+			y -= y1*st->lheight;
+			glBegin(GL_LINE_LOOP);
+			glVertex2i(x+x2*st->cwidth+1, y);
+			glVertex2i(x+x1*st->cwidth-2, y);
+			glVertex2i(x+x1*st->cwidth-2, y-st->lheight);
+			glVertex2i(x+x2*st->cwidth+1, y-st->lheight);
+			glEnd();
 		}
+		else {
+			y -= y1*st->lheight;
+			glBegin(GL_LINE_STRIP);
+			glVertex2i(ar->winx, y);
+			glVertex2i(x+x1*st->cwidth-2, y);
+			glVertex2i(x+x1*st->cwidth-2, y-st->lheight);
+			glVertex2i(ar->winx, y-st->lheight);
+			glEnd();
+			y-=st->lheight;
+
+			for(i=y1+1; i<y2; i++) {
+				glBegin(GL_LINES);
+				glVertex2i(x, y);
+				glVertex2i(ar->winx, y);
+				glVertex2i(x, y-st->lheight);
+				glVertex2i(ar->winx, y-st->lheight);
+				glEnd();
+				y-=st->lheight;
+			}
+
+			glBegin(GL_LINE_STRIP);
+			glVertex2i(x, y);
+			glVertex2i(x+x2*st->cwidth+1, y);
+			glVertex2i(x+x2*st->cwidth+1, y-st->lheight);
+			glVertex2i(x, y-st->lheight);
+			glEnd();
+		}
+	}
+}
 
 /*********************** draw documentation *******************************/
 
@@ -1452,7 +1451,7 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 	Text *text= st->text;
 	int vcurl, vcurc, vsell, vselc, hidden=0;
 	int x, y, w, i;
-	
+
 	/* Draw the selection */
 	if(text->curl!=text->sell || text->curc!=text->selc) {
 		int offl, offc;
@@ -1514,7 +1513,7 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 
 	if(st->line_hlight) {
 		int x1, x2, y1, y2;
-	
+
 		if(st->wordwrap) {
 			int visible_lines = text_get_visible_lines(st, ar, text->sell->line);
 			int offl, offc;
@@ -1720,9 +1719,9 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 				break;
 			} else {
 				wraplinecount+= lines;
-		tmp= tmp->next;
-		linecount++;
-	}
+				tmp= tmp->next;
+				linecount++;
+			}
 		} else {
 			tmp= tmp->next;
 			linecount++;
@@ -1748,7 +1747,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	}
 	y= ar->winy-st->lheight;
 	winx= ar->winx - TXT_SCROLL_WIDTH;
-
+	
 	/* draw cursor */
 	draw_cursor(st, ar);
 

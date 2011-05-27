@@ -1,31 +1,31 @@
 /*
  * $Id$
-*
-* ***** BEGIN GPL LICENSE BLOCK *****
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software Foundation,
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-* The Original Code is Copyright (C) Blender Foundation
-* All rights reserved.
-*
-* The Original Code is: all of this file.
-*
-* Contributor(s): none yet.
-*
-* ***** END GPL LICENSE BLOCK *****
-*/
+ *
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) Blender Foundation
+ * All rights reserved.
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): none yet.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
 
 /** \file blender/blenkernel/intern/collision.c
  *  \ingroup bke
@@ -92,11 +92,11 @@ void collision_move_object ( CollisionModifierData *collmd, float step, float pr
 	bvhtree_update_from_mvert ( collmd->bvhtree, collmd->mfaces, collmd->numfaces, collmd->current_x, collmd->current_xnew, collmd->numverts, 1 );
 }
 
-BVHTree *bvhtree_build_from_mvert ( MFace *mfaces, unsigned int numfaces, MVert *x, unsigned int numverts, float epsilon )
+BVHTree *bvhtree_build_from_mvert ( MFace *mfaces, unsigned int numfaces, MVert *x, unsigned int UNUSED(numverts), float epsilon )
 {
 	BVHTree *tree;
 	float co[12];
-	int i;
+	unsigned int i;
 	MFace *tface = mfaces;
 
 	tree = BLI_bvhtree_new ( numfaces*2, epsilon, 4, 26 );
@@ -119,7 +119,7 @@ BVHTree *bvhtree_build_from_mvert ( MFace *mfaces, unsigned int numfaces, MVert 
 	return tree;
 }
 
-void bvhtree_update_from_mvert ( BVHTree * bvhtree, MFace *faces, int numfaces, MVert *x, MVert *xnew, int numverts, int moving )
+void bvhtree_update_from_mvert ( BVHTree * bvhtree, MFace *faces, int numfaces, MVert *x, MVert *xnew, int UNUSED(numverts), int moving )
 {
 	int i;
 	MFace *mfaces = faces;
@@ -1480,7 +1480,7 @@ static CollPair* cloth_collision ( ModifierData *md1, ModifierData *md2,
 			else
 				break;
 		}
-
+		
 		normal_tri_v3(n2, collmd->current_xnew[collpair->bp1].co, 
 			collmd->current_xnew[collpair->bp2].co, 
 			collmd->current_xnew[collpair->bp3].co);
@@ -1674,10 +1674,10 @@ static int cloth_collision_response_moving( ClothModifierData *clmd, CollisionMo
 #if 0
 static float projectPointOntoLine(float *p, float *a, float *b) 
 {
-   float ba[3], pa[3];
-   VECSUB(ba, b, a);
-   VECSUB(pa, p, a);
-   return INPR(pa, ba) / INPR(ba, ba);
+	float ba[3], pa[3];
+	VECSUB(ba, b, a);
+	VECSUB(pa, p, a);
+	return INPR(pa, ba) / INPR(ba, ba);
 }
 
 static void calculateEENormal(float *np1, float *np2, float *np3, float *np4,float *out_normal) 
@@ -2131,7 +2131,7 @@ static int cloth_collision_moving ( ClothModifierData *clmd, CollisionModifierDa
 }
 #endif
 
-static void add_collision_object(Object ***objs, int *numobj, int *maxobj, Object *ob, Object *self, int level)
+static void add_collision_object(Object ***objs, unsigned int *numobj, unsigned int *maxobj, Object *ob, Object *self, int level)
 {
 	CollisionModifierData *cmd= NULL;
 
@@ -2166,12 +2166,12 @@ static void add_collision_object(Object ***objs, int *numobj, int *maxobj, Objec
 
 // return all collision objects in scene
 // collision object will exclude self 
-Object **get_collisionobjects(Scene *scene, Object *self, Group *group, int *numcollobj)
+Object **get_collisionobjects(Scene *scene, Object *self, Group *group, unsigned int *numcollobj)
 {
 	Base *base;
 	Object **objs;
 	GroupObject *go;
-	int numobj= 0, maxobj= 100;
+	unsigned int numobj= 0, maxobj= 100;
 	
 	objs= MEM_callocN(sizeof(Object *)*maxobj, "CollisionObjectsArray");
 
@@ -2277,7 +2277,7 @@ static void cloth_bvh_objcollisions_nearcheck ( ClothModifierData * clmd, Collis
 	
 	*collisions = ( CollPair* ) MEM_mallocN ( sizeof ( CollPair ) * numresult * 64, "collision array" ); //*4 since cloth_collision_static can return more than 1 collision
 	*collisions_index = *collisions;
-
+	
 #ifdef WITH_ELTOPO
 	machine_epsilon_offset(clmd->clothObject);
 
@@ -2291,7 +2291,7 @@ static void cloth_bvh_objcollisions_nearcheck ( ClothModifierData * clmd, Collis
 	{
 		*collisions_index = cloth_edge_collision ( ( ModifierData * ) clmd, ( ModifierData * ) collmd,
 												   overlap+i, *collisions_index, visithash, arena );
-}
+	}
 	BLI_ghash_free(visithash, NULL, NULL);
 	BLI_ghash_free(tri_visithash, NULL, NULL);
 	BLI_memarena_free(arena);
@@ -2363,16 +2363,16 @@ int cloth_bvh_objcollision (Object *ob, ClothModifierData * clmd, float step, fl
 {
 	Cloth *cloth= clmd->clothObject;
 	BVHTree *cloth_bvh= cloth->bvhtree;
-	int i=0, numfaces = 0, numverts = 0, k, l, j;
+	unsigned int i=0, numfaces = 0, numverts = 0, k, l, j;
 	int rounds = 0; // result counts applied collisions; ic is for debug output;
 	ClothVertex *verts = NULL;
 	int ret = 0, ret2 = 0;
 	Object **collobjs = NULL;
-	int numcollobj = 0;
+	unsigned int numcollobj = 0;
 
 	if ((clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_COLLOBJ) || cloth_bvh==NULL)
 		return 0;
-
+	
 	verts = cloth->verts;
 	numfaces = cloth->numfaces;
 	numverts = cloth->numverts;
@@ -2405,7 +2405,7 @@ int cloth_bvh_objcollision (Object *ob, ClothModifierData * clmd, float step, fl
 			Object *collob= collobjs[i];
 			CollisionModifierData *collmd = (CollisionModifierData*)modifiers_findByType(collob, eModifierType_Collision);
 			BVHTreeOverlap *overlap = NULL;
-			int result = 0;
+			unsigned int result = 0;
 			
 			if(!collmd->bvhtree)
 				continue;
@@ -2467,11 +2467,11 @@ int cloth_bvh_objcollision (Object *ob, ClothModifierData * clmd, float step, fl
 		////////////////////////////////////////////////////////////
 		if ( clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_SELF )
 		{
-			for(l = 0; l < clmd->coll_parms->self_loop_count; l++)
+			for(l = 0; l < (unsigned int)clmd->coll_parms->self_loop_count; l++)
 			{
 				// TODO: add coll quality rounds again
 				BVHTreeOverlap *overlap = NULL;
-				int result = 0;
+				unsigned int result = 0;
 	
 				// collisions = 1;
 				verts = cloth->verts; // needed for openMP

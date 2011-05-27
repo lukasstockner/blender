@@ -79,48 +79,48 @@ static void envmap_split_ima(EnvMap *env, ImBuf *ibuf)
 	BLI_lock_thread(LOCK_IMAGE);
 	if(env->cube[1]==NULL) {
 
-	BKE_free_envmapdata(env);	
+		BKE_free_envmapdata(env);	
 	
-	dx= ibuf->y;
-	dx/= 2;
-	if (3*dx == ibuf->x) {
-		env->type = ENV_CUBE;
+		dx= ibuf->y;
+		dx/= 2;
+		if (3*dx == ibuf->x) {
+			env->type = ENV_CUBE;
 			env->ok= ENV_OSA;
-	} else if (ibuf->x == ibuf->y) {
-		env->type = ENV_PLANE;
+		} else if (ibuf->x == ibuf->y) {
+			env->type = ENV_PLANE;
 			env->ok= ENV_OSA;
-	} else {
-		printf("Incorrect envmap size\n");
-		env->ok= 0;
-		env->ima->ok= 0;
-	}
-	
-		if(env->ok) {
-	if (env->type == ENV_CUBE) {
-		for(part=0; part<6; part++) {
-			env->cube[part]= IMB_allocImBuf(dx, dx, 24, IB_rect|IB_rectfloat, 0);
+		} else {
+			printf("Incorrect envmap size\n");
+			env->ok= 0;
+			env->ima->ok= 0;
 		}
-		IMB_float_from_rect(ibuf);
 		
-		IMB_rectcpy(env->cube[0], ibuf, 
-			0, 0, 0, 0, dx, dx);
-		IMB_rectcpy(env->cube[1], ibuf, 
-			0, 0, dx, 0, dx, dx);
-		IMB_rectcpy(env->cube[2], ibuf, 
-			0, 0, 2*dx, 0, dx, dx);
-		IMB_rectcpy(env->cube[3], ibuf, 
-			0, 0, 0, dx, dx, dx);
-		IMB_rectcpy(env->cube[4], ibuf, 
-			0, 0, dx, dx, dx, dx);
-		IMB_rectcpy(env->cube[5], ibuf, 
-			0, 0, 2*dx, dx, dx, dx);
+		if(env->ok) {
+			if (env->type == ENV_CUBE) {
+				for(part=0; part<6; part++) {
+					env->cube[part]= IMB_allocImBuf(dx, dx, 24, IB_rect|IB_rectfloat);
+				}
+				IMB_float_from_rect(ibuf);
 				
-	}
-	else { /* ENV_PLANE */
-		env->cube[1]= IMB_dupImBuf(ibuf);
-		IMB_float_from_rect(env->cube[1]);
-	}
-}
+				IMB_rectcpy(env->cube[0], ibuf, 
+					0, 0, 0, 0, dx, dx);
+				IMB_rectcpy(env->cube[1], ibuf, 
+					0, 0, dx, 0, dx, dx);
+				IMB_rectcpy(env->cube[2], ibuf, 
+					0, 0, 2*dx, 0, dx, dx);
+				IMB_rectcpy(env->cube[3], ibuf, 
+					0, 0, 0, dx, dx, dx);
+				IMB_rectcpy(env->cube[4], ibuf, 
+					0, 0, dx, dx, dx, dx);
+				IMB_rectcpy(env->cube[5], ibuf, 
+					0, 0, 2*dx, dx, dx, dx);
+				
+			}
+			else { /* ENV_PLANE */
+				env->cube[1]= IMB_dupImBuf(ibuf);
+				IMB_float_from_rect(env->cube[1]);
+			}
+		}
 	}	
 	BLI_unlock_thread(LOCK_IMAGE);
 }
@@ -471,7 +471,7 @@ static void render_envmap(Render *re, EnvMap *env)
 			int y;
 			float *alpha;
 			
-			ibuf= IMB_allocImBuf(envre->rectx, envre->recty, 24, IB_rect|IB_rectfloat, 0);
+			ibuf= IMB_allocImBuf(envre->rectx, envre->recty, 24, IB_rect|IB_rectfloat);
 			memcpy(ibuf->rect_float, rl->rectf, ibuf->channels * ibuf->x * ibuf->y * sizeof(float));
 			
 			if (re->scene->r.color_mgt_flag & R_COLOR_MANAGEMENT)

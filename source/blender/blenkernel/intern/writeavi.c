@@ -46,6 +46,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_global.h"
+#include "BKE_main.h"
 #include "BKE_report.h"
 
 #include "BKE_writeavi.h"
@@ -125,7 +126,7 @@ static void filepath_avi (char *string, RenderData *rd)
 	if (string==NULL) return;
 
 	strcpy(string, rd->pic);
-	BLI_path_abs(string, G.sce);
+	BLI_path_abs(string, G.main->name);
 
 	BLI_make_existing_file(string);
 
@@ -143,6 +144,8 @@ static int start_avi(Scene *scene, RenderData *rd, int rectx, int recty, ReportL
 	int quality;
 	double framerate;
 	
+	(void)scene; /* unused */
+	
 	filepath_avi(name, rd);
 
 	sframe = (rd->sfra);
@@ -155,7 +158,7 @@ static int start_avi(Scene *scene, RenderData *rd, int rectx, int recty, ReportL
 	avi = MEM_mallocN (sizeof(AviMovie), "avimovie");
 
 	/* RPW 11-21-2002 
-	 if (rd->imtype != AVI_FORMAT_MJPEG) format = AVI_FORMAT_AVI_RGB;
+	if (rd->imtype != AVI_FORMAT_MJPEG) format = AVI_FORMAT_AVI_RGB;
 	*/
 	if (rd->imtype != R_AVIJPEG ) format = AVI_FORMAT_AVI_RGB;
 	else format = AVI_FORMAT_MJPEG;
@@ -181,7 +184,7 @@ static int start_avi(Scene *scene, RenderData *rd, int rectx, int recty, ReportL
 	return 1;
 }
 
-static int append_avi(RenderData *rd, int frame, int *pixels, int rectx, int recty, ReportList *reports)
+static int append_avi(RenderData *UNUSED(rd), int frame, int *pixels, int rectx, int recty, ReportList *UNUSED(reports))
 {
 	unsigned int *rt1, *rt2, *rectot;
 	int x, y;

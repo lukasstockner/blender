@@ -164,7 +164,7 @@ static void rna_Panel_unregister(Main *bmain, StructRNA *type)
 	RNA_struct_free(&BLENDER_RNA, type);
 
 	/* update while blender is running */
-		WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
+	WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
 }
 
 static StructRNA *rna_Panel_register(Main *bmain, ReportList *reports, void *data, const char *identifier, StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
@@ -226,13 +226,13 @@ static StructRNA *rna_Panel_register(Main *bmain, ReportList *reports, void *dat
 		if(pth)
 			BLI_insertlinkbefore(&art->paneltypes, pth, pt);
 		else
-	BLI_addtail(&art->paneltypes, pt);
+			BLI_addtail(&art->paneltypes, pt);
 	}
 	else
 		BLI_addtail(&art->paneltypes, pt);
 
 	/* update while blender is running */
-		WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
+	WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
 	
 	return pt->ext.srna;
 }
@@ -277,7 +277,7 @@ static void rna_Header_unregister(Main *bmain, StructRNA *type)
 	RNA_struct_free(&BLENDER_RNA, type);
 
 	/* update while blender is running */
-		WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
+	WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
 }
 
 static StructRNA *rna_Header_register(Main *bmain, ReportList *reports, void *data, const char *identifier, StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
@@ -328,7 +328,7 @@ static StructRNA *rna_Header_register(Main *bmain, ReportList *reports, void *da
 	BLI_addtail(&art->headertypes, ht);
 
 	/* update while blender is running */
-		WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
+	WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
 	
 	return ht->ext.srna;
 }
@@ -394,7 +394,7 @@ static void rna_Menu_unregister(Main *bmain, StructRNA *type)
 	RNA_struct_free(&BLENDER_RNA, type);
 
 	/* update while blender is running */
-		WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
+	WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
 }
 
 static StructRNA *rna_Menu_register(Main *bmain, ReportList *reports, void *data, const char *identifier, StructValidateFunc validate, StructCallbackFunc call, StructFreeFunc free)
@@ -439,7 +439,7 @@ static StructRNA *rna_Menu_register(Main *bmain, ReportList *reports, void *data
 	WM_menutype_add(mt);
 
 	/* update while blender is running */
-		WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
+	WM_main_add_notifier(NC_SCREEN|NA_EDITED, NULL);
 	
 	return mt->ext.srna;
 }
@@ -568,11 +568,11 @@ static void rna_def_ui_layout(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "operator_context", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, operator_context_items);
 	RNA_def_property_enum_funcs(prop, "rna_UILayout_op_context_get", "rna_UILayout_op_context_set", NULL);
-
+	
 	prop= RNA_def_property(srna, "enabled", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_UILayout_enabled_get", "rna_UILayout_enabled_set");
 	RNA_def_property_ui_text(prop, "Enabled", "When false, this (sub)layout is greyed out.");
-
+	
 	prop= RNA_def_property(srna, "alert", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_UILayout_alert_get", "rna_UILayout_alert_set");
 
@@ -588,7 +588,7 @@ static void rna_def_ui_layout(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "scale_x", PROP_FLOAT, PROP_UNSIGNED);
 	RNA_def_property_float_funcs(prop, "rna_UILayout_scale_x_get", "rna_UILayout_scale_x_set", NULL);
 	RNA_def_property_ui_text(prop, "Scale X", "Scale factor along the X for items in this (sub)layout.");
-
+	
 	prop= RNA_def_property(srna, "scale_y", PROP_FLOAT, PROP_UNSIGNED);
 	RNA_def_property_float_funcs(prop, "rna_UILayout_scale_y_get", "rna_UILayout_scale_y_set", NULL);
 	RNA_def_property_ui_text(prop, "Scale Y", "Scale factor along the Y for items in this (sub)layout.");
@@ -637,28 +637,28 @@ static void rna_def_panel(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "layout", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "UILayout");
 	RNA_def_property_ui_text(prop, "Layout", "Defines the structure of the panel in the UI.");
-
+	
 	prop= RNA_def_property(srna, "text", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "drawname");
 	RNA_def_property_ui_text(prop, "Text", "XXX todo");
-
+	
 	/* registration */
 	prop= RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "type->idname");
 	RNA_def_property_flag(prop, PROP_REGISTER|PROP_NEVER_CLAMP);
 	RNA_def_property_ui_text(prop, "ID Name", "If this is set, the panel gets a custom ID, otherwise it takes the name of the class used to define the panel. For example, if the class name is \"OBJECT_PT_hello\", and bl_idname is not set by the script, then bl_idname = \"OBJECT_PT_hello\"");
-
+	
 	prop= RNA_def_property(srna, "bl_label", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "type->label");
 	RNA_def_property_flag(prop, PROP_REGISTER);
 	RNA_def_property_ui_text(prop, "Label", "The panel label, shows up in the panel header at the right of the triangle used to collapse the panel.");
-
+	
 	prop= RNA_def_property(srna, "bl_space_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "type->space_type");
 	RNA_def_property_enum_items(prop, space_type_items);
 	RNA_def_property_flag(prop, PROP_REGISTER);
 	RNA_def_property_ui_text(prop, "Space type", "The space where the panel is going to be used in.");
-
+	
 	prop= RNA_def_property(srna, "bl_region_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "type->region_type");
 	RNA_def_property_enum_items(prop, region_type_items);
@@ -669,7 +669,7 @@ static void rna_def_panel(BlenderRNA *brna)
 	RNA_def_property_string_sdna(prop, NULL, "type->context");
 	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL); /* should this be optional? - Campbell */
 	RNA_def_property_ui_text(prop, "Context", "The context in which the panel belongs to. (TODO: explain the possible combinations bl_context/bl_region_type/bl_space_type)");
-
+	
 	prop= RNA_def_property(srna, "bl_options", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "type->flag");
 	RNA_def_property_enum_items(prop, panel_flag_items);

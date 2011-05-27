@@ -44,7 +44,7 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 			"\n "
 			"\n Alternately define WITH_IN_SOURCE_BUILD to force this option (not recommended!)"
 		)
-endif()
+	endif()
 endif()
 
 cmake_minimum_required(VERSION 2.8)
@@ -83,7 +83,7 @@ set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib CACHE INTERNAL "" FORCE )
 get_blender_version()
 
 # Blender internal features
-option(WITH_INTERNATIONAL "Enable I18N   (International fonts and text)" ON)
+option(WITH_INTERNATIONAL "Enable I18N (International fonts and text)" ON)
 
 option(WITH_PYTHON        "Enable Embedded Python API  (only disable for development)" ON)
 option(WITH_PYTHON_SECURITY "Disables execution of scripts within blend files by default (recommend to leave off)" OFF)
@@ -138,7 +138,7 @@ endif()
 
 # 3D format support
 # disable opencollada on non-apple unix because opencollada has no package for debian
-	option(WITH_OPENCOLLADA		"Enable OpenCollada Support (http://www.opencollada.org)"	OFF)
+option(WITH_OPENCOLLADA		"Enable OpenCollada Support (http://www.opencollada.org)"	OFF)
 
 # Sound output
 option(WITH_SDL           "Enable SDL for sound and joystick support" ON)
@@ -156,7 +156,7 @@ if(UNIX AND NOT APPLE)
 	option(WITH_INSTALL_PORTABLE "Install redistributeable runtime, otherwise install into CMAKE_INSTALL_PREFIX" ON)
 endif()
 option(WITH_PYTHON_INSTALL       "Copy system python into the blender install folder" ON)
-OPTION(WITH_ONSURFACEBRUSH   "Enable use of the 'on-surface brush' for paint/sculpt.  Requires a stencil buffer, GL_depth_texture, and GLSL" ON)
+option(WITH_ONSURFACEBRUSH       "Enable use of the 'on-surface brush' for paint/sculpt.  Requires a stencil buffer, GL_depth_texture, and GLSL" ON)
 
 # disable for now, but plan to support on all platforms eventually
 option(WITH_MEM_JEMALLOC   "Enable malloc replacement (http://www.canonware.com/jemalloc)" OFF)
@@ -245,7 +245,7 @@ set(CXX_WARNINGS "")
 #Platform specifics
 
 if(UNIX AND NOT APPLE)
-
+	
 	# needed for ubuntu 11.04
 	if(EXISTS "/usr/lib/x86_64-linux-gnu")
 		set(CMAKE_LIBRARY_PATH "/usr/lib/x86_64-linux-gnu;${CMAKE_LIBRARY_PATH}")
@@ -299,7 +299,7 @@ if(UNIX AND NOT APPLE)
 	if(WITH_PYTHON)
 		# No way to set py32. remove for now.
 		# find_package(PythonLibs)
-	
+
 		# defines...
 		
 		#  PYTHON_VERSION
@@ -338,9 +338,9 @@ if(UNIX AND NOT APPLE)
 			/opt/include/OpenEXR
 		)
 		mark_as_advanced(OPENEXR_INC)
-		
-		set(OPENEXR_LIB Half IlmImf Iex Imath)
 
+		set(OPENEXR_LIB Half IlmImf Iex Imath)
+		
 		if(NOT OPENEXR_INC)
 			set(WITH_IMAGE_OPENEXR OFF)
 		endif()
@@ -423,14 +423,14 @@ if(UNIX AND NOT APPLE)
 
 	if(CMAKE_SYSTEM_NAME MATCHES "Linux")
 		if(NOT WITH_PYTHON_MODULE)
-		# BSD's dont use libdl.so
-		list(APPEND LLIBS -ldl)
+			# BSD's dont use libdl.so
+			list(APPEND LLIBS -ldl)
 
-		# binreloc is linux only
-		set(BINRELOC ${CMAKE_SOURCE_DIR}/extern/binreloc)
-		set(BINRELOC_INC ${BINRELOC}/include)
+			# binreloc is linux only
+			set(BINRELOC ${CMAKE_SOURCE_DIR}/extern/binreloc)
+			set(BINRELOC_INC ${BINRELOC}/include)
 			set(WITH_BINRELOC ON)
-	endif()
+		endif()
 	endif()
 
 	set(PLATFORM_LINKFLAGS "-pthread")
@@ -441,11 +441,9 @@ if(UNIX AND NOT APPLE)
 	# GNU Compiler
 	if(CMAKE_COMPILER_IS_GNUCC)
 		set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing")
-
-	IF(WITH_ONSURFACEBRUSH)
-		ADD_DEFINITIONS(-DWITH_ONSURFACEBRUSH)
-	ENDIF(WITH_ONSURFACEBRUSH)
-
+		if(WITH_ONSURFACEBRUSH)
+			add_defintion(-DWITH_ONSURFACEBRUSH)
+		endif(WITH_ONSURFACEBRUSH)
 	# Intel C++ Compiler
 	elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
 		# think these next two are broken
@@ -473,7 +471,7 @@ elseif(WIN32)
 
 	# this file is included anyway when building under Windows with cl.exe
 	#  include(${CMAKE_ROOT}/Modules/Platform/Windows-cl.cmake)
-  
+
 	set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/windows)
 
 	# Setup 64bit and 64bit windows systems
@@ -540,9 +538,9 @@ elseif(WIN32)
 		add_definitions(-D__SSE__ -D__MMX__)
 	endif()
 
-	IF(WITH_ONSURFACEBRUSH)
-		ADD_DEFINITIONS(-DWITH_ONSURFACEBRUSH)
-	ENDIF(WITH_ONSURFACEBRUSH)
+	if(WITH_ONSURFACEBRUSH)
+		add_defintion(-DWITH_ONSURFACEBRUSH)
+	endif(WITH_ONSURFACEBRUSH)
 
 	if(MSVC)
 		if(CMAKE_CL_64)
@@ -570,7 +568,7 @@ elseif(WIN32)
 		set(CMAKE_C_FLAGS_RELEASE "/O2 /Ob2 /DNDEBUG /EHsc /MT /W3 /nologo /J" CACHE STRING "MSVC MT flags " FORCE)
 		set(CMAKE_C_FLAGS_MINSIZEREL "/O1 /Ob1 /DNDEBUG /EHsc /MT /W3 /nologo /J" CACHE STRING "MSVC MT flags " FORCE)
 		set(CMAKE_C_FLAGS_RELWITHDEBINFO "/O2 /Ob1 /DNDEBUG /EHsc /MT /W3 /nologo /Zi /J" CACHE STRING "MSVC MT flags " FORCE)
-		
+
 		if(WITH_INTERNATIONAL)
 			set(GETTEXT ${LIBDIR}/gettext)
 			set(GETTEXT_INC ${GETTEXT}/include)
@@ -581,7 +579,7 @@ elseif(WIN32)
 				set(GETTEXT_LIB gnu_gettext)
 			endif()
 		endif()
-		
+
 		if(CMAKE_CL_64)
 			set(PNG_LIBRARIES libpng)
 		else()
@@ -602,12 +600,12 @@ elseif(WIN32)
 		set(PTHREADS_INC ${PTHREADS}/include)
 		set(PTHREADS_LIBPATH ${PTHREADS}/lib)
 		set(PTHREADS_LIB pthreadVC2)
-
+		
 		set(FREETYPE ${LIBDIR}/freetype)
 		set(FREETYPE_INCLUDE_DIRS ${FREETYPE}/include ${FREETYPE}/include/freetype2)
 		set(FREETYPE_LIBPATH ${FREETYPE}/lib)
 		set(FREETYPE_LIBRARY freetype2ST)
-		
+
 		if(WITH_FFTW3)
 			set(FFTW3 ${LIBDIR}/fftw3)
 			set(FFTW3_LIB libfftw)
@@ -622,14 +620,14 @@ elseif(WIN32)
 			set(OPENCOLLADA_LIB OpenCOLLADASaxFrameworkLoader OpenCOLLADAFramework OpenCOLLADABaseUtils OpenCOLLADAStreamWriter MathMLSolver GeneratedSaxParser xml2 buffer ftoa UTF)
 			set(PCRE_LIB pcre)
 		endif()
-
+	
 		if(WITH_CODEC_FFMPEG)
 			set(FFMPEG ${LIBDIR}/ffmpeg)
 			set(FFMPEG_INC ${FFMPEG}/include ${FFMPEG}/include/msvc)
 			set(FFMPEG_LIB avcodec-52 avformat-52 avdevice-52 avutil-50 swscale-0)
 			set(FFMPEG_LIBPATH ${FFMPEG}/lib)
 		endif()
-        
+
 		if(WITH_IMAGE_OPENEXR)
 			if(MSVC80)
 				set(MSVC_LIB _vs2005)
@@ -649,7 +647,7 @@ elseif(WIN32)
 			set(OPENEXR_LIBPATH ${OPENEXR}/lib${MSVC_LIB})
 			set(OPENEXR_INCUDE ${OPENEXR}/include${MSVC_INC})
 			set(OPENEXR_INC ${OPENEXR_INCUDE}/ ${OPENEXR_INCUDE}/IlmImf ${OPENEXR_INCUDE}/Iex ${OPENEXR_INCUDE}/Imath)
-			endif()
+		endif()
 
 		if(WITH_IMAGE_TIFF)
 			set(TIFF ${LIBDIR}/tiff)
@@ -680,7 +678,7 @@ elseif(WIN32)
 		else()
 			set(PLATFORM_LINKFLAGS "/NODEFAULTLIB:libc.lib /STACK:2097152 ")
 		endif()
-	  
+
 		set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /NODEFAULTLIB:libcmt.lib;libc.lib ")
 
 	else()
@@ -717,12 +715,12 @@ elseif(WIN32)
 		set(PTHREADS_INC ${PTHREADS}/include)
 		set(PTHREADS_LIBPATH ${PTHREADS}/lib)
 		set(PTHREADS_LIB pthreadGC2)
-
+		
 		set(FREETYPE ${LIBDIR}/gcc/freetype)
 		set(FREETYPE_INCLUDE_DIRS ${FREETYPE}/include ${FREETYPE}/include/freetype2)
 		set(FREETYPE_LIBPATH ${FREETYPE}/lib)
 		set(FREETYPE_LIBRARY freetype)
-		
+
 		if(WITH_FFTW3)
 			set(FFTW3 ${LIBDIR}/gcc/fftw3)
 			set(FFTW3_LIB fftw3)
@@ -737,14 +735,14 @@ elseif(WIN32)
 			set(OPENCOLLADA_LIB OpenCOLLADAStreamWriter OpenCOLLADASaxFrameworkLoader OpenCOLLADAFramework OpenCOLLADABaseUtils GeneratedSaxParser UTF MathMLSolver expat pcre buffer ftoa)
 			set(PCRE_LIB pcre)
 		endif()
-
+		
 		if(WITH_CODEC_FFMPEG)
 			set(FFMPEG ${LIBDIR}/ffmpeg)
 			set(FFMPEG_INC ${FFMPEG}/include ${FFMPEG}/include)
 			set(FFMPEG_LIB avcodec-52 avformat-52 avdevice-52 avutil-50 swscale-0)
 			set(FFMPEG_LIBPATH ${FFMPEG}/lib)
 		endif()
-		
+
 		if(WITH_IMAGE_OPENEXR)
 			set(OPENEXR ${LIBDIR}/gcc/openexr)
 			set(OPENEXR_INC ${OPENEXR}/include ${OPENEXR}/include/OpenEXR)
@@ -858,7 +856,7 @@ elseif(APPLE)
 		set(GETTEXT_LIB intl iconv)
 		set(GETTEXT_LIBPATH ${GETTEXT}/lib)
 	endif()
-  
+
 	if(WITH_FFTW3)
 		set(FFTW3 ${LIBDIR}/fftw3)
 		set(FFTW3_INC ${FFTW3}/include)
@@ -957,10 +955,6 @@ elseif(APPLE)
 		set(TIFF_LIBPATH ${TIFF}/lib)
 	endif()
 
-	IF(WITH_ONSURFACEBRUSH)
-		ADD_DEFINITIONS(-DWITH_ONSURFACEBRUSH)
-	ENDIF(WITH_ONSURFACEBRUSH)
-
 	set(EXETYPE MACOSX_BUNDLE)
 
 	set(CMAKE_C_FLAGS_DEBUG "-fno-strict-aliasing -g")
@@ -983,9 +977,9 @@ endif()
 if(APPLE OR WIN32)
 	if(NOT IS_DIRECTORY "${LIBDIR}")
 		message(FATAL_ERROR "Apple and Windows require pre-compiled libs at: '${LIBDIR}'")
-		endif()
 	endif()
-	
+endif()
+
 if(WITH_RAYOPTIMIZATION)
 	if(CMAKE_COMPILER_IS_GNUCC)
 		if(SUPPORT_SSE_BUILD)
@@ -1009,9 +1003,9 @@ if(WITH_IMAGE_OPENJPEG)
 		set(OPENJPEG_LIB openjpeg)
 		set(OPENJPEG_LIBPATH ${OPENJPEG}/lib)
 	else()
-	set(OPENJPEG ${CMAKE_SOURCE_DIR}/extern/libopenjpeg)
-	set(OPENJPEG_INC ${OPENJPEG})
-endif()
+		set(OPENJPEG ${CMAKE_SOURCE_DIR}/extern/libopenjpeg)
+		set(OPENJPEG_INC ${OPENJPEG})
+	endif()
 endif()
 
 if(WITH_IMAGE_REDCODE)

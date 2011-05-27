@@ -375,7 +375,7 @@ void *BLI_findstring(const ListBase *listbase, const char *id, const int offset)
 	}
 
 	return NULL;
-	}
+}
 /* same as above but find reverse */
 void *BLI_rfindstring(const ListBase *listbase, const char *id, const int offset)
 {
@@ -412,7 +412,7 @@ void *BLI_findstring_ptr(const ListBase *listbase, const char *id, const int off
 	}
 
 	return NULL;
-	}
+}
 /* same as above but find reverse */
 void *BLI_rfindstring_ptr(const ListBase *listbase, const char *id, const int offset)
 {
@@ -457,17 +457,17 @@ int BLI_findstringindex(const ListBase *listbase, const char *id, const int offs
 void BLI_duplicatelist(ListBase *dst, const ListBase *src)
 {
 	struct Link *dst_link, *src_link;
-	
+
 	/* in this order, to ensure it works if dst == src */
 	src_link= src->first;
 	dst->first= dst->last= NULL;
-	
+
 	while(src_link) {
 		dst_link= MEM_dupallocN(src_link);
 		BLI_addtail(dst, dst_link);
-		
+
 		src_link= src_link->next;
-	}	
+	}
 }
 
 /* create a generic list node containing link to provided data */

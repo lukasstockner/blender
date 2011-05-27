@@ -69,7 +69,7 @@ m_catchDegeneracies(1)
 {
 }
 
-void btGjkPairDetector::getClosestPoints(const ClosestPointInput& input,Result& output,class btIDebugDraw* debugDraw,bool swapResults)
+void	btGjkPairDetector::getClosestPoints(const ClosestPointInput& input,Result& output,class btIDebugDraw* debugDraw,bool swapResults)
 {
 	(void)swapResults;
 
@@ -94,7 +94,7 @@ void btGjkPairDetector::getClosestPointsNonVirtual(const ClosestPointInput& inpu
 	localTransB.getOrigin() -= positionOffset;
 
 	bool check2d = m_minkowskiA->isConvex2d() && m_minkowskiB->isConvex2d();
-	
+
 	btScalar marginA = m_marginA;
 	btScalar marginB = m_marginB;
 
@@ -305,7 +305,7 @@ void btGjkPairDetector::getClosestPointsNonVirtual(const ClosestPointInput& inpu
 		{
 			m_simplexSolver->compute_points(pointOnA, pointOnB);
 			normalInB = m_cachedSeparatingAxis;
-			btScalar lenSqr = m_cachedSeparatingAxis.length2();
+			btScalar lenSqr =m_cachedSeparatingAxis.length2();
 			
 			//valid normal
 			if (lenSqr < 0.0001)
@@ -338,7 +338,7 @@ void btGjkPairDetector::getClosestPointsNonVirtual(const ClosestPointInput& inpu
 		if (checkPenetration && (!isValid || catchDegeneratePenetrationCase ))
 		{
 			//penetration case
-		
+
 			//if there is no way to handle penetrations, bail out
 			if (m_penetrationDepthSolver)
 			{
@@ -415,8 +415,8 @@ void btGjkPairDetector::getClosestPointsNonVirtual(const ClosestPointInput& inpu
 							m_lastUsedMethod = 6;
 						} else
 						{
-					m_lastUsedMethod = 5;
-				}
+							m_lastUsedMethod = 5;
+						}
 					}
 				}
 				
@@ -425,7 +425,7 @@ void btGjkPairDetector::getClosestPointsNonVirtual(const ClosestPointInput& inpu
 		}
 	}
 
-
+	
 
 	if (isValid && ((distance < 0) || (distance*distance < input.m_maximumDistanceSquared)))
 	{
@@ -436,7 +436,7 @@ void btGjkPairDetector::getClosestPointsNonVirtual(const ClosestPointInput& inpu
 			printf("n = %2.3f,%2.3f,%2.3f. ",normalInB[0],normalInB[1],normalInB[2]);
 			printf("distance = %2.3f exit=%d deg=%d\n",distance,m_lastUsedMethod,m_degenerateSimplex);
 		}
-#endif
+#endif 
 
 		m_cachedSeparatingAxis = normalInB;
 		m_cachedSeparatingDistance = distance;

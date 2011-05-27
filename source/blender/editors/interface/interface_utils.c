@@ -66,7 +66,7 @@ uiBut *uiDefAutoButR(uiBlock *block, PointerRNA *ptr, PropertyRNA *prop, int ind
 
 			if(arraylen && index == -1)
 				return NULL;
-
+			
 			if(icon && name && name[0] == '\0')
 				but= uiDefIconButR(block, ICONTOG, 0, icon, x1, y1, x2, y2, ptr, propname, index, 0, 0, -1, -1, NULL);
 			else if(icon)
@@ -151,20 +151,20 @@ int uiDefAutoButsRNA(uiLayout *layout, PointerRNA *ptr, int (*check_prop)(Proper
 			name= RNA_property_ui_name(prop);
 
 			if(label_align=='V') {
-			col= uiLayoutColumn(layout, 1);
+				col= uiLayoutColumn(layout, 1);
 
 				if(!is_boolean)
 					uiItemL(col, name, ICON_NONE);
-		}
+			}
 			else if(label_align=='H') {
-			split = uiLayoutSplit(layout, 0.5f, 0);
+				split = uiLayoutSplit(layout, 0.5f, 0);
 
-			col= uiLayoutColumn(split, 0);
+				col= uiLayoutColumn(split, 0);
 				uiItemL(col, (is_boolean)? "": name, ICON_NONE);
 				col= uiLayoutColumn(split, 0);
-		}
+			}
 			else {
-			col= NULL;
+				col= NULL;
 			}
 
 			/* may meed to add more cases here.
@@ -172,8 +172,8 @@ int uiDefAutoButsRNA(uiLayout *layout, PointerRNA *ptr, int (*check_prop)(Proper
 
 			/* name is shown above, empty name for button below */
 			name= (flag & PROP_ENUM_FLAG || is_boolean)? NULL: "";
-			}
-			else {
+		}
+		else {
 			col= layout;
 			name= NULL; /* no smart label alignment, show default name with button */
 		}

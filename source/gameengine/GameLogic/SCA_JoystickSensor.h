@@ -121,7 +121,7 @@ public:
 		return m_joyindex;
 	}
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 	/* --------------------------------------------------------------------- */
 	/* Python interface ---------------------------------------------------- */
@@ -161,7 +161,7 @@ public:
 		return 0;
 	}
 	
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON
 
 };
 

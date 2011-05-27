@@ -219,7 +219,7 @@ public:
 		return btVector3(m_floats[0] / s, m_floats[1] / s, m_floats[2] / s);
 	}
 
-  /**@brief Return the inverse of this quaternion */
+	/**@brief Return the inverse of this quaternion */
 	btQuaternion inverse() const
 	{
 		return btQuaternion(-m_floats[0], -m_floats[1], -m_floats[2], m_floats[3]);
@@ -291,10 +291,10 @@ public:
                                               (m_floats[2] * s0 + -q.z() * s1) * d,
                                               (m_floats[3] * s0 + -q.m_floats[3] * s1) * d);
                         else
-			return btQuaternion((m_floats[0] * s0 + q.x() * s1) * d,
-				(m_floats[1] * s0 + q.y() * s1) * d,
-				(m_floats[2] * s0 + q.z() * s1) * d,
-				(m_floats[3] * s0 + q.m_floats[3] * s1) * d);
+                          return btQuaternion((m_floats[0] * s0 + q.x() * s1) * d,
+                                              (m_floats[1] * s0 + q.y() * s1) * d,
+                                              (m_floats[2] * s0 + q.z() * s1) * d,
+                                              (m_floats[3] * s0 + q.m_floats[3] * s1) * d);
                         
 		}
 		else

@@ -94,7 +94,7 @@ public:
 
 
 class btHashPtr
-	{
+{
 
 	union
 	{
@@ -138,31 +138,31 @@ public:
 template <class Value>
 class btHashKeyPtr
 {
-	int	m_uid;
+        int     m_uid;
 public:
 
         btHashKeyPtr(int uid)    :m_uid(uid)
-	{
-	}
+        {
+        }
 
         int     getUid1() const
-	{
-		return m_uid;
-	}
+        {
+                return m_uid;
+        }
 
         bool equals(const btHashKeyPtr<Value>& other) const
         {
                 return getUid1() == other.getUid1();
         }
 
-	//to our success
-	SIMD_FORCE_INLINE	unsigned int getHash()const
-	{
-		int key = m_uid;
-		// Thomas Wang's hash
+        //to our success
+        SIMD_FORCE_INLINE       unsigned int getHash()const
+        {
+                int key = m_uid;
+                // Thomas Wang's hash
                 key += ~(key << 15);	key ^=  (key >> 10);	key +=  (key << 3);	key ^=  (key >> 6);	key += ~(key << 11);	key ^=  (key >> 16);
-		return key;
-	}
+                return key;
+        }
 
         
 };
@@ -170,7 +170,7 @@ public:
 
 template <class Value>
 class btHashKey
-	{
+{
 	int	m_uid;
 public:
 

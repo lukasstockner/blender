@@ -51,7 +51,7 @@ void AUD_LoopReader::seek(int position)
 			m_left = m_count - (position / len);
 			if(m_left < 0)
 				m_left = 0;
-}
+		}
 		m_reader->seek(position % len);
 	}
 }
@@ -66,7 +66,7 @@ int AUD_LoopReader::getLength() const
 int AUD_LoopReader::getPosition() const
 {
 	return m_reader->getPosition() * (m_count < 0 ? 1 : m_count);
-	}
+}
 
 void AUD_LoopReader::read(int & length, sample_t* & buffer)
 {

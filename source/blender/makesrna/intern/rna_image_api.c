@@ -46,7 +46,7 @@
 #include "BKE_packedFile.h"
 #include "BKE_main.h"
 
-#include "BKE_global.h" /* grr: G.sce */
+#include "BKE_global.h" /* grr: G.main->name */
 
 #include "IMB_imbuf.h"
 
@@ -78,9 +78,17 @@ static void rna_Image_save_render(Image *image, bContext *C, ReportList *reports
 		if (ibuf == NULL) {
 			BKE_reportf(reports, RPT_ERROR, "Couldn't acquire buffer from image");
 		}
-
+		else {
+			/* temp swap out the color */
+			const unsigned char imb_depth_back= ibuf->depth;
+			const float dither_back= ibuf->dither; 
+			ibuf->depth= scene->r.planes;
+			ibuf->dither= scene->r.dither_intensity;
 			if (!BKE_write_ibuf(ibuf, path, scene->r.imtype, scene->r.subimtype, scene->r.quality)) {
-			BKE_reportf(reports, RPT_ERROR, "Couldn't write image: %s", path);
+				BKE_reportf(reports, RPT_ERROR, "Couldn't write image: %s", path);
+			}
+			ibuf->depth= imb_depth_back;
+			ibuf->dither= dither_back;
 		}
 
 		BKE_image_release_ibuf(image, lock);
@@ -95,7 +103,7 @@ static void rna_Image_save(Image *image, ReportList *reports)
 	if(ibuf) {
 		char filename[FILE_MAXDIR + FILE_MAXFILE];
 		BLI_strncpy(filename, image->name, sizeof(filename));
-		BLI_path_abs(filename, G.sce);
+		BLI_path_abs(filename, G.main->name);
 
 		if(image->packedfile) {
 			if (writePackedFile(reports, image->name, image->packedfile, 0) != RET_OK) {
@@ -147,7 +155,7 @@ static int rna_Image_gl_load(Image *image, ReportList *reports, int filter, int 
 
 	ibuf= BKE_image_get_ibuf(image, NULL);
 
- 	if(ibuf == NULL || ibuf->rect == NULL ) {
+	if(ibuf == NULL || ibuf->rect == NULL ) {
 		BKE_reportf(reports, RPT_ERROR, "Image \"%s\" does not have any image data", image->id.name+2);
 		return (int)GL_INVALID_OPERATION;
 	}

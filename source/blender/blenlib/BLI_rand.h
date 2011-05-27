@@ -36,9 +36,9 @@
  */
 
 /** RNG is just an abstract random number generator
-	 * type that avoids using globals, otherwise identical
-	 * to BLI_rand functions below.
-	 */
+ * type that avoids using globals, otherwise identical
+ * to BLI_rand functions below.
+ */
 struct RNG;
 typedef struct RNG RNG;
 

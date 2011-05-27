@@ -1,5 +1,5 @@
 /*
- * $Id: rna_sequencer_api.c 29601 2010-06-21 22:16:13Z gsrb3d $
+ * $Id: rna_sequencer_api.c 35238 2011-02-27 20:20:01Z jesterking $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *

@@ -82,7 +82,7 @@ void btUniformScalingShape::getAabbSlow(const btTransform& t,btVector3& aabbMin,
 		btVector3( 0., -1.,  0.),
 		btVector3( 0.,  0., -1.)
 	};
-
+	
 	btVector3 _supporting[] =
 	{
 		btVector3( 0., 0., 0.),
@@ -96,8 +96,8 @@ void btUniformScalingShape::getAabbSlow(const btTransform& t,btVector3& aabbMin,
 	for (int i=0;i<6;i++)
 	{
 		_directions[i] = _directions[i]*t.getBasis();
-}
-
+	}
+	
 	batchedUnitVectorGetSupportingVertexWithoutMargin(_directions, _supporting, 6);
 	
 	btVector3 aabbMin1(0,0,0),aabbMax1(0,0,0);

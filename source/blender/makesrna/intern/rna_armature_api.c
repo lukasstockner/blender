@@ -46,7 +46,7 @@
 void rna_EditBone_align_roll(EditBone *ebo, float no[3])
 {
 	ebo->roll= ED_rollBoneToVector(ebo, no, FALSE);
-	}
+}
 
 float rna_Bone_do_envelope(Bone *bone, float *vec)
 {

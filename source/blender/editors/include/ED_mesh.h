@@ -185,6 +185,7 @@ void		EM_deselect_by_material(struct EditMesh *em, int index);
 void		EM_automerge(struct Scene *scene, struct Object *obedit, int update);
 
 /* editface.c */
+void paintface_flush_flags(struct Object *ob);
 struct MTFace	*EM_get_active_mtface(struct EditMesh *em, struct EditFace **act_efa, struct MCol **mcol, int sloppy);
 int paintface_mouse_select(struct bContext *C, struct Object *ob, const int mval[2], int extend);
 int do_paintface_box_select(struct ViewContext *vc, struct rcti *rect, int select, int extend);
@@ -235,7 +236,7 @@ void ED_mesh_calc_normals(struct Mesh *me);
 void ED_mesh_material_link(struct Mesh *me, struct Material *ma);
 void ED_mesh_update(struct Mesh *mesh, struct bContext *C, int calc_edges);
 
-int ED_mesh_uv_texture_add(struct bContext *C, struct Scene *scene, struct Object *ob, struct Mesh *me, const char *name, int active_set);
+int ED_mesh_uv_texture_add(struct bContext *C, struct Mesh *me, const char *name, int active_set);
 int ED_mesh_uv_texture_remove(struct bContext *C, struct Object *ob, struct Mesh *me);
 int ED_mesh_color_add(struct bContext *C, struct Scene *scene, struct Object *ob, struct Mesh *me, const char *name, int active_set);
 int ED_mesh_color_remove(struct bContext *C, struct Object *ob, struct Mesh *me);

@@ -69,7 +69,7 @@ public:
     float	getMistColorGreen();
     float	getMistColorBlue();     
 
-		void	
+		void
 	setBackColor(
 		float r,
 		float g,

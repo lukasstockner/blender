@@ -167,8 +167,9 @@ static void postConstraintChecks(TransInfo *t, float vec[3], float pvec[3]) {
 	/* autovalues is operator param, use that directly but not if snapping is forced */
 	if (t->flag & T_AUTOVALUES && (t->tsnap.status & SNAP_FORCED) == 0)
 	{
-		VECCOPY(vec, t->auto_values);
+		mul_v3_m3v3(vec, t->con.imtx, t->auto_values);
 		constraintAutoValues(t, vec);
+		/* inverse transformation at the end */
 	}
 
 	if (t->con.mode & CON_AXIS0) {
@@ -637,7 +638,7 @@ void setUserConstraint(TransInfo *t, short orientation, int mode, const char fte
 
 /*----------------- DRAWING CONSTRAINTS -------------------*/
 
-void drawConstraint(const struct bContext *C, TransInfo *t)
+void drawConstraint(TransInfo *t)
 {
 	TransCon *tc = &(t->con);
 
@@ -907,7 +908,7 @@ static void setNearestAxis3d(TransInfo *t)
 		axis[1] = (float)(icoord[1] - t->center2d[1]);
 		axis[2] = 0.0f;
 
-		 if (normalize_v3(axis) != 0.0f) {
+		if (normalize_v3(axis) != 0.0f) {
 			project_v3_v3v3(proj, mvec, axis);
 			sub_v3_v3v3(axis, mvec, proj);
 			len[i] = normalize_v3(axis);

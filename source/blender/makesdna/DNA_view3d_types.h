@@ -158,13 +158,14 @@ typedef struct View3D {
 	
 	char ob_centre_bone[32];		/* optional string for armature bone to define center */
 	
-	int lay, layact;
+	unsigned int lay;
+	int layact;
 	
 	/**
 	 * The drawing mode for the 3d display. Set to OB_WIRE, OB_SOLID,
 	 * OB_SHADED, OB_TEXTURE, or OB_MATCAP */
 	short drawtype;
-	short pad2;
+	short ob_centre_cursor;		/* optional bool for 3d cursor to define center */
 	short scenelock, around;
 	short flag, flag2;
 	

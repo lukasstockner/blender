@@ -191,19 +191,19 @@ static void finish_bake_internal(BakeRender *bkr)
 				ImBuf *ibuf= BKE_image_get_ibuf(ima, NULL);
 				if(ibuf) {
 					if(ibuf->userflags & IB_BITMAPDIRTY) {
-					GPU_free_image(ima);
-					imb_freemipmapImBuf(ibuf);
-				}
+						GPU_free_image(ima);
+						imb_freemipmapImBuf(ibuf);
+					}
 
 					/* freed when baking is done, but if its canceled we need to free here */
 					if (ibuf->userdata) {
 						printf("freed\n");
 						MEM_freeN(ibuf->userdata);
 						ibuf->userdata= NULL;
+					}
+				}
 			}
 		}
-	}
-}
 	}
 }
 
@@ -325,8 +325,6 @@ static int bake_image_exec(bContext *C, wmOperator *op)
 	else {
 		ListBase threads;
 		BakeRender bkr= {NULL};
-
-		memset(&bkr, 0, sizeof(bkr));
 
 		init_bake_internal(&bkr, C);
 		bkr.reports= op->reports;

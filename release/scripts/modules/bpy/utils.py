@@ -47,7 +47,7 @@ def _test_import(module_name, loaded_modules):
 
     if use_time:
         import time
-    t = time.time()
+        t = time.time()
 
     try:
         mod = __import__(module_name)
@@ -59,7 +59,7 @@ def _test_import(module_name, loaded_modules):
     if use_time:
         print("time %s %.4f" % (module_name, time.time() - t))
 
-    loaded_modules.add(mod.__name__) # should match mod.__name__ too
+    loaded_modules.add(mod.__name__)  # should match mod.__name__ too
     return mod
 
 
@@ -89,8 +89,8 @@ def modules_from_path(path, loaded_modules):
     return modules
 
 
-_global_loaded_modules = [] # store loaded module names for reloading.
-import bpy_types as _bpy_types # keep for comparisons, never ever reload this.
+_global_loaded_modules = []  # store loaded module names for reloading.
+import bpy_types as _bpy_types  # keep for comparisons, never ever reload this.
 
 
 def load_scripts(reload_scripts=False, refresh_scripts=False):
@@ -106,7 +106,7 @@ def load_scripts(reload_scripts=False, refresh_scripts=False):
 
     if use_time:
         import time
-    t_main = time.time()
+        t_main = time.time()
 
     loaded_modules = set()
 
@@ -292,7 +292,7 @@ def refresh_script_paths():
             _sys_path_ensure(path)
 
 
-_presets = _os.path.join(_scripts[0], "presets") # FIXME - multiple paths
+_presets = _os.path.join(_scripts[0], "presets")  # FIXME - multiple paths
 
 
 def preset_paths(subdir):
@@ -326,10 +326,10 @@ def smpte_from_seconds(time, fps=None):
     else:
         neg = ""
 
-    if time >= 3600.0: # hours
+    if time >= 3600.0:  # hours
         hours = int(time / 3600.0)
         time = time % 3600.0
-    if time >= 60.0: # mins
+    if time >= 60.0:  # mins
         minutes = int(time / 60.0)
         time = time % 60.0
 
@@ -358,9 +358,9 @@ def smpte_from_frame(frame, fps=None, fps_base=None):
 def preset_find(name, preset_path, display_name=False):
     if not name:
         return None
-    
+
     for directory in preset_paths(preset_path):
-        
+
         if display_name:
             filename = ""
             for fn in _os.listdir(directory):
@@ -380,7 +380,7 @@ def keyconfig_set(filepath):
     from os.path import basename, splitext
 
     if _bpy.app.debug:
-    print("loading preset:", filepath)
+        print("loading preset:", filepath)
 
     keyconfigs = _bpy.context.window_manager.keyconfigs
 
@@ -406,7 +406,7 @@ def keyconfig_set(filepath):
             keyconfigs.remove(kc_dupe)
         else:
             break
-    
+
     kc_new.name = name
     keyconfigs.active = kc_new
 

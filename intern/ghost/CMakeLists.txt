@@ -138,7 +138,7 @@ elseif(UNIX)
 	)
 
 	if(NOT WITH_INSTALL_PORTABLE)
-	add_definitions(-DPREFIX="${CMAKE_INSTALL_PREFIX}")
+		add_definitions(-DPREFIX="${CMAKE_INSTALL_PREFIX}")
 	endif()
 
 	if(X11_XF86keysym_INCLUDE_PATH)

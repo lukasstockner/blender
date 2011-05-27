@@ -66,7 +66,7 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 #include "BPY_extern.h"
 #endif
 
@@ -74,7 +74,7 @@
 
 /************************ poll ***************************/
 
-static int text_new_poll(bContext *C)
+static int text_new_poll(bContext *UNUSED(C))
 {
 	return 1;
 }
@@ -132,7 +132,7 @@ static int text_region_edit_poll(bContext *C)
 
 /********************** updates *********************/
 
-void text_update_line_edited(Text *text, TextLine *line)
+void text_update_line_edited(TextLine *line)
 {
 	if(!line)
 		return;
@@ -149,7 +149,7 @@ void text_update_edited(Text *text)
 	TextLine *line;
 
 	for(line=text->lines.first; line; line=line->next)
-		text_update_line_edited(text, line);
+		text_update_line_edited(line);
 }
 
 /******************* new operator *********************/
@@ -171,7 +171,7 @@ static int new_exec(bContext *C, wmOperator *UNUSED(op))
 		 * pointer se also increases user, so this compensates it */
 		/* doesnt always seem to happen... (ton) */
 		if(text->id.us>1)
-		text->id.us--;
+			text->id.us--;
 
 		RNA_id_pointer_create(&text->id, &idptr);
 		RNA_property_pointer_set(&ptr, prop, idptr);
@@ -180,9 +180,9 @@ static int new_exec(bContext *C, wmOperator *UNUSED(op))
 	else if(st) {
 		st->text= text;
 		st->top= 0;
+		text_drawcache_tag_update(st, 1);
 	}
 
-	text_drawcache_tag_update(st, 1);
 	WM_event_add_notifier(C, NC_TEXT|NA_ADDED, text);
 
 	return OPERATOR_FINISHED;
@@ -230,7 +230,7 @@ static int open_exec(bContext *C, wmOperator *op)
 
 	RNA_string_get(op->ptr, "filepath", str);
 
-	text= add_text(str, G.sce);
+	text= add_text(str, G.main->name);
 
 	if(!text) {
 		if(op->customdata) MEM_freeN(op->customdata);
@@ -275,7 +275,7 @@ static int open_exec(bContext *C, wmOperator *op)
 static int open_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
 	Text *text= CTX_data_edit_text(C);
-	char *path= (text && text->name)? text->name: G.sce;
+	char *path= (text && text->name)? text->name: G.main->name;
 
 	if(RNA_property_is_set(op->ptr, "filepath"))
 		return open_exec(C, op);
@@ -319,7 +319,7 @@ static int reload_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	if(text->compiled)
 		BPY_text_free_code(text);
 #endif
@@ -453,7 +453,7 @@ static void txt_write_file(Text *text, ReportList *reports)
 	char file[FILE_MAXDIR+FILE_MAXFILE];
 	
 	BLI_strncpy(file, text->name, FILE_MAXDIR+FILE_MAXFILE);
-	BLI_path_abs(file, G.sce);
+	BLI_path_abs(file, G.main->name);
 	
 	fp= fopen(file, "w");
 	if(fp==NULL) {
@@ -539,7 +539,7 @@ static int save_as_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 	else if(text->flags & TXT_ISMEM)
 		str= text->id.name+2;
 	else
-		str= G.sce;
+		str= G.main->name;
 	
 	RNA_string_set(op->ptr, "filepath", str);
 	WM_event_add_fileselect(C, op); 
@@ -606,7 +606,9 @@ static int run_script(bContext *C, ReportList *reports)
 
 static int run_script_exec(bContext *C, wmOperator *op)
 {
-#ifdef DISABLE_PYTHON
+#ifndef WITH_PYTHON
+	(void)C; /* unused */
+
 	BKE_report(op->reports, RPT_ERROR, "Python disabled in this build");
 
 	return OPERATOR_CANCELLED;
@@ -634,7 +636,7 @@ void TEXT_OT_run_script(wmOperatorType *ot)
 
 static int refresh_pyconstraints_exec(bContext *UNUSED(C), wmOperator *UNUSED(op))
 {
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 #if 0
 	Text *text= CTX_data_edit_text(C);
 	Object *ob;
@@ -795,7 +797,7 @@ static int paste_exec(bContext *C, wmOperator *op)
 	/* run the script while editing, evil but useful */
 	if(CTX_wm_space_text(C)->live_edit)
 		run_script(C, NULL);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -866,7 +868,7 @@ static int cut_exec(bContext *C, wmOperator *UNUSED(op))
 	/* run the script while editing, evil but useful */
 	if(CTX_wm_space_text(C)->live_edit)
 		run_script(C, NULL);
-	
+
 	return OPERATOR_FINISHED;
 }
 
@@ -971,14 +973,14 @@ static int line_break_exec(bContext *C, wmOperator *UNUSED(op))
 		if (text->flags & TXT_TABSTOSPACES) {
 			txt_add_char(text, ' ');
 		} else {
-		txt_add_char(text, '\t');
+			txt_add_char(text, '\t');
 		}
 	}
 
 	if(text->curl) {
 		if(text->curl->prev)
-			text_update_line_edited(text, text->curl->prev);
-		text_update_line_edited(text, text->curl);
+			text_update_line_edited(text->curl->prev);
+		text_update_line_edited(text->curl);
 	}
 
 	text_update_cursor_moved(C);
@@ -1422,7 +1424,7 @@ static int text_get_cursor_rel(SpaceText* st, ARegion *ar, TextLine *linein, int
 		if(ch=='\t') {
 			chars= st->tabnumber-i%st->tabnumber;
 			ch= ' ';
-	}
+		}
 		else chars= 1;
 
 		while(chars--) {
@@ -1431,7 +1433,7 @@ static int text_get_cursor_rel(SpaceText* st, ARegion *ar, TextLine *linein, int
 				/* this should be checked when end of current line would be reached */
 				selc= j;
 				found= 1;
-}
+			}
 			else if(i-end==relc) {
 				curs= j;
 			}
@@ -1481,10 +1483,10 @@ static int text_get_cursor_rel(SpaceText* st, ARegion *ar, TextLine *linein, int
 		}
 	}
 
-  return selc;
+	return selc;
 }
 
-static int cursor_skip_find_line(SpaceText* st, ARegion *ar, Text *text,
+static int cursor_skip_find_line(SpaceText* st, ARegion *ar,
 	int lines, TextLine **linep, int *charp, int *rell, int *relc)
 {
 	int offl, offc, visible_lines;
@@ -1510,17 +1512,17 @@ static int cursor_skip_find_line(SpaceText* st, ARegion *ar, Text *text,
 
 			*rell-= visible_lines-offl;
 			*linep=(*linep)->next;
-	} else {
+		} else {
 			*rell+= offl;
 			return 1;
-	}
+		}
 	} else {
 		if(*rell+offl<=0) {
 			if(!(*linep)->prev) {
 				if(offl) {
 					*rell= 0;
 					return 1;
-}
+				}
 
 				*charp= 0;
 				return 0;
@@ -1608,28 +1610,28 @@ static void wrap_move_bol(SpaceText *st, ARegion *ar, short sel)
 					if(ch=='\0') *charp= start;
 					loop= 0;
 					break;
-	}
+				}
 
 				if(chop) endj= j;
 
 				start= end;
 				end += max;
 				chop= 1;
-		}
+			}
 			else if(ch==' ' || ch=='-' || ch=='\0') {
 				if(j>=oldc) {
 					*charp= start;
 					loop= 0;
 					break;
-	} 
+				}
 
 				end= i+1;
 				endj= j+1;
 				chop= 0;
-		}
+			}
 			i++;
+		}
 	}
-}
 
 	if (!sel) txt_pop_sel(text);
 	txt_undo_add_toop(text, sel?UNDO_STO:UNDO_CTO, oldl, oldc, oldl, *charp);
@@ -1665,7 +1667,7 @@ static void wrap_move_eol(SpaceText *st, ARegion *ar, short sel)
 		if(ch=='\t') {
 			chars= st->tabnumber-i%st->tabnumber;
 			ch= ' ';
-	}
+		}
 		else chars= 1;
 
 		while(chars--) {
@@ -1677,7 +1679,7 @@ static void wrap_move_eol(SpaceText *st, ARegion *ar, short sel)
 					else *charp= endj;
 					loop= 0;
 					break;
-		}
+				}
 
 				start= end;
 				end += max;
@@ -1690,14 +1692,14 @@ static void wrap_move_eol(SpaceText *st, ARegion *ar, short sel)
 				end= i+1;
 				endj= j;
 				chop= 0;
-	}
+			}
 			i++;
 		}
 	}
 
 	if (!sel) txt_pop_sel(text);
 	txt_undo_add_toop(text, sel?UNDO_STO:UNDO_CTO, oldl, oldc, oldl, *charp);
-		}
+}
 
 static void wrap_move_up(SpaceText *st, ARegion *ar, short sel)
 {
@@ -1729,11 +1731,11 @@ static void wrap_move_up(SpaceText *st, ARegion *ar, short sel)
 			*charp= text_get_cursor_rel(st, ar, *linep, visible_lines-1, col);
 			newl--;
 		} else *charp= 0;
-	} 
+	}
 
 	if (!sel) txt_pop_sel(text);
 	txt_undo_add_toop(text, sel?UNDO_STO:UNDO_CTO, oldl, oldc, newl, *charp);
-		}
+}
 
 static void wrap_move_down(SpaceText *st, ARegion *ar, short sel)
 {
@@ -1789,17 +1791,17 @@ static void cursor_skip(SpaceText* st, ARegion *ar, Text *text, int lines, int s
 		int rell, relc;
 
 		/* find line and offsets inside it needed to set cursor position */
-		if(cursor_skip_find_line(st, ar, text, lines, linep, charp, &rell, &relc))
+		if(cursor_skip_find_line(st, ar, lines, linep, charp, &rell, &relc))
 		  *charp= text_get_cursor_rel (st, ar, *linep, rell, relc);
 	} else {
-	while (lines>0 && (*linep)->next) {
-		*linep= (*linep)->next;
-		lines--;
-	}
-	while (lines<0 && (*linep)->prev) {
-		*linep= (*linep)->prev;
-		lines++;
-	}
+		while (lines>0 && (*linep)->next) {
+			*linep= (*linep)->next;
+			lines--;
+		}
+		while (lines<0 && (*linep)->prev) {
+			*linep= (*linep)->prev;
+			lines++;
+		}
 	}
 
 	if (*charp > (*linep)->len) *charp= (*linep)->len;
@@ -1994,7 +1996,7 @@ static int delete_exec(bContext *C, wmOperator *op)
 	else if(type == DEL_NEXT_CHAR)
 		txt_delete_char(text);
 
-	text_update_line_edited(text, text->curl);
+	text_update_line_edited(text->curl);
 
 	text_update_cursor_moved(C);
 	WM_event_add_notifier(C, NC_TEXT|NA_EDITED, text);
@@ -2053,7 +2055,7 @@ static void screen_skip(SpaceText *st, ARegion *ar, int lines)
 {
 	int last;
 
-	 st->top += lines;
+	st->top += lines;
 
 	last= text_get_total_lines(st, ar);
 	last= last - (st->viewlines/2);
@@ -2132,7 +2134,7 @@ static void scroll_apply(bContext *C, wmOperator *op, wmEvent *event)
 		txtdelta[1]= -tsc->delta[1]*st->pix_per_line;
 		tsc->delta[1]+= txtdelta[1]/st->pix_per_line;
 	}
-	
+
 	if(txtdelta[0] || txtdelta[1]) {
 		screen_skip(st, ar, txtdelta[1]);
 
@@ -2143,7 +2145,7 @@ static void scroll_apply(bContext *C, wmOperator *op, wmEvent *event)
 			st->left+= txtdelta[0];
 			if(st->left<0) st->left= 0;
 		}
-		
+
 		ED_area_tag_redraw(CTX_wm_area(C));
 	}
 
@@ -2168,7 +2170,7 @@ static int scroll_modal(bContext *C, wmOperator *op, wmEvent *event)
 	switch(event->type) {
 		case MOUSEMOVE:
 			if(tsc->zone == SCROLLHANDLE_BAR)
-			scroll_apply(C, op, event);
+				scroll_apply(C, op, event);
 			break;
 		case LEFTMOUSE:
 		case RIGHTMOUSE:
@@ -2478,7 +2480,7 @@ static void set_cursor_to_pos(SpaceText *st, ARegion *ar, int x, int y, int sel)
 				*charp= (*linep)->len;
 				break;
 			}
-			
+
 			/* On correct line but didn't meet cursor, must be at end */
 			if(y==0) {
 				*charp= (*linep)->len;
@@ -2584,7 +2586,7 @@ static int set_selection_invoke(bContext *C, wmOperator *op, wmEvent *event)
 
 	ssel->sell= txt_get_span(st->text->lines.first, st->text->sell);
 	ssel->selc= st->text->selc;
-					
+
 	WM_event_add_modal_handler(C, op);
 
 	set_cursor_apply(C, op, event);
@@ -2674,7 +2676,7 @@ void TEXT_OT_cursor_set(wmOperatorType *ot)
 	ot->name= "Set Cursor";
 	ot->idname= "TEXT_OT_cursor_set";
 	ot->description= "Set cursor position";
-	
+
 	/* api callbacks */
 	ot->invoke= set_cursor_invoke;
 	ot->exec= set_cursor_exec;
@@ -2764,7 +2766,7 @@ static int insert_exec(bContext *C, wmOperator *op)
 	if(!done)
 		return OPERATOR_CANCELLED;
 
-	text_update_line_edited(text, text->curl);
+	text_update_line_edited(text->curl);
 
 	text_update_cursor_moved(C);
 	WM_event_add_notifier(C, NC_TEXT|NA_EDITED, text);
@@ -2778,12 +2780,16 @@ static int insert_invoke(bContext *C, wmOperator *op, wmEvent *event)
 
 	// if(!RNA_property_is_set(op->ptr, "text")) { /* always set from keymap XXX */
 	if(!RNA_string_length(op->ptr, "text")) {
-		char str[2] = {event->ascii, '\0'};
 		/* if alt/ctrl/super are pressed pass through */
-		if(event->ctrl || event->oskey)
+		if(event->ctrl || event->oskey) {
 			return OPERATOR_PASS_THROUGH;
-
-	RNA_string_set(op->ptr, "text", str);
+		}
+		else {
+			char str[2];
+			str[0]= event->ascii;
+			str[1]= '\0';
+			RNA_string_set(op->ptr, "text", str);
+		}
 	}
 
 	ret = insert_exec(C, op);
@@ -3046,7 +3052,7 @@ int text_file_modified(Text *text)
 		return 0;
 
 	BLI_strncpy(file, text->name, FILE_MAXDIR+FILE_MAXFILE);
-	BLI_path_abs(file, G.sce);
+	BLI_path_abs(file, G.main->name);
 
 	if(!BLI_exists(file))
 		return 2;
@@ -3074,7 +3080,7 @@ static void text_ignore_modified(Text *text)
 	if(!text || !text->name) return;
 
 	BLI_strncpy(file, text->name, FILE_MAXDIR+FILE_MAXFILE);
-	BLI_path_abs(file, G.sce);
+	BLI_path_abs(file, G.main->name);
 
 	if(!BLI_exists(file)) return;
 

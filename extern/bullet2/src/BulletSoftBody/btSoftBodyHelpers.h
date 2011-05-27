@@ -110,12 +110,12 @@ struct	btSoftBodyHelpers
 		const btScalar*	vertices,
 		const int* triangles,
 		int ntriangles,
- 		bool randomizeConstraints = true);
+		bool randomizeConstraints = true);
 	/* Create from convex-hull												*/ 
 	static	btSoftBody*		CreateFromConvexHull(	btSoftBodyWorldInfo& worldInfo,
 		const btVector3* vertices,
 		int nvertices,
- 		bool randomizeConstraints = true);
+		bool randomizeConstraints = true);
 
 
 	/* Export TetGen compatible .smesh file									*/ 

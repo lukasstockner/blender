@@ -107,7 +107,7 @@ static int frame_from_event(bContext *C, wmEvent *event)
 {
 	ARegion *region= CTX_wm_region(C);
 	float viewx;
-	
+
 	/* convert from region coordinates to View2D 'tot' space */
 	UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &viewx, NULL);
 	
@@ -225,7 +225,7 @@ static void ANIM_OT_previewrange_set(wmOperatorType *ot)
 	ot->exec= previewrange_define_exec;
 	ot->modal= WM_border_select_modal;
 	
-	ot->poll= ED_operator_areaactive;
+	ot->poll= ED_operator_animview_active;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -270,7 +270,7 @@ static void ANIM_OT_previewrange_clear(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec= previewrange_clear_exec;
 	
-	ot->poll= ED_operator_areaactive;
+	ot->poll= ED_operator_animview_active;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -338,7 +338,7 @@ static void ANIM_OT_time_toggle(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec= toggle_time_exec;
 	
-	ot->poll= ED_operator_areaactive;
+	ot->poll= ED_operator_animview_active;
 }
 
 /* ************************** registration **********************************/

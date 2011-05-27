@@ -273,7 +273,7 @@ static void rna_def_cloth_sim_settings(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "vertex_group_mass", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_funcs(prop, "rna_ClothSettings_mass_vgroup_get", "rna_ClothSettings_mass_vgroup_length", "rna_ClothSettings_mass_vgroup_set");
 	RNA_def_property_ui_text(prop, "Mass Vertex Group", "Vertex Group for pinning of vertices");
-	RNA_def_property_update(prop, 0, "rna_cloth_update");
+	RNA_def_property_update(prop, 0, "rna_cloth_pinning_changed");
 	
 	prop= RNA_def_property(srna, "gravity", PROP_FLOAT, PROP_ACCELERATION);
 	RNA_def_property_array(prop, 3);
@@ -293,7 +293,7 @@ static void rna_def_cloth_sim_settings(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "use_pin_cloth", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", CLOTH_SIMSETTINGS_FLAG_GOAL);
 	RNA_def_property_ui_text(prop, "Pin Cloth", "Enable pinning of cloth vertices to other objects/positions");
-	RNA_def_property_update(prop, 0, "rna_cloth_update");
+	RNA_def_property_update(prop, 0, "rna_cloth_pinning_changed");
 
 	prop= RNA_def_property(srna, "pin_stiffness", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "goalspring");
@@ -428,7 +428,7 @@ static void rna_def_cloth_collision_settings(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", CLOTH_COLLSETTINGS_FLAG_ENABLED);
 	RNA_def_property_ui_text(prop, "Enable Collision", "Enable collisions with other objects");
 	RNA_def_property_update(prop, 0, "rna_cloth_update");
-	
+
 	prop= RNA_def_property(srna, "repel_force", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "repel_force");
 	RNA_def_property_range(prop, 0.0f, 20.0f);

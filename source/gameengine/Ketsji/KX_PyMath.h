@@ -46,7 +46,7 @@
 #include "KX_Python.h"
 #include "PyObjectPlus.h"
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 #ifdef USE_MATHUTILS
 extern "C" {
 #include "../../blender/python/generic/mathutils.h" /* so we can have mathutils callbacks */
@@ -249,4 +249,4 @@ PyObject* PyObjectFrom(const MT_Tuple4 &pos);
 
 #endif
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON

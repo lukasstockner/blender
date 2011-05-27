@@ -129,7 +129,7 @@ static void foreachIDLink(ModifierData *md, Object *ob,
 static void updateDepgraph(ModifierData *md, DagForest *forest,
 						Scene *UNUSED(scene),
 						Object *UNUSED(ob),
-	 DagNode *obNode)
+						DagNode *obNode)
 {
 	WaveModifierData *wmd = (WaveModifierData*) md;
 
@@ -156,11 +156,11 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 
 	/* ask for UV coordinates if we need them */
 	if(wmd->texture && wmd->texmapping == MOD_WAV_MAP_UV)
-		dataMask |= (1 << CD_MTFACE);
+		dataMask |= CD_MASK_MTFACE;
 
 	/* ask for vertexgroups if we need them */
 	if(wmd->defgrp_name[0])
-		dataMask |= (1 << CD_MDEFORMVERT);
+		dataMask |= CD_MASK_MDEFORMVERT;
 
 	return dataMask;
 }
@@ -326,7 +326,7 @@ static void waveModifier_do(WaveModifierData *md,
 				/* if this vert isn't in the vgroup, don't deform it */
 				if(def_weight == 0.0f) {
 					continue;
-			}
+				}
 			}
 
 			switch(wmd_axis) {
@@ -339,7 +339,7 @@ static void waveModifier_do(WaveModifierData *md,
 			case MOD_WAVE_Y:
 				amplit = y;
 				break;
-				}
+			}
 
 			/* this way it makes nice circles */
 			amplit -= (ctime - wmd->timeoffs) * wmd->speed;

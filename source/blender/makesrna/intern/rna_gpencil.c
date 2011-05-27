@@ -45,7 +45,7 @@
 static int rna_GPencilLayer_active_frame_editable(PointerRNA *ptr)
 {
 	bGPDlayer *gpl= (bGPDlayer *)ptr->data;
-	
+
 	/* surely there must be other criteria too... */
 	if (gpl->flag & GP_LAYER_LOCKED)
 		return 0;
@@ -56,19 +56,19 @@ static int rna_GPencilLayer_active_frame_editable(PointerRNA *ptr)
 static PointerRNA rna_GPencil_active_layer_get(PointerRNA *ptr)
 {
 	bGPdata *gpd= ptr->id.data;
-	
+
 	if (GS(gpd->id.name) == ID_GD) { /* why would this ever be not GD */
 		bGPDlayer *gl;
-		
+
 		for (gl= gpd->layers.first; gl; gl= gl->next) {
 			if(gl->flag & GP_LAYER_ACTIVE) {
 				break;
-	}	
+			}
 		}
-	
+
 		if(gl) {
 			return rna_pointer_inherit_refine(ptr, &RNA_GPencilLayer, gl);
-}
+		}
 	}
 
 	return rna_pointer_inherit_refine(ptr, NULL, NULL);
@@ -239,7 +239,7 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_LAYER_FRAMELOCK);
 	RNA_def_property_ui_text(prop, "Frame Locked", "Lock current frame displayed by layer");
 	RNA_def_property_update(prop, NC_SCREEN|ND_GPENCIL, NULL);
-	
+
 	/* expose as layers.active */
 	/*
 	prop= RNA_def_property(srna, "active", PROP_BOOLEAN, PROP_NONE);
@@ -248,7 +248,7 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Active", "Set active layer for editing");
 	RNA_def_property_update(prop, NC_SCREEN|ND_GPENCIL, NULL);
 	*/
-	
+
 	prop= RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_LAYER_SELECT);
 	RNA_def_property_ui_text(prop, "Select", "Layer is selected for editing in the DopeSheet");
@@ -344,7 +344,7 @@ static void rna_def_gpencil_data(BlenderRNA *brna)
 void RNA_def_gpencil(BlenderRNA *brna)
 {
 	rna_def_gpencil_data(brna);
-	
+
 	rna_def_gpencil_layer(brna);
 	rna_def_gpencil_frame(brna);
 	rna_def_gpencil_stroke(brna);

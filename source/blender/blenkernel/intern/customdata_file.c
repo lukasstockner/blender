@@ -319,7 +319,7 @@ int cdf_read_data(CDataFile *cdf, unsigned int size, void *data)
 {
 	float *fdata;
 	unsigned int a;
-	
+
 	/* read data */
 	if(!fread(data, size, 1, cdf->readf))
 		return 0;
@@ -385,7 +385,7 @@ int cdf_write_open(CDataFile *cdf, char *filename)
 	return 1;
 }
 
-int cdf_write_layer(CDataFile *cdf, CDataFileLayer *blay)
+int cdf_write_layer(CDataFile *UNUSED(cdf), CDataFileLayer *UNUSED(blay))
 {
 	return 1;
 }

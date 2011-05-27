@@ -754,7 +754,7 @@ void draw_gpl_channel(View2D *v2d, bDopeSheet *ads, bGPDlayer *gpl, float ypos)
 	
 	BLI_dlrbTree_init(&keys);
 	
-		gpl_to_keylist(ads, gpl, &keys, NULL);
+		gpl_to_keylist(ads, gpl, &keys);
 	
 	BLI_dlrbTree_linkedlist_sync(&keys);
 	
@@ -915,7 +915,7 @@ void ob_to_keylist(bDopeSheet *ads, Object *ob, DLRBT_Tree *keys, DLRBT_Tree *bl
 			
 			if ((lt->adt) && !(filterflag & ADS_FILTER_NOLAT)) 
 				action_to_keylist(lt->adt, lt->adt->action, keys, blocks);
-	}
+		}
 			break;
 	}
 	
@@ -937,7 +937,7 @@ void fcurve_to_keylist(AnimData *adt, FCurve *fcu, DLRBT_Tree *keys, DLRBT_Tree 
 	DLRBT_Tree *beztTree = NULL;
 	BezTriple *bezt;
 	unsigned int v;
-	
+
 	if (fcu && fcu->totvert && fcu->bezt) {
 		/* apply NLA-mapping (if applicable) */
 		if (adt)	
@@ -1007,7 +1007,7 @@ void action_to_keylist(AnimData *adt, bAction *act, DLRBT_Tree *keys, DLRBT_Tree
 }
 
 
-void gpl_to_keylist(bDopeSheet *ads, bGPDlayer *gpl, DLRBT_Tree *keys, DLRBT_Tree *blocks)
+void gpl_to_keylist(bDopeSheet *UNUSED(ads), bGPDlayer *gpl, DLRBT_Tree *keys)
 {
 	bGPDframe *gpf;
 	
@@ -1015,6 +1015,6 @@ void gpl_to_keylist(bDopeSheet *ads, bGPDlayer *gpl, DLRBT_Tree *keys, DLRBT_Tre
 		/* although the frames should already be in an ordered list, they are not suitable for displaying yet */
 		for (gpf= gpl->frames.first; gpf; gpf= gpf->next)
 			add_gpframe_to_keycolumns_list(keys, gpf);
-		}
 	}
+}
 

@@ -48,6 +48,7 @@
 
 #include "BKE_context.h"
 #include "BKE_global.h"
+#include "BKE_main.h"
 #include "BKE_image.h"
 #include "BKE_report.h"
 #include "BKE_writeavi.h"
@@ -125,7 +126,7 @@ static int screenshot_data_create(bContext *C, wmOperator *op)
 		return FALSE;
 	}
 }
-		
+
 static void screenshot_data_free(wmOperator *op)
 {
 	ScreenshotData *scd= op->customdata;
@@ -294,7 +295,7 @@ static void screenshot_startjob(void *sjv, short *stop, short *do_update, float 
 					break;
 			}
 			else {
-				ImBuf *ibuf= IMB_allocImBuf(sj->dumpsx, sj->dumpsy, rd.planes, 0, 0);
+				ImBuf *ibuf= IMB_allocImBuf(sj->dumpsx, sj->dumpsy, rd.planes, 0);
 				char name[FILE_MAXDIR+FILE_MAXFILE];
 				int ok;
 				

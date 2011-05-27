@@ -60,13 +60,13 @@ public:
 	UnitConverter();
 
 	void read_asset(const COLLADAFW::FileInfo* asset);
-		
+
 	void convertVector3(COLLADABU::Math::Vector3 &vec, float *v);
-
+	
 	UnitConverter::UnitSystem isMetricSystem(void);
-
+	
 	float getLinearMeter(void);
-
+		
 	// TODO need also for angle conversion, time conversion...
 
 	void dae_matrix_to_mat4_(float out[][4], const COLLADABU::Math::Matrix4& in);

@@ -152,7 +152,7 @@ static void fcm_generator_verify (FModifier *fcm)
 				nc= MEM_callocN(sizeof(float)*(data->poly_order+1), "FMod_Generator_Coefs");
 				
 				if (data->coefficients) {
-					if (data->arraysize > (data->poly_order+1))
+					if ((int)data->arraysize > (data->poly_order+1))
 						memcpy(nc, data->coefficients, sizeof(float)*(data->poly_order+1));
 					else
 						memcpy(nc, data->coefficients, sizeof(float)*data->arraysize);
@@ -178,7 +178,7 @@ static void fcm_generator_verify (FModifier *fcm)
 				nc= MEM_callocN(sizeof(float)*(data->poly_order*2), "FMod_Generator_Coefs");
 				
 				if (data->coefficients) {
-					if (data->arraysize > (data->poly_order * 2))
+					if (data->arraysize > (unsigned int)(data->poly_order * 2))
 						memcpy(nc, data->coefficients, sizeof(float)*(data->poly_order * 2));
 					else
 						memcpy(nc, data->coefficients, sizeof(float)*data->arraysize);
@@ -196,7 +196,7 @@ static void fcm_generator_verify (FModifier *fcm)
 	}
 }
 
-static void fcm_generator_evaluate (FCurve *fcu, FModifier *fcm, float *cvalue, float evaltime)
+static void fcm_generator_evaluate (FCurve *UNUSED(fcu), FModifier *fcm, float *cvalue, float evaltime)
 {
 	FMod_Generator *data= (FMod_Generator *)fcm->data;
 	
@@ -246,7 +246,7 @@ static void fcm_generator_evaluate (FCurve *fcu, FModifier *fcm, float *cvalue, 
 			unsigned int i;
 			
 			/* for each coefficient pair, solve for that bracket before accumulating in value by multiplying */
-			for (cp=data->coefficients, i=0; (cp) && (i < data->poly_order); cp+=2, i++) 
+			for (cp=data->coefficients, i=0; (cp) && (i < (unsigned int)data->poly_order); cp+=2, i++) 
 				value *= (cp[0]*evaltime + cp[1]);
 				
 			/* only if something changed, write *cvalue in one go */
@@ -309,7 +309,7 @@ static double sinc (double x)
 		return sin(M_PI * x) / (M_PI * x);
 }
 
-static void fcm_fn_generator_evaluate (FCurve *fcu, FModifier *fcm, float *cvalue, float evaltime)
+static void fcm_fn_generator_evaluate (FCurve *UNUSED(fcu), FModifier *fcm, float *cvalue, float evaltime)
 {
 	FMod_FunctionGenerator *data= (FMod_FunctionGenerator *)fcm->data;
 	double arg= data->phase_multiplier*evaltime + data->phase_offset;
@@ -438,7 +438,7 @@ static void fcm_envelope_verify (FModifier *fcm)
 	}
 }
 
-static void fcm_envelope_evaluate (FCurve *fcu, FModifier *fcm, float *cvalue, float evaltime)
+static void fcm_envelope_evaluate (FCurve *UNUSED(fcu), FModifier *fcm, float *cvalue, float evaltime)
 {
 	FMod_Envelope *env= (FMod_Envelope *)fcm->data;
 	FCM_EnvelopeData *fed, *prevfed, *lastfed;
@@ -530,7 +530,7 @@ static void fcm_cycles_new_data (void *mdata)
 	data->before_mode= data->after_mode= FCM_EXTRAPOLATE_CYCLIC;
 }
 
-static float fcm_cycles_time (FCurve *fcu, FModifier *fcm, float cvalue, float evaltime)
+static float fcm_cycles_time (FCurve *fcu, FModifier *fcm, float UNUSED(cvalue), float evaltime)
 {
 	FMod_Cycles *data= (FMod_Cycles *)fcm->data;
 	float prevkey[2], lastkey[2], cycyofs=0.0f;
@@ -606,7 +606,7 @@ static float fcm_cycles_time (FCurve *fcu, FModifier *fcm, float cvalue, float e
 			
 		/* calculate the 'number' of the cycle */
 		cycle= ((float)side * (evaltime - ofs) / cycdx);
-		
+
 		/* calculate the time inside the cycle */
 		cyct= fmod(evaltime - ofs, cycdx);
 		
@@ -626,12 +626,12 @@ static float fcm_cycles_time (FCurve *fcu, FModifier *fcm, float cvalue, float e
 		/* check if 'cyclic extrapolation', and thus calculate y-offset for this cycle */
 		if (mode == FCM_EXTRAPOLATE_CYCLIC_OFFSET) {
 			if(side < 0)
-			cycyofs = (float)floor((evaltime - ofs) / cycdx);
+				cycyofs = (float)floor((evaltime - ofs) / cycdx);
 			else
 				cycyofs = (float)ceil((evaltime - ofs) / cycdx);
 			cycyofs *= cycdy;
 		}
-		
+
 		/* special case for cycle start/end */
 		if(cyct == 0.0f) {
 			evaltime = (side == 1 ? lastkey[0] : prevkey[0]);
@@ -670,7 +670,7 @@ static float fcm_cycles_time (FCurve *fcu, FModifier *fcm, float cvalue, float e
 	return evaltime;
 }
  
-static void fcm_cycles_evaluate (FCurve *fcu, FModifier *fcm, float *cvalue, float evaltime)
+static void fcm_cycles_evaluate (FCurve *UNUSED(fcu), FModifier *fcm, float *cvalue, float UNUSED(evaltime))
 {
 	tFCMED_Cycles *edata= (tFCMED_Cycles *)fcm->edata;
 	
@@ -714,7 +714,7 @@ static void fcm_noise_new_data (void *mdata)
 	data->modification = FCM_NOISE_MODIF_REPLACE;
 }
  
-static void fcm_noise_evaluate (FCurve *fcu, FModifier *fcm, float *cvalue, float evaltime)
+static void fcm_noise_evaluate (FCurve *UNUSED(fcu), FModifier *fcm, float *cvalue, float evaltime)
 {
 	FMod_Noise *data= (FMod_Noise *)fcm->data;
 	float noise;
@@ -806,15 +806,15 @@ static void fcm_python_copy (FModifier *fcm, FModifier *src)
 	pymod->prop = IDP_CopyProperty(opymod->prop);
 }
 
-static void fcm_python_evaluate (FCurve *fcu, FModifier *fcm, float *cvalue, float evaltime)
+static void fcm_python_evaluate (FCurve *UNUSED(fcu), FModifier *UNUSED(fcm), float *UNUSED(cvalue), float UNUSED(evaltime))
 {
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	//FMod_Python *data= (FMod_Python *)fcm->data;
 	
 	/* FIXME... need to implement this modifier...
 	 *	It will need it execute a script using the custom properties 
 	 */
-#endif /* DISABLE_PYTHON */
+#endif /* WITH_PYTHON */
 }
 
 static FModifierTypeInfo FMI_PYTHON = {
@@ -835,7 +835,7 @@ static FModifierTypeInfo FMI_PYTHON = {
 
 /* Limits F-Curve Modifier --------------------------- */
 
-static float fcm_limits_time (FCurve *fcu, FModifier *fcm, float cvalue, float evaltime)
+static float fcm_limits_time (FCurve *UNUSED(fcu), FModifier *fcm, float UNUSED(cvalue), float evaltime)
 {
 	FMod_Limits *data= (FMod_Limits *)fcm->data;
 	
@@ -849,7 +849,7 @@ static float fcm_limits_time (FCurve *fcu, FModifier *fcm, float cvalue, float e
 	return evaltime;
 }
 
-static void fcm_limits_evaluate (FCurve *fcu, FModifier *fcm, float *cvalue, float evaltime)
+static void fcm_limits_evaluate (FCurve *UNUSED(fcu), FModifier *fcm, float *cvalue, float UNUSED(evaltime))
 {
 	FMod_Limits *data= (FMod_Limits *)fcm->data;
 	
@@ -886,7 +886,7 @@ static void fcm_stepped_new_data (void *mdata)
 	data->step_size = 2.0f;
 }
 
-static float fcm_stepped_time (FCurve *fcu, FModifier *fcm, float cvalue, float evaltime)
+static float fcm_stepped_time (FCurve *UNUSED(fcu), FModifier *fcm, float UNUSED(cvalue), float evaltime)
 {
 	FMod_Stepped *data= (FMod_Stepped *)fcm->data;
 	int snapblock;
@@ -1021,7 +1021,7 @@ FModifier *add_fmodifier (ListBase *modifiers, int type)
 	
 	/* add modifier's data */
 	fcm->data= MEM_callocN(fmi->size, fmi->structName);
-		
+	
 	/* init custom settings if necessary */
 	if (fmi->new_data)	
 		fmi->new_data(fcm->data);

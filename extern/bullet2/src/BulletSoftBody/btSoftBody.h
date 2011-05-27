@@ -310,7 +310,7 @@ public:
 	};
 	/* Cluster		*/ 
 	struct	Cluster
-	{		
+	{
 		tScalarArray				m_masses;
 		btAlignedObjectArray<Node*>	m_nodes;		
 		tVector3Array				m_framerefs;
@@ -445,7 +445,7 @@ public:
 			{
 //				printf("impulse.m_velocity = %f,%f,%f\n",impulse.m_velocity.getX(),impulse.m_velocity.getY(),impulse.m_velocity.getZ());
 				applyVImpulse(impulse.m_velocity,rpos);
-		}
+			}
 			if(impulse.m_asDrift)		
 			{
 //				printf("impulse.m_drift = %f,%f,%f\n",impulse.m_drift.getX(),impulse.m_drift.getY(),impulse.m_drift.getZ());

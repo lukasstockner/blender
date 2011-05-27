@@ -41,7 +41,7 @@
 AUD_FFMPEGFactory::AUD_FFMPEGFactory(std::string filename) :
 		m_filename(filename)
 {
-	}
+}
 
 AUD_FFMPEGFactory::AUD_FFMPEGFactory(const data_t* buffer, int size) :
 		m_buffer(new AUD_Buffer(size))

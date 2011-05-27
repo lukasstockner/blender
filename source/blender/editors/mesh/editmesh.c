@@ -59,6 +59,8 @@
 #include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_paint.h"
+#include "BKE_report.h"
+#include "BKE_multires.h"
 
 #include "ED_mesh.h"
 #include "ED_object.h"
@@ -83,8 +85,8 @@ editmesh.c:
 */
 
 /* XXX */
-static void BIF_undo_push(const char *dummy) {}
-static void error(const char *dummy) {}
+static void BIF_undo_push(const char *UNUSED(arg)) {}
+static void error(const char *UNUSED(arg)) {}
 
 
 /* ***************** HASH ********************* */
@@ -96,7 +98,7 @@ static void error(const char *dummy) {}
 
 /* ************ ADD / REMOVE / FIND ****************** */
 
-static void *calloc_em(EditMesh *em, size_t size, size_t nr)
+static void *calloc_em(EditMesh *UNUSED(em), size_t size, size_t nr)
 {
 	return calloc(size, nr);
 }
@@ -262,7 +264,7 @@ EditEdge *addedgelist(EditMesh *em, EditVert *v1, EditVert *v2, EditEdge *exampl
 			eed->h |= (example->h & EM_FGON);
 		}
 	}
-
+	
 	return eed;
 }
 
@@ -453,19 +455,19 @@ int editface_containsEdge(EditFace *efa, EditEdge *eed)
 /* ************************ stuct EditMesh manipulation ***************************** */
 
 /* fake callocs for fastmalloc below */
-static void *calloc_fastvert(EditMesh *em, size_t size, size_t nr)
+static void *calloc_fastvert(EditMesh *em, size_t UNUSED(size), size_t UNUSED(nr))
 {
 	EditVert *eve= em->curvert++;
 	eve->fast= 1;
 	return eve;
 }
-static void *calloc_fastedge(EditMesh *em, size_t size, size_t nr)
+static void *calloc_fastedge(EditMesh *em, size_t UNUSED(size), size_t UNUSED(nr))
 {
 	EditEdge *eed= em->curedge++;
 	eed->fast= 1;
 	return eed;
 }
-static void *calloc_fastface(EditMesh *em, size_t size, size_t nr)
+static void *calloc_fastface(EditMesh *em, size_t UNUSED(size), size_t UNUSED(nr))
 {
 	EditFace *efa= em->curface++;
 	efa->fast= 1;
@@ -743,6 +745,7 @@ void make_editMesh(Scene *scene, Object *ob)
 	EditSelection *ese;
 	float *co, (*keyco)[3]= NULL;
 	int tot, a, eekadoodle= 0;
+	const short is_paint_sel= paint_facesel_test(ob);
 
 	if(me->edit_mesh==NULL)
 		me->edit_mesh= MEM_callocN(sizeof(EditMesh), "editmesh");
@@ -793,10 +796,10 @@ void make_editMesh(Scene *scene, Object *ob)
 		evlist[a]= eve;
 		
 		/* face select sets selection in next loop */
-		if(!paint_facesel_test(ob))
+		if(!is_paint_sel)
 			eve->f |= (mvert->flag & 1);
 		
-		if (mvert->flag & ME_HIDE) eve->h= 1;		
+		if (mvert->flag & ME_HIDE) eve->h= 1;
 		normal_short_to_float_v3(eve->no, mvert->no);
 
 		eve->bweight= ((float)mvert->bweight)/255.0f;
@@ -866,7 +869,7 @@ void make_editMesh(Scene *scene, Object *ob)
 					if(mface->flag & ME_FACE_SEL) {
 						efa->f |= SELECT;
 						
-						if(paint_facesel_test(ob)) {
+						if(is_paint_sel) {
 							EM_select_face(efa, 1); /* flush down */
 						}
 
@@ -1059,7 +1062,7 @@ void load_editMesh(Scene *scene, Object *obedit)
 			if(efa->f & 1) mface->flag |= ME_FACE_SEL;
 			else mface->flag &= ~ME_FACE_SEL;
 		}
-		
+			
 		/* watch: efa->e1->f2==0 means loose edge */ 
 			
 		if(efa->e1->f2==1) {
@@ -1316,7 +1319,7 @@ static EnumPropertyItem prop_separate_types[] = {
 };
 
 /* return 1: success */
-static int mesh_separate_selected(Main *bmain, Scene *scene, Base *editbase)
+static int mesh_separate_selected(wmOperator *op, Main *bmain, Scene *scene, Base *editbase)
 {
 	EditMesh *em, *emnew;
 	EditVert *eve, *v1;
@@ -1332,7 +1335,7 @@ static int mesh_separate_selected(Main *bmain, Scene *scene, Base *editbase)
 	me= obedit->data;
 	em= BKE_mesh_get_editmesh(me);
 	if(me->key) {
-		error("Can't separate with vertex keys");
+		BKE_report(op->reports, RPT_WARNING, "Can't separate mesh with shape keys.");
 		BKE_mesh_end_editmesh(me, em);
 		return 0;
 	}
@@ -1414,7 +1417,7 @@ static int mesh_separate_selected(Main *bmain, Scene *scene, Base *editbase)
 	free_editMesh(emnew);
 	MEM_freeN(menew->edit_mesh);
 	menew->edit_mesh= NULL;
-	
+
 	/* copy settings */
 	menew->texflag= me->texflag;
 	menew->drawflag= me->drawflag;
@@ -1434,7 +1437,7 @@ static int mesh_separate_selected(Main *bmain, Scene *scene, Base *editbase)
 }
 
 /* return 1: success */
-static int mesh_separate_material(Main *bmain, Scene *scene, Base *editbase)
+static int mesh_separate_material(wmOperator *op, Main *bmain, Scene *scene, Base *editbase)
 {
 	Mesh *me= editbase->object->data;
 	EditMesh *em= BKE_mesh_get_editmesh(me);
@@ -1446,7 +1449,7 @@ static int mesh_separate_material(Main *bmain, Scene *scene, Base *editbase)
 		/* select the material */
 		EM_select_by_material(em, curr_mat);
 		/* and now separate */
-		if(0==mesh_separate_selected(bmain, scene, editbase)) {
+		if(0==mesh_separate_selected(op, bmain, scene, editbase)) {
 			BKE_mesh_end_editmesh(me, em);
 			return 0;
 		}
@@ -1457,7 +1460,7 @@ static int mesh_separate_material(Main *bmain, Scene *scene, Base *editbase)
 }
 
 /* return 1: success */
-static int mesh_separate_loose(Main *bmain, Scene *scene, Base *editbase)
+static int mesh_separate_loose(wmOperator *op, Main *bmain, Scene *scene, Base *editbase)
 {
 	Mesh *me;
 	EditMesh *em;
@@ -1497,7 +1500,7 @@ static int mesh_separate_loose(Main *bmain, Scene *scene, Base *editbase)
 		tot= BLI_countlist(&em->verts);
 
 		/* and now separate */
-		doit= mesh_separate_selected(bmain, scene, editbase);
+		doit= mesh_separate_selected(op, bmain, scene, editbase);
 
 		/* with hidden verts this can happen */
 		if(tot == BLI_countlist(&em->verts))
@@ -1517,11 +1520,11 @@ static int mesh_separate_exec(bContext *C, wmOperator *op)
 	int retval= 0, type= RNA_enum_get(op->ptr, "type");
 	
 	if(type == 0)
-		retval= mesh_separate_selected(bmain, scene, base);
+		retval= mesh_separate_selected(op, bmain, scene, base);
 	else if(type == 1)
-		retval= mesh_separate_material(bmain, scene, base);
+		retval= mesh_separate_material(op, bmain, scene, base);
 	else if(type == 2)
-		retval= mesh_separate_loose(bmain, scene, base);
+		retval= mesh_separate_loose(op, bmain, scene, base);
 	   
 	if(retval) {
 		WM_event_add_notifier(C, NC_GEOM|ND_DATA, base->object->data);

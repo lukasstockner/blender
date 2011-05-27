@@ -60,13 +60,13 @@ int AUD_DelayReader::getLength() const
 	int len = m_reader->getLength();
 	if(len < 0)
 		return len;
-	return len+m_delay;
+	return len + m_delay;
 }
 
 int AUD_DelayReader::getPosition() const
 {
 	if(m_remdelay > 0)
-		return m_delay-m_remdelay;
+		return m_delay - m_remdelay;
 	return m_reader->getPosition() + m_delay;
 }
 

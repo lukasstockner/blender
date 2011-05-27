@@ -53,7 +53,7 @@ static int rna_Main_is_dirty_get(PointerRNA *ptr)
 	wmWindowManager *wm;
 	for(wm= G.main->wm.first; wm; wm= wm->id.next) {
 		return !wm->file_saved;
-}
+	}
 
 	return TRUE;
 }

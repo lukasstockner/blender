@@ -101,7 +101,6 @@ static void deselect_graph_keys (bAnimContext *ac, short test, short sel)
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 	
 	/* init BezTriple looping data */
-	memset(&ked, 0, sizeof(KeyframeEditData));
 	test_cb= ANIM_editkeyframes_ok(BEZT_OK_SELECTED);
 	
 	/* See if we should be selecting or deselecting */
@@ -485,8 +484,8 @@ static void columnselect_graph_keys (bAnimContext *ac, short mode)
 		 */
 		for (ce= ked.list.first; ce; ce= ce->next) {
 			/* set frame for validation callback to refer to */
-				ked.f1= BKE_nla_tweakedit_remap(adt, ce->cfra, NLATIME_CONVERT_UNMAP);
-			
+			ked.f1= BKE_nla_tweakedit_remap(adt, ce->cfra, NLATIME_CONVERT_UNMAP);
+
 			/* select elements with frame number matching cfraelem */
 			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, ok_cb, select_cb, NULL);
 		}
@@ -819,7 +818,7 @@ static int graphkeys_select_leftright_invoke (bContext *C, wmOperator *op, wmEve
 		ARegion *ar= ac.ar;
 		View2D *v2d= &ar->v2d;
 		float x;
-		
+
 		/* determine which side of the current frame mouse is on */
 		UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &x, NULL);
 		if (x < CFRA)
@@ -1023,7 +1022,7 @@ static void get_nearest_fcurve_verts_list (bAnimContext *ac, const int mval[2], 
 }
 
 /* helper for find_nearest_fcurve_vert() - get the best match to use */
-static tNearestVertInfo *get_best_nearest_fcurve_vert (bAnimContext *ac, ListBase *matches)
+static tNearestVertInfo *get_best_nearest_fcurve_vert (ListBase *matches)
 {
 	tNearestVertInfo *nvi = NULL;
 	short found = 0;
@@ -1078,7 +1077,7 @@ static tNearestVertInfo *find_nearest_fcurve_vert (bAnimContext *ac, const int m
 	get_nearest_fcurve_verts_list(ac, mval, &matches);
 	
 	/* step 2: find the best vert */
-	nvi= get_best_nearest_fcurve_vert(ac, &matches);
+	nvi= get_best_nearest_fcurve_vert(&matches);
 	
 	BLI_freelistN(&matches);
 	
@@ -1179,7 +1178,7 @@ static void mouse_graph_keys (bAnimContext *ac, const int mval[2], short select_
 	/* only change selection of channel when the visibility of keyframes doesn't depend on this */
 	if ((sipo->flag & SIPO_SELCUVERTSONLY) == 0) {
 		/* select or deselect curve? */
-		if(bezt) {
+		if (bezt) {
 			/* take selection status from item that got hit, to prevent flip/flop on channel 
 			 * selection status when shift-selecting (i.e. "SELECT_INVERT") points
 			 */
@@ -1187,30 +1186,30 @@ static void mouse_graph_keys (bAnimContext *ac, const int mval[2], short select_
 				nvi->fcu->flag |= FCURVE_SELECTED;
 			else
 				nvi->fcu->flag &= ~FCURVE_SELECTED;
-			}
+		}
 		else {
 			/* didn't hit any channel, so just apply that selection mode to the curve's selection status */
-		if (select_mode == SELECT_INVERT)
-			nvi->fcu->flag ^= FCURVE_SELECTED;
-		else if (select_mode == SELECT_ADD)
-			nvi->fcu->flag |= FCURVE_SELECTED;
+			if (select_mode == SELECT_INVERT)
+				nvi->fcu->flag ^= FCURVE_SELECTED;
+			else if (select_mode == SELECT_ADD)
+				nvi->fcu->flag |= FCURVE_SELECTED;
 		}
 	}
-			
-		/* set active F-Curve (NOTE: sync the filter flags with findnearest_fcurve_vert) */
+
+	/* set active F-Curve (NOTE: sync the filter flags with findnearest_fcurve_vert) */
 	/* needs to be called with (sipo->flag & SIPO_SELCUVERTSONLY) otherwise the active flag won't be set [#26452] */
-		if (nvi->fcu->flag & FCURVE_SELECTED) {
-			int filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVEVISIBLE | ANIMFILTER_CURVESONLY | ANIMFILTER_NODUPLIS);
-			ANIM_set_active_channel(ac, ac->data, ac->datatype, filter, nvi->fcu, ANIMTYPE_FCURVE);
-		}
-	
+	if (nvi->fcu->flag & FCURVE_SELECTED) {
+		int filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVEVISIBLE | ANIMFILTER_CURVESONLY | ANIMFILTER_NODUPLIS);
+		ANIM_set_active_channel(ac, ac->data, ac->datatype, filter, nvi->fcu, ANIMTYPE_FCURVE);
+	}
+
 	/* free temp sample data for filtering */
 	MEM_freeN(nvi);
 }
 
 /* Option 2) Selects all the keyframes on either side of the current frame (depends on which side the mouse is on) */
 /* (see graphkeys_select_leftright) */
-	
+
 /* Option 3) Selects all visible keyframes in the same frame as the mouse click */
 static void graphkeys_mselect_column (bAnimContext *ac, const int mval[2], short select_mode)
 {
@@ -1293,11 +1292,11 @@ static int graphkeys_clickselect_invoke(bContext *C, wmOperator *op, wmEvent *ev
 {
 	bAnimContext ac;
 	short selectmode;
-	
+
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
-	
+
 	/* select mode is either replace (deselect all, then add) or add/extend */
 	if (RNA_boolean_get(op->ptr, "extend"))
 		selectmode= SELECT_INVERT;

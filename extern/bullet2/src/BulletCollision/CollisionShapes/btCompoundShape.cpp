@@ -101,8 +101,8 @@ void	btCompoundShape::updateChildTransform(int childIndex, const btTransform& ne
 
 	if (shouldRecalculateLocalAabb)
 	{
-	recalculateLocalAabb();
-}
+		recalculateLocalAabb();
+	}
 }
 
 void btCompoundShape::removeChildShapeByIndex(int childShapeIndex)

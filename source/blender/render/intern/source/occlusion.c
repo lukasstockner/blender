@@ -432,7 +432,7 @@ static void occ_build_dco(OcclusionTree *tree, OccNode *node, const float co[3],
 {
 	int b;
 	for(b=0; b<TOTCHILD; b++) {
-	float dist, d[3], nco[3];
+		float dist, d[3], nco[3];
 
 		if(node->childflag & (1<<b)) {
 			occ_face(tree->face+node->child[b].face, nco, NULL, NULL);
@@ -615,7 +615,7 @@ static void occ_build_recursive(OcclusionTree *tree, OccNode *node, int begin, i
 	/* compute maximum distance from center */
 	node->dco= 0.0f;
 	if(node->area > 0.0f)
-	occ_build_dco(tree, node, node->co, &node->dco);
+		occ_build_dco(tree, node, node->co, &node->dco);
 }
 
 static void occ_build_sh_normalize(OccNode *node)

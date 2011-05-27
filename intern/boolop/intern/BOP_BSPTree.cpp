@@ -24,7 +24,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file boolop/intern/BOP_BSPTree.cpp
  *  \ingroup boolopintern
  */

@@ -57,7 +57,7 @@ static void do_map_value(bNode *node, float *out, float *src)
 			out[0]= texmap->max[0];
 }
 
-static void node_composit_exec_map_value(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_map_value(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	/* stack order in: valbuf */
 	/* stack order out: valbuf */
@@ -81,13 +81,13 @@ static void node_composit_exec_map_value(void *data, bNode *node, bNodeStack **i
 
 static void node_composit_init_map_value(bNode* node)
 {
-   node->storage= add_mapping();
+	node->storage= add_mapping();
 }
 
 void register_node_type_cmp_map_value(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, CMP_NODE_MAP_VALUE, "Map Value", NODE_CLASS_OP_VECTOR, NODE_OPTIONS,
 		cmp_node_map_value_in, cmp_node_map_value_out);
 	node_type_size(&ntype, 100, 60, 150);

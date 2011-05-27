@@ -115,8 +115,8 @@ int vertex_paint_poll(bContext *C)
 			ARegion *ar= CTX_wm_region(C);
 			if(ar->regiontype==RGN_TYPE_WINDOW)
 				return 1;
+			}
 		}
-	}
 	return 0;
 }
 
@@ -129,7 +129,7 @@ int weight_paint_mode_poll(bContext *C)
 
 int weight_paint_poll(bContext *C)
 {
-	Object *ob = CTX_data_active_object(C);
+	Object *ob= CTX_data_active_object(C);
 	ScrArea *sa;
 
 	if(	(ob != NULL) &&
@@ -138,9 +138,9 @@ int weight_paint_poll(bContext *C)
 		(sa= CTX_wm_area(C)) &&
 		(sa->spacetype == SPACE_VIEW3D)
 	) {
-			ARegion *ar= CTX_wm_region(C);
+		ARegion *ar= CTX_wm_region(C);
 		if(ar->regiontype==RGN_TYPE_WINDOW) {
-				return 1;
+			return 1;
 		}
 	}
 	return 0;
@@ -394,7 +394,7 @@ void wpaint_fill(VPaint *wp, Object *ob, float paintweight)
 			char name[32];
 
 			flip_side_name(name, defgroup->name, FALSE);
-			
+
 			for (curdef = ob->defbase.first; curdef; curdef=curdef->next, actdef++)
 				if (!strcmp(curdef->name, name))
 					break;
@@ -858,8 +858,8 @@ static void wpaint_blend(VPaint *wp, MDeformWeight *dw, MDeformWeight *uw, float
 /* ----------------------------------------------------- */
 
 
-/*     sets wp->weight to the closest weight value to vertex */
-/*     note: we cant sample frontbuf, weight colors are interpolated too unpredictable */
+/* sets wp->weight to the closest weight value to vertex */
+/* note: we cant sample frontbuf, weight colors are interpolated too unpredictable */
 static int weight_sample_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
 	ViewContext vc;
@@ -870,15 +870,15 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	me= get_mesh(vc.obact);
 
 	if (me && me->dvert && vc.v3d && vc.rv3d) {
-	int index;
+		int index;
 
 		view3d_operator_needs_opengl(C);
-	
+
 		index= view3d_sample_backbuf(&vc, event->mval[0], event->mval[1]);
-	
-	if(index && index<=me->totface) {
+
+		if(index && index<=me->totface) {
 			DerivedMesh *dm= mesh_get_derived_final(vc.scene, vc.obact, CD_MASK_BAREMESH);
-		
+
 			if(dm->getVertCo==NULL) {
 				BKE_report(op->reports, RPT_WARNING, "The modifier used does not support deformed locations");
 			}
@@ -890,10 +890,10 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, wmEvent *event)
 				int v_idx_best= -1;
 				int fidx;
 				float len_best= FLT_MAX;
-		
+
 				mval_f[0]= (float)event->mval[0];
 				mval_f[1]= (float)event->mval[1];
-			
+
 				fidx= mf->v4 ? 3:2;
 				do {
 					float co[3], sco[3], len;
@@ -906,27 +906,27 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, wmEvent *event)
 						v_idx_best= v_idx;
 					}
 				} while (fidx--);
-				
+
 				if(v_idx_best != -1) { /* should always be valid */
 					ts->vgroup_weight= defvert_find_weight(&me->dvert[v_idx_best], vgroup);
 					change= TRUE;
 				}
-				}
+			}
 			dm->release(dm);
-				}
-					}
-				
+		}
+	}
+
 	if(change) {
 		/* not really correct since the brush didnt change, but redraws the toolbar */
 		WM_main_add_notifier(NC_BRUSH|NA_EDITED, NULL); /* ts->wpaint->paint.brush */
 
 		return OPERATOR_FINISHED;
-				}
-				else {
+	}
+	else {
 		return OPERATOR_CANCELLED;
-						}
-					}
-					
+	}
+}
+
 void PAINT_OT_weight_sample(wmOperatorType *ot)
 {
 	/* identifiers */
@@ -939,7 +939,7 @@ void PAINT_OT_weight_sample(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag= OPTYPE_UNDO;
-					}
+}
 
 /* samples cursor location, and gives menu with vertex groups to activate */
 static EnumPropertyItem *weight_paint_sample_enum_itemf(bContext *C, PointerRNA *UNUSED(ptr), int *free)
@@ -975,13 +975,13 @@ static EnumPropertyItem *weight_paint_sample_enum_itemf(bContext *C, PointerRNA 
 							for(dw= dvert->dw; i > 0; dw++, i--) {
 								groups[dw->def_nr]= TRUE;
 								found= TRUE;
-				}
+							}
 						} while (fidx--);
 
 						if(found==FALSE) {
-				MEM_freeN(groups);
-			}
-		else {
+							MEM_freeN(groups);
+						}
+						else {
 							EnumPropertyItem *item= NULL, item_tmp= {0};
 							int totitem= 0;
 							int i= 0;
@@ -991,24 +991,24 @@ static EnumPropertyItem *weight_paint_sample_enum_itemf(bContext *C, PointerRNA 
 									item_tmp.identifier= item_tmp.name= dg->name;
 									item_tmp.value= i;
 									RNA_enum_item_add(&item, &totitem, &item_tmp);
-			}
+								}
 							}
-				
+
 							RNA_enum_item_end(&item, &totitem);
 							*free= 1;
-				
+
 							MEM_freeN(groups);
 							return item;
-				}
-				}
-				}
-				}
+						}
 					}
 				}
+			}
+		}
+	}
 
 	return DummyRNA_NULL_items;
-			}
-		
+}
+
 static int weight_sample_group_exec(bContext *C, wmOperator *op)
 {
 	int type= RNA_enum_get(op->ptr, "group");
@@ -1020,8 +1020,8 @@ static int weight_sample_group_exec(bContext *C, wmOperator *op)
 	DAG_id_tag_update(&vc.obact->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, vc.obact);
 	return OPERATOR_FINISHED;
-	}
-	
+}
+
 /* TODO, we could make this a menu into OBJECT_OT_vertex_group_set_active rather then its own operator */
 void PAINT_OT_weight_sample_group(wmOperatorType *ot)
 {
@@ -1213,7 +1213,7 @@ struct WPaintData {
 	char *vgroup_validmap; /*stores if vgroups tie to deforming bones or not*/
 };
 
-static char *wpaint_make_validmap(Mesh *me, Object *ob)
+static char *wpaint_make_validmap(Object *ob)
 {
 	bDeformGroup *dg;
 	ModifierData *md;
@@ -1303,7 +1303,7 @@ static int wpaint_stroke_test_start(bContext *C, wmOperator *op, wmEvent *UNUSED
 	  vgroups affect deform bones*/
 	wpd->auto_normalize = ts->auto_normalize;
 	if (wpd->auto_normalize)
-		wpd->vgroup_validmap = wpaint_make_validmap(me, ob);
+		wpd->vgroup_validmap = wpaint_make_validmap(ob);
 	
 	//	if(qual & LR_CTRLKEY) {
 	//		sample_wpaint(scene, ar, v3d, 0);
@@ -1356,9 +1356,9 @@ static int wpaint_stroke_test_start(bContext *C, wmOperator *op, wmEvent *UNUSED
 			bDeformGroup *curdef;
 			int actdef= 0;
 			char name[32];
-			
+
 			flip_side_name(name, defgroup->name, FALSE);
-			
+
 			for (curdef = ob->defbase.first; curdef; curdef=curdef->next, actdef++)
 				if (!strcmp(curdef->name, name))
 					break;

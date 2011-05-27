@@ -38,7 +38,7 @@
 #include "BLI_math.h"
 #include "BLI_string.h"
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 PyTypeObject BL_ArmatureConstraint::Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
@@ -67,7 +67,7 @@ PyObject* BL_ArmatureConstraint::py_repr(void)
 	return PyUnicode_FromString(m_name);
 }
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON
 
 BL_ArmatureConstraint::BL_ArmatureConstraint(
 	BL_ArmatureObject *armature, 
@@ -242,7 +242,7 @@ void BL_ArmatureConstraint::SetSubtarget(KX_GameObject* subtarget)
 
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 // PYTHON
 
@@ -452,4 +452,4 @@ int BL_ArmatureConstraint::py_attr_setattr(void *self_v, const struct KX_PYATTRI
 	return PY_SET_ATTR_FAIL;
 }
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON

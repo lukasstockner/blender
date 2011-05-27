@@ -238,7 +238,7 @@ void btRigidBody::setMassProps(btScalar mass, const btVector3& inertia)
 		m_collisionFlags &= (~btCollisionObject::CF_STATIC_OBJECT);
 		m_inverseMass = btScalar(1.0) / mass;
 	}
-	
+
 	//Fg = m * a
 	m_gravity = mass * m_gravity_acceleration;
 	

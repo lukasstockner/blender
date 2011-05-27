@@ -26,7 +26,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/editors/transform/transform_snap.c
  *  \ingroup edtransform
  */
@@ -157,8 +157,8 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 			
 			glDisable(GL_DEPTH_TEST);
 	
-			size = 0.5f * UI_GetThemeValuef(TH_VERTEX_SIZE);
-			
+			size = 2.5f * UI_GetThemeValuef(TH_VERTEX_SIZE);
+
 			invert_m4_m4(imat, rv3d->viewmat);
 
 			for (p = t->tsnap.points.first; p; p = p->next) {
@@ -221,7 +221,7 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 	}
 }
 
-int  handleSnapping(TransInfo *t, wmEvent *event)
+int  handleSnapping(TransInfo *UNUSED(t), wmEvent *UNUSED(event))
 {
 	int status = 0;
 
@@ -610,7 +610,7 @@ void ApplySnapResize(TransInfo *t, float vec[3])
 
 /********************** DISTANCE **************************/
 
-float TranslationBetween(TransInfo *t, float p1[3], float p2[3])
+float TranslationBetween(TransInfo *UNUSED(t), float p1[3], float p2[3])
 {
 	return len_v3v3(p1, p2);
 }
@@ -694,12 +694,12 @@ float ResizeBetween(TransInfo *t, float p1[3], float p2[3])
 
 /********************** CALC **************************/
 
-void CalcSnapGrid(TransInfo *t, float *vec)
+void CalcSnapGrid(TransInfo *t, float *UNUSED(vec))
 {
 	snapGridAction(t, t->tsnap.snapPoint, BIG_GEARS);
 }
 
-void CalcSnapGeometry(TransInfo *t, float *vec)
+void CalcSnapGeometry(TransInfo *t, float *UNUSED(vec))
 {
 	if (t->spacetype == SPACE_VIEW3D)
 	{
@@ -1279,7 +1279,7 @@ static int snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMesh
 	int retval = 0;
 	int totvert = dm->getNumVerts(dm);
 	int totface = dm->getNumFaces(dm);
-	
+
 	if (totvert > 0) {
 		float imat[4][4];
 		float timat[3][3]; /* transpose inverse matrix for normals */
@@ -1601,7 +1601,7 @@ static int snapObjects(Scene *scene, View3D *v3d, ARegion *ar, Object *obedit, f
 		Object *ob = base->object;
 		retval |= snapObject(scene, ar, ob, 0, ob->obmat, ray_start, ray_normal, mval, loc, no, dist, &depth);
 	}
-	
+
 	for ( base = FIRSTBASE; base != NULL; base = base->next ) {
 		if ( BASE_VISIBLE(v3d, base) && (base->flag & (BA_HAS_RECALC_OB|BA_HAS_RECALC_DATA)) == 0 && ((mode == SNAP_NOT_SELECTED && (base->flag & (SELECT|BA_WAS_SEL)) == 0) || (ELEM(mode, SNAP_ALL, SNAP_NOT_OBEDIT) && base != BASACT)) ) {
 			Object *ob = base->object;

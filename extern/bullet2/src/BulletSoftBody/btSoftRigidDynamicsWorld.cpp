@@ -68,19 +68,19 @@ btSoftRigidDynamicsWorld::~btSoftRigidDynamicsWorld()
 	{
 		m_softBodySolver->~btSoftBodySolver();
 		btAlignedFree(m_softBodySolver);
-}
+	}
 }
 
 void	btSoftRigidDynamicsWorld::predictUnconstraintMotion(btScalar timeStep)
 {
-	btDiscreteDynamicsWorld::predictUnconstraintMotion( timeStep);
+	btDiscreteDynamicsWorld::predictUnconstraintMotion( timeStep );
 	{
 		BT_PROFILE("predictUnconstraintMotionSoftBody");
 		m_softBodySolver->predictMotion( timeStep );
 	}
 }
 
-void	btSoftRigidDynamicsWorld::internalSingleStepSimulation( btScalar timeStep)
+void	btSoftRigidDynamicsWorld::internalSingleStepSimulation( btScalar timeStep )
 {
 
 	// Let the solver grab the soft bodies and if necessary optimize for it
@@ -105,11 +105,11 @@ void	btSoftRigidDynamicsWorld::internalSingleStepSimulation( btScalar timeStep)
 
 	///update soft bodies
 	m_softBodySolver->updateSoftBodies( );
-
+	
 	// End solver-wise simulation step
 	// ///////////////////////////////
 
-	}
+}
 
 void	btSoftRigidDynamicsWorld::solveSoftBodiesConstraints( btScalar timeStep )
 {
@@ -123,7 +123,7 @@ void	btSoftRigidDynamicsWorld::solveSoftBodiesConstraints( btScalar timeStep )
 	// Solve constraints solver-wise
 	m_softBodySolver->solveConstraints( timeStep * m_softBodySolver->getTimeScale() );
 
-	}	
+}
 
 void	btSoftRigidDynamicsWorld::addSoftBody(btSoftBody* body,short int collisionFilterGroup,short int collisionFilterMask)
 {
@@ -167,8 +167,8 @@ void	btSoftRigidDynamicsWorld::debugDrawWorld()
 			btSoftBody*	psb=(btSoftBody*)this->m_softBodies[i];
 			if (getDebugDrawer() && getDebugDrawer()->getDebugMode() & (btIDebugDraw::DBG_DrawWireframe))
 			{
-			btSoftBodyHelpers::DrawFrame(psb,m_debugDrawer);
-			btSoftBodyHelpers::Draw(psb,m_debugDrawer,m_drawFlags);
+				btSoftBodyHelpers::DrawFrame(psb,m_debugDrawer);
+				btSoftBodyHelpers::Draw(psb,m_debugDrawer,m_drawFlags);
 			}
 			
 			if (m_debugDrawer && (m_debugDrawer->getDebugMode() & btIDebugDraw::DBG_DrawAabb))
@@ -293,7 +293,7 @@ void	btSoftRigidDynamicsWorld::rayTestSingle(const btTransform& rayFromTrans,con
 			if (softBody->rayTest(rayFromTrans.getOrigin(), rayToTrans.getOrigin(), softResult)) 
 			{
 				
-				if (softResult.fraction<= resultCallback.m_closestHitFraction) 
+				if (softResult.fraction<= resultCallback.m_closestHitFraction)
 				{
 
 					btCollisionWorld::LocalShapeInfo shapeInfo;
@@ -308,9 +308,9 @@ void	btSoftRigidDynamicsWorld::rayTestSingle(const btTransform& rayFromTrans,con
 					}
 					btCollisionWorld::LocalRayResult rayResult
 						(collisionObject,
-						&shapeInfo,
-						normal,
-						softResult.fraction);
+						 &shapeInfo,
+						 normal,
+						 softResult.fraction);
 					bool	normalInWorldSpace = true;
 					resultCallback.addSingleResult(rayResult,normalInWorldSpace);
 				}

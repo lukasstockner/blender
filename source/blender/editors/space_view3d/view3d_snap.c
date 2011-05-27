@@ -554,7 +554,7 @@ static int snap_sel_to_grid(bContext *C, wmOperator *UNUSED(op))
 					ob->loc[1]+= vec[1];
 				if ((ob->protectflag & OB_LOCK_LOCZ)==0)
 					ob->loc[2]+= vec[2];
-			
+				
 				/* auto-keyframing */
 // XXX				autokeyframe_ob_cb_func(ob, TFM_TRANSLATION);
 			}
@@ -929,7 +929,7 @@ void VIEW3D_OT_snap_cursor_to_center(wmOperatorType *ot)
 	
 	/* api callbacks */ 
 	ot->exec= snap_curs_to_center;
-	   ot->poll= ED_operator_view3d_active;
+	ot->poll= ED_operator_view3d_active;
 	
 	/* flags */
 	   ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;

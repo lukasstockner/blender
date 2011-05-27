@@ -192,7 +192,7 @@ int ED_mesh_uv_texture_add(bContext *C, Mesh *me, const char *name, int active_s
 			copy_editface_active_customdata(em, CD_MTFACE, layernum);
 
 		if(active_set || layernum==0)
-		CustomData_set_layer_active(&em->fdata, CD_MTFACE, layernum);
+			CustomData_set_layer_active(&em->fdata, CD_MTFACE, layernum);
 	}
 	else {
 		layernum= CustomData_number_of_layers(&me->fdata, CD_MTFACE);
@@ -205,7 +205,7 @@ int ED_mesh_uv_texture_add(bContext *C, Mesh *me, const char *name, int active_s
 			CustomData_add_layer_named(&me->fdata, CD_MTFACE, CD_DEFAULT, NULL, me->totface, name);
 
 		if(active_set || layernum==0)
-		CustomData_set_layer_active(&me->fdata, CD_MTFACE, layernum);
+			CustomData_set_layer_active(&me->fdata, CD_MTFACE, layernum);
 
 		mesh_update_customdata_pointers(me);
 	}
@@ -222,7 +222,7 @@ int ED_mesh_uv_texture_remove(bContext *C, Object *ob, Mesh *me)
 	CustomDataLayer *cdl;
 	int index;
 
-	 index= CustomData_get_active_layer_index(data, CD_MTFACE);
+	index= CustomData_get_active_layer_index(data, CD_MTFACE);
 	cdl= (index == -1) ? NULL: &data->layers[index];
 
 	if(!cdl)
@@ -254,7 +254,7 @@ int ED_mesh_color_add(bContext *C, Scene *scene, Object *ob, Mesh *me, const cha
 			copy_editface_active_customdata(em, CD_MCOL, layernum);
 
 		if(active_set || layernum==0)
-		CustomData_set_layer_active(&em->fdata, CD_MCOL, layernum);
+			CustomData_set_layer_active(&em->fdata, CD_MCOL, layernum);
 	}
 	else {
 		layernum= CustomData_number_of_layers(&me->fdata, CD_MCOL);
@@ -269,7 +269,7 @@ int ED_mesh_color_add(bContext *C, Scene *scene, Object *ob, Mesh *me, const cha
 			CustomData_add_layer_named(&me->fdata, CD_MCOL, CD_DEFAULT, NULL, me->totface, name);
 
 		if(active_set || layernum==0)
-		CustomData_set_layer_active(&me->fdata, CD_MCOL, layernum);
+			CustomData_set_layer_active(&me->fdata, CD_MCOL, layernum);
 
 		mesh_update_customdata_pointers(me);
 
@@ -313,11 +313,10 @@ static int layers_poll(bContext *C)
 
 static int uv_texture_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Scene *scene= CTX_data_scene(C);
 	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
 	Mesh *me= ob->data;
 
-	if(!ED_mesh_uv_texture_add(C, scene, ob, me, NULL, TRUE))
+	if(!ED_mesh_uv_texture_add(C, me, NULL, TRUE))
 		return OPERATOR_CANCELLED;
 
 	return OPERATOR_FINISHED;
@@ -705,7 +704,7 @@ void ED_mesh_faces_add(Mesh *mesh, ReportList *reports, int count)
 	if(mesh->edit_mesh) {
 		BKE_report(reports, RPT_ERROR, "Can't add faces in edit mode.");
 		return;
-}
+	}
 
 	mesh_add_faces(mesh, count);
 }
@@ -714,7 +713,7 @@ void ED_mesh_edges_add(Mesh *mesh, ReportList *reports, int count)
 {
 	if(mesh->edit_mesh) {
 		BKE_report(reports, RPT_ERROR, "Can't add edges in edit mode.");
-			return;
+		return;
 	}
 
 	mesh_add_edges(mesh, count);

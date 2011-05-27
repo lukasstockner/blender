@@ -281,7 +281,7 @@ typedef struct ParticleSystem{				/* note, make sure all (runtime) are NULL's in
 	ParticleSpring *fluid_springs;
 	int tot_fluidsprings, alloc_fluidsprings;
 
-	struct KDTree *tree;					/* used for interactions with self and other systems */
+	struct KDTree *tree;								/* used for interactions with self and other systems */
 	struct BVHTree *bvhtree;								/* used for interactions with self and other systems */
 
 	struct ParticleDrawData *pdd;
@@ -334,10 +334,10 @@ typedef struct ParticleSystem{				/* note, make sure all (runtime) are NULL's in
 #define PART_GRID_HEXAGONAL	(1<<24)
 #define PART_GRID_INVERT	(1<<26)
 
-#define PART_CHILD_EFFECT	(1<<27)
+#define PART_CHILD_EFFECT		(1<<27)
 #define PART_CHILD_LONG_HAIR	(1<<28)
 /* #define PART_CHILD_RENDER		(1<<29) */ /*UNUSED*/
-#define PART_CHILD_GUIDE	(1<<30)
+#define PART_CHILD_GUIDE		(1<<30)
 
 #define PART_SELF_EFFECT	(1<<22)
 

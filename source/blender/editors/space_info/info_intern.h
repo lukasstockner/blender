@@ -35,7 +35,9 @@
 
 /* internal exports only */
 
+struct SpaceInfo;
 struct wmOperatorType;
+struct ReportList;
 
 void FILE_OT_pack_all(struct wmOperatorType *ot);
 void FILE_OT_unpack_all(struct wmOperatorType *ot);
@@ -62,4 +64,3 @@ void INFO_OT_report_delete(struct wmOperatorType *ot);
 void INFO_OT_report_copy(struct wmOperatorType *ot);
 
 #endif /* ED_INFO_INTERN_H */
-

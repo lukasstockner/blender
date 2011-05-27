@@ -114,7 +114,7 @@ static int node_select_exec(bContext *C, wmOperator *op)
 	
 	/* perform the select */
 	node= node_mouse_select(snode, ar, mval, extend);
-
+	
 	/* send notifiers */
 	WM_event_add_notifier(C, NC_NODE|NA_SELECTED, NULL);
 	
@@ -126,7 +126,7 @@ static int node_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
 	RNA_int_set(op->ptr, "mouse_x", event->mval[0]);
 	RNA_int_set(op->ptr, "mouse_y", event->mval[1]);
-	
+
 	return node_select_exec(C,op);
 }
 
@@ -194,7 +194,7 @@ static int node_border_select_invoke(bContext *C, wmOperator *op, wmEvent *event
 		SpaceNode *snode= CTX_wm_space_node(C);
 		ARegion *ar= CTX_wm_region(C);
 		float mx, my;
-		
+
 		UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &mx, &my);
 		
 		if (node_under_mouse(snode->edittree, mx, my))

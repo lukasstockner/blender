@@ -67,6 +67,8 @@
 
 #include "RNA_access.h"
 
+#include "ED_node.h"
+
 #include "WM_api.h"
 #include "WM_types.h"
 
@@ -175,16 +177,27 @@ static void node_buts_curvecol(uiLayout *layout, bContext *UNUSED(C), PointerRNA
 	uiTemplateCurveMapping(layout, ptr, "mapping", 'c', 0, 0);
 }
 
+static void node_normal_cb(bContext *C, void *ntree_v, void *node_v)
+{
+	Main *bmain = CTX_data_main(C);
+
+	ED_node_generic_update(bmain, ntree_v, node_v);
+	WM_event_add_notifier(C, NC_NODE|NA_EDITED, ntree_v);
+}
+
 static void node_buts_normal(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiBlock *block= uiLayoutAbsoluteBlock(layout);
+	bNodeTree *ntree= ptr->id.data;
 	bNode *node= ptr->data;
 	rctf *butr= &node->butr;
 	bNodeSocket *sock= node->outputs.first;		/* first socket stores normal */
+	uiBut *bt;
 	
-	uiDefButF(block, BUT_NORMAL, B_NODE_EXEC, "", 
+	bt= uiDefButF(block, BUT_NORMAL, B_NODE_EXEC, "", 
 			  (short)butr->xmin, (short)butr->xmin, butr->xmax-butr->xmin, butr->xmax-butr->xmin, 
 			  sock->ns.vec, 0.0f, 1.0f, 0, 0, "");
+	uiButSetFunc(bt, node_normal_cb, ntree, node);
 }
 #if 0 // not used in 2.5x yet
 static void node_browse_tex_cb(bContext *C, void *ntree_v, void *node_v)
@@ -204,7 +217,7 @@ static void node_browse_tex_cb(bContext *C, void *ntree_v, void *node_v)
 
 	node->id= &tex->id;
 	id_us_plus(node->id);
-	BLI_strncpy(node->name, node->id->name+2, 21);
+	BLI_strncpy(node->name, node->id->name+2, sizeof(node->name));
 	
 	nodeSetActive(ntree, node);
 	
@@ -291,7 +304,7 @@ static void node_browse_text_cb(bContext *C, void *ntree_v, void *node_v)
 	oldid= node->id;
 	node->id= BLI_findlink(&bmain->text, node->menunr-1);
 	id_us_plus(node->id);
-	BLI_strncpy(node->name, node->id->name+2, 21); /* huh? why 21? */
+	BLI_strncpy(node->name, node->id->name+2, sizeof(node->name));
 
 	node->custom1= BSET(node->custom1, NODE_DYNAMIC_NEW);
 	
@@ -562,7 +575,7 @@ static void node_composit_buts_blur(uiLayout *layout, bContext *UNUSED(C), Point
 		row= uiLayoutRow(layout, 1);
 		uiItemR(row, ptr, "aspect_correction", UI_ITEM_R_EXPAND, NULL, 0);
 		
-	col= uiLayoutColumn(layout, 1);
+		col= uiLayoutColumn(layout, 1);
 		uiItemR(col, ptr, "factor_x", 0, "X", ICON_NONE);
 		uiItemR(col, ptr, "factor_y", 0, "Y", ICON_NONE);
 	}
@@ -730,22 +743,22 @@ static void node_composit_buts_flip(uiLayout *layout, bContext *UNUSED(C), Point
 static void node_composit_buts_crop(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *col;
-	
+
 	uiItemR(layout, ptr, "use_crop_size", 0, NULL, ICON_NONE);
 	uiItemR(layout, ptr, "relative", 0, NULL, ICON_NONE);
-	
+
 	col= uiLayoutColumn(layout, 1);
-   if (RNA_boolean_get(ptr, "relative")){
+	if (RNA_boolean_get(ptr, "relative")){
 		uiItemR(col, ptr, "rel_min_x", 0, "Left", ICON_NONE);
 		uiItemR(col, ptr, "rel_max_x", 0, "Right", ICON_NONE);
 		uiItemR(col, ptr, "rel_min_y", 0, "Up", ICON_NONE);
 		uiItemR(col, ptr, "rel_max_y", 0, "Down", ICON_NONE);
-   } else {
+	} else {
 		uiItemR(col, ptr, "min_x", 0, "Left", ICON_NONE);
 		uiItemR(col, ptr, "max_x", 0, "Right", ICON_NONE);
 		uiItemR(col, ptr, "min_y", 0, "Up", ICON_NONE);
 		uiItemR(col, ptr, "max_y", 0, "Down", ICON_NONE);
-}
+	}
 }
 
 static void node_composit_buts_splitviewer(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -835,25 +848,25 @@ static void node_composit_buts_color_spill(uiLayout *layout, bContext *UNUSED(C)
 	uiLayout *row, *col;
 	
 	uiItemL(layout, "Despill Channel:", ICON_NONE);
-   row =uiLayoutRow(layout,0);
+	row =uiLayoutRow(layout,0);
 	uiItemR(row, ptr, "channel", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
 
-   col= uiLayoutColumn(layout, 0);
+	col= uiLayoutColumn(layout, 0);
 	uiItemR(col, ptr, "limit_method", 0, NULL, ICON_NONE);
 
-   if(RNA_enum_get(ptr, "limit_method")==0) {
+	if(RNA_enum_get(ptr, "limit_method")==0) {
 		uiItemL(col, "Limiting Channel:", ICON_NONE);
-	  row=uiLayoutRow(col,0);
+		row=uiLayoutRow(col,0);
 		uiItemR(row, ptr, "limit_channel", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
-   }
+	}
 
 	uiItemR(col, ptr, "ratio", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(col, ptr, "use_unspill", 0, NULL, ICON_NONE);
-   if (RNA_enum_get(ptr, "use_unspill")== 1) {
+	if (RNA_enum_get(ptr, "use_unspill")== 1) {
 		uiItemR(col, ptr, "unspill_red", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 		uiItemR(col, ptr, "unspill_green", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 		uiItemR(col, ptr, "unspill_blue", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
-   }
+	}
 }
 
 static void node_composit_buts_chroma_matte(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -888,7 +901,7 @@ static void node_composit_buts_channel_matte(uiLayout *layout, bContext *UNUSED(
 	row= uiLayoutRow(layout, 0);
 	uiItemR(row, ptr, "color_space", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
 
-   col=uiLayoutColumn(layout, 0);  
+	col=uiLayoutColumn(layout, 0);
 	uiItemL(col, "Key Channel:", ICON_NONE);
 	row= uiLayoutRow(col, 0);
 	uiItemR(row, ptr, "matte_channel", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
@@ -896,12 +909,12 @@ static void node_composit_buts_channel_matte(uiLayout *layout, bContext *UNUSED(
 	col =uiLayoutColumn(layout, 0);
 
 	uiItemR(col, ptr, "limit_method", 0, NULL, ICON_NONE);
-   if(RNA_enum_get(ptr, "limit_method")==0) {
+	if(RNA_enum_get(ptr, "limit_method")==0) {
 		uiItemL(col, "Limiting Channel:", ICON_NONE);
-	  row=uiLayoutRow(col,0);
+		row=uiLayoutRow(col,0);
 		uiItemR(row, ptr, "limit_channel", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
-   }
-   
+	}
+
 	uiItemR(col, ptr, "limit_max", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(col, ptr, "limit_min", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 }
@@ -1123,7 +1136,7 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 			break;
 		case CMP_NODE_OUTPUT_FILE:
 			ntype->uifunc= node_composit_buts_file_output;
-			break;	
+			break;
 		case CMP_NODE_DIFF_MATTE:
 			ntype->uifunc=node_composit_buts_diff_matte;
 			break;
@@ -1142,9 +1155,9 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 		case CMP_NODE_SCALE:
 			ntype->uifunc= node_composit_buts_scale;
 			break;
-	  case CMP_NODE_ROTATE:
-		 ntype->uifunc=node_composit_buts_rotate;
-		 break;
+		case CMP_NODE_ROTATE:
+			ntype->uifunc=node_composit_buts_rotate;
+			break;
 		case CMP_NODE_CHANNEL_MATTE:
 			ntype->uifunc= node_composit_buts_channel_matte;
 			break;
@@ -1168,13 +1181,16 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 			break;
 		case CMP_NODE_VIEW_LEVELS:
 			ntype->uifunc=node_composit_buts_view_levels;
-			 break;
+			break;
 		case CMP_NODE_COLORBALANCE:
 			ntype->uifunc=node_composit_buts_colorbalance;
-			 break;
+			break;
 		case CMP_NODE_HUECORRECT:
 			ntype->uifunc=node_composit_buts_huecorrect;
-			 break;
+			break;
+		case CMP_NODE_ZCOMBINE:
+			ntype->uifunc=node_composit_buts_zcombine;
+			break;
 		case CMP_NODE_COMBYCCA:
 		case CMP_NODE_SEPYCCA:
 			ntype->uifunc=node_composit_buts_ycc;
@@ -1247,7 +1263,7 @@ static void node_texture_buts_proc(uiLayout *layout, bContext *UNUSED(C), Pointe
 			row= uiLayoutRow(col, 0);
 			uiItemR(row, &tex_ptr, "noise_basis_2", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
 			row= uiLayoutRow(col, 0);
-			uiLayoutSetActive(row, !(RNA_enum_get(&tex_ptr, "stype")==TEX_BAND || RNA_enum_get(&tex_ptr, "stype")==TEX_RING)); 
+			uiLayoutSetActive(row, !(RNA_enum_get(&tex_ptr, "wood_type")==TEX_BAND || RNA_enum_get(&tex_ptr, "wood_type")==TEX_RING)); 
 			uiItemR(row, &tex_ptr, "noise_type", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
 			break;
 			
@@ -1273,10 +1289,10 @@ static void node_texture_buts_proc(uiLayout *layout, bContext *UNUSED(C), Pointe
 			uiItemR(col, &tex_ptr, "distance_metric", 0, "", ICON_NONE);
 			if(tex->vn_distm == TEX_MINKOVSKY) {
 				uiItemR(col, &tex_ptr, "minkovsky_exponent", 0, NULL, ICON_NONE);
-	}
+			}
 			uiItemR(col, &tex_ptr, "color_mode", 0, "", ICON_NONE);
 			break;
-}
+	}
 }
 
 static void node_texture_buts_image(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -1402,7 +1418,7 @@ void draw_nodespace_back_pix(ARegion *ar, SpaceNode *snode, int color_manage)
 
 			if(ibuf->rect) {
 				if (snode->flag & SNODE_SHOW_ALPHA) {
-				glPixelZoom(snode->zoom, snode->zoom);
+					glPixelZoom(snode->zoom, snode->zoom);
 					/* swap bytes, so alpha is most significant one, then just draw it as luminance int */
 					if(ENDIAN_ORDER == B_ENDIAN)
 						glPixelStorei(GL_UNPACK_SWAP_BYTES, 1);
@@ -1416,9 +1432,9 @@ void draw_nodespace_back_pix(ARegion *ar, SpaceNode *snode, int color_manage)
 					glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 					glPixelZoom(snode->zoom, snode->zoom);
 					
-				glaDrawPixelsSafe(x, y, ibuf->x, ibuf->y, ibuf->x, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
+					glaDrawPixelsSafe(x, y, ibuf->x, ibuf->y, ibuf->x, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
 					
-				glPixelZoom(1.0f, 1.0f);
+					glPixelZoom(1.0f, 1.0f);
 					glDisable(GL_BLEND);
 				} else {
 					glPixelZoom(snode->zoom, snode->zoom);
@@ -1426,7 +1442,7 @@ void draw_nodespace_back_pix(ARegion *ar, SpaceNode *snode, int color_manage)
 					glaDrawPixelsSafe(x, y, ibuf->x, ibuf->y, ibuf->x, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
 					
 					glPixelZoom(1.0f, 1.0f);
-			}
+				}
 			}
 			
 			glMatrixMode(GL_PROJECTION);
@@ -1456,7 +1472,7 @@ void draw_nodespace_color_info(ARegion *ar, int color_manage, int channels, int 
 	#endif
 	float hue=0, sat=0, val=0, lum=0, u=0, v=0;
 	float col[4], finalcol[4];
-	
+
 	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 
@@ -1525,9 +1541,9 @@ void draw_nodespace_color_info(ARegion *ar, int color_manage, int channels, int 
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 		dx += BLF_width(blf_mono_font, str);
 		
-	if(channels==4) {
+		if(channels == 4) {
 			glColor3ub(255, 255, 255);
-		if (fp)
+			if (fp)
 				sprintf(str, "  A:%-.4f", fp[3]);
 			else if (cp)
 				sprintf(str, "  A:%-3d", cp[3]);
@@ -1536,7 +1552,7 @@ void draw_nodespace_color_info(ARegion *ar, int color_manage, int channels, int 
 			BLF_position(blf_mono_font, dx, 6, 0);
 			BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 			dx += BLF_width(blf_mono_font, str);
-	}
+		}
 	}
 	
 	/* color rectangle */
@@ -1548,14 +1564,14 @@ void draw_nodespace_color_info(ARegion *ar, int color_manage, int channels, int 
 		else
 			col[0] = col[1] = col[2] = 0.0f;
 	}
-	else if(channels==3) {
+	else if (channels==3) {
 		if (fp)
 			copy_v3_v3(col, fp);
 		else if (cp) {
 			col[0] = (float)cp[0]/255.0f;
 			col[1] = (float)cp[1]/255.0f;
 			col[2] = (float)cp[2]/255.0f;
-	}
+		}
 		else
 			zero_v3(col);
 	}
@@ -1588,7 +1604,7 @@ void draw_nodespace_color_info(ARegion *ar, int color_manage, int channels, int 
 	glVertex2f(dx+30, 3);
 	glEnd();
 	dx += 35;
-	
+
 	glColor3ub(255, 255, 255);
 	if(channels == 1) {
 		if (fp) {
@@ -1599,17 +1615,17 @@ void draw_nodespace_color_info(ARegion *ar, int color_manage, int channels, int 
 			rgb_to_hsv((float)cp[0]/255.0f, (float)cp[0]/255.0f, (float)cp[0]/255.0f, &hue, &sat, &val);
 			rgb_to_yuv((float)cp[0]/255.0f, (float)cp[0]/255.0f, (float)cp[0]/255.0f, &lum, &u, &v);
 		}
-	
+		
 		sprintf(str, "V:%-.4f", val);
 		BLF_position(blf_mono_font, dx, 6, 0);
-	BLF_draw_ascii(blf_mono_font, str, sizeof(str));
+		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 		dx += BLF_width(blf_mono_font, str);
 
 		sprintf(str, "   L:%-.4f", lum);
 		BLF_position(blf_mono_font, dx, 6, 0);
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 		dx += BLF_width(blf_mono_font, str);
-}
+	}
 	else if(channels >= 3) {
 		if (fp) {
 			rgb_to_hsv(fp[0], fp[1], fp[2], &hue, &sat, &val);
@@ -1763,8 +1779,8 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link, int t
 			UI_ThemeColorShadeAlpha(th_col3, -80, -120);
 			glLineWidth(4.0f);
 			
-		glBegin(GL_LINE_STRIP);
-		for(i=0; i<=LINK_RESOL; i++) {
+			glBegin(GL_LINE_STRIP);
+			for(i=0; i<=LINK_RESOL; i++) {
 				glVertex2fv(coord_array[i]);
 			}
 			glEnd();
@@ -1778,7 +1794,7 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link, int t
 			if(do_shaded) {
 				UI_ThemeColorBlend(th_col1, th_col2, spline_step);
 				spline_step += dist;
-			}				
+			}
 			glVertex2fv(coord_array[i]);
 		}
 		glEnd();

@@ -24,7 +24,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/editors/armature/poselib.c
  *  \ingroup edarmature
  */
@@ -102,7 +102,7 @@ static void action_set_activemarker(void *UNUSED(a), void *UNUSED(b), void *UNUS
  */
 /* ************************************************************* */
 
-	
+
 /* gets the first available frame in poselib to store a pose on 
  *	- frames start from 1, and a pose should occur on every frame... 0 is error!
  */
@@ -150,7 +150,7 @@ static TimeMarker *poselib_get_active_pose (bAction *act)
 static Object *get_poselib_object (bContext *C)
 {
 	ScrArea *sa;
-
+	
 	/* sanity check */
 	if (C == NULL)
 		return NULL;
@@ -204,7 +204,7 @@ static bAction *poselib_validate (Object *ob)
 static int poselib_new_exec (bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = get_poselib_object(C);
-
+	
 	/* sanity checks */
 	if (ob == NULL)
 		return OPERATOR_CANCELLED;
@@ -370,7 +370,7 @@ static void poselib_add_menu_invoke__replacemenu (bContext *C, uiLayout *layout,
 		
 		RNA_int_set(&props_ptr, "frame", marker->frame);
 		RNA_string_set(&props_ptr, "name", marker->name);
-}
+	}
 }
 
 static int poselib_add_menu_invoke (bContext *C, wmOperator *op, wmEvent *UNUSED(evt))
@@ -452,7 +452,7 @@ static int poselib_add_exec (bContext *C, wmOperator *op)
 	// FIXME: in the past, the Keying Set respected selections (LocRotScale), but the current one doesn't (Whole Character)
 	// so perhaps we need either a new Keying Set, or just to add overrides here...
 	ANIM_apply_keyingset(C, NULL, act, ks, MODIFYKEY_MODE_INSERT, (float)frame);
-		
+	
 	/* store new 'active' pose number */
 	act->active_marker= BLI_countlist(&act->markers);
 	
@@ -486,17 +486,15 @@ void POSELIB_OT_pose_add (wmOperatorType *ot)
 static EnumPropertyItem *poselib_stored_pose_itemf(bContext *C, PointerRNA *UNUSED(ptr), int *free)
 {
 	Object *ob = get_poselib_object(C);
-	bAction *act= (ob) ? ob->poselib : NULL;
+	bAction *act = (ob) ? ob->poselib : NULL;
 	TimeMarker *marker;
-	EnumPropertyItem *item= NULL, item_tmp;
+	EnumPropertyItem *item= NULL, item_tmp= {0};
 	int totitem= 0;
 	int i= 0;
 
-	if (C==NULL) {
+	if (C == NULL) {
 		return DummyRNA_DEFAULT_items;
 	}
-
-	memset(&item_tmp, 0, sizeof(item_tmp));
 	
 	/* check that the action exists */
 	if (act) {
@@ -580,7 +578,7 @@ void POSELIB_OT_pose_remove (wmOperatorType *ot)
 	
 	/* properties */
 	prop= RNA_def_enum(ot->srna, "pose", DummyRNA_DEFAULT_items, 0, "Pose", "The pose to remove");
-	RNA_def_enum_funcs(prop, poselib_stored_pose_itemf);
+		RNA_def_enum_funcs(prop, poselib_stored_pose_itemf);
 	ot->prop= prop;
 }
 
@@ -835,7 +833,6 @@ static void poselib_apply_pose (tPoseLib_PreviewData *pld)
 	
 	/* init settings for testing groups for keyframes */
 	group_ok_cb= ANIM_editkeyframes_ok(BEZT_OK_FRAMERANGE);
-	memset(&ked, 0, sizeof(KeyframeEditData)); 
 	ked.f1= ((float)frame) - 0.5f;
 	ked.f2= ((float)frame) + 0.5f;
 	
@@ -1002,88 +999,88 @@ static void poselib_preview_get_next (tPoseLib_PreviewData *pld, int step)
 	if (step == 0)
 		return;
 	
-		/* search-string dictates a special approach */
-		if (pld->searchstr[0]) {
-			TimeMarker *marker;
-			LinkData *ld, *ldn, *ldc;
+	/* search-string dictates a special approach */
+	if (pld->searchstr[0]) {
+		TimeMarker *marker;
+		LinkData *ld, *ldn, *ldc;
+		
+		/* free and rebuild if needed (i.e. if search-str changed) */
+		if (strcmp(pld->searchstr, pld->searchold)) {
+			/* free list of temporary search matches */
+			BLI_freelistN(&pld->searchp);
 			
-			/* free and rebuild if needed (i.e. if search-str changed) */
-			if (strcmp(pld->searchstr, pld->searchold)) {
-				/* free list of temporary search matches */
-				BLI_freelistN(&pld->searchp);
-				
-				/* generate a new list of search matches */
-				for (marker= pld->act->markers.first; marker; marker= marker->next) {
-					/* does the name partially match? 
-					 * 	- don't worry about case, to make it easier for users to quickly input a name (or 
-					 *	  part of one), which is the whole point of this feature
-					 */
-					if (BLI_strcasestr(marker->name, pld->searchstr)) {
-						/* make link-data to store reference to it */
-						ld= MEM_callocN(sizeof(LinkData), "PoseMatch");
-						ld->data= marker;
-						BLI_addtail(&pld->searchp, ld);
-					}
+			/* generate a new list of search matches */
+			for (marker= pld->act->markers.first; marker; marker= marker->next) {
+				/* does the name partially match? 
+				 * 	- don't worry about case, to make it easier for users to quickly input a name (or 
+				 *	  part of one), which is the whole point of this feature
+				 */
+				if (BLI_strcasestr(marker->name, pld->searchstr)) {
+					/* make link-data to store reference to it */
+					ld= MEM_callocN(sizeof(LinkData), "PoseMatch");
+					ld->data= marker;
+					BLI_addtail(&pld->searchp, ld);
 				}
-				
-				/* set current marker to NULL (so that we start from first) */
-				pld->marker= NULL;
 			}
 			
-			/* check if any matches */
-			if (pld->searchp.first == NULL) { 
-				pld->marker= NULL;
-				return;
-			}
+			/* set current marker to NULL (so that we start from first) */
+			pld->marker= NULL;
+		}
+		
+		/* check if any matches */
+		if (pld->searchp.first == NULL) { 
+			pld->marker= NULL;
+			return;
+		}
+		
+		/* find first match */
+		for (ldc= pld->searchp.first; ldc; ldc= ldc->next) {
+			if (ldc->data == pld->marker)
+				break;
+		}
+		if (ldc == NULL)
+			ldc= pld->searchp.first;
 			
-			/* find first match */
-			for (ldc= pld->searchp.first; ldc; ldc= ldc->next) {
-				if (ldc->data == pld->marker)
-					break;
-			}
-			if (ldc == NULL)
-				ldc= pld->searchp.first;
-				
-			/* Loop through the matches in a cyclic fashion, incrementing/decrementing step as appropriate 
-			 * until step == 0. At this point, marker should be the correct marker.
-			 */
-			if (step > 0) {
-				for (ld=ldc; ld && step; ld=ldn, step--)
-					ldn= (ld->next) ? ld->next : pld->searchp.first;
-			}
-			else {
-				for (ld=ldc; ld && step; ld=ldn, step++)
-					ldn= (ld->prev) ? ld->prev : pld->searchp.last;
-			}
-			
-			/* set marker */
-			if (ld)
-				pld->marker= ld->data;
+		/* Loop through the matches in a cyclic fashion, incrementing/decrementing step as appropriate 
+		 * until step == 0. At this point, marker should be the correct marker.
+		 */
+		if (step > 0) {
+			for (ld=ldc; ld && step; ld=ldn, step--)
+				ldn= (ld->next) ? ld->next : pld->searchp.first;
 		}
 		else {
-			TimeMarker *marker, *next;
-			
+			for (ld=ldc; ld && step; ld=ldn, step++)
+				ldn= (ld->prev) ? ld->prev : pld->searchp.last;
+		}
+		
+		/* set marker */
+		if (ld)
+			pld->marker= ld->data;
+	}
+	else {
+		TimeMarker *marker, *next;
+		
 		/* if no marker, because we just ended searching, then set that to the start of the list */
 		if (pld->marker == NULL)
 			pld->marker= pld->act->markers.first;
 		
-			/* Loop through the markers in a cyclic fashion, incrementing/decrementing step as appropriate 
-			 * until step == 0. At this point, marker should be the correct marker.
-			 */
-			if (step > 0) {
-				for (marker=pld->marker; marker && step; marker=next, step--)
-					next= (marker->next) ? marker->next : pld->act->markers.first;
-			}
-			else {
-				for (marker=pld->marker; marker && step; marker=next, step++)
-					next= (marker->prev) ? marker->prev : pld->act->markers.last;
-			}
-			
-			/* it should be fairly impossible for marker to be NULL */
-			if (marker)
-				pld->marker= marker;
+		/* Loop through the markers in a cyclic fashion, incrementing/decrementing step as appropriate 
+		 * until step == 0. At this point, marker should be the correct marker.
+		 */
+		if (step > 0) {
+			for (marker=pld->marker; marker && step; marker=next, step--)
+				next= (marker->next) ? marker->next : pld->act->markers.first;
 		}
+		else {
+			for (marker=pld->marker; marker && step; marker=next, step++)
+				next= (marker->prev) ? marker->prev : pld->act->markers.last;
+		}
+		
+		/* it should be fairly impossible for marker to be NULL */
+		if (marker)
+			pld->marker= marker;
 	}
+}
 
 /* specially handle events for searching */
 static void poselib_preview_handle_search (tPoseLib_PreviewData *pld, unsigned short event, char ascii)
@@ -1194,8 +1191,8 @@ static int poselib_preview_handle_event (bContext *UNUSED(C), wmOperator *op, wm
 				
 			/* quicky compare to original */
 			case TABKEY:
-					pld->flag &= ~PL_PREVIEW_SHOWORIGINAL;
-					pld->redraw= PL_PREVIEW_REDRAWALL;
+				pld->flag &= ~PL_PREVIEW_SHOWORIGINAL;
+				pld->redraw= PL_PREVIEW_REDRAWALL;
 				break;
 		}
 		
@@ -1222,8 +1219,8 @@ static int poselib_preview_handle_event (bContext *UNUSED(C), wmOperator *op, wm
 			
 		/* toggle between original pose and poselib pose*/
 		case TABKEY:
-				pld->flag |= PL_PREVIEW_SHOWORIGINAL;
-				pld->redraw= PL_PREVIEW_REDRAWALL;
+			pld->flag |= PL_PREVIEW_SHOWORIGINAL;
+			pld->redraw= PL_PREVIEW_REDRAWALL;
 			break;
 		
 		/* change to previous pose (cyclic) */
@@ -1469,7 +1466,7 @@ static void poselib_preview_cleanup (bContext *C, wmOperator *op)
 		}
 		else
 			where_is_pose(scene, ob);
-		}
+	}
 	
 	/* free memory used for backups and searching */
 	poselib_backup_free_data(pld);
@@ -1597,7 +1594,7 @@ void POSELIB_OT_browse_interactive (wmOperatorType *ot)
 		// TODO: make the pose_index into a proper enum instead of a cryptic int...
 	ot->prop= RNA_def_int(ot->srna, "pose_index", -1, -2, INT_MAX, "Pose", "Index of the pose to apply (-2 for no change to pose, -1 for poselib active pose)", 0, INT_MAX);
 	
-		// XXX: percentage vs factor?
+	// XXX: percentage vs factor?
 	/* not used yet */
 	/* RNA_def_float_factor(ot->srna, "blend_factor", 1.0f, 0.0f, 1.0f, "Blend Factor", "Amount that the pose is applied on top of the existing poses", 0.0f, 1.0f); */
 }

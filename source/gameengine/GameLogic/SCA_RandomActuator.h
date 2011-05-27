@@ -94,7 +94,7 @@ class SCA_RandomActuator : public SCA_IActuator
 	virtual CValue* GetReplica();
 	virtual void ProcessReplica();
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	
 	/* --------------------------------------------------------------------- */
 	/* Python interface ---------------------------------------------------- */
@@ -114,7 +114,7 @@ class SCA_RandomActuator : public SCA_IActuator
 	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setFloatNormal);
 	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setFloatNegativeExponential);
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON
 
 }; /* end of class KX_EditObjectActuator : public SCA_PropertyActuator */
 

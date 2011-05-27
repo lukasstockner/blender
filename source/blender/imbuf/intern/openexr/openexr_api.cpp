@@ -623,7 +623,7 @@ void IMB_exr_write_channels(void *handle)
 		for(echan= (ExrChannel *)data->channels.first; echan; echan= echan->next) {
 			/* last scanline, stride negative */
 			float *rect = echan->rect + echan->xstride*(data->height-1)*data->width;
-		
+			
 			frameBuffer.insert (echan->name, Slice (FLOAT,  (char *)rect, 
 													echan->xstride*sizeof(float), -echan->ystride*sizeof(float)));
 		}
@@ -655,9 +655,9 @@ void IMB_exr_read_channels(void *handle)
 		
 		if(echan->rect) {
 			if(flip)
-			frameBuffer.insert (echan->name, Slice (FLOAT,  (char *)echan->rect, 
-												echan->xstride*sizeof(float), echan->ystride*sizeof(float)));
-		else 
+				frameBuffer.insert (echan->name, Slice (FLOAT,  (char *)echan->rect, 
+											echan->xstride*sizeof(float), echan->ystride*sizeof(float)));
+			else
 				frameBuffer.insert (echan->name, Slice (FLOAT,  (char *)(echan->rect + echan->xstride*(data->height-1)*data->width), 
 											echan->xstride*sizeof(float), -echan->ystride*sizeof(float)));
 		}
@@ -993,7 +993,7 @@ struct ImBuf *imb_load_openexr(unsigned char *mem, size_t size, int flags)
 		}
 		else {
 		
-			ibuf = IMB_allocImBuf(width, height, 32, 0, 0);
+			ibuf = IMB_allocImBuf(width, height, 32, 0);
 			ibuf->ftype = OPENEXR;
 
 			/* openEXR is linear as per EXR spec */

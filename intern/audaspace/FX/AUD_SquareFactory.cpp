@@ -55,9 +55,9 @@ AUD_SquareFactory::AUD_SquareFactory(AUD_IFactory* factory, float threshold) :
 }
 
 float AUD_SquareFactory::getThreshold() const
-	{
+{
 	return m_threshold;
-	}
+}
 
 AUD_IReader* AUD_SquareFactory::createReader() const
 {

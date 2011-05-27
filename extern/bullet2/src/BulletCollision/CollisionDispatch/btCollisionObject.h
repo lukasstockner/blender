@@ -61,9 +61,9 @@ protected:
 	btVector3	m_interpolationLinearVelocity;
 	btVector3	m_interpolationAngularVelocity;
 	
-	btVector3		m_anisotropicFriction;
+	btVector3	m_anisotropicFriction;
 	int			m_hasAnisotropicFriction;
-	btScalar		m_contactProcessingThreshold;	
+	btScalar	m_contactProcessingThreshold;	
 
 	btBroadphaseProxy*		m_broadphaseHandle;
 	btCollisionShape*		m_collisionShape;

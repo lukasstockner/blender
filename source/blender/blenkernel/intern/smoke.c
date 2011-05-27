@@ -444,7 +444,7 @@ static void fill_scs_points(Object *ob, DerivedMesh *dm, SmokeCollSettings *scs)
 }
 
 /*! init triangle divisions */
-void calcTriangleDivs(Object *ob, MVert *verts, int numverts, MFace *faces, int numfaces, int numtris, int **tridivs, float cell_len) 
+void calcTriangleDivs(Object *ob, MVert *verts, int UNUSED(numverts), MFace *faces, int numfaces, int numtris, int **tridivs, float cell_len) 
 {
 	// mTriangleDivs1.resize( faces.size() );
 	// mTriangleDivs2.resize( faces.size() );
@@ -636,9 +636,6 @@ void smokeModifier_reset(struct SmokeModifierData *smd)
 				smd->domain->fluid = NULL;
 			}
 
-			smd->domain->point_cache[0]->flag |= PTCACHE_OUTDATED;
-			smd->domain->point_cache[1]->flag |= PTCACHE_OUTDATED;
-
 			smokeModifier_reset_turbulence(smd);
 
 			smd->time = -1;
@@ -820,14 +817,14 @@ static int get_lamp(Scene *scene, float *light)
 
 			if(la->type == LA_LOCAL) {
 				copy_v3_v3(light, base_tmp->object->obmat[3]);
-				return 1;			
-			}		
+				return 1;
+			}
 			else if(!found_lamp) {
 				copy_v3_v3(light, base_tmp->object->obmat[3]);
 				found_lamp = 1;
-		}	
-	}	
-}
+			}
+		}
+	}
 
 	return found_lamp;
 }
@@ -940,7 +937,7 @@ static void smoke_calc_domain(Scene *scene, Object *ob, SmokeModifierData *smd)
 
 	// do flows and fluids
 	if(1)			
-	{				
+	{
 		Object *otherobj = NULL;				
 		ModifierData *md = NULL;
 		if(sds->fluid_group) // we use groups since we have 2 domains
@@ -1020,11 +1017,11 @@ static void smoke_calc_domain(Scene *scene, Object *ob, SmokeModifierData *smd)
 														
 						// mostly copied from particle code								
 						for(p=0; p<psys->totpart; p++)								
-						{									
-							int cell[3];									
-							size_t i = 0;									
-							size_t index = 0;									
-							int badcell = 0;																		
+						{
+							int cell[3];
+							size_t i = 0;
+							size_t index = 0;
+							int badcell = 0;
 							ParticleKey state;
 
 							if(psys->particles[p].flag & (PARS_NO_DISP|PARS_UNEXIST))
@@ -1291,8 +1288,8 @@ static void smoke_calc_domain(Scene *scene, Object *ob, SmokeModifierData *smd)
 		pdEndEffectors(&effectors);
 	}
 
-			}					
-void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedMesh *dm, int useRenderParams, int isFinalCalc)
+}
+void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedMesh *dm)
 {	
 	if((smd->type & MOD_SMOKE_TYPE_FLOW))
 	{
@@ -1372,7 +1369,8 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 
 		CLAMP(framenr, startframe, endframe);
 
-		if(!smd->domain->fluid && (framenr != startframe) && (cache->flag & PTCACHE_BAKED)==0)
+		/* If already viewing a pre/after frame, no need to reload */
+		if ((smd->time == framenr) && (framenr != scene->r.cfra))
 			return;
 
 		// printf("startframe: %d, framenr: %d\n", startframe, framenr);
@@ -1387,26 +1385,34 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 		if(BKE_ptcache_read(&pid, (float)framenr) == PTCACHE_READ_EXACT) {
 			BKE_ptcache_validate(cache, framenr);
 			smd->time = framenr;
-					return;
-				}
+			return;
+		}
 		
 		/* only calculate something when we advanced a single frame */
 		if(framenr != (int)smd->time+1)
 			return;
 
+		/* don't simulate if viewing start frame, but scene frame is not real start frame */
+		if (framenr != scene->r.cfra)
+			return;
+
 		tstart();
 
 		smoke_calc_domain(scene, ob, smd);
-		
+
 		/* if on second frame, write cache for first frame */
 		if((int)smd->time == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact==0)) {
+			// create shadows straight after domain initialization so we get nice shadows for startframe, too
+			if(get_lamp(scene, light))
+				smoke_calc_transparency(sds->shadow, smoke_get_density(sds->fluid), sds->p0, sds->p1, sds->res, sds->dx, light, calc_voxel_transp, -7.0*sds->dx);
+
 			if(sds->wt)
 			{
 				if(sds->flags & MOD_SMOKE_DISSOLVE)
 					smoke_dissolve_wavelet(sds->wt, sds->diss_speed, sds->flags & MOD_SMOKE_DISSOLVE_LOG);
 				smoke_turbulence_step(sds->wt, sds->fluid);
-		}
-		
+			}
+
 			BKE_ptcache_write(&pid, startframe);
 		}
 		
@@ -1426,17 +1432,17 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 			smoke_step(sds->fluid, smd->time, scene->r.frs_sec / scene->r.frs_sec_base);
 		}
 
-		// create shadows before writing cache so we get nice shadows for startframe, too
+		// create shadows before writing cache so they get stored
 		if(get_lamp(scene, light))
 			smoke_calc_transparency(sds->shadow, smoke_get_density(sds->fluid), sds->p0, sds->p1, sds->res, sds->dx, light, calc_voxel_transp, -7.0*sds->dx);
-	
+
 		if(sds->wt)
 		{
-				if(sds->flags & MOD_SMOKE_DISSOLVE)
-					smoke_dissolve_wavelet(sds->wt, sds->diss_speed, sds->flags & MOD_SMOKE_DISSOLVE_LOG);
-				smoke_turbulence_step(sds->wt, sds->fluid);
-			}
-
+			if(sds->flags & MOD_SMOKE_DISSOLVE)
+				smoke_dissolve_wavelet(sds->wt, sds->diss_speed, sds->flags & MOD_SMOKE_DISSOLVE_LOG);
+			smoke_turbulence_step(sds->wt, sds->fluid);
+		}
+	
 		BKE_ptcache_validate(cache, framenr);
 		if(framenr != startframe)
 			BKE_ptcache_write(&pid, framenr);
@@ -1464,20 +1470,20 @@ static float calc_voxel_transp(float *result, float *input, int res[3], int *pix
 
 long long smoke_get_mem_req(int xres, int yres, int zres, int amplify)
 {
-	  int totalCells = xres * yres * zres;
-	  int amplifiedCells = totalCells * amplify * amplify * amplify;
+	int totalCells = xres * yres * zres;
+	int amplifiedCells = totalCells * amplify * amplify * amplify;
 
-	  // print out memory requirements
-	  long long int coarseSize = sizeof(float) * totalCells * 22 +
-					   sizeof(unsigned char) * totalCells;
+	// print out memory requirements
+	long long int coarseSize = sizeof(float) * totalCells * 22 +
+	sizeof(unsigned char) * totalCells;
 
-	  long long int fineSize = sizeof(float) * amplifiedCells * 7 + // big grids
-					 sizeof(float) * totalCells * 8 +     // small grids
-					 sizeof(float) * 128 * 128 * 128;     // noise tile
+	long long int fineSize = sizeof(float) * amplifiedCells * 7 + // big grids
+	sizeof(float) * totalCells * 8 +     // small grids
+	sizeof(float) * 128 * 128 * 128;     // noise tile
 
-	  long long int totalMB = (coarseSize + fineSize) / (1024 * 1024);
+	long long int totalMB = (coarseSize + fineSize) / (1024 * 1024);
 
-	  return totalMB;
+	return totalMB;
 }
 
 static void bresenham_linie_3D(int x1, int y1, int z1, int x2, int y2, int z2, float *tRay, bresenham_callback cb, float *result, float *input, int res[3], float correct)

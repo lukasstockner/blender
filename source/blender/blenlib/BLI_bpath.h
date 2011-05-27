@@ -41,8 +41,8 @@ struct Main;
 
 void			BLI_bpathIterator_init				(struct BPathIterator **bpi, struct Main *bmain, const char *basedir, const int flag);
 void			BLI_bpathIterator_free				(struct BPathIterator *bpi);
-char*			BLI_bpathIterator_getLib			(struct BPathIterator *bpi);
-char*			BLI_bpathIterator_getName			(struct BPathIterator *bpi);
+const char*		BLI_bpathIterator_getLib			(struct BPathIterator *bpi);
+const char*		BLI_bpathIterator_getName			(struct BPathIterator *bpi);
 int				BLI_bpathIterator_getType			(struct BPathIterator *bpi);
 unsigned int	BLI_bpathIterator_getPathMaxLen		(struct BPathIterator *bpi);
 const char*		BLI_bpathIterator_getBasePath		(struct BPathIterator *bpi);
@@ -50,7 +50,7 @@ void			BLI_bpathIterator_step				(struct BPathIterator *bpi);
 int				BLI_bpathIterator_isDone			(struct BPathIterator *bpi);
 void			BLI_bpathIterator_getPath			(struct BPathIterator *bpi, char *path);
 void			BLI_bpathIterator_getPathExpanded	(struct BPathIterator *bpi, char *path_expanded);
-void			BLI_bpathIterator_setPath			(struct BPathIterator *bpi, char *path);
+void			BLI_bpathIterator_setPath			(struct BPathIterator *bpi, const char *path);
 
 /* high level funcs */
 

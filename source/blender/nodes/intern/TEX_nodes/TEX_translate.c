@@ -46,7 +46,7 @@ static bNodeSocketType outputs[]= {
 	{ -1, 0, "" } 
 };
 
-static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void colorfn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **in, short thread)
 {
 	float offset[3], new_co[3];
 	TexParams np = *p;
@@ -68,7 +68,7 @@ static void exec(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
 void register_node_type_tex_translate(ListBase *lb)
 {
 	static bNodeType ntype;
-
+	
 	node_type_base(&ntype, TEX_NODE_TRANSLATE, "Translate", NODE_CLASS_DISTORT, NODE_OPTIONS,
 				   inputs, outputs);
 	node_type_size(&ntype, 90, 80, 100);

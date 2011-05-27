@@ -100,7 +100,7 @@ protected:
 	///m_forceUpdateAllAabbs can be set to false as an optimization to only update active object AABBs
 	///it is true by default, because it is error-prone (setting the position of static objects wouldn't update their AABB)
 	bool m_forceUpdateAllAabbs;
-	
+
 	void	serializeCollisionObjects(btSerializer* serializer);
 
 public:
@@ -490,7 +490,7 @@ public:
 	{
 		return m_dispatchInfo;
 	}
-
+	
 	bool	getForceUpdateAllAabbs() const
 	{
 		return m_forceUpdateAllAabbs;

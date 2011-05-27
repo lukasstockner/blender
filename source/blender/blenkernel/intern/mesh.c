@@ -76,7 +76,7 @@ EditMesh *BKE_mesh_get_editmesh(Mesh *me)
 	return me->edit_mesh;
 }
 
-void BKE_mesh_end_editmesh(Mesh *me, EditMesh *em)
+void BKE_mesh_end_editmesh(Mesh *UNUSED(me), EditMesh *UNUSED(em))
 {
 }
 
@@ -293,38 +293,38 @@ void make_local_mesh(Mesh *me)
 	int local=0, lib=0;
 
 	/* - only lib users: do nothing
-		* - only local users: set flag
-		* - mixed: make copy
-		*/
-	
+	 * - only local users: set flag
+	 * - mixed: make copy
+	 */
+
 	if(me->id.lib==NULL) return;
 	if(me->id.us==1) {
 		me->id.lib= NULL;
 		me->id.flag= LIB_LOCAL;
-		
+
 		new_id(&bmain->mesh, (ID *)me, NULL);
 		expand_local_mesh(bmain, me);
 		return;
 	}
-	
+
 	for(ob= bmain->object.first; ob && ELEM(0, lib, local); ob= ob->id.next) {
 		if(me == ob->data) {
 			if(ob->id.lib) lib= 1;
 			else local= 1;
 		}
 	}
-	
+
 	if(local && lib==0) {
 		me->id.lib= NULL;
 		me->id.flag= LIB_LOCAL;
-		
+
 		new_id(&bmain->mesh, (ID *)me, NULL);
 		expand_local_mesh(bmain, me);
 	}
 	else if(local && lib) {
 		Mesh *men= copy_mesh(me);
 		men->id.us= 0;
-		
+
 		for(ob= bmain->object.first; ob; ob= ob->id.next) {
 			if(me == ob->data) {
 				if(ob->id.lib==NULL) {
@@ -343,7 +343,7 @@ void boundbox_mesh(Mesh *me, float *loc, float *size)
 	
 	if(me->bb==NULL) me->bb= MEM_callocN(sizeof(BoundBox), "boundbox");
 	bb= me->bb;
-	
+
 	if (!loc) loc= mloc;
 	if (!size) size= msize;
 	
@@ -534,7 +534,7 @@ Mesh *get_mesh(Object *ob)
 void set_mesh(Object *ob, Mesh *me)
 {
 	Mesh *old=NULL;
-	
+
 	multires_force_update(ob);
 	
 	if(ob==NULL) return;
@@ -601,7 +601,7 @@ static void mfaces_strip_loose(MFace *mface, int *totface)
 }
 
 /* Create edges based on known verts and faces */
-static void make_edges_mdata(MVert *allvert, MFace *allface, int totvert, int totface,
+static void make_edges_mdata(MVert *UNUSED(allvert), MFace *allface, int UNUSED(totvert), int totface,
 	int old, MEdge **alledge, int *_totedge)
 {
 	MFace *mface;
@@ -806,8 +806,12 @@ int nurbs_to_mdata_customdb(Object *ob, ListBase *dispbase, MVert **allvert, int
 	float *data;
 	int a, b, ofs, vertcount, startvert, totvert=0, totvlak=0;
 	int p1, p2, p3, p4, *index;
+	int conv_polys= 0;
 
 	cu= ob->data;
+
+	conv_polys|= cu->flag & CU_3D;		/* 2d polys are filled with DL_INDEX3 displists */
+	conv_polys|= ob->type == OB_SURF;	/* surf polys are never filled */
 
 	/* count */
 	dl= dispbase->first;
@@ -817,8 +821,10 @@ int nurbs_to_mdata_customdb(Object *ob, ListBase *dispbase, MVert **allvert, int
 			totvlak+= dl->parts*(dl->nr-1);
 		}
 		else if(dl->type==DL_POLY) {
-			totvert+= dl->parts*dl->nr;
-			totvlak+= dl->parts*dl->nr;
+			if(conv_polys) {
+				totvert+= dl->parts*dl->nr;
+				totvlak+= dl->parts*dl->nr;
+			}
 		}
 		else if(dl->type==DL_SURF) {
 			totvert+= dl->parts*dl->nr;
@@ -870,24 +876,26 @@ int nurbs_to_mdata_customdb(Object *ob, ListBase *dispbase, MVert **allvert, int
 
 		}
 		else if(dl->type==DL_POLY) {
-			startvert= vertcount;
-			a= dl->parts*dl->nr;
-			data= dl->verts;
-			while(a--) {
-				VECCOPY(mvert->co, data);
-				data+=3;
-				vertcount++;
-				mvert++;
-			}
+			if(conv_polys) {
+				startvert= vertcount;
+				a= dl->parts*dl->nr;
+				data= dl->verts;
+				while(a--) {
+					VECCOPY(mvert->co, data);
+					data+=3;
+					vertcount++;
+					mvert++;
+				}
 
-			for(a=0; a<dl->parts; a++) {
-				ofs= a*dl->nr;
-				for(b=0; b<dl->nr; b++) {
-					mface->v1= startvert+ofs+b;
-					if(b==dl->nr-1) mface->v2= startvert+ofs;
-					else mface->v2= startvert+ofs+b+1;
-					if(smooth) mface->flag |= ME_SMOOTH;
-					mface++;
+				for(a=0; a<dl->parts; a++) {
+					ofs= a*dl->nr;
+					for(b=0; b<dl->nr; b++) {
+						mface->v1= startvert+ofs+b;
+						if(b==dl->nr-1) mface->v2= startvert+ofs;
+						else mface->v2= startvert+ofs+b+1;
+						if(smooth) mface->flag |= ME_SMOOTH;
+						mface++;
+					}
 				}
 			}
 		}
@@ -1279,23 +1287,23 @@ void mesh_calc_normals(MVert *mverts, int numVerts, MFace *mfaces, int numFaces,
 	float (*fnors)[3]= (faceNors_r)? faceNors_r: MEM_callocN(sizeof(*fnors)*numFaces, "meshnormals");
 	int i;
 
-	for (i=0; i<numFaces; i++) {
+	for(i=0; i<numFaces; i++) {
 		MFace *mf= &mfaces[i];
 		float *f_no= fnors[i];
 		float *n4 = (mf->v4)? tnorms[mf->v4]: NULL;
 		float *c4 = (mf->v4)? mverts[mf->v4].co: NULL;
 
-		if (mf->v4)
-			normal_quad_v3( f_no,mverts[mf->v1].co, mverts[mf->v2].co, mverts[mf->v3].co, mverts[mf->v4].co);
+		if(mf->v4)
+			normal_quad_v3(f_no, mverts[mf->v1].co, mverts[mf->v2].co, mverts[mf->v3].co, mverts[mf->v4].co);
 		else
-			normal_tri_v3( f_no,mverts[mf->v1].co, mverts[mf->v2].co, mverts[mf->v3].co);
-		
+			normal_tri_v3(f_no, mverts[mf->v1].co, mverts[mf->v2].co, mverts[mf->v3].co);
+
 		accumulate_vertex_normals(tnorms[mf->v1], tnorms[mf->v2], tnorms[mf->v3], n4,
 			f_no, mverts[mf->v1].co, mverts[mf->v2].co, mverts[mf->v3].co, c4);
 	}
 
 	/* following Mesh convention; we use vertex coordinate itself for normal in this case */
-	for (i=0; i<numVerts; i++) {
+	for(i=0; i<numVerts; i++) {
 		MVert *mv= &mverts[i];
 		float *no= tnorms[i];
 		
@@ -1309,7 +1317,7 @@ void mesh_calc_normals(MVert *mverts, int numVerts, MFace *mfaces, int numFaces,
 
 	if(fnors != faceNors_r)
 		MEM_freeN(fnors);
-	}
+}
 
 float (*mesh_getVertexCos(Mesh *me, int *numVerts_r))[3]
 {
@@ -1464,7 +1472,7 @@ void create_vert_edge_map(ListBase **map, IndexNode **mem, const MEdge *medge, c
 	(*map) = MEM_callocN(sizeof(ListBase) * totvert, "vert edge map");
 	(*mem) = MEM_callocN(sizeof(IndexNode) * totedge * 2, "vert edge map mem");
 	node = *mem;
-       
+
 	/* Find the users */
 	for(i = 0; i < totedge; ++i){
 		for(j = 0; j < 2; ++j, ++node) {
@@ -1494,7 +1502,7 @@ void mesh_pmv_free(PartialVisibility *pv)
 	MEM_freeN(pv);
 }
 
-void mesh_pmv_revert(Object *ob, Mesh *me)
+void mesh_pmv_revert(Mesh *me)
 {
 	if(me->pv) {
 		unsigned i;
@@ -1531,10 +1539,10 @@ void mesh_pmv_revert(Object *ob, Mesh *me)
 	}
 }
 
-void mesh_pmv_off(Object *ob, Mesh *me)
+void mesh_pmv_off(Mesh *me)
 {
-	if(ob && me->pv) {
-		mesh_pmv_revert(ob, me);
+	if(me->pv) {
+		mesh_pmv_revert(me);
 		MEM_freeN(me->pv);
 		me->pv= NULL;
 	}
@@ -1562,7 +1570,7 @@ int mesh_center_median(Mesh *me, float cent[3])
 	}
 	/* otherwise we get NAN for 0 verts */
 	if(me->totvert) {
-	mul_v3_fl(cent, 1.0f/(float)me->totvert);
+		mul_v3_fl(cent, 1.0f/(float)me->totvert);
 	}
 
 	return (me->totvert != 0);

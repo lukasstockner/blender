@@ -205,20 +205,20 @@ public:
 	void	initSeparatingDistance(const btVector3& separatingVector,btScalar separatingDistance,const btTransform& transA,const btTransform& transB)
 	{
 		m_separatingDistance = separatingDistance;
-		
+
 		if (m_separatingDistance>0.f)
 		{
 			m_separatingNormal = separatingVector;
 			
-		const btVector3& toPosA = transA.getOrigin();
-		const btVector3& toPosB = transB.getOrigin();
-		btQuaternion toOrnA = transA.getRotation();
-		btQuaternion toOrnB = transB.getRotation();
-		m_posA = toPosA;
-		m_posB = toPosB;
-		m_ornA = toOrnA;
-		m_ornB = toOrnB;
-	}
+			const btVector3& toPosA = transA.getOrigin();
+			const btVector3& toPosB = transB.getOrigin();
+			btQuaternion toOrnA = transA.getRotation();
+			btQuaternion toOrnB = transB.getRotation();
+			m_posA = toPosA;
+			m_posB = toPosB;
+			m_ornA = toOrnA;
+			m_ornB = toOrnB;
+		}
 	}
 
 };

@@ -42,7 +42,7 @@ static bNodeSocketType inputs[]= {
 };
 
 /* applies to render pipeline */
-static void exec(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void exec(void *data, bNode *node, bNodeStack **in, bNodeStack **UNUSED(out))
 {
 	TexCallData *cdata = (TexCallData *)data;
 	TexResult *target = cdata->target;
@@ -161,7 +161,7 @@ static void copy(bNode *orig, bNode *new)
 void register_node_type_tex_output(ListBase *lb)
 {
 	static bNodeType ntype;
-
+	
 	node_type_base(&ntype, TEX_NODE_OUTPUT, "Output", NODE_CLASS_OUTPUT, NODE_PREVIEW|NODE_OPTIONS,
 				   inputs, NULL);
 	node_type_size(&ntype, 150, 60, 200);

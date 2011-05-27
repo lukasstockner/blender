@@ -182,10 +182,8 @@ static void rna_Cache_idname_change(Main *bmain, Scene *scene, PointerRNA *ptr)
 		if(!pid)
 			return;
 
-		cache->flag |= (PTCACHE_BAKED|PTCACHE_DISK_CACHE|PTCACHE_SIMULATION_VALID);
-		cache->flag &= ~(PTCACHE_OUTDATED|PTCACHE_FRAMES_SKIPPED);
-
 		BKE_ptcache_load_external(pid);
+
 		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	}
 	else {
@@ -328,10 +326,10 @@ static char *rna_CollisionSettings_path(PointerRNA *ptr)
 #if 0
 	Object *ob= (Object*)ptr->id.data;
 	ModifierData *md = (ModifierData *)modifiers_findByType(ob, eModifierType_Collision);
-	
+
 	if(md) {
-	return BLI_sprintfN("modifiers[\"%s\"].settings", md->name);
-}
+		return BLI_sprintfN("modifiers[\"%s\"].settings", md->name);
+	}
 	else {
 		return BLI_strdup("");
 	}
@@ -822,7 +820,7 @@ static void rna_def_pointcache(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTCACHE_EXTERNAL);
 	RNA_def_property_ui_text(prop, "External", "Read cache from an external location");
 	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_idname_change");
-    
+
 	prop= RNA_def_property(srna, "use_library_path", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", PTCACHE_IGNORE_LIBPATH);
 	RNA_def_property_ui_text(prop, "Library Path", "Use this files path when library linked into another file.");
@@ -1466,7 +1464,7 @@ static void rna_def_softbody(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-	int matrix_dimsize[]= {3, 3};
+	const int matrix_dimsize[]= {3, 3};
 
 	
 	static EnumPropertyItem collision_type_items[] = {

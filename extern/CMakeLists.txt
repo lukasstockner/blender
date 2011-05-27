@@ -40,7 +40,7 @@ if(WITH_BINRELOC)
 endif()
 
 if(WITH_BUILTIN_GLEW)
-add_subdirectory(glew)
+	add_subdirectory(glew)
 endif()
 
 if(WITH_IMAGE_OPENJPEG AND (NOT UNIX OR APPLE))

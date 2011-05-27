@@ -74,22 +74,22 @@ void register_node_type_tex_valtorgb(ListBase *lb)
 	node_type_init(&ntype, valtorgb_init);
 	node_type_storage(&ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
 	node_type_exec(&ntype, valtorgb_exec);
-
+	
 	nodeRegisterType(lb, &ntype);
 }
 
 /* **************** RGBTOBW ******************** */
 static bNodeSocketType rgbtobw_in[]= {
-   {	SOCK_RGBA, 1, "Color",			0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 1.0f},
-   {	-1, 0, ""	}
+	{	SOCK_RGBA, 1, "Color",			0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 1.0f},
+	{	-1, 0, ""	}
 };
 static bNodeSocketType rgbtobw_out[]= {
-   {	SOCK_VALUE, 0, "Val",			0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
-   {	-1, 0, ""	}
+	{	SOCK_VALUE, 0, "Val",			0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
+	{	-1, 0, ""	}
 };
 
 
-static void rgbtobw_valuefn(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void rgbtobw_valuefn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **in, short thread)
 {
 	float cin[4];
 	tex_input_rgba(cin, in[0], p, thread);
@@ -105,12 +105,12 @@ static void rgbtobw_exec(void *data, bNode *node, bNodeStack **in, bNodeStack **
 void register_node_type_tex_rgbtobw(ListBase *lb)
 {
 	static bNodeType ntype;
-
+	
 	node_type_base(&ntype, TEX_NODE_RGBTOBW, "RGB to BW", NODE_CLASS_CONVERTOR, 0,
 				   rgbtobw_in, rgbtobw_out);
 	node_type_size(&ntype, 80, 40, 120);
 	node_type_exec(&ntype, rgbtobw_exec);
-
+	
 	nodeRegisterType(lb, &ntype);
 }
 

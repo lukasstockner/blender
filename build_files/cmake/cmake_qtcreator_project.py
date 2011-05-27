@@ -96,22 +96,22 @@ def create_qtc_project_main():
 def create_qtc_project_python():
     files = list(source_list(SOURCE_DIR, filename_check=is_py))
     files_rel = [relpath(f, start=PROJECT_DIR) for f in files]
-files_rel.sort()
+    files_rel.sort()
 
     # --- qtcreator specific, simple format
     PROJECT_NAME = "Blender_Python"
     FILE_NAME = PROJECT_NAME.lower()
     f = open(join(PROJECT_DIR, "%s.files" % FILE_NAME), 'w')
-f.write("\n".join(files_rel))
+    f.write("\n".join(files_rel))
 
     qtc_prj = join(PROJECT_DIR, "%s.creator" % FILE_NAME)
-f = open(qtc_prj, 'w')
-f.write("[General]\n")
+    f = open(qtc_prj, 'w')
+    f.write("[General]\n")
 
     qtc_cfg = join(PROJECT_DIR, "%s.config" % FILE_NAME)
-if not exists(qtc_cfg):
-	f = open(qtc_cfg, 'w')
-	f.write("// ADD PREDEFINED MACROS HERE!\n")
+    if not exists(qtc_cfg):
+        f = open(qtc_cfg, 'w')
+        f.write("// ADD PREDEFINED MACROS HERE!\n")
 
     print("Python project file written to:  %s" % qtc_prj)
 

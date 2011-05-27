@@ -114,6 +114,8 @@ static void deformMatricesEM(ModifierData *UNUSED(md), Object *ob,
 	KeyBlock *kb= ob_get_keyblock(ob);
 	float scale[3][3];
 
+	(void)vertexCos; /* unused */
+
 	if(kb && kb->totelem==numVerts && kb!=key->refkey) {
 		int a;
 		scale_m3_fl(scale, kb->curval);

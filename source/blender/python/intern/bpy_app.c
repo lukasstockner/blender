@@ -48,11 +48,15 @@ extern char build_time[];
 extern char build_rev[];
 extern char build_platform[];
 extern char build_type[];
+extern char build_cflags[];
+extern char build_cxxflags[];
+extern char build_linkflags[];
+extern char build_system[];
 #endif
 
 static PyTypeObject BlenderAppType;
 
-static PyStructSequence_Field app_info_fields[] = {
+static PyStructSequence_Field app_info_fields[]= {
 	{(char *)"version", (char *)"The Blender version as a tuple of 3 numbers. eg. (2, 50, 11)"},
 	{(char *)"version_string", (char *)"The Blender version formatted as a string"},
 	{(char *)"version_char", (char *)"The Blender version character (for minor releases)"},
@@ -73,7 +77,7 @@ static PyStructSequence_Field app_info_fields[] = {
 	{NULL}
 };
 
-static PyStructSequence_Desc app_info_desc = {
+static PyStructSequence_Desc app_info_desc= {
 	(char *)"bpy.app",     /* name */
 	(char *)"This module contains application values that remain unchanged during runtime.",    /* doc */
 	app_info_fields,    /* fields */
@@ -88,9 +92,9 @@ static PyObject *make_app_info(void)
 	extern char bprogname[]; /* argv[0] from creator.c */
 
 	PyObject *app_info;
-	int pos = 0;
+	int pos= 0;
 
-	app_info = PyStructSequence_New(&BlenderAppType);
+	app_info= PyStructSequence_New(&BlenderAppType);
 	if (app_info == NULL) {
 		return NULL;
 	}
@@ -120,7 +124,15 @@ static PyObject *make_app_info(void)
 	SetStrItem(build_rev);
 	SetStrItem(build_platform);
 	SetStrItem(build_type);
+	SetStrItem(build_cflags);
+	SetStrItem(build_cxxflags);
+	SetStrItem(build_linkflags);
+	SetStrItem(build_system);
 #else
+	SetStrItem("Unknown");
+	SetStrItem("Unknown");
+	SetStrItem("Unknown");
+	SetStrItem("Unknown");
 	SetStrItem("Unknown");
 	SetStrItem("Unknown");
 	SetStrItem("Unknown");
@@ -211,10 +223,10 @@ static void py_struct_seq_getset_init(void)
 {
 	/* tricky dynamic members, not to py-spec! */
 	PyGetSetDef *getset;
-	
+
 	for(getset= bpy_app_getsets; getset->name; getset++) {
 		PyDict_SetItemString(BlenderAppType.tp_dict, getset->name, PyDescr_NewGetSet(&BlenderAppType, getset));
-}
+	}
 }
 /* end dynamic bpy.app */
 
@@ -222,15 +234,15 @@ static void py_struct_seq_getset_init(void)
 PyObject *BPY_app_struct(void)
 {
 	PyObject *ret;
-
+	
 	PyStructSequence_InitType(&BlenderAppType, &app_info_desc);
 
 	ret= make_app_info();
 
 	/* prevent user from creating new instances */
-	BlenderAppType.tp_init = NULL;
-	BlenderAppType.tp_new = NULL;
-	
+	BlenderAppType.tp_init= NULL;
+	BlenderAppType.tp_new= NULL;
+
 	/* kindof a hack ontop of PyStructSequence */
 	py_struct_seq_getset_init();
 

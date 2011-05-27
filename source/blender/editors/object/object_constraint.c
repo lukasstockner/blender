@@ -59,7 +59,7 @@
 #include "BKE_report.h"
 #include "BIK_api.h"
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 #include "BPY_extern.h"
 #endif
 
@@ -161,7 +161,7 @@ static void validate_pyconstraint_cb (void *arg1, void *arg2)
 	data->text = text;
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 /* this returns a string for the list of usable pyconstraint script names */
 static char *buildmenu_pyconstraints (Text *con_text, int *pyconindex)
 {
@@ -202,13 +202,16 @@ static char *buildmenu_pyconstraints (Text *con_text, int *pyconindex)
 	
 	return str;
 }
-#endif /* DISABLE_PYTHON */
+#endif /* WITH_PYTHON */
 
 #if 0 // UNUSED, until pyconstraints are added back.
 /* this callback gets called when the 'refresh' button of a pyconstraint gets pressed */
 static void update_pyconstraint_cb (void *arg1, void *arg2)
 {
-#ifndef DISABLE_PYTHON
+#ifndef WITH_PYTHON
+	(void)arg1; /* unused */
+	(void)arg2; /* unused */
+#else
 	Object *owner= (Object *)arg1;
 	bConstraint *con= (bConstraint *)arg2;
 	if (owner && con)
@@ -416,16 +419,16 @@ static void test_constraints (Object *owner, bPoseChannel *pchan)
 					}
 					else if (ct->tar == owner) {
 						if (type == CONSTRAINT_OBTYPE_BONE) {
-						if (!get_named_bone(get_armature(owner), ct->subtarget)) {
+							if (!get_named_bone(get_armature(owner), ct->subtarget)) {
 								/* bone must exist in armature... */
 								// TODO: clear subtarget?
-							curcon->flag |= CONSTRAINT_DISABLE;
-						}
+								curcon->flag |= CONSTRAINT_DISABLE;
+							}
 							else if (strcmp(pchan->name, ct->subtarget) == 0) {
 								/* cannot target self */
 								ct->subtarget[0] = '\0';
 								curcon->flag |= CONSTRAINT_DISABLE;
-					}
+							}
 						}
 						else {
 							/* cannot use self as target */
@@ -489,11 +492,11 @@ static EnumPropertyItem constraint_owner_items[] = {
 static int edit_constraint_poll_generic(bContext *C, StructRNA *rna_type)
 {
 	PointerRNA ptr= CTX_data_pointer_get_type(C, "constraint", rna_type);
-	Object *ob= (ptr.id.data)?ptr.id.data:ED_object_active_context(C);
-	
+	Object *ob= (ptr.id.data) ? ptr.id.data : ED_object_active_context(C);
+
 	if (!ob || ob->id.lib) return 0;
 	if (ptr.id.data && ((ID*)ptr.id.data)->lib) return 0;
-	
+
 	return 1;
 }
 
@@ -555,7 +558,7 @@ static bConstraint *edit_constraint_property_get(wmOperator *op, Object *ob, int
 			//if (G.f & G_DEBUG)
 			//printf("edit_constraint_property_get: No active bone for object '%s'\n", (ob)? ob->id.name+2 : "<None>");
 			return NULL;
-	}
+		}
 	}
 	else {
 		//if (G.f & G_DEBUG)
@@ -565,7 +568,7 @@ static bConstraint *edit_constraint_property_get(wmOperator *op, Object *ob, int
 	
 	con = constraints_findByName(list, constraint_name);
 	printf("constraint found = %p, %s\n", (void *)con, (con)?con->name:"<Not found>");
-	
+
 	if (con && (type != 0) && (con->type != type))
 		con = NULL;
 	
@@ -759,6 +762,11 @@ static int childof_clear_inverse_exec (bContext *C, wmOperator *op)
 	bConstraint *con = edit_constraint_property_get(op, ob, CONSTRAINT_TYPE_CHILDOF);
 	bChildOfConstraint *data= (con) ? (bChildOfConstraint *)con->data : NULL;
 	
+	if(data==NULL) {
+		BKE_report(op->reports, RPT_ERROR, "Childof constraint not found.");
+		return OPERATOR_CANCELLED;
+	}
+	
 	/* simply clear the matrix */
 	unit_m4(data->invmat);
 	
@@ -837,7 +845,7 @@ static int constraint_delete_exec (bContext *C, wmOperator *UNUSED(op))
 	bConstraint *con= ptr.data;
 	ListBase *lb = get_constraint_lb(ob, con, NULL);
 	const short is_ik= ELEM(con->type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK);
-	
+
 	/* free the constraint */
 	if (remove_constraint(lb, con)) {
 		/* there's no active constraint now, so make sure this is the case */
@@ -1069,7 +1077,7 @@ static int pose_constraint_copy_exec(bContext *C, wmOperator *op)
 			copy_constraints(&chan->constraints, &pchan->constraints, TRUE);
 			/* update flags (need to add here, not just copy) */
 			chan->constflag |= pchan->constflag;
-	}
+		}
 	}
 	CTX_DATA_END;
 	
@@ -1280,12 +1288,12 @@ static int constraint_add_exec(bContext *C, wmOperator *op, Object *ob, ListBase
 	bPoseChannel *pchan;
 	bConstraint *con;
 	
-	if(list == &ob->constraints) {
+	if (list == &ob->constraints) {
 		pchan= NULL;
 	}
 	else {
 		pchan= get_active_posechannel(ob);
-
+		
 		/* ensure not to confuse object/pose adding */
 		if (pchan == NULL) {
 			BKE_report(op->reports, RPT_ERROR, "No active pose bone to add a constraint to.");
@@ -1338,7 +1346,7 @@ static int constraint_add_exec(bContext *C, wmOperator *op, Object *ob, ListBase
 	switch (type) {
 		case CONSTRAINT_TYPE_PYTHON: // FIXME: this code is not really valid anymore
 		{
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 			char *menustr;
 			int scriptint= 0;
 			/* popup a list of usable scripts */
@@ -1362,11 +1370,11 @@ static int constraint_add_exec(bContext *C, wmOperator *op, Object *ob, ListBase
 	
 	/* make sure all settings are valid - similar to above checks, but sometimes can be wrong */
 	object_test_constraints(ob);
-	
+
 	if (pchan)
 		update_pose_constraint_flags(ob->pose);
-	
-	
+
+
 	/* force depsgraph to get recalculated since new relationships added */
 	DAG_scene_sort(bmain, scene);		/* sort order of objects */
 	

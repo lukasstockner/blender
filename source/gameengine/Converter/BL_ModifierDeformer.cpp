@@ -67,7 +67,7 @@ extern "C"{
 	#include "BKE_lattice.h"
 	#include "BKE_modifier.h"
 }
-
+ 
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -134,8 +134,8 @@ bool BL_ModifierDeformer::HasArmatureDeformer(Object *ob)
 		return false;
 
 	ModifierData* md = (ModifierData*)ob->modifiers.first;
-		if (md->type == eModifierType_Armature )
-			return true;
+	if(md->type == eModifierType_Armature )
+		return true;
 
 	return false;
 }

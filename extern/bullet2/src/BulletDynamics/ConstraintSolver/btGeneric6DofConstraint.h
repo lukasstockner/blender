@@ -252,12 +252,12 @@ This brings support for limit parameters and motors. </li>
 	<td><b>MAX ANGLE</b></td>
 </tr><tr>
 	<td>X</td>
-		<td>-PI</td>
-		<td>PI</td>
+	<td>-PI</td>
+	<td>PI</td>
 </tr><tr>
 	<td>Y</td>
-		<td>-PI/2</td>
-		<td>PI/2</td>
+	<td>-PI/2</td>
+	<td>PI/2</td>
 </tr><tr>
 	<td>Z</td>
 	<td>-PI</td>
@@ -351,7 +351,7 @@ public:
 
     btGeneric6DofConstraint(btRigidBody& rbA, btRigidBody& rbB, const btTransform& frameInA, const btTransform& frameInB ,bool useLinearReferenceFrameA);
     btGeneric6DofConstraint(btRigidBody& rbB, const btTransform& frameInB, bool useLinearReferenceFrameB);
-
+    
 	//! Calcs global transform of the offsets
 	/*!
 	Calcs the global transform for the joint offset for body A an B, and also calcs the agle differences between the bodies.
@@ -359,7 +359,7 @@ public:
 	*/
     void calculateTransforms(const btTransform& transA,const btTransform& transB);
 
-    void calculateTransforms();
+	void calculateTransforms();
 
 	//! Gets the global transform of the offset for body A
     /*!
@@ -452,10 +452,10 @@ public:
 		linearLower = m_linearLimits.m_lowerLimit;
 	}
 
-    void	setLinearUpperLimit(const btVector3& linearUpper)
-    {
-    	m_linearLimits.m_upperLimit = linearUpper;
-    }
+	void	setLinearUpperLimit(const btVector3& linearUpper)
+	{
+		m_linearLimits.m_upperLimit = linearUpper;
+	}
 
 	void	getLinearUpperLimit(btVector3& linearUpper)
 	{
@@ -565,13 +565,13 @@ struct btGeneric6DofConstraintData
 	btTypedConstraintData	m_typeConstraintData;
 	btTransformFloatData m_rbAFrame; // constraint axii. Assumes z is hinge axis.
 	btTransformFloatData m_rbBFrame;
-
+	
 	btVector3FloatData	m_linearUpperLimit;
 	btVector3FloatData	m_linearLowerLimit;
 
 	btVector3FloatData	m_angularUpperLimit;
 	btVector3FloatData	m_angularLowerLimit;
-
+	
 	int	m_useLinearReferenceFrameA;
 	int m_useOffsetForConstraintFrame;
 };

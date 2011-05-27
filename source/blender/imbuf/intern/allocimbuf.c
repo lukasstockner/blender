@@ -84,13 +84,13 @@ void imb_freerectfloatImBuf(ImBuf *ibuf)
 void imb_freerectImBuf(ImBuf *ibuf)
 {
 	if(ibuf==NULL) return;
-	
+
 	if(ibuf->rect && (ibuf->mall & IB_rect))
 		MEM_freeN(ibuf->rect);
 	ibuf->rect= NULL;
 	
 	imb_freemipmapImBuf(ibuf);
-	
+
 	ibuf->mall &= ~IB_rect;
 }
 
@@ -300,7 +300,7 @@ short imb_addrectImBuf(ImBuf *ibuf)
 	int size;
 
 	if(ibuf==NULL) return FALSE;
-
+	
 	/* don't call imb_freerectImBuf, it frees mipmaps, this call is used only too give float buffers display */
 	if(ibuf->rect && (ibuf->mall & IB_rect))
 		MEM_freeN(ibuf->rect);
@@ -330,7 +330,7 @@ short imb_addtilesImBuf(ImBuf *ibuf)
 	return (ibuf->tiles != NULL);
 }
 
-ImBuf *IMB_allocImBuf(unsigned int x, unsigned int y, uchar d, unsigned int flags, uchar bitmap) /* XXX bitmap argument is deprecated */
+ImBuf *IMB_allocImBuf(unsigned int x, unsigned int y, uchar d, unsigned int flags)
 {
 	ImBuf *ibuf;
 
@@ -391,7 +391,7 @@ ImBuf *IMB_dupImBuf(ImBuf *ibuf1)
 	y = ibuf1->y;
 	if(ibuf1->flags & IB_fields) y *= 2;
 	
-	ibuf2 = IMB_allocImBuf(x, y, ibuf1->depth, flags, 0);
+	ibuf2 = IMB_allocImBuf(x, y, ibuf1->depth, flags);
 	if(ibuf2 == NULL) return NULL;
 
 	if(flags & IB_rect)

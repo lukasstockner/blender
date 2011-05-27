@@ -826,7 +826,7 @@ static void rna_def_path(BlenderRNA *brna, StructRNA *srna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", CU_STRETCH);
 	RNA_def_property_ui_text(prop, "Stretch", "Option for curve-deform: makes deformed child to stretch along entire path");
 	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
-	
+
 	prop= RNA_def_property(srna, "use_deform_bounds", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", CU_DEFORM_BOUNDS_OFF);
 	RNA_def_property_ui_text(prop, "Bounds Clamp", "Use the mesh bounds to clamp the deformation");
@@ -999,7 +999,7 @@ static void rna_def_font(BlenderRNA *brna, StructRNA *srna)
 	RNA_def_property_pointer_sdna(prop, NULL, "curinfo");
 	RNA_def_property_ui_text(prop, "Edit Format", "Editing settings character formatting");
 	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
-	
+
 	/* flags */
 	prop= RNA_def_property(srna, "use_fast_edit", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", CU_FAST);
@@ -1369,7 +1369,7 @@ static void rna_def_curve(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "texflag", CU_AUTOSPACE);
 	RNA_def_property_ui_text(prop, "Auto Texture Space", "Adjusts active object's texture space automatically when transforming object");
 	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, "rna_Curve_texspace_set");
-	
+
 	prop= RNA_def_property(srna, "texspace_location", PROP_FLOAT, PROP_TRANSLATION);
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_ui_text(prop, "Texture Space Location", "Texture space location");

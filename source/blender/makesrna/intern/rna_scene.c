@@ -158,6 +158,8 @@ EnumPropertyItem image_type_items[] = {
 #include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
 
+#include "RNA_access.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_threads.h"
@@ -998,7 +1000,7 @@ static void rna_TimeLine_remove(Scene *scene, ReportList *reports, TimeMarker *m
 static KeyingSet *rna_Scene_keying_set_new(Scene *sce, ReportList *reports, const char name[])
 {
 	KeyingSet *ks= NULL;
-	
+
 	/* call the API func, and set the active keyingset index */
 	ks= BKE_keyingset_add(&sce->keyingsets, name, KEYINGSET_ABSOLUTE, 0);
 	
@@ -1019,7 +1021,7 @@ static void rna_def_transform_orientation(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	int matrix_dimsize[]= {3, 3};
+	const int matrix_dimsize[]= {3, 3};
 	
 	srna= RNA_def_struct(brna, "TransformOrientation", NULL);
 	
@@ -1168,10 +1170,10 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	
 	prop= RNA_def_property(srna, "use_snap_project", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "snap_flag", SCE_SNAP_PROJECT);
-	RNA_def_property_ui_text(prop, "Project Individual Elements", "Project vertices on the surface of other objects");
+	RNA_def_property_ui_text(prop, "Project Individual Elements", "Project individual elements on the surface of other objects");
 	RNA_def_property_ui_icon(prop, ICON_RETOPO, 0);
 	RNA_def_property_update(prop, NC_SCENE|ND_TOOLSETTINGS, NULL); /* header redraw */
-
+	
 	/* Grease Pencil */
 	prop = RNA_def_property(srna, "use_grease_pencil_sessions", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "gpencil_flags", GP_TOOL_FLAG_PAINTSESSIONS_ON);
@@ -1192,7 +1194,7 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	prop= RNA_def_property(srna, "use_record_with_nla", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "autokey_flag", ANIMRECORD_FLAG_WITHNLA);
 	RNA_def_property_ui_text(prop, "Layered", "Add a new NLA Track + Strip for every loop/pass made over the animation to allow non-destructive tweaking");
-
+	
 	prop= RNA_def_property(srna, "use_keyframe_insert_keyingset", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "autokey_flag", AUTOKEY_FLAG_ONLYKEYINGSET);
 	RNA_def_property_ui_text(prop, "Auto Keyframe Insert Keying Set", "Automatic keyframe insertion using active Keying Set only");
@@ -1338,7 +1340,7 @@ static void rna_def_unit_settings(BlenderRNA  *brna)
 	RNA_def_property_enum_items(prop, unit_systems);
 	RNA_def_property_ui_text(prop, "Unit System", "The unit system to use for button display");
 	RNA_def_property_update(prop, NC_WINDOW, NULL);
-
+	
 	prop= RNA_def_property(srna, "system_rotation", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, rotation_units);
 	RNA_def_property_ui_text(prop, "Rotation Units", "Unit to use for displaying/editing rotation values");
@@ -2747,7 +2749,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	 RNA_def_property_boolean_funcs(prop, "rna_RenderSettings_full_sample_get", NULL);
 	RNA_def_property_ui_text(prop, "Full Sample","Save for every anti-aliasing sample the entire RenderLayer results. This solves anti-aliasing issues with compositing");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
-	
+
 	prop= RNA_def_property(srna, "display_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "displaymode");
 	RNA_def_property_enum_items(prop, display_mode_items);
@@ -2832,7 +2834,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "stamp", R_STAMP_CAMERA);
 	RNA_def_property_ui_text(prop, "Stamp Camera", "Include the name of the active camera in image metadata");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
-	
+
 	prop= RNA_def_property(srna, "use_stamp_lens", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "stamp", R_STAMP_CAMERALENS);
 	RNA_def_property_ui_text(prop, "Stamp Lens", "Include the name of the active cameras lens in image metadata");
@@ -3101,7 +3103,7 @@ static void rna_def_scene_keying_sets(BlenderRNA *brna, PropertyRNA *cprop)
 	/* returns the new KeyingSet */
 	parm= RNA_def_pointer(func, "keyingset", "KeyingSet", "", "Newly created Keying Set.");
 	RNA_def_function_return(func, parm);
-	
+
 	prop= RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "KeyingSet");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
@@ -3201,6 +3203,7 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_collection_sdna(prop, NULL, "base", NULL);
 	RNA_def_property_struct_type(prop, "ObjectBase");
 	RNA_def_property_ui_text(prop, "Bases", "");
+	RNA_def_property_collection_funcs(prop, 0, 0, 0, 0, 0, 0, "rna_Scene_object_bases_lookup_string");
 	rna_def_scene_bases(brna, prop);
 
 	prop= RNA_def_property(srna, "objects", PROP_COLLECTION, PROP_NONE);

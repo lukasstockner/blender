@@ -822,7 +822,7 @@ static void imp2radangle(float A, float B, float C, float F, float* a, float* b,
 static void ewa_eval(TexResult* texr, ImBuf* ibuf, float fx, float fy, afdata_t* AFD)
 {
 	// scaling dxt/dyt by full resolution can cause overflow because of huge A/B/C and esp. F values,
-	// scaling by aspect ratio alone does the opposite, so try something inbetween instead...
+	// scaling by aspect ratio alone does the opposite, so try something in between instead...
 	const float ff2 = ibuf->x, ff = sqrtf(ff2), q = ibuf->y / ff;
 	const float Ux = AFD->dxt[0]*ff, Vx = AFD->dxt[1]*q, Uy = AFD->dyt[0]*ff, Vy = AFD->dyt[1]*q;
 	float A = Vx*Vx + Vy*Vy;
@@ -959,7 +959,7 @@ static void alpha_clip_aniso(ImBuf *ibuf, float minx, float miny, float maxx, fl
 		rf.xmax= maxx*(ibuf->x);
 		rf.ymin= miny*(ibuf->y);
 		rf.ymax= maxy*(ibuf->y);
-   
+
 		alphaclip = clipx_rctf(&rf, 0.0, (float)(ibuf->x));
 		alphaclip*= clipy_rctf(&rf, 0.0, (float)(ibuf->y));
 		alphaclip= MAX2(alphaclip, 0.0f);
@@ -1036,7 +1036,7 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, 
 
 	/* mipmap test */
 	image_mipmap_test(tex, ibuf);
-
+	
 	if ((tex->imaflag & TEX_USEALPHA) && ((tex->imaflag & TEX_CALCALPHA) == 0)) texres->talpha = 1;
 	texr.talpha = texres->talpha;
 
@@ -1421,11 +1421,11 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, f
 		ibuf= BKE_image_get_ibuf(ima, &tex->iuser); 
 	}
 	if(ibuf==NULL || (ibuf->rect==NULL && ibuf->rect_float==NULL))
-	   return retval;
+		return retval;
 	
 	/* mipmap test */
 	image_mipmap_test(tex, ibuf);
-			
+
 	if(tex->imaflag & TEX_USEALPHA) {
 		if(tex->imaflag & TEX_CALCALPHA);
 		else texres->talpha= 1;
@@ -1467,8 +1467,8 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, f
 	
 	if(tex->imaflag & TEX_FILTER_MIN) {
 		/* make sure the filtersize is minimal in pixels (normal, ref map can have miniature pixel dx/dy) */
-		 float addval= (0.5f * tex->filtersize) / (float) MIN2(ibuf->x, ibuf->y);
- 		
+		float addval= (0.5f * tex->filtersize) / (float) MIN2(ibuf->x, ibuf->y);
+
 		if(addval > minx)
 			minx= addval;
 		if(addval > miny)
@@ -1780,7 +1780,7 @@ void image_sample(Image *ima, float fx, float fy, float dx, float dy, float *res
 	
 	if( (R.flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) )
 		ibuf->rect+= (ibuf->x*ibuf->y);
-	
+
 	texres.talpha= 1; /* boxsample expects to be initialized */
 	boxsample(ibuf, fx, fy, fx+dx, fy+dy, &texres, 0, 1);
 	result[0]= texres.tr;

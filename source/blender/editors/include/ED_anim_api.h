@@ -339,7 +339,7 @@ typedef enum eAnimChannels_SetFlag {
 
 /* types of settings for AnimChannels */
 typedef enum eAnimChannel_Settings {
-	 ACHANNEL_SETTING_SELECT = 0,
+	ACHANNEL_SETTING_SELECT = 0,
 	ACHANNEL_SETTING_PROTECT,			// warning: for drawing UI's, need to check if this is off (maybe inverse this later)
 	ACHANNEL_SETTING_MUTE,
 	ACHANNEL_SETTING_EXPAND,
@@ -585,7 +585,7 @@ void ED_keymap_animchannels(struct wmKeyConfig *keyconf);
 	/* generic time editing */
 void ED_operatortypes_anim(void);
 void ED_keymap_anim(struct wmKeyConfig *keyconf);
-
+	
 	/* space_graph */
 void ED_operatormacros_graph(void);
 	/* space_action */

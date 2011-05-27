@@ -61,9 +61,9 @@ extern "C" {
 
 void BPY_pyconstraint_exec(struct bPythonConstraint *con, struct bConstraintOb *cob, struct ListBase *targets);
 //	void BPY_pyconstraint_settings(void *arg1, void *arg2);
-	void BPY_pyconstraint_target(struct bPythonConstraint *con, struct bConstraintTarget *ct);
-	void BPY_pyconstraint_update(struct Object *owner, struct bConstraint *con);
-	int BPY_is_pyconstraint(struct Text *text);
+void BPY_pyconstraint_target(struct bPythonConstraint *con, struct bConstraintTarget *ct);
+void BPY_pyconstraint_update(struct Object *owner, struct bConstraint *con);
+int BPY_is_pyconstraint(struct Text *text);
 //	void BPY_free_pyconstraint_links(struct Text *text);
 //
 void BPY_python_start(int argc, const char **argv);
@@ -75,8 +75,8 @@ void BPY_python_end( void );
 //
 //	int BPY_Err_getLinenumber( void );
 //	const char *BPY_Err_getFilename( void );
-	
-	/* 2.5 UI Scripts */
+
+/* 2.5 UI Scripts */
 int		BPY_filepath_exec(struct bContext *C, const char *filepath, struct ReportList *reports);
 int		BPY_text_exec(struct bContext *C, struct Text *text, struct ReportList *reports, const short do_jump);
 void	BPY_text_free_code(struct Text *text);
@@ -89,7 +89,7 @@ float	BPY_driver_exec(struct ChannelDriver *driver);
 int		BPY_button_exec(struct bContext *C, const char *expr, double *value, const short verbose);
 int		BPY_string_exec(struct bContext *C, const char *expr);
 
-	void BPY_DECREF(void *pyob_ptr);	/* Py_DECREF() */
+void	BPY_DECREF(void *pyob_ptr);	/* Py_DECREF() */
 int		BPY_context_member_get(struct bContext *C, const char *member, struct bContextDataResult *result);
 void	BPY_context_set(struct bContext *C);
 

@@ -33,7 +33,7 @@ set(INC
 	../../../intern/guardedalloc
 	../../../source/blender/makesdna
 	../../../source/blender/blenloader
-	../../../source/blender/makesrna  
+	../../../source/blender/makesrna
 	../../../source/blender/blenkernel
 )
 

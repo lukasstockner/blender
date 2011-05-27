@@ -102,11 +102,11 @@ static void graphview_cursor_setprops(bContext *C, wmOperator *op, wmEvent *even
 {
 	ARegion *ar= CTX_wm_region(C);
 	float viewx, viewy;
-	
+
 	/* abort if not active region (should not really be possible) */
 	if (ar == NULL)
 		return;
-	
+
 	/* convert from region coordinates to View2D 'tot' space */
 	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
 	

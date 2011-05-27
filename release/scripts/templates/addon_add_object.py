@@ -22,14 +22,14 @@ def add_object(self, context):
     scale_x = self.scale.x
     scale_y = self.scale.y
 
-    verts = [Vector((-1 * scale_x,  1 * scale_y, 0)),
-             Vector(( 1 * scale_x,  1 * scale_y, 0)),
-             Vector(( 1 * scale_x, -1 * scale_y, 0)),
+    verts = [Vector((-1 * scale_x, 1 * scale_y, 0)),
+             Vector((1 * scale_x, 1 * scale_y, 0)),
+             Vector((1 * scale_x, -1 * scale_y, 0)),
              Vector((-1 * scale_x, -1 * scale_y, 0)),
             ]
 
     edges = []
-    faces = [[0,1,2,3]]
+    faces = [[0, 1, 2, 3]]
 
     mesh = bpy.data.meshes.new(name='New Object Mesh')
     mesh.from_pydata(verts, edges, faces)
@@ -51,9 +51,9 @@ class OBJECT_OT_add_object(bpy.types.Operator, AddObjectHelper):
                                 description='scaling')
 
     def execute(self, context):
- 
+
         add_object(self, context)
- 
+
         return {'FINISHED'}
 
 

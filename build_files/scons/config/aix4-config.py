@@ -149,6 +149,9 @@ BF_REDCODE_LIB = ''
 BF_REDCODE_INC = '${BF_REDCODE}/include'
 BF_REDCODE_LIBPATH='${BF_REDCODE}/lib'
 
+#On-Surface Brush
+WITH_BF_ONSURFACEBRUSH = True
+
 # Mesa Libs should go here if your using them as well....
 WITH_BF_STATICOPENGL = 'false'
 BF_OPENGL = '/usr'
@@ -190,7 +193,7 @@ BF_PROFILE_FLAGS = ['-pg','-g']
 BF_PROFILE = 'false'
 
 BF_DEBUG = 'false'
-BF_DEBUG_FLAGS = '-g'
+BF_DEBUG_CCFLAGS = ['-g']
 
 BF_BUILDDIR = '../build/aix4'
 BF_INSTALLDIR='../install/aix4'

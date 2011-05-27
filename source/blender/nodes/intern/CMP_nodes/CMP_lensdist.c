@@ -45,21 +45,21 @@ static bNodeSocketType cmp_node_lensdist_out[]= {
 };
 
 /* assumes *dst is type RGBA */
-static void lensDistort(CompBuf* dst, CompBuf* src, float kr, float kg, float kb, int jit, int proj, int fit)
+static void lensDistort(CompBuf *dst, CompBuf *src, float kr, float kg, float kb, int jit, int proj, int fit)
 {
 	int x, y, z;
 	const float cx = 0.5f*(float)dst->x, cy = 0.5f*(float)dst->y;
 
 	if (proj) {
 		// shift
-		CompBuf* tsrc = dupalloc_compbuf(src);
+		CompBuf *tsrc = dupalloc_compbuf(src);
 		
 		for (z=0; z<tsrc->type; ++z)
 			IIR_gauss(tsrc, (kr+0.5f)*(kr+0.5f), z, 1);
 		kr *= 20.f;
 		
 		for (y=0; y<dst->y; y++) {
-			fRGB* colp = (fRGB*)&dst->rect[y*dst->x*dst->type];
+			fRGB *colp = (fRGB*)&dst->rect[y*dst->x*dst->type];
 			const float v = (y + 0.5f)/(float)dst->y;
 			
 			for (x=0; x<dst->x; x++) {
@@ -91,7 +91,7 @@ static void lensDistort(CompBuf* dst, CompBuf* src, float kr, float kg, float kb
 		kr *= 4.f, kg *= 4.f, kb *= 4.f;
 
 		for (y=0; y<dst->y; y++) {
-			fRGB* colp = (fRGB*)&dst->rect[y*dst->x*dst->type];
+			fRGB *colp = (fRGB*)&dst->rect[y*dst->x*dst->type];
 			const float v = sc*((y + 0.5f) - cy)/cy;
 			
 			for (x=0; x<dst->x; x++) {
@@ -164,10 +164,10 @@ static void lensDistort(CompBuf* dst, CompBuf* src, float kr, float kg, float kb
 }
 
 
-static void node_composit_exec_lensdist(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_lensdist(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	CompBuf *new, *img = in[0]->data;
-	NodeLensDist* nld = node->storage;
+	NodeLensDist *nld = node->storage;
 	const float k = MAX2(MIN2(in[1]->vec[0], 1.f), -0.999f);
 	// smaller dispersion range for somewhat more control
 	const float d = 0.25f*MAX2(MIN2(in[2]->vec[0], 1.f), 0.f);

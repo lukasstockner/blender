@@ -38,7 +38,7 @@
 AUD_SndFileFactory::AUD_SndFileFactory(std::string filename) :
 	m_filename(filename)
 {
-	}
+}
 
 AUD_SndFileFactory::AUD_SndFileFactory(const data_t* buffer, int size) :
 	m_buffer(new AUD_Buffer(size))

@@ -70,7 +70,7 @@ DO_INLINE float colorbalance_cdl(float in, float offset, float power, float slop
 
 /* note: lift_lgg is just 2-lift, gamma_inv is 1.0/gamma */
 DO_INLINE float colorbalance_lgg(float in, float lift_lgg, float gamma_inv, float gain)
-{	
+{
 	/* 1:1 match with the sequencer with linear/srgb conversions, the conversion isnt pretty
 	 * but best keep it this way, sice testing for durian shows a similar calculation
 	 * without lin/srgb conversions gives bad results (over-saturated shadows) with colors
@@ -79,7 +79,7 @@ DO_INLINE float colorbalance_lgg(float in, float lift_lgg, float gamma_inv, floa
 
 	/* prevent NaN */
 	if (x < 0.f) x = 0.f;
-	
+
 	return powf(srgb_to_linearrgb(x), gamma_inv);
 }
 
@@ -125,7 +125,7 @@ static void do_colorbalance_lgg_fac(bNode *node, float* out, float *in, float *f
 	out[3] = in[3];
 }
 
-static void node_composit_exec_colorbalance(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_colorbalance(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	CompBuf *cbuf= in[1]->data;
 	CompBuf *stackbuf;

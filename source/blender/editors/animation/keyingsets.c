@@ -26,7 +26,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/editors/animation/keyingsets.c
  *  \ingroup edanimation
  */
@@ -330,7 +330,6 @@ static int add_keyingset_button_exec (bContext *C, wmOperator *op)
 		ks= BLI_findlink(&scene->keyingsets, scene->active_keyingset-1);
 	
 	/* try to add to keyingset using property retrieved from UI */
-	memset(&ptr, 0, sizeof(PointerRNA));
 	uiContextActiveProperty(C, &ptr, &prop, &index);
 	
 	/* check if property is able to be added */
@@ -416,7 +415,6 @@ static int remove_keyingset_button_exec (bContext *C, wmOperator *op)
 		ks= BLI_findlink(&scene->keyingsets, scene->active_keyingset-1);
 	
 	/* try to add to keyingset using property retrieved from UI */
-	memset(&ptr, 0, sizeof(PointerRNA));
 	uiContextActiveProperty(C, &ptr, &prop, &index);
 
 	if (ptr.id.data && ptr.data && prop) {
@@ -427,7 +425,7 @@ static int remove_keyingset_button_exec (bContext *C, wmOperator *op)
 			
 			/* try to find a path matching this description */
 			ksp= BKE_keyingset_find_path(ks, ptr.id.data, ks->name, path, index, KSP_GROUP_KSNAME);
-			
+
 			if (ksp) {
 				BKE_keyingset_free_path(ks, ksp);
 				success= 1;
@@ -533,8 +531,8 @@ KeyingSetInfo *ANIM_keyingset_info_find_named (const char name[])
 		
 	/* search by comparing names */
 	return BLI_findstring(&keyingset_type_infos, name, offsetof(KeyingSetInfo, idname));
-	}
-	
+}
+
 /* Find builtin KeyingSet by name */
 KeyingSet *ANIM_builtin_keyingset_get_named (KeyingSet *prevKS, const char name[])
 {
@@ -563,7 +561,7 @@ KeyingSet *ANIM_builtin_keyingset_get_named (KeyingSet *prevKS, const char name[
 /* --------------- */
 
 /* Add the given KeyingSetInfo to the list of type infos, and create an appropriate builtin set too */
-void ANIM_keyingset_info_register (const bContext *C, KeyingSetInfo *ksi)
+void ANIM_keyingset_info_register (KeyingSetInfo *ksi)
 {
 	KeyingSet *ks;
 	
@@ -995,19 +993,19 @@ int ANIM_apply_keyingset (bContext *C, ListBase *dsources, bAction *act, KeyingS
 		}
 		
 		/* set recalc-flags */
-			switch (GS(ksp->id->name)) {
-				case ID_OB: /* Object (or Object-Related) Keyframes */
-				{
-					Object *ob= (Object *)ksp->id;
-					
-					ob->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME; // XXX: only object transforms only?
-				}
-					break;
+		switch (GS(ksp->id->name)) {
+			case ID_OB: /* Object (or Object-Related) Keyframes */
+			{
+				Object *ob= (Object *)ksp->id;
+				
+				ob->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME; // XXX: only object transforms only?
 			}
-			
-			/* send notifiers for updates (this doesn't require context to work!) */
-			WM_main_add_notifier(NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
+				break;
 		}
+		
+		/* send notifiers for updates (this doesn't require context to work!) */
+		WM_main_add_notifier(NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
+	}
 	
 	/* return the number of channels successfully affected */
 	return success;

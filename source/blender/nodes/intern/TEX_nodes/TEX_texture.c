@@ -98,6 +98,6 @@ void register_node_type_tex_texture(ListBase *lb)
 				   inputs, outputs);
 	node_type_size(&ntype, 120, 80, 240);
 	node_type_exec(&ntype, exec);
-
+	
 	nodeRegisterType(lb, &ntype);
 }

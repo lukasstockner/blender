@@ -184,7 +184,7 @@ void BKE_free_animdata (ID *id)
 /* Freeing -------------------------------------------- */
 
 /* Make a copy of the given AnimData - to be used when copying datablocks */
-AnimData *BKE_copy_animdata (AnimData *adt)
+AnimData *BKE_copy_animdata (AnimData *adt, const short do_action)
 {
 	AnimData *dadt;
 	
@@ -194,9 +194,15 @@ AnimData *BKE_copy_animdata (AnimData *adt)
 	dadt= MEM_dupallocN(adt);
 	
 	/* make a copy of action - at worst, user has to delete copies... */
-	dadt->action= copy_action(adt->action);
-	dadt->tmpact= copy_action(adt->tmpact);
-	
+	if (do_action) {
+		dadt->action= copy_action(adt->action);
+		dadt->tmpact= copy_action(adt->tmpact);
+	}
+	else {
+		id_us_plus((ID *)dadt->action);
+		id_us_plus((ID *)dadt->tmpact);
+	}
+
 	/* duplicate NLA data */
 	copy_nladata(&dadt->nla_tracks, &adt->nla_tracks);
 	
@@ -214,7 +220,7 @@ int BKE_copy_animdata_id (ID *id_to, ID *id_from, const short do_action)
 {
 	AnimData *adt;
 
-	if((id_to && id_from) && (GS(id_to->name) != GS(id_from->name)))
+	if ((id_to && id_from) && (GS(id_to->name) != GS(id_from->name)))
 		return 0;
 
 	BKE_free_animdata(id_to);
@@ -222,7 +228,7 @@ int BKE_copy_animdata_id (ID *id_to, ID *id_from, const short do_action)
 	adt = BKE_animdata_from_id(id_from);
 	if (adt) {
 		IdAdtTemplate *iat = (IdAdtTemplate *)id_to;
-		iat->adt= BKE_copy_animdata(adt);
+		iat->adt= BKE_copy_animdata(adt, do_action);
 	}
 
 	return 1;
@@ -242,7 +248,6 @@ void BKE_copy_animdata_id_action(struct ID *id)
 		}
 	}
 }
-
 
 /* Make Local -------------------------------------------- */
 
@@ -680,7 +685,7 @@ void BKE_animdata_main_cb (Main *mainptr, ID_AnimData_Edit_Callback func, void *
 		AnimData *adt= BKE_animdata_from_id(id); \
 		if (adt) func(id, adt, user_data); \
 	}
-
+	
 	/* "embedded" nodetree cases (i.e. scene/material/texture->nodetree) */
 #define ANIMDATA_NODETREE_IDS_CB(first, NtId_Type) \
 	for (id= first; id; id= id->next) { \
@@ -692,13 +697,13 @@ void BKE_animdata_main_cb (Main *mainptr, ID_AnimData_Edit_Callback func, void *
 		} \
 		if (adt) func(id, adt, user_data); \
 	}
-
+	
 	/* nodes */
 	ANIMDATA_IDS_CB(mainptr->nodetree.first);
-		
+	
 	/* textures */
 	ANIMDATA_NODETREE_IDS_CB(mainptr->tex.first, Tex);
-		
+	
 	/* lamps */
 	ANIMDATA_IDS_CB(mainptr->lamp.first);
 	
@@ -737,7 +742,7 @@ void BKE_animdata_main_cb (Main *mainptr, ID_AnimData_Edit_Callback func, void *
 	
 	/* scenes */
 	ANIMDATA_NODETREE_IDS_CB(mainptr->scene.first, Scene);
-	}
+}
 
 /* Fix all RNA-Paths throughout the database (directly access the Global.main version)
  * NOTE: it is assumed that the structure we're replacing is <prefix><["><name><"]>
@@ -815,8 +820,8 @@ void BKE_all_animdata_fix_paths_rename (char *prefix, char *oldName, char *newNa
 	
 	/* scenes */
 	RENAMEFIX_ANIM_NODETREE_IDS(mainptr->scene.first, Scene);
-		}
-		
+}
+
 /* *********************************** */ 
 /* KeyingSet API */
 
@@ -824,7 +829,7 @@ void BKE_all_animdata_fix_paths_rename (char *prefix, char *oldName, char *newNa
 
 /* Find the first path that matches the given criteria */
 // TODO: do we want some method to perform partial matches too?
-KS_Path *BKE_keyingset_find_path (KeyingSet *ks, ID *id, const char group_name[], const char rna_path[], int array_index, int group_mode)
+KS_Path *BKE_keyingset_find_path (KeyingSet *ks, ID *id, const char group_name[], const char rna_path[], int array_index, int UNUSED(group_mode))
 {
 	KS_Path *ksp;
 	
@@ -873,12 +878,9 @@ KeyingSet *BKE_keyingset_add (ListBase *list, const char name[], short flag, sho
 	
 	/* allocate new KeyingSet */
 	ks= MEM_callocN(sizeof(KeyingSet), "KeyingSet");
-	
-	if (name)
-		strncpy(ks->name, name, sizeof(ks->name));
-	else
-		strcpy(ks->name, "KeyingSet");
-	
+
+	BLI_strncpy(ks->name, name ? name : "KeyingSet", sizeof(ks->name));
+
 	ks->flag= flag;
 	ks->keyingflag= keyingflag;
 	
@@ -926,7 +928,7 @@ KS_Path *BKE_keyingset_add_path (KeyingSet *ks, ID *id, const char group_name[],
 	if (group_name)
 		BLI_strncpy(ksp->group, group_name, sizeof(ksp->group));
 	else
-		strcpy(ksp->group, "");
+		ksp->group[0]= '\0';
 	
 	/* store additional info for relative paths (just in case user makes the set relative) */
 	if (id)
@@ -954,11 +956,11 @@ void BKE_keyingset_free_path (KeyingSet *ks, KS_Path *ksp)
 	/* sanity check */
 	if ELEM(NULL, ks, ksp)
 		return;
-	
+
 	/* free RNA-path info */
 	if(ksp->rna_path)
-	MEM_freeN(ksp->rna_path);
-	
+		MEM_freeN(ksp->rna_path);
+
 	/* free path itself */
 	BLI_freelinkN(&ks->paths, ksp);
 }
@@ -1027,7 +1029,7 @@ void BKE_keyingsets_free (ListBase *list)
  *	- path: original path string (as stored in F-Curve data)
  *	- dst: destination string to write data to
  */
-static short animsys_remap_path (AnimMapper *remap, char *path, char **dst)
+static short animsys_remap_path (AnimMapper *UNUSED(remap), char *path, char **dst)
 {
 	/* is there a valid remapping table to use? */
 	//if (remap) {
@@ -1952,17 +1954,17 @@ static void animsys_evaluate_nla (ListBase *echannels, PointerRNA *ptr, AnimData
 			}
 			else {
 				/* set settings of dummy NLA strip from AnimData settings */
-			dummy_strip.act= adt->action;
-			dummy_strip.remap= adt->remap;
-			
-			/* action range is calculated taking F-Modifiers into account (which making new strips doesn't do due to the troublesome nature of that) */
-			calc_action_range(dummy_strip.act, &dummy_strip.actstart, &dummy_strip.actend, 1);
-			dummy_strip.start = dummy_strip.actstart;
+				dummy_strip.act= adt->action;
+				dummy_strip.remap= adt->remap;
+				
+				/* action range is calculated taking F-Modifiers into account (which making new strips doesn't do due to the troublesome nature of that) */
+				calc_action_range(dummy_strip.act, &dummy_strip.actstart, &dummy_strip.actend, 1);
+				dummy_strip.start = dummy_strip.actstart;
 				dummy_strip.end = (IS_EQF(dummy_strip.actstart, dummy_strip.actend)) ?  (dummy_strip.actstart + 1.0f): (dummy_strip.actend);
-			
-			dummy_strip.blendmode= adt->act_blendmode;
-			dummy_strip.extendmode= adt->act_extendmode;
-			dummy_strip.influence= adt->act_influence;
+				
+				dummy_strip.blendmode= adt->act_blendmode;
+				dummy_strip.extendmode= adt->act_extendmode;
+				dummy_strip.influence= adt->act_influence;
 			}
 			
 			/* add this to our list of evaluation strips */
@@ -1984,7 +1986,7 @@ static void animsys_evaluate_nla (ListBase *echannels, PointerRNA *ptr, AnimData
 	/* 2. for each strip, evaluate then accumulate on top of existing channels, but don't set values yet */
 	for (nes= estrips.first; nes; nes= nes->next) 
 		nlastrip_evaluate(ptr, echannels, NULL, nes);
-	
+		
 	/* 3. free temporary evaluation data that's not used elsewhere */
 	BLI_freelistN(&estrips);
 }
@@ -2027,7 +2029,7 @@ AnimOverride *BKE_animsys_validate_override (PointerRNA *UNUSED(ptr), char *UNUS
 /* -------------------- */
 
 /* Evaluate Overrides */
-static void animsys_evaluate_overrides (PointerRNA *ptr, AnimData *adt, float ctime)
+static void animsys_evaluate_overrides (PointerRNA *ptr, AnimData *adt)
 {
 	AnimOverride *aor;
 	
@@ -2126,7 +2128,7 @@ void BKE_animsys_evaluate_animdata (ID *id, AnimData *adt, float ctime, short re
 	 *	- Overrides are cleared upon frame change and/or keyframing
 	 *	- It is best that we execute this everytime, so that no errors are likely to occur.
 	 */
-	animsys_evaluate_overrides(&id_ptr, adt, ctime);
+	animsys_evaluate_overrides(&id_ptr, adt);
 	
 	/* clear recalc flag now */
 	adt->recalc= 0;
@@ -2142,7 +2144,7 @@ void BKE_animsys_evaluate_animdata (ID *id, AnimData *adt, float ctime, short re
 void BKE_animsys_evaluate_all_animation (Main *main, float ctime)
 {
 	ID *id;
-	
+
 	if (G.f & G_DEBUG)
 		printf("Evaluate all animation - %f \n", ctime);
 	
@@ -2214,22 +2216,7 @@ void BKE_animsys_evaluate_all_animation (Main *main, float ctime)
 	EVAL_ANIM_IDS(main->mball.first, ADT_RECALC_ANIM);
 	
 	/* curves */
-		/* we need to perform a special hack here to ensure that the ctime 
-		 * value of the curve gets set in case there's no animation for that
-		 *	- it needs to be set before animation is evaluated just so that 
-		 *	  animation can successfully override...
-		 *	- it shouldn't get set when calculating drivers...
-		 */
-	for (id= main->curve.first; id; id= id->next) {
-		AnimData *adt= BKE_animdata_from_id(id);
-		Curve *cu= (Curve *)id;
-		
-		/* set ctime variable for curve */
-		cu->ctime= ctime;
-		
-		/* now execute animation data on top of this as per normal */
-		BKE_animsys_evaluate_animdata(id, adt, ctime, ADT_RECALC_ANIM);
-	}
+	EVAL_ANIM_IDS(main->curve.first, ADT_RECALC_ANIM);
 	
 	/* armatures */
 	EVAL_ANIM_IDS(main->armature.first, ADT_RECALC_ANIM);
@@ -2255,6 +2242,6 @@ void BKE_animsys_evaluate_all_animation (Main *main, float ctime)
 	
 	/* scenes */
 	EVAL_ANIM_NODETREE_IDS(main->scene.first, Scene, ADT_RECALC_ANIM);
-		}
-		
+}
+
 /* ***************************************** */ 

@@ -57,6 +57,7 @@ void sculptmode_draw_mesh(int);
 void sculpt_paint_brush(char clear);
 void sculpt_stroke_draw(struct SculptStroke *);
 void sculpt_radialcontrol_start(int mode);
+struct MultiresModifierData *sculpt_multires_active(struct Scene *scene, struct Object *ob);
 
 struct Brush *sculptmode_brush(void);
 

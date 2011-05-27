@@ -49,7 +49,7 @@
 #include "BKE_pointcache.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-
+ 
 
 #include "ED_particle.h"
 
@@ -61,7 +61,7 @@
 
 #include "physics_intern.h"
 
-static int cache_break_test(void *cbd) {
+static int cache_break_test(void *UNUSED(cbd)) {
 	return G.afbreek==1;
 }
 static int ptcache_bake_all_poll(bContext *C)
@@ -88,7 +88,7 @@ static void bake_console_progress(void *UNUSED(arg), int nr)
 
 static void bake_console_progress_end(void *UNUSED(arg))
 {
-	printf("\n");
+	printf("\rbake: done!\n");
 }
 
 static int ptcache_bake_all_exec(bContext *C, wmOperator *op)

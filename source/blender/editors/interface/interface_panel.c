@@ -1007,7 +1007,7 @@ static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, in
 	else if(mx <= (block->maxx-PNL_ICON-12)+PNL_ICON+2) {
 		panel_activate_state(C, block->panel, PANEL_STATE_DRAG);
 	}
-	}
+}
 
 /* XXX should become modal keymap */
 /* AKey is opening/closing panels, independent of button state now */

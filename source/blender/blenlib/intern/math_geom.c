@@ -473,7 +473,7 @@ int isect_line_tri_v3(const float p1[3], const float p2[3], const float v0[3], c
 	
 	cross_v3_v3v3(q, s, e1);
 	
-        v = f * dot_v3v3(d, q);
+	v = f * dot_v3v3(d, q);
 	if ((v < 0.0f)||((u + v) > 1.0f)) return 0;
 
 	*lambda = f * dot_v3v3(e2, q);
@@ -509,7 +509,7 @@ int isect_ray_tri_v3(const float p1[3], const float d[3], const float v0[3], con
 	
 	u = f * dot_v3v3(s, p);
 	if ((u < 0.0f)||(u > 1.0f)) return 0;
-	
+
 	cross_v3_v3v3(q, s, e1);
 	
 	v = f * dot_v3v3(d, q);
@@ -518,7 +518,7 @@ int isect_ray_tri_v3(const float p1[3], const float d[3], const float v0[3], con
 	*lambda = f * dot_v3v3(e2, q);
 	if ((*lambda < 0.0f)) return 0;
 
-        if(uv) {
+	if(uv) {
 		uv[0]= u;
 		uv[1]= v;
 	}
@@ -528,7 +528,7 @@ int isect_ray_tri_v3(const float p1[3], const float d[3], const float v0[3], con
 
 int isect_ray_plane_v3(float p1[3], float d[3], float v0[3], float v1[3], float v2[3], float *lambda, int clip)
 {
-    float p[3], s[3], e1[3], e2[3], q[3];
+	float p[3], s[3], e1[3], e2[3], q[3];
 	float a, f;
 	/* float  u, v; */ /*UNUSED*/
 
@@ -559,35 +559,35 @@ int isect_ray_plane_v3(float p1[3], float d[3], float v0[3], float v1[3], float 
 int isect_ray_tri_epsilon_v3(const float p1[3], const float d[3], const float v0[3], const float v1[3], const float v2[3], float *lambda, float uv[2], const float epsilon)
 {
 	float p[3], s[3], e1[3], e2[3], q[3];
-    float a, f, u, v;
+	float a, f, u, v;
 
-    sub_v3_v3v3(e1, v1, v0);
-    sub_v3_v3v3(e2, v2, v0);
+	sub_v3_v3v3(e1, v1, v0);
+	sub_v3_v3v3(e2, v2, v0);
 
-    cross_v3_v3v3(p, d, e2);
-    a = dot_v3v3(e1, p);
-    if (a == 0.0f) return 0;
-    f = 1.0f/a;
+	cross_v3_v3v3(p, d, e2);
+	a = dot_v3v3(e1, p);
+	if (a == 0.0f) return 0;
+	f = 1.0f/a;
 
-    sub_v3_v3v3(s, p1, v0);
+	sub_v3_v3v3(s, p1, v0);
 
-    u = f * dot_v3v3(s, p);
-    if ((u < -epsilon)||(u > 1.0f+epsilon)) return 0;
+	u = f * dot_v3v3(s, p);
+	if ((u < -epsilon)||(u > 1.0f+epsilon)) return 0;
 
-    cross_v3_v3v3(q, s, e1);
+	cross_v3_v3v3(q, s, e1);
 
-    v = f * dot_v3v3(d, q);
-    if ((v < -epsilon)||((u + v) > 1.0f+epsilon)) return 0;
+	v = f * dot_v3v3(d, q);
+	if ((v < -epsilon)||((u + v) > 1.0f+epsilon)) return 0;
 
-    *lambda = f * dot_v3v3(e2, q);
-    if ((*lambda < 0.0f)) return 0;
+	*lambda = f * dot_v3v3(e2, q);
+	if ((*lambda < 0.0f)) return 0;
 
-    if(uv) {
-        uv[0]= u;
-        uv[1]= v;
-    }
+	if(uv) {
+		uv[0]= u;
+		uv[1]= v;
+	}
 
-    return 1;
+	return 1;
 }
 
 int isect_ray_tri_threshold_v3(const float p1[3], const float d[3], const float v0[3], const float v1[3], const float v2[3], float *lambda, float *uv, const float threshold)
@@ -1048,7 +1048,7 @@ int isect_line_line_strict_v3(const float v1[3], const float v2[3], const float 
 		/* colinear or one vector is zero-length*/
 		return 0;
 	}
-	
+
 	cross_v3_v3v3(ab, a, b);
 	d = dot_v3v3(c, ab);
 
@@ -1593,22 +1593,22 @@ void interp_weights_face_v3(float w[4], const float v1[3], const float v2[3], co
  * note: using area_tri_signed_v2 means locations outside the triangle are correctly weighted */
 void barycentric_weights_v2(const float v1[2], const float v2[2], const float v3[2], const float co[2], float w[3])
 {
-   float wtot_inv, wtot;
+	float wtot_inv, wtot;
 
-   w[0] = area_tri_signed_v2(v2, v3, co);
-   w[1] = area_tri_signed_v2(v3, v1, co);
-   w[2] = area_tri_signed_v2(v1, v2, co);
-   wtot = w[0]+w[1]+w[2];
+	w[0] = area_tri_signed_v2(v2, v3, co);
+	w[1] = area_tri_signed_v2(v3, v1, co);
+	w[2] = area_tri_signed_v2(v1, v2, co);
+	wtot = w[0]+w[1]+w[2];
 
-   if (wtot != 0.0f) {
-	   wtot_inv = 1.0f/wtot;
+	if (wtot != 0.0f) {
+		wtot_inv = 1.0f/wtot;
 
-	   w[0] = w[0]*wtot_inv;
-	   w[1] = w[1]*wtot_inv;
-	   w[2] = w[2]*wtot_inv;
-   }
-   else /* dummy values for zero area face */
-	   w[0] = w[1] = w[2] = 1.0f/3.0f;
+		w[0] = w[0]*wtot_inv;
+		w[1] = w[1]*wtot_inv;
+		w[2] = w[2]*wtot_inv;
+	}
+	else /* dummy values for zero area face */
+		w[0] = w[1] = w[2] = 1.0f/3.0f;
 }
 
 /* given 2 triangles in 3D space, and a point in relation to the first triangle.
@@ -1859,11 +1859,21 @@ void window_translate_m4(float winmat[][4], float perspmat[][4], const float x, 
 {
 	if(winmat[2][3] == -1.0f) {
 		/* in the case of a win-matrix, this means perspective always */
-		float v1[3]= {perspmat[0][0], perspmat[1][0], perspmat[2][0]};
-		float v2[3]= {perspmat[0][1], perspmat[1][1], perspmat[2][1]};
-		float len1= (1.0f / len_v3(v1));
-		float len2= (1.0f / len_v3(v2));
-		
+		float v1[3];
+		float v2[3];
+		float len1, len2;
+
+		v1[0]= perspmat[0][0];
+		v1[1]= perspmat[1][0];
+		v1[2]= perspmat[2][0];
+
+		v2[0]= perspmat[0][1];
+		v2[1]= perspmat[1][1];
+		v2[2]= perspmat[2][1];
+
+		len1= (1.0f / len_v3(v1));
+		len2= (1.0f / len_v3(v2));
+
 		winmat[2][0] += len1 * winmat[0][0] * x;
 		winmat[2][1] += len2 * winmat[1][1] * y;
 	}
@@ -2030,7 +2040,7 @@ void map_to_sphere(float *u, float *v, const float x, const float y, const float
 	if(len > 0.0f) {
 		if(x==0.0f && y==0.0f) *u= 0.0f;	/* othwise domain error */
 		else *u = (1.0f - atan2f(x,y) / (float)M_PI) / 2.0f;
-		
+
 		*v = 1.0f - (float)saacos(z/len)/(float)M_PI;
 	} else {
 		*v = *u = 0.0f; /* to avoid un-initialized variables */
@@ -2663,7 +2673,7 @@ static float ff_quad_form_factor(float *p, float *n, float *q0, float *q1, float
 	aresult = (_mm_set_ps1(n[0])*gx + _mm_set_ps1(n[1])*gy + _mm_set_ps1(n[2])*gz)*angle;
 
 	/* sum together */
-    result= (fresult[0] + fresult[1] + fresult[2] + fresult[3])*(0.5f/(float)M_PI);
+	result= (fresult[0] + fresult[1] + fresult[2] + fresult[3])*(0.5f/(float)M_PI);
 	result= MAX2(result, 0.0f);
 
 	return result;

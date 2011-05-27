@@ -59,7 +59,7 @@ public:
 	virtual void	addRigidBody(btRigidBody* body, short group, short mask);
 
 	virtual void	removeRigidBody(btRigidBody* body);
-	
+
 	virtual void	debugDrawWorld();
 				
 	virtual void	addAction(btActionInterface* action);

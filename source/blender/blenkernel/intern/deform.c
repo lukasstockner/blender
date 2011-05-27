@@ -308,60 +308,35 @@ int defgroup_flip_index(Object *ob, int index, int use_default)
 	return (flip_index==-1 && use_default) ? index : flip_index;
 }
 
-void defgroup_unique_name (bDeformGroup *dg, Object *ob)
+static int defgroup_find_name_dupe(const char *name, bDeformGroup *dg, Object *ob)
 {
 	bDeformGroup *curdef;
-	int number;
-	int exists = 0;
-	char tempname[64];
-	char *dot;
 	
-	if (!ob)
-		return;
-		
-	/* See if we are given an empty string */
-	if (dg->name[0] == '\0') {
-		/* give it default name first */
-		strcpy (dg->name, "Group");
-	}	
-		
-	/* See if we even need to do this */
 	for (curdef = ob->defbase.first; curdef; curdef=curdef->next) {
 		if (dg!=curdef) {
-			if (!strcmp(curdef->name, dg->name)) {
-				exists = 1;
-				break;
+			if (!strcmp(curdef->name, name)) {
+				return 1;
 			}
 		}
 	}
-	
-	if (!exists)
-		return;
 
-	/*	Strip off the suffix */
-	dot=strchr(dg->name, '.');
-	if (dot)
-		*dot=0;
-	
-	for (number = 1; number <=999; number++) {
-		sprintf (tempname, "%s.%03d", dg->name, number);
-		
-		exists = 0;
-		for (curdef=ob->defbase.first; curdef; curdef=curdef->next) {
-			if (dg!=curdef) {
-				if (!strcmp (curdef->name, tempname)) {
-					exists = 1;
-					break;
-				}
-			}
-		}
-		if (!exists) {
-			BLI_strncpy (dg->name, tempname, 32);
-			return;
-		}
-	}	
+	return 0;
 }
 
+static int defgroup_unique_check(void *arg, const char *name)
+{
+	struct {Object *ob; void *dg;} *data= arg;
+	return defgroup_find_name_dupe(name, data->dg, data->ob);
+}
+
+void defgroup_unique_name (bDeformGroup *dg, Object *ob)
+{
+	struct {Object *ob; void *dg;} data;
+	data.ob= ob;
+	data.dg= dg;
+
+	BLI_uniquename_cb(defgroup_unique_check, &data, "Group", '.', dg->name, sizeof(dg->name));
+}
 
 /* finds the best possible flipped name. For renaming; check for unique names afterwards */
 /* if strip_number: removes number extensions
@@ -385,7 +360,7 @@ void flip_side_name (char name[MAX_VGROUP_NAME], const char from_name[MAX_VGROUP
 		index= strrchr(name, '.'); // last occurrence
 		if (index && isdigit(index[1]) ) { // doesnt handle case bone.1abc2 correct..., whatever!
 			if(strip_number==0)
-				 BLI_strncpy(number, index, sizeof(number));
+				BLI_strncpy(number, index, sizeof(number));
 			*index= 0;
 			len= BLI_strnlen(name, MAX_VGROUP_NAME);
 		}

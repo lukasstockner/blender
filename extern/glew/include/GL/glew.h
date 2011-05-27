@@ -215,7 +215,7 @@ typedef _W64 int ptrdiff_t;
  */
 
 #ifdef GLEW_STATIC
-#define GLEWAPI extern
+#  define GLEWAPI extern
 #else
 #  if defined(__GNUC__) && __GNUC__>=4
 #   define GLEWAPI extern __attribute__ ((visibility("default")))

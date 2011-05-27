@@ -39,6 +39,7 @@
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -55,7 +56,7 @@
 
 #include <string.h>
 
-static void file_panel_cb(bContext *C, void *arg_entry, void *arg_unused)
+static void file_panel_cb(bContext *C, void *arg_entry, void *UNUSED(arg_v))
 {
 	PointerRNA ptr;
 	char *entry= (char*)arg_entry;
@@ -101,7 +102,7 @@ static void file_panel_category(const bContext *C, Panel *pa, FSMenuCategory cat
 		/* set this list item as active if we have a match */
 		if(sfile->params) {
 			if(BLI_path_cmp(sfile->params->dir, entry) == 0) {
-			*nr= i;
+				*nr= i;
 			}
 		}
 
@@ -154,12 +155,15 @@ static void file_panel_recent(const bContext *C, Panel *pa)
 {
 	SpaceFile *sfile= CTX_wm_space_file(C);
 
-	if(sfile)
-		file_panel_category(C, pa, FS_CATEGORY_RECENT, &sfile->recentnr, ICON_FILE_FOLDER, 0, 1);
+	if(sfile) {
+		if ( !(U.uiflag & USER_HIDE_RECENT) ) {
+			file_panel_category(C, pa, FS_CATEGORY_RECENT, &sfile->recentnr, ICON_FILE_FOLDER, 0, 1);
+		}
+	}
 }
 
 
-static int file_panel_operator_poll(const bContext *C, PanelType *pt)
+static int file_panel_operator_poll(const bContext *C, PanelType *UNUSED(pt))
 {
 	SpaceFile *sfile= CTX_wm_space_file(C);
 	return (sfile && sfile->op);
@@ -187,9 +191,9 @@ static void file_panel_operator(const bContext *C, Panel *pa)
 	SpaceFile *sfile= CTX_wm_space_file(C);
 	wmOperator *op= sfile->op;
 	// int empty= 1, flag;
-
-	uiBlockSetFunc(uiLayoutGetBlock(pa->layout), file_draw_check_cb, NULL, NULL);
 	
+	uiBlockSetFunc(uiLayoutGetBlock(pa->layout), file_draw_check_cb, NULL, NULL);
+
 	uiLayoutOperatorButs(C, pa->layout, op, file_panel_check_prop, '\0', UI_LAYOUT_OP_SHOW_EMPTY);
 
 	uiBlockSetFunc(uiLayoutGetBlock(pa->layout), NULL, NULL, NULL);

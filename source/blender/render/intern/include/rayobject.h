@@ -45,19 +45,19 @@ struct RayHint;
 struct VlakRen;
 
 /* RayObject
-	
+
    Can be a face/triangle, bvh tree, object instance, etc. This is the
    public API used by the renderer, see rayobject_internal.h for the
    internal implementation details. */
-	
+
 typedef struct RayObject RayObject;
-		
+
 /* Intersection, see rayintersection.h */
 
 int RE_rayobject_raycast(RayObject *r, struct Isect *i);
-	
+
 /* Acceleration Structures */
-	
+
 RayObject* RE_rayobject_octree_create(int ocres, int size);
 RayObject* RE_rayobject_instance_create(RayObject *target, float transform[][4], void *ob, void *target_ob);
 RayObject* RE_rayobject_empty_create();
@@ -113,7 +113,7 @@ void RE_rayobject_hint_bb(RayObject *r, struct RayHint *hint, float *min, float 
 /* void RE_rayobject_hint_cone(RayObject *r, struct RayHint *hint, float *); */
 
 /* Internals */
-	
+
 #include "../raytrace/rayobject_internal.h"
 
 #ifdef __cplusplus

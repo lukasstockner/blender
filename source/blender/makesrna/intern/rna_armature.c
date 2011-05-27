@@ -76,13 +76,13 @@ static void rna_Armature_act_bone_set(PointerRNA *ptr, PointerRNA value)
 			if(GS(ob->id.name)!=ID_OB || (ob->data != arm)) {
 				printf("ERROR: armature set active bone - new active doesn't come from this armature\n");
 				return;
-		}
+			}
 		}
 		
-			arm->act_bone= value.data;
-			arm->act_bone->flag |= BONE_SELECTED;
-		}
+		arm->act_bone= value.data;
+		arm->act_bone->flag |= BONE_SELECTED;
 	}
+}
 
 static void rna_Armature_act_edit_bone_set(PointerRNA *ptr, PointerRNA value)
 {
@@ -159,8 +159,8 @@ static char *rna_Bone_path(PointerRNA *ptr)
 		
 		if (GS(id->name) == ID_OB)
 			return BLI_sprintfN("pose.bones[\"%s\"].bone", bone->name);
-}
-
+	}
+	
 	/* from armature... */
 	return BLI_sprintfN("bones[\"%s\"]", bone->name);
 }
@@ -453,7 +453,7 @@ static void rna_def_bone_common(StructRNA *srna, int editbone)
 	RNA_def_property_ui_text(prop, "Connected", "When bone has a parent, bone's head is struck to the parent's tail");
 	RNA_def_property_update(prop, 0, "rna_Armature_update_data");
 	
-	prop= RNA_def_property(srna, "use_hinge", PROP_BOOLEAN, PROP_NONE);
+	prop= RNA_def_property(srna, "use_inherit_rotation", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", BONE_HINGE);
 	RNA_def_property_ui_text(prop, "Inherit Rotation", "Bone inherits rotation or scale from parent bone");
 	RNA_def_property_update(prop, 0, "rna_Armature_update_data");
@@ -592,7 +592,7 @@ static void rna_def_bone(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Select", "");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_update(prop, 0, "rna_Armature_redraw_data");
-
+	
 	prop= RNA_def_property(srna, "select_head", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BONE_ROOTSEL);
 	RNA_def_property_ui_text(prop, "Select Head", "");

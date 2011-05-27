@@ -1058,14 +1058,14 @@ static void reset_sky_speed(RenderPart *pa, RenderLayer *rl)
 
 static unsigned short *make_solid_mask(RenderPart *pa)
 { 
-	 intptr_t *rd= pa->rectdaps;
-	 unsigned short *solidmask, *sp;
-	 int x;
- 	
+	intptr_t *rd= pa->rectdaps;
+	unsigned short *solidmask, *sp;
+	int x;
+
 	if(rd==NULL) return NULL;
- 	
+
 	sp=solidmask= MEM_mallocN(sizeof(short)*pa->rectx*pa->recty, "solidmask");
- 	
+
 	for(x=pa->rectx*pa->recty; x>0; x--, rd++, sp++) {
 		if(*rd) {
 			PixStr *ps= (PixStr *)*rd;
@@ -1077,7 +1077,7 @@ static unsigned short *make_solid_mask(RenderPart *pa)
 		else
 			*sp= 0;
 	}
- 			
+
 	return solidmask;
 }
 
@@ -2088,10 +2088,10 @@ static void bake_mask_clear( ImBuf *ibuf, char *mask, char val )
 
 static void bake_set_shade_input(ObjectInstanceRen *obi, VlakRen *vlr, ShadeInput *shi, int quad, int isect, int x, int y, float u, float v)
 {
-			if(quad)
-			shade_input_set_triangle_i(shi, obi, vlr, 0, 2, 3);
-		else
-			shade_input_set_triangle_i(shi, obi, vlr, 0, 1, 2);
+	if(quad) 
+		shade_input_set_triangle_i(shi, obi, vlr, 0, 2, 3);
+	else
+		shade_input_set_triangle_i(shi, obi, vlr, 0, 1, 2);
 		
 	/* cache for shadow */
 	shi->samplenr= R.shadowsamplenr[shi->thread]++;
@@ -2213,7 +2213,7 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 			shr.combined[1]= shi->specg;
 			shr.combined[2]= shi->specb;
 			shr.alpha = 1.0f;
-	}
+		}
 		else if(bs->type==RE_BAKE_SPEC_INTENSITY) {
 			shr.combined[0]=
 			shr.combined[1]=
@@ -2606,7 +2606,7 @@ static void shade_tface(BakeShade *bs)
 			BLI_lock_thread(LOCK_CUSTOM1);
 			if (bs->ibuf->userdata==NULL) /* since the thread was locked, its possible another thread alloced the value */
 				bs->ibuf->userdata = (void *)MEM_callocN(sizeof(char)*bs->rectx*bs->recty, "BakeMask");
-				bs->rect_mask= (char *)bs->ibuf->userdata;
+			bs->rect_mask= (char *)bs->ibuf->userdata;
 			BLI_unlock_thread(LOCK_CUSTOM1);
 		} else {
 			bs->rect_mask= (char *)bs->ibuf->userdata;
@@ -2616,7 +2616,7 @@ static void shade_tface(BakeShade *bs)
 	/* get pixel level vertex coordinates */
 	for(a=0; a<4; a++) {
 		/* Note, workaround for pixel aligned UVs which are common and can screw up our intersection tests
-		 * where a pixel gets inbetween 2 faces or the middle of a quad,
+		 * where a pixel gets in between 2 faces or the middle of a quad,
 		 * camera aligned quads also have this problem but they are less common.
 		 * Add a small offset to the UVs, fixes bug #18685 - Campbell */
 		vec[a][0]= tface->uv[a][0]*(float)bs->rectx - (0.5f + 0.001);

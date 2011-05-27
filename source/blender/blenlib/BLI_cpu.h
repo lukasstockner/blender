@@ -1,5 +1,5 @@
 /*
- * $Id: BLI_cpu.h 29675 2010-06-24 19:26:12Z gsrb3d $
+ * $Id: BLI_cpu.h 34966 2011-02-18 13:58:08Z jesterking $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *

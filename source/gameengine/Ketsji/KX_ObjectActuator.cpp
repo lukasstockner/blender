@@ -318,7 +318,7 @@ bool KX_ObjectActuator::isValid(KX_ObjectActuator::KX_OBJECT_ACT_VEC_TYPE type)
 	return res;
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */
 /* Python functions                                                          */
@@ -394,7 +394,7 @@ static int mathutils_obactu_generic_check(BaseMathObject *bmo)
 	if(self==NULL)
 		return -1;
 
-		return 0;
+	return 0;
 }
 
 static int mathutils_obactu_vector_get(BaseMathObject *bmo, int subtype)
@@ -438,7 +438,7 @@ static int mathutils_obactu_vector_get_index(BaseMathObject *bmo, int subtype, i
 	/* lazy, avoid repeteing the case statement */
 	if(mathutils_obactu_vector_get(bmo, subtype) == -1)
 		return -1;
-		return 0;
+	return 0;
 }
 
 static int mathutils_obactu_vector_set_index(BaseMathObject *bmo, int subtype, int index)
@@ -641,6 +641,6 @@ int KX_ObjectActuator::pyattr_set_reference(void *self, const struct KX_PYATTRIB
 	return PY_SET_ATTR_SUCCESS;
 }
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON
 
 /* eof */

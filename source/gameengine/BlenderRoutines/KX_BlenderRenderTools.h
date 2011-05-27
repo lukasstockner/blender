@@ -81,7 +81,7 @@ public:
 									 double* mat,
 									 float aspect);
 
-	void			    RenderText2D(RAS_TEXT_RENDER_MODE mode,
+	void		RenderText2D(RAS_TEXT_RENDER_MODE mode,
 									 const char* text,
 									 int xco,
 									 int yco,

@@ -70,11 +70,15 @@ static PointerRNA rna_uiItemO(uiLayout *layout, const char *opname, const char *
 
 #else
 
-#define DEF_ICON(name) {name, (#name)+5, 0, (#name)+5, ""},
+#define DEF_ICON_BLANK_SKIP
+#define DEF_ICON(name) {ICON_##name, (#name), 0, (#name), ""},
+#define DEF_VICO(name) {VICO_##name, (#name), 0, (#name), ""},
 static EnumPropertyItem icon_items[] = {
 #include "UI_icons.h"
 		{0, NULL, 0, NULL, NULL}};
+#undef DEF_ICON_BLANK_SKIP
 #undef DEF_ICON
+#undef DEF_VICO
 
 static void api_ui_item_common(FunctionRNA *func)
 {
@@ -134,7 +138,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_function_return(func, parm);
 	RNA_def_function_ui_description(func, "Sub-layout. Items placed in this sublayout are placed next to each other in a row.");
 	RNA_def_boolean(func, "align", 0, "", "Align buttons to each other.");
-
+	
 	func= RNA_def_function(srna, "column", "uiLayoutColumn");
 	parm= RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in.");
 	RNA_def_function_return(func, parm);
@@ -152,7 +156,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 	parm= RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in.");
 	RNA_def_function_return(func, parm);
 	RNA_def_function_ui_description(func, "Sublayout. Items placed in this sublayout are placed under each other in a column and are surrounded by a box.");
-
+	
 	/* split layout */
 	func= RNA_def_function(srna, "split", "uiLayoutSplit");
 	parm= RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in.");
@@ -372,7 +376,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_boolean(func, "lock", 0, "", "Lock the color wheel display to value 1.0 regardless of actual color");
 	RNA_def_boolean(func, "lock_luminosity", 0, "", "Keep the color at its original vector length");
 	RNA_def_boolean(func, "cubic", 1, "", "Cubic saturation for picking values close to white");
-	
+
 	func= RNA_def_function(srna, "template_image_layers", "uiTemplateImageLayers");
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 	parm= RNA_def_pointer(func, "image", "Image", "", "");
@@ -410,7 +414,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 
 	func= RNA_def_function(srna, "template_header_3D", "uiTemplateHeader3D");
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
-	
+
 	func= RNA_def_function(srna, "template_edit_mode_selection", "uiTemplateEditModeSelection");
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 	

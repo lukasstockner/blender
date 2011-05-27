@@ -65,7 +65,7 @@ static void do_displace(bNode *node, CompBuf *stackbuf, CompBuf *cbuf, CompBuf *
 	float vec[3], vecdx[3], vecdy[3];
 	float col[3];
 	
-	ibuf= IMB_allocImBuf(cbuf->x, cbuf->y, 32, 0, 0);
+	ibuf= IMB_allocImBuf(cbuf->x, cbuf->y, 32, 0);
 	ibuf->rect_float= cbuf->rect;
 	
 	for(y=0; y < stackbuf->y; y++) {
@@ -108,11 +108,11 @@ static void do_displace(bNode *node, CompBuf *stackbuf, CompBuf *cbuf, CompBuf *
 			qd_getPixel(vecbuf, x-vecbuf->xof, y-vecbuf->yof+1, vecdy);
 			d_dx = vecdx[0] * xs;
 			d_dy = vecdy[0] * ys;
-			
+
 			/* clamp derivatives to minimum displacement distance in UV space */
 			dxt = p_dx - d_dx;
 			dyt = p_dy - d_dy;
-			
+
 			dxt = signf(dxt)*maxf(fabsf(dxt), DISPLACE_EPSILON)/(float)stackbuf->x;
 			dyt = signf(dyt)*maxf(fabsf(dyt), DISPLACE_EPSILON)/(float)stackbuf->y;
 			

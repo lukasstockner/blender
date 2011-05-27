@@ -1007,7 +1007,7 @@ void UI_view2d_view_ortho(View2D *v2d)
 	
 	/* set matrix on all appropriate axes */
 	wmOrtho2(curmasked.xmin-xofs, curmasked.xmax-xofs, curmasked.ymin-yofs, curmasked.ymax-yofs);
-	
+
 	/* XXX is this necessary? */
 	glLoadIdentity();
 }
@@ -1087,7 +1087,7 @@ static void step_to_grid(float *step, int *power, int unit)
 		/* for frames, we want 1.0 frame intervals only */
 		if (unit == V2D_UNIT_FRAMES) {
 			rem = 1.0f;
-			*step = 1.0f;
+			*step = 2.0f; /* use 2 since there are grid lines drawn in between, this way to get 1 line per frane */
 		}
 		
 		/* prevents printing 1.0 2.0 3.0 etc */
@@ -1145,9 +1145,9 @@ View2DGrid *UI_view2d_grid_calc(Scene *scene, View2D *v2d, short xunits, short x
 		pixels= (float)(v2d->mask.xmax - v2d->mask.xmin);
 		
 		if(pixels!=0.0f) {
-		grid->dx= (U.v2d_min_gridsize * space) / (seconddiv * pixels);
-		step_to_grid(&grid->dx, &grid->powerx, xunits);
-		grid->dx *= seconddiv;
+			grid->dx= (U.v2d_min_gridsize * space) / (seconddiv * pixels);
+			step_to_grid(&grid->dx, &grid->powerx, xunits);
+			grid->dx *= seconddiv;
 		}
 		
 		if (xclamp == V2D_GRID_CLAMP) {
@@ -1542,7 +1542,7 @@ static void scroll_printstr(Scene *scene, float x, float y, float val, int power
 	}
 	
 	/* draw it */
-	BLF_draw_default(x, y, 0.0f, str);
+	BLF_draw_default(x, y, 0.0f, str, sizeof(str)-1);
 }
 
 /* Draw scrollbars in the given 2d-region */
@@ -2043,7 +2043,7 @@ void UI_view2d_text_cache_add(View2D *v2d, float x, float y, const char *str, co
 		View2DString *v2s= MEM_callocN(sizeof(View2DString)+len, "View2DString");
 		char *v2s_str= (char *)(v2s+1);
 		memcpy(v2s_str, str, len);
-		
+
 		BLI_addtail(&strings, v2s);
 		v2s->col.pack= *((int *)col);
 		v2s->mval[0]= mval[0];
@@ -2058,10 +2058,10 @@ void UI_view2d_text_cache_rectf(View2D *v2d, rctf *rect, const char *str, const 
 	View2DString *v2s= MEM_callocN(sizeof(View2DString)+len, "View2DString");
 	char *v2s_str= (char *)(v2s+1);
 	memcpy(v2s_str, str, len);
-	
+
 	UI_view2d_to_region_no_clip(v2d, rect->xmin, rect->ymin, &v2s->rect.xmin, &v2s->rect.ymin);
 	UI_view2d_to_region_no_clip(v2d, rect->xmax, rect->ymax, &v2s->rect.xmax, &v2s->rect.ymax);
-	
+
 	v2s->col.pack= *((int *)col);
 	v2s->mval[0]= v2s->rect.xmin;
 	v2s->mval[1]= v2s->rect.ymin;
@@ -2083,11 +2083,11 @@ void UI_view2d_text_cache_draw(ARegion *ar)
 	
 	for(v2s= strings.first; v2s; v2s= v2s->next) {
 		const char *str= (const char *)(v2s+1);
-			int xofs=0, yofs;
-			
-			yofs= ceil( 0.5f*(v2s->rect.ymax - v2s->rect.ymin - BLF_height_default("28")));
-			if(yofs<1) yofs= 1;
-			
+		int xofs=0, yofs;
+
+		yofs= ceil( 0.5f*(v2s->rect.ymax - v2s->rect.ymin - BLF_height_default("28")));
+		if(yofs<1) yofs= 1;
+
 		if(col_pack_prev != v2s->col.pack) {
 			glColor3ubv(v2s->col.ub);
 			col_pack_prev= v2s->col.pack;

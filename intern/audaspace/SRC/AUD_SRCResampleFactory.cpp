@@ -42,8 +42,8 @@ AUD_IReader* AUD_SRCResampleFactory::createReader() const
 {
 	AUD_IReader* reader = getReader();
 
-		if(reader->getSpecs().rate != m_specs.rate)
-			reader = new AUD_SRCResampleReader(reader, m_specs.specs);
+	if(reader->getSpecs().rate != m_specs.rate)
+		reader = new AUD_SRCResampleReader(reader, m_specs.specs);
 
 	return reader;
 }

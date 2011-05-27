@@ -69,6 +69,7 @@ typedef struct ViewContext {
 
 typedef struct ViewDepths {
 	unsigned short w, h;
+	short x, y; /* only for temp use for sub-rects, added to ar->winx/y */
 	float *depths;
 	double depth_range[2];
 	
@@ -247,7 +248,7 @@ int ED_view3d_autodist_depth_seg(struct ARegion *ar, const int mval_sta[2], cons
 #define MAXPICKBUF      10000
 short view3d_opengl_select(struct ViewContext *vc, unsigned int *buffer, unsigned int bufsize, rcti *input);
 
-void view3d_set_viewcontext(const struct bContext *C, struct ViewContext *vc);
+void view3d_set_viewcontext(struct bContext *C, struct ViewContext *vc);
 void view3d_operator_needs_opengl(const struct bContext *C);
 void view3d_region_operator_needs_opengl(struct wmWindow *win, struct ARegion *ar);
 int view3d_get_view_aligned_coordinate(struct ViewContext *vc, float fp[3], const int mval[2], const short do_fallback);
@@ -274,10 +275,9 @@ void ED_view3d_draw_offscreen(struct Scene *scene, struct View3D *v3d, struct AR
 struct ImBuf *ED_view3d_draw_offscreen_imbuf(struct Scene *scene, struct View3D *v3d, struct ARegion *ar, int sizex, int sizey, unsigned int flag, char err_out[256]);
 struct ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Scene *scene, struct Object *camera, int width, int height, unsigned int flag, int drawtype, char err_out[256]);
 
-void view3d_clipping_local(struct RegionView3D *rv3d, float mat[][4]);
 
 Base *ED_view3d_give_base_under_cursor(struct bContext *C, const int mval[2]);
-void ED_view3d_quadview_update(struct ScrArea *sa, struct ARegion *ar);
+void ED_view3d_quadview_update(struct ScrArea *sa, struct ARegion *ar, short do_clip);
 int ED_view3d_lock(struct RegionView3D *rv3d);
 
 unsigned int ED_view3d_datamask(struct Scene *scene, struct View3D *v3d);

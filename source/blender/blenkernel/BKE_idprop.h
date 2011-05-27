@@ -38,7 +38,7 @@
 struct IDProperty;
 struct ID;
 
-typedef union {
+typedef union IDPropertyTemplate {
 	int i;
 	float f;
 	double d;

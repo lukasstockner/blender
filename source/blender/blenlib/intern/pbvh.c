@@ -1426,7 +1426,6 @@ void BLI_pbvh_node_draw(PBVHNode *node, void *UNUSED(data))
 
 	glColor3f(1, 0, 0);
 #endif
-	(void)data;
 
 	GPU_draw_buffers(node->draw_buffers);
 }

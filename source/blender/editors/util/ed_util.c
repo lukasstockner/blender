@@ -94,7 +94,7 @@ void ED_editors_exit(bContext *C)
 {
 	Main *bmain= CTX_data_main(C);
 	Scene *sce;
-	
+
 	if(!bmain)
 		return;
 	

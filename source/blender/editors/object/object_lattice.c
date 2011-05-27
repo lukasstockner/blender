@@ -73,7 +73,7 @@ void free_editLatt(Object *ob)
 	
 	if(lt->editlatt) {
 		Lattice *editlt= lt->editlatt->latt;
-		
+
 		if(editlt->def)
 			MEM_freeN(editlt->def);
 		if(editlt->dvert)
@@ -90,9 +90,9 @@ void make_editLatt(Object *obedit)
 {
 	Lattice *lt= obedit->data;
 	KeyBlock *actkey;
-	
+
 	free_editLatt(obedit);
-	
+
 	actkey= ob_get_keyblock(obedit);
 	if(actkey)
 		key_to_latt(actkey, lt);
@@ -100,7 +100,7 @@ void make_editLatt(Object *obedit)
 	lt->editlatt= MEM_callocN(sizeof(EditLatt), "editlatt");
 	lt->editlatt->latt= MEM_dupallocN(lt);
 	lt->editlatt->latt->def= MEM_dupallocN(lt->def);
-	
+
 	if(lt->dvert) {
 		int tot= lt->pntsu*lt->pntsv*lt->pntsw;
 		lt->editlatt->latt->dvert = MEM_mallocN (sizeof (MDeformVert)*tot, "Lattice MDeformVert");
@@ -117,10 +117,10 @@ void load_editLatt(Object *obedit)
 	BPoint *bp;
 	float *fp;
 	int tot;
-	
+
 	lt= obedit->data;
 	editlt= lt->editlatt->latt;
-	
+
 	if(lt->editlatt->shapenr) {
 		actkey= BLI_findlink(&lt->key->block, lt->editlatt->shapenr-1);
 
@@ -131,7 +131,7 @@ void load_editLatt(Object *obedit)
 		
 		fp=actkey->data= MEM_callocN(lt->key->elemsize*tot, "actkey->data");
 		actkey->totelem= tot;
-	
+
 		bp= editlt->def;
 		while(tot--) {
 			VECCOPY(fp, bp->vec);
@@ -141,7 +141,7 @@ void load_editLatt(Object *obedit)
 	}
 	else {
 		MEM_freeN(lt->def);
-	
+
 		lt->def= MEM_dupallocN(editlt->def);
 
 		lt->flag= editlt->flag;
@@ -154,15 +154,15 @@ void load_editLatt(Object *obedit)
 		lt->typev= editlt->typev;
 		lt->typew= editlt->typew;
 	}
-	
+
 	if(lt->dvert) {
 		free_dverts(lt->dvert, lt->pntsu*lt->pntsv*lt->pntsw);
 		lt->dvert= NULL;
 	}
-	
+
 	if(editlt->dvert) {
 		tot= lt->pntsu*lt->pntsv*lt->pntsw;
-		
+
 		lt->dvert = MEM_mallocN (sizeof (MDeformVert)*tot, "Lattice MDeformVert");
 		copy_dverts(lt->dvert, editlt->dvert, tot);
 	}

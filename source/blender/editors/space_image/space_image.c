@@ -232,14 +232,14 @@ void ED_space_image_uv_aspect(SpaceImage *sima, float *aspx, float *aspy)
 	
 	ED_space_image_aspect(sima, aspx, aspy);
 	ED_space_image_size(sima, &w, &h);
-	
+
 	*aspx *= (float)w;
 	*aspy *= (float)h;
 	
 	if(*aspx < *aspy) {
 		*aspy= *aspy / *aspx;
 		*aspx= 1.0f;
-}
+	}
 	else {
 		*aspx= *aspx / *aspy;
 		*aspy= 1.0f;		
@@ -274,7 +274,7 @@ int ED_space_image_show_uvedit(SpaceImage *sima, Object *obedit)
 {
 	if(sima && (ED_space_image_show_render(sima) || ED_space_image_show_paint(sima)))
 		return 0;
-	
+
 	if(obedit && obedit->type == OB_MESH) {
 		EditMesh *em = BKE_mesh_get_editmesh(obedit->data);
 		int ret;
@@ -328,13 +328,13 @@ static void image_scopes_tag_refresh(ScrArea *sa)
 ARegion *image_has_buttons_region(ScrArea *sa)
 {
 	ARegion *ar, *arnew;
-	
+
 	ar= BKE_area_find_region_type(sa, RGN_TYPE_UI);
 	if(ar) return ar;
 	
 	/* add subdiv level; after header */
 	ar= BKE_area_find_region_type(sa, RGN_TYPE_HEADER);
-	
+
 	/* is error! */
 	if(ar==NULL) return NULL;
 	
@@ -352,13 +352,13 @@ ARegion *image_has_buttons_region(ScrArea *sa)
 ARegion *image_has_scope_region(ScrArea *sa)
 {
 	ARegion *ar, *arnew;
-	
+
 	ar= BKE_area_find_region_type(sa, RGN_TYPE_PREVIEW);
 	if(ar) return ar;
-	
+
 	/* add subdiv level; after buttons */
 	ar= BKE_area_find_region_type(sa, RGN_TYPE_UI);
-	
+
 	/* is error! */
 	if(ar==NULL) return NULL;
 	
@@ -454,7 +454,7 @@ static SpaceLink *image_duplicate(SpaceLink *sl)
 	/* clear or remove stuff from old */
 	if(simagen->cumap)
 		simagen->cumap= curvemapping_copy(simagen->cumap);
-	
+
 	scopes_new(&simagen->scopes);
 
 	return (SpaceLink *)simagen;
@@ -479,7 +479,7 @@ static void image_operatortypes(void)
 	WM_operatortype_append(IMAGE_OT_save_sequence);
 	WM_operatortype_append(IMAGE_OT_pack);
 	WM_operatortype_append(IMAGE_OT_unpack);
-
+	
 	WM_operatortype_append(IMAGE_OT_invert);
 
 	WM_operatortype_append(IMAGE_OT_cycle_render_slot);
@@ -650,14 +650,18 @@ static void image_listener(ScrArea *sa, wmNotifier *wmn)
 					break;
 			}
 		case NC_OBJECT:
+		{
+			Object *ob= (Object *)wmn->reference;
 			switch(wmn->data) {
 				case ND_TRANSFORM:
-					if(sima->lock && (sima->flag & SI_DRAWSHADOW)) {
+				case ND_MODIFIER:
+					if(ob && (ob->mode & OB_MODE_EDIT) && sima->lock && (sima->flag & SI_DRAWSHADOW)) {
 						ED_area_tag_refresh(sa);
 						ED_area_tag_redraw(sa);
 					}
 					break;
 			}
+		}
 	}
 }
 
@@ -796,7 +800,7 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 
 	/* draw Grease Pencil - screen space only */
 	draw_image_grease_pencil((bContext *)C, 0);
-
+	
 	/* scrollers? */
 	/*scrollers= UI_view2d_scrollers_calc(C, v2d, V2D_UNIT_VALUES, V2D_GRID_CLAMP, V2D_ARG_DUMMY, V2D_ARG_DUMMY);
 	UI_view2d_scrollers_draw(C, v2d, scrollers);

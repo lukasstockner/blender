@@ -2,13 +2,13 @@
 # (in background mode with no interface) to automate tasks, in this example it
 # creates a text object, camera and light, then renders and/or saves it.
 # This example also shows how you can parse command line options to scripts.
-# 
+#
 # Example usage for this test.
 #  blender --background --factory-startup --python $HOME/background_job.py -- \
 #          --text="Hello World" \
 #          --render="/tmp/hello" \
 #          --save="/tmp/hello.blend"
-# 
+#
 # Notice:
 # '--factory-startup' is used to avoid the user default settings from
 #                     interfearing with automated scene generation.
@@ -21,7 +21,7 @@ import bpy
 
 
 def example_function(text, save_path, render_path):
-    
+
     scene = bpy.context.scene
 
     # Clear existing objects.
@@ -33,16 +33,16 @@ def example_function(text, save_path, render_path):
 
     # Text Object
     txt_ob = bpy.data.objects.new(name="MyText", object_data=txt_data)
-    scene.objects.link(txt_ob)            # add the data to the scene as an object
+    scene.objects.link(txt_ob)  # add the data to the scene as an object
     txt_data.body = text        # the body text to the command line arg given
-    txt_data.align = 'CENTER'                    # center text
+    txt_data.align = 'CENTER'   # center text
 
     # Camera
     cam_data = bpy.data.cameras.new("MyCam")
     cam_ob = bpy.data.objects.new(name="MyCam", object_data=cam_data)
     scene.objects.link(cam_ob)  # instance the camera object in the scene
-    scene.camera = cam_ob                    # set the active camera
-    cam_ob.location =  0.0, 0.0, 10.0
+    scene.camera = cam_ob       # set the active camera
+    cam_ob.location = 0.0, 0.0, 10.0
 
     # Lamp
     lamp_data = bpy.data.lamps.new("MyLamp", 'POINT')
@@ -72,7 +72,7 @@ def example_function(text, save_path, render_path):
 
 
 def main():
-import sys        # to get command line args
+    import sys       # to get command line args
     import argparse  # to parse options for us and print a nice help message
 
     # get the args passed to blender after "--", all of which are ignored by
@@ -80,17 +80,17 @@ import sys        # to get command line args
     argv = sys.argv
 
     if "--" not in argv:
-        argv = [] # as if no args are passed
-    else:    
-        argv = argv[argv.index("--") + 1:] # get all args after "--"
-    
+        argv = []  # as if no args are passed
+    else:
+        argv = argv[argv.index("--") + 1:]  # get all args after "--"
+
     # When --help or no args are given, print this help
     usage_text = \
     "Run blender in background mode with this script:"
     "  blender --background --python " + __file__ + " -- [options]"
-            
+
     parser = argparse.ArgumentParser(description=usage_text)
-    
+
     # Example utility, add some text and renders or saves it (with options)
     # Possible types are: string, int, long, choice, float and complex.
     parser.add_argument("-t", "--text", dest="text", type=str, required=True,
@@ -102,7 +102,7 @@ import sys        # to get command line args
             help="Render an image to the specified path")
 
     args = parser.parse_args(argv)  # In this example we wont use the args
-    
+
     if not argv:
         parser.print_help()
         return
@@ -111,7 +111,7 @@ import sys        # to get command line args
         print("Error: --text=\"some string\" argument not given, aborting.")
         parser.print_help()
         return
-    
+
     # Run the example function
     example_function(args.text, args.save_path, args.render_path)
 

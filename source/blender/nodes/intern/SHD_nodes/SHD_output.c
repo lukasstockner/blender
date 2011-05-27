@@ -41,7 +41,7 @@ static bNodeSocketType sh_node_output_in[]= {
 	{	-1, 0, ""	}
 };
 
-static void node_shader_exec_output(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_shader_exec_output(void *data, bNode *node, bNodeStack **in, bNodeStack **UNUSED(out))
 {
 	if(data) {
 		ShadeInput *shi= ((ShaderCallData *)data)->shi;
@@ -67,7 +67,7 @@ static void node_shader_exec_output(void *data, bNode *node, bNodeStack **in, bN
 	}	
 }
 
-static int gpu_shader_output(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+static int gpu_shader_output(GPUMaterial *mat, bNode *UNUSED(node), GPUNodeStack *in, GPUNodeStack *out)
 {
 	GPUNodeLink *outlink;
 
@@ -83,7 +83,7 @@ static int gpu_shader_output(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GP
 void register_node_type_sh_output(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, SH_NODE_OUTPUT, "Output", NODE_CLASS_OUTPUT, NODE_PREVIEW,
 		sh_node_output_in, NULL);
 	node_type_size(&ntype, 80, 60, 200);

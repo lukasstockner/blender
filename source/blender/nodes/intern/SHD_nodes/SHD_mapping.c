@@ -46,7 +46,7 @@ static bNodeSocketType sh_node_mapping_out[]= {
 };
 
 /* do the regular mapping options for blender textures */
-static void node_shader_exec_mapping(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_shader_exec_mapping(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	TexMapping *texmap= node->storage;
 	float *vec= out[0]->vec;
@@ -71,7 +71,7 @@ static void node_shader_exec_mapping(void *data, bNode *node, bNodeStack **in, b
 
 static void node_shader_init_mapping(bNode *node)
 {
-   node->storage= add_mapping();
+	node->storage= add_mapping();
 }
 
 static int gpu_shader_mapping(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
@@ -99,6 +99,6 @@ void register_node_type_sh_mapping(ListBase *lb)
 	node_type_storage(&ntype, "TexMapping", node_free_standard_storage, node_copy_standard_storage);
 	node_type_exec(&ntype, node_shader_exec_mapping);
 	node_type_gpu(&ntype, gpu_shader_mapping);
-
+	
 	nodeRegisterType(lb, &ntype);
 }

@@ -118,7 +118,7 @@ PyObject* KX_VertexProxy::pyattr_get_z(void *self_v, const KX_PYATTRIBUTE_DEF *a
 {
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	return PyFloat_FromDouble(self->m_vertex->getXYZ()[2]);
-  }
+}
 
 PyObject* KX_VertexProxy::pyattr_get_r(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
@@ -139,16 +139,16 @@ PyObject* KX_VertexProxy::pyattr_get_b(void *self_v, const KX_PYATTRIBUTE_DEF *a
 }
 
 PyObject* KX_VertexProxy::pyattr_get_a(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-  {
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	return PyFloat_FromDouble(self->m_vertex->getRGBA()[3]/255.0);
-  }
+}
 
 PyObject* KX_VertexProxy::pyattr_get_u(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-  {
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	return PyFloat_FromDouble(self->m_vertex->getUV1()[0]);
-  }
+}
 
 PyObject* KX_VertexProxy::pyattr_get_v(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
@@ -169,79 +169,79 @@ PyObject* KX_VertexProxy::pyattr_get_v2(void *self_v, const KX_PYATTRIBUTE_DEF *
 }
 
 PyObject* KX_VertexProxy::pyattr_get_XYZ(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-  {
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	return PyObjectFrom(MT_Vector3(self->m_vertex->getXYZ()));
 }
 
 PyObject* KX_VertexProxy::pyattr_get_UV(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-	{
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	return PyObjectFrom(MT_Point2(self->m_vertex->getUV1()));
 }
 
 PyObject* KX_VertexProxy::pyattr_get_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-		{
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	const unsigned char *colp = self->m_vertex->getRGBA();
 	MT_Vector4 color(colp[0], colp[1], colp[2], colp[3]);
 	color /= 255.0;
 	return PyObjectFrom(color);
-		}
+}
 
 PyObject* KX_VertexProxy::pyattr_get_normal(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	return PyObjectFrom(MT_Vector3(self->m_vertex->getNormal()));
-	}
+}
 
 int KX_VertexProxy::pyattr_set_x(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-	{
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	if (PyFloat_Check(value))
-		{
+	{
 		float val = PyFloat_AsDouble(value);
 		MT_Point3 pos(self->m_vertex->getXYZ());
 		pos.x() = val;
 		self->m_vertex->SetXYZ(pos);
 		self->m_mesh->SetMeshModified(true);
-			return PY_SET_ATTR_SUCCESS;
-		}
-		return PY_SET_ATTR_FAIL;
+		return PY_SET_ATTR_SUCCESS;
 	}
+	return PY_SET_ATTR_FAIL;
+}
 
 int KX_VertexProxy::pyattr_set_y(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-	{
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	if (PyFloat_Check(value))
-		{
+	{
 		float val = PyFloat_AsDouble(value);
 		MT_Point3 pos(self->m_vertex->getXYZ());
 		pos.y() = val;
 		self->m_vertex->SetXYZ(pos);
 		self->m_mesh->SetMeshModified(true);
-			return PY_SET_ATTR_SUCCESS;
-		}
-		return PY_SET_ATTR_FAIL;
+		return PY_SET_ATTR_SUCCESS;
 	}
+	return PY_SET_ATTR_FAIL;
+}
 
 int KX_VertexProxy::pyattr_set_z(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-	{
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	if (PyFloat_Check(value))
-		{
+	{
 		float val = PyFloat_AsDouble(value);
 		MT_Point3 pos(self->m_vertex->getXYZ());
 		pos.z() = val;
 		self->m_vertex->SetXYZ(pos);
 		self->m_mesh->SetMeshModified(true);
-			return PY_SET_ATTR_SUCCESS;
-		}
-		return PY_SET_ATTR_FAIL;
+		return PY_SET_ATTR_SUCCESS;
 	}
+	return PY_SET_ATTR_FAIL;
+}
 
 int KX_VertexProxy::pyattr_set_u(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-  {
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	if (PyFloat_Check(value))
 	{
@@ -256,7 +256,7 @@ int KX_VertexProxy::pyattr_set_u(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 }
 
 int KX_VertexProxy::pyattr_set_v(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-	{
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	if (PyFloat_Check(value))
 	{
@@ -271,7 +271,7 @@ int KX_VertexProxy::pyattr_set_v(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 }
 
 int KX_VertexProxy::pyattr_set_u2(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-	{
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	if (PyFloat_Check(value))
 	{
@@ -286,7 +286,7 @@ int KX_VertexProxy::pyattr_set_u2(void *self_v, const struct KX_PYATTRIBUTE_DEF 
 }
 
 int KX_VertexProxy::pyattr_set_v2(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-	{
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	if (PyFloat_Check(value))
 	{
@@ -301,7 +301,7 @@ int KX_VertexProxy::pyattr_set_v2(void *self_v, const struct KX_PYATTRIBUTE_DEF 
 }
 
 int KX_VertexProxy::pyattr_set_r(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-	{
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	if (PyFloat_Check(value))
 	{
@@ -318,7 +318,7 @@ int KX_VertexProxy::pyattr_set_r(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 }
 
 int KX_VertexProxy::pyattr_set_g(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-	{
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	if (PyFloat_Check(value))
 	{
@@ -335,7 +335,7 @@ int KX_VertexProxy::pyattr_set_g(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 }
 
 int KX_VertexProxy::pyattr_set_b(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-	{
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	if (PyFloat_Check(value))
 	{
@@ -358,8 +358,8 @@ int KX_VertexProxy::pyattr_set_a(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 	{
 		float val = PyFloat_AsDouble(value);
 		unsigned int icol = *((const unsigned int *)self->m_vertex->getRGBA());
-	unsigned char *cp = (unsigned char*) &icol;
-	val *= 255.0;
+		unsigned char *cp = (unsigned char*) &icol;
+		val *= 255.0;
 		cp[3] = (unsigned char) val;
 		self->m_vertex->SetRGBA(icol);
 		self->m_mesh->SetMeshModified(true);
@@ -369,7 +369,7 @@ int KX_VertexProxy::pyattr_set_a(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 }
 
 int KX_VertexProxy::pyattr_set_XYZ(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-	{
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	if (PySequence_Check(value))
 	{
@@ -378,14 +378,14 @@ int KX_VertexProxy::pyattr_set_XYZ(void *self_v, const struct KX_PYATTRIBUTE_DEF
 		{
 			self->m_vertex->SetXYZ(vec);
 			self->m_mesh->SetMeshModified(true);
-		return PY_SET_ATTR_SUCCESS;
-	}
+			return PY_SET_ATTR_SUCCESS;
+		}
 	}
 	return PY_SET_ATTR_FAIL;
 }
 
 int KX_VertexProxy::pyattr_set_UV(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-	{
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	if (PySequence_Check(value))
 	{
@@ -394,14 +394,14 @@ int KX_VertexProxy::pyattr_set_UV(void *self_v, const struct KX_PYATTRIBUTE_DEF 
 		{
 			self->m_vertex->SetUV(vec);
 			self->m_mesh->SetMeshModified(true);
-		return PY_SET_ATTR_SUCCESS;
-	}
+			return PY_SET_ATTR_SUCCESS;
+		}
 	}
 	return PY_SET_ATTR_FAIL;
 }
 
 int KX_VertexProxy::pyattr_set_color(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-	{
+{
 	KX_VertexProxy* self= static_cast<KX_VertexProxy*>(self_v);
 	if (PySequence_Check(value))
 	{
@@ -410,9 +410,9 @@ int KX_VertexProxy::pyattr_set_color(void *self_v, const struct KX_PYATTRIBUTE_D
 		{
 			self->m_vertex->SetRGBA(vec);
 			self->m_mesh->SetMeshModified(true);
-		return PY_SET_ATTR_SUCCESS;
+			return PY_SET_ATTR_SUCCESS;
+		}
 	}
-  }
 	return PY_SET_ATTR_FAIL;
 }
 
@@ -427,7 +427,7 @@ int KX_VertexProxy::pyattr_set_normal(void *self_v, const struct KX_PYATTRIBUTE_
 			self->m_vertex->SetNormal(vec);
 			self->m_mesh->SetMeshModified(true);
 			return PY_SET_ATTR_SUCCESS;
-}
+		}
 	}
 	return PY_SET_ATTR_FAIL;
 }
@@ -558,4 +558,4 @@ PyObject* KX_VertexProxy::PySetUV2(PyObject* args)
 	Py_RETURN_NONE;
 }
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON

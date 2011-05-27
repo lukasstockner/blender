@@ -42,8 +42,8 @@ AUD_IReader* AUD_ConverterFactory::createReader() const
 {
 	AUD_IReader* reader = getReader();
 
-		if(m_specs.format != AUD_FORMAT_FLOAT32)
-			reader = new AUD_ConverterReader(reader, m_specs);
+	if(m_specs.format != AUD_FORMAT_FLOAT32)
+		reader = new AUD_ConverterReader(reader, m_specs);
 
 	return reader;
 }

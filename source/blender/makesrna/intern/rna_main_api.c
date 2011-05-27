@@ -124,7 +124,7 @@ void rna_Main_scenes_remove(Main *bmain, bContext *C, ReportList *reports, struc
 	}
 
 	if(CTX_wm_screen(C)->scene == scene)
-	ED_screen_set_scene(C, newscene);
+		ED_screen_set_scene(C, newscene);
 
 	unlink_scene(bmain, scene, newscene);
 }
@@ -182,12 +182,12 @@ Object *rna_Main_objects_new(Main *bmain, ReportList *reports, const char *name,
 void rna_Main_objects_remove(Main *bmain, ReportList *reports, struct Object *object)
 {
 	if(ID_REAL_USERS(object) <= 0) {
-		unlink_object(NULL, object); /* needed or ID pointers to this are not cleared */
+		unlink_object(object); /* needed or ID pointers to this are not cleared */
 		free_libblock(&bmain->object, object);
 	}
 	else {
 		BKE_reportf(reports, RPT_ERROR, "Object \"%s\" must have zero users to be removed, found %d.", object->id.name+2, ID_REAL_USERS(object));
-}
+	}
 }
 
 struct Material *rna_Main_materials_new(Main *bmain, const char *name)
@@ -783,7 +783,7 @@ void RNA_def_main_window_managers(BlenderRNA *brna, PropertyRNA *cprop)
 	StructRNA *srna;
 	FunctionRNA *func;
 	PropertyRNA *parm;
-    
+
 	RNA_def_property_srna(cprop, "BlendDataWindowManagers");
 	srna= RNA_def_struct(brna, "BlendDataWindowManagers", NULL);
 	RNA_def_struct_sdna(srna, "Main");

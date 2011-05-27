@@ -39,20 +39,28 @@
 #pragma warning (disable : 4786)
 #endif //WIN32
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
+
+#ifdef _POSIX_C_SOURCE
+#undef _POSIX_C_SOURCE
+#endif
+
+#ifdef _XOPEN_SOURCE
+#undef _XOPEN_SOURCE
+#endif
+
+#include <Python.h>
 
 extern "C" {
 	#include "bpy_internal_import.h"  /* from the blender python api, but we want to import text too! */
 	#include "py_capi_utils.h"
 	#include "mathutils.h" // Blender.Mathutils module copied here so the blenderlayer can use.
-	#include "geometry.h" // Blender.Geometry module copied here so the blenderlayer can use.
 	#include "bgl.h"
 	#include "blf_py_api.h"
 
 	#include "marshal.h" /* python header for loading/saving dicts */
 }
 
-#define WITH_PYTHON
 #include "AUD_PyInit.h"
 
 #endif
@@ -135,7 +143,7 @@ extern "C" {
 
 // 'local' copy of canvas ptr, for window height/width python scripts
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 static RAS_ICanvas* gp_Canvas = NULL;
 static char gp_GamePythonPath[FILE_MAXDIR + FILE_MAXFILE] = "";
@@ -143,7 +151,7 @@ static char gp_GamePythonPathOrig[FILE_MAXDIR + FILE_MAXFILE] = ""; // not super
 
 static SCA_PythonKeyboard* gp_PythonKeyboard = NULL;
 static SCA_PythonMouse* gp_PythonMouse = NULL;
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON
 
 static KX_Scene*	gp_KetsjiScene = NULL;
 static KX_KetsjiEngine*	gp_KetsjiEngine = NULL;
@@ -172,7 +180,7 @@ void	KX_RasterizerDrawDebugLine(const MT_Vector3& from,const MT_Vector3& to,cons
 		gp_Rasterizer->DrawDebugLine(from,to,color);
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 static PyObject *gp_OrigPythonSysPath= NULL;
 static PyObject *gp_OrigPythonSysModules= NULL;
@@ -638,7 +646,7 @@ static PyObject *gLibLoad(PyObject*, PyObject* args, PyObject* kwds)
 	Py_buffer py_buffer;
 	py_buffer.buf = NULL;
 	char *err_str= NULL;
-	
+
 	short options=0;
 	int load_actions=0, verbose=0;
 
@@ -662,12 +670,12 @@ static PyObject *gLibLoad(PyObject*, PyObject* args, PyObject* kwds)
 		BLI_path_abs(abs_path, gp_GamePythonPath);
 
 		if(kx_scene->GetSceneConverter()->LinkBlendFilePath(abs_path, group, kx_scene, &err_str, options)) {
-		Py_RETURN_TRUE;
-	}
+			Py_RETURN_TRUE;
+		}
 	}
 	else
 	{
-	
+
 		if(kx_scene->GetSceneConverter()->LinkBlendFileMemory(py_buffer.buf, py_buffer.len, path, group, kx_scene, &err_str, options))	{
 			PyBuffer_Release(&py_buffer);
 			Py_RETURN_TRUE;
@@ -1789,7 +1797,7 @@ PyObject* initGamePlayerPythonScripting(const STR_String& progname, TPythonSecur
 		PySys_SetObject("argv", py_argv);
 		Py_DECREF(py_argv);
 	}
-	
+
 	bpy_import_init(PyEval_GetBuiltins());
 
 	/* mathutils types are used by the BGE even if we dont import them */
@@ -1807,7 +1815,7 @@ PyObject* initGamePlayerPythonScripting(const STR_String& progname, TPythonSecur
 	first_time = false;
 	
 	PyObjectPlus::ClearDeprecationWarning();
-	
+
 	return PyC_DefaultNameSpace(NULL);
 }
 
@@ -1849,7 +1857,7 @@ PyObject* initGamePythonScripting(const STR_String& progname, TPythonSecurityLev
 	initPySysObjects(maggie);
 
 	PyObjectPlus::NullDeprecationWarning();
-	
+
 	return PyC_DefaultNameSpace(NULL);
 }
 
@@ -2299,4 +2307,4 @@ void resetGamePythonPath()
 	gp_GamePythonPathOrig[0] = '\0';
 }
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON

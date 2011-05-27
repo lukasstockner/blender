@@ -45,7 +45,7 @@ static bNodeSocketType outputs[]= {
 	{ -1, 0, "" } 
 };
 
-static void normalfn(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void normalfn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **in, short thread)
 {
 	float new_co[3];
 	float *co = p->co;
@@ -84,7 +84,7 @@ static void exec(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
 void register_node_type_tex_valtonor(ListBase *lb)
 {
 	static bNodeType ntype;
-
+	
 	node_type_base(&ntype, TEX_NODE_VALTONOR, "Value to Normal", NODE_CLASS_CONVERTOR, NODE_OPTIONS,
 				   inputs, outputs);
 	node_type_size(&ntype, 90, 80, 100);

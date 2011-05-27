@@ -58,8 +58,8 @@ void IMB_de_interlace(struct ImBuf *ibuf)
 	
 	if (ibuf->rect) {
 		/* make copies */
-		tbuf1 = IMB_allocImBuf(ibuf->x, ibuf->y / 2, 32, IB_rect, 0);
-		tbuf2 = IMB_allocImBuf(ibuf->x, ibuf->y / 2, 32, IB_rect, 0);
+		tbuf1 = IMB_allocImBuf(ibuf->x, ibuf->y / 2, 32, IB_rect);
+		tbuf2 = IMB_allocImBuf(ibuf->x, ibuf->y / 2, 32, IB_rect);
 		
 		ibuf->x *= 2;	
 		IMB_rectcpy(tbuf1, ibuf, 0, 0, 0, 0, ibuf->x, ibuf->y);
@@ -86,8 +86,8 @@ void IMB_interlace(struct ImBuf *ibuf)
 
 	if (ibuf->rect) {
 		/* make copies */
-		tbuf1 = IMB_allocImBuf(ibuf->x, ibuf->y / 2, 32, IB_rect, 0);
-		tbuf2 = IMB_allocImBuf(ibuf->x, ibuf->y / 2, 32, IB_rect, 0);
+		tbuf1 = IMB_allocImBuf(ibuf->x, ibuf->y / 2, 32, IB_rect);
+		tbuf2 = IMB_allocImBuf(ibuf->x, ibuf->y / 2, 32, IB_rect);
 
 		IMB_rectcpy(tbuf1, ibuf, 0, 0, 0, 0, ibuf->x, ibuf->y);
 		IMB_rectcpy(tbuf2, ibuf, 0, 0, 0, tbuf2->y, ibuf->x, ibuf->y);
@@ -171,7 +171,13 @@ void IMB_rect_from_float(struct ImBuf *ibuf)
 			if (dither != 0.f) {
 				for (i = ibuf->x * ibuf->y; i > 0; i--, to+=4, tof+=4) {
 					const float d = (BLI_frand()-0.5f)*dither;
-					const float col[4] = {d+tof[0], d+tof[1], d+tof[2], d+tof[3]};
+					float col[4];
+
+					col[0]= d + tof[0];
+					col[1]= d + tof[1];
+					col[2]= d + tof[2];
+					col[3]= d + tof[3];
+
 					to[0] = FTOCHAR(col[0]);
 					to[1] = FTOCHAR(col[1]);
 					to[2] = FTOCHAR(col[2]);
@@ -196,7 +202,7 @@ static void imb_float_from_rect_nonlinear(struct ImBuf *ibuf, float *fbuf)
 	float *tof = fbuf;
 	int i;
 	unsigned char *to = (unsigned char *) ibuf->rect;
-	
+
 	for (i = ibuf->x * ibuf->y; i > 0; i--) 
 	{
 		tof[0] = ((float)to[0])*(1.0f/255.0f);
@@ -207,32 +213,32 @@ static void imb_float_from_rect_nonlinear(struct ImBuf *ibuf, float *fbuf)
 		tof += 4;
 	}
 }
-	
+
 
 static void imb_float_from_rect_linear(struct ImBuf *ibuf, float *fbuf)
 {
 	float *tof = fbuf;
 	int i;
 	unsigned char *to = (unsigned char *) ibuf->rect;
-		
-		for (i = ibuf->x * ibuf->y; i > 0; i--) 
-		{
-			tof[0] = srgb_to_linearrgb(((float)to[0])*(1.0f/255.0f));
-			tof[1] = srgb_to_linearrgb(((float)to[1])*(1.0f/255.0f));
-			tof[2] = srgb_to_linearrgb(((float)to[2])*(1.0f/255.0f));
-			tof[3] = ((float)to[3])*(1.0f/255.0f);
-			to += 4; 
-			tof += 4;
-		}
+
+	for (i = ibuf->x * ibuf->y; i > 0; i--) 
+	{
+		tof[0] = srgb_to_linearrgb(((float)to[0])*(1.0f/255.0f));
+		tof[1] = srgb_to_linearrgb(((float)to[1])*(1.0f/255.0f));
+		tof[2] = srgb_to_linearrgb(((float)to[2])*(1.0f/255.0f));
+		tof[3] = ((float)to[3])*(1.0f/255.0f);
+		to += 4; 
+		tof += 4;
+	}
 }
 
 void IMB_float_from_rect(struct ImBuf *ibuf)
-		{
+{
 	/* quick method to convert byte to floatbuf */
 	if(ibuf->rect==NULL) return;
 	if(ibuf->rect_float==NULL) {
 		if (imb_addrectfloatImBuf(ibuf) == 0) return;
-		}
+	}
 	
 	/* Float bufs should be stored linear */
 

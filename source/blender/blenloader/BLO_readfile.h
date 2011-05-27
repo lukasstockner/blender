@@ -117,7 +117,7 @@ BlendFileData *BLO_read_from_memfile(struct Main *oldmain, const char *filename,
 	void
 BLO_blendfiledata_free(
 	BlendFileData *bfd);
-
+	
 /**
  * Open a blendhandle from a file path.
  * 

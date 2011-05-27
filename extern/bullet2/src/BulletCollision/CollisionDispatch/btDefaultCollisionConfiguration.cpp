@@ -45,15 +45,15 @@ btDefaultCollisionConfiguration::btDefaultCollisionConfiguration(const btDefault
 
 	void* mem = btAlignedAlloc(sizeof(btVoronoiSimplexSolver),16);
 	m_simplexSolver = new (mem)btVoronoiSimplexSolver();
-	
+
 	if (constructionInfo.m_useEpaPenetrationAlgorithm)
 	{
-	mem = btAlignedAlloc(sizeof(btGjkEpaPenetrationDepthSolver),16);
-	m_pdSolver = new (mem)btGjkEpaPenetrationDepthSolver;
+		mem = btAlignedAlloc(sizeof(btGjkEpaPenetrationDepthSolver),16);
+		m_pdSolver = new (mem)btGjkEpaPenetrationDepthSolver;
 	}else
 	{
-	mem = btAlignedAlloc(sizeof(btMinkowskiPenetrationDepthSolver),16);
-	m_pdSolver = new (mem)btMinkowskiPenetrationDepthSolver;
+		mem = btAlignedAlloc(sizeof(btMinkowskiPenetrationDepthSolver),16);
+		m_pdSolver = new (mem)btMinkowskiPenetrationDepthSolver;
 	}
 	
 	//default CreationFunctions, filling the m_doubleDispatch table

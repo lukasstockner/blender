@@ -26,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
 */
+
+/** \file blender/python/generic/mathutils.h
+ *  \ingroup pygen
+ */
+
 //Include this file for access to vector, quat, matrix, euler, etc...
 
 #ifndef MATHUTILS_H
@@ -53,13 +58,16 @@ typedef struct {
 #include "mathutils_Quaternion.h"
 #include "mathutils_Euler.h"
 #include "mathutils_Color.h"
+#include "mathutils_geometry.h"
 
 PyObject *BaseMathObject_getOwner( BaseMathObject * self, void * );
 PyObject *BaseMathObject_getWrapped( BaseMathObject *self, void * );
+
+int BaseMathObject_traverse(BaseMathObject *self, visitproc visit, void *arg);
+int BaseMathObject_clear(BaseMathObject *self);
 void BaseMathObject_dealloc(BaseMathObject * self);
 
-PyObject *Mathutils_Init(void);
-PyObject *Noise_Init(void); /* lazy, saves having own header */
+PyMODINIT_FUNC BPyInit_mathutils(void);
 
 int EXPP_FloatsAreEqual(float A, float B, int floatSteps);
 int EXPP_VectorsAreEqual(float *vecA, float *vecB, int size, int floatSteps);
@@ -91,10 +99,10 @@ int _BaseMathObject_ReadIndexCallback(BaseMathObject *self, int index);
 int _BaseMathObject_WriteIndexCallback(BaseMathObject *self, int index);
 
 /* since this is called so often avoid where possible */
-#define BaseMath_ReadCallback(_self) (((_self)->cb_user ?	_BaseMathObject_ReadCallback((BaseMathObject *)_self):1))
-#define BaseMath_WriteCallback(_self) (((_self)->cb_user ?_BaseMathObject_WriteCallback((BaseMathObject *)_self):1))
-#define BaseMath_ReadIndexCallback(_self, _index) (((_self)->cb_user ?	_BaseMathObject_ReadIndexCallback((BaseMathObject *)_self, _index):1))
-#define BaseMath_WriteIndexCallback(_self, _index) (((_self)->cb_user ?	_BaseMathObject_WriteIndexCallback((BaseMathObject *)_self, _index):1))
+#define BaseMath_ReadCallback(_self) (((_self)->cb_user ?	_BaseMathObject_ReadCallback((BaseMathObject *)_self):0))
+#define BaseMath_WriteCallback(_self) (((_self)->cb_user ?_BaseMathObject_WriteCallback((BaseMathObject *)_self):0))
+#define BaseMath_ReadIndexCallback(_self, _index) (((_self)->cb_user ?	_BaseMathObject_ReadIndexCallback((BaseMathObject *)_self, _index):0))
+#define BaseMath_WriteIndexCallback(_self, _index) (((_self)->cb_user ?	_BaseMathObject_WriteIndexCallback((BaseMathObject *)_self, _index):0))
 
 /* utility func */
 int mathutils_array_parse(float *array, int array_min, int array_max, PyObject *value, const char *error_prefix);

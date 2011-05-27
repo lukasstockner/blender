@@ -79,10 +79,10 @@ def is_c_any(filename):
 
 
 def cmake_get_src(f):
-    
+
     sources_h = []
     sources_c = []
-    
+
     filen = open(f, "r", encoding="utf8")
     it = iter(filen)
     found = False
@@ -103,7 +103,7 @@ def cmake_get_src(f):
                         raise Exception("strict formatting not kept 'set(SRC*' %s:%d" % (f, i))
                     found = True
                     break
-                
+
                 if "list(APPEND SRC" in l:
                     if l.endswith(")"):
                         raise Exception("strict formatting not kept 'list(APPEND SRC...)' on 1 line %s:%d" % (f, i))
@@ -120,11 +120,11 @@ def cmake_get_src(f):
                 except StopIteration:
                     it = None
                     break
-                    
+
                 l = l.strip()
 
                 if not l.startswith("#"):
-                        
+
                     if ")" in l:
                         if l.strip() != ")":
                             raise Exception("strict formatting not kept '*)' %s:%d" % (f, i))
@@ -141,7 +141,7 @@ def cmake_get_src(f):
                         raise Exception("Multi-line define '%s' %s:%d" % (l, f, i))
                     else:
                         new_file = normpath(join(cmake_base, l))
-                        
+
                         if is_c_header(new_file):
                             sources_h.append(new_file)
                         elif is_c(new_file):
@@ -169,7 +169,7 @@ def cmake_get_src(f):
                 if ff not in sources_c:
                     print("  missing: " + ff)
             '''
-    
+
     filen.close()
 
 
@@ -182,7 +182,7 @@ def is_ignore(f):
         if ig in f:
             return True
     return False
-    
+
 # First do stupid check, do these files exist?
 for f in (global_h | global_c):
     if f.endswith("dna.c"):
@@ -191,7 +191,7 @@ for f in (global_h | global_c):
     if not os.path.exists(f):
         raise Exception("CMake referenced file missing: " + f)
 
-    
+
 # now check on files not accounted for.
 print("\nC/C++ Files CMake doesnt know about...")
 for cf in sorted(source_list(base, is_c)):
@@ -211,11 +211,11 @@ for files in (global_c, global_h):
         if os.path.exists(f):
             # ignore outside of our source tree
             if "extern" not in f:
-        i = 1
-        try:
-            for l in open(f, "r", encoding="utf8"):
-                i += 1
-        except:
-            print("Non utf8: %s:%d" % (f, i))
-            if i > 1:
-                traceback.print_exc()
+                i = 1
+                try:
+                    for l in open(f, "r", encoding="utf8"):
+                        i += 1
+                except:
+                    print("Non utf8: %s:%d" % (f, i))
+                    if i > 1:
+                        traceback.print_exc()

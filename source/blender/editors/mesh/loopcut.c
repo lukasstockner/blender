@@ -103,13 +103,15 @@ typedef struct tringselOpData {
 } tringselOpData;
 
 /* modal loop selection drawing callback */
-static void ringsel_draw(const bContext *C, ARegion *ar, void *arg)
+static void ringsel_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 {
-	int i;
+	View3D *v3d = CTX_wm_view3d(C);
 	tringselOpData *lcd = arg;
+	int i;
 	
 	if (lcd->totedge > 0) {
-		glDisable(GL_DEPTH_TEST);
+		if(v3d && v3d->zbuf)
+			glDisable(GL_DEPTH_TEST);
 
 		glPushMatrix();
 		glMultMatrixf(lcd->ob->obmat);
@@ -123,7 +125,8 @@ static void ringsel_draw(const bContext *C, ARegion *ar, void *arg)
 		glEnd();
 
 		glPopMatrix();
-		glEnable(GL_DEPTH_TEST);
+		if(v3d && v3d->zbuf)
+			glEnable(GL_DEPTH_TEST);
 	}
 }
 
@@ -257,7 +260,7 @@ static void edgering_sel(tringselOpData *lcd, int previewlines, int select)
 	lcd->totedge = tot;
 }
 
-static void ringsel_find_edge(tringselOpData *lcd, const bContext *C, ARegion *ar, int cuts)
+static void ringsel_find_edge(tringselOpData *lcd, int cuts)
 {
 	if (lcd->eed) {
 		edgering_sel(lcd, cuts, 0);
@@ -312,7 +315,7 @@ static void ringsel_finish(bContext *C, wmOperator *op)
 }
 
 /* called when modal loop selection is done... */
-static void ringsel_exit (bContext *C, wmOperator *op)
+static void ringsel_exit(wmOperator *op)
 {
 	tringselOpData *lcd= op->customdata;
 
@@ -351,10 +354,10 @@ static int ringsel_init (bContext *C, wmOperator *op, int do_cut)
 	return 1;
 }
 
-static int ringcut_cancel (bContext *C, wmOperator *op)
+static int ringcut_cancel (bContext *UNUSED(C), wmOperator *op)
 {
 	/* this is just a wrapper around exit() */
-	ringsel_exit(C, op);
+	ringsel_exit(op);
 	return OPERATOR_CANCELLED;
 }
 
@@ -372,7 +375,7 @@ static int ringsel_invoke (bContext *C, wmOperator *op, wmEvent *evt)
 	lcd = op->customdata;
 	
 	if (lcd->em->selectmode == SCE_SELECT_FACE) {
-		ringsel_exit(C, op);
+		ringsel_exit(op);
 		WM_operator_name_call(C, "MESH_OT_loop_select", WM_OP_INVOKE_REGION_WIN, NULL);
 		return OPERATOR_CANCELLED;
 	}
@@ -382,15 +385,15 @@ static int ringsel_invoke (bContext *C, wmOperator *op, wmEvent *evt)
 	
 	edge = findnearestedge(&lcd->vc, &dist);
 	if(!edge) {
-		ringsel_exit(C, op);
+		ringsel_exit(op);
 		return OPERATOR_CANCELLED;
 	}
 
 	lcd->eed = edge;
-	ringsel_find_edge(lcd, C, lcd->ar, 1);
+	ringsel_find_edge(lcd, 1);
 
 	ringsel_finish(C, op);
-	ringsel_exit(C, op);
+	ringsel_exit(op);
 
 	return OPERATOR_FINISHED;
 }
@@ -420,10 +423,10 @@ static int ringcut_invoke (bContext *C, wmOperator *op, wmEvent *evt)
 	edge = findnearestedge(&lcd->vc, &dist);
 	if (edge != lcd->eed) {
 		lcd->eed = edge;
-		ringsel_find_edge(lcd, C, lcd->ar, 1);
+		ringsel_find_edge(lcd, 1);
 	}
 	ED_area_headerprint(CTX_wm_area(C), "Select a ring to be cut, use mouse-wheel or page-up/down for number of cuts");
-
+	
 	return OPERATOR_RUNNING_MODAL;
 }
 
@@ -442,7 +445,7 @@ static int ringcut_modal (bContext *C, wmOperator *op, wmEvent *event)
 				ED_region_tag_redraw(lcd->ar);
 				
 				ringsel_finish(C, op);
-				ringsel_exit(C, op);
+				ringsel_exit(op);
 				ED_area_headerprint(CTX_wm_area(C), NULL);
 				
 				return OPERATOR_FINISHED;
@@ -467,7 +470,7 @@ static int ringcut_modal (bContext *C, wmOperator *op, wmEvent *event)
 			if (event->val == KM_PRESS) {
 				cuts++;
 				RNA_int_set(op->ptr, "number_cuts",cuts);
-				ringsel_find_edge(lcd, C, lcd->ar, cuts);
+				ringsel_find_edge(lcd, cuts);
 				
 				ED_region_tag_redraw(lcd->ar);
 			}
@@ -477,7 +480,7 @@ static int ringcut_modal (bContext *C, wmOperator *op, wmEvent *event)
 			if (event->val == KM_PRESS) {
 				cuts=MAX2(cuts-1,1);
 				RNA_int_set(op->ptr,"number_cuts",cuts);
-				ringsel_find_edge(lcd, C, lcd->ar,cuts);
+				ringsel_find_edge(lcd, cuts);
 				
 				ED_region_tag_redraw(lcd->ar);
 			}
@@ -492,7 +495,7 @@ static int ringcut_modal (bContext *C, wmOperator *op, wmEvent *event)
 
 			if (edge != lcd->eed) {
 				lcd->eed = edge;
-				ringsel_find_edge(lcd, C, lcd->ar, cuts);
+				ringsel_find_edge(lcd, cuts);
 			}
 
 			ED_region_tag_redraw(lcd->ar);
@@ -513,7 +516,7 @@ void MESH_OT_edgering_select (wmOperatorType *ot)
 	
 	/* callbacks */
 	ot->invoke= ringsel_invoke;
-	ot->poll= ED_operator_editmesh_view3d;
+	ot->poll= ED_operator_editmesh_region_view3d; 
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -532,7 +535,7 @@ void MESH_OT_loopcut (wmOperatorType *ot)
 	ot->invoke= ringcut_invoke;
 	ot->modal= ringcut_modal;
 	ot->cancel= ringcut_cancel;
-	ot->poll= ED_operator_editmesh_view3d;
+	ot->poll= ED_operator_editmesh_region_view3d;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;

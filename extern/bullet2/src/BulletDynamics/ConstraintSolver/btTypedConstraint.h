@@ -58,7 +58,7 @@ class btTypedConstraint : public btTypedObject
 
 	union
 	{
-	int	m_userConstraintId;
+		int	m_userConstraintId;
 		void* m_userConstraintPtr;
 	};
 
@@ -79,7 +79,7 @@ protected:
 
 	///internal method used by the constraint solver, don't use them directly
 	btScalar getMotorFactor(btScalar pos, btScalar lowLim, btScalar uppLim, btScalar vel, btScalar timeFact);
-
+	
 	static btRigidBody& getFixedBody();
 
 public:
@@ -157,7 +157,7 @@ public:
 
 	///internal method used by the constraint solver, don't use them directly
 	virtual	void	solveConstraintObsolete(btRigidBody& /*bodyA*/,btRigidBody& /*bodyB*/,btScalar	/*timeStep*/) {};
-	
+
 	
 	const btRigidBody& getRigidBodyA() const
 	{
@@ -245,7 +245,7 @@ public:
 	{
 		return m_dbgDrawSize;
 	}
-	
+
 	///override the default global value of a parameter (such as ERP or CFM), optionally provide the axis (0..5). 
 	///If no axis is provided, it uses the default axis for this constraint.
 	virtual	void	setParam(int num, btScalar value, int axis = -1) = 0;

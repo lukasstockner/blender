@@ -70,9 +70,9 @@ int AUD_FFMPEGReader::decode(AVPacket* packet, AUD_Buffer& buffer)
 			packet);*/
 		read_length = avcodec_decode_audio2(m_codecCtx,
 						(int16_t*)(((data_t*)buffer.getBuffer()) + buf_pos),
-			&data_size,
-			audio_pkg_data,
-			audio_pkg_size);
+						&data_size,
+						audio_pkg_data,
+						audio_pkg_size);
 
 		// read error, next packet!
 		if(read_length < 0)
@@ -308,12 +308,8 @@ void AUD_FFMPEGReader::seek(int position)
 			/ pts_time_base / (uint64_t) AV_TIME_BASE;
 
 		// a value < 0 tells us that seeking failed
-		if(av_seek_frame(m_formatCtx,
-						 -1,
-						 (uint64_t)(((uint64_t)position *
-									 (uint64_t)AV_TIME_BASE) /
-									(uint64_t)m_specs.rate),
-						 AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_ANY) >= 0)
+		if(av_seek_frame(m_formatCtx, -1, seek_pos,
+				 AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_ANY) >= 0)
 		{
 			avcodec_flush_buffers(m_codecCtx);
 			m_position = position;
@@ -334,9 +330,8 @@ void AUD_FFMPEGReader::seek(int position)
 					if(packet.pts != AV_NOPTS_VALUE)
 					{
 						// calculate real position, and read to frame!
-						m_position = packet.pts *
-							av_q2d(m_formatCtx->streams[m_stream]->time_base) *
-							m_specs.rate;
+						m_position = (packet.pts - 
+							pts_st_time) * pts_time_base * m_specs.rate;
 
 						if(m_position < position)
 						{
@@ -350,15 +345,16 @@ void AUD_FFMPEGReader::seek(int position)
 								if(len < AUD_DEFAULT_BUFFER_SIZE)
 									length = len;
 								read(length, buffer);
+							}
 						}
 					}
-				}
 				}
 				av_free_packet(&packet);
 			}
 		}
 		else
 		{
+			fprintf(stderr, "seeking failed!\n");
 			// Seeking failed, do nothing.
 		}
 	}

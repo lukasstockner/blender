@@ -41,7 +41,7 @@ static bNodeSocketType cmp_node_rgb_out[]= {
 	{	-1, 0, ""	}
 };
 
-static void node_composit_exec_rgb(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_rgb(void *UNUSED(data), bNode *node, bNodeStack **UNUSED(in), bNodeStack **out)
 {
 	bNodeSocket *sock= node->outputs.first;
 	
@@ -51,7 +51,7 @@ static void node_composit_exec_rgb(void *data, bNode *node, bNodeStack **in, bNo
 void register_node_type_cmp_rgb(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, CMP_NODE_RGB, "RGB", NODE_CLASS_INPUT, NODE_OPTIONS,
 		NULL, cmp_node_rgb_out);
 	node_type_size(&ntype, 140, 80, 140);

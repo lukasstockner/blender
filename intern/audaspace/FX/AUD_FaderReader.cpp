@@ -65,10 +65,10 @@ void AUD_FaderReader::read(int & length, sample_t* & buffer)
 
 			if(!m_empty)
 			{
-			memset(buffer, 0, length * samplesize);
+				memset(buffer, 0, length * samplesize);
 				m_empty = true;
+			}
 		}
-	}
 	}
 	else if(position / (float)specs.rate >= m_start+m_length)
 	{
@@ -84,10 +84,10 @@ void AUD_FaderReader::read(int & length, sample_t* & buffer)
 
 			if(!m_empty)
 			{
-			memset(buffer, 0, length * samplesize);
+				memset(buffer, 0, length * samplesize);
 				m_empty = true;
+			}
 		}
-	}
 	}
 	else
 	{

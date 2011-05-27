@@ -89,7 +89,7 @@ static int load_frame_blendervoxel(VoxelData *vd, FILE *fp, int frame)
 
 	vd->dataset = MEM_mapallocN(sizeof(float)*size, "voxel dataset");
 	if(vd->dataset == NULL) return 0;
-	
+
 	if(fseek(fp, frame*size*sizeof(float)+offset, 0) == -1)
 		return 0;
 	if(fread(vd->dataset, sizeof(float), size, fp) != size)
@@ -105,7 +105,7 @@ static int load_frame_raw8(VoxelData *vd, FILE *fp, int frame)
 	const size_t size = vd_resol_size(vd);
 	char *data_c;
 	int i;
-	
+
 	if(is_vd_res_ok(vd) == FALSE)
 		return 0;
 
@@ -117,7 +117,7 @@ static int load_frame_raw8(VoxelData *vd, FILE *fp, int frame)
 		vd->dataset= NULL;
 		return 0;
 	}
-	
+
 	if(fseek(fp,(frame-1)*size*sizeof(char),0) == -1) {
 		MEM_freeN(data_c);
 		MEM_freeN(vd->dataset);
@@ -284,10 +284,10 @@ static void init_frame_smoke(VoxelData *vd, float cfra)
 
 				if (smd->domain->flags & MOD_SMOKE_HIGHRES) {
 					smoke_turbulence_get_res(smd->domain->wt, vd->resol);
-					vd->dataset = smoke_turbulence_get_density(smd->domain->wt);
+					density = smoke_turbulence_get_density(smd->domain->wt);
 				} else {
 					VECCOPY(vd->resol, smd->domain->res);
-					vd->dataset = smoke_get_density(smd->domain->fluid);
+					density = smoke_get_density(smd->domain->fluid);
 				}
 
 				/* TODO: is_vd_res_ok(rvd) doesnt check this resolution */
@@ -303,7 +303,7 @@ static void init_frame_smoke(VoxelData *vd, float cfra)
 	return;
 }
 
-static void cache_voxeldata(struct Render *re,Tex *tex)
+static void cache_voxeldata(struct Render *re, Tex *tex)
 {	
 	VoxelData *vd = tex->vd;
 	FILE *fp;
@@ -316,8 +316,7 @@ static void cache_voxeldata(struct Render *re,Tex *tex)
 	
 	/* clear out old cache, ready for new */
 	if (vd->dataset) {
-		if(vd->file_format != TEX_VD_SMOKE)
-			MEM_freeN(vd->dataset);
+		MEM_freeN(vd->dataset);
 		vd->dataset = NULL;
 	}
 
@@ -344,7 +343,7 @@ static void cache_voxeldata(struct Render *re,Tex *tex)
 			if(read_voxeldata_header(fp, vd))
 				load_frame_blendervoxel(vd, fp, curframe-1);
 
-				fclose(fp);
+			fclose(fp);
 			return;
 		case TEX_VD_RAW_8BIT:
 			BLI_path_abs(path, G.main->name);
@@ -353,7 +352,7 @@ static void cache_voxeldata(struct Render *re,Tex *tex)
 			if (!fp) return;
 			
 			load_frame_raw8(vd, fp, curframe);
-				fclose(fp);
+			fclose(fp);
 			return;
 	}
 }

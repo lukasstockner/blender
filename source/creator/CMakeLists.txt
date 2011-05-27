@@ -42,8 +42,6 @@ blender_include_dirs(
 	../blender/makesdna
 	../blender/gpu
 	../blender/windowmanager
-	../kernel/gen_messaging
-	../kernel/gen_system
 )
 
 if(WITH_CODEC_QUICKTIME)
@@ -80,7 +78,7 @@ if(WITH_PYTHON)
 
 	if(WITH_PYTHON_SECURITY)
 		add_definitions(-DWITH_PYTHON_SECURITY)
-endif()
+	endif()
 endif()
 
 if(WITH_GAMEENGINE)
@@ -147,8 +145,12 @@ if(WITH_BUILDINFO)
 		-DWITH_BUILDINFO_HEADER # alternative to lines above
 		-DBUILD_PLATFORM="${CMAKE_SYSTEM_NAME}"
 		-DBUILD_TYPE="${CMAKE_BUILD_TYPE}"
+		-DBUILD_CFLAGS="${BUILDINFO_CFLAGS}"
+		-DBUILD_CXXFLAGS="${BUILDINFO_CXXFLAGS}"
+		-DBUILD_LINKFLAGS="${BUILDINFO_LINKFLAGS}"
+		-DBUILD_SYSTEM="CMake"
 	)
-	
+
 	# --------------------------------------------------------------------------
 	# write header for values that change each build
 	# note, generaed file is in build dir's source/creator
@@ -205,7 +207,7 @@ if(WITH_PYTHON_MODULE)
 	endif()
 	
 else()
-add_executable(blender ${EXETYPE} ${SRC})
+	add_executable(blender ${EXETYPE} ${SRC})
 endif()
 
 if(WITH_BUILDINFO)
@@ -223,11 +225,11 @@ elseif(APPLE)
 	set(TARGETDIR ${EXECUTABLE_OUTPUT_PATH}/\${BUILD_TYPE})
 else()
 	set(TARGETDIR ${EXECUTABLE_OUTPUT_PATH})
-	endif()
+endif()
 
 # install target
-	if(UNIX AND NOT APPLE)
-		
+if(UNIX AND NOT APPLE)
+
 	if(WITH_INSTALL_PORTABLE)
 		set(TARGETDIR_VER ${TARGETDIR}/${BLENDER_VERSION})
 	else()
@@ -237,20 +239,20 @@ else()
 			set(TARGETDIR_VER ${CMAKE_INSTALL_PREFIX}/share/blender/${BLENDER_VERSION})
 		endif()
 	endif()
-		
+
 	# important to make a clean  install each time
 	# else old scripts get loaded.
 	install(
 		CODE
 		"file(REMOVE_RECURSE ${TARGETDIR_VER})"
-		)
-    
+	)
+
 	# message after building.
-			add_custom_command(
-				TARGET blender POST_BUILD MAIN_DEPENDENCY blender
+	add_custom_command(
+		TARGET blender POST_BUILD MAIN_DEPENDENCY blender
 		COMMAND ${CMAKE_COMMAND} -E echo 'now run: \"make install\" to copy runtime files & scripts to ${TARGETDIR_VER}'
-			)
-    
+	)
+
 	# there are a few differences between portable and system install
 	if(WITH_INSTALL_PORTABLE)
 		install(
@@ -259,7 +261,7 @@ else()
 			${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/blender.svg
 			${CMAKE_SOURCE_DIR}/doc/manpage/blender.1
 			DESTINATION ${TARGETDIR}
-			)
+		)
 
 		install(
 			PROGRAMS
@@ -280,18 +282,18 @@ else()
 			if(NOT _module_suffix)
 				set(_module_suffix "${SUFFIX}")
 			endif()
-      
+
 			install(
 				PROGRAMS "${TARGETDIR}/${_module_name}.so"  # XXX, *nix only
 				DESTINATION ${PYTHON_LIBPATH}/python${PYTHON_VERSION}/site-packages
-		)
-    
+			)
+
 			unset(_module_name)
 		else()
-		install(
-			PROGRAMS ${TARGETDIR}/blender
-			DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-		)
+			install(
+				PROGRAMS ${TARGETDIR}/blender
+				DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+			)
 		endif()
 
 
@@ -304,9 +306,9 @@ else()
 
 		# misc files
 		install(
-            FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/blender.desktop
-            DESTINATION ${CMAKE_INSTALL_PREFIX}/share/applications
-        )
+			FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/blender.desktop
+			DESTINATION ${CMAKE_INSTALL_PREFIX}/share/applications
+		)
 		install(
 			DIRECTORY
 					${CMAKE_SOURCE_DIR}/release/freedesktop/icons/16x16
@@ -318,7 +320,7 @@ else()
 			DESTINATION ${CMAKE_INSTALL_PREFIX}/share/icons/hicolor/
 			PATTERN ".svn" EXCLUDE
 			PATTERN "*.svg" EXCLUDE
-        )
+		)
 		install(
 			FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/blender.svg
 			DESTINATION ${CMAKE_INSTALL_PREFIX}/share/icons/hicolor/scalable/apps
@@ -329,16 +331,16 @@ else()
 		)
 		install(
 			FILES ${CMAKE_SOURCE_DIR}/doc/manpage/blender.1
-            DESTINATION ${CMAKE_INSTALL_PREFIX}/share/man/man1
-        )
+			DESTINATION ${CMAKE_INSTALL_PREFIX}/share/man/man1
+		)
 		install(
-            DIRECTORY ${CMAKE_SOURCE_DIR}/release/text/
-            DESTINATION ${CMAKE_INSTALL_PREFIX}/share/doc/blender
-            PATTERN ".svn" EXCLUDE
-        )
+			DIRECTORY ${CMAKE_SOURCE_DIR}/release/text/
+			DESTINATION ${CMAKE_INSTALL_PREFIX}/share/doc/blender
+			PATTERN ".svn" EXCLUDE
+		)
 	endif()
 
-		install(
+	install(
 		FILES ${CMAKE_SOURCE_DIR}/release/bin/.blender/.bfont.ttf
 		DESTINATION ${TARGETDIR_VER}/config
 	)
@@ -352,8 +354,8 @@ else()
 		install(
 			DIRECTORY ${CMAKE_SOURCE_DIR}/release/bin/.blender/locale
 			DESTINATION ${TARGETDIR_VER}/datafiles/
-            PATTERN ".svn" EXCLUDE
-        )
+			PATTERN ".svn" EXCLUDE
+		)
 	endif()
 
 		# plugins in blender 2.5 don't work at the moment.
@@ -380,7 +382,7 @@ else()
 			install(
 				DIRECTORY ${PYTHON_LIBPATH}/python${PYTHON_VERSION}
 				DESTINATION ${TARGETDIR_VER}/python/lib/
-    	        PATTERN ".svn" EXCLUDE
+				PATTERN ".svn" EXCLUDE
 				PATTERN "__pycache__" EXCLUDE               # ./distutils
 				PATTERN "distutils" EXCLUDE                 # ./distutils
 				PATTERN "lib2to3" EXCLUDE                   # ./lib2to3
@@ -391,32 +393,32 @@ else()
 				PATTERN "lib-dynload/_tkinter.*" EXCLUDE    # ./lib-dynload/_tkinter.co
 				PATTERN "test" EXCLUDE                      # ./test
 				PATTERN "turtledemo" EXCLUDE                # ./turtledemo
-	        )
+			)
 
 			# # doesnt work, todo
 			# install(CODE "execute_process(COMMAND find ${TARGETDIR}/${BLENDER_VERSION}/python/lib/ -name '*.so' -exec strip -s {} '\;')")
 		endif()
 	endif()
 elseif(WIN32)
-        
+
 	set(TARGETDIR_VER ${TARGETDIR}/${BLENDER_VERSION})
-    
+
 	install(  # same as linux!, deduplicate
 		CODE
 		"file(REMOVE_RECURSE ${TARGETDIR_VER})"
-		)
-    
+	)
+
 	install(  # same as linux!, deduplicate
 		DIRECTORY ${CMAKE_SOURCE_DIR}/release/text/
 		DESTINATION ${TARGETDIR}/
 		PATTERN ".svn" EXCLUDE
-			)
+	)
 
 	install(  # same as linux!, deduplicate
 		FILES ${CMAKE_SOURCE_DIR}/release/bin/.blender/.bfont.ttf
 		DESTINATION ${TARGETDIR_VER}/config
-			)
-		
+	)
+
 	if(WITH_INTERNATIONAL) # same as linux!, deduplicate
 		install(
 			FILES ${CMAKE_SOURCE_DIR}/release/bin/.blender/.Blanguages
@@ -427,7 +429,7 @@ elseif(WIN32)
 			DESTINATION ${TARGETDIR_VER}/datafiles/
 			PATTERN ".svn" EXCLUDE
 		)
-		
+
 		if(NOT CMAKE_CL_64)
 			install(
 				FILES ${LIBDIR}/gettext/lib/gnu_gettext.dll
@@ -455,7 +457,7 @@ elseif(WIN32)
 	# 	PATTERN ".svn" EXCLUDE
 	# )
 
-		if(WITH_PYTHON)
+	if(WITH_PYTHON)
 		# install(CODE "message(\"copying blender scripts...\")")
 		install(  # same as linux!, deduplicate
 			DIRECTORY ${CMAKE_SOURCE_DIR}/release/scripts
@@ -487,7 +489,7 @@ elseif(WIN32)
 				file(MAKE_DIRECTORY \"${TARGETDIR_VER}/python/lib/\")
 				message(\"done creating dir\")
 				"
-				)
+			)
 
 			install(
 				CODE
@@ -496,7 +498,7 @@ elseif(WIN32)
 					\"${CMAKE_COMMAND}\" -E tar xzfv \"${LIBDIR}/release/python32.tar.gz\")
 				"
 				CONFIGURATIONS Release
-		)
+			)
 			install(
 				CODE
 				"
@@ -504,7 +506,7 @@ elseif(WIN32)
 					\"${CMAKE_COMMAND}\" -E tar xzfv \"${LIBDIR}/release/python32.tar.gz\")
 				"
 				CONFIGURATIONS RelWithDebInfo
-					)
+			)
 			install(
 				CODE
 				"
@@ -524,23 +526,23 @@ elseif(WIN32)
 
 			# doesnt work, todo
 			# install(CODE "execute_process(COMMAND find ${TARGETDIR}/${BLENDER_VERSION}/python/lib/ -name '*.so' -exec strip -s {} '\;')")
-				endif()
-			endif()
+		endif()
+	endif()
 
-			if(CMAKE_CL_64)
+	if(CMAKE_CL_64)
 		# gettext and png are statically linked on win64
 		install(
 			FILES ${LIBDIR}/zlib/lib/zlib.dll
 			DESTINATION ${TARGETDIR}/
-				)
-			else()
+		)
+	else()
 		install(
 			FILES
 			${LIBDIR}/png/lib/libpng.dll
 			${LIBDIR}/zlib/lib/zlib.dll
 			DESTINATION ${TARGETDIR}/
-			)
-			endif()
+		)
+	endif()
 
 	if(MSVC)
 		install(
@@ -552,9 +554,9 @@ elseif(WIN32)
 			FILES ${LIBDIR}/pthreads/lib/pthreadGC2.dll
 			DESTINATION ${TARGETDIR}/
 		)
-		endif()
+	endif()
 
-		if(WITH_CODEC_FFMPEG)
+	if(WITH_CODEC_FFMPEG)
 		install(
 			FILES
 			${LIBDIR}/ffmpeg/lib/avcodec-52.dll
@@ -563,36 +565,36 @@ elseif(WIN32)
 			${LIBDIR}/ffmpeg/lib/avutil-50.dll
 			${LIBDIR}/ffmpeg/lib/swscale-0.dll
 			DESTINATION ${TARGETDIR}/
-			)
+		)
 
-		endif()
+	endif()
 
-		if(WITH_CODEC_SNDFILE)
+	if(WITH_CODEC_SNDFILE)
 		install(
 			FILES
 			${LIBDIR}/sndfile/lib/libsndfile-1.dll
 			DESTINATION ${TARGETDIR}/
-			)
-		endif()
+		)
+	endif()
 
-		if(WITH_OPENAL)
+	if(WITH_OPENAL)
 		install(
 			FILES
 			${LIBDIR}/openal/lib/OpenAL32.dll
 			${LIBDIR}/openal/lib/wrap_oal.dll
 			DESTINATION ${TARGETDIR}/
-			)
-		endif()
+		)
+	endif()
 
-		if(WITH_SDL)
-			if(NOT CMAKE_CL_64)
+	if(WITH_SDL)
+		if(NOT CMAKE_CL_64)
 			install(
 				FILES
 				${LIBDIR}/sdl/lib/SDL.dll
 				DESTINATION ${TARGETDIR}/
-				)
-			endif()
+			)
 		endif()
+	endif()
 
 	if(NOT CMAKE_CL_64)
 		install(
@@ -608,9 +610,9 @@ elseif(WIN32)
 		)
 	endif()
 
-	elseif(APPLE)
-		set(SOURCEDIR ${CMAKE_SOURCE_DIR}/source/darwin/blender.app)
-		set(SOURCEINFO ${SOURCEDIR}/Contents/Info.plist)
+elseif(APPLE)
+	set(SOURCEDIR ${CMAKE_SOURCE_DIR}/source/darwin/blender.app)
+	set(SOURCEINFO ${SOURCEDIR}/Contents/Info.plist)
 	set(TARGETDIR_VER ${TARGETDIR}/blender.app/Contents/MacOS/${BLENDER_VERSION})
 
 	# setup Info.plist
@@ -628,10 +630,10 @@ elseif(WIN32)
 	)
 
 	# message after building.
-		add_custom_command(
-			TARGET blender POST_BUILD MAIN_DEPENDENCY blender
+	add_custom_command(
+		TARGET blender POST_BUILD MAIN_DEPENDENCY blender
 		COMMAND ${CMAKE_COMMAND} -E echo 'now run: \"make install\" to copy runtime files & scripts to ${TARGETDIR_VER}'
-		)
+	)
 
 	# handy install macro to exclude files, we use \$ escape for the "to"
 	# argument when calling so ${BUILD_TYPE} does not get expanded
@@ -672,20 +674,20 @@ elseif(WIN32)
 	)
 
 	# localization
-		if(WITH_INTERNATIONAL)
+	if(WITH_INTERNATIONAL)
 		install(
 			FILES ${CMAKE_SOURCE_DIR}/release/bin/.blender/.Blanguages
 			DESTINATION ${TARGETDIR_VER}/datafiles
-			)
+		)
 
 		install_dir(
 			${CMAKE_SOURCE_DIR}/release/bin/.blender/locale/
 			\${TARGETDIR_VER}/datafiles/locale
 		)
-		endif()
+	endif()
 
 	# python
-		if(WITH_PYTHON)
+	if(WITH_PYTHON)
 		# the python zip is first extract as part of the build process,
 		# and then later installed as part of make install. this is much
 		# quicker, and means we can easily exclude files on copy
@@ -693,9 +695,9 @@ elseif(WIN32)
 			extractpyzip
 			DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/python)
 
-			set(PYTHON_ZIP "python_${CMAKE_OSX_ARCHITECTURES}.zip")
+		set(PYTHON_ZIP "python_${CMAKE_OSX_ARCHITECTURES}.zip")
 			
-			add_custom_command(
+		add_custom_command(
 			OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python
 			COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/python/
 			COMMAND mkdir ${CMAKE_CURRENT_BINARY_DIR}/python/
@@ -708,7 +710,7 @@ elseif(WIN32)
 		install_dir(
 			${CMAKE_CURRENT_BINARY_DIR}/python
 			\${TARGETDIR_VER}
-			)
+		)
 
 		# copy scripts
 		install_dir(
@@ -734,49 +736,48 @@ endif()
 	set(BLENDER_SORTED_LIBS
 		bf_windowmanager
 
-        bf_editor_space_api
-        bf_editor_space_action
-        bf_editor_space_buttons
-        bf_editor_space_console
-        bf_editor_space_file
-        bf_editor_space_graph
-        bf_editor_space_image
-        bf_editor_space_info
-        bf_editor_space_logic
-        bf_editor_space_nla
-        bf_editor_space_node
-        bf_editor_space_outliner
-        bf_editor_space_script
-        bf_editor_space_sequencer
-        bf_editor_space_sound
-        bf_editor_space_time
-        bf_editor_space_userpref
-        bf_editor_space_view3d
+		bf_editor_space_api
+		bf_editor_space_action
+		bf_editor_space_buttons
+		bf_editor_space_console
+		bf_editor_space_file
+		bf_editor_space_graph
+		bf_editor_space_image
+		bf_editor_space_info
+		bf_editor_space_logic
+		bf_editor_space_nla
+		bf_editor_space_node
+		bf_editor_space_outliner
+		bf_editor_space_script
+		bf_editor_space_sequencer
+		bf_editor_space_sound
+		bf_editor_space_time
+		bf_editor_space_userpref
+		bf_editor_space_view3d
 
-        bf_editor_text
-        bf_editor_transform
-        bf_editor_util
-        bf_editor_uvedit
-        bf_editor_curve
-        bf_editor_armature
-        bf_editor_gpencil
-        bf_editor_interface
-        bf_editor_mesh
-        bf_editor_metaball
-        bf_editor_object
-        bf_editor_physics
-        bf_editor_render
-        bf_editor_screen
-        bf_editor_sculpt_paint
-        bf_editor_sound
-        bf_editor_animation
-        bf_editor_datafiles
+		bf_editor_text
+		bf_editor_transform
+		bf_editor_util
+		bf_editor_uvedit
+		bf_editor_curve
+		bf_editor_armature
+		bf_editor_gpencil
+		bf_editor_interface
+		bf_editor_mesh
+		bf_editor_metaball
+		bf_editor_object
+		bf_editor_physics
+		bf_editor_render
+		bf_editor_screen
+		bf_editor_sculpt_paint
+		bf_editor_sound
+		bf_editor_animation
+		bf_editor_datafiles
 
-		bf_intern_bsp 
-		bf_render 
-		bf_intern_opennl 
-		bf_python 
-		bf_python_ext 
+		bf_render
+		bf_intern_opennl
+		bf_python
+		bf_python_ext
 		bf_ikplugin
 		bf_modifiers
 		bf_blenkernel
@@ -786,43 +787,41 @@ endif()
 		bf_blenlib
 		bf_intern_ghost
 		bf_intern_string
-		bf_blenpluginapi 
-		bf_imbuf 
-		bf_avi 
-		bf_imbuf_cineon 
-		bf_imbuf_openexr 
+		bf_blenpluginapi
+		bf_imbuf
+		bf_avi
+		bf_imbuf_cineon
+		bf_imbuf_openexr
 		bf_imbuf_dds
 		bf_collada
-		bf_intern_bsp 
-		bf_intern_bop 
-		bf_intern_decimate 
-		bf_intern_elbeem 
-		bf_intern_ik 
-		bf_intern_memutil 
-		bf_intern_guardedalloc 
-		bf_intern_ctr 
-		ge_blen_routines 
-		ge_converter 
+		bf_intern_bsp
+		bf_intern_bop
+		bf_intern_decimate
+		bf_intern_elbeem
+		bf_intern_ik
+		bf_intern_memutil
+		bf_intern_guardedalloc
+		bf_intern_ctr
+		ge_blen_routines
+		ge_converter
 		ge_phys_dummy
-		ge_phys_bullet 
+		ge_phys_bullet
 		bf_intern_smoke
 		extern_minilzo
 		extern_lzma
-		ge_logic_ketsji 
+		ge_logic_ketsji
 		ge_phys_common
-		ge_logic 
-		ge_rasterizer 
-		ge_oglrasterizer 
-		ge_logic_expressions 
-		ge_scenegraph 
-		ge_logic_network 
+		ge_logic
+		ge_rasterizer
+		ge_oglrasterizer
+		ge_logic_expressions
+		ge_scenegraph
+		ge_logic_network
 		bf_python # duplicate for BPY_driver_exec
-		ge_logic_ngnetwork 
-		extern_bullet 
-		ge_logic_loopbacknetwork 
-		bf_intern_itasc
-		bf_common 
-		bf_intern_moto 
+		ge_logic_ngnetwork
+		extern_bullet
+		ge_logic_loopbacknetwork
+		bf_intern_moto
 		extern_openjpeg
 		extern_redcode
 		ge_videotex

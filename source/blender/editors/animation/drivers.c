@@ -26,7 +26,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/editors/animation/drivers.c
  *  \ingroup edanimation
  */
@@ -217,7 +217,7 @@ short ANIM_add_driver (ReportList *reports, ID *id, const char rna_path[], int a
 				 */
 				DriverVar *dvar = driver_add_new_variable(driver);
 				driver_change_variable_type(dvar, DVAR_TYPE_TRANSFORM_CHAN);
-		}
+			}
 		}
 		
 		/* set the done status */
@@ -240,8 +240,8 @@ short ANIM_remove_driver (ReportList *UNUSED(reports), ID *id, const char rna_pa
 	/* we don't check the validity of the path here yet, but it should be ok... */
 	adt= BKE_animdata_from_id(id);
 	
-	if(adt) {
-		if(array_index == -1) {
+	if (adt) {
+		if (array_index == -1) {
 			/* step through all drivers, removing all of those with the same base path */
 			FCurve *fcu_iter= adt->drivers.first;
 			
@@ -263,7 +263,7 @@ short ANIM_remove_driver (ReportList *UNUSED(reports), ID *id, const char rna_pa
 			 * 		so 'add' var must be 0
 			 */
 			fcu= verify_driver_fcurve(id, rna_path, array_index, 0);
-			if(fcu) {
+			if (fcu) {
 				BLI_remlink(&adt->drivers, fcu);
 				free_fcurve(fcu);
 				
@@ -491,12 +491,11 @@ static int add_driver_button_exec (bContext *C, wmOperator *op)
 	int index, all= RNA_boolean_get(op->ptr, "all");
 	
 	/* try to create driver using property retrieved from UI */
-	memset(&ptr, 0, sizeof(PointerRNA));
 	uiContextActiveProperty(C, &ptr, &prop, &index);
-
+	
 	if (all)
 		index= -1;
-
+	
 	if (ptr.id.data && ptr.data && prop && RNA_property_animateable(&ptr, prop)) {
 		char *path= get_driver_path_hack(C, &ptr, prop);
 		short flags = CREATEDRIVER_WITH_DEFAULT_DVAR;
@@ -511,7 +510,7 @@ static int add_driver_button_exec (bContext *C, wmOperator *op)
 	if (success) {
 		/* send updates */
 		uiContextAnimUpdate(C);
-
+		
 		DAG_ids_flush_update(CTX_data_main(C), 0);
 		
 		WM_event_add_notifier(C, NC_ANIMATION|ND_FCURVES_ORDER, NULL); // XXX
@@ -548,12 +547,11 @@ static int remove_driver_button_exec (bContext *C, wmOperator *op)
 	int index, all= RNA_boolean_get(op->ptr, "all");
 	
 	/* try to find driver using property retrieved from UI */
-	memset(&ptr, 0, sizeof(PointerRNA));
 	uiContextActiveProperty(C, &ptr, &prop, &index);
 	
 	if (all)
 		index= -1;
-
+	
 	if (ptr.id.data && ptr.data && prop) {
 		char *path= get_driver_path_hack(C, &ptr, prop);
 		
@@ -564,7 +562,7 @@ static int remove_driver_button_exec (bContext *C, wmOperator *op)
 	if (success) {
 		/* send updates */
 		uiContextAnimUpdate(C);
-
+		
 		DAG_ids_flush_update(CTX_data_main(C), 0);
 		
 		WM_event_add_notifier(C, NC_ANIMATION|ND_FCURVES_ORDER, NULL);  // XXX
@@ -601,7 +599,6 @@ static int copy_driver_button_exec (bContext *C, wmOperator *op)
 	int index;
 	
 	/* try to create driver using property retrieved from UI */
-	memset(&ptr, 0, sizeof(PointerRNA));
 	uiContextActiveProperty(C, &ptr, &prop, &index);
 	
 	if (ptr.id.data && ptr.data && prop && RNA_property_animateable(&ptr, prop)) {
@@ -646,7 +643,6 @@ static int paste_driver_button_exec (bContext *C, wmOperator *op)
 	int index;
 	
 	/* try to create driver using property retrieved from UI */
-	memset(&ptr, 0, sizeof(PointerRNA));
 	uiContextActiveProperty(C, &ptr, &prop, &index);
 	
 	if (ptr.id.data && ptr.data && prop && RNA_property_animateable(&ptr, prop)) {

@@ -290,6 +290,7 @@ void CcdPhysicsEnvironment::setDebugDrawer(btIDebugDraw* debugDrawer)
 	m_debugDrawer = debugDrawer;
 }
 
+#if 0
 static void DrawAabb(btIDebugDraw* debugDrawer,const btVector3& from,const btVector3& to,const btVector3& color)
 {
 	btVector3 halfExtents = (to-from)* 0.5f;
@@ -317,10 +318,8 @@ static void DrawAabb(btIDebugDraw* debugDrawer,const btVector3& from,const btVec
 		if (i<3)
 			edgecoord[i]*=-1.f;
 	}
-
-
 }
-
+#endif
 
 
 
@@ -472,11 +471,11 @@ void	CcdPhysicsEnvironment::updateCcdPhysicsController(CcdPhysicsController* ctr
 				body->getCollisionShape()->calculateLocalInertia(newMass, inertia);
 			body->setMassProps(newMass, inertia);
 			m_dynamicsWorld->addRigidBody(body, newCollisionGroup, newCollisionMask);
-		}
+		}	
 		else
 		{
-		m_dynamicsWorld->addCollisionObject(obj, newCollisionGroup, newCollisionMask);
-	}
+			m_dynamicsWorld->addCollisionObject(obj, newCollisionGroup, newCollisionMask);
+		}
 	}
 	// to avoid nasty interaction, we must update the property of the controller as well
 	ctrl->m_cci.m_mass = newMass;
@@ -2014,7 +2013,7 @@ void	CcdPhysicsEnvironment::setConstraintParam(int constraintId,int param,float 
 					else
 						coneTwist->setLimit(param,value1);
 					break;
-			}
+				}
 			default:
 				{
 				}
@@ -2033,15 +2032,15 @@ void	CcdPhysicsEnvironment::setConstraintParam(int constraintId,int param,float 
 					hingeCons->setLimit(value0,value1);
 					break;
 				}
-	default:
-		{
+			default:
+				{
 				}
 			}
 			break;
 		};
 	default:
 		{
-	};
+		};
 	};
 }
 
@@ -2673,18 +2672,18 @@ int			CcdPhysicsEnvironment::createConstraint(class PHY_IPhysicsController* ctrl
 				// having btHingeConstraint fill in the blanks any way it wants to.
 				btTransform frameInA;
 				btTransform frameInB;
-
+				
 				btVector3 axis1(axis1X,axis1Y,axis1Z), axis2(axis2X,axis2Y,axis2Z);
 				if (axis1.length() == 0.0)
 				{
 					btPlaneSpace1( axisInA, axis1, axis2 );
 				}
-
+				
 				// Internally btHingeConstraint's hinge-axis is z
 				frameInA.getBasis().setValue( axis1.x(), axis2.x(), axisInA.x(),
 											axis1.y(), axis2.y(), axisInA.y(),
 											axis1.z(), axis2.z(), axisInA.z() );
-
+											
 				frameInA.setOrigin( pivotInA );
 
 				btTransform inv = rb1->getCenterOfMassTransform().inverse();
@@ -2707,7 +2706,7 @@ int			CcdPhysicsEnvironment::createConstraint(class PHY_IPhysicsController* ctrl
 				if (axis1.length() == 0.0)
 				{
 					btPlaneSpace1( axisInA, axis1, axis2 );
-			}
+				}
 
 				// Internally btHingeConstraint's hinge-axis is z
 				frameInA.getBasis().setValue( axis1.x(), axis2.x(), axisInA.x(),

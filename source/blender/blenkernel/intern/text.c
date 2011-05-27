@@ -173,7 +173,7 @@ void free_text(Text *text)
 
 	if(text->name) MEM_freeN(text->name);
 	MEM_freeN(text->undo_buf);
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	if (text->compiled) BPY_text_free_code(text);
 #endif
 }
@@ -247,7 +247,7 @@ int reopen_text(Text *text)
 	if (!text || !text->name) return 0;
 	
 	BLI_strncpy(str, text->name, FILE_MAXDIR+FILE_MAXFILE);
-	BLI_path_abs(str, G.sce);
+	BLI_path_abs(str, G.main->name);
 	
 	fp= fopen(str, "r");
 	if(fp==NULL) return 0;
@@ -487,7 +487,7 @@ void unlink_text(Main *bmain, Text *text)
 	for(scene=bmain->scene.first; scene; scene=scene->id.next)
 		if(scene->r.dometext == text)
 			scene->r.dometext = NULL;
-	
+
 	for(ob=bmain->object.first; ob; ob=ob->id.next) {
 		/* game controllers */
 		for(cont=ob->controllers.first; cont; cont=cont->next) {
@@ -687,7 +687,7 @@ int txt_get_span (TextLine *from, TextLine *to)
 static void txt_make_dirty (Text *text)
 {
 	text->flags |= TXT_ISDIRTY;
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	if (text->compiled) BPY_text_free_code(text);
 #endif
 }
@@ -995,8 +995,8 @@ void txt_move_to (Text *text, unsigned int line, unsigned int ch, short sel)
 		if ((*linep)->next) *linep= (*linep)->next;
 		else break;
 	}
-	if (ch>(*linep)->len)
-		ch= (*linep)->len;
+	if (ch>(unsigned int)((*linep)->len))
+		ch= (unsigned int)((*linep)->len);
 	*charp= ch;
 	
 	if(!sel) txt_pop_sel(text);
@@ -1413,7 +1413,7 @@ void txt_insert_buf(Text *text, const char *in_buffer)
 			break;
 		}
 	}
-	
+
 	if(count) {
 		txt_shift_markers(text, lineno, count);
 		count= 0;
@@ -2733,7 +2733,7 @@ int setcurr_tab_spaces (Text *text, int space)
 	static const char *back_words[]= {"return", "break", "continue", "pass", "yield", NULL};
 	if (!text) return 0;
 	if (!text->curl) return 0;
-	
+
 	while (text->curl->line[i] == indent)
 	{
 		//we only count those tabs/spaces that are before any text or before the curs;

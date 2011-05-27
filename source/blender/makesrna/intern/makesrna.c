@@ -371,7 +371,7 @@ static const char *rna_type_type_name(PropertyRNA *prop)
 			return "float";
 		case PROP_STRING:
 			if(prop->flag & PROP_THICK_WRAP) {
-			return "char*";
+				return "char*";
 			}
 			else {
 				return "const char*";
@@ -497,7 +497,7 @@ static char *rna_def_property_get_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 						fprintf(stderr, "rna_def_property_get_func1: %s.%s is a '%s' but wrapped as type '%s'.\n", srna->identifier, prop->identifier, dp->dnatype, RNA_property_typename(prop->type));
 						DefRNA.error= 1;
 						return NULL;
-	}
+					}
 				}
 			}
 			else if(prop->type == PROP_INT || prop->type == PROP_BOOLEAN || prop->type == PROP_ENUM) {
@@ -1005,11 +1005,11 @@ static char *rna_def_property_lookup_int_func(FILE *f, StructRNA *srna, Property
 		fprintf(f, "#else\n");
 		fprintf(f, "			printf(\"Array iterator out of range: (index %%d)\\n\", index);\n");
 		fprintf(f, "#endif\n");
-		fprintf(f, "			}\n");
+		fprintf(f, "		}\n");
 		fprintf(f, "		else if(internal->skip) {\n");
 		fprintf(f, "			while(index-- > 0 && iter.valid) {\n");
 		fprintf(f, "				rna_iterator_array_next(&iter);\n");
-		fprintf(f, "		}\n");
+		fprintf(f, "			}\n");
 		fprintf(f, "			found= (index == -1 && iter.valid);\n");
 		fprintf(f, "		}\n");
 		fprintf(f, "		else {\n");
@@ -1538,7 +1538,7 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 	/* variable definitions */
 	
 	if(func->flag & FUNC_USE_SELF_ID) {
-			fprintf(f, "\tstruct ID *_selfid;\n");
+		fprintf(f, "\tstruct ID *_selfid;\n");
 	}
 
 	if((func->flag & FUNC_NO_SELF)==0) {
@@ -1575,24 +1575,24 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 	}
 
 	if(has_data) {
-	fprintf(f, "\tchar *_data");
-	if(func->c_ret) fprintf(f, ", *_retdata");
-	fprintf(f, ";\n");
-	fprintf(f, "\t\n");
+		fprintf(f, "\tchar *_data");
+		if(func->c_ret) fprintf(f, ", *_retdata");
+		fprintf(f, ";\n");
+		fprintf(f, "\t\n");
 	}
 
 	/* assign self */
 	if(func->flag & FUNC_USE_SELF_ID) {
-			fprintf(f, "\t_selfid= (struct ID*)_ptr->id.data;\n");
+		fprintf(f, "\t_selfid= (struct ID*)_ptr->id.data;\n");
 	}
-
+	
 	if((func->flag & FUNC_NO_SELF)==0) {
 		if(dsrna->dnaname) fprintf(f, "\t_self= (struct %s *)_ptr->data;\n", dsrna->dnaname);
 		else fprintf(f, "\t_self= (struct %s *)_ptr->data;\n", srna->identifier);
 	}
 
 	if(has_data) {
-	fprintf(f, "\t_data= (char *)_parms->data;\n");
+		fprintf(f, "\t_data= (char *)_parms->data;\n");
 	}
 
 	dparm= dfunc->cont.properties.first;
@@ -1685,7 +1685,7 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 			if (dparm->prop->flag & PROP_DYNAMIC)
 				fprintf(f, "%s_len, %s", dparm->prop->identifier, dparm->prop->identifier);
 			else
-			fprintf(f, "%s", dparm->prop->identifier);
+				fprintf(f, "%s", dparm->prop->identifier);
 		}
 
 		fprintf(f, ");\n");
@@ -2065,8 +2065,8 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 							}
 							else {
 								if(eprop->defaultvalue == eprop->item[i].value) {
-								defaultfound= 1;
-					}
+									defaultfound= 1;
+								}
 							}
 						}
 					}
@@ -2080,11 +2080,11 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 						}
 					}
 					else {
-					if(!defaultfound) {
-						fprintf(stderr, "rna_generate_structs: %s%s.%s, enum default is not in items.\n", srna->identifier, errnest, prop->identifier);
-						DefRNA.error= 1;
+						if(!defaultfound) {
+							fprintf(stderr, "rna_generate_structs: %s%s.%s, enum default is not in items.\n", srna->identifier, errnest, prop->identifier);
+							DefRNA.error= 1;
+						}
 					}
-				}
 				}
 				else {
 					fprintf(stderr, "rna_generate_structs: %s%s.%s, enum must have items defined.\n", srna->identifier, errnest, prop->identifier);
@@ -2681,7 +2681,7 @@ static void rna_generate_header_cpp(BlenderRNA *brna, FILE *f)
 
 	fprintf(f, "/* Automatically generated classes for the Data API.\n"
 				 "   Do not edit manually, changes will be overwritten. */\n\n");
-
+	
 	fprintf(f, "#include \"RNA_blender.h\"\n");
 	fprintf(f, "#include \"RNA_types.h\"\n");
 

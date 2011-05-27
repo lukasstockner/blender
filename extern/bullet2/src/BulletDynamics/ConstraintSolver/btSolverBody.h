@@ -170,7 +170,7 @@ ATTRIBUTE_ALIGNED64 (struct)	btSolverBodyObsolete
         (void) timeStep;
 		if (m_originalBody)
 		{
-			m_originalBody->setLinearVelocity(m_originalBody->getLinearVelocity()+m_deltaLinearVelocity);
+			m_originalBody->setLinearVelocity(m_originalBody->getLinearVelocity()+ m_deltaLinearVelocity);
 			m_originalBody->setAngularVelocity(m_originalBody->getAngularVelocity()+m_deltaAngularVelocity);
 			
 			//correct the position/orientation based on push/turn recovery

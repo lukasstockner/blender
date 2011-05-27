@@ -41,16 +41,13 @@
 #include <eval.h>
 #endif
 
-/* TODO, support python3.x */
-#define DISABLE_PYTHON 1
-
 #include "DNA_text_types.h"
 #include "BKE_text.h"
 
 
 // XXX
 #if 0
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 #include "api2_2x/Node.h"
 #include "api2_2x/gen_utils.h"
 #include "BPY_extern.h"
@@ -65,7 +62,7 @@ static void node_dynamic_setup(bNode *node);
 static void node_dynamic_exec_cb(void *data, bNode *node, bNodeStack **in, bNodeStack **out);
 static void node_dynamic_free_storage_cb(bNode *node);
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 static PyObject *init_dynamicdict(void) {
 	PyObject *newscriptdict, *item;
 	PyGILState_STATE gilstate = PyGILState_Ensure();
@@ -164,7 +161,7 @@ static void node_dynamic_update_socket_links(bNode *node, bNodeTree *ntree)
 
 static void node_dynamic_free_storage_cb(bNode *node)
 {
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	NodeScriptDict *nsd;
 	PyObject *pydict;
 	BPy_Node *pynode;
@@ -194,7 +191,7 @@ static void node_dynamic_disable(bNode *node)
 /* Disable all pynodes using the given text (script) id */
 static void node_dynamic_disable_all_by_id(ID *id)
 {
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	Material *ma; /* XXX hardcoded for shaders */
 
 	for (ma= G.main->mat.first; ma; ma= ma->id.next) {
@@ -354,7 +351,7 @@ int nodeDynamicUnlinkText(ID *txtid) {
 
 static void node_dynamic_pyerror_print(bNode *node)
 {
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	PyGILState_STATE gilstate = PyGILState_Ensure();
 
 	fprintf(stderr, "\nError in dynamic node script \"%s\":\n", node->name);
@@ -381,7 +378,7 @@ static void node_dynamic_register_type(bNode *node)
 	node->typeinfo->name = BLI_strdup(node->name);
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 /* node_dynamic_get_pynode:
  * Find the pynode definition from the script */
 static PyObject *node_dynamic_get_pynode(PyObject *dict)
@@ -423,11 +420,11 @@ static PyObject *node_dynamic_get_pynode(PyObject *dict)
 		"no PyNode definition found in the script!");
 	return NULL;
 }
-#endif /* DISABLE_PYTHON */
+#endif /* WITH_PYTHON */
 
 static int node_dynamic_parse(struct bNode *node)
 {
-#ifdef DISABLE_PYTHON
+#ifndef WITH_PYTHON
 	return -1;
 #else
 	PyObject *dict= NULL;
@@ -524,7 +521,7 @@ static int node_dynamic_parse(struct bNode *node)
  * pynodes already linked to a script (node->id != NULL). */
 static void node_dynamic_setup(bNode *node)
 {
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	NodeScriptDict *nsd = NULL;
 	bNodeTree *nodetree = NULL;
 	bNodeType *ntype = NULL;
@@ -648,7 +645,7 @@ static void node_dynamic_setup(bNode *node)
 	node->custom1 = BSET(node->custom1, NODE_DYNAMIC_READY);
 
 	PyGILState_Release(gilstate);
-#endif /* DISABLE_PYTHON */
+#endif /* WITH_PYTHON */
 	return;
 }
 
@@ -681,7 +678,7 @@ static void node_dynamic_init_cb(bNode *node) {
 /* node_dynamic_copy_cb: pynode copy callback */
 static void node_dynamic_copy_cb(bNode *orig_node, bNode *new_node)
 {
-#ifdef DISABLE_PYTHON
+#ifndef WITH_PYTHON
 	return;
 #else
 	NodeScriptDict *nsd;
@@ -706,7 +703,7 @@ static void node_dynamic_copy_cb(bNode *orig_node, bNode *new_node)
 /* node_dynamic_exec_cb: the execution callback called per pixel
  * during rendering. */
 static void node_dynamic_exec_cb(void *data, bNode *node, bNodeStack **in, bNodeStack **out) {
-#ifdef DISABLE_PYTHON
+#ifndef WITH_PYTHON
 	return;
 #else
 	BPy_Node *mynode = NULL;
@@ -769,7 +766,7 @@ static void node_dynamic_exec_cb(void *data, bNode *node, bNodeStack **in, bNode
 void register_node_type_sh_dynamic(ListBase *lb)
 {
 	static bNodeType ntype;
-
+	
 	node_type_base(&ntype, NODE_DYNAMIC, "Dynamic", NODE_CLASS_OP_DYNAMIC, NODE_OPTIONS, NULL, NULL);
 	node_type_size(&ntype, 150, 60, 300);
 	node_type_init(&ntype, node_dynamic_init_cb);
@@ -784,7 +781,7 @@ void register_node_type_sh_dynamic(ListBase *lb)
 void register_node_type_sh_dynamic(ListBase *lb)
 {
 	static bNodeType ntype;
-
+	
 	node_type_base(&ntype, NODE_DYNAMIC, "Dynamic", NODE_CLASS_OP_DYNAMIC, 0, NULL, NULL);
 	
 	nodeRegisterType(lb, &ntype);

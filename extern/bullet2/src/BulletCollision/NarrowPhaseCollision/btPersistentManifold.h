@@ -171,7 +171,7 @@ public:
 		btScalar	appliedLateralImpulse1 = m_pointCache[insertIndex].mConstraintRow[1].m_accumImpulse;
 		btScalar	appliedLateralImpulse2 = m_pointCache[insertIndex].mConstraintRow[2].m_accumImpulse;
 //		bool isLateralFrictionInitialized = m_pointCache[insertIndex].m_lateralFrictionInitialized;
-				
+		
 		
 			
 		btAssert(lifeTime>=0);
@@ -201,8 +201,8 @@ public:
 	{
 		if (pt.m_lifeTime >1)
 		{
-		return pt.m_distance1 <= getContactBreakingThreshold();
-	}
+			return pt.m_distance1 <= getContactBreakingThreshold();
+		}
 		return pt.m_distance1 <= getContactProcessingThreshold();
 	
 	}

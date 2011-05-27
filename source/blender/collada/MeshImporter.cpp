@@ -165,7 +165,7 @@ void UVDataWrapper::getUV(int uv_index[2], float *uv)
 			
 		}
 		break;
-	case COLLADAFW::MeshVertexData::DATA_TYPE_UNKNOWN:	
+	case COLLADAFW::MeshVertexData::DATA_TYPE_UNKNOWN:
 	default:
 		fprintf(stderr, "MeshImporter.getUV(): unknown data type\n");
 	}
@@ -323,7 +323,7 @@ bool MeshImporter::is_nice_mesh(COLLADAFW::Mesh *mesh)	// checks if mesh has sup
 
 void MeshImporter::read_vertices(COLLADAFW::Mesh *mesh, Mesh *me)
 {
-	// vertices	
+	// vertices
 	COLLADAFW::MeshVertexData& pos = mesh->getPositions();
 	int stride = pos.getStride(0);
 	if(stride==0) stride = 3;
@@ -691,7 +691,7 @@ void MeshImporter::read_faces(COLLADAFW::Mesh *mesh, Mesh *me, int new_tris)    
 void MeshImporter::get_vector(float v[3], COLLADAFW::MeshVertexData& arr, int i, int stride)
 {
 	i *= stride;
-
+	
 	switch(arr.getType()) {
 	case COLLADAFW::MeshVertexData::DATA_TYPE_FLOAT:
 		{
@@ -925,12 +925,12 @@ Object *MeshImporter::create_mesh_object(COLLADAFW::Node *node, COLLADAFW::Insta
 	for (unsigned int i = 0; i < mat_array.getCount(); i++)	{
 		
 		if(mat_array[i].getReferencedMaterial().isValid()) {
-		texture_face = assign_material_to_geom(mat_array[i], uid_material_map, ob, geom_uid,
-											   &color_texture, layername, texture_face,
-											   material_texture_mapping_map, i);
+			texture_face = assign_material_to_geom(mat_array[i], uid_material_map, ob, geom_uid,
+												   &color_texture, layername, texture_face,
+												   material_texture_mapping_map, i);
 		} else {
 			fprintf(stderr, "invalid referenced material for %s\n", mat_array[i].getName().c_str());
-	}
+		}
 	}
 		
 	return ob;

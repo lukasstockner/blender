@@ -34,7 +34,7 @@
 #define __STDC_CONSTANT_MACROS
 #endif
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 #include "AUD_PyInit.h"
 #include "AUD_PyAPI.h"
 
@@ -145,9 +145,9 @@ int AUD_init(AUD_DeviceType device, AUD_DeviceSpecs specs, int buffersize)
 		}
 
 		AUD_device = dev;
-			AUD_3ddevice = dynamic_cast<AUD_I3DDevice*>(AUD_device);
+		AUD_3ddevice = dynamic_cast<AUD_I3DDevice*>(AUD_device);
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 		if(g_pyinitialized)
 		{
 			g_device = (Device*)Device_empty();
@@ -168,7 +168,7 @@ int AUD_init(AUD_DeviceType device, AUD_DeviceSpecs specs, int buffersize)
 
 void AUD_exit()
 {
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	if(g_device)
 	{
 		Py_XDECREF(g_device);
@@ -182,7 +182,7 @@ void AUD_exit()
 	AUD_3ddevice = NULL;
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 static PyObject* AUD_getCDevice(PyObject* self)
 {
 	if(g_device)
@@ -203,15 +203,15 @@ PyObject* AUD_initPython()
 {
 	PyObject* module = PyInit_aud();
 	PyModule_AddObject(module, "device", (PyObject *)PyCFunction_New(meth_getcdevice, NULL));
-	PyDict_SetItemString(PySys_GetObject("modules"), "aud", module);
+	PyDict_SetItemString(PyImport_GetModuleDict(), "aud", module);
 	if(AUD_device)
 	{
 		g_device = (Device*)Device_empty();
 		if(g_device != NULL)
 		{
 			g_device->device = AUD_device;
+		}
 	}
-}
 	g_pyinitialized = true;
 
 	return module;
@@ -241,13 +241,14 @@ AUD_SoundInfo AUD_getInfo(AUD_Sound* sound)
 
 	try
 	{
-	AUD_IReader* reader = sound->createReader();
+		AUD_IReader* reader = sound->createReader();
 
-	if(reader)
-	{
-		info.specs = reader->getSpecs();
-		info.length = reader->getLength() / (float) info.specs.rate;
-	}
+		if(reader)
+		{
+			info.specs = reader->getSpecs();
+			info.length = reader->getLength() / (float) info.specs.rate;
+			delete reader;
+		}
 	}
 	catch(AUD_Exception&)
 	{
@@ -448,7 +449,7 @@ int AUD_setListenerVelocity(const float* velocity)
 {
 	assert(AUD_device);
 
-		if(AUD_3ddevice)
+	if(AUD_3ddevice)
 	{
 		AUD_Vector3 v(velocity[0], velocity[1], velocity[2]);
 		AUD_3ddevice->setListenerVelocity(v);
@@ -459,7 +460,7 @@ int AUD_setListenerVelocity(const float* velocity)
 }
 
 int AUD_setListenerOrientation(const float* orientation)
-	{
+{
 	assert(AUD_device);
 
 	if(AUD_3ddevice)
@@ -489,7 +490,7 @@ int AUD_setDopplerFactor(float factor)
 {
 	assert(AUD_device);
 
-		if(AUD_3ddevice)
+	if(AUD_3ddevice)
 	{
 		AUD_3ddevice->setDopplerFactor(factor);
 		return true;
@@ -499,7 +500,7 @@ int AUD_setDopplerFactor(float factor)
 }
 
 int AUD_setDistanceModel(AUD_DistanceModel model)
-	{
+{
 	assert(AUD_device);
 
 	if(AUD_3ddevice)
@@ -528,7 +529,7 @@ int AUD_setSourceVelocity(AUD_Channel* handle, const float* velocity)
 {
 	assert(AUD_device);
 
-		if(AUD_3ddevice)
+	if(AUD_3ddevice)
 	{
 		AUD_Vector3 v(velocity[0], velocity[1], velocity[2]);
 		return AUD_3ddevice->setSourceVelocity(handle, v);
@@ -538,7 +539,7 @@ int AUD_setSourceVelocity(AUD_Channel* handle, const float* velocity)
 }
 
 int AUD_setSourceOrientation(AUD_Channel* handle, const float* orientation)
-	{
+{
 	assert(AUD_device);
 
 	if(AUD_3ddevice)
@@ -563,7 +564,7 @@ int AUD_setRelative(AUD_Channel* handle, int relative)
 }
 
 int AUD_setVolumeMaximum(AUD_Channel* handle, float volume)
-	{
+{
 	assert(AUD_device);
 
 	if(AUD_3ddevice)
@@ -576,75 +577,75 @@ int AUD_setVolumeMaximum(AUD_Channel* handle, float volume)
 
 int AUD_setVolumeMinimum(AUD_Channel* handle, float volume)
 {
-		assert(AUD_device);
+	assert(AUD_device);
 
 	if(AUD_3ddevice)
-		{
+	{
 		return AUD_3ddevice->setVolumeMinimum(handle, volume);
-		}
+	}
 
 	return false;
 }
 
 int AUD_setDistanceMaximum(AUD_Channel* handle, float distance)
-		{
+{
 	assert(AUD_device);
 
 	if(AUD_3ddevice)
 	{
 		return AUD_3ddevice->setDistanceMaximum(handle, distance);
-		}
+	}
 
 	return false;
 }
 
 int AUD_setDistanceReference(AUD_Channel* handle, float distance)
 {
-		assert(AUD_device);
+	assert(AUD_device);
 
 	if(AUD_3ddevice)
-		{
+	{
 		return AUD_3ddevice->setDistanceReference(handle, distance);
-		}
+	}
 
 	return false;
 }
 
 int AUD_setAttenuation(AUD_Channel* handle, float factor)
-		{
+{
 	assert(AUD_device);
 
 	if(AUD_3ddevice)
 	{
 		return AUD_3ddevice->setAttenuation(handle, factor);
-		}
+	}
 
 	return false;
 }
 
 int AUD_setConeAngleOuter(AUD_Channel* handle, float angle)
 {
-		assert(AUD_device);
+	assert(AUD_device);
 
 	if(AUD_3ddevice)
-		{
+	{
 		return AUD_3ddevice->setConeAngleOuter(handle, angle);
-		}
+	}
 
 	return false;
 }
 
 int AUD_setConeAngleInner(AUD_Channel* handle, float angle)
-		{
+{
 	assert(AUD_device);
 
 	if(AUD_3ddevice)
 	{
 		return AUD_3ddevice->setConeAngleInner(handle, angle);
-		}
+	}
 
 	return false;
-	}
+}
 
 int AUD_setConeVolumeOuter(AUD_Channel* handle, float volume)
 {
@@ -653,7 +654,7 @@ int AUD_setConeVolumeOuter(AUD_Channel* handle, float volume)
 	if(AUD_3ddevice)
 	{
 		return AUD_3ddevice->setConeVolumeOuter(handle, volume);
-}
+	}
 
 	return false;
 }
@@ -727,7 +728,7 @@ int AUD_setDeviceVolume(AUD_Device* device, float volume)
 		return true;
 	}
 	catch(AUD_Exception&) {}
-	
+
 	return false;
 }
 
@@ -787,10 +788,20 @@ float* AUD_readSoundBuffer(const char* filename, float low, float high,
 	AUD_Sound* sound;
 
 	AUD_FileFactory file(filename);
+
+	AUD_IReader* reader = file.createReader();
+	AUD_SampleRate rate = reader->getSpecs().rate;
+	delete reader;
+
 	AUD_ChannelMapperFactory mapper(&file, specs);
-	AUD_LowpassFactory lowpass(&mapper, high);
-	AUD_HighpassFactory highpass(&lowpass, low);
-	AUD_EnvelopeFactory envelope(&highpass, attack, release, threshold, 0.1f);
+	sound = &mapper;
+	AUD_LowpassFactory lowpass(sound, high);
+	if(high < rate)
+		sound = &lowpass;
+	AUD_HighpassFactory highpass(sound, low);
+	if(low > 0)
+		sound = &highpass;
+	AUD_EnvelopeFactory envelope(sound, attack, release, threshold, 0.1f);
 	AUD_LinearResampleFactory resampler(&envelope, specs);
 	sound = &resampler;
 	AUD_SquareFactory squaref(sound, sthreshold);
@@ -803,7 +814,7 @@ float* AUD_readSoundBuffer(const char* filename, float low, float high,
 	else if(additive)
 		sound = &sum;
 
-	AUD_IReader* reader = sound->createReader();
+	reader = sound->createReader();
 
 	if(reader == NULL)
 		return NULL;

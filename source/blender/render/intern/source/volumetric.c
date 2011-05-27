@@ -769,9 +769,9 @@ void shade_volume_shadow(struct ShadeInput *shi, struct ShadeResult *shr, struct
 		shr->alpha = shr->combined[3] = 1.f;
 		return;
 	}
-	
+
 	vol_get_transmittance(shi, tr, startco, endco);
-	
+
 	
 	/* if we hit another face in the same volume bounds */
 	/* shift raytrace coordinates to the hit point, to avoid shading volume twice */
@@ -803,7 +803,7 @@ void shade_volume_inside(ShadeInput *shi, ShadeResult *shr)
 	Material *mat_backup;
 	ObjectInstanceRen *obi_backup;
 	float prev_alpha = shr->alpha;
-	
+
 	/* XXX: extend to multiple volumes perhaps later */
 	mat_backup = shi->mat;
 	obi_backup = shi->obi;

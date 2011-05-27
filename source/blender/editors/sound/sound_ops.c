@@ -222,7 +222,7 @@ static int sound_unpack_exec(bContext *C, wmOperator *op)
 		char sndname[MAX_ID_NAME-2];
 		RNA_string_get(op->ptr, "id", sndname);
 		sound = BLI_findstring(&CTX_data_main(C)->sound, sndname, offsetof(ID, name) + 2);
-		}
+	}
 
 	if(!sound || !sound->packedfile)
 		return OPERATOR_CANCELLED;
@@ -230,7 +230,7 @@ static int sound_unpack_exec(bContext *C, wmOperator *op)
 	if(G.fileflags & G_AUTOPACK)
 		BKE_report(op->reports, RPT_WARNING, "AutoPack is enabled, so image will be packed again on file save.");
 
-	unpackSound(op->reports, sound, method);
+	unpackSound(CTX_data_main(C), op->reports, sound, method);
 
 	return OPERATOR_FINISHED;
 }

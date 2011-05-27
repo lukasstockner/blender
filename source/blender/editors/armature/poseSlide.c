@@ -24,7 +24,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
+
 /** \file blender/editors/armature/poseSlide.c
  *  \ingroup edarmature
  */
@@ -201,79 +201,79 @@ static void pose_slide_refresh (bContext *C, tPoseSlideOp *pso)
 static void pose_slide_apply_val (tPoseSlideOp *pso, FCurve *fcu, float *val)
 {
 	float cframe = (float)pso->cframe;
-		float sVal, eVal;
-		float w1, w2;
-		
-		/* get keyframe values for endpoint poses to blend with */
-			/* previous/start */
-		sVal= evaluate_fcurve(fcu, (float)pso->prevFrame);
-			/* next/end */
-		eVal= evaluate_fcurve(fcu, (float)pso->nextFrame);
-		
-		/* calculate the relative weights of the endpoints */
-		if (pso->mode == POSESLIDE_BREAKDOWN) {
-			/* get weights from the percentage control */
-			w1= pso->percentage;	/* this must come second */
-			w2= 1.0f - w1;			/* this must come first */
-		}
-		else {
-			/*	- these weights are derived from the relative distance of these 
-			 *	  poses from the current frame
-			 *	- they then get normalised so that they only sum up to 1
-			 */
-			float wtot; 
-			
-			w1 = cframe - (float)pso->prevFrame;
-			w2 = (float)pso->nextFrame - cframe;
-			
-			wtot = w1 + w2;
-			w1 = (w1/wtot);
-			w2 = (w2/wtot);
-		}
-		
-		/* depending on the mode, calculate the new value
-		 *	- in all of these, the start+end values are multiplied by w2 and w1 (respectively),
-		 *	  since multiplication in another order would decrease the value the current frame is closer to
+	float sVal, eVal;
+	float w1, w2;
+	
+	/* get keyframe values for endpoint poses to blend with */
+		/* previous/start */
+	sVal= evaluate_fcurve(fcu, (float)pso->prevFrame);
+		/* next/end */
+	eVal= evaluate_fcurve(fcu, (float)pso->nextFrame);
+	
+	/* calculate the relative weights of the endpoints */
+	if (pso->mode == POSESLIDE_BREAKDOWN) {
+		/* get weights from the percentage control */
+		w1= pso->percentage;	/* this must come second */
+		w2= 1.0f - w1;			/* this must come first */
+	}
+	else {
+		/*	- these weights are derived from the relative distance of these 
+		 *	  poses from the current frame
+		 *	- they then get normalised so that they only sum up to 1
 		 */
-		switch (pso->mode) {
-			case POSESLIDE_PUSH: /* make the current pose more pronounced */
-			{
-				/* perform a weighted average here, favouring the middle pose 
-				 *	- numerator should be larger than denominator to 'expand' the result
-				 *	- perform this weighting a number of times given by the percentage...
-				 */
-				int iters= (int)ceil(10.0f*pso->percentage); // TODO: maybe a sensitivity ctrl on top of this is needed
-				
-				while (iters-- > 0) {
-				(*val)= ( -((sVal * w2) + (eVal * w1)) + ((*val) * 6.0f) ) / 5.0f; 
-				}
-			}
-				break;
-				
-			case POSESLIDE_RELAX: /* make the current pose more like its surrounding ones */
-			{
-				/* perform a weighted average here, favouring the middle pose 
-				 *	- numerator should be smaller than denominator to 'relax' the result
-				 *	- perform this weighting a number of times given by the percentage...
-				 */
-				int iters= (int)ceil(10.0f*pso->percentage); // TODO: maybe a sensitivity ctrl on top of this is needed
-				
-				while (iters-- > 0) {
-				(*val)= ( ((sVal * w2) + (eVal * w1)) + ((*val) * 5.0f) ) / 6.0f;
-				}
-			}
-				break;
-				
-			case POSESLIDE_BREAKDOWN: /* make the current pose slide around between the endpoints */
-			{
-				/* perform simple linear interpolation - coefficient for start must come from pso->percentage... */
-				// TODO: make this use some kind of spline interpolation instead?
-			(*val)= ((sVal * w2) + (eVal * w1));
-			}
-				break;
-		}
-}
+		float wtot; 
 		
+		w1 = cframe - (float)pso->prevFrame;
+		w2 = (float)pso->nextFrame - cframe;
+		
+		wtot = w1 + w2;
+		w1 = (w1/wtot);
+		w2 = (w2/wtot);
+	}
+	
+	/* depending on the mode, calculate the new value
+	 *	- in all of these, the start+end values are multiplied by w2 and w1 (respectively),
+	 *	  since multiplication in another order would decrease the value the current frame is closer to
+	 */
+	switch (pso->mode) {
+		case POSESLIDE_PUSH: /* make the current pose more pronounced */
+		{
+			/* perform a weighted average here, favouring the middle pose 
+			 *	- numerator should be larger than denominator to 'expand' the result
+			 *	- perform this weighting a number of times given by the percentage...
+			 */
+			int iters= (int)ceil(10.0f*pso->percentage); // TODO: maybe a sensitivity ctrl on top of this is needed
+			
+			while (iters-- > 0) {
+				(*val)= ( -((sVal * w2) + (eVal * w1)) + ((*val) * 6.0f) ) / 5.0f; 
+			}
+		}
+			break;
+			
+		case POSESLIDE_RELAX: /* make the current pose more like its surrounding ones */
+		{
+			/* perform a weighted average here, favouring the middle pose 
+			 *	- numerator should be smaller than denominator to 'relax' the result
+			 *	- perform this weighting a number of times given by the percentage...
+			 */
+			int iters= (int)ceil(10.0f*pso->percentage); // TODO: maybe a sensitivity ctrl on top of this is needed
+			
+			while (iters-- > 0) {
+				(*val)= ( ((sVal * w2) + (eVal * w1)) + ((*val) * 5.0f) ) / 6.0f;
+			}
+		}
+			break;
+			
+		case POSESLIDE_BREAKDOWN: /* make the current pose slide around between the endpoints */
+		{
+			/* perform simple linear interpolation - coefficient for start must come from pso->percentage... */
+			// TODO: make this use some kind of spline interpolation instead?
+			(*val)= ((sVal * w2) + (eVal * w1));
+		}
+			break;
+	}
+}
+
 /* helper for apply() - perform sliding for some 3-element vector */
 static void pose_slide_apply_vec3 (tPoseSlideOp *pso, tPChanFCurveLink *pfl, float vec[3], const char propName[])
 {
@@ -496,7 +496,7 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
 		if (pfl->oldprops) {
 			/* not strictly a transform, but contributes to the pose produced in many rigs */
 			pose_slide_apply_props(pso, pfl);
-	}
+		}
 	}
 	
 	/* depsgraph updates + redraws */

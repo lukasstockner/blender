@@ -313,4 +313,4 @@ bool ConvertPythonToMesh(PyObject * value, RAS_MeshObject **object, bool py_none
 	return false;
 }
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON

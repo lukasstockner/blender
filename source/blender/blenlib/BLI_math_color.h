@@ -80,7 +80,7 @@ float srgb_to_linearrgb(float c);
 float linearrgb_to_srgb(float c);
 void srgb_to_linearrgb_v3_v3(float *col_to, float *col_from);
 void linearrgb_to_srgb_v3_v3(float *col_to, float *col_from);
-	
+
 /* rgba buffer convenience functions */
 void srgb_to_linearrgb_rgba_buf(float *col, int tot);
 void linearrgb_to_srgb_rgba_buf(float *col, int tot);
@@ -91,7 +91,7 @@ void linearrgb_to_srgb_rgba_rgba_buf(float *col_to, float *col_from, int tot);
 
 int constrain_rgb(float *r, float *g, float *b);
 void minmax_rgb(short c[3]);
-	
+
 void rgb_float_set_hue_float_offset(float * rgb, float hue_offset);
 void rgb_byte_set_hue_float_offset(unsigned char * rgb, float hue_offset);
 

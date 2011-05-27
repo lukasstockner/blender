@@ -73,7 +73,7 @@
 
 /* -------------- */
 
-static void do_nla_region_buttons(bContext *C, void *arg, int event)
+static void do_nla_region_buttons(bContext *C, void *UNUSED(arg), int event)
 {
 	//Scene *scene= CTX_data_scene(C);
 	
@@ -179,25 +179,25 @@ static int nla_panel_poll(const bContext *C, PanelType *pt)
 }
 #endif
 
-static int nla_animdata_panel_poll(const bContext *C, PanelType *pt)
+static int nla_animdata_panel_poll(const bContext *C, PanelType *UNUSED(pt))
 {
 	PointerRNA ptr;
 	return (nla_panel_context(C, &ptr, NULL, NULL) && (ptr.data != NULL));
 }
 
-static int nla_track_panel_poll(const bContext *C, PanelType *pt)
+static int nla_track_panel_poll(const bContext *C, PanelType *UNUSED(pt))
 {
 	PointerRNA ptr;
 	return (nla_panel_context(C, NULL, &ptr, NULL) && (ptr.data != NULL));
 }
 
-static int nla_strip_panel_poll(const bContext *C, PanelType *pt)
+static int nla_strip_panel_poll(const bContext *C, PanelType *UNUSED(pt))
 {
 	PointerRNA ptr;
 	return (nla_panel_context(C, NULL, NULL, &ptr) && (ptr.data != NULL));
 }
 
-static int nla_strip_actclip_panel_poll(const bContext *C, PanelType *pt)
+static int nla_strip_actclip_panel_poll(const bContext *C, PanelType *UNUSED(pt))
 {
 	PointerRNA ptr;
 	NlaStrip *strip;
@@ -225,7 +225,7 @@ static void nla_panel_animdata (const bContext *C, Panel *pa)
 	/* check context and also validity of pointer */
 	if (!nla_panel_context(C, &adt_ptr, NULL, NULL))
 		return;
-	
+
 	/* adt= adt_ptr.data; */
 	
 	block= uiLayoutGetBlock(layout);
@@ -504,7 +504,7 @@ void NLA_OT_properties(wmOperatorType *ot)
 	
 	ot->exec= nla_properties;
 	ot->poll= ED_operator_nla_active;
- 	
+
 	/* flags */
 	ot->flag= 0;
 }

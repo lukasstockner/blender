@@ -79,7 +79,7 @@ public:
 	//debugging
 	virtual const char*	getName()const {return "TRIANGLEMESH";}
 
-
+	
 
 };
 

@@ -285,7 +285,7 @@ protected:
 		bool	m_scalingPropagated;
 
 		virtual void	exportFile(const char* filename);
-		
+
 		
 #ifdef WITH_CXX_GUARDEDALLOC
 public:

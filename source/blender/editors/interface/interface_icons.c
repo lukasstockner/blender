@@ -519,12 +519,12 @@ static void init_internal_icons(void)
 			BLI_join_dirfile(iconfilestr, sizeof(iconfilestr), icondir, btheme->tui.iconfile);
 			bbuf = IMB_loadiffname(iconfilestr, IB_rect); /* if the image is missing bbuf will just be NULL */
 			if(bbuf && (bbuf->x < ICON_IMAGE_W || bbuf->y < ICON_IMAGE_H)) {
-						printf("\n***WARNING***\nIcons file %s too small.\nUsing built-in Icons instead\n", iconfilestr);
-					IMB_freeImBuf(bbuf);
-					bbuf= NULL;
-				}
+				printf("\n***WARNING***\nIcons file %s too small.\nUsing built-in Icons instead\n", iconfilestr);
+				IMB_freeImBuf(bbuf);
+				bbuf= NULL;
 			}
 		}
+	}
 	if(bbuf==NULL)
 		bbuf = IMB_ibImageFromMemory((unsigned char*)datatoc_blenderbuttons, datatoc_blenderbuttons_size, IB_rect);
 
@@ -627,12 +627,12 @@ static void init_iconfile_list(struct ListBase *list)
 				/* copying strings here should go ok, assuming that we never get back
 				   a complete path to file longer than 256 chars */
 				BLI_join_dirfile(iconfilestr, sizeof(iconfilestr), icondir, filename);
-					bbuf= IMB_loadiffname(iconfilestr, IB_rect);
-				
+				bbuf= IMB_loadiffname(iconfilestr, IB_rect);
+
 				if(bbuf) {
-				ifilex = bbuf->x;
-				ifiley = bbuf->y;
-				IMB_freeImBuf(bbuf);
+					ifilex = bbuf->x;
+					ifiley = bbuf->y;
+					IMB_freeImBuf(bbuf);
 				}
 				else {
 					ifilex= ifiley= 0;
@@ -644,7 +644,7 @@ static void init_iconfile_list(struct ListBase *list)
 					continue;
 				}
 #endif			/* removed */
-			
+
 				/* found a potential icon file, so make an entry for it in the cache list */
 				ifile = MEM_callocN(sizeof(IconFile), "IconFile");
 				
@@ -844,7 +844,7 @@ static void icon_set_image(bContext *C, ID *id, PreviewImage* prv_img, enum eIco
 		prv_img->w[size], prv_img->h[size]);
 }
 
-static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect), int rw, int rh, unsigned int *rect, float alpha, float *rgb)
+static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect), int rw, int rh, unsigned int *rect, float alpha, float *rgb, short is_preview)
 {
 	ImBuf *ima= NULL;
 
@@ -865,34 +865,26 @@ static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect),
 		glPixelTransferf(GL_BLUE_SCALE, rgb[2]);
 	}
 
-	/* draw */
-	if((w<1 || h<1)) {
-		// XXX - TODO 2.5 verify whether this case can happen
-		if (G.f & G_DEBUG)
-			printf("what the heck! - icons are %i x %i pixels?\n", w, h);
-	}
 	/* rect contains image in 'rendersize', we only scale if needed */
-	else if(rw!=w && rh!=h) {
-		if(w>2000 || h>2000) { /* something has gone wrong! */
-			if (G.f & G_DEBUG)
-				printf("insane icon size w=%d h=%d\n",w,h);
-		}
-		else {
-			ImBuf *ima;
-
-			/* first allocate imbuf for scaling and copy preview into it */
-			ima = IMB_allocImBuf(rw, rh, 32, IB_rect, 0);
-			memcpy(ima->rect, rect, rw*rh*sizeof(unsigned int));	
-			
-			/* scale it */
-			IMB_scaleImBuf(ima, w, h);
-			glaDrawPixelsSafe(x, y, w, h, w, GL_RGBA, GL_UNSIGNED_BYTE, ima->rect);
-			
-			IMB_freeImBuf(ima);
-		}
+	if(rw!=w && rh!=h) {
+		/* first allocate imbuf for scaling and copy preview into it */
+		ima = IMB_allocImBuf(rw, rh, 32, IB_rect);
+		memcpy(ima->rect, rect, rw*rh*sizeof(unsigned int));	
+		IMB_scaleImBuf(ima, w, h); /* scale it */
+		rect= ima->rect;
 	}
-	else
+
+	/* draw */
+	if(is_preview) {
 		glaDrawPixelsSafe(x, y, w, h, w, GL_RGBA, GL_UNSIGNED_BYTE, rect);
+	}
+	else {
+		glRasterPos2f(x, y);
+		glDrawPixels(w, h, GL_RGBA, GL_UNSIGNED_BYTE, rect);
+	}
+
+	if(ima)
+		IMB_freeImBuf(ima);
 
 	/* restore color */
 	if(alpha != 0.0f)
@@ -991,7 +983,7 @@ static void icon_draw_size(float x, float y, int icon_id, float aspect, float al
 
 		if(!iimg->rect) return; /* something has gone wrong! */
 
-		icon_draw_rect(x, y, w, h, aspect, iimg->w, iimg->h, iimg->rect, alpha, rgb);
+		icon_draw_rect(x, y, w, h, aspect, iimg->w, iimg->h, iimg->rect, alpha, rgb, is_preview);
 	}
 	else if(di->type == ICON_TYPE_PREVIEW) {
 		PreviewImage* pi = BKE_previewimg_get((ID*)icon->obj); 
@@ -1011,7 +1003,7 @@ static void icon_draw_size(float x, float y, int icon_id, float aspect, float al
 static void ui_id_icon_render(bContext *C, ID *id, int big)
 {
 	PreviewImage *pi = BKE_previewimg_get(id); 
-		
+	
 	if (pi) {			
 		if ((pi->changed[0] ||!pi->rect[0])) /* changed only ever set by dynamic icons */
 		{
@@ -1058,7 +1050,7 @@ static int ui_id_brush_get_icon(bContext *C, ID *id)
 		SpaceImage *sima;
 		EnumPropertyItem *items = NULL;
 		int tool, mode = 0;
-		
+
 		/* XXX: this is not nice, should probably make brushes
 		   be strictly in one paint mode only to avoid
 		   checking various context stuff here */

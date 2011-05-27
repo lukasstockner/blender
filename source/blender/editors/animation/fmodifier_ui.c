@@ -82,7 +82,7 @@
 	}
 
 /* callback to verify modifier data */
-static void validate_fmodifier_cb (bContext *C, void *fcm_v, void *dummy)
+static void validate_fmodifier_cb (bContext *UNUSED(C), void *fcm_v, void *UNUSED(arg))
 {
 	FModifier *fcm= (FModifier *)fcm_v;
 	FModifierTypeInfo *fmi= fmodifier_get_typeinfo(fcm);
@@ -100,7 +100,7 @@ static void delete_fmodifier_cb (bContext *C, void *fmods_v, void *fcm_v)
 	
 	/* remove the given F-Modifier from the active modifier-stack */
 	remove_fmodifier(modifiers, fcm);
-	
+
 	ED_undo_push(C, "Delete F-Curve Modifier");
 	
 	/* send notifiers */
@@ -225,7 +225,7 @@ static void draw_modifier__generator(uiLayout *layout, ID *id, FModifier *fcm, s
 /* --------------- */
 
 /* draw settings for generator modifier */
-static void draw_modifier__fn_generator(uiLayout *layout, ID *id, FModifier *fcm, short width)
+static void draw_modifier__fn_generator(uiLayout *layout, ID *id, FModifier *fcm, short UNUSED(width))
 {
 	uiLayout *col;
 	PointerRNA ptr;
@@ -248,7 +248,7 @@ static void draw_modifier__fn_generator(uiLayout *layout, ID *id, FModifier *fcm
 /* --------------- */
 
 /* draw settings for cycles modifier */
-static void draw_modifier__cycles(uiLayout *layout, ID *id, FModifier *fcm, short width)
+static void draw_modifier__cycles(uiLayout *layout, ID *id, FModifier *fcm, short UNUSED(width))
 {
 	uiLayout *split, *col;
 	PointerRNA ptr;
@@ -277,7 +277,7 @@ static void draw_modifier__cycles(uiLayout *layout, ID *id, FModifier *fcm, shor
 /* --------------- */
 
 /* draw settings for noise modifier */
-static void draw_modifier__noise(uiLayout *layout, ID *id, FModifier *fcm, short width)
+static void draw_modifier__noise(uiLayout *layout, ID *id, FModifier *fcm, short UNUSED(width))
 {
 	uiLayout *split, *col;
 	PointerRNA ptr;
@@ -384,7 +384,7 @@ static int binarysearch_fcm_envelopedata_index (FCM_EnvelopeData array[], float 
 
 /* callback to add new envelope data point */
 // TODO: should we have a separate file for things like this?
-static void fmod_envelope_addpoint_cb (bContext *C, void *fcm_dv, void *dummy)
+static void fmod_envelope_addpoint_cb (bContext *C, void *fcm_dv, void *UNUSED(arg))
 {
 	Scene *scene= CTX_data_scene(C);
 	FMod_Envelope *env= (FMod_Envelope *)fcm_dv;
@@ -436,7 +436,7 @@ static void fmod_envelope_addpoint_cb (bContext *C, void *fcm_dv, void *dummy)
 
 /* callback to remove envelope data point */
 // TODO: should we have a separate file for things like this?
-static void fmod_envelope_deletepoint_cb (bContext *C, void *fcm_dv, void *ind_v)
+static void fmod_envelope_deletepoint_cb (bContext *UNUSED(C), void *fcm_dv, void *ind_v)
 {
 	FMod_Envelope *env= (FMod_Envelope *)fcm_dv;
 	FCM_EnvelopeData *fedn;
@@ -446,7 +446,7 @@ static void fmod_envelope_deletepoint_cb (bContext *C, void *fcm_dv, void *ind_v
 	if (env->totvert > 1) {
 		/* allocate a new smaller array */
 		fedn= MEM_callocN(sizeof(FCM_EnvelopeData)*(env->totvert-1), "FCM_EnvelopeData");
-		
+
 		memcpy(fedn, env->data, sizeof(FCM_EnvelopeData)*(index));
 		memcpy(fedn + index, env->data + (index + 1), sizeof(FCM_EnvelopeData)*((env->totvert - index)-1));
 		
@@ -466,7 +466,7 @@ static void fmod_envelope_deletepoint_cb (bContext *C, void *fcm_dv, void *ind_v
 }
 
 /* draw settings for envelope modifier */
-static void draw_modifier__envelope(uiLayout *layout, ID *id, FModifier *fcm, short width)
+static void draw_modifier__envelope(uiLayout *layout, ID *id, FModifier *fcm, short UNUSED(width))
 {
 	FMod_Envelope *env= (FMod_Envelope *)fcm->data;
 	FCM_EnvelopeData *fed;
@@ -521,7 +521,7 @@ static void draw_modifier__envelope(uiLayout *layout, ID *id, FModifier *fcm, sh
 /* --------------- */
 
 /* draw settings for limits modifier */
-static void draw_modifier__limits(uiLayout *layout, ID *id, FModifier *fcm, short width)
+static void draw_modifier__limits(uiLayout *layout, ID *id, FModifier *fcm, short UNUSED(width))
 {
 	uiLayout *split, *col, *row;
 	PointerRNA ptr;
@@ -569,7 +569,7 @@ static void draw_modifier__limits(uiLayout *layout, ID *id, FModifier *fcm, shor
 /* --------------- */
 
 /* draw settings for stepped interpolation modifier */
-static void draw_modifier__stepped(uiLayout *layout, ID *id, FModifier *fcm, short width)
+static void draw_modifier__stepped(uiLayout *layout, ID *id, FModifier *fcm, short UNUSED(width))
 {
 	uiLayout *col, *subcol;
 	PointerRNA ptr;

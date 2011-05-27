@@ -228,6 +228,7 @@ typedef struct wmNotifier {
 
 	/* NC_WORLD World */
 #define	ND_WORLD_DRAW		(45<<16)
+#define	ND_WORLD_STARS		(46<<16)
 
 	/* NC_TEXT Text */
 #define ND_CURSOR			(50<<16)
@@ -250,23 +251,23 @@ typedef struct wmNotifier {
 
 	/* NC_SPACE */
 #define ND_SPACE_CONSOLE		(1<<16) /* general redraw */
-#define ND_SPACE_CONSOLE_REPORT	(2<<16) /* update for reports, could specify type */
-#define ND_SPACE_INFO			(2<<16)
-#define ND_SPACE_IMAGE			(3<<16)
-#define ND_SPACE_FILE_PARAMS	(4<<16)
-#define ND_SPACE_FILE_LIST		(5<<16)
-#define ND_SPACE_NODE			(6<<16)
-#define ND_SPACE_OUTLINER		(7<<16)
-#define ND_SPACE_VIEW3D			(8<<16)
-#define ND_SPACE_PROPERTIES		(9<<16)
-#define ND_SPACE_TEXT			(10<<16)
-#define ND_SPACE_TIME			(11<<16)
-#define ND_SPACE_GRAPH			(12<<16)
-#define ND_SPACE_DOPESHEET		(13<<16)
-#define ND_SPACE_NLA			(14<<16)
-#define ND_SPACE_SEQUENCER		(15<<16)
-#define ND_SPACE_NODE_VIEW		(16<<16)
-#define ND_SPACE_CHANGED		(17<<16) /*sent to a new editor type after it's replaced an old one*/
+#define ND_SPACE_INFO_REPORT	(2<<16) /* update for reports, could specify type */
+#define ND_SPACE_INFO			(3<<16)
+#define ND_SPACE_IMAGE			(4<<16)
+#define ND_SPACE_FILE_PARAMS	(5<<16)
+#define ND_SPACE_FILE_LIST		(6<<16)
+#define ND_SPACE_NODE			(7<<16)
+#define ND_SPACE_OUTLINER		(8<<16)
+#define ND_SPACE_VIEW3D			(9<<16)
+#define ND_SPACE_PROPERTIES		(10<<16)
+#define ND_SPACE_TEXT			(11<<16)
+#define ND_SPACE_TIME			(12<<16)
+#define ND_SPACE_GRAPH			(13<<16)
+#define ND_SPACE_DOPESHEET		(14<<16)
+#define ND_SPACE_NLA			(15<<16)
+#define ND_SPACE_SEQUENCER		(16<<16)
+#define ND_SPACE_NODE_VIEW		(17<<16)
+#define ND_SPACE_CHANGED		(18<<16) /*sent to a new editor type after it's replaced an old one*/
 
 /* subtype, 256 entries too */
 #define NOTE_SUBTYPE		0x0000FF00
@@ -403,7 +404,7 @@ typedef struct wmOperatorType {
 	 * any interface code or input device state.
 	 * - see defines below for return values */
 	int (*exec)(struct bContext *, struct wmOperator *);
-
+	
 	/* this callback executes on a running operator whenever as property
 	 * is changed. It can correct its own properties or report errors for
 	 * invalid settings in exceptional cases.
@@ -512,7 +513,7 @@ typedef struct wmDropBox {
 	/* if poll survives, operator is called */
 	wmOperatorType *ot;				/* not saved in file, so can be pointer */
 	short opcontext;				/* default invoke */
-
+	
 	struct IDProperty *properties;			/* operator properties, assigned to ptr->data and can be written to a file */
 	struct PointerRNA *ptr;			/* rna pointer to access properties */
 

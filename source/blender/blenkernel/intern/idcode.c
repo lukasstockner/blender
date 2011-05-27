@@ -27,7 +27,7 @@
  * ***** END GPL LICENSE BLOCK *****
  * return info about ID types
  */
- 
+
 /** \file blender/blenkernel/intern/idcode.c
  *  \ingroup bke
  */

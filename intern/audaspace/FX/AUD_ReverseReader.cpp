@@ -64,7 +64,7 @@ void AUD_ReverseReader::read(int & length, sample_t* & buffer)
 {
 	// first correct the length
 	if(m_position + length > m_length)
-		length = m_length-m_position;
+		length = m_length - m_position;
 
 	if(length <= 0)
 	{

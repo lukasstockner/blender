@@ -147,8 +147,8 @@ public:
 	{
 		return m_dynamicAabbTree;
 	}
-
-	btDbvt*							getDynamicAabbTree()
+	
+	btDbvt*	getDynamicAabbTree()
 	{
 		return m_dynamicAabbTree;
 	}

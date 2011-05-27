@@ -272,7 +272,7 @@ void btCompoundCollisionAlgorithm::processCollision (btCollisionObject* body0,bt
         btTransform	orgInterpolationTrans;
         btTransform	newChildWorldTrans;
         btVector3 aabbMin0,aabbMax0,aabbMin1,aabbMax1;        
-
+        
 		for (i=0;i<numChildren;i++)
 		{
 			if (m_childCollisionAlgorithms[i])

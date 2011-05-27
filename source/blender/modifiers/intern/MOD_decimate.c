@@ -48,7 +48,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#ifdef WITH_MOD_DECIMATE
 #include "LOD_decimation.h"
+#endif
 
 #include "MOD_util.h"
 
@@ -67,6 +69,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 	tdmd->percent = dmd->percent;
 }
 
+#ifdef WITH_MOD_DECIMATE
 static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 						DerivedMesh *derivedData,
 						int UNUSED(useRenderParams),
@@ -183,7 +186,15 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 exit:
 		return result;
 }
-
+#else // WITH_MOD_DECIMATE
+static DerivedMesh *applyModifier(ModifierData *UNUSED(md), Object *UNUSED(ob),
+						DerivedMesh *derivedData,
+						int UNUSED(useRenderParams),
+						int UNUSED(isFinalCalc))
+{
+	return derivedData;
+}
+#endif // WITH_MOD_DECIMATE
 
 ModifierTypeInfo modifierType_Decimate = {
 	/* name */              "Decimate",

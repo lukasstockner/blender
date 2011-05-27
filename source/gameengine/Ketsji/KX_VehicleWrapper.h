@@ -25,7 +25,7 @@ public:
 	virtual ~KX_VehicleWrapper ();
 	int			getConstraintId();
 	
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	
 	KX_PYMETHOD_VARARGS(KX_VehicleWrapper,AddWheel);
 	KX_PYMETHOD_VARARGS(KX_VehicleWrapper,GetNumWheels);
@@ -52,7 +52,7 @@ public:
 	KX_PYMETHOD_VARARGS(KX_VehicleWrapper,SetSuspensionCompression);
 	
 	KX_PYMETHOD_VARARGS(KX_VehicleWrapper,SetRollInfluence);
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON
 
 private:
 	PHY_IVehicle*			 m_vehicle;

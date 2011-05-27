@@ -878,7 +878,7 @@ void shade_color(ShadeInput *shi, ShadeResult *shr)
 
 	if(ma->fresnel_tra!=0.0f) 
 		shi->alpha*= fresnel_fac(shi->view, shi->vn, ma->fresnel_tra_i, ma->fresnel_tra);
-
+	
 	if (!(shi->mode & MA_TRANSP)) shi->alpha= 1.0f;
 	
 	shr->diff[0]= shi->r;
@@ -1403,6 +1403,7 @@ static void shade_one_light(LampRen *lar, ShadeInput *shi, ShadeResult *shr, int
 					}
 					
 					i*= shadfac[3];
+					shr->shad[3] = shadfac[3]; /* store this for possible check in troublesome cases */
 				}
 			}
 		}
@@ -1421,7 +1422,7 @@ static void shade_one_light(LampRen *lar, ShadeInput *shi, ShadeResult *shr, int
 			}
 			if(i_noshad>0.0f) {
 				if(passflag & (SCE_PASS_DIFFUSE|SCE_PASS_SHADOW)) {
-						add_to_diffuse(shr->diff, shi, is, i_noshad*lacol[0], i_noshad*lacol[1], i_noshad*lacol[2]);
+					add_to_diffuse(shr->diff, shi, is, i_noshad*lacol[0], i_noshad*lacol[1], i_noshad*lacol[2]);
 				}
 				else
 					VECCOPY(shr->diff, shr->shad);
@@ -1526,30 +1527,30 @@ static void shade_lamp_loop_only_shadow(ShadeInput *shi, ShadeResult *shr)
 
 				if(visifac <= 0.0f) {
 					if (shi->mat->shadowonly_flag == MA_SO_OLD)
-					accum+= 1.0f;
+						accum+= 1.0f;
 
 					continue;
 				}
 				inpr= INPR(shi->vn, lv);
 				if(inpr <= 0.0f) {
 					if (shi->mat->shadowonly_flag == MA_SO_OLD)
-					accum+= 1.0f;
+						accum+= 1.0f;
 
 					continue;
-				}				
+				}
 
 				lamp_get_shadow(lar, shi, inpr, shadfac, shi->depth);
 
 				if (shi->mat->shadowonly_flag == MA_SO_OLD) {
 					/* Old "Shadows Only" */
-				accum+= (1.0f-visifac) + (visifac)*rgb_to_grayscale(shadfac)*shadfac[3];
-			}
+					accum+= (1.0f-visifac) + (visifac)*rgb_to_grayscale(shadfac)*shadfac[3];
+				}
 				else {
 					shaded += rgb_to_grayscale(shadfac)*shadfac[3] * visifac * lar->energy;
 
 					if (shi->mat->shadowonly_flag == MA_SO_SHADOW) {
 						lightness += visifac * lar->energy;
-		}
+					}
 				}
 			}
 		}
@@ -1558,7 +1559,7 @@ static void shade_lamp_loop_only_shadow(ShadeInput *shi, ShadeResult *shr)
 		if(ir>0.0f) {
 			if (shi->mat->shadowonly_flag == MA_SO_OLD) {
 				accum = 1.0f - accum/ir;
-		}
+			}
 			else {
 				if (shi->mat->shadowonly_flag == MA_SO_SHADOW) {
 					if (lightness > 0.0f) {
@@ -1580,8 +1581,8 @@ static void shade_lamp_loop_only_shadow(ShadeInput *shi, ShadeResult *shr)
 		else {
 			/* If "fully shaded", use full alpha even on areas that have no lights */
 			if (shi->mat->shadowonly_flag == MA_SO_SHADED) shr->alpha=shi->alpha;
-		else shr->alpha= 0.f;
-	}
+			else shr->alpha= 0.f;
+		}
 	}
 	
 	/* quite disputable this...  also note it doesn't mirror-raytrace */	
@@ -1590,12 +1591,12 @@ static void shade_lamp_loop_only_shadow(ShadeInput *shi, ShadeResult *shr)
 		
 		if(R.wrld.mode & WO_AMB_OCC) {
 			f= R.wrld.aoenergy*shi->amb;
-
+			
 			if(R.wrld.aomix==WO_AOADD) {
 				if (shi->mat->shadowonly_flag == MA_SO_OLD) {
-				f= f*(1.0f - rgb_to_grayscale(shi->ao));
-				shr->alpha= (shr->alpha + f)*f;
-			}
+					f= f*(1.0f - rgb_to_grayscale(shi->ao));
+					shr->alpha= (shr->alpha + f)*f;
+				}
 				else {
 					shr->alpha -= f*rgb_to_grayscale(shi->ao);
 					if (shr->alpha<0.0f) shr->alpha=0.0f;
@@ -1607,15 +1608,15 @@ static void shade_lamp_loop_only_shadow(ShadeInput *shi, ShadeResult *shr)
 
 		if(R.wrld.mode & WO_ENV_LIGHT) {
 			if (shi->mat->shadowonly_flag == MA_SO_OLD) {
-			f= R.wrld.ao_env_energy*shi->amb*(1.0f - rgb_to_grayscale(shi->env));
-			shr->alpha= (shr->alpha + f)*f;
-		}
+				f= R.wrld.ao_env_energy*shi->amb*(1.0f - rgb_to_grayscale(shi->env));
+				shr->alpha= (shr->alpha + f)*f;
+			}
 			else {
 				f= R.wrld.ao_env_energy*shi->amb;
 				shr->alpha -= f*rgb_to_grayscale(shi->env);
 				if (shr->alpha<0.0f) shr->alpha=0.0f;
-	}
-}
+			}
+		}
 	}
 }
 
@@ -1708,14 +1709,14 @@ void shade_lamp_loop(ShadeInput *shi, ShadeResult *shr)
 		if(((passflag & SCE_PASS_COMBINED) && (shi->combinedflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
 			|| (passflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT))) {
 			if(R.r.mode & R_SHADOW) {
-			/* AO was calculated for scanline already */
-			if(shi->depth || shi->volume_depth)
-				ambient_occlusion(shi);
-			VECCOPY(shr->ao, shi->ao);
-			VECCOPY(shr->env, shi->env); // XXX multiply
-			VECCOPY(shr->indirect, shi->indirect); // XXX multiply
+				/* AO was calculated for scanline already */
+				if(shi->depth || shi->volume_depth)
+					ambient_occlusion(shi);
+				VECCOPY(shr->ao, shi->ao);
+				VECCOPY(shr->env, shi->env); // XXX multiply
+				VECCOPY(shr->indirect, shi->indirect); // XXX multiply
+			}
 		}
-	}
 	}
 	
 	/* lighting pass */
@@ -1791,10 +1792,17 @@ void shade_lamp_loop(ShadeInput *shi, ShadeResult *shr)
 			VECCOPY(shr->combined, shr->diff);
 			
 		/* calculate shadow pass, we use a multiplication mask */
-		if(passflag & SCE_PASS_SHADOW) {
+		/* if diff = 0,0,0 it doesn't matter what the shadow pass is, so leave it as is */
+		if(passflag & SCE_PASS_SHADOW && !(shr->diff[0]==0.0f && shr->diff[1]==0.0f && shr->diff[2]==0.0f)) {
 			if(shr->diff[0]!=0.0f) shr->shad[0]= shr->shad[0]/shr->diff[0];
+			/* can't determine proper shadow from shad/diff (0/0), so use shadow intensity */
+			else if(shr->shad[0]==0.0f) shr->shad[0]= shr->shad[3];
+
 			if(shr->diff[1]!=0.0f) shr->shad[1]= shr->shad[1]/shr->diff[1];
+			else if(shr->shad[1]==0.0f) shr->shad[1]= shr->shad[3];
+
 			if(shr->diff[2]!=0.0f) shr->shad[2]= shr->shad[2]/shr->diff[2];
+			else if(shr->shad[2]==0.0f) shr->shad[2]= shr->shad[3];
 		}
 		
 		/* exposure correction */
@@ -1824,18 +1832,18 @@ void shade_lamp_loop(ShadeInput *shi, ShadeResult *shr)
 	/* from now stuff everything in shr->combined: ambient, AO, radio, ramps, exposure */
 	if(!(ma->sss_flag & MA_DIFF_SSS) || !sss_pass_done(&R, ma)) {
 		if(R.r.mode & R_SHADOW) {
-		/* add AO in combined? */
-		if(R.wrld.mode & WO_AMB_OCC)
-			if(shi->combinedflag & SCE_PASS_AO)
-				ambient_occlusion_apply(shi, shr);
+			/* add AO in combined? */
+			if(R.wrld.mode & WO_AMB_OCC)
+				if(shi->combinedflag & SCE_PASS_AO)
+					ambient_occlusion_apply(shi, shr);
 
-		if(R.wrld.mode & WO_ENV_LIGHT)
-			if(shi->combinedflag & SCE_PASS_ENVIRONMENT)
-				environment_lighting_apply(shi, shr);
+			if(R.wrld.mode & WO_ENV_LIGHT)
+				if(shi->combinedflag & SCE_PASS_ENVIRONMENT)
+					environment_lighting_apply(shi, shr);
 
-		if(R.wrld.mode & WO_INDIRECT_LIGHT)
-			if(shi->combinedflag & SCE_PASS_INDIRECT)
-				indirect_lighting_apply(shi, shr);
+			if(R.wrld.mode & WO_INDIRECT_LIGHT)
+				if(shi->combinedflag & SCE_PASS_INDIRECT)
+					indirect_lighting_apply(shi, shr);
 		}
 		
 		shr->combined[0]+= shi->ambr;

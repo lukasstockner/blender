@@ -469,7 +469,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "spacing");
 	RNA_def_property_range(prop, 1, 1000);
 	RNA_def_property_ui_range(prop, 1, 500, 5, 0);
-	RNA_def_property_ui_text(prop, "Spacing", "Spacing between brush daubs as a percentage of brush diameter");
+	RNA_def_property_ui_text(prop, "Spacing", "Spacing between brush dabs as a percentage of brush diameter");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "smooth_stroke_radius", PROP_INT, PROP_DISTANCE);
@@ -662,7 +662,7 @@ static void rna_def_brush(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "use_symmetry_feather", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_SYMMETRY_FEATHER);
-	RNA_def_property_ui_text(prop, "Symmetry Feathering", "Reduce the strength of the brush where it overlaps symmetrical daubs");
+	RNA_def_property_ui_text(prop, "Symmetry Feathering", "Reduce the strength of the brush where it overlaps symmetrical dabs");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "use_layer", PROP_BOOLEAN, PROP_NONE);

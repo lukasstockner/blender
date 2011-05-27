@@ -221,59 +221,59 @@ void			btSoftBodyHelpers::Draw(	btSoftBody* psb,
 	}
 	else
 	{
-	/* Nodes	*/ 
-	if(0!=(drawflags&fDrawFlags::Nodes))
-	{
-		for(i=0;i<psb->m_nodes.size();++i)
+		/* Nodes	*/ 
+		if(0!=(drawflags&fDrawFlags::Nodes))
 		{
-			const btSoftBody::Node&	n=psb->m_nodes[i];
-			if(0==(n.m_material->m_flags&btSoftBody::fMaterial::DebugDraw)) continue;
-			idraw->drawLine(n.m_x-btVector3(scl,0,0),n.m_x+btVector3(scl,0,0),btVector3(1,0,0));
-			idraw->drawLine(n.m_x-btVector3(0,scl,0),n.m_x+btVector3(0,scl,0),btVector3(0,1,0));
-			idraw->drawLine(n.m_x-btVector3(0,0,scl),n.m_x+btVector3(0,0,scl),btVector3(0,0,1));
+			for(i=0;i<psb->m_nodes.size();++i)
+			{
+				const btSoftBody::Node&	n=psb->m_nodes[i];
+				if(0==(n.m_material->m_flags&btSoftBody::fMaterial::DebugDraw)) continue;
+				idraw->drawLine(n.m_x-btVector3(scl,0,0),n.m_x+btVector3(scl,0,0),btVector3(1,0,0));
+				idraw->drawLine(n.m_x-btVector3(0,scl,0),n.m_x+btVector3(0,scl,0),btVector3(0,1,0));
+				idraw->drawLine(n.m_x-btVector3(0,0,scl),n.m_x+btVector3(0,0,scl),btVector3(0,0,1));
+			}
 		}
-	}
-	/* Links	*/ 
-	if(0!=(drawflags&fDrawFlags::Links))
-	{
-		for(i=0;i<psb->m_links.size();++i)
+		/* Links	*/ 
+		if(0!=(drawflags&fDrawFlags::Links))
 		{
-			const btSoftBody::Link&	l=psb->m_links[i];
-			if(0==(l.m_material->m_flags&btSoftBody::fMaterial::DebugDraw)) continue;
-			idraw->drawLine(l.m_n[0]->m_x,l.m_n[1]->m_x,lcolor);
+			for(i=0;i<psb->m_links.size();++i)
+			{
+				const btSoftBody::Link&	l=psb->m_links[i];
+				if(0==(l.m_material->m_flags&btSoftBody::fMaterial::DebugDraw)) continue;
+				idraw->drawLine(l.m_n[0]->m_x,l.m_n[1]->m_x,lcolor);
+			}
 		}
-	}
-	/* Normals	*/ 
-	if(0!=(drawflags&fDrawFlags::Normals))
-	{
-		for(i=0;i<psb->m_nodes.size();++i)
+		/* Normals	*/ 
+		if(0!=(drawflags&fDrawFlags::Normals))
 		{
-			const btSoftBody::Node&	n=psb->m_nodes[i];
-			if(0==(n.m_material->m_flags&btSoftBody::fMaterial::DebugDraw)) continue;
-			const btVector3			d=n.m_n*nscl;
-			idraw->drawLine(n.m_x,n.m_x+d,ncolor);
-			idraw->drawLine(n.m_x,n.m_x-d,ncolor*0.5);
+			for(i=0;i<psb->m_nodes.size();++i)
+			{
+				const btSoftBody::Node&	n=psb->m_nodes[i];
+				if(0==(n.m_material->m_flags&btSoftBody::fMaterial::DebugDraw)) continue;
+				const btVector3			d=n.m_n*nscl;
+				idraw->drawLine(n.m_x,n.m_x+d,ncolor);
+				idraw->drawLine(n.m_x,n.m_x-d,ncolor*0.5);
+			}
 		}
-	}
-	/* Contacts	*/ 
-	if(0!=(drawflags&fDrawFlags::Contacts))
-	{
-		static const btVector3		axis[]={btVector3(1,0,0),
-			btVector3(0,1,0),
-			btVector3(0,0,1)};
-		for(i=0;i<psb->m_rcontacts.size();++i)
-		{		
-			const btSoftBody::RContact&	c=psb->m_rcontacts[i];
-			const btVector3				o=	c.m_node->m_x-c.m_cti.m_normal*
+		/* Contacts	*/ 
+		if(0!=(drawflags&fDrawFlags::Contacts))
+		{
+			static const btVector3		axis[]={btVector3(1,0,0),
+				btVector3(0,1,0),
+				btVector3(0,0,1)};
+			for(i=0;i<psb->m_rcontacts.size();++i)
+			{		
+				const btSoftBody::RContact&	c=psb->m_rcontacts[i];
+				const btVector3				o=	c.m_node->m_x-c.m_cti.m_normal*
 					(btDot(c.m_node->m_x,c.m_cti.m_normal)+c.m_cti.m_offset);
 				const btVector3				x=btCross(c.m_cti.m_normal,axis[c.m_cti.m_normal.minAxis()]).normalized();
 				const btVector3				y=btCross(x,c.m_cti.m_normal).normalized();
-			idraw->drawLine(o-x*nscl,o+x*nscl,ccolor);
-			idraw->drawLine(o-y*nscl,o+y*nscl,ccolor);
-			idraw->drawLine(o,o+c.m_cti.m_normal*nscl*3,btVector3(1,1,0));
+				idraw->drawLine(o-x*nscl,o+x*nscl,ccolor);
+				idraw->drawLine(o-y*nscl,o+y*nscl,ccolor);
+				idraw->drawLine(o,o+c.m_cti.m_normal*nscl*3,btVector3(1,1,0));
+			}
 		}
-	}
-	/* Faces	*/ 
+		/* Faces	*/ 
 	if(0!=(drawflags&fDrawFlags::Faces))
 	{
 		const btScalar	scl=(btScalar)0.8;
@@ -312,17 +312,17 @@ void			btSoftBodyHelpers::Draw(	btSoftBody* psb,
 	}
 	/* Anchors	*/ 
 	if(0!=(drawflags&fDrawFlags::Anchors))
-			{
+	{
 		for(i=0;i<psb->m_anchors.size();++i)
-				{				
+		{
 			const btSoftBody::Anchor&	a=psb->m_anchors[i];
 			const btVector3				q=a.m_body->getWorldTransform()*a.m_local;
 			drawVertex(idraw,a.m_node->m_x,0.25,btVector3(1,0,0));
 			drawVertex(idraw,q,0.25,btVector3(0,1,0));
 			idraw->drawLine(a.m_node->m_x,q,btVector3(1,1,1));
-				}
+		}
 		for(i=0;i<psb->m_nodes.size();++i)
-				{
+		{
 			const btSoftBody::Node&	n=psb->m_nodes[i];		
 			if(0==(n.m_material->m_flags&btSoftBody::fMaterial::DebugDraw)) continue;
 			if(n.m_im<=0)
@@ -387,11 +387,11 @@ void			btSoftBodyHelpers::Draw(	btSoftBody* psb,
 				}
 				default:
 				{
-			}		
+				}
 					
+			}		
 		}
 	}
-}
 }
 
 //

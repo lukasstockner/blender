@@ -128,12 +128,12 @@ void BLF_dir_free(char **dirs, int count)
 	MEM_freeN(dirs);
 }
 
-char *blf_dir_search(char *file)
+char *blf_dir_search(const char *file)
 {
 	DirBLF *dir;
 	char full_path[FILE_MAXDIR+FILE_MAXFILE];
 	char *s= NULL;
-	
+
 	for(dir=global_font_dir.first; dir; dir= dir->next) {
 		BLI_join_dirfile(full_path, sizeof(full_path), dir->path, file);
 		if (BLI_exist(full_path)) {
@@ -141,7 +141,7 @@ char *blf_dir_search(char *file)
 			break;
 		}
 	}
-	
+
 	if (!s) {
 		/* check the current directory, why not ? */
 		if (BLI_exist(file))
@@ -180,7 +180,7 @@ int blf_dir_split(const char *str, char *file, int *size)
 /* Some font have additional file with metrics information,
  * in general, the extension of the file is: .afm or .pfm
  */
-char *blf_dir_metrics_search(char *filename)
+char *blf_dir_metrics_search(const char *filename)
 {
 	char *mfile;
 	char *s;

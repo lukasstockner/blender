@@ -95,19 +95,19 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 	if(!psmd->psys->part)
 		return 0;
 
-		for(i=0; i<MAX_MTEX; i++) {
+	for(i=0; i<MAX_MTEX; i++) {
 		mtex = psmd->psys->part->mtex[i];
 		if(mtex && mtex->mapto && (mtex->texco & TEXCO_UV))
-					dataMask |= (1 << CD_MTFACE);
-		}
+			dataMask |= CD_MASK_MTFACE;
+	}
 
 	if(psmd->psys->part->tanfac != 0.0f)
-		dataMask |= (1 << CD_MTFACE);
+		dataMask |= CD_MASK_MTFACE;
 
 	/* ask for vertexgroups if we need them */
 	for(i=0; i<PSYS_TOT_VG; i++){
 		if(psmd->psys->vgroup[i]){
-			dataMask |= (1 << CD_MDEFORMVERT);
+			dataMask |= CD_MASK_MDEFORMVERT;
 			break;
 		}
 	}
@@ -184,7 +184,6 @@ static void deformVerts(ModifierData *md, Object *ob,
 		  psmd->dm->getNumFaces(psmd->dm)!=psmd->totdmface){
 
 		psys->recalc |= PSYS_RECALC_RESET;
-		psmd->flag |= eParticleSystemFlag_DM_changed;
 
 		psmd->totdmvert= psmd->dm->getNumVerts(psmd->dm);
 		psmd->totdmedge= psmd->dm->getNumEdges(psmd->dm);
@@ -195,7 +194,6 @@ static void deformVerts(ModifierData *md, Object *ob,
 		psmd->flag &= ~eParticleSystemFlag_psys_updated;
 		particle_system_update(md->scene, ob, psys);
 		psmd->flag |= eParticleSystemFlag_psys_updated;
-		psmd->flag &= ~eParticleSystemFlag_DM_changed;
 	}
 }
 

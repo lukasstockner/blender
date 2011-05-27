@@ -154,6 +154,8 @@ BF_OPENGL_LIB = 'GL GLU X11 Xi Xext'
 BF_OPENGL_LIBPATH = '/usr/X11R6/lib'
 BF_OPENGL_LIB_STATIC = '${BF_OPENGL}/libGL.a ${BF_OPENGL}/libGLU.a ${BF_OPENGL}/libXxf86vm.a ${BF_OPENGL}/libX11.a ${BF_OPENGL}/libXi.a ${BF_OPENGL}/libXext.a ${BF_OPENGL}/libXxf86vm.a'
 
+#On-Surface Brush
+WITH_BF_ONSURFACEBRUSH = True
 
 CC = 'c99'
 CXX = 'CC'
@@ -171,9 +173,9 @@ REL_CCFLAGS = ['-DNDEBUG', '-O2']
 ##ARFLAGS = ruv
 ##ARFLAGSQUIET = ru
 ##
-C_WARN = '-no_prelink -ptused'
+C_WARN = ['-no_prelink', '-ptused']
 
-CC_WARN = '-no_prelink -ptused'
+CC_WARN = ['-no_prelink', '-ptused']
 
 ##FIX_STUBS_WARNINGS = -Wno-unused
 
@@ -185,7 +187,7 @@ BF_PROFILE_FLAGS = ['-pg','-g']
 BF_PROFILE = 'false'
 
 BF_DEBUG = 'false'
-BF_DEBUG_FLAGS = '-g'
+BF_DEBUG_CCFLAGS = ['-g']
 
 BF_BUILDDIR = '../build/irix6'
 BF_INSTALLDIR='../install/irix6'

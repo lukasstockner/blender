@@ -23,8 +23,9 @@ set(INC
 	../../blenlib
 	../../makesdna
 	../../blenkernel
+	../../blenloader
 	../../../../intern/guardedalloc
-	../../../../extern/glew/include
+	${GLEW_INCLUDE_PATH}
 	${PYTHON_INCLUDE_DIRS}
 )
 

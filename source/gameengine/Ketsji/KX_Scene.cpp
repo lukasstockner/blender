@@ -213,7 +213,7 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 
 	m_bucketmanager=new RAS_BucketManager();
 	
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	m_attr_dict = PyDict_New(); /* new ref */
 	m_draw_call_pre = NULL;
 	m_draw_call_post = NULL;
@@ -267,7 +267,7 @@ KX_Scene::~KX_Scene()
 		delete m_bucketmanager;
 	}
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	PyDict_Clear(m_attr_dict);
 	/* Py_CLEAR: Py_DECREF's and NULL's */
 	Py_CLEAR(m_attr_dict);
@@ -1086,8 +1086,9 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj, bool use_gfx, bool u
 				blendobj->parent &&							// original object had armature (not sure this test is needed)
 				blendobj->parent->type == OB_ARMATURE &&
 				blendmesh->dvert!=NULL;						// mesh has vertex group
+#ifdef USE_BULLET
 			bool bHasSoftBody = (!parentobj && (blendobj->gameflag & OB_SOFT_BODY));
-
+#endif
 			bool releaseParent = true;
 
 			
@@ -1192,7 +1193,7 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj, bool use_gfx, bool u
 
 	gameobj->AddMeshUser();
 	}
-	
+
 #ifdef USE_BULLET
 	if(use_phys) { /* update the new assigned mesh with the physics mesh */
 		KX_ReInstanceBulletShapeFromMesh(gameobj, NULL, use_gfx?NULL:mesh);
@@ -1843,7 +1844,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 	if(env) /* bullet scene? - dummy scenes dont need touching */
 		env->MergeEnvironment(env_other);
 #endif
-
+	
 	/* merge logic */
 	{
 		SCA_LogicManager *logicmgr=			GetLogicManager();
@@ -1871,7 +1872,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 
 		for(unsigned int i= 0; i < times.size(); i++) {
 			timemgr->AddTimeProperty(times[i]);
-	}
+		}
 		
 	}
 	return true;
@@ -1887,7 +1888,7 @@ void KX_Scene::Render2DFilters(RAS_ICanvas* canvas)
 	m_filtermanager.RenderFilters(canvas);
 }
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 void KX_Scene::RunDrawingCallbacks(PyObject* cb_list)
 {
@@ -2135,7 +2136,7 @@ PyObject* KX_Scene::pyattr_get_drawing_callback_pre(void *self_v, const KX_PYATT
 
 	if(self->m_draw_call_pre==NULL)
 		self->m_draw_call_pre= PyList_New(0);
-		Py_INCREF(self->m_draw_call_pre);
+	Py_INCREF(self->m_draw_call_pre);
 	return self->m_draw_call_pre;
 }
 
@@ -2145,7 +2146,7 @@ PyObject* KX_Scene::pyattr_get_drawing_callback_post(void *self_v, const KX_PYAT
 
 	if(self->m_draw_call_post==NULL)
 		self->m_draw_call_post= PyList_New(0);
-		Py_INCREF(self->m_draw_call_post);
+	Py_INCREF(self->m_draw_call_post);
 	return self->m_draw_call_post;
 }
 
@@ -2295,4 +2296,4 @@ KX_PYMETHODDEF_DOC(KX_Scene, get, "")
 	return def;
 }
 
-#endif // DISABLE_PYTHON
+#endif // WITH_PYTHON

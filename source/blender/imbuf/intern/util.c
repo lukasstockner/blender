@@ -188,12 +188,12 @@ int IMB_ispic(const char *filename)
 		if(	(BLI_testextensie_array(filename, imb_ext_image)) ||
 			(G.have_quicktime && BLI_testextensie_array(filename, imb_ext_image_qt))
 		) {
-				return IMB_ispic_name(filename);
+			return IMB_ispic_name(filename);
 		}
-			else  {
+		else  {
 			return FALSE;
-			}
 		}
+	}
 	else { /* no FILTERFILEEXTS */
 		return IMB_ispic_name(filename);
 	}

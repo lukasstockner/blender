@@ -249,8 +249,8 @@ AUD_JackDevice::AUD_JackDevice(std::string name, AUD_DeviceSpecs specs, int buff
 	pthread_mutex_init(&m_mixingLock, NULL);
 	pthread_cond_init(&m_mixingCondition, NULL);
 
-		// activate the client
-		if(jack_activate(m_client))
+	// activate the client
+	if(jack_activate(m_client))
 	{
 		jack_client_close(m_client);
 		delete[] m_ports;

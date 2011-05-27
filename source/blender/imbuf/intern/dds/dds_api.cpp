@@ -120,7 +120,7 @@ struct ImBuf *imb_load_dds(unsigned char *mem, size_t size, int flags)
 			};
 		};
 	};
-	ibuf = IMB_allocImBuf(dds.width(), dds.height(), bits_per_pixel, 0, 0); 
+	ibuf = IMB_allocImBuf(dds.width(), dds.height(), bits_per_pixel, 0); 
 	if (ibuf == 0) return(0); /* memory allocation failed */
 
 	ibuf->ftype = DDS;

@@ -65,7 +65,7 @@ class PHY_IGraphicController;
 class PHY_IPhysicsEnvironment;
 struct Object;
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 /* utility conversion function */
 bool ConvertPythonToGameObject(PyObject * value, KX_GameObject **object, bool py_none_ok, const char *error_prefix);
 #endif
@@ -121,7 +121,7 @@ public:
 	 */
 	static KX_GameObject* GetClientObject(KX_ClientObjectInfo* info);
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	// Python attributes that wont convert into CValue
 	// 
 	// there are 2 places attributes can be stored, in the CValue,
@@ -801,7 +801,7 @@ public:
 	CListValue* GetChildren();
 	CListValue* GetChildrenRecursive();
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 	/**
 	 * @section Python interface functions.
 	 */

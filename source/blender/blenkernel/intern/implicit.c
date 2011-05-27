@@ -1,31 +1,31 @@
 /*
  * $Id$
-* 
-* ***** BEGIN GPL LICENSE BLOCK *****
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software Foundation,
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-* The Original Code is Copyright (C) Blender Foundation
-* All rights reserved.
-*
-* The Original Code is: all of this file.
-*
-* Contributor(s): none yet.
-*
-* ***** END GPL LICENSE BLOCK *****
-*/
+ *
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) Blender Foundation
+ * All rights reserved.
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): none yet.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
 
 /** \file blender/blenkernel/intern/implicit.c
  *  \ingroup bke
@@ -732,7 +732,7 @@ typedef struct Implicit_Data
 	fmatrix3x3 *A, *dFdV, *dFdX, *S, *P, *Pinv, *bigI, *M; 
 } Implicit_Data;
 
-int implicit_init (Object *ob, ClothModifierData *clmd)
+int implicit_init (Object *UNUSED(ob), ClothModifierData *clmd)
 {
 	unsigned int i = 0;
 	unsigned int pinned = 0;
@@ -1224,7 +1224,7 @@ DO_INLINE void dfdx_damp(float to[3][3],  float dir[3],float length,const float 
 
 }
 
-DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s, lfVector *lF, lfVector *X, lfVector *V, fmatrix3x3 *dFdV, fmatrix3x3 *dFdX, float time)
+DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s, lfVector *UNUSED(lF), lfVector *X, lfVector *V, fmatrix3x3 *UNUSED(dFdV), fmatrix3x3 *UNUSED(dFdX), float time)
 {
 	Cloth *cloth = clmd->clothObject;
 	ClothVertex *verts = cloth->verts;
@@ -1360,7 +1360,7 @@ DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s, 
 	}
 }
 
-DO_INLINE void cloth_apply_spring_force(ClothModifierData *clmd, ClothSpring *s, lfVector *lF, lfVector *X, lfVector *V, fmatrix3x3 *dFdV, fmatrix3x3 *dFdX)
+DO_INLINE void cloth_apply_spring_force(ClothModifierData *UNUSED(clmd), ClothSpring *s, lfVector *lF, lfVector *UNUSED(X), lfVector *UNUSED(V), fmatrix3x3 *dFdV, fmatrix3x3 *dFdX)
 {
 	if(s->flags & CLOTH_SPRING_FLAG_NEEDED)
 	{
@@ -1432,7 +1432,7 @@ typedef struct HairGridVert {
 		by Lena Petrovic, Mark Henne and John Anderson
  *		Pixar Technical Memo #06-08, Pixar Animation Studios
  */
-static void hair_velocity_smoothing(ClothModifierData *clmd, lfVector *lF, lfVector *lX, lfVector *lV, int numverts)
+static void hair_velocity_smoothing(ClothModifierData *clmd, lfVector *lF, lfVector *lX, lfVector *lV, unsigned int numverts)
 {
 	/* TODO: This is an initial implementation and should be made much better in due time.
 	 * What should at least be implemented is a grid size parameter and a smoothing kernel
@@ -1448,10 +1448,10 @@ static void hair_velocity_smoothing(ClothModifierData *clmd, lfVector *lF, lfVec
 	/* 2.0f is an experimental value that seems to give good results */
 	float smoothfac = 2.0f * clmd->sim_parms->velocity_smooth;
 	float collfac = 2.0f * clmd->sim_parms->collider_friction;
-	int	v = 0;
-	int	i = 0;
-	int	j = 0;
-	int	k = 0;
+	unsigned int	v = 0;
+	unsigned int	i = 0;
+	int				j = 0;
+	int				k = 0;
 
 	INIT_MINMAX(gmin, gmax);
 
@@ -1562,20 +1562,22 @@ static void hair_velocity_smoothing(ClothModifierData *clmd, lfVector *lF, lfVec
 	free_collider_cache(&colliders);
 }
 
-static void cloth_calc_force(ClothModifierData *clmd, float frame, lfVector *lF, lfVector *lX, lfVector *lV, fmatrix3x3 *dFdV, fmatrix3x3 *dFdX, ListBase *effectors, float time, fmatrix3x3 *M)
+static void cloth_calc_force(ClothModifierData *clmd, float UNUSED(frame), lfVector *lF, lfVector *lX, lfVector *lV, fmatrix3x3 *dFdV, fmatrix3x3 *dFdX, ListBase *effectors, float time, fmatrix3x3 *M)
 {
 	/* Collect forces and derivatives:  F,dFdX,dFdV */
 	Cloth 		*cloth 		= clmd->clothObject;
-	int		i 		= 0;
+	unsigned int i	= 0;
 	float 		spring_air 	= clmd->sim_parms->Cvi * 0.01f; /* viscosity of air scaled in percent */
 	float 		gravity[3] = {0.0f, 0.0f, 0.0f};
-	float 		tm2[3][3] 	= {{-spring_air,0,0}, {0,-spring_air,0},{0,0,-spring_air}};
+	float 		tm2[3][3] 	= {{0}};
 	MFace 		*mfaces 	= cloth->mfaces;
 	unsigned int numverts = cloth->numverts;
 	LinkNode *search;
 	lfVector *winvec;
 	EffectedPoint epoint;
 
+	tm2[0][0]= tm2[1][1]= tm2[2][2]= -spring_air;
+	
 	/* global acceleration (gravitation) */
 	if(clmd->scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
 		VECCOPY(gravity, clmd->scene->physics_settings.gravity);
@@ -1633,7 +1635,7 @@ static void cloth_calc_force(ClothModifierData *clmd, float frame, lfVector *lF,
 				CalcFloat4(lX[mfaces[i].v1],lX[mfaces[i].v2],lX[mfaces[i].v3],lX[mfaces[i].v4],triunnormal);
 			else
 				CalcFloat(lX[mfaces[i].v1],lX[mfaces[i].v2],lX[mfaces[i].v3],triunnormal);
-			
+
 			normalize_v3_v3(trinormal, triunnormal);
 			
 			// add wind from v1
@@ -1715,7 +1717,7 @@ static void cloth_calc_force(ClothModifierData *clmd, float frame, lfVector *lF,
 	// printf("\n");
 }
 
-static void simulate_implicit_euler(lfVector *Vnew, lfVector *lX, lfVector *lV, lfVector *lF, fmatrix3x3 *dFdV, fmatrix3x3 *dFdX, float dt, fmatrix3x3 *A, lfVector *B, lfVector *dV, fmatrix3x3 *S, lfVector *z, lfVector *olddV, fmatrix3x3 *P, fmatrix3x3 *Pinv, fmatrix3x3 *M, fmatrix3x3 *bigI)
+static void simulate_implicit_euler(lfVector *Vnew, lfVector *UNUSED(lX), lfVector *lV, lfVector *lF, fmatrix3x3 *dFdV, fmatrix3x3 *dFdX, float dt, fmatrix3x3 *A, lfVector *B, lfVector *dV, fmatrix3x3 *S, lfVector *z, lfVector *olddV, fmatrix3x3 *UNUSED(P), fmatrix3x3 *UNUSED(Pinv), fmatrix3x3 *M, fmatrix3x3 *UNUSED(bigI))
 {
 	unsigned int numverts = dFdV[0].vcount;
 
@@ -1900,7 +1902,7 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 			// call collision function
 			// TODO: check if "step" or "step+dt" is correct - dg
 			do_extra_solve = cloth_bvh_objcollision(ob, clmd, step/clmd->sim_parms->timescale, dt/clmd->sim_parms->timescale);
-			
+						
 			// copy corrected positions back to simulation
 			for(i = 0; i < numverts; i++)
 			{		

@@ -112,7 +112,7 @@ void free_qtcodecdata(QuicktimeCodecData *qcd)
 	}
 }
 
-Scene *copy_scene(Main *bmain, Scene *sce, int type)
+Scene *copy_scene(Scene *sce, int type)
 {
 	Scene *scen;
 	ToolSettings *ts;
@@ -134,7 +134,6 @@ Scene *copy_scene(Main *bmain, Scene *sce, int type)
 		
 		id_us_plus((ID *)scen->world);
 		id_us_plus((ID *)scen->set);
-		id_us_plus((ID *)scen->ima);
 		id_us_plus((ID *)scen->gm.dome.warptext);
 
 		scen->ed= NULL;
@@ -175,12 +174,12 @@ Scene *copy_scene(Main *bmain, Scene *sce, int type)
 		BLI_duplicatelist(&(scen->transform_spaces), &(sce->transform_spaces));
 		BLI_duplicatelist(&(scen->r.layers), &(sce->r.layers));
 		BKE_keyingsets_copy(&(scen->keyingsets), &(sce->keyingsets));
-		
+
 		if(sce->nodetree) {
 			scen->nodetree= ntreeCopyTree(sce->nodetree); /* copies actions */
 			ntreeSwitchID(scen->nodetree, &sce->id, &scen->id);
 		}
-		
+
 		obase= sce->base.first;
 		base= scen->base.first;
 		while(base) {
@@ -216,15 +215,17 @@ Scene *copy_scene(Main *bmain, Scene *sce, int type)
 	if(type == SCE_COPY_LINK_DATA || type == SCE_COPY_FULL) {
 		ID_NEW(scen->camera);
 	}
-
+	
 	/* before scene copy */
 	sound_create_scene(scen);
 
 	/* world */
 	if(type == SCE_COPY_FULL) {
+		BKE_copy_animdata_id_action((ID *)scen);
 		if(scen->world) {
 			id_us_plus((ID *)scen->world);
 			scen->world= copy_world(scen->world);
+			BKE_copy_animdata_id_action((ID *)scen->world);
 		}
 
 		if(sce->ed) {
@@ -464,8 +465,7 @@ Scene *add_scene(const char *name)
 		pset->brush[a].count= 10;
 	}
 	pset->brush[PE_BRUSH_CUT].strength= 100;
-	
-	sce->jumpframe = 10;
+
 	sce->r.ffcodecdata.audio_mixrate = 44100;
 	sce->r.ffcodecdata.audio_volume = 1.0f;
 
@@ -591,11 +591,11 @@ Scene *set_scene_name(Main *bmain, const char *name)
 	Scene *sce= (Scene *)find_id("SC", name);
 	if(sce) {
 		set_scene_bg(bmain, sce);
-		printf("Scene switch: '%s' in file: '%s'\n", name, G.sce);
+		printf("Scene switch: '%s' in file: '%s'\n", name, G.main->name);
 		return sce;
 	}
 
-	printf("Can't find scene: '%s' in file: '%s'\n", name, G.sce);
+	printf("Can't find scene: '%s' in file: '%s'\n", name, G.main->name);
 	return NULL;
 }
 
@@ -946,15 +946,15 @@ static void scene_update_tagged_recursive(Main *bmain, Scene *scene, Scene *scen
 
 	/* sets first, we allow per definition current scene to have
 	   dependencies on sets, but not the other way around. */
-	if(scene->set)
+	if (scene->set)
 		scene_update_tagged_recursive(bmain, scene->set, scene_parent);
-
+	
 	/* scene objects */
-	for(base= scene->base.first; base; base= base->next) {
+	for (base= scene->base.first; base; base= base->next) {
 		Object *ob= base->object;
-
+		
 		object_handle_update(scene_parent, ob);
-
+		
 		if(ob->dup_group && (ob->transflag & OB_DUPLIGROUP))
 			group_handle_recalc_and_update(scene_parent, ob, ob->dup_group);
 			
@@ -981,13 +981,13 @@ void scene_update_tagged(Main *bmain, Scene *scene)
 	/* recalc scene animation data here (for sequencer) */
 	{
 		AnimData *adt= BKE_animdata_from_id(&scene->id);
-		float ctime = BKE_curframe(scene); 
-
-		if(adt && (adt->recalc & ADT_RECALC_ANIM))
+		float ctime = BKE_curframe(scene);
+		
+		if (adt && (adt->recalc & ADT_RECALC_ANIM))
 			BKE_animsys_evaluate_animdata(&scene->id, adt, ctime, 0);
 	}
-
-	if(scene->physics_settings.quick_cache_step)
+	
+	if (scene->physics_settings.quick_cache_step)
 		BKE_ptcache_quick_cache_all(bmain, scene);
 
 	/* in the future this should handle updates for all datablocks, not
@@ -1080,23 +1080,23 @@ float get_render_aosss_error(RenderData *r, float error)
 /* helper function for the SETLOOPER macro */
 Base *_setlooper_base_step(Scene **sce_iter, Base *base)
 {
-    if(base && base->next) {
-        /* common case, step to the next */
-        return base->next;
-    }
+	if(base && base->next) {
+		/* common case, step to the next */
+		return base->next;
+	}
 	else if(base==NULL && (*sce_iter)->base.first) {
-        /* first time looping, return the scenes first base */
+		/* first time looping, return the scenes first base */
 		return (Base *)(*sce_iter)->base.first;
-    }
-    else {
-        /* reached the end, get the next base in the set */
+	}
+	else {
+		/* reached the end, get the next base in the set */
 		while((*sce_iter= (*sce_iter)->set)) {
 			base= (Base *)(*sce_iter)->base.first;
-            if(base) {
-                return base;
-            }
-        }
-    }
+			if(base) {
+				return base;
+			}
+		}
+	}
 
-    return NULL;
+	return NULL;
 }

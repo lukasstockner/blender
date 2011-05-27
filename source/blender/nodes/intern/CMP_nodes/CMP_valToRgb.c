@@ -51,7 +51,7 @@ static void do_colorband_composit(bNode *node, float *out, float *in)
 	do_colorband(node->storage, in[0], out);
 }
 
-static void node_composit_exec_valtorgb(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_valtorgb(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	/* stack order in: fac */
 	/* stack order out: col, alpha */
@@ -82,13 +82,13 @@ static void node_composit_exec_valtorgb(void *data, bNode *node, bNodeStack **in
 
 static void node_composit_init_valtorgb(bNode* node)
 {
-   node->storage= add_colorband(1);
+	node->storage= add_colorband(1);
 }
 
 void register_node_type_cmp_valtorgb(ListBase *lb)
 {
 	static bNodeType ntype;
-	
+
 	node_type_base(&ntype, CMP_NODE_VALTORGB, "ColorRamp", NODE_CLASS_CONVERTOR, NODE_OPTIONS,
 		cmp_node_valtorgb_in, cmp_node_valtorgb_out);
 	node_type_size(&ntype, 240, 200, 300);
@@ -111,12 +111,12 @@ static bNodeSocketType cmp_node_rgbtobw_out[]= {
 	{	-1, 0, ""	}
 };
 
-static void do_rgbtobw(bNode *node, float *out, float *in)
+static void do_rgbtobw(bNode *UNUSED(node), float *out, float *in)
 {
 	out[0]= in[0]*0.35f + in[1]*0.45f + in[2]*0.2f;
 }
 
-static void node_composit_exec_rgbtobw(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+static void node_composit_exec_rgbtobw(void *UNUSED(data), bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	/* stack order out: bw */
 	/* stack order in: col */
@@ -147,6 +147,6 @@ void register_node_type_cmp_rgbtobw(ListBase *lb)
 				   cmp_node_rgbtobw_in, cmp_node_rgbtobw_out);
 	node_type_size(&ntype, 80, 40, 120);
 	node_type_exec(&ntype, node_composit_exec_rgbtobw);
-
+	
 	nodeRegisterType(lb, &ntype);
 }

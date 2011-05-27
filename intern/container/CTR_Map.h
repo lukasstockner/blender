@@ -55,7 +55,7 @@ public:
             m_buckets[i] = 0;
         }
     }
-    
+
 	CTR_Map(const CTR_Map& map)
 	{
 		m_num_buckets = map.m_num_buckets;
@@ -100,7 +100,7 @@ public:
         }
         return 0;
     }
-    
+
     Key* getKey(int index) {
         int count=0;
         for (int i=0;i<m_num_buckets;i++)

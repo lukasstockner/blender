@@ -47,6 +47,7 @@ struct CSG_FaceIteratorDescriptor;
 struct CSG_VertexIteratorDescriptor;
 struct ColorBand;
 struct CurveMapping;
+struct Curve;
 struct EditBone;
 struct EditFace;
 struct EditMesh;
@@ -94,6 +95,7 @@ struct wmOperator;
 struct wmWindow;
 struct wmWindowManager;
 struct View3D;
+struct ToolSettings;
 struct bContextDataResult;
 struct bConstraintTarget;
 struct bPythonConstraint;
@@ -127,8 +129,6 @@ struct Render *RE_GetRender(const char *name){return (struct Render *) NULL;}
 /* blenkernel */
 char btempdir[] = "";
 void RE_FreeRenderResult(struct RenderResult *res){}
-char datatoc_bmonofont_ttf[] = "";
-int datatoc_bmonofont_ttf_size = 0;
 struct RenderResult *RE_MultilayerConvert(void *exrhandle, int rectx, int recty){return (struct RenderResult *) NULL;}
 void RE_GetResultImage(struct Render *re, struct RenderResult *rr){}
 int RE_RenderInProgress(struct Render *re){return 0;}
@@ -189,9 +189,10 @@ int ED_pose_channel_in_IK_chain(struct Object *ob, struct bPoseChannel *pchan){r
 int ED_space_image_show_uvedit(struct SpaceImage *sima, struct Object *obedit){return 0;}
 int ED_space_image_show_render(struct SpaceImage *sima){return 0;}
 int ED_space_image_show_paint(struct SpaceImage *sima){return 0;}
+void ED_space_image_paint_update(struct wmWindowManager *wm, struct ToolSettings *settings){}
 void ED_space_image_set(struct bContext *C, struct SpaceImage *sima, struct Scene *scene, struct Object *obedit, struct Image *ima){}
 struct ImBuf *ED_space_image_buffer(struct SpaceImage *sima){return (struct ImBuf *) NULL;}
-void	ED_screen_set_scene(struct bContext *C, struct Scene *scene){}
+void ED_screen_set_scene(struct bContext *C, struct Scene *scene){}
 
 void ED_area_tag_redraw_regiontype(struct ScrArea *sa, int regiontype){}
 
@@ -223,7 +224,7 @@ struct KeyingSetInfo *ANIM_keyingset_info_find_named (const char name[]){return 
 struct KeyingSet *ANIM_scene_get_active_keyingset (struct Scene *scene){return (struct KeyingSet *) NULL;}
 int ANIM_scene_get_keyingset_index(struct Scene *scene, struct KeyingSet *ks){return 0;}
 struct ListBase builtin_keyingsets;
-void ANIM_keyingset_info_register (const struct bContext *C, struct KeyingSetInfo *ksi){}
+void ANIM_keyingset_info_register (struct KeyingSetInfo *ksi){}
 void ANIM_keyingset_info_unregister (const struct bContext *C, struct KeyingSetInfo *ksi){}
 short ANIM_add_driver(struct ID *id, const char rna_path[], int array_index, short flag, int type){return 0;}
 short ANIM_remove_driver (struct ID *id, const char rna_path[], int array_index, short flag){return 0;}
@@ -276,7 +277,7 @@ void ED_mesh_edges_add(struct Mesh *mesh, struct ReportList *reports, int count)
 void ED_mesh_faces_add(struct Mesh *mesh, struct ReportList *reports, int count){}
 void ED_mesh_material_link(struct Mesh *mesh, struct Material *ma){}
 int ED_mesh_color_add(struct bContext *C, struct Scene *scene, struct Object *ob, struct Mesh *me){return 0;}
-int ED_mesh_uv_texture_add(struct bContext *C, struct Scene *scene, struct Object *ob, struct Mesh *me){return 0;}
+int ED_mesh_uv_texture_add(struct bContext *C, struct Mesh *me){return 0;}
 void ED_object_constraint_dependency_update(struct Scene *scene, struct Object *ob){}
 void ED_object_constraint_update(struct Object *ob){}
 struct bDeformGroup *ED_vgroup_add_name(struct Object *ob, char *name){return (struct bDeformGroup *) NULL;}
@@ -385,6 +386,7 @@ struct wmOperatorTypeMacro *WM_operatortype_macro_define(struct wmOperatorType *
 int WM_operator_call_py(struct bContext *C, struct wmOperatorType *ot, int context, struct PointerRNA *properties, struct ReportList *reports){return 0;}
 int WM_operatortype_remove(const char *idname){return 0;}
 int WM_operator_poll(struct bContext *C, struct wmOperatorType *ot){return 0;}
+int WM_operator_poll_context(struct bContext *C, struct wmOperatorType *ot, int context){return 0;}
 int WM_operator_props_popup(struct bContext *C, struct wmOperator *op, struct wmEvent *event){return 0;}
 void WM_operator_properties_free(struct PointerRNA *ptr){}
 void WM_operator_properties_create(struct PointerRNA *ptr, const char *opstring){}

@@ -124,7 +124,7 @@ static void rna_Sequence_start_frame_set(PointerRNA *ptr, int value)
 	Sequence *seq= (Sequence*)ptr->data;
 	Scene *scene= (Scene*)ptr->id.data;
 	
-	seq->start= value;
+	seq_translate(scene, seq, value - seq->start);
 	rna_Sequence_frame_change_update(scene, seq);
 }
 
@@ -155,7 +155,7 @@ static void rna_Sequence_anim_startofs_final_set(PointerRNA *ptr, int value)
 
 	seq->anim_startofs = MIN2(value, seq->len + seq->anim_startofs);
 
-	reload_sequence_new_file(G.main, scene, seq, FALSE);
+	reload_sequence_new_file(scene, seq, FALSE);
 	rna_Sequence_frame_change_update(scene, seq);
 }
 
@@ -166,7 +166,7 @@ static void rna_Sequence_anim_endofs_final_set(PointerRNA *ptr, int value)
 
 	seq->anim_endofs = MIN2(value, seq->len + seq->anim_endofs);
 
-	reload_sequence_new_file(G.main, scene, seq, FALSE);
+	reload_sequence_new_file(scene, seq, FALSE);
 	rna_Sequence_frame_change_update(scene, seq);
 }
 
@@ -509,6 +509,12 @@ static void rna_Sequence_attenuation_set(PointerRNA *ptr, float value)
 }
 
 
+static int rna_Sequence_input_count_get(PointerRNA *ptr)
+{
+	Sequence *seq= (Sequence*)(ptr->data);
+
+	return get_sequence_effect_num_inputs(seq->type);
+}
 /*static void rna_SoundSequence_filename_set(PointerRNA *ptr, const char *value)
 {
 	Sequence *seq= (Sequence*)(ptr->data);
@@ -559,7 +565,7 @@ static void rna_Sequence_mute_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 static void rna_Sequence_filepath_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Sequence *seq= (Sequence*)(ptr->data);
-	reload_sequence_new_file(G.main, scene, seq, TRUE);
+	reload_sequence_new_file(scene, seq, TRUE);
 	calc_sequence(scene, seq);
 	rna_Sequence_update(bmain, scene, ptr);
 }
@@ -1003,6 +1009,24 @@ static void rna_def_sequence(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Speed factor", "Multiply the current speed of the sequence with this number or remap current frame to this frame");
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 
+	/* effect strip inputs */
+
+	prop= RNA_def_property(srna, "input_count", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_int_funcs(prop, "rna_Sequence_input_count_get", NULL, NULL);
+
+	prop= RNA_def_property(srna, "input_1",  PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "seq1");
+	RNA_def_property_ui_text(prop, "Input 1", "First input for the effect strip");
+
+	prop= RNA_def_property(srna, "input_2",  PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "seq2");
+	RNA_def_property_ui_text(prop, "Input 2", "Second input for the effect strip");
+
+	prop= RNA_def_property(srna, "input_3",  PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "seq1");
+	RNA_def_property_ui_text(prop, "Input 3", "Third input for the effect strip");
+
 	RNA_api_sequence_strip(srna);
 }
 
@@ -1039,7 +1063,7 @@ static void rna_def_editor(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "show_overlay", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "over_flag", SEQ_EDIT_OVERLAY_SHOW);
-	RNA_def_property_ui_text(prop, "Draw Axes", "Partial overlay ontop of the sequencer");
+	RNA_def_property_ui_text(prop, "Draw Axes", "Partial overlay on top of the sequencer");
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_SEQUENCER, NULL);
 
 	prop= RNA_def_property(srna, "overlay_lock", PROP_BOOLEAN, PROP_NONE);

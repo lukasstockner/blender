@@ -103,7 +103,6 @@ static void deselect_action_keys (bAnimContext *ac, short test, short sel)
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 	
 	/* init BezTriple looping data */
-	memset(&ked, 0, sizeof(KeyframeEditData));
 	test_cb= ANIM_editkeyframes_ok(BEZT_OK_SELECTED);
 	
 	/* See if we should be selecting or deselecting */
@@ -113,7 +112,7 @@ static void deselect_action_keys (bAnimContext *ac, short test, short sel)
 				if (is_gplayer_frame_selected(ale->data)) {
 					sel= SELECT_SUBTRACT;
 					break;
-			}
+				}
 			}
 			else {
 				if (ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, test_cb, NULL)) {
@@ -132,7 +131,7 @@ static void deselect_action_keys (bAnimContext *ac, short test, short sel)
 		if (ale->type == ANIMTYPE_GPLAYER)
 			set_gplayer_frame_selection(ale->data, sel);
 		else
-			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, sel_cb, NULL);
+			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, sel_cb, NULL); 
 	}
 	
 	/* Cleanup */
@@ -383,8 +382,7 @@ static void markers_selectkeys_between (bAnimContext *ac)
 	/* get editing funcs + data */
 	ok_cb= ANIM_editkeyframes_ok(BEZT_OK_FRAMERANGE);
 	select_cb= ANIM_editkeyframes_select(SELECT_ADD);
-	
-	memset(&ked, 0, sizeof(KeyframeEditData));
+
 	ked.f1= min; 
 	ked.f2= max;
 	
@@ -427,7 +425,6 @@ static void columnselect_action_keys (bAnimContext *ac, short mode)
 	KeyframeEditData ked= {{NULL}};
 	
 	/* initialise keyframe editing data */
-	memset(&ked, 0, sizeof(KeyframeEditData));
 	
 	/* build list of columns */
 	switch (mode) {
@@ -495,9 +492,9 @@ static void columnselect_action_keys (bAnimContext *ac, short mode)
 			if (ale->type == ANIMTYPE_GPLAYER)
 				select_gpencil_frame(ale->data, ce->cfra, SELECT_ADD);
 			else
-			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, ok_cb, select_cb, NULL);
-				}
-			}
+				ANIM_fcurve_keyframes_loop(&ked, ale->key_data, ok_cb, select_cb, NULL);
+		}
+	}
 	
 	/* free elements */
 	BLI_freelistN(&ked.list);
@@ -617,7 +614,6 @@ static void select_moreless_action_keys (bAnimContext *ac, short mode)
 	
 	/* init selmap building data */
 	build_cb= ANIM_editkeyframes_buildselmap(mode);
-	memset(&ked, 0, sizeof(KeyframeEditData)); 
 	
 	/* loop through all of the keys and select additional keyframes based on these */
 	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVESONLY | ANIMFILTER_NODUPLIS);
@@ -750,7 +746,6 @@ static void actkeys_select_leftright (bAnimContext *ac, short leftright, short s
 	ok_cb= ANIM_editkeyframes_ok(BEZT_OK_FRAMERANGE);
 	select_cb= ANIM_editkeyframes_select(select_mode);
 	
-	memset(&ked, 0, sizeof(KeyframeEditFunc));
 	if (leftright == ACTKEYS_LRSEL_LEFT) {
 		ked.f1 = MINAFRAMEF;
 		ked.f2 = (float)(CFRA + 0.1f);
@@ -853,7 +848,7 @@ static int actkeys_select_leftright_invoke (bContext *C, wmOperator *op, wmEvent
 		ARegion *ar= ac.ar;
 		View2D *v2d= &ar->v2d;
 		float x;
-		
+
 		/* determine which side of the current frame mouse is on */
 		UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &x, NULL);
 		if (x < CFRA)
@@ -936,7 +931,6 @@ static void actkeys_mselect_column(bAnimContext *ac, short select_mode, float se
 	KeyframeEditData ked= {{NULL}};
 	
 	/* initialise keyframe editing data */
-	memset(&ked, 0, sizeof(KeyframeEditData));
 	
 	/* set up BezTriple edit callbacks */
 	select_cb= ANIM_editkeyframes_select(select_mode);
@@ -964,8 +958,8 @@ static void actkeys_mselect_column(bAnimContext *ac, short select_mode, float se
 		if (ale->type == ANIMTYPE_GPLAYER)
 			select_gpencil_frame(ale->key_data, selx, select_mode);
 		else 
-		ANIM_fcurve_keyframes_loop(&ked, ale->key_data, ok_cb, select_cb, NULL);
-				}
+			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, ok_cb, select_cb, NULL);
+	}
 	
 	/* free elements */
 	BLI_freelistN(&ked.list);
@@ -1053,7 +1047,7 @@ static void mouse_action_keys (bAnimContext *ac, const int mval[2], short select
 			/* dopesheet summary covers everything */
 			summary_to_keylist(ac, &anim_keys, NULL);
 		}
-		else if (ale->type == ANIMTYPE_GROUP) {
+		else if (ale->type == ANIMTYPE_GROUP) { 
 			// TODO: why don't we just give groups key_data too?
 			bActionGroup *agrp= (bActionGroup *)ale->data;
 			agroup_to_keylist(adt, agrp, &anim_keys, NULL);
@@ -1061,7 +1055,7 @@ static void mouse_action_keys (bAnimContext *ac, const int mval[2], short select
 		else if (ale->type == ANIMTYPE_GPLAYER) {
 			// TODO: why don't we just give gplayers key_data too?
 			bGPDlayer *gpl = (bGPDlayer *)ale->data;
-			gpl_to_keylist(ads, gpl, &anim_keys, NULL);
+			gpl_to_keylist(ads, gpl, &anim_keys);
 		}
 		
 		/* start from keyframe at root of BST, traversing until we find one within the range that was clicked on */
@@ -1129,9 +1123,9 @@ static void mouse_action_keys (bAnimContext *ac, const int mval[2], short select
 				bGPDlayer *gpl = ale->data;
 				
 				gpl->flag |= GP_LAYER_SELECT;
-			//gpencil_layer_setactive(gpd, gpl);
+				//gpencil_layer_setactive(gpd, gpl);
+			}
 		}
-	}
 	}
 	
 	/* only select keyframes if we clicked on a valid channel and hit something */
@@ -1166,7 +1160,7 @@ static int actkeys_clickselect_invoke(bContext *C, wmOperator *op, wmEvent *even
 		
 	/* get useful pointers from animation context data */
 	ar= ac.ar;
-	
+
 	/* select mode is either replace (deselect all, then add) or add/extend */
 	if (RNA_boolean_get(op->ptr, "extend"))
 		selectmode= SELECT_INVERT;
@@ -1176,7 +1170,7 @@ static int actkeys_clickselect_invoke(bContext *C, wmOperator *op, wmEvent *even
 	/* column selection */
 	column= RNA_boolean_get(op->ptr, "column");
 	
-		/* select keyframe(s) based upon mouse position*/
+	/* select keyframe(s) based upon mouse position*/
 	mouse_action_keys(&ac, event->mval, selectmode, column);
 	
 	/* set notifier that keyframe selection (and channels too) have changed */

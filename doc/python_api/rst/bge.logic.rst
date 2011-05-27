@@ -205,7 +205,7 @@ General functions
 
    :arg name: The name of the library to free (the name used in LibNew)
    :type name: string
-
+   
 .. function:: LibList()
 
    Returns a list of currently loaded libraries.

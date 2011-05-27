@@ -46,12 +46,12 @@ bool AUD_BufferReader::isSeekable() const
 
 void AUD_BufferReader::seek(int position)
 {
-		m_position = position;
+	m_position = position;
 }
 
 int AUD_BufferReader::getLength() const
 {
-	return m_buffer.get()->getSize()/AUD_SAMPLE_SIZE(m_specs);
+	return m_buffer.get()->getSize() / AUD_SAMPLE_SIZE(m_specs);
 }
 
 int AUD_BufferReader::getPosition() const

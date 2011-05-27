@@ -370,7 +370,7 @@ static void ui_popup_bounds_block(const bContext *C, uiBlock *block, int bounds_
 	/* and we adjust the position to fit within window */
 	width= block->maxx - block->minx;
 	height= block->maxy - block->miny;
-    
+
 	/* avoid divide by zero below, caused by calling with no UI, but better not crash */
 	oldwidth= oldwidth > 0 ? oldwidth : MAX2(1, width);
 	oldheight= oldheight > 0 ? oldheight : MAX2(1, height);
@@ -552,6 +552,7 @@ static int ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBut
 	for(oldbut=oldblock->buttons.first; oldbut; oldbut=oldbut->next) {
 		if(ui_but_equals_old(oldbut, but)) {
 			if(oldbut->active) {
+#if 0
 //				but->flag= oldbut->flag;
 #else
 				/* exception! redalert flag can't be update from old button. 
@@ -574,7 +575,7 @@ static int ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBut
 //				but->linkto[1]= oldbut->linkto[1];
 				found= 1;
 //				oldbut->active= NULL;
-
+			
 				/* move button over from oldblock to new block */
 				BLI_remlink(&oldblock->buttons, oldbut);
 				BLI_insertlink(&block->buttons, but, oldbut);
@@ -601,10 +602,10 @@ static int ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBut
 				/* note: if layout hasn't been applied yet, it uses old button pointers... */
 			}
 			else {
-			/* ensures one button can get activated, and in case the buttons
-			 * draw are the same this gives O(1) lookup for each button */
-			BLI_remlink(&oldblock->buttons, oldbut);
-			ui_free_but(C, oldbut);
+				/* ensures one button can get activated, and in case the buttons
+				 * draw are the same this gives O(1) lookup for each button */
+				BLI_remlink(&oldblock->buttons, oldbut);
+				ui_free_but(C, oldbut);
 			}
 			
 			break;
@@ -767,7 +768,7 @@ void uiEndBlock(const bContext *C, uiBlock *block)
 			if(but->context)
 				CTX_store_set((bContext*)C, but->context);
 
-			if(ot == NULL || WM_operator_poll((bContext*)C, ot)==0) {
+			if(ot == NULL || WM_operator_poll_context((bContext*)C, ot, but->opcontext)==0) {
 				but->flag |= UI_BUT_DISABLED;
 				but->lock = 1;
 			}
@@ -1094,7 +1095,7 @@ void ui_delete_linkline(uiLinkLine *line, uiBut *but)
 	MEM_freeN(line);
 	//REDRAW
 }
-	
+
 /* *********************** data get/set ***********************
  * this either works with the pointed to data, or can work with
  * an edit override pointer while dragging for example */
@@ -1188,10 +1189,10 @@ int ui_is_but_unit(uiBut *but)
 {
 	Scene *scene= CTX_data_scene((bContext *)but->block->evil_C);
 	int unit_type= uiButGetUnitType(but);
-	
+
 	if(unit_type == PROP_UNIT_NONE)
 		return 0;
-	
+
 #if 1 // removed so angle buttons get correct snapping
 	if (scene->unit.system_rotation == USER_UNIT_ROT_RADIANS && unit_type == PROP_UNIT_ROTATION)
 		return 0;
@@ -1204,7 +1205,7 @@ int ui_is_but_unit(uiBut *but)
 	if (scene->unit.system == USER_UNIT_NONE) {
 		if (unit_type != PROP_UNIT_ROTATION) {
 			return 0;
-	}
+		}
 	}
 
 	return 1;
@@ -1283,7 +1284,7 @@ double ui_get_but_val(uiBut *but)
 	else if( but->pointype == FLO ) {
 		value= *(float *)but->poin;
 	}
-    
+
 	return value;
 }
 
@@ -1322,7 +1323,7 @@ void ui_set_but_val(uiBut *but, double value)
 						RNA_property_enum_set(&but->rnapoin, prop, ivalue);
 					}
 					else {
-					RNA_property_enum_set(&but->rnapoin, prop, value);
+						RNA_property_enum_set(&but->rnapoin, prop, value);
 					}
 					break;
 				default:
@@ -1645,13 +1646,13 @@ int ui_set_but_string(bContext *C, uiBut *but, const char *str)
 		/* number editing */
 		double value;
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 		if(ui_set_but_string_eval_num(C, but, str, &value) == FALSE) {
-					return 0;
-			}
+			return 0;
+		}
 #else
 		value= atof(str);
-#endif
+#endif // WITH_PYTHON
 
 		if(!ui_is_but_float(but)) value= (int)floor(value + 0.5);
 		if(but->type==NUMABS) value= fabs(value);
@@ -1919,8 +1920,8 @@ uiBlock *uiBeginBlock(const bContext *C, ARegion *region, const char *name, shor
 uiBlock *uiGetBlock(const char *name, ARegion *ar)
 {
 	return BLI_findstring(&ar->uiblocks, name, offsetof(uiBlock, name));
-	}
-	
+}
+
 void uiBlockSetEmboss(uiBlock *block, char dt)
 {
 	block->dt= dt;
@@ -2042,10 +2043,10 @@ void ui_check_but(uiBut *but)
 			else CLAMP(prec, 1, 7);
 
 			BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%s%.*f", but->str, prec, value);
-			}
-			else {
+		}
+		else {
 			strncpy(but->drawstr, but->str, UI_MAX_DRAW_STR);
-			}
+		}
 		
 		break;
 
@@ -2176,7 +2177,7 @@ static void ui_block_do_align_but(uiBut *first, int nr)
 
 		/* clear old flag */
 		but->flag &= ~UI_BUT_ALIGN;
-		
+			
 		if(flag==0) {	/* first case */
 			if(next) {
 				if(buts_are_horiz(but, next)) {
@@ -2225,7 +2226,7 @@ static void ui_block_do_align_but(uiBut *first, int nr)
 			else {	/* next button switches to new row */
 				
 				if(prev && buts_are_horiz(prev, but))
-				   flag |= UI_BUT_ALIGN_LEFT;
+					flag |= UI_BUT_ALIGN_LEFT;
 				else {
 					flag &= ~UI_BUT_ALIGN_LEFT;
 					flag |= UI_BUT_ALIGN_TOP;
@@ -2237,7 +2238,7 @@ static void ui_block_do_align_but(uiBut *first, int nr)
 							flag = UI_BUT_ALIGN_DOWN|UI_BUT_ALIGN_LEFT|UI_BUT_ALIGN_RIGHT;
 						else {
 							/* last button in top row */
-						flag= UI_BUT_ALIGN_DOWN|UI_BUT_ALIGN_LEFT;
+							flag = UI_BUT_ALIGN_DOWN|UI_BUT_ALIGN_LEFT;
 						}
 					}
 					else 
@@ -2456,7 +2457,7 @@ static uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, const char *s
 						icon= item[i].icon;
 						if(!tip)
 							tip= item[i].description;
-				}
+					}
 				}
 				str= BLI_dynstr_get_cstring(dynstr);
 				BLI_dynstr_free(dynstr);
@@ -3394,7 +3395,7 @@ void uiButSetSearchFunc(uiBut *but, uiButSearchFunc sfunc, void *arg, uiButHandl
 		/* skip empty buttons, not all buttons need input, we only show invalid */
 		if(but->drawstr[0])
 			ui_but_search_test(but);
-}
+	}
 }
 
 /* push a new event onto event queue to activate the given button 
