@@ -87,12 +87,13 @@ endif()
 		ge_player_ghost 
 		ge_player_common 
 		bf_intern_string 
-		bf_intern_ghost 
+		bf_intern_ghost
 		bf_rna
 		bf_blenkernel
 		bf_blenloader 
 		bf_blenpluginapi 
 		ge_blen_routines
+		bf_editor_datafiles
 		ge_converter 
 		ge_logic_ketsji 
 		ge_phys_bullet 
@@ -103,10 +104,10 @@ endif()
 		ge_oglrasterizer 
 		ge_logic_expressions 
 		ge_scenegraph
-        	bf_ikplugin
-        	bf_intern_itasc
-        	bf_intern_ik
-        	bf_intern_smoke
+		bf_ikplugin
+		bf_intern_itasc
+		bf_intern_ik
+		bf_intern_smoke
 		bf_modifiers
 		bf_intern_moto 
 		bf_nodes
@@ -123,7 +124,7 @@ endif()
 		bf_blenlib 
 		bf_imbuf_cineon
 		bf_imbuf_openexr 
-		extern_openjpeg 
+		extern_openjpeg
 		extern_redcode
 		bf_imbuf_dds
 		bf_dna
@@ -133,9 +134,11 @@ endif()
 		blenkernel_blc
 		extern_binreloc
 		extern_minilzo
+		bf_intern_ghost # duplicate for linking
+		bf_blenkernel # duplicate for linking
 		bf_intern_mikktspace
 	)
-  
+
 	if(WITH_BUILTIN_GLEW)
 		list(APPEND BLENDER_SORTED_LIBS extern_glew)
 	endif()

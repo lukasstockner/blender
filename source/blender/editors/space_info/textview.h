@@ -1,5 +1,5 @@
 /*
- * $Id: textview.h 35242 2011-02-27 20:29:51Z jesterking $
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *

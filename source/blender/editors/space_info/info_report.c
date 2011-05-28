@@ -1,5 +1,5 @@
 /*
- * $Id: info_report.c 36644 2011-05-12 16:47:36Z campbellbarton $
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
