@@ -28,6 +28,7 @@
 
 
 #include <stdlib.h>
+#include <assert.h>
 
 #include "RNA_define.h"
 
@@ -180,6 +181,17 @@ static void rna_Brush_icon_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 static void rna_Brush_set_size(PointerRNA *ptr, int value)
 {
 	Brush* me = (Brush*)(ptr->data);
+
+	float size= (float)brush_size(me);
+	float unprojected_radius;
+
+	// paranoia: previous checks should make sure we don't divide by zero
+	assert(size != 0);
+
+	// set unprojected radius, so it remains consistent with size
+	unprojected_radius= (float)(brush_unprojected_radius(me) * value / size);
+	brush_set_unprojected_radius(me, unprojected_radius);
+
 	brush_set_size(me, value);
 }
 
@@ -228,6 +240,17 @@ static int rna_Brush_get_use_alpha_pressure(PointerRNA *ptr)
 static void rna_Brush_set_unprojected_radius(PointerRNA *ptr, float value)
 {
 	Brush* me = (Brush*)(ptr->data);
+
+	float unprojected_radius= brush_unprojected_radius(me);
+	int size;
+
+	// paranoia: previous checks should make sure we don't divide by zero
+	assert(unprojected_radius != 0.0f);
+
+	// set size, so that it is consistent with unprojected_radius
+	size= (int)((float)brush_size(me) * value / unprojected_radius);
+	brush_set_size(me, size);
+
 	brush_set_unprojected_radius(me, value);
 }
 
