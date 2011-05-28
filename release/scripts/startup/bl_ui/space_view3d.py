@@ -2137,6 +2137,21 @@ class VIEW3D_PT_view3d_display(bpy.types.Panel):
             row.prop(region, "use_box_clip")
 
 
+class VIEW3D_PT_view3d_matcap(bpy.types.Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_label = "MatCap"
+    bl_default_closed = True
+
+    @classmethod
+    def poll(self, context):
+        return (context.space_data)
+
+    def draw(self, context):
+        #self.layout.column().template_ID_preview(context.space_data, "matcap_image", open="image.open", new="image.new", filter="is_matcap_image", rows=3, cols=3)
+        self.layout.column().template_ID_preview(context.space_data, "matcap_image", open="image.open", new="image.new", rows=3, cols=3)
+
+
 class VIEW3D_PT_view3d_meshdisplay(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'

@@ -44,6 +44,9 @@
 #include "DNA_object_types.h"
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
+#include "DNA_material_types.h"
+
+#include "GPU_material.h"
 
 #include "WM_api.h"
 #include "WM_types.h"

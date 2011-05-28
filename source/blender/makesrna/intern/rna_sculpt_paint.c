@@ -29,6 +29,8 @@
 
 #include <stdlib.h>
 
+#include <GL/glew.h>
+
 #include "RNA_define.h"
 
 #include "rna_internal.h"

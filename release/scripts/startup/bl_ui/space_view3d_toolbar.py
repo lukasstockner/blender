@@ -540,6 +540,12 @@ class VIEW3D_PT_tools_brush(PaintPanel, bpy.types.Panel):
                 row.prop(brush, "auto_smooth_factor", slider=True)
                 row.prop(brush, "use_inverse_smooth_pressure", toggle=True, text="")
 
+            if brush.sculpt_tool not in ('GRAVITY'):
+                col.separator()
+
+                row = col.row(align=True)
+                row.prop(brush, "gravity_factor", slider=True)
+
             if brush.sculpt_tool in {'GRAB', 'SNAKE_HOOK'}:
                 col.separator()
 
@@ -553,9 +559,9 @@ class VIEW3D_PT_tools_brush(PaintPanel, bpy.types.Panel):
                 row.prop(brush, "crease_pinch_factor", slider=True, text="Pinch")
 
             if brush.sculpt_tool not in {'PINCH', 'INFLATE', 'SMOOTH'}:
-                row = col.row(align=True)
-
                 col.separator()
+
+                row = col.row(align=True)
 
                 if brush.use_original_normal:
                     row.prop(brush, "use_original_normal", toggle=True, text="", icon='LOCKED')
@@ -564,8 +570,10 @@ class VIEW3D_PT_tools_brush(PaintPanel, bpy.types.Panel):
 
                 row.prop(brush, "sculpt_plane", text="")
 
-            #if brush.sculpt_tool in {'CLAY', 'CLAY_TUBES', 'FLATTEN', 'FILL', 'SCRAPE'}:
-            if brush.sculpt_tool in {'CLAY', 'FLATTEN', 'FILL', 'SCRAPE'}:
+                row = col.row()
+                row.prop(brush, "sculpt_plane_range")
+
+            if brush.sculpt_tool in {'CLAY', 'CLAY_STRIPS', 'FLATTEN', 'FILL', 'SCRAPE'}:
                 row = col.row(align=True)
                 row.prop(brush, "plane_offset", slider=True)
                 row.prop(brush, "use_offset_pressure", text="")
@@ -585,18 +593,29 @@ class VIEW3D_PT_tools_brush(PaintPanel, bpy.types.Panel):
             col.separator()
 
             row = col.row()
-            row.prop(brush, "use_frontface", text="Front Faces Only")
+            row.prop(brush, "use_frontface", text="Front-Faces Only")
+            row= col.row()
+            row.active = brush.use_frontface
+            row.prop(brush, "frontface_angle", text="Angle")
 
             col.separator()
             col.row().prop(brush, "direction", expand=True)
 
-            if brush.sculpt_tool in {'DRAW', 'CREASE', 'BLOB', 'INFLATE', 'LAYER', 'CLAY'}:
+            if brush.sculpt_tool in ('DRAW', 'GRAVITY', 'CREASE', 'BLOB', 'INFLATE', 'LAYER', 'CLAY', 'CLAY_STRIP'):
                 col.separator()
 
                 col.prop(brush, "use_accumulate")
 
-            if brush.sculpt_tool == 'LAYER':
+            if brush.sculpt_tool not in ('LAYER', 'GRAB', 'ROTATE', 'THUMB', 'SMOOTH'):
                 col.separator()
+
+                col.prop(brush, "use_layer")
+
+            if brush.sculpt_tool in ('LAYER'):
+                col.separator()
+
+            if brush.sculpt_tool not in ('GRAB', 'ROTATE', 'THUMB', 'SMOOTH'):
+                col.prop(brush, "layer_distance")
 
                 ob = context.sculpt_object
                 do_persistent = True
@@ -709,44 +728,23 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel, bpy.types.Panel):
             col.separator()
 
             col = layout.column()
-            col.active = tex_slot.map_mode in {'FIXED'}
+            col.active = tex_slot.map_mode in ('FIXED', 'TILED', 'WRAP')
             col.label(text="Angle:")
 
             col = layout.column()
-            if not brush.use_anchor and brush.sculpt_tool not in {'GRAB', 'SNAKE_HOOK', 'THUMB', 'ROTATE'} and tex_slot.map_mode in {'FIXED'}:
-                col.prop(brush, "texture_angle_source_random", text="")
-            else:
-                col.prop(brush, "texture_angle_source_no_random", text="")
-
-            #row = col.row(align=True)
-            #row.label(text="Angle:")
-            #row.active = tex_slot.map_mode in {'FIXED', 'TILED'}
-
-            #row = col.row(align=True)
-
-            #col = row.column()
-            #col.active = tex_slot.map_mode in {'FIXED'}
-            #col.prop(brush, "use_rake", toggle=True, icon='PARTICLEMODE', text="")
+            col.prop(brush, "texture_angle_source_random", text="")
 
             col = layout.column()
             col.prop(tex_slot, "angle", text="")
-            col.active = tex_slot.map_mode in {'FIXED', 'TILED'}
+            col.active = tex_slot.map_mode in ('FIXED', 'TILED', 'WRAP')
 
-            #col = layout.column()
-            #col.prop(brush, "use_random_rotation")
-            #col.active = (not brush.use_rake) and (not brush.use_anchor) and (brush.sculpt_tool not in {'GRAB', 'SNAKE_HOOK', 'THUMB', 'ROTATE'}) and tex_slot.map_mode in {'FIXED'}
-
-            split = layout.split()
-
-            col = split.column()
+            col = layout.column()
             col.prop(tex_slot, "offset")
 
-            col = split.column()
-
+            col = layout.column()
             col.prop(tex_slot, "scale")
 
             col = layout.column()
-
             row = col.row(align=True)
             row.label(text="Sample Bias:")
             row = col.row(align=True)
@@ -754,7 +752,7 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel, bpy.types.Panel):
 
             row = col.row(align=True)
             row.label(text="Overlay:")
-            row.active = tex_slot.map_mode in {'FIXED', 'TILED'}
+            row.active = tex_slot.map_mode in ('FIXED', 'TILED', 'WRAP')
 
             row = col.row(align=True)
 
@@ -765,11 +763,11 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel, bpy.types.Panel):
             else:
                 col.prop(brush, "use_texture_overlay", toggle=True, text="", icon='MUTE_IPO_ON')
 
-            col.active = tex_slot.map_mode in {'FIXED', 'TILED'}
+            col.active = tex_slot.map_mode in ('FIXED', 'TILED', 'WRAP')
 
             col = row.column()
             col.prop(brush, "texture_overlay_alpha", text="Alpha")
-            col.active = tex_slot.map_mode in {'FIXED', 'TILED'} and brush.use_texture_overlay
+            col.active = tex_slot.map_mode in ('FIXED', 'TILED', 'WRAP') and brush.use_texture_overlay
 
 
 class VIEW3D_PT_tools_brush_tool(PaintPanel, bpy.types.Panel):
@@ -846,6 +844,9 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel, bpy.types.Panel):
                 row = col.row()
                 row.active = brush.use_space
                 row.prop(brush, "spacing", text="Spacing")
+                row = col.row()
+                row.active = brush.use_space
+                row.prop(brush, "use_adaptive_space", text="Adaptive Spacing")
 
             if (brush.sculpt_tool not in {'GRAB', 'THUMB', 'SNAKE_HOOK', 'ROTATE'}) and (not brush.use_anchor) and (not brush.use_restore_mesh):
                 col = layout.column()
@@ -954,8 +955,12 @@ class VIEW3D_PT_sculpt_options(PaintPanel, bpy.types.Panel):
 
         layout.prop(sculpt, "use_threaded", text="Threaded Sculpt")
         layout.prop(sculpt, "show_low_resolution")
-        layout.prop(sculpt, "show_brush")
         layout.prop(sculpt, "use_deform_only")
+        layout.prop(sculpt, "show_brush")
+
+        row = layout.row()
+        row.active = sculpt.show_brush and sculpt.is_on_surface_brush_capable()
+        row.prop(sculpt, "show_brush_on_surface")
 
         layout.label(text="Unified Settings:")
         layout.prop(tool_settings, "sculpt_paint_use_unified_size", text="Size")
@@ -988,8 +993,7 @@ class VIEW3D_PT_sculpt_symmetry(PaintPanel, bpy.types.Panel):
 
         layout.separator()
 
-        layout.prop(sculpt, "use_symmetry_feather", text="Feather")
-
+        layout.prop(brush, "use_symmetry_feather", text="Feather")
 
 class VIEW3D_PT_tools_brush_appearance(PaintPanel, bpy.types.Panel):
     bl_label = "Appearance"
@@ -1008,8 +1012,7 @@ class VIEW3D_PT_tools_brush_appearance(PaintPanel, bpy.types.Panel):
         col = layout.column()
 
         if context.sculpt_object and context.tool_settings.sculpt:
-            #if brush.sculpt_tool in {'DRAW', 'INFLATE', 'CLAY', 'PINCH', 'CREASE', 'BLOB', 'FLATTEN', 'FILL', 'SCRAPE', 'CLAY_TUBES'}:
-            if brush.sculpt_tool in {'DRAW', 'INFLATE', 'CLAY', 'PINCH', 'CREASE', 'BLOB', 'FLATTEN', 'FILL', 'SCRAPE'}:
+            if brush.sculpt_tool in ('DRAW', 'GRAVITY', 'INFLATE', 'CLAY', 'CLAY_STRIPS', 'PINCH', 'CREASE', 'BLOB', 'FLATTEN', 'FILL', 'SCRAPE'):
                 col.prop(brush, "cursor_color_add", text="Add Color")
                 col.prop(brush, "cursor_color_subtract", text="Subtract Color")
             else:

@@ -11138,7 +11138,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		Scene *scene;
 		bScreen *sc;
 		Tex *tex;
-		Brush *brush;
 
 		for (sc= main->screen.first; sc; sc= sc->id.next) {
 			ScrArea *sa;
@@ -11254,6 +11253,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				SEQ_END
 			}
 		}
+	}
 
 	/* Sanity check on Sculpt/Paint settings */
 	/* These sanity checks apply to all versions */
@@ -11330,11 +11330,10 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			if (brush->frontface_angle== 0)
 				brush->frontface_angle= (float)(M_PI_2 * 80.0/90.0);
 
-			if (brush->layer_distance== 0)
-				brush->layer_distance= 0.25f;
+			if (brush->height== 0)
+				brush->height= 0.25f;
 
 			if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 5)) {
-				brush->flag |= BRUSH_SPACE_ATTEN; // explicitly enable adaptive space
 				brush->flag |= BRUSH_SPACE_ATTEN; // explicitly enable adaptive strength
 
 				// spacing was originally in pixels, convert it to percentage for new version
@@ -11360,13 +11359,13 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 
-			if (main->versionfile < 253)
+			if (main->versionfile < 257)
 				brush->flag |= BRUSH_ADAPTIVE_SPACE; // explicitly enable adaptive space
 		}
 	}
 
 	/* GSOC Sculpt 2011 - MatCap */
-	if (main->versionfile < 253) {
+	if (main->versionfile < 257 || (main->versionfile == 257 && main->subversionfile < 2)) {
 		Object *ob;
 
 		/* MatCaps */
@@ -11378,6 +11377,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				/* Otherwise, assume that if max drawtype is less than textured then user doesn't want to use MatCaps */
 				if (ob->dt == OB_TEXTURE)
 					ob->dt = OB_MATCAP;
+			}
 		}
 	}
 
@@ -11565,7 +11565,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 	if (main->versionfile < 256 || (main->versionfile == 256 && main->subversionfile <3)){
 		bScreen *sc;
-		Brush *brush;
 		Object *ob;
 		ParticleSettings *part;
 		Material *mat;
@@ -11596,7 +11595,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				sc->redraws_flag = TIME_ALL_3D_WIN|TIME_ALL_ANIM_WIN;
 			}
 		}
-	}
 
 		/* replace 'rim material' option for in offset*/
 		for(ob = main->object.first; ob; ob = ob->id.next) {

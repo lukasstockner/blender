@@ -356,6 +356,7 @@ typedef struct UserDef {
 	short textimeout,texcollectrate;
 	short wmdrawmethod; /* removed wmpad */
 	short dragthreshold;
+	short pad0;
 	int memcachelimit;
 	int prefetchframes;
 	short frameserverport;
@@ -374,8 +375,8 @@ typedef struct UserDef {
 
 	short scrcastfps;		/* frame rate for screencast to be played back */
 	short scrcastwait;		/* milliseconds between screencast snapshots */
-	
-	short pad8, pad[3]; /* Value for Dual/Single Column UI */
+
+	int pad[3];
 
 	char versemaster[160];
 	char verseuser[160];

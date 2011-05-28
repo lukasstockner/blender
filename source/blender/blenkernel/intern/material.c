@@ -61,14 +61,16 @@
 #include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_node.h"
-
+#include "BKE_texture.h"
 
 #include "GPU_material.h"
 
-/* used in UI and render */
-Material defmaterial;
+/* material for the current MatCap */
 
-// initialize a slot for the current MatCap
+Material    matcap_ma;
+static MTex matcap_mtex;
+static Tex  matcap_tex;
+
 static void init_matcap(void)
 {
 	default_tex(&matcap_tex);
@@ -87,6 +89,9 @@ static void init_matcap(void)
 	matcap_ma.shade_flag |= MA_OBCOLOR;
 	matcap_ma.mtex[0] = &matcap_mtex;
 }
+
+/* used in UI and render */
+Material defmaterial;
 
 /* called on startup, creator.c */
 void init_def_material(void)

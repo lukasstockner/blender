@@ -84,9 +84,6 @@ typedef struct PaintStroke {
 	/* event that started stroke, for modal() return */
 	int event_type;
 
-	/* event that started stroke, for modal() return */
-	int event_type;
-
 	StrokeGetLocation get_location;
 	StrokeTestStart test_start;
 	StrokeUpdateStep update_step;
@@ -280,6 +277,8 @@ static int paint_load_overlay_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 	int j;
 	int refresh;
 
+	ARegion* ar= vc->ar;
+
 #ifndef _OPENMP
 	(void)sd; /* quied unused warning */
 #endif
@@ -441,7 +440,7 @@ static int paint_load_overlay_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 	return 1;
 }
 
-void ED_draw_paint_overlay(const bContext* C, ARegion *ar)
+void ED_draw_paint_overlay(const bContext* C, ViewContext *vc)
 {
 	Paint  *paint = paint_get_active(CTX_data_scene(C));
 	Brush  *brush = paint_brush(paint);
@@ -464,7 +463,7 @@ void ED_draw_paint_overlay(const bContext* C, ARegion *ar)
 			GL_VIEWPORT_BIT|
 			GL_TEXTURE_BIT);
 
-		if (paint_load_overlay_tex(sd, brush, ar)) {
+		if (paint_load_overlay_tex(sd, brush, vc)) {
 			glEnable(GL_BLEND);
 
 			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -486,13 +485,13 @@ void ED_draw_paint_overlay(const bContext* C, ARegion *ar)
 				glVertex2f(0.0f, 0.0f);
 
 				glTexCoord2f(1.0f, 0.0f);
-				glVertex2f(ar->winx, 0.0f);
+				glVertex2f(vc->ar->winx, 0.0f);
 
 				glTexCoord2f(1.0f, 1.0f);
-				glVertex2f(ar->winx, ar->winy);
+				glVertex2f(vc->ar->winx, vc->ar->winy);
 
 				glTexCoord2f(0.0f, 1.0f);
-				glVertex2f(0.0f, ar->winy);
+				glVertex2f(0.0f, vc->ar->winy);
 			glEnd();
 
 			glPopMatrix();
@@ -709,7 +708,7 @@ static void draw_fixed_overlay(Sculpt *sd, Brush *brush, ViewContext *vc, rctf* 
 		GL_CURRENT_BIT|
 		GL_TEXTURE_BIT);
 
-	if (paint_load_overlay_tex(sd, brush, vc->ar)) {
+	if (paint_load_overlay_tex(sd, brush, vc)) {
 		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		glDepthMask(GL_FALSE);
 		glDepthFunc(GL_ALWAYS);
@@ -1076,7 +1075,7 @@ static void draw_wrapped_overlay(float modelview[16], float projection[16], floa
 		GL_VIEWPORT_BIT|
 		GL_TEXTURE_BIT);
 
-	if (paint_load_overlay_tex(sd, brush, vc->ar)) {
+	if (paint_load_overlay_tex(sd, brush, vc)) {
 		glMatrixMode(GL_MODELVIEW);
 		glPushMatrix();
 		glLoadMatrixf(modelview);
@@ -1105,7 +1104,7 @@ static void draw_wrapped_overlay(float modelview[16], float projection[16], floa
 			PBVHNode **nodes;
 			int totnode;
 
-			viewvector(vc->rv3d, vc->rv3d->twmat[3], view_vec);
+			ED_view3d_global_to_vector(vc->rv3d, vc->rv3d->twmat[3], view_vec);
 
 			BLI_pbvh_gather_nodes_in_sphere(
 				vc->obact->sculpt->pbvh,
@@ -1214,9 +1213,13 @@ static void update_rake_delta(float out[3], float location[3], int x, int y, Vie
 
 	float delta[3], imat[4][4];
 
+	float xy[2];
+	xy[0]= x;
+	xy[1]= y;
+
 	/* compute 3d coordinate at same z from original location + mouse */
 	initgrabz(vc->rv3d, old_location[0], old_location[1], old_location[2]);
-	window_to_3d_delta(vc->ar, delta, x, y);
+	ED_view3d_win_to_delta(vc->ar, xy, delta);
 
 	/* compute delta to move verts by */
 	sub_v3_v3v3(out, delta, old_delta);
@@ -1406,7 +1409,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 			}
 
 			unprojected_radius =
-				paint_calc_object_space_radius(vc, location, projected_radius);
+				paint_calc_object_space_radius(&vc, location, projected_radius);
 
 			if (sd->draw_pressure && (brush->flag & BRUSH_SIZE_PRESSURE))
 				unprojected_radius *= sd->pressure_value;
@@ -1512,47 +1515,52 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	}
 }
 
-/* Put the location of the next stroke dot into the stroke RNA and apply it to the mesh */
-static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *event, float mouse_in[2])
+/* if this is a tablet event, return tablet pressure and set *pen_flip
+   to 1 if the eraser tool is being used, 0 otherwise */
+static float event_tablet_data(wmEvent *event, int *pen_flip)
 {
-	Paint *paint = paint_get_active(CTX_data_scene(C)); // XXX
-	Brush *brush = paint_brush(paint); // XXX
+	int erasor = 0;
+	float pressure = 1;
 
-	float mouse[3];
-
-	PointerRNA itemptr;
-
-	float location[3];
-
-	float pressure;
-	int   pen_flip;
-
-	ViewContext vc; // XXX
-
-	PaintStroke *stroke = op->customdata;
-
-	view3d_set_viewcontext(C, &vc); // XXX
-
-	/* Tablet */
 	if(event->custom == EVT_DATA_TABLET) {
 		wmTabletData *wmtab= event->customdata;
 
+		erasor = (wmtab->Active == EVT_TABLET_ERASER);
 		pressure = (wmtab->Active != EVT_TABLET_NONE) ? wmtab->Pressure : 1;
-		pen_flip = (wmtab->Active == EVT_TABLET_ERASER);
-	}
-	else {
-		pressure = 1;
-		pen_flip = 0;
 	}
 
-	// XXX: temporary check for sculpt mode until things are more unified
-	if (vc.obact->sculpt) {
+	if(pen_flip)
+		(*pen_flip) = erasor;
+
+	return pressure;
+}
+
+/* Put the location of the next stroke dot into the stroke RNA and apply it to the mesh */
+static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *event, float mouse_in[2])
+{
+	Paint *paint = paint_get_active(CTX_data_scene(C));
+	Brush *brush = paint_brush(paint);
+	PaintStroke *stroke = op->customdata;
+	float mouse[3];
+	PointerRNA itemptr;
+	float location[3];
+	float pressure;
+	int pen_flip;
+
+	/* see if tablet affects event */
+	pressure = event_tablet_data(event, &pen_flip);
+
+	/* TODO: as sculpt and other paint modes are unified, this
+	   separation will go away */
+	if(stroke->vc.obact->sculpt) {
 		float delta[3];
 
 		brush_jitter_pos(brush, mouse_in, mouse);
 
-		// XXX: meh, this is round about because brush_jitter_pos isn't written in the best way to be reused here
-		if (brush->flag & BRUSH_JITTER_PRESSURE) {
+		/* XXX: meh, this is round about because
+		   brush_jitter_pos isn't written in the best way to
+		   be reused here */
+		if(brush->flag & BRUSH_JITTER_PRESSURE) {
 			sub_v3_v3v3(delta, mouse, mouse_in);
 			mul_v3_fl(delta, pressure);
 			add_v3_v3v3(mouse, mouse_in, delta);
@@ -1561,7 +1569,7 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *ev
 	else
 		copy_v3_v3(mouse, mouse_in);
 
-	/* XXX: can remove the if statement once all modes have this */
+	/* TODO: can remove the if statement once all modes have this */
 	if(stroke->get_location)
 		stroke->get_location(C, stroke, location, mouse);
 	else
@@ -1570,10 +1578,10 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *ev
 	/* Add to stroke */
 	RNA_collection_add(op->ptr, "stroke", &itemptr);
 
-	RNA_float_set_array(&itemptr, "location",     location);
-	RNA_float_set_array(&itemptr, "mouse",        mouse);
-	RNA_boolean_set    (&itemptr, "pen_flip",     pen_flip);
-	RNA_float_set      (&itemptr, "pressure", pressure);
+	RNA_float_set_array(&itemptr, "location", location);
+	RNA_float_set_array(&itemptr, "mouse", mouse);
+	RNA_boolean_set(&itemptr, "pen_flip", pen_flip);
+	RNA_float_set(&itemptr, "pressure", pressure);
 
 	stroke->last_mouse_position[0] = mouse[0];
 	stroke->last_mouse_position[1] = mouse[1];

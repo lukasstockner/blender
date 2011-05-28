@@ -441,9 +441,6 @@ if(UNIX AND NOT APPLE)
 	# GNU Compiler
 	if(CMAKE_COMPILER_IS_GNUCC)
 		set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing")
-		if(WITH_ONSURFACEBRUSH)
-			add_defintion(-DWITH_ONSURFACEBRUSH)
-		endif(WITH_ONSURFACEBRUSH)
 	# Intel C++ Compiler
 	elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
 		# think these next two are broken
@@ -537,10 +534,6 @@ elseif(WIN32)
 	if(WITH_RAYOPTIMIZATION AND SUPPORT_SSE_BUILD)
 		add_definitions(-D__SSE__ -D__MMX__)
 	endif()
-
-	if(WITH_ONSURFACEBRUSH)
-		add_defintion(-DWITH_ONSURFACEBRUSH)
-	endif(WITH_ONSURFACEBRUSH)
 
 	if(MSVC)
 		if(CMAKE_CL_64)
@@ -995,6 +988,10 @@ if(WITH_RAYOPTIMIZATION)
 		endif()
 	endif()
 endif()
+
+if(WITH_ONSURFACEBRUSH)
+	add_definitions(-DWITH_ONSURFACEBRUSH)
+endif(WITH_ONSURFACEBRUSH)
 
 if(WITH_IMAGE_OPENJPEG)
 	if(UNIX AND NOT APPLE)

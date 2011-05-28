@@ -2078,7 +2078,7 @@ CustomDataMask ED_view3d_datamask(Scene *scene, View3D *v3d)
 		/* this includes normals for mesh_create_shadedColors */
 		mask |= CD_MASK_MTFACE | CD_MASK_MCOL | CD_MASK_NORMAL | CD_MASK_ORCO;
 	}
-	if((v3d->drawtype == OB_TEXTURE) || ((v3d->drawtype == OB_SOLID) && (v3d->flag2 & V3D_SOLID_TEX))) {
+	if(ELEM(v3d->drawtype, OB_TEXTURE, OB_MATCAP) || ((v3d->drawtype == OB_SOLID) && (v3d->flag2 & V3D_SOLID_TEX))) {
 		mask |= CD_MASK_MTFACE | CD_MASK_MCOL;
 
 		if(scene->gm.matmode == GAME_MAT_GLSL)
@@ -2100,17 +2100,10 @@ CustomDataMask ED_viewedit_datamask(bScreen *screen)
 		mask |= CD_MASK_MTFACE | CD_MASK_MCOL;
 	
 	/* check if we need tfaces & mcols due to view mode */
-	for(sa = screen->areabase.first; sa; sa = sa->next) {
-		if(sa->spacetype == SPACE_VIEW3D) {
+	for(sa = screen->areabase.first; sa; sa = sa->next)
+		if(sa->spacetype == SPACE_VIEW3D)
 			mask |= ED_view3d_datamask(scene, (View3D *)sa->spacedata.first);
-		}
-			if(ELEM(view->drawtype, OB_TEXTURE, OB_MATCAP) || ((view->drawtype == OB_SOLID) && (view->flag2 & V3D_SOLID_TEX))) {
-				mask |= CD_MASK_MTFACE | CD_MASK_MCOL;
 
-				if(scene->gm.matmode == GAME_MAT_GLSL)
-					mask |= CD_MASK_ORCO;
-	}
-	
 	/* check if we need mcols due to vertex paint or weightpaint */
 	if(ob) {
 		if(ob->mode & OB_MODE_VERTEX_PAINT)
