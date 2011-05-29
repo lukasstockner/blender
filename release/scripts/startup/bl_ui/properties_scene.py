@@ -28,12 +28,12 @@ class SceneButtonsPanel():
 
     @classmethod
     def poll(cls, context):
-        return context.scene
+        rd = context.scene.render
+        return context.scene and (rd.engine in cls.COMPAT_ENGINES)
 
 
 class SCENE_PT_scene(SceneButtonsPanel, bpy.types.Panel):
     bl_label = "Scene"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     def draw(self, context):
         layout = self.layout
@@ -45,7 +45,6 @@ class SCENE_PT_scene(SceneButtonsPanel, bpy.types.Panel):
 
 class SCENE_PT_unit(SceneButtonsPanel, bpy.types.Panel):
     bl_label = "Units"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     def draw(self, context):
         layout = self.layout
@@ -163,7 +162,6 @@ class SCENE_PT_physics(SceneButtonsPanel, bpy.types.Panel):
 
 class SCENE_PT_simplify(SceneButtonsPanel, bpy.types.Panel):
     bl_label = "Simplify"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     def draw_header(self, context):
         scene = context.scene
