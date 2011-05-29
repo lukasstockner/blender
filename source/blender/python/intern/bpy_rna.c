@@ -3101,7 +3101,7 @@ static PyObject *pyrna_struct_meta_idprop_getattro(PyObject *cls, PyObject *attr
 	 * >>> bpy.types.Scene.foo= BoolProperty()
 	 * >>> bpy.types.Scene.foo
 	 * <bpy_struct, BooleanProperty("foo")>
-	 * ...rather then returning the deferred class register tuple as checked by pyrna_is_deferred_prop()
+	 * ...rather than returning the deferred class register tuple as checked by pyrna_is_deferred_prop()
 	 *
 	 * Disable for now, this is faking internal behavior in a way thats too tricky to maintain well. */
 #if 0
@@ -5517,7 +5517,7 @@ PyObject *BPY_rna_module(void)
 	BPy_StructRNA *pyrna;
 	PointerRNA ptr;
 
-	/* for now, return the base RNA type rather then a real module */
+	/* for now, return the base RNA type rather than a real module */
 	RNA_main_pointer_create(G.main, &ptr);
 	pyrna= (BPy_StructRNA *)pyrna_struct_CreatePyObject(&ptr);
 
@@ -5537,7 +5537,7 @@ PyObject *BPY_rna_doc(void)
 {
 	PointerRNA ptr;
 
-	/* for now, return the base RNA type rather then a real module */
+	/* for now, return the base RNA type rather than a real module */
 	RNA_blender_rna_pointer_create(&ptr);
 
 	return pyrna_struct_CreatePyObject(&ptr);
@@ -5882,7 +5882,6 @@ static int bpy_class_validate(PointerRNA *dummyptr, void *py_data, int *have_fun
 	PyObject *py_class= (PyObject*)py_data;
 	PyObject *base_class= RNA_struct_py_type_get(srna);
 	PyObject *item;
-	PyObject *py_arg_count;
 	int i, flag, arg_count, func_arg_count;
 	const char *py_class_name= ((PyTypeObject *)py_class)->tp_name; // __name__
 
@@ -5945,9 +5944,7 @@ static int bpy_class_validate(PointerRNA *dummyptr, void *py_data, int *have_fun
 			func_arg_count= rna_function_arg_count(func);
 
 			if (func_arg_count >= 0) { /* -1 if we dont care*/
-				py_arg_count= PyObject_GetAttrString(PyFunction_GET_CODE(item), "co_argcount");
-				arg_count= PyLong_AsLong(py_arg_count);
-				Py_DECREF(py_arg_count);
+				arg_count= ((PyCodeObject *)PyFunction_GET_CODE(item))->co_argcount;
 
 				/* note, the number of args we check for and the number of args we give to
 				 * @classmethods are different (quirk of python), this is why rna_function_arg_count() doesn't return the value -1*/
