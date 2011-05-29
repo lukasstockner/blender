@@ -3056,9 +3056,9 @@ static void sculpt_combine_proxies(Sculpt *sd, Object *ob)
 						sub_v3_v3v3(disp, val, base);
 						len= len_v3(disp);
 
-						if (len > ss->cache->radius*brush->layer_distance) {
+						if (len > ss->cache->radius*brush->layer_limit) {
 							normalize_v3(disp);
-							mul_v3_fl(disp, ss->cache->radius*brush->layer_distance);
+							mul_v3_fl(disp, ss->cache->radius*brush->layer_limit);
 							add_v3_v3v3(val, disp, base);
 						}
 					}

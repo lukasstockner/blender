@@ -542,13 +542,6 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Plane Trim", "If a vertex is further from offset plane than this then it is not affected");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-	prop= RNA_def_property(srna, "height", PROP_FLOAT, PROP_DISTANCE);
-	RNA_def_property_float_sdna(prop, NULL, "height");
-	RNA_def_property_float_default(prop, 0.5f);
-	RNA_def_property_range(prop, 0, 1.0f);
-	RNA_def_property_ui_text(prop, "Brush Height", "Affectable height of brush (layer height for layer tool, i.e.)");
-	RNA_def_property_update(prop, 0, "rna_Brush_update");
-
 	prop= RNA_def_property(srna, "texture_sample_bias", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "texture_sample_bias");
 	RNA_def_property_float_default(prop, 0);
@@ -601,8 +594,8 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Front-Face Angle", "Angle where effect of brush starts to be reduced to prevent it affecting back-faces");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-	prop= RNA_def_property(srna, "layer_distance", PROP_FLOAT, PROP_FACTOR);
-	RNA_def_property_float_sdna(prop, NULL, "layer_distance");
+	prop= RNA_def_property(srna, "layer_limit", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "layer_limit");
 	RNA_def_property_float_default(prop, 0);
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.001, 0.001);

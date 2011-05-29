@@ -97,9 +97,8 @@ typedef struct Brush {
 	float gravity_factor;
 
 	float plane_trim;
-	float height;			/* affectable height of brush (layer height for layer tool, i.e.) */
 
-	float layer_distance, pad2;
+	float layer_limit;
 
 	float texture_sample_bias;
 	int   texture_overlay_alpha;

@@ -586,10 +586,6 @@ class VIEW3D_PT_tools_brush(PaintPanel, bpy.types.Panel):
                 row.active = brush.use_plane_trim
                 row.prop(brush, "plane_trim", slider=True, text="Distance")
 
-            if brush.sculpt_tool == 'LAYER':
-                row = col.row()
-                row.prop(brush, "height", slider=True, text="Height")
-
             col.separator()
 
             row = col.row()
@@ -609,13 +605,19 @@ class VIEW3D_PT_tools_brush(PaintPanel, bpy.types.Panel):
             if brush.sculpt_tool not in ('LAYER', 'GRAB', 'ROTATE', 'THUMB', 'SMOOTH'):
                 col.separator()
 
-                col.prop(brush, "use_layer")
+                col.prop(brush, "use_layer", "Layer")
+            else:
+                col.separator()
+
+                col.label("Layer:")
 
             if brush.sculpt_tool in ('LAYER'):
                 col.separator()
 
             if brush.sculpt_tool not in ('GRAB', 'ROTATE', 'THUMB', 'SMOOTH'):
-                col.prop(brush, "layer_distance")
+                row = col.row()
+                row.prop(brush, "layer_limit", "Limit")
+                row.active = brush.use_layer
 
                 ob = context.sculpt_object
                 do_persistent = True
@@ -626,8 +628,15 @@ class VIEW3D_PT_tools_brush(PaintPanel, bpy.types.Panel):
                         do_persistent = False
 
                 if do_persistent:
-                    col.prop(brush, "use_persistent")
-                    col.operator("sculpt.set_persistent_base")
+                    row = col.row()
+                    row.prop(brush, "use_persistent")
+                    row.active = brush.use_layer
+                    row = col.row()
+                    row.operator("sculpt.set_persistent_base")
+                    row.active = brush.use_layer
+
+            col.separator()
+            col.prop(brush, "use_symmetry_feather", text="Symmetry Feather")
 
         # Texture Paint Mode #
 
@@ -990,10 +999,6 @@ class VIEW3D_PT_sculpt_symmetry(PaintPanel, bpy.types.Panel):
         col.prop(sculpt, "use_symmetry_z", text="Z")
 
         split.prop(sculpt, "radial_symmetry", text="Radial")
-
-        layout.separator()
-
-        layout.prop(brush, "use_symmetry_feather", text="Feather")
 
 class VIEW3D_PT_tools_brush_appearance(PaintPanel, bpy.types.Panel):
     bl_label = "Appearance"

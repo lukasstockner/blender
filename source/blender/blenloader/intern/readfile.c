@@ -11330,8 +11330,10 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			if (brush->frontface_angle== 0)
 				brush->frontface_angle= (float)(M_PI_2 * 80.0/90.0);
 
-			if (brush->height== 0)
-				brush->height= 0.25f;
+			/* Sanity Check for Brushes 2.57 */
+
+			if (brush->layer_limit == 0)
+				brush->layer_limit= 0.25f;
 
 			if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 5)) {
 				brush->flag |= BRUSH_SPACE_ATTEN; // explicitly enable adaptive strength

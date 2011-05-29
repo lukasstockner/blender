@@ -681,7 +681,7 @@ static void load_depth_shader_program(wmDrawTriple* triple)
 
 	triple->depth_fragment_shader = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
 
-	if (major == 1 && minor < 30) {
+	//if (major == 1 && minor < 30) {
 		if (GLEW_ARB_texture_rectangle) {
 			source = depth_fragment_shader_rect_source_100;
 			source_lines = sizeof(depth_fragment_shader_rect_source_100)/sizeof(GLcharARB*);
@@ -690,17 +690,17 @@ static void load_depth_shader_program(wmDrawTriple* triple)
 			source = depth_fragment_shader_source_100;
 			source_lines = sizeof(depth_fragment_shader_source_100)/sizeof(GLcharARB*);
 		}
-	}
-	else {
-		if (GLEW_ARB_texture_rectangle) {
-			source = depth_fragment_shader_rect_source_130;
-			source_lines = sizeof(depth_fragment_shader_rect_source_130)/sizeof(GLcharARB*);
-		}
-		else {
-			source = depth_fragment_shader_source_130;
-			source_lines = sizeof(depth_fragment_shader_source_130)/sizeof(GLcharARB*);
-		}
-	}
+	//}
+	//else {
+	//	if (GLEW_ARB_texture_rectangle) {
+	//		source = depth_fragment_shader_rect_source_130;
+	//		source_lines = sizeof(depth_fragment_shader_rect_source_130)/sizeof(GLcharARB*);
+	//	}
+	//	else {
+	//		source = depth_fragment_shader_source_130;
+	//		source_lines = sizeof(depth_fragment_shader_source_130)/sizeof(GLcharARB*);
+	//	}
+	//}
 
 	glShaderSourceARB(triple->depth_fragment_shader, source_lines, source, NULL);
 	glCompileShaderARB(triple->depth_fragment_shader);
