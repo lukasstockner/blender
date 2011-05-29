@@ -206,16 +206,44 @@ class RenderButtonsPanel():
         return (rd.engine in cls.COMPAT_ENGINES)
 
 
-class RENDER_PT_game(RenderButtonsPanel, bpy.types.Panel):
-    bl_label = "Game"
-    COMPAT_ENGINES = {'BLENDER_GAME'}
+# class RENDER_PT_game(RenderButtonsPanel, bpy.types.Panel):
+    # bl_label = "Game"
+    # COMPAT_ENGINES = {'BLENDER_GAME'}
 
+    # def draw(self, context):
+        # layout = self.layout
+
+        # row = layout.row()
+        # row.operator("view3d.game_start", text="Start")
+        # row.label()
+        
+class RENDER_PT_embedded(RenderButtonsPanel, bpy.types.Panel):
+    bl_label = "Embedded Player"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+    
     def draw(self, context):
         layout = self.layout
+        
+        rd = context.scene.render
 
         row = layout.row()
         row.operator("view3d.game_start", text="Start")
         row.label()
+        row = layout.row()
+        row.label(text="Resolution:")
+        row = layout.row(align=True)
+        row.prop(rd, "resolution_x", slider=False, text="X")
+        row.prop(rd, "resolution_y", slider=False, text="Y")
+
+        # split = layout.split()
+
+        # split.label(text="Resolution:")
+        # col = split.column()
+        # sub = col.column(align=True)
+        # sub.prop(rd, "resolution_x", slider=False, text="X")
+        # col = split.column()
+        # sub = col.column(align=True)
+        # sub.prop(rd, "resolution_y", slider=False, text="Y")
 
 
 class RENDER_PT_game_player(RenderButtonsPanel, bpy.types.Panel):
@@ -226,29 +254,39 @@ class RENDER_PT_game_player(RenderButtonsPanel, bpy.types.Panel):
         layout = self.layout
 
         gs = context.scene.game_settings
-
-        layout.prop(gs, "show_fullscreen")
-
-        split = layout.split()
-
-        col = split.column()
-        col.label(text="Resolution:")
-        sub = col.column(align=True)
-        sub.prop(gs, "resolution_x", slider=False, text="X")
-        sub.prop(gs, "resolution_y", slider=False, text="Y")
-
-        col = split.column()
-        col.label(text="Quality:")
-        sub = col.column(align=True)
-        sub.prop(gs, "depth", text="Bit Depth", slider=False)
-        sub.prop(gs, "frequency", text="FPS", slider=False)
-
-        # framing:
+        
+        row = layout.row()
+        row.operator("wm.blenderplayer_start", text="Start")
+        row.prop(gs, "show_fullscreen")
+        
+        row = layout.row()
+        row.label(text="Resolution:")
+        row = layout.row(align=True)
+        row.prop(gs, "resolution_x", slider=False, text="X")
+        row.prop(gs, "resolution_y", slider=False, text="Y")
+        
         col = layout.column()
-        col.label(text="Framing:")
-        col.row().prop(gs, "frame_type", expand=True)
-        if gs.frame_type == 'LETTERBOX':
-            col.prop(gs, "frame_color", text="")
+        col.label(text="Quality:")
+        col = layout.column(align=True)
+        col.prop(gs, "depth", text="Bit Depth", slider=False)
+        col.prop(gs, "frequency", text="Refresh Rate", slider=False)
+
+        # row = layout.row()
+        # row.label()
+        
+        # split = layout.split()
+
+        # col = split.column()
+        # col.label(text="Resolution:")
+        # sub = col.column(align=True)
+        # sub.prop(gs, "resolution_x", slider=False, text="X")
+        # sub.prop(gs, "resolution_y", slider=False, text="Y")
+
+        # col = split.column()
+        # col.label(text="Quality:")
+        # sub = col.column(align=True)
+        # sub.prop(gs, "depth", text="Bit Depth", slider=False)
+        # sub.prop(gs, "frequency", text="Refresh Rate", slider=False)
 
 
 class RENDER_PT_game_stereo(RenderButtonsPanel, bpy.types.Panel):
@@ -350,7 +388,10 @@ class RENDER_PT_game_display(RenderButtonsPanel, bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-
+        
+        row = layout.row()
+        row.prop(context.scene.render, "fps", text="Animation Frame Rate", slider=False)
+        
         gs = context.scene.game_settings
         flow = layout.column_flow()
         flow.prop(gs, "show_debug_properties", text="Debug Properties")
@@ -358,6 +399,13 @@ class RENDER_PT_game_display(RenderButtonsPanel, bpy.types.Panel):
         flow.prop(gs, "show_physics_visualization", text="Physics Visualization")
         flow.prop(gs, "use_deprecation_warnings")
         flow.prop(gs, "show_mouse", text="Mouse Cursor")
+
+        # framing:
+        col = layout.column()
+        col.label(text="Framing:")
+        col.row().prop(gs, "frame_type", expand=True)
+        if gs.frame_type == 'LETTERBOX':
+            col.prop(gs, "frame_color", text="")
 
 
 class RENDER_PT_game_sound(RenderButtonsPanel, bpy.types.Panel):
@@ -371,8 +419,9 @@ class RENDER_PT_game_sound(RenderButtonsPanel, bpy.types.Panel):
 
         layout.prop(scene, "audio_distance_model")
 
-        layout.prop(scene, "audio_doppler_speed", text="Speed")
-        layout.prop(scene, "audio_doppler_factor")
+        col = layout.column(align=True)
+        col.prop(scene, "audio_doppler_speed", text="Speed")
+        col.prop(scene, "audio_doppler_factor")
 
 
 class WorldButtonsPanel():
