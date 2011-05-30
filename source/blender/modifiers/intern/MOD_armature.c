@@ -127,8 +127,8 @@ static void deformVerts(ModifierData *md, Object *ob,
 	modifier_vgroup_cache(md, vertexCos); /* if next modifier needs original vertices */
 	
 	armature_deform_verts(amd->object, ob, derivedData, vertexCos, NULL,
-		numVerts, amd->deformflag, (float(*)[3])amd->prevCos, amd->defgrp_name);
-
+				  numVerts, amd->deformflag, 
+	 (float(*)[3])amd->prevCos, amd->defgrp_name);
 	/* free cache */
 	if(amd->prevCos) {
 		MEM_freeN(amd->prevCos);
@@ -145,16 +145,8 @@ static void deformVertsEM(
 
 	if(!derivedData) dm = CDDM_from_editmesh(editData, ob->data);
 
-	modifier_vgroup_cache(md, vertexCos); /* if next modifier needs original vertices */
-
-	armature_deform_verts(amd->object, ob, dm, vertexCos, NULL,
-		numVerts, amd->deformflag, (float(*)[3])amd->prevCos, amd->defgrp_name);
-
-	/* free cache */
-	if(amd->prevCos) {
-		MEM_freeN(amd->prevCos);
-		amd->prevCos= NULL;
-	}
+	armature_deform_verts(amd->object, ob, dm, vertexCos, NULL, numVerts,
+				  amd->deformflag, NULL, amd->defgrp_name);
 
 	if(!derivedData) dm->release(dm);
 }

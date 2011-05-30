@@ -25,8 +25,6 @@ import bpy
 
 
 def extend(obj, operator, EXTEND_MODE):
-    from bpy_extras import mesh_utils
-
     me = obj.data
     me_verts = me.vertices
     # script will fail without UVs
@@ -172,7 +170,7 @@ def extend(obj, operator, EXTEND_MODE):
                 edge_faces[edkey] = [i]
 
     if EXTEND_MODE == 'LENGTH':
-        edge_loops = mesh_utils.edge_loops_from_faces(me, face_sel, [ed.key for ed in me.edges if ed.use_seam])
+        edge_loops = me.edge_loops_from_faces(face_sel, [ed.key for ed in me.edges if ed.use_seam])
         me_verts = me.vertices
         for loop in edge_loops:
             looplen = [0.0]

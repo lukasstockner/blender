@@ -994,7 +994,7 @@ bool KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openlib, const cha
 	int i=0;
 	LinkNode *n= names;
 	while(n) {
-		BLO_library_append_named_part(main_tmp, &bpy_openlib, (char *)n->link, idcode);
+		BLO_library_append_named_part(C, main_tmp, &bpy_openlib, (char *)n->link, idcode, 0);
 		n= (LinkNode *)n->next;
 		i++;
 	}
@@ -1012,7 +1012,7 @@ bool KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openlib, const cha
 		int i=0;
 		LinkNode *n= names;
 		while(n) {
-			BLO_library_append_named_part(main_tmp, &bpy_openlib, (char *)n->link, ID_AC);
+			BLO_library_append_named_part(C, main_tmp, &bpy_openlib, (char *)n->link, ID_AC, 0);
 			n= (LinkNode *)n->next;
 			i++;
 		}

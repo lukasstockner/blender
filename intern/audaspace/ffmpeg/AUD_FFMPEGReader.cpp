@@ -39,7 +39,6 @@
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
-#include "ffmpeg_compat.h"
 }
 
 int AUD_FFMPEGReader::decode(AVPacket* packet, AUD_Buffer& buffer)
@@ -53,10 +52,6 @@ int AUD_FFMPEGReader::decode(AVPacket* packet, AUD_Buffer& buffer)
 
 	int read_length, data_size;
 
-	AVPacket tmp_pkt;
-	
-	av_init_packet(&tmp_pkt);
-
 	// as long as there is still data in the package
 	while(audio_pkg_size > 0)
 	{
@@ -69,14 +64,15 @@ int AUD_FFMPEGReader::decode(AVPacket* packet, AUD_Buffer& buffer)
 
 		// read samples from the packet
 		data_size = buf_size - buf_pos;
-
-		tmp_pkt.data = audio_pkg_data;
-		tmp_pkt.size = audio_pkg_size;
-
-		read_length = avcodec_decode_audio3(
-			m_codecCtx,
-			(int16_t*)(((data_t*)buffer.getBuffer()) + buf_pos),
-			&data_size, &tmp_pkt);
+		/*read_length = avcodec_decode_audio3(m_codecCtx,
+			(int16_t*)(((data_t*)buffer.getBuffer())+buf_pos),
+			&data_size,
+			packet);*/
+		read_length = avcodec_decode_audio2(m_codecCtx,
+						(int16_t*)(((data_t*)buffer.getBuffer()) + buf_pos),
+						&data_size,
+						audio_pkg_data,
+						audio_pkg_size);
 
 		// read error, next packet!
 		if(read_length < 0)
@@ -116,7 +112,7 @@ void AUD_FFMPEGReader::init()
 
 	for(unsigned int i = 0; i < m_formatCtx->nb_streams; i++)
 	{
-		if((m_formatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO)
+		if((m_formatCtx->streams[i]->codec->codec_type == CODEC_TYPE_AUDIO)
 			&& (m_stream < 0))
 		{
 			m_stream=i;

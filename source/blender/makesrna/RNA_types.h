@@ -39,7 +39,6 @@ extern "C" {
 struct ParameterList;
 struct FunctionRNA;
 struct PropertyRNA;
-struct EnumPropertyRNA;
 struct StructRNA;
 struct BlenderRNA;
 struct IDProperty;
@@ -256,8 +255,7 @@ typedef struct EnumPropertyItem {
 	const char *description;
 } EnumPropertyItem;
 
-/* this is a copy of 'PropEnumItemFunc' defined in rna_internal_types.h */
-typedef EnumPropertyItem *(*EnumPropertyItemFunc)(struct bContext *C, PointerRNA *ptr, struct PropertyRNA *prop, int *free);
+typedef EnumPropertyItem *(*EnumPropertyItemFunc)(struct bContext *C, PointerRNA *ptr, int *free);
 
 typedef struct PropertyRNA PropertyRNA;
 

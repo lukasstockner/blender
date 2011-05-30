@@ -238,7 +238,7 @@ static void cleanup_textline(TextLine * tl)
 int reopen_text(Text *text)
 {
 	FILE *fp;
-	int i, llen, len;
+	int i, llen, len, res;
 	unsigned char *buffer;
 	TextLine *tmp;
 	char str[FILE_MAXDIR+FILE_MAXFILE];
@@ -281,7 +281,7 @@ int reopen_text(Text *text)
 
 	fclose(fp);
 
-	stat(str, &st);
+	res= stat(str, &st);
 	text->mtime= st.st_mtime;
 	
 	text->nlines=0;
@@ -334,7 +334,7 @@ Text *add_text(const char *file, const char *relpath)
 {
 	Main *bmain= G.main;
 	FILE *fp;
-	int i, llen, len;
+	int i, llen, len, res;
 	unsigned char *buffer;
 	TextLine *tmp;
 	Text *ta;
@@ -374,7 +374,7 @@ Text *add_text(const char *file, const char *relpath)
 
 	fclose(fp);
 
-	stat(str, &st);
+	res= stat(str, &st);
 	ta->mtime= st.st_mtime;
 	
 	ta->nlines=0;
@@ -1236,11 +1236,14 @@ int txt_find_string(Text *text, char *findstr, int wrap, int match_case)
 {
 	TextLine *tl, *startl;
 	char *s= NULL;
+	int oldcl, oldsl;
 
 	if (!text || !text->curl || !text->sell) return 0;
 	
 	txt_order_cursors(text);
 
+	oldcl= txt_get_span(text->lines.first, text->curl);
+	oldsl= txt_get_span(text->lines.first, text->sell);
 	tl= startl= text->sell;
 	
 	if(match_case) s= strstr(&tl->line[text->selc], findstr);
@@ -2411,7 +2414,7 @@ static int txt_add_char_intern (Text *text, char add, int replace_tabs)
 		return 1;
 	}
 	
-	/* insert spaces rather than tabs */
+	/* insert spaces rather then tabs */
 	if (add == '\t' && replace_tabs) {
 		txt_convert_tab_to_spaces(text);
 		return 1;
@@ -2509,7 +2512,7 @@ void txt_indent(Text *text)
 	/* hardcoded: TXT_TABSIZE = 4 spaces: */
 	int spaceslen = TXT_TABSIZE;
 
-	/* insert spaces rather than tabs */
+	/* insert spaces rather then tabs */
 	if (text->flags & TXT_TABSTOSPACES){
 		add = tab_to_spaces;
 		indentlen = spaceslen;
@@ -2570,7 +2573,7 @@ void txt_unindent(Text *text)
 	/* hardcoded: TXT_TABSIZE = 4 spaces: */
 	int spaceslen = TXT_TABSIZE;
 
-	/* insert spaces rather than tabs */
+	/* insert spaces rather then tabs */
 	if (text->flags & TXT_TABSTOSPACES){
 		remove = tab_to_spaces;
 		indent = spaceslen;
@@ -2756,7 +2759,7 @@ int setcurr_tab_spaces (Text *text, int space)
 				break;
 			} else if (ch==':') {
 				is_indent = 1;
-			} else if (ch!=' ' && ch!='\t') {
+			} else if (ch==']' || ch=='}' || ch=='"' || ch=='\'') {
 				is_indent = 0;
 			}
 		}

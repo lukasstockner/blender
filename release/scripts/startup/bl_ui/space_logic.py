@@ -72,7 +72,8 @@ class LOGIC_HT_header(bpy.types.Header):
         if context.area.show_menus:
             sub = row.row(align=True)
             sub.menu("LOGIC_MT_view")
-            sub.menu("LOGIC_MT_logicbricks_add")
+            #sub.menu("LOGIC_MT_select")
+            #sub.menu("LOGIC_MT_add")
 
 
 class LOGIC_MT_view(bpy.types.Menu):

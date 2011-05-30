@@ -381,7 +381,9 @@ Image *BKE_add_image_file(const char *name)
 	ima= image_alloc(libname, IMA_SRC_FILE, IMA_TYPE_IMAGE);
 	BLI_strncpy(ima->name, name, sizeof(ima->name));
 	
-	if(BLI_testextensie_array(name, imb_ext_movie))
+	/* do a wild guess! */
+	if(BLI_testextensie(name, ".avi") || BLI_testextensie(name, ".mov")
+			|| BLI_testextensie(name, ".mpg")  || BLI_testextensie(name, ".mp4"))
 		ima->source= IMA_SRC_MOVIE;
 	
 	return ima;
@@ -1029,7 +1031,7 @@ void BKE_stamp_buf(Scene *scene, Object *camera, unsigned char *rect, float *rec
 	BLF_buffer_col(mono, scene->r.fg_stamp[0], scene->r.fg_stamp[1], scene->r.fg_stamp[2], 1.0);
 	pad= BLF_width_max(mono);
 
-	/* use 'h_fixed' rather than 'h', aligns better */
+	/* use 'h_fixed' rather then 'h', aligns better */
 	h_fixed= BLF_height_max(mono);
 	y_ofs = -BLF_descender(mono);
 

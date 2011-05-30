@@ -615,7 +615,10 @@ def NSIS_Installer(target=None, source=None, env=None):
         else:
             if len(df)>0:
                 dp_tmp = dp[l:]
-                datafiles += "\n" +r'SetOutPath $INSTDIR'+dp[l:]+"\n\n"
+                if dp_tmp.find('python\\lib') > -1:
+                    datafiles += "\n" +r'SetOutPath $INSTDIR'+dp[l:]+"\n\n"
+                else:
+                    datafiles += "\n"+r'SetOutPath $BLENDERHOME'+dp[l:]+"\n\n"
 
                 for f in df:
                     outfile = os.path.join(dp,f)

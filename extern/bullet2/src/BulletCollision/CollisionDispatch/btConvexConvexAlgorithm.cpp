@@ -487,7 +487,7 @@ btScalar	btConvexConvexAlgorithm::calculateTimeOfImpact(btCollisionObject* col0,
 {
 	(void)resultOut;
 	(void)dispatchInfo;
-	///rather than checking ALL pairs, only calculate TOI when motion exceeds threshold
+	///Rather then checking ALL pairs, only calculate TOI when motion exceeds threshold
     
 	///Linear motion for one of objects needs to exceed m_ccdSquareMotionThreshold
 	///col0->m_worldTransform,
