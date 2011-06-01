@@ -11658,6 +11658,13 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		}
+		{
+			/* Initialize BGE exit key to esc key */
+			Scene *scene;
+			for(scene= main->scene.first; scene; scene= scene->id.next) {
+				scene->gm.exitkey = 130;
+			}
+		}
 	}
 	
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */

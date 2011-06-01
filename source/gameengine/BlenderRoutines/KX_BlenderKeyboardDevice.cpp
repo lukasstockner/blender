@@ -41,7 +41,7 @@
 KX_BlenderKeyboardDevice::KX_BlenderKeyboardDevice()
 	: m_hookesc(false)
 {
-
+	m_exit_key = 130;
 }
 KX_BlenderKeyboardDevice::~KX_BlenderKeyboardDevice()
 {
@@ -107,7 +107,7 @@ bool	KX_BlenderKeyboardDevice::ConvertBlenderEvent(unsigned short incode,short v
 
 		if (val == KM_PRESS)
 		{
-			if (kxevent == KX_ESCKEY && val != 0 && !m_hookesc)
+			if (kxevent == m_exit_key && val != 0 && !m_hookesc)
 				result = true;
 			if (kxevent == KX_PAUSEKEY && val && (IsPressed(KX_LEFTCTRLKEY) || IsPressed(KX_RIGHTCTRLKEY)))
 				result = true;
@@ -167,4 +167,9 @@ bool	KX_BlenderKeyboardDevice::ConvertBlenderEvent(unsigned short incode,short v
 void KX_BlenderKeyboardDevice::HookEscape()
 {
 	m_hookesc = true;
+}
+
+void KX_BlenderKeyboardDevice::SetExitKey(short key)
+{
+	m_exit_key = key;
 }

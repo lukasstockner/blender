@@ -369,8 +369,8 @@ class RENDER_PT_game_shading(RenderButtonsPanel, bpy.types.Panel):
             col.prop(gs, "use_glsl_extra_textures", text="Extra Textures")
 
 
-class RENDER_PT_game_performance(RenderButtonsPanel, bpy.types.Panel):
-    bl_label = "Performance"
+class RENDER_PT_game_system(RenderButtonsPanel, bpy.types.Panel):
+    bl_label = "System"
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
     def draw(self, context):
@@ -380,6 +380,9 @@ class RENDER_PT_game_performance(RenderButtonsPanel, bpy.types.Panel):
         row = layout.row()
         row.prop(gs, "use_frame_rate")
         row.prop(gs, "use_display_lists")
+        
+        row = layout.row()
+        row.prop(gs, "exitkey")
 
 
 class RENDER_PT_game_display(RenderButtonsPanel, bpy.types.Panel):

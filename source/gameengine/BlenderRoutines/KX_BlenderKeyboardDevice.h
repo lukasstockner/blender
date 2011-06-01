@@ -53,6 +53,12 @@ public:
 	virtual void	NextFrame();
 	virtual void	HookEscape();
 
+	void			SetExitKey(short key);
+
+	//virtual void	SetExitKey(short key);
+private:
+	short		m_exit_key;
+
 
 #ifdef WITH_CXX_GUARDEDALLOC
 public:
