@@ -171,5 +171,5 @@ void KX_BlenderKeyboardDevice::HookEscape()
 
 void KX_BlenderKeyboardDevice::SetExitKey(short key)
 {
-	m_exit_key = key;
+	m_exit_key = ToNative(key);
 }

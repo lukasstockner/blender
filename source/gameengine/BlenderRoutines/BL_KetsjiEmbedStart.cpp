@@ -211,7 +211,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		
 		// create the inputdevices
 		KX_BlenderKeyboardDevice* keyboarddevice = new KX_BlenderKeyboardDevice();
-		keyboarddevice->SetExitKey((startscene->gm.exitkey) ? startscene->gm.exitkey : 130);
+		keyboarddevice->SetExitKey(startscene->gm.exitkey);
 
 		KX_BlenderMouseDevice* mousedevice = new KX_BlenderMouseDevice();
 		
