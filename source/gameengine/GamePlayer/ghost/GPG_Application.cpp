@@ -623,7 +623,6 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		
 
 		m_exitkey = ConvertKeyCode(gm->exitkey);
-		printf("%d %d\n", gm->exitkey, m_exitkey);
 #ifdef WITH_PYTHON
 		CValue::SetDeprecationWarnings(nodepwarnings);
 #else

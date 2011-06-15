@@ -11662,9 +11662,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			/* Initialize BGE exit key to esc key */
 			Scene *scene;
 			for(scene= main->scene.first; scene; scene= scene->id.next) {
-				printf("Do version: %d\n", scene->gm.exitkey);
 				if (!scene->gm.exitkey)
-					scene->gm.exitkey = 218;
+					scene->gm.exitkey = 218; //218 is the Blender key code for ESC
 			}
 		}
 	}
