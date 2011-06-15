@@ -41,7 +41,7 @@
 KX_BlenderKeyboardDevice::KX_BlenderKeyboardDevice()
 	: m_hookesc(false)
 {
-	m_exit_key = 130;
+
 }
 KX_BlenderKeyboardDevice::~KX_BlenderKeyboardDevice()
 {

@@ -976,11 +976,10 @@ static void rna_GameSettings_auto_start_set(PointerRNA *ptr, int value)
 
 static void rna_GameSettings_exit_key_set(PointerRNA *ptr, int value)
 {
-	Scene *scene = (Scene*)ptr->data;
-	
-	//printf("%d\n", scene->gm.exitkey);
+	GameData *gm = (GameData*)ptr->data;
+
 	if(ISKEYBOARD(value))
-		scene->gm.exitkey=value;
+		gm->exitkey=value;
 }
 
 static TimeMarker *rna_TimeLine_add(Scene *scene, const char name[])
@@ -1704,16 +1703,16 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Bits", "Displays bit depth of full screen display");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 
-	prop= RNA_def_property(srna, "exitkey", PROP_INT, PROP_UNSIGNED);
-	RNA_def_property_int_sdna(prop, NULL, "exitkey");
-	RNA_def_property_range(prop, 0, 198);
-	RNA_def_property_ui_text(prop, "Exit Key", "The key used to exit the game engine");
-	RNA_def_property_update(prop, NC_SCENE, NULL);
+	//prop= RNA_def_property(srna, "exitkey", PROP_INT, PROP_UNSIGNED);
+	//RNA_def_property_int_sdna(prop, NULL, "exitkey");
+	//RNA_def_property_range(prop, 0, 198);
+	//RNA_def_property_ui_text(prop, "Exit Key", "The key used to exit the game engine");
+	//RNA_def_property_update(prop, NC_SCENE, NULL);
 
 	prop= RNA_def_property(srna, "exit_key", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "exitkey");
 	RNA_def_property_enum_items(prop, event_type_items);
-	//RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_exit_key_set", NULL);
+	RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_exit_key_set", NULL);
 	RNA_def_property_ui_text(prop, "Exit Key",  "Sets the key that exits the Game Engine");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 	

@@ -42,6 +42,7 @@
 #include "GPU_extensions.h"
 
 #include "GPG_Application.h"
+#include "BL_BlenderDataConversion.h"
 
 #include <iostream>
 #include <MT_assert.h>
@@ -618,6 +619,11 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		m_ketsjiengine->SetNetworkDevice(m_networkdevice);
 
 		m_ketsjiengine->SetTimingDisplay(frameRate, false, false);
+		
+		
+
+		m_exitkey = ConvertKeyCode(gm->exitkey);
+		printf("%d %d\n", gm->exitkey, m_exitkey);
 #ifdef WITH_PYTHON
 		CValue::SetDeprecationWarnings(nodepwarnings);
 #else
@@ -896,12 +902,11 @@ bool GPG_Application::handleKey(GHOST_IEvent* event, bool isDown)
 	{
 		GHOST_TEventDataPtr eventData = ((GHOST_IEvent*)event)->getData();
 		GHOST_TEventKeyData* keyData = static_cast<GHOST_TEventKeyData*>(eventData);
-		//no need for this test
-		//if (fSystem->getFullScreen()) {
-			if (keyData->key == GHOST_kKeyEsc && !m_keyboard->m_hookesc && !m_isEmbedded) {
-				m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
-			}
-		//}
+
+		printf("%d %d\n", m_keyboard->ToNative(keyData->key), m_exitkey);
+		if (m_keyboard->ToNative(keyData->key) == m_exitkey && !m_keyboard->m_hookesc && !m_isEmbedded) {
+			m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
+		}
 		m_keyboard->ConvertEvent(keyData->key, isDown);
 		handled = true;
 	}

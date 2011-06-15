@@ -971,8 +971,6 @@ class WM_OT_blenderplayer_start(bpy.types.Operator):
     player_path = os.path.join(blender_bin_dir, 'blenderplayer' + ext)
     
     def execute(self, context):
-        print("Launching Blenderplayer!")
-        print("Blend file: %s" % bpy.app.tempdir + "game.blend")
         filepath = bpy.app.tempdir + "game.blend"
         bpy.ops.wm.save_as_mainfile(filepath=filepath, check_existing=False, copy=True)
         subprocess.call([self.player_path, filepath])
