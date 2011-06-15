@@ -98,6 +98,10 @@ option(WITH_FFTW3         "Enable FFTW3 support (Used for smoke and audio effect
 option(WITH_BULLET        "Enable Bullet (Physics Engine)" ON)
 option(WITH_GAMEENGINE    "Enable Game Engine" ON)
 option(WITH_PLAYER        "Build Player" OFF)
+
+option(WITH_HEADLESS      "Build without graphical support (renderfarm, server mode only)" OFF)
+mark_as_advanced(WITH_HEADLESS)
+
 # (unix defaults to OpenMP On)
 if(UNIX AND NOT APPLE)
 	option(WITH_OPENMP        "Enable OpenMP (has to be supported by the compiler)" ON)
@@ -184,6 +188,9 @@ if(APPLE)
 	option(WITH_LIBS10.5  "Use 10.5 libs (needed for 64bit builds)" OFF)
 endif()
 
+#-----------------------------------------------------------------------------
+# Check for conflicting/unsupported configurations
+
 if(NOT WITH_GAMEENGINE AND WITH_PLAYER)
 	message(FATAL_ERROR "WITH_PLAYER requires WITH_GAMEENGINE")
 endif()
@@ -205,8 +212,16 @@ if(WITH_PYTHON_MODULE AND WITH_PYTHON_INSTALL)
 	message(FATAL_ERROR "WITH_PYTHON_MODULE requires WITH_PYTHON_INSTALL to be OFF")
 endif()
 
-# remove old vars
-unset(WITH_INSTALL CACHE)
+if(WITH_CODEC_QUICKTIME AND MINGW)
+	message(FATAL_ERROR "MINGW requires WITH_CODEC_QUICKTIME to be OFF "
+						"because it is currently unsupported, remove this "
+						"line if youre a developer who wants to add support.")
+endif()
+
+# may as well build python module without a UI
+if(WITH_PYTHON_MODULE)
+	set(WITH_HEADLESS ON)
+endif()
 
 TEST_SSE_SUPPORT()
 
@@ -215,6 +230,9 @@ TEST_SSE_SUPPORT()
 
 # linux only, not cached
 set(WITH_BINRELOC OFF)
+
+# MAXOSX only, set to avoid uninitialized 
+set(EXETYPE "")
 
 # these are added to later on.
 set(C_WARNINGS "")
@@ -324,23 +342,8 @@ if(UNIX AND NOT APPLE)
 	endif()
 
 	if(WITH_IMAGE_OPENEXR)
-		set(OPENEXR /usr CACHE FILEPATH "OPENEXR Directory")
-		mark_as_advanced(OPENEXR)
-		find_path(OPENEXR_INC
-			ImfXdr.h
-			PATHS
-			${OPENEXR}/include/OpenEXR
-			/usr/local/include/OpenEXR
-			/sw/include/OpenEXR
-			/opt/local/include/OpenEXR
-			/opt/csw/include/OpenEXR
-			/opt/include/OpenEXR
-		)
-		mark_as_advanced(OPENEXR_INC)
-
-		set(OPENEXR_LIB Half IlmImf Iex Imath)
-		
-		if(NOT OPENEXR_INC)
+		find_package(OpenEXR)  # our own module
+		if(NOT OPENEXR_FOUND)
 			set(WITH_IMAGE_OPENEXR OFF)
 		endif()
 	endif()
@@ -409,15 +412,19 @@ if(UNIX AND NOT APPLE)
 		unset(JEMALLOC)
 	endif()
 
-	find_package(X11 REQUIRED)
-	find_path(X11_XF86keysym_INCLUDE_PATH X11/XF86keysym.h ${X11_INC_SEARCH_PATH})
-	mark_as_advanced(X11_XF86keysym_INCLUDE_PATH)
-
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
-	set(LLIBS "-lutil -lc -lm -lpthread -lstdc++ ${X11_X11_LIB}")
+	set(LLIBS "-lutil -lc -lm -lpthread -lstdc++")
 
-	if(WITH_X11_XINPUT)
-		list(APPEND LLIBS ${X11_Xinput_LIB})
+	if(NOT WITH_HEADLESS)
+		find_package(X11 REQUIRED)
+		find_path(X11_XF86keysym_INCLUDE_PATH X11/XF86keysym.h ${X11_INC_SEARCH_PATH})
+		mark_as_advanced(X11_XF86keysym_INCLUDE_PATH)
+
+		list(APPEND LLIBS ${X11_X11_LIB})
+
+		if(WITH_X11_XINPUT)
+			list(APPEND LLIBS ${X11_Xinput_LIB})
+		endif()
 	endif()
 
 	if(CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -621,10 +628,7 @@ elseif(WIN32)
 		endif()
 
 		if(WITH_IMAGE_OPENEXR)
-			if(MSVC80)
-				set(MSVC_LIB _vs2005)
-				set(MSVC_INC)
-			elseif(MSVC90)
+			if(MSVC90)
 				set(MSVC_LIB _vs2008)
 				set(MSVC_INC)
 			elseif(MSVC10)
@@ -634,11 +638,24 @@ elseif(WIN32)
 				set(MSVC_LIB msvc)
 				set(MSVC_INC)
 			endif()
-			set(OPENEXR ${LIBDIR}/openexr)			
-			set(OPENEXR_LIB Iex Half IlmImf Imath IlmThread)
+			set(OPENEXR ${LIBDIR}/openexr)
 			set(OPENEXR_LIBPATH ${OPENEXR}/lib${MSVC_LIB})
+			set(OPENEXR_LIBRARIES
+				${OPENEXR_LIBPATH}/Iex.lib
+				${OPENEXR_LIBPATH}/Half.lib
+				${OPENEXR_LIBPATH}/IlmImf.lib
+				${OPENEXR_LIBPATH}/Imath.lib
+				${OPENEXR_LIBPATH}/IlmThread.lib
+			)
 			set(OPENEXR_INCUDE ${OPENEXR}/include${MSVC_INC})
-			set(OPENEXR_INC ${OPENEXR_INCUDE}/ ${OPENEXR_INCUDE}/IlmImf ${OPENEXR_INCUDE}/Iex ${OPENEXR_INCUDE}/Imath)
+			set(OPENEXR_INCLUDE_DIRS
+				${OPENEXR_INCUDE}
+			        ${OPENEXR_INCUDE}/IlmImf
+				${OPENEXR_INCUDE}/Iex
+				${OPENEXR_INCUDE}/Imath
+			)
+			unset(OPENEXR_INCUDE)
+			unset(OPENEXR_LIBPATH)
 		endif()
 
 		if(WITH_IMAGE_TIFF)
@@ -737,8 +754,8 @@ elseif(WIN32)
 
 		if(WITH_IMAGE_OPENEXR)
 			set(OPENEXR ${LIBDIR}/gcc/openexr)
-			set(OPENEXR_INC ${OPENEXR}/include ${OPENEXR}/include/OpenEXR)
-			set(OPENEXR_LIB Half IlmImf Imath IlmThread)
+			set(OPENEXR_INCLUDE_DIRS ${OPENEXR}/include/OpenEXR)
+			set(OPENEXR_LIBRARIES Half IlmImf Imath IlmThread)
 			set(OPENEXR_LIBPATH ${OPENEXR}/lib)
 
 			# TODO, gives linking errors, force off
@@ -870,8 +887,8 @@ elseif(APPLE)
 
 	if(WITH_IMAGE_OPENEXR)
 		set(OPENEXR ${LIBDIR}/openexr)
-		set(OPENEXR_INC ${OPENEXR}/include/OpenEXR ${OPENEXR}/include)
-		set(OPENEXR_LIB Iex Half IlmImf Imath IlmThread)
+		set(OPENEXR_INCLUDE_DIRS ${OPENEXR}/include/OpenEXR)
+		set(OPENEXR_LIBRARIES Iex Half IlmImf Imath IlmThread)
 		set(OPENEXR_LIBPATH ${OPENEXR}/lib)
 	endif()
 
@@ -1019,7 +1036,7 @@ endif()
 #-----------------------------------------------------------------------------
 # Configure OpenGL.
 find_package(OpenGL)
-blender_include_dirs("${OPENGL_INCLUDE_DIR}")
+blender_include_dirs_sys("${OPENGL_INCLUDE_DIR}")
 # unset(OPENGL_LIBRARIES CACHE) # not compat with older cmake 
 # unset(OPENGL_xmesa_INCLUDE_DIR CACHE) # not compat with older cmake 
 

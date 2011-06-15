@@ -109,7 +109,7 @@ class WM_OT_context_set_boolean(bpy.types.Operator):
     '''Set a context value.'''
     bl_idname = "wm.context_set_boolean"
     bl_label = "Context Set Boolean"
-    bl_options = {'UNDO'}
+    bl_options = {'UNDO', 'INTERNAL'}
 
     data_path = rna_path_prop
     value = BoolProperty(name="Value",
@@ -122,7 +122,7 @@ class WM_OT_context_set_int(bpy.types.Operator):  # same as enum
     '''Set a context value.'''
     bl_idname = "wm.context_set_int"
     bl_label = "Context Set"
-    bl_options = {'UNDO'}
+    bl_options = {'UNDO', 'INTERNAL'}
 
     data_path = rna_path_prop
     value = IntProperty(name="Value", description="Assign value", default=0)
@@ -135,7 +135,7 @@ class WM_OT_context_scale_int(bpy.types.Operator):
     '''Scale an int context value.'''
     bl_idname = "wm.context_scale_int"
     bl_label = "Context Set"
-    bl_options = {'UNDO'}
+    bl_options = {'UNDO', 'INTERNAL'}
 
     data_path = rna_path_prop
     value = FloatProperty(name="Value", description="Assign value", default=1.0)
@@ -171,7 +171,7 @@ class WM_OT_context_set_float(bpy.types.Operator):  # same as enum
     '''Set a context value.'''
     bl_idname = "wm.context_set_float"
     bl_label = "Context Set Float"
-    bl_options = {'UNDO'}
+    bl_options = {'UNDO', 'INTERNAL'}
 
     data_path = rna_path_prop
     value = FloatProperty(name="Value",
@@ -185,7 +185,7 @@ class WM_OT_context_set_string(bpy.types.Operator):  # same as enum
     '''Set a context value.'''
     bl_idname = "wm.context_set_string"
     bl_label = "Context Set String"
-    bl_options = {'UNDO'}
+    bl_options = {'UNDO', 'INTERNAL'}
 
     data_path = rna_path_prop
     value = StringProperty(name="Value",
@@ -198,7 +198,7 @@ class WM_OT_context_set_enum(bpy.types.Operator):
     '''Set a context value.'''
     bl_idname = "wm.context_set_enum"
     bl_label = "Context Set Enum"
-    bl_options = {'UNDO'}
+    bl_options = {'UNDO', 'INTERNAL'}
 
     data_path = rna_path_prop
     value = StringProperty(name="Value",
@@ -212,7 +212,7 @@ class WM_OT_context_set_value(bpy.types.Operator):
     '''Set a context value.'''
     bl_idname = "wm.context_set_value"
     bl_label = "Context Set Value"
-    bl_options = {'UNDO'}
+    bl_options = {'UNDO', 'INTERNAL'}
 
     data_path = rna_path_prop
     value = StringProperty(name="Value",
@@ -230,7 +230,7 @@ class WM_OT_context_toggle(bpy.types.Operator):
     '''Toggle a context value.'''
     bl_idname = "wm.context_toggle"
     bl_label = "Context Toggle"
-    bl_options = {'UNDO'}
+    bl_options = {'UNDO', 'INTERNAL'}
 
     data_path = rna_path_prop
 
@@ -249,7 +249,7 @@ class WM_OT_context_toggle_enum(bpy.types.Operator):
     '''Toggle a context value.'''
     bl_idname = "wm.context_toggle_enum"
     bl_label = "Context Toggle Values"
-    bl_options = {'UNDO'}
+    bl_options = {'UNDO', 'INTERNAL'}
 
     data_path = rna_path_prop
     value_1 = StringProperty(name="Value", \
@@ -276,7 +276,7 @@ class WM_OT_context_cycle_int(bpy.types.Operator):
     '''vertex keys, groups' etc.'''
     bl_idname = "wm.context_cycle_int"
     bl_label = "Context Int Cycle"
-    bl_options = {'UNDO'}
+    bl_options = {'UNDO', 'INTERNAL'}
 
     data_path = rna_path_prop
     reverse = rna_reverse_prop
@@ -310,7 +310,7 @@ class WM_OT_context_cycle_enum(bpy.types.Operator):
     '''Toggle a context value.'''
     bl_idname = "wm.context_cycle_enum"
     bl_label = "Context Enum Cycle"
-    bl_options = {'UNDO'}
+    bl_options = {'UNDO', 'INTERNAL'}
 
     data_path = rna_path_prop
     reverse = rna_reverse_prop
@@ -363,7 +363,7 @@ class WM_OT_context_cycle_array(bpy.types.Operator):
     Useful for cycling the active mesh edit mode.'''
     bl_idname = "wm.context_cycle_array"
     bl_label = "Context Array Cycle"
-    bl_options = {'UNDO'}
+    bl_options = {'UNDO', 'INTERNAL'}
 
     data_path = rna_path_prop
     reverse = rna_reverse_prop
@@ -409,7 +409,7 @@ class WM_MT_context_menu_enum(bpy.types.Menu):
 class WM_OT_context_menu_enum(bpy.types.Operator):
     bl_idname = "wm.context_menu_enum"
     bl_label = "Context Enum Menu"
-    bl_options = {'UNDO'}
+    bl_options = {'UNDO', 'INTERNAL'}
     data_path = rna_path_prop
 
     def execute(self, context):
@@ -423,7 +423,7 @@ class WM_OT_context_set_id(bpy.types.Operator):
     '''Toggle a context value.'''
     bl_idname = "wm.context_set_id"
     bl_label = "Set Library ID"
-    bl_options = {'UNDO'}
+    bl_options = {'UNDO', 'INTERNAL'}
 
     data_path = rna_path_prop
     value = StringProperty(name="Value",
@@ -465,6 +465,7 @@ class WM_OT_context_modal_mouse(bpy.types.Operator):
     '''Adjust arbitrary values with mouse input'''
     bl_idname = "wm.context_modal_mouse"
     bl_label = "Context Modal Mouse"
+    bl_options = {'INTERNAL'}
 
     data_path_iter = StringProperty(description="The data path relative to the context, must point to an iterable.")
     data_path_item = StringProperty(description="The data path from each iterable to the value (int or float)")
