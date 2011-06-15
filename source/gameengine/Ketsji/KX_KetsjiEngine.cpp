@@ -106,6 +106,7 @@ double KX_KetsjiEngine::m_anim_framerate = 25.0;
 double KX_KetsjiEngine::m_suspendedtime = 0.0;
 double KX_KetsjiEngine::m_suspendeddelta = 0.0;
 double KX_KetsjiEngine::m_average_framerate = 0.0;
+short  KX_KetsjiEngine::m_exitkey = 130; //ESC Key
 
 
 /**
@@ -1825,6 +1826,16 @@ void KX_KetsjiEngine::SetAnimFrameRate(double framerate)
 double KX_KetsjiEngine::GetAverageFrameRate()
 {
 	return m_average_framerate;
+}
+
+void KX_KetsjiEngine::SetExitKey(short key)
+{
+	m_exitkey = key;
+}
+
+short KX_KetsjiEngine::GetExitKey()
+{
+	return m_exitkey;
 }
 
 void KX_KetsjiEngine::SetTimingDisplay(bool frameRate, bool profile, bool properties)

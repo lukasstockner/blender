@@ -211,7 +211,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		
 		// create the inputdevices
 		KX_BlenderKeyboardDevice* keyboarddevice = new KX_BlenderKeyboardDevice();
-		keyboarddevice->SetExitKey(startscene->gm.exitkey);
 
 		KX_BlenderMouseDevice* mousedevice = new KX_BlenderMouseDevice();
 		
@@ -236,6 +235,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		ketsjiengine->SetNetworkDevice(networkdevice);
 		ketsjiengine->SetUseFixedTime(usefixed);
 		ketsjiengine->SetTimingDisplay(frameRate, profile, properties);
+		KX_KetsjiEngine::SetExitKey(ConvertKeyCode(startscene->gm.exitkey));
 
 #ifdef WITH_PYTHON
 		CValue::SetDeprecationWarnings(nodepwarnings);

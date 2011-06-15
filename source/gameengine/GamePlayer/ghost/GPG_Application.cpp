@@ -622,7 +622,7 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		
 		
 
-		m_keyboard->SetExitKey(ConvertKeyCode(gm->exitkey));
+		KX_KetsjiEngine::SetExitKey(ConvertKeyCode(gm->exitkey));
 #ifdef WITH_PYTHON
 		CValue::SetDeprecationWarnings(nodepwarnings);
 #else
@@ -902,7 +902,7 @@ bool GPG_Application::handleKey(GHOST_IEvent* event, bool isDown)
 		GHOST_TEventDataPtr eventData = ((GHOST_IEvent*)event)->getData();
 		GHOST_TEventKeyData* keyData = static_cast<GHOST_TEventKeyData*>(eventData);
 
-		if (m_keyboard->ToNative(keyData->key) == m_keyboard->GetExitKey() && !m_keyboard->m_hookesc && !m_isEmbedded) {
+		if (m_keyboard->ToNative(keyData->key) == KX_KetsjiEngine::GetExitKey() && !m_keyboard->m_hookesc && !m_isEmbedded) {
 			m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
 		}
 		m_keyboard->ConvertEvent(keyData->key, isDown);

@@ -52,7 +52,6 @@ public:
 	virtual bool	ConvertBlenderEvent(unsigned short incode,short val);
 	virtual void	NextFrame();
 	virtual void	HookEscape();
-	virtual void	SetExitKey(short key);
 private:
 	short		m_exit_key;
 

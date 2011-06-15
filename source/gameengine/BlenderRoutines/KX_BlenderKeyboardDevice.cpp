@@ -37,6 +37,7 @@
 #endif 
 
 #include "KX_BlenderKeyboardDevice.h"
+#include "KX_KetsjiEngine.h"
 
 KX_BlenderKeyboardDevice::KX_BlenderKeyboardDevice()
 	: m_hookesc(false)
@@ -107,7 +108,7 @@ bool	KX_BlenderKeyboardDevice::ConvertBlenderEvent(unsigned short incode,short v
 
 		if (val == KM_PRESS)
 		{
-			if (kxevent == m_exit_key && val != 0 && !m_hookesc)
+			if (kxevent == KX_KetsjiEngine::GetExitKey() && val != 0 && !m_hookesc)
 				result = true;
 			if (kxevent == KX_PAUSEKEY && val && (IsPressed(KX_LEFTCTRLKEY) || IsPressed(KX_RIGHTCTRLKEY)))
 				result = true;
@@ -167,9 +168,4 @@ bool	KX_BlenderKeyboardDevice::ConvertBlenderEvent(unsigned short incode,short v
 void KX_BlenderKeyboardDevice::HookEscape()
 {
 	m_hookesc = true;
-}
-
-void KX_BlenderKeyboardDevice::SetExitKey(short key)
-{
-	m_exit_key = ToNative(key);
 }
