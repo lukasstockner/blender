@@ -286,6 +286,7 @@ protected:
 	*/
 	int				m_currentTable; 
 	void			ClearStatusTable(int tableid);
+	short			m_exitkey;
 
 public:
 	virtual bool	IsPressed(SCA_IInputDevice::KX_EnumInputs inputcode)=0;
@@ -315,6 +316,10 @@ public:
 	* KX_ACTIVE->KX_JUSTRELEASED transitions.
 	*/
 	virtual void	NextFrame();
+
+	//Exit Key get/set
+	virtual void	SetExitKey(short key){m_exitkey=key;};
+	virtual short	GetExitKey(){return m_exitkey;};
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
