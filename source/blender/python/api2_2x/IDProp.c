@@ -392,6 +392,7 @@ static PyObject *BPy_IDGroup_MapDataToPy(IDProperty *prop)
 					   "BPy_IDGroup_MapDataToPy() failed" );
 					   
 				PyDict_SetItemString(dict, loop->name, wrap);
+				Py_DECREF(wrap);
 			}
 			return dict;
 		}
