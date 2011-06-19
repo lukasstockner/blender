@@ -273,18 +273,18 @@ endif()
 
 if(WITH_CODEC_QUICKTIME)
 	list(APPEND INC ../quicktime)
-	list(APPEND INC_SYS ${QUICKTIME_INC})
+	list(APPEND INC_SYS ${QUICKTIME_INCLUDE_DIRS})
 	add_definitions(-DWITH_QUICKTIME)
 endif()
 
 if(WITH_CODEC_FFMPEG)
-	list(APPEND INC_SYS ${FFMPEG_INC})
+	list(APPEND INC_SYS ${FFMPEG_INCLUDE_DIRS})
 	add_definitions(-DWITH_FFMPEG)
 endif()
 
 if(WITH_PYTHON)
 	list(APPEND INC ../python)
-	list(APPEND INC_SYS ${PYTHON_INCLUDE_DIRS})
+	# list(APPEND INC_SYS ${PYTHON_INCLUDE_DIRS})  # for pynodes, commented now
 	add_definitions(-DWITH_PYTHON)
 
 	if(WITH_PYTHON_SECURITY)

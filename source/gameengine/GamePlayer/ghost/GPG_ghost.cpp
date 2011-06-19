@@ -409,6 +409,7 @@ int main(int argc, char** argv)
 	U.gameflags |= USER_DISABLE_VBO;
 	// We load our own G.main, so free the one that initglobals() gives us
 	free_main(G.main);
+	G.main = NULL;
 
 	IMB_init();
 
@@ -450,6 +451,9 @@ int main(int argc, char** argv)
 	U.audiorate = 44100;
 	U.audioformat = 0x24;
 	U.audiochannels = 2;
+
+	// XXX this one too
+	U.anisotropic_filter = 2;
 
 	sound_init_once();
 
@@ -706,6 +710,8 @@ int main(int argc, char** argv)
 		{
 			GPU_set_mipmap(0);
 		}
+
+		GPU_set_anisotropic(U.anisotropic_filter);
 		
 		// Create the system
 		if (GHOST_ISystem::createSystem() == GHOST_kSuccess)
