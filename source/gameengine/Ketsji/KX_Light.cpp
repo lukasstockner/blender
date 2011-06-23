@@ -231,6 +231,8 @@ void KX_LightObject::Update()
 		GPU_lamp_update(lamp, m_lightobj.m_layer, 0, obmat);
 		GPU_lamp_update_colors(lamp, m_lightobj.m_red, m_lightobj.m_green, 
 			m_lightobj.m_blue, m_lightobj.m_energy);
+		GPU_lamp_update_distance(lamp, m_lightobj.m_distance, m_lightobj.m_att1, m_lightobj.m_att2);
+		GPU_lamp_update_spot(lamp, m_lightobj.m_spotsize, m_lightobj.m_spotblend);
 	}
 }
 
@@ -346,7 +348,7 @@ void KX_LightObject::FreeBlenderLightPool()
 
 	m_blenderlight_count = 0;
 
-	//GPU_materials_free();
+	GPU_materials_free();
 }
 
 #ifdef WITH_PYTHON

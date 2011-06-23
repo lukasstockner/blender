@@ -74,7 +74,7 @@ typedef enum DynMatProperty {
 	DYN_LAMP_CO = 1,
 	DYN_LAMP_VEC = 2,
 	DYN_LAMP_IMAT = 4,
-	DYN_LAMP_PERSMAT = 8,
+	DYN_LAMP_PERSMAT = 8
 } DynMatProperty;
 
 struct GPUMaterial {
@@ -119,6 +119,7 @@ struct GPULamp {
 	float dynimat[4][4];
 
 	float spotsi, spotbl, k;
+	float dyndist, dynatt1, dynatt2;
 	float dist, att1, att2;
 
 	float bias, d, clipend;
@@ -401,13 +402,13 @@ static GPUNodeLink *lamp_get_visibility(GPUMaterial *mat, GPULamp *lamp, GPUNode
 			case LA_FALLOFF_CONSTANT:
 				break;
 			case LA_FALLOFF_INVLINEAR:
-				GPU_link(mat, "lamp_falloff_invlinear", GPU_uniform(&lamp->dist), *dist, &visifac);
+				GPU_link(mat, "lamp_falloff_invlinear", GPU_dynamic_uniform(&lamp->dist), *dist, &visifac);
 				break;
 			case LA_FALLOFF_INVSQUARE:
-				GPU_link(mat, "lamp_falloff_invsquare", GPU_uniform(&lamp->dist), *dist, &visifac);
+				GPU_link(mat, "lamp_falloff_invsquare", GPU_dynamic_uniform(&lamp->dist), *dist, &visifac);
 				break;
 			case LA_FALLOFF_SLIDERS:
-				GPU_link(mat, "lamp_falloff_sliders", GPU_uniform(&lamp->dist), GPU_uniform(&lamp->att1), GPU_uniform(&lamp->att2), *dist, &visifac);
+				GPU_link(mat, "lamp_falloff_sliders", GPU_dynamic_uniform(&lamp->dist), GPU_dynamic_uniform(&lamp->att1), GPU_dynamic_uniform(&lamp->att2), *dist, &visifac);
 				break;
 			case LA_FALLOFF_CURVE:
 				{
@@ -415,13 +416,13 @@ static GPUNodeLink *lamp_get_visibility(GPUMaterial *mat, GPULamp *lamp, GPUNode
 					int size;
 
 					curvemapping_table_RGBA(lamp->curfalloff, &array, &size);
-					GPU_link(mat, "lamp_falloff_curve", GPU_uniform(&lamp->dist), GPU_texture(size, array), *dist, &visifac);
+					GPU_link(mat, "lamp_falloff_curve", GPU_dynamic_uniform(&lamp->dist), GPU_texture(size, array), *dist, &visifac);
 				}
 				break;
 		}
 
 		if(lamp->mode & LA_SPHERE)
-			GPU_link(mat, "lamp_visibility_sphere", GPU_uniform(&lamp->dist), *dist, visifac, &visifac);
+			GPU_link(mat, "lamp_visibility_sphere", GPU_dynamic_uniform(&lamp->dist), *dist, visifac, &visifac);
 
 		if(lamp->type == LA_SPOT) {
 			if(lamp->mode & LA_SQUARE) {
@@ -433,7 +434,7 @@ static GPUNodeLink *lamp_get_visibility(GPUMaterial *mat, GPULamp *lamp, GPUNode
 				GPU_link(mat, "lamp_visibility_spot_circle", GPU_dynamic_uniform(lamp->dynvec), *lv, &inpr);
 			}
 			
-			GPU_link(mat, "lamp_visibility_spot", GPU_uniform(&lamp->spotsi), GPU_uniform(&lamp->spotbl), inpr, visifac, &visifac);
+			GPU_link(mat, "lamp_visibility_spot", GPU_dynamic_uniform(&lamp->spotsi), GPU_dynamic_uniform(&lamp->spotbl), inpr, visifac, &visifac);
 		}
 
 		GPU_link(mat, "lamp_visibility_clamp", visifac, &visifac);
@@ -1463,6 +1464,19 @@ void GPU_lamp_update_colors(GPULamp *lamp, float r, float g, float b, float ener
 	lamp->col[0]= r* lamp->energy;
 	lamp->col[1]= g* lamp->energy;
 	lamp->col[2]= b* lamp->energy;
+}
+
+void GPU_lamp_update_distance(GPULamp *lamp, float distance, float att1, float att2)
+{
+	lamp->dist = distance;
+	lamp->att1 = att1;
+	lamp->att2 = att2;
+}
+
+void GPU_lamp_update_spot(GPULamp *lamp, float spotsize, float spotblend)
+{
+	lamp->spotsi= cos(M_PI*spotsize/360.0);
+	lamp->spotbl= (1.0f - lamp->spotsi)*spotblend;
 }
 
 static void gpu_lamp_from_blender(Scene *scene, Object *ob, Object *par, Lamp *la, GPULamp *lamp)
