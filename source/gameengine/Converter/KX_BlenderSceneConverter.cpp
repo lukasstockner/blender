@@ -36,6 +36,7 @@
 #endif
 
 #include "KX_Scene.h"
+#include "KX_Light.h"
 #include "KX_GameObject.h"
 #include "KX_BlenderSceneConverter.h"
 #include "KX_IpoConvert.h"
@@ -330,6 +331,9 @@ void KX_BlenderSceneConverter::ConvertScene(class KX_Scene* destinationscene,
 				physics_engine = UseNone;
 			}
 		}
+
+		if (m_useglslmat)
+			KX_LightObject::InitBlenderLightPool(blenderscene->gm.dynlights, blenderscene);
 	}
 
 	switch (physics_engine)
@@ -454,6 +458,8 @@ void KX_BlenderSceneConverter::RemoveScene(KX_Scene *scene)
 			meshit++;
 		}
 	}
+
+	KX_LightObject::FreeBlenderLightPool();
 }
 
 // use blender materials

@@ -36,6 +36,7 @@
 
 #include "RAS_LightObject.h"
 #include "KX_GameObject.h"
+#include "DNA_lamp_types.h"
 
 struct GPULamp;
 struct Scene;
@@ -53,6 +54,10 @@ protected:
 	bool				m_glsl;
 	Scene*				m_blenderscene;
 
+	bool				m_dynamic;
+	Object* checkout_blenderlight();
+	void checkin_blenderlight(Object* lamp);
+
 public:
 	KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,class RAS_IRenderTools* rendertools,const struct RAS_LightObject&	lightobj, bool glsl);
 	virtual ~KX_LightObject();
@@ -69,6 +74,10 @@ public:
 	void BindShadowBuffer(class RAS_IRasterizer *ras, class KX_Camera *cam, class MT_Transform& camtrans);
 	void UnbindShadowBuffer(class RAS_IRasterizer *ras);
 	void Update();
+
+	/* Light Pool */
+	static void InitBlenderLightPool(int count, Scene *scene);
+	static void FreeBlenderLightPool();
 	
 	void UpdateScene(class KX_Scene *kxscene) {m_lightobj.m_scene = (void*)kxscene;}
 

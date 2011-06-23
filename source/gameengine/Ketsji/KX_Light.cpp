@@ -47,6 +47,22 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "GPU_material.h"
+
+#include "MEM_guardedalloc.h"
+
+extern "C"
+{
+#include "BKE_object.h"
+#include "BKE_scene.h"
+#include "BKE_library.h"
+#include "BKE_global.h"
+#include "BKE_main.h"
+#include "BLI_listbase.h"
+}
+
+static Scene* m_blenderlight_scene = NULL;
+static int m_blenderlight_count = 0;
+static std::vector<Object*> m_blenderlight_pool = vector<Object*>();
  
 KX_LightObject::KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,
 							   class RAS_IRenderTools* rendertools,
@@ -61,12 +77,14 @@ KX_LightObject::KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,
 	m_rendertools->AddLight(&m_lightobj);
 	m_glsl = glsl;
 	m_blenderscene = ((KX_Scene*)sgReplicationInfo)->GetBlenderScene();
+	m_dynamic = false;
 };
 
 
 KX_LightObject::~KX_LightObject()
 {
 	GPULamp *lamp;
+	Object* obj;
 
 	if((lamp = GetGPULamp())) {
 		float obmat[4][4] = {{0}};
@@ -74,6 +92,10 @@ KX_LightObject::~KX_LightObject()
 	}
 
 	m_rendertools->RemoveLight(&m_lightobj);
+
+	obj=GetBlenderObject();
+	if (m_dynamic && obj)
+		checkin_blenderlight(obj);
 }
 
 
@@ -86,6 +108,9 @@ CValue*		KX_LightObject::GetReplica()
 	
 	replica->m_lightobj.m_light = replica;
 	m_rendertools->AddLight(&replica->m_lightobj);
+
+	replica->SetBlenderObject(checkout_blenderlight());
+	replica->m_dynamic = true;
 
 	return replica;
 }
@@ -182,7 +207,7 @@ bool KX_LightObject::ApplyLight(KX_Scene *kxscene, int oblayer, int slot)
 
 GPULamp *KX_LightObject::GetGPULamp()
 {
-	if(m_glsl)
+	if(m_glsl && GetBlenderObject())
 		return GPU_lamp_from_blender(m_blenderscene, GetBlenderObject(), GetBlenderGroupObject());
 	else
 		return NULL;
@@ -262,6 +287,66 @@ void KX_LightObject::UnbindShadowBuffer(RAS_IRasterizer *ras)
 {
 	GPULamp *lamp = GetGPULamp();
 	GPU_lamp_shadow_buffer_unbind(lamp);
+}
+
+void KX_LightObject::InitBlenderLightPool(int count, Scene *scene)
+{
+	Lamp* la;
+
+	m_blenderlight_scene = scene;
+	m_blenderlight_count = count;
+	m_blenderlight_pool.resize(m_blenderlight_count);
+
+	for (int i = 0; i < m_blenderlight_count; ++i)
+	{
+		m_blenderlight_pool[i] = add_object(m_blenderlight_scene, OB_LAMP);
+		la = (Lamp*)m_blenderlight_pool[i]->data;
+
+		la->energy = 0;
+	}
+
+	GPU_materials_free();
+}
+
+Object* KX_LightObject::checkout_blenderlight()
+{
+
+	if (m_blenderlight_pool.size() == 0)
+		return NULL; //Sorry, out of lights :(
+
+	Object* obj = m_blenderlight_pool.back();
+	m_blenderlight_pool.pop_back();
+	return obj;
+}
+
+void KX_LightObject::checkin_blenderlight(Object* lamp)
+{
+	m_blenderlight_pool.push_back(lamp);
+}
+
+void KX_LightObject::FreeBlenderLightPool()
+{
+	Base *base;
+	unsigned int i = 0;
+	
+	if (m_blenderlight_pool.size() != m_blenderlight_count)
+	{
+		printf("Light pool still has lights checked out. Not all dynamic lights have been destroyed\n");
+		return;
+	}
+
+	for (int i = 0; i < m_blenderlight_count; ++i)
+	{
+		base = object_in_scene(m_blenderlight_pool[i], m_blenderlight_scene);
+		BLI_remlink(&m_blenderlight_scene->base, base);
+		free_libblock_us(&G.main->object, base->object);
+		if(m_blenderlight_scene->basact==base) m_blenderlight_scene->basact=NULL;
+		MEM_freeN(base);
+	}
+
+	m_blenderlight_count = 0;
+
+	//GPU_materials_free();
 }
 
 #ifdef WITH_PYTHON

@@ -1715,6 +1715,13 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_exit_key_set", NULL);
 	RNA_def_property_ui_text(prop, "Exit Key",  "Sets the key that exits the Game Engine");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
+
+	prop= RNA_def_property(srna, "dynamic_lights", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "dynlights");
+	RNA_def_property_range(prop, 0, 100);
+	RNA_def_property_ui_range(prop, 0, 15, 1, 1);
+	RNA_def_property_ui_text(prop, "Dynamic Lights", "Number of lights available for dynamic use");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
 	
 	// Do we need it here ? (since we already have it in World
 	prop= RNA_def_property(srna, "frequency", PROP_INT, PROP_NONE);

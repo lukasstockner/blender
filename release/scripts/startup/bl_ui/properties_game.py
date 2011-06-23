@@ -384,6 +384,9 @@ class RENDER_PT_game_system(RenderButtonsPanel, bpy.types.Panel):
         row = layout.row()
         row.label("Exit Key")
         row.prop(gs, "exit_key", text="", event=True)
+        
+        row = layout.row()
+        row.prop(gs, "dynamic_lights")
 
 
 class RENDER_PT_game_display(RenderButtonsPanel, bpy.types.Panel):
