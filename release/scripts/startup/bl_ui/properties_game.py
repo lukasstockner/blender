@@ -355,6 +355,15 @@ class RENDER_PT_game_shading(RenderButtonsPanel, bpy.types.Panel):
         layout.prop(gs, "material_mode", expand=True)
 
         if gs.material_mode == 'GLSL':
+            col = layout.column(align=True)
+            col.prop(gs, "dynamic_points")
+            col.prop(gs, "dynamic_spots")
+            col.prop(gs, "dynamic_suns")
+            col.prop(gs, "dynamic_hemis")
+            
+            # When area lights work in the BGE, this should be ready
+            # col.prop(gs, "dynamic_areas")
+            
             split = layout.split()
 
             col = split.column()
@@ -367,8 +376,7 @@ class RENDER_PT_game_shading(RenderButtonsPanel, bpy.types.Panel):
             col.prop(gs, "use_glsl_ramps", text="Ramps")
             col.prop(gs, "use_glsl_nodes", text="Nodes")
             col.prop(gs, "use_glsl_extra_textures", text="Extra Textures")
-
-
+            
 class RENDER_PT_game_system(RenderButtonsPanel, bpy.types.Panel):
     bl_label = "System"
     COMPAT_ENGINES = {'BLENDER_GAME'}
@@ -384,9 +392,6 @@ class RENDER_PT_game_system(RenderButtonsPanel, bpy.types.Panel):
         row = layout.row()
         row.label("Exit Key")
         row.prop(gs, "exit_key", text="", event=True)
-        
-        row = layout.row()
-        row.prop(gs, "dynamic_lights")
 
 
 class RENDER_PT_game_display(RenderButtonsPanel, bpy.types.Panel):

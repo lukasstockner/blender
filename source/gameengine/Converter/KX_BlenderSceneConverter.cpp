@@ -331,9 +331,6 @@ void KX_BlenderSceneConverter::ConvertScene(class KX_Scene* destinationscene,
 				physics_engine = UseNone;
 			}
 		}
-
-		if (m_useglslmat)
-			KX_LightObject::InitBlenderLightPool(blenderscene->gm.dynlights, blenderscene);
 	}
 
 	switch (physics_engine)
@@ -368,6 +365,16 @@ void KX_BlenderSceneConverter::ConvertScene(class KX_Scene* destinationscene,
 			destinationscene ->SetPhysicsEnvironment(new DummyPhysicsEnvironment());
 			break;
 	}
+
+	//For now this is before converting blender objects (which means the light pool gets converted to KX_lights that never get used)
+	//If this is moved after the conversion, things go crazy with materials since InitBlenderLightPool frees the materials
+	if(blenderscene && m_useglslmat)
+		KX_LightObject::InitBlenderLightPool(blenderscene,
+											blenderscene->gm.dynpoints,
+											blenderscene->gm.dynspots,
+											blenderscene->gm.dynsuns,
+											blenderscene->gm.dynhemis,
+											blenderscene->gm.dynareas);
 
 	BL_ConvertBlenderObjects(m_maggie,
 		destinationscene,

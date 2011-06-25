@@ -62,7 +62,12 @@ extern "C"
 
 static Scene* m_blenderlight_scene = NULL;
 static int m_blenderlight_count = 0;
-static std::vector<Object*> m_blenderlight_pool = vector<Object*>();
+
+static std::vector<Object*> m_blenderlight_points = vector<Object*>();
+static std::vector<Object*> m_blenderlight_spots = vector<Object*>();
+static std::vector<Object*> m_blenderlight_suns = vector<Object*>();
+static std::vector<Object*> m_blenderlight_hemis = vector<Object*>();
+static std::vector<Object*> m_blenderlight_areas = vector<Object*>();
  
 KX_LightObject::KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,
 							   class RAS_IRenderTools* rendertools,
@@ -291,59 +296,104 @@ void KX_LightObject::UnbindShadowBuffer(RAS_IRasterizer *ras)
 	GPU_lamp_shadow_buffer_unbind(lamp);
 }
 
-void KX_LightObject::InitBlenderLightPool(int count, Scene *scene)
+void init_subpool(Scene *scene, std::vector<Object*> *subpool, int count, short type)
+{
+	Lamp *la;
+	subpool->resize(count);
+	for (int i = 0; i < count; ++i)
+	{
+		subpool->at(i) = add_object(m_blenderlight_scene, OB_LAMP);
+		la = (Lamp*)subpool->at(i)->data;
+
+		la->type = type;
+		la->energy = 0;
+	}
+
+}
+
+void KX_LightObject::InitBlenderLightPool(Scene *scene, int point_count, int spot_count, int sun_count, int hemi_count, int area_count)
 {
 	Lamp* la;
 
+	//If the light pool is already built, there is no need to rebuild it.
+	if (m_blenderlight_count != 0)
+		return;
+
 	m_blenderlight_scene = scene;
-	m_blenderlight_count = count;
-	m_blenderlight_pool.resize(m_blenderlight_count);
+	m_blenderlight_count = point_count + spot_count + sun_count + hemi_count + area_count;
 
-	for (int i = 0; i < m_blenderlight_count; ++i)
-	{
-		m_blenderlight_pool[i] = add_object(m_blenderlight_scene, OB_LAMP);
-		la = (Lamp*)m_blenderlight_pool[i]->data;
-
-		la->energy = 0;
-	}
+	init_subpool(scene, &m_blenderlight_points, point_count, LA_LOCAL);
+	init_subpool(scene, &m_blenderlight_spots, spot_count, LA_SPOT);
+	init_subpool(scene, &m_blenderlight_suns, sun_count, LA_SUN);
+	init_subpool(scene, &m_blenderlight_hemis, hemi_count, LA_HEMI);
+	init_subpool(scene, &m_blenderlight_areas, area_count, LA_AREA);
 
 	GPU_materials_free();
 }
 
+std::vector<Object*>* get_subpool(short type)
+{
+	if (type == RAS_LightObject::LIGHT_NORMAL)
+		return &m_blenderlight_points;
+	if (type == RAS_LightObject::LIGHT_SPOT)
+		return &m_blenderlight_spots;
+	if (type == RAS_LightObject::LIGHT_SUN)
+		return &m_blenderlight_suns;
+	if (type == RAS_LightObject::LIGHT_HEMI)
+		return &m_blenderlight_hemis;
+	if (type == RAS_LightObject::LIGHT_AREA)
+		return &m_blenderlight_areas;
+}
+
 Object* KX_LightObject::checkout_blenderlight()
 {
+	std::vector<Object*> *subpool = get_subpool(m_lightobj.m_type);
 
-	if (m_blenderlight_pool.size() == 0)
+	if (subpool->size() == 0)
 		return NULL; //Sorry, out of lights :(
 
-	Object* obj = m_blenderlight_pool.back();
-	m_blenderlight_pool.pop_back();
+	Object* obj = subpool->back();
+	subpool->pop_back();
 	return obj;
 }
 
 void KX_LightObject::checkin_blenderlight(Object* lamp)
 {
-	m_blenderlight_pool.push_back(lamp);
+	std::vector<Object*> *subpool = get_subpool(m_lightobj.m_type);
+	subpool->push_back(lamp);
 }
 
 void KX_LightObject::FreeBlenderLightPool()
 {
 	Base *base;
+	std::vector<Object*> *subpool;
 	unsigned int i = 0;
-	
-	if (m_blenderlight_pool.size() != m_blenderlight_count)
+	int total = m_blenderlight_points.size() + m_blenderlight_spots.size() + m_blenderlight_suns.size() + m_blenderlight_hemis.size() + m_blenderlight_areas.size();
+	if (total != m_blenderlight_count)
 	{
-		printf("Light pool still has lights checked out. Not all dynamic lights have been destroyed\n");
+		printf("Light pool still has lights checked out. Or extra lights have been checked in\n");
 		return;
 	}
 
 	for (int i = 0; i < m_blenderlight_count; ++i)
 	{
-		base = object_in_scene(m_blenderlight_pool[i], m_blenderlight_scene);
+		if (m_blenderlight_points.size() > 0)
+			subpool = &m_blenderlight_points;
+		else if (m_blenderlight_spots.size() > 0)
+			subpool = &m_blenderlight_spots;
+		else if (m_blenderlight_suns.size() > 0)
+			subpool = &m_blenderlight_suns;
+		else if (m_blenderlight_hemis.size() > 0)
+			subpool = &m_blenderlight_hemis;
+		else if (m_blenderlight_areas.size() > 0)
+			subpool = &m_blenderlight_areas;
+
+		base = object_in_scene(subpool->back(), m_blenderlight_scene);
 		BLI_remlink(&m_blenderlight_scene->base, base);
 		free_libblock_us(&G.main->object, base->object);
 		if(m_blenderlight_scene->basact==base) m_blenderlight_scene->basact=NULL;
 		MEM_freeN(base);
+		subpool->pop_back();
 	}
 
 	m_blenderlight_count = 0;

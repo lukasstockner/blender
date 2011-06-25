@@ -1715,13 +1715,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_exit_key_set", NULL);
 	RNA_def_property_ui_text(prop, "Exit Key",  "Sets the key that exits the Game Engine");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
-
-	prop= RNA_def_property(srna, "dynamic_lights", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "dynlights");
-	RNA_def_property_range(prop, 0, 100);
-	RNA_def_property_ui_range(prop, 0, 15, 1, 1);
-	RNA_def_property_ui_text(prop, "Dynamic Lights", "Number of lights available for dynamic use");
-	RNA_def_property_update(prop, NC_SCENE, NULL);
 	
 	// Do we need it here ? (since we already have it in World
 	prop= RNA_def_property(srna, "frequency", PROP_INT, PROP_NONE);
@@ -1733,6 +1726,42 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "show_fullscreen", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "fullscreen", 1.0);
 	RNA_def_property_ui_text(prop, "Fullscreen", "Starts player in a new fullscreen display");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+
+	/* Dynamic Lights */
+	prop= RNA_def_property(srna, "dynamic_points", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "dynpoints");
+	RNA_def_property_range(prop, 0, 100);
+	RNA_def_property_ui_range(prop, 0, 15, 1, 1);
+	RNA_def_property_ui_text(prop, "Dynamic Point Lights", "Number of point lights available for dynamic use");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+
+	prop= RNA_def_property(srna, "dynamic_spots", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "dynspots");
+	RNA_def_property_range(prop, 0, 100);
+	RNA_def_property_ui_range(prop, 0, 15, 1, 1);
+	RNA_def_property_ui_text(prop, "Dynamic Spot Lights", "Number of spot lights available for dynamic use");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+
+	prop= RNA_def_property(srna, "dynamic_suns", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "dynsuns");
+	RNA_def_property_range(prop, 0, 100);
+	RNA_def_property_ui_range(prop, 0, 15, 1, 1);
+	RNA_def_property_ui_text(prop, "Dynamic Sun Lights", "Number of sun lights available for dynamic use");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+
+	prop= RNA_def_property(srna, "dynamic_hemis", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "dynhemis");
+	RNA_def_property_range(prop, 0, 100);
+	RNA_def_property_ui_range(prop, 0, 15, 1, 1);
+	RNA_def_property_ui_text(prop, "Dynamic Hemi Lights", "Number of hemi lights available for dynamic use");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+
+	prop= RNA_def_property(srna, "dynamic_areas", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "dynareas");
+	RNA_def_property_range(prop, 0, 100);
+	RNA_def_property_ui_range(prop, 0, 15, 1, 1);
+	RNA_def_property_ui_text(prop, "Dynamic Area Lights", "Number of area lights available for dynamic use");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 
 	/* Framing */

@@ -439,7 +439,13 @@ typedef struct GameData {
 	short physicsEngine;
 	short ticrate, maxlogicstep, physubstep, maxphystep;
 	short exitkey;
-	short dynlights;
+
+	/* Dynamic Lights */
+	short dynpoints;
+	short dynspots;
+	short dynsuns;
+	short dynhemis;
+	short dynareas;
 
 	/*  standalone player */
 	struct GameFraming framing;

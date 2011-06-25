@@ -76,7 +76,7 @@ public:
 	void Update();
 
 	/* Light Pool */
-	static void InitBlenderLightPool(int count, Scene *scene);
+	static void InitBlenderLightPool(Scene *scene, int point_count, int spot_count, int sun_count, int hemi_count, int area_count);
 	static void FreeBlenderLightPool();
 	
 	void UpdateScene(class KX_Scene *kxscene) {m_lightobj.m_scene = (void*)kxscene;}

@@ -1850,7 +1850,11 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 		lightobj.m_type = RAS_LightObject::LIGHT_SUN;
 	} else if (la->type==LA_SPOT) {
 		lightobj.m_type = RAS_LightObject::LIGHT_SPOT;
-	} else {
+	} else if (la->type==LA_HEMI) {
+		lightobj.m_type = RAS_LightObject::LIGHT_HEMI;
+	} else if (la->type==LA_AREA) {
+		lightobj.m_type = RAS_LightObject::LIGHT_AREA;
+	}else {
 		lightobj.m_type = RAS_LightObject::LIGHT_NORMAL;
 	}
 
