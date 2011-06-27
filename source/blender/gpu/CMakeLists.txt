@@ -58,5 +58,10 @@ set(SRC
 
 add_definitions(-DGLEW_STATIC)
 
+if(WITH_DDS)
+	add_definitions(-DWITH_DDS)
+endif()
+
+
 blender_add_lib(bf_gpu "${SRC}" "${INC}" "${INC_SYS}")
 

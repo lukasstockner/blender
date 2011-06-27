@@ -167,6 +167,8 @@ void IMB_freeImBuf(ImBuf *ibuf)
 			freeencodedbufferImBuf(ibuf);
 			IMB_cache_limiter_unmanage(ibuf);
 			IMB_metadata_free(ibuf);
+			if (ibuf->dds_data.data != NULL)
+				free(ibuf->dds_data.data);
 			MEM_freeN(ibuf);
 		}
 	}
@@ -511,4 +513,3 @@ int IMB_cache_limiter_get_refcount(ImBuf *i)
 
 	return 0;
 }
-

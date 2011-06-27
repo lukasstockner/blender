@@ -142,7 +142,15 @@ bool BL_Texture::InitFromImage(int unit,  Image *img, bool mipmap)
 
 	mNeedsDeleted = 1;
 	glGenTextures(1, (GLuint*)&mTexture);
+
+#ifdef WITH_DDS
+	if (ibuf->ftype & DDS)
+		InitGLCompressedTex(ibuf, mipmap);
+	else
+		InitGLTex(ibuf->rect, ibuf->x, ibuf->y, mipmap);
+#else
 	InitGLTex(ibuf->rect, ibuf->x, ibuf->y, mipmap);
+#endif
 
 	// track created units
 	BL_TextureObject obj;
@@ -181,6 +189,64 @@ void BL_Texture::InitGLTex(unsigned int *pix,int x,int y,bool mipmap)
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 }
 
+void BL_Texture::InitGLCompressedTex(ImBuf* ibuf, bool mipmap)
+{
+#ifndef WITH_DDS
+	// Fall back to uncompressed if DDS isn't enabled
+	InitGLTex(ibuf->rect, ibuf->x, ibuf->y, mipmap);
+	return;
+#else	
+	GLint format=0;
+	int offset=0, i=0;
+	int blocksize, width, height;
+	int size;
+	GLint err;
+
+	if (ibuf->dds_data.fourcc == FOURCC_DXT1)
+		format = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+	else if (ibuf->dds_data.fourcc == FOURCC_DXT3)
+		format = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
+	else if (ibuf->dds_data.fourcc == FOURCC_DXT5)
+		format = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
+	else
+	{
+		printf("Unable to find a suitable DXT compression, falling back to uncompressed\n");
+		InitGLTex(ibuf->rect, ibuf->x, ibuf->y, mipmap);
+		return;
+	}
+
+	glBindTexture(GL_TEXTURE_2D, mTexture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	height = ibuf->x;
+	width = ibuf->y;
+	blocksize = (format == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) ? 8 : 16;
+	for (int i=0; i<ibuf->dds_data.nummipmaps && (width||height); ++i)
+	{
+		if (width == 0)
+			width = 1;
+		if (height == 0)
+			height = 1;
+
+		size = ((width+3)/4)*((height+3)/4)*blocksize;
+
+		glCompressedTexImage2D(GL_TEXTURE_2D, i, format, width, height,
+			0, size, ibuf->dds_data.data + offset);
+
+		err = glGetError();
+
+		if (err != GL_NO_ERROR)
+			printf("OpenGL error: %s\nFormat: %x\n", gluErrorString(err), format);
+
+		offset += size;
+		width >>= 1;
+		height >>= 1;
+	}
+
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+#endif
+}
 
 void BL_Texture::InitNonPow2Tex(unsigned int *pix,int x,int y,bool mipmap)
 {
@@ -679,4 +745,3 @@ void my_free_envmapdata(EnvMap *env)
 
 
 } // extern C
-
