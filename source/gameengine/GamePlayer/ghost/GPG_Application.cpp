@@ -567,11 +567,15 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 			goto initFailed;
 		
 		if(useLists) {
-			if(GLEW_VERSION_1_1)
-				m_rasterizer = new RAS_ListRasterizer(m_canvas, true);
+			if (GLEW_ARB_vertex_buffer_object)
+				m_rasterizer = new RAS_ListRasterizer(m_canvas, RAS_VBO);
+			else if(GLEW_VERSION_1_1)
+				m_rasterizer = new RAS_ListRasterizer(m_canvas, RAS_VA);
 			else
-				m_rasterizer = new RAS_ListRasterizer(m_canvas);
+				m_rasterizer = new RAS_ListRasterizer(m_canvas, RAS_IMMEDIATE);
 		}
+		else if (GLEW_ARB_vertex_buffer_object)
+			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, RAS_VBO);
 		else if (GLEW_VERSION_1_1)
 			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, RAS_VA);
 		else

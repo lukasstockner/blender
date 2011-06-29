@@ -61,7 +61,7 @@ class RAS_ListRasterizer : public RAS_OpenGLRasterizer
 
 public:
 	void RemoveListSlot(RAS_ListSlot* list);
-	RAS_ListRasterizer(RAS_ICanvas* canvas, bool useVertexArrays=false, bool lock=false);
+	RAS_ListRasterizer(RAS_ICanvas* canvas, bool lock=false, int storage=RAS_IMMEDIATE);
 	virtual ~RAS_ListRasterizer();
 
 	virtual void	IndexPrimitives(class RAS_MeshSlot& ms);

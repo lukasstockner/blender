@@ -48,6 +48,27 @@
 #include "RAS_MeshObject.h"
 #include "RAS_Deformer.h"	// __NLA
 
+/* vertex buffer object slot */
+RAS_VboSlot::RAS_VboSlot(RAS_IRasterizer *rasty)
+{
+	m_rasty = rasty;
+	m_vertVbo = 0;
+	m_indexVbo = 0;
+	m_normalVbo = 0;
+	m_tangentVbo = 0;
+	m_colorVbo = 0;
+	m_verts = 0;
+	m_texCoordVbo[0] = 0;
+	m_texCoordVbo[1] = 0;
+};
+
+RAS_VboSlot::~RAS_VboSlot()
+{
+	//m_rasty->ClearVboSlot(this);
+	if(m_verts) delete []m_verts;
+}
+
+
 /* mesh slot */
 
 RAS_MeshSlot::RAS_MeshSlot() : SG_QList()
@@ -166,6 +187,7 @@ void RAS_MeshSlot::begin(RAS_MeshSlot::iterator& it)
 
 		it.vertex = &it.array->m_vertex[0];
 		it.index = &it.array->m_index[startindex];
+		it.vboslot = it.array->m_vboSlot;
 		it.startvertex = startvertex;
 		it.endvertex = endvertex;
 		it.totindex = endindex-startindex;
@@ -197,6 +219,7 @@ void RAS_MeshSlot::next(RAS_MeshSlot::iterator& it)
 
 		it.vertex = &it.array->m_vertex[0];
 		it.index = &it.array->m_index[startindex];
+		it.vboslot = it.array->m_vboSlot;
 		it.startvertex = startvertex;
 		it.endvertex = endvertex;
 		it.totindex = endindex-startindex;
@@ -218,6 +241,7 @@ void RAS_MeshSlot::SetDisplayArray(int numverts)
 	RAS_DisplayArrayList::iterator it;
 	RAS_DisplayArray *darray = NULL;
 	
+	// find an array which doesn't contain the max amount of indices/vertices
 	for(it=m_displayArrays.begin(); it!=m_displayArrays.end(); it++) {
 		darray = *it;
 
@@ -609,6 +633,9 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 	
 	if(IsZSort() && rasty->GetDrawingMode() >= RAS_IRasterizer::KX_SOLID)
 		ms.m_mesh->SortPolygons(ms, cameratrans*MT_Transform(ms.m_OpenGLMatrix));
+
+	rasty->UpdateMeshSlotData(&ms, (ms.m_pDeformer != 0),
+		(IsZSort() && rasty->GetDrawingMode() >= RAS_IRasterizer::KX_SOLID));
 
 	rendertools->PushMatrix();
 	if (!ms.m_pDeformer || !ms.m_pDeformer->SkipVertexTransform())

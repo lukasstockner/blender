@@ -198,11 +198,15 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		RAS_IRasterizer* rasterizer = NULL;
 		
 		if(displaylists) {
-			if (GLEW_VERSION_1_1 && !novertexarrays)
-				rasterizer = new RAS_ListRasterizer(canvas, true, true);
+			if (GLEW_ARB_vertex_buffer_object)
+				rasterizer = new RAS_ListRasterizer(canvas, true, RAS_VBO);
+			else if (GLEW_VERSION_1_1 && !novertexarrays)
+				rasterizer = new RAS_ListRasterizer(canvas, true, RAS_VA);
 			else
-				rasterizer = new RAS_ListRasterizer(canvas);
+				rasterizer = new RAS_ListRasterizer(canvas, RAS_IMMEDIATE);
 		}
+		if (GLEW_ARB_vertex_buffer_object)
+			rasterizer = new RAS_OpenGLRasterizer(canvas, RAS_VBO);
 		else if (GLEW_VERSION_1_1 && !novertexarrays)
 			rasterizer = new RAS_OpenGLRasterizer(canvas, RAS_VA);
 		else

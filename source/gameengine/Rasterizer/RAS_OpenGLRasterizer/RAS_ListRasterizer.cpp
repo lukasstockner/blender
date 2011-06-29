@@ -106,8 +106,8 @@ bool RAS_ListSlot::End()
 
 
 
-RAS_ListRasterizer::RAS_ListRasterizer(RAS_ICanvas* canvas, bool useVertexArrays, bool lock)
-:	RAS_OpenGLRasterizer(canvas, (useVertexArrays) ? RAS_VA : RAS_IMMEDIATE),
+RAS_ListRasterizer::RAS_ListRasterizer(RAS_ICanvas* canvas, bool lock, int storage)
+:	RAS_OpenGLRasterizer(canvas, storage),
 	mATI(false)
 {
 	if (!strcmp((const char*)glGetString(GL_VENDOR), "ATI Technologies Inc."))

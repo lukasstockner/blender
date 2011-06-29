@@ -112,6 +112,7 @@ protected:
 
 	/** Making use of a Strategy desing pattern for storage behavior.
 	    Examples of concrete strategies: Vertex Arrays, VBOs, Immediate Mode*/
+	int				m_storage_type;
 	RAS_IStorage*	m_storage;
 	RAS_IStorage*	m_failsafe_storage; //So derived mesh can use immediate mode
 
@@ -296,7 +297,10 @@ public:
 
 	virtual void	SetBlendingMode(int blendmode);
 	virtual void	SetFrontFace(bool ccw);
-	
+
+	// updates mesh data (vbo addition)
+	virtual void	UpdateMeshSlotData(class RAS_MeshSlot *ms,
+		const bool &anim, const bool &zsort);	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
 public:

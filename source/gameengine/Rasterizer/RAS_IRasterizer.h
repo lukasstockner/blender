@@ -54,6 +54,7 @@ using namespace std;
 
 class RAS_ICanvas;
 class RAS_IPolyMaterial;
+class RAS_MeshSlot;
 
 typedef vector<unsigned short> KX_IndexArray;
 typedef vector<RAS_TexVert> KX_VertexArray;
@@ -417,6 +418,10 @@ public:
 
 	virtual void	SetBlendingMode(int blendmode)=0;
 	virtual void	SetFrontFace(bool ccw)=0;
+
+	// updates mesh data (vbo addition)
+	virtual void UpdateMeshSlotData(class RAS_MeshSlot *ms,
+		const bool &anim, const bool &zsort)=0;
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC

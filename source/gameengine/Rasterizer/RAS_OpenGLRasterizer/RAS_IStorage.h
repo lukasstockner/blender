@@ -34,7 +34,8 @@
 
 enum RAS_STORAGE_TYPE	{
 	RAS_IMMEDIATE,
-	RAS_VA
+	RAS_VA,
+	RAS_VBO
 };
 
 class RAS_IStorage

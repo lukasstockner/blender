@@ -91,7 +91,8 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_ICanvas* canvas, int storage)
 	m_attrib_num(0),
 	//m_last_blendmode(GPU_BLEND_SOLID),
 	m_last_frontface(true),
-	m_materialCachingInfo(0)
+	m_materialCachingInfo(0),
+	m_storage_type(storage)
 {
 	m_viewmatrix.setIdentity();
 	m_viewinvmatrix.setIdentity();
@@ -103,7 +104,12 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_ICanvas* canvas, int storage)
 		hinterlace_mask[i] = (i&1)*0xFFFFFFFF;
 	}
 	hinterlace_mask[32] = 0;
-	if (storage == RAS_VA)
+	if (m_storage_type == RAS_VBO)
+	{
+		m_storage = new RAS_StorageVBO(this, &m_texco_num, m_texco, &m_attrib_num, m_attrib);
+		m_failsafe_storage = new RAS_StorageIM(&m_texco_num, m_texco, &m_attrib_num, m_attrib);
+	}
+	if (m_storage_type == RAS_VA)
 	{
 		m_storage = new RAS_StorageVA(&m_texco_num, m_texco, &m_attrib_num, m_attrib);
 		m_failsafe_storage = new RAS_StorageIM(&m_texco_num, m_texco, &m_attrib_num, m_attrib);
@@ -293,6 +299,78 @@ void RAS_OpenGLRasterizer::Exit()
 		glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SINGLE_COLOR);
 	
 	EndFrame();
+}
+
+void RAS_OpenGLRasterizer::UpdateMeshSlotData(class RAS_MeshSlot *ms,
+	const bool &anim, const bool &zsort)
+{
+	if(m_storage_type != RAS_VBO)
+		return;
+
+	RAS_MeshSlot::iterator it;
+	unsigned int vertnum = 0;
+	unsigned int num = 0;
+	RAS_VboSlot *slot = 0;
+	int usage = 0;
+	float *normals = 0;
+
+	for(ms->begin(it); !ms->end(it); ms->next(it)) {
+		if(it.totindex == 0)
+			continue;
+
+		if(!it.array->m_vboSlot)
+			continue;
+
+		slot = it.array->m_vboSlot;
+
+		if(anim)
+		{
+			if(!slot->m_verts)
+				slot->m_verts = new float[it.array->m_vertex.size()*3];
+
+			normals = new float[it.array->m_vertex.size()*3];
+
+			for(vertnum = 0, num = 0; vertnum < it.array->m_vertex.size(); vertnum++)
+			{
+				memcpy(&slot->m_verts[num], it.array->m_vertex[vertnum].getXYZ(), sizeof(float)*3);
+				memcpy(&normals[num], it.array->m_vertex[vertnum].getNormal(), sizeof(float)*3);
+				num+=3;
+			}
+
+			glBindBufferARB(GL_ARRAY_BUFFER_ARB, slot->m_vertVbo);
+			glBufferDataARB(GL_ARRAY_BUFFER_ARB,
+				sizeof(float)*it.array->m_vertex.size()*3, slot->m_verts, GL_DYNAMIC_DRAW_ARB);
+			glBindBufferARB(GL_ARRAY_BUFFER_ARB, slot->m_normalVbo);
+			glBufferDataARB(GL_ARRAY_BUFFER_ARB,
+				sizeof(float)*it.array->m_vertex.size()*3, normals, GL_DYNAMIC_DRAW_ARB);
+			glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+
+		}
+
+		if(zsort)
+		{
+			// make sure that we have a dynamic index
+			glGetBufferParameteriv(slot->m_indexVbo, GL_BUFFER_USAGE_ARB, &usage);
+			if(usage != GL_DYNAMIC_DRAW_ARB)
+			{
+				glGenBuffersARB(1, &slot->m_indexVbo);
+				glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, slot->m_indexVbo);
+				glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB,
+					sizeof(unsigned short)*it.array->m_index.size(),
+					&it.array->m_index[0], GL_DYNAMIC_DRAW_ARB);
+				glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
+			}
+			else
+			{
+				glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, slot->m_indexVbo);
+				glBufferSubDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0,
+					sizeof(unsigned short)*it.array->m_index.size(), &it.array->m_index[0]);
+				glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
+			}
+		}
+	}
+
+	delete[] normals;
 }
 
 bool RAS_OpenGLRasterizer::BeginFrame(int drawingmode, double time)
