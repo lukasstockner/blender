@@ -33,6 +33,7 @@
 #include "RAS_MaterialBucket.h"
 
 enum RAS_STORAGE_TYPE	{
+	RAS_AUTO_STORAGE,
 	RAS_IMMEDIATE,
 	RAS_VA,
 	RAS_VBO

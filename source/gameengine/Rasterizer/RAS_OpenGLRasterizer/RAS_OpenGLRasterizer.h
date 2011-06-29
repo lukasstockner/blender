@@ -118,7 +118,7 @@ protected:
 
 public:
 	double GetTime();
-	RAS_OpenGLRasterizer(RAS_ICanvas* canv, int storage=RAS_IMMEDIATE);
+	RAS_OpenGLRasterizer(RAS_ICanvas* canv, int storage=RAS_AUTO_STORAGE);
 	virtual ~RAS_OpenGLRasterizer();
 
 	/*enum DrawType

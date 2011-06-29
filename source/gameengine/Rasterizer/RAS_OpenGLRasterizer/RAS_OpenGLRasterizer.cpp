@@ -104,19 +104,23 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_ICanvas* canvas, int storage)
 		hinterlace_mask[i] = (i&1)*0xFFFFFFFF;
 	}
 	hinterlace_mask[32] = 0;
-	if (m_storage_type == RAS_VBO)
+
+	if (m_storage_type == RAS_VBO || m_storage_type == RAS_AUTO_STORAGE && GLEW_ARB_vertex_buffer_object)
 	{
 		m_storage = new RAS_StorageVBO(this, &m_texco_num, m_texco, &m_attrib_num, m_attrib);
 		m_failsafe_storage = new RAS_StorageIM(&m_texco_num, m_texco, &m_attrib_num, m_attrib);
+		m_storage_type = RAS_VBO;
 	}
-	if (m_storage_type == RAS_VA)
+	else if (m_storage_type == RAS_VA || m_storage_type == RAS_AUTO_STORAGE && GLEW_VERSION_1_1)
 	{
 		m_storage = new RAS_StorageVA(&m_texco_num, m_texco, &m_attrib_num, m_attrib);
 		m_failsafe_storage = new RAS_StorageIM(&m_texco_num, m_texco, &m_attrib_num, m_attrib);
+		m_storage_type = RAS_VA;
 	}
 	else
 	{
 		m_storage = m_failsafe_storage = new RAS_StorageIM(&m_texco_num, m_texco, &m_attrib_num, m_attrib);
+		m_storage_type = RAS_IMMEDIATE;
 	}
 }
 

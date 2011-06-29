@@ -197,20 +197,10 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		RAS_IRenderTools* rendertools = new KX_BlenderRenderTools();
 		RAS_IRasterizer* rasterizer = NULL;
 		
-		if(displaylists) {
-			if (GLEW_ARB_vertex_buffer_object)
-				rasterizer = new RAS_ListRasterizer(canvas, true, RAS_VBO);
-			else if (GLEW_VERSION_1_1 && !novertexarrays)
-				rasterizer = new RAS_ListRasterizer(canvas, true, RAS_VA);
-			else
-				rasterizer = new RAS_ListRasterizer(canvas, RAS_IMMEDIATE);
-		}
-		if (GLEW_ARB_vertex_buffer_object)
-			rasterizer = new RAS_OpenGLRasterizer(canvas, RAS_VBO);
-		else if (GLEW_VERSION_1_1 && !novertexarrays)
-			rasterizer = new RAS_OpenGLRasterizer(canvas, RAS_VA);
+		if(displaylists)
+			rasterizer = new RAS_ListRasterizer(canvas, true, startscene->gm.raster_storage);
 		else
-			rasterizer = new RAS_OpenGLRasterizer(canvas, RAS_IMMEDIATE);
+			rasterizer = new RAS_OpenGLRasterizer(canvas, startscene->gm.raster_storage);
 		
 		// create the inputdevices
 		KX_BlenderKeyboardDevice* keyboarddevice = new KX_BlenderKeyboardDevice();

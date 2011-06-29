@@ -566,20 +566,10 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		if (!m_rendertools)
 			goto initFailed;
 		
-		if(useLists) {
-			if (GLEW_ARB_vertex_buffer_object)
-				m_rasterizer = new RAS_ListRasterizer(m_canvas, RAS_VBO);
-			else if(GLEW_VERSION_1_1)
-				m_rasterizer = new RAS_ListRasterizer(m_canvas, RAS_VA);
-			else
-				m_rasterizer = new RAS_ListRasterizer(m_canvas, RAS_IMMEDIATE);
-		}
-		else if (GLEW_ARB_vertex_buffer_object)
-			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, RAS_VBO);
-		else if (GLEW_VERSION_1_1)
-			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, RAS_VA);
+		if(useLists)
+			m_rasterizer = new RAS_ListRasterizer(m_canvas, false, gm->raster_storage);
 		else
-			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, RAS_IMMEDIATE);
+			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, gm->raster_storage);
 
 		/* Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI */
 		m_rasterizer->SetStereoMode((RAS_IRasterizer::StereoMode) stereoMode);
