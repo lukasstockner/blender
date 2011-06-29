@@ -59,7 +59,6 @@
 
 #include "RAS_GLExtensionManager.h"
 #include "RAS_OpenGLRasterizer.h"
-#include "RAS_VAOpenGLRasterizer.h"
 #include "RAS_ListRasterizer.h"
 
 #include "NG_LoopBackNetworkDeviceInterface.h"
@@ -205,9 +204,9 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 				rasterizer = new RAS_ListRasterizer(canvas);
 		}
 		else if (GLEW_VERSION_1_1 && !novertexarrays)
-			rasterizer = new RAS_VAOpenGLRasterizer(canvas, false);
+			rasterizer = new RAS_OpenGLRasterizer(canvas, RAS_VA);
 		else
-			rasterizer = new RAS_OpenGLRasterizer(canvas);
+			rasterizer = new RAS_OpenGLRasterizer(canvas, RAS_IMMEDIATE);
 		
 		// create the inputdevices
 		KX_BlenderKeyboardDevice* keyboarddevice = new KX_BlenderKeyboardDevice();

@@ -78,7 +78,6 @@ extern "C"
 #include "SCA_IActuator.h"
 #include "RAS_MeshObject.h"
 #include "RAS_OpenGLRasterizer.h"
-#include "RAS_VAOpenGLRasterizer.h"
 #include "RAS_ListRasterizer.h"
 #include "RAS_GLExtensionManager.h"
 #include "KX_PythonInit.h"
@@ -574,9 +573,9 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 				m_rasterizer = new RAS_ListRasterizer(m_canvas);
 		}
 		else if (GLEW_VERSION_1_1)
-			m_rasterizer = new RAS_VAOpenGLRasterizer(m_canvas);
+			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, RAS_VA);
 		else
-			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas);
+			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, RAS_IMMEDIATE);
 
 		/* Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI */
 		m_rasterizer->SetStereoMode((RAS_IRasterizer::StereoMode) stereoMode);
