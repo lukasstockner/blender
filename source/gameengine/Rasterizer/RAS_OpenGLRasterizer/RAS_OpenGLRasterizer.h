@@ -297,10 +297,6 @@ public:
 
 	virtual void	SetBlendingMode(int blendmode);
 	virtual void	SetFrontFace(bool ccw);
-
-	// updates mesh data (vbo addition)
-	virtual void	UpdateMeshSlotData(class RAS_MeshSlot *ms,
-		const bool &anim, const bool &zsort);	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
 public:

@@ -30,23 +30,52 @@
 #ifndef __KX_VERTEXBUFFEROBJECTSTORAGE
 #define __KX_VERTEXBUFFEROBJECTSTORAGE
 
+#include <map>
+#include "GL/glew.h"
+
 #include "RAS_IStorage.h"
 #include "RAS_IRasterizer.h"
 
 #include "RAS_OpenGLRasterizer.h"
 
+class VBO
+{
+public:
+	VBO(RAS_DisplayArray *data, unsigned int indices);
+	~VBO();
+
+	void	Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, RAS_IRasterizer::TexCoGen* attrib, bool multi);
+
+	void	UpdatePositions();
+	void	UpdateNormals();
+	void	UpdateUVs();
+	void	UpdateTangents();
+	void	UpdateIndices();
+private:
+	RAS_DisplayArray*	data;
+	GLuint			size;
+	GLuint			dummy;
+	GLuint			indices;
+	GLenum			mode;
+	GLuint			ibo;
+	GLuint			vertex;
+	GLuint			normal;
+	GLuint			UV[2];
+	GLuint			tangent;
+};
+
 class RAS_StorageVBO : public RAS_IStorage
 {
 
 public:
-	RAS_StorageVBO(RAS_IRasterizer *rasty, int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib);
+	RAS_StorageVBO(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib);
 	virtual ~RAS_StorageVBO();
 
 	virtual bool	Init();
 	virtual void	Exit();
 
 	virtual void	IndexPrimitives(RAS_MeshSlot& ms);
-	virtual void	IndexPrimitivesMulti(class RAS_MeshSlot& ms);
+	virtual void	IndexPrimitivesMulti(RAS_MeshSlot& ms);
 
 	virtual void	SetDrawingMode(int drawingmode){m_drawingmode=drawingmode;};
 
@@ -56,23 +85,12 @@ protected:
 	int*			m_texco_num;
 	int*			m_attrib_num;
 
-	int				m_last_texco_num;
-	int				m_last_attrib_num;
-
 	RAS_IRasterizer::TexCoGen*		m_texco;
 	RAS_IRasterizer::TexCoGen*		m_attrib;
 
-	RAS_IRasterizer::TexCoGen		m_last_texco[RAS_MAX_TEXCO];
-	RAS_IRasterizer::TexCoGen		m_last_attrib[RAS_MAX_ATTRIB];
+	std::map<RAS_DisplayArray*, class VBO*>	m_vbo_lookup;
 
-	RAS_IRasterizer*				m_rasty;
-
-	virtual void	EnableTextures(bool enable);
-	virtual void	TexCoordPtr(class RAS_DisplayArray *area);
-	virtual void	InitVboSlot(class RAS_DisplayArray* array, class RAS_MeshSlot *ms);
-
-	virtual void	ClearVboSlot(class RAS_VboSlot *slot);
-
+	virtual void			IndexPrimitivesInternal(RAS_MeshSlot& ms, bool multi);
 
 #ifdef WITH_CXX_GUARDEDALLOC
 public:

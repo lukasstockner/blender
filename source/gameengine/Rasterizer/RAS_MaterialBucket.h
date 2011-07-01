@@ -77,33 +77,6 @@ class RAS_MeshMaterial;
 class RAS_MaterialBucket;
 struct DerivedMesh;
 
-/* Vertex Buffer Object data used for OpenGL drawing */
-class RAS_VboSlot
-{
-public:
-	RAS_IRasterizer *m_rasty;
-	/* vertex buffer object handles for drawing */
-	unsigned int m_vertVbo;
-	unsigned int m_indexVbo;
-	unsigned int m_normalVbo;
-	unsigned int m_tangentVbo;
-	unsigned int m_colorVbo;
-	/* allow up to four texture coordinate sets */
-	unsigned int m_texCoordVbo[2];
-	/* m_verts only exists if the mesh is deformable.
-	glBufferSubDataARB is used for updating the vertices
-	and this function doesn't take stride parameter, so all of
-	the vertice data has to be passed to an new array and THEN
-	uploaded to the vbo. glMapBuffer could be an alternative,
-	but it doesn't return untill the GPU has processed the previous
-	data, so this might be the fastest way. */
-	float *m_verts;
-
-	RAS_VboSlot(RAS_IRasterizer *rasty);
-	~RAS_VboSlot();
-};
-
-
 /* An array with data used for OpenGL drawing */
 
 class RAS_DisplayArray
@@ -114,16 +87,12 @@ public:
 	/* LINE currently isnt used */
 	enum { LINE = 2, TRIANGLE = 3, QUAD = 4 } m_type;
 	//RAS_MeshSlot *m_origSlot;
-	RAS_VboSlot *m_vboSlot;
 	
 	/* Number of RAS_MeshSlot using this array */
 	int m_users;
 
 	enum { BUCKET_MAX_INDEX = 65535 };
 	enum { BUCKET_MAX_VERTEX = 65535 };
-	
-	RAS_DisplayArray() : m_vboSlot(0) {};
-	~RAS_DisplayArray() {if(m_vboSlot) delete m_vboSlot;}
 };
 
 /* Entry of a RAS_MeshObject into RAS_MaterialBucket */
@@ -178,7 +147,6 @@ public:
 	struct iterator {
 		RAS_DisplayArray *array;
 		RAS_TexVert *vertex;
-		RAS_VboSlot *vboslot;
 		unsigned short *index;
 		size_t startvertex;
 		size_t endvertex;
