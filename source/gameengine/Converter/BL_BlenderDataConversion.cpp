@@ -1594,6 +1594,11 @@ void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	objprop.m_dyna = (blenderobject->gameflag & OB_DYNAMIC) != 0;
 	objprop.m_softbody = (blenderobject->gameflag & OB_SOFT_BODY) != 0;
 	objprop.m_angular_rigidbody = (blenderobject->gameflag & OB_RIGID_BODY) != 0;
+
+	// Get collision mask information and store it in the upper 8 bits
+	// The lower 8 bits are reserved for internal blender usage
+	objprop.m_col_group = blenderobject->col_group << 8;
+	objprop.m_col_mask = blenderobject->col_mask << 8;
 	
 	///contact processing threshold is only for rigid bodies and static geometry, not 'dynamic'
 	if (objprop.m_angular_rigidbody || !objprop.m_dyna )

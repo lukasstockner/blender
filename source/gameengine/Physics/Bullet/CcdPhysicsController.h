@@ -221,7 +221,7 @@ struct CcdConstructionInfo
 	        KinematicFilter = 4,
 	        DebrisFilter = 8,
 			SensorFilter = 16,
-	        AllFilter = DefaultFilter | StaticFilter | KinematicFilter | DebrisFilter | SensorFilter,
+	        AllFilter = StaticFilter | KinematicFilter | DebrisFilter | SensorFilter,
 	};
 
 

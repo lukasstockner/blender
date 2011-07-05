@@ -402,12 +402,12 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 	////////////////////
 	ci.m_collisionFilterGroup = 
 		(isbulletsensor) ? short(CcdConstructionInfo::SensorFilter) :
-		(isbulletdyna) ? short(CcdConstructionInfo::DefaultFilter) : 
 		short(CcdConstructionInfo::StaticFilter);
+	ci.m_collisionFilterGroup = objprop->m_col_group;
 	ci.m_collisionFilterMask = 
 		(isbulletsensor) ? short(CcdConstructionInfo::AllFilter ^ CcdConstructionInfo::SensorFilter) :
-		(isbulletdyna) ? short(CcdConstructionInfo::AllFilter) : 
 		short(CcdConstructionInfo::AllFilter ^ CcdConstructionInfo::StaticFilter);
+	ci.m_collisionFilterMask = objprop->m_col_mask;
 	ci.m_bRigid = objprop->m_dyna && objprop->m_angular_rigidbody;
 	
 	ci.m_contactProcessingThreshold = objprop->m_contactProcessingThreshold;//todo: expose this in advanced settings, just like margin, default to 10000 or so

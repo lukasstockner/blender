@@ -11658,6 +11658,13 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 
 		{
+			/* Initialize default values for collision masks */
+			Object *ob;
+			for(ob=main->object.first; ob; ob=ob->id.next)
+				ob->col_group = ob->col_mask = 1;
+		}
+
+		{
 			/* add default value for behind strength of camera actuator */
 			Object *ob;
 			bActuator *act;

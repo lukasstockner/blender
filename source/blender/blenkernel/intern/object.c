@@ -1078,6 +1078,7 @@ Object *add_only_object(int type, const char *name)
 	ob->state=1;
 	/* ob->pad3 == Contact Processing Threshold */
 	ob->m_contactProcessingThreshold = 1.;
+	ob->col_group = ob->col_mask = 1;
 	
 	/* NT fluid sim defaults */
 	ob->fluidsimFlag = 0;

@@ -82,6 +82,11 @@ struct KX_ObjectProperties
 
 	/////////////////////////
 
+	short	m_col_group;
+	short	m_col_mask;
+
+	/////////////////////////
+
 	int		m_gamesoftFlag;
 	float	m_soft_linStiff;			/* linear stiffness 0..1 */
 	float	m_soft_angStiff;		/* angular stiffness 0..1 */
