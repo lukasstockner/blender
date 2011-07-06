@@ -1064,6 +1064,36 @@ void KX_GameObject::NodeSetRelativeScale(const MT_Vector3& scale)
 	}
 }
 
+void KX_GameObject::NodeSetWorldScale(const MT_Vector3& scale)
+{
+	if (!GetSGNode())
+		return;
+	SG_Node* parent = GetSGNode()->GetSGParent();
+	if (parent != NULL)
+	{
+		// Make sure the objects have some scale
+		MT_Vector3 p_scale = parent->GetWorldScaling();
+		if (fabs(p_scale[0]) < FLT_EPSILON || 
+			fabs(p_scale[1]) < FLT_EPSILON || 
+			fabs(p_scale[2]) < FLT_EPSILON)
+		{ 
+			return; 
+		}
+
+		MT_Vector3 *local = new MT_Vector3(scale);
+
+		p_scale[0] = 1/p_scale[0];
+		p_scale[1] = 1/p_scale[1];
+		p_scale[2] = 1/p_scale[2];
+
+		NodeSetLocalScale(scale * p_scale);
+	}
+	else
+	{
+		NodeSetLocalScale(scale);
+	}
+}
+
 void KX_GameObject::NodeSetWorldPosition(const MT_Point3& trans)
 {
 	if (!GetSGNode())
@@ -1525,7 +1555,7 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("localPosition",	KX_GameObject, pyattr_get_localPosition,	pyattr_set_localPosition),
 	KX_PYATTRIBUTE_RW_FUNCTION("worldPosition",	KX_GameObject, pyattr_get_worldPosition,    pyattr_set_worldPosition),
 	KX_PYATTRIBUTE_RW_FUNCTION("localScale",	KX_GameObject, pyattr_get_localScaling,	pyattr_set_localScaling),
-	KX_PYATTRIBUTE_RO_FUNCTION("worldScale",	KX_GameObject, pyattr_get_worldScaling),
+	KX_PYATTRIBUTE_RW_FUNCTION("worldScale",	KX_GameObject, pyattr_get_worldScaling, pyattr_set_worldScaling),
 	KX_PYATTRIBUTE_RW_FUNCTION("linearVelocity", KX_GameObject, pyattr_get_localLinearVelocity, pyattr_set_worldLinearVelocity),
 	KX_PYATTRIBUTE_RW_FUNCTION("localLinearVelocity", KX_GameObject, pyattr_get_localLinearVelocity, pyattr_set_localLinearVelocity),
 	KX_PYATTRIBUTE_RW_FUNCTION("worldLinearVelocity", KX_GameObject, pyattr_get_worldLinearVelocity, pyattr_set_worldLinearVelocity),
@@ -2015,6 +2045,18 @@ PyObject* KX_GameObject::pyattr_get_worldScaling(void *self_v, const KX_PYATTRIB
 	KX_GameObject* self= static_cast<KX_GameObject*>(self_v);
 	return PyObjectFrom(self->NodeGetWorldScaling());
 #endif
+}
+
+int KX_GameObject::pyattr_set_worldScaling(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_GameObject* self= static_cast<KX_GameObject*>(self_v);
+	MT_Vector3 scale;
+	if (!PyVecTo(value, scale))
+		return PY_SET_ATTR_FAIL;
+
+	self->NodeSetWorldScale(scale);
+	self->NodeUpdateGS(0.f);
+	return PY_SET_ATTR_SUCCESS;
 }
 
 PyObject* KX_GameObject::pyattr_get_localScaling(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

@@ -404,6 +404,7 @@ public:
 	void	NodeSetGlobalOrientation(const MT_Matrix3x3& rot	);
 
 	void	NodeSetLocalScale(	const MT_Vector3& scale	);
+	void	NodeSetWorldScale(	const MT_Vector3& scale );
 
 	void	NodeSetRelativeScale(	const MT_Vector3& scale	);
 
@@ -881,6 +882,7 @@ public:
 	static PyObject*	pyattr_get_localOrientation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_localOrientation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_worldScaling(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_worldScaling(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_localScaling(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_localScaling(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_worldLinearVelocity(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
