@@ -2106,12 +2106,19 @@ int KX_GameObject::pyattr_set_transform(void *self_v, const KX_PYATTRIBUTE_DEF *
 	MT_Vector3 y = MT_Vector3(transform[0][1], transform[1][1], transform[2][1]);
 	MT_Vector3 z = MT_Vector3(transform[0][2], transform[1][2], transform[2][2]);
 
+	MT_Matrix3x3 rot = MT_Matrix3x3(x[0], y[0], z[0], x[1], y[1], z[1], x[2], y[2], z[2]);
 	MT_Vector3 scale = MT_Vector3(x.length(), y.length(), z.length());
+
+	// If the determinant of the 3x3 submatrix is negative, we need to flip an arbitrary axis' scale value
+	// to account for negative scaling
+	if (rot[0][0]*rot[1][1]*rot[2][2] + rot[0][1]*rot[1][2]*rot[2][0] + rot[0][2]*rot[1][0]*rot[2][1] -
+		rot[0][0]*rot[1][2]*rot[2][1] - rot[0][1]*rot[1][0]*rot[2][2] - rot[0][2]*rot[1][1]*rot[2][0] < 0)
+		scale[0] *= -1;
+
 	self->NodeSetWorldScale(scale);
 
 	// Decompose rotation
 	MT_Matrix3x3 scale_mat = MT_Matrix3x3(scale[0], 0, 0,   0, scale[1], 0,   0, 0, scale[2]).inverse();
-	MT_Matrix3x3 rot = MT_Matrix3x3(x[0], y[0], z[0], x[1], y[1], z[1], x[2], y[2], z[2]);
 	rot = rot * scale_mat;
 	self->NodeSetGlobalOrientation(rot);
 
