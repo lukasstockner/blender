@@ -1556,7 +1556,8 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("worldPosition",	KX_GameObject, pyattr_get_worldPosition,    pyattr_set_worldPosition),
 	KX_PYATTRIBUTE_RW_FUNCTION("localScale",	KX_GameObject, pyattr_get_localScaling,	pyattr_set_localScaling),
 	KX_PYATTRIBUTE_RW_FUNCTION("worldScale",	KX_GameObject, pyattr_get_worldScaling, pyattr_set_worldScaling),
-	KX_PYATTRIBUTE_RW_FUNCTION("transform",		KX_GameObject, pyattr_get_transform, pyattr_set_transform),
+	KX_PYATTRIBUTE_RW_FUNCTION("localTransform",		KX_GameObject, pyattr_get_localTransform, pyattr_set_localTransform),
+	KX_PYATTRIBUTE_RW_FUNCTION("worldTransform",		KX_GameObject, pyattr_get_worldTransform, pyattr_set_worldTransform),
 	KX_PYATTRIBUTE_RW_FUNCTION("linearVelocity", KX_GameObject, pyattr_get_localLinearVelocity, pyattr_set_worldLinearVelocity),
 	KX_PYATTRIBUTE_RW_FUNCTION("localLinearVelocity", KX_GameObject, pyattr_get_localLinearVelocity, pyattr_set_localLinearVelocity),
 	KX_PYATTRIBUTE_RW_FUNCTION("worldLinearVelocity", KX_GameObject, pyattr_get_worldLinearVelocity, pyattr_set_worldLinearVelocity),
@@ -2082,14 +2083,69 @@ int KX_GameObject::pyattr_set_localScaling(void *self_v, const KX_PYATTRIBUTE_DE
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject* KX_GameObject::pyattr_get_transform(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject* KX_GameObject::pyattr_get_localTransform(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
+
+	double *mat = MT_CmMatrix4x4().getPointer();
+
+	MT_Transform trans;
+	
+	trans.setOrigin(self->GetSGNode()->GetLocalPosition());
+	trans.setBasis(self->GetSGNode()->GetLocalOrientation());
+	
+	MT_Vector3 scaling = self->GetSGNode()->GetLocalScale();
+	trans.scale(scaling[0], scaling[1], scaling[2]);
+
+	trans.getValue(mat);
+
+	return PyObjectFrom(MT_Matrix4x4(mat));
+}
+
+int KX_GameObject::pyattr_set_localTransform(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
+	MT_Matrix4x4 transform;
+	if (!PyMatTo(value, transform))
+		return PY_SET_ATTR_FAIL;
+
+	// Decompose translation
+	MT_Point3 translation = MT_Point3();
+	translation.setValue(transform[0][3], transform[1][3], transform[2][3]);
+	self->NodeSetLocalPosition(translation);
+
+	// Decompose scale
+	MT_Vector3 x = MT_Vector3(transform[0][0], transform[1][0], transform[2][0]);
+	MT_Vector3 y = MT_Vector3(transform[0][1], transform[1][1], transform[2][1]);
+	MT_Vector3 z = MT_Vector3(transform[0][2], transform[1][2], transform[2][2]);
+
+	MT_Matrix3x3 rot = MT_Matrix3x3(x[0], y[0], z[0], x[1], y[1], z[1], x[2], y[2], z[2]);
+	MT_Vector3 scale = MT_Vector3(x.length(), y.length(), z.length());
+
+	// If the determinant of the 3x3 submatrix is negative, we need to flip an arbitrary axis' scale value
+	// to account for negative scaling
+	if (rot[0][0]*rot[1][1]*rot[2][2] + rot[0][1]*rot[1][2]*rot[2][0] + rot[0][2]*rot[1][0]*rot[2][1] -
+		rot[0][0]*rot[1][2]*rot[2][1] - rot[0][1]*rot[1][0]*rot[2][2] - rot[0][2]*rot[1][1]*rot[2][0] < 0)
+		scale[0] *= -1;
+
+	self->NodeSetLocalScale(scale);
+
+	// Decompose rotation
+	MT_Matrix3x3 scale_mat = MT_Matrix3x3(scale[0], 0, 0,   0, scale[1], 0,   0, 0, scale[2]).inverse();
+	rot = rot * scale_mat;
+	self->NodeSetLocalOrientation(rot);
+
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject* KX_GameObject::pyattr_get_worldTransform(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
 
 	return PyObjectFrom(MT_Matrix4x4(self->GetOpenGLMatrix()));
 }
 
-int KX_GameObject::pyattr_set_transform(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_GameObject::pyattr_set_worldTransform(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
 	MT_Matrix4x4 transform;
