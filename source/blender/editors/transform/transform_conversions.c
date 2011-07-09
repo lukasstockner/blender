@@ -690,7 +690,7 @@ int count_set_pose_transflags(int *out_mode, short around, Object *ob)
 	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		bone = pchan->bone;
 		if (PBONE_VISIBLE(arm, bone)) {
-			if ((bone->flag & BONE_SELECTED) && !(ob->proxy && pchan->bone->layer & arm->layer_protected))
+			if ((bone->flag & BONE_SELECTED))
 				bone->flag |= BONE_TRANSFORM;
 			else
 				bone->flag &= ~BONE_TRANSFORM;
@@ -4995,6 +4995,8 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 
 		/* automatic inserting of keys and unkeyed tagging - only if transform wasn't cancelled (or TFM_DUMMY) */
 		if (!cancelled && (t->mode != TFM_DUMMY)) {
+			/* set BONE_TRANSFORM flags, they get changed by manipulator draw */
+			count_set_pose_transflags(&t->mode, t->around, ob);
 			autokeyframe_pose_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode, targetless_ik);
 			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		}

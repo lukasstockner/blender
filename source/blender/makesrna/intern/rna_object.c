@@ -270,11 +270,16 @@ static void rna_Base_select_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Po
 static void rna_Object_layer_update__internal(Main *bmain, Scene *scene, Base *base, Object *ob)
 {
 	/* try to avoid scene sort */
-	if((ob->lay & scene->lay) && (base->lay & scene->lay)) {
+	if(scene == NULL) {
+		/* pass - unlikely but when running scripts on startup it happens */
+	}
+	else if((ob->lay & scene->lay) && (base->lay & scene->lay)) {
 		 /* pass */
-	} else if((ob->lay & scene->lay)==0 && (base->lay & scene->lay)==0) {
+	}
+	else if((ob->lay & scene->lay)==0 && (base->lay & scene->lay)==0) {
 		/* pass */
-	} else {
+	}
+	else {
 		DAG_scene_sort(bmain, scene);
 	}
 }
@@ -284,7 +289,7 @@ static void rna_Object_layer_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 	Object *ob= (Object*)ptr->id.data;
 	Base *base;
 
-	base= object_in_scene(ob, scene);
+	base= scene ? object_in_scene(ob, scene) : NULL;
 	if(!base)
 		return;
 	
@@ -1082,8 +1087,13 @@ static void rna_Object_active_shape_key_index_range(PointerRNA *ptr, int *min, i
 	Key *key= ob_get_key(ob);
 
 	*min= 0;
-	*max= (key)? BLI_countlist(&key->block)-1: 0;
-	*max= MAX2(0, *max);
+	if(key) {
+		*max= BLI_countlist(&key->block)-1;
+		if(*max < 0) *max= 0;
+	}
+	else {
+		*max= 0;
+	}
 }
 
 static int rna_Object_active_shape_key_index_get(PointerRNA *ptr)
@@ -1898,7 +1908,6 @@ static void rna_def_object(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "parent_vertices", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "par1");
 	RNA_def_property_array(prop, 3);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Parent Vertices", "Indices of vertices in cases of a vertex parenting relation");
 	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, "rna_Object_internal_update");
 

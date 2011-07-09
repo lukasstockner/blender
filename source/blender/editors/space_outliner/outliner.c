@@ -480,6 +480,10 @@ static void outliner_add_passes(SpaceOops *soops, TreeElement *tenla, ID *id, Sc
 	te->name= "Index Object";
 	te->directdata= &srl->passflag;
 	
+	te= outliner_add_element(soops, &tenla->subtree, id, tenla, TSE_R_PASS, LOG2I(SCE_PASS_INDEXMA));
+	te->name= "Index Material";
+	te->directdata= &srl->passflag;
+
 	te= outliner_add_element(soops, &tenla->subtree, id, tenla, TSE_R_PASS, LOG2I(SCE_PASS_RGBA));
 	te->name= "Color";
 	te->directdata= &srl->passflag;
@@ -4737,7 +4741,7 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 		
 		if(!(ELEM(tselem->type, TSE_RNA_PROPERTY, TSE_RNA_ARRAY_ELEM))) {
 			// icons a bit higher
-			tselem_draw_icon(block, xmax, (float)startx+offsx, (float)*starty+2*ufac, tselem, te, 1.0f);
+			tselem_draw_icon(block, xmax, (float)startx+offsx - 0.5f*ufac, (float)*starty+2.0f*ufac, tselem, te, 1.0f);
 			
 			offsx+= UI_UNIT_X;
 		}
@@ -4902,7 +4906,7 @@ static void outliner_draw_tree(bContext *C, uiBlock *block, Scene *scene, ARegio
 	outliner_draw_selection(ar, soops, &soops->tree, &starty);
 	
 	// grey hierarchy lines
-	UI_ThemeColorBlend(TH_BACK, TH_TEXT, 0.2f);
+	UI_ThemeColorBlend(TH_BACK, TH_TEXT, 0.4f);
 	starty= (int)ar->v2d.tot.ymax-UI_UNIT_Y/2-OL_Y_OFFSET;
 	startx= 6;
 	outliner_draw_hierarchy(soops, &soops->tree, startx, &starty);

@@ -132,7 +132,7 @@ class QuickExplode(bpy.types.Operator):
         fake_context = bpy.context.copy()
         obj_act = context.active_object
 
-        if obj_act.type != 'MESH':
+        if obj_act is None or obj_act.type != 'MESH':
             self.report({'ERROR'}, "Active object is not a mesh")
             return {'CANCELLED'}
 
@@ -243,6 +243,7 @@ class QuickExplode(bpy.types.Operator):
         self.frame_start = context.scene.frame_current
         self.frame_end = self.frame_start + self.frame_duration
         return self.execute(context)
+
 
 def obj_bb_minmax(obj, min_co, max_co):
     for i in range(0, 8):

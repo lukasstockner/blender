@@ -155,6 +155,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 	BPY_python_start(argc, argv);
 
 	BPY_driver_reset();
+	BPY_app_handlers_reset();
 	BPY_modules_load_user(C);
 #else
 	(void)argc; /* unused */
@@ -415,7 +416,7 @@ void WM_exit(bContext *C)
 	BPY_python_end();
 #endif
 
-	GPU_buffer_pool_free(NULL);
+	GPU_global_buffer_pool_free();
 	GPU_free_unused_buffers();
 	GPU_extensions_exit();
 	

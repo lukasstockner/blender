@@ -179,7 +179,9 @@ static struct _inittab bpy_internal_modules[]= {
 //	{(char *)"mathutils.geometry", BPyInit_mathutils_geometry},
 	{(char *)"bgl", BPyInit_bgl},
 	{(char *)"blf", BPyInit_blf},
+#ifdef WITH_AUDASPACE
 	{(char *)"aud", AUD_initPython},
+#endif
 	{NULL, NULL}
 };
 
@@ -200,14 +202,12 @@ void BPY_python_start(int argc, const char **argv)
 	/* allow to use our own included python */
 	PyC_SetHomePath(BLI_get_folder(BLENDER_SYSTEM_PYTHON, NULL));
 
-	/* Python 3.2 now looks for '2.57/python/include/python3.2d/pyconfig.h' to parse
+	/* Python 3.2 now looks for '2.58/python/include/python3.2d/pyconfig.h' to parse
 	 * from the 'sysconfig' module which is used by 'site', so for now disable site.
 	 * alternatively we could copy the file. */
 	Py_NoSiteFlag= 1;
 
 	Py_Initialize();
-
-	bpy_intern_string_init();
 
 	// PySys_SetArgv(argc, argv); // broken in py3, not a huge deal
 	/* sigh, why do python guys not have a char** version anymore? :( */
@@ -230,6 +230,8 @@ void BPY_python_start(int argc, const char **argv)
 	/* must run before python initializes */
 	PyImport_ExtendInittab(bpy_internal_modules);
 #endif
+
+	bpy_intern_string_init();
 
 	/* bpy.* and lets us import it */
 	BPy_init_modules();
