@@ -36,8 +36,6 @@
 #include "KX_Scene.h"
 #include "KX_PythonInit.h"
 #include "BLI_math.h"
-#include "MT_Vector3.h"
-#include "MT_Matrix3x3.h"
 
 extern "C" {
 #include "BLF_api.h"
@@ -79,6 +77,7 @@ KX_FontObject::KX_FontObject(	void* sgReplicationInfo,
 	m_text = split_string(text->str);
 	m_fsize = text->fsize;
 	m_line_spacing = text->linedist;
+	m_offset = MT_Vector3(text->xof, text->yof, 0);
 
 	/* FO_BUILTIN_NAME != "default"	*/
 	/* I hope at some point Blender (2.5x) can have a single font	*/
@@ -132,10 +131,19 @@ void KX_FontObject::DrawText()
 	float size = m_fsize * m_object->size[0] * RES;
 	float aspect = 1.f / (m_object->size[0] * RES);
 
-	MT_Vector3 spacing = MT_Vector3(0, m_fsize*m_line_spacing, 0);
-	spacing =this->NodeGetWorldOrientation() * spacing;
+	// Get a working copy of the OpenGLMatrix to use
 	double mat[16];
 	memcpy(mat, this->GetOpenGLMatrix(), sizeof(double)*16);
+
+	//Account for offset
+	MT_Vector3 offset = this->NodeGetWorldOrientation() * m_offset;
+	mat[12] += offset[0]; mat[13] += offset[1]; mat[14] += offset[2];
+
+	//Orient the spacing vector
+	MT_Vector3 spacing = MT_Vector3(0, m_fsize*m_line_spacing, 0);
+	spacing =this->NodeGetWorldOrientation() * spacing;
+
+	//Draw each line, taking spacing into consideration
 	for(int i=0; i<m_text.size(); ++i)
 	{
 		if (i!=0)
