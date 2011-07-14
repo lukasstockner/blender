@@ -36,6 +36,8 @@
 #include "KX_Scene.h"
 #include "KX_PythonInit.h"
 #include "BLI_math.h"
+#include "MT_Vector3.h"
+#include "MT_Matrix3x3.h"
 
 extern "C" {
 #include "BLF_api.h"
@@ -76,6 +78,7 @@ KX_FontObject::KX_FontObject(	void* sgReplicationInfo,
 	Curve *text = static_cast<Curve *> (ob->data);
 	m_text = split_string(text->str);
 	m_fsize = text->fsize;
+	m_line_spacing = text->linedist;
 
 	/* FO_BUILTIN_NAME != "default"	*/
 	/* I hope at some point Blender (2.5x) can have a single font	*/
@@ -123,17 +126,24 @@ void KX_FontObject::DrawText()
 	/* update the animated color */
 	this->GetObjectColor().getValue(m_color);
 
-	/* XXX 2DO - handle multiple lines */
 	/* HARDCODED MULTIPLICATION FACTOR - this will affect the render resolution directly */
 	float RES = BGE_FONT_RES * m_resolution;
 
 	float size = m_fsize * m_object->size[0] * RES;
 	float aspect = 1.f / (m_object->size[0] * RES);
+
+	MT_Vector3 spacing = MT_Vector3(0, m_fsize*m_line_spacing, 0);
+	spacing =this->NodeGetWorldOrientation() * spacing;
 	double mat[16];
+	memcpy(mat, this->GetOpenGLMatrix(), sizeof(double)*16);
 	for(int i=0; i<m_text.size(); ++i)
 	{
-		memcpy(mat, this->GetOpenGLMatrix(), sizeof(double)*16);
-		mat[13] -= i;
+		if (i!=0)
+		{
+			mat[12] -= spacing[0];
+			mat[13] -= spacing[1];
+			mat[14] -= spacing[2];
+		}
 		m_rendertools->RenderText3D(m_fontid, m_text[i], int(size), m_dpi, m_color, mat, aspect);
 	}
 }

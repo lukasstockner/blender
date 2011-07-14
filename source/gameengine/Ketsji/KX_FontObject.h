@@ -66,6 +66,7 @@ protected:
 	float			m_fsize;
 	float			m_resolution;
 	float			m_color[4];
+	float			m_line_spacing;
 
 	class RAS_IRenderTools*	m_rendertools;	//needed for drawing routine
 
