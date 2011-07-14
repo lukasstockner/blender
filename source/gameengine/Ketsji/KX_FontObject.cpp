@@ -43,6 +43,26 @@ extern "C" {
 
 #define BGE_FONT_RES 100
 
+std::vector<STR_String> split_string(STR_String str)
+{
+	std::vector<STR_String> text = std::vector<STR_String>();
+
+	/* Split the string upon new lines */
+	int begin=0, end=0;
+	while (end < str.Length())
+	{
+		if(str.GetAt(end) == '\n')
+		{
+			text.push_back(str.Mid(begin, end-begin));
+			begin = end+1;
+		}
+		end++;
+	}
+	//Now grab the last line
+	text.push_back(str.Mid(begin, end-begin));
+
+	return text;
+}
 KX_FontObject::KX_FontObject(	void* sgReplicationInfo,
 								SG_Callbacks callbacks,
 								RAS_IRenderTools* rendertools,
@@ -54,21 +74,7 @@ KX_FontObject::KX_FontObject(	void* sgReplicationInfo,
 	m_rendertools(rendertools)
 {
 	Curve *text = static_cast<Curve *> (ob->data);
-
-	/* Split the string upon new lines */
-	int begin=0, end=0;
-	STR_String str = STR_String(text->str);
-	while (end < str.Length())
-	{
-		if(str.GetAt(end) == '\n')
-		{
-			m_text.push_back(str.Mid(begin, end-begin));
-			begin = end+1;
-		}
-		end++;
-	}
-	//Now grab the last line
-	m_text.push_back(str.Mid(begin, end-begin));
+	m_text = split_string(text->str);
 	m_fsize = text->fsize;
 
 	/* FO_BUILTIN_NAME != "default"	*/
@@ -172,10 +178,34 @@ PyMethodDef KX_FontObject::Methods[] = {
 
 PyAttributeDef KX_FontObject::Attributes[] = {
 	//KX_PYATTRIBUTE_STRING_RW("text", 0, 280, false, KX_FontObject, m_text[0]), //arbitrary limit. 280 = 140 unicode chars in unicode
+	KX_PYATTRIBUTE_RW_FUNCTION("text", KX_FontObject, pyattr_get_text, pyattr_set_text),
 	KX_PYATTRIBUTE_FLOAT_RW("size", 0.0001f, 10000.0f, KX_FontObject, m_fsize),
 	KX_PYATTRIBUTE_FLOAT_RW("resolution", 0.0001f, 10000.0f, KX_FontObject, m_resolution),
 	/* KX_PYATTRIBUTE_INT_RW("dpi", 0, 10000, false, KX_FontObject, m_dpi), */// no real need for expose this I think
 	{ NULL }	//Sentinel
 };
+
+PyObject* KX_FontObject::pyattr_get_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_FontObject* self= static_cast<KX_FontObject*>(self_v);
+	STR_String str = STR_String();
+	for(int i=0; i<self->m_text.size(); ++i)
+	{
+		if(i!=0)
+			str += '\n';
+		str += self->m_text[i];
+	}
+	return PyUnicode_FromString(str.ReadPtr());
+}
+
+int KX_FontObject::pyattr_set_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_FontObject* self= static_cast<KX_FontObject*>(self_v);
+	if(!PyUnicode_Check(value))
+		return PY_SET_ATTR_FAIL;
+	char* chars = _PyUnicode_AsString(value);
+	self->m_text = split_string(STR_String(chars));
+	return PY_SET_ATTR_SUCCESS;
+}
 
 #endif // WITH_PYTHON
