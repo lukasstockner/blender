@@ -54,7 +54,21 @@ KX_FontObject::KX_FontObject(	void* sgReplicationInfo,
 	m_rendertools(rendertools)
 {
 	Curve *text = static_cast<Curve *> (ob->data);
-	m_text = text->str;
+
+	/* Split the string upon new lines */
+	int begin=0, end=0;
+	STR_String str = STR_String(text->str);
+	while (end < str.Length())
+	{
+		if(str.GetAt(end) == '\n')
+		{
+			m_text.push_back(str.Mid(begin, end-begin));
+			begin = end+1;
+		}
+		end++;
+	}
+	//Now grab the last line
+	m_text.push_back(str.Mid(begin, end-begin));
 	m_fsize = text->fsize;
 
 	/* FO_BUILTIN_NAME != "default"	*/
@@ -109,8 +123,13 @@ void KX_FontObject::DrawText()
 
 	float size = m_fsize * m_object->size[0] * RES;
 	float aspect = 1.f / (m_object->size[0] * RES);
-
-	m_rendertools->RenderText3D(m_fontid, m_text, int(size), m_dpi, m_color, this->GetOpenGLMatrix(), aspect);
+	double mat[16];
+	for(int i=0; i<m_text.size(); ++i)
+	{
+		memcpy(mat, this->GetOpenGLMatrix(), sizeof(double)*16);
+		mat[13] -= i;
+		m_rendertools->RenderText3D(m_fontid, m_text[i], int(size), m_dpi, m_color, mat, aspect);
+	}
 }
 
 #ifdef WITH_PYTHON
@@ -152,7 +171,7 @@ PyMethodDef KX_FontObject::Methods[] = {
 };
 
 PyAttributeDef KX_FontObject::Attributes[] = {
-	KX_PYATTRIBUTE_STRING_RW("text", 0, 280, false, KX_FontObject, m_text), //arbitrary limit. 280 = 140 unicode chars in unicode
+	//KX_PYATTRIBUTE_STRING_RW("text", 0, 280, false, KX_FontObject, m_text[0]), //arbitrary limit. 280 = 140 unicode chars in unicode
 	KX_PYATTRIBUTE_FLOAT_RW("size", 0.0001f, 10000.0f, KX_FontObject, m_fsize),
 	KX_PYATTRIBUTE_FLOAT_RW("resolution", 0.0001f, 10000.0f, KX_FontObject, m_resolution),
 	/* KX_PYATTRIBUTE_INT_RW("dpi", 0, 10000, false, KX_FontObject, m_dpi), */// no real need for expose this I think

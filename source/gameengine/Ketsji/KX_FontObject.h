@@ -59,7 +59,7 @@ public:
 	virtual void ProcessReplica();
 
 protected:
-	STR_String		m_text;
+	std::vector<STR_String>		m_text;
 	Object*			m_object;
 	int			m_fontid;
 	int			m_dpi;
