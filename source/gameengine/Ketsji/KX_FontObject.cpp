@@ -119,6 +119,10 @@ void KX_FontObject::ProcessReplica()
 
 void KX_FontObject::DrawText()
 {
+	/* Allow for some logic brick control */
+	if(this->GetProperty("text"))
+		m_text = split_string(this->GetProperty("text")->GetText());
+
 	/* only draws the text if visible */
 	if(this->GetVisible() == 0) return;
 
@@ -131,19 +135,19 @@ void KX_FontObject::DrawText()
 	float size = m_fsize * m_object->size[0] * RES;
 	float aspect = 1.f / (m_object->size[0] * RES);
 
-	// Get a working copy of the OpenGLMatrix to use
+	/* Get a working copy of the OpenGLMatrix to use */
 	double mat[16];
 	memcpy(mat, this->GetOpenGLMatrix(), sizeof(double)*16);
 
-	//Account for offset
+	/* Account for offset */
 	MT_Vector3 offset = this->NodeGetWorldOrientation() * m_offset;
 	mat[12] += offset[0]; mat[13] += offset[1]; mat[14] += offset[2];
 
-	//Orient the spacing vector
+	/* Orient the spacing vector */
 	MT_Vector3 spacing = MT_Vector3(0, m_fsize*m_line_spacing, 0);
 	spacing =this->NodeGetWorldOrientation() * spacing;
 
-	//Draw each line, taking spacing into consideration
+	/* Draw each line, taking spacing into consideration */
 	for(int i=0; i<m_text.size(); ++i)
 	{
 		if (i!=0)
