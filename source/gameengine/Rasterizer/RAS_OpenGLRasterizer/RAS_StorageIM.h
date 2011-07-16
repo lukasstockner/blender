@@ -57,7 +57,7 @@ protected:
 	void	TexCoord(const RAS_TexVert &tv);
 	void	SetCullFace(bool enable);
 
-	void RAS_StorageIM::IndexPrimitivesInternal(RAS_MeshSlot& ms, bool multi);
+	void	IndexPrimitivesInternal(RAS_MeshSlot& ms, bool multi);
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
