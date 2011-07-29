@@ -50,7 +50,7 @@ VBO::VBO(RAS_DisplayArray *data, unsigned int indices)
 	// Generate Buffers
 	glGenBuffersARB(1, &this->vertex);
 	glGenBuffersARB(1, &this->normal);
-	glGenBuffersARB(2, this->UV);
+	glGenBuffersARB(RAS_TexVert::MAX_UNIT, this->UV);
 	glGenBuffersARB(1, &this->tangent);
 	glGenBuffersARB(1, &this->ibo);
 	glGenBuffersARB(1, &this->dummy);
@@ -126,7 +126,7 @@ void VBO::UpdateUVs()
 {
 	GLfloat* uvs;
 
-	int space = this->size*2*sizeof(GLfloat)*RAS_TexVert::MAX_UNIT;
+	int space = this->size*2*sizeof(GLfloat);
 
 	for (int uv=0; uv<RAS_TexVert::MAX_UNIT; ++uv)
 	{
@@ -246,6 +246,7 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, 
 
 	if (GLEW_ARB_vertex_program)
 	{
+		int uv = 0;
 		for (int unit=0; unit<attrib_num; ++unit)
 		{
 			switch(attrib[unit])
@@ -257,7 +258,7 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, 
 					glEnableVertexAttribArrayARB(unit);
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_UV:
-					glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->UV[unit-1]);
+					glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->UV[uv++]);
 					glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, 0, 0);
 					glEnableVertexAttribArrayARB(unit);
 					break;
