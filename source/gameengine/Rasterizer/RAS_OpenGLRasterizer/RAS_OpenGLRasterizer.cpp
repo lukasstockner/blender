@@ -650,7 +650,7 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot& ms,
 				glattrib = -1;
 				if(GLEW_ARB_vertex_program)
 					for(unit=0; unit<m_attrib_num; unit++)
-						if(m_attrib[unit] == RAS_TEXCO_UV1)
+						if(m_attrib[unit] == RAS_TEXCO_UV)
 							glattrib = unit;
 				
 				rendertools->RenderText(polymat->GetDrawingMode(), polymat,
@@ -690,69 +690,6 @@ void RAS_OpenGLRasterizer::SetAttrib(TexCoGen coords, int unit)
 	// this changes from material to material
 	if(unit < RAS_MAX_ATTRIB)
 		m_attrib[unit] = coords;
-}
-
-void RAS_OpenGLRasterizer::TexCoord(const RAS_TexVert &tv)
-{
-	int unit;
-
-	if(GLEW_ARB_multitexture) {
-		for(unit=0; unit<m_texco_num; unit++) {
-			if(tv.getFlag() & RAS_TexVert::SECOND_UV && (int)tv.getUnit() == unit) {
-				glMultiTexCoord2fvARB(GL_TEXTURE0_ARB+unit, tv.getUV2());
-				continue;
-			}
-			switch(m_texco[unit]) {
-			case RAS_TEXCO_ORCO:
-			case RAS_TEXCO_GLOB:
-				glMultiTexCoord3fvARB(GL_TEXTURE0_ARB+unit, tv.getXYZ());
-				break;
-			case RAS_TEXCO_UV1:
-				glMultiTexCoord2fvARB(GL_TEXTURE0_ARB+unit, tv.getUV1());
-				break;
-			case RAS_TEXCO_NORM:
-				glMultiTexCoord3fvARB(GL_TEXTURE0_ARB+unit, tv.getNormal());
-				break;
-			case RAS_TEXTANGENT:
-				glMultiTexCoord4fvARB(GL_TEXTURE0_ARB+unit, tv.getTangent());
-				break;
-			case RAS_TEXCO_UV2:
-				glMultiTexCoord2fvARB(GL_TEXTURE0_ARB+unit, tv.getUV2());
-				break;
-			default:
-				break;
-			}
-		}
-	}
-
-	if(GLEW_ARB_vertex_program) {
-		for(unit=0; unit<m_attrib_num; unit++) {
-			switch(m_attrib[unit]) {
-			case RAS_TEXCO_ORCO:
-			case RAS_TEXCO_GLOB:
-				glVertexAttrib3fvARB(unit, tv.getXYZ());
-				break;
-			case RAS_TEXCO_UV1:
-				glVertexAttrib2fvARB(unit, tv.getUV1());
-				break;
-			case RAS_TEXCO_NORM:
-				glVertexAttrib3fvARB(unit, tv.getNormal());
-				break;
-			case RAS_TEXTANGENT:
-				glVertexAttrib4fvARB(unit, tv.getTangent());
-				break;
-			case RAS_TEXCO_UV2:
-				glVertexAttrib2fvARB(unit, tv.getUV2());
-				break;
-			case RAS_TEXCO_VCOL:
-				glVertexAttrib4ubvARB(unit, tv.getRGBA());
-				break;
-			default:
-				break;
-			}
-		}
-	}
-
 }
 
 void RAS_OpenGLRasterizer::IndexPrimitives(RAS_MeshSlot& ms)

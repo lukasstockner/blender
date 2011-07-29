@@ -144,7 +144,7 @@ void RAS_StorageVA::TexCoordPtr(const RAS_TexVert *tv)
 			case RAS_IRasterizer::RAS_TEXCO_GLOB:
 				glTexCoordPointer(3, GL_FLOAT, sizeof(RAS_TexVert),tv->getXYZ());
 				break;
-			case RAS_IRasterizer::RAS_TEXCO_UV1:
+			case RAS_IRasterizer::RAS_TEXCO_UV:
 				glTexCoordPointer(2, GL_FLOAT, sizeof(RAS_TexVert),tv->getUV(unit));
 				break;
 			case RAS_IRasterizer::RAS_TEXCO_NORM:
@@ -169,7 +169,7 @@ void RAS_StorageVA::TexCoordPtr(const RAS_TexVert *tv)
 			case RAS_IRasterizer::RAS_TEXCO_GLOB:
 				glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getXYZ());
 				break;
-			case RAS_IRasterizer::RAS_TEXCO_UV1:
+			case RAS_IRasterizer::RAS_TEXCO_UV:
 				glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getUV(uv++));
 				break;
 			case RAS_IRasterizer::RAS_TEXCO_NORM:
@@ -221,7 +221,7 @@ void RAS_StorageVA::EnableTextures(bool enable)
 			{
 			case RAS_IRasterizer::RAS_TEXCO_ORCO:
 			case RAS_IRasterizer::RAS_TEXCO_GLOB:
-			case RAS_IRasterizer::RAS_TEXCO_UV1:
+			case RAS_IRasterizer::RAS_TEXCO_UV:
 			case RAS_IRasterizer::RAS_TEXCO_NORM:
 			case RAS_IRasterizer::RAS_TEXTANGENT:
 				if(enable) glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -247,7 +247,7 @@ void RAS_StorageVA::EnableTextures(bool enable)
 			switch(attrib[unit]) {
 			case RAS_IRasterizer::RAS_TEXCO_ORCO:
 			case RAS_IRasterizer::RAS_TEXCO_GLOB:
-			case RAS_IRasterizer::RAS_TEXCO_UV1:
+			case RAS_IRasterizer::RAS_TEXCO_UV:
 			case RAS_IRasterizer::RAS_TEXCO_NORM:
 			case RAS_IRasterizer::RAS_TEXTANGENT:
 			case RAS_IRasterizer::RAS_TEXCO_VCOL:

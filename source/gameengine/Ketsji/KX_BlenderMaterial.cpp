@@ -642,7 +642,7 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 			else if(mode &USENORM)
 				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_NORM, i);
 			else if(mode &USEUV)
-				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_UV1, i);
+				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_UV, i);
 			else if(mode &USETANG)
 				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXTANGENT, i);
 			else 

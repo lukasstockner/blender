@@ -136,7 +136,7 @@ public:
 		RAS_TEXCO_GEN,		//< GPU will generate texture coordinates
 		RAS_TEXCO_ORCO,		//< Vertex coordinates (object space)
 		RAS_TEXCO_GLOB,		//< Vertex coordinates (world space)
-		RAS_TEXCO_UV1,		//< UV coordinates
+		RAS_TEXCO_UV,		//< UV coordinates
 		RAS_TEXCO_OBJECT,	//< Use another object's position as coordinates
 		RAS_TEXCO_LAVECTOR,	//< Light vector as coordinates
 		RAS_TEXCO_VIEW,		//< View vector as coordinates

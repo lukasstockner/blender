@@ -77,7 +77,7 @@ void RAS_StorageIM::TexCoord(const RAS_TexVert &tv)
 			case RAS_IRasterizer::RAS_TEXCO_GLOB:
 				glMultiTexCoord3fvARB(GL_TEXTURE0_ARB+unit, tv.getXYZ());
 				break;
-			case RAS_IRasterizer::RAS_TEXCO_UV1:
+			case RAS_IRasterizer::RAS_TEXCO_UV:
 				glMultiTexCoord2fvARB(GL_TEXTURE0_ARB+unit, tv.getUV(unit));
 				break;
 			case RAS_IRasterizer::RAS_TEXCO_NORM:
@@ -100,7 +100,7 @@ void RAS_StorageIM::TexCoord(const RAS_TexVert &tv)
 			case RAS_IRasterizer::RAS_TEXCO_GLOB:
 				glVertexAttrib3fvARB(unit, tv.getXYZ());
 				break;
-			case RAS_IRasterizer::RAS_TEXCO_UV1:
+			case RAS_IRasterizer::RAS_TEXCO_UV:
 				glVertexAttrib2fvARB(unit, tv.getUV(uv++));
 				break;
 			case RAS_IRasterizer::RAS_TEXCO_NORM:
