@@ -22,13 +22,16 @@
 set(INC
 	../include
 	../../blenkernel
-	../../blenloader
 	../../blenlib
+	../../blenloader
 	../../makesdna
 	../../makesrna
 	../../windowmanager
 	../../../../intern/guardedalloc
-	../../../../intern/audaspace/intern
+)
+
+set(INC_SYS
+
 )
 
 set(SRC
@@ -37,4 +40,11 @@ set(SRC
 	sound_intern.h
 )
 
-blender_add_lib(bf_editor_sound "${SRC}" "${INC}")
+if(WITH_AUDASPACE)
+	list(APPEND INC
+		../../../../intern/audaspace/intern
+	)
+	add_definitions(-DWITH_AUDASPACE)
+endif()
+
+blender_add_lib(bf_editor_sound "${SRC}" "${INC}" "${INC_SYS}")

@@ -24,21 +24,23 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-# remove warning until render branch merged.
-remove_strict_flags()
 
 set(INC 
-	intern/include
 	extern/include
+	intern/include
+	../blenkernel
 	../blenlib
 	../blenloader
+	../imbuf
 	../makesdna
 	../makesrna
-	../blenkernel
-	../imbuf
-	../../../intern/smoke/extern
-	../../../intern/mikktspace
 	../../../intern/guardedalloc
+	../../../intern/mikktspace
+	../../../intern/smoke/extern
+)
+
+set(INC_SYS
+
 )
 
 set(SRC
@@ -118,8 +120,17 @@ if(WITH_IMAGE_OPENEXR)
 	add_definitions(-DWITH_OPENEXR)
 endif()
 
+if(WITH_MOD_SMOKE)
+	add_definitions(-DWITH_SMOKE)
+endif()
+
 if(WITH_CODEC_QUICKTIME)
-	list(APPEND INC ../quicktime ${QUICKTIME_INC})
+	list(APPEND INC
+		../quicktime
+	)
+	list(APPEND INC_SYS
+		${QUICKTIME_INCLUDE_DIRS}
+	)
 	add_definitions(-DWITH_QUICKTIME)
 endif()
 
@@ -130,4 +141,4 @@ if(APPLE)
 	endif()
 endif()
 
-blender_add_lib_nolist(bf_render "${SRC}" "${INC}")
+blender_add_lib_nolist(bf_render "${SRC}" "${INC}" "${INC_SYS}")

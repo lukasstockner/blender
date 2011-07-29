@@ -79,8 +79,6 @@ void ARMATURE_OT_separate(struct wmOperatorType *ot);
 void ARMATURE_OT_autoside_names(struct wmOperatorType *ot);
 void ARMATURE_OT_flip_names(struct wmOperatorType *ot);
 
-void ARMATURE_OT_flags_set(struct wmOperatorType *ot);
-
 void ARMATURE_OT_layers_show_all(struct wmOperatorType *ot);
 void ARMATURE_OT_armature_layers(struct wmOperatorType *ot);
 void ARMATURE_OT_bone_layers(struct wmOperatorType *ot);
@@ -124,8 +122,6 @@ void POSE_OT_autoside_names(struct wmOperatorType *ot);
 void POSE_OT_flip_names(struct wmOperatorType *ot);
 
 void POSE_OT_quaternions_flip(struct wmOperatorType *ot);
-
-void POSE_OT_flags_set(struct wmOperatorType *ot);
 
 void POSE_OT_armature_layers(struct wmOperatorType *ot);
 void POSE_OT_bone_layers(struct wmOperatorType *ot);
@@ -206,7 +202,7 @@ void POSE_OT_propagate(struct wmOperatorType *ot);
 /* editarmature.c */
 
 EditBone *make_boneList(struct ListBase *edbo, struct ListBase *bones, struct EditBone *parent, struct Bone *actBone);
-void BIF_sk_selectStroke(struct bContext *C, const short mval[2], short extend);
+void BIF_sk_selectStroke(struct bContext *C, const int mval[2], short extend);
 
 /* duplicate method */
 void preEditBoneDuplicate(struct ListBase *editbones);

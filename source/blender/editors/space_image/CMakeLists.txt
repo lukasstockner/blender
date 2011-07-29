@@ -23,14 +23,17 @@ set(INC
 	../include
 	../../blenfont
 	../../blenkernel
-	../../blenloader
 	../../blenlib
+	../../blenloader
 	../../imbuf
 	../../makesdna
 	../../makesrna
-	../../windowmanager
 	../../render/extern/include
+	../../windowmanager
 	../../../../intern/guardedalloc
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
@@ -38,7 +41,6 @@ set(SRC
 	image_buttons.c
 	image_draw.c
 	image_ops.c
-	image_render.c
 	space_image.c
 
 	image_intern.h
@@ -60,9 +62,4 @@ if(WITH_IMAGE_CINEON)
 	add_definitions(-DWITH_CINEON)
 endif()
 
-if(WITH_LCMS)
-	set(INC ${INC} ${LCMS_INCLUDE_DIR})
-	add_definitions(-DWITH_LCMS)
-endif()
-
-blender_add_lib(bf_editor_space_image "${SRC}" "${INC}")
+blender_add_lib(bf_editor_space_image "${SRC}" "${INC}" "${INC_SYS}")

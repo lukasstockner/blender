@@ -25,7 +25,11 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	include
+
+)
+
+set(INC_SYS
+
 )
 
 set(SRC
@@ -36,4 +40,4 @@ set(SRC
 	minilzo/minilzo.h
 )
 
-blender_add_lib(extern_minilzo "${SRC}" "${INC}")
+blender_add_lib(extern_minilzo "${SRC}" "${INC}" "${INC_SYS}")

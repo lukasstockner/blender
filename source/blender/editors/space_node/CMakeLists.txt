@@ -23,16 +23,19 @@ set(INC
 	../include
 	../../blenfont
 	../../blenkernel
-	../../blenloader
 	../../blenlib
+	../../blenloader
 	../../imbuf
 	../../makesdna
 	../../makesrna
 	../../nodes
-	../../windowmanager
 	../../render/extern/include
+	../../windowmanager
 	../../../../intern/guardedalloc
 	../../../../intern/opennl/extern
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
@@ -50,4 +53,4 @@ set(SRC
 	node_intern.h
 )
 
-blender_add_lib(bf_editor_space_node "${SRC}" "${INC}")
+blender_add_lib(bf_editor_space_node "${SRC}" "${INC}" "${INC_SYS}")

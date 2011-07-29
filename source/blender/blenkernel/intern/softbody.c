@@ -75,6 +75,7 @@ variables on the UI for now
 #include "BKE_curve.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
+#include "BKE_modifier.h"
 #include "BKE_softbody.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_pointcache.h"
@@ -289,21 +290,24 @@ typedef struct ccd_Mesh {
 
 
 
-static ccd_Mesh *ccd_mesh_make(Object *ob, DerivedMesh *dm)
+static ccd_Mesh *ccd_mesh_make(Object *ob)
 {
+	CollisionModifierData *cmd;
 	ccd_Mesh *pccd_M = NULL;
 	ccdf_minmax *mima =NULL;
 	MFace *mface=NULL;
 	float v[3],hull;
 	int i;
 
+	cmd =(CollisionModifierData *)modifiers_findByType(ob, eModifierType_Collision);
+
 	/* first some paranoia checks */
-	if (!dm) return NULL;
-	if (!dm->getNumVerts(dm) || !dm->getNumFaces(dm)) return NULL;
+	if (!cmd) return NULL;
+	if (!cmd->numverts || !cmd->numfaces) return NULL;
 
 	pccd_M = MEM_mallocN(sizeof(ccd_Mesh),"ccd_Mesh");
-	pccd_M->totvert = dm->getNumVerts(dm);
-	pccd_M->totface = dm->getNumFaces(dm);
+	pccd_M->totvert = cmd->numverts;
+	pccd_M->totface = cmd->numfaces;
 	pccd_M->savety  = CCD_SAVETY;
 	pccd_M->bbmin[0]=pccd_M->bbmin[1]=pccd_M->bbmin[2]=1e30f;
 	pccd_M->bbmax[0]=pccd_M->bbmax[1]=pccd_M->bbmax[2]=-1e30f;
@@ -314,12 +318,10 @@ static ccd_Mesh *ccd_mesh_make(Object *ob, DerivedMesh *dm)
 	hull = MAX2(ob->pd->pdef_sbift,ob->pd->pdef_sboft);
 
 	/* alloc and copy verts*/
-	pccd_M->mvert = dm->dupVertArray(dm);
-	/* ah yeah, put the verices to global coords once */
-	/* and determine the ortho BB on the fly */
+	pccd_M->mvert = MEM_dupallocN(cmd->xnew);
+	/* note that xnew coords are already in global space, */
+	/* determine the ortho BB */
 	for(i=0; i < pccd_M->totvert; i++){
-		mul_m4_v3(ob->obmat, pccd_M->mvert[i].co);
-
 		/* evaluate limits */
 		VECCOPY(v,pccd_M->mvert[i].co);
 		pccd_M->bbmin[0] = MIN2(pccd_M->bbmin[0],v[0]-hull);
@@ -332,7 +334,7 @@ static ccd_Mesh *ccd_mesh_make(Object *ob, DerivedMesh *dm)
 
 	}
 	/* alloc and copy faces*/
-	pccd_M->mface = dm->dupFaceArray(dm);
+	pccd_M->mface = MEM_dupallocN(cmd->mfaces);
 
 	/* OBBs for idea1 */
 	pccd_M->mima = MEM_mallocN(sizeof(ccdf_minmax)*pccd_M->totface,"ccd_Mesh_Faces_mima");
@@ -386,19 +388,22 @@ static ccd_Mesh *ccd_mesh_make(Object *ob, DerivedMesh *dm)
 	}
 	return pccd_M;
 }
-static void ccd_mesh_update(Object *ob,ccd_Mesh *pccd_M, DerivedMesh *dm)
+static void ccd_mesh_update(Object *ob,ccd_Mesh *pccd_M)
 {
-	 ccdf_minmax *mima =NULL;
+	CollisionModifierData *cmd;
+	ccdf_minmax *mima =NULL;
 	MFace *mface=NULL;
 	float v[3],hull;
 	int i;
 
-	/* first some paranoia checks */
-	if (!dm) return ;
-	if (!dm->getNumVerts(dm) || !dm->getNumFaces(dm)) return ;
+	cmd =(CollisionModifierData *)modifiers_findByType(ob, eModifierType_Collision);
 
-	if ((pccd_M->totvert != dm->getNumVerts(dm)) ||
-		(pccd_M->totface != dm->getNumFaces(dm))) return;
+	/* first some paranoia checks */
+	if (!cmd) return ;
+	if (!cmd->numverts || !cmd->numfaces) return ;
+
+	if ((pccd_M->totvert != cmd->numverts) ||
+		(pccd_M->totface != cmd->numfaces)) return;
 
 	pccd_M->bbmin[0]=pccd_M->bbmin[1]=pccd_M->bbmin[2]=1e30f;
 	pccd_M->bbmax[0]=pccd_M->bbmax[1]=pccd_M->bbmax[2]=-1e30f;
@@ -411,12 +416,10 @@ static void ccd_mesh_update(Object *ob,ccd_Mesh *pccd_M, DerivedMesh *dm)
 	if(pccd_M->mprevvert) MEM_freeN(pccd_M->mprevvert);
 	pccd_M->mprevvert = pccd_M->mvert;
 	/* alloc and copy verts*/
-	pccd_M->mvert = dm->dupVertArray(dm);
-	/* ah yeah, put the verices to global coords once */
-	/* and determine the ortho BB on the fly */
+	pccd_M->mvert = MEM_dupallocN(cmd->xnew);
+	/* note that xnew coords are already in global space, */
+	/* determine the ortho BB */
 	for(i=0; i < pccd_M->totvert; i++){
-		mul_m4_v3(ob->obmat, pccd_M->mvert[i].co);
-
 		/* evaluate limits */
 		VECCOPY(v,pccd_M->mvert[i].co);
 		pccd_M->bbmin[0] = MIN2(pccd_M->bbmin[0],v[0]-hull);
@@ -555,21 +558,8 @@ static void ccd_build_deflector_hash(Scene *scene, Object *vertexowner, GHash *h
 
 			/*+++ only with deflecting set */
 			if(ob->pd && ob->pd->deflect && BLI_ghash_lookup(hash, ob) == NULL) {
-				DerivedMesh *dm= NULL;
-
-				if(ob->softflag & OB_SB_COLLFINAL) /* so maybe someone wants overkill to collide with subsurfed */
-					dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
-				else
-					dm = mesh_get_derived_deform(scene, ob, CD_MASK_BAREMESH);
-
-				if(dm){
-					ccd_Mesh *ccdmesh = ccd_mesh_make(ob, dm);
-					BLI_ghash_insert(hash, ob, ccdmesh);
-
-					/* we did copy & modify all we need so give 'em away again */
-					dm->release(dm);
-
-				}
+				ccd_Mesh *ccdmesh = ccd_mesh_make(ob);
+				BLI_ghash_insert(hash, ob, ccdmesh);
 			}/*--- only with deflecting set */
 
 		}/* mesh && layer*/
@@ -595,21 +585,9 @@ static void ccd_update_deflector_hash(Scene *scene, Object *vertexowner, GHash *
 
 			/*+++ only with deflecting set */
 			if(ob->pd && ob->pd->deflect) {
-				DerivedMesh *dm= NULL;
-
-				if(ob->softflag & OB_SB_COLLFINAL) { /* so maybe someone wants overkill to collide with subsurfed */
-					dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
-				} else {
-					dm = mesh_get_derived_deform(scene, ob, CD_MASK_BAREMESH);
-				}
-				if(dm){
-					ccd_Mesh *ccdmesh = BLI_ghash_lookup(hash,ob);
-					if (ccdmesh)
-						ccd_mesh_update(ob,ccdmesh,dm);
-
-					/* we did copy & modify all we need so give 'em away again */
-					dm->release(dm);
-				}
+				ccd_Mesh *ccdmesh = BLI_ghash_lookup(hash,ob);
+				if (ccdmesh)
+					ccd_mesh_update(ob,ccdmesh);
 			}/*--- only with deflecting set */
 
 		}/* mesh && layer*/
@@ -640,7 +618,7 @@ static void add_mesh_quad_diag_springs(Object *ob)
 {
 	Mesh *me= ob->data;
 	MFace *mface= me->mface;
-	BodyPoint *bp;
+	/*BodyPoint *bp;*/ /*UNUSED*/
 	BodySpring *bs, *bs_new;
 	int a ;
 
@@ -661,7 +639,7 @@ static void add_mesh_quad_diag_springs(Object *ob)
 			/* fill the tail */
 			a = 0;
 			bs = bs_new+ob->soft->totspring;
-			bp= ob->soft->bpoint;
+			/*bp= ob->soft->bpoint; */ /*UNUSED*/
 			if(mface ) {
 				for(a=me->totface; a>0; a--, mface++) {
 					if(mface->v4) {
@@ -1042,7 +1020,10 @@ static int sb_detect_aabb_collisionCached(	float UNUSED(force[3]), unsigned int 
 	GHash *hash;
 	GHashIterator *ihash;
 	float  aabbmin[3],aabbmax[3];
-	int a, deflected=0;
+	int deflected=0;
+#if 0
+	int a;
+#endif
 
 	if ((sb == NULL) || (sb->scratch ==NULL)) return 0;
 	VECCOPY(aabbmin,sb->scratch->aabbmin);
@@ -1056,17 +1037,20 @@ static int sb_detect_aabb_collisionCached(	float UNUSED(force[3]), unsigned int 
 		ob             = BLI_ghashIterator_getKey	(ihash);
 			/* only with deflecting set */
 			if(ob->pd && ob->pd->deflect) {
+#if 0			/* UNUSED */
 				MFace *mface= NULL;
 				MVert *mvert= NULL;
 				MVert *mprevvert= NULL;
 				ccdf_minmax *mima= NULL;
+#endif
 				if(ccdm){
+#if 0				/* UNUSED */
 					mface= ccdm->mface;
 					mvert= ccdm->mvert;
 					mprevvert= ccdm->mprevvert;
 					mima= ccdm->mima;
 					a = ccdm->totface;
-
+#endif
 					if ((aabbmax[0] < ccdm->bbmin[0]) ||
 						(aabbmax[1] < ccdm->bbmin[1]) ||
 						(aabbmax[2] < ccdm->bbmin[2]) ||
@@ -2095,19 +2079,25 @@ static void sb_spring_force(Object *ob,int bpi,BodySpring *bs,float iks,float UN
 
 	float dir[3],dvel[3];
 	float distance,forcefactor,kd,absvel,projvel,kw;
+#if 0	/* UNUSED */
 	int ia,ic;
+#endif
 	/* prepare depending on which side of the spring we are on */
 	if (bpi == bs->v1){
 		bp1 = &sb->bpoint[bs->v1];
 		bp2 = &sb->bpoint[bs->v2];
+#if 0	/* UNUSED */
 		ia =3*bs->v1;
 		ic =3*bs->v2;
+#endif
 	}
 	else if (bpi == bs->v2){
 		bp1 = &sb->bpoint[bs->v2];
 		bp2 = &sb->bpoint[bs->v1];
+#if 0	/* UNUSED */
 		ia =3*bs->v2;
 		ic =3*bs->v1;
+#endif
 	}
 	else{
 		/* TODO make this debug option */
@@ -2454,23 +2444,23 @@ static void softbody_calc_forcesEx(Scene *scene, Object *ob, float forcetime, fl
  * this will ruin adaptive stepsize AKA heun! (BM)
  */
 	SoftBody *sb= ob->soft;	/* is supposed to be there */
-	BodyPoint *bproot;
+	/*BodyPoint *bproot;*/ /* UNUSED */
 	ListBase *do_effector = NULL;
-	float gravity;
+	/* float gravity; */ /* UNUSED */
 	/* float iks; */
 	float fieldfactor = -1.0f, windfactor  = 0.25;
-	int   do_deflector,do_selfcollision,do_springcollision,do_aero;
+	int   do_deflector /*,do_selfcollision*/ ,do_springcollision,do_aero;
 
-	gravity = sb->grav * sb_grav_force_scale(ob);
+	/* gravity = sb->grav * sb_grav_force_scale(ob); */ /* UNUSED */
 
 	/* check conditions for various options */
 	do_deflector= query_external_colliders(scene, ob);
-	do_selfcollision=((ob->softflag & OB_SB_EDGES) && (sb->bspring)&& (ob->softflag & OB_SB_SELF));
+	/* do_selfcollision=((ob->softflag & OB_SB_EDGES) && (sb->bspring)&& (ob->softflag & OB_SB_SELF)); */ /* UNUSED */
 	do_springcollision=do_deflector && (ob->softflag & OB_SB_EDGES) &&(ob->softflag & OB_SB_EDGECOLL);
 	do_aero=((sb->aeroedge)&& (ob->softflag & OB_SB_EDGES));
 
 	/* iks  = 1.0f/(1.0f-sb->inspring)-1.0f; */ /* inner spring constants function */ /* UNUSED */
-	bproot= sb->bpoint; /* need this for proper spring addressing */
+	/* bproot= sb->bpoint; */ /* need this for proper spring addressing */ /* UNUSED */
 
 	if (do_springcollision || do_aero)
 	sb_sfesf_threads_run(scene, ob, timenow,sb->totspring,NULL);
@@ -2516,7 +2506,7 @@ static void softbody_calc_forces(Scene *scene, Object *ob, float forcetime, floa
 		*/
 		SoftBody *sb= ob->soft;	/* is supposed to be there */
 		BodyPoint  *bp;
-		BodyPoint *bproot;
+		/* BodyPoint *bproot; */ /* UNUSED */
 		BodySpring *bs;
 		ListBase *do_effector = NULL;
 		float iks, ks, kd, gravity[3] = {0.0f,0.0f,0.0f};
@@ -2547,7 +2537,7 @@ static void softbody_calc_forces(Scene *scene, Object *ob, float forcetime, floa
 		do_aero=((sb->aeroedge)&& (ob->softflag & OB_SB_EDGES));
 
 		iks  = 1.0f/(1.0f-sb->inspring)-1.0f ;/* inner spring constants function */
-		bproot= sb->bpoint; /* need this for proper spring addressing */
+		/* bproot= sb->bpoint; */ /* need this for proper spring addressing */ /* UNUSED */
 
 		if (do_springcollision || do_aero)  scan_for_ext_spring_forces(scene, ob, timenow);
 		/* after spring scan because it uses Effoctors too */

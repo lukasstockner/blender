@@ -381,9 +381,7 @@ Image *BKE_add_image_file(const char *name)
 	ima= image_alloc(libname, IMA_SRC_FILE, IMA_TYPE_IMAGE);
 	BLI_strncpy(ima->name, name, sizeof(ima->name));
 	
-	/* do a wild guess! */
-	if(BLI_testextensie(name, ".avi") || BLI_testextensie(name, ".mov")
-			|| BLI_testextensie(name, ".mpg")  || BLI_testextensie(name, ".mp4"))
+	if(BLI_testextensie_array(name, imb_ext_movie))
 		ima->source= IMA_SRC_MOVIE;
 	
 	return ima;
@@ -434,6 +432,7 @@ Image *BKE_add_image_size(unsigned int width, unsigned int height, const char *n
 		ima->gen_x= width;
 		ima->gen_y= height;
 		ima->gen_type= uvtestgrid;
+		ima->gen_flag |= (floatbuf ? IMA_GEN_FLOAT : 0);
 		
 		ibuf= add_ibuf_size(width, height, name, depth, floatbuf, uvtestgrid, color);
 		image_assign_ibuf(ima, ibuf, IMA_NO_INDEX, 0);
@@ -1031,7 +1030,7 @@ void BKE_stamp_buf(Scene *scene, Object *camera, unsigned char *rect, float *rec
 	BLF_buffer_col(mono, scene->r.fg_stamp[0], scene->r.fg_stamp[1], scene->r.fg_stamp[2], 1.0);
 	pad= BLF_width_max(mono);
 
-	/* use 'h_fixed' rather then 'h', aligns better */
+	/* use 'h_fixed' rather than 'h', aligns better */
 	h_fixed= BLF_height_max(mono);
 	y_ofs = -BLF_descender(mono);
 
@@ -2174,7 +2173,7 @@ ImBuf *BKE_image_acquire_ibuf(Image *ima, ImageUser *iuser, void **lock_r)
 				/* UV testgrid or black or solid etc */
 				if(ima->gen_x==0) ima->gen_x= 1024;
 				if(ima->gen_y==0) ima->gen_y= 1024;
-				ibuf= add_ibuf_size(ima->gen_x, ima->gen_y, ima->name, 24, 0, ima->gen_type, color);
+				ibuf= add_ibuf_size(ima->gen_x, ima->gen_y, ima->name, 24, (ima->gen_flag & IMA_GEN_FLOAT) != 0, ima->gen_type, color);
 				image_assign_ibuf(ima, ibuf, IMA_NO_INDEX, 0);
 				ima->ok= IMA_OK_LOADED;
 			}

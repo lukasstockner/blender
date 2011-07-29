@@ -28,6 +28,9 @@ set(INC
 	intern
 	../memutil
 	../../extern/bullet2/src
+)
+
+set(INC_SYS
 	${PNG_INCLUDE_DIR}
 	${ZLIB_INCLUDE_DIRS}
 )
@@ -81,13 +84,15 @@ set(SRC
 )
 
 if(WITH_OPENMP)
-		add_definitions(-DPARALLEL=1)
+	add_definitions(-DPARALLEL=1)
 endif()
 
 if(WITH_FFTW3)
 	add_definitions(-DFFTW3=1)
-	list(APPEND INC ${FFTW3_INC})
+	list(APPEND INC
+		${FFTW3_INCLUDE_DIRS}
+	)
 endif()
 
-blender_add_lib(bf_intern_smoke "${SRC}" "${INC}")
+blender_add_lib(bf_intern_smoke "${SRC}" "${INC}" "${INC_SYS}")
 

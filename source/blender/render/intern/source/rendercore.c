@@ -515,6 +515,14 @@ static void add_filt_passes(RenderLayer *rl, int curmask, int rectx, int offset,
 						*fp= (float)shi->obr->ob->index;
 				}
 				break;
+			case SCE_PASS_INDEXMA:
+					/* no filter */
+					if(shi->vlr) {
+							fp= rpass->rect + offset;
+							if(*fp==0.0f)
+									*fp= (float)shi->mat->index;
+					}
+					break;
 			case SCE_PASS_MIST:
 				/*  */
 				col= &shr->mist;
@@ -617,6 +625,12 @@ static void add_passes(RenderLayer *rl, int offset, ShadeInput *shi, ShadeResult
 				if(shi->vlr) {
 					fp= rpass->rect + offset;
 					*fp= (float)shi->obr->ob->index;
+				}
+				break;
+			case SCE_PASS_INDEXMA:
+				if(shi->vlr) {
+					fp= rpass->rect + offset;
+					*fp= (float)shi->mat->index;
 				}
 				break;
 			case SCE_PASS_MIST:
@@ -1956,40 +1970,6 @@ void add_halo_flare(Render *re)
 	R.r.mode= mode;	
 }
 
-/* ************************* used for shaded view ************************ */
-
-/* if *re, then initialize, otherwise execute */
-void RE_shade_external(Render *re, ShadeInput *shi, ShadeResult *shr)
-{
-	static VlakRen vlr;
-	static ObjectRen obr;
-	static ObjectInstanceRen obi;
-	
-	/* init */
-	if(re) {
-		R= *re;
-		
-		/* fake render face */
-		memset(&vlr, 0, sizeof(VlakRen));
-		memset(&obr, 0, sizeof(ObjectRen));
-		memset(&obi, 0, sizeof(ObjectInstanceRen));
-		obr.lay= -1;
-		obi.obr= &obr;
-		
-		return;
-	}
-	shi->vlr= &vlr;
-	shi->obr= &obr;
-	shi->obi= &obi;
-	
-	if(shi->mat->nodetree && shi->mat->use_nodes)
-		ntreeShaderExecTree(shi->mat->nodetree, shi, shr);
-	else {
-		shade_input_init_material(shi);
-		shade_material_loop(shi, shr);
-	}
-}
-
 /* ************************* bake ************************ */
 
 
@@ -2018,75 +1998,7 @@ typedef struct BakeShade {
 	short *do_update;
 } BakeShade;
 
-/* bake uses a char mask to know what has been baked */
-#define BAKE_MASK_NULL		0
-#define BAKE_MASK_MARGIN	1
-#define BAKE_MASK_BAKED		2
-static void bake_mask_filter_extend( char *mask, int width, int height )
-{
-	char *row1, *row2, *row3;
-	int rowlen, x, y;
-	char *temprect;
-	
-	rowlen= width;
-	
-	/* make a copy, to prevent flooding */
-	temprect= MEM_dupallocN(mask);
-	
-	for(y=1; y<=height; y++) {
-		/* setup rows */
-		row1= (char *)(temprect + (y-2)*rowlen);
-		row2= row1 + rowlen;
-		row3= row2 + rowlen;
-		if(y==1)
-			row1= row2;
-		else if(y==height)
-			row3= row2;
-		
-		for(x=0; x<rowlen; x++) {
-			if (mask[((y-1)*rowlen)+x]==0) {
-				if (*row1 || *row2 || *row3 || *(row1+1) || *(row3+1) ) {
-					mask[((y-1)*rowlen)+x] = BAKE_MASK_MARGIN;
-				} else if((x!=rowlen-1) && (*(row1+2) || *(row2+2) || *(row3+2)) ) {
-					mask[((y-1)*rowlen)+x] = BAKE_MASK_MARGIN;
-				}
-			}
-			
-			if(x!=0) {
-				row1++; row2++; row3++;
-			}
-		}
-	}
-	MEM_freeN(temprect);
-}
-
-static void bake_mask_clear( ImBuf *ibuf, char *mask, char val )
-{
-	int x,y;
-	if (ibuf->rect_float) {
-		for(x=0; x<ibuf->x; x++) {
-			for(y=0; y<ibuf->y; y++) {
-				if (mask[ibuf->x*y + x] == val) {
-					float *col= ibuf->rect_float + 4*(ibuf->x*y + x);
-					col[0] = col[1] = col[2] = col[3] = 0.0f;
-				}
-			}
-		}
-		
-	} else {
-		/* char buffer */
-		for(x=0; x<ibuf->x; x++) {
-			for(y=0; y<ibuf->y; y++) {
-				if (mask[ibuf->x*y + x] == val) {
-					char *col= (char *)(ibuf->rect + ibuf->x*y + x);
-					col[0] = col[1] = col[2] = col[3] = 0;
-				}
-			}
-		}
-	}
-}
-
-static void bake_set_shade_input(ObjectInstanceRen *obi, VlakRen *vlr, ShadeInput *shi, int quad, int isect, int x, int y, float u, float v)
+static void bake_set_shade_input(ObjectInstanceRen *obi, VlakRen *vlr, ShadeInput *shi, int quad, int UNUSED(isect), int x, int y, float u, float v)
 {
 	if(quad) 
 		shade_input_set_triangle_i(shi, obi, vlr, 0, 2, 3);
@@ -2117,7 +2029,7 @@ static void bake_set_shade_input(ObjectInstanceRen *obi, VlakRen *vlr, ShadeInpu
 	shi->view[2]= shi->vn[2];
 }
 
-static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int x, int y, float u, float v, float *tvn, float *ttang)
+static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int UNUSED(quad), int x, int y, float UNUSED(u), float UNUSED(v), float *tvn, float *ttang)
 {
 	BakeShade *bs= handle;
 	ShadeSample *ssamp= &bs->ssamp;
@@ -2143,7 +2055,9 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 	
 		shade_input_set_shade_texco(shi);
 		
-		if(!ELEM3(bs->type, RE_BAKE_NORMALS, RE_BAKE_TEXTURE, RE_BAKE_SHADOW))
+		/* only do AO for a full bake (and obviously AO bakes)
+			AO for light bakes is a leftover and might not be needed */
+		if( ELEM3(bs->type, RE_BAKE_ALL, RE_BAKE_AO, RE_BAKE_LIGHT))
 			shade_samples_do_AO(ssamp);
 		
 		if(shi->mat->nodetree && shi->mat->use_nodes) {
@@ -2206,6 +2120,42 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 			VECCOPY(shr.combined, shr.shad);
 			shr.alpha = shi->alpha;
 		}
+		else if(bs->type==RE_BAKE_SPEC_COLOR) {
+			shr.combined[0]= shi->specr;
+			shr.combined[1]= shi->specg;
+			shr.combined[2]= shi->specb;
+			shr.alpha = 1.0f;
+		}
+		else if(bs->type==RE_BAKE_SPEC_INTENSITY) {
+			shr.combined[0]=
+			shr.combined[1]=
+			shr.combined[2]= shi->spec;
+			shr.alpha = 1.0f;
+		}
+		else if(bs->type==RE_BAKE_MIRROR_COLOR) {
+			shr.combined[0]= shi->mirr;
+			shr.combined[1]= shi->mirg;
+			shr.combined[2]= shi->mirb;
+			shr.alpha = 1.0f;
+		}
+		else if(bs->type==RE_BAKE_MIRROR_INTENSITY) {
+			shr.combined[0]=
+			shr.combined[1]=
+			shr.combined[2]= shi->ray_mirror;
+			shr.alpha = 1.0f;
+		}
+		else if(bs->type==RE_BAKE_ALPHA) {
+			shr.combined[0]=
+			shr.combined[1]=
+			shr.combined[2]= shi->alpha;
+			shr.alpha = 1.0f;
+		}
+		else if(bs->type==RE_BAKE_EMIT) {
+			shr.combined[0]=
+			shr.combined[1]=
+			shr.combined[2]= shi->emit;
+			shr.alpha = 1.0f;
+		}
 	}
 	
 	if(bs->rect_float) {
@@ -2243,11 +2193,11 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 	}
 	
 	if (bs->rect_mask) {
-		bs->rect_mask[bs->rectx*y + x] = BAKE_MASK_BAKED;
+		bs->rect_mask[bs->rectx*y + x] = FILTER_MASK_USED;
 	}
 }
 
-static void bake_displacement(void *handle, ShadeInput *shi, float dist, int x, int y)
+static void bake_displacement(void *handle, ShadeInput *UNUSED(shi), float dist, int x, int y)
 {
 	BakeShade *bs= handle;
 	float disp;
@@ -2270,7 +2220,7 @@ static void bake_displacement(void *handle, ShadeInput *shi, float dist, int x, 
 		col[3]= 255;
 	}
 	if (bs->rect_mask) {
-		bs->rect_mask[bs->rectx*y + x] = BAKE_MASK_BAKED;
+		bs->rect_mask[bs->rectx*y + x] = FILTER_MASK_USED;
 	}
 }
 
@@ -2494,7 +2444,8 @@ static int get_next_bake_face(BakeShade *bs)
 				if(tface && tface->tpage) {
 					Image *ima= tface->tpage;
 					ImBuf *ibuf= BKE_image_get_ibuf(ima, NULL);
-					float vec[4]= {0.0f, 0.0f, 0.0f, 0.0f};
+					const float vec_alpha[4]= {0.0f, 0.0f, 0.0f, 0.0f};
+					const float vec_solid[4]= {0.0f, 0.0f, 0.0f, 1.0f};
 					
 					if(ibuf==NULL)
 						continue;
@@ -2514,7 +2465,7 @@ static int get_next_bake_face(BakeShade *bs)
 							imb_freerectImBuf(ibuf);
 						/* clear image */
 						if(R.r.bake_flag & R_BAKE_CLEAR)
-							IMB_rectfill(ibuf, vec);
+							IMB_rectfill(ibuf, (ibuf->depth == 32) ? vec_alpha : vec_solid);
 					
 						/* might be read by UI to set active image for display */
 						R.bakebuf= ima;
@@ -2619,6 +2570,28 @@ static void *do_bake_thread(void *bs_v)
 	return NULL;
 }
 
+void RE_bake_ibuf_filter(ImBuf *ibuf, char *mask, const int filter)
+{
+	/* must check before filtering */
+	const short is_new_alpha= (ibuf->depth != 32) && BKE_alphatest_ibuf(ibuf);
+
+	/* Margin */
+	if(filter) {
+		IMB_filter_extend(ibuf, mask, filter);
+	}
+
+	/* if the bake results in new alpha then change the image setting */
+	if(is_new_alpha) {
+		ibuf->depth= 32;
+	}
+	else {
+		if(filter && ibuf->depth != 32) {
+			/* clear alpha added by filtering */
+			IMB_rectfill_alpha(ibuf, 1.0f);
+		}
+	}
+}
+
 /* using object selection tags, the faces with UV maps get baked */
 /* render should have been setup */
 /* returns 0 if nothing was handled */
@@ -2705,36 +2678,7 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 			if(!ibuf)
 				continue;
 
-			if(re->r.bake_filter) {
-				if (usemask) {
-					/* extend the mask +2 pixels from the image,
-					 * this is so colors dont blend in from outside */
-					char *temprect;
-					
-					for(a=0; a<re->r.bake_filter; a++)
-						bake_mask_filter_extend((char *)ibuf->userdata, ibuf->x, ibuf->y);
-					
-					temprect = MEM_dupallocN(ibuf->userdata);
-					
-					/* expand twice to clear this many pixels, so they blend back in */
-					bake_mask_filter_extend(temprect, ibuf->x, ibuf->y);
-					bake_mask_filter_extend(temprect, ibuf->x, ibuf->y);
-					
-					/* clear all pixels in the margin*/
-					bake_mask_clear(ibuf, temprect, BAKE_MASK_MARGIN);
-					MEM_freeN(temprect);
-				}
-				
-				for(a=0; a<re->r.bake_filter; a++) {
-					/*the mask, ibuf->userdata - can be null, in this case only zero alpha is used */
-					IMB_filter_extend(ibuf, (char *)ibuf->userdata);
-				}
-				
-				if (ibuf->userdata) {
-					MEM_freeN(ibuf->userdata);
-					ibuf->userdata= NULL;
-				}
-			}
+			RE_bake_ibuf_filter(ibuf, (char *)ibuf->userdata, re->r.bake_filter);
 
 			ibuf->userflags |= IB_BITMAPDIRTY;
 			if (ibuf->rect_float) IMB_rect_from_float(ibuf);

@@ -126,6 +126,7 @@ static void get_seq_color3ubv(Scene *curscene, Sequence *seq, unsigned char col[
 	case SEQ_OVERDROP:
 	case SEQ_GLOW:
 	case SEQ_MULTICAM:
+	case SEQ_ADJUSTMENT:
 		UI_GetThemeColor3ubv(TH_SEQ_EFFECT, col);
 		
 		/* slightly offset hue to distinguish different effects */
@@ -137,6 +138,8 @@ static void get_seq_color3ubv(Scene *curscene, Sequence *seq, unsigned char col[
 		if (seq->type == SEQ_OVERDROP)		rgb_byte_set_hue_float_offset(col,0.24);
 		if (seq->type == SEQ_GLOW)			rgb_byte_set_hue_float_offset(col,0.28);
 		if (seq->type == SEQ_TRANSFORM)		rgb_byte_set_hue_float_offset(col,0.36);
+		if (seq->type == SEQ_MULTICAM)		rgb_byte_set_hue_float_offset(col,0.32);
+		if (seq->type == SEQ_ADJUSTMENT)		rgb_byte_set_hue_float_offset(col,0.40);
 		break;
 		
 	case SEQ_COLOR:
@@ -476,7 +479,7 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 	if(name[0]=='\0')
 		name= give_seqname(seq);
 
-	if(seq->type == SEQ_META) {
+	if(seq->type == SEQ_META || seq->type == SEQ_ADJUSTMENT) {
 		sprintf(str, "%d | %s", seq->len, name);
 	}
 	else if(seq->type == SEQ_SCENE) {
@@ -547,15 +550,17 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 	glShadeModel(GL_SMOOTH);
 	glBegin(GL_QUADS);
 	
-	if(seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, -50);
+	if(seq->flag & SEQ_INVALID_EFFECT) { col[0]= 255; col[1]= 0; col[2]= 255; }
+	else if(seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, -50);
 	else UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 0);
 	
 	glColor3ubv(col);
 	
 	glVertex2f(x1,y1);
 	glVertex2f(x2,y1);
-	
-	if(seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 5);
+
+	if(seq->flag & SEQ_INVALID_EFFECT) { col[0]= 255; col[1]= 0; col[2]= 255; }
+	else if(seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 5);
 	else UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, -5);
 
 	glColor3ubv((GLubyte *)col);
@@ -638,10 +643,12 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	if (G.moving && (seq->flag & SELECT)) {
 		if(seq->flag & SEQ_OVERLAP) {
 			col[0]= 255; col[1]= col[2]= 40;
-		} else UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 120);
+		}
+		else
+			UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 120+outline_tint);
 	}
-
-	UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, outline_tint);
+	else
+		UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, outline_tint);
 	
 	glColor3ubv((GLubyte *)col);
 	
@@ -964,7 +971,7 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar)
 		/* loop through strips, checking for those that are visible */
 		for (seq= ed->seqbasep->first; seq; seq= seq->next) {
 			/* boundbox and selection tests for NOT drawing the strip... */
-			if ((seq->flag & SELECT) == sel) continue;
+			if ((seq->flag & SELECT) != sel) continue;
 			else if (seq == last_seq) continue;
 			else if (MIN2(seq->startdisp, seq->start) > v2d->cur.xmax) continue;
 			else if (MAX2(seq->enddisp, seq->start+seq->len) < v2d->cur.xmin) continue;

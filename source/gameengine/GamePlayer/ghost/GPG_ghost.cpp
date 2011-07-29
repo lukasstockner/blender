@@ -62,14 +62,17 @@ extern "C"
 #include "BKE_global.h"	
 #include "BKE_icons.h"	
 #include "BKE_node.h"	
-#include "BKE_report.h"	
+#include "BKE_report.h"
+#include "BKE_library.h"
+#include "BLI_threads.h"
 #include "BLI_blenlib.h"
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 #include "BLO_readfile.h"
-#include "BLO_readblenfile.h"
+#include "BLO_runtime.h"
 #include "IMB_imbuf.h"
 #include "BKE_text.h"
+#include "BKE_sound.h"
 	
 	int GHOST_HACK_getFirstFile(char buf[]);
 	
@@ -313,8 +316,8 @@ static BlendFileData *load_game_data(char *progname, char *filename = NULL, char
 	BKE_reports_init(&reports, RPT_STORE);
 	
 	/* try to load ourself, will only work if we are a runtime */
-	if (blo_is_a_runtime(progname)) {
-		bfd= blo_read_runtime(progname, &reports);
+	if (BLO_is_a_runtime(progname)) {
+		bfd= BLO_read_runtime(progname, &reports);
 		if (bfd) {
 			bfd->type= BLENFILETYPE_RUNTIME;
 			strcpy(bfd->main->name, progname);
@@ -345,7 +348,9 @@ int main(int argc, char** argv)
 	bool fullScreen = false;
 	bool fullScreenParFound = false;
 	bool windowParFound = false;
+#ifdef WIN32
 	bool closeConsole = true;
+#endif
 	RAS_IRasterizer::StereoMode stereomode = RAS_IRasterizer::RAS_STEREO_NOSTEREO;
 	bool stereoWindow = false;
 	bool stereoParFound = false;
@@ -395,12 +400,20 @@ int main(int argc, char** argv)
 		  ::DisposeNibReference(nibRef);
     */
 #endif // __APPLE__
-
+	
+	// We don't use threads directly in the BGE, but we need to call this so things like
+	// freeing up GPU_Textures works correctly.
+	BLI_threadapi_init();
+	
 	RNA_init();
 
 	init_nodesystem();
 	
 	initglobals();
+
+	// We load our own G.main, so free the one that initglobals() gives us
+	free_main(G.main);
+	G.main = NULL;
 
 	IMB_init();
 
@@ -443,8 +456,13 @@ int main(int argc, char** argv)
 	U.audioformat = 0x24;
 	U.audiochannels = 2;
 
+	// XXX this one too
+	U.anisotropic_filter = 2;
+
+	sound_init_once();
+
 	/* if running blenderplayer the last argument can't be parsed since it has to be the filename. */
-	isBlenderPlayer = !blo_is_a_runtime(argv[0]);
+	isBlenderPlayer = !BLO_is_a_runtime(argv[0]);
 	if (isBlenderPlayer)
 		validArguments = argc - 1;
 	else
@@ -570,7 +588,9 @@ int main(int argc, char** argv)
 				break;
 			case 'c':
 				i++;
+#ifdef WIN32
 				closeConsole = false;
+#endif
 				break;
 			case 's':  // stereo
 				i++;
@@ -694,6 +714,8 @@ int main(int argc, char** argv)
 		{
 			GPU_set_mipmap(0);
 		}
+
+		GPU_set_anisotropic(U.anisotropic_filter);
 		
 		// Create the system
 		if (GHOST_ISystem::createSystem() == GHOST_kSuccess)

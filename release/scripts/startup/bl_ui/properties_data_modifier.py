@@ -219,7 +219,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, bpy.types.Panel):
         col.label(text="Texture Coordinates:")
         col.prop(md, "texture_coords", text="")
         if md.texture_coords == 'OBJECT':
-            layout.prop(md, "texture_coordinate_object", text="Object")
+            layout.prop(md, "texture_coords_object", text="Object")
         elif md.texture_coords == 'UV' and ob.type == 'MESH':
             layout.prop_search(md, "uv_layer", ob.data, "uv_textures")
 
@@ -394,6 +394,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, bpy.types.Panel):
         col.operator("object.multires_higher_levels_delete", text="Delete Higher")
         col.operator("object.multires_reshape", text="Reshape")
         col.operator("object.multires_base_apply", text="Apply Base")
+        col.prop(md, "use_subsurf_uv")
         col.prop(md, "show_only_control_edges")
 
         layout.separator()
@@ -483,11 +484,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, bpy.types.Panel):
         col.label(text="Mode:")
         col.prop(md, "wrap_method", text="")
 
-        split = layout.split(percentage=0.25)
-
-        col = split.column()
-
         if md.wrap_method == 'PROJECT':
+            split = layout.split(percentage=0.25)
+
+            col = split.column()
             col.label(text="Axis:")
             col.prop(md, "use_project_x")
             col.prop(md, "use_project_y")
@@ -499,7 +499,6 @@ class DATA_PT_modifiers(ModifierButtonsPanel, bpy.types.Panel):
             col.prop(md, "use_positive_direction")
 
             col = split.column()
-
             col.label(text="Cull Faces:")
             col.prop(md, "cull_face", expand=True)
 
@@ -673,7 +672,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, bpy.types.Panel):
         col.prop(md, "texture_coords", text="")
 
         if md.texture_coords == 'OBJECT':
-            layout.prop(md, "texture_coordinate_object", text="Object")
+            layout.prop(md, "texture_coords_object", text="Object")
         elif md.texture_coords == 'UV' and ob.type == 'MESH':
             layout.prop_search(md, "uv_layer", ob.data, "uv_textures")
 

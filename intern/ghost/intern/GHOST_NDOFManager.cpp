@@ -81,8 +81,12 @@ GHOST_NDOFManager::deviceOpen(GHOST_IWindow* window,
 #if 0
        	printf("%i client \n", Pid);
 #endif
-		#if defined(_WIN32) || defined(__APPLE__)
+		#if defined(WITH_HEADLESS)
+			/* do nothing */
+		#elif defined(_WIN32) || defined(__APPLE__)
 			m_DeviceHandle = ndofDeviceOpen((void *)&currentNdofValues);    
+		#elif defined(WITH_GHOST_SDL)
+			/* do nothing */
 		#else
 			GHOST_SystemX11 *sys;
 			sys = static_cast<GHOST_SystemX11*>(GHOST_ISystem::getSystem());

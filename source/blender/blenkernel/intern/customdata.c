@@ -466,7 +466,6 @@ static void layerInterp_mdisps(void **sources, float *UNUSED(weights),
 			MDisps tris[2];
 			int vindex[4] = {0};
 
-			S = 0;
 			for(i = 0; i < 2; i++)
 				for(y = 0; y < 4; y++)
 					for(x = 0; x < 4; x++)
@@ -540,7 +539,7 @@ static void layerInterp_mdisps(void **sources, float *UNUSED(weights),
 				float face_u, face_v, crn_u, crn_v;
 
 				mdisp_apply_weight(S, dst_corners, x, y, st, crn_weight, &face_u, &face_v);
-				crn = mdisp_rot_face_to_crn(src_corners, st, face_u, face_v, &crn_u, &crn_v);
+				crn = mdisp_rot_face_to_quad_crn(src_corners, st, face_u, face_v, &crn_u, &crn_v);
 
 				old_mdisps_bilinear((*out), &s->disps[crn*side*side], side, crn_u, crn_v);
 				mdisp_flip_disp(crn, dst_corners, axis_x, axis_y, *out);

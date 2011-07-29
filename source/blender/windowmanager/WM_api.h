@@ -95,7 +95,7 @@ void		WM_window_open_temp	(struct bContext *C, struct rcti *position, int type);
 int			WM_read_homefile_exec(struct bContext *C, struct wmOperator *op);
 int			WM_read_homefile	(struct bContext *C, struct ReportList *reports, short from_memory);
 int			WM_write_homefile	(struct bContext *C, struct wmOperator *op);
-void		WM_read_file		(struct bContext *C, const char *name, struct ReportList *reports);
+void		WM_read_file		(struct bContext *C, const char *filepath, struct ReportList *reports);
 int			WM_write_file		(struct bContext *C, const char *target, int fileflags, struct ReportList *reports, int copy);
 void		WM_read_autosavefile(struct bContext *C);
 void		WM_autosave_init	(struct wmWindowManager *wm);
@@ -216,7 +216,7 @@ int			WM_operator_confirm_message(struct bContext *C, struct wmOperator *op, con
 
 		/* operator api */
 void		WM_operator_free		(struct wmOperator *op);
-void		WM_operator_stack_clear(struct bContext *C);
+void		WM_operator_stack_clear(struct wmWindowManager *wm);
 
 struct wmOperatorType *WM_operatortype_find(const char *idnamem, int quiet);
 struct wmOperatorType *WM_operatortype_first(void);
@@ -247,6 +247,8 @@ void		WM_operator_properties_gesture_border(struct wmOperatorType *ot, int exten
 void		WM_operator_properties_gesture_straightline(struct wmOperatorType *ot, int cursor);
 void		WM_operator_properties_select_all(struct wmOperatorType *ot);
 
+wmOperator *WM_operator_last_redo(const struct bContext *C);
+
 /* MOVE THIS SOMEWHERE ELSE */
 #define	SEL_TOGGLE		0
 #define	SEL_SELECT		1
@@ -270,20 +272,26 @@ void		WM_operator_py_idname(char *to, const char *from);
 /* *************** menu types ******************** */
 struct MenuType		*WM_menutype_find(const char *idname, int quiet);
 int					WM_menutype_add(struct MenuType* mt);
+int					WM_menutype_contains(struct MenuType* mt);
 void				WM_menutype_freelink(struct MenuType* mt);
 void				WM_menutype_free(void);
 
 			/* default operator callbacks for border/circle/lasso */
 int			WM_border_select_invoke	(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 int			WM_border_select_modal	(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
+int			WM_border_select_cancel(struct bContext *C, struct wmOperator *op);
 int			WM_gesture_circle_invoke(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 int			WM_gesture_circle_modal(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
+int			WM_gesture_circle_cancel(struct bContext *C, struct wmOperator *op);
 int			WM_gesture_lines_invoke(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 int			WM_gesture_lines_modal(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
+int			WM_gesture_lines_cancel(struct bContext *C, struct wmOperator *op);
 int			WM_gesture_lasso_invoke(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 int			WM_gesture_lasso_modal(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
+int			WM_gesture_lasso_cancel(struct bContext *C, struct wmOperator *op);
 int			WM_gesture_straightline_invoke(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 int			WM_gesture_straightline_modal(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
+int			WM_gesture_straightline_cancel(struct bContext *C, struct wmOperator *op);
 
 			/* default operator for arearegions, generates event */
 void		WM_OT_tweak_gesture(struct wmOperatorType *ot);
@@ -292,12 +300,6 @@ void		WM_OT_tweak_gesture(struct wmOperatorType *ot);
 struct wmGesture *WM_gesture_new(struct bContext *C, struct wmEvent *event, int type);
 void		WM_gesture_end(struct bContext *C, struct wmGesture *gesture);
 void		WM_gestures_remove(struct bContext *C);
-
-			/* radial control operator */
-int			WM_radial_control_invoke(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
-int			WM_radial_control_modal(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
-void		WM_OT_radial_control_partial(struct wmOperatorType *ot);
-void		WM_radial_control_string(struct wmOperator *op, char str[], int maxlen);
 
 			/* fileselecting support */
 void		WM_event_add_fileselect(struct bContext *C, struct wmOperator *op);

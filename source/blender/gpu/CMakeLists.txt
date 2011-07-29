@@ -26,15 +26,18 @@
 
 set(INC
 	.
-	../blenlib
 	../blenkernel
+	../blenlib
 	../blenloader
 	../imbuf
 	../makesdna
 	../makesrna
 	../../../intern/guardedalloc
 	../../../intern/smoke/extern
-    ${GLEW_INCLUDE_PATH}
+)
+
+set(INC_SYS
+	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
@@ -53,7 +56,11 @@ set(SRC
 	intern/gpu_codegen.h
 )
 
+if(WITH_MOD_SMOKE)
+	add_definitions(-DWITH_SMOKE)
+endif()
+
 add_definitions(-DGLEW_STATIC)
 
-blender_add_lib(bf_gpu "${SRC}" "${INC}")
+blender_add_lib(bf_gpu "${SRC}" "${INC}" "${INC_SYS}")
 

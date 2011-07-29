@@ -171,7 +171,12 @@ bMotionPath *animviz_verify_motionpaths(Scene *scene, Object *ob, bPoseChannel *
 		avs= &ob->avs;
 		dst= &ob->mpath;
 	}
-	
+
+	/* avoid 0 size allocs */
+	if(avs->path_sf >= avs->path_ef) {
+		return NULL;
+	}
+
 	/* if there is already a motionpath, just return that,
 	 * but provided it's settings are ok 
 	 */
@@ -714,12 +719,13 @@ static void group_duplilist(ListBase *lb, Scene *scene, Object *ob, int level, i
 		/* note, if you check on layer here, render goes wrong... it still deforms verts and uses parent imat */
 		if(go->ob!=ob) {
 			
-			/* Group Dupli Offset, should apply after everything else */
-			if (group->dupli_ofs[0] || group->dupli_ofs[1] || group->dupli_ofs[2]) {
+			/* group dupli offset, should apply after everything else */
+			if(!is_zero_v3(group->dupli_ofs)) {
 				copy_m4_m4(tmat, go->ob->obmat);
 				sub_v3_v3v3(tmat[3], tmat[3], group->dupli_ofs);
 				mul_m4_m4m4(mat, tmat, ob->obmat);
-			} else {
+			}
+			else {
 				mul_m4_m4m4(mat, go->ob->obmat, ob->obmat);
 			}
 			
@@ -1206,7 +1212,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 	float tmat[4][4], mat[4][4], pamat[4][4], vec[3], size=0.0;
 	float (*obmat)[4], (*oldobmat)[4];
 	int a, b, counter, hair = 0;
-	int totpart, totchild, totgroup=0, pa_num;
+	int totpart, totchild, totgroup=0 /*, pa_num */;
 
 	int no_draw_flag = PARS_UNEXIST;
 
@@ -1323,7 +1329,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 				if(pa->flag & no_draw_flag)
 					continue;
 
-				pa_num = pa->num;
+				/* pa_num = pa->num; */ /* UNUSED */
 				pa_time = pa->time;
 				size = pa->size;
 			}
@@ -1331,7 +1337,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 				/* handle child particle */
 				cpa = &psys->child[a - totpart];
 
-				pa_num = a;
+				/* pa_num = a; */ /* UNUSED */
 				pa_time = psys->particles[cpa->parent].time;
 				size = psys_get_child_size(psys, cpa, ctime, NULL);
 			}
@@ -1390,7 +1396,17 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 
 			if(part->ren_as==PART_DRAW_GR && psys->part->draw & PART_DRAW_WHOLE_GR) {
 				for(go= part->dup_group->gobject.first, b=0; go; go= go->next, b++) {
-					mul_m4_m4m4(tmat, oblist[b]->obmat, pamat);
+
+					/* group dupli offset, should apply after everything else */
+					if(!is_zero_v3(part->dup_group->dupli_ofs)) {
+						copy_m4_m4(tmat, oblist[b]->obmat);
+						sub_v3_v3v3(tmat[3], tmat[3], part->dup_group->dupli_ofs);
+						mul_m4_m4m4(tmat, tmat, pamat);
+					}
+					else {
+						mul_m4_m4m4(tmat, oblist[b]->obmat, pamat);
+					}
+
 					mul_mat3_m4_fl(tmat, size*scale);
 					if(par_space_mat)
 						mul_m4_m4m4(mat, tmat, par_space_mat);

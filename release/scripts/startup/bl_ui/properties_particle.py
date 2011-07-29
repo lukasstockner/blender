@@ -168,10 +168,8 @@ class PARTICLE_PT_context_particles(ParticleButtonsPanel, bpy.types.Panel):
                 if psys != None and psys.is_edited:
                     if psys.is_global_hair:
                         layout.operator("particle.connect_hair")
-                        layout.label(text="Hair is disconnected.")
                     else:
                         layout.operator("particle.disconnect_hair")
-                        layout.label(text="")
             elif psys != None and part.type == 'REACTOR':
                 split.enabled = particle_panel_enabled(context, psys)
                 split.prop(psys, "reactor_target_object")
@@ -880,6 +878,15 @@ class PARTICLE_PT_render(ParticleButtonsPanel, bpy.types.Panel):
             col.prop(part, "billboard_tilt_random", text="Random", slider=True)
             col = row.column()
             col.prop(part, "billboard_offset")
+
+            row = layout.row()
+            col = row.column()
+            col.prop(part, "billboard_size", text="Scale")
+            if part.billboard_align == 'VEL':
+                col = row.column(align=True)
+                col.label("Velocity Scale:")
+                col.prop(part, "billboard_velocity_head", text="Head")
+                col.prop(part, "billboard_velocity_tail", text="Tail")
 
             if psys:
                 col = layout.column()

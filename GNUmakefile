@@ -64,21 +64,20 @@ endif
 
 # Build Blender
 all:
-	@echo 
+	@echo
 	@echo Configuring Blender ...
 
 	if test ! -f $(BUILD_DIR)/CMakeCache.txt ; then \
-		mkdir -p $(BUILD_DIR) ; \
-		cd $(BUILD_DIR) ; \
-		cmake $(BLENDER_DIR) -DCMAKE_BUILD_TYPE:STRING=$(BUILD_TYPE) ; \
+		cmake -H$(BLENDER_DIR) -B$(BUILD_DIR) -DCMAKE_BUILD_TYPE:STRING=$(BUILD_TYPE) ; \
 	fi
 
-	@echo 
+	@echo
 	@echo Building Blender ...
-	cd $(BUILD_DIR) ; make -s -j $(NPROCS) install
-	@echo 
-	@echo run blender from "$(BUILD_DIR)/bin/blender"
-	@echo 
+	$(MAKE) -C $(BUILD_DIR) -s -j $(NPROCS) install
+	@echo
+	@echo edit build configuration with: "$(BUILD_DIR)/CMakeCache.txt" run make again to rebuild.
+	@echo blender installed, run from: "$(BUILD_DIR)/bin/blender"
+	@echo
 
 debug: all
 	# pass
@@ -91,7 +90,7 @@ package_pacman:
 	cd build_files/package_spec/pacman ; MAKEFLAGS="-j$(NPROCS)" makepkg --asroot
 
 package_archive:
-	cd $(BUILD_DIR) ; make -s package_archive
+	make -C $(BUILD_DIR) -s package_archive
 	@echo archive in "$(BUILD_DIR)/release"
 
 # forward build targets
@@ -100,15 +99,19 @@ test:
 
 # run pep8 check check on scripts we distribute.
 test_pep8:
-	python source/tests/pep8.py > test_pep8.log 2>&1
+	python3 source/tests/pep8.py > test_pep8.log 2>&1
 	@echo "written: test_pep8.log"
 
 # run some checks on our cmakefiles.
 test_cmake:
-	python build_files/cmake/cmake_consistency_check.py > test_cmake_consistency.log 2>&1
+	python3 build_files/cmake/cmake_consistency_check.py > test_cmake_consistency.log 2>&1
 	@echo "written: test_cmake_consistency.log"
 
+# run deprecation tests, see if we have anything to remove.
+test_deprecated:
+	python3 source/tests/check_deprecated.py
+
 clean:
-	cd $(BUILD_DIR) ; make clean
+	$(MAKE) -C $(BUILD_DIR) clean
 
 .PHONY: all

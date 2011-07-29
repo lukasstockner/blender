@@ -235,8 +235,6 @@ void make_local_brush(Brush *brush)
 			if(paint_brush(&scene->toolsettings->imapaint.paint)==brush) {
 				if(scene->id.lib==NULL) {
 					paint_brush_set(&scene->toolsettings->imapaint.paint, brushn);
-					brushn->id.us++;
-					brush->id.us--;
 				}
 			}
 		}
@@ -426,13 +424,6 @@ void brush_curve_preset(Brush *b, /*CurveMappingPreset*/int preset)
 	curvemapping_changed(b->curve, 0);
 }
 
-static MTex *brush_active_texture(Brush *brush)
-{
-	if(brush)
-		return &brush->mtex;
-	return NULL;
-}
-
 int brush_texture_set_nr(Brush *brush, int nr)
 {
 	ID *idtest, *id=NULL;
@@ -528,7 +519,7 @@ void brush_sample_tex(Brush *brush, float *xy, float *rgba, const int thread)
 }
 
 
-void brush_imbuf_new(Brush *brush, short flt, short texfall, int bufsize, ImBuf **outbuf)
+void brush_imbuf_new(Brush *brush, short flt, short texfall, int bufsize, ImBuf **outbuf, int use_color_correction)
 {
 	ImBuf *ibuf;
 	float xy[2], dist, rgba[4], *dstf;
@@ -536,7 +527,8 @@ void brush_imbuf_new(Brush *brush, short flt, short texfall, int bufsize, ImBuf 
 	const int radius= brush_size(brush);
 	char *dst, crgb[3];
 	const float alpha= brush_alpha(brush);
-
+	float brush_rgb[3];
+    
 	imbflag= (flt)? IB_rectfloat: IB_rect;
 	xoff = -bufsize/2.0f + 0.5f;
 	yoff = -bufsize/2.0f + 0.5f;
@@ -548,6 +540,11 @@ void brush_imbuf_new(Brush *brush, short flt, short texfall, int bufsize, ImBuf 
 		ibuf= IMB_allocImBuf(bufsize, bufsize, 32, imbflag);
 
 	if (flt) {
+		copy_v3_v3(brush_rgb, brush->rgb);
+		if(use_color_correction){
+			srgb_to_linearrgb_v3_v3(brush_rgb, brush_rgb);
+		}
+
 		for (y=0; y < ibuf->y; y++) {
 			dstf = ibuf->rect_float + y*rowbytes;
 
@@ -558,7 +555,7 @@ void brush_imbuf_new(Brush *brush, short flt, short texfall, int bufsize, ImBuf 
 				if (texfall == 0) {
 					dist = sqrt(xy[0]*xy[0] + xy[1]*xy[1]);
 
-					VECCOPY(dstf, brush->rgb);
+					VECCOPY(dstf, brush_rgb);
 					dstf[3]= alpha*brush_curve_strength_clamp(brush, dist, radius);
 				}
 				else if (texfall == 1) {
@@ -568,10 +565,7 @@ void brush_imbuf_new(Brush *brush, short flt, short texfall, int bufsize, ImBuf 
 					dist = sqrt(xy[0]*xy[0] + xy[1]*xy[1]);
 
 					brush_sample_tex(brush, xy, rgba, 0);
-
-					dstf[0] = rgba[0]*brush->rgb[0];
-					dstf[1] = rgba[1]*brush->rgb[1];
-					dstf[2] = rgba[2]*brush->rgb[2];
+					mul_v3_v3v3(dstf, rgba, brush_rgb);
 					dstf[3] = rgba[3]*alpha*brush_curve_strength_clamp(brush, dist, radius);
 				}
 			}
@@ -869,7 +863,7 @@ static void brush_painter_fixed_tex_partial_update(BrushPainter *painter, float 
 		brush_painter_do_partial(painter, NULL, x1, y2, x2, ibuf->y, 0, 0, pos);
 }
 
-static void brush_painter_refresh_cache(BrushPainter *painter, float *pos)
+static void brush_painter_refresh_cache(BrushPainter *painter, float *pos, int use_color_correction)
 {
 	Brush *brush= painter->brush;
 	BrushPainterCache *cache= &painter->cache;
@@ -896,11 +890,11 @@ static void brush_painter_refresh_cache(BrushPainter *painter, float *pos)
 		size= (cache->size)? cache->size: diameter;
 
 		if (brush->flag & BRUSH_FIXED_TEX) {
-			brush_imbuf_new(brush, flt, 3, size, &cache->maskibuf);
+			brush_imbuf_new(brush, flt, 3, size, &cache->maskibuf, use_color_correction);
 			brush_painter_fixed_tex_partial_update(painter, pos);
 		}
 		else
-			brush_imbuf_new(brush, flt, 2, size, &cache->ibuf);
+			brush_imbuf_new(brush, flt, 2, size, &cache->ibuf, use_color_correction);
 
 		cache->lastsize= diameter;
 		cache->lastalpha= alpha;
@@ -959,7 +953,7 @@ void brush_jitter_pos(Brush *brush, float *pos, float *jitterpos)
 	}
 }
 
-int brush_painter_paint(BrushPainter *painter, BrushFunc func, float *pos, double time, float pressure, void *user)
+int brush_painter_paint(BrushPainter *painter, BrushFunc func, float *pos, double time, float pressure, void *user, int use_color_correction)
 {
 	Brush *brush= painter->brush;
 	int totpaintops= 0;
@@ -977,7 +971,7 @@ int brush_painter_paint(BrushPainter *painter, BrushFunc func, float *pos, doubl
 
 		brush_apply_pressure(painter, brush, pressure);
 		if (painter->cache.enabled)
-			brush_painter_refresh_cache(painter, pos);
+			brush_painter_refresh_cache(painter, pos, use_color_correction);
 		totpaintops += func(user, painter->cache.ibuf, pos, pos);
 		
 		painter->lasttime= time;
@@ -1050,7 +1044,7 @@ int brush_painter_paint(BrushPainter *painter, BrushFunc func, float *pos, doubl
 				brush_jitter_pos(brush, paintpos, finalpos);
 
 				if (painter->cache.enabled)
-					brush_painter_refresh_cache(painter, finalpos);
+					brush_painter_refresh_cache(painter, finalpos, use_color_correction);
 
 				totpaintops +=
 					func(user, painter->cache.ibuf, painter->lastpaintpos, finalpos);
@@ -1064,7 +1058,7 @@ int brush_painter_paint(BrushPainter *painter, BrushFunc func, float *pos, doubl
 			brush_jitter_pos(brush, pos, finalpos);
 
 			if (painter->cache.enabled)
-				brush_painter_refresh_cache(painter, finalpos);
+				brush_painter_refresh_cache(painter, finalpos, use_color_correction);
 
 			totpaintops += func(user, painter->cache.ibuf, pos, finalpos);
 
@@ -1092,7 +1086,7 @@ int brush_painter_paint(BrushPainter *painter, BrushFunc func, float *pos, doubl
 				brush_jitter_pos(brush, pos, finalpos);
 
 				if (painter->cache.enabled)
-					brush_painter_refresh_cache(painter, finalpos);
+					brush_painter_refresh_cache(painter, finalpos, use_color_correction);
 
 				totpaintops +=
 					func(user, painter->cache.ibuf, painter->lastmousepos, finalpos);
@@ -1185,7 +1179,7 @@ unsigned int *brush_gen_texture_cache(Brush *br, int half_side)
 }
 
 /**** Radial Control ****/
-static struct ImBuf *brush_gen_radial_control_imbuf(Brush *br)
+struct ImBuf *brush_gen_radial_control_imbuf(Brush *br)
 {
 	ImBuf *im = MEM_callocN(sizeof(ImBuf), "radial control texture");
 	unsigned int *texcache;
@@ -1217,50 +1211,6 @@ static struct ImBuf *brush_gen_radial_control_imbuf(Brush *br)
 	}
 
 	return im;
-}
-
-void brush_radial_control_invoke(wmOperator *op, Brush *br, float size_weight)
-{
-	int mode = RNA_enum_get(op->ptr, "mode");
-	float original_value= 0;
-
-	if(mode == WM_RADIALCONTROL_SIZE)
-		original_value = brush_size(br) * size_weight;
-	else if(mode == WM_RADIALCONTROL_STRENGTH)
-		original_value = brush_alpha(br);
-	else if(mode == WM_RADIALCONTROL_ANGLE) {
-		MTex *mtex = brush_active_texture(br);
-		if(mtex)
-			original_value = mtex->rot;
-	}
-
-	RNA_float_set(op->ptr, "initial_value", original_value);
-	op->customdata = brush_gen_radial_control_imbuf(br);
-}
-
-int brush_radial_control_exec(wmOperator *op, Brush *br, float size_weight)
-{
-	int mode = RNA_enum_get(op->ptr, "mode");
-	float new_value = RNA_float_get(op->ptr, "new_value");
-	const float conv = 0.017453293;
-
-	if(mode == WM_RADIALCONTROL_SIZE)
-		if (brush_use_locked_size(br)) {
-			float initial_value = RNA_float_get(op->ptr, "initial_value");
-			const float unprojected_radius = brush_unprojected_radius(br);
-			brush_set_unprojected_radius(br, unprojected_radius * new_value/initial_value * size_weight);
-		}
-		else
-			brush_set_size(br, new_value * size_weight);
-	else if(mode == WM_RADIALCONTROL_STRENGTH)
-		brush_set_alpha(br, new_value);
-	else if(mode == WM_RADIALCONTROL_ANGLE) {
-		MTex *mtex = brush_active_texture(br);
-		if(mtex)
-			mtex->rot = new_value * conv;
-	}
-
-	return OPERATOR_FINISHED;
 }
 
 /* Unified Size and Strength */
@@ -1301,6 +1251,19 @@ static short unified_settings(Brush *brush)
 
 	return 0;
 }
+
+// XXX: be careful about setting size and unprojected radius
+// because they depend on one another
+// these functions do not set the other corresponding value
+// this can lead to odd behavior if size and unprojected
+// radius become inconsistent.
+// the biggest problem is that it isn't possible to change
+// unprojected radius because a view context is not
+// available.  my ussual solution to this is to use the
+// ratio of change of the size to change the unprojected
+// radius.  Not completely convinced that is correct.
+// In anycase, a better solution is needed to prevent
+// inconsistency.
 
 static void set_unified_size(Brush *brush, int value)
 {

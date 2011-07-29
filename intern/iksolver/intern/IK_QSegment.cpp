@@ -370,7 +370,7 @@ MT_Vector3 IK_QSphericalSegment::Axis(int dof) const
 
 void IK_QSphericalSegment::SetLimit(int axis, MT_Scalar lmin, MT_Scalar lmax)
 {
-	if (lmin >= lmax)
+	if (lmin > lmax)
 		return;
 	
 	if (axis == 1) {
@@ -613,7 +613,7 @@ void IK_QRevoluteSegment::UpdateAngleApply()
 
 void IK_QRevoluteSegment::SetLimit(int axis, MT_Scalar lmin, MT_Scalar lmax)
 {
-	if (lmin >= lmax || m_axis != axis)
+	if (lmin > lmax || m_axis != axis)
 		return;
 	
 	// clamp and convert to axis angle parameters
@@ -752,7 +752,7 @@ void IK_QSwingSegment::UpdateAngleApply()
 
 void IK_QSwingSegment::SetLimit(int axis, MT_Scalar lmin, MT_Scalar lmax)
 {
-	if (lmin >= lmax)
+	if (lmin > lmax)
 		return;
 	
 	// clamp and convert to axis angle parameters
@@ -898,15 +898,12 @@ void IK_QElbowSegment::UpdateAngleApply()
 
 void IK_QElbowSegment::SetLimit(int axis, MT_Scalar lmin, MT_Scalar lmax)
 {
-	if (lmin >= lmax)
+	if (lmin > lmax)
 		return;
 
 	// clamp and convert to axis angle parameters
 	lmin = MT_clamp(lmin, -MT_PI, MT_PI);
 	lmax = MT_clamp(lmax, -MT_PI, MT_PI);
-
-	lmin = lmin;
-	lmax = lmax;
 
 	if (axis == 1) {
 		m_min_twist = lmin;

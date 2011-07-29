@@ -137,9 +137,8 @@ void wm_operator_register(bContext *C, wmOperator *op)
 }
 
 
-void WM_operator_stack_clear(bContext *C)
+void WM_operator_stack_clear(wmWindowManager *wm)
 {
-	wmWindowManager *wm= CTX_wm_manager(C);
 	wmOperator *op;
 	
 	while((op= wm->operators.first)) {
@@ -147,7 +146,7 @@ void WM_operator_stack_clear(bContext *C)
 		WM_operator_free(op);
 	}
 	
-	WM_event_add_notifier(C, NC_WM|ND_HISTORY, NULL);
+	WM_main_add_notifier(NC_WM|ND_HISTORY, NULL);
 }
 
 /* ****************************************** */
@@ -174,6 +173,12 @@ int WM_menutype_add(MenuType* mt)
 {
 	BLI_addtail(&menutypes, mt);
 	return 1;
+}
+
+/* inefficient but only used for tooltip code */
+int WM_menutype_contains(MenuType* mt)
+{
+	return (mt != NULL && BLI_findindex(&menutypes, mt) != -1);
 }
 
 void WM_menutype_freelink(MenuType* mt)

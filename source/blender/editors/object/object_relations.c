@@ -360,7 +360,7 @@ static int make_proxy_exec (bContext *C, wmOperator *op)
 }
 
 /* Generic itemf's for operators that take library args */
-static EnumPropertyItem *proxy_group_object_itemf(bContext *C, PointerRNA *UNUSED(ptr), int *free)
+static EnumPropertyItem *proxy_group_object_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
 {
 	EnumPropertyItem item_tmp= {0}, *item= NULL;
 	int totitem= 0;
@@ -446,6 +446,7 @@ static int parent_clear_exec(bContext *C, wmOperator *op)
 	DAG_scene_sort(bmain, scene);
 	DAG_ids_flush_update(bmain, 0);
 	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, NULL);
+	WM_event_add_notifier(C, NC_OBJECT|ND_PARENT, NULL);
 
 	return OPERATOR_FINISHED;
 }
@@ -1127,8 +1128,6 @@ static int move_to_layer_exec(bContext *C, wmOperator *op)
 		}
 		CTX_DATA_END;
 	}
-
-	if(islamp) reshadeall_displist(scene);	/* only frees */
 	
 	/* warning, active object may be hidden now */
 	
@@ -1320,7 +1319,7 @@ void OBJECT_OT_make_links_scene(wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name= "Link Objects to Scene";
-	ot->description = "Make linked data local to each object";
+	ot->description = "Link selection to another scene";
 	ot->idname= "OBJECT_OT_make_links_scene";
 
 	/* api callbacks */
@@ -1543,11 +1542,12 @@ static void single_mat_users(Scene *scene, int flag, int do_textures)
 
 						if(do_textures) {
 							for(b=0; b<MAX_MTEX; b++) {
-								if(ma->mtex[b] && ma->mtex[b]->tex) {
-									tex= ma->mtex[b]->tex;
+								if(ma->mtex[b] && (tex= ma->mtex[b]->tex)) {
 									if(tex->id.us>1) {
-										ma->mtex[b]->tex= copy_texture(tex);
 										tex->id.us--;
+										tex= copy_texture(tex);
+										BKE_copy_animdata_id_action(&tex->id);
+										ma->mtex[b]->tex= tex;
 									}
 								}
 							}
@@ -1660,6 +1660,7 @@ void ED_object_single_users(Main *bmain, Scene *scene, int full)
 
 	if(full) {
 		single_obdata_users(bmain, scene, 0);
+		single_object_action_users(scene, 0);
 		single_mat_users_expand(bmain);
 		single_tex_users_expand(bmain);
 	}
@@ -1818,11 +1819,12 @@ static int make_single_user_exec(bContext *C, wmOperator *op)
 		single_obdata_users(bmain, scene, flag);
 
 	if(RNA_boolean_get(op->ptr, "material"))
-		single_mat_users(scene, flag, FALSE);
+		single_mat_users(scene, flag, RNA_boolean_get(op->ptr, "texture"));
 
+#if 0 /* can't do this separate from materials */
 	if(RNA_boolean_get(op->ptr, "texture"))
 		single_mat_users(scene, flag, TRUE);
-
+#endif
 	if(RNA_boolean_get(op->ptr, "animation"))
 		single_object_action_users(scene, flag);
 

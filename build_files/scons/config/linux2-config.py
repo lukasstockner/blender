@@ -93,7 +93,7 @@ BF_GETTEXT_LIBPATH = '${BF_GETTEXT}/lib'
 #BF_GETTEXT_LIB_STATIC = '${BF_GETTEXT}/lib/libgettextlib.a'
 
 WITH_BF_GAMEENGINE = True
-WITH_BF_PLAYER = False
+WITH_BF_PLAYER = True
 
 WITH_BF_BULLET = True
 BF_BULLET = '#extern/bullet2/src'
@@ -177,6 +177,14 @@ BF_PCRE_LIBPATH = '/usr/lib'
 BF_EXPAT = '/usr'
 BF_EXPAT_LIB = 'expat'
 BF_EXPAT_LIBPATH = '/usr/lib'
+
+WITH_BF_JEMALLOC = False
+WITH_BF_STATICJEMALLOC = False
+BF_JEMALLOC = '/usr'
+BF_JEMALLOC_INC = '${BF_JEMALLOC}/include'
+BF_JEMALLOC_LIBPATH = '${BF_JEMALLOC}/lib'
+BF_JEMALLOC_LIB = 'jemalloc'
+BF_JEMALLOC_LIB_STATIC = '${BF_JEMALLOC_LIBPATH}/libjemalloc.a'
 
 WITH_BF_OPENMP = True
 

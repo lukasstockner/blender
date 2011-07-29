@@ -61,6 +61,10 @@ struct ImBuf;
 #define OPTYPE_MACRO		8
 #define OPTYPE_GRAB_POINTER	16	/* */
 #define OPTYPE_PRESET		32	/* show preset menu */
+#define OPTYPE_INTERNAL		64	/* some operators are mainly for internal use
+								 * and don't make sense to be accessed from the
+								 * search menu, even if poll() returns TRUE.
+								 * currently only used for the search toolbox */
 
 /* context to call operator in for WM_operator_name_call */
 /* rna_ui.c contains EnumPropertyItem's of these, keep in sync */
@@ -335,8 +339,8 @@ typedef struct wmEvent {
 	
 	short type;			/* event code itself (short, is also in keymap) */
 	short val;			/* press, release, scrollvalue */
-	short x, y;			/* mouse pointer position, screen coord */
-	short mval[2];		/* region mouse position, name convention pre 2.5 :) */
+	int x, y;			/* mouse pointer position, screen coord */
+	int mval[2];		/* region mouse position, name convention pre 2.5 :) */
 	short unicode;		/* future, ghost? */
 	char ascii;			/* from ghost */
 	char pad;
@@ -344,9 +348,9 @@ typedef struct wmEvent {
 	/* previous state */
 	short prevtype;
 	short prevval;
-	short prevx, prevy;
+	int prevx, prevy;
 	double prevclicktime;
-	short prevclickx, prevclicky;
+	int prevclickx, prevclicky;
 	
 	/* modifier states */
 	short shift, ctrl, alt, oskey;	/* oskey is apple or windowskey, value denotes order of pressed */
@@ -494,7 +498,7 @@ typedef struct wmDrag {
 	
 	struct ImBuf *imb;						/* if no icon but imbuf should be drawn around cursor */
 	float scale;
-	short sx, sy;
+	int sx, sy;
 	
 	char opname[240]; /* FILE_MAX */			/* if set, draws operator name*/
 } wmDrag;

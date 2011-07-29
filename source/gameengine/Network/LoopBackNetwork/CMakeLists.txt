@@ -26,9 +26,13 @@
 
 set(INC
 	.
-	../../../../intern/string
+	..
 	../../../../intern/container
-	../../../../source/gameengine/Network
+	../../../../intern/string
+)
+
+set(INC_SYS
+
 )
 
 set(SRC
@@ -37,4 +41,4 @@ set(SRC
 	NG_LoopBackNetworkDeviceInterface.h
 )
 
-blender_add_lib(ge_logic_loopbacknetwork "${SRC}" "${INC}")
+blender_add_lib(ge_logic_loopbacknetwork "${SRC}" "${INC}" "${INC_SYS}")

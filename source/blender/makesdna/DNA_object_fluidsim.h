@@ -42,7 +42,10 @@ extern "C" {
 	
 struct Mesh;
 struct Ipo;
-struct MVert;
+
+typedef struct FluidVertexVelocity {
+	float vel[3];
+} FluidVertexVelocity;
 	
 typedef struct FluidsimSettings {
 	struct FluidsimModifierData *fmd; /* for fast RNA access */
@@ -66,7 +69,7 @@ typedef struct FluidsimSettings {
 	short viscosityMode;
 	short viscosityExponent;
 	/* gravity strength */
-	float gravx,gravy,gravz;
+	float grav[3];
 	/* anim start end time (in seconds) */
 	float animStart, animEnd;
 	/* bake start end time (in blender frames) */
@@ -82,8 +85,6 @@ typedef struct FluidsimSettings {
 
 	/* store pointer to original mesh (for replacing the current one) */
 	struct Mesh *orgMesh;
-	/* pointer to the currently loaded fluidsim mesh */
-	struct Mesh *meshSurface;
 	/* a mesh to display the bounding box used for simulation */
 	struct Mesh *meshBB;
 
@@ -122,8 +123,10 @@ typedef struct FluidsimSettings {
 	/* testing vars */
 	float farFieldSize;
 
-	/* save fluidsurface normals in mvert.no, and surface vertex velocities (if available) in mvert.co */
-	struct MVert *meshSurfNormals;
+	/* vertex velocities of simulated fluid mesh */
+	struct FluidVertexVelocity *meshVelocities;
+	/* number of vertices in simulated fluid mesh */
+	int totvert;
 	
 	/* Fluid control settings */
 	float cpsTimeStart;
@@ -136,6 +139,8 @@ typedef struct FluidsimSettings {
 	float velocityforceRadius;
 
 	int lastgoodframe;
+	
+	int pad;
 
 } FluidsimSettings;
 
@@ -155,6 +160,9 @@ typedef struct FluidsimSettings {
 #define OB_FSBND_PARTSLIP       (1<<(OB_TYPEFLAG_START+3))
 #define OB_FSBND_FREESLIP       (1<<(OB_TYPEFLAG_START+4))
 #define OB_FSINFLOW_LOCALCOORD  (1<<(OB_TYPEFLAG_START+5))
+
+/* surface generation flag (part of enabling chapter 6 of "Free Surface Flows with Moving and Deforming Objects for LBM") */
+#define OB_FSSG_NOOBS			(1<<(OB_TYPEFLAG_START+6))
 
 // guiDisplayMode particle flags
 #define OB_FSDOM_GEOM     1

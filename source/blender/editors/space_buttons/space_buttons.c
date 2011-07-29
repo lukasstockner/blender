@@ -187,6 +187,7 @@ static void buttons_operatortypes(void)
 {
 	WM_operatortype_append(BUTTONS_OT_toolbox);
 	WM_operatortype_append(BUTTONS_OT_file_browse);
+	WM_operatortype_append(BUTTONS_OT_directory_browse);
 }
 
 static void buttons_keymap(struct wmKeyConfig *keyconf)
@@ -405,7 +406,7 @@ void ED_spacetype_buttons(void)
 	/* regions: header */
 	art= MEM_callocN(sizeof(ARegionType), "spacetype buttons region");
 	art->regionid = RGN_TYPE_HEADER;
-	art->prefsizey= BUTS_HEADERY;
+	art->prefsizey= HEADERY;
 	art->keymapflag= ED_KEYMAP_UI|ED_KEYMAP_VIEW2D|ED_KEYMAP_FRAMES|ED_KEYMAP_HEADER;
 	
 	art->init= buttons_header_area_init;

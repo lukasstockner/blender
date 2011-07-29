@@ -44,6 +44,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.h"
+#include "BKE_screen.h"
 #include "BKE_global.h"
 
 
@@ -1541,7 +1542,7 @@ static void scroll_printstr(Scene *scene, float x, float y, float val, int power
 	}
 	
 	/* draw it */
-	BLF_draw_default(x, y, 0.0f, str, sizeof(str)-1);
+	BLF_draw_default_ascii(x, y, 0.0f, str, sizeof(str)-1);
 }
 
 /* Draw scrollbars in the given 2d-region */
@@ -1959,17 +1960,14 @@ View2D *UI_view2d_fromcontext(const bContext *C)
 /* same as above, but it returns regionwindow. Utility for pulldowns or buttons */
 View2D *UI_view2d_fromcontext_rwin(const bContext *C)
 {
-	ScrArea *area= CTX_wm_area(C);
+	ScrArea *sa= CTX_wm_area(C);
 	ARegion *region= CTX_wm_region(C);
 
-	if (area == NULL) return NULL;
+	if (sa == NULL) return NULL;
 	if (region == NULL) return NULL;
 	if (region->regiontype!=RGN_TYPE_WINDOW) {
-		ARegion *ar= area->regionbase.first;
-		for(; ar; ar= ar->next)
-			if(ar->regiontype==RGN_TYPE_WINDOW)
-				return &(ar->v2d);
-		return NULL;
+		ARegion *ar= BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
+		return ar ? &(ar->v2d) : NULL;
 	}
 	return &(region->v2d);
 }
@@ -2028,7 +2026,7 @@ typedef struct View2DString {
 		unsigned char ub[4];
 		int pack;
 	} col;
-	short mval[2];
+	int mval[2];
 	rcti rect;
 } View2DString;
 

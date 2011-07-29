@@ -23,16 +23,19 @@ set(INC
 	../include
 	../../blenfont
 	../../blenkernel
-	../../blenloader
 	../../blenlib
+	../../blenloader
 	../../gpu
 	../../imbuf
 	../../makesdna
 	../../makesrna
-	../../windowmanager
 	../../render/extern/include
+	../../windowmanager
 	../../../../intern/guardedalloc
 	../../../../intern/smoke/extern
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
@@ -58,10 +61,12 @@ set(SRC
 )
 
 if(WITH_GAMEENGINE)
-	list(APPEND INC ../../../../source/gameengine/BlenderRoutines)
+	list(APPEND INC
+		../../../gameengine/BlenderRoutines
+	)
 	add_definitions(-DWITH_GAMEENGINE)
 endif()
 
 add_definitions(-DGLEW_STATIC)
 
-blender_add_lib(bf_editor_space_view3d "${SRC}" "${INC}")
+blender_add_lib(bf_editor_space_view3d "${SRC}" "${INC}" "${INC_SYS}")

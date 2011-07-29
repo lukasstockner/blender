@@ -32,8 +32,10 @@
  */
 
 
-#ifdef WITH_PYTHON
-#include <Python.h>
+#if 0 /* pynodes commented for now */
+#  ifdef WITH_PYTHON
+#    include <Python.h>
+#  endif
 #endif
 
 #include "MEM_guardedalloc.h"
@@ -350,7 +352,7 @@ static bNodeType ntype_group;
 /* groups display their internal tree name as label */
 static const char *group_label(bNode *node)
 {
-	return node->id->name+2;
+	return (node->id)? node->id->name+2: "Missing Datablock";
 }
 
 void register_node_type_group(ListBase *lb)
@@ -2072,11 +2074,12 @@ static int set_stack_indexes_group(bNode *node, int index)
 	bNodeTree *ngroup= (bNodeTree*)node->id;
 	bNodeSocket *sock;
 	
-	if((ngroup->init & NTREE_TYPE_INIT)==0)
+	if(ngroup && (ngroup->init & NTREE_TYPE_INIT)==0)
 		ntreeInitTypes(ngroup);
 	
 	node->stack_index = index;
-	index += ntree_begin_exec_tree(ngroup);
+	if(ngroup)
+		index += ntree_begin_exec_tree(ngroup);
 	
 	for (sock=node->inputs.first; sock; sock=sock->next) {
 		if (sock->link && sock->link->fromsock) {
@@ -2199,7 +2202,7 @@ static void composit_begin_exec(bNodeTree *ntree, bNodeStack *stack)
 			if(node->type==CMP_NODE_CURVE_RGB)
 				curvemapping_premultiply(node->storage, 0);
 		}
-		if(node->type==NODE_GROUP)
+		if(node->type==NODE_GROUP && node->id)
 			composit_begin_exec((bNodeTree *)node->id, stack + node->stack_index);
 
 	}
@@ -2225,7 +2228,7 @@ static void composit_end_exec(bNodeTree *ntree, bNodeStack *stack)
 		if(node->type==CMP_NODE_CURVE_RGB)
 			curvemapping_premultiply(node->storage, 1);
 		
-		if(node->type==NODE_GROUP)
+		if(node->type==NODE_GROUP && node->id)
 			composit_end_exec((bNodeTree *)node->id, stack + node->stack_index);
 
 		node->need_exec= 0;
@@ -2415,6 +2418,11 @@ void ntreeBeginExecTree(bNodeTree *ntree)
 		
 		if(ntree->type==NTREE_COMPOSIT)
 			composit_begin_exec(ntree, ntree->stack);
+		
+		/* ensures only a single output node is enabled, texnode allows multiple though */
+		if(ntree->type!=NTREE_TEXTURE)
+			ntreeSetOutput(ntree);
+		
 	}
 	
 	ntree->init |= NTREE_EXEC_INIT;
@@ -2761,9 +2769,6 @@ void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int do_preview)
 	
 	/* fixed seed, for example noise texture */
 	BLI_srandom(rd->cfra);
-
-	/* ensures only a single output node is enabled */
-	ntreeSetOutput(ntree);
 
 	/* sets need_exec tags in nodes */
 	curnode = totnode= setExecutableNodes(ntree, &thdata);
@@ -3153,6 +3158,8 @@ static void force_hidden_passes(bNode *node, int passflag)
 	if(!(passflag & SCE_PASS_INDIRECT)) sock->flag |= SOCK_UNAVAIL;
 	sock= BLI_findlink(&node->outputs, RRES_OUT_INDEXOB);
 	if(!(passflag & SCE_PASS_INDEXOB)) sock->flag |= SOCK_UNAVAIL;
+	sock= BLI_findlink(&node->outputs, RRES_OUT_INDEXMA);
+	if(!(passflag & SCE_PASS_INDEXMA)) sock->flag |= SOCK_UNAVAIL;
 	sock= BLI_findlink(&node->outputs, RRES_OUT_MIST);
 	if(!(passflag & SCE_PASS_MIST)) sock->flag |= SOCK_UNAVAIL;
 	sock= BLI_findlink(&node->outputs, RRES_OUT_EMIT);

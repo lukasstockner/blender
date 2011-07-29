@@ -465,18 +465,19 @@ static DerivedMesh *multires_dm_create_local(Object *ob, DerivedMesh *dm, int lv
 	return multires_dm_create_from_derived(&mmd, 1, dm, ob, 0, 0);
 }
 
-static DerivedMesh *subsurf_dm_create_local(Object *UNUSED(ob), DerivedMesh *dm, int lvl, int simple, int optimal)
+static DerivedMesh *subsurf_dm_create_local(Object *ob, DerivedMesh *dm, int lvl, int simple, int optimal, int plain_uv)
 {
 	SubsurfModifierData smd= {{NULL}};
 
 	smd.levels = smd.renderLevels = lvl;
-	smd.flags |= eSubsurfModifierFlag_SubsurfUv;
+	if(!plain_uv)
+		smd.flags |= eSubsurfModifierFlag_SubsurfUv;
 	if(simple)
 		smd.subdivType = ME_SIMPLE_SUBSURF;
 	if(optimal)
 		smd.flags |= eSubsurfModifierFlag_ControlEdges;
 
-	return subsurf_make_derived_from_derived(dm, &smd, 0, NULL, 0, 0);
+	return subsurf_make_derived_from_derived(dm, &smd, 0, NULL, 0, 0, (ob->mode & OB_MODE_EDIT));
 }
 
 
@@ -591,7 +592,7 @@ void multiresModifier_base_apply(MultiresModifierData *mmd, Object *ob)
 	/* subdivide the mesh to highest level without displacements */
 	cddm = CDDM_from_mesh(me, NULL);
 	DM_set_only_copy(cddm, CD_MASK_BAREMESH);
-	origdm = subsurf_dm_create_local(ob, cddm, totlvl, 0, 0);
+	origdm = subsurf_dm_create_local(ob, cddm, totlvl, 0, 0, mmd->flags & eMultiresModifierFlag_PlainUv);
 	cddm->release(cddm);
 
 	/* calc disps */
@@ -626,7 +627,7 @@ static void multires_subdivide(MultiresModifierData *mmd, Object *ob, int totlvl
 		/* create subsurf DM from original mesh at high level */
 		cddm = CDDM_from_mesh(me, NULL);
 		DM_set_only_copy(cddm, CD_MASK_BAREMESH);
-		highdm = subsurf_dm_create_local(ob, cddm, totlvl, simple, 0);
+		highdm = subsurf_dm_create_local(ob, cddm, totlvl, simple, 0, mmd->flags & eMultiresModifierFlag_PlainUv);
 
 		/* create multires DM from original mesh at low level */
 		lowdm = multires_dm_create_local(ob, cddm, lvl, lvl, simple);
@@ -830,7 +831,7 @@ static void multiresModifier_update(DerivedMesh *dm)
 			else cddm = CDDM_from_mesh(me, NULL);
 			DM_set_only_copy(cddm, CD_MASK_BAREMESH);
 
-			highdm = subsurf_dm_create_local(ob, cddm, totlvl, mmd->simple, 0);
+			highdm = subsurf_dm_create_local(ob, cddm, totlvl, mmd->simple, 0, mmd->flags & eMultiresModifierFlag_PlainUv);
 
 			/* create multires DM from original mesh and displacements */
 			lowdm = multires_dm_create_local(ob, cddm, lvl, totlvl, mmd->simple);
@@ -884,7 +885,7 @@ static void multiresModifier_update(DerivedMesh *dm)
 			else cddm = CDDM_from_mesh(me, NULL);
 			DM_set_only_copy(cddm, CD_MASK_BAREMESH);
 
-			subdm = subsurf_dm_create_local(ob, cddm, mmd->totlvl, mmd->simple, 0);
+			subdm = subsurf_dm_create_local(ob, cddm, mmd->totlvl, mmd->simple, 0, mmd->flags & eMultiresModifierFlag_PlainUv);
 			cddm->release(cddm);
 
 			multiresModifier_disp_run(dm, me, 1, 0, subdm->getGridData(subdm), mmd->totlvl);
@@ -927,7 +928,8 @@ DerivedMesh *multires_dm_create_from_derived(MultiresModifierData *mmd, int loca
 		return dm;
 
 	result = subsurf_dm_create_local(ob, dm, lvl,
-		mmd->simple, mmd->flags & eMultiresModifierFlag_ControlEdges);
+		mmd->simple, mmd->flags & eMultiresModifierFlag_ControlEdges,
+		mmd->flags & eMultiresModifierFlag_PlainUv);
 
 	if(!local_mmd) {
 		ccgdm = (CCGDerivedMesh*)result;
@@ -1020,7 +1022,7 @@ static void old_mdisps_rotate(int S, int UNUSED(newside), int oldside, int x, in
 
 static void old_mdisps_convert(MFace *mface, MDisps *mdisp)
 {
-	int newlvl = log(sqrt(mdisp->totdisp)-1)/log(2);
+	int newlvl = log(sqrt(mdisp->totdisp)-1)/M_LN2;
 	int oldlvl = newlvl+1;
 	int oldside = multires_side_tot[oldlvl];
 	int newside = multires_side_tot[newlvl];
@@ -1633,7 +1635,7 @@ static void multires_apply_smat(Scene *scene, Object *ob, float smat[3][3])
 	MEM_freeN(vertCos);
 
 	/* scaled ccgDM for tangent space of object with applied scale */
-	dm= subsurf_dm_create_local(ob, cddm, high_mmd.totlvl, high_mmd.simple, 0);
+	dm= subsurf_dm_create_local(ob, cddm, high_mmd.totlvl, high_mmd.simple, 0, mmd->flags & eMultiresModifierFlag_PlainUv);
 	cddm->release(cddm);
 
 	/*numGrids= dm->getNumGrids(dm);*/ /*UNUSED*/
@@ -1756,7 +1758,7 @@ void multires_topology_changed(Scene *scene, Object *ob)
 		int nvert= me->mface[i].v4 ? 4 : 3;
 
 		/* allocate memory for mdisp, the whole disp layer would be erased otherwise */
-		if(!mdisp->totdisp) {
+		if(!mdisp->totdisp || !mdisp->disps) {
 			if(grid) {
 				mdisp->totdisp= nvert*grid;
 				mdisp->disps= MEM_callocN(mdisp->totdisp*sizeof(float)*3, "mdisp topology");
@@ -1997,7 +1999,63 @@ void mdisp_rot_crn_to_face(const int S, const int corners, const int face_side, 
 	}
 }
 
+/* Find per-corner coordinate with given per-face UV coord */
 int mdisp_rot_face_to_crn(const int corners, const int face_side, const float u, const float v, float *x, float *y)
+{
+	const float offset = face_side*0.5f - 0.5f;
+	int S = 0;
+
+	if (corners == 4) {
+		if(u <= offset && v <= offset) S = 0;
+		else if(u > offset  && v <= offset) S = 1;
+		else if(u > offset  && v > offset) S = 2;
+		else if(u <= offset && v >= offset)  S = 3;
+
+		if(S == 0) {
+			*y = offset - u;
+			*x = offset - v;
+		} else if(S == 1) {
+			*x = u - offset;
+			*y = offset - v;
+		} else if(S == 2) {
+			*y = u - offset;
+			*x = v - offset;
+		} else if(S == 3) {
+			*x= offset - u;
+			*y = v - offset;
+		}
+	} else {
+		int grid_size = offset;
+		float w = (face_side - 1) - u - v;
+		float W1, W2;
+
+		if (u >= v && u >= w) {S = 0; W1= w; W2= v;}
+		else if (v >= u && v >= w) {S = 1; W1 = u; W2 = w;}
+		else {S = 2; W1 = v; W2 = u;}
+
+		W1 /= (face_side-1);
+		W2 /= (face_side-1);
+
+		*x = (1-(2*W1)/(1-W2)) * grid_size;
+		*y = (1-(2*W2)/(1-W1)) * grid_size;
+	}
+
+	return S;
+}
+
+/* Find per-corner coordinate with given per-face UV coord
+   Practically as the previous funciton but it assumes a bit different coordinate system for triangles
+   which is optimized for MDISP layer interpolation:
+
+   v
+   ^
+   |      /|
+   |    /  |
+   |  /    |
+   |/______|___> u
+
+ */
+int mdisp_rot_face_to_quad_crn(const int corners, const int face_side, const float u, const float v, float *x, float *y)
 {
 	const float offset = face_side*0.5f - 0.5f;
 	int S = 0;
@@ -2148,7 +2206,7 @@ void mdisp_join_tris(MDisps *dst, MDisps *tri1, MDisps *tri2)
 					face_v = st - 1 - face_v;
 				} else src = tri1;
 
-				crn = mdisp_rot_face_to_crn(3, st, face_u, face_v, &crn_u, &crn_v);
+				crn = mdisp_rot_face_to_quad_crn(3, st, face_u, face_v, &crn_u, &crn_v);
 
 				old_mdisps_bilinear((*out), &src->disps[crn*side*side], side, crn_u, crn_v);
 				(*out)[0] = 0;

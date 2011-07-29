@@ -35,6 +35,7 @@ import addon_utils as _addon_utils
 
 _script_module_dirs = "startup", "modules", "bge_components"
 
+
 def _test_import(module_name, loaded_modules):
     use_time = _bpy.app.debug
 
@@ -297,11 +298,18 @@ _presets = _os.path.join(_scripts[0], "presets")  # FIXME - multiple paths
 def preset_paths(subdir):
     """
     Returns a list of paths for a specific preset.
+
+    :arg subdir: preset subdirectory (must not be an absolute path).
+    :type subdir: string
+    :return: script paths.
+    :rtype: list
     """
     dirs = []
     for path in script_paths("presets", all=True):
         directory = _os.path.join(path, subdir)
-        if _os.path.isdir(directory):
+        if not directory.startswith(path):
+            raise Exception("invalid subdir given %r" % subdir)
+        elif _os.path.isdir(directory):
             dirs.append(directory)
     return dirs
 
@@ -378,7 +386,9 @@ def preset_find(name, preset_path, display_name=False):
 def keyconfig_set(filepath):
     from os.path import basename, splitext
 
-    print("loading preset:", filepath)
+    if _bpy.app.debug:
+        print("loading preset:", filepath)
+
     keyconfigs = _bpy.context.window_manager.keyconfigs
 
     keyconfigs_old = keyconfigs[:]

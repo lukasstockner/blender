@@ -30,19 +30,22 @@ remove_strict_flags()
 set(INC
 	.
 	../common
-	../../../../extern/bullet2/src
-	../../../../intern/moto/include
-	../../../../intern/guardedalloc
-	../../../../intern/container
-	../../../../intern/string
-	../../Rasterizer
-	../../Ketsji
 	../../Expressions
 	../../GameLogic
+	../../Ketsji
+	../../Rasterizer
 	../../SceneGraph
-	../../../../source/blender/makesdna
-	../../../../source/blender/blenlib
-	../../../../source/blender/blenkernel
+	../../../blender/blenkernel
+	../../../blender/blenlib
+	../../../blender/makesdna
+	../../../../extern/bullet2/src
+	../../../../intern/container
+	../../../../intern/guardedalloc
+	../../../../intern/moto/include
+	../../../../intern/string
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 	${PYTHON_INCLUDE_DIRS}
 )
@@ -61,4 +64,4 @@ if(WITH_BULLET)
 	add_definitions(-DUSE_BULLET)
 endif()
 
-blender_add_lib(ge_phys_bullet "${SRC}" "${INC}")
+blender_add_lib(ge_phys_bullet "${SRC}" "${INC}" "${INC_SYS}")

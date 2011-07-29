@@ -26,7 +26,11 @@
 
 set(INC 
 	.
+	../blenlib
 	../../../intern/guardedalloc
+)
+
+set(INC_SYS
 	${JPEG_INCLUDE_DIR}
 )
 
@@ -47,4 +51,4 @@ set(SRC
 	intern/rgb32.h
 )
 
-blender_add_lib(bf_avi "${SRC}" "${INC}")
+blender_add_lib(bf_avi "${SRC}" "${INC}" "${INC_SYS}")

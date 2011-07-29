@@ -70,7 +70,10 @@
 #include "UI_view2d.h"
 
 #include "BKE_sound.h"
-#include "AUD_C-API.h"
+
+#ifdef WITH_AUDASPACE
+#  include "AUD_C-API.h"
+#endif
 
 /* own include */
 #include "sequencer_intern.h"
@@ -82,6 +85,7 @@
 #define SEQPROP_ENDFRAME	(1<<1)
 #define SEQPROP_FILES		(1<<2)
 #define SEQPROP_NOPATHS		(1<<3)
+#define SEQPROP_NOCHAN		(1<<4)
 
 #define SELECT 1
 
@@ -96,6 +100,8 @@ static void sequencer_generic_props__internal(wmOperatorType *ot, int flag)
 	RNA_def_int(ot->srna, "channel", 1, 1, MAXSEQ, "Channel", "Channel to place this strip into", 1, MAXSEQ);
 	
 	RNA_def_boolean(ot->srna, "replace_sel", 1, "Replace Selection", "replace the current selection");
+
+	RNA_def_boolean(ot->srna, "overlap", 0, "Allow Overlap", "Don't correct overlap on new sequence strips");
 
 	if(flag & SEQPROP_FILES)
 		RNA_def_collection_runtime(ot->srna, "files", &RNA_OperatorFileListElement, "Files", "");
@@ -117,19 +123,17 @@ static void sequencer_generic_invoke_path__internal(bContext *C, wmOperator *op,
 
 static void sequencer_generic_invoke_xy__internal(bContext *C, wmOperator *op, wmEvent *event, int flag)
 {
-	ARegion *ar= CTX_wm_region(C);
 	View2D *v2d= UI_view2d_fromcontext(C);
 	
-	short mval[2];	
 	float mval_v2d[2];
 	
+	UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mval_v2d[0], &mval_v2d[1]);
 
-	mval[0]= event->x - ar->winrct.xmin;
-	mval[1]= event->y - ar->winrct.ymin;
-	
-	UI_view2d_region_to_view(v2d, mval[0], mval[1], &mval_v2d[0], &mval_v2d[1]);
-	
-	RNA_int_set(op->ptr, "channel", (int)mval_v2d[1]+0.5f);
+	/* effect strips dont need a channel initialized from the mouse */
+	if(!(flag & SEQPROP_NOCHAN)) {
+		RNA_int_set(op->ptr, "channel", (int)mval_v2d[1]+0.5f);
+	}
+
 	RNA_int_set(op->ptr, "frame_start", (int)mval_v2d[0]);
 	
 	if ((flag & SEQPROP_ENDFRAME) && RNA_property_is_set(op->ptr, "frame_end")==0)
@@ -248,7 +252,11 @@ static int sequencer_add_scene_strip_exec(bContext *C, wmOperator *op)
 		seq_active_set(scene, seq);
 		seq->flag |= SELECT;
 	}
-	
+
+	if(RNA_boolean_get(op->ptr, "overlap") == FALSE) {
+		if(seq_test_overlap(ed->seqbasep, seq)) shuffle_seq(ed->seqbasep, seq, scene);
+	}
+
 	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER, scene);
 	
 	return OPERATOR_FINISHED;
@@ -303,6 +311,7 @@ static int sequencer_add_generic_strip_exec(bContext *C, wmOperator *op, SeqLoad
 	SeqLoadInfo seq_load;
 	Sequence *seq;
 	int tot_files;
+	const short overlap= RNA_boolean_get(op->ptr, "overlap");
 
 	seq_load_operator_info(&seq_load, op);
 
@@ -323,12 +332,20 @@ static int sequencer_add_generic_strip_exec(bContext *C, wmOperator *op, SeqLoad
 			BLI_join_dirfile(seq_load.path, sizeof(seq_load.path), dir_only, file_only);
 
 			seq= seq_load_func(C, ed->seqbasep, &seq_load);
+
+			if(overlap == FALSE) {
+				if(seq_test_overlap(ed->seqbasep, seq)) shuffle_seq(ed->seqbasep, seq, scene);
+			}
 		}
 		RNA_END;
 	}
 	else {
 		/* single file */
 		seq= seq_load_func(C, ed->seqbasep, &seq_load);
+
+		if(overlap == FALSE) {
+			if(seq_test_overlap(ed->seqbasep, seq)) shuffle_seq(ed->seqbasep, seq, scene);
+		}
 	}
 
 	if (seq_load.tot_success==0) {
@@ -504,7 +521,11 @@ static int sequencer_add_image_strip_exec(bContext *C, wmOperator *op)
 
 	/* last active name */
 	strncpy(ed->act_imagedir, strip->dir, FILE_MAXDIR-1);
-	
+
+	if(RNA_boolean_get(op->ptr, "overlap") == FALSE) {
+		if(seq_test_overlap(ed->seqbasep, seq)) shuffle_seq(ed->seqbasep, seq, scene);
+	}
+
 	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER, scene);
 
 	return OPERATOR_FINISHED;
@@ -633,25 +654,30 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 			BKE_reportf(op->reports, RPT_ERROR, "Sequencer plugin \"%s\" could not load.", path);
 			return OPERATOR_CANCELLED;
 		}
-	}
-	else if (seq->type==SEQ_COLOR) {
+	} else if (seq->type == SEQ_COLOR) {
 		SolidColorVars *colvars= (SolidColorVars *)seq->effectdata;
 		RNA_float_get_array(op->ptr, "color", colvars->col);
 		seq->blend_mode= SEQ_CROSS; /* so alpha adjustment fade to the strip below */
 
+	} else if (seq->type == SEQ_ADJUSTMENT) {
+		seq->blend_mode= SEQ_CROSS;
 	}
 
-	// XXX, this conflicts with giving a channel with invoke, perhaps we should have an active channel
-	// but for now this is much more usable
-	if(seq->seq1 || seq->seq2 || seq->seq3) {
-		int chan= MAX3(	seq->seq1 ? seq->seq1->machine : 0,
-						seq->seq2 ? seq->seq2->machine : 0,
-						seq->seq3 ? seq->seq3->machine : 0);
-		if(chan < MAXSEQ)
-			seq->machine= chan;
+	/* an unset channel is a special case where we automatically go above
+	 * the other strips. */
+	if(!RNA_property_is_set(op->ptr, "channel")) {
+		if(seq->seq1) {
+			int chan= MAX3(	seq->seq1 ? seq->seq1->machine : 0,
+							seq->seq2 ? seq->seq2->machine : 0,
+							seq->seq3 ? seq->seq3->machine : 0);
+			if(chan < MAXSEQ)
+				seq->machine= chan;
+		}
 	}
 
-	if(seq_test_overlap(ed->seqbasep, seq)) shuffle_seq(ed->seqbasep, seq, scene);
+	if(RNA_boolean_get(op->ptr, "overlap") == FALSE) {
+		if(seq_test_overlap(ed->seqbasep, seq)) shuffle_seq(ed->seqbasep, seq, scene);
+	}
 
 	update_changed_seq_and_deps(scene, seq, 1, 1); /* runs calc_sequence */
 
@@ -675,14 +701,30 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 /* add color */
 static int sequencer_add_effect_strip_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
+	short is_type_set= RNA_property_is_set(op->ptr, "type");
+	int type= -1;
+	int prop_flag= SEQPROP_ENDFRAME;
+
 	if(!ED_operator_sequencer_active(C)) {
 		BKE_report(op->reports, RPT_ERROR, "Sequencer area not active");
 		return OPERATOR_CANCELLED;
 	}
 
-	sequencer_generic_invoke_xy__internal(C, op, event, SEQPROP_ENDFRAME);
+	if(is_type_set) {
+		type= RNA_enum_get(op->ptr, "type");
 
-	if (RNA_property_is_set(op->ptr, "type") && RNA_enum_get(op->ptr, "type")==SEQ_PLUGIN) {
+		/* when invoking an effect strip which uses inputs,
+		 * skip initialzing the channel from the mouse.
+		 * Instead leave the property unset so exec() initializes it to be
+		 * above the strips its applied to. */
+		if(get_sequence_effect_num_inputs(type) != 0) {
+			prop_flag |= SEQPROP_NOCHAN;
+		}
+	}
+
+	sequencer_generic_invoke_xy__internal(C, op, event, prop_flag);
+
+	if (is_type_set && type==SEQ_PLUGIN) {
 
 		if(!RNA_property_is_set(op->ptr, "relative_path"))
 			RNA_boolean_set(op->ptr, "relative_path", U.flag & USER_RELPATHS);

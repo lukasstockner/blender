@@ -71,7 +71,7 @@ float brush_curve_strength(struct Brush *br, float p, const float len); /* used 
 /* sampling */
 void brush_sample_tex(struct Brush *brush, float *xy, float *rgba, const int thread);
 void brush_imbuf_new(struct Brush *brush, short flt, short texfalloff, int size,
-	struct ImBuf **imbuf);
+	struct ImBuf **imbuf, int use_color_correction);
 
 /* painting */
 struct BrushPainter;
@@ -82,7 +82,7 @@ BrushPainter *brush_painter_new(struct Brush *brush);
 void brush_painter_require_imbuf(BrushPainter *painter, short flt,
 	short texonly, int size);
 int brush_painter_paint(BrushPainter *painter, BrushFunc func, float *pos,
-	double time, float pressure, void *user);
+	double time, float pressure, void *user, int use_color_correction);
 void brush_painter_break_stroke(BrushPainter *painter);
 void brush_painter_free(BrushPainter *painter);
 
@@ -90,8 +90,7 @@ void brush_painter_free(BrushPainter *painter);
 unsigned int *brush_gen_texture_cache(struct Brush *br, int half_side);
 
 /* radial control */
-void brush_radial_control_invoke(struct wmOperator *op, struct Brush *br, float size_weight);
-int brush_radial_control_exec(struct wmOperator *op, struct Brush *br, float size_weight);
+struct ImBuf *brush_gen_radial_control_imbuf(struct Brush *br);
 
 /* unified strength and size */
 

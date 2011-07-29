@@ -22,12 +22,16 @@
 set(INC
 	../include
 	../../blenkernel
-	../../blenloader
 	../../blenlib
+	../../blenloader
 	../../makesdna
 	../../makesrna
 	../../windowmanager
 	../../../../intern/guardedalloc
+)
+
+set(INC_SYS
+
 )
 
 set(SRC
@@ -37,4 +41,4 @@ set(SRC
 	userpref_intern.h
 )
 
-blender_add_lib(bf_editor_space_userpref "${SRC}" "${INC}")
+blender_add_lib(bf_editor_space_userpref "${SRC}" "${INC}" "${INC_SYS}")

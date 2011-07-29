@@ -42,7 +42,7 @@ class SEQUENCER_HT_header(bpy.types.Header):
             sub = row.row(align=True)
             sub.menu("SEQUENCER_MT_view")
 
-            if (st.view_type == 'SEQUENCER') or (st.view_type == 'SEQUENCER_PREVIEW'):
+            if st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}:
                 sub.menu("SEQUENCER_MT_select")
                 sub.menu("SEQUENCER_MT_marker")
                 sub.menu("SEQUENCER_MT_add")
@@ -50,17 +50,17 @@ class SEQUENCER_HT_header(bpy.types.Header):
 
         layout.prop(st, "view_type", expand=True, text="")
 
-        if (st.view_type == 'PREVIEW') or (st.view_type == 'SEQUENCER_PREVIEW'):
+        if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
             layout.prop(st, "display_mode", expand=True, text="")
 
-        if (st.view_type == 'SEQUENCER'):
+        if st.view_type == 'SEQUENCER':
             row = layout.row(align=True)
             row.operator("sequencer.copy", text="", icon='COPYDOWN')
             row.operator("sequencer.paste", text="", icon='PASTEDOWN')
 
             layout.separator()
             layout.operator("sequencer.refresh_all")
-        elif (st.view_type == 'SEQUENCER_PREVIEW'):
+        elif st.view_type == 'SEQUENCER_PREVIEW':
             layout.separator()
             layout.operator("sequencer.refresh_all")
             layout.prop(st, "display_channel", text="Channel")
@@ -101,9 +101,9 @@ class SEQUENCER_MT_view(bpy.types.Menu):
 
         layout.separator()
 
-        if (st.view_type == 'SEQUENCER') or (st.view_type == 'SEQUENCER_PREVIEW'):
+        if st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}:
             layout.operator("sequencer.view_all", text='View all Sequences')
-        if (st.view_type == 'PREVIEW') or (st.view_type == 'SEQUENCER_PREVIEW'):
+        if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
             layout.operator_context = 'INVOKE_REGION_PREVIEW'
             layout.operator("sequencer.view_all_preview", text='Fit preview in window')
             layout.operator("sequencer.view_zoom_ratio", text='Show preview 1:1').ratio = 1.0
@@ -213,6 +213,7 @@ class SEQUENCER_MT_add_effect(bpy.types.Menu):
         layout.operator("sequencer.effect_strip_add", text="Color").type = 'COLOR'
         layout.operator("sequencer.effect_strip_add", text="Speed Control").type = 'SPEED'
         layout.operator("sequencer.effect_strip_add", text="Multicam Selector").type = 'MULTICAM'
+        layout.operator("sequencer.effect_strip_add", text="Adjustment Layer").type = 'ADJUSTMENT'
 
 
 class SEQUENCER_MT_strip(bpy.types.Menu):
@@ -299,7 +300,7 @@ class SequencerButtonsPanel():
 
     @staticmethod
     def has_sequencer(context):
-        return (context.space_data.view_type == 'SEQUENCER') or (context.space_data.view_type == 'SEQUENCER_PREVIEW')
+        return (context.space_data.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'})
 
     @classmethod
     def poll(cls, context):
@@ -312,7 +313,7 @@ class SequencerButtonsPanel_Output():
 
     @staticmethod
     def has_preview(context):
-        return (context.space_data.view_type == 'PREVIEW') or (context.space_data.view_type == 'SEQUENCER_PREVIEW')
+        return (context.space_data.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'})
 
     @classmethod
     def poll(cls, context):
@@ -391,7 +392,7 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, bpy.types.Panel):
                               'CROSS', 'GAMMA_CROSS', 'MULTIPLY', 'OVER_DROP',
                               'PLUGIN',
                               'WIPE', 'GLOW', 'TRANSFORM', 'COLOR', 'SPEED',
-                              'MULTICAM'}
+                              'MULTICAM', 'ADJUSTMENT'}
 
     def draw(self, context):
         layout = self.layout
@@ -530,7 +531,7 @@ class SEQUENCER_PT_input(SequencerButtonsPanel, bpy.types.Panel):
                               'CROSS', 'GAMMA_CROSS', 'MULTIPLY', 'OVER_DROP',
                               'PLUGIN',
                               'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
-                              'MULTICAM', 'SPEED'}
+                              'MULTICAM', 'SPEED', 'ADJUSTMENT'}
 
     def draw(self, context):
         layout = self.layout
@@ -656,11 +657,17 @@ class SEQUENCER_PT_scene(SequencerButtonsPanel, bpy.types.Panel):
 
         layout.template_ID(strip, "scene")
 
+        scene = strip.scene
+        if scene:
+            layout.prop(scene.render, "use_sequencer")
+
         layout.label(text="Camera Override")
         layout.template_ID(strip, "scene_camera")
 
-        sce = strip.scene
-        layout.label(text="Original frame range: %d-%d (%d)" % (sce.frame_start, sce.frame_end, sce.frame_end - sce.frame_start + 1))
+        if scene:
+            sta = scene.frame_start
+            end = scene.frame_end
+            layout.label(text="Original frame range: %d-%d (%d)" % (sta, end, end - sta + 1))
 
 
 class SEQUENCER_PT_filter(SequencerButtonsPanel, bpy.types.Panel):
@@ -680,7 +687,7 @@ class SEQUENCER_PT_filter(SequencerButtonsPanel, bpy.types.Panel):
                               'CROSS', 'GAMMA_CROSS', 'MULTIPLY', 'OVER_DROP',
                               'PLUGIN',
                               'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
-                              'MULTICAM', 'SPEED'}
+                              'MULTICAM', 'SPEED', 'ADJUSTMENT'}
 
     def draw(self, context):
         layout = self.layout

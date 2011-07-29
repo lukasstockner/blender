@@ -98,19 +98,6 @@
 
 /* proto */
 
-static void do_image_panel_events(bContext *C, void *UNUSED(arg), int event)
-{
-	SpaceImage *sima= CTX_wm_space_image(C);
-	
-	switch(event) {
-		case B_REDR:
-			break;
-	}
-
-	/* all events now */
-	WM_event_add_notifier(C, NC_IMAGE, sima->image);
-}
-
 static void image_info(Scene *scene, ImageUser *iuser, Image *ima, ImBuf *ibuf, char *str)
 {
 	int ofs= 0;
@@ -281,7 +268,7 @@ static void preview_cb(struct ScrArea *sa, struct uiBlock *block)
 	rcti *disprect= &G.scene->r.disprect;
 	int winx= (G.scene->r.size*G.scene->r.xsch)/100;
 	int winy= (G.scene->r.size*G.scene->r.ysch)/100;
-	short mval[2];
+	int mval[2];
 	
 	if(G.scene->r.mode & R_BORDER) {
 		winx*= (G.scene->r.border.xmax - G.scene->r.border.xmin);
@@ -569,20 +556,20 @@ static void uiblock_layer_pass_buttons(uiLayout *layout, RenderResult *rr, Image
 	/* menu buts */
 	if(render_slot) {
 		strp= slot_menu();
-		but= uiDefButS(block, MENU, 0, strp,					0, 0, wmenu1, 20, render_slot, 0,0,0,0, "Select Slot");
+		but= uiDefButS(block, MENU, 0, strp,					0, 0, wmenu1, UI_UNIT_Y, render_slot, 0,0,0,0, "Select Slot");
 		uiButSetFunc(but, image_multi_cb, rr, iuser);
 		MEM_freeN(strp);
 	}
 
 	if(rr) {
 		strp= layer_menu(rr, &iuser->layer);
-		but= uiDefButS(block, MENU, 0, strp,					0, 0, wmenu2, 20, &iuser->layer, 0,0,0,0, "Select Layer");
+		but= uiDefButS(block, MENU, 0, strp,					0, 0, wmenu2, UI_UNIT_Y, &iuser->layer, 0,0,0,0, "Select Layer");
 		uiButSetFunc(but, image_multi_cb, rr, iuser);
 		MEM_freeN(strp);
 		
 		rl= BLI_findlink(&rr->layers, iuser->layer - (rr->rectf?1:0)); /* fake compo layer, return NULL is meant to be */
 		strp= pass_menu(rl, &iuser->pass);
-		but= uiDefButS(block, MENU, 0, strp,					0, 0, wmenu3, 20, &iuser->pass, 0,0,0,0, "Select Pass");
+		but= uiDefButS(block, MENU, 0, strp,					0, 0, wmenu3, UI_UNIT_Y, &iuser->pass, 0,0,0,0, "Select Pass");
 		uiButSetFunc(but, image_multi_cb, rr, iuser);
 		MEM_freeN(strp);	
 	}
@@ -675,7 +662,6 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 
 	block= uiLayoutGetBlock(layout);
 
-
 	imaptr= RNA_property_pointer_get(ptr, prop);
 	ima= imaptr.data;
 	iuser= userptr->data;
@@ -732,21 +718,17 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 			}
 		}
 		else {
-			row= uiLayoutRow(layout, 0);
-			uiItemR(row, &imaptr, "source", 0, NULL, ICON_NONE);
+			uiItemR(layout, &imaptr, "source", 0, NULL, ICON_NONE);
 
 			if(ima->source != IMA_SRC_GENERATED) {
 				row= uiLayoutRow(layout, 1);
-				split = uiLayoutSplit(row, 0.0, 0);
 				if (ima->packedfile)
-					uiItemO(split, "", ICON_PACKAGE, "image.unpack");
+					uiItemO(row, "", ICON_PACKAGE, "image.unpack");
 				else
-					uiItemO(split, "", ICON_UGLYPACKAGE, "image.pack");
+					uiItemO(row, "", ICON_UGLYPACKAGE, "image.pack");
 				
-				split = uiLayoutSplit(row, 0.0, 0);
-				row= uiLayoutRow(split, 1);
+				row= uiLayoutRow(row, 0);
 				uiLayoutSetEnabled(row, ima->packedfile==NULL);
-				
 				uiItemR(row, &imaptr, "filepath", 0, "", ICON_NONE);
 				uiItemO(row, "", ICON_FILE_REFRESH, "image.reload");
 			}
@@ -784,11 +766,10 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 					col= uiLayoutColumn(split, 0);
 					uiItemR(col, &imaptr, "use_fields", 0, NULL, ICON_NONE);
 					row= uiLayoutRow(col, 0);
-					uiItemR(row, &imaptr, "field_order", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
 					uiLayoutSetActive(row, RNA_boolean_get(&imaptr, "use_fields"));
-
-					col= uiLayoutColumn(split, 0);
-					uiItemR(col, &imaptr, "use_premultiply", 0, NULL, ICON_NONE);
+					uiItemR(row, &imaptr, "field_order", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+					
+					uiItemR(split, &imaptr, "use_premultiply", 0, NULL, ICON_NONE);
 				}
 			}
 
@@ -800,10 +781,9 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 				col= uiLayoutColumn(split, 0);
 				 
 				sprintf(str, "(%d) Frames", iuser->framenr);
-				row= uiLayoutRow(col, 1);
 				uiItemR(col, userptr, "frame_duration", 0, str, ICON_NONE);
 				if(ima->anim) {
-					block= uiLayoutGetBlock(row);
+					block= uiLayoutGetBlock(col);
 					but= uiDefBut(block, BUT, 0, "Match Movie Length", 0, 0, UI_UNIT_X*2, UI_UNIT_Y, NULL, 0, 0, 0, 0, "Set the number of frames to match the movie or sequence.");
 					uiButSetFunc(but, set_frames_cb, ima, iuser);
 				}
@@ -812,7 +792,9 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 				uiItemR(col, userptr, "frame_offset", 0, NULL, ICON_NONE);
 
 				col= uiLayoutColumn(split, 0);
-				uiItemR(col, userptr, "fields_per_frame", 0, "Fields", ICON_NONE);
+				row= uiLayoutRow(col, 0);
+				uiLayoutSetActive(row, RNA_boolean_get(&imaptr, "use_fields"));
+				uiItemR(row, userptr, "fields_per_frame", 0, "Fields", ICON_NONE);
 				uiItemR(col, userptr, "use_auto_refresh", 0, NULL, ICON_NONE);
 				uiItemR(col, userptr, "use_cyclic", 0, NULL, ICON_NONE);
 			}
@@ -822,9 +804,9 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 				col= uiLayoutColumn(split, 1);
 				uiItemR(col, &imaptr, "generated_width", 0, "X", ICON_NONE);
 				uiItemR(col, &imaptr, "generated_height", 0, "Y", ICON_NONE);
+				uiItemR(col, &imaptr, "use_generated_float", 0, NULL, ICON_NONE);
 
-				col= uiLayoutColumn(split, 0);
-				uiItemR(col, &imaptr, "generated_type", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+				uiItemR(split, &imaptr, "generated_type", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
 			}
 
 					}

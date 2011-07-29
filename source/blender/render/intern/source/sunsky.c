@@ -113,7 +113,7 @@ static void DirectionToThetaPhi(float *toSun, float *theta, float *phi)
  * PerezFunction:
  * compute perez function value based on input paramters
  * */
-float PerezFunction(struct SunSky *sunsky, const float *lam, float theta, float gamma, float lvz)
+static float PerezFunction(struct SunSky *sunsky, const float *lam, float theta, float gamma, float lvz)
 {
 	float den, num;
 	
@@ -313,7 +313,7 @@ void GetSkyXYZRadiancef(struct SunSky* sunsky, const float varg[3], float color_
  * turbidity: is atmosphere turbidity
  * fTau: contains computed attenuated sun light
  * */
-void ComputeAttenuatedSunlight(float theta, int turbidity, float fTau[3])
+static void ComputeAttenuatedSunlight(float theta, int turbidity, float fTau[3])
 {
 	float fBeta ;
 	float fTauR, fTauA;
@@ -460,7 +460,7 @@ void AtmospherePixleShader( struct SunSky* sunSky, float view[3], float s, float
 	vec3opv(sunSky->atm_BetaRM, sunSky->atm_BetaRay, +, sunSky->atm_BetaMie);
 	
 	//e^(-(beta_1 + beta_2) * s) = E1
-	vec3opf(E1, sunSky->atm_BetaRM, *, -s/log(2));
+	vec3opf(E1, sunSky->atm_BetaRM, *, -s/M_LN2);
 	E1[0] = exp(E1[0]);
 	E1[1] = exp(E1[1]);
 	E1[2] = exp(E1[2]);

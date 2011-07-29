@@ -22,12 +22,16 @@
 set(INC
 	../include
 	../../blenkernel
-	../../blenloader
 	../../blenlib
+	../../blenloader
 	../../makesdna
 	../../makesrna
 	../../windowmanager
 	../../../../intern/guardedalloc
+)
+
+set(INC_SYS
+
 )
 
 set(SRC
@@ -39,4 +43,4 @@ set(SRC
 	curve_intern.h
 )
 
-blender_add_lib(bf_editor_curve "${SRC}" "${INC}")
+blender_add_lib(bf_editor_curve "${SRC}" "${INC}" "${INC_SYS}")

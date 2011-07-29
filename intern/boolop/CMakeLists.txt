@@ -26,14 +26,18 @@
 
 set(INC	
 	.
-	./intern
-	./extern
-	../memutil
+	extern
+	intern
 	../container
 	../guardedalloc
+	../memutil
 	../moto/include
 	../../source/blender/blenlib
 	../../source/blender/makesdna
+)
+
+set(INC_SYS
+
 )
 
 set(SRC
@@ -75,4 +79,4 @@ set(SRC
 	intern/BOP_Vertex.h
 )
 
-blender_add_lib(bf_intern_bop "${SRC}" "${INC}")
+blender_add_lib(bf_intern_bop "${SRC}" "${INC}" "${INC_SYS}")

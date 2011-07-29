@@ -91,7 +91,6 @@ void VIEW3D_OT_zoom_border(struct wmOperatorType *ot);
 void VIEW3D_OT_drawtype(struct wmOperatorType *ot);
 
 void view3d_boxview_copy(ScrArea *sa, ARegion *ar);
-void view3d_persp_mat4(struct RegionView3D *rv3d, float mat[][4]);
 
 /* view3d_fly.c */
 void view3d_keymap(struct wmKeyConfig *keyconf);
@@ -121,7 +120,7 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, int depth_write, floa
 #define V3D_CACHE_TEXT_ASCII		(1<<2)
 
 /* drawarmature.c */
-int draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base, int dt, int flag);
+int draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base, int dt, int flag, const short is_outline);
 
 /* drawmesh.c */
 void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, struct Object *ob, struct DerivedMesh *dm, int faceselect);
@@ -154,9 +153,7 @@ void VIEW3D_OT_localview(struct wmOperatorType *ot);
 void VIEW3D_OT_game_start(struct wmOperatorType *ot);
 
 
-int boundbox_clip(RegionView3D *rv3d, float obmat[][4], struct BoundBox *bb);
-
-void centerview(struct ARegion *ar, View3D *v3d);
+int ED_view3d_boundbox_clip(RegionView3D *rv3d, float obmat[][4], struct BoundBox *bb);
 
 void smooth_view(struct bContext *C, struct View3D *v3d, struct ARegion *ar, struct Object *, struct Object *, float *ofs, float *quat, float *dist, float *lens);
 
@@ -167,6 +164,7 @@ void fly_modal_keymap(struct wmKeyConfig *keyconf);
 void viewrotate_modal_keymap(struct wmKeyConfig *keyconf);
 void viewmove_modal_keymap(struct wmKeyConfig *keyconf);
 void viewzoom_modal_keymap(struct wmKeyConfig *keyconf);
+void viewdolly_modal_keymap(struct wmKeyConfig *keyconf);
 
 /* view3d_buttons.c */
 void VIEW3D_OT_properties(struct wmOperatorType *ot);
@@ -196,6 +194,16 @@ extern const char *view3d_context_dir[]; /* doc access */
 /* draw_volume.c */
 void draw_volume(struct ARegion *ar, struct GPUTexture *tex, float *min, float *max, int res[3], float dx, struct GPUTexture *tex_shadow);
 
+/* workaround for trivial but noticable camera bug caused by imprecision
+ * between view border calculation in 2D/3D space, workaround for bug [#28037].
+ * without this deifne we get the old behavior which is to try and align them
+ * both which _mostly_ works fine, but when the camera moves beyond ~1000 in
+ * any direction it starts to fail */
+#define VIEW3D_CAMERA_BORDER_HACK
+#ifdef VIEW3D_CAMERA_BORDER_HACK
+extern float view3d_camera_border_hack_col[4];
+extern short view3d_camera_border_hack_test;
+#endif
 
 #endif /* ED_VIEW3D_INTERN_H */
 

@@ -37,8 +37,6 @@
 #include "BLI_memarena.h"
 #include "BLI_utildefines.h"
 
-
-
 /********************************** Polygons *********************************/
 
 void cent_tri_v3(float cent[3], const float v1[3], const float v2[3], const float v3[3])
@@ -239,7 +237,7 @@ float dist_to_line_segment_v3(const float v1[3], const float v2[3], const float 
 /******************************* Intersection ********************************/
 
 /* intersect Line-Line, shorts */
-int isect_line_line_v2_short(const short v1[2], const short v2[2], const short v3[2], const short v4[2])
+int isect_line_line_v2_int(const int v1[2], const int v2[2], const int v3[2], const int v4[2])
 {
 	float div, labda, mu;
 	
@@ -347,6 +345,133 @@ int isect_seg_seg_v2_point(const float v1[2], const float v2[2], const float v3[
 
 	/* out of segment intersection */
 	return -1;
+}
+
+int isect_line_sphere_v3(const float l1[3], const float l2[3],
+                         const float sp[3], const float r,
+                         float r_p1[3], float r_p2[3])
+{
+	/* l1:         coordinates (point of line)
+	 * l2:         coordinates (point of line)
+	 * sp, r:      coordinates and radius (sphere)
+	 * r_p1, r_p2: return intersection coordinates
+	 */
+
+
+	/* adapted for use in blender by Campbell Barton - 2011
+	 *
+	 * atelier iebele abel - 2001
+	 * atelier@iebele.nl
+	 * http://www.iebele.nl
+	 *
+	 * sphere_line_intersection function adapted from:
+	 * http://astronomy.swin.edu.au/pbourke/geometry/sphereline
+	 * Paul Bourke pbourke@swin.edu.au
+	 */
+
+	const float ldir[3]= {
+	    l2[0] - l1[0],
+	    l2[1] - l1[1],
+	    l2[2] - l1[2]
+	};
+
+	const float a= dot_v3v3(ldir, ldir);
+
+	const float b= 2.0f *
+	        (ldir[0] * (l1[0] - sp[0]) +
+	         ldir[1] * (l1[1] - sp[1]) +
+	         ldir[2] * (l1[2] - sp[2]));
+
+	const float c=
+	        dot_v3v3(sp, sp) +
+	        dot_v3v3(l1, l1) -
+	        (2.0f * dot_v3v3(sp, l1)) -
+	        (r * r);
+
+	const float i = b * b - 4.0f * a * c;
+
+	float mu;
+
+	if (i < 0.0f) {
+		/* no intersections */
+		return 0;
+	}
+	else if (i == 0.0f) {
+		/* one intersection */
+		mu = -b / (2.0f * a);
+		madd_v3_v3v3fl(r_p1, l1, ldir, mu);
+		return 1;
+	}
+	else if (i > 0.0) {
+		const float i_sqrt= sqrt(i); /* avoid calc twice */
+
+		/* first intersection */
+		mu = (-b + i_sqrt) / (2.0f * a);
+		madd_v3_v3v3fl(r_p1, l1, ldir, mu);
+
+		/* second intersection */
+		mu = (-b - i_sqrt) / (2.0f * a);
+		madd_v3_v3v3fl(r_p2, l1, ldir, mu);
+		return 2;
+	}
+	else {
+		/* math domain error - nan */
+		return -1;
+	}
+}
+
+/* keep in sync with isect_line_sphere_v3 */
+int isect_line_sphere_v2(const float l1[2], const float l2[2],
+                         const float sp[2], const float r,
+                         float r_p1[2], float r_p2[2])
+{
+	const float ldir[2]= {
+	    l2[0] - l1[0],
+	    l2[1] - l1[1]
+	};
+
+	const float a= dot_v2v2(ldir, ldir);
+
+	const float b= 2.0f *
+	        (ldir[0] * (l1[0] - sp[0]) +
+	         ldir[1] * (l1[1] - sp[1]));
+
+	const float c=
+	        dot_v2v2(sp, sp) +
+	        dot_v2v2(l1, l1) -
+	        (2.0f * dot_v2v2(sp, l1)) -
+	        (r * r);
+
+	const float i = b * b - 4.0f * a * c;
+
+	float mu;
+
+	if (i < 0.0f) {
+		/* no intersections */
+		return 0;
+	}
+	else if (i == 0.0f) {
+		/* one intersection */
+		mu = -b / (2.0f * a);
+		madd_v2_v2v2fl(r_p1, l1, ldir, mu);
+		return 1;
+	}
+	else if (i > 0.0) {
+		const float i_sqrt= sqrt(i); /* avoid calc twice */
+
+		/* first intersection */
+		mu = (-b + i_sqrt) / (2.0f * a);
+		madd_v2_v2v2fl(r_p1, l1, ldir, mu);
+
+		/* second intersection */
+		mu = (-b - i_sqrt) / (2.0f * a);
+		madd_v2_v2v2fl(r_p2, l1, ldir, mu);
+		return 2;
+	}
+	else {
+		/* math domain error - nan */
+		return -1;
+	}
 }
 
 /*
@@ -529,8 +654,9 @@ int isect_ray_tri_v3(const float p1[3], const float d[3], const float v0[3], con
 int isect_ray_plane_v3(float p1[3], float d[3], float v0[3], float v1[3], float v2[3], float *lambda, int clip)
 {
 	float p[3], s[3], e1[3], e2[3], q[3];
-	float a, f, u, v;
-	
+	float a, f;
+	/* float  u, v; */ /*UNUSED*/
+
 	sub_v3_v3v3(e1, v1, v0);
 	sub_v3_v3v3(e2, v2, v0);
 	
@@ -543,11 +669,11 @@ int isect_ray_plane_v3(float p1[3], float d[3], float v0[3], float v1[3], float 
 	
 	sub_v3_v3v3(s, p1, v0);
 	
-	u = f * dot_v3v3(s, p);
+	/* u = f * dot_v3v3(s, p); */ /*UNUSED*/
 
 	cross_v3_v3v3(q, s, e1);
 	
-	v = f * dot_v3v3(d, q);
+	/* v = f * dot_v3v3(d, q); */ /*UNUSED*/
 
 	*lambda = f * dot_v3v3(e2, q);
 	if (clip && (*lambda < 0.0f)) return 0;
@@ -639,6 +765,48 @@ int isect_ray_tri_threshold_v3(const float p1[3], const float d[3], const float 
 	return 1;
 }
 
+int isect_line_plane_v3(float out[3], const float l1[3], const float l2[3], const float plane_co[3], const float plane_no[3], const short no_flip)
+{
+	float l_vec[3]; /* l1 -> l2 normalized vector */
+	float p_no[3]; /* 'plane_no' normalized */
+	float dot;
+
+	sub_v3_v3v3(l_vec, l2, l1);
+
+	normalize_v3(l_vec);
+	normalize_v3_v3(p_no, plane_no);
+
+	dot= dot_v3v3(l_vec, p_no);
+	if(dot == 0.0f) {
+		return 0;
+	}
+	else {
+		float l1_plane[3]; /* line point aligned with the plane */
+		float dist; /* 'plane_no' aligned distance to the 'plane_co' */
+
+		/* for pradictable flipping since the plane is only used to
+		 * define a direction, ignore its flipping and aligned with 'l_vec' */
+		if(dot < 0.0f) {
+			dot= -dot;
+			negate_v3(p_no);
+		}
+
+		add_v3_v3v3(l1_plane, l1, p_no);
+
+		dist = line_point_factor_v3(plane_co, l1, l1_plane);
+
+		/* treat line like a ray, when 'no_flip' is set */
+		if(no_flip && dist < 0.0f) {
+			dist= -dist;
+		}
+
+		mul_v3_fl(l_vec, dist / dot);
+
+		add_v3_v3v3(out, l1, l_vec);
+
+		return 1;
+	}
+}
 
 /* Adapted from the paper by Kasper Fauerby */
 /* "Improved Collision detection and Response" */
@@ -1074,16 +1242,22 @@ float closest_to_line_v2(float cp[2],const float p[2], const float l1[2], const 
 	return lambda;
 }
 
-#if 0
 /* little sister we only need to know lambda */
-static float lambda_cp_line(float p[3], float l1[3], float l2[3])
+float line_point_factor_v3(const float p[3], const float l1[3], const float l2[3])
 {
 	float h[3],u[3];
 	sub_v3_v3v3(u, l2, l1);
 	sub_v3_v3v3(h, p, l1);
 	return(dot_v3v3(u,h)/dot_v3v3(u,u));
 }
-#endif
+
+float line_point_factor_v2(const float p[2], const float l1[2], const float l2[2])
+{
+	float h[2], u[2];
+	sub_v2_v2v2(u, l2, l1);
+	sub_v2_v2v2(h, p, l1);
+	return(dot_v2v2(u, h)/dot_v2v2(u, u));
+}
 
 /* Similar to LineIntersectsTriangleUV, except it operates on a quad and in 2d, assumes point is in quad */
 void isect_point_quad_uv_v2(const float v0[2], const float v1[2], const float v2[2], const float v3[2], const float pt[2], float *uv)
@@ -1767,6 +1941,80 @@ void interp_cubic_v3(float x[3], float v[3], const float x1[3], const float v1[3
 	v[1]= 3*a[1]*t2 + 2*b[1]*t + v1[1];
 	v[2]= 3*a[2]*t2 + 2*b[2]*t + v1[2];
 }
+
+/* unfortunately internal calculations have to be done at double precision to achieve correct/stable results. */
+
+#define IS_ZERO(x) ((x>(-DBL_EPSILON) && x<DBL_EPSILON) ? 1 : 0)
+
+/* Barycentric reverse  */
+void resolve_tri_uv(float uv[2], const float st[2], const float st0[2], const float st1[2], const float st2[2])
+{
+	/* find UV such that
+	   t= u*t0 + v*t1 + (1-u-v)*t2
+	   u*(t0-t2) + v*(t1-t2)= t-t2 */
+	const double a= st0[0]-st2[0], b= st1[0]-st2[0];
+	const double c= st0[1]-st2[1], d= st1[1]-st2[1];
+	const double det= a*d - c*b;
+
+	if(IS_ZERO(det)==0)	{  /* det should never be zero since the determinant is the signed ST area of the triangle. */
+		const double x[]= {st[0]-st2[0], st[1]-st2[1]};
+
+		uv[0]= (float)((d*x[0] - b*x[1])/det);
+		uv[1]= (float)(((-c)*x[0] + a*x[1])/det);
+	} else zero_v2(uv);
+}
+
+/* bilinear reverse */
+void resolve_quad_uv(float uv[2], const float st[2], const float st0[2], const float st1[2], const float st2[2], const float st3[2])
+{
+	const double signed_area= (st0[0]*st1[1] - st0[1]*st1[0]) + (st1[0]*st2[1] - st1[1]*st2[0]) +
+                              (st2[0]*st3[1] - st2[1]*st3[0]) + (st3[0]*st0[1] - st3[1]*st0[0]);
+
+	/* X is 2D cross product (determinant)
+	   A= (p0-p) X (p0-p3)*/
+	const double a= (st0[0]-st[0])*(st0[1]-st3[1]) - (st0[1]-st[1])*(st0[0]-st3[0]);
+
+	/* B= ( (p0-p) X (p1-p2) + (p1-p) X (p0-p3) ) / 2 */
+	const double b= 0.5 * ( ((st0[0]-st[0])*(st1[1]-st2[1]) - (st0[1]-st[1])*(st1[0]-st2[0])) +
+							 ((st1[0]-st[0])*(st0[1]-st3[1]) - (st1[1]-st[1])*(st0[0]-st3[0])) );
+
+	/* C = (p1-p) X (p1-p2) */
+	const double fC= (st1[0]-st[0])*(st1[1]-st2[1]) - (st1[1]-st[1])*(st1[0]-st2[0]);
+	const double denom= a - 2*b + fC;
+
+	// clear outputs
+	zero_v2(uv);
+
+	if(IS_ZERO(denom)!=0) {
+		const double fDen= a-fC;
+		if(IS_ZERO(fDen)==0)
+			uv[0]= (float)(a / fDen);
+	} else {
+		const double desc_sq= b*b - a*fC;
+		const double desc= sqrt(desc_sq<0.0?0.0:desc_sq);
+		const double s= signed_area>0 ? (-1.0) : 1.0;
+
+		uv[0]= (float)(( (a-b) + s * desc ) / denom);
+	}
+
+	/* find UV such that
+	  fST = (1-u)(1-v)*ST0 + u*(1-v)*ST1 + u*v*ST2 + (1-u)*v*ST3 */
+	{
+		const double denom_s= (1-uv[0])*(st0[0]-st3[0]) + uv[0]*(st1[0]-st2[0]);
+		const double denom_t= (1-uv[0])*(st0[1]-st3[1]) + uv[0]*(st1[1]-st2[1]);
+		int i= 0; double denom= denom_s;
+
+		if(fabs(denom_s)<fabs(denom_t)) {
+			i= 1;
+			denom=denom_t;
+		}
+
+		if(IS_ZERO(denom)==0)
+			uv[1]= (float) (( (1-uv[0])*(st0[i]-st[i]) + uv[0]*(st1[i]-st[i]) ) / denom);
+	}
+}
+
+#undef IS_ZERO
 
 /***************************** View & Projection *****************************/
 

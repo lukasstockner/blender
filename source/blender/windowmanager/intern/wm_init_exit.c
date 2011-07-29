@@ -48,6 +48,7 @@
 
 #include "BKE_blender.h"
 #include "BKE_context.h"
+#include "BKE_screen.h"
 #include "BKE_curve.h"
 #include "BKE_displist.h"
 #include "BKE_DerivedMesh.h"
@@ -154,6 +155,8 @@ void WM_init(bContext *C, int argc, const char **argv)
 	BPY_python_start(argc, argv);
 
 	BPY_driver_reset();
+	BPY_app_handlers_reset(); /* causes addon callbacks to be freed [#28068],
+	                           * but this is actually what we want. */
 	BPY_modules_load_user(C);
 #else
 	(void)argc; /* unused */
@@ -168,6 +171,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 	if (!G.background) {
 		GPU_extensions_init();
 		GPU_set_mipmap(!(U.gameflags & USER_DISABLE_MIPMAP));
+		GPU_set_anisotropic(U.anisotropic_filter);
 	
 		UI_init();
 	}
@@ -247,15 +251,7 @@ int WM_init_game(bContext *C)
 		CTX_wm_window_set(C, win);
 
 	sa = biggest_view3d(C);
-
-	if(sa)
-	{
-		for(ar=sa->regionbase.first; ar; ar=ar->next) {
-			if(ar->regiontype == RGN_TYPE_WINDOW) {
-				break;
-			}
-		}
-	}
+	ar= BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
 
 	// if we have a valid 3D view
 	if (sa && ar) {
@@ -335,7 +331,6 @@ static void free_openrecent(void)
 
 /* bad stuff*/
 
-extern ListBase editelems;
 extern wchar_t *copybuf;
 extern wchar_t *copybufinfo;
 
@@ -387,7 +382,6 @@ void WM_exit(bContext *C)
 	
 	BKE_freecubetable();
 	
-	fastshade_free_render();	/* shaded view */
 	ED_preview_free_dbase();	/* frees a Main dbase, before free_blender! */
 
 	if(C && CTX_wm_manager(C))
@@ -401,10 +395,6 @@ void WM_exit(bContext *C)
 	free_anim_drivers_copybuf();
 	free_fmodifiers_copybuf();
 	free_posebuf();
-//	free_vertexpaint();
-//	free_imagepaint();
-	
-//	fsmenu_free();
 
 	BLF_exit();
 	
@@ -427,11 +417,7 @@ void WM_exit(bContext *C)
 	BPY_python_end();
 #endif
 
-	if (!G.background) {
-// XXX		UI_filelist_free_icons();
-	}
-	
-	GPU_buffer_pool_free(NULL);
+	GPU_global_buffer_pool_free();
 	GPU_free_unused_buffers();
 	GPU_extensions_exit();
 	

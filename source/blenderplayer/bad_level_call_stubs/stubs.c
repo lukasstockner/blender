@@ -68,6 +68,7 @@ struct Mesh;
 struct ModifierData;
 struct MultiresModifierData;
 struct NodeBlurData;
+struct Nurb;
 struct Object;
 struct PBVHNode;
 struct Render;
@@ -135,7 +136,6 @@ int RE_RenderInProgress(struct Render *re){return 0;}
 struct Scene *RE_GetScene(struct Render *re){return (struct Scene *) NULL;}
 void RE_Database_Free(struct Render *re){}
 void RE_FreeRender(struct Render *re){}
-void RE_shade_external(struct Render *re, struct ShadeInput *shi, struct ShadeResult *shr){}
 void RE_DataBase_GetView(struct Render *re, float mat[][4]){}
 int externtex(struct MTex *mtex, float *vec, float *tin, float *tr, float *tg, float *tb, float *ta){return 0;}
 float texture_value_blend(float tex, float out, float fact, float facg, int blendtype, int flip){return 0.0f;}
@@ -230,6 +230,7 @@ short ANIM_add_driver(struct ID *id, const char rna_path[], int array_index, sho
 short ANIM_remove_driver (struct ID *id, const char rna_path[], int array_index, short flag){return 0;}
 void ED_space_image_release_buffer(struct SpaceImage *sima, void *lock){}
 struct ImBuf *ED_space_image_acquire_buffer(struct SpaceImage *sima, void **lock_r){return (struct ImBuf *) NULL;}
+void ED_space_image_zoom(struct SpaceImage *sima, struct ARegion *ar, float *zoomx, float *zoomy) {}
 char *ED_info_stats_string(struct Scene *scene){return (char *) NULL;}
 void ED_area_tag_redraw(struct ScrArea *sa){}
 void ED_area_tag_refresh(struct ScrArea *sa){}
@@ -243,6 +244,7 @@ void ED_node_generic_update(struct Main *bmain, struct bNodeTree *ntree, struct 
 void ED_view3d_scene_layers_update(struct Main *bmain, struct Scene *scene){}
 int ED_view3d_scene_layer_set(int lay, const int *values){return 0;}
 void ED_view3d_quadview_update(struct ScrArea *sa, struct ARegion *ar){}
+void ED_view3d_from_m4(float mat[][4], float ofs[3], float quat[4], float *dist){}
 void view3d_apply_mat4(float mat[][4], float *ofs, float *quat, float *dist){}
 int text_file_modified(struct Text *text){return 0;}
 void ED_node_shader_default(struct Material *ma){}
@@ -290,7 +292,8 @@ float ED_rollBoneToVector(struct EditBone *bone, float new_up_axis[3]){return 0.
 void ED_space_image_size(struct SpaceImage *sima, int *width, int *height){}
 
 struct ListBase *ED_curve_editnurbs(struct Curve *cu){return NULL;}
-void free_curve_editNurb (struct Curve *cu){};
+void free_curve_editNurb (struct Curve *cu){}
+void ED_nurb_set_spline_type(struct Nurb *nu, int type){}
 
 void EM_selectmode_set(struct EditMesh *em){}
 int EM_texFaceCheck(struct EditMesh *em){return 0;}
@@ -375,6 +378,7 @@ void RE_AcquireResultImage(struct Render *re, struct RenderResult *rr){}
 void RE_ReleaseResult(struct Render *re){}
 void RE_ReleaseResultImage(struct Render *re){}
 int RE_engine_test_break(struct RenderEngine *engine){return 0;}
+void RE_engine_report(struct RenderEngine *engine, int type, const char *msg) {}
 
 /* python */
 struct wmOperatorType *WM_operatortype_find(const char *idname, int quiet){return (struct wmOperatorType *) NULL;}

@@ -675,8 +675,9 @@ void recalcData(TransInfo *t)
 				EditMesh *em = ((Mesh*)t->obedit->data)->edit_mesh;
 				/* mirror modifier clipping? */
 				if(t->state != TRANS_CANCEL) {
-					clipMirrorModifier(t, t->obedit);
+					/* apply clipping after so we never project past the clip plane [#25423] */
 					applyProject(t);
+					clipMirrorModifier(t, t->obedit);
 				}
 				if((t->options & CTX_NO_MIRROR) == 0 && (t->flag & T_MIRROR))
 					editmesh_apply_to_mirror(t);
@@ -839,9 +840,6 @@ void recalcData(TransInfo *t)
 				DAG_id_tag_update(&ob->id, OB_RECALC_OB);
 			}
 		}
-		
-		if(((View3D*)t->view)->drawtype == OB_SHADED)
-			reshadeall_displist(t->scene);
 	}
 }
 
@@ -920,9 +918,7 @@ int initTransInfo (bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 	
 	if (event)
 	{
-		t->imval[0] = event->x - t->ar->winrct.xmin;
-		t->imval[1] = event->y - t->ar->winrct.ymin;
-		
+		VECCOPY2D(t->imval, event->mval);
 		t->event_type = event->type;
 	}
 	else
@@ -1039,9 +1035,14 @@ int initTransInfo (bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 	}
 	else
 	{
-		// XXX for now, get View2D  from the active region
-		t->view = &ar->v2d;
-		// XXX for now, the center point is the midpoint of the data
+		if(ar) {
+			// XXX for now, get View2D  from the active region
+			t->view = &ar->v2d;
+			// XXX for now, the center point is the midpoint of the data
+		}
+		else {
+			t->view= NULL;
+		}
 		t->around = V3D_CENTER;
 	}
 	
@@ -1069,7 +1070,7 @@ int initTransInfo (bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 		}
 	}
 	// Need stuff to take it from edit mesh or whatnot here
-	else
+	else if (t->spacetype == SPACE_VIEW3D)
 	{
 		if (t->obedit && t->obedit->type == OB_MESH && (((Mesh *)t->obedit->data)->editflag & ME_EDIT_MIRROR_X))
 		{

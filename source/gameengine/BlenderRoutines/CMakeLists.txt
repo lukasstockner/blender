@@ -1,35 +1,38 @@
 
 set(INC
 	.
-	../../../intern/string
+	../Converter
+	../Expressions
+	../GameLogic
+	../Ketsji
+	../Network
+	../Network/LoopBackNetwork
+	../Physics/Bullet
+	../Physics/common
+	../Rasterizer
+	../Rasterizer/RAS_OpenGLRasterizer
+	../SceneGraph
+	../../blender
+	../../blender/blenfont
+	../../blender/blenkernel
+	../../blender/blenlib
+	../../blender/blenloader
+	../../blender/editors/include
+	../../blender/gpu
+	../../blender/imbuf
+	../../blender/makesdna
+	../../blender/makesrna
+	../../blender/windowmanager
+	../../../extern/bullet2/src
 	../../../intern/container
 	../../../intern/guardedalloc
-	../../../intern/audaspace/intern
-	../../../source/gameengine/Rasterizer/RAS_OpenGLRasterizer 
-	../../../source/gameengine/Converter
-	../../../source/blender/imbuf
 	../../../intern/moto/include
-	../../../source/gameengine/Ketsji 
-	../../../source/blender/blenlib
-	../../../source/blender/blenkernel 
-	../../../source/blender/blenfont
-	../../../source/blender/editors/include
-	../../../source/blender/windowmanager
-	../../../source/blender
-	../../../source/blender/makesdna
-	../../../source/blender/makesrna 
-	../../../source/gameengine/Rasterizer 
-	../../../source/gameengine/GameLogic
-	../../../source/gameengine/Expressions 
-	../../../source/gameengine/Network
-	../../../source/gameengine/SceneGraph 
-	../../../source/gameengine/Physics/common
-	../../../source/gameengine/Physics/Bullet
-	../../../source/gameengine/Network/LoopBackNetwork
-	../../../source/blender/blenloader
-	../../../source/blender/gpu
-	../../../extern/bullet2/src
+	../../../intern/string
 	${GLEW_INCLUDE_PATH}
+)
+
+set(INC_SYS
+
 )
 
 set(SRC
@@ -55,8 +58,15 @@ set(SRC
 
 add_definitions(-DGLEW_STATIC)
 
+if(WITH_AUDASPACE)
+	list(APPEND INC
+		../../../intern/audaspace/intern
+	)
+	add_definitions(-DWITH_AUDASPACE)
+endif()
+
 if(WITH_CODEC_FFMPEG)
 	add_definitions(-DWITH_FFMPEG)
 endif()
 
-blender_add_lib(ge_blen_routines "${SRC}" "${INC}")
+blender_add_lib(ge_blen_routines "${SRC}" "${INC}" "${INC_SYS}")

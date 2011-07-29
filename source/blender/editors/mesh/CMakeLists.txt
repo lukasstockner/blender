@@ -22,14 +22,17 @@
 set(INC
 	../include
 	../../blenkernel
-	../../blenloader
 	../../blenlib
+	../../blenloader
 	../../imbuf
 	../../makesdna
 	../../makesrna
-	../../windowmanager
 	../../render/extern/include
+	../../windowmanager
 	../../../../intern/guardedalloc
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
@@ -49,4 +52,4 @@ set(SRC
 	mesh_intern.h
 )
 
-blender_add_lib(bf_editor_mesh "${SRC}" "${INC}")
+blender_add_lib(bf_editor_mesh "${SRC}" "${INC}" "${INC_SYS}")

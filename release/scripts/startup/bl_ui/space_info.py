@@ -61,7 +61,9 @@ class INFO_HT_header(bpy.types.Header):
 
         layout.template_reports_banner()
 
-        layout.label(text=scene.statistics())
+        row = layout.row(align=True)
+        row.operator("wm.splash", text="", icon='BLENDER', emboss=False)
+        row.label(text=scene.statistics())
 
         # XXX: this should be right-aligned to the RHS of the region
         layout.operator("wm.window_fullscreen_toggle", icon='FULLSCREEN_ENTER', text="")
@@ -350,7 +352,7 @@ class INFO_MT_help(bpy.types.Menu):
         layout = self.layout
 
         layout.operator("wm.url_open", text="Manual", icon='HELP').url = 'http://wiki.blender.org/index.php/Doc:Manual'
-        layout.operator("wm.url_open", text="Release Log", icon='URL').url = 'http://www.blender.org/development/release-logs/blender-257/'
+        layout.operator("wm.url_open", text="Release Log", icon='URL').url = 'http://www.blender.org/development/release-logs/blender-258/'
 
         layout.separator()
 

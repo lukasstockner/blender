@@ -46,6 +46,8 @@ class MESH_MT_shape_key_specials(bpy.types.Menu):
         layout.operator("object.shape_key_transfer", icon='COPY_ID')  # icon is not ideal
         layout.operator("object.join_shapes", icon='COPY_ID')  # icon is not ideal
         layout.operator("object.shape_key_mirror", icon='ARROW_LEFTRIGHT')
+        op = layout.operator("object.shape_key_add", icon='ZOOMIN', text="New Shape From Mix")
+        op.from_mix = True
 
 
 class MeshButtonsPanel():
@@ -97,8 +99,9 @@ class DATA_PT_normals(MeshButtonsPanel, bpy.types.Panel):
         split.prop(mesh, "show_double_sided")
 
 
-class DATA_PT_settings(MeshButtonsPanel, bpy.types.Panel):
-    bl_label = "Settings"
+class DATA_PT_texture_space(MeshButtonsPanel, bpy.types.Panel):
+    bl_label = "Texture Space"
+    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     def draw(self, context):
@@ -107,7 +110,13 @@ class DATA_PT_settings(MeshButtonsPanel, bpy.types.Panel):
         mesh = context.mesh
 
         layout.prop(mesh, "texture_mesh")
+
+        layout.separator()
+
         layout.prop(mesh, "use_auto_texspace")
+        row = layout.row()
+        row.column().prop(mesh, "texspace_location", text="Location")
+        row.column().prop(mesh, "texspace_size", text="Size")
 
 
 class DATA_PT_vertex_groups(MeshButtonsPanel, bpy.types.Panel):
@@ -193,7 +202,8 @@ class DATA_PT_shape_keys(MeshButtonsPanel, bpy.types.Panel):
         col = row.column()
 
         sub = col.column(align=True)
-        sub.operator("object.shape_key_add", icon='ZOOMIN', text="")
+        op = sub.operator("object.shape_key_add", icon='ZOOMIN', text="")
+        op.from_mix = False
         sub.operator("object.shape_key_remove", icon='ZOOMOUT', text="")
         sub.menu("MESH_MT_shape_key_specials", icon='DOWNARROW_HLT', text="")
 
@@ -280,9 +290,8 @@ class DATA_PT_texface(MeshButtonsPanel, bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        ob = context.active_object
-
-        return (context.mode == 'EDIT_MESH') and ob and ob.type == 'MESH'
+        obj = context.object
+        return (context.mode == 'EDIT_MESH') and obj and obj.type == 'MESH'
 
     def draw(self, context):
         layout = self.layout

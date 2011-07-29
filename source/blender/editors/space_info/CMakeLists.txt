@@ -23,13 +23,16 @@ set(INC
 	../include
 	../../blenfont
 	../../blenkernel
-	../../blenloader
 	../../blenlib
+	../../blenloader
 	../../imbuf
 	../../makesdna
 	../../makesrna
 	../../windowmanager
 	../../../../intern/guardedalloc
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
@@ -45,4 +48,4 @@ set(SRC
 	textview.h
 )
 
-blender_add_lib(bf_editor_space_info "${SRC}" "${INC}")
+blender_add_lib(bf_editor_space_info "${SRC}" "${INC}" "${INC_SYS}")

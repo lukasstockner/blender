@@ -26,14 +26,18 @@
 
 set(INC
 	.
-	../../../../intern/string
+	..
+	../../Expressions
+	../../GameLogic
+	../../Network
+	../../SceneGraph
 	../../../../intern/container
 	../../../../intern/moto/include
-	../../../../source/gameengine/Ketsji
-	../../../../source/gameengine/GameLogic
-	../../../../source/gameengine/Expressions
-	../../../../source/gameengine/SceneGraph
-	../../../../source/gameengine/Network
+	../../../../intern/string
+)
+
+set(INC_SYS
+
 )
 
 set(SRC
@@ -50,4 +54,4 @@ set(SRC
 	KX_NetworkObjectSensor.h
 )
 
-blender_add_lib(ge_logic_network "${SRC}" "${INC}")
+blender_add_lib(ge_logic_network "${SRC}" "${INC}" "${INC_SYS}")

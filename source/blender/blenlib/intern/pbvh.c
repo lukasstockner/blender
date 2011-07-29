@@ -1189,8 +1189,9 @@ void BLI_pbvh_node_get_verts(PBVH *bvh, PBVHNode *node, int **vert_indices, MVer
 void BLI_pbvh_node_num_verts(PBVH *bvh, PBVHNode *node, int *uniquevert, int *totvert)
 {
 	if(bvh->grids) {
-		if(totvert) *totvert= node->totprim*bvh->gridsize*bvh->gridsize;
-		if(uniquevert) *uniquevert= *totvert;
+		const int tot= node->totprim*bvh->gridsize*bvh->gridsize;
+		if(totvert) *totvert= tot;
+		if(uniquevert) *uniquevert= tot;
 	}
 	else {
 		if(totvert) *totvert= node->uniq_verts + node->face_verts;
@@ -1437,7 +1438,7 @@ int BLI_pbvh_node_planes_contain_AABB(PBVHNode *node, void *data)
 {
 	float (*planes)[4] = data;
 	int i, axis;
-	float vmin[3], vmax[3], bb_min[3], bb_max[3];
+	float vmin[3] /*, vmax[3]*/, bb_min[3], bb_max[3];
 
 	BLI_pbvh_node_get_BB(node, bb_min, bb_max);
 
@@ -1445,11 +1446,11 @@ int BLI_pbvh_node_planes_contain_AABB(PBVHNode *node, void *data)
 		for(axis = 0; axis < 3; ++axis) {
 			if(planes[i][axis] > 0) { 
 				vmin[axis] = bb_min[axis];
-				vmax[axis] = bb_max[axis];
+				/*vmax[axis] = bb_max[axis];*/ /*UNUSED*/
 			}
 			else {
 				vmin[axis] = bb_max[axis];
-				vmax[axis] = bb_min[axis];
+				/*vmax[axis] = bb_min[axis];*/ /*UNUSED*/
 			}
 		}
 		

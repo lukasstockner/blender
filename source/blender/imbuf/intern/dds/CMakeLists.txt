@@ -28,11 +28,14 @@ set(INC
 	.
 	..
 	../..
-	./intern/include
-	../../../blenlib
 	../../../blenkernel
+	../../../blenlib
 	../../../makesdna
 	../../../../../intern/guardedalloc
+)
+
+set(INC_SYS
+
 )
 
 set(SRC
@@ -48,4 +51,4 @@ if(WITH_IMAGE_DDS)
 	add_definitions(-DWITH_DDS)
 endif()
 
-blender_add_lib(bf_imbuf_dds "${SRC}" "${INC}")                 
+blender_add_lib(bf_imbuf_dds "${SRC}" "${INC}" "${INC_SYS}")                 

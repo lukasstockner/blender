@@ -607,7 +607,7 @@ static void spot_interactive(Object *ob, int mode)
 	Lamp *la= ob->data;
 	float transfac, dx, dy, ratio, origval;
 	int keep_running= 1, center2d[2];
-	short mval[2], mvalo[2];
+	int mval[2], mvalo[2];
 	
 //	getmouseco_areawin(mval);
 //	getmouseco_areawin(mvalo);
@@ -1689,6 +1689,7 @@ void OBJECT_OT_shade_flat(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Shade Flat";
+	ot->description= "Display faces 'flat'";
 	ot->idname= "OBJECT_OT_shade_flat";
 	
 	/* api callbacks */
@@ -1703,6 +1704,7 @@ void OBJECT_OT_shade_smooth(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Shade Smooth";
+	ot->description= "Display faces 'smooth' (using vertex normals)";
 	ot->idname= "OBJECT_OT_shade_smooth";
 	
 	/* api callbacks */
@@ -1871,7 +1873,7 @@ static void rand_timeoffs(Scene *scene, View3D *v3d)
 
 }
 
-static EnumPropertyItem *object_mode_set_itemsf(bContext *C, PointerRNA *UNUSED(ptr), int *free)
+static EnumPropertyItem *object_mode_set_itemsf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
 {	
 	EnumPropertyItem *input = object_mode_items;
 	EnumPropertyItem *item= NULL;
@@ -2053,6 +2055,7 @@ void OBJECT_OT_game_property_new(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "New Game Property";
+	ot->description= "Create a new property available to the game engine";
 	ot->idname= "OBJECT_OT_game_property_new";
 
 	/* api callbacks */
@@ -2090,6 +2093,7 @@ void OBJECT_OT_game_property_remove(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Remove Game Property";
+	ot->description= "Remove game property";
 	ot->idname= "OBJECT_OT_game_property_remove";
 
 	/* api callbacks */
@@ -2115,7 +2119,7 @@ static EnumPropertyItem game_properties_copy_operations[] ={
 static EnumPropertyItem gameprops_items[]= {
 	{0, NULL, 0, NULL, NULL}};
 
-static EnumPropertyItem *gameprops_itemf(bContext *C, PointerRNA *UNUSED(ptr), int *free)
+static EnumPropertyItem *gameprops_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
 {	
 	Object *ob= ED_object_active_context(C);
 	EnumPropertyItem tmp = {0, "", 0, "", ""};
@@ -2158,16 +2162,20 @@ static int game_property_copy_exec(bContext *C, wmOperator *op)
 			} CTX_DATA_END;
 		}
 	}
-	else if (ELEM(type, COPY_PROPERTIES_REPLACE, COPY_PROPERTIES_MERGE)) {
+
+	else {
 		CTX_DATA_BEGIN(C, Object*, ob_iter, selected_editable_objects) {
 			if (ob != ob_iter) {
 				if (ob->data != ob_iter->data){
-					if (type == 2) {/* merge */
+					if (type == COPY_PROPERTIES_REPLACE)
+						copy_properties( &ob_iter->prop, &ob->prop );
+
+					/* merge - the default when calling with no argument */
+					else {
 						for(prop = ob->prop.first; prop; prop= prop->next ) {
 							set_ob_property(ob_iter, prop);
 						}
-					} else /* replace */
-						copy_properties( &ob_iter->prop, &ob->prop );
+					}
 				}
 			}
 		}

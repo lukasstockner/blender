@@ -81,6 +81,8 @@ extern "C" {
 #include "DNA_windowmanager_types.h"
 #include "BKE_global.h"
 #include "BKE_report.h"
+/* #include "BKE_screen.h" */ /* cant include this because of 'new' function name */
+extern float BKE_screen_view3d_zoom_to_fac(float camzoom);
 
 
 //XXX #include "BIF_screen.h"
@@ -93,7 +95,9 @@ extern "C" {
 #include "BKE_ipo.h"
 	/***/
 
-#include "AUD_C-API.h"
+#ifdef WITH_AUDASPACE
+#  include "AUD_C-API.h"
+#endif
 
 //XXX #include "BSE_headerbuttons.h"
 #include "BKE_context.h"
@@ -248,15 +252,15 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 		// some blender stuff
 		float camzoom;
+		int draw_letterbox = 0;
 		
 		if(rv3d->persp==RV3D_CAMOB) {
 			if(startscene->gm.framing.type == SCE_GAMEFRAMING_BARS) { /* Letterbox */
 				camzoom = 1.0f;
+				draw_letterbox = 1;
 			}
 			else {
-				camzoom = (1.41421 + (rv3d->camzoom / 50.0));
-				camzoom *= camzoom;
-				camzoom = 4.0 / camzoom;
+				camzoom = 1.0 / BKE_screen_view3d_zoom_to_fac(rv3d->camzoom);
 			}
 		}
 		else {
@@ -433,6 +437,16 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 					
 					if (render)
 					{
+						if(draw_letterbox) {
+							// Clear screen to border color
+							// We do this here since we set the canvas to be within the frames. This means the engine
+							// itself is unaware of the extra space, so we clear the whole region for it.
+							glClearColor(scene->gm.framing.col[0], scene->gm.framing.col[1], scene->gm.framing.col[2], 1.0f);
+							glViewport(ar->winrct.xmin, ar->winrct.ymin,
+								ar->winrct.xmax - ar->winrct.xmin, ar->winrct.ymax - ar->winrct.ymin);
+							glClear(GL_COLOR_BUFFER_BIT);
+						}
+
 						// render the frame
 						ketsjiengine->Render();
 					}

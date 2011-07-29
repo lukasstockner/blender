@@ -26,33 +26,35 @@
 
 set(INC
 	.
-	../../../../intern/string
+	../common
+	../../BlenderRoutines
+	../../Converter
+	../../Expressions
+	../../GameLogic
+	../../Ketsji
+	../../Network
+	../../Network/LoopBackNetwork
+	../../Physics/common
+	../../Rasterizer
+	../../Rasterizer/RAS_OpenGLRasterizer
+	../../SceneGraph
+	../../../blender
+	../../../blender/blenfont
+	../../../blender/blenkernel
+	../../../blender/blenlib
+	../../../blender/blenloader
+	../../../blender/gpu
+	../../../blender/imbuf
+	../../../blender/makesdna
+	../../../blender/makesrna
+	../../../../intern/container
 	../../../../intern/ghost
 	../../../../intern/guardedalloc
-	../../../../intern/container
 	../../../../intern/moto/include
-	../../../../source/gameengine/Rasterizer/RAS_OpenGLRasterizer
-	../../../../source/gameengine/BlenderRoutines
-	../../../../source/gameengine/Converter
-	../../../../source/blender/imbuf
-	../../../../source/gameengine/Ketsji
-	../../../../source/blender/blenfont
-	../../../../source/blender/blenlib
-	../../../../source/blender/blenkernel
-	../../../../source/blender/readblenfile
-	../../../../source/blender
-	../../../../source/blender/makesdna
-	../../../../source/blender/makesrna
-	../../../../source/gameengine/Rasterizer
-	../../../../source/gameengine/GameLogic
-	../../../../source/gameengine/Expressions
-	../../../../source/gameengine/Network
-	../../../../source/gameengine/SceneGraph
-	../../../../source/gameengine/Physics/common
-	../../../../source/gameengine/Network/LoopBackNetwork
-	../../../../source/gameengine/GamePlayer/common
-	../../../../source/blender/blenloader
-	../../../../source/blender/gpu
+	../../../../intern/string
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 	${PYTHON_INCLUDE_DIRS}
 )
@@ -60,9 +62,9 @@ set(INC
 set(SRC 
 	GPG_Application.cpp
 	GPG_Canvas.cpp
-	GPG_ghost.cpp
 	GPG_KeyboardDevice.cpp
 	GPG_System.cpp
+	GPG_ghost.cpp
 
 	GPG_Application.h
 	GPG_Canvas.h
@@ -76,4 +78,4 @@ if(WITH_CODEC_FFMPEG)
 	add_definitions(-DWITH_FFMPEG)
 endif()
 
-blender_add_lib_nolist(ge_player_ghost "${SRC}" "${INC}")
+blender_add_lib_nolist(ge_player_ghost "${SRC}" "${INC}" "${INC_SYS}")

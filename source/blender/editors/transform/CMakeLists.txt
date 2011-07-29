@@ -22,12 +22,15 @@
 set(INC
 	../include
 	../../blenkernel
-	../../blenloader
 	../../blenlib
+	../../blenloader
 	../../makesdna
 	../../makesrna
 	../../windowmanager
 	../../../../intern/guardedalloc
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
@@ -46,4 +49,4 @@ set(SRC
 	transform.h
 )
 
-blender_add_lib(bf_editor_transform "${SRC}" "${INC}")
+blender_add_lib(bf_editor_transform "${SRC}" "${INC}" "${INC_SYS}")

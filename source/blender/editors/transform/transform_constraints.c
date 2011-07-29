@@ -105,8 +105,8 @@ void constraintNumInput(TransInfo *t, float vec[3])
 		if (getConstraintSpaceDimension(t) == 2) {
 			int axis = mode & (CON_AXIS0|CON_AXIS1|CON_AXIS2);
 			if (axis == (CON_AXIS0|CON_AXIS1)) {
-				vec[0] = vec[0];
-				vec[1] = vec[1];
+				/* vec[0] = vec[0]; */ /* same */
+				/* vec[1] = vec[1]; */ /* same */
 				vec[2] = nval;
 			}
 			else if (axis == (CON_AXIS1|CON_AXIS2)) {
@@ -115,14 +115,14 @@ void constraintNumInput(TransInfo *t, float vec[3])
 				vec[0] = nval;
 			}
 			else if (axis == (CON_AXIS0|CON_AXIS2)) {
-				vec[0] = vec[0];
+				/* vec[0] = vec[0]; */  /* same */
 				vec[2] = vec[1];
 				vec[1] = nval;
 			}
 		}
 		else if (getConstraintSpaceDimension(t) == 1) {
 			if (mode & CON_AXIS0) {
-				vec[0] = vec[0];
+				/* vec[0] = vec[0]; */ /* same */
 				vec[1] = nval;
 				vec[2] = nval;
 			}
@@ -665,7 +665,7 @@ void drawConstraint(TransInfo *t)
 			char col2[3] = {255,255,255};
 			int depth_test_enabled;
 
-			convertViewVec(t, vec, (short)(t->mval[0] - t->con.imval[0]), (short)(t->mval[1] - t->con.imval[1]));
+			convertViewVec(t, vec, (t->mval[0] - t->con.imval[0]), (t->mval[1] - t->con.imval[1]));
 			add_v3_v3(vec, tc->center);
 
 			drawLine(t, tc->center, tc->mtx[0], 'X', 0);

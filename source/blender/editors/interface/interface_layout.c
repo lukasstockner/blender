@@ -149,10 +149,10 @@ typedef struct uiLayoutItemBx {
 	uiBut *roundbox;
 } uiLayoutItemBx;
 
-typedef struct uiLayoutItemSplt {
+typedef struct uiLayoutItemSplit {
 	uiLayout litem;
 	float percentage;
-} uiLayoutItemSplt;
+} uiLayoutItemSplit;
 
 typedef struct uiLayoutItemRoot {
 	uiLayout litem;
@@ -418,6 +418,9 @@ static void ui_item_array(uiLayout *layout, uiBlock *block, const char *name, in
 				but->type= NUMSLI;
 		}
 	}
+	else if(subtype == PROP_DIRECTION) {
+		uiDefButR(block, BUT_NORMAL, 0, name, x, y, UI_UNIT_X*3, UI_UNIT_Y*3, ptr, RNA_property_identifier(prop), 0, 0, 0, -1, -1, NULL);
+	}
 	else {
 		if(ELEM(subtype, PROP_COLOR, PROP_COLOR_GAMMA) && !expand)
 			uiDefAutoButR(block, ptr, prop, -1, "", ICON_NONE, 0, 0, w, UI_UNIT_Y);
@@ -531,10 +534,10 @@ static uiBut *ui_item_with_label(uiLayout *layout, uiBlock *block, const char *n
 		uiDefAutoButR(block, ptr, prop, index, "", icon, x, y, w-UI_UNIT_X, h);
 
 		/* BUTTONS_OT_file_browse calls uiFileBrowseContextProperty */
-		but= uiDefIconButO(block, BUT, "BUTTONS_OT_file_browse", WM_OP_INVOKE_DEFAULT, ICON_FILESEL, x, y, UI_UNIT_X, h, NULL);
-	}
-	else if(subtype == PROP_DIRECTION) {
-		uiDefButR(block, BUT_NORMAL, 0, name, x, y, 100, 100, ptr, RNA_property_identifier(prop), index, 0, 0, -1, -1, NULL);
+		but= uiDefIconButO(block, BUT, subtype==PROP_DIRPATH ?
+		                       "BUTTONS_OT_directory_browse" :
+		                       "BUTTONS_OT_file_browse",
+		                   WM_OP_INVOKE_DEFAULT, ICON_FILESEL, x, y, UI_UNIT_X, h, NULL);
 	}
 	else if(flag & UI_ITEM_R_EVENT) {
 		uiDefButR(block, KEYEVT, 0, name, x, y, w, h, ptr, RNA_property_identifier(prop), index, 0, 0, -1, -1, NULL);
@@ -651,6 +654,9 @@ PointerRNA uiItemFullO(uiLayout *layout, const char *opname, const char *name, i
 	if (flag & UI_ITEM_R_NO_BG)
 		uiBlockSetEmboss(block, UI_EMBOSS);
 
+	if(layout->redalert)
+		uiButSetFlag(but, UI_BUT_REDALERT);
+
 	/* assign properties */
 	if(properties || (flag & UI_ITEM_O_RETURN_PROPS)) {
 		PointerRNA *opptr= uiButGetOperatorPtrRNA(but);
@@ -728,6 +734,9 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 
 	RNA_pointer_create(NULL, ot->srna, NULL, &ptr);
 	prop= RNA_struct_find_property(&ptr, propname);
+
+	/* don't let bad properties slip through */
+	BLI_assert((prop == NULL) || (RNA_property_type(prop) == PROP_ENUM));
 
 	if(prop && RNA_property_type(prop) == PROP_ENUM) {
 		EnumPropertyItem *item;
@@ -1606,7 +1615,7 @@ static void ui_litem_layout_row(uiLayout *litem)
 	int x, y, w, tot, totw, neww, itemw, minw, itemh, offset;
 	int fixedw, freew, fixedx, freex, flag= 0, lastw= 0;
 
-	x= litem->x;
+	/* x= litem->x; */ /* UNUSED */
 	y= litem->y;
 	w= litem->w;
 	totw= 0;
@@ -2011,7 +2020,7 @@ static void ui_litem_estimate_split(uiLayout *litem)
 
 static void ui_litem_layout_split(uiLayout *litem)
 {
-	uiLayoutItemSplt *split= (uiLayoutItemSplt*)litem;
+	uiLayoutItemSplit *split= (uiLayoutItemSplit*)litem;
 	uiItem *item;
 	float percentage;
 	const int tot= BLI_countlist(&litem->items);
@@ -2233,9 +2242,9 @@ uiLayout *uiLayoutOverlap(uiLayout *layout)
 
 uiLayout *uiLayoutSplit(uiLayout *layout, float percentage, int align)
 {
-	uiLayoutItemSplt *split;
+	uiLayoutItemSplit *split;
 
-	split= MEM_callocN(sizeof(uiLayoutItemSplt), "uiLayoutItemSplt");
+	split= MEM_callocN(sizeof(uiLayoutItemSplit), "uiLayoutItemSplit");
 	split->litem.item.type= ITEM_LAYOUT_SPLIT;
 	split->litem.root= layout->root;
 	split->litem.align= align;
