@@ -72,26 +72,19 @@ void RAS_StorageIM::TexCoord(const RAS_TexVert &tv)
 
 	if(GLEW_ARB_multitexture) {
 		for(unit=0; unit<*m_texco_num; unit++) {
-			if(tv.getFlag() & RAS_TexVert::SECOND_UV && (int)tv.getUnit() == unit) {
-				glMultiTexCoord2fvARB(GL_TEXTURE0_ARB+unit, tv.getUV2());
-				continue;
-			}
 			switch(m_texco[unit]) {
 			case RAS_IRasterizer::RAS_TEXCO_ORCO:
 			case RAS_IRasterizer::RAS_TEXCO_GLOB:
 				glMultiTexCoord3fvARB(GL_TEXTURE0_ARB+unit, tv.getXYZ());
 				break;
 			case RAS_IRasterizer::RAS_TEXCO_UV1:
-				glMultiTexCoord2fvARB(GL_TEXTURE0_ARB+unit, tv.getUV1());
+				glMultiTexCoord2fvARB(GL_TEXTURE0_ARB+unit, tv.getUV(unit));
 				break;
 			case RAS_IRasterizer::RAS_TEXCO_NORM:
 				glMultiTexCoord3fvARB(GL_TEXTURE0_ARB+unit, tv.getNormal());
 				break;
 			case RAS_IRasterizer::RAS_TEXTANGENT:
 				glMultiTexCoord4fvARB(GL_TEXTURE0_ARB+unit, tv.getTangent());
-				break;
-			case RAS_IRasterizer::RAS_TEXCO_UV2:
-				glMultiTexCoord2fvARB(GL_TEXTURE0_ARB+unit, tv.getUV2());
 				break;
 			default:
 				break;
@@ -100,6 +93,7 @@ void RAS_StorageIM::TexCoord(const RAS_TexVert &tv)
 	}
 
 	if(GLEW_ARB_vertex_program) {
+		int uv = 0;
 		for(unit=0; unit<*m_attrib_num; unit++) {
 			switch(m_attrib[unit]) {
 			case RAS_IRasterizer::RAS_TEXCO_ORCO:
@@ -107,16 +101,13 @@ void RAS_StorageIM::TexCoord(const RAS_TexVert &tv)
 				glVertexAttrib3fvARB(unit, tv.getXYZ());
 				break;
 			case RAS_IRasterizer::RAS_TEXCO_UV1:
-				glVertexAttrib2fvARB(unit, tv.getUV1());
+				glVertexAttrib2fvARB(unit, tv.getUV(uv++));
 				break;
 			case RAS_IRasterizer::RAS_TEXCO_NORM:
 				glVertexAttrib3fvARB(unit, tv.getNormal());
 				break;
 			case RAS_IRasterizer::RAS_TEXTANGENT:
 				glVertexAttrib4fvARB(unit, tv.getTangent());
-				break;
-			case RAS_IRasterizer::RAS_TEXCO_UV2:
-				glVertexAttrib2fvARB(unit, tv.getUV2());
 				break;
 			case RAS_IRasterizer::RAS_TEXCO_VCOL:
 				glVertexAttrib4ubvARB(unit, tv.getRGBA());
@@ -304,7 +295,7 @@ void RAS_StorageIM::IndexPrimitivesInternal(RAS_MeshSlot& ms, bool multi)
 						if(multi)
 							TexCoord(*vertex);
 						else
-							glTexCoord2fv(vertex->getUV1());
+							glTexCoord2fv(vertex->getUV(0));
 					}
 
 					glVertex3fv(vertex->getXYZ());

@@ -60,7 +60,7 @@ private:
 	GLuint			ibo;
 	GLuint			vertex;
 	GLuint			normal;
-	GLuint			UV[2];
+	GLuint			UV[RAS_TexVert::MAX_UNIT];
 	GLuint			tangent;
 };
 

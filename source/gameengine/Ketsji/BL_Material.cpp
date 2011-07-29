@@ -66,11 +66,11 @@ void BL_Material::Initialize()
 	num_users = 1;
 	share = false;
 
-	int i;
+	int i,j;
 	for(i=0; i<4; i++)
 	{
-		uv[i] = MT_Point2(0.f,1.f);
-		uv2[i] = MT_Point2(0.f, 1.f);
+		for(j=0; j<MAXTEX; j++)
+			uvs[i][j] = MT_Point2(0.0,0.0);
 	}
 
 	for(i=0; i<MAXTEX; i++) // :(
@@ -113,33 +113,20 @@ void BL_Material::GetConversionRGB(unsigned int *nrgb) {
 	*nrgb   = rgb[3];
 }
 
-void BL_Material::SetConversionUV(const STR_String& name, MT_Point2 *nuv) {
-	uvName = name;
-	uv[0] = *nuv++;
-	uv[1] = *nuv++;
-	uv[2] = *nuv++;
-	uv[3] = *nuv;
+void BL_Material::SetConversionUV(const MT_Point2 nuv[4][MAXTEX]) {
+	for(int i=0; i<4; ++i)
+	{
+		for (int j=0; j<MAXTEX; ++j)
+			uvs[i][j] = nuv[i][j];
+	}
 }
 
-void BL_Material::GetConversionUV(MT_Point2 *nuv){
-	*nuv++ = uv[0];
-	*nuv++ = uv[1];
-	*nuv++ = uv[2];
-	*nuv   = uv[3];
-}
-void BL_Material::SetConversionUV2(const STR_String& name, MT_Point2 *nuv) {
-	uv2Name = name;
-	uv2[0] = *nuv++;
-	uv2[1] = *nuv++;
-	uv2[2] = *nuv++;
-	uv2[3] = *nuv;
-}
-
-void BL_Material::GetConversionUV2(MT_Point2 *nuv){
-	*nuv++ = uv2[0];
-	*nuv++ = uv2[1];
-	*nuv++ = uv2[2];
-	*nuv   = uv2[3];
+void BL_Material::GetConversionUV(MT_Point2 nuv[4][8]) {
+	for(int i=0; i<4; ++i)
+	{
+		for (int j=0; j<MAXTEX; ++j)
+			nuv[i][j] = this->uvs[i][j];
+	}
 }
 
 
