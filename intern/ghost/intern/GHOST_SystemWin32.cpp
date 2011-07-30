@@ -763,7 +763,7 @@ GHOST_EventKey* GHOST_SystemWin32::processKeyEvent(GHOST_IWindow *window, WPARAM
 
 		event = new GHOST_EventKey(system->getMilliSeconds(), keyDown ? GHOST_kEventKeyDown: GHOST_kEventKeyUp, window, key, ascii);
 		
-#ifdef BF_GHOST_DEBUG
+#ifdef GHOST_DEBUG
 		std::cout << ascii << std::endl;
 #endif
 	}
@@ -989,11 +989,16 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 					 * procedure of the top-level window being activated. If the windows use different input queues,
 					 * the message is sent asynchronously, so the window is activated immediately. 
 					 */
+					{
+					GHOST_ModifierKeys modifiers;
+					modifiers.clear();
+					system->storeModifierKeys(modifiers);
 					event = processWindowEvent(LOWORD(wParam) ? GHOST_kEventWindowActivate : GHOST_kEventWindowDeactivate, window);
 					/* WARNING: Let DefWindowProc handle WM_ACTIVATE, otherwise WM_MOUSEWHEEL
 					will not be dispatched to OUR active window if we minimize one of OUR windows. */
 					lResult = ::DefWindowProc(hwnd, msg, wParam, lParam);
 					break;
+					}
 				case WM_PAINT:
 					/* An application sends the WM_PAINT message when the system or another application 
 					 * makes a request to paint a portion of an application's window. The message is sent

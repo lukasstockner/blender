@@ -58,8 +58,8 @@ def draw_gpencil_tools(context, layout):
     row = col.row()
     row.prop(context.tool_settings, "use_grease_pencil_sessions")
 
-# ********** default tools for objectmode ****************
 
+# ********** default tools for objectmode ****************
 
 class VIEW3D_PT_tools_objectmode(View3DPanel, bpy.types.Panel):
     bl_context = "objectmode"
@@ -117,7 +117,8 @@ class VIEW3D_PT_tools_meshedit(View3DPanel, bpy.types.Panel):
         col.operator("transform.translate")
         col.operator("transform.rotate")
         col.operator("transform.resize", text="Scale")
-        col.operator("transform.shrink_fatten", text="Along Normal")
+        col.operator("transform.shrink_fatten", text="Shrink/Fatten")
+        col.operator("transform.push_pull", text="Push/Pull")
 
         col = layout.column(align=True)
         col.label(text="Deform:")
@@ -466,7 +467,7 @@ class VIEW3D_PT_tools_brush(PaintPanel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        settings = __class__.paint_settings(context)
+        settings = self.paint_settings(context)
         brush = settings.brush
 
         if not context.particle_edit_object:
@@ -687,7 +688,7 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        settings = __class__.paint_settings(context)
+        settings = self.paint_settings(context)
         brush = settings.brush
         tex_slot = brush.texture_slot
 
@@ -786,7 +787,7 @@ class VIEW3D_PT_tools_brush_tool(PaintPanel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        settings = __class__.paint_settings(context)
+        settings = self.paint_settings(context)
         brush = settings.brush
 
         col = layout.column(align=True)
@@ -821,7 +822,7 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        settings = __class__.paint_settings(context)
+        settings = self.paint_settings(context)
         brush = settings.brush
         image_paint = context.image_paint_object
 
@@ -944,7 +945,6 @@ class VIEW3D_PT_sculpt_options(PaintPanel, bpy.types.Panel):
 
         tool_settings = context.tool_settings
         sculpt = tool_settings.sculpt
-        settings = __class__.paint_settings(context)
 
         layout.label(text="Lock:")
         row = layout.row(align=True)
@@ -974,7 +974,6 @@ class VIEW3D_PT_sculpt_symmetry(PaintPanel, bpy.types.Panel):
         layout = self.layout
 
         sculpt = context.tool_settings.sculpt
-        settings = __class__.paint_settings(context)
 
         split = layout.split()
 
@@ -1006,7 +1005,7 @@ class VIEW3D_PT_tools_brush_appearance(PaintPanel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        settings = __class__.paint_settings(context)
+        settings = self.paint_settings(context)
         brush = settings.brush
 
         if brush is None:  # unlikely but can happen

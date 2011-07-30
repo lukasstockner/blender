@@ -1798,10 +1798,8 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 
 			pa_size = pa->size;
 
-			BLI_srandom(psys->seed+a);
-
-			r_tilt = 2.0f*(BLI_frand() - 0.5f);
-			r_length = BLI_frand();
+			r_tilt = 2.0f*(PSYS_FRAND(a) - 0.5f);
+			r_length = PSYS_FRAND(a+1);
 
 			if(path_nbr) {
 				cache = psys->pathcache[a];
@@ -2047,7 +2045,7 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 					mul_m4_v3(psys->parent->obmat, state.co);
 
 				if(use_duplimat)
-					mul_m4_v4(duplimat, state.co);
+					mul_m4_v3(duplimat, state.co);
 
 				if(part->ren_as == PART_DRAW_BB) {
 					bb.random = random;
@@ -2932,8 +2930,10 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 						vlr->v3= RE_findOrAddVert(obr, startvert+index[2]);
 						vlr->v4= NULL;
 
-						normal_tri_v3(tmp, vlr->v3->co, vlr->v2->co, vlr->v1->co);
-						add_v3_v3(n, tmp);
+						if(area_tri_v3(vlr->v3->co, vlr->v2->co, vlr->v1->co)>FLT_EPSILON) {
+							normal_tri_v3(tmp, vlr->v3->co, vlr->v2->co, vlr->v1->co);
+							add_v3_v3(n, tmp);
+						}
 
 						vlr->mat= matar[ dl->col ];
 						vlr->flag= 0;
@@ -3375,7 +3375,7 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 				
 				/* test for 100% transparant */
 				ok= 1;
-				if(ma->alpha==0.0f && ma->spectra==0.0f && ma->filter==0.0f && (ma->mode & MA_TRANSP)) { 
+				if(ma->alpha==0.0f && ma->spectra==0.0f && ma->filter==0.0f && (ma->mode & MA_TRANSP) && (ma->mode & MA_RAYMIRROR)==0) { 
 					ok= 0;
 					/* texture on transparency? */
 					for(a=0; a<MAX_MTEX; a++) {
@@ -5685,7 +5685,7 @@ void RE_Database_Baking(Render *re, Main *bmain, Scene *scene, unsigned int lay,
 	Object *camera;
 	float mat[4][4];
 	float amb[3];
-	const short onlyselected= !ELEM3(type, RE_BAKE_LIGHT, RE_BAKE_ALL, RE_BAKE_SHADOW);
+	const short onlyselected= !ELEM4(type, RE_BAKE_LIGHT, RE_BAKE_ALL, RE_BAKE_SHADOW, RE_BAKE_AO);
 	const short nolamps= ELEM3(type, RE_BAKE_NORMALS, RE_BAKE_TEXTURE, RE_BAKE_DISPLACEMENT);
 
 	re->main= bmain;
@@ -5778,6 +5778,14 @@ void RE_Database_Baking(Render *re, Main *bmain, Scene *scene, unsigned int lay,
 		if(re->r.mode & R_RAYTRACE)
 			makeraytree(re);
 	
+	/* point density texture */
+	if(!re->test_break(re->tbh))
+		make_pointdensities(re);
+
+	/* voxel data texture */
+	if(!re->test_break(re->tbh))
+		make_voxeldata(re);
+
 	/* occlusion */
 	if((re->wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) && !re->test_break(re->tbh))
 		if(re->wrld.ao_gather_method == WO_AOGATHER_APPROX)
