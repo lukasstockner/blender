@@ -452,8 +452,8 @@ typedef struct GameData {
 
 	/*  standalone player */
 	struct GameFraming framing;
-	short fullscreen, xplay, yplay, freqplay;
-	short depth, attrib, rt1, rt2, aasamples, pad4[3];
+	short fullscreen, use_desktop, xplay, yplay, freqplay;
+	short depth, attrib, rt1, rt2, aasamples, pad4[2];
 
 	/* stereo/dome mode */
 	struct GameDome dome;

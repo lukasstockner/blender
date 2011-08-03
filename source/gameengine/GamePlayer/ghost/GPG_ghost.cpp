@@ -896,7 +896,7 @@ int main(int argc, char** argv)
 #endif
 								{
 									app.startFullScreen(fullScreenWidth, fullScreenHeight, fullScreenBpp, fullScreenFrequency,
-										stereoWindow, stereomode, aasamples);
+										stereoWindow, stereomode, aasamples, scene->gm.use_desktop);
 								}
 							}
 							else

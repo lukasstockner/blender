@@ -370,13 +370,16 @@ bool GPG_Application::startFullScreen(
 		int bpp,int frequency,
 		const bool stereoVisual,
 		const int stereoMode,
-		const GHOST_TUns16 samples)
+		const GHOST_TUns16 samples,
+		bool useDesktop)
 {
 	bool success;
+	GHOST_TUns32 sysWidth=0, sysHeight=0;
+	fSystem->getMainDisplayDimensions(sysWidth, sysHeight);
 	// Create the main window
 	GHOST_DisplaySetting setting;
-	setting.xPixels = width;
-	setting.yPixels = height;
+	setting.xPixels = (useDesktop) ? sysWidth : width;
+	setting.yPixels = (useDesktop) ? sysHeight : height;
 	setting.bpp = bpp;
 	setting.frequency = frequency;
 

@@ -284,19 +284,20 @@ class RENDER_PT_game_player(RenderButtonsPanel, bpy.types.Panel):
         
         row = layout.row()
         row.operator("wm.blenderplayer_start", text="Start")
-        row.prop(gs, "show_fullscreen")
-        
-        row = layout.row()
-        row.prop(gs, "samples")
+        row.label()
         
         row = layout.row()
         row.label(text="Resolution:")
         row = layout.row(align=True)
         row.prop(gs, "resolution_x", slider=False, text="X")
         row.prop(gs, "resolution_y", slider=False, text="Y")
+        row = layout.row()
+        row.prop(gs, "show_fullscreen")
+        row.prop(gs, "use_desktop")
         
         col = layout.column()
         col.label(text="Quality:")
+        col.prop(gs, "samples")
         col = layout.column(align=True)
         col.prop(gs, "depth", text="Bit Depth", slider=False)
         col.prop(gs, "frequency", text="Refresh Rate", slider=False)

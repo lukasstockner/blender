@@ -1764,6 +1764,11 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Fullscreen", "Starts player in a new fullscreen display");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 
+	prop= RNA_def_property(srna, "use_desktop", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "use_desktop", 1.0);
+	RNA_def_property_ui_text(prop, "Desktop", "Uses the current desktop resultion in fullscreen mode");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+
 	/* Dynamic Lights */
 	prop= RNA_def_property(srna, "dynamic_points", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "dynpoints");
