@@ -380,7 +380,7 @@ bool GPG_Application::startFullScreen(
 	setting.bpp = bpp;
 	setting.frequency = frequency;
 
-	fSystem->beginFullScreen(setting, &m_mainWindow, stereoVisual);
+	fSystem->beginFullScreen(setting, &m_mainWindow, stereoVisual, samples);
 	m_mainWindow->setCursorVisibility(false);
 	m_mainWindow->setState(GHOST_kWindowStateFullScreen);
 
