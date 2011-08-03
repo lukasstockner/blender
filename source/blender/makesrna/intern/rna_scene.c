@@ -1652,6 +1652,14 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
+	static EnumPropertyItem aasamples_items[]  ={
+		{0, "SAMPLES_0", 0, "Off", ""},
+		{2, "SAMPLES_2", 0, "2x", ""},
+		{4, "SAMPLES_4", 0, "4x", ""},
+		{8, "SAMPLES_8", 0, "8x", ""},
+		{16, "SAMPLES_16", 0, "16x", ""},
+		{0, NULL, 0, NULL, NULL}};
+
 	static EnumPropertyItem framing_types_items[] ={
 		{SCE_GAMEFRAMING_BARS, "LETTERBOX", 0, "Letterbox", "Show the entire viewport in the display window, using bar horizontally or vertically"},
 		{SCE_GAMEFRAMING_EXTEND, "EXTEND", 0, "Extend", "Show the entire viewport in the display window, viewing more horizontally or vertically"},
@@ -1719,6 +1727,11 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_range(prop, 4, 10000);
 	RNA_def_property_ui_text(prop, "Resolution Y", "Number of vertical pixels in the screen");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
+	
+	prop= RNA_def_property(srna, "samples", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "aasamples");
+	RNA_def_property_enum_items(prop, aasamples_items);
+	RNA_def_property_ui_text(prop, "AA Samples", "The number of AA Samples to use for MSAA");
 	
 	prop= RNA_def_property(srna, "depth", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "depth");

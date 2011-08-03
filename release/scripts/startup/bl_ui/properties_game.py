@@ -287,6 +287,9 @@ class RENDER_PT_game_player(RenderButtonsPanel, bpy.types.Panel):
         row.prop(gs, "show_fullscreen")
         
         row = layout.row()
+        row.prop(gs, "samples")
+        
+        row = layout.row()
         row.label(text="Resolution:")
         row = layout.row(align=True)
         row.prop(gs, "resolution_x", slider=False, text="X")

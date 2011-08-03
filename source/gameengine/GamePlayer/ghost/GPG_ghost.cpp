@@ -371,6 +371,7 @@ int main(int argc, char** argv)
 	GHOST_TEmbedderWindowID parentWindow = 0;
 	bool isBlenderPlayer = false;
 	int validArguments=0;
+	bool samplesParFound = false;
 	GHOST_TUns16 aasamples = 0;
 	
 #ifdef __linux__
@@ -584,8 +585,14 @@ int main(int argc, char** argv)
 				break;
 			case 'm':
 				i++;
+				samplesParFound = true;
 				if ((i+1) <= validArguments )
-				aasamples = atoi(argv[i++]);
+					aasamples = atoi(argv[i++]);
+				else
+				{
+					error = true;
+					printf("error: No argument supplied for -m");
+				}
 				break;
 			case 'c':
 				i++;
@@ -840,6 +847,9 @@ int main(int argc, char** argv)
 						}
 						else
 							scene->gm.stereoflag = STEREO_ENABLED;
+
+						if (!samplesParFound)
+							aasamples = scene->gm.aasamples;
 
 						if (stereoFlag == STEREO_DOME){
 							stereomode = RAS_IRasterizer::RAS_STEREO_DOME;
