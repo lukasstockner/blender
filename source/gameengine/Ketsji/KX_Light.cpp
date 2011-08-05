@@ -114,10 +114,15 @@ CValue*		KX_LightObject::GetReplica()
 	replica->m_lightobj.m_light = replica;
 	m_rendertools->AddLight(&replica->m_lightobj);
 
-	replica->SetBlenderObject(checkout_blenderlight());
-	replica->m_dynamic = true;
+	replica->MakeDynamic();
 
 	return replica;
+}
+
+void KX_LightObject::MakeDynamic()
+{
+	m_dynamic = true;
+	SetBlenderObject(checkout_blenderlight());
 }
 
 bool KX_LightObject::ApplyLight(KX_Scene *kxscene, int oblayer, int slot)
@@ -213,7 +218,10 @@ bool KX_LightObject::ApplyLight(KX_Scene *kxscene, int oblayer, int slot)
 GPULamp *KX_LightObject::GetGPULamp()
 {
 	if(m_glsl && GetBlenderObject())
-		return GPU_lamp_from_blender(m_blenderscene, GetBlenderObject(), GetBlenderGroupObject());
+	{
+		Scene *scene = (m_dynamic) ? m_blenderlight_scene : m_blenderscene;
+		return GPU_lamp_from_blender(scene, GetBlenderObject(), GetBlenderGroupObject());
+	}
 	else
 		return NULL;
 }

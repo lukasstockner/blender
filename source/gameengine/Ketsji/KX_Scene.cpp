@@ -1773,9 +1773,12 @@ static void MergeScene_GameObject(KX_GameObject* gameobj, KX_Scene *to, KX_Scene
 		}
 #endif // USE_BULLET
 	}
-	/* If the object is a light, update it's scene */
+	/* If the object is a light, update it's scene and make it dynamic*/
 	if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT)
+	{
 		((KX_LightObject*)gameobj)->UpdateScene(to);
+		((KX_LightObject*)gameobj)->MakeDynamic();
+	}
 
 	/* Add the object to the scene's logic manager */
 	to->GetLogicManager()->RegisterGameObjectName(gameobj->GetName(), gameobj);

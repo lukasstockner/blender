@@ -63,6 +63,7 @@ public:
 	virtual ~KX_LightObject();
 	virtual CValue*		GetReplica();
 	RAS_LightObject*	GetLightData() { return &m_lightobj;}
+	void				MakeDynamic();
 
 	/* OpenGL Light */
 	bool ApplyLight(KX_Scene *kxscene, int oblayer, int slot);
