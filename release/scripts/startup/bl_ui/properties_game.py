@@ -293,7 +293,10 @@ class RENDER_PT_game_player(RenderButtonsPanel, bpy.types.Panel):
         row.prop(gs, "resolution_y", slider=False, text="Y")
         row = layout.row()
         row.prop(gs, "show_fullscreen")
-        row.prop(gs, "use_desktop")
+        if gs.show_fullscreen:
+            row.prop(gs, "use_desktop")
+        else:
+            row.label()
         
         col = layout.column()
         col.label(text="Quality:")
