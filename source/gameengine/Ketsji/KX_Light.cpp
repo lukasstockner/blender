@@ -303,8 +303,11 @@ void init_subpool(Scene *scene, std::vector<Object*> *subpool, int count, short 
 	for (int i = 0; i < count; ++i)
 	{
 		subpool->at(i) = add_object(m_blenderlight_scene, OB_LAMP);
-		la = (Lamp*)subpool->at(i)->data;
 
+		//Give the lights a unique name so the converter can avoid them
+		strcpy(subpool->at(i)->id.name, "__pool__");
+
+		la = (Lamp*)subpool->at(i)->data;
 		la->type = type;
 		la->energy = 0;
 	}

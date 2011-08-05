@@ -366,8 +366,7 @@ void KX_BlenderSceneConverter::ConvertScene(class KX_Scene* destinationscene,
 			break;
 	}
 
-	//For now this is before converting blender objects (which means the light pool gets converted to KX_lights that never get used)
-	//If this is moved after the conversion, things go crazy with materials since InitBlenderLightPool frees the materials
+	// Lights added to the scene during the light pool initialization are now skipped when converting objects
 	if(blenderscene && m_useglslmat)
 		KX_LightObject::InitBlenderLightPool(blenderscene,
 											blenderscene->gm.dynpoints,

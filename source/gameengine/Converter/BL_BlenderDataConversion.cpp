@@ -2224,6 +2224,11 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	for (SETLOOPER(blenderscene, sce_iter, base))
 	{
 		Object* blenderobject = base->object;
+
+		// Skip lights from the light pool
+		if (strcmp(blenderobject->id.name, "__pool__") == 0)
+			continue;
+
 		allblobj.insert(blenderobject);
 
 		KX_GameObject* gameobj = gameobject_from_blenderobject(
