@@ -603,7 +603,7 @@ class RENDER_PT_encoding(RenderButtonsPanel, bpy.types.Panel):
 class RENDER_PT_bake(RenderButtonsPanel, bpy.types.Panel):
     bl_label = "Bake"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     def draw(self, context):
         layout = self.layout
