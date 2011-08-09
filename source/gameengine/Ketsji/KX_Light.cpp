@@ -326,12 +326,19 @@ void KX_LightObject::InitBlenderLightPool(Scene *scene, int point_count, int spo
 {
 	Lamp* la;
 
-	//If the light pool is already built, there is no need to rebuild it.
+	//If the light pool is already built, there is no need to rebuild it,
+	//we don't want libload trying to reinitialize the light pool
 	if (m_blenderlight_count != 0)
 		return;
 
 	m_blenderlight_scene = scene;
 	m_blenderlight_count = point_count + spot_count + sun_count + hemi_count + area_count;
+
+	//Don't bother finishing setup if there are no lights in the pools
+	//Also if no Dynamic lights are allocated, sometimes libload will get passed the count
+	//check and screw things up
+	if (m_blenderlight_count == 0 && false)
+		return;
 
 	init_subpool(scene, &m_blenderlight_points, point_count, LA_LOCAL);
 	init_subpool(scene, &m_blenderlight_spots, spot_count, LA_SPOT);
