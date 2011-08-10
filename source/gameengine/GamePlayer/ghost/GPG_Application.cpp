@@ -570,7 +570,9 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		if (!m_rendertools)
 			goto initFailed;
 		
-		if(useLists)
+		//Don't use displaylists with VBOs
+		//If auto starts using VBOs, make sure to check for that here
+		if(useLists && gm->raster_storage != RAS_STORE_VBO)
 			m_rasterizer = new RAS_ListRasterizer(m_canvas, false, gm->raster_storage);
 		else
 			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, gm->raster_storage);

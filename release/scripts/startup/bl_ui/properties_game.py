@@ -420,8 +420,11 @@ class RENDER_PT_game_system(RenderButtonsPanel, bpy.types.Panel):
 
         gs = context.scene.game_settings
         row = layout.row()
-        row.prop(gs, "use_frame_rate")
-        row.prop(gs, "use_display_lists")
+        col = row.column()
+        col.prop(gs, "use_frame_rate")
+        col = row.column()
+        col.prop(gs, "use_display_lists")
+        col.active = gs.raster_storage != 'VERTEX_BUFFER_OBJECT'
         
         row = layout.row()
         row.prop(gs, "raster_storage")
