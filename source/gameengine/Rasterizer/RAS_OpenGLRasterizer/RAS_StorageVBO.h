@@ -50,6 +50,7 @@ public:
 	void	UpdateNormals();
 	void	UpdateUVs();
 	void	UpdateTangents();
+	void	UpdateColors();
 	void	UpdateIndices();
 private:
 	RAS_DisplayArray*	data;
@@ -62,6 +63,7 @@ private:
 	GLuint			normal;
 	GLuint			UV[RAS_TexVert::MAX_UNIT];
 	GLuint			tangent;
+	GLuint			color;
 };
 
 class RAS_StorageVBO : public RAS_IStorage

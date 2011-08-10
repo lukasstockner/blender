@@ -52,6 +52,7 @@ VBO::VBO(RAS_DisplayArray *data, unsigned int indices)
 	glGenBuffersARB(1, &this->normal);
 	glGenBuffersARB(RAS_TexVert::MAX_UNIT, this->UV);
 	glGenBuffersARB(1, &this->tangent);
+	glGenBuffersARB(1, &this->color);
 	glGenBuffersARB(1, &this->ibo);
 	glGenBuffersARB(1, &this->dummy);
 
@@ -60,6 +61,7 @@ VBO::VBO(RAS_DisplayArray *data, unsigned int indices)
 	UpdateNormals();
 	UpdateUVs();
 	UpdateTangents();
+	UpdateColors();
 	UpdateIndices();
 
 	// Set up a dummy buffer
@@ -172,6 +174,27 @@ void VBO::UpdateTangents()
 	delete tangents;
 }
 
+void VBO::UpdateColors()
+{
+	int space = this->size*4*sizeof(GLchar);
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->color);
+
+	// Lets the video card know we are done with the old VBO
+	glBufferDataARB(GL_ARRAY_BUFFER_ARB, 0, NULL, GL_DYNAMIC_DRAW_ARB);
+
+	// Gather position data
+	GLchar* colors = new GLchar[this->size*4];
+	for (unsigned int i=0, j=0; i<data->m_vertex.size(); ++i, j+=4)
+	{
+		memcpy(&colors[j], data->m_vertex[i].getRGBA(), sizeof(char)*4);
+	}
+
+	// Upload Data to VBO
+	glBufferDataARB(GL_ARRAY_BUFFER_ARB, space, colors, GL_DYNAMIC_DRAW_ARB);
+
+	// Clean up
+	delete colors;
+}
 
 void VBO::UpdateIndices()
 {
@@ -199,6 +222,11 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, 
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->normal);
 	glEnableClientState(GL_NORMAL_ARRAY);
 	glNormalPointer(GL_FLOAT, 0, 0);
+
+	// Colors
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->color);
+	glEnableClientState(GL_COLOR_ARRAY);
+	glColorPointer(4, GL_UNSIGNED_BYTE, 0, 0);
 
 	if (multi)
 	{
@@ -282,6 +310,7 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, 
 
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_NORMAL_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 
 	if (GLEW_ARB_vertex_program)
