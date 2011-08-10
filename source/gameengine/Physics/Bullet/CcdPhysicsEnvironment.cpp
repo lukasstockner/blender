@@ -1095,6 +1095,7 @@ PHY_IPhysicsController* CcdPhysicsEnvironment::rayTest(PHY_IRayCastFilterCallbac
 
 	// don't collision with sensor object
 	rayCallback.m_collisionFilterMask = CcdConstructionInfo::AllFilter ^ CcdConstructionInfo::SensorFilter;
+	rayCallback.m_collisionFilterGroup = CcdConstructionInfo::AllFilter;
 	//, ,filterCallback.m_faceNormal);
 
 	m_dynamicsWorld->rayTest(rayFrom,rayTo,rayCallback);
