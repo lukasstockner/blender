@@ -46,24 +46,24 @@ public:
 
 	void	Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, RAS_IRasterizer::TexCoGen* attrib, bool multi);
 
-	void	UpdatePositions();
-	void	UpdateNormals();
-	void	UpdateUVs();
-	void	UpdateTangents();
-	void	UpdateColors();
+	void	UpdateData();
 	void	UpdateIndices();
 private:
 	RAS_DisplayArray*	data;
 	GLuint			size;
-	GLuint			dummy;
+	GLuint			stride;
 	GLuint			indices;
 	GLenum			mode;
 	GLuint			ibo;
-	GLuint			vertex;
-	GLuint			normal;
-	GLuint			UV[RAS_TexVert::MAX_UNIT];
-	GLuint			tangent;
-	GLuint			color;
+	GLuint			vbo_id;
+	GLfloat*		vbo;
+
+	void*			vertex_offset;
+	void*			normal_offset;
+	void*			color_offset;
+	void*			tangent_offset;
+	void*			uv_offset;
+	void*			dummy_offset;
 };
 
 class RAS_StorageVBO : public RAS_IStorage
