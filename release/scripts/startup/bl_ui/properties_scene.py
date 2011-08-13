@@ -18,6 +18,7 @@
 
 # <pep8 compliant>
 import bpy
+from bpy.types import Operator, Panel
 from rna_prop_ui import PropertyPanel
 
 
@@ -32,7 +33,7 @@ class SceneButtonsPanel():
         return context.scene and (rd.engine in cls.COMPAT_ENGINES)
 
 
-class SCENE_PT_scene(SceneButtonsPanel, bpy.types.Panel):
+class SCENE_PT_scene(SceneButtonsPanel, Panel):
     bl_label = "Scene"
 
     def draw(self, context):
@@ -43,7 +44,7 @@ class SCENE_PT_scene(SceneButtonsPanel, bpy.types.Panel):
         layout.prop(scene, "background_set", text="Background")
 
 
-class SCENE_PT_unit(SceneButtonsPanel, bpy.types.Panel):
+class SCENE_PT_unit(SceneButtonsPanel, Panel):
     bl_label = "Units"
 
     def draw(self, context):
@@ -60,7 +61,7 @@ class SCENE_PT_unit(SceneButtonsPanel, bpy.types.Panel):
         row.prop(unit, "use_separate")
 
 
-class SCENE_PT_keying_sets(SceneButtonsPanel, bpy.types.Panel):
+class SCENE_PT_keying_sets(SceneButtonsPanel, Panel):
     bl_label = "Keying Sets"
 
     def draw(self, context):
@@ -93,7 +94,7 @@ class SCENE_PT_keying_sets(SceneButtonsPanel, bpy.types.Panel):
             col.prop(ks, "bl_options")
 
 
-class SCENE_PT_keying_set_paths(SceneButtonsPanel, bpy.types.Panel):
+class SCENE_PT_keying_set_paths(SceneButtonsPanel, Panel):
     bl_label = "Active Keying Set"
 
     @classmethod
@@ -143,7 +144,7 @@ class SCENE_PT_keying_set_paths(SceneButtonsPanel, bpy.types.Panel):
             col.prop(ksp, "bl_options")
 
 
-class SCENE_PT_physics(SceneButtonsPanel, bpy.types.Panel):
+class SCENE_PT_physics(SceneButtonsPanel, Panel):
     bl_label = "Gravity"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
 
@@ -160,7 +161,7 @@ class SCENE_PT_physics(SceneButtonsPanel, bpy.types.Panel):
         layout.prop(scene, "gravity", text="")
 
 
-class SCENE_PT_simplify(SceneButtonsPanel, bpy.types.Panel):
+class SCENE_PT_simplify(SceneButtonsPanel, Panel):
     bl_label = "Simplify"
 
     def draw_header(self, context):
@@ -188,7 +189,7 @@ class SCENE_PT_simplify(SceneButtonsPanel, bpy.types.Panel):
         col.prop(rd, "simplify_ao_sss", text="AO and SSS")
 
 
-class SCENE_PT_custom_props(SceneButtonsPanel, PropertyPanel, bpy.types.Panel):
+class SCENE_PT_custom_props(SceneButtonsPanel, PropertyPanel, Panel):
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
     _context_path = "scene"
     _property_type = bpy.types.Scene
@@ -196,7 +197,7 @@ class SCENE_PT_custom_props(SceneButtonsPanel, PropertyPanel, bpy.types.Panel):
 #  XXX, move operator to op/ dir
 
 
-class ANIM_OT_keying_set_export(bpy.types.Operator):
+class ANIM_OT_keying_set_export(Operator):
     "Export Keying Set to a python script."
     bl_idname = "anim.keying_set_export"
     bl_label = "Export Keying Set..."

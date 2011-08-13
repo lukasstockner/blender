@@ -2897,7 +2897,7 @@ KX_PYMETHODDEF_DOC(KX_GameObject, rayCastTo,
 		m_testPropName = propName;
 	else
 		m_testPropName.SetLength(0);
-	KX_RayCast::Callback<KX_GameObject> callback(this,spc);
+	KX_RayCast::Callback<KX_GameObject> callback(this,spc, NULL, false, true);
 	KX_RayCast::RayTest(pe, fromPoint, toPoint, callback);
 
 	if (m_pHitObject)

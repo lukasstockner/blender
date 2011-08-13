@@ -19,6 +19,7 @@
 # <pep8 compliant>
 
 import bpy
+from bpy.types import Menu, Operator
 from bpy.props import StringProperty, BoolProperty, IntProperty, \
                       FloatProperty, EnumProperty
 
@@ -27,8 +28,7 @@ from rna_prop_ui import rna_idprop_ui_prop_get, rna_idprop_ui_prop_clear
 import subprocess
 import os
 
-
-class MESH_OT_delete_edgeloop(bpy.types.Operator):
+class MESH_OT_delete_edgeloop(Operator):
     '''Delete an edge loop by merging the faces on each side to a single face loop'''
     bl_idname = "mesh.delete_edgeloop"
     bl_label = "Delete Edge Loop"
@@ -79,7 +79,7 @@ def execute_context_assign(self, context):
     return {'FINISHED'}
 
 
-class BRUSH_OT_active_index_set(bpy.types.Operator):
+class BRUSH_OT_active_index_set(Operator):
     '''Set active sculpt/paint brush from it's number'''
     bl_idname = "brush.active_index_set"
     bl_label = "Set Brush Number"
@@ -107,7 +107,7 @@ class BRUSH_OT_active_index_set(bpy.types.Operator):
         return {'CANCELLED'}
 
 
-class WM_OT_context_set_boolean(bpy.types.Operator):
+class WM_OT_context_set_boolean(Operator):
     '''Set a context value.'''
     bl_idname = "wm.context_set_boolean"
     bl_label = "Context Set Boolean"
@@ -120,7 +120,7 @@ class WM_OT_context_set_boolean(bpy.types.Operator):
     execute = execute_context_assign
 
 
-class WM_OT_context_set_int(bpy.types.Operator):  # same as enum
+class WM_OT_context_set_int(Operator):  # same as enum
     '''Set a context value.'''
     bl_idname = "wm.context_set_int"
     bl_label = "Context Set"
@@ -133,7 +133,7 @@ class WM_OT_context_set_int(bpy.types.Operator):  # same as enum
     execute = execute_context_assign
 
 
-class WM_OT_context_scale_int(bpy.types.Operator):
+class WM_OT_context_scale_int(Operator):
     '''Scale an int context value.'''
     bl_idname = "wm.context_scale_int"
     bl_label = "Context Set"
@@ -169,7 +169,7 @@ class WM_OT_context_scale_int(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_OT_context_set_float(bpy.types.Operator):  # same as enum
+class WM_OT_context_set_float(Operator):  # same as enum
     '''Set a context value.'''
     bl_idname = "wm.context_set_float"
     bl_label = "Context Set Float"
@@ -183,7 +183,7 @@ class WM_OT_context_set_float(bpy.types.Operator):  # same as enum
     execute = execute_context_assign
 
 
-class WM_OT_context_set_string(bpy.types.Operator):  # same as enum
+class WM_OT_context_set_string(Operator):  # same as enum
     '''Set a context value.'''
     bl_idname = "wm.context_set_string"
     bl_label = "Context Set String"
@@ -196,7 +196,7 @@ class WM_OT_context_set_string(bpy.types.Operator):  # same as enum
     execute = execute_context_assign
 
 
-class WM_OT_context_set_enum(bpy.types.Operator):
+class WM_OT_context_set_enum(Operator):
     '''Set a context value.'''
     bl_idname = "wm.context_set_enum"
     bl_label = "Context Set Enum"
@@ -210,7 +210,7 @@ class WM_OT_context_set_enum(bpy.types.Operator):
     execute = execute_context_assign
 
 
-class WM_OT_context_set_value(bpy.types.Operator):
+class WM_OT_context_set_value(Operator):
     '''Set a context value.'''
     bl_idname = "wm.context_set_value"
     bl_label = "Context Set Value"
@@ -228,7 +228,7 @@ class WM_OT_context_set_value(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_OT_context_toggle(bpy.types.Operator):
+class WM_OT_context_toggle(Operator):
     '''Toggle a context value.'''
     bl_idname = "wm.context_toggle"
     bl_label = "Context Toggle"
@@ -247,7 +247,7 @@ class WM_OT_context_toggle(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_OT_context_toggle_enum(bpy.types.Operator):
+class WM_OT_context_toggle_enum(Operator):
     '''Toggle a context value.'''
     bl_idname = "wm.context_toggle_enum"
     bl_label = "Context Toggle Values"
@@ -273,7 +273,7 @@ class WM_OT_context_toggle_enum(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_OT_context_cycle_int(bpy.types.Operator):
+class WM_OT_context_cycle_int(Operator):
     '''Set a context value. Useful for cycling active material, '''
     '''vertex keys, groups' etc.'''
     bl_idname = "wm.context_cycle_int"
@@ -308,7 +308,7 @@ class WM_OT_context_cycle_int(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_OT_context_cycle_enum(bpy.types.Operator):
+class WM_OT_context_cycle_enum(Operator):
     '''Toggle a context value.'''
     bl_idname = "wm.context_cycle_enum"
     bl_label = "Context Enum Cycle"
@@ -360,7 +360,7 @@ class WM_OT_context_cycle_enum(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_OT_context_cycle_array(bpy.types.Operator):
+class WM_OT_context_cycle_array(Operator):
     '''Set a context array value.
     Useful for cycling the active mesh edit mode.'''
     bl_idname = "wm.context_cycle_array"
@@ -388,7 +388,7 @@ class WM_OT_context_cycle_array(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_MT_context_menu_enum(bpy.types.Menu):
+class WM_MT_context_menu_enum(Menu):
     bl_label = ""
     data_path = ""  # BAD DESIGN, set from operator below.
 
@@ -408,7 +408,7 @@ class WM_MT_context_menu_enum(bpy.types.Menu):
             prop.value = identifier
 
 
-class WM_OT_context_menu_enum(bpy.types.Operator):
+class WM_OT_context_menu_enum(Operator):
     bl_idname = "wm.context_menu_enum"
     bl_label = "Context Enum Menu"
     bl_options = {'UNDO', 'INTERNAL'}
@@ -421,7 +421,7 @@ class WM_OT_context_menu_enum(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
 
-class WM_OT_context_set_id(bpy.types.Operator):
+class WM_OT_context_set_id(Operator):
     '''Toggle a context value.'''
     bl_idname = "wm.context_set_id"
     bl_label = "Set Library ID"
@@ -469,7 +469,7 @@ data_path_item = StringProperty(
         description="The data path from each iterable to the value (int or float)")
 
 
-class WM_OT_context_collection_boolean_set(bpy.types.Operator):
+class WM_OT_context_collection_boolean_set(Operator):
     '''Set boolean values for a collection of items'''
     bl_idname = "wm.context_collection_boolean_set"
     bl_label = "Context Collection Boolean Set"
@@ -523,7 +523,7 @@ class WM_OT_context_collection_boolean_set(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_OT_context_modal_mouse(bpy.types.Operator):
+class WM_OT_context_modal_mouse(Operator):
     '''Adjust arbitrary values with mouse input'''
     bl_idname = "wm.context_modal_mouse"
     bl_label = "Context Modal Mouse"
@@ -589,7 +589,7 @@ class WM_OT_context_modal_mouse(bpy.types.Operator):
             self._values_clear()
             return {'FINISHED'}
 
-        elif event_type in ('RIGHTMOUSE', 'ESC'):
+        elif event_type in {'RIGHTMOUSE', 'ESC'}:
             self._values_restore()
             return {'FINISHED'}
 
@@ -610,7 +610,7 @@ class WM_OT_context_modal_mouse(bpy.types.Operator):
             return {'RUNNING_MODAL'}
 
 
-class WM_OT_url_open(bpy.types.Operator):
+class WM_OT_url_open(Operator):
     "Open a website in the Webbrowser"
     bl_idname = "wm.url_open"
     bl_label = ""
@@ -624,7 +624,7 @@ class WM_OT_url_open(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_OT_path_open(bpy.types.Operator):
+class WM_OT_path_open(Operator):
     "Open a path in a file browser"
     bl_idname = "wm.path_open"
     bl_label = ""
@@ -657,7 +657,7 @@ class WM_OT_path_open(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_OT_doc_view(bpy.types.Operator):
+class WM_OT_doc_view(Operator):
     '''Load online reference docs'''
     bl_idname = "wm.doc_view"
     bl_label = "View Documentation"
@@ -711,7 +711,7 @@ class WM_OT_doc_view(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_OT_doc_edit(bpy.types.Operator):
+class WM_OT_doc_edit(Operator):
     '''Load online reference docs'''
     bl_idname = "wm.doc_edit"
     bl_label = "Edit Documentation"
@@ -795,7 +795,7 @@ rna_min = FloatProperty(name="Min", default=0.0, precision=3)
 rna_max = FloatProperty(name="Max", default=1.0, precision=3)
 
 
-class WM_OT_properties_edit(bpy.types.Operator):
+class WM_OT_properties_edit(Operator):
     '''Internal use (edit a property data_path)'''
     bl_idname = "wm.properties_edit"
     bl_label = "Edit Property"
@@ -842,7 +842,7 @@ class WM_OT_properties_edit(bpy.types.Operator):
 
         prop_ui = rna_idprop_ui_prop_get(item, prop)
 
-        if prop_type in (float, int):
+        if prop_type in {float, int}:
 
             prop_ui['soft_min'] = prop_ui['min'] = prop_type(self.min)
             prop_ui['soft_max'] = prop_ui['max'] = prop_type(self.max)
@@ -879,7 +879,7 @@ class WM_OT_properties_edit(bpy.types.Operator):
         return wm.invoke_props_dialog(self)
 
 
-class WM_OT_properties_add(bpy.types.Operator):
+class WM_OT_properties_add(Operator):
     '''Internal use (edit a property data_path)'''
     bl_idname = "wm.properties_add"
     bl_label = "Add Property"
@@ -905,7 +905,7 @@ class WM_OT_properties_add(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_OT_properties_context_change(bpy.types.Operator):
+class WM_OT_properties_context_change(Operator):
     "Change the context tab in a Properties Window"
     bl_idname = "wm.properties_context_change"
     bl_label = ""
@@ -917,7 +917,7 @@ class WM_OT_properties_context_change(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_OT_properties_remove(bpy.types.Operator):
+class WM_OT_properties_remove(Operator):
     '''Internal use (edit a property data_path)'''
     bl_idname = "wm.properties_remove"
     bl_label = "Remove Property"
@@ -931,7 +931,7 @@ class WM_OT_properties_remove(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_OT_keyconfig_activate(bpy.types.Operator):
+class WM_OT_keyconfig_activate(Operator):
     bl_idname = "wm.keyconfig_activate"
     bl_label = "Activate Keyconfig"
 
@@ -942,7 +942,7 @@ class WM_OT_keyconfig_activate(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_OT_appconfig_default(bpy.types.Operator):
+class WM_OT_appconfig_default(Operator):
     bl_idname = "wm.appconfig_default"
     bl_label = "Default Application Configuration"
 
@@ -959,7 +959,7 @@ class WM_OT_appconfig_default(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_OT_appconfig_activate(bpy.types.Operator):
+class WM_OT_appconfig_activate(Operator):
     bl_idname = "wm.appconfig_activate"
     bl_label = "Activate Application Configuration"
 
@@ -977,7 +977,7 @@ class WM_OT_appconfig_activate(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_OT_sysinfo(bpy.types.Operator):
+class WM_OT_sysinfo(Operator):
     '''Generate System Info'''
     bl_idname = "wm.sysinfo"
     bl_label = "System Info"
@@ -988,7 +988,7 @@ class WM_OT_sysinfo(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class WM_OT_copy_prev_settings(bpy.types.Operator):
+class WM_OT_copy_prev_settings(Operator):
     '''Copy settings from previous version'''
     bl_idname = "wm.copy_prev_settings"
     bl_label = "Copy Previous Settings"
@@ -1024,7 +1024,7 @@ class WM_OT_copy_prev_settings(bpy.types.Operator):
 
         return {'CANCELLED'}
 
-class WM_OT_blenderplayer_start(bpy.types.Operator):
+class WM_OT_blenderplayer_start(Operator):
     '''Launches the Blenderplayer with the current blendfile'''
     bl_idname = "wm.blenderplayer_start"
     bl_label = "Start"
