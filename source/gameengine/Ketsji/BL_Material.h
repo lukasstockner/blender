@@ -150,7 +150,8 @@ enum BL_ras_mode
 	ALPHA=8,
 	// TRIANGLE=16,
 	USE_LIGHT=32,
-	WIRE=64
+	WIRE=64,
+	CAST_SHADOW=128
 };
 
 // -------------------------------------

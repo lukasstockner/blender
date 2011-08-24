@@ -2367,7 +2367,20 @@ static void draw_em_measure_stats(View3D *v3d, RegionView3D *rv3d, Object *ob, E
 			}
 		}
 	}
-	
+
+	/* useful for debugging index vs shape key index */
+#if 0
+	{
+		EditVert *eve;
+		int j;
+		UI_GetThemeColor3ubv(TH_DRAWEXTRA_FACEANG, col);
+		for(eve= em->verts.first, j= 0; eve; eve= eve->next, j++) {
+			sprintf(val, "%d:%d", j, eve->keyindex);
+			view3d_cached_text_draw_add(eve->co, val, 0, V3D_CACHE_TEXT_ASCII, col);
+		}
+	}
+#endif
+
 	if(v3d->zbuf) {
 		glEnable(GL_DEPTH_TEST);
 		bglPolygonOffset(rv3d->dist, 0.0f);
@@ -2830,8 +2843,20 @@ static int draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	Object *ob= base->object;
 	Object *obedit= scene->obedit;
 	Mesh *me= ob->data;
+	Material *ma=NULL;
 	EditMesh *em= me->edit_mesh;
-	int do_alpha_pass= 0, drawlinked= 0, retval= 0, glsl, check_alpha;
+	int do_alpha_pass= 0, drawlinked= 0, retval= 0, glsl, check_alpha, i;
+
+	/* If we are drawing shadows and any of the materials don't cast a shadow, then don't draw the object */
+	if (v3d->flag2 & V3D_RENDER_SHADOW)
+	{
+		for(i=0; i<ob->totcol; ++i)
+		{
+			ma = give_current_material(ob, i);
+			if (ma && !(ma->mode & MA_SHADBUF))
+				return 1;
+		}
+	}
 	
 	if(obedit && ob!=obedit && ob->data==obedit->data) {
 		if(ob_get_key(ob) || ob_get_key(obedit));
@@ -5477,7 +5502,7 @@ static void drawObjectSelect(Scene *scene, View3D *v3d, ARegion *ar, Base *base)
 		}
 	}
 	else if(ob->type==OB_ARMATURE) {
-		if(!(ob->mode & OB_MODE_POSE))
+		if(!(ob->mode & OB_MODE_POSE && base == scene->basact))
 			draw_armature(scene, v3d, ar, base, OB_WIRE, FALSE, TRUE);
 	}
 

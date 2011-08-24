@@ -26,17 +26,14 @@ class CONSOLE_HT_header(Header):
     bl_space_type = 'CONSOLE'
 
     def draw(self, context):
-        layout = self.layout
+        layout = self.layout.row(align=True)
 
-        row = layout.row(align=True)
-        row.template_header()
+        layout.template_header()
 
         if context.area.show_menus:
-            sub = row.row(align=True)
-            sub.menu("CONSOLE_MT_console")
+            layout.menu("CONSOLE_MT_console")
 
-        row = layout.row(align=True)
-        row.operator("console.autocomplete", text="Autocomplete")
+        layout.operator("console.autocomplete", text="Autocomplete")
 
 
 class CONSOLE_MT_console(Menu):
@@ -44,7 +41,7 @@ class CONSOLE_MT_console(Menu):
 
     def draw(self, context):
         layout = self.layout
-        layout.column()
+
         layout.operator("console.clear")
         layout.operator("console.copy")
         layout.operator("console.paste")
@@ -144,7 +141,11 @@ class ConsoleLanguage(Operator):
     '''Set the current language for this console'''
     bl_idname = "console.language"
     bl_label = "Console Language"
-    language = StringProperty(name="Language", maxlen=32, default="")
+
+    language = StringProperty(
+            name="Language",
+            maxlen=32,
+            )
 
     def execute(self, context):
         sc = context.space_data

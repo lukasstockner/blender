@@ -65,10 +65,9 @@ class LOGIC_HT_header(Header):
     bl_space_type = 'LOGIC_EDITOR'
 
     def draw(self, context):
-        layout = self.layout
+        layout = self.layout.row(align=True)
 
-        row = layout.row(align=True)
-        row.template_header()
+        layout.template_header()
 
         if context.area.show_menus:
             sub = row.row(align=True)
@@ -81,8 +80,6 @@ class LOGIC_MT_view(Menu):
 
     def draw(self, context):
         layout = self.layout
-
-        layout.column()
 
         layout.operator("logic.properties", icon='MENU_PANEL')
 

@@ -621,25 +621,31 @@ void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char *filepath)
 	}
 	
 	/* some ops have multiple files to select */
+	/* this is called on operators check() so clear collections first since
+	 * they may be already set. */
 	{
 		PointerRNA itemptr;
+		PropertyRNA *prop_files= RNA_struct_find_property(op->ptr, "files");
+		PropertyRNA *prop_dirs= RNA_struct_find_property(op->ptr, "dirs");
 		int i, numfiles = filelist_numfiles(sfile->files);
 
-		if(RNA_struct_find_property(op->ptr, "files")) {
+		if(prop_files) {
+			RNA_property_collection_clear(op->ptr, prop_files);
 			for (i=0; i<numfiles; i++) {
 				if (filelist_is_selected(sfile->files, i, CHECK_FILES)) {
 					struct direntry *file= filelist_file(sfile->files, i);
-					RNA_collection_add(op->ptr, "files", &itemptr);
+					RNA_property_collection_add(op->ptr, prop_files, &itemptr);
 					RNA_string_set(&itemptr, "name", file->relname);
 				}
 			}
 		}
-		
-		if(RNA_struct_find_property(op->ptr, "dirs")) {
+
+		if(prop_dirs) {
+			RNA_property_collection_clear(op->ptr, prop_dirs);
 			for (i=0; i<numfiles; i++) {
 				if (filelist_is_selected(sfile->files, i, CHECK_DIRS)) {
 					struct direntry *file= filelist_file(sfile->files, i);
-					RNA_collection_add(op->ptr, "dirs", &itemptr);
+					RNA_property_collection_add(op->ptr, prop_dirs, &itemptr);
 					RNA_string_set(&itemptr, "name", file->relname);
 				}
 			}
@@ -1159,6 +1165,13 @@ int file_filename_exec(bContext *C, wmOperator *UNUSED(unused))
 	return OPERATOR_FINISHED;
 }
 
+/* TODO, directory operator is non-functional while a library is loaded
+ * until this is properly supported just disable it. */
+static int file_directory_poll(bContext *C)
+{
+	return ED_operator_file_active(C) && filelist_lib(CTX_wm_space_file(C)->files) == NULL;
+}
+
 void FILE_OT_directory(struct wmOperatorType *ot)
 {
 	/* identifiers */
@@ -1169,7 +1182,7 @@ void FILE_OT_directory(struct wmOperatorType *ot)
 	/* api callbacks */
 	ot->invoke= file_directory_invoke;
 	ot->exec= file_directory_exec;
-	ot->poll= ED_operator_file_active; /* <- important, handler is on window level */
+	ot->poll= file_directory_poll; /* <- important, handler is on window level */
 }
 
 void FILE_OT_refresh(struct wmOperatorType *ot)
