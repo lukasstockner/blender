@@ -70,9 +70,9 @@ class LOGIC_HT_header(Header):
         layout.template_header()
 
         if context.area.show_menus:
-            sub = row.row(align=True)
-            sub.menu("LOGIC_MT_view")
-            sub.menu("LOGIC_MT_logicbricks_add")
+            row = layout.row(align=True)
+            row.menu("LOGIC_MT_view")
+            row.menu("LOGIC_MT_logicbricks_add")
 
 
 class LOGIC_MT_view(Menu):

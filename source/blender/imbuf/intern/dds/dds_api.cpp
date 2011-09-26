@@ -146,7 +146,7 @@ struct ImBuf *imb_load_dds(unsigned char *mem, size_t size, int flags)
 		}
 
 		if (ibuf->dds_data.fourcc != FOURCC_DDS)
-			ibuf->dds_data.data = dds.compressedData(ibuf->dds_data.size);
+			ibuf->dds_data.data = (unsigned char*)dds.readData(ibuf->dds_data.size);
 		else {
 			ibuf->dds_data.data = NULL;
 			ibuf->dds_data.size = 0;

@@ -1137,15 +1137,25 @@ void DirectDrawSurface::mipmap(Image * img, uint face, uint mipmap)
 	}
 }
 
-unsigned char* DirectDrawSurface::compressedData(uint &size)
+// It was easier to copy this function from upstream than to resync.
+// This should be removed if a resync ever occurs.
+void* DirectDrawSurface::readData(uint &rsize)
 {
-	int factor = fourCC() == FOURCC_DXT1 ? 2 : 4;
-	size = mipmapCount() > 1 ? header.pitch * factor: header.pitch;
-	
+	uint header_size = 128; // sizeof(DDSHeader);
+	if (header.hasDX10Header())
+	{
+		header_size += 20; // sizeof(DDSHeader10);
+	}
+
+	uint size = stream.size - header_size;
+	rsize = size;
+
 	unsigned char *data = new unsigned char[size];
 
-	stream.seek(offset(0, 0));
+	stream.seek(header_size);
 	mem_read(stream, data, size);
+
+	// Maybe check if size == rsize? assert() isn't in this scope...
 
 	return data;
 }

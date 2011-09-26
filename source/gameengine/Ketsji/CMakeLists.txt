@@ -221,7 +221,7 @@ set(SRC
 
 add_definitions(-DGLEW_STATIC)
 
-if(WITH_DDS)
+if(WITH_IMAGE_DDS)
 	add_definitions(-DWITH_DDS)
 endif()
 

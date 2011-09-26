@@ -627,10 +627,7 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		m_ketsjiengine->SetRasterizer(m_rasterizer);
 
 		m_ketsjiengine->SetTimingDisplay(frameRate, false, false);
-		
-		
-
-		KX_KetsjiEngine::SetExitKey(ConvertKeyCode(gm->exitkey));
+		m_ketsjiengine->SetExitKey(ConvertKeyCode(gm->exitkey));
 #ifdef WITH_PYTHON
 		CValue::SetDeprecationWarnings(nodepwarnings);
 #else

@@ -341,7 +341,7 @@ void KX_LightObject::InitBlenderLightPool(Scene *scene, int point_count, int spo
 	//Don't bother finishing setup if there are no lights in the pools
 	//Also if no Dynamic lights are allocated, sometimes libload will get passed the count
 	//check and screw things up
-	if (m_blenderlight_count == 0 && false)
+	if (m_blenderlight_count == 0)
 		return;
 
 	init_subpool(scene, &m_blenderlight_points, point_count, LA_LOCAL);
@@ -412,6 +412,7 @@ void KX_LightObject::FreeBlenderLightPool()
 
 		base = object_in_scene(subpool->back(), m_blenderlight_scene);
 		BLI_remlink(&m_blenderlight_scene->base, base);
+		GPU_lamp_free(base->object);
 		free_libblock_us(&G.main->object, base->object);
 		if(m_blenderlight_scene->basact==base) m_blenderlight_scene->basact=NULL;
 		MEM_freeN(base);

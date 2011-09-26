@@ -174,7 +174,7 @@ public:
         void setUserVersion(int version);
 	
 	void mipmap(Image * img, uint f, uint m);
-	unsigned char* compressedData(uint &size);
+	void* readData(uint &size);
 	//	void mipmap(FloatImage * img, uint f, uint m);
 	
 	void printInfo() const;

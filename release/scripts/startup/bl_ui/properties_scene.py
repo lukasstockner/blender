@@ -35,6 +35,7 @@ class SceneButtonsPanel():
 
 class SCENE_PT_scene(SceneButtonsPanel, Panel):
     bl_label = "Scene"
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     def draw(self, context):
         layout = self.layout
@@ -74,6 +75,7 @@ class SCENE_PT_audio(SceneButtonsPanel, Panel):
 
 class SCENE_PT_unit(SceneButtonsPanel, Panel):
     bl_label = "Units"
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     def draw(self, context):
         layout = self.layout
@@ -191,6 +193,7 @@ class SCENE_PT_physics(SceneButtonsPanel, Panel):
 
 class SCENE_PT_simplify(SceneButtonsPanel, Panel):
     bl_label = "Simplify"
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     def draw_header(self, context):
         scene = context.scene

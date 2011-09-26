@@ -413,6 +413,7 @@ int main(int argc, char** argv)
 	
 	initglobals();
 
+	// Blender's VBOs cause odd problems with modifiers (we have our own vbo code)
 	U.gameflags |= USER_DISABLE_VBO;
 	// We load our own G.main, so free the one that initglobals() gives us
 	free_main(G.main);
