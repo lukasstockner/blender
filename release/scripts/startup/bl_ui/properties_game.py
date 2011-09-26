@@ -222,7 +222,7 @@ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, bpy.types.Panel):
         row.prop(game, "use_collision_compound", text="Compound")
 
 
-class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, Panel):
+class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, bpy.types.Panel):
     bl_label = "Create Obstacle"
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
@@ -464,7 +464,7 @@ class RENDER_PT_game_system(RenderButtonsPanel, bpy.types.Panel):
         col.prop(gs, "restrict_animation_updates")
 
 
-class RENDER_PT_game_display(RenderButtonsPanel, Panel):
+class RENDER_PT_game_display(RenderButtonsPanel, bpy.types.Panel):
     bl_label = "Display"
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
@@ -677,7 +677,7 @@ class WORLD_PT_game_physics(WorldButtonsPanel, bpy.types.Panel):
             col.prop(gs, "logic_step_max", text="Max")
 
 
-class WORLD_PT_game_physics_obstacles(WorldButtonsPanel, Panel):
+class WORLD_PT_game_physics_obstacles(WorldButtonsPanel, bpy.types.Panel):
     bl_label = "Obstacle simulation"
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
