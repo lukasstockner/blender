@@ -233,8 +233,8 @@ def axis_conversion(from_forward='Y', from_up='Z', to_forward='Y', to_up='Z'):
         return Matrix().to_3x3()
 
     if from_forward[-1] == from_up[-1] or to_forward[-1] == to_up[-1]:
-        raise Exception("invalid axis arguments passed, "
-                        "can't use up/forward on the same axis.")
+        raise Exception("Invalid axis arguments passed, "
+                        "can't use up/forward on the same axis")
 
     value = reduce(int.__or__, (_axis_convert_num[a] << (i * 3)
                    for i, a in enumerate((from_forward,
@@ -252,10 +252,10 @@ def axis_conversion(from_forward='Y', from_up='Z', to_forward='Y', to_up='Z'):
 def axis_conversion_ensure(operator, forward_attr, up_attr):
     """
     Function to ensure an operator has valid axis conversion settings, intended
-    to be used from :class:`Operator.check`.
+    to be used from :class:`bpy.types.Operator.check`.
 
     :arg operator: the operator to access axis attributes from.
-    :type operator: :class:`Operator`
+    :type operator: :class:`bpy.types.Operator`
     :arg forward_attr: attribute storing the forward axis
     :type forward_attr: string
     :arg up_attr: attribute storing the up axis

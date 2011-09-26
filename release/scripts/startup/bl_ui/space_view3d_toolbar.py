@@ -54,6 +54,9 @@ def draw_gpencil_tools(context, layout):
     row = col.row()
     row.operator("gpencil.draw", text="Draw").mode = 'DRAW'
     row.operator("gpencil.draw", text="Line").mode = 'DRAW_STRAIGHT'
+
+    row = col.row()
+    row.operator("gpencil.draw", text="Poly").mode = 'DRAW_POLY'
     row.operator("gpencil.draw", text="Erase").mode = 'ERASER'
 
     row = col.row()
@@ -643,6 +646,7 @@ class VIEW3D_PT_tools_brush(PaintPanel, Panel):
         elif context.weight_paint_object and brush:
             layout.prop(context.tool_settings, "vertex_group_weight", text="Weight", slider=True)
             layout.prop(context.tool_settings, "use_auto_normalize", text="Auto Normalize")
+            layout.prop(context.tool_settings, "use_multipaint", text="Multi-Paint")
 
             col = layout.column()
 
@@ -765,9 +769,9 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel, Panel):
             col = row.column()
 
             if brush.use_texture_overlay:
-                col.prop(brush, "use_texture_overlay", toggle=True, text="", icon='MUTE_IPO_OFF')
+                col.prop(brush, "use_texture_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
             else:
-                col.prop(brush, "use_texture_overlay", toggle=True, text="", icon='MUTE_IPO_ON')
+                col.prop(brush, "use_texture_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
 
             col.active = tex_slot.map_mode in {'FIXED', 'TILED'}
 
@@ -1055,6 +1059,7 @@ class VIEW3D_PT_tools_weightpaint(View3DPanel, Panel):
         col.operator("object.vertex_group_invert", text="Invert")
         col.operator("object.vertex_group_clean", text="Clean")
         col.operator("object.vertex_group_levels", text="Levels")
+        col.operator("object.vertex_group_fix", text="Fix Deforms")
 
 
 class VIEW3D_PT_tools_weightpaint_options(View3DPanel, Panel):

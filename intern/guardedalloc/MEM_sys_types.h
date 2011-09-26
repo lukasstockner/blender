@@ -25,6 +25,11 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
+ */
+
+/** \file MEM_sys_types.h
+ *  \ingroup MEM
+ *
  * A platform-independent definition of [u]intXX_t
  * Plus the accompanying header include for htonl/ntohl
  *
@@ -44,10 +49,6 @@
 // doxygen would get a conflict
 */
 
-/** \file MEM_sys_types.h
- *  \ingroup MEM
- */
-
 #ifndef MEM_SYS_TYPES_H
 #define MEM_SYS_TYPES_H
 
@@ -59,6 +60,7 @@ extern "C" {
 
 /* The __intXX are built-in types of the visual complier! So we don't
  * need to include anything else here. */
+
 
 typedef signed __int8  int8_t;
 typedef signed __int16 int16_t;
@@ -88,7 +90,7 @@ typedef unsigned long uintptr_t;
 #define _UINTPTR_T_DEFINED
 #endif
 
-#elif defined(__linux__) || defined(__NetBSD__)
+#elif defined(__linux__) || defined(__NetBSD__) || defined(__OpenBSD__)
 
 	/* Linux-i386, Linux-Alpha, Linux-ppc */
 #include <stdint.h>
@@ -98,28 +100,32 @@ typedef unsigned long uintptr_t;
 #include <inttypes.h>
 
 #elif defined(FREE_WINDOWS)
-
+/* define htoln here, there must be a syntax error in winsock2.h in MinGW */
+unsigned long __attribute__((__stdcall__)) htonl(unsigned long);
 #include <stdint.h>
 
 #else
 
-	/* FreeBSD, Irix, Solaris */
+	/* FreeBSD, Solaris */
 #include <sys/types.h>
 
 #endif /* ifdef platform for types */
 
+
 #ifdef _WIN32
+#ifndef FREE_WINDOWS
 #ifndef htonl
 #define htonl(x) correctByteOrder(x)
 #endif
 #ifndef ntohl
 #define ntohl(x) correctByteOrder(x)
 #endif
+#endif
 #elif defined (__FreeBSD__) || defined (__OpenBSD__) 
 #include <sys/param.h>
 #elif defined (__APPLE__)
 #include <sys/types.h>
-#else  /* irix sun linux */
+#else  /* sun linux */
 #include <netinet/in.h>
 #endif /* ifdef platform for htonl/ntohl */
 

@@ -48,6 +48,7 @@
 #include "BLI_rand.h"
 
 #include "DNA_meshdata_types.h"
+#include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_brush_types.h"
@@ -99,33 +100,6 @@ void ED_sculpt_force_update(bContext *C)
 
 	if(ob && (ob->mode & OB_MODE_SCULPT))
 		multires_force_update(ob);
-}
-
-void ED_sculpt_modifiers_changed(Object *ob)
-{
-	SculptSession *ss= ob->sculpt;
-
-	if(!ss->cache) {
-		/* we free pbvh on changes, except during sculpt since it can't deal with
-		   changing PVBH node organization, we hope topology does not change in
-		   the meantime .. weak */
-		if(ss->pbvh) {
-				BLI_pbvh_free(ss->pbvh);
-				ss->pbvh= NULL;
-		}
-
-		sculpt_free_deformMats(ob->sculpt);
-	} else {
-		PBVHNode **nodes;
-		int n, totnode;
-
-		BLI_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnode);
-
-		for(n = 0; n < totnode; n++)
-			BLI_pbvh_node_mark_update(nodes[n]);
-
-		MEM_freeN(nodes);
-	}
 }
 
 /* Sculpt mode handles multires differently from regular meshes, but only if
@@ -510,13 +484,11 @@ static float integrate_overlap(Brush* br)
 	int i;
 	int m= 10;
 	float g = 1.0f/m;
-	float overlap;
 	float max;
 
-	overlap= 0;
 	max= 0;
 	for(i= 0; i < m; i++) {
-		overlap = overlapped_curve(br, i*g);
+		float overlap= overlapped_curve(br, i*g);
 
 		if (overlap > max)
 			max = overlap;
@@ -2693,17 +2665,6 @@ static void sculpt_update_tex(Sculpt *sd, SculptSession *ss)
 	}
 }
 
-void sculpt_free_deformMats(SculptSession *ss)
-{
-	if(ss->orig_cos) MEM_freeN(ss->orig_cos);
-	if(ss->deform_cos) MEM_freeN(ss->deform_cos);
-	if(ss->deform_imats) MEM_freeN(ss->deform_imats);
-
-	ss->orig_cos = NULL;
-	ss->deform_cos = NULL;
-	ss->deform_imats = NULL;
-}
-
 void sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob, int need_fmap)
 {
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
@@ -2740,7 +2701,7 @@ void sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob, int need_
 		if(!ss->orig_cos) {
 			int a;
 
-			sculpt_free_deformMats(ss);
+			free_sculptsession_deformMats(ss);
 
 			if(ss->kb) ss->orig_cos = key_to_vertcos(ob, ss->kb);
 			else ss->orig_cos = mesh_getVertexCos(ob->data, NULL);
@@ -2751,7 +2712,7 @@ void sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob, int need_
 			for(a = 0; a < ((Mesh*)ob->data)->totvert; ++a)
 				invert_m3(ss->deform_imats[a]);
 		}
-	} else sculpt_free_deformMats(ss);
+	} else free_sculptsession_deformMats(ss);
 
 	/* if pbvh is deformed, key block is already applied to it */
 	if (ss->kb && !BLI_pbvh_isDeformed(ss->pbvh)) {
@@ -2979,7 +2940,7 @@ static void sculpt_update_brush_delta(Sculpt *sd, Object *ob, Brush *brush)
 		 SCULPT_TOOL_GRAB, SCULPT_TOOL_NUDGE,
 		 SCULPT_TOOL_CLAY_TUBES, SCULPT_TOOL_SNAKE_HOOK,
 		 SCULPT_TOOL_THUMB)) {
-		float grab_location[3], imat[4][4], delta[3];
+		float grab_location[3], imat[4][4], delta[3], loc[3];
 
 		if(cache->first_time) {
 			copy_v3_v3(cache->orig_grab_location,
@@ -2989,10 +2950,8 @@ static void sculpt_update_brush_delta(Sculpt *sd, Object *ob, Brush *brush)
 			add_v3_v3(cache->true_location, cache->grab_delta);
 
 		/* compute 3d coordinate at same z from original location + mouse */
-		initgrabz(cache->vc->rv3d,
-			  cache->orig_grab_location[0],
-			  cache->orig_grab_location[1],
-			  cache->orig_grab_location[2]);
+		mul_v3_m4v3(loc, ob->obmat, cache->orig_grab_location);
+		initgrabz(cache->vc->rv3d, loc[0], loc[1], loc[2]);
 
 		ED_view3d_win_to_delta(cache->vc->ar, cache->mouse, grab_location);
 
@@ -3035,7 +2994,7 @@ static void sculpt_update_brush_delta(Sculpt *sd, Object *ob, Brush *brush)
 			copy_v3_v3(cache->true_location, cache->orig_grab_location);
 
 			sd->draw_anchored = 1;
-			copy_v3_v3(sd->anchored_initial_mouse, cache->initial_mouse);
+			copy_v2_v2(sd->anchored_initial_mouse, cache->initial_mouse);
 			sd->anchored_size = cache->pixel_radius;
 		}
 	}
@@ -3088,9 +3047,6 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob, st
 		else {
 			cache->initial_radius= brush_unprojected_radius(brush);
 		}
-
-		if (ELEM(brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_SNAKE_HOOK))
-			cache->initial_radius *= 2.0f;
 	}
 
 	if(brush_use_size_pressure(brush)) {
@@ -3278,7 +3234,7 @@ static void sculpt_brush_init_tex(Sculpt *sd, SculptSession *ss)
 
 	/* init mtex nodes */
 	if(mtex->tex && mtex->tex->nodetree)
-		ntreeBeginExecTree(mtex->tex->nodetree); /* has internal flag to detect it only does it once */
+		ntreeTexBeginExecTree(mtex->tex->nodetree, 1); /* has internal flag to detect it only does it once */
 
 	/* TODO: Shouldn't really have to do this at the start of every
 	   stroke, but sculpt would need some sort of notification when
@@ -3334,7 +3290,7 @@ static void sculpt_restore_mesh(Sculpt *sd, SculptSession *ss)
 
 				BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 					copy_v3_v3(vd.co, unode->co[vd.i]);
-					if(vd.no) VECCOPY(vd.no, unode->no[vd.i])
+					if(vd.no) copy_v3_v3_short(vd.no, unode->no[vd.i]);
 					else normal_short_to_float_v3(vd.fno, unode->no[vd.i]);
 
 					if(vd.mvert) vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
@@ -3459,7 +3415,7 @@ static void sculpt_brush_exit_tex(Sculpt *sd)
 	MTex *mtex= &brush->mtex;
 
 	if(mtex->tex && mtex->tex->nodetree)
-		ntreeEndExecTree(mtex->tex->nodetree);
+		ntreeTexEndExecTree(mtex->tex->nodetree->execdata, 1);
 }
 
 static void sculpt_stroke_done(bContext *C, struct PaintStroke *UNUSED(stroke))

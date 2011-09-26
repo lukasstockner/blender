@@ -240,8 +240,8 @@ static void envmap_transmatrix(float mat[][4], int part)
 	copy_m4_m4(tmat, mat);
 	eul_to_mat4( rotmat,eul);
 	mul_serie_m4(mat, tmat, rotmat,
-					 0,   0,    0,
-					 0,   0,    0);
+					 NULL, NULL, NULL,
+					 NULL, NULL, NULL);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -689,9 +689,9 @@ int envmaptex(Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexRe
 		env->ima= tex->ima;
 		if(env->ima && env->ima->ok) {
 			if(env->cube[1]==NULL) {
-				ImBuf *ibuf= BKE_image_get_ibuf(env->ima, NULL);
-				if(ibuf)
-					envmap_split_ima(env, ibuf);
+				ImBuf *ibuf_ima= BKE_image_get_ibuf(env->ima, NULL);
+				if(ibuf_ima)
+					envmap_split_ima(env, ibuf_ima);
 				else
 					env->ok= 0;
 			}

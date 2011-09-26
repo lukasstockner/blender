@@ -114,7 +114,7 @@ class PARTICLE_PT_context_particles(ParticleButtonsPanel, Panel):
             layout.template_ID(context.space_data, "pin_id")
 
             if part.is_fluid:
-                layout.label(text="Settings used for fluid.")
+                layout.label(text="Settings used for fluid")
                 return
 
             layout.prop(part, "type", text="Type")
@@ -151,7 +151,7 @@ class PARTICLE_PT_context_particles(ParticleButtonsPanel, Panel):
             #row.label(text="Render")
 
             if part.is_fluid:
-                layout.label(text=str(part.count) + " fluid particles for this frame.")
+                layout.label(text=str(part.count) + " fluid particles for this frame")
                 return
 
             row = col.row()
@@ -482,7 +482,12 @@ class PARTICLE_PT_physics(ParticleButtonsPanel, Panel):
             col.label(text="Integration:")
             col.prop(part, "integrator", text="")
             col.prop(part, "timestep")
-            col.prop(part, "subframes")
+            sub = col.row()
+            if part.adaptive_subframes:
+                sub.prop(part, "courant_target", text="Threshold")
+            else:
+                sub.prop(part, "subframes")
+            sub.prop(part, "adaptive_subframes", text="")
 
             row = layout.row()
             row.prop(part, "use_size_deflect")
@@ -727,7 +732,7 @@ class PARTICLE_PT_boidbrain(ParticleButtonsPanel, Panel):
                 row.prop(rule, "use_predict")
                 row.prop(rule, "fear_factor")
             elif rule.type == 'FOLLOW_PATH':
-                row.label(text="Not yet functional.")
+                row.label(text="Not yet functional")
             elif rule.type == 'AVOID_COLLISION':
                 row.prop(rule, "use_avoid")
                 row.prop(rule, "use_avoid_collision")
@@ -1056,7 +1061,7 @@ class PARTICLE_PT_children(ParticleButtonsPanel, Panel):
             sub = col.column(align=True)
             sub.label(text="Parting not")
             sub.label(text="available with")
-            sub.label(text="virtual parents.")
+            sub.label(text="virtual parents")
         else:
             sub = col.column(align=True)
             sub.prop(part, "child_parting_factor", text="Parting", slider=True)

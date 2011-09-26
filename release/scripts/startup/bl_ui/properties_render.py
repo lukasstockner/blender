@@ -211,9 +211,9 @@ class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
         col = split.column()
         sub = col.column(align=True)
         sub.label(text="Frame Range:")
-        sub.prop(scene, "frame_start", text="Start")
-        sub.prop(scene, "frame_end", text="End")
-        sub.prop(scene, "frame_step", text="Step")
+        sub.prop(scene, "frame_start")
+        sub.prop(scene, "frame_end")
+        sub.prop(scene, "frame_step")
 
         sub.label(text="Frame Rate:")
         if rd.fps_base == 1:
@@ -592,13 +592,9 @@ class RENDER_PT_encoding(RenderButtonsPanel, Panel):
         if rd.ffmpeg_format not in {'MP3'}:
             layout.prop(rd, "ffmpeg_audio_codec", text="Audio Codec")
 
-        split = layout.split()
-
-        col = split.column()
-        col.prop(rd, "ffmpeg_audio_bitrate")
-        col.prop(rd, "ffmpeg_audio_mixrate")
-
-        split.prop(rd, "ffmpeg_audio_volume", slider=True)
+        row = layout.row()
+        row.prop(rd, "ffmpeg_audio_bitrate")
+        row.prop(rd, "ffmpeg_audio_volume", slider=True)
 
 
 class RENDER_PT_bake(RenderButtonsPanel, Panel):

@@ -57,7 +57,7 @@ class Library(bpy_types.ID):
                 "curves", "grease_pencil", "groups", "images", \
                 "lamps", "lattices", "materials", "metaballs", \
                 "meshes", "node_groups", "objects", "scenes", \
-                "sounds", "textures", "texts", "fonts", "worlds"
+                "sounds", "speakers", "textures", "texts", "fonts", "worlds"
 
         return tuple(id_block for attr in attr_links for id_block in getattr(bpy.data, attr) if id_block.library == self)
 
@@ -206,7 +206,7 @@ class _GenericBone:
 
     @property
     def children_recursive(self):
-        """a list of all children from this bone."""
+        """A list of all children from this bone."""
         bones_children = []
         for bone in self._other_bones:
             index = bone.parent_index(self)
@@ -287,7 +287,7 @@ class EditBone(StructRNA, _GenericBone, metaclass=StructMetaPropGroup):
         Transform the the bones head, tail, roll and envalope (when the matrix has a scale component).
 
         :arg matrix: 3x3 or 4x4 transformation matrix.
-        :type matrix: :class:`Matrix`
+        :type matrix: :class:`mathutils.Matrix`
         :arg scale: Scale the bone envalope by the matrix.
         :type scale: bool
         :arg roll: Correct the roll to point in the same relative direction to the head and tail.
@@ -356,7 +356,7 @@ class Mesh(bpy_types.ID):
 
     @property
     def edge_keys(self):
-        return [edge_key for face in self.faces for edge_key in face.edge_keys]
+        return [ed.key for ed in self.edges]
 
 
 class MeshEdge(StructRNA):
@@ -376,17 +376,31 @@ class MeshFace(StructRNA):
         face_verts = self.vertices[:]
         mesh_verts = self.id_data.vertices
         if len(face_verts) == 3:
-            return (mesh_verts[face_verts[0]].co + mesh_verts[face_verts[1]].co + mesh_verts[face_verts[2]].co) / 3.0
+            return (mesh_verts[face_verts[0]].co +
+                    mesh_verts[face_verts[1]].co +
+                    mesh_verts[face_verts[2]].co
+                    ) / 3.0
         else:
-            return (mesh_verts[face_verts[0]].co + mesh_verts[face_verts[1]].co + mesh_verts[face_verts[2]].co + mesh_verts[face_verts[3]].co) / 4.0
+            return (mesh_verts[face_verts[0]].co +
+                    mesh_verts[face_verts[1]].co +
+                    mesh_verts[face_verts[2]].co +
+                    mesh_verts[face_verts[3]].co
+                    ) / 4.0
 
     @property
     def edge_keys(self):
         verts = self.vertices[:]
         if len(verts) == 3:
-            return ord_ind(verts[0], verts[1]), ord_ind(verts[1], verts[2]), ord_ind(verts[2], verts[0])
-
-        return ord_ind(verts[0], verts[1]), ord_ind(verts[1], verts[2]), ord_ind(verts[2], verts[3]), ord_ind(verts[3], verts[0])
+            return (ord_ind(verts[0], verts[1]),
+                    ord_ind(verts[1], verts[2]),
+                    ord_ind(verts[2], verts[0]),
+                    )
+        else:
+            return (ord_ind(verts[0], verts[1]),
+                    ord_ind(verts[1], verts[2]),
+                    ord_ind(verts[2], verts[3]),
+                    ord_ind(verts[3], verts[0]),
+                    )
 
 
 class Text(bpy_types.ID):
@@ -409,6 +423,16 @@ class Text(bpy_types.ID):
 
 # values are module: [(cls, path, line), ...]
 TypeMap = {}
+
+
+class Sound(bpy_types.ID):
+    __slots__ = ()
+
+    @property
+    def factory(self):
+        """The aud.Factory object of the sound."""
+        import aud
+        return aud._sound_from_pointer(self.as_pointer())
 
 
 class RNAMeta(type):

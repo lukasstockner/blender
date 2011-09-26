@@ -197,7 +197,7 @@ typedef struct ThemeSpace {
 	char grid[4]; 
 	
 	char wire[4], select[4];
-	char lamp[4];
+	char lamp[4], speaker[4], pad2[4];
 	char active[4], group[4], group_active[4], transform[4];
 	char vertex[4], vertex_select[4];
 	char edge[4], edge_select[4];
@@ -210,10 +210,13 @@ typedef struct ThemeSpace {
 	char bone_solid[4], bone_pose[4];
 	char strip[4], strip_select[4];
 	char cframe[4];
+	
 	char nurb_uline[4], nurb_vline[4];
 	char act_spline[4], nurb_sel_uline[4], nurb_sel_vline[4], lastsel_point[4];
-	char handle_free[4], handle_auto[4], handle_vect[4], handle_align[4];
-	char handle_sel_free[4], handle_sel_auto[4], handle_sel_vect[4], handle_sel_align[4];
+	
+	char handle_free[4], handle_auto[4], handle_vect[4], handle_align[4], handle_auto_clamped[4];
+	char handle_sel_free[4], handle_sel_auto[4], handle_sel_vect[4], handle_sel_align[4], handle_sel_auto_clamped[4];
+	
 	char ds_channel[4], ds_subchannel[4]; // dopesheet
 	
 	char console_output[4], console_input[4], console_info[4], console_error[4];
@@ -507,8 +510,8 @@ extern UserDef U; /* from blenkernel blender.c */
 
 /* transopts */
 #define	USER_TR_TOOLTIPS		(1 << 0)
-#define	USER_TR_BUTTONS			(1 << 1)
-#define USER_TR_MENUS			(1 << 2)
+#define	USER_TR_IFACE			(1 << 1)
+/*#define USER_TR_MENUS			(1 << 2)	deprecated*/
 /*#define USER_TR_FILESELECT	(1 << 3)	deprecated*/
 /*#define USER_TR_TEXTEDIT		(1 << 4)	deprecated*/
 #define USER_DOTRANSLATE		(1 << 5)
@@ -604,6 +607,12 @@ extern UserDef U; /* from blenkernel blender.c */
 /* zoom is up/down if this flag is set (otherwise forward/backward) */
 #define NDOF_ZOOM_UPDOWN (1 << 7)
 #define NDOF_ZOOM_INVERT (1 << 8)
+#define NDOF_ROTATE_INVERT_AXIS (1 << 9)
+#define NDOF_TILT_INVERT_AXIS (1 << 10)
+#define NDOF_ROLL_INVERT_AXIS (1 << 11)
+#define NDOF_PANX_INVERT_AXIS (1 << 12)
+#define NDOF_PANY_INVERT_AXIS (1 << 13)
+#define NDOF_PANZ_INVERT_AXIS (1 << 14)
 
 
 #ifdef __cplusplus

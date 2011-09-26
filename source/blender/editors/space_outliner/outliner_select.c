@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -136,7 +134,7 @@ static int outliner_select(SpaceOops *soops, ListBase *lb, int *index, short *se
 				change |= 1;
 			}
 		}
-		else if ((tselem->flag & TSE_CLOSED)==0) {
+		else if (TSELEM_OPEN(tselem,soops)) {
 			/* Only try selecting sub-elements if we haven't hit the right element yet
 			 *
 			 * Hack warning:
@@ -869,7 +867,7 @@ void OUTLINER_OT_item_activate(wmOperatorType *ot)
 	
 	ot->poll= ED_operator_outliner_active;
 	
-	RNA_def_boolean(ot->srna, "extend", 1, "Extend", "Extend selection for activation.");
+	RNA_def_boolean(ot->srna, "extend", 1, "Extend", "Extend selection for activation");
 }
 
 /* ****************************************************** */

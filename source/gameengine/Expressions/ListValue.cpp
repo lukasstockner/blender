@@ -387,7 +387,7 @@ PyObject* listvalue_buffer_slice(PyObject* self,Py_ssize_t ilow, Py_ssize_t ihig
 static PyObject *listvalue_buffer_concat(PyObject * self, PyObject * other)
 {
 	CListValue *listval= static_cast<CListValue *>(BGE_PROXY_REF(self));
-	int i, numitems, numitems_orig;
+	Py_ssize_t i, numitems, numitems_orig;
 	
 	if (listval==NULL) {
 		PyErr_SetString(PyExc_SystemError, "CList+other, "BGE_PROXY_ERROR_MSG);
@@ -408,7 +408,7 @@ static PyObject *listvalue_buffer_concat(PyObject * self, PyObject * other)
 		CValue* listitemval;
 		bool error = false;
 		
-		numitems = PyList_Size(other);
+		numitems = PyList_GET_SIZE(other);
 		
 		/* copy the first part of the list */
 		listval_new->Resize(numitems_orig + numitems);
@@ -487,12 +487,12 @@ static int listvalue_buffer_contains(PyObject *self_v, PyObject *value)
 static  PySequenceMethods listvalue_as_sequence = {
 	listvalue_bufferlen,//(inquiry)buffer_length, /*sq_length*/
 	listvalue_buffer_concat, /*sq_concat*/
- 	NULL, /*sq_repeat*/
+	NULL, /*sq_repeat*/
 	listvalue_buffer_item, /*sq_item*/
 // TODO, slicing in py3
 	NULL, // listvalue_buffer_slice, /*sq_slice*/
- 	NULL, /*sq_ass_item*/
- 	NULL, /*sq_ass_slice*/
+	NULL, /*sq_ass_item*/
+	NULL, /*sq_ass_slice*/
 	(objobjproc)listvalue_buffer_contains,	/* sq_contains */
 	(binaryfunc) NULL, /* sq_inplace_concat */
 	(ssizeargfunc) NULL, /* sq_inplace_repeat */
@@ -515,12 +515,12 @@ PyTypeObject CListValue::Type = {
 	sizeof(PyObjectPlus_Proxy), /*tp_basicsize*/
 	0,				/*tp_itemsize*/
 	/* methods */
-	py_base_dealloc,	  		/*tp_dealloc*/
-	0,			 	/*tp_print*/
+	py_base_dealloc,			/*tp_dealloc*/
+	0,				/*tp_print*/
 	0, 			/*tp_getattr*/
 	0, 			/*tp_setattr*/
-	0,			        /*tp_compare*/
-	py_base_repr,			        /*tp_repr*/
+	0,			/*tp_compare*/
+	py_base_repr, /*tp_repr*/
 	0,			        /*tp_as_number*/
 	&listvalue_as_sequence, /*tp_as_sequence*/
 	&instance_as_mapping,	        /*tp_as_mapping*/

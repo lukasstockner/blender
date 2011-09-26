@@ -255,12 +255,15 @@ typedef struct PyObjectPlus_Proxy {
 #define KX_PYMETHODTABLE_NOARGS(class_name, method_name) \
 	{#method_name , (PyCFunction) class_name::sPy##method_name, METH_NOARGS, (const char *)class_name::method_name##_doc}
 
+#define KX_PYMETHODTABLE_KEYWORDS(class_name, method_name) \
+	{#method_name , (PyCFunction) class_name::sPy##method_name, METH_VARARGS|METH_KEYWORDS, (const char *)class_name::method_name##_doc}
+
 /**
  * Function implementation macro
  */
 #define KX_PYMETHODDEF_DOC(class_name, method_name, doc_string) \
 const char class_name::method_name##_doc[] = doc_string; \
-PyObject* class_name::Py##method_name(PyObject* args, PyObject*)
+PyObject* class_name::Py##method_name(PyObject* args, PyObject* kwds)
 
 #define KX_PYMETHODDEF_DOC_VARARGS(class_name, method_name, doc_string) \
 const char class_name::method_name##_doc[] = doc_string; \
@@ -560,7 +563,7 @@ public:
 	
 	/** enable/disable display of deprecation warnings */
 	static void			SetDeprecationWarnings(bool ignoreDeprecationWarnings);
- 	/** Shows a deprecation warning */
+	/** Shows a deprecation warning */
 	static void			ShowDeprecationWarning_func(const char* method,const char* prop);
 	static void			ClearDeprecationWarning();
 	

@@ -525,8 +525,8 @@ void ED_view3d_win_to_segment_clip(ARegion *ar, View3D *v3d, const float mval[2]
 		ED_view3d_win_to_vector(ar, mval, vec);
 
 		copy_v3_v3(ray_start, rv3d->viewinv[3]);
-		VECADDFAC(ray_start, rv3d->viewinv[3], vec, v3d->near);
-		VECADDFAC(ray_end, rv3d->viewinv[3], vec, v3d->far);
+		madd_v3_v3v3fl(ray_start, rv3d->viewinv[3], vec, v3d->near);
+		madd_v3_v3v3fl(ray_end, rv3d->viewinv[3], vec, v3d->far);
 	}
 	else {
 		float vec[4];
@@ -537,8 +537,8 @@ void ED_view3d_win_to_segment_clip(ARegion *ar, View3D *v3d, const float mval[2]
 		
 		mul_m4_v4(rv3d->persinv, vec);
 		
-		VECADDFAC(ray_start, vec, rv3d->viewinv[2],  1000.0f);
-		VECADDFAC(ray_end, vec, rv3d->viewinv[2], -1000.0f);
+		madd_v3_v3v3fl(ray_start, vec, rv3d->viewinv[2],  1000.0f);
+		madd_v3_v3v3fl(ray_end, vec, rv3d->viewinv[2], -1000.0f);
 	}
 
 	/* clipping */
@@ -625,8 +625,8 @@ void ED_view3d_win_to_3d(ARegion *ar, const float depth_pt[3], const float mval[
 		}
 	}
 	else {
-        const float dx= (2.0f * mval[0] / (float)ar->winx) - 1.0f;
-        const float dy= (2.0f * mval[1] / (float)ar->winy) - 1.0f;
+		const float dx= (2.0f * mval[0] / (float)ar->winx) - 1.0f;
+		const float dy= (2.0f * mval[1] / (float)ar->winy) - 1.0f;
 		line_sta[0]= (rv3d->persinv[0][0] * dx) + (rv3d->persinv[1][0] * dy) + rv3d->viewinv[3][0];
 		line_sta[1]= (rv3d->persinv[0][1] * dx) + (rv3d->persinv[1][1] * dy) + rv3d->viewinv[3][1];
 		line_sta[2]= (rv3d->persinv[0][2] * dx) + (rv3d->persinv[1][2] * dy) + rv3d->viewinv[3][2];
@@ -713,7 +713,7 @@ void view3d_unproject(bglMats *mats, float out[3], const short x, const short y,
 }
 #endif
 
-/* use above call to get projecting mat */
+/* use view3d_get_object_project_mat to get projecting mat */
 void ED_view3d_project_float(ARegion *ar, const float vec[3], float adr[2], float mat[4][4])
 {
 	float vec4[4];
@@ -729,6 +729,26 @@ void ED_view3d_project_float(ARegion *ar, const float vec[3], float adr[2], floa
 		adr[1] = (float)(ar->winy/2.0f)+(ar->winy/2.0f)*vec4[1]/vec4[3];
 	} else {
 		adr[0] = adr[1] = 0.0f;
+	}
+}
+
+/* use view3d_get_object_project_mat to get projecting mat */
+void ED_view3d_project_float_v3(ARegion *ar, float *vec, float *adr, float mat[4][4])
+{
+	float vec4[4];
+	
+	copy_v3_v3(vec4, vec);
+	vec4[3]= 1.0;
+	adr[0]= IS_CLIPPED;
+	
+	mul_m4_v4(mat, vec4);
+	
+	if( vec4[3]>FLT_EPSILON ) {
+		adr[0] = (float)(ar->winx/2.0f)+(ar->winx/2.0f)*vec4[0]/vec4[3];	
+		adr[1] = (float)(ar->winy/2.0f)+(ar->winy/2.0f)*vec4[1]/vec4[3];
+		adr[2] = vec4[2]/vec4[3];
+	} else {
+		adr[0] = adr[1] = adr[2] = 0.0f;
 	}
 }
 
@@ -803,9 +823,9 @@ void project_int(ARegion *ar, const float vec[3], int adr[2])
 	RegionView3D *rv3d= ar->regiondata;
 	float fx, fy, vec4[4];
 	
-	adr[0]= (int)2140000000.0f;
 	copy_v3_v3(vec4, vec);
 	vec4[3]= 1.0;
+	adr[0]= (int)2140000000.0f;
 	
 	mul_m4_v4(rv3d->persmat, vec4);
 	
@@ -851,9 +871,9 @@ void project_short_noclip(ARegion *ar, const float vec[3], short adr[2])
 	RegionView3D *rv3d= ar->regiondata;
 	float fx, fy, vec4[4];
 	
-	adr[0]= IS_CLIPPED;
 	copy_v3_v3(vec4, vec);
 	vec4[3]= 1.0;
+	adr[0]= IS_CLIPPED;
 	
 	mul_m4_v4(rv3d->persmat, vec4);
 	
@@ -877,9 +897,9 @@ void project_float(ARegion *ar, const float vec[3], float adr[2])
 	RegionView3D *rv3d= ar->regiondata;
 	float vec4[4];
 	
-	adr[0]= IS_CLIPPED;
 	copy_v3_v3(vec4, vec);
 	vec4[3]= 1.0;
+	adr[0]= IS_CLIPPED;
 	
 	mul_m4_v4(rv3d->persmat, vec4);
 	
@@ -1667,7 +1687,7 @@ static void RestoreState(bContext *C, wmWindow *win)
 		win->queue= queue_back;
 	
 	GPU_state_init();
-	GPU_set_tpage(NULL, 0);
+	GPU_set_tpage(NULL, 0, 0);
 
 	glPopAttrib();
 }
@@ -1835,7 +1855,7 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 #else
 	(void)C; /* unused */
-	BKE_report(op->reports, RPT_ERROR, "Game engine is disabled in this build.");
+	BKE_report(op->reports, RPT_ERROR, "Game engine is disabled in this build");
 	return OPERATOR_CANCELLED;
 #endif
 }

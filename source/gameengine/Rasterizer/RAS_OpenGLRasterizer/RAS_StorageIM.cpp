@@ -177,7 +177,7 @@ static int CheckTexfaceDM(void *mcol, int index)
 }
 */
 
-static int CheckTexDM(MTFace *tface, MCol *mcol, int matnr)
+static int CheckTexDM(MTFace *tface, int has_mcol, int matnr)
 {
 
 	// index is the original face index, retrieve the polygon
@@ -192,7 +192,7 @@ static int CheckTexDM(MTFace *tface, MCol *mcol, int matnr)
 			// don't use mcol
 			return 2;
 		}
-		if (!mcol) {
+		if (!has_mcol) {
 			// we have to set the color from the material
 			unsigned char rgba[4];
 			current_polymat->GetMaterialRGBAColor(rgba);
@@ -221,10 +221,10 @@ void RAS_StorageIM::IndexPrimitivesInternal(RAS_MeshSlot& ms, bool multi)
 		// MCol *mcol = (MCol*)ms.m_pDerivedMesh->getFaceDataArray(ms.m_pDerivedMesh, CD_MCOL); /* UNUSED */
 
 		// handle two-side
-		if (current_polymat->GetDrawingMode() & RAS_IRasterizer::KX_TWOSIDE)
-			this->SetCullFace(false);
-		else
+		if (current_polymat->GetDrawingMode() & RAS_IRasterizer::KX_BACKCULL)
 			this->SetCullFace(true);
+		else
+			this->SetCullFace(false);
 
 		if (current_polymat->GetFlag() & RAS_BLENDERGLSL) {
 			// GetMaterialIndex return the original mface material index, 
@@ -238,9 +238,9 @@ void RAS_StorageIM::IndexPrimitivesInternal(RAS_MeshSlot& ms, bool multi)
 			else
 				memset(&current_gpu_attribs, 0, sizeof(current_gpu_attribs));
 			// DM draw can mess up blending mode, restore at the end
-			int current_blend_mode = GPU_get_material_blend_mode();
+			int current_blend_mode = GPU_get_material_alpha_blend();
 			ms.m_pDerivedMesh->drawFacesGLSL(ms.m_pDerivedMesh, CheckMaterialDM);
-			GPU_set_material_blend_mode(current_blend_mode);
+			GPU_set_material_alpha_blend(current_blend_mode);
 		} else {
 			//ms.m_pDerivedMesh->drawMappedFacesTex(ms.m_pDerivedMesh, CheckTexfaceDM, mcol);
 			current_blmat_nr = current_polymat->GetMaterialIndex();

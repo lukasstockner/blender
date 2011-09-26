@@ -99,7 +99,7 @@ static void get_seq_color3ubv(Scene *curscene, Sequence *seq, unsigned char col[
 		UI_GetThemeColor3ubv(TH_SEQ_SCENE, col);
 		
 		if(seq->scene==curscene) {
-			UI_GetColorPtrBlendShade3ubv(col, col, col, 1.0, 20);
+			UI_GetColorPtrShade3ubv(col, col, 20);
 		}
 		break;
 		
@@ -172,30 +172,63 @@ static void drawseqwave(Scene *scene, Sequence *seq, float x1, float y1, float x
 	x2 the end x value, same for y1 and y2
 	stepsize is width of a pixel.
 	*/
-	if(seq->sound->cache)
+	if(seq->flag & SEQ_AUDIO_DRAW_WAVEFORM)
 	{
-		int i;
+		int i, j, pos;
 		int length = floor((x2-x1)/stepsize)+1;
 		float ymid = (y1+y2)/2;
 		float yscale = (y2-y1)/2;
-		float* samples = MEM_mallocN(length * sizeof(float) * 2, "seqwave_samples");
-		if(!samples)
-			return;
-		if(sound_read_sound_buffer(seq->sound, samples, length,
-								   (seq->startofs + seq->anim_startofs)/FPS,
-								   (seq->startofs + seq->anim_startofs + seq->enddisp - seq->startdisp)/FPS) != length)
-		{
-			MEM_freeN(samples);
-			return;
-		}
-		glBegin(GL_LINES);
+		float samplestep;
+		float startsample, endsample;
+		float value;
+
+		SoundWaveform* waveform;
+
+		if(!seq->sound->waveform)
+			sound_read_waveform(seq->sound);
+
+		waveform = seq->sound->waveform;
+
+		startsample = floor((seq->startofs + seq->anim_startofs)/FPS * SOUND_WAVE_SAMPLES_PER_SECOND);
+		endsample = ceil((seq->startofs + seq->anim_startofs + seq->enddisp - seq->startdisp)/FPS * SOUND_WAVE_SAMPLES_PER_SECOND);
+		samplestep = (endsample-startsample) * stepsize / (x2-x1);
+
+		if(length > floor((waveform->length - startsample) / samplestep))
+			length = floor((waveform->length - startsample) / samplestep);
+
+		glBegin(GL_LINE_STRIP);
 		for(i = 0; i < length; i++)
 		{
-			glVertex2f(x1+i*stepsize, ymid + samples[i * 2] * yscale);
-			glVertex2f(x1+i*stepsize, ymid + samples[i * 2 + 1] * yscale);
+			pos = startsample + i * samplestep;
+
+			value = waveform->data[pos * 3];
+
+			for(j = pos+1; (j < waveform->length) && (j < pos + samplestep); j++)
+			{
+				if(value > waveform->data[j * 3])
+					value = waveform->data[j * 3];
+			}
+
+			glVertex2f(x1+i*stepsize, ymid + value * yscale);
 		}
 		glEnd();
-		MEM_freeN(samples);
+
+		glBegin(GL_LINE_STRIP);
+		for(i = 0; i < length; i++)
+		{
+			pos = startsample + i * samplestep;
+
+			value = waveform->data[pos * 3 + 1];
+
+			for(j = pos+1; (j < waveform->length) && (j < pos + samplestep); j++)
+			{
+				if(value < waveform->data[j * 3 + 1])
+					value = waveform->data[j * 3 + 1];
+			}
+
+			glVertex2f(x1+i*stepsize, ymid + value * yscale);
+		}
+		glEnd();
 	}
 }
 
@@ -266,7 +299,7 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
 
 			glRectf(x1_chan,  y1_chan, x2_chan,  y2_chan);
 
-			UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, -30);
+			UI_GetColorPtrShade3ubv(col, col, -30);
 			glColor4ubv(col);
 			fdrawbox(x1_chan,  y1_chan, x2_chan,  y2_chan);
 
@@ -440,7 +473,7 @@ static void draw_seq_extensions(Scene *scene, ARegion *ar, Sequence *seq)
 		/* feint pinstripes, helps see exactly which is extended and which isn't,
 		* especially when the extension is very small */ 
 		if (seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 24);
-		else UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, -16);
+		else UI_GetColorPtrShade3ubv(col, col, -16);
 		
 		glColor3ubv((GLubyte *)col);
 		
@@ -457,8 +490,8 @@ static void draw_seq_extensions(Scene *scene, ARegion *ar, Sequence *seq)
 		
 		/* feint pinstripes, helps see exactly which is extended and which isn't,
 		* especially when the extension is very small */ 
-		if (seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 24);
-		else UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, -16);
+		if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, 24);
+		else UI_GetColorPtrShade3ubv(col, col, -16);
 		
 		glColor3ubv((GLubyte *)col);
 		
@@ -551,8 +584,8 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 	glBegin(GL_QUADS);
 	
 	if(seq->flag & SEQ_INVALID_EFFECT) { col[0]= 255; col[1]= 0; col[2]= 255; }
-	else if(seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, -50);
-	else UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 0);
+	else if(seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, -50);
+	/* else UI_GetColorPtrShade3ubv(col, col, 0); */ /* DO NOTHING */
 	
 	glColor3ubv(col);
 	
@@ -561,7 +594,7 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 
 	if(seq->flag & SEQ_INVALID_EFFECT) { col[0]= 255; col[1]= 0; col[2]= 255; }
 	else if(seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 5);
-	else UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, -5);
+	else UI_GetColorPtrShade3ubv(col, col, -5);
 
 	glColor3ubv((GLubyte *)col);
 	
@@ -577,8 +610,8 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 	glVertex2f(x1,ymid2);
 	glVertex2f(x2,ymid2);
 	
-	if(seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, -15);
-	else UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 25);
+	if(seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, -15);
+	else UI_GetColorPtrShade3ubv(col, col, 25);
 	
 	glColor3ubv((GLubyte *)col);
 	
@@ -664,10 +697,10 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 			col[0]= 255; col[1]= col[2]= 40;
 		}
 		else
-			UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 120+outline_tint);
+			UI_GetColorPtrShade3ubv(col, col, 120+outline_tint);
 	}
 	else
-		UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, outline_tint);
+		UI_GetColorPtrShade3ubv(col, col, outline_tint);
 	
 	glColor3ubv((GLubyte *)col);
 	
@@ -700,7 +733,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	}
 }
 
-static Sequence *special_seq_update= 0;
+static Sequence *special_seq_update= NULL;
 
 static void UNUSED_FUNCTION(set_special_seq_update)(int val)
 {
@@ -710,14 +743,14 @@ static void UNUSED_FUNCTION(set_special_seq_update)(int val)
 	if(val) {
 // XXX		special_seq_update= find_nearest_seq(&x);
 	}
-	else special_seq_update= 0;
+	else special_seq_update= NULL;
 }
 
 void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq, int cfra, int frame_ofs)
 {
 	struct Main *bmain= CTX_data_main(C);
-	struct ImBuf *ibuf = 0;
-	struct ImBuf *scope = 0;
+	struct ImBuf *ibuf= NULL;
+	struct ImBuf *scope= NULL;
 	struct View2D *v2d = &ar->v2d;
 	int rectx, recty;
 	float viewrectx, viewrecty;
@@ -881,7 +914,7 @@ void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-			uiSetRoundBox(15);
+			uiSetRoundBox(UI_CNR_ALL);
 			uiDrawBox(GL_LINE_LOOP, x1, y1, x2, y2, 12.0);
 
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -1042,8 +1075,8 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	SpaceSeq *sseq= CTX_wm_space_seq(C);
 	View2D *v2d= &ar->v2d;
 	View2DScrollers *scrollers;
+	short unit=0, flag=0;
 	float col[3];
-	int flag=0;
 	
 	/* clear and setup matrix */
 	UI_GetThemeColor3fv(TH_BACK, col);
@@ -1065,9 +1098,10 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	/* draw backdrop */
 	draw_seq_backdrop(v2d);
 	
-	/* regular grid-pattern over the rest of the view (i.e. frame grid lines) */
+	/* regular grid-pattern over the rest of the view (i.e. 25-frame grid lines) */
+	// NOTE: the gridlines are currently spaced every 25 frames, which is only fine for 25 fps, but maybe not for 30...
 	UI_view2d_constant_grid_draw(v2d);
-
+	
 	seq_draw_sfra_efra(scene, v2d);	
 
 	/* sequence strips (if there is data available to be drawn) */
@@ -1110,7 +1144,8 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	UI_view2d_view_restore(C);
 
 	/* scrollers */
-	scrollers= UI_view2d_scrollers_calc(C, v2d, V2D_UNIT_SECONDSSEQ, V2D_GRID_CLAMP, V2D_UNIT_VALUES, V2D_GRID_CLAMP);
+	unit= (sseq->flag & SEQ_DRAWFRAMES)? V2D_UNIT_FRAMES : V2D_UNIT_SECONDSSEQ;
+	scrollers= UI_view2d_scrollers_calc(C, v2d, unit, V2D_GRID_CLAMP, V2D_UNIT_VALUES, V2D_GRID_CLAMP);
 	UI_view2d_scrollers_draw(C, v2d, scrollers);
 	UI_view2d_scrollers_free(scrollers);
 }

@@ -35,11 +35,11 @@
  */
 
 #ifndef FALSE
-#define FALSE 0
+#  define FALSE 0
 #endif
 
 #ifndef TRUE
-#define TRUE 1
+#  define TRUE 1
 #endif
 
 
@@ -94,7 +94,7 @@
 /* some math and copy defines */
 
 #ifndef SWAP
-#define SWAP(type, a, b)        { type sw_ap; sw_ap=(a); (a)=(b); (b)=sw_ap; }
+#  define SWAP(type, a, b)        { type sw_ap; sw_ap=(a); (a)=(b); (b)=sw_ap; }
 #endif
 
 #define ABS(a)					( (a)<0 ? (-(a)) : (a) )
@@ -105,9 +105,9 @@
 #define FTOUSHORT(val) ((val >= 1.0f-0.5f/65535)? 65535: (val <= 0.0f)? 0: (unsigned short)(val*65535.0f + 0.5f))
 #define F3TOCHAR3(v2,v1) (v1)[0]=FTOCHAR((v2[0])); (v1)[1]=FTOCHAR((v2[1])); (v1)[2]=FTOCHAR((v2[2]))
 #define F3TOCHAR4(v2,v1) { (v1)[0]=FTOCHAR((v2[0])); (v1)[1]=FTOCHAR((v2[1])); (v1)[2]=FTOCHAR((v2[2])); \
-						(v1)[3]=FTOCHAR((v2[3])); (v1)[3] = 255; }
+						(v1)[3] = 255; }
 #define F4TOCHAR4(v2,v1) { (v1)[0]=FTOCHAR((v2[0])); (v1)[1]=FTOCHAR((v2[1])); (v1)[2]=FTOCHAR((v2[2])); \
-						(v1)[3]=FTOCHAR((v2[3])); (v1)[3]=FTOCHAR((v2[3])); }
+						(v1)[3]=FTOCHAR((v2[3])); }
 
 
 #define VECCOPY(v1,v2)          {*(v1)= *(v2); *(v1+1)= *(v2+1); *(v1+2)= *(v2+2);}
@@ -175,6 +175,12 @@
 
 /* useful for debugging */
 #define AT __FILE__ ":" STRINGIFY(__LINE__)
+
+/* so we can use __func__ everywhere */
+#if defined(_MSC_VER)
+#  define __func__ __FUNCTION__
+#endif
+
 
 /* UNUSED macro, for function argument */
 #ifdef __GNUC__

@@ -72,6 +72,7 @@ void		WM_setinitialstate_fullscreen(void);
 void		WM_setinitialstate_normal(void);
 
 void		WM_init				(struct bContext *C, int argc, const char **argv);
+void		WM_exit_ext			(struct bContext *C, const short do_python);
 void		WM_exit				(struct bContext *C);
 void		WM_main				(struct bContext *C);
 
@@ -300,6 +301,8 @@ int			WM_jobs_test(struct wmWindowManager *wm, void *owner);
 float		WM_jobs_progress(struct wmWindowManager *wm, void *owner);
 char		*WM_jobs_name(struct wmWindowManager *wm, void *owner);
 
+int             WM_jobs_is_running(struct wmJob *);
+void*           WM_jobs_get_customdata(struct wmJob *);
 void		WM_jobs_customdata(struct wmJob *, void *customdata, void (*free)(void *));
 void		WM_jobs_timer(struct wmJob *, double timestep, unsigned int note, unsigned int endnote);
 void		WM_jobs_callbacks(struct wmJob *, 

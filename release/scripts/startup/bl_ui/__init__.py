@@ -36,6 +36,7 @@ _modules = (
     "properties_data_mesh",
     "properties_data_metaball",
     "properties_data_modifier",
+    "properties_data_speaker",
     "properties_game",
     "properties_material",
     "properties_object_constraint",
@@ -95,7 +96,7 @@ def register():
 
         items_unique = set()
 
-        for mod in addon_utils.modules(space_userpref.USERPREF_PT_addons._addons_fake_modules):
+        for mod in addon_utils.modules(addon_utils.addons_fake_modules):
             info = addon_utils.module_bl_info(mod)
             items_unique.add(info["category"])
 

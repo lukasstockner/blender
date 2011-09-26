@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -110,6 +108,7 @@ void ED_operatortypes_armature(void)
 	WM_operatortype_append(POSE_OT_loc_clear);
 	WM_operatortype_append(POSE_OT_scale_clear);
 	WM_operatortype_append(POSE_OT_transforms_clear);
+	WM_operatortype_append(POSE_OT_user_transforms_clear);
 	
 	WM_operatortype_append(POSE_OT_copy);
 	WM_operatortype_append(POSE_OT_paste);
@@ -126,6 +125,8 @@ void ED_operatortypes_armature(void)
 	
 	WM_operatortype_append(POSE_OT_group_add);
 	WM_operatortype_append(POSE_OT_group_remove);
+	WM_operatortype_append(POSE_OT_group_move);
+	WM_operatortype_append(POSE_OT_group_sort);
 	WM_operatortype_append(POSE_OT_group_assign);
 	WM_operatortype_append(POSE_OT_group_unassign);
 	WM_operatortype_append(POSE_OT_group_select);
@@ -136,6 +137,8 @@ void ED_operatortypes_armature(void)
 	
 	WM_operatortype_append(POSE_OT_autoside_names);
 	WM_operatortype_append(POSE_OT_flip_names);
+	
+	WM_operatortype_append(POSE_OT_rotation_mode_set);
 
 	WM_operatortype_append(POSE_OT_quaternions_flip);
 	
@@ -170,6 +173,7 @@ void ED_operatormacros_armature(void)
 	
 	ot= WM_operatortype_append_macro("ARMATURE_OT_duplicate_move", "Duplicate", OPTYPE_UNDO|OPTYPE_REGISTER);
 	if(ot) {
+		ot->description= "Make copies of the selected bones within the same armature and move them";
 		WM_operatortype_macro_define(ot, "ARMATURE_OT_duplicate");
 		otmacro= WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
 		RNA_enum_set(otmacro->ptr, "proportional", 0);
@@ -177,6 +181,7 @@ void ED_operatormacros_armature(void)
 
 	ot= WM_operatortype_append_macro("ARMATURE_OT_extrude_move", "Extrude", OPTYPE_UNDO|OPTYPE_REGISTER);
 	if(ot) {
+		ot->description= "Create new bones from the selected joints and move them";
 		otmacro=WM_operatortype_macro_define(ot, "ARMATURE_OT_extrude");
 		RNA_boolean_set(otmacro->ptr, "forked", 0);
 		otmacro= WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
@@ -187,6 +192,7 @@ void ED_operatormacros_armature(void)
 	// that would require fixing a properties bug 19733
 	ot= WM_operatortype_append_macro("ARMATURE_OT_extrude_forked", "Extrude Forked", OPTYPE_UNDO|OPTYPE_REGISTER);
 	if(ot) {
+		ot->description= "Create new bones from the selected joints and move them";
 		otmacro=WM_operatortype_macro_define(ot, "ARMATURE_OT_extrude");
 		RNA_boolean_set(otmacro->ptr, "forked", 1);
 		otmacro= WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
@@ -307,6 +313,8 @@ void ED_keymap_armature(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "POSE_OT_scale_clear", SKEY, KM_PRESS, KM_ALT, 0);
 	
 	WM_keymap_add_item(keymap, "POSE_OT_quaternions_flip", FKEY, KM_PRESS, KM_ALT, 0);
+	
+	WM_keymap_add_item(keymap, "POSE_OT_rotation_mode_set", RKEY, KM_PRESS, KM_CTRL, 0);
 	
 	WM_keymap_add_item(keymap, "POSE_OT_copy", CKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "POSE_OT_paste", VKEY, KM_PRESS, KM_CTRL, 0);

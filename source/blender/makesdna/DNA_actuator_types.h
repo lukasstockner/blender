@@ -56,9 +56,12 @@ typedef struct bActionActuator {
 	char	frameProp[32];	/* Set this property to the actions current frame */
 	short	blendin;		/* Number of frames of blending */
 	short	priority;		/* Execution priority */
+	short	layer;			/* Animation layer */
 	short	end_reset;	/* Ending the actuator (negative pulse) wont reset the the action to its starting frame */
 	short	strideaxis;		/* Displacement axis */
+	short	pad;
 	float	stridelength;	/* Displacement incurred by cycle */ // not in use
+	float	layer_weight;	/* How much of the previous layer to use for blending. (<0 = disable, 0 = add mode) */
 } bActionActuator;												
 
 typedef struct Sound3D
@@ -120,6 +123,7 @@ typedef struct bObjectActuator {
 	struct Object *reference;
 } bObjectActuator;
 
+/* deprecated, handled by bActionActuator now */
 typedef struct bIpoActuator {
 	short flag, type;
 	float sta, end;
@@ -226,6 +230,20 @@ typedef struct bArmatureActuator {
 	struct Object *subtarget;
 } bArmatureActuator;
 
+typedef struct bSteeringActuator {
+	char pad[5];
+	char flag;
+	short facingaxis;
+	int type;		/* 0=seek, 1=flee, 2=path following */
+	float dist;
+	float velocity;
+	float acceleration;
+	float turnspeed;
+	int updateTime;
+	struct Object *target;
+	struct Object *navmesh;
+} bSteeringActuator;
+
 typedef struct bActuator {
 	struct bActuator *next, *prev, *mynew;
 	short type;
@@ -291,6 +309,7 @@ typedef struct bActuator {
 #define ACT_SHAPEACTION 21
 #define ACT_STATE		22
 #define ACT_ARMATURE	23
+#define ACT_STEERING    24
 
 /* actuator flag */
 #define ACT_SHOW		1
@@ -506,6 +525,16 @@ typedef struct bActuator {
 /* cameraactuator->axis */
 #define ACT_CAMERA_X		(float)'x'
 #define ACT_CAMERA_Y		(float)'y'
+
+/* steeringactuator->type */
+#define ACT_STEERING_SEEK   0
+#define ACT_STEERING_FLEE   1
+#define ACT_STEERING_PATHFOLLOWING   2
+/* steeringactuator->flag */
+#define ACT_STEERING_SELFTERMINATED   1
+#define ACT_STEERING_ENABLEVISUALIZATION   2
+#define ACT_STEERING_AUTOMATICFACING   4
+#define ACT_STEERING_NORMALUP  8
 
 #endif
 

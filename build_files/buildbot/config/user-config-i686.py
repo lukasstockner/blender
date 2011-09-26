@@ -5,7 +5,7 @@ BF_NUMJOBS = 2
 # Python configuration
 BF_PYTHON_VERSION = '3.2'
 BF_PYTHON_ABI_FLAGS = 'mu'
-BF_PYTHON = '/opt/python3.2'
+BF_PYTHON = '/opt/python3'
 
 WITH_BF_STATICPYTHON = True
 
@@ -86,6 +86,10 @@ WITH_BF_3DMOUSE = True
 WITH_BF_STATIC3DMOUSE = True
 BF_3DMOUSE = '/home/sources/staticlibs/spnav'
 BF_3DMOUSE_LIBPATH = '${BF_3DMOUSE}/lib32'
+
+# FFT
+WITH_BF_FFTW3 = True
+WITH_BF_STATICFFTW3 = True
 
 # Compilation and optimization
 BF_DEBUG = False

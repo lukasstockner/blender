@@ -63,9 +63,27 @@ def get_revision():
 
     return 'r' + build_rev
 
+
+# copied from: http://www.scons.org/wiki/AutoconfRecipes
+def checkEndian():
+    import struct
+    array = struct.pack('cccc', '\x01', '\x02', '\x03', '\x04')
+    i = struct.unpack('i', array)
+    # Little Endian
+    if i == struct.unpack('<i', array):
+        return "little"
+    # Big Endian
+    elif i == struct.unpack('>i', array):
+        return "big"
+    else:
+        raise Exception("cant find endian")
+
+
 # This is used in creating the local config directories
 VERSION, VERSION_DISPLAY = get_version()
 REVISION = get_revision()
+ENDIAN = checkEndian()
+
 
 def print_arguments(args, bc):
     if len(args):
@@ -78,7 +96,7 @@ def print_arguments(args, bc):
 
 def validate_arguments(args, bc):
     opts_list = [
-            'WITH_BF_PYTHON', 'WITH_BF_PYTHON_SAFETY', 'BF_PYTHON', 'BF_PYTHON_VERSION', 'BF_PYTHON_INC', 'BF_PYTHON_BINARY', 'BF_PYTHON_LIB', 'BF_PYTHON_LIBPATH', 'WITH_BF_STATICPYTHON', 'BF_PYTHON_LIB_STATIC', 'BF_PYTHON_DLL', 'BF_PYTHON_ABI_FLAGS', 
+            'WITH_BF_PYTHON', 'WITH_BF_PYTHON_SAFETY', 'BF_PYTHON', 'BF_PYTHON_VERSION', 'BF_PYTHON_INC', 'BF_PYTHON_BINARY', 'BF_PYTHON_LIB', 'BF_PYTHON_LIBPATH', 'WITH_BF_STATICPYTHON', 'WITH_OSX_STATICPYTHON', 'BF_PYTHON_LIB_STATIC', 'BF_PYTHON_DLL', 'BF_PYTHON_ABI_FLAGS', 
             'WITH_BF_OPENAL', 'BF_OPENAL', 'BF_OPENAL_INC', 'BF_OPENAL_LIB', 'BF_OPENAL_LIBPATH', 'WITH_BF_STATICOPENAL', 'BF_OPENAL_LIB_STATIC',
             'WITH_BF_SDL', 'BF_SDL', 'BF_SDL_INC', 'BF_SDL_LIB', 'BF_SDL_LIBPATH',
             'BF_LIBSAMPLERATE', 'BF_LIBSAMPLERATE_INC', 'BF_LIBSAMPLERATE_LIB', 'BF_LIBSAMPLERATE_LIBPATH', 'WITH_BF_STATICLIBSAMPLERATE', 'BF_LIBSAMPLERATE_LIB_STATIC',
@@ -230,6 +248,7 @@ def read_opts(env, cfg, args):
         ('BF_PYTHON_LIBPATH', 'Library path', ''),
         ('BF_PYTHON_LINKFLAGS', 'Python link flags', ''),
         (BoolVariable('WITH_BF_STATICPYTHON', 'Staticly link to python', False)),
+        (BoolVariable('WITH_OSX_STATICPYTHON', 'Staticly link to python', True)),
         ('BF_PYTHON_ABI_FLAGS', 'Python ABI flags (suffix in library version: m, mu, etc)', ''),
 
         (BoolVariable('BF_NO_ELBEEM', 'Disable Fluid Sim', False)),

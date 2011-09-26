@@ -216,13 +216,13 @@ struct CcdConstructionInfo
 	///more advanced collision filtering should be done in btCollisionDispatcher::NeedsCollision
 	enum CollisionFilterGroups
 	{
-	        DefaultFilter = 1,
-	        StaticFilter = 2,
-	        KinematicFilter = 4,
-	        DebrisFilter = 8,
-			SensorFilter = 16,
-			UserFilter = 1<<8 | 1<<9 | 1<<10 | 1<<11 | 1<<12 | 1<<13 | 1<<14 | 1<<15,
-	        AllFilter = StaticFilter | KinematicFilter | DebrisFilter | SensorFilter | UserFilter,
+		DefaultFilter = 1,
+		StaticFilter = 2,
+		KinematicFilter = 4,
+		DebrisFilter = 8,
+		SensorFilter = 16,
+		UserFilter = 1<<8 | 1<<9 | 1<<10 | 1<<11 | 1<<12 | 1<<13 | 1<<14 | 1<<15,
+		AllFilter = StaticFilter | KinematicFilter | DebrisFilter | SensorFilter | UserFilter,
 	};
 
 

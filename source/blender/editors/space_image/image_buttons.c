@@ -113,7 +113,7 @@ static void image_info(Scene *scene, ImageUser *iuser, Image *ima, ImBuf *ibuf, 
 		if(ima->source==IMA_SRC_MOVIE) {
 			ofs+= sprintf(str, "Movie");
 			if(ima->anim)
-				ofs+= sprintf(str+ofs, "%d frs", IMB_anim_get_duration(ima->anim));
+				ofs+= sprintf(str+ofs, "%d frs", IMB_anim_get_duration(ima->anim, IMB_TC_RECORD_RUN));
 		}
 		else
 			ofs+= sprintf(str, "Image");
@@ -428,7 +428,7 @@ static void set_frames_cb(bContext *C, void *ima_v, void *iuser_v)
 	ImageUser *iuser= iuser_v;
 	
 	if(ima->anim) {
-		iuser->frames = IMB_anim_get_duration(ima->anim);
+		iuser->frames = IMB_anim_get_duration(ima->anim, IMB_TC_RECORD_RUN);
 		BKE_image_user_calc_frame(iuser, scene->r.cfra, 0);
 	}
 }
@@ -510,7 +510,7 @@ static void image_pack_cb(bContext *C, void *ima_v, void *iuser_v)
 			else {
 				ImBuf *ibuf= BKE_image_get_ibuf(ima, iuser_v);
 				if (ibuf && (ibuf->userflags & IB_BITMAPDIRTY)) {
-					// XXX error("Can't pack painted image. Save image or use Repack as PNG.");
+					// XXX error("Can't pack painted image. Save image or use Repack as PNG");
 				} else {
 					ima->packedfile = newPackedFile(NULL, ima->name); /* XXX report errors */
 					ED_undo_push(C, "Pack image");
@@ -587,7 +587,7 @@ static void uiblock_layer_pass_arrow_buttons(uiLayout *layout, RenderResult *rr,
 	if(rr==NULL || iuser==NULL)
 		return;
 	if(rr->layers.first==NULL) {
-		uiItemL(row, "No Layers in Render Result.", ICON_NONE);
+		uiItemL(row, "No Layers in Render Result", ICON_NONE);
 		return;
 	}
 
@@ -784,7 +784,7 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 				uiItemR(col, userptr, "frame_duration", 0, str, ICON_NONE);
 				if(ima->anim) {
 					block= uiLayoutGetBlock(col);
-					but= uiDefBut(block, BUT, 0, "Match Movie Length", 0, 0, UI_UNIT_X*2, UI_UNIT_Y, NULL, 0, 0, 0, 0, "Set the number of frames to match the movie or sequence.");
+					but= uiDefBut(block, BUT, 0, "Match Movie Length", 0, 0, UI_UNIT_X*2, UI_UNIT_Y, NULL, 0, 0, 0, 0, "Set the number of frames to match the movie or sequence");
 					uiButSetFunc(but, set_frames_cb, ima, iuser);
 				}
 

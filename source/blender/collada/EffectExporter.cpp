@@ -37,6 +37,7 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_texture_types.h"
+#include "DNA_world_types.h"
 
 #include "BKE_customdata.h"
 
@@ -55,7 +56,7 @@ static std::string getActiveUVLayerName(Object *ob)
 	return "";
 }
 
-EffectsExporter::EffectsExporter(COLLADASW::StreamWriter *sw) : COLLADASW::LibraryEffects(sw){}
+EffectsExporter::EffectsExporter(COLLADASW::StreamWriter *sw, const ExportSettings *export_settings) : COLLADASW::LibraryEffects(sw), export_settings(export_settings) {}
 
 bool EffectsExporter::hasEffects(Scene *sce)
 {
@@ -78,12 +79,13 @@ bool EffectsExporter::hasEffects(Scene *sce)
 	return false;
 }
 
-void EffectsExporter::exportEffects(Scene *sce, bool export_selected)
+void EffectsExporter::exportEffects(Scene *sce)
 {
 	if(hasEffects(sce)) {
+		this->scene = sce;
 		openLibrary();
 		MaterialFunctor mf;
-		mf.forEachMaterialInScene<EffectsExporter>(sce, *this, export_selected);
+		mf.forEachMaterialInScene<EffectsExporter>(sce, *this, this->export_settings->selected);
 
 		closeLibrary();
 	}
@@ -94,10 +96,10 @@ void EffectsExporter::writeBlinn(COLLADASW::EffectProfile &ep, Material *ma)
 	COLLADASW::ColorOrTexture cot;
 	ep.setShaderType(COLLADASW::EffectProfile::BLINN);
 	// shininess
-	ep.setShininess(ma->har);
+	ep.setShininess(ma->har, false , "shininess");
 	// specular
 	cot = getcol(ma->specr, ma->specg, ma->specb, 1.0f);
-	ep.setSpecular(cot);
+	ep.setSpecular(cot, false , "specular" );
 }
 
 void EffectsExporter::writeLambert(COLLADASW::EffectProfile &ep, Material *ma)
@@ -111,10 +113,10 @@ void EffectsExporter::writePhong(COLLADASW::EffectProfile &ep, Material *ma)
 	COLLADASW::ColorOrTexture cot;
 	ep.setShaderType(COLLADASW::EffectProfile::PHONG);
 	// shininess
-	ep.setShininess(ma->har);
+	ep.setShininess(ma->har , false , "shininess" );
 	// specular
 	cot = getcol(ma->specr, ma->specg, ma->specb, 1.0f);
-	ep.setSpecular(cot);
+	ep.setSpecular(cot, false , "specular" );
 }
 
 void EffectsExporter::operator()(Material *ma, Object *ob)
@@ -150,10 +152,10 @@ void EffectsExporter::operator()(Material *ma, Object *ob)
 	
 	// index of refraction
 	if (ma->mode & MA_RAYTRANSP) {
-		ep.setIndexOfRefraction(ma->ang);
+		ep.setIndexOfRefraction(ma->ang, false , "index_of_refraction");
 	}
 	else {
-		ep.setIndexOfRefraction(1.0f);
+		ep.setIndexOfRefraction(1.0f, false , "index_of_refraction");
 	}
 
 	COLLADASW::ColorOrTexture cot;
@@ -161,22 +163,27 @@ void EffectsExporter::operator()(Material *ma, Object *ob)
 	// transparency
 	if (ma->mode & MA_TRANSP) {
 		// Tod: because we are in A_ONE mode transparency is calculated like this:
-		ep.setTransparency(ma->alpha);
+		ep.setTransparency(ma->alpha, false , "transparency");
 		// cot = getcol(1.0f, 1.0f, 1.0f, 1.0f);
 		// ep.setTransparent(cot);
 	}
 
 	// emission
 	cot=getcol(ma->emit, ma->emit, ma->emit, 1.0f);
-	ep.setEmission(cot);
+	ep.setEmission(cot, false , "emission");
 
 	// diffuse multiplied by diffuse intensity
 	cot = getcol(ma->r * ma->ref, ma->g * ma->ref, ma->b * ma->ref, 1.0f);
-	ep.setDiffuse(cot);
+	ep.setDiffuse(cot, false , "diffuse");
 
 	// ambient
-	cot = getcol(ma->ambr, ma->ambg, ma->ambb, 1.0f);
-	ep.setAmbient(cot);
+	/* ma->ambX is calculated only on render, so lets do it here manually and not rely on ma->ambX. */
+	if(this->scene->world)
+		cot = getcol(this->scene->world->ambr*ma->amb, this->scene->world->ambg*ma->amb, this->scene->world->ambb*ma->amb, 1.0f);
+	else
+		cot = getcol(ma->amb, ma->amb, ma->amb, 1.0f);
+
+	ep.setAmbient(cot, false , "ambient");
 
 	// reflective, reflectivity
 	if (ma->mode & MA_RAYMIRROR) {
@@ -193,7 +200,7 @@ void EffectsExporter::operator()(Material *ma, Object *ob)
 	// specular
 	if (ep.getShaderType() != COLLADASW::EffectProfile::LAMBERT) {
 		cot = getcol(ma->specr * ma->spec, ma->specg * ma->spec, ma->specb * ma->spec, 1.0f);
-		ep.setSpecular(cot);
+		ep.setSpecular(cot, false , "specular");
 	}	
 
 	// XXX make this more readable if possible
@@ -274,19 +281,19 @@ void EffectsExporter::operator()(Material *ma, Object *ob)
 
 		// color
 		if (t->mapto & (MAP_COL | MAP_COLSPEC)) {
-			ep.setDiffuse(createTexture(ima, uvname, sampler));
+			ep.setDiffuse(createTexture(ima, uvname, sampler), false , "diffuse");
 		}
 		// ambient
 		if (t->mapto & MAP_AMB) {
-			ep.setAmbient(createTexture(ima, uvname, sampler));
+			ep.setAmbient(createTexture(ima, uvname, sampler), false , "ambient");
 		}
 		// specular
 		if (t->mapto & MAP_SPEC) {
-			ep.setSpecular(createTexture(ima, uvname, sampler));
+			ep.setSpecular(createTexture(ima, uvname, sampler), false , "specular");
 		}
 		// emission
 		if (t->mapto & MAP_EMIT) {
-			ep.setEmission(createTexture(ima, uvname, sampler));
+			ep.setEmission(createTexture(ima, uvname, sampler), false , "emission");
 		}
 		// reflective
 		if (t->mapto & MAP_REF) {

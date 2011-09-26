@@ -222,6 +222,33 @@ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, bpy.types.Panel):
         row.prop(game, "use_collision_compound", text="Compound")
 
 
+class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, Panel):
+    bl_label = "Create Obstacle"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        game = context.object.game
+        rd = context.scene.render
+        return (game.physics_type in ('DYNAMIC', 'RIGID_BODY', 'SENSOR', 'SOFT_BODY', 'STATIC'))  and (rd.engine in cls.COMPAT_ENGINES)
+
+    def draw_header(self, context):
+        game = context.active_object.game
+
+        self.layout.prop(game, "use_obstacle_create", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        game = context.active_object.game
+
+        layout.active = game.use_obstacle_create
+
+        row = layout.row()
+        row.prop(game, "obstacle_radius", text="Radius")
+        row.label()
+
+
 class RenderButtonsPanel():
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -419,7 +446,8 @@ class RENDER_PT_game_system(RenderButtonsPanel, bpy.types.Panel):
         layout = self.layout
 
         gs = context.scene.game_settings
-        row = layout.row()
+        col = layout.column()
+        row = col.row()
         col = row.column()
         col.prop(gs, "use_frame_rate")
         col = row.column()
@@ -433,8 +461,10 @@ class RENDER_PT_game_system(RenderButtonsPanel, bpy.types.Panel):
         row.label("Exit Key")
         row.prop(gs, "exit_key", text="", event=True)
 
+        col.prop(gs, "restrict_animation_updates")
 
-class RENDER_PT_game_display(RenderButtonsPanel, bpy.types.Panel):
+
+class RENDER_PT_game_display(RenderButtonsPanel, Panel):
     bl_label = "Display"
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
@@ -459,21 +489,68 @@ class RENDER_PT_game_display(RenderButtonsPanel, bpy.types.Panel):
         if gs.frame_type == 'LETTERBOX':
             col.prop(gs, "frame_color", text="")
 
+class SceneButtonsPanel():
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "scene"
 
-class RENDER_PT_game_sound(RenderButtonsPanel, bpy.types.Panel):
-    bl_label = "Sound"
+
+class SCENE_PT_game_navmesh(SceneButtonsPanel, bpy.types.Panel):
+    bl_label = "Navigation mesh"
+    bl_default_closed = True
     COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return (scene and scene.render.engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
 
-        scene = context.scene
+        rd = context.scene.game_settings.recast_data
 
-        layout.prop(scene, "audio_distance_model")
+        layout.operator("object.create_navmesh", text='Build navigation mesh')
 
-        col = layout.column(align=True)
-        col.prop(scene, "audio_doppler_speed", text="Speed")
-        col.prop(scene, "audio_doppler_factor")
+        col = layout.column()
+        col.label(text="Rasterization:")
+        row = col.row()
+        row.prop(rd, "cell_size")
+        row.prop(rd, "cell_height")
+
+        col = layout.column()
+        col.label(text="Agent:")
+        split = col.split()
+
+        col = split.column()
+        col.prop(rd, "agent_height", text="Height")
+        col.prop(rd, "agent_radius", text="Radius")
+
+        col = split.column()
+        col.prop(rd, "max_slope")
+        col.prop(rd, "max_climb")
+
+        col = layout.column()
+        col.label(text="Region:")
+        row = col.row()
+        row.prop(rd, "region_min_size")
+        row.prop(rd, "region_merge_size")
+
+        col = layout.column()
+        col.label(text="Polygonization:")
+        split = col.split()
+
+        col = split.column()
+        col.prop(rd, "edge_max_len")
+        col.prop(rd, "edge_max_error")
+
+        split.prop(rd, "verts_per_poly")
+
+        col = layout.column()
+        col.label(text="Detail Mesh:")
+        row = col.row()
+        row.prop(rd, "sample_dist")
+        row.prop(rd, "sample_max_error")
 
 
 class WorldButtonsPanel():
@@ -598,6 +675,26 @@ class WORLD_PT_game_physics(WorldButtonsPanel, bpy.types.Panel):
             col = split.column()
             col.label(text="Logic Steps:")
             col.prop(gs, "logic_step_max", text="Max")
+
+
+class WORLD_PT_game_physics_obstacles(WorldButtonsPanel, Panel):
+    bl_label = "Obstacle simulation"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return (scene.world and scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+
+        gs = context.scene.game_settings
+
+        layout.prop(gs, "obstacle_simulation", text="Type")
+        if gs.obstacle_simulation != 'NONE':
+            layout.prop(gs, "level_height")
+            layout.prop(gs, "show_obstacle_simulation")
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

@@ -41,9 +41,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"  
-#include "BLI_math.h"  
+#include "BLI_blenlib.h"
+#include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 
 #include "DNA_curve_types.h"  
 #include "DNA_material_types.h"  
@@ -65,9 +66,6 @@
 #include "BKE_main.h"  
 #include "BKE_object.h"
 #include "BKE_material.h"
-
-
-#include "ED_curve.h"
 
 /* globals */
 
@@ -115,6 +113,25 @@ void BKE_free_editfont(Curve *cu)
 		
 		MEM_freeN(ef);
 		cu->editfont= NULL;
+	}
+}
+
+void free_curve_editNurb_keyIndex(EditNurb *editnurb)
+{
+	if (!editnurb->keyindex) {
+		return;
+	}
+	BLI_ghash_free(editnurb->keyindex, NULL, (GHashValFreeFP)MEM_freeN);
+	editnurb->keyindex= NULL;
+}
+
+void free_curve_editNurb (Curve *cu)
+{
+	if(cu->editnurb) {
+		freeNurblist(&cu->editnurb->nurbs);
+		free_curve_editNurb_keyIndex(cu->editnurb);
+		MEM_freeN(cu->editnurb);
+		cu->editnurb= NULL;
 	}
 }
 
@@ -281,6 +298,16 @@ void make_local_curve(Curve *cu)
 	}
 }
 
+/* Get list of nurbs from editnurbs structure */
+ListBase *curve_editnurbs(Curve *cu)
+{
+	if (cu->editnurb) {
+		return &cu->editnurb->nurbs;
+	}
+
+	return NULL;
+}
+
 short curve_type(Curve *cu)
 {
 	Nurb *nu;
@@ -357,7 +384,6 @@ void tex_space_curve(Curve *cu)
 
 	}
 }
-
 
 int count_curveverts(ListBase *nurb)
 {
@@ -1898,7 +1924,7 @@ static void make_bevel_list_3D_minimum_twist(BevList *bl)
 		/* flip rotation if needs be */
 		cross_v3_v3v3(cross_tmp, vec_1, vec_2);
 		normalize_v3(cross_tmp);
-		if(angle_normalized_v3v3(bevp_first->dir, cross_tmp) < 90.0f/(float)(180.0/M_PI))
+		if(angle_normalized_v3v3(bevp_first->dir, cross_tmp) < DEG2RADF(90.0f))
 			angle = -angle;
 
 		bevp2= (BevPoint *)(bl+1);
@@ -2049,7 +2075,7 @@ void makeBevelList(Object *ob)
 
 	BLI_freelistN(&(cu->bev));
 	if(cu->editnurb && ob->type!=OB_FONT) {
-		ListBase *nurbs= ED_curve_editnurbs(cu);
+		ListBase *nurbs= curve_editnurbs(cu);
 		nu= nurbs->first;
 	} else nu= cu->nurb.first;
 	
@@ -2473,7 +2499,7 @@ void calchandleNurb(BezTriple *bezt, BezTriple *prev, BezTriple *next, int mode)
 	if(len2==0.0f) len2=1.0f;
 
 
-	if(bezt->h1==HD_AUTO || bezt->h2==HD_AUTO) {    /* auto */
+	if(ELEM(bezt->h1,HD_AUTO,HD_AUTO_ANIM) || ELEM(bezt->h2,HD_AUTO,HD_AUTO_ANIM)) {    /* auto */
 		vx= dx1/len2 + dx/len1;
 		vy= dy1/len2 + dy/len1;
 		vz= dz1/len2 + dz/len1;
@@ -2484,13 +2510,13 @@ void calchandleNurb(BezTriple *bezt, BezTriple *prev, BezTriple *next, int mode)
 			if(len1>5.0f*len2) len1= 5.0f*len2;	
 			if(len2>5.0f*len1) len2= 5.0f*len1;
 			
-			if(bezt->h1==HD_AUTO) {
+			if(ELEM(bezt->h1,HD_AUTO,HD_AUTO_ANIM)) {
 				len1/=len;
 				*(p2-3)= *p2-vx*len1;
 				*(p2-2)= *(p2+1)-vy*len1;
 				*(p2-1)= *(p2+2)-vz*len1;
 				
-				if(mode==2 && next && prev) {	// keep horizontal if extrema
+				if((bezt->h1==HD_AUTO_ANIM) && next && prev) {	// keep horizontal if extrema
 					float ydiff1= prev->vec[1][1] - bezt->vec[1][1];
 					float ydiff2= next->vec[1][1] - bezt->vec[1][1];
 					if( (ydiff1 <= 0.0f && ydiff2 <= 0.0f) || (ydiff1 >= 0.0f && ydiff2 >= 0.0f) ) {
@@ -2512,13 +2538,13 @@ void calchandleNurb(BezTriple *bezt, BezTriple *prev, BezTriple *next, int mode)
 					}
 				}
 			}
-			if(bezt->h2==HD_AUTO) {
+			if(ELEM(bezt->h2,HD_AUTO,HD_AUTO_ANIM)) {
 				len2/=len;
 				*(p2+3)= *p2+vx*len2;
 				*(p2+4)= *(p2+1)+vy*len2;
 				*(p2+5)= *(p2+2)+vz*len2;
 				
-				if(mode==2 && next && prev) {	// keep horizontal if extrema
+				if((bezt->h2==HD_AUTO_ANIM) && next && prev) {	// keep horizontal if extrema
 					float ydiff1= prev->vec[1][1] - bezt->vec[1][1];
 					float ydiff2= next->vec[1][1] - bezt->vec[1][1];
 					if( (ydiff1 <= 0.0f && ydiff2 <= 0.0f) || (ydiff1 >= 0.0f && ydiff2 >= 0.0f) ) {
@@ -2547,9 +2573,9 @@ void calchandleNurb(BezTriple *bezt, BezTriple *prev, BezTriple *next, int mode)
 				sub_v3_v3v3(h2, p2, p2+3);
 				len1= normalize_v3(h1);
 				len2= normalize_v3(h2);
-				
-				vz= INPR(h1, h2);
-				
+
+				vz= dot_v3v3(h1, h2);
+
 				if(leftviolate) {
 					*(p2+3)= *(p2)   - vz*len2*h1[0];
 					*(p2+4)= *(p2+1) - vz*len2*h1[1];
@@ -2674,15 +2700,15 @@ void testhandlesNurb(Nurb *nu)
 		if(bezt->f1 & SELECT) flag++;
 		if(bezt->f2 & SELECT) flag += 2;
 		if(bezt->f3 & SELECT) flag += 4;
-
+		
 		if( !(flag==0 || flag==7) ) {
-			if(bezt->h1==HD_AUTO) {   /* auto */
+			if(ELEM(bezt->h1, HD_AUTO, HD_AUTO_ANIM)) {   /* auto */
 				bezt->h1= HD_ALIGN;
 			}
-			if(bezt->h2==HD_AUTO) {   /* auto */
+			if(ELEM(bezt->h2, HD_AUTO, HD_AUTO_ANIM)) {   /* auto */
 				bezt->h2= HD_ALIGN;
 			}
-
+			
 			if(bezt->h1==HD_VECT) {   /* vector */
 				if(flag < 4) bezt->h1= 0;
 			}
@@ -2692,7 +2718,7 @@ void testhandlesNurb(Nurb *nu)
 		}
 		bezt++;
 	}
-
+	
 	calchandlesNurb(nu);
 }
 
@@ -3157,7 +3183,7 @@ int clamp_nurb_order_v( struct Nurb *nu)
 ListBase *BKE_curve_nurbs(Curve *cu)
 {
 	if (cu->editnurb) {
-		return ED_curve_editnurbs(cu);
+		return curve_editnurbs(cu);
 	}
 
 	return &cu->nurb;

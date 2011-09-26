@@ -347,10 +347,6 @@ typedef struct uiSafetyRct {
 
 extern void ui_delete_linkline(uiLinkLine *line, uiBut *but);
 
-extern int ui_translate_buttons(void);
-extern int ui_translate_menus(void);
-extern int ui_translate_tooltips(void);
-
 void ui_fontscale(short *points, float aspect);
 
 extern void ui_block_to_window_fl(const struct ARegion *ar, uiBlock *block, float *x, float *y);
@@ -523,6 +519,7 @@ void ui_but_anim_add_keyingset(struct bContext *C);
 void ui_but_anim_remove_keyingset(struct bContext *C);
 int ui_but_anim_expression_get(uiBut *but, char *str, int maxlen);
 int ui_but_anim_expression_set(uiBut *but, const char *str);
+int ui_but_anim_expression_create(uiBut *but, const char *str);
 void ui_but_anim_autokey(struct bContext *C, uiBut *but, struct Scene *scene, float cfra);
 
 #endif

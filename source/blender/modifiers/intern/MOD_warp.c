@@ -23,6 +23,10 @@
 *
 */
 
+/** \file blender/modifiers/intern/MOD_warp.c
+ *  \ingroup modifiers
+ */
+
 #include <string.h>
 
 #include "MEM_guardedalloc.h"
@@ -232,8 +236,8 @@ static void warpModifier_do(WarpModifierData *wmd, Object *ob,
 				dv = &dvert[i];
 
 				if(dv) {
-					weight = defvert_find_weight(dv, defgrp_index) * wmd->strength;
-					if(weight <= 0.0f)
+					weight = defvert_find_weight(dv, defgrp_index) * strength;
+					if(weight <= 0.0f) /* Should never occure... */
 						continue;
 				}
 			}

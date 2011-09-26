@@ -408,7 +408,7 @@ static void create_kdop_hull(BVHTree *tree, BVHNode *node, float *co, int numpoi
 		// for all Axes.
 		for (i = tree->start_axis; i < tree->stop_axis; i++)
 		{
-			newminmax = INPR(&co[k * 3], KDOP_AXES[i]);
+			newminmax = dot_v3v3(&co[k * 3], KDOP_AXES[i]);
 			if (newminmax < bv[2 * i])
 				bv[2 * i] = newminmax;
 			if (newminmax > bv[(2 * i) + 1])
@@ -1193,17 +1193,6 @@ BVHTreeOverlap *BLI_bvhtree_overlap(BVHTree *tree1, BVHTree *tree2, unsigned int
 	return overlap;
 }
 
-
-/*
- * Nearest neighbour - BLI_bvhtree_find_nearest
- */
-static float squared_dist(const float *a, const float *b)
-{
-	float tmp[3];
-	VECSUB(tmp, a, b);
-	return INPR(tmp, tmp);
-}
-
 //Determines the nearest point of the given node BV. Returns the squared distance to that point.
 static float calc_nearest_point(const float *proj, BVHNode *node, float *nearest)
 {
@@ -1226,7 +1215,7 @@ static float calc_nearest_point(const float *proj, BVHNode *node, float *nearest
 	VECCOPY(nearest, data->co);
 	for(i = data->tree->start_axis; i != data->tree->stop_axis; i++, bv+=2)
 	{
-		float proj = INPR( nearest, KDOP_AXES[i]);
+		float proj = dot_v3v3( nearest, KDOP_AXES[i]);
 		float dl = bv[0] - proj;
 		float du = bv[1] - proj;
 
@@ -1240,7 +1229,7 @@ static float calc_nearest_point(const float *proj, BVHNode *node, float *nearest
 		}
 	}
 */
-	return squared_dist(proj, nearest);
+	return len_squared_v3v3(proj, nearest);
 }
 
 
@@ -1404,7 +1393,7 @@ int BLI_bvhtree_find_nearest(BVHTree *tree, const float *co, BVHTreeNearest *nea
 
 	for(i = data.tree->start_axis; i != data.tree->stop_axis; i++)
 	{
-		data.proj[i] = INPR(data.co, KDOP_AXES[i]);
+		data.proj[i] = dot_v3v3(data.co, KDOP_AXES[i]);
 	}
 
 	if(nearest)
@@ -1494,7 +1483,7 @@ static float fast_ray_nearest_hit(const BVHRayCastData *data, const BVHNode *nod
 	float t2z = (bv[data->index[5]] - data->ray.origin[2]) * data->idot_axis[2];
 
 	if(t1x > t2y || t2x < t1y || t1x > t2z || t2x < t1z || t1y > t2z || t2y < t1z) return FLT_MAX;
-	if(t2x < 0.0 || t2y < 0.0 || t2z < 0.0) return FLT_MAX;
+	if(t2x < 0.0f || t2y < 0.0f || t2z < 0.0f) return FLT_MAX;
 	if(t1x > data->hit.dist || t1y > data->hit.dist || t1z > data->hit.dist) return FLT_MAX;
 
 	dist = t1x;
@@ -1596,14 +1585,14 @@ int BLI_bvhtree_ray_cast(BVHTree *tree, const float *co, const float *dir, float
 
 	for(i=0; i<3; i++)
 	{
-		data.ray_dot_axis[i] = INPR( data.ray.direction, KDOP_AXES[i]);
+		data.ray_dot_axis[i] = dot_v3v3(data.ray.direction, KDOP_AXES[i]);
 		data.idot_axis[i] = 1.0f / data.ray_dot_axis[i];
 
-		if(fabs(data.ray_dot_axis[i]) < FLT_EPSILON)
+		if(fabsf(data.ray_dot_axis[i]) < FLT_EPSILON)
 		{
 			data.ray_dot_axis[i] = 0.0;
 		}
-		data.index[2*i] = data.idot_axis[i] < 0.0 ? 1 : 0;
+		data.index[2*i] = data.idot_axis[i] < 0.0f ? 1 : 0;
 		data.index[2*i+1] = 1 - data.index[2*i];
 		data.index[2*i]	  += 2*i;
 		data.index[2*i+1] += 2*i;
@@ -1654,7 +1643,7 @@ float BLI_bvhtree_bb_raycast(float *bv, float *light_start, float *light_end, fl
 	
 	dist = ray_nearest_hit(&data, bv);
 	
-	if(dist > 0.0)
+	if(dist > 0.0f)
 	{
 		VECADDFAC(pos, light_start, data.ray.direction, dist);
 	}

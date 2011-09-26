@@ -87,6 +87,7 @@
 #include "BL_ModifierDeformer.h"
 #include "BL_ShapeDeformer.h"
 #include "BL_DeformableGameObject.h"
+#include "KX_ObstacleSimulation.h"
 
 #ifdef USE_BULLET
 #include "KX_SoftBodyDeformer.h"
@@ -168,6 +169,7 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 	m_lightlist= new CListValue();
 	m_inactivelist = new CListValue();
 	m_euthanasyobjects = new CListValue();
+	m_animatedlist = new CListValue();
 
 	m_logicmgr = new SCA_LogicManager();
 	
@@ -213,6 +215,19 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 
 	m_bucketmanager=new RAS_BucketManager();
 	
+	bool showObstacleSimulation = scene->gm.flag & GAME_SHOW_OBSTACLE_SIMULATION;
+	switch (scene->gm.obstacleSimulation)
+	{
+	case OBSTSIMULATION_TOI_rays:
+		m_obstacleSimulation = new KX_ObstacleSimulationTOI_rays((MT_Scalar)scene->gm.levelHeight, showObstacleSimulation);
+		break;
+	case OBSTSIMULATION_TOI_cells:
+		m_obstacleSimulation = new KX_ObstacleSimulationTOI_cells((MT_Scalar)scene->gm.levelHeight, showObstacleSimulation);
+		break;
+	default:
+		m_obstacleSimulation = NULL;
+	}
+	
 #ifdef WITH_PYTHON
 	m_attr_dict = PyDict_New(); /* new ref */
 	m_draw_call_pre = NULL;
@@ -235,6 +250,9 @@ KX_Scene::~KX_Scene()
 		this->RemoveObject(parentobj);
 	}
 
+	if (m_obstacleSimulation)
+		delete m_obstacleSimulation;
+
 	if(m_objectlist)
 		m_objectlist->Release();
 
@@ -252,6 +270,9 @@ KX_Scene::~KX_Scene()
 
 	if (m_euthanasyobjects)
 		m_euthanasyobjects->Release();
+
+	if (m_animatedlist)
+		m_animatedlist->Release();
 
 	if (m_logicmgr)
 		delete m_logicmgr;
@@ -1013,6 +1034,8 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 		ret = newobj->Release();
 	if (m_euthanasyobjects->RemoveValue(newobj))
 		ret = newobj->Release();
+	if (m_animatedlist->RemoveValue(newobj))
+		ret = newobj->Release();
 		
 	if (newobj == m_active_camera)
 	{
@@ -1502,7 +1525,23 @@ void KX_Scene::LogicBeginFrame(double curtime)
 	m_logicmgr->BeginFrame(curtime, 1.0/KX_KetsjiEngine::GetTicRate());
 }
 
+void KX_Scene::AddAnimatedObject(CValue* gameobj)
+{
+	gameobj->AddRef();
+	m_animatedlist->Add(gameobj);
+}
 
+void KX_Scene::RemoveAnimatedObject(CValue* gameobj)
+{
+	m_animatedlist->RemoveValue(gameobj);
+}
+
+void KX_Scene::UpdateAnimations(double curtime)
+{
+	// Update any animations
+	for (int i=0; i<m_animatedlist->GetCount(); ++i)
+		((KX_GameObject*)m_animatedlist->GetValue(i))->UpdateActionManager(curtime);
+}
 
 void KX_Scene::LogicUpdateFrame(double curtime, bool frame)
 {
@@ -1526,6 +1565,10 @@ void KX_Scene::LogicEndFrame()
 		obj->Release();
 		RemoveObject(obj);
 	}
+
+	//prepare obstacle simulation for new frame
+	if (m_obstacleSimulation)
+		m_obstacleSimulation->UpdateObstacles();
 }
 
 
@@ -1666,6 +1709,11 @@ void KX_Scene::setSuspendedDelta(double suspendeddelta)
 double KX_Scene::getSuspendedDelta()
 {
 	return m_suspendeddelta;
+}
+
+short KX_Scene::GetAnimationFPS()
+{
+	return m_blenderScene->r.frs_sec;
 }
 
 #ifdef USE_BULLET
@@ -1895,7 +1943,7 @@ void KX_Scene::Render2DFilters(RAS_ICanvas* canvas)
 
 void KX_Scene::RunDrawingCallbacks(PyObject* cb_list)
 {
-	int len;
+	Py_ssize_t len;
 
 	if (cb_list && (len=PyList_GET_SIZE(cb_list)))
 	{
@@ -1904,7 +1952,7 @@ void KX_Scene::RunDrawingCallbacks(PyObject* cb_list)
 		PyObject* ret;
 
 		// Iterate the list and run the callbacks
-		for (int pos=0; pos < len; pos++)
+		for (Py_ssize_t pos=0; pos < len; pos++)
 		{
 			func= PyList_GET_ITEM(cb_list, pos);
 			ret= PyObject_Call(func, args, NULL);
@@ -1956,6 +2004,8 @@ PyMethodDef KX_Scene::Methods[] = {
 	KX_PYMETHODTABLE(KX_Scene, replace),
 	KX_PYMETHODTABLE(KX_Scene, suspend),
 	KX_PYMETHODTABLE(KX_Scene, resume),
+	KX_PYMETHODTABLE(KX_Scene, drawObstacleSimulation),
+
 	
 	/* dict style access */
 	KX_PYMETHODTABLE(KX_Scene, get),
@@ -2277,6 +2327,16 @@ KX_PYMETHODDEF_DOC(KX_Scene, resume,
 {
 	Resume();
 	
+	Py_RETURN_NONE;
+}
+
+KX_PYMETHODDEF_DOC(KX_Scene, drawObstacleSimulation,
+				   "drawObstacleSimulation()\n"
+				   "Draw debug visualization of obstacle simulation.\n")
+{
+	if (GetObstacleSimulation())
+		GetObstacleSimulation()->DrawObstacles();
+
 	Py_RETURN_NONE;
 }
 

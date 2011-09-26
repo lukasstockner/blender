@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -48,11 +46,14 @@
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
 
+#include "BLF_translation.h"
+
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
 #include "BKE_main.h"
 #include "BKE_screen.h"
+#include "BKE_unit.h"
 
 
 #include "WM_api.h"
@@ -77,8 +78,7 @@
 
 /* ******************* graph editor space & buttons ************** */
 
-#define B_NOP		1
-#define B_REDR		2
+#define B_REDR 1
 
 /* -------------- */
 
@@ -244,6 +244,34 @@ static short get_active_fcurve_keyframe_edit(FCurve *fcu, BezTriple **bezt, BezT
 	return 0;
 }
 
+/* update callback for active keyframe properties - base updates stuff */
+static void graphedit_activekey_update_cb(bContext *UNUSED(C), void *fcu_ptr, void *UNUSED(bezt_ptr))
+{
+	FCurve *fcu = (FCurve *)fcu_ptr;
+	
+	/* make sure F-Curve and its handles are still valid after this editing */
+	sort_time_fcurve(fcu);
+	testhandles_fcurve(fcu);
+}
+
+/* update callback for active keyframe properties - handle-editing wrapper */
+static void graphedit_activekey_handles_cb(bContext *C, void *fcu_ptr, void *bezt_ptr)
+{
+	BezTriple *bezt = (BezTriple *)bezt_ptr;
+	
+	/* since editing the handles, make sure they're set to types which are receptive to editing 
+	 * see transform_conversions.c :: createTransGraphEditData(), last step in second loop
+	 */
+	if (ELEM(bezt->h1, HD_AUTO, HD_AUTO_ANIM) && ELEM(bezt->h2, HD_AUTO, HD_AUTO_ANIM)) {
+		/* by changing to aligned handles, these can now be moved... */
+		bezt->h1= HD_ALIGN;
+		bezt->h2= HD_ALIGN;
+	}
+	
+	/* now call standard updates */
+	graphedit_activekey_update_cb(C, fcu_ptr, bezt_ptr);
+}
+
 static void graph_panel_key_properties(const bContext *C, Panel *pa)
 {
 	bAnimListElem *ale;
@@ -262,27 +290,66 @@ static void graph_panel_key_properties(const bContext *C, Panel *pa)
 	
 	/* only show this info if there are keyframes to edit */
 	if (get_active_fcurve_keyframe_edit(fcu, &bezt, &prevbezt)) {
-		PointerRNA bezt_ptr;
+		PointerRNA bezt_ptr, id_ptr, fcu_prop_ptr;
+		PropertyRNA *fcu_prop = NULL;
+		uiBut *but;
+		int unit = B_UNIT_NONE;
 		
 		/* RNA pointer to keyframe, to allow editing */
 		RNA_pointer_create(ale->id, &RNA_Keyframe, bezt, &bezt_ptr);
+		
+		/* get property that F-Curve affects, for some unit-conversion magic */
+		RNA_id_pointer_create(ale->id, &id_ptr);
+		if (RNA_path_resolve(&id_ptr, fcu->rna_path, &fcu_prop_ptr, &fcu_prop) && fcu_prop) {
+			/* determine the unit for this property */
+			unit = RNA_SUBTYPE_UNIT(RNA_property_subtype(fcu_prop));
+		}		
 		
 		/* interpolation */
 		col= uiLayoutColumn(layout, 0);
 			uiItemR(col, &bezt_ptr, "interpolation", 0, NULL, ICON_NONE);
 			
-		/* numerical coordinate editing */
+		/* numerical coordinate editing 
+		 * 	- we use the button-versions of the calls so that we can attach special update handlers
+		 * 	  and unit conversion magic that cannot be achieved using a purely RNA-approach
+		 */
+		// XXX: 
 		col= uiLayoutColumn(layout, 1);
 			/* keyframe itself */
-			uiItemR(col, &bezt_ptr, "co", 0, "Key", ICON_NONE);
+			{
+				uiItemL(col, "Key:", ICON_NONE);
+				
+				but = uiDefButR(block, NUM, B_REDR, "Frame", 0, 0, UI_UNIT_X, UI_UNIT_Y, &bezt_ptr, "co", 0, 0, 0, -1, -1, NULL);
+				uiButSetFunc(but, graphedit_activekey_update_cb, fcu, bezt);
+				
+				but = uiDefButR(block, NUM, B_REDR, "Value", 0, 0, UI_UNIT_X, UI_UNIT_Y, &bezt_ptr, "co", 1, 0, 0, -1, -1, NULL);
+				uiButSetFunc(but, graphedit_activekey_update_cb, fcu, bezt);
+				uiButSetUnitType(but, unit);
+			}
 			
 			/* previous handle - only if previous was Bezier interpolation */
-			if ((prevbezt) && (prevbezt->ipo == BEZT_IPO_BEZ))
-				uiItemR(col, &bezt_ptr, "handle_left", 0, NULL, ICON_NONE);
+			if ((prevbezt) && (prevbezt->ipo == BEZT_IPO_BEZ)) {
+				uiItemL(col, "Left Handle:", ICON_NONE);
+				
+				but = uiDefButR(block, NUM, B_REDR, "X", 0, 0, UI_UNIT_X, UI_UNIT_Y, &bezt_ptr, "handle_left", 0, 0, 0, -1, -1, NULL);
+				uiButSetFunc(but, graphedit_activekey_handles_cb, fcu, bezt);		
+				
+				but = uiDefButR(block, NUM, B_REDR, "Y", 0, 0, UI_UNIT_X, UI_UNIT_Y, &bezt_ptr, "handle_left", 1, 0, 0, -1, -1, NULL);
+				uiButSetFunc(but, graphedit_activekey_handles_cb, fcu, bezt);
+				uiButSetUnitType(but, unit);
+			}
 			
 			/* next handle - only if current is Bezier interpolation */
-			if (bezt->ipo == BEZT_IPO_BEZ)
-				uiItemR(col, &bezt_ptr, "handle_right", 0, NULL, ICON_NONE);
+			if (bezt->ipo == BEZT_IPO_BEZ) {
+				uiItemL(col, "Right Handle:", ICON_NONE);
+				
+				but = uiDefButR(block, NUM, B_REDR, "X", 0, 0, UI_UNIT_X, UI_UNIT_Y, &bezt_ptr, "handle_right", 0, 0, 0, -1, -1, NULL);
+				uiButSetFunc(but, graphedit_activekey_handles_cb, fcu, bezt);
+				
+				but = uiDefButR(block, NUM, B_REDR, "Y", 0, 0, UI_UNIT_X, UI_UNIT_Y, &bezt_ptr, "handle_right", 1, 0, 0, -1, -1, NULL);
+				uiButSetFunc(but, graphedit_activekey_handles_cb, fcu, bezt);
+				uiButSetUnitType(but, unit);
+			}
 	}
 	else {
 		if ((fcu->bezt == NULL) && (fcu->modifiers.first)) {
@@ -472,7 +539,7 @@ static void graph_panel_driverVar__locDiff(uiLayout *layout, ID *id, DriverVar *
 			uiItemPointerR(col, &dtar_ptr, "bone_target", &tar_ptr, "bones", "", ICON_BONE_DATA);
 		}
 		
-		uiItemR(col, &dtar_ptr, "use_local_space_transform", 0, NULL, ICON_NONE);
+		uiItemR(col, &dtar_ptr, "transform_space", 0, NULL, ICON_NONE);
 	
 	col= uiLayoutColumn(layout, 1);
 		uiTemplateAnyID(col, &dtar2_ptr, "id", "id_type", "Ob/Bone 2:");
@@ -484,7 +551,7 @@ static void graph_panel_driverVar__locDiff(uiLayout *layout, ID *id, DriverVar *
 			uiItemPointerR(col, &dtar2_ptr, "bone_target", &tar_ptr, "bones", "", ICON_BONE_DATA);
 		}
 		
-		uiItemR(col, &dtar2_ptr, "use_local_space_transform", 0, NULL, ICON_NONE);
+		uiItemR(col, &dtar2_ptr, "transform_space", 0, NULL, ICON_NONE);
 }
 
 /* settings for 'transform channel' driver variable type */
@@ -493,7 +560,7 @@ static void graph_panel_driverVar__transChan(uiLayout *layout, ID *id, DriverVar
 	DriverTarget *dtar= &dvar->targets[0];
 	Object *ob = (Object *)dtar->id;
 	PointerRNA dtar_ptr;
-	uiLayout *col, *row;
+	uiLayout *col, *subcol;
 	
 	/* initialise RNA pointer to the target */
 	RNA_pointer_create(id, &RNA_DriverTarget, dtar, &dtar_ptr); 
@@ -509,9 +576,9 @@ static void graph_panel_driverVar__transChan(uiLayout *layout, ID *id, DriverVar
 			uiItemPointerR(col, &dtar_ptr, "bone_target", &tar_ptr, "bones", "", ICON_BONE_DATA);
 		}
 		
-		row= uiLayoutRow(layout, 1);
-			uiItemR(row, &dtar_ptr, "transform_type", 0, "", ICON_NONE);
-			uiItemR(row, &dtar_ptr, "use_local_space_transform", 0, NULL, ICON_NONE);
+		subcol= uiLayoutColumn(layout, 1);
+			uiItemR(subcol, &dtar_ptr, "transform_type", 0, NULL, ICON_NONE);
+			uiItemR(subcol, &dtar_ptr, "transform_space", 0, "Space", ICON_NONE);
 }
 
 /* driver settings for active F-Curve (only for 'Drivers' mode) */
@@ -608,7 +675,7 @@ static void graph_panel_drivers(const bContext *C, Panel *pa)
 				
 				/* remove button */
 				uiBlockSetEmboss(block, UI_EMBOSSN);
-					but= uiDefIconBut(block, BUT, B_IPO_DEPCHANGE, ICON_X, 290, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0.0, 0.0, 0.0, 0.0, "Delete target variable.");
+					but= uiDefIconBut(block, BUT, B_IPO_DEPCHANGE, ICON_X, 290, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0.0, 0.0, 0.0, 0.0, "Delete target variable");
 					uiButSetFunc(but, driver_delete_var_cb, driver, dvar);
 				uiBlockSetEmboss(block, UI_EMBOSS);
 			
@@ -659,7 +726,6 @@ static void graph_panel_drivers(const bContext *C, Panel *pa)
 static void do_graph_region_modifier_buttons(bContext *C, void *UNUSED(arg), int event)
 {
 	switch (event) {
-		case B_REDR:
 		case B_FMODIFIER_REDRAW: // XXX this should send depsgraph updates too
 			WM_event_add_notifier(C, NC_ANIMATION, NULL); // XXX need a notifier specially for F-Modifiers
 			break;
@@ -686,7 +752,8 @@ static void graph_panel_modifiers(const bContext *C, Panel *pa)
 		block= uiLayoutGetBlock(row);
 		
 		// XXX for now, this will be a operator button which calls a 'add modifier' operator
-		uiDefButO(block, BUT, "GRAPH_OT_fmodifier_add", WM_OP_INVOKE_REGION_WIN, "Add Modifier", 10, 0, 150, 20, "Adds a new F-Curve Modifier for the active F-Curve");
+		uiDefButO(block, BUT, "GRAPH_OT_fmodifier_add", WM_OP_INVOKE_REGION_WIN, UI_translate_do_iface(N_("Add Modifier")), 10, 0, 150, 20,
+				UI_translate_do_tooltip(N_("Adds a new F-Curve Modifier for the active F-Curve")));
 		
 		/* copy/paste (as sub-row)*/
 		row= uiLayoutRow(row, 1);

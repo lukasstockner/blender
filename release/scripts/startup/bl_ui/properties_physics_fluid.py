@@ -46,7 +46,7 @@ class PHYSICS_PT_fluid(PhysicButtonsPanel, Panel):
 
             row = layout.row()
             if fluid is None:
-                row.label("built without fluids")
+                row.label("Built without fluids")
                 return
 
             row.prop(fluid, "type")
@@ -58,7 +58,7 @@ class PHYSICS_PT_fluid(PhysicButtonsPanel, Panel):
                 layout.active = fluid.use
 
             if fluid.type == 'DOMAIN':
-                layout.operator("fluid.bake", text="Bake (Req. Memory: %s)" % fluid.memory_estimate, icon='MOD_FLUIDSIM')
+                layout.operator("fluid.bake", text="Bake (Req. Memory:" + " %s)" % fluid.memory_estimate, icon='MOD_FLUIDSIM')
                 split = layout.split()
 
                 col = split.column()

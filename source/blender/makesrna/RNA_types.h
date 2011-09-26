@@ -99,7 +99,10 @@ typedef enum PropertyUnit {
 
 #define RNA_ENUM_BITFLAG_SIZE 32
 
-/* also update enums in bpy_props.c when adding items here */
+/* also update enums in bpy_props.c when adding items here
+ * watch it: these values are written to files as part of
+ * node socket button subtypes!
+ */
 typedef enum PropertySubType {
 	PROP_NONE = 0,
 
@@ -107,6 +110,7 @@ typedef enum PropertySubType {
 	PROP_FILEPATH = 1,
 	PROP_DIRPATH = 2,
 	PROP_FILENAME = 3,
+	PROP_TRANSLATE = 4, /* a string which should be translated */
 
 	/* numbers */
 	PROP_UNSIGNED = 13,

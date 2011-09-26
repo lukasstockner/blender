@@ -51,6 +51,7 @@ struct Curve;
 struct EditBone;
 struct EditFace;
 struct EditMesh;
+struct EnvMap;
 struct ID;
 struct FCurve;
 struct ImBuf;
@@ -80,6 +81,7 @@ struct SculptSession;
 struct ShadeInput;
 struct ShadeResult;
 struct SpaceImage;
+struct SpaceNode;
 struct Tex;
 struct TexResult;
 struct Text;
@@ -103,7 +105,6 @@ struct bPythonConstraint;
 struct bConstraintOb;
 struct Context;
 struct ChannelDriver;
-
 
 /*new render funcs */
 float *RE_RenderLayerGetPass(struct RenderLayer *rl, int passtype) {return (float *) NULL;}
@@ -145,6 +146,7 @@ double elbeemEstimateMemreq(int res, float sx, float sy, float sz, int refine, c
 struct Render *RE_NewRender(const char *name){return (struct Render*) NULL;}
 void RE_SwapResult(struct Render *re, struct RenderResult **rr){}
 void RE_BlenderFrame(struct Render *re, struct Scene *scene, int frame){}
+int RE_WriteEnvmapResult(struct ReportList *reports, struct Scene *scene, struct EnvMap *env, const char *relpath, int imtype, float layout[12]) { return 0; }
 
 /* rna */
 float *give_cursor(struct Scene *scene, struct View3D *v3d){return (float *) NULL;}
@@ -228,6 +230,7 @@ int ANIM_scene_get_keyingset_index(struct Scene *scene, struct KeyingSet *ks){re
 struct ListBase builtin_keyingsets;
 void ANIM_keyingset_info_register (struct KeyingSetInfo *ksi){}
 void ANIM_keyingset_info_unregister (const struct bContext *C, struct KeyingSetInfo *ksi){}
+short ANIM_validate_keyingset (struct bContext *C, struct ListBase *dsources, struct KeyingSet *ks){return 0;}
 short ANIM_add_driver(struct ID *id, const char rna_path[], int array_index, short flag, int type){return 0;}
 short ANIM_remove_driver (struct ID *id, const char rna_path[], int array_index, short flag){return 0;}
 void ED_space_image_release_buffer(struct SpaceImage *sima, void *lock){}
@@ -243,6 +246,7 @@ void WM_cursor_wait (int val) {}
 void ED_node_texture_default(struct Tex *tx){}
 void ED_node_changed_update(struct bContext *C, struct bNode *node){}
 void ED_node_generic_update(struct Main *bmain, struct bNodeTree *ntree, struct bNode *node){}
+void ED_node_tree_update(struct SpaceNode *snode, struct Scene *scene){}
 void ED_view3d_scene_layers_update(struct Main *bmain, struct Scene *scene){}
 int ED_view3d_scene_layer_set(int lay, const int *values){return 0;}
 void ED_view3d_quadview_update(struct ScrArea *sa, struct ARegion *ar){}
@@ -293,8 +297,6 @@ void ED_sequencer_update_view(struct bContext *C, int view){}
 float ED_rollBoneToVector(struct EditBone *bone, float new_up_axis[3]){return 0.0f;}
 void ED_space_image_size(struct SpaceImage *sima, int *width, int *height){}
 
-struct ListBase *ED_curve_editnurbs(struct Curve *cu){return NULL;}
-void free_curve_editNurb (struct Curve *cu){}
 void ED_nurb_set_spline_type(struct Nurb *nu, int type){}
 
 void EM_selectmode_set(struct EditMesh *em){}
@@ -338,6 +340,7 @@ void uiItemS(struct uiLayout *layout){}
 void uiItemFullR(struct uiLayout *layout, struct PointerRNA *ptr, struct PropertyRNA *prop, int index, int value, int flag, char *name, int icon){}
 void uiLayoutSetContextPointer(struct uiLayout *layout, char *name, struct PointerRNA *ptr){}
 char *uiLayoutIntrospect(struct uiLayout *layout){return (char *)NULL;}
+void UI_reinit_font() {}
 
 /* rna template */
 void uiTemplateAnyID(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, char *propname, char *text){}

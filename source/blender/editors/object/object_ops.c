@@ -117,6 +117,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_armature_add);
 	WM_operatortype_append(OBJECT_OT_lamp_add);
 	WM_operatortype_append(OBJECT_OT_camera_add);
+	WM_operatortype_append(OBJECT_OT_speaker_add);
 	WM_operatortype_append(OBJECT_OT_add);
 	WM_operatortype_append(OBJECT_OT_add_named);
 	WM_operatortype_append(OBJECT_OT_effector_add);
@@ -173,6 +174,8 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_vertex_group_copy);
 	WM_operatortype_append(OBJECT_OT_vertex_group_normalize);
 	WM_operatortype_append(OBJECT_OT_vertex_group_normalize_all);
+	WM_operatortype_append(OBJECT_OT_vertex_group_lock);
+	WM_operatortype_append(OBJECT_OT_vertex_group_fix);
 	WM_operatortype_append(OBJECT_OT_vertex_group_invert);
 	WM_operatortype_append(OBJECT_OT_vertex_group_levels);
 	WM_operatortype_append(OBJECT_OT_vertex_group_blend);
@@ -211,7 +214,14 @@ void ED_operatortypes_object(void)
 
 	WM_operatortype_append(OBJECT_OT_bake_image);
 	WM_operatortype_append(OBJECT_OT_drop_named_material);
+
+#ifdef WITH_GAMEENGINE
+	WM_operatortype_append(OBJECT_OT_create_navmesh);
+	WM_operatortype_append(OBJECT_OT_assign_navpolygon);
+	WM_operatortype_append(OBJECT_OT_assign_new_navpolygon);
+#endif
 }
+
 
 void ED_operatormacros_object(void)
 {
@@ -220,6 +230,7 @@ void ED_operatormacros_object(void)
 	
 	ot= WM_operatortype_append_macro("OBJECT_OT_duplicate_move", "Duplicate Objects", OPTYPE_UNDO|OPTYPE_REGISTER);
 	if(ot) {
+		ot->description = "Duplicate selected objects and move them";
 		WM_operatortype_macro_define(ot, "OBJECT_OT_duplicate");
 		otmacro= WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
 		RNA_enum_set(otmacro->ptr, "proportional", PROP_EDIT_OFF);
@@ -228,6 +239,7 @@ void ED_operatormacros_object(void)
 	/* grr, should be able to pass options on... */
 	ot= WM_operatortype_append_macro("OBJECT_OT_duplicate_move_linked", "Duplicate Linked", OPTYPE_UNDO|OPTYPE_REGISTER);
 	if(ot) {
+		ot->description = "Duplicate selected objects and move them";
 		otmacro= WM_operatortype_macro_define(ot, "OBJECT_OT_duplicate");
 		RNA_boolean_set(otmacro->ptr, "linked", 1);
 		otmacro= WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
@@ -237,7 +249,8 @@ void ED_operatormacros_object(void)
 	/* XXX */
 	ot= WM_operatortype_append_macro("OBJECT_OT_add_named_cursor", "Add named object at cursor", OPTYPE_UNDO|OPTYPE_REGISTER);
 	if(ot) {
-		RNA_def_string(ot->srna, "name", "Cube", 24, "Name", "Object name to add.");
+		ot->description = "Add named object at cursor";
+		RNA_def_string(ot->srna, "name", "Cube", 24, "Name", "Object name to add");
 
 		WM_operatortype_macro_define(ot, "VIEW3D_OT_cursor3d");
 		WM_operatortype_macro_define(ot, "OBJECT_OT_add_named");

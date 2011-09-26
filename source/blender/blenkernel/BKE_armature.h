@@ -1,6 +1,4 @@
 /*
- * $Id$ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -101,6 +99,8 @@ void where_is_pose_bone_tail(struct bPoseChannel *pchan);
 void get_objectspace_bone_matrix (struct Bone* bone, float M_accumulatedMatrix[][4], int root, int posed);
 void vec_roll_to_mat3(float *vec, float roll, float mat[][3]);
 void mat3_to_vec_roll(float mat[][3], float *vec, float *roll);
+
+int get_selected_defgroups(struct Object *ob, char *defbase_sel, int defbase_len);
 
 /* Common Conversions Between Co-ordinate Spaces */
 void armature_mat_world_to_pose(struct Object *ob, float inmat[][4], float outmat[][4]);

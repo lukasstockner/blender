@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -40,6 +38,7 @@
 #include "BLI_blenlib.h"
 
 #include "ED_anim_api.h"
+#include "ED_markers.h"
 #include "ED_transform.h"
 
 #include "action_intern.h"
@@ -95,6 +94,7 @@ void ED_operatormacros_action(void)
 	
 	ot= WM_operatortype_append_macro("ACTION_OT_duplicate_move", "Duplicate", OPTYPE_UNDO|OPTYPE_REGISTER);
 	if (ot) {
+		ot->description= "Make a copy of all selected keyframes and move them";
 		WM_operatortype_macro_define(ot, "ACTION_OT_duplicate");
 		otmacro= WM_operatortype_macro_define(ot, "TRANSFORM_OT_transform");
 		RNA_enum_set(otmacro->ptr, "mode", TFM_TIME_DUPLICATE);
@@ -162,7 +162,7 @@ static void action_keymap_keyframes (wmKeyConfig *keyconf, wmKeyMap *keymap)
 	
 		/* menu + set setting */
 	WM_keymap_add_item(keymap, "ACTION_OT_handle_type", VKEY, KM_PRESS, 0, 0);
-	WM_keymap_add_item(keymap, "ACTION_OT_interpolation_type", TKEY, KM_PRESS, KM_SHIFT, 0);
+	WM_keymap_add_item(keymap, "ACTION_OT_interpolation_type", TKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "ACTION_OT_extrapolation_type", EKEY, KM_PRESS, KM_SHIFT, 0); 
 	WM_keymap_add_item(keymap, "ACTION_OT_keyframe_type", RKEY, KM_PRESS, 0, 0); 
 	
@@ -193,6 +193,9 @@ static void action_keymap_keyframes (wmKeyConfig *keyconf, wmKeyMap *keymap)
 	
 	/* transform system */
 	transform_keymap_for_space(keyconf, keymap, SPACE_ACTION);
+	
+	/* special markers hotkeys for anim editors: see note in definition of this function */
+	ED_marker_keymap_animedit_conflictfree(keymap);
 }
 
 /* --------------- */

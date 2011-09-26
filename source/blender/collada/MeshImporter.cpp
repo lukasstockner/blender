@@ -221,7 +221,7 @@ void MeshImporter::set_face_uv(MTFace *mtface, UVDataWrapper &uvs,
 	if (quad) uvs.getUV(indices[index + 3], mtface->uv[3]);
 
 #ifdef COLLADA_DEBUG
-	/*if (quad) {
+	if (quad) {
 		fprintf(stderr, "face uv:\n"
 				"((%d, %d, %d, %d))\n"
 				"((%.1f, %.1f), (%.1f, %.1f), (%.1f, %.1f), (%.1f, %.1f))\n",
@@ -248,7 +248,7 @@ void MeshImporter::set_face_uv(MTFace *mtface, UVDataWrapper &uvs,
 				mtface->uv[0][0], mtface->uv[0][1],
 				mtface->uv[1][0], mtface->uv[1][1],
 				mtface->uv[2][0], mtface->uv[2][1]);
-	}*/
+	}
 #endif
 }
 
@@ -411,7 +411,7 @@ int MeshImporter::count_new_tris(COLLADAFW::Mesh *mesh, Mesh *me)
 }
 
 // TODO: import uv set names
-void MeshImporter::read_faces(COLLADAFW::Mesh *mesh, Mesh *me, int new_tris)        //TODO:: Refactor. Possibly replace by iterators
+void MeshImporter::read_faces(COLLADAFW::Mesh *mesh, Mesh *me, int new_tris) //TODO:: Refactor. Possibly replace by iterators
 {
 	unsigned int i;
 	
@@ -466,7 +466,7 @@ void MeshImporter::read_faces(COLLADAFW::Mesh *mesh, Mesh *me, int new_tris)    
 
 		if (has_normals && mp->getPositionIndices().getCount() != mp->getNormalIndices().getCount()) {
 			fprintf(stderr, "Warning: Number of normals is different from the number of vertcies, skipping normals\n");
-	 		has_normals = false;
+			has_normals = false;
 		}
 
 		unsigned int j, k;
@@ -587,7 +587,7 @@ void MeshImporter::read_faces(COLLADAFW::Mesh *mesh, Mesh *me, int new_tris)    
 					for (k = 0; k < index_list_array.getCount(); k++) {
 						// get mtface by face index and uv set index
 						MTFace *mtface = (MTFace*)CustomData_get_layer_n(&me->fdata, CD_MTFACE, k);
-						set_face_uv(&mtface[face_index], uvs, *index_list_array[k], index, mface->v4 != 0);
+						set_face_uv(&mtface[face_index], uvs, *index_list_array[k], index, vcount == 4);
 					}
 #endif
 
@@ -778,7 +778,7 @@ MTFace *MeshImporter::assign_material_to_geom(COLLADAFW::MaterialBinding cmateri
 								std::map<COLLADAFW::UniqueId, Material*>& uid_material_map,
 								Object *ob, const COLLADAFW::UniqueId *geom_uid, 
 								MTex **color_texture, char *layername, MTFace *texture_face,
-								std::map<Material*, TexIndexTextureArrayMap>& material_texture_mapping_map, int mat_index)
+								std::map<Material*, TexIndexTextureArrayMap>& material_texture_mapping_map, short mat_index)
 {
 	Mesh *me = (Mesh*)ob->data;
 	const COLLADAFW::UniqueId& ma_uid = cmaterial.getReferencedMaterial();
@@ -796,7 +796,7 @@ MTFace *MeshImporter::assign_material_to_geom(COLLADAFW::MaterialBinding cmateri
 	std::multimap<COLLADAFW::UniqueId, COLLADAFW::UniqueId>::iterator it;
 	it=materials_mapped_to_geom.find(*geom_uid);
 	while(it!=materials_mapped_to_geom.end()) {
-		if(it->second == ma_uid) return NULL; // do nothing if already found
+		if(it->second == ma_uid && it->first == *geom_uid) return NULL; // do nothing if already found
 		it++;
 	}
 	// first time we get geom_uid, ma_uid pair. Save for later check.

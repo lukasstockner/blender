@@ -55,9 +55,11 @@
 #include "BIF_gl.h"
 
 #include "BLF_api.h"
+#include "BLF_translation.h"
 
 #include "UI_interface.h"
 
+#include "IMB_imbuf.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -92,19 +94,46 @@ static void ui_free_but(const bContext *C, uiBut *but);
 
 /* ************* translation ************** */
 
-int ui_translate_buttons(void)
+int UI_translate_iface(void)
 {
-	return (U.transopts & USER_TR_BUTTONS);
+#ifdef INTERNATIONAL
+	return (U.transopts & USER_DOTRANSLATE) && (U.transopts & USER_TR_IFACE);
+#else
+	return 0;
+#endif
 }
 
-int ui_translate_menus(void)
+int UI_translate_tooltips(void)
 {
-	return (U.transopts & USER_TR_MENUS);
+#ifdef INTERNATIONAL
+	return (U.transopts & USER_DOTRANSLATE) && (U.transopts & USER_TR_TOOLTIPS);
+#else
+	return 0;
+#endif
 }
 
-int ui_translate_tooltips(void)
+const char *UI_translate_do_iface(const char *msgid)
 {
-	return (U.transopts & USER_TR_TOOLTIPS);
+#ifdef INTERNATIONAL
+	if(UI_translate_iface())
+		return BLF_gettext(msgid);
+	else
+		return msgid;
+#else
+	return msgid;
+#endif
+}
+
+const char *UI_translate_do_tooltip(const char *msgid)
+{
+#ifdef INTERNATIONAL
+	if(UI_translate_tooltips())
+		return BLF_gettext(msgid);
+	else
+		return msgid;
+#else
+	return msgid;
+#endif
 }
 
 /* ************* window matrix ************** */
@@ -228,7 +257,7 @@ void ui_block_translate(uiBlock *block, int x, int y)
 
 static void ui_text_bounds_block(uiBlock *block, float offset)
 {
-	uiStyle *style= U.uistyles.first;	// XXX pass on as arg
+	uiStyle *style=UI_GetStyle();
 	uiBut *bt;
 	int i = 0, j, x1addval= offset, nextcol;
 	int lastcol= 0, col= 0;
@@ -237,9 +266,6 @@ static void ui_text_bounds_block(uiBlock *block, float offset)
 	
 	for(bt= block->buttons.first; bt; bt= bt->next) {
 		if(bt->type!=SEPR) {
-			//int transopts= ui_translate_buttons();
-			//if(bt->type==TEX || bt->type==IDPOIN) transopts= 0;
-			
 			j= BLF_width(style->widget.uifont_id, bt->drawstr);
 
 			if(j > i) i = j;
@@ -929,7 +955,7 @@ static void ui_but_to_pixelrect(rcti *rect, const ARegion *ar, uiBlock *block, u
 /* uses local copy of style, to scale things down, and allow widgets to change stuff */
 void uiDrawBlock(const bContext *C, uiBlock *block)
 {
-	uiStyle style= *((uiStyle *)U.uistyles.first);	// XXX pass on as arg
+	uiStyle style= *UI_GetStyle();	// XXX pass on as arg
 	ARegion *ar;
 	uiBut *but;
 	rcti rect;
@@ -1721,6 +1747,10 @@ int ui_set_but_string(bContext *C, uiBut *but, const char *str)
 		/* driver expression */
 		return 1;
 	}
+	else if(str[0]=='#') {
+		/* shortcut to create new driver expression (versus immediate Py-execution) */
+		return ui_but_anim_expression_create(but, str+1);
+	}
 	else {
 		/* number editing */
 		double value;
@@ -1890,6 +1920,8 @@ static void ui_free_but(const bContext *C, uiBut *but)
 	if(but->str && but->str != but->strdata) MEM_freeN(but->str);
 	ui_free_link(but->link);
 
+	if((but->type == BUT_IMAGE) && but->poin) IMB_freeImBuf((struct ImBuf *)but->poin);
+
 	MEM_freeN(but);
 }
 
@@ -1902,6 +1934,9 @@ void uiFreeBlock(const bContext *C, uiBlock *block)
 		BLI_remlink(&block->buttons, but);	
 		ui_free_but(C, but);
 	}
+
+	if(block->unit)
+		MEM_freeN(block->unit);
 
 	if(block->func_argN)
 		MEM_freeN(block->func_argN);
@@ -1978,10 +2013,15 @@ uiBlock *uiBeginBlock(const bContext *C, ARegion *region, const char *name, shor
 	block->active= 1;
 	block->dt= dt;
 	block->evil_C= (void*)C; // XXX
+
 	if (scn) {
 		block->color_profile= (scn->r.color_mgt_flag & R_COLOR_MANAGEMENT);
-		block->unit= &scn->unit;
+
+		/* copy to avoid crash when scene gets deleted with ui still open */
+		block->unit= MEM_mallocN(sizeof(scn->unit), "UI UnitSettings");
+		memcpy(block->unit, &scn->unit, sizeof(scn->unit));
 	}
+
 	BLI_strncpy(block->name, name, sizeof(block->name));
 
 	if(region)
@@ -2026,12 +2066,9 @@ void ui_check_but(uiBut *but)
 	/* if something changed in the button */
 	double value= UI_BUT_VALUE_UNSET;
 //	float okwidth; // UNUSED
-//	int transopts= ui_translate_buttons();
 	
 	ui_is_but_sel(but, &value);
 	
-//	if(but->type==TEX || but->type==IDPOIN) transopts= 0;
-
 	/* only update soft range while not editing */
 	if(but->rnaprop && !(but->editval || but->editstr || but->editvec)) {
 		UI_GET_BUT_VALUE_INIT(but, value)
@@ -2540,7 +2577,7 @@ static uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, const char *s
 			DynStr *dynstr;
 			int i, totitem, value, free;
 
-			RNA_property_enum_items(block->evil_C, ptr, prop, &item, &totitem, &free);
+			RNA_property_enum_items_gettexted(block->evil_C, ptr, prop, &item, &totitem, &free);
 			value= RNA_property_enum_get(ptr, prop);
 
 			dynstr= BLI_dynstr_new();
@@ -2575,7 +2612,7 @@ static uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, const char *s
 			EnumPropertyItem *item;
 			int i, totitem, free;
 
-			RNA_property_enum_items(block->evil_C, ptr, prop, &item, &totitem, &free);
+			RNA_property_enum_items_gettexted(block->evil_C, ptr, prop, &item, &totitem, &free);
 			for(i=0; i<totitem; i++) {
 				if(item[i].identifier[0] && item[i].value == (int)max) {
 					str= item[i].name;
@@ -2703,6 +2740,11 @@ static uiBut *ui_def_but_operator(uiBlock *block, int type, const char *opname, 
 	
 	if ((!tip || tip[0]=='\0') && ot && ot->description) {
 		tip= ot->description;
+
+#ifdef INTERNATIONAL
+		if(UI_translate_tooltips())
+			tip= BLF_gettext(tip);
+#endif
 	}
 
 	but= ui_def_but(block, type, -1, str, x1, y1, x2, y2, NULL, 0, 0, 0, 0, tip);
@@ -3242,11 +3284,17 @@ void uiButSetUnitType(uiBut *but, const int unit_type)
 
 int uiButGetUnitType(uiBut *but)
 {
-	if(but->rnaprop) {
-		return RNA_SUBTYPE_UNIT(RNA_property_subtype(but->rnaprop));
+	int ownUnit = (int)but->unit_type;
+	
+	/* own unit define always takes precidence over RNA provided, allowing for overriding 
+	 * default value provided in RNA in a few special cases (i.e. Active Keyframe in Graph Edit)
+	 */
+	// XXX: this doesn't allow clearing unit completely, though the same could be said for icons
+	if ((ownUnit != 0) || (but->rnaprop == NULL)) {
+		return ownUnit << 16;
 	}
 	else {
-		return ((int)but->unit_type)<<16;
+		return RNA_SUBTYPE_UNIT(RNA_property_subtype(but->rnaprop));
 	}
 }
 
@@ -3509,6 +3557,11 @@ void UI_init_userdef(void)
 {
 	/* fix saved themes */
 	init_userdef_do_versions();
+	uiStyleInit();
+}
+
+void UI_reinit_font()
+{
 	uiStyleInit();
 }
 

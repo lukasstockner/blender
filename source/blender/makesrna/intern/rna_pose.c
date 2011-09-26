@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -44,6 +42,20 @@
 #include "BLI_math.h"
 
 #include "WM_types.h"
+
+
+
+// XXX: this RNA enum define is currently duplicated for objects, since there is some text here which is not applicable
+EnumPropertyItem posebone_rotmode_items[] = {
+	{ROT_MODE_QUAT, "QUATERNION", 0, "Quaternion (WXYZ)", "No Gimbal Lock (default)"},
+	{ROT_MODE_XYZ, "XYZ", 0, "XYZ Euler", "XYZ Rotation Order. Prone to Gimbal Lock"},
+	{ROT_MODE_XZY, "XZY", 0, "XZY Euler", "XZY Rotation Order. Prone to Gimbal Lock"},
+	{ROT_MODE_YXZ, "YXZ", 0, "YXZ Euler", "YXZ Rotation Order. Prone to Gimbal Lock"},
+	{ROT_MODE_YZX, "YZX", 0, "YZX Euler", "YZX Rotation Order. Prone to Gimbal Lock"},
+	{ROT_MODE_ZXY, "ZXY", 0, "ZXY Euler", "ZXY Rotation Order. Prone to Gimbal Lock"},
+	{ROT_MODE_ZYX, "ZYX", 0, "ZYX Euler", "ZYX Rotation Order. Prone to Gimbal Lock"},
+	{ROT_MODE_AXISANGLE, "AXIS_ANGLE", 0, "Axis Angle", "Axis Angle (W+XYZ). Defines a rotation around some axis defined by 3D-Vector"},
+	{0, NULL, 0, NULL, NULL}};
 
 #ifdef RNA_RUNTIME
 
@@ -210,7 +222,7 @@ static void rna_PoseChannel_name_set(PointerRNA *ptr, const char *value)
 	char oldname[sizeof(pchan->name)], newname[sizeof(pchan->name)];
 
 	/* need to be on the stack */
-	BLI_strncpy(newname, value, sizeof(pchan->name));
+	BLI_strncpy_utf8(newname, value, sizeof(pchan->name));
 	BLI_strncpy(oldname, pchan->name, sizeof(pchan->name));
 
 	ED_armature_bone_rename(ob->data, oldname, newname);
@@ -399,7 +411,7 @@ static void rna_pose_bgroup_name_index_get(PointerRNA *ptr, char *value, int ind
 	grp= BLI_findlink(&pose->agroups, index-1);
 
 	if(grp) BLI_strncpy(value, grp->name, sizeof(grp->name));
-	else BLI_strncpy(value, "", sizeof(grp->name)); // XXX if invalid pointer, won't this crash?
+	else value[0]= '\0';
 }
 
 static int rna_pose_bgroup_name_index_length(PointerRNA *ptr, int index)
@@ -439,7 +451,7 @@ static void rna_pose_pgroup_name_set(PointerRNA *ptr, const char *value, char *r
 		}
 	}
 	
-	BLI_strncpy(result, "", maxlen);
+	result[0]= '\0';
 }
 #endif
 
@@ -467,7 +479,7 @@ static bConstraint *rna_PoseChannel_constraints_new(bPoseChannel *pchan, int typ
 static void rna_PoseChannel_constraints_remove(ID *id, bPoseChannel *pchan, ReportList *reports, bConstraint *con)
 {
 	if(BLI_findindex(&pchan->constraints, con) == -1) {
-		BKE_reportf(reports, RPT_ERROR, "Constraint '%s' not found in pose bone '%s'.", con->name, pchan->name);
+		BKE_reportf(reports, RPT_ERROR, "Constraint '%s' not found in pose bone '%s'", con->name, pchan->name);
 		return;
 	}
 	else {
@@ -702,34 +714,22 @@ static void rna_def_pose_channel_constraints(BlenderRNA *brna, PropertyRNA *cpro
 	func= RNA_def_function(srna, "new", "rna_PoseChannel_constraints_new");
 	RNA_def_function_ui_description(func, "Add a constraint to this object");
 	/* return type */
-	parm= RNA_def_pointer(func, "constraint", "Constraint", "", "New constraint.");
+	parm= RNA_def_pointer(func, "constraint", "Constraint", "", "New constraint");
 	RNA_def_function_return(func, parm);
 	/* constraint to add */
-	parm= RNA_def_enum(func, "type", constraint_type_items, 1, "", "Constraint type to add.");
+	parm= RNA_def_enum(func, "type", constraint_type_items, 1, "", "Constraint type to add");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 
 	func= RNA_def_function(srna, "remove", "rna_PoseChannel_constraints_remove");
-	RNA_def_function_ui_description(func, "Remove a constraint from this object.");
+	RNA_def_function_ui_description(func, "Remove a constraint from this object");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS|FUNC_USE_SELF_ID); /* ID needed for refresh */
 	/* constraint to remove */
-	parm= RNA_def_pointer(func, "constraint", "Constraint", "", "Removed constraint.");
+	parm= RNA_def_pointer(func, "constraint", "Constraint", "", "Removed constraint");
 	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_NEVER_NULL);
 }
 
 static void rna_def_pose_channel(BlenderRNA *brna)
-{
-	// XXX: this RNA enum define is currently duplicated for objects, since there is some text here which is not applicable
-	static EnumPropertyItem prop_rotmode_items[] = {
-		{ROT_MODE_QUAT, "QUATERNION", 0, "Quaternion (WXYZ)", "No Gimbal Lock (default)"},
-		{ROT_MODE_XYZ, "XYZ", 0, "XYZ Euler", "XYZ Rotation Order. Prone to Gimbal Lock"},
-		{ROT_MODE_XZY, "XZY", 0, "XZY Euler", "XZY Rotation Order. Prone to Gimbal Lock"},
-		{ROT_MODE_YXZ, "YXZ", 0, "YXZ Euler", "YXZ Rotation Order. Prone to Gimbal Lock"},
-		{ROT_MODE_YZX, "YZX", 0, "YZX Euler", "YZX Rotation Order. Prone to Gimbal Lock"},
-		{ROT_MODE_ZXY, "ZXY", 0, "ZXY Euler", "ZXY Rotation Order. Prone to Gimbal Lock"},
-		{ROT_MODE_ZYX, "ZYX", 0, "ZYX Euler", "ZYX Rotation Order. Prone to Gimbal Lock"},
-		{ROT_MODE_AXISANGLE, "AXIS_ANGLE", 0, "Axis Angle", "Axis Angle (W+XYZ). Defines a rotation around some axis defined by 3D-Vector"},
-		{0, NULL, 0, NULL, NULL}};
-		
+{	
 	static float default_quat[4] = {1,0,0,0};	/* default quaternion values */
 	static float default_axisAngle[4] = {0,0,1,0};	/* default axis-angle rotation values */
 	static float default_scale[3] = {1,1,1}; /* default scale values */
@@ -807,7 +807,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 		 * having a single one is better for Keyframing and other property-management situations...
 		 */
 	prop= RNA_def_property(srna, "rotation_axis_angle", PROP_FLOAT, PROP_AXISANGLE);
-	RNA_def_property_array(prop, 4); // TODO: maybe we'll need to define the 'default value' getter too...
+	RNA_def_property_array(prop, 4);
 	RNA_def_property_float_funcs(prop, "rna_PoseChannel_rotation_axis_angle_get", "rna_PoseChannel_rotation_axis_angle_set", NULL);
 	RNA_def_property_editable_array_func(prop, "rna_PoseChannel_rotation_4d_editable");
 	RNA_def_property_float_array_default(prop, default_axisAngle);
@@ -824,7 +824,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 	
 	prop= RNA_def_property(srna, "rotation_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "rotmode");
-	RNA_def_property_enum_items(prop, prop_rotmode_items); // XXX move to using a single define of this someday
+	RNA_def_property_enum_items(prop, posebone_rotmode_items); // XXX move to using a single define of this someday
 	RNA_def_property_enum_funcs(prop, NULL, "rna_PoseChannel_rotation_mode_set", NULL);
 	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable"); // XXX... disabled, since proxy-locked layers are currently used for ensuring proxy-syncing too
 	RNA_def_property_ui_text(prop, "Rotation Mode", "");
@@ -840,7 +840,8 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 	/* writable because it touches loc/scale/rot directly */
 	prop= RNA_def_property(srna, "matrix_basis", PROP_FLOAT, PROP_MATRIX);
 	RNA_def_property_multi_array(prop, 2, matrix_dimsize);
-	RNA_def_property_ui_text(prop, "Basis Matrix", "Provides an alternative access to loc/scale/rotation relative to the parent and own rest bone.");
+	RNA_def_property_ui_text(prop, "Basis Matrix",
+	                         "Provides an alternative access to loc/scale/rotation relative to the parent and own rest bone");
 	RNA_def_property_float_funcs(prop, "rna_PoseChannel_matrix_basis_get", "rna_PoseChannel_matrix_basis_set", NULL);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_update(prop, NC_OBJECT|ND_POSE, "rna_Pose_update");

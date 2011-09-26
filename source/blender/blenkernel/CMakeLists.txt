@@ -35,7 +35,6 @@ set(INC
 	../blenfont
 	../blenlib
 	../blenloader
-	../editors/include
 	../gpu
 	../ikplugin
 	../imbuf
@@ -140,6 +139,7 @@ set(SRC
 	intern/smoke.c
 	intern/softbody.c
 	intern/sound.c
+	intern/speaker.c
 	intern/subsurf_ccg.c
 	intern/suggestions.c
 	intern/text.c
@@ -179,7 +179,6 @@ set(SRC
 	BKE_depsgraph.h
 	BKE_displist.h
 	BKE_effect.h
-	BKE_endian.h
 	BKE_fcurve.h
 	BKE_fluidsim.h
 	BKE_font.h
@@ -220,6 +219,7 @@ set(SRC
 	BKE_smoke.h
 	BKE_softbody.h
 	BKE_sound.h
+	BKE_speaker.h
 	BKE_subsurf.h
 	BKE_suggestions.h
 	BKE_text.h
@@ -349,6 +349,16 @@ if(WITH_LZMA)
 		../../../extern/lzma
 	)
 	add_definitions(-DWITH_LZMA)
+endif()
+
+if(WITH_GAMEENGINE)
+	list(APPEND INC_SYS
+	../../../extern/recastnavigation
+	)
+	list(APPEND SRC
+		intern/navmesh_conversion.c
+		BKE_navmesh_conversion.h
+	)
 endif()
 
 if(MSVC)

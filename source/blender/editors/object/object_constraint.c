@@ -567,7 +567,8 @@ static bConstraint *edit_constraint_property_get(wmOperator *op, Object *ob, int
 	}
 	
 	con = constraints_findByName(list, constraint_name);
-	printf("constraint found = %p, %s\n", (void *)con, (con)?con->name:"<Not found>");
+	//if (G.f & G_DEBUG)
+	//printf("constraint found = %p, %s\n", (void *)con, (con)?con->name:"<Not found>");
 
 	if (con && (type != 0) && (con->type != type))
 		con = NULL;
@@ -763,7 +764,7 @@ static int childof_clear_inverse_exec (bContext *C, wmOperator *op)
 	bChildOfConstraint *data= (con) ? (bChildOfConstraint *)con->data : NULL;
 	
 	if(data==NULL) {
-		BKE_report(op->reports, RPT_ERROR, "Childof constraint not found.");
+		BKE_report(op->reports, RPT_ERROR, "Childof constraint not found");
 		return OPERATOR_CANCELLED;
 	}
 	
@@ -986,7 +987,7 @@ static int pose_constraints_clear_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
-	Object *ob= ED_object_pose_armature(CTX_data_active_object(C));
+	Object *ob= object_pose_armature_get(CTX_data_active_object(C));
 	
 	/* free constraints for all selected bones */
 	CTX_DATA_BEGIN(C, bPoseChannel*, pchan, selected_pose_bones)
@@ -1094,7 +1095,7 @@ void POSE_OT_constraints_copy(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Copy Constraints to Selected";
 	ot->idname= "POSE_OT_constraints_copy";
-	ot->description = "Copy constraints to other selected bones.";
+	ot->description = "Copy constraints to other selected bones";
 	
 	/* api callbacks */
 	ot->exec= pose_constraint_copy_exec;
@@ -1114,14 +1115,19 @@ static int object_constraint_copy_exec(bContext *C, wmOperator *UNUSED(op))
 	CTX_DATA_BEGIN(C, Object*, ob, selected_editable_objects) 
 	{
 		/* if we're not handling the object we're copying from, copy all constraints over */
-		if (obact != ob)
+		if (obact != ob) {
 			copy_constraints(&ob->constraints, &obact->constraints, TRUE);
+			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+		}
 	}
 	CTX_DATA_END;
 	
 	/* force depsgraph to get recalculated since new relationships added */
 	DAG_scene_sort(bmain, scene);		/* sort order of objects */
-
+	
+	/* notifiers for updates */
+	WM_event_add_notifier(C, NC_OBJECT|ND_CONSTRAINT|NA_ADDED, NULL);
+	
 	return OPERATOR_FINISHED;
 }
 
@@ -1130,7 +1136,7 @@ void OBJECT_OT_constraints_copy(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Copy Constraints to Selected";
 	ot->idname= "OBJECT_OT_constraints_copy";
-	ot->description = "Copy constraints to other selected objects.";
+	ot->description = "Copy constraints to other selected objects";
 	
 	/* api callbacks */
 	ot->exec= object_constraint_copy_exec;
@@ -1296,7 +1302,7 @@ static int constraint_add_exec(bContext *C, wmOperator *op, Object *ob, ListBase
 		
 		/* ensure not to confuse object/pose adding */
 		if (pchan == NULL) {
-			BKE_report(op->reports, RPT_ERROR, "No active pose bone to add a constraint to.");
+			BKE_report(op->reports, RPT_ERROR, "No active pose bone to add a constraint to");
 			return OPERATOR_CANCELLED;
 		}
 	}
@@ -1305,15 +1311,15 @@ static int constraint_add_exec(bContext *C, wmOperator *op, Object *ob, ListBase
 		return OPERATOR_CANCELLED;
 	}
 	if ( (type == CONSTRAINT_TYPE_RIGIDBODYJOINT) && (list != &ob->constraints) ) {
-		BKE_report(op->reports, RPT_ERROR, "Rigid Body Joint Constraint can only be added to Objects.");
+		BKE_report(op->reports, RPT_ERROR, "Rigid Body Joint Constraint can only be added to Objects");
 		return OPERATOR_CANCELLED;
 	}
 	if ( (type == CONSTRAINT_TYPE_KINEMATIC) && ((!pchan) || (list != &pchan->constraints)) ) {
-		BKE_report(op->reports, RPT_ERROR, "IK Constraint can only be added to Bones.");
+		BKE_report(op->reports, RPT_ERROR, "IK Constraint can only be added to Bones");
 		return OPERATOR_CANCELLED;
 	}
 	if ( (type == CONSTRAINT_TYPE_SPLINEIK) && ((!pchan) || (list != &pchan->constraints)) ) {
-		BKE_report(op->reports, RPT_ERROR, "Spline IK Constraint can only be added to Bones.");
+		BKE_report(op->reports, RPT_ERROR, "Spline IK Constraint can only be added to Bones");
 		return OPERATOR_CANCELLED;
 	}
 	
@@ -1401,7 +1407,7 @@ static int object_constraint_add_exec(bContext *C, wmOperator *op)
 	short with_targets= 0;
 	
 	if (!ob) {
-		BKE_report(op->reports, RPT_ERROR, "No active object to add constraint to.");
+		BKE_report(op->reports, RPT_ERROR, "No active object to add constraint to");
 		return OPERATOR_CANCELLED;
 	}
 		
@@ -1417,12 +1423,12 @@ static int object_constraint_add_exec(bContext *C, wmOperator *op)
 /* dummy operator callback */
 static int pose_constraint_add_exec(bContext *C, wmOperator *op)
 {
-	Object *ob= ED_object_pose_armature(ED_object_active_context(C));
+	Object *ob= object_pose_armature_get(ED_object_active_context(C));
 	int type= RNA_enum_get(op->ptr, "type");
 	short with_targets= 0;
 	
 	if (!ob) {
-		BKE_report(op->reports, RPT_ERROR, "No active object to add constraint to.");
+		BKE_report(op->reports, RPT_ERROR, "No active object to add constraint to");
 		return OPERATOR_CANCELLED;
 	}
 		
@@ -1520,7 +1526,7 @@ void POSE_OT_constraint_add_with_targets(wmOperatorType *ot)
 /* present menu with options + validation for targets to use */
 static int pose_ik_add_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(evt))
 {
-	Object *ob= ED_object_pose_armature(CTX_data_active_object(C));
+	Object *ob= object_pose_armature_get(CTX_data_active_object(C));
 	bPoseChannel *pchan= get_active_posechannel(ob);
 	bConstraint *con= NULL;
 	
@@ -1531,7 +1537,7 @@ static int pose_ik_add_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(evt))
 	
 	/* must have active bone */
 	if (ELEM(NULL, ob, pchan)) {
-		BKE_report(op->reports, RPT_ERROR, "Must have active bone to add IK Constraint to.");
+		BKE_report(op->reports, RPT_ERROR, "Must have active bone to add IK Constraint to");
 		return OPERATOR_CANCELLED;
 	}
 	
@@ -1540,7 +1546,7 @@ static int pose_ik_add_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(evt))
 		if (con->type==CONSTRAINT_TYPE_KINEMATIC) break;
 	}
 	if (con) {
-		BKE_report(op->reports, RPT_ERROR, "Bone already has IK Constraint.");
+		BKE_report(op->reports, RPT_ERROR, "Bone already has IK Constraint");
 		return OPERATOR_CANCELLED;
 	}
 	
@@ -1604,7 +1610,7 @@ void POSE_OT_ik_add(wmOperatorType *ot)
 /* remove IK constraints from selected bones */
 static int pose_ik_clear_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Object *ob= ED_object_pose_armature(CTX_data_active_object(C));
+	Object *ob= object_pose_armature_get(CTX_data_active_object(C));
 	
 	/* only remove IK Constraints */
 	CTX_DATA_BEGIN(C, bPoseChannel*, pchan, selected_pose_bones) 

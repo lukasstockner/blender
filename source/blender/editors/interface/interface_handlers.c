@@ -1235,7 +1235,7 @@ static short test_special_char(char ch)
 		case ':':
 		case ';':
 		case '\'':
-		case '\"':
+		case '\"': // " - an extra closing one for Aligorith's text editor
 		case '<':
 		case '>':
 		case ',':
@@ -1269,7 +1269,7 @@ static int ui_textedit_delete_selection(uiBut *but, uiHandleButtonData *data)
 /* note, but->block->aspect is used here, when drawing button style is getting scaled too */
 static void ui_textedit_set_cursor_pos(uiBut *but, uiHandleButtonData *data, short x)
 {
-	uiStyle *style= U.uistyles.first;	// XXX pass on as arg
+	uiStyle *style= UI_GetStyle();	// XXX pass on as arg
 	uiFontStyle *fstyle = &style->widget;
 	int startx= but->x1;
 	char *origstr;
@@ -4101,7 +4101,7 @@ static uiBlock *menu_change_shortcut(bContext *C, ARegion *ar, void *arg)
 	wmKeyMapItem *kmi;
 	PointerRNA ptr;
 	uiLayout *layout;
-	uiStyle *style= U.uistyles.first;
+	uiStyle *style= UI_GetStyle();
 	IDProperty *prop= (but->opptr)? but->opptr->data: NULL;
 	int kmi_id = WM_key_event_operator_id(C, but->optype->idname, but->opcontext, prop, 1, &km);
 
@@ -4133,7 +4133,7 @@ static uiBlock *menu_add_shortcut(bContext *C, ARegion *ar, void *arg)
 	wmKeyMapItem *kmi;
 	PointerRNA ptr;
 	uiLayout *layout;
-	uiStyle *style= U.uistyles.first;
+	uiStyle *style= UI_GetStyle();
 	IDProperty *prop= (but->opptr)? but->opptr->data: NULL;
 	int kmi_id;
 	
@@ -4234,6 +4234,7 @@ static int ui_but_menu(bContext *C, uiBut *but)
 		
 		/* Keyframes */
 		if(but->flag & UI_BUT_ANIMATED_KEY) {
+			/* replace/delete keyfraemes */
 			if(length) {
 				uiItemBooleanO(layout, "Replace Keyframes", ICON_NONE, "ANIM_OT_keyframe_insert_button", "all", 1);
 				uiItemBooleanO(layout, "Replace Single Keyframe", ICON_NONE, "ANIM_OT_keyframe_insert_button", "all", 0);
@@ -4244,6 +4245,11 @@ static int ui_but_menu(bContext *C, uiBut *but)
 				uiItemBooleanO(layout, "Replace Keyframe", ICON_NONE, "ANIM_OT_keyframe_insert_button", "all", 0);
 				uiItemBooleanO(layout, "Delete Keyframe", ICON_NONE, "ANIM_OT_keyframe_delete_button", "all", 0);
 			}
+			
+			/* keyframe settings */
+			uiItemS(layout);
+			
+			
 		}
 		else if(but->flag & UI_BUT_DRIVEN);
 		else if(is_anim) {
@@ -4286,6 +4292,7 @@ static int ui_but_menu(bContext *C, uiBut *but)
 		}
 		
 		/* Keying Sets */
+		// TODO: check on modifyability of Keying Set when doing this
 		if(is_anim) {
 			uiItemS(layout);
 

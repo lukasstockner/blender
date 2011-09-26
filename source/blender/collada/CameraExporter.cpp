@@ -39,7 +39,7 @@
 
 #include "collada_internal.h"
 
-CamerasExporter::CamerasExporter(COLLADASW::StreamWriter *sw): COLLADASW::LibraryCameras(sw){}
+CamerasExporter::CamerasExporter(COLLADASW::StreamWriter *sw, const ExportSettings *export_settings): COLLADASW::LibraryCameras(sw), export_settings(export_settings) {}
 
 template<class Functor>
 void forEachCameraObjectInScene(Scene *sce, Functor &f, bool export_selected)
@@ -56,11 +56,11 @@ void forEachCameraObjectInScene(Scene *sce, Functor &f, bool export_selected)
 	}
 }
 
-void CamerasExporter::exportCameras(Scene *sce, bool export_selected)
+void CamerasExporter::exportCameras(Scene *sce)
 {
 	openLibrary();
 	
-	forEachCameraObjectInScene(sce, *this, export_selected);
+	forEachCameraObjectInScene(sce, *this, this->export_settings->selected);
 	
 	closeLibrary();
 }
@@ -73,19 +73,19 @@ void CamerasExporter::operator()(Object *ob, Scene *sce)
 	
 	if (cam->type == CAM_PERSP) {
 		COLLADASW::PerspectiveOptic persp(mSW);
-		persp.setXFov(lens_to_angle(cam->lens)*(180.0f/M_PI));
-		persp.setAspectRatio((float)(sce->r.xsch)/(float)(sce->r.ysch));
-		persp.setZFar(cam->clipend);
-		persp.setZNear(cam->clipsta);
+		persp.setXFov(RAD2DEGF(lens_to_angle(cam->lens)), "xfov");
+		persp.setAspectRatio((float)(sce->r.xsch)/(float)(sce->r.ysch),false,"aspect_ratio");
+		persp.setZFar(cam->clipend, false , "zfar");
+		persp.setZNear(cam->clipsta,false , "znear");
 		COLLADASW::Camera ccam(mSW, &persp, cam_id, cam_name);
 		addCamera(ccam);
 	}
 	else {
 		COLLADASW::OrthographicOptic ortho(mSW);
-		ortho.setXMag(cam->ortho_scale);
-		ortho.setAspectRatio((float)(sce->r.xsch)/(float)(sce->r.ysch));
-		ortho.setZFar(cam->clipend);
-		ortho.setZNear(cam->clipsta);
+		ortho.setXMag(cam->ortho_scale,"xmag");
+		ortho.setAspectRatio((float)(sce->r.xsch)/(float)(sce->r.ysch),false,"aspect_ratio");
+		ortho.setZFar(cam->clipend , false , "zfar");
+		ortho.setZNear(cam->clipsta, false , "znear");
 		COLLADASW::Camera ccam(mSW, &ortho, cam_id, cam_name);
 		addCamera(ccam);
 	}

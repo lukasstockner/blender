@@ -45,6 +45,7 @@ set(INC
 	../../blender/gpu
 	../../blender/imbuf
 	../../blender/makesdna
+	../../blender/makesrna
 	../../blender/python
 	../../blender/python/generic
 	../../blender/python/mathutils
@@ -56,9 +57,13 @@ set(INC
 
 set(INC_SYS
 	${GLEW_INCLUDE_PATH}
+	../../../extern/recastnavigation/Recast/Include
+	../../../extern/recastnavigation/Detour/Include
 )
 
 set(SRC
+	BL_Action.cpp
+	BL_ActionManager.cpp
 	BL_BlenderShader.cpp
 	BL_Material.cpp
 	BL_Shader.cpp
@@ -87,9 +92,11 @@ set(SRC
 	KX_MeshProxy.cpp
 	KX_MotionState.cpp
 	KX_MouseFocusSensor.cpp
+	KX_NavMeshObject.cpp
 	KX_NearSensor.cpp
 	KX_ObColorIpoSGController.cpp
 	KX_ObjectActuator.cpp
+	KX_ObstacleSimulation.cpp
 	KX_OrientationInterpolator.cpp
 	KX_ParentActuator.cpp
 	KX_PhysicsObjectWrapper.cpp
@@ -117,6 +124,7 @@ set(SRC
 	KX_SceneActuator.cpp
 	KX_SoundActuator.cpp
 	KX_StateActuator.cpp
+	KX_SteeringActuator.cpp
 	KX_TimeCategoryLogger.cpp
 	KX_TimeLogger.cpp
 	KX_TouchEventManager.cpp
@@ -128,6 +136,8 @@ set(SRC
 	KX_WorldInfo.cpp
 	KX_WorldIpoController.cpp
 
+	BL_Action.h
+	BL_ActionManager.h
 	BL_BlenderShader.h
 	BL_Material.h
 	BL_Shader.h
@@ -162,9 +172,11 @@ set(SRC
 	KX_MeshProxy.h
 	KX_MotionState.h
 	KX_MouseFocusSensor.h
+	KX_NavMeshObject.h
 	KX_NearSensor.h
 	KX_ObColorIpoSGController.h
 	KX_ObjectActuator.h
+	KX_ObstacleSimulation.h
 	KX_OrientationInterpolator.h
 	KX_ParentActuator.h
 	KX_PhysicsEngineEnums.h
@@ -194,6 +206,7 @@ set(SRC
 	KX_SceneActuator.h
 	KX_SoundActuator.h
 	KX_StateActuator.h
+	KX_SteeringActuator.h
 	KX_TimeCategoryLogger.h
 	KX_TimeLogger.h
 	KX_TouchEventManager.h
@@ -227,6 +240,7 @@ endif()
 if(WITH_AUDASPACE)
 	list(APPEND INC
 		../../../intern/audaspace/intern
+		../../../intern/audaspace/FX
 	)
 	add_definitions(-DWITH_AUDASPACE)
 endif()

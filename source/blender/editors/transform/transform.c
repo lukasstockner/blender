@@ -1091,7 +1091,7 @@ int calculateTransformCenter(bContext *C, int centerMode, float *vec)
 		calculateCenter(t);
 
 		// Copy center from constraint center. Transform center can be local
-		VECCOPY(vec, t->con.center);
+		copy_v3_v3(vec, t->con.center);
 	}
 
 
@@ -1210,7 +1210,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 		mval[0]= x;
 		mval[1]= y;
 
-		VECCOPY(vecrot, t->center);
+		copy_v3_v3(vecrot, t->center);
 		if(t->flag & T_EDIT) {
 			Object *ob= t->obedit;
 			if(ob) mul_m4_v3(ob->obmat, vecrot);
@@ -1678,7 +1678,14 @@ int initTransform(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event, int
 	if (RNA_property_is_set(op->ptr, "value"))
 	{
 		float values[4]= {0}; /* incase value isn't length 4, avoid uninitialized memory  */
-		RNA_float_get_array(op->ptr, "value", values);
+		PropertyRNA *prop= RNA_struct_find_property(op->ptr, "value");
+
+		if(RNA_property_array_check(prop)) {
+			RNA_float_get_array(op->ptr, "value", values);
+		} else {
+			values[0]= RNA_float_get(op->ptr, "value");
+		}
+
 		QUATCOPY(t->values, values);
 		QUATCOPY(t->auto_values, values);
 		t->flag |= T_AUTOVALUES;
@@ -1941,22 +1948,27 @@ static void protectedQuaternionBits(short protectflag, float *quat, float *oldqu
 
 /* ******************* TRANSFORM LIMITS ********************** */
 
-static void constraintTransLim(TransInfo *UNUSED(t), TransData *td)
+static void constraintTransLim(TransInfo *t, TransData *td)
 {
 	if (td->con) {
-		bConstraintTypeInfo *cti= get_constraint_typeinfo(CONSTRAINT_TYPE_LOCLIMIT);
+		bConstraintTypeInfo *ctiLoc= get_constraint_typeinfo(CONSTRAINT_TYPE_LOCLIMIT);
+		bConstraintTypeInfo *ctiDist= get_constraint_typeinfo(CONSTRAINT_TYPE_DISTLIMIT);
+		
 		bConstraintOb cob= {NULL};
 		bConstraint *con;
+		float ctime = (float)(t->scene->r.cfra);
 		
 		/* Make a temporary bConstraintOb for using these limit constraints
 		 * 	- they only care that cob->matrix is correctly set ;-)
 		 *	- current space should be local
 		 */
 		unit_m4(cob.matrix);
-		VECCOPY(cob.matrix[3], td->loc);
+		copy_v3_v3(cob.matrix[3], td->loc);
 		
 		/* Evaluate valid constraints */
 		for (con= td->con; con; con= con->next) {
+			bConstraintTypeInfo *cti = NULL;
+			ListBase targets = {NULL, NULL};
 			float tmat[4][4];
 			
 			/* only consider constraint if enabled */
@@ -1969,7 +1981,17 @@ static void constraintTransLim(TransInfo *UNUSED(t), TransData *td)
 				
 				if ((data->flag2 & LIMIT_TRANSFORM)==0)
 					continue;
+				cti = ctiLoc;
+			}
+			else if (con->type == CONSTRAINT_TYPE_DISTLIMIT) {
+				bDistLimitConstraint *data= con->data;
 				
+				if ((data->flag & LIMITDIST_TRANSFORM)==0)
+					continue;
+				cti = ctiDist;
+			}
+			
+			if (cti) {
 				/* do space conversions */
 				if (con->ownspace == CONSTRAINT_SPACE_WORLD) {
 					/* just multiply by td->mtx (this should be ok) */
@@ -1981,8 +2003,11 @@ static void constraintTransLim(TransInfo *UNUSED(t), TransData *td)
 					continue;
 				}
 				
+				/* get constraint targets if needed */
+				get_constraint_targets_for_solving(con, &cob, &targets, ctime);
+				
 				/* do constraint */
-				cti->evaluate_constraint(con, &cob, NULL);
+				cti->evaluate_constraint(con, &cob, &targets);
 				
 				/* convert spaces again */
 				if (con->ownspace == CONSTRAINT_SPACE_WORLD) {
@@ -1990,11 +2015,14 @@ static void constraintTransLim(TransInfo *UNUSED(t), TransData *td)
 					copy_m4_m4(tmat, cob.matrix);
 					mul_m4_m3m4(cob.matrix, td->smtx, tmat);
 				}
+				
+				/* free targets list */
+				BLI_freelistN(&targets);
 			}
 		}
 		
 		/* copy results from cob->matrix */
-		VECCOPY(td->loc, cob.matrix[3]);
+		copy_v3_v3(td->loc, cob.matrix[3]);
 	}
 }
 
@@ -2264,8 +2292,8 @@ int Warp(TransInfo *t, const int UNUSED(mval[2]))
 	 * It needs to be in view space, but we need to take object's offset
 	 * into account if in Edit mode.
 	 */
-	VECCOPY(cursor, curs);
-	VECCOPY(gcursor, cursor);
+	copy_v3_v3(cursor, curs);
+	copy_v3_v3(gcursor, cursor);
 	if (t->flag & T_EDIT) {
 		sub_v3_v3(cursor, t->obedit->obmat[3]);
 		sub_v3_v3(gcursor, t->obedit->obmat[3]);
@@ -2308,7 +2336,7 @@ int Warp(TransInfo *t, const int UNUSED(mval[2]))
 			continue;
 		
 		/* translate point to center, rotate in such a way that outline==distance */
-		VECCOPY(vec, td->iloc);
+		copy_v3_v3(vec, td->iloc);
 		mul_m3_v3(td->mtx, vec);
 		mul_m4_v3(t->viewmat, vec);
 		sub_v3_v3(vec, t->viewmat[3]);
@@ -2575,23 +2603,23 @@ static void ElementResize(TransInfo *t, TransData *td, float mat[3][3]) {
 	/* local constraint shouldn't alter center */
 	if (t->around == V3D_LOCAL) {
 		if (t->flag & T_OBJECT) {
-			VECCOPY(center, td->center);
+			copy_v3_v3(center, td->center);
 		}
 		else if (t->flag & T_EDIT) {
 			
 			if(t->around==V3D_LOCAL && (t->settings->selectmode & SCE_SELECT_FACE)) {
-				VECCOPY(center, td->center);
+				copy_v3_v3(center, td->center);
 			}
 			else {
-				VECCOPY(center, t->center);
+				copy_v3_v3(center, t->center);
 			}
 		}
 		else {
-			VECCOPY(center, t->center);
+			copy_v3_v3(center, t->center);
 		}
 	}
 	else {
-		VECCOPY(center, t->center);
+		copy_v3_v3(center, t->center);
 	}
 	
 	if (td->ext) {
@@ -2691,10 +2719,10 @@ int Resize(TransInfo *t, const int mval[2])
 	
 	if (t->flag & T_AUTOVALUES)
 	{
-		VECCOPY(size, t->auto_values);
+		copy_v3_v3(size, t->auto_values);
 	}
 	
-	VECCOPY(t->values, size);
+	copy_v3_v3(t->values, size);
 	
 	size_to_mat3( mat,size);
 	
@@ -2992,7 +3020,7 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 				mul_m3_m3m3(smat, td->smtx, totmat);
 				
 				/* calculate the total rotatation in eulers */
-				VECCOPY(eul, td->ext->irot);
+				copy_v3_v3(eul, td->ext->irot);
 				eulO_to_mat3( eulmat,eul, td->ext->rotOrder);
 				
 				/* mat = transform, obmat = bone rotation */
@@ -3002,7 +3030,7 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 				
 				/* and apply (to end result only) */
 				protectedRotateBits(td->protectflag, eul, td->ext->irot);
-				VECCOPY(td->ext->rot, eul);
+				copy_v3_v3(td->ext->rot, eul);
 			}
 			
 			constraintRotLim(t, td);
@@ -3072,7 +3100,7 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 				
 				/* and apply */
 				protectedRotateBits(td->protectflag, eul, td->ext->irot);
-				VECCOPY(td->ext->rot, eul);
+				copy_v3_v3(td->ext->rot, eul);
 			}
 			
 			constraintRotLim(t, td);
@@ -3216,8 +3244,8 @@ int Trackball(TransInfo *t, const int UNUSED(mval[2]))
 	float mat[3][3], totmat[3][3], smat[3][3];
 	float phi[2];
 
-	VECCOPY(axis1, t->persinv[0]);
-	VECCOPY(axis2, t->persinv[1]);
+	copy_v3_v3(axis1, t->persinv[0]);
+	copy_v3_v3(axis2, t->persinv[1]);
 	normalize_v3(axis1);
 	normalize_v3(axis2);
 
@@ -3268,6 +3296,11 @@ int Trackball(TransInfo *t, const int UNUSED(mval[2]))
 
 void initTranslation(TransInfo *t)
 {
+	if (t->spacetype == SPACE_ACTION) {
+		/* this space uses time translate */
+		t->state = TRANS_CANCEL;
+	}
+
 	t->mode = TFM_TRANSLATION;
 	t->transform = Translation;
 
@@ -3313,7 +3346,7 @@ static void headerTranslation(TransInfo *t, float vec[3], char *str) {
 	else {
 		float dvec[3];
 
-		VECCOPY(dvec, vec);
+		copy_v3_v3(dvec, vec);
 		applyAspectRatio(t, dvec);
 
 		dist = len_v3(vec);
@@ -3343,10 +3376,10 @@ static void headerTranslation(TransInfo *t, float vec[3], char *str) {
 		if(chainlen)
 			sprintf(autoik, "AutoIK-Len: %d", chainlen);
 		else
-			strcpy(autoik, "");
+			autoik[0]= '\0';
 	}
 	else
-		strcpy(autoik, "");
+		autoik[0]= '\0';
 
 	if (t->con.mode & CON_APPLY) {
 		switch(t->num.idx_max) {
@@ -3420,7 +3453,7 @@ static void applyTranslation(TransInfo *t, float vec[3]) {
 			t->con.applyVec(t, td, vec, tvec, pvec);
 		}
 		else {
-			VECCOPY(tvec, vec);
+			copy_v3_v3(tvec, vec);
 		}
 		
 		mul_m3_v3(td->smtx, tvec);
@@ -3447,7 +3480,7 @@ int Translation(TransInfo *t, const int UNUSED(mval[2]))
 		}
 		applySnapping(t, t->values);
 		t->con.applyVec(t, NULL, t->values, tvec, pvec);
-		VECCOPY(t->values, tvec);
+		copy_v3_v3(t->values, tvec);
 		headerTranslation(t, pvec, str);
 	}
 	else {
@@ -3536,7 +3569,7 @@ int ShrinkFatten(TransInfo *t, const int UNUSED(mval[2]))
 		if (td->flag & TD_SKIP)
 			continue;
 
-		VECCOPY(vec, td->axismtx[2]);
+		copy_v3_v3(vec, td->axismtx[2]);
 		mul_v3_fl(vec, distance);
 		mul_v3_fl(vec, td->factor);
 
@@ -4232,7 +4265,6 @@ static int createSlideVerts(TransInfo *t)
 	LinkNode *edgelist = NULL, *vertlist=NULL, *look;
 	GHash *vertgh;
 	TransDataSlideVert *tempsv;
-	float vertdist; // XXX, projectMat[4][4];
 	int i, j, numsel, numadded=0, timesthrough = 0, vertsel=0;
 	/* UV correction vars */
 	GHash **uvarray= NULL;
@@ -4497,7 +4529,6 @@ static int createSlideVerts(TransInfo *t)
 
 	look = vertlist;
 	nearest = NULL;
-	vertdist = -1;
 	while(look) {
 		tempsv  = BLI_ghash_lookup(vertgh,(EditVert*)look->link);
 
@@ -4580,7 +4611,7 @@ static int createSlideVerts(TransInfo *t)
 
 	add_v3_v3(start, end);
 	mul_v3_fl(start, 0.5f*(1.0f/totvec));
-	VECCOPY(vec, start);
+	copy_v3_v3(vec, start);
 	start[0] = t->mval[0];
 	start[1] = t->mval[1];
 	add_v3_v3v3(end, start, vec);
@@ -5187,7 +5218,7 @@ int Align(TransInfo *t, const int UNUSED(mval[2]))
 	int i;
 
 	/* saving original center */
-	VECCOPY(center, t->center);
+	copy_v3_v3(center, t->center);
 
 	for(i = 0 ; i < t->total; i++, td++)
 	{
@@ -5201,11 +5232,11 @@ int Align(TransInfo *t, const int UNUSED(mval[2]))
 
 		/* around local centers */
 		if (t->flag & (T_OBJECT|T_POSE)) {
-			VECCOPY(t->center, td->center);
+			copy_v3_v3(t->center, td->center);
 		}
 		else {
 			if(t->settings->selectmode & SCE_SELECT_FACE) {
-				VECCOPY(t->center, td->center);
+				copy_v3_v3(t->center, td->center);
 			}
 		}
 
@@ -5217,7 +5248,7 @@ int Align(TransInfo *t, const int UNUSED(mval[2]))
 	}
 
 	/* restoring original center */
-	VECCOPY(t->center, center);
+	copy_v3_v3(t->center, center);
 
 	recalcData(t);
 
@@ -5289,7 +5320,7 @@ int SeqSlide(TransInfo *t, const int UNUSED(mval[2]))
 		float pvec[3] = {0.0f, 0.0f, 0.0f};
 		float tvec[3];
 		t->con.applyVec(t, NULL, t->values, tvec, pvec);
-		VECCOPY(t->values, tvec);
+		copy_v3_v3(t->values, tvec);
 	}
 	else {
 		snapGrid(t, t->values);
@@ -5395,9 +5426,13 @@ static void doAnimEdit_SnapFrame(TransInfo *t, TransData *td, TransData2D *td2d,
 {
 	/* snap key to nearest frame? */
 	if (autosnap == SACTSNAP_FRAME) {
+
+#if 0   /* 'doTime' disabled for now */
+
 		const Scene *scene= t->scene;
 		const short doTime= 0; //getAnimEdit_DrawTime(t); // NOTE: this works, but may be confusing behaviour given the option's label, hence disabled
 		const double secf= FPS;
+#endif
 		double val;
 		
 		/* convert frame to nla-action time (if needed) */
@@ -5406,11 +5441,17 @@ static void doAnimEdit_SnapFrame(TransInfo *t, TransData *td, TransData2D *td2d,
 		else
 			val= *(td->val);
 		
+#if 0	/* 'doTime' disabled for now */
+
 		/* do the snapping to nearest frame/second */
-		if (doTime)
+		if (doTime) {
 			val= (float)( floor((val/secf) + 0.5f) * secf );
+		}
 		else
+#endif
+		{
 			val= (float)( floor(val+0.5f) );
+		}
 		
 		/* convert frame out of nla-action time */
 		if (adt)
@@ -5525,7 +5566,7 @@ static void applyTimeTranslate(TransInfo *t, float UNUSED(sval))
 
 	const short autosnap= getAnimEdit_SnapMode(t);
 
-	float deltax, val, valprev;
+	float deltax, val /* , valprev */;
 
 	/* it doesn't matter whether we apply to t->data or t->data2d, but t->data2d is more convenient */
 	for (i = 0 ; i < t->total; i++, td++, td2d++) {
@@ -5535,7 +5576,7 @@ static void applyTimeTranslate(TransInfo *t, float UNUSED(sval))
 		 */
 		AnimData *adt= (t->spacetype != SPACE_NLA) ? td->extra : NULL;
 
-		valprev = *td->val;
+		/* valprev = *td->val; */ /* UNUSED */
 
 		/* check if any need to apply nla-mapping */
 		if (adt && t->spacetype != SPACE_SEQ) {
@@ -5709,8 +5750,8 @@ int TimeSlide(TransInfo *t, const int mval[2])
 	char str[200];
 
 	/* calculate mouse co-ordinates */
-	UI_view2d_region_to_view(v2d, mval[0], mval[0], &cval[0], &cval[1]);
-	UI_view2d_region_to_view(v2d, t->imval[0], t->imval[0], &sval[0], &sval[1]);
+	UI_view2d_region_to_view(v2d, mval[0], mval[1], &cval[0], &cval[1]);
+	UI_view2d_region_to_view(v2d, t->imval[0], t->imval[1], &sval[0], &sval[1]);
 
 	/* t->values[0] stores cval[0], which is the current mouse-pointer location (in frames) */
 	// XXX Need to be able to repeat this

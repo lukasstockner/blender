@@ -508,7 +508,7 @@ void wrap_offset(SpaceText *st, ARegion *ar, TextLine *linein, int cursin, int *
 {
 	Text *text;
 	TextLine *linep;
-	int i, j, start, end, chars, max, chop;
+	int i, j, start, end, max, chop;
 	char ch;
 
 	*offl= *offc= 0;
@@ -546,9 +546,9 @@ void wrap_offset(SpaceText *st, ARegion *ar, TextLine *linein, int cursin, int *
 		start= 0;
 		end= max;
 		chop= 1;
-		chars= 0;
 		*offc= 0;
 		for(i=0, j=0; linep->line[j]!='\0'; j++) {
+			int chars;
 
 			/* Mimic replacement of tabs */
 			ch= linep->line[j];
@@ -557,8 +557,9 @@ void wrap_offset(SpaceText *st, ARegion *ar, TextLine *linein, int cursin, int *
 				if(linep==linein && i<cursin) cursin += chars-1;
 				ch= ' ';
 			}
-			else
+			else {
 				chars= 1;
+			}
 
 			while(chars--) {
 				if(i-start>=max) {
@@ -907,9 +908,12 @@ static void text_update_drawcache(SpaceText *st, ARegion *ar)
 
 void text_drawcache_tag_update(SpaceText *st, int full)
 {
-	DrawCache *drawcache= (DrawCache *)st->drawcache;
-
-	if(drawcache) {
+	/* this happens if text editor ops are caled from python */
+	if (st == NULL)
+		return;
+		
+	if(st->drawcache) {
+		DrawCache *drawcache= (DrawCache *)st->drawcache;
 		Text *txt= st->text;
 
 		if(drawcache->update_flag) {
@@ -1187,7 +1191,7 @@ static void draw_textscroll(SpaceText *st, rcti *scroll, rcti *back)
 
 	uiWidgetScrollDraw(&wcol, scroll, &st->txtbar, (st->flags & ST_SCROLL_SELECT)?UI_SCROLL_PRESSED:0);
 
-	uiSetRoundBox(15);
+	uiSetRoundBox(UI_CNR_ALL);
 	rad= 0.4f*MIN2(st->txtscroll.xmax - st->txtscroll.xmin, st->txtscroll.ymax - st->txtscroll.ymin);
 	UI_GetThemeColor3ubv(TH_HILITE, col);
 	col[3]= 48;
@@ -1288,7 +1292,7 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 	TextLine *tmp;
 	char *docs, buf[DOC_WIDTH+1], *p;
 	int i, br, lines;
-	int boxw, boxh, l, x, y, top;
+	int boxw, boxh, l, x, y /* , top */ /* UNUSED */;
 	
 	if(!st || !st->text) return;
 	if(!texttool_text_is_active(st->text)) return;
@@ -1311,7 +1315,7 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 		x += SUGG_LIST_WIDTH*st->cwidth + 50;
 	}
 
-	top= y= ar->winy - st->lheight*l - 2;
+	/* top= */ /* UNUSED */ y= ar->winy - st->lheight*l - 2;
 	boxw= DOC_WIDTH*st->cwidth + 20;
 	boxh= (DOC_HEIGHT+1)*st->lheight;
 
@@ -1818,12 +1822,10 @@ void text_update_character_width(SpaceText *st)
 
 /* Moves the view to the cursor location,
   also used to make sure the view isnt outside the file */
-void text_update_cursor_moved(bContext *C)
+void text_scroll_to_cursor(SpaceText *st, ScrArea *sa)
 {
-	ScrArea *sa= CTX_wm_area(C);
-	SpaceText *st= CTX_wm_space_text(C);
 	Text *text;
-	ARegion *ar;
+	ARegion *ar= NULL;
 	int i, x, winx= 0;
 
 	if(ELEM3(NULL, st, st->text, st->text->curl)) return;
@@ -1831,8 +1833,10 @@ void text_update_cursor_moved(bContext *C)
 	text= st->text;
 
 	for(ar=sa->regionbase.first; ar; ar= ar->next)
-		if(ar->regiontype==RGN_TYPE_WINDOW)
+		if(ar->regiontype==RGN_TYPE_WINDOW) {
 			winx= ar->winx;
+			break;
+		}
 	
 	winx -= TXT_SCROLL_WIDTH;
 
@@ -1841,7 +1845,7 @@ void text_update_cursor_moved(bContext *C)
 	i= txt_get_span(text->lines.first, text->sell);
 	if(st->wordwrap) {
 		int offl, offc;
-		wrap_offset(st, CTX_wm_region(C), text->sell, text->selc, &offl, &offc);
+		wrap_offset(st, ar, text->sell, text->selc, &offl, &offc);
 		i+= offl;
 	}
 
@@ -1862,3 +1866,10 @@ void text_update_cursor_moved(bContext *C)
 	if(st->left <0) st->left= 0;
 }
 
+void text_update_cursor_moved(bContext *C)
+{
+	ScrArea *sa= CTX_wm_area(C);
+	SpaceText *st= CTX_wm_space_text(C);
+
+	text_scroll_to_cursor(st, sa);
+}

@@ -43,6 +43,9 @@
 #include "BLI_dynstr.h"
 #include "BLI_ghash.h"
 
+#include "BLF_api.h"
+#include "BLF_translation.h"
+
 #include "BKE_animsys.h"
 #include "BKE_context.h"
 #include "BKE_idprop.h"
@@ -85,7 +88,9 @@ void RNA_init(void)
 void RNA_exit(void)
 {
 	StructRNA *srna;
-
+	
+	RNA_property_update_cache_free();
+	
 	for(srna=BLENDER_RNA.structs.first; srna; srna=srna->cont.next) {
 		if(srna->cont.prophash) {
 			BLI_ghash_free(srna->cont.prophash, NULL, NULL);
@@ -447,8 +452,10 @@ static const char *rna_ensure_property_identifier(PropertyRNA *prop)
 
 static const char *rna_ensure_property_description(PropertyRNA *prop)
 {
+	const char *description= NULL;
+
 	if(prop->magic == RNA_MAGIC)
-		return prop->description;
+		description= prop->description;
 	else {
 		/* attempt to get the local ID values */
 		IDProperty *idp_ui= rna_idproperty_ui(prop);
@@ -456,22 +463,50 @@ static const char *rna_ensure_property_description(PropertyRNA *prop)
 		if(idp_ui) {
 			IDProperty *item= IDP_GetPropertyTypeFromGroup(idp_ui, "description", IDP_STRING);
 			if(item)
-				return IDP_String(item);
+				description= IDP_String(item);
 		}
 
-		return ((IDProperty*)prop)->name; /* XXX - not correct */
+		if(description == NULL)
+			description= ((IDProperty*)prop)->name; /* XXX - not correct */
 	}
+
+#ifdef INTERNATIONAL
+	if((U.transopts&USER_DOTRANSLATE) && (U.transopts&USER_TR_TOOLTIPS))
+		description= BLF_gettext(description);
+#endif
+
+	return description;
 }
 
 static const char *rna_ensure_property_name(PropertyRNA *prop)
 {
+	const char *name;
+
 	if(prop->magic == RNA_MAGIC)
-		return prop->name;
+		name= prop->name;
 	else
-		return ((IDProperty*)prop)->name;
+		name= ((IDProperty*)prop)->name;
+
+#ifdef INTERNATIONAL
+	if((U.transopts&USER_DOTRANSLATE) && (U.transopts&USER_TR_IFACE))
+		name= BLF_gettext(name);
+#endif
+
+	return name;
 }
 
 /* Structs */
+
+StructRNA *RNA_struct_find(const char *identifier)
+{
+	StructRNA *type;
+	if (identifier) {
+		for (type = BLENDER_RNA.structs.first; type; type = type->cont.next)
+			if (strcmp(type->identifier, identifier)==0)
+				return type;
+	}
+	return NULL;
+}
 
 const char *RNA_struct_identifier(StructRNA *type)
 {
@@ -1112,6 +1147,7 @@ void RNA_property_enum_items(bContext *C, PointerRNA *ptr, PropertyRNA *prop, En
 
 			*totitem= tot;
 		}
+
 	}
 	else {
 		*item= eprop->item;
@@ -1119,6 +1155,45 @@ void RNA_property_enum_items(bContext *C, PointerRNA *ptr, PropertyRNA *prop, En
 			*totitem= eprop->totitem;
 	}
 }
+
+void RNA_property_enum_items_gettexted(bContext *C, PointerRNA *ptr, PropertyRNA *prop, EnumPropertyItem **item, int *totitem, int *free)
+{
+	RNA_property_enum_items(C, ptr, prop, item, totitem, free);
+
+#ifdef INTERNATIONAL
+	if((U.transopts&USER_DOTRANSLATE) && (U.transopts&USER_TR_IFACE)) {
+		int i;
+		EnumPropertyItem *nitem;
+
+		if(*free) {
+			nitem= *item;
+		} else {
+			int totitem= 0;
+
+			/* count */
+			for(i=0; (*item)[i].identifier; i++)
+				totitem++;
+
+			nitem= MEM_callocN(sizeof(EnumPropertyItem)*(totitem+1), "enum_items_gettexted");
+
+			for(i=0; (*item)[i].identifier; i++)
+				nitem[i]= (*item)[i];
+
+			*free= 1;
+		}
+
+		for(i=0; nitem[i].identifier; i++) {
+			if( nitem[i].name )
+				nitem[i].name = BLF_gettext(nitem[i].name);
+			if( nitem[i].description )
+				nitem[i].description = BLF_gettext(nitem[i].description);
+		}
+
+		*item= nitem;
+	}
+#endif
+}
+
 
 int RNA_property_enum_value(bContext *C, PointerRNA *ptr, PropertyRNA *prop, const char *identifier, int *value)
 {	
@@ -1390,6 +1465,112 @@ void RNA_property_update_main(Main *bmain, Scene *scene, PointerRNA *ptr, Proper
 {
 	rna_property_update(NULL, bmain, scene, ptr, prop);
 }
+
+
+/* RNA Updates Cache ------------------------ */
+/* Overview of RNA Update cache system:
+ *
+ * RNA Update calls need to be cached in order to maintain reasonable performance
+ * of the animation system (i.e. maintaining a somewhat interactive framerate)
+ * while still allowing updates to be called (necessary in particular for modifier
+ * property updates to actually work).
+ *
+ * The cache is structured with a dual-layer structure
+ * - L1 = PointerRNA used as key; id.data is used (it should always be defined,
+ *		 and most updates end up using just that anyways)
+ * - L2 = Update functions to be called on those PointerRNA's
+ */
+
+/* cache element */
+typedef struct tRnaUpdateCacheElem {
+	struct tRnaUpdateCacheElem *next, *prev;
+	
+	PointerRNA ptr; 	/* L1 key - id as primary, data secondary/ignored? */
+	ListBase L2Funcs;	/* L2 functions (LinkData<RnaUpdateFuncRef>) */
+} tRnaUpdateCacheElem;
+
+/* cache global (tRnaUpdateCacheElem's) - only accessible using these API calls */
+static ListBase rna_updates_cache = {NULL, NULL};
+
+/* ........................... */
+
+void RNA_property_update_cache_add(PointerRNA *ptr, PropertyRNA *prop)
+{
+	tRnaUpdateCacheElem *uce = NULL;
+	UpdateFunc fn = NULL;
+	LinkData *ld;
+	short is_rna = (prop->magic == RNA_MAGIC);
+	
+	/* sanity check */
+	if (ELEM(NULL, ptr, prop))
+		return;
+		
+	prop= rna_ensure_property(prop);
+	
+	/* we can only handle update calls with no context args for now (makes animsys updates easier) */
+	if ((is_rna == 0) || (prop->update == NULL) || (prop->flag & PROP_CONTEXT_UPDATE))
+		return;
+	fn = prop->update;
+		
+	/* find cache element for which key matches... */
+	for (uce = rna_updates_cache.first; uce; uce = uce->next) {
+		/* just match by id only for now, since most update calls that we'll encounter only really care about this */
+		// TODO: later, the cache might need to have some nesting on L1 to cope better with these problems + some tagging to indicate we need this
+		if (uce->ptr.id.data == ptr->id.data)
+			break;
+	}
+	if (uce == NULL) {
+		/* create new instance */
+		uce = MEM_callocN(sizeof(tRnaUpdateCacheElem), "tRnaUpdateCacheElem");
+		BLI_addtail(&rna_updates_cache, uce);
+		
+		/* copy pointer */
+		RNA_pointer_create(ptr->id.data, ptr->type, ptr->data, &uce->ptr);
+	}
+	
+	/* check on the update func */
+	for (ld = uce->L2Funcs.first; ld; ld = ld->next) {
+		/* stop on match - function already cached */
+		if (fn == ld->data)
+			return;
+	}
+	/* else... if still here, we need to add it */
+	BLI_addtail(&uce->L2Funcs, BLI_genericNodeN(fn));
+}
+
+void RNA_property_update_cache_flush(Main *bmain, Scene *scene)
+{
+	tRnaUpdateCacheElem *uce;
+	
+	// TODO: should we check that bmain and scene are valid? The above stuff doesn't!
+	
+	/* execute the cached updates */
+	for (uce = rna_updates_cache.first; uce; uce = uce->next) {
+		LinkData *ld;
+		
+		for (ld = uce->L2Funcs.first; ld; ld = ld->next) {
+			UpdateFunc fn = (UpdateFunc)ld->data;
+			fn(bmain, scene, &uce->ptr);
+		}
+	}
+}
+
+void RNA_property_update_cache_free(void)
+{
+	tRnaUpdateCacheElem *uce, *ucn;
+	
+	for (uce = rna_updates_cache.first; uce; uce = ucn) {
+		ucn = uce->next;
+		
+		/* free L2 cache */
+		BLI_freelistN(&uce->L2Funcs);
+		
+		/* remove self */
+		BLI_freelinkN(&rna_updates_cache, uce);
+	}
+}
+
+/* ---------------------------------------------------------------------- */
 
 /* Property Data */
 
@@ -2106,9 +2287,18 @@ char *RNA_property_string_get_alloc(PointerRNA *ptr, PropertyRNA *prop, char *fi
 	if(length+1 < fixedlen)
 		buf= fixedbuf;
 	else
-		buf= MEM_callocN(sizeof(char)*(length+1), "RNA_string_get_alloc");
+		buf= MEM_mallocN(sizeof(char)*(length+1), "RNA_string_get_alloc");
+
+#ifndef NDEBUG
+	/* safety check to ensure the string is actually set */
+	buf[length]= 255;
+#endif
 
 	RNA_property_string_get(ptr, prop, buf);
+
+#ifndef NDEBUG
+	BLI_assert(buf[length] == '\0');
+#endif
 
 	return buf;
 }
@@ -2784,7 +2974,7 @@ static int rna_raw_access(ReportList *reports, PointerRNA *ptr, PropertyRNA *pro
 		itemtype= RNA_property_type(itemprop);
 
 		if(!ELEM3(itemtype, PROP_BOOLEAN, PROP_INT, PROP_FLOAT)) {
-			BKE_report(reports, RPT_ERROR, "Only boolean, int and float properties supported.");
+			BKE_report(reports, RPT_ERROR, "Only boolean, int and float properties supported");
 			return 0;
 		}
 
@@ -2795,7 +2985,7 @@ static int rna_raw_access(ReportList *reports, PointerRNA *ptr, PropertyRNA *pro
 		if(RNA_property_collection_raw_array(ptr, prop, itemprop, &out)) {
 			int arraylen = (itemlen == 0) ? 1 : itemlen;
 			if(in.len != arraylen*out.len) {
-				BKE_reportf(reports, RPT_ERROR, "Array length mismatch (expected %d, got %d).", out.len*arraylen, in.len);
+				BKE_reportf(reports, RPT_ERROR, "Array length mismatch (expected %d, got %d)", out.len*arraylen, in.len);
 				return 0;
 			}
 			
@@ -2851,13 +3041,13 @@ static int rna_raw_access(ReportList *reports, PointerRNA *ptr, PropertyRNA *pro
 						itemtype= RNA_property_type(iprop);
 					}
 					else {
-						BKE_reportf(reports, RPT_ERROR, "Property named %s not found.", propname);
+						BKE_reportf(reports, RPT_ERROR, "Property named %s not found", propname);
 						err= 1;
 						break;
 					}
 
 					if(!ELEM3(itemtype, PROP_BOOLEAN, PROP_INT, PROP_FLOAT)) {
-						BKE_report(reports, RPT_ERROR, "Only boolean, int and float properties supported.");
+						BKE_report(reports, RPT_ERROR, "Only boolean, int and float properties supported");
 						err= 1;
 						break;
 					}
@@ -2866,7 +3056,7 @@ static int rna_raw_access(ReportList *reports, PointerRNA *ptr, PropertyRNA *pro
 				/* editable check */
 				if(!set || RNA_property_editable(&itemptr, iprop)) {
 					if(a+itemlen > in.len) {
-						BKE_reportf(reports, RPT_ERROR, "Array length mismatch (got %d, expected more).", in.len);
+						BKE_reportf(reports, RPT_ERROR, "Array length mismatch (got %d, expected more)", in.len);
 						err= 1;
 						break;
 					}
@@ -3217,7 +3407,7 @@ static char *rna_path_token(const char **path, char *fixedbuf, int fixedlen, int
 		/* 2 kinds of lookups now, quoted or unquoted */
 		quote= *p;
 
-		if(quote != '"')
+		if(quote != '"') /* " - this comment is hack for Aligorith's text editor's sanity */
 			quote= 0;
 
 		if(quote==0) {
@@ -4271,11 +4461,18 @@ char *RNA_property_as_string(bContext *C, PointerRNA *ptr, PropertyRNA *prop)
 		break;
 	case PROP_STRING:
 	{
-		/* string arrays dont exist */
+		char *buf_esc;
 		char *buf;
-		buf = RNA_property_string_get_alloc(ptr, prop, NULL, -1);
-		BLI_dynstr_appendf(dynstr, "\"%s\"", buf);
+		int length;
+
+		length= RNA_property_string_length(ptr, prop);
+		buf= MEM_mallocN(sizeof(char)*(length+1), "RNA_property_as_string");
+		buf_esc= MEM_mallocN(sizeof(char)*(length*2+1), "RNA_property_as_string esc");
+		RNA_property_string_get(ptr, prop, buf);
+		BLI_strescape(buf_esc, buf, length*2+1);
 		MEM_freeN(buf);
+		BLI_dynstr_appendf(dynstr, "\"%s\"", buf_esc);
+		MEM_freeN(buf_esc);
 		break;
 	}
 	case PROP_ENUM:
@@ -5239,13 +5436,19 @@ int RNA_property_copy(PointerRNA *ptr, PointerRNA *fromptr, PropertyRNA *prop, i
 	return 0;
 }
 
-void RNA_warning(const char *format, ...)
+/* use RNA_warning macro which includes __func__ suffix */
+void _RNA_warning(const char *format, ...)
 {
 	va_list args;
 
 	va_start(args, format);
 	vprintf(format, args);
 	va_end(args);
+
+	/* gcc macro adds '\n', but cant use for other compilers */
+#ifndef __GNUC__
+	fputc('\n', stdout);
+#endif
 
 #ifdef WITH_PYTHON
 	{

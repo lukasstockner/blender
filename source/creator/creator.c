@@ -46,12 +46,6 @@
 #include <stddef.h>
 #include <string.h>
 
-/* for setuid / getuid */
-#ifdef __sgi
-#include <sys/types.h>
-#include <unistd.h>
-#endif
-
 /* This little block needed for linking to Blender... */
 
 #include "MEM_guardedalloc.h"
@@ -156,7 +150,7 @@ char btempdir[FILE_MAX];
 static void setCallbacks(void); 
 
 /* set breakpoints here when running in debug mode, useful to catch floating point errors */
-#if defined(__sgi) || defined(__linux__) || defined(_WIN32) || defined(OSX_SSE_FPE)
+#if defined(__linux__) || defined(_WIN32) || defined(OSX_SSE_FPE)
 static void fpe_handler(int UNUSED(sig))
 {
 	// printf("SIGFPE trapped\n");
@@ -365,7 +359,7 @@ static int debug_mode(int UNUSED(argc), const char **UNUSED(argv), void *data)
 
 static int set_fpe(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
-#if defined(__sgi) || defined(__linux__) || defined(_WIN32) || defined(OSX_SSE_FPE)
+#if defined(__linux__) || defined(_WIN32) || defined(OSX_SSE_FPE)
 	/* zealous but makes float issues a heck of a lot easier to find!
 	 * set breakpoints on fpe_handler */
 	signal(SIGFPE, fpe_handler);
@@ -489,7 +483,7 @@ static int no_joystick(int UNUSED(argc), const char **UNUSED(argv), void *data)
 	SYS_SystemHandle *syshandle = data;
 
 	/**
-	 	don't initialize joysticks if user doesn't want to use joysticks
+		don't initialize joysticks if user doesn't want to use joysticks
 		failed joystick initialization delays over 5 seconds, before game engine start
 	*/
 	SYS_WriteCommandLineInt(*syshandle, "nojoystick",1);
@@ -542,22 +536,17 @@ static int set_output(int argc, const char **argv, void *data)
 static int set_engine(int argc, const char **argv, void *data)
 {
 	bContext *C = data;
-	if (argc >= 1)
-	{
-		if (!strcmp(argv[1],"help"))
-		{
+	if (argc >= 2) {
+		if (!strcmp(argv[1], "help")) {
 			RenderEngineType *type = NULL;
-
-			for( type = R_engines.first; type; type = type->next )
-			{
+			printf("Blender Engine Listing:\n");
+			for( type = R_engines.first; type; type = type->next ) {
 				printf("\t%s\n", type->idname);
 			}
 			exit(0);
 		}
-		else
-		{
-			if (CTX_data_scene(C)==NULL)
-			{
+		else {
+			if (CTX_data_scene(C)==NULL) {
 				printf("\nError: no blend loaded. order the arguments so '-E  / --engine ' is after a blend is loaded.\n");
 			}
 			else {
@@ -565,7 +554,7 @@ static int set_engine(int argc, const char **argv, void *data)
 				RenderData *rd = &scene->r;
 
 				if(BLI_findstring(&R_engines, argv[1], offsetof(RenderEngineType, idname))) {
-					BLI_strncpy(rd->engine, argv[1], sizeof(rd->engine));
+					BLI_strncpy_utf8(rd->engine, argv[1], sizeof(rd->engine));
 				}
 			}
 		}
@@ -574,7 +563,7 @@ static int set_engine(int argc, const char **argv, void *data)
 	}
 	else
 	{
-		printf("\nEngine not specified.\n");
+		printf("\nEngine not specified, give 'help' for a list of available engines.\n");
 		return 0;
 	}
 }
@@ -1197,10 +1186,6 @@ int main(int argc, const char **argv)
 	setupArguments(C, ba, &syshandle);
 
 	BLI_argsParse(ba, 1, NULL, NULL);
-
-#ifdef __sgi
-	setuid(getuid()); /* end superuser */
-#endif
 
 #if defined(WITH_PYTHON_MODULE) || defined(WITH_HEADLESS)
 	G.background= 1; /* python module mode ALWAYS runs in background mode (for now) */

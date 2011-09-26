@@ -49,7 +49,10 @@ struct Scene;
 extern BlenderRNA BLENDER_RNA;
 extern StructRNA RNA_Action;
 extern StructRNA RNA_ActionConstraint;
+extern StructRNA RNA_ActionFCurves;
 extern StructRNA RNA_ActionGroup;
+extern StructRNA RNA_ActionGroups;
+extern StructRNA RNA_ActionPoseMarkers;
 extern StructRNA RNA_Actuator;
 extern StructRNA RNA_ActuatorSensor;
 extern StructRNA RNA_Addon;
@@ -190,6 +193,7 @@ extern StructRNA RNA_DelaySensor;
 extern StructRNA RNA_DisplaceModifier;
 extern StructRNA RNA_DistortedNoiseTexture;
 extern StructRNA RNA_DomainFluidSettings;
+extern StructRNA RNA_DopeSheet;
 extern StructRNA RNA_Driver;
 extern StructRNA RNA_DriverTarget;
 extern StructRNA RNA_DriverVariable;
@@ -260,11 +264,13 @@ extern StructRNA RNA_Key;
 extern StructRNA RNA_KeyConfig;
 extern StructRNA RNA_KeyMap;
 extern StructRNA RNA_KeyMapItem;
+extern StructRNA RNA_KeyMapItems;
 extern StructRNA RNA_KeyboardSensor;
 extern StructRNA RNA_Keyframe;
 extern StructRNA RNA_KeyingSet;
 extern StructRNA RNA_KeyingSetInfo;
 extern StructRNA RNA_KeyingSetPath;
+extern StructRNA RNA_KeyingSetsAll;
 extern StructRNA RNA_KinematicConstraint;
 extern StructRNA RNA_Lamp;
 extern StructRNA RNA_LampSkySettings;
@@ -327,10 +333,13 @@ extern StructRNA RNA_NearSensor;
 extern StructRNA RNA_NlaStrip;
 extern StructRNA RNA_NlaTrack;
 extern StructRNA RNA_Node;
+extern StructRNA RNA_NodeForLoop;
 extern StructRNA RNA_NodeGroup;
 extern StructRNA RNA_NodeLink;
 extern StructRNA RNA_NodeSocket;
+extern StructRNA RNA_NodeSocketPanel;
 extern StructRNA RNA_NodeTree;
+extern StructRNA RNA_NodeWhileLoop;
 extern StructRNA RNA_NoiseTexture;
 extern StructRNA RNA_NorController;
 extern StructRNA RNA_Object;
@@ -376,7 +385,6 @@ extern StructRNA RNA_PropertyGroupItem;
 extern StructRNA RNA_PropertySensor;
 extern StructRNA RNA_PythonConstraint;
 extern StructRNA RNA_PythonController;
-extern StructRNA RNA_RGBANodeSocket;
 extern StructRNA RNA_RadarSensor;
 extern StructRNA RNA_RandomSensor;
 extern StructRNA RNA_RaySensor;
@@ -464,6 +472,7 @@ extern StructRNA RNA_SpaceTimeline;
 extern StructRNA RNA_SpaceUVEditor;
 extern StructRNA RNA_SpaceUserPreferences;
 extern StructRNA RNA_SpaceView3D;
+extern StructRNA RNA_Speaker;
 extern StructRNA RNA_SpeedControlSequence;
 extern StructRNA RNA_Spline;
 extern StructRNA RNA_SplineIKConstraint;
@@ -549,12 +558,11 @@ extern StructRNA RNA_UnknownType;
 extern StructRNA RNA_UserPreferences;
 extern StructRNA RNA_UserPreferencesEdit;
 extern StructRNA RNA_UserPreferencesFilePaths;
+extern StructRNA RNA_UserPreferencesInput;
 extern StructRNA RNA_UserPreferencesSystem;
 extern StructRNA RNA_UserPreferencesView;
 extern StructRNA RNA_UserSolidLight;
-extern StructRNA RNA_ValueNodeSocket;
 extern StructRNA RNA_VectorFont;
-extern StructRNA RNA_VectorNodeSocket;
 extern StructRNA RNA_VertexGroup;
 extern StructRNA RNA_VertexGroupElement;
 extern StructRNA RNA_VertexPaint;
@@ -563,18 +571,21 @@ extern StructRNA RNA_VoxelData;
 extern StructRNA RNA_VoxelDataTexture;
 extern StructRNA RNA_WarpModifier;
 extern StructRNA RNA_WaveModifier;
+extern StructRNA RNA_WeightVGEditModifier;
+extern StructRNA RNA_WeightVGMixModifier;
+extern StructRNA RNA_WeightVGProximityModifier;
 extern StructRNA RNA_Window;
 extern StructRNA RNA_WindowManager;
 extern StructRNA RNA_WipeSequence;
 extern StructRNA RNA_WoodTexture;
 extern StructRNA RNA_World;
 extern StructRNA RNA_WorldAmbientOcclusion;
+extern StructRNA RNA_WorldLighting;
 extern StructRNA RNA_WorldMistSettings;
 extern StructRNA RNA_WorldStarsSettings;
 extern StructRNA RNA_WorldTextureSlot;
 extern StructRNA RNA_XnorController;
 extern StructRNA RNA_XorController;
-
 
 /* Pointer
  *
@@ -597,6 +608,8 @@ void RNA_pointer_recast(PointerRNA *ptr, PointerRNA *r_ptr);
 extern const PointerRNA PointerRNA_NULL;
 
 /* Structs */
+
+StructRNA *RNA_struct_find(const char *identifier);
 
 const char *RNA_struct_identifier(StructRNA *type);
 const char *RNA_struct_ui_name(StructRNA *type);
@@ -683,6 +696,7 @@ int RNA_enum_name(EnumPropertyItem *item, const int value, const char **name);
 int RNA_enum_description(EnumPropertyItem *item, const int value, const char **description);
 
 void RNA_property_enum_items(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, EnumPropertyItem **item, int *totitem, int *free);
+void RNA_property_enum_items_gettexted(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, EnumPropertyItem **item, int *totitem, int *free);
 int RNA_property_enum_value(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const char *identifier, int *value);
 int RNA_property_enum_identifier(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const int value, const char **identifier);
 int RNA_property_enum_name(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const int value, const char **name);
@@ -701,6 +715,10 @@ int RNA_property_path_from_ID_check(PointerRNA *ptr, PropertyRNA *prop); /* slow
 void RNA_property_update(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop);
 void RNA_property_update_main(struct Main *bmain, struct Scene *scene, PointerRNA *ptr, PropertyRNA *prop);
 int RNA_property_update_check(struct PropertyRNA *prop);
+
+void RNA_property_update_cache_add(PointerRNA *ptr, PropertyRNA *prop);
+void RNA_property_update_cache_flush(struct Main *bmain, struct Scene *scene);
+void RNA_property_update_cache_free(void);
 
 /* Property Data */
 
@@ -964,7 +982,15 @@ int RNA_function_call_direct_va_lookup(struct bContext *C, struct ReportList *re
 short RNA_type_to_ID_code(StructRNA *type);
 StructRNA *ID_code_to_RNA_type(short idcode);
 
-void RNA_warning(const char *format, ...)
+
+/* macro which inserts the function name */
+#ifdef __GNUC__
+#  define RNA_warning(format, args...) _RNA_warning("%s: " format "\n", __func__, ##args)
+#else /* MSVC doesnt support variable length args in macros */
+#  define RNA_warning _RNA_warning
+#endif
+
+void _RNA_warning(const char *format, ...)
 #ifdef __GNUC__
 __attribute__ ((format (printf, 1, 2)))
 #endif

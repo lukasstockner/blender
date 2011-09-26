@@ -239,7 +239,7 @@ static short cliptestf(float p, float q, float *u1, float *u2)
 	return 1;
 }
 
-int testclip(float *v)
+int testclip(const float v[4])
 {
 	float abs4;	/* WATCH IT: this function should do the same as cliptestf, otherwise troubles in zbufclip()*/
 	short c=0;
@@ -843,7 +843,7 @@ static void zbufline_onlyZ(ZSpan *zspan, int UNUSED(obi), int UNUSED(zvlnr), flo
 }
 
 
-static int clipline(float *v1, float *v2)	/* return 0: do not draw */
+static int clipline(float v1[4], float v2[4])	/* return 0: do not draw */
 {
 	float dz,dw, u1=0.0, u2=1.0;
 	float dx, dy, v13;
@@ -893,7 +893,7 @@ static int clipline(float *v1, float *v2)	/* return 0: do not draw */
 	return 0;
 }
 
-void hoco_to_zco(ZSpan *zspan, float *zco, float *hoco)
+void hoco_to_zco(ZSpan *zspan, float zco[3], const float hoco[4])
 {
 	float div;
 	
@@ -998,7 +998,7 @@ void zbufclipwire(ZSpan *zspan, int obi, int zvlnr, int ec, float *ho1, float *h
 
 }
 
-void zbufsinglewire(ZSpan *zspan, int obi, int zvlnr, float *ho1, float *ho2)
+void zbufsinglewire(ZSpan *zspan, int obi, int zvlnr, const float ho1[4], const float ho2[4])
 {
 	float f1[4], f2[4];
 	int c1, c2;
@@ -1008,8 +1008,8 @@ void zbufsinglewire(ZSpan *zspan, int obi, int zvlnr, float *ho1, float *ho2)
 
 	if(c1 | c2) {	/* not in the middle */
 		if(!(c1 & c2)) {	/* not out completely */
-			QUATCOPY(f1, ho1);
-			QUATCOPY(f2, ho2);
+			copy_v4_v4(f1, ho1);
+			copy_v4_v4(f2, ho2);
 
 			if(clipline(f1, f2)) {
 				hoco_to_zco(zspan, f1, f1);
@@ -1692,7 +1692,7 @@ static void makevertpyra(float *vez, float *labda, float **trias, float *v1, flo
 
 /* ------------------------------------------------------------------------- */
 
-void projectverto(float *v1, float winmat[][4], float *adr)
+void projectverto(const float v1[3], float winmat[][4], float adr[4])
 {
 	/* calcs homogenic coord of vertex v1 */
 	float x,y,z;
@@ -1710,7 +1710,7 @@ void projectverto(float *v1, float winmat[][4], float *adr)
 
 /* ------------------------------------------------------------------------- */
 
-void projectvert(float *v1, float winmat[][4], float *adr)
+void projectvert(const float v1[3], float winmat[][4], float adr[4])
 {
 	/* calcs homogenic coord of vertex v1 */
 	float x,y,z;
@@ -1747,13 +1747,14 @@ static void zbuf_project_cache_clear(ZbufProjectCache *cache, int size)
 
 static int zbuf_shadow_project(ZbufProjectCache *cache, int index, float winmat[][4], float *co, float *ho)
 {
-	int clipflag, cindex= index & 255;
+	int cindex= index & 255;
 
 	if(cache[cindex].index == index) {
 		QUATCOPY(ho, cache[cindex].ho);
 		return cache[cindex].clip;
 	}
 	else {
+		int clipflag;
 		projectvert(co, winmat, ho);
 		clipflag= testclip(ho);
 
@@ -1775,14 +1776,16 @@ static void zbuffer_part_bounds(int winx, int winy, RenderPart *pa, float *bound
 
 static int zbuf_part_project(ZbufProjectCache *cache, int index, float winmat[][4], float *bounds, float *co, float *ho)
 {
-	float vec[3], wco;
-	int clipflag= 0, cindex= index & 255;
+	float vec[3];
+	int cindex= index & 255;
 
 	if(cache[cindex].index == index) {
 		QUATCOPY(ho, cache[cindex].ho);
 		return cache[cindex].clip;
 	}
 	else {
+		float wco;
+		int clipflag= 0;
 		VECCOPY(vec, co)
 		projectvert(co, winmat, ho);
 
@@ -2864,7 +2867,7 @@ void RE_zbuf_accumulate_vecblur(NodeBlurData *nbd, int xsize, int ysize, float *
 	float v1[3], v2[3], v3[3], v4[3], fx, fy;
 	float *rectvz, *dvz, *dimg, *dvec1, *dvec2, *dz, *dz1, *dz2, *rectz;
 	float *minvecbufrect= NULL, *rectweight, *rw, *rectmax, *rm, *ro;
-	float maxspeedsq= (float)nbd->maxspeed*nbd->maxspeed, totfac;
+	float maxspeedsq= (float)nbd->maxspeed*nbd->maxspeed;
 	int y, x, step, maxspeed=nbd->maxspeed, samples= nbd->samples;
 	int tsktsk= 0;
 	static int firsttime= 1;
@@ -3038,7 +3041,6 @@ void RE_zbuf_accumulate_vecblur(NodeBlurData *nbd, int xsize, int ysize, float *
 	}
 	
 	memset(newrect, 0, sizeof(float)*xsize*ysize*4);
-	totfac= 0.0f;
 
 	/* accumulate */
 	samples/= 2;
@@ -4115,13 +4117,13 @@ unsigned short *zbuffer_transp_shade(RenderPart *pa, RenderLayer *rl, float *pas
 							add_transp_obindex(rlpp[a], od, obr->ob);
 					}
 				}
-                                if(addpassflag & SCE_PASS_INDEXMA) {
-                                        ObjectRen *obr= R.objectinstance[zrow[totface-1].obi].obr;
-                                        if(obr->ob) {
-                                                for(a= 0; a<totfullsample; a++)
-                                                        add_transp_obindex(rlpp[a], od, obr->ob);
-                                        }
-                                }
+				if(addpassflag & SCE_PASS_INDEXMA) {
+					ObjectRen *obr= R.objectinstance[zrow[totface-1].obi].obr;
+					if(obr->ob) {
+						for(a= 0; a<totfullsample; a++)
+							add_transp_obindex(rlpp[a], od, obr->ob);
+					}
+				}
 
 				/* for each mask-sample we alpha-under colors. then in end it's added using filter */
 				memset(samp_shr, 0, sizeof(ShadeResult)*osa);

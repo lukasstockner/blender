@@ -52,33 +52,32 @@
 /**
  Base Class for Blender specific inputdevices. Blender specific inputdevices are used when the gameengine is running in embedded mode instead of standalone mode.
 */
-class BL_BlenderInputDevice : public SCA_IInputDevice                                                               
+class BL_BlenderInputDevice : public SCA_IInputDevice
 {
 public:
 	BL_BlenderInputDevice()                                                                                    
-		{
+	{
 	
-		}                                                                                                          
-
+	}
 	virtual ~BL_BlenderInputDevice()
-		{
+	{
 
-		}
-                                                                                                                   
-	 KX_EnumInputs ToNative(unsigned short incode) {
+	}
+
+	KX_EnumInputs ToNative(unsigned short incode) {
 		 return ConvertKeyCode(incode);
 	}
 
 	virtual bool	IsPressed(SCA_IInputDevice::KX_EnumInputs inputcode)=0;
-//	virtual const SCA_InputEvent&	GetEventValue(SCA_IInputDevice::KX_EnumInputs inputcode)=0;
+	//	virtual const SCA_InputEvent&	GetEventValue(SCA_IInputDevice::KX_EnumInputs inputcode)=0;
 	virtual bool	ConvertBlenderEvent(unsigned short incode,short val)=0;
 
-	
+
 #ifdef WITH_CXX_GUARDEDALLOC
 public:
 	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:BL_BlenderInputDevice"); }
 	void operator delete(void *mem) { MEM_freeN(mem); }
 #endif
-};                                                                                                                 
+};
 #endif //__KX_BLENDERINPUTDEVICE
 

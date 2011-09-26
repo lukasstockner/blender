@@ -45,8 +45,6 @@
  * used to compress images.
  */
 
-#ifdef WITH_TIFF
-
 #include <string.h>
 
 #include "imbuf.h"
@@ -646,7 +644,7 @@ void imb_loadtiletiff(ImBuf *ibuf, unsigned char *mem, size_t size, int tx, int 
 			}
 		}
 		else
-			printf("imb_loadtiff: mipmap level %d has unexpected size %dx%d instead of %dx%d\n", ibuf->miplevel, width, height, ibuf->x, ibuf->y);
+			printf("imb_loadtiff: mipmap level %d has unexpected size %ux%u instead of %dx%d\n", ibuf->miplevel, width, height, ibuf->x, ibuf->y);
 	}
 	else
 		printf("imb_loadtiff: could not find mipmap level %d\n", ibuf->miplevel);
@@ -836,5 +834,3 @@ int imb_savetiff(ImBuf *ibuf, const char *name, int flags)
 	if(pixels16) _TIFFfree(pixels16);
 	return (1);
 }
-
-#endif /* WITH_TIFF */

@@ -25,6 +25,15 @@
 
 
 #include <libavformat/avformat.h>
+
+
+/* check our ffmpeg is new enough, avoids user complaints */
+#if (LIBAVFORMAT_VERSION_MAJOR < 52) || ((LIBAVFORMAT_VERSION_MAJOR == 52) && (LIBAVFORMAT_VERSION_MINOR <= 64))
+#  error "FFmpeg 0.7 or newer is needed, Upgrade you're FFmpeg or disable it"
+#endif
+/* end sanity check */
+
+
 #include <libavcodec/avcodec.h>
 #include <libavutil/rational.h>
 
@@ -71,6 +80,7 @@
 #define avio_open url_fopen
 #define avio_tell url_ftell
 #define avio_close url_fclose
+#define avio_size url_fsize
 #endif
 
 /* there are some version inbetween, which have avio_... functions but no
@@ -129,5 +139,20 @@ int avcodec_decode_video2(AVCodecContext *avctx, AVFrame *picture,
 				    avpkt->data, avpkt->size);
 }
 #endif
+
+static inline
+int64_t av_get_pts_from_frame(AVFormatContext *avctx, AVFrame * picture)
+{
+	int64_t pts = picture->pkt_pts;
+
+	if (pts == AV_NOPTS_VALUE) {
+		pts = picture->pkt_dts;
+	}
+	if (pts == AV_NOPTS_VALUE) {
+		pts = 0;
+	}
+	
+	return pts;
+}
 
 #endif

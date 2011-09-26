@@ -36,10 +36,7 @@
  *  \ingroup bke
  */
  
-
-/* TODO maybe BIF_gl.h should include string.h? */
-#include <string.h>
-#include "BIF_gl.h"
+#include "GL/glew.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_edgehash.h"
@@ -650,7 +647,7 @@ static void cdDM_drawFacesColored(DerivedMesh *dm, int useTwoSided, unsigned cha
 }
 
 static void cdDM_drawFacesTex_common(DerivedMesh *dm,
-			   int (*drawParams)(MTFace *tface, MCol *mcol, int matnr),
+			   int (*drawParams)(MTFace *tface, int has_mcol, int matnr),
 			   int (*drawParamsMapped)(void *userData, int index),
 			   void *userData) 
 {
@@ -676,7 +673,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 			unsigned char *cp = NULL;
 
 			if(drawParams) {
-				flag = drawParams(tf? &tf[i]: NULL, mcol? &mcol[i*4]: NULL, mf->mat_nr);
+				flag = drawParams(tf? &tf[i]: NULL, (mcol != NULL), mf->mat_nr);
 			}
 			else {
 				if(index) {
@@ -795,7 +792,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 				int flag = 1;
 
 				if(drawParams) {
-					flag = drawParams(tf? &tf[actualFace]: NULL, mcol? &mcol[actualFace*4]: NULL, mf[actualFace].mat_nr);
+					flag = drawParams(tf? &tf[actualFace]: NULL, (mcol != NULL), mf[actualFace].mat_nr);
 				}
 				else {
 					if(index) {
@@ -838,12 +835,13 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 	}
 }
 
-static void cdDM_drawFacesTex(DerivedMesh *dm, int (*setDrawOptions)(MTFace *tface, MCol *mcol, int matnr))
+static void cdDM_drawFacesTex(DerivedMesh *dm, int (*setDrawOptions)(MTFace *tface, int has_mcol, int matnr))
 {
 	cdDM_drawFacesTex_common(dm, setDrawOptions, NULL, NULL);
 }
 
-static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r), void *userData, int useColors, int (*setMaterial)(int, void *attribs))
+static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r), void *userData, int useColors, int (*setMaterial)(int, void *attribs),
+			int (*compareDrawOptions)(void *userData, int cur_index, int next_index))
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
 	MVert *mv = cddm->mvert;
@@ -958,6 +956,7 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 					MFace *mface= mf + actualFace;
 					int drawSmooth= (mface->flag & ME_SMOOTH);
 					int draw = 1;
+					int flush = 0;
 
 					if(i != tottri-1)
 						next_actualFace= dm->drawObject->triangle_to_mface[i+1];
@@ -972,11 +971,32 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 					/* Goal is to draw as long of a contiguous triangle
 					   array as possible, so draw when we hit either an
 					   invisible triangle or at the end of the array */
-					if(!draw || i == tottri - 1 || mf[actualFace].mat_nr != mf[next_actualFace].mat_nr) {
-						if(prevstart != i)
-							/* Add one to the length (via `draw')
-							   if we're drawing at the end of the array */
-							glDrawArrays(GL_TRIANGLES,prevstart*3, (i-prevstart+draw)*3);
+
+					/* flush buffer if current triangle isn't drawable or it's last triangle... */
+					flush= !draw || i == tottri - 1;
+
+					/* ... or when material setting is dissferent  */
+					flush|= mf[actualFace].mat_nr != mf[next_actualFace].mat_nr;
+
+					if(!flush && compareDrawOptions) {
+						int next_orig= (index==NULL) ? next_actualFace : index[next_actualFace];
+
+						if(orig==ORIGINDEX_NONE || next_orig==ORIGINDEX_NONE) {
+							flush= 1;
+						} else {
+							/* also compare draw options and flush buffer if they're different
+							   need for face selection highlight in edit mode */
+							flush|= compareDrawOptions(userData, orig, next_orig) == 0;
+						}
+					}
+
+					if(flush) {
+						int first= prevstart*3;
+						int count= (i-prevstart+(draw ? 1 : 0))*3; /* Add one to the length if we're drawing at the end of the array */
+
+						if(count)
+							glDrawArrays(GL_TRIANGLES, first, count);
+
 						prevstart = i + 1;
 					}
 				}
@@ -1044,18 +1064,15 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 	DMVertexAttribs attribs;
 	MVert *mvert = cddm->mvert;
 	MFace *mface = cddm->mface;
-	MTFace *tf = dm->getFaceDataArray(dm, CD_MTFACE);
+	/* MTFace *tf = dm->getFaceDataArray(dm, CD_MTFACE); */ /* UNUSED */
 	float (*nors)[3] = dm->getFaceDataArray(dm, CD_NORMAL);
 	int a, b, dodraw, matnr, new_matnr;
-	int transp, new_transp, orig_transp;
 	int orig, *index = dm->getFaceDataArray(dm, CD_ORIGINDEX);
 
 	cdDM_update_normals_from_pbvh(dm);
 
 	matnr = -1;
 	dodraw = 0;
-	transp = GPU_get_material_blend_mode();
-	orig_transp = transp;
 
 	glShadeModel(GL_SMOOTH);
 
@@ -1095,22 +1112,6 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 					continue;
 			}
 
-			if(tf) {
-				new_transp = tf[a].transp;
-
-				if(new_transp != transp) {
-					glEnd();
-
-					if(new_transp == GPU_BLEND_SOLID && orig_transp != GPU_BLEND_SOLID)
-						GPU_set_material_blend_mode(orig_transp);
-					else
-						GPU_set_material_blend_mode(new_transp);
-					transp = new_transp;
-
-					glBegin(GL_QUADS);
-				}
-			}
-
 			if(!smoothnormal) {
 				if(nors) {
 					glNormal3fv(nors[a]);
@@ -1142,7 +1143,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 		GPUBuffer *buffer = NULL;
 		char *varray = NULL;
 		int numdata = 0, elementsize = 0, offset;
-		int start = 0, numfaces = 0, prevdraw = 0, curface = 0;
+		int start = 0, numfaces = 0 /* , prevdraw = 0 */ /* UNUSED */, curface = 0;
 		int i;
 
 		MFace *mf = mface;
@@ -1186,7 +1187,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 					}
 					numdata = 0;
 					start = curface;
-					prevdraw = dodraw;
+					/* prevdraw = dodraw; */ /* UNUSED */
 					dodraw = setMaterial(matnr = new_matnr, &gattribs);
 					if(dodraw) {
 						DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
@@ -1234,7 +1235,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 						else {
 							/* if the buffer was set, dont use it again.
 							 * prevdraw was assumed true but didnt run so set to false - [#21036] */
-							prevdraw= 0;
+							/* prevdraw= 0; */ /* UNUSED */
 							buffer= NULL;
 						}
 					}
@@ -1243,33 +1244,6 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 					continue;
 				}
 
-				if(tf) {
-					new_transp = tf[a].transp;
-
-					if(new_transp != transp) {
-						numfaces = curface - start;
-						if( numfaces > 0 ) {
-							if( dodraw ) {
-								if( numdata != 0 ) {
-									GPU_buffer_unlock(buffer);
-									GPU_interleaved_attrib_setup(buffer,datatypes,numdata);
-								}
-								glDrawArrays(GL_TRIANGLES,start*3,(curface-start)*3);
-								if( numdata != 0 ) {
-									varray = GPU_buffer_lock_stream(buffer);
-								}
-							}
-						}
-						start = curface;
-
-						if(new_transp == GPU_BLEND_SOLID && orig_transp != GPU_BLEND_SOLID)
-							GPU_set_material_blend_mode(orig_transp);
-						else
-							GPU_set_material_blend_mode(new_transp);
-						transp = new_transp;
-					}
-				}
-				
 				if( numdata != 0 ) {
 					offset = 0;
 					if(attribs.totorco) {
@@ -1834,7 +1808,7 @@ void CDDM_apply_vert_normals(DerivedMesh *dm, short (*vertNormals)[3])
 	cddm->mvert = vert;
 
 	for(i = 0; i < dm->numVertData; ++i, ++vert)
-		VECCOPY(vert->no, vertNormals[i]);
+		copy_v3_v3_short(vert->no, vertNormals[i]);
 }
 
 void CDDM_calc_normals(DerivedMesh *dm)

@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -53,6 +51,7 @@
 #include "BKE_fcurve.h"
 
 #include "BKE_context.h"
+#include "BKE_object.h"
 #include "BKE_report.h"
 
 #include "RNA_access.h"
@@ -93,7 +92,8 @@
 /* Temporary data shared between these operators */
 typedef struct tPoseSlideOp {
 	Scene *scene;		/* current scene */
-	ARegion *ar;		/* region that we're operating in (needed for  */
+	ScrArea *sa;		/* area that we're operating in (needed for modal()) */
+	ARegion *ar;		/* region that we're operating in (needed for modal()) */
 	Object *ob;			/* active object that Pose Info comes from */
 	bArmature *arm;		/* armature for pose */
 	
@@ -130,8 +130,9 @@ static int pose_slide_init (bContext *C, wmOperator *op, short mode)
 	
 	/* get info from context */
 	pso->scene= CTX_data_scene(C);
-	pso->ob= ED_object_pose_armature(CTX_data_active_object(C));
+	pso->ob= object_pose_armature_get(CTX_data_active_object(C));
 	pso->arm= (pso->ob)? pso->ob->data : NULL;
+	pso->sa= CTX_wm_area(C); /* only really needed when doing modal() */
 	pso->ar= CTX_wm_region(C); /* only really needed when doing modal() */
 	
 	pso->cframe= pso->scene->r.cfra;
@@ -519,6 +520,33 @@ static void pose_slide_reset (tPoseSlideOp *pso)
 
 /* ------------------------------------ */
 
+/* draw percentage indicator in header */
+static void pose_slide_draw_status (tPoseSlideOp *pso)
+{
+	char statusStr[32];
+	char mode[32];
+	
+	switch (pso->mode) {
+		case POSESLIDE_PUSH:
+			strcpy(mode, "Push Pose");
+			break;
+		case POSESLIDE_RELAX:
+			strcpy(mode, "Relax Pose");
+			break;
+		case POSESLIDE_BREAKDOWN:
+			strcpy(mode, "Breakdown");
+			break;
+		
+		default:
+			// unknown
+			strcpy(mode, "Sliding-Tool");
+			break;
+	}
+	
+	sprintf(statusStr, "%s: %d %%", mode, (int)(pso->percentage*100.0f));
+	ED_area_headerprint(pso->sa, statusStr);
+}
+
 /* common code for invoke() methods */
 static int pose_slide_invoke_common (bContext *C, wmOperator *op, tPoseSlideOp *pso)
 {
@@ -572,7 +600,7 @@ static int pose_slide_invoke_common (bContext *C, wmOperator *op, tPoseSlideOp *
 		}
 	}
 	else {
-		BKE_report(op->reports, RPT_ERROR, "No keyframes to slide between.");
+		BKE_report(op->reports, RPT_ERROR, "No keyframes to slide between");
 		pose_slide_exit(op);
 		return OPERATOR_CANCELLED;
 	}
@@ -586,6 +614,9 @@ static int pose_slide_invoke_common (bContext *C, wmOperator *op, tPoseSlideOp *
 	
 	/* set cursor to indicate modal */
 	WM_cursor_modal(win, BC_EW_SCROLLCURSOR);
+	
+	/* header print */
+	pose_slide_draw_status(pso);
 	
 	/* add a modal handler for this operator */
 	WM_event_add_modal_handler(C, op);
@@ -601,7 +632,8 @@ static int pose_slide_modal (bContext *C, wmOperator *op, wmEvent *evt)
 	switch (evt->type) {
 		case LEFTMOUSE:	/* confirm */
 		{
-			/* return to normal cursor */
+			/* return to normal cursor and header status */
+			ED_area_headerprint(pso->sa, NULL);
 			WM_cursor_restore(win);
 			
 			/* insert keyframes as required... */
@@ -615,7 +647,8 @@ static int pose_slide_modal (bContext *C, wmOperator *op, wmEvent *evt)
 		case ESCKEY:	/* cancel */
 		case RIGHTMOUSE: 
 		{
-			/* return to normal cursor */
+			/* return to normal cursor and header status */
+			ED_area_headerprint(pso->sa, NULL);
 			WM_cursor_restore(win);
 			
 			/* reset transforms back to original state */
@@ -638,6 +671,9 @@ static int pose_slide_modal (bContext *C, wmOperator *op, wmEvent *evt)
 			 */
 			pso->percentage= (evt->x - pso->ar->winrct.xmin) / ((float)pso->ar->winx);
 			RNA_float_set(op->ptr, "percentage", pso->percentage);
+			
+			/* update percentage indicator in header */
+			pose_slide_draw_status(pso);
 			
 			/* reset transforms (to avoid accumulation errors) */
 			pose_slide_reset(pso);
@@ -682,8 +718,8 @@ static int pose_slide_exec_common (bContext *C, wmOperator *op, tPoseSlideOp *ps
 /* common code for defining RNA properties */
 static void pose_slide_opdef_properties (wmOperatorType *ot)
 {
-	RNA_def_int(ot->srna, "prev_frame", 0, MINAFRAME, MAXFRAME, "Previous Keyframe", "Frame number of keyframe immediately before the current frame.", 0, 50);
-	RNA_def_int(ot->srna, "next_frame", 0, MINAFRAME, MAXFRAME, "Next Keyframe", "Frame number of keyframe immediately after the current frame.", 0, 50);
+	RNA_def_int(ot->srna, "prev_frame", 0, MINAFRAME, MAXFRAME, "Previous Keyframe", "Frame number of keyframe immediately before the current frame", 0, 50);
+	RNA_def_int(ot->srna, "next_frame", 0, MINAFRAME, MAXFRAME, "Next Keyframe", "Frame number of keyframe immediately after the current frame", 0, 50);
 	RNA_def_float_percentage(ot->srna, "percentage", 0.5f, 0.0f, 1.0f, "Percentage", "Weighting factor for the sliding operation", 0.3, 0.7);
 }
 
@@ -1129,7 +1165,7 @@ static void pose_propagate_fcurve (wmOperator *op, Object *ob, FCurve *fcu,
 static int pose_propagate_exec (bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	Object *ob= ED_object_pose_armature(CTX_data_active_object(C));
+	Object *ob= object_pose_armature_get(CTX_data_active_object(C));
 	bAction *act= (ob && ob->adt)? ob->adt->action : NULL;
 	
 	ListBase pflinks = {NULL, NULL};

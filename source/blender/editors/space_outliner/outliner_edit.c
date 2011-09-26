@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -215,10 +213,38 @@ void OUTLINER_OT_item_openclose(wmOperatorType *ot)
 	
 	ot->poll= ED_operator_outliner_active;
 	
-	RNA_def_boolean(ot->srna, "all", 1, "All", "Close or open all items.");
+	RNA_def_boolean(ot->srna, "all", 1, "All", "Close or open all items");
 }
 
 /* Rename --------------------------------------------------- */
+
+static void do_item_rename(ARegion *ar, TreeElement *te, TreeStoreElem *tselem, ReportList *reports)
+{
+	/* can't rename rna datablocks entries */
+	if(ELEM3(tselem->type, TSE_RNA_STRUCT, TSE_RNA_PROPERTY, TSE_RNA_ARRAY_ELEM))
+			;
+	else if(ELEM10(tselem->type, TSE_ANIM_DATA, TSE_NLA, TSE_DEFGROUP_BASE, TSE_CONSTRAINT_BASE, TSE_MODIFIER_BASE, TSE_SCRIPT_BASE, TSE_POSE_BASE, TSE_POSEGRP_BASE, TSE_R_LAYER_BASE, TSE_R_PASS)) 
+			BKE_report(reports, RPT_WARNING, "Cannot edit builtin name");
+	else if(ELEM3(tselem->type, TSE_SEQUENCE, TSE_SEQ_STRIP, TSE_SEQUENCE_DUP))
+		BKE_report(reports, RPT_WARNING, "Cannot edit sequence name");
+	else if(tselem->id->lib) {
+		// XXX						error_libdata();
+	} 
+	else if(te->idcode == ID_LI && te->parent) {
+		BKE_report(reports, RPT_WARNING, "Cannot edit the path of an indirectly linked library");
+	} 
+	else {
+		tselem->flag |= TSE_TEXTBUT;
+		ED_region_tag_redraw(ar);
+	}
+}
+
+void item_rename_cb(bContext *C, Scene *UNUSED(scene), TreeElement *te, TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+{
+	ARegion *ar= CTX_wm_region(C);
+	ReportList *reports= CTX_wm_reports(C); // XXX
+	do_item_rename(ar, te, tselem, reports) ;
+}
 
 static int do_outliner_item_rename(bContext *C, ARegion *ar, SpaceOops *soops, TreeElement *te, const float mval[2])
 {	
@@ -230,23 +256,7 @@ static int do_outliner_item_rename(bContext *C, ARegion *ar, SpaceOops *soops, T
 		/* name and first icon */
 		if(mval[0]>te->xs+UI_UNIT_X && mval[0]<te->xend) {
 			
-			/* can't rename rna datablocks entries */
-			if(ELEM3(tselem->type, TSE_RNA_STRUCT, TSE_RNA_PROPERTY, TSE_RNA_ARRAY_ELEM))
-			   ;
-			else if(ELEM10(tselem->type, TSE_ANIM_DATA, TSE_NLA, TSE_DEFGROUP_BASE, TSE_CONSTRAINT_BASE, TSE_MODIFIER_BASE, TSE_SCRIPT_BASE, TSE_POSE_BASE, TSE_POSEGRP_BASE, TSE_R_LAYER_BASE, TSE_R_PASS)) 
-					BKE_report(reports, RPT_WARNING, "Cannot edit builtin name");
-			else if(ELEM3(tselem->type, TSE_SEQUENCE, TSE_SEQ_STRIP, TSE_SEQUENCE_DUP))
-				BKE_report(reports, RPT_WARNING, "Cannot edit sequence name");
-			else if(tselem->id->lib) {
-				// XXX						error_libdata();
-			} 
-			else if(te->idcode == ID_LI && te->parent) {
-				BKE_report(reports, RPT_WARNING, "Cannot edit the path of an indirectly linked library");
-			} 
-			else {
-				tselem->flag |= TSE_TEXTBUT;
-				ED_region_tag_redraw(ar);
-			}
+			do_item_rename(ar, te, tselem, reports) ;
 		}
 		return 1;
 	}
@@ -379,6 +389,12 @@ void object_toggle_visibility_cb(bContext *C, Scene *scene, TreeElement *te, Tre
 	}
 }
 
+void group_toggle_visibility_cb(bContext *UNUSED(C), Scene *scene, TreeElement *UNUSED(te), TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+{
+	Group *group= (Group *)tselem->id;
+	restrictbutton_gr_restrict_flag(scene, group, OB_RESTRICT_VIEW);
+}
+
 static int outliner_toggle_visibility_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	SpaceOops *soops= CTX_wm_space_outliner(C);
@@ -419,6 +435,12 @@ void object_toggle_selectability_cb(bContext *UNUSED(C), Scene *scene, TreeEleme
 	}
 }
 
+void group_toggle_selectability_cb(bContext *UNUSED(C), Scene *scene, TreeElement *UNUSED(te), TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+{
+	Group *group= (Group *)tselem->id;
+	restrictbutton_gr_restrict_flag(scene, group, OB_RESTRICT_SELECT);
+}
+
 static int outliner_toggle_selectability_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	SpaceOops *soops= CTX_wm_space_outliner(C);
@@ -457,6 +479,12 @@ void object_toggle_renderability_cb(bContext *UNUSED(C), Scene *scene, TreeEleme
 	if(base) {
 		base->object->restrictflag^=OB_RESTRICT_RENDER;
 	}
+}
+
+void group_toggle_renderability_cb(bContext *UNUSED(C), Scene *scene, TreeElement *UNUSED(te), TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem)
+{
+	Group *group= (Group *)tselem->id;
+	restrictbutton_gr_restrict_flag(scene, group, OB_RESTRICT_RENDER);
 }
 
 static int outliner_toggle_renderability_exec(bContext *C, wmOperator *UNUSED(op))
@@ -641,7 +669,7 @@ void OUTLINER_OT_scroll_page(wmOperatorType *ot)
 	ot->poll= ED_operator_outliner_active;
 	
 	/* properties */
-	RNA_def_boolean(ot->srna, "up", 0, "Up", "Scroll up one page.");
+	RNA_def_boolean(ot->srna, "up", 0, "Up", "Scroll up one page");
 }
 
 /* Search ------------------------------------------------------- */
@@ -659,7 +687,7 @@ static void outliner_set_coordinates_element(SpaceOops *soops, TreeElement *te, 
 	te->ys= (float)(*starty);
 	*starty-= UI_UNIT_Y;
 	
-	if((tselem->flag & TSE_CLOSED)==0) {
+	if(TSELEM_OPEN(tselem,soops)) {
 		TreeElement *ten;
 		for(ten= te->subtree.first; ten; ten= ten->next) {
 			outliner_set_coordinates_element(soops, ten, startx+UI_UNIT_X, starty);
@@ -737,7 +765,7 @@ static void outliner_find_panel(Scene *UNUSED(scene), ARegion *ar, SpaceOops *so
 	}
 	else {
 		/* pop up panel - no previous, or user didn't want search after previous */
-		strcpy(name, "");
+		name[0]= '\0';
 // XXX		if (sbutton(name, 0, sizeof(name)-1, "Find: ") && name[0]) {
 //			te= outliner_find_named(soops, &soops->tree, name, flags, NULL, &prevFound);
 //		}
@@ -841,7 +869,7 @@ void OUTLINER_OT_show_one_level(wmOperatorType *ot)
 	/* no undo or registry, UI option */
 	
 	/* properties */
-	RNA_def_boolean(ot->srna, "open", 1, "Open", "Expand all entries one level deep.");
+	RNA_def_boolean(ot->srna, "open", 1, "Open", "Expand all entries one level deep");
 }
 
 /* Show Hierarchy ----------------------------------------------- */
@@ -882,7 +910,7 @@ static void tree_element_show_hierarchy(Scene *scene, SpaceOops *soops, ListBase
 		}
 		else tselem->flag |= TSE_CLOSED;
 		
-		if(tselem->flag & TSE_CLOSED); else tree_element_show_hierarchy(scene, soops, &te->subtree);
+		if(TSELEM_OPEN(tselem,soops)) tree_element_show_hierarchy(scene, soops, &te->subtree);
 	}
 }
 
@@ -941,7 +969,7 @@ static void tree_element_to_path(SpaceOops *soops, TreeElement *te, TreeStoreEle
 	ListBase hierarchy = {NULL, NULL};
 	LinkData *ld;
 	TreeElement *tem, *temnext, *temsub;
-	TreeStoreElem *tse, *tsenext;
+	TreeStoreElem *tse /* , *tsenext */ /* UNUSED */;
 	PointerRNA *ptr, *nextptr;
 	PropertyRNA *prop;
 	char *newpath=NULL;
@@ -990,7 +1018,7 @@ static void tree_element_to_path(SpaceOops *soops, TreeElement *te, TreeStoreEle
 					char buf[128], *name;
 					
 					temnext= (TreeElement*)(ld->next->data);
-					tsenext= TREESTORE(temnext);
+					/* tsenext= TREESTORE(temnext); */ /* UNUSED */
 					
 					nextptr= &temnext->rnaptr;
 					name= RNA_struct_name_get_alloc(nextptr, buf, sizeof(buf));
@@ -1147,7 +1175,7 @@ static void do_outliner_drivers_editop(SpaceOops *soops, ListBase *tree, ReportL
 		}
 		
 		/* go over sub-tree */
-		if ((tselem->flag & TSE_CLOSED)==0)
+		if (TSELEM_OPEN(tselem,soops))
 			do_outliner_drivers_editop(soops, &te->subtree, reports, mode);
 	}
 }
@@ -1315,7 +1343,7 @@ static void do_outliner_keyingset_editop(SpaceOops *soops, KeyingSet *ks, ListBa
 		}
 		
 		/* go over sub-tree */
-		if ((tselem->flag & TSE_CLOSED)==0)
+		if (TSELEM_OPEN(tselem,soops))
 			do_outliner_keyingset_editop(soops, ks, &te->subtree, mode);
 	}
 }

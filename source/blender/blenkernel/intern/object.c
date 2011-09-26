@@ -54,6 +54,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_sound_types.h"
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_world_types.h"
@@ -96,6 +97,7 @@
 #include "BKE_sca.h"
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
+#include "BKE_speaker.h"
 #include "BKE_softbody.h"
 #include "BKE_material.h"
 
@@ -233,6 +235,17 @@ void object_free_display(Object *ob)
 	freedisplist(&ob->disp);
 }
 
+void free_sculptsession_deformMats(SculptSession *ss)
+{
+	if(ss->orig_cos) MEM_freeN(ss->orig_cos);
+	if(ss->deform_cos) MEM_freeN(ss->deform_cos);
+	if(ss->deform_imats) MEM_freeN(ss->deform_imats);
+
+	ss->orig_cos = NULL;
+	ss->deform_cos = NULL;
+	ss->deform_imats = NULL;
+}
+
 void free_sculptsession(Object *ob)
 {
 	if(ob && ob->sculpt) {
@@ -262,6 +275,7 @@ void free_sculptsession(Object *ob)
 		ob->sculpt = NULL;
 	}
 }
+
 
 /* do not free object itself */
 void free_object(Object *ob)
@@ -404,7 +418,7 @@ void unlink_object(Object *ob)
 						for (ct= targets.first; ct; ct= ct->next) {
 							if (ct->tar == ob) {
 								ct->tar = NULL;
-								strcpy(ct->subtarget, "");
+								ct->subtarget[0]= '\0';
 								obt->recalc |= OB_RECALC_DATA;
 							}
 						}
@@ -434,7 +448,7 @@ void unlink_object(Object *ob)
 				for (ct= targets.first; ct; ct= ct->next) {
 					if (ct->tar == ob) {
 						ct->tar = NULL;
-						strcpy(ct->subtarget, "");
+						ct->subtarget[0]= '\0';
 						obt->recalc |= OB_RECALC_DATA;
 					}
 				}
@@ -989,6 +1003,7 @@ static void *add_obdata_from_type(int type)
 	case OB_LAMP: return add_lamp("Lamp");
 	case OB_LATTICE: return add_lattice("Lattice");
 	case OB_ARMATURE: return add_armature("Armature");
+	case OB_SPEAKER: return add_speaker("Speaker");
 	case OB_EMPTY: return NULL;
 	default:
 		printf("add_obdata_from_type: Internal error, bad type: %d\n", type);
@@ -1008,6 +1023,7 @@ static const char *get_obdata_defname(int type)
 	case OB_LAMP: return "Lamp";
 	case OB_LATTICE: return "Lattice";
 	case OB_ARMATURE: return "Armature";
+	case OB_SPEAKER: return "Speaker";
 	case OB_EMPTY: return "Empty";
 	default:
 		printf("get_obdata_defname: Internal error, bad type: %d\n", type);
@@ -1051,7 +1067,7 @@ Object *add_only_object(int type, const char *name)
 	ob->empty_drawtype= OB_PLAINAXES;
 	ob->empty_drawsize= 1.0;
 
-	if(type==OB_CAMERA || type==OB_LAMP) {
+	if(type==OB_CAMERA || type==OB_LAMP || type==OB_SPEAKER) {
 		ob->trackflag= OB_NEGZ;
 		ob->upflag= OB_POSY;
 	}
@@ -1078,6 +1094,7 @@ Object *add_only_object(int type, const char *name)
 	ob->state=1;
 	/* ob->pad3 == Contact Processing Threshold */
 	ob->m_contactProcessingThreshold = 1.;
+	ob->obstacleRad = 1.;
 	ob->col_group = ob->col_mask = 1;
 	
 	/* NT fluid sim defaults */
@@ -1292,6 +1309,37 @@ static void copy_object_pose(Object *obn, Object *ob)
 			}
 		}
 	}
+}
+
+static int object_pose_context(Object *ob)
+{
+	if(	(ob) &&
+		(ob->type == OB_ARMATURE) &&
+		(ob->pose) &&
+		(ob->mode & OB_MODE_POSE)
+	) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
+//Object *object_pose_armature_get(Object *ob)
+Object *object_pose_armature_get(struct Object *ob)
+{
+	if(ob==NULL)
+		return NULL;
+
+	if(object_pose_context(ob))
+		return ob;
+
+	ob= modifiers_isDeformedByArmature(ob);
+
+	if(object_pose_context(ob))
+		return ob;
+
+	return NULL;
 }
 
 static void copy_object_transform(Object *ob_tar, Object *ob_src)
@@ -2085,7 +2133,7 @@ void where_is_object_time(Scene *scene, Object *ob, float ctime)
 	if(ob==NULL) return;
 	
 	/* execute drivers only, as animation has already been done */
-	BKE_animsys_evaluate_animdata(&ob->id, ob->adt, ctime, ADT_RECALC_DRIVERS);
+	BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, ctime, ADT_RECALC_DRIVERS);
 	
 	if(ob->parent) {
 		Object *par= ob->parent;
@@ -2303,7 +2351,7 @@ BoundBox *unit_boundbox(void)
 	BoundBox *bb;
 	float min[3] = {-1.0f,-1.0f,-1.0f}, max[3] = {-1.0f,-1.0f,-1.0f};
 
-	bb= MEM_callocN(sizeof(BoundBox), "bb");
+	bb= MEM_callocN(sizeof(BoundBox), "OB-BoundBox");
 	boundbox_set_from_min_max(bb, min, max);
 	
 	return bb;
@@ -2624,7 +2672,7 @@ void object_handle_update(Scene *scene, Object *ob)
 			if(adt) {
 				/* evaluate drivers */
 				// XXX: for mesh types, should we push this to derivedmesh instead?
-				BKE_animsys_evaluate_animdata(data_id, adt, ctime, ADT_RECALC_DRIVERS);
+				BKE_animsys_evaluate_animdata(scene, data_id, adt, ctime, ADT_RECALC_DRIVERS);
 			}
 
 			/* includes all keys and modifiers */
@@ -2752,6 +2800,33 @@ void object_handle_update(Scene *scene, Object *ob)
 	if(ob->proxy) {
 		ob->proxy->proxy_from= ob;
 		// printf("set proxy pointer for later group stuff %s\n", ob->id.name);
+	}
+}
+
+void object_sculpt_modifiers_changed(Object *ob)
+{
+	SculptSession *ss= ob->sculpt;
+
+	if(!ss->cache) {
+		/* we free pbvh on changes, except during sculpt since it can't deal with
+		   changing PVBH node organization, we hope topology does not change in
+		   the meantime .. weak */
+		if(ss->pbvh) {
+				BLI_pbvh_free(ss->pbvh);
+				ss->pbvh= NULL;
+		}
+
+		free_sculptsession_deformMats(ob->sculpt);
+	} else {
+		PBVHNode **nodes;
+		int n, totnode;
+
+		BLI_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnode);
+
+		for(n = 0; n < totnode; n++)
+			BLI_pbvh_node_mark_update(nodes[n]);
+
+		MEM_freeN(nodes);
 	}
 }
 
@@ -3135,7 +3210,7 @@ int object_is_modified(Scene *scene, Object *ob)
 	int flag= 0;
 
 	if(ob_get_key(ob)) {
-		flag |= eModifierMode_Render | eModifierMode_Render;
+		flag |= eModifierMode_Render;
 	}
 	else {
 		ModifierData *md;

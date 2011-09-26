@@ -45,6 +45,7 @@
 #include "DNA_meta_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_speaker_types.h"
 #include "DNA_world_types.h"
 #include "DNA_object_types.h"
 
@@ -75,6 +76,7 @@
 #include "BKE_report.h"
 #include "BKE_sca.h"
 #include "BKE_scene.h"
+#include "BKE_speaker.h"
 #include "BKE_texture.h"
 
 #include "WM_api.h"
@@ -93,6 +95,7 @@
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
+#include "ED_mesh.h"
 
 #include "object_intern.h"
 
@@ -120,7 +123,12 @@ static int vertex_parent_set_exec(bContext *C, wmOperator *op)
 	
 	if(obedit->type==OB_MESH) {
 		Mesh *me= obedit->data;
-		EditMesh *em = BKE_mesh_get_editmesh(me);
+		EditMesh *em;
+
+		load_editMesh(scene, obedit);
+		make_editMesh(scene, obedit);
+
+		em = BKE_mesh_get_editmesh(me);
 
 		eve= em->verts.first;
 		while(eve) {
@@ -138,7 +146,7 @@ static int vertex_parent_set_exec(bContext *C, wmOperator *op)
 		BKE_mesh_end_editmesh(me, em);
 	}
 	else if(ELEM(obedit->type, OB_SURF, OB_CURVE)) {
-		ListBase *editnurb= curve_get_editcurve(obedit);
+		ListBase *editnurb= object_editcurve_get(obedit);
 		
 		cu= obedit->data;
 
@@ -402,7 +410,7 @@ void OBJECT_OT_proxy_make (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* properties */
-	RNA_def_string(ot->srna, "object", "", MAX_ID_NAME-2, "Proxy Object", "Name of lib-linked/grouped object to make a proxy for.");
+	RNA_def_string(ot->srna, "object", "", MAX_ID_NAME-2, "Proxy Object", "Name of lib-linked/grouped object to make a proxy for");
 	prop= RNA_def_enum(ot->srna, "type", DummyRNA_DEFAULT_items, 0, "Type", "Group object"); /* XXX, relies on hard coded ID at the moment */
 	RNA_def_enum_funcs(prop, proxy_group_object_itemf);
 	ot->prop= prop;
@@ -971,8 +979,8 @@ static int track_set_exec(bContext *C, wmOperator *op)
 				data->tar = obact;
 				ob->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;
 				
-				/* Lamp and Camera track differently by default */
-				if (ob->type == OB_LAMP || ob->type == OB_CAMERA)
+				/* Lamp, Camera and Speaker track differently by default */
+				if (ob->type == OB_LAMP || ob->type == OB_CAMERA || ob->type == OB_SPEAKER)
 					data->trackflag = TRACK_nZ;
 			}
 		}
@@ -990,8 +998,8 @@ static int track_set_exec(bContext *C, wmOperator *op)
 				data->tar = obact;
 				ob->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;
 				
-				/* Lamp and Camera track differently by default */
-				if (ob->type == OB_LAMP || ob->type == OB_CAMERA) {
+				/* Lamp, Camera and Speaker track differently by default */
+				if (ob->type == OB_LAMP || ob->type == OB_CAMERA || ob->type == OB_SPEAKER) {
 					data->reserved1 = TRACK_nZ;
 					data->reserved2 = UP_Y;
 				}
@@ -1011,8 +1019,8 @@ static int track_set_exec(bContext *C, wmOperator *op)
 				data->tar = obact;
 				ob->recalc |= OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME;
 				
-				/* Lamp and Camera track differently by default */
-				if (ob->type == OB_LAMP || ob->type == OB_CAMERA) {
+				/* Lamp, Camera and Speaker track differently by default */
+				if (ob->type == OB_LAMP || ob->type == OB_CAMERA || ob->type == OB_SPEAKER) {
 					data->trackflag = TRACK_nZ;
 					data->lockflag = LOCK_Y;
 				}
@@ -1495,6 +1503,9 @@ static void single_obdata_users(Main *bmain, Scene *scene, int flag)
 					ob->data= copy_armature(ob->data);
 					armature_rebuild_pose(ob, ob->data);
 					break;
+				case OB_SPEAKER:
+					ob->data= copy_speaker(ob->data);
+					break;
 				default:
 					if (G.f & G_DEBUG)
 						printf("ERROR single_obdata_users: can't copy %s\n", id->name);
@@ -1916,5 +1927,5 @@ void OBJECT_OT_drop_named_material(wmOperatorType *ot)
 	ot->flag= OPTYPE_UNDO;
 	
 	/* properties */
-	RNA_def_string(ot->srna, "name", "Material", 24, "Name", "Material name to assign.");
+	RNA_def_string(ot->srna, "name", "Material", 24, "Name", "Material name to assign");
 }

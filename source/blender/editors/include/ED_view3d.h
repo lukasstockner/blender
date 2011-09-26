@@ -53,6 +53,7 @@ struct Scene;
 struct View3D;
 struct ViewContext;
 struct wmWindow;
+struct MVert;
 
 
 /* for derivedmesh drawing callbacks, for view3d_select, .... */
@@ -288,7 +289,7 @@ unsigned int ED_viewedit_datamask(struct bScreen *screen);
 int ED_view3d_camera_lock_check(struct View3D *v3d, struct RegionView3D *rv3d);
 /* copy the camera to the view before starting a view transformation */
 void ED_view3d_camera_lock_init(struct View3D *v3d, struct RegionView3D *rv3d);
-/* copy the view to the camera */
-void ED_view3d_camera_lock_sync(struct View3D *v3d, struct RegionView3D *rv3d);
+/* copy the view to the camera, return TRUE if */
+int ED_view3d_camera_lock_sync(struct View3D *v3d, struct RegionView3D *rv3d);
 
 #endif /* ED_VIEW3D_H */

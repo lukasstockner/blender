@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -45,6 +43,8 @@
 #include "BLI_dlrbTree.h"
 #include "BLI_utildefines.h"
 
+#include "BLF_translation.h"
+
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_object_types.h"
@@ -56,6 +56,7 @@
 #include "BKE_depsgraph.h"
 #include "BKE_idprop.h"
 #include "BKE_library.h"
+#include "BKE_object.h"
 
 #include "BKE_context.h"
 #include "BKE_report.h"
@@ -110,22 +111,34 @@ static int poselib_get_free_index (bAction *act)
 {
 	TimeMarker *marker;
 	int low=0, high=0;
+	short changed = 0;
 	
 	/* sanity checks */
 	if (ELEM(NULL, act, act->markers.first)) return 1;
 	
-	/* loop over poses finding various values (poses are not stored in chronological order) */
-	for (marker= act->markers.first; marker; marker= marker->next) {
-		/* only increase low if value is 1 greater than low, to find "gaps" where
-		 * poses were removed from the poselib
-		 */
-		if (marker->frame == (low + 1)) 
-			low++;
+	/* As poses are not stored in chronological order, we must iterate over this list 
+	 * a few times until we don't make any new discoveries (mostly about the lower bound).
+	 * Prevents problems with deleting then trying to add new poses [#27412]
+	 */
+	do {
+		changed = 0;
 		
-		/* value replaces high if it is the highest value encountered yet */
-		if (marker->frame > high) 
-			high= marker->frame;
-	}
+		for (marker= act->markers.first; marker; marker= marker->next) {
+			/* only increase low if value is 1 greater than low, to find "gaps" where
+			 * poses were removed from the poselib
+			 */
+			if (marker->frame == (low + 1)) {
+				low++;
+				changed = 1;
+			}
+			
+			/* value replaces high if it is the highest value encountered yet */
+			if (marker->frame > high) {
+				high= marker->frame;
+				changed = 1;
+			}
+		}
+	} while (changed != 0);
 	
 	/* - if low is not equal to high, then low+1 is a gap 
 	 * - if low is equal to high, then high+1 is the next index (add at end) 
@@ -160,7 +173,7 @@ static Object *get_poselib_object (bContext *C)
 	if (sa && (sa->spacetype == SPACE_BUTS)) 
 		return CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
 	else
-		return ED_object_pose_armature(CTX_data_active_object(C));
+		return object_pose_armature_get(CTX_data_active_object(C));
 }
 
 /* Poll callback for operators that require existing PoseLib data (with poses) to work */
@@ -331,6 +344,11 @@ static int poselib_sanitise_exec (bContext *C, wmOperator *op)
 	/* free temp memory */
 	BLI_dlrbTree_free(&keys);
 	
+	/* send notifiers for this - using keyframe editing notifiers, since action 
+	 * may be being shown in anim editors as active action 
+	 */
+	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
+	
 	return OPERATOR_FINISHED;
 }
 
@@ -391,15 +409,15 @@ static int poselib_add_menu_invoke (bContext *C, wmOperator *op, wmEvent *UNUSED
 	uiLayoutSetOperatorContext(layout, WM_OP_EXEC_DEFAULT);
 	
 	/* add new (adds to the first unoccupied frame) */
-	uiItemIntO(layout, "Add New", ICON_NONE, "POSELIB_OT_pose_add", "frame", poselib_get_free_index(ob->poselib));
+	uiItemIntO(layout, UI_translate_do_iface(N_("Add New")), ICON_NONE, "POSELIB_OT_pose_add", "frame", poselib_get_free_index(ob->poselib));
 	
 	/* check if we have any choices to add a new pose in any other way */
 	if ((ob->poselib) && (ob->poselib->markers.first)) {
 		/* add new (on current frame) */
-		uiItemIntO(layout, "Add New (Current Frame)", ICON_NONE, "POSELIB_OT_pose_add", "frame", CFRA);
+		uiItemIntO(layout, UI_translate_do_iface(N_("Add New (Current Frame)")), ICON_NONE, "POSELIB_OT_pose_add", "frame", CFRA);
 		
 		/* replace existing - submenu */
-		uiItemMenuF(layout, "Replace Existing...", 0, poselib_add_menu_invoke__replacemenu, NULL);
+		uiItemMenuF(layout, UI_translate_do_iface(N_("Replace Existing...")), 0, poselib_add_menu_invoke__replacemenu, NULL);
 	}
 	
 	uiPupMenuEnd(C, pup);
@@ -555,6 +573,11 @@ static int poselib_remove_exec (bContext *C, wmOperator *op)
 	/* fix active pose number */
 	act->active_marker= 0;
 	
+	/* send notifiers for this - using keyframe editing notifiers, since action 
+	 * may be being shown in anim editors as active action 
+	 */
+	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
+	
 	/* done */
 	return OPERATOR_FINISHED;
 }
@@ -612,7 +635,7 @@ static int poselib_rename_invoke (bContext *C, wmOperator *op, wmEvent *evt)
 
 static int poselib_rename_exec (bContext *C, wmOperator *op)
 {
-	Object *ob= ED_object_pose_armature(CTX_data_active_object(C));
+	Object *ob= object_pose_armature_get(CTX_data_active_object(C));
 	bAction *act= (ob) ? ob->poselib : NULL;
 	TimeMarker *marker;
 	char newname[64];
@@ -636,6 +659,11 @@ static int poselib_rename_exec (bContext *C, wmOperator *op)
 	/* copy name and validate it */
 	BLI_strncpy(marker->name, newname, sizeof(marker->name));
 	BLI_uniquename(&act->markers, marker, "Pose", '.', offsetof(TimeMarker, name), sizeof(marker->name));
+	
+	/* send notifiers for this - using keyframe editing notifiers, since action 
+	 * may be being shown in anim editors as active action 
+	 */
+	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME|NA_EDITED, NULL);
 	
 	/* done */
 	return OPERATOR_FINISHED;
@@ -840,7 +868,7 @@ static void poselib_apply_pose (tPoseLib_PreviewData *pld)
 	/* start applying - only those channels which have a key at this point in time! */
 	for (agrp= act->groups.first; agrp; agrp= agrp->next) {
 		/* check if group has any keyframes */
-		if (ANIM_animchanneldata_keyframes_loop(&ked, agrp, ALE_GROUP, NULL, group_ok_cb, NULL, 0)) {
+		if (ANIM_animchanneldata_keyframes_loop(&ked, NULL, agrp, ALE_GROUP, NULL, group_ok_cb, NULL)) {
 			/* has keyframe on this frame, so try to get a PoseChannel with this name */
 			pchan= get_pose_channel(pose, agrp->name);
 			
@@ -881,11 +909,11 @@ static void poselib_keytag_pose (bContext *C, Scene *scene, tPoseLib_PreviewData
 	
 	/* start tagging/keying */
 	for (agrp= act->groups.first; agrp; agrp= agrp->next) {
-		/* only for selected action channels */
-		if (agrp->flag & AGRP_SELECTED) {
-			pchan= get_pose_channel(pose, agrp->name);
-			
-			if (pchan) {
+		/* only for selected bones unless there aren't any selected, in which case all are included  */
+		pchan= get_pose_channel(pose, agrp->name);
+		
+		if (pchan) {
+			if ( (pld->selcount == 0) || ((pchan->bone) && (pchan->bone->flag & BONE_SELECTED)) ) {
 				if (autokey) {
 					/* add datasource override for the PoseChannel, to be used later */
 					ANIM_relative_keyingset_add_source(&dsources, &pld->ob->id, &RNA_PoseBone, pchan); 
@@ -1413,9 +1441,7 @@ static void poselib_preview_init_data (bContext *C, wmOperator *op)
 	pld->pose->flag &= ~POSE_DO_UNLOCK;
 	
 	/* clear strings + search */
-	strcpy(pld->headerstr, "");
-	strcpy(pld->searchstr, "");
-	strcpy(pld->searchold, "");
+	pld->headerstr[0]= pld->searchstr[0]= pld->searchold[0]= '\0';
 	pld->search_cursor= 0;
 }
 

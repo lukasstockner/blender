@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -2169,7 +2167,7 @@ static void actcon_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraint
 		if (data->type < 10) {
 			/* extract rotation (is in whatever space target should be in) */
 			mat4_to_eul(vec, tempmat);
-			mul_v3_fl(vec, (float)(180.0/M_PI)); /* rad -> deg */
+			mul_v3_fl(vec, RAD2DEGF(1.0f)); /* rad -> deg */
 			axis= data->type;
 		}
 		else if (data->type < 20) {
@@ -2641,7 +2639,7 @@ static void distlimit_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 			/* if inside, then move to surface */
 			if (dist <= data->dist) {
 				clamp_surf= 1;
-				sfac= data->dist / dist;
+				if (dist != 0.0f) sfac= data->dist / dist;
 			}
 			/* if soft-distance is enabled, start fading once owner is dist+softdist from the target */
 			else if (data->flag & LIMITDIST_USESOFT) {
@@ -2654,14 +2652,14 @@ static void distlimit_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 			/* if outside, then move to surface */
 			if (dist >= data->dist) {
 				clamp_surf= 1;
-				sfac= data->dist / dist;
+				if (dist != 0.0f) sfac= data->dist / dist;
 			}
 			/* if soft-distance is enabled, start fading once owner is dist-soft from the target */
 			else if (data->flag & LIMITDIST_USESOFT) {
 				// FIXME: there's a problem with "jumping" when this kicks in
 				if (dist >= (data->dist - data->soft)) {
 					sfac = (float)( data->soft*(1.0f - expf(-(dist - data->dist)/data->soft)) + data->dist );
-					sfac /= dist;
+					if (dist != 0.0f) sfac /= dist;
 					
 					clamp_surf= 1;
 				}
@@ -2670,7 +2668,7 @@ static void distlimit_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 		else {
 			if (IS_EQF(dist, data->dist)==0) {
 				clamp_surf= 1;
-				sfac= data->dist / dist;
+				if (dist != 0.0f) sfac= data->dist / dist;
 			}
 		}
 		
@@ -3327,7 +3325,7 @@ static void transform_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 				break;
 			case 1: /* rotation (convert to degrees first) */
 				mat4_to_eulO(dvec, cob->rotOrder, ct->matrix);
-				mul_v3_fl(dvec, (float)(180.0/M_PI)); /* rad -> deg */
+				mul_v3_fl(dvec, RAD2DEGF(1.0f)); /* rad -> deg */
 				break;
 			default: /* location */
 				copy_v3_v3(dvec, ct->matrix[3]);
@@ -4420,6 +4418,34 @@ void get_constraint_target_matrix (struct Scene *scene, bConstraint *con, int n,
 		unit_m4(mat);
 	}
 }
+
+/* Get the list of targets required for solving a constraint */
+void get_constraint_targets_for_solving (bConstraint *con, bConstraintOb *cob, ListBase *targets, float ctime)
+{
+	bConstraintTypeInfo *cti= constraint_get_typeinfo(con);
+	
+	if (cti && cti->get_constraint_targets) {
+		bConstraintTarget *ct;
+		
+		/* get targets 
+		 * 	- constraints should use ct->matrix, not directly accessing values
+		 *	- ct->matrix members have not yet been calculated here! 
+		 */
+		cti->get_constraint_targets(con, targets);
+		
+		/* set matrices 
+		 * 	- calculate if possible, otherwise just initialise as identity matrix 
+		 */
+		if (cti->get_target_matrix) {
+			for (ct= targets->first; ct; ct= ct->next) 
+				cti->get_target_matrix(con, cob, ct, ctime);
+		}
+		else {
+			for (ct= targets->first; ct; ct= ct->next)
+				unit_m4(ct->matrix);
+		}
+	}
+}
  
 /* ---------- Evaluation ----------- */
 
@@ -4464,27 +4490,7 @@ void solve_constraints (ListBase *conlist, bConstraintOb *cob, float ctime)
 		constraint_mat_convertspace(cob->ob, cob->pchan, cob->matrix, CONSTRAINT_SPACE_WORLD, con->ownspace);
 		
 		/* prepare targets for constraint solving */
-		if (cti->get_constraint_targets) {
-			bConstraintTarget *ct;
-			
-			/* get targets 
-			 * 	- constraints should use ct->matrix, not directly accessing values
-			 *	- ct->matrix members have not yet been calculated here! 
-			 */
-			cti->get_constraint_targets(con, &targets);
-			
-			/* set matrices 
-			 * 	- calculate if possible, otherwise just initialise as identity matrix 
-			 */
-			if (cti->get_target_matrix) {
-				for (ct= targets.first; ct; ct= ct->next) 
-					cti->get_target_matrix(con, cob, ct, ctime);
-			}
-			else {
-				for (ct= targets.first; ct; ct= ct->next)
-					unit_m4(ct->matrix);
-			}
-		}
+		get_constraint_targets_for_solving(con, cob, &targets, ctime);
 		
 		/* Solve the constraint and put result in cob->matrix */
 		cti->evaluate_constraint(con, cob, &targets);

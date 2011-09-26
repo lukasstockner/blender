@@ -46,6 +46,7 @@
 
 #ifdef WITH_AUDASPACE
 #  include "AUD_C-API.h"
+#  include "AUD_ChannelMapperFactory.h"
 #endif
 
 // Actuators
@@ -71,6 +72,7 @@
 #include "KX_SCA_ReplaceMeshActuator.h"
 #include "KX_ParentActuator.h"
 #include "KX_SCA_DynamicActuator.h"
+#include "KX_SteeringActuator.h"
 
 #include "KX_Scene.h"
 #include "KX_KetsjiEngine.h"
@@ -99,6 +101,8 @@
 #include "BL_ActionActuator.h"
 #include "BL_ShapeActionActuator.h"
 #include "BL_ArmatureActuator.h"
+#include "RNA_access.h"
+#include "BL_Action.h"
 /* end of blender include block */
 
 #include "BL_BlenderDataConversion.h"
@@ -196,30 +200,37 @@ void BL_ConvertActuators(char* maggiename,
 			}
 		case ACT_ACTION:
 			{
-				if (blenderobject->type==OB_ARMATURE){
-					bActionActuator* actact = (bActionActuator*) bact->data;
-					STR_String propname = (actact->name ? actact->name : "");
-					STR_String propframe = (actact->frameProp ? actact->frameProp : "");
+				bActionActuator* actact = (bActionActuator*) bact->data;
+				STR_String propname = (actact->name ? actact->name : "");
+				STR_String propframe = (actact->frameProp ? actact->frameProp : "");
+
+				short ipo_flags = 0;
+
+				// Convert flags
+				if (actact->flag & ACT_IPOFORCE) ipo_flags |= BL_Action::ACT_IPOFLAG_FORCE;
+				if (actact->flag & ACT_IPOLOCAL) ipo_flags |= BL_Action::ACT_IPOFLAG_LOCAL;
+				if (actact->flag & ACT_IPOADD) ipo_flags |= BL_Action::ACT_IPOFLAG_ADD;
+				if (actact->flag & ACT_IPOCHILD) ipo_flags |= BL_Action::ACT_IPOFLAG_CHILD;
 					
-					BL_ActionActuator* tmpbaseact = new BL_ActionActuator(
-						gameobj,
-						propname,
-						propframe,
-						actact->sta,
-						actact->end,
-						actact->act,
-						actact->type, // + 1, because Blender starts to count at zero,
-						actact->blendin,
-						actact->priority,
-						actact->end_reset,
-						actact->stridelength
-						// Ketsji at 1, because zero is reserved for "NoDef"
-						);
-					baseact= tmpbaseact;
-					break;
-				}
-				else
-					printf ("Discarded action actuator from non-armature object [%s]\n", blenderobject->id.name+2);
+				BL_ActionActuator* tmpbaseact = new BL_ActionActuator(
+					gameobj,
+					propname,
+					propframe,
+					actact->sta,
+					actact->end,
+					actact->act,
+					actact->type, // + 1, because Blender starts to count at zero,
+					actact->blendin,
+					actact->priority,
+					actact->layer,
+					actact->layer_weight,
+					ipo_flags,
+					actact->end_reset,
+					actact->stridelength
+					// Ketsji at 1, because zero is reserved for "NoDef"
+					);
+				baseact= tmpbaseact;
+				break;
 			}
 		case ACT_SHAPEACTION:
 			{
@@ -380,7 +391,7 @@ void BL_ConvertActuators(char* maggiename,
 				{
 					bSound* sound = soundact->sound;
 					bool is3d = soundact->flag & ACT_SND_3D_SOUND ? true : false;
-					AUD_Sound* snd_sound = NULL;
+					AUD_Reference<AUD_IFactory> snd_sound;
 					KX_3DSoundSettings settings;
 					settings.cone_inner_angle = soundact->sound3D.cone_inner_angle;
 					settings.cone_outer_angle = soundact->sound3D.cone_outer_angle;
@@ -398,7 +409,30 @@ void BL_ConvertActuators(char* maggiename,
 										"\" has no sound datablock." << std::endl;
 					}
 					else
-						snd_sound = sound->playback_handle;
+					{
+						snd_sound = *reinterpret_cast<AUD_Reference<AUD_IFactory>*>(sound->playback_handle);
+
+						// if sound shall be 3D but isn't mono, we have to make it mono!
+						if(is3d)
+						{
+							try
+							{
+								AUD_Reference<AUD_IReader> reader = snd_sound->createReader();
+								if(reader->getSpecs().channels != AUD_CHANNELS_MONO)
+								{
+									AUD_DeviceSpecs specs;
+									specs.channels = AUD_CHANNELS_MONO;
+									specs.rate = AUD_RATE_INVALID;
+									specs.format = AUD_FORMAT_INVALID;
+									snd_sound = new AUD_ChannelMapperFactory(snd_sound, specs);
+								}
+							}
+							catch(AUD_Exception&)
+							{
+								// sound cannot be played... ignore
+							}
+						}
+					}
 					KX_SoundActuator* tmpsoundact =
 						new KX_SoundActuator(gameobj,
 						snd_sound,
@@ -917,7 +951,7 @@ void BL_ConvertActuators(char* maggiename,
 		case ACT_2DFILTER:
 		{
 			bTwoDFilterActuator *_2dfilter = (bTwoDFilterActuator*) bact->data;
-            SCA_2DFilterActuator *tmp = NULL;
+			SCA_2DFilterActuator *tmp = NULL;
 
 			RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode;
 			switch(_2dfilter->type)
@@ -971,7 +1005,7 @@ void BL_ConvertActuators(char* maggiename,
 					filtermode = RAS_2DFilterManager::RAS_2DFILTER_NOFILTER;
 					break;
 			}
-            
+
 			tmp = new SCA_2DFilterActuator(gameobj, filtermode, _2dfilter->flag,
 				_2dfilter->float_arg,_2dfilter->int_arg,ketsjiEngine->GetRasterizer(),scene);
 
@@ -987,8 +1021,8 @@ void BL_ConvertActuators(char* maggiename,
 				}
 			}
 
-            baseact = tmp;
-			
+			baseact = tmp;
+
 		}
 		break;
 		case ACT_PARENT:
@@ -1030,6 +1064,45 @@ void BL_ConvertActuators(char* maggiename,
 				KX_GameObject *subgob = converter->FindGameObject(armAct->subtarget);
 				BL_ArmatureActuator* tmparmact = new BL_ArmatureActuator(gameobj, armAct->type, armAct->posechannel, armAct->constraint, tmpgob, subgob, armAct->weight);
 				baseact = tmparmact;
+				break;
+			}
+		case ACT_STEERING:
+			{
+				bSteeringActuator *stAct = (bSteeringActuator *) bact->data;
+				KX_GameObject *navmeshob = NULL;
+				if (stAct->navmesh)
+				{
+					PointerRNA settings_ptr;
+					RNA_pointer_create((ID *)stAct->navmesh, &RNA_GameObjectSettings, stAct->navmesh, &settings_ptr);
+					if (RNA_enum_get(&settings_ptr, "physics_type") == OB_BODY_TYPE_NAVMESH)
+						navmeshob = converter->FindGameObject(stAct->navmesh);
+				}
+				KX_GameObject *targetob = converter->FindGameObject(stAct->target);
+
+				int mode = KX_SteeringActuator::KX_STEERING_NODEF;
+				switch(stAct->type)
+				{
+				case ACT_STEERING_SEEK:
+					mode = KX_SteeringActuator::KX_STEERING_SEEK;
+					break;
+				case ACT_STEERING_FLEE:
+					mode = KX_SteeringActuator::KX_STEERING_FLEE;
+					break;
+				case ACT_STEERING_PATHFOLLOWING:
+					mode = KX_SteeringActuator::KX_STEERING_PATHFOLLOWING;
+					break;
+				}
+
+				bool selfTerminated = (stAct->flag & ACT_STEERING_SELFTERMINATED) !=0;
+				bool enableVisualization = (stAct->flag & ACT_STEERING_ENABLEVISUALIZATION) !=0;
+				short facingMode = (stAct->flag & ACT_STEERING_AUTOMATICFACING) ? stAct->facingaxis : 0;
+				bool normalup = (stAct->flag & ACT_STEERING_NORMALUP) !=0;
+				KX_SteeringActuator *tmpstact
+					= new KX_SteeringActuator(gameobj, mode, targetob, navmeshob,stAct->dist, 
+					stAct->velocity, stAct->acceleration, stAct->turnspeed, 
+					selfTerminated, stAct->updateTime,
+					scene->GetObstacleSimulation(), facingMode, normalup, enableVisualization);
+				baseact = tmpstact;
 				break;
 			}
 		default:
