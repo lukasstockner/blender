@@ -73,7 +73,7 @@
 #include "../generic/IDProp.h" /* for IDprop lookups */
 #include "../generic/py_capi_utils.h"
 
-#ifdef INTERNATIONAL
+#ifdef WITH_INTERNATIONAL
 #include "UI_interface.h" /* bad level call into editors */
 #endif
 
@@ -1523,11 +1523,11 @@ static int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyOb
 			}
 			else {
 				param= _PyUnicode_AsString(value);
-#ifdef INTERNATIONAL
+#ifdef WITH_INTERNATIONAL
 				if(subtype == PROP_TRANSLATE) {
 					param= UI_translate_do_iface(param);
 				}
-#endif // INTERNATIONAL
+#endif // WITH_INTERNATIONAL
 
 			}
 #else // USE_STRING_COERCE
@@ -1718,7 +1718,7 @@ static int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyOb
 		}
 		case PROP_COLLECTION:
 		{
-			int seq_len, i;
+			Py_ssize_t seq_len, i;
 			PyObject *item;
 			PointerRNA itemptr;
 			ListBase *lb;
@@ -1736,7 +1736,7 @@ static int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyOb
 			}
 
 			seq_len= PySequence_Size(value);
-			for(i=0; i<seq_len; i++) {
+			for(i=0; i < seq_len; i++) {
 				item= PySequence_GetItem(value, i);
 
 				if(item==NULL) {
