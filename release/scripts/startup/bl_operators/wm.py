@@ -1193,6 +1193,11 @@ class WM_OT_blenderplayer_start(Operator):
     player_path = os.path.join(blender_bin_dir, 'blenderplayer' + ext)
     
     def execute(self, context):
+        import sys
+
+        if sys.platform == 'darwin':
+            self.player_path = os.path.join(self.blender_bin_dir, '../../../blenderplayer.app/Contents/MacOS/blenderplayer')
+	
         filepath = bpy.app.tempdir + "game.blend"
         bpy.ops.wm.save_as_mainfile(filepath=filepath, check_existing=False, copy=True)
         subprocess.call([self.player_path, filepath])
