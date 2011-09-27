@@ -93,7 +93,7 @@ class SCENE_PT_unit(SceneButtonsPanel, Panel):
 
 class SCENE_PT_keying_sets(SceneButtonsPanel, Panel):
     bl_label = "Keying Sets"
-	COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     def draw(self, context):
         layout = self.layout
@@ -127,7 +127,7 @@ class SCENE_PT_keying_sets(SceneButtonsPanel, Panel):
 
 class SCENE_PT_keying_set_paths(SceneButtonsPanel, Panel):
     bl_label = "Active Keying Set"
-	COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     @classmethod
     def poll(cls, context):
