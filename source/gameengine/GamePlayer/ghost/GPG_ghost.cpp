@@ -833,7 +833,7 @@ int main(int argc, char** argv)
 						if ((!fullScreenParFound) && (!windowParFound))
 						{
 							// Only use file settings when command line did not override
-							if (scene->gm.fullscreen) {
+							if ((scene->gm.playerflag & GAME_PLAYER_FULLSCREEN)) {
 								//printf("fullscreen option found in Blender file\n");
 								fullScreen = true;
 								fullScreenWidth= scene->gm.xplay;
@@ -910,7 +910,7 @@ int main(int argc, char** argv)
 #endif
 								{
 									app.startFullScreen(fullScreenWidth, fullScreenHeight, fullScreenBpp, fullScreenFrequency,
-										stereoWindow, stereomode, aasamples, scene->gm.use_desktop);
+										stereoWindow, stereomode, aasamples, (scene->gm.playerflag & GAME_PLAYER_DESKTOP_RESOLUTION));
 								}
 							}
 							else
