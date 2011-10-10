@@ -40,6 +40,7 @@
 
 struct GPULamp;
 struct Scene;
+struct PoolLight;
 class KX_Camera;
 class RAS_IRasterizer;
 class RAS_IRenderTools;
@@ -50,13 +51,15 @@ class KX_LightObject : public KX_GameObject
 	Py_Header;
 protected:
 	RAS_LightObject		m_lightobj;
+	PoolLight*			m_poollight;
 	class RAS_IRenderTools*	m_rendertools;	//needed for registering and replication of lightobj
 	bool				m_glsl;
 	Scene*				m_blenderscene;
 
 	bool				m_dynamic;
-	Object* checkout_blenderlight();
-	void checkin_blenderlight(Object* lamp);
+	void checkout_blenderlight();
+	void checkin_blenderlight();
+	void forfeit_blenderlight();
 
 public:
 	KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,class RAS_IRenderTools* rendertools,const struct RAS_LightObject&	lightobj, bool glsl);
