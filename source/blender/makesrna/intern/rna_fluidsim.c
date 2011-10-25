@@ -96,7 +96,7 @@ static int fluidsim_find_lastframe(FluidsimSettings *fss)
 	do {
 		BLI_strncpy(targetFile, targetDir, sizeof(targetFile));
 		BLI_path_frame(targetFile, curFrame++, 0);
-	} while(BLI_exist(targetFile));
+	} while(BLI_exists(targetFile));
 
 	return curFrame - 1;
 }
@@ -141,12 +141,12 @@ static void rna_FluidSettings_update_type(Main *bmain, Scene *scene, PointerRNA 
 			psys->part= part;
 			psys->pointcache= BKE_ptcache_add(&psys->ptcaches);
 			psys->flag |= PSYS_ENABLED;
-			sprintf(psys->name, "FluidParticles");
+			BLI_strncpy(psys->name, "FluidParticles", sizeof(psys->name));
 			BLI_addtail(&ob->particlesystem,psys);
 
 			/* add modifier */
 			psmd= (ParticleSystemModifierData*)modifier_new(eModifierType_ParticleSystem);
-			sprintf(psmd->modifier.name, "FluidParticleSystem" );
+			BLI_strncpy(psmd->modifier.name, "FluidParticleSystem", sizeof(psmd->modifier.name));
 			psmd->psys= psys;
 			BLI_addtail(&ob->modifiers, psmd);
 			modifier_unique_name(&ob->modifiers, (ModifierData *)psmd);
@@ -173,6 +173,7 @@ static void rna_FluidSettings_update_type(Main *bmain, Scene *scene, PointerRNA 
 static void rna_DomainFluidSettings_memory_estimate_get(PointerRNA *ptr, char *value)
 {
 #ifdef DISABLE_ELBEEM
+	(void)ptr;
 	value[0]= '\0';
 #else
 	Object *ob= (Object*)ptr->id.data;
@@ -182,7 +183,7 @@ static void rna_DomainFluidSettings_memory_estimate_get(PointerRNA *ptr, char *v
 #endif
 }
 
-static int rna_DomainFluidSettings_memory_estimate_length(PointerRNA *ptr)
+static int rna_DomainFluidSettings_memory_estimate_length(PointerRNA *UNUSED(ptr))
 {
 #ifdef DISABLE_ELBEEM
 	return 0;

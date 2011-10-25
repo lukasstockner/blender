@@ -142,7 +142,7 @@ static void rna_Image_pack(Image *image, ReportList *reports, int as_png)
 			BKE_image_memorypack(image);
 		}
 		else {
-			image->packedfile= newPackedFile(reports, image->name);
+			image->packedfile= newPackedFile(reports, image->name, ID_BLEND_PATH(G.main, &image->id));
 		}
 	}
 }
@@ -157,7 +157,7 @@ static void rna_Image_unpack(Image *image, ReportList *reports, int method)
 		return;
 	}
 	else {
-		/* reports its own error on failier */
+		/* reports its own error on failure */
 		unpackImage (reports, image, method);
 	}
 }

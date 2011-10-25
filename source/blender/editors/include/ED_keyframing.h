@@ -313,6 +313,19 @@ typedef enum eAnimFilterFlags {
 	ANIMFILTER_KEYS_NOSKEY		= (1<<10),		/* don't include shape keys (for geometry) */
 } eAnimFilterFlags;
 
+/* utility funcs for auto keyframe */
+int ED_autokeyframe_object(struct bContext *C, struct Scene *scene, struct Object *ob, struct KeyingSet *ks);
+int ED_autokeyframe_pchan(struct bContext *C, struct Scene *scene, struct Object *ob, struct bPoseChannel *pchan, struct KeyingSet *ks);
+
+/* Names for builtin keying sets so we don't confuse these with labels/text,
+ * defined in python script: keyingsets_builtins.py */
+#define ANIM_KS_LOCATION_ID         "Location"
+#define ANIM_KS_ROTATION_ID         "Rotation"
+#define ANIM_KS_SCALING_ID          "Scaling"
+#define ANIM_KS_LOC_ROT_SCALE_ID    "LocRotScale"
+#define ANIM_KS_AVAILABLE_ID        "Available"
+#define ANIM_KS_WHOLE_CHARACTER_ID  "Whole Character"
+
 #ifdef __cplusplus
 }
 #endif

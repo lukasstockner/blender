@@ -1,6 +1,4 @@
 /*
- * blenkernel/packedFile.c - (cleaned up mar-01 nzc)
- *
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -168,7 +166,7 @@ PackedFile *newPackedFileMemory(void *mem, int memlen)
 	return pf;
 }
 
-PackedFile *newPackedFile(ReportList *reports, const char *filename)
+PackedFile *newPackedFile(ReportList *reports, const char *filename, const char *basepath)
 {
 	PackedFile *pf = NULL;
 	int file, filelen;
@@ -184,8 +182,8 @@ PackedFile *newPackedFile(ReportList *reports, const char *filename)
 	
 	// convert relative filenames to absolute filenames
 	
-	strcpy(name, filename);
-	BLI_path_abs(name, G.main->name);
+	BLI_strncpy(name, filename, sizeof(name));
+	BLI_path_abs(name, basepath);
 	
 	// open the file
 	// and create a PackedFile structure
@@ -194,7 +192,7 @@ PackedFile *newPackedFile(ReportList *reports, const char *filename)
 	if (file <= 0) {
 		BKE_reportf(reports, RPT_ERROR, "Unable to pack file, source path not found: \"%s\"", name);
 	} else {
-		filelen = BLI_filesize(file);
+		filelen = BLI_file_descriptor_size(file);
 
 		if (filelen == 0) {
 			// MEM_mallocN complains about MEM_mallocN(0, "bla");
@@ -224,7 +222,7 @@ void packAll(Main *bmain, ReportList *reports)
 	for(ima=bmain->image.first; ima; ima=ima->id.next) {
 		if(ima->packedfile == NULL && ima->id.lib==NULL) { 
 			if(ima->source==IMA_SRC_FILE) {
-				ima->packedfile = newPackedFile(reports, ima->name);
+				ima->packedfile = newPackedFile(reports, ima->name, ID_BLEND_PATH(bmain, &ima->id));
 			}
 			else if(ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
 				BKE_reportf(reports, RPT_WARNING, "Image '%s' skipped, movies and image sequences not supported.", ima->id.name+2);
@@ -234,15 +232,15 @@ void packAll(Main *bmain, ReportList *reports)
 
 	for(vf=bmain->vfont.first; vf; vf=vf->id.next)
 		if(vf->packedfile == NULL && vf->id.lib==NULL && strcmp(vf->name, FO_BUILTIN_NAME) != 0)
-			vf->packedfile = newPackedFile(reports, vf->name);
+			vf->packedfile = newPackedFile(reports, vf->name, bmain->name);
 
 	for(sound=bmain->sound.first; sound; sound=sound->id.next)
 		if(sound->packedfile == NULL && sound->id.lib==NULL)
-			sound->packedfile = newPackedFile(reports, sound->name);
+			sound->packedfile = newPackedFile(reports, sound->name, bmain->name);
 }
 
 
-/*
+#if 0
 
 // attempt to create a function that generates an unique filename
 // this will work when all funtions in fileops.c understand relative filenames...
@@ -251,6 +249,7 @@ static char *find_new_name(char *name)
 {
 	char tempname[FILE_MAXDIR + FILE_MAXFILE];
 	char *newname;
+	size_t len;
 	
 	if (fop_exists(name)) {
 		for (number = 1; number <= 999; number++) {
@@ -260,14 +259,12 @@ static char *find_new_name(char *name)
 			}
 		}
 	}
-	
-	newname = mallocN(strlen(tempname) + 1, "find_new_name");
-	strcpy(newname, tempname);
-	
-	return(newname);
+	len= strlen(tempname) + 1;
+	newname = MEM_mallocN(len, "find_new_name");
+	memcpy(newname, tempname, len * sizeof(char));
+	return newname;
 }
-	
-*/
+#endif
 
 int writePackedFile(ReportList *reports, const char *filename, PackedFile *pf, int guimode)
 {
@@ -279,14 +276,14 @@ int writePackedFile(ReportList *reports, const char *filename, PackedFile *pf, i
 	
 	if (guimode) {} //XXX  waitcursor(1);
 	
-	strcpy(name, filename);
+	BLI_strncpy(name, filename, sizeof(name));
 	BLI_path_abs(name, G.main->name);
 	
 	if (BLI_exists(name)) {
 		for (number = 1; number <= 999; number++) {
-			sprintf(tempname, "%s.%03d_", name, number);
+			BLI_snprintf(tempname, sizeof(tempname), "%s.%03d_", name, number);
 			if (! BLI_exists(tempname)) {
-				if (BLI_copy_fileops(name, tempname) == RET_OK) {
+				if (BLI_copy(name, tempname) == RET_OK) {
 					remove_tmp = TRUE;
 				}
 				break;
@@ -344,7 +341,7 @@ int checkPackedFile(const char *filename, PackedFile *pf)
 	char buf[4096];
 	char name[FILE_MAXDIR + FILE_MAXFILE];
 	
-	strcpy(name, filename);
+	BLI_strncpy(name, filename, sizeof(name));
 	BLI_path_abs(name, G.main->name);
 	
 	if (stat(name, &st)) {
@@ -394,9 +391,10 @@ there was an error or when the user desides to cancel the operation.
 
 */
 
-char *unpackFile(ReportList *reports, char *abs_name, char *local_name, PackedFile *pf, int how)
+char *unpackFile(ReportList *reports, const char *abs_name, const char *local_name, PackedFile *pf, int how)
 {
-	char *newname = NULL, *temp = NULL;
+	char *newname = NULL;
+	const char *temp = NULL;
 	
 	// char newabs[FILE_MAXDIR + FILE_MAXFILE];
 	// char newlocal[FILE_MAXDIR + FILE_MAXFILE];
@@ -439,12 +437,11 @@ char *unpackFile(ReportList *reports, char *abs_name, char *local_name, PackedFi
 		}
 		
 		if (temp) {
-			newname = MEM_mallocN(strlen(temp) + 1, "unpack_file newname");
-			strcpy(newname, temp);
+			newname= BLI_strdup(temp);
 		}
 	}
 	
-	return (newname);
+	return newname;
 }
 
 
@@ -455,17 +452,17 @@ int unpackVFont(ReportList *reports, VFont *vfont, int how)
 	int ret_value = RET_ERROR;
 	
 	if (vfont != NULL) {
-		strcpy(localname, vfont->name);
+		BLI_strncpy(localname, vfont->name, sizeof(localname));
 		BLI_splitdirstring(localname, fi);
 		
-		sprintf(localname, "//fonts/%s", fi);
+		BLI_snprintf(localname, sizeof(localname), "//fonts/%s", fi);
 		
 		newname = unpackFile(reports, vfont->name, localname, vfont->packedfile, how);
 		if (newname != NULL) {
 			ret_value = RET_OK;
 			freePackedFile(vfont->packedfile);
 			vfont->packedfile = NULL;
-			strcpy(vfont->name, newname);
+			BLI_strncpy(vfont->name, newname, sizeof(vfont->name));
 			MEM_freeN(newname);
 		}
 	}
@@ -480,13 +477,13 @@ int unpackSound(Main *bmain, ReportList *reports, bSound *sound, int how)
 	int ret_value = RET_ERROR;
 
 	if (sound != NULL) {
-		strcpy(localname, sound->name);
+		BLI_strncpy(localname, sound->name, sizeof(localname));
 		BLI_splitdirstring(localname, fi);
-		sprintf(localname, "//sounds/%s", fi);
+		BLI_snprintf(localname, sizeof(localname), "//sounds/%s", fi);
 
 		newname = unpackFile(reports, sound->name, localname, sound->packedfile, how);
 		if (newname != NULL) {
-			strcpy(sound->name, newname);
+			BLI_strncpy(sound->name, newname, sizeof(sound->name));
 			MEM_freeN(newname);
 
 			freePackedFile(sound->packedfile);
@@ -508,16 +505,16 @@ int unpackImage(ReportList *reports, Image *ima, int how)
 	int ret_value = RET_ERROR;
 	
 	if (ima != NULL) {
-		strcpy(localname, ima->name);
+		BLI_strncpy(localname, ima->name, sizeof(localname));
 		BLI_splitdirstring(localname, fi);
-		sprintf(localname, "//textures/%s", fi);
-			
+		BLI_snprintf(localname, sizeof(localname), "//textures/%s", fi);
+
 		newname = unpackFile(reports, ima->name, localname, ima->packedfile, how);
 		if (newname != NULL) {
 			ret_value = RET_OK;
 			freePackedFile(ima->packedfile);
 			ima->packedfile = NULL;
-			strcpy(ima->name, newname);
+			BLI_strncpy(ima->name, newname, sizeof(ima->name));
 			MEM_freeN(newname);
 			BKE_image_signal(ima, NULL, IMA_SIGNAL_RELOAD);
 		}

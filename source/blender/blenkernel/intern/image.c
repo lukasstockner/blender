@@ -1,5 +1,4 @@
-/*  image.c
- * 
+/*
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -907,8 +906,8 @@ static void stampdata(Scene *scene, Object *camera, StampData *stamp_data, int d
 	
 	if (scene->r.stamp & R_STAMP_MARKER) {
 		char *name = scene_find_last_marker_name(scene, CFRA);
-	
-		if (name)	strcpy(text, name);
+
+		if (name)	BLI_strncpy(text, name, sizeof(text));
 		else 		strcpy(text, "<none>");
 
 		BLI_snprintf(stamp_data->marker, sizeof(stamp_data->marker), do_prefix ? "Marker %s":"%s", text);
@@ -981,7 +980,7 @@ static void stampdata(Scene *scene, Object *camera, StampData *stamp_data, int d
 	if (scene->r.stamp & R_STAMP_SEQSTRIP) {
 		Sequence *seq= seq_foreground_frame_get(scene, scene->r.cfra);
 	
-		if (seq) strcpy(text, seq->name+2);
+		if (seq)	BLI_strncpy(text, seq->name+2, sizeof(text));
 		else 		strcpy(text, "<none>");
 
 		BLI_snprintf(stamp_data->strip, sizeof(stamp_data->strip), do_prefix ? "Strip %s":"%s", text);
@@ -1480,7 +1479,7 @@ void BKE_image_signal(Image *ima, ImageUser *iuser, int signal)
 		/* try to repack file */
 		if(ima->packedfile) {
 			PackedFile *pf;
-			pf = newPackedFile(NULL, ima->name);
+			pf = newPackedFile(NULL, ima->name, ID_BLEND_PATH(G.main, &ima->id));
 			if (pf) {
 				freePackedFile(ima->packedfile);
 				ima->packedfile = pf;
@@ -1515,7 +1514,7 @@ void BKE_image_signal(Image *ima, ImageUser *iuser, int signal)
 		Scene *scene;
 		for(scene= G.main->scene.first; scene; scene= scene->id.next) {
 			if(scene->nodetree) {
-				NodeTagIDChanged(scene->nodetree, &ima->id);
+				nodeUpdateID(scene->nodetree, &ima->id);
 			}
 		}
 	}
@@ -1653,10 +1652,7 @@ static ImBuf *image_load_sequence_file(Image *ima, ImageUser *iuser, int frame)
 	BLI_stringdec(name, head, tail, &numlen);
 	BLI_stringenc(name, head, tail, numlen, frame);
 
-	if(ima->id.lib)
-		BLI_path_abs(name, ima->id.lib->filepath);
-	else
-		BLI_path_abs(name, G.main->name);
+	BLI_path_abs(name, ID_BLEND_PATH(G.main, &ima->id));
 	
 	flag= IB_rect|IB_multilayer;
 	if(ima->flag & IMA_DO_PREMUL)
@@ -1768,11 +1764,8 @@ static ImBuf *image_load_movie_file(Image *ima, ImageUser *iuser, int frame)
 		char str[FILE_MAX];
 		
 		BLI_strncpy(str, ima->name, FILE_MAX);
-		if(ima->id.lib)
-			BLI_path_abs(str, ima->id.lib->filepath);
-		else
-			BLI_path_abs(str, G.main->name);
-		
+		BLI_path_abs(str, ID_BLEND_PATH(G.main, &ima->id));
+
 		/* FIXME: make several stream accessible in image editor, too*/
 		ima->anim = openanim(str, IB_rect, 0);
 		
@@ -1834,10 +1827,7 @@ static ImBuf *image_load_image_file(Image *ima, ImageUser *iuser, int cfra)
 			
 		/* get the right string */
 		BLI_strncpy(str, ima->name, sizeof(str));
-		if(ima->id.lib)
-			BLI_path_abs(str, ima->id.lib->filepath);
-		else
-			BLI_path_abs(str, G.main->name);
+		BLI_path_abs(str, ID_BLEND_PATH(G.main, &ima->id));
 		
 		/* read ibuf */
 		ibuf = IMB_loadiffname(str, flag);
@@ -1860,7 +1850,7 @@ static ImBuf *image_load_image_file(Image *ima, ImageUser *iuser, int cfra)
 			
 			/* make packed file for autopack */
 			if ((ima->packedfile == NULL) && (G.fileflags & G_AUTOPACK))
-				ima->packedfile = newPackedFile(NULL, str);
+				ima->packedfile = newPackedFile(NULL, str, ID_BLEND_PATH(G.main, &ima->id));
 		}
 	}
 	else

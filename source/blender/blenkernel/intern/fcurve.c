@@ -1,4 +1,6 @@
 /*
+ * $Id$
+ *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -703,7 +705,7 @@ void bezt_add_to_cfra_elem (ListBase *lb, BezTriple *bezt)
 
 /* ***************************** Samples Utilities ******************************* */
 /* Some utilities for working with FPoints (i.e. 'sampled' animation curve data, such as
- * data imported from BVH/Mocap files), which are specialised for use with high density datasets,
+ * data imported from BVH/Mocap files), which are specialized for use with high density datasets,
  * which BezTriples/Keyframe data are ill equipped to do.
  */
  

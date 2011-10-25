@@ -167,7 +167,7 @@ static int rna_idproperty_known(CollectionPropertyIterator *iter, void *data)
 	return 0;
 }
 
-static int rna_property_builtin(CollectionPropertyIterator *iter, void *data)
+static int rna_property_builtin(CollectionPropertyIterator *UNUSED(iter), void *data)
 {
 	PropertyRNA *prop= (PropertyRNA*)data;
 
@@ -176,7 +176,7 @@ static int rna_property_builtin(CollectionPropertyIterator *iter, void *data)
 	return (prop->flag & PROP_BUILTIN);
 }
 
-static int rna_function_builtin(CollectionPropertyIterator *iter, void *data)
+static int rna_function_builtin(CollectionPropertyIterator *UNUSED(iter), void *data)
 {
 	FunctionRNA *func= (FunctionRNA*)data;
 
@@ -506,6 +506,13 @@ static int rna_Property_readonly_get(PointerRNA *ptr)
 	return prop->flag & PROP_EDITABLE ? 0:1;
 }
 
+static int rna_Property_animatable_get(PointerRNA *ptr)
+{
+	PropertyRNA *prop= (PropertyRNA*)ptr->data;
+
+	return (prop->flag & PROP_ANIMATABLE) != 0;
+}
+
 static int rna_Property_use_output_get(PointerRNA *ptr)
 {
 	PropertyRNA *prop= (PropertyRNA*)ptr->data;
@@ -768,7 +775,7 @@ static int rna_EnumProperty_default_get(PointerRNA *ptr)
 	return ((EnumPropertyRNA*)prop)->defaultvalue;
 }
 
-static int rna_enum_check_separator(CollectionPropertyIterator *iter, void *data)
+static int rna_enum_check_separator(CollectionPropertyIterator *UNUSED(iter), void *data)
 {
 	EnumPropertyItem *item= (EnumPropertyItem*)data;
 
@@ -1065,6 +1072,11 @@ static void rna_def_property(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_boolean_funcs(prop, "rna_Property_readonly_get", NULL);
 	RNA_def_property_ui_text(prop, "Read Only", "Property is editable through RNA");
+
+	prop= RNA_def_property(srna, "is_animatable", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_boolean_funcs(prop, "rna_Property_animatable_get", NULL);
+	RNA_def_property_ui_text(prop, "Animatable", "Property is animatable through RNA");
 
 	prop= RNA_def_property(srna, "is_required", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);

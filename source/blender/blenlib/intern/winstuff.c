@@ -53,11 +53,10 @@
 
 int BLI_getInstallationDir( char * str ) {
 	char dir[FILE_MAXDIR];
-	char file[FILE_MAXFILE];
 	int a;
 	
 	GetModuleFileName(NULL,str,FILE_MAXDIR+FILE_MAXFILE);
-	BLI_split_dirfile(str,dir,file); /* shouldn't be relative */
+	BLI_split_dir_part(str, dir, sizeof(dir)); /* shouldn't be relative */
 	a = strlen(dir);
 	if(dir[a-1] == '\\') dir[a-1]=0;
 	
@@ -109,7 +108,7 @@ void RegisterBlendExtension(void) {
 	lresult = RegCreateKeyEx(root, "blendfile", 0,
 		NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &hkey, &dwd);
 	if (lresult == ERROR_SUCCESS) {
-		sprintf(buffer,"%s","Blender File");
+		strcpy(buffer,"Blender File");
 		lresult = RegSetValueEx(hkey, NULL, 0, REG_SZ, (BYTE*)buffer, strlen(buffer) + 1);
 		RegCloseKey(hkey);
 	}

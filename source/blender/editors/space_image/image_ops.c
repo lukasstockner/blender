@@ -143,7 +143,7 @@ static int space_image_file_exists_poll(bContext *C)
 		if(ibuf) {
 			BLI_strncpy(name, ibuf->name, FILE_MAX);
 			BLI_path_abs(name, bmain->name);
-			poll= (BLI_exists(name) && BLI_is_writable(name));
+			poll= (BLI_exists(name) && BLI_file_is_writable(name));
 		}
 		ED_space_image_release_buffer(sima, lock);
 
@@ -843,10 +843,6 @@ static int open_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 
 	if(ima)
 		path= ima->name;
-	
-
-	if(!RNA_property_is_set(op->ptr, "relative_path"))
-		RNA_boolean_set(op->ptr, "relative_path", U.flag & USER_RELPATHS);
 
 	if(RNA_property_is_set(op->ptr, "filepath"))
 		return open_exec(C, op);
@@ -1167,9 +1163,6 @@ static int save_as_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 	Scene *scene= CTX_data_scene(C);
 	SaveImageOptions simopts;
 
-	if(!RNA_property_is_set(op->ptr, "relative_path"))
-		RNA_boolean_set(op->ptr, "relative_path", U.flag & USER_RELPATHS);
-
 	if(RNA_property_is_set(op->ptr, "filepath"))
 		return save_as_exec(C, op);
 
@@ -1230,7 +1223,7 @@ static int save_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	save_image_options_from_op(&simopts, op);
 
-	if (BLI_exists(simopts.filepath) && BLI_is_writable(simopts.filepath)) {
+	if (BLI_exists(simopts.filepath) && BLI_file_is_writable(simopts.filepath)) {
 		save_image_doit(C, sima, op, &simopts, FALSE);
 	}
 	else {
@@ -1567,6 +1560,7 @@ static int pack_test(bContext *C, wmOperator *op)
 
 static int pack_exec(bContext *C, wmOperator *op)
 {
+	struct Main *bmain= CTX_data_main(C);
 	Image *ima= CTX_data_edit_image(C);
 	ImBuf *ibuf= BKE_image_get_ibuf(ima, NULL);
 	int as_png= RNA_boolean_get(op->ptr, "as_png");
@@ -1582,7 +1576,7 @@ static int pack_exec(bContext *C, wmOperator *op)
 	if(as_png)
 		BKE_image_memorypack(ima);
 	else
-		ima->packedfile= newPackedFile(op->reports, ima->name);
+		ima->packedfile= newPackedFile(op->reports, ima->name, ID_BLEND_PATH(bmain, &ima->id));
 
 	WM_event_add_notifier(C, NC_IMAGE|NA_EDITED, ima);
 	

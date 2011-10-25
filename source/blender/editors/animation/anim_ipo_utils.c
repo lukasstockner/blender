@@ -63,9 +63,9 @@ int getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
 		return icon;
 	else if ELEM3(NULL, id, fcu, fcu->rna_path) {
 		if (fcu == NULL)
-			sprintf(name, "<invalid>");
+			strcpy(name, "<invalid>");
 		else if (fcu->rna_path == NULL)
-			sprintf(name, "<no path>");
+			strcpy(name, "<no path>");
 		else /* id == NULL */
 			BLI_snprintf(name, 256, "%s[%d]", fcu->rna_path, fcu->array_index);
 	}
@@ -118,7 +118,7 @@ int getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
 				PropertyRNA *nameprop= RNA_struct_name_property(ptr.type);
 				if (nameprop) {
 					/* this gets a string which will need to be freed */
-					structname= RNA_property_string_get_alloc(&ptr, nameprop, NULL, 0);
+					structname= RNA_property_string_get_alloc(&ptr, nameprop, NULL, 0, NULL);
 					free_structname= 1;
 				}
 				else

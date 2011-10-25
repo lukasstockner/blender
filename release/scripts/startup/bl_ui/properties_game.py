@@ -47,8 +47,9 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
         layout.prop(game, "physics_type")
         layout.separator()
 
-        #if game.physics_type == 'DYNAMIC':
-        if game.physics_type in {'DYNAMIC', 'RIGID_BODY'}:
+        physics_type = game.physics_type
+
+        if physics_type in {'DYNAMIC', 'RIGID_BODY'}:
             split = layout.split()
 
             col = split.column()
@@ -107,14 +108,14 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(game, "lock_rotation_x", text="X")
             col.prop(game, "lock_rotation_y", text="Y")
             col.prop(game, "lock_rotation_z", text="Z")
-            
+
             layout.separator()
             
             col = layout.column()
             col.prop(game, "collision_group")
             col.prop(game, "collision_mask")
 
-        elif game.physics_type == 'SOFT_BODY':
+        elif physics_type == 'SOFT_BODY':
             col = layout.column()
             col.prop(game, "use_actor")
             col.prop(game, "use_ghost")
@@ -155,7 +156,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(game, "collision_group")
             col.prop(game, "collision_mask")
 
-        elif game.physics_type == 'STATIC':
+        elif physics_type == 'STATIC':
             col = layout.column()
             col.prop(game, "use_actor")
             col.prop(game, "use_ghost")
@@ -182,7 +183,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(game, "collision_group")
             col.prop(game, "collision_mask")
 
-        elif game.physics_type == 'SENSOR':
+        elif physics_type in {'SENSOR', 'INVISIBLE', 'NO_COLLISION', 'OCCLUDE'}:
             layout.prop(ob, "hide_render", text="Invisible")
             
             layout.separator()
@@ -191,8 +192,17 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(game, "collision_group")
             col.prop(game, "collision_mask")
             
-        elif game.physics_type in {'INVISIBLE', 'NO_COLLISION', 'OCCLUDE'}:
+        elif physics_type in {'INVISIBLE', 'NO_COLLISION', 'OCCLUDE'}:
             layout.prop(ob, "hide_render", text="Invisible")
+
+        elif physics_type == 'NAVMESH':
+            layout.operator("mesh.navmesh_face_copy")
+            layout.operator("mesh.navmesh_face_add")
+
+            layout.separator()
+
+            layout.operator("mesh.navmesh_reset")
+            layout.operator("mesh.navmesh_clear")
 
 
 class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
@@ -261,24 +271,13 @@ class RenderButtonsPanel():
         return (rd.engine in cls.COMPAT_ENGINES)
 
 
-# class RENDER_PT_game(RenderButtonsPanel, Panel):
-    # bl_label = "Game"
-    # COMPAT_ENGINES = {'BLENDER_GAME'}
-
-    # def draw(self, context):
-        # layout = self.layout
-
-        # row = layout.row()
-        # row.operator("view3d.game_start", text="Start")
-        # row.label()
-        
 class RENDER_PT_embedded(RenderButtonsPanel, bpy.types.Panel):
     bl_label = "Embedded Player"
     COMPAT_ENGINES = {'BLENDER_GAME'}
-    
+
     def draw(self, context):
         layout = self.layout
-        
+
         rd = context.scene.render
 
         row = layout.row()
@@ -290,16 +289,6 @@ class RENDER_PT_embedded(RenderButtonsPanel, bpy.types.Panel):
         row.prop(rd, "resolution_x", slider=False, text="X")
         row.prop(rd, "resolution_y", slider=False, text="Y")
 
-        # split = layout.split()
-
-        # split.label(text="Resolution:")
-        # col = split.column()
-        # sub = col.column(align=True)
-        # sub.prop(rd, "resolution_x", slider=False, text="X")
-        # col = split.column()
-        # sub = col.column(align=True)
-        # sub.prop(rd, "resolution_y", slider=False, text="Y")
-
 
 class RENDER_PT_game_player(RenderButtonsPanel, Panel):
     bl_label = "Standalone Player"
@@ -309,11 +298,11 @@ class RENDER_PT_game_player(RenderButtonsPanel, Panel):
         layout = self.layout
 
         gs = context.scene.game_settings
-        
+
         row = layout.row()
         row.operator("wm.blenderplayer_start", text="Start")
         row.label()
-        
+
         row = layout.row()
         row.label(text="Resolution:")
         row = layout.row(align=True)
@@ -325,30 +314,13 @@ class RENDER_PT_game_player(RenderButtonsPanel, Panel):
         col = row.column()
         col.prop(gs, "use_desktop")
         col.active = gs.show_fullscreen
-        
+
         col = layout.column()
         col.label(text="Quality:")
         col.prop(gs, "samples")
         col = layout.column(align=True)
         col.prop(gs, "depth", text="Bit Depth", slider=False)
         col.prop(gs, "frequency", text="Refresh Rate", slider=False)
-
-        # row = layout.row()
-        # row.label()
-        
-        # split = layout.split()
-
-        # col = split.column()
-        # col.label(text="Resolution:")
-        # sub = col.column(align=True)
-        # sub.prop(gs, "resolution_x", slider=False, text="X")
-        # sub.prop(gs, "resolution_y", slider=False, text="Y")
-
-        # col = split.column()
-        # col.label(text="Quality:")
-        # sub = col.column(align=True)
-        # sub.prop(gs, "depth", text="Bit Depth", slider=False)
-        # sub.prop(gs, "frequency", text="Refresh Rate", slider=False)
 
 
 class RENDER_PT_game_stereo(RenderButtonsPanel, Panel):
@@ -438,7 +410,7 @@ class RENDER_PT_game_shading(RenderButtonsPanel, Panel):
             col.prop(gs, "use_glsl_ramps", text="Ramps")
             col.prop(gs, "use_glsl_nodes", text="Nodes")
             col.prop(gs, "use_glsl_extra_textures", text="Extra Textures")
-            
+
 class RENDER_PT_game_system(RenderButtonsPanel, Panel):
     bl_label = "System"
     COMPAT_ENGINES = {'BLENDER_GAME'}
@@ -471,10 +443,10 @@ class RENDER_PT_game_display(RenderButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        
+
         row = layout.row()
         row.prop(context.scene.render, "fps", text="Animation Frame Rate", slider=False)
-        
+
         gs = context.scene.game_settings
         flow = layout.column_flow()
         flow.prop(gs, "show_debug_properties", text="Debug Properties")
@@ -511,7 +483,7 @@ class SCENE_PT_game_navmesh(SceneButtonsPanel, bpy.types.Panel):
 
         rd = context.scene.game_settings.recast_data
 
-        layout.operator("mesh.create_navmesh", text='Build navigation mesh')
+        layout.operator("mesh.navmesh_make", text='Build navigation mesh')
 
         col = layout.column()
         col.label(text="Rasterization:")
@@ -528,8 +500,8 @@ class SCENE_PT_game_navmesh(SceneButtonsPanel, bpy.types.Panel):
         col.prop(rd, "agent_radius", text="Radius")
 
         col = split.column()
-        col.prop(rd, "max_slope")
-        col.prop(rd, "max_climb")
+        col.prop(rd, "slope_max")
+        col.prop(rd, "climb_max")
 
         col = layout.column()
         col.label(text="Region:")

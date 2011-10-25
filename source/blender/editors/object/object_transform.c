@@ -230,21 +230,9 @@ static int object_clear_transform_generic_exec(bContext *C, wmOperator *op,
 		if (!(ob->mode & OB_MODE_WEIGHT_PAINT)) {
 			/* run provided clearing function */
 			clear_func(ob);
-			
-			/* auto keyframing */
-			if (autokeyframe_cfra_can_key(scene, &ob->id)) {
-				ListBase dsources = {NULL, NULL};
-				
-				/* now insert the keyframe(s) using the Keying Set
-				 *	1) add datasource override for the Object
-				 *	2) insert keyframes
-				 *	3) free the extra info 
-				 */
-				ANIM_relative_keyingset_add_source(&dsources, &ob->id, NULL, NULL); 
-				ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, (float)CFRA);
-				BLI_freelistN(&dsources);
-			}
-			
+
+			ED_autokeyframe_object(C, scene, ob, ks);
+
 			/* tag for updates */
 			DAG_id_tag_update(&ob->id, OB_RECALC_OB);
 		}
@@ -264,7 +252,7 @@ static int object_clear_transform_generic_exec(bContext *C, wmOperator *op,
 
 static int object_location_clear_exec(bContext *C, wmOperator *op)
 {
-	return object_clear_transform_generic_exec(C, op, object_clear_loc, "Location");
+	return object_clear_transform_generic_exec(C, op, object_clear_loc, ANIM_KS_LOCATION_ID);
 }
 
 void OBJECT_OT_location_clear(wmOperatorType *ot)
@@ -284,7 +272,7 @@ void OBJECT_OT_location_clear(wmOperatorType *ot)
 
 static int object_rotation_clear_exec(bContext *C, wmOperator *op)
 {
-	return object_clear_transform_generic_exec(C, op, object_clear_rot, "Rotation");
+	return object_clear_transform_generic_exec(C, op, object_clear_rot, ANIM_KS_ROTATION_ID);
 }
 
 void OBJECT_OT_rotation_clear(wmOperatorType *ot)
@@ -304,7 +292,7 @@ void OBJECT_OT_rotation_clear(wmOperatorType *ot)
 
 static int object_scale_clear_exec(bContext *C, wmOperator *op)
 {
-	return object_clear_transform_generic_exec(C, op, object_clear_scale, "Scaling");
+	return object_clear_transform_generic_exec(C, op, object_clear_scale, ANIM_KS_SCALING_ID);
 }
 
 void OBJECT_OT_scale_clear(wmOperatorType *ot)

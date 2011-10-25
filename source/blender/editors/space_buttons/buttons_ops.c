@@ -39,7 +39,6 @@
 
 #include "BLI_fileops.h"
 #include "BLI_path_util.h"
-#include "BLI_storage.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -169,7 +168,7 @@ static int file_browse_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	if(!prop)
 		return OPERATOR_CANCELLED;
 
-	str= RNA_property_string_get_alloc(&ptr, prop, NULL, 0);
+	str= RNA_property_string_get_alloc(&ptr, prop, NULL, 0, NULL);
 
 	/* useful yet irritating feature, Shift+Click to open the file
 	 * Alt+Click to browse a folder in the OS's browser */
@@ -201,6 +200,8 @@ static int file_browse_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		RNA_string_set(op->ptr, path_prop, str);
 		MEM_freeN(str);
 
+		/* normally ED_fileselect_get_params would handle this but we need to because of stupid
+		 * user-prefs exception - campbell */
 		if(RNA_struct_find_property(op->ptr, "relative_path")) {
 			if(!RNA_property_is_set(op->ptr, "relative_path")) {
 				/* annoying exception!, if were dealign with the user prefs, default relative to be off */
