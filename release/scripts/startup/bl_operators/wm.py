@@ -1475,7 +1475,7 @@ class WM_OT_operator_cheat_sheet(Operator):
 class WM_OT_addon_enable(Operator):
     "Enable an addon"
     bl_idname = "wm.addon_enable"
-    bl_label = "Enable Add-On"
+    bl_label = "Enable Addon"
 
     module = StringProperty(
             name="Module",
@@ -1506,7 +1506,7 @@ class WM_OT_addon_enable(Operator):
 class WM_OT_addon_disable(Operator):
     "Disable an addon"
     bl_idname = "wm.addon_disable"
-    bl_label = "Disable Add-On"
+    bl_label = "Disable Addon"
 
     module = StringProperty(
             name="Module",
@@ -1523,7 +1523,7 @@ class WM_OT_addon_disable(Operator):
 class WM_OT_addon_install(Operator):
     "Install an addon"
     bl_idname = "wm.addon_install"
-    bl_label = "Install Add-On..."
+    bl_label = "Install Addon..."
 
     overwrite = BoolProperty(
             name="Overwrite",
@@ -1691,7 +1691,7 @@ class WM_OT_addon_install(Operator):
 class WM_OT_addon_remove(Operator):
     "Disable an addon"
     bl_idname = "wm.addon_remove"
-    bl_label = "Remove Add-On"
+    bl_label = "Remove Addon"
 
     module = StringProperty(
             name="Module",
@@ -1746,7 +1746,7 @@ class WM_OT_addon_remove(Operator):
 
 
 class WM_OT_addon_expand(Operator):
-    "Display more information on this add-on"
+    "Display more information on this addon"
     bl_idname = "wm.addon_expand"
     bl_label = ""
 
