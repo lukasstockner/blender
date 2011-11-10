@@ -59,6 +59,7 @@
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_deform.h"
+#include "BKE_scene.h"
 
 
 #include "RNA_access.h"
@@ -153,7 +154,7 @@ Key *copy_key(Key *key)
 	
 	if(key==NULL) return NULL;
 	
-	keyn= copy_libblock(key);
+	keyn= copy_libblock(&key->id);
 	
 	BLI_duplicatelist(&keyn->block, &key->block);
 	
@@ -181,7 +182,7 @@ void make_local_key(Key *key)
 	if(key==NULL) return;
 	
 	key->id.lib= NULL;
-	new_id(NULL, (ID *)key, NULL);
+	new_id(NULL, &key->id, NULL);
 }
 
 /* Sort shape keys and Ipo curves after a change.  This assumes that at most
@@ -505,7 +506,7 @@ static char *key_block_get_data(Key *key, KeyBlock *actkb, KeyBlock *kb, char **
 				co= MEM_callocN(sizeof(float)*3*me->edit_mesh->totvert, "key_block_get_data");
 
 				for(eve=me->edit_mesh->verts.first; eve; eve=eve->next, a++)
-					VECCOPY(co[a], eve->co);
+					copy_v3_v3(co[a], eve->co);
 
 				*freedata= (char*)co;
 				return (char*)co;
@@ -1072,7 +1073,7 @@ static void do_mesh_key(Scene *scene, Object *ob, Key *key, char *out, const int
 		
 		for(a=0; a<tot; a+=step, cfra+= delta) {
 			
-			ctime= bsystem_time(scene, NULL, cfra, 0.0); // xxx  ugly cruft!
+			ctime= BKE_curframe(scene);
 #if 0 // XXX old animation system
 			if(calc_ipo_spec(key->ipo, KEY_SPEED, &ctime)==0) {
 				ctime /= 100.0;
@@ -1106,7 +1107,7 @@ static void do_mesh_key(Scene *scene, Object *ob, Key *key, char *out, const int
 			}
 		}
 		else {
-			ctime= bsystem_time(scene, ob, (float)scene->r.cfra, 0.0f); // xxx old cruft
+			ctime= BKE_curframe(scene);
 			
 #if 0 // XXX old animation system
 			if(calc_ipo_spec(key->ipo, KEY_SPEED, &ctime)==0) {
@@ -1204,7 +1205,7 @@ static void do_curve_key(Scene *scene, Object *ob, Key *key, char *out, const in
 			while (a < estep) {
 				if (remain <= 0) {
 					cfra+= delta;
-					ctime= bsystem_time(scene, NULL, cfra, 0.0f); // XXX old cruft
+					ctime= BKE_curframe(scene);
 
 					ctime /= 100.0f;
 					CLAMP(ctime, 0.0f, 1.0f); // XXX for compat, we use this, but this clamping was confusing
@@ -1231,7 +1232,7 @@ static void do_curve_key(Scene *scene, Object *ob, Key *key, char *out, const in
 	}
 	else {
 		
-		ctime= bsystem_time(scene, NULL, (float)scene->r.cfra, 0.0);
+		ctime= BKE_curframe(scene);
 		
 		if(key->type==KEY_RELATIVE) {
 			do_rel_cu_key(cu, cu->key, actkb, ctime, out, tot);
@@ -1267,7 +1268,7 @@ static void do_latt_key(Scene *scene, Object *ob, Key *key, char *out, const int
 		
 		for(a=0; a<tot; a++, cfra+= delta) {
 			
-			ctime= bsystem_time(scene, NULL, cfra, 0.0); // XXX old cruft
+			ctime= BKE_curframe(scene);
 #if 0 // XXX old animation system
 			if(calc_ipo_spec(key->ipo, KEY_SPEED, &ctime)==0) {
 				ctime /= 100.0;
@@ -1298,7 +1299,7 @@ static void do_latt_key(Scene *scene, Object *ob, Key *key, char *out, const int
 			}
 		}
 		else {
-			ctime= bsystem_time(scene, NULL, (float)scene->r.cfra, 0.0);
+			ctime= BKE_curframe(scene);
 
 #if 0 // XXX old animation system
 			if(calc_ipo_spec(key->ipo, KEY_SPEED, &ctime)==0) {
@@ -1381,7 +1382,7 @@ float *do_ob_key(Scene *scene, Object *ob)
 			ob->shapenr= 1;
 		}
 		
-		if(ELEM(ob->type, OB_MESH, OB_LATTICE)) {
+		if (OB_TYPE_SUPPORT_VGROUP(ob->type)) {
 			float *weights= get_weights_array(ob, kb->vgroup);
 
 			cp_key(0, tot, tot, out, key, actkb, kb, weights, 0);
@@ -1462,7 +1463,7 @@ KeyBlock *add_keyblock(Key *key, const char *name)
 		kb->pos= curpos + 0.1f;
 	else {
 #if 0 // XXX old animation system
-		curpos= bsystem_time(scene, 0, (float)CFRA, 0.0);
+		curpos= BKE_curframe(scene);
 		if(calc_ipo_spec(key->ipo, KEY_SPEED, &curpos)==0) {
 			curpos /= 100.0;
 		}
@@ -1568,7 +1569,7 @@ void latt_to_key(Lattice *lt, KeyBlock *kb)
 	bp= lt->def;
 	fp= kb->data;
 	for(a=0; a<kb->totelem; a++, fp+=3, bp++) {
-		VECCOPY(fp, bp->vec);
+		copy_v3_v3(fp, bp->vec);
 	}
 }
 
@@ -1585,7 +1586,7 @@ void key_to_latt(KeyBlock *kb, Lattice *lt)
 	tot= MIN2(kb->totelem, tot);
 
 	for(a=0; a<tot; a++, fp+=3, bp++) {
-		VECCOPY(bp->vec, fp);
+		copy_v3_v3(bp->vec, fp);
 	}
 }
 
@@ -1615,11 +1616,11 @@ void curve_to_key(Curve *cu, KeyBlock *kb, ListBase *nurb)
 			bezt= nu->bezt;
 			a= nu->pntsu;
 			while(a--) {
-				VECCOPY(fp, bezt->vec[0]);
+				copy_v3_v3(fp, bezt->vec[0]);
 				fp+= 3;
-				VECCOPY(fp, bezt->vec[1]);
+				copy_v3_v3(fp, bezt->vec[1]);
 				fp+= 3;
-				VECCOPY(fp, bezt->vec[2]);
+				copy_v3_v3(fp, bezt->vec[2]);
 				fp+= 3;
 				fp[0]= bezt->alfa;
 				fp+= 3;	/* alphas */
@@ -1630,7 +1631,7 @@ void curve_to_key(Curve *cu, KeyBlock *kb, ListBase *nurb)
 			bp= nu->bp;
 			a= nu->pntsu*nu->pntsv;
 			while(a--) {
-				VECCOPY(fp, bp->vec);
+				copy_v3_v3(fp, bp->vec);
 				fp[3]= bp->alfa;
 
 				fp+= 4;
@@ -1662,11 +1663,11 @@ void key_to_curve(KeyBlock *kb, Curve *UNUSED(cu), ListBase *nurb)
 			bezt= nu->bezt;
 			a= nu->pntsu;
 			while(a-- && tot>0) {
-				VECCOPY(bezt->vec[0], fp);
+				copy_v3_v3(bezt->vec[0], fp);
 				fp+= 3;
-				VECCOPY(bezt->vec[1], fp);
+				copy_v3_v3(bezt->vec[1], fp);
 				fp+= 3;
-				VECCOPY(bezt->vec[2], fp);
+				copy_v3_v3(bezt->vec[2], fp);
 				fp+= 3;
 				bezt->alfa= fp[0];
 				fp+= 3;	/* alphas */
@@ -1679,7 +1680,7 @@ void key_to_curve(KeyBlock *kb, Curve *UNUSED(cu), ListBase *nurb)
 			bp= nu->bp;
 			a= nu->pntsu*nu->pntsv;
 			while(a-- && tot>0) {
-				VECCOPY(bp->vec, fp);
+				copy_v3_v3(bp->vec, fp);
 				bp->alfa= fp[3];
 
 				fp+= 4;
@@ -1708,7 +1709,7 @@ void mesh_to_key(Mesh *me, KeyBlock *kb)
 	mvert= me->mvert;
 	fp= kb->data;
 	for(a=0; a<kb->totelem; a++, fp+=3, mvert++) {
-		VECCOPY(fp, mvert->co);
+		copy_v3_v3(fp, mvert->co);
 
 	}
 }
@@ -1725,7 +1726,7 @@ void key_to_mesh(KeyBlock *kb, Mesh *me)
 	tot= MIN2(kb->totelem, me->totvert);
 
 	for(a=0; a<tot; a++, fp+=3, mvert++) {
-		VECCOPY(mvert->co, fp);
+		copy_v3_v3(mvert->co, fp);
 	}
 }
 

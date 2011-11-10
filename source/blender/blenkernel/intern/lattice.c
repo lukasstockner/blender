@@ -39,6 +39,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_bpath.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
@@ -203,7 +204,7 @@ Lattice *copy_lattice(Lattice *lt)
 {
 	Lattice *ltn;
 
-	ltn= copy_libblock(lt);
+	ltn= copy_libblock(&lt->id);
 	ltn->def= MEM_dupallocN(lt->def);
 
 	ltn->key= copy_key(ltn->key);
@@ -246,7 +247,7 @@ void make_local_lattice(Lattice *lt)
 {
 	Main *bmain= G.main;
 	Object *ob;
-	int local=0, lib=0;
+	int is_local= FALSE, is_lib= FALSE;
 
 	/* - only lib users: do nothing
 	 * - only local users: set flag
@@ -255,23 +256,26 @@ void make_local_lattice(Lattice *lt)
 	
 	if(lt->id.lib==NULL) return;
 	if(lt->id.us==1) {
-		id_clear_lib_data(&bmain->latt, (ID *)lt);
+		id_clear_lib_data(bmain, &lt->id);
 		return;
 	}
 	
-	for(ob= bmain->object.first; ob && ELEM(0, lib, local); ob= ob->id.next) {
+	for(ob= bmain->object.first; ob && ELEM(FALSE, is_lib, is_local); ob= ob->id.next) {
 		if(ob->data==lt) {
-			if(ob->id.lib) lib= 1;
-			else local= 1;
+			if(ob->id.lib) is_lib= TRUE;
+			else is_local= TRUE;
 		}
 	}
 	
-	if(local && lib==0) {
-		id_clear_lib_data(&bmain->latt, (ID *)lt);
+	if(is_local && is_lib==FALSE) {
+		id_clear_lib_data(bmain, &lt->id);
 	}
-	else if(local && lib) {
+	else if(is_local && is_lib) {
 		Lattice *ltn= copy_lattice(lt);
 		ltn->id.us= 0;
+
+		/* Remap paths of new ID using old library as base. */
+		BKE_id_lib_local_paths(bmain, &ltn->id);
 
 		for(ob= bmain->object.first; ob; ob= ob->id.next) {
 			if(ob->data==lt) {
@@ -654,7 +658,9 @@ static int calc_curve_deform(Scene *scene, Object *par, float *co, short axis, C
 	return 0;
 }
 
-void curve_deform_verts(Scene *scene, Object *cuOb, Object *target, DerivedMesh *dm, float (*vertexCos)[3], int numVerts, char *vgroup, short defaxis)
+void curve_deform_verts(Scene *scene, Object *cuOb, Object *target,
+                        DerivedMesh *dm, float (*vertexCos)[3],
+                        int numVerts, const char *vgroup, short defaxis)
 {
 	Curve *cu;
 	int a, flag;
@@ -813,7 +819,7 @@ void curve_deform_vector(Scene *scene, Object *cuOb, Object *target, float *orco
 }
 
 void lattice_deform_verts(Object *laOb, Object *target, DerivedMesh *dm,
-						  float (*vertexCos)[3], int numVerts, char *vgroup)
+                          float (*vertexCos)[3], int numVerts, const char *vgroup)
 {
 	int a;
 	int use_vgroups;

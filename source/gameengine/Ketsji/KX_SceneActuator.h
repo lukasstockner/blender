@@ -38,7 +38,7 @@
 
 class KX_SceneActuator : public SCA_IActuator
 {
-	Py_Header;
+	Py_Header
 	
 	int							m_mode;
 	// (restart) has become a toggle internally... not in the interface though
@@ -54,9 +54,9 @@ class KX_SceneActuator : public SCA_IActuator
 	class KX_Camera*			m_camera;
 
 	/** Is this a valid scene? */
-	class KX_Scene* FindScene(char* sceneName);
+	class KX_Scene* FindScene(const char* sceneName);
 	/** Is this a valid camera? */
-	class KX_Camera* FindCamera(char* cameraName);
+	class KX_Camera* FindCamera(const char* cameraName);
 	
  public:
 	enum SCA_SceneActuatorMode

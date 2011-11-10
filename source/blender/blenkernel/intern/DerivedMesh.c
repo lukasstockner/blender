@@ -292,7 +292,7 @@ void DM_to_meshkey(DerivedMesh *dm, Mesh *me, KeyBlock *kb)
 	mvert=dm->getVertDataArray(dm, CD_MVERT);
 	
 	for(a=0; a<kb->totelem; a++, fp+=3, mvert++) {
-		VECCOPY(fp, mvert->co);
+		copy_v3_v3(fp, mvert->co);
 	}
 }
 
@@ -604,12 +604,12 @@ static void emDM_drawUVEdges(DerivedMesh *dm)
 static void emDM__calcFaceCent(EditFace *efa, float cent[3], float (*vertexCos)[3])
 {
 	if (vertexCos) {
-		VECCOPY(cent, vertexCos[(int) efa->v1->tmp.l]);
+		copy_v3_v3(cent, vertexCos[(int) efa->v1->tmp.l]);
 		add_v3_v3(cent, vertexCos[(int) efa->v2->tmp.l]);
 		add_v3_v3(cent, vertexCos[(int) efa->v3->tmp.l]);
 		if (efa->v4) add_v3_v3(cent, vertexCos[(int) efa->v4->tmp.l]);
 	} else {
-		VECCOPY(cent, efa->v1->co);
+		copy_v3_v3(cent, efa->v1->co);
 		add_v3_v3(cent, efa->v2->co);
 		add_v3_v3(cent, efa->v3->co);
 		if (efa->v4) add_v3_v3(cent, efa->v4->co);
@@ -1123,6 +1123,140 @@ static void emDM_drawFacesGLSL(DerivedMesh *dm,
 	dm->drawMappedFacesGLSL(dm, setMaterial, NULL, NULL);
 }
 
+static void emDM_drawMappedFacesMat(DerivedMesh *dm,
+			   void (*setMaterial)(void *userData, int, void *attribs),
+			   int (*setFace)(void *userData, int index), void *userData) 
+{
+	EditMeshDerivedMesh *emdm= (EditMeshDerivedMesh*) dm;
+	EditMesh *em= emdm->em;
+	float (*vertexCos)[3]= emdm->vertexCos;
+	float (*vertexNos)[3]= emdm->vertexNos;
+	EditVert *eve;
+	EditFace *efa;
+	DMVertexAttribs attribs= {{{0}}};
+	GPUVertexAttribs gattribs;
+	int i, b, matnr, new_matnr;
+
+	matnr = -1;
+
+	/* always use smooth shading even for flat faces, else vertex colors wont interpolate */
+	glShadeModel(GL_SMOOTH);
+
+	for (i=0,eve=em->verts.first; eve; eve= eve->next)
+		eve->tmp.l = (intptr_t) i++;
+
+#define PASSATTRIB(efa, eve, vert) {											\
+	if(attribs.totorco) {														\
+		float *orco = attribs.orco.array[eve->tmp.l];							\
+		if(attribs.orco.glTexco)												\
+			glTexCoord3fv(orco);												\
+		else																	\
+			glVertexAttrib3fvARB(attribs.orco.glIndex, orco);					\
+	}																			\
+	for(b = 0; b < attribs.tottface; b++) {										\
+		MTFace *_tf = (MTFace*)((char*)efa->data + attribs.tface[b].emOffset);	\
+		if(attribs.tface[b].glTexco)											\
+			glTexCoord2fv(_tf->uv[vert]);										\
+		else																	\
+			glVertexAttrib2fvARB(attribs.tface[b].glIndex, _tf->uv[vert]);		\
+	}																			\
+	for(b = 0; b < attribs.totmcol; b++) {										\
+		MCol *cp = (MCol*)((char*)efa->data + attribs.mcol[b].emOffset);		\
+		GLubyte col[4];															\
+		col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;				\
+		glVertexAttrib4ubvARB(attribs.mcol[b].glIndex, col);					\
+	}																			\
+	if(attribs.tottang) {														\
+		float *tang = attribs.tang.array[i*4 + vert];							\
+		glVertexAttrib4fvARB(attribs.tang.glIndex, tang);						\
+	}																			\
+}
+
+	for (i=0,efa= em->faces.first; efa; i++,efa= efa->next) {
+		int drawSmooth= (efa->flag & ME_SMOOTH);
+
+		/* face hiding */
+		if(setFace && !setFace(userData, i))
+			continue;
+
+		/* material */
+		new_matnr = efa->mat_nr + 1;
+		if(new_matnr != matnr) {
+			setMaterial(userData, matnr = new_matnr, &gattribs);
+			DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
+		}
+
+		/* face */
+		glBegin(efa->v4?GL_QUADS:GL_TRIANGLES);
+		if (!drawSmooth) {
+			if(vertexCos) glNormal3fv(emdm->faceNos[i]);
+			else glNormal3fv(efa->n);
+
+			PASSATTRIB(efa, efa->v1, 0);
+			if(vertexCos) glVertex3fv(vertexCos[(int) efa->v1->tmp.l]);
+			else glVertex3fv(efa->v1->co);
+
+			PASSATTRIB(efa, efa->v2, 1);
+			if(vertexCos) glVertex3fv(vertexCos[(int) efa->v2->tmp.l]);
+			else glVertex3fv(efa->v2->co);
+
+			PASSATTRIB(efa, efa->v3, 2);
+			if(vertexCos) glVertex3fv(vertexCos[(int) efa->v3->tmp.l]);
+			else glVertex3fv(efa->v3->co);
+
+			if(efa->v4) {
+				PASSATTRIB(efa, efa->v4, 3);
+				if(vertexCos) glVertex3fv(vertexCos[(int) efa->v4->tmp.l]);
+				else glVertex3fv(efa->v4->co);
+			}
+		} else {
+			PASSATTRIB(efa, efa->v1, 0);
+			if(vertexCos) {
+				glNormal3fv(vertexNos[(int) efa->v1->tmp.l]);
+				glVertex3fv(vertexCos[(int) efa->v1->tmp.l]);
+			}
+			else {
+				glNormal3fv(efa->v1->no);
+				glVertex3fv(efa->v1->co);
+			}
+
+			PASSATTRIB(efa, efa->v2, 1);
+			if(vertexCos) {
+				glNormal3fv(vertexNos[(int) efa->v2->tmp.l]);
+				glVertex3fv(vertexCos[(int) efa->v2->tmp.l]);
+			}
+			else {
+				glNormal3fv(efa->v2->no);
+				glVertex3fv(efa->v2->co);
+			}
+
+			PASSATTRIB(efa, efa->v3, 2);
+			if(vertexCos) {
+				glNormal3fv(vertexNos[(int) efa->v3->tmp.l]);
+				glVertex3fv(vertexCos[(int) efa->v3->tmp.l]);
+			}
+			else {
+				glNormal3fv(efa->v3->no);
+				glVertex3fv(efa->v3->co);
+			}
+
+			if(efa->v4) {
+				PASSATTRIB(efa, efa->v4, 3);
+				if(vertexCos) {
+					glNormal3fv(vertexNos[(int) efa->v4->tmp.l]);
+					glVertex3fv(vertexCos[(int) efa->v4->tmp.l]);
+				}
+				else {
+					glNormal3fv(efa->v4->no);
+					glVertex3fv(efa->v4->co);
+				}
+			}
+		}
+		glEnd();
+	}
+#undef PASSATTRIB
+}
+
 static void emDM_getMinMax(DerivedMesh *dm, float min_r[3], float max_r[3])
 {
 	EditMeshDerivedMesh *emdm= (EditMeshDerivedMesh*) dm;
@@ -1184,7 +1318,7 @@ static void emDM_getVert(DerivedMesh *dm, int index, MVert *vert_r)
 
 	for(i = 0; i < index; ++i) ev = ev->next;
 
-	VECCOPY(vert_r->co, ev->co);
+	copy_v3_v3(vert_r->co, ev->co);
 
 	normal_float_to_short_v3(vert_r->no, ev->no);
 
@@ -1429,6 +1563,7 @@ DerivedMesh *editmesh_get_derived(EditMesh *em, float (*vertexCos)[3])
 	emdm->dm.drawMappedFacesGLSL = emDM_drawMappedFacesGLSL;
 	emdm->dm.drawFacesTex = emDM_drawFacesTex;
 	emdm->dm.drawFacesGLSL = emDM_drawFacesGLSL;
+	emdm->dm.drawMappedFacesMat = emDM_drawMappedFacesMat;
 	emdm->dm.drawUVEdges = emDM_drawUVEdges;
 
 	emdm->dm.release = emDM_release;
@@ -1539,8 +1674,9 @@ static float *get_editmesh_orco_verts(EditMesh *em)
 	
 	orco = MEM_mallocN(sizeof(float)*3*totvert, "EditMesh Orco");
 
-	for(a=0, eve=em->verts.first; eve; eve=eve->next, a+=3)
-		VECCOPY(orco+a, eve->co);
+	for(a=0, eve=em->verts.first; eve; eve=eve->next, a+=3) {
+		copy_v3_v3(orco+a, eve->co);
+	}
 	
 	return orco;
 }
@@ -2146,7 +2282,7 @@ float (*editmesh_get_vertex_cos(EditMesh *em, int *numVerts_r))[3]
 
 	cos = MEM_mallocN(sizeof(*cos)*numVerts, "vertexcos");
 	for (i=0,eve=em->verts.first; i<numVerts; i++,eve=eve->next) {
-		VECCOPY(cos[i], eve->co);
+		copy_v3_v3(cos[i], eve->co);
 	}
 
 	return cos;
@@ -2654,7 +2790,7 @@ static void GetPosition(const SMikkTSpaceContext * pContext, float fPos[], const
 	//assert(vert_index>=0 && vert_index<4);
 	SGLSLMeshToTangent * pMesh = (SGLSLMeshToTangent *) pContext->m_pUserData;
 	const float *co= pMesh->mvert[(&pMesh->mface[face_num].v1)[vert_index]].co;
-	VECCOPY(fPos, co);
+	copy_v3_v3(fPos, co);
 }
 
 static void GetTextureCoordinate(const SMikkTSpaceContext * pContext, float fUV[], const int face_num, const int vert_index)
@@ -2680,7 +2816,7 @@ static void GetNormal(const SMikkTSpaceContext * pContext, float fNorm[], const 
 	const int smoothnormal = (pMesh->mface[face_num].flag & ME_SMOOTH);
 	if(!smoothnormal) {	// flat
 		if(pMesh->precomputedFaceNormals) {
-			VECCOPY(fNorm, &pMesh->precomputedFaceNormals[3*face_num]);
+			copy_v3_v3(fNorm, &pMesh->precomputedFaceNormals[3*face_num]);
 		}
 		else {
 			MFace *mf= &pMesh->mface[face_num];
@@ -2707,7 +2843,7 @@ static void SetTSpace(const SMikkTSpaceContext * pContext, const float fvTangent
 	//assert(vert_index>=0 && vert_index<4);
 	SGLSLMeshToTangent * pMesh = (SGLSLMeshToTangent *) pContext->m_pUserData;
 	float * pRes = pMesh->tangent[4*face_num+iVert];
-	VECCOPY(pRes, fvTangent);
+	copy_v3_v3(pRes, fvTangent);
 	pRes[3]=fSign;
 }
 

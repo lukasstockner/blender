@@ -152,7 +152,7 @@ static void cdDM_getVertCo(DerivedMesh *dm, int index, float co_r[3])
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
 
-	VECCOPY(co_r, cddm->mvert[index].co);
+	copy_v3_v3(co_r, cddm->mvert[index].co);
 }
 
 static void cdDM_getVertCos(DerivedMesh *dm, float (*cos_r)[3])
@@ -161,7 +161,7 @@ static void cdDM_getVertCos(DerivedMesh *dm, float (*cos_r)[3])
 	int i;
 
 	for(i = 0; i < dm->numVertData; i++, mv++)
-		VECCOPY(cos_r[i], mv->co);
+		copy_v3_v3(cos_r[i], mv->co);
 }
 
 static void cdDM_getVertNo(DerivedMesh *dm, int index, float no_r[3])
@@ -1246,39 +1246,39 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 				if( numdata != 0 ) {
 					offset = 0;
 					if(attribs.totorco) {
-						VECCOPY((float *)&varray[elementsize*curface*3],(float *)attribs.orco.array[mface->v1]);
-						VECCOPY((float *)&varray[elementsize*curface*3+elementsize],(float *)attribs.orco.array[mface->v2]);
-						VECCOPY((float *)&varray[elementsize*curface*3+elementsize*2],(float *)attribs.orco.array[mface->v3]);
+						copy_v3_v3((float *)&varray[elementsize*curface*3],(float *)attribs.orco.array[mface->v1]);
+						copy_v3_v3((float *)&varray[elementsize*curface*3+elementsize],(float *)attribs.orco.array[mface->v2]);
+						copy_v3_v3((float *)&varray[elementsize*curface*3+elementsize*2],(float *)attribs.orco.array[mface->v3]);
 						offset += sizeof(float)*3;
 					}
 					for(b = 0; b < attribs.tottface; b++) {
 						MTFace *tf = &attribs.tface[b].array[a];
-						VECCOPY2D((float *)&varray[elementsize*curface*3+offset],tf->uv[0]);
-						VECCOPY2D((float *)&varray[elementsize*curface*3+offset+elementsize],tf->uv[1]);
+						copy_v2_v2((float *)&varray[elementsize*curface*3+offset],tf->uv[0]);
+						copy_v2_v2((float *)&varray[elementsize*curface*3+offset+elementsize],tf->uv[1]);
 
-						VECCOPY2D((float *)&varray[elementsize*curface*3+offset+elementsize*2],tf->uv[2]);
+						copy_v2_v2((float *)&varray[elementsize*curface*3+offset+elementsize*2],tf->uv[2]);
 						offset += sizeof(float)*2;
 					}
 					for(b = 0; b < attribs.totmcol; b++) {
 						MCol *cp = &attribs.mcol[b].array[a*4 + 0];
 						GLubyte col[4];
 						col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;
-						QUATCOPY((unsigned char *)&varray[elementsize*curface*3+offset], col);
+						copy_v4_v4_char((char *)&varray[elementsize*curface*3+offset], (char *)col);
 						cp = &attribs.mcol[b].array[a*4 + 1];
 						col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;
-						QUATCOPY((unsigned char *)&varray[elementsize*curface*3+offset+elementsize], col);
+						copy_v4_v4_char((char *)&varray[elementsize*curface*3+offset+elementsize], (char *)col);
 						cp = &attribs.mcol[b].array[a*4 + 2];
 						col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;
-						QUATCOPY((unsigned char *)&varray[elementsize*curface*3+offset+elementsize*2], col);
+						copy_v4_v4_char((char *)&varray[elementsize*curface*3+offset+elementsize*2], (char *)col);
 						offset += sizeof(unsigned char)*4;
 					}	
 					if(attribs.tottang) {
 						float *tang = attribs.tang.array[a*4 + 0];
-						QUATCOPY((float *)&varray[elementsize*curface*3+offset], tang);
+						copy_v4_v4((float *)&varray[elementsize*curface*3+offset], tang);
 						tang = attribs.tang.array[a*4 + 1];
-						QUATCOPY((float *)&varray[elementsize*curface*3+offset+elementsize], tang);
+						copy_v4_v4((float *)&varray[elementsize*curface*3+offset+elementsize], tang);
 						tang = attribs.tang.array[a*4 + 2];
-						QUATCOPY((float *)&varray[elementsize*curface*3+offset+elementsize*2], tang);
+						copy_v4_v4((float *)&varray[elementsize*curface*3+offset+elementsize*2], tang);
 						offset += sizeof(float)*4;
 					}
 					(void)offset;
@@ -1288,38 +1288,38 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 					if( numdata != 0 ) {
 						offset = 0;
 						if(attribs.totorco) {
-							VECCOPY((float *)&varray[elementsize*curface*3],(float *)attribs.orco.array[mface->v3]);
-							VECCOPY((float *)&varray[elementsize*curface*3+elementsize],(float *)attribs.orco.array[mface->v4]);
-							VECCOPY((float *)&varray[elementsize*curface*3+elementsize*2],(float *)attribs.orco.array[mface->v1]);
+							copy_v3_v3((float *)&varray[elementsize*curface*3],(float *)attribs.orco.array[mface->v3]);
+							copy_v3_v3((float *)&varray[elementsize*curface*3+elementsize],(float *)attribs.orco.array[mface->v4]);
+							copy_v3_v3((float *)&varray[elementsize*curface*3+elementsize*2],(float *)attribs.orco.array[mface->v1]);
 							offset += sizeof(float)*3;
 						}
 						for(b = 0; b < attribs.tottface; b++) {
 							MTFace *tf = &attribs.tface[b].array[a];
-							VECCOPY2D((float *)&varray[elementsize*curface*3+offset],tf->uv[2]);
-							VECCOPY2D((float *)&varray[elementsize*curface*3+offset+elementsize],tf->uv[3]);
-							VECCOPY2D((float *)&varray[elementsize*curface*3+offset+elementsize*2],tf->uv[0]);
+							copy_v2_v2((float *)&varray[elementsize*curface*3+offset],tf->uv[2]);
+							copy_v2_v2((float *)&varray[elementsize*curface*3+offset+elementsize],tf->uv[3]);
+							copy_v2_v2((float *)&varray[elementsize*curface*3+offset+elementsize*2],tf->uv[0]);
 							offset += sizeof(float)*2;
 						}
 						for(b = 0; b < attribs.totmcol; b++) {
 							MCol *cp = &attribs.mcol[b].array[a*4 + 2];
 							GLubyte col[4];
 							col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;
-							QUATCOPY((unsigned char *)&varray[elementsize*curface*3+offset], col);
+							copy_v4_v4_char((char *)&varray[elementsize*curface*3+offset], (char *)col);
 							cp = &attribs.mcol[b].array[a*4 + 3];
 							col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;
-							QUATCOPY((unsigned char *)&varray[elementsize*curface*3+offset+elementsize], col);
+							copy_v4_v4_char((char *)&varray[elementsize*curface*3+offset+elementsize], (char *)col);
 							cp = &attribs.mcol[b].array[a*4 + 0];
 							col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;
-							QUATCOPY((unsigned char *)&varray[elementsize*curface*3+offset+elementsize*2], col);
+							copy_v4_v4_char((char *)&varray[elementsize*curface*3+offset+elementsize*2], (char *)col);
 							offset += sizeof(unsigned char)*4;
 						}	
 						if(attribs.tottang) {
 							float *tang = attribs.tang.array[a*4 + 2];
-							QUATCOPY((float *)&varray[elementsize*curface*3+offset], tang);
+							copy_v4_v4((float *)&varray[elementsize*curface*3+offset], tang);
 							tang = attribs.tang.array[a*4 + 3];
-							QUATCOPY((float *)&varray[elementsize*curface*3+offset+elementsize], tang);
+							copy_v4_v4((float *)&varray[elementsize*curface*3+offset+elementsize], tang);
 							tang = attribs.tang.array[a*4 + 0];
-							QUATCOPY((float *)&varray[elementsize*curface*3+offset+elementsize*2], tang);
+							copy_v4_v4((float *)&varray[elementsize*curface*3+offset+elementsize*2], tang);
 							offset += sizeof(float)*4;
 						}
 						(void)offset;
@@ -1349,6 +1349,85 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 static void cdDM_drawFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, void *attribs))
 {
 	dm->drawMappedFacesGLSL(dm, setMaterial, NULL, NULL);
+}
+
+static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
+	void (*setMaterial)(void *userData, int, void *attribs),
+	int (*setFace)(void *userData, int index), void *userData)
+{
+	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
+	GPUVertexAttribs gattribs;
+	DMVertexAttribs attribs;
+	MVert *mvert = cddm->mvert;
+	MFace *mf = cddm->mface;
+	float (*nors)[3] = dm->getFaceDataArray(dm, CD_NORMAL);
+	int a, matnr, new_matnr;
+	int orig, *index = dm->getFaceDataArray(dm, CD_ORIGINDEX);
+
+	cdDM_update_normals_from_pbvh(dm);
+
+	matnr = -1;
+
+	glShadeModel(GL_SMOOTH);
+
+	memset(&attribs, 0, sizeof(attribs));
+
+	glBegin(GL_QUADS);
+
+	for(a = 0; a < dm->numFaceData; a++, mf++) {
+		const int smoothnormal = (mf->flag & ME_SMOOTH);
+
+		/* material */
+		new_matnr = mf->mat_nr + 1;
+
+		if(new_matnr != matnr) {
+			glEnd();
+
+			setMaterial(userData, matnr = new_matnr, &gattribs);
+			DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
+
+			glBegin(GL_QUADS);
+		}
+
+		/* skipping faces */
+		if(setFace) {
+			orig = (index)? index[a]: a;
+
+			if(orig != ORIGINDEX_NONE && !setFace(userData, orig))
+				continue;
+		}
+
+		/* smooth normal */
+		if(!smoothnormal) {
+			if(nors) {
+				glNormal3fv(nors[a]);
+			}
+			else {
+				/* TODO ideally a normal layer should always be available */
+				float nor[3];
+
+				if(mf->v4)
+					normal_quad_v3( nor,mvert[mf->v1].co, mvert[mf->v2].co, mvert[mf->v3].co, mvert[mf->v4].co);
+				else
+					normal_tri_v3( nor,mvert[mf->v1].co, mvert[mf->v2].co, mvert[mf->v3].co);
+
+				glNormal3fv(nor);
+			}
+		}
+
+		/* vertices */
+		cddm_draw_attrib_vertex(&attribs, mvert, a, mf->v1, 0, smoothnormal);
+		cddm_draw_attrib_vertex(&attribs, mvert, a, mf->v2, 1, smoothnormal);
+		cddm_draw_attrib_vertex(&attribs, mvert, a, mf->v3, 2, smoothnormal);
+
+		if(mf->v4)
+			cddm_draw_attrib_vertex(&attribs, mvert, a, mf->v4, 3, smoothnormal);
+		else
+			cddm_draw_attrib_vertex(&attribs, mvert, a, mf->v3, 2, smoothnormal);
+	}
+	glEnd();
+
+	glShadeModel(GL_FLAT);
 }
 
 static void cdDM_drawMappedEdges(DerivedMesh *dm, int (*setDrawOptions)(void *userData, int index), void *userData)
@@ -1439,7 +1518,7 @@ static void cdDM_foreachMappedFaceCenter(
 		else
 			orig = i;
 
-		VECCOPY(cent, mv[mf->v1].co);
+		copy_v3_v3(cent, mv[mf->v1].co);
 		add_v3_v3(cent, mv[mf->v2].co);
 		add_v3_v3(cent, mv[mf->v3].co);
 
@@ -1521,6 +1600,7 @@ static CDDerivedMesh *cdDM_create(const char *desc)
 	dm->drawMappedFaces = cdDM_drawMappedFaces;
 	dm->drawMappedFacesTex = cdDM_drawMappedFacesTex;
 	dm->drawMappedFacesGLSL = cdDM_drawMappedFacesGLSL;
+	dm->drawMappedFacesMat = cdDM_drawMappedFacesMat;
 
 	dm->foreachMappedVert = cdDM_foreachMappedVert;
 	dm->foreachMappedEdge = cdDM_foreachMappedEdge;
@@ -1625,7 +1705,7 @@ DerivedMesh *CDDM_from_editmesh(EditMesh *em, Mesh *UNUSED(me))
 		i++, eve = eve->next, index++) {
 		MVert *mv = &mvert[i];
 
-		VECCOPY(mv->co, eve->co);
+		copy_v3_v3(mv->co, eve->co);
 
 		normal_float_to_short_v3(mv->no, eve->no);
 		mv->bweight = (unsigned char) (eve->bweight * 255.0f);
@@ -1793,7 +1873,7 @@ void CDDM_apply_vert_coords(DerivedMesh *dm, float (*vertCoords)[3])
 	cddm->mvert = vert;
 
 	for(i = 0; i < dm->numVertData; ++i, ++vert)
-		VECCOPY(vert->co, vertCoords[i]);
+		copy_v3_v3(vert->co, vertCoords[i]);
 }
 
 void CDDM_apply_vert_normals(DerivedMesh *dm, short (*vertNormals)[3])

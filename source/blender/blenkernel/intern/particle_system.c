@@ -95,13 +95,13 @@
 #include "RE_shader_ext.h"
 
 /* fluid sim particle import */
-#ifndef DISABLE_ELBEEM
+#ifdef WITH_MOD_FLUID
 #include "DNA_object_fluidsim.h"
 #include "LBM_fluidsim.h"
 #include <zlib.h>
 #include <string.h>
 
-#endif // DISABLE_ELBEEM
+#endif // WITH_MOD_FLUID
 
 /************************************************/
 /*			Reacting to system events			*/
@@ -454,7 +454,7 @@ static void distribute_grid(DerivedMesh *dm, ParticleSystem *psys)
 		max[2]=MAX2(max[2],mv->co[2]);
 	}
 
-	VECSUB(delta,max,min);
+	sub_v3_v3v3(delta, max, min);
 
 	/* determine major axis */
 	axis = (delta[0]>=delta[1]) ? 0 : ((delta[1]>=delta[2]) ? 1 : 2);
@@ -815,7 +815,7 @@ static void distribute_threads_exec(ParticleThread *thread, ParticleData *pa, Ch
 			normalize_v3(nor);
 			mul_v3_fl(nor,-100.0);
 
-			VECADD(co2,co1,nor);
+			add_v3_v3v3(co2,co1,nor);
 
 			min_d=2.0;
 			intersect=0;
@@ -1099,11 +1099,11 @@ static int distribute_threads_init_data(ParticleThread *threads, Scene *scene, D
 
 			for(p=0; p<totvert; p++) {
 				if(orcodata) {
-					VECCOPY(co,orcodata[p])
+					copy_v3_v3(co,orcodata[p]);
 					transform_mesh_orco_verts((Mesh*)ob->data, &co, 1, 1);
 				}
 				else
-					VECCOPY(co,mv[p].co)
+					copy_v3_v3(co,mv[p].co);
 				BLI_kdtree_insert(tree,p,co,NULL);
 			}
 
@@ -1141,14 +1141,14 @@ static int distribute_threads_init_data(ParticleThread *threads, Scene *scene, D
 			MFace *mf=dm->getFaceData(dm,i,CD_MFACE);
 
 			if(orcodata) {
-				VECCOPY(co1, orcodata[mf->v1]);
-				VECCOPY(co2, orcodata[mf->v2]);
-				VECCOPY(co3, orcodata[mf->v3]);
+				copy_v3_v3(co1, orcodata[mf->v1]);
+				copy_v3_v3(co2, orcodata[mf->v2]);
+				copy_v3_v3(co3, orcodata[mf->v3]);
 				transform_mesh_orco_verts((Mesh*)ob->data, &co1, 1, 1);
 				transform_mesh_orco_verts((Mesh*)ob->data, &co2, 1, 1);
 				transform_mesh_orco_verts((Mesh*)ob->data, &co3, 1, 1);
 				if(mf->v4) {
-					VECCOPY(co4, orcodata[mf->v4]);
+					copy_v3_v3(co4, orcodata[mf->v4]);
 					transform_mesh_orco_verts((Mesh*)ob->data, &co4, 1, 1);
 				}
 			}
@@ -1156,12 +1156,12 @@ static int distribute_threads_init_data(ParticleThread *threads, Scene *scene, D
 				v1= (MVert*)dm->getVertData(dm,mf->v1,CD_MVERT);
 				v2= (MVert*)dm->getVertData(dm,mf->v2,CD_MVERT);
 				v3= (MVert*)dm->getVertData(dm,mf->v3,CD_MVERT);
-				VECCOPY(co1, v1->co);
-				VECCOPY(co2, v2->co);
-				VECCOPY(co3, v3->co);
+				copy_v3_v3(co1, v1->co);
+				copy_v3_v3(co2, v2->co);
+				copy_v3_v3(co3, v3->co);
 				if(mf->v4) {
 					v4= (MVert*)dm->getVertData(dm,mf->v4,CD_MVERT);
-					VECCOPY(co4, v4->co);
+					copy_v3_v3(co4, v4->co);
 				}
 			}
 
@@ -1588,15 +1588,15 @@ void psys_get_birth_coordinates(ParticleSimulationData *sim, ParticleData *pa, P
 	if(part->tanfac!=0.0f){
 		//float phase=vg_rot?2.0f*(psys_particle_value_from_verts(sim->psmd->dm,part->from,pa,vg_rot)-0.5f):0.0f;
 		float phase=0.0f;
-		mul_v3_fl(vtan,-(float)cos((float)M_PI*(part->tanphase+phase)));
-		fac=-(float)sin((float)M_PI*(part->tanphase+phase));
-		VECADDFAC(vtan,vtan,utan,fac);
+		mul_v3_fl(vtan,-cosf((float)M_PI*(part->tanphase+phase)));
+		fac= -sinf((float)M_PI*(part->tanphase+phase));
+		madd_v3_v3fl(vtan, utan, fac);
 
 		mul_mat3_m4_v3(ob->obmat,vtan);
 
-		VECCOPY(utan,nor);
+		copy_v3_v3(utan, nor);
 		mul_v3_fl(utan,dot_v3v3(vtan,nor));
-		VECSUB(vtan,vtan,utan);
+		sub_v3_v3(vtan, utan);
 			
 		normalize_v3(vtan);
 	}
@@ -1648,7 +1648,7 @@ void psys_get_birth_coordinates(ParticleSimulationData *sim, ParticleData *pa, P
 			normalize_v3(state->ave);
 		}
 		else {
-			VECCOPY(state->ave, nor);
+			copy_v3_v3(state->ave, nor);
 		}
 
 		/* calculate rotation matrix */
@@ -2423,7 +2423,7 @@ static void sph_force_cb(void *sphdata_v, ParticleKey *state, float *force, floa
 		pfr.element_size = MAXFLOAT;
 	}
 	sphdata->element_size = pfr.element_size;
-	VECCOPY(sphdata->flow, pfr.flow);
+	copy_v3_v3(sphdata->flow, pfr.flow);
 
 	pressure =  stiffness * (pfr.density - rest_density);
 	near_pressure = stiffness_near_fac * pfr.near_density;
@@ -2520,7 +2520,7 @@ static void sph_integrate(ParticleSimulationData *sim, ParticleData *pa, float d
 
 	integrate_particle(part, pa, dtime, effector_acceleration, sph_force_cb, &sphdata);
 	*element_size = sphdata.element_size;
-	VECCOPY(flow, sphdata.flow);
+	copy_v3_v3(flow, sphdata.flow);
 }
 
 /************************************************/
@@ -2592,21 +2592,21 @@ static void basic_integrate(ParticleSimulationData *sim, int p, float dfra, floa
 	if(part->dampfac != 0.f)
 		mul_v3_fl(pa->state.vel, 1.f - part->dampfac * efdata.ptex.damp * 25.f * dtime);
 
-	//VECCOPY(pa->state.ave, states->ave);
+	//copy_v3_v3(pa->state.ave, states->ave);
 
 	/* finally we do guides */
 	time=(cfra-pa->time)/pa->lifetime;
 	CLAMP(time, 0.0f, 1.0f);
 
-	VECCOPY(tkey.co,pa->state.co);
-	VECCOPY(tkey.vel,pa->state.vel);
+	copy_v3_v3(tkey.co,pa->state.co);
+	copy_v3_v3(tkey.vel,pa->state.vel);
 	tkey.time=pa->state.time;
 
 	if(part->type != PART_HAIR) {
 		if(do_guides(sim->psys->effectors, &tkey, p, time)) {
-			VECCOPY(pa->state.co,tkey.co);
+			copy_v3_v3(pa->state.co,tkey.co);
 			/* guides don't produce valid velocity */
-			VECSUB(pa->state.vel,tkey.co,pa->prev_state.co);
+			sub_v3_v3v3(pa->state.vel, tkey.co, pa->prev_state.co);
 			mul_v3_fl(pa->state.vel,1.0f/dtime);
 			pa->state.time=tkey.time;
 		}
@@ -3176,7 +3176,7 @@ static int collision_response(ParticleData *pa, ParticleCollision *col, BVHTreeR
 				mul_v3_fl(v1_tan, 1.0f - 0.01f * frict);
 
 				/* surface_velocity is opposite to cm velocity */
-				mul_v3_v3fl(vr_tan, v1_tan, -1.0f);
+				negate_v3_v3(vr_tan, v1_tan);
 
 				/* get back to global coordinates */
 				add_v3_v3(v1_tan, vc_tan);
@@ -3471,9 +3471,9 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 			/* create fake root before actual root to resist bending */
 			if(k==0) {
 				float temp[3];
-				VECSUB(temp, key->co, (key+1)->co);
-				VECCOPY(mvert->co, key->co);
-				VECADD(mvert->co, mvert->co, temp);
+				sub_v3_v3v3(temp, key->co, (key+1)->co);
+				copy_v3_v3(mvert->co, key->co);
+				add_v3_v3v3(mvert->co, mvert->co, temp);
 				mul_m4_v3(hairmat, mvert->co);
 				mvert++;
 
@@ -3492,7 +3492,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 				}
 			}
 
-			VECCOPY(mvert->co, key->co);
+			copy_v3_v3(mvert->co, key->co);
 			mul_m4_v3(hairmat, mvert->co);
 			mvert++;
 			
@@ -3589,7 +3589,7 @@ static void save_hair(ParticleSimulationData *sim, float UNUSED(cfra)){
 		mul_m4_v3(ob->imat, key->co);
 
 		if(pa->totkey) {
-			VECSUB(key->co, key->co, root->co);
+			sub_v3_v3(key->co, root->co);
 			psys_vec_rot_to_face(sim->psmd->dm, pa, key->co);
 		}
 
@@ -3853,8 +3853,9 @@ static void update_children(ParticleSimulationData *sim)
 	else if(sim->psys->part->childtype) {
 		if(sim->psys->totchild != get_psys_tot_child(sim->scene, sim->psys))
 			distribute_particles(sim, PART_FROM_CHILD);
-		else
-			; /* Children are up to date, nothing to do. */
+		else {
+			/* Children are up to date, nothing to do. */
+		}
 	}
 	else
 		psys_free_children(sim->psys);
@@ -3915,7 +3916,7 @@ static void particles_fluid_step(ParticleSimulationData *sim, int UNUSED(cfra))
 	}
 
 	/* fluid sim particle import handling, actual loading of particles from file */
-	#ifndef DISABLE_ELBEEM
+	#ifdef WITH_MOD_FLUID
 	{
 		FluidsimModifierData *fluidmd = (FluidsimModifierData *)modifiers_findByType(sim->ob, eModifierType_Fluidsim);
 		
@@ -4008,7 +4009,7 @@ static void particles_fluid_step(ParticleSimulationData *sim, int UNUSED(cfra))
 			
 		} // fluid sim particles done
 	}
-	#endif // DISABLE_ELBEEM
+	#endif // WITH_MOD_FLUID
 }
 
 static int emit_particles(ParticleSimulationData *sim, PTCacheID *pid, float UNUSED(cfra))

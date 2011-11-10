@@ -253,7 +253,9 @@ if 'blenderlite' in B.targets:
     target_env_defs['WITH_BF_BULLET'] = False
     target_env_defs['WITH_BF_BINRELOC'] = False
     target_env_defs['BF_BUILDINFO'] = False
-    target_env_defs['BF_NO_ELBEEM'] = True
+    target_env_defs['WITH_BF_FLUID'] = False
+    target_env_defs['WITH_BF_DECIMATE'] = False
+    target_env_defs['WITH_BF_BOOLEAN'] = False
     target_env_defs['WITH_BF_PYTHON'] = False
     target_env_defs['WITH_BF_3DMOUSE'] = False
     
@@ -323,9 +325,9 @@ if 'blenderplayer' in B.targets:
 if 'blendernogame' in B.targets:
     env['WITH_BF_GAMEENGINE'] = False
 
-# disable elbeem (fluidsim) compilation?
-if env['BF_NO_ELBEEM'] == 1:
-    env['CPPFLAGS'].append('-DDISABLE_ELBEEM')
+# build without elbeem (fluidsim)?
+if env['WITH_BF_FLUID'] == 1:
+    env['CPPFLAGS'].append('-DWITH_MOD_FLUID')
 
 
 if btools.ENDIAN == "big":
@@ -433,12 +435,12 @@ B.init_lib_dict()
 
 Export('env')
 
+BuildDir(B.root_build_dir+'/source', 'source', duplicate=0)
+SConscript(B.root_build_dir+'/source/SConscript')
 BuildDir(B.root_build_dir+'/intern', 'intern', duplicate=0)
 SConscript(B.root_build_dir+'/intern/SConscript')
 BuildDir(B.root_build_dir+'/extern', 'extern', duplicate=0)
 SConscript(B.root_build_dir+'/extern/SConscript')
-BuildDir(B.root_build_dir+'/source', 'source', duplicate=0)
-SConscript(B.root_build_dir+'/source/SConscript')
 
 # now that we have read all SConscripts, we know what
 # libraries will be built. Create list of
@@ -524,6 +526,50 @@ if env['OURPLATFORM']!='darwin':
                 if len(source)==0:
                     env.Execute(Mkdir(dir))
                 scriptinstall.append(env.Install(dir=dir,source=source))
+        if env['WITH_BF_CYCLES']:
+            # cycles python code
+            dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles')
+            source=os.listdir('intern/cycles/blender/addon')
+            if '.svn' in source: source.remove('.svn')
+            if '_svn' in source: source.remove('_svn')
+            if '__pycache__' in source: source.remove('__pycache__')
+            source=['intern/cycles/blender/addon/'+s for s in source]
+            scriptinstall.append(env.Install(dir=dir,source=source))
+
+            # cycles kernel code
+            dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'kernel')
+            source=os.listdir('intern/cycles/kernel')
+            if '.svn' in source: source.remove('.svn')
+            if '_svn' in source: source.remove('_svn')
+            if '__pycache__' in source: source.remove('__pycache__')
+            source.remove('kernel.cpp')
+            source.remove('CMakeLists.txt')
+            source.remove('svm')
+            source.remove('osl')
+            source=['intern/cycles/kernel/'+s for s in source]
+            source.append('intern/cycles/util/util_color.h')
+            source.append('intern/cycles/util/util_math.h')
+            source.append('intern/cycles/util/util_transform.h')
+            source.append('intern/cycles/util/util_types.h')
+            scriptinstall.append(env.Install(dir=dir,source=source))
+            # svm
+            dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'kernel', 'svm')
+            source=os.listdir('intern/cycles/kernel/svm')
+            if '.svn' in source: source.remove('.svn')
+            if '_svn' in source: source.remove('_svn')
+            if '__pycache__' in source: source.remove('__pycache__')
+            source=['intern/cycles/kernel/svm/'+s for s in source]
+            scriptinstall.append(env.Install(dir=dir,source=source))
+
+            # licenses
+            dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'license')
+            source=os.listdir('intern/cycles/doc/license')
+            if '.svn' in source: source.remove('.svn')
+            if '_svn' in source: source.remove('_svn')
+            if '__pycache__' in source: source.remove('__pycache__')
+            source.remove('CMakeLists.txt')
+            source=['intern/cycles/doc/license/'+s for s in source]
+            scriptinstall.append(env.Install(dir=dir,source=source))
     
     if env['WITH_BF_INTERNATIONAL']:
         internationalpaths=['release' + os.sep + 'datafiles']
@@ -693,6 +739,9 @@ if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
     if bitness == 32:
         dllsources.append('${LCGDIR}/thumbhandler/lib/BlendThumb.dll')	
     dllsources.append('${LCGDIR}/thumbhandler/lib/BlendThumb64.dll')
+
+    if env['WITH_BF_OIIO']:
+        dllsources.append('${LCGDIR}/openimageio/bin/OpenImageIO.dll')
 
     dllsources.append('#source/icons/blender.exe.manifest')
 

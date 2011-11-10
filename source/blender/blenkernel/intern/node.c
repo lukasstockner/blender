@@ -43,10 +43,11 @@
 #include <string.h>
 #include <limits.h>
 
+#include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_node_types.h"
+#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_action_types.h"
 
 #include "BLI_string.h"
 #include "BLI_math.h"
@@ -628,7 +629,7 @@ bNodeTree *ntreeCopyTree(bNodeTree *ntree)
 	for(newtree=G.main->nodetree.first; newtree; newtree= newtree->id.next)
 		if(newtree==ntree) break;
 	if(newtree) {
-		newtree= copy_libblock(ntree);
+		newtree= copy_libblock(&ntree->id);
 	} else {
 		newtree= MEM_dupallocN(ntree);
 		copy_libblock_data(&newtree->id, &ntree->id, TRUE); /* copy animdata and ID props */
@@ -1050,7 +1051,7 @@ void ntreeMakeLocal(bNodeTree *ntree)
 	
 	if(ntree->id.lib==NULL) return;
 	if(ntree->id.us==1) {
-		id_clear_lib_data(&bmain->nodetree, (ID *)ntree);
+		id_clear_lib_data(bmain, (ID *)ntree);
 		return;
 	}
 	
@@ -1064,7 +1065,7 @@ void ntreeMakeLocal(bNodeTree *ntree)
 	
 	/* if all users are local, we simply make tree local */
 	if(cd.local && cd.lib==0) {
-		id_clear_lib_data(&bmain->nodetree, (ID *)ntree);
+		id_clear_lib_data(bmain, (ID *)ntree);
 	}
 	else if(cd.local && cd.lib) {
 		/* this is the mixed case, we copy the tree and assign it to local users */
@@ -1313,14 +1314,18 @@ void nodeSetActive(bNodeTree *ntree, bNode *node)
 			if(GS(node->id->name) == GS(tnode->id->name))
 				tnode->flag &= ~NODE_ACTIVE_ID;
 		}
+		if(node->typeinfo->nclass == NODE_CLASS_TEXTURE)
+			tnode->flag &= ~NODE_ACTIVE_TEXTURE;
 	}
 	
 	node->flag |= NODE_ACTIVE;
 	if(node->id)
 		node->flag |= NODE_ACTIVE_ID;
+	if(node->typeinfo->nclass == NODE_CLASS_TEXTURE)
+		node->flag |= NODE_ACTIVE_TEXTURE;
 }
 
-/* use flags are not persistant yet, groups might need different tagging, so we do it each time
+/* use flags are not persistent yet, groups might need different tagging, so we do it each time
    when we need to get this info */
 void ntreeSocketUseFlags(bNodeTree *ntree)
 {
@@ -1751,6 +1756,10 @@ void node_type_gpu_ext(struct bNodeType *ntype, int (*gpuextfunc)(struct GPUMate
 	ntype->gpuextfunc = gpuextfunc;
 }
 
+void node_type_compatibility(struct bNodeType *ntype, short compatibility)
+{
+	ntype->compatibility = compatibility;
+}
 
 static bNodeType *is_nodetype_registered(ListBase *typelist, int type) 
 {
@@ -1785,6 +1794,7 @@ static void registerCompositNodes(ListBase *ntypelist)
 	register_node_type_cmp_value(ntypelist);
 	register_node_type_cmp_rgb(ntypelist);
 	register_node_type_cmp_curve_time(ntypelist);
+	register_node_type_cmp_movieclip(ntypelist);
 	
 	register_node_type_cmp_composite(ntypelist);
 	register_node_type_cmp_viewer(ntypelist);
@@ -1849,6 +1859,9 @@ static void registerCompositNodes(ListBase *ntypelist)
 	register_node_type_cmp_glare(ntypelist);
 	register_node_type_cmp_tonemap(ntypelist);
 	register_node_type_cmp_lensdist(ntypelist);
+	register_node_type_cmp_transform(ntypelist);
+	register_node_type_cmp_stabilize2d(ntypelist);
+	register_node_type_cmp_moviedistortion(ntypelist);
 }
 
 static void registerShaderNodes(ListBase *ntypelist) 
@@ -1856,13 +1869,18 @@ static void registerShaderNodes(ListBase *ntypelist)
 	register_node_type_frame(ntypelist);
 	
 	register_node_type_sh_group(ntypelist);
-//	register_node_type_sh_forloop(ntypelist);
-//	register_node_type_sh_whileloop(ntypelist);
-	
+	//register_node_type_sh_forloop(ntypelist);
+	//register_node_type_sh_whileloop(ntypelist);
+
 	register_node_type_sh_output(ntypelist);
+	register_node_type_sh_material(ntypelist);
+	register_node_type_sh_camera(ntypelist);
+	register_node_type_sh_value(ntypelist);
+	register_node_type_sh_rgb(ntypelist);
 	register_node_type_sh_mix_rgb(ntypelist);
 	register_node_type_sh_valtorgb(ntypelist);
 	register_node_type_sh_rgbtobw(ntypelist);
+	register_node_type_sh_texture(ntypelist);
 	register_node_type_sh_normal(ntypelist);
 	register_node_type_sh_geom(ntypelist);
 	register_node_type_sh_mapping(ntypelist);
@@ -1871,17 +1889,47 @@ static void registerShaderNodes(ListBase *ntypelist)
 	register_node_type_sh_math(ntypelist);
 	register_node_type_sh_vect_math(ntypelist);
 	register_node_type_sh_squeeze(ntypelist);
-	register_node_type_sh_camera(ntypelist);
-	register_node_type_sh_material(ntypelist);
+	//register_node_type_sh_dynamic(ntypelist);
 	register_node_type_sh_material_ext(ntypelist);
-	register_node_type_sh_value(ntypelist);
-	register_node_type_sh_rgb(ntypelist);
-	register_node_type_sh_texture(ntypelist);
-//	register_node_type_sh_dynamic(ntypelist);
 	register_node_type_sh_invert(ntypelist);
 	register_node_type_sh_seprgb(ntypelist);
 	register_node_type_sh_combrgb(ntypelist);
 	register_node_type_sh_hue_sat(ntypelist);
+
+	register_node_type_sh_attribute(ntypelist);
+	register_node_type_sh_geometry(ntypelist);
+	register_node_type_sh_light_path(ntypelist);
+	register_node_type_sh_fresnel(ntypelist);
+	register_node_type_sh_layer_weight(ntypelist);
+	register_node_type_sh_tex_coord(ntypelist);
+
+	register_node_type_sh_background(ntypelist);
+	register_node_type_sh_bsdf_diffuse(ntypelist);
+	register_node_type_sh_bsdf_glossy(ntypelist);
+	register_node_type_sh_bsdf_glass(ntypelist);
+	register_node_type_sh_bsdf_translucent(ntypelist);
+	register_node_type_sh_bsdf_transparent(ntypelist);
+	register_node_type_sh_bsdf_velvet(ntypelist);
+	register_node_type_sh_emission(ntypelist);
+	register_node_type_sh_holdout(ntypelist);
+	//register_node_type_sh_volume_transparent(ntypelist);
+	//register_node_type_sh_volume_isotropic(ntypelist);
+	register_node_type_sh_mix_shader(ntypelist);
+	register_node_type_sh_add_shader(ntypelist);
+
+	register_node_type_sh_output_lamp(ntypelist);
+	register_node_type_sh_output_material(ntypelist);
+	register_node_type_sh_output_world(ntypelist);
+
+	register_node_type_sh_tex_image(ntypelist);
+	register_node_type_sh_tex_environment(ntypelist);
+	register_node_type_sh_tex_sky(ntypelist);
+	register_node_type_sh_tex_noise(ntypelist);
+	register_node_type_sh_tex_wave(ntypelist);
+	register_node_type_sh_tex_voronoi(ntypelist);
+	register_node_type_sh_tex_musgrave(ntypelist);
+	register_node_type_sh_tex_gradient(ntypelist);
+	register_node_type_sh_tex_magic(ntypelist);
 }
 
 static void registerTextureNodes(ListBase *ntypelist)

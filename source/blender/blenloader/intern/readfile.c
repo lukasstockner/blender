@@ -88,6 +88,7 @@
 #include "DNA_space_types.h"
 #include "DNA_vfont_types.h"
 #include "DNA_world_types.h"
+#include "DNA_movieclip_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -129,6 +130,7 @@
 #include "BKE_screen.h"
 #include "BKE_sequencer.h"
 #include "BKE_texture.h" // for open_plugin_tex
+#include "BKE_tracking.h"
 #include "BKE_utildefines.h" // SWITCH_INT DATA ENDB DNA1 O_BINARY GLOB USER TEST REND
 #include "BKE_sound.h"
 
@@ -139,6 +141,8 @@
 //XXX #include "BIF_previewrender.h" // bedlelvel, for struct RenderInfo
 #include "BLO_readfile.h"
 #include "BLO_undofile.h"
+
+#include "RE_engine.h"
 
 #include "readfile.h"
 
@@ -1035,6 +1039,8 @@ void blo_freefiledata(FileData *fd)
 			oldnewmap_free(fd->globmap);
 		if (fd->imamap)
 			oldnewmap_free(fd->imamap);
+		if (fd->movieclipmap)
+			oldnewmap_free(fd->movieclipmap);
 		if (fd->libmap && !(fd->flags & FD_FLAGS_NOT_MY_LIBMAP))
 			oldnewmap_free(fd->libmap);
 		if (fd->bheadmap)
@@ -1107,6 +1113,13 @@ static void *newimaadr(FileData *fd, void *adr)		/* used to restore image data a
 {
 	if(fd->imamap && adr)
 		return oldnewmap_lookup_and_inc(fd->imamap, adr);
+	return NULL;
+}
+
+static void *newmclipadr(FileData *fd, void *adr)              /* used to restore movie clip data after undo */
+{
+	if(fd->movieclipmap && adr)
+		return oldnewmap_lookup_and_inc(fd->movieclipmap, adr);
 	return NULL;
 }
 
@@ -1237,6 +1250,62 @@ void blo_end_image_pointer_map(FileData *fd, Main *oldmain)
 		}
 	}
 }
+
+void blo_make_movieclip_pointer_map(FileData *fd, Main *oldmain)
+{
+	MovieClip *clip= oldmain->movieclip.first;
+	Scene *sce= oldmain->scene.first;
+
+	fd->movieclipmap= oldnewmap_new();
+
+	for(;clip; clip= clip->id.next) {
+		if(clip->cache)
+			oldnewmap_insert(fd->movieclipmap, clip->cache, clip->cache, 0);
+
+		if(clip->tracking.camera.intrinsics)
+			oldnewmap_insert(fd->movieclipmap, clip->tracking.camera.intrinsics, clip->tracking.camera.intrinsics, 0);
+	}
+
+	for(; sce; sce= sce->id.next) {
+		if(sce->nodetree) {
+			bNode *node;
+			for(node= sce->nodetree->nodes.first; node; node= node->next)
+				if(node->type==CMP_NODE_MOVIEDISTORTION)
+					oldnewmap_insert(fd->movieclipmap, node->storage, node->storage, 0);
+		}
+	}
+}
+
+/* set old main movie clips caches to zero if it has been restored */
+/* this works because freeing old main only happens after this call */
+void blo_end_movieclip_pointer_map(FileData *fd, Main *oldmain)
+{
+	OldNew *entry= fd->movieclipmap->entries;
+	MovieClip *clip= oldmain->movieclip.first;
+	Scene *sce= oldmain->scene.first;
+	int i;
+
+	/* used entries were restored, so we put them to zero */
+	for (i=0; i<fd->movieclipmap->nentries; i++, entry++) {
+		if (entry->nr>0)
+				entry->newp= NULL;
+	}
+
+	for(;clip; clip= clip->id.next) {
+		clip->cache= newmclipadr(fd, clip->cache);
+		clip->tracking.camera.intrinsics= newmclipadr(fd, clip->tracking.camera.intrinsics);
+	}
+
+	for(; sce; sce= sce->id.next) {
+		if(sce->nodetree) {
+			bNode *node;
+			for(node= sce->nodetree->nodes.first; node; node= node->next)
+				if(node->type==CMP_NODE_MOVIEDISTORTION)
+					node->storage= newmclipadr(fd, node->storage);
+		}
+	}
+}
+
 
 /* undo file support: add all library pointers in lookup */
 void blo_add_library_pointer_map(ListBase *mainlist, FileData *fd)
@@ -2180,6 +2249,7 @@ static void lib_verify_nodetree(Main *main, int UNUSED(open))
 		for(ntree= main->nodetree.first; ntree; ntree= ntree->id.next)
 			if (ntree->update)
 				ntreeUpdateTree(ntree);
+
 		for (i=0; i < NUM_NTREE_TYPES; ++i) {
 			ntreetype= ntreeGetType(i);
 			if (ntreetype && ntreetype->foreach_nodetree)
@@ -2223,7 +2293,11 @@ static void direct_link_nodetree(FileData *fd, bNodeTree *ntree)
 		link_list(fd, &node->inputs);
 		link_list(fd, &node->outputs);
 		
-		node->storage= newdataadr(fd, node->storage);
+		if(node->type == CMP_NODE_MOVIEDISTORTION) {
+			node->storage= newmclipadr(fd, node->storage);
+		} else
+			node->storage= newdataadr(fd, node->storage);
+
 		if(node->storage) {
 			/* could be handlerized at some point */
 			if(ntree->type==NTREE_SHADER && (node->type==SH_NODE_CURVE_VEC || node->type==SH_NODE_CURVE_RGB))
@@ -2505,6 +2579,9 @@ static void lib_link_lamp(FileData *fd, Main *main)
 			}
 			
 			la->ipo= newlibadr_us(fd, la->id.lib, la->ipo); // XXX depreceated - old animation system
+
+			if(la->nodetree)
+				lib_link_ntree(fd, &la->id, la->nodetree);
 			
 			la->id.flag -= LIB_NEEDLINK;
 		}
@@ -2526,6 +2603,10 @@ static void direct_link_lamp(FileData *fd, Lamp *la)
 	la->curfalloff= newdataadr(fd, la->curfalloff);
 	if(la->curfalloff)
 		direct_link_curvemapping(fd, la->curfalloff);
+
+	la->nodetree= newdataadr(fd, la->nodetree);
+	if(la->nodetree)
+		direct_link_nodetree(fd, la->nodetree);
 	
 	la->preview = direct_link_preview_image(fd, la->preview);
 }
@@ -2668,6 +2749,9 @@ static void lib_link_world(FileData *fd, Main *main)
 					mtex->object= newlibadr(fd, wrld->id.lib, mtex->object);
 				}
 			}
+
+			if(wrld->nodetree)
+				lib_link_ntree(fd, &wrld->id, wrld->nodetree);
 			
 			wrld->id.flag -= LIB_NEEDLINK;
 		}
@@ -2685,6 +2769,11 @@ static void direct_link_world(FileData *fd, World *wrld)
 	for(a=0; a<MAX_MTEX; a++) {
 		wrld->mtex[a]= newdataadr(fd, wrld->mtex[a]);
 	}
+
+	wrld->nodetree= newdataadr(fd, wrld->nodetree);
+	if(wrld->nodetree)
+		direct_link_nodetree(fd, wrld->nodetree);
+
 	wrld->preview = direct_link_preview_image(fd, wrld->preview);
 }
 
@@ -3975,6 +4064,7 @@ static void direct_link_pose(FileData *fd, bPose *pose)
 			direct_link_motionpath(fd, pchan->mpath);
 		
 		pchan->iktree.first= pchan->iktree.last= NULL;
+		pchan->siktree.first= pchan->siktree.last= NULL;
 		
 		/* incase this value changes in future, clamp else we get undefined behavior */
 		CLAMP(pchan->rotmode, ROT_MODE_MIN, ROT_MODE_MAX);
@@ -4394,7 +4484,7 @@ static void direct_link_object(FileData *fd, Object *ob)
 			 * a hook we need to make sure it gets converted
 			 * and free'd, regardless of version.
 			 */
-		VECCOPY(hmd->cent, hook->cent);
+		copy_v3_v3(hmd->cent, hook->cent);
 		hmd->falloff = hook->falloff;
 		hmd->force = hook->force;
 		hmd->indexar = hook->indexar;
@@ -4521,6 +4611,8 @@ static void lib_link_scene(FileData *fd, Main *main)
 					marker->camera= newlibadr(fd, sce->id.lib, marker->camera);
 				}
 			}
+#else
+			(void)marker;
 #endif
 
 			if(sce->ed)
@@ -4742,6 +4834,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	if(sce->nodetree)
 		direct_link_nodetree(fd, sce->nodetree);
 	
+	sce->clip= newlibadr_us(fd, sce->id.lib, sce->clip);
 }
 
 /* ************ READ WM ***************** */
@@ -4896,6 +4989,7 @@ static void lib_link_screen(FileData *fd, Main *main)
 
 						for(bgpic= v3d->bgpicbase.first; bgpic; bgpic= bgpic->next) {
 							bgpic->ima= newlibadr_us(fd, sc->id.lib, bgpic->ima);
+							bgpic->clip= newlibadr_us(fd, sc->id.lib, bgpic->clip);
 						}
 						if(v3d->localvd) {
 							v3d->localvd->camera= newlibadr(fd, sc->id.lib, v3d->localvd->camera);
@@ -4926,15 +5020,6 @@ static void lib_link_screen(FileData *fd, Main *main)
 						sfile->layout= NULL;
 						sfile->folders_prev= NULL;
 						sfile->folders_next= NULL;
-					}
-					else if(sl->spacetype==SPACE_IMASEL) {
-						SpaceImaSel *simasel= (SpaceImaSel *)sl;
-
-						simasel->files = NULL;						
-						simasel->returnfunc= NULL;
-						simasel->menup= NULL;
-						simasel->pupmenu= NULL;
-						simasel->img= NULL;
 					}
 					else if(sl->spacetype==SPACE_ACTION) {
 						SpaceAction *saction= (SpaceAction *)sl;
@@ -4999,11 +5084,6 @@ static void lib_link_screen(FileData *fd, Main *main)
 							}
 						}
 					}
-					else if(sl->spacetype==SPACE_SOUND) {
-						SpaceSound *ssound= (SpaceSound *)sl;
-
-						ssound->sound= newlibadr_us(fd, sc->id.lib, ssound->sound);
-					}
 					else if(sl->spacetype==SPACE_NODE) {
 						SpaceNode *snode= (SpaceNode *)sl;
 						
@@ -5016,6 +5096,10 @@ static void lib_link_screen(FileData *fd, Main *main)
 							if(snode->id) {
 								if(GS(snode->id->name)==ID_MA)
 									snode->nodetree= ((Material *)snode->id)->nodetree;
+								else if(GS(snode->id->name)==ID_WO)
+									snode->nodetree= ((World *)snode->id)->nodetree;
+								else if(GS(snode->id->name)==ID_LA)
+									snode->nodetree= ((Lamp *)snode->id)->nodetree;
 								else if(GS(snode->id->name)==ID_SCE)
 									snode->nodetree= ((Scene *)snode->id)->nodetree;
 								else if(GS(snode->id->name)==ID_TE)
@@ -5027,6 +5111,14 @@ static void lib_link_screen(FileData *fd, Main *main)
 						}
 						
 						snode->linkdrag.first = snode->linkdrag.last = NULL;
+					}
+					else if(sl->spacetype==SPACE_CLIP) {
+						SpaceClip *sclip= (SpaceClip *)sl;
+
+						sclip->clip= newlibadr_us(fd, sc->id.lib, sclip->clip);
+
+						sclip->scopes.track_preview = NULL;
+						sclip->scopes.ok = 0;
 					}
 				}
 				sa= sa->next;
@@ -5103,6 +5195,7 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 				if(sl->spacetype==SPACE_VIEW3D) {
 					View3D *v3d= (View3D*) sl;
 					BGpic *bgpic;
+					ARegion *ar;
 					
 					if(v3d->scenelock)
 						v3d->camera= NULL; /* always get from scene */
@@ -5114,6 +5207,7 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 					
 					for(bgpic= v3d->bgpicbase.first; bgpic; bgpic= bgpic->next) {
 						bgpic->ima= restore_pointer_by_name(newmain, (ID *)bgpic->ima, 1);
+						bgpic->clip= restore_pointer_by_name(newmain, (ID *)bgpic->clip, 1);
 					}
 					if(v3d->localvd) {
 						/*Base *base;*/
@@ -5138,6 +5232,15 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 					/* not very nice, but could help */
 					if((v3d->layact & v3d->lay)==0) v3d->layact= v3d->lay;
 					
+					/* free render engines for now */
+					for(ar= sa->regionbase.first; ar; ar= ar->next) {
+						RegionView3D *rv3d= ar->regiondata;
+
+						if(rv3d && rv3d->render_engine) {
+							RE_engine_free(rv3d->render_engine);
+							rv3d->render_engine= NULL;
+						}
+					}
 				}
 				else if(sl->spacetype==SPACE_IPO) {
 					SpaceIpo *sipo= (SpaceIpo *)sl;
@@ -5159,12 +5262,6 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 					
 					SpaceFile *sfile= (SpaceFile *)sl;
 					sfile->op= NULL;
-				}
-				else if(sl->spacetype==SPACE_IMASEL) {
-					SpaceImaSel *simasel= (SpaceImaSel *)sl;
-					if (simasel->files) {
-						//XXX BIF_filelist_freelib(simasel->files);
-					}
 				}
 				else if(sl->spacetype==SPACE_ACTION) {
 					SpaceAction *saction= (SpaceAction *)sl;
@@ -5232,11 +5329,6 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 						}
 					}
 				}
-				else if(sl->spacetype==SPACE_SOUND) {
-					SpaceSound *ssound= (SpaceSound *)sl;
-
-					ssound->sound= restore_pointer_by_name(newmain, (ID *)ssound->sound, 1);
-				}
 				else if(sl->spacetype==SPACE_NODE) {
 					SpaceNode *snode= (SpaceNode *)sl;
 					
@@ -5257,6 +5349,13 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 					else {
 						snode->nodetree= restore_pointer_by_name(newmain, &snode->nodetree->id, 1);
 					}
+				}
+				else if(sl->spacetype==SPACE_CLIP) {
+					SpaceClip *sclip= (SpaceClip *)sl;
+
+					sclip->clip= restore_pointer_by_name(newmain, (ID *)sclip->clip, 1);
+
+					sclip->scopes.ok = 0;
 				}
 			}
 			sa= sa->next;
@@ -5287,6 +5386,7 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 			
 			rv3d->depths= NULL;
 			rv3d->ri= NULL;
+			rv3d->render_engine= NULL;
 			rv3d->sms= NULL;
 			rv3d->smooth_timer= NULL;
 		}
@@ -5319,8 +5419,8 @@ static void view3d_split_250(View3D *v3d, ListBase *regions)
 			rv3d->persp= v3d->persp;
 			rv3d->view= v3d->view;
 			rv3d->dist= v3d->dist;
-			VECCOPY(rv3d->ofs, v3d->ofs);
-			QUATCOPY(rv3d->viewquat, v3d->viewquat);
+			copy_v3_v3(rv3d->ofs, v3d->ofs);
+			copy_qt_qt(rv3d->viewquat, v3d->viewquat);
 		}
 	}
 
@@ -5428,6 +5528,10 @@ static void direct_link_screen(FileData *fd, bScreen *sc)
 				v3d->afterdraw_xray.first= v3d->afterdraw_xray.last= NULL;
 				v3d->afterdraw_xraytransp.first= v3d->afterdraw_xraytransp.last= NULL;
 				v3d->properties_storage= NULL;
+
+				/* render can be quite heavy, set to wire on load */
+				if(v3d->drawtype == OB_RENDER)
+					v3d->drawtype = OB_WIRE;
 				
 				view3d_split_250(v3d, &sl->regionbase);
 			}
@@ -5507,6 +5611,7 @@ static void direct_link_screen(FileData *fd, bScreen *sc)
 			else if(sl->spacetype==SPACE_BUTS) {
 				SpaceButs *sbuts= (SpaceButs *)sl;
 				sbuts->path= NULL;
+				sbuts->texuser= NULL;
 			}
 			else if(sl->spacetype==SPACE_CONSOLE) {
 				SpaceConsole *sconsole= (SpaceConsole *)sl;
@@ -5736,6 +5841,55 @@ static void lib_link_group(FileData *fd, Main *main)
 	}
 }
 
+/* ***************** READ MOVIECLIP *************** */
+
+static void direct_link_movieclip(FileData *fd, MovieClip *clip)
+{
+	MovieTracking *tracking= &clip->tracking;
+	MovieTrackingTrack *track;
+
+	if(fd->movieclipmap) clip->cache= newmclipadr(fd, clip->cache);
+	else clip->cache= NULL;
+
+	if(fd->movieclipmap) clip->tracking.camera.intrinsics= newmclipadr(fd, clip->tracking.camera.intrinsics);
+	else clip->tracking.camera.intrinsics= NULL;
+
+	tracking->reconstruction.cameras= newdataadr(fd, tracking->reconstruction.cameras);
+
+	link_list(fd, &tracking->tracks);
+
+	track= tracking->tracks.first;
+	while(track) {
+		track->markers= newdataadr(fd, track->markers);
+
+		track= track->next;
+	}
+
+	clip->tracking.act_track= newdataadr(fd, clip->tracking.act_track);
+
+	clip->anim= NULL;
+	clip->tracking_context= NULL;
+
+	clip->tracking.stabilization.ok= 0;
+	clip->tracking.stabilization.scaleibuf= NULL;
+	clip->tracking.stabilization.rot_track= newdataadr(fd, clip->tracking.stabilization.rot_track);
+}
+
+static void lib_link_movieclip(FileData *fd, Main *main)
+{
+	MovieClip *clip;
+
+	clip= main->movieclip.first;
+	while(clip) {
+		if(clip->id.flag & LIB_NEEDLINK) {
+			clip->gpd= newlibadr_us(fd, clip->id.lib, clip->gpd);
+
+			clip->id.flag -= LIB_NEEDLINK;
+		}
+		clip= clip->id.next;
+	}
+}
+
 /* ************** GENERAL & MAIN ******************** */
 
 
@@ -5770,6 +5924,7 @@ static const char *dataname(short id_code)
 		case ID_BR: return "Data from BR";
 		case ID_PA: return "Data from PA";
 		case ID_GD: return "Data from GD";
+		case ID_MC: return "Data from MC";
 	}
 	return "Data from Lib Block";
 	
@@ -5837,7 +5992,7 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID
 	if(id->flag & LIB_FAKEUSER) id->us= 1;
 	else id->us= 0;
 	id->icon_id = 0;
-	id->flag &= ~LIB_ID_RECALC;
+	id->flag &= ~(LIB_ID_RECALC|LIB_ID_RECALC_DATA);
 
 	/* this case cannot be direct_linked: it's just the ID part */
 	if(bhead->code==ID_ID) {
@@ -5938,6 +6093,9 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID
 			break;
 		case ID_GD:
 			direct_link_gpencil(fd, (bGPdata *)id);
+			break;
+		case ID_MC:
+			direct_link_movieclip(fd, (MovieClip *)id);
 			break;
 	}
 	
@@ -6624,16 +6782,6 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
 				//ar->v2d.flag |= V2D_IS_INITIALISED;
 				break;
 			}
-			case SPACE_SOUND:
-			{
-				SpaceSound *ssound= (SpaceSound *)sl;
-				memcpy(&ar->v2d, &ssound->v2d, sizeof(View2D));
-				
-				ar->v2d.scroll |= (V2D_SCROLL_BOTTOM|V2D_SCROLL_SCALE_HORIZONTAL);
-				ar->v2d.scroll |= (V2D_SCROLL_LEFT);
-				//ar->v2d.flag |= V2D_IS_INITIALISED;
-				break;
-			}
 			case SPACE_NLA:
 			{
 				SpaceNla *snla= (SpaceNla *)sl;
@@ -6749,11 +6897,17 @@ static void do_versions_windowmanager_2_50(bScreen *screen)
 		
 		area_add_window_regions(sa, sa->spacedata.first, &sa->regionbase);
 		
-		/* space imageselect is depricated */
+		/* space imageselect is deprecated */
 		for(sl= sa->spacedata.first; sl; sl= sl->next) {
 			if(sl->spacetype==SPACE_IMASEL)
-				sl->spacetype= SPACE_INFO;	/* spacedata then matches */
-		}		
+				sl->spacetype= SPACE_EMPTY;	/* spacedata then matches */
+		}
+		
+		/* space sound is deprecated */
+		for(sl= sa->spacedata.first; sl; sl= sl->next) {
+			if(sl->spacetype==SPACE_SOUND)
+				sl->spacetype= SPACE_EMPTY;	/* spacedata then matches */
+		}
 		
 		/* it seems to be possible in 2.5 to have this saved, filewindow probably */
 		sa->butspacetype= sa->spacetype;
@@ -7082,6 +7236,22 @@ static void do_versions_nodetree_image_default_alpha_output(bNodeTree *ntree)
 	}
 }
 
+static void do_version_ntree_tex_mapping_260(void *UNUSED(data), ID *UNUSED(id), bNodeTree *ntree)
+{
+	bNode *node;
+
+	for(node=ntree->nodes.first; node; node=node->next) {
+		if(node->type == SH_NODE_MAPPING) {
+			TexMapping *tex_mapping;
+
+			tex_mapping= node->storage;
+			tex_mapping->projx= PROJ_X;
+			tex_mapping->projy= PROJ_Y;
+			tex_mapping->projz= PROJ_Z;
+		}
+	}
+}
+
 static void do_versions(FileData *fd, Library *lib, Main *main)
 {
 	/* WATCH IT!!!: pointers from libdata have not been converted */
@@ -7145,7 +7315,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		while(ob) {
 			if(ob->transflag & 1) {
 				ob->transflag -= 1;
-				ob->ipoflag |= OB_OFFS_OB;
+				//ob->ipoflag |= OB_OFFS_OB;
 			}
 			ob= ob->id.next;
 		}
@@ -7176,7 +7346,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 		ob= main->object.first;
 		while(ob) {
-			ob->ipoflag |= OB_OFFS_PARENT;
+			//ob->ipoflag |= OB_OFFS_PARENT;
 			if(ob->dt==0) ob->dt= OB_SOLID;
 			ob= ob->id.next;
 		}
@@ -7421,9 +7591,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	if(main->versionfile <= 200) {
 		Object *ob= main->object.first;
 		while(ob) {
-			ob->scaflag = ob->gameflag & (64+128+256+512+1024+2048);
+			ob->scaflag = ob->gameflag & (OB_DO_FH|OB_ROT_FH|OB_ANISOTROPIC_FRICTION|OB_GHOST|OB_RIGID_BODY|OB_BOUNDS);
 				/* 64 is do_fh */
-			ob->gameflag &= ~(128+256+512+1024+2048);
+			ob->gameflag &= ~(OB_ROT_FH|OB_ANISOTROPIC_FRICTION|OB_GHOST|OB_RIGID_BODY|OB_BOUNDS);
 			ob = ob->id.next;
 		}
 	}
@@ -8237,7 +8407,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	if(main->versionfile <= 233) {
 		bScreen *sc;
 		Material *ma= main->mat.first;
-		Object *ob= main->object.first;
+		/* Object *ob= main->object.first; */
 		
 		while(ma) {
 			if(ma->rampfac_col==0.0f) ma->rampfac_col= 1.0;
@@ -8247,11 +8417,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 		
 		/* this should have been done loooong before! */
+#if 0   /* deprecated in 2.5+ */
 		while(ob) {
 			if(ob->ipowin==0) ob->ipowin= ID_OB;
 			ob= ob->id.next;
 		}
-		
+#endif
 		for (sc= main->screen.first; sc; sc= sc->id.next) {
 			ScrArea *sa;
 			for (sa= sc->areabase.first; sa; sa= sa->next) {
@@ -9153,7 +9324,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	}
 	if(main->versionfile <= 245) {
 		Scene *sce;
-		bScreen *sc;
 		Object *ob;
 		Image *ima;
 		Lamp *la;
@@ -9242,49 +9412,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			/* repair preview from 242 - 244*/
 			for(ima= main->image.first; ima; ima= ima->id.next) {
 				ima->preview = NULL;
-			}
-			
-			/* repair imasel space - completely reworked */
-			for(sc= main->screen.first; sc; sc= sc->id.next) {
-				ScrArea *sa;
-				sa= sc->areabase.first;
-				while(sa) {
-					SpaceLink *sl;
-					
-					for (sl= sa->spacedata.first; sl; sl= sl->next) {
-						if(sl->spacetype==SPACE_IMASEL) {
-							SpaceImaSel *simasel= (SpaceImaSel*) sl;
-							simasel->blockscale= 0.7f;
-							/* view 2D */
-							simasel->v2d.tot.xmin=  -10.0f;
-							simasel->v2d.tot.ymin=  -10.0f;
-							simasel->v2d.tot.xmax= (float)sa->winx + 10.0f;
-							simasel->v2d.tot.ymax= (float)sa->winy + 10.0f;						
-							simasel->v2d.cur.xmin=  0.0f;
-							simasel->v2d.cur.ymin=  0.0f;
-							simasel->v2d.cur.xmax= (float)sa->winx;
-							simasel->v2d.cur.ymax= (float)sa->winy;						
-							simasel->v2d.min[0]= 1.0;
-							simasel->v2d.min[1]= 1.0;						
-							simasel->v2d.max[0]= 32000.0f;
-							simasel->v2d.max[1]= 32000.0f;						
-							simasel->v2d.minzoom= 0.5f;
-							simasel->v2d.maxzoom= 1.21f;						
-							simasel->v2d.scroll= 0;
-							simasel->v2d.keepzoom= V2D_LIMITZOOM|V2D_KEEPASPECT;
-							simasel->v2d.keeptot= 0;
-							simasel->prv_h = 96;
-							simasel->prv_w = 96;
-							simasel->flag = 7; /* ??? elubie */
-							BLI_strncpy (simasel->dir,  U.textudir, sizeof(simasel->dir)); /* TON */
-							simasel->file[0]= '\0';
-							
-							simasel->returnfunc     =  NULL;
-							simasel->title[0]       =  0;
-						}
-					}
-					sa = sa->next;
-				}
 			}
 		}
 
@@ -9640,7 +9767,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				part->obfac = paf->obfac;
 				part->randfac = paf->randfac * 25.0f;
 				part->dampfac = paf->damp;
-				VECCOPY(part->acc, paf->force);
+				copy_v3_v3(part->acc, paf->force);
 
 				/* flags */
 				if(paf->stype & PAF_VECT) {
@@ -10690,7 +10817,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				tot= MIN2(me->totvert, key->refkey->totelem);
 
 				for(a=0; a<tot; a++, data+=3)
-					VECCOPY(me->mvert[a].co, data)
+					copy_v3_v3(me->mvert[a].co, data);
 			}
 		}
 
@@ -10700,7 +10827,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				tot= MIN2(lt->pntsu*lt->pntsv*lt->pntsw, key->refkey->totelem);
 
 				for(a=0; a<tot; a++, data+=3)
-					VECCOPY(lt->def[a].vec, data)
+					copy_v3_v3(lt->def[a].vec, data);
 			}
 		}
 
@@ -10713,9 +10840,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 						BezTriple *bezt = nu->bezt;
 
 						for(a=0; a<nu->pntsu; a++, bezt++) {
-							VECCOPY(bezt->vec[0], data); data+=3;
-							VECCOPY(bezt->vec[1], data); data+=3;
-							VECCOPY(bezt->vec[2], data); data+=3;
+							copy_v3_v3(bezt->vec[0], data); data+=3;
+							copy_v3_v3(bezt->vec[1], data); data+=3;
+							copy_v3_v3(bezt->vec[2], data); data+=3;
 							bezt->alfa= *data; data++;
 						}
 					}
@@ -10723,7 +10850,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 						BPoint *bp = nu->bp;
 
 						for(a=0; a<nu->pntsu*nu->pntsv; a++, bp++) {
-							VECCOPY(bp->vec, data); data+=3;
+							copy_v3_v3(bp->vec, data); data+=3;
 							bp->alfa= *data; data++;
 						}
 					}
@@ -10768,7 +10895,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			Object *ob=main->object.first;
 			while (ob) {
 				/* shaded mode disabled for now */
-				if (ob->dt == OB_SHADED) ob->dt = OB_TEXTURE;
+				if (ob->dt == OB_MATERIAL) ob->dt = OB_TEXTURE;
 				ob=ob->id.next;
 			}
 		}
@@ -10783,7 +10910,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					for(sl= sa->spacedata.first; sl; sl= sl->next) {
 						if(sl->spacetype==SPACE_VIEW3D) {
 							View3D *v3d = (View3D *)sl;
-							if (v3d->drawtype == OB_SHADED) v3d->drawtype = OB_SOLID;
+							if (v3d->drawtype == OB_MATERIAL) v3d->drawtype = OB_SOLID;
 						}
 					}
 				}
@@ -12153,11 +12280,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				ma= ma->id.next;
 			}
 		}
-
 	}
 
-	/* put compatibility code here until next subversion bump */
-	{
+	if (main->versionfile < 260){
 		{
 			/* set default alpha value of Image outputs in image and render layer nodes to 0 */
 			Scene *sce;
@@ -12190,7 +12315,95 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		}
+	}
 
+	if (main->versionfile < 260 || (main->versionfile == 260 && main->subversionfile < 1)){
+		Object *ob;
+
+		for (ob= main->object.first; ob; ob= ob->id.next) {
+			ob->collision_boundtype= ob->boundtype;
+		}
+
+		{
+			Camera *cam;
+			for(cam= main->camera.first; cam; cam= cam->id.next) {
+				if (cam->sensor_x < 0.01)
+					cam->sensor_x = DEFAULT_SENSOR_WIDTH;
+
+				if (cam->sensor_y < 0.01)
+					cam->sensor_y = DEFAULT_SENSOR_HEIGHT;
+			}
+		}
+	}
+
+	if (main->versionfile < 260 || (main->versionfile == 260 && main->subversionfile < 2)) {
+		bNodeTreeType *ntreetype= ntreeGetType(NTREE_SHADER);
+
+		if(ntreetype && ntreetype->foreach_nodetree)
+			ntreetype->foreach_nodetree(main, NULL, do_version_ntree_tex_mapping_260);
+	}
+
+	/* put compatibility code here until next subversion bump */
+	{
+		{
+			bScreen *sc;
+			MovieClip *clip;
+
+			for (sc= main->screen.first; sc; sc= sc->id.next) {
+				ScrArea *sa;
+				for (sa= sc->areabase.first; sa; sa= sa->next) {
+					SpaceLink *sl;
+					for (sl= sa->spacedata.first; sl; sl= sl->next) {
+						if(sl->spacetype==SPACE_VIEW3D) {
+							View3D *v3d= (View3D *)sl;
+							if(v3d->bundle_size==0.0f) {
+								v3d->bundle_size= 0.2f;
+								v3d->flag2 |= V3D_SHOW_RECONSTRUCTION;
+							}
+							else if(sl->spacetype==SPACE_CLIP) {
+								SpaceClip *sc= (SpaceClip *)sl;
+								if(sc->scopes.track_preview_height==0)
+									sc->scopes.track_preview_height= 120;
+							}
+
+							if(v3d->bundle_drawtype==0)
+								v3d->bundle_drawtype= OB_PLAINAXES;
+						}
+					}
+				}
+			}
+
+			for (clip= main->movieclip.first; clip; clip= clip->id.next) {
+				MovieTrackingTrack *track;
+
+				if(clip->aspx<1.0f) {
+					clip->aspx= 1.0f;
+					clip->aspy= 1.0f;
+				}
+
+				/* XXX: a bit hacky, probably include imbuf and use real constants are nicer */
+				clip->proxy.build_tc_flag= 7;
+				if(clip->proxy.build_size_flag==0)
+					clip->proxy.build_size_flag= 1;
+
+				if(clip->proxy.quality==0)
+					clip->proxy.quality= 90;
+
+				if(clip->tracking.camera.pixel_aspect<0.01f)
+					clip->tracking.camera.pixel_aspect= 1.f;
+
+				track= clip->tracking.tracks.first;
+				while(track) {
+					if(track->pyramid_levels==0)
+						track->pyramid_levels= 2;
+
+					if(track->minimum_correlation==0.0f)
+						track->minimum_correlation= 0.75f;
+
+					track= track->next;
+				}
+			}
+		}
 		{
 			/* Initialize BGE exit key to esc key */
 			Scene *scene;
@@ -12252,6 +12465,7 @@ static void lib_link_all(FileData *fd, Main *main)
 	lib_link_nodetree(fd, main);	/* has to be done after scene/materials, this will verify group nodes */
 	lib_link_brush(fd, main);
 	lib_link_particlesettings(fd, main);
+	lib_link_movieclip(fd, main);
 
 	lib_link_mesh(fd, main);		/* as last: tpage images with users at zero */
 
@@ -12794,6 +13008,9 @@ static void expand_lamp(FileData *fd, Main *mainvar, Lamp *la)
 	
 	if (la->adt)
 		expand_animdata(fd, mainvar, la->adt);
+
+	if(la->nodetree)
+		expand_nodetree(fd, mainvar, la->nodetree);
 }
 
 static void expand_lattice(FileData *fd, Main *mainvar, Lattice *lt)
@@ -12821,6 +13038,9 @@ static void expand_world(FileData *fd, Main *mainvar, World *wrld)
 	
 	if (wrld->adt)
 		expand_animdata(fd, mainvar, wrld->adt);
+
+	if(wrld->nodetree)
+		expand_nodetree(fd, mainvar, wrld->nodetree);
 }
 
 
@@ -13394,7 +13614,7 @@ static void give_base_to_groups(Main *mainvar, Scene *scene)
 			ob->dup_group= group;
 			ob->transflag |= OB_DUPLIGROUP;
 			rename_id(&ob->id, group->id.name+2);
-			VECCOPY(ob->loc, scene->cursor);
+			copy_v3_v3(ob->loc, scene->cursor);
 		}
 	}
 }

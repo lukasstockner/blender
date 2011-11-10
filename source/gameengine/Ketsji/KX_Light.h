@@ -46,7 +46,7 @@ class MT_Transform;
 
 class KX_LightObject : public KX_GameObject
 {
-	Py_Header;
+	Py_Header
 protected:
 	RAS_LightObject		m_lightobj;
 	PoolLight*			m_poollight;

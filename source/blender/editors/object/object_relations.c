@@ -56,6 +56,7 @@
 #include "BKE_action.h"
 #include "BKE_animsys.h"
 #include "BKE_armature.h"
+#include "BKE_camera.h"
 #include "BKE_context.h"
 #include "BKE_constraint.h"
 #include "BKE_curve.h"
@@ -63,6 +64,7 @@
 #include "BKE_displist.h"
 #include "BKE_global.h"
 #include "BKE_fcurve.h"
+#include "BKE_lamp.h"
 #include "BKE_lattice.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
@@ -653,7 +655,7 @@ static int parent_set_exec(bContext *C, wmOperator *op)
 					data = con->data;
 					data->tar = par;
 					
-					get_constraint_target_matrix(scene, con, 0, CONSTRAINT_OBTYPE_OBJECT, NULL, cmat, scene->r.cfra - give_timeoffset(ob));
+					get_constraint_target_matrix(scene, con, 0, CONSTRAINT_OBTYPE_OBJECT, NULL, cmat, scene->r.cfra);
 					sub_v3_v3v3(vec, ob->obmat[3], cmat[3]);
 					
 					ob->loc[0] = vec[0];
@@ -1713,6 +1715,7 @@ static void make_local_makelocalmaterial(Material *ma)
 
 static int make_local_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain= CTX_data_main(C);
 	AnimData *adt;
 	ParticleSystem *psys;
 	Material *ma, ***matarar;
@@ -1721,7 +1724,7 @@ static int make_local_exec(bContext *C, wmOperator *op)
 	int a, b, mode= RNA_enum_get(op->ptr, "type");
 	
 	if(mode==3) {
-		all_local(NULL, 0);	/* NULL is all libs */
+		BKE_library_make_local(bmain, NULL, 0);	/* NULL is all libs */
 		WM_event_add_notifier(C, NC_WINDOW, NULL);
 		return OPERATOR_FINISHED;
 	}

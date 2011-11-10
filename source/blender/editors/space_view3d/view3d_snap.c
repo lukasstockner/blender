@@ -55,6 +55,7 @@
 #include "BKE_lattice.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
+#include "BKE_tracking.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -168,11 +169,11 @@ static void special_transvert_update(Object *obedit)
 				if ((ebo->flag & BONE_CONNECTED) && ebo->parent){
 					/* If this bone has a parent tip that has been moved */
 					if (ebo->parent->flag & BONE_TIPSEL){
-						VECCOPY (ebo->head, ebo->parent->tail);
+						copy_v3_v3(ebo->head, ebo->parent->tail);
 					}
 					/* If this bone has a parent tip that has NOT been moved */
 					else{
-						VECCOPY (ebo->parent->tail, ebo->head);
+						copy_v3_v3(ebo->parent->tail, ebo->head);
 					}
 				}
 			}
@@ -250,7 +251,7 @@ static void make_trans_verts(Object *obedit, float *min, float *max, int mode)
 
 			for(eve= em->verts.first; eve; eve= eve->next) {
 				if(eve->f1) {
-					VECCOPY(tv->oldloc, eve->co);
+					copy_v3_v3(tv->oldloc, eve->co);
 					tv->loc= eve->co;
 					if(eve->no[0] != 0.0f || eve->no[1] != 0.0f ||eve->no[2] != 0.0f)
 						tv->nor= eve->no; // note this is a hackish signal (ton)
@@ -280,7 +281,7 @@ static void make_trans_verts(Object *obedit, float *min, float *max, int mode)
 					 * location as heads. 
 					 */
 					if (rootok) {
-						VECCOPY (tv->oldloc, ebo->head);
+						copy_v3_v3(tv->oldloc, ebo->head);
 						tv->loc= ebo->head;
 						tv->nor= NULL;
 						tv->flag= 1;
@@ -289,7 +290,7 @@ static void make_trans_verts(Object *obedit, float *min, float *max, int mode)
 					}	
 					
 					if ((mode & TM_ALL_JOINTS) && (tipsel)) {
-						VECCOPY (tv->oldloc, ebo->tail);
+						copy_v3_v3(tv->oldloc, ebo->tail);
 						tv->loc= ebo->tail;
 						tv->nor= NULL;
 						tv->flag= 1;
@@ -298,7 +299,7 @@ static void make_trans_verts(Object *obedit, float *min, float *max, int mode)
 					}					
 				}
 				else if (tipsel) {
-					VECCOPY (tv->oldloc, ebo->tail);
+					copy_v3_v3(tv->oldloc, ebo->tail);
 					tv->loc= ebo->tail;
 					tv->nor= NULL;
 					tv->flag= 1;
@@ -333,14 +334,14 @@ static void make_trans_verts(Object *obedit, float *min, float *max, int mode)
 							skip_handle= mode & TM_SKIP_HANDLES;
 
 						if((bezt->f1 & SELECT) && !skip_handle) {
-							VECCOPY(tv->oldloc, bezt->vec[0]);
+							copy_v3_v3(tv->oldloc, bezt->vec[0]);
 							tv->loc= bezt->vec[0];
 							tv->flag= bezt->f1 & SELECT;
 							tv++;
 							tottrans++;
 						}
 						if(bezt->f2 & SELECT) {
-							VECCOPY(tv->oldloc, bezt->vec[1]);
+							copy_v3_v3(tv->oldloc, bezt->vec[1]);
 							tv->loc= bezt->vec[1];
 							tv->val= &(bezt->alfa);
 							tv->oldval= bezt->alfa;
@@ -349,7 +350,7 @@ static void make_trans_verts(Object *obedit, float *min, float *max, int mode)
 							tottrans++;
 						}
 						if((bezt->f3 & SELECT) && !skip_handle) {
-							VECCOPY(tv->oldloc, bezt->vec[2]);
+							copy_v3_v3(tv->oldloc, bezt->vec[2]);
 							tv->loc= bezt->vec[2];
 							tv->flag= bezt->f3 & SELECT;
 							tv++;
@@ -365,7 +366,7 @@ static void make_trans_verts(Object *obedit, float *min, float *max, int mode)
 				while(a--) {
 					if(bp->hide==0) {
 						if(bp->f1 & SELECT) {
-							VECCOPY(tv->oldloc, bp->vec);
+							copy_v3_v3(tv->oldloc, bp->vec);
 							tv->loc= bp->vec;
 							tv->val= &(bp->alfa);
 							tv->oldval= bp->alfa;
@@ -474,7 +475,7 @@ static int snap_sel_to_grid(bContext *C, wmOperator *UNUSED(op))
 		tv= transvmain;
 		for(a=0; a<tottrans; a++, tv++) {
 			
-			VECCOPY(vec, tv->loc);
+			copy_v3_v3(vec, tv->loc);
 			mul_m3_v3(bmat, vec);
 			add_v3_v3(vec, obedit->obmat[3]);
 			vec[0]= gridf*floorf(0.5f+ vec[0]/gridf);
@@ -483,7 +484,7 @@ static int snap_sel_to_grid(bContext *C, wmOperator *UNUSED(op))
 			sub_v3_v3(vec, obedit->obmat[3]);
 			
 			mul_m3_v3(imat, vec);
-			VECCOPY(tv->loc, vec);
+			copy_v3_v3(tv->loc, vec);
 		}
 		
 		special_transvert_update(obedit);
@@ -507,7 +508,7 @@ static int snap_sel_to_grid(bContext *C, wmOperator *UNUSED(op))
 								float vecN[3], nLoc[3]; 
 								
 								/* get nearest grid point to snap to */
-								VECCOPY(nLoc, pchan->pose_mat[3]);
+								copy_v3_v3(nLoc, pchan->pose_mat[3]);
 								vec[0]= gridf * (float)(floor(0.5f+ nLoc[0]/gridf));
 								vec[1]= gridf * (float)(floor(0.5f+ nLoc[1]/gridf));
 								vec[2]= gridf * (float)(floor(0.5f+ nLoc[2]/gridf));
@@ -632,7 +633,7 @@ static int snap_sel_to_curs(bContext *C, wmOperator *UNUSED(op))
 				float cursp[3];
 				
 				invert_m4_m4(ob->imat, ob->obmat);
-				VECCOPY(cursp, curs);
+				copy_v3_v3(cursp, curs);
 				mul_m4_v3(ob->imat, cursp);
 				
 				for (pchan = ob->pose->chanbase.first; pchan; pchan=pchan->next) {
@@ -753,6 +754,37 @@ void VIEW3D_OT_snap_cursor_to_grid(wmOperatorType *ot)
 
 /* **************************************************** */
 
+static void bundle_midpoint(Scene *scene, Object *ob, float vec[3])
+{
+	MovieTrackingTrack *track;
+	MovieClip *clip= object_get_movieclip(scene, ob, 0);
+	int ok= 0;
+	float min[3], max[3], mat[4][4], pos[3];
+
+	if(!clip)
+		return;
+
+	BKE_get_tracking_mat(scene, ob, mat);
+
+	INIT_MINMAX(min, max);
+
+	track= clip->tracking.tracks.first;
+	while(track) {
+		int selected= (track->flag&SELECT) || (track->pat_flag&SELECT) || (track->search_flag&SELECT);
+		if((track->flag&TRACK_HAS_BUNDLE) && selected) {
+			ok= 1;
+			mul_v3_m4v3(pos, mat, track->bundle_pos);
+			DO_MINMAX(pos, min, max);
+		}
+
+		track= track->next;
+	}
+
+	if(ok) {
+		mid_v3_v3v3(vec, min, max);
+	}
+}
+
 static int snap_curs_to_sel(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *obedit= CTX_data_edit_object(C);
@@ -779,7 +811,7 @@ static int snap_curs_to_sel(bContext *C, wmOperator *UNUSED(op))
 		
 		tv= transvmain;
 		for(a=0; a<tottrans; a++, tv++) {
-			VECCOPY(vec, tv->loc);
+			copy_v3_v3(vec, tv->loc);
 			mul_m3_v3(bmat, vec);
 			add_v3_v3(vec, obedit->obmat[3]);
 			add_v3_v3(centroid, vec);
@@ -788,7 +820,7 @@ static int snap_curs_to_sel(bContext *C, wmOperator *UNUSED(op))
 		
 		if(v3d->around==V3D_CENTROID) {
 			mul_v3_fl(centroid, 1.0f/(float)tottrans);
-			VECCOPY(curs, centroid);
+			copy_v3_v3(curs, centroid);
 		}
 		else {
 			mid_v3_v3v3(curs, min, max);
@@ -805,7 +837,7 @@ static int snap_curs_to_sel(bContext *C, wmOperator *UNUSED(op))
 			for (pchan = obact->pose->chanbase.first; pchan; pchan=pchan->next) {
 				if(arm->layer & pchan->bone->layer) {
 					if(pchan->bone->flag & BONE_SELECTED) {
-						VECCOPY(vec, pchan->pose_head);
+						copy_v3_v3(vec, pchan->pose_head);
 						mul_m4_v3(obact->obmat, vec);
 						add_v3_v3(centroid, vec);
 						DO_MINMAX(vec, min, max);
@@ -816,7 +848,16 @@ static int snap_curs_to_sel(bContext *C, wmOperator *UNUSED(op))
 		}
 		else {
 			CTX_DATA_BEGIN(C, Object*, ob, selected_objects) {
-				VECCOPY(vec, ob->obmat[3]);
+				copy_v3_v3(vec, ob->obmat[3]);
+
+				/* special case for camera -- snap to bundles */
+				if(ob->type==OB_CAMERA) {
+					/* snap to bundles should happen only when bundles are visible */
+					if(v3d->flag2&V3D_SHOW_RECONSTRUCTION) {
+						bundle_midpoint(scene, ob, vec);
+					}
+				}
+
 				add_v3_v3(centroid, vec);
 				DO_MINMAX(vec, min, max);
 				count++;
@@ -826,7 +867,7 @@ static int snap_curs_to_sel(bContext *C, wmOperator *UNUSED(op))
 		if(count) {
 			if(v3d->around==V3D_CENTROID) {
 				mul_v3_fl(centroid, 1.0f/(float)count);
-				VECCOPY(curs, centroid);
+				copy_v3_v3(curs, centroid);
 			}
 			else {
 				mid_v3_v3v3(curs, min, max);
@@ -881,7 +922,7 @@ static int snap_curs_to_active(bContext *C, wmOperator *UNUSED(op))
 	}
 	else {
 		if (obact) {
-			VECCOPY(curs, obact->obmat[3]);
+			copy_v3_v3(curs, obact->obmat[3]);
 		}
 	}
 	
@@ -958,7 +999,7 @@ int minmax_verts(Object *obedit, float *min, float *max)
 	
 	tv= transvmain;
 	for(a=0; a<tottrans; a++, tv++) {		
-		VECCOPY(vec, tv->loc);
+		copy_v3_v3(vec, tv->loc);
 		mul_m3_v3(bmat, vec);
 		add_v3_v3(vec, obedit->obmat[3]);
 		add_v3_v3(centroid, vec);

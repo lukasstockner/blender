@@ -26,8 +26,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/python/generic/mathutils_geometry.c
- *  \ingroup pygen
+/** \file blender/python/mathutils/mathutils_geometry.c
+ *  \ingroup pymathutils
  */
 
 
@@ -97,14 +97,14 @@ static PyObject *M_Geometry_intersect_ray_tri(PyObject *UNUSED(self), PyObject* 
 	if (BaseMath_ReadCallback(vec1) == -1 || BaseMath_ReadCallback(vec2) == -1 || BaseMath_ReadCallback(vec3) == -1 || BaseMath_ReadCallback(ray) == -1 || BaseMath_ReadCallback(ray_off) == -1)
 		return NULL;
 
-	VECCOPY(v1, vec1->vec);
-	VECCOPY(v2, vec2->vec);
-	VECCOPY(v3, vec3->vec);
+	copy_v3_v3(v1, vec1->vec);
+	copy_v3_v3(v2, vec2->vec);
+	copy_v3_v3(v3, vec3->vec);
 
-	VECCOPY(dir, ray->vec);
+	copy_v3_v3(dir, ray->vec);
 	normalize_v3(dir);
 
-	VECCOPY(orig, ray_off->vec);
+	copy_v3_v3(orig, ray_off->vec);
 
 	/* find vectors for two edges sharing v1 */
 	sub_v3_v3v3(e1, v2, v1);
@@ -189,10 +189,10 @@ static PyObject *M_Geometry_intersect_line_line(PyObject *UNUSED(self), PyObject
 		int result;
 
 		if (vec1->size == 3) {
-			VECCOPY(v1, vec1->vec);
-			VECCOPY(v2, vec2->vec);
-			VECCOPY(v3, vec3->vec);
-			VECCOPY(v4, vec4->vec);
+			copy_v3_v3(v1, vec1->vec);
+			copy_v3_v3(v2, vec2->vec);
+			copy_v3_v3(v3, vec3->vec);
+			copy_v3_v3(v4, vec4->vec);
 		}
 		else {
 			v1[0]= vec1->vec[0];
@@ -628,14 +628,14 @@ static PyObject *M_Geometry_intersect_point_line(PyObject *UNUSED(self), PyObjec
 		return NULL;
 	
 	/* accept 2d verts */
-	if (pt->size==3) { VECCOPY(pt_in, pt->vec);}
-	else { pt_in[2]=0.0;	VECCOPY2D(pt_in, pt->vec) }
+	if (pt->size==3) {     copy_v3_v3(pt_in, pt->vec);}
+	else { pt_in[2]=0.0;   copy_v2_v2(pt_in, pt->vec); }
 	
-	if (line_1->size==3) { VECCOPY(l1, line_1->vec);}
-	else { l1[2]=0.0;	VECCOPY2D(l1, line_1->vec) }
+	if (line_1->size==3) { copy_v3_v3(l1, line_1->vec);}
+	else { l1[2]=0.0;      copy_v2_v2(l1, line_1->vec); }
 	
-	if (line_2->size==3) { VECCOPY(l2, line_2->vec);}
-	else { l2[2]=0.0;	VECCOPY2D(l2, line_2->vec) }
+	if (line_2->size==3) { copy_v3_v3(l2, line_2->vec);}
+	else { l2[2]=0.0;      copy_v2_v2(l2, line_2->vec); }
 	
 	/* do the calculation */
 	lambda= closest_to_line_v3(pt_out, pt_in, l1, l2);

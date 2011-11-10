@@ -261,7 +261,7 @@ void GPU_material_bind(GPUMaterial *material, int oblay, int viewlay, double tim
 
 			if(!lamp->hide && (lamp->lay & viewlay) && (!(lamp->mode & LA_LAYER) || (lamp->lay & oblay))) {
 				lamp->dynenergy = lamp->energy;
-				VECCOPY(lamp->dyncol, lamp->col);
+				copy_v3_v3(lamp->dyncol, lamp->col);
 			}
 			else {
 				lamp->dynenergy = 0.0f;
@@ -297,7 +297,7 @@ void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[][4], float v
 			GPU_shader_uniform_vector(shader, material->invobmatloc, 16, 1, (float*)invmat);
 		}
 		if(material->builtins & GPU_OBCOLOR) {
-			QUATCOPY(col, obcol);
+			copy_v4_v4(col, obcol);
 			CLAMP(col[3], 0.0f, 1.0f);
 			GPU_shader_uniform_vector(shader, material->obcolloc, 4, 1, col);
 		}
@@ -307,14 +307,14 @@ void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[][4], float v
 			lamp= nlink->data;
 
 			if(material->dynproperty & DYN_LAMP_VEC) {
-				VECCOPY(lamp->dynvec, lamp->vec);
+				copy_v3_v3(lamp->dynvec, lamp->vec);
 				normalize_v3(lamp->dynvec);
 				negate_v3(lamp->dynvec);
 				mul_mat3_m4_v3(viewmat, lamp->dynvec);
 			}
 
 			if(material->dynproperty & DYN_LAMP_CO) {
-				VECCOPY(lamp->dynco, lamp->co);
+				copy_v3_v3(lamp->dynco, lamp->co);
 				mul_m4_v3(viewmat, lamp->dynco);
 			}
 
@@ -1416,28 +1416,32 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma)
 		if(((GPUMaterial*)link->data)->scene == scene)
 			return link->data;
 
+	/* allocate material */
 	mat = GPU_material_construct_begin(ma);
 	mat->scene = scene;
 
 	if(!(scene->gm.flag & GAME_GLSL_NO_NODES) && ma->nodetree && ma->use_nodes) {
+		/* create nodes */
 		ntreeGPUMaterialNodes(ma->nodetree, mat);
 	}
 	else {
+		/* create material */
 		outlink = GPU_blender_material(mat, ma);
 		GPU_material_output_link(mat, outlink);
 	}
 
-	if(gpu_do_color_management(mat))
-		if(mat->outlink)
-			GPU_link(mat, "linearrgb_to_srgb", mat->outlink, &mat->outlink);
+	if(!scene_use_new_shading_nodes(scene)) {
+		if(gpu_do_color_management(mat))
+			if(mat->outlink)
+				GPU_link(mat, "linearrgb_to_srgb", mat->outlink, &mat->outlink);
+	}
 
-	/*if(!GPU_material_construct_end(mat)) {
-		GPU_material_free(mat);
-		mat= NULL;
-		return 0;
-	}*/
 
 	GPU_material_construct_end(mat);
+
+	/* note that even if building the shader fails in some way, we still keep
+	   it to avoid trying to compile again and again, and simple do not use
+	   the actual shader on drawing */
 
 	link = MEM_callocN(sizeof(LinkData), "GPUMaterialLink");
 	link->data = mat;
@@ -1473,8 +1477,8 @@ void GPU_lamp_update(GPULamp *lamp, int lay, int hide, float obmat[][4])
 	copy_m4_m4(mat, obmat);
 	normalize_m4(mat);
 
-	VECCOPY(lamp->vec, mat[2]);
-	VECCOPY(lamp->co, mat[3]);
+	copy_v3_v3(lamp->vec, mat[2]);
+	copy_v3_v3(lamp->co, mat[3]);
 	copy_m4_m4(lamp->obmat, mat);
 	invert_m4_m4(lamp->imat, mat);
 }
@@ -1675,7 +1679,8 @@ void GPU_lamp_shadow_buffer_bind(GPULamp *lamp, float viewmat[][4], int *winsize
 
 	/* opengl */
 	glDisable(GL_SCISSOR_TEST);
-	GPU_framebuffer_texture_bind(lamp->fb, lamp->tex);
+	GPU_framebuffer_texture_bind(lamp->fb, lamp->tex,
+		GPU_texture_opengl_width(lamp->tex), GPU_texture_opengl_height(lamp->tex));
 
 	/* set matrices */
 	copy_m4_m4(viewmat, lamp->viewmat);

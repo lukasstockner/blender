@@ -41,6 +41,7 @@ struct ARegionType;
 struct Base;
 struct Brush;
 struct bNodeTree;
+struct bNodeSocket;
 struct CSG_FaceIteratorDescriptor;
 struct CSG_VertexIteratorDescriptor;
 struct ColorBand;
@@ -65,6 +66,7 @@ struct MCol;
 struct MenuType;
 struct Mesh;
 struct ModifierData;
+struct MovieClip;
 struct MultiresModifierData;
 struct NodeBlurData;
 struct Nurb;
@@ -72,12 +74,14 @@ struct Object;
 struct PBVHNode;
 struct Render;
 struct RenderEngine;
+struct RenderEngineType;
 struct RenderLayer;
 struct RenderResult;
 struct ScrArea;
 struct SculptSession;
 struct ShadeInput;
 struct ShadeResult;
+struct SpaceClip;
 struct SpaceImage;
 struct SpaceNode;
 struct Tex;
@@ -192,8 +196,10 @@ void ED_space_image_paint_update(struct wmWindowManager *wm, struct ToolSettings
 void ED_space_image_set(struct bContext *C, struct SpaceImage *sima, struct Scene *scene, struct Object *obedit, struct Image *ima){}
 struct ImBuf *ED_space_image_buffer(struct SpaceImage *sima){return (struct ImBuf *) NULL;}
 void ED_screen_set_scene(struct bContext *C, struct Scene *scene){}
+void ED_space_clip_set(struct bContext *C, struct SpaceClip *sc, struct MovieClip *clip){}
 
 void ED_area_tag_redraw_regiontype(struct ScrArea *sa, int regiontype){}
+void ED_render_engine_changed(struct Main *bmain) {}
 
 struct PTCacheEdit *PE_get_current(struct Scene *scene, struct Object *ob){return (struct PTCacheEdit *) NULL;}
 void PE_current_changed(struct Scene *scene, struct Object *ob){}
@@ -248,6 +254,7 @@ void ED_view3d_scene_layers_update(struct Main *bmain, struct Scene *scene){}
 int ED_view3d_scene_layer_set(int lay, const int *values){return 0;}
 void ED_view3d_quadview_update(struct ScrArea *sa, struct ARegion *ar){}
 void ED_view3d_from_m4(float mat[][4], float ofs[3], float quat[4], float *dist){}
+struct BGpic *ED_view3D_background_image_add(struct View3D *v3d){return (struct BGpic *) NULL;}
 void view3d_apply_mat4(float mat[][4], float *ofs, float *quat, float *dist){}
 int text_file_modified(struct Text *text){return 0;}
 void ED_node_shader_default(struct Material *ma){}
@@ -365,7 +372,14 @@ void uiTemplateHistogram(struct uiLayout *layout, struct PointerRNA *ptr, char *
 void uiTemplateReportsBanner(struct uiLayout *layout, struct bContext *C, struct wmOperator *op){}
 void uiTemplateWaveform(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand){}
 void uiTemplateVectorscope(struct uiLayout *_self, struct PointerRNA *data, char* property, int expand){}
+void uiTemplateNodeLink(struct uiLayout *layout, struct bNodeTree *ntree, struct bNode *node, struct bNodeSocket *input) {}
+void uiTemplateNodeView(struct uiLayout *layout, struct bContext *C, struct bNodeTree *ntree, struct bNode *node, struct bNodeSocket *input) {}
+void uiTemplateTextureUser(struct uiLayout *layout, struct bContext *C) {}
+void uiTemplateTextureShow(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop) {}
 void uiTemplateKeymapItemProperties(struct uiLayout *layout, struct PointerRNA *ptr){}
+void uiTemplateMovieClip(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname, int compact){}
+void uiTemplateTrack(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname){}
+void uiTemplateMarker(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, PointerRNA *userptr, PointerRNA *trackptr, int compact){}
 
 /* rna render */
 struct RenderResult *RE_engine_begin_result(struct RenderEngine *engine, int x, int y, int w, int h){return (struct RenderResult *) NULL;}
@@ -387,6 +401,7 @@ void RE_engines_exit() {}
 void RE_engine_report(struct RenderEngine *engine, int type, const char *msg) {}
 ListBase R_engines = {NULL, NULL};
 void RE_engine_free(struct RenderEngine *engine) {}
+struct RenderEngineType *RE_engines_find(const char *idname) { return NULL; }
 
 /* python */
 struct wmOperatorType *WM_operatortype_find(const char *idname, int quiet){return (struct wmOperatorType *) NULL;}

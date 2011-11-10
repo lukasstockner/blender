@@ -23,6 +23,10 @@
 
 /** \file blender/python/intern/bpy_interface.c
  *  \ingroup pythonintern
+ *
+ * This file deals with embedding the python interpreter within blender,
+ * starting and stopping python and exposing blender/python modules so they can
+ * be accesses from scripts.
  */
 
  
@@ -170,6 +174,8 @@ void BPY_context_set(bContext *C)
 
 /* defined in AUD_C-API.cpp */
 extern PyObject *AUD_initPython(void);
+/* defined in cycles/blender */
+extern PyObject *CYCLES_initPython(void);
 
 static struct _inittab bpy_internal_modules[]= {
 	{(char *)"noise", BPyInit_noise},
@@ -179,6 +185,9 @@ static struct _inittab bpy_internal_modules[]= {
 	{(char *)"blf", BPyInit_blf},
 #ifdef WITH_AUDASPACE
 	{(char *)"aud", AUD_initPython},
+#endif
+#ifdef WITH_CYCLES
+	{(char *)"bcycles", CYCLES_initPython},
 #endif
 	{(char *)"gpu", GPU_initPython},
 	{NULL, NULL}

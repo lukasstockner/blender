@@ -40,6 +40,8 @@
 #include "BLI_string.h"
 #include "BLI_ghash.h"
 
+#include "BLF_translation.h"
+
 #include "BKE_animsys.h"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
@@ -332,7 +334,7 @@ static const char *template_id_browse_tip(StructRNA *type)
 	return N_("Browse ID data to be linked");
 }
 
-static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, StructRNA *type, int flag, const char *newop, const char *openop, const char *unlinkop)
+static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, StructRNA *type, short idcode, int flag, const char *newop, const char *openop, const char *unlinkop)
 {
 	uiBut *but;
 	uiBlock *block;
@@ -478,6 +480,9 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 		if((idfrom && idfrom->lib) || !editable)
 			uiButSetFlag(but, UI_BUT_DISABLED);
 	}
+
+	if(idcode == ID_TE)
+		uiTemplateTextureShow(layout, C, &template->ptr, template->prop);
 	
 	uiBlockEndAlign(block);
 }
@@ -487,6 +492,7 @@ static void ui_template_id(uiLayout *layout, bContext *C, PointerRNA *ptr, const
 	TemplateID *template;
 	PropertyRNA *prop;
 	StructRNA *type;
+	short idcode;
 
 	prop= RNA_struct_find_property(ptr, propname);
 
@@ -507,14 +513,15 @@ static void ui_template_id(uiLayout *layout, bContext *C, PointerRNA *ptr, const
 		flag |= UI_ID_OPEN;
 
 	type= RNA_property_pointer_type(ptr, prop);
-	template->idlb= which_libbase(CTX_data_main(C), RNA_type_to_ID_code(type));
+	idcode= RNA_type_to_ID_code(type);
+	template->idlb= which_libbase(CTX_data_main(C), idcode);
 	
 	/* create UI elements for this template
 	 *	- template_ID makes a copy of the template data and assigns it to the relevant buttons
 	 */
 	if(template->idlb) {
 		uiLayoutRow(layout, 1);
-		template_ID(C, layout, template, type, flag, newop, openop, unlinkop);
+		template_ID(C, layout, template, type, idcode, flag, newop, openop, unlinkop);
 	}
 
 	MEM_freeN(template);
@@ -2059,7 +2066,7 @@ static int list_item_icon_get(bContext *C, PointerRNA *itemptr, int rnaicon, int
 	return rnaicon;
 }
 
-static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *itemptr, int i, int rnaicon, PointerRNA *activeptr, PropertyRNA *activeprop)
+static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *itemptr, int i, int rnaicon, PointerRNA *activeptr, PropertyRNA *activeprop, const char *prop_list_id)
 {
 	uiBlock *block= uiLayoutGetBlock(layout);
 	uiBut *but;
@@ -2164,6 +2171,54 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 		/* nothing else special to do... */
 		uiItemL(sub, name, icon); /* fails, backdrop LISTROW... */
 	}
+	/* There is a last chance to display custom controls (in addition to the name/label):
+	 * If the given item property group features a string property named as prop_list,
+	 * this tries to add controls for all properties of the item listed in that string property.
+	 * (colon-separated names).
+	 *
+	 * This is especially useful for python. E.g., if you list a collection of this property
+	 * group:
+	 *
+	 * class TestPropertyGroup(bpy.types.PropertyGroup):
+	 *     bool    = BoolProperty(default=False)
+	 *     integer = IntProperty()
+	 *     string  = StringProperty()
+	 * 
+	 *     # A string of all identifiers (colon-separated) which property’s controls should be
+	 *     # displayed in a template_list.
+	 *     template_list_controls = StringProperty(default="integer:bool:string", options={"HIDDEN"})
+	 *
+	 * … you’ll get a numfield for the integer prop, a check box for the bool prop, and a textfield
+	 * for the string prop, after the name of each item of the collection.
+	 */
+	else if (prop_list_id) {
+		row = uiLayoutRow(sub, 1);
+		uiItemL(row, name, icon);
+
+		/* XXX: Check, as sometimes we get an itemptr looking like
+		 *      {id = {data = 0x0}, type = 0x0, data = 0x0}
+		 *      which would obviously produce a sigsev… */
+		if (itemptr->type) {
+			/* If the special property is set for the item, and it is a collection… */
+			PropertyRNA *prop_list= RNA_struct_find_property(itemptr, prop_list_id);
+
+			if(prop_list && RNA_property_type(prop_list) == PROP_STRING) {
+				int prop_names_len;
+				char *prop_names = RNA_property_string_get_alloc(itemptr, prop_list, NULL, 0, &prop_names_len);
+				char *prop_names_end= prop_names + prop_names_len;
+				char *id= prop_names;
+				char *id_next;
+				while (id < prop_names_end) {
+					if ((id_next= strchr(id, ':'))) *id_next++= '\0';
+					else id_next= prop_names_end;
+					uiItemR(row, itemptr, id, 0, NULL, 0);
+					id= id_next;
+				}
+				MEM_freeN(prop_names);
+			}
+		}
+	}
+
 	else
 		uiItemL(sub, name, icon); /* fails, backdrop LISTROW... */
 
@@ -2172,7 +2227,7 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 		MEM_freeN(namebuf);
 }
 
-void uiTemplateList(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, PointerRNA *activeptr, const char *activepropname, int rows, int maxrows, int listtype)
+void uiTemplateList(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, PointerRNA *activeptr, const char *activepropname, const char *prop_list, int rows, int maxrows, int listtype)
 {
 	//Scene *scene= CTX_data_scene(C);
 	PropertyRNA *prop= NULL, *activeprop;
@@ -2326,7 +2381,7 @@ void uiTemplateList(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *
 			/* create list items */
 			RNA_PROP_BEGIN(ptr, itemptr, prop) {
 				if(i >= pa->list_scroll && i<pa->list_scroll+items)
-					list_item_row(C, col, ptr, &itemptr, i, rnaicon, activeptr, activeprop);
+					list_item_row(C, col, ptr, &itemptr, i, rnaicon, activeptr, activeprop, prop_list);
 
 				i++;
 			}
@@ -2407,6 +2462,7 @@ void uiTemplateOperatorSearch(uiLayout *layout)
 #define B_STOPANIM		3
 #define B_STOPCOMPO		4
 #define B_STOPSEQ		5
+#define B_STOPCLIP		6
 
 static void do_running_jobs(bContext *C, void *UNUSED(arg), int event)
 {
@@ -2424,6 +2480,9 @@ static void do_running_jobs(bContext *C, void *UNUSED(arg), int event)
 			WM_jobs_stop(CTX_wm_manager(C), CTX_wm_area(C), NULL);
 			break;
 		case B_STOPSEQ:
+			WM_jobs_stop(CTX_wm_manager(C), CTX_wm_area(C), NULL);
+			break;
+		case B_STOPCLIP:
 			WM_jobs_stop(CTX_wm_manager(C), CTX_wm_area(C), NULL);
 			break;
 	}
@@ -2451,6 +2510,10 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
 		if(WM_jobs_test(wm, sa))
 			owner = sa;
 		handle_event = B_STOPSEQ;
+	} else if(sa->spacetype==SPACE_CLIP) {
+		if(WM_jobs_test(wm, sa))
+		   owner = sa;
+		handle_event= B_STOPCLIP;
 	} else {
 		Scene *scene;
 		/* another scene can be rendering too, for example via compositor */

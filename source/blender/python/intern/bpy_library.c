@@ -22,6 +22,13 @@
 
 /** \file blender/python/intern/bpy_library.c
  *  \ingroup pythonintern
+ *
+ * This file exposed blend file library appending/linking to python, typically
+ * this would be done via RNA api but in this case a hand written python api
+ * allows us to use pythons context manager (__enter__ and __exit__).
+ *
+ * Everything here is exposed via bpy.data.libraries.load(...) which returns
+ * a context manager.
  */
 
 /* nifty feature. swap out strings for RNA data */
@@ -71,8 +78,8 @@ static PyObject *bpy_lib_dir(BPy_Library *self);
 
 static PyMethodDef bpy_lib_methods[]= {
 	{"__enter__", (PyCFunction)bpy_lib_enter, METH_NOARGS},
-	{"__exit__", (PyCFunction)bpy_lib_exit, METH_VARARGS},
-	{"__dir__", (PyCFunction)bpy_lib_dir, METH_NOARGS},
+	{"__exit__",  (PyCFunction)bpy_lib_exit,  METH_VARARGS},
+	{"__dir__",   (PyCFunction)bpy_lib_dir,   METH_NOARGS},
 	{NULL}           /* sentinel */
 };
 
@@ -283,7 +290,7 @@ static void bpy_lib_exit_warn_idname(BPy_Library *self, const char *name_plural,
 	PyObject *exc, *val, *tb;
 	PyErr_Fetch(&exc, &val, &tb);
 	if (PyErr_WarnFormat(PyExc_UserWarning, 1,
-						 "load: '%s' does not contain %s[\"%s\"]",
+	                     "load: '%s' does not contain %s[\"%s\"]",
 	                     self->abspath, name_plural, idname)) {
 		/* Spurious errors can appear at shutdown */
 		if (PyErr_ExceptionMatches(PyExc_Warning)) {
@@ -298,7 +305,7 @@ static void bpy_lib_exit_warn_type(BPy_Library *self, PyObject *item)
 	PyObject *exc, *val, *tb;
 	PyErr_Fetch(&exc, &val, &tb);
 	if (PyErr_WarnFormat(PyExc_UserWarning, 1,
-						 "load: '%s' expected a string type, not a %.200s",
+	                     "load: '%s' expected a string type, not a %.200s",
 	                     self->abspath, Py_TYPE(item)->tp_name)) {
 		/* Spurious errors can appear at shutdown */
 		if (PyErr_ExceptionMatches(PyExc_Warning)) {
@@ -310,13 +317,14 @@ static void bpy_lib_exit_warn_type(BPy_Library *self, PyObject *item)
 
 static PyObject *bpy_lib_exit(BPy_Library *self, PyObject *UNUSED(args))
 {
+	Main *bmain= CTX_data_main(BPy_GetContext());
 	Main *mainl= NULL;
 	int err= 0;
 
 	flag_all_listbases_ids(LIB_PRE_EXISTING, 1);
 
 	/* here appending/linking starts */
-	mainl= BLO_library_append_begin(CTX_data_main(BPy_GetContext()), &(self->blo_handle), self->relpath);
+	mainl= BLO_library_append_begin(bmain, &(self->blo_handle), self->relpath);
 
 	{
 		int i= 0, code;
@@ -399,7 +407,7 @@ static PyObject *bpy_lib_exit(BPy_Library *self, PyObject *UNUSED(args))
 			/* append, rather than linking */
 			if ((self->flag & FILE_LINK)==0) {
 				Library *lib= BLI_findstring(&G.main->library, self->abspath, offsetof(Library, name));
-				if (lib)  all_local(lib, 1);
+				if (lib)  BKE_library_make_local(bmain, lib, 1);
 				else      BLI_assert(!"cant find name of just added library!");
 			}
 		}

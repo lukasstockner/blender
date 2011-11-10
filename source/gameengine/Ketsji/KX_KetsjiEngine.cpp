@@ -1252,6 +1252,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 				cam->GetScale(),
 				nearfrust,
 				farfrust,
+				cam->GetSensorFit(),
 				frustum
 			);
 			if (!cam->GetViewport()) {
@@ -1269,6 +1270,9 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 				area,
 				viewport,
 				cam->GetLens(),
+				cam->GetSensorWidth(),
+				cam->GetSensorHeight(),
+				cam->GetSensorFit(),
 				nearfrust,
 				farfrust,
 				frustum

@@ -37,7 +37,7 @@
 
 class KX_IpoActuator : public SCA_IActuator
 {
-	Py_Header;
+	Py_Header
 private:
 	/** Computes the IPO start time from the current time
 	    and the current frame. */
@@ -118,7 +118,7 @@ public:
 	static const char *S_KX_ACT_IPO_KEY2KEY_STRING;
 	static const char *S_KX_ACT_IPO_FROM_PROP_STRING;
 
-	int string2mode(char* modename);
+	int string2mode(const char *modename);
 	
 	int m_type;
 

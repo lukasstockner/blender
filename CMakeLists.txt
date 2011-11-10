@@ -65,7 +65,7 @@ set(CMAKE_BUILD_TYPE_INIT "Release")
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG           DEBUG _DEBUG)
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_RELEASE         NDEBUG)
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_MINSIZEREL      NDEBUG)
-set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_RELWITHDEBINFO  DEBUG _DEBUG)
+set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_RELWITHDEBINFO  NDEBUG)
 
 
 #-----------------------------------------------------------------------------
@@ -157,6 +157,8 @@ endif()
 if(UNIX AND NOT APPLE)
 	option(WITH_X11_XINPUT "Enable X11 Xinput (tablet support and unicode input)"	ON)
 	option(WITH_BUILTIN_GLEW "Use GLEW OpenGL wrapper library bundled with blender" ON)
+	option(WITH_XDG_USER_DIRS    "Build with XDG Base Directory Specification (only config and documents for now)" OFF)
+	mark_as_advanced(WITH_XDG_USER_DIRS)
 else()
 	# not an option for other OS's
 	set(WITH_BUILTIN_GLEW ON)
@@ -200,6 +202,9 @@ option(WITH_JACK          "Enable Jack Support (http://www.jackaudio.org)" OFF)
 option(WITH_LZO           "Enable fast LZO compression (used for pointcache)" ON)
 option(WITH_LZMA          "Enable best LZMA compression, (used for pointcache)" ON)
 
+# Camera/motion tracking
+option(WITH_LIBMV         "Enable libmv structure from motion library" ON)
+
 # Misc
 option(WITH_INPUT_NDOF "Enable NDOF input devices (SpaceNavigator and friends)" ON)
 option(WITH_RAYOPTIMIZATION	"Enable use of SIMD (SSE) optimizations for the raytracer" ON)
@@ -207,6 +212,10 @@ if(UNIX AND NOT APPLE)
 	option(WITH_INSTALL_PORTABLE "Install redistributeable runtime, otherwise install into CMAKE_INSTALL_PREFIX" ON)
 endif()
 option(WITH_PYTHON_INSTALL       "Copy system python into the blender install folder" ON)
+
+# Cycles
+option(WITH_CYCLES			"Enable Cycles Render Engine" ON)
+OPTION(WITH_CYCLES_TEST		"Build cycles test application" OFF)
 
 # disable for now, but plan to support on all platforms eventually
 option(WITH_MEM_JEMALLOC   "Enable malloc replacement (http://www.canonware.com/jemalloc)" OFF)
@@ -279,6 +288,12 @@ if(WITH_PYTHON_MODULE)
 	set(WITH_HEADLESS ON)
 endif()
 
+# auto enable openimageio and boost for cycles
+if(WITH_CYCLES)
+	set(WITH_OPENIMAGEIO ON)
+	set(WITH_BOOST ON)
+endif()
+
 TEST_SSE_SUPPORT(COMPILER_SSE_FLAG COMPILER_SSE2_FLAG)
 
 # don't store paths to libs for portable distrobution
@@ -301,6 +316,9 @@ set(PLATFORM_CFLAGS)
 # these are added to later on.
 set(C_WARNINGS)
 set(CXX_WARNINGS)
+
+# for gcc -Wno-blah-blah
+set(CC_REMOVE_STRICT_FLAGS)
 
 # libraries to link the binary with passed to target_link_libraries()
 # known as LLIBS to scons
@@ -480,6 +498,34 @@ if(UNIX AND NOT APPLE)
 		if(SPACENAV_FOUND)
 			set(NDOF_INCLUDE_DIRS ${SPACENAV_INCLUDE_DIRS})
 			set(NDOF_LIBRARIES ${SPACENAV_LIBRARIES})
+		endif()
+	endif()
+
+	if(WITH_BOOST)
+		
+		# uses in build instructions to override include and library variables
+		if(NOT BOOST_CUSTOM)
+			set(Boost_USE_MULTITHREADED ON)
+			find_package(Boost 1.34 COMPONENTS filesystem regex system thread)
+		endif()
+
+		set(BOOST_INCLUDE_DIR ${Boost_INCLUDE_DIRS})
+		set(BOOST_LIBRARIES ${Boost_LIBRARIES})
+		set(BOOST_LIBPATH ${Boost_LIBRARY_DIRS})
+		set(BOOST_DEFINITIONS "-DBOOST_ALL_NO_LIB")
+	endif()
+
+	if(WITH_OPENIMAGEIO)
+		find_package(OpenImageIO)
+
+		set(OPENIMAGEIO_LIBRARIES ${OPENIMAGEIO_LIBRARIES} ${PNG_LIBRARIES} ${JPEG_LIBRARIES} ${TIFF_LIBRARY} ${OPENEXR_LIBRARIES} ${ZLIB_LIBRARIES} ${BOOST_LIBRARIES})
+		set(OPENIMAGEIO_LIBPATH)  # TODO, remove and reference the absolute path everywhere
+		set(OPENIMAGEIO_DEFINITIONS)
+
+		if(NOT OPENIMAGEIO_FOUND)
+			set(WITH_OPENIMAGEIO OFF)
+			set(WITH_CYCLES OFF)
+			message(STATUS "OpenImageIO not found, disabling WITH_CYCLES")
 		endif()
 	endif()
 
@@ -769,6 +815,28 @@ elseif(WIN32)
 			set(PYTHON_LIBRARIES  "${PYTHON_LIBRARY}")
 		endif()
 
+		if(WITH_BOOST)
+			set(BOOST ${LIBDIR}/boost)
+			set(BOOST_INCLUDE_DIR ${BOOST}/include)
+			set(BOOST_POSTFIX "vc90-mt-s-1_47.lib")
+			set(BOOST_DEBUG_POSTFIX "vc90-mt-sgd-1_47.lib")
+			set(BOOST_LIBRARIES
+				optimized libboost_date_time-${BOOST_POSTFIX} libboost_filesystem-${BOOST_POSTFIX}
+				libboost_regex-${BOOST_POSTFIX} libboost_system-${BOOST_POSTFIX} libboost_thread-${BOOST_POSTFIX}
+				debug libboost_date_time-${BOOST_DEBUG_POSTFIX} libboost_filesystem-${BOOST_DEBUG_POSTFIX}
+				libboost_regex-${BOOST_DEBUG_POSTFIX} libboost_system-${BOOST_DEBUG_POSTFIX} libboost_thread-${BOOST_DEBUG_POSTFIX})
+			set(BOOST_LIBPATH ${BOOST}/lib)
+			set(BOOST_DEFINITIONS "-DBOOST_ALL_NO_LIB")
+		endif()
+			
+		if(WITH_OPENIMAGEIO)
+			set(OPENIMAGEIO ${LIBDIR}/openimageio)
+			set(OPENIMAGEIO_INCLUDE_DIRS ${OPENIMAGEIO}/include)
+			set(OPENIMAGEIO_LIBRARIES OpenImageIO)
+			set(OPENIMAGEIO_LIBPATH ${OPENIMAGEIO}/lib)
+			set(OPENIMAGEIO_DEFINITIONS)
+		endif()
+
 		set(PLATFORM_LINKFLAGS "/SUBSYSTEM:CONSOLE /STACK:2097152 /INCREMENTAL:NO /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:msvcmrt.lib /NODEFAULTLIB:msvcurt.lib /NODEFAULTLIB:msvcrtd.lib")
 
 		# MSVC only, Mingw doesnt need
@@ -783,7 +851,7 @@ elseif(WIN32)
 	else()
 		# keep GCC specific stuff here
 		if(CMAKE_COMPILER_IS_GNUCC)
-			set(PLATFORM_LINKLIBS "-lshell32 -lshfolder -lgdi32 -lmsvcrt -lwinmm -lmingw32 -lm -lws2_32 -lz -lstdc++ -lole32 -luuid -lwsock32")
+			set(PLATFORM_LINKLIBS "-lshell32 -lshfolder -lgdi32 -lmsvcrt -lwinmm -lmingw32 -lm -lws2_32 -lz -lstdc++ -lole32 -luuid -lwsock32 -lpsapi")
 			set(PLATFORM_CFLAGS "-pipe -funsigned-char -fno-strict-aliasing")
 
 			add_definitions(-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE)
@@ -879,7 +947,29 @@ elseif(WIN32)
 			set(PYTHON_LIBRARIES  "${PYTHON_LIBRARY}")
 		endif()
 
-		set(PLATFORM_LINKFLAGS "--stack,2097152")
+		if(WITH_BOOST)
+			set(BOOST ${LIBDIR}/boost)
+			set(BOOST_INCLUDE_DIR ${BOOST}/include)
+			set(BOOST_POSTFIX "mgw45-mt-s-1_47")
+			set(BOOST_DEBUG_POSTFIX "mgw45-mt-sd-1_47")
+			set(BOOST_LIBRARIES
+				optimized boost_date_time-${BOOST_POSTFIX} boost_filesystem-${BOOST_POSTFIX}
+				boost_regex-${BOOST_POSTFIX} boost_system-${BOOST_POSTFIX} boost_thread-${BOOST_POSTFIX}
+				debug boost_date_time-${BOOST_DEBUG_POSTFIX} boost_filesystem-${BOOST_DEBUG_POSTFIX}
+				boost_regex-${BOOST_DEBUG_POSTFIX} boost_system-${BOOST_DEBUG_POSTFIX} boost_thread-${BOOST_DEBUG_POSTFIX})
+			set(BOOST_LIBPATH ${BOOST}/lib/gcc)
+			set(BOOST_DEFINITIONS "-DBOOST_ALL_NO_LIB -DBOOST_THREAD_USE_LIB ")
+		endif()
+			
+		if(WITH_OPENIMAGEIO)
+			set(OPENIMAGEIO ${LIBDIR}/gcc/openimageio)
+			set(OPENIMAGEIO_INCLUDE_DIRS ${OPENIMAGEIO}/include)
+			set(OPENIMAGEIO_LIBRARIES OpenImageIO)
+			set(OPENIMAGEIO_LIBPATH ${OPENIMAGEIO}/lib)
+			set(OPENIMAGEIO_DEFINITIONS)
+		endif()
+
+		set(PLATFORM_LINKFLAGS "-Xlinker --stack=2097152")
 
 	endif()
 
@@ -1082,6 +1172,22 @@ elseif(APPLE)
 		# linker needs "-weak_framework 3DconnexionClient"
 	endif()
 
+	if(WITH_BOOST)
+		set(BOOST ${LIBDIR}/boost)
+		set(BOOST_INCLUDE_DIR ${BOOST}/include)
+		set(BOOST_LIBRARIES boost_date_time-mt boost_filesystem-mt boost_regex-mt boost_system-mt boost_thread-mt)
+		set(BOOST_LIBPATH ${BOOST}/lib)
+		set(BOOST_DEFINITIONS)
+	endif()
+
+	if(WITH_OPENIMAGEIO)
+		set(OPENIMAGEIO ${LIBDIR}/openimageio)
+		set(OPENIMAGEIO_INCLUDE_DIRS ${OPENIMAGEIO}/include)
+		set(OPENIMAGEIO_LIBRARIES OpenImageIO ${PNG_LIBRARIES} ${JPEG_LIBRARIES} ${TIFF_LIBRARY} ${OPENEXR_LIBRARIES} ${ZLIB_LIBRARIES})
+		set(OPENIMAGEIO_LIBPATH ${OPENIMAGEIO}/lib ${JPEG_LIBPATH} ${PNG_LIBPATH} ${TIFF_LIBPATH} ${OPENEXR_LIBPATH} ${ZLIB_LIBPATH})
+		set(OPENIMAGEIO_DEFINITIONS "-DOIIO_STATIC_BUILD")
+	endif()
+
 	set(EXETYPE MACOSX_BUNDLE)
 
 	set(CMAKE_C_FLAGS_DEBUG "-fno-strict-aliasing -g")
@@ -1250,6 +1356,11 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	# # this causes too many warnings, disable
 	# ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_UNDEFINED -Wundef)
 
+	# flags to undo strict flags
+	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_DEPRECATED_DECLARATIONS -Wno-deprecated-declarations)
+	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_UNUSED_PARAMETER        -Wno-unused-parameter)
+	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_UNUSED_BUT_SET_VARIABLE -Wno-unused-but-set-variable)
+
 elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
 
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_ALL -Wall)
@@ -1377,6 +1488,7 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_FFTW3)
 	info_cfg_option(WITH_INTERNATIONAL)
 	info_cfg_option(WITH_INPUT_NDOF)
+	info_cfg_option(WITH_CYCLES)
 
 	info_cfg_text("Compiler Options:")
 	info_cfg_option(WITH_BUILDINFO)

@@ -47,6 +47,7 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_movieclip_types.h"
 
 #include "RNA_access.h"
 
@@ -70,6 +71,7 @@
 #include "BKE_mesh.h"
 #include "BKE_nla.h"
 #include "BKE_context.h"
+#include "BKE_tracking.h"
 
 #include "ED_anim_api.h"
 #include "ED_armature.h"
@@ -83,6 +85,7 @@
 #include "ED_uvedit.h"
 #include "ED_view3d.h"
 #include "ED_curve.h" /* for curve_editnurbs */
+#include "ED_clip.h"
 
 //#include "BDR_unwrapper.h"
 
@@ -616,6 +619,65 @@ static void recalcData_nla(TransInfo *t)
 	}
 }
 
+/* helper for recalcData() - for Image Editor transforms */
+static void recalcData_image(TransInfo *t)
+{
+	if (t->obedit && t->obedit->type == OB_MESH) {
+		SpaceImage *sima= t->sa->spacedata.first;
+		
+		flushTransUVs(t);
+		if(sima->flag & SI_LIVE_UNWRAP)
+			ED_uvedit_live_unwrap_re_solve();
+		
+		DAG_id_tag_update(t->obedit->data, 0);
+	}
+}
+
+/* helper for recalcData() - for Movie Clip transforms */
+static void recalcData_clip(TransInfo *t)
+{
+	SpaceClip *sc= t->sa->spacedata.first;
+	MovieClip *clip= ED_space_clip(sc);
+	MovieTrackingTrack *track;
+	
+	if(t->state == TRANS_CANCEL) {
+		track= clip->tracking.tracks.first;
+		while(track) {
+			if(TRACK_VIEW_SELECTED(sc, track)) {
+				MovieTrackingMarker *marker= BKE_tracking_ensure_marker(track, sc->user.framenr);
+				
+				marker->flag= track->transflag;
+			}
+			
+			track= track->next;
+		}
+	}
+	
+	flushTransTracking(t);
+	
+	track= clip->tracking.tracks.first;
+	while(track) {
+		if(TRACK_VIEW_SELECTED(sc, track)) {
+			if (t->mode == TFM_TRANSLATION) {
+				if(TRACK_AREA_SELECTED(track, TRACK_AREA_PAT))
+					BKE_tracking_clamp_track(track, CLAMP_PAT_POS);
+				if(TRACK_AREA_SELECTED(track, TRACK_AREA_SEARCH))
+					BKE_tracking_clamp_track(track, CLAMP_SEARCH_POS);
+			}
+			else if (t->mode == TFM_RESIZE) {
+				if(TRACK_AREA_SELECTED(track, TRACK_AREA_PAT))
+					BKE_tracking_clamp_track(track, CLAMP_PAT_DIM);
+				if(TRACK_AREA_SELECTED(track, TRACK_AREA_SEARCH))
+					BKE_tracking_clamp_track(track, CLAMP_SEARCH_DIM);
+			}
+		}
+		
+		track= track->next;
+	}
+	
+	DAG_id_tag_update(&clip->id, 0);
+}
+
 /* helper for recalcData() - for 3d-view transforms */
 static void recalcData_view3d(TransInfo *t)
 {
@@ -850,18 +912,13 @@ void recalcData(TransInfo *t)
 		recalcData_nla(t);
 	}
 	else if (t->spacetype == SPACE_IMAGE) {
-		if (t->obedit && t->obedit->type == OB_MESH) {
-			SpaceImage *sima= t->sa->spacedata.first;
-			
-			flushTransUVs(t);
-			if(sima->flag & SI_LIVE_UNWRAP)
-				ED_uvedit_live_unwrap_re_solve();
-			
-			DAG_id_tag_update(t->obedit->data, 0);
-		}
+		recalcData_image(t);
 	}
 	else if (t->spacetype == SPACE_VIEW3D) {
 		recalcData_view3d(t);
+	}
+	else if (t->spacetype == SPACE_CLIP) {
+		recalcData_clip(t);
 	}
 }
 
@@ -941,7 +998,7 @@ int initTransInfo (bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 	
 	if (event)
 	{
-		VECCOPY2D(t->imval, event->mval);
+		copy_v2_v2_int(t->imval, event->mval);
 		t->event_type = event->type;
 	}
 	else
@@ -1299,7 +1356,7 @@ static void restoreElement(TransData *td)
 			copy_v3_v3(td->ext->size, td->ext->isize);
 		}
 		if (td->ext->quat) {
-			QUATCOPY(td->ext->quat, td->ext->iquat);
+			copy_qt_qt(td->ext->quat, td->ext->iquat);
 		}
 	}
 	

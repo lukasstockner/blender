@@ -68,6 +68,11 @@ if(WITH_IMAGE_HDR)
 	add_definitions(-DWITH_HDR)
 endif()
 
+if(WITH_LIBMV)
+	blender_include_dirs(../../extern/libmv)
+	add_definitions(-DWITH_LIBMV)
+endif()
+
 if(WITH_PYTHON)
 	blender_include_dirs(../blender/python)
 	add_definitions(-DWITH_PYTHON)
@@ -570,6 +575,14 @@ elseif(WIN32)
 		DESTINATION ${TARGETDIR}
 	)	
 
+	if(WITH_OPENIMAGEIO)
+		install(
+			FILES
+				${LIBDIR}/openimageio/bin/OpenImageIO.dll
+			DESTINATION ${TARGETDIR}
+		)
+	endif()
+
 elseif(APPLE)
 	set(SOURCEDIR ${CMAKE_SOURCE_DIR}/source/darwin/blender.app)
 	set(SOURCEINFO ${SOURCEDIR}/Contents/Info.plist)
@@ -715,6 +728,9 @@ elseif(APPLE)
 	endif()
 endif()
 
+# install more files specified elsewhere
+delayed_do_install(${TARGETDIR_VER})
+
 unset(BLENDER_TEXT_FILES)
 
 
@@ -733,6 +749,16 @@ set(BLENDER_LINK_LIBS
 
 if(WITH_MOD_FLUID)
 	list(APPEND BLENDER_LINK_LIBS bf_intern_elbeem)
+endif()
+
+if(WITH_CYCLES)
+	list(APPEND BLENDER_LINK_LIBS
+		cycles_render
+		cycles_bvh
+		cycles_device
+		cycles_kernel
+		cycles_util
+		cycles_subd)
 endif()
 
 #if(UNIX)
@@ -754,10 +780,10 @@ endif()
 		bf_editor_space_outliner
 		bf_editor_space_script
 		bf_editor_space_sequencer
-		bf_editor_space_sound
 		bf_editor_space_time
 		bf_editor_space_userpref
 		bf_editor_space_view3d
+		bf_editor_space_clip
 
 		bf_editor_text
 		bf_editor_transform
@@ -836,7 +862,18 @@ endif()
 		bf_blenfont
 		bf_intern_audaspace
 		bf_intern_mikktspace
+		bf_intern_cycles
+		cycles_render
+		cycles_bvh
+		cycles_device
+		cycles_kernel
+		cycles_util
+		cycles_subd
 	)
+
+	if(WITH_LIBMV)
+		list(APPEND BLENDER_SORTED_LIBS extern_libmv)
+	endif()
 
 	if(WITH_MOD_CLOTH_ELTOPO)
 		list(APPEND BLENDER_SORTED_LIBS extern_eltopo)

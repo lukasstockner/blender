@@ -90,50 +90,6 @@
 
 static void ui_free_but(const bContext *C, uiBut *but);
 
-/* ************* translation ************** */
-
-int UI_translate_iface(void)
-{
-#ifdef WITH_INTERNATIONAL
-	return (U.transopts & USER_DOTRANSLATE) && (U.transopts & USER_TR_IFACE);
-#else
-	return 0;
-#endif
-}
-
-int UI_translate_tooltips(void)
-{
-#ifdef WITH_INTERNATIONAL
-	return (U.transopts & USER_DOTRANSLATE) && (U.transopts & USER_TR_TOOLTIPS);
-#else
-	return 0;
-#endif
-}
-
-const char *UI_translate_do_iface(const char *msgid)
-{
-#ifdef WITH_INTERNATIONAL
-	if(UI_translate_iface())
-		return BLF_gettext(msgid);
-	else
-		return msgid;
-#else
-	return msgid;
-#endif
-}
-
-const char *UI_translate_do_tooltip(const char *msgid)
-{
-#ifdef WITH_INTERNATIONAL
-	if(UI_translate_tooltips())
-		return BLF_gettext(msgid);
-	else
-		return msgid;
-#else
-	return msgid;
-#endif
-}
-
 /* ************* window matrix ************** */
 
 void ui_block_to_window_fl(const ARegion *ar, uiBlock *block, float *x, float *y)
@@ -756,6 +712,9 @@ static int ui_but_is_rna_undo(uiBut *but)
 			return TRUE;
 		}
 	}
+	else if (but->rnapoin.type && !RNA_struct_undo_check(but->rnapoin.type)) {
+		return FALSE;
+	}
 
 	return TRUE;
 }
@@ -766,7 +725,7 @@ static void ui_menu_block_set_keyaccels(uiBlock *block)
 {
 	uiBut *but;
 
-	unsigned int meny_key_mask= 0;
+	unsigned int menu_key_mask= 0;
 	unsigned char menu_key;
 	const char *str_pt;
 	int pass;
@@ -788,8 +747,8 @@ static void ui_menu_block_set_keyaccels(uiBlock *block)
 				if(but->str) {
 					for(str_pt= but->str; *str_pt; ) {
 						menu_key= tolower(*str_pt);
-						if((menu_key >= 'a' && menu_key <= 'z') && !(meny_key_mask & 1<<(menu_key-'a'))) {
-							meny_key_mask |= 1<<(menu_key-'a');
+						if((menu_key >= 'a' && menu_key <= 'z') && !(menu_key_mask & 1<<(menu_key-'a'))) {
+							menu_key_mask |= 1<<(menu_key-'a');
 							break;
 						}
 
@@ -816,7 +775,7 @@ static void ui_menu_block_set_keyaccels(uiBlock *block)
 					}
 
 					/* if all keys have been used just exit, unlikely */
-					if(meny_key_mask == (1<<26)-1) {
+					if(menu_key_mask == (1<<26)-1) {
 						return;
 					}
 				}
@@ -962,6 +921,7 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	ARegion *ar;
 	uiBut *but;
 	rcti rect;
+	int multisample_enabled;
 	
 	/* get menu region or area region */
 	ar= CTX_wm_menu(C);
@@ -970,6 +930,11 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 
 	if(!block->endblock)
 		uiEndBlock(C, block);
+
+	/* disable AA, makes widgets too blurry */
+	multisample_enabled= glIsEnabled(GL_MULTISAMPLE_ARB);
+	if(multisample_enabled)
+		glDisable(GL_MULTISAMPLE_ARB);
 
 	/* we set this only once */
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1015,6 +980,9 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();
+
+ 	if(multisample_enabled)
+		glEnable(GL_MULTISAMPLE_ARB);
 	
 	ui_draw_links(block);
 }
@@ -1215,7 +1183,7 @@ void ui_get_but_vectorf(uiBut *but, float vec[3])
 	int a, tot;
 
 	if(but->editvec) {
-		VECCOPY(vec, but->editvec);
+		copy_v3_v3(vec, but->editvec);
 	}
 
 	if(but->rnaprop) {
@@ -1239,7 +1207,7 @@ void ui_get_but_vectorf(uiBut *but, float vec[3])
 	}
 	else if(but->pointype == FLO) {
 		float *fp= (float *)but->poin;
-		VECCOPY(vec, fp);
+		copy_v3_v3(vec, fp);
 	}
 	else {
 		if (but->editvec==NULL) {
@@ -2560,10 +2528,12 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str, 
 	if(block->curlayout)
 		ui_layout_add_but(block->curlayout, but);
 
+#ifdef WITH_PYTHON
 	/* if the 'UI_OT_editsource' is running, extract the source info from the button  */
 	if (UI_editsource_enable_check()) {
 		UI_editsource_active_but_test(but);
 	}
+#endif
 
 	return but;
 }

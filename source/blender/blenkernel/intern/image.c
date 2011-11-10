@@ -323,12 +323,13 @@ static void extern_local_image(Image *UNUSED(ima))
 	   match id_make_local pattern. */
 }
 
-void make_local_image(struct Image *ima) {
+void make_local_image(struct Image *ima)
+{
 	Main *bmain= G.main;
 	Tex *tex;
 	Brush *brush;
 	Mesh *me;
-	int local=0, lib=0;
+	int is_local= FALSE, is_lib= FALSE;
 
 	/* - only lib users: do nothing
 	 * - only local users: set flag
@@ -339,9 +340,9 @@ void make_local_image(struct Image *ima) {
 
 	/* Can't take short cut here: must check meshes at least because of bogus
 	   texface ID refs. - z0r */
-#if(0)
+#if 0
 	if(ima->id.us==1) {
-		id_clear_lib_data(&bmain->image, (ID *)ima);
+		id_clear_lib_data(bmain, &ima->id);
 		extern_local_image(ima);
 		return;
 	}
@@ -349,14 +350,14 @@ void make_local_image(struct Image *ima) {
 
 	for(tex= bmain->tex.first; tex; tex= tex->id.next) {
 		if(tex->ima == ima) {
-			if(tex->id.lib) lib= 1;
-			else local= 1;
+			if(tex->id.lib) is_lib= TRUE;
+			else is_local= TRUE;
 		}
 	}
 	for(brush= bmain->brush.first; brush; brush= brush->id.next) {
 		if(brush->clone.image == ima) {
-			if(brush->id.lib) lib= 1;
-			else local= 1;
+			if(brush->id.lib) is_lib= TRUE;
+			else is_local= TRUE;
 		}
 	}
 	for(me= bmain->mesh.first; me; me= me->id.next) {
@@ -370,8 +371,8 @@ void make_local_image(struct Image *ima) {
 
 					for(a=0; a<me->totface; a++, tface++) {
 						if(tface->tpage == ima) {
-							if(me->id.lib) lib=1;
-							else local= 1;
+							if(me->id.lib) is_lib= TRUE;
+							else is_local= TRUE;
 						}
 					}
 				}
@@ -379,17 +380,17 @@ void make_local_image(struct Image *ima) {
 		}
 	}
 
-	if(local && lib==0) {
-		id_clear_lib_data(&bmain->image, (ID *)ima);
+	if(is_local && is_lib == FALSE) {
+		id_clear_lib_data(bmain, &ima->id);
 		extern_local_image(ima);
 	}
-	else if(local && lib) {
+	else if(is_local && is_lib) {
 		Image *iman= copy_image(ima);
+
 		iman->id.us= 0;
 
 		/* Remap paths of new ID using old library as base. */
-		bpath_traverse_id((ID *)iman, bpath_relocate_visitor,
-		                     ((ID *)ima)->lib->filepath);
+		BKE_id_lib_local_paths(bmain, &iman->id);
 
 		tex= bmain->tex.first;
 		while(tex) {
@@ -979,7 +980,7 @@ int BKE_add_image_extension(char *string, int imtype)
 				  || (G.have_quicktime && BLI_testextensie_array(string, imb_ext_image_qt))) {
 			return BLI_replace_extension(string, FILE_MAX, extension);
 		} else {
-			strcat(string, extension);
+			return BLI_ensure_extension(string, FILE_MAX, extension);
 			return TRUE;
 		}
 		
@@ -1498,7 +1499,7 @@ void BKE_makepicstring(char *string, const char *base, int frame, int imtype, co
 }
 
 /* used by sequencer too */
-struct anim *openanim(char *name, int flags, int streamindex)
+struct anim *openanim(const char *name, int flags, int streamindex)
 {
 	struct anim *anim;
 	struct ImBuf *ibuf;
@@ -1946,7 +1947,7 @@ static ImBuf *image_load_image_file(Image *ima, ImageUser *iuser, int cfra)
 		flag = IB_rect|IB_multilayer;
 		if(ima->flag & IMA_DO_PREMUL) flag |= IB_premul;
 		
-		ibuf = IMB_ibImageFromMemory((unsigned char*)ima->packedfile->data, ima->packedfile->size, flag);
+		ibuf = IMB_ibImageFromMemory((unsigned char*)ima->packedfile->data, ima->packedfile->size, flag, "<packed data>");
 	} 
 	else {
 		flag= IB_rect|IB_multilayer|IB_metadata;

@@ -57,6 +57,7 @@
 #include "IMB_imbuf_types.h"
 
 #include "DNA_brush_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_node_types.h"
@@ -64,6 +65,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
+#include "BKE_camera.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
@@ -77,6 +79,7 @@
 #include "BKE_object.h"
 #include "BKE_paint.h"
 #include "BKE_report.h"
+#include "BKE_scene.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -86,6 +89,7 @@
 #include "ED_image.h"
 #include "ED_screen.h"
 #include "ED_sculpt.h"
+#include "ED_uvedit.h"
 #include "ED_view3d.h"
 
 #include "WM_api.h"
@@ -103,12 +107,30 @@
 
 #define IMAPAINT_CHAR_TO_FLOAT(c) ((c)/255.0f)
 
-#define IMAPAINT_FLOAT_RGB_TO_CHAR(c, f) { (c)[0]=FTOCHAR((f)[0]); (c)[1]=FTOCHAR((f)[1]); (c)[2]=FTOCHAR((f)[2]); }
-#define IMAPAINT_FLOAT_RGBA_TO_CHAR(c, f) { (c)[0]=FTOCHAR((f)[0]); (c)[1]=FTOCHAR((f)[1]); (c)[2]=FTOCHAR((f)[2]); (c)[3]=FTOCHAR((f)[3]); }
+#define IMAPAINT_FLOAT_RGB_TO_CHAR(c, f)  {                                   \
+	(c)[0]= FTOCHAR((f)[0]);                                                  \
+	(c)[1]= FTOCHAR((f)[1]);                                                  \
+	(c)[2]= FTOCHAR((f)[2]);                                                  \
+}
+#define IMAPAINT_FLOAT_RGBA_TO_CHAR(c, f)  {                                  \
+	(c)[0]= FTOCHAR((f)[0]);                                                  \
+	(c)[1]= FTOCHAR((f)[1]);                                                  \
+	(c)[2]= FTOCHAR((f)[2]);                                                  \
+	(c)[3]= FTOCHAR((f)[3]);                                                  \
+}
+#define IMAPAINT_CHAR_RGB_TO_FLOAT(f, c)  {                                   \
+	(f)[0]= IMAPAINT_CHAR_TO_FLOAT((c)[0]);                                   \
+	(f)[1]= IMAPAINT_CHAR_TO_FLOAT((c)[1]);                                   \
+	(f)[2]= IMAPAINT_CHAR_TO_FLOAT((c)[2]);                                   \
+}
+#define IMAPAINT_CHAR_RGBA_TO_FLOAT(f, c)  {                                  \
+	(f)[0]= IMAPAINT_CHAR_TO_FLOAT((c)[0]);                                   \
+	(f)[1]= IMAPAINT_CHAR_TO_FLOAT((c)[1]);                                   \
+	(f)[2]= IMAPAINT_CHAR_TO_FLOAT((c)[2]);                                   \
+	(f)[3]= IMAPAINT_CHAR_TO_FLOAT((c)[3]);                                   \
+}
 
-#define IMAPAINT_CHAR_RGB_TO_FLOAT(f, c) { (f)[0]=IMAPAINT_CHAR_TO_FLOAT((c)[0]); (f)[1]=IMAPAINT_CHAR_TO_FLOAT((c)[1]); (f)[2]=IMAPAINT_CHAR_TO_FLOAT((c)[2]); }
-#define IMAPAINT_CHAR_RGBA_TO_FLOAT(f, c) { (f)[0]=IMAPAINT_CHAR_TO_FLOAT((c)[0]); (f)[1]=IMAPAINT_CHAR_TO_FLOAT((c)[1]); (f)[2]=IMAPAINT_CHAR_TO_FLOAT((c)[2]); (f)[3]=IMAPAINT_CHAR_TO_FLOAT((c)[3]); }
-#define IMAPAINT_FLOAT_RGB_COPY(a, b) VECCOPY(a, b)
+#define IMAPAINT_FLOAT_RGB_COPY(a, b) copy_v3_v3(a, b)
 
 #define IMAPAINT_TILE_BITS			6
 #define IMAPAINT_TILE_SIZE			(1 << IMAPAINT_TILE_BITS)
@@ -478,6 +500,40 @@ static void image_undo_free(ListBase *lb)
 		MEM_freeN(tile->rect);
 }
 
+/* get active image for face depending on old/new shading system */
+
+static Image *imapaint_face_image(const ImagePaintState *s, int face_index)
+{
+	Image *ima;
+
+	if(scene_use_new_shading_nodes(s->scene)) {
+		MFace *mf = s->me->mface+face_index;
+		ED_object_get_active_image(s->ob, mf->mat_nr, &ima, NULL, NULL);
+	}
+	else {
+		MTFace *tf = s->me->mtface+face_index;
+		ima = tf->tpage;
+	}
+
+	return ima;
+}
+
+static Image *project_paint_face_image(const ProjPaintState *ps, int face_index)
+{
+	Image *ima;
+
+	if(scene_use_new_shading_nodes(ps->scene)) {
+		MFace *mf = ps->dm_mface+face_index;
+		ED_object_get_active_image(ps->ob, mf->mat_nr, &ima, NULL, NULL);
+	}
+	else {
+		MTFace *tf = ps->dm_mtface+face_index;
+		ima = tf->tpage;
+	}
+
+	return ima;
+}
+
 /* fast projection bucket array lookup, use the safe version for bound checking  */
 static int project_bucket_offset(const ProjPaintState *ps, const float projCoSS[2])
 {
@@ -605,7 +661,7 @@ static int project_paint_PickFace(const ProjPaintState *ps, float pt[2], float w
 				best_face_index = face_index;
 				best_side = 0;
 				z_depth_best = z_depth;
-				VECCOPY(w, w_tmp);
+				copy_v3_v3(w, w_tmp);
 			}
 		}
 		else if (mf->v4) {
@@ -619,7 +675,7 @@ static int project_paint_PickFace(const ProjPaintState *ps, float pt[2], float w
 					best_face_index = face_index;
 					best_side= 1;
 					z_depth_best = z_depth;
-					VECCOPY(w, w_tmp);
+					copy_v3_v3(w, w_tmp);
 				}
 			}
 		}
@@ -650,6 +706,7 @@ static int project_paint_PickColor(const ProjPaintState *ps, float pt[2], float 
 	int side;
 	int face_index;
 	MTFace *tf;
+	Image *ima;
 	ImBuf *ibuf;
 	int xi, yi;
 	
@@ -667,8 +724,9 @@ static int project_paint_PickColor(const ProjPaintState *ps, float pt[2], float 
 	else { /* QUAD */
 		interp_v2_v2v2v2(uv, tf->uv[0], tf->uv[2], tf->uv[3], w);
 	}
-	
-	ibuf = tf->tpage->ibufs.first; /* we must have got the imbuf before getting here */
+
+	ima = project_paint_face_image(ps, face_index);
+	ibuf = ima->ibufs.first; /* we must have got the imbuf before getting here */
 	if (!ibuf) return 0;
 	
 	if (interp) {
@@ -720,7 +778,7 @@ static int project_paint_PickColor(const ProjPaintState *ps, float pt[2], float 
 		
 		if (rgba_fp) {
 			if (ibuf->rect_float) {
-				QUATCOPY(rgba_fp, ((float *)ibuf->rect_float + ((xi + yi * ibuf->x) * 4)));
+				copy_v4_v4(rgba_fp, ((float *)ibuf->rect_float + ((xi + yi * ibuf->x) * 4)));
 			}
 			else {
 				char *tmp_ch= ((char *)ibuf->rect) + ((xi + yi * ibuf->x) * 4);
@@ -1033,6 +1091,9 @@ static int check_seam(const ProjPaintState *ps, const int orig_face, const int o
 			
 			/* Only need to check if 'i2_fidx' is valid because we know i1_fidx is the same vert on both faces */
 			if (i2_fidx != -1) {
+				Image *tpage = project_paint_face_image(ps, face_index);
+				Image *orig_tpage = project_paint_face_image(ps, orig_face);
+
 				/* This IS an adjacent face!, now lets check if the UVs are ok */
 				tf = ps->dm_mtface + face_index;
 				
@@ -1041,7 +1102,7 @@ static int check_seam(const ProjPaintState *ps, const int orig_face, const int o
 				*orig_fidx = (i1_fidx < i2_fidx) ? i1_fidx : i2_fidx;
 				
 				/* first test if they have the same image */
-				if (	(orig_tf->tpage == tf->tpage) &&
+				if (	(orig_tpage == tpage) &&
 						cmp_uv(orig_tf->uv[orig_i1_fidx], tf->uv[i1_fidx]) &&
 						cmp_uv(orig_tf->uv[orig_i2_fidx], tf->uv[i2_fidx]) )
 				{
@@ -1288,9 +1349,10 @@ static float project_paint_uvpixel_mask(
 	if (ps->do_layer_stencil) {
 		/* another UV layers image is masking this one's */
 		ImBuf *ibuf_other;
+		Image *other_tpage = project_paint_face_image(ps, face_index);
 		const MTFace *tf_other = ps->dm_mtface_stencil + face_index;
 		
-		if (tf_other->tpage && (ibuf_other = BKE_image_get_ibuf(tf_other->tpage, NULL))) {
+		if (other_tpage && (ibuf_other = BKE_image_get_ibuf(other_tpage, NULL))) {
 			/* BKE_image_get_ibuf - TODO - this may be slow */
 			unsigned char rgba_ub[4];
 			float rgba_f[4];
@@ -1429,7 +1491,7 @@ static ProjPixel *project_paint_uvpixel_init(
 	}
 	
 	/* screenspace unclamped, we could keep its z and w values but dont need them at the moment */
-	VECCOPY2D(projPixel->projCoSS, pixelScreenCo);
+	copy_v2_v2(projPixel->projCoSS, pixelScreenCo);
 	
 	projPixel->x_px = x_px;
 	projPixel->y_px = y_px;
@@ -1444,9 +1506,10 @@ static ProjPixel *project_paint_uvpixel_init(
 	if (ps->tool==PAINT_TOOL_CLONE) {
 		if (ps->dm_mtface_clone) {
 			ImBuf *ibuf_other;
+			Image *other_tpage = project_paint_face_image(ps, face_index);
 			const MTFace *tf_other = ps->dm_mtface_clone + face_index;
 			
-			if (tf_other->tpage && (ibuf_other = BKE_image_get_ibuf(tf_other->tpage, NULL))) {
+			if (other_tpage && (ibuf_other = BKE_image_get_ibuf(other_tpage, NULL))) {
 				/* BKE_image_get_ibuf - TODO - this may be slow */
 				
 				if (ibuf->rect_float) {
@@ -1528,8 +1591,8 @@ static int line_clip_rect2f(
 		
 		if (fabsf(l1[0]-l2[0]) < PROJ_GEOM_TOLERANCE) { /* this is a single point  (or close to)*/
 			if (BLI_in_rctf(rect, l1[0], l1[1])) {
-				VECCOPY2D(l1_clip, l1);
-				VECCOPY2D(l2_clip, l2);
+				copy_v2_v2(l1_clip, l1);
+				copy_v2_v2(l2_clip, l2);
 				return 1;
 			}
 			else {
@@ -1537,8 +1600,8 @@ static int line_clip_rect2f(
 			}
 		}
 		
-		VECCOPY2D(l1_clip, l1);
-		VECCOPY2D(l2_clip, l2);
+		copy_v2_v2(l1_clip, l1);
+		copy_v2_v2(l2_clip, l2);
 		CLAMP(l1_clip[0], rect->xmin, rect->xmax);
 		CLAMP(l2_clip[0], rect->xmin, rect->xmax);
 		return 1;
@@ -1556,8 +1619,8 @@ static int line_clip_rect2f(
 		
 		if (fabsf(l1[1]-l2[1]) < PROJ_GEOM_TOLERANCE) { /* this is a single point  (or close to)*/
 			if (BLI_in_rctf(rect, l1[0], l1[1])) {
-				VECCOPY2D(l1_clip, l1);
-				VECCOPY2D(l2_clip, l2);
+				copy_v2_v2(l1_clip, l1);
+				copy_v2_v2(l2_clip, l2);
 				return 1;
 			}
 			else {
@@ -1565,8 +1628,8 @@ static int line_clip_rect2f(
 			}
 		}
 		
-		VECCOPY2D(l1_clip, l1);
-		VECCOPY2D(l2_clip, l2);
+		copy_v2_v2(l1_clip, l1);
+		copy_v2_v2(l2_clip, l2);
 		CLAMP(l1_clip[1], rect->ymin, rect->ymax);
 		CLAMP(l2_clip[1], rect->ymin, rect->ymax);
 		return 1;
@@ -1580,12 +1643,12 @@ static int line_clip_rect2f(
 		
 		/* are either of the points inside the rectangle ? */
 		if (BLI_in_rctf(rect, l1[0], l1[1])) {
-			VECCOPY2D(l1_clip, l1);
+			copy_v2_v2(l1_clip, l1);
 			ok1 = 1;
 		}
 		
 		if (BLI_in_rctf(rect, l2[0], l2[1])) {
-			VECCOPY2D(l2_clip, l2);
+			copy_v2_v2(l2_clip, l2);
 			ok2 = 1;
 		}
 		
@@ -1910,14 +1973,14 @@ static void project_bucket_clip_face(
 	if (inside_bucket_flag == ISECT_ALL3) {
 		/* all screenspace points are inside the bucket bounding box, this means we dont need to clip and can simply return the UVs */
 		if (flip) { /* facing the back? */
-			VECCOPY2D(bucket_bounds_uv[0], uv3co);
-			VECCOPY2D(bucket_bounds_uv[1], uv2co);
-			VECCOPY2D(bucket_bounds_uv[2], uv1co);
+			copy_v2_v2(bucket_bounds_uv[0], uv3co);
+			copy_v2_v2(bucket_bounds_uv[1], uv2co);
+			copy_v2_v2(bucket_bounds_uv[2], uv1co);
 		}
 		else {
-			VECCOPY2D(bucket_bounds_uv[0], uv1co);
-			VECCOPY2D(bucket_bounds_uv[1], uv2co);
-			VECCOPY2D(bucket_bounds_uv[2], uv3co);
+			copy_v2_v2(bucket_bounds_uv[0], uv1co);
+			copy_v2_v2(bucket_bounds_uv[1], uv2co);
+			copy_v2_v2(bucket_bounds_uv[2], uv3co);
 		}
 		
 		*tot = 3; 
@@ -1981,33 +2044,33 @@ static void project_bucket_clip_face(
 		
 		(*tot) = 0;
 		
-		if (inside_face_flag & ISECT_1)	{ VECCOPY2D(isectVCosSS[*tot], bucket_bounds_ss[0]); (*tot)++; }
-		if (inside_face_flag & ISECT_2)	{ VECCOPY2D(isectVCosSS[*tot], bucket_bounds_ss[1]); (*tot)++; }
-		if (inside_face_flag & ISECT_3)	{ VECCOPY2D(isectVCosSS[*tot], bucket_bounds_ss[2]); (*tot)++; }
-		if (inside_face_flag & ISECT_4)	{ VECCOPY2D(isectVCosSS[*tot], bucket_bounds_ss[3]); (*tot)++; }
+		if (inside_face_flag & ISECT_1)	{ copy_v2_v2(isectVCosSS[*tot], bucket_bounds_ss[0]); (*tot)++; }
+		if (inside_face_flag & ISECT_2)	{ copy_v2_v2(isectVCosSS[*tot], bucket_bounds_ss[1]); (*tot)++; }
+		if (inside_face_flag & ISECT_3)	{ copy_v2_v2(isectVCosSS[*tot], bucket_bounds_ss[2]); (*tot)++; }
+		if (inside_face_flag & ISECT_4)	{ copy_v2_v2(isectVCosSS[*tot], bucket_bounds_ss[3]); (*tot)++; }
 		
-		if (inside_bucket_flag & ISECT_1) {	VECCOPY2D(isectVCosSS[*tot], v1coSS); (*tot)++; }
-		if (inside_bucket_flag & ISECT_2) {	VECCOPY2D(isectVCosSS[*tot], v2coSS); (*tot)++; }
-		if (inside_bucket_flag & ISECT_3) {	VECCOPY2D(isectVCosSS[*tot], v3coSS); (*tot)++; }
+		if (inside_bucket_flag & ISECT_1) {	copy_v2_v2(isectVCosSS[*tot], v1coSS); (*tot)++; }
+		if (inside_bucket_flag & ISECT_2) {	copy_v2_v2(isectVCosSS[*tot], v2coSS); (*tot)++; }
+		if (inside_bucket_flag & ISECT_3) {	copy_v2_v2(isectVCosSS[*tot], v3coSS); (*tot)++; }
 		
 		if ((inside_bucket_flag & (ISECT_1|ISECT_2)) != (ISECT_1|ISECT_2)) {
 			if (line_clip_rect2f(bucket_bounds, v1coSS, v2coSS, v1_clipSS, v2_clipSS)) {
-				if ((inside_bucket_flag & ISECT_1)==0) { VECCOPY2D(isectVCosSS[*tot], v1_clipSS); (*tot)++; }
-				if ((inside_bucket_flag & ISECT_2)==0) { VECCOPY2D(isectVCosSS[*tot], v2_clipSS); (*tot)++; }
+				if ((inside_bucket_flag & ISECT_1)==0) { copy_v2_v2(isectVCosSS[*tot], v1_clipSS); (*tot)++; }
+				if ((inside_bucket_flag & ISECT_2)==0) { copy_v2_v2(isectVCosSS[*tot], v2_clipSS); (*tot)++; }
 			}
 		}
 		
 		if ((inside_bucket_flag & (ISECT_2|ISECT_3)) != (ISECT_2|ISECT_3)) {
 			if (line_clip_rect2f(bucket_bounds, v2coSS, v3coSS, v1_clipSS, v2_clipSS)) {
-				if ((inside_bucket_flag & ISECT_2)==0) { VECCOPY2D(isectVCosSS[*tot], v1_clipSS); (*tot)++; }
-				if ((inside_bucket_flag & ISECT_3)==0) { VECCOPY2D(isectVCosSS[*tot], v2_clipSS); (*tot)++; }
+				if ((inside_bucket_flag & ISECT_2)==0) { copy_v2_v2(isectVCosSS[*tot], v1_clipSS); (*tot)++; }
+				if ((inside_bucket_flag & ISECT_3)==0) { copy_v2_v2(isectVCosSS[*tot], v2_clipSS); (*tot)++; }
 			}
 		}	
 		
 		if ((inside_bucket_flag & (ISECT_3|ISECT_1)) != (ISECT_3|ISECT_1)) {
 			if (line_clip_rect2f(bucket_bounds, v3coSS, v1coSS, v1_clipSS, v2_clipSS)) {
-				if ((inside_bucket_flag & ISECT_3)==0) { VECCOPY2D(isectVCosSS[*tot], v1_clipSS); (*tot)++; }
-				if ((inside_bucket_flag & ISECT_1)==0) { VECCOPY2D(isectVCosSS[*tot], v2_clipSS); (*tot)++; }
+				if ((inside_bucket_flag & ISECT_3)==0) { copy_v2_v2(isectVCosSS[*tot], v1_clipSS); (*tot)++; }
+				if ((inside_bucket_flag & ISECT_1)==0) { copy_v2_v2(isectVCosSS[*tot], v2_clipSS); (*tot)++; }
 			}
 		}
 		
@@ -2536,8 +2599,8 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 										//fac = line_point_factor_v2(uv, uv_seam_quad[0], uv_seam_quad[1]);
 										
 										fac = line_point_factor_v2(uv, seam_subsection[0], seam_subsection[1]);
-										if (fac < 0.0f)		{ VECCOPY(pixelScreenCo, edge_verts_inset_clip[0]); }
-										else if (fac > 1.0f)	{ VECCOPY(pixelScreenCo, edge_verts_inset_clip[1]); }
+										if (fac < 0.0f)		{ copy_v3_v3(pixelScreenCo, edge_verts_inset_clip[0]); }
+										else if (fac > 1.0f)	{ copy_v3_v3(pixelScreenCo, edge_verts_inset_clip[1]); }
 										else				{ interp_v3_v3v3(pixelScreenCo, edge_verts_inset_clip[0], edge_verts_inset_clip[1], fac); }
 										
 										if (!is_ortho) {
@@ -2664,11 +2727,8 @@ static void project_bucket_init(const ProjPaintState *ps, const int thread_index
 	LinkNode *node;
 	int face_index, image_index=0;
 	ImBuf *ibuf = NULL;
+	Image *tpage_last = NULL, *tpage;
 	Image *ima = NULL;
-	MTFace *tf;
-	
-	Image *tpage_last = NULL;
-	
 
 	if (ps->image_tot==1) {
 		/* Simple loop, no context switching */
@@ -2686,9 +2746,9 @@ static void project_bucket_init(const ProjPaintState *ps, const int thread_index
 			face_index = GET_INT_FROM_POINTER(node->link);
 				
 			/* Image context switching */
-			tf = ps->dm_mtface+face_index;
-			if (tpage_last != tf->tpage) {
-				tpage_last = tf->tpage;
+			tpage = project_paint_face_image(ps, face_index);
+			if (tpage_last != tpage) {
+				tpage_last = tpage;
 
 				for (image_index=0; image_index < ps->image_tot; image_index++) {
 					if (ps->projImages[image_index].ima == tpage_last) {
@@ -2856,7 +2916,7 @@ static void project_paint_begin(ProjPaintState *ps)
 	LinkNode *node;
 	
 	ProjPaintImage *projIma;
-	Image *tpage_last = NULL;
+	Image *tpage_last = NULL, *tpage;
 	
 	/* Face vars */
 	MFace *mf;
@@ -3000,7 +3060,8 @@ static void project_paint_begin(ProjPaintState *ps)
 				Object *camera= ps->scene->camera;
 
 				/* dont actually use these */
-				float _viewdx, _viewdy, _ycor, _lens=0.0f;
+				float _viewdx, _viewdy, _ycor, _lens=0.0f, _sensor_x=DEFAULT_SENSOR_WIDTH, _sensor_y= DEFAULT_SENSOR_HEIGHT;
+				short _sensor_fit= CAMERA_SENSOR_FIT_AUTO;
 				rctf _viewplane;
 
 				/* viewmat & viewinv */
@@ -3012,7 +3073,7 @@ static void project_paint_begin(ProjPaintState *ps)
 				object_camera_mode(&ps->scene->r, camera);
 				object_camera_matrix(&ps->scene->r, camera, ps->winx, ps->winy, 0,
 						winmat, &_viewplane, &ps->clipsta, &ps->clipend,
-						&_lens, &_ycor, &_viewdx, &_viewdy);
+						&_lens, &_sensor_x, &_sensor_y, &_sensor_fit, &_ycor, &_viewdx, &_viewdy);
 
 				ps->is_ortho= (ps->scene->r.mode & R_ORTHO) ? 1 : 0;
 			}
@@ -3032,7 +3093,7 @@ static void project_paint_begin(ProjPaintState *ps)
 		normalize_v3(ps->viewDir);
 		
 		/* viewPos - object relative */
-		VECCOPY(ps->viewPos, viewinv[3]);
+		copy_v3_v3(ps->viewPos, viewinv[3]);
 		copy_m3_m4(mat, ps->ob->imat);
 		mul_m3_v3(mat, ps->viewPos);
 		add_v3_v3(ps->viewPos, ps->ob->imat[3]);
@@ -3189,7 +3250,9 @@ static void project_paint_begin(ProjPaintState *ps)
 		}
 #endif
 		
-		if (tf->tpage && ((((Mesh *)ps->ob->data)->editflag & ME_EDIT_PAINT_MASK)==0 || mf->flag & ME_FACE_SEL)) {
+		tpage = project_paint_face_image(ps, face_index);
+
+		if (tpage && ((((Mesh *)ps->ob->data)->editflag & ME_EDIT_PAINT_MASK)==0 || mf->flag & ME_FACE_SEL)) {
 			
 			float *v1coSS, *v2coSS, *v3coSS, *v4coSS=NULL;
 			
@@ -3262,17 +3325,17 @@ static void project_paint_begin(ProjPaintState *ps)
 				}
 			}
 			
-			if (tpage_last != tf->tpage) {
+			if (tpage_last != tpage) {
 				
-				image_index = BLI_linklist_index(image_LinkList, tf->tpage);
+				image_index = BLI_linklist_index(image_LinkList, tpage);
 				
-				if (image_index==-1 && BKE_image_get_ibuf(tf->tpage, NULL)) { /* MemArena dosnt have an append func */
-					BLI_linklist_append(&image_LinkList, tf->tpage);
+				if (image_index==-1 && BKE_image_get_ibuf(tpage, NULL)) { /* MemArena dosnt have an append func */
+					BLI_linklist_append(&image_LinkList, tpage);
 					image_index = ps->image_tot;
 					ps->image_tot++;
 				}
 				
-				tpage_last = tf->tpage;
+				tpage_last = tpage;
 			}
 			
 			if (image_index != -1) {
@@ -3390,7 +3453,7 @@ static void project_paint_end(ProjPaintState *ps)
 					
 					if (is_float) {
 						float *rgba_fp = (float *)tilerect + (((projPixel->x_px - x_round) + (projPixel->y_px - y_round) * IMAPAINT_TILE_SIZE)) * 4;
-						QUATCOPY(rgba_fp, projPixel->origColor.f);
+						copy_v4_v4(rgba_fp, projPixel->origColor.f);
 					}
 					else {
 						((unsigned int *)tilerect)[ (projPixel->x_px - x_round) + (projPixel->y_px - y_round) * IMAPAINT_TILE_SIZE ] = projPixel->origColor.uint;
@@ -3725,7 +3788,7 @@ static void do_projectpaint_draw_f(ProjPaintState *ps, ProjPixel *projPixel, flo
 			srgb_to_linearrgb_v3_v3(rgba, ps->brush->rgb);
 		}
 		else {
-			VECCOPY(rgba, ps->brush->rgb);
+			copy_v3_v3(rgba, ps->brush->rgb);
 		}
 		rgba[3] = 1.0;
 	}
@@ -4460,7 +4523,7 @@ static int imapaint_paint_stroke(ViewContext *vc, ImagePaintState *s, BrushPaint
 		) {
 			ImBuf *ibuf;
 			
-			newimage = (s->me->mtface+newfaceindex)->tpage;
+			newimage = imapaint_face_image(s, newfaceindex);
 			ibuf= BKE_image_get_ibuf(newimage, s->sima? &s->sima->iuser: NULL);
 
 			if(ibuf && ibuf->rect)
