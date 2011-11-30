@@ -136,7 +136,7 @@ bool GHOST_System::validWindow(GHOST_IWindow* window)
 
 
 GHOST_TSuccess GHOST_System::beginFullScreen(const GHOST_DisplaySetting& setting, GHOST_IWindow** window,
-											 const bool stereoVisual, const GHOST_TUns16 numOfAASamples)
+											 const bool stereoVisual)
 {
 	GHOST_TSuccess success = GHOST_kFailure;
 	GHOST_ASSERT(m_windowManager, "GHOST_System::beginFullScreen(): invalid window manager")
@@ -148,7 +148,7 @@ GHOST_TSuccess GHOST_System::beginFullScreen(const GHOST_DisplaySetting& setting
 			success = m_displayManager->setCurrentDisplaySetting(GHOST_DisplayManager::kMainDisplay, setting);
 			if (success == GHOST_kSuccess) {
 				//GHOST_PRINT("GHOST_System::beginFullScreen(): creating full-screen window\n");
-				success = createFullScreenWindow((GHOST_Window**)window, stereoVisual, numOfAASamples);
+				success = createFullScreenWindow((GHOST_Window**)window, stereoVisual);
 				if (success == GHOST_kSuccess) {
 					m_windowManager->beginFullScreen(*window, stereoVisual);
 				}
@@ -330,7 +330,7 @@ GHOST_TSuccess GHOST_System::exit()
 }
 
 
-GHOST_TSuccess GHOST_System::createFullScreenWindow(GHOST_Window** window, const bool stereoVisual, const GHOST_TUns16 numOfAASamples)
+GHOST_TSuccess GHOST_System::createFullScreenWindow(GHOST_Window** window, const bool stereoVisual)
 {
 	GHOST_TSuccess success;
 	GHOST_ASSERT(m_displayManager, "GHOST_System::createFullScreenWindow(): invalid display manager")
@@ -344,8 +344,7 @@ GHOST_TSuccess GHOST_System::createFullScreenWindow(GHOST_Window** window, const
 					0, 0, settings.xPixels, settings.yPixels,
 					GHOST_kWindowStateFullScreen,
 					GHOST_kDrawingContextTypeOpenGL,
-					stereoVisual,
-					numOfAASamples);
+					stereoVisual);
 		success = *window == 0 ? GHOST_kFailure : GHOST_kSuccess;
 	}
 	return success;
