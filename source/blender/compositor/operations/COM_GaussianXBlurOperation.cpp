@@ -1,0 +1,88 @@
+#include "COM_GaussianXBlurOperation.h"
+#include "COM_InputSocket.h"
+#include "COM_OutputSocket.h"
+#include "BLI_math.h"
+
+extern "C" {
+	#include "RE_pipeline.h"
+}
+
+GaussianXBlurOperation::GaussianXBlurOperation(): BlurBaseOperation() {
+	this->gausstab = NULL;
+	this->rad = 0;
+
+}
+void GaussianXBlurOperation::initExecution() {
+	BlurBaseOperation::initExecution();
+
+	float rad = size*this->data->sizex;
+	if(rad<1)
+		rad= 1;
+
+	this->rad = rad;
+	this->gausstab = BlurBaseOperation::make_gausstab(rad);
+}
+
+void* GaussianXBlurOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers) {
+        void* buffer = getInputOperation(0)->initializeTileData(NULL, memoryBuffers);
+	return buffer;
+}
+
+void GaussianXBlurOperation::executePixel(float* color, int x, int y, MemoryBuffer *inputBuffers[], void *data) {
+
+	float tempColor[4];
+	tempColor[0] = 0;
+	tempColor[1] = 0;
+	tempColor[2] = 0;
+	tempColor[3] = 0;
+	float overallmultiplyer = 0;
+	MemoryBuffer* inputBuffer = (MemoryBuffer*)data;
+	float* buffer = inputBuffer->getBuffer();
+	int bufferwidth = inputBuffer->getWidth();
+	int bufferstartx = inputBuffer->getRect()->xmin;
+	int bufferstarty = inputBuffer->getRect()->ymin;
+
+	int miny = y;
+	int maxy = y;
+	int minx = x - this->rad;
+	int maxx = x + this->rad;
+	miny = max(miny, inputBuffer->getRect()->ymin);
+	minx = max(minx, inputBuffer->getRect()->xmin);
+	maxy = min(maxy, inputBuffer->getRect()->ymax);
+	maxx = min(maxx, inputBuffer->getRect()->xmax);
+
+	int index = 0;
+	int step = getStep();
+	int offsetadd = getOffsetAdd();
+	int bufferindex = ((minx - bufferstartx)*4)+((miny-bufferstarty)*4*bufferwidth);
+	for (int nx = minx ; nx < maxx ; nx +=step) {
+		float multiplyer = gausstab[index++];
+		tempColor[0] += multiplyer * buffer[bufferindex];
+		tempColor[1] += multiplyer * buffer[bufferindex+1];
+		tempColor[2] += multiplyer * buffer[bufferindex+2];
+		tempColor[3] += multiplyer * buffer[bufferindex+3];
+		overallmultiplyer += multiplyer;
+		bufferindex +=offsetadd;
+	}
+	float divider = 1.0/overallmultiplyer;
+	color[0] = tempColor[0]*divider;
+	color[1] = tempColor[1]*divider;
+	color[2] = tempColor[2]*divider;
+	color[3] = tempColor[3]*divider;
+}
+
+void GaussianXBlurOperation::deinitExecution() {
+	BlurBaseOperation::deinitExecution();
+	delete this->gausstab;
+	this->gausstab = NULL;
+}
+
+bool GaussianXBlurOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
+	rcti newInput;
+	newInput.xmax = input->xmax + rad;
+	newInput.xmin = input->xmin - rad;
+	newInput.ymax = input->ymax;
+	newInput.ymin = input->ymin;
+
+	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+}

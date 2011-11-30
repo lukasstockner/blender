@@ -12,7 +12,7 @@ incs += ' ../render/extern/include ../makesrna '
 incs += ' ../imbuf ../avi '
 incs += ' ../blenloader'
 incs += ' ../blenfont ../blenkernel ../renderconverter '
-incs += ' ../gpu #/extern/glew/include '
+incs += ' ../gpu #/extern/glew/include ../compositor'
 
 incs += ' ' + env['BF_OPENGL_INC']
 incs += ' ' + env['BF_ZLIB_INC']

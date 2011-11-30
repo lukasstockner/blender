@@ -444,6 +444,16 @@ static void node_composit_exec_rlayers(void *data, bNode *node, bNodeStack **UNU
 		RE_ReleaseResult(re);
 }
 
+static void node_composit_init_rlayers(bNodeTree *UNUSED(ntree), bNode* node, bNodeTemplate *UNUSED(ntemp))
+{
+	NodeRenderlayerData *data = MEM_callocN(sizeof(NodeRenderlayerData), "NodeRenderlayerData");
+	node->storage = data;
+	data->offsetx = 0;
+	data->offsety = 0;
+	data->angle = 0;
+	data->scalex = 1.0;
+	data->scaley = 1.0;
+}
 
 void register_node_type_cmp_rlayers(bNodeTreeType *ttype)
 {
@@ -453,6 +463,8 @@ void register_node_type_cmp_rlayers(bNodeTreeType *ttype)
 	node_type_socket_templates(&ntype, NULL, cmp_node_rlayers_out);
 	node_type_size(&ntype, 150, 100, 300);
 	node_type_exec(&ntype, node_composit_exec_rlayers);
+	node_type_init(&ntype, node_composit_init_rlayers);
+	node_type_storage(&ntype, "NodeRenderlayerData", node_free_standard_storage, node_copy_standard_storage);
 
 	nodeRegisterType(ttype, &ntype);
 }

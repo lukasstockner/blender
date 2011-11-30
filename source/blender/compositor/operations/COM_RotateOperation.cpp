@@ -1,0 +1,59 @@
+#include "COM_RotateOperation.h"
+#include "BLI_math.h"
+
+RotateOperation::RotateOperation() : NodeOperation() {
+	this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
+    this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
+	this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+    this->setResolutionInputSocketIndex(0);
+	this->imageSocket = NULL;
+}
+void RotateOperation::initExecution() {
+	this->imageSocket = this->getInputSocketReader(0);
+    this->centerX = this->getWidth()/2.0;
+    this->centerY = this->getHeight()/2.0;
+	const double rad = DEG2RAD(this->degree);
+	this->cosine = cos(rad);
+	this->sine = sin(rad);
+}
+
+void RotateOperation::deinitExecution() {
+	this->imageSocket = NULL;
+}
+
+
+void RotateOperation::executePixel(float *color,float x, float y, MemoryBuffer *inputBuffers[]) {
+	const float dy = y - this->centerY;
+    const float dx = x - this->centerX;
+    const float nx = this->centerX+(this->cosine*dx + this->sine*dy);
+    const float ny = this->centerY+(-this->sine*dx + this->cosine*dy);
+	this->imageSocket->read(color, nx, ny, inputBuffers);
+}
+
+bool RotateOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
+    rcti newInput;
+    const float dxmin = input->xmin - this->centerX;
+    const float dymin = input->ymin - this->centerY;
+    const float dxmax = input->xmax - this->centerX;
+    const float dymax = input->ymax - this->centerY;
+
+    const float x1 = this->centerX+(this->cosine*dxmin + this->sine*dymin);
+    const float x2 = this->centerX+(this->cosine*dxmax + this->sine*dymin);
+    const float x3 = this->centerX+(this->cosine*dxmin + this->sine*dymax);
+    const float x4 = this->centerX+(this->cosine*dxmax + this->sine*dymax);
+    const float y1 = this->centerY+(-this->sine*dxmin + this->cosine*dymin);
+    const float y2 = this->centerY+(-this->sine*dxmax + this->cosine*dymin);
+    const float y3 = this->centerY+(-this->sine*dxmin + this->cosine*dymax);
+    const float y4 = this->centerY+(-this->sine*dxmax + this->cosine*dymax);
+    const float minx = min(x1, min(x2, min(x3, x4)));
+    const float maxx = max(x1, max(x2, max(x3, x4)));
+    const float miny = min(y1, min(y2, min(y3, y4)));
+    const float maxy = max(y1, max(y2, max(y3, y4)));
+
+    newInput.xmax = ceil(maxx)+1;
+    newInput.xmin = floor(minx)-1;
+    newInput.ymax = ceil(maxy)+1;
+    newInput.ymin = floor(miny)-1;
+
+    return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+}

@@ -1,0 +1,9 @@
+#!/usr/bin/python
+Import ('env')
+
+sources = env.Glob('intern/*.c')
+defs = [ 'GLEW_STATIC' ]
+
+incs = '. ../blenkernel ../../../intern/guardedalloc'
+
+env.BlenderLib ( 'bf_opencl', sources, Split(incs), defines = defs, libtype=['core','player'], priority = [192,192] )

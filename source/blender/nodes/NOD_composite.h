@@ -1,4 +1,4 @@
-/*
+	/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -118,5 +118,13 @@ void register_node_type_cmp_moviedistortion(struct bNodeTreeType *ttype);
 void register_node_type_cmp_glare(struct bNodeTreeType *ttype);
 void register_node_type_cmp_tonemap(struct bNodeTreeType *ttype);
 void register_node_type_cmp_lensdist(struct bNodeTreeType *ttype);
+
+void register_node_type_cmp_dilateerode2(ListBase *lb);
+void register_node_type_cmp_boxmask(ListBase *lb);
+void register_node_type_cmp_ellipsemask(ListBase *lb);
+void register_node_type_cmp_bokehimage(ListBase *lb);
+void register_node_type_cmp_bokehblur(ListBase *lb);
+void register_node_type_cmp_switch(ListBase *lb);
+void register_node_type_cmp_opencltest(ListBase *lb);
 
 #endif

@@ -1802,6 +1802,166 @@ static void node_composit_buts_moviedistortion(uiLayout *layout, bContext *C, Po
 	uiItemR(layout, ptr, "distortion_type", 0, "", 0);
 }
 
+static void node_composit_buts_dilateerode2(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "distance", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "inset", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "switch", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+}
+
+static void node_composit_buts_switch(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "switch", 0, NULL, ICON_NONE);
+}
+static void node_composit_buts_boxmask(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiLayout *row;
+	row= uiLayoutRow(layout, 2);
+	uiItemR(row, ptr, "x", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "y", 0, NULL, ICON_NONE);
+	row= uiLayoutRow(layout, 2);
+	uiItemR(row, ptr, "width", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "height", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+
+	uiItemR(layout, ptr, "rotation", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "mask_type", 0, NULL, ICON_NONE);
+}
+
+static void node_composit_buts_bokehimage(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "flaps", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "angle", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "rounding", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "catadioptric", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "shift", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+}
+void node_composit_backdrop_viewer(SpaceNode* snode, ImBuf* backdrop, bNode* node, int x, int y) {
+//	node_composit_backdrop_canvas(snode, backdrop, node, x, y);
+	if (node->custom1 == 0) { /// @todo: why did we need this one?
+		const float backdropWidth = backdrop->x;
+		const float backdropHeight = backdrop->y;
+		const float cx  = x+snode->zoom*backdropWidth*node->custom3;
+		const float cy = y+snode->zoom*backdropHeight*node->custom4;
+
+		glColor3f(1.0, 1.0, 1.0);
+
+		glBegin(GL_LINES);
+		glVertex2f(cx-25, cy-25);
+		glVertex2f(cx+25, cy+25);
+		glVertex2f(cx+25, cy-25);
+		glVertex2f(cx-25, cy+25);
+		glEnd();
+	}
+}
+
+//void node_composit_backdrop_composite(SpaceNode* snode, ImBuf* backdrop, bNode* node, int x, int y) {
+//	node_composit_backdrop_canvas(snode, backdrop, node, x, y);
+//}
+
+void node_composit_backdrop_boxmask(SpaceNode* snode, ImBuf* backdrop, bNode* node, int x, int y) {
+	NodeBoxMask * boxmask = node->storage;
+	const float backdropWidth = backdrop->x;
+	const float backdropHeight = backdrop->y;
+	const float aspect = backdropWidth/backdropHeight;
+	const float rad = DEG2RAD(-boxmask->rotation);
+	const float cosine = cos(rad);
+	const float sine = sin(rad);
+	const float halveBoxWidth = backdropWidth*(boxmask->width/2.0f);
+	const float halveBoxHeight = backdropHeight*(boxmask->height/2.0f)*aspect;
+
+	float cx, cy, x1, x2, x3, x4;
+	float y1, y2, y3, y4;
+
+
+	/* keep this, saves us from a version patch */
+	if(snode->zoom==0.0f) snode->zoom= 1.0f;
+
+	glColor3f(1.0, 1.0, 1.0);
+
+	cx  = x+snode->zoom*backdropWidth*boxmask->x;
+	cy = y+snode->zoom*backdropHeight*boxmask->y;
+
+	x1 = cx - (cosine*halveBoxWidth+sine*halveBoxHeight)*snode->zoom;
+	x2 = cx - (cosine*-halveBoxWidth+sine*halveBoxHeight)*snode->zoom;
+	x3 = cx - (cosine*-halveBoxWidth+sine*-halveBoxHeight)*snode->zoom;
+	x4 = cx - (cosine*halveBoxWidth+sine*-halveBoxHeight)*snode->zoom;
+	y1 = cy - (-sine*halveBoxWidth + cosine*halveBoxHeight)*snode->zoom;
+	y2 = cy - (-sine*-halveBoxWidth + cosine*halveBoxHeight)*snode->zoom;
+	y3 = cy - (-sine*-halveBoxWidth + cosine*-halveBoxHeight)*snode->zoom;
+	y4 = cy - (-sine*halveBoxWidth + cosine*-halveBoxHeight)*snode->zoom;
+
+	glBegin(GL_LINE_LOOP);
+	glVertex2f(x1, y1);
+	glVertex2f(x2, y2);
+	glVertex2f(x3, y3);
+	glVertex2f(x4, y4);
+	glEnd();
+}
+void node_composit_backdrop_ellipsemask(SpaceNode* snode, ImBuf* backdrop, bNode* node, int x, int y) {
+	NodeEllipseMask * ellipsemask = node->storage;
+	const float backdropWidth = backdrop->x;
+	const float backdropHeight = backdrop->y;
+	const float aspect = backdropWidth/backdropHeight;
+	const float rad = DEG2RAD(-ellipsemask->rotation);
+	const float cosine = cos(rad);
+	const float sine = sin(rad);
+	const float halveBoxWidth = backdropWidth*(ellipsemask->width/2.0f);
+	const float halveBoxHeight = backdropHeight*(ellipsemask->height/2.0f)*aspect;
+
+	float cx, cy, x1, x2, x3, x4;
+	float y1, y2, y3, y4;
+
+
+	/* keep this, saves us from a version patch */
+	if(snode->zoom==0.0f) snode->zoom= 1.0f;
+
+	glColor3f(1.0, 1.0, 1.0);
+
+	cx  = x+snode->zoom*backdropWidth*ellipsemask->x;
+	cy = y+snode->zoom*backdropHeight*ellipsemask->y;
+
+	x1 = cx - (cosine*halveBoxWidth+sine*halveBoxHeight)*snode->zoom;
+	x2 = cx - (cosine*-halveBoxWidth+sine*halveBoxHeight)*snode->zoom;
+	x3 = cx - (cosine*-halveBoxWidth+sine*-halveBoxHeight)*snode->zoom;
+	x4 = cx - (cosine*halveBoxWidth+sine*-halveBoxHeight)*snode->zoom;
+	y1 = cy - (-sine*halveBoxWidth + cosine*halveBoxHeight)*snode->zoom;
+	y2 = cy - (-sine*-halveBoxWidth + cosine*halveBoxHeight)*snode->zoom;
+	y3 = cy - (-sine*-halveBoxWidth + cosine*-halveBoxHeight)*snode->zoom;
+	y4 = cy - (-sine*halveBoxWidth + cosine*-halveBoxHeight)*snode->zoom;
+
+	glBegin(GL_LINE_LOOP);
+
+	glVertex2f(x1, y1);
+	glVertex2f(x2, y2);
+	glVertex2f(x3, y3);
+	glVertex2f(x4, y4);
+	glEnd();
+}
+
+static void node_composit_buts_ellipsemask(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiLayout *row;
+	row= uiLayoutRow(layout, 2);
+	uiItemR(row, ptr, "x", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "y", 0, NULL, ICON_NONE);
+	row= uiLayoutRow(layout, 2);
+	uiItemR(row, ptr, "width", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "height", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+
+	uiItemR(layout, ptr, "rotation", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "mask_type", 0, NULL, ICON_NONE);
+}
+static void node_composit_buts_viewer_but(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "tileorder", 0, NULL, ICON_NONE);
+	if (RNA_enum_get(ptr, "tileorder")==0) {
+		uiItemR(layout, ptr, "centerx", 0, NULL, ICON_NONE);
+		uiItemR(layout, ptr, "centery", 0, NULL, ICON_NONE);
+	}
+}
+
+/// end added
+
 /* only once called */
 static void node_composit_set_butfunc(bNodeType *ntype)
 {
@@ -1964,6 +2124,29 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 		case CMP_NODE_MOVIEDISTORTION:
 			ntype->uifunc= node_composit_buts_moviedistortion;
 			break;
+		case CMP_NODE_DILATEERODE2:
+			ntype->uifunc= node_composit_buts_dilateerode2;
+			break;
+		case CMP_NODE_SWITCH:
+			ntype->uifunc= node_composit_buts_switch;
+			break;
+		case CMP_NODE_MASK_BOX:
+			ntype->uifunc= node_composit_buts_boxmask;
+			ntype->uibackdropfunc = node_composit_backdrop_boxmask;
+			break;
+		case CMP_NODE_MASK_ELLIPSE:
+			ntype->uifunc= node_composit_buts_ellipsemask;
+			ntype->uibackdropfunc = node_composit_backdrop_ellipsemask;
+			break;
+		case CMP_NODE_BOKEHIMAGE:
+			ntype->uifunc= node_composit_buts_bokehimage;
+			break;
+		case CMP_NODE_VIEWER:
+			ntype->uifunc = NULL;
+			ntype->uifuncbut= node_composit_buts_viewer_but;
+			ntype->uibackdropfunc = node_composit_backdrop_viewer;
+			break;
+
 		default:
 			ntype->uifunc= NULL;
 	}
@@ -2253,7 +2436,20 @@ void draw_nodespace_back_pix(ARegion *ar, SpaceNode *snode, int color_manage)
 					glPixelZoom(1.0f, 1.0f);
 				}
 			}
-			
+			/// @note draw selected info on backdrop
+			if (snode->edittree) {
+				bNode *node = snode->edittree->nodes.first;
+				while (node) {
+					if (node->flag & NODE_SELECT) {
+						if (node->typeinfo->uibackdropfunc) {
+							node->typeinfo->uibackdropfunc(snode, ibuf, node, x, y);
+						}
+					}
+					node = node->next;
+				}
+			}
+			/// End added
+
 			glMatrixMode(GL_PROJECTION);
 			glPopMatrix();
 			glMatrixMode(GL_MODELVIEW);

@@ -143,6 +143,8 @@ typedef struct bNodeType {
 	void (*uifunc)(struct uiLayout *, struct bContext *C, struct PointerRNA *ptr);
 	/// Additional parameters in the side panel.
 	void (*uifuncbut)(struct uiLayout *, struct bContext *C, struct PointerRNA *ptr);
+	/// Additional drawing on backdrop.
+	void (*uibackdropfunc)(struct SpaceNode* snode, struct ImBuf* backdrop, struct bNode* node, int x, int y);
 	/// Optional custom label function for the node header.
 	const char *(*labelfunc)(struct bNode *);
 	/// Optional custom resize handle polling.
@@ -644,6 +646,17 @@ void			ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMaterial *mat);
 #define CMP_NODE_GLARE		301
 #define CMP_NODE_TONEMAP	302
 #define CMP_NODE_LENSDIST	303
+
+#define CMP_NODE_DILATEERODE2	311
+#define CMP_NODE_COLORCORRECTION 312
+#define CMP_NODE_MASK_BOX       313
+#define CMP_NODE_MASK_ELLIPSE   314
+#define CMP_NODE_BOKEHIMAGE     315
+#define CMP_NODE_BOKEHBLUR      316
+#define CMP_NODE_LENSFLARE      317
+#define CMP_NODE_SWITCH         318
+
+#define CMP_NODE_OPENCLTEST     319
 
 /* channel toggles */
 #define CMP_CHAN_RGB		1

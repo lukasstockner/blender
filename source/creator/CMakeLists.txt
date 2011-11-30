@@ -38,6 +38,7 @@ blender_include_dirs(
 	../blender/makesdna
 	../blender/gpu
 	../blender/windowmanager
+	../blender/opencl
 )
 
 if(WITH_LIBMV)
@@ -830,6 +831,9 @@ endif()
 		cycles_kernel
 		cycles_util
 		cycles_subd
+		bf_compositor #added for opencl compositor
+		bf_opencl #added for opencl compositor
+
 	)
 
 	if(WITH_LIBMV)
