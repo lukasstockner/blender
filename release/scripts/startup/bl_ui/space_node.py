@@ -208,10 +208,10 @@ class NODE_PT_quality(bpy.types.Panel):
         snode = context.space_data
         tree = snode.node_tree
 
-        layout.prop(tree, "render_quality")
-        layout.prop(tree, "edit_quality")
+        layout.prop(tree, "render_quality", text="Render")
+        layout.prop(tree, "edit_quality", text="Edit")
         layout.prop(tree, "chunksize")
-        layout.prop(tree, "opencl")
+        layout.prop(tree, "use_opencl")
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)
