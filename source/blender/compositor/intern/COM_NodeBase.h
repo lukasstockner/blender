@@ -25,23 +25,23 @@ private:
 	/**
 	  * @brief the list of actual inputsockets @see InputSocket
 	  */
-	vector<InputSocket> inputsockets;
+	vector<InputSocket*> inputsockets;
 
 	/**
 	  * @brief the list of actual outputsockets @see OutputSocket
 	  */
-	vector<OutputSocket> outputsockets;
+	vector<OutputSocket*> outputsockets;
 
 protected:
 	/**
 	  * @brief get access to the vector of input sockets
 	  */
-    inline vector<InputSocket>& getInputSockets() {return this->inputsockets;}
+    inline vector<InputSocket*>& getInputSockets() {return this->inputsockets;}
 
 	/**
 	  * @brief get access to the vector of input sockets
 	  */
-	inline vector<OutputSocket>& getOutputSockets() {return this->outputsockets;}
+	inline vector<OutputSocket*>& getOutputSockets() {return this->outputsockets;}
 
 
 public:

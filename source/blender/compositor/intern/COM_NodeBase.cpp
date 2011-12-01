@@ -12,7 +12,16 @@ NodeBase::NodeBase() {
 
 
 NodeBase::~NodeBase(){
+	unsigned int index;
+	for (index = 0 ; index < this->outputsockets.size(); index ++) {
+		OutputSocket * socket = this->outputsockets[index];
+		delete socket;
+	}
     this->outputsockets.clear();
+	for (index = 0 ; index < this->inputsockets.size(); index ++) {
+		InputSocket * socket = this->inputsockets[index];
+		delete socket;
+	}
     this->inputsockets.clear();
 }
 
@@ -27,7 +36,7 @@ void NodeBase::addInputSocket(DataType datatype, InputSocketResizeMode resizeMod
 	InputSocket *socket = new InputSocket(datatype, resizeMode);
 	socket->setEditorSocket(bSocket);
     socket->setNode(this);
-    this->inputsockets.push_back(*socket);
+    this->inputsockets.push_back(socket);
 }
 
 void NodeBase::addOutputSocket(DataType datatype) {
@@ -38,31 +47,31 @@ void NodeBase::addOutputSocket(DataType datatype, bNodeSocket* bSocket) {
 	OutputSocket *socket = new OutputSocket(datatype);
 	socket->setEditorSocket(bSocket);
     socket->setNode(this);
-    this->outputsockets.push_back(*socket);
+    this->outputsockets.push_back(socket);
 }
 const bool NodeBase::isInputNode() const {
     return this->inputsockets.size() == 0;
 }
 
 OutputSocket* NodeBase::getOutputSocket(int index) {
-    return &this->outputsockets[index];
+    return this->outputsockets[index];
 }
 
 InputSocket* NodeBase::getInputSocket(int index) {
-    return &this->inputsockets[index];
+    return this->inputsockets[index];
 }
 
 
 void NodeBase::determineActualSocketDataTypes() {
 	unsigned int index;
 	for (index = 0 ; index < this->outputsockets.size() ; index ++) {
-		OutputSocket* socket = &(this->outputsockets[index]);
+		OutputSocket* socket = this->outputsockets[index];
 		if (socket->getActualDataType() ==COM_DT_UNKNOWN && socket->isConnected()) {
 			socket->determineActualDataType();
 		}
 	}
 	for (index = 0 ; index < this->inputsockets.size() ; index ++) {
-		InputSocket* socket = &(this->inputsockets[index]);
+		InputSocket* socket = this->inputsockets[index];
 		if (socket->getActualDataType() ==COM_DT_UNKNOWN) {
 			socket->determineActualDataType();
 		}
@@ -82,7 +91,7 @@ void NodeBase::notifyActualDataTypeSet(InputSocket *socket, DataType actualType)
 	unsigned int index;
     int socketIndex = -1;
     for (index = 0 ; index < this->inputsockets.size() ; index ++) {
-        if (&this->inputsockets[index] == socket) {
+        if (this->inputsockets[index] == socket) {
 			socketIndex = (int)index;
             break;
         }
@@ -90,7 +99,7 @@ void NodeBase::notifyActualDataTypeSet(InputSocket *socket, DataType actualType)
     if (socketIndex == -1) return;
 
     for (index = 0 ; index < this->outputsockets.size() ; index ++) {
-        OutputSocket* socket = &(this->outputsockets[index]);
+        OutputSocket* socket = this->outputsockets[index];
         if (socket->isActualDataTypeDeterminedByInputSocket() &&
                 socket->getInputSocketDataTypeDeterminatorIndex() == socketIndex) {
             socket->setActualDataType(actualType);

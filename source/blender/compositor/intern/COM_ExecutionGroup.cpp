@@ -113,11 +113,14 @@ void ExecutionGroup::initExecution()
 	unsigned int index;
 	determineNumberOfChunks();
 
-	this->chunkExecutionStates = new ChunkExecutionState[numberOfChunks];
-
-	for (index = 0 ; index < numberOfChunks ; index ++) {
-		this->chunkExecutionStates[index] = COM_ES_NOT_SCHEDULED;
+	this->chunkExecutionStates = NULL;
+	if (this->numberOfChunks != 0) {
+		this->chunkExecutionStates = new ChunkExecutionState[numberOfChunks];
+		for (index = 0 ; index < numberOfChunks ; index ++) {
+			this->chunkExecutionStates[index] = COM_ES_NOT_SCHEDULED;
+		}
 	}
+
 
 	unsigned int maxNumber = 0;
 

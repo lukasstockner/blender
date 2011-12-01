@@ -16,13 +16,13 @@ NodeOperation::NodeOperation() {
 void NodeOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {
     unsigned int temp[2];
     unsigned int temp2[2];
-	vector<InputSocket> &inputsockets = this->getInputSockets();
+	vector<InputSocket*> &inputsockets = this->getInputSockets();
 
 	for (unsigned int index = 0 ; index < inputsockets.size();index++) {
-		InputSocket& inputSocket = inputsockets[index];
-		if (inputSocket.isConnected()) {
+		InputSocket* inputSocket = inputsockets[index];
+		if (inputSocket->isConnected()) {
             if (index == this->resolutionInputSocketIndex) {
-				inputSocket.determineResolution(resolution, preferredResolution);
+				inputSocket->determineResolution(resolution, preferredResolution);
                 temp2[0] = resolution[0];
 				temp2[1] = resolution[1];
 				break;
@@ -30,10 +30,10 @@ void NodeOperation::determineResolution(unsigned int resolution[], unsigned int 
         }
     }
 	for (unsigned int index = 0 ; index < inputsockets.size();index++) {
-		InputSocket& inputSocket = inputsockets[index];
-		if (inputSocket.isConnected()) {
+		InputSocket* inputSocket = inputsockets[index];
+		if (inputSocket->isConnected()) {
 			if (index != resolutionInputSocketIndex) {
-				inputSocket.determineResolution(temp, temp2);
+				inputSocket->determineResolution(temp, temp2);
             }
         }
     }
@@ -60,9 +60,9 @@ NodeOperation* NodeOperation::getInputOperation(unsigned int inputSocketIndex) {
 }
 
 void NodeOperation::getConnectedInputSockets(vector<InputSocket*> *sockets) {
-	vector<InputSocket> &inputsockets = this->getInputSockets();
-	for (vector<InputSocket>::iterator iterator = inputsockets.begin() ; iterator!= inputsockets.end() ; iterator++) {
-        InputSocket *socket = &(*iterator);
+	vector<InputSocket*> &inputsockets = this->getInputSockets();
+	for (vector<InputSocket*>::iterator iterator = inputsockets.begin() ; iterator!= inputsockets.end() ; iterator++) {
+        InputSocket *socket = *iterator;
         if (socket->isConnected()) {
             sockets->push_back(socket);
         }
@@ -75,12 +75,12 @@ bool NodeOperation::determineDependingAreaOfInterest(rcti * input, ReadBufferOpe
         return false;
     } else {
         unsigned int index;
-		vector<InputSocket> &inputsockets = this->getInputSockets();
+		vector<InputSocket*> &inputsockets = this->getInputSockets();
 
 		for (index = 0 ; index < inputsockets.size() ; index++) {
-			InputSocket& inputsocket = inputsockets[index];
-			if (inputsocket.isConnected()) {
-				NodeOperation* inputoperation = (NodeOperation*)inputsocket.getConnection()->getFromNode();
+			InputSocket* inputsocket = inputsockets[index];
+			if (inputsocket->isConnected()) {
+				NodeOperation* inputoperation = (NodeOperation*)inputsocket->getConnection()->getFromNode();
 				bool result = inputoperation->determineDependingAreaOfInterest(input, readOperation, output);
                 if (result) {
                     return true;

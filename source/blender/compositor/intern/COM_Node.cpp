@@ -143,18 +143,18 @@ bNodeSocket* Node::getEditorOutputSocket(int editorNodeInputSocketIndex) {
 }
 
 InputSocket* Node::findInputSocketBybNodeSocket(bNodeSocket* socket) {
-	vector<InputSocket> &inputsockets = this->getInputSockets();
+	vector<InputSocket*> &inputsockets = this->getInputSockets();
 	unsigned int index;
 	for (index = 0 ; index < inputsockets.size(); index ++) {
-		InputSocket* input = &inputsockets[index];
+		InputSocket* input = inputsockets[index];
 		if (input->getbNodeSocket() == socket) {
 			return input;
 		}
 	}
 	if (this->isGroupNode()) {
-		vector<OutputSocket> &outputsockets = this->getOutputSockets();
+		vector<OutputSocket*> &outputsockets = this->getOutputSockets();
 		for (index = 0 ; index < outputsockets.size(); index ++) {
-			OutputSocket* output = &outputsockets[index];
+			OutputSocket* output = outputsockets[index];
 			if (output->getGroupInputSocket() != NULL) {
 				if (output->getGroupInputSocket()->getbNodeSocket() == socket) {
 					return output->getGroupInputSocket();
@@ -166,18 +166,18 @@ InputSocket* Node::findInputSocketBybNodeSocket(bNodeSocket* socket) {
 }
 
 OutputSocket* Node::findOutputSocketBybNodeSocket(bNodeSocket* socket) {
-	vector<OutputSocket> &outputsockets = this->getOutputSockets();
+	vector<OutputSocket*> &outputsockets = this->getOutputSockets();
 	unsigned int index;
 	for (index = 0 ; index < outputsockets.size(); index ++) {
-		OutputSocket* output = &outputsockets[index];
+		OutputSocket* output = outputsockets[index];
 		if (output->getbNodeSocket() == socket) {
 			return output;
 		}
 	}
 	if (this->isGroupNode()) {
-		vector<InputSocket> &inputsockets = this->getInputSockets();
+		vector<InputSocket*> &inputsockets = this->getInputSockets();
 		for (index = 0 ; index < inputsockets.size(); index ++) {
-			InputSocket* input = &inputsockets[index];
+			InputSocket* input = inputsockets[index];
 			if (input->getGroupOutputSocket() != NULL) {
 				if (input->getGroupOutputSocket()->getbNodeSocket() == socket) {
 					return input->getGroupOutputSocket();
