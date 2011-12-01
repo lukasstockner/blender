@@ -3,7 +3,7 @@
 #include "COM_defines.h"
 
 ReadBufferOperation::ReadBufferOperation():NodeOperation() {
-    this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+    this->addOutputSocket(COM_DT_COLOR);
     this->offset = 0;
     this->readmode = COM_RM_NORMAL;
 }

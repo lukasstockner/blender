@@ -3,7 +3,7 @@
 #include "COM_defines.h"
 
 SetVectorOperation::SetVectorOperation(): NodeOperation() {
-    this->addOutputSocket(*(new OutputSocket(COM_DT_VECTOR)));
+    this->addOutputSocket(COM_DT_VECTOR);
 }
 
 void SetVectorOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {

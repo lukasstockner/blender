@@ -4,8 +4,8 @@
 #include "BLI_math.h"
 
 DilateErodeOperation::DilateErodeOperation(): NodeOperation() {
-    this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
-    this->addOutputSocket(*(new OutputSocket(COM_DT_VALUE)));
+    this->addInputSocket(COM_DT_VALUE);
+    this->addOutputSocket(COM_DT_VALUE);
 	this->setComplex(true);
     this->inputProgram = NULL;
 	this->inset = 0.0f;

@@ -17,8 +17,8 @@ extern "C" {
 
 
 ViewerOperation::ViewerOperation() : ViewerBaseOperation() {
-	this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-	this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
+	this->addInputSocket(COM_DT_COLOR);
+	this->addInputSocket(COM_DT_VALUE);
 
 	this->imageInput = NULL;
 	this->alphaInput = NULL;

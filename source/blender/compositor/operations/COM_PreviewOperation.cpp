@@ -18,7 +18,7 @@ extern "C" {
 
 
 PreviewOperation::PreviewOperation() : NodeOperation() {
-	this->addInputSocket(*(new InputSocket(COM_DT_COLOR, COM_SC_NO_RESIZE)));
+	this->addInputSocket(COM_DT_COLOR, COM_SC_NO_RESIZE);
     this->outputBuffer = NULL;
     this->input = NULL;
     this->divider = 1.0f;

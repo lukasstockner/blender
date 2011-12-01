@@ -5,7 +5,7 @@
 
 /// @TODO: writebuffers don't have an actual data type set.
 WriteBufferOperation::WriteBufferOperation() :NodeOperation() {
-	this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
+	this->addInputSocket(COM_DT_COLOR);
 	this->memoryProxy = new MemoryProxy();
 	this->memoryProxy->setWriteBufferOperation(this);
 	this->memoryProxy->setExecutor(NULL);

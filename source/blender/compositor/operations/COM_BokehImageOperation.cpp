@@ -4,7 +4,7 @@
 #include "BLI_math.h"
 
 BokehImageOperation::BokehImageOperation(): NodeOperation() {
-    this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+    this->addOutputSocket(COM_DT_COLOR);
 }
 void BokehImageOperation::initExecution() {
 	this->centerX = getWidth() / 2;

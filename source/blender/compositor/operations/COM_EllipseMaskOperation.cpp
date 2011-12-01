@@ -5,9 +5,9 @@
 #include "DNA_node_types.h"
 
 EllipseMaskOperation::EllipseMaskOperation(): NodeOperation() {
-    this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
-    this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
-    this->addOutputSocket(*(new OutputSocket(COM_DT_VALUE)));
+    this->addInputSocket(COM_DT_VALUE);
+    this->addInputSocket(COM_DT_VALUE);
+    this->addOutputSocket(COM_DT_VALUE);
     this->inputMask = NULL;
     this->inputValue = NULL;
     this->cosine = 0.0f;

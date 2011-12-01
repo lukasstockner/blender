@@ -7,9 +7,9 @@
 
 ColorBalanceNode::ColorBalanceNode(bNode* editorNode): Node(editorNode)
 {
-//    this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
-//    this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-//    this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+//    this->addInputSocket(COM_DT_VALUE);
+//    this->addInputSocket(COM_DT_COLOR);
+//    this->addOutputSocket(COM_DT_COLOR);
 
 }
 void ColorBalanceNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context) {

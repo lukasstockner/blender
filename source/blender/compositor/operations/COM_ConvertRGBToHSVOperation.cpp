@@ -4,8 +4,8 @@
 #include "BLI_math_color.h"
 
 ConvertRGBToHSVOperation::ConvertRGBToHSVOperation(): NodeOperation() {
-    this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-    this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+    this->addInputSocket(COM_DT_COLOR);
+    this->addOutputSocket(COM_DT_COLOR);
     this->inputOperation = NULL;
 }
 

@@ -1,8 +1,8 @@
 #include "COM_FlipOperation.h"
 
 FlipOperation::FlipOperation() : NodeOperation() {
-    this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-    this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+    this->addInputSocket(COM_DT_COLOR);
+    this->addOutputSocket(COM_DT_COLOR);
     this->setResolutionInputSocketIndex(0);
     this->inputOperation = NULL;
     this->flipX = true;

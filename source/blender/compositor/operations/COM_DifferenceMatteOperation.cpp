@@ -4,9 +4,9 @@
 #include "BLI_math.h"
 
 DifferenceMatteOperation::DifferenceMatteOperation(): NodeOperation() {
-	addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-	addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-	addOutputSocket(*(new OutputSocket(COM_DT_VALUE)));
+	addInputSocket(COM_DT_COLOR);
+	addInputSocket(COM_DT_COLOR);
+	addOutputSocket(COM_DT_VALUE);
 
 	inputImage1Program = NULL;
 	inputImage2Program = NULL;

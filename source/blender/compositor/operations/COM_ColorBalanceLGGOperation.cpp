@@ -19,9 +19,9 @@ inline float colorbalance_lgg(float in, float lift_lgg, float gamma_inv, float g
 }
 
 ColorBalanceLGGOperation::ColorBalanceLGGOperation(): NodeOperation() {
-    this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
-    this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-    this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+    this->addInputSocket(COM_DT_VALUE);
+    this->addInputSocket(COM_DT_COLOR);
+    this->addOutputSocket(COM_DT_COLOR);
     this->inputValueOperation = NULL;
     this->inputColorOperation = NULL;
     this->setResolutionInputSocketIndex(1);

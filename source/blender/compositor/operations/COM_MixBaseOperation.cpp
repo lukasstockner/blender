@@ -3,10 +3,10 @@
 #include "COM_OutputSocket.h"
 
 MixBaseOperation::MixBaseOperation(): NodeOperation() {
-    this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
-    this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-    this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-    this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+    this->addInputSocket(COM_DT_VALUE);
+    this->addInputSocket(COM_DT_COLOR);
+    this->addInputSocket(COM_DT_COLOR);
+    this->addOutputSocket(COM_DT_COLOR);
     this->inputValueOperation = NULL;
     this->inputColor1Operation = NULL;
     this->inputColor2Operation = NULL;

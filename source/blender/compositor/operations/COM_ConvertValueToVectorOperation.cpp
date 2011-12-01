@@ -3,8 +3,8 @@
 #include "COM_OutputSocket.h"
 
 ConvertValueToVectorOperation::ConvertValueToVectorOperation(): NodeOperation() {
-    this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
-    this->addOutputSocket(*(new OutputSocket(COM_DT_VECTOR)));
+    this->addInputSocket(COM_DT_VALUE);
+    this->addOutputSocket(COM_DT_VECTOR);
     this->inputOperation = NULL;
 }
 

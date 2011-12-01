@@ -2,7 +2,7 @@
 #include "COM_OutputSocket.h"
 
 SetValueOperation::SetValueOperation(): NodeOperation() {
-    this->addOutputSocket(*(new OutputSocket(COM_DT_VALUE)));
+    this->addOutputSocket(COM_DT_VALUE);
 }
 
 void SetValueOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {

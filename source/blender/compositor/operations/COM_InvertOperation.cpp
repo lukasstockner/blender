@@ -3,9 +3,9 @@
 #include "COM_OutputSocket.h"
 
 InvertOperation::InvertOperation(): NodeOperation() {
-    this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
-    this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-    this->addOutputSocket(*(new OutputSocket(COM_DT_VALUE)));
+    this->addInputSocket(COM_DT_VALUE);
+    this->addInputSocket(COM_DT_COLOR);
+    this->addOutputSocket(COM_DT_VALUE);
     this->inputValueProgram = NULL;
     this->inputColorProgram = NULL;
     this->color = true;

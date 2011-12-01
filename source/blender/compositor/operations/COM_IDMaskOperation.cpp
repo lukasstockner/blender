@@ -3,8 +3,8 @@
 #include "COM_OutputSocket.h"
 
 IDMaskOperation::IDMaskOperation(): NodeOperation() {
-    this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
-    this->addOutputSocket(*(new OutputSocket(COM_DT_VALUE)));
+    this->addInputSocket(COM_DT_VALUE);
+    this->addOutputSocket(COM_DT_VALUE);
     this->inputProgram = NULL;
 }
 void IDMaskOperation::initExecution() {

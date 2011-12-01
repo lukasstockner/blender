@@ -4,11 +4,11 @@
 #include "BLI_utildefines.h"
 
 ZCombineOperation::ZCombineOperation(): NodeOperation() {
-	this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-	this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
-	this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-	this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
-	this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+	this->addInputSocket(COM_DT_COLOR);
+	this->addInputSocket(COM_DT_VALUE);
+	this->addInputSocket(COM_DT_COLOR);
+	this->addInputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_COLOR);
 
 	this->image1Reader = NULL;
 	this->depth1Reader = NULL;

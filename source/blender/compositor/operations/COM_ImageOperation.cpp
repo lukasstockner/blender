@@ -24,10 +24,10 @@ BaseImageOperation::BaseImageOperation(): NodeOperation() {
 	this->interpolation = COM_IM_NEAREST;
 }
 ImageOperation::ImageOperation(): BaseImageOperation() {
-    this->addOutputSocket(*new OutputSocket(COM_DT_COLOR));
+    this->addOutputSocket(COM_DT_COLOR);
 }
 ImageAlphaOperation::ImageAlphaOperation(): BaseImageOperation() {
-    this->addOutputSocket(*new OutputSocket(COM_DT_VALUE));
+    this->addOutputSocket(COM_DT_VALUE);
 }
 
 static ImBuf *node_composit_get_image(Image *ima, ImageUser *iuser)

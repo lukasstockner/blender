@@ -3,7 +3,7 @@
 #include "stdio.h"
 
 OpenCLTestOperation::OpenCLTestOperation(): NodeOperation() {
-    this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+    this->addOutputSocket(COM_DT_COLOR);
 	this->setComplex(true);
 	this->setOpenCL(true);
 	this->openCLKernel = NULL;

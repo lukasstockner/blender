@@ -16,13 +16,29 @@ NodeBase::~NodeBase(){
     this->inputsockets.clear();
 }
 
-void NodeBase::addInputSocket(InputSocket &socket) {
-    socket.setNode(this);
-    this->inputsockets.push_back(socket);
+void NodeBase::addInputSocket(DataType datatype) {
+	this->addInputSocket(datatype, COM_SC_CENTER, NULL);
 }
-void NodeBase::addOutputSocket(OutputSocket &socket) {
-    socket.setNode(this);
-    this->outputsockets.push_back(socket);
+
+void NodeBase::addInputSocket(DataType datatype, InputSocketResizeMode resizeMode) {
+	this->addInputSocket(datatype, resizeMode, NULL);
+}
+void NodeBase::addInputSocket(DataType datatype, InputSocketResizeMode resizeMode, bNodeSocket* bSocket) {
+	InputSocket *socket = new InputSocket(datatype, resizeMode);
+	socket->setEditorSocket(bSocket);
+    socket->setNode(this);
+    this->inputsockets.push_back(*socket);
+}
+
+void NodeBase::addOutputSocket(DataType datatype) {
+	this->addOutputSocket(datatype, NULL);
+	
+}
+void NodeBase::addOutputSocket(DataType datatype, bNodeSocket* bSocket) {
+	OutputSocket *socket = new OutputSocket(datatype);
+	socket->setEditorSocket(bSocket);
+    socket->setNode(this);
+    this->outputsockets.push_back(*socket);
 }
 const bool NodeBase::isInputNode() const {
     return this->inputsockets.size() == 0;

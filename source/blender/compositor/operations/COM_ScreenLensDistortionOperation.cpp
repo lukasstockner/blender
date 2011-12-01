@@ -8,8 +8,8 @@ extern "C" {
 }
 
 ScreenLensDistortionOperation::ScreenLensDistortionOperation(): NodeOperation() {
-	this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-	this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+	this->addInputSocket(COM_DT_COLOR);
+	this->addOutputSocket(COM_DT_COLOR);
 	this->setComplex(true);
     this->inputProgram = NULL;
 }

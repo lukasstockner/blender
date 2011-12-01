@@ -11,8 +11,8 @@ extern "C" {
 #endif
 
 VectorCurveOperation::VectorCurveOperation(): CurveBaseOperation() {
-	this->addInputSocket(*(new InputSocket(COM_DT_VECTOR)));
-	this->addOutputSocket(*(new OutputSocket(COM_DT_VECTOR)));
+	this->addInputSocket(COM_DT_VECTOR);
+	this->addOutputSocket(COM_DT_VECTOR);
 
 	this->inputProgram = NULL;
 }

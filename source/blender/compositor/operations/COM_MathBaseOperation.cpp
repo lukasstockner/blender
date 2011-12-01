@@ -4,9 +4,9 @@
 #include "BLI_math.h"
 
 MathBaseOperation::MathBaseOperation(): NodeOperation() {
-    this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
-    this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
-    this->addOutputSocket(*(new OutputSocket(COM_DT_VALUE)));
+    this->addInputSocket(COM_DT_VALUE);
+    this->addInputSocket(COM_DT_VALUE);
+    this->addOutputSocket(COM_DT_VALUE);
     this->inputValue1Operation = NULL;
     this->inputValue2Operation = NULL;
 }

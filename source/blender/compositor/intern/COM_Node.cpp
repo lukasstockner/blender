@@ -23,9 +23,7 @@ Node::Node(bNode* editorNode) {
         if (input->type == SOCK_RGBA) dt = COM_DT_COLOR;
         if (input->type == SOCK_VECTOR) dt = COM_DT_VECTOR;
 
-		InputSocket * inputsocket = new InputSocket(dt, (InputSocketResizeMode)input->resizemode);
-        inputsocket->setEditorSocket(input);
-        this->addInputSocket(*inputsocket);
+		this->addInputSocket(dt, (InputSocketResizeMode)input->resizemode, input);
         input = (bNodeSocket*)input->next;
     }
     bNodeSocket *output = (bNodeSocket*)editorNode->outputs.first;
@@ -34,9 +32,7 @@ Node::Node(bNode* editorNode) {
         if (output->type == SOCK_RGBA) dt = COM_DT_COLOR;
         if (output->type == SOCK_VECTOR) dt = COM_DT_VECTOR;
 
-        OutputSocket * outputsocket = new OutputSocket(dt);
-        outputsocket->setEditorSocket(output);
-        this->addOutputSocket(*outputsocket);
+        this->addOutputSocket(dt, output);
         output = (bNodeSocket*)output->next;
     }
 }

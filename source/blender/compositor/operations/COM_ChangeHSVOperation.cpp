@@ -3,8 +3,8 @@
 #include "COM_OutputSocket.h"
 
 ChangeHSVOperation::ChangeHSVOperation(): NodeOperation() {
-    this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-    this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+    this->addInputSocket(COM_DT_COLOR);
+    this->addOutputSocket(COM_DT_COLOR);
     this->inputOperation = NULL;
 }
 

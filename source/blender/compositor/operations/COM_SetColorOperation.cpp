@@ -2,7 +2,7 @@
 #include "COM_OutputSocket.h"
 
 SetColorOperation::SetColorOperation(): NodeOperation() {
-    this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+    this->addOutputSocket(COM_DT_COLOR);
 }
 
 void SetColorOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {

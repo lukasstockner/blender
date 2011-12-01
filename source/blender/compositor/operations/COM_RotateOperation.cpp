@@ -2,9 +2,9 @@
 #include "BLI_math.h"
 
 RotateOperation::RotateOperation() : NodeOperation() {
-	this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-    this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
-	this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+	this->addInputSocket(COM_DT_COLOR);
+    this->addInputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_COLOR);
     this->setResolutionInputSocketIndex(0);
 	this->imageSocket = NULL;
 }

@@ -3,8 +3,8 @@
 #include "COM_OutputSocket.h"
 
 ConvertColorToBWOperation::ConvertColorToBWOperation(): NodeOperation() {
-    this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-    this->addOutputSocket(*(new OutputSocket(COM_DT_VALUE)));
+    this->addInputSocket(COM_DT_COLOR);
+    this->addOutputSocket(COM_DT_VALUE);
     this->inputOperation = NULL;
 }
 

@@ -11,8 +11,8 @@ extern "C" {
 #endif
 
 ColorRampOperation::ColorRampOperation(): NodeOperation() {
-	this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
-	this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+	this->addInputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_COLOR);
 
 	this->inputProgram = NULL;
 	this->colorBand = NULL;

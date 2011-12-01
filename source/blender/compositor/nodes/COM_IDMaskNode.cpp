@@ -4,9 +4,9 @@
 #include "COM_ExecutionSystem.h"
 
 IDMaskNode::IDMaskNode(bNode *editorNode): Node(editorNode) {
-//    this->addInputSocket(*(new InputSocket("ID value", COM_DT_VALUE)));
+//    this->addInputSocket("ID value", COM_DT_VALUE);
 
-//    this->addOutputSocket(*(new OutputSocket(COM_DT_VALUE)));
+//    this->addOutputSocket(COM_DT_VALUE);
 
 }
 /// @todo: add anti alias when not FSA

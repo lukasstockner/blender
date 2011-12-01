@@ -405,9 +405,9 @@ typedef struct LensFace {
 } LensFace;
 
 LensGhostProjectionOperation::LensGhostProjectionOperation(): NodeOperation() {
-	this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-	this->addInputSocket(*(new InputSocket(COM_DT_COLOR, COM_SC_NO_RESIZE)));
-	this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+	this->addInputSocket(COM_DT_COLOR);
+	this->addInputSocket(COM_DT_COLOR, COM_SC_NO_RESIZE);
+	this->addOutputSocket(COM_DT_COLOR);
 	this->lampObject = NULL;
 	this->cameraObject = NULL;
 	this->system = NULL;

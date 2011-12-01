@@ -14,8 +14,8 @@ extern "C" {
 
 
 SplitViewerOperation::SplitViewerOperation() : ViewerBaseOperation() {
-    this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-    this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
+    this->addInputSocket(COM_DT_COLOR);
+    this->addInputSocket(COM_DT_COLOR);
     this->image1Input = NULL;
     this->image2Input = NULL;
 }

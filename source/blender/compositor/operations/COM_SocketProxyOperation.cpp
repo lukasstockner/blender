@@ -1,8 +1,8 @@
 #include "COM_SocketProxyOperation.h"
 
 SocketProxyOperation::SocketProxyOperation() : NodeOperation() {
-	this->addInputSocket(*(new InputSocket(COM_DT_COLOR/*|COM_DT_VECTOR|COM_DT_VALUE*/)));
-    this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+	this->addInputSocket(COM_DT_COLOR/*|COM_DT_VECTOR|COM_DT_VALUE*/);
+    this->addOutputSocket(COM_DT_COLOR);
     this->inputOperation = NULL;
 }
 

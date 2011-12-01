@@ -1,7 +1,7 @@
 #include "COM_RenderLayersNormalOperation.h"
 
 RenderLayersNormalOperation::RenderLayersNormalOperation() :RenderLayersBaseProg(SCE_PASS_NORMAL, 3) {
-    this->addOutputSocket(*(new OutputSocket(COM_DT_VECTOR)));
+    this->addOutputSocket(COM_DT_VECTOR);
 }
 
 //void RenderLayersNormalOperation::executePixel(float* output, float x, float y, MemoryBuffer *inputBuffers[]) {

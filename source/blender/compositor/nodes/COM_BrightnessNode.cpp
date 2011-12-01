@@ -4,11 +4,11 @@
 #include "COM_ExecutionSystem.h"
 
 BrightnessNode::BrightnessNode(bNode *editorNode): Node(editorNode) {
-//    this->addInputSocket(*(new InputSocket(COM_DT_COLOR)));
-//    this->addInputSocket(*(new InputSocket("Bright", COM_DT_VALUE)));
-//    this->addInputSocket(*(new InputSocket("Contrast", COM_DT_VALUE)));
+//    this->addInputSocket(COM_DT_COLOR);
+//    this->addInputSocket("Bright", COM_DT_VALUE);
+//    this->addInputSocket("Contrast", COM_DT_VALUE);
 
-//    this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+//    this->addOutputSocket(COM_DT_COLOR);
 
 }
 /// @todo: add anti alias when not FSA

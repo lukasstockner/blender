@@ -3,8 +3,8 @@
 #include "COM_OutputSocket.h"
 
 ConvertVectorToColorOperation::ConvertVectorToColorOperation(): NodeOperation() {
-    this->addInputSocket(*(new InputSocket(COM_DT_VECTOR)));
-    this->addOutputSocket(*(new OutputSocket(COM_DT_COLOR)));
+    this->addInputSocket(COM_DT_VECTOR);
+    this->addOutputSocket(COM_DT_COLOR);
     this->inputOperation = NULL;
 }
 

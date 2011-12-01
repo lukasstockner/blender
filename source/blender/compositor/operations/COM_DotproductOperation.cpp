@@ -1,9 +1,9 @@
 #include "COM_DotproductOperation.h"
 
 DotproductOperation::DotproductOperation() : NodeOperation() {
-    this->addInputSocket(*(new InputSocket(COM_DT_VECTOR)));
-    this->addInputSocket(*(new InputSocket(COM_DT_VECTOR)));
-    this->addOutputSocket(*(new OutputSocket(COM_DT_VALUE)));
+    this->addInputSocket(COM_DT_VECTOR);
+    this->addInputSocket(COM_DT_VECTOR);
+    this->addOutputSocket(COM_DT_VALUE);
     this->setResolutionInputSocketIndex(0);
     this->input1Operation = NULL;
     this->input2Operation = NULL;

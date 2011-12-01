@@ -36,7 +36,7 @@ protected:
 	/**
 	  * @brief get access to the vector of input sockets
 	  */
-        inline vector<InputSocket>& getInputSockets() {return this->inputsockets;}
+    inline vector<InputSocket>& getInputSockets() {return this->inputsockets;}
 
 	/**
 	  * @brief get access to the vector of input sockets
@@ -136,14 +136,17 @@ protected:
 	  * @note may only be called in an constructor
 	  * @param socket the InputSocket to add
 	  */
-    void addInputSocket(InputSocket &socket);
+	void addInputSocket(DataType datatype);
+	void addInputSocket(DataType datatype, InputSocketResizeMode resizeMode);
+	void addInputSocket(DataType datatype, InputSocketResizeMode resizeMode, bNodeSocket* socket);
 
 	/**
 	  * @brief add an OutputSocket to the collection of outputsockets
 	  * @note may only be called in an constructor
 	  * @param socket the OutputSocket to add
 	  */
-	void addOutputSocket(OutputSocket &socket);
+	void addOutputSocket(DataType datatype);
+	void addOutputSocket(DataType datatype, bNodeSocket* socket);
 };
 
 #endif

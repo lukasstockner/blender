@@ -7,10 +7,10 @@ TextureBaseOperation::TextureBaseOperation(): NodeOperation() {
 	this->texture = NULL;
 }
 TextureOperation::TextureOperation() : TextureBaseOperation() {
-	this->addOutputSocket(*new OutputSocket(COM_DT_COLOR));
+	this->addOutputSocket(COM_DT_COLOR);
 }
 TextureAlphaOperation::TextureAlphaOperation() : TextureBaseOperation() {
-	this->addOutputSocket(*new OutputSocket(COM_DT_VALUE));
+	this->addOutputSocket(COM_DT_VALUE);
 }
 
 void TextureBaseOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {

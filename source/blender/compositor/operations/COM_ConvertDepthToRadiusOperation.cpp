@@ -5,8 +5,8 @@
 #include "DNA_camera_types.h"
 
 ConvertDepthToRadiusOperation::ConvertDepthToRadiusOperation(): NodeOperation() {
-	this->addInputSocket(*(new InputSocket(COM_DT_VALUE)));
-	this->addOutputSocket(*(new OutputSocket(COM_DT_VALUE)));
+	this->addInputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_VALUE);
     this->inputOperation = NULL;
 	this->fStop = 128.0f;
 	this->cameraObject = NULL;
