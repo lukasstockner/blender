@@ -1584,11 +1584,11 @@ static void def_cmp_viewer(StructRNA *srna)
 {
 	PropertyRNA *prop;
 	static EnumPropertyItem tileorder_items[] = {
-			{0, "CENTEROUT", 0, "Center", "Expand from center"},
+		{0, "CENTEROUT", 0, "Center", "Expand from center"},
 		{1, "RANDOM", 0, "Random", "Random tiles"},
 		{2, "BOTTOMUP", 0, "Bottom up", "Expand from bottom"},
 		{3, "RULE_OF_THIRDS", 0, "Rule of thirds", "Expand from 9 places"},
-			{0, NULL, 0, NULL, NULL}};
+		{0, NULL, 0, NULL, NULL}};
 
 	prop = RNA_def_property(srna, "tileorder", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "custom1");
@@ -1596,18 +1596,18 @@ static void def_cmp_viewer(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Tile order", "tile order");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 
-	prop = RNA_def_property(srna, "centerx", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "center_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "custom3");
 	RNA_def_property_float_default(prop, 0.5f);
 	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "centerX", "");
+	RNA_def_property_ui_text(prop, "X", "");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
-	prop = RNA_def_property(srna, "centery", PROP_FLOAT, PROP_NONE);
-
+	
+	prop = RNA_def_property(srna, "center_y", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "custom4");
 	RNA_def_property_float_default(prop, 0.5f);
 	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "centerY", "");
+	RNA_def_property_ui_text(prop, "Y", "");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 }
 

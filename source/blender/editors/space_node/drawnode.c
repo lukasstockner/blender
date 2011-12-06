@@ -1816,10 +1816,10 @@ static void node_composit_buts_switch(uiLayout *layout, bContext *UNUSED(C), Poi
 static void node_composit_buts_boxmask(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *row;
-	row= uiLayoutRow(layout, 2);
+	row= uiLayoutRow(layout, 1);
 	uiItemR(row, ptr, "x", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "y", 0, NULL, ICON_NONE);
-	row= uiLayoutRow(layout, 2);
+	row= uiLayoutRow(layout, 1);
 	uiItemR(row, ptr, "width", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(row, ptr, "height", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 
@@ -1941,10 +1941,10 @@ void node_composit_backdrop_ellipsemask(SpaceNode* snode, ImBuf* backdrop, bNode
 static void node_composit_buts_ellipsemask(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *row;
-	row= uiLayoutRow(layout, 2);
+	row= uiLayoutRow(layout, 1);
 	uiItemR(row, ptr, "x", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "y", 0, NULL, ICON_NONE);
-	row= uiLayoutRow(layout, 2);
+	row= uiLayoutRow(layout, 1);
 	uiItemR(row, ptr, "width", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(row, ptr, "height", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 
@@ -1953,10 +1953,13 @@ static void node_composit_buts_ellipsemask(uiLayout *layout, bContext *UNUSED(C)
 }
 static void node_composit_buts_viewer_but(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
+	uiLayout *col;
+	
 	uiItemR(layout, ptr, "tileorder", 0, NULL, ICON_NONE);
 	if (RNA_enum_get(ptr, "tileorder")==0) {
-		uiItemR(layout, ptr, "centerx", 0, NULL, ICON_NONE);
-		uiItemR(layout, ptr, "centery", 0, NULL, ICON_NONE);
+		col= uiLayoutColumn(layout, 1);
+		uiItemR(col, ptr, "center_x", 0, NULL, ICON_NONE);
+		uiItemR(col, ptr, "center_y", 0, NULL, ICON_NONE);
 	}
 }
 
