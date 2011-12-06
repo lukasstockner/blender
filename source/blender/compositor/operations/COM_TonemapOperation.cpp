@@ -57,9 +57,9 @@ void TonemapOperation::executePixel(float* color, int x, int y, MemoryBuffer *in
 	output[2] /= ((db == 0.f) ? 1.f : db);
 	const float igm = avg->igm;
 	if (igm != 0.f) {
-		output[0] = pow((double)MAX2(output[0], 0.), igm);
-		output[1] = pow((double)MAX2(output[1], 0.), igm);
-		output[2] = pow((double)MAX2(output[2], 0.), igm);
+		output[0] = pow((double)MAX2(output[0], 0.), (double)igm);
+		output[1] = pow((double)MAX2(output[1], 0.), (double)igm);
+		output[2] = pow((double)MAX2(output[2], 0.), (double)igm);
 	}
 
 	color[0] = output[0];

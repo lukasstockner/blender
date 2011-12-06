@@ -205,7 +205,7 @@ void ExecutionGroup::execute(ExecutionSystem* graph) {
 	this->chunksFinished = 0;
 	this->bTree = bTree;
 	unsigned int index;
-	unsigned int chunkOrder[this->numberOfChunks];
+	unsigned int *chunkOrder = new unsigned int[this->numberOfChunks];
 
 	for (chunkNumber = 0 ; chunkNumber<this->numberOfChunks ; chunkNumber++) {
 		chunkOrder[chunkNumber] = chunkNumber;
@@ -237,8 +237,8 @@ void ExecutionGroup::execute(ExecutionSystem* graph) {
 			ChunkOrderHotspot **hotspots = new ChunkOrderHotspot*[1];
 			hotspots[0] = new ChunkOrderHotspot(this->width*centerX, this->height*centerY, 0.0f);
 			rcti rect;
-			ChunkOrder chunkOrders[numberOfChunks];
-			for (index = 0 ; index < numberOfChunks; index ++) {
+			ChunkOrder *chunkOrders = new ChunkOrder[this->numberOfChunks];
+			for (index = 0 ; index < this->numberOfChunks; index ++) {
 				determineChunkRect(&rect, index);
 				chunkOrders[index].setChunkNumber(index);
 				chunkOrders[index].setX(rect.xmin);
@@ -252,7 +252,8 @@ void ExecutionGroup::execute(ExecutionSystem* graph) {
 			}
 
 			delete hotspots[0];
-			delete hotspots;
+			delete[] hotspots;
+			delete[] chunkOrders;
 		}
 		break;
 	case COM_TO_RULE_OF_THIRDS:
@@ -276,8 +277,8 @@ void ExecutionGroup::execute(ExecutionSystem* graph) {
 			hotspots[7] = new ChunkOrderHotspot(mx, ty, addition*7);
 			hotspots[8] = new ChunkOrderHotspot(mx, by, addition*8);
 			rcti rect;
-			ChunkOrder chunkOrders[numberOfChunks];
-			for (index = 0 ; index < numberOfChunks; index ++) {
+			ChunkOrder *chunkOrders = new ChunkOrder[this->numberOfChunks];
+			for (index = 0 ; index < this->numberOfChunks; index ++) {
 				determineChunkRect(&rect, index);
 				chunkOrders[index].setChunkNumber(index);
 				chunkOrders[index].setX(rect.xmin);
@@ -300,7 +301,8 @@ void ExecutionGroup::execute(ExecutionSystem* graph) {
 			delete hotspots[6];
 			delete hotspots[7];
 			delete hotspots[8];
-			delete hotspots;
+			delete[] hotspots;
+			delete[] chunkOrders;
 		}
 		break;
 	case COM_TO_TOP_DOWN:
@@ -343,6 +345,8 @@ void ExecutionGroup::execute(ExecutionSystem* graph) {
 			breaked = true;
 		}
 	}
+
+	delete chunkOrder;
 }
 
 MemoryBuffer** ExecutionGroup::getInputBuffers(int chunkNumber) {

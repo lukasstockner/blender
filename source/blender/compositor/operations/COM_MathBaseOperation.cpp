@@ -23,7 +23,9 @@
 #include "COM_MathBaseOperation.h"
 #include "COM_InputSocket.h"
 #include "COM_OutputSocket.h"
+extern "C" {
 #include "BLI_math.h"
+}
 
 MathBaseOperation::MathBaseOperation(): NodeOperation() {
     this->addInputSocket(COM_DT_VALUE);
@@ -166,9 +168,9 @@ void MathPowerOperation::executePixel(float* outputValue, float x, float y, Memo
             float y_mod_1 = fmod(inputValue2[0], 1);
             /* if input value is not nearly an integer, fall back to zero, nicer than straight rounding */
             if (y_mod_1 > 0.999 || y_mod_1 < 0.001) {
-                    outputValue[0]= pow(inputValue1[0], floor(inputValue2[0] + 0.5));
+	            outputValue[0]= pow(inputValue1[0], (float)floor(inputValue2[0] + 0.5));
             } else {
-                    outputValue[0] = 0.0;
+	            outputValue[0] = 0.0;
             }
     }
 }
