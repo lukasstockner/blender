@@ -52,23 +52,21 @@ void PreviewOperation::initExecution() {
 	this->input = getInputSocketReader(0);
 	if (!this->node->preview) {
 		this->node->preview = (bNodePreview*)MEM_callocN(sizeof(bNodePreview), "node preview");
-
-    } else {
-                if (this->getWidth() == (unsigned int)this->node->preview->xsize && this->getHeight() == (unsigned int)this->node->preview->ysize) {
+	} else {
+		if (this->getWidth() == (unsigned int)this->node->preview->xsize && this->getHeight() == (unsigned int)this->node->preview->ysize) {
 			this->outputBuffer = this->node->preview->rect;
-        } else {
-        }
-    }
+		}
+	}
 
-    if (this->outputBuffer == NULL) {
-        this->outputBuffer = (unsigned char*)MEM_callocN(sizeof(unsigned char)*4*getWidth()*getHeight(), "PreviewOperation");
+	if (this->outputBuffer == NULL) {
+		this->outputBuffer = (unsigned char*)MEM_callocN(sizeof(unsigned char)*4*getWidth()*getHeight(), "PreviewOperation");
 		if(this->node->preview->rect) {
 				MEM_freeN(this->node->preview->rect);
-        }
+		}
 		this->node->preview->xsize= getWidth();
 		this->node->preview->ysize= getHeight();
 		this->node->preview->rect= outputBuffer;
-    }
+	}
 }
 
 void PreviewOperation::deinitExecution() {

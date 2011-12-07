@@ -111,11 +111,6 @@ private:
 	CompositorContext context;
 
 	/**
-	  * @brief starttime of the execution, used for logging
-	  */
-	double starttime;
-
-	/**
 	  * @brief vector of nodes
 	  */
 	vector<Node*> nodes;

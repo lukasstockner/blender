@@ -196,10 +196,9 @@ void ExecutionGroup::determineNumberOfChunks() {
 void ExecutionGroup::execute(ExecutionSystem* graph) {
 	CompositorContext& context = graph->getContext();
 	const bNodeTree* bTree = context.getbNodeTree();
-	printf("schedule: %s x:%d y:%d #chunks:%d\n", this->getId().c_str(), this->width, this->height, this->numberOfChunks);
 	if (this->width == 0 || this->height == 0) {return;} /// @note: break out... no pixels to calculate.
 	if (bTree->test_break && bTree->test_break(bTree->tbh)) {return;} /// @note: early break out for blur and preview nodes
-
+	if (this->numberOfChunks == 0) {return;} /// @note: early break out
 	unsigned int chunkNumber;
 
 	this->chunksFinished = 0;

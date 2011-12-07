@@ -68,13 +68,8 @@ void Node::addSetValueOperation(ExecutionSystem *graph, InputSocket* inputsocket
     bNodeSocket *bSock = (bNodeSocket*)this->getEditorInputSocket(editorNodeInputSocketIndex);
     SetValueOperation *operation = new SetValueOperation();
     operation->setValue(bSock->ns.vec[0]);
-    SocketConnection *connection = new SocketConnection();
-    connection->setFromSocket(operation->getOutputSocket(0));
-    operation->getOutputSocket(0)->addConnection(connection);
-    connection->setToSocket(inputsocket);
-    inputsocket->setConnection(connection);
+	this->addLink(graph, operation->getOutputSocket(), inputsocket);
     graph->addOperation(operation);
-    graph->addSocketConnection(connection);
 }
 
 void Node::addPreviewOperation(ExecutionSystem *system, OutputSocket *outputSocket, int priority) {
@@ -95,7 +90,6 @@ void Node::addPreviewOperation(ExecutionSystem *system, InputSocket *inputSocket
 
 SocketConnection* Node::addLink(ExecutionSystem *graph, OutputSocket* outputSocket, InputSocket* inputsocket) {
 	if (inputsocket->isConnected()) {
-//        printf("ERROR, inputsocket is already connected to something\n");
 		return NULL;
 	}
 	SocketConnection *connection = new SocketConnection();
@@ -108,35 +102,25 @@ SocketConnection* Node::addLink(ExecutionSystem *graph, OutputSocket* outputSock
 }
 
 void Node::addSetColorOperation(ExecutionSystem *graph, InputSocket* inputsocket, int editorNodeInputSocketIndex) {
-    bNodeSocket *bSock = (bNodeSocket*)this->getEditorInputSocket(editorNodeInputSocketIndex);
-    SetColorOperation *operation = new SetColorOperation();
-    operation->setChannel1(bSock->ns.vec[0]);
-    operation->setChannel2(bSock->ns.vec[1]);
-    operation->setChannel3(bSock->ns.vec[2]);
-    operation->setChannel4(bSock->ns.vec[3]);
-    SocketConnection *connection = new SocketConnection();
-    connection->setFromSocket(operation->getOutputSocket(0));
-    operation->getOutputSocket(0)->addConnection(connection);
-    connection->setToSocket(inputsocket);
-    inputsocket->setConnection(connection);
-    graph->addOperation(operation);
-    graph->addSocketConnection(connection);
+	bNodeSocket *bSock = (bNodeSocket*)this->getEditorInputSocket(editorNodeInputSocketIndex);
+	SetColorOperation *operation = new SetColorOperation();
+	operation->setChannel1(bSock->ns.vec[0]);
+	operation->setChannel2(bSock->ns.vec[1]);
+	operation->setChannel3(bSock->ns.vec[2]);
+	operation->setChannel4(bSock->ns.vec[3]);
+	this->addLink(graph, operation->getOutputSocket(), inputsocket);
+	graph->addOperation(operation);
 }
 
 void Node::addSetVectorOperation(ExecutionSystem *graph, InputSocket* inputsocket, int editorNodeInputSocketIndex) {
-    bNodeSocket *bSock = (bNodeSocket*)this->getEditorInputSocket(editorNodeInputSocketIndex);
-    SetVectorOperation *operation = new SetVectorOperation();
-    operation->setX(bSock->ns.vec[0]);
-    operation->setY(bSock->ns.vec[1]);
-    operation->setZ(bSock->ns.vec[2]);
-    operation->setW(bSock->ns.vec[3]);
-    SocketConnection *connection = new SocketConnection();
-    connection->setFromSocket(operation->getOutputSocket(0));
-    operation->getOutputSocket(0)->addConnection(connection);
-    connection->setToSocket(inputsocket);
-    inputsocket->setConnection(connection);
-    graph->addOperation(operation);
-    graph->addSocketConnection(connection);
+	bNodeSocket *bSock = (bNodeSocket*)this->getEditorInputSocket(editorNodeInputSocketIndex);
+	SetVectorOperation *operation = new SetVectorOperation();
+	operation->setX(bSock->ns.vec[0]);
+	operation->setY(bSock->ns.vec[1]);
+	operation->setZ(bSock->ns.vec[2]);
+	operation->setW(bSock->ns.vec[3]);
+	this->addLink(graph, operation->getOutputSocket(), inputsocket);
+	graph->addOperation(operation);
 }
 
 bNodeSocket* Node::getEditorInputSocket(int editorNodeInputSocketIndex) {

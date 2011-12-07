@@ -35,16 +35,16 @@ void COM_execute(bNodeTree *editingtree, int rendering) {
 	if (mutex == NULL) { /// TODO: move to blender startup phase
 		mutex = new ThreadMutex();
 		BLI_mutex_init(mutex);
-                WorkScheduler::initialize(); ///TODO: call workscheduler.deinitialize somewhere
+		WorkScheduler::initialize(); ///TODO: call workscheduler.deinitialize somewhere
 	}
 	BLI_mutex_lock(mutex);
-	if (editingtree->test_break && editingtree->test_break(editingtree->tbh)) {
-		// during editing multiple calls to this method can be triggered.
-		// make sure one the last one will be doing the work.
-		BLI_mutex_unlock(mutex);
-		return;
+//	if (editingtree->test_break && editingtree->test_break(editingtree->tbh)) {
+//		// during editing multiple calls to this method can be triggered.
+//		// make sure one the last one will be doing the work.
+//		BLI_mutex_unlock(mutex);
+//		return;
 
-	}
+//	}
 
 	/* set progress bar to 0% and status to init compositing*/
 	editingtree->progress(editingtree->prh, 0.0);

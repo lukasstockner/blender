@@ -39,9 +39,7 @@
 #include "COM_ExecutionSystemHelper.h"
 
 ExecutionSystem::ExecutionSystem(bNodeTree* editingtree, bool rendering) {
-	this->starttime = PIL_check_seconds_timer();
 	this->context.setbNodeTree(editingtree);
-	printf("starttime %f\n", starttime);
 
 	/* initialize the CompositorContext */
 	if (rendering) {
@@ -53,23 +51,14 @@ ExecutionSystem::ExecutionSystem(bNodeTree* editingtree, bool rendering) {
 	context.setHasActiveOpenCLDevices(WorkScheduler::hasGPUDevices() && (editingtree->flag & NTREE_COM_OPENCL));
 
 	Node* mainOutputNode=NULL;
-	printf(" - %f convert to editor tree\n", PIL_check_seconds_timer()-starttime);
 
 	mainOutputNode = ExecutionSystemHelper::addbNodeTree(this->getNodes(), this->getConnections(), editingtree);
 
 	if (mainOutputNode) {
 		context.setScene((Scene*)mainOutputNode->getbNode()->id);
-
-		printf(" - %f ungroup\n", PIL_check_seconds_timer()-starttime);
 		ExecutionSystemHelper::ungroup(*this); /* copy subtrees of GroupNode in main tree, so only the main tree needs to be evaluated (reduces complexity) */
-		printf(" - %f convert to operations\n", PIL_check_seconds_timer()-starttime);
 		this->convertToOperations();
-
-		printf(" - %f group operations to execution groups\n", PIL_check_seconds_timer()-starttime);
 		this->groupOperations(); /* group operations in ExecutionGroups */
-
-
-		printf(" - %f determine resolutions\n", PIL_check_seconds_timer()-starttime);
 		vector<ExecutionGroup*> executionGroups;
 		this->findOutputExecutionGroup(&executionGroups);
 		unsigned int index;
@@ -140,8 +129,6 @@ void ExecutionSystem::execute() {
 
 	/* start execution of the ExecutionGroups based on priority of their output node */
 	for (int priority = 9 ; priority>=0 ; priority--) {
-		printf(" - %f executing priority %d groups\n", PIL_check_seconds_timer()-starttime, priority);
-
 		for (index = 0 ; index < executionGroups.size(); index ++) {
 			ExecutionGroup* group = executionGroups[index];
 			NodeOperation* output = group->getOutputNodeOperation();
@@ -150,8 +137,6 @@ void ExecutionSystem::execute() {
 			}
 		}
 	}
-	printf(" - %f clean up execution \n", PIL_check_seconds_timer()-starttime);
-
 
 	WorkScheduler::finish();
 	WorkScheduler::stop();
