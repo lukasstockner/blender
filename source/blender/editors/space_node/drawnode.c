@@ -1806,19 +1806,21 @@ static void node_composit_buts_dilateerode2(uiLayout *layout, bContext *UNUSED(C
 {
 	uiItemR(layout, ptr, "distance", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(layout, ptr, "inset", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
-	uiItemR(layout, ptr, "switch", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "check", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 }
 
 static void node_composit_buts_switch(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
-	uiItemR(layout, ptr, "switch", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "check", 0, NULL, ICON_NONE);
 }
 static void node_composit_buts_boxmask(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *row;
+	
 	row= uiLayoutRow(layout, 1);
 	uiItemR(row, ptr, "x", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "y", 0, NULL, ICON_NONE);
+	
 	row= uiLayoutRow(layout, 1);
 	uiItemR(row, ptr, "width", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(row, ptr, "height", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
