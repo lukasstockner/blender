@@ -24,24 +24,37 @@
 #include "COM_InputSocket.h"
 #include "COM_OutputSocket.h"
 
+extern "C" {
+	#include "BLI_math.h"
+}
+
 MixHueOperation::MixHueOperation(): MixBaseOperation() {
 }
 
 void MixHueOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
-    float inputColor1[4];
-    float inputColor2[4];
-    float value;
+	float inputColor1[4];
+	float inputColor2[4];
+	float value;
 
 	inputValueOperation->read(&value, x, y, inputBuffers);
 	inputColor1Operation->read(&inputColor1[0], x, y, inputBuffers);
 	inputColor2Operation->read(&inputColor2[0], x, y, inputBuffers);
 
-    if (this->useValueAlphaMultiply()) {
-        value *= inputColor2[3];
-    }
-    outputValue[0] = inputColor1[0]+value*(inputColor2[0]);
-    outputValue[1] = inputColor1[1]+value*(inputColor2[1]);
-    outputValue[2] = inputColor1[2]+value*(inputColor2[2]);
-    outputValue[3] = inputColor1[3];
+	if (this->useValueAlphaMultiply()) {
+		value *= inputColor2[3];
+	}
+	float valuem= 1.0f-value;
+	
+	float colH,colS,colV;
+	rgb_to_hsv(inputColor2[0], inputColor2[1], inputColor2[2], &colH, &colS, &colV);
+	if(colS!=0.0f){
+		float rH,rS,rV;
+		float tmpr,tmpg,tmpb;
+		rgb_to_hsv(inputColor1[0], inputColor1[1], inputColor1[2], &rH, &rS, &rV);
+		hsv_to_rgb(colH , rS, rV, &tmpr, &tmpg, &tmpb);
+		outputValue[0] = valuem*(inputColor1[0]) + value*tmpr;
+		outputValue[1] = valuem*(inputColor1[1]) + value*tmpg;
+		outputValue[2] = valuem*(inputColor1[2]) + value*tmpb;
+	}
+	outputValue[3] = inputColor1[3];
 }
-

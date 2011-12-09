@@ -24,24 +24,33 @@
 #include "COM_InputSocket.h"
 #include "COM_OutputSocket.h"
 
+extern "C" {
+	#include "BLI_math.h"
+}
+
 MixSaturationOperation::MixSaturationOperation(): MixBaseOperation() {
 }
 
 void MixSaturationOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
-    float inputColor1[4];
-    float inputColor2[4];
-    float value;
+	float inputColor1[4];
+	float inputColor2[4];
+	float value;
 
 	inputValueOperation->read(&value, x, y, inputBuffers);
 	inputColor1Operation->read(&inputColor1[0], x, y, inputBuffers);
 	inputColor2Operation->read(&inputColor2[0], x, y, inputBuffers);
 
-    if (this->useValueAlphaMultiply()) {
-        value *= inputColor2[3];
-    }
-    outputValue[0] = inputColor1[0]+value*(inputColor2[0]);
-    outputValue[1] = inputColor1[1]+value*(inputColor2[1]);
-    outputValue[2] = inputColor1[2]+value*(inputColor2[2]);
-    outputValue[3] = inputColor1[3];
+	if (this->useValueAlphaMultiply()) {
+		value *= inputColor2[3];
+	}
+	float valuem= 1.0f-value;
+	
+	float rH,rS,rV;
+	rgb_to_hsv(inputColor1[0], inputColor1[1], inputColor1[2], &rH, &rS, &rV);
+	if(rS!=0.0f){
+		float colH,colS,colV;
+		rgb_to_hsv(inputColor2[0], inputColor2[1], inputColor2[2], &colH, &colS, &colV);
+		hsv_to_rgb(rH , (valuem*rS+value*colS), rV, &outputValue[0], &outputValue[1], &outputValue[2]);
+	}
+	outputValue[3] = inputColor1[3];
 }
-
