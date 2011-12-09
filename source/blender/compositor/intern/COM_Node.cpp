@@ -67,7 +67,8 @@ bNode* Node::getbNode() {return this->editorNode;}
 void Node::addSetValueOperation(ExecutionSystem *graph, InputSocket* inputsocket, int editorNodeInputSocketIndex) {
     bNodeSocket *bSock = (bNodeSocket*)this->getEditorInputSocket(editorNodeInputSocketIndex);
     SetValueOperation *operation = new SetValueOperation();
-    operation->setValue(bSock->ns.vec[0]);
+	bNodeSocketValueFloat *val = (bNodeSocketValueFloat*)bSock->default_value;
+    operation->setValue(val->value);
 	this->addLink(graph, operation->getOutputSocket(), inputsocket);
     graph->addOperation(operation);
 }
@@ -104,21 +105,23 @@ SocketConnection* Node::addLink(ExecutionSystem *graph, OutputSocket* outputSock
 void Node::addSetColorOperation(ExecutionSystem *graph, InputSocket* inputsocket, int editorNodeInputSocketIndex) {
 	bNodeSocket *bSock = (bNodeSocket*)this->getEditorInputSocket(editorNodeInputSocketIndex);
 	SetColorOperation *operation = new SetColorOperation();
-	operation->setChannel1(bSock->ns.vec[0]);
-	operation->setChannel2(bSock->ns.vec[1]);
-	operation->setChannel3(bSock->ns.vec[2]);
-	operation->setChannel4(bSock->ns.vec[3]);
+	bNodeSocketValueRGBA *val = (bNodeSocketValueRGBA*)bSock->default_value;
+	operation->setChannel1(val->value[0]);
+	operation->setChannel2(val->value[1]);
+	operation->setChannel3(val->value[2]);
+	operation->setChannel4(val->value[3]);
 	this->addLink(graph, operation->getOutputSocket(), inputsocket);
 	graph->addOperation(operation);
 }
 
 void Node::addSetVectorOperation(ExecutionSystem *graph, InputSocket* inputsocket, int editorNodeInputSocketIndex) {
 	bNodeSocket *bSock = (bNodeSocket*)this->getEditorInputSocket(editorNodeInputSocketIndex);
+	bNodeSocketValueVector *val = (bNodeSocketValueVector*)bSock->default_value;
 	SetVectorOperation *operation = new SetVectorOperation();
-	operation->setX(bSock->ns.vec[0]);
-	operation->setY(bSock->ns.vec[1]);
-	operation->setZ(bSock->ns.vec[2]);
-	operation->setW(bSock->ns.vec[3]);
+	operation->setX(val->value[0]);
+	operation->setY(val->value[1]);
+	operation->setZ(val->value[2]);
+	operation->setW(val->value[3]);
 	this->addLink(graph, operation->getOutputSocket(), inputsocket);
 	graph->addOperation(operation);
 }
