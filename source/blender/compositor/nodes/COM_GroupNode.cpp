@@ -60,13 +60,13 @@ void GroupNode::ungroup(ExecutionSystem &system) {
 
 	for (index = 0 ; index < inputsockets.size();index ++) {
 		InputSocket * inputSocket = inputsockets[index];
-		if (inputSocket->isConnected()) {
+		if (inputSocket->getGroupOutputSocket()->isConnected()) {
 			SocketProxyNode * proxy = new SocketProxyNode(this->getbNode());
 			inputSocket->relinkConnections(proxy->getInputSocket(0), true, index, &system);
 			inputSocket->getGroupOutputSocket()->relinkConnections(proxy->getOutputSocket(0));
 			ExecutionSystemHelper::addNode(system.getNodes(), proxy);
-        }
-    }
+		}
+	}
 	for (index = 0 ; index < outputsockets.size();index ++) {
 		OutputSocket * outputSocket = outputsockets[index];
 		SocketProxyNode * proxy = new SocketProxyNode(this->getbNode());
