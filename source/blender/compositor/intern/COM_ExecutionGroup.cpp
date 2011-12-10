@@ -130,7 +130,7 @@ NodeOperation* ExecutionGroup::getOutputNodeOperation() const{
 void ExecutionGroup::initExecution()
 {
 	if (this->chunkExecutionStates != NULL) {
-		delete this->chunkExecutionStates;
+		delete[] this->chunkExecutionStates;
 	}
 	unsigned int index;
 	determineNumberOfChunks();
@@ -164,7 +164,7 @@ void ExecutionGroup::initExecution()
 
 void ExecutionGroup::deinitExecution() {
 	if (this->chunkExecutionStates != NULL) {
-		delete this->chunkExecutionStates;
+		delete[] this->chunkExecutionStates;
 		this->chunkExecutionStates = NULL;
 	}
 	this->numberOfChunks = 0;
@@ -345,7 +345,7 @@ void ExecutionGroup::execute(ExecutionSystem* graph) {
 		}
 	}
 
-	delete chunkOrder;
+	delete[] chunkOrder;
 }
 
 MemoryBuffer** ExecutionGroup::getInputBuffers(int chunkNumber) {
@@ -428,7 +428,7 @@ void ExecutionGroup::finalizeChunkExecution(int chunkNumber, MemoryBuffer** memo
 				}
 			}
 		}
-		delete memoryBuffers;
+		delete[] memoryBuffers;
 	}
 	if (bTree) {
 		// status report is only performed for top level Execution Groups.
