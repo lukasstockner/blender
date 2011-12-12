@@ -43,12 +43,12 @@ public:
 
 	/**
 	  * @brief add an bNodeTree to the nodes list and connections
-	  * @param nodes vector of nodes
-	  * @param links vector of links
+	  * @param system Execution system
+	  * @param nodes_start Starting index in the system's nodes list for nodes in this tree.
 	  * @param tree bNodeTree to add
 	  * @return Node representing the "Compositor node" of the maintree. or NULL when a subtree is added
 	  */
-	static Node* addbNodeTree(vector<Node*>& nodes, vector<SocketConnection*>& links, bNodeTree * tree);
+	static Node* addbNodeTree(ExecutionSystem &system, int nodes_start, bNodeTree * tree);
 
 	/**
 	  * @brief add an editor node to the system.
@@ -89,15 +89,6 @@ public:
 	static void addExecutionGroup(vector<ExecutionGroup*>& executionGroups, ExecutionGroup *executionGroup);
 
 	/**
-	  * @brief find the first node that contains the bNode
-	  *
-	  * @param nodes list of nodes where to look in
-	  * @param node bNode that needs to be found. Can be NULL for Group nodes
-	  * @param bsocket For Group nodes the socket is used to determine the Node.
-	  */
-	static Node* findNodeBybNode(vector<Node*>& nodes, bNode* node, bNodeSocket* bsocket);
-
-	/**
 	  * Find all Node Operations that needs to be executed.
 	  * @param rendering
 	  * the rendering parameter will tell what type of execution we are doing
@@ -111,32 +102,12 @@ public:
 	  *
 	  * @note Cyclic links will be ignored
 	  *
-	  * @param nodes list of nodes
+	  * @param node_range list of possible nodes for lookup.
 	  * @param links list of links to add the bNodeLink to
 	  * @param bNodeLink the link to be added
 	  * @return the created SocketConnection or NULL
 	  */
-	static SocketConnection* addNodeLink(vector<Node*>& nodes, vector<SocketConnection*>& links, bNodeLink *bNodeLink);
-
-	/**
-	  * @brief check whether bnode contains bsocket
-	  *
-	  * @note only works for group nodes
-	  *
-	  * @param bnode node to look in
-	  * @param bsocket socket to look for
-	  */
-	static bool containsbNodeSocket(bNode *bnode, bNodeSocket* bsocket);
-
-	/**
-	  * @brief Ungroup NodeGroup.
-	  *
-	  * The user can create Group of nodes. These groups are complex during execution. To reduce this complexity
-	  * these groups are flattened and removed.
-	  *
-	  * Ungroup will modify the connections and nodes list.
-	  */
-	static void ungroup(ExecutionSystem& system);
+	static SocketConnection* addNodeLink(NodeRange &node_range, vector<SocketConnection*>& links, bNodeLink *bNodeLink);
 
 	/**
 	  * @brief create a new SocketConnection and add to a vector of links

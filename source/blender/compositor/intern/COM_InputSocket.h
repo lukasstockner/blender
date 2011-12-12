@@ -68,13 +68,6 @@ private:
     SocketConnection* connection;
 
 	/**
-	  * @brief GroupNode output of this input socket
-	  * only valid during conversion of the model to ungroup GroupNode's
-	  * this value is NULL for not GroupNode;s
-	  */
-    OutputSocket* groupOutput;
-
-	/**
 	  * @brief resize mode of this socket
 	  */
 	InputSocketResizeMode resizeMode;
@@ -145,9 +138,6 @@ public:
 	  * @param system ExecutionSystem to update to
 	  */
 	void relinkConnections(InputSocket *relinkToSocket, bool autoconnect, int editorNodeInputSocketIndex, bool duplicate, ExecutionSystem* system);
-
-    void setGroupOutputSocket(OutputSocket* groupOutput) {this->groupOutput = groupOutput;}
-    OutputSocket* getGroupOutputSocket() {return this->groupOutput;}
 
 	/**
 	  * @brief set the resize mode

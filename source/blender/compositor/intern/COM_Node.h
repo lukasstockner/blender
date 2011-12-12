@@ -34,8 +34,13 @@
 
 using namespace std;
 
+class Node;
 class NodeOperation;
 class ExecutionSystem;
+
+typedef vector<Node*> NodeList;
+typedef NodeList::iterator NodeIterator;
+typedef pair<NodeIterator, NodeIterator> NodeRange;
 
 /**
   * My node documentation.
@@ -48,7 +53,7 @@ private:
     bNode* editorNode;
 
 public:
-    Node(bNode* editorNode);
+    Node(bNode* editorNode, bool create_sockets=true);
 
 	/**
 	  * @brief get the reference to the SDNA bNode struct
@@ -89,10 +94,14 @@ public:
 	  */
 	SocketConnection* addLink(ExecutionSystem *graph, OutputSocket* outputSocket, InputSocket* inputsocket);
 
-    /**
-      * is this node a group node.
-      */
-	virtual const bool isGroupNode() const {return false;}
+	/**
+	  * is this node a group node.
+	  */
+	virtual bool isGroupNode() const { return false; }
+	/**
+	  * is this node a proxy node.
+	  */
+	virtual bool isProxyNode() const { return false; }
 
 	/**
 	  * @brief find the InputSocket by bNodeSocket
@@ -106,7 +115,7 @@ public:
 	  *
 	  * @param socket
 	  */
-    OutputSocket* findOutputSocketBybNodeSocket(bNodeSocket* socket);
+	OutputSocket* findOutputSocketBybNodeSocket(bNodeSocket* socket);
 protected:
 
     Node();

@@ -27,24 +27,17 @@
 #include <stdio.h>
 
 OutputSocket::OutputSocket(DataType datatype) :Socket(datatype) {
-    this->groupInput = NULL;
     this->inputSocketDataTypeDeterminatorIndex = -1;
 }
 OutputSocket::OutputSocket(DataType datatype, int inputSocketDataTypeDeterminatorIndex) :Socket(datatype) {
-    this->groupInput = NULL;
     this->inputSocketDataTypeDeterminatorIndex = inputSocketDataTypeDeterminatorIndex;
 }
 
 OutputSocket::OutputSocket(OutputSocket *from): Socket(from->getDataType()) {
-	this->groupInput = NULL;
 	this->inputSocketDataTypeDeterminatorIndex = from->getInputSocketDataTypeDeterminatorIndex();	
 }
 
 OutputSocket::~OutputSocket() {
-    if (this->groupInput != NULL && !this->isInsideOfGroupNode()) {
-        delete this->groupInput;
-    }
-    this->groupInput = NULL;
 }
 
 int OutputSocket::isOutputSocket() const { return true; }

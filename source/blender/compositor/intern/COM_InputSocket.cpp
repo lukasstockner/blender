@@ -28,26 +28,19 @@
 
 InputSocket::InputSocket(DataType datatype) :Socket(datatype) {
 	this->connection = NULL;
-	this->groupOutput = NULL;
 	this->resizeMode = COM_SC_CENTER;
 }
 InputSocket::InputSocket(DataType datatype, InputSocketResizeMode resizeMode) :Socket(datatype) {
 	this->connection = NULL;
-	this->groupOutput = NULL;
 	this->resizeMode = resizeMode;
 }
 
 InputSocket::InputSocket(InputSocket* from) :Socket(from->getDataType()) {
 	this->connection = NULL;
-	this->groupOutput = NULL;
 	this->resizeMode = from->getResizeMode();
 }
 
 InputSocket::~InputSocket() {
-    if (this->groupOutput != NULL && !this->isInsideOfGroupNode()) {
-        delete this->groupOutput;
-    }
-    this->groupOutput = NULL;
 }
 
 
@@ -103,11 +96,13 @@ void InputSocket::determineActualDataType() {
 	/// @note: this method is only called for inputsocket that are not connected.
 	/// @note: passes COM_DT_COLOR, the convertToSupportedDataType converts this to a capable DataType
 	this->setActualDataType(this->convertToSupportedDataType(COM_DT_COLOR));
+	#if 0	// XXX TODO check for proxy node and use output data type?
 	if (this->getGroupOutputSocket()) {
 		if (!this->isInsideOfGroupNode()) {
 			this->getGroupOutputSocket()->determineActualDataType();
 		}
 	}
+	#endif
 }
 
 void InputSocket::notifyActualInputType(DataType datatype) {

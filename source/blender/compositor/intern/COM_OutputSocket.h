@@ -43,7 +43,6 @@ class WriteBufferOperation;
 class OutputSocket : public Socket {
 private:
     vector<SocketConnection*> connections;
-    InputSocket* groupInput;
 
 	/**
 	  * @brief index of the inputsocket that determines the datatype of this outputsocket
@@ -77,8 +76,6 @@ public:
     void determineActualDataType();
     void relinkConnections(OutputSocket *relinkToSocket) {this->relinkConnections(relinkToSocket, false);};
     void relinkConnections(OutputSocket *relinkToSocket, bool single);
-    void setGroupInputSocket(InputSocket* groupInput) {this->groupInput = groupInput;}
-    InputSocket* getGroupInputSocket() {return this->groupInput;}
     bool isActualDataTypeDeterminedByInputSocket() {
         return this->inputSocketDataTypeDeterminatorIndex>-1;
     }

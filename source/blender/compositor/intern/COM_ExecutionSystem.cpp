@@ -52,11 +52,10 @@ ExecutionSystem::ExecutionSystem(bNodeTree* editingtree, bool rendering) {
 
 	Node* mainOutputNode=NULL;
 
-	mainOutputNode = ExecutionSystemHelper::addbNodeTree(this->getNodes(), this->getConnections(), editingtree);
+	mainOutputNode = ExecutionSystemHelper::addbNodeTree(*this, 0, editingtree);
 
 	if (mainOutputNode) {
 		context.setScene((Scene*)mainOutputNode->getbNode()->id);
-		ExecutionSystemHelper::ungroup(*this); /* copy subtrees of GroupNode in main tree, so only the main tree needs to be evaluated (reduces complexity) */
 		this->convertToOperations();
 		this->groupOperations(); /* group operations in ExecutionGroups */
 		vector<ExecutionGroup*> executionGroups;

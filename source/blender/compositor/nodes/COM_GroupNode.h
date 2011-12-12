@@ -39,7 +39,7 @@ public:
 	  * @brief check if this node a group node.
 	  * @returns true
 	  */
-	const bool isGroupNode() const {return true;}
+	bool isGroupNode() const { return true; }
 
 	/**
 	  * @brief ungroup this group node.

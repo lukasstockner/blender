@@ -37,25 +37,39 @@
 #include "COM_WriteBufferOperation.h"
 #include "COM_ReadBufferOperation.h"
 
-Node* ExecutionSystemHelper::addbNodeTree(vector<Node*>& nodes, vector<SocketConnection*>& links, bNodeTree *tree) {
-    Node* mainnode = NULL;
+Node* ExecutionSystemHelper::addbNodeTree(ExecutionSystem &system, int nodes_start, bNodeTree *tree) {
+	vector<Node*>& nodes = system.getNodes();
+	vector<SocketConnection*>& links = system.getConnections();
+	Node* mainnode = NULL;
 	/* add all nodes of the tree to the node list */
-    bNode* node = (bNode*)tree->nodes.first;
-    while (node != NULL) {
+	bNode* node = (bNode*)tree->nodes.first;
+	while (node != NULL) {
 		Node* execnode = addNode(nodes, node);
-        if (node->type == CMP_NODE_COMPOSITE) {
-            mainnode = execnode;
-        }
-        node = (bNode*)node->next;
-    }
+		if (node->type == CMP_NODE_COMPOSITE) {
+			mainnode = execnode;
+		}
+		node = (bNode*)node->next;
+	}
+
+	NodeRange node_range(nodes.begin()+nodes_start, nodes.end());
 
 	/* add all nodelinks of the tree to the link list */
 	bNodeLink* nodelink = (bNodeLink*)tree->links.first;
-    while (nodelink != NULL) {
-			addNodeLink(nodes, links, nodelink);
-			nodelink = (bNodeLink*)nodelink->next;
-    }
-    return mainnode;
+	while (nodelink != NULL) {
+		addNodeLink(node_range, links, nodelink);
+		nodelink = (bNodeLink*)nodelink->next;
+	}
+
+	/* Expand group nodes */
+	for (int i=nodes_start; i < nodes.size(); ++i) {
+		Node *execnode = nodes[i];
+		if (execnode->isGroupNode()) {
+			GroupNode * groupNode = (GroupNode*)execnode;
+			groupNode->ungroup(system);
+		}
+	}
+
+	return mainnode;
 }
 
 void ExecutionSystemHelper::addNode(vector<Node*>& nodes, Node *node) {
@@ -91,8 +105,45 @@ void ExecutionSystemHelper::findOutputNodeOperations(vector<NodeOperation*>* res
 	}
 }
 
-
-SocketConnection* ExecutionSystemHelper::addNodeLink(vector<Node*>& nodes, vector<SocketConnection*>& links, bNodeLink *bNodeLink) {
+static InputSocket* find_input(NodeRange &node_range, bNode *bnode, bNodeSocket* bsocket) {
+	if (bnode != NULL) {
+		for(NodeIterator it=node_range.first; it!=node_range.second; ++it) {
+			Node* node = *it;
+			if (node->getbNode() == bnode)
+				return node->findInputSocketBybNodeSocket(bsocket);
+		}
+	} else {
+		for(NodeIterator it=node_range.first; it!=node_range.second; ++it) {
+			Node* node = *it;
+			if (node->isProxyNode()) {
+				InputSocket *proxySocket = node->getInputSocket(0);
+				if (proxySocket->getbNodeSocket()==bsocket)
+					return proxySocket;
+			}
+		}
+	}
+	return NULL;
+}
+static OutputSocket* find_output(NodeRange &node_range, bNode *bnode, bNodeSocket* bsocket) {
+	if (bnode != NULL) {
+		for(NodeIterator it=node_range.first; it!=node_range.second; ++it) {
+			Node* node = *it;
+			if (node->getbNode() == bnode)
+				return node->findOutputSocketBybNodeSocket(bsocket);
+		}
+	} else {
+		for(NodeIterator it=node_range.first; it!=node_range.second; ++it) {
+			Node* node = *it;
+			if (node->isProxyNode()) {
+				OutputSocket *proxySocket = node->getOutputSocket(0);
+				if (proxySocket->getbNodeSocket()==bsocket)
+					return proxySocket;
+			}
+		}
+	}
+	return NULL;
+}
+SocketConnection* ExecutionSystemHelper::addNodeLink(NodeRange &node_range, vector<SocketConnection*>& links, bNodeLink *bNodeLink) {
 	/// @note: cyclic lines will be ignored. This has been copied from node.c
 	if (bNodeLink->tonode != 0 && bNodeLink->fromnode != 0) {
 		if(!(bNodeLink->fromnode->level >= bNodeLink->tonode->level && bNodeLink->tonode->level!=0xFFF)) { // only add non cyclic lines! so execution will procede
@@ -100,11 +151,8 @@ SocketConnection* ExecutionSystemHelper::addNodeLink(vector<Node*>& nodes, vecto
 		}
 	}
 
-	Node* fromNode = findNodeBybNode(nodes, bNodeLink->fromnode, bNodeLink->fromsock);
-	Node* toNode = findNodeBybNode(nodes, bNodeLink->tonode, bNodeLink->tosock);
-
-	OutputSocket *outputSocket = fromNode->findOutputSocketBybNodeSocket(bNodeLink->fromsock);
-	InputSocket *inputSocket = toNode->findInputSocketBybNodeSocket(bNodeLink->tosock);
+	InputSocket *inputSocket = find_input(node_range, bNodeLink->tonode, bNodeLink->tosock);
+	OutputSocket *outputSocket = find_output(node_range, bNodeLink->fromnode, bNodeLink->fromsock);
 	if (inputSocket == NULL || outputSocket == NULL) {
 		return NULL;
 	}
@@ -123,61 +171,4 @@ SocketConnection* ExecutionSystemHelper::addLink(vector<SocketConnection*>& link
 	toSocket->setConnection(newconnection);
 	links.push_back(newconnection);
 	return newconnection;
-}
-
-
-bool ExecutionSystemHelper::containsbNodeSocket(bNode *bnode, bNodeSocket* bsocket) {
-	bNodeSocket *socket = (bNodeSocket*)bnode->inputs.first;
-	while (socket != NULL) {
-		if (socket->groupsock == bsocket) {
-			return true;
-		}
-		socket = (bNodeSocket*)socket->next;
-	}
-	socket = (bNodeSocket*)bnode->outputs.first;
-	while (socket != NULL) {
-		if (socket->groupsock == bsocket) {
-			return true;
-		}
-		socket = (bNodeSocket*)socket->next;
-	}
-
-	return false;
-}
-
-
-Node* ExecutionSystemHelper::findNodeBybNode(vector<Node*>& nodes, bNode *bnode, bNodeSocket* bsocket) {
-	unsigned int index;
-	if (bnode != NULL) {
-		for(index = 0; index < nodes.size(); index++) {
-			Node* node = nodes[index];
-			if (node->getbNode() == bnode) {
-				return node;
-			}
-		}
-	} else {
-		// only look in the GroupNodes.
-		for(index = 0; index < nodes.size(); index++) {
-			Node* node = nodes[index];
-			if (node->isGroupNode()) {
-				bNode *bnode = node->getbNode();
-				if (containsbNodeSocket(bnode, bsocket)) {
-					return node;
-				}
-			}
-		}
-	}
-	return NULL;
-}
-
-void ExecutionSystemHelper::ungroup(ExecutionSystem &system) {
-	unsigned int index;
-	vector<Node*> &nodes = system.getNodes();
-	for(index = 0; index < nodes.size(); index++) {
-		Node* node = nodes[index];
-		if (node->isGroupNode()) {
-			GroupNode * groupNode = (GroupNode*)node;
-			groupNode->ungroup(system);
-		}
-	}
 }

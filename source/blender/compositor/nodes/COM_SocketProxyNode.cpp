@@ -26,10 +26,18 @@
 #include "COM_SocketProxyOperation.h"
 #include "COM_ExecutionSystem.h"
 
-SocketProxyNode::SocketProxyNode(bNode *editorNode): Node(editorNode) {
-	this->clearInputAndOutputSockets();
-	this->addInputSocket(COM_DT_COLOR);
-	this->addOutputSocket(COM_DT_COLOR);
+SocketProxyNode::SocketProxyNode(bNode *editorNode, bNodeSocket *editorInput, bNodeSocket *editorOutput): Node(editorNode, false) {
+	DataType dt;
+	
+	dt = COM_DT_VALUE;
+	if (editorInput->type == SOCK_RGBA) dt = COM_DT_COLOR;
+	if (editorInput->type == SOCK_VECTOR) dt = COM_DT_VECTOR;
+	this->addInputSocket(dt, (InputSocketResizeMode)editorInput->resizemode, editorInput);
+
+	dt = COM_DT_VALUE;
+	if (editorOutput->type == SOCK_RGBA) dt = COM_DT_COLOR;
+	if (editorOutput->type == SOCK_VECTOR) dt = COM_DT_VECTOR;
+	this->addOutputSocket(dt, editorOutput);
 }
 
 void SocketProxyNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context) {
@@ -40,8 +48,4 @@ void SocketProxyNode::convertToOperations(ExecutionSystem *graph, CompositorCont
 		this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket(0));
 		graph->addOperation(operation);
 	}
-}
-void SocketProxyNode::clearInputAndOutputSockets() {
-	this->getInputSockets().clear();
-	this->getOutputSockets().clear();
 }

@@ -31,11 +31,10 @@
   */
 class SocketProxyNode: public Node {
 public:
-    SocketProxyNode(bNode *editorNode);
-    void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
-private:
-	void clearInputAndOutputSockets();
+	SocketProxyNode(bNode *editorNode, bNodeSocket *editorInput, bNodeSocket *editorOutput);
+	void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
 
+	virtual bool isProxyNode() const { return true; }
 };
 
 #endif

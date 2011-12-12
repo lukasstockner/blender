@@ -64,7 +64,6 @@ private:
 	DataType actualType;
 
     bNodeSocket* editorSocket;
-    bool insideOfGroupNode;
 public:
 	Socket(DataType datatype);
 
@@ -94,9 +93,6 @@ public:
 
 	void setEditorSocket(bNodeSocket* editorSocket) {this->editorSocket = editorSocket;}
 	bNodeSocket* getbNodeSocket() const {return this->editorSocket;}
-
-    bool isInsideOfGroupNode() {return this->insideOfGroupNode;}
-    void setInsideOfGroupNode(bool insideOfGroupNode) {this->insideOfGroupNode = insideOfGroupNode;}
 
 };
 

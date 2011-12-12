@@ -30,7 +30,6 @@ Socket::Socket(DataType datatype) {
 	this->actualType = COM_DT_UNKNOWN;
     this->editorSocket = NULL;
     this->node = NULL;
-    this->insideOfGroupNode = false;
 }
 
 DataType Socket::getDataType() const {
