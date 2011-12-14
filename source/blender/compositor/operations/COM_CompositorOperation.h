@@ -42,8 +42,6 @@ public:
 	bool isOutputOperation(bool rendering) const {return true;}
     void initExecution();
     void deinitExecution();
-	const int getRenderPriority() const {return 7;};
-private:
-    void initImage();
+	const int getRenderPriority() const {return 7;}
 };
 #endif

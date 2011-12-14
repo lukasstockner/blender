@@ -50,20 +50,15 @@ void CompositorOperation::initExecution() {
 	// When initializing the tree during initial load the width and height can be zero.
 	this->imageInput = getInputSocketReader(0);
 	this->alphaInput = getInputSocketReader(1);
-	initImage();
-}
-
-void CompositorOperation::initImage() {
+	if (this->getWidth() * this->getHeight() != 0) {
+		this->outputBuffer=(float*) MEM_mapallocN(this->getWidth()*this->getHeight()*4*sizeof(float), "CompositorOperation");
+	}
 	const Scene * scene = this->scene;
 	Render* re= RE_GetRender(scene->id.name);
 	RenderResult *rr= RE_AcquireResultWrite(re);
 	if(rr) {
-
 		if(rr->rectf  != NULL) {
 			MEM_freeN(rr->rectf);
-		}
-		if (this->getWidth() * this->getHeight() != 0) {
-			this->outputBuffer=(float*) MEM_mapallocN(this->getWidth()*this->getHeight()*4*sizeof(float), "CompositorOperation");
 		}
 		rr->rectf= outputBuffer;
 	}
@@ -71,6 +66,7 @@ void CompositorOperation::initImage() {
 		RE_ReleaseResult(re);
 		re = NULL;
 	}
+	
 }
 
 void CompositorOperation::deinitExecution() {

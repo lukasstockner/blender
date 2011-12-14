@@ -130,8 +130,8 @@ WorkPackage* WorkScheduler::getGPUWork() {
 
 
 void WorkScheduler::schedule(ExecutionGroup *group, int chunkNumber) {
-#if COM_CURRENT_THREADING_MODEL == COM_TM_PTHREAD
 	WorkPackage* package = new WorkPackage(group, chunkNumber);
+#if COM_CURRENT_THREADING_MODEL == COM_TM_PTHREAD
 	if (group->isOpenCL() && openclActive){
 		BLI_mutex_lock(&gpumutex);
 		gpuwork.push_back(package);
@@ -142,7 +142,6 @@ void WorkScheduler::schedule(ExecutionGroup *group, int chunkNumber) {
 		BLI_mutex_unlock(&cpumutex);
 	}
 #elif COM_CURRENT_THREADING_MODEL == COM_TM_NOTHREAD
-	WorkPackage* package = new WorkPackage(group, chunkNumber);
 	CPUDevice device;
 	device.execute(package);
 	delete package;
@@ -278,15 +277,15 @@ void WorkScheduler::deinitialize() {
 	Device* device;
 	while(cpudevices.size()>0) {
 		device = cpudevices.back();
+		cpudevices.pop_back();
 		device->deinitialize();
 		delete device;
-		cpudevices.pop_back();
 	}
 	while(gpudevices.size()>0) {
 		device = gpudevices.back();
+		gpudevices.pop_back();
 		device->deinitialize();
 		delete device;
-		gpudevices.pop_back();
 	}
 #if COM_OPENCL_ENABLED
 	if (program) {

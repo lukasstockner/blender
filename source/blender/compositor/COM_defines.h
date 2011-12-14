@@ -56,7 +56,8 @@ typedef enum CompositorQuality {
 
 // chunk size determination
 #define COM_PREVIEW_SIZE 140.0f
-#define COM_OPENCL_ENABLED TRUE
+#define COM_OPENCL_ENABLED true
+#define COM_PREVIEW_ENABLED true
 // workscheduler threading models
 /**
   * COM_TM_PTHREAD is a threading model based on pthread library. where the control (picking new work) is done by each thread

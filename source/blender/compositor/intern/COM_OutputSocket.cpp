@@ -37,9 +37,6 @@ OutputSocket::OutputSocket(OutputSocket *from): Socket(from->getDataType()) {
 	this->inputSocketDataTypeDeterminatorIndex = from->getInputSocketDataTypeDeterminatorIndex();	
 }
 
-OutputSocket::~OutputSocket() {
-}
-
 int OutputSocket::isOutputSocket() const { return true; }
 const int OutputSocket::isConnected() const { return this->connections.size()!=0; }
 

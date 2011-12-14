@@ -38,13 +38,13 @@ void COM_execute(bNodeTree *editingtree, int rendering) {
 		WorkScheduler::initialize(); ///TODO: call workscheduler.deinitialize somewhere
 	}
 	BLI_mutex_lock(mutex);
-//	if (editingtree->test_break && editingtree->test_break(editingtree->tbh)) {
-//		// during editing multiple calls to this method can be triggered.
-//		// make sure one the last one will be doing the work.
-//		BLI_mutex_unlock(mutex);
-//		return;
+	if (editingtree->test_break && editingtree->test_break(editingtree->tbh)) {
+		// during editing multiple calls to this method can be triggered.
+		// make sure one the last one will be doing the work.
+		BLI_mutex_unlock(mutex);
+		return;
 
-//	}
+	}
 
 	/* set progress bar to 0% and status to init compositing*/
 	editingtree->progress(editingtree->prh, 0.0);

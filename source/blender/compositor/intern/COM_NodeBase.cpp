@@ -34,17 +34,14 @@ NodeBase::NodeBase() {
 
 
 NodeBase::~NodeBase(){
-	unsigned int index;
-	for (index = 0 ; index < this->outputsockets.size(); index ++) {
-		OutputSocket * socket = this->outputsockets[index];
-		delete socket;
+	while (!this->outputsockets.empty()) {
+		delete (this->outputsockets.back());
+		this->outputsockets.pop_back();
 	}
-    this->outputsockets.clear();
-	for (index = 0 ; index < this->inputsockets.size(); index ++) {
-		InputSocket * socket = this->inputsockets[index];
-		delete socket;
+	while (!this->inputsockets.empty()) {
+		delete (this->inputsockets.back());
+		this->inputsockets.pop_back();
 	}
-    this->inputsockets.clear();
 }
 
 void NodeBase::addInputSocket(DataType datatype) {

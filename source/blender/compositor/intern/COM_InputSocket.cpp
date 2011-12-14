@@ -40,10 +40,6 @@ InputSocket::InputSocket(InputSocket* from) :Socket(from->getDataType()) {
 	this->resizeMode = from->getResizeMode();
 }
 
-InputSocket::~InputSocket() {
-}
-
-
 int InputSocket::isInputSocket() const { return true; }
 const int InputSocket::isConnected() const { return this->connection != NULL; }
 

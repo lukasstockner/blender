@@ -90,7 +90,6 @@ public:
 	InputSocket(DataType datatype);
 	InputSocket(DataType datatype, InputSocketResizeMode resizeMode);
 	InputSocket(InputSocket* from);
-	~InputSocket();
 
     void setConnection(SocketConnection* connection);
     SocketConnection* getConnection();

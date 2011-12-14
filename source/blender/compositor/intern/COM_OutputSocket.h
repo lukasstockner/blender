@@ -57,7 +57,6 @@ public:
 	OutputSocket(DataType datatype);
 	OutputSocket(DataType datatype, int inputSocketDataTypeDeterminatorIndex);
 	OutputSocket(OutputSocket * from);
-    ~OutputSocket();
     void addConnection(SocketConnection *connection);
     SocketConnection* getConnection(unsigned int index) {return this->connections[index];}
     const int isConnected() const;
