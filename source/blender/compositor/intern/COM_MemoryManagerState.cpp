@@ -67,7 +67,11 @@ void MemoryManagerState::addMemoryBuffer(MemoryBuffer *buffer) {
         if (oldbuffer) delete oldbuffer;
     }
 
-	this->chunkBuffers[chunkNumber] = buffer;
+	if (this->chunkBuffers[chunkNumber] == NULL) {
+		this->chunkBuffers[chunkNumber] = buffer;
+	} else {
+		throw "ALREADY ALLOCATED!";
+	}
     BLI_mutex_unlock(&this->mutex);
 }
 

@@ -70,9 +70,15 @@ typedef enum CompositorQuality {
 #define COM_TM_NOTHREAD 2
 
 /**
+  * COM_TM_WORKER is a multithreaded model, which uses the BLI_Worker pattern. it is slower as it searched for free threads.
+  * But for stability reasons you can select this one.
+  */
+#define COM_TM_WORKER 3
+
+/**
   * COM_CURRENT_THREADING_MODEL can be one of the above, COM_PTHREAD is currently default.
   */
-#define COM_CURRENT_THREADING_MODEL COM_TM_PTHREAD
+#define COM_CURRENT_THREADING_MODEL COM_TM_WORKER
 
 
 // chunk order

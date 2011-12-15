@@ -51,7 +51,7 @@ void CompositorOperation::initExecution() {
 	this->imageInput = getInputSocketReader(0);
 	this->alphaInput = getInputSocketReader(1);
 	if (this->getWidth() * this->getHeight() != 0) {
-		this->outputBuffer=(float*) MEM_mapallocN(this->getWidth()*this->getHeight()*4*sizeof(float), "CompositorOperation");
+		this->outputBuffer=(float*) MEM_callocN(this->getWidth()*this->getHeight()*4*sizeof(float), "CompositorOperation");
 	}
 	const Scene * scene = this->scene;
 	Render* re= RE_GetRender(scene->id.name);
@@ -77,6 +77,7 @@ void CompositorOperation::deinitExecution() {
 
 
 void CompositorOperation::executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer** memoryBuffers) {
+	float color[8]; // 7 is enough
 	float* buffer = this->outputBuffer;
 
 	if (!buffer) return;
@@ -91,17 +92,19 @@ void CompositorOperation::executeRegion(rcti *rect, unsigned int tileNumber, Mem
 
 	for (y = y1 ; y < y2 && (!breaked); y++) {
 		for (x = x1 ; x < x2 && (!breaked) ; x++) {
-			imageInput->read(&(buffer[offset]), x, y, memoryBuffers);
+			imageInput->read(color, x, y, memoryBuffers);
 			if (alphaInput != NULL) {
-				alphaInput->read(&(buffer[offset+3]), x, y, memoryBuffers);
+				alphaInput->read(&(color[3]), x, y, memoryBuffers);
 			}
+			buffer[offset] = color[0];
+			buffer[offset+1] = color[1];
+			buffer[offset+2] = color[2];
+			buffer[offset+3] = color[3];
 			offset +=4;
 			if (tree->test_break && tree->test_break(tree->tbh)) {
 				breaked = true;
 			}
-
 		}
 		offset += (this->getWidth()-(x2-x1))*4;
 	}
 }
-

@@ -95,6 +95,7 @@ void ExecutionGroup::addOperation(ExecutionSystem *system, NodeOperation *operat
 			this->openCL = operation->isOpenCL();
 			this->initialized = true;
 		}
+		printf("Adding operation to group %d, %d\n", this, operation);
 		this->operations.push_back(operation);
 		if (operation->isReadBufferOperation()) {
 			ReadBufferOperation* readOperation = (ReadBufferOperation*)operation;
@@ -414,7 +415,11 @@ MemoryBuffer* ExecutionGroup::constructConsolidatedMemoryBuffer(MemoryProxy *mem
 }
 
 void ExecutionGroup::finalizeChunkExecution(int chunkNumber, MemoryBuffer** memoryBuffers) {
-	this->chunkExecutionStates[chunkNumber] = COM_ES_EXECUTED;
+	if (this->chunkExecutionStates[chunkNumber] == COM_ES_SCHEDULED)
+		this->chunkExecutionStates[chunkNumber] = COM_ES_EXECUTED;
+	else 
+		throw "Threading inconsistency";
+	
 	this->chunksFinished++;
 	if (memoryBuffers) {
 		for (unsigned int index = 0 ; index < this->cachedMaxReadBufferOffset; index ++) {
@@ -487,9 +492,12 @@ bool ExecutionGroup::scheduleAreaWhenPossible(ExecutionSystem * graph, rcti *are
 }
 
 bool ExecutionGroup::scheduleChunk(unsigned int chunkNumber) {
-	this->chunkExecutionStates[chunkNumber] = COM_ES_SCHEDULED;
-	WorkScheduler::schedule(this, chunkNumber);
-	return true;
+	if (this->chunkExecutionStates[chunkNumber] == COM_ES_NOT_SCHEDULED) {
+		this->chunkExecutionStates[chunkNumber] = COM_ES_SCHEDULED;
+		WorkScheduler::schedule(this, chunkNumber);
+		return true;
+	}
+	return false;
 }
 
 bool ExecutionGroup::scheduleChunkWhenPossible(ExecutionSystem * graph, int xChunk, int yChunk) {

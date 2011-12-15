@@ -21,10 +21,8 @@
  */
 
 #include "COM_WorkPackage.h"
-#include <stdio.h>
 
 WorkPackage::WorkPackage(ExecutionGroup *group, unsigned int chunkNumber) {
-	printf("%d: %d\n", group, chunkNumber);
-    this->executionGroup = group;
+	this->executionGroup = group;
 	this->chunkNumber = chunkNumber;
 }

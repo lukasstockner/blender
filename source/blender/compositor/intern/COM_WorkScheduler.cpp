@@ -28,11 +28,11 @@
 #include "COM_OpenCLDevice.h"
 #include "OCL_opencl.h"
 #include "stdio.h"
-#include "MEM_guardedalloc.h"
 #include "COM_OpenCLKernels.cl.cpp"
 
 #if COM_CURRENT_THREADING_MODEL == COM_TM_PTHREAD
 #elif COM_CURRENT_THREADING_MODEL == COM_TM_NOTHREAD
+#elif COM_CURRENT_THREADING_MODEL == COM_TM_WORKER
 #else
 #error WorkScheduler: No threading model configured
 #endif
@@ -60,11 +60,23 @@ static ListBase cputhreads;
 static ListBase gputhreads;
 #endif
 
+#if COM_CURRENT_THREADING_MODEL == COM_TM_WORKER
+ThreadedWorker *cpuworker;
+#endif
+
 #if COM_OPENCL_ENABLED
 static cl_context context;
 static cl_program program;
 #endif
 
+#if COM_CURRENT_THREADING_MODEL == COM_TM_WORKER
+void* worker_execute_cpu(void* data) {
+	CPUDevice device;
+	WorkPackage * package = (WorkPackage*)data;
+	device.execute(package);
+	delete package;
+}
+#endif
 #if COM_CURRENT_THREADING_MODEL == COM_TM_PTHREAD
 void* WorkScheduler::thread_execute_cpu(void* data) {
 	bool continueLoop = true;
@@ -145,6 +157,8 @@ void WorkScheduler::schedule(ExecutionGroup *group, int chunkNumber) {
 	CPUDevice device;
 	device.execute(package);
 	delete package;
+#elif COM_CURRENT_THREADING_MODEL == COM_TM_WORKER
+	BLI_insert_work(cpuworker, package);
 #endif
 }
 
@@ -167,6 +181,9 @@ void WorkScheduler::start(CompositorContext &context) {
 		openclActive = false;
 	}
 #endif
+#if COM_CURRENT_THREADING_MODEL == COM_TM_WORKER
+	cpuworker = BLI_create_worker(worker_execute_cpu, cpudevices.size(), 0);
+#endif
 	state = COM_WSS_STARTED;
 }
 
@@ -176,11 +193,14 @@ void WorkScheduler::stop() {
 	BLI_end_threads(&cputhreads);
 	BLI_end_threads(&gputhreads);
 #endif
+#if COM_CURRENT_THREADING_MODEL == COM_TM_WORKER
+	BLI_destroy_worker(cpuworker);
+#endif
 	state = COM_WSS_STOPPED;
 }
 
 void WorkScheduler::finish() {
-	while ((cpuwork.size() + gpuwork.size()) >0) {
+	while (!cpuwork.empty() && !gpuwork.empty()) {
 		PIL_sleep_ms(10);
 	}
 }
@@ -199,6 +219,14 @@ void WorkScheduler::initialize() {
 	BLI_mutex_init(&gpumutex);
 
 #if COM_CURRENT_THREADING_MODEL == COM_TM_PTHREAD
+	int numberOfCPUThreads = BLI_system_thread_count();
+
+	for (int index = 0 ; index < numberOfCPUThreads ; index ++) {
+		CPUDevice *device = new CPUDevice();
+		device->initialize();
+		cpudevices.push_back(device);
+	}
+#elif COM_CURRENT_THREADING_MODEL == COM_TM_WORKER
 	int numberOfCPUThreads = BLI_system_thread_count();
 
 	for (int index = 0 ; index < numberOfCPUThreads ; index ++) {

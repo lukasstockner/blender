@@ -63,7 +63,7 @@ private:
     int renderpass;
 
 	int elementsize;
-
+	
 protected:
     /**
       * Constructor

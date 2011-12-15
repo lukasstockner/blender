@@ -30,18 +30,18 @@ extern "C" {
 #include "COM_ExecutionSystem.h"
 #include "COM_WorkScheduler.h"
 
-static ThreadMutex *mutex=NULL;
+static ThreadMutex *compositorMutex;
 void COM_execute(bNodeTree *editingtree, int rendering) {
-	if (mutex == NULL) { /// TODO: move to blender startup phase
-		mutex = new ThreadMutex();
-		BLI_mutex_init(mutex);
+	if (compositorMutex == NULL) { /// TODO: move to blender startup phase
+		compositorMutex = new ThreadMutex();
+		BLI_mutex_init(compositorMutex);
 		WorkScheduler::initialize(); ///TODO: call workscheduler.deinitialize somewhere
 	}
-	BLI_mutex_lock(mutex);
+	BLI_mutex_lock(compositorMutex);
 	if (editingtree->test_break && editingtree->test_break(editingtree->tbh)) {
 		// during editing multiple calls to this method can be triggered.
 		// make sure one the last one will be doing the work.
-		BLI_mutex_unlock(mutex);
+		BLI_mutex_unlock(compositorMutex);
 		return;
 
 	}
@@ -55,5 +55,5 @@ void COM_execute(bNodeTree *editingtree, int rendering) {
 	system->execute();
 	delete system;
 
-	BLI_mutex_unlock(mutex);
+	BLI_mutex_unlock(compositorMutex);
 }
