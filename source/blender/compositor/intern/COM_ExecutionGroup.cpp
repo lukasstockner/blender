@@ -95,7 +95,6 @@ void ExecutionGroup::addOperation(ExecutionSystem *system, NodeOperation *operat
 			this->openCL = operation->isOpenCL();
 			this->initialized = true;
 		}
-		printf("Adding operation to group %d, %d\n", this, operation);
 		this->operations.push_back(operation);
 		if (operation->isReadBufferOperation()) {
 			ReadBufferOperation* readOperation = (ReadBufferOperation*)operation;

@@ -75,6 +75,7 @@ void* worker_execute_cpu(void* data) {
 	WorkPackage * package = (WorkPackage*)data;
 	device.execute(package);
 	delete package;
+	return NULL;
 }
 #endif
 #if COM_CURRENT_THREADING_MODEL == COM_TM_PTHREAD
