@@ -109,12 +109,6 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(game, "lock_rotation_y", text="Y")
             col.prop(game, "lock_rotation_z", text="Z")
 
-            layout.separator()
-            
-            col = layout.column()
-            col.prop(game, "collision_group")
-            col.prop(game, "collision_mask")
-
         elif physics_type == 'SOFT_BODY':
             col = layout.column()
             col.prop(game, "use_actor")
@@ -149,12 +143,6 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             sub = col.column()
             sub.active = (soft.use_cluster_rigid_to_softbody or soft.use_cluster_soft_to_softbody)
             sub.prop(soft, "cluster_iterations", text="Iterations")
-            
-            layout.separator()
-            
-            col = layout.column()
-            col.prop(game, "collision_group")
-            col.prop(game, "collision_mask")
 
         elif physics_type == 'STATIC':
             col = layout.column()
@@ -176,21 +164,9 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             subsub = sub.column()
             subsub.active = game.use_anisotropic_friction
             subsub.prop(game, "friction_coefficients", text="", slider=True)
-            
-            layout.separator()
-            
-            col = layout.column()
-            col.prop(game, "collision_group")
-            col.prop(game, "collision_mask")
 
         elif physics_type in {'SENSOR', 'INVISIBLE', 'NO_COLLISION', 'OCCLUDE'}:
             layout.prop(ob, "hide_render", text="Invisible")
-            
-            layout.separator()
-            
-            col = layout.column()
-            col.prop(game, "collision_group")
-            col.prop(game, "collision_mask")
             
         elif physics_type in {'INVISIBLE', 'NO_COLLISION', 'OCCLUDE'}:
             layout.prop(ob, "hide_render", text="Invisible")
@@ -203,8 +179,13 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
             layout.operator("mesh.navmesh_reset")
             layout.operator("mesh.navmesh_clear")
-
-
+		
+        if physics_type not in {'INVISIBLE', 'NO_COLLISION', 'OCCLUDE'}:    
+            layout.separator()
+            col = layout.column()
+            col.prop(game, "collision_group")
+            col.prop(game, "collision_mask")
+		
 class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
     bl_label = "Collision Bounds"
     COMPAT_ENGINES = {'BLENDER_GAME'}
