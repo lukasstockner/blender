@@ -9,10 +9,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. The Blender
- * Foundation also sells licenses for use in proprietary software under
- * the Blender License.  See http://www.blender.org/BL/ for information
- * about this.	
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -86,7 +83,7 @@ void BME_CD_Create(BME_CustomData *data, BME_CustomDataInit *init, int initalloc
 	if(data->totlayer){
 		/*alloc memory*/
 		data->layers = MEM_callocN(sizeof(BME_CustomDataLayer)*data->totlayer, "BMesh Custom Data Layers");
-		data->pool = BLI_mempool_create(data->totsize, initalloc, initalloc, 0);
+		data->pool = BLI_mempool_create(data->totsize, initalloc, initalloc, FALSE, FALSE);
 		/*initialize layer data*/
 		for(i=0; i < BME_CD_NUMTYPES; i++){
 			if(init->layout[i]){

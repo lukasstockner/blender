@@ -64,49 +64,53 @@ EnumPropertyItem nodetree_type_items[] = {
 
 
 EnumPropertyItem node_socket_type_items[] = {
-	{SOCK_FLOAT,  "VALUE",     0,    "Value",     ""},
-	{SOCK_VECTOR, "VECTOR",    0,    "Vector",    ""},
-	{SOCK_RGBA,   "RGBA",      0,    "RGBA",      ""},
+	{SOCK_FLOAT,   "VALUE",     0,    "Value",     ""},
+	{SOCK_VECTOR,  "VECTOR",    0,    "Vector",    ""},
+	{SOCK_RGBA,    "RGBA",      0,    "RGBA",      ""},
+	{SOCK_SHADER,  "SHADER",    0,    "Shader",    ""},
+	{SOCK_BOOLEAN, "BOOLEAN",   0,    "Boolean",   ""},
+	{SOCK_MESH,    "MESH",      0,    "Mesh",      ""},
+	{SOCK_INT,     "INT",       0,    "Int",       ""},
 	{0, NULL, 0, NULL, NULL}};
 
 EnumPropertyItem node_math_items[] = {
-{ 0, "ADD",          0, "Add",          ""},
-{ 1, "SUBTRACT",     0, "Subtract",     ""},
-{ 2, "MULTIPLY",     0, "Multiply",     ""},
-{ 3, "DIVIDE",       0, "Divide",       ""},
-{ 4, "SINE",         0, "Sine",         ""},
-{ 5, "COSINE",       0, "Cosine",       ""},
-{ 6, "TANGENT",      0, "Tangent",      ""},
-{ 7, "ARCSINE",      0, "Arcsine",      ""},
-{ 8, "ARCCOSINE",    0, "Arccosine",    ""},
-{ 9, "ARCTANGENT",   0, "Arctangent",   ""},
-{10, "POWER",        0, "Power",        ""},
-{11, "LOGARITHM",    0, "Logarithm",    ""},
-{12, "MINIMUM",      0, "Minimum",      ""},
-{13, "MAXIMUM",      0, "Maximum",      ""},
-{14, "ROUND",        0, "Round",        ""},
-{15, "LESS_THAN",    0, "Less Than",    ""},
-{16, "GREATER_THAN", 0, "Greater Than", ""},
-{0, NULL, 0, NULL, NULL}};
+	{ 0, "ADD",          0, "Add",          ""},
+	{ 1, "SUBTRACT",     0, "Subtract",     ""},
+	{ 2, "MULTIPLY",     0, "Multiply",     ""},
+	{ 3, "DIVIDE",       0, "Divide",       ""},
+	{ 4, "SINE",         0, "Sine",         ""},
+	{ 5, "COSINE",       0, "Cosine",       ""},
+	{ 6, "TANGENT",      0, "Tangent",      ""},
+	{ 7, "ARCSINE",      0, "Arcsine",      ""},
+	{ 8, "ARCCOSINE",    0, "Arccosine",    ""},
+	{ 9, "ARCTANGENT",   0, "Arctangent",   ""},
+	{10, "POWER",        0, "Power",        ""},
+	{11, "LOGARITHM",    0, "Logarithm",    ""},
+	{12, "MINIMUM",      0, "Minimum",      ""},
+	{13, "MAXIMUM",      0, "Maximum",      ""},
+	{14, "ROUND",        0, "Round",        ""},
+	{15, "LESS_THAN",    0, "Less Than",    ""},
+	{16, "GREATER_THAN", 0, "Greater Than", ""},
+	{0, NULL, 0, NULL, NULL}};
 
 EnumPropertyItem node_vec_math_items[] = {
-{0, "ADD",           0, "Add",           ""},
-{1, "SUBTRACT",      0, "Subtract",      ""},
-{2, "AVERAGE",       0, "Average",       ""},
-{3, "DOT_PRODUCT",   0, "Dot Product",   ""},
-{4, "CROSS_PRODUCT", 0, "Cross Product", ""},
-{5, "NORMALIZE",     0, "Normalize",     ""},
-{0, NULL, 0, NULL, NULL}};
+	{0, "ADD",           0, "Add",           ""},
+	{1, "SUBTRACT",      0, "Subtract",      ""},
+	{2, "AVERAGE",       0, "Average",       ""},
+	{3, "DOT_PRODUCT",   0, "Dot Product",   ""},
+	{4, "CROSS_PRODUCT", 0, "Cross Product", ""},
+	{5, "NORMALIZE",     0, "Normalize",     ""},
+	{0, NULL, 0, NULL, NULL}};
 
 EnumPropertyItem node_filter_items[] = {
-{0, "SOFTEN",  0, "Soften",  ""},
-{1, "SHARPEN", 0, "Sharpen", ""},
-{2, "LAPLACE", 0, "Laplace", ""},
-{3, "SOBEL",   0, "Sobel",   ""},
-{4, "PREWITT", 0, "Prewitt", ""},
-{5, "KIRSCH",  0, "Kirsch",  ""},
-{6, "SHADOW",  0, "Shadow",  ""},
-{0, NULL, 0, NULL, NULL}};
+	{0, "SOFTEN",  0, "Soften",  ""},
+	{1, "SHARPEN", 0, "Sharpen", ""},
+	{2, "LAPLACE", 0, "Laplace", ""},
+	{3, "SOBEL",   0, "Sobel",   ""},
+	{4, "PREWITT", 0, "Prewitt", ""},
+	{5, "KIRSCH",  0, "Kirsch",  ""},
+	{6, "SHADOW",  0, "Shadow",  ""},
+	{0, NULL, 0, NULL, NULL}};
 
 EnumPropertyItem prop_noise_basis_items[] = {
 	{SHD_NOISE_PERLIN, "PERLIN", 0, "Perlin", ""},
@@ -124,11 +128,13 @@ EnumPropertyItem prop_noise_type_items[] = {
 	{SHD_NOISE_HARD, "HARD", 0, "Hard", ""},
 	{0, NULL, 0, NULL, NULL}};
 
+#if 0
 EnumPropertyItem prop_wave_items[] = {
-	{SHD_WAVE_SINE, "SINE", 0, "Sine", "Uses a sine wave to produce bands"},
-	{SHD_WAVE_SAW, "SAW", 0, "Saw", "Uses a saw wave to produce bands"},
-	{SHD_WAVE_TRI, "TRI", 0, "Tri", "Uses a triangle wave to produce bands"},
+	{SHD_WAVE_SINE, "SINE", 0, "Sine", "Use a sine wave to produce bands"},
+	{SHD_WAVE_SAW, "SAW", 0, "Saw", "Use a saw wave to produce bands"},
+	{SHD_WAVE_TRI, "TRI", 0, "Tri", "Use a triangle wave to produce bands"},
 	{0, NULL, 0, NULL, NULL}};
+#endif
 
 /* Add any new socket value subtype here.
  * When adding a new subtype here, make sure you also add it
@@ -359,6 +365,17 @@ static void rna_Node_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	bNodeTree *ntree= (bNodeTree*)ptr->id.data;
 	bNode *node= (bNode*)ptr->data;
+
+	node_update(bmain, scene, ntree, node);
+}
+
+static void rna_Node_material_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	bNodeTree *ntree= (bNodeTree*)ptr->id.data;
+	bNode *node= (bNode*)ptr->data;
+
+	if(node->id)
+		nodeSetActive(ntree, node);
 
 	node_update(bmain, scene, ntree, node);
 }
@@ -643,6 +660,26 @@ static void rna_NodeTree_node_remove(bNodeTree *ntree, ReportList *reports, bNod
 	}
 }
 
+static void rna_NodeTree_node_clear(bNodeTree *ntree)
+{
+	bNode *node= ntree->nodes.first;
+
+	while(node) {
+		bNode *next_node= node->next;
+
+		if (node->id)
+			id_us_min(node->id);
+
+		nodeFreeNode(ntree, node);
+
+		node= next_node;
+	}
+
+	ntreeUpdateTree(ntree); /* update group node socket links*/
+
+	WM_main_add_notifier(NC_NODE|NA_EDITED, ntree);
+}
+
 static bNodeLink *rna_NodeTree_link_new(bNodeTree *ntree, ReportList *reports, bNodeSocket *in, bNodeSocket *out)
 {
 	bNodeLink *ret;
@@ -683,6 +720,22 @@ static void rna_NodeTree_link_remove(bNodeTree *ntree, ReportList *reports, bNod
 
 		WM_main_add_notifier(NC_NODE|NA_EDITED, ntree);
 	}
+}
+
+static void rna_NodeTree_link_clear(bNodeTree *ntree)
+{
+	bNodeLink *link= ntree->links.first;
+
+	while(link) {
+		bNodeLink *next_link= link->next;
+
+		nodeRemLink(ntree, link);
+
+		link= next_link;
+	}
+	ntreeUpdateTree(ntree);
+
+	WM_main_add_notifier(NC_NODE|NA_EDITED, ntree);
 }
 
 static bNodeSocket *rna_NodeTree_input_new(bNodeTree *ntree, ReportList *UNUSED(reports), const char *name, int type)
@@ -753,6 +806,13 @@ static bNodeSocket *rna_NodeTree_output_expose(bNodeTree *ntree, ReportList *rep
 		return gsock;
 	}
 	return NULL;
+}
+
+static void rna_Mapping_Node_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	bNode *node = ptr->data;
+	init_tex_mapping(node->storage);
+	rna_Node_update(bmain, scene, ptr);
 }
 
 #else
@@ -1074,7 +1134,7 @@ static void def_sh_material(StructRNA *srna)
 	RNA_def_property_struct_type(prop, "Material");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Material", "");
-	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
+	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_material_update");
 
 	prop = RNA_def_property(srna, "use_diffuse", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "custom1", SH_NODE_MAT_DIFF);
@@ -1095,12 +1155,43 @@ static void def_sh_material(StructRNA *srna)
 static void def_sh_mapping(StructRNA *srna)
 {
 	PropertyRNA *prop;
+	
+	RNA_def_struct_sdna_from(srna, "TexMapping", "storage");
 
-	prop= RNA_def_property(srna, "mapping", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_sdna(prop, NULL, "storage");
-	RNA_def_property_struct_type(prop, "TexMapping");
-	RNA_def_property_flag(prop, PROP_NEVER_NULL);
-	RNA_def_property_ui_text(prop, "Mapping", "Texture coordinate mapping settings");
+	prop= RNA_def_property(srna, "location", PROP_FLOAT, PROP_TRANSLATION);
+	RNA_def_property_float_sdna(prop, NULL, "loc");
+	RNA_def_property_ui_text(prop, "Location", "");
+	RNA_def_property_update(prop, 0, "rna_Mapping_Node_update");
+	
+	prop= RNA_def_property(srna, "rotation", PROP_FLOAT, PROP_EULER); /* Not PROP_XYZ, this is now in radians, no more degrees */
+	RNA_def_property_float_sdna(prop, NULL, "rot");
+	RNA_def_property_ui_text(prop, "Rotation", "");
+	RNA_def_property_update(prop, 0, "rna_Mapping_Node_update");
+	
+	prop= RNA_def_property(srna, "scale", PROP_FLOAT, PROP_XYZ);
+	RNA_def_property_float_sdna(prop, NULL, "size");
+	RNA_def_property_ui_text(prop, "Scale", "");
+	RNA_def_property_update(prop, 0, "rna_Mapping_Node_update");
+	
+	prop= RNA_def_property(srna, "min", PROP_FLOAT, PROP_XYZ);
+	RNA_def_property_float_sdna(prop, NULL, "min");
+	RNA_def_property_ui_text(prop, "Minimum", "Minimum value for clipping");
+	RNA_def_property_update(prop, 0, "rna_Mapping_Node_update");
+	
+	prop= RNA_def_property(srna, "max", PROP_FLOAT, PROP_XYZ);
+	RNA_def_property_float_sdna(prop, NULL, "max");
+	RNA_def_property_ui_text(prop, "Maximum", "Maximum value for clipping");
+	RNA_def_property_update(prop, 0, "rna_Mapping_Node_update");
+	
+	prop= RNA_def_property(srna, "use_min", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", TEXMAP_CLIP_MIN);
+	RNA_def_property_ui_text(prop, "Has Minimum", "Whether to use minimum clipping value");
+	RNA_def_property_update(prop, 0, "rna_Mapping_Node_update");
+	
+	prop= RNA_def_property(srna, "use_max", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", TEXMAP_CLIP_MAX);
+	RNA_def_property_ui_text(prop, "Has Maximum", "Whether to use maximum clipping value");
+	RNA_def_property_update(prop, 0, "rna_Mapping_Node_update");
 }
 
 static void def_sh_geometry(StructRNA *srna)
@@ -1111,7 +1202,7 @@ static void def_sh_geometry(StructRNA *srna)
 	
 	prop = RNA_def_property(srna, "uv_layer", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "uvname");
-	RNA_def_property_ui_text(prop, "UV Layer", "");
+	RNA_def_property_ui_text(prop, "UV Map", "");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
 	prop = RNA_def_property(srna, "color_layer", PROP_STRING, PROP_NONE);
@@ -1216,13 +1307,13 @@ static void def_sh_tex_image(StructRNA *srna)
 static void def_sh_tex_gradient(StructRNA *srna)
 {
 	static EnumPropertyItem prop_gradient_type[] = {
-		{SHD_BLEND_LINEAR, "LINEAR", 0, "Linear", "Creates a linear progression"},
-		{SHD_BLEND_QUADRATIC, "QUADRATIC", 0, "Quadratic", "Creates a quadratic progression"},
-		{SHD_BLEND_EASING, "EASING", 0, "Easing", "Creates a progression easing from one step to the next"},
-		{SHD_BLEND_DIAGONAL, "DIAGONAL", 0, "Diagonal", "Creates a diagonal progression"},
-		{SHD_BLEND_SPHERICAL, "SPHERICAL", 0, "Spherical", "Creates a spherical progression"},
-		{SHD_BLEND_QUADRATIC_SPHERE, "QUADRATIC_SPHERE", 0, "Quadratic sphere", "Creates a quadratic progression in the shape of a sphere"},
-		{SHD_BLEND_RADIAL, "RADIAL", 0, "Radial", "Creates a radial progression"},
+		{SHD_BLEND_LINEAR, "LINEAR", 0, "Linear", "Create a linear progression"},
+		{SHD_BLEND_QUADRATIC, "QUADRATIC", 0, "Quadratic", "Create a quadratic progression"},
+		{SHD_BLEND_EASING, "EASING", 0, "Easing", "Create a progression easing from one step to the next"},
+		{SHD_BLEND_DIAGONAL, "DIAGONAL", 0, "Diagonal", "Create a diagonal progression"},
+		{SHD_BLEND_SPHERICAL, "SPHERICAL", 0, "Spherical", "Create a spherical progression"},
+		{SHD_BLEND_QUADRATIC_SPHERE, "QUADRATIC_SPHERE", 0, "Quadratic sphere", "Create a quadratic progression in the shape of a sphere"},
+		{SHD_BLEND_RADIAL, "RADIAL", 0, "Radial", "Create a radial progression"},
 		{0, NULL, 0, NULL, NULL}};
 
 	PropertyRNA *prop;
@@ -1232,7 +1323,7 @@ static void def_sh_tex_gradient(StructRNA *srna)
 
 	prop= RNA_def_property(srna, "gradient_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, prop_gradient_type);
-	RNA_def_property_ui_text(prop, "Gradient Type", "Sets the style of the color blending");
+	RNA_def_property_ui_text(prop, "Gradient Type", "Style of the color blending");
 	RNA_def_property_update(prop, 0, "rna_Node_update");
 }
 
@@ -1300,8 +1391,8 @@ static void def_sh_tex_voronoi(StructRNA *srna)
 static void def_sh_tex_wave(StructRNA *srna)
 {
 	static EnumPropertyItem prop_wave_type_items[] = {
-	{SHD_WAVE_BANDS, "BANDS", 0, "Bands", "Uses standard wave texture in bands"},
-	{SHD_WAVE_RINGS, "RINGS", 0, "Rings", "Uses wave texture in rings"},
+	{SHD_WAVE_BANDS, "BANDS", 0, "Bands", "Use standard wave texture in bands"},
+	{SHD_WAVE_RINGS, "RINGS", 0, "Rings", "Use wave texture in rings"},
 	{0, NULL, 0, NULL, NULL}};
 
 	PropertyRNA *prop;
@@ -1445,12 +1536,12 @@ static void def_cmp_blur(StructRNA *srna)
 	
 	prop = RNA_def_property(srna, "use_bokeh", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "bokeh", 1);
-	RNA_def_property_ui_text(prop, "Bokeh", "Uses circular filter (slower)");
+	RNA_def_property_ui_text(prop, "Bokeh", "Use circular filter (slower)");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
 	prop = RNA_def_property(srna, "use_gamma_correction", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "gamma", 1);
-	RNA_def_property_ui_text(prop, "Gamma", "Applies filter on gamma corrected values");
+	RNA_def_property_ui_text(prop, "Gamma", "Apply filter on gamma corrected values");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
 }
@@ -1526,7 +1617,7 @@ static void def_cmp_vector_blur(StructRNA *srna)
 	prop = RNA_def_property(srna, "speed_min", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "minspeed");
 	RNA_def_property_range(prop, 0, 1024);
-	RNA_def_property_ui_text(prop, "Min Speed", "Minimum speed for a pixel to be blurred; used to separate background from foreground");
+	RNA_def_property_ui_text(prop, "Min Speed", "Minimum speed for a pixel to be blurred (used to separate background from foreground)");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 		
 	prop = RNA_def_property(srna, "speed_max", PROP_INT, PROP_NONE);
@@ -1538,7 +1629,7 @@ static void def_cmp_vector_blur(StructRNA *srna)
 	prop = RNA_def_property(srna, "factor", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "fac");
 	RNA_def_property_range(prop, 0.0f, 2.0f);
-	RNA_def_property_ui_text(prop, "Blur Factor", "Scaling factor for motion vectors; actually 'shutter speed' in frames");
+	RNA_def_property_ui_text(prop, "Blur Factor", "Scaling factor for motion vectors (actually, 'shutter speed', in frames)");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
 	prop = RNA_def_property(srna, "use_curved", PROP_BOOLEAN, PROP_NONE);
@@ -1648,30 +1739,6 @@ static void def_cmp_output_file(StructRNA *srna)
 {
 	PropertyRNA *prop;
 	
-	static EnumPropertyItem type_items[] = {
-		{R_TARGA,   "TARGA",        0, "Targa",        ""},
-		{R_RAWTGA,  "RAW_TARGA",    0, "Targa Raw",    ""},
-		{R_PNG,     "PNG",          0, "PNG",          ""},
-#ifdef WITH_DDS
-		{R_DDS,     "DDS",          0, "DirectDraw Surface", ""},
-#endif
-		{R_BMP,     "BMP",          0, "BMP",          ""},
-		{R_JPEG90,  "JPEG",         0, "JPEG",         ""},
-		{R_IRIS,    "IRIS",         0, "IRIS",         ""},
-		{R_RADHDR,  "RADIANCE_HDR", 0, "Radiance HDR", ""},
-		{R_CINEON,  "CINEON",       0, "Cineon",       ""},
-		{R_DPX,     "DPX",          0, "DPX",          ""},
-		{R_OPENEXR, "OPENEXR",      0, "OpenEXR",      ""},
-		{0, NULL, 0, NULL, NULL}};
-	
-	static EnumPropertyItem openexr_codec_items[] = {
-		{0, "NONE",  0, "None",           ""},
-		{1, "PXR24", 0, "Pxr24 (lossy)",  ""},
-		{2, "ZIP",   0, "ZIP (lossless)", ""},
-		{3, "PIZ",   0, "PIZ (lossless)", ""},
-		{4, "RLE",   0, "RLE (lossless)", ""},
-		{0, NULL, 0, NULL, NULL}};
-	
 	RNA_def_struct_sdna_from(srna, "NodeImageFile", "storage");
 	
 	prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
@@ -1679,28 +1746,11 @@ static void def_cmp_output_file(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "File Path", "Output path for the image, same functionality as render output");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
-	prop = RNA_def_property(srna, "image_type", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "imtype");
-	RNA_def_property_enum_items(prop, type_items);
-	RNA_def_property_ui_text(prop, "Image Type", "");
-	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
-	
-	prop = RNA_def_property(srna, "use_exr_half", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "subimtype", R_OPENEXR_HALF);
-	RNA_def_property_ui_text(prop, "Half", "");
-	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
-	
-	prop = RNA_def_property(srna, "exr_codec", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "codec");
-	RNA_def_property_enum_items(prop, openexr_codec_items);
-	RNA_def_property_ui_text(prop, "Codec", "");
-	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
-	
-	prop = RNA_def_property(srna, "quality", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "quality");
-	RNA_def_property_range(prop, 1, 100);
-	RNA_def_property_ui_text(prop, "Quality", "");
-	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
+	prop= RNA_def_property(srna, "image_settings", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_pointer_sdna(prop, NULL, "im_format");
+	RNA_def_property_struct_type(prop, "ImageFormatSettings");
+	RNA_def_property_ui_text(prop, "Image Format", "");
 
 	prop = RNA_def_property(srna, "frame_start", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "sfra");
@@ -1928,17 +1978,17 @@ static void def_cmp_chroma_matte(StructRNA *srna)
 	
 	RNA_def_struct_sdna_from(srna, "NodeChroma", "storage");
 	
-	prop = RNA_def_property(srna, "tolerance", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "tolerance", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "t1");
 	RNA_def_property_float_funcs(prop, NULL, "rna_Matte_t1_set", NULL);
-	RNA_def_property_range(prop, 1.0f, 80.0f);
+	RNA_def_property_range(prop, DEG2RADF(1.0f), DEG2RADF(80.0f));
 	RNA_def_property_ui_text(prop, "Acceptance", "Tolerance for a color to be considered a keying color");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
-	prop = RNA_def_property(srna, "threshold", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "threshold", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "t2");
 	RNA_def_property_float_funcs(prop, NULL, "rna_Matte_t2_set", NULL);
-	RNA_def_property_range(prop, 0.0f, 30.0f);
+	RNA_def_property_range(prop, 0.0f, DEG2RADF(30.0f));
 	RNA_def_property_ui_text(prop, "Cutoff", "Tolerance below which colors will be considered as exact matches");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 
@@ -2002,7 +2052,7 @@ static void def_cmp_channel_matte(StructRNA *srna)
 	RNA_def_property_enum_sdna(prop, NULL, "channel");
 	RNA_def_property_enum_items(prop, prop_tri_channel_items);
 	RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_Node_channel_itemf");
-	RNA_def_property_ui_text(prop, "Limit Channel", "Limit by this channels value");
+	RNA_def_property_ui_text(prop, "Limit Channel", "Limit by this channel's value");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
 	prop = RNA_def_property(srna, "limit_max", PROP_FLOAT, PROP_NONE);
@@ -2103,10 +2153,10 @@ static void def_cmp_defocus(StructRNA *srna)
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 
 	/* TODO: angle in degrees */		
-	prop = RNA_def_property(srna, "angle", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "rotation");
-	RNA_def_property_range(prop, 0, 90);
-	RNA_def_property_ui_text(prop, "Angle", "Bokeh shape rotation offset in degrees");
+	prop = RNA_def_property(srna, "angle", PROP_FLOAT, PROP_ANGLE);
+	RNA_def_property_float_sdna(prop, NULL, "rotation");
+	RNA_def_property_range(prop, 0.0f, DEG2RADF(90.0f));
+	RNA_def_property_ui_text(prop, "Angle", "Bokeh shape rotation offset");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
 	prop = RNA_def_property(srna, "use_gamma_correction", PROP_BOOLEAN, PROP_NONE);
@@ -2152,7 +2202,7 @@ static void def_cmp_defocus(StructRNA *srna)
 	prop = RNA_def_property(srna, "z_scale", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "scale");
 	RNA_def_property_range(prop, 0.0f, 1000.0f);
-	RNA_def_property_ui_text(prop, "Z-Scale", "Scales the Z input when not using a z-buffer, controls maximum blur designated by the color white or input value 1");
+	RNA_def_property_ui_text(prop, "Z-Scale", "Scale the Z input when not using a z-buffer, controls maximum blur designated by the color white or input value 1");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 }
 
@@ -2271,15 +2321,15 @@ static void def_cmp_dblur(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Distance", "");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
-	prop = RNA_def_property(srna, "angle", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "angle", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "angle");
-	RNA_def_property_range(prop, 0.0f, 360.0f);
+	RNA_def_property_range(prop, 0.0f, DEG2RADF(360.0f));
 	RNA_def_property_ui_text(prop, "Angle", "");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
-	prop = RNA_def_property(srna, "spin", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "spin", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "spin");
-	RNA_def_property_range(prop, -360.0f, 360.0f);
+	RNA_def_property_range(prop, DEG2RADF(-360.0f), DEG2RADF(360.0f));
 	RNA_def_property_ui_text(prop, "Spin", "");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
@@ -2393,10 +2443,10 @@ static void def_cmp_glare(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Streaks", "Total number of streaks");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
-	prop = RNA_def_property(srna, "angle_offset", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "angle_ofs");
-	RNA_def_property_range(prop, 0, 180);
-	RNA_def_property_ui_text(prop, "Angle Offset", "Streak angle offset in degrees");
+	prop = RNA_def_property(srna, "angle_offset", PROP_FLOAT, PROP_ANGLE);
+	RNA_def_property_float_sdna(prop, NULL, "angle_ofs");
+	RNA_def_property_range(prop, 0.0f, DEG2RADF(180.0f));
+	RNA_def_property_ui_text(prop, "Angle Offset", "Streak angle offset");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
 	prop = RNA_def_property(srna, "fade", PROP_FLOAT, PROP_NONE);
@@ -2487,12 +2537,12 @@ static void def_cmp_lensdist(StructRNA *srna)
 	
 	prop = RNA_def_property(srna, "use_projector", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "proj", 1);
-	RNA_def_property_ui_text(prop, "Projector", "Enable/disable projector mode. Effect is applied in horizontal direction only");
+	RNA_def_property_ui_text(prop, "Projector", "Enable/disable projector mode (the effect is applied in horizontal direction only)");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
 	prop = RNA_def_property(srna, "use_jitter", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "jit", 1);
-	RNA_def_property_ui_text(prop, "Jitter", "Enable/disable jittering; faster, but also noisier");
+	RNA_def_property_ui_text(prop, "Jitter", "Enable/disable jittering (faster, but also noisier)");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
 	prop = RNA_def_property(srna, "use_fit", PROP_BOOLEAN, PROP_NONE);
@@ -2587,7 +2637,7 @@ static void def_cmp_zcombine(StructRNA *srna)
 	
 	prop = RNA_def_property(srna, "use_alpha", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "custom1", 0);
-	RNA_def_property_ui_text(prop, "Use Alpha", "Takes Alpha channel into account when doing the Z operation");
+	RNA_def_property_ui_text(prop, "Use Alpha", "Take Alpha channel into account when doing the Z operation");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 }
 
@@ -2829,6 +2879,9 @@ static void rna_def_nodetree_link_api(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 	parm= RNA_def_pointer(func, "link", "NodeLink", "", "The node link to remove");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
+
+	func= RNA_def_function(srna, "clear", "rna_NodeTree_link_clear");
+	RNA_def_function_ui_description(func, "remove all node links from the node tree");
 }
 
 static void rna_def_composite_nodetree_api(BlenderRNA *brna, PropertyRNA *cprop)
@@ -2857,6 +2910,9 @@ static void rna_def_composite_nodetree_api(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 	parm= RNA_def_pointer(func, "node", "Node", "", "The node to remove");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
+
+	func= RNA_def_function(srna, "clear", "rna_NodeTree_node_clear");
+	RNA_def_function_ui_description(func, "Remove all nodes from this node tree");
 }
 
 static void rna_def_shader_nodetree_api(BlenderRNA *brna, PropertyRNA *cprop)
@@ -2885,6 +2941,9 @@ static void rna_def_shader_nodetree_api(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 	parm= RNA_def_pointer(func, "node", "Node", "", "The node to remove");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
+
+	func= RNA_def_function(srna, "clear", "rna_NodeTree_node_clear");
+	RNA_def_function_ui_description(func, "Remove all nodes from this node tree");
 }
 
 static void rna_def_texture_nodetree_api(BlenderRNA *brna, PropertyRNA *cprop)
@@ -2913,6 +2972,9 @@ static void rna_def_texture_nodetree_api(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 	parm= RNA_def_pointer(func, "node", "Node", "", "The node to remove");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
+
+	func= RNA_def_function(srna, "clear", "rna_NodeTree_node_clear");
+	RNA_def_function_ui_description(func, "Remove all nodes from this node tree");
 }
 
 static void rna_def_node_socket(BlenderRNA *brna)
@@ -3160,7 +3222,7 @@ static void rna_def_nodetree(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	srna = RNA_def_struct(brna, "NodeTree", "ID");
-	RNA_def_struct_ui_text(srna, "Node Tree", "Node tree consisting of linked nodes used for materials, textures and compositing");
+	RNA_def_struct_ui_text(srna, "Node Tree", "Node tree consisting of linked nodes used for shading, textures and compositing");
 	RNA_def_struct_sdna(srna, "bNodeTree");
 	RNA_def_struct_ui_icon(srna, ICON_NODETREE);
 	RNA_def_struct_refine_func(srna, "rna_NodeTree_refine");
@@ -3227,7 +3289,7 @@ static void rna_def_shader_nodetree(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	srna = RNA_def_struct(brna, "ShaderNodeTree", "NodeTree");
-	RNA_def_struct_ui_text(srna, "Shader Node Tree", "Node tree consisting of linked nodes used for materials");
+	RNA_def_struct_ui_text(srna, "Shader Node Tree", "Node tree consisting of linked nodes used for materials (and other shading datablocks)");
 	RNA_def_struct_sdna(srna, "bNodeTree");
 	RNA_def_struct_ui_icon(srna, ICON_NODETREE);
 

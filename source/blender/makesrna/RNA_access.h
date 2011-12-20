@@ -87,7 +87,7 @@ extern StructRNA RNA_BoidState;
 extern StructRNA RNA_Bone;
 extern StructRNA RNA_BoneGroup;
 extern StructRNA RNA_BooleanModifier;
-extern StructRNA RNA_BooleanProperty;
+extern StructRNA RNA_BoolProperty;
 extern StructRNA RNA_Brush;
 extern StructRNA RNA_BrushTextureSlot;
 extern StructRNA RNA_BuildModifier;
@@ -197,6 +197,10 @@ extern StructRNA RNA_Driver;
 extern StructRNA RNA_DriverTarget;
 extern StructRNA RNA_DriverVariable;
 extern StructRNA RNA_DupliObject;
+extern StructRNA RNA_DynamicPaintBrushSettings;
+extern StructRNA RNA_DynamicPaintCanvasSettings;
+extern StructRNA RNA_DynamicPaintModifier;
+extern StructRNA RNA_DynamicPaintSurface;
 extern StructRNA RNA_EdgeSplitModifier;
 extern StructRNA RNA_EditBone;
 extern StructRNA RNA_EffectSequence;
@@ -251,6 +255,7 @@ extern StructRNA RNA_HookModifier;
 extern StructRNA RNA_ID;
 extern StructRNA RNA_IKParam;
 extern StructRNA RNA_Image;
+extern StructRNA RNA_ImageFormatSettings;
 extern StructRNA RNA_ImagePaint;
 extern StructRNA RNA_ImageSequence;
 extern StructRNA RNA_ImageTexture;
@@ -344,6 +349,9 @@ extern StructRNA RNA_NorController;
 extern StructRNA RNA_Object;
 extern StructRNA RNA_ObjectBase;
 extern StructRNA RNA_ObstacleFluidSettings;
+extern StructRNA RNA_OceanModifier;
+extern StructRNA RNA_OceanTexData;
+extern StructRNA RNA_OceanTexture;
 extern StructRNA RNA_Operator;
 extern StructRNA RNA_OperatorFileListElement;
 extern StructRNA RNA_OperatorMousePath;
@@ -987,8 +995,8 @@ StructRNA *ID_code_to_RNA_type(short idcode);
 /* macro which inserts the function name */
 #ifdef __GNUC__
 #  define RNA_warning(format, args...) _RNA_warning("%s: " format "\n", __func__, ##args)
-#else /* MSVC doesnt support variable length args in macros */
-#  define RNA_warning _RNA_warning
+#else
+#  define RNA_warning(format, ...) _RNA_warning("%s: " format "\n", __FUNCTION__, __VA_ARGS__)
 #endif
 
 void _RNA_warning(const char *format, ...)

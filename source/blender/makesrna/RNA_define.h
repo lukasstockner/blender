@@ -187,7 +187,7 @@ void RNA_def_function_ui_description(FunctionRNA *func, const char *description)
 /* Dynamic Enums
  * strings are not freed, assumed pointing to static location. */
 
-void RNA_enum_item_add(EnumPropertyItem **items, int *totitem, EnumPropertyItem *item);
+void RNA_enum_item_add(EnumPropertyItem **items, int *totitem, const EnumPropertyItem *item);
 void RNA_enum_item_add_separator(EnumPropertyItem **items, int *totitem);
 void RNA_enum_items_add(EnumPropertyItem **items, int *totitem, EnumPropertyItem *item);
 void RNA_enum_items_add_value(EnumPropertyItem **items, int *totitem, EnumPropertyItem *item, int value);
@@ -208,6 +208,9 @@ const char *RNA_property_typename(PropertyType type);
 #define IS_DNATYPE_FLOAT_COMPAT(_str) (strcmp(_str, "float") == 0 || strcmp(_str, "double") == 0)
 #define IS_DNATYPE_INT_COMPAT(_str) (strcmp(_str, "int") == 0 || strcmp(_str, "short") == 0 || strcmp(_str, "char") == 0)
 
+/* max size for dynamic defined type descriptors,
+ * this value is arbitrary */
+#define RNA_DYN_DESCR_MAX 240
 
 #ifdef __cplusplus
 }

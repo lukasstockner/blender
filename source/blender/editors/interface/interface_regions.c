@@ -376,17 +376,18 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 			data->totline++;
 		}
 
-		if(but->type == ROW) {
+		if(ELEM(but->type, ROW, MENU)) {
 			EnumPropertyItem *item;
 			int i, totitem, free;
+			int value = (but->type == ROW)? but->hardmax: ui_get_but_val(but);
 
 			RNA_property_enum_items_gettexted(C, &but->rnapoin, but->rnaprop, &item, &totitem, &free);
 
 			for(i=0; i<totitem; i++) {
-				if(item[i].identifier[0] && item[i].value == (int)but->hardmax) {
-					if(item[i].description[0]) {
+				if(item[i].identifier[0] && item[i].value == value) {
+					if(item[i].description && item[i].description[0]) {
 						BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), "%s: %s", item[i].name, item[i].description);
-						data->color[data->totline]= 0xFFFFFF;
+						data->color[data->totline]= 0xDDDDDD;
 						data->totline++;
 					}
 					break;
@@ -398,7 +399,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 		}
 	}
 	
-	if(but->tip && strlen(but->tip)) {
+	if(but->tip && but->tip[0] != '\0') {
 		BLI_strncpy(data->lines[data->totline], but->tip, sizeof(data->lines[0]));
 		data->color[data->totline]= 0xFFFFFF;
 		data->totline++;
@@ -408,7 +409,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 		/* operator keymap (not menus, they already have it) */
 		prop= (but->opptr)? but->opptr->data: NULL;
 
-		if(WM_key_event_operator_string(C, but->optype->idname, but->opcontext, prop, buf, sizeof(buf))) {
+		if(WM_key_event_operator_string(C, but->optype->idname, but->opcontext, prop, TRUE, buf, sizeof(buf))) {
 			BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Shortcut: %s"), buf);
 			data->color[data->totline]= 0x888888;
 			data->totline++;
@@ -493,8 +494,8 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	}
 	else if (ELEM(but->type, MENU, PULLDOWN)) {
 		if ((U.flag & USER_TOOLTIPS_PYTHON) == 0) {
-			if(but->menu_create_func && WM_menutype_contains((MenuType *)but->poin)) {
-				MenuType *mt= (MenuType *)but->poin;
+			MenuType *mt= uiButGetMenuType(but);
+			if (mt) {
 				BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Python: %s"), mt->idname);
 				data->color[data->totline]= 0x888888;
 				data->totline++;
@@ -1070,18 +1071,16 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 		/* copy to int, gets projected if possible too */
 		x1= x1f; y1= y1f; x2= x2f; y2= y2f; 
 		
-		if(butregion) {
-			if(butregion->v2d.cur.xmin != butregion->v2d.cur.xmax) {
-				UI_view2d_to_region_no_clip(&butregion->v2d, x1f, y1f, &x1, &y1);
-				UI_view2d_to_region_no_clip(&butregion->v2d, x2f, y2f, &x2, &y2);
-			}
-			
-			x1 += butregion->winrct.xmin;
-			x2 += butregion->winrct.xmin;
-			y1 += butregion->winrct.ymin;
-			y2 += butregion->winrct.ymin;
+		if(butregion->v2d.cur.xmin != butregion->v2d.cur.xmax) {
+			UI_view2d_to_region_no_clip(&butregion->v2d, x1f, y1f, &x1, &y1);
+			UI_view2d_to_region_no_clip(&butregion->v2d, x2f, y2f, &x2, &y2);
 		}
-		
+
+		x1 += butregion->winrct.xmin;
+		x2 += butregion->winrct.xmin;
+		y1 += butregion->winrct.ymin;
+		y2 += butregion->winrct.ymin;
+
 		wm_window_get_size(CTX_wm_window(C), &winx, &winy);
 		
 		if(x2 > winx) {
@@ -1095,7 +1094,8 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 				x2= winx;
 			}
 		}
-		if(y1 < 0) { /* XXX butregion NULL check?, there is one above */
+
+		if(y1 < 0) {
 			int newy1;
 			UI_view2d_to_region_no_clip(&butregion->v2d, 0, but->y2 + ofsy, NULL, &newy1);
 			newy1 += butregion->winrct.ymin;
@@ -1446,6 +1446,8 @@ static void ui_popup_block_clip(wmWindow *window, uiBlock *block)
 void ui_popup_block_scrolltest(uiBlock *block)
 {
 	uiBut *bt;
+	/* Knowing direction is necessary for multi-column menus... */
+	int is_flip = (block->direction & UI_TOP) && !(block->flag & UI_BLOCK_NO_FLIP);
 	
 	block->flag &= ~(UI_BLOCK_CLIPBOTTOM|UI_BLOCK_CLIPTOP);
 	
@@ -1462,9 +1464,9 @@ void ui_popup_block_scrolltest(uiBlock *block)
 			block->flag |= UI_BLOCK_CLIPBOTTOM;
 			/* make space for arrow */
 			if(bt->y2 < block->miny +10) {
-				if(bt->next && bt->next->y1 > bt->y1)
+				if(is_flip && bt->next && bt->next->y1 > bt->y1)
 					bt->next->flag |= UI_SCROLLED;
-				if(bt->prev && bt->prev->y1 > bt->y1)
+				else if(!is_flip && bt->prev && bt->prev->y1 > bt->y1)
 					bt->prev->flag |= UI_SCROLLED;
 			}
 		}
@@ -1473,9 +1475,9 @@ void ui_popup_block_scrolltest(uiBlock *block)
 			block->flag |= UI_BLOCK_CLIPTOP;
 			/* make space for arrow */
 			if(bt->y1 > block->maxy -10) {
-				if(bt->next && bt->next->y2 < bt->y2)
+				if(!is_flip && bt->next && bt->next->y2 < bt->y2)
 					bt->next->flag |= UI_SCROLLED;
-				if(bt->prev && bt->prev->y2 < bt->y2)
+				else if(is_flip && bt->prev && bt->prev->y2 < bt->y2)
 					bt->prev->flag |= UI_SCROLLED;
 			}
 		}
@@ -2478,22 +2480,14 @@ void uiPupMenuOkee(bContext *C, const char *opname, const char *str, ...)
 	va_end(ap);
 }
 
+/* note, only call this is the file exists,
+ * the case where the file does not exist so can be saved without a
+ * popup must be checked for already, since saving from here
+ * will free the operator which will break invoke().
+ * The operator state for this is implicitly OPERATOR_RUNNING_MODAL */
 void uiPupMenuSaveOver(bContext *C, wmOperator *op, const char *filename)
 {
-	size_t len= strlen(filename);
-
-	if(len==0)
-		return;
-
-	if(filename[len-1]=='/' || filename[len-1]=='\\') {
-		uiPupMenuError(C, "Cannot overwrite a directory");
-		WM_operator_free(op);
-		return;
-	}
-	if(BLI_exists(filename)==0)
-		operator_cb(C, op, 1);
-	else
-		confirm_operator(C, op, "Save Over", filename);
+	confirm_operator(C, op, "Save Over", filename);
 }
 
 void uiPupMenuNotice(bContext *C, const char *str, ...)
@@ -2600,7 +2594,7 @@ void uiPupBlock(bContext *C, uiBlockCreateFunc func, void *arg)
 	uiPupBlockO(C, func, arg, NULL, 0);
 }
 
-void uiPupBlockEx(bContext *C, uiBlockCreateFunc func, uiBlockCancelFunc cancel_func, void *arg)
+void uiPupBlockEx(bContext *C, uiBlockCreateFunc func, uiBlockHandleFunc popup_func, uiBlockCancelFunc cancel_func, void *arg)
 {
 	wmWindow *window= CTX_wm_window(C);
 	uiPopupBlockHandle *handle;
@@ -2610,7 +2604,7 @@ void uiPupBlockEx(bContext *C, uiBlockCreateFunc func, uiBlockCancelFunc cancel_
 	handle->retvalue= 1;
 
 	handle->popup_arg= arg;
-	// handle->popup_func= operator_cb;
+	handle->popup_func= popup_func;
 	handle->cancel_func= cancel_func;
 	// handle->opcontext= opcontext;
 	

@@ -4,10 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. The Blender
- * Foundation also sells licenses for use in proprietary software under
- * the Blender License.  See http://www.blender.org/BL/ for information
- * about this.
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -190,10 +187,24 @@ typedef struct bNodeType {
 	 * when a final generic version of execution code is defined, this will be changed anyway
 	 */
 	void (*newexecfunc)(void *data, int thread, struct bNode *, void *nodedata, struct bNodeStack **, struct bNodeStack **);
+	/* This is the muting callback.
+	 * XXX Mimics the newexecfunc signature... Not sure all of this will be useful, we will see.
+	 */
+	void (*mutefunc)(void *data, int thread, struct bNode *, void *nodedata, struct bNodeStack **, struct bNodeStack **);
+	/* And the muting util.
+	 * Returns links as a ListBase, as pairs of bNodeStack* if in/out bNodeStacks were provided,
+	 * else as pairs of bNodeSocket* if node tree was provided.
+	 */
+	ListBase (*mutelinksfunc)(struct bNodeTree *, struct bNode *, struct bNodeStack **, struct bNodeStack **,
+	                          struct GPUNodeStack *, struct GPUNodeStack *);
 	/* gpu */
 	int (*gpufunc)(struct GPUMaterial *mat, struct bNode *node, struct GPUNodeStack *in, struct GPUNodeStack *out);
 	/* extended gpu function */
 	int (*gpuextfunc)(struct GPUMaterial *mat, struct bNode *node, void *nodedata, struct GPUNodeStack *in, struct GPUNodeStack *out);
+	/* This is the muting gpu callback.
+	 * XXX Mimics the gpuextfunc signature... Not sure all of this will be useful, we will see.
+	 */
+	int (*gpumutefunc)(struct GPUMaterial *, struct bNode *, void *, struct GPUNodeStack *, struct GPUNodeStack *);
 } bNodeType;
 
 /* node->exec, now in use for composites (#define for break is same as ready yes) */
@@ -270,6 +281,13 @@ typedef struct bNodeTreeType
 	void (*update_node)(struct bNodeTree *ntree, struct bNode *node);
 	
 	int (*validate_link)(struct bNodeTree *ntree, struct bNodeLink *link);
+
+	/* Default muting pointers. */
+	void (*mutefunc)(void *data, int thread, struct bNode *, void *nodedata, struct bNodeStack **, struct bNodeStack **);
+	ListBase (*mutelinksfunc)(struct bNodeTree *, struct bNode *, struct bNodeStack **, struct bNodeStack **,
+	                          struct GPUNodeStack *, struct GPUNodeStack *);
+	/* gpu */
+	int (*gpumutefunc)(struct GPUMaterial *, struct bNode *, void *, struct GPUNodeStack *, struct GPUNodeStack *);
 } bNodeTreeType;
 
 /* ************** GENERIC API, TREES *************** */
@@ -286,8 +304,6 @@ struct bNodeTree *ntreeCopyTree(struct bNodeTree *ntree);
 void			ntreeSwitchID(struct bNodeTree *ntree, struct ID *sce_from, struct ID *sce_to);
 void			ntreeMakeLocal(struct bNodeTree *ntree);
 int				ntreeHasType(struct bNodeTree *ntree, int type);
-
-void			ntreeSocketUseFlags(struct bNodeTree *ntree);
 
 void			ntreeUpdateTree(struct bNodeTree *ntree);
 /* XXX Currently each tree update call does call to ntreeVerifyNodes too.
@@ -325,7 +341,7 @@ struct bNode	*nodeAddNode(struct bNodeTree *ntree, struct bNodeTemplate *ntemp);
 void			nodeUnlinkNode(struct bNodeTree *ntree, struct bNode *node);
 void			nodeUniqueName(struct bNodeTree *ntree, struct bNode *node);
 
-void			nodeRegisterType(struct ListBase *typelist, struct bNodeType *ntype) ;
+void			nodeRegisterType(struct bNodeTreeType *ttype, struct bNodeType *ntype) ;
 void			nodeMakeDynamicType(struct bNode *node);
 int				nodeDynamicUnlinkText(struct ID *txtid);
 
@@ -368,7 +384,8 @@ struct bNodeTree *nodeGroupEditSet(struct bNode *node, int edit);
 void			nodeGroupEditClear(struct bNode *node);
 
 /* Init a new node type struct with default values and callbacks */
-void			node_type_base(struct bNodeType *ntype, int type, const char *name, short nclass, short flag);
+void			node_type_base(struct bNodeTreeType *ttype, struct bNodeType *ntype, int type,
+                               const char *name, short nclass, short flag);
 void			node_type_socket_templates(struct bNodeType *ntype, struct bNodeSocketTemplate *inputs, struct bNodeSocketTemplate *outputs);
 void			node_type_size(struct bNodeType *ntype, int width, int minwidth, int maxwidth);
 void			node_type_init(struct bNodeType *ntype, void (*initfunc)(struct bNodeTree *ntree, struct bNode *node, struct bNodeTemplate *ntemp));
@@ -390,13 +407,25 @@ void			node_type_group_edit(struct bNodeType *ntype,
 									 struct bNodeTree *(*group_edit_set)(struct bNode *node, int edit),
 									 void (*group_edit_clear)(struct bNode *node));
 
-void			node_type_exec(struct bNodeType *ntype, void (*execfunc)(void *data, struct bNode *, struct bNodeStack **, struct bNodeStack **));
+void			node_type_exec(struct bNodeType *ntype, void (*execfunc)(void *data, struct bNode *, struct bNodeStack **,
+                                                                         struct bNodeStack **));
 void			node_type_exec_new(struct bNodeType *ntype,
 								   void *(*initexecfunc)(struct bNode *node),
 								   void (*freeexecfunc)(struct bNode *node, void *nodedata),
-								   void (*newexecfunc)(void *data, int thread, struct bNode *, void *nodedata, struct bNodeStack **, struct bNodeStack **));
-void			node_type_gpu(struct bNodeType *ntype, int (*gpufunc)(struct GPUMaterial *mat, struct bNode *node, struct GPUNodeStack *in, struct GPUNodeStack *out));
-void			node_type_gpu_ext(struct bNodeType *ntype, int (*gpuextfunc)(struct GPUMaterial *mat, struct bNode *node, void *nodedata, struct GPUNodeStack *in, struct GPUNodeStack *out));
+								   void (*newexecfunc)(void *data, int thread, struct bNode *, void *nodedata,
+								                       struct bNodeStack **, struct bNodeStack **));
+void			node_type_mute(struct bNodeType *ntype,
+                               void (*mutefunc)(void *data, int thread, struct bNode *, void *nodedata,
+                                                struct bNodeStack **, struct bNodeStack **),
+                               ListBase (*mutelinksfunc)(struct bNodeTree *, struct bNode *, struct bNodeStack **,
+                                                         struct bNodeStack **, struct GPUNodeStack*, struct GPUNodeStack*));
+void			node_type_gpu(struct bNodeType *ntype, int (*gpufunc)(struct GPUMaterial *mat, struct bNode *node,
+                                                                      struct GPUNodeStack *in, struct GPUNodeStack *out));
+void			node_type_gpu_ext(struct bNodeType *ntype, int (*gpuextfunc)(struct GPUMaterial *mat, struct bNode *node,
+                                                                             void *nodedata, struct GPUNodeStack *in,
+                                                                             struct GPUNodeStack *out));
+void			node_type_gpu_mute(struct bNodeType *ntype, int (*gpumutefunc)(struct GPUMaterial *, struct bNode *, void *,
+                                                                               struct GPUNodeStack *, struct GPUNodeStack *));
 void			node_type_compatibility(struct bNodeType *ntype, short compatibility);
 
 /* ************** COMMON NODES *************** */
@@ -421,7 +450,7 @@ struct bNode	*node_group_make_from_selected(struct bNodeTree *ntree);
 int				node_group_ungroup(struct bNodeTree *ntree, struct bNode *gnode);
 
 /* in node_common.c */
-void register_node_type_frame(ListBase *lb);
+void register_node_type_frame(struct bNodeTreeType *ttype);
 
 /* ************** SHADER NODES *************** */
 
@@ -490,6 +519,7 @@ struct ShadeResult;
 #define SH_NODE_LAYER_WEIGHT			160
 #define SH_NODE_VOLUME_TRANSPARENT		161
 #define SH_NODE_VOLUME_ISOTROPIC		162
+#define SH_NODE_GAMMA				163
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1

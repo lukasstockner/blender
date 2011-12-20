@@ -63,6 +63,7 @@ CCL_NAMESPACE_BEGIN
 #if(!defined(FREE_WINDOWS))
 #define copysignf(x, y) ((float)_copysign(x, y))
 #define hypotf(x, y) _hypotf(x, y)
+#define isnan(x) _isnan(x)
 #endif
 
 #endif
@@ -115,12 +116,12 @@ __device_inline double min(double a, double b)
 
 __device_inline float min4(float a, float b, float c, float d)
 {
-	return min(min(min(a, b), c), d);
+	return min(min(a, b), min(c, d));
 }
 
 __device_inline float max4(float a, float b, float c, float d)
 {
-	return max(max(max(a, b), c), d);
+	return max(max(a, b), max(c, d));
 }
 
 #ifndef __KERNEL_OPENCL__
@@ -766,7 +767,7 @@ __device_inline float __uint_as_float(uint i)
 
 /* Interpolation */
 
-template<class A, class B> __device_inline A lerp(const A& a, const A& b, const B& t)
+template<class A, class B> A lerp(const A& a, const A& b, const B& t)
 {
 	return (A)(a * ((B)1 - t) + b * t);
 }

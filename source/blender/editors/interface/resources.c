@@ -4,10 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. The Blender
- * Foundation also sells licenses for use in proprietary software under
- * the Blender License.  See http://www.blender.org/BL/ for information
- * about this.
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -839,6 +836,11 @@ void UI_SetTheme(int spacetype, int regionid)
 	}
 }
 
+bTheme *UI_GetTheme()
+{
+	return U.themes.first;
+}
+
 // for space windows only
 void UI_ThemeColor(int colorid)
 {
@@ -1668,6 +1670,15 @@ void init_userdef_do_versions(void)
 		}
 	}
 
+	if (bmain->versionfile < 260 || (bmain->versionfile == 260 && bmain->subversionfile < 5)) {
+		bTheme *btheme;
+
+		for(btheme= U.themes.first; btheme; btheme= btheme->next) {
+			SETCOL(btheme->tui.panel.header, 0, 0, 0, 25);
+			btheme->tui.icon_alpha= 1.0;
+		}
+	}
+
 	/* GL Texture Garbage Collection (variable abused above!) */
 	if (U.textimeout == 0) {
 		U.texcollectrate = 60;
@@ -1704,6 +1715,8 @@ void init_userdef_do_versions(void)
 		U.ndof_flag = NDOF_LOCK_HORIZON |
 			NDOF_SHOULD_PAN | NDOF_SHOULD_ZOOM | NDOF_SHOULD_ROTATE;
 	}
+	if (U.tweak_threshold == 0 )
+		U.tweak_threshold= 10;
 
 	/* funny name, but it is GE stuff, moves userdef stuff to engine */
 // XXX	space_set_commmandline_options();

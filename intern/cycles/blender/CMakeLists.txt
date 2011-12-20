@@ -6,14 +6,17 @@ set(INC
 	../kernel/svm
 	../util
 	../subd
+	../../guardedalloc
+	../../../source/blender/makesdna
+	../../../source/blender/makesrna
+	../../../source/blender/blenloader
+	${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
 )
 
 set(INC_SYS
-	${BLENDER_INCLUDE_DIRS}
 	${PYTHON_INCLUDE_DIRS}
 	${GLEW_INCLUDE_PATH}
 )
-
 
 set(SRC
 	blender_camera.cpp
@@ -36,7 +39,6 @@ set(ADDON_FILES
 	addon/presets.py
 	addon/properties.py
 	addon/ui.py
-	addon/xml.py
 )
 
 blender_add_lib(bf_intern_cycles "${SRC}" "${INC}" "${INC_SYS}")

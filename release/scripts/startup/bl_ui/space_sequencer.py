@@ -456,7 +456,7 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
         elif strip.type == 'TRANSFORM':
             self.draw_panel_transform(strip)
 
-        elif strip.type == "MULTICAM":
+        elif strip.type == 'MULTICAM':
             layout.prop(strip, "multicam_source")
 
             row = layout.row(align=True)
@@ -473,9 +473,9 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
         if strip.type == 'SPEED':
             col.prop(strip, "multiply_speed")
         elif strip.type in {'CROSS', 'GAMMA_CROSS', 'PLUGIN', 'WIPE'}:
-                col.prop(strip, "use_default_fade", "Default fade")
-                if not strip.use_default_fade:
-                    col.prop(strip, "effect_fader", text="Effect fader")
+            col.prop(strip, "use_default_fade", "Default fade")
+            if not strip.use_default_fade:
+                col.prop(strip, "effect_fader", text="Effect fader")
 
         layout.prop(strip, "use_translation", text="Image Offset:")
         if strip.use_translation:

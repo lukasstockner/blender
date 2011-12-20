@@ -36,6 +36,7 @@
 #include "DNA_vec_types.h"
 #include "DNA_listBase.h"
 #include "DNA_texture_types.h"
+#include "DNA_scene_types.h"
 
 struct ID;
 struct ListBase;
@@ -90,7 +91,7 @@ typedef struct bNodeSocket {
 	
 	/* internal data to retrieve relations and groups */
 	int own_index;				/* group socket identifiers, to find matching pairs after reading files */
-	int to_index;				/* XXX deprecated, only used for restoring old group node links */
+	int to_index  DNA_DEPRECATED;  /* XXX deprecated, only used for restoring old group node links */
 	struct bNodeSocket *groupsock;
 	
 	struct bNodeLink *link;		/* a link pointer, set in ntreeUpdateTree */
@@ -345,7 +346,7 @@ typedef struct NodeHueSat {
 
 typedef struct NodeImageFile {
 	char name[256];
-	short imtype, subimtype, quality, codec;
+	struct ImageFormatData im_format;
 	int sfra, efra;
 } NodeImageFile;
 
@@ -376,9 +377,10 @@ typedef struct NodeVertexCol {
 
 /* qdn: Defocus blur node */
 typedef struct NodeDefocus {
-	char bktype, rotation, preview, gamco;
+	char bktype, pad_c1, preview, gamco;
 	short samples, no_zbuf;
 	float fstop, maxblur, bthresh, scale;
+	float rotation, pad_f1;
 } NodeDefocus;
 
 typedef struct NodeScriptDict {
@@ -389,8 +391,9 @@ typedef struct NodeScriptDict {
 /* qdn: glare node */
 typedef struct NodeGlare {
 	char quality, type, iter;
-	char angle, angle_ofs, size, pad[2];
+	char angle, pad_c1, size, pad[2];
 	float colmod, mix, threshold, fade;
+	float angle_ofs, pad_f1;
 } NodeGlare;
 
 /* qdn: tonemap node */

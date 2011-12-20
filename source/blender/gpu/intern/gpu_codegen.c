@@ -4,10 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. The Blender
- * Foundation also sells licenses for use in proprietary software under
- * the Blender License.  See http://www.blender.org/BL/ for information
- * about this.
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -54,11 +51,17 @@
 
 #include "gpu_codegen.h"
 
+#include "node_util.h" /* For muting node stuff... */
+
 #include <string.h>
 #include <stdarg.h>
 
 extern char datatoc_gpu_shader_material_glsl[];
 extern char datatoc_gpu_shader_vertex_glsl[];
+
+
+static char *glsl_material_library = NULL;
+
 
 /* structs and defines */
 
@@ -230,7 +233,7 @@ GPUFunction *GPU_lookup_function(const char *name)
 {
 	if(!FUNCTION_HASH) {
 		FUNCTION_HASH = BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp, "GPU_lookup_function gh");
-		gpu_parse_functions_string(FUNCTION_HASH, datatoc_gpu_shader_material_glsl);
+		gpu_parse_functions_string(FUNCTION_HASH, glsl_material_library);
 		/*FUNCTION_PROTOTYPES = gpu_generate_function_prototyps(FUNCTION_HASH);
 		FUNCTION_LIB = GPU_shader_create_lib(datatoc_gpu_shader_material_glsl);*/
 	}
@@ -249,6 +252,9 @@ void GPU_extensions_exit(void)
 		BLI_ghash_free(FUNCTION_HASH, NULL, (GHashValFreeFP)MEM_freeN);
 		FUNCTION_HASH = NULL;
 	}
+
+	if(glsl_material_library)
+		MEM_freeN(glsl_material_library);
 	/*if(FUNCTION_PROTOTYPES) {
 		MEM_freeN(FUNCTION_PROTOTYPES);
 		FUNCTION_PROTOTYPES = NULL;
@@ -345,6 +351,8 @@ const char *GPU_builtin_name(GPUBuiltin builtin)
 		return "varnormal";
 	else if(builtin == GPU_OBCOLOR)
 		return "unfobcolor";
+	else if(builtin == GPU_AUTO_BUMPSCALE)
+		return "unfobautobumpscale";
 	else
 		return "";
 }
@@ -639,6 +647,37 @@ static char *code_generate_vertex(ListBase *nodes)
 	return code;
 }
 
+int GPU_bicubic_bump_support(void)
+{
+	return GLEW_ARB_texture_gather && GLEW_ARB_texture_query_lod && GLEW_VERSION_3_0;
+}
+
+void GPU_code_generate_glsl_lib(void)
+{
+	DynStr *ds;
+
+	/* only initialize the library once */
+	if(glsl_material_library)
+		return;
+
+	ds = BLI_dynstr_new();
+
+	if(GPU_bicubic_bump_support()){
+		BLI_dynstr_append(ds, "/* These are needed for high quality bump mapping */\n"
+				"#version 130\n"
+				"#extension GL_ARB_texture_gather: enable\n"
+				"#extension GL_ARB_texture_query_lod: enable\n"
+				"#define BUMP_BICUBIC\n");
+	}
+	BLI_dynstr_append(ds, datatoc_gpu_shader_material_glsl);
+
+
+	glsl_material_library = BLI_dynstr_get_cstring(ds);
+
+	BLI_dynstr_free(ds);
+}
+
+
 /* GPU pass binding/unbinding */
 
 GPUShader *GPU_pass_shader(GPUPass *pass)
@@ -909,7 +948,7 @@ static void gpu_node_input_socket(GPUNode *node, GPUNodeStack *sock)
 		gpu_node_input_link(node, sock->link, sock->type);
 	}
 	else {
-		 link = GPU_node_link_create(0);
+		link = GPU_node_link_create(0);
 		link->ptr1 = sock->vec;
 		gpu_node_input_link(node, link, sock->type);
 	}
@@ -1212,6 +1251,31 @@ int GPU_stack_link(GPUMaterial *mat, const char *name, GPUNodeStack *in, GPUNode
 	return 1;
 }
 
+int GPU_stack_link_mute(GPUMaterial *mat, const char *name, LinkInOutsMuteNode *mlnk)
+{
+	GPUNode *node;
+	GPUFunction *function;
+	int i;
+
+	function = GPU_lookup_function(name);
+	if(!function) {
+		fprintf(stderr, "GPU failed to find function %s\n", name);
+		return 0;
+	}
+
+	for(i = 0; i < mlnk->num_outs; i++) {
+		node = GPU_node_begin(name);
+		gpu_node_input_socket(node, (GPUNodeStack*)mlnk->in);
+		GPU_node_output(node, ((GPUNodeStack*)mlnk->outs+i)->type, ((GPUNodeStack*)mlnk->outs+i)->name,
+		                &((GPUNodeStack*)mlnk->outs+i)->link);
+		GPU_node_end(node);
+
+		gpu_material_add_node(mat, node);
+	}
+
+	return 1;
+}
+
 int GPU_link_changed(GPUNodeLink *link)
 {
 	GPUNode *node;
@@ -1292,7 +1356,7 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttri
 	/* generate code and compile with opengl */
 	fragmentcode = code_generate_fragment(nodes, outlink->output, name);
 	vertexcode = code_generate_vertex(nodes);
-	shader = GPU_shader_create(vertexcode, fragmentcode, datatoc_gpu_shader_material_glsl); /*FUNCTION_LIB);*/
+	shader = GPU_shader_create(vertexcode, fragmentcode, glsl_material_library); /*FUNCTION_LIB);*/
 
 	/* failed? */
 	if (!shader) {
@@ -1309,7 +1373,7 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttri
 	pass->shader = shader;
 	pass->fragmentcode = fragmentcode;
 	pass->vertexcode = vertexcode;
-	pass->libcode = datatoc_gpu_shader_material_glsl;
+	pass->libcode = glsl_material_library;
 
 	/* extract dynamic inputs and throw away nodes */
 	GPU_nodes_extract_dynamic_inputs(pass, nodes);

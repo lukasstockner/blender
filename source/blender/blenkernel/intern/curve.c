@@ -67,8 +67,8 @@
 
 /* local */
 static int cu_isectLL(float *v1, float *v2, float *v3, float *v4, 
-			   short cox, short coy, 
-			   float *labda, float *mu, float *vec);
+                      short cox, short coy,
+                      float *labda, float *mu, float *vec);
 
 void unlink_curve(Curve *cu)
 {
@@ -169,6 +169,7 @@ Curve *add_curve(const char *name, int type)
 	cu->texflag= CU_AUTOSPACE;
 	cu->smallcaps_scale= 0.75f;
 	cu->twist_mode= CU_TWIST_MINIMUM;	// XXX: this one seems to be the best one in most cases, at least for curve deform...
+	cu->type= type;
 	
 	cu->bb= unit_boundbox();
 	
@@ -273,16 +274,16 @@ void make_local_curve(Curve *cu)
 		extern_local_curve(cu);
 	}
 	else if(is_local && is_lib) {
-		Curve *cun= copy_curve(cu);
-		cun->id.us= 0;
+		Curve *cu_new= copy_curve(cu);
+		cu_new->id.us= 0;
 
-		BKE_id_lib_local_paths(bmain, &cun->id);
+		BKE_id_lib_local_paths(bmain, cu->id.lib, &cu_new->id);
 
 		for(ob= bmain->object.first; ob; ob= ob->id.next) {
 			if(ob->data==cu) {
 				if(ob->id.lib==NULL) {
-					ob->data= cun;
-					cun->id.us++;
+					ob->data= cu_new;
+					cu_new->id.us++;
 					cu->id.us--;
 				}
 			}
@@ -303,16 +304,23 @@ ListBase *curve_editnurbs(Curve *cu)
 short curve_type(Curve *cu)
 {
 	Nurb *nu;
+	int type= cu->type;
+
 	if(cu->vfont) {
 		return OB_FONT;
 	}
-	for (nu= cu->nurb.first; nu; nu= nu->next) {
-		if(nu->pntsv>1) {
-			return OB_SURF;
+
+	if(!cu->type) {
+		type= OB_CURVE;
+
+		for (nu= cu->nurb.first; nu; nu= nu->next) {
+			if(nu->pntsv>1) {
+				type= OB_SURF;
+			}
 		}
 	}
-	
-	return OB_CURVE;
+
+	return type;
 }
 
 void update_curve_dimension(Curve *cu)

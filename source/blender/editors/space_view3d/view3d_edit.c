@@ -47,6 +47,7 @@
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_camera.h"
 #include "BKE_context.h"
 #include "BKE_image.h"
 #include "BKE_library.h"
@@ -99,6 +100,7 @@ void ED_view3d_camera_lock_init(View3D *v3d, RegionView3D *rv3d)
 int ED_view3d_camera_lock_sync(View3D *v3d, RegionView3D *rv3d)
 {
 	if(ED_view3d_camera_lock_check(v3d, rv3d)) {
+		ObjectTfmProtectedChannels obtfm;
 		Object *root_parent;
 
 		if((U.uiflag & USER_CAM_LOCK_NO_PARENT)==0 && (root_parent= v3d->camera->parent)) {
@@ -114,10 +116,13 @@ int ED_view3d_camera_lock_sync(View3D *v3d, RegionView3D *rv3d)
 			ED_view3d_to_m4(view_mat, rv3d->ofs, rv3d->viewquat, rv3d->dist);
 
 			invert_m4_m4(v3d->camera->imat, v3d->camera->obmat);
-			mul_m4_m4m4(diff_mat, v3d->camera->imat, view_mat);
+			mult_m4_m4m4(diff_mat, view_mat, v3d->camera->imat);
 
-			mul_m4_m4m4(parent_mat, root_parent->obmat, diff_mat);
+			mult_m4_m4m4(parent_mat, diff_mat, root_parent->obmat);
+
+			object_tfm_protected_backup(root_parent, &obtfm);
 			object_apply_mat4(root_parent, parent_mat, TRUE, FALSE);
+			object_tfm_protected_restore(root_parent, &obtfm, root_parent->protectflag);
 
 			ob_update= v3d->camera;
 			while(ob_update) {
@@ -127,7 +132,10 @@ int ED_view3d_camera_lock_sync(View3D *v3d, RegionView3D *rv3d)
 			}
 		}
 		else {
+			object_tfm_protected_backup(v3d->camera, &obtfm);
 			ED_view3d_to_object(v3d->camera, rv3d->ofs, rv3d->viewquat, rv3d->dist);
+			object_tfm_protected_restore(v3d->camera, &obtfm, v3d->camera->protectflag);
+
 			DAG_id_tag_update(&v3d->camera->id, OB_RECALC_OB);
 			WM_main_add_notifier(NC_OBJECT|ND_TRANSFORM, v3d->camera);
 		}
@@ -346,6 +354,7 @@ typedef struct ViewOpsData {
 	double timer_lastdraw;
 
 	float oldquat[4];
+	float viewquat[4]; /* working copy of rv3d->viewquat */
 	float trackvec[3];
 	float mousevec[3]; /* dolly only */
 	float reverse, dist0;
@@ -408,6 +417,7 @@ static void viewops_data_create(bContext *C, wmOperator *op, wmEvent *event)
 	ED_view3d_camera_lock_init(vod->v3d, vod->rv3d);
 
 	vod->dist0= rv3d->dist;
+	copy_qt_qt(vod->viewquat, rv3d->viewquat);
 	copy_qt_qt(vod->oldquat, rv3d->viewquat);
 	vod->origx= vod->oldx= event->x;
 	vod->origy= vod->oldy= event->y;
@@ -643,13 +653,13 @@ static void viewrotate_apply(ViewOpsData *vod, int x, int y)
 
 		q1[0]= cos(phi);
 		mul_v3_fl(q1+1, sin(phi));
-		mul_qt_qtqt(rv3d->viewquat, q1, vod->oldquat);
+		mul_qt_qtqt(vod->viewquat, q1, vod->oldquat);
 
 		if (vod->use_dyn_ofs) {
 			/* compute the post multiplication quat, to rotate the offset correctly */
 			copy_qt_qt(q1, vod->oldquat);
 			conjugate_qt(q1);
-			mul_qt_qtqt(q1, q1, rv3d->viewquat);
+			mul_qt_qtqt(q1, q1, vod->viewquat);
 
 			conjugate_qt(q1); /* conj == inv for unit quat */
 			copy_v3_v3(rv3d->ofs, vod->ofs);
@@ -671,7 +681,7 @@ static void viewrotate_apply(ViewOpsData *vod, int x, int y)
 		const float sensitivity = 0.0035f;
 
 		/* Get the 3x3 matrix and its inverse from the quaternion */
-		quat_to_mat3( m,rv3d->viewquat);
+		quat_to_mat3( m,vod->viewquat);
 		invert_m3_m3(m_inv,m);
 
 		/* Determine the direction of the x vector (for rotating up and down) */
@@ -682,7 +692,7 @@ static void viewrotate_apply(ViewOpsData *vod, int x, int y)
 		phi = sensitivity * -(y - vod->oldy);
 		q1[0] = cos(phi);
 		mul_v3_v3fl(q1+1, xvec, sin(phi));
-		mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, q1);
+		mul_qt_qtqt(vod->viewquat, vod->viewquat, q1);
 
 		if (vod->use_dyn_ofs) {
 			conjugate_qt(q1); /* conj == inv for unit quat */
@@ -696,7 +706,7 @@ static void viewrotate_apply(ViewOpsData *vod, int x, int y)
 		q1[0] = cos(phi);
 		q1[1] = q1[2] = 0.0;
 		q1[3] = sin(phi);
-		mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, q1);
+		mul_qt_qtqt(vod->viewquat, vod->viewquat, q1);
 
 		if (vod->use_dyn_ofs) {
 			conjugate_qt(q1);
@@ -711,7 +721,7 @@ static void viewrotate_apply(ViewOpsData *vod, int x, int y)
 		int i;
 		float viewquat_inv[4];
 		float zaxis[3]={0,0,1};
-		invert_qt_qt(viewquat_inv, rv3d->viewquat);
+		invert_qt_qt(viewquat_inv, vod->viewquat);
 
 		mul_qt_v3(viewquat_inv, zaxis);
 
@@ -736,7 +746,7 @@ static void viewrotate_apply(ViewOpsData *vod, int x, int y)
 				 * for testing roll */
 				rotation_between_vecs_to_quat(viewquat_align, zaxis_test, zaxis);
 				normalize_qt(viewquat_align);
-				mul_qt_qtqt(viewquat_align, rv3d->viewquat, viewquat_align);
+				mul_qt_qtqt(viewquat_align, vod->viewquat, viewquat_align);
 				normalize_qt(viewquat_align);
 				invert_qt_qt(viewquat_align_inv, viewquat_align);
 
@@ -766,7 +776,7 @@ static void viewrotate_apply(ViewOpsData *vod, int x, int y)
 					}
 				}
 
-				copy_qt_qt(rv3d->viewquat, quat_best);
+				copy_qt_qt(vod->viewquat, quat_best);
 				rv3d->view= view; /* if we snap to a rolled camera the grid is invalid */
 
 				break;
@@ -777,7 +787,11 @@ static void viewrotate_apply(ViewOpsData *vod, int x, int y)
 	vod->oldy= y;
 
 	/* avoid precision loss over time */
-	normalize_qt(rv3d->viewquat);
+	normalize_qt(vod->viewquat);
+
+	/* use a working copy so view rotation locking doesnt overwrite the locked
+	 * rotation back into the view we calculate with */
+	copy_qt_qt(rv3d->viewquat, vod->viewquat);
 
 	ED_view3d_camera_lock_sync(vod->v3d, rv3d);
 
@@ -1018,21 +1032,17 @@ static int ndof_orbit_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *event
 				rv3d->view = RV3D_VIEW_USER;
 		
 				if (U.flag & USER_TRACKBALL) {
-					const int invert_roll = U.ndof_flag & NDOF_ROLL_INVERT_AXIS;
-					const int invert_tilt = U.ndof_flag & NDOF_TILT_INVERT_AXIS;
-					const int invert_rot = U.ndof_flag & NDOF_ROTATE_INVERT_AXIS;
-
 					float rot[4];
 					float axis[3];
 					float angle = rot_sensitivity * ndof_to_axis_angle(ndof, axis);
 
-					if (invert_roll)
+					if (U.ndof_flag & NDOF_ROLL_INVERT_AXIS)
 						axis[2] = -axis[2];
 
-					if (invert_tilt)
+					if (U.ndof_flag & NDOF_TILT_INVERT_AXIS)
 						axis[0] = -axis[0];
 
-					if (invert_rot)
+					if (U.ndof_flag & NDOF_ROTATE_INVERT_AXIS)
 						axis[1] = -axis[1];
 
 					// transform rotation axis from view to world coordinates
@@ -1048,8 +1058,6 @@ static int ndof_orbit_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *event
 					mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, rot);
 				} else {
 					/* turntable view code by John Aughey, adapted for 3D mouse by [mce] */
-					const int invert = U.ndof_flag & NDOF_ORBIT_INVERT_AXES;
-
 					float angle, rot[4];
 					float xvec[3] = {1,0,0};
 		
@@ -1058,7 +1066,7 @@ static int ndof_orbit_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *event
 		
 					/* Perform the up/down rotation */
 					angle = rot_sensitivity * dt * ndof->rvec[0];
-					if (invert)
+					if (U.ndof_flag & NDOF_TILT_INVERT_AXIS)
 						angle = -angle;
 					rot[0] = cos(angle);
 					mul_v3_v3fl(rot+1, xvec, sin(angle));
@@ -1066,7 +1074,7 @@ static int ndof_orbit_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *event
 		
 					/* Perform the orbital rotation */
 					angle = rot_sensitivity * dt * ndof->rvec[1];
-					if (invert)
+					if (U.ndof_flag & NDOF_ROTATE_INVERT_AXIS)
 						angle = -angle;
 		
 					// update the onscreen doo-dad
@@ -1151,23 +1159,19 @@ static int ndof_pan_invoke(bContext *C, wmOperator *UNUSED(op), wmEvent *event)
 			const float vertical_sensitivity = 0.4f;
 			const float lateral_sensitivity = 0.6f;
 
-			const int invert_panx = U.ndof_flag & NDOF_PANX_INVERT_AXIS;
-			const int invert_pany = U.ndof_flag & NDOF_PANY_INVERT_AXIS;
-			const int invert_panz = U.ndof_flag & NDOF_PANZ_INVERT_AXIS;
-
 			float pan_vec[3];
 
-			if (invert_panx)
+			if (U.ndof_flag & NDOF_PANX_INVERT_AXIS)
 				pan_vec[0] = -lateral_sensitivity * ndof->tvec[0];
 			else
 				pan_vec[0] = lateral_sensitivity * ndof->tvec[0];
 
-			if (invert_panz)
+			if (U.ndof_flag & NDOF_PANZ_INVERT_AXIS)
 				pan_vec[1] = -vertical_sensitivity * ndof->tvec[1];
 			else
 				pan_vec[1] = vertical_sensitivity * ndof->tvec[1];
 
-			if (invert_pany)
+			if (U.ndof_flag & NDOF_PANY_INVERT_AXIS)
 				pan_vec[2] = -forward_sensitivity * ndof->tvec[2];
 			else
 				pan_vec[2] = forward_sensitivity * ndof->tvec[2];
@@ -2262,7 +2266,7 @@ static int view3d_center_camera_exec(bContext *C, wmOperator *UNUSED(op)) /* was
 
 	rv3d->camdx= rv3d->camdy= 0.0f;
 
-	view3d_viewborder_size_get(scene, v3d->camera, ar, size);
+	ED_view3d_calc_camera_border_size(scene, ar, v3d, rv3d, size);
 
 	/* 4px is just a little room from the edge of the area */
 	xfac= (float)ar->winx / (float)(size[0] + 4);
@@ -2530,7 +2534,7 @@ static void view3d_set_1_to_1_viewborder(Scene *scene, ARegion *ar, View3D *v3d)
 	float size[2];
 	int im_width= (scene->r.size*scene->r.xsch)/100;
 	
-	view3d_viewborder_size_get(scene, v3d->camera, ar, size);
+	ED_view3d_calc_camera_border_size(scene, ar, v3d, rv3d, size);
 
 	rv3d->camzoom= BKE_screen_view3d_zoom_from_fac((float)im_width/size[0]);
 	CLAMP(rv3d->camzoom, RV3D_CAMZOOM_MIN, RV3D_CAMZOOM_MAX);
@@ -2941,7 +2945,7 @@ static BGpic *background_image_add(bContext *C)
 {
 	View3D *v3d= CTX_wm_view3d(C);
 
-	return ED_view3D_background_image_add(v3d);
+	return ED_view3D_background_image_new(v3d);
 }
 
 static int background_image_add_exec(bContext *C, wmOperator *UNUSED(op))
@@ -3011,16 +3015,13 @@ void VIEW3D_OT_background_image_add(wmOperatorType *ot)
 /* ***** remove image operator ******* */
 static int background_image_remove_exec(bContext *C, wmOperator *op)
 {
-	View3D *vd = CTX_wm_view3d(C);
+	View3D *v3d = CTX_wm_view3d(C);
 	int index = RNA_int_get(op->ptr, "index");
-	BGpic *bgpic_rem= BLI_findlink(&vd->bgpicbase, index);
+	BGpic *bgpic_rem= BLI_findlink(&v3d->bgpicbase, index);
 
 	if(bgpic_rem) {
-		BLI_remlink(&vd->bgpicbase, bgpic_rem);
-		if(bgpic_rem->ima) 	id_us_min(&bgpic_rem->ima->id);
-		if(bgpic_rem->clip) id_us_min(&bgpic_rem->clip->id);
-		MEM_freeN(bgpic_rem);
-		WM_event_add_notifier(C, NC_SPACE|ND_SPACE_VIEW3D, vd);
+		ED_view3D_background_image_remove(v3d, bgpic_rem);
+		WM_event_add_notifier(C, NC_SPACE|ND_SPACE_VIEW3D, v3d);
 		return OPERATOR_FINISHED;
 	}
 	else {
@@ -3513,8 +3514,12 @@ void ED_view3d_from_object(Object *ob, float ofs[3], float quat[4], float *dist,
 {
 	ED_view3d_from_m4(ob->obmat, ofs, quat, dist);
 
-	if (lens) {
-		ED_view3d_ob_clip_range_get(ob, lens, NULL, NULL);
+	if(lens) {
+		CameraParams params;
+
+		camera_params_init(&params);
+		camera_params_from_object(&params, ob);
+		*lens= params.lens;
 	}
 }
 
@@ -3526,7 +3531,7 @@ void ED_view3d_to_object(Object *ob, const float ofs[3], const float quat[4], co
 	object_apply_mat4(ob, mat, TRUE, TRUE);
 }
 
-BGpic *ED_view3D_background_image_add(View3D *v3d)
+BGpic *ED_view3D_background_image_new(View3D *v3d)
 {
 	BGpic *bgpic= MEM_callocN(sizeof(BGpic), "Background Image");
 
@@ -3535,8 +3540,35 @@ BGpic *ED_view3D_background_image_add(View3D *v3d)
 	bgpic->iuser.fie_ima= 2;
 	bgpic->iuser.ok= 1;
 	bgpic->view= 0; /* 0 for all */
+	bgpic->flag |= V3D_BGPIC_EXPANDED;
 
 	BLI_addtail(&v3d->bgpicbase, bgpic);
 
 	return bgpic;
+}
+
+void ED_view3D_background_image_remove(View3D *v3d, BGpic *bgpic)
+{
+	BLI_remlink(&v3d->bgpicbase, bgpic);
+
+	if(bgpic->ima)
+		id_us_min(&bgpic->ima->id);
+
+	if(bgpic->clip)
+		id_us_min(&bgpic->clip->id);
+
+	MEM_freeN(bgpic);
+}
+
+void ED_view3D_background_image_clear(View3D *v3d)
+{
+	BGpic *bgpic= v3d->bgpicbase.first;
+
+	while(bgpic) {
+		BGpic *next_bgpic= bgpic->next;
+
+		ED_view3D_background_image_remove(v3d, bgpic);
+
+		bgpic= next_bgpic;
+	}
 }

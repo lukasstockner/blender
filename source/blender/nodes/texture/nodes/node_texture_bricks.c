@@ -110,7 +110,7 @@ static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack **in, shor
 		copy_v4_v4( out, mortar );
 	} else {
 		copy_v4_v4( out, bricks1 );
-		ramp_blend( MA_RAMP_BLEND, out, out+1, out+2, tint, bricks2 );
+		ramp_blend( MA_RAMP_BLEND, out, tint, bricks2 );
 	}
 }
 
@@ -119,15 +119,15 @@ static void exec(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
 	tex_output(node, in, out[0], &colorfn, data);
 }
 
-void register_node_type_tex_bricks(ListBase *lb)
+void register_node_type_tex_bricks(bNodeTreeType *ttype)
 {
 	static bNodeType ntype;
 	
-	node_type_base(&ntype, TEX_NODE_BRICKS, "Bricks", NODE_CLASS_PATTERN, NODE_PREVIEW|NODE_OPTIONS);
+	node_type_base(ttype, &ntype, TEX_NODE_BRICKS, "Bricks", NODE_CLASS_PATTERN, NODE_PREVIEW|NODE_OPTIONS);
 	node_type_socket_templates(&ntype, inputs, outputs);
 	node_type_size(&ntype, 150, 60, 150);
 	node_type_init(&ntype, init);
 	node_type_exec(&ntype, exec);
 	
-	nodeRegisterType(lb, &ntype);
+	nodeRegisterType(ttype, &ntype);
 }

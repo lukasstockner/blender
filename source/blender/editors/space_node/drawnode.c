@@ -340,8 +340,9 @@ static void node_buts_normal(uiLayout *layout, bContext *UNUSED(C), PointerRNA *
 	uiBut *bt;
 	
 	bt= uiDefButF(block, BUT_NORMAL, B_NODE_EXEC, "", 
-			  (short)butr->xmin, (short)butr->xmin, butr->xmax-butr->xmin, butr->xmax-butr->xmin, 
-			  nor, 0.0f, 1.0f, 0, 0, "");
+	              (short)butr->xmin, (short)butr->xmin,
+	              butr->xmax-butr->xmin, butr->xmax-butr->xmin,
+	              nor, 0.0f, 1.0f, 0, 0, "");
 	uiButSetFunc(bt, node_normal_cb, ntree, node);
 }
 #if 0 // not used in 2.5x yet
@@ -470,6 +471,7 @@ static void node_update_group(const bContext *C, bNodeTree *ntree, bNode *gnode)
 		float locx, locy;
 		rctf *rect= &gnode->totr;
 		float node_group_frame= U.dpi*NODE_GROUP_FRAME/72;
+		float group_header= 26*U.dpi/72;
 		int counter;
 		int dy;
 		
@@ -593,6 +595,15 @@ static void node_update_group(const bContext *C, bNodeTree *ntree, bNode *gnode)
 				gsock = gsock->next;
 			}
 		}
+		
+		/* Set the block bounds to clip mouse events from underlying nodes.
+		 * Add margin for header and input/output columns.
+		 */
+		uiExplicitBoundsBlock(gnode->block,
+							  rect->xmin - node_group_frame,
+							  rect->ymin,
+							  rect->xmax + node_group_frame,
+							  rect->ymax + group_header);
 	}
 }
 
@@ -627,9 +638,9 @@ static void draw_group_socket_name(SpaceNode *snode, bNode *gnode, bNodeSocket *
 			uiButSetFunc(bt, update_group_output_cb, snode, ngroup);
 	}
 	else {
-		uiDefBut(gnode->block, LABEL, 0, sock->name, 
-				 sock->locx+xoffset, sock->locy+1+yoffset, 72, NODE_DY,
-				 NULL, 0, 31, 0, 0, "");
+		uiDefBut(gnode->block, LABEL, 0, sock->name,
+		         sock->locx+xoffset, sock->locy+1+yoffset, 72, NODE_DY,
+		         NULL, 0, 31, 0, 0, "");
 	}
 }
 
@@ -946,28 +957,27 @@ static void node_shader_buts_material(uiLayout *layout, bContext *C, PointerRNA 
 
 static void node_shader_buts_mapping(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
-	PointerRNA mappingptr = RNA_pointer_get(ptr, "mapping");
 	uiLayout *row;
 	
 	uiItemL(layout, "Location:", ICON_NONE);
 	row= uiLayoutRow(layout, 1);
-	uiItemR(row, &mappingptr, "location", 0, "", ICON_NONE);
+	uiItemR(row, ptr, "location", 0, "", ICON_NONE);
 	
 	uiItemL(layout, "Rotation:", ICON_NONE);
 	row= uiLayoutRow(layout, 1);
-	uiItemR(row, &mappingptr, "rotation", 0, "", ICON_NONE);
+	uiItemR(row, ptr, "rotation", 0, "", ICON_NONE);
 	
 	uiItemL(layout, "Scale:", ICON_NONE);
 	row= uiLayoutRow(layout, 1);
-	uiItemR(row, &mappingptr, "scale", 0, "", ICON_NONE);
+	uiItemR(row, ptr, "scale", 0, "", ICON_NONE);
 	
 	row= uiLayoutRow(layout, 1);
-	uiItemR(row, &mappingptr, "use_min", 0, "Min", ICON_NONE);
-	uiItemR(row, &mappingptr, "min", 0, "", ICON_NONE);
+	uiItemR(row, ptr, "use_min", 0, "Min", ICON_NONE);
+	uiItemR(row, ptr, "min", 0, "", ICON_NONE);
 	
 	row= uiLayoutRow(layout, 1);
-	uiItemR(row, &mappingptr, "use_max", 0, "Max", ICON_NONE);
-	uiItemR(row, &mappingptr, "max", 0, "", ICON_NONE);
+	uiItemR(row, ptr, "use_max", 0, "Max", ICON_NONE);
+	uiItemR(row, ptr, "max", 0, "", ICON_NONE);
 }
 
 static void node_shader_buts_vect_math(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -1001,7 +1011,6 @@ static void node_shader_buts_attribute(uiLayout *layout, bContext *UNUSED(C), Po
 
 static void node_shader_buts_tex_image(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
-	//uiItemR(layout, ptr, "image", 0, "", ICON_NONE);
 	uiTemplateID(layout, C, ptr, "image", NULL, "IMAGE_OT_open", NULL);
 	uiItemR(layout, ptr, "color_space", 0, "", ICON_NONE);
 }
@@ -1633,24 +1642,17 @@ static void node_composit_buts_id_mask(uiLayout *layout, bContext *UNUSED(C), Po
 
 static void node_composit_buts_file_output(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
-	uiLayout *col, *row;
+	bNode *node= ptr->data;
+	NodeImageFile *nif= node->storage;
+	PointerRNA imfptr;
 
-	col= uiLayoutColumn(layout, 0);
-	uiItemR(col, ptr, "filepath", 0, "", ICON_NONE);
-	uiItemR(col, ptr, "image_type", 0, "", ICON_NONE);
-	
-	row= uiLayoutRow(layout, 0);
-	if (RNA_enum_get(ptr, "image_type")== R_OPENEXR) {
-		uiItemR(row, ptr, "use_exr_half", 0, NULL, ICON_NONE);
-		uiItemR(row, ptr, "exr_codec", 0, "", ICON_NONE);
-	}
-	else if (RNA_enum_get(ptr, "image_type")== R_JPEG90) {
-		uiItemR(row, ptr, "quality", UI_ITEM_R_SLIDER, "Quality", ICON_NONE);
-	}
-	else if (RNA_enum_get(ptr, "image_type")== R_PNG) {
-		uiItemR(row, ptr, "quality", UI_ITEM_R_SLIDER, "Compression", ICON_NONE);
-	}
-	
+	uiLayout *row;
+
+	uiItemR(layout, ptr, "filepath", 0, "", ICON_NONE);
+
+	RNA_pointer_create(NULL, &RNA_ImageFormatSettings, &nif->im_format, &imfptr);
+	uiTemplateImageSettings(layout, &imfptr);
+
 	row= uiLayoutRow(layout, 1);
 	uiItemR(row, ptr, "frame_start", 0, "Start", ICON_NONE);
 	uiItemR(row, ptr, "frame_end", 0, "End", ICON_NONE);
@@ -2593,18 +2595,32 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link, int t
 			glEnd();
 		}
 		
-		UI_ThemeColor(th_col1);
+		/* XXX using GL_LINES for shaded node lines is a workaround
+		 * for Intel hardware, this breaks with GL_LINE_STRIP and
+		 * changing color in begin/end blocks.
+		 */
 		glLineWidth(1.5f);
-		
-		glBegin(GL_LINE_STRIP);
-		for(i=0; i<=LINK_RESOL; i++) {
-			if(do_shaded) {
+		if(do_shaded) {
+			glBegin(GL_LINES);
+			for(i=0; i<LINK_RESOL; i++) {
 				UI_ThemeColorBlend(th_col1, th_col2, spline_step);
+				glVertex2fv(coord_array[i]);
+				
+				UI_ThemeColorBlend(th_col1, th_col2, spline_step+dist);
+				glVertex2fv(coord_array[i+1]);
+				
 				spline_step += dist;
 			}
-			glVertex2fv(coord_array[i]);
+			glEnd();
 		}
-		glEnd();
+		else {
+			UI_ThemeColor(th_col1);
+			glBegin(GL_LINE_STRIP);
+			for(i=0; i<=LINK_RESOL; i++) {
+				glVertex2fv(coord_array[i]);
+			}
+			glEnd();
+		}
 		
 		glDisable(GL_LINE_SMOOTH);
 		
@@ -2661,14 +2677,31 @@ void node_draw_link_straight(View2D *v2d, SpaceNode *snode, bNodeLink *link, int
 	UI_ThemeColor(th_col1);
 	glLineWidth(1.5f);
 	
-	glBegin(GL_LINE_STRIP);
-	for (i=0; i < LINK_RESOL; ++i) {
-		float t= (float)i/(float)(LINK_RESOL-1);
-		if(do_shaded)
+	/* XXX using GL_LINES for shaded node lines is a workaround
+	 * for Intel hardware, this breaks with GL_LINE_STRIP and
+	 * changing color in begin/end blocks.
+	 */
+	if(do_shaded) {
+		glBegin(GL_LINES);
+		for (i=0; i < LINK_RESOL-1; ++i) {
+			float t= (float)i/(float)(LINK_RESOL-1);
 			UI_ThemeColorBlend(th_col1, th_col2, t);
-		glVertex2f((1.0f-t)*coord_array[0][0]+t*coord_array[1][0], (1.0f-t)*coord_array[0][1]+t*coord_array[1][1]);
+			glVertex2f((1.0f-t)*coord_array[0][0]+t*coord_array[1][0], (1.0f-t)*coord_array[0][1]+t*coord_array[1][1]);
+			
+			t= (float)(i+1)/(float)(LINK_RESOL-1);
+			UI_ThemeColorBlend(th_col1, th_col2, t);
+			glVertex2f((1.0f-t)*coord_array[0][0]+t*coord_array[1][0], (1.0f-t)*coord_array[0][1]+t*coord_array[1][1]);
+		}
+		glEnd();
 	}
-	glEnd();
+	else {
+		glBegin(GL_LINE_STRIP);
+		for (i=0; i < LINK_RESOL; ++i) {
+			float t= (float)i/(float)(LINK_RESOL-1);
+			glVertex2f((1.0f-t)*coord_array[0][0]+t*coord_array[1][0], (1.0f-t)*coord_array[0][1]+t*coord_array[1][1]);
+		}
+		glEnd();
+	}
 	
 	glDisable(GL_LINE_SMOOTH);
 	

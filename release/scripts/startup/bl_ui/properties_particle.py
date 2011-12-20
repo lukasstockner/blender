@@ -21,7 +21,7 @@ import bpy
 from bpy.types import Panel
 from rna_prop_ui import PropertyPanel
 
-from bl_ui.properties_physics_common import (
+from .properties_physics_common import (
     point_cache_ui,
     effector_weights_ui,
     basic_force_field_settings_ui,
@@ -268,10 +268,6 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
         return psys.settings.type == 'HAIR' and (engine in cls.COMPAT_ENGINES)
 
     def draw_header(self, context):
-        #cloth = context.cloth.collision_settings
-
-        #self.layout.active = cloth_panel_enabled(context.cloth)
-        #self.layout.prop(cloth, "use_collision", text="")
         psys = context.particle_system
         self.layout.prop(psys, "use_hair_dynamics", text="")
 

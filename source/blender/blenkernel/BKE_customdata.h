@@ -121,9 +121,9 @@ int CustomData_number_of_layers(const struct CustomData *data, int type);
 
 /* duplicate data of a layer with flag NOFREE, and remove that flag.
  * returns the layer data */
-void *CustomData_duplicate_referenced_layer(struct CustomData *data, int type);
+void *CustomData_duplicate_referenced_layer(struct CustomData *data, const int type, const int totelem);
 void *CustomData_duplicate_referenced_layer_named(struct CustomData *data,
-												  int type, const char *name);
+												  const int type, const char *name, const int totelem);
 
 /* set the CD_FLAG_NOCOPY flag in custom data layers where the mask is
  * zero for the layer type, so only layer types specified by the mask
@@ -278,12 +278,15 @@ const char *CustomData_layertype_name(int type);
 /* make sure the name of layer at index is unique */
 void CustomData_set_layer_unique_name(struct CustomData *data, int index);
 
+void CustomData_validate_layer_name(const struct CustomData *data, int type, char *name, char *outname);
+
 /* for file reading compatibility, returns false if the layer was freed,
    only after this test passes, layer->data should be assigned */
 int CustomData_verify_versions(struct CustomData *data, int index);
 
 /*BMesh specific customdata stuff*/
-void CustomData_to_bmeshpoly(struct CustomData *fdata, struct CustomData *pdata, struct CustomData *ldata);
+void CustomData_to_bmeshpoly(struct CustomData *fdata, struct CustomData *pdata,
+                             struct CustomData *ldata);
 void CustomData_from_bmeshpoly(struct CustomData *fdata, struct CustomData *pdata, struct CustomData *ldata, int total);
 void CustomData_bmesh_init_pool(struct CustomData *data, int allocsize);
 

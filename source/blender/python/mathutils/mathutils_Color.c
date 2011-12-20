@@ -48,7 +48,7 @@ static PyObject *Color_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 		return NULL;
 	}
 
-	switch(PyTuple_GET_SIZE(args)) {
+	switch (PyTuple_GET_SIZE(args)) {
 	case 0:
 		break;
 	case 1:
@@ -61,7 +61,7 @@ static PyObject *Color_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 		                "more then a single arg given");
 		return NULL;
 	}
-	return newColorObject(col, Py_NEW, type);
+	return Color_CreatePyObject(col, Py_NEW, type);
 }
 
 //-----------------------------METHODS----------------------------
@@ -104,7 +104,7 @@ static PyObject *Color_copy(ColorObject *self)
 	if (BaseMath_ReadCallback(self) == -1)
 		return NULL;
 
-	return newColorObject(self->col, Py_NEW, Py_TYPE(self));
+	return Color_CreatePyObject(self->col, Py_NEW, Py_TYPE(self));
 }
 
 //----------------------------print object (internal)--------------
@@ -370,9 +370,10 @@ static PyObject *Color_add(PyObject *v1, PyObject *v2)
 	float col[COLOR_SIZE];
 
 	if (!ColorObject_Check(v1) || !ColorObject_Check(v2)) {
-		PyErr_SetString(PyExc_TypeError,
-		                "Color addition: "
-		                "arguments not valid for this operation");
+		PyErr_Format(PyExc_TypeError,
+		             "Color addition: (%s + %s) "
+		             "invalid type for this operation",
+		             Py_TYPE(v1)->tp_name, Py_TYPE(v2)->tp_name);
 		return NULL;
 	}
 	color1 = (ColorObject*)v1;
@@ -383,7 +384,7 @@ static PyObject *Color_add(PyObject *v1, PyObject *v2)
 
 	add_vn_vnvn(col, color1->col, color2->col, COLOR_SIZE);
 
-	return newColorObject(col, Py_NEW, Py_TYPE(v1));
+	return Color_CreatePyObject(col, Py_NEW, Py_TYPE(v1));
 }
 
 /* addition in-place: obj += obj */
@@ -392,9 +393,10 @@ static PyObject *Color_iadd(PyObject *v1, PyObject *v2)
 	ColorObject *color1 = NULL, *color2 = NULL;
 
 	if (!ColorObject_Check(v1) || !ColorObject_Check(v2)) {
-		PyErr_SetString(PyExc_TypeError,
-		                "Color addition: "
-		                "arguments not valid for this operation");
+		PyErr_Format(PyExc_TypeError,
+		             "Color addition: (%s += %s) "
+		             "invalid type for this operation",
+		             Py_TYPE(v1)->tp_name, Py_TYPE(v2)->tp_name);
 		return NULL;
 	}
 	color1 = (ColorObject*)v1;
@@ -417,9 +419,10 @@ static PyObject *Color_sub(PyObject *v1, PyObject *v2)
 	float col[COLOR_SIZE];
 
 	if (!ColorObject_Check(v1) || !ColorObject_Check(v2)) {
-		PyErr_SetString(PyExc_TypeError,
-		                "Color subtraction: "
-		                "arguments not valid for this operation");
+		PyErr_Format(PyExc_TypeError,
+		             "Color subtraction: (%s - %s) "
+		             "invalid type for this operation",
+		             Py_TYPE(v1)->tp_name, Py_TYPE(v2)->tp_name);
 		return NULL;
 	}
 	color1 = (ColorObject*)v1;
@@ -430,7 +433,7 @@ static PyObject *Color_sub(PyObject *v1, PyObject *v2)
 
 	sub_vn_vnvn(col, color1->col, color2->col, COLOR_SIZE);
 
-	return newColorObject(col, Py_NEW, Py_TYPE(v1));
+	return Color_CreatePyObject(col, Py_NEW, Py_TYPE(v1));
 }
 
 /* subtraction in-place: obj -= obj */
@@ -439,9 +442,10 @@ static PyObject *Color_isub(PyObject *v1, PyObject *v2)
 	ColorObject *color1= NULL, *color2= NULL;
 
 	if (!ColorObject_Check(v1) || !ColorObject_Check(v2)) {
-		PyErr_SetString(PyExc_TypeError,
-		                "Color subtraction: "
-		                "arguments not valid for this operation");
+		PyErr_Format(PyExc_TypeError,
+		             "Color subtraction: (%s -= %s) "
+		             "invalid type for this operation",
+		             Py_TYPE(v1)->tp_name, Py_TYPE(v2)->tp_name);
 		return NULL;
 	}
 	color1 = (ColorObject*)v1;
@@ -461,7 +465,7 @@ static PyObject *color_mul_float(ColorObject *color, const float scalar)
 {
 	float tcol[COLOR_SIZE];
 	mul_vn_vn_fl(tcol, color->col, COLOR_SIZE, scalar);
-	return newColorObject(tcol, Py_NEW, Py_TYPE(color));
+	return Color_CreatePyObject(tcol, Py_NEW, Py_TYPE(color));
 }
 
 
@@ -554,9 +558,10 @@ static PyObject *Color_imul(PyObject *v1, PyObject *v2)
 		mul_vn_fl(color->col, COLOR_SIZE, scalar);
 	}
 	else {
-		PyErr_SetString(PyExc_TypeError,
-		                "Color multiplication: "
-		                "arguments not acceptable for this operation");
+		PyErr_Format(PyExc_TypeError,
+		             "Color multiplication: (%s *= %s) "
+		             "invalid type for this operation",
+		             Py_TYPE(v1)->tp_name, Py_TYPE(v2)->tp_name);
 		return NULL;
 	}
 
@@ -585,9 +590,10 @@ static PyObject *Color_idiv(PyObject *v1, PyObject *v2)
 		mul_vn_fl(color->col, COLOR_SIZE, 1.0f / scalar);
 	}
 	else {
-		PyErr_SetString(PyExc_TypeError,
-		                "Color multiplication: "
-		                "arguments not acceptable for this operation");
+		PyErr_Format(PyExc_TypeError,
+		             "Color division: (%s /= %s) "
+		             "invalid type for this operation",
+		             Py_TYPE(v1)->tp_name, Py_TYPE(v2)->tp_name);
 		return NULL;
 	}
 
@@ -606,7 +612,7 @@ static PyObject *Color_neg(ColorObject *self)
 		return NULL;
 
 	negate_vn_vn(tcol, self->col, COLOR_SIZE);
-	return newColorObject(tcol, Py_NEW, Py_TYPE(self));
+	return Color_CreatePyObject(tcol, Py_NEW, Py_TYPE(self));
 }
 
 
@@ -815,31 +821,31 @@ PyTypeObject color_Type = {
 	NULL,							//tp_weaklist
 	NULL							//tp_del
 };
-//------------------------newColorObject (internal)-------------
+//------------------------Color_CreatePyObject (internal)-------------
 //creates a new color object
 /*pass Py_WRAP - if vector is a WRAPPER for data allocated by BLENDER
  (i.e. it was allocated elsewhere by MEM_mallocN())
   pass Py_NEW - if vector is not a WRAPPER and managed by PYTHON
  (i.e. it must be created here with PyMEM_malloc())*/
-PyObject *newColorObject(float *col, int type, PyTypeObject *base_type)
+PyObject *Color_CreatePyObject(float *col, int type, PyTypeObject *base_type)
 {
 	ColorObject *self;
 
 	self= base_type ?	(ColorObject *)base_type->tp_alloc(base_type, 0) :
 						(ColorObject *)PyObject_GC_New(ColorObject, &color_Type);
 
-	if(self) {
+	if (self) {
 		/* init callbacks as NULL */
 		self->cb_user= NULL;
 		self->cb_type= self->cb_subtype= 0;
 
-		if(type == Py_WRAP) {
+		if (type == Py_WRAP) {
 			self->col = col;
 			self->wrapped = Py_WRAP;
 		}
 		else if (type == Py_NEW) {
 			self->col = PyMem_Malloc(COLOR_SIZE * sizeof(float));
-			if(col)
+			if (col)
 				copy_v3_v3(self->col, col);
 			else
 				zero_v3(self->col);
@@ -854,10 +860,10 @@ PyObject *newColorObject(float *col, int type, PyTypeObject *base_type)
 	return (PyObject *)self;
 }
 
-PyObject *newColorObject_cb(PyObject *cb_user, int cb_type, int cb_subtype)
+PyObject *Color_CreatePyObject_cb(PyObject *cb_user, int cb_type, int cb_subtype)
 {
-	ColorObject *self= (ColorObject *)newColorObject(NULL, Py_NEW, NULL);
-	if(self) {
+	ColorObject *self= (ColorObject *)Color_CreatePyObject(NULL, Py_NEW, NULL);
+	if (self) {
 		Py_INCREF(cb_user);
 		self->cb_user=			cb_user;
 		self->cb_type=			(unsigned char)cb_type;

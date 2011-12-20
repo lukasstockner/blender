@@ -50,6 +50,8 @@
 #include "UI_interface.h"
 #include "UI_resources.h"
 
+#include "clip_intern.h" /* own include */
+
 /* ************************ header area region *********************** */
 
 /************************** properties ******************************/
@@ -210,6 +212,7 @@ static void clip_panel_operator_redo_operator(const bContext *C, Panel *pa, wmOp
 	}
 }
 
+/* TODO de-duplicate redo panel functions - campbell */
 static void clip_panel_operator_redo(const bContext *C, Panel *pa)
 {
 	wmOperator *op= WM_operator_last_redo(C);
@@ -222,7 +225,7 @@ static void clip_panel_operator_redo(const bContext *C, Panel *pa)
 
 	block= uiLayoutGetBlock(pa->layout);
 
-	if(ED_undo_valid(C, op->type->name)==0)
+	if (!WM_operator_check_ui_enabled(C, op->type->name))
 		uiLayoutSetEnabled(pa->layout, 0);
 
 	/* note, blockfunc is a default but->func, use Handle func to allow button callbacks too */

@@ -28,10 +28,16 @@
  *  \ingroup modifiers
  */
 
+#define DO_PROFILE 0
+
 #include "BLI_editVert.h"
 #include "BLI_math.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
+
+#if DO_PROFILE
+	#include "PIL_time.h"
+#endif
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -334,10 +340,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
                                   int UNUSED(useRenderParams), int UNUSED(isFinalCalc))
 {
 	WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData*) md;
-	DerivedMesh *dm = derivedData, *ret = NULL;
-#if 0
-	Mesh *ob_m = NULL;
-#endif
+	DerivedMesh *dm = derivedData;
 	MDeformVert *dvert = NULL;
 	MDeformWeight **dw, **tdw;
 	int numVerts;
@@ -350,7 +353,10 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	int *tidx, *indices = NULL;
 	int numIdx = 0;
 	int i;
-	char rel_ret = 0; /* Boolean, whether we have to release ret dm or not, when not using it! */
+
+#if DO_PROFILE
+	TIMEIT_START(perf)
+#endif
 
 	/* Get number of verts. */
 	numVerts = dm->getNumVerts(dm);
@@ -371,49 +377,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	if (defgrp_idx < 0)
 		return dm;
 
-	/* XXX All this to avoid copying dm when not needed... However, it nearly doubles compute
-	 *     time! See scene 5 of the WeighVG test file...
-	 */
-#if 0
-	/* Get actual dverts (ie vertex group data). */
-	dvert = dm->getVertDataArray(dm, CD_MDEFORMVERT);
-	/* If no dverts, return unmodified data... */
-	if (dvert == NULL)
-		return dm;
-
-	/* Get org mesh, only to test whether affected cdata layer has already been copied
-	 * somewhere up in the modifiers stack.
-	 */
-	ob_m = get_mesh(ob);
-	if (ob_m == NULL)
-		return dm;
-
-	/* Create a copy of our dmesh, only if our affected cdata layer is the same as org mesh. */
-	if (dvert == CustomData_get_layer(&ob_m->vdata, CD_MDEFORMVERT)) {
-		/* XXX Seems to create problems with weightpaint mode???
-		 *     I'm missing something here, I guess...
-		 */
-//		DM_set_only_copy(dm, CD_MASK_MDEFORMVERT); /* Only copy defgroup layer. */
-		ret = CDDM_copy(dm);
-		dvert = ret->getVertDataArray(ret, CD_MDEFORMVERT);
-		if (dvert == NULL) {
-			ret->release(ret);
-			return dm;
-		}
-		rel_ret = 1;
-	}
-	else
-		ret = dm;
-#else
-	ret = CDDM_copy(dm);
-	rel_ret = 1;
-	dvert = ret->getVertDataArray(ret, CD_MDEFORMVERT);
-	if (dvert == NULL) {
-		if (rel_ret)
-			ret->release(ret);
-		return dm;
-	}
-#endif
+	dvert = CustomData_duplicate_referenced_layer(&dm->vertData, CD_MDEFORMVERT, numVerts);
 
 	/* Find out which vertices to work on (all vertices in vgroup), and get their relevant weight.
 	 */
@@ -433,8 +397,6 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 		MEM_freeN(tidx);
 		MEM_freeN(tw);
 		MEM_freeN(tdw);
-		if (rel_ret)
-			ret->release(ret);
 		return dm;
 	}
 	indices = MEM_mallocN(sizeof(int) * numIdx, "WeightVGProximity Modifier, indices");
@@ -449,9 +411,17 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	MEM_freeN(tdw);
 
 	/* Get our vertex coordinates. */
-	v_cos = MEM_mallocN(sizeof(float[3]) * numIdx, "WeightVGProximity Modifier, v_cos");
-	for (i = 0; i < numIdx; i++)
-		ret->getVertCo(ret, indices[i], v_cos[i]);
+	{
+		/* XXX In some situations, this code can be up to about 50 times more performant
+		 *     than simply using getVertCo for each affected vertex...
+		 */
+		float (*tv_cos)[3] = MEM_mallocN(sizeof(float[3]) * numVerts, "WeightVGProximity Modifier, tv_cos");
+		v_cos = MEM_mallocN(sizeof(float[3]) * numIdx, "WeightVGProximity Modifier, v_cos");
+		dm->getVertCos(dm, tv_cos);
+		for (i = 0; i < numIdx; i++)
+			copy_v3_v3(v_cos[i], tv_cos[indices[i]]);
+		MEM_freeN(tv_cos);
+	}
 
 	/* Compute wanted distances. */
 	if (wmd->proximity_mode == MOD_WVG_PROXIMITY_OBJECT) {
@@ -466,6 +436,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 
 		if (use_trgt_verts || use_trgt_edges || use_trgt_faces) {
 			DerivedMesh *target_dm = obr->derivedFinal;
+			short free_target_dm = FALSE;
 			if (!target_dm) {
 				if (ELEM3(obr->type, OB_CURVE, OB_SURF, OB_FONT))
 					target_dm = CDDM_from_curve(obr);
@@ -476,6 +447,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 					else
 						target_dm = CDDM_from_mesh(me, obr);
 				}
+				free_target_dm = TRUE;
 			}
 
 			/* We must check that we do have a valid target_dm! */
@@ -495,6 +467,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 					if(dists_f)
 						new_w[i] = minf(dists_f[i], new_w[i]);
 				}
+				if(free_target_dm) target_dm->release(target_dm);
 				if(dists_v) MEM_freeN(dists_v);
 				if(dists_e) MEM_freeN(dists_e);
 				if(dists_f) MEM_freeN(dists_f);
@@ -513,7 +486,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	do_map(new_w, numIdx, wmd->min_dist, wmd->max_dist, wmd->falloff_type);
 
 	/* Do masking. */
-	weightvg_do_mask(numIdx, indices, org_w, new_w, ob, ret, wmd->mask_constant,
+	weightvg_do_mask(numIdx, indices, org_w, new_w, ob, dm, wmd->mask_constant,
 	                 wmd->mask_defgrp_name, wmd->mask_texture, wmd->mask_tex_use_channel,
 	                 wmd->mask_tex_mapping, wmd->mask_tex_map_obj, wmd->mask_tex_uvlayer_name);
 
@@ -527,8 +500,12 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	MEM_freeN(indices);
 	MEM_freeN(v_cos);
 
+#if DO_PROFILE
+	TIMEIT_END(perf)
+#endif
+
 	/* Return the vgroup-modified mesh. */
-	return ret;
+	return dm;
 }
 
 static DerivedMesh *applyModifierEM(ModifierData *md, Object *ob,

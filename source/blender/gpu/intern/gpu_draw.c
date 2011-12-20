@@ -4,10 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. The Blender
- * Foundation also sells licenses for use in proprietary software under
- * the Blender License.  See http://www.blender.org/BL/ for information
- * about this.
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -63,6 +60,7 @@
 #include "BKE_node.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
+#include "BKE_DerivedMesh.h"
 
 #include "BLI_threads.h"
 #include "BLI_blenlib.h"
@@ -191,20 +189,6 @@ void GPU_render_text(MTFace *tface, int mode,
 
 /* Checking powers of two for images since opengl 1.x requires it */
 
-static int is_pow2(int num)
-{
-	/* (n&(n-1)) zeros the least significant bit of n */
-	return ((num)&(num-1))==0;
-}
-
-static int smaller_pow2(int num)
-{
-	while (!is_pow2(num))
-		num= num&(num-1);
-
-	return num;	
-}
-
 static int is_pow2_limit(int num)
 {
 	/* take texture clamping into account */
@@ -216,7 +200,7 @@ static int is_pow2_limit(int num)
 	if (U.glreslimit != 0 && num > U.glreslimit)
 		return 0;
 
-	return ((num)&(num-1))==0;
+	return is_power_of_2_i(num);
 }
 
 static int smaller_pow2_limit(int num)
@@ -229,7 +213,7 @@ static int smaller_pow2_limit(int num)
 	if (U.glreslimit != 0 && num > U.glreslimit)
 		return U.glreslimit;
 
-	return smaller_pow2(num);
+	return power_of_2_min_i(num);
 }
 
 /* Current OpenGL state caching for GPU_set_tpage */
@@ -669,7 +653,7 @@ static void gpu_verify_repeat(Image *ima)
 {
 	/* set either clamp or repeat in X/Y */
 	if (ima->tpageflag & IMA_CLAMP_U)
-	   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	else
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 
@@ -767,7 +751,7 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h, int mipmap)
 	ibuf = BKE_image_get_ibuf(ima, NULL);
 	
 	if (ima->repbind || (gpu_get_mipmap() && mipmap) || !ima->bindcode || !ibuf ||
-		(!is_pow2(ibuf->x) || !is_pow2(ibuf->y)) ||
+		(!is_power_of_2_i(ibuf->x) || !is_power_of_2_i(ibuf->y)) ||
 		(w == 0) || (h == 0)) {
 		/* these cases require full reload still */
 		GPU_free_image(ima);
@@ -848,7 +832,7 @@ int GPU_update_image_time(Image *ima, double time)
 	if (ima->lastupdate<0)
 		ima->lastupdate = 0;
 
-	if (ima->lastupdate>time)
+	if (ima->lastupdate > (float)time)
 		ima->lastupdate=(float)time;
 
 	if(ima->tpageflag & IMA_TWINANIM) {
@@ -856,7 +840,7 @@ int GPU_update_image_time(Image *ima, double time)
 		
 		/* check: is the bindcode not in the array? Then free. (still to do) */
 		
-		diff = (float)(time-ima->lastupdate);
+		diff = (float)((float)time - ima->lastupdate);
 		inc = (int)(diff*(float)ima->animspeed);
 
 		ima->lastupdate+=((float)inc/(float)ima->animspeed);
@@ -882,11 +866,11 @@ void GPU_free_smoke(SmokeModifierData *smd)
 	if(smd->type & MOD_SMOKE_TYPE_DOMAIN && smd->domain)
 	{
 		if(smd->domain->tex)
-			 GPU_texture_free(smd->domain->tex);
+			GPU_texture_free(smd->domain->tex);
 		smd->domain->tex = NULL;
 
 		if(smd->domain->tex_shadow)
-			 GPU_texture_free(smd->domain->tex_shadow);
+			GPU_texture_free(smd->domain->tex_shadow);
 		smd->domain->tex_shadow = NULL;
 	}
 }
@@ -1018,7 +1002,7 @@ static struct GPUMaterialState {
 
 	GPUBlendMode *alphablend;
 	GPUBlendMode alphablend_fixed[FIXEDMAT];
-	int alphapass;
+	int use_alpha_pass, is_alpha_pass;
 
 	int lastmatnr, lastretval;
 	GPUBlendMode lastalphablend;
@@ -1069,7 +1053,7 @@ static Material *gpu_active_node_material(Material *ma)
 	return ma;
 }
 
-void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, Object *ob, int glsl, int *do_alpha_pass)
+void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, Object *ob, int glsl, int *do_alpha_after)
 {
 	Material *ma;
 	GPUMaterial *gpumat;
@@ -1091,9 +1075,15 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 	GMS.gviewmat= rv3d->viewmat;
 	GMS.gviewinv= rv3d->viewinv;
 
-	GMS.alphapass = (v3d && v3d->transp);
-	if(do_alpha_pass)
-		*do_alpha_pass = 0;
+	/* alpha pass setup. there's various cases to handle here:
+	   * object transparency on: only solid materials draw in the first pass,
+	   and only transparent in the second 'alpha' pass.
+	   * object transparency off: for glsl we draw both in a single pass, and
+	   for solid we don't use transparency at all. */
+	GMS.use_alpha_pass = (do_alpha_after != NULL);
+	GMS.is_alpha_pass = (v3d && v3d->transp);
+	if(GMS.use_alpha_pass)
+		*do_alpha_after = 0;
 	
 	if(GMS.totmat > FIXEDMAT) {
 		GMS.matbuf= MEM_callocN(sizeof(GPUMaterialFixed)*GMS.totmat, "GMS.matbuf");
@@ -1140,20 +1130,23 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 			/* fixed function opengl materials */
 			gpu_material_to_fixed(&GMS.matbuf[a], ma, gamma, ob, new_shading_nodes);
 
-			alphablend = (ma->alpha == 1.0f)? GPU_BLEND_SOLID: GPU_BLEND_ALPHA;
-			if(do_alpha_pass && GMS.alphapass)
+			if(GMS.use_alpha_pass) {
 				GMS.matbuf[a].diff[3]= ma->alpha;
-			else
+				alphablend = (ma->alpha == 1.0f)? GPU_BLEND_SOLID: GPU_BLEND_ALPHA;
+			}
+			else {
 				GMS.matbuf[a].diff[3]= 1.0f;
+				alphablend = GPU_BLEND_SOLID;
+			}
 		}
 
-		/* setting do_alpha_pass = 1 indicates this object needs to be
+		/* setting do_alpha_after = 1 indicates this object needs to be
 		 * drawn in a second alpha pass for improved blending */
-		if(do_alpha_pass) {
-			GMS.alphablend[a]= alphablend;
-			if(ELEM3(alphablend, GPU_BLEND_ALPHA, GPU_BLEND_ADD, GPU_BLEND_ALPHA_SORT) && !GMS.alphapass)
-				*do_alpha_pass= 1;
-		}
+		if(GMS.use_alpha_pass && !GMS.is_alpha_pass)
+			if(ELEM3(alphablend, GPU_BLEND_ALPHA, GPU_BLEND_ADD, GPU_BLEND_ALPHA_SORT))
+				*do_alpha_after= 1;
+
+		GMS.alphablend[a]= alphablend;
 	}
 
 	/* let's start with a clean state */
@@ -1198,29 +1191,38 @@ int GPU_enable_material(int nr, void *attribs)
 
 	/* unbind glsl material */
 	if(GMS.gboundmat) {
-		if(GMS.alphapass) glDepthMask(0);
+		if(GMS.is_alpha_pass) glDepthMask(0);
 		GPU_material_unbind(GPU_material_from_blender(GMS.gscene, GMS.gboundmat));
 		GMS.gboundmat= NULL;
 	}
 
 	/* draw materials with alpha in alpha pass */
 	GMS.lastmatnr = nr;
-	GMS.lastretval = ELEM(GMS.alphablend[nr], GPU_BLEND_SOLID, GPU_BLEND_CLIP);
-	if(GMS.alphapass)
-		GMS.lastretval = !GMS.lastretval;
+	GMS.lastretval = 1;
+
+	if(GMS.use_alpha_pass) {
+		GMS.lastretval = ELEM(GMS.alphablend[nr], GPU_BLEND_SOLID, GPU_BLEND_CLIP);
+		if(GMS.is_alpha_pass)
+			GMS.lastretval = !GMS.lastretval;
+	}
+	else
+		GMS.lastretval = !GMS.is_alpha_pass;
 
 	if(GMS.lastretval) {
 		/* for alpha pass, use alpha blend */
-		alphablend = (GMS.alphapass)? GPU_BLEND_ALPHA: GPU_BLEND_SOLID;
+		alphablend = GMS.alphablend[nr];
 
 		if(gattribs && GMS.gmatbuf[nr]) {
 			/* bind glsl material and get attributes */
 			Material *mat = GMS.gmatbuf[nr];
+			float auto_bump_scale;
 
 			gpumat = GPU_material_from_blender(GMS.gscene, mat);
 			GPU_material_vertex_attributes(gpumat, gattribs);
 			GPU_material_bind(gpumat, GMS.gob->lay, GMS.glay, 1.0, !(GMS.gob->mode & OB_MODE_TEXTURE_PAINT));
-			GPU_material_bind_uniforms(gpumat, GMS.gob->obmat, GMS.gviewmat, GMS.gviewinv, GMS.gob->col);
+
+			auto_bump_scale = GMS.gob->derivedFinal != NULL ? GMS.gob->derivedFinal->auto_bump_scale : 1.0f;
+			GPU_material_bind_uniforms(gpumat, GMS.gob->obmat, GMS.gviewmat, GMS.gviewinv, GMS.gob->col, auto_bump_scale);
 			GMS.gboundmat= mat;
 
 			/* for glsl use alpha blend mode, unless it's set to solid and
@@ -1228,7 +1230,7 @@ int GPU_enable_material(int nr, void *attribs)
 			if(mat->game.alpha_blend != GPU_BLEND_SOLID)
 				alphablend= mat->game.alpha_blend;
 
-			if(GMS.alphapass) glDepthMask(1);
+			if(GMS.is_alpha_pass) glDepthMask(1);
 		}
 		else {
 			/* or do fixed function opengl material */
@@ -1264,7 +1266,7 @@ void GPU_disable_material(void)
 	GMS.lastretval= 1;
 
 	if(GMS.gboundmat) {
-		if(GMS.alphapass) glDepthMask(0);
+		if(GMS.is_alpha_pass) glDepthMask(0);
 		GPU_material_unbind(GPU_material_from_blender(GMS.gscene, GMS.gboundmat));
 		GMS.gboundmat= NULL;
 	}

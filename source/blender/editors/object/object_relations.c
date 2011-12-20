@@ -61,6 +61,7 @@
 #include "BKE_constraint.h"
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_displist.h"
 #include "BKE_global.h"
 #include "BKE_fcurve.h"
@@ -128,7 +129,11 @@ static int vertex_parent_set_exec(bContext *C, wmOperator *op)
 		load_editMesh(scene, obedit);
 		make_editMesh(scene, obedit);
 
-		em = BKE_mesh_get_editmesh(me);
+		em= BKE_mesh_get_editmesh(me);
+
+		/* derivedMesh might be needed for solving parenting,
+		   so re-create it here */
+		makeDerivedMesh(scene, obedit, em, CD_MASK_BAREMESH);
 
 		eve= em->verts.first;
 		while(eve) {
@@ -335,7 +340,7 @@ static int make_proxy_exec (bContext *C, wmOperator *op)
 		/* Add new object for the proxy */
 		newob= add_object(scene, OB_EMPTY);
 
-		BLI_snprintf(name, sizeof(name), "%s_proxy", ((ID *)(gob ? gob : ob))->name);
+		BLI_snprintf(name, sizeof(name), "%s_proxy", ((ID *)(gob ? gob : ob))->name+2);
 
 		rename_id(&newob->id, name);
 		
@@ -507,19 +512,9 @@ static EnumPropertyItem prop_make_parent_types[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-static int test_parent_loop(Object *par, Object *ob)
-{
-	/* test if 'ob' is a parent somewhere in par's parents */
-	
-	if(par == NULL) return 0;
-	if(ob == par) return 1;
-	
-	return test_parent_loop(par->parent, ob);
-}
-
 void ED_object_parent(Object *ob, Object *par, int type, const char *substr)
 {
-	if(!par || test_parent_loop(par, ob)) {
+	if (!par || BKE_object_parent_loop_check(par, ob)) {
 		ob->parent= NULL;
 		ob->partype= PAROBJECT;
 		ob->parsubstr[0]= 0;
@@ -588,7 +583,7 @@ static int parent_set_exec(bContext *C, wmOperator *op)
 		
 		if(ob!=par) {
 			
-			if( test_parent_loop(par, ob) ) {
+			if (BKE_object_parent_loop_check(par, ob)) {
 				BKE_report(op->reports, RPT_ERROR, "Loop in parents");
 			}
 			else {
@@ -761,7 +756,7 @@ static int parent_noinv_set_exec(bContext *C, wmOperator *op)
 	/* context iterator */
 	CTX_DATA_BEGIN(C, Object*, ob, selected_editable_objects) {
 		if (ob != par) {
-			if (test_parent_loop(par, ob)) {
+			if (BKE_object_parent_loop_check(par, ob)) {
 				BKE_report(op->reports, RPT_ERROR, "Loop in parents");
 			}
 			else {

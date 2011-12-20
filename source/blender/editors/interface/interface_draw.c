@@ -377,37 +377,6 @@ void uiRoundRect(float minx, float miny, float maxx, float maxy, float rad)
 	glDisable( GL_LINE_SMOOTH );
 }
 
-/* plain fake antialiased unfilled round rectangle */
-#if 0 /* UNUSED 2.5 */
-static void uiRoundRectFakeAA(float minx, float miny, float maxx, float maxy, float rad, float asp)
-{
-	float color[4], alpha;
-	float raddiff;
-	int i, passes=4;
-	
-	/* get the color and divide up the alpha */
-	glGetFloatv(GL_CURRENT_COLOR, color);
-	alpha = 1; //color[3];
-	color[3]= 0.5*alpha/(float)passes;
-	glColor4fv(color);
-	
-	/* set the 'jitter amount' */
-	raddiff = (1/(float)passes) * asp;
-	
-	glEnable( GL_BLEND );
-	
-	/* draw lots of lines on top of each other */
-	for (i=passes; i>=(-passes); i--) {
-		uiDrawBox(GL_LINE_LOOP, minx, miny, maxx, maxy, rad+(i*raddiff));
-	}
-	
-	glDisable( GL_BLEND );
-	
-	color[3] = alpha;
-	glColor4fv(color);
-}
-#endif
-
 /* (old, used in outliner) plain antialiased filled box */
 void uiRoundBox(float minx, float miny, float maxx, float maxy, float rad)
 {
@@ -420,17 +389,7 @@ void uiRoundBox(float minx, float miny, float maxx, float maxy, float rad)
 		glEnable( GL_BLEND );
 	}
 	
-	/* solid part */
-	uiDrawBox(GL_POLYGON, minx, miny, maxx, maxy, rad);
-	
-	/* set antialias line */
-	glEnable( GL_LINE_SMOOTH );
-	glEnable( GL_BLEND );
-	
-	uiDrawBox(GL_LINE_LOOP, minx, miny, maxx, maxy, rad);
-	
-	glDisable( GL_BLEND );
-	glDisable( GL_LINE_SMOOTH );
+	ui_draw_anti_roundbox(GL_POLYGON, minx, miny, maxx, maxy, rad);
 }
 
 
@@ -1326,9 +1285,9 @@ static void ui_draw_but_curve_grid(rcti *rect, float zoomx, float zoomy, float o
 
 static void glColor3ubvShade(unsigned char *col, int shade)
 {
-	glColor3ub(col[0]-shade>0?col[0]-shade:0, 
-			   col[1]-shade>0?col[1]-shade:0,
-			   col[2]-shade>0?col[2]-shade:0);
+	glColor3ub(col[0]-shade>0?col[0]-shade:0,
+	           col[1]-shade>0?col[1]-shade:0,
+	           col[2]-shade>0?col[2]-shade:0);
 }
 
 void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect)
@@ -1506,14 +1465,18 @@ static ImBuf *scale_trackpreview_ibuf(ImBuf *ibuf, float zoomx, float zoomy)
 {
 	ImBuf *scaleibuf;
 	int x, y, w= ibuf->x*zoomx, h= ibuf->y*zoomy;
+	const float scalex= 1.0f/zoomx;
+	const float scaley= 1.0f/zoomy;
+
 	scaleibuf= IMB_allocImBuf(w, h, 32, IB_rect);
 
 	for(y= 0; y<scaleibuf->y; y++) {
 		for (x= 0; x<scaleibuf->x; x++) {
 			int pixel= scaleibuf->x*y + x;
-			int orig_pixel= ibuf->x*(int)(((float)y)/zoomy) + (int)(((float)x)/zoomx);
+			int orig_pixel= ibuf->x*(int)(scaley*(float)y) + (int)(scalex*(float)x);
 			char *rrgb= (char*)scaleibuf->rect + pixel*4;
 			char *orig_rrgb= (char*)ibuf->rect + orig_pixel*4;
+
 			rrgb[0]= orig_rrgb[0];
 			rrgb[1]= orig_rrgb[1];
 			rrgb[2]= orig_rrgb[2];
@@ -1560,11 +1523,11 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 		/* draw content of pattern area */
 		glScissor(ar->winrct.xmin+rect.xmin, ar->winrct.ymin+rect.ymin, scissor[2], scissor[3]);
 
-		zoomx= (rect.xmax-rect.xmin) / (scopes->track_preview->x-2.f);
-		zoomy= (rect.ymax-rect.ymin) / (scopes->track_preview->y-2.f);
+		zoomx= (rect.xmax-rect.xmin) / (scopes->track_preview->x-2.0f);
+		zoomy= (rect.ymax-rect.ymin) / (scopes->track_preview->y-2.0f);
 
-		off_x= ((int)scopes->track_pos[0]-scopes->track_pos[0]-0.5)*zoomx;
-		off_y= ((int)scopes->track_pos[1]-scopes->track_pos[1]-0.5)*zoomy;
+		off_x= ((int)scopes->track_pos[0]-scopes->track_pos[0]-0.5f)*zoomx;
+		off_y= ((int)scopes->track_pos[1]-scopes->track_pos[1]-0.5f)*zoomy;
 
 		drawibuf= scale_trackpreview_ibuf(scopes->track_preview, zoomx, zoomy);
 		glaDrawPixelsSafe(off_x+rect.xmin, off_y+rect.ymin, rect.xmax-rect.xmin+1.f-off_x, rect.ymax-rect.ymin+1.f-off_y, drawibuf->x, GL_RGBA, GL_UNSIGNED_BYTE, drawibuf->rect);

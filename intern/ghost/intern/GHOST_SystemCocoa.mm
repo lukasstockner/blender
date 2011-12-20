@@ -578,7 +578,7 @@ GHOST_SystemCocoa::GHOST_SystemCocoa()
 	if (strstr(rstring,"MacBookAir") ||
 		(strstr(rstring,"MacBook") && (rstring[strlen(rstring)-3]>='5') && (rstring[strlen(rstring)-3]<='9')))
 		m_hasMultiTouchTrackpad = true;
-	else m_hasMultiTouchTrackpad = true;  // experimental, changes only MagicMouse behaviour (zoom->pan) but enables MagicTrackpad for all Macs
+	else m_hasMultiTouchTrackpad = false;
 	
 	free( rstring );
 	rstring = NULL;
@@ -875,24 +875,25 @@ bool GHOST_SystemCocoa::processEvents(bool waitForEvent)
 	/*do {
 		GHOST_TimerManager* timerMgr = getTimerManager();
 		
-		 if (waitForEvent) {
-		 GHOST_TUns64 next = timerMgr->nextFireTime();
-		 double timeOut;
-		 
-		 if (next == GHOST_kFireTimeNever) {
-		 timeOut = kEventDurationForever;
-		 } else {
-		 timeOut = (double)(next - getMilliSeconds())/1000.0;
-		 if (timeOut < 0.0)
-		 timeOut = 0.0;
-		 }
-		 
-		 ::ReceiveNextEvent(0, NULL, timeOut, false, &event);
-		 }
-		 
-		 if (timerMgr->fireTimers(getMilliSeconds())) {
-		 anyProcessed = true;
-		 }*/
+		if (waitForEvent) {
+		GHOST_TUns64 next = timerMgr->nextFireTime();
+		double timeOut;
+
+		if (next == GHOST_kFireTimeNever) {
+		timeOut = kEventDurationForever;
+		} else {
+		timeOut = (double)(next - getMilliSeconds())/1000.0;
+		if (timeOut < 0.0)
+		timeOut = 0.0;
+		}
+
+		::ReceiveNextEvent(0, NULL, timeOut, false, &event);
+		}
+
+		if (timerMgr->fireTimers(getMilliSeconds())) {
+		anyProcessed = true;
+		}
+		*/
 		
 		do {
 			NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
@@ -1764,7 +1765,7 @@ GHOST_TUns8* GHOST_SystemCocoa::getClipboard(bool selection) const
 		return NULL;
 	}
 	
-	pastedTextSize = [textPasted lengthOfBytesUsingEncoding:NSISOLatin1StringEncoding];
+	pastedTextSize = [textPasted lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
 	
 	temp_buff = (GHOST_TUns8*) malloc(pastedTextSize+1); 
 
@@ -1773,7 +1774,7 @@ GHOST_TUns8* GHOST_SystemCocoa::getClipboard(bool selection) const
 		return NULL;
 	}
 	
-	strncpy((char*)temp_buff, [textPasted cStringUsingEncoding:NSISOLatin1StringEncoding], pastedTextSize);
+	strncpy((char*)temp_buff, [textPasted cStringUsingEncoding:NSUTF8StringEncoding], pastedTextSize);
 	
 	temp_buff[pastedTextSize] = '\0';
 	
@@ -1805,7 +1806,7 @@ void GHOST_SystemCocoa::putClipboard(GHOST_TInt8 *buffer, bool selection) const
 	
 	[pasteBoard declareTypes:supportedTypes owner:nil];
 	
-	textToCopy = [NSString stringWithCString:buffer encoding:NSISOLatin1StringEncoding];
+	textToCopy = [NSString stringWithCString:buffer encoding:NSUTF8StringEncoding];
 	
 	[pasteBoard setString:textToCopy forType:NSStringPboardType];
 	

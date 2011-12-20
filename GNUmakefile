@@ -34,7 +34,10 @@ OS_NCASE:=$(shell uname -s | tr '[A-Z]' '[a-z]')
 # Source and Build DIR's
 BLENDER_DIR:=$(shell pwd -P)
 BUILD_TYPE:=Release
-BUILD_CMAKE_ARGS:=
+
+ifndef BUILD_CMAKE_ARGS
+	BUILD_CMAKE_ARGS:=
+endif
 
 ifndef BUILD_DIR
 	BUILD_DIR:=$(shell dirname $(BLENDER_DIR))/build/$(OS_NCASE)
@@ -90,6 +93,17 @@ CMAKE_CONFIG = cmake $(BUILD_CMAKE_ARGS) \
 
 
 # -----------------------------------------------------------------------------
+# Tool for 'make config'
+
+# X11 spesific
+ifdef DISPLAY
+	CMAKE_CONFIG_TOOL = cmake-gui
+else 
+	CMAKE_CONFIG_TOOL = ccmake
+endif
+
+
+# -----------------------------------------------------------------------------
 # Build Blender
 all:
 	@echo
@@ -112,8 +126,15 @@ lite: all
 headless: all
 bpy: all
 
+
 # -----------------------------------------------------------------------------
-# Helo for build targets
+# Configuration (save some cd'ing around)
+config:
+	$(CMAKE_CONFIG_TOOL) $(BUILD_DIR)
+
+
+# -----------------------------------------------------------------------------
+# Help for build targets
 help:
 	@echo ""
 	@echo "Convenience targets provided for building blender, (multiple at once can be used)"
@@ -122,7 +143,10 @@ help:
 	@echo "  * headless  - build without an interface (renderfarm or server automation)"
 	@echo "  * bpy       - build as a python module which can be loaded from python directly"
 	@echo ""
+	@echo "  * config    - run cmake configuration tool to set build options"
+	@echo ""
 	@echo "  Note, passing the argument 'BUILD_DIR=path' when calling make will override the default build dir."
+	@echo "  Note, passing the argument 'BUILD_CMAKE_ARGS=args' lets you add cmake arguments."
 	@echo ""
 	@echo ""
 	@echo "Project Files for IDE's"

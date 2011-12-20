@@ -64,7 +64,6 @@ static void copyData(ModifierData *md, ModifierData *target)
 	MirrorModifierData *mmd = (MirrorModifierData*) md;
 	MirrorModifierData *tmmd = (MirrorModifierData*) target;
 
-	tmmd->axis = mmd->axis;
 	tmmd->flag = mmd->flag;
 	tmmd->tolerance = mmd->tolerance;
 	tmmd->mirror_ob = mmd->mirror_ob;
@@ -91,7 +90,7 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 		DagNode *latNode = dag_get_node(forest, mmd->mirror_ob);
 
 		dag_add_relation(forest, latNode, obNode,
-				 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Mirror Modifier");
+		                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Mirror Modifier");
 	}
 }
 
@@ -130,7 +129,7 @@ static DerivedMesh *doMirrorOnAxis(MirrorModifierData *mmd,
 		float obinv[4][4];
 		
 		invert_m4_m4(obinv, mmd->mirror_ob->obmat);
-		mul_m4_m4m4(mtx, ob->obmat, obinv);
+		mult_m4_m4m4(mtx, obinv, ob->obmat);
 		invert_m4_m4(imtx, mtx);
 	}
 

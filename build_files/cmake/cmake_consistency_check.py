@@ -22,6 +22,12 @@
 
 # <pep8 compliant>
 
+import sys
+if not sys.version.startswith("3"):
+    print("\nPython3.x needed, found %s.\nAborting!\n" %
+          sys.version.partition(" ")[0])
+    sys.exit(1)
+
 from cmake_consistency_check_config import IGNORE, UTF8_CHECK, SOURCE_DIR
 
 import os
@@ -93,6 +99,9 @@ def cmake_get_src(f):
     # print(f)
 
     def is_definition(l, f, i, name):
+        if l.startswith("unset("):
+            return False
+
         if ('set(%s' % name) in l or ('set(' in l and l.endswith(name)):
             if len(l.split()) > 1:
                 raise Exception("strict formatting not kept 'set(%s*' %s:%d" % (name, f, i))

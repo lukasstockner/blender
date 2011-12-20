@@ -32,6 +32,9 @@
 
 #include "MEM_guardedalloc.h"
 
+/* for reading old multires */
+#define DNA_DEPRECATED_ALLOW
+
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -1147,10 +1150,10 @@ static MultiresFace *find_old_face(ListBase *map, MultiresFace *faces, int v1, i
 	IndexNode *n1;
 	int v[4], i, j;
 
-	 v[0]= v1;
-	 v[1]= v2;
-	 v[2]= v3;
-	 v[3]= v4;
+	v[0]= v1;
+	v[1]= v2;
+	v[2]= v3;
+	v[3]= v4;
 
 	for(n1 = map[v1].first; n1; n1 = n1->next) {
 		int fnd[4] = {0, 0, 0, 0};

@@ -237,7 +237,6 @@ static int tree_element_active_material(bContext *C, Scene *scene, SpaceOops *so
 		if(set) {
 			ob->actcol= te->index+1;
 			ob->matbits[te->index]= 1;	// make ob material active too
-			ob->colbits |= (1<<te->index);
 		}
 		else {
 			if(ob->actcol == te->index+1) 
@@ -249,7 +248,6 @@ static int tree_element_active_material(bContext *C, Scene *scene, SpaceOops *so
 		if(set) {
 			ob->actcol= te->index+1;
 			ob->matbits[te->index]= 0;	// make obdata material active too
-			ob->colbits &= ~(1<<te->index);
 		}
 		else {
 			if(ob->actcol == te->index+1)
@@ -398,7 +396,9 @@ static int tree_element_active_defgroup(bContext *C, Scene *scene, TreeElement *
 	/* id in tselem is object */
 	ob= (Object *)tselem->id;
 	if(set) {
+		BLI_assert(te->index+1 >= 0);
 		ob->actdef= te->index+1;
+
 		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, ob);
 	}

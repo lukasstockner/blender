@@ -47,9 +47,10 @@
 #include "DNA_speaker_types.h"
 #include "DNA_vfont_types.h"
 
+#include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_string.h"
-#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_anim.h"
@@ -244,7 +245,8 @@ int ED_object_add_generic_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(ev
 	return op->type->exec(C, op);
 }
 
-int ED_object_add_generic_get_opts(bContext *C, wmOperator *op, float *loc, float *rot, int *enter_editmode, unsigned int *layer)
+int ED_object_add_generic_get_opts(bContext *C, wmOperator *op, float *loc,
+	float *rot, int *enter_editmode, unsigned int *layer)
 {
 	View3D *v3d = CTX_wm_view3d(C);
 	int a, layer_values[20];
@@ -305,7 +307,8 @@ int ED_object_add_generic_get_opts(bContext *C, wmOperator *op, float *loc, floa
 
 /* for object add primitive operators */
 /* do not call undo push in this function (users of this function have to) */
-Object *ED_object_add_type(bContext *C, int type, float *loc, float *rot, int enter_editmode, unsigned int layer)
+Object *ED_object_add_type(bContext *C, int type, float *loc, float *rot,
+	int enter_editmode, unsigned int layer)
 {
 	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
@@ -326,7 +329,9 @@ Object *ED_object_add_type(bContext *C, int type, float *loc, float *rot, int en
 
 	DAG_id_type_tag(bmain, ID_OB);
 	DAG_scene_sort(bmain, scene);
-	ED_render_id_flush_update(bmain, ob->data);
+	if (ob->data) {
+		ED_render_id_flush_update(bmain, ob->data);
+	}
 
 	if(enter_editmode)
 		ED_object_enter_editmode(C, EM_IGNORE_LAYER);
@@ -885,10 +890,11 @@ void ED_base_object_free_and_unlink(Main *bmain, Scene *scene, Base *base)
 	MEM_freeN(base);
 }
 
-static int object_delete_exec(bContext *C, wmOperator *UNUSED(op))
+static int object_delete_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
+	const short use_global= RNA_boolean_get(op->ptr, "use_global");
 	/* int islamp= 0; */ /* UNUSED */
 	
 	if(CTX_data_edit_object(C)) 
@@ -903,6 +909,22 @@ static int object_delete_exec(bContext *C, wmOperator *UNUSED(op))
 
 		/* remove from current scene only */
 		ED_base_object_free_and_unlink(bmain, scene, base);
+
+		if (use_global) {
+			Scene *scene_iter;
+			Base *base_other;
+
+			for (scene_iter= bmain->scene.first; scene_iter; scene_iter= scene_iter->id.next) {
+				if (scene_iter != scene && !(scene_iter->id.lib)) {
+					base_other= object_in_scene(base->object, scene_iter);
+					if (base_other) {
+						ED_base_object_free_and_unlink(bmain, scene_iter, base_other);
+					}
+				}
+			}
+		}
+		/* end global */
+
 	}
 	CTX_DATA_END;
 
@@ -929,6 +951,8 @@ void OBJECT_OT_delete(wmOperatorType *ot)
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	RNA_def_boolean(ot->srna, "use_global", 0, "Delete Globally", "Remove object from all scenes");
 }
 
 /**************************** Copy Utilities ******************************/
@@ -1027,11 +1051,17 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 {
 	ListBase *lb;
 	DupliObject *dob;
-
+	GHash *dupli_gh= NULL, *parent_gh= NULL;
+	
 	if(!(base->object->transflag & OB_DUPLI))
 		return;
 	
 	lb= object_duplilist(scene, base->object);
+
+	if(use_hierarchy || use_base_parent) {
+		dupli_gh= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "make_object_duplilist_real dupli_gh");
+		parent_gh= BLI_ghash_new(BLI_ghashutil_pairhash, BLI_ghashutil_paircmp, "make_object_duplilist_real parent_gh");
+	}
 	
 	for(dob= lb->first; dob; dob= dob->next) {
 		Base *basen;
@@ -1060,6 +1090,11 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 		
 		copy_m4_m4(ob->obmat, dob->mat);
 		object_apply_mat4(ob, ob->obmat, FALSE, FALSE);
+
+		if(dupli_gh)
+			BLI_ghash_insert(dupli_gh, dob, ob);
+		if(parent_gh)
+			BLI_ghash_insert(parent_gh, BLI_ghashutil_pairalloc(dob->ob, dob->index), ob);
 	}
 	
 	if (use_hierarchy) {
@@ -1068,12 +1103,17 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 			Object *ob_src=     dob->ob;
 			Object *ob_src_par= ob_src->parent;
 
-			Object *ob_dst=     (Object *)ob_src->id.newid;
+			Object *ob_dst=     BLI_ghash_lookup(dupli_gh, dob);
+			Object *ob_dst_par= NULL;
 
-			if (ob_src_par && ob_src_par->id.newid) {
-				/* the parent was also made real, parent newly real duplis */
-				Object *ob_dst_par= (Object *)ob_src_par->id.newid;
+			/* find parent that was also made real */
+			if(ob_src_par) {
+				GHashPair *pair = BLI_ghashutil_pairalloc(ob_src_par, dob->index);
+				ob_dst_par = BLI_ghash_lookup(parent_gh, pair);
+				BLI_ghashutil_pairfree(pair);
+			}
 
+			if (ob_dst_par) {
 				/* allow for all possible parent types */
 				ob_dst->partype= ob_src->partype;
 				BLI_strncpy(ob_dst->parsubstr, ob_src->parsubstr, sizeof(ob_dst->parsubstr));
@@ -1107,8 +1147,7 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 		 * base object */
 		for(dob= lb->first; dob; dob= dob->next) {
 			/* original parents */
-			Object *ob_src=     dob->ob;
-			Object *ob_dst=     (Object *)ob_src->id.newid;
+			Object *ob_dst= BLI_ghash_lookup(dupli_gh, dob);
 
 			ob_dst->parent= base->object;
 			ob_dst->partype= PAROBJECT;
@@ -1121,6 +1160,11 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 
 		}
 	}
+
+	if(dupli_gh)
+		BLI_ghash_free(dupli_gh, NULL, NULL);
+	if(parent_gh)
+		BLI_ghash_free(parent_gh, BLI_ghashutil_pairfree, NULL);
 
 	copy_object_set_idnew(C, 0);
 	
@@ -1347,6 +1391,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 				makeDispListCurveTypes(scene, newob, 0);
 
 			newob->type= OB_CURVE;
+			cu->type= OB_CURVE;
 
 			if(cu->vfont) {
 				cu->vfont->id.us--;
@@ -1789,7 +1834,9 @@ Base *ED_object_add_duplicate(Main *bmain, Scene *scene, Base *base, int dupflag
 	set_sca_new_poins_ob(ob);
 
 	DAG_scene_sort(bmain, scene);
-	ED_render_id_flush_update(bmain, ob->data);
+	if (ob->data) {
+		ED_render_id_flush_update(bmain, ob->data);
+	}
 
 	return basen;
 }

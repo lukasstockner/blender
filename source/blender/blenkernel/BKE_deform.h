@@ -43,7 +43,6 @@ struct MDeformVert;
 void				 defgroup_copy_list(struct ListBase *lb1, struct ListBase *lb2);
 struct bDeformGroup *defgroup_duplicate(struct bDeformGroup *ingroup);
 struct bDeformGroup *defgroup_find_name(struct Object *ob, const char *name);
-int					 defgroup_find_index(struct Object *ob, struct bDeformGroup *dg);
 int					*defgroup_flip_map(struct Object *ob, int *flip_map_len, int use_default);
 int					*defgroup_flip_map_single(struct Object *ob, int *flip_map_len, int use_default, int defgroup);
 int					 defgroup_flip_index(struct Object *ob, int index, int use_default);
@@ -52,16 +51,21 @@ void				 defgroup_unique_name(struct bDeformGroup *dg, struct Object *ob);
 
 struct MDeformWeight	*defvert_find_index(const struct MDeformVert *dv, const int defgroup);
 struct MDeformWeight	*defvert_verify_index(struct MDeformVert *dv, const int defgroup);
+void                     defvert_add_index_notest(struct MDeformVert *dv, int defgroup, const float weight);
+void                     defvert_remove_group(struct MDeformVert *dvert, struct MDeformWeight *dw);
 
-float  defvert_find_weight(const struct MDeformVert *dvert, const int group_num);
-float  defvert_array_find_weight_safe(const struct MDeformVert *dvert, int index, int group_num);
+float  defvert_find_weight(const struct MDeformVert *dvert, const int defgroup);
+float  defvert_array_find_weight_safe(const struct MDeformVert *dvert, const int index, const int defgroup);
 
-void defvert_copy(struct MDeformVert *dvert_r, const struct MDeformVert *dvert);
-void defvert_sync(struct MDeformVert *dvert_r, const struct MDeformVert *dvert, int use_verify);
-void defvert_sync_mapped(struct MDeformVert *dvert_r, const struct MDeformVert *dvert, const int *flip_map, const int flip_map_len, const int use_verify);
-void defvert_remap (struct MDeformVert *dvert, int *map);
+void defvert_copy(struct MDeformVert *dvert_dst, const struct MDeformVert *dvert_src);
+void defvert_copy_index(struct MDeformVert *dvert_dst, const struct MDeformVert *dvert_src, const int defgroup);
+void defvert_sync(struct MDeformVert *dvert_dst, const struct MDeformVert *dvert_src, int use_verify);
+void defvert_sync_mapped(struct MDeformVert *dvert_dst, const struct MDeformVert *dvert_src,
+                         const int *flip_map, const int flip_map_len, const int use_verify);
+void defvert_remap (struct MDeformVert *dvert, int *map, const int map_len);
 void defvert_flip(struct MDeformVert *dvert, const int *flip_map, const int flip_map_len);
 void defvert_normalize(struct MDeformVert *dvert);
+void defvert_normalize_lock(struct MDeformVert *dvert, const int def_nr_lock);
 
 /* utility function, note that 32 chars is the maximum string length since its only
  * used with defgroups currently */

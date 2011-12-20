@@ -116,7 +116,7 @@ static void pointdensity_cache_psys(Render *re, PointDensity *pd, Object *ob, Pa
 	/* init everything */
 	if (!psys || !ob || !pd) return;
 
-	mul_m4_m4m4(obview, re->viewinv, ob->obmat);
+	mult_m4_m4m4(obview, ob->obmat, re->viewinv);
 	
 	/* Just to create a valid rendering context for particles */
 	psys_render_set(ob, psys, re->viewmat, re->winmat, re->winx, re->winy, 0);
@@ -239,7 +239,7 @@ static void pointdensity_cache_object(Render *re, PointDensity *pd, Object *ob)
 	dm->release(dm);
 
 }
-static void cache_pointdensity(Render *re, Tex *tex)
+void cache_pointdensity(Render *re, Tex *tex)
 {
 	PointDensity *pd = tex->pd;
 	

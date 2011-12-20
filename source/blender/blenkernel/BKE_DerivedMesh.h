@@ -94,6 +94,7 @@ struct DerivedMesh {
 	BVHCache bvhCache;
 	struct GPUDrawObject *drawObject;
 	DerivedMeshType type;
+	float auto_bump_scale;
 
 	/* Misc. Queries */
 
@@ -255,7 +256,11 @@ struct DerivedMesh {
 	 */
 	void (*drawFacesTex)(DerivedMesh *dm,
 						 int (*setDrawOptions)(struct MTFace *tface,
-						 int has_mcol, int matnr));
+							 int has_mcol, int matnr),
+						int (*compareDrawOptions)(void *userData,
+							 int cur_index,
+							 int next_index),
+						void *userData);
 
 	/* Draw all faces with GLSL materials
 	 *  o setMaterial is called for every different material nr
@@ -280,9 +285,11 @@ struct DerivedMesh {
 	void (*drawMappedFaces)(DerivedMesh *dm,
 							int (*setDrawOptions)(void *userData, int index,
 												  int *drawSmooth_r),
-							void *userData, int useColors,
 							int (*setMaterial)(int, void *attribs),
-							int (*compareDrawOptions)(void *userData, int cur_index, int next_index));
+							int (*compareDrawOptions)(void *userData,
+							                          int cur_index,
+							                          int next_index),
+							void *userData, int useColors);
 
 	/* Draw mapped faces using MTFace 
 	 *  o Drawing options too complicated to enumerate, look at code.
@@ -290,6 +297,9 @@ struct DerivedMesh {
 	void (*drawMappedFacesTex)(DerivedMesh *dm,
 							   int (*setDrawOptions)(void *userData,
 													 int index),
+							   int (*compareDrawOptions)(void *userData,
+							                             int cur_index,
+							                             int next_index),
 							   void *userData);
 
 	/* Draw mapped faces with GLSL materials
@@ -299,7 +309,8 @@ struct DerivedMesh {
 	 */
 	void (*drawMappedFacesGLSL)(DerivedMesh *dm,
 		int (*setMaterial)(int, void *attribs),
-		int (*setDrawOptions)(void *userData, int index), void *userData);
+		int (*setDrawOptions)(void *userData, int index),
+		void *userData);
 
 	/* Draw mapped edges as lines
 	 *  o Only if !setDrawOptions or setDrawOptions(userData, mapped-edge)
@@ -347,7 +358,7 @@ void DM_init_funcs(DerivedMesh *dm);
  * sets up the custom data layers)
  */
 void DM_init(DerivedMesh *dm, DerivedMeshType type,
-			 int numVerts, int numEdges, int numFaces);
+             int numVerts, int numEdges, int numFaces);
 
 /* utility function to initialise a DerivedMesh for the desired number
  * of vertices, edges and faces, with a layer setup copied from source
@@ -526,7 +537,7 @@ int editmesh_get_first_deform_matrices(struct Scene *, struct Object *, struct E
 int sculpt_get_deform_matrices(struct Scene *scene, struct Object *ob,
 								float (**deformmats)[3][3], float (**deformcos)[3]);
 
-void weight_to_rgb(float input, float *fr, float *fg, float *fb);
+void weight_to_rgb(float r_rgb[3], const float weight);
 
 /* convert layers requested by a GLSL material to actually available layers in
  * the DerivedMesh, with both a pointer for arrays and an offset for editmesh */
@@ -554,10 +565,21 @@ typedef struct DMVertexAttribs {
 	int tottface, totmcol, tottang, totorco;
 } DMVertexAttribs;
 
+/* should be local, bmesh replaces this */
+typedef struct {
+	DerivedMesh dm;
+
+	struct EditMesh *em;
+	float (*vertexCos)[3];
+	float (*vertexNos)[3];
+	float (*faceNos)[3];
+} EditMeshDerivedMesh;
+
 void DM_vertex_attributes_from_gpu(DerivedMesh *dm,
 	struct GPUVertexAttribs *gattribs, DMVertexAttribs *attribs);
 
 void DM_add_tangent_layer(DerivedMesh *dm);
+void DM_calc_auto_bump_scale(DerivedMesh *dm);
 
 /* Set object's bounding box based on DerivedMesh min/max data */
 void DM_set_object_boundbox(struct Object *ob, DerivedMesh *dm);

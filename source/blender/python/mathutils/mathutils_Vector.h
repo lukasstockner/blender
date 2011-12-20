@@ -39,13 +39,14 @@ extern PyTypeObject vector_Type;
 #define VectorObject_Check(_v) PyObject_TypeCheck((_v), &vector_Type)
 
 typedef struct {
-	BASE_MATH_MEMBERS(vec)
+	BASE_MATH_MEMBERS(vec);
 
-	unsigned char size;			/* vec size 2,3 or 4 */
+	int size;			/* vec size 2,3 or 4 */
 } VectorObject;
 
 /*prototypes*/
-PyObject *newVectorObject(float *vec, const int size, const int type, PyTypeObject *base_type);
-PyObject *newVectorObject_cb(PyObject *user, int size, int callback_type, int subtype);
+PyObject *Vector_CreatePyObject(float *vec, const int size, const int type, PyTypeObject *base_type);
+PyObject *Vector_CreatePyObject_cb(PyObject *user, int size, int callback_type, int subtype);
+PyObject *Vector_CreatePyObject_alloc(float *vec, const int size, PyTypeObject *base_type);
 
 #endif				/* MATHUTILS_VECTOR_H */

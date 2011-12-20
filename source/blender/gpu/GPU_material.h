@@ -1,21 +1,18 @@
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
- * This shader is free software; you can redistribute it and/or
+ * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. The Blender
- * Foundation also sells licenses for use in proprietary software under
- * the Blender License.  See http://www.blender.org/BL/ for information
- * about this.
+ * of the License, or (at your option) any later version.
  *
- * This shader is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this shader; if not, write to the Free Software Foundation,
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
@@ -49,6 +46,7 @@ struct Lamp;
 struct Image;
 struct bNode;
 struct LinkNode;
+struct LinkInOutsMuteNode;
 struct Scene;
 struct GPUVertexAttribs;
 struct GPUNode;
@@ -85,7 +83,8 @@ typedef enum GPUBuiltin {
 	GPU_INVERSE_OBJECT_MATRIX = 8,
 	GPU_VIEW_POSITION = 16,
 	GPU_VIEW_NORMAL = 32,
-	GPU_OBCOLOR = 64
+	GPU_OBCOLOR = 64,
+	GPU_AUTO_BUMPSCALE = 128
 } GPUBuiltin;
 
 typedef enum GPUBlendMode {
@@ -117,6 +116,7 @@ GPUNodeLink *GPU_builtin(GPUBuiltin builtin);
 
 int GPU_link(GPUMaterial *mat, const char *name, ...);
 int GPU_stack_link(GPUMaterial *mat, const char *name, GPUNodeStack *in, GPUNodeStack *out, ...);
+int GPU_stack_link_mute(GPUMaterial *mat, const char *name, struct LinkInOutsMuteNode *mlnk);
 
 void GPU_material_output_link(GPUMaterial *material, GPUNodeLink *link);
 void GPU_material_enable_alpha(GPUMaterial *material);
@@ -130,7 +130,7 @@ void GPU_material_free(struct Material *ma);
 void GPU_materials_free(void);
 
 void GPU_material_bind(GPUMaterial *material, int oblay, int viewlay, double time, int mipmap);
-void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[][4], float viewmat[][4], float viewinv[][4], float obcol[4]);
+void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[][4], float viewmat[][4], float viewinv[][4], float obcol[4], float autobumpscale);
 void GPU_material_unbind(GPUMaterial *material);
 int GPU_material_bound(GPUMaterial *material);
 
@@ -163,6 +163,7 @@ typedef enum GPUDynamicType {
 	GPU_DYNAMIC_OBJECT_VIEWIMAT = 3,
 	GPU_DYNAMIC_OBJECT_IMAT = 4,
 	GPU_DYNAMIC_OBJECT_COLOR = 5,
+	GPU_DYNAMIC_OBJECT_AUTOBUMPSCALE = 15,
 	GPU_DYNAMIC_LAMP_FIRST = 6,
 	GPU_DYNAMIC_LAMP_DYNVEC = 6,
 	GPU_DYNAMIC_LAMP_DYNCO = 7,

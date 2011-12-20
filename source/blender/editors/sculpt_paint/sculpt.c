@@ -648,8 +648,10 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache, float feather)
 			return feather;
 
 		case SCULPT_TOOL_GRAB:
-		case SCULPT_TOOL_ROTATE:
 			return feather;
+
+		case SCULPT_TOOL_ROTATE:
+			return alpha*pressure*feather;
 
 		default:
 			return 0;
@@ -1502,13 +1504,20 @@ static void do_rotate_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 	float bstrength= ss->cache->bstrength;
 	float an[3];
 	int n;
-	float m[3][3];
+	float m[4][4], rot[4][4], lmat[4][4], ilmat[4][4];
 	static const int flip[8] = { 1, -1, -1, 1, -1, 1, 1, -1 };
 	float angle = ss->cache->vertex_rotation * flip[ss->cache->mirror_symmetry_pass];
 
 	calc_sculpt_normal(sd, ob, an, nodes, totnode);
 
-	axis_angle_to_mat3(m, an, angle);
+	unit_m4(m);
+	unit_m4(lmat);
+
+	copy_v3_v3(lmat[3], ss->cache->location);
+	invert_m4_m4(ilmat, lmat);
+	axis_angle_to_mat4(rot, an, angle);
+
+	mul_serie_m4(m, lmat, rot, ilmat, NULL, NULL, NULL, NULL, NULL);
 
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
@@ -1532,7 +1541,7 @@ static void do_rotate_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 				const float fade = bstrength*tex_strength(ss, brush, origco[vd.i], test.dist,
 				                                          an, origno[vd.i], NULL);
 
-				mul_v3_m3v3(proxy[vd.i], m, origco[vd.i]);
+				mul_v3_m4v3(proxy[vd.i], m, origco[vd.i]);
 				sub_v3_v3(proxy[vd.i], origco[vd.i]);
 				mul_v3_fl(proxy[vd.i], fade);
 
@@ -1679,7 +1688,7 @@ static void calc_flatten_center(Sculpt *sd, Object *ob, PBVHNode **nodes, int to
 		if(ss->cache->original) {
 			BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 				if(sculpt_brush_test_fast(&test, unode->co[vd.i])) {
-					add_v3_v3(private_fc, vd.co);
+					add_v3_v3(private_fc, unode->co[vd.i]);
 					private_count++;
 				}
 			}
@@ -1749,7 +1758,7 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, Object *ob, PBVHNode
 					add_norm_if(ss->cache->view_normal, private_an, private_out_flip, fno);
 
 					// fc
-					add_v3_v3(private_fc, vd.co);
+					add_v3_v3(private_fc, unode->co[vd.i]);
 					private_count++;
 				}
 			}
@@ -2112,7 +2121,7 @@ static void do_clay_tubes_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int to
 	copy_v3_v3(mat[3], ss->cache->location);  mat[3][3] = 1;
 	normalize_m4(mat);
 	scale_m4_fl(scale, ss->cache->radius);
-	mul_m4_m4m4(tmat, scale, mat);
+	mult_m4_m4m4(tmat, mat, scale);
 	invert_m4_m4(mat, tmat);
 
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
@@ -2450,7 +2459,7 @@ static void sculpt_combine_proxies(Sculpt *sd, Object *ob)
 	if(!ELEM(brush->sculpt_tool, SCULPT_TOOL_SMOOTH, SCULPT_TOOL_LAYER)) {
 		/* these brushes start from original coordinates */
 		const int use_orco = (ELEM3(brush->sculpt_tool, SCULPT_TOOL_GRAB,
-				  SCULPT_TOOL_ROTATE, SCULPT_TOOL_THUMB));
+		                            SCULPT_TOOL_ROTATE, SCULPT_TOOL_THUMB));
 
 		#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 		for (n= 0; n < totnode; n++) {
@@ -2972,7 +2981,7 @@ static void sculpt_update_brush_delta(Sculpt *sd, Object *ob, Brush *brush)
 
 		if(cache->first_time) {
 			copy_v3_v3(cache->orig_grab_location,
-				   cache->true_location);
+			           cache->true_location);
 		}
 		else if(tool == SCULPT_TOOL_SNAKE_HOOK)
 			add_v3_v3(cache->true_location, cache->grab_delta);
@@ -3160,7 +3169,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob, st
 		dx = cache->mouse[0] - cache->initial_mouse[0];
 		dy = cache->mouse[1] - cache->initial_mouse[1];
 
-		cache->vertex_rotation = -atan2(dx, dy);
+		cache->vertex_rotation = -atan2(dx, dy) * cache->bstrength;
 
 		sd->draw_anchored = 1;
 		copy_v2_v2(sd->anchored_initial_mouse, cache->initial_mouse);
@@ -3246,7 +3255,7 @@ int sculpt_stroke_get_location(bContext *C, struct PaintStroke *stroke, float ou
 	srd.hit = 0;
 	srd.original = (cache)? cache->original: 0;
 	BLI_pbvh_raycast(ss->pbvh, sculpt_raycast_cb, &srd,
-			 ray_start, ray_normal, srd.original);
+	                 ray_start, ray_normal, srd.original);
 	
 	copy_v3_v3(out, ray_normal);
 	mul_v3_fl(out, srd.dist);
@@ -3506,9 +3515,9 @@ static int sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, wmEvent *even
 		return OPERATOR_CANCELLED;
 
 	stroke = paint_stroke_new(C, sculpt_stroke_get_location,
-				  sculpt_stroke_test_start,
-				  sculpt_stroke_update_step,
-				  sculpt_stroke_done, event->type);
+	                          sculpt_stroke_test_start,
+	                          sculpt_stroke_update_step,
+	                          sculpt_stroke_done, event->type);
 
 	op->customdata = stroke;
 

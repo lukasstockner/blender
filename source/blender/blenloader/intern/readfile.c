@@ -48,6 +48,9 @@
 #include "BLI_winstuff.h"
 #endif
 
+/* allow readfile to use deprecated functionality */
+#define DNA_DEPRECATED_ALLOW
+
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_actuator_types.h"
@@ -56,6 +59,7 @@
 #include "DNA_cloth_types.h"
 #include "DNA_controller_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_dynamicpaint_types.h"
 #include "DNA_effect_types.h"
 #include "DNA_fileglobal_types.h"
 #include "DNA_genfile.h"
@@ -105,7 +109,7 @@
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_deform.h"
-#include "BKE_effect.h" /* give_parteff */
+#include "BKE_effect.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h" // for G
 #include "BKE_group.h"
@@ -119,6 +123,7 @@
 #include "BKE_modifier.h"
 #include "BKE_multires.h"
 #include "BKE_node.h" // for tree type defines
+#include "BKE_ocean.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
 #include "BKE_particle.h"
@@ -498,7 +503,7 @@ static Main *blo_find_main(FileData *fd, ListBase *mainlist, const char *filepat
 {
 	Main *m;
 	Library *lib;
-	char name1[FILE_MAXDIR+FILE_MAXFILE];
+	char name1[FILE_MAX];
 	
 	BLI_strncpy(name1, filepath, sizeof(name1));
 	cleanup_path(relabase, name1);
@@ -1553,14 +1558,14 @@ static void IDP_DirectLinkProperty(IDProperty *prop, int switch_endian, FileData
 			IDP_DirectLinkIDPArray(prop, switch_endian, fd);
 			break;
 		case IDP_DOUBLE:
-			/*erg, stupid doubles.  since I'm storing them
-			 in the same field as int val; val2 in the
-			 IDPropertyData struct, they have to deal with
-			 endianness specifically
-			 
-			 in theory, val and val2 would've already been swapped
-			 if switch_endian is true, so we have to first unswap
-			 them then reswap them as a single 64-bit entity.
+			/* erg, stupid doubles.  since I'm storing them
+			 * in the same field as int val; val2 in the
+			 * IDPropertyData struct, they have to deal with
+			 * endianness specifically
+
+			 * in theory, val and val2 would've already been swapped
+			 * if switch_endian is true, so we have to first unswap
+			 * them then reswap them as a single 64-bit entity.
 			 */
 			
 			if (switch_endian) {
@@ -1977,7 +1982,7 @@ static void direct_link_nladata_strips(FileData *fd, ListBase *list)
 		
 		/* strip's F-Modifiers */
 		link_list(fd, &strip->modifiers);
-		direct_link_modifiers(fd, &strip->modifiers);
+		direct_link_fmodifiers(fd, &strip->modifiers);
 	}
 }
 
@@ -2122,11 +2127,61 @@ static void lib_link_nodetree(FileData *fd, Main *main)
 	}
 }
 
+static void do_versions_socket_default_value(bNodeSocket *sock)
+{
+	bNodeSocketValueFloat *valfloat;
+	bNodeSocketValueVector *valvector;
+	bNodeSocketValueRGBA *valrgba;
+	
+	if (sock->default_value)
+		return;
+	
+	switch (sock->type) {
+	case SOCK_FLOAT:
+		valfloat = sock->default_value = MEM_callocN(sizeof(bNodeSocketValueFloat), "default socket value");
+		valfloat->value = sock->ns.vec[0];
+		valfloat->min = sock->ns.min;
+		valfloat->max = sock->ns.max;
+		valfloat->subtype = PROP_NONE;
+		break;
+	case SOCK_VECTOR:
+		valvector = sock->default_value = MEM_callocN(sizeof(bNodeSocketValueVector), "default socket value");
+		copy_v3_v3(valvector->value, sock->ns.vec);
+		valvector->min = sock->ns.min;
+		valvector->max = sock->ns.max;
+		valvector->subtype = PROP_NONE;
+		break;
+	case SOCK_RGBA:
+		valrgba = sock->default_value = MEM_callocN(sizeof(bNodeSocketValueRGBA), "default socket value");
+		copy_v4_v4(valrgba->value, sock->ns.vec);
+		break;
+	}
+}
+
+static void do_versions_nodetree_default_value(bNodeTree *ntree)
+{
+	bNode *node;
+	bNodeSocket *sock;
+	for (node=ntree->nodes.first; node; node=node->next) {
+		for (sock=node->inputs.first; sock; sock=sock->next)
+			do_versions_socket_default_value(sock);
+		for (sock=node->outputs.first; sock; sock=sock->next)
+			do_versions_socket_default_value(sock);
+	}
+	for (sock=ntree->inputs.first; sock; sock=sock->next)
+		do_versions_socket_default_value(sock);
+	for (sock=ntree->outputs.first; sock; sock=sock->next)
+		do_versions_socket_default_value(sock);
+}
+
 static void lib_nodetree_init_types_cb(void *UNUSED(data), ID *UNUSED(id), bNodeTree *ntree)
 {
 	bNode *node;
 	
 	ntreeInitTypes(ntree);
+
+	/* need to do this here instead of in do_versions, otherwise next function can crash */
+	do_versions_nodetree_default_value(ntree);
 	
 	/* XXX could be replaced by do_versions for new nodes */
 	for (node=ntree->nodes.first; node; node=node->next)
@@ -3050,6 +3105,8 @@ static void lib_link_texture(FileData *fd, Main *main)
 			if(tex->pd)
 				tex->pd->object= newlibadr(fd, tex->id.lib, tex->pd->object);
 			if(tex->vd) tex->vd->object= newlibadr(fd, tex->id.lib, tex->vd->object);
+			if(tex->ot) tex->ot->object= newlibadr(fd, tex->id.lib, tex->ot->object);
+				
 
 			if(tex->nodetree)
 				lib_link_ntree(fd, &tex->id, tex->nodetree);
@@ -3100,6 +3157,8 @@ static void direct_link_texture(FileData *fd, Tex *tex)
 		if(tex->type == TEX_VOXELDATA)
 			tex->vd= MEM_callocN(sizeof(VoxelData), "direct_link_texture VoxelData");
 	}
+	
+	tex->ot= newdataadr(fd, tex->ot);
 	
 	tex->nodetree= newdataadr(fd, tex->nodetree);
 	if(tex->nodetree)
@@ -3516,8 +3575,8 @@ static void lib_link_mtface(FileData *fd, Mesh *me, MTFace *mtface, int totface)
 	int i;
 
 	/* Add pseudo-references (not fake users!) to images used by texface. A
-	   little bogus; it would be better if each mesh consistently added one ref
-	   to each image it used. - z0r */
+	 * little bogus; it would be better if each mesh consistently added one ref
+	 * to each image it used. - z0r */
 	for (i=0; i<totface; i++, tf++) {
 		tf->tpage= newlibadr(fd, me->id.lib, tf->tpage);
 		if(tf->tpage && tf->tpage->id.us==0)
@@ -3659,22 +3718,13 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 	mesh->adt= newdataadr(fd, mesh->adt);
 	direct_link_animdata(fd, mesh->adt);
 
-	/* Partial-mesh visibility (do this before using totvert, totface, or totedge!) */
-	mesh->pv= newdataadr(fd, mesh->pv);
-	if(mesh->pv) {
-		mesh->pv->vert_map= newdataadr(fd, mesh->pv->vert_map);
-		mesh->pv->edge_map= newdataadr(fd, mesh->pv->edge_map);
-		mesh->pv->old_faces= newdataadr(fd, mesh->pv->old_faces);
-		mesh->pv->old_edges= newdataadr(fd, mesh->pv->old_edges);
-	}
-
 	/* normally direct_link_dverts should be called in direct_link_customdata,
 	   but for backwards compat in do_versions to work we do it here */
-	direct_link_dverts(fd, mesh->pv ? mesh->pv->totvert : mesh->totvert, mesh->dvert);
+	direct_link_dverts(fd, mesh->totvert, mesh->dvert);
 
-	direct_link_customdata(fd, &mesh->vdata, mesh->pv ? mesh->pv->totvert : mesh->totvert);
-	direct_link_customdata(fd, &mesh->edata, mesh->pv ? mesh->pv->totedge : mesh->totedge);
-	direct_link_customdata(fd, &mesh->fdata, mesh->pv ? mesh->pv->totface : mesh->totface);
+	direct_link_customdata(fd, &mesh->vdata, mesh->totvert);
+	direct_link_customdata(fd, &mesh->edata, mesh->totedge);
+	direct_link_customdata(fd, &mesh->fdata, mesh->totface);
 
 	mesh->bb= NULL;
 	mesh->mselect = NULL;
@@ -3718,7 +3768,7 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 	}
 
 	/* if multires is present but has no valid vertex data,
-	   there's no way to recover it; silently remove multires */
+	 * there's no way to recover it; silently remove multires */
 	if(mesh->mr && !mesh->mr->verts) {
 		multires_free(mesh->mr);
 		mesh->mr = NULL;
@@ -3728,7 +3778,7 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 		TFace *tf= mesh->tface;
 		unsigned int i;
 
-		for (i=0; i< (mesh->pv ? mesh->pv->totface : mesh->totface); i++, tf++) {
+		for (i=0; i< (mesh->totface); i++, tf++) {
 			SWITCH_INT(tf->col[0]);
 			SWITCH_INT(tf->col[1]);
 			SWITCH_INT(tf->col[2]);
@@ -4192,6 +4242,40 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 
 			}
 		}
+		else if (md->type==eModifierType_DynamicPaint) {
+			DynamicPaintModifierData *pmd = (DynamicPaintModifierData*) md;
+
+			if(pmd->canvas)
+			{
+				pmd->canvas = newdataadr(fd, pmd->canvas);
+				pmd->canvas->pmd = pmd;
+				pmd->canvas->dm = NULL;
+				pmd->canvas->flags &= ~MOD_DPAINT_BAKING; /* just in case */
+
+				if (pmd->canvas->surfaces.first) {
+					DynamicPaintSurface *surface;
+					link_list(fd, &pmd->canvas->surfaces);
+
+					for (surface=pmd->canvas->surfaces.first; surface; surface=surface->next) {
+						surface->canvas = pmd->canvas;
+						surface->data = NULL;
+						direct_link_pointcache_list(fd, &(surface->ptcaches), &(surface->pointcache), 1);
+
+						if(!(surface->effector_weights = newdataadr(fd, surface->effector_weights)))
+							surface->effector_weights = BKE_add_effector_weights(NULL);
+					}
+				}
+			}
+			if(pmd->brush)
+			{
+				pmd->brush = newdataadr(fd, pmd->brush);
+				pmd->brush->pmd = pmd;
+				pmd->brush->psys = newdataadr(fd, pmd->brush->psys);
+				pmd->brush->paint_ramp = newdataadr(fd, pmd->brush->paint_ramp);
+				pmd->brush->vel_ramp = newdataadr(fd, pmd->brush->vel_ramp);
+				pmd->brush->dm = NULL;
+			}
+		}
 		else if (md->type==eModifierType_Collision) {
 			
 			CollisionModifierData *collmd = (CollisionModifierData*) md;
@@ -4282,6 +4366,12 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 					for(a=0; a<mmd->totcagevert*3; a++)
 						SWITCH_INT(mmd->bindcos[a])
 			}
+		}
+		else if (md->type==eModifierType_Ocean) {
+			OceanModifierData *omd = (OceanModifierData*) md;
+			omd->oceancache = NULL;
+			omd->ocean = NULL;
+			omd->refresh = (MOD_OCEAN_REFRESH_ADD|MOD_OCEAN_REFRESH_RESET|MOD_OCEAN_REFRESH_SIM);
 		}
 		else if (md->type==eModifierType_Warp) {
 			WarpModifierData *tmd = (WarpModifierData *) md;
@@ -4630,6 +4720,9 @@ static void lib_link_scene(FileData *fd, Main *main)
 			/*Game Settings: Dome Warp Text*/
 			sce->gm.dome.warptext= newlibadr(fd, sce->id.lib, sce->gm.dome.warptext);
 
+			/* Motion Tracking */
+			sce->clip= newlibadr_us(fd, sce->id.lib, sce->clip);
+
 			sce->id.flag -= LIB_NEEDLINK;
 		}
 
@@ -4833,8 +4926,6 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	sce->nodetree= newdataadr(fd, sce->nodetree);
 	if(sce->nodetree)
 		direct_link_nodetree(fd, sce->nodetree);
-	
-	sce->clip= newlibadr_us(fd, sce->id.lib, sce->clip);
 }
 
 /* ************ READ WM ***************** */
@@ -5869,6 +5960,7 @@ static void direct_link_movieclip(FileData *fd, MovieClip *clip)
 
 	clip->anim= NULL;
 	clip->tracking_context= NULL;
+	clip->tracking.stats= NULL;
 
 	clip->tracking.stabilization.ok= 0;
 	clip->tracking.stabilization.scaleibuf= NULL;
@@ -6382,8 +6474,8 @@ static void customdata_version_242(Mesh *me)
 
 		if (layer->type == CD_MTFACE) {
 			if (layer->name[0] == 0) {
-				if (mtfacen == 0) strcpy(layer->name, "UVTex");
-				else sprintf(layer->name, "UVTex.%.3d", mtfacen);
+				if (mtfacen == 0) strcpy(layer->name, "UVMap");
+				else sprintf(layer->name, "UVMap.%.3d", mtfacen);
 			}
 			mtfacen++;
 		}
@@ -6983,6 +7075,40 @@ static void do_versions_gpencil_2_50(Main *main, bScreen *screen)
 	}		
 }
 
+/* deprecated, only keep this for readfile.c */
+static PartEff *do_version_give_parteff_245(Object *ob)
+{
+	PartEff *paf;
+
+	paf= ob->effect.first;
+	while(paf) {
+		if(paf->type==EFF_PARTICLE) return paf;
+		paf= paf->next;
+	}
+	return NULL;
+}
+static void do_version_free_effect_245(Effect *eff)
+{
+	PartEff *paf;
+
+	if(eff->type==EFF_PARTICLE) {
+		paf= (PartEff *)eff;
+		if(paf->keys) MEM_freeN(paf->keys);
+	}
+	MEM_freeN(eff);
+}
+static void do_version_free_effects_245(ListBase *lb)
+{
+	Effect *eff;
+
+	eff= lb->first;
+	while(eff) {
+		BLI_remlink(lb, eff);
+		do_version_free_effect_245(eff);
+		eff= lb->first;
+	}
+}
+
 static void do_version_mtex_factor_2_50(MTex **mtex_array, short idtype)
 {
 	MTex *mtex;
@@ -7146,53 +7272,6 @@ static void do_version_bone_roll_256(Bone *bone)
 		do_version_bone_roll_256(child);
 }
 
-static void do_versions_socket_default_value(bNodeSocket *sock)
-{
-	bNodeSocketValueFloat *valfloat;
-	bNodeSocketValueVector *valvector;
-	bNodeSocketValueRGBA *valrgba;
-	
-	if (sock->default_value)
-		return;
-	
-	switch (sock->type) {
-	case SOCK_FLOAT:
-		valfloat = sock->default_value = MEM_callocN(sizeof(bNodeSocketValueFloat), "default socket value");
-		valfloat->value = sock->ns.vec[0];
-		valfloat->min = sock->ns.min;
-		valfloat->max = sock->ns.max;
-		valfloat->subtype = PROP_NONE;
-		break;
-	case SOCK_VECTOR:
-		valvector = sock->default_value = MEM_callocN(sizeof(bNodeSocketValueVector), "default socket value");
-		copy_v3_v3(valvector->value, sock->ns.vec);
-		valvector->min = sock->ns.min;
-		valvector->max = sock->ns.max;
-		valvector->subtype = PROP_NONE;
-		break;
-	case SOCK_RGBA:
-		valrgba = sock->default_value = MEM_callocN(sizeof(bNodeSocketValueRGBA), "default socket value");
-		copy_v4_v4(valrgba->value, sock->ns.vec);
-		break;
-	}
-}
-
-static void do_versions_nodetree_default_value(bNodeTree *ntree)
-{
-	bNode *node;
-	bNodeSocket *sock;
-	for (node=ntree->nodes.first; node; node=node->next) {
-		for (sock=node->inputs.first; sock; sock=sock->next)
-			do_versions_socket_default_value(sock);
-		for (sock=node->outputs.first; sock; sock=sock->next)
-			do_versions_socket_default_value(sock);
-	}
-	for (sock=ntree->inputs.first; sock; sock=sock->next)
-		do_versions_socket_default_value(sock);
-	for (sock=ntree->outputs.first; sock; sock=sock->next)
-		do_versions_socket_default_value(sock);
-}
-
 static void do_versions_nodetree_dynamic_sockets(bNodeTree *ntree)
 {
 	bNodeSocket *sock;
@@ -7249,6 +7328,137 @@ static void do_version_ntree_tex_mapping_260(void *UNUSED(data), ID *UNUSED(id),
 			tex_mapping->projy= PROJ_Y;
 			tex_mapping->projz= PROJ_Z;
 		}
+	}
+}
+
+static void do_versions_nodetree_convert_angle(bNodeTree *ntree)
+{
+	bNode *node;
+	for (node=ntree->nodes.first; node; node=node->next) {
+		if (node->type == CMP_NODE_ROTATE) {
+			/* Convert degrees to radians. */
+			bNodeSocket *sock = ((bNodeSocket*)node->inputs.first)->next;
+			((bNodeSocketValueFloat*)sock->default_value)->value = DEG2RADF(((bNodeSocketValueFloat*)sock->default_value)->value);
+		}
+		else if (node->type == CMP_NODE_DBLUR) {
+			/* Convert degrees to radians. */
+			NodeDBlurData *ndbd= node->storage;
+			ndbd->angle = DEG2RADF(ndbd->angle);
+			ndbd->spin = DEG2RADF(ndbd->spin);
+		}
+		else if (node->type == CMP_NODE_DEFOCUS) {
+			/* Convert degrees to radians. */
+			NodeDefocus *nqd = node->storage;
+			/* XXX DNA char to float conversion seems to map the char value into the [0.0f, 1.0f] range... */
+			nqd->rotation = DEG2RADF(nqd->rotation*255.0f);
+		}
+		else if (node->type == CMP_NODE_CHROMA_MATTE) {
+			/* Convert degrees to radians. */
+			NodeChroma *ndc = node->storage;
+			ndc->t1 = DEG2RADF(ndc->t1);
+			ndc->t2 = DEG2RADF(ndc->t2);
+		}
+		else if (node->type == CMP_NODE_GLARE) {
+			/* Convert degrees to radians. */
+			NodeGlare* ndg = node->storage;
+			/* XXX DNA char to float conversion seems to map the char value into the [0.0f, 1.0f] range... */
+			ndg->angle_ofs = DEG2RADF(ndg->angle_ofs*255.0f);
+		}
+		/* XXX TexMapping struct is used by other nodes too (at least node_composite_mapValue),
+		 *     but not the rot part...
+		 */
+		else if (node->type == SH_NODE_MAPPING) {
+			/* Convert degrees to radians. */
+			TexMapping* tmap = node->storage;
+			tmap->rot[0] = DEG2RADF(tmap->rot[0]);
+			tmap->rot[1] = DEG2RADF(tmap->rot[1]);
+			tmap->rot[2] = DEG2RADF(tmap->rot[2]);
+		}
+	}
+}
+
+void do_versions_image_settings_2_60(Scene *sce)
+{
+	/* note: rd->subimtype is moved into indervidual settings now and no longer
+	 * exists */
+	RenderData *rd= &sce->r;
+	ImageFormatData *imf= &sce->r.im_format;
+
+	imf->imtype= rd->imtype;
+	imf->planes= rd->planes;
+	imf->compress= rd->quality;
+	imf->quality= rd->quality;
+
+	/* default, was stored in multiple places, may override later */
+	imf->depth= R_IMF_CHAN_DEPTH_8;
+
+	/* openexr */
+	imf->exr_codec = rd->quality & 7; /* strange but true! 0-4 are valid values, OPENEXR_COMPRESS */
+
+	switch (imf->imtype) {
+	case R_IMF_IMTYPE_OPENEXR:
+		imf->depth=  (rd->subimtype & R_OPENEXR_HALF) ? R_IMF_CHAN_DEPTH_16 : R_IMF_CHAN_DEPTH_32;
+		if (rd->subimtype & R_PREVIEW_JPG) {
+			imf->flag |= R_IMF_FLAG_PREVIEW_JPG;
+		}
+		if (rd->subimtype & R_OPENEXR_ZBUF) {
+			imf->flag |= R_IMF_FLAG_ZBUF;
+		}
+		break;
+	case R_IMF_IMTYPE_TIFF:
+		if (rd->subimtype & R_TIFF_16BIT) {
+			imf->depth= R_IMF_CHAN_DEPTH_16;
+		}
+		break;
+	case R_IMF_IMTYPE_JP2:
+		if (rd->subimtype & R_JPEG2K_16BIT) {
+			imf->depth= R_IMF_CHAN_DEPTH_16;
+		}
+		else if (rd->subimtype & R_JPEG2K_12BIT) {
+			imf->depth= R_IMF_CHAN_DEPTH_12;
+		}
+
+		if (rd->subimtype & R_JPEG2K_YCC) {
+			imf->jp2_flag |= R_IMF_JP2_FLAG_YCC;
+		}
+		if (rd->subimtype & R_JPEG2K_CINE_PRESET) {
+			imf->jp2_flag |= R_IMF_JP2_FLAG_CINE_PRESET;
+		}
+		if (rd->subimtype & R_JPEG2K_CINE_48FPS) {
+			imf->jp2_flag |= R_IMF_JP2_FLAG_CINE_48;
+		}
+		break;
+	case R_IMF_IMTYPE_CINEON:
+	case R_IMF_IMTYPE_DPX:
+		if (rd->subimtype & R_CINEON_LOG) {
+			imf->cineon_flag |= R_IMF_CINEON_FLAG_LOG;
+		}
+		break;
+	}
+
+}
+
+/* socket use flags were only temporary before */
+static void do_versions_nodetree_socket_use_flags_2_62(bNodeTree *ntree)
+{
+	bNode *node;
+	bNodeSocket *sock;
+	bNodeLink *link;
+	
+	for (node=ntree->nodes.first; node; node=node->next) {
+		for (sock=node->inputs.first; sock; sock=sock->next)
+			sock->flag &= ~SOCK_IN_USE;
+		for (sock=node->outputs.first; sock; sock=sock->next)
+			sock->flag &= ~SOCK_IN_USE;
+	}
+	for (sock=ntree->inputs.first; sock; sock=sock->next)
+		sock->flag &= ~SOCK_IN_USE;
+	for (sock=ntree->outputs.first; sock; sock=sock->next)
+		sock->flag &= ~SOCK_IN_USE;
+	
+	for (link=ntree->links.first; link; link=link->next) {
+		link->fromsock->flag |= SOCK_IN_USE;
+		link->tosock->flag |= SOCK_IN_USE;
 	}
 }
 
@@ -7498,7 +7708,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		Object *ob = main->object.first;
 		PartEff *paf;
 		while (ob) {
-			paf = give_parteff(ob);
+			paf = do_version_give_parteff_245(ob);
 			if (paf) {
 				if (paf->staticstep == 0) {
 					paf->staticstep= 5;
@@ -8514,11 +8724,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 						View3D *v3d= (View3D *)sl;
 						if(v3d->twtype==0) v3d->twtype= V3D_MANIP_TRANSLATE;
 					}
-					else if(sl->spacetype==SPACE_TIME) {
-						SpaceTime *stime= (SpaceTime *)sl;
-						if(stime->redraws==0)
-							stime->redraws= TIME_ALL_3D_WIN|TIME_ALL_ANIM_WIN;
-					}
 				}
 			}
 		}
@@ -8544,9 +8749,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 			if(ob->soft && ob->soft->vertgroup==0) {
 				bDeformGroup *locGroup = defgroup_find_name(ob, "SOFTGOAL");
-				if(locGroup){
+				if (locGroup) {
 					/* retrieve index for that group */
-					ob->soft->vertgroup =  1 + defgroup_find_index(ob, locGroup); 
+					ob->soft->vertgroup =  1 + BLI_findindex(&ob->defbase, locGroup);
 				}
 			}
 		}
@@ -8707,7 +8912,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 
-			paf = give_parteff(ob);
+			paf = do_version_give_parteff_245(ob);
 			if (paf) {
 				if(paf->disp == 0)
 					paf->disp = 100;
@@ -8806,7 +9011,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			
 			/* make sure old cameras have title safe on */
 			if (!(cam->flag & CAM_SHOWTITLESAFE))
-			 cam->flag |= CAM_SHOWTITLESAFE;
+				cam->flag |= CAM_SHOWTITLESAFE;
 			
 			/* set an appropriate camera passepartout alpha */
 			if (!(cam->passepartalpha)) cam->passepartalpha = 0.2f;
@@ -8852,7 +9057,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			if(sce->r.yparts<2) sce->r.yparts= 4;
 			/* adds default layer */
 			if(sce->r.layers.first==NULL)
-				scene_add_render_layer(sce);
+				scene_add_render_layer(sce, NULL);
 			else {
 				SceneRenderLayer *srl;
 				/* new layer flag for sky, was default for solid */
@@ -9103,7 +9308,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		
 		for(group= main->group.first; group; group= group->id.next)
 			if(group->layer==0)
-			   group->layer= (1<<20)-1;
+				group->layer= (1<<20)-1;
 		
 		/* History fix (python?), shape key adrcode numbers have to be sorted */
 		sort_shape_fix(main);
@@ -9715,7 +9920,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 
 			/* convert old particles to new system */
-			if((paf = give_parteff(ob))) {
+			if((paf = do_version_give_parteff_245(ob))) {
 				ParticleSystem *psys;
 				ModifierData *md;
 				ParticleSystemModifierData *psmd;
@@ -9828,7 +10033,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 						part->type = PART_FLUID;
 				}
 
-				free_effects(&ob->effect);
+				do_version_free_effects_245(&ob->effect);
 
 				printf("Old particle system converted to new system.\n");
 			}
@@ -10241,13 +10446,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			wrld->physubstep = 1;
 			wrld->maxphystep = 5;
 		}
-	}
-
-	if (main->versionfile < 249) {
-		Scene *sce;
-		for (sce= main->scene.first; sce; sce= sce->id.next)
-			sce->r.renderer= 0;
-		
 	}
 	
 	// correct introduce of seed for wind force
@@ -11512,7 +11710,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 						/* enable all cache display */
 						stime->cache_display |= TIME_CACHE_DISPLAY;
 						stime->cache_display |= (TIME_CACHE_SOFTBODY|TIME_CACHE_PARTICLES);
-						stime->cache_display |= (TIME_CACHE_CLOTH|TIME_CACHE_SMOKE);
+						stime->cache_display |= (TIME_CACHE_CLOTH|TIME_CACHE_SMOKE|TIME_CACHE_DYNAMICPAINT);
 					}
 				}
 			}
@@ -11807,7 +12005,23 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
-	
+
+	if (main->versionfile < 255 || (main->versionfile == 255 && main->subversionfile < 3)) {
+		Object *ob;
+
+		/* ocean res is now squared, reset old ones - will be massive */
+		for(ob = main->object.first; ob; ob = ob->id.next) {
+			ModifierData *md;
+			for(md= ob->modifiers.first; md; md= md->next) {
+				if (md->type == eModifierType_Ocean) {
+					OceanModifierData *omd = (OceanModifierData *)md;
+					omd->resolution = 7;
+					omd->oceancache = NULL;
+				}
+			}
+		}		
+	}
+
 	if (main->versionfile < 256) {
 		bScreen *sc;
 		ScrArea *sa;
@@ -12252,34 +12466,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					sce->gm.recastData.detailsamplemaxerror = 1.0f;
 			}
 		}
-
-		{
-			/* flip normals */
-			Material *ma= main->mat.first;
-			while(ma) {
-				int a;
-				for(a= 0; a<MAX_MTEX; a++) {
-					MTex *mtex= ma->mtex[a];
-
-					if(mtex) {
-						if((mtex->texflag&MTEX_BUMP_FLIPPED)==0) {
-							if((mtex->mapto&MAP_DISPLACE)==0) {
-								if((mtex->mapto&MAP_NORM) && mtex->texflag&(MTEX_COMPAT_BUMP|MTEX_3TAP_BUMP|MTEX_5TAP_BUMP)) {
-									Tex *tex= newlibadr(fd, lib, mtex->tex);
-
-									if(!tex || (tex->imaflag&TEX_NORMALMAP)==0) {
-										mtex->norfac= -mtex->norfac;
-										mtex->texflag|= MTEX_BUMP_FLIPPED;
-									}
-								}
-							}
-						}
-					}
-				}
-
-				ma= ma->id.next;
-			}
-		}
 	}
 
 	if (main->versionfile < 260){
@@ -12327,10 +12513,10 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		{
 			Camera *cam;
 			for(cam= main->camera.first; cam; cam= cam->id.next) {
-				if (cam->sensor_x < 0.01)
+				if (cam->sensor_x < 0.01f)
 					cam->sensor_x = DEFAULT_SENSOR_WIDTH;
 
-				if (cam->sensor_y < 0.01)
+				if (cam->sensor_y < 0.01f)
 					cam->sensor_y = DEFAULT_SENSOR_HEIGHT;
 			}
 		}
@@ -12343,9 +12529,29 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			ntreetype->foreach_nodetree(main, NULL, do_version_ntree_tex_mapping_260);
 	}
 
-	/* put compatibility code here until next subversion bump */
-	{
+	if (main->versionfile < 260 || (main->versionfile == 260 && main->subversionfile < 4)){
 		{
+			/* Convert node angles to radians! */
+			Scene *sce;
+			Material *mat;
+			bNodeTree *ntree;
+
+			for (sce=main->scene.first; sce; sce=sce->id.next) {
+				if (sce->nodetree)
+					do_versions_nodetree_convert_angle(sce->nodetree);
+			}
+
+			for (mat=main->mat.first; mat; mat=mat->id.next) {
+				if (mat->nodetree)
+					do_versions_nodetree_convert_angle(mat->nodetree);
+			}
+
+			for (ntree=main->nodetree.first; ntree; ntree=ntree->id.next)
+				do_versions_nodetree_convert_angle(ntree);
+		}
+
+		{
+			/* Tomato compatibility code. */
 			bScreen *sc;
 			MovieClip *clip;
 
@@ -12418,6 +12624,118 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			Object *ob;
 			for(ob=main->object.first; ob; ob=ob->id.next)
 				ob->col_group = ob->col_mask = 1;
+		}
+	}
+
+	if (main->versionfile < 260 || (main->versionfile == 260 && main->subversionfile < 6))
+	{
+		Scene *sce;
+		MovieClip *clip;
+		bScreen *sc;
+
+		for(sce = main->scene.first; sce; sce = sce->id.next) {
+			do_versions_image_settings_2_60(sce);
+		}
+
+		for (clip= main->movieclip.first; clip; clip= clip->id.next) {
+			MovieTrackingSettings *settings= &clip->tracking.settings;
+
+			if(settings->default_pyramid_levels==0) {
+				settings->default_tracker= TRACKER_KLT;
+				settings->default_pyramid_levels= 2;
+				settings->default_minimum_correlation= 0.75;
+				settings->default_pattern_size= 11;
+				settings->default_search_size= 51;
+			}
+		}
+
+		for (sc= main->screen.first; sc; sc= sc->id.next) {
+			ScrArea *sa;
+			for (sa= sc->areabase.first; sa; sa= sa->next) {
+				SpaceLink *sl;
+				for (sl= sa->spacedata.first; sl; sl= sl->next) {
+					if(sl->spacetype==SPACE_VIEW3D) {
+						View3D *v3d= (View3D *)sl;
+						v3d->flag2&= ~V3D_RENDER_SHADOW;
+					}
+				}
+			}
+		}
+
+		{
+			Object *ob;
+			for (ob= main->object.first; ob; ob= ob->id.next) {
+				/* convert delta addition into delta scale */
+				int i;
+				for (i= 0; i < 3; i++) {
+					if ( (ob->dsize[i] == 0.0f) || /* simple case, user never touched dsize */
+					     (ob->size[i]  == 0.0f))   /* cant scale the dsize to give a non zero result, so fallback to 1.0f */
+					{
+						ob->dscale[i]= 1.0f;
+					}
+					else {
+						ob->dscale[i]= (ob->size[i] + ob->dsize[i]) / ob->size[i];
+					}
+				}
+			}
+		}
+	}
+	/* sigh, this dscale vs dsize version patching was not done right, fix for fix,
+	 * this intentionally checks an exact subversion, also note this was never in a release,
+	 * at some point this could be removed. */
+	else if (main->versionfile == 260 && main->subversionfile == 6)
+	{
+		Object *ob;
+		for (ob= main->object.first; ob; ob= ob->id.next) {
+			if (is_zero_v3(ob->dscale)) {
+				fill_vn_fl(ob->dscale, 3, 1.0f);
+			}
+		}
+	}
+
+	if (main->versionfile < 260 || (main->versionfile == 260 && main->subversionfile < 8))
+	{
+		Brush *brush;
+
+		for (brush= main->brush.first; brush; brush= brush->id.next) {
+			if (brush->sculpt_tool == SCULPT_TOOL_ROTATE)
+				brush->alpha= 1.0f;
+		}
+	}
+
+	/* put compatibility code here until next subversion bump */
+	{
+		{
+			/* update use flags for node sockets (was only temporary before) */
+			Scene *sce;
+			Material *mat;
+			Tex *tex;
+			Lamp *lamp;
+			World *world;
+			bNodeTree *ntree;
+
+			for (sce=main->scene.first; sce; sce=sce->id.next)
+				if (sce->nodetree)
+					do_versions_nodetree_socket_use_flags_2_62(sce->nodetree);
+
+			for (mat=main->mat.first; mat; mat=mat->id.next)
+				if (mat->nodetree)
+					do_versions_nodetree_socket_use_flags_2_62(mat->nodetree);
+
+			for (tex=main->tex.first; tex; tex=tex->id.next)
+				if (tex->nodetree)
+					do_versions_nodetree_socket_use_flags_2_62(tex->nodetree);
+
+			for (lamp=main->lamp.first; lamp; lamp=lamp->id.next)
+				if (lamp->nodetree)
+					do_versions_nodetree_socket_use_flags_2_62(lamp->nodetree);
+
+			for (world=main->world.first; world; world=world->id.next)
+				if (world->nodetree)
+					do_versions_nodetree_socket_use_flags_2_62(world->nodetree);
+
+			for (ntree=main->nodetree.first; ntree; ntree=ntree->id.next)
+				do_versions_nodetree_socket_use_flags_2_62(ntree);
 		}
 	}
 
@@ -13237,7 +13555,7 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 		expand_doit(fd, mainvar, ob->mat[a]);
 	}
 	
-	paf = give_parteff(ob);
+	paf = do_version_give_parteff_245(ob);
 	if (paf && paf->group) 
 		expand_doit(fd, mainvar, paf->group);
 

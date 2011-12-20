@@ -326,11 +326,19 @@ static int initialize_chain(Object *ob, bPoseChannel *pchan_tip, bConstraint *co
 				break;
 			for(; a<size && t<tree->totchannel && tree->pchan[t]==chanlist[segcount-a-1]; a++, t++);
 		}
-		parent= a-1;
+
 		segcount= segcount-a;
 		target->tip= tree->totchannel + segcount - 1;
 
 		if (segcount > 0) {
+			for(parent = a - 1; parent < tree->totchannel; parent++)
+				if(tree->pchan[parent] == chanlist[segcount-1]->parent)
+					break;
+			
+			/* shouldn't happen, but could with dependency cycles */
+			if(parent == tree->totchannel)
+				parent = a - 1;
+
 			/* resize array */
 			newsize= tree->totchannel + segcount;
 			oldchan= tree->pchan;
@@ -562,7 +570,7 @@ static bool target_callback(const iTaSC::Timestamp& timestamp, const iTaSC::Fram
 			mul_serie_m4(restmat, target->owner->obmat, chanmat, target->eeRest, NULL, NULL, NULL, NULL, NULL);
 		} 
 		else {
-			mul_m4_m4m4(restmat, target->eeRest, target->owner->obmat);
+			mult_m4_m4m4(restmat, target->owner->obmat, target->eeRest);
 		}
 		// blend the target
 		blend_m4_m4m4(tarmat, restmat, tarmat, constraint->enforce);
@@ -589,7 +597,7 @@ static bool base_callback(const iTaSC::Timestamp& timestamp, const iTaSC::Frame&
 		// save the base as a frame too so that we can compute deformation
 		// after simulation
 		ikscene->baseFrame.setValue(&chanmat[0][0]);
-		mul_m4_m4m4(rootmat, chanmat, ikscene->blArmature->obmat);
+		mult_m4_m4m4(rootmat, ikscene->blArmature->obmat, chanmat);
 	} 
 	else {
 		copy_m4_m4(rootmat, ikscene->blArmature->obmat);
@@ -614,11 +622,11 @@ static bool base_callback(const iTaSC::Timestamp& timestamp, const iTaSC::Frame&
 		// get polar target matrix in world space
 		get_constraint_target_matrix(ikscene->blscene, ikscene->polarConstraint, 1, CONSTRAINT_OBTYPE_OBJECT, ikscene->blArmature, mat, 1.0);
 		// convert to armature space
-		mul_m4_m4m4(polemat, mat, imat);
+		mult_m4_m4m4(polemat, imat, mat);
 		// get the target in world space (was computed before as target object are defined before base object)
 		iktarget->target->getPose().getValue(mat[0]);
 		// convert to armature space
-		mul_m4_m4m4(goalmat, mat, imat);
+		mult_m4_m4m4(goalmat, imat, mat);
 		// take position of target, polar target, end effector, in armature space
 		KDL::Vector goalpos(goalmat[3]);
 		KDL::Vector polepos(polemat[3]);
@@ -995,7 +1003,7 @@ static void convert_pose(IK_Scene *ikscene)
 			copy_m4_m4(bmat, bone->arm_mat);
 		}
 		invert_m4_m4(rmat, bmat);
-		mul_m4_m4m4(bmat, pchan->pose_mat, rmat);
+		mult_m4_m4m4(bmat, rmat, pchan->pose_mat);
 		normalize_m4(bmat);
 		boneRot.setValue(bmat[0]);
 		GetJointRotation(boneRot, ikchan->jointType, rot);
@@ -1411,7 +1419,7 @@ static IK_Scene* convert_tree(Scene *blscene, Object *ob, bPoseChannel *pchan)
 		copy_m4_m4(mat, pchan->bone->arm_mat);
 		copy_v3_v3(mat[3], pchan->bone->arm_tail);
 		// get the rest pose relative to the armature base
-		mul_m4_m4m4(iktarget->eeRest, mat, invBaseFrame);
+		mult_m4_m4m4(iktarget->eeRest, invBaseFrame, mat);
 		iktarget->eeBlend = (!ikscene->polarConstraint && condata->type==CONSTRAINT_IK_COPYPOSE) ? true : false;
 		// use target_callback to make sure the initPose includes enforce coefficient
 		target_callback(iTaSC::Timestamp(), iTaSC::F_identity, initPose, iktarget);

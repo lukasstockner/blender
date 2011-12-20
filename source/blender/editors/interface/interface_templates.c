@@ -32,6 +32,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
+#include "DNA_dynamicpaint_types.h"
 #include "DNA_key_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
@@ -45,6 +46,7 @@
 #include "BKE_animsys.h"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
+#include "BKE_dynamicpaint.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
@@ -691,7 +693,7 @@ static int modifier_can_delete(ModifierData *md)
 static int modifier_is_simulation(ModifierData *md)
 {
 	// Physic Tab
-	if(ELEM6(md->type, eModifierType_Cloth, eModifierType_Collision, eModifierType_Fluidsim, eModifierType_Smoke, eModifierType_Softbody, eModifierType_Surface)) {
+	if(ELEM7(md->type, eModifierType_Cloth, eModifierType_Collision, eModifierType_Fluidsim, eModifierType_Smoke, eModifierType_Softbody, eModifierType_Surface, eModifierType_DynamicPaint)) {
 		return 1;
 	}
 	// Particle Tab
@@ -1221,7 +1223,7 @@ void uiTemplatePreview(uiLayout *layout, ID *id, int show_buttons, ID *parent, M
 				uiDefButS(block, ROW, B_MATPRV, IFACE_("World"),  0, 0,UI_UNIT_X*10,UI_UNIT_Y, pr_texture, 10, TEX_PR_OTHER, 0, 0, "");
 			uiDefButS(block, ROW, B_MATPRV, IFACE_("Both"),  0, 0,UI_UNIT_X*10,UI_UNIT_Y, pr_texture, 10, TEX_PR_BOTH, 0, 0, "");
 			
-			/* Alpha buton for texture preview */
+			/* Alpha button for texture preview */
 			if(*pr_texture!=TEX_PR_OTHER) {
 				row = uiLayoutRow(layout, 0);
 				uiItemR(row, &texture_ptr, "use_preview_alpha", 0, NULL, ICON_NONE);
@@ -2054,6 +2056,13 @@ static int list_item_icon_get(bContext *C, PointerRNA *itemptr, int rnaicon, int
 	else if(RNA_struct_is_a(itemptr->type, &RNA_TextureSlot)) {
 		id= RNA_pointer_get(itemptr, "texture").data;
 	}
+	else if(RNA_struct_is_a(itemptr->type, &RNA_DynamicPaintSurface)) {
+		DynamicPaintSurface *surface= (DynamicPaintSurface*)itemptr->data;
+
+		if (surface->format == MOD_DPAINT_SURFACE_F_PTEX) return ICON_TEXTURE_SHADED;
+		else if (surface->format == MOD_DPAINT_SURFACE_F_VERTEX) return ICON_OUTLINER_DATA_MESH;
+		else if (surface->format == MOD_DPAINT_SURFACE_F_IMAGESEQ) return ICON_FILE_IMAGE;
+	}
 
 	/* get icon from ID */
 	if(id) {
@@ -2171,6 +2180,25 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 		/* nothing else special to do... */
 		uiItemL(sub, name, icon); /* fails, backdrop LISTROW... */
 	}
+	else if(itemptr->type == &RNA_DynamicPaintSurface) {
+		char name_final[96];
+		const char *enum_name;
+		PropertyRNA *prop = RNA_struct_find_property(itemptr, "surface_type");
+		DynamicPaintSurface *surface= (DynamicPaintSurface*)itemptr->data;
+
+		RNA_property_enum_name(C, itemptr, prop, RNA_property_enum_get(itemptr, prop), &enum_name);
+
+		BLI_snprintf(name_final, sizeof(name_final), "%s (%s)",name,enum_name);
+		uiItemL(sub, name_final, icon);
+		if (dynamicPaint_surfaceHasColorPreview(surface)) {
+			uiBlockSetEmboss(block, UI_EMBOSSN);
+			uiDefIconButR(block, OPTION, 0, (surface->flags & MOD_DPAINT_PREVIEW) ? ICON_RESTRICT_VIEW_OFF : ICON_RESTRICT_VIEW_ON,
+				0, 0, UI_UNIT_X, UI_UNIT_Y, itemptr, "show_preview", 0, 0, 0, 0, 0, NULL);
+			uiBlockSetEmboss(block, UI_EMBOSS);
+		}
+		uiDefButR(block, OPTION, 0, "", 0, 0, UI_UNIT_X, UI_UNIT_Y, itemptr, "is_active", i, 0, 0, 0, 0,  NULL);
+	}
+
 	/* There is a last chance to display custom controls (in addition to the name/label):
 	 * If the given item property group features a string property named as prop_list,
 	 * this tries to add controls for all properties of the item listed in that string property.
@@ -2430,7 +2458,7 @@ static void operator_search_cb(const bContext *C, void *UNUSED(arg), const char 
 				
 				/* check for hotkey */
 				if(len < 256-6) {
-					if(WM_key_event_operator_string(C, ot->idname, WM_OP_EXEC_DEFAULT, NULL, &name[len+1], 256-len-1))
+					if(WM_key_event_operator_string(C, ot->idname, WM_OP_EXEC_DEFAULT, NULL, TRUE, &name[len+1], 256-len-1))
 						name[len]= '|';
 				}
 				

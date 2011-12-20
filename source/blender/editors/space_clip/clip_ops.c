@@ -201,7 +201,7 @@ void CLIP_OT_open(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Open Clip";
-	ot->description= "Open clip";
+	ot->description= "Load a sequence of frames or a movie file";
 	ot->idname= "CLIP_OT_open";
 
 	/* api callbacks */
@@ -555,8 +555,8 @@ static int view_zoom_inout_invoke(bContext *C, wmOperator *op, wmEvent *event, i
 
 		ED_space_clip_size(sc, &width, &height);
 
-		sc->xof+= ((co[0]-0.5)*width-sc->xof)*(sc->zoom-oldzoom)/sc->zoom;
-		sc->yof+= ((co[1]-0.5)*height-sc->yof)*(sc->zoom-oldzoom)/sc->zoom;
+		sc->xof+= ((co[0]-0.5f)*width-sc->xof)*(sc->zoom-oldzoom)/sc->zoom;
+		sc->yof+= ((co[1]-0.5f)*height-sc->yof)*(sc->zoom-oldzoom)/sc->zoom;
 	}
 
 	return OPERATOR_FINISHED;
@@ -893,7 +893,7 @@ static void proxy_startjob(void *pjv, short *stop, short *do_update, float *prog
 		BKE_tracking_distortion_destroy(distortion);
 }
 
-static int sequencer_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
+static int clip_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	wmJob * steve;
 	ProxyJob *pj;
@@ -929,10 +929,10 @@ void CLIP_OT_rebuild_proxy(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Rebuild Proxy and Timecode Indices";
 	ot->idname= "CLIP_OT_rebuild_proxy";
-	ot->description="Rebuild all selected proxies and timecode indeces using the job system";
+	ot->description= "Rebuild all selected proxies and timecode indices in the background";
 
 	/* api callbacks */
-	ot->exec= sequencer_rebuild_proxy_exec;
+	ot->exec= clip_rebuild_proxy_exec;
 	ot->poll= ED_space_clip_poll;
 
 	/* flags */

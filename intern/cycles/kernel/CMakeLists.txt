@@ -8,6 +8,7 @@ set(INC
 
 set(SRC
 	kernel.cpp
+	kernel_optimized.cpp
 	kernel.cl
 	kernel.cu
 )
@@ -42,6 +43,7 @@ set(SRC_SVM_HEADERS
 	svm/bsdf.h
 	svm/bsdf_ashikhmin_velvet.h
 	svm/bsdf_diffuse.h
+	svm/bsdf_oren_nayar.h
 	svm/bsdf_microfacet.h
 	svm/bsdf_reflection.h
 	svm/bsdf_refraction.h
@@ -52,13 +54,17 @@ set(SRC_SVM_HEADERS
 	svm/svm.h
 	svm/svm_attribute.h
 	svm/svm_bsdf.h
+	svm/svm_camera.h
 	svm/svm_closure.h
 	svm/svm_convert.h
 	svm/svm_displace.h
 	svm/svm_fresnel.h
+	svm/svm_gamma.h
 	svm/svm_geometry.h
 	svm/svm_gradient.h
+	svm/svm_hsv.h
 	svm/svm_image.h
+	svm/svm_invert.h
 	svm/svm_light_path.h
 	svm/svm_magic.h
 	svm/svm_mapping.h
@@ -67,6 +73,8 @@ set(SRC_SVM_HEADERS
 	svm/svm_musgrave.h
 	svm/svm_noise.h
 	svm/svm_noisetex.h
+	svm/svm_normal.h
+	svm/svm_sepcomb_rgb.h
 	svm/svm_sky.h
 	svm/svm_tex_coord.h
 	svm/svm_texture.h
@@ -83,6 +91,32 @@ set(SRC_UTIL_HEADERS
 	../util/util_transform.h
 	../util/util_types.h
 )
+# CUDA module
+
+if(WITH_CYCLES_CUDA_BINARIES)
+	if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
+		set(CUDA_BITS 64)
+	else()
+		set(CUDA_BITS 32)
+	endif()
+
+	set(cuda_sources kernel.cu ${headers} ${svm_headers})
+	set(cuda_cubins)
+
+	foreach(arch ${CYCLES_CUDA_BINARIES_ARCH})
+		set(cuda_cubin kernel_${arch}.cubin)
+
+		add_custom_command(
+			OUTPUT ${cuda_cubin}
+			COMMAND ${CUDA_NVCC_EXECUTABLE} -arch=${arch} -m${CUDA_BITS} --cubin ${CMAKE_CURRENT_SOURCE_DIR}/kernel.cu --use_fast_math -o ${CMAKE_CURRENT_BINARY_DIR}/${cuda_cubin} --ptxas-options="-v" --maxrregcount=24 --opencc-options -OPT:Olimit=0 -I${CMAKE_CURRENT_SOURCE_DIR}/../util -I${CMAKE_CURRENT_SOURCE_DIR}/svm -DCCL_NAMESPACE_BEGIN= -DCCL_NAMESPACE_END= -DNVCC
+			DEPENDS ${cuda_sources})
+
+		delayed_install("${CMAKE_CURRENT_BINARY_DIR}" "${cuda_cubin}" ${CYCLES_INSTALL_PATH}/lib)
+		list(APPEND cuda_cubins ${cuda_cubin})
+	endforeach()
+
+	add_custom_target(cycles_kernel_cuda ALL DEPENDS ${cuda_cubins})
+endif()
 
 # OSL module
 
@@ -96,11 +130,15 @@ include_directories(${INC})
 
 add_library(cycles_kernel ${SRC} ${SRC_HEADERS} ${SRC_SVM_HEADERS})
 
+if(WITH_CYCLES_OPTIMIZED_KERNEL)
+	set_source_files_properties(kernel_optimized.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_OPTIMIZED_KERNEL_FLAGS}")
+endif()
+
 if(WITH_CYCLES_CUDA)
 	add_dependencies(cycles_kernel cycles_kernel_cuda)
 endif()
 
-# OPENCL kernel
+# OpenCL kernel
 
 #set(KERNEL_PREPROCESSED ${CMAKE_CURRENT_BINARY_DIR}/kernel_preprocessed.cl)
 #add_custom_command(
@@ -115,3 +153,4 @@ delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel.cu" ${CYCLES_INSTALL_PATH}/k
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_SVM_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel/svm)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_UTIL_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel)
+

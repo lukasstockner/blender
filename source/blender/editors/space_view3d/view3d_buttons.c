@@ -59,6 +59,7 @@
 #include "BKE_mesh.h"
 #include "BKE_screen.h"
 #include "BKE_deform.h"
+#include "BKE_object.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -688,57 +689,51 @@ static void vgroup_copy_active_to_sel(Object *ob)
 	}
 }
 
-static void vgroup_copy_active_to_sel_single(Object *ob, int def_nr)
+static void vgroup_copy_active_to_sel_single(Object *ob, const int def_nr)
 {
 	EditVert *eve_act;
-	MDeformVert *dvert_act;
+	MDeformVert *dv_act;
 
-	act_vert_def(ob, &eve_act, &dvert_act);
+	act_vert_def(ob, &eve_act, &dv_act);
 
-	if(dvert_act==NULL) {
+	if(dv_act==NULL) {
 		return;
 	}
 	else {
 		Mesh *me= ob->data;
 		EditMesh *em = BKE_mesh_get_editmesh(me);
 		EditVert *eve;
-		MDeformVert *dvert;
+		MDeformVert *dv;
 		MDeformWeight *dw;
-		float act_weight = -1.0f;
-		int i;
+		float weight_act;
 		int index= 0;
 
-		for(i=0, dw=dvert_act->dw; i < dvert_act->totweight; i++, dw++) {
-			if(def_nr == dw->def_nr) {
-				act_weight= dw->weight;
-				break;
-			}
-		}
+		dw= defvert_find_index(dv_act, def_nr);
 
-		if(act_weight < -0.5f)
+		if(dw == NULL)
 			return;
 
-		for(eve= em->verts.first; eve; eve= eve->next, index++) {
-			if(eve->f & SELECT && eve != eve_act) {
-				dvert= CustomData_em_get(&em->vdata, eve->data, CD_MDEFORMVERT);
-				if(dvert) {
-					for(i=0, dw=dvert->dw; i < dvert->totweight; i++, dw++) {
-						if(def_nr == dw->def_nr) {
-							dw->weight= act_weight;
+		weight_act= dw->weight;
 
-							if(me->editflag & ME_EDIT_MIRROR_X)
-								editvert_mirror_update(ob, eve, -1, index);
+		for (eve= em->verts.first; eve; eve= eve->next, index++) {
+			if (eve->f & SELECT && eve != eve_act) {
+				dv= CustomData_em_get(&em->vdata, eve->data, CD_MDEFORMVERT);
+				if(dv) {
+					dw= defvert_find_index(dv, def_nr);
+					if (dw) {
+						dw->weight= weight_act;
 
-							break;
+						if (me->editflag & ME_EDIT_MIRROR_X) {
+							editvert_mirror_update(ob, eve, -1, index);
 						}
 					}
 				}
 			}
 		}
 
-		if(me->editflag & ME_EDIT_MIRROR_X)
+		if (me->editflag & ME_EDIT_MIRROR_X) {
 			editvert_mirror_update(ob, eve_act, -1, -1);
-
+		}
 	}
 }
 
@@ -808,14 +803,15 @@ static void view3d_panel_vgroup(const bContext *C, Panel *pa)
 	Object *ob= OBACT;
 
 	EditVert *eve;
-	MDeformVert *dvert;
+	MDeformVert *dv;
 
-	act_vert_def(ob, &eve, &dvert);
+	act_vert_def(ob, &eve, &dv);
 
-	if(dvert && dvert->totweight) {
+	if(dv && dv->totweight) {
 		uiLayout *col;
 		bDeformGroup *dg;
-		int i;
+		MDeformWeight *dw = dv->dw;
+		unsigned int i;
 		int yco = 0;
 
 		uiBlockSetHandleFunc(block, do_view3d_vgroup_buttons, NULL);
@@ -825,11 +821,11 @@ static void view3d_panel_vgroup(const bContext *C, Panel *pa)
 
 		uiBlockBeginAlign(block);
 
-		for (i=0; i<dvert->totweight; i++){
-			dg = BLI_findlink (&ob->defbase, dvert->dw[i].def_nr);
+		for (i= dv->totweight; i != 0; i--, dw++) {
+			dg = BLI_findlink (&ob->defbase, dw->def_nr);
 			if(dg) {
-				uiDefButF(block, NUM, B_VGRP_PNL_EDIT_SINGLE + dvert->dw[i].def_nr, dg->name,	0, yco, 180, 20, &dvert->dw[i].weight, 0.0, 1.0, 1, 3, "");
-				uiDefBut(block, BUT, B_VGRP_PNL_COPY_SINGLE + dvert->dw[i].def_nr, "C", 180,yco,20,20, NULL, 0, 0, 0, 0, "Copy this groups weight to other selected verts");
+				uiDefButF(block, NUM, B_VGRP_PNL_EDIT_SINGLE + dw->def_nr, dg->name,	0, yco, 180, 20, &dw->weight, 0.0, 1.0, 1, 3, "");
+				uiDefBut(block, BUT, B_VGRP_PNL_COPY_SINGLE + dw->def_nr, "C", 180,yco,20,20, NULL, 0, 0, 0, 0, "Copy this groups weight to other selected verts");
 				yco -= 20;
 			}
 		}
@@ -1110,14 +1106,6 @@ static void v3d_editmetaball_buts(uiLayout *layout, Object *ob)
 	}	
 }
 
-/* test if 'ob' is a parent somewhere in par's parents */
-static int test_parent_loop(Object *par, Object *ob)
-{
-	if(par == NULL) return 0;
-	if(ob == par) return 1;
-	return test_parent_loop(par->parent, ob);
-}
-
 static void do_view3d_region_buttons(bContext *C, void *UNUSED(index), int event)
 {
 	Main *bmain= CTX_data_main(C);
@@ -1149,7 +1137,7 @@ static void do_view3d_region_buttons(bContext *C, void *UNUSED(index), int event
 		/* note; this case also used for parbone */
 	case B_OBJECTPANELPARENT:
 		if(ob) {
-			if(ob->id.lib || test_parent_loop(ob->parent, ob) ) 
+			if (ob->id.lib || BKE_object_parent_loop_check(ob->parent, ob))
 				ob->parent= NULL;
 			else {
 				DAG_scene_sort(bmain, scene);
@@ -1364,142 +1352,6 @@ static void view3d_panel_preview(bContext *C, ARegion *ar, short cntrl)	// VIEW3
 	}
 }
 #endif
-
-#if 0 // XXX not used
-static void delete_sketch_armature(bContext *C, void *arg1, void *arg2)
-{
-	BIF_deleteSketch(C);
-}
-
-static void convert_sketch_armature(bContext *C, void *arg1, void *arg2)
-{
-	BIF_convertSketch(C);
-}
-
-static void assign_template_sketch_armature(bContext *C, void *arg1, void *arg2)
-{
-	int index = *(int*)arg1;
-	BIF_setTemplate(C, index);
-}
-
-
-static int view3d_panel_bonesketch_spaces_poll(const bContext *C, PanelType *pt)
-{
-	Object *obedit = CTX_data_edit_object(C);
-
-	/* replace with check call to sketching lib */
-	return (obedit && obedit->type == OB_ARMATURE);
-}
-static void view3d_panel_bonesketch_spaces(const bContext *C, Panel *pa)
-{
-	Scene *scene = CTX_data_scene(C);
-	static int template_index;
-	static char joint_label[128];
-	uiBlock *block;
-	uiBut *but;
-	char *bone_name;
-	int yco = 130;
-	int nb_joints;
-	static char subdiv_tooltip[4][64] = {
-		"Subdivide arcs based on a fixed number of bones",
-		"Subdivide arcs in bones of equal length",
-		"Subdivide arcs based on correlation",
-		"Retarget template to stroke"
-		};
-
-	
-	block= uiLayoutAbsoluteBlock(pa->layout);
-	uiBlockSetHandleFunc(block, do_view3d_region_buttons, NULL);
-
-	uiBlockBeginAlign(block);
-	
-	/* use real flag instead of 1 */
-	uiDefButBitC(block, TOG, BONE_SKETCHING, B_REDR, "Use Bone Sketching", 10, yco, 160, 20, &scene->toolsettings->bone_sketching, 0, 0, 0, 0, "Use sketching to create and edit bones, (Ctrl snaps to mesh volume)");
-	uiDefButBitC(block, TOG, BONE_SKETCHING_ADJUST, B_REDR, "A", 170, yco, 20, 20, &scene->toolsettings->bone_sketching, 0, 0, 0, 0, "Adjust strokes by drawing near them");
-	uiDefButBitC(block, TOG, BONE_SKETCHING_QUICK, B_REDR, "Q", 190, yco, 20, 20, &scene->toolsettings->bone_sketching, 0, 0, 0, 0, "Automatically convert and delete on stroke end");
-	yco -= 20;
-	
-	but = uiDefBut(block, BUT, B_REDR, "Convert", 10,yco,100,20, 0, 0, 0, 0, 0, "Convert sketch to armature");
-	uiButSetFunc(but, convert_sketch_armature, NULL, NULL);
-
-	but = uiDefBut(block, BUT, B_REDR, "Delete", 110,yco,100,20, 0, 0, 0, 0, 0, "Delete sketch");
-	uiButSetFunc(but, delete_sketch_armature, NULL, NULL);
-	yco -= 20;
-	
-	uiBlockEndAlign(block);
-
-	uiBlockBeginAlign(block);
-	
-	uiDefButC(block, MENU, B_REDR, "Subdivision Method%t|Length%x1|Adaptative%x2|Fixed%x0|Template%x3", 10,yco,60,19, &scene->toolsettings->bone_sketching_convert, 0, 0, 0, 0, subdiv_tooltip[(unsigned char)scene->toolsettings->bone_sketching_convert]);
-
-	switch(scene->toolsettings->bone_sketching_convert)
-	{
-	case SK_CONVERT_CUT_LENGTH:
-		uiDefButF(block, NUM, B_REDR, 					"Lim:",		70, yco, 140, 19, &scene->toolsettings->skgen_length_limit,0.1,50.0, 10, 0,		"Maximum length of the subdivided bones");
-		yco -= 20;
-		break;
-	case SK_CONVERT_CUT_ADAPTATIVE:
-		uiDefButF(block, NUM, B_REDR, 					"Thres:",			70, yco, 140, 19, &scene->toolsettings->skgen_correlation_limit,0.0, 1.0, 0.01, 0,	"Correlation threshold for subdivision");
-		yco -= 20;
-		break;
-	default:
-	case SK_CONVERT_CUT_FIXED:
-		uiDefButC(block, NUM, B_REDR, 					"Num:",		70, yco, 140, 19, &scene->toolsettings->skgen_subdivision_number,1, 100, 1, 5,	"Number of subdivided bones");
-		yco -= 20;
-		break;
-	case SK_CONVERT_RETARGET:
-		uiDefButC(block, ROW, B_NOP, "No",			70,  yco, 40,19, &scene->toolsettings->skgen_retarget_roll, 0, 0, 0, 0,									"No special roll treatment");
-		uiDefButC(block, ROW, B_NOP, "View",		110,  yco, 50,19, &scene->toolsettings->skgen_retarget_roll, 0, SK_RETARGET_ROLL_VIEW, 0, 0,				"Roll bones perpendicular to view");
-		uiDefButC(block, ROW, B_NOP, "Joint",		160, yco, 50,19, &scene->toolsettings->skgen_retarget_roll, 0, SK_RETARGET_ROLL_JOINT, 0, 0,				"Roll bones relative to joint bend");
-		yco -= 30;
-
-		uiBlockEndAlign(block);
-
-		uiBlockBeginAlign(block);
-		/* button here to select what to do (copy or not), template, ...*/
-
-		BIF_makeListTemplates(C);
-		template_index = BIF_currentTemplate(C);
-		
-		but = uiDefButI(block, MENU, B_REDR, BIF_listTemplates(C), 10,yco,200,19, &template_index, 0, 0, 0, 0, "Template");
-		uiButSetFunc(but, assign_template_sketch_armature, &template_index, NULL);
-		
-		yco -= 20;
-		
-		uiDefButF(block, NUM, B_NOP, 							"A:",			10, yco, 66,19, &scene->toolsettings->skgen_retarget_angle_weight, 0, 10, 1, 0,		"Angle Weight");
-		uiDefButF(block, NUM, B_NOP, 							"L:",			76, yco, 67,19, &scene->toolsettings->skgen_retarget_length_weight, 0, 10, 1, 0,		"Length Weight");
-		uiDefButF(block, NUM, B_NOP, 							"D:",		143,yco, 67,19, &scene->toolsettings->skgen_retarget_distance_weight, 0, 10, 1, 0,		"Distance Weight");
-		yco -= 20;
-		
-		uiDefBut(block, TEX,B_REDR,"S:",							10,  yco, 90, 20, scene->toolsettings->skgen_side_string, 0.0, 8.0, 0, 0, "Text to replace &S with");
-		uiDefBut(block, TEX,B_REDR,"N:",							100, yco, 90, 20, scene->toolsettings->skgen_num_string, 0.0, 8.0, 0, 0, "Text to replace &N with");
-		uiDefIconButBitC(block, TOG, SK_RETARGET_AUTONAME, B_NOP, ICON_AUTO,190,yco,20,20, &scene->toolsettings->skgen_retarget_options, 0, 0, 0, 0, "Use Auto Naming");	
-		yco -= 20;
-
-		/* auto renaming magic */
-		uiBlockEndAlign(block);
-		
-		nb_joints = BIF_nbJointsTemplate(C);
-
-		if (nb_joints == -1)
-		{
-			//XXX
-			//nb_joints = G.totvertsel;
-		}
-		
-		bone_name = BIF_nameBoneTemplate(C);
-		
-		BLI_snprintf(joint_label, 32, "%i joints: %s", nb_joints, bone_name);
-		
-		uiDefBut(block, LABEL, 1, joint_label,					10, yco, 200, 20, NULL, 0.0, 0.0, 0, 0, "");
-		yco -= 20;
-		break;
-	}
-
-	uiBlockEndAlign(block);
-}
-
-#endif // XXX not used
 
 void view3d_buttons_register(ARegionType *art)
 {

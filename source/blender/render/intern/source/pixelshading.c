@@ -331,7 +331,7 @@ int shadeHaloFloat(HaloRen *har,  float *col, int zz,
 		/* halo being intersected? */
 		if(har->zs> zz-har->zd) {
 			t= ((float)(zz-har->zs))/(float)har->zd;
-			alpha*= sqrt(sqrt(t));
+			alpha*= sqrtf(sqrtf(t));
 		}
 	}
 
@@ -351,7 +351,7 @@ int shadeHaloFloat(HaloRen *har,  float *col, int zz,
 			
 			rc= hashvectf + (ofs % 768);
 			
-			fac= fabs( rc[1]*(har->rad*fabs(rc[0]) - radist) );
+			fac= fabsf( rc[1]*(har->rad*fabsf(rc[0]) - radist) );
 			
 			if(fac< 1.0f) {
 				ringf+= (1.0f-fac);
@@ -360,7 +360,7 @@ int shadeHaloFloat(HaloRen *har,  float *col, int zz,
 	}
 
 	if(har->type & HA_VECT) {
-		dist= fabs( har->cos*(yn) - har->sin*(xn) )/har->rad;
+		dist= fabsf( har->cos*(yn) - har->sin*(xn) )/har->rad;
 		if(dist>1.0f) dist= 1.0f;
 		if(har->tex) {
 			zn= har->sin*xn - har->cos*yn;
@@ -379,7 +379,7 @@ int shadeHaloFloat(HaloRen *har,  float *col, int zz,
 	if(har->hard>=30) {
 		dist= sqrt(dist);
 		if(har->hard>=40) {
-			dist= sin(dist*M_PI_2);
+			dist= sinf(dist*(float)M_PI_2);
 			if(har->hard>=50) {
 				dist= sqrt(dist);
 			}
@@ -418,8 +418,8 @@ int shadeHaloFloat(HaloRen *har,  float *col, int zz,
 		angle= atan2(yn, xn);
 		angle*= (1.0f+0.25f*har->starpoints);
 		
-		co= cos(angle);
-		si= sin(angle);
+		co= cosf(angle);
+		si= sinf(angle);
 		
 		angle= (co*xn+si*yn)*(co*yn-si*xn);
 		
@@ -427,7 +427,7 @@ int shadeHaloFloat(HaloRen *har,  float *col, int zz,
 		if(ster>1.0f) {
 			ster= (har->rad)/(ster);
 			
-			if(ster<1.0f) dist*= sqrt(ster);
+			if(ster<1.0f) dist*= sqrtf(ster);
 		}
 	}
 
@@ -587,7 +587,7 @@ void shadeSunView(float col_r[3], const float view[3])
 			xyz_to_rgb(colorxyz[0], colorxyz[1], colorxyz[2], &sun_collector[0], &sun_collector[1], &sun_collector[2], 
 					   lar->sunsky->sky_colorspace);
 			
-			ramp_blend(lar->sunsky->skyblendtype, col_r, col_r+1, col_r+2, lar->sunsky->skyblendfac, sun_collector);
+			ramp_blend(lar->sunsky->skyblendtype, col_r, lar->sunsky->skyblendfac, sun_collector);
 		}
 	}
 }

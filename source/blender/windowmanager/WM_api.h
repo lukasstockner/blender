@@ -191,6 +191,7 @@ struct wmOperatorTypeMacro *WM_operatortype_macro_define(struct wmOperatorType *
 int			WM_operator_poll		(struct bContext *C, struct wmOperatorType *ot);
 int			WM_operator_poll_context(struct bContext *C, struct wmOperatorType *ot, int context);
 int			WM_operator_call		(struct bContext *C, struct wmOperator *op);
+int			WM_operator_call_notest(struct bContext *C, struct wmOperator *op);
 int			WM_operator_repeat		(struct bContext *C, struct wmOperator *op);
 int			WM_operator_repeat_check(const struct bContext *C, struct wmOperator *op);
 int			WM_operator_name_call	(struct bContext *C, const char *opstring, int context, struct PointerRNA *properties);
@@ -206,6 +207,7 @@ void		WM_operator_properties_gesture_border(struct wmOperatorType *ot, int exten
 void		WM_operator_properties_gesture_straightline(struct wmOperatorType *ot, int cursor);
 void		WM_operator_properties_select_all(struct wmOperatorType *ot);
 
+int         WM_operator_check_ui_enabled(const struct bContext *C, const char *idname);
 wmOperator *WM_operator_last_redo(const struct bContext *C);
 
 /* MOVE THIS SOMEWHERE ELSE */
@@ -233,7 +235,6 @@ void		WM_operator_py_idname(char *to, const char *from);
 void				WM_menutype_init(void);
 struct MenuType		*WM_menutype_find(const char *idname, int quiet);
 int					WM_menutype_add(struct MenuType* mt);
-int					WM_menutype_contains(struct MenuType* mt);
 void				WM_menutype_freelink(struct MenuType* mt);
 void				WM_menutype_free(void);
 
@@ -317,6 +318,8 @@ void		WM_jobs_stop(struct wmWindowManager *wm, void *owner, void *startjob);
 void		WM_jobs_kill(struct wmWindowManager *wm, void *owner, void (*)(void *, short int *, short int *, float *));
 void		WM_jobs_stop_all(struct wmWindowManager *wm);
 
+int			WM_jobs_has_running(struct wmWindowManager *wm);
+
 			/* clipboard */
 char		*WM_clipboard_text_get(int selection);
 void		WM_clipboard_text_set(char *buf, int selection);
@@ -329,6 +332,9 @@ void		WM_progress_clear(struct wmWindow *win);
 			/* Windows System Console */
 void		WM_console_toggle(struct bContext *C, short show);
 #endif
+
+			/* Draw (for screenshot) */
+void		WM_redraw_windows(struct bContext *C);
 
 /* debugging only, convenience function to write on crash */
 int write_crash_blend(void);

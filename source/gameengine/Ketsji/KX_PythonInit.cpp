@@ -147,8 +147,8 @@ extern "C" {
 #ifdef WITH_PYTHON
 
 static RAS_ICanvas* gp_Canvas = NULL;
-static char gp_GamePythonPath[FILE_MAXDIR + FILE_MAXFILE] = "";
-static char gp_GamePythonPathOrig[FILE_MAXDIR + FILE_MAXFILE] = ""; // not super happy about this, but we need to remember the first loaded file for the global/dict load save
+static char gp_GamePythonPath[FILE_MAX] = "";
+static char gp_GamePythonPathOrig[FILE_MAX] = ""; // not super happy about this, but we need to remember the first loaded file for the global/dict load save
 
 static SCA_PythonKeyboard* gp_PythonKeyboard = NULL;
 static SCA_PythonMouse* gp_PythonMouse = NULL;
@@ -237,13 +237,13 @@ The function also converts the directory separator to the local file system form
 
 static PyObject* gPyExpandPath(PyObject*, PyObject* args)
 {
-	char expanded[FILE_MAXDIR + FILE_MAXFILE];
+	char expanded[FILE_MAX];
 	char* filename;
 	
 	if (!PyArg_ParseTuple(args,"s:ExpandPath",&filename))
 		return NULL;
 
-	BLI_strncpy(expanded, filename, FILE_MAXDIR + FILE_MAXFILE);
+	BLI_strncpy(expanded, filename, FILE_MAX);
 	BLI_path_abs(expanded, gp_GamePythonPath);
 	return PyUnicode_DecodeFSDefault(expanded);
 }
@@ -510,7 +510,7 @@ static PyObject* gPyGetBlendFileList(PyObject*, PyObject* args)
 	list = PyList_New(0);
 	
 	if (searchpath) {
-		BLI_strncpy(cpath, searchpath, FILE_MAXDIR + FILE_MAXFILE);
+		BLI_strncpy(cpath, searchpath, FILE_MAX);
 		BLI_path_abs(cpath, gp_GamePythonPath);
 	} else {
 		/* Get the dir only */
@@ -1744,7 +1744,7 @@ static void backupPySysObjects(void)
 static void initPySysObjects__append(PyObject *sys_path, const char *filename)
 {
 	PyObject *item;
-	char expanded[FILE_MAXDIR + FILE_MAXFILE];
+	char expanded[FILE_MAX];
 	
 	BLI_split_dir_part(filename, expanded, sizeof(expanded)); /* get the dir part of filename only */
 	BLI_path_abs(expanded, gp_GamePythonPath); /* filename from lib->filename is (always?) absolute, so this may not be needed but it wont hurt */
@@ -1966,7 +1966,15 @@ void setupGamePython(KX_KetsjiEngine* ketsjiengine, KX_Scene* startscene, Main *
 	initVideoTexture();
 
 	/* could be done a lot more nicely, but for now a quick way to get bge.* working */
-	PyRun_SimpleString("sys = __import__('sys');mod = sys.modules['bge'] = type(sys)('bge');mod.__dict__.update({'logic':__import__('GameLogic'), 'render':__import__('Rasterizer'), 'events':__import__('GameKeys'), 'constraints':__import__('PhysicsConstraints'), 'types':__import__('GameTypes'), 'texture':__import__('VideoTexture')});");
+	PyRun_SimpleString("sys = __import__('sys');"
+	                   "mod = sys.modules['bge'] = type(sys)('bge');"
+	                   "mod.__dict__.update({'logic':__import__('GameLogic'), "
+	                                        "'render':__import__('Rasterizer'), "
+	                                        "'events':__import__('GameKeys'), "
+	                                        "'constraints':__import__('PhysicsConstraints'), "
+	                                        "'types':__import__('GameTypes'), "
+	                                        "'texture':__import__('VideoTexture')});"
+	                   );
 }
 
 static struct PyModuleDef Rasterizer_module_def = {

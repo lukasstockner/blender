@@ -59,7 +59,7 @@ static PyObject *Euler_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 	if (!PyArg_ParseTuple(args, "|Os:mathutils.Euler", &seq, &order_str))
 		return NULL;
 
-	switch(PyTuple_GET_SIZE(args)) {
+	switch (PyTuple_GET_SIZE(args)) {
 	case 0:
 		break;
 	case 2:
@@ -71,7 +71,7 @@ static PyObject *Euler_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 			return NULL;
 		break;
 	}
-	return newEulerObject(eul, order, Py_NEW, type);
+	return Euler_CreatePyObject(eul, order, Py_NEW, type);
 }
 
 /* internal use, assume read callback is done */
@@ -84,7 +84,7 @@ static const char *euler_order_str(EulerObject *self)
 short euler_order_from_string(const char *str, const char *error_prefix)
 {
 	if ((str[0] && str[1] && str[2] && str[3]=='\0')) {
-		switch(*((PY_INT32_T *)str)) {
+		switch (*((PY_INT32_T *)str)) {
 			case 'X'|'Y'<<8|'Z'<<16:	return EULER_ORDER_XYZ;
 			case 'X'|'Z'<<8|'Y'<<16:	return EULER_ORDER_XZY;
 			case 'Y'|'X'<<8|'Z'<<16:	return EULER_ORDER_YXZ;
@@ -142,7 +142,7 @@ static PyObject *Euler_to_quaternion(EulerObject * self)
 
 	eulO_to_quat(quat, self->eul, self->order);
 
-	return newQuaternionObject(quat, Py_NEW, NULL);
+	return Quaternion_CreatePyObject(quat, Py_NEW, NULL);
 }
 
 //return a matrix representation of the euler
@@ -163,7 +163,7 @@ static PyObject *Euler_to_matrix(EulerObject * self)
 
 	eulO_to_mat3((float (*)[3])mat, self->eul, self->order);
 
-	return newMatrixObject(mat, 3, 3 , Py_NEW, NULL);
+	return Matrix_CreatePyObject(mat, 3, 3 , Py_NEW, NULL);
 }
 
 PyDoc_STRVAR(Euler_zero_doc,
@@ -241,7 +241,7 @@ static PyObject *Euler_rotate(EulerObject * self, PyObject *value)
 		return NULL;
 
 	eulO_to_mat3(self_rmat, self->eul, self->order);
-	mul_m3_m3m3(rmat, self_rmat, other_rmat);
+	mul_m3_m3m3(rmat, other_rmat, self_rmat);
 
 	mat3_to_compatible_eulO(self->eul, self->eul, self->order, rmat);
 
@@ -264,8 +264,11 @@ static PyObject *Euler_make_compatible(EulerObject * self, PyObject *value)
 	if (BaseMath_ReadCallback(self) == -1)
 		return NULL;
 
-	if (mathutils_array_parse(teul, EULER_SIZE, EULER_SIZE, value, "euler.make_compatible(other), invalid 'other' arg") == -1)
+	if (mathutils_array_parse(teul, EULER_SIZE, EULER_SIZE, value,
+	                          "euler.make_compatible(other), invalid 'other' arg") == -1)
+	{
 		return NULL;
+	}
 
 	compatible_eul(self->eul, teul);
 
@@ -293,7 +296,7 @@ static PyObject *Euler_copy(EulerObject *self)
 	if (BaseMath_ReadCallback(self) == -1)
 		return NULL;
 
-	return newEulerObject(self->eul, self->order, Py_NEW, Py_TYPE(self));
+	return Euler_CreatePyObject(self->eul, self->order, Py_NEW, Py_TYPE(self));
 }
 
 //----------------------------print object (internal)--------------
@@ -664,13 +667,13 @@ PyTypeObject euler_Type = {
 	NULL,							//tp_weaklist
 	NULL							//tp_del
 };
-//------------------------newEulerObject (internal)-------------
+//------------------------Euler_CreatePyObject (internal)-------------
 //creates a new euler object
 /*pass Py_WRAP - if vector is a WRAPPER for data allocated by BLENDER
  (i.e. it was allocated elsewhere by MEM_mallocN())
   pass Py_NEW - if vector is not a WRAPPER and managed by PYTHON
  (i.e. it must be created here with PyMEM_malloc())*/
-PyObject *newEulerObject(float *eul, short order, int type, PyTypeObject *base_type)
+PyObject *Euler_CreatePyObject(float *eul, short order, int type, PyTypeObject *base_type)
 {
 	EulerObject *self;
 
@@ -707,9 +710,9 @@ PyObject *newEulerObject(float *eul, short order, int type, PyTypeObject *base_t
 	return (PyObject *)self;
 }
 
-PyObject *newEulerObject_cb(PyObject *cb_user, short order, int cb_type, int cb_subtype)
+PyObject *Euler_CreatePyObject_cb(PyObject *cb_user, short order, int cb_type, int cb_subtype)
 {
-	EulerObject *self= (EulerObject *)newEulerObject(NULL, order, Py_NEW, NULL);
+	EulerObject *self= (EulerObject *)Euler_CreatePyObject(NULL, order, Py_NEW, NULL);
 	if (self) {
 		Py_INCREF(cb_user);
 		self->cb_user=			cb_user;

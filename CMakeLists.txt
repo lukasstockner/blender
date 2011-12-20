@@ -171,6 +171,7 @@ option(WITH_MOD_DECIMATE       	"Enable Decimate Modifier" ON)
 option(WITH_MOD_BOOLEAN        	"Enable Boolean Modifier" ON)
 option(WITH_MOD_CLOTH_ELTOPO   	"Enable Experemental cloth solver" OFF)
 mark_as_advanced(WITH_MOD_CLOTH_ELTOPO)
+option(WITH_MOD_OCEANSIM        "Enable Ocean Modifier" OFF)
 
 # Image format support
 option(WITH_IMAGE_OPENEXR       "Enable OpenEXR Support (http://www.openexr.com)" ON)
@@ -214,8 +215,11 @@ endif()
 option(WITH_PYTHON_INSTALL       "Copy system python into the blender install folder" ON)
 
 # Cycles
-option(WITH_CYCLES			"Enable Cycles Render Engine" ON)
-OPTION(WITH_CYCLES_TEST		"Build cycles test application" OFF)
+option(WITH_CYCLES					"Enable cycles Render Engine" ON)
+option(WITH_CYCLES_TEST				"Build cycles test application" OFF)
+option(WITH_CYCLES_CUDA_BINARIES	"Build cycles CUDA binaries" OFF)
+set(CYCLES_CUDA_BINARIES_ARCH		sm_13 sm_20 sm_21 CACHE STRING "CUDA architectures to build binaries for")
+mark_as_advanced(CYCLES_CUDA_BINARIES_ARCH)
 
 # disable for now, but plan to support on all platforms eventually
 option(WITH_MEM_JEMALLOC   "Enable malloc replacement (http://www.canonware.com/jemalloc)" OFF)
@@ -281,6 +285,10 @@ if(WITH_CODEC_QUICKTIME AND MINGW)
 	message(FATAL_ERROR "MINGW requires WITH_CODEC_QUICKTIME to be OFF "
 						"because it is currently unsupported, remove this "
 						"line if youre a developer who wants to add support.")
+endif()
+
+if(NOT WITH_FFTW3 AND WITH_MOD_OCEANSIM)
+	message(FATAL_ERROR "WITH_MOD_OCEANSIM requires WITH_FFTW3 to be ON")
 endif()
 
 # may as well build python module without a UI
@@ -359,6 +367,19 @@ if(UNIX AND NOT APPLE)
 		set(CMAKE_LIBRARY_PATH "/usr/lib/x86_64-linux-gnu;${CMAKE_LIBRARY_PATH}")
 	endif()
 
+	# set lib directory if it exists
+	if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+		if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
+			set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/linux64)
+		else()
+			set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/linux)
+		endif()
+
+		if(NOT EXISTS ${LIBDIR})
+			unset(LIBDIR)
+		endif()
+	endif()
+
 	find_package(JPEG REQUIRED)
 	find_package(PNG REQUIRED)
 	find_package(ZLIB REQUIRED)
@@ -433,10 +454,17 @@ if(UNIX AND NOT APPLE)
 	endif()
 
 	if(WITH_CODEC_FFMPEG)
-		set(FFMPEG /usr CACHE PATH "FFMPEG Directory")
+		# use lib dir if available and nothing else specified
+		if(LIBDIR AND NOT FFMPEG)
+			set(FFMPEG ${LIBDIR}/ffmpeg CACHE PATH "FFMPEG Directory")
+			set(FFMPEG_LIBRARIES avformat avcodec avutil avdevice swscale dirac_encoder mp3lame ogg orc-0.4 schroedinger-1.0 theora theoraenc theoradec vorbis vorbisenc vpx x264 xvidcore faad asound CACHE STRING "FFMPEG Libraries")
+		else()
+			set(FFMPEG /usr CACHE PATH "FFMPEG Directory")
+			set(FFMPEG_LIBRARIES avformat avcodec avutil avdevice swscale CACHE STRING "FFMPEG Libraries")
+		endif()
+
 		mark_as_advanced(FFMPEG)
 		set(FFMPEG_INCLUDE_DIRS ${FFMPEG}/include)
-		set(FFMPEG_LIBRARIES avformat avcodec avutil avdevice swscale CACHE STRING "FFMPEG Libraries")
 		mark_as_advanced(FFMPEG_LIBRARIES)
 		set(FFMPEG_LIBPATH ${FFMPEG}/lib)
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__STDC_CONSTANT_MACROS")
@@ -502,11 +530,17 @@ if(UNIX AND NOT APPLE)
 	endif()
 
 	if(WITH_BOOST)
-		
 		# uses in build instructions to override include and library variables
 		if(NOT BOOST_CUSTOM)
-			set(Boost_USE_MULTITHREADED ON)
+			# use lib dir if available and nothing else specified
+			if(LIBDIR AND NOT BOOST_ROOT)
+				set(BOOST_ROOT ${LIBDIR}/boost)
+				set(Boost_USE_MULTITHREADED OFF)
+			else()
+				set(Boost_USE_MULTITHREADED ON)
+			endif()
 			find_package(Boost 1.34 COMPONENTS filesystem regex system thread)
+			mark_as_advanced(Boost_DIR)  # why doesnt boost do this?
 		endif()
 
 		set(BOOST_INCLUDE_DIR ${Boost_INCLUDE_DIRS})
@@ -516,6 +550,11 @@ if(UNIX AND NOT APPLE)
 	endif()
 
 	if(WITH_OPENIMAGEIO)
+		# use lib dir if available and nothing else specified
+		if(LIBDIR AND NOT OPENIMAGEIO_ROOT_DIR)
+			set(OPENIMAGEIO_ROOT_DIR ${LIBDIR}/oiio)
+		endif()
+
 		find_package(OpenImageIO)
 
 		set(OPENIMAGEIO_LIBRARIES ${OPENIMAGEIO_LIBRARIES} ${PNG_LIBRARIES} ${JPEG_LIBRARIES} ${TIFF_LIBRARY} ${OPENEXR_LIBRARIES} ${ZLIB_LIBRARIES} ${BOOST_LIBRARIES})
@@ -610,10 +649,6 @@ elseif(WIN32)
 		set(ICONV_LIBPATH ${ICONV}/lib)
 	endif()
 
-	set(PNG "${LIBDIR}/png")
-	set(PNG_INCLUDE_DIR "${PNG}/include")
-	set(PNG_LIBPATH ${PNG}/lib) # not cmake defined
-
 	set(JPEG "${LIBDIR}/jpeg")
 	set(JPEG_INCLUDE_DIR "${JPEG}/include")
 	set(JPEG_LIBPATH ${JPEG}/lib) # not cmake defined
@@ -688,12 +723,12 @@ elseif(WIN32)
 			set(GETTEXT_LIBRARIES gnu_gettext)
 		endif()
 
-		if(CMAKE_CL_64)
-			set(PNG_LIBRARIES libpng)
-		else()
-			set(PNG_LIBRARIES libpng_st)
-		endif()
+		set(PNG_LIBRARIES libpng)
 		set(JPEG_LIBRARIES libjpeg)
+		
+		set(PNG "${LIBDIR}/png")
+		set(PNG_INCLUDE_DIR "${PNG}/include")
+		set(PNG_LIBPATH ${PNG}/lib) # not cmake defined
 
 		set(ZLIB_INCLUDE_DIRS ${LIBDIR}/zlib/include)
 		if(CMAKE_CL_64)
@@ -818,14 +853,23 @@ elseif(WIN32)
 		if(WITH_BOOST)
 			set(BOOST ${LIBDIR}/boost)
 			set(BOOST_INCLUDE_DIR ${BOOST}/include)
-			set(BOOST_POSTFIX "vc90-mt-s-1_47.lib")
-			set(BOOST_DEBUG_POSTFIX "vc90-mt-sgd-1_47.lib")
+			if(MSVC10)
+				set(BOOST_POSTFIX "vc100-mt-s-1_47.lib")
+				set(BOOST_DEBUG_POSTFIX "vc100-mt-sgd-1_47.lib")
+			else()
+				set(BOOST_POSTFIX "vc90-mt-s-1_47.lib")
+				set(BOOST_DEBUG_POSTFIX "vc90-mt-sgd-1_47.lib")					
+			endif()
 			set(BOOST_LIBRARIES
-				optimized libboost_date_time-${BOOST_POSTFIX} libboost_filesystem-${BOOST_POSTFIX}
-				libboost_regex-${BOOST_POSTFIX} libboost_system-${BOOST_POSTFIX} libboost_thread-${BOOST_POSTFIX}
-				debug libboost_date_time-${BOOST_DEBUG_POSTFIX} libboost_filesystem-${BOOST_DEBUG_POSTFIX}
-				libboost_regex-${BOOST_DEBUG_POSTFIX} libboost_system-${BOOST_DEBUG_POSTFIX} libboost_thread-${BOOST_DEBUG_POSTFIX})
-			set(BOOST_LIBPATH ${BOOST}/lib)
+				optimized libboost_date_time-${BOOST_POSTFIX} optimized libboost_filesystem-${BOOST_POSTFIX}
+				optimized libboost_regex-${BOOST_POSTFIX} optimized libboost_system-${BOOST_POSTFIX} optimized libboost_thread-${BOOST_POSTFIX}
+				debug libboost_date_time-${BOOST_DEBUG_POSTFIX} debug libboost_filesystem-${BOOST_DEBUG_POSTFIX}
+				debug libboost_regex-${BOOST_DEBUG_POSTFIX} debug libboost_system-${BOOST_DEBUG_POSTFIX} debug libboost_thread-${BOOST_DEBUG_POSTFIX})
+			if(MSVC10)
+				set(BOOST_LIBPATH ${BOOST}/lib/vc_10)
+			else()
+				set(BOOST_LIBPATH ${BOOST}/lib)
+			endif()
 			set(BOOST_DEFINITIONS "-DBOOST_ALL_NO_LIB")
 		endif()
 			
@@ -865,6 +909,10 @@ elseif(WIN32)
 			set(GETTEXT_LIBPATH ${GETTEXT}/lib)
 			set(GETTEXT_LIBRARIES intl)
 		endif()
+		
+		set(PNG "${LIBDIR}/gcc/png")
+		set(PNG_INCLUDE_DIR "${PNG}/include")
+		set(PNG_LIBPATH ${PNG}/lib) # not cmake defined
 
 		set(JPEG_LIBRARIES libjpeg)
 		set(PNG_LIBRARIES png)
@@ -1529,6 +1577,7 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_MOD_BOOLEAN)
 	info_cfg_option(WITH_MOD_DECIMATE)
 	info_cfg_option(WITH_MOD_FLUID)
+	info_cfg_option(WITH_MOD_OCEANSIM)
 
 	info_cfg_text("")
 

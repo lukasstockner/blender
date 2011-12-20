@@ -4,10 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. The Blender
- * Foundation also sells licenses for use in proprietary software under
- * the Blender License.  See http://www.blender.org/BL/ for information
- * about this.
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,11 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
  *
  * Contributor(s): none yet.
  *
@@ -439,6 +431,8 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 	glViewport(0,0, texturewidth, textureheight);
 
 	glDisable(GL_DEPTH_TEST);
+	// in case the previous material was wire
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	// if the last rendered face had alpha add it would messes with the color of the plane we apply 2DFilter to
 	glDisable(GL_BLEND); 
 	glPushMatrix();		//GL_MODELVIEW

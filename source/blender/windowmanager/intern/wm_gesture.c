@@ -124,14 +124,13 @@ void WM_gestures_remove(bContext *C)
 
 
 /* tweak and line gestures */
-#define TWEAK_THRESHOLD		10
 int wm_gesture_evaluate(wmGesture *gesture)
 {
 	if(gesture->type==WM_GESTURE_TWEAK) {
 		rcti *rect= gesture->customdata;
 		int dx= rect->xmax - rect->xmin;
 		int dy= rect->ymax - rect->ymin;
-		if(ABS(dx)+ABS(dy) > TWEAK_THRESHOLD) {
+		if(ABS(dx)+ABS(dy) > U.tweak_threshold) {
 			int theta= (int)floor(4.0f*atan2f((float)dy, (float)dx)/(float)M_PI + 0.5f);
 			int val= EVT_GESTURE_W;
 			
@@ -258,9 +257,9 @@ static void draw_filled_lasso(wmGesture *gt)
 		glColor4f(1.0, 1.0, 1.0, 0.05);
 		glBegin(GL_TRIANGLES);
 		for (efa = fillfacebase.first; efa; efa=efa->next) {
-			glVertex2f(efa->v1->co[0], efa->v1->co[1]);
-			glVertex2f(efa->v2->co[0], efa->v2->co[1]);
-			glVertex2f(efa->v3->co[0], efa->v3->co[1]);
+			glVertex2fv(efa->v1->co);
+			glVertex2fv(efa->v2->co);
+			glVertex2fv(efa->v3->co);
 		}
 		glEnd();
 		glDisable(GL_BLEND);

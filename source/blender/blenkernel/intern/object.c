@@ -50,6 +50,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_smoke_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
@@ -119,6 +120,7 @@ void clear_workob(Object *workob)
 	memset(workob, 0, sizeof(Object));
 	
 	workob->size[0]= workob->size[1]= workob->size[2]= 1.0f;
+	workob->dscale[0]= workob->dscale[1]= workob->dscale[2]= 1.0f;
 	workob->rotmode= ROT_MODE_EUL;
 }
 
@@ -773,6 +775,7 @@ Object *add_only_object(int type, const char *name)
 	ob->col[3]= 1.0;
 	
 	ob->size[0]= ob->size[1]= ob->size[2]= 1.0;
+	ob->dscale[0]= ob->dscale[1]= ob->dscale[2]= 1.0;
 	
 	/* objects should default to having Euler XYZ rotations, 
 	 * but rotations default to quaternions 
@@ -962,7 +965,6 @@ static ParticleSystem *copy_particlesystem(ParticleSystem *psys)
 
 void copy_object_particlesystems(Object *obn, Object *ob)
 {
-	ParticleSystemModifierData *psmd;
 	ParticleSystem *psys, *npsys;
 	ModifierData *md;
 
@@ -975,9 +977,27 @@ void copy_object_particlesystems(Object *obn, Object *ob)
 		/* need to update particle modifiers too */
 		for(md=obn->modifiers.first; md; md=md->next) {
 			if(md->type==eModifierType_ParticleSystem) {
-				psmd= (ParticleSystemModifierData*)md;
+				ParticleSystemModifierData *psmd= (ParticleSystemModifierData*)md;
 				if(psmd->psys==psys)
 					psmd->psys= npsys;
+			}
+			else if(md->type==eModifierType_DynamicPaint) {
+				DynamicPaintModifierData *pmd= (DynamicPaintModifierData*)md;
+				if (pmd->brush) {
+					if(pmd->brush->psys==psys) {
+						pmd->brush->psys= npsys;
+					}
+				}
+			}
+			else if (md->type==eModifierType_Smoke) {
+				SmokeModifierData *smd = (SmokeModifierData*) md;
+
+				if(smd->type==MOD_SMOKE_TYPE_FLOW) {
+					if (smd->flow) {
+						if (smd->flow->psys == psys)
+							smd->flow->psys= npsys;
+					}
+				}
 			}
 		}
 	}
@@ -1215,12 +1235,12 @@ void make_local_object(Object *ob)
 			extern_local_object(ob);
 		}
 		else if(is_local && is_lib) {
-			Object *obn= copy_object(ob);
+			Object *ob_new= copy_object(ob);
 
-			obn->id.us= 0;
+			ob_new->id.us= 0;
 			
 			/* Remap paths of new ID using old library as base. */
-			BKE_id_lib_local_paths(bmain, &obn->id);
+			BKE_id_lib_local_paths(bmain, ob->id.lib, &ob_new->id);
 
 			sce= bmain->scene.first;
 			while(sce) {
@@ -1228,8 +1248,8 @@ void make_local_object(Object *ob)
 					base= sce->base.first;
 					while(base) {
 						if(base->object==ob) {
-							base->object= obn;
-							obn->id.us++;
+							base->object= ob_new;
+							ob_new->id.us++;
 							ob->id.us--;
 						}
 						base= base->next;
@@ -1344,7 +1364,7 @@ void object_make_proxy(Object *ob, Object *target, Object *gob)
 	 *   this is closer to making a copy of the object - in-place. */
 	if(gob) {
 		ob->rotmode= target->rotmode;
-		mul_m4_m4m4(ob->obmat, target->obmat, gob->obmat);
+		mult_m4_m4m4(ob->obmat, gob->obmat, target->obmat);
 		if(gob->dup_group) { /* should always be true */
 			float tvec[3];
 			copy_v3_v3(tvec, gob->dup_group->dupli_ofs);
@@ -1378,7 +1398,6 @@ void object_make_proxy(Object *ob, Object *target, Object *gob)
 	ob->matbits= NULL;
 	if ((target->totcol) && (target->mat) && OB_TYPE_SUPPORT_MATERIAL(ob->type)) {
 		int i;
-		ob->colbits = target->colbits;
 		
 		ob->actcol= target->actcol;
 		ob->totcol= target->totcol;
@@ -1424,7 +1443,7 @@ void object_make_proxy(Object *ob, Object *target, Object *gob)
 void object_scale_to_mat3(Object *ob, float mat[][3])
 {
 	float vec[3];
-	add_v3_v3v3(vec, ob->size, ob->dsize);
+	mul_v3_v3v3(vec, ob->size, ob->dscale);
 	size_to_mat3( mat,vec);
 }
 
@@ -1499,6 +1518,71 @@ void object_mat3_to_rot(Object *ob, float mat[][3], short use_compat)
 	}
 }
 
+void object_tfm_protected_backup(const Object *ob,
+                                 ObjectTfmProtectedChannels *obtfm)
+{
+
+#define TFMCPY(   _v) (obtfm->_v = ob->_v)
+#define TFMCPY3D( _v) copy_v3_v3(obtfm->_v, ob->_v)
+#define TFMCPY4D( _v) copy_v4_v4(obtfm->_v, ob->_v)
+
+	TFMCPY3D(loc);
+	TFMCPY3D(dloc);
+	TFMCPY3D(size);
+	TFMCPY3D(dscale);
+	TFMCPY3D(rot);
+	TFMCPY3D(drot);
+	TFMCPY4D(quat);
+	TFMCPY4D(dquat);
+	TFMCPY3D(rotAxis);
+	TFMCPY3D(drotAxis);
+	TFMCPY(rotAngle);
+	TFMCPY(drotAngle);
+
+#undef TFMCPY
+#undef TFMCPY3D
+#undef TFMCPY4D
+
+}
+
+void object_tfm_protected_restore(Object *ob,
+                                  const ObjectTfmProtectedChannels *obtfm,
+                                  const short protectflag)
+{
+	unsigned int i;
+
+	for (i= 0; i < 3; i++) {
+		if (protectflag & (OB_LOCK_LOCX<<i)) {
+			ob->loc[i]=  obtfm->loc[i];
+			ob->dloc[i]= obtfm->dloc[i];
+		}
+
+		if (protectflag & (OB_LOCK_SCALEX<<i)) {
+			ob->size[i]=  obtfm->size[i];
+			ob->dscale[i]= obtfm->dscale[i];
+		}
+
+		if (protectflag & (OB_LOCK_ROTX<<i)) {
+			ob->rot[i]=  obtfm->rot[i];
+			ob->drot[i]= obtfm->drot[i];
+
+			ob->quat[i + 1]=  obtfm->quat[i + 1];
+			ob->dquat[i + 1]= obtfm->dquat[i + 1];
+
+			ob->rotAxis[i]=  obtfm->rotAxis[i];
+			ob->drotAxis[i]= obtfm->drotAxis[i];
+		}
+	}
+
+	if ((protectflag & OB_LOCK_ROT4D) && (protectflag & OB_LOCK_ROTW)) {
+		ob->quat[0]=  obtfm->quat[0];
+		ob->dquat[0]= obtfm->dquat[0];
+
+		ob->rotAngle=  obtfm->rotAngle;
+		ob->drotAngle= obtfm->drotAngle;
+	}
+}
+
 /* see pchan_apply_mat4() for the equivalent 'pchan' function */
 void object_apply_mat4(Object *ob, float mat[][4], const short use_compat, const short use_parent)
 {
@@ -1506,9 +1590,9 @@ void object_apply_mat4(Object *ob, float mat[][4], const short use_compat, const
 
 	if(use_parent && ob->parent) {
 		float rmat[4][4], diff_mat[4][4], imat[4][4];
-		mul_m4_m4m4(diff_mat, ob->parentinv, ob->parent->obmat);
+		mult_m4_m4m4(diff_mat, ob->parent->obmat, ob->parentinv);
 		invert_m4_m4(imat, diff_mat);
-		mul_m4_m4m4(rmat, mat, imat); /* get the parent relative matrix */
+		mult_m4_m4m4(rmat, imat, mat); /* get the parent relative matrix */
 		object_apply_mat4(ob, rmat, use_compat, FALSE);
 		
 		/* same as below, use rmat rather than mat */
@@ -1521,7 +1605,11 @@ void object_apply_mat4(Object *ob, float mat[][4], const short use_compat, const
 	}
 	
 	sub_v3_v3(ob->loc, ob->dloc);
-	sub_v3_v3(ob->size, ob->dsize);
+
+	if (ob->dscale[0] != 0.0f) ob->size[0] /= ob->dscale[0];
+	if (ob->dscale[1] != 0.0f) ob->size[1] /= ob->dscale[1];
+	if (ob->dscale[2] != 0.0f) ob->size[2] /= ob->dscale[2];
+
 	/* object_mat3_to_rot handles delta rotations */
 }
 
@@ -1628,7 +1716,7 @@ static void ob_parcurve(Scene *scene, Object *ob, Object *par, float mat[][4])
 		if(cu->flag & CU_PATH_RADIUS) {
 			float tmat[4][4], rmat[4][4];
 			scale_m4_fl(tmat, radius);
-			mul_m4_m4m4(rmat, mat, tmat);
+			mult_m4_m4m4(rmat, tmat, mat);
 			copy_m4_m4(mat, rmat);
 		}
 
@@ -1703,6 +1791,7 @@ static void give_parvert(Object *par, int nr, float *vec)
 				dm->getVertCo(dm, 0, vec);
 			}
 		}
+		else fprintf(stderr, "%s: DerivedMesh is needed to solve parenting, object position can be wrong now\n", __func__);
 
 		if(em)
 			BKE_mesh_end_editmesh(me, em);
@@ -1805,13 +1894,6 @@ static void ob_parvert3(Object *ob, Object *par, float mat[][4])
 	}
 }
 
-// XXX what the hell is this?
-static int no_parent_ipo=0;
-void set_no_parent_ipo(int val)
-{
-	no_parent_ipo= val;
-}
-
 static int where_is_object_parslow(Object *ob, float obmat[4][4], float slowmat[4][4])
 {
 	float *fp1, *fp2;
@@ -1819,7 +1901,7 @@ static int where_is_object_parslow(Object *ob, float obmat[4][4], float slowmat[
 	int a;
 
 	// include framerate
-	fac1= ( 1.0f / (1.0f + (float)fabs(ob->sf)) );
+	fac1= ( 1.0f / (1.0f + fabsf(ob->sf)) );
 	if(fac1 >= 1.0f) return 0;
 	fac2= 1.0f-fac1;
 
@@ -1851,7 +1933,7 @@ void where_is_object_time(Scene *scene, Object *ob, float ctime)
 		
 		/* hurms, code below conflicts with depgraph... (ton) */
 		/* and even worse, it gives bad effects for NLA stride too (try ctime != par->ctime, with MBlur) */
-		if(no_parent_ipo==0 && stime != par->ctime) {
+		if(stime != par->ctime) {
 			// only for ipo systems? 
 			Object tmp= *par;
 			
@@ -2269,10 +2351,73 @@ int minmax_object_duplis(Scene *scene, Object *ob, float *min, float *max)
 	return ok;
 }
 
+void BKE_object_foreach_display_point(
+        Object *ob, float obmat[4][4],
+        void (*func_cb)(const float[3], void *), void *user_data)
+{
+	float co[3];
+
+	if (ob->derivedFinal) {
+		DerivedMesh *dm= ob->derivedFinal;
+		MVert *mv= dm->getVertArray(dm);
+		int totvert= dm->getNumVerts(dm);
+		int i;
+
+		for (i= 0; i < totvert; i++, mv++) {
+			mul_v3_m4v3(co, obmat, mv->co);
+			func_cb(co, user_data);
+		}
+	}
+	else if (ob->disp.first) {
+		DispList *dl;
+
+		for (dl=ob->disp.first; dl; dl=dl->next) {
+			float *v3= dl->verts;
+			int totvert= dl->nr;
+			int i;
+
+			for (i= 0; i < totvert; i++, v3+=3) {
+				mul_v3_m4v3(co, obmat, v3);
+				func_cb(co, user_data);
+			}
+		}
+	}
+}
+
+void BKE_scene_foreach_display_point(
+        Scene *scene, View3D *v3d, const short flag,
+        void (*func_cb)(const float[3], void *), void *user_data)
+{
+	Base *base;
+	Object *ob;
+
+	for(base= FIRSTBASE; base; base = base->next) {
+		if(BASE_VISIBLE(v3d, base) && (base->flag & flag) == flag) {
+			ob= base->object;
+
+			if ((ob->transflag & OB_DUPLI)==0) {
+				BKE_object_foreach_display_point(ob, ob->obmat, func_cb, user_data);
+			}
+			else {
+				ListBase *lb;
+				DupliObject *dob;
+
+				lb= object_duplilist(scene, ob);
+				for(dob= lb->first; dob; dob= dob->next) {
+					if(dob->no_draw == 0) {
+						BKE_object_foreach_display_point(dob->ob, dob->mat, func_cb, user_data);
+					}
+				}
+				free_object_duplilist(lb);	/* does restore */
+			}
+		}
+	}
+}
+
 /* copied from DNA_object_types.h */
 typedef struct ObTfmBack {
 	float loc[3], dloc[3], orig[3];
-	float size[3], dsize[3];	/* scale and delta scale */
+	float size[3], dscale[3];	/* scale and delta scale */
 	float rot[3], drot[3];		/* euler rotation */
 	float quat[4], dquat[4];	/* quaternion rotation */
 	float rotAxis[3], drotAxis[3];	/* axis angle rotation - axis part */
@@ -2290,7 +2435,7 @@ void *object_tfm_backup(Object *ob)
 	copy_v3_v3(obtfm->dloc, ob->dloc);
 	copy_v3_v3(obtfm->orig, ob->orig);
 	copy_v3_v3(obtfm->size, ob->size);
-	copy_v3_v3(obtfm->dsize, ob->dsize);
+	copy_v3_v3(obtfm->dscale, ob->dscale);
 	copy_v3_v3(obtfm->rot, ob->rot);
 	copy_v3_v3(obtfm->drot, ob->drot);
 	copy_qt_qt(obtfm->quat, ob->quat);
@@ -2314,7 +2459,7 @@ void object_tfm_restore(Object *ob, void *obtfm_pt)
 	copy_v3_v3(ob->dloc, obtfm->dloc);
 	copy_v3_v3(ob->orig, obtfm->orig);
 	copy_v3_v3(ob->size, obtfm->size);
-	copy_v3_v3(ob->dsize, obtfm->dsize);
+	copy_v3_v3(ob->dscale, obtfm->dscale);
 	copy_v3_v3(ob->rot, obtfm->rot);
 	copy_v3_v3(ob->drot, obtfm->drot);
 	copy_qt_qt(ob->quat, obtfm->quat);
@@ -2327,6 +2472,14 @@ void object_tfm_restore(Object *ob, void *obtfm_pt)
 	copy_m4_m4(ob->parentinv, obtfm->parentinv);
 	copy_m4_m4(ob->constinv, obtfm->constinv);
 	copy_m4_m4(ob->imat, obtfm->imat);
+}
+
+int BKE_object_parent_loop_check(const Object *par, const Object *ob)
+{
+	/* test if 'ob' is a parent somewhere in par's parents */
+	if(par == NULL) return 0;
+	if(ob == par) return 1;
+	return BKE_object_parent_loop_check(par->parent, ob);
 }
 
 /* proxy rule: lib_object->proxy_from == the one we borrow from, only set temporal and cleared here */
@@ -2368,7 +2521,7 @@ void object_handle_update(Scene *scene, Object *ob)
 				if(ob->proxy_from->proxy_group) {/* transform proxy into group space */
 					Object *obg= ob->proxy_from->proxy_group;
 					invert_m4_m4(obg->imat, obg->obmat);
-					mul_m4_m4m4(ob->obmat, ob->proxy_from->obmat, obg->imat);
+					mult_m4_m4m4(ob->obmat, obg->imat, ob->proxy_from->obmat);
 					if(obg->dup_group) { /* should always be true */
 						add_v3_v3(ob->obmat[3], obg->dup_group->dupli_ofs);
 					}

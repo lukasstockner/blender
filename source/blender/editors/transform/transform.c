@@ -93,8 +93,8 @@
 
 #include "transform.h"
 
-void drawTransformApply(const struct bContext *C, struct ARegion *ar, void *arg);
-int doEdgeSlide(TransInfo *t, float perc);
+static void drawTransformApply(const struct bContext *C, struct ARegion *ar, void *arg);
+static int doEdgeSlide(TransInfo *t, float perc);
 
 /* ************************** SPACE DEPENDANT CODE **************************** */
 
@@ -376,7 +376,8 @@ static void viewRedrawPost(bContext *C, TransInfo *t)
 
 /* ************************** TRANSFORMATIONS **************************** */
 
-void BIF_selectOrientation(void) {
+void BIF_selectOrientation(void)
+{
 #if 0 // TRANSFORM_FIX_ME
 	short val;
 	char *str_menu = BIF_menustringTransformOrientation("Orientation");
@@ -1784,7 +1785,7 @@ void transformApply(bContext *C, TransInfo *t)
 	t->context = NULL;
 }
 
-void drawTransformApply(const bContext *C, struct ARegion *UNUSED(ar), void *arg)
+static void drawTransformApply(const bContext *C, struct ARegion *UNUSED(ar), void *arg)
 {
 	TransInfo *t = arg;
 
@@ -2547,7 +2548,8 @@ void initResize(TransInfo *t)
 	t->num.increment = t->snap[1];
 }
 
-static void headerResize(TransInfo *t, float vec[3], char *str) {
+static void headerResize(TransInfo *t, float vec[3], char *str)
+{
 	char tvec[60];
 	char *spos= str;
 	if (hasNumInput(&t->num)) {
@@ -2607,7 +2609,8 @@ static void TransMat3ToSize( float mat[][3], float smat[][3], float *size)
 }
 
 
-static void ElementResize(TransInfo *t, TransData *td, float mat[3][3]) {
+static void ElementResize(TransInfo *t, TransData *td, float mat[3][3])
+{
 	float tmat[3][3], smat[3][3], center[3];
 	float vec[3];
 	
@@ -2904,7 +2907,8 @@ void initRotation(TransInfo *t)
 	copy_v3_v3(t->axis_orig, t->axis);
 }
 
-static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short around) {
+static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short around)
+{
 	float vec[3], totmat[3][3], smat[3][3];
 	float eul[3], fmat[3][3], quat[4];
 	float *center = t->center;
@@ -3344,7 +3348,8 @@ void initTranslation(TransInfo *t)
 	t->num.increment = t->snap[1];
 }
 
-static void headerTranslation(TransInfo *t, float vec[3], char *str) {
+static void headerTranslation(TransInfo *t, float vec[3], char *str)
+{
 	char *spos= str;
 	char tvec[60];
 	char distvec[20];
@@ -3418,7 +3423,8 @@ static void headerTranslation(TransInfo *t, float vec[3], char *str) {
 	(void)spos;
 }
 
-static void applyTranslation(TransInfo *t, float vec[3]) {
+static void applyTranslation(TransInfo *t, float vec[3])
+{
 	TransData *td = t->data;
 	float tvec[3];
 	int i;
@@ -4099,7 +4105,8 @@ void initBoneSize(TransInfo *t)
 	t->num.increment = t->snap[1];
 }
 
-static void headerBoneSize(TransInfo *t, float vec[3], char *str) {
+static void headerBoneSize(TransInfo *t, float vec[3], char *str)
+{
 	char tvec[60];
 	if (hasNumInput(&t->num)) {
 		outputNumInput(&(t->num), tvec);
@@ -4691,7 +4698,7 @@ static int createSlideVerts(TransInfo *t)
 							uv_new = tf->uv[k];
 
 							if (ev->tmp.l) {
-								if (fabsf(suv->origuv[0]-uv_new[0]) > 0.0001f || fabs(suv->origuv[1]-uv_new[1]) > 0.0001f) {
+								if (fabsf(suv->origuv[0]-uv_new[0]) > 0.0001f || fabsf(suv->origuv[1]-uv_new[1]) > 0.0001f) {
 									ev->tmp.l = -1; /* Tag as invalid */
 									BLI_linklist_free(suv->fuv_list,NULL);
 									suv->fuv_list = NULL;
@@ -4740,7 +4747,7 @@ static int createSlideVerts(TransInfo *t)
 				}
 				look = look->next;
 			}
-		} /* end uv layer loop */
+		} /* end uv map loop */
 	} /* end uvlay_tot */
 
 	sld->uvhash = uvarray;
@@ -4840,7 +4847,7 @@ void initEdgeSlide(TransInfo *t)
 	t->flag |= T_NO_CONSTRAINT|T_NO_PROJECT;
 }
 
-int doEdgeSlide(TransInfo *t, float perc)
+static int doEdgeSlide(TransInfo *t, float perc)
 {
 	SlideData *sld = t->customData;
 	EditVert *ev, *nearest = sld->nearest;
@@ -5302,7 +5309,8 @@ static void headerSeqSlide(TransInfo *t, float val[2], char *str)
 	sprintf(str, "Sequence Slide: %s%s", &tvec[0], t->con.text);
 }
 
-static void applySeqSlide(TransInfo *t, float val[2]) {
+static void applySeqSlide(TransInfo *t, float val[2])
+{
 	TransData *td = t->data;
 	int i;
 
@@ -5462,7 +5470,7 @@ static void doAnimEdit_SnapFrame(TransInfo *t, TransData *td, TransData2D *td2d,
 		else
 #endif
 		{
-			val= (float)( floor(val+0.5f) );
+			val= floorf(val+0.5f);
 		}
 		
 		/* convert frame out of nla-action time */
@@ -5548,13 +5556,13 @@ static void headerTimeTranslate(TransInfo *t, char *str)
 		/* apply snapping + frame->seconds conversions */
 		if (autosnap == SACTSNAP_STEP) {
 			if (doTime)
-				val= floor(val/secf + 0.5f);
+				val= floor((double)val/secf + 0.5f);
 			else
 				val= floor(val + 0.5f);
 		}
 		else {
 			if (doTime)
-				val= val / secf;
+				val= (float)((double)val / secf);
 		}
 		
 		if (autosnap == SACTSNAP_FRAME)
@@ -5826,7 +5834,8 @@ void initTimeScale(TransInfo *t)
 	t->num.increment = t->snap[1];
 }
 
-static void headerTimeScale(TransInfo *t, char *str) {
+static void headerTimeScale(TransInfo *t, char *str)
+{
 	char tvec[60];
 
 	if (hasNumInput(&t->num))
@@ -5837,7 +5846,8 @@ static void headerTimeScale(TransInfo *t, char *str) {
 	sprintf(str, "ScaleX: %s", &tvec[0]);
 }
 
-static void applyTimeScale(TransInfo *t) {
+static void applyTimeScale(TransInfo *t)
+{
 	Scene *scene = t->scene;
 	TransData *td = t->data;
 	TransData2D *td2d = t->data2d;

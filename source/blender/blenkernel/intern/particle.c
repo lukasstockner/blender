@@ -45,6 +45,7 @@
 #include "DNA_particle_types.h"
 #include "DNA_smoke_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_dynamicpaint_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -78,6 +79,7 @@
 #include "BKE_cdderivedmesh.h"
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
+#include "BKE_deform.h"
 
 #include "RE_render_ext.h"
 
@@ -637,7 +639,7 @@ static float psys_render_projected_area(ParticleSystem *psys, const float center
 	w= co[2]*data->winmat[2][3] + data->winmat[3][3];
 	dx= data->winx*ortho2[0]*data->winmat[0][0];
 	dy= data->winy*ortho2[1]*data->winmat[1][1];
-	w= sqrt(dx*dx + dy*dy)/w;
+	w= sqrtf(dx*dx + dy*dy)/w;
 
 	/* w squared because we are working with area */
 	area= area*w*w;
@@ -707,8 +709,8 @@ void psys_render_set(Object *ob, ParticleSystem *psys, float viewmat[][4], float
 	psys->childcachebufs.first = psys->childcachebufs.last = NULL;
 
 	copy_m4_m4(data->winmat, winmat);
-	mul_m4_m4m4(data->viewmat, ob->obmat, viewmat);
-	mul_m4_m4m4(data->mat, data->viewmat, winmat);
+	mult_m4_m4m4(data->viewmat, viewmat, ob->obmat);
+	mult_m4_m4m4(data->mat, winmat, data->viewmat);
 	data->winx= winx;
 	data->winy= winy;
 
@@ -1846,20 +1848,6 @@ void psys_particle_on_emitter(ParticleSystemModifierData *psmd, int from, int in
 /************************************************/
 /*			Path Cache							*/
 /************************************************/
-static float vert_weight(MDeformVert *dvert, int group)
-{
-	MDeformWeight *dw;
-	int i;
-	
-	if(dvert) {
-		dw= dvert->dw;
-		for(i= dvert->totweight; i>0; i--, dw++) {
-			if(dw->def_nr == group) return dw->weight;
-			if(i==1) break; /*otherwise dw will point to somewhere it shouldn't*/
-		}
-	}
-	return 0.0;
-}
 
 static void do_kink(ParticleKey *state, ParticleKey *par, float *par_rot, float time, float freq, float shape, float amplitude, float flat, short type, short axis, float obmat[][4], int smooth_start)
 {
@@ -1910,7 +1898,7 @@ static void do_kink(ParticleKey *state, ParticleKey *par, float *par_rot, float 
 	switch(type) {
 	case PART_KINK_CURL:
 	{
-		mul_v3_fl(par_vec, -1.f);
+		negate_v3(par_vec);
 
 		if(flat > 0.f) {
 			float proj[3];
@@ -1976,7 +1964,7 @@ static void do_kink(ParticleKey *state, ParticleKey *par, float *par_rot, float 
 			mul_qt_v3(par_rot, z_vec);
 		}
 		
-		mul_v3_fl(par_vec, -1.f);
+		negate_v3(par_vec);
 		normalize_v3_v3(vec_one, par_vec);
 
 		inp_y=dot_v3v3(y_vec, vec_one);
@@ -2307,11 +2295,11 @@ float *psys_cache_vgroup(DerivedMesh *dm, ParticleSystem *psys, int vgroup)
 			vg=MEM_callocN(sizeof(float)*totvert, "vg_cache");
 			if(psys->vg_neg&(1<<vgroup)){
 				for(i=0; i<totvert; i++)
-					vg[i]=1.0f-vert_weight(dvert+i,psys->vgroup[vgroup]-1);
+					vg[i]= 1.0f - defvert_find_weight(&dvert[i], psys->vgroup[vgroup] - 1);
 			}
 			else{
 				for(i=0; i<totvert; i++)
-					vg[i]=vert_weight(dvert+i,psys->vgroup[vgroup]-1);
+					vg[i]=  defvert_find_weight(&dvert[i], psys->vgroup[vgroup] - 1);
 			}
 		}
 	}
@@ -3169,13 +3157,13 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 				float t2;
 
 				if(k==0) {
-					weight_to_rgb(pind.hkey[1]->weight, ca->col, ca->col+1, ca->col+2);
+					weight_to_rgb(ca->col, pind.hkey[1]->weight);
 				} else {
 					float w1[3], w2[3];
 					keytime = (t - (*pind.ekey[0]->time))/((*pind.ekey[1]->time) - (*pind.ekey[0]->time));
 
-					weight_to_rgb(pind.hkey[0]->weight, w1, w1+1, w1+2);
-					weight_to_rgb(pind.hkey[1]->weight, w2, w2+1, w2+2);
+					weight_to_rgb(w1, pind.hkey[0]->weight);
+					weight_to_rgb(w2, pind.hkey[1]->weight);
 
 					interp_v3_v3v3(ca->col, w1, w2, keytime);
 				}
@@ -3386,7 +3374,7 @@ void psys_mat_hair_to_global(Object *ob, DerivedMesh *dm, short from, ParticleDa
 
 	psys_mat_hair_to_object(ob, dm, from, pa, facemat);
 
-	mul_m4_m4m4(hairmat, facemat, ob->obmat);
+	mult_m4_m4m4(hairmat, ob->obmat, facemat);
 }
 
 /************************************************/
@@ -3451,6 +3439,14 @@ void object_remove_particle_system(Scene *scene, Object *ob)
 		if((smd->type == MOD_SMOKE_TYPE_FLOW) && smd->flow && smd->flow->psys)
 			if(smd->flow->psys == psys)
 				smd->flow->psys = NULL;
+	}
+
+	if((md = modifiers_findByType(ob, eModifierType_DynamicPaint)))
+	{
+		DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)md;
+		if(pmd->brush && pmd->brush->psys)
+			if(pmd->brush->psys == psys)
+				pmd->brush->psys = NULL;
 	}
 
 	/* clear modifier */
@@ -3634,20 +3630,20 @@ void make_local_particlesettings(ParticleSettings *part)
 		expand_local_particlesettings(part);
 	}
 	else if(is_local && is_lib) {
-		ParticleSettings *partn= psys_copy_settings(part);
+		ParticleSettings *part_new= psys_copy_settings(part);
 
-		partn->id.us= 0;
+		part_new->id.us= 0;
 
 		/* Remap paths of new ID using old library as base. */
-		BKE_id_lib_local_paths(bmain, &partn->id);
+		BKE_id_lib_local_paths(bmain, part->id.lib, &part_new->id);
 
 		/* do objects */
 		for(ob= bmain->object.first; ob; ob= ob->id.next) {
 			ParticleSystem *psys;
 			for(psys= ob->particlesystem.first; psys; psys=psys->next){
 				if(psys->part==part && ob->id.lib==0) {
-					psys->part= partn;
-					partn->id.us++;
+					psys->part= part_new;
+					part_new->id.us++;
 					part->id.us--;
 				}
 			}

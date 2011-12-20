@@ -64,7 +64,7 @@
 
 /* Included the path relative from /source/blender/ here, so we can move     */
 /* headers around with more freedom.                                         */
-const char *includefiles[] = {
+static const char *includefiles[] = {
 
 	// if you add files here, please add them at the end
 	// of makesdna.c (this file) as well
@@ -133,6 +133,7 @@ const char *includefiles[] = {
 	"DNA_speaker_types.h",
 	"DNA_movieclip_types.h",
 	"DNA_tracking_types.h",
+	"DNA_dynamicpaint_types.h",
 
 	// empty string to indicate end of includefiles
 	""
@@ -147,9 +148,9 @@ static char **types, *typedata;		/* at address types[a] is string a */
 static short *typelens;				/* at typelens[a] is de length of type a */
 static short *alphalens;			/* contains sizes as they are calculated on the DEC Alpha (64 bits), infact any 64bit system */
 static short **structs, *structdata;/* at sp= structs[a] is the first address of a struct definition
-								       sp[0] is type number
-							    	   sp[1] is amount of elements
-							    	   sp[2] sp[3] is typenr,  namenr (etc) */
+                                       sp[0] is type number
+                                       sp[1] is amount of elements
+                                       sp[2] sp[3] is typenr,  namenr (etc) */
 /**
  * Variable to control debug output of makesdna.
  * debugSDNA:
@@ -223,7 +224,7 @@ void printStructLenghts(void);
 
 /* ************************* MAKEN DNA ********************** */
 
-int add_type(const char *str, int len)
+static int add_type(const char *str, int len)
 {
 	int nr;
 	char *cp;
@@ -308,8 +309,9 @@ static int add_name(const char *str)
 			if (debugSDNA > 3) printf("seen %c ( %d) \n", str[j], str[j]);
 			j++;
 		}
-		if (debugSDNA > 3) printf("seen %c ( %d) \n", str[j], str[j]); 
-		if (debugSDNA > 3) printf("special after offset %d\n", j); 
+		if (debugSDNA > 3) printf("seen %c ( %d) \n"
+		                          "special after offset%d\n",
+		                          str[j], str[j], j);
 				
 		if (!isfuncptr) {
 			/* multidimensional array pointer case */
@@ -398,7 +400,7 @@ static int add_name(const char *str)
 	return nr_names-1;
 }
 
-short *add_struct(int namecode)
+static short *add_struct(int namecode)
 {
 	int len;
 	short *sp;
@@ -473,6 +475,13 @@ static int preprocess_include(char *maindata, int len)
 		if(comment);
 		else if( cp[0]==' ' && cp[1]==' ' );
 		else if( cp[-1]=='*' && cp[0]==' ' );	/* pointers with a space */
+
+		/* skip special keywords */
+		else if (strncmp("DNA_DEPRECATED", cp, 14)==0) {
+			/* single values are skipped already, so decrement 1 less */
+			a -= 13;
+			cp += 13;
+		}
 		else {
 			md[0]= cp[0];
 			md++;
@@ -521,7 +530,7 @@ static void *read_file_data(char *filename, int *len_r)
 	return data;
 }
 
-int convert_include(char *filename)
+static int convert_include(char *filename)
 {
 	/* read include file, skip structs with a '#' before it.
 	   store all data in temporal arrays.
@@ -658,7 +667,7 @@ int convert_include(char *filename)
 	return 0;
 }
 
-int arraysize(char *astr, int len)
+static int arraysize(char *astr, int len)
 {
 	int a, mul=1;
 	char str[100], *cp=NULL;
@@ -1200,4 +1209,5 @@ int main(int argc, char ** argv)
 #include "DNA_speaker_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_tracking_types.h"
+#include "DNA_dynamicpaint_types.h"
 /* end of list */

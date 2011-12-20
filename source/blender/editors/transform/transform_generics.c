@@ -171,7 +171,7 @@ static void clipMirrorModifier(TransInfo *t, Object *ob)
 						float obinv[4][4];
 						
 						invert_m4_m4(obinv, mmd->mirror_ob->obmat);
-						mul_m4_m4m4(mtx, ob->obmat, obinv);
+						mult_m4_m4m4(mtx, obinv, ob->obmat);
 						invert_m4_m4(imtx, mtx);
 					}
 					
@@ -197,8 +197,9 @@ static void clipMirrorModifier(TransInfo *t, Object *ob)
 						
 						clip = 0;
 						if(axis & 1) {
-							if(fabs(iloc[0])<=tolerance[0] ||
-							   loc[0]*iloc[0]<0.0f) {
+							if(fabsf(iloc[0])<=tolerance[0] ||
+							   loc[0]*iloc[0]<0.0f)
+							{
 								loc[0]= 0.0f;
 								clip = 1;
 							}
@@ -206,14 +207,16 @@ static void clipMirrorModifier(TransInfo *t, Object *ob)
 						
 						if(axis & 2) {
 							if(fabs(iloc[1])<=tolerance[1] ||
-							   loc[1]*iloc[1]<0.0f) {
+							   loc[1]*iloc[1]<0.0f)
+							{
 								loc[1]= 0.0f;
 								clip = 1;
 							}
 						}
 						if(axis & 4) {
 							if(fabs(iloc[2])<=tolerance[2] ||
-							   loc[2]*iloc[2]<0.0f) {
+							   loc[2]*iloc[2]<0.0f)
+							{
 								loc[2]= 0.0f;
 								clip = 1;
 							}
@@ -1545,17 +1548,29 @@ void calculateCenter(TransInfo *t)
 		
 		/* EDIT MODE ACTIVE EDITMODE ELEMENT */
 
-		if (t->obedit && t->obedit->type == OB_MESH) {
-			EditSelection ese;
-			EditMesh *em = BKE_mesh_get_editmesh(t->obedit->data);
-			
-			if (EM_get_actSelection(em, &ese)) {
-				EM_editselection_center(t->center, &ese);
-				calculateCenter2D(t);
-				break;
+		if (t->obedit) {
+			if(t->obedit->type == OB_MESH) {
+				EditSelection ese;
+				EditMesh *em = BKE_mesh_get_editmesh(t->obedit->data);
+
+				if (EM_get_actSelection(em, &ese)) {
+					EM_editselection_center(t->center, &ese);
+					calculateCenter2D(t);
+					break;
+				}
+			}
+			else if (ELEM(t->obedit->type, OB_CURVE, OB_SURF)) {
+				float center[3];
+				Curve *cu= (Curve *)t->obedit->data;
+
+				if (ED_curve_actSelection(cu, center)) {
+					copy_v3_v3(t->center, center);
+					calculateCenter2D(t);
+					break;
+				}
 			}
 		} /* END EDIT MODE ACTIVE ELEMENT */
-		
+
 		calculateCenterMedian(t);
 		if((t->flag & (T_EDIT|T_POSE))==0)
 		{

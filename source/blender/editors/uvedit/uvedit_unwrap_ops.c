@@ -896,7 +896,7 @@ static void uv_map_clip_correct(EditMesh *em, wmOperator *op)
 
 /* ******************** Unwrap operator **************** */
 
-/* assumes UV layer is checked, doesn't run update funcs */
+/* assumes UV Map is checked, doesn't run update funcs */
 void ED_unwrap_lscm(Scene *scene, Object *obedit, const short sel)
 {
 	EditMesh *em= BKE_mesh_get_editmesh((Mesh*)obedit->data);
@@ -1342,16 +1342,9 @@ static int cube_project_exec(bContext *C, wmOperator *op)
 		if(efa->f & SELECT) {
 			tf= CustomData_em_get(&em->fdata, efa->data, CD_MTFACE);
 			normal_tri_v3( no,efa->v1->co, efa->v2->co, efa->v3->co);
-			
-			no[0]= fabs(no[0]);
-			no[1]= fabs(no[1]);
-			no[2]= fabs(no[2]);
-			
-			cox=0; coy= 1;
-			if(no[2]>=no[0] && no[2]>=no[1]);
-			else if(no[1]>=no[0] && no[1]>=no[2]) coy= 2;
-			else { cox= 1; coy= 2; }
-			
+
+			axis_dominant_v3(&cox, &coy, no);
+
 			tf->uv[0][0]= 0.5f+0.5f*cube_size*(loc[cox] + efa->v1->co[cox]);
 			tf->uv[0][1]= 0.5f+0.5f*cube_size*(loc[coy] + efa->v1->co[coy]);
 			dx = floor(tf->uv[0][0]);

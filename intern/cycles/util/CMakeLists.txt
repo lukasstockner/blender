@@ -11,7 +11,7 @@ set(SRC
 	util_dynlib.cpp
 	util_md5.cpp
 	util_memarena.cpp
-	util_opencl.c
+	util_opencl.cpp
 	util_path.cpp
 	util_string.cpp
 	util_system.cpp
@@ -33,6 +33,7 @@ set(SRC_HEADERS
 	util_cuda.h
 	util_debug.h
 	util_dynlib.h
+	util_foreach.h
 	util_function.h
 	util_hash.h
 	util_image.h

@@ -147,6 +147,17 @@ static void rna_MetaBall_elements_remove(MetaBall *mb, ReportList *reports, Meta
 	}
 }
 
+static void rna_MetaBall_elements_clear(MetaBall *mb)
+{
+	BLI_freelistN(&mb->elems);
+
+	/* cheating way for importers to avoid slow updates */
+	if(mb->id.us > 0) {
+		DAG_id_tag_update(&mb->id, 0);
+		WM_main_add_notifier(NC_GEOM|ND_DATA, &mb->id);
+	}
+}
+
 #else
 
 static void rna_def_metaelement(BlenderRNA *brna)
@@ -234,16 +245,19 @@ static void rna_def_metaball_elements(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_struct_ui_text(srna, "Meta Elements", "Collection of metaball elements");
 
 	func= RNA_def_function(srna, "new", "rna_MetaBall_elements_new");
-	RNA_def_function_ui_description(func, "Add a new spline to the curve");
+	RNA_def_function_ui_description(func, "Add a new element to the metaball");
 	RNA_def_enum(func, "type", metaelem_type_items, MB_BALL, "", "type for the new meta-element");
 	parm= RNA_def_pointer(func, "element", "MetaElement", "", "The newly created meta-element");
 	RNA_def_function_return(func, parm);
 
 	func= RNA_def_function(srna, "remove", "rna_MetaBall_elements_remove");
-	RNA_def_function_ui_description(func, "Remove a spline from a curve");
+	RNA_def_function_ui_description(func, "Remove an element from the metaball");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 	parm= RNA_def_pointer(func, "element", "MetaElement", "", "The element to remove");
 	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_NEVER_NULL);
+
+	func= RNA_def_function(srna, "clear", "rna_MetaBall_elements_clear");
+	RNA_def_function_ui_description(func, "Remove all elements from the metaball");
 
 	prop= RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "lastelem");
@@ -300,7 +314,7 @@ static void rna_def_metaball(BlenderRNA *brna)
 	/* texture space */
 	prop= RNA_def_property(srna, "use_auto_texspace", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "texflag", MB_AUTOSPACE);
-	RNA_def_property_ui_text(prop, "Auto Texture Space", "Adjusts active object's texture space automatically when transforming object");
+	RNA_def_property_ui_text(prop, "Auto Texture Space", "Adjust active object's texture space automatically when transforming object");
 	
 	prop= RNA_def_property(srna, "texspace_location", PROP_FLOAT, PROP_TRANSLATION);
 	RNA_def_property_array(prop, 3);
@@ -317,11 +331,12 @@ static void rna_def_metaball(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_MetaBall_update_data");
 	
 	/* not supported yet
-	 prop= RNA_def_property(srna, "texspace_rot", PROP_FLOAT, PROP_EULER);
-	 RNA_def_property_float(prop, NULL, "rot");
-	 RNA_def_property_ui_text(prop, "Texture Space Rotation", "Texture space rotation");
-	 RNA_def_property_editable_func(prop, "rna_Meta_texspace_editable");
-	 RNA_def_property_update(prop, 0, "rna_MetaBall_update_data");*/
+	prop= RNA_def_property(srna, "texspace_rot", PROP_FLOAT, PROP_EULER);
+	RNA_def_property_float(prop, NULL, "rot");
+	RNA_def_property_ui_text(prop, "Texture Space Rotation", "Texture space rotation");
+	RNA_def_property_editable_func(prop, "rna_Meta_texspace_editable");
+	RNA_def_property_update(prop, 0, "rna_MetaBall_update_data");
+	*/
 	
 	/* materials */
 	prop= RNA_def_property(srna, "materials", PROP_COLLECTION, PROP_NONE);

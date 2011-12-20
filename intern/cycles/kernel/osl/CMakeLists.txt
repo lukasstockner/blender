@@ -1,7 +1,7 @@
 
 set(INC
 	.
-	../
+	..
 	../svm
 	../../render
 	../../util
@@ -12,6 +12,7 @@ set(SRC
 	background.cpp
 	bsdf_ashikhmin_velvet.cpp
 	bsdf_diffuse.cpp
+	bsdf_oren_nayar.cpp
 	bsdf_microfacet.cpp
 	bsdf_reflection.cpp
 	bsdf_refraction.cpp

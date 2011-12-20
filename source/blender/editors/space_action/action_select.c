@@ -269,11 +269,16 @@ static int actkeys_borderselect_exec(bContext *C, wmOperator *op)
 	bAnimContext ac;
 	rcti rect;
 	short mode=0, selectmode=0;
-	int gesture_mode;
+	int gesture_mode, extend;
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
+
+	/* clear all selection if not extending selection */
+	extend= RNA_boolean_get(op->ptr, "extend");
+	if (!extend)
+		deselect_action_keys(&ac, 1, SELECT_SUBTRACT);
 	
 	/* get settings from operator */
 	rect.xmin= RNA_int_get(op->ptr, "xmin");
@@ -330,7 +335,7 @@ void ACTION_OT_select_border(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* rna */
-	WM_operator_properties_gesture_border(ot, FALSE);
+	WM_operator_properties_gesture_border(ot, TRUE);
 	
 	ot->prop= RNA_def_boolean(ot->srna, "axis_range", 0, "Axis Range", "");
 }
@@ -355,6 +360,8 @@ static EnumPropertyItem prop_column_select_types[] = {
 /* ------------------- */ 
 
 /* Selects all visible keyframes between the specified markers */
+/* TODO, this is almost an _exact_ duplicate of a function of the same name in graph_select.c
+ * should de-duplicate - campbell */
 static void markers_selectkeys_between (bAnimContext *ac)
 {
 	ListBase anim_data = {NULL, NULL};
@@ -728,8 +735,9 @@ static void actkeys_select_leftright (bAnimContext *ac, short leftright, short s
 	if (select_mode==SELECT_REPLACE) {
 		select_mode= SELECT_ADD;
 		
-		/* deselect all other channels and keyframes */
-		ANIM_deselect_anim_channels(ac, ac->data, ac->datatype, 0, ACHANNEL_SETFLAG_CLEAR);
+		/* - deselect all other keyframes, so that just the newly selected remain
+		 * - channels aren't deselected, since we don't re-select any as a consequence
+		 */
 		deselect_action_keys(ac, 0, SELECT_SUBTRACT);
 	}
 	
@@ -917,8 +925,6 @@ static void actkeys_mselect_column(bAnimContext *ac, short select_mode, float se
 	
 	KeyframeEditFunc select_cb, ok_cb;
 	KeyframeEditData ked= {{NULL}};
-	
-	/* initialise keyframe editing data */
 	
 	/* set up BezTriple edit callbacks */
 	select_cb= ANIM_editkeyframes_select(select_mode);

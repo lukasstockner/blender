@@ -62,13 +62,14 @@ static bNodeSocketTemplate cmp_node_bilateralblur_out[]= {
 #define KERNEL_ELEMENT_C3(k)                                                  \
 	temp_color = src + deltas[k];                                             \
 	ref_color = ref + deltas[k];                                              \
-	w = weight_tab[k] + COLOR_DISTANCE_C3(ref, ref_color )*i2sigma_color;     \
+	w = weight_tab[k] +                                                       \
+		(double)COLOR_DISTANCE_C3(ref, ref_color ) * i2sigma_color;           \
 	w = 1.0/(w*w + 1);                                                        \
 	mean0 += w;                                                               \
-	mean1[0] += temp_color[0]*w;                                              \
-	mean1[1] += temp_color[1]*w;                                              \
-	mean1[2] += temp_color[2]*w;                                              \
-	mean1[3] += temp_color[3]*w;
+	mean1[0] += (double)temp_color[0]*w;                                      \
+	mean1[1] += (double)temp_color[1]*w;                                      \
+	mean1[2] += (double)temp_color[2]*w;                                      \
+	mean1[3] += (double)temp_color[3]*w;
 
 /* write blurred values to image */
 #define UPDATE_OUTPUT_C3                                                      \
@@ -137,8 +138,8 @@ static void node_composit_exec_bilateralblur(void *UNUSED(data), bNode *node, bN
 	sigma_color= nbbd->sigma_color;
 	sigma_space= nbbd->sigma_space;
 	
-	i2sigma_color= 1. / (sigma_color * sigma_color);
-	i2sigma_space= 1. / (sigma_space * sigma_space);
+	i2sigma_color= 1.0f / (sigma_color * sigma_color);
+	i2sigma_space= 1.0f / (sigma_space * sigma_space);
 
 	INIT_3X3_DELTAS(deltas, step, pix);
 
@@ -257,17 +258,16 @@ static void node_composit_init_bilateralblur(bNodeTree *UNUSED(ntree), bNode* no
 	nbbd->sigma_space= 5.0;
 }
 
-void register_node_type_cmp_bilateralblur(ListBase *lb)
+void register_node_type_cmp_bilateralblur(bNodeTreeType *ttype)
 {
 	static bNodeType ntype;
 
-	node_type_base(&ntype, CMP_NODE_BILATERALBLUR, "Bilateral Blur", NODE_CLASS_OP_FILTER, NODE_OPTIONS);
+	node_type_base(ttype, &ntype, CMP_NODE_BILATERALBLUR, "Bilateral Blur", NODE_CLASS_OP_FILTER, NODE_OPTIONS);
 	node_type_socket_templates(&ntype, cmp_node_bilateralblur_in, cmp_node_bilateralblur_out);
 	node_type_size(&ntype, 150, 120, 200);
 	node_type_init(&ntype, node_composit_init_bilateralblur);
 	node_type_storage(&ntype, "NodeBilateralBlurData", node_free_standard_storage, node_copy_standard_storage);
 	node_type_exec(&ntype, node_composit_exec_bilateralblur);
 
-	nodeRegisterType(lb, &ntype);
+	nodeRegisterType(ttype, &ntype);
 }
-

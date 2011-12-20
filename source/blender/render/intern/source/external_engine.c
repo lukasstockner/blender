@@ -113,6 +113,12 @@ RenderEngineType *RE_engines_find(const char *idname)
 	return type;
 }
 
+int RE_engine_is_external(Render *re)
+{
+	RenderEngineType *type= RE_engines_find(re->r.engine);
+	return (type && type->render);
+}
+
 /* Create, Free */
 
 RenderEngine *RE_engine_create(RenderEngineType *type)
@@ -282,6 +288,11 @@ int RE_engine_render(Render *re, int do_all)
 	
 	if(re->result==NULL)
 		return 1;
+
+	/* set render info */
+	re->i.cfra= re->scene->r.cfra;
+	BLI_strncpy(re->i.scenename, re->scene->id.name+2, sizeof(re->i.scenename));
+	re->i.totface=re->i.totvert=re->i.totstrand=re->i.totlamp=re->i.tothalo= 0;
 
 	/* render */
 	engine = RE_engine_create(type);

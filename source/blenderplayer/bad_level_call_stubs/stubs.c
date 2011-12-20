@@ -47,6 +47,7 @@ struct CSG_VertexIteratorDescriptor;
 struct ColorBand;
 struct CurveMapping;
 struct Curve;
+struct DerivedMesh;
 struct EditBone;
 struct EditFace;
 struct EditMesh;
@@ -77,6 +78,7 @@ struct RenderEngine;
 struct RenderEngineType;
 struct RenderLayer;
 struct RenderResult;
+struct Scene;
 struct ScrArea;
 struct SculptSession;
 struct ShadeInput;
@@ -126,6 +128,11 @@ int multitex_ext(struct Tex *tex, float *texvec, float *dxt, float *dyt, int osa
 int multitex_ext_safe(struct Tex *tex, float *texvec, struct TexResult *texres){return 0;}
 int multitex_nodes(struct Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, struct TexResult *texres, short thread, short which_output, struct ShadeInput *shi, struct MTex *mtex) {return 0;}
 
+struct Material *RE_init_sample_material(struct Material *orig_mat, struct Scene *scene) {return (struct Material *)NULL;}
+void RE_free_sample_material(struct Material *mat) {}
+void RE_sample_material_color(struct Material *mat, float color[3], float *alpha, const float volume_co[3], const float surface_co[3],
+						   int face_index, short hit_quad, struct DerivedMesh *orcoDm, struct Object *ob) {}
+
 /* nodes */
 struct RenderResult *RE_GetResult(struct Render *re){return (struct RenderResult *) NULL;}
 struct Render *RE_GetRender(const char *name){return (struct Render *) NULL;}
@@ -147,7 +154,7 @@ double elbeemEstimateMemreq(int res, float sx, float sy, float sz, int refine, c
 struct Render *RE_NewRender(const char *name){return (struct Render*) NULL;}
 void RE_SwapResult(struct Render *re, struct RenderResult **rr){}
 void RE_BlenderFrame(struct Render *re, struct Scene *scene, int frame){}
-int RE_WriteEnvmapResult(struct ReportList *reports, struct Scene *scene, struct EnvMap *env, const char *relpath, int imtype, float layout[12]) { return 0; }
+int RE_WriteEnvmapResult(struct ReportList *reports, struct Scene *scene, struct EnvMap *env, const char *relpath, const char imtype, float layout[12]) { return 0; }
 
 /* rna */
 float *give_cursor(struct Scene *scene, struct View3D *v3d){return (float *) NULL;}
@@ -193,7 +200,7 @@ int ED_space_image_show_uvedit(struct SpaceImage *sima, struct Object *obedit){r
 int ED_space_image_show_render(struct SpaceImage *sima){return 0;}
 int ED_space_image_show_paint(struct SpaceImage *sima){return 0;}
 void ED_space_image_paint_update(struct wmWindowManager *wm, struct ToolSettings *settings){}
-void ED_space_image_set(struct bContext *C, struct SpaceImage *sima, struct Scene *scene, struct Object *obedit, struct Image *ima){}
+void ED_space_image_set(struct SpaceImage *sima, struct Scene *scene, struct Object *obedit, struct Image *ima){}
 struct ImBuf *ED_space_image_buffer(struct SpaceImage *sima){return (struct ImBuf *) NULL;}
 void ED_screen_set_scene(struct bContext *C, struct Scene *scene){}
 void ED_space_clip_set(struct bContext *C, struct SpaceClip *sc, struct MovieClip *clip){}
@@ -254,7 +261,9 @@ void ED_view3d_scene_layers_update(struct Main *bmain, struct Scene *scene){}
 int ED_view3d_scene_layer_set(int lay, const int *values){return 0;}
 void ED_view3d_quadview_update(struct ScrArea *sa, struct ARegion *ar){}
 void ED_view3d_from_m4(float mat[][4], float ofs[3], float quat[4], float *dist){}
-struct BGpic *ED_view3D_background_image_add(struct View3D *v3d){return (struct BGpic *) NULL;}
+struct BGpic *ED_view3D_background_image_new(struct View3D *v3d){return (struct BGpic *) NULL;}
+void ED_view3D_background_image_remove(struct View3D *v3d, struct BGpic *bgpic){}
+void ED_view3D_background_image_clear(struct View3D *v3d){}
 void view3d_apply_mat4(float mat[][4], float *ofs, float *quat, float *dist){}
 int text_file_modified(struct Text *text){return 0;}
 void ED_node_shader_default(struct Material *ma){}
@@ -262,6 +271,7 @@ void ED_screen_animation_timer_update(struct bContext *C, int redraws){}
 void ED_base_object_select(struct Base *base, short mode){}
 int ED_object_modifier_remove(struct ReportList *reports, struct Scene *scene, struct Object *ob, struct ModifierData *md){return 0;}
 int ED_object_modifier_add(struct ReportList *reports, struct Scene *scene, struct Object *ob, char *name, int type){return 0;}
+void ED_object_modifier_clear(struct Scene *scene, struct Object *ob){}
 void ED_object_enter_editmode(struct bContext *C, int flag){}
 void ED_object_exit_editmode(struct bContext *C, int flag){}
 int uiLayoutGetActive(struct uiLayout *layout){return 0;}
@@ -295,6 +305,7 @@ void ED_vgroup_vert_add(struct Object *ob, struct bDeformGroup *dg, int vertnum,
 void ED_vgroup_vert_remove(struct Object *ob, struct bDeformGroup *dg, int vertnum){}
 void ED_vgroup_vert_weight(struct Object *ob, struct bDeformGroup *dg, int vertnum){}
 void ED_vgroup_delete(struct Object *ob, struct bDeformGroup *defgroup){}
+void ED_vgroup_clear(struct Object *ob){}
 void ED_vgroup_object_is_edit_mode(struct Object *ob){}
 
 void ED_sequencer_update_view(struct bContext *C, int view){}
@@ -344,7 +355,7 @@ void uiItemS(struct uiLayout *layout){}
 void uiItemFullR(struct uiLayout *layout, struct PointerRNA *ptr, struct PropertyRNA *prop, int index, int value, int flag, char *name, int icon){}
 void uiLayoutSetContextPointer(struct uiLayout *layout, char *name, struct PointerRNA *ptr){}
 char *uiLayoutIntrospect(struct uiLayout *layout){return (char *)NULL;}
-void UI_reinit_font() {}
+void UI_reinit_font(void) {}
 
 /* rna template */
 void uiTemplateAnyID(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, char *propname, char *text){}
@@ -380,6 +391,7 @@ void uiTemplateKeymapItemProperties(struct uiLayout *layout, struct PointerRNA *
 void uiTemplateMovieClip(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname, int compact){}
 void uiTemplateTrack(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname){}
 void uiTemplateMarker(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, PointerRNA *userptr, PointerRNA *trackptr, int compact){}
+void uiTemplateImageSettings(struct uiLayout *layout, struct PointerRNA *imfptr){}
 
 /* rna render */
 struct RenderResult *RE_engine_begin_result(struct RenderEngine *engine, int x, int y, int w, int h){return (struct RenderResult *) NULL;}
@@ -447,7 +459,7 @@ void BPY_text_free_code(struct Text *text) {}
 void BPY_id_release(struct Text *text) {}
 int BPY_context_member_get(struct Context *C, const char *member, struct bContextDataResult *result) { return 0; }
 void BPY_pyconstraint_target(struct bPythonConstraint *con, struct bConstraintTarget *ct) {}
-float BPY_driver_exec(struct ChannelDriver *driver) {return 0.0f;} /* might need this one! */
+float BPY_driver_exec(struct ChannelDriver *driver, const float evaltime) {return 0.0f;} /* might need this one! */
 void BPY_DECREF(void *pyob_ptr) {}
 void BPY_pyconstraint_exec(struct bPythonConstraint *con, struct bConstraintOb *cob, struct ListBase *targets) {}
 void macro_wrapper(struct wmOperatorType *ot, void *userdata) {} ;

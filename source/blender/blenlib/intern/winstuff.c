@@ -47,13 +47,14 @@
 #define WIN32_SKIP_HKEY_PROTECTION		// need to use HKEY
 #include "BLI_winstuff.h"
 
- /* FILE_MAXDIR + FILE_MAXFILE */
+ /* FILE_MAX */
 
-int BLI_getInstallationDir( char * str ) {
+int BLI_getInstallationDir( char * str )
+{
 	char dir[FILE_MAXDIR];
 	int a;
 	
-	GetModuleFileName(NULL,str,FILE_MAXDIR+FILE_MAXFILE);
+	GetModuleFileName(NULL,str,FILE_MAX);
 	BLI_split_dir_part(str, dir, sizeof(dir)); /* shouldn't be relative */
 	a = strlen(dir);
 	if(dir[a-1] == '\\') dir[a-1]=0;
@@ -73,7 +74,8 @@ void RegisterBlendExtension_Fail(HKEY root)
 	TerminateProcess(GetCurrentProcess(),1);
 }
 
-void RegisterBlendExtension(void) {
+void RegisterBlendExtension(void)
+{
 	LONG lresult;
 	HKEY hkey = 0;
 	HKEY root = 0;
@@ -167,7 +169,8 @@ void RegisterBlendExtension(void) {
 	TerminateProcess(GetCurrentProcess(),0);
 }
 
-DIR *opendir (const char *path) {
+DIR *opendir (const char *path)
+{
 	if (GetFileAttributes(path) & FILE_ATTRIBUTE_DIRECTORY) {
 		DIR *newd= MEM_mallocN(sizeof(DIR), "opendir");
 
@@ -185,7 +188,8 @@ DIR *opendir (const char *path) {
 	}
 }
 
-struct dirent *readdir(DIR *dp) {
+struct dirent *readdir(DIR *dp)
+{
 	if (dp->direntry.d_name) {
 		MEM_freeN(dp->direntry.d_name);
 		dp->direntry.d_name= NULL;
@@ -208,7 +212,8 @@ struct dirent *readdir(DIR *dp) {
 	}
 }
 
-int closedir (DIR *dp) {
+int closedir (DIR *dp)
+{
 	if (dp->direntry.d_name) MEM_freeN(dp->direntry.d_name);
 	if (dp->handle!=INVALID_HANDLE_VALUE) FindClose(dp->handle);
 
@@ -217,7 +222,8 @@ int closedir (DIR *dp) {
 	return 0;
 }
 
-void get_default_root(char* root) {
+void get_default_root(char* root)
+{
 	char str[MAX_PATH+1];
 	
 	/* the default drive to resolve a directory without a specified drive 

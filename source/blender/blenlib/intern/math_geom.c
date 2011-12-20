@@ -133,10 +133,11 @@ float area_poly_v3(int nr, float verts[][3], const float normal[3])
 	float *cur, *prev;
 	int a, px=0, py=1;
 
-	/* first: find dominant axis: 0==X, 1==Y, 2==Z */
-	x= (float)fabs(normal[0]);
-	y= (float)fabs(normal[1]);
-	z= (float)fabs(normal[2]);
+	/* first: find dominant axis: 0==X, 1==Y, 2==Z
+	 * don't use 'axis_dominant_v3()' because we need max axis too */
+	x= fabsf(normal[0]);
+	y= fabsf(normal[1]);
+	z= fabsf(normal[2]);
 	max = MAX3(x, y, z);
 	if(max==y) py=2;
 	else if(max==x) {
@@ -207,19 +208,76 @@ float dist_to_line_segment_v2(const float v1[2], const float v2[2], const float 
 	return sqrtf(rc[0]*rc[0]+ rc[1]*rc[1]);
 }
 
+/* point closest to v1 on line v2-v3 in 2D */
+void closest_to_line_segment_v2(float close_r[2], const float p[2], const float l1[2], const float l2[2])
+{
+	float lambda, cp[2];
+
+	lambda= closest_to_line_v2(cp,p, l1, l2);
+
+	if(lambda <= 0.0f)
+		copy_v2_v2(close_r, l1);
+	else if(lambda >= 1.0f)
+		copy_v2_v2(close_r, l2);
+	else
+		copy_v2_v2(close_r, cp);
+}
+
 /* point closest to v1 on line v2-v3 in 3D */
-void closest_to_line_segment_v3(float closest[3], const float v1[3], const float v2[3], const float v3[3])
+void closest_to_line_segment_v3(float close_r[3], const float v1[3], const float v2[3], const float v3[3])
 {
 	float lambda, cp[3];
 
 	lambda= closest_to_line_v3(cp,v1, v2, v3);
 
 	if(lambda <= 0.0f)
-		copy_v3_v3(closest, v2);
+		copy_v3_v3(close_r, v2);
 	else if(lambda >= 1.0f)
-		copy_v3_v3(closest, v3);
+		copy_v3_v3(close_r, v3);
 	else
-		copy_v3_v3(closest, cp);
+		copy_v3_v3(close_r, cp);
+}
+
+/* find the closest point on a plane to another point and store it in close_r
+ * close_r:       return coordinate
+ * plane_co:      a point on the plane
+ * plane_no_unit: the plane's normal, and d is the last number in the plane equation 0 = ax + by + cz + d
+ * pt:            the point that you want the nearest of
+ */
+
+// const float norm[3], const float coord[3], const float point[3], float dst_r[3]
+void closest_to_plane_v3(float close_r[3], const float plane_co[3], const float plane_no_unit[3], const float pt[3])
+{
+	float temp[3];
+	float dotprod;
+
+	sub_v3_v3v3(temp, pt, plane_co);
+	dotprod= dot_v3v3(temp, plane_no_unit);
+
+	close_r[0] = pt[0] - (plane_no_unit[0] * dotprod);
+	close_r[1] = pt[1] - (plane_no_unit[1] * dotprod);
+	close_r[2] = pt[2] - (plane_no_unit[2] * dotprod);
+}
+
+/* signed distance from the point to the plane in 3D */
+float dist_to_plane_normalized_v3(const float p[3], const float plane_co[3], const float plane_no_unit[3])
+{
+	float plane_co_other[3];
+
+	add_v3_v3v3(plane_co_other, plane_co, plane_no_unit);
+
+	return line_point_factor_v3(p, plane_co, plane_co_other);
+}
+
+float dist_to_plane_v3(const float p[3], const float plane_co[3], const float plane_no[3])
+{
+	float plane_no_unit[3];
+	float plane_co_other[3];
+
+	normalize_v3_v3(plane_no_unit, plane_no);
+	add_v3_v3v3(plane_co_other, plane_co, plane_no_unit);
+
+	return line_point_factor_v3(p, plane_co, plane_co_other);
 }
 
 /* distance v1 to line-piece v2-v3 in 3D */
@@ -574,7 +632,9 @@ int isect_point_quad_v2(const float pt[2], const float v1[2], const float v2[2],
    test if the line starting at p1 ending at p2 intersects the triangle v0..v2
    return non zero if it does 
 */
-int isect_line_tri_v3(const float p1[3], const float p2[3], const float v0[3], const float v1[3], const float v2[3], float *lambda, float uv[2])
+int isect_line_tri_v3(const float p1[3], const float p2[3],
+                      const float v0[3], const float v1[3], const float v2[3],
+                      float *r_lambda, float r_uv[2])
 {
 
 	float p[3], s[3], d[3], e1[3], e2[3], q[3];
@@ -599,12 +659,12 @@ int isect_line_tri_v3(const float p1[3], const float p2[3], const float v0[3], c
 	v = f * dot_v3v3(d, q);
 	if ((v < 0.0f)||((u + v) > 1.0f)) return 0;
 
-	*lambda = f * dot_v3v3(e2, q);
-	if ((*lambda < 0.0f)||(*lambda > 1.0f)) return 0;
+	*r_lambda = f * dot_v3v3(e2, q);
+	if ((*r_lambda < 0.0f)||(*r_lambda > 1.0f)) return 0;
 
-	if(uv) {
-		uv[0]= u;
-		uv[1]= v;
+	if(r_uv) {
+		r_uv[0]= u;
+		r_uv[1]= v;
 	}
 	
 	return 1;
@@ -613,7 +673,9 @@ int isect_line_tri_v3(const float p1[3], const float p2[3], const float v0[3], c
    test if the ray starting at p1 going in d direction intersects the triangle v0..v2
    return non zero if it does 
 */
-int isect_ray_tri_v3(const float p1[3], const float d[3], const float v0[3], const float v1[3], const float v2[3], float *lambda, float uv[2])
+int isect_ray_tri_v3(const float p1[3], const float d[3],
+                     const float v0[3], const float v1[3], const float v2[3],
+                     float *r_lambda, float r_uv[2])
 {
 	float p[3], s[3], e1[3], e2[3], q[3];
 	float a, f, u, v;
@@ -638,18 +700,20 @@ int isect_ray_tri_v3(const float p1[3], const float d[3], const float v0[3], con
 	v = f * dot_v3v3(d, q);
 	if ((v < 0.0f)||((u + v) > 1.0f)) return 0;
 
-	*lambda = f * dot_v3v3(e2, q);
-	if ((*lambda < 0.0f)) return 0;
+	*r_lambda = f * dot_v3v3(e2, q);
+	if ((*r_lambda < 0.0f)) return 0;
 
-	if(uv) {
-		uv[0]= u;
-		uv[1]= v;
+	if(r_uv) {
+		r_uv[0]= u;
+		r_uv[1]= v;
 	}
 	
 	return 1;
 }
 
-int isect_ray_plane_v3(float p1[3], float d[3], float v0[3], float v1[3], float v2[3], float *lambda, int clip)
+int isect_ray_plane_v3(const float p1[3], const float d[3],
+                       const float v0[3], const float v1[3], const float v2[3],
+                       float *r_lambda, const int clip)
 {
 	float p[3], s[3], e1[3], e2[3], q[3];
 	float a, f;
@@ -673,13 +737,15 @@ int isect_ray_plane_v3(float p1[3], float d[3], float v0[3], float v1[3], float 
 	
 	/* v = f * dot_v3v3(d, q); */ /*UNUSED*/
 
-	*lambda = f * dot_v3v3(e2, q);
-	if (clip && (*lambda < 0.0f)) return 0;
+	*r_lambda = f * dot_v3v3(e2, q);
+	if (clip && (*r_lambda < 0.0f)) return 0;
 
 	return 1;
 }
 
-int isect_ray_tri_epsilon_v3(const float p1[3], const float d[3], const float v0[3], const float v1[3], const float v2[3], float *lambda, float uv[2], const float epsilon)
+int isect_ray_tri_epsilon_v3(const float p1[3], const float d[3],
+                             const float v0[3], const float v1[3], const float v2[3],
+                             float *r_lambda, float uv[2], const float epsilon)
 {
 	float p[3], s[3], e1[3], e2[3], q[3];
 	float a, f, u, v;
@@ -702,8 +768,8 @@ int isect_ray_tri_epsilon_v3(const float p1[3], const float d[3], const float v0
 	v = f * dot_v3v3(d, q);
 	if ((v < -epsilon)||((u + v) > 1.0f+epsilon)) return 0;
 
-	*lambda = f * dot_v3v3(e2, q);
-	if ((*lambda < 0.0f)) return 0;
+	*r_lambda = f * dot_v3v3(e2, q);
+	if ((*r_lambda < 0.0f)) return 0;
 
 	if(uv) {
 		uv[0]= u;
@@ -713,7 +779,9 @@ int isect_ray_tri_epsilon_v3(const float p1[3], const float d[3], const float v0
 	return 1;
 }
 
-int isect_ray_tri_threshold_v3(const float p1[3], const float d[3], const float v0[3], const float v1[3], const float v2[3], float *lambda, float *uv, const float threshold)
+int isect_ray_tri_threshold_v3(const float p1[3], const float d[3],
+                               const float v0[3], const float v1[3], const float v2[3],
+                               float *r_lambda, float r_uv[2], const float threshold)
 {
 	float p[3], s[3], e1[3], e2[3], q[3];
 	float a, f, u, v;
@@ -730,8 +798,8 @@ int isect_ray_tri_threshold_v3(const float p1[3], const float d[3], const float 
 	sub_v3_v3v3(s, p1, v0);
 	
 	cross_v3_v3v3(q, s, e1);
-	*lambda = f * dot_v3v3(e2, q);
-	if ((*lambda < 0.0f)) return 0;
+	*r_lambda = f * dot_v3v3(e2, q);
+	if ((*r_lambda < 0.0f)) return 0;
 	
 	u = f * dot_v3v3(s, p);
 	v = f * dot_v3v3(d, q);
@@ -755,9 +823,9 @@ int isect_ray_tri_threshold_v3(const float p1[3], const float d[3], const float 
 		return 0;
 	}
 
-	if(uv) {
-		uv[0]= u;
-		uv[1]= v;
+	if(r_uv) {
+		r_uv[0]= u;
+		r_uv[1]= v;
 	}
 	
 	return 1;
@@ -806,6 +874,19 @@ int isect_line_plane_v3(float out[3], const float l1[3], const float l2[3], cons
 	}
 }
 
+/* note: return normal isnt unit length */
+void isect_plane_plane_v3(float r_isect_co[3], float r_isect_no[3],
+                          const float plane_a_co[3], const float plane_a_no[3],
+                          const float plane_b_co[3], const float plane_b_no[3])
+{
+	float plane_a_co_other[3];
+	cross_v3_v3v3(r_isect_no, plane_a_no, plane_b_no); /* direction is simply the cross product */
+	cross_v3_v3v3(plane_a_co_other, plane_a_no, r_isect_no);
+	add_v3_v3(plane_a_co_other, plane_a_co);
+	isect_line_plane_v3(r_isect_co, plane_a_co, plane_a_co_other, plane_b_co, plane_b_no, FALSE);
+}
+
+
 /* Adapted from the paper by Kasper Fauerby */
 /* "Improved Collision detection and Response" */
 static int getLowestRoot(const float a, const float b, const float c, const float maxR, float *root)
@@ -845,7 +926,10 @@ static int getLowestRoot(const float a, const float b, const float c, const floa
 	return 0;
 }
 
-int isect_sweeping_sphere_tri_v3(const float p1[3], const float p2[3], const float radius, const float v0[3], const float v1[3], const float v2[3], float *lambda, float ipoint[3])
+int isect_sweeping_sphere_tri_v3(
+        const float p1[3], const float p2[3], const float radius,
+        const float v0[3], const float v1[3], const float v2[3],
+        float *r_lambda, float ipoint[3])
 {
 	float e1[3], e2[3], e3[3], point[3], vel[3], /*dist[3],*/ nor[3], temp[3], bv[3];
 	float a, b, c, d, e, x, y, z, radius2=radius*radius;
@@ -912,14 +996,14 @@ int isect_sweeping_sphere_tri_v3(const float p1[3], const float p2[3], const flo
 		if(z <= 0.0f && (x >= 0.0f && y >= 0.0f))
 		{
 		//(((unsigned int)z)& ~(((unsigned int)x)|((unsigned int)y))) & 0x80000000){
-			*lambda=t0;
+			*r_lambda=t0;
 			copy_v3_v3(ipoint,point);
 			return 1;
 		}
 	}
 
 
-	*lambda=1.0f;
+	*r_lambda=1.0f;
 
 /*---test points---*/
 	a=dot_v3v3(vel,vel);
@@ -929,7 +1013,7 @@ int isect_sweeping_sphere_tri_v3(const float p1[3], const float p2[3], const flo
 	b=2.0f*dot_v3v3(vel,temp);
 	c=dot_v3v3(temp,temp)-radius2;
 
-	if(getLowestRoot(a, b, c, *lambda, lambda))
+	if(getLowestRoot(a, b, c, *r_lambda, r_lambda))
 	{
 		copy_v3_v3(ipoint,v0);
 		found_by_sweep=1;
@@ -940,7 +1024,7 @@ int isect_sweeping_sphere_tri_v3(const float p1[3], const float p2[3], const flo
 	b=2.0f*dot_v3v3(vel,temp);
 	c=dot_v3v3(temp,temp)-radius2;
 
-	if(getLowestRoot(a, b, c, *lambda, lambda))
+	if(getLowestRoot(a, b, c, *r_lambda, r_lambda))
 	{
 		copy_v3_v3(ipoint,v1);
 		found_by_sweep=1;
@@ -951,7 +1035,7 @@ int isect_sweeping_sphere_tri_v3(const float p1[3], const float p2[3], const flo
 	b=2.0f*dot_v3v3(vel,temp);
 	c=dot_v3v3(temp,temp)-radius2;
 
-	if(getLowestRoot(a, b, c, *lambda, lambda))
+	if(getLowestRoot(a, b, c, *r_lambda, r_lambda))
 	{
 		copy_v3_v3(ipoint,v2);
 		found_by_sweep=1;
@@ -972,13 +1056,13 @@ int isect_sweeping_sphere_tri_v3(const float p1[3], const float p2[3], const flo
 	b=2.0f*(elen2*dot_v3v3(vel,bv)-edotv*edotbv);
 	c=elen2*(radius2-dot_v3v3(bv,bv))+edotbv*edotbv;
 
-	if(getLowestRoot(a, b, c, *lambda, &newLambda))
+	if(getLowestRoot(a, b, c, *r_lambda, &newLambda))
 	{
 		e=(edotv*newLambda-edotbv)/elen2;
 
 		if(e >= 0.0f && e <= 1.0f)
 		{
-			*lambda = newLambda;
+			*r_lambda = newLambda;
 			copy_v3_v3(ipoint,e1);
 			mul_v3_fl(ipoint,e);
 			add_v3_v3(ipoint, v0);
@@ -996,13 +1080,13 @@ int isect_sweeping_sphere_tri_v3(const float p1[3], const float p2[3], const flo
 	b=2.0f*(elen2*dot_v3v3(vel,bv)-edotv*edotbv);
 	c=elen2*(radius2-dot_v3v3(bv,bv))+edotbv*edotbv;
 
-	if(getLowestRoot(a, b, c, *lambda, &newLambda))
+	if(getLowestRoot(a, b, c, *r_lambda, &newLambda))
 	{
 		e=(edotv*newLambda-edotbv)/elen2;
 
 		if(e >= 0.0f && e <= 1.0f)
 		{
-			*lambda = newLambda;
+			*r_lambda = newLambda;
 			copy_v3_v3(ipoint,e2);
 			mul_v3_fl(ipoint,e);
 			add_v3_v3(ipoint, v0);
@@ -1025,13 +1109,13 @@ int isect_sweeping_sphere_tri_v3(const float p1[3], const float p2[3], const flo
 	b=2.0f*(elen2*dot_v3v3(vel,bv)-edotv*edotbv);
 	c=elen2*(radius2-dot_v3v3(bv,bv))+edotbv*edotbv;
 
-	if(getLowestRoot(a, b, c, *lambda, &newLambda))
+	if(getLowestRoot(a, b, c, *r_lambda, &newLambda))
 	{
 		e=(edotv*newLambda-edotbv)/elen2;
 
 		if(e >= 0.0f && e <= 1.0f)
 		{
-			*lambda = newLambda;
+			*r_lambda = newLambda;
 			copy_v3_v3(ipoint,e3);
 			mul_v3_fl(ipoint,e);
 			add_v3_v3(ipoint, v1);
@@ -1042,7 +1126,8 @@ int isect_sweeping_sphere_tri_v3(const float p1[3], const float p2[3], const flo
 
 	return found_by_sweep;
 }
-int isect_axial_line_tri_v3(const int axis, const float p1[3], const float p2[3], const float v0[3], const float v1[3], const float v2[3], float *lambda)
+int isect_axial_line_tri_v3(const int axis, const float p1[3], const float p2[3],
+                            const float v0[3], const float v1[3], const float v2[3], float *r_lambda)
 {
 	float p[3], e1[3], e2[3];
 	float u, v, f;
@@ -1079,9 +1164,9 @@ int isect_axial_line_tri_v3(const int axis, const float p1[3], const float p2[3]
 
 	if ((u < 0.0f) || ((u + v) > 1.0f)) return 0;
 
-	*lambda = (p[a0]+u*e1[a0]+v*e2[a0])/(p2[a0]-p1[a0]);
+	*r_lambda = (p[a0]+u*e1[a0]+v*e2[a0])/(p2[a0]-p1[a0]);
 
-	if ((*lambda < 0.0f) || (*lambda > 1.0f)) return 0;
+	if ((*r_lambda < 0.0f) || (*r_lambda > 1.0f)) return 0;
 
 	return 1;
 }
@@ -1155,7 +1240,7 @@ int isect_line_line_v3(const float v1[3], const float v2[3], const float v3[3], 
 /* Intersection point strictly between the two lines
  * 0 when no intersection is found 
  * */
-int isect_line_line_strict_v3(const float v1[3], const float v2[3], const float v3[3], const float v4[3], float vi[3], float *lambda)
+int isect_line_line_strict_v3(const float v1[3], const float v2[3], const float v3[3], const float v4[3], float vi[3], float *r_lambda)
 {
 	float a[3], b[3], c[3], ab[3], cb[3], ca[3], dir1[3], dir2[3];
 	float d;
@@ -1189,12 +1274,9 @@ int isect_line_line_strict_v3(const float v1[3], const float v2[3], const float 
 		{
 			mul_v3_fl(a, f1);
 			add_v3_v3v3(vi, v1, a);
-			
-			if (lambda != NULL)
-			{
-				*lambda = f1;
-			}
-			
+
+			if (r_lambda) *r_lambda = f1;
+
 			return 1; /* intersection found */
 		}
 		else
@@ -1258,7 +1340,7 @@ float line_point_factor_v2(const float p[2], const float l1[2], const float l2[2
 }
 
 /* Similar to LineIntersectsTriangleUV, except it operates on a quad and in 2d, assumes point is in quad */
-void isect_point_quad_uv_v2(const float v0[2], const float v1[2], const float v2[2], const float v3[2], const float pt[2], float *uv)
+void isect_point_quad_uv_v2(const float v0[2], const float v1[2], const float v2[2], const float v3[2], const float pt[2], float r_uv[2])
 {
 	float x0,y0, x1,y1, wtot, v2d[2], w1, w2;
 	
@@ -1283,7 +1365,7 @@ void isect_point_quad_uv_v2(const float v0[2], const float v1[2], const float v2
 		wtot = w1+w2;
 		/*w1 = w1/wtot;*/
 		/*w2 = w2/wtot;*/
-		uv[0] = w1/wtot;
+		r_uv[0] = w1/wtot;
 	} else {
 		/* lines are parallel, lambda_cp_line_ex is 3d grrr */
 		/*printf("\tparallel1\n");*/
@@ -1305,7 +1387,7 @@ void isect_point_quad_uv_v2(const float v0[2], const float v1[2], const float v2
 		v2d[1] = pt[1]-pt_on_line[1];
 		w2 = len_v2(v2d);
 		wtot = w1+w2;
-		uv[0] = w1/wtot;	
+		r_uv[0] = w1/wtot;
 	}
 	
 	/* Same as above to calc the uv[1] value, alternate calculation */
@@ -1323,7 +1405,7 @@ void isect_point_quad_uv_v2(const float v0[2], const float v1[2], const float v2
 		v2d[1] = y1-v1[1];
 		w2 = len_v2(v2d);
 		wtot = w1+w2;
-		uv[1] = w1/wtot;
+		r_uv[1] = w1/wtot;
 	} else {
 		/* lines are parallel, lambda_cp_line_ex is 3d grrr */
 		/*printf("\tparallel2\n");*/
@@ -1346,23 +1428,23 @@ void isect_point_quad_uv_v2(const float v0[2], const float v1[2], const float v2
 		v2d[1] = pt[1]-pt_on_line[1];
 		w2 = len_v2(v2d);
 		wtot = w1+w2;
-		uv[1] = w1/wtot;
+		r_uv[1] = w1/wtot;
 	}
 	/* may need to flip UV's here */
 }
 
 /* same as above but does tri's and quads, tri's are a bit of a hack */
-void isect_point_face_uv_v2(const int isquad, const float v0[2], const float v1[2], const float v2[2], const float v3[2], const float pt[2], float *uv)
+void isect_point_face_uv_v2(const int isquad, const float v0[2], const float v1[2], const float v2[2], const float v3[2], const float pt[2], float r_uv[2])
 {
 	if (isquad) {
-		isect_point_quad_uv_v2(v0, v1, v2, v3, pt, uv);
+		isect_point_quad_uv_v2(v0, v1, v2, v3, pt, r_uv);
 	}
 	else {
 		/* not for quads, use for our abuse of LineIntersectsTriangleUV */
 		float p1_3d[3], p2_3d[3], v0_3d[3], v1_3d[3], v2_3d[3], lambda;
 			
-		p1_3d[0] = p2_3d[0] = uv[0];
-		p1_3d[1] = p2_3d[1] = uv[1];
+		p1_3d[0] = p2_3d[0] = r_uv[0];
+		p1_3d[1] = p2_3d[1] = r_uv[1];
 		p1_3d[2] = 1.0f;
 		p2_3d[2] = -1.0f;
 		v0_3d[2] = v1_3d[2] = v2_3d[2] = 0.0;
@@ -1379,7 +1461,7 @@ void isect_point_face_uv_v2(const int isquad, const float v0[2], const float v1[
 		copy_v2_v2(v2_3d, v2);
 		
 		/* Doing this in 3D is not nice */
-		isect_line_tri_v3(p1_3d, p2_3d, v0_3d, v1_3d, v2_3d, &lambda, uv);
+		isect_line_tri_v3(p1_3d, p2_3d, v0_3d, v1_3d, v2_3d, &lambda, r_uv);
 	}
 }
 
@@ -1629,6 +1711,18 @@ void plot_line_v2v2i(const int p1[2], const int p2[2], int (*callback)(int, int,
 
 /****************************** Interpolation ********************************/
 
+/* get the 2 dominant axis values, 0==X, 1==Y, 2==Z */
+void axis_dominant_v3(int *axis_a, int *axis_b, const float axis[3])
+{
+	const float xn= fabsf(axis[0]);
+	const float yn= fabsf(axis[1]);
+	const float zn= fabsf(axis[2]);
+
+	if      (zn >= xn && zn >= yn) { *axis_a= 0; *axis_b= 1; }
+	else if (yn >= xn && yn >= zn) { *axis_a= 0; *axis_b= 2; }
+	else                           { *axis_a= 1; *axis_b= 2; }
+}
+
 static float tri_signed_area(const float v1[3], const float v2[3], const float v3[3], const int i, const int j)
 {
 	return 0.5f*((v1[i]-v2[i])*(v2[j]-v3[j]) + (v1[j]-v2[j])*(v3[i]-v2[i]));
@@ -1636,17 +1730,10 @@ static float tri_signed_area(const float v1[3], const float v2[3], const float v
 
 static int barycentric_weights(const float v1[3], const float v2[3], const float v3[3], const float co[3], const float n[3], float w[3])
 {
-	float xn, yn, zn, a1, a2, a3, asum;
-	short i, j;
+	float a1, a2, a3, asum;
+	int i, j;
 
-	/* find best projection of face XY, XZ or YZ: barycentric weights of
-	   the 2d projected coords are the same and faster to compute */
-	xn= (float)fabs(n[0]);
-	yn= (float)fabs(n[1]);
-	zn= (float)fabs(n[2]);
-	if(zn>=xn && zn>=yn) {i= 0; j= 1;}
-	else if(yn>=xn && yn>=zn) {i= 0; j= 2;}
-	else {i= 1; j= 2;} 
+	axis_dominant_v3(&i, &j, n);
 
 	a1= tri_signed_area(v2, v3, co, i, j);
 	a2= tri_signed_area(v3, v1, co, i, j);
@@ -1945,7 +2032,7 @@ void interp_cubic_v3(float x[3], float v[3], const float x1[3], const float v1[3
 #define IS_ZERO(x) ((x>(-DBL_EPSILON) && x<DBL_EPSILON) ? 1 : 0)
 
 /* Barycentric reverse  */
-void resolve_tri_uv(float uv[2], const float st[2], const float st0[2], const float st1[2], const float st2[2])
+void resolve_tri_uv(float r_uv[2], const float st[2], const float st0[2], const float st1[2], const float st2[2])
 {
 	/* find UV such that
 	   t= u*t0 + v*t1 + (1-u-v)*t2
@@ -1957,13 +2044,13 @@ void resolve_tri_uv(float uv[2], const float st[2], const float st0[2], const fl
 	if(IS_ZERO(det)==0)	{  /* det should never be zero since the determinant is the signed ST area of the triangle. */
 		const double x[]= {st[0]-st2[0], st[1]-st2[1]};
 
-		uv[0]= (float)((d*x[0] - b*x[1])/det);
-		uv[1]= (float)(((-c)*x[0] + a*x[1])/det);
-	} else zero_v2(uv);
+		r_uv[0]= (float)((d*x[0] - b*x[1])/det);
+		r_uv[1]= (float)(((-c)*x[0] + a*x[1])/det);
+	} else zero_v2(r_uv);
 }
 
 /* bilinear reverse */
-void resolve_quad_uv(float uv[2], const float st[2], const float st0[2], const float st1[2], const float st2[2], const float st3[2])
+void resolve_quad_uv(float r_uv[2], const float st[2], const float st0[2], const float st1[2], const float st2[2], const float st3[2])
 {
 	const double signed_area= (st0[0]*st1[1] - st0[1]*st1[0]) + (st1[0]*st2[1] - st1[1]*st2[0]) +
 	                          (st2[0]*st3[1] - st2[1]*st3[0]) + (st3[0]*st0[1] - st3[1]*st0[0]);
@@ -1981,25 +2068,25 @@ void resolve_quad_uv(float uv[2], const float st[2], const float st0[2], const f
 	const double denom= a - 2*b + fC;
 
 	// clear outputs
-	zero_v2(uv);
+	zero_v2(r_uv);
 
 	if(IS_ZERO(denom)!=0) {
 		const double fDen= a-fC;
 		if(IS_ZERO(fDen)==0)
-			uv[0]= (float)(a / fDen);
+			r_uv[0]= (float)(a / fDen);
 	} else {
 		const double desc_sq= b*b - a*fC;
 		const double desc= sqrt(desc_sq<0.0?0.0:desc_sq);
 		const double s= signed_area>0 ? (-1.0) : 1.0;
 
-		uv[0]= (float)(( (a-b) + s * desc ) / denom);
+		r_uv[0]= (float)(( (a-b) + s * desc ) / denom);
 	}
 
 	/* find UV such that
 	  fST = (1-u)(1-v)*ST0 + u*(1-v)*ST1 + u*v*ST2 + (1-u)*v*ST3 */
 	{
-		const double denom_s= (1-uv[0])*(st0[0]-st3[0]) + uv[0]*(st1[0]-st2[0]);
-		const double denom_t= (1-uv[0])*(st0[1]-st3[1]) + uv[0]*(st1[1]-st2[1]);
+		const double denom_s= (1-r_uv[0])*(st0[0]-st3[0]) + r_uv[0]*(st1[0]-st2[0]);
+		const double denom_t= (1-r_uv[0])*(st0[1]-st3[1]) + r_uv[0]*(st1[1]-st2[1]);
 		int i= 0; double denom= denom_s;
 
 		if(fabs(denom_s)<fabs(denom_t)) {
@@ -2008,7 +2095,7 @@ void resolve_quad_uv(float uv[2], const float st[2], const float st0[2], const f
 		}
 
 		if(IS_ZERO(denom)==0)
-			uv[1]= (float) (( (1.0f-uv[0])*(st0[i]-st[i]) + uv[0]*(st1[i]-st[i]) ) / denom);
+			r_uv[1]= (float) (( (1.0f-r_uv[0])*(st0[i]-st[i]) + r_uv[0]*(st1[i]-st[i]) ) / denom);
 	}
 }
 

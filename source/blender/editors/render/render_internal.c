@@ -235,7 +235,7 @@ static int screen_render_exec(bContext *C, wmOperator *op)
 	/* custom scene and single layer re-render */
 	screen_render_scene_layer_set(op, mainp, &scene, &srl);
 
-	if(!is_animation && is_write_still && BKE_imtype_is_movie(scene->r.imtype)) {
+	if(!is_animation && is_write_still && BKE_imtype_is_movie(scene->r.im_format.imtype)) {
 		BKE_report(op->reports, RPT_ERROR, "Can't write a single file with an animation format selected");
 		return OPERATOR_CANCELLED;
 	}
@@ -322,10 +322,13 @@ static void make_renderinfo_string(RenderStats *rs, Scene *scene, char *str)
 		spos+= sprintf(spos, "%s ", rs->statstr);
 	}
 	else {
-		spos+= sprintf(spos, "Fra:%d  Ve:%d Fa:%d ", (scene->r.cfra), rs->totvert, rs->totface);
+		spos+= sprintf(spos, "Fra:%d  ", (scene->r.cfra));
+		if(rs->totvert) spos+= sprintf(spos, "Ve:%d ", rs->totvert);
+		if(rs->totface) spos+= sprintf(spos, "Fa:%d ", rs->totface);
 		if(rs->tothalo) spos+= sprintf(spos, "Ha:%d ", rs->tothalo);
 		if(rs->totstrand) spos+= sprintf(spos, "St:%d ", rs->totstrand);
-		spos+= sprintf(spos, "La:%d Mem:%.2fM (%.2fM, peak %.2fM) ", rs->totlamp, megs_used_memory, mmap_used_memory, megs_peak_memory);
+		if(rs->totlamp) spos+= sprintf(spos, "La:%d ", rs->totlamp);
+		spos+= sprintf(spos, "Mem:%.2fM (%.2fM, peak %.2fM) ", megs_used_memory, mmap_used_memory, megs_peak_memory);
 
 		if(rs->curfield)
 			spos+= sprintf(spos, "Field %d ", rs->curfield);
@@ -375,8 +378,12 @@ static void render_progress_update(void *rjv, float progress)
 {
 	RenderJob *rj= rjv;
 	
-	if(rj->progress)
+	if(rj->progress && *rj->progress != progress) {
 		*rj->progress = progress;
+
+		/* make jobs timer to send notifier */
+		*(rj->do_update)= 1;
+	}
 }
 
 static void image_rect_update(void *rjv, RenderResult *rr, volatile rcti *renrect)
@@ -513,7 +520,7 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		return OPERATOR_CANCELLED;
 	}
 
-	if(!is_animation && is_write_still && BKE_imtype_is_movie(scene->r.imtype)) {
+	if(!is_animation && is_write_still && BKE_imtype_is_movie(scene->r.im_format.imtype)) {
 		BKE_report(op->reports, RPT_ERROR, "Can't write a single file with an animation format selected");
 		return OPERATOR_CANCELLED;
 	}	

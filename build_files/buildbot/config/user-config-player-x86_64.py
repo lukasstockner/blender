@@ -48,6 +48,8 @@ WITH_BF_JPEG = True
 BF_JPEG_LIB = 'libjpeg'
 BF_JPEG_LIBPATH = '/home/sources/staticlibs/lib64'
 
+WITH_BF_STATICLIBSAMPLERATE = True
+
 WITH_BF_PNG = True
 BF_PNG_LIB = 'libpng'
 BF_PNG_LIBPATH = '/home/sources/staticlibs/lib64'
@@ -85,6 +87,11 @@ WITH_BF_JACK = True
 
 # Motion Tracking
 WITH_BF_LIBMV = False
+
+# Ocean Simulation
+WITH_BF_FFTW3 = True
+WITH_BF_STATICFFTW3 = True
+WITH_BF_OCEANSIM = True
 
 # Compilation and optimization
 BF_DEBUG = False

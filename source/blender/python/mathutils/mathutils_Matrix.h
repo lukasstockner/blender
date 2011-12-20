@@ -38,21 +38,37 @@ extern PyTypeObject matrix_Type;
 #define MatrixObject_Check(_v) PyObject_TypeCheck((_v), &matrix_Type)
 #define MATRIX_MAX_DIM 4
 
+/* matrix[row][col] == MATRIX_ITEM_INDEX(matrix, row, col) */
+
+#ifdef DEBUG
+#  define MATRIX_ITEM_ASSERT(_mat, _row, _col) (BLI_assert(_row < (_mat)->row_size && _col < (_mat)->col_size))
+#else
+#  define MATRIX_ITEM_ASSERT(_mat, _row, _col) (void)0
+#endif
+
+#define MATRIX_ITEM_INDEX(_mat, _row, _col) (MATRIX_ITEM_ASSERT(_mat, _row, _col),(((_mat)->col_size * (_row)) + (_col)))
+#define MATRIX_ITEM_PTR(  _mat, _row, _col) ((_mat)->contigPtr + MATRIX_ITEM_INDEX(_mat, _row, _col))
+#define MATRIX_ITEM(      _mat, _row, _col) ((_mat)->contigPtr  [MATRIX_ITEM_INDEX(_mat, _row, _col)])
+
+#define MATRIX_ROW_INDEX(_mat, _row) (MATRIX_ITEM_INDEX(_mat, _row, 0))
+#define MATRIX_ROW_PTR(  _mat, _row) ((_mat)->contigPtr + MATRIX_ROW_INDEX(_mat, _row))
+
 typedef struct {
-	BASE_MATH_MEMBERS(contigPtr)
-	float *matrix[MATRIX_MAX_DIM];		/* ptr to the contigPtr (accessor) */
+	BASE_MATH_MEMBERS(contigPtr);
 	unsigned short row_size;
 	unsigned short col_size;
 } MatrixObject;
 
-/*struct data contains a pointer to the actual data that the
-object uses. It can use either PyMem allocated data (which will
-be stored in py_data) or be a wrapper for data allocated through
-blender (stored in blend_data). This is an either/or struct not both*/
+/* struct data contains a pointer to the actual data that the
+ * object uses. It can use either PyMem allocated data (which will
+ * be stored in py_data) or be a wrapper for data allocated through
+ * blender (stored in blend_data). This is an either/or struct not both */
 
-/*prototypes*/
-PyObject *newMatrixObject(float *mat, const unsigned short row_size, const unsigned short col_size, int type, PyTypeObject *base_type);
-PyObject *newMatrixObject_cb(PyObject *user, int row_size, int col_size, int cb_type, int cb_subtype);
+/* prototypes */
+PyObject *Matrix_CreatePyObject(float *mat,
+                                const unsigned short row_size, const unsigned short col_size,
+                                int type, PyTypeObject *base_type);
+PyObject *Matrix_CreatePyObject_cb(PyObject *user, int row_size, int col_size, int cb_type, int cb_subtype);
 
 extern int mathutils_matrix_vector_cb_index;
 extern struct Mathutils_Callback mathutils_matrix_vector_cb;

@@ -507,13 +507,13 @@ static void build_sub(PBVH *bvh, int node_index, BB *cb, BBC *prim_bbc,
 	bvh->nodes[node_index].orig_vb= bvh->nodes[node_index].vb;
 
 	end = partition_indices(bvh->prim_indices, offset, offset + count - 1,
-				axis,
-				(cb->bmax[axis] + cb->bmin[axis]) * 0.5f,
-				prim_bbc);
+	                        axis,
+	                        (cb->bmax[axis] + cb->bmin[axis]) * 0.5f,
+	                        prim_bbc);
 	check_partitioning(bvh->prim_indices, offset, offset + count - 1,
-			   axis,
-			   (cb->bmax[axis] + cb->bmin[axis]) * 0.5f,
-			   prim_bbc, end);
+	                   axis,
+	                   (cb->bmax[axis] + cb->bmin[axis]) * 0.5f,
+	                   prim_bbc, end);
 
 	build_sub(bvh, bvh->nodes[node_index].children_offset, NULL,
 		  prim_bbc, offset, end - offset);
@@ -656,12 +656,17 @@ void BLI_pbvh_free(PBVH *bvh)
 			/* if pbvh was deformed, new memory was allocated for verts/faces -- free it */
 
 			MEM_freeN(bvh->verts);
-			MEM_freeN(bvh->faces);
+			if(bvh->faces)
+				MEM_freeN(bvh->faces);
 		}
 	}
 
-	MEM_freeN(bvh->nodes);
-	MEM_freeN(bvh->prim_indices);
+	if(bvh->nodes)
+		MEM_freeN(bvh->nodes);
+
+	if(bvh->prim_indices)
+		MEM_freeN(bvh->prim_indices);
+
 	MEM_freeN(bvh);
 }
 
@@ -1126,6 +1131,9 @@ void BLI_pbvh_update(PBVH *bvh, int flag, float (*face_nors)[3])
 {
 	PBVHNode **nodes;
 	int totnode;
+
+	if(!bvh->nodes)
+		return;
 
 	BLI_pbvh_search_gather(bvh, update_search_cb, SET_INT_IN_POINTER(flag),
 		&nodes, &totnode);

@@ -73,6 +73,7 @@
 #include "render_intern.h"
 
 typedef struct OGLRender {
+	Main *bmain;
 	Render *re;
 	Scene *scene;
 
@@ -122,17 +123,6 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 
 	rr= RE_AcquireResultRead(oglrender->re);
 	
-	/* note on color management:
-	 * looked into how best to deal with color management here and found heres how it should work.
-	 *
-	 * OpenGL materials etc are color corrected, so a float buffer from the graphics card is
-	 * color corrected, without running any conversion functions.
-	 * 
-	 * With color correction disabled blender expects the rr->rectf to be non-color managed so
-	 * just do a direct copy from the byte array to the rectf with no conversion too.
-	 * notice IMB_float_from_rect has the profile set so no conversion is done.
-	 */
-
 	if(view_context) {
 		GPU_offscreen_bind(oglrender->ofs); /* bind */
 
@@ -147,7 +137,7 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 			rctf viewplane;
 			float clipsta, clipend;
 
-			int is_ortho= ED_view3d_viewplane_get(v3d, rv3d, sizex, sizey, &viewplane, &clipsta, &clipend, NULL);
+			int is_ortho= ED_view3d_viewplane_get(v3d, rv3d, sizex, sizey, &viewplane, &clipsta, &clipend);
 			if(is_ortho) orthographic_m4(winmat, viewplane.xmin, viewplane.xmax, viewplane.ymin, viewplane.ymax, -clipend, clipend);
 			else  perspective_m4(winmat, viewplane.xmin, viewplane.xmax, viewplane.ymin, viewplane.ymax, clipsta, clipend);
 		}
@@ -207,24 +197,43 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 	if((scene->r.stamp & R_STAMP_ALL) && (scene->r.stamp & R_STAMP_DRAW))
 		BKE_stamp_buf(scene, camera, NULL, rr->rectf, rr->rectx, rr->recty, 4);
 
+	/* note on color management:
+	 *
+	 * OpenGL renders into sRGB colors, but render buffers are expected to be
+	 * linear if color management is enabled. So we convert to linear here, so
+	 * the conversion back to bytes using the color management flag can make it
+	 * sRGB again, and so that e.g. openexr saving also saves the correct linear
+	 * float buffer. */
+
+	if(oglrender->scene->r.color_mgt_flag & R_COLOR_MANAGEMENT) {
+		float *rctf = rr->rectf;
+		int i;
+
+		for (i = oglrender->sizex * oglrender->sizey; i > 0; i--, rctf+=4) {
+			rctf[0]= srgb_to_linearrgb(rctf[0]);
+			rctf[1]= srgb_to_linearrgb(rctf[1]);
+			rctf[2]= srgb_to_linearrgb(rctf[2]);
+		}
+	}
+
 	RE_ReleaseResult(oglrender->re);
 
 	/* update byte from float buffer */
 	ibuf= BKE_image_acquire_ibuf(oglrender->ima, &oglrender->iuser, &lock);
 
 	if(ibuf) {
-		image_buffer_rect_update(NULL, rr, ibuf, NULL);
+		image_buffer_rect_update(scene, rr, ibuf, NULL);
 
 		if(oglrender->write_still) {
 			char name[FILE_MAX];
 			int ok;
 
-			if(scene->r.planes == 8) {
+			if(scene->r.im_format.planes == R_IMF_CHAN_DEPTH_8) {
 				IMB_color_to_bw(ibuf);
 			}
 
-			BKE_makepicstring(name, scene->r.pic, scene->r.cfra, scene->r.imtype, scene->r.scemode & R_EXTENSION, FALSE);
-			ok= BKE_write_ibuf(ibuf, name, scene->r.imtype, scene->r.subimtype, scene->r.quality); /* no need to stamp here */
+			BKE_makepicstring(name, scene->r.pic, oglrender->bmain->name, scene->r.cfra, scene->r.im_format.imtype, scene->r.scemode & R_EXTENSION, FALSE);
+			ok= BKE_write_ibuf(ibuf, name, &scene->r.im_format); /* no need to stamp here */
 			if(ok)	printf("OpenGL Render written to '%s'\n", name);
 			else	printf("OpenGL Render failed to write '%s'\n", name);
 		}
@@ -262,7 +271,7 @@ static int screen_opengl_render_init(bContext *C, wmOperator *op)
 		return 0;
 	}
 
-	if(!is_animation && is_write_still && BKE_imtype_is_movie(scene->r.imtype)) {
+	if(!is_animation && is_write_still && BKE_imtype_is_movie(scene->r.im_format.imtype)) {
 		BKE_report(op->reports, RPT_ERROR, "Can't write a single file with an animation format selected");
 		return 0;
 	}
@@ -292,6 +301,7 @@ static int screen_opengl_render_init(bContext *C, wmOperator *op)
 	oglrender->ofs= ofs;
 	oglrender->sizex= sizex;
 	oglrender->sizey= sizey;
+	oglrender->bmain= CTX_data_main(C);
 	oglrender->scene= scene;
 
 	oglrender->write_still= is_write_still && !is_animation;
@@ -305,15 +315,18 @@ static int screen_opengl_render_init(bContext *C, wmOperator *op)
 		oglrender->scene->customdata_mask_modal= ED_view3d_datamask(oglrender->scene, oglrender->v3d);
 	}
 
+	/* create render */
+	oglrender->re= RE_NewRender(scene->id.name);
+
 	/* create image and image user */
 	oglrender->ima= BKE_image_verify_viewer(IMA_TYPE_R_RESULT, "Render Result");
 	BKE_image_signal(oglrender->ima, NULL, IMA_SIGNAL_FREE);
+	BKE_image_backup_render(oglrender->scene, oglrender->ima);
 
 	oglrender->iuser.scene= scene;
 	oglrender->iuser.ok= 1;
 
-	/* create render and render result */
-	oglrender->re= RE_NewRender(scene->id.name);
+	/* create render result */
 	RE_InitState(oglrender->re, NULL, &scene->r, NULL, sizex, sizey, NULL);
 
 	rr= RE_AcquireResultWrite(oglrender->re);
@@ -330,7 +343,7 @@ static void screen_opengl_render_end(bContext *C, OGLRender *oglrender)
 	Scene *scene= oglrender->scene;
 
 	if(oglrender->mh) {
-		if(BKE_imtype_is_movie(scene->r.imtype))
+		if(BKE_imtype_is_movie(scene->r.im_format.imtype))
 			oglrender->mh->end_movie();
 	}
 
@@ -369,8 +382,8 @@ static int screen_opengl_render_anim_initialize(bContext *C, wmOperator *op)
 	scene= oglrender->scene;
 
 	oglrender->reports= op->reports;
-	oglrender->mh= BKE_get_movie_handle(scene->r.imtype);
-	if(BKE_imtype_is_movie(scene->r.imtype)) {
+	oglrender->mh= BKE_get_movie_handle(scene->r.im_format.imtype);
+	if(BKE_imtype_is_movie(scene->r.im_format.imtype)) {
 		if(!oglrender->mh->start_movie(scene, &scene->r, oglrender->sizex, oglrender->sizey, oglrender->reports)) {
 			screen_opengl_render_end(C, oglrender);
 			return 0;
@@ -390,7 +403,7 @@ static int screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 	Scene *scene= oglrender->scene;
 	ImBuf *ibuf;
 	void *lock;
-	char name[FILE_MAXDIR+FILE_MAXFILE];
+	char name[FILE_MAX];
 	int ok= 0;
 	const short  view_context= (oglrender->v3d != NULL);
 	Object *camera= NULL;
@@ -438,7 +451,7 @@ static int screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 	if(ibuf) {
 		/* color -> greyscale */
 		/* editing directly would alter the render view */
-		if(scene->r.planes == 8) {
+		if(scene->r.im_format.planes == R_IMF_PLANES_BW) {
 			ImBuf *ibuf_bw= IMB_dupImBuf(ibuf);
 			IMB_color_to_bw(ibuf_bw);
 			// IMB_freeImBuf(ibuf); /* owned by the image */
@@ -447,14 +460,14 @@ static int screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 		else {
 			/* this is lightweight & doesnt re-alloc the buffers, only do this
 			 * to save the correct bit depth since the image is always RGBA */
-			ImBuf *ibuf_cpy= IMB_allocImBuf(ibuf->x, ibuf->y, scene->r.planes, 0);
+			ImBuf *ibuf_cpy= IMB_allocImBuf(ibuf->x, ibuf->y, scene->r.im_format.planes, 0);
 			ibuf_cpy->rect= ibuf->rect;
 			ibuf_cpy->rect_float= ibuf->rect_float;
 			ibuf_cpy->zbuf_float= ibuf->zbuf_float;
 			ibuf= ibuf_cpy;
 		}
 
-		if(BKE_imtype_is_movie(scene->r.imtype)) {
+		if(BKE_imtype_is_movie(scene->r.im_format.imtype)) {
 			ok= oglrender->mh->append_movie(&scene->r, CFRA, (int*)ibuf->rect, oglrender->sizex, oglrender->sizey, oglrender->reports);
 			if(ok) {
 				printf("Append frame %d", scene->r.cfra);
@@ -462,8 +475,8 @@ static int screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 			}
 		}
 		else {
-			BKE_makepicstring(name, scene->r.pic, scene->r.cfra, scene->r.imtype, scene->r.scemode & R_EXTENSION, TRUE);
-			ok= BKE_write_ibuf_stamp(scene, camera, ibuf, name, scene->r.imtype, scene->r.subimtype, scene->r.quality);
+			BKE_makepicstring(name, scene->r.pic, oglrender->bmain->name, scene->r.cfra, scene->r.im_format.imtype, scene->r.scemode & R_EXTENSION, TRUE);
+			ok= BKE_write_ibuf_stamp(scene, camera, ibuf, name, &scene->r.im_format);
 
 			if(ok==0) {
 				printf("Write error: cannot save %s\n", name);

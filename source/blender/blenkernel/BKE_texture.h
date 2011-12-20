@@ -46,6 +46,7 @@ struct Lamp;
 struct LampRen;
 struct Material;
 struct MTex;
+struct OceanTex;
 struct ParticleSettings;
 struct PluginTex;
 struct PointDensity;
@@ -66,7 +67,7 @@ void free_plugin_tex(struct PluginTex *pit);
 
 void init_colorband(struct ColorBand *coba, int rangetype);
 struct ColorBand *add_colorband(int rangetype);
-int do_colorband(struct ColorBand *coba, float in, float out[4]);
+int do_colorband(const struct ColorBand *coba, float in, float out[4]);
 void colorband_table_RGBA(struct ColorBand *coba, float **array, int *size);
 int vergcband(const void *a1, const void *a2);
 struct CBData *colorband_element_add(struct ColorBand *coba, float position);
@@ -125,6 +126,10 @@ void BKE_free_voxeldata(struct VoxelData *vd);
 struct VoxelData *BKE_add_voxeldata(void);
 struct VoxelData *BKE_copy_voxeldata(struct VoxelData *vd);
 
+void BKE_free_oceantex(struct OceanTex *ot);
+struct OceanTex *BKE_add_oceantex(void);
+struct OceanTex *BKE_copy_oceantex(struct OceanTex *ot);
+	
 int     BKE_texture_dependsOnTime(const struct Tex *texture);
 
 #ifdef __cplusplus

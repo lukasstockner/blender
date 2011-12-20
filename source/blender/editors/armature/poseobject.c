@@ -199,7 +199,7 @@ void ED_pose_recalculate_paths(Scene *scene, Object *ob)
 /* For the object with pose/action: create path curves for selected bones 
  * This recalculates the WHOLE path within the pchan->pathsf and pchan->pathef range
  */
-static int pose_calculate_paths_exec (bContext *C, wmOperator *UNUSED(op))
+static int pose_calculate_paths_exec (bContext *C, wmOperator *op)
 {
 	ScrArea *sa= CTX_wm_area(C);
 	Scene *scene= CTX_data_scene(C);
@@ -218,7 +218,7 @@ static int pose_calculate_paths_exec (bContext *C, wmOperator *UNUSED(op))
 	CTX_DATA_BEGIN(C, bPoseChannel*, pchan, selected_pose_bones) 
 	{
 		/* verify makes sure that the selected bone has a bone with the appropriate settings */
-		animviz_verify_motionpaths(scene, ob, pchan);
+		animviz_verify_motionpaths(op->reports, scene, ob, pchan);
 	}
 	CTX_DATA_END;
 	
@@ -989,7 +989,7 @@ static void set_pose_keys (Object *ob)
 static bPoseChannel *pose_bone_do_paste (Object *ob, bPoseChannel *chan, short selOnly, short flip)
 {
 	bPoseChannel *pchan;
-	char name[32];
+	char name[MAXBONENAME];
 	short paste_ok;
 	
 	/* get the name - if flipping, we must flip this first */
@@ -1740,7 +1740,7 @@ static int pose_flip_names_exec (bContext *C, wmOperator *UNUSED(op))
 	/* loop through selected bones, auto-naming them */
 	CTX_DATA_BEGIN(C, bPoseChannel*, pchan, selected_pose_bones)
 	{
-		char newname[32];
+		char newname[MAXBONENAME];
 		flip_side_name(newname, pchan->name, TRUE);
 		ED_armature_bone_rename(arm, pchan->name, newname);
 	}

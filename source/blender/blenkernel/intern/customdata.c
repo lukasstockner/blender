@@ -90,7 +90,7 @@ typedef struct LayerTypeInfo {
 	 * count gives the number of elements in sources
 	 */
 	void (*interp)(void **sources, float *weights, float *sub_weights,
-				   int count, void *dest);
+	               int count, void *dest);
 
 	/* a function to swap the data in corners of the element */
 	void (*swap)(void *data, const int *corner_indices);
@@ -818,7 +818,7 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* 4: CD_MFACE */
 	{sizeof(MFace), "MFace", 1, NULL, NULL, NULL, NULL, NULL, NULL},
 	/* 5: CD_MTFACE */
-	{sizeof(MTFace), "MTFace", 1, "UVTex", layerCopy_tface, NULL,
+	{sizeof(MTFace), "MTFace", 1, "UVMap", layerCopy_tface, NULL,
 	 layerInterp_tface, layerSwap_tface, layerDefault_tface},
 	/* 6: CD_MCOL */
 	/* 4 MCol structs per face */
@@ -838,7 +838,7 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* 12: CD_PROP_STR */
 	{sizeof(MStringProperty), "MStringProperty",1,"String",NULL,NULL,NULL,NULL},
 	/* 13: CD_ORIGSPACE */
-	{sizeof(OrigSpaceFace), "OrigSpaceFace", 1, "UVTex", layerCopy_origspace_face, NULL,
+	{sizeof(OrigSpaceFace), "OrigSpaceFace", 1, "UVMap", layerCopy_origspace_face, NULL,
 	 layerInterp_origspace_face, layerSwap_origspace_face, layerDefault_origspace_face},
 	/* 14: CD_ORCO */
 	{sizeof(float)*3, "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
@@ -1404,7 +1404,7 @@ int CustomData_number_of_layers(const CustomData *data, int type)
 	return number;
 }
 
-void *CustomData_duplicate_referenced_layer(struct CustomData *data, int type)
+void *CustomData_duplicate_referenced_layer(struct CustomData *data, const int type, const int totelem)
 {
 	CustomDataLayer *layer;
 	int layer_index;
@@ -1416,7 +1416,20 @@ void *CustomData_duplicate_referenced_layer(struct CustomData *data, int type)
 	layer = &data->layers[layer_index];
 
 	if (layer->flag & CD_FLAG_NOFREE) {
-		layer->data = MEM_dupallocN(layer->data);
+		/* MEM_dupallocN won’t work in case of complex layers, like e.g.
+		 * CD_MDEFORMVERT, which has pointers to allocated data...
+		 * So in case a custom copy function is defined, use it!
+		 */
+		const LayerTypeInfo *typeInfo = layerType_getInfo(layer->type);
+
+		if(typeInfo->copy) {
+			char *dest_data = MEM_mallocN(typeInfo->size * totelem, "CD duplicate ref layer");
+			typeInfo->copy(layer->data, dest_data, totelem);
+			layer->data = dest_data;
+		}
+		else
+			layer->data = MEM_dupallocN(layer->data);
+
 		layer->flag &= ~CD_FLAG_NOFREE;
 	}
 
@@ -1424,7 +1437,7 @@ void *CustomData_duplicate_referenced_layer(struct CustomData *data, int type)
 }
 
 void *CustomData_duplicate_referenced_layer_named(struct CustomData *data,
-												  int type, const char *name)
+												  const int type, const char *name, const int totelem)
 {
 	CustomDataLayer *layer;
 	int layer_index;
@@ -1436,7 +1449,20 @@ void *CustomData_duplicate_referenced_layer_named(struct CustomData *data,
 	layer = &data->layers[layer_index];
 
 	if (layer->flag & CD_FLAG_NOFREE) {
-		layer->data = MEM_dupallocN(layer->data);
+		/* MEM_dupallocN won’t work in case of complex layers, like e.g.
+		 * CD_MDEFORMVERT, which has pointers to allocated data...
+		 * So in case a custom copy function is defined, use it!
+		 */
+		const LayerTypeInfo *typeInfo = layerType_getInfo(layer->type);
+
+		if(typeInfo->copy) {
+			char *dest_data = MEM_mallocN(typeInfo->size * totelem, "CD duplicate ref layer");
+			typeInfo->copy(layer->data, dest_data, totelem);
+			layer->data = dest_data;
+		}
+		else
+			layer->data = MEM_dupallocN(layer->data);
+
 		layer->flag &= ~CD_FLAG_NOFREE;
 	}
 
@@ -1995,7 +2021,8 @@ void CustomData_to_bmeshpoly(CustomData *fdata, CustomData *pdata, CustomData *l
 			CustomData_add_layer(ldata, CD_MLOOPCOL, CD_CALLOC, &(fdata->layers[i].name), 0);
 	}		
 }
-void CustomData_from_bmeshpoly(CustomData *fdata, CustomData *pdata, CustomData *ldata, int total){
+void CustomData_from_bmeshpoly(CustomData *fdata, CustomData *pdata, CustomData *ldata, int total)
+{
 	int i;
 	for(i=0; i < pdata->totlayer; i++){
 		if(pdata->layers[i].type == CD_MTEXPOLY)
@@ -2008,8 +2035,9 @@ void CustomData_from_bmeshpoly(CustomData *fdata, CustomData *pdata, CustomData 
 }
 
 
-void CustomData_bmesh_init_pool(CustomData *data, int allocsize){
-	if(data->totlayer)data->pool = BLI_mempool_create(data->totsize, allocsize, allocsize, 0);
+void CustomData_bmesh_init_pool(CustomData *data, int allocsize)
+{
+	if(data->totlayer)data->pool = BLI_mempool_create(data->totsize, allocsize, allocsize, FALSE, FALSE);
 }
 
 void CustomData_bmesh_free_block(CustomData *data, void **block)
@@ -2348,6 +2376,25 @@ void CustomData_set_layer_unique_name(CustomData *data, int index)
 		return;
 	
 	BLI_uniquename_cb(customdata_unique_check, &data_arg, typeInfo->defaultname, '.', nlayer->name, sizeof(nlayer->name));
+}
+
+void CustomData_validate_layer_name(const CustomData *data, int type, char *name, char *outname)
+{
+	int index = -1;
+
+	/* if a layer name was given, try to find that layer */
+	if(name[0])
+		index = CustomData_get_named_layer_index(data, type, name);
+
+	if(index < 0) {
+		/* either no layer was specified, or the layer we want has been
+		* deleted, so assign the active layer to name
+		*/
+		index = CustomData_get_active_layer_index(data, type);
+		strcpy(outname, data->layers[index].name);
+	}
+	else
+		strcpy(outname, name);
 }
 
 int CustomData_verify_versions(struct CustomData *data, int index)

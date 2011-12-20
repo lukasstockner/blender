@@ -42,6 +42,7 @@ Mesh::Mesh()
 {
 	need_update = true;
 	transform_applied = false;
+	transform_negative_scaled = false;
 	displacement_method = DISPLACE_BUMP;
 
 	bvh = NULL;
@@ -75,6 +76,9 @@ void Mesh::clear()
 
 	attributes.clear();
 	used_shaders.clear();
+
+	transform_applied = false;
+	transform_negative_scaled = false;
 }
 
 void Mesh::add_triangle(int v0, int v1, int v2, int shader_, bool smooth_)
@@ -116,6 +120,7 @@ void Mesh::add_face_normals()
 
 	/* compute face normals */
 	size_t triangles_size = triangles.size();
+	bool flip = transform_negative_scaled;
 
 	if(triangles_size) {
 		float3 *verts_ptr = &verts[0];
@@ -128,6 +133,9 @@ void Mesh::add_face_normals()
 			float3 v2 = verts_ptr[t.v[2]];
 
 			fN[i] = normalize(cross(v1 - v0, v2 - v0));
+
+			if(flip)
+				fN[i] = -fN[i];
 		}
 	}
 }
@@ -150,6 +158,7 @@ void Mesh::add_vertex_normals()
 
 	size_t verts_size = verts.size();
 	size_t triangles_size = triangles.size();
+	bool flip = transform_negative_scaled;
 
 	if(triangles_size) {
 		Triangle *triangles_ptr = &triangles[0];
@@ -159,8 +168,11 @@ void Mesh::add_vertex_normals()
 				vN[triangles_ptr[i].v[j]] += fN[i];
 	}
 
-	for(size_t i = 0; i < verts_size; i++)
+	for(size_t i = 0; i < verts_size; i++) {
 		vN[i] = normalize(vN[i]);
+		if(flip)
+			vN[i] = -vN[i];
+	}
 }
 
 void Mesh::pack_normals(Scene *scene, float4 *normal, float4 *vnormal)
@@ -258,15 +270,19 @@ void Mesh::compute_bvh(SceneParams *params, Progress& progress)
 void Mesh::tag_update(Scene *scene, bool rebuild)
 {
 	need_update = true;
-	if(rebuild)
+
+	if(rebuild) {
 		need_update_rebuild = true;
+		scene->light_manager->need_update = true;
+	}
+	else {
+		foreach(uint sindex, used_shaders)
+			if(scene->shaders[sindex]->has_surface_emission)
+				scene->light_manager->need_update = true;
+	}
 
 	scene->mesh_manager->need_update = true;
 	scene->object_manager->need_update = true;
-
-	foreach(uint sindex, used_shaders)
-		if(scene->shaders[sindex]->has_surface_emission)
-			scene->light_manager->need_update = true;
 }
 
 /* Mesh Manager */
@@ -673,9 +689,9 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 			if(!mesh->transform_applied) {
 				string msg = "Updating Mesh BVH ";
 				if(mesh->name == "")
-					msg += string_printf("%ld/%ld", i+1, num_instance_bvh);
+					msg += string_printf("%u/%u", (uint)(i+1), (uint)num_instance_bvh);
 				else
-					msg += string_printf("%s %ld/%ld", mesh->name.c_str(), i+1, num_instance_bvh);
+					msg += string_printf("%s %u/%u", mesh->name.c_str(), (uint)(i+1), (uint)num_instance_bvh);
 				progress.set_status(msg, "Building BVH");
 
 				mesh->compute_bvh(&scene->params, progress);

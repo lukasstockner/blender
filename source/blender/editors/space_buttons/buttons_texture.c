@@ -117,10 +117,10 @@ static void buttons_texture_users_find_nodetree(ListBase *users, ID *id,
 		for(node=ntree->nodes.first; node; node=node->next) {
 			if(node->typeinfo->nclass == NODE_CLASS_TEXTURE) {
 				PointerRNA ptr;
-				PropertyRNA *prop;
+				/* PropertyRNA *prop; */ /* UNUSED */
 
 				RNA_pointer_create(&ntree->id, &RNA_Node, node, &ptr);
-				prop = RNA_struct_find_property(&ptr, "texture");
+				/* prop = RNA_struct_find_property(&ptr, "texture"); */ /* UNUSED */
 
 				buttons_texture_user_node_add(users, id, ntree, node,
 					category, RNA_struct_ui_icon(ptr.type), node->name);
@@ -257,8 +257,8 @@ void buttons_texture_context_compute(const bContext *C, SpaceButs *sbuts)
 
 	if(!scene_use_new_shading_nodes(scene)) {
 		if(ct) {
-			MEM_freeN(ct);
 			BLI_freelistN(&ct->users);
+			MEM_freeN(ct);
 			sbuts->texuser= NULL;
 		}
 		

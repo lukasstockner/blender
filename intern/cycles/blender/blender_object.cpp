@@ -137,7 +137,7 @@ void BlenderSync::sync_light(BL::Object b_parent, int b_index, BL::Object b_ob, 
 	/* shader */
 	vector<uint> used_shaders;
 
-	find_shader(b_lamp, used_shaders);
+	find_shader(b_lamp, used_shaders, scene->default_light);
 
 	if(used_shaders.size() == 0)
 		used_shaders.push_back(scene->default_light);
@@ -171,8 +171,14 @@ void BlenderSync::sync_object(BL::Object b_parent, int b_index, BL::Object b_ob,
 	Object *object;
 	bool object_updated = false;
 
+	if(object_map.sync(&object, b_ob, b_parent, key))
+		object_updated = true;
+	
+	/* mesh sync */
+	object->mesh = sync_mesh(b_ob, object_updated);
+
 	/* object sync */
-	if(object_map.sync(&object, b_ob, b_parent, key)) {
+	if(object_updated || (object->mesh && object->mesh->need_update)) {
 		object->name = b_ob.name().c_str();
 		object->tfm = tfm;
 		
@@ -181,11 +187,7 @@ void BlenderSync::sync_object(BL::Object b_parent, int b_index, BL::Object b_ob,
 			object->visibility &= object_ray_visibility(b_parent);
 
 		object->tag_update(scene);
-		object_updated = true;
 	}
-
-	/* mesh sync */
-	object->mesh = sync_mesh(b_ob, object_updated);
 }
 
 /* Object Loop */
@@ -229,8 +231,17 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d)
 				}
 
 				object_free_duplilist(*b_ob);
+
+				/* check if we should render duplicator */
+				hide = true;
+				BL::Object::particle_systems_iterator b_psys;
+
+				for(b_ob->particle_systems.begin(b_psys); b_psys != b_ob->particle_systems.end(); ++b_psys)
+					if(b_psys->settings().use_render_emitter())
+						hide = false;
 			}
-			else {
+
+			if(!hide) {
 				/* object itself */
 				Transform tfm = get_transform(b_ob->matrix_world());
 				sync_object(*b_ob, 0, *b_ob, tfm, visibility);

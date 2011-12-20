@@ -88,7 +88,7 @@ class VIEW3D_PT_tools_objectmode(View3DPanel, Panel):
         col.operator("object.join")
 
         active_object = context.active_object
-        if active_object and active_object.type == 'MESH':
+        if active_object and active_object.type in {'MESH', 'CURVE', 'SURFACE'}:
 
             col = layout.column(align=True)
             col.label(text="Shading:")
@@ -543,6 +543,11 @@ class VIEW3D_PT_tools_brush(PaintPanel, Panel):
                     else:
                         row.prop(brush, "use_space_atten", toggle=True, text="", icon='UNLOCKED')
 
+                row.prop(brush, "strength", text="Strength", slider=True)
+                row.prop(brush, "use_pressure_strength", text="")
+
+            if tool == 'ROTATE':
+                row = col.row(align=True)
                 row.prop(brush, "strength", text="Strength", slider=True)
                 row.prop(brush, "use_pressure_strength", text="")
 

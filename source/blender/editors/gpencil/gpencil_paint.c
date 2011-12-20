@@ -105,9 +105,9 @@ typedef struct tGPsdata {
 	short flags;		/* flags that can get set during runtime */
 
 	float imat[4][4];	/* inverted transformation matrix applying when converting coords from screen-space
-						   to region space */
+						 * to region space */
 
-	float custom_color[3];	/* custom color for  */
+	float custom_color[4]; /* custom color for (?) */
 } tGPsdata;
 
 /* values for tGPsdata->status */
@@ -331,8 +331,7 @@ static short gp_stroke_addpoint (tGPsdata *p, const int mval[2], float pressure)
 			pt= (tGPspoint *)(gpd->sbuffer);
 			
 			/* store settings */
-			pt->x= mval[0];
-			pt->y= mval[1];
+			copy_v2_v2_int(&pt->x, mval);
 			pt->pressure= pressure;
 			
 			/* increment buffer size */
@@ -345,8 +344,7 @@ static short gp_stroke_addpoint (tGPsdata *p, const int mval[2], float pressure)
 			pt= ((tGPspoint *)(gpd->sbuffer) + 1);
 			
 			/* store settings */
-			pt->x= mval[0];
-			pt->y= mval[1];
+			copy_v2_v2_int(&pt->x, mval);
 			pt->pressure= pressure;
 			
 			/* if this is just the second point we've added, increment the buffer size
@@ -369,8 +367,7 @@ static short gp_stroke_addpoint (tGPsdata *p, const int mval[2], float pressure)
 		pt= ((tGPspoint *)(gpd->sbuffer) + gpd->sbuffer_size);
 		
 		/* store settings */
-		pt->x= mval[0];
-		pt->y= mval[1];
+		copy_v2_v2_int(&pt->x, mval);
 		pt->pressure= pressure;
 		
 		/* increment counters */
@@ -387,8 +384,7 @@ static short gp_stroke_addpoint (tGPsdata *p, const int mval[2], float pressure)
 		pt= (tGPspoint *)(gpd->sbuffer);
 
 		/* store settings */
-		pt->x= mval[0];
-		pt->y= mval[1];
+		copy_v2_v2_int(&pt->x, mval);
 		pt->pressure= pressure;
 
 		/* if there's stroke for this poly line session add (or replace last) point
@@ -475,9 +471,8 @@ static void gp_stroke_smooth (tGPsdata *p)
 	/* second pass: apply smoothed coordinates */
 	for (i=0, spc=smoothArray; i < gpd->sbuffer_size; i++, spc++) {
 		tGPspoint *pc= (((tGPspoint *)gpd->sbuffer) + i);
-		
-		pc->x = spc->x;
-		pc->y = spc->y;
+
+		copy_v2_v2_int(&pc->x, &spc->x);
 	}
 	
 	/* free temp array */
@@ -653,7 +648,7 @@ static void gp_stroke_newfrombuffer (tGPsdata *p)
 			depth_arr= MEM_mallocN(sizeof(float) * gpd->sbuffer_size, "depth_points");
 
 			for (i=0, ptc=gpd->sbuffer; i < gpd->sbuffer_size; i++, ptc++, pt++) {
-				mval[0]= ptc->x; mval[1]= ptc->y;
+				copy_v2_v2_int(mval, &ptc->x);
 
 				if ((ED_view3d_autodist_depth(p->ar, mval, depth_margin, depth_arr+i) == 0) &&
 					(i && (ED_view3d_autodist_depth_seg(p->ar, mval, mval_prev, depth_margin + 1, depth_arr+i) == 0))
@@ -1258,7 +1253,7 @@ static void gp_paint_initstroke (tGPsdata *p, short paintmode)
 
 			/* for camera view set the subrect */
 			if (rv3d->persp == RV3D_CAMOB) {
-				ED_view3d_calc_camera_border(p->scene, p->ar, v3d, rv3d, &p->subrect_data, -1); /* negative shift */
+				ED_view3d_calc_camera_border(p->scene, p->ar, v3d, rv3d, &p->subrect_data, TRUE); /* no shift */
 				p->subrect= &p->subrect_data;
 			}
 		}

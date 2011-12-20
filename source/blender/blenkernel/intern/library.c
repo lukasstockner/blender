@@ -136,9 +136,9 @@
  * from id_make_local() but then the make local functions would not be self
  * contained.
  * also note that the id _must_ have a library - campbell */
-void BKE_id_lib_local_paths(Main *bmain, ID *id)
+void BKE_id_lib_local_paths(Main *bmain, Library *lib, ID *id)
 {
-	char *bpath_user_data[2]= {bmain->name, (id)->lib->filepath};
+	char *bpath_user_data[2]= {bmain->name, lib->filepath};
 
 	bpath_traverse_id(bmain, id,
 					  bpath_relocate_visitor,
@@ -671,10 +671,10 @@ static ID *alloc_libblock_notest(short type)
 			break;
 		case ID_PA:
 			id = MEM_callocN(sizeof(ParticleSettings), "ParticleSettings");
-			  break;
+			break;
 		case ID_WM:
 			id = MEM_callocN(sizeof(wmWindowManager), "Window manager");
-			  break;
+			break;
 		case ID_GD:
 			id = MEM_callocN(sizeof(bGPdata), "Grease Pencil");
 			break;
@@ -1278,7 +1278,7 @@ int new_id(ListBase *lb, ID *id, const char *tname)
    don't have other library users. */
 void id_clear_lib_data(Main *bmain, ID *id)
 {
-	BKE_id_lib_local_paths(bmain, id);
+	BKE_id_lib_local_paths(bmain, id->lib, id);
 
 	id->lib= NULL;
 	id->flag= LIB_LOCAL;
@@ -1319,19 +1319,23 @@ static void lib_indirect_test_id(ID *id, Library *lib)
 	
 	if(GS(id->name)==ID_OB) {		
 		Object *ob= (Object *)id;
-		bActionStrip *strip;
 		Mesh *me;
 
 		int a;
-	
+
+#if 0	/* XXX OLD ANIMSYS, NLASTRIPS ARE NO LONGER USED */
 		// XXX old animation system! --------------------------------------
-		for (strip=ob->nlastrips.first; strip; strip=strip->next){
-			LIBTAG(strip->object); 
-			LIBTAG(strip->act);
-			LIBTAG(strip->ipo);
+		{
+			bActionStrip *strip;
+			for (strip=ob->nlastrips.first; strip; strip=strip->next){
+				LIBTAG(strip->object);
+				LIBTAG(strip->act);
+				LIBTAG(strip->ipo);
+			}
 		}
 		// XXX: new animation system needs something like this?
-	
+#endif
+
 		for(a=0; a<ob->totcol; a++) {
 			LIBTAG(ob->mat[a]);
 		}

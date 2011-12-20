@@ -102,8 +102,11 @@ float ED_object_new_primitive_matrix(struct bContext *C, struct Object *editob, 
 
 void ED_object_add_generic_props(struct wmOperatorType *ot, int do_editmode);
 int ED_object_add_generic_invoke(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
-int ED_object_add_generic_get_opts(struct bContext *C, struct wmOperator *op, float *loc, float *rot, int *enter_editmode, unsigned int *layer);
-struct Object *ED_object_add_type(struct bContext *C, int type, float *loc, float *rot, int enter_editmode, unsigned int layer);
+int ED_object_add_generic_get_opts(struct bContext *C, struct wmOperator *op,
+	float *loc, float *rot, int *enter_editmode, unsigned int *layer);
+
+struct Object *ED_object_add_type(struct bContext *C, int type, float *loc,
+	float *rot, int enter_editmode, unsigned int layer);
 
 void ED_object_single_users(struct Main *bmain, struct Scene *scene, int full);
 void ED_object_single_user(struct Scene *scene, struct Object *ob);
@@ -139,6 +142,7 @@ enum {
 
 struct ModifierData *ED_object_modifier_add(struct ReportList *reports, struct Main *bmain, struct Scene *scene, struct Object *ob, const char *name, int type);
 int ED_object_modifier_remove(struct ReportList *reports, struct Main *bmain, struct Scene *scene, struct Object *ob, struct ModifierData *md);
+void ED_object_modifier_clear(struct Main *bmain, struct Scene *scene, struct Object *ob);
 int ED_object_modifier_move_down(struct ReportList *reports, struct Object *ob, struct ModifierData *md);
 int ED_object_modifier_move_up(struct ReportList *reports, struct Object *ob, struct ModifierData *md);
 int ED_object_modifier_convert(struct ReportList *reports, struct Main *bmain, struct Scene *scene, struct Object *ob, struct ModifierData *md);

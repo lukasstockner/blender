@@ -76,6 +76,7 @@ protected:
 	Device() {}
 
 	bool background;
+	string error_msg;
 
 public:
 	virtual ~Device() {}
@@ -84,6 +85,7 @@ public:
 
 	/* info */
 	virtual string description() = 0;
+	const string& error_message() { return error_msg; }
 
 	/* regular memory */
 	virtual void mem_alloc(device_memory& mem, MemoryType type) = 0;
@@ -110,7 +112,7 @@ public:
 	virtual void *osl_memory() { return NULL; }
 
 	/* load/compile kernels, must be called before adding tasks */ 
-	virtual bool load_kernels() { return true; }
+	virtual bool load_kernels(bool experimental) { return true; }
 
 	/* tasks */
 	virtual void task_add(DeviceTask& task) = 0;

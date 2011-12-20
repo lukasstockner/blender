@@ -72,7 +72,7 @@ BF_JPEG_LIBPATH = '${BF_JPEG}/lib'
 WITH_BF_PNG = True
 BF_PNG = LIBDIR + '/png'
 BF_PNG_INC = '${BF_PNG}/include'
-BF_PNG_LIB = 'libpng_st'
+BF_PNG_LIB = 'libpng'
 BF_PNG_LIBPATH = '${BF_PNG}/lib'
 
 WITH_BF_TIFF = True
@@ -96,6 +96,7 @@ BF_GETTEXT_LIBPATH = '${BF_GETTEXT}/lib'
 
 WITH_BF_GAMEENGINE = True
 WITH_BF_PLAYER = True
+WITH_BF_OCEANSIM = True
 
 WITH_BF_BULLET = True
 BF_BULLET = '#extern/bullet2/src'
@@ -163,6 +164,11 @@ BF_BOOST = '${LIBDIR}/boost'
 BF_BOOST_INC = '${BF_BOOST}/include'
 BF_BOOST_LIB = 'libboost_date_time-vc90-mt-s-1_47 libboost_filesystem-vc90-mt-s-1_47 libboost_regex-vc90-mt-s-1_47 libboost_system-vc90-mt-s-1_47 libboost_thread-vc90-mt-s-1_47'
 BF_BOOST_LIBPATH = '${BF_BOOST}/lib'
+
+#CUDA
+WITH_BF_CYCLES_CUDA_BINARIES = False
+#BF_CYCLES_CUDA_NVCC = "" # Path to the nvidia compiler
+BF_CYCLES_CUDA_BINARIES_ARCH = ['sm_13', 'sm_20', 'sm_21']
 
 #Ray trace optimization
 WITH_BF_RAYOPTIMIZATION = True

@@ -36,9 +36,9 @@ class MESH_MT_vertex_group_specials(Menu):
         layout.operator("object.vertex_group_mirror", icon='ARROW_LEFTRIGHT')
         layout.operator("object.vertex_group_remove", icon='X', text="Delete All").all = True
         layout.separator()
-        layout.operator("object.vertex_group_lock", icon='LOCK', text="Lock All").action = 'SELECT'
-        layout.operator("object.vertex_group_lock", icon='UNLOCK', text="UnLock All").action = 'DESELECT'
-        layout.operator("object.vertex_group_lock", icon='LOCK', text="Lock Invert All").action = 'INVERT'
+        layout.operator("object.vertex_group_lock", icon='LOCKED', text="Lock All").action = 'SELECT'
+        layout.operator("object.vertex_group_lock", icon='UNLOCKED', text="UnLock All").action = 'DESELECT'
+        layout.operator("object.vertex_group_lock", icon='LOCKED', text="Lock Invert All").action = 'INVERT'
 
 
 class MESH_MT_shape_key_specials(Menu):
@@ -265,7 +265,7 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
 
 
 class DATA_PT_uv_texture(MeshButtonsPanel, Panel):
-    bl_label = "UV Texture"
+    bl_label = "UV Maps"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     def draw(self, context):

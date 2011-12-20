@@ -637,17 +637,20 @@ static int fluid_init_filepaths(Object *fsDomain, char *targetDir, char *targetF
 	FluidsimSettings *domainSettings= fluidmd->fss;	
 	FILE *fileCfg;
 	int dirExist = 0;
-	char newSurfdataPath[FILE_MAXDIR+FILE_MAXFILE]; // modified output settings
+	char newSurfdataPath[FILE_MAX]; // modified output settings
 	const char *suffixConfig = FLUID_SUFFIX_CONFIG;
 	int outStringsChanged = 0;
-	
-	// prepare names...
-	strncpy(targetDir, domainSettings->surfdataPath, FILE_MAXDIR);
-	strncpy(newSurfdataPath, domainSettings->surfdataPath, FILE_MAXDIR);
-	BLI_path_abs(targetDir, G.main->name); // fixed #frame-no 
 
-	// .tmp: dont overwrite/delete original file
-	BLI_snprintf(targetFile, FILE_MAXDIR+FILE_MAXFILE, "%s%s.tmp", targetDir, suffixConfig);
+	// prepare names...
+	const char *relbase= modifier_path_relbase(fsDomain);
+
+	BLI_strncpy(targetDir, domainSettings->surfdataPath, FILE_MAXDIR);
+	BLI_strncpy(newSurfdataPath, domainSettings->surfdataPath, FILE_MAXDIR); /* if 0'd out below, this value is never used! */
+	BLI_path_abs(targetDir, relbase); // fixed #frame-no
+
+	BLI_join_dirfile(targetFile, FILE_MAX, targetDir, suffixConfig);
+	/* .tmp: dont overwrite/delete original file */
+	strncat(targetFile, ".tmp", FILE_MAX);
 
 	// make sure all directories exist
 	// as the bobjs use the same dir, this only needs to be checked
@@ -663,16 +666,16 @@ static int fluid_init_filepaths(Object *fsDomain, char *targetDir, char *targetF
 		BLI_delete(targetFile, 0,0);
 	}
 	
-	if((strlen(targetDir)<1) || (!dirExist)) {
-		char blendDir[FILE_MAXDIR+FILE_MAXFILE];
-		char blendFile[FILE_MAXDIR+FILE_MAXFILE];
+	if(targetDir[0] == '\0' || (!dirExist)) {
+		char blendDir[FILE_MAX];
+		char blendFile[FILE_MAX];
 		
 		// invalid dir, reset to current/previous
-		BLI_strncpy(blendDir, G.main->name, FILE_MAXDIR+FILE_MAXFILE);
+		BLI_strncpy(blendDir, G.main->name, FILE_MAX);
 		BLI_splitdirstring(blendDir, blendFile);
-		BLI_replace_extension(blendFile, FILE_MAXDIR+FILE_MAXFILE, ""); /* strip .blend */
+		BLI_replace_extension(blendFile, FILE_MAX, ""); /* strip .blend */
 
-		BLI_snprintf(newSurfdataPath, FILE_MAXDIR+FILE_MAXFILE ,"//fluidsimdata/%s_%s_", blendFile, fsDomain->id.name);
+		BLI_snprintf(newSurfdataPath, FILE_MAX ,"//fluidsimdata/%s_%s_", blendFile, fsDomain->id.name);
 		
 		BLI_snprintf(debugStrBuffer, 256, "fluidsimBake::error - warning resetting output dir to '%s'\n", newSurfdataPath);
 		elbeemDebugOut(debugStrBuffer);
@@ -682,7 +685,7 @@ static int fluid_init_filepaths(Object *fsDomain, char *targetDir, char *targetF
 	// check if modified output dir is ok
 #if 0
 	if(outStringsChanged) {
-		char dispmsg[FILE_MAXDIR+FILE_MAXFILE+256];
+		char dispmsg[FILE_MAX+256];
 		int  selection=0;
 		BLI_strncpy(dispmsg,"Output settings set to: '", sizeof(dispmsg));
 		strcat(dispmsg, newSurfdataPath);
@@ -805,20 +808,20 @@ static void fluidbake_free_data(FluidAnimChannels *channels, ListBase *fobjects,
 }
 
 /* copied from rna_fluidsim.c: fluidsim_find_lastframe() */
-static void fluidsim_delete_until_lastframe(FluidsimSettings *fss)
+static void fluidsim_delete_until_lastframe(FluidsimSettings *fss, const char *relbase)
 {
-	char targetDir[FILE_MAXFILE+FILE_MAXDIR], targetFile[FILE_MAXFILE+FILE_MAXDIR];
-	char targetDirVel[FILE_MAXFILE+FILE_MAXDIR], targetFileVel[FILE_MAXFILE+FILE_MAXDIR];
-	char previewDir[FILE_MAXFILE+FILE_MAXDIR], previewFile[FILE_MAXFILE+FILE_MAXDIR];
+	char targetDir[FILE_MAX], targetFile[FILE_MAX];
+	char targetDirVel[FILE_MAX], targetFileVel[FILE_MAX];
+	char previewDir[FILE_MAX], previewFile[FILE_MAX];
 	int curFrame = 1, exists = 0;
 
-	BLI_snprintf(targetDir, sizeof(targetDir), "%sfluidsurface_final_####.bobj.gz", fss->surfdataPath);
-	BLI_snprintf(targetDirVel, sizeof(targetDir), "%sfluidsurface_final_####.bvel.gz", fss->surfdataPath);
-	BLI_snprintf(previewDir, sizeof(targetDir), "%sfluidsurface_preview_####.bobj.gz", fss->surfdataPath);
+	BLI_join_dirfile(targetDir,    sizeof(targetDir),    fss->surfdataPath, OB_FLUIDSIM_SURF_FINAL_OBJ_FNAME);
+	BLI_join_dirfile(targetDirVel, sizeof(targetDirVel), fss->surfdataPath, OB_FLUIDSIM_SURF_FINAL_VEL_FNAME);
+	BLI_join_dirfile(previewDir,   sizeof(previewDir),   fss->surfdataPath, OB_FLUIDSIM_SURF_PREVIEW_OBJ_FNAME);
 
-	BLI_path_abs(targetDir, G.main->name);
-	BLI_path_abs(targetDirVel, G.main->name);
-	BLI_path_abs(previewDir, G.main->name);
+	BLI_path_abs(targetDir,    relbase);
+	BLI_path_abs(targetDirVel, relbase);
+	BLI_path_abs(previewDir,   relbase);
 
 	do {
 		BLI_strncpy(targetFile, targetDir, sizeof(targetFile));
@@ -851,12 +854,13 @@ static int fluidsimBake(bContext *C, ReportList *reports, Object *fsDomain, shor
 	char debugStrBuffer[256];
 	
 	int gridlevels = 0;
+	const char *relbase= modifier_path_relbase(fsDomain);
 	const char *strEnvName = "BLENDER_ELBEEMDEBUG"; // from blendercall.cpp
 	const char *suffixConfig = FLUID_SUFFIX_CONFIG;
 	const char *suffixSurface = FLUID_SUFFIX_SURFACE;
 
-	char targetDir[FILE_MAXDIR+FILE_MAXFILE];  // store & modify output settings
-	char targetFile[FILE_MAXDIR+FILE_MAXFILE]; // temp. store filename from targetDir for access
+	char targetDir[FILE_MAX];  // store & modify output settings
+	char targetFile[FILE_MAX]; // temp. store filename from targetDir for access
 	int  outStringsChanged = 0;             // modified? copy back before baking
 
 	float domainMat[4][4];
@@ -911,7 +915,7 @@ static int fluidsimBake(bContext *C, ReportList *reports, Object *fsDomain, shor
 	domainSettings->lastgoodframe = -1;
 
 	/* delete old baked files */
-	fluidsim_delete_until_lastframe(domainSettings);
+	fluidsim_delete_until_lastframe(domainSettings, relbase);
 	
 	/* rough check of settings... */
 	if(domainSettings->previewresxyz > domainSettings->resolutionxyz) {
@@ -997,7 +1001,8 @@ static int fluidsimBake(bContext *C, ReportList *reports, Object *fsDomain, shor
 
 	/* ********  start writing / exporting ******** */
 	// use .tmp, dont overwrite/delete original file
-	BLI_snprintf(targetFile, 240, "%s%s.tmp", targetDir, suffixConfig);
+	BLI_join_dirfile(targetFile, sizeof(targetFile), targetDir, suffixConfig);
+	strncat(targetFile, ".tmp", sizeof(targetFile));
 	
 	// make sure these directories exist as well
 	if(outStringsChanged) {
@@ -1025,7 +1030,7 @@ static int fluidsimBake(bContext *C, ReportList *reports, Object *fsDomain, shor
 	fsset->aniFrameTime = channels->aniFrameTime;
 	fsset->noOfFrames = noFrames; // is otherwise subtracted in parser
 
-	BLI_snprintf(targetFile, 240, "%s%s", targetDir, suffixSurface);
+	BLI_join_dirfile(targetFile, sizeof(targetFile), targetDir, suffixSurface);
 
 	// defaults for compressibility and adaptive grids
 	fsset->gstar = domainSettings->gstar;

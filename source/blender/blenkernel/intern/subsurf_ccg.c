@@ -225,6 +225,7 @@ static int ss_sync_from_uv(CCGSubSurf *ss, CCGSubSurf *origss, DerivedMesh *dm, 
 	CCGVertHDL fverts[4];
 	EdgeHash *ehash;
 	float creaseFactor = (float)ccgSubSurf_getSubdivisionLevels(ss);
+	float uv[3]= {0.0f, 0.0f, 0.0f}; /* only first 2 values are written into */
 
 	limit[0]= limit[1]= STD_UV_CONNECT_LIMIT;
 	vmap= make_uv_vert_map(mface, tface, totface, totvert, 0, limit);
@@ -248,11 +249,8 @@ static int ss_sync_from_uv(CCGSubSurf *ss, CCGSubSurf *origss, DerivedMesh *dm, 
 			if (v->separate) {
 				CCGVert *ssv;
 				CCGVertHDL vhdl = SET_INT_IN_POINTER(v->f*4 + v->tfindex);
-				float uv[3];
 
-				uv[0]= (tface+v->f)->uv[v->tfindex][0];
-				uv[1]= (tface+v->f)->uv[v->tfindex][1];
-				uv[2]= 0.0f;
+				copy_v2_v2(uv, (tface+v->f)->uv[v->tfindex]);
 
 				ccgSubSurf_syncVert(ss, vhdl, uv, seam, &ssv);
 			}
@@ -359,15 +357,10 @@ static void set_subsurf_uv(CCGSubSurf *ss, DerivedMesh *dm, DerivedMesh *result,
 
 			for(y = 0; y < gridFaces; y++) {
 				for(x = 0; x < gridFaces; x++) {
-					float *a = faceGridData[(y + 0)*gridSize + x + 0].co;
-					float *b = faceGridData[(y + 0)*gridSize + x + 1].co;
-					float *c = faceGridData[(y + 1)*gridSize + x + 1].co;
-					float *d = faceGridData[(y + 1)*gridSize + x + 0].co;
-
-					tf->uv[0][0] = a[0]; tf->uv[0][1] = a[1];
-					tf->uv[1][0] = d[0]; tf->uv[1][1] = d[1];
-					tf->uv[2][0] = c[0]; tf->uv[2][1] = c[1];
-					tf->uv[3][0] = b[0]; tf->uv[3][1] = b[1];
+					copy_v2_v2(tf->uv[0], faceGridData[(y + 0)*gridSize + x + 0].co);
+					copy_v2_v2(tf->uv[1], faceGridData[(y + 1)*gridSize + x + 0].co);
+					copy_v2_v2(tf->uv[2], faceGridData[(y + 1)*gridSize + x + 1].co);
+					copy_v2_v2(tf->uv[3], faceGridData[(y + 0)*gridSize + x + 1].co);
 
 					tf++;
 				}
@@ -481,10 +474,10 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss, DerivedMesh *dm,
 		fVerts[2] = SET_INT_IN_POINTER(mf->v3);
 		fVerts[3] = SET_INT_IN_POINTER(mf->v4);
 
-		// this is very bad, means mesh is internally consistent.
-		// it is not really possible to continue without modifying
-		// other parts of code significantly to handle missing faces.
-		// since this really shouldn't even be possible we just bail.
+		/* this is very bad, means mesh is internally inconsistent.
+		 * it is not really possible to continue without modifying
+		 * other parts of code significantly to handle missing faces.
+		 * since this really shouldn't even be possible we just bail.*/
 		if(ccgSubSurf_syncFace(ss, SET_INT_IN_POINTER(i), fVerts[3] ? 4 : 3,
 							   fVerts, &f) == eCCGError_InvalidValue) {
 			static int hasGivenError = 0;
@@ -1173,8 +1166,6 @@ static void ccgdm_pbvh_update(CCGDerivedMesh *ccgdm)
 static void ccgDM_drawEdges(DerivedMesh *dm, int drawLooseEdges, int UNUSED(drawAllEdges)) {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGSubSurf *ss = ccgdm->ss;
-	CCGEdgeIterator *ei = ccgSubSurf_getEdgeIterator(ss);
-	CCGFaceIterator *fi = ccgSubSurf_getFaceIterator(ss);
 	int i, j, edgeSize = ccgSubSurf_getEdgeSize(ss);
 	int totedge = ccgSubSurf_getNumEdges(ss);
 	int gridSize = ccgSubSurf_getGridSize(ss);
@@ -1212,8 +1203,10 @@ static void ccgDM_drawEdges(DerivedMesh *dm, int drawLooseEdges, int UNUSED(draw
 	}
 
 	if (ccgdm->drawInteriorEdges) {
-		for (; !ccgFaceIterator_isStopped(fi); ccgFaceIterator_next(fi)) {
-			CCGFace *f = ccgFaceIterator_getCurrent(fi);
+		int totface = ccgSubSurf_getNumFaces(ss);
+
+		for(j = 0; j < totface; j++) {
+			CCGFace *f = ccgdm->faceMap[j].face;
 			int S, x, y, numVerts = ccgSubSurf_getFaceNumVerts(f);
 
 			for (S=0; S<numVerts; S++) {
@@ -1238,18 +1231,15 @@ static void ccgDM_drawEdges(DerivedMesh *dm, int drawLooseEdges, int UNUSED(draw
 			}
 		}
 	}
-
-	ccgFaceIterator_free(fi);
-	ccgEdgeIterator_free(ei);
 }
 static void ccgDM_drawLooseEdges(DerivedMesh *dm) {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGSubSurf *ss = ccgdm->ss;
-	CCGEdgeIterator *ei = ccgSubSurf_getEdgeIterator(ss);
-	int i, edgeSize = ccgSubSurf_getEdgeSize(ss);
+	int totedge = ccgSubSurf_getNumEdges(ss);
+	int i, j, edgeSize = ccgSubSurf_getEdgeSize(ss);
 
-	for (; !ccgEdgeIterator_isStopped(ei); ccgEdgeIterator_next(ei)) {
-		CCGEdge *e = ccgEdgeIterator_getCurrent(ei);
+	for (j=0; j< totedge; j++) {
+		CCGEdge *e = ccgdm->edgeMap[j].edge;
 		DMGridData *edgeData = ccgSubSurf_getEdgeDataArray(ss, e);
 
 		if (!ccgSubSurf_getEdgeNumFaces(e)) {
@@ -1261,8 +1251,6 @@ static void ccgDM_drawLooseEdges(DerivedMesh *dm) {
 			glEnd();
 		}
 	}
-
-	ccgEdgeIterator_free(ei);
 }
 
 static void ccgDM_glNormalFast(float *a, float *b, float *c, float *d)
@@ -1283,10 +1271,11 @@ static void ccgDM_glNormalFast(float *a, float *b, float *c, float *d)
 static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)[4], int fast, int (*setMaterial)(int, void *attribs)) {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGSubSurf *ss = ccgdm->ss;
-	CCGFaceIterator *fi;
 	int gridSize = ccgSubSurf_getGridSize(ss);
 	char *faceFlags = ccgdm->faceFlags;
 	int step = (fast)? gridSize-1: 1;
+	int i, totface = ccgSubSurf_getNumFaces(ss);
+	int drawcurrent = 0, matnr = -1, shademodel = -1;
 
 	ccgdm_pbvh_update(ccgdm);
 
@@ -1304,30 +1293,37 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 		return;
 	}
 
-	fi = ccgSubSurf_getFaceIterator(ss);
-	for (; !ccgFaceIterator_isStopped(fi); ccgFaceIterator_next(fi)) {
-		CCGFace *f = ccgFaceIterator_getCurrent(fi);
+	for(i = 0; i < totface; i++) {
+		CCGFace *f = ccgdm->faceMap[i].face;
 		int S, x, y, numVerts = ccgSubSurf_getFaceNumVerts(f);
 		int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(ss, f));
-		int drawSmooth, mat_nr;
+		int new_matnr, new_shademodel;
 
 		if(faceFlags) {
-			drawSmooth = (faceFlags[index*2] & ME_SMOOTH);
-			mat_nr= faceFlags[index*2 + 1];
+			new_shademodel = (faceFlags[index*2] & ME_SMOOTH)? GL_SMOOTH: GL_FLAT;
+			new_matnr= faceFlags[index*2 + 1];
 		}
 		else {
-			drawSmooth = 1;
-			mat_nr= 0;
+			new_shademodel = GL_SMOOTH;
+			new_matnr= 0;
 		}
 		
-		if (!setMaterial(mat_nr+1, NULL))
+		if(shademodel != new_shademodel || matnr != new_matnr) {
+			matnr= new_matnr;
+			shademodel= new_shademodel;
+
+			drawcurrent= setMaterial(matnr+1, NULL);
+
+			glShadeModel(shademodel);
+		}
+
+		if(!drawcurrent)
 			continue;
 
-		glShadeModel(drawSmooth? GL_SMOOTH: GL_FLAT);
 		for (S=0; S<numVerts; S++) {
 			DMGridData *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);
 
-			if (drawSmooth) {
+			if (shademodel == GL_SMOOTH) {
 				for (y=0; y<gridSize-1; y+=step) {
 					glBegin(GL_QUAD_STRIP);
 					for (x=0; x<gridSize; x+=step) {
@@ -1362,15 +1358,16 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 			}
 		}
 	}
-
-	ccgFaceIterator_free(fi);
 }
 
 	/* Only used by non-editmesh types */
-static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, void *attribs), int (*setDrawOptions)(void *userData, int index), void *userData) {
+static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
+			int (*setMaterial)(int, void *attribs),
+			int (*setDrawOptions)(void *userData, int index),
+			void *userData)
+{
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGSubSurf *ss = ccgdm->ss;
-	CCGFaceIterator *fi = ccgSubSurf_getFaceIterator(ss);
 	GPUVertexAttribs gattribs;
 	DMVertexAttribs attribs= {{{NULL}}};
 	/* MTFace *tf = dm->getFaceDataArray(dm, CD_MTFACE); */ /* UNUSED */
@@ -1503,8 +1500,6 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, v
 	}
 
 #undef PASSATTRIB
-
-	ccgFaceIterator_free(fi);
 }
 
 static void ccgDM_drawFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, void *attribs)) {
@@ -1515,7 +1510,6 @@ static void ccgDM_drawFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, void *a
 static void ccgDM_drawMappedFacesMat(DerivedMesh *dm, void (*setMaterial)(void *userData, int, void *attribs), int (*setFace)(void *userData, int index), void *userData) {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGSubSurf *ss = ccgdm->ss;
-	CCGFaceIterator *fi = ccgSubSurf_getFaceIterator(ss);
 	GPUVertexAttribs gattribs;
 	DMVertexAttribs attribs= {{{NULL}}};
 	int gridSize = ccgSubSurf_getGridSize(ss);
@@ -1655,18 +1649,15 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm, void (*setMaterial)(void *
 	}
 
 #undef PASSATTRIB
-
-	ccgFaceIterator_free(fi);
 }
 
 
 static void ccgDM_drawFacesColored(DerivedMesh *dm, int UNUSED(useTwoSided), unsigned char *col1, unsigned char *col2) {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGSubSurf *ss = ccgdm->ss;
-	CCGFaceIterator *fi = ccgSubSurf_getFaceIterator(ss);
 	int gridSize = ccgSubSurf_getGridSize(ss);
 	unsigned char *cp1, *cp2;
-	int useTwoSide=1;
+	int useTwoSide=1, i, totface;
 
 	ccgdm_pbvh_update(ccgdm);
 
@@ -1685,8 +1676,9 @@ static void ccgDM_drawFacesColored(DerivedMesh *dm, int UNUSED(useTwoSided), uns
 	}
 
 	glBegin(GL_QUADS);
-	for (; !ccgFaceIterator_isStopped(fi); ccgFaceIterator_next(fi)) {
-		CCGFace *f = ccgFaceIterator_getCurrent(fi);
+	totface = ccgSubSurf_getNumFaces(ss);
+	for(i = 0; i < totface; i++) {
+		CCGFace *f = ccgdm->faceMap[i].face;
 		int S, x, y, numVerts = ccgSubSurf_getFaceNumVerts(f);
 
 		for (S=0; S<numVerts; S++) {
@@ -1725,13 +1717,12 @@ static void ccgDM_drawFacesColored(DerivedMesh *dm, int UNUSED(useTwoSided), uns
 		}
 	}
 	glEnd();
-
-	ccgFaceIterator_free(fi);
 }
 
 static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	int (*drawParams)(MTFace *tface, int has_mcol, int matnr),
 	int (*drawParamsMapped)(void *userData, int index),
+	int (*compareDrawOptions)(void *userData, int cur_index, int next_index),
 	void *userData) 
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
@@ -1741,6 +1732,8 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	char *faceFlags = ccgdm->faceFlags;
 	int i, totface, flag, gridSize = ccgSubSurf_getGridSize(ss);
 	int gridFaces = gridSize - 1;
+
+	(void) compareDrawOptions;
 
 	ccgdm_pbvh_update(ccgdm);
 
@@ -1872,14 +1865,20 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	}
 }
 
-static void ccgDM_drawFacesTex(DerivedMesh *dm, int (*setDrawOptions)(MTFace *tface, int has_mcol, int matnr))
+static void ccgDM_drawFacesTex(DerivedMesh *dm,
+			   int (*setDrawOptions)(MTFace *tface, int has_mcol, int matnr),
+			   int (*compareDrawOptions)(void *userData, int cur_index, int next_index),
+			   void *userData)
 {
-	ccgDM_drawFacesTex_common(dm, setDrawOptions, NULL, NULL);
+	ccgDM_drawFacesTex_common(dm, setDrawOptions, NULL, compareDrawOptions, userData);
 }
 
-static void ccgDM_drawMappedFacesTex(DerivedMesh *dm, int (*setDrawOptions)(void *userData, int index), void *userData)
+static void ccgDM_drawMappedFacesTex(DerivedMesh *dm,
+    int (*setDrawOptions)(void *userData, int index),
+    int (*compareDrawOptions)(void *userData, int cur_index, int next_index),
+    void *userData)
 {
-	ccgDM_drawFacesTex_common(dm, NULL, setDrawOptions, userData);
+	ccgDM_drawFacesTex_common(dm, NULL, setDrawOptions, compareDrawOptions, userData);
 }
 
 static void ccgDM_drawUVEdges(DerivedMesh *dm)
@@ -1915,8 +1914,12 @@ static void ccgDM_drawUVEdges(DerivedMesh *dm)
 	}
 }
 
-static void ccgDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r), void *userData, int useColors, int (*setMaterial)(int, void *attribs),
-			int (*compareDrawOptions)(void *userData, int cur_index, int next_index)) {
+static void ccgDM_drawMappedFaces(DerivedMesh *dm,
+			int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r),
+			int (*setMaterial)(int, void *attribs),
+			int (*compareDrawOptions)(void *userData, int cur_index, int next_index),
+			void *userData, int useColors)
+{
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	MCol *mcol= NULL;
@@ -1964,11 +1967,14 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *u
 					  glEnable(GL_POLYGON_STIPPLE);
 					  glPolygonStipple(stipple_quarttone);
 				}
+
+				/* no need to set shading mode to flat because
+				*  normals are already used to change shading */
+				glShadeModel(GL_SMOOTH);
 				
 				for (S=0; S<numVerts; S++) {
 					DMGridData *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);
 					if (drawSmooth) {
-						glShadeModel(GL_SMOOTH);
 						for (y=0; y<gridFaces; y++) {
 							DMGridData *a, *b;
 							glBegin(GL_QUAD_STRIP);
@@ -2003,7 +2009,6 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *u
 							glEnd();
 						}
 					} else {
-						glShadeModel(GL_FLAT);
 						glBegin(GL_QUADS);
 						for (y=0; y<gridFaces; y++) {
 							for (x=0; x<gridFaces; x++) {

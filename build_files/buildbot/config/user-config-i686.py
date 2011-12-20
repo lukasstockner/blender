@@ -58,6 +58,8 @@ WITH_BF_PNG = True
 BF_PNG_LIB = 'libpng'
 BF_PNG_LIBPATH = '/home/sources/staticlibs/lib32'
 
+WITH_BF_STATICLIBSAMPLERATE = True
+
 WITH_BF_ZLIB = True
 WITH_BF_STATICZLIB = True
 BF_ZLIB_LIB_STATIC = '${BF_ZLIB}/lib/libz.a'
@@ -94,6 +96,7 @@ WITH_BF_JACK = True
 
 # Cycles
 WITH_BF_CYCLES = True
+WITH_BF_CYCLES_CUDA_BINARIES = True
 
 WITH_BF_OIIO = True
 WITH_BF_STATICOIIO = True
@@ -109,7 +112,10 @@ BF_BOOST_INC = '${BF_BOOST}/include'
 BF_BOOST_LIB_STATIC = '${BF_BOOST_LIBPATH}/libboost_filesystem.a ${BF_BOOST_LIBPATH}/libboost_date_time.a ${BF_BOOST_LIBPATH}/libboost_regex.a ${BF_BOOST_LIBPATH}/libboost_system.a ${BF_BOOST_LIBPATH}/libboost_thread.a'
 BF_BOOST_LIBPATH = '${BF_BOOST}/lib'
 
+# Ocean Simulation
+WITH_BF_OCEANSIM = True
+
 # Compilation and optimization
 BF_DEBUG = False
-REL_CCFLAGS = ['-O2', '-msse', '-msse2']  # C & C++
+REL_CCFLAGS = ['-O2']  # C & C++
 PLATFORM_LINKFLAGS = ['-L/home/sources/staticlibs/lib32']

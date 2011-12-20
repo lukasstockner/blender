@@ -112,7 +112,7 @@ typedef enum {
 
 /* internal panel drawing defines */
 #define PNL_GRID	(UI_UNIT_Y / 5)	/* 4 default */
-#define PNL_HEADER  UI_UNIT_Y		/* 20 default */
+#define PNL_HEADER  (UI_UNIT_Y + 4)	/* 24 default */
 
 /* panel->flag */
 #define PNL_SELECT	1
@@ -314,7 +314,10 @@ struct uiBlock {
 	ListBase saferct;			// uiSafetyRct list
 
 	uiPopupBlockHandle *handle;	// handle
-	
+
+	struct wmOperator *ui_operator;// use so presets can find the operator,
+								// across menus and from nested popups which fail for operator context.
+
 	void *evil_C;				// XXX hack for dynamic operator enums
 
 	struct UnitSettings *unit;	// unit system, used a lot for numeric buttons so include here rather then fetching through the scene every time.
@@ -459,6 +462,7 @@ extern int ui_button_is_active(struct ARegion *ar);
 
 /* interface_widgets.c */
 void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3);
+void ui_draw_anti_roundbox(int mode, float minx, float miny, float maxx, float maxy, float rad);
 void ui_draw_menu_back(struct uiStyle *style, uiBlock *block, rcti *rect);
 void ui_draw_search_back(struct uiStyle *style, uiBlock *block, rcti *rect);
 int ui_link_bezier_points(rcti *rect, float coord_array[][2], int resol);

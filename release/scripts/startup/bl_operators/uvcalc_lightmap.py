@@ -552,9 +552,9 @@ class LightMapPack(Operator):
 
     PREF_CONTEXT = bpy.props.EnumProperty(
             name="Selection",
-            items=(("SEL_FACES", "Selected Faces", "Space all UVs evently"),
-                   ("ALL_FACES", "All Faces", "Average space UVs edge length of each loop"),
-                   ("ALL_OBJECTS", "Selected Mesh Object", "Average space UVs edge length of each loop")
+            items=(('SEL_FACES', "Selected Faces", "Space all UVs evently"),
+                   ('ALL_FACES', "All Faces", "Average space UVs edge length of each loop"),
+                   ('ALL_OBJECTS', "Selected Mesh Object", "Average space UVs edge length of each loop")
                    ),
             )
 
@@ -566,8 +566,8 @@ class LightMapPack(Operator):
             default=True,
             )
     PREF_NEW_UVLAYER = BoolProperty(
-            name="New UV Layer",
-            description="Create a new UV layer for every mesh packed",
+            name="New UV Map",
+            description="Create a new UV map for every mesh packed",
             default=False,
             )
     PREF_APPLY_IMAGE = BoolProperty(

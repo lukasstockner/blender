@@ -113,6 +113,7 @@ set(SRC
 	shader/nodes/node_shader_common.c
 	shader/nodes/node_shader_curves.c
 	shader/nodes/node_shader_dynamic.c
+	shader/nodes/node_shader_gamma.c
 	shader/nodes/node_shader_geom.c
 	shader/nodes/node_shader_hueSatVal.c
 	shader/nodes/node_shader_invert.c
@@ -131,6 +132,7 @@ set(SRC
 	shader/nodes/node_shader_vectMath.c
 	shader/nodes/node_shader_attribute.c
 	shader/nodes/node_shader_background.c
+	# shader/nodes/node_shader_bsdf_anisotropic.c  # XXX, why not included?
 	shader/nodes/node_shader_bsdf_diffuse.c
 	shader/nodes/node_shader_bsdf_glossy.c
 	shader/nodes/node_shader_bsdf_glass.c

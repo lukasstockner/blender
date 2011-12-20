@@ -47,6 +47,7 @@ struct BPoint;
 
 /* curve_ops.c */
 void	ED_operatortypes_curve(void);
+void	ED_operatormacros_curve(void);
 void	ED_keymap_curve	(struct wmKeyConfig *keyconf);
 
 /* editcurve.c */
@@ -88,6 +89,8 @@ void ED_curve_beztcpy(struct EditNurb *editnurb, struct BezTriple *dst, struct B
 void ED_curve_bpcpy(struct EditNurb *editnurb, struct BPoint *dst, struct BPoint *src, int count);
 
 int ED_curve_updateAnimPaths(struct Object *obedit);
+
+int ED_curve_actSelection(struct Curve *cu, float center[3]);
 
 /* debug only */
 void printknots(struct Object *obedit);

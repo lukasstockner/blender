@@ -69,15 +69,14 @@ static void rna_Scene_frame_set(Scene *scene, int frame, float subframe)
 static void rna_Scene_update_tagged(Scene *scene)
 {
 	scene_update_tagged(G.main, scene);
-	scene_clear_tagged(G.main, scene);
 }
 
 static void rna_SceneRender_get_frame_path(RenderData *rd, int frame, char *name)
 {
-	if(BKE_imtype_is_movie(rd->imtype))
+	if(BKE_imtype_is_movie(rd->im_format.imtype))
 		BKE_makeanimstring(name, rd);
 	else
-		BKE_makepicstring(name, rd->pic, (frame==INT_MIN) ? rd->cfra : frame, rd->imtype, rd->scemode & R_EXTENSION, TRUE);
+		BKE_makepicstring(name, rd->pic, G.main->name, (frame==INT_MIN) ? rd->cfra : frame, rd->im_format.imtype, rd->scemode & R_EXTENSION, TRUE);
 }
 
 #ifdef WITH_COLLADA

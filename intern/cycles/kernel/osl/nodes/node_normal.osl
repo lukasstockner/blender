@@ -1,5 +1,5 @@
 /*
- * ***** BEGIN GPL LICENSE BLOCK *****
+ * Copyright 2011, Blender Foundation.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,19 +14,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor(s): Campbell Barton
- *
- * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/python/generic/noise_py_api.h
- *  \ingroup pygen
- */
+#include "stdosl.h"
 
-#ifndef NOISE_PY_API_H
-#define NOISE_PY_API_H
+shader node_normal(
+	normal Direction = normal(0.0, 0.0, 0.0),
+	normal NormalIn = normal(0.0, 0.0, 0.0),
+	output normal NormalOut = normal(0.0, 0.0, 0.0),
+	output float Dot = 1.0
+{
+	Direction = normalize(Direction);
+	NormalOut = Direction;
+	Dot = dot(Direction, NormalIn);
+}
 
-PyObject *BPyInit_noise(void);
-
-#endif // NOISE_PY_API_H

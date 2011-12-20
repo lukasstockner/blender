@@ -4,18 +4,15 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. The Blender
- * Foundation also sells licenses for use in proprietary software under
- * the Blender License.  See http://www.blender.org/BL/ for information
- * about this.
+ * of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful;
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation;
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
@@ -105,7 +102,7 @@ void get_texture_coords(MappingInfoModifierData *dmd, Object *ob,
 			char uvname[32];
 			MTFace *tf;
 
-			validate_layer_name(&dm->faceData, CD_MTFACE, dmd->uvlayer_name, uvname);
+			CustomData_validate_layer_name(&dm->faceData, CD_MTFACE, dmd->uvlayer_name, uvname);
 			tf = CustomData_get_layer_named(&dm->faceData, CD_MTFACE, uvname);
 
 			/* verts are given the UV from the first face that uses them */
@@ -174,25 +171,6 @@ void modifier_vgroup_cache(ModifierData *md, float (*vertexCos)[3])
 			break;
 	}
 	/* lattice/mesh modifier too */
-}
-
-void validate_layer_name(const CustomData *data, int type, char *name, char *outname)
-{
-	int index = -1;
-
-	/* if a layer name was given, try to find that layer */
-	if(name[0])
-		index = CustomData_get_named_layer_index(data, type, name);
-
-	if(index < 0) {
-		/* either no layer was specified, or the layer we want has been
-		* deleted, so assign the active layer to name
-		*/
-		index = CustomData_get_active_layer_index(data, type);
-		strcpy(outname, data->layers[index].name);
-	}
-	else
-		strcpy(outname, name);
 }
 
 /* returns a cdderivedmesh if dm == NULL or is another type of derivedmesh */
@@ -279,6 +257,7 @@ void modifier_type_init(ModifierTypeInfo *types[])
 	INIT_TYPE(Collision);
 	INIT_TYPE(Boolean);
 	INIT_TYPE(MeshDeform);
+	INIT_TYPE(Ocean);
 	INIT_TYPE(ParticleSystem);
 	INIT_TYPE(ParticleInstance);
 	INIT_TYPE(Explode);
@@ -296,5 +275,6 @@ void modifier_type_init(ModifierTypeInfo *types[])
 	INIT_TYPE(WeightVGEdit);
 	INIT_TYPE(WeightVGMix);
 	INIT_TYPE(WeightVGProximity);
+	INIT_TYPE(DynamicPaint);
 #undef INIT_TYPE
 }

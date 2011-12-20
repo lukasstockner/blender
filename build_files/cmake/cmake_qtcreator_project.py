@@ -47,6 +47,13 @@ import os
 import sys
 
 
+def quote_define(define):
+    if " " in define.strip():
+        return '"%s"' % define
+    else:
+        return define
+
+
 def create_qtc_project_main():
     files = list(source_list(SOURCE_DIR, filename_check=is_project_file))
     files_rel = [os.path.relpath(f, start=PROJECT_DIR) for f in files]
@@ -89,7 +96,7 @@ def create_qtc_project_main():
         f = open(os.path.join(PROJECT_DIR, "%s.files" % FILE_NAME), 'w')
         f.write("\n".join(files_rel))
 
-        f = open(os.path.join(PROJECT_DIR, "%s.includes" % FILE_NAME), 'w')
+        f = open(os.path.join(PROJECT_DIR, "%s.includes" % FILE_NAME), 'w', encoding='utf-8')
         f.write("\n".join(sorted(includes)))
 
         qtc_prj = os.path.join(PROJECT_DIR, "%s.creator" % FILE_NAME)
@@ -99,12 +106,12 @@ def create_qtc_project_main():
         qtc_cfg = os.path.join(PROJECT_DIR, "%s.config" % FILE_NAME)
         f = open(qtc_cfg, 'w')
         f.write("// ADD PREDEFINED MACROS HERE!\n")
-        defines_final = [("#define %s %s" % item) for item in defines]
+        defines_final = [("#define %s %s" % (item[0], quote_define(item[1]))) for item in defines]
         if sys.platform != "win32":
             defines_final += cmake_compiler_defines()
         f.write("\n".join(defines_final))
 
-    print("Blender project file written to: %s" % qtc_prj)
+    print("Blender project file written to: %r" % qtc_prj)
     # --- end
 
 
@@ -133,7 +140,7 @@ def create_qtc_project_python():
         f = open(qtc_cfg, 'w')
         f.write("// ADD PREDEFINED MACROS HERE!\n")
 
-    print("Python project file written to:  %s" % qtc_prj)
+    print("Python project file written to:  %r" % qtc_prj)
 
 
 def main():

@@ -49,9 +49,9 @@ static void do_mix_rgb(bNode *node, float *out, float *in1, float *in2, float *f
 	
 	copy_v3_v3(col, in1);
 	if(node->custom2)
-		ramp_blend(node->custom1, col, col+1, col+2, in2[3]*fac[0], in2);
+		ramp_blend(node->custom1, col, in2[3]*fac[0], in2);
 	else
-		ramp_blend(node->custom1, col, col+1, col+2, fac[0], in2);
+		ramp_blend(node->custom1, col, fac[0], in2);
 	copy_v3_v3(out, col);
 	out[3]= in1[3];
 }
@@ -82,16 +82,15 @@ static void node_composit_exec_mix_rgb(void *data, bNode *node, bNodeStack **in,
 }
 
 /* custom1 = mix type */
-void register_node_type_cmp_mix_rgb(ListBase *lb)
+void register_node_type_cmp_mix_rgb(bNodeTreeType *ttype)
 {
 	static bNodeType ntype;
 
-	node_type_base(&ntype, CMP_NODE_MIX_RGB, "Mix", NODE_CLASS_OP_COLOR, NODE_PREVIEW|NODE_OPTIONS);
+	node_type_base(ttype, &ntype, CMP_NODE_MIX_RGB, "Mix", NODE_CLASS_OP_COLOR, NODE_PREVIEW|NODE_OPTIONS);
 	node_type_socket_templates(&ntype, cmp_node_mix_rgb_in, cmp_node_mix_rgb_out);
 	node_type_size(&ntype, 110, 60, 120);
 	node_type_label(&ntype, node_blend_label);
 	node_type_exec(&ntype, node_composit_exec_mix_rgb);
 
-	nodeRegisterType(lb, &ntype);
+	nodeRegisterType(ttype, &ntype);
 }
-

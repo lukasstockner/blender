@@ -458,11 +458,16 @@ static int reports_to_text_exec(bContext *C, wmOperator *UNUSED(op))
 	 *	- otherwise, up to info (which is what users normally see)
 	 */
 	str = BKE_reports_string(reports, (G.f & G_DEBUG)? RPT_DEBUG : RPT_INFO);
-	
-	write_text(txt, str);
-	MEM_freeN(str);
-	
-	return OPERATOR_FINISHED;
+
+	if (str) {
+		write_text(txt, str);
+		MEM_freeN(str);
+
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
 }
 
 static void UI_OT_reports_to_textblock(wmOperatorType *ot)
@@ -494,7 +499,7 @@ struct uiEditSourceButStore {
 } uiEditSourceButStore;
 
 /* should only ever be set while the edit source operator is running */
-struct uiEditSourceStore *ui_editsource_info= NULL;
+static struct uiEditSourceStore *ui_editsource_info= NULL;
 
 int  UI_editsource_enable_check(void)
 {

@@ -73,6 +73,8 @@
 #include "NOD_composite.h"
 #include "NOD_shader.h"
 
+#include "intern/node_util.h"
+
 #include "node_intern.h"
 
 /* width of socket columns in group display */
@@ -195,28 +197,16 @@ static void node_uiblocks_init(const bContext *C, bNodeTree *ntree)
 	bNode *node;
 	char str[32];
 	
-	/* add node uiBlocks in reverse order - prevents events going to overlapping nodes */
+	/* add node uiBlocks in drawing order - prevents events going to overlapping nodes */
 	
-	/* process selected nodes first so they're at the start of the uiblocks list */
-	for(node= ntree->nodes.last; node; node= node->prev) {
-		
-		if (node->flag & NODE_SELECT) {
+	for(node= ntree->nodes.first; node; node=node->next) {
 			/* ui block */
 			sprintf(str, "node buttons %p", (void *)node);
 			node->block= uiBeginBlock(C, CTX_wm_region(C), str, UI_EMBOSS);
 			uiBlockSetHandleFunc(node->block, do_node_internal_buttons, node);
-		}
-	}
-	
-	/* then the rest */
-	for(node= ntree->nodes.last; node; node= node->prev) {
-		
-		if (!(node->flag & (NODE_GROUP_EDIT|NODE_SELECT))) {
-			/* ui block */
-			sprintf(str, "node buttons %p", (void *)node);
-			node->block= uiBeginBlock(C, CTX_wm_region(C), str, UI_EMBOSS);
-			uiBlockSetHandleFunc(node->block, do_node_internal_buttons, node);
-		}
+			
+			/* this cancels events for background nodes */
+			uiBlockSetFlag(node->block, UI_BLOCK_CLIP_EVENTS);
 	}
 }
 
@@ -337,6 +327,15 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
 	node->totr.xmax= locx + node->width;
 	node->totr.ymax= locy;
 	node->totr.ymin= MIN2(dy, locy-2*NODE_DY);
+	
+	/* Set the block bounds to clip mouse events from underlying nodes.
+	 * Add a margin for sockets on each side.
+	 */
+	uiExplicitBoundsBlock(node->block,
+						  node->totr.xmin - NODE_SOCKSIZE,
+						  node->totr.ymin,
+						  node->totr.xmax + NODE_SOCKSIZE,
+						  node->totr.ymax);
 }
 
 /* based on settings in node, sets drawing rect info. each redraw! */
@@ -352,10 +351,10 @@ static void node_update_hidden(bNode *node)
 
 	/* calculate minimal radius */
 	for(nsock= node->inputs.first; nsock; nsock= nsock->next)
-		if(!(nsock->flag & (SOCK_HIDDEN|SOCK_UNAVAIL)))
+		if(!(nsock->flag & (SOCK_HIDDEN|SOCK_UNAVAIL)) && (nsock->flag & SOCK_IN_USE))
 			totin++;
 	for(nsock= node->outputs.first; nsock; nsock= nsock->next)
-		if(!(nsock->flag & (SOCK_HIDDEN|SOCK_UNAVAIL)))
+		if(!(nsock->flag & (SOCK_HIDDEN|SOCK_UNAVAIL)) && (nsock->flag & SOCK_IN_USE))
 			totout++;
 	
 	tot= MAX2(totin, totout);
@@ -372,7 +371,7 @@ static void node_update_hidden(bNode *node)
 	rad=drad= (float)M_PI/(1.0f + (float)totout);
 	
 	for(nsock= node->outputs.first; nsock; nsock= nsock->next) {
-		if(!(nsock->flag & (SOCK_HIDDEN|SOCK_UNAVAIL))) {
+		if(!(nsock->flag & (SOCK_HIDDEN|SOCK_UNAVAIL)) && (nsock->flag & SOCK_IN_USE)) {
 			nsock->locx= node->totr.xmax - hiddenrad + (float)sin(rad)*hiddenrad;
 			nsock->locy= node->totr.ymin + hiddenrad + (float)cos(rad)*hiddenrad;
 			rad+= drad;
@@ -383,12 +382,21 @@ static void node_update_hidden(bNode *node)
 	rad=drad= - (float)M_PI/(1.0f + (float)totin);
 	
 	for(nsock= node->inputs.first; nsock; nsock= nsock->next) {
-		if(!(nsock->flag & (SOCK_HIDDEN|SOCK_UNAVAIL))) {
+		if(!(nsock->flag & (SOCK_HIDDEN|SOCK_UNAVAIL)) && (nsock->flag & SOCK_IN_USE)) {
 			nsock->locx= node->totr.xmin + hiddenrad + (float)sin(rad)*hiddenrad;
 			nsock->locy= node->totr.ymin + hiddenrad + (float)cos(rad)*hiddenrad;
 			rad+= drad;
 		}
 	}
+
+	/* Set the block bounds to clip mouse events from underlying nodes.
+	 * Add a margin for sockets on each side.
+	 */
+	uiExplicitBoundsBlock(node->block,
+						  node->totr.xmin - NODE_SOCKSIZE,
+						  node->totr.ymin,
+						  node->totr.xmax + NODE_SOCKSIZE,
+						  node->totr.ymax);
 }
 
 void node_update_default(const bContext *C, bNodeTree *ntree, bNode *node)
@@ -418,38 +426,41 @@ static int node_get_colorid(bNode *node)
 	return TH_NODE;
 }
 
-/* note: in cmp_util.c is similar code, for node_compo_pass_on() */
+/* note: in cmp_util.c is similar code, for node_compo_pass_on()
+ *       the same goes for shader and texture nodes. */
 /* note: in node_edit.c is similar code, for untangle node */
 static void node_draw_mute_line(View2D *v2d, SpaceNode *snode, bNode *node)
 {
-	static int types[]= { SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA };
+	ListBase links;
+	LinkInOutsMuteNode *lnk;
 	bNodeLink link= {NULL};
 	int i;
-	
-	/* connect the first input of each type with first output of the same type */
-	
+
+	if(node->typeinfo->mutelinksfunc == NULL)
+		return;
+
+	/* Get default muting links (as bNodeSocket pointers). */
+	links = node->typeinfo->mutelinksfunc(snode->edittree, node, NULL, NULL, NULL, NULL);
+
 	glEnable(GL_BLEND);
-	glEnable( GL_LINE_SMOOTH );
-	
+	glEnable(GL_LINE_SMOOTH);
+
 	link.fromnode = link.tonode = node;
-	for (i=0; i < 3; ++i) {
-		/* find input socket */
-		for (link.fromsock=node->inputs.first; link.fromsock; link.fromsock=link.fromsock->next)
-			if (link.fromsock->type==types[i] && nodeCountSocketLinks(snode->edittree, link.fromsock))
-				break;
-		if (link.fromsock) {
-			for (link.tosock=node->outputs.first; link.tosock; link.tosock=link.tosock->next)
-				if (link.tosock->type==types[i] && nodeCountSocketLinks(snode->edittree, link.tosock))
-					break;
-			
-			if (link.tosock) {
-				node_draw_link_bezier(v2d, snode, &link, TH_REDALERT, 0, TH_WIRE, 0, TH_WIRE);
-			}
+	for(lnk = links.first; lnk; lnk = lnk->next) {
+		for(i = 0; i < lnk->num_outs; i++) {
+			link.fromsock = (bNodeSocket*)(lnk->in);
+			link.tosock   = (bNodeSocket*)(lnk->outs)+i;
+			node_draw_link_bezier(v2d, snode, &link, TH_REDALERT, 0, TH_WIRE, 0, TH_WIRE);
 		}
+		/* If num_outs > 1, lnk->outs was an allocated table of pointers... */
+		if(i > 1)
+			MEM_freeN(lnk->outs);
 	}
-	
+
 	glDisable(GL_BLEND);
-	glDisable( GL_LINE_SMOOTH );
+	glDisable(GL_LINE_SMOOTH);
+
+	BLI_freelistN(&links);
 }
 
 /* this might have some more generic use */
@@ -551,6 +562,18 @@ static void node_draw_preview(bNodePreview *preview, rctf *prv)
 	
 }
 
+/* common handle function for operator buttons that need to select the node first */
+static void node_toggle_button_cb(struct bContext *C, void *node_argv, void *op_argv)
+{
+	bNode *node = (bNode*)node_argv;
+	const char *opname = (const char *)op_argv;
+	
+	/* select & activate only the button's node */
+	node_select_single(C, node);
+	
+	WM_operator_name_call(C, opname, WM_OP_INVOKE_DEFAULT, NULL);
+}
+
 static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bNodeTree *ntree, bNode *node)
 {
 	bNodeSocket *sock;
@@ -585,48 +608,39 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		UI_ThemeColor(color_id);
 	
 	if(node->flag & NODE_MUTED)
-	   UI_ThemeColorBlend(color_id, TH_REDALERT, 0.5f);
-		
+		UI_ThemeColorBlend(color_id, TH_REDALERT, 0.5f);
+
 	uiSetRoundBox(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
 	uiRoundBox(rct->xmin, rct->ymax-NODE_DY, rct->xmax, rct->ymax, BASIS_RAD);
 	
-	/* show/hide icons, note this sequence is copied in do_header_node() node_state.c */
+	/* show/hide icons */
 	iconofs= rct->xmax - 7.0f;
 	
+	/* preview */
 	if(node->typeinfo->flag & NODE_PREVIEW) {
-		int icon_id;
-		
-		if(node->flag & (NODE_ACTIVE_ID|NODE_DO_OUTPUT))
-			icon_id= ICON_MATERIAL;
-		else
-			icon_id= ICON_MATERIAL_DATA;
+		uiBut *but;
 		iconofs-=iconbutw;
-		uiDefIconBut(node->block, LABEL, B_REDR, icon_id, iconofs, rct->ymax-NODE_DY,
-					 iconbutw, UI_UNIT_Y, NULL, 0.0, 0.0, 1.0, 0.5, "");
+		uiBlockSetEmboss(node->block, UI_EMBOSSN);
+		but = uiDefIconBut(node->block, TOGBUT, B_REDR, ICON_MATERIAL,
+						   iconofs, rct->ymax-NODE_DY, iconbutw, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+		uiButSetFunc(but, node_toggle_button_cb, node, (void*)"NODE_OT_preview_toggle");
+		/* XXX this does not work when node is activated and the operator called right afterwards,
+		 * since active ID is not updated yet (needs to process the notifier).
+		 * This can only work as visual indicator!
+		 */
+//		if (!(node->flag & (NODE_ACTIVE_ID|NODE_DO_OUTPUT)))
+//			uiButSetFlag(but, UI_BUT_DISABLED);
+		uiBlockSetEmboss(node->block, UI_EMBOSS);
 	}
+	/* group edit */
 	if(node->type == NODE_GROUP) {
-		
+		uiBut *but;
 		iconofs-=iconbutw;
-		uiDefIconBut(node->block, LABEL, B_REDR, ICON_NODETREE, iconofs, rct->ymax-NODE_DY,
-					 iconbutw, UI_UNIT_Y, NULL, 0.0, 0.0, 1.0, 0.5, "");
-	}
-	if(node->typeinfo->flag & NODE_OPTIONS) {
-		iconofs-=iconbutw;
-		uiDefIconBut(node->block, LABEL, B_REDR, ICON_BUTS, iconofs, rct->ymax-NODE_DY,
-					 iconbutw, UI_UNIT_Y, NULL, 0.0, 0.0, 1.0, 0.5, "");
-	}
-	{	/* always hide/reveal unused sockets */ 
-		// XXX re-enable
-		/* int shade;
-		if(node_has_hidden_sockets(node))
-			shade= -40;
-		else
-			shade= -90; */
-
-		iconofs-=iconbutw;
-
-		uiDefIconBut(node->block, LABEL, B_REDR, ICON_PLUS, iconofs, rct->ymax-NODE_DY,
-						  iconbutw, UI_UNIT_Y, NULL, 0.0, 0.0, 1.0, 0.5, "");
+		uiBlockSetEmboss(node->block, UI_EMBOSSN);
+		but = uiDefIconBut(node->block, TOGBUT, B_REDR, ICON_NODETREE,
+						   iconofs, rct->ymax-NODE_DY, iconbutw, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
+		uiButSetFunc(but, node_toggle_button_cb, node, (void*)"NODE_OT_group_edit");
+		uiBlockSetEmboss(node->block, UI_EMBOSS);
 	}
 	
 	/* title */
@@ -636,7 +650,19 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		UI_ThemeColorBlendShade(TH_TEXT, color_id, 0.4f, 10);
 	
 	/* open/close entirely? */
-	UI_DrawTriIcon(rct->xmin+10.0f, rct->ymax-NODE_DY/2.0f, 'v');
+	{
+		uiBut *but;
+		int but_size = UI_UNIT_X *0.6f;
+		/* XXX button uses a custom triangle draw below, so make it invisible without icon */
+		uiBlockSetEmboss(node->block, UI_EMBOSSN);
+		but = uiDefBut(node->block, TOGBUT, B_REDR, "",
+					   rct->xmin+10.0f-but_size/2, rct->ymax-NODE_DY/2.0f-but_size/2, but_size, but_size, NULL, 0, 0, 0, 0, "");
+		uiButSetFunc(but, node_toggle_button_cb, node, (void*)"NODE_OT_hide_toggle");
+		uiBlockSetEmboss(node->block, UI_EMBOSS);
+		
+		/* custom draw function for this button */
+		UI_DrawTriIcon(rct->xmin+10.0f, rct->ymax-NODE_DY/2.0f, 'v');
+	}
 	
 	/* this isn't doing anything for the label, so commenting out
 	if(node->flag & SELECT) 
@@ -758,7 +784,7 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 	/* body */
 	UI_ThemeColor(color_id);
 	if(node->flag & NODE_MUTED)
-	   UI_ThemeColorBlend(color_id, TH_REDALERT, 0.5f);	
+		UI_ThemeColorBlend(color_id, TH_REDALERT, 0.5f);
 	uiRoundBox(rct->xmin, rct->ymin, rct->xmax, rct->ymax, hiddenrad);
 	
 	/* outline active and selected emphasis */
@@ -782,7 +808,19 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 		UI_ThemeColorBlendShade(TH_TEXT, color_id, 0.4f, 10);
 	
 	/* open entirely icon */
-	UI_DrawTriIcon(rct->xmin+10.0f, centy, 'h');	
+	{
+		uiBut *but;
+		int but_size = UI_UNIT_X *0.6f;
+		/* XXX button uses a custom triangle draw below, so make it invisible without icon */
+		uiBlockSetEmboss(node->block, UI_EMBOSSN);
+		but = uiDefBut(node->block, TOGBUT, B_REDR, "",
+					   rct->xmin+10.0f-but_size/2, centy-but_size/2, but_size, but_size, NULL, 0, 0, 0, 0, "");
+		uiButSetFunc(but, node_toggle_button_cb, node, (void*)"NODE_OT_hide_toggle");
+		uiBlockSetEmboss(node->block, UI_EMBOSS);
+		
+		/* custom draw function for this button */
+		UI_DrawTriIcon(rct->xmin+10.0f, centy, 'h');
+	}
 	
 	/* disable lines */
 	if(node->flag & NODE_MUTED)
@@ -816,12 +854,12 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 	
 	/* sockets */
 	for(sock= node->inputs.first; sock; sock= sock->next) {
-		if(!(sock->flag & (SOCK_HIDDEN|SOCK_UNAVAIL)))
+		if(!(sock->flag & (SOCK_HIDDEN|SOCK_UNAVAIL)) && (sock->flag & SOCK_IN_USE))
 			node_socket_circle_draw(snode->nodetree, sock, socket_size);
 	}
 	
 	for(sock= node->outputs.first; sock; sock= sock->next) {
-		if(!(sock->flag & (SOCK_HIDDEN|SOCK_UNAVAIL)))
+		if(!(sock->flag & (SOCK_HIDDEN|SOCK_UNAVAIL)) && (sock->flag & SOCK_IN_USE))
 			node_socket_circle_draw(snode->nodetree, sock, socket_size);
 	}
 	
@@ -922,14 +960,15 @@ void drawnodespace(const bContext *C, ARegion *ar, View2D *v2d)
 	if(snode->nodetree) {
 		bNode *node;
 		
-		/* init ui blocks for opened node group trees first 
-		 * so they're in the correct depth stack order */
+		node_uiblocks_init(C, snode->nodetree);
+		
+		/* uiBlocks must be initialized in drawing order for correct event clipping.
+		 * Node group internal blocks added after the main group block.
+		 */
 		for(node= snode->nodetree->nodes.first; node; node= node->next) {
 			if(node->flag & NODE_GROUP_EDIT)
 				node_uiblocks_init(C, (bNodeTree *)node->id);
 		}
-		
-		node_uiblocks_init(C, snode->nodetree);
 		
 		node_update_nodetree(C, snode->nodetree, 0.0f, 0.0f);
 		node_draw_nodetree(C, ar, snode, snode->nodetree);

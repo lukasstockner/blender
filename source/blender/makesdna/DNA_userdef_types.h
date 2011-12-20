@@ -114,7 +114,7 @@ typedef struct uiStyle {
 	short panelspace;
 	short panelouter;
 
-	short pad[1];
+	short pad;
 } uiStyle;
 
 typedef struct uiWidgetColors {
@@ -139,6 +139,12 @@ typedef struct uiWidgetStateColors {
 	float blend, pad;
 } uiWidgetStateColors;
 
+typedef struct uiPanelColors {
+	char header[4];
+	short show_header;
+	short pad;
+} uiPanelColors;
+
 typedef struct ThemeUI {
 	
 	/* Interface Elements (buttons, menus, icons) */
@@ -149,9 +155,13 @@ typedef struct ThemeUI {
 	uiWidgetColors wcol_box, wcol_scroll, wcol_progress, wcol_list_item;
 	
 	uiWidgetStateColors wcol_state;
-	
+
+	uiPanelColors panel;
+
 	char iconfile[80];	// FILE_MAXFILE length
-	
+	float icon_alpha;
+
+	float pad;
 } ThemeUI;
 
 /* try to put them all in one, if needed a special struct can be created as well
@@ -346,7 +356,7 @@ typedef struct UserDef {
 	struct ListBase themes;
 	struct ListBase uifonts;
 	struct ListBase uistyles;
-	struct ListBase keymaps;		/* deprecated in favor of user_keymaps */
+	struct ListBase keymaps  DNA_DEPRECATED; /* deprecated in favor of user_keymaps */
 	struct ListBase user_keymaps;
 	struct ListBase addons;
 	char keyconfigstr[64];
@@ -398,7 +408,9 @@ typedef struct UserDef {
 	struct ColorBand coba_weight;	/* from texture.h */
 
 	float sculpt_paint_overlay_col[3];
-	int pad3;
+
+	short tweak_threshold;
+	short pad3;
 
 	char author[80];	/* author name for file formats supporting it */
 } UserDef;
@@ -605,7 +617,6 @@ extern UserDef U; /* from blenkernel blender.c */
 */
 /* actually... users probably don't care about what the mode
    is called, just that it feels right */
-#define NDOF_ORBIT_INVERT_AXES (1 << 6)
 /* zoom is up/down if this flag is set (otherwise forward/backward) */
 #define NDOF_ZOOM_UPDOWN (1 << 7)
 #define NDOF_ZOOM_INVERT (1 << 8)

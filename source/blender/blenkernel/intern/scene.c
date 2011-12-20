@@ -44,6 +44,7 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_group_types.h"
+#include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -346,9 +347,11 @@ Scene *add_scene(const char *name)
 	sce->r.mblur_samples= 1;
 	sce->r.filtertype= R_FILTER_MITCH;
 	sce->r.size= 50;
-	sce->r.planes= 24;
-	sce->r.imtype= R_PNG;
-	sce->r.quality= 90;
+
+	sce->r.im_format.planes= R_IMF_PLANES_RGB;
+	sce->r.im_format.imtype= R_IMF_IMTYPE_PNG;
+	sce->r.im_format.quality= 90;
+
 	sce->r.displaymode= R_OUTPUT_AREA;
 	sce->r.framapto= 100;
 	sce->r.images= 100;
@@ -390,10 +393,6 @@ Scene *add_scene(const char *name)
 	sce->r.simplify_particles= 1.0f;
 	sce->r.simplify_shadowsamples= 16;
 	sce->r.simplify_aosss= 1.0f;
-
-	sce->r.cineonblack= 95;
-	sce->r.cineonwhite= 685;
-	sce->r.cineongamma= 1.7f;
 
 	sce->r.border.xmin= 0.0f;
 	sce->r.border.ymin= 0.0f;
@@ -483,7 +482,7 @@ Scene *add_scene(const char *name)
 	sce->r.osa= 8;
 
 	/* note; in header_info.c the scene copy happens..., if you add more to renderdata it has to be checked there */
-	scene_add_render_layer(sce);
+	scene_add_render_layer(sce, NULL);
 	
 	/* game data */
 	sce->gm.stereoflag = STEREO_NOSTEREO;
@@ -1025,15 +1024,11 @@ void scene_update_tagged(Main *bmain, Scene *scene)
 	if (scene->physics_settings.quick_cache_step)
 		BKE_ptcache_quick_cache_all(bmain, scene);
 
-	/* notify editors about recalc */
-	DAG_ids_check_recalc(bmain);
-
-	/* keep this last */
+	/* notify editors and python about recalc */
 	BLI_exec_cb(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_POST);
-}
+	DAG_ids_check_recalc(bmain, scene, FALSE);
 
-void scene_clear_tagged(Main *bmain, Scene *UNUSED(scene))
-{
+	/* clear recalc flags */
 	DAG_ids_clear_recalc(bmain);
 }
 
@@ -1078,21 +1073,26 @@ void scene_update_for_newframe(Main *bmain, Scene *sce, unsigned int lay)
 	/* object_handle_update() on all objects, groups and sets */
 	scene_update_tagged_recursive(bmain, sce, sce);
 
-	/* keep this last */
+	/* notify editors and python about recalc */
 	BLI_exec_cb(bmain, &sce->id, BLI_CB_EVT_SCENE_UPDATE_POST);
 	BLI_exec_cb(bmain, &sce->id, BLI_CB_EVT_FRAME_CHANGE_POST);
 
+	DAG_ids_check_recalc(bmain, sce, TRUE);
+
+	/* clear recalc flags */
 	DAG_ids_clear_recalc(bmain);
 }
 
 /* return default layer, also used to patch old files */
-void scene_add_render_layer(Scene *sce)
+SceneRenderLayer *scene_add_render_layer(Scene *sce, const char *name)
 {
 	SceneRenderLayer *srl;
-//	int tot= 1 + BLI_countlist(&sce->r.layers);
-	
+
+	if(!name)
+		name= "RenderLayer";
+
 	srl= MEM_callocN(sizeof(SceneRenderLayer), "new render layer");
-	strcpy(srl->name, "RenderLayer");
+	BLI_strncpy(srl->name, name, sizeof(srl->name));
 	BLI_uniquename(&sce->r.layers, srl, "RenderLayer", '.', offsetof(SceneRenderLayer, name), sizeof(srl->name));
 	BLI_addtail(&sce->r.layers, srl);
 
@@ -1100,6 +1100,45 @@ void scene_add_render_layer(Scene *sce)
 	srl->lay= (1<<20) -1;
 	srl->layflag= 0x7FFF;	/* solid ztra halo edge strand */
 	srl->passflag= SCE_PASS_COMBINED|SCE_PASS_Z;
+
+	return srl;
+}
+
+int scene_remove_render_layer(Main *bmain, Scene *scene, SceneRenderLayer *srl)
+{
+	const int act= BLI_findindex(&scene->r.layers, srl);
+	Scene *sce;
+
+	if (act == -1) {
+		return 0;
+	}
+	else if ( (scene->r.layers.first == scene->r.layers.last) &&
+	          (scene->r.layers.first == srl))
+	{
+		/* ensure 1 layer is kept */
+		return 0;
+	}
+
+	BLI_remlink(&scene->r.layers, srl);
+	MEM_freeN(srl);
+
+	scene->r.actlay= 0;
+
+	for(sce = bmain->scene.first; sce; sce = sce->id.next) {
+		if(sce->nodetree) {
+			bNode *node;
+			for(node = sce->nodetree->nodes.first; node; node = node->next) {
+				if(node->type==CMP_NODE_R_LAYERS && (Scene*)node->id==scene) {
+					if(node->custom1==act)
+						node->custom1= 0;
+					else if(node->custom1>act)
+						node->custom1--;
+				}
+			}
+		}
+	}
+
+	return 1;
 }
 
 /* render simplification */
@@ -1163,6 +1202,6 @@ Base *_setlooper_base_step(Scene **sce_iter, Base *base)
 int scene_use_new_shading_nodes(Scene *scene)
 {
 	RenderEngineType *type= RE_engines_find(scene->r.engine);
-	return (type->flag & RE_USE_SHADING_NODES);
+	return (type && type->flag & RE_USE_SHADING_NODES);
 }
 

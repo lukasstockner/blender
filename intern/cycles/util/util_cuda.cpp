@@ -147,6 +147,8 @@ tcuCtxSetCurrent *cuCtxSetCurrent;
 CCL_NAMESPACE_BEGIN
 
 /* utility macros */
+#define CUDA_LIBRARY_FIND_CHECKED(name) \
+	name = (t##name*)dynamic_library_find(lib, #name);
 
 #define CUDA_LIBRARY_FIND(name) \
 	name = (t##name*)dynamic_library_find(lib, #name); \
@@ -188,7 +190,7 @@ bool cuLibraryInit()
 	/* detect driver version */
 	int driver_version = 1000;
 
-	CUDA_LIBRARY_FIND(cuDriverGetVersion);
+	CUDA_LIBRARY_FIND_CHECKED(cuDriverGetVersion);
 	if(cuDriverGetVersion)
 		cuDriverGetVersion(&driver_version);
 
@@ -373,8 +375,14 @@ bool cuLibraryInit()
 	/* cuda 4.0 */
 	CUDA_LIBRARY_FIND(cuCtxSetCurrent);
 
+#ifndef WITH_CUDA_BINARIES
+#ifdef _WIN32
+	return false; /* runtime build doesn't work at the moment */
+#else
 	if(cuCompilerPath() == "")
 		return false;
+#endif
+#endif
 
 	/* success */
 	result = true;
@@ -401,7 +409,15 @@ string cuCompilerPath()
 	else
 		nvcc = path_join(defaultpath, executable);
 
-	return (path_exists(nvcc))? nvcc: "";
+	if(path_exists(nvcc))
+		return nvcc;
+
+#ifndef _WIN32
+	if(system("which nvcc") == 0)
+		return "nvcc";
+#endif
+
+	return "";
 }
 
 CCL_NAMESPACE_END

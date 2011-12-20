@@ -282,7 +282,26 @@ int ED_mesh_color_remove(bContext *C, Object *ob, Mesh *me)
 	CustomDataLayer *cdl;
 	int index;
 
-	 index= CustomData_get_active_layer_index(data, CD_MCOL);
+	index= CustomData_get_active_layer_index(data, CD_MCOL);
+	cdl= (index == -1)? NULL: &data->layers[index];
+
+	if(!cdl)
+		return 0;
+
+	delete_customdata_layer(C, ob, cdl);
+	DAG_id_tag_update(&me->id, 0);
+	WM_event_add_notifier(C, NC_GEOM|ND_DATA, me);
+
+	return 1;
+}
+
+int ED_mesh_color_remove_named(bContext *C, Object *ob, Mesh *me, const char *name)
+{
+	CustomData *data= (me->edit_mesh)? &me->edit_mesh->fdata: &me->fdata;
+	CustomDataLayer *cdl;
+	int index;
+
+	index= CustomData_get_named_layer_index(data, CD_MCOL, name);
 	cdl= (index == -1)? NULL: &data->layers[index];
 
 	if(!cdl)
@@ -318,8 +337,8 @@ static int uv_texture_add_exec(bContext *C, wmOperator *UNUSED(op))
 void MESH_OT_uv_texture_add(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Add UV Texture";
-	ot->description= "Add UV texture layer";
+	ot->name= "Add UV Map";
+	ot->description= "Add UV Map";
 	ot->idname= "MESH_OT_uv_texture_add";
 	
 	/* api callbacks */
@@ -398,8 +417,8 @@ static int drop_named_image_invoke(bContext *C, wmOperator *op, wmEvent *event)
 void MESH_OT_drop_named_image(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Assign Image to UV Texture";
-	ot->description= "Assigns Image to active UV layer, or creates a UV layer";
+	ot->name= "Assign Image to UV Map";
+	ot->description= "Assign Image to active UV Map, or create an UV Map";
 	ot->idname= "MESH_OT_drop_named_image";
 	
 	/* api callbacks */
@@ -428,8 +447,8 @@ static int uv_texture_remove_exec(bContext *C, wmOperator *UNUSED(op))
 void MESH_OT_uv_texture_remove(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Remove UV Texture";
-	ot->description= "Remove UV texture layer";
+	ot->name= "Remove UV Map";
+	ot->description= "Remove UV Map";
 	ot->idname= "MESH_OT_uv_texture_remove";
 	
 	/* api callbacks */

@@ -71,17 +71,15 @@ if(WITH_CYCLES_PARTIO)
 endif()
 
 ###########################################################################
-# Blender
+# CUDA
 
-if(WITH_CYCLES_BLENDER)
-
-	set(BLENDER_INCLUDE_DIRS
-		${CMAKE_SOURCE_DIR}/intern/guardedalloc
-		${CMAKE_SOURCE_DIR}/source/blender/makesdna
-		${CMAKE_SOURCE_DIR}/source/blender/makesrna
-		${CMAKE_SOURCE_DIR}/source/blender/blenloader
-		${CMAKE_BINARY_DIR}/source/blender/makesrna/intern)
-
-	add_definitions(-DBLENDER_PLUGIN)
+if(WITH_CYCLES_CUDA_BINARIES)
+	find_package(CUDA) # Try to auto locate CUDA toolkit
+	if(CUDA_FOUND)
+		message(STATUS "CUDA nvcc = ${CUDA_NVCC_EXECUTABLE}")
+	else()
+		message(STATUS "CUDA compiler not found, disabling WITH_CYCLES_CUDA_BINARIES")
+		set(WITH_CYCLES_CUDA_BINARIES OFF)
+	endif()
 endif()
 

@@ -87,6 +87,7 @@ else:
         "gpu",
         "mathutils",
         "mathutils.geometry",
+        "mathutils.noise",
     )
 
     FILTER_BPY_TYPES = ("bpy_struct", "Operator", "ID")  # allow
@@ -109,6 +110,12 @@ INFO_DOCS = (
     ("info_tips_and_tricks.rst", "Tips and Tricks: Hints to help you while writeing scripts for blender"),
     ("info_gotcha.rst", "Gotcha's: some of the problems you may come up against when writing scripts"),
     )
+
+# only support for properties atm.
+RNA_BLACKLIST = {
+    # messes up PDF!, really a bug but for now just workaround.
+    "UserPreferencesSystem": {"language", },
+    }
 
 
 # -----------------------------------------------------------------------------
@@ -589,6 +596,7 @@ def pycontext2sphinx(BASEPATH):
         "active_base": ("ObjectBase", False),
         "active_bone": ("Bone", False),
         "active_object": ("Object", False),
+        "active_operator": ("Operator", False),
         "active_pose_bone": ("PoseBone", False),
         "armature": ("Armature", False),
         "bone": ("Bone", False),
@@ -597,6 +605,7 @@ def pycontext2sphinx(BASEPATH):
         "cloth": ("ClothModifier", False),
         "collision": ("CollisionModifier", False),
         "curve": ("Curve", False),
+        "dynamic_paint": ("DynamicPaintModifier", False),
         "edit_bone": ("EditBone", False),
         "edit_image": ("Image", False),
         "edit_object": ("Object", False),
@@ -635,6 +644,7 @@ def pycontext2sphinx(BASEPATH):
         "speaker": ("Speaker", False),
         "texture": ("Texture", False),
         "texture_slot": ("MaterialTextureSlot", False),
+        "texture_user": ("ID", False),
         "vertex_paint_object": ("Object", False),
         "visible_bases": ("ObjectBase", True),
         "visible_bones": ("Object", True),
@@ -655,7 +665,7 @@ def pycontext2sphinx(BASEPATH):
         char_array = c_char_p_p.from_address(attr)
         i = 0
         while char_array[i] is not None:
-            member = ctypes.string_at(char_array[i]).decode()
+            member = ctypes.string_at(char_array[i]).decode(encoding="ascii")
             fw(".. data:: %s\n\n" % member)
             member_type, is_seq = type_map[member]
             fw("   :type: %s :class:`bpy.types.%s`\n\n" % ("sequence of " if is_seq else "", member_type))
@@ -754,22 +764,23 @@ def pyrna2sphinx(BASEPATH):
         fw = file.write
 
         base_id = getattr(struct.base, "identifier", "")
+        struct_id = struct.identifier
 
         if _BPY_STRUCT_FAKE:
             if not base_id:
                 base_id = _BPY_STRUCT_FAKE
 
         if base_id:
-            title = "%s(%s)" % (struct.identifier, base_id)
+            title = "%s(%s)" % (struct_id, base_id)
         else:
-            title = struct.identifier
+            title = struct_id
 
         write_title(fw, title, "=")
 
         fw(".. module:: bpy.types\n\n")
 
         # docs first?, ok
-        write_example_ref("", fw, "bpy.types.%s" % struct.identifier)
+        write_example_ref("", fw, "bpy.types.%s" % struct_id)
 
         base_ids = [base.identifier for base in struct.get_bases()]
 
@@ -798,9 +809,9 @@ def pyrna2sphinx(BASEPATH):
                 base_id = _BPY_STRUCT_FAKE
 
         if base_id:
-            fw(".. class:: %s(%s)\n\n" % (struct.identifier, base_id))
+            fw(".. class:: %s(%s)\n\n" % (struct_id, base_id))
         else:
-            fw(".. class:: %s\n\n" % struct.identifier)
+            fw(".. class:: %s\n\n" % struct_id)
 
         fw("   %s\n\n" % struct.description)
 
@@ -808,7 +819,15 @@ def pyrna2sphinx(BASEPATH):
         sorted_struct_properties = struct.properties[:]
         sorted_struct_properties.sort(key=lambda prop: prop.identifier)
 
+        # support blacklisting props
+        struct_blacklist = RNA_BLACKLIST.get(struct_id, ())
+
         for prop in sorted_struct_properties:
+
+            # support blacklisting props
+            if prop.identifier in struct_blacklist:
+                continue
+
             type_descr = prop.get_type_description(class_fmt=":class:`%s`", collection_id=_BPY_PROP_COLLECTION_ID)
             # readonly properties use "data" directive, variables properties use "attribute" directive
             if 'readonly' in type_descr:
@@ -857,7 +876,7 @@ def pyrna2sphinx(BASEPATH):
                         descr = prop.name
                     fw("         `%s`, %s, %s\n\n" % (prop.identifier, descr, type_descr))
 
-            write_example_ref("      ", fw, "bpy.types." + struct.identifier + "." + func.identifier)
+            write_example_ref("      ", fw, "bpy.types." + struct_id + "." + func.identifier)
 
             fw("\n")
 
@@ -873,7 +892,7 @@ def pyrna2sphinx(BASEPATH):
         py_func = None
 
         for identifier, py_func in py_funcs:
-            py_c_func2sphinx("   ", fw, "bpy.types", struct.identifier, identifier, py_func, is_class=True)
+            py_c_func2sphinx("   ", fw, "bpy.types", struct_id, identifier, py_func, is_class=True)
 
         lines = []
 
@@ -952,7 +971,7 @@ def pyrna2sphinx(BASEPATH):
             fw("\n")
 
         # docs last?, disable for now
-        # write_example_ref("", fw, "bpy.types.%s" % struct.identifier)
+        # write_example_ref("", fw, "bpy.types.%s" % struct_id)
         file.close()
 
     if "bpy.types" not in EXCLUDE_MODULES:
@@ -1172,6 +1191,8 @@ def rna2sphinx(BASEPATH):
         fw("   mathutils.rst\n\n")
     if "mathutils.geometry" not in EXCLUDE_MODULES:
         fw("   mathutils.geometry.rst\n\n")
+    if "mathutils.noise" not in EXCLUDE_MODULES:
+        fw("   mathutils.noise.rst\n\n")
     if "bgl" not in EXCLUDE_MODULES:
         fw("   bgl.rst\n\n")
     if "blf" not in EXCLUDE_MODULES:
@@ -1310,6 +1331,10 @@ def rna2sphinx(BASEPATH):
     if "mathutils.geometry" not in EXCLUDE_MODULES:
         import mathutils.geometry as module
         pymodule2sphinx(BASEPATH, "mathutils.geometry", module, "Geometry Utilities")
+
+    if "mathutils.noise" not in EXCLUDE_MODULES:
+        import mathutils.noise as module
+        pymodule2sphinx(BASEPATH, "mathutils.noise", module, "Noise Utilities")
 
     if "blf" not in EXCLUDE_MODULES:
         import blf as module

@@ -442,18 +442,18 @@ int BLI_exists(const char *name)
 	/*  in Windows stat doesn't recognize dir ending on a slash 
 		To not break code where the ending slash is expected we
 		don't mess with the argument name directly here - elubie */
-	char tmp[FILE_MAXDIR+FILE_MAXFILE];
+	char tmp[FILE_MAX];
 	int len, res;
-	BLI_strncpy(tmp, name, FILE_MAXDIR+FILE_MAXFILE);
+	BLI_strncpy(tmp, name, FILE_MAX);
 	len = strlen(tmp);
 	if (len > 3 && ( tmp[len-1]=='\\' || tmp[len-1]=='/') ) tmp[len-1] = '\0';
 	res = _stat(tmp, &st);
 	if (res == -1) return(0);
 #elif defined(__MINGW32__)
 	struct _stati64 st;
-	char tmp[FILE_MAXDIR+FILE_MAXFILE];
+	char tmp[FILE_MAX];
 	int len, res;
-	BLI_strncpy(tmp, name, FILE_MAXDIR+FILE_MAXFILE);
+	BLI_strncpy(tmp, name, FILE_MAX);
 	len = strlen(tmp);
 	if (len > 3 && ( tmp[len-1]=='\\' || tmp[len-1]=='/') ) tmp[len-1] = '\0';
 	res = _stati64(tmp, &st);
@@ -469,6 +469,12 @@ int BLI_exists(const char *name)
 int BLI_is_dir(const char *file)
 {
 	return S_ISDIR(BLI_exists(file));
+}
+
+int BLI_is_file(const char *path)
+{
+	int mode= BLI_exists(path);
+	return (mode && !S_ISDIR(mode));
 }
 
 LinkNode *BLI_file_read_as_lines(const char *name)

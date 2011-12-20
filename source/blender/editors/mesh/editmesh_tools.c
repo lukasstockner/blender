@@ -547,7 +547,7 @@ static void xsortvert_flag(bContext *C, int flag)
 			sortblock[i].v1 = eve;
 
 	ED_view3d_init_mats_rv3d(vc.obedit, vc.rv3d);
-	mesh_foreachScreenVert(&vc, xsortvert_flag__doSetX, sortblock, 0);
+	mesh_foreachScreenVert(&vc, xsortvert_flag__doSetX, sortblock, V3D_CLIP_TEST_OFF);
 
 	qsort(sortblock, amount, sizeof(xvertsort), vergxco);
 
@@ -1651,7 +1651,7 @@ static void fill_quad_single(EditMesh *em, EditFace *efa, struct GHash *gh, int 
 		facecopy(em, efa,hold);
 		if(i+1 != (vertsize-1)/2) {
 			if(seltype == SUBDIV_SELECT_INNER) {
-				 hold->e3->f2 |= EDGEINNER;
+				hold->e3->f2 |= EDGEINNER;
 			}
 		}
 	}
@@ -1720,7 +1720,7 @@ static void fill_tri_single(EditMesh *em, EditFace *efa, struct GHash *gh, int n
 		hold = addfacelist(em, verts[i],verts[i+1],v[op],NULL,NULL,NULL);
 		if(i+1 != vertsize-1) {
 			if(seltype == SUBDIV_SELECT_INNER) {
-				 hold->e2->f2 |= EDGEINNER;
+				hold->e2->f2 |= EDGEINNER;
 			}
 		}
 		facecopy(em, efa,hold);
@@ -2369,7 +2369,7 @@ static void fill_quad_quadruple(EditMesh *em, EditFace *efa, struct GHash *gh, i
 	}
 	// Clean up our dynamic multi-dim array
 	for(i=0;i<numcuts+2;i++) {
-	   MEM_freeN(innerverts[i]);
+		MEM_freeN(innerverts[i]);
 	}
 	MEM_freeN(innerverts);
 }
@@ -2666,20 +2666,11 @@ void esubdivideflag(Object *obedit, EditMesh *em, int flag, float smooth, float 
 			if(mmd->flag & MOD_MIR_CLIPPING) {
 				for (eve= em->verts.first; eve; eve= eve->next) {
 					eve->f2= 0;
-					switch(mmd->axis){
-						case 0:
-							if (fabsf(eve->co[0]) < mmd->tolerance)
-								eve->f2 |= 1;
-							break;
-						case 1:
-							if (fabsf(eve->co[1]) < mmd->tolerance)
-								eve->f2 |= 2;
-							break;
-						case 2:
-							if (fabsf(eve->co[2]) < mmd->tolerance)
-								eve->f2 |= 4;
-							break;
-					}
+
+					if (mmd->flag & MOD_MIR_AXIS_X && fabsf(eve->co[0]) < mmd->tolerance) eve->f2 |= 1;
+					if (mmd->flag & MOD_MIR_AXIS_Y && fabsf(eve->co[1]) < mmd->tolerance) eve->f2 |= 2;
+					if (mmd->flag & MOD_MIR_AXIS_Z && fabsf(eve->co[2]) < mmd->tolerance) eve->f2 |= 4;
+
 				}
 			}
 		}
@@ -4389,7 +4380,7 @@ useless:
 				}
 				look = look->next;
 			}
-		} /* end uv layer loop */
+		} /* end uv map loop */
 	} /* end uvlay_tot */
 
 
@@ -7255,7 +7246,7 @@ static int sort_faces_exec(bContext *C, wmOperator *op)
 		float cur[3];
 		
 		if (event == 1)
-			mul_m4_m4m4(mat, OBACT->obmat, rv3d->viewmat); /* apply the view matrix to the object matrix */
+			mult_m4_m4m4(mat, rv3d->viewmat, OBACT->obmat); /* apply the view matrix to the object matrix */
 		else if (event == 2) { /* sort from cursor */
 			if( v3d && v3d->localvd ) {
 				VECCOPY(cur, v3d->cursor);
@@ -7519,10 +7510,11 @@ static int select_axis_exec(bContext *C, wmOperator *op)
 	EditSelection *ese = em->selected.last;
 
 
-	if(ese==NULL)
+	if (ese==NULL || ese->type != EDITVERT) {
+		BKE_report(op->reports, RPT_WARNING, "This operator requires an active vertex (last selected)");
 		return OPERATOR_CANCELLED;
-
-	if(ese->type==EDITVERT) {
+	}
+	else {
 		EditVert *ev;
 		EditVert *act_vert= (EditVert*)ese->data;
 		float value= act_vert->co[axis];

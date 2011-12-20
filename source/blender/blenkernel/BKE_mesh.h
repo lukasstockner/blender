@@ -128,15 +128,9 @@ typedef struct IndexNode {
 	int index;
 } IndexNode;
 void create_vert_face_map(ListBase **map, IndexNode **mem, const struct MFace *mface,
-			  const int totvert, const int totface);
+                          const int totvert, const int totface);
 void create_vert_edge_map(ListBase **map, IndexNode **mem, const struct MEdge *medge,
-			  const int totvert, const int totedge);
-
-/* Partial Mesh Visibility */
-struct PartialVisibility *mesh_pmv_copy(struct PartialVisibility *);
-void mesh_pmv_free(struct PartialVisibility *);
-void mesh_pmv_revert(struct Mesh *me);
-void mesh_pmv_off(struct Mesh *me);
+                          const int totvert, const int totedge);
 
 /* functions for making menu's from customdata layers */
 int mesh_layers_menu_charlen(struct CustomData *data, int type); /* use this to work out how many chars to allocate */
@@ -151,7 +145,13 @@ int mesh_center_bounds(struct Mesh *me, float cent[3]);
 void mesh_translate(struct Mesh *me, float offset[3], int do_keys);
 
 /* mesh_validate.c */
-int BKE_mesh_validate_arrays(struct Mesh *me, struct MVert *mverts, unsigned int totvert, struct MEdge *medges, unsigned int totedge, struct MFace *mfaces, unsigned int totface, const short do_verbose, const short do_fixes);
+int BKE_mesh_validate_arrays(
+		struct Mesh *me,
+        struct MVert *mverts, unsigned int totvert,
+        struct MEdge *medges, unsigned int totedge,
+        struct MFace *mfaces, unsigned int totface,
+        struct MDeformVert *dverts, /* assume totvert length */
+        const short do_verbose, const short do_fixes);
 int BKE_mesh_validate(struct Mesh *me, int do_verbose);
 int BKE_mesh_validate_dm(struct DerivedMesh *dm);
 

@@ -122,7 +122,7 @@ void uv_attribute(vec2 attuv, out vec3 uv)
 	uv = vec3(attuv*2.0 - vec2(1.0, 1.0), 0.0);
 }
 
-void geom(vec3 co, vec3 nor, mat4 viewinvmat, vec3 attorco, vec2 attuv, vec4 attvcol, out vec3 global, out vec3 local, out vec3 view, out vec3 orco, out vec3 uv, out vec3 normal, out vec4 vcol, out float frontback)
+void geom(vec3 co, vec3 nor, mat4 viewinvmat, vec3 attorco, vec2 attuv, vec4 attvcol, out vec3 global, out vec3 local, out vec3 view, out vec3 orco, out vec3 uv, out vec3 normal, out vec4 vcol, out float vcol_alpha, out float frontback)
 {
 	local = co;
 	view = normalize(local);
@@ -131,6 +131,7 @@ void geom(vec3 co, vec3 nor, mat4 viewinvmat, vec3 attorco, vec2 attuv, vec4 att
 	uv_attribute(attuv, uv);
 	normal = -normalize(nor);	/* blender render normal is negated */
 	vcol_attribute(attvcol, vcol);
+	vcol_alpha = attvcol.a;
 	frontback = 1.0;
 }
 
@@ -365,6 +366,26 @@ void set_rgb_zero(out vec3 outval)
 void set_rgba_zero(out vec4 outval)
 {
 	outval = vec4(0.0);
+}
+
+void copy_raw(vec4 val, out vec4 outval)
+{
+	outval = val;
+}
+
+void copy_raw(vec3 val, out vec3 outval)
+{
+	outval = val;
+}
+
+void copy_raw(vec2 val, out vec2 outval)
+{
+	outval = val;
+}
+
+void copy_raw(float val, out float outval)
+{
+	outval = val;
 }
 
 void mix_blend(float fac, vec4 col1, vec4 col2, out vec4 outcol)
@@ -1131,8 +1152,8 @@ void mtex_bump_init_objspace( vec3 surf_pos, vec3 surf_norm,
 							  out float fPrevMagnitude_out, out vec3 vNacc_out, 
 							  out vec3 vR1, out vec3 vR2, out float fDet ) 
 {
-	mat3 obj2view = to_mat3(mView * mObj);
-	mat3 view2obj = to_mat3(mObjInv * mViewInv);
+	mat3 obj2view = to_mat3(gl_ModelViewMatrix);
+	mat3 view2obj = to_mat3(gl_ModelViewMatrixInverse);
 	
 	vec3 vSigmaS = view2obj * dFdx( surf_pos );
 	vec3 vSigmaT = view2obj * dFdy( surf_pos );
@@ -1203,6 +1224,84 @@ void mtex_bump_tap3( vec3 texco, sampler2D ima, float hScale,
 	dBs = hScale * (Hlr - Hll);
 	dBt = hScale * (Hul - Hll);
 }
+
+#ifdef BUMP_BICUBIC
+
+void mtex_bump_bicubic( vec3 texco, sampler2D ima, float hScale, 
+                     out float dBs, out float dBt ) 
+{
+	vec2 TexDx = dFdx(texco.xy);
+	vec2 TexDy = dFdy(texco.xy);
+ 
+	vec2 STl = texco.xy - 0.5 * TexDx ;
+	vec2 STr = texco.xy + 0.5 * TexDx ;
+	vec2 STd = texco.xy - 0.5 * TexDy ;
+	vec2 STu = texco.xy + 0.5 * TexDy ;
+	
+	float Hl = texture2D(ima, STl).x;
+	float Hr = texture2D(ima, STr).x;
+	float Hd = texture2D(ima, STd).x;
+	float Hu = texture2D(ima, STu).x;
+	
+	vec2 dHdxy = vec2(Hr - Hl, Hu - Hd);
+	float fBlend = clamp(1.0-textureQueryLOD(ima, texco.xy).x, 0.0, 1.0);
+	if(fBlend!=0.0)
+	{
+		// the derivative of the bicubic sampling of level 0
+		ivec2 vDim;
+		vDim = textureSize(ima, 0);
+
+		vec2 fTexLoc = vDim*texco.xy-vec2(0.5,0.5);
+		ivec2 iTexLoc = ivec2(floor(fTexLoc));
+		vec2 t = clamp(fTexLoc - iTexLoc, 0.0, 1.0);		// sat just to be pedantic
+
+		ivec2 iTexLocMod = iTexLoc + ivec2(-1, -1);
+
+/*******************************************************************************************
+ * This block will replace the one below when one channel textures are properly supported. *
+ *******************************************************************************************
+		vec4 vSamplesUL = textureGather(ima, (iTexLoc+ivec2(-1,-1) + vec2(0.5,0.5))/vDim );
+		vec4 vSamplesUR = textureGather(ima, (iTexLoc+ivec2(1,-1) + vec2(0.5,0.5))/vDim );
+		vec4 vSamplesLL = textureGather(ima, (iTexLoc+ivec2(-1,1) + vec2(0.5,0.5))/vDim );
+		vec4 vSamplesLR = textureGather(ima, (iTexLoc+ivec2(1,1) + vec2(0.5,0.5))/vDim );
+		
+		mat4 H = mat4(vSamplesUL.w, vSamplesUL.x, vSamplesLL.w, vSamplesLL.x,
+					vSamplesUL.z, vSamplesUL.y, vSamplesLL.z, vSamplesLL.y,
+					vSamplesUR.w, vSamplesUR.x, vSamplesLR.w, vSamplesLR.x,
+					vSamplesUR.z, vSamplesUR.y, vSamplesLR.z, vSamplesLR.y);
+*/	
+		mat4 H;
+		
+		for(int i = 0; i < 4; i++){
+			for(int j = 0; j < 4; j++){
+				mtex_rgbtoint(texelFetch(ima, (iTexLocMod + ivec2(i,j)), 0), H[i][j]);
+			}
+		}
+		
+		float x = t.x, y = t.y;
+		float x2 = x * x, x3 = x2 * x, y2 = y * y, y3 = y2 * y;
+
+		vec4 X = vec4(-0.5*(x3+x)+x2,		1.5*x3-2.5*x2+1,	-1.5*x3+2*x2+0.5*x,		0.5*(x3-x2));
+		vec4 Y = vec4(-0.5*(y3+y)+y2,		1.5*y3-2.5*y2+1,	-1.5*y3+2*y2+0.5*y,		0.5*(y3-y2));
+		vec4 dX = vec4(-1.5*x2+2*x-0.5,		4.5*x2-5*x,			-4.5*x2+4*x+0.5,		1.5*x2-x);
+		vec4 dY = vec4(-1.5*y2+2*y-0.5,		4.5*y2-5*y,			-4.5*y2+4*y+0.5,		1.5*y2-y);
+	
+		// complete derivative in normalized coordinates (mul by vDim)
+		vec2 dHdST = vDim * vec2(dot(Y, H * dX), dot(dY, H * X));
+
+		// transform derivative to screen-space
+		vec2 dHdxy_bicubic = vec2( dHdST.x * TexDx.x + dHdST.y * TexDx.y,
+								   dHdST.x * TexDy.x + dHdST.y * TexDy.y );
+
+		// blend between the two
+		dHdxy = dHdxy*(1-fBlend) + dHdxy_bicubic*fBlend;
+	}
+
+	dBs = hScale * dHdxy.x;
+	dBt = hScale * dHdxy.y;
+}
+
+#endif
 
 void mtex_bump_tap5( vec3 texco, sampler2D ima, float hScale, 
                      out float dBs, out float dBt ) 
@@ -1836,7 +1935,7 @@ float hypot(float x, float y)
 
 /* bsdfs */
 
-void node_bsdf_diffuse(vec4 color, vec3 N, out vec4 result)
+void node_bsdf_diffuse(vec4 color, float roughness, vec3 N, out vec4 result)
 {
 	/* ambient light */
 	vec3 L = vec3(0.2);
@@ -1855,14 +1954,19 @@ void node_bsdf_diffuse(vec4 color, vec3 N, out vec4 result)
 
 void node_bsdf_glossy(vec4 color, float roughness, vec3 N, vec3 I, out vec4 result)
 {
-	vec3 L = vec3(0.0);
+	/* ambient light */
+	vec3 L = vec3(0.2);
 
 	/* directional lights */
 	for(int i = 0; i < NUM_LIGHTS; i++) {
+		vec3 light_position = gl_LightSource[i].position.xyz;
 		vec3 H = gl_LightSource[i].halfVector.xyz;
+		vec3 light_diffuse = gl_LightSource[i].diffuse.rgb;
 		vec3 light_specular = gl_LightSource[i].specular.rgb;
 
-		float bsdf = pow(max(dot(N, H), 0.0), 1.0/roughness);
+		/* we mix in some diffuse so low roughness still shows up */
+		float bsdf = 0.5*pow(max(dot(N, H), 0.0), 1.0/roughness);
+		bsdf += 0.5*max(dot(N, light_position), 0.0);
 		L += light_specular*bsdf;
 	}
 
@@ -1871,17 +1975,17 @@ void node_bsdf_glossy(vec4 color, float roughness, vec3 N, vec3 I, out vec4 resu
 
 void node_bsdf_anisotropic(vec4 color, float roughnessU, float roughnessV, vec3 N, vec3 I, out vec4 result)
 {
-	node_bsdf_diffuse(color, N, result);
+	node_bsdf_diffuse(color, 0.0, N, result);
 }
 
 void node_bsdf_glass(vec4 color, float roughness, float ior, vec3 N, vec3 I, out vec4 result)
 {
-	node_bsdf_diffuse(color, N, result);
+	node_bsdf_diffuse(color, 0.0, N, result);
 }
 
 void node_bsdf_translucent(vec4 color, vec3 N, out vec4 result)
 {
-	node_bsdf_diffuse(color, N, result);
+	node_bsdf_diffuse(color, 0.0, N, result);
 }
 
 void node_bsdf_transparent(vec4 color, out vec4 result)
@@ -1895,7 +1999,7 @@ void node_bsdf_transparent(vec4 color, out vec4 result)
 
 void node_bsdf_velvet(vec4 color, float sigma, vec3 N, out vec4 result)
 {
-	node_bsdf_diffuse(color, N, result);
+	node_bsdf_diffuse(color, 0.0, N, result);
 }
 
 /* emission */
@@ -2101,6 +2205,7 @@ void node_light_path(
 	out float is_shadow_ray,
 	out float is_diffuse_ray,
 	out float is_glossy_ray,
+	out float is_singular_ray,
 	out float is_reflection_ray,
 	out float is_transmission_ray)
 {
@@ -2108,6 +2213,7 @@ void node_light_path(
 	is_shadow_ray = 0.0;
 	is_diffuse_ray = 0.0;
 	is_glossy_ray = 0.0;
+	is_singular_ray = 0.0;
 	is_reflection_ray = 0.0;
 	is_transmission_ray = 0.0;
 }

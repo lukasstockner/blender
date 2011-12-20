@@ -321,10 +321,6 @@ void wm_event_do_notifiers(bContext *C)
 			win->screen->scene->customdata_mask |= win->screen->scene->customdata_mask_modal;
 
 			scene_update_tagged(bmain, win->screen->scene);
-
-			ED_render_engine_update_tagged(C, bmain);
-
-			scene_clear_tagged(bmain, win->screen->scene);
 		}
 	}
 
@@ -457,14 +453,14 @@ void WM_event_print(wmEvent *event)
 		RNA_enum_identifier(event_value_items, event->val, &val_id);
 
 		printf("wmEvent - type:%d/%s, val:%d/%s, "
-			   "shift:%d, ctrl:%d, alt:%d, oskey:%d, keymodifier:%d, "
-			   "mouse:(%d,%d), ascii:'%c', utf8:'%.*s', "
-			   "keymap_idname:%s, pointer:%p\n",
-			   event->type, type_id, event->val, val_id,
-			   event->shift, event->ctrl, event->alt, event->oskey, event->keymodifier,
-			   event->x, event->y, event->ascii,
+		       "shift:%d, ctrl:%d, alt:%d, oskey:%d, keymodifier:%d, "
+		       "mouse:(%d,%d), ascii:'%c', utf8:'%.*s', "
+		       "keymap_idname:%s, pointer:%p\n",
+		       event->type, type_id, event->val, val_id,
+		       event->shift, event->ctrl, event->alt, event->oskey, event->keymodifier,
+		       event->x, event->y, event->ascii,
 		       BLI_str_utf8_size(event->utf8_buf), event->utf8_buf,
-			   event->keymap_idname, (void *)event);
+		       event->keymap_idname, (void *)event);
 	}
 	else {
 		printf("wmEvent - NULL\n");
@@ -601,10 +597,34 @@ static int wm_operator_exec(bContext *C, wmOperator *op, int repeat)
 	
 }
 
-/* for running operators with frozen context (modal handlers, menus) */
+/* simply calls exec with basic checks */
+static int wm_operator_exec_notest(bContext *C, wmOperator *op)
+{
+	int retval= OPERATOR_CANCELLED;
+
+	if(op==NULL || op->type==NULL || op->type->exec==NULL)
+		return retval;
+
+	retval= op->type->exec(C, op);
+	OPERATOR_RETVAL_CHECK(retval);
+
+	return retval;
+}
+
+/* for running operators with frozen context (modal handlers, menus)
+ *
+ * warning: do not use this within an operator to call its self! [#29537] */
 int WM_operator_call(bContext *C, wmOperator *op)
 {
 	return wm_operator_exec(C, op, 0);
+}
+
+/* this is intended to be used when an invoke operator wants to call exec on its self
+ * and is basically like running op->type->exec() directly, no poll checks no freeing,
+ * since we assume whoever called invokle will take care of that */
+int WM_operator_call_notest(bContext *C, wmOperator *op)
+{
+	return wm_operator_exec_notest(C, op);
 }
 
 /* do this operator again, put here so it can share above code */
@@ -636,7 +656,7 @@ static wmOperator *wm_operator_create(wmWindowManager *wm, wmOperatorType *ot, P
 	}
 	else {
 		IDPropertyTemplate val = {0};
-		op->properties= IDP_New(IDP_GROUP, val, "wmOperatorProperties");
+		op->properties= IDP_New(IDP_GROUP, &val, "wmOperatorProperties");
 	}
 	RNA_pointer_create(&wm->id, ot->srna, op->properties, op->ptr);
 
@@ -2670,6 +2690,11 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			   modifier in win->eventstate, but for the press event of the same
 			   key we don't want the key modifier */
 			if(event.keymodifier == event.type)
+				event.keymodifier= 0;
+			/* this case happened with an external numpad, it's not really clear
+			   why, but it's also impossible to map a key modifier to an unknwon
+			   key, so it shouldn't harm */
+			if(event.keymodifier == UNKNOWNKEY)
 				event.keymodifier= 0;
 			
 			/* if test_break set, it catches this. XXX Keep global for now? */

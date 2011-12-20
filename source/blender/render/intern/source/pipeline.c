@@ -130,7 +130,7 @@ Render R;
 
 /* ********* alloc and free ******** */
 
-static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, const char *name_override);
+static int do_write_image_or_movie(Render *re, Main *bmain, Scene *scene, bMovieHandle *mh, const char *name_override);
 
 static volatile int g_break= 0;
 static int thread_break(void *UNUSED(arg))
@@ -159,7 +159,7 @@ static void stats_background(void *UNUSED(arg), RenderStats *rs)
 	megs_peak_memory = (peak_memory)/(1024.0*1024.0);
 
 	fprintf(stdout, "Fra:%d Mem:%.2fM (%.2fM, peak %.2fM) ", rs->cfra,
-				   megs_used_memory, mmap_used_memory, megs_peak_memory);
+	        megs_used_memory, mmap_used_memory, megs_peak_memory);
 
 	if(rs->curfield)
 		fprintf(stdout, "Field %d ", rs->curfield);
@@ -1279,7 +1279,7 @@ void RE_InitState(Render *re, Render *source, RenderData *rd, SceneRenderLayer *
 		re->recty= winy;
 	}
 	
-	if(re->rectx < 2 || re->recty < 2 || (BKE_imtype_is_movie(rd->imtype) &&
+	if(re->rectx < 2 || re->recty < 2 || (BKE_imtype_is_movie(rd->im_format.imtype) &&
 										  (re->rectx < 16 || re->recty < 16) )) {
 		BKE_report(re->reports, RPT_ERROR, "Image too small");
 		re->ok= 0;
@@ -1831,7 +1831,7 @@ static void do_render_3d(Render *re)
 	if(render_scene_needs_vector(re))
 		RE_Database_FromScene_Vectors(re, re->main, re->scene, re->lay);
 	else
-	   RE_Database_FromScene(re, re->main, re->scene, re->lay, 1);
+		RE_Database_FromScene(re, re->main, re->scene, re->lay, 1);
 	
 	/* clear UI drawing locks */
 	if(re->draw_lock)
@@ -2832,12 +2832,6 @@ int RE_is_rendering_allowed(Scene *scene, Object *camera_override, ReportList *r
 		BKE_report(reports, RPT_ERROR, "All RenderLayers are disabled");
 		return 0;
 	}
-	
-	/* renderer */
-	if(!ELEM(scene->r.renderer, R_INTERN, R_YAFRAY)) {
-		BKE_report(reports, RPT_ERROR, "Unknown render engine set");
-		return 0;
-	}
 
 	return 1;
 }
@@ -2849,6 +2843,11 @@ static void validate_render_settings(Render *re)
 		if(re->r.osa==0)
 			re->r.scemode &= ~R_FULL_SAMPLE;
 	} else re->r.scemode &= ~R_FULL_SAMPLE;	/* clear to be sure */
+
+	if(RE_engine_is_external(re)) {
+		/* not supported yet */
+		re->r.scemode &= ~(R_EXR_TILE_FILE|R_FULL_SAMPLE);
+	}
 }
 
 static void update_physics_cache(Render *re, Scene *scene, int UNUSED(anim_init))
@@ -2958,16 +2957,16 @@ void RE_BlenderFrame(Render *re, Main *bmain, Scene *scene, SceneRenderLayer *sr
 		do_render_all_options(re);
 
 		if(write_still && !G.afbreek) {
-			if(BKE_imtype_is_movie(scene->r.imtype)) {
+			if(BKE_imtype_is_movie(scene->r.im_format.imtype)) {
 				/* operator checks this but incase its called from elsewhere */
 				printf("Error: cant write single images with a movie format!\n");
 			}
 			else {
 				char name[FILE_MAX];
-				BKE_makepicstring(name, scene->r.pic, scene->r.cfra, scene->r.imtype, scene->r.scemode & R_EXTENSION, FALSE);
-	
+				BKE_makepicstring(name, scene->r.pic, bmain->name, scene->r.cfra, scene->r.im_format.imtype, scene->r.scemode & R_EXTENSION, FALSE);
+
 				/* reports only used for Movie */
-				do_write_image_or_movie(re, scene, NULL, name);
+				do_write_image_or_movie(re, bmain, scene, NULL, name);
 			}
 		}
 
@@ -2978,7 +2977,7 @@ void RE_BlenderFrame(Render *re, Main *bmain, Scene *scene, SceneRenderLayer *sr
 	G.rendering= 0;
 }
 
-static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, const char *name_override)
+static int do_write_image_or_movie(Render *re, Main *bmain, Scene *scene, bMovieHandle *mh, const char *name_override)
 {
 	char name[FILE_MAX];
 	RenderResult rres;
@@ -2988,7 +2987,7 @@ static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, c
 	RE_AcquireResultImage(re, &rres);
 
 	/* write movie or image */
-	if(BKE_imtype_is_movie(scene->r.imtype)) {
+	if(BKE_imtype_is_movie(scene->r.im_format.imtype)) {
 		int dofree = 0;
 		/* note; the way it gets 32 bits rects is weak... */
 		if(rres.rect32==NULL) {
@@ -3006,16 +3005,16 @@ static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, c
 		if(name_override)
 			BLI_strncpy(name, name_override, sizeof(name));
 		else
-			BKE_makepicstring(name, scene->r.pic, scene->r.cfra, scene->r.imtype, scene->r.scemode & R_EXTENSION, TRUE);
+			BKE_makepicstring(name, scene->r.pic, bmain->name, scene->r.cfra, scene->r.im_format.imtype, scene->r.scemode & R_EXTENSION, TRUE);
 		
-		if(re->r.imtype==R_MULTILAYER) {
+		if(re->r.im_format.imtype==R_IMF_IMTYPE_MULTILAYER) {
 			if(re->result) {
-				RE_WriteRenderResult(re->reports, re->result, name, scene->r.quality);
+				RE_WriteRenderResult(re->reports, re->result, name, scene->r.im_format.compress);
 				printf("Saved: %s", name);
 			}
 		}
 		else {
-			ImBuf *ibuf= IMB_allocImBuf(rres.rectx, rres.recty, scene->r.planes, 0);
+			ImBuf *ibuf= IMB_allocImBuf(rres.rectx, rres.recty, scene->r.im_format.planes, 0);
 			
 			/* if not exists, BKE_write_ibuf makes one */
 			ibuf->rect= (unsigned int *)rres.rect32;    
@@ -3030,7 +3029,7 @@ static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, c
 				/* sequence editor can generate 8bpc render buffers */
 				if (ibuf->rect) {
 					ibuf->profile = IB_PROFILE_SRGB;
-					if (ELEM(scene->r.imtype, R_OPENEXR, R_RADHDR))
+					if (BKE_imtype_valid_depths(scene->r.im_format.imtype) & (R_IMF_CHAN_DEPTH_12|R_IMF_CHAN_DEPTH_16|R_IMF_CHAN_DEPTH_24|R_IMF_CHAN_DEPTH_32))
 						IMB_float_from_rect(ibuf);
 				} else {				
 					ibuf->profile = IB_PROFILE_LINEAR_RGB;
@@ -3039,14 +3038,14 @@ static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, c
 
 			/* color -> greyscale */
 			/* editing directly would alter the render view */
-			if(scene->r.planes == 8) {
+			if(scene->r.im_format.planes == R_IMF_PLANES_BW) {
 				ImBuf *ibuf_bw= IMB_dupImBuf(ibuf);
 				IMB_color_to_bw(ibuf_bw);
 				IMB_freeImBuf(ibuf);
 				ibuf= ibuf_bw;
 			}
 
-			ok= BKE_write_ibuf_stamp(scene, camera, ibuf, name, scene->r.imtype, scene->r.subimtype, scene->r.quality);
+			ok= BKE_write_ibuf_stamp(scene, camera, ibuf, name, &scene->r.im_format);
 			
 			if(ok==0) {
 				printf("Render error: cannot save %s\n", name);
@@ -3054,12 +3053,15 @@ static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, c
 			else printf("Saved: %s", name);
 			
 			/* optional preview images for exr */
-			if(ok && scene->r.imtype==R_OPENEXR && (scene->r.subimtype & R_PREVIEW_JPG)) {
+			if(ok && scene->r.im_format.imtype==R_IMF_IMTYPE_OPENEXR && (scene->r.im_format.flag & R_IMF_FLAG_PREVIEW_JPG)) {
+				ImageFormatData imf= scene->r.im_format;
+				imf.imtype= R_IMF_IMTYPE_JPEG90;
+
 				if(BLI_testextensie(name, ".exr")) 
 					name[strlen(name)-4]= 0;
-				BKE_add_image_extension(name, R_JPEG90);
-				ibuf->depth= 24; 
-				BKE_write_ibuf_stamp(scene, camera, ibuf, name, R_JPEG90, scene->r.subimtype, scene->r.quality);
+				BKE_add_image_extension(name, R_IMF_IMTYPE_JPEG90);
+				ibuf->planes= 24;
+				BKE_write_ibuf_stamp(scene, camera, ibuf, name, &imf);
 				printf("\nSaved: %s", name);
 			}
 			
@@ -3080,9 +3082,9 @@ static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, c
 /* saves images to disk */
 void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_override, unsigned int lay, int sfra, int efra, int tfra)
 {
-	bMovieHandle *mh= BKE_get_movie_handle(scene->r.imtype);
+	bMovieHandle *mh= BKE_get_movie_handle(scene->r.im_format.imtype);
 	int cfrao= scene->r.cfra;
-	int nfra;
+	int nfra, totrendered= 0, totskipped= 0;
 	
 	/* do not fully call for each frame, it initializes & pops output window */
 	if(!render_initialize_from_main(re, bmain, scene, NULL, camera_override, lay, 0, 1))
@@ -3094,7 +3096,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 
 	re->flag |= R_ANIMATION;
 
-	if(BKE_imtype_is_movie(scene->r.imtype))
+	if(BKE_imtype_is_movie(scene->r.im_format.imtype))
 		if(!mh->start_movie(scene, &re->r, re->rectx, re->recty, re->reports))
 			G.afbreek= 1;
 
@@ -3107,9 +3109,10 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 				BLI_exec_cb(re->main, (ID *)scene, BLI_CB_EVT_RENDER_PRE);
 
 				do_render_all_options(re);
+				totrendered++;
 
 				if(re->test_break(re->tbh) == 0) {
-					if(!do_write_image_or_movie(re, scene, mh, NULL))
+					if(!do_write_image_or_movie(re, bmain, scene, mh, NULL))
 						G.afbreek= 1;
 				}
 
@@ -3149,12 +3152,13 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 				nfra+= tfra;
 
 			/* Touch/NoOverwrite options are only valid for image's */
-			if(BKE_imtype_is_movie(scene->r.imtype) == 0) {
+			if(BKE_imtype_is_movie(scene->r.im_format.imtype) == 0) {
 				if(scene->r.mode & (R_NO_OVERWRITE | R_TOUCH))
-					BKE_makepicstring(name, scene->r.pic, scene->r.cfra, scene->r.imtype, scene->r.scemode & R_EXTENSION, TRUE);
+					BKE_makepicstring(name, scene->r.pic, bmain->name, scene->r.cfra, scene->r.im_format.imtype, scene->r.scemode & R_EXTENSION, TRUE);
 
 				if(scene->r.mode & R_NO_OVERWRITE && BLI_exists(name)) {
 					printf("skipping existing frame \"%s\"\n", name);
+					totskipped++;
 					continue;
 				}
 				if(scene->r.mode & R_TOUCH && !BLI_exists(name)) {
@@ -3170,10 +3174,11 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 
 			
 			do_render_all_options(re);
+			totrendered++;
 			
 			if(re->test_break(re->tbh) == 0) {
 				if(!G.afbreek)
-					if(!do_write_image_or_movie(re, scene, mh, NULL))
+					if(!do_write_image_or_movie(re, bmain, scene, mh, NULL))
 						G.afbreek= 1;
 			}
 			else
@@ -3181,7 +3186,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 		
 			if(G.afbreek==1) {
 				/* remove touched file */
-				if(BKE_imtype_is_movie(scene->r.imtype) == 0) {
+				if(BKE_imtype_is_movie(scene->r.im_format.imtype) == 0) {
 					if (scene->r.mode & R_TOUCH && BLI_exists(name) && BLI_file_size(name) == 0) {
 						BLI_delete(name, 0, 0);
 					}
@@ -3197,8 +3202,11 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 	}
 	
 	/* end movie */
-	if(BKE_imtype_is_movie(scene->r.imtype))
+	if(BKE_imtype_is_movie(scene->r.im_format.imtype))
 		mh->end_movie();
+	
+	if(totskipped && totrendered == 0)
+		BKE_report(re->reports, RPT_INFO, "No frames rendered, skipped to not overwrite");
 
 	scene->r.cfra= cfrao;
 
@@ -3340,8 +3348,9 @@ void RE_result_load_from_file(RenderResult *result, ReportList *reports, const c
 
 const float default_envmap_layout[] = { 0,0, 1,0, 2,0, 0,1, 1,1, 2,1 };
 
-int RE_WriteEnvmapResult(struct ReportList *reports, Scene *scene, EnvMap *env, const char *relpath, int imtype, float layout[12])
+int RE_WriteEnvmapResult(struct ReportList *reports, Scene *scene, EnvMap *env, const char *relpath, const char imtype, float layout[12])
 {
+	ImageFormatData imf;
 	ImBuf *ibuf=NULL;
 	int ok;
 	int dx;
@@ -3352,6 +3361,9 @@ int RE_WriteEnvmapResult(struct ReportList *reports, Scene *scene, EnvMap *env, 
 		BKE_report(reports, RPT_ERROR, "There is no generated environment map available to save");
 		return 0;
 	}
+
+	imf= scene->r.im_format;
+	imf.imtype= imtype;
 
 	dx= env->cube[1]->x;
 
@@ -3383,7 +3395,7 @@ int RE_WriteEnvmapResult(struct ReportList *reports, Scene *scene, EnvMap *env, 
 	BLI_strncpy(filepath, relpath, sizeof(filepath));
 	BLI_path_abs(filepath, G.main->name);
 
-	ok= BKE_write_ibuf(ibuf, filepath, imtype, scene->r.subimtype, scene->r.quality);
+	ok= BKE_write_ibuf(ibuf, filepath, &imf);
 
 	IMB_freeImBuf(ibuf);
 

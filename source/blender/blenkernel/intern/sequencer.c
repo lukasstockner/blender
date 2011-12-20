@@ -594,6 +594,9 @@ void calc_sequence(Scene *scene, Sequence *seq)
 		// seq->enddisp= MIN2(seq->seq1->enddisp, seq->seq2->enddisp);
 
 		if (seq->seq1) {
+			/* XXX These resets should not be necessary, but users used to be able to
+			 *     edit effect's length, leading to strange results. See #29190. */
+			seq->startofs = seq->endofs = seq->startstill = seq->endstill = 0;
 			seq->start= seq->startdisp= MAX3(seq->seq1->startdisp, seq->seq2->startdisp, seq->seq3->startdisp);
 			seq->enddisp= MIN3(seq->seq1->enddisp, seq->seq2->enddisp, seq->seq3->enddisp);
 			/* we cant help if strips don't overlap, it wont give useful results.
@@ -649,7 +652,7 @@ void calc_sequence(Scene *scene, Sequence *seq)
 /* note: caller should run calc_sequence(scene, seq) after */
 void reload_sequence_new_file(Scene *scene, Sequence * seq, int lock_range)
 {
-	char str[FILE_MAXDIR+FILE_MAXFILE];
+	char str[FILE_MAX];
 	int prev_startdisp=0, prev_enddisp=0;
 	/* note: dont rename the strip, will break animation curves */
 
@@ -1153,20 +1156,20 @@ static IMB_Proxy_Size seq_rendersize_to_proxysize(int size)
 
 static void seq_open_anim_file(Sequence * seq)
 {
-	char name[FILE_MAXDIR+FILE_MAXFILE];
+	char name[FILE_MAX];
 	StripProxy * proxy;
 
 	if(seq->anim != NULL) {
 		return;
 	}
 
-	BLI_join_dirfile(name, sizeof(name), 
-			 seq->strip->dir, seq->strip->stripdata->name);
+	BLI_join_dirfile(name, sizeof(name),
+	                 seq->strip->dir, seq->strip->stripdata->name);
 	BLI_path_abs(name, G.main->name);
 	
 	seq->anim = openanim(name, IB_rect |
-			     ((seq->flag & SEQ_FILTERY) ? 
-			      IB_animdeinterlace : 0), seq->streamindex);
+	                     ((seq->flag & SEQ_FILTERY) ?
+	                          IB_animdeinterlace : 0), seq->streamindex);
 
 	if (seq->anim == NULL) {
 		return;
@@ -1211,8 +1214,8 @@ static int seq_proxy_get_fname(SeqRenderData context, Sequence * seq, int cfra, 
 	}
 
 	if (seq->flag & SEQ_USE_PROXY_CUSTOM_FILE) {
-		BLI_join_dirfile(name, PROXY_MAXFILE, 
-				 dir, seq->strip->proxy->file);
+		BLI_join_dirfile(name, PROXY_MAXFILE,
+		                 dir, seq->strip->proxy->file);
 		BLI_path_abs(name, G.main->name);
 
 		return TRUE;
@@ -1227,14 +1230,13 @@ static int seq_proxy_get_fname(SeqRenderData context, Sequence * seq, int cfra, 
 
 	if (seq->type == SEQ_IMAGE) {
 		BLI_snprintf(name, PROXY_MAXFILE, "%s/images/%d/%s_proxy", dir,
-			 context.preview_render_size, 
-			 give_stripelem(seq, cfra)->name);
+		             context.preview_render_size,
+		             give_stripelem(seq, cfra)->name);
 		frameno = 1;
 	} else {
-		frameno = (int) give_stripelem_index(seq, cfra) 
-			+ seq->anim_startofs;
+		frameno = (int) give_stripelem_index(seq, cfra) + seq->anim_startofs;
 		BLI_snprintf(name, PROXY_MAXFILE, "%s/proxy_misc/%d/####", dir, 
-			 context.preview_render_size);
+		             context.preview_render_size);
 	}
 
 	BLI_path_abs(name, G.main->name);
@@ -1325,8 +1327,8 @@ static void seq_proxy_build_frame(SeqRenderData context,
 	ibuf->ftype= JPG | quality;
 
 	/* unsupported feature only confuses other s/w */
-	if(ibuf->depth==32)
-		ibuf->depth= 24;
+	if(ibuf->planes==32)
+		ibuf->planes= 24;
 
 	BLI_make_existing_file(name);
 	
@@ -1504,7 +1506,7 @@ static void color_balance_byte_byte(Sequence * seq, ImBuf* ibuf, float mul)
 
 	for (c = 0; c < 3; c++) {
 		make_cb_table_byte(cb.lift[c], cb.gain[c], cb.gamma[c],
-				   cb_tab[c], mul);
+		                   cb_tab[c], mul);
 	}
 
 	while (p < e) {
@@ -1727,7 +1729,7 @@ static ImBuf * input_preprocess(
 	}
 
 	if(seq->flag & SEQ_MAKE_PREMUL) {
-		if(ibuf->depth == 32 && ibuf->zbuf == NULL) {
+		if(ibuf->planes == 32 && ibuf->zbuf == NULL) {
 			IMB_premultiply_alpha(ibuf);
 		}
 	}
@@ -1847,14 +1849,14 @@ static ImBuf* seq_render_effect_strip_impl(
 
 	switch (early_out) {
 	case EARLY_NO_INPUT:
-		out = sh.execute(context, seq, cfra, fac, facf, 
-				 NULL, NULL, NULL);
+		out = sh.execute(context, seq, cfra, fac, facf,
+		                 NULL, NULL, NULL);
 		break;
 	case EARLY_DO_EFFECT:
 		for(i=0; i<3; i++) {
 			if(input[i])
 				ibuf[i] = seq_render_strip(
-					context, input[i], cfra);
+				            context, input[i], cfra);
 		}
 
 		if (ibuf[0] && ibuf[1]) {
@@ -2055,7 +2057,7 @@ static ImBuf * seq_render_scene_strip_impl(
 static ImBuf * seq_render_strip(SeqRenderData context, Sequence * seq, float cfra)
 {
 	ImBuf * ibuf = NULL;
-	char name[FILE_MAXDIR+FILE_MAXFILE];
+	char name[FILE_MAX];
 	int use_preprocess = input_have_to_preprocess(context, seq, cfra);
 	float nr = give_stripelem_index(seq, cfra);
 	/* all effects are handled similarly with the exception of speed effect */
@@ -2909,7 +2911,7 @@ int seq_single_check(Sequence *seq)
 	return (seq->len==1 && (
 			seq->type == SEQ_IMAGE 
 			|| ((seq->type & SEQ_EFFECT) && 
-			    get_sequence_effect_num_inputs(seq->type) == 0)));
+	            get_sequence_effect_num_inputs(seq->type) == 0)));
 }
 
 /* check if the selected seq's reference unselected seq's */

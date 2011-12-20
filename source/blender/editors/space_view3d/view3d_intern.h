@@ -58,6 +58,10 @@ struct wmNDOFMotionData;
 #define DRAW_CONSTCOLOR	2
 #define DRAW_SCENESET	4
 
+/* draw_mesh_fancy/draw_mesh_textured draw_flags */
+#define DRAW_DYNAMIC_PAINT_PREVIEW 1
+#define DRAW_FACE_SELECT 2
+
 /* view3d_header.c */
 void view3d_header_buttons(const struct bContext *C, struct ARegion *ar);
 void VIEW3D_OT_layers(struct wmOperatorType *ot);
@@ -136,7 +140,6 @@ void draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d);
 void view3d_clr_clipping(void);
 void view3d_set_clipping(RegionView3D *rv3d);
 void add_view3d_after(ListBase *lb, Base *base, int flag);
-void view3d_viewborder_size_get(struct Scene *scene, struct Object *camob, struct ARegion *ar, float size_r[2]);
 
 void circf(float x, float y, float rad);
 void circ(float x, float y, float rad);
@@ -151,7 +154,8 @@ void VIEW3D_OT_select_border(struct wmOperatorType *ot);
 void VIEW3D_OT_select_lasso(struct wmOperatorType *ot);
 
 void VIEW3D_OT_smoothview(struct wmOperatorType *ot);
-void VIEW3D_OT_setcameratoview(struct wmOperatorType *ot);
+void VIEW3D_OT_camera_to_view(struct wmOperatorType *ot);
+void VIEW3D_OT_camera_to_view_selected(struct wmOperatorType *ot);
 void VIEW3D_OT_object_as_camera(struct wmOperatorType *ot);
 void VIEW3D_OT_localview(struct wmOperatorType *ot);
 void VIEW3D_OT_game_start(struct wmOperatorType *ot);

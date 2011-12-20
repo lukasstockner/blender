@@ -211,7 +211,7 @@ void quat_to_mat4(float m[][4], const float q[4])
 	double q0, q1, q2, q3, qda,qdb,qdc,qaa,qab,qac,qbb,qbc,qcc;
 
 #ifdef DEBUG
-	if(!((q0=dot_qtqt(q, q))==0.0f || (fabs(q0-1.0) < QUAT_EPSILON))) {
+	if(!((q0=dot_qtqt(q, q))==0.0f || (fabsf(q0-1.0) < QUAT_EPSILON))) {
 		fprintf(stderr, "Warning! quat_to_mat4() called with non-normalized: size %.8f *** report a bug ***\n", (float)q0);
 	}
 #endif
@@ -257,7 +257,7 @@ void mat3_to_quat(float *q, float wmat[][3])
 
 	/* work on a copy */
 	copy_m3_m3(mat, wmat);
-	normalize_m3(mat);			/* this is needed AND a NormalQuat in the end */
+	normalize_m3(mat);  /* this is needed AND a 'normalize_qt' in the end */
 	
 	tr= 0.25* (double)(1.0f+mat[0][0]+mat[1][1]+mat[2][2]);
 	
@@ -271,31 +271,31 @@ void mat3_to_quat(float *q, float wmat[][3])
 	}
 	else {
 		if(mat[0][0] > mat[1][1] && mat[0][0] > mat[2][2]) {
-			s= 2.0*sqrtf(1.0f + mat[0][0] - mat[1][1] - mat[2][2]);
+			s= 2.0f*sqrtf(1.0f + mat[0][0] - mat[1][1] - mat[2][2]);
 			q[1]= (float)(0.25*s);
 
 			s= 1.0/s;
-			q[0]= (float)((mat[2][1] - mat[1][2])*s);
-			q[2]= (float)((mat[1][0] + mat[0][1])*s);
-			q[3]= (float)((mat[2][0] + mat[0][2])*s);
+			q[0]= (float)((double)(mat[2][1] - mat[1][2])*s);
+			q[2]= (float)((double)(mat[1][0] + mat[0][1])*s);
+			q[3]= (float)((double)(mat[2][0] + mat[0][2])*s);
 		}
 		else if(mat[1][1] > mat[2][2]) {
-			s= 2.0*sqrtf(1.0f + mat[1][1] - mat[0][0] - mat[2][2]);
+			s= 2.0f*sqrtf(1.0f + mat[1][1] - mat[0][0] - mat[2][2]);
 			q[2]= (float)(0.25*s);
 
 			s= 1.0/s;
-			q[0]= (float)((mat[2][0] - mat[0][2])*s);
-			q[1]= (float)((mat[1][0] + mat[0][1])*s);
-			q[3]= (float)((mat[2][1] + mat[1][2])*s);
+			q[0]= (float)((double)(mat[2][0] - mat[0][2])*s);
+			q[1]= (float)((double)(mat[1][0] + mat[0][1])*s);
+			q[3]= (float)((double)(mat[2][1] + mat[1][2])*s);
 		}
 		else {
-			s= 2.0*sqrtf(1.0 + mat[2][2] - mat[0][0] - mat[1][1]);
+			s= 2.0f*sqrtf(1.0f + mat[2][2] - mat[0][0] - mat[1][1]);
 			q[3]= (float)(0.25*s);
 
 			s= 1.0/s;
-			q[0]= (float)((mat[1][0] - mat[0][1])*s);
-			q[1]= (float)((mat[2][0] + mat[0][2])*s);
-			q[2]= (float)((mat[2][1] + mat[1][2])*s);
+			q[0]= (float)((double)(mat[1][0] - mat[0][1])*s);
+			q[1]= (float)((double)(mat[2][0] + mat[0][2])*s);
+			q[2]= (float)((double)(mat[2][1] + mat[1][2])*s);
 		}
 	}
 
@@ -1322,8 +1322,8 @@ void mat3_to_compatible_eulO(float eul[3], float oldrot[3], short order,float ma
 	compatible_eul(eul1, oldrot);
 	compatible_eul(eul2, oldrot);
 	
-	d1= (float)fabs(eul1[0]-oldrot[0]) + (float)fabs(eul1[1]-oldrot[1]) + (float)fabs(eul1[2]-oldrot[2]);
-	d2= (float)fabs(eul2[0]-oldrot[0]) + (float)fabs(eul2[1]-oldrot[1]) + (float)fabs(eul2[2]-oldrot[2]);
+	d1= fabsf(eul1[0]-oldrot[0]) + fabsf(eul1[1]-oldrot[1]) + fabsf(eul1[2]-oldrot[2]);
+	d2= fabsf(eul2[0]-oldrot[0]) + fabsf(eul2[1]-oldrot[1]) + fabsf(eul2[2]-oldrot[2]);
 	
 	/* return best, which is just the one with lowest difference */
 	if (d1 > d2)
@@ -1433,7 +1433,7 @@ void mat4_to_dquat(DualQuat *dq,float basemat[][4], float mat[][4])
 
 	/* split scaling and rotation, there is probably a faster way to do
 	   this, it's done like this now to correctly get negative scaling */
-	mul_m4_m4m4(baseRS, basemat, mat);
+	mult_m4_m4m4(baseRS, mat, basemat);
 	mat4_to_size(scale,baseRS);
 
 	copy_v3_v3(dscale, scale);
@@ -1452,10 +1452,10 @@ void mat4_to_dquat(DualQuat *dq,float basemat[][4], float mat[][4])
 		copy_v3_v3(baseR[3], baseRS[3]);
 
 		invert_m4_m4(baseinv, basemat);
-		mul_m4_m4m4(R, baseinv, baseR);
+		mult_m4_m4m4(R, baseR, baseinv);
 
 		invert_m4_m4(baseRinv, baseR);
-		mul_m4_m4m4(S, baseRS, baseRinv);
+		mult_m4_m4m4(S, baseRinv, baseRS);
 
 		/* set scaling part */
 		mul_serie_m4(dq->scale, basemat, S, baseinv, NULL, NULL, NULL, NULL, NULL);

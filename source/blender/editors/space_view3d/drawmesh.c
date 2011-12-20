@@ -180,7 +180,7 @@ static void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		/* dull unselected faces so as not to get in the way of seeing color */
 		glColor4ub(96, 96, 96, 64);
-		dm->drawMappedFacesTex(dm, draw_mesh_face_select__drawFaceOptsInv, (void*)me);
+		dm->drawMappedFacesTex(dm, draw_mesh_face_select__drawFaceOptsInv, NULL, (void*)me);
 		
 		glDisable(GL_BLEND);
 	}
@@ -402,6 +402,13 @@ static int draw_tface__set_draw_legacy(MTFace *tface, int has_mcol, int matnr)
 		return 1; /* Set color from mcol */
 	}
 }
+
+static int draw_mcol__set_draw_legacy(MTFace *UNUSED(tface), int has_mcol, int UNUSED(matnr))
+{
+	if (has_mcol) return 1;
+	else return 2;
+}
+
 static int draw_tface__set_draw(MTFace *tface, int has_mcol, int matnr)
 {
 	Material *ma= give_current_material(Gtexdraw.ob, matnr+1);
@@ -506,7 +513,7 @@ static int draw_tface_mapped__set_draw(void *userData, int index)
 
 static int draw_em_tf_mapped__set_draw(void *userData, int index)
 {
-	struct {EditMesh *em; short has_mcol; short has_mtface;} *data = userData;
+	struct {EditMesh *em; short has_mcol; short has_mtface; MFace *mf; MTFace *tf;} *data = userData;
 	EditMesh *em = data->em;
 	EditFace *efa= EM_get_face_for_index(index);
 	MTFace *tface;
@@ -622,7 +629,33 @@ static void draw_mesh_text(Scene *scene, Object *ob, int glsl)
 	ddm->release(ddm);
 }
 
-void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *dm, int faceselect)
+static int compareDrawOptions(void *userData, int cur_index, int next_index)
+{
+	struct { MFace *mf; MTFace *tf; } *data = userData;
+
+	if(data->mf && data->mf[cur_index].mat_nr != data->mf[next_index].mat_nr)
+		return 0;
+
+	if(data->tf && data->tf[cur_index].tpage != data->tf[next_index].tpage)
+		return 0;
+
+	return 1;
+}
+
+static int compareDrawOptionsEm(void *userData, int cur_index, int next_index)
+{
+	struct {EditMesh *em; short has_mcol; short has_mtface; MFace *mf; MTFace *tf;} *data= userData;
+
+	if(data->mf && data->mf[cur_index].mat_nr != data->mf[next_index].mat_nr)
+		return 0;
+
+	if(data->tf && data->tf[cur_index].tpage != data->tf[next_index].tpage)
+		return 0;
+
+	return 1;
+}
+
+void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *dm, int draw_flags)
 {
 	Mesh *me= ob->data;
 	
@@ -636,29 +669,39 @@ void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 	glColor4f(1.0f,1.0f,1.0f,1.0f);
 
 	if(ob->mode & OB_MODE_EDIT) {
-		struct {EditMesh *em; short has_mcol; short has_mtface;} data;
+		struct {EditMesh *em; short has_mcol; short has_mtface; MFace *mf; MTFace *tf;} data;
 
 		data.em= me->edit_mesh;
 		data.has_mcol= CustomData_has_layer(&me->edit_mesh->fdata, CD_MCOL);
 		data.has_mtface= CustomData_has_layer(&me->edit_mesh->fdata, CD_MTFACE);
+		data.mf= DM_get_face_data_layer(dm, CD_MFACE);
+		data.tf= DM_get_face_data_layer(dm, CD_MTFACE);
 
-		dm->drawMappedFacesTex(dm, draw_em_tf_mapped__set_draw, &data);
+		dm->drawMappedFacesTex(dm, draw_em_tf_mapped__set_draw, compareDrawOptionsEm, &data);
 	}
-	else if(faceselect) {
+	else if(draw_flags & DRAW_FACE_SELECT) {
 		if(ob->mode & OB_MODE_WEIGHT_PAINT)
-			dm->drawMappedFaces(dm, wpaint__setSolidDrawOptions, me, 1, GPU_enable_material, NULL);
+			dm->drawMappedFaces(dm, wpaint__setSolidDrawOptions, GPU_enable_material, NULL, me, 1);
 		else
-			dm->drawMappedFacesTex(dm, me->mface ? draw_tface_mapped__set_draw : NULL, me);
+			dm->drawMappedFacesTex(dm, me->mface ? draw_tface_mapped__set_draw : NULL, NULL, me);
 	}
 	else {
 		if(GPU_buffer_legacy(dm)) {
-			dm->drawFacesTex(dm, draw_tface__set_draw_legacy);
+			if (draw_flags & DRAW_DYNAMIC_PAINT_PREVIEW)
+				dm->drawFacesTex(dm, draw_mcol__set_draw_legacy, NULL, NULL);
+			else 
+				dm->drawFacesTex(dm, draw_tface__set_draw_legacy, NULL, NULL);
 		}
 		else {
+			struct { MFace *mf; MTFace *tf; } userData;
+
 			if(!CustomData_has_layer(&dm->faceData,CD_TEXTURE_MCOL))
 				add_tface_color_layer(dm);
 
-			dm->drawFacesTex(dm, draw_tface__set_draw);
+			userData.mf = DM_get_face_data_layer(dm, CD_MFACE);
+			userData.tf = DM_get_face_data_layer(dm, CD_MTFACE);
+
+			dm->drawFacesTex(dm, draw_tface__set_draw, compareDrawOptions, &userData);
 		}
 	}
 
@@ -669,7 +712,7 @@ void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 	draw_textured_end();
 	
 	/* draw edges and selected faces over textured mesh */
-	if(!(ob == scene->obedit) && faceselect)
+	if(!(ob == scene->obedit) && (draw_flags & DRAW_FACE_SELECT))
 		draw_mesh_face_select(rv3d, me, dm);
 
 	/* reset from negative scale correction */
@@ -778,10 +821,10 @@ static int tex_mat_set_face_editmesh_cb(void *UNUSED(userData), int index)
 	return !(efa->h);
 }
 
-void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *dm, int faceselect)
+void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *dm, int draw_flags)
 {
-	if(!scene_use_new_shading_nodes(scene)) {
-		draw_mesh_textured_old(scene, v3d, rv3d, ob, dm, faceselect);
+	if((!scene_use_new_shading_nodes(scene)) || (draw_flags & DRAW_DYNAMIC_PAINT_PREVIEW)) {
+		draw_mesh_textured_old(scene, v3d, rv3d, ob, dm, draw_flags);
 		return;
 	}
 
@@ -796,7 +839,7 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *o
 		int useColors= 1;
 
 		dm->drawMappedFaces(dm, wpaint__setSolidDrawOptions,
-			ob->data, useColors, GPU_enable_material, NULL);
+			GPU_enable_material, NULL, ob->data, useColors);
 	}
 	else {
 		Mesh *me= ob->data;
@@ -807,7 +850,7 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *o
 		/* face hiding callback depending on mode */
 		if(ob == scene->obedit)
 			set_face_cb= tex_mat_set_face_editmesh_cb;
-		else if(faceselect)
+		else if(draw_flags & DRAW_FACE_SELECT)
 			set_face_cb= tex_mat_set_face_mesh_cb;
 		else
 			set_face_cb= NULL;
@@ -851,7 +894,7 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *o
 	glMatrixMode(GL_MODELVIEW);
 
 	/* faceselect mode drawing over textured mesh */
-	if(!(ob == scene->obedit) && faceselect)
+	if(!(ob == scene->obedit) && (draw_flags & DRAW_FACE_SELECT))
 		draw_mesh_face_select(rv3d, ob->data, dm);
 }
 

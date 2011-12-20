@@ -525,9 +525,9 @@ void EM_set_flag_all(EditMesh *em, int flag)
 
 void EM_set_flag_all_selectmode(EditMesh *em, int flag)
 {
-	 EditVert *eve;
-	 EditEdge *eed;
-	 EditFace *efa;
+	EditVert *eve;
+	EditEdge *eed;
+	EditFace *efa;
 
 	int selvert= 0, seledge= 0, selface= 0;
 
@@ -1316,7 +1316,7 @@ static short extrudeflag_edge(Object *obedit, EditMesh *em, short UNUSED(flag), 
 				if (mmd->mirror_ob) {
 					float imtx[4][4];
 					invert_m4_m4(imtx, mmd->mirror_ob->obmat);
-					mul_m4_m4m4(mtx, obedit->obmat, imtx);
+					mult_m4_m4m4(mtx, imtx, obedit->obmat);
 				}
 
 				for (eed= em->edges.first; eed; eed= eed->next) {
@@ -1603,7 +1603,7 @@ short extrudeflag_vert(Object *obedit, EditMesh *em, short flag, float *nor, int
 				if (mmd->mirror_ob) {
 					float imtx[4][4];
 					invert_m4_m4(imtx, mmd->mirror_ob->obmat);
-					mul_m4_m4m4(mtx, obedit->obmat, imtx);
+					mult_m4_m4m4(mtx, imtx, obedit->obmat);
 				}
 
 				for (eed= em->edges.first; eed; eed= eed->next) {

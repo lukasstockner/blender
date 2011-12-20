@@ -128,16 +128,28 @@ Mesh *rna_Object_to_mesh(Object *ob, ReportList *reports, Scene *sce, int apply_
 		free_libblock_us( &G.main->object, tmpobj );
 		break;
 
-	case OB_MBALL:
+	case OB_MBALL: {
 		/* metaballs don't have modifiers, so just convert to mesh */
-		ob = find_basis_mball( sce, ob );
+		Object *basis_ob = find_basis_mball(sce, ob);
 		/* todo, re-generatre for render-res */
 		/* metaball_polygonize(scene, ob) */
 
+		if(ob != basis_ob)
+			return NULL; /* only do basis metaball */
+
 		tmpmesh = add_mesh("Mesh");
-		mball_to_mesh( &ob->disp, tmpmesh );
+			
+		if(render) {
+			ListBase disp = {NULL, NULL};
+			makeDispListMBall_forRender(sce, ob, &disp);
+			mball_to_mesh(&disp, tmpmesh);
+			freedisplist(&disp);
+		}
+		else
+			mball_to_mesh(&ob->disp, tmpmesh);
 		break;
 
+	}
 	case OB_MESH:
 		/* copies object and modifiers (but not the data) */
 		if (cage) {
@@ -179,13 +191,12 @@ Mesh *rna_Object_to_mesh(Object *ob, ReportList *reports, Scene *sce, int apply_
 		if( tmpcu->mat ) {
 			for( i = tmpcu->totcol; i-- > 0; ) {
 				/* are we an object material or data based? */
-				if (ob->colbits & 1<<i) 
-					tmpmesh->mat[i] = ob->mat[i];
-				else 
-					tmpmesh->mat[i] = tmpcu->mat[i];
 
-				if (tmpmesh->mat[i]) 
+				tmpmesh->mat[i] = ob->matbits[i] ? ob->mat[i] : tmpcu->mat[i];
+
+				if (tmpmesh->mat[i]) {
 					tmpmesh->mat[i]->id.us++;
+				}
 			}
 		}
 		break;
@@ -218,12 +229,11 @@ Mesh *rna_Object_to_mesh(Object *ob, ReportList *reports, Scene *sce, int apply_
 			if( origmesh->mat ) {
 				for( i = origmesh->totcol; i-- > 0; ) {
 					/* are we an object material or data based? */
-					if (ob->colbits & 1<<i)
-						tmpmesh->mat[i] = ob->mat[i];
-					else
-						tmpmesh->mat[i] = origmesh->mat[i];
-					if (tmpmesh->mat[i])
+					tmpmesh->mat[i] = ob->matbits[i] ? ob->mat[i] : origmesh->mat[i];
+
+					if (tmpmesh->mat[i]) {
 						tmpmesh->mat[i]->id.us++;
+					}
 				}
 			}
 		}
@@ -347,7 +357,7 @@ static void rna_Mesh_assign_verts_to_group(Object *ob, bDeformGroup *group, int 
 	}
 
 	Mesh *me = (Mesh*)ob->data;
-	int group_index = defgroup_find_index(ob, group);
+	int group_index = BLI_findlink(&ob->defbase, group);
 	if (group_index == -1) {
 		BKE_report(reports, RPT_ERROR, "No deform groups assigned to mesh");
 		return;

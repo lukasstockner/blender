@@ -343,8 +343,8 @@ static AVFrame* generate_video_frame(uint8_t* pixels, ReportList *reports)
 
 	if (c->pix_fmt != PIX_FMT_BGR32) {
 		sws_scale(img_convert_ctx, (const uint8_t * const*) rgb_frame->data,
-			  rgb_frame->linesize, 0, c->height, 
-			  current_frame->data, current_frame->linesize);
+		          rgb_frame->linesize, 0, c->height,
+		          current_frame->data, current_frame->linesize);
 		delete_picture(rgb_frame);
 	}
 	return current_frame;
@@ -1066,13 +1066,13 @@ IDProperty *ffmpeg_property_add(RenderData *rd, const char *type, int opt_index,
 
 	if (!rd->ffcodecdata.properties) {
 		rd->ffcodecdata.properties 
-			= IDP_New(IDP_GROUP, val, "ffmpeg"); 
+			= IDP_New(IDP_GROUP, &val, "ffmpeg"); 
 	}
 
 	group = IDP_GetPropertyFromGroup(rd->ffcodecdata.properties, type);
 	
 	if (!group) {
-		group = IDP_New(IDP_GROUP, val, type);
+		group = IDP_New(IDP_GROUP, &val, type);
 		IDP_AddToGroup(rd->ffcodecdata.properties, group);
 	}
 
@@ -1102,7 +1102,9 @@ IDProperty *ffmpeg_property_add(RenderData *rd, const char *type, int opt_index,
 		idp_type = IDP_FLOAT;
 		break;
 	case FF_OPT_TYPE_STRING:
-		val.str = (char *)"                                                                               ";
+		val.string.str = (char *)"                                                                               ";
+		val.string.len = 80;
+/*		val.str = (char *)"                                                                               ";*/
 		idp_type = IDP_STRING;
 		break;
 	case FF_OPT_TYPE_CONST:
@@ -1112,7 +1114,7 @@ IDProperty *ffmpeg_property_add(RenderData *rd, const char *type, int opt_index,
 	default:
 		return NULL;
 	}
-	prop = IDP_New(idp_type, val, name);
+	prop = IDP_New(idp_type, &val, name);
 	IDP_AddToGroup(group, prop);
 	return prop;
 }
@@ -1335,7 +1337,7 @@ void ffmpeg_verify_image_type(RenderData *rd)
 {
 	int audio= 0;
 
-	if(rd->imtype == R_FFMPEG) {
+	if(rd->imtype == R_IMF_IMTYPE_FFMPEG) {
 		if(rd->ffcodecdata.type <= 0 ||
 		   rd->ffcodecdata.codec <= 0 ||
 		   rd->ffcodecdata.audio_codec <= 0 ||
@@ -1351,19 +1353,19 @@ void ffmpeg_verify_image_type(RenderData *rd)
 
 		audio= 1;
 	}
-	else if(rd->imtype == R_H264) {
+	else if(rd->imtype == R_IMF_IMTYPE_H264) {
 		if(rd->ffcodecdata.codec != CODEC_ID_H264) {
 			ffmpeg_set_preset(rd, FFMPEG_PRESET_H264);
 			audio= 1;
 		}
 	}
-	else if(rd->imtype == R_XVID) {
+	else if(rd->imtype == R_IMF_IMTYPE_XVID) {
 		if(rd->ffcodecdata.codec != CODEC_ID_MPEG4) {
 			ffmpeg_set_preset(rd, FFMPEG_PRESET_XVID);
 			audio= 1;
 		}
 	}
-	else if(rd->imtype == R_THEORA) {
+	else if(rd->imtype == R_IMF_IMTYPE_THEORA) {
 		if(rd->ffcodecdata.codec != CODEC_ID_THEORA) {
 			ffmpeg_set_preset(rd, FFMPEG_PRESET_THEORA);
 			audio= 1;

@@ -507,7 +507,7 @@ void filepath_qt(char *string, RenderData *rd) {
 	BLI_make_existing_file(string);
 
 	if (BLI_strcasecmp(string + strlen(string) - 4, ".mov")) {
-		sprintf(txt, "%04d_%04d.mov", (rd->sfra) , (rd->efra) );
+		sprintf(txt, "%04d-%04d.mov", (rd->sfra) , (rd->efra) );
 		strcat(string, txt);
 	}
 }
@@ -657,9 +657,12 @@ static void check_renderbutton_framerate(RenderData *rd, ReportList *reports)
 	CheckError(err, "SCGetInfo fr error", reports);
 
 	if( (rd->frs_sec == 24 || rd->frs_sec == 30 || rd->frs_sec == 60) &&
-		(qtdata->gTemporalSettings.frameRate == 1571553 ||
-		 qtdata->gTemporalSettings.frameRate == 1964113 ||
-		 qtdata->gTemporalSettings.frameRate == 3928227)) {;} 
+	    (qtdata->gTemporalSettings.frameRate == 1571553 ||
+	     qtdata->gTemporalSettings.frameRate == 1964113 ||
+	     qtdata->gTemporalSettings.frameRate == 3928227))
+	{
+		/* do nothing */
+	}
 	else {
 		if (rd->frs_sec_base > 0)
 			qtdata->gTemporalSettings.frameRate = 
@@ -686,7 +689,7 @@ static void check_renderbutton_framerate(RenderData *rd, ReportList *reports)
 
 void quicktime_verify_image_type(RenderData *rd)
 {
-	if (rd->imtype == R_QUICKTIME) {
+	if (rd->im_format.imtype == R_IMF_IMTYPE_QUICKTIME) {
 		if ((rd->qtcodecsettings.codecType== 0) ||
 			(rd->qtcodecsettings.codecSpatialQuality <0) ||
 			(rd->qtcodecsettings.codecSpatialQuality > 100)) {

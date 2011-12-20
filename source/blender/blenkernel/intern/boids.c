@@ -175,7 +175,7 @@ static int rule_goal_avoid(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, 
 
 			if(len2 > 0.0f && efd.distance - surface < len2) {
 				len2 = (efd.distance - surface)/len2;
-				bbd->wanted_speed *= pow(len2, boids->landing_smoothness);
+				bbd->wanted_speed *= powf(len2, boids->landing_smoothness);
 			}
 		}
 
@@ -242,7 +242,7 @@ static int rule_avoid_collision(BoidRule *rule, BoidBrainData *bbd, BoidValues *
 
 			mul_v3_fl(bbd->wanted_co, (1.0f - t) * val->personal_space * pa->size);
 
-			bbd->wanted_speed = sqrt(t) * len_v3(pa->prev_state.vel);
+			bbd->wanted_speed = sqrtf(t) * len_v3(pa->prev_state.vel);
 			bbd->wanted_speed = MAX2(bbd->wanted_speed, val->min_speed);
 
 			return 1;
@@ -1514,7 +1514,8 @@ BoidState *boid_new_state(BoidSettings *boids)
 	return state;
 }
 
-BoidState *boid_duplicate_state(BoidSettings *boids, BoidState *state) {
+BoidState *boid_duplicate_state(BoidSettings *boids, BoidState *state)
+{
 	BoidState *staten = MEM_dupallocN(state);
 
 	BLI_duplicatelist(&staten->rules, &state->rules);
