@@ -138,7 +138,7 @@ void KX_FontObject::DrawText()
 	memcpy(mat, this->GetOpenGLMatrix(), sizeof(double)*16);
 
 	/* Account for offset */
-	MT_Vector3 offset = this->NodeGetWorldOrientation() * m_offset;
+	MT_Vector3 offset = this->NodeGetWorldOrientation() * m_offset * this->NodeGetWorldScaling();
 	mat[12] += offset[0]; mat[13] += offset[1]; mat[14] += offset[2];
 
 	/* Orient the spacing vector */
