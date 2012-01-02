@@ -76,10 +76,15 @@ typedef enum CompositorQuality {
 #define COM_TM_WORKER 3
 
 /**
+  * COM_TM_QUEUE is a multithreaded model, which uses the BLI_thread_queue pattern. it has the same speed as PTHREAD. Currently this needs to 
+  * be expended with OpenCL. After that it might become the default threading model.
+  */
+#define COM_TM_QUEUE 4
+
+/**
   * COM_CURRENT_THREADING_MODEL can be one of the above, COM_PTHREAD is currently default.
   */
-#define COM_CURRENT_THREADING_MODEL COM_TM_WORKER
-
+#define COM_CURRENT_THREADING_MODEL COM_TM_QUEUE
 
 // chunk order
 /**
