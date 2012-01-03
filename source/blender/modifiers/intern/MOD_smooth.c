@@ -39,12 +39,11 @@
 #include "BLI_utildefines.h"
 #include "BLI_string.h"
 
+#include "MEM_guardedalloc.h"
+
 #include "BKE_cdderivedmesh.h"
 #include "BKE_particle.h"
 #include "BKE_deform.h"
-
-
-#include "MEM_guardedalloc.h"
 
 #include "MOD_modifiertypes.h"
 #include "MOD_util.h"
@@ -154,24 +153,19 @@ static void smoothModifier_do(
 		}
 
 		if (dvert) {
-			for (i = 0; i < numVerts; i++) {
-				MDeformWeight *dw = NULL;
+			MDeformVert *dv= dvert;
+			for (i = 0; i < numVerts; i++, dv++) {
 				float f, fm, facw, *fp, *v;
-				int k;
 				short flag = smd->flag;
 
 				v = vertexCos[i];
 				fp = &ftmp[i*3];
 
-				for (k = 0; k < dvert[i].totweight; ++k) {
-					if(dvert[i].dw[k].def_nr == defgrp_index) {
-						dw = &dvert[i].dw[k];
-						break;
-					}
-				}
-				if (!dw) continue;
 
-				f = fac * dw->weight;
+				f= defvert_find_weight(dv, defgrp_index);
+				if (f <= 0.0f) continue;
+
+				f *= fac;
 				fm = 1.0f - f;
 
 				/* fp is the sum of uctmp[i] verts, so must be averaged */

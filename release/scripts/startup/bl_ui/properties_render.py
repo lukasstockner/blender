@@ -51,7 +51,7 @@ class RenderButtonsPanel():
     @classmethod
     def poll(cls, context):
         rd = context.scene.render
-        return (context.scene and rd.use_game_engine is False) and (rd.engine in cls.COMPAT_ENGINES)
+        return context.scene and (rd.engine in cls.COMPAT_ENGINES)
 
 
 class RENDER_PT_render(RenderButtonsPanel, Panel):
@@ -316,6 +316,9 @@ class RENDER_PT_shading(RenderButtonsPanel, Panel):
         col = split.column()
         col.prop(rd, "use_raytrace", text="Ray Tracing")
         col.prop(rd, "use_color_management")
+        sub = col.row()
+        sub.active = rd.use_color_management == True
+        sub.prop(rd, "use_color_unpremultiply")
         col.prop(rd, "alpha_mode", text="Alpha")
 
 
@@ -453,7 +456,7 @@ class RENDER_PT_output(RenderButtonsPanel, Panel):
 
         rd = context.scene.render
         image_settings = rd.image_settings
-        file_format = rd.image_settings.file_format
+        file_format = image_settings.file_format
 
         layout.prop(rd, "filepath", text="")
 
@@ -462,7 +465,7 @@ class RENDER_PT_output(RenderButtonsPanel, Panel):
         flow.prop(rd, "use_placeholder")
         flow.prop(rd, "use_file_extension")
 
-        layout.template_image_settings(rd.image_settings)
+        layout.template_image_settings(image_settings)
 
         if file_format == 'QUICKTIME_CARBON':
             layout.operator("scene.render_data_set_quicktime_codec")
@@ -553,7 +556,7 @@ class RENDER_PT_encoding(RenderButtonsPanel, Panel):
 class RENDER_PT_bake(RenderButtonsPanel, Panel):
     bl_label = "Bake"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     def draw(self, context):
         layout = self.layout

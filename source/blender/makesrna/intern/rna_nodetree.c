@@ -69,9 +69,13 @@ EnumPropertyItem node_quality_items[] = {
 	{0, NULL, 0, NULL, NULL}};
 
 EnumPropertyItem node_socket_type_items[] = {
-	{SOCK_FLOAT,  "VALUE",     0,    "Value",     ""},
-	{SOCK_VECTOR, "VECTOR",    0,    "Vector",    ""},
-	{SOCK_RGBA,   "RGBA",      0,    "RGBA",      ""},
+	{SOCK_FLOAT,   "VALUE",     0,    "Value",     ""},
+	{SOCK_VECTOR,  "VECTOR",    0,    "Vector",    ""},
+	{SOCK_RGBA,    "RGBA",      0,    "RGBA",      ""},
+	{SOCK_SHADER,  "SHADER",    0,    "Shader",    ""},
+	{SOCK_BOOLEAN, "BOOLEAN",   0,    "Boolean",   ""},
+	{SOCK_MESH,    "MESH",      0,    "Mesh",      ""},
+	{SOCK_INT,     "INT",       0,    "Int",       ""},
 	{0, NULL, 0, NULL, NULL}};
 
 EnumPropertyItem node_math_items[] = {
@@ -366,6 +370,17 @@ static void rna_Node_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	bNodeTree *ntree= (bNodeTree*)ptr->id.data;
 	bNode *node= (bNode*)ptr->data;
+
+	node_update(bmain, scene, ntree, node);
+}
+
+static void rna_Node_material_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	bNodeTree *ntree= (bNodeTree*)ptr->id.data;
+	bNode *node= (bNode*)ptr->data;
+
+	if(node->id)
+		nodeSetActive(ntree, node);
 
 	node_update(bmain, scene, ntree, node);
 }
@@ -1124,7 +1139,7 @@ static void def_sh_material(StructRNA *srna)
 	RNA_def_property_struct_type(prop, "Material");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Material", "");
-	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
+	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_material_update");
 
 	prop = RNA_def_property(srna, "use_diffuse", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "custom1", SH_NODE_MAT_DIFF);

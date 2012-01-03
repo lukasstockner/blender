@@ -546,6 +546,11 @@ class VIEW3D_PT_tools_brush(PaintPanel, Panel):
                 row.prop(brush, "strength", text="Strength", slider=True)
                 row.prop(brush, "use_pressure_strength", text="")
 
+            if tool == 'ROTATE':
+                row = col.row(align=True)
+                row.prop(brush, "strength", text="Strength", slider=True)
+                row.prop(brush, "use_pressure_strength", text="")
+
             if tool != 'SMOOTH':
                 col.separator()
 
@@ -1193,9 +1198,9 @@ class VIEW3D_MT_tools_projectpaint_clone(Menu):
     def draw(self, context):
         layout = self.layout
         for i, tex in enumerate(context.active_object.data.uv_textures):
-            prop = layout.operator("wm.context_set_int", text=tex.name)
-            prop.data_path = "active_object.data.uv_texture_clone_index"
-            prop.value = i
+            props = layout.operator("wm.context_set_int", text=tex.name)
+            props.data_path = "active_object.data.uv_texture_clone_index"
+            props.value = i
 
 
 class VIEW3D_MT_tools_projectpaint_stencil(Menu):
@@ -1204,9 +1209,9 @@ class VIEW3D_MT_tools_projectpaint_stencil(Menu):
     def draw(self, context):
         layout = self.layout
         for i, tex in enumerate(context.active_object.data.uv_textures):
-            prop = layout.operator("wm.context_set_int", text=tex.name)
-            prop.data_path = "active_object.data.uv_texture_stencil_index"
-            prop.value = i
+            props = layout.operator("wm.context_set_int", text=tex.name)
+            props.data_path = "active_object.data.uv_texture_stencil_index"
+            props.value = i
 
 
 class VIEW3D_PT_tools_particlemode(View3DPanel, Panel):

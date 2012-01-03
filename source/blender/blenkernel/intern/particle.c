@@ -79,6 +79,7 @@
 #include "BKE_cdderivedmesh.h"
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
+#include "BKE_deform.h"
 
 #include "RE_render_ext.h"
 
@@ -89,7 +90,8 @@ static void do_child_modifiers(ParticleSimulationData *sim,
 				float *orco, float mat[4][4], ParticleKey *state, float t);
 
 /* few helpers for countall etc. */
-int count_particles(ParticleSystem *psys){
+int count_particles(ParticleSystem *psys)
+{
 	ParticleSettings *part=psys->part;
 	PARTICLE_P;
 	int tot=0;
@@ -101,7 +103,8 @@ int count_particles(ParticleSystem *psys){
 	}
 	return tot;
 }
-int count_particles_mod(ParticleSystem *psys, int totgr, int cur){
+int count_particles_mod(ParticleSystem *psys, int totgr, int cur)
+{
 	ParticleSettings *part=psys->part;
 	PARTICLE_P;
 	int tot=0;
@@ -708,8 +711,8 @@ void psys_render_set(Object *ob, ParticleSystem *psys, float viewmat[][4], float
 	psys->childcachebufs.first = psys->childcachebufs.last = NULL;
 
 	copy_m4_m4(data->winmat, winmat);
-	mul_m4_m4m4(data->viewmat, ob->obmat, viewmat);
-	mul_m4_m4m4(data->mat, data->viewmat, winmat);
+	mult_m4_m4m4(data->viewmat, viewmat, ob->obmat);
+	mult_m4_m4m4(data->mat, winmat, data->viewmat);
 	data->winx= winx;
 	data->winy= winy;
 
@@ -1122,7 +1125,8 @@ static int get_pointcache_times_for_particle(PointCache *cache, int index, float
 	return ret == 2;
 }
 
-float psys_get_dietime_from_cache(PointCache *cache, int index) {
+float psys_get_dietime_from_cache(PointCache *cache, int index)
+{
 	PTCacheMem *pm;
 	int dietime = 10000000; /* some max value so that we can default to pa->time+lifetime */
 
@@ -1365,7 +1369,9 @@ static void do_particle_interpolation(ParticleSystem *psys, int p, ParticleData 
 /*			Particles on a dm					*/
 /************************************************/
 /* interpolate a location on a face based on face coordinates */
-void psys_interpolate_face(MVert *mvert, MFace *mface, MTFace *tface, float (*orcodata)[3], float *w, float *vec, float *nor, float *utan, float *vtan, float *orco,float *ornor){
+void psys_interpolate_face(MVert *mvert, MFace *mface, MTFace *tface, float (*orcodata)[3],
+                           float *w, float *vec, float *nor, float *utan, float *vtan, float *orco,float *ornor)
+{
 	float *v1=0, *v2=0, *v3=0, *v4=0;
 	float e1[3],e2[3],s1,s2,t1,t2;
 	float *uv1, *uv2, *uv3, *uv4;
@@ -1827,7 +1833,8 @@ static void psys_particle_on_shape(int UNUSED(distr), int UNUSED(index), float *
 /************************************************/
 /*			Particles on emitter				*/
 /************************************************/
-void psys_particle_on_emitter(ParticleSystemModifierData *psmd, int from, int index, int index_dmcache, float *fuv, float foffset, float *vec, float *nor, float *utan, float *vtan, float *orco, float *ornor){
+void psys_particle_on_emitter(ParticleSystemModifierData *psmd, int from, int index, int index_dmcache, float *fuv, float foffset, float *vec, float *nor, float *utan, float *vtan, float *orco, float *ornor)
+{
 	if(psmd){
 		if(psmd->psys->part->distr==PART_DISTR_GRID && psmd->psys->part->from != PART_FROM_VERT){
 			if(vec)
@@ -1847,20 +1854,6 @@ void psys_particle_on_emitter(ParticleSystemModifierData *psmd, int from, int in
 /************************************************/
 /*			Path Cache							*/
 /************************************************/
-static float vert_weight(MDeformVert *dvert, int group)
-{
-	MDeformWeight *dw;
-	int i;
-	
-	if(dvert) {
-		dw= dvert->dw;
-		for(i= dvert->totweight; i>0; i--, dw++) {
-			if(dw->def_nr == group) return dw->weight;
-			if(i==1) break; /*otherwise dw will point to somewhere it shouldn't*/
-		}
-	}
-	return 0.0;
-}
 
 static void do_kink(ParticleKey *state, ParticleKey *par, float *par_rot, float time, float freq, float shape, float amplitude, float flat, short type, short axis, float obmat[][4], int smooth_start)
 {
@@ -2308,11 +2301,11 @@ float *psys_cache_vgroup(DerivedMesh *dm, ParticleSystem *psys, int vgroup)
 			vg=MEM_callocN(sizeof(float)*totvert, "vg_cache");
 			if(psys->vg_neg&(1<<vgroup)){
 				for(i=0; i<totvert; i++)
-					vg[i]=1.0f-vert_weight(dvert+i,psys->vgroup[vgroup]-1);
+					vg[i]= 1.0f - defvert_find_weight(&dvert[i], psys->vgroup[vgroup] - 1);
 			}
 			else{
 				for(i=0; i<totvert; i++)
-					vg[i]=vert_weight(dvert+i,psys->vgroup[vgroup]-1);
+					vg[i]=  defvert_find_weight(&dvert[i], psys->vgroup[vgroup] - 1);
 			}
 		}
 	}
@@ -3244,7 +3237,8 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 /************************************************/
 /*			Particle Key handling				*/
 /************************************************/
-void copy_particle_key(ParticleKey *to, ParticleKey *from, int time){
+void copy_particle_key(ParticleKey *to, ParticleKey *from, int time)
+{
 	if(time){
 		memcpy(to,from,sizeof(ParticleKey));
 	}
@@ -3254,7 +3248,8 @@ void copy_particle_key(ParticleKey *to, ParticleKey *from, int time){
 		to->time=to_time;
 	}
 }
-void psys_get_from_key(ParticleKey *key, float *loc, float *vel, float *rot, float *time){
+void psys_get_from_key(ParticleKey *key, float *loc, float *vel, float *rot, float *time)
+{
 	if(loc) copy_v3_v3(loc,key->co);
 	if(vel) copy_v3_v3(vel,key->vel);
 	if(rot) copy_qt_qt(rot,key->rot);
@@ -3262,7 +3257,8 @@ void psys_get_from_key(ParticleKey *key, float *loc, float *vel, float *rot, flo
 }
 /*-------changing particle keys from space to another-------*/
 #if 0
-static void key_from_object(Object *ob, ParticleKey *key){
+static void key_from_object(Object *ob, ParticleKey *key)
+{
 	float q[4];
 
 	add_v3_v3(key->vel, key->co);
@@ -3387,7 +3383,7 @@ void psys_mat_hair_to_global(Object *ob, DerivedMesh *dm, short from, ParticleDa
 
 	psys_mat_hair_to_object(ob, dm, from, pa, facemat);
 
-	mul_m4_m4m4(hairmat, facemat, ob->obmat);
+	mult_m4_m4m4(hairmat, ob->obmat, facemat);
 }
 
 /************************************************/
@@ -4190,7 +4186,8 @@ void psys_get_particle_on_path(ParticleSimulationData *sim, int p, ParticleKey *
 	}
 }
 /* gets particle's state at a time, returns 1 if particle exists and can be seen and 0 if not */
-int psys_get_particle_state(ParticleSimulationData *sim, int p, ParticleKey *state, int always){
+int psys_get_particle_state(ParticleSimulationData *sim, int p, ParticleKey *state, int always)
+{
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
 	ParticleData *pa = NULL;
@@ -4528,7 +4525,8 @@ void psys_make_billboard(ParticleBillboardData *bb, float xvec[3], float yvec[3]
 }
 
 
-void psys_apply_hair_lattice(Scene *scene, Object *ob, ParticleSystem *psys) {
+void psys_apply_hair_lattice(Scene *scene, Object *ob, ParticleSystem *psys)
+{
 	ParticleSimulationData sim= {0};
 	sim.scene= scene;
 	sim.ob= ob;

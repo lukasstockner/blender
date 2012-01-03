@@ -1283,7 +1283,7 @@ static float dvar_eval_transChan (ChannelDriver *driver, DriverVar *dvar)
 		}
 		else {
 			/* worldspace matrix */
-			mul_m4_m4m4(mat, pchan->pose_mat, ob->obmat);
+			mult_m4_m4m4(mat, ob->obmat, pchan->pose_mat);
 		}
 	}
 	else {
@@ -1414,10 +1414,7 @@ void driver_free_variable (ChannelDriver *driver, DriverVar *dvar)
 	DRIVER_TARGETS_LOOPER_END
 	
 	/* remove the variable from the driver */
-	if (driver)
-		BLI_freelinkN(&driver->variables, dvar);
-	else
-		MEM_freeN(dvar);
+	BLI_freelinkN(&driver->variables, dvar);
 
 #ifdef WITH_PYTHON
 	/* since driver variables are cached, the expression needs re-compiling too */

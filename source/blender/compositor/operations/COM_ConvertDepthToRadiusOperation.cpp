@@ -49,7 +49,7 @@ float ConvertDepthToRadiusOperation::determineFocalDistance() const {
 			copy_m4_m4(obmat, cameraObject->obmat);
 			normalize_m4(obmat);
 			invert_m4_m4(imat, obmat);
-			mul_m4_m4m4(mat, camera->dof_ob->obmat, imat);
+			mult_m4_m4m4(mat, imat, camera->dof_ob->obmat);
 			return (float)fabs(mat[3][2]);
 		}
 		return camera->YF_dofdist;

@@ -133,7 +133,8 @@ float area_poly_v3(int nr, float verts[][3], const float normal[3])
 	float *cur, *prev;
 	int a, px=0, py=1;
 
-	/* first: find dominant axis: 0==X, 1==Y, 2==Z */
+	/* first: find dominant axis: 0==X, 1==Y, 2==Z
+	 * don't use 'axis_dominant_v3()' because we need max axis too */
 	x= fabsf(normal[0]);
 	y= fabsf(normal[1]);
 	z= fabsf(normal[2]);
@@ -208,33 +209,54 @@ float dist_to_line_segment_v2(const float v1[2], const float v2[2], const float 
 }
 
 /* point closest to v1 on line v2-v3 in 2D */
-void closest_to_line_segment_v2(float closest[2], const float p[2], const float l1[2], const float l2[2])
+void closest_to_line_segment_v2(float close_r[2], const float p[2], const float l1[2], const float l2[2])
 {
 	float lambda, cp[2];
 
 	lambda= closest_to_line_v2(cp,p, l1, l2);
 
 	if(lambda <= 0.0f)
-		copy_v2_v2(closest, l1);
+		copy_v2_v2(close_r, l1);
 	else if(lambda >= 1.0f)
-		copy_v2_v2(closest, l2);
+		copy_v2_v2(close_r, l2);
 	else
-		copy_v2_v2(closest, cp);
+		copy_v2_v2(close_r, cp);
 }
 
 /* point closest to v1 on line v2-v3 in 3D */
-void closest_to_line_segment_v3(float closest[3], const float v1[3], const float v2[3], const float v3[3])
+void closest_to_line_segment_v3(float close_r[3], const float v1[3], const float v2[3], const float v3[3])
 {
 	float lambda, cp[3];
 
 	lambda= closest_to_line_v3(cp,v1, v2, v3);
 
 	if(lambda <= 0.0f)
-		copy_v3_v3(closest, v2);
+		copy_v3_v3(close_r, v2);
 	else if(lambda >= 1.0f)
-		copy_v3_v3(closest, v3);
+		copy_v3_v3(close_r, v3);
 	else
-		copy_v3_v3(closest, cp);
+		copy_v3_v3(close_r, cp);
+}
+
+/* find the closest point on a plane to another point and store it in close_r
+ * close_r:       return coordinate
+ * plane_co:      a point on the plane
+ * plane_no_unit: the plane's normal, and d is the last number in the plane equation 0 = ax + by + cz + d
+ * pt:            the point that you want the nearest of
+ */
+
+// const float norm[3], const float coord[3], const float point[3], float dst_r[3]
+void closest_to_plane_v3(float close_r[3], const float plane_co[3], const float plane_no_unit[3], const float pt[3])
+{
+	float temp[3];
+	float dotprod;
+
+	sub_v3_v3v3(temp, pt, plane_co);
+	dotprod= dot_v3v3(temp, plane_no_unit);
+
+	close_r[0] = pt[0] - (plane_no_unit[0] * dotprod);
+	close_r[1] = pt[1] - (plane_no_unit[1] * dotprod);
+	close_r[2] = pt[2] - (plane_no_unit[2] * dotprod);
 }
 
 /* signed distance from the point to the plane in 3D */
@@ -1689,6 +1711,18 @@ void plot_line_v2v2i(const int p1[2], const int p2[2], int (*callback)(int, int,
 
 /****************************** Interpolation ********************************/
 
+/* get the 2 dominant axis values, 0==X, 1==Y, 2==Z */
+void axis_dominant_v3(int *axis_a, int *axis_b, const float axis[3])
+{
+	const float xn= fabsf(axis[0]);
+	const float yn= fabsf(axis[1]);
+	const float zn= fabsf(axis[2]);
+
+	if      (zn >= xn && zn >= yn) { *axis_a= 0; *axis_b= 1; }
+	else if (yn >= xn && yn >= zn) { *axis_a= 0; *axis_b= 2; }
+	else                           { *axis_a= 1; *axis_b= 2; }
+}
+
 static float tri_signed_area(const float v1[3], const float v2[3], const float v3[3], const int i, const int j)
 {
 	return 0.5f*((v1[i]-v2[i])*(v2[j]-v3[j]) + (v1[j]-v2[j])*(v3[i]-v2[i]));
@@ -1696,17 +1730,10 @@ static float tri_signed_area(const float v1[3], const float v2[3], const float v
 
 static int barycentric_weights(const float v1[3], const float v2[3], const float v3[3], const float co[3], const float n[3], float w[3])
 {
-	float xn, yn, zn, a1, a2, a3, asum;
-	short i, j;
+	float a1, a2, a3, asum;
+	int i, j;
 
-	/* find best projection of face XY, XZ or YZ: barycentric weights of
-	   the 2d projected coords are the same and faster to compute */
-	xn= fabsf(n[0]);
-	yn= fabsf(n[1]);
-	zn= fabsf(n[2]);
-	if(zn>=xn && zn>=yn) {i= 0; j= 1;}
-	else if(yn>=xn && yn>=zn) {i= 0; j= 2;}
-	else {i= 1; j= 2;} 
+	axis_dominant_v3(&i, &j, n);
 
 	a1= tri_signed_area(v2, v3, co, i, j);
 	a2= tri_signed_area(v3, v1, co, i, j);

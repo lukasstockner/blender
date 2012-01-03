@@ -24,12 +24,15 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_CAMERA_TYPES_H
-#define DNA_CAMERA_TYPES_H
 
 /** \file DNA_camera_types.h
  *  \ingroup DNA
  */
+
+#ifndef DNA_CAMERA_TYPES_H
+#define DNA_CAMERA_TYPES_H
+
+#include "DNA_defs.h"
 
 #include "DNA_ID.h"
 
@@ -59,7 +62,7 @@ typedef struct Camera {
 			The name was not changed so that no other files need to be modified */
 	float YF_dofdist;
 
-	struct Ipo *ipo;			// XXX depreceated... old animation system
+	struct Ipo *ipo  DNA_DEPRECATED; /* old animation system, deprecated for 2.5 */
 	
 	struct Object *dof_ob;
 

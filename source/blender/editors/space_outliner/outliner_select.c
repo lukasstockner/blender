@@ -237,7 +237,6 @@ static int tree_element_active_material(bContext *C, Scene *scene, SpaceOops *so
 		if(set) {
 			ob->actcol= te->index+1;
 			ob->matbits[te->index]= 1;	// make ob material active too
-			ob->colbits |= (1<<te->index);
 		}
 		else {
 			if(ob->actcol == te->index+1) 
@@ -249,7 +248,6 @@ static int tree_element_active_material(bContext *C, Scene *scene, SpaceOops *so
 		if(set) {
 			ob->actcol= te->index+1;
 			ob->matbits[te->index]= 0;	// make obdata material active too
-			ob->colbits &= ~(1<<te->index);
 		}
 		else {
 			if(ob->actcol == te->index+1)
@@ -398,7 +396,9 @@ static int tree_element_active_defgroup(bContext *C, Scene *scene, TreeElement *
 	/* id in tselem is object */
 	ob= (Object *)tselem->id;
 	if(set) {
+		BLI_assert(te->index+1 >= 0);
 		ob->actdef= te->index+1;
+
 		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, ob);
 	}
@@ -823,8 +823,12 @@ static int outliner_item_activate(bContext *C, wmOperator *op, wmEvent *event)
 
 	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], fmval, fmval+1);
 
-	if(!ELEM3(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF, SO_KEYMAP) && !(soops->flag & SO_HIDE_RESTRICTCOLS) && fmval[0] > ar->v2d.cur.xmax - OL_TOG_RESTRICT_VIEWX)
+	if ( !ELEM3(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF, SO_KEYMAP) &&
+	     !(soops->flag & SO_HIDE_RESTRICTCOLS) &&
+	     (fmval[0] > ar->v2d.cur.xmax - OL_TOG_RESTRICT_VIEWX))
+	{
 		return OPERATOR_CANCELLED;
+	}
 
 	for(te= soops->tree.first; te; te= te->next) {
 		if(do_outliner_item_activate(C, scene, ar, soops, te, extend, fmval)) break;

@@ -24,12 +24,13 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_MESHDATA_TYPES_H
-#define DNA_MESHDATA_TYPES_H
 
 /** \file DNA_meshdata_types.h
  *  \ingroup DNA
  */
+
+#ifndef DNA_MESHDATA_TYPES_H
+#define DNA_MESHDATA_TYPES_H
 
 #include "DNA_customdata_types.h"
 #include "DNA_listBase.h"
@@ -72,21 +73,41 @@ typedef struct MCol {
 	char a, r, g, b;	
 } MCol;
 
+#ifdef USE_BMESH_FORWARD_COMPAT
+
+/*new face structure, replaces MFace, which is now
+  only used for storing tesselations.*/
+typedef struct MPoly {
+	/* offset into loop array and number of loops in the face */
+	int loopstart;
+	int totloop; /* keep signed since we need to subtract when getting the previous loop */
+	short mat_nr;
+	char flag, pad;
+} MPoly;
+
+/*the e here is because we want to move away from
+  relying on edge hashes.*/
+typedef struct MLoop {
+	unsigned int v; /*vertex index*/
+	unsigned int e; /*edge index*/
+} MLoop;
+
+#endif /* USE_BMESH_FORWARD_COMPAT */
+
 /*bmesh custom data stuff*/
-typedef struct MTexPoly{
+typedef struct MTexPoly {
 	struct Image *tpage;
 	char flag, transp;
 	short mode,tile,unwrap;
-}MTexPoly;
+} MTexPoly;
 
-typedef struct MLoopUV{
+typedef struct MLoopUV {
 	float uv[2];
-}MLoopUV;
+} MLoopUV;
 
-typedef struct MLoopCol{
+typedef struct MLoopCol {
 	char a, r, g, b;
-	int pad;  /*waste!*/
-}MLoopCol;
+} MLoopCol;
 
 typedef struct MSticky {
 	float co[2];
@@ -94,7 +115,7 @@ typedef struct MSticky {
 
 typedef struct MSelect {
 	int index;
-	int type;
+	int type; /* EDITVERT/EDITEDGE/EDITFACE */
 } MSelect;
 
 typedef struct MTFace {
@@ -105,13 +126,13 @@ typedef struct MTFace {
 } MTFace;
 
 /*Custom Data Properties*/
-typedef struct MFloatProperty{
+typedef struct MFloatProperty {
 	float	f;
 } MFloatProperty;
-typedef struct MIntProperty{
+typedef struct MIntProperty {
 	int		i;
 } MIntProperty;
-typedef struct MStringProperty{
+typedef struct MStringProperty {
 	char	s[256];
 } MStringProperty;
 
@@ -174,15 +195,7 @@ typedef struct Multires {
 
 /** End Multires **/
 
-typedef struct PartialVisibility {
-	unsigned int *vert_map; /* vert_map[Old Index]= New Index */
-	int *edge_map; /* edge_map[Old Index]= New Index, -1= hidden */
-	MFace *old_faces;
-	MEdge *old_edges;
-	unsigned int totface, totedge, totvert, pad;
-} PartialVisibility;
-
-typedef struct MRecast{
+typedef struct MRecast {
 	int		i;
 } MRecast;
 
@@ -200,15 +213,10 @@ typedef struct MRecast{
 						/* reserve 16 for ME_HIDE */
 #define ME_EDGERENDER		(1<<5)
 #define ME_LOOSEEDGE		(1<<7)
-#define ME_SEAM_LAST		(1<<8)
-#define ME_SHARP			(1<<9)
+/* #define ME_SEAM_LAST		(1<<8) */ /* UNUSED */
+#define ME_SHARP			(1<<9)    /* only reason this flag remains a 'short' */
 
 /* puno = vertexnormal (mface) */
-/* render assumes flips to be ordered like this */
-#define ME_FLIPV1		1
-#define ME_FLIPV2		2
-#define ME_FLIPV3		4
-#define ME_FLIPV4		8
 #define ME_PROJXY		16
 #define ME_PROJXZ		32
 #define ME_PROJYZ		64
@@ -224,11 +232,6 @@ typedef struct MRecast{
 #define ME_SMOOTH			1
 #define ME_FACE_SEL			2
 						/* flag ME_HIDE==16 is used here too */ 
-/* mselect->type */
-#define ME_VSEl	0
-#define ME_ESEl 1
-#define ME_FSEL 2
-
 /* mtface->flag */
 #define TF_SELECT	1 /* use MFace hide flag (after 2.43), should be able to reuse after 2.44 */
 #define TF_ACTIVE	2 /* deprecated! */

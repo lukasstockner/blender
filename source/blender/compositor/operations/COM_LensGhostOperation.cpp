@@ -456,7 +456,7 @@ void LensGhostProjectionOperation::initExecution() {
 			copy_m4_m4(obmat, cameraObject->obmat);
 			normalize_m4(obmat);
 			invert_m4_m4(imat, obmat);
-			mul_m4_m4m4(matt, lampObject->obmat, imat);
+			mult_m4_m4m4(matt, imat, lampObject->obmat);
 
 			visualLampPosition[0] = (float)(matt[3][0]);
 			visualLampPosition[1] = (float)(matt[3][1]);

@@ -904,7 +904,9 @@ void uiEndBlock(const bContext *C, uiBlock *block)
 	/* handle pending stuff */
 	if(block->layouts.first) uiBlockLayoutResolve(block, NULL, NULL);
 	ui_block_do_align(block);
-	if((block->flag & UI_BLOCK_LOOP) && (block->flag & UI_BLOCK_NUMSELECT)) ui_menu_block_set_keyaccels(block); /* could use a different flag to check */
+	if((block->flag & UI_BLOCK_LOOP) && (block->flag & UI_BLOCK_NUMSELECT)) {
+		ui_menu_block_set_keyaccels(block); /* could use a different flag to check */
+	}
 	if(block->flag & UI_BLOCK_LOOP) ui_menu_block_set_keymaps(C, block);
 	
 	/* after keymaps! */
@@ -1901,7 +1903,7 @@ void ui_set_but_soft_range(uiBut *but, double value)
 			if(softmin < (double)but->hardmin)
 				softmin= (double)but->hardmin;
 		}
-		else if(value_max-1e-10 > softmax) {
+		if(value_max-1e-10 > softmax) {
 			if(value_max < 0.0)
 				softmax= -soft_range_round_down(-value_max, -softmax);
 			else
@@ -2833,7 +2835,7 @@ uiBut *uiDefBut(uiBlock *block, int type, int retval, const char *str, int x1, i
 	 */
 static int findBitIndex(unsigned int x)
 {
-	if (!x || (x&(x-1))!=0) {	/* x&(x-1) strips lowest bit */
+	if (!x || !is_power_of_2_i(x)) { /* is_power_of_2_i(x) strips lowest bit */
 		return -1;
 	} else {
 		int idx= 0;

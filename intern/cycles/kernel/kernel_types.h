@@ -78,6 +78,13 @@ CCL_NAMESPACE_BEGIN
 //#define __MODIFY_TP__
 //#define __QBVH__
 
+/* Shader Evaluation */
+
+enum ShaderEvalType {
+	SHADER_EVAL_DISPLACE,
+	SHADER_EVAL_BACKGROUND
+};
+
 /* Path Tracing */
 
 enum PathTraceDimension {
@@ -100,7 +107,10 @@ enum PathTraceDimension {
 
 /* these flag values correspond exactly to OSL defaults, so be careful not to
  * change this, or if you do, set the "raytypes" shading system attribute with
- * your own new ray types and bitflag values */
+ * your own new ray types and bitflag values.
+ *
+ * for ray visibility tests in BVH traversal, the upper 20 bits are used for
+ * layer visibility tests. */
 
 enum PathRayFlag {
 	PATH_RAY_CAMERA = 1,
@@ -117,7 +127,9 @@ enum PathRayFlag {
 
 	PATH_RAY_MIS_SKIP = 512,
 
-	PATH_RAY_ALL = (1|2|4|8|16|32|64|128|256|512)
+	PATH_RAY_ALL = (1|2|4|8|16|32|64|128|256|512),
+
+	PATH_RAY_LAYER_SHIFT = (32-20)
 };
 
 /* Closure Label */
@@ -295,29 +307,24 @@ typedef struct ShaderData {
 #endif
 } ShaderData;
 
-/* Constrant Kernel Data */
+/* Constrant Kernel Data
+ *
+ * These structs are passed from CPU to various devices, and the struct layout
+ * must match exactly. Structs are padded to ensure 16 byte alignment, and we
+ * do not use float3 because its size may not be the same on all devices. */
 
 typedef struct KernelCamera {
 	/* type */
 	int ortho;
-	int pad;
-
-	/* size */
-	int width, height;
+	int pad1, pad2, pad3;
 
 	/* matrices */
 	Transform cameratoworld;
 	Transform rastertocamera;
 
 	/* differentials */
-	float3 dx;
-#ifndef WITH_OPENCL
-	float pad1;
-#endif
-	float3 dy;
-#ifndef WITH_OPENCL
-	float pad2;
-#endif
+	float4 dx;
+	float4 dy;
 
 	/* depth of field */
 	float aperturesize;
@@ -358,10 +365,6 @@ typedef struct KernelBackground {
 typedef struct KernelSunSky {
 	/* sun direction in spherical and cartesian */
 	float theta, phi, pad3, pad4;
-	float3 dir;
-#ifndef WITH_OPENCL
-	float pad;
-#endif
 
 	/* perez function parameters */
 	float zenith_Y, zenith_x, zenith_y, pad2;
@@ -392,10 +395,12 @@ typedef struct KernelIntegrator {
 
 	/* caustics */
 	int no_caustics;
-	float blur_caustics;
 
 	/* seed */
 	int seed;
+
+	/* render layer */
+	int layer_flag;
 } KernelIntegrator;
 
 typedef struct KernelBVH {

@@ -16,16 +16,15 @@
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
-# <pep8 compliant>
-
 # XML exporter for generating test files, not intended for end users
 
 import os
-import bpy
-from bpy_extras.io_utils import ExportHelper
 import xml.etree.ElementTree as etree
 import xml.dom.minidom as dom
 
+import bpy
+from bpy_extras.io_utils import ExportHelper
+from bpy.props import PointerProperty, StringProperty
 
 def strip(root):
     root.text = None
@@ -33,7 +32,6 @@ def strip(root):
 
     for elem in root:
         strip(elem)
-
 
 def write(node, fname):
     strip(node)
@@ -43,10 +41,51 @@ def write(node, fname):
 
     f = open(fname, "w")
     f.write(s)
+    
+class CyclesXMLSettings(bpy.types.PropertyGroup):
+    @classmethod
+    def register(cls):
+        bpy.types.Scene.cycles_xml = PointerProperty(
+                                        type=cls,
+                                        name="Cycles XML export Settings",
+                                        description="Cycles XML export settings")
+        cls.filepath = StringProperty(
+                        name='Filepath',
+                        description='Filepath for the .xml file',
+                        maxlen=256,
+                        default='',
+                        subtype='FILE_PATH')
+                        
+    @classmethod
+    def unregister(cls):
+        del bpy.types.Scene.cycles_xml
+        
+# User Interface Drawing Code
+class RenderButtonsPanel():
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "render"
+
+    @classmethod
+    def poll(self, context):
+        rd = context.scene.render
+        return rd.engine == 'CYCLES'
 
 
+class PHYSICS_PT_fluid_export(RenderButtonsPanel, bpy.types.Panel):
+    bl_label = "Cycles XML Exporter"
+
+    def draw(self, context):
+        layout = self.layout
+        
+        cycles = context.scene.cycles_xml
+        
+        #layout.prop(cycles, "filepath")
+        layout.operator("export_mesh.cycles_xml")
+
+        
+# Export Operator
 class ExportCyclesXML(bpy.types.Operator, ExportHelper):
-    ''''''
     bl_idname = "export_mesh.cycles_xml"
     bl_label = "Export Cycles XML"
 
@@ -61,12 +100,12 @@ class ExportCyclesXML(bpy.types.Operator, ExportHelper):
 
         # get mesh
         scene = context.scene
-        obj = context.object
+        object = context.active_object
 
-        if not obj:
+        if not object:
             raise Exception("No active object")
 
-        mesh = obj.to_mesh(scene, True, 'PREVIEW')
+        mesh = object.to_mesh(scene, True, 'PREVIEW')
 
         if not mesh:
             raise Exception("No mesh data in active object")
@@ -87,19 +126,18 @@ class ExportCyclesXML(bpy.types.Operator, ExportHelper):
             verts += " "
 
         node = etree.Element('mesh', attrib={'nverts': nverts, 'verts': verts, 'P': P})
-
+        
         # write to file
         write(node, filepath)
 
         return {'FINISHED'}
 
-
 def register():
-    pass
-
+    bpy.utils.register_module(__name__)
 
 def unregister():
-    pass
+    bpy.utils.unregister_module(__name__)
 
 if __name__ == "__main__":
     register()
+

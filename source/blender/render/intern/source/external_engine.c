@@ -170,6 +170,11 @@ RenderResult *RE_engine_begin_result(RenderEngine *engine, int x, int y, int w, 
 
 	result= new_render_result(re, &disprect, 0, RR_USEMEM);
 	BLI_addtail(&engine->fullresult, result);
+	
+	result->tilerect.xmin += re->disprect.xmin;
+	result->tilerect.xmax += re->disprect.xmin;
+	result->tilerect.ymin += re->disprect.ymin;
+	result->tilerect.ymax += re->disprect.ymin;
 
 	return result;
 }

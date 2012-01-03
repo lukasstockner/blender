@@ -186,7 +186,7 @@ void wm_event_do_notifiers(bContext *C)
 	wmWindowManager *wm= CTX_wm_manager(C);
 	wmNotifier *note, *next;
 	wmWindow *win;
-	unsigned int win_combine_v3d_datamask= 0;
+	uint64_t win_combine_v3d_datamask= 0;
 	
 	if(wm==NULL)
 		return;
@@ -597,10 +597,34 @@ static int wm_operator_exec(bContext *C, wmOperator *op, int repeat)
 	
 }
 
-/* for running operators with frozen context (modal handlers, menus) */
+/* simply calls exec with basic checks */
+static int wm_operator_exec_notest(bContext *C, wmOperator *op)
+{
+	int retval= OPERATOR_CANCELLED;
+
+	if(op==NULL || op->type==NULL || op->type->exec==NULL)
+		return retval;
+
+	retval= op->type->exec(C, op);
+	OPERATOR_RETVAL_CHECK(retval);
+
+	return retval;
+}
+
+/* for running operators with frozen context (modal handlers, menus)
+ *
+ * warning: do not use this within an operator to call its self! [#29537] */
 int WM_operator_call(bContext *C, wmOperator *op)
 {
 	return wm_operator_exec(C, op, 0);
+}
+
+/* this is intended to be used when an invoke operator wants to call exec on its self
+ * and is basically like running op->type->exec() directly, no poll checks no freeing,
+ * since we assume whoever called invokle will take care of that */
+int WM_operator_call_notest(bContext *C, wmOperator *op)
+{
+	return wm_operator_exec_notest(C, op);
 }
 
 /* do this operator again, put here so it can share above code */
@@ -2666,6 +2690,11 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			   modifier in win->eventstate, but for the press event of the same
 			   key we don't want the key modifier */
 			if(event.keymodifier == event.type)
+				event.keymodifier= 0;
+			/* this case happened with an external numpad, it's not really clear
+			   why, but it's also impossible to map a key modifier to an unknwon
+			   key, so it shouldn't harm */
+			if(event.keymodifier == UNKNOWNKEY)
 				event.keymodifier= 0;
 			
 			/* if test_break set, it catches this. XXX Keep global for now? */

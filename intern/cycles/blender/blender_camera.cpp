@@ -72,17 +72,12 @@ static float blender_camera_focal_distance(BL::Object b_ob, BL::Camera b_camera)
 	if(!b_dof_object)
 		return b_camera.dof_distance();
 	
-	/* for dof object, return distance along camera direction. this is
-	 * compatible with blender, but does it fit our dof model? */
-	Transform obmat = get_transform(b_ob.matrix_world());
+	/* for dof object, return distance along camera Z direction */
+	Transform obmat = transform_clear_scale(get_transform(b_ob.matrix_world()));
 	Transform dofmat = get_transform(b_dof_object.matrix_world());
+	Transform mat = transform_inverse(obmat) * dofmat;
 
-	float3 cam_p = transform_get_column(&obmat, 3);
-	float3 cam_dir = normalize(transform_get_column(&obmat, 2));
-	float3 dof_p = transform_get_column(&dofmat, 3);
-	float3 proj_p = dot(dof_p, cam_dir) * cam_dir;
-
-	return len(proj_p - cam_p);
+	return fabsf(transform_get_column(&mat, 3).z);
 }
 
 static void blender_camera_from_object(BlenderCamera *bcam, BL::Object b_ob)
@@ -207,6 +202,7 @@ static void blender_camera_sync(Camera *cam, BlenderCamera *bcam, int width, int
 
 	/* transform, note the blender camera points along the negative z-axis */
 	cam->matrix = bcam->matrix * transform_scale(1.0f, 1.0f, -1.0f);
+	cam->matrix = transform_clear_scale(cam->matrix);
 
 	/* set update flag */
 	if(cam->modified(prevcam))
@@ -284,6 +280,30 @@ void BlenderSync::sync_view(BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, int 
 
 	/* sync */
 	blender_camera_sync(scene->camera, &bcam, width, height);
+}
+
+BufferParams BlenderSync::get_buffer_params(BL::Scene b_scene, BL::RegionView3D b_rv3d, int width, int height)
+{
+	BufferParams params;
+
+	params.full_width = width;
+	params.full_height = height;
+
+	/* border render */
+	BL::RenderSettings r = b_scene.render();
+
+	if(!b_rv3d && r.use_border()) {
+		params.full_x = r.border_min_x()*width;
+		params.full_y = r.border_min_y()*height;
+		params.width = (int)(r.border_max_x()*width) - params.full_x;
+		params.height = (int)(r.border_max_y()*height) - params.full_y;
+	}
+	else {
+		params.width = width;
+		params.height = height;
+	}
+
+	return params;
 }
 
 CCL_NAMESPACE_END

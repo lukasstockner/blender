@@ -37,11 +37,13 @@ struct BoundBox;
 struct DispList;
 struct ListBase;
 struct EditMesh;
-struct MDeformVert;
 struct Mesh;
+struct MPoly;
+struct MLoop;
 struct MFace;
 struct MEdge;
 struct MVert;
+struct MDeformVert;
 struct MCol;
 struct Object;
 struct MTFace;
@@ -49,6 +51,7 @@ struct VecNor;
 struct CustomData;
 struct DerivedMesh;
 struct Scene;
+struct MLoopUV;
 
 #ifdef __cplusplus
 extern "C" {
@@ -56,6 +59,11 @@ extern "C" {
 
 struct EditMesh *BKE_mesh_get_editmesh(struct Mesh *me);
 void BKE_mesh_end_editmesh(struct Mesh *me, struct EditMesh *em);
+
+/* for forwards compat only quad->tri polys to mface, skip ngons.
+ */
+int mesh_mpoly_to_mface(struct CustomData *fdata, struct CustomData *ldata,
+	struct CustomData *pdata, int totface, int totloop, int totpoly);
 
 void unlink_mesh(struct Mesh *me);
 void free_mesh(struct Mesh *me);
@@ -127,16 +135,10 @@ typedef struct IndexNode {
 	struct IndexNode *next, *prev;
 	int index;
 } IndexNode;
-void create_vert_face_map(ListBase **map, IndexNode **mem, const struct MFace *mface,
+void create_vert_face_map(struct ListBase **map, IndexNode **mem, const struct MFace *mface,
                           const int totvert, const int totface);
-void create_vert_edge_map(ListBase **map, IndexNode **mem, const struct MEdge *medge,
+void create_vert_edge_map(struct ListBase **map, IndexNode **mem, const struct MEdge *medge,
                           const int totvert, const int totedge);
-
-/* Partial Mesh Visibility */
-struct PartialVisibility *mesh_pmv_copy(struct PartialVisibility *);
-void mesh_pmv_free(struct PartialVisibility *);
-void mesh_pmv_revert(struct Mesh *me);
-void mesh_pmv_off(struct Mesh *me);
 
 /* functions for making menu's from customdata layers */
 int mesh_layers_menu_charlen(struct CustomData *data, int type); /* use this to work out how many chars to allocate */
@@ -151,13 +153,25 @@ int mesh_center_bounds(struct Mesh *me, float cent[3]);
 void mesh_translate(struct Mesh *me, float offset[3], int do_keys);
 
 /* mesh_validate.c */
-int BKE_mesh_validate_arrays(struct Mesh *me, struct MVert *mverts, unsigned int totvert, struct MEdge *medges, unsigned int totedge, struct MFace *mfaces, unsigned int totface, const short do_verbose, const short do_fixes);
+int BKE_mesh_validate_arrays(
+		struct Mesh *me,
+        struct MVert *mverts, unsigned int totvert,
+        struct MEdge *medges, unsigned int totedge,
+        struct MFace *mfaces, unsigned int totface,
+        struct MDeformVert *dverts, /* assume totvert length */
+        const short do_verbose, const short do_fixes);
 int BKE_mesh_validate(struct Mesh *me, int do_verbose);
 int BKE_mesh_validate_dm(struct DerivedMesh *dm);
 
 void BKE_mesh_calc_edges(struct Mesh *mesh, int update);
 
 void BKE_mesh_ensure_navmesh(struct Mesh *me);
+
+/*convert a triangle of loop facedata to mface facedata*/
+void mesh_loops_to_mface_corners(struct CustomData *fdata, struct CustomData *ldata,
+                                 struct CustomData *pdata, int lindex[4], int findex,
+                                 const int polyindex, const int mf_len,
+                                 const int numTex, const int numCol, const int hasWCol);
 
 #ifdef __cplusplus
 }

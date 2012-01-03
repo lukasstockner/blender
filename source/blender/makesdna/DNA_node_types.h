@@ -25,12 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef DNA_NODE_TYPES_H
-#define DNA_NODE_TYPES_H
-
 /** \file DNA_node_types.h
  *  \ingroup DNA
  */
+
+#ifndef DNA_NODE_TYPES_H
+#define DNA_NODE_TYPES_H
 
 #include "DNA_ID.h"
 #include "DNA_vec_types.h"
@@ -102,7 +102,7 @@ typedef struct bNodeSocket {
 	
 	/* internal data to retrieve relations and groups */
 	int own_index;				/* group socket identifiers, to find matching pairs after reading files */
-	int to_index;				/* XXX deprecated, only used for restoring old group node links */
+	int to_index  DNA_DEPRECATED;  /* XXX deprecated, only used for restoring old group node links */
 	struct bNodeSocket *groupsock;
 	
 	struct bNodeLink *link;		/* a link pointer, set in ntreeUpdateTree */
@@ -439,12 +439,12 @@ typedef struct NodeChroma {
 	float t1,t2,t3;
 	float fsize,fstrength,falpha;
 	float key[4];
-   short algorithm, channel;
+	short algorithm, channel;
 } NodeChroma;
 
 typedef struct NodeTwoXYs {
 	short x1, x2, y1, y2;
-   float fac_x1, fac_x2, fac_y1, fac_y2;
+	float fac_x1, fac_x2, fac_y1, fac_y2;
 } NodeTwoXYs;
 
 typedef struct NodeTwoFloats {
@@ -513,7 +513,7 @@ typedef struct NodeColorspill {
 	short limchan, unspill;
 	float limscale;
 	float uspillr, uspillg, uspillb;
-}NodeColorspill;
+} NodeColorspill;
 
 typedef struct NodeTexBase {
 	TexMapping tex_mapping;

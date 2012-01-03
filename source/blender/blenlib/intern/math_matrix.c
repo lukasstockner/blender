@@ -142,7 +142,7 @@ void swap_m4m4(float m1[][4], float m2[][4])
 
 /******************************** Arithmetic *********************************/
 
-void mul_m4_m4m4(float m1[][4], float m2_[][4], float m3_[][4])
+void mult_m4_m4m4(float m1[][4], float m3_[][4], float m2_[][4])
 {
 	float m2[4][4], m3[4][4];
 
@@ -195,8 +195,14 @@ void mul_m3_m3m3(float m1[][3], float m3_[][3], float m2_[][3])
 	m1[2][2]= m2[2][0]*m3[0][2] + m2[2][1]*m3[1][2] + m2[2][2]*m3[2][2]; 
 }
 
-void mul_m4_m4m3(float (*m1)[4], float (*m3)[4], float (*m2)[3])
+void mul_m4_m4m3(float (*m1)[4], float (*m3_)[4], float (*m2_)[3])
 {
+	float m2[3][3], m3[4][4];
+
+	/* copy so it works when m1 is the same pointer as m2 or m3 */
+	copy_m3_m3(m2, m2_);
+	copy_m4_m4(m3, m3_);
+
 	m1[0][0]= m2[0][0]*m3[0][0] + m2[0][1]*m3[1][0] + m2[0][2]*m3[2][0];
 	m1[0][1]= m2[0][0]*m3[0][1] + m2[0][1]*m3[1][1] + m2[0][2]*m3[2][1];
 	m1[0][2]= m2[0][0]*m3[0][2] + m2[0][1]*m3[1][2] + m2[0][2]*m3[2][2];
@@ -209,7 +215,7 @@ void mul_m4_m4m3(float (*m1)[4], float (*m3)[4], float (*m2)[3])
 }
 
 /* m1 = m2 * m3, ignore the elements on the 4th row/column of m3*/
-void mul_m3_m3m4(float m1[][3], float m2[][3], float m3[][4])
+void mult_m3_m3m4(float m1[][3], float m3[][4], float m2[][3])
 {
 	/* m1[i][j] = m2[i][k] * m3[k][j] */
 	m1[0][0] = m2[0][0] * m3[0][0] + m2[0][1] * m3[1][0] +m2[0][2] * m3[2][0];
@@ -280,19 +286,19 @@ void mul_serie_m4(float answ[][4], float m1[][4],
 	
 	if(m1==NULL || m2==NULL) return;
 	
-	mul_m4_m4m4(answ, m2, m1);
+	mult_m4_m4m4(answ, m1, m2);
 	if(m3) {
-		mul_m4_m4m4(temp, m3, answ);
+		mult_m4_m4m4(temp, answ, m3);
 		if(m4) {
-			mul_m4_m4m4(answ, m4, temp);
+			mult_m4_m4m4(answ, temp, m4);
 			if(m5) {
-				mul_m4_m4m4(temp, m5, answ);
+				mult_m4_m4m4(temp, answ, m5);
 				if(m6) {
-					mul_m4_m4m4(answ, m6, temp);
+					mult_m4_m4m4(answ, temp, m6);
 					if(m7) {
-						mul_m4_m4m4(temp, m7, answ);
+						mult_m4_m4m4(temp, answ, m7);
 						if(m8) {
-							mul_m4_m4m4(answ, m8, temp);
+							mult_m4_m4m4(answ, temp, m8);
 						}
 						else copy_m4_m4(answ, temp);
 					}
@@ -1121,18 +1127,18 @@ void blend_m3_m3m3(float out[][3], float dst[][3], float src[][3], const float s
 {
 	float srot[3][3], drot[3][3];
 	float squat[4], dquat[4], fquat[4];
-	float ssize[3], dsize[3], fsize[3];
+	float sscale[3], dscale[3], fsize[3];
 	float rmat[3][3], smat[3][3];
 	
-	mat3_to_rot_size(drot, dsize, dst);
-	mat3_to_rot_size(srot, ssize, src);
+	mat3_to_rot_size(drot, dscale, dst);
+	mat3_to_rot_size(srot, sscale, src);
 
 	mat3_to_quat(dquat, drot);
 	mat3_to_quat(squat, srot);
 
 	/* do blending */
 	interp_qt_qtqt(fquat, dquat, squat, srcweight);
-	interp_v3_v3v3(fsize, dsize, ssize, srcweight);
+	interp_v3_v3v3(fsize, dscale, sscale, srcweight);
 
 	/* compose new matrix */
 	quat_to_mat3(rmat,fquat);
@@ -1145,10 +1151,10 @@ void blend_m4_m4m4(float out[][4], float dst[][4], float src[][4], const float s
 	float sloc[3], dloc[3], floc[3];
 	float srot[3][3], drot[3][3];
 	float squat[4], dquat[4], fquat[4];
-	float ssize[3], dsize[3], fsize[3];
+	float sscale[3], dscale[3], fsize[3];
 
-	mat4_to_loc_rot_size(dloc, drot, dsize, dst);
-	mat4_to_loc_rot_size(sloc, srot, ssize, src);
+	mat4_to_loc_rot_size(dloc, drot, dscale, dst);
+	mat4_to_loc_rot_size(sloc, srot, sscale, src);
 
 	mat3_to_quat(dquat, drot);
 	mat3_to_quat(squat, srot);
@@ -1156,7 +1162,7 @@ void blend_m4_m4m4(float out[][4], float dst[][4], float src[][4], const float s
 	/* do blending */
 	interp_v3_v3v3(floc, dloc, sloc, srcweight);
 	interp_qt_qtqt(fquat, dquat, squat, srcweight);
-	interp_v3_v3v3(fsize, dsize, ssize, srcweight);
+	interp_v3_v3v3(fsize, dscale, sscale, srcweight);
 
 	/* compose new matrix */
 	loc_quat_size_to_mat4(out, floc, fquat, fsize);

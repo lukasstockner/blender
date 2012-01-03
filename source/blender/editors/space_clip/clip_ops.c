@@ -201,7 +201,7 @@ void CLIP_OT_open(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Open Clip";
-	ot->description= "Open clip";
+	ot->description= "Load a sequence of frames or a movie file";
 	ot->idname= "CLIP_OT_open";
 
 	/* api callbacks */
@@ -827,6 +827,7 @@ typedef struct ProxyBuildJob {
 	Scene *scene;
 	struct Main *main;
 	MovieClip *clip;
+	int clip_flag;
 } ProxyJob;
 
 static void proxy_freejob(void *pjv)
@@ -877,10 +878,10 @@ static void proxy_startjob(void *pjv, short *stop, short *do_update, float *prog
 
 	for(cfra= sfra; cfra<=efra; cfra++) {
 		if(clip->source != MCLIP_SRC_MOVIE)
-			BKE_movieclip_build_proxy_frame(clip, NULL, cfra, build_sizes, build_count, 0);
+			BKE_movieclip_build_proxy_frame(clip, pj->clip_flag, NULL, cfra, build_sizes, build_count, 0);
 
 		if(undistort)
-			BKE_movieclip_build_proxy_frame(clip, distortion, cfra, build_sizes, build_count, 1);
+			BKE_movieclip_build_proxy_frame(clip, pj->clip_flag, distortion, cfra, build_sizes, build_count, 1);
 
 		if(*stop || G.afbreek)
 			break;
@@ -893,7 +894,7 @@ static void proxy_startjob(void *pjv, short *stop, short *do_update, float *prog
 		BKE_tracking_distortion_destroy(distortion);
 }
 
-static int sequencer_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
+static int clip_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	wmJob * steve;
 	ProxyJob *pj;
@@ -911,6 +912,7 @@ static int sequencer_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
 	pj->scene= scene;
 	pj->main= CTX_data_main(C);
 	pj->clip= clip;
+	pj->clip_flag= clip->flag&MCLIP_TIMECODE_FLAGS;
 
 	WM_jobs_customdata(steve, pj, proxy_freejob);
 	WM_jobs_timer(steve, 0.2, NC_MOVIECLIP|ND_DISPLAY, 0);
@@ -929,10 +931,10 @@ void CLIP_OT_rebuild_proxy(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Rebuild Proxy and Timecode Indices";
 	ot->idname= "CLIP_OT_rebuild_proxy";
-	ot->description= "Rebuild all selected proxies and timecode indeces in the background";
+	ot->description= "Rebuild all selected proxies and timecode indices in the background";
 
 	/* api callbacks */
-	ot->exec= sequencer_rebuild_proxy_exec;
+	ot->exec= clip_rebuild_proxy_exec;
 	ot->poll= ED_space_clip_poll;
 
 	/* flags */

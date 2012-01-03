@@ -299,7 +299,8 @@ static bUnitDef *unit_best_fit(double value, bUnitCollection *usys, bUnitDef *un
 		if(suppress && (unit->flag & B_UNIT_DEF_SUPPRESS))
 			continue;
 
-		if (value_abs >= unit->scalar*(1.0-EPS)) /* scale down scalar so 1cm doesnt convert to 10mm because of float error */
+		/* scale down scalar so 1cm doesnt convert to 10mm because of float error */
+		if (value_abs >= unit->scalar*(1.0-EPS))
 			return unit;
 	}
 
@@ -481,11 +482,14 @@ static int ch_is_op(char op)
 	}
 }
 
-static int unit_scale_str(char *str, int len_max, char *str_tmp, double scale_pref, bUnitDef *unit, const char *replace_str)
+static int unit_scale_str(char *str, int len_max, char *str_tmp,
+                          double scale_pref, bUnitDef *unit, const char *replace_str)
 {
 	char *str_found;
 
-	if((len_max>0) && (str_found= (char *)unit_find_str(str, replace_str))) { /* XXX - investigate, does not respect len_max properly  */
+	if((len_max>0) && (str_found= (char *)unit_find_str(str, replace_str))) {
+		/* XXX - investigate, does not respect len_max properly  */
+
 		int len, len_num, len_name, len_move, found_ofs;
 
 		found_ofs = (int)(str_found-str);
@@ -494,7 +498,7 @@ static int unit_scale_str(char *str, int len_max, char *str_tmp, double scale_pr
 
 		len_name = strlen(replace_str);
 		len_move= (len - (found_ofs+len_name)) + 1; /* 1+ to copy the string terminator */
-		len_num= BLI_snprintf(str_tmp, TEMP_STR_SIZE, "*%lg"SEP_STR, unit->scalar/scale_pref); /* # removed later */
+		len_num= BLI_snprintf(str_tmp, TEMP_STR_SIZE, "*%g"SEP_STR, unit->scalar/scale_pref); /* # removed later */
 
 		if(len_num > len_max)
 			len_num= len_max;

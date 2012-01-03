@@ -89,13 +89,15 @@ class USERPREF_HT_header(Header):
         layout.operator_context = 'INVOKE_DEFAULT'
 
         if userpref.active_section == 'INPUT':
-            layout.operator("wm.keyconfig_export")
             layout.operator("wm.keyconfig_import")
+            layout.operator("wm.keyconfig_export")
         elif userpref.active_section == 'ADDONS':
             layout.operator("wm.addon_install")
             layout.menu("USERPREF_MT_addons_dev_guides")
         elif userpref.active_section == 'THEMES':
             layout.operator("ui.reset_default_theme")
+            layout.operator("wm.theme_import")
+            layout.operator("wm.theme_export")
 
 
 class USERPREF_PT_tabs(Panel):
@@ -888,6 +890,8 @@ class USERPREF_PT_input(Panel, InputKeyMapPanel):
         sub = col.column()
         sub.label(text="NDOF Device:")
         sub.prop(inputs, "ndof_sensitivity", text="NDOF Sensitivity")
+
+        col.prop(inputs, "tweak_threshold")
 
         row.separator()
 

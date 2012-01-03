@@ -756,17 +756,11 @@ void shade_input_set_uv(ShadeInput *shi)
 		}
 		else {
 			/* most of this could become re-used for faces */
-			float detsh, t00, t10, t01, t11, xn, yn, zn;
+			float detsh, t00, t10, t01, t11;
 			int axis1, axis2;
 
 			/* find most stable axis to project */
-			xn= fabs(shi->facenor[0]);
-			yn= fabs(shi->facenor[1]);
-			zn= fabs(shi->facenor[2]);
-
-			if(zn>=xn && zn>=yn) { axis1= 0; axis2= 1; }
-			else if(yn>=xn && yn>=zn) { axis1= 0; axis2= 2; }
-			else { axis1= 1; axis2= 2; }
+			axis_dominant_v3(&axis1, &axis2, shi->facenor);
 
 			/* compute u,v and derivatives */
 			t00= v3[axis1]-v1[axis1]; t01= v3[axis2]-v1[axis2];
@@ -1274,7 +1268,7 @@ void shade_input_set_shade_texco(ShadeInput *shi)
 
 				zbuf_make_winmat(&R, winmat);
 				if(shi->obi->flag & R_TRANSFORMED)
-					mul_m4_m4m4(obwinmat, obi->mat, winmat);
+					mult_m4_m4m4(obwinmat, winmat, obi->mat);
 				else
 					copy_m4_m4(obwinmat, winmat);
 

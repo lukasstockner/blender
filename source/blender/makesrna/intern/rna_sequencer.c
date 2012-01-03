@@ -822,6 +822,9 @@ static void rna_def_strip_proxy(BlenderRNA *brna)
 		{SEQ_PROXY_TC_INTERP_REC_DATE_FREE_RUN, "FREE_RUN_REC_DATE", 0, "Free Run (rec date)",
 		                                        "Interpolate a global timestamp using the "
 		                                        "record date and time written by recording device"},
+		{SEQ_PROXY_TC_RECORD_RUN_NO_GAPS, "FREE_RUN_NO_GAPS", 0, "Free Run No Gaps",
+		                                        "Record run, but ignore timecode, "
+		                                        "changes in framerate or dropouts"},
 		{0, NULL, 0, NULL, NULL}};
 	
 	srna = RNA_def_struct(brna, "SequenceProxy", NULL);
@@ -1618,7 +1621,7 @@ static void rna_def_glow(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "clamp", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "fClamp");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "Clamp", "rightness limit of intensity");
+	RNA_def_property_ui_text(prop, "Clamp", "Brightness limit of intensity");
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 	
 	prop= RNA_def_property(srna, "boost_factor", PROP_FLOAT, PROP_NONE);
@@ -1722,7 +1725,7 @@ static void rna_def_solid_color(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	srna = RNA_def_struct(brna, "ColorSequence", "EffectSequence");
-	RNA_def_struct_ui_text(srna, "Color Sequence", "Sequence strip creating an image filled with a single g");
+	RNA_def_struct_ui_text(srna, "Color Sequence", "Sequence strip creating an image filled with a single color");
 	RNA_def_struct_sdna_from(srna, "SolidColorVars", "effectdata");
 	
 	prop= RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR);

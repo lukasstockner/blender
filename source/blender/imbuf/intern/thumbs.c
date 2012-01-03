@@ -32,16 +32,17 @@
 
 #include <stdio.h>
 
-#include "BKE_utildefines.h"
-#include "BLI_blenlib.h"
 #include "MEM_guardedalloc.h"
+
+#include "BLI_blenlib.h"
+#include "BLI_md5.h"
+
+#include "BKE_utildefines.h"
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 #include "IMB_thumbs.h"
 #include "IMB_metadata.h"
-
-#include "md5.h"
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -309,7 +310,7 @@ ImBuf* IMB_thumb_create(const char* path, ThumbSize size, ThumbSource source, Im
 
 				if (img != NULL) {
 					stat(path, &info);
-					BLI_snprintf(mtime, sizeof(mtime), "%ld", info.st_mtime);
+					BLI_snprintf(mtime, sizeof(mtime), "%ld", (long int)info.st_mtime);
 					BLI_snprintf(cwidth, sizeof(cwidth), "%d", img->x);
 					BLI_snprintf(cheight, sizeof(cheight), "%d", img->y);
 				}
@@ -327,7 +328,7 @@ ImBuf* IMB_thumb_create(const char* path, ThumbSize size, ThumbSource source, Im
 					IMB_free_anim(anim);
 				}
 				stat(path, &info);
-				BLI_snprintf(mtime, sizeof(mtime), "%ld", info.st_mtime);
+				BLI_snprintf(mtime, sizeof(mtime), "%ld", (long int)info.st_mtime);
 			}
 			if (!img) return NULL;
 

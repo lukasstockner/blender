@@ -26,14 +26,14 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef DNA_MOVIECLIP_TYPES_H
-#define DNA_MOVIECLIP_TYPES_H
-
 /** \file DNA_movieclip_types.h
  *  \ingroup DNA
  *  \since may-2011
  *  \author Sergey Sharybin
  */
+
+#ifndef DNA_MOVIECLIP_TYPES_H
+#define DNA_MOVIECLIP_TYPES_H
 
 #include "DNA_ID.h"
 #include "DNA_tracking_types.h"
@@ -112,6 +112,8 @@ typedef struct MovieClipScopes {
 /* MovieClip->flag */
 #define MCLIP_USE_PROXY					(1<<0)
 #define MCLIP_USE_PROXY_CUSTOM_DIR		(1<<1)
+
+#define MCLIP_TIMECODE_FLAGS			(MCLIP_USE_PROXY|MCLIP_USE_PROXY_CUSTOM_DIR)
 
 /* MovieClip->render_size */
 #define MCLIP_PROXY_RENDER_SIZE_FULL	0

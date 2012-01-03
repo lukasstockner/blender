@@ -47,7 +47,9 @@ BlenderSync::BlenderSync(BL::BlendData b_data_, BL::Scene b_scene_, Scene *scene
   mesh_map(&scene_->meshes),
   light_map(&scene_->lights),
   world_map(NULL),
-  world_recalc(false)
+  world_recalc(false),
+  experimental(false),
+  active_layer(0)
 {
 	scene = scene_;
 	preview = preview_;
@@ -67,13 +69,13 @@ bool BlenderSync::sync_recalc()
 	BL::BlendData::materials_iterator b_mat;
 
 	for(b_data.materials.begin(b_mat); b_mat != b_data.materials.end(); ++b_mat)
-		if(b_mat->is_updated())
+		if(b_mat->is_updated() || (b_mat->node_tree() && b_mat->node_tree().is_updated()))
 			shader_map.set_recalc(*b_mat);
 
 	BL::BlendData::lamps_iterator b_lamp;
 
 	for(b_data.lamps.begin(b_lamp); b_lamp != b_data.lamps.end(); ++b_lamp)
-		if(b_lamp->is_updated())
+		if(b_lamp->is_updated() || (b_lamp->node_tree() && b_lamp->node_tree().is_updated()))
 			shader_map.set_recalc(*b_lamp);
 
 	BL::BlendData::objects_iterator b_ob;
@@ -105,7 +107,8 @@ bool BlenderSync::sync_recalc()
 	BL::BlendData::worlds_iterator b_world;
 
 	for(b_data.worlds.begin(b_world); b_world != b_data.worlds.end(); ++b_world)
-		if(world_map == b_world->ptr.data && b_world->is_updated())
+		if(world_map == b_world->ptr.data &&
+			(b_world->is_updated() || (b_world->node_tree() && b_world->node_tree().is_updated())))
 			world_recalc = true;
 
 	bool recalc =
@@ -119,20 +122,22 @@ bool BlenderSync::sync_recalc()
 	return recalc;
 }
 
-void BlenderSync::sync_data(BL::SpaceView3D b_v3d)
+void BlenderSync::sync_data(BL::SpaceView3D b_v3d, int layer)
 {
-	sync_integrator();
+	sync_render_layers(b_v3d);
+	sync_integrator(layer);
 	sync_film();
-	sync_render_layer(b_v3d);
 	sync_shaders();
 	sync_objects(b_v3d);
 }
 
 /* Integrator */
 
-void BlenderSync::sync_integrator()
+void BlenderSync::sync_integrator(int layer)
 {
 	PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
+
+	experimental = (RNA_enum_get(&cscene, "feature_set") != 0);
 
 	Integrator *integrator = scene->integrator;
 	Integrator previntegrator = *integrator;
@@ -149,9 +154,8 @@ void BlenderSync::sync_integrator()
 	integrator->transparent_shadows = get_boolean(cscene, "use_transparent_shadows");
 
 	integrator->no_caustics = get_boolean(cscene, "no_caustics");
-	integrator->blur_caustics = get_float(cscene, "blur_caustics");
-
 	integrator->seed = get_int(cscene, "seed");
+	integrator->layer_flag = render_layers[layer].layer;
 
 	if(integrator->modified(previntegrator))
 		integrator->tag_update(scene);
@@ -183,27 +187,32 @@ void BlenderSync::sync_film()
 
 /* Render Layer */
 
-void BlenderSync::sync_render_layer(BL::SpaceView3D b_v3d)
+void BlenderSync::sync_render_layers(BL::SpaceView3D b_v3d)
 {
+	render_layers.clear();
+
 	if(b_v3d) {
-		render_layer.scene_layer = get_layer(b_v3d.layers());
-		render_layer.layer = render_layer.scene_layer;
-		render_layer.material_override = PointerRNA_NULL;
+		RenderLayerInfo rlay;
+
+		rlay.scene_layer = get_layer(b_v3d.layers());
+		rlay.layer = rlay.scene_layer;
+		rlay.material_override = PointerRNA_NULL;
+
+		render_layers.push_back(rlay);
 	}
 	else {
 		BL::RenderSettings r = b_scene.render();
 		BL::RenderSettings::layers_iterator b_rlay;
-		bool first = true;
 
 		for(r.layers.begin(b_rlay); b_rlay != r.layers.end(); ++b_rlay) {
 			/* single layer for now */
-			if(first) {
-				render_layer.scene_layer = get_layer(b_scene.layers());
-				render_layer.layer = get_layer(b_rlay->layers());
-				render_layer.material_override = b_rlay->material_override();
+			RenderLayerInfo rlay;
 
-				first = false;
-			}
+			rlay.scene_layer = get_layer(b_scene.layers());
+			rlay.layer = get_layer(b_rlay->layers());
+			rlay.material_override = b_rlay->material_override();
+
+			render_layers.push_back(rlay);
 		}
 	}
 }
@@ -253,16 +262,24 @@ SessionParams BlenderSync::get_session_params(BL::Scene b_scene, bool background
 	SessionParams params;
 	PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
 
+	/* feature set */
+	params.experimental = (RNA_enum_get(&cscene, "feature_set") != 0);
+
 	/* device type */
 	params.device_type = DEVICE_CPU;
 
 	if(RNA_enum_get(&cscene, "device") != 0) {
 		vector<DeviceType> types = Device::available_types();
-		DeviceType dtype = (RNA_enum_get(&cscene, "gpu_type") == 0)? DEVICE_CUDA: DEVICE_OPENCL;
+		DeviceType dtype;
+		
+		if(!params.experimental || RNA_enum_get(&cscene, "gpu_type") == 0)
+			dtype = DEVICE_CUDA;
+		else
+			dtype = DEVICE_OPENCL;
 
 		if(device_type_available(types, dtype))
 			params.device_type = dtype;
-		else if(device_type_available(types, DEVICE_OPENCL))
+		else if(params.experimental && device_type_available(types, DEVICE_OPENCL))
 			params.device_type = DEVICE_OPENCL;
 		else if(device_type_available(types, DEVICE_CUDA))
 			params.device_type = DEVICE_CUDA;

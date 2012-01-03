@@ -14,7 +14,7 @@ BF_PYTHON_LIB_STATIC = '${BF_PYTHON}/lib/libpython${BF_PYTHON_VERSION[0]}${BF_PY
 WITH_BF_OPENAL = True
 BF_OPENAL = LIBDIR + '/openal'
 BF_OPENAL_INC = '${BF_OPENAL}/include'
-BF_OPENAL_LIB = 'wrap_oal'
+BF_OPENAL_LIB = 'OpenAL32'
 BF_OPENAL_LIBPATH = '${BF_OPENAL}/lib'
 
 WITH_BF_FFMPEG = True
@@ -64,7 +64,7 @@ BF_JPEG_LIB = 'liblibjpeg'
 BF_JPEG_LIBPATH = '${BF_JPEG}/lib'
 
 WITH_BF_PNG = True
-BF_PNG = LIBDIR + '/png'
+BF_PNG = LIBDIR + '/gcc/png'
 BF_PNG_INC = '${BF_PNG}/include'
 BF_PNG_LIB = 'png'
 BF_PNG_LIBPATH = '${BF_PNG}/lib'
@@ -156,15 +156,15 @@ WITH_BF_CYCLES = True
 
 WITH_BF_OIIO = True
 BF_OIIO = LIBDIR + '/gcc/openimageio'
-BF_OIIO_INC = '#../lib/windows/gcc/openimageio/include'
+BF_OIIO_INC = BF_OIIO + '/include'
 BF_OIIO_LIB = 'OpenImageIO'
-BF_OIIO_LIBPATH = '#../lib/windows/gcc/openimageio/lib'
+BF_OIIO_LIBPATH = BF_OIIO + '/lib'
 
 WITH_BF_BOOST = True
 BF_BOOST = LIBDIR + '/boost'
-BF_BOOST_INC = '#../lib/windows/boost/include'
+BF_BOOST_INC = BF_BOOST + '/include'
 BF_BOOST_LIB = 'boost_date_time-mgw45-mt-s-1_47 boost_filesystem-mgw45-mt-s-1_47 boost_regex-mgw45-mt-s-1_47 boost_system-mgw45-mt-s-1_47 boost_thread-mgw45-mt-s-1_47'
-BF_BOOST_LIBPATH = '#../lib/windows/boost/lib/gcc'
+BF_BOOST_LIBPATH = BF_BOOST + '/lib/gcc'
 
 #Ray trace optimization
 WITH_BF_RAYOPTIMIZATION = True

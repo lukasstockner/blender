@@ -419,6 +419,20 @@ static PyObject* gPyGetLogicTicRate(PyObject*)
 	return PyFloat_FromDouble(KX_KetsjiEngine::GetTicRate());
 }
 
+static PyObject* gPySetExitKey(PyObject*, PyObject* args)
+{
+	short exitkey;
+	if (!PyArg_ParseTuple(args, "h:setExitKey", &exitkey))
+		return NULL;
+	KX_KetsjiEngine::SetExitKey(exitkey);
+	Py_RETURN_NONE;
+}
+
+static PyObject* gPyGetExitKey(PyObject*)
+{
+	return PyLong_FromSsize_t(KX_KetsjiEngine::GetExitKey());
+}
+
 static PyObject* gPySetMaxLogicFrame(PyObject*, PyObject* args)
 {
 	int frame;
@@ -812,6 +826,8 @@ static struct PyMethodDef game_methods[] = {
 	{"setLogicTicRate", (PyCFunction) gPySetLogicTicRate, METH_VARARGS, (const char *)"Sets the logic tic rate"},
 	{"getPhysicsTicRate", (PyCFunction) gPyGetPhysicsTicRate, METH_NOARGS, (const char *)"Gets the physics tic rate"},
 	{"setPhysicsTicRate", (PyCFunction) gPySetPhysicsTicRate, METH_VARARGS, (const char *)"Sets the physics tic rate"},
+	{"getExitKey", (PyCFunction) gPyGetExitKey, METH_NOARGS, (const char *)"Gets the key used to exit the game engine"},
+	{"setExitKey", (PyCFunction) gPySetExitKey, METH_VARARGS, (const char *)"Sets the key used to exit the game engine"},
 	{"getAverageFrameRate", (PyCFunction) gPyGetAverageFrameRate, METH_NOARGS, (const char *)"Gets the estimated average frame rate"},
 	{"getBlendFileList", (PyCFunction)gPyGetBlendFileList, METH_VARARGS, (const char *)"Gets a list of blend files in the same directory as the current blend file"},
 	{"PrintGLInfo", (PyCFunction)pyPrintExt, METH_NOARGS, (const char *)"Prints GL Extension Info"},
@@ -1950,7 +1966,15 @@ void setupGamePython(KX_KetsjiEngine* ketsjiengine, KX_Scene* startscene, Main *
 	initVideoTexture();
 
 	/* could be done a lot more nicely, but for now a quick way to get bge.* working */
-	PyRun_SimpleString("sys = __import__('sys');mod = sys.modules['bge'] = type(sys)('bge');mod.__dict__.update({'logic':__import__('GameLogic'), 'render':__import__('Rasterizer'), 'events':__import__('GameKeys'), 'constraints':__import__('PhysicsConstraints'), 'types':__import__('GameTypes'), 'texture':__import__('VideoTexture')});");
+	PyRun_SimpleString("sys = __import__('sys');"
+	                   "mod = sys.modules['bge'] = type(sys)('bge');"
+	                   "mod.__dict__.update({'logic':__import__('GameLogic'), "
+	                                        "'render':__import__('Rasterizer'), "
+	                                        "'events':__import__('GameKeys'), "
+	                                        "'constraints':__import__('PhysicsConstraints'), "
+	                                        "'types':__import__('GameTypes'), "
+	                                        "'texture':__import__('VideoTexture')});"
+	                   );
 }
 
 static struct PyModuleDef Rasterizer_module_def = {

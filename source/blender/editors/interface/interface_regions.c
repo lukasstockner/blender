@@ -1071,18 +1071,16 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 		/* copy to int, gets projected if possible too */
 		x1= x1f; y1= y1f; x2= x2f; y2= y2f; 
 		
-		if(butregion) {
-			if(butregion->v2d.cur.xmin != butregion->v2d.cur.xmax) {
-				UI_view2d_to_region_no_clip(&butregion->v2d, x1f, y1f, &x1, &y1);
-				UI_view2d_to_region_no_clip(&butregion->v2d, x2f, y2f, &x2, &y2);
-			}
-			
-			x1 += butregion->winrct.xmin;
-			x2 += butregion->winrct.xmin;
-			y1 += butregion->winrct.ymin;
-			y2 += butregion->winrct.ymin;
+		if(butregion->v2d.cur.xmin != butregion->v2d.cur.xmax) {
+			UI_view2d_to_region_no_clip(&butregion->v2d, x1f, y1f, &x1, &y1);
+			UI_view2d_to_region_no_clip(&butregion->v2d, x2f, y2f, &x2, &y2);
 		}
-		
+
+		x1 += butregion->winrct.xmin;
+		x2 += butregion->winrct.xmin;
+		y1 += butregion->winrct.ymin;
+		y2 += butregion->winrct.ymin;
+
 		wm_window_get_size(CTX_wm_window(C), &winx, &winy);
 		
 		if(x2 > winx) {
@@ -1096,7 +1094,8 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 				x2= winx;
 			}
 		}
-		if(y1 < 0) { /* XXX butregion NULL check?, there is one above */
+
+		if(y1 < 0) {
 			int newy1;
 			UI_view2d_to_region_no_clip(&butregion->v2d, 0, but->y2 + ofsy, NULL, &newy1);
 			newy1 += butregion->winrct.ymin;
@@ -2481,22 +2480,14 @@ void uiPupMenuOkee(bContext *C, const char *opname, const char *str, ...)
 	va_end(ap);
 }
 
+/* note, only call this is the file exists,
+ * the case where the file does not exist so can be saved without a
+ * popup must be checked for already, since saving from here
+ * will free the operator which will break invoke().
+ * The operator state for this is implicitly OPERATOR_RUNNING_MODAL */
 void uiPupMenuSaveOver(bContext *C, wmOperator *op, const char *filename)
 {
-	size_t len= strlen(filename);
-
-	if(len==0)
-		return;
-
-	if(filename[len-1]=='/' || filename[len-1]=='\\') {
-		uiPupMenuError(C, "Cannot overwrite a directory");
-		WM_operator_free(op);
-		return;
-	}
-	if(BLI_exists(filename)==0)
-		operator_cb(C, op, 1);
-	else
-		confirm_operator(C, op, "Save Over", filename);
+	confirm_operator(C, op, "Save Over", filename);
 }
 
 void uiPupMenuNotice(bContext *C, const char *str, ...)

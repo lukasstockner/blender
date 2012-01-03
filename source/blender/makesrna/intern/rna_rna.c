@@ -413,7 +413,7 @@ static StructRNA *rna_Property_refine(PointerRNA *ptr)
 	rna_idproperty_check(&prop, ptr); /* XXX ptr? */
 
 	switch(prop->type) {
-		case PROP_BOOLEAN: return &RNA_BooleanProperty;
+		case PROP_BOOLEAN: return &RNA_BoolProperty;
 		case PROP_INT: return &RNA_IntProperty;
 		case PROP_FLOAT: return &RNA_FloatProperty;
 		case PROP_STRING: return &RNA_StringProperty;
@@ -463,6 +463,20 @@ static int rna_Property_description_length(PointerRNA *ptr)
 	PropertyRNA *prop= (PropertyRNA*)ptr->data;
 	rna_idproperty_check(&prop, ptr);
 	return prop->description ? strlen(prop->description) : 0;
+}
+
+static void rna_Property_translation_context_get(PointerRNA *ptr, char *value)
+{
+	PropertyRNA *prop= (PropertyRNA*)ptr->data;
+	rna_idproperty_check(&prop, ptr);
+	strcpy(value, prop->translation_context ? prop->translation_context:"");
+}
+
+static int rna_Property_translation_context_length(PointerRNA *ptr)
+{
+	PropertyRNA *prop= (PropertyRNA*)ptr->data;
+	rna_idproperty_check(&prop, ptr);
+	return prop->translation_context ? strlen(prop->translation_context) : 0;
 }
 
 static int rna_Property_type_get(PointerRNA *ptr)
@@ -578,7 +592,7 @@ static int rna_BoolProperty_default_get(PointerRNA *ptr)
 {
 	PropertyRNA *prop= (PropertyRNA*)ptr->data;
 	rna_idproperty_check(&prop, ptr);
-	return ((BooleanPropertyRNA*)prop)->defaultvalue;
+	return ((BoolPropertyRNA*)prop)->defaultvalue;
 }
 
 static int rna_IntProperty_default_get(PointerRNA *ptr)
@@ -615,7 +629,7 @@ static void rna_IntProperty_default_array_get(PointerRNA *ptr, int *values)
 static void rna_BoolProperty_default_array_get(PointerRNA *ptr, int *values)
 {
 	PropertyRNA *prop= (PropertyRNA*)ptr->data;
-	BooleanPropertyRNA *nprop= (BooleanPropertyRNA*)prop;
+	BoolPropertyRNA *nprop= (BoolPropertyRNA*)prop;
 	rna_idproperty_check(&prop, ptr);
 
 	if(nprop->defaultarray) {
@@ -1047,6 +1061,11 @@ static void rna_def_property(BlenderRNA *brna)
 	RNA_def_property_string_funcs(prop, "rna_Property_description_get", "rna_Property_description_length", NULL);
 	RNA_def_property_ui_text(prop, "Description", "Description of the property for tooltips");
 
+	prop= RNA_def_property(srna, "translation_context", PROP_STRING, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_string_funcs(prop, "rna_Property_translation_context_get", "rna_Property_translation_context_length", NULL);
+	RNA_def_property_ui_text(prop, "Translation Context", "Translation context of the property");
+
 	prop= RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_enum_items(prop, property_type_items);
@@ -1355,8 +1374,8 @@ void RNA_def_rna(BlenderRNA *brna)
 	/* Property */
 	rna_def_property(brna);
 
-	/* BooleanProperty */
-	srna= RNA_def_struct(brna, "BooleanProperty", "Property");
+	/* BoolProperty */
+	srna= RNA_def_struct(brna, "BoolProperty", "Property");
 	RNA_def_struct_ui_text(srna, "Boolean Definition", "RNA boolean property definition");
 	rna_def_number_property(srna, PROP_BOOLEAN);
 

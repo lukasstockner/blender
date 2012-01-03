@@ -120,7 +120,7 @@ void clear_workob(Object *workob)
 	memset(workob, 0, sizeof(Object));
 	
 	workob->size[0]= workob->size[1]= workob->size[2]= 1.0f;
-	workob->dsize[0]= workob->dsize[1]= workob->dsize[2]= 1.0f;
+	workob->dscale[0]= workob->dscale[1]= workob->dscale[2]= 1.0f;
 	workob->rotmode= ROT_MODE_EUL;
 }
 
@@ -775,7 +775,7 @@ Object *add_only_object(int type, const char *name)
 	ob->col[3]= 1.0;
 	
 	ob->size[0]= ob->size[1]= ob->size[2]= 1.0;
-	ob->dsize[0]= ob->dsize[1]= ob->dsize[2]= 1.0;
+	ob->dscale[0]= ob->dscale[1]= ob->dscale[2]= 1.0;
 	
 	/* objects should default to having Euler XYZ rotations, 
 	 * but rotations default to quaternions 
@@ -1363,7 +1363,7 @@ void object_make_proxy(Object *ob, Object *target, Object *gob)
 	 *   this is closer to making a copy of the object - in-place. */
 	if(gob) {
 		ob->rotmode= target->rotmode;
-		mul_m4_m4m4(ob->obmat, target->obmat, gob->obmat);
+		mult_m4_m4m4(ob->obmat, gob->obmat, target->obmat);
 		if(gob->dup_group) { /* should always be true */
 			float tvec[3];
 			copy_v3_v3(tvec, gob->dup_group->dupli_ofs);
@@ -1397,7 +1397,6 @@ void object_make_proxy(Object *ob, Object *target, Object *gob)
 	ob->matbits= NULL;
 	if ((target->totcol) && (target->mat) && OB_TYPE_SUPPORT_MATERIAL(ob->type)) {
 		int i;
-		ob->colbits = target->colbits;
 		
 		ob->actcol= target->actcol;
 		ob->totcol= target->totcol;
@@ -1443,7 +1442,7 @@ void object_make_proxy(Object *ob, Object *target, Object *gob)
 void object_scale_to_mat3(Object *ob, float mat[][3])
 {
 	float vec[3];
-	mul_v3_v3v3(vec, ob->size, ob->dsize);
+	mul_v3_v3v3(vec, ob->size, ob->dscale);
 	size_to_mat3( mat,vec);
 }
 
@@ -1529,7 +1528,7 @@ void object_tfm_protected_backup(const Object *ob,
 	TFMCPY3D(loc);
 	TFMCPY3D(dloc);
 	TFMCPY3D(size);
-	TFMCPY3D(dsize);
+	TFMCPY3D(dscale);
 	TFMCPY3D(rot);
 	TFMCPY3D(drot);
 	TFMCPY4D(quat);
@@ -1559,7 +1558,7 @@ void object_tfm_protected_restore(Object *ob,
 
 		if (protectflag & (OB_LOCK_SCALEX<<i)) {
 			ob->size[i]=  obtfm->size[i];
-			ob->dsize[i]= obtfm->dsize[i];
+			ob->dscale[i]= obtfm->dscale[i];
 		}
 
 		if (protectflag & (OB_LOCK_ROTX<<i)) {
@@ -1590,9 +1589,9 @@ void object_apply_mat4(Object *ob, float mat[][4], const short use_compat, const
 
 	if(use_parent && ob->parent) {
 		float rmat[4][4], diff_mat[4][4], imat[4][4];
-		mul_m4_m4m4(diff_mat, ob->parentinv, ob->parent->obmat);
+		mult_m4_m4m4(diff_mat, ob->parent->obmat, ob->parentinv);
 		invert_m4_m4(imat, diff_mat);
-		mul_m4_m4m4(rmat, mat, imat); /* get the parent relative matrix */
+		mult_m4_m4m4(rmat, imat, mat); /* get the parent relative matrix */
 		object_apply_mat4(ob, rmat, use_compat, FALSE);
 		
 		/* same as below, use rmat rather than mat */
@@ -1606,9 +1605,9 @@ void object_apply_mat4(Object *ob, float mat[][4], const short use_compat, const
 	
 	sub_v3_v3(ob->loc, ob->dloc);
 
-	if (ob->dsize[0] != 0.0f) ob->size[0] /= ob->dsize[0];
-	if (ob->dsize[1] != 0.0f) ob->size[1] /= ob->dsize[1];
-	if (ob->dsize[2] != 0.0f) ob->size[2] /= ob->dsize[2];
+	if (ob->dscale[0] != 0.0f) ob->size[0] /= ob->dscale[0];
+	if (ob->dscale[1] != 0.0f) ob->size[1] /= ob->dscale[1];
+	if (ob->dscale[2] != 0.0f) ob->size[2] /= ob->dscale[2];
 
 	/* object_mat3_to_rot handles delta rotations */
 }
@@ -1716,7 +1715,7 @@ static void ob_parcurve(Scene *scene, Object *ob, Object *par, float mat[][4])
 		if(cu->flag & CU_PATH_RADIUS) {
 			float tmat[4][4], rmat[4][4];
 			scale_m4_fl(tmat, radius);
-			mul_m4_m4m4(rmat, mat, tmat);
+			mult_m4_m4m4(rmat, tmat, mat);
 			copy_m4_m4(mat, rmat);
 		}
 
@@ -2417,7 +2416,7 @@ void BKE_scene_foreach_display_point(
 /* copied from DNA_object_types.h */
 typedef struct ObTfmBack {
 	float loc[3], dloc[3], orig[3];
-	float size[3], dsize[3];	/* scale and delta scale */
+	float size[3], dscale[3];	/* scale and delta scale */
 	float rot[3], drot[3];		/* euler rotation */
 	float quat[4], dquat[4];	/* quaternion rotation */
 	float rotAxis[3], drotAxis[3];	/* axis angle rotation - axis part */
@@ -2435,7 +2434,7 @@ void *object_tfm_backup(Object *ob)
 	copy_v3_v3(obtfm->dloc, ob->dloc);
 	copy_v3_v3(obtfm->orig, ob->orig);
 	copy_v3_v3(obtfm->size, ob->size);
-	copy_v3_v3(obtfm->dsize, ob->dsize);
+	copy_v3_v3(obtfm->dscale, ob->dscale);
 	copy_v3_v3(obtfm->rot, ob->rot);
 	copy_v3_v3(obtfm->drot, ob->drot);
 	copy_qt_qt(obtfm->quat, ob->quat);
@@ -2459,7 +2458,7 @@ void object_tfm_restore(Object *ob, void *obtfm_pt)
 	copy_v3_v3(ob->dloc, obtfm->dloc);
 	copy_v3_v3(ob->orig, obtfm->orig);
 	copy_v3_v3(ob->size, obtfm->size);
-	copy_v3_v3(ob->dsize, obtfm->dsize);
+	copy_v3_v3(ob->dscale, obtfm->dscale);
 	copy_v3_v3(ob->rot, obtfm->rot);
 	copy_v3_v3(ob->drot, obtfm->drot);
 	copy_qt_qt(ob->quat, obtfm->quat);
@@ -2472,6 +2471,14 @@ void object_tfm_restore(Object *ob, void *obtfm_pt)
 	copy_m4_m4(ob->parentinv, obtfm->parentinv);
 	copy_m4_m4(ob->constinv, obtfm->constinv);
 	copy_m4_m4(ob->imat, obtfm->imat);
+}
+
+int BKE_object_parent_loop_check(const Object *par, const Object *ob)
+{
+	/* test if 'ob' is a parent somewhere in par's parents */
+	if(par == NULL) return 0;
+	if(ob == par) return 1;
+	return BKE_object_parent_loop_check(par->parent, ob);
 }
 
 /* proxy rule: lib_object->proxy_from == the one we borrow from, only set temporal and cleared here */
@@ -2513,7 +2520,7 @@ void object_handle_update(Scene *scene, Object *ob)
 				if(ob->proxy_from->proxy_group) {/* transform proxy into group space */
 					Object *obg= ob->proxy_from->proxy_group;
 					invert_m4_m4(obg->imat, obg->obmat);
-					mul_m4_m4m4(ob->obmat, ob->proxy_from->obmat, obg->imat);
+					mult_m4_m4m4(ob->obmat, obg->imat, ob->proxy_from->obmat);
 					if(obg->dup_group) { /* should always be true */
 						add_v3_v3(ob->obmat[3], obg->dup_group->dupli_ofs);
 					}
@@ -2556,7 +2563,7 @@ void object_handle_update(Scene *scene, Object *ob)
 
 #else				/* ensure CD_MASK_BAREMESH for now */
 					EditMesh *em = (ob == scene->obedit)? BKE_mesh_get_editmesh(ob->data): NULL;
-					unsigned int data_mask= scene->customdata_mask | ob->customdata_mask | CD_MASK_BAREMESH;
+					uint64_t data_mask= scene->customdata_mask | ob->customdata_mask | CD_MASK_BAREMESH;
 					if(em) {
 						makeDerivedMesh(scene, ob, em,  data_mask); /* was CD_MASK_BAREMESH */
 						BKE_mesh_end_editmesh(ob->data, em);

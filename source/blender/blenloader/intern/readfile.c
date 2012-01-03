@@ -48,6 +48,9 @@
 #include "BLI_winstuff.h"
 #endif
 
+/* allow readfile to use deprecated functionality */
+#define DNA_DEPRECATED_ALLOW
+
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_actuator_types.h"
@@ -106,7 +109,7 @@
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_deform.h"
-#include "BKE_effect.h" /* give_parteff */
+#include "BKE_effect.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h" // for G
 #include "BKE_group.h"
@@ -135,6 +138,8 @@
 #include "BKE_tracking.h"
 #include "BKE_utildefines.h" // SWITCH_INT DATA ENDB DNA1 O_BINARY GLOB USER TEST REND
 #include "BKE_sound.h"
+
+#include "IMB_imbuf.h"  // for proxy / timecode versioning stuff
 
 #include "NOD_socket.h"
 
@@ -3675,6 +3680,7 @@ static void direct_link_mdisps(FileData *fd, int count, MDisps *mdisps, int exte
 	}
 }
 
+/*this isn't really a public api function, so prototyped here*/
 static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 {
 	int i = 0;
@@ -3695,6 +3701,8 @@ static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 			i++;
 		}
 	}
+
+	CustomData_update_typemap(data);
 }
 
 static void direct_link_mesh(FileData *fd, Mesh *mesh)
@@ -3715,22 +3723,43 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 	mesh->adt= newdataadr(fd, mesh->adt);
 	direct_link_animdata(fd, mesh->adt);
 
-	/* Partial-mesh visibility (do this before using totvert, totface, or totedge!) */
-	mesh->pv= newdataadr(fd, mesh->pv);
-	if(mesh->pv) {
-		mesh->pv->vert_map= newdataadr(fd, mesh->pv->vert_map);
-		mesh->pv->edge_map= newdataadr(fd, mesh->pv->edge_map);
-		mesh->pv->old_faces= newdataadr(fd, mesh->pv->old_faces);
-		mesh->pv->old_edges= newdataadr(fd, mesh->pv->old_edges);
-	}
-
 	/* normally direct_link_dverts should be called in direct_link_customdata,
 	   but for backwards compat in do_versions to work we do it here */
-	direct_link_dverts(fd, mesh->pv ? mesh->pv->totvert : mesh->totvert, mesh->dvert);
+	direct_link_dverts(fd, mesh->totvert, mesh->dvert);
 
-	direct_link_customdata(fd, &mesh->vdata, mesh->pv ? mesh->pv->totvert : mesh->totvert);
-	direct_link_customdata(fd, &mesh->edata, mesh->pv ? mesh->pv->totedge : mesh->totedge);
-	direct_link_customdata(fd, &mesh->fdata, mesh->pv ? mesh->pv->totface : mesh->totface);
+	direct_link_customdata(fd, &mesh->vdata, mesh->totvert);
+	direct_link_customdata(fd, &mesh->edata, mesh->totedge);
+	direct_link_customdata(fd, &mesh->fdata, mesh->totface);
+
+
+#ifdef USE_BMESH_FORWARD_COMPAT
+	/* NEVER ENABLE THIS CODE INTO BMESH!
+	 * THIS IS FOR LOADING BMESH INTO OLDER FILES ONLY */
+	mesh->mpoly= newdataadr(fd, mesh->mpoly);
+	mesh->mloop= newdataadr(fd, mesh->mloop);
+
+	direct_link_customdata(fd, &mesh->pdata, mesh->totpoly);
+	direct_link_customdata(fd, &mesh->ldata, mesh->totloop);
+
+	if (mesh->mpoly) {
+		/* be clever and load polygons as mfaces */
+
+		mesh->totface= mesh_mpoly_to_mface(&mesh->fdata, &mesh->ldata, &mesh->pdata,
+		                                   mesh->totface, mesh->totloop, mesh->totpoly);
+
+		CustomData_free(&mesh->pdata, mesh->totpoly);
+		memset(&mesh->pdata, 0, sizeof(CustomData));
+		mesh->totpoly = 0;
+
+		CustomData_free(&mesh->ldata, mesh->totloop);
+		memset(&mesh->ldata, 0, sizeof(CustomData));
+		mesh->totloop = 0;
+
+		mesh_update_customdata_pointers(mesh);
+	}
+
+#endif
+
 
 	mesh->bb= NULL;
 	mesh->mselect = NULL;
@@ -3784,7 +3813,7 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 		TFace *tf= mesh->tface;
 		unsigned int i;
 
-		for (i=0; i< (mesh->pv ? mesh->pv->totface : mesh->totface); i++, tf++) {
+		for (i=0; i< (mesh->totface); i++, tf++) {
 			SWITCH_INT(tf->col[0]);
 			SWITCH_INT(tf->col[1]);
 			SWITCH_INT(tf->col[2]);
@@ -5940,10 +5969,29 @@ static void lib_link_group(FileData *fd, Main *main)
 
 /* ***************** READ MOVIECLIP *************** */
 
+static void direct_link_movieReconstruction(FileData *fd, MovieTrackingReconstruction *reconstruction)
+{
+	reconstruction->cameras= newdataadr(fd, reconstruction->cameras);
+}
+
+static void direct_link_movieTracks(FileData *fd, ListBase *tracksbase)
+{
+	MovieTrackingTrack *track;
+
+	link_list(fd, tracksbase);
+
+	track= tracksbase->first;
+	while(track) {
+		track->markers= newdataadr(fd, track->markers);
+
+		track= track->next;
+	}
+}
+
 static void direct_link_movieclip(FileData *fd, MovieClip *clip)
 {
 	MovieTracking *tracking= &clip->tracking;
-	MovieTrackingTrack *track;
+	MovieTrackingObject *object;
 
 	if(fd->movieclipmap) clip->cache= newmclipadr(fd, clip->cache);
 	else clip->cache= NULL;
@@ -5951,16 +5999,8 @@ static void direct_link_movieclip(FileData *fd, MovieClip *clip)
 	if(fd->movieclipmap) clip->tracking.camera.intrinsics= newmclipadr(fd, clip->tracking.camera.intrinsics);
 	else clip->tracking.camera.intrinsics= NULL;
 
-	tracking->reconstruction.cameras= newdataadr(fd, tracking->reconstruction.cameras);
-
-	link_list(fd, &tracking->tracks);
-
-	track= tracking->tracks.first;
-	while(track) {
-		track->markers= newdataadr(fd, track->markers);
-
-		track= track->next;
-	}
+	direct_link_movieTracks(fd, &tracking->tracks);
+	direct_link_movieReconstruction(fd, &tracking->reconstruction);
 
 	clip->tracking.act_track= newdataadr(fd, clip->tracking.act_track);
 
@@ -5971,6 +6011,16 @@ static void direct_link_movieclip(FileData *fd, MovieClip *clip)
 	clip->tracking.stabilization.ok= 0;
 	clip->tracking.stabilization.scaleibuf= NULL;
 	clip->tracking.stabilization.rot_track= newdataadr(fd, clip->tracking.stabilization.rot_track);
+
+	link_list(fd, &tracking->objects);
+
+	object= tracking->objects.first;
+	while(object) {
+		direct_link_movieTracks(fd, &object->tracks);
+		direct_link_movieReconstruction(fd, &object->reconstruction);
+
+		object= object->next;
+	}
 }
 
 static void lib_link_movieclip(FileData *fd, Main *main)
@@ -7081,6 +7131,40 @@ static void do_versions_gpencil_2_50(Main *main, bScreen *screen)
 	}		
 }
 
+/* deprecated, only keep this for readfile.c */
+static PartEff *do_version_give_parteff_245(Object *ob)
+{
+	PartEff *paf;
+
+	paf= ob->effect.first;
+	while(paf) {
+		if(paf->type==EFF_PARTICLE) return paf;
+		paf= paf->next;
+	}
+	return NULL;
+}
+static void do_version_free_effect_245(Effect *eff)
+{
+	PartEff *paf;
+
+	if(eff->type==EFF_PARTICLE) {
+		paf= (PartEff *)eff;
+		if(paf->keys) MEM_freeN(paf->keys);
+	}
+	MEM_freeN(eff);
+}
+static void do_version_free_effects_245(ListBase *lb)
+{
+	Effect *eff;
+
+	eff= lb->first;
+	while(eff) {
+		BLI_remlink(lb, eff);
+		do_version_free_effect_245(eff);
+		eff= lb->first;
+	}
+}
+
 static void do_version_mtex_factor_2_50(MTex **mtex_array, short idtype)
 {
 	MTex *mtex;
@@ -7410,6 +7494,30 @@ void do_versions_image_settings_2_60(Scene *sce)
 
 }
 
+/* socket use flags were only temporary before */
+static void do_versions_nodetree_socket_use_flags_2_62(bNodeTree *ntree)
+{
+	bNode *node;
+	bNodeSocket *sock;
+	bNodeLink *link;
+	
+	for (node=ntree->nodes.first; node; node=node->next) {
+		for (sock=node->inputs.first; sock; sock=sock->next)
+			sock->flag &= ~SOCK_IN_USE;
+		for (sock=node->outputs.first; sock; sock=sock->next)
+			sock->flag &= ~SOCK_IN_USE;
+	}
+	for (sock=ntree->inputs.first; sock; sock=sock->next)
+		sock->flag &= ~SOCK_IN_USE;
+	for (sock=ntree->outputs.first; sock; sock=sock->next)
+		sock->flag &= ~SOCK_IN_USE;
+	
+	for (link=ntree->links.first; link; link=link->next) {
+		link->fromsock->flag |= SOCK_IN_USE;
+		link->tosock->flag |= SOCK_IN_USE;
+	}
+}
+
 static void do_versions(FileData *fd, Library *lib, Main *main)
 {
 	/* WATCH IT!!!: pointers from libdata have not been converted */
@@ -7656,7 +7764,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		Object *ob = main->object.first;
 		PartEff *paf;
 		while (ob) {
-			paf = give_parteff(ob);
+			paf = do_version_give_parteff_245(ob);
 			if (paf) {
 				if (paf->staticstep == 0) {
 					paf->staticstep= 5;
@@ -8672,11 +8780,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 						View3D *v3d= (View3D *)sl;
 						if(v3d->twtype==0) v3d->twtype= V3D_MANIP_TRANSLATE;
 					}
-					else if(sl->spacetype==SPACE_TIME) {
-						SpaceTime *stime= (SpaceTime *)sl;
-						if(stime->redraws==0)
-							stime->redraws= TIME_ALL_3D_WIN|TIME_ALL_ANIM_WIN;
-					}
 				}
 			}
 		}
@@ -8702,9 +8805,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 			if(ob->soft && ob->soft->vertgroup==0) {
 				bDeformGroup *locGroup = defgroup_find_name(ob, "SOFTGOAL");
-				if(locGroup){
+				if (locGroup) {
 					/* retrieve index for that group */
-					ob->soft->vertgroup =  1 + defgroup_find_index(ob, locGroup); 
+					ob->soft->vertgroup =  1 + BLI_findindex(&ob->defbase, locGroup);
 				}
 			}
 		}
@@ -8865,7 +8968,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 
-			paf = give_parteff(ob);
+			paf = do_version_give_parteff_245(ob);
 			if (paf) {
 				if(paf->disp == 0)
 					paf->disp = 100;
@@ -9873,7 +9976,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 
 			/* convert old particles to new system */
-			if((paf = give_parteff(ob))) {
+			if((paf = do_version_give_parteff_245(ob))) {
 				ParticleSystem *psys;
 				ModifierData *md;
 				ParticleSystemModifierData *psmd;
@@ -9986,7 +10089,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 						part->type = PART_FLUID;
 				}
 
-				free_effects(&ob->effect);
+				do_version_free_effects_245(&ob->effect);
 
 				printf("Old particle system converted to new system.\n");
 			}
@@ -10400,13 +10503,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			wrld->maxphystep = 5;
 		}
 	}
-
-	if (main->versionfile < 249) {
-		Scene *sce;
-		for (sce= main->scene.first; sce; sce= sce->id.next)
-			sce->r.renderer= 0;
-		
-	}
 	
 	// correct introduce of seed for wind force
 	if (main->versionfile < 249 && main->subversionfile < 1) {
@@ -10649,8 +10745,11 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				void *olddata = ob->data;
 				ob->data = me;
 
-				if(me && me->id.lib==NULL && me->mr && me->mr->level_count > 1) /* XXX - library meshes crash on loading most yoFrankie levels, the multires pointer gets invalid -  Campbell */
+				/* XXX - library meshes crash on loading most yoFrankie levels,
+				 * the multires pointer gets invalid -  Campbell */
+				if(me && me->id.lib==NULL && me->mr && me->mr->level_count > 1) {
 					multires_load_old(ob, me);
+				}
 
 				ob->data = olddata;
 			}
@@ -12548,10 +12647,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					clip->aspy= 1.0f;
 				}
 
-				/* XXX: a bit hacky, probably include imbuf and use real constants are nicer */
-				clip->proxy.build_tc_flag= 7;
+				clip->proxy.build_tc_flag= IMB_TC_RECORD_RUN |
+				                           IMB_TC_FREE_RUN |
+				                           IMB_TC_INTERPOLATED_REC_DATE_FREE_RUN;
+
 				if(clip->proxy.build_size_flag==0)
-					clip->proxy.build_size_flag= 1;
+					clip->proxy.build_size_flag= IMB_PROXY_25;
 
 				if(clip->proxy.quality==0)
 					clip->proxy.quality= 90;
@@ -12617,18 +12718,123 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					if ( (ob->dsize[i] == 0.0f) || /* simple case, user never touched dsize */
 					     (ob->size[i]  == 0.0f))   /* cant scale the dsize to give a non zero result, so fallback to 1.0f */
 					{
-						ob->dsize[i]= 1.0f;
+						ob->dscale[i]= 1.0f;
 					}
 					else {
-						ob->size[i]= (ob->size[i] + ob->dsize[i]) / ob->size[i];
+						ob->dscale[i]= (ob->size[i] + ob->dsize[i]) / ob->size[i];
 					}
 				}
 			}
 		}
 	}
+	/* sigh, this dscale vs dsize version patching was not done right, fix for fix,
+	 * this intentionally checks an exact subversion, also note this was never in a release,
+	 * at some point this could be removed. */
+	else if (main->versionfile == 260 && main->subversionfile == 6)
+	{
+		Object *ob;
+		for (ob= main->object.first; ob; ob= ob->id.next) {
+			if (is_zero_v3(ob->dscale)) {
+				fill_vn_fl(ob->dscale, 3, 1.0f);
+			}
+		}
+	}
+
+	if (main->versionfile < 260 || (main->versionfile == 260 && main->subversionfile < 8))
+	{
+		Brush *brush;
+
+		for (brush= main->brush.first; brush; brush= brush->id.next) {
+			if (brush->sculpt_tool == SCULPT_TOOL_ROTATE)
+				brush->alpha= 1.0f;
+		}
+	}
 
 	/* put compatibility code here until next subversion bump */
 	{
+		{
+			/* update use flags for node sockets (was only temporary before) */
+			Scene *sce;
+			Material *mat;
+			Tex *tex;
+			Lamp *lamp;
+			World *world;
+			bNodeTree *ntree;
+
+			for (sce=main->scene.first; sce; sce=sce->id.next)
+				if (sce->nodetree)
+					do_versions_nodetree_socket_use_flags_2_62(sce->nodetree);
+
+			for (mat=main->mat.first; mat; mat=mat->id.next)
+				if (mat->nodetree)
+					do_versions_nodetree_socket_use_flags_2_62(mat->nodetree);
+
+			for (tex=main->tex.first; tex; tex=tex->id.next)
+				if (tex->nodetree)
+					do_versions_nodetree_socket_use_flags_2_62(tex->nodetree);
+
+			for (lamp=main->lamp.first; lamp; lamp=lamp->id.next)
+				if (lamp->nodetree)
+					do_versions_nodetree_socket_use_flags_2_62(lamp->nodetree);
+
+			for (world=main->world.first; world; world=world->id.next)
+				if (world->nodetree)
+					do_versions_nodetree_socket_use_flags_2_62(world->nodetree);
+
+			for (ntree=main->nodetree.first; ntree; ntree=ntree->id.next)
+				do_versions_nodetree_socket_use_flags_2_62(ntree);
+		}
+		{
+			/* Initialize BGE exit key to esc key */
+			Scene *scene;
+			for(scene= main->scene.first; scene; scene= scene->id.next) {
+				if (!scene->gm.exitkey)
+					scene->gm.exitkey = 218; // Blender key code for ESC
+			}
+		}
+		{
+			MovieClip *clip;
+			Object *ob;
+
+			for (clip= main->movieclip.first; clip; clip= clip->id.next) {
+				MovieTracking *tracking= &clip->tracking;
+				MovieTrackingObject *tracking_object= tracking->objects.first;
+
+				clip->proxy.build_tc_flag|= IMB_TC_RECORD_RUN_NO_GAPS;
+
+				if(!tracking->settings.object_distance)
+					tracking->settings.object_distance= 1.0f;
+
+				if(tracking->objects.first == NULL)
+					BKE_tracking_new_object(tracking, "Camera");
+
+				while(tracking_object) {
+					if(!tracking_object->scale)
+						tracking_object->scale= 1.0f;
+
+					tracking_object= tracking_object->next;
+				}
+			}
+
+			for (ob= main->object.first; ob; ob= ob->id.next) {
+				bConstraint *con;
+				for (con= ob->constraints.first; con; con=con->next) {
+					bConstraintTypeInfo *cti= constraint_get_typeinfo(con);
+
+					if(!cti)
+						continue;
+
+					if(cti->type==CONSTRAINT_TYPE_OBJECTSOLVER) {
+						bObjectSolverConstraint *data= (bObjectSolverConstraint *)con->data;
+
+						if(data->invmat[3][3]==0.0f)
+							unit_m4(data->invmat);
+					}
+				}
+			}
+		}
+		
+		{
 		// composite redesign
 		Scene *scene;
 		bNode *node;
@@ -12652,6 +12858,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				if ( scene->nodetree->chunksize == 0) {
 					scene->nodetree->chunksize = 128;
 				}
+		}
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
@@ -13470,7 +13677,7 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 		expand_doit(fd, mainvar, ob->mat[a]);
 	}
 	
-	paf = give_parteff(ob);
+	paf = do_version_give_parteff_245(ob);
 	if (paf && paf->group) 
 		expand_doit(fd, mainvar, paf->group);
 
@@ -14182,7 +14389,8 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 
 					expand_main(fd, mainptr);
 					
-					/* dang FileData... now new libraries need to be appended to original filedata, it is not a good replacement for the old global (ton) */
+					/* dang FileData... now new libraries need to be appended to original filedata,
+					 * it is not a good replacement for the old global (ton) */
 					while( fd->mainlist.first ) {
 						Main *mp= fd->mainlist.first;
 						BLI_remlink(&fd->mainlist, mp);
@@ -14204,8 +14412,13 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 				ID *idn= id->next;
 				if(id->flag & LIB_READ) {
 					BLI_remlink(lbarray[a], id);
-					BKE_reportf(basefd->reports, RPT_ERROR, "LIB ERROR: %s:'%s' unread libblock missing from '%s'\n", BKE_idcode_to_name(GS(id->name)), id->name+2, mainptr->curlib->filepath);
-					if(!G.background && basefd->reports)printf("LIB ERROR: %s:'%s' unread libblock missing from '%s'\n", BKE_idcode_to_name(GS(id->name)), id->name+2, mainptr->curlib->filepath);
+					BKE_reportf(basefd->reports, RPT_ERROR,
+					            "LIB ERROR: %s:'%s' unread libblock missing from '%s'\n",
+					            BKE_idcode_to_name(GS(id->name)), id->name+2, mainptr->curlib->filepath);
+					if (!G.background && basefd->reports) {
+						printf("LIB ERROR: %s:'%s' unread libblock missing from '%s'\n",
+						       BKE_idcode_to_name(GS(id->name)), id->name+2, mainptr->curlib->filepath);
+					}
 					change_idid_adr(mainlist, basefd, id, NULL);
 
 					MEM_freeN(id);

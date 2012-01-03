@@ -29,6 +29,9 @@ from bpy.props import (StringProperty,
 
 from rna_prop_ui import rna_idprop_ui_prop_get, rna_idprop_ui_prop_clear
 
+import subprocess
+import os
+
 
 class MESH_OT_delete_edgeloop(Operator):
     '''Delete an edge loop by merging the faces on each side to a single face loop'''
@@ -457,8 +460,8 @@ class WM_OT_context_cycle_enum(Operator):
 
 
 class WM_OT_context_cycle_array(Operator):
-    '''Set a context array value.
-    Useful for cycling the active mesh edit mode'''
+    '''Set a context array value. '''
+    '''Useful for cycling the active mesh edit mode'''
     bl_idname = "wm.context_cycle_array"
     bl_label = "Context Array Cycle"
     bl_options = {'UNDO', 'INTERNAL'}
@@ -499,9 +502,9 @@ class WM_MT_context_menu_enum(Menu):
         values = [(i.name, i.identifier) for i in value_base.bl_rna.properties[prop_string].enum_items]
 
         for name, identifier in values:
-            prop = self.layout.operator("wm.context_set_enum", text=name)
-            prop.data_path = data_path
-            prop.value = identifier
+            props = self.layout.operator("wm.context_set_enum", text=name)
+            props.data_path = data_path
+            props.value = identifier
 
 
 class WM_OT_context_menu_enum(Operator):
@@ -748,8 +751,6 @@ class WM_OT_path_open(Operator):
     bl_label = ""
 
     filepath = StringProperty(
-            name="File Path",
-            maxlen=1024,
             subtype='FILE_PATH',
             )
 
@@ -766,12 +767,12 @@ class WM_OT_path_open(Operator):
             return {'CANCELLED'}
 
         if sys.platform[:3] == "win":
-            subprocess.Popen(['start', filepath], shell=True)
-        elif sys.platform == 'darwin':
-            subprocess.Popen(['open', filepath])
+            subprocess.Popen(["start", filepath], shell=True)
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", filepath])
         else:
             try:
-                subprocess.Popen(['xdg-open', filepath])
+                subprocess.Popen(["xdg-open", filepath])
             except OSError:
                 # xdg-open *should* be supported by recent Gnome, KDE, Xfce
                 pass
@@ -847,8 +848,8 @@ class WM_OT_doc_edit(Operator):
         print("sending data:", data_dict)
 
         import xmlrpc.client
-        user = 'blenderuser'
-        pwd = 'blender>user'
+        user = "blenderuser"
+        pwd = "blender>user"
 
         docblog = xmlrpc.client.ServerProxy(self._url)
         docblog.metaWeblog.newPost(1, user, pwd, data_dict, 1)
@@ -986,9 +987,8 @@ class WM_OT_properties_edit(Operator):
         prop_ui = rna_idprop_ui_prop_get(item, prop)
 
         if prop_type in {float, int}:
-
-            prop_ui['soft_min'] = prop_ui['min'] = prop_type(self.min)
-            prop_ui['soft_max'] = prop_ui['max'] = prop_type(self.max)
+            prop_ui["soft_min"] = prop_ui["min"] = prop_type(self.min)
+            prop_ui["soft_max"] = prop_ui["max"] = prop_type(self.max)
 
         prop_ui['description'] = self.description
 
@@ -1035,7 +1035,7 @@ class WM_OT_properties_add(Operator):
         item = eval("context.%s" % data_path)
 
         def unique_name(names):
-            prop = 'prop'
+            prop = "prop"
             prop_new = prop
             i = 1
             while prop_new in names:
@@ -1085,8 +1085,7 @@ class WM_OT_keyconfig_activate(Operator):
     bl_label = "Activate Keyconfig"
 
     filepath = StringProperty(
-            name="File Path",
-            maxlen=1024,
+            subtype='FILE_PATH',
             )
 
     def execute(self, context):
@@ -1116,8 +1115,7 @@ class WM_OT_appconfig_activate(Operator):
     bl_label = "Activate Application Configuration"
 
     filepath = StringProperty(
-            name="File Path",
-            maxlen=1024,
+            subtype='FILE_PATH',
             )
 
     def execute(self, context):
@@ -1165,10 +1163,10 @@ class WM_OT_copy_prev_settings(Operator):
 
             # in 2.57 and earlier windows installers, system scripts were copied
             # into the configuration directory, don't want to copy those
-            system_script = os.path.join(path_dst, 'scripts/modules/bpy_types.py')
+            system_script = os.path.join(path_dst, "scripts/modules/bpy_types.py")
             if os.path.isfile(system_script):
-                shutil.rmtree(os.path.join(path_dst, 'scripts'))
-                shutil.rmtree(os.path.join(path_dst, 'plugins'))
+                shutil.rmtree(os.path.join(path_dst, "scripts"))
+                shutil.rmtree(os.path.join(path_dst, "plugins"))
 
             # don't loose users work if they open the splash later.
             if bpy.data.is_saved is bpy.data.is_dirty is False:
@@ -1178,6 +1176,28 @@ class WM_OT_copy_prev_settings(Operator):
             return {'FINISHED'}
 
         return {'CANCELLED'}
+
+
+class WM_OT_blenderplayer_start(bpy.types.Operator):
+    '''Launch the Blenderplayer with the current blendfile'''
+    bl_idname = "wm.blenderplayer_start"
+    bl_label = "Start"
+
+    blender_bin_path = bpy.app.binary_path
+    blender_bin_dir = os.path.dirname(blender_bin_path)
+    ext = os.path.splitext(blender_bin_path)[-1]
+    player_path = os.path.join(blender_bin_dir, "blenderplayer" + ext)
+
+    def execute(self, context):
+        import sys
+
+        if sys.platform == "darwin":
+            self.player_path = os.path.join(self.blender_bin_dir, "../../../blenderplayer.app/Contents/MacOS/blenderplayer")
+
+        filepath = bpy.app.tempdir + "game.blend"
+        bpy.ops.wm.save_as_mainfile(filepath=filepath, check_existing=False, copy=True)
+        subprocess.call([self.player_path, filepath])
+        return {'FINISHED'}
 
 
 class WM_OT_keyconfig_test(Operator):
@@ -1203,8 +1223,7 @@ class WM_OT_keyconfig_import(Operator):
     bl_label = "Import Key Configuration..."
 
     filepath = StringProperty(
-            name="File Path",
-            description="Filepath to write file to",
+            subtype='FILE_PATH',
             default="keymap.py",
             )
     filter_folder = BoolProperty(
@@ -1270,8 +1289,7 @@ class WM_OT_keyconfig_export(Operator):
     bl_label = "Export Key Configuration..."
 
     filepath = StringProperty(
-            name="File Path",
-            description="Filepath to write file to",
+            subtype='FILE_PATH',
             default="keymap.py",
             )
     filter_folder = BoolProperty(
@@ -1435,7 +1453,7 @@ class WM_OT_operator_cheat_sheet(Operator):
             for op_submodule_name in dir(op_module):
                 op = getattr(op_module, op_submodule_name)
                 text = repr(op)
-                if text.split("\n")[-1].startswith('bpy.ops.'):
+                if text.split("\n")[-1].startswith("bpy.ops."):
                     op_strings.append(text)
                     tot += 1
 
@@ -1447,6 +1465,9 @@ class WM_OT_operator_cheat_sheet(Operator):
         self.report({'INFO'}, "See OperatorList.txt textblock")
         return {'FINISHED'}
 
+
+# -----------------------------------------------------------------------------
+# Addon Operators
 
 class WM_OT_addon_enable(Operator):
     "Enable an addon"
@@ -1513,8 +1534,7 @@ class WM_OT_addon_install(Operator):
             )
 
     filepath = StringProperty(
-            name="File Path",
-            description="File path to write file to",
+            subtype='FILE_PATH',
             )
     filter_folder = BoolProperty(
             name="Filter folders",
@@ -1747,4 +1767,62 @@ class WM_OT_addon_expand(Operator):
 
         info = addon_utils.module_bl_info(mod)
         info["show_expanded"] = not info["show_expanded"]
+        return {'FINISHED'}
+
+
+# -----------------------------------------------------------------------------
+# Theme IO
+from bpy_extras.io_utils import (ImportHelper,
+                                 ExportHelper,
+                                 )
+
+
+class WM_OT_theme_import(Operator, ImportHelper):
+    bl_idname = "wm.theme_import"
+    bl_label = "Import Theme"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    filename_ext = ".xml"
+    filter_glob = StringProperty(default="*.xml", options={'HIDDEN'})
+
+    def execute(self, context):
+        import rna_xml
+        import xml.dom.minidom
+
+        filepath = self.filepath
+
+        xml_nodes = xml.dom.minidom.parse(filepath)
+        theme_xml = xml_nodes.getElementsByTagName("Theme")[0]
+
+        # XXX, why always 0?, allow many?
+        theme = context.user_preferences.themes[0]
+
+        rna_xml.xml2rna(theme_xml,
+                        root_rna=theme,
+                        )
+
+        return {'FINISHED'}
+
+
+class WM_OT_theme_export(Operator, ExportHelper):
+    bl_idname = "wm.theme_export"
+    bl_label = "Export Theme"
+
+    filename_ext = ".xml"
+    filter_glob = StringProperty(default="*.xml", options={'HIDDEN'})
+
+    def execute(self, context):
+        import rna_xml
+
+        filepath = self.filepath
+        file = open(filepath, 'w', encoding='utf-8')
+
+        # XXX, why always 0?, allow many?
+        theme = context.user_preferences.themes[0]
+
+        rna_xml.rna2xml(file.write,
+                        root_rna=theme,
+                        method='ATTR',
+                        )
+
         return {'FINISHED'}

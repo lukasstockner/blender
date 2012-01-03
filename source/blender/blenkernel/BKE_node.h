@@ -307,8 +307,6 @@ void			ntreeSwitchID(struct bNodeTree *ntree, struct ID *sce_from, struct ID *sc
 void			ntreeMakeLocal(struct bNodeTree *ntree);
 int				ntreeHasType(struct bNodeTree *ntree, int type);
 
-void			ntreeSocketUseFlags(struct bNodeTree *ntree);
-
 void			ntreeUpdateTree(struct bNodeTree *ntree);
 /* XXX Currently each tree update call does call to ntreeVerifyNodes too.
  * Some day this should be replaced by a decent depsgraph automatism!
@@ -523,6 +521,7 @@ struct ShadeResult;
 #define SH_NODE_LAYER_WEIGHT			160
 #define SH_NODE_VOLUME_TRANSPARENT		161
 #define SH_NODE_VOLUME_ISOTROPIC		162
+#define SH_NODE_GAMMA				163
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1

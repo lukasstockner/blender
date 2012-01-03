@@ -177,6 +177,7 @@ static void draw_tracks_curves(View2D *v2d, SpaceClip *sc)
 {
 	MovieClip *clip= ED_space_clip(sc);
 	MovieTracking *tracking= &clip->tracking;
+	MovieTrackingTrack *act_track= BKE_tracking_active_track(tracking);
 	int width, height;
 	struct { MovieTrackingTrack *act_track; int sel; float xscale, yscale, hsize; } userdata;
 
@@ -188,13 +189,13 @@ static void draw_tracks_curves(View2D *v2d, SpaceClip *sc)
 	/* non-selected knot handles */
 	userdata.hsize= UI_GetThemeValuef(TH_HANDLE_VERTEX_SIZE);
 	userdata.sel= 0;
-	userdata.act_track= clip->tracking.act_track;
+	userdata.act_track= act_track;
 	UI_view2d_getscale(v2d, &userdata.xscale, &userdata.yscale);
 	clip_graph_tracking_values_iterate(sc, &userdata, tracking_segment_knot_cb, NULL, NULL);
 
 	/* draw graph lines */
 	glEnable(GL_BLEND);
-	clip_graph_tracking_values_iterate(sc, tracking->act_track, tracking_segment_point_cb, tracking_segment_start_cb, tracking_segment_end_cb);
+	clip_graph_tracking_values_iterate(sc, act_track, tracking_segment_point_cb, tracking_segment_start_cb, tracking_segment_end_cb);
 	glDisable(GL_BLEND);
 
 	/* selected knot handles on top of curves */
@@ -206,7 +207,7 @@ static void draw_frame_curves(SpaceClip *sc)
 {
 	MovieClip *clip= ED_space_clip(sc);
 	MovieTracking *tracking= &clip->tracking;
-	MovieTrackingReconstruction *reconstruction= &tracking->reconstruction;
+	MovieTrackingReconstruction *reconstruction= BKE_tracking_get_reconstruction(tracking);
 	int i, lines= 0, prevfra= 0;
 
 	glColor3f(0.0f, 0.0f, 1.0f);
@@ -235,6 +236,7 @@ static void draw_frame_curves(SpaceClip *sc)
 
 void clip_draw_graph(SpaceClip *sc, ARegion *ar, Scene *scene)
 {
+	MovieClip *clip= ED_space_clip(sc);
 	View2D *v2d= &ar->v2d;
 	View2DGrid *grid;
 	short unitx= V2D_UNIT_FRAMESCALE, unity= V2D_UNIT_VALUES;
@@ -244,11 +246,13 @@ void clip_draw_graph(SpaceClip *sc, ARegion *ar, Scene *scene)
 	UI_view2d_grid_draw(v2d, grid, V2D_GRIDLINES_ALL);
 	UI_view2d_grid_free(grid);
 
-	if(sc->flag&SC_SHOW_GRAPH_TRACKS)
-		draw_tracks_curves(v2d, sc);
+	if(clip) {
+		if(sc->flag&SC_SHOW_GRAPH_TRACKS)
+			draw_tracks_curves(v2d, sc);
 
-	if(sc->flag&SC_SHOW_GRAPH_FRAMES)
-		draw_frame_curves(sc);
+		if(sc->flag&SC_SHOW_GRAPH_FRAMES)
+			draw_frame_curves(sc);
+	}
 
 	/* current frame */
 	draw_graph_cfra(sc, ar, scene);

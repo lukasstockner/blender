@@ -273,7 +273,6 @@ static void sky_texture_precompute(KernelSunSky *ksunsky, float3 dir, float turb
 
 	ksunsky->theta = theta;
 	ksunsky->phi = phi;
-	ksunsky->dir = dir;
 
 	float theta2 = theta*theta;
 	float theta3 = theta*theta*theta;
@@ -713,6 +712,41 @@ void MagicTextureNode::compile(OSLCompiler& compiler)
 	compiler.add(this, "node_magic_texture");
 }
 
+/* Normal */
+
+NormalNode::NormalNode()
+: ShaderNode("normal")
+{
+	direction = make_float3(0.0f, 0.0f, 1.0f);
+
+	add_input("Normal", SHADER_SOCKET_NORMAL);
+	add_output("Normal", SHADER_SOCKET_NORMAL);
+	add_output("Dot",  SHADER_SOCKET_FLOAT);
+}
+
+void NormalNode::compile(SVMCompiler& compiler)
+{
+	ShaderInput *normal_in = input("Normal");
+	ShaderOutput *normal_out = output("Normal");
+	ShaderOutput *dot_out = output("Dot");
+
+	compiler.stack_assign(normal_in);
+	compiler.stack_assign(normal_out);
+	compiler.stack_assign(dot_out);
+
+	compiler.add_node(NODE_NORMAL, normal_in->stack_offset, normal_out->stack_offset, dot_out->stack_offset);
+	compiler.add_node(
+		__float_as_int(direction.x),
+		__float_as_int(direction.y),
+		__float_as_int(direction.z));
+}
+
+void NormalNode::compile(OSLCompiler& compiler)
+{
+	compiler.parameter_vector("Direction", direction);
+	compiler.add(this, "node_normal");
+}
+
 /* Mapping */
 
 MappingNode::MappingNode()
@@ -832,6 +866,26 @@ void ConvertNode::compile(OSLCompiler& compiler)
 		compiler.add(this, "node_convert_from_normal");
 	else
 		assert(0);
+}
+
+/* Proxy */
+
+ProxyNode::ProxyNode(ShaderSocketType from_, ShaderSocketType to_)
+: ShaderNode("proxy")
+{
+	from = from_;
+	to = to_;
+
+	add_input("Input", from);
+	add_output("Output", to);
+}
+
+void ProxyNode::compile(SVMCompiler& compiler)
+{
+}
+
+void ProxyNode::compile(OSLCompiler& compiler)
+{
 }
 
 /* BSDF Closure */
@@ -1566,6 +1620,34 @@ void MixClosureNode::compile(OSLCompiler& compiler)
 	compiler.add(this, "node_mix_closure");
 }
 
+/* Invert */
+
+InvertNode::InvertNode()
+: ShaderNode("invert")
+{
+	add_input("Fac", SHADER_SOCKET_FLOAT, 1.0f);
+	add_input("Color", SHADER_SOCKET_COLOR);
+	add_output("Color",  SHADER_SOCKET_COLOR);
+}
+
+void InvertNode::compile(SVMCompiler& compiler)
+{
+	ShaderInput *fac_in = input("Fac");
+	ShaderInput *color_in = input("Color");
+	ShaderOutput *color_out = output("Color");
+
+	compiler.stack_assign(fac_in);
+	compiler.stack_assign(color_in);
+	compiler.stack_assign(color_out);
+
+	compiler.add_node(NODE_INVERT, fac_in->stack_offset, color_in->stack_offset, color_out->stack_offset);
+}
+
+void InvertNode::compile(OSLCompiler& compiler)
+{
+	compiler.add(this, "node_invert");
+}
+
 /* Mix */
 
 MixNode::MixNode()
@@ -1627,6 +1709,138 @@ void MixNode::compile(OSLCompiler& compiler)
 {
 	compiler.parameter("type", type);
 	compiler.add(this, "node_mix");
+}
+
+/* Combine RGB */
+CombineRGBNode::CombineRGBNode()
+: ShaderNode("combine_rgb")
+{
+	add_input("R", SHADER_SOCKET_FLOAT);
+	add_input("G", SHADER_SOCKET_FLOAT);
+	add_input("B", SHADER_SOCKET_FLOAT);
+	add_output("Image", SHADER_SOCKET_COLOR);
+}
+
+void CombineRGBNode::compile(SVMCompiler& compiler)
+{
+	ShaderInput *red_in = input("R");
+	ShaderInput *green_in = input("G");
+	ShaderInput *blue_in = input("B");
+	ShaderOutput *color_out = output("Image");
+
+	compiler.stack_assign(color_out);
+
+	compiler.stack_assign(red_in);
+	compiler.add_node(NODE_COMBINE_RGB, red_in->stack_offset, 0, color_out->stack_offset);
+
+	compiler.stack_assign(green_in);
+	compiler.add_node(NODE_COMBINE_RGB, green_in->stack_offset, 1, color_out->stack_offset);
+
+	compiler.stack_assign(blue_in);
+	compiler.add_node(NODE_COMBINE_RGB, blue_in->stack_offset, 2, color_out->stack_offset);
+}
+
+void CombineRGBNode::compile(OSLCompiler& compiler)
+{
+	compiler.add(this, "node_combine_rgb");
+}
+
+/* Gamma */
+GammaNode::GammaNode()
+: ShaderNode("gamma")
+{
+	add_input("Color", SHADER_SOCKET_COLOR);
+	add_input("Gamma", SHADER_SOCKET_FLOAT);
+	add_output("Color", SHADER_SOCKET_COLOR);
+}
+
+void GammaNode::compile(SVMCompiler& compiler)
+{
+	ShaderInput *color_in = input("Color");
+	ShaderInput *gamma_in = input("Gamma");
+	ShaderOutput *color_out = output("Color");
+
+	compiler.stack_assign(color_in);
+	compiler.stack_assign(gamma_in);
+	compiler.stack_assign(color_out);
+
+	compiler.add_node(NODE_GAMMA, gamma_in->stack_offset, color_in->stack_offset, color_out->stack_offset);
+}
+
+void GammaNode::compile(OSLCompiler& compiler)
+{
+	compiler.add(this, "node_gamma");
+}
+
+/* Separate RGB */
+SeparateRGBNode::SeparateRGBNode()
+: ShaderNode("separate_rgb")
+{
+	add_input("Image", SHADER_SOCKET_COLOR);
+	add_output("R", SHADER_SOCKET_FLOAT);
+	add_output("G", SHADER_SOCKET_FLOAT);
+	add_output("B", SHADER_SOCKET_FLOAT);
+}
+
+void SeparateRGBNode::compile(SVMCompiler& compiler)
+{
+	ShaderInput *color_in = input("Image");
+	ShaderOutput *red_out = output("R");
+	ShaderOutput *green_out = output("G");
+	ShaderOutput *blue_out = output("B");
+
+	compiler.stack_assign(color_in);
+
+	compiler.stack_assign(red_out);
+	compiler.add_node(NODE_SEPARATE_RGB, color_in->stack_offset, 0, red_out->stack_offset);
+
+	compiler.stack_assign(green_out);
+	compiler.add_node(NODE_SEPARATE_RGB, color_in->stack_offset, 1, green_out->stack_offset);
+
+	compiler.stack_assign(blue_out);
+	compiler.add_node(NODE_SEPARATE_RGB, color_in->stack_offset, 2, blue_out->stack_offset);
+}
+
+void SeparateRGBNode::compile(OSLCompiler& compiler)
+{
+	compiler.add(this, "node_separate_rgb");
+}
+
+/* Separate RGB */
+HSVNode::HSVNode()
+: ShaderNode("hsv")
+{
+	add_input("Hue", SHADER_SOCKET_FLOAT);
+	add_input("Saturation", SHADER_SOCKET_FLOAT);
+	add_input("Value", SHADER_SOCKET_FLOAT);
+	add_input("Fac", SHADER_SOCKET_FLOAT);
+	add_input("Color", SHADER_SOCKET_COLOR);
+	add_output("Color", SHADER_SOCKET_COLOR);
+}
+
+void HSVNode::compile(SVMCompiler& compiler)
+{
+	ShaderInput *hue_in = input("Hue");
+	ShaderInput *saturation_in = input("Saturation");
+	ShaderInput *value_in = input("Value");
+	ShaderInput *fac_in = input("Fac");
+	ShaderInput *color_in = input("Color");
+	ShaderOutput *color_out = output("Color");
+
+	compiler.stack_assign(hue_in);
+	compiler.stack_assign(saturation_in);
+	compiler.stack_assign(value_in);
+	compiler.stack_assign(fac_in);
+	compiler.stack_assign(color_in);
+	compiler.stack_assign(color_out);
+
+	compiler.add_node(NODE_HSV, color_in->stack_offset, fac_in->stack_offset, color_out->stack_offset);
+	compiler.add_node(NODE_HSV, hue_in->stack_offset, saturation_in->stack_offset, value_in->stack_offset);
+}
+
+void HSVNode::compile(OSLCompiler& compiler)
+{
+	compiler.add(this, "node_hsv");
 }
 
 /* Attribute */
@@ -1697,6 +1911,33 @@ void AttributeNode::compile(OSLCompiler& compiler)
 
 	compiler.parameter("name", attribute.c_str());
 	compiler.add(this, "node_attribute");
+}
+
+/* Camera */
+
+CameraNode::CameraNode()
+: ShaderNode("camera")
+{
+	add_output("View Vector",  SHADER_SOCKET_VECTOR);
+	add_output("View Z Depth",  SHADER_SOCKET_FLOAT);
+	add_output("View Distance",  SHADER_SOCKET_FLOAT);
+}
+
+void CameraNode::compile(SVMCompiler& compiler)
+{
+	ShaderOutput *vector_out = output("View Vector");
+	ShaderOutput *z_depth_out = output("View Z Depth");
+	ShaderOutput *distance_out = output("View Distance");
+
+	compiler.stack_assign(vector_out);
+	compiler.stack_assign(z_depth_out);
+	compiler.stack_assign(distance_out);
+	compiler.add_node(NODE_CAMERA, vector_out->stack_offset, z_depth_out->stack_offset, distance_out->stack_offset);
+}
+
+void CameraNode::compile(OSLCompiler& compiler)
+{
+	compiler.add(this, "node_camera");
 }
 
 /* Fresnel */

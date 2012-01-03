@@ -25,13 +25,14 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef DNA_PARTICLE_TYPES_H
-#define DNA_PARTICLE_TYPES_H
-
 /** \file DNA_particle_types.h
  *  \ingroup DNA
  */
 
+#ifndef DNA_PARTICLE_TYPES_H
+#define DNA_PARTICLE_TYPES_H
+
+#include "DNA_defs.h"
 #include "DNA_ID.h"
 #include "DNA_boid_types.h"
 
@@ -64,7 +65,7 @@ typedef struct BoidParticle {
 typedef struct ParticleSpring {
 	float rest_length;
 	unsigned int particle_index[2], delete_flag;
-}ParticleSpring;
+} ParticleSpring;
 
 /* Child particles are created around or between parent particles */
 typedef struct ChildParticle {
@@ -225,10 +226,10 @@ typedef struct ParticleSettings {
 
 	struct Group *dup_group;
 	struct ListBase dupliweights;
-	struct Group *eff_group;		// deprecated
+	struct Group *eff_group  DNA_DEPRECATED;		// deprecated
 	struct Object *dup_ob;
 	struct Object *bb_ob;
-	struct Ipo *ipo;				// xxx depreceated... old animation system
+	struct Ipo *ipo  DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
 	struct PartDeflect *pd;
 	struct PartDeflect *pd2;
 } ParticleSettings;
@@ -294,7 +295,7 @@ typedef struct ParticleSystem
 
 	float dt_frac;							/* current time step, as a fraction of a frame */
 	float _pad;								/* spare capacity */
-}ParticleSystem;
+} ParticleSystem;
 
 /* part->type */
 /* hair is allways baked static in object/geometry space */

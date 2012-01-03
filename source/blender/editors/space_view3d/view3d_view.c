@@ -512,7 +512,7 @@ void VIEW3D_OT_object_as_camera(wmOperatorType *ot)
 
 /* ********************************** */
 
-void ED_view3d_calc_clipping(BoundBox *bb, float planes[4][4], bglMats *mats, rcti *rect)
+void ED_view3d_calc_clipping(BoundBox *bb, float planes[4][4], bglMats *mats, const rcti *rect)
 {
 	float modelview[4][4];
 	double xs, ys, p[3];
@@ -740,8 +740,8 @@ void ED_view3d_ob_project_mat_get(RegionView3D *rv3d, Object *ob, float pmat[4][
 {
 	float vmat[4][4];
 	
-	mul_m4_m4m4(vmat, ob->obmat, rv3d->viewmat);
-	mul_m4_m4m4(pmat, vmat, rv3d->winmat);
+	mult_m4_m4m4(vmat, rv3d->viewmat, ob->obmat);
+	mult_m4_m4m4(pmat, rv3d->winmat, vmat);
 }
 
 #if 0
@@ -760,7 +760,7 @@ void view3d_unproject(bglMats *mats, float out[3], const short x, const short y,
 #endif
 
 /* use view3d_get_object_project_mat to get projecting mat */
-void ED_view3d_project_float(ARegion *ar, const float vec[3], float adr[2], float mat[4][4])
+void ED_view3d_project_float(const ARegion *ar, const float vec[3], float adr[2], float mat[4][4])
 {
 	float vec4[4];
 	
@@ -809,7 +809,7 @@ int ED_view3d_boundbox_clip(RegionView3D *rv3d, float obmat[][4], BoundBox *bb)
 	if(bb==NULL) return 1;
 	if(bb->flag & OB_BB_DISABLED) return 1;
 	
-	mul_m4_m4m4(mat, obmat, rv3d->persmat);
+	mult_m4_m4m4(mat, rv3d->persmat, obmat);
 	
 	for(a=0; a<8; a++) {
 		copy_v3_v3(vec, bb->vec[a]);
@@ -1196,7 +1196,7 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 	}
 	
 	setwinmatrixview3d(ar, v3d, &rect);
-	mul_m4_m4m4(vc->rv3d->persmat, vc->rv3d->viewmat, vc->rv3d->winmat);
+	mult_m4_m4m4(vc->rv3d->persmat, vc->rv3d->winmat, vc->rv3d->viewmat);
 	
 	if(v3d->drawtype > OB_WIRE) {
 		v3d->zbuf= TRUE;
@@ -1274,7 +1274,7 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 	
 	G.f &= ~G_PICKSEL;
 	setwinmatrixview3d(ar, v3d, NULL);
-	mul_m4_m4m4(vc->rv3d->persmat, vc->rv3d->viewmat, vc->rv3d->winmat);
+	mult_m4_m4m4(vc->rv3d->persmat, vc->rv3d->winmat, vc->rv3d->viewmat);
 	
 	if(v3d->drawtype > OB_WIRE) {
 		v3d->zbuf= 0;
@@ -1715,6 +1715,10 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	if(!ED_view3d_context_activate(C))
 		return OPERATOR_CANCELLED;
 	
+	/* redraw to hide any menus/popups, we don't go back to
+	   the window manager until after this operator exits */
+	WM_redraw_windows(C);
+
 	rv3d= CTX_wm_region_view3d(C);
 	/* sa= CTX_wm_area(C); */ /* UNUSED */
 	ar= CTX_wm_region(C);
@@ -1723,7 +1727,11 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	
 	game_set_commmandline_options(&startscene->gm);
 
-	if(rv3d->persp==RV3D_CAMOB && startscene->gm.framing.type == SCE_GAMEFRAMING_BARS && startscene->gm.stereoflag != STEREO_DOME) { /* Letterbox */
+	if((rv3d->persp == RV3D_CAMOB) &&
+	   (startscene->gm.framing.type == SCE_GAMEFRAMING_BARS) &&
+	   (startscene->gm.stereoflag != STEREO_DOME))
+	{
+		/* Letterbox */
 		rctf cam_framef;
 		ED_view3d_calc_camera_border(startscene, ar, CTX_wm_view3d(C), rv3d, &cam_framef, FALSE);
 		cam_frame.xmin = cam_framef.xmin + ar->winrct.xmin;
@@ -1750,6 +1758,8 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 		CTX_wm_window_set(C, NULL);
 	}
 	
+	ED_area_tag_redraw(CTX_wm_area(C));
+
 	if(prevwin) {
 		/* restore context, in case it changed in the meantime, for
 		   example by working in another window or closing it */
@@ -1763,8 +1773,6 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	//XXX restore_all_scene_cfra(scene_cfra_store);
 	set_scene_bg(CTX_data_main(C), startscene);
 	//XXX scene_update_for_newframe(bmain, scene, scene->lay);
-	
-	ED_area_tag_redraw(CTX_wm_area(C));
 
 	return OPERATOR_FINISHED;
 #else

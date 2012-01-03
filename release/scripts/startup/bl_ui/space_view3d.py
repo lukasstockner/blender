@@ -255,7 +255,7 @@ class VIEW3D_MT_uv_map(Menu):
 
         layout.separator()
 
-        layout.operator_context = 'EXEC_DEFAULT'
+        layout.operator_context = 'EXEC_REGION_WIN'
         layout.operator("uv.cube_project")
         layout.operator("uv.cylinder_project")
         layout.operator("uv.sphere_project")
@@ -993,6 +993,7 @@ class VIEW3D_MT_object_game(Menu):
         layout = self.layout
 
         layout.operator("object.logic_bricks_copy", text="Copy Logic Bricks")
+        layout.operator("object.game_physics_copy", text="Copy Physics Properties")
 
         layout.separator()
 
@@ -1051,7 +1052,7 @@ class VIEW3D_MT_vertex_group(Menu):
         layout.operator("object.vertex_group_assign", text="Assign to New Group").new = True
 
         ob = context.active_object
-        if ob.mode == 'EDIT':
+        if ob.mode == 'EDIT' or (ob.mode == 'WEIGHT_PAINT' and ob.type == 'MESH' and ob.data.use_paint_mask_vertex):
             if ob.vertex_groups.active:
                 layout.separator()
                 layout.operator("object.vertex_group_assign", text="Assign to Active Group")
@@ -1522,17 +1523,17 @@ class VIEW3D_MT_edit_mesh_select_mode(Menu):
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        prop = layout.operator("wm.context_set_value", text="Vertex", icon='VERTEXSEL')
-        prop.value = "(True, False, False)"
-        prop.data_path = "tool_settings.mesh_select_mode"
+        props = layout.operator("wm.context_set_value", text="Vertex", icon='VERTEXSEL')
+        props.value = "(True, False, False)"
+        props.data_path = "tool_settings.mesh_select_mode"
 
-        prop = layout.operator("wm.context_set_value", text="Edge", icon='EDGESEL')
-        prop.value = "(False, True, False)"
-        prop.data_path = "tool_settings.mesh_select_mode"
+        props = layout.operator("wm.context_set_value", text="Edge", icon='EDGESEL')
+        props.value = "(False, True, False)"
+        props.data_path = "tool_settings.mesh_select_mode"
 
-        prop = layout.operator("wm.context_set_value", text="Face", icon='FACESEL')
-        prop.value = "(False, False, True)"
-        prop.data_path = "tool_settings.mesh_select_mode"
+        props = layout.operator("wm.context_set_value", text="Face", icon='FACESEL')
+        props.value = "(False, False, True)"
+        props.data_path = "tool_settings.mesh_select_mode"
 
 
 class VIEW3D_MT_edit_mesh_extrude(Menu):
@@ -2246,6 +2247,8 @@ class VIEW3D_PT_view3d_meshdisplay(Panel):
         col.prop(mesh, "show_extra_edge_length")
         col.prop(mesh, "show_extra_face_angle")
         col.prop(mesh, "show_extra_face_area")
+        if bpy.app.debug:
+            col.prop(mesh, "show_extra_indices")
 
 
 class VIEW3D_PT_view3d_curvedisplay(Panel):

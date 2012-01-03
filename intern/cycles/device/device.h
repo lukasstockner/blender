@@ -23,6 +23,7 @@
 
 #include "device_memory.h"
 
+#include "util_list.h"
 #include "util_string.h"
 #include "util_thread.h"
 #include "util_types.h"
@@ -51,7 +52,7 @@ enum MemoryType {
 
 class DeviceTask {
 public:
-	typedef enum { PATH_TRACE, TONEMAP, DISPLACE } Type;
+	typedef enum { PATH_TRACE, TONEMAP, SHADER } Type;
 	Type type;
 
 	int x, y, w, h;
@@ -60,13 +61,18 @@ public:
 	device_ptr buffer;
 	int sample;
 	int resolution;
+	int offset, stride;
 
-	device_ptr displace_input;
-	device_ptr displace_offset;
-	int displace_x, displace_w;
+	device_ptr shader_input;
+	device_ptr shader_output;
+	int shader_eval_type;
+	int shader_x, shader_w;
 
 	DeviceTask(Type type = PATH_TRACE);
+
+	void split(list<DeviceTask>& tasks, int num);
 	void split(ThreadQueue<DeviceTask>& tasks, int num);
+	void split_max_size(list<DeviceTask>& tasks, int max_size);
 };
 
 /* Device */
@@ -112,7 +118,7 @@ public:
 	virtual void *osl_memory() { return NULL; }
 
 	/* load/compile kernels, must be called before adding tasks */ 
-	virtual bool load_kernels() { return true; }
+	virtual bool load_kernels(bool experimental) { return true; }
 
 	/* tasks */
 	virtual void task_add(DeviceTask& task) = 0;

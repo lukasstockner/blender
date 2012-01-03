@@ -65,12 +65,14 @@ set(SRC
 	intern/math_base.c
 	intern/math_base_inline.c
 	intern/math_color.c
+	intern/math_color_inline.c
 	intern/math_geom.c
 	intern/math_geom_inline.c
 	intern/math_matrix.c
 	intern/math_rotation.c
 	intern/math_vector.c
 	intern/math_vector_inline.c
+	intern/md5.c
 	intern/noise.c
 	intern/path_util.c
 	intern/pbvh.c
@@ -86,6 +88,7 @@ set(SRC
 	intern/voxel.c
 	intern/winstuff.c
 
+	BLI_array.h
 	BLI_args.h
 	BLI_blenlib.h
 	BLI_boxpack2d.h
@@ -117,6 +120,7 @@ set(SRC
 	BLI_math_matrix.h
 	BLI_math_rotation.h
 	BLI_math_vector.h
+	BLI_md5.h
 	BLI_memarena.h
 	BLI_mempool.h
 	BLI_noise.h

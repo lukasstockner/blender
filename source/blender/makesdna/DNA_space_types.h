@@ -24,14 +24,16 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_SPACE_TYPES_H
-#define DNA_SPACE_TYPES_H
 /** \file DNA_space_types.h
  *  \ingroup DNA
  *  \since mar-2001
  *  \author nzc
  */
 
+#ifndef DNA_SPACE_TYPES_H
+#define DNA_SPACE_TYPES_H
+
+#include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_color_types.h"		/* for Histogram */
 #include "DNA_vec_types.h"
@@ -76,17 +78,17 @@ typedef struct SpaceLink {
 	struct SpaceLink *next, *prev;
 	ListBase regionbase;		/* storage of regions for inactive spaces */
 	int spacetype;
-	float blockscale;			/* XXX depricate this */
-	short blockhandler[8];		/* XXX depricate this */
+	float blockscale  DNA_DEPRECATED;       /* XXX make deprecated */
+	short blockhandler[8]  DNA_DEPRECATED;  /* XXX make deprecated */
 } SpaceLink;
 
 typedef struct SpaceInfo {
 	SpaceLink *next, *prev;
 	ListBase regionbase;		/* storage of regions for inactive spaces */
 	int spacetype;
-	float blockscale;
+	float blockscale  DNA_DEPRECATED;
 
-	short blockhandler[8];		/* XXX depricate this */
+	short blockhandler[8]  DNA_DEPRECATED;		/* XXX make deprecated */
 	
 	char rpt_mask;
 	char pad[7];
@@ -107,10 +109,10 @@ typedef struct SpaceIpo {
 	SpaceLink *next, *prev;
 	ListBase regionbase;		/* storage of regions for inactive spaces */
 	int spacetype;
-	float blockscale;
+	float blockscale  DNA_DEPRECATED;
 
-	short blockhandler[8];
-	View2D v2d; /* deprecated, copied to region */
+	short blockhandler[8]  DNA_DEPRECATED;
+	View2D v2d  DNA_DEPRECATED; /* deprecated, copied to region */
 	
 	struct bDopeSheet *ads;	/* settings for filtering animation data (NOTE: we use a pointer due to code-linking issues) */
 	
@@ -128,13 +130,13 @@ typedef struct SpaceButs {
 	SpaceLink *next, *prev;
 	ListBase regionbase;		/* storage of regions for inactive spaces */
 	int spacetype;
-	float blockscale;
+	float blockscale  DNA_DEPRECATED;
 	
-	short blockhandler[8];
+	short blockhandler[8]  DNA_DEPRECATED;
 	
 	struct RenderInfo *ri;
 
-	View2D v2d;						/* deprecated, copied to region */
+	View2D v2d  DNA_DEPRECATED;						/* deprecated, copied to region */
 	
 	short mainb, mainbo, mainbuser;	/* context tabs */
 	short re_align, align;			/* align for panels */
@@ -153,19 +155,19 @@ typedef struct SpaceSeq {
 	SpaceLink *next, *prev;
 	ListBase regionbase;		/* storage of regions for inactive spaces */
 	int spacetype;
-	float blockscale;
+	float blockscale  DNA_DEPRECATED;
 
-	short blockhandler[8];
+	short blockhandler[8]  DNA_DEPRECATED;
 
-	View2D v2d; /* deprecated, copied to region */
+	View2D v2d  DNA_DEPRECATED; /* deprecated, copied to region */
 	
-	float xof, yof;	/* deprecated: offset for drawing the image preview */
+	float xof  DNA_DEPRECATED, yof  DNA_DEPRECATED;	/* deprecated: offset for drawing the image preview */
 	short mainb;	/* weird name for the sequencer subtype (seq, image, luma... etc) */
 	short render_size;
 	short chanshown;
 	short zebra;
 	int flag;
-	float zoom; /* deprecated, handled by View2D now */
+	float zoom  DNA_DEPRECATED; /* deprecated, handled by View2D now */
 	int view; /* see SEQ_VIEW_* below */
 	int pad;
 
@@ -232,11 +234,11 @@ typedef struct SpaceOops {
 	SpaceLink *next, *prev;
 	ListBase regionbase;		/* storage of regions for inactive spaces */
 	int spacetype;
-	float blockscale;
+	float blockscale  DNA_DEPRECATED;
 
-	short blockhandler[8];
+	short blockhandler[8]  DNA_DEPRECATED;
 
-	View2D v2d; /* deprecated, copied to region */
+	View2D v2d  DNA_DEPRECATED; /* deprecated, copied to region */
 	
 	ListBase tree;
 	struct TreeStore *treestore;
@@ -283,25 +285,25 @@ typedef struct SpaceNla {
 	struct SpaceLink *next, *prev;
 	ListBase regionbase;		/* storage of regions for inactive spaces */
 	int spacetype;
-	float blockscale;
+	float blockscale  DNA_DEPRECATED;
 
-	short blockhandler[8];
+	short blockhandler[8]  DNA_DEPRECATED;
 
 	short autosnap;			/* this uses the same settings as autosnap for Action Editor */
 	short flag;
 	int pad;
 	
 	struct bDopeSheet *ads;
-	View2D v2d;	 /* deprecated, copied to region */
+	View2D v2d  DNA_DEPRECATED;	 /* deprecated, copied to region */
 } SpaceNla;
 
 typedef struct SpaceText {
 	SpaceLink *next, *prev;
 	ListBase regionbase;		/* storage of regions for inactive spaces */
 	int spacetype;
-	float blockscale;
+	float blockscale  DNA_DEPRECATED;
 
-	short blockhandler[8];
+	short blockhandler[8]  DNA_DEPRECATED;
 
 	struct Text *text;	
 
@@ -352,7 +354,7 @@ typedef struct SpaceScript {
 	SpaceLink *next, *prev;
 	ListBase regionbase;		/* storage of regions for inactive spaces */
 	int spacetype;
-	float blockscale;
+	float blockscale  DNA_DEPRECATED;
 	struct Script *script;
 
 	short flags, menunr;
@@ -372,31 +374,29 @@ typedef struct SpaceTime {
 	SpaceLink *next, *prev;
 	ListBase regionbase;		/* storage of regions for inactive spaces */
 	int spacetype;
-	float blockscale;
+	float blockscale  DNA_DEPRECATED;
 	
-	View2D v2d; /* deprecated, copied to region */
-	
+	View2D v2d  DNA_DEPRECATED; /* deprecated, copied to region */
+
 	ListBase caches;
-	int cache_display, pad;
-	
-	int flag, redraws; /* redraws is deprecated... moved to screen */
-	
+
+	int cache_display;
+	int flag;
 } SpaceTime;
 
 typedef struct SpaceNode {
 	SpaceLink *next, *prev;
 	ListBase regionbase;		/* storage of regions for inactive spaces */
 	int spacetype;
-	float blockscale;
+	float blockscale  DNA_DEPRECATED;
 	
-	short blockhandler[8];
+	short blockhandler[8]  DNA_DEPRECATED;
 	
-	View2D v2d; /* deprecated, copied to region */
+	View2D v2d  DNA_DEPRECATED; /* deprecated, copied to region */
 	
 	struct ID *id, *from;		/* context, no need to save in file? well... pinning... */
-	short flag, menunr;			/* menunr: browse id block in header */
+	short flag, pad1;			/* menunr: browse id block in header */
 	float aspect;
-	void *curfont;
 	
 	float xof, yof;		/* offset for drawing the backdrop */
 	float zoom, padf;	/* zoom for backdrop */
@@ -433,9 +433,9 @@ typedef struct SpaceLogic {
 	SpaceLink *next, *prev;
 	ListBase regionbase;		/* storage of regions for inactive spaces */
 	int spacetype;
-	float blockscale;
+	float blockscale  DNA_DEPRECATED;
 	
-	short blockhandler[8];
+	short blockhandler[8]  DNA_DEPRECATED;
 	
 	short flag, scaflag;
 	int pad;
@@ -467,9 +467,9 @@ typedef struct SpaceConsole {
 	SpaceLink *next, *prev;
 	ListBase regionbase;		/* storage of regions for inactive spaces */
 	int spacetype;
-	float blockscale;			// XXX are these needed?
+	float blockscale  DNA_DEPRECATED;			// XXX are these needed?
 	
-	short blockhandler[8];		// XXX are these needed?
+	short blockhandler[8]  DNA_DEPRECATED;		// XXX are these needed?
 	
 	/* space vars */
 	int lheight, pad;
@@ -553,23 +553,6 @@ typedef struct SpaceClip {
 #define BUTS_SOUND			12
 #define BUTS_CONSTRAINT		13
 #define BUTS_EFFECTS		14
-
-/* sbuts->tab new (deprecated) */
-#define TAB_SHADING_MAT 	0
-#define TAB_SHADING_TEX 	1
-#define TAB_SHADING_RAD 	2
-#define TAB_SHADING_WORLD	3
-#define TAB_SHADING_LAMP	4
-
-#define TAB_OBJECT_OBJECT	0
-#define TAB_OBJECT_PHYSICS 	1
-#define TAB_OBJECT_PARTICLE	2
-
-#define TAB_SCENE_RENDER	0
-#define TAB_SCENE_WORLD     	1
-#define TAB_SCENE_ANIM		2
-#define TAB_SCENE_SOUND		3
-#define TAB_SCENE_SEQUENCER	4
 
 /* buts->mainb new */
 #define BCONTEXT_RENDER				0
@@ -685,7 +668,7 @@ enum FileSortTypeE {
 
 
 /* Selection Flags in filesel: struct direntry, unsigned char selflag */
-#define ACTIVE_FILE 		(1<<1)
+/* #define ACTIVE_FILE 		(1<<1) */ /* UNUSED */
 #define HILITED_FILE		(1<<2)
 #define SELECTED_FILE		(1<<3)
 #define EDITING_FILE		(1<<4)

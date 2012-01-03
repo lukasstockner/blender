@@ -114,6 +114,17 @@ typedef enum uiButtonJumpType {
 	BUTTON_EDIT_JUMP_ALL
 } uiButtonJumpType;
 
+typedef enum uiButtonDelimType {
+	BUTTON_DELIM_NONE,
+	BUTTON_DELIM_ALPHA,
+	BUTTON_DELIM_PUNCT,
+	BUTTON_DELIM_BRACE,
+	BUTTON_DELIM_OPERATOR,
+	BUTTON_DELIM_QUOTE,
+	BUTTON_DELIM_WHITESPACE,
+	BUTTON_DELIM_OTHER
+} uiButtonDelimType;
+
 typedef struct uiHandleButtonData {
 	wmWindowManager *wm;
 	wmWindow *window;
@@ -1230,46 +1241,60 @@ static void ui_but_copy_paste(bContext *C, uiBut *but, uiHandleButtonData *data,
 /* ************* in-button text selection/editing ************* */
 
 /* return 1 if char ch is special character, otherwise return 0 */
-static short test_special_char(char ch)
+static uiButtonDelimType test_special_char(const char ch)
 {
+	if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) {
+		return BUTTON_DELIM_ALPHA;
+	}
+
 	switch(ch) {
-		case '\\':
-		case '/':
-		case '~':
-		case '!':
-		case '@':
-		case '#':
-		case '$':
-		case '%':
-		case '^':
-		case '&':
-		case '*':
-		case '(':
-		case ')':
-		case '+':
-		case '=':
+		case ',':
+		case '.':
+			return BUTTON_DELIM_PUNCT;
+
 		case '{':
 		case '}':
 		case '[':
 		case ']':
-		case ':':
-		case ';':
-		case '\'':
-		case '\"': // " - an extra closing one for Aligorith's text editor
+		case '(':
+		case ')':
+			return BUTTON_DELIM_BRACE;
+
+		case '+':
+		case '-':
+		case '=':
+		case '~':
+		case '%':
+		case '/':
 		case '<':
 		case '>':
-		case ',':
-		case '.':
+		case '^':
+		case '*':
+		case '&':
+			return BUTTON_DELIM_OPERATOR;
+
+		case '\'':
+		case '\"': // " - an extra closing one for Aligorith's text editor
+			return BUTTON_DELIM_QUOTE;
+
+		case ' ':
+			return BUTTON_DELIM_WHITESPACE;
+
+		case '\\':
+		case '!':
+		case '@':
+		case '#':
+		case '$':
+		case ':':
+		case ';':
 		case '?':
 		case '_':
-		case '-':
-		case ' ':
-			return 1;
-			break;
+			return BUTTON_DELIM_OTHER;
+
 		default:
 			break;
 	}
-	return 0;
+	return BUTTON_DELIM_NONE;
 }
 
 static int ui_textedit_step_next_utf8(const char *str, size_t maxlen, short *pos)
@@ -1308,12 +1333,13 @@ static void ui_textedit_step_utf8(const char *str, size_t maxlen,
 
 	if(direction) { /* right*/
 		if(jump != BUTTON_EDIT_JUMP_NONE) {
+			const uiButtonDelimType is_special= (*pos) < maxlen ? test_special_char(str[(*pos)]) : BUTTON_DELIM_NONE;
 			/* jump between special characters (/,\,_,-, etc.),
 			 * look at function test_special_char() for complete
 			 * list of special character, ctr -> */
 			while((*pos) < maxlen) {
 				if (ui_textedit_step_next_utf8(str, maxlen, pos)) {
-					if((jump != BUTTON_EDIT_JUMP_ALL) && test_special_char(str[(*pos)])) break;
+					if((jump != BUTTON_EDIT_JUMP_ALL) && (is_special != test_special_char(str[(*pos)]))) break;
 				}
 				else {
 					break; /* unlikely but just incase */
@@ -1326,6 +1352,7 @@ static void ui_textedit_step_utf8(const char *str, size_t maxlen,
 	}
 	else { /* left */
 		if(jump != BUTTON_EDIT_JUMP_NONE) {
+			const uiButtonDelimType is_special= (*pos) > 1 ? test_special_char(str[(*pos) - 1]) : BUTTON_DELIM_NONE;
 			/* left only: compensate for index/change in direction */
 			ui_textedit_step_prev_utf8(str, maxlen, pos);
 
@@ -1334,7 +1361,7 @@ static void ui_textedit_step_utf8(const char *str, size_t maxlen,
 			 * list of special character, ctr -> */
 			while ((*pos) > 0) {
 				if (ui_textedit_step_prev_utf8(str, maxlen, pos)) {
-					if((jump != BUTTON_EDIT_JUMP_ALL) && test_special_char(str[(*pos)])) break;
+					if((jump != BUTTON_EDIT_JUMP_ALL) && (is_special != test_special_char(str[(*pos)]))) break;
 				}
 				else {
 					break;
@@ -5242,9 +5269,13 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
 	data->state= state;
 
 	if(state != BUTTON_STATE_EXIT) {
-		/* When objects for eg. are removed, running ui_check_but()
-		 * can access the removed data - so disable update on exit */
-		ui_check_but(but);
+		/* When objects for eg. are removed, running ui_check_but() can access
+		   the removed data - so disable update on exit. Also in case of
+		   highlight when not in a popup menu, we remove because data used in
+		   button below popup might have been removed by action of popup. Needs
+		   a more reliable solution... */
+		if(state != BUTTON_STATE_HIGHLIGHT || (but->block->flag & UI_BLOCK_LOOP))
+			ui_check_but(but);
 	}
 
 	/* redraw */
@@ -5487,6 +5518,11 @@ wmOperator *uiContextActiveOperator(const struct bContext *C)
 {
 	ARegion *ar_ctx= CTX_wm_region(C);
 	uiBlock *block;
+
+	/* background mode */
+	if (ar_ctx == NULL) {
+		return NULL;
+	}
 
 	/* scan active regions ui */
 	for(block=ar_ctx->uiblocks.first; block; block=block->next) {

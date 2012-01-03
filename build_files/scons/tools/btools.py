@@ -152,14 +152,16 @@ def validate_arguments(args, bc):
             'WITH_BF_FLUID',
             'WITH_BF_DECIMATE',
             'WITH_BF_BOOLEAN',
+            'WITH_BF_REMESH',
             'WITH_BF_OCEANSIM',
             'WITH_BF_CXX_GUARDEDALLOC',
             'WITH_BF_JEMALLOC', 'WITH_BF_STATICJEMALLOC', 'BF_JEMALLOC', 'BF_JEMALLOC_INC', 'BF_JEMALLOC_LIBPATH', 'BF_JEMALLOC_LIB', 'BF_JEMALLOC_LIB_STATIC',
             'BUILDBOT_BRANCH',
             'WITH_BF_3DMOUSE', 'WITH_BF_STATIC3DMOUSE', 'BF_3DMOUSE', 'BF_3DMOUSE_INC', 'BF_3DMOUSE_LIB', 'BF_3DMOUSE_LIBPATH', 'BF_3DMOUSE_LIB_STATIC',
-            'WITH_BF_CYCLES', 'WITH_BF_CYCLES_BINARIES' 'BF_CYCLES_BINARIES_ARCH',
+            'WITH_BF_CYCLES', 'WITH_BF_CYCLES_CUDA_BINARIES' 'BF_CYCLES_CUDA_NVCC', 'BF_CYCLES_CUDA_NVCC', 'WITH_BF_CYCLES_CUDA_THREADED_COMPILE',
             'WITH_BF_OIIO', 'WITH_BF_STATICOIIO', 'BF_OIIO', 'BF_OIIO_INC', 'BF_OIIO_LIB', 'BF_OIIO_LIB_STATIC', 'BF_OIIO_LIBPATH',
-            'WITH_BF_BOOST', 'WITH_BF_STATICBOOST', 'BF_BOOST', 'BF_BOOST_INC', 'BF_BOOST_LIB', 'BF_BOOST_LIB_STATIC', 'BF_BOOST_LIBPATH'
+            'WITH_BF_BOOST', 'WITH_BF_STATICBOOST', 'BF_BOOST', 'BF_BOOST_INC', 'BF_BOOST_LIB', 'BF_BOOST_LIB_STATIC', 'BF_BOOST_LIBPATH',
+            'WITH_BF_LIBMV'
             ]
     
     # Have options here that scons expects to be lists
@@ -260,6 +262,7 @@ def read_opts(env, cfg, args):
         (BoolVariable('WITH_BF_FLUID', 'Build with Fluid simulation (Elbeem)', True)),
         (BoolVariable('WITH_BF_DECIMATE', 'Build with decimate modifier', True)),
         (BoolVariable('WITH_BF_BOOLEAN', 'Build with boolean modifier', True)),
+        (BoolVariable('WITH_BF_REMESH', 'Build with remesh modifier', True)),
         (BoolVariable('WITH_BF_OCEANSIM', 'Build with ocean simulation', False)),
         ('BF_PROFILE_FLAGS', 'Profiling compiler flags', ''),
         (BoolVariable('WITH_BF_OPENAL', 'Use OpenAL if true', False)),
@@ -544,7 +547,10 @@ def read_opts(env, cfg, args):
 
     localopts.AddVariables(
         (BoolVariable('WITH_BF_CYCLES', 'Build with the Cycles engine', True)),
-        (BoolVariable('WITH_BF_CYCLES_BINARIES', 'Build with precompiled CUDA binaries', False)),
+        (BoolVariable('WITH_BF_CYCLES_CUDA_BINARIES', 'Build with precompiled CUDA binaries', False)),
+        (BoolVariable('WITH_BF_CYCLES_CUDA_THREADED_COMPILE', 'Build several render kernels at once (using BF_NUMJOBS)', False)),
+        ('BF_CYCLES_CUDA_NVCC', 'CUDA nvcc compiler path', ''),
+        ('BF_CYCLES_CUDA_BINARIES_ARCH', 'CUDA architectures to compile binaries for', []),
 
         (BoolVariable('WITH_BF_OIIO', 'Build with OpenImageIO', False)),
         (BoolVariable('WITH_BF_STATICOIIO', 'Staticly link to OpenImageIO', False)),

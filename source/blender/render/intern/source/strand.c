@@ -833,7 +833,6 @@ int zbuffer_strands_abuf(Render *re, RenderPart *pa, APixstrand *apixbuf, ListBa
 
 	memarena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "strand sort arena");
 	firstseg= NULL;
-	sortseg= sortsegments;
 	totsegment= 0;
 
 	/* for all object instances */
@@ -848,7 +847,7 @@ int zbuffer_strands_abuf(Render *re, RenderPart *pa, APixstrand *apixbuf, ListBa
 
 		/* compute matrix and try clipping whole object */
 		if(obi->flag & R_TRANSFORMED)
-			mul_m4_m4m4(obwinmat, obi->mat, winmat);
+			mult_m4_m4m4(obwinmat, winmat, obi->mat);
 		else
 			copy_m4_m4(obwinmat, winmat);
 

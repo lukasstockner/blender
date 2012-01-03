@@ -41,9 +41,11 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
+#include "BLI_math_base.h"
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "gpu_codegen.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -84,6 +86,8 @@ int GPU_type_matches(GPUDeviceType device, GPUOSType os, GPUDriverType driver)
 
 /* GPU Extensions */
 
+static int gpu_extensions_init = 0;
+
 void GPU_extensions_disable(void)
 {
 	GG.extdisabled = 1;
@@ -95,11 +99,11 @@ void GPU_extensions_init(void)
 	const char *vendor, *renderer;
 
 	/* can't avoid calling this multiple times, see wm_window_add_ghostwindow */
-	static char init= 0;
-	if(init) return;
-	init= 1;
+	if(gpu_extensions_init) return;
+	gpu_extensions_init= 1;
 
 	glewInit();
+	GPU_codegen_init();
 
 	/* glewIsSupported("GL_VERSION_2_0") */
 
@@ -183,6 +187,12 @@ void GPU_extensions_init(void)
 #ifdef __APPLE__
 	GG.os = GPU_OS_MAC;
 #endif
+}
+
+void GPU_extensions_exit(void)
+{
+	gpu_extensions_init = 0;
+	GPU_codegen_exit();
 }
 
 int GPU_glsl_support(void)
@@ -292,22 +302,6 @@ static unsigned char *GPU_texture_convert_pixels(int length, float *fpixels)
 	return pixels;
 }
 
-static int is_pow2(int n)
-{
-	return ((n)&(n-1))==0;
-}
-
-static int larger_pow2(int n)
-{
-	if (is_pow2(n))
-		return n;
-
-	while(!is_pow2(n))
-		n= n&(n-1);
-
-	return n*2;
-}
-
 static void GPU_glTexSubImageEmpty(GLenum target, GLenum format, int x, int y, int w, int h)
 {
 	void *pixels = MEM_callocN(sizeof(char)*4*w*h, "GPUTextureEmptyPixels");
@@ -353,8 +347,8 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 	}
 
 	if (!GPU_non_power_of_two_support()) {
-		tex->w = larger_pow2(tex->w);
-		tex->h = larger_pow2(tex->h);
+		tex->w = power_of_2_max_i(tex->w);
+		tex->h = power_of_2_max_i(tex->h);
 	}
 
 	tex->number = 0;
@@ -462,9 +456,9 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, float *fpixels)
 	}
 
 	if (!GPU_non_power_of_two_support()) {
-		tex->w = larger_pow2(tex->w);
-		tex->h = larger_pow2(tex->h);
-		tex->depth = larger_pow2(tex->depth);
+		tex->w = power_of_2_max_i(tex->w);
+		tex->h = power_of_2_max_i(tex->h);
+		tex->depth = power_of_2_max_i(tex->depth);
 	}
 
 	tex->number = 0;

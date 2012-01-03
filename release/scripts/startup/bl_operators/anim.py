@@ -38,7 +38,7 @@ class ANIM_OT_keying_set_export(Operator):
     bl_label = "Export Keying Set..."
 
     filepath = StringProperty(
-            name="File Path",
+            subtype='FILE_PATH',
             )
     filter_folder = BoolProperty(
             name="Filter folders",
@@ -239,7 +239,7 @@ class ClearUselessActions(Operator):
 
     @classmethod
     def poll(cls, context):
-        return len(bpy.data.actions) != 0
+        return bool(bpy.data.actions)
 
     def execute(self, context):
         removed = 0

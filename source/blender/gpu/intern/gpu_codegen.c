@@ -59,6 +59,10 @@
 extern char datatoc_gpu_shader_material_glsl[];
 extern char datatoc_gpu_shader_vertex_glsl[];
 
+
+static char *glsl_material_library = NULL;
+
+
 /* structs and defines */
 
 static const char* GPU_DATATYPE_STR[17] = {"", "float", "vec2", "vec3", "vec4",
@@ -229,7 +233,7 @@ GPUFunction *GPU_lookup_function(const char *name)
 {
 	if(!FUNCTION_HASH) {
 		FUNCTION_HASH = BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp, "GPU_lookup_function gh");
-		gpu_parse_functions_string(FUNCTION_HASH, datatoc_gpu_shader_material_glsl);
+		gpu_parse_functions_string(FUNCTION_HASH, glsl_material_library);
 		/*FUNCTION_PROTOTYPES = gpu_generate_function_prototyps(FUNCTION_HASH);
 		FUNCTION_LIB = GPU_shader_create_lib(datatoc_gpu_shader_material_glsl);*/
 	}
@@ -237,7 +241,12 @@ GPUFunction *GPU_lookup_function(const char *name)
 	return (GPUFunction*)BLI_ghash_lookup(FUNCTION_HASH, (void *)name);
 }
 
-void GPU_extensions_exit(void)
+void GPU_codegen_init(void)
+{
+	GPU_code_generate_glsl_lib();
+}
+
+void GPU_codegen_exit(void)
 {
 	extern Material defmaterial;    // render module abuse...
 
@@ -248,6 +257,12 @@ void GPU_extensions_exit(void)
 		BLI_ghash_free(FUNCTION_HASH, NULL, (GHashValFreeFP)MEM_freeN);
 		FUNCTION_HASH = NULL;
 	}
+
+	if(glsl_material_library) {
+		MEM_freeN(glsl_material_library);
+		glsl_material_library = NULL;
+	}
+
 	/*if(FUNCTION_PROTOTYPES) {
 		MEM_freeN(FUNCTION_PROTOTYPES);
 		FUNCTION_PROTOTYPES = NULL;
@@ -344,6 +359,8 @@ const char *GPU_builtin_name(GPUBuiltin builtin)
 		return "varnormal";
 	else if(builtin == GPU_OBCOLOR)
 		return "unfobcolor";
+	else if(builtin == GPU_AUTO_BUMPSCALE)
+		return "unfobautobumpscale";
 	else
 		return "";
 }
@@ -529,12 +546,8 @@ static void codegen_call_functions(DynStr *ds, ListBase *nodes, GPUOutput *final
 					BLI_dynstr_appendf(ds, ", gl_TexCoord[%d].st", input->texid);
 			}
 			else if (input->source == GPU_SOURCE_TEX_PIXEL) {
-				if (input->link && input->link->output)
-					codegen_convert_datatype(ds, input->link->output->type, input->type,
-						"tmp", input->link->output->id);
-				else
-					codegen_convert_datatype(ds, input->link->output->type, input->type,
-						"tex", input->texid);
+				codegen_convert_datatype(ds, input->link->output->type, input->type,
+					"tmp", input->link->output->id);
 			}
 			else if(input->source == GPU_SOURCE_BUILTIN)
 				BLI_dynstr_appendf(ds, "%s", GPU_builtin_name(input->builtin));
@@ -637,6 +650,37 @@ static char *code_generate_vertex(ListBase *nodes)
 
 	return code;
 }
+
+int GPU_bicubic_bump_support(void)
+{
+	return GLEW_ARB_texture_gather && GLEW_ARB_texture_query_lod && GLEW_VERSION_3_0;
+}
+
+void GPU_code_generate_glsl_lib(void)
+{
+	DynStr *ds;
+
+	/* only initialize the library once */
+	if(glsl_material_library)
+		return;
+
+	ds = BLI_dynstr_new();
+
+	if(GPU_bicubic_bump_support()){
+		BLI_dynstr_append(ds, "/* These are needed for high quality bump mapping */\n"
+				"#version 130\n"
+				"#extension GL_ARB_texture_gather: enable\n"
+				"#extension GL_ARB_texture_query_lod: enable\n"
+				"#define BUMP_BICUBIC\n");
+	}
+	BLI_dynstr_append(ds, datatoc_gpu_shader_material_glsl);
+
+
+	glsl_material_library = BLI_dynstr_get_cstring(ds);
+
+	BLI_dynstr_free(ds);
+}
+
 
 /* GPU pass binding/unbinding */
 
@@ -1316,7 +1360,7 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttri
 	/* generate code and compile with opengl */
 	fragmentcode = code_generate_fragment(nodes, outlink->output, name);
 	vertexcode = code_generate_vertex(nodes);
-	shader = GPU_shader_create(vertexcode, fragmentcode, datatoc_gpu_shader_material_glsl); /*FUNCTION_LIB);*/
+	shader = GPU_shader_create(vertexcode, fragmentcode, glsl_material_library); /*FUNCTION_LIB);*/
 
 	/* failed? */
 	if (!shader) {
@@ -1333,7 +1377,7 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttri
 	pass->shader = shader;
 	pass->fragmentcode = fragmentcode;
 	pass->vertexcode = vertexcode;
-	pass->libcode = datatoc_gpu_shader_material_glsl;
+	pass->libcode = glsl_material_library;
 
 	/* extract dynamic inputs and throw away nodes */
 	GPU_nodes_extract_dynamic_inputs(pass, nodes);

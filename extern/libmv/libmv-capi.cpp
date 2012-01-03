@@ -36,6 +36,8 @@
 #include "Math/v3d_optimization.h"
 
 #include "libmv/tracking/esm_region_tracker.h"
+#include "libmv/tracking/brute_region_tracker.h"
+#include "libmv/tracking/hybrid_region_tracker.h"
 #include "libmv/tracking/klt_region_tracker.h"
 #include "libmv/tracking/trklt_region_tracker.h"
 #include "libmv/tracking/lmicklt_region_tracker.h"
@@ -109,18 +111,35 @@ void libmv_setLoggingVerbosity(int verbosity)
 
 /* ************ RegionTracker ************ */
 
-libmv_RegionTracker *libmv_regionTrackerNew(int max_iterations, int pyramid_level, int half_window_size)
+libmv_RegionTracker *libmv_pyramidRegionTrackerNew(int max_iterations, int pyramid_level, int half_window_size, double minimum_correlation)
 {
-	libmv::EsmRegionTracker *klt_region_tracker = new libmv::EsmRegionTracker;
+	libmv::EsmRegionTracker *esm_region_tracker = new libmv::EsmRegionTracker;
+	esm_region_tracker->half_window_size = half_window_size;
+	esm_region_tracker->max_iterations = max_iterations;
+	esm_region_tracker->min_determinant = 1e-4;
+	esm_region_tracker->minimum_correlation = minimum_correlation;
 
-	klt_region_tracker->half_window_size = half_window_size;
-	klt_region_tracker->max_iterations = max_iterations;
-	klt_region_tracker->min_determinant = 1e-4;
+	libmv::PyramidRegionTracker *pyramid_region_tracker =
+		new libmv::PyramidRegionTracker(esm_region_tracker, pyramid_level);
 
-	libmv::PyramidRegionTracker *region_tracker =
-		new libmv::PyramidRegionTracker(klt_region_tracker, pyramid_level);
+	return (libmv_RegionTracker *)pyramid_region_tracker;
+}
 
-	return (libmv_RegionTracker *)region_tracker;
+libmv_RegionTracker *libmv_hybridRegionTrackerNew(int max_iterations, int half_window_size, double minimum_correlation)
+{
+	libmv::EsmRegionTracker *esm_region_tracker = new libmv::EsmRegionTracker;
+	esm_region_tracker->half_window_size = half_window_size;
+	esm_region_tracker->max_iterations = max_iterations;
+	esm_region_tracker->min_determinant = 1e-4;
+	esm_region_tracker->minimum_correlation = minimum_correlation;
+
+	libmv::BruteRegionTracker *brute_region_tracker = new libmv::BruteRegionTracker;
+	brute_region_tracker->half_window_size = half_window_size;
+
+	libmv::HybridRegionTracker *hybrid_region_tracker =
+		new libmv::HybridRegionTracker(brute_region_tracker, esm_region_tracker);
+
+	return (libmv_RegionTracker *)hybrid_region_tracker;
 }
 
 static void floatBufToImage(const float *buf, int width, int height, libmv::FloatImage *image)
@@ -477,7 +496,7 @@ double libmv_reporojectionErrorForTrack(libmv_Reconstruction *libmv_reconstructi
 {
 	libmv::EuclideanReconstruction *reconstruction = &libmv_reconstruction->reconstruction;
 	libmv::CameraIntrinsics *intrinsics = &libmv_reconstruction->intrinsics;
-	libmv::vector<libmv::Marker> markers =  libmv_reconstruction->tracks.MarkersForTrack(track);
+	libmv::vector<libmv::Marker> markers = libmv_reconstruction->tracks.MarkersForTrack(track);
 
 	int num_reprojected = 0;
 	double total_error = 0.0;
@@ -661,7 +680,7 @@ void libmv_destroyFeatures(struct libmv_Features *libmv_features)
 /* ************ camera intrinsics ************ */
 
 struct libmv_CameraIntrinsics *libmv_ReconstructionExtractIntrinsics(struct libmv_Reconstruction *libmv_Reconstruction) {
-  return (struct libmv_CameraIntrinsics *)&libmv_Reconstruction->intrinsics;
+	return (struct libmv_CameraIntrinsics *)&libmv_Reconstruction->intrinsics;
 }
 
 struct libmv_CameraIntrinsics *libmv_CameraIntrinsicsNew(double focal_length, double principal_x, double principal_y,

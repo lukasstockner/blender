@@ -161,6 +161,8 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(CONSTRAINT_OT_limitdistance_reset);
 	WM_operatortype_append(CONSTRAINT_OT_childof_set_inverse);
 	WM_operatortype_append(CONSTRAINT_OT_childof_clear_inverse);
+	WM_operatortype_append(CONSTRAINT_OT_objectsolver_set_inverse);
+	WM_operatortype_append(CONSTRAINT_OT_objectsolver_clear_inverse);
 
 	WM_operatortype_append(OBJECT_OT_vertex_group_add);
 	WM_operatortype_append(OBJECT_OT_vertex_group_remove);
@@ -189,6 +191,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_game_property_copy);
 	WM_operatortype_append(OBJECT_OT_game_property_clear);
 	WM_operatortype_append(OBJECT_OT_logic_bricks_copy);
+	WM_operatortype_append(OBJECT_OT_game_physics_copy);
 
 	WM_operatortype_append(OBJECT_OT_shape_key_add);
 	WM_operatortype_append(OBJECT_OT_shape_key_remove);
@@ -338,9 +341,9 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "OBJECT_OT_move_to_layer", MKEY, KM_PRESS, 0, 0);
 	
 	WM_keymap_add_item(keymap, "OBJECT_OT_delete", XKEY, KM_PRESS, 0, 0);
-	RNA_boolean_set(WM_keymap_add_item(keymap, "OBJECT_OT_delete", XKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "global", TRUE);
+	RNA_boolean_set(WM_keymap_add_item(keymap, "OBJECT_OT_delete", XKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "use_global", TRUE);
 	WM_keymap_add_item(keymap, "OBJECT_OT_delete", DELKEY, KM_PRESS, 0, 0);
-	RNA_boolean_set(WM_keymap_add_item(keymap, "OBJECT_OT_delete", DELKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "global", TRUE);
+	RNA_boolean_set(WM_keymap_add_item(keymap, "OBJECT_OT_delete", DELKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "use_global", TRUE);
 
 	WM_keymap_add_menu(keymap, "INFO_MT_add", AKEY, KM_PRESS, KM_SHIFT, 0);
 

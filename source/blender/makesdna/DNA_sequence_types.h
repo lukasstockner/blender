@@ -24,14 +24,16 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_SEQUENCE_TYPES_H
-#define DNA_SEQUENCE_TYPES_H
 /** \file DNA_sequence_types.h
  *  \ingroup DNA
  *  \since mar-2001
  *  \author nzc
  */
 
+#ifndef DNA_SEQUENCE_TYPES_H
+#define DNA_SEQUENCE_TYPES_H
+
+#include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 
@@ -142,7 +144,7 @@ typedef struct Sequence {
 
 	Strip *strip;
 
-	struct Ipo *ipo;	// xxx depreceated... old animation system
+	struct Ipo *ipo  DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
 	struct Scene *scene;
 	struct Object *scene_camera; /* override scene camera */
 
@@ -308,7 +310,8 @@ typedef struct SpeedControlVars {
 #define SEQ_PROXY_TC_RECORD_RUN                 1
 #define SEQ_PROXY_TC_FREE_RUN                   2
 #define SEQ_PROXY_TC_INTERP_REC_DATE_FREE_RUN   4
-#define SEQ_PROXY_TC_ALL                        7
+#define SEQ_PROXY_TC_RECORD_RUN_NO_GAPS         8
+#define SEQ_PROXY_TC_ALL                        15
 
 /* seq->type WATCH IT: SEQ_EFFECT BIT is used to determine if this is an effect strip!!! */
 #define SEQ_IMAGE		0
@@ -345,9 +348,9 @@ typedef struct SpeedControlVars {
 
 #define SEQ_BLEND_REPLACE      0
 /* all other BLEND_MODEs are simple SEQ_EFFECT ids and therefore identical
-   to the table above. (Only those effects that handle _exactly_ two inputs,
-   otherwise, you can't really blend, right :) !)
-*/
+ * to the table above. (Only those effects that handle _exactly_ two inputs,
+ * otherwise, you can't really blend, right :) !)
+ */
 
 
 #define SEQ_HAS_PATH(_seq) (ELEM5((_seq)->type, SEQ_MOVIE, SEQ_IMAGE, SEQ_SOUND, SEQ_RAM_SOUND, SEQ_HD_SOUND))

@@ -413,8 +413,10 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	static EnumPropertyItem prop_bump_method_items[] = {
 		{0, "BUMP_ORIGINAL", 0, "Original", ""},
 		{MTEX_COMPAT_BUMP, "BUMP_COMPATIBLE", 0, "Compatible", ""},
-		{MTEX_3TAP_BUMP, "BUMP_DEFAULT", 0, "Default", ""},
-		{MTEX_5TAP_BUMP, "BUMP_BEST_QUALITY", 0, "Best Quality", ""},
+		{MTEX_3TAP_BUMP, "BUMP_LOW_QUALITY", 0, "Low Quality", "Use 3 tap filtering"},
+		{MTEX_5TAP_BUMP, "BUMP_MEDIUM_QUALITY", 0, "Medium Quality", "Use 5 tap filtering"},
+		{MTEX_BICUBIC_BUMP, "BUMP_BEST_QUALITY", 0, "Best Quality", "Use bicubic filtering (requires OpenGL 3.0+, "
+		                                            "it will fall back on medium setting for other systems)"},
 		{0, NULL, 0, NULL, NULL}};
 
 	static EnumPropertyItem prop_bump_space_items[] = {
@@ -480,12 +482,12 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	
 	prop= RNA_def_property(srna, "use_map_diffuse", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mapto", MAP_REF);
-	RNA_def_property_ui_text(prop, "Diffuse", "The texture to affects the value of the materials diffuse reflectivity");
+	RNA_def_property_ui_text(prop, "Diffuse", "The texture affects the value of diffuse reflectivity");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 	
 	prop= RNA_def_property(srna, "use_map_specular", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mapto", MAP_SPEC);
-	RNA_def_property_ui_text(prop, "Specular", "The texture to affects the value of specular reflectivity");
+	RNA_def_property_ui_text(prop, "Specular", "The texture affects the value of specular reflectivity");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 	
 	prop= RNA_def_property(srna, "use_map_ambient", PROP_BOOLEAN, PROP_NONE);

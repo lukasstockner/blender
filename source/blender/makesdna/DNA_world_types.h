@@ -24,13 +24,15 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_WORLD_TYPES_H
-#define DNA_WORLD_TYPES_H
 
 /** \file DNA_world_types.h
  *  \ingroup DNA
  */
 
+#ifndef DNA_WORLD_TYPES_H
+#define DNA_WORLD_TYPES_H
+
+#include "DNA_defs.h"
 #include "DNA_ID.h"
 
 struct AnimData;
@@ -96,7 +98,7 @@ typedef struct World {
 	
 	float misi, miststa, mistdist, misthi;
 	
-	float starr, starg, starb, stark; /* Deprecated */
+	float starr  DNA_DEPRECATED, starg  DNA_DEPRECATED, starb  DNA_DEPRECATED, stark  DNA_DEPRECATED; /* Deprecated */
 	float starsize, starmindist;
 	float stardist, starcolnoise;
 	
@@ -119,7 +121,7 @@ typedef struct World {
 	float *aosphere, *aotables;
 	
 	
-	struct Ipo *ipo;			// XXX depreceated... old animation system
+	struct Ipo *ipo  DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
 	struct MTex *mtex[18];		/* MAX_MTEX */
 	short pr_texture, use_nodes, pad[2];
 
@@ -180,6 +182,7 @@ typedef struct World {
 #define TEXCO_ANGMAP	64
 #define TEXCO_H_SPHEREMAP	256
 #define TEXCO_H_TUBEMAP	1024
+#define TEXCO_EQUIRECTMAP 2048
 
 /* mapto */
 #define WOMAP_BLEND		1

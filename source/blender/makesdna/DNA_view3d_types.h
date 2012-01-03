@@ -24,12 +24,13 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_VIEW3D_TYPES_H
-#define DNA_VIEW3D_TYPES_H
 
 /** \file DNA_view3d_types.h
  *  \ingroup DNA
  */
+
+#ifndef DNA_VIEW3D_TYPES_H
+#define DNA_VIEW3D_TYPES_H
 
 struct ViewDepths;
 struct Object;
@@ -55,6 +56,7 @@ struct wmTimer;
 #define far clipend
 #endif
 
+#include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_image_types.h"
 #include "DNA_movieclip_types.h"
@@ -150,8 +152,9 @@ typedef struct View3D {
 	int spacetype;
 	float blockscale;
 	short blockhandler[8];
-	
-	float viewquat[4], dist;	/* XXX depricated */
+
+	float viewquat[4]  DNA_DEPRECATED;
+	float dist         DNA_DEPRECATED;
 
 	float bundle_size;			/* size of bundles in reconstructed data */
 	short bundle_drawtype;		/* display style for bundle */
@@ -160,13 +163,13 @@ typedef struct View3D {
 	
 	unsigned int lay_used; /* used while drawing */
 	
-	short persp;	/* XXX depricated */
-	short view;	/* XXX depricated */
+	short persp  DNA_DEPRECATED;
+	short view   DNA_DEPRECATED;
 	
 	struct Object *camera, *ob_centre;
 
 	struct ListBase bgpicbase;
-	struct BGpic *bgpic; /* deprecated, use bgpicbase, only kept for do_versions(...) */
+	struct BGpic *bgpic  DNA_DEPRECATED; /* deprecated, use bgpicbase, only kept for do_versions(...) */
 
 	struct View3D *localvd; /* allocated backup of its self while in localview */
 	
@@ -185,7 +188,7 @@ typedef struct View3D {
 	
 	float lens, grid;
 	float near, far;
-	float ofs[3];			/* XXX deprecated */
+	float ofs[3]  DNA_DEPRECATED;			/* XXX deprecated */
 	float cursor[3];
 
 	short modeselect;
@@ -208,8 +211,8 @@ typedef struct View3D {
 
 	void *properties_storage;	/* Nkey panel stores stuff here (runtime only!) */
 
-	/* XXX depricated? */
-	struct bGPdata *gpd;		/* Grease-Pencil Data (annotation layers) */
+	/* XXX deprecated? */
+	struct bGPdata *gpd  DNA_DEPRECATED;		/* Grease-Pencil Data (annotation layers) */
 
 } View3D;
 

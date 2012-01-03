@@ -171,7 +171,7 @@ static void clipMirrorModifier(TransInfo *t, Object *ob)
 						float obinv[4][4];
 						
 						invert_m4_m4(obinv, mmd->mirror_ob->obmat);
-						mul_m4_m4m4(mtx, ob->obmat, obinv);
+						mult_m4_m4m4(mtx, obinv, ob->obmat);
 						invert_m4_m4(imtx, mtx);
 					}
 					
@@ -641,10 +641,11 @@ static void recalcData_clip(TransInfo *t)
 {
 	SpaceClip *sc= t->sa->spacedata.first;
 	MovieClip *clip= ED_space_clip(sc);
+	ListBase *tracksbase= BKE_tracking_get_tracks(&clip->tracking);
 	MovieTrackingTrack *track;
 	
 	if(t->state == TRANS_CANCEL) {
-		track= clip->tracking.tracks.first;
+		track= tracksbase->first;
 		while(track) {
 			if(TRACK_VIEW_SELECTED(sc, track)) {
 				MovieTrackingMarker *marker= BKE_tracking_ensure_marker(track, sc->user.framenr);
@@ -658,7 +659,7 @@ static void recalcData_clip(TransInfo *t)
 	
 	flushTransTracking(t);
 	
-	track= clip->tracking.tracks.first;
+	track= tracksbase->first;
 	while(track) {
 		if(TRACK_VIEW_SELECTED(sc, track)) {
 			if (t->mode == TFM_TRANSLATION) {
@@ -1552,7 +1553,7 @@ void calculateCenter(TransInfo *t)
 			if(t->obedit->type == OB_MESH) {
 				EditSelection ese;
 				EditMesh *em = BKE_mesh_get_editmesh(t->obedit->data);
-			
+
 				if (EM_get_actSelection(em, &ese)) {
 					EM_editselection_center(t->center, &ese);
 					calculateCenter2D(t);
@@ -1570,7 +1571,7 @@ void calculateCenter(TransInfo *t)
 				}
 			}
 		} /* END EDIT MODE ACTIVE ELEMENT */
-		
+
 		calculateCenterMedian(t);
 		if((t->flag & (T_EDIT|T_POSE))==0)
 		{

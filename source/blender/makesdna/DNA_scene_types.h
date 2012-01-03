@@ -24,12 +24,15 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_SCENE_TYPES_H
-#define DNA_SCENE_TYPES_H
 
 /** \file DNA_scene_types.h
  *  \ingroup DNA
  */
+
+#ifndef DNA_SCENE_TYPES_H
+#define DNA_SCENE_TYPES_H
+
+#include "DNA_defs.h"
 
 // XXX, temp feature - campbell
 #define DURIAN_CAMERA_SWITCH
@@ -330,12 +333,18 @@ typedef struct RenderData {
 
 	/** For UR edge rendering: give the edges this color */
 	float edgeR, edgeG, edgeB;
-	
-	short fullscreen, xplay, yplay, freqplay;	/* standalone player */  //  XXX deprecated since 2.5
-	short depth, attrib;			/* standalone player */  //  XXX deprecated since 2.5
+
+
+	/* standalone player */  //  XXX deprecated since 2.5
+	short fullscreen  DNA_DEPRECATED, xplay  DNA_DEPRECATED, yplay  DNA_DEPRECATED;
+	short freqplay  DNA_DEPRECATED;
+	/* standalone player */  //  XXX deprecated since 2.5
+	short depth  DNA_DEPRECATED, attrib  DNA_DEPRECATED;
+
+
 	int frame_step;		/* frames to jump during render/playback */
 
-	short stereomode;	/* standalone player stereo settings */  //  XXX deprecated since 2.5
+	short stereomode  DNA_DEPRECATED;	/* standalone player stereo settings */  //  XXX deprecated since 2.5
 	
 	short dimensionspreset;		/* for the dimensions presets menu */
 
@@ -360,7 +369,7 @@ typedef struct RenderData {
 	 */
 	short yparts;
 
-	short planes, imtype, subimtype, quality;                   /*deprecated!*/
+	short planes  DNA_DEPRECATED, imtype  DNA_DEPRECATED, subimtype  DNA_DEPRECATED, quality  DNA_DEPRECATED; /*deprecated!*/
 	
 	/**
 	 * Render to image editor, fullscreen or to new window.
@@ -387,8 +396,7 @@ typedef struct RenderData {
 	 */
 	short raytrace_structure;
 
-	/* renderer (deprecated) */
-	short renderer;
+	short pad1;
 
 	/* octree resolution */
 	short ocres;
@@ -434,7 +442,7 @@ typedef struct RenderData {
 	/* color management settings - color profiles, gamma correction, etc */
 	int color_mgt_flag;
 	
-	/** post-production settings. Depricated, but here for upwards compat (initialized to 1) */	 
+	/** post-production settings. deprecated, but here for upwards compat (initialized to 1) */
 	float postgamma, posthue, postsat;	 
 	
 	 /* Dither noise intensity */
@@ -473,19 +481,19 @@ typedef struct RenderData {
 	float simplify_aosss;
 
 	/* cineon */
-	short cineonwhite, cineonblack;                              /*deprecated*/
-	float cineongamma;                                           /*deprecated*/
+	short cineonwhite  DNA_DEPRECATED, cineonblack  DNA_DEPRECATED;  /*deprecated*/
+	float cineongamma  DNA_DEPRECATED;  /*deprecated*/
 	
 	/* jpeg2000 */
-	short jp2_preset, jp2_depth;                                 /*deprecated*/
+	short jp2_preset  DNA_DEPRECATED, jp2_depth  DNA_DEPRECATED;  /*deprecated*/
 	int rpad3;
 
 	/* Dome variables */ //  XXX deprecated since 2.5
-	short domeres, domemode;	//  XXX deprecated since 2.5
-	short domeangle, dometilt;	//  XXX deprecated since 2.5
-	float domeresbuf;	//  XXX deprecated since 2.5
-	float pad2;			//  XXX deprecated since 2.5
-	struct Text *dometext;	//  XXX deprecated since 2.5
+	short domeres  DNA_DEPRECATED, domemode  DNA_DEPRECATED;	//  XXX deprecated since 2.5
+	short domeangle  DNA_DEPRECATED, dometilt  DNA_DEPRECATED;	//  XXX deprecated since 2.5
+	float domeresbuf  DNA_DEPRECATED;	//  XXX deprecated since 2.5
+	float pad2;
+	struct Text *dometext  DNA_DEPRECATED;	//  XXX deprecated since 2.5
 
 	/* render engine */
 	char engine[32];
@@ -575,7 +583,7 @@ typedef struct GameData {
 	short mode, matmode;
 	short occlusionRes;		/* resolution of occlusion Z buffer in pixel */
 	short physicsEngine;
-	short pad[2];
+	short exitkey, pad;
 	short ticrate, maxlogicstep, physubstep, maxphystep;
 	short obstacleSimulation, pad1;
 	float levelHeight;
@@ -744,7 +752,7 @@ typedef struct VPaint {
 
 #define VP_NORMALS	8
 #define VP_SPRAY	16
-// #define VP_MIRROR_X	32 // depricated in 2.5x use (me->editflag & ME_EDIT_MIRROR_X)
+// #define VP_MIRROR_X	32 // deprecated in 2.5x use (me->editflag & ME_EDIT_MIRROR_X)
 #define VP_ONLYVGROUP	128
 
 
@@ -914,8 +922,6 @@ typedef struct Scene {
 	unsigned int lay;			/* bitflags for layer visibility */
 	int layact;		/* active layer */
 	unsigned int lay_updated;       /* runtime flag, has layer ever been updated since load? */
-	unsigned int customdata_mask;	/* XXX. runtime flag for drawing, actually belongs in the window, only used by object_handle_update() */
-	unsigned int customdata_mask_modal; /* XXX. same as above but for temp operator use (gl renders) */
 	
 	short flag;								/* various settings */
 	
@@ -956,7 +962,7 @@ typedef struct Scene {
 	ListBase keyingsets;			/* KeyingSets for the given frame */
 	
 	/* Game Settings */
-	struct GameFraming framing; // XXX  deprecated since 2.5
+	struct GameFraming framing  DNA_DEPRECATED; // XXX  deprecated since 2.5
 	struct GameData gm;
 
 	/* Units */
@@ -970,6 +976,9 @@ typedef struct Scene {
 
 	/* Movie Tracking */
 	struct MovieClip *clip;			/* active movie clip */
+
+	uint64_t customdata_mask;	/* XXX. runtime flag for drawing, actually belongs in the window, only used by object_handle_update() */
+	uint64_t customdata_mask_modal; /* XXX. same as above but for temp operator use (gl renders) */
 } Scene;
 
 
@@ -1034,10 +1043,6 @@ typedef struct Scene {
 #define R_FILTER_MITCH	6
 #define R_FILTER_FAST_GAUSS	7 /* note, this is only used for nodes at the moment */
 
-/* yafray: renderer flag (not only exclusive to yafray) */
-#define R_INTERN	0
-#define R_YAFRAY	1
-
 /* raytrace structure */
 #define R_RAYSTRUCTURE_AUTO				0
 #define R_RAYSTRUCTURE_OCTREE			1
@@ -1085,7 +1090,9 @@ typedef struct Scene {
 #define R_STAMP_SEQSTRIP	0x0200
 #define R_STAMP_RENDERTIME	0x0400
 #define R_STAMP_CAMERALENS	0x0800
-#define R_STAMP_ALL		(R_STAMP_TIME|R_STAMP_FRAME|R_STAMP_DATE|R_STAMP_CAMERA|R_STAMP_SCENE|R_STAMP_NOTE|R_STAMP_MARKER|R_STAMP_FILENAME|R_STAMP_SEQSTRIP|R_STAMP_RENDERTIME|R_STAMP_CAMERALENS)
+#define R_STAMP_ALL (R_STAMP_TIME|R_STAMP_FRAME|R_STAMP_DATE|R_STAMP_CAMERA|R_STAMP_SCENE| \
+                     R_STAMP_NOTE|R_STAMP_MARKER|R_STAMP_FILENAME|R_STAMP_SEQSTRIP|        \
+                     R_STAMP_RENDERTIME|R_STAMP_CAMERALENS)
 
 /* alphamode */
 #define R_ADDSKY		0
@@ -1093,7 +1100,8 @@ typedef struct Scene {
 #define R_ALPHAKEY		2
 
 /* color_mgt_flag */
-#define R_COLOR_MANAGEMENT	1
+#define R_COLOR_MANAGEMENT              (1 << 0)
+#define R_COLOR_MANAGEMENT_PREDIVIDE    (1 << 1)
 
 /* subimtype, flag options for imtype */
 #define R_OPENEXR_HALF    1                                      /*deprecated*/
@@ -1143,12 +1151,31 @@ typedef struct Scene {
 #define MINAFRAMEF	-300000.0f
 
 /* depricate this! */
-#define TESTBASE(v3d, base)	( ((base)->flag & SELECT) && ((base)->lay & v3d->lay) && (((base)->object->restrictflag & OB_RESTRICT_VIEW)==0) )
-#define TESTBASELIB(v3d, base)	( ((base)->flag & SELECT) && ((base)->lay & v3d->lay) && ((base)->object->id.lib==NULL) && (((base)->object->restrictflag & OB_RESTRICT_VIEW)==0))
-#define TESTBASELIB_BGMODE(v3d, scene, base)   ( ((base)->flag & SELECT) && ((base)->lay & (v3d ? v3d->lay : scene->lay)) && ((base)->object->id.lib==NULL) && (((base)->object->restrictflag & OB_RESTRICT_VIEW)==0))
-#define BASE_EDITABLE_BGMODE(v3d, scene, base)   (((base)->lay & (v3d ? v3d->lay : scene->lay)) && ((base)->object->id.lib==NULL) && (((base)->object->restrictflag & OB_RESTRICT_VIEW)==0))
-#define BASE_SELECTABLE(v3d, base)	 ((base->lay & v3d->lay) && (base->object->restrictflag & (OB_RESTRICT_SELECT|OB_RESTRICT_VIEW))==0)
-#define BASE_VISIBLE(v3d, base)	 ((base->lay & v3d->lay) && (base->object->restrictflag & OB_RESTRICT_VIEW)==0)
+#define TESTBASE(v3d, base)  (                                                \
+	((base)->flag & SELECT) &&                                                \
+	((base)->lay & v3d->lay) &&                                               \
+	(((base)->object->restrictflag & OB_RESTRICT_VIEW)==0)  )
+#define TESTBASELIB(v3d, base)  (                                             \
+	((base)->flag & SELECT) &&                                                \
+	((base)->lay & v3d->lay) &&                                               \
+	((base)->object->id.lib==NULL) &&                                         \
+	(((base)->object->restrictflag & OB_RESTRICT_VIEW)==0)  )
+#define TESTBASELIB_BGMODE(v3d, scene, base)  (                               \
+	((base)->flag & SELECT) &&                                                \
+	((base)->lay & (v3d ? v3d->lay : scene->lay)) &&                          \
+	((base)->object->id.lib==NULL) &&                                         \
+	(((base)->object->restrictflag & OB_RESTRICT_VIEW)==0)  )
+#define BASE_EDITABLE_BGMODE(v3d, scene, base)  (                             \
+	((base)->lay & (v3d ? v3d->lay : scene->lay)) &&                          \
+	((base)->object->id.lib==NULL) &&                                         \
+	(((base)->object->restrictflag & OB_RESTRICT_VIEW)==0))
+#define BASE_SELECTABLE(v3d, base)  (                                         \
+	(base->lay & v3d->lay) &&                                                 \
+	(base->object->restrictflag & (OB_RESTRICT_SELECT|OB_RESTRICT_VIEW))==0  )
+#define BASE_VISIBLE(v3d, base)  (                                            \
+	(base->lay & v3d->lay) &&                                                 \
+	(base->object->restrictflag & OB_RESTRICT_VIEW)==0  )
+
 #define FIRSTBASE		scene->base.first
 #define LASTBASE		scene->base.last
 #define BASACT			(scene->basact)

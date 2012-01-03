@@ -73,6 +73,7 @@
 #include "ED_keyframing.h"
 #include "ED_mesh.h"
 #include "ED_screen.h"
+#include "ED_object.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -207,7 +208,7 @@ static int pose_calculate_paths_exec (bContext *C, wmOperator *op)
 	
 	/* since this call may also be used from the buttons window, we need to check for where to get the object */
 	if (sa->spacetype == SPACE_BUTS) 
-		ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+		ob= ED_object_context(C);
 	else
 		ob= object_pose_armature_get(CTX_data_active_object(C));
 		
@@ -283,7 +284,7 @@ static int pose_clear_paths_exec (bContext *C, wmOperator *UNUSED(op))
 	
 	/* since this call may also be used from the buttons window, we need to check for where to get the object */
 	if (sa->spacetype == SPACE_BUTS) 
-		ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+		ob= ED_object_context(C);
 	else
 		ob= object_pose_armature_get(CTX_data_active_object(C));
 		
@@ -989,7 +990,7 @@ static void set_pose_keys (Object *ob)
 static bPoseChannel *pose_bone_do_paste (Object *ob, bPoseChannel *chan, short selOnly, short flip)
 {
 	bPoseChannel *pchan;
-	char name[32];
+	char name[MAXBONENAME];
 	short paste_ok;
 	
 	/* get the name - if flipping, we must flip this first */
@@ -1221,7 +1222,7 @@ static int pose_group_add_exec (bContext *C, wmOperator *UNUSED(op))
 	
 	/* since this call may also be used from the buttons window, we need to check for where to get the object */
 	if (sa->spacetype == SPACE_BUTS) 
-		ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+		ob= ED_object_context(C);
 	else
 		ob= object_pose_armature_get(CTX_data_active_object(C));
 		
@@ -1261,7 +1262,7 @@ static int pose_group_remove_exec (bContext *C, wmOperator *UNUSED(op))
 	
 	/* since this call may also be used from the buttons window, we need to check for where to get the object */
 	if (sa->spacetype == SPACE_BUTS) 
-		ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+		ob= ED_object_context(C);
 	else
 		ob= object_pose_armature_get(CTX_data_active_object(C));
 	
@@ -1309,7 +1310,7 @@ static int pose_groups_menu_invoke (bContext *C, wmOperator *op, wmEvent *UNUSED
 	
 	/* since this call may also be used from the buttons window, we need to check for where to get the object */
 	if (sa->spacetype == SPACE_BUTS) 
-		ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+		ob= ED_object_context(C);
 	else
 		ob= object_pose_armature_get(CTX_data_active_object(C));
 	
@@ -1358,7 +1359,7 @@ static int pose_group_assign_exec (bContext *C, wmOperator *op)
 	
 	/* since this call may also be used from the buttons window, we need to check for where to get the object */
 	if (sa->spacetype == SPACE_BUTS) 
-		ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+		ob= ED_object_context(C);
 	else
 		ob= object_pose_armature_get(CTX_data_active_object(C));
 	
@@ -1421,7 +1422,7 @@ static int pose_group_unassign_exec (bContext *C, wmOperator *UNUSED(op))
 	
 	/* since this call may also be used from the buttons window, we need to check for where to get the object */
 	if (sa->spacetype == SPACE_BUTS) 
-		ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+		ob= ED_object_context(C);
 	else
 		ob= object_pose_armature_get(CTX_data_active_object(C));
 	
@@ -1466,7 +1467,7 @@ void POSE_OT_group_unassign (wmOperatorType *ot)
 
 static int group_move_exec(bContext *C, wmOperator *op)
 {
-	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+	Object *ob = ED_object_context(C);
 	bPose *pose= (ob) ? ob->pose : NULL;
 	bPoseChannel *pchan;
 	bActionGroup *grp;
@@ -1564,7 +1565,7 @@ static int compare_agroup(const void *sgrp_a_ptr, const void *sgrp_b_ptr)
 
 static int group_sort_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+	Object *ob = ED_object_context(C);
 	bPose *pose= (ob) ? ob->pose : NULL;
 	bPoseChannel *pchan;
 	tSortActionGroup *agrp_array;
@@ -1656,7 +1657,7 @@ static int pose_group_select_exec (bContext *C, wmOperator *UNUSED(op))
 	
 	/* since this call may also be used from the buttons window, we need to check for where to get the object */
 	if (sa->spacetype == SPACE_BUTS) 
-		ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+		ob= ED_object_context(C);
 	else
 		ob= object_pose_armature_get(CTX_data_active_object(C));
 	
@@ -1694,7 +1695,7 @@ static int pose_group_deselect_exec (bContext *C, wmOperator *UNUSED(op))
 	
 	/* since this call may also be used from the buttons window, we need to check for where to get the object */
 	if (sa->spacetype == SPACE_BUTS) 
-		ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+		ob= ED_object_context(C);
 	else
 		ob= object_pose_armature_get(CTX_data_active_object(C));
 	
@@ -1740,7 +1741,7 @@ static int pose_flip_names_exec (bContext *C, wmOperator *UNUSED(op))
 	/* loop through selected bones, auto-naming them */
 	CTX_DATA_BEGIN(C, bPoseChannel*, pchan, selected_pose_bones)
 	{
-		char newname[32];
+		char newname[MAXBONENAME];
 		flip_side_name(newname, pchan->name, TRUE);
 		ED_armature_bone_rename(arm, pchan->name, newname);
 	}

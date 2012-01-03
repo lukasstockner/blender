@@ -160,18 +160,17 @@ class CyclesRender_PT_layers(CyclesButtonsPanel, Panel):
         scene = context.scene
         rd = scene.render
 
-        # row = layout.row()
-        # row.template_list(rd, "layers", rd.layers, "active_index", rows=2)
+        row = layout.row()
+        row.template_list(rd, "layers", rd.layers, "active_index", rows=2)
 
-        # col = row.column(align=True)
-        # col.operator("scene.render_layer_add", icon='ZOOMIN', text="")
-        # col.operator("scene.render_layer_remove", icon='ZOOMOUT', text="")
+        col = row.column(align=True)
+        col.operator("scene.render_layer_add", icon='ZOOMIN', text="")
+        col.operator("scene.render_layer_remove", icon='ZOOMOUT', text="")
 
         row = layout.row()
-        # rl = rd.layers.active
-        rl = rd.layers[0]
+        rl = rd.layers.active
         row.prop(rl, "name")
-        #row.prop(rd, "use_single_layer", text="", icon_only=True)
+        row.prop(rd, "use_single_layer", text="", icon_only=True)
 
         split = layout.split()
 
@@ -183,6 +182,7 @@ class CyclesRender_PT_layers(CyclesButtonsPanel, Panel):
 
         layout.separator()
 
+        rl = rd.layers[0]
         layout.prop(rl, "material_override", text="Material")
 
 
@@ -294,7 +294,12 @@ class Cycles_PT_mesh_displacement(CyclesButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        return CyclesButtonsPanel.poll(context) and (context.mesh or context.curve or context.meta_ball)
+        if CyclesButtonsPanel.poll(context):
+            if context.mesh or context.curve or context.meta_ball:
+                if context.scene.cycles.feature_set == 'EXPERIMENTAL':
+                    return True
+
+        return False
 
     def draw(self, context):
         layout = self.layout
@@ -706,15 +711,18 @@ def draw_device(self, context):
     if scene.render.engine == "CYCLES":
         cscene = scene.cycles
 
+        layout.prop(cscene, "feature_set")
+        experimental = cscene.feature_set == 'EXPERIMENTAL'
+
         available_devices = engine.available_devices()
         available_cuda = 'cuda' in available_devices
-        available_opencl = 'opencl' in available_devices
+        available_opencl = experimental and 'opencl' in available_devices
 
         if available_cuda or available_opencl:
             layout.prop(cscene, "device")
             if cscene.device == 'GPU' and available_cuda and available_opencl:
                 layout.prop(cscene, "gpu_type")
-        if cscene.device == 'CPU' and engine.with_osl():
+        if experimental and cscene.device == 'CPU' and engine.with_osl():
             layout.prop(cscene, "shading_system")
 
 
@@ -737,6 +745,12 @@ def get_panels():
         bpy.types.RENDER_PT_encoding,
         bpy.types.RENDER_PT_dimensions,
         bpy.types.RENDER_PT_stamp,
+        bpy.types.SCENE_PT_scene,
+        bpy.types.SCENE_PT_audio,
+        bpy.types.SCENE_PT_unit,
+        bpy.types.SCENE_PT_keying_sets,
+        bpy.types.SCENE_PT_keying_set_paths,
+        bpy.types.SCENE_PT_physics,
         bpy.types.WORLD_PT_context_world,
         bpy.types.DATA_PT_context_mesh,
         bpy.types.DATA_PT_context_camera,

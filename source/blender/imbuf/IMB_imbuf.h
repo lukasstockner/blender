@@ -198,7 +198,8 @@ typedef enum IMB_Timecode_Type {
 				  record date and time written by recording
 				  device (*every* consumer camcorder can do
 				  that :) )*/
-	IMB_TC_MAX_SLOT   = 3
+	IMB_TC_RECORD_RUN_NO_GAPS = 8,
+	IMB_TC_MAX_SLOT   = 8
 } IMB_Timecode_Type;
 
 typedef enum IMB_Proxy_Size {
@@ -376,6 +377,20 @@ void IMB_float_from_rect_simple(struct ImBuf *ibuf); /* no profile conversion */
 void IMB_convert_profile(struct ImBuf *ibuf, int profile);
 float *IMB_float_profile_ensure(struct ImBuf *ibuf, int profile, int *alloc);
 void IMB_color_to_bw(struct ImBuf *ibuf);
+
+/* converting pixel buffers */
+void IMB_buffer_byte_from_float(unsigned char *rect_to, const float *rect_from,
+	int channels_from, int dither, int profile_to, int profile_from, int predivide,
+	int width, int height, int stride_to, int stride_from);
+void IMB_buffer_float_from_byte(float *rect_to, const unsigned char *rect_from,
+	int profile_to, int profile_from, int predivide,
+	int width, int height, int stride_to, int stride_from);
+void IMB_buffer_float_from_float(float *rect_to, const float *rect_from,
+	int channels_from, int profile_to, int profile_from, int predivide,
+	int width, int height, int stride_to, int stride_from);
+void IMB_buffer_byte_from_byte(unsigned char *rect_to, const unsigned char *rect_from,
+	int profile_to, int profile_from, int predivide,
+	int width, int height, int stride_to, int stride_from);
 
 /**
  * Change the ordering of the color bytes pointed to by rect from

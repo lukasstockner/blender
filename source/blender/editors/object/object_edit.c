@@ -111,6 +111,10 @@ static int pupmenu(const char *UNUSED(msg)) {return 0;}
 static bContext *evil_C;
 static void error_libdata(void) {}
 
+Object *ED_object_context(bContext *C)
+{
+	return CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+}
 
 /* find the correct active object per context
  * note: context can be NULL when called from a enum with PROP_ENUM_NO_CONTEXT */
@@ -118,7 +122,7 @@ Object *ED_object_active_context(bContext *C)
 {
 	Object *ob= NULL;
 	if(C) {
-		ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+		ob= ED_object_context(C);
 		if (!ob) ob= CTX_data_active_object(C);
 	}
 	return ob;
@@ -439,9 +443,6 @@ void ED_object_enter_editmode(bContext *C, int flag)
 	ob->mode= OB_MODE_EDIT;
 	
 	if(ob->type==OB_MESH) {
-		Mesh *me= ob->data;
-		
-		if(me->pv) mesh_pmv_off(me);
 		ok= 1;
 		scene->obedit= ob;	// context sees this
 		
@@ -1142,7 +1143,7 @@ static void copy_attr(Main *bmain, Scene *scene, View3D *v3d, short event)
 				}
 				else if(event==3) {  /* size */
 					copy_v3_v3(base->object->size, ob->size);
-					copy_v3_v3(base->object->dsize, ob->dsize);
+					copy_v3_v3(base->object->dscale, ob->dscale);
 				}
 				else if(event==4) {  /* drawtype */
 					base->object->dt= ob->dt;
@@ -2178,6 +2179,54 @@ void OBJECT_OT_logic_bricks_copy(wmOperatorType *ot)
 	ot->exec= logicbricks_copy_exec;
 	ot->poll= ED_operator_object_active_editable;
 
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+
+static int game_physics_copy_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *ob=ED_object_active_context(C);
+	
+	CTX_DATA_BEGIN(C, Object*, ob_iter, selected_editable_objects) {
+		if(ob != ob_iter) {
+			ob_iter->gameflag = ob->gameflag;
+			ob_iter->gameflag2 = ob->gameflag2;
+			ob_iter->inertia = ob->inertia;
+			ob_iter->formfactor = ob->formfactor;;
+			ob_iter->damping = ob->damping;
+			ob_iter->rdamping = ob->rdamping;
+			ob_iter->min_vel = ob->min_vel;
+			ob_iter->max_vel = ob->max_vel;
+			ob_iter->obstacleRad = ob->obstacleRad;
+			ob_iter->mass = ob->mass;
+			ob_iter->anisotropicFriction[0] = ob->anisotropicFriction[0];
+			ob_iter->anisotropicFriction[1] = ob->anisotropicFriction[1];
+			ob_iter->anisotropicFriction[2] = ob->anisotropicFriction[2];
+			ob_iter->collision_boundtype = ob->collision_boundtype;			
+			ob_iter->margin = ob->margin;
+			ob_iter->bsoft = copy_bulletsoftbody(ob->bsoft);
+			if(ob->restrictflag & OB_RESTRICT_RENDER) 
+				ob_iter->restrictflag |= OB_RESTRICT_RENDER;
+			 else
+				ob_iter->restrictflag &= ~OB_RESTRICT_RENDER;
+		}
+	}
+	CTX_DATA_END;
+	
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_game_physics_copy(struct wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Copy Game Physics Properties to Selected";
+	ot->description = "Copy game physics properties to other selected objects";
+	ot->idname= "OBJECT_OT_game_physics_copy";
+	
+	/* api callbacks */
+	ot->exec= game_physics_copy_exec;
+	ot->poll= ED_operator_object_active_editable;
+	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }

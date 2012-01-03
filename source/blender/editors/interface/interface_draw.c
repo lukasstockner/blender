@@ -389,17 +389,7 @@ void uiRoundBox(float minx, float miny, float maxx, float maxy, float rad)
 		glEnable( GL_BLEND );
 	}
 	
-	/* solid part */
-	uiDrawBox(GL_POLYGON, minx, miny, maxx, maxy, rad);
-	
-	/* set antialias line */
-	glEnable( GL_LINE_SMOOTH );
-	glEnable( GL_BLEND );
-	
-	uiDrawBox(GL_LINE_LOOP, minx, miny, maxx, maxy, rad);
-	
-	glDisable( GL_BLEND );
-	glDisable( GL_LINE_SMOOTH );
+	ui_draw_anti_roundbox(GL_POLYGON, minx, miny, maxx, maxy, rad);
 }
 
 
@@ -1475,18 +1465,22 @@ static ImBuf *scale_trackpreview_ibuf(ImBuf *ibuf, float zoomx, float zoomy)
 {
 	ImBuf *scaleibuf;
 	int x, y, w= ibuf->x*zoomx, h= ibuf->y*zoomy;
+	const float max_x= ibuf->x-1.0f;
+	const float max_y= ibuf->y-1.0f;
+	const float scalex= 1.0f/zoomx;
+	const float scaley= 1.0f/zoomy;
+
 	scaleibuf= IMB_allocImBuf(w, h, 32, IB_rect);
 
 	for(y= 0; y<scaleibuf->y; y++) {
 		for (x= 0; x<scaleibuf->x; x++) {
-			int pixel= scaleibuf->x*y + x;
-			int orig_pixel= ibuf->x*(int)(((float)y)/zoomy) + (int)(((float)x)/zoomx);
-			char *rrgb= (char*)scaleibuf->rect + pixel*4;
-			char *orig_rrgb= (char*)ibuf->rect + orig_pixel*4;
-			rrgb[0]= orig_rrgb[0];
-			rrgb[1]= orig_rrgb[1];
-			rrgb[2]= orig_rrgb[2];
-			rrgb[3]= orig_rrgb[3];
+			float src_x= scalex*x;
+			float src_y= scaley*y;
+
+			CLAMP(src_x, 0, max_x);
+			CLAMP(src_y, 0, max_y);
+
+			bicubic_interpolation(ibuf, scaleibuf, src_x, src_y, x, y);
 		}
 	}
 

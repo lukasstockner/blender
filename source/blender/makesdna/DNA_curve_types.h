@@ -24,13 +24,15 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_CURVE_TYPES_H
-#define DNA_CURVE_TYPES_H
 
 /** \file DNA_curve_types.h
  *  \ingroup DNA
  */
 
+#ifndef DNA_CURVE_TYPES_H
+#define DNA_CURVE_TYPES_H
+
+#include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 #include "DNA_ID.h"
@@ -174,7 +176,7 @@ typedef struct Curve {
 	EditNurb *editnurb;	/* edited data, not in file, use pointer so we can check for it */
 	
 	struct Object *bevobj, *taperobj, *textoncurve;
-	struct Ipo *ipo;	// XXX depreceated... old animation system
+	struct Ipo *ipo    DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
 	Path *path;
 	struct Key *key;
 	struct Material **mat;
@@ -254,7 +256,7 @@ typedef struct Curve {
 #define CU_STRETCH		128
 #define CU_OFFS_PATHDIST	256
 #define CU_FAST			512 /* Font: no filling inside editmode */
-#define CU_RETOPO               1024
+/* #define CU_RETOPO               1024 */ /* DEPRECATED */
 #define CU_DS_EXPAND	2048
 #define CU_PATH_RADIUS	4096 /* make use of the path radius if this is enabled (default for new curves) */
 #define CU_DEFORM_FILL	8192 /* fill 2d curve after deformation */

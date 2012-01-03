@@ -239,7 +239,8 @@ GHOST_WindowX11(
 			}
 		} else {
 			if (m_numOfAASamples && (m_numOfAASamples > samples)) {
-				printf("%s:%d: oversampling requested %i but using %i samples\n", __FILE__, __LINE__, m_numOfAASamples, samples);
+				printf("%s:%d: oversampling requested %i but using %i samples\n",
+				       __FILE__, __LINE__, m_numOfAASamples, samples);
 			}
 			break;
 		}
@@ -471,7 +472,8 @@ GHOST_WindowX11(
 	is configured but not plugged in.
 
 */
-static int ApplicationErrorHandler(Display *display, XErrorEvent *theEvent) {
+static int ApplicationErrorHandler(Display *display, XErrorEvent *theEvent)
+{
 	fprintf(stderr, "Ignoring Xlib error: error code %d request code %d\n",
 		theEvent->error_code, theEvent->request_code) ;
 
@@ -1343,7 +1345,9 @@ installDrawingContext(
 			if (!s_firstContext) {
 				s_firstContext = m_context;
 			}
-			glXMakeCurrent(m_display, m_window,m_context);						
+			glXMakeCurrent(m_display, m_window,m_context);
+			glClearColor(0.447, 0.447, 0.447, 0);
+			glClear(GL_COLOR_BUFFER_BIT);
 			success = GHOST_kSuccess;
 		} else {
 			success = GHOST_kFailure;
@@ -1491,7 +1495,8 @@ setWindowCursorGrab(
 
 		}
 #ifdef GHOST_X11_GRAB
-		XGrabPointer(m_display, m_window, False, ButtonPressMask| ButtonReleaseMask|PointerMotionMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+		XGrabPointer(m_display, m_window, False, ButtonPressMask | ButtonReleaseMask | PointerMotionMask,
+		             GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
 #endif
 	}
 	else {

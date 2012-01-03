@@ -70,6 +70,25 @@
 
 #include "view3d_intern.h"	// own include
 
+/* user data structures for derived mesh callbacks */
+typedef struct drawMeshFaceSelect_userData {
+	Mesh *me;
+	EdgeHash *eh;
+} drawMeshFaceSelect_userData;
+
+typedef struct drawEMTFMapped_userData {
+	EditMesh *em;
+	short has_mcol;
+	short has_mtface;
+	MFace *mf;
+	MTFace *tf;
+} drawEMTFMapped_userData;
+
+typedef struct drawTFace_userData {
+	MFace *mf;
+	MTFace *tf;
+} drawTFace_userData;
+
 /**************************** Face Select Mode *******************************/
 
 /* Flags for marked edges */
@@ -121,7 +140,7 @@ static EdgeHash *get_tface_mesh_marked_edge_info(Mesh *me)
 
 static int draw_mesh_face_select__setHiddenOpts(void *userData, int index)
 {
-	struct { Mesh *me; EdgeHash *eh; } *data = userData;
+	drawMeshFaceSelect_userData *data = userData;
 	Mesh *me= data->me;
 	MEdge *med = &me->medge[index];
 	uintptr_t flags = (intptr_t) BLI_edgehash_lookup(data->eh, med->v1, med->v2);
@@ -138,7 +157,7 @@ static int draw_mesh_face_select__setHiddenOpts(void *userData, int index)
 
 static int draw_mesh_face_select__setSelectOpts(void *userData, int index)
 {
-	struct { Mesh *me; EdgeHash *eh; } *data = userData;
+	drawMeshFaceSelect_userData *data = userData;
 	MEdge *med = &data->me->medge[index];
 	uintptr_t flags = (intptr_t) BLI_edgehash_lookup(data->eh, med->v1, med->v2);
 
@@ -159,7 +178,7 @@ static int draw_mesh_face_select__drawFaceOptsInv(void *userData, int index)
 
 static void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 {
-	struct { Mesh *me; EdgeHash *eh; } data;
+	drawMeshFaceSelect_userData data;
 
 	data.me = me;
 	data.eh = get_tface_mesh_marked_edge_info(me);
@@ -180,7 +199,7 @@ static void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		/* dull unselected faces so as not to get in the way of seeing color */
 		glColor4ub(96, 96, 96, 64);
-		dm->drawMappedFacesTex(dm, draw_mesh_face_select__drawFaceOptsInv, (void*)me);
+		dm->drawMappedFacesTex(dm, draw_mesh_face_select__drawFaceOptsInv, NULL, (void*)me);
 		
 		glDisable(GL_BLEND);
 	}
@@ -513,7 +532,7 @@ static int draw_tface_mapped__set_draw(void *userData, int index)
 
 static int draw_em_tf_mapped__set_draw(void *userData, int index)
 {
-	struct {EditMesh *em; short has_mcol; short has_mtface;} *data = userData;
+	drawEMTFMapped_userData *data = userData;
 	EditMesh *em = data->em;
 	EditFace *efa= EM_get_face_for_index(index);
 	MTFace *tface;
@@ -629,6 +648,32 @@ static void draw_mesh_text(Scene *scene, Object *ob, int glsl)
 	ddm->release(ddm);
 }
 
+static int compareDrawOptions(void *userData, int cur_index, int next_index)
+{
+	drawTFace_userData *data = userData;
+
+	if(data->mf && data->mf[cur_index].mat_nr != data->mf[next_index].mat_nr)
+		return 0;
+
+	if(data->tf && data->tf[cur_index].tpage != data->tf[next_index].tpage)
+		return 0;
+
+	return 1;
+}
+
+static int compareDrawOptionsEm(void *userData, int cur_index, int next_index)
+{
+	drawEMTFMapped_userData *data= userData;
+
+	if(data->mf && data->mf[cur_index].mat_nr != data->mf[next_index].mat_nr)
+		return 0;
+
+	if(data->tf && data->tf[cur_index].tpage != data->tf[next_index].tpage)
+		return 0;
+
+	return 1;
+}
+
 void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *dm, int draw_flags)
 {
 	Mesh *me= ob->data;
@@ -643,32 +688,39 @@ void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 	glColor4f(1.0f,1.0f,1.0f,1.0f);
 
 	if(ob->mode & OB_MODE_EDIT) {
-		struct {EditMesh *em; short has_mcol; short has_mtface;} data;
+		drawEMTFMapped_userData data;
 
 		data.em= me->edit_mesh;
 		data.has_mcol= CustomData_has_layer(&me->edit_mesh->fdata, CD_MCOL);
 		data.has_mtface= CustomData_has_layer(&me->edit_mesh->fdata, CD_MTFACE);
+		data.mf= DM_get_face_data_layer(dm, CD_MFACE);
+		data.tf= DM_get_face_data_layer(dm, CD_MTFACE);
 
-		dm->drawMappedFacesTex(dm, draw_em_tf_mapped__set_draw, &data);
+		dm->drawMappedFacesTex(dm, draw_em_tf_mapped__set_draw, compareDrawOptionsEm, &data);
 	}
 	else if(draw_flags & DRAW_FACE_SELECT) {
 		if(ob->mode & OB_MODE_WEIGHT_PAINT)
-			dm->drawMappedFaces(dm, wpaint__setSolidDrawOptions, me, 1, GPU_enable_material, NULL);
+			dm->drawMappedFaces(dm, wpaint__setSolidDrawOptions, GPU_enable_material, NULL, me, 1);
 		else
-			dm->drawMappedFacesTex(dm, me->mface ? draw_tface_mapped__set_draw : NULL, me);
+			dm->drawMappedFacesTex(dm, me->mface ? draw_tface_mapped__set_draw : NULL, NULL, me);
 	}
 	else {
 		if(GPU_buffer_legacy(dm)) {
 			if (draw_flags & DRAW_DYNAMIC_PAINT_PREVIEW)
-				dm->drawFacesTex(dm, draw_mcol__set_draw_legacy);
+				dm->drawFacesTex(dm, draw_mcol__set_draw_legacy, NULL, NULL);
 			else 
-				dm->drawFacesTex(dm, draw_tface__set_draw_legacy);
+				dm->drawFacesTex(dm, draw_tface__set_draw_legacy, NULL, NULL);
 		}
 		else {
+			drawTFace_userData userData;
+
 			if(!CustomData_has_layer(&dm->faceData,CD_TEXTURE_MCOL))
 				add_tface_color_layer(dm);
 
-			dm->drawFacesTex(dm, draw_tface__set_draw);
+			userData.mf = DM_get_face_data_layer(dm, CD_MFACE);
+			userData.tf = DM_get_face_data_layer(dm, CD_MTFACE);
+
+			dm->drawFacesTex(dm, draw_tface__set_draw, compareDrawOptions, &userData);
 		}
 	}
 
@@ -806,7 +858,7 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *o
 		int useColors= 1;
 
 		dm->drawMappedFaces(dm, wpaint__setSolidDrawOptions,
-			ob->data, useColors, GPU_enable_material, NULL);
+			GPU_enable_material, NULL, ob->data, useColors);
 	}
 	else {
 		Mesh *me= ob->data;

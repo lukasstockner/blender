@@ -24,13 +24,15 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_LAMP_TYPES_H
-#define DNA_LAMP_TYPES_H
 
 /** \file DNA_lamp_types.h
  *  \ingroup DNA
  */
 
+#ifndef DNA_LAMP_TYPES_H
+#define DNA_LAMP_TYPES_H
+
+#include "DNA_defs.h"
 #include "DNA_ID.h"
 
 #ifndef MAX_MTEX
@@ -97,7 +99,7 @@ typedef struct Lamp {
 	short sky_colorspace;
 	char pad4[6];
 
-	struct Ipo *ipo;				// XXX depreceated... old animation system
+	struct Ipo *ipo  DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
 	struct MTex *mtex[18];			/* MAX_MTEX */
 	short pr_texture, use_nodes;
 	char pad6[4];

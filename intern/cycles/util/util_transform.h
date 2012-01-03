@@ -41,8 +41,9 @@ __device_inline float3 transform(const Transform *t, const float3 a)
 {
 	float4 b = make_float4(a.x, a.y, a.z, 1.0f);
 	float3 c = make_float3(dot(t->x, b), dot(t->y, b), dot(t->z, b));
+	float w = dot(t->w, b);
 
-	return c/dot(t->w, b);
+	return (w != 0.0f)? c/w: make_float3(0.0f, 0.0f, 0.0f);
 }
 
 __device_inline float3 transform_direction(const Transform *t, const float3 a)
@@ -208,6 +209,13 @@ __device_inline float3 transform_get_column(const Transform *t, int column)
 	return make_float3(t->x[column], t->y[column], t->z[column]);
 }
 
+__device_inline void transform_set_column(Transform *t, int column, float3 value)
+{
+	t->x[column] = value.x;
+	t->y[column] = value.y;
+	t->z[column] = value.z;
+}
+
 Transform transform_inverse(const Transform& a);
 
 __device_inline bool transform_uniform_scale(const Transform& tfm, float& scale)
@@ -241,6 +249,17 @@ __device_inline bool transform_negative_scale(const Transform& tfm)
 	float3 c2 = transform_get_column(&tfm, 2);
 
 	return (dot(cross(c0, c1), c2) < 0.0f);
+}
+
+__device_inline Transform transform_clear_scale(const Transform& tfm)
+{
+	Transform ntfm = tfm;
+
+	transform_set_column(&ntfm, 0, normalize(transform_get_column(&ntfm, 0)));
+	transform_set_column(&ntfm, 1, normalize(transform_get_column(&ntfm, 1)));
+	transform_set_column(&ntfm, 2, normalize(transform_get_column(&ntfm, 2)));
+
+	return ntfm;
 }
 
 #endif

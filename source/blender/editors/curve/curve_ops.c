@@ -68,7 +68,6 @@ void ED_operatortypes_curve(void)
 	WM_operatortype_append(FONT_OT_text_cut);
 	WM_operatortype_append(FONT_OT_text_paste);
 	WM_operatortype_append(FONT_OT_file_paste);
-	WM_operatortype_append(FONT_OT_buffer_paste);
 
 	WM_operatortype_append(FONT_OT_move);
 	WM_operatortype_append(FONT_OT_move_select);
@@ -135,6 +134,26 @@ void ED_operatortypes_curve(void)
 	WM_operatortype_append(CURVE_OT_vertex_add);
 	WM_operatortype_append(CURVE_OT_extrude);
 	WM_operatortype_append(CURVE_OT_cyclic_toggle);
+}
+
+void ED_operatormacros_curve(void)
+{
+	wmOperatorType *ot;
+	wmOperatorTypeMacro *otmacro;
+
+	ot= WM_operatortype_append_macro("CURVE_OT_duplicate_move", "Add Duplicate", OPTYPE_UNDO|OPTYPE_REGISTER);
+	ot->description = "Duplicate curve and move";
+	WM_operatortype_macro_define(ot, "CURVE_OT_duplicate");
+	otmacro= WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+	RNA_enum_set(otmacro->ptr, "proportional", 0);
+	RNA_boolean_set(otmacro->ptr, "mirror", 0);
+
+	ot= WM_operatortype_append_macro("CURVE_OT_extrude_move", "Extrude Curve and Move", OPTYPE_UNDO|OPTYPE_REGISTER);
+	ot->description = "Extrude curve and move result";
+	WM_operatortype_macro_define(ot, "CURVE_OT_extrude");
+	otmacro= WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+	RNA_enum_set(otmacro->ptr, "proportional", 0);
+	RNA_boolean_set(otmacro->ptr, "mirror", 0);
 }
 
 void ED_keymap_curve(wmKeyConfig *keyconf)
@@ -214,8 +233,8 @@ void ED_keymap_curve(wmKeyConfig *keyconf)
 	RNA_boolean_set(WM_keymap_add_item(keymap, "CURVE_OT_select_linked_pick", LKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "deselect", 1);
 
 	WM_keymap_add_item(keymap, "CURVE_OT_separate", PKEY, KM_PRESS, 0, 0);
-	WM_keymap_add_item(keymap, "CURVE_OT_extrude", EKEY, KM_PRESS, 0, 0);
-	WM_keymap_add_item(keymap, "CURVE_OT_duplicate", DKEY, KM_PRESS, KM_SHIFT, 0);
+	WM_keymap_add_item(keymap, "CURVE_OT_extrude_move", EKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "CURVE_OT_duplicate_move", DKEY, KM_PRESS, KM_SHIFT, 0);
 	WM_keymap_add_item(keymap, "CURVE_OT_make_segment", FKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "CURVE_OT_cyclic_toggle", CKEY, KM_PRESS, KM_ALT, 0);
 	WM_keymap_add_item(keymap, "CURVE_OT_delete", XKEY, KM_PRESS, 0, 0);
