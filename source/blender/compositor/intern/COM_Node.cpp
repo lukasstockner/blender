@@ -78,7 +78,7 @@ void Node::addSetValueOperation(ExecutionSystem *graph, InputSocket* inputsocket
 }
 
 void Node::addPreviewOperation(ExecutionSystem *system, OutputSocket *outputSocket, int priority) {
-#if COM_PREVIEW_ENABLED
+#ifdef COM_PREVIEW_ENABLED
 	PreviewOperation *operation = new PreviewOperation();
 	system->addOperation(operation);
 	operation->setbNode(this->getbNode());

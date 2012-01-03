@@ -71,7 +71,7 @@ static ListBase cputhreads;
 static ThreadQueue * cpuqueue;
 #endif
 
-#if COM_OPENCL_ENABLED
+#ifdef COM_OPENCL_ENABLED
 static cl_context context;
 static cl_program program;
 #endif
@@ -317,7 +317,7 @@ void WorkScheduler::initialize() {
 		cpudevices.push_back(device);
 	}
 #endif
-#if COM_OPENCL_ENABLED
+#ifdef COM_OPENCL_ENABLED
 	context = NULL;
 	program = NULL;
 	if (clCreateContextFromType) {
@@ -396,7 +396,7 @@ void WorkScheduler::deinitialize() {
 		device->deinitialize();
 		delete device;
 	}
-#if COM_OPENCL_ENABLED
+#ifdef COM_OPENCL_ENABLED
 	if (program) {
 		clReleaseProgram(program);
 		program = NULL;
