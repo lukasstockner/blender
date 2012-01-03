@@ -89,11 +89,9 @@ void PreviewOperation::executeRegion(rcti *rect, unsigned int tileNumber, Memory
             color[2] = 0.0f;
             color[3] = 1.0f;
 			input->read(color, rx, ry, memoryBuffers);
-            /// @todo: linear conversion only when scene color management is selected.
-            outputBuffer[offset] = FTOCHAR(linearrgb_to_srgb(color[0]));
-            outputBuffer[offset+1] = FTOCHAR(linearrgb_to_srgb(color[1]));
-            outputBuffer[offset+2] = FTOCHAR(linearrgb_to_srgb(color[2]));
-            outputBuffer[offset+3] = FTOCHAR(color[3]);
+            /// @todo: linear conversion only when scene color management is selected, also check predivide.
+			linearrgb_to_srgb_v4(color, color);
+            F4TOCHAR4(color, outputBuffer+offset);
             offset +=4;
         }
     }

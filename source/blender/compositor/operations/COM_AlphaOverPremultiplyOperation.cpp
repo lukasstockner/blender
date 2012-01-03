@@ -36,7 +36,8 @@ void AlphaOverPremultiplyOperation::executePixel(float* outputValue, float x, fl
 	inputColor1Operation->read(inputColor1, x, y, inputBuffers);
 	inputColor2Operation->read(inputOverColor, x, y, inputBuffers);
 
-    if(inputOverColor[3]<=0.0f) {
+	/* Zero alpha values should still permit an add of RGB data */
+    if(inputOverColor[3]<0.0f) {
         outputValue[0] = inputColor1[0];
         outputValue[1] = inputColor1[1];
         outputValue[2] = inputColor1[2];

@@ -39,6 +39,7 @@ protected:
     float centerY;
 	OrderOfChunks chunkOrder;
     bool doColorManagement;
+	bool doColorPredivide;
 
 public:
 	bool isOutputOperation(bool rendering) const {return !rendering;}
@@ -56,7 +57,8 @@ public:
     float getCenterY() { return this->centerY; }
 	OrderOfChunks getChunkOrder() { return this->chunkOrder; }
 	const int getRenderPriority() const;
-        void setColorManagement(bool doColorManagement) {this->doColorManagement = doColorManagement;}
+	void setColorManagement(bool doColorManagement) {this->doColorManagement = doColorManagement;}
+	void setColorPredivide(bool doColorPredivide) {this->doColorPredivide = doColorPredivide;}
 	bool isViewerOperation() {return true;}
 		
 protected:

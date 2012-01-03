@@ -30,6 +30,7 @@
 #include "PIL_time.h"
 #include "BLI_utildefines.h"
 #include "BLI_math_color.h"
+#include "BLI_math_vector.h"
 
 extern "C" {
 	#include "MEM_guardedalloc.h"
@@ -70,7 +71,7 @@ void ViewerOperation::executeRegion(rcti *rect, unsigned int tileNumber, MemoryB
 	const int y2 = rect->ymax;
 	const int offsetadd = (this->getWidth()-(x2-x1))*4;
 	int offset = (y1*this->getWidth() + x1 ) * 4;
-	float alpha[4];
+	float alpha[4], srgb[4];
 	int x;
 	int y;
 	bool breaked = false;
@@ -82,19 +83,19 @@ void ViewerOperation::executeRegion(rcti *rect, unsigned int tileNumber, MemoryB
 				alphaInput->read(alpha, x, y, memoryBuffers);
 				buffer[offset+3] = alpha[0];
 			}
-			/// @todo: linear conversion only when scene color management is selected.
+			/// @todo: linear conversion only when scene color management is selected, also check predivide.
 			if (this->doColorManagement) {
-				bufferDisplay[offset] = FTOCHAR(linearrgb_to_srgb(buffer[offset]));
-				bufferDisplay[offset+1] = FTOCHAR(linearrgb_to_srgb(buffer[offset+1]));
-				bufferDisplay[offset+2] = FTOCHAR(linearrgb_to_srgb(buffer[offset+2]));
-				bufferDisplay[offset+3] = FTOCHAR(buffer[offset+3]);
+				if(this->doColorPredivide) {
+					linearrgb_to_srgb_predivide_v4(srgb, buffer+offset);
+				} else {
+					linearrgb_to_srgb_v4(srgb, buffer+offset);
+				}
 			} else {
-				bufferDisplay[offset] = FTOCHAR((buffer[offset]));
-				bufferDisplay[offset+1] = FTOCHAR((buffer[offset+1]));
-				bufferDisplay[offset+2] = FTOCHAR((buffer[offset+2]));
-				bufferDisplay[offset+3] = FTOCHAR(buffer[offset+3]);
+				copy_v4_v4(srgb, buffer+offset);
 			}
-			
+
+			F4TOCHAR4(srgb, bufferDisplay+offset);
+
 			offset +=4;
 		}
 		if (tree->test_break && tree->test_break(tree->tbh)) {

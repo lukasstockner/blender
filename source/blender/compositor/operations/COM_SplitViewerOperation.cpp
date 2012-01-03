@@ -27,6 +27,7 @@
 #include "BKE_image.h"
 #include "BLI_utildefines.h"
 #include "BLI_math_color.h"
+#include "BLI_math_vector.h"
 
 extern "C" {
     #include "MEM_guardedalloc.h"
@@ -72,24 +73,25 @@ void SplitViewerOperation::executeRegion(rcti *rect, unsigned int tileNumber, Me
     for (y = y1 ; y < y2 ; y++) {
         for (x = x1 ; x < x2 ; x++) {
             bool image1;
+			float srgb[4];
             image1 = xSplit?x>perc:y>perc;
             if (image1) {
 				image1Input->read(&(buffer[offset]), x, y, memoryBuffers);
             } else {
 				image2Input->read(&(buffer[offset]), x, y, memoryBuffers);
             }
-            /// @todo: linear conversion only when scene color management is selected.
+            /// @todo: linear conversion only when scene color management is selected, also check predivide.
             if (this->doColorManagement) {
-                bufferDisplay[offset] = FTOCHAR(linearrgb_to_srgb(buffer[offset]));
-                bufferDisplay[offset+1] = FTOCHAR(linearrgb_to_srgb(buffer[offset+1]));
-                bufferDisplay[offset+2] = FTOCHAR(linearrgb_to_srgb(buffer[offset+2]));
-                bufferDisplay[offset+3] = FTOCHAR(buffer[offset+3]);
+				if(this->doColorPredivide) {
+					linearrgb_to_srgb_predivide_v4(srgb, buffer+offset);
+				} else {
+					linearrgb_to_srgb_v4(srgb, buffer+offset);
+				}
             } else {
-                bufferDisplay[offset] = FTOCHAR((buffer[offset]));
-                bufferDisplay[offset+1] = FTOCHAR((buffer[offset+1]));
-                bufferDisplay[offset+2] = FTOCHAR((buffer[offset+2]));
-                bufferDisplay[offset+3] = FTOCHAR(buffer[offset+3]);
+				copy_v4_v4(srgb, buffer+offset);
             }
+
+			F4TOCHAR4(srgb, bufferDisplay+offset);
 
             offset +=4;
         }
