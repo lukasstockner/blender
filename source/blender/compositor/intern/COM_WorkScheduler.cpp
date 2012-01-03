@@ -224,7 +224,7 @@ void WorkScheduler::initialize() {
 		error = clGetPlatformIDs(0, 0, &numberOfPlatforms);
 		if (error != CL_SUCCESS) { printf("CLERROR[%d]: %s\n", error, clewErrorString(error));	}
 		printf("%d number of platforms\n", numberOfPlatforms);
-		cl_platform_id platforms[numberOfPlatforms];
+		cl_platform_id *platforms = new cl_platform_id[numberOfPlatforms];
 		error = clGetPlatformIDs(numberOfPlatforms, platforms, 0);
 		unsigned int indexPlatform;
 		cl_uint totalNumberOfDevices = 0;
@@ -235,7 +235,7 @@ void WorkScheduler::initialize() {
 			totalNumberOfDevices += numberOfDevices;
 		}
 
-		cl_device_id cldevices[totalNumberOfDevices];
+		cl_device_id *cldevices = new cl_device_id[totalNumberOfDevices];
 		unsigned int numberOfDevicesReceived = 0;
 		for (indexPlatform = 0 ; indexPlatform < numberOfPlatforms ; indexPlatform ++) {
 			cl_platform_id platform = platforms[indexPlatform];
@@ -274,6 +274,8 @@ void WorkScheduler::initialize() {
 			error = clGetDeviceInfo(device, CL_DEVICE_VENDOR, 32, resultString, 0);
 			printf("%s\n", resultString);
 		}
+		delete cldevices;
+		delete platforms;
 	}
 #endif
 #endif
