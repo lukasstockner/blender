@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 #include "intern/clew.h"
+void OCL_init();
 #ifdef __cplusplus
 }
 #endif

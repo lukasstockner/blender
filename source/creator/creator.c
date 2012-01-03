@@ -110,6 +110,7 @@
 #endif
 
 #include <signal.h>
+#include "OCL_opencl.h"
 
 #ifdef __FreeBSD__
 # include <sys/types.h>
@@ -1165,6 +1166,7 @@ int main(int argc, const char **argv)
 
 	BLI_cb_init();
 
+	OCL_init();
 #ifdef WITH_GAMEENGINE
 	syshandle = SYS_GetSystem();
 #else

@@ -56,33 +56,21 @@ typedef enum CompositorQuality {
 
 // chunk size determination
 #define COM_PREVIEW_SIZE 140.0f
-#define COM_OPENCL_ENABLED true
-#define COM_PREVIEW_ENABLED true
+#define COM_OPENCL_ENABLED
+#define COM_PREVIEW_ENABLED
 // workscheduler threading models
 /**
-  * COM_TM_PTHREAD is a threading model based on pthread library. where the control (picking new work) is done by each thread
+  * COM_TM_QUEUE is a multithreaded model, which uses the BLI_thread_queue pattern. This is the default option.
   */
-#define COM_TM_PTHREAD 1
+#define COM_TM_QUEUE 1
 
 /**
   * COM_TM_NOTHREAD is a single threading model, everything is executed in the caller thread. easy for debugging
   */
-#define COM_TM_NOTHREAD 2
+#define COM_TM_NOTHREAD 0
 
 /**
-  * COM_TM_WORKER is a multithreaded model, which uses the BLI_Worker pattern. it is slower as it searched for free threads.
-  * But for stability reasons you can select this one.
-  */
-#define COM_TM_WORKER 3
-
-/**
-  * COM_TM_QUEUE is a multithreaded model, which uses the BLI_thread_queue pattern. it has the same speed as PTHREAD. Currently this needs to 
-  * be expended with OpenCL. After that it might become the default threading model.
-  */
-#define COM_TM_QUEUE 4
-
-/**
-  * COM_CURRENT_THREADING_MODEL can be one of the above, COM_PTHREAD is currently default.
+  * COM_CURRENT_THREADING_MODEL can be one of the above, COM_TM_QUEUE is currently default.
   */
 #define COM_CURRENT_THREADING_MODEL COM_TM_QUEUE
 

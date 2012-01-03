@@ -32,6 +32,7 @@ set(SRC
     OCL_opencl.h
     intern/clew.h
     intern/clew.c
+    intern/OCL_opencl.c
 )
 
 

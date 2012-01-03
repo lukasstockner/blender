@@ -49,8 +49,7 @@ typedef enum WorkSchedulerState {
   */
 class WorkScheduler {
 
-#if COM_CURRENT_THREADING_MODEL == COM_TM_PTHREAD
-
+#if COM_CURRENT_THREADING_MODEL == COM_TM_QUEUE
 	/**
 	  * @brief are we being stopped.
 	  */
@@ -67,18 +66,6 @@ class WorkScheduler {
 	  * inside this loop new work is queried and being executed
 	  */
 	static void* thread_execute_gpu(void* data);
-#endif
-#if COM_CURRENT_THREADING_MODEL == COM_TM_QUEUE
-	/**
-	  * @brief are we being stopped.
-	  */
-	static bool isStopping();
-
-	/**
-	  * @brief main thread loop for cpudevices
-	  * inside this loop new work is queried and being executed
-	  */
-	static void* thread_execute_cpu(void* data);
 #endif	
 public:
 	/**
@@ -136,17 +123,5 @@ public:
 	  * @see CompositorContext.getHasActiveOpenCLDevices
 	  */
 	static bool hasGPUDevices();
-
-	/**
-	  * @brief get next work for a OpenCLDevice
-	  * @return WorkPackage or null
-	  */
-	static WorkPackage* getGPUWork();
-
-	/**
-	  * @brief get next work for a CPUDevice
-	  * @return WorkPackage or null
-	  */
-	static WorkPackage* getCPUWork();
 };
 #endif
