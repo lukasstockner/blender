@@ -155,6 +155,8 @@ set(SRC
 		nodes/COM_LensDistortionNode.cpp
 		nodes/COM_LensDistortionNode.h
 
+		nodes/COM_GlareNode.cpp
+		nodes/COM_GlareNode.h
 		nodes/COM_LensFlareNode.cpp
 		nodes/COM_LensFlareNode.h
 
@@ -162,6 +164,7 @@ set(SRC
 		operations/COM_LensGlowOperation.h
 		operations/COM_LensGhostOperation.cpp
 		operations/COM_LensGhostOperation.h
+
 
 # color nodes
 		nodes/COM_VectorCurveNode.cpp
@@ -446,12 +449,16 @@ operations/COM_ConvertDepthToRadiusOperation.cpp
 		operations/COM_ScreenLensDistortionOperation.h
 
 #Filter operations
-		operations/COM_ConvolutionFilterOperation.h
-		operations/COM_ConvolutionFilterOperation.cpp
-		operations/COM_ConvolutionEdgeFilterOperation.h
-		operations/COM_ConvolutionEdgeFilterOperation.cpp
-		operations/COM_DilateErodeOperation.cpp
-		operations/COM_DilateErodeOperation.h
+	operations/COM_ConvolutionFilterOperation.h
+	operations/COM_ConvolutionFilterOperation.cpp
+	operations/COM_ConvolutionEdgeFilterOperation.h
+	operations/COM_ConvolutionEdgeFilterOperation.cpp
+	operations/COM_DilateErodeOperation.cpp
+	operations/COM_DilateErodeOperation.h
+	operations/COM_FogGlowImageOperation.cpp
+	operations/COM_FogGlowImageOperation.h
+	operations/COM_GlareThresholdOperation.cpp
+	operations/COM_GlareThresholdOperation.h
 
 
 #Convert operations

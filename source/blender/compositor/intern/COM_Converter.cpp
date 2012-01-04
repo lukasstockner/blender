@@ -88,6 +88,7 @@
 #include "COM_TonemapNode.h"
 #include "COM_SwitchNode.h"
 #include "COM_OpenCLTestNode.h"
+#include "COM_GlareNode.h"
 
 Node* Converter::convert(bNode *bNode) {
 	Node * node;
@@ -251,6 +252,9 @@ Node* Converter::convert(bNode *bNode) {
 		break;
 	case CMP_NODE_OPENCLTEST:
 		node = new OpenCLTestNode(bNode);
+		break;
+	case CMP_NODE_GLARE:
+		node = new GlareNode(bNode);
 		break;
 	default:
 		node = new MuteNode(bNode);
