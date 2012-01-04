@@ -176,6 +176,7 @@ public:
 
     void read(float* result, int x, int y);
     void readCubic(float* result, float x, float y);
+	void readEWA(float *result, float fx, float fy, float dx, float dy);
 
 	/**
 	  * @brief is this MemoryBuffer a temporarily buffer (based on an area, not on a chunk)

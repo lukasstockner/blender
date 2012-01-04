@@ -60,6 +60,7 @@
 #include "COM_VectorCurveNode.h"
 #include "COM_DilateErode2Node.h"
 #include "COM_SetAlphaNode.h"
+#include "COM_MapUVNode.h"
 #include "COM_MathNode.h"
 #include "COM_HueSaturationValueNode.h"
 #include "COM_HueSaturationValueCorrectNode.h"
@@ -204,6 +205,9 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_HUECORRECT:
 		node = new HueSaturationValueCorrectNode(bNode);
 		break;
+    case CMP_NODE_MAP_UV:
+        node = new MapUVNode(bNode);
+        break;
 	case CMP_NODE_VALTORGB:
 		node = new ColorRampNode(bNode);
 		break;

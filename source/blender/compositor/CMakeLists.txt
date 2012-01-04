@@ -150,6 +150,9 @@ set(SRC
 		nodes/COM_FlipNode.cpp
 		nodes/COM_FlipNode.h
 
+		nodes/COM_MapUVNode.cpp
+		nodes/COM_MapUVNode.h
+
 		nodes/COM_DifferenceMatteNode.cpp
 		nodes/COM_DifferenceMatteNode.h
 		nodes/COM_LensDistortionNode.cpp
@@ -441,6 +444,8 @@ operations/COM_ConvertDepthToRadiusOperation.cpp
 		operations/COM_RotateOperation.cpp
 		operations/COM_ScaleOperation.h
 		operations/COM_ScaleOperation.cpp
+		operations/COM_MapUVOperation.h
+		operations/COM_MapUVOperation.cpp
 		operations/COM_FlipOperation.h
 		operations/COM_FlipOperation.cpp
 		operations/COM_ProjectorLensDistortionOperation.cpp

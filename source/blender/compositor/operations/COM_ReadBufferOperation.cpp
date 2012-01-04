@@ -52,6 +52,13 @@ void ReadBufferOperation::executePixel(float* color, float x, float y, MemoryBuf
     }
 }
 
+void ReadBufferOperation::executePixel(float *color, float x, float y, float dx, float dy, MemoryBuffer *inputBuffers[]) {
+	MemoryBuffer *inputBuffer = inputBuffers[this->offset];
+	if (inputBuffer) {
+		inputBuffer->readEWA(color, x, y, dx, dy);
+	}
+}
+
 bool ReadBufferOperation::determineDependingAreaOfInterest(rcti * input, ReadBufferOperation* readOperation, rcti* output) {
     if (this==readOperation) {
         BLI_init_rcti(output, input->xmin, input->xmax, input->ymin, input->ymax);

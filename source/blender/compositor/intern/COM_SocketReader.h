@@ -67,6 +67,18 @@ protected:
 	virtual void executePixel(float* result, int x, int y, MemoryBuffer *inputBuffers[], void* chunkData) {
 		executePixel(result, x, y, inputBuffers);
 	}
+    
+	/**
+	 * @brief calculate a single pixel using an EWA filter
+	 * @note this method is called for complex
+	 * @param result is a float[4] array to store the result
+	 * @param x the x-coordinate of the pixel to calculate in image space
+	 * @param y the y-coordinate of the pixel to calculate in image space
+	 * @param dx
+	 * @param dy
+	 * @param inputBuffers chunks that can be read by their ReadBufferOperation.
+	 */
+	virtual void executePixel(float* result, float x, float y, float dx, float dy, MemoryBuffer *inputBuffers[]) {}
 
 public:
 	inline void read(float* result, float x, float y, MemoryBuffer *inputBuffers[]) {
@@ -74,6 +86,9 @@ public:
 	}
 	inline void read(float* result, float x, float y, MemoryBuffer *inputBuffers[], void* chunkData) {
 		executePixel(result, x, y, inputBuffers, chunkData);
+	}
+	inline void read(float* result, float x, float y, float dx, float dy, MemoryBuffer *inputBuffers[]) {
+		executePixel(result, x, y, dx, dy, inputBuffers);
 	}
 
     virtual void* initializeTileData(rcti *rect, MemoryBuffer** memoryBuffers) {

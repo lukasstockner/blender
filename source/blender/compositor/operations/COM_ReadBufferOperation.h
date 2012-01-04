@@ -40,6 +40,7 @@ public:
 
 	void* initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers);
 	void executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]);
+	void executePixel(float *color, float x, float y, float dx, float dy, MemoryBuffer *inputBuffers[]);
 	const bool isReadBufferOperation() const {return true;}
 	void setOffset(unsigned int offset) {this->offset = offset;}
 	unsigned int getOffset() {return this->offset;}
