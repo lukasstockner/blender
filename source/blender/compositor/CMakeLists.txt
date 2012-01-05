@@ -464,6 +464,10 @@ operations/COM_ConvertDepthToRadiusOperation.cpp
 	operations/COM_FogGlowImageOperation.h
 	operations/COM_GlareThresholdOperation.cpp
 	operations/COM_GlareThresholdOperation.h
+	operations/COM_GlareBaseOperation.cpp
+	operations/COM_GlareBaseOperation.h
+	operations/COM_GlareSimpleStarOperation.cpp
+	operations/COM_GlareSimpleStarOperation.h
 
 
 #Convert operations

@@ -59,6 +59,11 @@ MemoryBuffer::MemoryBuffer(MemoryProxy * memoryProxy, rcti* rect) {
     this->datatype = COM_DT_COLOR;
 	this->chunkWidth = this->rect.xmax - this->rect.xmin;
 }
+MemoryBuffer* MemoryBuffer::duplicate() {
+	MemoryBuffer *result = new MemoryBuffer(this->memoryProxy, &this->rect);
+	memcpy(result->buffer, this->buffer, this->determineBufferSize()*4*sizeof(float));
+	return result;
+}
 
 MemoryBuffer::~MemoryBuffer() {
     if (this->buffer) {
@@ -113,6 +118,16 @@ void MemoryBuffer::read(float* result, int x, int y) {
         result[2] = 0.0f;
         result[3] = 0.0f;
     }
+}
+void MemoryBuffer::writePixel(int x, int y, float color[4]) {
+	if (x>=this->rect.xmin && x < this->rect.xmax &&
+			y>=this->rect.ymin && y < this->rect.ymax) {
+		int offset = (this->chunkWidth*y+x)*4;
+		this->buffer[offset] = color[0];
+		this->buffer[offset+1] = color[1];
+		this->buffer[offset+2] = color[2];
+		this->buffer[offset+3] = color[3];
+	}
 }
 
 void MemoryBuffer::readCubic(float* result, float x, float y) {

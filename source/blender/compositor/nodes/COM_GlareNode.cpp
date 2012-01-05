@@ -25,6 +25,7 @@
 #include "COM_FogGlowImageOperation.h"
 #include "COM_BokehBlurOperation.h"
 #include "COM_GlareThresholdOperation.h"
+#include "COM_GlareSimpleStarOperation.h"
 #include "COM_SetValueOperation.h"
 #include "COM_MixBlendOperation.h"
 
@@ -36,37 +37,66 @@ void GlareNode::convertToOperations(ExecutionSystem *system, CompositorContext *
 	NodeGlare* glare = (NodeGlare*)node->storage;
 	
 	switch (glare->type) {
+	
 	default:
 	case 1: // fog glow
-		GlareThresholdOperation *thresholdOperation = new GlareThresholdOperation();
-		FogGlowImageOperation * kerneloperation = new FogGlowImageOperation();
-		BokehBlurOperation * bluroperation = new BokehBlurOperation();
-		SetValueOperation * valueoperation = new SetValueOperation();
-		SetValueOperation * mixvalueoperation = new SetValueOperation();
-		MixBlendOperation * mixoperation = new MixBlendOperation();
-		mixoperation->setResolutionInputSocketIndex(1);
-		this->getInputSocket(0)->relinkConnections(thresholdOperation->getInputSocket(0), true, 0, system);
-		addLink(system, thresholdOperation->getOutputSocket(), bluroperation->getInputSocket(0));
-		addLink(system, kerneloperation->getOutputSocket(), bluroperation->getInputSocket(1));
-		addLink(system, valueoperation->getOutputSocket(), bluroperation->getInputSocket(2));
-		addLink(system, mixvalueoperation->getOutputSocket(), mixoperation->getInputSocket(0));
-		addLink(system, bluroperation->getOutputSocket(), mixoperation->getInputSocket(2));
-		addLink(system, thresholdOperation->getInputSocket(0)->getConnection()->getFromSocket(), mixoperation->getInputSocket(1));
+		{
+			GlareThresholdOperation *thresholdOperation = new GlareThresholdOperation();
+			FogGlowImageOperation * kerneloperation = new FogGlowImageOperation();
+			BokehBlurOperation * bluroperation = new BokehBlurOperation();
+			SetValueOperation * valueoperation = new SetValueOperation();
+			SetValueOperation * mixvalueoperation = new SetValueOperation();
+			MixBlendOperation * mixoperation = new MixBlendOperation();
+			mixoperation->setResolutionInputSocketIndex(1);
+			this->getInputSocket(0)->relinkConnections(thresholdOperation->getInputSocket(0), true, 0, system);
+			addLink(system, thresholdOperation->getOutputSocket(), bluroperation->getInputSocket(0));
+			addLink(system, kerneloperation->getOutputSocket(), bluroperation->getInputSocket(1));
+			addLink(system, valueoperation->getOutputSocket(), bluroperation->getInputSocket(2));
+			addLink(system, mixvalueoperation->getOutputSocket(), mixoperation->getInputSocket(0));
+			addLink(system, bluroperation->getOutputSocket(), mixoperation->getInputSocket(2));
+			addLink(system, thresholdOperation->getInputSocket(0)->getConnection()->getFromSocket(), mixoperation->getInputSocket(1));
+	
+			thresholdOperation->setThreshold(glare->threshold);
+			bluroperation->setSize(0.003f*glare->size);
+			bluroperation->setQuality(context->getQuality());
+			valueoperation->setValue(1.0f);
+			mixvalueoperation->setValue(0.5f+glare->mix*0.5f);
+			this->getOutputSocket()->relinkConnections(mixoperation->getOutputSocket());
+	
+			system->addOperation(bluroperation);
+			system->addOperation(kerneloperation);
+			system->addOperation(thresholdOperation);
+			system->addOperation(mixvalueoperation);
+			system->addOperation(valueoperation);
+			system->addOperation(mixoperation);
+		}
+		break;
+		
+	case 0: // simple star
+		{
+			GlareThresholdOperation *thresholdOperation = new GlareThresholdOperation();
+			GlareSimpleStarOperation * glareoperation = new GlareSimpleStarOperation();
+			SetValueOperation * mixvalueoperation = new SetValueOperation();
+			MixBlendOperation * mixoperation = new MixBlendOperation();
 
-		thresholdOperation->setThreshold(glare->threshold);
-		bluroperation->setSize(0.003f*glare->size);
-		bluroperation->setQuality(context->getQuality());
-		valueoperation->setValue(1.0f);
-		mixvalueoperation->setValue(0.5f+glare->mix*0.5f);
-		this->getOutputSocket()->relinkConnections(mixoperation->getOutputSocket());
+			this->getInputSocket(0)->relinkConnections(thresholdOperation->getInputSocket(0), true, 0, system);
+			addLink(system, thresholdOperation->getOutputSocket(), glareoperation->getInputSocket(0));
+			addLink(system, mixvalueoperation->getOutputSocket(), mixoperation->getInputSocket(0));
+			addLink(system, glareoperation->getOutputSocket(), mixoperation->getInputSocket(2));
+			addLink(system, thresholdOperation->getInputSocket(0)->getConnection()->getFromSocket(), mixoperation->getInputSocket(1));
+			this->getOutputSocket()->relinkConnections(mixoperation->getOutputSocket());
 
-		system->addOperation(bluroperation);
-		system->addOperation(kerneloperation);
-		system->addOperation(thresholdOperation);
-		system->addOperation(mixvalueoperation);
-		system->addOperation(valueoperation);
-		system->addOperation(mixoperation);
+			thresholdOperation->setThreshold(glare->threshold);
+			glareoperation->setGlareSettings(glare);
+			mixvalueoperation->setValue(0.5f+glare->mix*0.5f);
+			mixoperation->setResolutionInputSocketIndex(1);
 
+
+			system->addOperation(glareoperation);
+			system->addOperation(thresholdOperation);
+			system->addOperation(mixvalueoperation);
+			system->addOperation(mixoperation);
+		}
 		break;
 	}
 }

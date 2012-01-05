@@ -28,9 +28,6 @@
 FogGlowImageOperation::FogGlowImageOperation(): NodeOperation() {
 	this->addOutputSocket(COM_DT_COLOR);
 }
-void FogGlowImageOperation::initExecution() {
-}
-
 void FogGlowImageOperation::executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]) {
 	const float cs_r = 1.f, cs_g = 1.f, cs_b = 1.f;
 
@@ -45,9 +42,6 @@ void FogGlowImageOperation::executePixel(float* color, float x, float y, MemoryB
 	color[1] = expf(d*cs_g) * w;
 	color[2] = expf(d*cs_b) * w;
 	color[3] = 1.0f;
-}
-
-void FogGlowImageOperation::deinitExecution() {
 }
 
 void FogGlowImageOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {

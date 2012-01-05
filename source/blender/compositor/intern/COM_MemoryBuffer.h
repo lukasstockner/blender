@@ -175,6 +175,7 @@ public:
     }
 
     void read(float* result, int x, int y);
+	void writePixel(int x, int y, float color[4]);
     void readCubic(float* result, float x, float y);
 	void readEWA(float *result, float fx, float fy, float dx, float dy);
 
@@ -220,6 +221,7 @@ public:
 	  */
 	int getHeight() const;
 
+	MemoryBuffer* duplicate();
 private:
     unsigned int determineBufferSize();
 };

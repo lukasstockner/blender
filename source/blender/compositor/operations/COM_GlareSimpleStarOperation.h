@@ -20,20 +20,16 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_FogGlowOperation_h
-#define _COM_FogGlowOperation_h
+#ifndef _COM_GlareSimpleStarOperation_h
+#define _COM_GlareSimpleStarOperation_h
 #include "COM_NodeOperation.h"
-#include "DNA_lamp_types.h"
+#include "DNA_node_types.h"
+#include "COM_GlareBaseOperation.h"
 
-class FogGlowImageOperation : public NodeOperation {
+class GlareSimpleStarOperation : public GlareBaseOperation {
 public:
-	FogGlowImageOperation();
-	
-	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]);
-	
-	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
+	GlareSimpleStarOperation() : GlareBaseOperation() {}
+protected:
+	void generateGlare(float *data, MemoryBuffer *inputTile, NodeGlare *settings);
 };
 #endif
