@@ -155,6 +155,8 @@ set(SRC
 
 		nodes/COM_DifferenceMatteNode.cpp
 		nodes/COM_DifferenceMatteNode.h
+		nodes/COM_LuminanceMatteNode.cpp
+		nodes/COM_LuminanceMatteNode.h
 		nodes/COM_LensDistortionNode.cpp
 		nodes/COM_LensDistortionNode.h
 
@@ -220,6 +222,10 @@ set(SRC
 		nodes/COM_SeparateHSVANode.h
 		nodes/COM_CombineHSVANode.cpp
 		nodes/COM_CombineHSVANode.h
+		nodes/COM_SeparateYUVANode.cpp
+		nodes/COM_SeparateYUVANode.h
+		nodes/COM_CombineYUVANode.cpp
+		nodes/COM_CombineYUVANode.h
 
 		nodes/COM_NormalNode.cpp
 		nodes/COM_NormalNode.h
@@ -343,6 +349,10 @@ operations/COM_ConvertDepthToRadiusOperation.cpp
 		operations/COM_ZCombineOperation.cpp
 		operations/COM_ZCombineOperation.h
 
+	operations/COM_ConvertRGBToYUVOperation.h
+	operations/COM_ConvertRGBToYUVOperation.cpp
+	operations/COM_ConvertYUVToRGBOperation.h
+	operations/COM_ConvertYUVToRGBOperation.cpp
 	operations/COM_ConvertRGBToHSVOperation.h
 	operations/COM_ConvertRGBToHSVOperation.cpp
 	operations/COM_ConvertHSVToRGBOperation.h
@@ -361,6 +371,8 @@ operations/COM_ConvertDepthToRadiusOperation.cpp
 	operations/COM_HueSaturationValueCorrectOperation.h
 	operations/COM_DifferenceMatteOperation.h
 	operations/COM_DifferenceMatteOperation.cpp
+	operations/COM_LuminanceMatteOperation.h
+	operations/COM_LuminanceMatteOperation.cpp
 
 	operations/COM_ReadBufferOperation.cpp
 	operations/COM_ReadBufferOperation.h
