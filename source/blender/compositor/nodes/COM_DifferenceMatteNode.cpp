@@ -21,7 +21,6 @@
  */
 
 #include "COM_DifferenceMatteNode.h"
-#include "COM_ExecutionSystem.h"
 #include "BKE_node.h"
 #include "COM_DifferenceMatteOperation.h"
 #include "COM_SetAlphaOperation.h"
@@ -44,11 +43,10 @@ void DifferenceMatteNode::convertToOperations(ExecutionSystem *graph, Compositor
 	outputSocketMatte->relinkConnections(operationSet->getOutputSocket(0));
 	graph->addOperation(operationSet);
 
-	if (outputSocketImage->isConnected()) {
-		SetAlphaOperation * operation = new SetAlphaOperation();
-		addLink(graph, operationSet->getInputSocket(0)->getConnection()->getFromSocket(), operation->getInputSocket(0));
-		addLink(graph, operationSet->getOutputSocket(), operation->getInputSocket(1));
-		outputSocketImage->relinkConnections(operation->getOutputSocket());
-		graph->addOperation(operation);
-	}
+	SetAlphaOperation * operation = new SetAlphaOperation();
+	addLink(graph, operationSet->getInputSocket(0)->getConnection()->getFromSocket(), operation->getInputSocket(0));
+	addLink(graph, operationSet->getOutputSocket(), operation->getInputSocket(1));
+	outputSocketImage->relinkConnections(operation->getOutputSocket());
+	graph->addOperation(operation);
+	addPreviewOperation(graph, operation->getOutputSocket(), 5);
 }
