@@ -22,7 +22,7 @@
 #include "COM_DistanceMatteNode.h"
 #include "BKE_node.h"
 #include "COM_DistanceMatteOperation.h"
-#include "COM_SeparateChannelOperation.h"
+#include "COM_SetAlphaOperation.h"
 
 DistanceMatteNode::DistanceMatteNode(bNode *editorNode): Node(editorNode)
 {}
@@ -40,18 +40,20 @@ void DistanceMatteNode::convertToOperations(ExecutionSystem *graph, CompositorCo
 	inputSocketImage->relinkConnections(operation->getInputSocket(0), true, 0, graph);
 	inputSocketKey->relinkConnections(operation->getInputSocket(1), true, 1, graph);
 
-	graph->addOperation(operation);
-	addPreviewOperation(graph, operation->getOutputSocket(), 9);
-
-	if (outputSocketImage->isConnected()) {
-		outputSocketImage->relinkConnections(operation->getOutputSocket());
+	if (outputSocketMatte->isConnected()) {
+		outputSocketMatte->relinkConnections(operation->getOutputSocket());
 	}
 
-	if (outputSocketMatte->isConnected()) {
-		SeparateChannelOperation *operationAlpha = new SeparateChannelOperation();
-		operationAlpha->setChannel(3);
-		addLink(graph, operation->getOutputSocket(), operationAlpha->getInputSocket(0));
-		outputSocketMatte->relinkConnections(operationAlpha->getOutputSocket());
-		graph->addOperation(operationAlpha);
+	graph->addOperation(operation);
+
+	SetAlphaOperation *operationAlpha = new SetAlphaOperation();
+	addLink(graph, operation->getInputSocket(0)->getConnection()->getFromSocket(), operationAlpha->getInputSocket(0));
+	addLink(graph, operation->getOutputSocket(), operationAlpha->getInputSocket(1));
+
+	graph->addOperation(operationAlpha);
+	addPreviewOperation(graph, operationAlpha->getOutputSocket(), 9);
+
+	if (outputSocketImage->isConnected()) {
+		outputSocketImage->relinkConnections(operationAlpha->getOutputSocket());
 	}
 }
