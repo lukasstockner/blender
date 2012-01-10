@@ -228,6 +228,10 @@ set(SRC
 		nodes/COM_SeparateYUVANode.h
 		nodes/COM_CombineYUVANode.cpp
 		nodes/COM_CombineYUVANode.h
+		nodes/COM_SeparateYCCANode.cpp
+		nodes/COM_SeparateYCCANode.h
+		nodes/COM_CombineYCCANode.cpp
+		nodes/COM_CombineYCCANode.h
 
 		nodes/COM_NormalNode.cpp
 		nodes/COM_NormalNode.h
@@ -351,6 +355,10 @@ operations/COM_ConvertDepthToRadiusOperation.cpp
 		operations/COM_ZCombineOperation.cpp
 		operations/COM_ZCombineOperation.h
 
+	operations/COM_ConvertRGBToYCCOperation.h
+	operations/COM_ConvertRGBToYCCOperation.cpp
+	operations/COM_ConvertYCCToRGBOperation.h
+	operations/COM_ConvertYCCToRGBOperation.cpp
 	operations/COM_ConvertRGBToYUVOperation.h
 	operations/COM_ConvertRGBToYUVOperation.cpp
 	operations/COM_ConvertYUVToRGBOperation.h

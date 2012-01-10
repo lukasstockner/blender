@@ -47,6 +47,10 @@
 #include "COM_CombineRGBANode.h"
 #include "COM_SeparateHSVANode.h"
 #include "COM_CombineHSVANode.h"
+#include "COM_SeparateYUVANode.h"
+#include "COM_CombineYUVANode.h"
+#include "COM_SeparateYCCANode.h"
+#include "COM_CombineYCCANode.h"
 #include "COM_AlphaOverNode.h"
 #include "COM_ColorBalanceNode.h"
 #include "COM_ViewerNode.h"
@@ -149,6 +153,18 @@ Node* Converter::convert(bNode *bNode) {
 		break;
 	case CMP_NODE_COMBHSVA:
 		node = new CombineHSVANode(bNode);
+		break;
+	case CMP_NODE_SEPYUVA:
+		node = new SeparateYUVANode(bNode);
+		break;
+	case CMP_NODE_COMBYUVA:
+		node = new CombineYUVANode(bNode);
+		break;
+	case CMP_NODE_SEPYCCA:
+		node = new SeparateYCCANode(bNode);
+		break;
+	case CMP_NODE_COMBYCCA:
+		node = new CombineYCCANode(bNode);
 		break;
 	case CMP_NODE_ALPHAOVER:
 		node = new AlphaOverNode(bNode);
