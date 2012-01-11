@@ -391,6 +391,7 @@ class RENDER_PT_game_shading(RenderButtonsPanel, Panel):
             col.prop(gs, "use_glsl_nodes", text="Nodes")
             col.prop(gs, "use_glsl_extra_textures", text="Extra Textures")
 
+
 class RENDER_PT_game_system(RenderButtonsPanel, Panel):
     bl_label = "System"
     COMPAT_ENGINES = {'BLENDER_GAME'}
@@ -435,12 +436,12 @@ class RENDER_PT_game_display(RenderButtonsPanel, Panel):
         flow.prop(gs, "use_deprecation_warnings")
         flow.prop(gs, "show_mouse", text="Mouse Cursor")
 
-        # framing:
         col = layout.column()
         col.label(text="Framing:")
         col.row().prop(gs, "frame_type", expand=True)
         if gs.frame_type == 'LETTERBOX':
             col.prop(gs, "frame_color", text="")
+
 
 class SceneButtonsPanel():
     bl_space_type = 'PROPERTIES'
@@ -520,6 +521,8 @@ class RENDER_PT_game_sound(RenderButtonsPanel, Panel):
         col = layout.column(align=True)
         col.prop(scene, "audio_doppler_speed", text="Speed")
         col.prop(scene, "audio_doppler_factor")
+
+
 class WorldButtonsPanel():
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -589,10 +592,14 @@ class WORLD_PT_game_mist(WorldButtonsPanel, Panel):
         world = context.world
 
         layout.active = world.mist_settings.use_mist
-
         row = layout.row()
+        row.prop(world.mist_settings, "falloff")
+
+        row = layout.row(align=True)
         row.prop(world.mist_settings, "start")
         row.prop(world.mist_settings, "depth")
+        row = layout.row()
+        row.prop(world.mist_settings, "intensity", text="Minimum Intensity")
 
 
 class WORLD_PT_game_physics(WorldButtonsPanel, Panel):

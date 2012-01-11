@@ -98,21 +98,24 @@ void BL_Material::Initialize()
 	}
 }
 
-void BL_Material::SetConversionRGB(unsigned int *nrgb) {
+void BL_Material::SetConversionRGB(unsigned int *nrgb)
+{
 	rgb[0]=*nrgb++;
 	rgb[1]=*nrgb++;
 	rgb[2]=*nrgb++;
 	rgb[3]=*nrgb;
 }
 
-void BL_Material::GetConversionRGB(unsigned int *nrgb) {
+void BL_Material::GetConversionRGB(unsigned int *nrgb)
+{
 	*nrgb++ = rgb[0];
 	*nrgb++ = rgb[1];
 	*nrgb++ = rgb[2];
 	*nrgb   = rgb[3];
 }
 
-void BL_Material::SetConversionUV(const MT_Point2 nuv[4][MAXTEX]) {
+void BL_Material::SetConversionUV(const MT_Point2 nuv[4][MAXTEX])
+{
 	for(int i=0; i<4; ++i)
 	{
 		for (int j=0; j<MAXTEX; ++j)
@@ -120,7 +123,8 @@ void BL_Material::SetConversionUV(const MT_Point2 nuv[4][MAXTEX]) {
 	}
 }
 
-void BL_Material::GetConversionUV(MT_Point2 nuv[4][8]) {
+void BL_Material::GetConversionUV(MT_Point2 nuv[4][8])
+{
 	for(int i=0; i<4; ++i)
 	{
 		for (int j=0; j<MAXTEX; ++j)

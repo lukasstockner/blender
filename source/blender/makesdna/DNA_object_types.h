@@ -24,13 +24,14 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_OBJECT_TYPES_H
-#define DNA_OBJECT_TYPES_H
 
 /** \file DNA_object_types.h
  *  \ingroup DNA
  *  \brief Object is a sort of wrapper for general info.
  */
+
+#ifndef DNA_OBJECT_TYPES_H
+#define DNA_OBJECT_TYPES_H
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
@@ -253,8 +254,8 @@ typedef struct Object {
 	struct FluidsimSettings *fluidsimSettings; /* if fluidsim enabled, store additional settings */
 
 	struct DerivedMesh *derivedDeform, *derivedFinal;
-	unsigned int lastDataMask;   /* the custom data layer mask that was last used to calculate derivedDeform and derivedFinal */
-	unsigned int customdata_mask; /* (extra) custom data layer mask to use for creating derivedmesh, set by depsgraph */
+	uint64_t lastDataMask;   /* the custom data layer mask that was last used to calculate derivedDeform and derivedFinal */
+	uint64_t customdata_mask; /* (extra) custom data layer mask to use for creating derivedmesh, set by depsgraph */
 	unsigned int state;			/* bit masks of game controllers that are active */
 	unsigned int init_state;	/* bit masks of initial state as recorded by the users */
 

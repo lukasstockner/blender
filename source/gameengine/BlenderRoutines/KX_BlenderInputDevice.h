@@ -55,7 +55,6 @@ class BL_BlenderInputDevice : public SCA_IInputDevice
 public:
 	BL_BlenderInputDevice()                                                                                    
 	{
-	
 	}
 	virtual ~BL_BlenderInputDevice()
 	{

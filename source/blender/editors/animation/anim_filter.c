@@ -1852,6 +1852,10 @@ static size_t animdata_filter_ds_world (bAnimContext *ac, ListBase *anim_data, b
 		/* textures for world */
 		if (!(ads->filterflag & ADS_FILTER_NOTEX))
 			items += animdata_filter_ds_textures(ac, &tmp_data, ads, (ID *)wo, filter_mode);
+			
+		/* nodes */
+		if ((wo->nodetree) && !(ads->filterflag & ADS_FILTER_NONTREE)) 
+			tmp_items += animdata_filter_ds_nodetree(ac, &tmp_data, ads, (ID *)wo, wo->nodetree, filter_mode);
 	}
 	END_ANIMFILTER_SUBCHANNELS;
 	
@@ -1947,12 +1951,12 @@ static size_t animdata_filter_dopesheet_scene (bAnimContext *ac, ListBase *anim_
 		}
 		
 		/* world */
-		if ((wo && wo->adt) && !(ads->filterflag & ADS_FILTER_NOWOR)) {
+		if ((wo) && !(ads->filterflag & ADS_FILTER_NOWOR)) {
 			tmp_items += animdata_filter_ds_world(ac, &tmp_data, ads, sce, wo, filter_mode);
 		}
 		
 		/* nodetree */
-		if ((ntree && ntree->adt) && !(ads->filterflag & ADS_FILTER_NONTREE)) {
+		if ((ntree) && !(ads->filterflag & ADS_FILTER_NONTREE)) {
 			tmp_items += animdata_filter_ds_nodetree(ac, &tmp_data, ads, (ID *)sce, ntree, filter_mode);
 		}
 		
@@ -2205,12 +2209,12 @@ size_t ANIM_animdata_filter (bAnimContext *ac, ListBase *anim_data, int filter_m
 	
 	/* only filter data if there's somewhere to put it */
 	if (data && anim_data) {
-		Object *obact= (ac) ? ac->obact : NULL;
 		
 		/* firstly filter the data */
 		switch (datatype) {
 			case ANIMCONT_ACTION:	/* 'Action Editor' */
 			{
+				Object *obact= ac->obact;
 				SpaceAction *saction = (SpaceAction *)ac->sl;
 				bDopeSheet *ads = (saction)? &saction->ads : NULL;
 				

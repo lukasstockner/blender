@@ -165,24 +165,36 @@ if(WITH_PYTHON_MODULE)
 	add_definitions(-DWITH_PYTHON_MODULE)
 
 	# creates ./bin/bpy.so which can be imported as a python module.
-	add_library(blender SHARED ${SRC})
-	set_target_properties(
-		blender
-		PROPERTIES
-			PREFIX ""
-			OUTPUT_NAME bpy
-			LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-			RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin  # only needed on windows
-	)
-
-	if(WIN32)
-		# python modules use this
+	if(APPLE)
+		add_library(blender MODULE ${SRC})
 		set_target_properties(
 			blender
 			PROPERTIES
-			SUFFIX ".pyd"
+				PREFIX ""
+				OUTPUT_NAME bpy
+				LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 		)
-	endif()
+
+	else(APPLE)
+		add_library(blender SHARED ${SRC})
+		set_target_properties(
+			blender
+			PROPERTIES
+				PREFIX ""
+				OUTPUT_NAME bpy
+				LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+				RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin  # only needed on windows
+		)
+
+		if(WIN32)
+			# python modules use this
+			set_target_properties(
+				blender
+				PROPERTIES
+				SUFFIX ".pyd"
+			)
+		endif()
+	endif(APPLE)
 
 else()
 	add_executable(blender ${EXETYPE} ${SRC})
@@ -437,15 +449,15 @@ elseif(WIN32)
 	# )
 
 	if(WITH_PYTHON)
-
+		set_lib_path(PYLIB "python/lib")
 		install(
-			FILES ${LIBDIR}/python/lib/python32.dll
+			FILES ${PYLIB}/python32.dll
 			DESTINATION ${TARGETDIR}
 			CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
 		)
 
 		install(
-			FILES ${LIBDIR}/python/lib/python32_d.dll
+			FILES ${PYLIB}/python32_d.dll
 			DESTINATION ${TARGETDIR}
 			CONFIGURATIONS Debug
 		)
@@ -532,7 +544,6 @@ elseif(WIN32)
 		install(
 			FILES
 				${LIBDIR}/openal/lib/OpenAL32.dll
-				${LIBDIR}/openal/lib/wrap_oal.dll
 			DESTINATION ${TARGETDIR}
 		)
 	endif()
@@ -559,9 +570,10 @@ elseif(WIN32)
 	)	
 
 	if(WITH_OPENIMAGEIO)
+		set_lib_path(OIIOBIN "openimageio/bin")
 		install(
 			FILES
-				${LIBDIR}/openimageio/bin/OpenImageIO.dll
+				${OIIOBIN}/OpenImageIO.dll
 			DESTINATION ${TARGETDIR}
 		)
 	endif()
@@ -775,11 +787,11 @@ endif()
 		bf_nodes
 		bf_gpu
 		bf_blenloader
+		bf_imbuf
 		bf_blenlib
 		bf_intern_ghost
 		bf_intern_string
 		bf_blenpluginapi
-		bf_imbuf
 		bf_avi
 		bf_imbuf_cineon
 		bf_imbuf_openexr
@@ -822,6 +834,7 @@ endif()
 		bf_blenfont
 		bf_intern_audaspace
 		bf_intern_mikktspace
+		bf_intern_dualcon
 		bf_intern_cycles
 		cycles_render
 		cycles_bvh

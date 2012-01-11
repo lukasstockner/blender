@@ -39,6 +39,7 @@
 #include <fcntl.h> // for open
 #include <string.h> // for strrchr strncmp strstr
 #include <math.h> // for fabs
+#include <stdarg.h> /* for va_start/end */
 
 #ifndef WIN32
 	#include <unistd.h> // for read close
@@ -138,6 +139,8 @@
 #include "BKE_tracking.h"
 #include "BKE_utildefines.h" // SWITCH_INT DATA ENDB DNA1 O_BINARY GLOB USER TEST REND
 #include "BKE_sound.h"
+
+#include "IMB_imbuf.h"  // for proxy / timecode versioning stuff
 
 #include "NOD_socket.h"
 
@@ -246,6 +249,31 @@ typedef struct OldNewMap {
 static void *read_struct(FileData *fd, BHead *bh, const char *blockname);
 static void direct_link_modifiers(FileData *fd, ListBase *lb);
 static void convert_tface_mt(FileData *fd, Main *main);
+
+/* this function ensures that reports are printed,
+ * in the case of libraray linking errors this is important!
+ *
+ * bit kludge but better then doubling up on prints,
+ * we could alternatively have a versions of a report function which foces printing - campbell
+ */
+static void BKE_reportf_wrap(ReportList *reports, ReportType type, const char *format, ...)
+{
+	char fixed_buf[1024]; /* should be long enough */
+
+	va_list args;
+
+	va_start(args, format);
+	vsnprintf(fixed_buf, sizeof(fixed_buf), format, args);
+	va_end(args);
+
+	fixed_buf[sizeof(fixed_buf) - 1] = '\0';
+
+	BKE_report(reports, type, fixed_buf);
+
+	if(G.background==0) {
+		printf("%s\n", fixed_buf);
+	}
+}
 
 static OldNewMap *oldnewmap_new(void) 
 {
@@ -3678,6 +3706,7 @@ static void direct_link_mdisps(FileData *fd, int count, MDisps *mdisps, int exte
 	}
 }
 
+/*this isn't really a public api function, so prototyped here*/
 static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 {
 	int i = 0;
@@ -3698,6 +3727,8 @@ static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 			i++;
 		}
 	}
+
+	CustomData_update_typemap(data);
 }
 
 static void direct_link_mesh(FileData *fd, Mesh *mesh)
@@ -3725,6 +3756,36 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 	direct_link_customdata(fd, &mesh->vdata, mesh->totvert);
 	direct_link_customdata(fd, &mesh->edata, mesh->totedge);
 	direct_link_customdata(fd, &mesh->fdata, mesh->totface);
+
+
+#ifdef USE_BMESH_FORWARD_COMPAT
+	/* NEVER ENABLE THIS CODE INTO BMESH!
+	 * THIS IS FOR LOADING BMESH INTO OLDER FILES ONLY */
+	mesh->mpoly= newdataadr(fd, mesh->mpoly);
+	mesh->mloop= newdataadr(fd, mesh->mloop);
+
+	direct_link_customdata(fd, &mesh->pdata, mesh->totpoly);
+	direct_link_customdata(fd, &mesh->ldata, mesh->totloop);
+
+	if (mesh->mpoly) {
+		/* be clever and load polygons as mfaces */
+
+		mesh->totface= mesh_mpoly_to_mface(&mesh->fdata, &mesh->ldata, &mesh->pdata,
+		                                   mesh->totface, mesh->totloop, mesh->totpoly);
+
+		CustomData_free(&mesh->pdata, mesh->totpoly);
+		memset(&mesh->pdata, 0, sizeof(CustomData));
+		mesh->totpoly = 0;
+
+		CustomData_free(&mesh->ldata, mesh->totloop);
+		memset(&mesh->ldata, 0, sizeof(CustomData));
+		mesh->totloop = 0;
+
+		mesh_update_customdata_pointers(mesh);
+	}
+
+#endif
+
 
 	mesh->bb= NULL;
 	mesh->mselect = NULL;
@@ -4080,8 +4141,9 @@ static void lib_link_object(FileData *fd, Main *main)
 		ob= ob->id.next;
 	}
 
-	if(warn)
+	if(warn) {
 		BKE_report(fd->reports, RPT_WARNING, "Warning in console");
+	}
 }
 
 
@@ -4662,8 +4724,9 @@ static void lib_link_scene(FileData *fd, Main *main)
 				base->object= newlibadr_us(fd, sce->id.lib, base->object);
 				
 				if(base->object==NULL) {
-					BKE_reportf(fd->reports, RPT_ERROR, "LIB ERROR: Object lost from scene:'%s\'\n", sce->id.name+2);
-					if(G.background==0) printf("LIB ERROR: base removed from scene:'%s\'\n", sce->id.name+2);
+					BKE_reportf_wrap(fd->reports, RPT_ERROR,
+					                 "LIB ERROR: Object lost from scene:'%s\'\n",
+					                 sce->id.name+2);
 					BLI_remlink(&sce->base, base);
 					if(base==sce->basact) sce->basact= NULL;
 					MEM_freeN(base);
@@ -4676,7 +4739,7 @@ static void lib_link_scene(FileData *fd, Main *main)
 				if(seq->scene) {
 					seq->scene= newlibadr(fd, sce->id.lib, seq->scene);
 					if(seq->scene) {
-						seq->scene_sound = sound_scene_add_scene_sound(sce, seq, seq->startdisp, seq->enddisp, seq->startofs + seq->anim_startofs);
+						seq->scene_sound = sound_scene_add_scene_sound_defaults(sce, seq);
 					}
 				}
 				if(seq->scene_camera) seq->scene_camera= newlibadr(fd, sce->id.lib, seq->scene_camera);
@@ -4688,7 +4751,7 @@ static void lib_link_scene(FileData *fd, Main *main)
 						seq->sound= newlibadr(fd, sce->id.lib, seq->sound);
 					if (seq->sound) {
 						seq->sound->id.us++;
-						seq->scene_sound = sound_add_scene_sound(sce, seq, seq->startdisp, seq->enddisp, seq->startofs + seq->anim_startofs);
+						seq->scene_sound = sound_add_scene_sound_defaults(sce, seq);
 					}
 				}
 				seq->anim= NULL;
@@ -5763,8 +5826,9 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
 	for(newmain= fd->mainlist.first; newmain; newmain= newmain->next) {
 		if(newmain->curlib) {
 			if(BLI_path_cmp(newmain->curlib->filepath, lib->filepath) == 0) {
-				printf("Fixed error in file; multiple instances of lib:\n %s\n", lib->filepath);
-				BKE_reportf(fd->reports, RPT_WARNING, "Library '%s', '%s' had multiple instances, save and reload!", lib->name, lib->filepath);
+				BKE_reportf_wrap(fd->reports, RPT_WARNING,
+				                 "Library '%s', '%s' had multiple instances, save and reload!",
+				                 lib->name, lib->filepath);
 
 				change_idid_adr(&fd->mainlist, fd, lib, newmain->curlib);
 //				change_idid_adr_fd(fd, lib, newmain->curlib);
@@ -5934,10 +5998,29 @@ static void lib_link_group(FileData *fd, Main *main)
 
 /* ***************** READ MOVIECLIP *************** */
 
+static void direct_link_movieReconstruction(FileData *fd, MovieTrackingReconstruction *reconstruction)
+{
+	reconstruction->cameras= newdataadr(fd, reconstruction->cameras);
+}
+
+static void direct_link_movieTracks(FileData *fd, ListBase *tracksbase)
+{
+	MovieTrackingTrack *track;
+
+	link_list(fd, tracksbase);
+
+	track= tracksbase->first;
+	while(track) {
+		track->markers= newdataadr(fd, track->markers);
+
+		track= track->next;
+	}
+}
+
 static void direct_link_movieclip(FileData *fd, MovieClip *clip)
 {
 	MovieTracking *tracking= &clip->tracking;
-	MovieTrackingTrack *track;
+	MovieTrackingObject *object;
 
 	if(fd->movieclipmap) clip->cache= newmclipadr(fd, clip->cache);
 	else clip->cache= NULL;
@@ -5945,16 +6028,8 @@ static void direct_link_movieclip(FileData *fd, MovieClip *clip)
 	if(fd->movieclipmap) clip->tracking.camera.intrinsics= newmclipadr(fd, clip->tracking.camera.intrinsics);
 	else clip->tracking.camera.intrinsics= NULL;
 
-	tracking->reconstruction.cameras= newdataadr(fd, tracking->reconstruction.cameras);
-
-	link_list(fd, &tracking->tracks);
-
-	track= tracking->tracks.first;
-	while(track) {
-		track->markers= newdataadr(fd, track->markers);
-
-		track= track->next;
-	}
+	direct_link_movieTracks(fd, &tracking->tracks);
+	direct_link_movieReconstruction(fd, &tracking->reconstruction);
 
 	clip->tracking.act_track= newdataadr(fd, clip->tracking.act_track);
 
@@ -5965,6 +6040,16 @@ static void direct_link_movieclip(FileData *fd, MovieClip *clip)
 	clip->tracking.stabilization.ok= 0;
 	clip->tracking.stabilization.scaleibuf= NULL;
 	clip->tracking.stabilization.rot_track= newdataadr(fd, clip->tracking.stabilization.rot_track);
+
+	link_list(fd, &tracking->objects);
+
+	object= tracking->objects.first;
+	while(object) {
+		direct_link_movieTracks(fd, &object->tracks);
+		direct_link_movieReconstruction(fd, &object->reconstruction);
+
+		object= object->next;
+	}
 }
 
 static void lib_link_movieclip(FileData *fd, Main *main)
@@ -7459,6 +7544,32 @@ static void do_versions_nodetree_socket_use_flags_2_62(bNodeTree *ntree)
 	for (link=ntree->links.first; link; link=link->next) {
 		link->fromsock->flag |= SOCK_IN_USE;
 		link->tosock->flag |= SOCK_IN_USE;
+	}
+}
+
+/* set the SOCK_AUTO_HIDDEN flag on collapsed nodes */
+static void do_versions_nodetree_socket_auto_hidden_flags_2_62(bNodeTree *ntree)
+{
+	bNode *node;
+	bNodeSocket *sock;
+	
+	for (node=ntree->nodes.first; node; node=node->next) {
+		if (node->flag & NODE_HIDDEN) {
+			for (sock=node->inputs.first; sock; sock=sock->next) {
+				if (sock->link==NULL)
+					sock->flag |= SOCK_AUTO_HIDDEN;
+			}
+			for(sock=node->outputs.first; sock; sock= sock->next) {
+				if(nodeCountSocketLinks(ntree, sock)==0)
+					sock->flag |= SOCK_AUTO_HIDDEN;
+			}
+		}
+		else {
+			for(sock=node->inputs.first; sock; sock= sock->next)
+				sock->flag &= ~SOCK_AUTO_HIDDEN;
+			for(sock=node->outputs.first; sock; sock= sock->next)
+				sock->flag &= ~SOCK_AUTO_HIDDEN;
+		}
 	}
 }
 
@@ -10689,8 +10800,11 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				void *olddata = ob->data;
 				ob->data = me;
 
-				if(me && me->id.lib==NULL && me->mr && me->mr->level_count > 1) /* XXX - library meshes crash on loading most yoFrankie levels, the multires pointer gets invalid -  Campbell */
+				/* XXX - library meshes crash on loading most yoFrankie levels,
+				 * the multires pointer gets invalid -  Campbell */
+				if(me && me->id.lib==NULL && me->mr && me->mr->level_count > 1) {
 					multires_load_old(ob, me);
+				}
 
 				ob->data = olddata;
 			}
@@ -12587,10 +12701,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					clip->aspy= 1.0f;
 				}
 
-				/* XXX: a bit hacky, probably include imbuf and use real constants are nicer */
-				clip->proxy.build_tc_flag= 7;
+				clip->proxy.build_tc_flag= IMB_TC_RECORD_RUN |
+				                           IMB_TC_FREE_RUN |
+				                           IMB_TC_INTERPOLATED_REC_DATE_FREE_RUN;
+
 				if(clip->proxy.build_size_flag==0)
-					clip->proxy.build_size_flag= 1;
+					clip->proxy.build_size_flag= IMB_PROXY_25;
 
 				if(clip->proxy.quality==0)
 					clip->proxy.quality= 90;
@@ -12703,7 +12819,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
-	/* put compatibility code here until next subversion bump */
+	if (main->versionfile < 261 || (main->versionfile == 261 && main->subversionfile < 1))
 	{
 		{
 			/* update use flags for node sockets (was only temporary before) */
@@ -12737,6 +12853,109 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			for (ntree=main->nodetree.first; ntree; ntree=ntree->id.next)
 				do_versions_nodetree_socket_use_flags_2_62(ntree);
 		}
+		{
+			/* Initialize BGE exit key to esc key */
+			Scene *scene;
+			for(scene= main->scene.first; scene; scene= scene->id.next) {
+				if (!scene->gm.exitkey)
+					scene->gm.exitkey = 218; // Blender key code for ESC
+			}
+		}
+		{
+			MovieClip *clip;
+			Object *ob;
+
+			for (clip= main->movieclip.first; clip; clip= clip->id.next) {
+				MovieTracking *tracking= &clip->tracking;
+				MovieTrackingObject *tracking_object= tracking->objects.first;
+
+				clip->proxy.build_tc_flag|= IMB_TC_RECORD_RUN_NO_GAPS;
+
+				if(!tracking->settings.object_distance)
+					tracking->settings.object_distance= 1.0f;
+
+				if(tracking->objects.first == NULL)
+					BKE_tracking_new_object(tracking, "Camera");
+
+				while(tracking_object) {
+					if(!tracking_object->scale)
+						tracking_object->scale= 1.0f;
+
+					tracking_object= tracking_object->next;
+				}
+			}
+
+			for (ob= main->object.first; ob; ob= ob->id.next) {
+				bConstraint *con;
+				for (con= ob->constraints.first; con; con=con->next) {
+					bConstraintTypeInfo *cti= constraint_get_typeinfo(con);
+
+					if(!cti)
+						continue;
+
+					if(cti->type==CONSTRAINT_TYPE_OBJECTSOLVER) {
+						bObjectSolverConstraint *data= (bObjectSolverConstraint *)con->data;
+
+						if(data->invmat[3][3]==0.0f)
+							unit_m4(data->invmat);
+					}
+				}
+			}
+		}
+		{
+		/* Warn the user if he is using ["Text"] properties for Font objects */
+			Object *ob;
+			bProperty *prop;
+
+			for (ob= main->object.first; ob; ob= ob->id.next) {
+				if (ob->type == OB_FONT) {
+					prop = get_ob_property(ob, "Text");
+					if (prop) {
+						BKE_reportf_wrap(fd->reports, RPT_WARNING,
+						                 "Game property name conflict in object: \"%s\".\nText objects reserve the "
+						                 "[\"Text\"] game property to change their content through Logic Bricks.\n",
+						                 ob->id.name+2);
+					}
+				}
+			}
+		}
+		{
+			/* set the SOCK_AUTO_HIDDEN flag on collapsed nodes */
+			Scene *sce;
+			Material *mat;
+			Tex *tex;
+			Lamp *lamp;
+			World *world;
+			bNodeTree *ntree;
+
+			for (sce=main->scene.first; sce; sce=sce->id.next)
+				if (sce->nodetree)
+					do_versions_nodetree_socket_auto_hidden_flags_2_62(sce->nodetree);
+
+			for (mat=main->mat.first; mat; mat=mat->id.next)
+				if (mat->nodetree)
+					do_versions_nodetree_socket_auto_hidden_flags_2_62(mat->nodetree);
+
+			for (tex=main->tex.first; tex; tex=tex->id.next)
+				if (tex->nodetree)
+					do_versions_nodetree_socket_auto_hidden_flags_2_62(tex->nodetree);
+
+			for (lamp=main->lamp.first; lamp; lamp=lamp->id.next)
+				if (lamp->nodetree)
+					do_versions_nodetree_socket_auto_hidden_flags_2_62(lamp->nodetree);
+
+			for (world=main->world.first; world; world=world->id.next)
+				if (world->nodetree)
+					do_versions_nodetree_socket_auto_hidden_flags_2_62(world->nodetree);
+
+			for (ntree=main->nodetree.first; ntree; ntree=ntree->id.next)
+				do_versions_nodetree_socket_auto_hidden_flags_2_62(ntree);
+		}
+	}
+
+	/* put compatibility code here until next subversion bump */
+	{
+		
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
@@ -14189,8 +14408,9 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 				if(fd==NULL) {
 
 					/* printf and reports for now... its important users know this */
-					BKE_reportf(basefd->reports, RPT_INFO, "read library:  '%s', '%s'\n", mainptr->curlib->filepath, mainptr->curlib->name);
-					if(!G.background && basefd->reports) printf("read library: '%s', '%s'\n", mainptr->curlib->filepath, mainptr->curlib->name);
+					BKE_reportf_wrap(basefd->reports, RPT_INFO,
+					                 "read library:  '%s', '%s'\n",
+					                 mainptr->curlib->filepath, mainptr->curlib->name);
 
 					fd= blo_openblenderfile(mainptr->curlib->filepath, basefd->reports);
 					
@@ -14235,8 +14455,9 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 					else mainptr->curlib->filedata= NULL;
 
 					if (fd==NULL) {
-						BKE_reportf(basefd->reports, RPT_ERROR, "Can't find lib '%s'\n", mainptr->curlib->filepath);
-						if(!G.background && basefd->reports) printf("ERROR: can't find lib %s \n", mainptr->curlib->filepath);
+						BKE_reportf_wrap(basefd->reports, RPT_ERROR,
+						                 "Can't find lib '%s'\n",
+						                 mainptr->curlib->filepath);
 					}
 				}
 				if(fd) {
@@ -14253,8 +14474,10 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 
 								append_id_part(fd, mainptr, id, &realid);
 								if (!realid) {
-									BKE_reportf(fd->reports, RPT_ERROR, "LIB ERROR: %s:'%s' missing from '%s'\n", BKE_idcode_to_name(GS(id->name)), id->name+2, mainptr->curlib->filepath);
-									if(!G.background && basefd->reports) printf("LIB ERROR: %s:'%s' missing from '%s'\n", BKE_idcode_to_name(GS(id->name)), id->name+2, mainptr->curlib->filepath);
+									BKE_reportf_wrap(fd->reports, RPT_ERROR,
+									                 "LIB ERROR: %s:'%s' missing from '%s'\n",
+									                 BKE_idcode_to_name(GS(id->name)),
+									                 id->name+2, mainptr->curlib->filepath);
 								}
 								
 								change_idid_adr(mainlist, basefd, id, realid);
@@ -14267,7 +14490,8 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 
 					expand_main(fd, mainptr);
 					
-					/* dang FileData... now new libraries need to be appended to original filedata, it is not a good replacement for the old global (ton) */
+					/* dang FileData... now new libraries need to be appended to original filedata,
+					 * it is not a good replacement for the old global (ton) */
 					while( fd->mainlist.first ) {
 						Main *mp= fd->mainlist.first;
 						BLI_remlink(&fd->mainlist, mp);
@@ -14289,8 +14513,9 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 				ID *idn= id->next;
 				if(id->flag & LIB_READ) {
 					BLI_remlink(lbarray[a], id);
-					BKE_reportf(basefd->reports, RPT_ERROR, "LIB ERROR: %s:'%s' unread libblock missing from '%s'\n", BKE_idcode_to_name(GS(id->name)), id->name+2, mainptr->curlib->filepath);
-					if(!G.background && basefd->reports)printf("LIB ERROR: %s:'%s' unread libblock missing from '%s'\n", BKE_idcode_to_name(GS(id->name)), id->name+2, mainptr->curlib->filepath);
+					BKE_reportf_wrap(basefd->reports, RPT_ERROR,
+					                 "LIB ERROR: %s:'%s' unread libblock missing from '%s'\n",
+					                 BKE_idcode_to_name(GS(id->name)), id->name+2, mainptr->curlib->filepath);
 					change_idid_adr(mainlist, basefd, id, NULL);
 
 					MEM_freeN(id);

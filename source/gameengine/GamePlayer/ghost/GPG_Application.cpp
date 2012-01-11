@@ -625,7 +625,8 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		m_ketsjiengine->SetRasterizer(m_rasterizer);
 
 		m_ketsjiengine->SetTimingDisplay(frameRate, false, false);
-		m_ketsjiengine->SetExitKey(ConvertKeyCode(gm->exitkey));
+
+		KX_KetsjiEngine::SetExitKey(ConvertKeyCode(gm->exitkey));
 #ifdef WITH_PYTHON
 		CValue::SetDeprecationWarnings(nodepwarnings);
 #else
@@ -786,6 +787,10 @@ void GPG_Application::stopEngine()
 
 void GPG_Application::exitEngine()
 {
+	// We only want to kill the engine if it has been initialized
+	if (!m_engineInitialized)
+		return;
+
 	sound_exit();
 	if (m_ketsjiengine)
 	{

@@ -69,6 +69,7 @@ EnumPropertyItem modifier_type_items[] ={
 	{eModifierType_Mask, "MASK", ICON_MOD_MASK, "Mask", ""},
 	{eModifierType_Mirror, "MIRROR", ICON_MOD_MIRROR, "Mirror", ""},
 	{eModifierType_Multires, "MULTIRES", ICON_MOD_MULTIRES, "Multiresolution", ""},
+	{eModifierType_Remesh, "REMESH", ICON_MOD_REMESH, "Remesh", ""},
 	{eModifierType_Screw, "SCREW", ICON_MOD_SCREW, "Screw", ""},
 	{eModifierType_Solidify, "SOLIDIFY", ICON_MOD_SOLIDIFY, "Solidify", ""},
 	{eModifierType_Subsurf, "SUBSURF", ICON_MOD_SUBSURF, "Subdivision Surface", ""},
@@ -199,6 +200,8 @@ static StructRNA* rna_Modifier_refine(struct PointerRNA *ptr)
 			return &RNA_VertexWeightProximityModifier;
 		case eModifierType_DynamicPaint:
 			return &RNA_DynamicPaintModifier;
+		case eModifierType_Remesh:
+			return &RNA_RemeshModifier;
 		default:
 			return &RNA_Modifier;
 	}
@@ -447,12 +450,6 @@ static void RNA_WarpModifier_vgroup_set(PointerRNA *ptr, const char *value)
 {
 	WarpModifierData *tmd= (WarpModifierData*)ptr->data;
 	rna_object_vgroup_name_set(ptr, value, tmd->defgrp_name, sizeof(tmd->defgrp_name));
-}
-
-static void rna_WaveModifier_uvlayer_set(PointerRNA *ptr, const char *value)
-{
-	WaveModifierData *wmd= (WaveModifierData*)ptr->data;
-	rna_object_uvlayer_name_set(ptr, value, wmd->uvlayer_name, sizeof(wmd->uvlayer_name));
 }
 
 static void rna_WeightVGModifier_mask_uvlayer_set(PointerRNA *ptr, const char *value)
@@ -1122,13 +1119,6 @@ static void rna_def_modifier_wave(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	static EnumPropertyItem prop_texture_coordinates_items[] = {
-		{MOD_WAV_MAP_LOCAL, "LOCAL", 0, "Local", ""},
-		{MOD_WAV_MAP_GLOBAL, "GLOBAL", 0, "Global", ""},
-		{MOD_WAV_MAP_OBJECT, "OBJECT", 0, "Object", ""},
-		{MOD_WAV_MAP_UV, "MAP_UV", 0, "UV", ""},
-		{0, NULL, 0, NULL, NULL}};
-
 	srna= RNA_def_struct(brna, "WaveModifier", "Modifier");
 	RNA_def_struct_ui_text(srna, "Wave Modifier", "Wave effect modifier");
 	RNA_def_struct_sdna(srna, "WaveModifierData");
@@ -1220,29 +1210,6 @@ static void rna_def_modifier_wave(BlenderRNA *brna)
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_WaveModifier_vgroup_set");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
-	prop= RNA_def_property(srna, "texture", PROP_POINTER, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Texture", "Texture for modulating the wave");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-	prop= RNA_def_property(srna, "texture_coords", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "texmapping");
-	RNA_def_property_enum_items(prop, prop_texture_coordinates_items);
-	RNA_def_property_ui_text(prop, "Texture Coordinates", "Texture coordinates used for modulating input");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-	prop= RNA_def_property(srna, "uv_layer", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_sdna(prop, NULL, "uvlayer_name");
-	RNA_def_property_ui_text(prop, "UV Map", "UV map name");
-	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_WaveModifier_uvlayer_set");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-	prop= RNA_def_property(srna, "texture_coords_object", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_sdna(prop, NULL, "map_object");
-	RNA_def_property_ui_text(prop, "Texture Coordinates Object", "");
-	RNA_def_property_flag(prop, PROP_EDITABLE|PROP_ID_SELF_CHECK);
-	RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
-
 	prop= RNA_def_property(srna, "speed", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
 	RNA_def_property_ui_range(prop, -1, 1, 10, 2);
@@ -1267,6 +1234,8 @@ static void rna_def_modifier_wave(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0, 10, 10, 2);
 	RNA_def_property_ui_text(prop, "Narrowness", "Distance between the top and the base of a wave, the higher the value, the more narrow the wave");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	rna_def_modifier_generic_map_info(srna);
 }
 
 static void rna_def_modifier_armature(BlenderRNA *brna)
@@ -2867,6 +2836,57 @@ static void rna_def_modifier_weightvgproximity(BlenderRNA *brna)
 	rna_def_modifier_weightvg_mask(brna, srna);
 }
 
+static void rna_def_modifier_remesh(BlenderRNA *brna)
+{
+	static EnumPropertyItem mode_items[]= {
+		{MOD_REMESH_CENTROID, "BLOCKS", 0, "Blocks", "Output a blocky surface with no smoothing"},
+		{MOD_REMESH_MASS_POINT, "SMOOTH", 0, "Smooth", "Output a smooth surface with no sharp-features detection"},
+		{MOD_REMESH_SHARP_FEATURES, "SHARP", 0, "Sharp", "Output a surface that reproduces sharp edges and corners from the input mesh"},
+		{0, NULL, 0, NULL, NULL}};
+
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna= RNA_def_struct(brna, "RemeshModifier", "Modifier");
+	RNA_def_struct_ui_text(srna, "Remesh Modifier", "Generate a new surface with regular topology that follows the shape of the input mesh");
+	RNA_def_struct_sdna(srna, "RemeshModifierData");
+	RNA_def_struct_ui_icon(srna, ICON_MOD_REMESH);
+
+	prop= RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, mode_items);
+	RNA_def_property_ui_text(prop, "Mode", "");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop= RNA_def_property(srna, "scale", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_ui_range(prop, 0, 0.99, 0.01, 3);
+	RNA_def_property_range(prop, 0, 0.99);
+	RNA_def_property_ui_text(prop, "Scale", "The ratio of the largest dimension of the model over the size of the grid");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop= RNA_def_property(srna, "threshold", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_ui_range(prop, 0, 1, 0.1, 3);
+	RNA_def_property_range(prop, 0, 1);
+	RNA_def_property_ui_text(prop, "Threshold", "If removing disconnected pieces, minimum size of components to preserve as a ratio of the number of polygons in the largest component");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop= RNA_def_property(srna, "octree_depth", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "depth");
+	RNA_def_property_range(prop, 1, 10);
+	RNA_def_property_ui_text(prop, "Octree Depth", "Resolution of the octree; higher values give finer details");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop= RNA_def_property(srna, "sharpness", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "hermite_num");
+	RNA_def_property_ui_range(prop, 0, 2, 0.1, 3);
+	RNA_def_property_ui_text(prop, "Sharpness", "Tolerance for outliers; lower values filter noise while higher values will reproduce edges closer to the input");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop= RNA_def_property(srna, "remove_disconnected_pieces", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_REMESH_FLOOD_FILL);
+	RNA_def_property_ui_text(prop, "Remove Disconnected Pieces", "");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+}
+
 static void rna_def_modifier_ocean(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -3148,6 +3168,7 @@ void RNA_def_modifier(BlenderRNA *brna)
 	rna_def_modifier_weightvgproximity(brna);
 	rna_def_modifier_dynamic_paint(brna);
 	rna_def_modifier_ocean(brna);
+	rna_def_modifier_remesh(brna);
 }
 
 #endif

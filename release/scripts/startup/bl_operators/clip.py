@@ -24,7 +24,7 @@ from bpy.types import Operator
 from mathutils import Vector, Matrix
 
 
-def CLIP_spacees_walk(context, all_screens, tarea, tspace, callback, *args):
+def CLIP_spaces_walk(context, all_screens, tarea, tspace, callback, *args):
     screens = bpy.data.screens if all_screens else [context.screen]
 
     for screen in screens:
@@ -56,9 +56,25 @@ def CLIP_set_viewport_background(context, all_screens, clip, clip_user):
 
         space_v3d.show_background_images = True
 
-    CLIP_spacees_walk(context, all_screens, 'VIEW_3D', 'VIEW_3D',
+    CLIP_spaces_walk(context, all_screens, 'VIEW_3D', 'VIEW_3D',
                       set_background, clip, clip_user)
 
+
+def CLIP_camera_for_clip(context, clip):
+    scene = context.scene
+
+    camera = scene.camera
+
+    for ob in scene.objects:
+        if ob.type == 'CAMERA':
+            for con in ob.constraints:
+                if con.type == 'CAMERA_SOLVER':
+                    cur_clip = scene.clip if con.use_active_clip else con.clip
+
+                    if cur_clip == clip:
+                        return ob
+
+    return camera
 
 def CLIP_track_view_selected(sc, track):
     if track.select_anchor:
@@ -80,7 +96,7 @@ class CLIP_OT_track_to_empty(Operator):
     bl_label = "Link Empty to Track"
     bl_options = {'UNDO', 'REGISTER'}
 
-    def _link_track(self, context, track):
+    def _link_track(self, context, clip, tracking_object, track):
         sc = context.space_data
         constraint = None
         ob = None
@@ -101,14 +117,17 @@ class CLIP_OT_track_to_empty(Operator):
         constraint.clip = sc.clip
         constraint.track = track.name
         constraint.use_3d_position = False
+        constraint.object = tracking_object.name
+        constraint.camera = CLIP_camera_for_clip(context, clip);
 
     def execute(self, context):
         sc = context.space_data
         clip = sc.clip
+        tracking_object = clip.tracking.objects.active
 
-        for track in clip.tracking.tracks:
+        for track in tracking_object.tracks:
             if CLIP_track_view_selected(sc, track):
-                self._link_track(context, track)
+                self._link_track(context, clip, tracking_object ,track)
 
         return {'FINISHED'}
 
@@ -130,11 +149,12 @@ class CLIP_OT_bundles_to_mesh(Operator):
 
         sc = context.space_data
         clip = sc.clip
+        tracking_object = clip.tracking.objects.active
 
         new_verts = []
 
         mesh = bpy.data.meshes.new(name="Tracks")
-        for track in clip.tracking.tracks:
+        for track in tracking_object.tracks:
             if track.has_bundle:
                 new_verts.append(track.bundle)
 
@@ -188,7 +208,7 @@ class CLIP_OT_delete_proxy(Operator):
             proxydir = clip.proxy.directory
         else:
             clipdir = os.path.dirname(clip.filepath)
-            proxydir = os.path.join(clipdir, 'BL_proxy')
+            proxydir = os.path.join(clipdir, "BL_proxy")
 
         clipfile = os.path.basename(clip.filepath)
         proxy = os.path.join(proxydir, clipfile)
@@ -196,15 +216,15 @@ class CLIP_OT_delete_proxy(Operator):
 
         # proxy_<quality>[_undostorted]
         for x in (25, 50, 75, 100):
-            d = os.path.join(absproxy, 'proxy_' + str(x))
+            d = os.path.join(absproxy, "proxy_%d" % x)
 
             self._rmproxy(d)
-            self._rmproxy(d + '_undistorted')
-            self._rmproxy(os.path.join(absproxy, 'proxy_' + str(x) + '.avi'))
+            self._rmproxy(d + "_undistorted")
+            self._rmproxy(os.path.join(absproxy, "proxy_%d.avi" % x))
 
-        tc = ('free_run.blen_tc',
-              'interp_free_run.blen_tc',
-              'record_run.blen_tc')
+        tc = ("free_run.blen_tc",
+              "interp_free_run.blen_tc",
+              "record_run.blen_tc")
 
         for x in tc:
             self._rmproxy(os.path.join(absproxy, x))
@@ -269,7 +289,7 @@ object's movement caused by this constraint"""
         # TODO: several camera solvers and track followers would fail,
         #       but can't think about eal workflow where it'll be useful
         for x in ob.constraints:
-            if x.type in ('CAMERA_SOLVER', 'FOLLOW_TRACK'):
+            if x.type in {'CAMERA_SOLVER', 'FOLLOW_TRACK', 'OBJECT_SOLVER'}:
                 con = x
 
         if not con:
@@ -340,7 +360,8 @@ object's movement caused by this constraint"""
 
     def execute(self, context):
         scene = context.scene
-
+        # XXX, should probably use context.selected_editable_objects
+        # since selected objects can be from a lib or in hidden layer!
         for ob in scene.objects:
             if ob.select:
                 self._bake_object(scene, ob)
@@ -508,7 +529,7 @@ class CLIP_OT_setup_tracking_scene(Operator):
         def setup_space(space):
             space.show_backdrop = True
 
-        CLIP_spacees_walk(context, True, 'NODE_EDITOR', 'NODE_EDITOR',
+        CLIP_spaces_walk(context, True, 'NODE_EDITOR', 'NODE_EDITOR',
                           setup_space)
 
         sc = context.space_data

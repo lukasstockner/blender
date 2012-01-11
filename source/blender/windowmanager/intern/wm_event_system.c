@@ -186,7 +186,7 @@ void wm_event_do_notifiers(bContext *C)
 	wmWindowManager *wm= CTX_wm_manager(C);
 	wmNotifier *note, *next;
 	wmWindow *win;
-	unsigned int win_combine_v3d_datamask= 0;
+	uint64_t win_combine_v3d_datamask= 0;
 	
 	if(wm==NULL)
 		return;
@@ -225,20 +225,8 @@ void wm_event_do_notifiers(bContext *C)
 
 			if(note->window==win || (note->window == NULL && (note->reference == NULL || note->reference == CTX_data_scene(C)))) {
 				if(note->category==NC_SCENE) {
-					if(note->data==ND_SCENEBROWSE) {
-						ED_screen_set_scene(C, note->reference);	// XXX hrms, think this over!
-						if(G.f & G_DEBUG)
-							printf("scene set %p\n", note->reference);
-					}
-					else if(note->data==ND_FRAME)
+					if(note->data==ND_FRAME)
 						do_anim= 1;
-					
-					if(note->action == NA_REMOVED) {
-						ED_screen_delete_scene(C, note->reference);	// XXX hrms, think this over!
-						if(G.f & G_DEBUG)
-							printf("scene delete %p\n", note->reference);
-					}
-						
 				}
 			}
 			if(ELEM5(note->category, NC_SCENE, NC_OBJECT, NC_GEOM, NC_SCENE, NC_WM)) {
@@ -294,7 +282,7 @@ void wm_event_do_notifiers(bContext *C)
 	
 	/* combine datamasks so 1 win doesn't disable UV's in another [#26448] */
 	for(win= wm->windows.first; win; win= win->next) {
-		win_combine_v3d_datamask |= ED_viewedit_datamask(win->screen);
+		win_combine_v3d_datamask |= ED_view3d_screen_datamask(win->screen);
 	}
 
 	/* cached: editor refresh callbacks now, they get context */

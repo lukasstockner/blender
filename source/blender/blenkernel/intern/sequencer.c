@@ -2025,7 +2025,10 @@ static ImBuf * seq_render_scene_strip_impl(
 			}
 
 			/* float buffers in the sequencer are not linear */
-			ibuf->profile= IB_PROFILE_LINEAR_RGB;
+			if(scene->r.color_mgt_flag & R_COLOR_MANAGEMENT)
+				ibuf->profile= IB_PROFILE_LINEAR_RGB;
+			else
+				ibuf->profile= IB_PROFILE_NONE;
 			IMB_convert_profile(ibuf, IB_PROFILE_SRGB);			
 		}
 		else if (rres.rect32) {
@@ -3067,10 +3070,10 @@ void seq_sound_init(Scene *scene, Sequence *seq)
 	}
 	else {
 		if(seq->sound) {
-			seq->scene_sound = sound_add_scene_sound(scene, seq, seq->startdisp, seq->enddisp, seq->startofs + seq->anim_startofs);
+			seq->scene_sound = sound_add_scene_sound_defaults(scene, seq);
 		}
 		if(seq->scene) {
-			sound_scene_add_scene_sound(scene, seq, seq->startdisp, seq->enddisp, seq->startofs + seq->anim_startofs);
+			sound_scene_add_scene_sound_defaults(scene, seq);
 		}
 	}
 }
@@ -3224,10 +3227,8 @@ void seq_update_sound_bounds_all(Scene *scene)
 
 void seq_update_sound_bounds(Scene* scene, Sequence *seq)
 {
-	if(seq->scene_sound) {
-		sound_move_scene_sound(scene, seq->scene_sound, seq->startdisp, seq->enddisp, seq->startofs + seq->anim_startofs);
-		/* mute is set in seq_update_muting_recursive */
-	}
+	sound_move_scene_sound_defaults(scene, seq);
+	/* mute is set in seq_update_muting_recursive */
 }
 
 static void seq_update_muting_recursive(ListBase *seqbasep, Sequence *metaseq, int mute)
@@ -3769,7 +3770,7 @@ static Sequence *seq_dupli(struct Scene *scene, struct Scene *scene_to, Sequence
 	} else if(seq->type == SEQ_SCENE) {
 		seqn->strip->stripdata = NULL;
 		if(seq->scene_sound)
-			seqn->scene_sound = sound_scene_add_scene_sound(sce_audio, seqn, seq->startdisp, seq->enddisp, seq->startofs + seq->anim_startofs);
+			seqn->scene_sound = sound_scene_add_scene_sound_defaults(sce_audio, seqn);
 	} else if(seq->type == SEQ_MOVIE) {
 		seqn->strip->stripdata =
 				MEM_dupallocN(seq->strip->stripdata);
@@ -3778,7 +3779,7 @@ static Sequence *seq_dupli(struct Scene *scene, struct Scene *scene_to, Sequence
 		seqn->strip->stripdata =
 				MEM_dupallocN(seq->strip->stripdata);
 		if(seq->scene_sound)
-			seqn->scene_sound = sound_add_scene_sound(sce_audio, seqn, seq->startdisp, seq->enddisp, seq->startofs + seq->anim_startofs);
+			seqn->scene_sound = sound_add_scene_sound_defaults(sce_audio, seqn);
 
 		seqn->sound->id.us++;
 	} else if(seq->type == SEQ_IMAGE) {

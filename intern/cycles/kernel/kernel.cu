@@ -26,28 +26,28 @@
 #include "kernel_path.h"
 #include "kernel_displace.h"
 
-extern "C" __global__ void kernel_cuda_path_trace(float4 *buffer, uint *rng_state, int sample, int sx, int sy, int sw, int sh)
+extern "C" __global__ void kernel_cuda_path_trace(float4 *buffer, uint *rng_state, int sample, int sx, int sy, int sw, int sh, int offset, int stride)
 {
 	int x = sx + blockDim.x*blockIdx.x + threadIdx.x;
 	int y = sy + blockDim.y*blockIdx.y + threadIdx.y;
 
 	if(x < sx + sw && y < sy + sh)
-		kernel_path_trace(NULL, buffer, rng_state, sample, x, y);
+		kernel_path_trace(NULL, buffer, rng_state, sample, x, y, offset, stride);
 }
 
-extern "C" __global__ void kernel_cuda_tonemap(uchar4 *rgba, float4 *buffer, int sample, int resolution, int sx, int sy, int sw, int sh)
+extern "C" __global__ void kernel_cuda_tonemap(uchar4 *rgba, float4 *buffer, int sample, int resolution, int sx, int sy, int sw, int sh, int offset, int stride)
 {
 	int x = sx + blockDim.x*blockIdx.x + threadIdx.x;
 	int y = sy + blockDim.y*blockIdx.y + threadIdx.y;
 
 	if(x < sx + sw && y < sy + sh)
-		kernel_film_tonemap(NULL, rgba, buffer, sample, resolution, x, y);
+		kernel_film_tonemap(NULL, rgba, buffer, sample, resolution, x, y, offset, stride);
 }
 
-extern "C" __global__ void kernel_cuda_displace(uint4 *input, float3 *offset, int sx)
+extern "C" __global__ void kernel_cuda_shader(uint4 *input, float3 *output, int type, int sx)
 {
 	int x = sx + blockDim.x*blockIdx.x + threadIdx.x;
 
-	kernel_displace(NULL, input, offset, x);
+	kernel_shader_evaluate(NULL, input, output, (ShaderEvalType)type, x);
 }
 

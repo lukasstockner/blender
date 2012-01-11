@@ -20,7 +20,7 @@ BF_PYTHON_LIBPATH = '${BF_PYTHON}/lib'
 WITH_BF_OPENAL = True
 BF_OPENAL = LIBDIR + '/openal'
 BF_OPENAL_INC = '${BF_OPENAL}/include '
-BF_OPENAL_LIB = 'wrap_oal'
+BF_OPENAL_LIB = 'OpenAL32'
 BF_OPENAL_LIBPATH = '${BF_OPENAL}/lib'
 
 WITH_BF_SNDFILE = True
@@ -61,7 +61,7 @@ WITH_BF_STATICOPENEXR = False
 BF_OPENEXR = LIBDIR + '/openexr'
 BF_OPENEXR_INC = '${BF_OPENEXR}/include ${BF_OPENEXR}/include/IlmImf ${BF_OPENEXR}/include/Iex ${BF_OPENEXR}/include/Imath '
 BF_OPENEXR_LIB = ' Iex Half IlmImf Imath IlmThread '
-BF_OPENEXR_LIBPATH = '${BF_OPENEXR}/lib_vs2008'
+BF_OPENEXR_LIBPATH = '${BF_OPENEXR}/lib'
 # Warning, this static lib configuration is untested! users of this OS please confirm.
 BF_OPENEXR_LIB_STATIC = '${BF_OPENEXR}/lib/libHalf.a ${BF_OPENEXR}/lib/libIlmImf.a ${BF_OPENEXR}/lib/libIex.a ${BF_OPENEXR}/lib/libImath.a ${BF_OPENEXR}/lib/libIlmThread.a'
 
@@ -190,7 +190,7 @@ CC = 'cl.exe'
 CXX = 'cl.exe'
 
 CFLAGS = []
-CCFLAGS = ['/nologo', '/Ob1', '/J', '/W0', '/Gd', '/we4013', '/wd4018', '/wd4244', '/wd4305', '/wd4800', '/wd4065', '/wd4267']
+CCFLAGS = ['/nologo', '/Ob1', '/J', '/W1', '/Gd', '/we4013', '/wd4018', '/wd4244', '/wd4305', '/wd4800', '/wd4065', '/wd4267']
 CXXFLAGS = ['/EHsc']
 BGE_CXXFLAGS = ['/O2', '/EHsc', '/GR', '/fp:fast']
 

@@ -351,6 +351,7 @@ static void clip_operatortypes(void)
 	WM_operatortype_append(CLIP_OT_set_floor);
 	WM_operatortype_append(CLIP_OT_set_axis);
 	WM_operatortype_append(CLIP_OT_set_scale);
+	WM_operatortype_append(CLIP_OT_set_solution_scale);
 
 	/* detect */
 	WM_operatortype_append(CLIP_OT_detect_features);
@@ -372,6 +373,14 @@ static void clip_operatortypes(void)
 	WM_operatortype_append(CLIP_OT_graph_select);
 	WM_operatortype_append(CLIP_OT_graph_delete_curve);
 	WM_operatortype_append(CLIP_OT_graph_delete_knot);
+
+	/* object tracking */
+	WM_operatortype_append(CLIP_OT_tracking_object_new);
+	WM_operatortype_append(CLIP_OT_tracking_object_remove);
+
+	/* clipboard */
+	WM_operatortype_append(CLIP_OT_copy_tracks);
+	WM_operatortype_append(CLIP_OT_paste_tracks);
 }
 
 static void clip_keymap(struct wmKeyConfig *keyconf)

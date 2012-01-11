@@ -395,7 +395,7 @@ static int mesh_validate_customdata(CustomData *data, short do_verbose, const sh
 
 	while(i<data->totlayer) {
 		CustomDataLayer *layer= &data->layers[i];
-		int mask= 1 << layer->type;
+		CustomDataMask mask= CD_TYPE_AS_MASK(layer->type);
 		int ok= 1;
 
 		if((mask&CD_MASK_MESH)==0) {
@@ -509,7 +509,7 @@ void BKE_mesh_calc_edges(Mesh *mesh, int update)
 		if(update && (med_orig=BLI_edgehashIterator_getValue(ehi))) {
 			*med= *med_orig; /* copy from the original */
 		} else {
-			BLI_edgehashIterator_getKey(ehi, (int*)&med->v1, (int*)&med->v2);
+			BLI_edgehashIterator_getKey(ehi, &med->v1, &med->v2);
 			med->flag = ME_EDGEDRAW|ME_EDGERENDER|SELECT; /* select for newly created meshes which are selected [#25595] */
 		}
 	}

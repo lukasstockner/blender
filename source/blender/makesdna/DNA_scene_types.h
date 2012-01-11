@@ -24,12 +24,13 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_SCENE_TYPES_H
-#define DNA_SCENE_TYPES_H
 
 /** \file DNA_scene_types.h
  *  \ingroup DNA
  */
+
+#ifndef DNA_SCENE_TYPES_H
+#define DNA_SCENE_TYPES_H
 
 #include "DNA_defs.h"
 
@@ -58,6 +59,10 @@ struct SceneStats;
 struct bGPdata;
 struct MovieClip;
 
+/* ************************************************************* */
+/* Scene Data */
+
+/* Base - Wrapper for referencing Objects in a Scene */
 typedef struct Base {
 	struct Base *next, *prev;
 	unsigned int lay, selcol;
@@ -65,6 +70,9 @@ typedef struct Base {
 	short sx, sy;
 	struct Object *object;
 } Base;
+
+/* ************************************************************* */
+/* Output Format Data */
 
 typedef struct AviCodecData {
 	void			*lpFormat;  /* save format */
@@ -141,6 +149,8 @@ typedef struct FFMpegCodecData {
 	IDProperty *properties;
 } FFMpegCodecData;
 
+/* ************************************************************* */
+/* Audio */
 
 typedef struct AudioData {
 	int mixrate; // 2.5: now in FFMpegCodecData: audio_mixrate
@@ -154,6 +164,10 @@ typedef struct AudioData {
 	float pad2;
 } AudioData;
 
+/* *************************************************************** */
+/* Render Layers */
+
+/* Render Layer */
 typedef struct SceneRenderLayer {
 	struct SceneRenderLayer *next, *prev;
 	
@@ -210,6 +224,7 @@ typedef struct SceneRenderLayer {
 
 /* note, srl->passflag is treestore element 'nr' in outliner, short still... */
 
+/* *************************************************************** */
 
 /* Generic image format settings,
  * this is used for NodeImageFile and IMAGE_OT_save_as operator too.
@@ -313,6 +328,9 @@ typedef struct ImageFormatData {
 /* ImageFormatData.cineon_flag */
 #define R_IMF_CINEON_FLAG_LOG (1<<0)  /* was R_CINEON_LOG */
 
+/* *************************************************************** */
+/* Render Data */
+
 typedef struct RenderData {
 	struct ImageFormatData im_format;
 	
@@ -332,9 +350,15 @@ typedef struct RenderData {
 
 	/** For UR edge rendering: give the edges this color */
 	float edgeR, edgeG, edgeB;
-	
-	short fullscreen  DNA_DEPRECATED, xplay  DNA_DEPRECATED, yplay  DNA_DEPRECATED, freqplay  DNA_DEPRECATED;	/* standalone player */  //  XXX deprecated since 2.5
-	short depth  DNA_DEPRECATED, attrib  DNA_DEPRECATED;			/* standalone player */  //  XXX deprecated since 2.5
+
+
+	/* standalone player */  //  XXX deprecated since 2.5
+	short fullscreen  DNA_DEPRECATED, xplay  DNA_DEPRECATED, yplay  DNA_DEPRECATED;
+	short freqplay  DNA_DEPRECATED;
+	/* standalone player */  //  XXX deprecated since 2.5
+	short depth  DNA_DEPRECATED, attrib  DNA_DEPRECATED;
+
+
 	int frame_step;		/* frames to jump during render/playback */
 
 	short stereomode  DNA_DEPRECATED;	/* standalone player stereo settings */  //  XXX deprecated since 2.5
@@ -492,6 +516,9 @@ typedef struct RenderData {
 	char engine[32];
 } RenderData;
 
+/* *************************************************************** */
+/* Render Conversion/Simplfication Settings */
+
 /* control render convert and shading engine */
 typedef struct RenderProfile {
 	struct RenderProfile *next, *prev;
@@ -506,6 +533,9 @@ typedef struct RenderProfile {
 	
 } RenderProfile;
 
+/* *************************************************************** */
+/* Game Engine - Dome */
+
 typedef struct GameDome {
 	short res, mode;
 	short angle, tilt;
@@ -519,6 +549,9 @@ typedef struct GameDome {
 #define DOME_ENVMAP				4
 #define DOME_PANORAM_SPH		5
 #define DOME_NUM_MODES			6
+
+/* *************************************************************** */
+/* Game Engine */
 
 typedef struct GameFraming {
 	float col[3];
@@ -577,11 +610,11 @@ typedef struct GameData {
 	short mode, matmode;
 	short occlusionRes;		/* resolution of occlusion Z buffer in pixel */
 	short physicsEngine;
-	short pad[2];
+	short exitkey, pad;
 	short ticrate, maxlogicstep, physubstep, maxphystep;
 	short obstacleSimulation, pad1;
 	short raster_storage;
-	short exitkey;
+	short pad3;
 	float levelHeight;
 	float pad2;
 
@@ -655,6 +688,9 @@ typedef struct GameData {
 #define GAME_MAT_MULTITEX	1
 #define GAME_MAT_GLSL		2
 
+/* *************************************************************** */
+/* Markers */
+
 typedef struct TimeMarker {
 	struct TimeMarker *next, *prev;
 	int frame;
@@ -663,6 +699,10 @@ typedef struct TimeMarker {
 	struct Object *camera;
 } TimeMarker;
 
+/* *************************************************************** */
+/* Paint Mode/Tool Data */
+
+/* Paint Tool Base */
 typedef struct Paint {
 	struct Brush *brush;
 	
@@ -673,6 +713,10 @@ typedef struct Paint {
 	int flags;
 } Paint;
 
+/* ------------------------------------------- */
+/* Image Paint */
+
+/* Texture/Image Editor */
 typedef struct ImagePaintSettings {
 	Paint paint;
 
@@ -687,6 +731,10 @@ typedef struct ImagePaintSettings {
 	void *paintcursor;			/* wm handle */
 } ImagePaintSettings;
 
+/* ------------------------------------------- */
+/* Particle Edit */
+
+/* Settings for a Particle Editing Brush */
 typedef struct ParticleBrushData {
 	short size;						/* common setting */
 	short step, invert, count;		/* for specific brushes only */
@@ -694,6 +742,7 @@ typedef struct ParticleBrushData {
 	float strength;
 } ParticleBrushData;
 
+/* Particle Edit Mode Settings */
 typedef struct ParticleEditSettings {
 	short flag;
 	short totrekey;
@@ -714,12 +763,10 @@ typedef struct ParticleEditSettings {
 	struct Object *object;
 } ParticleEditSettings;
 
-typedef struct TransformOrientation {
-	struct TransformOrientation *next, *prev;
-	char name[36];
-	float mat[3][3];
-} TransformOrientation;
+/* ------------------------------------------- */
+/* Sculpt */
 
+/* Sculpt */
 typedef struct Sculpt {
 	Paint paint;
 
@@ -750,6 +797,10 @@ typedef struct Sculpt {
 	int pad;
 } Sculpt;
 
+/* ------------------------------------------- */
+/* Vertex Paint */
+
+/* Vertex Paint */
 typedef struct VPaint {
 	Paint paint;
 
@@ -770,6 +821,17 @@ typedef struct VPaint {
 // #define VP_MIRROR_X	32 // deprecated in 2.5x use (me->editflag & ME_EDIT_MIRROR_X)
 #define VP_ONLYVGROUP	128
 
+/* *************************************************************** */
+/* Transform Orientations */
+
+typedef struct TransformOrientation {
+	struct TransformOrientation *next, *prev;
+	char name[36];
+	float mat[3][3];
+} TransformOrientation;
+
+/* *************************************************************** */
+/* Tool Settings */
 
 typedef struct ToolSettings {
 	VPaint *vpaint;		/* vertex paint */
@@ -897,11 +959,20 @@ typedef struct ToolSettings {
 	float sculpt_paint_unified_alpha; /* unified strength of brush */
 } ToolSettings;
 
+/* *************************************************************** */
+/* Assorted Scene Data */
+
+/* ------------------------------------------- */
+/* Stats (show in Info header) */
+
 typedef struct bStats {
 	/* scene totals for visible layers */
 	int totobj, totlamp, totobjsel, totcurve, totmesh, totarmature;
 	int totvert, totface;
 } bStats;
+
+/* ------------------------------------------- */
+/* Unit Settings */
 
 typedef struct UnitSettings {
 	/* Display/Editing unit options for each scene */
@@ -909,13 +980,18 @@ typedef struct UnitSettings {
 	char system; /* imperial, metric etc */
 	char system_rotation; /* not implimented as a propper unit system yet */
 	short flag;
-	
 } UnitSettings;
+
+/* ------------------------------------------- */
+/* Global/Common Physics Settings */
 
 typedef struct PhysicsSettings {
 	float gravity[3];
 	int flag, quick_cache_step, rt;
 } PhysicsSettings;
+
+/* *************************************************************** */
+/* Scene ID-Block */
 
 typedef struct Scene {
 	ID id;
@@ -937,8 +1013,6 @@ typedef struct Scene {
 	unsigned int lay;			/* bitflags for layer visibility */
 	int layact;		/* active layer */
 	unsigned int lay_updated;       /* runtime flag, has layer ever been updated since load? */
-	unsigned int customdata_mask;	/* XXX. runtime flag for drawing, actually belongs in the window, only used by object_handle_update() */
-	unsigned int customdata_mask_modal; /* XXX. same as above but for temp operator use (gl renders) */
 	
 	short flag;								/* various settings */
 	
@@ -976,7 +1050,7 @@ typedef struct Scene {
 
 	/* User-Defined KeyingSets */
 	int active_keyingset;			/* index of the active KeyingSet. first KeyingSet has index 1, 'none' active is 0, 'add new' is -1 */
-	ListBase keyingsets;			/* KeyingSets for the given frame */
+	ListBase keyingsets;			/* KeyingSets for this scene */
 	
 	/* Game Settings */
 	struct GameFraming framing  DNA_DEPRECATED; // XXX  deprecated since 2.5
@@ -993,6 +1067,9 @@ typedef struct Scene {
 
 	/* Movie Tracking */
 	struct MovieClip *clip;			/* active movie clip */
+
+	uint64_t customdata_mask;	/* XXX. runtime flag for drawing, actually belongs in the window, only used by object_handle_update() */
+	uint64_t customdata_mask_modal; /* XXX. same as above but for temp operator use (gl renders) */
 } Scene;
 
 
@@ -1104,7 +1181,9 @@ typedef struct Scene {
 #define R_STAMP_SEQSTRIP	0x0200
 #define R_STAMP_RENDERTIME	0x0400
 #define R_STAMP_CAMERALENS	0x0800
-#define R_STAMP_ALL		(R_STAMP_TIME|R_STAMP_FRAME|R_STAMP_DATE|R_STAMP_CAMERA|R_STAMP_SCENE|R_STAMP_NOTE|R_STAMP_MARKER|R_STAMP_FILENAME|R_STAMP_SEQSTRIP|R_STAMP_RENDERTIME|R_STAMP_CAMERALENS)
+#define R_STAMP_ALL (R_STAMP_TIME|R_STAMP_FRAME|R_STAMP_DATE|R_STAMP_CAMERA|R_STAMP_SCENE| \
+                     R_STAMP_NOTE|R_STAMP_MARKER|R_STAMP_FILENAME|R_STAMP_SEQSTRIP|        \
+                     R_STAMP_RENDERTIME|R_STAMP_CAMERALENS)
 
 /* alphamode */
 #define R_ADDSKY		0
@@ -1112,7 +1191,8 @@ typedef struct Scene {
 #define R_ALPHAKEY		2
 
 /* color_mgt_flag */
-#define R_COLOR_MANAGEMENT	1
+#define R_COLOR_MANAGEMENT              (1 << 0)
+#define R_COLOR_MANAGEMENT_PREDIVIDE    (1 << 1)
 
 /* subimtype, flag options for imtype */
 #define R_OPENEXR_HALF    1                                      /*deprecated*/
@@ -1162,12 +1242,31 @@ typedef struct Scene {
 #define MINAFRAMEF	-300000.0f
 
 /* depricate this! */
-#define TESTBASE(v3d, base)	( ((base)->flag & SELECT) && ((base)->lay & v3d->lay) && (((base)->object->restrictflag & OB_RESTRICT_VIEW)==0) )
-#define TESTBASELIB(v3d, base)	( ((base)->flag & SELECT) && ((base)->lay & v3d->lay) && ((base)->object->id.lib==NULL) && (((base)->object->restrictflag & OB_RESTRICT_VIEW)==0))
-#define TESTBASELIB_BGMODE(v3d, scene, base)   ( ((base)->flag & SELECT) && ((base)->lay & (v3d ? v3d->lay : scene->lay)) && ((base)->object->id.lib==NULL) && (((base)->object->restrictflag & OB_RESTRICT_VIEW)==0))
-#define BASE_EDITABLE_BGMODE(v3d, scene, base)   (((base)->lay & (v3d ? v3d->lay : scene->lay)) && ((base)->object->id.lib==NULL) && (((base)->object->restrictflag & OB_RESTRICT_VIEW)==0))
-#define BASE_SELECTABLE(v3d, base)	 ((base->lay & v3d->lay) && (base->object->restrictflag & (OB_RESTRICT_SELECT|OB_RESTRICT_VIEW))==0)
-#define BASE_VISIBLE(v3d, base)	 ((base->lay & v3d->lay) && (base->object->restrictflag & OB_RESTRICT_VIEW)==0)
+#define TESTBASE(v3d, base)  (                                                \
+	((base)->flag & SELECT) &&                                                \
+	((base)->lay & v3d->lay) &&                                               \
+	(((base)->object->restrictflag & OB_RESTRICT_VIEW)==0)  )
+#define TESTBASELIB(v3d, base)  (                                             \
+	((base)->flag & SELECT) &&                                                \
+	((base)->lay & v3d->lay) &&                                               \
+	((base)->object->id.lib==NULL) &&                                         \
+	(((base)->object->restrictflag & OB_RESTRICT_VIEW)==0)  )
+#define TESTBASELIB_BGMODE(v3d, scene, base)  (                               \
+	((base)->flag & SELECT) &&                                                \
+	((base)->lay & (v3d ? v3d->lay : scene->lay)) &&                          \
+	((base)->object->id.lib==NULL) &&                                         \
+	(((base)->object->restrictflag & OB_RESTRICT_VIEW)==0)  )
+#define BASE_EDITABLE_BGMODE(v3d, scene, base)  (                             \
+	((base)->lay & (v3d ? v3d->lay : scene->lay)) &&                          \
+	((base)->object->id.lib==NULL) &&                                         \
+	(((base)->object->restrictflag & OB_RESTRICT_VIEW)==0))
+#define BASE_SELECTABLE(v3d, base)  (                                         \
+	(base->lay & v3d->lay) &&                                                 \
+	(base->object->restrictflag & (OB_RESTRICT_SELECT|OB_RESTRICT_VIEW))==0  )
+#define BASE_VISIBLE(v3d, base)  (                                            \
+	(base->lay & v3d->lay) &&                                                 \
+	(base->object->restrictflag & OB_RESTRICT_VIEW)==0  )
+
 #define FIRSTBASE		scene->base.first
 #define LASTBASE		scene->base.last
 #define BASACT			(scene->basact)

@@ -18,12 +18,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef DNA_MODIFIER_TYPES_H
-#define DNA_MODIFIER_TYPES_H
-
 /** \file DNA_modifier_types.h
  *  \ingroup DNA
  */
+
+#ifndef DNA_MODIFIER_TYPES_H
+#define DNA_MODIFIER_TYPES_H
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
@@ -76,6 +76,7 @@ typedef enum ModifierType {
 	eModifierType_WeightVGProximity,
 	eModifierType_Ocean,
 	eModifierType_DynamicPaint,
+	eModifierType_Remesh,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -312,13 +313,13 @@ typedef struct DisplaceModifierData {
 	char uvlayer_name[32];
 	int uvlayer_tmp;
 	int texmapping;
-	int pad10;
 	/* end MappingInfoModifierData */
 
 	float strength;
 	int direction;
 	char defgrp_name[32];
 	float midlevel;
+	int pad;
 } DisplaceModifierData;
 
 /* DisplaceModifierData->direction */
@@ -335,7 +336,7 @@ enum {
 	MOD_DISP_MAP_LOCAL,
 	MOD_DISP_MAP_GLOBAL,
 	MOD_DISP_MAP_OBJECT,
-	MOD_DISP_MAP_UV,
+	MOD_DISP_MAP_UV
 };
 
 typedef struct UVProjectModifierData {
@@ -400,13 +401,6 @@ typedef struct CastModifierData {
 	short flag, type;
 } CastModifierData;
 
-enum {
-	MOD_WAV_MAP_LOCAL,
-	MOD_WAV_MAP_GLOBAL,
-	MOD_WAV_MAP_OBJECT,
-	MOD_WAV_MAP_UV,
-};
-
 /* WaveModifierData.flag */
 #define MOD_WAVE_X      (1<<1)
 #define MOD_WAVE_Y      (1<<2)
@@ -419,19 +413,21 @@ enum {
 typedef struct WaveModifierData {
 	ModifierData modifier;
 
-	struct Object *objectcenter;
-	char defgrp_name[32];
+	/* keep in sync with MappingInfoModifierData */
 	struct Tex *texture;
 	struct Object *map_object;
+	char uvlayer_name[32];
+	int uvlayer_tmp;
+	int texmapping;
+	/* end MappingInfoModifierData */
+
+	struct Object *objectcenter;
+	char defgrp_name[32];
 
 	short flag, pad;
 
 	float startx, starty, height, width;
 	float narrow, speed, damp, falloff;
-
-	int texmapping, uvlayer_tmp;
-
-	char uvlayer_name[32];
 
 	float timeoffs, lifetime;
 	float pad1;
@@ -704,7 +700,7 @@ typedef struct SimpleDeformModifierData {
 #define MOD_SIMPLEDEFORM_LOCK_AXIS_Y			(1<<1)
 
 /* indicates whether simple deform should use the local
-   coordinates or global coordinates of origin */
+ * coordinates or global coordinates of origin */
 #define MOD_SIMPLEDEFORM_ORIGIN_LOCAL			(1<<0)
 
 #define MOD_UVPROJECT_MAX				10
@@ -821,19 +817,17 @@ typedef struct WarpModifierData {
 	char uvlayer_name[32];
 	int uvlayer_tmp;
 	int texmapping;
-	int pad10;
 	/* end MappingInfoModifierData */
-
-	float strength;
 
 	struct Object *object_from;
 	struct Object *object_to;
 	struct CurveMapping *curfalloff;
 	char defgrp_name[32];			/* optional vertexgroup name */
+	float strength;
 	float falloff_radius;
 	char flag; /* not used yet */
 	char falloff_type;
-	char pad[2];
+	char pad[6];
 } WarpModifierData;
 
 #define MOD_WARP_VOLUME_PRESERVE 1
@@ -1031,5 +1025,40 @@ typedef struct DynamicPaintModifierData {
 	int type;  /* ui display: canvas / brush */
 	int pad;
 } DynamicPaintModifierData;
+
+/* Remesh modifier */
+
+typedef enum RemeshModifierFlags {
+	MOD_REMESH_FLOOD_FILL = 1,
+} RemeshModifierFlags;
+
+typedef enum RemeshModifierMode {
+	/* blocky */
+	MOD_REMESH_CENTROID = 0,
+	/* smooth */
+	MOD_REMESH_MASS_POINT = 1,
+	/* keeps sharp edges */
+	MOD_REMESH_SHARP_FEATURES = 2,
+} RemeshModifierMode;
+
+typedef struct RemeshModifierData {
+	ModifierData modifier;
+
+	/* floodfill option, controls how small components can be
+	   before they are removed */
+	float threshold;
+
+	/* ratio between size of model and grid */
+	float scale;
+
+	float hermite_num;
+
+	/* octree depth */
+	char depth;
+
+	char flag;
+	char mode;
+	char pad;
+} RemeshModifierData;
 
 #endif

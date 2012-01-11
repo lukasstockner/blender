@@ -264,6 +264,7 @@ if 'blenderlite' in B.targets:
     target_env_defs['WITH_BF_OCEANSIM'] = False
     target_env_defs['WITH_BF_DECIMATE'] = False
     target_env_defs['WITH_BF_BOOLEAN'] = False
+    target_env_defs['WITH_BF_REMESH'] = False
     target_env_defs['WITH_BF_PYTHON'] = False
     target_env_defs['WITH_BF_3DMOUSE'] = False
     
@@ -756,7 +757,6 @@ if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
 
     if env['WITH_BF_OPENAL']:
         dllsources.append('${LCGDIR}/openal/lib/OpenAL32.dll')
-        dllsources.append('${LCGDIR}/openal/lib/wrap_oal.dll')
 
     if env['WITH_BF_SNDFILE']:
         dllsources.append('${LCGDIR}/sndfile/lib/libsndfile-1.dll')

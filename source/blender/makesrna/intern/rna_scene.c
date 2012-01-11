@@ -659,10 +659,10 @@ static void rna_ImageFormatSettings_file_format_set(PointerRNA *ptr, int value)
 		Scene *scene= ptr->id.data;
 		RenderData *rd= &scene->r;
 #ifdef WITH_FFMPEG
-		ffmpeg_verify_image_type(rd);
+		ffmpeg_verify_image_type(rd, imf);
 #endif
 #ifdef WITH_QUICKTIME
-		quicktime_verify_image_type(rd);
+		quicktime_verify_image_type(rd, imf);
 #endif
 		(void)rd;
 	}
@@ -2135,9 +2135,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "exitkey");
 	RNA_def_property_enum_items(prop, event_type_items);
 	RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_exit_key_set", NULL);
-	RNA_def_property_ui_text(prop, "Exit Key",  "Sets the key that exits the Game Engine");
+	RNA_def_property_ui_text(prop, "Exit Key",  "The key that exits the Game Engine");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
-
 	prop= RNA_def_property(srna, "raster_storage", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "raster_storage");
 	RNA_def_property_enum_items(prop, storage_items);
@@ -3295,7 +3294,11 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "color_mgt_flag", R_COLOR_MANAGEMENT);
 	RNA_def_property_ui_text(prop, "Color Management", "Use linear workflow - gamma corrected imaging pipeline");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, "rna_RenderSettings_color_management_update");
-
+	
+	prop= RNA_def_property(srna, "use_color_unpremultiply", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "color_mgt_flag", R_COLOR_MANAGEMENT_PREDIVIDE);
+	RNA_def_property_ui_text(prop, "Color Unpremultipy", "For premultiplied alpha render output, do color space conversion on colors without alpha, to avoid fringing on light backgrounds");
+	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
 	
 	prop= RNA_def_property(srna, "use_file_extension", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "scemode", R_EXTENSION);
@@ -3503,14 +3506,14 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "fg_stamp");
 	RNA_def_property_array(prop, 4);
 	RNA_def_property_range(prop,0.0,1.0);
-	RNA_def_property_ui_text(prop, "Stamp Text Color", "Color to use for stamp text");
+	RNA_def_property_ui_text(prop, "Text Color", "Color to use for stamp text");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
 	
 	prop= RNA_def_property(srna, "stamp_background", PROP_FLOAT, PROP_COLOR);
 	RNA_def_property_float_sdna(prop, NULL, "bg_stamp");
 	RNA_def_property_array(prop, 4);
 	RNA_def_property_range(prop,0.0,1.0);
-	RNA_def_property_ui_text(prop, "Stamp Background", "Color to use behind stamp text");
+	RNA_def_property_ui_text(prop, "Background", "Color to use behind stamp text");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
 
 	/* sequencer draw options */

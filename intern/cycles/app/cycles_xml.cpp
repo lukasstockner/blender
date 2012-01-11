@@ -257,8 +257,18 @@ static void xml_read_integrator(const XMLReadState& state, pugi::xml_node node)
 
 	xml_read_int(&integrator->min_bounce, node, "min_bounce");
 	xml_read_int(&integrator->max_bounce, node, "max_bounce");
+	
+	xml_read_int(&integrator->max_diffuse_bounce, node, "max_diffuse_bounce");
+	xml_read_int(&integrator->max_glossy_bounce, node, "max_glossy_bounce");
+	xml_read_int(&integrator->max_transmission_bounce, node, "max_transmission_bounce");
+	
+	xml_read_int(&integrator->transparent_min_bounce, node, "transparent_min_bounce");
+	xml_read_int(&integrator->transparent_max_bounce, node, "transparent_max_bounce");
+	
+	xml_read_bool(&integrator->transparent_shadows, node, "transparent_shadows");
 	xml_read_bool(&integrator->no_caustics, node, "no_caustics");
-	xml_read_float(&integrator->blur_caustics, node, "blur_caustics");
+	
+	xml_read_int(&integrator->seed, node, "seed");
 }
 
 /* Camera */
@@ -338,6 +348,9 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 		}
 		else if(string_iequals(node.name(), "noise_texture")) {
 			snode = new NoiseTextureNode();
+		}
+		else if(string_iequals(node.name(), "checker_texture")) {
+			snode = new CheckerTextureNode();
 		}
 		else if(string_iequals(node.name(), "gradient_texture")) {
 			GradientTextureNode *blend = new GradientTextureNode();

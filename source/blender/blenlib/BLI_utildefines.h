@@ -108,6 +108,7 @@
 
 #define FTOCHAR(val) ((val)<=0.0f)? 0 : (((val)>(1.0f-0.5f/255.0f))? 255 : (char)((255.0f*(val))+0.5f))
 #define FTOUSHORT(val) ((val >= 1.0f-0.5f/65535)? 65535: (val <= 0.0f)? 0: (unsigned short)(val*65535.0f + 0.5f))
+#define USHORTTOUCHAR(val) ((unsigned char)(((val) >= 65535-128)? 255: ((val)+128)>>8))
 #define F3TOCHAR3(v2, v1) {                                                   \
 		(v1)[0]= FTOCHAR((v2[0]));                                            \
 		(v1)[1]= FTOCHAR((v2[1]));                                            \
@@ -298,6 +299,15 @@
 #  endif
 #else
 #  define BLI_assert(a) (void)0
+#endif
+
+/* hints for branch pradiction, only use in code that runs a _lot_ where */
+#ifdef __GNUC__
+#  define LIKELY(x)       __builtin_expect(!!(x), 1)
+#  define UNLIKELY(x)     __builtin_expect(!!(x), 0)
+#else
+#  define LIKELY(x)       (x)
+#  define UNLIKELY(x)     (x)
 #endif
 
 #endif // BLI_UTILDEFINES_H

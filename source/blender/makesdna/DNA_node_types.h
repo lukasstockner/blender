@@ -25,12 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef DNA_NODE_TYPES_H
-#define DNA_NODE_TYPES_H
-
 /** \file DNA_node_types.h
  *  \ingroup DNA
  */
+
+#ifndef DNA_NODE_TYPES_H
+#define DNA_NODE_TYPES_H
 
 #include "DNA_ID.h"
 #include "DNA_vec_types.h"
@@ -129,6 +129,8 @@ typedef struct bNodeSocket {
 #define SOCK_COLLAPSED			64
 	/* hide socket value, if it gets auto default */
 #define SOCK_HIDE_VALUE			128
+	/* socket hidden automatically, to distinguish from manually hidden */
+#define SOCK_AUTO_HIDDEN		256
 
 typedef struct bNodePreview {
 	unsigned char *rect;
@@ -354,12 +356,12 @@ typedef struct NodeChroma {
 	float t1,t2,t3;
 	float fsize,fstrength,falpha;
 	float key[4];
-   short algorithm, channel;
+	short algorithm, channel;
 } NodeChroma;
 
 typedef struct NodeTwoXYs {
 	short x1, x2, y1, y2;
-   float fac_x1, fac_x2, fac_y1, fac_y2;
+	float fac_x1, fac_x2, fac_y1, fac_y2;
 } NodeTwoXYs;
 
 typedef struct NodeTwoFloats {
@@ -428,7 +430,7 @@ typedef struct NodeColorspill {
 	short limchan, unspill;
 	float limscale;
 	float uspillr, uspillg, uspillb;
-}NodeColorspill;
+} NodeColorspill;
 
 typedef struct NodeTexBase {
 	TexMapping tex_mapping;
@@ -445,6 +447,10 @@ typedef struct NodeTexImage {
 	NodeTexBase base;
 	int color_space, pad;
 } NodeTexImage;
+
+typedef struct NodeTexChecker {
+	NodeTexBase base;
+} NodeTexChecker;
 
 typedef struct NodeTexEnvironment {
 	NodeTexBase base;

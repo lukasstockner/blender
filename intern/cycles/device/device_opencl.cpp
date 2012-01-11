@@ -25,6 +25,7 @@
 #include "device.h"
 #include "device_intern.h"
 
+#include "util_foreach.h"
 #include "util_map.h"
 #include "util_math.h"
 #include "util_md5.h"
@@ -52,6 +53,7 @@ public:
 	map<string, device_memory*> mem_map;
 	device_ptr null_mem;
 	bool device_initialized;
+	string platform_name;
 
 	const char *opencl_error_string(cl_int err)
 	{
@@ -139,7 +141,7 @@ public:
 		}
 	}
 
-	OpenCLDevice(bool background_)
+	OpenCLDevice(DeviceInfo& info, bool background_)
 	{
 		background = background_;
 		cpPlatform = NULL;
@@ -151,10 +153,9 @@ public:
 		null_mem = 0;
 		device_initialized = false;
 
-		vector<cl_platform_id> platform_ids;
+		/* setup platform */
 		cl_uint num_platforms;
 
-		/* setup device */
 		ciErr = clGetPlatformIDs(0, NULL, &num_platforms);
 		if(opencl_error(ciErr))
 			return;
@@ -164,17 +165,37 @@ public:
 			return;
 		}
 
-		platform_ids.resize(num_platforms);
-		ciErr = clGetPlatformIDs(num_platforms, &platform_ids[0], NULL);
+		ciErr = clGetPlatformIDs(num_platforms, &cpPlatform, NULL);
 		if(opencl_error(ciErr))
 			return;
 
-		cpPlatform = platform_ids[0]; /* todo: pick specified platform && device */
+		char name[256];
+		clGetPlatformInfo(cpPlatform, CL_PLATFORM_NAME, sizeof(name), &name, NULL);
+		platform_name = name;
 
-		ciErr = clGetDeviceIDs(cpPlatform, CL_DEVICE_TYPE_GPU|CL_DEVICE_TYPE_ACCELERATOR, 1, &cdDevice, NULL);
-		if(opencl_error(ciErr))
+		/* get devices */
+		vector<cl_device_id> device_ids;
+		cl_uint num_devices;
+
+		if(opencl_error(clGetDeviceIDs(cpPlatform, CL_DEVICE_TYPE_GPU|CL_DEVICE_TYPE_ACCELERATOR, 0, NULL, &num_devices)))
 			return;
 
+		if(info.num > num_devices) {
+			if(num_devices == 0)
+				opencl_error("OpenCL: no devices found.");
+			else
+				opencl_error("OpenCL: specified device not found.");
+			return;
+		}
+
+		device_ids.resize(num_devices);
+		
+		if(opencl_error(clGetDeviceIDs(cpPlatform, CL_DEVICE_TYPE_GPU|CL_DEVICE_TYPE_ACCELERATOR, num_devices, &device_ids[0], NULL)))
+			return;
+
+		cdDevice = device_ids[info.num];
+
+		/* create context */
 		cxContext = clCreateContext(0, 1, &cdDevice, NULL, NULL, &ciErr);
 		if(opencl_error(ciErr))
 			return;
@@ -277,14 +298,11 @@ public:
 	{
 		string build_options = " -cl-fast-relaxed-math ";
 		
-		/* Full Shading only on NVIDIA cards at the moment */
-		char vendor[256];
-
-		clGetPlatformInfo(cpPlatform, CL_PLATFORM_NAME, sizeof(vendor), &vendor, NULL);
-		string name = vendor;
-		
-		if(name == "NVIDIA CUDA")
-			build_options += "-D__KERNEL_SHADING__ -D__MULTI_CLOSURE__ ";
+		/* full shading only on NVIDIA cards at the moment */
+		if(platform_name == "NVIDIA CUDA")
+			build_options += "-D__KERNEL_SHADING__ -D__MULTI_CLOSURE__ -cl-nv-maxrregcount=24 -cl-nv-verbose ";
+		if(platform_name == "Apple")
+			build_options += " -D__CL_NO_FLOAT3__ ";
 
 		return build_options;
 	}
@@ -471,8 +489,11 @@ public:
 		opencl_assert(ciErr);
 	}
 
-	void mem_copy_from(device_memory& mem, size_t offset, size_t size)
+	void mem_copy_from(device_memory& mem, int y, int w, int h, int elem)
 	{
+		size_t offset = elem*y*w;
+		size_t size = elem*w*h;
+
 		ciErr = clEnqueueReadBuffer(cqCommandQueue, CL_MEM_PTR(mem.device_pointer), CL_TRUE, offset, size, (uchar*)mem.data_pointer + offset, 0, NULL, NULL);
 		opencl_assert(ciErr);
 	}
@@ -541,6 +562,8 @@ public:
 		cl_int d_w = task.w;
 		cl_int d_h = task.h;
 		cl_int d_sample = task.sample;
+		cl_int d_offset = task.offset;
+		cl_int d_stride = task.stride;
 
 		/* sample arguments */
 		int narg = 0;
@@ -559,6 +582,8 @@ public:
 		ciErr |= clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_y), (void*)&d_y);
 		ciErr |= clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_w), (void*)&d_w);
 		ciErr |= clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_h), (void*)&d_h);
+		ciErr |= clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_offset), (void*)&d_offset);
+		ciErr |= clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_stride), (void*)&d_stride);
 
 		opencl_assert(ciErr);
 
@@ -611,6 +636,8 @@ public:
 		cl_int d_h = task.h;
 		cl_int d_sample = task.sample;
 		cl_int d_resolution = task.resolution;
+		cl_int d_offset = task.offset;
+		cl_int d_stride = task.stride;
 
 		/* sample arguments */
 		int narg = 0;
@@ -630,6 +657,8 @@ public:
 		ciErr |= clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_y), (void*)&d_y);
 		ciErr |= clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_w), (void*)&d_w);
 		ciErr |= clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_h), (void*)&d_h);
+		ciErr |= clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_offset), (void*)&d_offset);
+		ciErr |= clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_stride), (void*)&d_stride);
 
 		opencl_assert(ciErr);
 
@@ -649,12 +678,24 @@ public:
 		opencl_assert(clFinish(cqCommandQueue));
 	}
 
-	void task_add(DeviceTask& task)
+	void task_add(DeviceTask& maintask)
 	{
-		if(task.type == DeviceTask::TONEMAP)
-			tonemap(task);
-		else if(task.type == DeviceTask::PATH_TRACE)
-			path_trace(task);
+		list<DeviceTask> tasks;
+
+		/* arbitrary limit to work around apple ATI opencl issue */
+		if(platform_name == "Apple")
+			maintask.split_max_size(tasks, 76800);
+		else
+			tasks.push_back(maintask);
+
+		DeviceTask task;
+
+		foreach(DeviceTask& task, tasks) {
+			if(task.type == DeviceTask::TONEMAP)
+				tonemap(task);
+			else if(task.type == DeviceTask::PATH_TRACE)
+				path_trace(task);
+		}
 	}
 
 	void task_wait()
@@ -666,9 +707,52 @@ public:
 	}
 };
 
-Device *device_opencl_create(bool background)
+Device *device_opencl_create(DeviceInfo& info, bool background)
 {
-	return new OpenCLDevice(background);
+	return new OpenCLDevice(info, background);
+}
+
+void device_opencl_info(vector<DeviceInfo>& devices)
+{
+	vector<cl_device_id> device_ids;
+	cl_uint num_devices;
+	cl_platform_id platform_id;
+	cl_uint num_platforms;
+
+	/* get devices */
+	if(clGetPlatformIDs(0, NULL, &num_platforms) != CL_SUCCESS || num_platforms == 0)
+		return;
+
+	if(clGetPlatformIDs(num_platforms, &platform_id, NULL) != CL_SUCCESS)
+		return;
+
+	if(clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_GPU|CL_DEVICE_TYPE_ACCELERATOR, 0, NULL, &num_devices) != CL_SUCCESS)
+		return;
+	
+	device_ids.resize(num_devices);
+
+	if(clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_GPU|CL_DEVICE_TYPE_ACCELERATOR, num_devices, &device_ids[0], NULL) != CL_SUCCESS)
+		return;
+	
+	/* add devices */
+	for(int num = 0; num < num_devices; num++) {
+		cl_device_id device_id = device_ids[num];
+		char name[1024];
+
+		if(clGetDeviceInfo(device_id, CL_DEVICE_NAME, sizeof(name), &name, NULL) != CL_SUCCESS)
+			continue;
+
+		DeviceInfo info;
+
+		info.type = DEVICE_OPENCL;
+		info.description = string(name);
+		info.id = string_printf("OPENCL_%d", num);
+		info.num = num;
+		/* we don't know if it's used for display, but assume it is */
+		info.display_device = true;
+
+		devices.push_back(info);
+	}
 }
 
 CCL_NAMESPACE_END

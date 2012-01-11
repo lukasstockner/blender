@@ -16,6 +16,10 @@ defs = []
 if env ['WITH_BF_BOOLEAN']:
     defs.append('WITH_MOD_BOOLEAN')
 
+if env['WITH_BF_REMESH']:
+    incs += ' #/intern/dualcon'
+    defs.append('WITH_MOD_REMESH')
+
 if env ['WITH_BF_DECIMATE']:
     defs.append('WITH_MOD_DECIMATE')
 

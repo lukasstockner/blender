@@ -301,7 +301,7 @@ static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 	printf ("  $BLENDER_USER_CONFIG      Directory for user configuration files.\n");
 	printf ("  $BLENDER_USER_SCRIPTS     Directory for user scripts.\n");
 	printf ("  $BLENDER_SYSTEM_SCRIPTS   Directory for system wide scripts.\n");
-	printf ("  $BLENDER_USER_DAT`AFILES   Directory for user data files (icons, translations, ..).\n");
+	printf ("  $Directory for user data files (icons, translations, ..).\n");
 	printf ("  $BLENDER_SYSTEM_DATAFILES Directory for system wide data files.\n");
 	printf ("  $BLENDER_SYSTEM_PYTHON    Directory for system python libraries.\n");
 #ifdef WIN32
@@ -925,6 +925,12 @@ static int load_file(int UNUSED(argc), const char **argv, void *data)
 
 	/* Make the path absolute because its needed for relative linked blends to be found */
 	char filename[FILE_MAX];
+
+	/* note, we could skip these, but so far we always tried to load these files */
+	if (argv[0][0] == '-') {
+		fprintf(stderr, "unknown argument, loading as file: %s\n", argv[0]);
+	}
+
 	BLI_strncpy(filename, argv[0], sizeof(filename));
 	BLI_path_cwd(filename);
 

@@ -701,8 +701,8 @@ static void GPU_buffer_copy_uv(DerivedMesh *dm, float *varray, int *index, int *
 static void GPU_buffer_copy_color3(DerivedMesh *dm, float *varray_, int *index, int *mat_orig_to_new, void *user)
 {
 	int i, totface;
-	unsigned char *varray = (unsigned char *)varray_;
-	unsigned char *mcol = (unsigned char *)user;
+	char *varray = (char *)varray_;
+	char *mcol = (char *)user;
 	MFace *f = dm->getFaceArray(dm);
 
 	totface= dm->getNumFaces(dm);
@@ -710,16 +710,16 @@ static void GPU_buffer_copy_color3(DerivedMesh *dm, float *varray_, int *index, 
 		int start = index[mat_orig_to_new[f->mat_nr]];
 
 		/* v1 v2 v3 */
-		VECCOPY(&varray[start], &mcol[i*12]);
-		VECCOPY(&varray[start+3], &mcol[i*12+3]);
-		VECCOPY(&varray[start+6], &mcol[i*12+6]);
+		copy_v3_v3_char(&varray[start], &mcol[i*12]);
+		copy_v3_v3_char(&varray[start+3], &mcol[i*12+3]);
+		copy_v3_v3_char(&varray[start+6], &mcol[i*12+6]);
 		index[mat_orig_to_new[f->mat_nr]] += 9;
 
 		if(f->v4) {
 			/* v3 v4 v1 */
-			VECCOPY(&varray[start+9], &mcol[i*12+6]);
-			VECCOPY(&varray[start+12], &mcol[i*12+9]);
-			VECCOPY(&varray[start+15], &mcol[i*12]);
+			copy_v3_v3_char(&varray[start+9], &mcol[i*12+6]);
+			copy_v3_v3_char(&varray[start+12], &mcol[i*12+9]);
+			copy_v3_v3_char(&varray[start+15], &mcol[i*12]);
 			index[mat_orig_to_new[f->mat_nr]] += 9;
 		}
 	}
@@ -1296,10 +1296,9 @@ struct GPU_Buffers {
 	unsigned int tot_tri, tot_quad;
 };
 
-void GPU_update_mesh_buffers(GPU_Buffers *buffers_v, MVert *mvert,
+void GPU_update_mesh_buffers(GPU_Buffers *buffers, MVert *mvert,
 			int *vert_indices, int totvert)
 {
-	GPU_Buffers *buffers = buffers_v;
 	VertexBufferFormat *vert_data;
 	int i;
 
@@ -1413,10 +1412,9 @@ GPU_Buffers *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
 	return buffers;
 }
 
-void GPU_update_grid_buffers(GPU_Buffers *buffers_v, DMGridData **grids,
+void GPU_update_grid_buffers(GPU_Buffers *buffers, DMGridData **grids,
 	int *grid_indices, int totgrid, int gridsize, int smooth)
 {
-	GPU_Buffers *buffers = buffers_v;
 	DMGridData *vert_data;
 	int i, j, k, totvert;
 
@@ -1465,7 +1463,7 @@ void GPU_update_grid_buffers(GPU_Buffers *buffers_v, DMGridData **grids,
 	buffers->totgrid = totgrid;
 	buffers->gridsize = gridsize;
 
-	//printf("node updated %p\n", buffers_v);
+	//printf("node updated %p\n", buffers);
 }
 
 GPU_Buffers *GPU_build_grid_buffers(DMGridData **UNUSED(grids), int *UNUSED(grid_indices),
@@ -1558,10 +1556,8 @@ GPU_Buffers *GPU_build_grid_buffers(DMGridData **UNUSED(grids), int *UNUSED(grid
 	return buffers;
 }
 
-void GPU_draw_buffers(GPU_Buffers *buffers_v)
+void GPU_draw_buffers(GPU_Buffers *buffers)
 {
-	GPU_Buffers *buffers = buffers_v;
-
 	if(buffers->vert_buf && buffers->index_buf) {
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glEnableClientState(GL_NORMAL_ARRAY);
@@ -1632,11 +1628,9 @@ void GPU_draw_buffers(GPU_Buffers *buffers_v)
 	}
 }
 
-void GPU_free_buffers(GPU_Buffers *buffers_v)
+void GPU_free_buffers(GPU_Buffers *buffers)
 {
-	if(buffers_v) {
-		GPU_Buffers *buffers = buffers_v;
-		
+	if(buffers) {
 		if(buffers->vert_buf)
 			glDeleteBuffersARB(1, &buffers->vert_buf);
 		if(buffers->index_buf)
@@ -1645,4 +1639,3 @@ void GPU_free_buffers(GPU_Buffers *buffers_v)
 		MEM_freeN(buffers);
 	}
 }
-

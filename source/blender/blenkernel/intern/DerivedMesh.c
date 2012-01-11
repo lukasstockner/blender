@@ -717,11 +717,15 @@ void vDM_ColorBand_store(ColorBand *coba)
 	stored_cb= coba;
 }
 
-/* return an array of vertex weight colors */
+/* return an array of vertex weight colors, caller must free.
+ *
+ * note that we could save some memory and allocate RGB only but then we'd need to
+ * re-arrange the colors when copying to the face since MCol has odd ordering,
+ * so leave this as is - campbell */
 static unsigned char *calc_weightpaint_vert_array(Object *ob, int const draw_flag, ColorBand *coba)
 {
 	Mesh *me = ob->data;
-	unsigned char *wtcol_v = MEM_callocN (sizeof(unsigned char) * me->totvert * 4, "weightmap_v");
+	unsigned char *wtcol_v = MEM_mallocN (sizeof(unsigned char) * me->totvert * 4, "weightmap_v");
 
 	if (me->dvert) {
 		unsigned char *wc = wtcol_v;
@@ -750,8 +754,6 @@ static unsigned char *calc_weightpaint_vert_array(Object *ob, int const draw_fla
 	return wtcol_v;
 }
 
-#include "PIL_time.h"
-
 static void add_weight_mcol_dm(Object *ob, DerivedMesh *dm, int const draw_flag)
 {
 	ColorBand *coba= stored_cb;	/* warning, not a local var */
@@ -759,14 +761,28 @@ static void add_weight_mcol_dm(Object *ob, DerivedMesh *dm, int const draw_flag)
 	Mesh *me = ob->data;
 	unsigned char *wtcol_v = calc_weightpaint_vert_array(ob, draw_flag, coba);
 	unsigned char *wtcol_f = MEM_mallocN (sizeof(unsigned char) * me->totface*4*4, "weightmap_f");
+	unsigned char *wtcol_f_step = wtcol_f;
 
 	MFace *mf = me->mface;
 	int i;
 
-	for (i=0; i<me->totface; i++, mf++) {
+	for (i=0; i<me->totface; i++, mf++, wtcol_f_step += (4 * 4)) {
+#if 0
 		unsigned int fidx= mf->v4 ? 3:2;
+
+#else	/* better zero out triangles 4th component. else valgrind complains when the buffer's copied */
+		unsigned int fidx;
+		if (mf->v4) {
+			fidx = 3;
+		}
+		else {
+			fidx = 2;
+			*(int *)(&wtcol_f_step[3 * 4]) = 0;
+		}
+#endif
+
 		do {
-			copy_v4_v4_char((char *)&wtcol_f[(4 * i + fidx) * 4],
+			copy_v4_v4_char((char *)&wtcol_f_step[fidx * 4],
 			                (char *)&wtcol_v[4 * (*(&mf->v1 + fidx))]);
 		} while (fidx--);
 	}

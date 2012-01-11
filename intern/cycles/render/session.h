@@ -19,6 +19,7 @@
 #ifndef __SESSION_H__
 #define __SESSION_H__
 
+#include "buffers.h"
 #include "device.h"
 #include "tile.h"
 
@@ -27,6 +28,7 @@
 
 CCL_NAMESPACE_BEGIN
 
+class BufferParams;
 class Device;
 class DeviceScene;
 class DisplayBuffer;
@@ -38,7 +40,7 @@ class Scene;
 
 class SessionParams {
 public:
-	DeviceType device_type;
+	DeviceInfo device;
 	bool background;
 	string output_path;
 
@@ -55,7 +57,6 @@ public:
 
 	SessionParams()
 	{
-		device_type = DEVICE_CPU;
 		background = false;
 		output_path = "";
 
@@ -72,7 +73,8 @@ public:
 	}
 
 	bool modified(const SessionParams& params)
-	{ return !(device_type == params.device_type
+	{ return !(device.type == params.device.type
+		&& device.id == params.device.id
 		&& background == params.background
 		&& output_path == params.output_path
 		/* && samples == params.samples */
@@ -106,11 +108,11 @@ public:
 	~Session();
 
 	void start();
-	bool draw(int w, int h);
+	bool draw(BufferParams& params);
 	void wait();
 
 	bool ready_to_reset();
-	void reset(int w, int h, int samples);
+	void reset(BufferParams& params, int samples);
 	void set_samples(int samples);
 	void set_pause(bool pause);
 
@@ -118,7 +120,7 @@ protected:
 	struct DelayedReset {
 		thread_mutex mutex;
 		bool do_reset;
-		int w, h;
+		BufferParams params;
 		int samples;
 	} delayed_reset;
 
@@ -129,15 +131,15 @@ protected:
 
 	void tonemap();
 	void path_trace(Tile& tile);
-	void reset_(int w, int h, int samples);
+	void reset_(BufferParams& params, int samples);
 
 	void run_cpu();
-	bool draw_cpu(int w, int h);
-	void reset_cpu(int w, int h, int samples);
+	bool draw_cpu(BufferParams& params);
+	void reset_cpu(BufferParams& params, int samples);
 
 	void run_gpu();
-	bool draw_gpu(int w, int h);
-	void reset_gpu(int w, int h, int samples);
+	bool draw_gpu(BufferParams& params);
+	void reset_gpu(BufferParams& params, int samples);
 
 	TileManager tile_manager;
 	bool device_use_gl;

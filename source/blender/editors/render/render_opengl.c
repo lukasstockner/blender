@@ -81,6 +81,8 @@ typedef struct OGLRender {
 	RegionView3D *rv3d;
 	ARegion *ar;
 
+	short obcenter_dia_back; /* temp overwrite */
+
 	Image *ima;
 	ImageUser iuser;
 
@@ -206,14 +208,11 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 	 * float buffer. */
 
 	if(oglrender->scene->r.color_mgt_flag & R_COLOR_MANAGEMENT) {
-		float *rctf = rr->rectf;
-		int i;
+		int predivide= 0; /* no alpha */
 
-		for (i = oglrender->sizex * oglrender->sizey; i > 0; i--, rctf+=4) {
-			rctf[0]= srgb_to_linearrgb(rctf[0]);
-			rctf[1]= srgb_to_linearrgb(rctf[1]);
-			rctf[2]= srgb_to_linearrgb(rctf[2]);
-		}
+		IMB_buffer_float_from_float(rr->rectf, rr->rectf,
+			4, IB_PROFILE_LINEAR_RGB, IB_PROFILE_SRGB, predivide,
+			oglrender->sizex, oglrender->sizey, oglrender->sizex, oglrender->sizex);
 	}
 
 	RE_ReleaseResult(oglrender->re);
@@ -306,13 +305,22 @@ static int screen_opengl_render_init(bContext *C, wmOperator *op)
 
 	oglrender->write_still= is_write_still && !is_animation;
 
+	oglrender->obcenter_dia_back = U.obcenter_dia;
+	U.obcenter_dia = 0;
+
 	if(is_view_context) {
 		oglrender->v3d= CTX_wm_view3d(C);
 		oglrender->ar= CTX_wm_region(C);
 		oglrender->rv3d= CTX_wm_region_view3d(C);
 
 		/* MUST be cleared on exit */
-		oglrender->scene->customdata_mask_modal= ED_view3d_datamask(oglrender->scene, oglrender->v3d);
+		oglrender->scene->customdata_mask_modal = (ED_view3d_datamask(oglrender->scene, oglrender->v3d) |
+		                                           ED_view3d_object_datamask(oglrender->scene) );
+
+		/* apply immediately incase we're rendeing from a script,
+		 * running notifiers again will overwrite */
+		oglrender->scene->customdata_mask |= oglrender->scene->customdata_mask_modal;
+
 	}
 
 	/* create render */
@@ -356,6 +364,8 @@ static void screen_opengl_render_end(bContext *C, OGLRender *oglrender)
 
 	WM_cursor_wait(0);
 	WM_event_add_notifier(C, NC_SCENE|ND_RENDER_RESULT, oglrender->scene);
+
+	U.obcenter_dia = oglrender->obcenter_dia_back;
 
 	GPU_offscreen_free(oglrender->ofs);
 

@@ -1325,6 +1325,11 @@ void nodeSetActive(bNodeTree *ntree, bNode *node)
 		node->flag |= NODE_ACTIVE_TEXTURE;
 }
 
+int nodeSocketIsHidden(bNodeSocket *sock)
+{
+	return ((sock->flag & (SOCK_HIDDEN | SOCK_AUTO_HIDDEN | SOCK_UNAVAIL)) != 0);
+}
+
 /* ************** dependency stuff *********** */
 
 /* node is guaranteed to be not checked before */
@@ -1834,6 +1839,7 @@ static void registerCompositNodes(bNodeTreeType *ttype)
 	register_node_type_cmp_vecblur(ttype);
 	register_node_type_cmp_dilateerode(ttype);
 	register_node_type_cmp_defocus(ttype);
+	register_node_type_cmp_doubleedgemask(ttype);
 	
 	register_node_type_cmp_valtorgb(ttype);
 	register_node_type_cmp_rgbtobw(ttype);
@@ -1940,6 +1946,7 @@ static void registerShaderNodes(bNodeTreeType *ttype)
 	register_node_type_sh_tex_musgrave(ttype);
 	register_node_type_sh_tex_gradient(ttype);
 	register_node_type_sh_tex_magic(ttype);
+	register_node_type_sh_tex_checker(ttype);
 }
 
 static void registerTextureNodes(bNodeTreeType *ttype)

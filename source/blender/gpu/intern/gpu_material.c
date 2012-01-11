@@ -973,7 +973,6 @@ static void do_material_tex(GPUShadeInput *shi)
 				GPU_link(mat, "mtex_mapping_ofs", texco, GPU_uniform(ofs), &texco);
 
 			talpha = 0;
-			rgbnor = 0;
 
 			if(tex && tex->type == TEX_IMAGE && tex->ima) {
 				GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser), &tin, &trgb);
@@ -1122,7 +1121,11 @@ static void do_material_tex(GPUShadeInput *shi)
 						// to inverting the bump map. Should this ever change
 						// this negate must be removed.
 						norfac = -hScale * mtex->norfac;
-						if(found_deriv_map) norfac /= sqrtf(ima_x*ima_y);
+						if(found_deriv_map)
+						{
+							float fVirtDim = sqrtf(fabsf(ima_x*mtex->size[0]*ima_y*mtex->size[1]));
+							norfac /= MAX2(fVirtDim, FLT_EPSILON);
+						}
 
 						tnorfac = GPU_uniform(&norfac);
 

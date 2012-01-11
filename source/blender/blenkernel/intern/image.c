@@ -285,6 +285,10 @@ static void image_assign_ibuf(Image *ima, ImBuf *ibuf, int index, int frame)
 				break;
 
 		ibuf->index= index;
+		if(ima->flag & IMA_CM_PREDIVIDE)
+			ibuf->flags |= IB_cm_predivide;
+		else
+			ibuf->flags &= ~IB_cm_predivide;
 
 		/* this function accepts link==NULL */
 		BLI_insertlinkbefore(&ima->ibufs, link, ibuf);
@@ -1544,7 +1548,7 @@ int BKE_write_ibuf(ImBuf *ibuf, const char *name, ImageFormatData *imf)
 		ibuf->ftype= OPENEXR;
 		if(imf->depth == R_IMF_CHAN_DEPTH_16)
 			ibuf->ftype |= OPENEXR_HALF;
-		ibuf->ftype |= (quality & OPENEXR_COMPRESS);
+		ibuf->ftype |= (imf->exr_codec & OPENEXR_COMPRESS);
 		
 		if(!(imf->flag & R_IMF_FLAG_ZBUF))
 			ibuf->zbuf_float = NULL;	/* signal for exr saving */
@@ -2304,8 +2308,16 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **lock_
 
 	/* since its possible to access the buffer from the image directly, set the profile [#25073] */
 	ibuf->profile= (iuser->scene->r.color_mgt_flag & R_COLOR_MANAGEMENT) ? IB_PROFILE_LINEAR_RGB : IB_PROFILE_NONE;
-
 	ibuf->dither= dither;
+
+	if(iuser->scene->r.color_mgt_flag & R_COLOR_MANAGEMENT_PREDIVIDE) {
+		ibuf->flags |= IB_cm_predivide;
+		ima->flag |= IMA_CM_PREDIVIDE;
+	}
+	else {
+		ibuf->flags &= ~IB_cm_predivide;
+		ima->flag &= ~IMA_CM_PREDIVIDE;
+	}
 
 	ima->ok= IMA_OK_LOADED;
 

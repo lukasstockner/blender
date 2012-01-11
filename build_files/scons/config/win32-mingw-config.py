@@ -14,7 +14,7 @@ BF_PYTHON_LIB_STATIC = '${BF_PYTHON}/lib/libpython${BF_PYTHON_VERSION[0]}${BF_PY
 WITH_BF_OPENAL = True
 BF_OPENAL = LIBDIR + '/openal'
 BF_OPENAL_INC = '${BF_OPENAL}/include'
-BF_OPENAL_LIB = 'wrap_oal'
+BF_OPENAL_LIB = 'OpenAL32'
 BF_OPENAL_LIBPATH = '${BF_OPENAL}/lib'
 
 WITH_BF_FFMPEG = True
@@ -156,15 +156,15 @@ WITH_BF_CYCLES = True
 
 WITH_BF_OIIO = True
 BF_OIIO = LIBDIR + '/gcc/openimageio'
-BF_OIIO_INC = '#../lib/windows/gcc/openimageio/include'
+BF_OIIO_INC = BF_OIIO + '/include'
 BF_OIIO_LIB = 'OpenImageIO'
-BF_OIIO_LIBPATH = '#../lib/windows/gcc/openimageio/lib'
+BF_OIIO_LIBPATH = BF_OIIO + '/lib'
 
 WITH_BF_BOOST = True
 BF_BOOST = LIBDIR + '/boost'
-BF_BOOST_INC = '#../lib/windows/boost/include'
+BF_BOOST_INC = BF_BOOST + '/include'
 BF_BOOST_LIB = 'boost_date_time-mgw45-mt-s-1_47 boost_filesystem-mgw45-mt-s-1_47 boost_regex-mgw45-mt-s-1_47 boost_system-mgw45-mt-s-1_47 boost_thread-mgw45-mt-s-1_47'
-BF_BOOST_LIBPATH = '#../lib/windows/boost/lib/gcc'
+BF_BOOST_LIBPATH = BF_BOOST + '/lib/gcc'
 
 #Ray trace optimization
 WITH_BF_RAYOPTIMIZATION = True
@@ -189,6 +189,10 @@ CC_WARN = [ '-Wall' ]
 LLIBS = ['-lshell32', '-lshfolder', '-lgdi32', '-lmsvcrt', '-lwinmm', '-lmingw32', '-lm', '-lws2_32', '-lz', '-lstdc++','-lole32','-luuid', '-lwsock32', '-lpsapi']
 
 PLATFORM_LINKFLAGS = ['-Xlinker', '--stack=2097152']
+
+## DISABLED, causes linking errors!
+## for re-distrobution, so users dont need mingw installed
+# PLATFORM_LINKFLAGS += ["-static-libgcc", "-static-libstdc++"]
 
 BF_DEBUG = False
 BF_DEBUG_CCFLAGS= ['-g', '-D_DEBUG']

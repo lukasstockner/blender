@@ -57,6 +57,7 @@ set(SRC_SVM_HEADERS
 	svm/svm_camera.h
 	svm/svm_closure.h
 	svm/svm_convert.h
+	svm/svm_checker.h
 	svm/svm_displace.h
 	svm/svm_fresnel.h
 	svm/svm_gamma.h
@@ -143,7 +144,7 @@ endif()
 #set(KERNEL_PREPROCESSED ${CMAKE_CURRENT_BINARY_DIR}/kernel_preprocessed.cl)
 #add_custom_command(
 #	OUTPUT ${KERNEL_PREPROCESSED}
-#	COMMAND gcc -x c++ -E ${CMAKE_CURRENT_SOURCE_DIR}/kernel.cl -I ${CMAKE_CURRENT_SOURCE_DIR}/../util/ -DCCL_NAMESPACE_BEGIN= -DCCL_NAMESPACE_END= -DWITH_OPENCL -o ${KERNEL_PREPROCESSED}
+#	COMMAND gcc -x c++ -E ${CMAKE_CURRENT_SOURCE_DIR}/kernel.cl -I ${CMAKE_CURRENT_SOURCE_DIR}/../util/ -DCCL_NAMESPACE_BEGIN= -DCCL_NAMESPACE_END= -o ${KERNEL_PREPROCESSED}
 #	DEPENDS ${SRC_KERNEL} ${SRC_UTIL_HEADERS})
 #add_custom_target(cycles_kernel_preprocess ALL DEPENDS ${KERNEL_PREPROCESSED})
 #delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${KERNEL_PREPROCESSED}" ${CYCLES_INSTALL_PATH}/kernel)

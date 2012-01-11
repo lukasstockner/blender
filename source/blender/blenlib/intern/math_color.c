@@ -30,7 +30,11 @@
 
 #include <assert.h>
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_math.h"
+#include "BLI_rand.h"
+#include "BLI_utildefines.h"
 
 void hsv_to_rgb(float h, float s, float v, float *r, float *g, float *b)
 {
@@ -393,57 +397,6 @@ float linearrgb_to_srgb(float c)
 		return  1.055f * powf(c, 1.0f/2.4f) - 0.055f;
 }
 
-void srgb_to_linearrgb_v3_v3(float *col_to, float *col_from)
-{
-	col_to[0] = srgb_to_linearrgb(col_from[0]);
-	col_to[1] = srgb_to_linearrgb(col_from[1]);
-	col_to[2] = srgb_to_linearrgb(col_from[2]);
-}
-
-void linearrgb_to_srgb_v3_v3(float *col_to, float *col_from)
-{
-	col_to[0] = linearrgb_to_srgb(col_from[0]);
-	col_to[1] = linearrgb_to_srgb(col_from[1]);
-	col_to[2] = linearrgb_to_srgb(col_from[2]);
-}
-
-/* todo, should these be moved elsewhere?, they dont belong in imbuf */
-void srgb_to_linearrgb_rgba_buf(float *col, int tot)
-{
-	while(tot--) {
-		srgb_to_linearrgb_v3_v3(col, col);
-		col += 4;
-	}
-}
-
-void linearrgb_to_srgb_rgba_buf(float *col, int tot)
-{
-	while(tot--) {
-		linearrgb_to_srgb_v3_v3(col, col);
-		col += 4;
-	}
-}
-
-void srgb_to_linearrgb_rgba_rgba_buf(float *col_to, float *col_from, int tot)
-{
-	while(tot--) {
-		srgb_to_linearrgb_v3_v3(col_to, col_from);
-		col_to[3]= col_from[3];
-		col_to += 4;
-		col_from += 4;
-	}
-}
-
-void linearrgb_to_srgb_rgba_rgba_buf(float *col_to, float *col_from, int tot)
-{
-	while(tot--) {
-		linearrgb_to_srgb_v3_v3(col_to, col_from);
-		col_to[3]= col_from[3];
-		col_to += 4;
-		col_from += 4;
-	}
-}
-
 void minmax_rgb(short c[])
 {
 	if(c[0]>255) c[0]=255;
@@ -531,3 +484,79 @@ void rgb_byte_set_hue_float_offset(unsigned char rgb[3], float hue_offset)
 	rgb_float_set_hue_float_offset(rgb_float, hue_offset);
 	rgb_float_to_byte(rgb_float, rgb);
 }
+
+
+/* fast sRGB conversion
+ * LUT from linear float to 16-bit short
+ * based on http://mysite.verizon.net/spitzak/conversion/
+ */
+
+float BLI_color_from_srgb_table[256];
+unsigned short BLI_color_to_srgb_table[0x10000];
+
+static unsigned short hipart(const float f)
+{
+	union {
+		float f;
+		unsigned short us[2];
+	} tmp;
+
+	tmp.f = f;
+
+#ifdef __BIG_ENDIAN__
+	return tmp.us[0];
+#else
+	return tmp.us[1];
+#endif
+}
+
+static float index_to_float(const unsigned short i)
+{
+	union {
+		float f;
+		unsigned short us[2];
+	} tmp;
+
+	/* positive and negative zeros, and all gradual underflow, turn into zero: */
+	if (i<0x80 || (i >= 0x8000 && i < 0x8080)) return 0;
+	/* All NaN's and infinity turn into the largest possible legal float: */
+	if (i>=0x7f80 && i<0x8000) return FLT_MAX;
+	if (i>=0xff80) return -FLT_MAX;
+
+#ifdef __BIG_ENDIAN__
+	tmp.us[0] = i;
+	tmp.us[1] = 0x8000;
+#else
+	tmp.us[0] = 0x8000;
+	tmp.us[1] = i;
+#endif
+
+	return tmp.f;
+}
+
+void BLI_init_srgb_conversion(void)
+{
+	static int initialized= 0;
+	int i, b;
+
+	if (initialized) return;
+	initialized = 1;
+
+	/* Fill in the lookup table to convert floats to bytes: */
+	for (i = 0; i < 0x10000; i++) {
+		float f = linearrgb_to_srgb(index_to_float(i))*255.0f;
+		if (f <= 0) BLI_color_to_srgb_table[i] = 0;
+		else if (f < 255) BLI_color_to_srgb_table[i] = (unsigned short)(f*0x100+.5);
+		else BLI_color_to_srgb_table[i] = 0xff00;
+	}
+
+	/* Fill in the lookup table to convert bytes to float: */
+	for (b = 0; b <= 255; b++) {
+		float f = srgb_to_linearrgb(((float)b)*(1.0f/255.0f));
+		BLI_color_from_srgb_table[b] = f;
+		i = hipart(f);
+		/* replace entries so byte->float->byte does not change the data: */
+		BLI_color_to_srgb_table[i] = b*0x100;
+	}
+}
+

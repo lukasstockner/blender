@@ -46,6 +46,14 @@
 
 #include "BKE_sound.h"
 
+#ifdef WITH_CYCLES
+static EnumPropertyItem compute_device_type_items[] = {
+	{USER_COMPUTE_DEVICE_NONE, "NONE", 0, "None", "Don't use compute device"},
+	{USER_COMPUTE_DEVICE_CUDA, "CUDA", 0, "CUDA", "Use CUDA for GPU acceleration"},
+	{USER_COMPUTE_DEVICE_OPENCL, "OPENCL", 0, "OpenCL", "Use OpenCL for GPU acceleration"},
+	{ 0, NULL, 0, NULL, NULL}};
+#endif
+
 #ifdef RNA_RUNTIME
 
 #include "DNA_object_types.h"
@@ -64,6 +72,8 @@
 #include "MEM_CacheLimiterC-Api.h"
 
 #include "UI_interface.h"
+
+#include "CCL_api.h"
 
 static void rna_userdef_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
@@ -301,6 +311,68 @@ static void rna_userdef_text_update(Main *UNUSED(bmain), Scene *UNUSED(scene), P
 	BLF_cache_clear();
 	WM_main_add_notifier(NC_WINDOW, NULL);
 }
+
+#ifdef WITH_CYCLES
+static EnumPropertyItem *rna_userdef_compute_device_type_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+{
+	EnumPropertyItem *item= NULL;
+	int totitem= 0;
+
+	/* add supported device types */
+	RNA_enum_items_add_value(&item, &totitem, compute_device_type_items, USER_COMPUTE_DEVICE_NONE);
+	if(CCL_compute_device_list(0))
+		RNA_enum_items_add_value(&item, &totitem, compute_device_type_items, USER_COMPUTE_DEVICE_CUDA);
+	if(CCL_compute_device_list(1))
+		RNA_enum_items_add_value(&item, &totitem, compute_device_type_items, USER_COMPUTE_DEVICE_OPENCL);
+
+	RNA_enum_item_end(&item, &totitem);
+	*free = 1;
+
+	return item;
+}
+
+static int rna_userdef_compute_device_get(PointerRNA *UNUSED(ptr))
+{
+	if(U.compute_device_type == USER_COMPUTE_DEVICE_NONE)
+		return 0;
+
+	return U.compute_device_id;
+}
+
+static EnumPropertyItem *rna_userdef_compute_device_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+{
+	EnumPropertyItem tmp= {0, "", 0, "", ""};
+	EnumPropertyItem *item= NULL;
+	int totitem= 0;
+	
+	if(U.compute_device_type == USER_COMPUTE_DEVICE_NONE) {
+		/* only add a single CPU device */
+		tmp.value = 0;
+		tmp.name = "CPU";
+		tmp.identifier = "CPU";
+		RNA_enum_item_add(&item, &totitem, &tmp);
+	}
+	else {
+		/* get device list from cycles. it would be good to make this generic
+		   once we have more subsystems using opencl, for now this is easiest */
+		int opencl = (U.compute_device_type == USER_COMPUTE_DEVICE_OPENCL);
+		CCLDeviceInfo *devices = CCL_compute_device_list(opencl);
+		int a;
+
+		for(a = 0; devices[a].name; a++) {
+			tmp.value = devices[a].value;
+			tmp.identifier = devices[a].identifier;
+			tmp.name = devices[a].name;
+			RNA_enum_item_add(&item, &totitem, &tmp);
+		}
+	}
+
+	RNA_enum_item_end(&item, &totitem);
+	*free = 1;
+
+	return item;
+}
+#endif
 
 #else
 
@@ -2607,40 +2679,50 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 		/* hardcoded here, could become dynamic somehow */
 	/* locale according to http://www.roseindia.net/tutorials/I18N/locales-list.shtml */
 	/* if you edit here, please also edit the source/blender/blenfont/intern/blf_lang.c 's locales */
+	/* Note: As this list is in alphabetical order, and not defined order,
+	 *       here is the highest define currently in use: 29 (kyrgyz). */
 	static EnumPropertyItem language_items[] = {
-		{0, "", 0, "Nearly done", ""},
-		{0, "DEFAULT", 0, "Default (Default)", ""},
-		{1, "ENGLISH", 0, "English (English)", "en_US"},
-		{8, "FRENCH", 0, "French (Français)", "fr_FR"},
-		{4, "ITALIAN", 0, "Italian (Italiano)", "it_IT"},
+		{ 0, "", 0, "Nearly done", ""},
+		{ 0, "DEFAULT", 0, "Default (Default)", ""},
+		{ 1, "ENGLISH", 0, "English (English)", "en_US"},
+		{ 8, "FRENCH", 0, "French (Français)", "fr_FR"},
+		{ 4, "ITALIAN", 0, "Italian (Italiano)", "it_IT"},
 		{15, "RUSSIAN", 0, "Russian (Русский)", "ru_RU"},
 		{13, "SIMPLIFIED_CHINESE", 0, "Simplified Chinese (简体中文)", "zh_CN"},
-		{9, "SPANISH", 0, "Spanish (Español)", "es"},
+		{ 9, "SPANISH", 0, "Spanish (Español)", "es"},
 		{14, "TRADITIONAL_CHINESE", 0, "Traditional Chinese (繁體中文)", "zh_TW"},
-		{0, "", 0, "In progress", ""},
-		{2, "JAPANESE", 0, "Japanese (日本語)", "ja_JP"},
-		{3, "DUTCH", 0, "Dutch (Nederlandse taal)", "nl_NL"},
-		{5, "GERMAN", 0, "German (Deutsch)", "de_DE"},
-		{6, "FINNISH", 0, "Finnish (Suomi)", "fi_FI"},
-		{7, "SWEDISH", 0, "Swedish (Svenska)", "sv_SE"},
-		{10, "CATALAN", 0, "Catalan (Català)", "ca_AD"},
-		{11, "CZECH", 0, "Czech (Český)", "cs_CZ"},
-		{12, "BRAZILIAN_PORTUGUESE", 0, "Brazilian Portuguese (Português do Brasil)", "pt_BR"},
-		{16, "CROATIAN", 0, "Croatian (Hrvatski)", "hr_HR"},
-		{17, "SERBIAN", 0, "Serbian (Српском језику)", "sr_RS"},
-		{18, "UKRAINIAN", 0, "Ukrainian (Український)", "uk_UA"},
-		{19, "POLISH", 0, "Polish (Polski)", "pl_PL"},
-		{20, "ROMANIAN", 0, "Romanian (Român)", "ro_RO"},
+		{ 0, "", 0, "In progress", ""},
 		/* using the utf8 flipped form of Arabic (العربية) */
 		{21, "ARABIC", 0, "Arabic (ﺔﻴﺑﺮﻌﻟﺍ)", "ar_EG"},
+		{12, "BRAZILIAN_PORTUGUESE", 0, "Brazilian Portuguese (Português do Brasil)", "pt_BR"},
 		{22, "BULGARIAN", 0, "Bulgarian (Български)", "bg_BG"},
+		{10, "CATALAN", 0, "Catalan (Català)", "ca_AD"},
+		{16, "CROATIAN", 0, "Croatian (Hrvatski)", "hr_HR"},
+		{11, "CZECH", 0, "Czech (Český)", "cs_CZ"},
+		{ 3, "DUTCH", 0, "Dutch (Nederlandse taal)", "nl_NL"},
+		{ 6, "FINNISH", 0, "Finnish (Suomi)", "fi_FI"},
+		{ 5, "GERMAN", 0, "German (Deutsch)", "de_DE"},
 		{23, "GREEK", 0, "Greek (Ελληνικά)", "el_GR"},
+		{27, "INDONESIAN", 0, "Indonesian (Bahasa indonesia)", "id_ID"},
+		{ 2, "JAPANESE", 0, "Japanese (日本語)", "ja_JP"},
+		{29, "KYRGYZ", 0, "Kyrgyz (Kyrgyz tili)", "ki"},
 		{24, "KOREAN", 0, "Korean (한국 언어)", "ko_KR"},
 		{25, "NEPALI", 0, "Nepali (नेपाली)", "ne_NP"},
 		/* using the utf8 flipped form of Persian (فارسی) */
 		{26, "PERSIAN", 0, "Persian (ﯽﺳﺭﺎﻓ)", "fa_PE"},
-		{27, "INDONESIAN", 0, "Indonesian (Bahasa indonesia)", "id_ID"},
-		{0, NULL, 0, NULL, NULL}};
+		{19, "POLISH", 0, "Polish (Polski)", "pl_PL"},
+		{20, "ROMANIAN", 0, "Romanian (Român)", "ro_RO"},
+		{17, "SERBIAN", 0, "Serbian (Српски)", "sr_RS"},
+		{28, "SERBIAN_LATIN", 0, "Serbian latin (Srpski latinica)", "sr_RS@latin"},
+		{ 7, "SWEDISH", 0, "Swedish (Svenska)", "sv_SE"},
+		{18, "UKRAINIAN", 0, "Ukrainian (Український)", "uk_UA"},
+		{ 0, NULL, 0, NULL, NULL}};
+
+#ifdef WITH_CYCLES
+	static EnumPropertyItem compute_device_items[] = {
+		{0, "CPU", 0, "CPU", ""},
+		{ 0, NULL, 0, NULL, NULL}};
+#endif
 
 	srna= RNA_def_struct(brna, "UserPreferencesSystem", NULL);
 	RNA_def_struct_sdna(srna, "UserDef");
@@ -2850,14 +2932,20 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Text Anti-aliasing", "Draw user interface text anti-aliased");
 	RNA_def_property_update(prop, 0, "rna_userdef_text_update");
 	
-#if 0
-	prop= RNA_def_property(srna, "verse_master", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_sdna(prop, NULL, "versemaster");
-	RNA_def_property_ui_text(prop, "Verse Master", "Verse Master-server IP");
+#ifdef WITH_CYCLES
+	prop= RNA_def_property(srna, "compute_device_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_CONTEXT);
+	RNA_def_property_enum_sdna(prop, NULL, "compute_device_type");
+	RNA_def_property_enum_items(prop, compute_device_type_items);
+	RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_userdef_compute_device_type_itemf");
+	RNA_def_property_ui_text(prop, "Compute Device Type", "Device to use for computation (rendering with Cycles)");
 
-	prop= RNA_def_property(srna, "verse_username", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_sdna(prop, NULL, "verseuser");
-	RNA_def_property_ui_text(prop, "Verse Username", "Verse user name");
+	prop= RNA_def_property(srna, "compute_device", PROP_ENUM, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_CONTEXT);
+	RNA_def_property_enum_sdna(prop, NULL, "compute_device_id");
+	RNA_def_property_enum_items(prop, compute_device_items);
+	RNA_def_property_enum_funcs(prop, "rna_userdef_compute_device_get", NULL, "rna_userdef_compute_device_itemf");
+	RNA_def_property_ui_text(prop, "Compute Device", "Device to use for computation");
 #endif
 }
 

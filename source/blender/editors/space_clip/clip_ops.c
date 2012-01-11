@@ -220,13 +220,10 @@ void CLIP_OT_open(wmOperatorType *ot)
 
 static int reload_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	SpaceClip *sc= CTX_wm_space_clip(C);
 	MovieClip *clip= CTX_data_edit_movieclip(C);
 
 	if(!clip)
 		return OPERATOR_CANCELLED;
-
-	sc->scopes.ok= 0;
 
 	BKE_movieclip_reload(clip);
 
@@ -827,6 +824,7 @@ typedef struct ProxyBuildJob {
 	Scene *scene;
 	struct Main *main;
 	MovieClip *clip;
+	int clip_flag;
 } ProxyJob;
 
 static void proxy_freejob(void *pjv)
@@ -877,10 +875,10 @@ static void proxy_startjob(void *pjv, short *stop, short *do_update, float *prog
 
 	for(cfra= sfra; cfra<=efra; cfra++) {
 		if(clip->source != MCLIP_SRC_MOVIE)
-			BKE_movieclip_build_proxy_frame(clip, NULL, cfra, build_sizes, build_count, 0);
+			BKE_movieclip_build_proxy_frame(clip, pj->clip_flag, NULL, cfra, build_sizes, build_count, 0);
 
 		if(undistort)
-			BKE_movieclip_build_proxy_frame(clip, distortion, cfra, build_sizes, build_count, 1);
+			BKE_movieclip_build_proxy_frame(clip, pj->clip_flag, distortion, cfra, build_sizes, build_count, 1);
 
 		if(*stop || G.afbreek)
 			break;
@@ -911,6 +909,7 @@ static int clip_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
 	pj->scene= scene;
 	pj->main= CTX_data_main(C);
 	pj->clip= clip;
+	pj->clip_flag= clip->flag&MCLIP_TIMECODE_FLAGS;
 
 	WM_jobs_customdata(steve, pj, proxy_freejob);
 	WM_jobs_timer(steve, 0.2, NC_MOVIECLIP|ND_DISPLAY, 0);
