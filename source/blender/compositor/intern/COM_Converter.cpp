@@ -76,6 +76,7 @@
 #include "COM_DifferenceMatteNode.h"
 #include "COM_LuminanceMatteNode.h"
 #include "COM_DistanceMatteNode.h"
+#include "COM_ChromaMatteNode.h"
 #include "COM_BlurNode.h"
 #include "COM_BokehBlurNode.h"
 #include "COM_DilateErodeNode.h"
@@ -237,6 +238,9 @@ Node* Converter::convert(bNode *bNode) {
 		break;
 	case CMP_NODE_DIST_MATTE:
 		node = new DistanceMatteNode(bNode);
+		break;
+	case CMP_NODE_CHROMA_MATTE:
+		node = new ChromaMatteNode(bNode);
 		break;
 	case CMP_NODE_BLUR:
 		node = new BlurNode(bNode);
