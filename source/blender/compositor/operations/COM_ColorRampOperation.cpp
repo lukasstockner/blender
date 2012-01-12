@@ -21,8 +21,6 @@
  */
 
 #include "COM_ColorRampOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 
 #ifdef __cplusplus
 extern "C" {

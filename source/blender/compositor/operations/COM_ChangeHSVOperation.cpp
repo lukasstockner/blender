@@ -21,8 +21,6 @@
  */
 
 #include "COM_ChangeHSVOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 
 ChangeHSVOperation::ChangeHSVOperation(): NodeOperation() {
     this->addInputSocket(COM_DT_COLOR);

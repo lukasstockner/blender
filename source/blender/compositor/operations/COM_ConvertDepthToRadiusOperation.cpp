@@ -21,8 +21,6 @@
  */
 
 #include "COM_ConvertDepthToRadiusOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 #include "BLI_math.h"
 #include "DNA_camera_types.h"
 

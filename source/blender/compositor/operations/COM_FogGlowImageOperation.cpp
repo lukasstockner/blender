@@ -21,8 +21,6 @@
  */
 
 #include "COM_FogGlowImageOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 #include "BLI_math.h"
 
 FogGlowImageOperation::FogGlowImageOperation(): NodeOperation() {

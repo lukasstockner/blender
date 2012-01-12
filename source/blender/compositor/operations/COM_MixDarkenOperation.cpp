@@ -21,8 +21,6 @@
  */
 
 #include "COM_MixDarkenOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 
 MixDarkenOperation::MixDarkenOperation(): MixBaseOperation() {
 }

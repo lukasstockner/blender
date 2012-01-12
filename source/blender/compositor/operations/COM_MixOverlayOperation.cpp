@@ -21,8 +21,6 @@
  */
 
 #include "COM_MixOverlayOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 
 MixOverlayOperation::MixOverlayOperation(): MixBaseOperation() {
 }

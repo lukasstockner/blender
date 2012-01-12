@@ -21,8 +21,6 @@
  */
 
 #include "COM_MathBaseOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 extern "C" {
 #include "BLI_math.h"
 }

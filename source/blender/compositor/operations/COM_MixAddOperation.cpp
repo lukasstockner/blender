@@ -21,8 +21,6 @@
  */
 
 #include "COM_MixAddOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 
 MixAddOperation::MixAddOperation(): MixBaseOperation() {
 }

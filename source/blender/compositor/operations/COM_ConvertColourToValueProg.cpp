@@ -21,8 +21,6 @@
  */
 
 #include "COM_ConvertColourToValueProg.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 
 ConvertColourToValueProg::ConvertColourToValueProg(): NodeOperation() {
     this->addInputSocket(COM_DT_COLOR);

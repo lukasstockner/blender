@@ -20,8 +20,6 @@
  */
 
 #include "COM_LuminanceMatteOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 #include "BLI_math.h"
 
 LuminanceMatteOperation::LuminanceMatteOperation(): NodeOperation() {

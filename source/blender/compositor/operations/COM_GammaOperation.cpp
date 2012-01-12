@@ -21,8 +21,6 @@
  */
 
 #include "COM_GammaOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 #include "BLI_math.h"
 
 GammaOperation::GammaOperation(): NodeOperation() {

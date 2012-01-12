@@ -21,8 +21,6 @@
  */
 
 #include "COM_AlphaOverPremultiplyOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 
 AlphaOverPremultiplyOperation::AlphaOverPremultiplyOperation(): MixBaseOperation() {
 }

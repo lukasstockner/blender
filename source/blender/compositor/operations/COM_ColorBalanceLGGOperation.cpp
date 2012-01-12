@@ -21,8 +21,6 @@
  */
 
 #include "COM_ColorBalanceLGGOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 #include "BLI_math.h"
 
 

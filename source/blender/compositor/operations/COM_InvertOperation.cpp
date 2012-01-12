@@ -21,8 +21,6 @@
  */
 
 #include "COM_InvertOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 
 InvertOperation::InvertOperation(): NodeOperation() {
     this->addInputSocket(COM_DT_VALUE);

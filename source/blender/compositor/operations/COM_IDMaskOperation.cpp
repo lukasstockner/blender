@@ -21,8 +21,6 @@
  */
 
 #include "COM_IDMaskOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 
 IDMaskOperation::IDMaskOperation(): NodeOperation() {
     this->addInputSocket(COM_DT_VALUE);

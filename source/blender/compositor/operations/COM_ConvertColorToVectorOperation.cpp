@@ -21,8 +21,6 @@
  */
 
 #include "COM_ConvertColorToVectorOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 
 ConvertColorToVectorOperation::ConvertColorToVectorOperation(): NodeOperation() {
     this->addInputSocket(COM_DT_COLOR);

@@ -20,8 +20,6 @@
  */
 
 #include "COM_ConvertRGBToYCCOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 #include "BLI_math_color.h"
 
 ConvertRGBToYCCOperation::ConvertRGBToYCCOperation(): NodeOperation() {

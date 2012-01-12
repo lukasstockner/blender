@@ -21,8 +21,6 @@
  */
 
 #include "COM_ScreenLensDistortionOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 extern "C" {

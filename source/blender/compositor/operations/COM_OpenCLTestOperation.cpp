@@ -21,7 +21,6 @@
  */
 
 #include "COM_OpenCLTestOperation.h"
-#include "COM_OutputSocket.h"
 #include "stdio.h"
 
 OpenCLTestOperation::OpenCLTestOperation(): NodeOperation() {

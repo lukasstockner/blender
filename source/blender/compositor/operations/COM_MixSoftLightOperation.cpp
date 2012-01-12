@@ -21,8 +21,6 @@
  */
 
 #include "COM_MixSoftLightOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 
 MixSoftLightOperation::MixSoftLightOperation(): MixBaseOperation() {
 }

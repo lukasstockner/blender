@@ -21,8 +21,6 @@
  */
 
 #include "COM_ConvertVectorToValueOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 
 ConvertVectorToValueOperation::ConvertVectorToValueOperation(): NodeOperation() {
     this->addInputSocket(COM_DT_VECTOR);

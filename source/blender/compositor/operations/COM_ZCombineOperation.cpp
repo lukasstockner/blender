@@ -21,8 +21,6 @@
  */
 
 #include "COM_ZCombineOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 #include "BLI_utildefines.h"
 
 ZCombineOperation::ZCombineOperation(): NodeOperation() {

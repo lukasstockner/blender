@@ -21,8 +21,6 @@
  */
 
 #include "COM_AlphaOverMixedOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 
 AlphaOverMixedOperation::AlphaOverMixedOperation(): MixBaseOperation() {
     this->x = 0.0f;

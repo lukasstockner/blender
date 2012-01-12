@@ -21,7 +21,6 @@
  */
 
 #include "COM_SetAlphaOperation.h"
-#include "COM_OutputSocket.h"
 
 SetAlphaOperation::SetAlphaOperation(): NodeOperation() {
     this->addInputSocket(COM_DT_COLOR);

@@ -21,7 +21,6 @@
  */
 
 #include "COM_SetVectorOperation.h"
-#include "COM_OutputSocket.h"
 #include "COM_defines.h"
 
 SetVectorOperation::SetVectorOperation(): NodeOperation() {

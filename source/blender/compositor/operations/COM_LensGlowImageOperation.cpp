@@ -21,8 +21,6 @@
  */
 
 #include "COM_LensGlowImageOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 #include "BLI_math.h"
 
 LensGlowImageOperation::LensGlowImageOperation(): NodeOperation() {

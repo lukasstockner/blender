@@ -21,8 +21,6 @@
  */
 
 #include "COM_ColorBalanceASCCDLOperation.h"
-#include "COM_InputSocket.h"
-#include "COM_OutputSocket.h"
 #include "BLI_math.h"
 
 inline float colorbalance_cdl(float in, float offset, float power, float slope)

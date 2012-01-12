@@ -21,7 +21,6 @@
  */
 
 #include "COM_SetColorOperation.h"
-#include "COM_OutputSocket.h"
 
 SetColorOperation::SetColorOperation(): NodeOperation() {
     this->addOutputSocket(COM_DT_COLOR);
