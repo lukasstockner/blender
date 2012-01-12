@@ -292,6 +292,24 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_GLARE:
 		node = new GlareNode(bNode);
 		break;
+	/* not inplemented yet */
+	case CMP_NODE_MAP_VALUE:
+	case CMP_NODE_VECBLUR:
+	case CMP_NODE_OUTPUT_FILE:
+	case CMP_NODE_COLOR_SPILL:
+	case CMP_NODE_CHANNEL_MATTE:
+	case CMP_NODE_DOUBLEEDGEMASK:
+	case CMP_NODE_DEFOCUS:
+	case CMP_NODE_DISPLACE:
+	case CMP_NODE_NORMALIZE:
+	case CMP_NODE_CROP:
+	case CMP_NODE_BILATERALBLUR:
+	case CMP_NODE_PREMULKEY:
+	case CMP_NODE_VIEW_LEVELS:
+	case CMP_NODE_MOVIECLIP:
+	case CMP_NODE_TRANSFORM:
+	case CMP_NODE_STABILIZE2D:
+	case CMP_NODE_MOVIEDISTORTION:
 	default:
 		node = new MuteNode(bNode);
 		break;
