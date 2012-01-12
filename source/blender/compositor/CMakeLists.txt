@@ -161,6 +161,8 @@ set(SRC
 		nodes/COM_DistanceMatteNode.h
 		nodes/COM_ChromaMatteNode.cpp
 		nodes/COM_ChromaMatteNode.h
+		nodes/COM_ColorMatteNode.cpp
+		nodes/COM_ColorMatteNode.h
 		nodes/COM_LensDistortionNode.cpp
 		nodes/COM_LensDistortionNode.h
 
@@ -389,6 +391,8 @@ operations/COM_ConvertDepthToRadiusOperation.cpp
 	operations/COM_DistanceMatteOperation.h
 	operations/COM_ChromaMatteOperation.cpp
 	operations/COM_ChromaMatteOperation.h
+	operations/COM_ColorMatteOperation.cpp
+	operations/COM_ColorMatteOperation.h
 
 	operations/COM_ReadBufferOperation.cpp
 	operations/COM_ReadBufferOperation.h
