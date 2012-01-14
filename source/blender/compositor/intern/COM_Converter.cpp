@@ -298,7 +298,7 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_OUTPUT_FILE:
 	case CMP_NODE_COLOR_SPILL:
 	case CMP_NODE_CHANNEL_MATTE:
-	case CMP_NODE_DOUBLEEDGEMASK:
+//	case CMP_NODE_DOUBLEEDGEMASK: // to be re-enabled with next merge from trunk
 	case CMP_NODE_DEFOCUS:
 	case CMP_NODE_DISPLACE:
 	case CMP_NODE_NORMALIZE:
