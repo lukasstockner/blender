@@ -2200,35 +2200,26 @@ PyObject* KX_GameObject::pyattr_get_localTransform(void *self_v, const KX_PYATTR
 int KX_GameObject::pyattr_set_localTransform(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
-	MT_Matrix4x4 transform;
-	if (!PyMatTo(value, transform))
+	MT_Matrix4x4 temp;
+	if (!PyMatTo(value, temp))
 		return PY_SET_ATTR_FAIL;
 
-	// Decompose translation
-	MT_Point3 translation = MT_Point3();
-	translation.setValue(transform[0][3], transform[1][3], transform[2][3]);
-	self->NodeSetLocalPosition(translation);
+	float transform[4][4];
+	float loc[3], size[3];
+	float rot[3][3];
+	MT_Matrix3x3 orientation;
 
-	// Decompose scale
-	MT_Vector3 x = MT_Vector3(transform[0][0], transform[1][0], transform[2][0]);
-	MT_Vector3 y = MT_Vector3(transform[0][1], transform[1][1], transform[2][1]);
-	MT_Vector3 z = MT_Vector3(transform[0][2], transform[1][2], transform[2][2]);
+	temp.getValue(*transform);
+	mat4_to_loc_rot_size(loc, rot, size, transform);
 
-	MT_Matrix3x3 rot = MT_Matrix3x3(x[0], y[0], z[0], x[1], y[1], z[1], x[2], y[2], z[2]);
-	MT_Vector3 scale = MT_Vector3(x.length(), y.length(), z.length());
+	self->NodeSetLocalPosition(MT_Point3(loc));
 
-	// If the determinant of the 3x3 submatrix is negative, we need to flip an arbitrary axis' scale value
-	// to account for negative scaling
-	if (rot[0][0]*rot[1][1]*rot[2][2] + rot[0][1]*rot[1][2]*rot[2][0] + rot[0][2]*rot[1][0]*rot[2][1] -
-		rot[0][0]*rot[1][2]*rot[2][1] - rot[0][1]*rot[1][0]*rot[2][2] - rot[0][2]*rot[1][1]*rot[2][0] < 0)
-		scale[0] *= -1;
+	//MT_Matrix3x3's constructor expects a 4x4 matrix
+	orientation = MT_Matrix3x3();
+	orientation.setValue3x3(*rot);
+	self->NodeSetLocalOrientation(orientation);
 
-	self->NodeSetLocalScale(scale);
-
-	// Decompose rotation
-	MT_Matrix3x3 scale_mat = MT_Matrix3x3(scale[0], 0, 0,   0, scale[1], 0,   0, 0, scale[2]).inverse();
-	rot = rot * scale_mat;
-	self->NodeSetLocalOrientation(rot);
+	self->NodeSetLocalScale(MT_Vector3(size));
 
 	return PY_SET_ATTR_SUCCESS;
 }
@@ -2243,35 +2234,26 @@ PyObject* KX_GameObject::pyattr_get_worldTransform(void *self_v, const KX_PYATTR
 int KX_GameObject::pyattr_set_worldTransform(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
-	MT_Matrix4x4 transform;
-	if (!PyMatTo(value, transform))
+	MT_Matrix4x4 temp;
+	if (!PyMatTo(value, temp))
 		return PY_SET_ATTR_FAIL;
 
-	// Decompose translation
-	MT_Point3 translation = MT_Point3();
-	translation.setValue(transform[0][3], transform[1][3], transform[2][3]);
-	self->NodeSetWorldPosition(translation);
+	float transform[4][4];
+	float loc[3], size[3];
+	float rot[3][3];
+	MT_Matrix3x3 orientation;
 
-	// Decompose scale
-	MT_Vector3 x = MT_Vector3(transform[0][0], transform[1][0], transform[2][0]);
-	MT_Vector3 y = MT_Vector3(transform[0][1], transform[1][1], transform[2][1]);
-	MT_Vector3 z = MT_Vector3(transform[0][2], transform[1][2], transform[2][2]);
+	temp.getValue(*transform);
+	mat4_to_loc_rot_size(loc, rot, size, transform);
 
-	MT_Matrix3x3 rot = MT_Matrix3x3(x[0], y[0], z[0], x[1], y[1], z[1], x[2], y[2], z[2]);
-	MT_Vector3 scale = MT_Vector3(x.length(), y.length(), z.length());
+	self->NodeSetWorldPosition(MT_Point3(loc));
 
-	// If the determinant of the 3x3 submatrix is negative, we need to flip an arbitrary axis' scale value
-	// to account for negative scaling
-	if (rot[0][0]*rot[1][1]*rot[2][2] + rot[0][1]*rot[1][2]*rot[2][0] + rot[0][2]*rot[1][0]*rot[2][1] -
-		rot[0][0]*rot[1][2]*rot[2][1] - rot[0][1]*rot[1][0]*rot[2][2] - rot[0][2]*rot[1][1]*rot[2][0] < 0)
-		scale[0] *= -1;
+	//MT_Matrix3x3's constructor expects a 4x4 matrix
+	orientation = MT_Matrix3x3();
+	orientation.setValue3x3(*rot);
+	self->NodeSetGlobalOrientation(orientation);
 
-	self->NodeSetWorldScale(scale);
-
-	// Decompose rotation
-	MT_Matrix3x3 scale_mat = MT_Matrix3x3(scale[0], 0, 0,   0, scale[1], 0,   0, 0, scale[2]).inverse();
-	rot = rot * scale_mat;
-	self->NodeSetGlobalOrientation(rot);
+	self->NodeSetWorldScale(MT_Vector3(size));
 
 	return PY_SET_ATTR_SUCCESS;
 }
