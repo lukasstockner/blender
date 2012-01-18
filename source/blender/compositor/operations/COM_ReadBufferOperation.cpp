@@ -35,21 +35,24 @@ void* ReadBufferOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryB
 }
 
 void ReadBufferOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {
-    if (this->memoryProxy != NULL) {
-        memoryProxy->getWriteBufferOperation()->determineResolution(resolution, preferredResolution);
+	if (this->memoryProxy != NULL) {
+		WriteBufferOperation * operation = memoryProxy->getWriteBufferOperation();
+		operation->determineResolution(resolution, preferredResolution);
+		operation->setResolution(resolution);
+
 		/// @todo: may not occur!, but does with blur node
 		if (memoryProxy->getExecutor()) memoryProxy->getExecutor()->setResolution(resolution);
-    }
+	}
 }
 void ReadBufferOperation::executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]) {
-    MemoryBuffer *inputBuffer = inputBuffers[this->offset];
+	MemoryBuffer *inputBuffer = inputBuffers[this->offset];
 	if (inputBuffer) {
-        if (readmode == COM_RM_NORMAL) {
-            inputBuffer->read(color, x, y);
-        } else {
-            inputBuffer->readCubic(color, x, y);
-        }
-    }
+		if (readmode == COM_RM_NORMAL) {
+			inputBuffer->read(color, x, y);
+		} else {
+			inputBuffer->readCubic(color, x, y);
+		}
+	}
 }
 
 void ReadBufferOperation::executePixel(float *color, float x, float y, float dx, float dy, MemoryBuffer *inputBuffers[]) {
