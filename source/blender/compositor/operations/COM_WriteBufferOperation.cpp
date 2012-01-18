@@ -53,7 +53,7 @@ void WriteBufferOperation::deinitExecution() {
 
 
 void WriteBufferOperation::executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer** memoryBuffers) {
-	MemoryBuffer* memoryBuffer = MemoryManager::getMemoryBuffer(this->getMemoryProxy(), tileNumber, false);
+	MemoryBuffer* memoryBuffer = MemoryManager::getMemoryBuffer(this->getMemoryProxy(), tileNumber);
 	float* buffer = memoryBuffer->getBuffer();
 	if (this->input->isComplex()) {
 		void* data = this->input->initializeTileData(rect, memoryBuffers);
@@ -103,7 +103,7 @@ void WriteBufferOperation::executeRegion(rcti *rect, unsigned int tileNumber, Me
 }
 
 void WriteBufferOperation::executeOpenCLRegion(cl_context context, cl_program program, cl_command_queue queue, rcti *rect, unsigned int chunkNumber, MemoryBuffer** inputMemoryBuffers) {
-	MemoryBuffer* outputMemoryBuffer = MemoryManager::getMemoryBuffer(this->getMemoryProxy(), chunkNumber, false);
+	MemoryBuffer* outputMemoryBuffer = MemoryManager::getMemoryBuffer(this->getMemoryProxy(), chunkNumber);
 	float* outputFloatBuffer = outputMemoryBuffer->getBuffer();
 	cl_int error;
 	/*

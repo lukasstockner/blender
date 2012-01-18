@@ -94,10 +94,6 @@ typedef enum OrderOfChunks {
 #define COM_MM_MAX_ALLOCATED_MEMORY 1*1024*1024*1024
 
 #define COM_NUMBER_OF_CHANNELS 4
-/**
-  * enable the balancing of memory (saving MemoryBuffer to disc) to free memory
-  */
-#define COM_MM_ENABLE FALSE
 
 #define COM_RM_NORMAL 0
 #define COM_RM_LINEAR 1

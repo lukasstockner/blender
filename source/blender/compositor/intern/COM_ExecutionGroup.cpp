@@ -384,7 +384,7 @@ MemoryBuffer* ExecutionGroup::constructConsolidatedMemoryBuffer(MemoryProxy *mem
 
 	if (maxxchunk== minxchunk+1 && maxychunk == minychunk+1) {
 		const int chunkNumber = minxchunk+minychunk*numberOfXChunks;
-		MemoryBuffer *result = MemoryManager::getMemoryBuffer(memoryProxy, chunkNumber, true);
+		MemoryBuffer *result = MemoryManager::getMemoryBuffer(memoryProxy, chunkNumber);
 		return result;
 	}
 
@@ -404,9 +404,8 @@ MemoryBuffer* ExecutionGroup::constructConsolidatedMemoryBuffer(MemoryProxy *mem
 	for (indexx = max(minxchunk, 0); indexx<min((int)this->numberOfXChunks, maxxchunk) ; indexx++) {
 		for (indexy = max(minychunk, 0); indexy<min((int)this->numberOfYChunks, maxychunk) ; indexy++) {
 			int chunkNumber = indexx+indexy*this->numberOfXChunks;
-			MemoryBuffer *chunkBuffer = MemoryManager::getMemoryBuffer(memoryProxy, chunkNumber, true);
+			MemoryBuffer *chunkBuffer = MemoryManager::getMemoryBuffer(memoryProxy, chunkNumber);
 			result->copyContentFrom(chunkBuffer);
-			MemoryManager::releaseUser(chunkBuffer);
 		}
 	}
 
@@ -427,8 +426,6 @@ void ExecutionGroup::finalizeChunkExecution(int chunkNumber, MemoryBuffer** memo
 				if (buffer->isTemporarily()) {
 					memoryBuffers[index] = NULL;
 					delete buffer;
-				} else {
-					buffer->removeUser();
 				}
 			}
 		}
@@ -460,7 +457,7 @@ MemoryBuffer* ExecutionGroup::allocateOutputBuffer(int chunkNumber, rcti* rect) 
 	NodeOperation * operation = this->getOutputNodeOperation();
 	if (operation->isWriteBufferOperation()) {
 		WriteBufferOperation* writeOperation = (WriteBufferOperation*)operation;
-		outputBuffer = MemoryManager::allocateMemoryBuffer(writeOperation->getMemoryProxy(), chunkNumber, rect, false);
+		outputBuffer = MemoryManager::allocateMemoryBuffer(writeOperation->getMemoryProxy(), chunkNumber, rect);
 	}
 	return outputBuffer;
 }

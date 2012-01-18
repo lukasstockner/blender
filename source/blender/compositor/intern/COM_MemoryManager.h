@@ -110,25 +110,14 @@ private:
 	  * @param memoryProxy the MemoryProxy to retrieve the state from
       */
 	static MemoryManagerState* getState(MemoryProxy* memoryProxy);
-
-	/**
-	  * @brief determine the total allocated memory for compositing
-	  */
-    static long getTotalAllocatedMemory();
-
-	/**
-	  * @brief free some memory
-	  */
-    static void freeSomeMemory();
 public:
 	/**
 	  * @brief allocate a memory buffer
 	  * @param memoryProxy the MemoryProxy to get a chunk from
 	   * @param chunkNumber number of the chunk to receive
 	   * @param rect size + position of the chunk
-	  * @param addUser must we add a user to the chunk.
 	  */
-	static MemoryBuffer* allocateMemoryBuffer(MemoryProxy *memoryProxy, unsigned int chunkNumber, rcti* rect, bool addUser);
+	static MemoryBuffer* allocateMemoryBuffer(MemoryProxy *memoryProxy, unsigned int chunkNumber, rcti* rect);
 
 	/**
 	  * @brief get a memory buffer
@@ -136,14 +125,7 @@ public:
 	  * @param chunkNumber number of the chunk to receive
 	  * @param addUser must we add a user to the chunk.
 	  */
-	static MemoryBuffer* getMemoryBuffer(MemoryProxy *memoryProxy, unsigned int chunkNumber, bool addUser);
-
-	/**
-	  * @brief release the user of a MemoryBuffer
-	  * only chunks that have no users are allowed to be stored on disk.
-	  * @param buffer
-	  */
-    static void releaseUser(MemoryBuffer* buffer);
+	static MemoryBuffer* getMemoryBuffer(MemoryProxy *memoryProxy, unsigned int chunkNumber);
 
 	/**
 	  * @brief add a MemoryProxy to the scope of the memory manager
@@ -160,10 +142,5 @@ public:
 	  * @brief initialize the memory manager.
 	  */
     static void initialize();
-
-	/**
-	  * @brief return the performance of the memory manager (cachehits versus fails)
-	  */
-    static float getPerformance();
 };
 #endif

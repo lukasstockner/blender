@@ -40,14 +40,8 @@ extern "C" {
 typedef enum MemoryBufferState {
 	/** @brief memory has been allocated on creator device and CPU machine, but kernel has not been executed */
 	COM_MB_ALLOCATED = 1,
-	/** @brief memory has been allocated, and the kernel has been executed. CopyBack has not been performed.*/
-	COM_MB_CREATED = 2,
-	/** @brief memory has been allocated, and the kernel has been executed. CopyBack has been performed.*/
-	COM_MB_AVAILABLE = 3,
-	/** @brief CPU memory has been freed, chunk is available on disk. state is a substate of available.*/
-	COM_MB_STORED = 4,
-	/** @brief chunk has been freed (not usable anymore)*/
-	COM_MB_FREE = 5,
+	/** @brief memory is available for use, content has been created */
+	COM_MB_AVAILABLE = 2,
 	/** @brief chunk is consolidated from other chunks. special state.*/
 	COM_MB_TEMPORARILY = 6
 } MemoryBufferState;
@@ -96,39 +90,6 @@ private:
       */
     float* buffer;
 
-    /**
-	  * @brief filename used for reading buffer back to memory
-      */
-    string filename;
-
-	/**
-	  * @brief mutex of this MemoryBuffer
-	  */
-    ThreadMutex mutex;
-
-	/**
-	  * @brief total number of users are currently using this MemoryBuffer
-	  */
-	unsigned int numberOfUsers;
-
-private:
-	/**
-	  * @brief read this MemoryBuffer back into memory
-	  */
-    void readFromDisc();
-
-
-	/**
-	  * @brief is this MemoryBuffer available
-	  */
-	bool isAvailable();
-
-	/**
-	  * @brief generate the filename to save this tile to.
-	  */
-	bool determineFilename();
-
-
 public:
 	/**
 	  * @brief construct new MemoryBuffer for a chunk
@@ -144,17 +105,6 @@ public:
 	  * @brief destructor
 	  */
     ~MemoryBuffer();
-
-	/**
-	  * @brief save this MemoryBuffer to disk and free the memory
-	  */
-	bool saveToDisc();
-
-	/**
-	  * @brief make sure this MemoryBuffer is loaded in memory
-	  * @param addUser increase the number of users
-	  */
-    bool makeAvailable(bool addUser);
 
 	/**
 	  * @brief read the ChunkNumber of this MemoryBuffer
@@ -189,22 +139,6 @@ public:
 	  * @param otherBuffer source buffer
 	  */
     void copyContentFrom(MemoryBuffer* otherBuffer);
-
-	/**
-	  * @brief how many memory is allocated by this MemoryBuffer
-	  */
-    long getAllocatedMemorySize();
-
-
-
-	/**
-	  * @brief increase the number of users of this MemoryBuffer
-	  */
-    void addUser();
-	/**
-	  * @brief decrease the number of users of this MemoryBuffer
-	  */
-	void removeUser();
 
 	/**
 	  * @brief get the rect of this MemoryBuffer
