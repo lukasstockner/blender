@@ -152,6 +152,8 @@ set(SRC
 
 		nodes/COM_MapUVNode.cpp
 		nodes/COM_MapUVNode.h
+		nodes/COM_DisplaceNode.cpp
+		nodes/COM_DisplaceNode.h
 
 		nodes/COM_DifferenceMatteNode.cpp
 		nodes/COM_DifferenceMatteNode.h
@@ -478,6 +480,8 @@ operations/COM_ConvertDepthToRadiusOperation.cpp
 		operations/COM_ScaleOperation.cpp
 		operations/COM_MapUVOperation.h
 		operations/COM_MapUVOperation.cpp
+		operations/COM_DisplaceOperation.h
+		operations/COM_DisplaceOperation.cpp
 		operations/COM_FlipOperation.h
 		operations/COM_FlipOperation.cpp
 		operations/COM_ProjectorLensDistortionOperation.cpp

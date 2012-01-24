@@ -65,6 +65,7 @@
 #include "COM_DilateErode2Node.h"
 #include "COM_SetAlphaNode.h"
 #include "COM_MapUVNode.h"
+#include "COM_DisplaceNode.h"
 #include "COM_MathNode.h"
 #include "COM_HueSaturationValueNode.h"
 #include "COM_HueSaturationValueCorrectNode.h"
@@ -225,9 +226,12 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_HUECORRECT:
 		node = new HueSaturationValueCorrectNode(bNode);
 		break;
-    case CMP_NODE_MAP_UV:
-        node = new MapUVNode(bNode);
-        break;
+	case CMP_NODE_MAP_UV:
+		node = new MapUVNode(bNode);
+		break;
+	case CMP_NODE_DISPLACE:
+		node = new DisplaceNode(bNode);
+		break;
 	case CMP_NODE_VALTORGB:
 		node = new ColorRampNode(bNode);
 		break;
@@ -300,7 +304,6 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_CHANNEL_MATTE:
 //	case CMP_NODE_DOUBLEEDGEMASK: // to be re-enabled with next merge from trunk
 	case CMP_NODE_DEFOCUS:
-	case CMP_NODE_DISPLACE:
 	case CMP_NODE_NORMALIZE:
 	case CMP_NODE_CROP:
 	case CMP_NODE_BILATERALBLUR:
