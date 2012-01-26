@@ -202,7 +202,7 @@ class NODE_PT_quality(bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         snode = context.space_data
-        return snode.tree_type == 'COMPOSITING'
+        return snode.tree_type == 'COMPOSITING' and snode.node_tree is not None
 
     def draw(self, context):
         layout = self.layout
