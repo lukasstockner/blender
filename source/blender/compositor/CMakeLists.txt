@@ -482,6 +482,8 @@ operations/COM_ConvertDepthToRadiusOperation.cpp
 		operations/COM_MapUVOperation.cpp
 		operations/COM_DisplaceOperation.h
 		operations/COM_DisplaceOperation.cpp
+		operations/COM_DisplaceSimpleOperation.h
+		operations/COM_DisplaceSimpleOperation.cpp
 		operations/COM_FlipOperation.h
 		operations/COM_FlipOperation.cpp
 		operations/COM_ProjectorLensDistortionOperation.cpp

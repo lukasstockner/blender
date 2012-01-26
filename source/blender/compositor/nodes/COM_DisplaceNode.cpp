@@ -21,13 +21,19 @@
 
 #include "COM_DisplaceNode.h"
 #include "COM_DisplaceOperation.h"
+#include "COM_DisplaceSimpleOperation.h"
 #include "COM_ExecutionSystem.h"
 
 DisplaceNode::DisplaceNode(bNode *editorNode): Node(editorNode) {
 }
 
-void DisplaceNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context) {
-	DisplaceOperation *operation = new DisplaceOperation();
+void DisplaceNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context)
+{
+	NodeOperation *operation;
+	if (context->getQuality() == COM_QUALITY_HIGH)
+		operation = new DisplaceOperation();
+	else
+		operation = new DisplaceSimpleOperation();
 
 	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), true, 0, graph);
 	this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), true, 1, graph);
