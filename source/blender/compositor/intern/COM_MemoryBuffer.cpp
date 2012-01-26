@@ -61,6 +61,9 @@ MemoryBuffer* MemoryBuffer::duplicate() {
 	memcpy(result->buffer, this->buffer, this->determineBufferSize()*4*sizeof(float));
 	return result;
 }
+void MemoryBuffer::clear() {
+	memset(this->buffer, 0, this->determineBufferSize()*4*sizeof(float));
+}
 
 MemoryBuffer::~MemoryBuffer() {
 	if (this->buffer) {

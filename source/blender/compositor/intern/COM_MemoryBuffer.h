@@ -154,7 +154,12 @@ public:
 	  * @brief get the height of this MemoryBuffer
 	  */
 	int getHeight() const;
-
+	
+	/**
+	  * @brief clear the buffer. Make all pixels black transparant.
+	  */
+	void clear();
+	
 	MemoryBuffer* duplicate();
 private:
     unsigned int determineBufferSize();

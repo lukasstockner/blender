@@ -506,6 +506,8 @@ operations/COM_ConvertDepthToRadiusOperation.cpp
 	operations/COM_GlareBaseOperation.h
 	operations/COM_GlareSimpleStarOperation.cpp
 	operations/COM_GlareSimpleStarOperation.h
+	operations/COM_GlareStreaksOperation.cpp
+	operations/COM_GlareStreaksOperation.h
 
 
 #Convert operations

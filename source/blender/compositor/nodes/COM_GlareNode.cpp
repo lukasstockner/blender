@@ -26,6 +26,7 @@
 #include "COM_BokehBlurOperation.h"
 #include "COM_GlareThresholdOperation.h"
 #include "COM_GlareSimpleStarOperation.h"
+#include "COM_GlareStreaksOperation.h"
 #include "COM_SetValueOperation.h"
 #include "COM_MixBlendOperation.h"
 
@@ -39,6 +40,31 @@ void GlareNode::convertToOperations(ExecutionSystem *system, CompositorContext *
 	switch (glare->type) {
 	
 	default:
+	case 2: // streaks
+		{
+			GlareThresholdOperation *thresholdOperation = new GlareThresholdOperation();
+			GlareStreaksOperation * glareoperation = new GlareStreaksOperation();
+			SetValueOperation * mixvalueoperation = new SetValueOperation();
+			MixBlendOperation * mixoperation = new MixBlendOperation();
+	
+			this->getInputSocket(0)->relinkConnections(thresholdOperation->getInputSocket(0), true, 0, system);
+			addLink(system, thresholdOperation->getOutputSocket(), glareoperation->getInputSocket(0));
+			addLink(system, mixvalueoperation->getOutputSocket(), mixoperation->getInputSocket(0));
+			addLink(system, glareoperation->getOutputSocket(), mixoperation->getInputSocket(2));
+			addLink(system, thresholdOperation->getInputSocket(0)->getConnection()->getFromSocket(), mixoperation->getInputSocket(1));
+			this->getOutputSocket()->relinkConnections(mixoperation->getOutputSocket());
+	
+			thresholdOperation->setThreshold(glare->threshold);
+			glareoperation->setGlareSettings(glare);
+			mixvalueoperation->setValue(0.5f+glare->mix*0.5f);
+			mixoperation->setResolutionInputSocketIndex(1);
+	
+			system->addOperation(glareoperation);
+			system->addOperation(thresholdOperation);
+			system->addOperation(mixvalueoperation);
+			system->addOperation(mixoperation);
+		}	
+		break;
 	case 1: // fog glow
 		{
 			GlareThresholdOperation *thresholdOperation = new GlareThresholdOperation();
