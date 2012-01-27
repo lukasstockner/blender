@@ -21,6 +21,7 @@
 
 #include "COM_DisplaceOperation.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 DisplaceOperation::DisplaceOperation(): NodeOperation() {
 	this->addInputSocket(COM_DT_COLOR);
@@ -42,8 +43,8 @@ void DisplaceOperation::initExecution() {
 	this->inputScaleXProgram = this->getInputSocketReader(2);
 	this->inputScaleYProgram = this->getInputSocketReader(3);
 
-	width_x4 = this->width * 4;
-	height_x4 = this->height * 4;
+	width_x4 = this->getWidth() * 4;
+	height_x4 = this->getHeight() * 4;
 }
 
 
@@ -68,18 +69,12 @@ void DisplaceOperation::executePixel(float* color, int x, int y, MemoryBuffer *i
 
 	/* clamp x and y displacement to triple image resolution - 
 	 * to prevent hangs from huge values mistakenly plugged in eg. z buffers */
-	xs = min(width_x4, max(-width_x4, xs));
-	ys = min(height_x4, max(-height_x4, ys));
+	CLAMP(xs, -width_x4, width_x4);
+	CLAMP(ys, -height_x4, height_x4);
 
 	this->inputVectorProgram->read(inVector, x, y, inputBuffers);
 	p_dx = inVector[0] * xs;
 	p_dy = inVector[1] * ys;
-
-	/* if no displacement, then just copy this pixel */
-	if (fabsf(p_dx) < DISPLACE_EPSILON && fabsf(p_dy) < DISPLACE_EPSILON) {
-		this->inputColorProgram->read(color, x, y, inputBuffers);
-		return;
-	}
 
 	/* displaced pixel in uv coords, for image sampling */
 	u = x - p_dx + 0.5f;
@@ -95,8 +90,8 @@ void DisplaceOperation::executePixel(float* color, int x, int y, MemoryBuffer *i
 	dxt = p_dx - d_dx;
 	dyt = p_dy - d_dy;
 
-	dxt = signf(dxt)*maxf(fabsf(dxt), DISPLACE_EPSILON)/this->width;
-	dyt = signf(dyt)*maxf(fabsf(dyt), DISPLACE_EPSILON)/this->height;
+	dxt = signf(dxt)*maxf(fabsf(dxt), DISPLACE_EPSILON)/this->getWidth();
+	dyt = signf(dyt)*maxf(fabsf(dyt), DISPLACE_EPSILON)/this->getHeight();
 
 	/* EWA filtering */
 	this->inputColorProgram->read(color, u, v, dxt, dyt, inputBuffers);

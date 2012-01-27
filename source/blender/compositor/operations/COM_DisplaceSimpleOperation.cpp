@@ -21,6 +21,7 @@
 
 #include "COM_DisplaceSimpleOperation.h"
 #include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 DisplaceSimpleOperation::DisplaceSimpleOperation(): NodeOperation() {
 	this->addInputSocket(COM_DT_COLOR);
@@ -41,8 +42,8 @@ void DisplaceSimpleOperation::initExecution() {
 	this->inputScaleXProgram = this->getInputSocketReader(2);
 	this->inputScaleYProgram = this->getInputSocketReader(3);
 
-	width_x4 = this->width * 4;
-	height_x4 = this->height * 4;
+	width_x4 = this->getWidth() * 4;
+	height_x4 = this->getHeight() * 4;
 }
 
 
@@ -65,22 +66,19 @@ void DisplaceSimpleOperation::executePixel(float* color, float x, float y, Memor
 
 	/* clamp x and y displacement to triple image resolution - 
 	 * to prevent hangs from huge values mistakenly plugged in eg. z buffers */
-	xs = min(width_x4, max(-width_x4, xs));
-	ys = min(height_x4, max(-height_x4, ys));
+	CLAMP(xs, -width_x4, width_x4);
+	CLAMP(ys, -height_x4, height_x4);
 
 	this->inputVectorProgram->read(inVector, x, y, inputBuffers);
 	p_dx = inVector[0] * xs;
 	p_dy = inVector[1] * ys;
 
-	/* if no displacement, then just copy this pixel */
-	if (fabsf(p_dx) < DISPLACE_EPSILON && fabsf(p_dy) < DISPLACE_EPSILON) {
-		this->inputColorProgram->read(color, x, y, inputBuffers);
-		return;
-	}
-
 	/* displaced pixel in uv coords, for image sampling */
+	/* clamp nodes to avoid glitches */
 	u = x - p_dx + 0.5f;
 	v = y - p_dy + 0.5f;
+	CLAMP(u, 0.f, this->getWidth()-1.f);
+	CLAMP(v, 0.f, this->getHeight()-1.f);
 
 	this->inputColorProgram->read(color, u, v, inputBuffers);
 }

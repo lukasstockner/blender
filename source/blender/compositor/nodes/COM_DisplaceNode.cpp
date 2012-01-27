@@ -30,10 +30,10 @@ DisplaceNode::DisplaceNode(bNode *editorNode): Node(editorNode) {
 void DisplaceNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context)
 {
 	NodeOperation *operation;
-	if (context->getQuality() == COM_QUALITY_HIGH)
-		operation = new DisplaceOperation();
-	else
+	if (context->getQuality() == COM_QUALITY_LOW)
 		operation = new DisplaceSimpleOperation();
+	else
+		operation = new DisplaceOperation();
 
 	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), true, 0, graph);
 	this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), true, 1, graph);
