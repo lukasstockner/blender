@@ -156,7 +156,7 @@ void* TonemapOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuff
 		this->cachedInstance = data;
 	}
 	BLI_mutex_unlock(getMutex());
-	return data;
+	return this->cachedInstance;
 }
 
 void TonemapOperation::deinitializeTileData(rcti *rect, MemoryBuffer **memoryBuffers, void *data) {

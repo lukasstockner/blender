@@ -58,6 +58,7 @@
 #include "COM_InvertNode.h"
 #include "COM_GroupNode.h"
 #include "COM_NormalNode.h"
+#include "COM_NormalizeNode.h"
 #include "COM_ImageNode.h"
 #include "COM_BokehImageNode.h"
 #include "COM_ColorCurveNode.h"
@@ -190,6 +191,9 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_NORMAL:
 		node = new NormalNode(bNode);
 		break;
+	case CMP_NODE_NORMALIZE:
+		node = new NormalizeNode(bNode);
+		break;
 	case CMP_NODE_IMAGE:
 		node = new ImageNode(bNode);
 		break;
@@ -304,7 +308,6 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_CHANNEL_MATTE:
 //	case CMP_NODE_DOUBLEEDGEMASK: // to be re-enabled with next merge from trunk
 	case CMP_NODE_DEFOCUS:
-	case CMP_NODE_NORMALIZE:
 	case CMP_NODE_CROP:
 	case CMP_NODE_BILATERALBLUR:
 	case CMP_NODE_PREMULKEY:

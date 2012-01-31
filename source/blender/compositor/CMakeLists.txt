@@ -239,10 +239,15 @@ set(SRC
 		nodes/COM_CombineYCCANode.cpp
 		nodes/COM_CombineYCCANode.h
 
-		nodes/COM_NormalNode.cpp
-		nodes/COM_NormalNode.h
+	nodes/COM_NormalNode.cpp
+	nodes/COM_NormalNode.h
+	nodes/COM_NormalizeNode.cpp
+	nodes/COM_NormalizeNode.h
 	nodes/COM_MathNode.cpp
 	nodes/COM_MathNode.h
+
+	operations/COM_NormalizeOperation.cpp
+	operations/COM_NormalizeOperation.h
 
 # Filter nodes
 		nodes/COM_FilterNode.cpp
