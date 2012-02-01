@@ -83,7 +83,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math_base.h"
 
-#define FILE_MAX 240 // repeated here to avoid dependency from BKE_utildefines.h
+#define FILE_MAX 1024 // repeated here to avoid dependency from BKE_utildefines.h
 
 #include "KX_NetworkMessageActuator.h"
 
@@ -300,7 +300,7 @@ void BL_ConvertActuators(const char* maggiename,
 						camact->height,
 						camact->min,
 						camact->max,
-						camact->axis=='x',
+						camact->axis,
 						camact->damping);
 					baseact = tmpcamact;
 				}

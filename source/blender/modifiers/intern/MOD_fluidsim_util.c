@@ -95,6 +95,7 @@ void fluidsim_init(FluidsimModifierData *fluidmd)
 
 		fss->animStart = 0.0; 
 		fss->animEnd = 4.0;
+		fss->animRate = 1.0;
 		fss->gstar = 0.005; // used as normgstar
 		fss->maxRefine = -1;
 		// maxRefine is set according to resolutionxyz during bake
@@ -473,6 +474,9 @@ static DerivedMesh *fluidsim_read_cache(Object *ob, DerivedMesh *orgdm, Fluidsim
 		BLI_join_dirfile(targetFile, sizeof(targetFile), fss->surfdataPath, OB_FLUIDSIM_SURF_FINAL_OBJ_FNAME);
 		break;
 	}
+
+	/* offset baked frame */
+	curFrame += fss->frameOffset;
 
 	BLI_path_abs(targetFile, modifier_path_relbase(ob));
 	BLI_path_frame(targetFile, curFrame, 0); // fixed #frame-no

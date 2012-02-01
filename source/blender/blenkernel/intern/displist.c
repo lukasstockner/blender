@@ -269,9 +269,9 @@ int surfindex_displist(DispList *dl, int a, int *b, int *p1, int *p2, int *p3, i
 		(*b)= 1;
 	}
 	
-	if( (dl->flag & DL_CYCL_V) && a==dl->parts-1) {			    \
-		(*p3)-= dl->nr*dl->parts;				    \
-		(*p4)-= dl->nr*dl->parts;				    \
+	if( (dl->flag & DL_CYCL_V) && a==dl->parts-1) {
+		(*p3)-= dl->nr*dl->parts;
+		(*p4)-= dl->nr*dl->parts;
 	}
 	
 	return 1;
@@ -833,6 +833,7 @@ static void curve_calc_modifiers_post(Scene *scene, Object *ob, ListBase *dispba
 	int editmode = (!forRender && cu->editnurb);
 	DerivedMesh *dm= NULL, *ndm;
 	float (*vertCos)[3] = NULL;
+	int useCache = !forRender;
 
 	if(forRender) required_mode = eModifierMode_Render;
 	else required_mode = eModifierMode_Realtime;
@@ -911,7 +912,7 @@ static void curve_calc_modifiers_post(Scene *scene, Object *ob, ListBase *dispba
 				vertCos= NULL;
 			}
 
-			ndm = mti->applyModifier(md, ob, dm, forRender, editmode);
+			ndm = mti->applyModifier(md, ob, dm, forRender, useCache);
 
 			if (ndm) {
 				/* Modifier returned a new derived mesh */

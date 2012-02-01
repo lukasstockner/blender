@@ -183,7 +183,7 @@ int ED_mesh_uv_texture_add(bContext *C, Mesh *me, const char *name, int active_s
 
 		layernum= CustomData_number_of_layers(&em->fdata, CD_MTFACE);
 		if(layernum >= MAX_MTFACE)
-			return 0;
+			return -1;
 
 		EM_add_data_layer(em, &em->fdata, CD_MTFACE, name);
 
@@ -196,7 +196,7 @@ int ED_mesh_uv_texture_add(bContext *C, Mesh *me, const char *name, int active_s
 	else {
 		layernum= CustomData_number_of_layers(&me->fdata, CD_MTFACE);
 		if(layernum >= MAX_MTFACE)
-			return 0;
+			return -1;
 
 		if(me->mtface)
 			CustomData_add_layer_named(&me->fdata, CD_MTFACE, CD_DUPLICATE, me->mtface, me->totface, name);
@@ -212,7 +212,7 @@ int ED_mesh_uv_texture_add(bContext *C, Mesh *me, const char *name, int active_s
 	DAG_id_tag_update(&me->id, 0);
 	WM_event_add_notifier(C, NC_GEOM|ND_DATA, me);
 
-	return 1;
+	return layernum;
 }
 
 int ED_mesh_uv_texture_remove(bContext *C, Object *ob, Mesh *me)
@@ -244,7 +244,7 @@ int ED_mesh_color_add(bContext *C, Scene *UNUSED(scene), Object *UNUSED(ob), Mes
 
 		layernum= CustomData_number_of_layers(&em->fdata, CD_MCOL);
 		if(layernum >= MAX_MCOL)
-			return 0;
+			return -1;
 
 		EM_add_data_layer(em, &em->fdata, CD_MCOL, name);
 
@@ -257,7 +257,7 @@ int ED_mesh_color_add(bContext *C, Scene *UNUSED(scene), Object *UNUSED(ob), Mes
 	else {
 		layernum= CustomData_number_of_layers(&me->fdata, CD_MCOL);
 		if(layernum >= MAX_MCOL)
-			return 0;
+			return -1;
 
 		if(me->mcol)
 			CustomData_add_layer_named(&me->fdata, CD_MCOL, CD_DUPLICATE, me->mcol, me->totface, name);
@@ -273,7 +273,7 @@ int ED_mesh_color_add(bContext *C, Scene *UNUSED(scene), Object *UNUSED(ob), Mes
 	DAG_id_tag_update(&me->id, 0);
 	WM_event_add_notifier(C, NC_GEOM|ND_DATA, me);
 
-	return 1;
+	return layernum;
 }
 
 int ED_mesh_color_remove(bContext *C, Object *ob, Mesh *me)
@@ -328,7 +328,7 @@ static int uv_texture_add_exec(bContext *C, wmOperator *UNUSED(op))
 	Object *ob= ED_object_context(C);
 	Mesh *me= ob->data;
 
-	if(!ED_mesh_uv_texture_add(C, me, NULL, TRUE))
+	if(ED_mesh_uv_texture_add(C, me, NULL, TRUE) == -1)
 		return OPERATOR_CANCELLED;
 
 	return OPERATOR_FINISHED;
@@ -359,7 +359,7 @@ static int drop_named_image_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	Mesh *me;
 	Object *obedit;
 	int exitmode= 0;
-	char name[32];
+	char name[MAX_ID_NAME-2];
 	
 	/* Check context */
 	if(base==NULL || base->object->type!=OB_MESH) {
@@ -368,7 +368,7 @@ static int drop_named_image_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	}
 	
 	/* check input variables */
-	if(RNA_property_is_set(op->ptr, "filepath")) {
+	if(RNA_struct_property_is_set(op->ptr, "filepath")) {
 		char path[FILE_MAX];
 		
 		RNA_string_get(op->ptr, "filepath", path);
@@ -429,7 +429,7 @@ void MESH_OT_drop_named_image(wmOperatorType *ot)
 	ot->flag= OPTYPE_UNDO;
 	
 	/* properties */
-	RNA_def_string(ot->srna, "name", "Image", 24, "Name", "Image name to assign");
+	RNA_def_string(ot->srna, "name", "Image", MAX_ID_NAME-2, "Name", "Image name to assign");
 	RNA_def_string(ot->srna, "filepath", "Path", FILE_MAX, "Filepath", "Path to image file");
 }
 
@@ -467,7 +467,7 @@ static int vertex_color_add_exec(bContext *C, wmOperator *UNUSED(op))
 	Object *ob= ED_object_context(C);
 	Mesh *me= ob->data;
 
-	if(!ED_mesh_color_add(C, scene, ob, me, NULL, TRUE))
+	if(ED_mesh_color_add(C, scene, ob, me, NULL, TRUE) == -1)
 		return OPERATOR_CANCELLED;
 
 	return OPERATOR_FINISHED;
@@ -695,6 +695,46 @@ static void mesh_add_faces(Mesh *mesh, int len)
 	mesh->totface= totface;
 }
 
+static void mesh_remove_verts(Mesh *mesh, int len)
+{
+	int totvert;
+
+	if(len == 0)
+		return;
+
+	totvert= mesh->totvert - len;
+	CustomData_free_elem(&mesh->vdata, totvert, len);
+
+	/* set final vertex list size */
+	mesh->totvert= totvert;
+}
+
+static void mesh_remove_edges(Mesh *mesh, int len)
+{
+	int totedge;
+
+	if(len == 0)
+		return;
+
+	totedge= mesh->totedge - len;
+	CustomData_free_elem(&mesh->edata, totedge, len);
+
+	mesh->totedge= totedge;
+}
+
+static void mesh_remove_faces(Mesh *mesh, int len)
+{
+	int totface;
+
+	if(len == 0)
+		return;
+
+	totface= mesh->totface - len;	/* new face count */
+	CustomData_free_elem(&mesh->fdata, totface, len);
+
+	mesh->totface= totface;
+}
+
 /*
 void ED_mesh_geometry_add(Mesh *mesh, ReportList *reports, int verts, int edges, int faces)
 {
@@ -740,6 +780,48 @@ void ED_mesh_vertices_add(Mesh *mesh, ReportList *reports, int count)
 	}
 
 	mesh_add_verts(mesh, count);
+}
+
+void ED_mesh_faces_remove(Mesh *mesh, ReportList *reports, int count)
+{
+	if(mesh->edit_mesh) {
+		BKE_report(reports, RPT_ERROR, "Can't remove faces in edit mode");
+		return;
+	}
+	else if(count > mesh->totface) {
+		BKE_report(reports, RPT_ERROR, "Can't remove more faces than the mesh contains");
+		return;
+	}
+
+	mesh_remove_faces(mesh, count);
+}
+
+void ED_mesh_edges_remove(Mesh *mesh, ReportList *reports, int count)
+{
+	if(mesh->edit_mesh) {
+		BKE_report(reports, RPT_ERROR, "Can't remove edges in edit mode");
+		return;
+	}
+	else if(count > mesh->totedge) {
+		BKE_report(reports, RPT_ERROR, "Can't remove more edges than the mesh contains");
+		return;
+	}
+
+	mesh_remove_edges(mesh, count);
+}
+
+void ED_mesh_vertices_remove(Mesh *mesh, ReportList *reports, int count)
+{
+	if(mesh->edit_mesh) {
+		BKE_report(reports, RPT_ERROR, "Can't remove vertices in edit mode");
+		return;
+	}
+	else if(count > mesh->totvert) {
+		BKE_report(reports, RPT_ERROR, "Can't remove more vertices than the mesh contains");
+		return;
+	}
+
+	mesh_remove_verts(mesh, count);
 }
 
 void ED_mesh_calc_normals(Mesh *me)

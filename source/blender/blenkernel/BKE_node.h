@@ -76,7 +76,7 @@ struct Object;
  */
 typedef struct bNodeSocketTemplate {
 	int type, limit;
-	char name[32];
+	char name[64];	/* MAX_NAME */
 	float val1, val2, val3, val4;   /* default alloc value for inputs */
 	float min, max;
 	PropertySubType subtype;
@@ -95,7 +95,7 @@ typedef void (*NodeSocketButtonFunction)(const struct bContext *C, struct uiBloc
  */
 typedef struct bNodeSocketType {
 	int type;
-	char ui_name[32];
+	char ui_name[64];	/* MAX_NAME */
 	char ui_description[128];
 	int ui_icon;
 	char ui_color[4];
@@ -125,7 +125,7 @@ typedef struct bNodeType {
 	short needs_free;		/* set for allocated types that need to be freed */
 	
 	int type;
-	char name[32];
+	char name[64];	/* MAX_NAME */
 	float width, minwidth, maxwidth;
 	float height, minheight, maxheight;
 	short nclass, flag, compatibility;
@@ -376,6 +376,8 @@ int				nodeUpdateID(struct bNodeTree *ntree, struct ID *id);
 
 void			nodeFreePreview(struct bNode *node);
 
+int				nodeSocketIsHidden(struct bNodeSocket *sock);
+
 /* ************** NODE TYPE ACCESS *************** */
 
 struct bNodeTemplate nodeMakeTemplate(struct bNode *node);
@@ -522,6 +524,8 @@ struct ShadeResult;
 #define SH_NODE_VOLUME_TRANSPARENT		161
 #define SH_NODE_VOLUME_ISOTROPIC		162
 #define SH_NODE_GAMMA				163
+#define SH_NODE_TEX_CHECKER			164
+#define SH_NODE_BRIGHTCONTRAST			165
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1
@@ -555,25 +559,34 @@ void			ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMaterial *mat);
 /* ************** COMPOSITE NODES *************** */
 
 /* output socket defines */
-#define RRES_OUT_IMAGE		0
-#define RRES_OUT_ALPHA		1
-#define RRES_OUT_Z			2
-#define RRES_OUT_NORMAL		3
-#define RRES_OUT_UV			4
-#define RRES_OUT_VEC		5
-#define RRES_OUT_RGBA		6
-#define RRES_OUT_DIFF		7
-#define RRES_OUT_SPEC		8
-#define RRES_OUT_SHADOW		9
-#define RRES_OUT_AO			10
-#define RRES_OUT_REFLECT	11
-#define RRES_OUT_REFRACT	12
-#define RRES_OUT_INDIRECT	13
-#define RRES_OUT_INDEXOB	14
-#define RRES_OUT_INDEXMA	15
-#define RRES_OUT_MIST		16
-#define RRES_OUT_EMIT		17
-#define RRES_OUT_ENV		18
+#define RRES_OUT_IMAGE				0
+#define RRES_OUT_ALPHA				1
+#define RRES_OUT_Z					2
+#define RRES_OUT_NORMAL				3
+#define RRES_OUT_UV					4
+#define RRES_OUT_VEC				5
+#define RRES_OUT_RGBA				6
+#define RRES_OUT_DIFF				7
+#define RRES_OUT_SPEC				8
+#define RRES_OUT_SHADOW				9
+#define RRES_OUT_AO					10
+#define RRES_OUT_REFLECT			11
+#define RRES_OUT_REFRACT			12
+#define RRES_OUT_INDIRECT			13
+#define RRES_OUT_INDEXOB			14
+#define RRES_OUT_INDEXMA			15
+#define RRES_OUT_MIST				16
+#define RRES_OUT_EMIT				17
+#define RRES_OUT_ENV				18
+#define RRES_OUT_DIFF_DIRECT		19
+#define RRES_OUT_DIFF_INDIRECT		20
+#define RRES_OUT_DIFF_COLOR			21
+#define RRES_OUT_GLOSSY_DIRECT		22
+#define RRES_OUT_GLOSSY_INDIRECT	23
+#define RRES_OUT_GLOSSY_COLOR		24
+#define RRES_OUT_TRANSM_DIRECT		25
+#define RRES_OUT_TRANSM_INDIRECT	26
+#define RRES_OUT_TRANSM_COLOR		27
 
 /* note: types are needed to restore callbacks, don't change values */
 #define CMP_NODE_VIEWER		201
@@ -641,6 +654,7 @@ void			ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMaterial *mat);
 #define CMP_NODE_STABILIZE2D	263
 #define CMP_NODE_TRANSFORM	264
 #define CMP_NODE_MOVIEDISTORTION	265
+#define CMP_NODE_DOUBLEEDGEMASK    266
 
 #define CMP_NODE_GLARE		301
 #define CMP_NODE_TONEMAP	302

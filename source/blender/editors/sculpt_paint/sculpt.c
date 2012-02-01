@@ -236,7 +236,7 @@ typedef struct StrokeCache {
 
 	float vertex_rotation;
 
-	char saved_active_brush_name[24];
+	char saved_active_brush_name[MAX_ID_NAME];
 	int alt_smooth;
 
 	float plane_trim_squared;
@@ -543,13 +543,14 @@ static float calc_symmetry_feather(Sculpt *sd, StrokeCache* cache)
    special multiplier found experimentally to scale the strength factor. */
 static float brush_strength(Sculpt *sd, StrokeCache *cache, float feather)
 {
+	const Scene *scene = cache->vc->scene;
 	Brush *brush = paint_brush(&sd->paint);
 
 	/* Primary strength input; square it to make lower values more sensitive */
-	const float root_alpha = brush_alpha(brush);
+	const float root_alpha = brush_alpha(scene, brush);
 	float alpha        = root_alpha*root_alpha;
 	float dir          = brush->flag & BRUSH_DIR_IN ? -1 : 1;
-	float pressure     = brush_use_alpha_pressure(brush) ? cache->pressure : 1;
+	float pressure     = brush_use_alpha_pressure(scene, brush) ? cache->pressure : 1;
 	float pen_flip     = cache->pen_flip ? -1 : 1;
 	float invert       = cache->invert ? -1 : 1;
 	float accum        = integrate_overlap(brush);
@@ -679,7 +680,7 @@ static float tex_strength(SculptSession *ss, Brush *br, float point[3],
 		else /* else (mtex->brush_map_mode == MTEX_MAP_MODE_TILED),
 		        leave the coordinates relative to the screen */
 		{
-			radius = brush_size(br); // use unadjusted size for tiled mode
+			radius = brush_size(ss->cache->vc->scene, br); // use unadjusted size for tiled mode
 		
 			x = point_2d[0];
 			y = point_2d[1];
@@ -1167,6 +1168,7 @@ static void do_draw_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 static void do_crease_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 {
 	SculptSession *ss = ob->sculpt;
+	const Scene *scene = ss->cache->vc->scene;
 	Brush *brush = paint_brush(&sd->paint);
 	float offset[3], area_normal[3];
 	float bstrength= ss->cache->bstrength;
@@ -1182,8 +1184,8 @@ static void do_crease_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 	
 	/* we divide out the squared alpha and multiply by the squared crease to give us the pinch strength */
 	
-	if(brush_alpha(brush) > 0.0f)
-		crease_correction = brush->crease_pinch_factor*brush->crease_pinch_factor/(brush_alpha(brush)*brush_alpha(brush));
+	if(brush_alpha(scene, brush) > 0.0f)
+		crease_correction = brush->crease_pinch_factor*brush->crease_pinch_factor/(brush_alpha(scene, brush)*brush_alpha(scene, brush));
 	else
 		crease_correction = brush->crease_pinch_factor*brush->crease_pinch_factor;
 
@@ -2658,10 +2660,10 @@ static void do_symmetrical_brush_actions(Sculpt *sd, Object *ob)
 	cache->first_time= 0;
 }
 
-static void sculpt_update_tex(Sculpt *sd, SculptSession *ss)
+static void sculpt_update_tex(const Scene *scene, Sculpt *sd, SculptSession *ss)
 {
 	Brush *brush = paint_brush(&sd->paint);
-	const int radius= brush_size(brush);
+	const int radius= brush_size(scene, brush);
 
 	if(ss->texcache) {
 		MEM_freeN(ss->texcache);
@@ -3017,6 +3019,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 										 struct PaintStroke *stroke,
 										 PointerRNA *ptr)
 {
+	Scene *scene = CTX_data_scene(C);
 	SculptSession *ss = ob->sculpt;
 	StrokeCache *cache = ss->cache;
 	Brush *brush = paint_brush(&sd->paint);
@@ -3051,19 +3054,19 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 	sd->pressure_value= cache->pressure;
 
 	cache->previous_pixel_radius = cache->pixel_radius;
-	cache->pixel_radius = brush_size(brush);
+	cache->pixel_radius = brush_size(scene, brush);
 
 	if(cache->first_time) {
-		if (!brush_use_locked_size(brush)) {
-			cache->initial_radius= paint_calc_object_space_radius(cache->vc, cache->true_location, brush_size(brush));
-			brush_set_unprojected_radius(brush, cache->initial_radius);
+		if (!brush_use_locked_size(scene, brush)) {
+			cache->initial_radius= paint_calc_object_space_radius(cache->vc, cache->true_location, brush_size(scene, brush));
+			brush_set_unprojected_radius(scene, brush, cache->initial_radius);
 		}
 		else {
-			cache->initial_radius= brush_unprojected_radius(brush);
+			cache->initial_radius= brush_unprojected_radius(scene, brush);
 		}
 	}
 
-	if(brush_use_size_pressure(brush)) {
+	if(brush_use_size_pressure(scene, brush)) {
 		cache->pixel_radius *= cache->pressure;
 		cache->radius= cache->initial_radius * cache->pressure;
 	}
@@ -3102,7 +3105,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 			halfway[0] = (float)dx * 0.5f + cache->initial_mouse[0];
 			halfway[1] = (float)dy * 0.5f + cache->initial_mouse[1];
 
-			if (sculpt_stroke_get_location(C, stroke, out, halfway)) {
+			if (sculpt_stroke_get_location(C, out, halfway)) {
 				copy_v3_v3(sd->anchored_location, out);
 				copy_v2_v2(sd->anchored_initial_mouse, halfway);
 				copy_v2_v2(cache->tex_mouse, halfway);
@@ -3204,23 +3207,29 @@ static void sculpt_raycast_cb(PBVHNode *node, void *data_v, float* tmin)
    (This allows us to ignore the GL depth buffer)
    Returns 0 if the ray doesn't hit the mesh, non-zero otherwise
  */
-int sculpt_stroke_get_location(bContext *C, struct PaintStroke *stroke, float out[3], float mouse[2])
+int sculpt_stroke_get_location(bContext *C, float out[3], float mouse[2])
 {
-	ViewContext *vc = paint_stroke_view_context(stroke);
-	Object *ob = vc->obact;
-	SculptSession *ss= ob->sculpt;
-	StrokeCache *cache= ss->cache;
+	ViewContext vc;
+	Object *ob;
+	SculptSession *ss;
+	StrokeCache *cache;
 	float ray_start[3], ray_end[3], ray_normal[3], dist;
 	float obimat[4][4];
 	float mval[2];
 	SculptRaycastData srd;
 
-	mval[0] = mouse[0] - vc->ar->winrct.xmin;
-	mval[1] = mouse[1] - vc->ar->winrct.ymin;
+	view3d_set_viewcontext(C, &vc);
+	
+	ob = vc.obact;
+	ss = ob->sculpt;
+	cache = ss->cache;
 
 	sculpt_stroke_modifiers_check(C, ob);
 
-	ED_view3d_win_to_segment_clip(vc->ar, vc->v3d, mval, ray_start, ray_end);
+	mval[0] = mouse[0] - vc.ar->winrct.xmin;
+	mval[1] = mouse[1] - vc.ar->winrct.ymin;
+
+	ED_view3d_win_to_segment_clip(vc.ar, vc.v3d, mval, ray_start, ray_end);
 
 	invert_m4_m4(obimat, ob->obmat);
 	mul_m4_v3(obimat, ray_start);
@@ -3229,7 +3238,7 @@ int sculpt_stroke_get_location(bContext *C, struct PaintStroke *stroke, float ou
 	sub_v3_v3v3(ray_normal, ray_end, ray_start);
 	dist= normalize_v3(ray_normal);
 
-	srd.ss = vc->obact->sculpt;
+	srd.ss = vc.obact->sculpt;
 	srd.ray_start = ray_start;
 	srd.ray_normal = ray_normal;
 	srd.dist = dist;
@@ -3245,7 +3254,7 @@ int sculpt_stroke_get_location(bContext *C, struct PaintStroke *stroke, float ou
 	return srd.hit;
 }
 
-static void sculpt_brush_init_tex(Sculpt *sd, SculptSession *ss)
+static void sculpt_brush_init_tex(const Scene *scene, Sculpt *sd, SculptSession *ss)
 {
 	Brush *brush = paint_brush(&sd->paint);
 	MTex *mtex= &brush->mtex;
@@ -3257,7 +3266,7 @@ static void sculpt_brush_init_tex(Sculpt *sd, SculptSession *ss)
 	/* TODO: Shouldn't really have to do this at the start of every
 	   stroke, but sculpt would need some sort of notification when
 	   changes are made to the texture. */
-	sculpt_update_tex(sd, ss);
+	sculpt_update_tex(scene, sd, ss);
 }
 
 static int sculpt_brush_stroke_init(bContext *C, wmOperator *op)
@@ -3271,7 +3280,7 @@ static int sculpt_brush_stroke_init(bContext *C, wmOperator *op)
 	int is_smooth= 0;
 
 	view3d_operator_needs_opengl(C);
-	sculpt_brush_init_tex(sd, ss);
+	sculpt_brush_init_tex(scene, sd, ss);
 
 	is_smooth|= mode == BRUSH_STROKE_SMOOTH;
 	is_smooth|= brush->sculpt_tool == SCULPT_TOOL_SMOOTH;
@@ -3287,7 +3296,8 @@ static void sculpt_restore_mesh(Sculpt *sd, SculptSession *ss)
 
 	/* Restore the mesh before continuing with anchored stroke */
 	if((brush->flag & BRUSH_ANCHORED) ||
-	   (brush->sculpt_tool == SCULPT_TOOL_GRAB && brush_use_size_pressure(brush)) ||
+	   (brush->sculpt_tool == SCULPT_TOOL_GRAB &&
+		brush_use_size_pressure(ss->cache->vc->scene, brush)) ||
 	   (brush->flag & BRUSH_RESTORE_MESH))
 	{
 		StrokeCache *cache = ss->cache;
@@ -3367,14 +3377,14 @@ static void sculpt_flush_update(bContext *C)
 
 /* Returns whether the mouse/stylus is over the mesh (1)
    or over the background (0) */
-static int over_mesh(bContext *C, struct wmOperator *op, float x, float y)
+static int over_mesh(bContext *C, struct wmOperator *UNUSED(op), float x, float y)
 {
 	float mouse[2], co[3];
 
 	mouse[0] = x;
 	mouse[1] = y;
 
-	return sculpt_stroke_get_location(C, op->customdata, co, mouse);
+	return sculpt_stroke_get_location(C, co, mouse);
 }
 
 static int sculpt_stroke_test_start(bContext *C, struct wmOperator *op,

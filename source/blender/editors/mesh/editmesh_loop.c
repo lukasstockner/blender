@@ -56,7 +56,6 @@ editmesh_loop: tools with own drawing subloops, select, knife, subdiv
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_mesh.h"
-#include "BKE_array_mallocn.h"
 
 #include "PIL_time.h"
 
@@ -76,329 +75,6 @@ editmesh_loop: tools with own drawing subloops, select, knife, subdiv
 /* **** XXX ******** */
 static void error(const char *UNUSED(arg)) {}
 /* **** XXX ******** */
-
-#if 0 /* UNUSED 2.5 */
-static void edgering_sel(EditMesh *em, EditEdge *startedge, int select, int previewlines)
-{
-	EditEdge *eed;
-	EditFace *efa;
-	EditVert *v[2][2];
-	float co[2][3];
-	int looking= 1,i;
-	
-	/* in eed->f1 we put the valence (amount of faces in edge) */
-	/* in eed->f2 we put tagged flag as correct loop */
-	/* in efa->f1 we put tagged flag as correct to select */
-
-	for(eed= em->edges.first; eed; eed= eed->next) {
-		eed->f1= 0;
-		eed->f2= 0;
-	}
-	for(efa= em->faces.first; efa; efa= efa->next) {
-		efa->f1= 0;
-		if(efa->h==0) {
-			efa->e1->f1++;
-			efa->e2->f1++;
-			efa->e3->f1++;
-			if(efa->e4) efa->e4->f1++;
-		}
-	}
-	
-	// tag startedge OK
-	startedge->f2= 1;
-	
-	while(looking) {
-		looking= 0;
-		
-		for(efa= em->faces.first; efa; efa= efa->next) {
-			if(efa->e4 && efa->f1==0 && efa->h == 0) {	// not done quad
-				if(efa->e1->f1<=2 && efa->e2->f1<=2 && efa->e3->f1<=2 && efa->e4->f1<=2) { // valence ok
-
-					// if edge tagged, select opposing edge and mark face ok
-					if(efa->e1->f2) {
-						efa->e3->f2= 1;
-						efa->f1= 1;
-						looking= 1;
-					}
-					else if(efa->e2->f2) {
-						efa->e4->f2= 1;
-						efa->f1= 1;
-						looking= 1;
-					}
-					if(efa->e3->f2) {
-						efa->e1->f2= 1;
-						efa->f1= 1;
-						looking= 1;
-					}
-					if(efa->e4->f2) {
-						efa->e2->f2= 1;
-						efa->f1= 1;
-						looking= 1;
-					}
-				}
-			}
-		}
-	}
-	
-	if(previewlines > 0 && select == 0){
-// XXX			persp(PERSP_VIEW);
-// XXX			glPushMatrix();
-// XXX			mymultmatrix(obedit->obmat);
-
-			for(efa= em->faces.first; efa; efa= efa->next) {
-				if(efa->v4 == NULL) {  continue; }
-				if(efa->h == 0){
-					if(efa->e1->f2 == 1){
-						if(efa->e1->h == 1 || efa->e3->h == 1 )
-							continue;
-						
-						v[0][0] = efa->v1;
-						v[0][1] = efa->v2;
-						v[1][0] = efa->v4;
-						v[1][1] = efa->v3;
-					} else if(efa->e2->f2 == 1){
-						if(efa->e2->h == 1 || efa->e4->h == 1)
-							continue;
-						v[0][0] = efa->v2;
-						v[0][1] = efa->v3;
-						v[1][0] = efa->v1;
-						v[1][1] = efa->v4;					
-					} else { continue; }
-										  
-					for(i=1;i<=previewlines;i++){
-						co[0][0] = (v[0][1]->co[0] - v[0][0]->co[0])*(i/((float)previewlines+1))+v[0][0]->co[0];
-						co[0][1] = (v[0][1]->co[1] - v[0][0]->co[1])*(i/((float)previewlines+1))+v[0][0]->co[1];
-						co[0][2] = (v[0][1]->co[2] - v[0][0]->co[2])*(i/((float)previewlines+1))+v[0][0]->co[2];
-
-						co[1][0] = (v[1][1]->co[0] - v[1][0]->co[0])*(i/((float)previewlines+1))+v[1][0]->co[0];
-						co[1][1] = (v[1][1]->co[1] - v[1][0]->co[1])*(i/((float)previewlines+1))+v[1][0]->co[1];
-						co[1][2] = (v[1][1]->co[2] - v[1][0]->co[2])*(i/((float)previewlines+1))+v[1][0]->co[2];					
-						glColor3ub(255, 0, 255);
-						glBegin(GL_LINES);	
-						glVertex3f(co[0][0],co[0][1],co[0][2]);
-						glVertex3f(co[1][0],co[1][1],co[1][2]);
-						glEnd();
-					}
-				}
-			}
-			glPopMatrix();   
-	} else {	
-	
-	/* (de)select the edges */
-		for(eed= em->edges.first; eed; eed= eed->next) {
-		if(eed->f2) EM_select_edge(eed, select);
-		}
-	}
-}
-
-static void CutEdgeloop(Object *obedit, wmOperator *op, EditMesh *em, int numcuts)
-{
-	ViewContext vc; // XXX
-	EditEdge *nearest=NULL, *eed;
-	float fac;
-	int keys = 0, holdnum=0, selectmode, dist;
-	int mvalo[2] = {0, 0}, mval[2] = {0, 0};
-	short event=0, val, choosing=1, cancel=0, cuthalf = 0, smooth=0;
-	short hasHidden = 0;
-	char msg[128];
-	
-	selectmode = em->selectmode;
-		
-	if(em->selectmode & SCE_SELECT_FACE){
-		em->selectmode =  SCE_SELECT_EDGE;
-		EM_selectmode_set(em);	  
-	}
-	
-	
-	BIF_undo_push("Loopcut Begin");
-	while(choosing && !cancel){
-// XXX		getmouseco_areawin(mval);
-		if (mval[0] != mvalo[0] || mval[1] != mvalo[1]) {
-			mvalo[0] = mval[0];
-			mvalo[1] = mval[1];
-			dist= 50;
-			nearest = findnearestedge(&vc, &dist);	// returns actual distance in dist
-//			scrarea_do_windraw(curarea);	// after findnearestedge, backbuf!
-
-			BLI_snprintf(msg, sizeof(msg),"Number of Cuts: %d (S)mooth: %s", numcuts, smooth ? "on":"off");
-			
-//			headerprint(msg);
-			/* Need to figure preview */
-			if(nearest){
-				edgering_sel(em, nearest, 0, numcuts);
-			 }   
-// XXX			screen_swapbuffers();
-			
-		/* backbuffer refresh for non-apples (no aux) */
-#ifndef __APPLE__
-// XXX			if(G.vd->drawtype>OB_WIRE && (G.vd->flag & V3D_ZBUF_SELECT)) {
-//				backdrawview3d(0);
-//			}
-#endif
-		}
-		else PIL_sleep_ms(10);	// idle
-		
-		
-		while(qtest()) 
-		{
-			val=0;
-// XXX			event= extern_qread(&val);
-			if(val && (event ==  MOUSEX || event == MOUSEY)){ ; } 
-			else if(val && ((event==LEFTMOUSE || event==RETKEY) || (event == MIDDLEMOUSE || event==PADENTER)))
-			{
-				if(event == MIDDLEMOUSE){
-					cuthalf = 1;
-				}
-				if (nearest==NULL)
-					cancel = 1;
-				choosing=0;
-				mvalo[0] = -1;
-			}
-			else if(val && (event==ESCKEY || event==RIGHTMOUSE ))
-			{
-				choosing=0;
-				cancel = 1;
-				mvalo[0] = -1;
-			}
-			else if(val && (event==PADPLUSKEY || event==WHEELUPMOUSE))
-			{
-				numcuts++;
-				mvalo[0] = -1;
-			}
-			else if(val && (event==PADMINUS || event==WHEELDOWNMOUSE))
-			{
-				if(numcuts > 1){
-					numcuts--;
-					mvalo[0] = -1;
-				} 
-			}
-			else if(val && event==SKEY)
-			{
-				if(smooth){smooth=0;} 
-				else { smooth=1; }
-				mvalo[0] = -1;
-			}
-			
-			else if(val){
-				holdnum = -1;
-				switch(event){
-					case PAD9:
-					case NINEKEY:
-						holdnum = 9; break;
-					case PAD8:
-					case EIGHTKEY:
-						holdnum = 8;break;
-					case PAD7:
-					case SEVENKEY:
-						holdnum = 7;break;
-					case PAD6:
-					case SIXKEY:
-						holdnum = 6;break;
-					case PAD5:
-					case FIVEKEY:
-						holdnum = 5;break;
-					case PAD4:
-					case FOURKEY:
-						holdnum = 4;break;
-					case PAD3:
-					case THREEKEY:
-						holdnum = 3; break;
-					case PAD2:
-					case TWOKEY:
-						holdnum = 2;break;
-					case PAD1:
-					case ONEKEY:
-						holdnum = 1; break;
-					case PAD0:
-					case ZEROKEY:
-						holdnum = 0;break;	
-					case BACKSPACEKEY:
-						holdnum = -2;break;			
-				}
-				if(holdnum >= 0 && numcuts*10 < 130){
-					if(keys == 0){  // first level numeric entry
-							if(holdnum > 0){
-									numcuts = holdnum;
-									keys++;		
-							}
-					} else if(keys > 0){//highrt level numeric entry
-							numcuts *= 10;
-							numcuts += holdnum;
-							keys++;		
-					}
-				} else if (holdnum == -2){// backspace
-					if (keys > 1){
-						numcuts /= 10;		
-						keys--;
-					} else {
-						numcuts=1;
-						keys = 0;
-					}
-				}
-				mvalo[0] = -1;
-				break;
-			}  // End Numeric Entry						
-		}  //End while(qtest())
-	}   // End Choosing
-
-	if(cancel){
-		return;   
-	}
-	/* clean selection */
-	for(eed=em->edges.first; eed; eed = eed->next){
-		EM_select_edge(eed,0);
-	}
-	/* select edge ring */
-	edgering_sel(em, nearest, 1, 0);
-	
-	/* now cut the loops */
-	if(smooth){
-		fac= 1.0f;
-// XXX		if(fbutton(&fac, 0.0f, 5.0f, 10, 10, "Smooth:")==0) return;
-		fac= 0.292f*fac;			
-		esubdivideflag(obedit, em, SELECT,fac,0,B_SMOOTH,numcuts, SUBDIV_CORNER_PATH, SUBDIV_SELECT_LOOPCUT);
-	} else {
-		esubdivideflag(obedit, em, SELECT,0,0,0,numcuts,SUBDIV_CORNER_PATH, SUBDIV_SELECT_LOOPCUT);
-	}
-	/* if this was a single cut, enter edgeslide mode */
-	if(numcuts == 1 && hasHidden == 0){
-		if(cuthalf)
-			EdgeSlide(em, op, 1,0.0);
-		else {
-			if(EdgeSlide(em, op, 0,0.0) == -1){
-				BIF_undo();
-			}
-		}
-	}
-	
-	if(em->selectmode !=  selectmode){
-		em->selectmode = selectmode;
-		EM_selectmode_set(em);
-	}	
-	
-//	DAG_id_tag_update(obedit->data, 0);
-	return;
-}
-#endif
-
-/* *************** LOOP SELECT ************* */
-#if 0
-static short edgeFaces(EditMesh *em, EditEdge *e)
-{
-	EditFace *search=NULL;
-	short count = 0;
-	
-	search = em->faces.first;
-	while(search){
-		if((search->e1 == e || search->e2 == e) || (search->e3 == e || search->e4 == e)) 
-			count++;
-		search = search->next;
-	}
-	return count;	
-}
-#endif
-
-
 
 /*   ***************** TRAIL ************************
 
@@ -612,11 +288,17 @@ static float seg_intersect(EditEdge *e, CutCurve *c, int len, char mode, struct 
 /* for amount of edges */
 #define MAX_CUT_EDGES 1024
 
+static int knife_cut_invoke(bContext *C, wmOperator *op, wmEvent *event)
+{
+	ED_view3d_operator_properties_viewmat_set(C, op);
+
+	return WM_gesture_lines_invoke(C, op, event);
+}
+
 static int knife_cut_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit= CTX_data_edit_object(C);
 	EditMesh *em= BKE_mesh_get_editmesh(((Mesh *)obedit->data));
-	ARegion *ar= CTX_wm_region(C);
 	EditEdge *eed;
 	EditVert *eve;
 	CutCurve curve[MAX_CUT_EDGES];
@@ -626,10 +308,12 @@ static int knife_cut_exec(bContext *C, wmOperator *op)
 	int len=0;
 	short numcuts= RNA_int_get(op->ptr, "num_cuts"); 
 	short mode= RNA_enum_get(op->ptr, "type");
+	int winx, winy;
+	float persmat[4][4];
 //	int corner_cut_pattern= RNA_enum_get(op->ptr,"corner_cut_pattern");
 	
 	/* edit-object needed for matrix, and ar->regiondata for projections to work */
-	if (ELEM3(NULL, obedit, ar, ar->regiondata))
+	if (obedit == NULL)
 		return OPERATOR_CANCELLED;
 	
 	if (EM_nvertices_selected(em) < 2) {
@@ -652,6 +336,8 @@ static int knife_cut_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
+	ED_view3d_operator_properties_viewmat_get(op, &winx, &winy, persmat);
+
 	/*store percentage of edge cut for KNIFE_EXACT here.*/
 	for(eed=em->edges.first; eed; eed= eed->next) 
 		eed->tmp.fp = 0.0; 
@@ -663,7 +349,7 @@ static int knife_cut_exec(bContext *C, wmOperator *op)
 		VECCOPY(co, eve->co);
 		co[3]= 1.0;
 		mul_m4_v4(obedit->obmat, co);
-		project_float(ar, co, scr);
+		apply_project_float(persmat, winx, winy, co, scr);
 		BLI_ghash_insert(gh, eve, scr);
 		eve->f1 = 0; /*store vertex intersection flag here*/
 	
@@ -714,7 +400,7 @@ void MESH_OT_knife_cut(wmOperatorType *ot)
 	ot->description= "Cut selected edges and faces into parts";
 	ot->idname= "MESH_OT_knife_cut";
 	
-	ot->invoke= WM_gesture_lines_invoke;
+	ot->invoke= knife_cut_invoke;
 	ot->modal= WM_gesture_lines_modal;
 	ot->exec= knife_cut_exec;
 	ot->cancel= WM_gesture_lines_cancel;
@@ -731,7 +417,10 @@ void MESH_OT_knife_cut(wmOperatorType *ot)
 	// doesn't work atm.. RNA_def_enum(ot->srna, "corner_cut_pattern", corner_type_items, SUBDIV_CORNER_INNERVERT, "Corner Cut Pattern", "Topology pattern to use to fill a face after cutting across its corner");
 	
 	/* internal */
-	RNA_def_int(ot->srna, "cursor", BC_KNIFECURSOR, 0, INT_MAX, "Cursor", "", 0, INT_MAX);
+	prop = RNA_def_int(ot->srna, "cursor", BC_KNIFECURSOR, 0, INT_MAX, "Cursor", "", 0, INT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+
+	ED_view3d_operator_properties_viewmat(ot);
 }
 
 /* ******************************************************* */

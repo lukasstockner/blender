@@ -293,8 +293,8 @@ static void rna_ActionConstraint_minmax_range(PointerRNA *ptr, float *min, float
 
 	/* 0, 1, 2 = magic numbers for rotX, rotY, rotZ */
 	if (ELEM3(acon->type, 0, 1, 2)) {
-		*min= -90.f;
-		*max= 90.f;
+		*min= -180.0f;
+		*max= 180.0f;
 	} else {
 		*min= -1000.f;
 		*max= 1000.f;
@@ -356,6 +356,34 @@ static void rna_Constraint_followTrack_camera_set(PointerRNA *ptr, PointerRNA va
 	} else {
 		data->camera= NULL;
 	}
+}
+
+static void rna_Constraint_followTrack_depthObject_set(PointerRNA *ptr, PointerRNA value)
+{
+	bConstraint *con= (bConstraint*)ptr->data;
+	bFollowTrackConstraint *data= (bFollowTrackConstraint*)con->data;
+	Object *ob= (Object*)value.data;
+
+	if (ob) {
+		if (ob->type == OB_MESH && ob != (Object*)ptr->id.data) {
+			data->depth_ob= ob;
+		}
+	} else {
+		data->depth_ob= NULL;
+	}
+}
+
+static int rna_Constraint_followTrack_depthObject_poll(PointerRNA *ptr, PointerRNA value)
+{
+	Object *ob= (Object*)value.data;
+
+	if(ob) {
+		if (ob->type == OB_MESH && ob != (Object*)ptr->id.data) {
+			return 1;
+		}
+	}
+
+	return 0;
 }
 
 static void rna_Constraint_objectSolver_camera_set(PointerRNA *ptr, PointerRNA value)
@@ -998,15 +1026,15 @@ static void rna_def_constraint_action(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem transform_channel_items[] = {
-		{20, "LOCATION_X", 0, "Location X", ""},
-		{21, "LOCATION_Y", 0, "Location Y", ""},
-		{22, "LOCATION_Z", 0, "Location Z", ""},
-		{00, "ROTATION_X", 0, "Rotation X", ""},
-		{01, "ROTATION_Y", 0, "Rotation Y", ""},
-		{02, "ROTATION_Z", 0, "Rotation Z", ""},
-		{10, "SCALE_X", 0, "Scale X", ""},
-		{11, "SCALE_Y", 0, "Scale Y", ""},
-		{12, "SCALE_Z", 0, "Scale Z", ""},
+		{20, "LOCATION_X", 0, "X Location", ""},
+		{21, "LOCATION_Y", 0, "Y Location", ""},
+		{22, "LOCATION_Z", 0, "Z Location", ""},
+		{00, "ROTATION_X", 0, "X Rotation", ""},
+		{01, "ROTATION_Y", 0, "Y Rotation", ""},
+		{02, "ROTATION_Z", 0, "Z Rotation", ""},
+		{10, "SCALE_X", 0, "X Scale", ""},
+		{11, "SCALE_Y", 0, "Y Scale", ""},
+		{12, "SCALE_Z", 0, "Z Scale", ""},
 		{0, NULL, 0, NULL, NULL}};
 
 	srna= RNA_def_struct(brna, "ActionConstraint", "Constraint");
@@ -1983,12 +2011,12 @@ static void rna_def_constraint_spline_ik(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "chainlen");
 	RNA_def_property_range(prop, 1, 255); // TODO: this should really check the max length of the chain the constraint is attached to
 	RNA_def_property_ui_text(prop, "Chain Length", "How many bones are included in the chain");
-	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_dependency_update");
+	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_dependency_update"); // XXX: this update goes wrong... needs extra flush?
 	
 	/* direct access to bindings */
 	// NOTE: only to be used by experienced users
 	prop= RNA_def_property(srna, "joint_bindings", PROP_FLOAT, PROP_FACTOR);
-	RNA_def_property_array(prop, 32); // XXX this is the maximum value allowed
+	RNA_def_property_array(prop, 32); // XXX this is the maximum value allowed - why? 
 	RNA_def_property_flag(prop, PROP_DYNAMIC);
 	RNA_def_property_dynamic_array_funcs(prop, "rna_SplineIKConstraint_joint_bindings_get_length");
 	RNA_def_property_float_funcs(prop, "rna_SplineIKConstraint_joint_bindings_get", "rna_SplineIKConstraint_joint_bindings_set", NULL);
@@ -2126,6 +2154,14 @@ static void rna_def_constraint_follow_track(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_dependency_update");
 	RNA_def_property_pointer_funcs(prop, NULL, "rna_Constraint_followTrack_camera_set", NULL, "rna_Constraint_cameraObject_poll");
+
+	/* depth object */
+	prop= RNA_def_property(srna, "depth_object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "depth_ob");
+	RNA_def_property_ui_text(prop, "Depth Object", "Object used to define depth in camera space by projecting onto surface of this object");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_dependency_update");
+	RNA_def_property_pointer_funcs(prop, NULL, "rna_Constraint_followTrack_depthObject_set", NULL, "rna_Constraint_followTrack_depthObject_poll");
 }
 
 static void rna_def_constraint_camera_solver(BlenderRNA *brna)

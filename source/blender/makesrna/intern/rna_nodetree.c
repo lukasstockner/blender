@@ -374,6 +374,15 @@ static void rna_Node_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 	node_update(bmain, scene, ntree, node);
 }
 
+static void rna_Node_image_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	bNodeTree *ntree= (bNodeTree*)ptr->id.data;
+	bNode *node= (bNode*)ptr->data;
+
+	node_update(bmain, scene, ntree, node);
+	WM_main_add_notifier(NC_IMAGE, NULL);
+}
+
 static void rna_Node_material_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	bNodeTree *ntree= (bNodeTree*)ptr->id.data;
@@ -1273,7 +1282,7 @@ static void def_sh_tex_environment(StructRNA *srna)
 	RNA_def_property_struct_type(prop, "Image");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Image", "");
-	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
+	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_image_update");
 
 	RNA_def_struct_sdna_from(srna, "NodeTexImage", "storage");
 	def_sh_tex(srna);
@@ -1298,7 +1307,7 @@ static void def_sh_tex_image(StructRNA *srna)
 	RNA_def_property_struct_type(prop, "Image");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Image", "");
-	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
+	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_image_update");
 
 	RNA_def_struct_sdna_from(srna, "NodeTexImage", "storage");
 	def_sh_tex(srna);
@@ -1335,6 +1344,12 @@ static void def_sh_tex_gradient(StructRNA *srna)
 static void def_sh_tex_noise(StructRNA *srna)
 {
 	RNA_def_struct_sdna_from(srna, "NodeTexNoise", "storage");
+	def_sh_tex(srna);
+}
+
+static void def_sh_tex_checker(StructRNA *srna)
+{
+	RNA_def_struct_sdna_from(srna, "NodeTexChecker", "storage");
 	def_sh_tex(srna);
 }
 
@@ -2325,6 +2340,35 @@ static void def_cmp_id_mask(StructRNA *srna)
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 }
 
+static void def_cmp_double_edge_mask(StructRNA * srna)
+{
+	PropertyRNA *prop;
+
+	static EnumPropertyItem BufEdgeMode_items[] = {
+		{0, "BLEED_OUT",  0, "Bleed Out",     "Allow mask pixels to bleed along edges"},
+		{1, "KEEP_IN",  0, "Keep In",     "Restrict mask pixels from touching edges"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem InnerEdgeMode_items[] = {
+		{0, "ALL", 0, "All", "All pixels on inner mask edge are considered during mask calculation"},
+		{1, "ADJACENT_ONLY", 0, "Adjacent Only", "Only inner mask pixels adjacent to outer mask pixels are considered during mask calculation"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	prop = RNA_def_property(srna, "inner_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "custom2");
+	RNA_def_property_enum_items(prop, InnerEdgeMode_items);
+	RNA_def_property_ui_text(prop, "Inner Edge Mode", "");
+	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "edge_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "custom1");
+	RNA_def_property_enum_items(prop, BufEdgeMode_items);
+	RNA_def_property_ui_text(prop, "Buffer Edge Mode", "");
+	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
+}
+
 static void def_cmp_map_uv(StructRNA *srna)
 {
 	PropertyRNA *prop;
@@ -3233,7 +3277,7 @@ static void rna_def_node_socket_subtype(BlenderRNA *brna, int type, int subtype,
 	};
 	#undef SUBTYPE
 
-	#define SUBTYPE(socktype, stypename, id, idname)	if (subtype==PROP_##id)	propsubtype = PROP_##id;
+	#define SUBTYPE(socktype, stypename, id, idname)	if (subtype == (PROP_##id))	propsubtype = PROP_##id;
 	NODE_DEFINE_SUBTYPES
 	#undef SUBTYPE
 	
@@ -3405,7 +3449,7 @@ static void rna_def_group_sockets_api(BlenderRNA *brna, PropertyRNA *cprop, int 
 	func= RNA_def_function(srna, "new", (in_out==SOCK_IN ? "rna_NodeTree_input_new" : "rna_NodeTree_output_new"));
 	RNA_def_function_ui_description(func, "Add a socket to the group tree");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
-	RNA_def_string(func, "name", "Socket", 32, "Name", "Name of the socket");
+	RNA_def_string(func, "name", "Socket", MAX_NAME, "Name", "Name of the socket");
 	RNA_def_enum(func, "type", node_socket_type_items, SOCK_FLOAT, "Type", "Type of socket");
 	/* return value */
 	parm= RNA_def_pointer(func, "socket", "NodeSocket", "", "New socket");
@@ -3594,4 +3638,3 @@ void RNA_def_nodetree(BlenderRNA *brna)
 #undef NODE_DEFINE_SUBTYPES
 
 #endif
-

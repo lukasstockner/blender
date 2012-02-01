@@ -124,7 +124,7 @@ static const EnumPropertyItem unpack_all_method_items[] = {
 	{PF_USE_ORIGINAL, "USE_ORIGINAL", 0, "Use files in original location (create when necessary)", ""},
 	{PF_WRITE_ORIGINAL, "WRITE_ORIGINAL", 0, "Write files to original location (overwrite existing files)", ""},
 	{PF_KEEP, "KEEP", 0, "Disable AutoPack, keep all packed files", ""},
-	{PF_ASK, "ASK", 0, "Ask for each file", ""},
+	/* {PF_ASK, "ASK", 0, "Ask for each file", ""}, */
 	{0, NULL, 0, NULL, NULL}};
 
 static int unpack_all_exec(bContext *C, wmOperator *op)
@@ -143,7 +143,7 @@ static int unpack_all_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event)
 	Main *bmain= CTX_data_main(C);
 	uiPopupMenu *pup;
 	uiLayout *layout;
-	char title[128];
+	char title[64];
 	int count = 0;
 	
 	count = countPackedFiles(bmain);
@@ -155,9 +155,9 @@ static int unpack_all_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event)
 	}
 
 	if(count == 1)
-		sprintf(title, "Unpack 1 file");
+		strcpy(title, "Unpack 1 file");
 	else
-		sprintf(title, "Unpack %d files", count);
+		BLI_snprintf(title, sizeof(title), "Unpack %d files", count);
 	
 	pup= uiPupMenuBegin(C, title, ICON_NONE);
 	layout= uiPupMenuLayout(pup);
@@ -309,7 +309,7 @@ void FILE_OT_find_missing_files(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, 0, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH);
+	WM_operator_properties_filesel(ot, 0, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
 }
 
 /********************* report box operator *********************/

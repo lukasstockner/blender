@@ -74,6 +74,7 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "ED_armature.h"
 #include "ED_curve.h"
@@ -239,6 +240,12 @@ static void EM_backbuf_checkAndSelectTFaces(Mesh *me, int select)
 
 /* *********************** GESTURE AND LASSO ******************* */
 
+typedef struct LassoSelectUserData {
+	ViewContext *vc;
+	rcti *rect;
+	int (*mcords)[2], moves, select, pass, done;
+} LassoSelectUserData;
+
 static int view3d_selectable_data(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
@@ -256,7 +263,9 @@ static int view3d_selectable_data(bContext *C)
 			if (ob->mode & OB_MODE_SCULPT) {
 				return 0;
 			}
-			if (ob->mode & (OB_MODE_VERTEX_PAINT|OB_MODE_WEIGHT_PAINT|OB_MODE_TEXTURE_PAINT) && !paint_facesel_test(ob) && !paint_vertsel_test(ob)) {
+			if ((ob->mode & (OB_MODE_VERTEX_PAINT|OB_MODE_WEIGHT_PAINT|OB_MODE_TEXTURE_PAINT)) &&
+			    !paint_facesel_test(ob) && !paint_vertsel_test(ob))
+			{
 				return 0;
 			}
 		}
@@ -453,7 +462,7 @@ static void lasso_select_boundbox(rcti *rect, int mcords[][2], short moves)
 
 static void do_lasso_select_mesh__doSelectVert(void *userData, EditVert *eve, int x, int y, int UNUSED(index))
 {
-	struct { ViewContext vc; rcti *rect; int (*mcords)[2], moves, select, pass, done; } *data = userData;
+	LassoSelectUserData *data = userData;
 
 	if (BLI_in_rcti(data->rect, x, y) && lasso_inside(data->mcords, data->moves, x, y)) {
 		eve->f = data->select?(eve->f|1):(eve->f&~1);
@@ -461,7 +470,7 @@ static void do_lasso_select_mesh__doSelectVert(void *userData, EditVert *eve, in
 }
 static void do_lasso_select_mesh__doSelectEdge(void *userData, EditEdge *eed, int x0, int y0, int x1, int y1, int index)
 {
-	struct { ViewContext vc; rcti *rect; int (*mcords)[2], moves, select, pass, done; } *data = userData;
+	LassoSelectUserData *data = userData;
 
 	if (EM_check_backbuf(em_solidoffs+index)) {
 		if (data->pass==0) {
@@ -480,16 +489,16 @@ static void do_lasso_select_mesh__doSelectEdge(void *userData, EditEdge *eed, in
 }
 static void do_lasso_select_mesh__doSelectFace(void *userData, EditFace *efa, int x, int y, int UNUSED(index))
 {
-	struct { ViewContext vc; rcti *rect; int (*mcords)[2], moves, select, pass, done; } *data = userData;
+	LassoSelectUserData *data = userData;
 
 	if (BLI_in_rcti(data->rect, x, y) && lasso_inside(data->mcords, data->moves, x, y)) {
-		EM_select_face_fgon(data->vc.em, efa, data->select);
+		EM_select_face_fgon(data->vc->em, efa, data->select);
 	}
 }
 
 static void do_lasso_select_mesh(ViewContext *vc, int mcords[][2], short moves, short extend, short select)
 {
-	struct { ViewContext vc; rcti *rect; int (*mcords)[2], moves, select, pass, done; } data;
+	LassoSelectUserData data;
 	ToolSettings *ts= vc->scene->toolsettings;
 	rcti rect;
 	int bbsel;
@@ -499,7 +508,7 @@ static void do_lasso_select_mesh(ViewContext *vc, int mcords[][2], short moves, 
 	/* set editmesh */
 	vc->em= ((Mesh *)vc->obedit->data)->edit_mesh;
 
-	data.vc= *vc;
+	data.vc= vc;
 	data.rect = &rect;
 	data.mcords = mcords;
 	data.moves = moves;
@@ -607,7 +616,7 @@ static void do_lasso_select_mesh_uv(int mcords[][2], short moves, short select)
 
 static void do_lasso_select_curve__doSelect(void *userData, Nurb *UNUSED(nu), BPoint *bp, BezTriple *bezt, int beztindex, int x, int y)
 {
-	struct { ViewContext *vc; int (*mcords)[2]; short moves; short select; } *data = userData;
+	LassoSelectUserData *data = userData;
 	Object *obedit= data->vc->obedit;
 	Curve *cu= (Curve*)obedit->data;
 
@@ -636,7 +645,7 @@ static void do_lasso_select_curve__doSelect(void *userData, Nurb *UNUSED(nu), BP
 
 static void do_lasso_select_curve(ViewContext *vc, int mcords[][2], short moves, short extend, short select)
 {
-	struct { ViewContext *vc; int (*mcords)[2]; short moves; short select; } data;
+	LassoSelectUserData data;
 
 	/* set vc->editnurb */
 	data.vc = vc;
@@ -653,7 +662,7 @@ static void do_lasso_select_curve(ViewContext *vc, int mcords[][2], short moves,
 
 static void do_lasso_select_lattice__doSelect(void *userData, BPoint *bp, int x, int y)
 {
-	struct { int (*mcords)[2]; short moves; short select; } *data = userData;
+	LassoSelectUserData *data = userData;
 
 	if (lasso_inside(data->mcords, data->moves, x, y)) {
 		bp->f1 = data->select?(bp->f1|SELECT):(bp->f1&~SELECT);
@@ -661,7 +670,7 @@ static void do_lasso_select_lattice__doSelect(void *userData, BPoint *bp, int x,
 }
 static void do_lasso_select_lattice(ViewContext *vc, int mcords[][2], short moves, short extend, short select)
 {
-	struct { int (*mcords)[2]; short moves; short select; } data;
+	LassoSelectUserData data;
 
 	/* set editdata in vc */
 	data.mcords = mcords;
@@ -1045,7 +1054,104 @@ static unsigned int samplerect(unsigned int *buf, int size, unsigned int dontdo)
 
 
 /* The max number of menu items in an object select menu */
+typedef struct SelMenuItemF {
+	char idname[MAX_ID_NAME-2];
+	int icon;
+} SelMenuItemF;
+
 #define SEL_MENU_SIZE	22
+static SelMenuItemF object_mouse_select_menu_data[SEL_MENU_SIZE];
+
+/* special (crappy) operator only for menu select */
+static EnumPropertyItem *object_select_menu_enum_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+{
+	EnumPropertyItem *item= NULL, item_tmp= {0};
+	int totitem= 0;
+	int i= 0;
+
+	/* dont need context but avoid docgen using this */
+	if (C == NULL || object_mouse_select_menu_data[i].idname[0] == '\0') {
+		return DummyRNA_NULL_items;
+	}
+
+	for (; i < SEL_MENU_SIZE && object_mouse_select_menu_data[i].idname[0] != '\0'; i++) {
+		item_tmp.name= object_mouse_select_menu_data[i].idname;
+		item_tmp.identifier= object_mouse_select_menu_data[i].idname;
+		item_tmp.value= i;
+		item_tmp.icon= object_mouse_select_menu_data[i].icon;
+		RNA_enum_item_add(&item, &totitem, &item_tmp);
+	}
+
+	RNA_enum_item_end(&item, &totitem);
+	*free= 1;
+
+	return item;
+}
+
+static int object_select_menu_exec(bContext *C, wmOperator *op)
+{
+	int name_index= RNA_enum_get(op->ptr, "name");
+	short extend= RNA_boolean_get(op->ptr, "extend");
+	short changed = 0;
+	const char *name= object_mouse_select_menu_data[name_index].idname;
+
+	if(!extend) {
+		CTX_DATA_BEGIN(C, Base*, base, selectable_bases) {
+			if(base->flag & SELECT) {
+				ED_base_object_select(base, BA_DESELECT);
+				changed= 1;
+			}
+		}
+		CTX_DATA_END;
+	}
+
+	CTX_DATA_BEGIN(C, Base*, base, selectable_bases) {
+		/* this is a bit dodjy, there should only be ONE object with this name, but library objects can mess this up */
+		if(strcmp(name, base->object->id.name+2)==0) {
+			ED_base_object_activate(C, base);
+			ED_base_object_select(base, BA_SELECT);
+			changed= 1;
+		}
+	}
+	CTX_DATA_END;
+
+	/* weak but ensures we activate menu again before using the enum */
+	memset(object_mouse_select_menu_data, 0, sizeof(object_mouse_select_menu_data));
+
+	/* undo? */
+	if(changed) {
+		WM_event_add_notifier(C, NC_SCENE|ND_OB_SELECT, CTX_data_scene(C));
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
+}
+
+void VIEW3D_OT_select_menu(wmOperatorType *ot)
+{
+	PropertyRNA *prop;
+
+	/* identifiers */
+	ot->name= "Select Menu";
+	ot->description = "Menu object selection";
+	ot->idname= "VIEW3D_OT_select_menu";
+
+	/* api callbacks */
+	ot->invoke= WM_menu_invoke;
+	ot->exec= object_select_menu_exec;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	/* keyingset to use (dynamic enum) */
+	prop= RNA_def_enum(ot->srna, "name", DummyRNA_NULL_items, 0, "Object Name", "");
+	RNA_def_enum_funcs(prop, object_select_menu_enum_itemf);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+	ot->prop= prop;
+
+	RNA_def_boolean(ot->srna, "extend", 0, "Extend", "Extend selection instead of deselecting everything first");
+}
 
 static void deselectall_except(Scene *scene, Base *b)   /* deselect all except b */
 {
@@ -1060,7 +1166,7 @@ static void deselectall_except(Scene *scene, Base *b)   /* deselect all except b
 	}
 }
 
-static Base *mouse_select_menu(bContext *C, ViewContext *vc, unsigned int *buffer, int hits, const int mval[2], short extend)
+static Base *object_mouse_select_menu(bContext *C, ViewContext *vc, unsigned int *buffer, int hits, const int mval[2], short extend)
 {
 	short baseCount = 0;
 	short ok;
@@ -1098,9 +1204,6 @@ static Base *mouse_select_menu(bContext *C, ViewContext *vc, unsigned int *buffe
 	}
 	CTX_DATA_END;
 
-	if(baseCount)
-
-
 	if(baseCount==0) {
 		return NULL;
 	}
@@ -1110,34 +1213,29 @@ static Base *mouse_select_menu(bContext *C, ViewContext *vc, unsigned int *buffe
 		return base;
 	}
 	else {
-		/* UI */
-		uiPopupMenu *pup= uiPupMenuBegin(C, "Select Object", ICON_NONE);
-		uiLayout *layout= uiPupMenuLayout(pup);
-		uiLayout *split= uiLayoutSplit(layout, 0, 0);
-		uiLayout *column= uiLayoutColumn(split, 0);
+		/* UI, full in static array values that we later use in an enum function */
 		LinkNode *node;
+		int i;
 
-		node= linklist;
-		while(node) {
+		memset(object_mouse_select_menu_data, 0, sizeof(object_mouse_select_menu_data));
+
+		for (node = linklist, i = 0; node; node= node->next, i++) {
 			Base *base=node->link;
 			Object *ob= base->object;
 			char *name= ob->id.name+2;
-			/* annoying!, since we need to set 2 props cant use this. */
-			/* uiItemStringO(column, name, 0, "OBJECT_OT_select_name", "name", name); */
 
-			{
-				PointerRNA ptr;
-
-				WM_operator_properties_create(&ptr, "OBJECT_OT_select_name");
-				RNA_string_set(&ptr, "name", name);
-				RNA_boolean_set(&ptr, "extend", extend);
-				uiItemFullO(column, "OBJECT_OT_select_name", name, uiIconFromID((ID *)ob), ptr.data, WM_OP_EXEC_DEFAULT, 0);
-			}
-
-			node= node->next;
+			BLI_strncpy(object_mouse_select_menu_data[i].idname, name, MAX_ID_NAME-2);
+			object_mouse_select_menu_data[i].icon = uiIconFromID(&ob->id);
 		}
 
-		uiPupMenuEnd(C, pup);
+		{
+			PointerRNA ptr;
+
+			WM_operator_properties_create(&ptr, "VIEW3D_OT_select_menu");
+			RNA_boolean_set(&ptr, "extend", extend);
+			WM_operator_name_call(C, "VIEW3D_OT_select_menu", WM_OP_INVOKE_DEFAULT, &ptr);
+			WM_operator_properties_free(&ptr);
+		}
 
 		BLI_linklist_free(linklist, NULL);
 		return NULL;
@@ -1364,7 +1462,7 @@ static int mouse_select(bContext *C, const int mval[2], short extend, short obce
 		
 		/* note; shift+alt goes to group-flush-selecting */
 		if(enumerate) {
-			basact= mouse_select_menu(C, &vc, NULL, 0, mval, extend);
+			basact= object_mouse_select_menu(C, &vc, NULL, 0, mval, extend);
 		} else {
 			base= startbase;
 			while(base) {
@@ -1401,7 +1499,7 @@ static int mouse_select(bContext *C, const int mval[2], short extend, short obce
 
 			/* note; shift+alt goes to group-flush-selecting */
 			if(has_bones==0 && enumerate) {
-				basact= mouse_select_menu(C, &vc, buffer, hits, mval, extend);
+				basact= object_mouse_select_menu(C, &vc, buffer, hits, mval, extend);
 			} else {
 				basact= mouse_select_eval_buffer(&vc, buffer, hits, mval, startbase, has_bones);
 			}
@@ -1532,6 +1630,11 @@ static int mouse_select(bContext *C, const int mval[2], short extend, short obce
 
 /* ********************  border and circle ************************************** */
 
+typedef struct BoxSelectUserData {
+	ViewContext *vc;
+	rcti *rect;
+	int select, pass, done;
+} BoxSelectUserData;
 
 int edge_inside_circle(short centx, short centy, short rad, short x1, short y1, short x2, short y2)
 {
@@ -1557,7 +1660,7 @@ int edge_inside_circle(short centx, short centy, short rad, short x1, short y1, 
 
 static void do_nurbs_box_select__doSelect(void *userData, Nurb *UNUSED(nu), BPoint *bp, BezTriple *bezt, int beztindex, int x, int y)
 {
-	struct { ViewContext *vc; rcti *rect; int select; } *data = userData;
+	BoxSelectUserData *data = userData;
 	Object *obedit= data->vc->obedit;
 	Curve *cu= (Curve*)obedit->data;
 
@@ -1585,7 +1688,7 @@ static void do_nurbs_box_select__doSelect(void *userData, Nurb *UNUSED(nu), BPoi
 }
 static int do_nurbs_box_select(ViewContext *vc, rcti *rect, int select, int extend)
 {
-	struct { ViewContext *vc; rcti *rect; int select; } data;
+	BoxSelectUserData data;
 	
 	data.vc = vc;
 	data.rect = rect;
@@ -1602,7 +1705,7 @@ static int do_nurbs_box_select(ViewContext *vc, rcti *rect, int select, int exte
 
 static void do_lattice_box_select__doSelect(void *userData, BPoint *bp, int x, int y)
 {
-	struct { ViewContext vc; rcti *rect; int select; } *data = userData;
+	BoxSelectUserData *data = userData;
 
 	if (BLI_in_rcti(data->rect, x, y)) {
 		bp->f1 = data->select?(bp->f1|SELECT):(bp->f1&~SELECT);
@@ -1610,9 +1713,9 @@ static void do_lattice_box_select__doSelect(void *userData, BPoint *bp, int x, i
 }
 static int do_lattice_box_select(ViewContext *vc, rcti *rect, int select, int extend)
 {
-	struct { ViewContext vc; rcti *rect; int select, pass, done; } data;
+	BoxSelectUserData data;
 
-	data.vc= *vc;
+	data.vc= vc;
 	data.rect = rect;
 	data.select = select;
 
@@ -1627,7 +1730,7 @@ static int do_lattice_box_select(ViewContext *vc, rcti *rect, int select, int ex
 
 static void do_mesh_box_select__doSelectVert(void *userData, EditVert *eve, int x, int y, int UNUSED(index))
 {
-	struct { ViewContext vc; rcti *rect; short select, pass, done; } *data = userData;
+	BoxSelectUserData *data = userData;
 
 	if (BLI_in_rcti(data->rect, x, y)) {
 		eve->f = data->select?(eve->f|1):(eve->f&~1);
@@ -1635,7 +1738,7 @@ static void do_mesh_box_select__doSelectVert(void *userData, EditVert *eve, int 
 }
 static void do_mesh_box_select__doSelectEdge(void *userData, EditEdge *eed, int x0, int y0, int x1, int y1, int index)
 {
-	struct { ViewContext vc; rcti *rect; short select, pass, done; } *data = userData;
+	BoxSelectUserData *data = userData;
 
 	if(EM_check_backbuf(em_solidoffs+index)) {
 		if (data->pass==0) {
@@ -1652,19 +1755,19 @@ static void do_mesh_box_select__doSelectEdge(void *userData, EditEdge *eed, int 
 }
 static void do_mesh_box_select__doSelectFace(void *userData, EditFace *efa, int x, int y, int UNUSED(index))
 {
-	struct { ViewContext vc; rcti *rect; short select, pass, done; } *data = userData;
+	BoxSelectUserData *data = userData;
 
 	if (BLI_in_rcti(data->rect, x, y)) {
-		EM_select_face_fgon(data->vc.em, efa, data->select);
+		EM_select_face_fgon(data->vc->em, efa, data->select);
 	}
 }
 static int do_mesh_box_select(ViewContext *vc, rcti *rect, int select, int extend)
 {
-	struct { ViewContext vc; rcti *rect; short select, pass, done; } data;
+	BoxSelectUserData data;
 	ToolSettings *ts= vc->scene->toolsettings;
 	int bbsel;
 	
-	data.vc= *vc;
+	data.vc= vc;
 	data.rect = rect;
 	data.select = select;
 	data.pass = 0;
@@ -2159,9 +2262,16 @@ void VIEW3D_OT_select(wmOperatorType *ot)
 
 /* -------------------- circle select --------------------------------------------- */
 
+typedef struct CircleSelectUserData {
+	ViewContext *vc;
+	short select;
+	int mval[2];
+	float radius;
+} CircleSelectUserData;
+
 static void mesh_circle_doSelectVert(void *userData, EditVert *eve, int x, int y, int UNUSED(index))
 {
-	struct {ViewContext *vc; short select; int mval[2]; float radius; } *data = userData;
+	CircleSelectUserData *data = userData;
 	int mx = x - data->mval[0], my = y - data->mval[1];
 	float r = sqrt(mx*mx + my*my);
 
@@ -2171,7 +2281,7 @@ static void mesh_circle_doSelectVert(void *userData, EditVert *eve, int x, int y
 }
 static void mesh_circle_doSelectEdge(void *userData, EditEdge *eed, int x0, int y0, int x1, int y1, int UNUSED(index))
 {
-	struct {ViewContext *vc; short select; int mval[2]; float radius; } *data = userData;
+	CircleSelectUserData *data = userData;
 
 	if (edge_inside_circle(data->mval[0], data->mval[1], (short) data->radius, x0, y0, x1, y1)) {
 		EM_select_edge(eed, data->select);
@@ -2179,7 +2289,7 @@ static void mesh_circle_doSelectEdge(void *userData, EditEdge *eed, int x0, int 
 }
 static void mesh_circle_doSelectFace(void *userData, EditFace *efa, int x, int y, int UNUSED(index))
 {
-	struct {ViewContext *vc; short select; int mval[2]; float radius; } *data = userData;
+	CircleSelectUserData *data = userData;
 	int mx = x - data->mval[0], my = y - data->mval[1];
 	float r = sqrt(mx*mx + my*my);
 	
@@ -2192,7 +2302,7 @@ static void mesh_circle_select(ViewContext *vc, int select, const int mval[2], f
 {
 	ToolSettings *ts= vc->scene->toolsettings;
 	int bbsel;
-	struct {ViewContext *vc; short select; int mval[2]; float radius; } data;
+	CircleSelectUserData data;
 	
 	bbsel= EM_init_backbuf_circle(vc, mval[0], mval[1], (short)(rad+1.0f));
 	ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
@@ -2254,7 +2364,7 @@ static void paint_vertsel_circle_select(ViewContext *vc, int select, const int m
 	Object *ob= vc->obact;
 	Mesh *me = ob?ob->data:NULL;
 	/* int bbsel; */ /* UNUSED */
-	/* struct {ViewContext *vc; short select; int mval[2]; float radius; } data = {NULL}; */ /* UNUSED */
+	/* CircleSelectUserData data = {NULL}; */ /* UNUSED */
 	if (me) {
 		em_vertoffs= me->totvert+1;	/* max index array */
 
@@ -2269,7 +2379,7 @@ static void paint_vertsel_circle_select(ViewContext *vc, int select, const int m
 
 static void nurbscurve_circle_doSelect(void *userData, Nurb *UNUSED(nu), BPoint *bp, BezTriple *bezt, int beztindex, int x, int y)
 {
-	struct {ViewContext *vc; short select; int mval[2]; float radius; } *data = userData;
+	CircleSelectUserData *data = userData;
 	int mx = x - data->mval[0], my = y - data->mval[1];
 	float r = sqrt(mx*mx + my*my);
 	Object *obedit= data->vc->obedit;
@@ -2300,7 +2410,7 @@ static void nurbscurve_circle_doSelect(void *userData, Nurb *UNUSED(nu), BPoint 
 }
 static void nurbscurve_circle_select(ViewContext *vc, int select, const int mval[2], float rad)
 {
-	struct {ViewContext *vc; short select; int mval[2]; float radius; } data;
+	CircleSelectUserData data;
 
 	/* set vc-> edit data */
 	
@@ -2317,7 +2427,7 @@ static void nurbscurve_circle_select(ViewContext *vc, int select, const int mval
 
 static void latticecurve_circle_doSelect(void *userData, BPoint *bp, int x, int y)
 {
-	struct {ViewContext *vc; short select; int mval[2]; float radius; } *data = userData;
+	CircleSelectUserData *data = userData;
 	int mx = x - data->mval[0], my = y - data->mval[1];
 	float r = sqrt(mx*mx + my*my);
 
@@ -2327,7 +2437,7 @@ static void latticecurve_circle_doSelect(void *userData, BPoint *bp, int x, int 
 }
 static void lattice_circle_select(ViewContext *vc, int select, const int mval[2], float rad)
 {
-	struct {ViewContext *vc; short select; int mval[2]; float radius; } data;
+	CircleSelectUserData data;
 
 	/* set vc-> edit data */
 	
@@ -2344,7 +2454,7 @@ static void lattice_circle_select(ViewContext *vc, int select, const int mval[2]
 // NOTE: pose-bone case is copied from editbone case...
 static short pchan_circle_doSelectJoint(void *userData, bPoseChannel *pchan, int x, int y)
 {
-	struct {ViewContext *vc; short select; int mval[2]; float radius; } *data = userData;
+	CircleSelectUserData *data = userData;
 	int mx = x - data->mval[0], my = y - data->mval[1];
 	float r = sqrt(mx*mx + my*my);
 	
@@ -2359,7 +2469,8 @@ static short pchan_circle_doSelectJoint(void *userData, bPoseChannel *pchan, int
 }
 static void pose_circle_select(ViewContext *vc, int select, const int mval[2], float rad)
 {
-	struct {ViewContext *vc; short select; int mval[2]; float radius; } data;
+	CircleSelectUserData data;
+	bArmature *arm = vc->obact->data;
 	bPose *pose = vc->obact->pose;
 	bPoseChannel *pchan;
 	int change= FALSE;
@@ -2377,6 +2488,10 @@ static void pose_circle_select(ViewContext *vc, int select, const int mval[2], f
 	for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
 		short sco1[2], sco2[2], didpoint=0;
 		float vec[3];
+		
+		/* skip invisible bones */
+		if (PBONE_VISIBLE(arm, pchan->bone) == 0)
+			continue;
 		
 		/* project head location to screenspace */
 		mul_v3_m4v3(vec, vc->obact->obmat, pchan->pose_head);
@@ -2404,7 +2519,7 @@ static void pose_circle_select(ViewContext *vc, int select, const int mval[2], f
 
 static short armature_circle_doSelectJoint(void *userData, EditBone *ebone, int x, int y, short head)
 {
-	struct {ViewContext *vc; short select; int mval[2]; float radius; } *data = userData;
+	CircleSelectUserData *data = userData;
 	int mx = x - data->mval[0], my = y - data->mval[1];
 	float r = sqrt(mx*mx + my*my);
 	
@@ -2427,7 +2542,7 @@ static short armature_circle_doSelectJoint(void *userData, EditBone *ebone, int 
 }
 static void armature_circle_select(ViewContext *vc, int select, const int mval[2], float rad)
 {
-	struct {ViewContext *vc; short select, mval[2]; float radius; } data;
+	CircleSelectUserData data;
 	bArmature *arm= vc->obedit->data;
 	EditBone *ebone;
 	int change= FALSE;

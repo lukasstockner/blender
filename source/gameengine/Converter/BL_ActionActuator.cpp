@@ -350,6 +350,12 @@ bool BL_ActionActuator::Update(double curtime, bool frame)
 PyObject* BL_ActionActuator::PyGetChannel(PyObject* value)
 {
 	const char *string= _PyUnicode_AsString(value);
+
+	if (GetParent()->GetGameObjectType() != SCA_IObject::OBJ_ARMATURE)
+	{
+		PyErr_SetString(PyExc_NotImplementedError, "actuator.getChannel(): Only armatures support channels");
+		return NULL;
+	}
 	
 	if (!string) {
 		PyErr_SetString(PyExc_TypeError, "expected a single string");
@@ -414,6 +420,12 @@ KX_PYMETHODDEF_DOC(BL_ActionActuator, setChannel,
 	PyObject *pymat= NULL;
 	PyObject *pyloc= NULL, *pysize= NULL, *pyquat= NULL;
 	bPoseChannel *pchan;
+
+	if (GetParent()->GetGameObjectType() != SCA_IObject::OBJ_ARMATURE)
+	{
+		PyErr_SetString(PyExc_NotImplementedError, "actuator.setChannel(): Only armatures support channels");
+		return NULL;
+	}
 	
 	if(PyTuple_Size(args)==2) {
 		if (!PyArg_ParseTuple(args,"sO:setChannel", &string, &pymat)) // matrix
@@ -526,8 +538,8 @@ PyAttributeDef BL_ActionActuator::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("channelNames", BL_ActionActuator, pyattr_get_channel_names),
 	KX_PYATTRIBUTE_SHORT_RW("priority", 0, 100, false, BL_ActionActuator, m_priority),
 	KX_PYATTRIBUTE_RW_FUNCTION("frame", BL_ActionActuator, pyattr_get_frame, pyattr_set_frame),
-	KX_PYATTRIBUTE_STRING_RW("propName", 0, 31, false, BL_ActionActuator, m_propname),
-	KX_PYATTRIBUTE_STRING_RW("framePropName", 0, 31, false, BL_ActionActuator, m_framepropname),
+	KX_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, BL_ActionActuator, m_propname),
+	KX_PYATTRIBUTE_STRING_RW("framePropName", 0, MAX_PROP_NAME, false, BL_ActionActuator, m_framepropname),
 	KX_PYATTRIBUTE_RW_FUNCTION("useContinue", BL_ActionActuator, pyattr_get_use_continue, pyattr_set_use_continue),
 	KX_PYATTRIBUTE_FLOAT_RW_CHECK("blendTime", 0, MAXFRAMEF, BL_ActionActuator, m_blendframe, CheckBlendTime),
 	KX_PYATTRIBUTE_SHORT_RW_CHECK("mode",0,100,false,BL_ActionActuator,m_playtype,CheckType),
@@ -574,6 +586,12 @@ PyObject* BL_ActionActuator::pyattr_get_channel_names(void *self_v, const KX_PYA
 	PyObject *ret= PyList_New(0);
 	PyObject *item;
 	
+	if (self->GetParent()->GetGameObjectType() != SCA_IObject::OBJ_ARMATURE)
+	{
+		PyErr_SetString(PyExc_NotImplementedError, "actuator.channelNames: Only armatures support channels");
+		return NULL;
+	}
+
 	bPose *pose= ((BL_ArmatureObject*)self->GetParent())->GetOrigPose();
 	
 	if(pose) {

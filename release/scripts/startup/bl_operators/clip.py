@@ -24,7 +24,7 @@ from bpy.types import Operator
 from mathutils import Vector, Matrix
 
 
-def CLIP_spacees_walk(context, all_screens, tarea, tspace, callback, *args):
+def CLIP_spaces_walk(context, all_screens, tarea, tspace, callback, *args):
     screens = bpy.data.screens if all_screens else [context.screen]
 
     for screen in screens:
@@ -56,8 +56,25 @@ def CLIP_set_viewport_background(context, all_screens, clip, clip_user):
 
         space_v3d.show_background_images = True
 
-    CLIP_spacees_walk(context, all_screens, 'VIEW_3D', 'VIEW_3D',
+    CLIP_spaces_walk(context, all_screens, 'VIEW_3D', 'VIEW_3D',
                       set_background, clip, clip_user)
+
+
+def CLIP_camera_for_clip(context, clip):
+    scene = context.scene
+
+    camera = scene.camera
+
+    for ob in scene.objects:
+        if ob.type == 'CAMERA':
+            for con in ob.constraints:
+                if con.type == 'CAMERA_SOLVER':
+                    cur_clip = scene.clip if con.use_active_clip else con.clip
+
+                    if cur_clip == clip:
+                        return ob
+
+    return camera
 
 
 def CLIP_track_view_selected(sc, track):
@@ -73,6 +90,34 @@ def CLIP_track_view_selected(sc, track):
     return False
 
 
+def CLIP_default_settings_from_track(clip, track):
+    settings = clip.tracking.settings
+
+    width = clip.size[0]
+    height = clip.size[1]
+
+    pattern = track.pattern_max - track.pattern_min
+    search = track.search_max - track.search_min
+
+    pattern[0] = pattern[0] * clip.size[0]
+    pattern[1] = pattern[1] * clip.size[1]
+
+    search[0] = search[0] * clip.size[0]
+    search[1] = search[1] * clip.size[1]
+
+    settings.default_tracker = track.tracker
+    settings.default_pyramid_levels = track.pyramid_levels
+    settings.default_correlation_min = track.correlation_min
+    settings.default_pattern_size = max(pattern[0], pattern[1])
+    settings.default_search_size = max(search[0], search[1])
+    settings.default_frames_limit = track.frames_limit
+    settings.default_pattern_match = track.pattern_match
+    settings.default_margin = track.margin
+    settings.use_default_red_channel = track.use_red_channel
+    settings.use_default_green_channel = track.use_green_channel
+    settings.use_default_blue_channel = track.use_blue_channel
+
+
 class CLIP_OT_track_to_empty(Operator):
     """Create an Empty object which will be copying movement of active track"""
 
@@ -80,7 +125,7 @@ class CLIP_OT_track_to_empty(Operator):
     bl_label = "Link Empty to Track"
     bl_options = {'UNDO', 'REGISTER'}
 
-    def _link_track(self, context, track):
+    def _link_track(self, context, clip, tracking_object, track):
         sc = context.space_data
         constraint = None
         ob = None
@@ -101,14 +146,17 @@ class CLIP_OT_track_to_empty(Operator):
         constraint.clip = sc.clip
         constraint.track = track.name
         constraint.use_3d_position = False
+        constraint.object = tracking_object.name
+        constraint.camera = CLIP_camera_for_clip(context, clip)
 
     def execute(self, context):
         sc = context.space_data
         clip = sc.clip
+        tracking_object = clip.tracking.objects.active
 
-        for track in clip.tracking.tracks:
+        for track in tracking_object.tracks:
             if CLIP_track_view_selected(sc, track):
-                self._link_track(context, track)
+                self._link_track(context, clip, tracking_object, track)
 
         return {'FINISHED'}
 
@@ -130,11 +178,12 @@ class CLIP_OT_bundles_to_mesh(Operator):
 
         sc = context.space_data
         clip = sc.clip
+        tracking_object = clip.tracking.objects.active
 
         new_verts = []
 
         mesh = bpy.data.meshes.new(name="Tracks")
-        for track in clip.tracking.tracks:
+        for track in tracking_object.tracks:
             if track.has_bundle:
                 new_verts.append(track.bundle)
 
@@ -269,7 +318,7 @@ object's movement caused by this constraint"""
         # TODO: several camera solvers and track followers would fail,
         #       but can't think about eal workflow where it'll be useful
         for x in ob.constraints:
-            if x.type in {'CAMERA_SOLVER', 'FOLLOW_TRACK'}:
+            if x.type in {'CAMERA_SOLVER', 'FOLLOW_TRACK', 'OBJECT_SOLVER'}:
                 con = x
 
         if not con:
@@ -509,7 +558,7 @@ class CLIP_OT_setup_tracking_scene(Operator):
         def setup_space(space):
             space.show_backdrop = True
 
-        CLIP_spacees_walk(context, True, 'NODE_EDITOR', 'NODE_EDITOR',
+        CLIP_spaces_walk(context, True, 'NODE_EDITOR', 'NODE_EDITOR',
                           setup_space)
 
         sc = context.space_data
@@ -782,5 +831,31 @@ class CLIP_OT_setup_tracking_scene(Operator):
         self._setupRenderLayers(context)
         self._setupNodes(context)
         self._setupObjects(context)
+
+        return {'FINISHED'}
+
+class CLIP_OT_track_settings_as_default(Operator):
+    """Copy tracking settings from active track to default settings"""
+
+    bl_idname = "clip.track_settings_as_default"
+    bl_label = "Track Settings As Default"
+    bl_options = {'UNDO', 'REGISTER'}
+
+    @classmethod
+    def poll(cls, context):
+        sc = context.space_data
+
+        if sc.type != 'CLIP_EDITOR':
+            return False
+
+        clip = sc.clip
+
+        return clip and clip.tracking.tracks.active
+
+    def execute(self, context):
+        sc = context.space_data
+        clip = sc.clip
+
+        CLIP_default_settings_from_track(clip, clip.tracking.tracks.active)
 
         return {'FINISHED'}

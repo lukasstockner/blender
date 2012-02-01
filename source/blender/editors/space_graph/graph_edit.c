@@ -1046,6 +1046,8 @@ void GRAPH_OT_bake (wmOperatorType *ot)
 	// todo: add props for start/end frames
 }
 
+#ifdef WITH_AUDASPACE
+
 /* ******************** Sound Bake F-Curve Operator *********************** */
 /* This operator bakes the given sound to the selected F-Curves */
 
@@ -1078,7 +1080,6 @@ static float fcurve_samplingcb_sound (FCurve *UNUSED(fcu), void *data, float eva
 
 /* ------------------- */
 
-#ifdef WITH_AUDASPACE
 static int graphkeys_sound_bake_exec(bContext *C, wmOperator *op)
 {
 	bAnimContext ac;
@@ -1187,7 +1188,7 @@ void GRAPH_OT_sound_bake (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, FOLDERFILE|SOUNDFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH);
+	WM_operator_properties_filesel(ot, FOLDERFILE|SOUNDFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
 	RNA_def_float(ot->srna, "low", 0.0f, 0.0, 100000.0, "Lowest frequency", "", 0.1, 1000.00);
 	RNA_def_float(ot->srna, "high", 100000.0, 0.0, 100000.0, "Highest frequency", "", 0.1, 1000.00);
 	RNA_def_float(ot->srna, "attack", 0.005, 0.0, 2.0, "Attack time", "", 0.01, 0.1);
@@ -2068,6 +2069,7 @@ void GRAPH_OT_smooth (wmOperatorType *ot)
 /* present a special customised popup menu for this, with some filtering */
 static int graph_fmodifier_add_invoke (bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
+	wmOperatorType *ot = WM_operatortype_find("GRAPH_OT_fmodifier_add", 1);
 	uiPopupMenu *pup;
 	uiLayout *layout;
 	int i;
@@ -2085,7 +2087,7 @@ static int graph_fmodifier_add_invoke (bContext *C, wmOperator *op, wmEvent *UNU
 			continue;
 		
 		/* create operator menu item with relevant properties filled in */
-		props_ptr= uiItemFullO(layout, "GRAPH_OT_fmodifier_add", fmi->name, ICON_NONE, NULL, WM_OP_EXEC_REGION_WIN, UI_ITEM_O_RETURN_PROPS);
+		props_ptr= uiItemFullO_ptr(layout, ot, fmi->name, ICON_NONE, NULL, WM_OP_EXEC_REGION_WIN, UI_ITEM_O_RETURN_PROPS);
 			/* the only thing that gets set from the menu is the type of F-Modifier to add */
 		RNA_enum_set(&props_ptr, "type", i);
 			/* the following properties are just repeats of existing ones... */

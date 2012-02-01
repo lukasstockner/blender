@@ -131,6 +131,7 @@ CCL_NAMESPACE_END
 #include "svm_hsv.h"
 #include "svm_image.h"
 #include "svm_gamma.h"
+#include "svm_brightness.h"
 #include "svm_invert.h"
 #include "svm_light_path.h"
 #include "svm_magic.h"
@@ -145,6 +146,7 @@ CCL_NAMESPACE_END
 #include "svm_tex_coord.h"
 #include "svm_value.h"
 #include "svm_voronoi.h"
+#include "svm_checker.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -235,6 +237,9 @@ __device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderT
 			case NODE_TEX_MAGIC:
 				svm_node_tex_magic(kg, sd, stack, node, &offset);
 				break;
+			case NODE_TEX_CHECKER:
+				svm_node_tex_checker(kg, sd, stack, node, &offset);
+				break;
 #endif
 			case NODE_CAMERA:
 				svm_node_camera(kg, sd, stack, node.y, node.z, node.w);
@@ -265,6 +270,9 @@ __device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderT
 				break;
 			case NODE_GAMMA:
 				svm_node_gamma(sd, stack, node.y, node.z, node.w);
+				break;
+			case NODE_BRIGHTCONTRAST:
+				svm_node_brightness(sd, stack, node.y, node.z, node.w);
 				break;
 			case NODE_MIX:
 				svm_node_mix(kg, sd, stack, node.y, node.z, node.w, &offset);

@@ -75,7 +75,7 @@ typedef struct MovieTrackingMarker {
 typedef struct MovieTrackingTrack {
 	struct MovieTrackingTrack *next, *prev;
 
-	char name[24];
+	char name[64];	/* MAX_NAME */
 
 	/* ** setings ** */
 	float pat_min[2], pat_max[2];		/* positions of left-bottom and right-top corners of pattern (in unified 0..1 space) */
@@ -91,12 +91,8 @@ typedef struct MovieTrackingTrack {
 	float bundle_pos[3];			/* reconstructed position */
 	float error;					/* average track reprojection error */
 
-	int pad;
-
 	/* ** UI editing ** */
 	int flag, pat_flag, search_flag;	/* flags (selection, ...) */
-	short transflag;					/* transform flags */
-	char pad3[2];
 	float color[3];						/* custom color for track */
 
 	/* tracking algorithm to use; can be KLT or SAD */
@@ -125,6 +121,9 @@ typedef struct MovieTrackingSettings {
 	short default_frames_limit;			/* number of frames to be tarcked during single tracking session (if TRACKING_FRAMES_LIMIT is set) */
 	short default_margin;				/* margin from frame boundaries */
 	short default_pattern_match;		/* re-adjust every N frames */
+	short default_flag;					/* default flags like color channels used by default */
+
+	short pod;
 
 	/* ** common tracker settings ** */
 	short speed;			/* speed of tracking */
@@ -133,7 +132,7 @@ typedef struct MovieTrackingSettings {
 	int keyframe1, keyframe2;	/* two keyframes for reconstrution initialization */
 
 	/* ** which camera intrinsics to refine. uses on the REFINE_* flags */
-	short refine_camera_intrinsics, pad2;
+	short refine_camera_intrinsics, pad23;
 
 	/* ** tool settings ** */
 
@@ -146,6 +145,8 @@ typedef struct MovieTrackingSettings {
 
 	/* set object scale */
 	float object_distance;		/* distance between two bundles used for object scaling */
+
+	int pad3;
 } MovieTrackingSettings;
 
 typedef struct MovieTrackingStabilization {
@@ -178,7 +179,7 @@ typedef struct MovieTrackingReconstruction {
 typedef struct MovieTrackingObject {
 	struct MovieTrackingObject *next, *prev;
 
-	char name[24];			/* Name of tracking object */
+	char name[64];			/* Name of tracking object, MAX_NAME */
 	int flag;
 	float scale;			/* scale of object solution in amera space */
 
@@ -213,7 +214,8 @@ enum {
 /* MovieTrackingMarker->flag */
 #define MARKER_DISABLED	(1<<0)
 #define MARKER_TRACKED	(1<<1)
-#define MARKER_GRAPH_SEL (1<<2)
+#define MARKER_GRAPH_SEL_X (1<<2)
+#define MARKER_GRAPH_SEL_Y (1<<3)
 
 /* MovieTrackingTrack->flag */
 #define TRACK_HAS_BUNDLE	(1<<1)

@@ -147,6 +147,7 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
         sub.label(text="Acceleration structure:")
         sub.prop(cscene, "debug_bvh_type", text="")
         sub.prop(cscene, "debug_use_spatial_splits")
+        sub.prop(cscene, "use_cache")
 
 
 class CyclesRender_PT_layers(CyclesButtonsPanel, Panel):
@@ -179,6 +180,38 @@ class CyclesRender_PT_layers(CyclesButtonsPanel, Panel):
 
         col = split.column()
         col.prop(rl, "layers", text="Layer")
+
+        layout.separator()
+
+        split = layout.split()
+
+        col = split.column()
+        col.label(text="Passes:")
+        col.prop(rl, "use_pass_combined")
+        col.prop(rl, "use_pass_z")
+        col.prop(rl, "use_pass_normal")
+        col.prop(rl, "use_pass_object_index")
+        col.prop(rl, "use_pass_material_index")
+        col.prop(rl, "use_pass_emit")
+        col.prop(rl, "use_pass_environment")
+
+        col = split.column()
+        col.label()
+        col.label(text="Diffuse:")
+        row = col.row(align=True)
+        row.prop(rl, "use_pass_diffuse_direct", text="Direct", toggle=True)
+        row.prop(rl, "use_pass_diffuse_indirect", text="Indirect", toggle=True)
+        row.prop(rl, "use_pass_diffuse_color", text="Color", toggle=True)
+        col.label(text="Glossy:")
+        row = col.row(align=True)
+        row.prop(rl, "use_pass_glossy_direct", text="Direct", toggle=True)
+        row.prop(rl, "use_pass_glossy_indirect", text="Indirect", toggle=True)
+        row.prop(rl, "use_pass_glossy_color", text="Color", toggle=True)
+        col.label(text="Transmission:")
+        row = col.row(align=True)
+        row.prop(rl, "use_pass_transmission_direct", text="Direct", toggle=True)
+        row.prop(rl, "use_pass_transmission_indirect", text="Indirect", toggle=True)
+        row.prop(rl, "use_pass_transmission_color", text="Color", toggle=True)
 
         layout.separator()
 
@@ -240,7 +273,7 @@ class CyclesCamera_PT_dof(CyclesButtonsPanel, Panel):
 
 
 class Cycles_PT_context_material(CyclesButtonsPanel, Panel):
-    bl_label = "Surface"
+    bl_label = ""
     bl_context = "material"
     bl_options = {'HIDE_HEADER'}
 
@@ -336,16 +369,13 @@ class CyclesObject_PT_ray_visibility(CyclesButtonsPanel, Panel):
         ob = context.object
         visibility = ob.cycles_visibility
 
-        split = layout.split()
-
-        col = split.column()
-        col.prop(visibility, "camera")
-        col.prop(visibility, "diffuse")
-        col.prop(visibility, "glossy")
-
-        col = split.column()
-        col.prop(visibility, "transmission")
-        col.prop(visibility, "shadow")
+        flow = layout.column_flow()
+        
+        flow.prop(visibility, "camera")
+        flow.prop(visibility, "diffuse")
+        flow.prop(visibility, "glossy")
+        flow.prop(visibility, "transmission")
+        flow.prop(visibility, "shadow")
 
 
 def find_node(material, nodetype):
@@ -452,8 +482,32 @@ class CyclesWorld_PT_surface(CyclesButtonsPanel, Panel):
         layout = self.layout
 
         world = context.world
+
         if not panel_node_draw(layout, world, 'OUTPUT_WORLD', 'Surface'):
             layout.prop(world, "horizon_color", text="Color")
+
+
+class CyclesWorld_PT_settings(CyclesButtonsPanel, Panel):
+    bl_label = "Settings"
+    bl_context = "world"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.world and CyclesButtonsPanel.poll(context)
+
+    def draw(self, context):
+        layout = self.layout
+
+        world = context.world
+        cworld = world.cycles
+
+        col = layout.column()
+
+        col.prop(cworld, "sample_as_light")
+        row = col.row()
+        row.active = cworld.sample_as_light
+        row.prop(cworld, "sample_map_resolution")
 
 
 class CyclesWorld_PT_volume(CyclesButtonsPanel, Panel):
@@ -552,6 +606,7 @@ class CyclesMaterial_PT_settings(CyclesButtonsPanel, Panel):
 
         col = split.column()
         col.prop(cmat, "sample_as_light")
+        col.prop(mat, "pass_index")
 
 
 class CyclesTexture_PT_context(CyclesButtonsPanel, Panel):
@@ -588,14 +643,9 @@ class CyclesTexture_PT_context(CyclesButtonsPanel, Panel):
                 col.template_ID(user, "texture", new="texture.new")
 
             if tex:
-                row = split.row()
-                row.prop(tex, "use_nodes", icon="NODETREE", text="")
-                row.label()
-
-                if not tex.use_nodes:
-                    split = layout.split(percentage=0.2)
-                    split.label(text="Type:")
-                    split.prop(tex, "type", text="")
+                split = layout.split(percentage=0.2)
+                split.label(text="Type:")
+                split.prop(tex, "type", text="")
 
 
 class CyclesTexture_PT_nodes(CyclesButtonsPanel, Panel):
@@ -708,22 +758,16 @@ def draw_device(self, context):
     scene = context.scene
     layout = self.layout
 
-    if scene.render.engine == "CYCLES":
+    if scene.render.engine == 'CYCLES':
         cscene = scene.cycles
 
         layout.prop(cscene, "feature_set")
-        experimental = cscene.feature_set == 'EXPERIMENTAL'
 
-        available_devices = engine.available_devices()
-        available_cuda = 'cuda' in available_devices
-        available_opencl = experimental and 'opencl' in available_devices
-
-        if available_cuda or available_opencl:
+        device_type = context.user_preferences.system.compute_device_type
+        if device_type == 'CUDA':
             layout.prop(cscene, "device")
-            if cscene.device == 'GPU' and available_cuda and available_opencl:
-                layout.prop(cscene, "gpu_type")
-        if experimental and cscene.device == 'CPU' and engine.with_osl():
-            layout.prop(cscene, "shading_system")
+        elif device_type == 'OPENCL' and cscene.feature_set == 'EXPERIMENTAL':
+            layout.prop(cscene, "device")
 
 
 def draw_pause(self, context):
@@ -733,7 +777,7 @@ def draw_pause(self, context):
     if scene.render.engine == "CYCLES":
         view = context.space_data
 
-        if view.viewport_shade == "RENDERED":
+        if view.viewport_shade == 'RENDERED':
             cscene = scene.cycles
             layout.prop(cscene, "preview_pause", icon="PAUSE", text="")
 

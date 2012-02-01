@@ -1461,24 +1461,21 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 	fdrawbox(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 }
 
-static ImBuf *scale_trackpreview_ibuf(ImBuf *ibuf, float zoomx, float zoomy)
+static ImBuf *scale_trackpreview_ibuf(ImBuf *ibuf, float track_pos[2], int width, float height, int margin)
 {
 	ImBuf *scaleibuf;
-	int x, y, w= ibuf->x*zoomx, h= ibuf->y*zoomy;
-	const float max_x= ibuf->x-1.0f;
-	const float max_y= ibuf->y-1.0f;
-	const float scalex= 1.0f/zoomx;
-	const float scaley= 1.0f/zoomy;
+	const float scalex= ((float)ibuf->x-2*margin) / width;
+	const float scaley= ((float)ibuf->y-2*margin) / height;
+	float off_x= (int)track_pos[0]-track_pos[0]+0.5f;
+	float off_y= (int)track_pos[1]-track_pos[1]+0.5f;
+	int x, y;
 
-	scaleibuf= IMB_allocImBuf(w, h, 32, IB_rect);
+	scaleibuf= IMB_allocImBuf(width, height, 32, IB_rect);
 
-	for(y= 0; y<scaleibuf->y; y++) {
-		for (x= 0; x<scaleibuf->x; x++) {
-			float src_x= scalex*x;
-			float src_y= scaley*y;
-
-			CLAMP(src_x, 0, max_x);
-			CLAMP(src_y, 0, max_y);
+	for(y= 0; y<height; y++) {
+		for (x= 0; x<width; x++) {
+			float src_x= scalex*(x)+margin-off_x;
+			float src_y= scaley*(y)+margin-off_y;
 
 			bicubic_interpolation(ibuf, scaleibuf, src_x, src_y, x, y);
 		}
@@ -1509,51 +1506,63 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 	if(scopes->track_disabled) {
 		glColor4f(0.7f, 0.3f, 0.3f, 0.3f);
 		uiSetRoundBox(15);
-		uiDrawBox(GL_POLYGON, rect.xmin-1, rect.ymin-1, rect.xmax+1, rect.ymax+1, 3.0f);
+		uiDrawBox(GL_POLYGON, rect.xmin-1, rect.ymin, rect.xmax+1, rect.ymax+1, 3.0f);
 
 		ok= 1;
 	}
 	else if(scopes->track_preview) {
-		int a, off_x, off_y;
-		float zoomx, zoomy;
+		/* additional margin around image */
+		/* NOTE: should be kept in sync with value from BKE_movieclip_update_scopes */
+		const int margin= 3;
+		float zoomx, zoomy, track_pos[2], off_x, off_y;
+		int a, width, height;
 		ImBuf *drawibuf;
 
 		glPushMatrix();
 
+		track_pos[0]= scopes->track_pos[0]-margin;
+		track_pos[1]= scopes->track_pos[1]-margin;
+
 		/* draw content of pattern area */
 		glScissor(ar->winrct.xmin+rect.xmin, ar->winrct.ymin+rect.ymin, scissor[2], scissor[3]);
 
-		zoomx= (rect.xmax-rect.xmin) / (scopes->track_preview->x-2.0f);
-		zoomy= (rect.ymax-rect.ymin) / (scopes->track_preview->y-2.0f);
+		width= rect.xmax-rect.xmin+1;
+		height = rect.ymax-rect.ymin;
 
-		off_x= ((int)scopes->track_pos[0]-scopes->track_pos[0]-0.5f)*zoomx;
-		off_y= ((int)scopes->track_pos[1]-scopes->track_pos[1]-0.5f)*zoomy;
+		if(width > 0 && height > 0) {
+			zoomx= (float)width / (scopes->track_preview->x-2*margin);
+			zoomy= (float)height / (scopes->track_preview->y-2*margin);
 
-		drawibuf= scale_trackpreview_ibuf(scopes->track_preview, zoomx, zoomy);
-		glaDrawPixelsSafe(off_x+rect.xmin, off_y+rect.ymin, rect.xmax-rect.xmin+1.f-off_x, rect.ymax-rect.ymin+1.f-off_y, drawibuf->x, GL_RGBA, GL_UNSIGNED_BYTE, drawibuf->rect);
+			off_x= ((int)track_pos[0]-track_pos[0]+0.5)*zoomx;
+			off_y= ((int)track_pos[1]-track_pos[1]+0.5)*zoomy;
 
-		IMB_freeImBuf(drawibuf);
+			drawibuf= scale_trackpreview_ibuf(scopes->track_preview, track_pos, width, height, margin);
 
-		/* draw cross for pizel position */
-		glTranslatef(off_x+rect.xmin+scopes->track_pos[0]*zoomx, off_y+rect.ymin+scopes->track_pos[1]*zoomy, 0.f);
-		glScissor(ar->winrct.xmin + rect.xmin, ar->winrct.ymin+rect.ymin, rect.xmax-rect.xmin, rect.ymax-rect.ymin);
+			glaDrawPixelsSafe(rect.xmin, rect.ymin+1, drawibuf->x, drawibuf->y,
+			                  drawibuf->x, GL_RGBA, GL_UNSIGNED_BYTE, drawibuf->rect);
+			IMB_freeImBuf(drawibuf);
 
-		for(a= 0; a< 2; a++) {
-			if(a==1) {
-				glLineStipple(3, 0xaaaa);
-				glEnable(GL_LINE_STIPPLE);
-				UI_ThemeColor(TH_SEL_MARKER);
+			/* draw cross for pizel position */
+			glTranslatef(off_x+rect.xmin+track_pos[0]*zoomx, off_y+rect.ymin+track_pos[1]*zoomy, 0.f);
+			glScissor(ar->winrct.xmin + rect.xmin, ar->winrct.ymin+rect.ymin, rect.xmax-rect.xmin, rect.ymax-rect.ymin);
+
+			for(a= 0; a< 2; a++) {
+				if(a==1) {
+					glLineStipple(3, 0xaaaa);
+					glEnable(GL_LINE_STIPPLE);
+					UI_ThemeColor(TH_SEL_MARKER);
+				}
+				else {
+					UI_ThemeColor(TH_MARKER_OUTLINE);
+				}
+
+				glBegin(GL_LINES);
+					glVertex2f(-10.0f, 0.0f);
+					glVertex2f(10.0f, 0.0f);
+					glVertex2f(0.0f, -10.0f);
+					glVertex2f(0.0f, 10.0f);
+					glEnd();
 			}
-			else {
-				UI_ThemeColor(TH_MARKER_OUTLINE);
-			}
-
-			glBegin(GL_LINES);
-				glVertex2f(-10.0f, 0.0f);
-				glVertex2f(10.0f, 0.0f);
-				glVertex2f(0.0f, -10.0f);
-				glVertex2f(0.0f, 10.0f);
-			glEnd();
 		}
 
 		glDisable(GL_LINE_STIPPLE);
@@ -1565,7 +1574,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 	if(!ok) {
 		glColor4f(0.f, 0.f, 0.f, 0.3f);
 		uiSetRoundBox(15);
-		uiDrawBox(GL_POLYGON, rect.xmin-1, rect.ymin-1, rect.xmax+1, rect.ymax+1, 3.0f);
+		uiDrawBox(GL_POLYGON, rect.xmin-1, rect.ymin, rect.xmax+1, rect.ymax+1, 3.0f);
 	}
 
 	/* outline, scale gripper */

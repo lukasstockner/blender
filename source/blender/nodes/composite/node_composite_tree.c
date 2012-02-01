@@ -570,6 +570,13 @@ static void force_hidden_passes(bNode *node, int passflag)
 	for(sock= node->outputs.first; sock; sock= sock->next)
 		sock->flag &= ~SOCK_UNAVAIL;
 	
+	if(!(passflag & SCE_PASS_COMBINED)) {
+		sock= BLI_findlink(&node->outputs, RRES_OUT_IMAGE);
+		sock->flag |= SOCK_UNAVAIL;
+		sock= BLI_findlink(&node->outputs, RRES_OUT_ALPHA);
+		sock->flag |= SOCK_UNAVAIL;
+	}
+	
 	sock= BLI_findlink(&node->outputs, RRES_OUT_Z);
 	if(!(passflag & SCE_PASS_Z)) sock->flag |= SOCK_UNAVAIL;
 	sock= BLI_findlink(&node->outputs, RRES_OUT_NORMAL);
@@ -604,7 +611,28 @@ static void force_hidden_passes(bNode *node, int passflag)
 	if(!(passflag & SCE_PASS_EMIT)) sock->flag |= SOCK_UNAVAIL;
 	sock= BLI_findlink(&node->outputs, RRES_OUT_ENV);
 	if(!(passflag & SCE_PASS_ENVIRONMENT)) sock->flag |= SOCK_UNAVAIL;
-	
+
+	sock= BLI_findlink(&node->outputs, RRES_OUT_DIFF_DIRECT);
+	if(!(passflag & SCE_PASS_DIFFUSE_DIRECT)) sock->flag |= SOCK_UNAVAIL;
+	sock= BLI_findlink(&node->outputs, RRES_OUT_DIFF_INDIRECT);
+	if(!(passflag & SCE_PASS_DIFFUSE_INDIRECT)) sock->flag |= SOCK_UNAVAIL;
+	sock= BLI_findlink(&node->outputs, RRES_OUT_DIFF_COLOR);
+	if(!(passflag & SCE_PASS_DIFFUSE_COLOR)) sock->flag |= SOCK_UNAVAIL;
+
+	sock= BLI_findlink(&node->outputs, RRES_OUT_GLOSSY_DIRECT);
+	if(!(passflag & SCE_PASS_GLOSSY_DIRECT)) sock->flag |= SOCK_UNAVAIL;
+	sock= BLI_findlink(&node->outputs, RRES_OUT_GLOSSY_INDIRECT);
+	if(!(passflag & SCE_PASS_GLOSSY_INDIRECT)) sock->flag |= SOCK_UNAVAIL;
+	sock= BLI_findlink(&node->outputs, RRES_OUT_GLOSSY_COLOR);
+	if(!(passflag & SCE_PASS_GLOSSY_COLOR)) sock->flag |= SOCK_UNAVAIL;
+
+	sock= BLI_findlink(&node->outputs, RRES_OUT_TRANSM_DIRECT);
+	if(!(passflag & SCE_PASS_TRANSM_DIRECT)) sock->flag |= SOCK_UNAVAIL;
+	sock= BLI_findlink(&node->outputs, RRES_OUT_TRANSM_INDIRECT);
+	if(!(passflag & SCE_PASS_TRANSM_INDIRECT)) sock->flag |= SOCK_UNAVAIL;
+	sock= BLI_findlink(&node->outputs, RRES_OUT_TRANSM_COLOR);
+	if(!(passflag & SCE_PASS_TRANSM_COLOR)) sock->flag |= SOCK_UNAVAIL;
+	sock= BLI_findlink(&node->outputs, RRES_OUT_TRANSM_COLOR);
 }
 
 /* based on rules, force sockets hidden always */
@@ -630,16 +658,16 @@ void ntreeCompositForceHidden(bNodeTree *ntree, Scene *curscene)
 					if(rl)
 						force_hidden_passes(node, rl->passflag);
 					else
-						force_hidden_passes(node, 0);
+						force_hidden_passes(node, RRES_OUT_IMAGE|RRES_OUT_ALPHA);
 				}
 				else if(ima->type!=IMA_TYPE_MULTILAYER) {	/* if ->rr not yet read we keep inputs */
-					force_hidden_passes(node, RRES_OUT_Z);
+					force_hidden_passes(node, RRES_OUT_IMAGE|RRES_OUT_ALPHA|RRES_OUT_Z);
 				}
 				else
-					force_hidden_passes(node, 0);
+					force_hidden_passes(node, RRES_OUT_IMAGE|RRES_OUT_ALPHA);
 			}
 			else
-				force_hidden_passes(node, 0);
+				force_hidden_passes(node, RRES_OUT_IMAGE|RRES_OUT_ALPHA);
 		}
 	}
 

@@ -1174,7 +1174,7 @@ void postprocessGraph(ReebGraph *rg, char mode)
 		fac2 = 0.5f;
 		break;
 	case SKGEN_SHARPEN:
-		fac1 = fac2 = -0.25f;
+		fac1 = fac3 = -0.25f;
 		fac2 = 1.5f;
 		break;
 	default:
@@ -2035,10 +2035,9 @@ void REEB_exportGraph(ReebGraph *rg, int count)
 	
 	if (count == -1)
 	{
-		sprintf(filename, "test.txt");
+		strcpy(filename, "test.txt");
 	}
-	else
-	{
+	else {
 		sprintf(filename, "test%05i.txt", count);
 	}
 	f = fopen(filename, "w");

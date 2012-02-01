@@ -154,15 +154,23 @@ RegionView3D *ED_view3d_context_rv3d(bContext *C)
 
 /* ideally would return an rv3d but in some cases the region is needed too
  * so return that, the caller can then access the ar->regiondata */
-ARegion *ED_view3d_context_region_unlock(bContext *C)
+int ED_view3d_context_user_region(bContext *C, View3D **v3d_r, ARegion **ar_r)
 {
 	ScrArea *sa= CTX_wm_area(C);
+
+	*v3d_r = NULL;
+	*ar_r = NULL;
+
 	if(sa && sa->spacetype==SPACE_VIEW3D) {
 		ARegion *ar= CTX_wm_region(C);
+		View3D *v3d = (View3D *)sa->spacedata.first;
+
 		if(ar) {
 			RegionView3D *rv3d= ar->regiondata;
 			if(rv3d && rv3d->viewlock == 0) {
-				return ar;
+				*v3d_r = v3d;
+				*ar_r = ar;
+				return 1;
 			}
 			else {
 				ARegion *ar_unlock_user= NULL;
@@ -182,12 +190,22 @@ ARegion *ED_view3d_context_region_unlock(bContext *C)
 				}
 
 				/* camera/perspective view get priority when the active region is locked */
-				if(ar_unlock_user) return ar_unlock_user;
-				if(ar_unlock) return ar_unlock;
+				if(ar_unlock_user) {
+					*v3d_r = v3d;
+					*ar_r = ar_unlock_user;
+					return 1;
+				}
+
+				if(ar_unlock) {
+					*v3d_r = v3d;
+					*ar_r = ar_unlock;
+					return 1;
+				}
 			}
 		}
 	}
-	return NULL;
+
+	return 0;
 }
 
 /* Most of the time this isn't needed since you could assume the view matrix was
@@ -553,7 +571,6 @@ static void view3d_main_area_free(ARegion *ar)
 		if(rv3d->localvd) MEM_freeN(rv3d->localvd);
 		if(rv3d->clipbb) MEM_freeN(rv3d->clipbb);
 
-		// XXX	retopo_free_view_data(rv3d);
 		if(rv3d->ri) { 
 			// XXX		BIF_view3d_previewrender_free(rv3d);
 		}
@@ -1006,7 +1023,8 @@ static void space_view3d_listener(struct ScrArea *sa, struct wmNotifier *wmn)
 			break;
 	}
 
-#if 0 // removed since BKE_image_user_calc_frame is now called in draw_bgpic because screen_ops doesnt call the notifier.
+	// removed since BKE_image_user_calc_frame is now called in draw_bgpic because screen_ops doesnt call the notifier.
+#if 0
 	if (wmn->category == NC_SCENE && wmn->data == ND_FRAME) {
 		View3D *v3d = area->spacedata.first;
 		BGpic *bgpic = v3d->bgpicbase.first;
@@ -1031,7 +1049,8 @@ static int view3d_context(const bContext *C, const char *member, bContextDataRes
 	View3D *v3d= CTX_wm_view3d(C);
 	Scene *scene= CTX_data_scene(C);
 	Base *base;
-	unsigned int lay = v3d ? v3d->lay:scene->lay; /* fallback to the scene layer, allows duplicate and other oject operators to run outside the 3d view */
+	/* fallback to the scene layer, allows duplicate and other object operators to run outside the 3d view */
+	unsigned int lay = v3d ? v3d->lay:scene->lay;
 
 	if(CTX_data_dir(member)) {
 		CTX_data_dir_set(result, view3d_context_dir);

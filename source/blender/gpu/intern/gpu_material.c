@@ -173,7 +173,7 @@ static void gpu_material_set_attrib_id(GPUMaterial *material)
 	 * removed by the glsl compiler by dead code elimination */
 
 	for(a=0, b=0; a<attribs->totlayer; a++) {
-		sprintf(name, "att%d", attribs->layer[a].attribid);
+		BLI_snprintf(name, sizeof(name), "att%d", attribs->layer[a].attribid);
 		attribs->layer[a].glindex = GPU_shader_get_attribute(shader, name);
 
 		if(attribs->layer[a].glindex >= 0) {
@@ -1120,7 +1120,11 @@ static void do_material_tex(GPUShadeInput *shi)
 						// to inverting the bump map. Should this ever change
 						// this negate must be removed.
 						norfac = -hScale * mtex->norfac;
-						if(found_deriv_map) norfac /= sqrtf(ima_x*ima_y);
+						if(found_deriv_map)
+						{
+							float fVirtDim = sqrtf(fabsf(ima_x*mtex->size[0]*ima_y*mtex->size[1]));
+							norfac /= MAX2(fVirtDim, FLT_EPSILON);
+						}
 
 						tnorfac = GPU_uniform(&norfac);
 

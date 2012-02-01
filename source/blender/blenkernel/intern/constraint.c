@@ -41,6 +41,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_editVert.h"
+#include "BLI_kdopbvh.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_armature_types.h"
@@ -64,6 +65,7 @@
 #include "BKE_anim.h" /* for the curve calculation part */
 #include "BKE_armature.h"
 #include "BKE_blender.h"
+#include "BKE_bvhutils.h"
 #include "BKE_camera.h"
 #include "BKE_constraint.h"
 #include "BKE_displist.h"
@@ -297,6 +299,12 @@ void constraint_mat_convertspace (Object *ob, bPoseChannel *pchan, float mat[][4
 						
 						copy_m4_m4(tempmat, mat);
 						mult_m4_m4m4(mat, imat, tempmat);
+
+						/* override with local location */
+						if ((pchan->parent) && (pchan->bone->flag & BONE_NO_LOCAL_LOCATION)) {
+							armature_mat_pose_to_bone_ex(ob, pchan, pchan->pose_mat, tempmat);
+							copy_v3_v3(mat[3], tempmat[3]);
+						}
 					}
 				}
 				/* pose to local with parent */
@@ -502,13 +510,17 @@ static void contarget_get_mesh_mat (Object *ob, const char *substring, float mat
 			normalize_v3(normal);
 			copy_v3_v3(plane, tmat[1]);
 			
-			copy_v3_v3(tmat[2], normal);
-			cross_v3_v3v3(tmat[0], normal, plane);
-			cross_v3_v3v3(tmat[1], tmat[2], tmat[0]);
-			
-			copy_m4_m3(mat, tmat);
+			cross_v3_v3v3(mat[0], normal, plane);
+			if(len_v3(mat[0]) < 1e-3) {
+				copy_v3_v3(plane, tmat[0]);
+				cross_v3_v3v3(mat[0], normal, plane);
+			}
+
+			copy_v3_v3(mat[2], normal);
+			cross_v3_v3v3(mat[1], mat[2], mat[0]);
+
 			normalize_m4(mat);
-			
+
 			
 			/* apply the average coordinate as the new location */
 			mul_v3_m4v3(mat[3], ob->obmat, vec);
@@ -2773,18 +2785,22 @@ static void stretchto_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 		/* store Z orientation before destroying obmat */
 		normalize_v3_v3(zz, cob->matrix[2]);
 		
-		sub_v3_v3v3(vec, cob->matrix[3], ct->matrix[3]);
-		vec[0] /= size[0];
-		vec[1] /= size[1];
-		vec[2] /= size[2];
+		/* XXX That makes the constraint buggy with asymmetrically scaled objects, see #29940. */
+/*		sub_v3_v3v3(vec, cob->matrix[3], ct->matrix[3]);*/
+/*		vec[0] /= size[0];*/
+/*		vec[1] /= size[1];*/
+/*		vec[2] /= size[2];*/
 		
-		dist = normalize_v3(vec);
-		//dist = len_v3v3( ob->obmat[3], targetmat[3]);
+/*		dist = normalize_v3(vec);*/
+		
+		dist = len_v3v3(cob->matrix[3], ct->matrix[3]);
+		/* Only Y constrained object axis scale should be used, to keep same length when scaling it. */
+		dist /= size[1];
 		
 		/* data->orglength==0 occurs on first run, and after 'R' button is clicked */
-		if (data->orglength == 0)  
+		if (data->orglength == 0)
 			data->orglength = dist;
-		if (data->bulge == 0) 
+		if (data->bulge == 0)
 			data->bulge = 1.0;
 		
 		scale[1] = dist/data->orglength;
@@ -3950,6 +3966,7 @@ static void followtrack_id_looper (bConstraint *con, ConstraintIDFunc func, void
 	
 	func(con, (ID**)&data->clip, userdata);
 	func(con, (ID**)&data->camera, userdata);
+	func(con, (ID**)&data->depth_ob, userdata);
 }
 
 static void followtrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *UNUSED(targets))
@@ -3985,7 +4002,6 @@ static void followtrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase
 
 	if (data->flag & FOLLOWTRACK_USE_3D_POSITION) {
 		if (track->flag & TRACK_HAS_BUNDLE) {
-			MovieTracking *tracking= &clip->tracking;
 			float obmat[4][4], mat[4][4];
 
 			copy_m4_m4(obmat, cob->matrix);
@@ -4008,9 +4024,8 @@ static void followtrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase
 				translate_m4(cob->matrix, track->bundle_pos[0], track->bundle_pos[1], track->bundle_pos[2]);
 			}
 		}
-	} 
+	}
 	else {
-		MovieClipUser user;
 		MovieTrackingMarker *marker;
 		float vec[3], disp[3], axis[3], mat[4][4];
 		float aspect= (scene->r.xsch*scene->r.xasp) / (scene->r.ysch*scene->r.yasp);
@@ -4035,8 +4050,7 @@ static void followtrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase
 			CameraParams params;
 			float pos[2], rmat[4][4];
 
-			user.framenr= scene->r.cfra;
-			marker= BKE_tracking_get_marker(track, user.framenr);
+			marker= BKE_tracking_get_marker(track, scene->r.cfra);
 
 			add_v2_v2v2(pos, marker->pos, track->offset);
 
@@ -4077,6 +4091,34 @@ static void followtrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase
 				mult_m4_m4m4(cob->matrix, cob->matrix, rmat);
 
 				copy_v3_v3(cob->matrix[3], disp);
+			}
+
+			if(data->depth_ob && data->depth_ob->derivedFinal) {
+				Object *depth_ob= data->depth_ob;
+				BVHTreeFromMesh treeData= NULL_BVHTreeFromMesh;
+				BVHTreeRayHit hit;
+				float ray_start[3], ray_end[3], ray_nor[3], imat[4][4];
+				int result;
+
+				invert_m4_m4(imat, depth_ob->obmat);
+
+				mul_v3_m4v3(ray_start, imat, camob->obmat[3]);
+				mul_v3_m4v3(ray_end, imat, cob->matrix[3]);
+
+				sub_v3_v3v3(ray_nor, ray_end, ray_start);
+
+				bvhtree_from_mesh_faces(&treeData, depth_ob->derivedFinal, 0.0f, 4, 6);
+
+				hit.dist= FLT_MAX;
+				hit.index= -1;
+
+				result= BLI_bvhtree_ray_cast(treeData.tree, ray_start, ray_nor, 0.0f, &hit, treeData.raycast_callback, &treeData);
+
+				if(result != -1) {
+					mul_v3_m4v3(cob->matrix[3], depth_ob->obmat, hit.co);
+				}
+
+				free_bvhtree_from_mesh(&treeData);
 			}
 		}
 	}

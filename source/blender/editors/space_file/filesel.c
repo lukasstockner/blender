@@ -130,7 +130,7 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 		else
 			params->type = FILE_SPECIAL;
 
-		if (is_filepath && RNA_property_is_set(op->ptr, "filepath")) {
+		if (is_filepath && RNA_struct_property_is_set(op->ptr, "filepath")) {
 			char name[FILE_MAX];
 			RNA_string_get(op->ptr, "filepath", name);
 			if (params->type == FILE_LOADLIB) {
@@ -142,12 +142,12 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 			}
 		}
 		else {
-			if (is_directory && RNA_property_is_set(op->ptr, "directory")) {
+			if (is_directory && RNA_struct_property_is_set(op->ptr, "directory")) {
 				RNA_string_get(op->ptr, "directory", params->dir);
 				sfile->params->file[0]= '\0';
 			}
 
-			if (is_filename && RNA_property_is_set(op->ptr, "filename")) {
+			if (is_filename && RNA_struct_property_is_set(op->ptr, "filename")) {
 				RNA_string_get(op->ptr, "filename", params->file);
 			}
 		}
@@ -215,18 +215,23 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 			params->flag |= RNA_boolean_get(op->ptr, "autoselect") ? FILE_AUTOSELECT : 0;
 			params->flag |= RNA_boolean_get(op->ptr, "active_layer") ? FILE_ACTIVELAY : 0;
 		}
-		
-		if (U.uiflag & USER_SHOW_THUMBNAILS) {
-			if(params->filter & (IMAGEFILE|MOVIEFILE))
-				params->display= FILE_IMGDISPLAY;
-			else
+
+		if(RNA_struct_find_property(op->ptr, "display_type"))
+			params->display= RNA_enum_get(op->ptr, "display_type");
+
+		if(params->display==FILE_DEFAULTDISPLAY) {
+			if (U.uiflag & USER_SHOW_THUMBNAILS) {
+				if(params->filter & (IMAGEFILE|MOVIEFILE))
+					params->display= FILE_IMGDISPLAY;
+				else
+					params->display= FILE_SHORTDISPLAY;
+			} else {
 				params->display= FILE_SHORTDISPLAY;
-		} else {
-			params->display= FILE_SHORTDISPLAY;
+			}
 		}
 
 		if (is_relative_path) {
-			if (!RNA_property_is_set(op->ptr, "relative_path")) {
+			if (!RNA_struct_property_is_set(op->ptr, "relative_path")) {
 				RNA_boolean_set(op->ptr, "relative_path", U.flag & USER_RELPATHS);
 			}
 		}

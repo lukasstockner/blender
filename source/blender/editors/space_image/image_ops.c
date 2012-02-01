@@ -178,6 +178,30 @@ int space_image_main_area_poll(bContext *C)
 	return 0;
 }
 
+/* For IMAGE_OT_curves_point_set to avoid sampling when in uv smooth mode */
+int space_image_main_area_not_uv_brush_poll(bContext *C)
+{
+	SpaceImage *sima= CTX_wm_space_image(C);
+
+	ToolSettings *toolsettings = CTX_data_scene(C)->toolsettings;
+	if(sima && !toolsettings->uvsculpt)
+		return 1;
+
+	return 0;
+}
+
+static int space_image_image_sample_poll(bContext *C)
+{
+	SpaceImage *sima= CTX_wm_space_image(C);
+	Object *obedit= CTX_data_edit_object(C);
+	ToolSettings *toolsettings = CTX_data_scene(C)->toolsettings;
+
+	if(obedit){
+		if(ED_space_image_show_uvedit(sima, obedit) && (toolsettings->use_uv_sculpt))
+			return 0;
+	}
+	return space_image_main_area_poll(C);
+}
 /********************** view pan operator *********************/
 
 typedef struct ViewPanData {
@@ -817,7 +841,7 @@ static int image_open_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event)
 	if(ima)
 		path= ima->name;
 
-	if(RNA_property_is_set(op->ptr, "filepath"))
+	if(RNA_struct_property_is_set(op->ptr, "filepath"))
 		return image_open_exec(C, op);
 	
 	image_open_init(C, op);
@@ -844,7 +868,7 @@ void IMAGE_OT_open(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH|WM_FILESEL_RELPATH);
+	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH|WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 }
 
 /******************** replace image operator ********************/
@@ -858,7 +882,9 @@ static int image_replace_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	
 	RNA_string_get(op->ptr, "filepath", str);
-	BLI_strncpy(sima->image->name, str, sizeof(sima->image->name)); /* we cant do much if the str is longer then 240 :/ */
+
+	/* we cant do much if the str is longer then FILE_MAX :/ */
+	BLI_strncpy(sima->image->name, str, sizeof(sima->image->name));
 
 	/* XXX unpackImage frees image buffers */
 	ED_preview_kill_jobs(C);
@@ -876,10 +902,10 @@ static int image_replace_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(eve
 	if(!sima->image)
 		return OPERATOR_CANCELLED;
 
-	if(RNA_property_is_set(op->ptr, "filepath"))
+	if(RNA_struct_property_is_set(op->ptr, "filepath"))
 		return image_replace_exec(C, op);
 
-	if(!RNA_property_is_set(op->ptr, "relative_path"))
+	if(!RNA_struct_property_is_set(op->ptr, "relative_path"))
 		RNA_boolean_set(op->ptr, "relative_path", (strncmp(sima->image->name, "//", 2))==0);
 
 	image_filesel(C, op, sima->image->name);
@@ -902,7 +928,7 @@ void IMAGE_OT_replace(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH|WM_FILESEL_RELPATH);
+	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH|WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 }
 
 /******************** save image as operator ********************/
@@ -1011,7 +1037,7 @@ static void save_image_options_from_op(SaveImageOptions *simopts, wmOperator *op
 		simopts->im_format= *(ImageFormatData *)op->customdata;
 	}
 
-	if (RNA_property_is_set(op->ptr, "filepath")) {
+	if (RNA_struct_property_is_set(op->ptr, "filepath")) {
 		RNA_string_get(op->ptr, "filepath", simopts->filepath);
 		BLI_path_abs(simopts->filepath, G.main->name);
 	}
@@ -1176,7 +1202,7 @@ static int image_save_as_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(eve
 	Scene *scene= CTX_data_scene(C);
 	SaveImageOptions simopts;
 
-	if(RNA_property_is_set(op->ptr, "filepath"))
+	if(RNA_struct_property_is_set(op->ptr, "filepath"))
 		return image_save_as_exec(C, op);
 
 	if (save_image_options_init(&simopts, sima, scene, TRUE) == 0)
@@ -1184,7 +1210,7 @@ static int image_save_as_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(eve
 	save_image_options_to_op(&simopts, op);
 
 	/* enable save_copy by default for render results */
-	if(ELEM(ima->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE) && !RNA_property_is_set(op->ptr, "copy")) {
+	if(ELEM(ima->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE) && !RNA_struct_property_is_set(op->ptr, "copy")) {
 		RNA_boolean_set(op->ptr, "copy", TRUE);
 	}
 
@@ -1252,7 +1278,7 @@ void IMAGE_OT_save_as(wmOperatorType *ot)
 	/* properties */
 	RNA_def_boolean(ot->srna, "copy", 0, "Copy", "Create a new image file without modifying the current image in blender");
 
-	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE|MOVIEFILE, FILE_SPECIAL, FILE_SAVE, WM_FILESEL_FILEPATH|WM_FILESEL_RELPATH);
+	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE|MOVIEFILE, FILE_SPECIAL, FILE_SAVE, WM_FILESEL_FILEPATH|WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 }
 
 /******************** save image operator ********************/
@@ -1676,7 +1702,7 @@ static int image_unpack_exec(bContext *C, wmOperator *op)
 	int method= RNA_enum_get(op->ptr, "method");
 
 	/* find the suppplied image by name */
-	if (RNA_property_is_set(op->ptr, "id")) {
+	if (RNA_struct_property_is_set(op->ptr, "id")) {
 		char imaname[MAX_ID_NAME-2];
 		RNA_string_get(op->ptr, "id", imaname);
 		ima = BLI_findstring(&CTX_data_main(C)->image, imaname, offsetof(ID, name) + 2);
@@ -1708,7 +1734,7 @@ static int image_unpack_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(even
 {
 	Image *ima= CTX_data_edit_image(C);
 
-	if(RNA_property_is_set(op->ptr, "id"))
+	if(RNA_struct_property_is_set(op->ptr, "id"))
 		return image_unpack_exec(C, op);
 		
 	if(!ima || !ima->packedfile)
@@ -1754,12 +1780,12 @@ typedef struct ImageSampleInfo {
 	int x, y;
 	int channels;
 
-	char col[4];
+	unsigned char col[4];
 	float colf[4];
 	int z;
 	float zf;
 
-	char *colp;
+	unsigned char *colp;
 	float *colfp;
 	int *zp;
 	float *zfp;
@@ -1772,7 +1798,7 @@ static void image_sample_draw(const bContext *UNUSED(C), ARegion *ar, void *arg_
 	ImageSampleInfo *info= arg_info;
 	if(info->draw) {
 		/* no color management needed for images (color_manage=0) */
-		draw_image_info(ar, 0, info->channels, info->x, info->y, info->colp, info->colfp, info->zp, info->zfp);
+		ED_image_draw_info(ar, 0, info->channels, info->x, info->y, info->colp, info->colfp, info->zp, info->zfp);
 	}
 }
 
@@ -1794,7 +1820,7 @@ static void image_sample_apply(bContext *C, wmOperator *op, wmEvent *event)
 
 	if(fx>=0.0f && fy>=0.0f && fx<1.0f && fy<1.0f) {
 		float *fp;
-		char *cp;
+		unsigned char *cp;
 		int x= (int)(fx*ibuf->x), y= (int)(fy*ibuf->y);
 
 		CLAMP(x, 0, ibuf->x-1);
@@ -1811,7 +1837,7 @@ static void image_sample_apply(bContext *C, wmOperator *op, wmEvent *event)
 		info->zfp= NULL;
 		
 		if(ibuf->rect) {
-			cp= (char *)(ibuf->rect + y*ibuf->x + x);
+			cp= (unsigned char *)(ibuf->rect + y*ibuf->x + x);
 
 			info->col[0]= cp[0];
 			info->col[1]= cp[1];
@@ -1947,7 +1973,7 @@ void IMAGE_OT_sample(wmOperatorType *ot)
 	ot->invoke= image_sample_invoke;
 	ot->modal= image_sample_modal;
 	ot->cancel= image_sample_cancel;
-	ot->poll= space_image_main_area_poll;
+	ot->poll= space_image_image_sample_poll;
 
 	/* flags */
 	ot->flag= OPTYPE_BLOCKING;
@@ -2016,14 +2042,14 @@ static int image_sample_line_exec(bContext *C, wmOperator *op)
 				hist->data_r[i] = rgb[0];
 				hist->data_g[i] = rgb[1];
 				hist->data_b[i] = rgb[2];
-				hist->data_luma[i] = (0.299f*rgb[0] + 0.587f*rgb[1] + 0.114f*rgb[2]);
+				hist->data_luma[i] = rgb_to_luma(rgb);
 			}
 			else if (ibuf->rect) {
 				cp= (unsigned char *)(ibuf->rect + y*ibuf->x + x);
 				hist->data_r[i] = (float)cp[0]/255.0f;
 				hist->data_g[i] = (float)cp[1]/255.0f;
 				hist->data_b[i] = (float)cp[2]/255.0f;
-				hist->data_luma[i] = (0.299f*cp[0] + 0.587f*cp[1] + 0.114f*cp[2])/255;
+				hist->data_luma[i] = (float)rgb_to_luma_byte(cp)/255.0f;
 			}
 		}
 	}
@@ -2084,7 +2110,7 @@ void IMAGE_OT_curves_point_set(wmOperatorType *ot)
 	ot->invoke= image_sample_invoke;
 	ot->modal= image_sample_modal;
 	ot->cancel= image_sample_cancel;
-	ot->poll= space_image_main_area_poll;
+	ot->poll= space_image_main_area_not_uv_brush_poll;
 
 	/* properties */
 	RNA_def_enum(ot->srna, "point", point_items, 0, "Point", "Set black point or white point for curves");

@@ -411,6 +411,34 @@ static void matrix_3x3_as_4x4(float mat[16])
 /*-----------------------CLASS-METHODS----------------------------*/
 
 //mat is a 1D array of floats - row[0][0], row[0][1], row[1][0], etc.
+PyDoc_STRVAR(C_Matrix_Identity_doc,
+".. classmethod:: Identity(size)\n"
+"\n"
+"   Create an identity matrix.\n"
+"\n"
+"   :arg size: The size of the identity matrix to construct [2, 4].\n"
+"   :type size: int\n"
+"   :return: A new identity matrix.\n"
+"   :rtype: :class:`Matrix`\n"
+);
+static PyObject *C_Matrix_Identity(PyObject *cls, PyObject *args)
+{
+	int matSize;
+
+	if (!PyArg_ParseTuple(args, "i:Matrix.Identity", &matSize)) {
+		return NULL;
+	}
+
+	if (matSize < 2 || matSize > 4) {
+		PyErr_SetString(PyExc_RuntimeError,
+						"Matrix.Identity(): "
+						"size must be between 2 and 4");
+		return NULL;
+	}
+
+	return Matrix_CreatePyObject(NULL, matSize, matSize, Py_NEW, (PyTypeObject *)cls);
+}
+
 PyDoc_STRVAR(C_Matrix_Rotation_doc,
 ".. classmethod:: Rotation(angle, size, axis)\n"
 "\n"
@@ -1534,7 +1562,7 @@ static PyObject *Matrix_str(MatrixObject *self)
 	int maxsize[MATRIX_MAX_DIM];
 	int row, col;
 
-	char dummy_buf[1];
+	char dummy_buf[64];
 
 	if (BaseMath_ReadCallback(self) == -1)
 		return NULL;
@@ -1556,7 +1584,7 @@ static PyObject *Matrix_str(MatrixObject *self)
 		for (col = 0; col < self->num_col; col++) {
 			BLI_dynstr_appendf(ds, col ? ", %*.4f" : "%*.4f", maxsize[col], MATRIX_ITEM(self, row, col));
 		}
-		BLI_dynstr_append(ds, row + 1 != self->num_row ? ")\n             " : ")");
+		BLI_dynstr_append(ds, row + 1 != self->num_row ? ")\n            (" : ")");
 	}
 	BLI_dynstr_append(ds, ">");
 
@@ -1939,13 +1967,6 @@ static PyObject *Matrix_mul(PyObject *m1, PyObject *m2)
 	             Py_TYPE(m1)->tp_name, Py_TYPE(m2)->tp_name);
 	return NULL;
 }
-static PyObject *Matrix_inv(MatrixObject *self)
-{
-	if (BaseMath_ReadCallback(self) == -1)
-		return NULL;
-
-	return Matrix_invert(self);
-}
 
 /*-----------------PROTOCOL DECLARATIONS--------------------------*/
 static PySequenceMethods Matrix_SeqMethods = {
@@ -2049,7 +2070,7 @@ static PyNumberMethods Matrix_NumMethods = {
 		(unaryfunc) 	0,	/*tp_positive*/
 		(unaryfunc) 	0,	/*tp_absolute*/
 		(inquiry)	0,	/*tp_bool*/
-		(unaryfunc)	Matrix_inv,	/*nb_invert*/
+		(unaryfunc)	Matrix_inverted,	/*nb_invert*/
 		NULL,				/*nb_lshift*/
 		(binaryfunc)0,	/*nb_rshift*/
 		NULL,				/*nb_and*/
@@ -2253,6 +2274,7 @@ static struct PyMethodDef Matrix_methods[] = {
 	{"__copy__", (PyCFunction) Matrix_copy, METH_NOARGS, Matrix_copy_doc},
 
 	/* class methods */
+	{"Identity", (PyCFunction) C_Matrix_Identity, METH_VARARGS | METH_CLASS, C_Matrix_Identity_doc},
 	{"Rotation", (PyCFunction) C_Matrix_Rotation, METH_VARARGS | METH_CLASS, C_Matrix_Rotation_doc},
 	{"Scale", (PyCFunction) C_Matrix_Scale, METH_VARARGS | METH_CLASS, C_Matrix_Scale_doc},
 	{"Shear", (PyCFunction) C_Matrix_Shear, METH_VARARGS | METH_CLASS, C_Matrix_Shear_doc},

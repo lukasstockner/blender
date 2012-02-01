@@ -47,6 +47,7 @@
 #include "MOD_boolean_util.h"
 #include "MOD_util.h"
 
+#include "PIL_time.h"
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
@@ -137,8 +138,12 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		result = get_quick_derivedMesh(derivedData, dm, bmd->operation);
 
 		if(result == NULL) {
+			// TIMEIT_START(NewBooleanDerivedMesh)
+
 			result = NewBooleanDerivedMesh(dm, bmd->object, derivedData, ob,
 					1 + bmd->operation);
+
+			// TIMEIT_END(NewBooleanDerivedMesh)
 		}
 
 		/* if new mesh returned, return it; otherwise there was

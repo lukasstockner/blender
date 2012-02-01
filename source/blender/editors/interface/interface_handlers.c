@@ -1115,8 +1115,7 @@ static void ui_but_copy_paste(bContext *C, uiBut *but, uiHandleButtonData *data,
 {
 	static ColorBand but_copypaste_coba = {0};
 	char buf[UI_MAX_DRAW_STR+1]= {0};
-	double val;
-	
+
 	if(mode=='v' && but->lock)
 		return;
 
@@ -1140,17 +1139,16 @@ static void ui_but_copy_paste(bContext *C, uiBut *but, uiHandleButtonData *data,
 		
 		if(but->poin==NULL && but->rnapoin.data==NULL);
 		else if(mode=='c') {
-			if(ui_is_but_float(but))
-				BLI_snprintf(buf, sizeof(buf), "%f", ui_get_but_val(but));
-			else
-				BLI_snprintf(buf, sizeof(buf), "%d", (int)ui_get_but_val(but));
-
+			ui_get_but_string(but, buf, sizeof(buf));
 			WM_clipboard_text_set(buf, 0);
 		}
 		else {
-			if (sscanf(buf, " %lf ", &val) == 1) {
+			double val;
+
+			if (ui_set_but_string_eval_num(C, but, buf, &val)) {
 				button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
 				data->value= val;
+				ui_set_but_string(C, but, buf);
 				button_activate_state(C, but, BUTTON_STATE_EXIT);
 			}
 		}
@@ -1529,6 +1527,8 @@ static void ui_textedit_move(uiBut *but, uiHandleButtonData *data, int direction
 	const int pos_prev= but->pos;
 	const int has_sel= (but->selend - but->selsta) > 0;
 
+	ui_check_but(but);
+
 	/* special case, quit selection and set cursor */
 	if (has_sel && !select) {
 		if (jump == BUTTON_EDIT_JUMP_ALL) {
@@ -1703,8 +1703,9 @@ static int ui_textedit_copypaste(uiBut *but, uiHandleButtonData *data, int paste
 			changed= 1;
 		}
 
-		if(pbuf)
+		if (pbuf) {
 			MEM_freeN(pbuf);
+		}
 	}
 	/* cut & copy */
 	else if (copy || cut) {
@@ -3031,12 +3032,28 @@ static int ui_do_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data, wm
 				data->value= ui_step_name_menu(but, -1);
 				button_activate_state(C, but, BUTTON_STATE_EXIT);
 				ui_apply_button(C, but->block, but, data, 1);
+
+				/* button's state need to be changed to EXIT so moving mouse away from this mouse wouldn't lead
+				 * to cancel changes made to this button, but shanging state to EXIT also makes no button active for
+				 * a while which leads to triggering operator when doing fast scrolling mouse wheel.
+				 * using post activate stuff from button allows to make button be active again after checking for all
+				 * all that mouse leave and cancel stuff, so wuick scrool wouldnt't be an issue anumore.
+				 * same goes for scrolling wheel in another direction below (sergey)
+				 */
+				data->postbut= but;
+				data->posttype= BUTTON_ACTIVATE_OVER;
+
 				return WM_UI_HANDLER_BREAK;
 			}
 			else if(event->type == WHEELUPMOUSE && event->alt) {
 				data->value= ui_step_name_menu(but, 1);
 				button_activate_state(C, but, BUTTON_STATE_EXIT);
 				ui_apply_button(C, but->block, but, data, 1);
+
+				/* why this is needed described above */
+				data->postbut= but;
+				data->posttype= BUTTON_ACTIVATE_OVER;
+
 				return WM_UI_HANDLER_BREAK;
 			}
 		}
@@ -4383,29 +4400,19 @@ static void but_shortcut_name_func(bContext *C, void *arg1, int UNUSED(event))
 	uiBut *but = (uiBut *)arg1;
 
 	if (but->optype) {
-		char buf[512], *cpoin;
+		char shortcut_str[128];
 
 		IDProperty *prop= (but->opptr)? but->opptr->data: NULL;
 		
 		/* complex code to change name of button */
-		if(WM_key_event_operator_string(C, but->optype->idname, but->opcontext, prop, TRUE, buf, sizeof(buf))) {
-			char *butstr_orig;
-
-			// XXX but->str changed... should not, remove the hotkey from it
-			cpoin= strchr(but->str, '|');
-			if(cpoin) *cpoin= 0;		
-
-			butstr_orig= BLI_strdup(but->str);
-			BLI_snprintf(but->strdata, sizeof(but->strdata), "%s|%s", butstr_orig, buf);
-			MEM_freeN(butstr_orig);
-			but->str= but->strdata;
-
-			ui_check_but(but);
+		if(WM_key_event_operator_string(C, but->optype->idname, but->opcontext, prop, TRUE,
+		                                shortcut_str, sizeof(shortcut_str)))
+		{
+			ui_but_add_shortcut(but, shortcut_str, TRUE);
 		}
 		else {
-			/* shortcut was removed */
-			cpoin= strchr(but->str, '|');
-			if(cpoin) *cpoin= 0;
+			/* simply strip the shortcut */
+			ui_but_add_shortcut(but, NULL, TRUE);
 		}
 	}
 }

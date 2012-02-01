@@ -99,7 +99,7 @@ void get_texture_coords(MappingInfoModifierData *dmd, Object *ob,
 			char *done = MEM_callocN(sizeof(*done) * numVerts,
 			                         "get_texture_coords done");
 			int numFaces = dm->getNumFaces(dm);
-			char uvname[32];
+			char uvname[MAX_CUSTOMDATA_LAYER_NAME];
 			MTFace *tf;
 
 			CustomData_validate_layer_name(&dm->faceData, CD_MTFACE, dmd->uvlayer_name, uvname);
@@ -107,36 +107,19 @@ void get_texture_coords(MappingInfoModifierData *dmd, Object *ob,
 
 			/* verts are given the UV from the first face that uses them */
 			for(i = 0, mf = mface; i < numFaces; ++i, ++mf, ++tf) {
-				if(!done[mf->v1]) {
-					texco[mf->v1][0] = tf->uv[0][0];
-					texco[mf->v1][1] = tf->uv[0][1];
-					texco[mf->v1][2] = 0;
-					done[mf->v1] = 1;
-				}
-				if(!done[mf->v2]) {
-					texco[mf->v2][0] = tf->uv[1][0];
-					texco[mf->v2][1] = tf->uv[1][1];
-					texco[mf->v2][2] = 0;
-					done[mf->v2] = 1;
-				}
-				if(!done[mf->v3]) {
-					texco[mf->v3][0] = tf->uv[2][0];
-					texco[mf->v3][1] = tf->uv[2][1];
-					texco[mf->v3][2] = 0;
-					done[mf->v3] = 1;
-				}
-				if(!done[mf->v4]) {
-					texco[mf->v4][0] = tf->uv[3][0];
-					texco[mf->v4][1] = tf->uv[3][1];
-					texco[mf->v4][2] = 0;
-					done[mf->v4] = 1;
-				}
-			}
+				unsigned int fidx= mf->v4 ? 3:2;
 
-			/* remap UVs from [0, 1] to [-1, 1] */
-			for(i = 0; i < numVerts; ++i) {
-				texco[i][0] = texco[i][0] * 2 - 1;
-				texco[i][1] = texco[i][1] * 2 - 1;
+				do {
+					unsigned int vidx = *(&mf->v1 + fidx);
+
+					if (done[vidx] == 0) {
+						/* remap UVs from [0, 1] to [-1, 1] */
+						texco[vidx][0] = (tf->uv[fidx][0] * 2.0f) - 1.0f;
+						texco[vidx][1] = (tf->uv[fidx][1] * 2.0f) - 1.0f;
+						done[vidx] = 1;
+					}
+
+				} while (fidx--);
 			}
 
 			MEM_freeN(done);

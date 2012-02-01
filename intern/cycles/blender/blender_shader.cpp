@@ -142,6 +142,10 @@ static ShaderNode *add_node(BL::BlendData b_data, ShaderGraph *graph, BL::Shader
 			node = new GammaNode();
 			break;
 		}
+		case BL::ShaderNode::type_BRIGHTCONTRAST: {
+			node = new BrightContrastNode();
+			break;
+		}
 		case BL::ShaderNode::type_MIX_RGB: {
 			BL::ShaderNodeMixRGB b_mix_node(b_node);
 			MixNode *mix = new MixNode();
@@ -362,6 +366,13 @@ static ShaderNode *add_node(BL::BlendData b_data, ShaderGraph *graph, BL::Shader
 			wave->type = WaveTextureNode::type_enum[(int)b_wave_node.wave_type()];
 			get_tex_mapping(&wave->tex_mapping, b_wave_node.texture_mapping());
 			node = wave;
+			break;
+		}
+		case BL::ShaderNode::type_TEX_CHECKER: {
+			BL::ShaderNodeTexChecker b_checker_node(b_node);
+			CheckerTextureNode *checker = new CheckerTextureNode();
+			get_tex_mapping(&checker->tex_mapping, b_checker_node.texture_mapping());
+			node = checker;
 			break;
 		}
 		case BL::ShaderNode::type_TEX_NOISE: {
@@ -625,6 +636,7 @@ void BlenderSync::sync_materials()
 			ShaderGraph *graph = new ShaderGraph();
 
 			shader->name = b_mat->name().c_str();
+			shader->pass_id = b_mat->pass_index();
 
 			/* create nodes */
 			if(b_mat->use_nodes() && b_mat->node_tree()) {
@@ -693,9 +705,6 @@ void BlenderSync::sync_world()
 
 	if(background->modified(prevbackground))
 		background->tag_update(scene);
-
-	world_map = b_world.ptr.data;
-	world_recalc = false;
 }
 
 /* Sync Lamps */

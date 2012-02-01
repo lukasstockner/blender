@@ -143,6 +143,11 @@ public:
 	int depth;
 };
 
+class CheckerTextureNode : public TextureNode {
+public:
+	SHADER_NODE_CLASS(CheckerTextureNode)
+};
+
 class MappingNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(MappingNode)
@@ -313,6 +318,11 @@ public:
 class GammaNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(GammaNode)
+};
+
+class BrightContrastNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(BrightContrastNode)
 };
 
 class SeparateRGBNode : public ShaderNode {

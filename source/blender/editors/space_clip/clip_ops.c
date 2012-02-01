@@ -184,10 +184,10 @@ static int open_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 	if(clip)
 		path= clip->name;
 
-	if(!RNA_property_is_set(op->ptr, "relative_path"))
+	if(!RNA_struct_property_is_set(op->ptr, "relative_path"))
 		RNA_boolean_set(op->ptr, "relative_path", U.flag & USER_RELPATHS);
 
-	if(RNA_property_is_set(op->ptr, "filepath"))
+	if(RNA_struct_property_is_set(op->ptr, "filepath"))
 		return open_exec(C, op);
 
 	open_init(C, op);
@@ -213,20 +213,17 @@ void CLIP_OT_open(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH|WM_FILESEL_RELPATH);
+	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH|WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 }
 
 /******************* reload clip operator *********************/
 
 static int reload_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	SpaceClip *sc= CTX_wm_space_clip(C);
 	MovieClip *clip= CTX_data_edit_movieclip(C);
 
 	if(!clip)
 		return OPERATOR_CANCELLED;
-
-	sc->scopes.ok= 0;
 
 	BKE_movieclip_reload(clip);
 
@@ -837,6 +834,27 @@ static void proxy_freejob(void *pjv)
 	MEM_freeN(pj);
 }
 
+static int proxy_bitflag_to_array(int size_flag, int build_sizes[4], int undistort)
+{
+	int build_count = 0;
+	int size_flags[2][4] = {{MCLIP_PROXY_SIZE_25,
+	                         MCLIP_PROXY_SIZE_50,
+                             MCLIP_PROXY_SIZE_75,
+                             MCLIP_PROXY_SIZE_100},
+                            {MCLIP_PROXY_UNDISTORTED_SIZE_25,
+                             MCLIP_PROXY_UNDISTORTED_SIZE_50,
+                             MCLIP_PROXY_UNDISTORTED_SIZE_75,
+                             MCLIP_PROXY_UNDISTORTED_SIZE_100}};
+	int size_nr = undistort ? 1 : 0;
+
+	if(size_flag & size_flags[size_nr][0]) build_sizes[build_count++]= MCLIP_PROXY_RENDER_SIZE_25;
+	if(size_flag & size_flags[size_nr][1]) build_sizes[build_count++]= MCLIP_PROXY_RENDER_SIZE_50;
+	if(size_flag & size_flags[size_nr][2]) build_sizes[build_count++]= MCLIP_PROXY_RENDER_SIZE_75;
+	if(size_flag & size_flags[size_nr][3]) build_sizes[build_count++]= MCLIP_PROXY_RENDER_SIZE_100;
+
+	return build_count;
+}
+
 /* only this runs inside thread */
 static void proxy_startjob(void *pjv, short *stop, short *do_update, float *progress)
 {
@@ -844,22 +862,23 @@ static void proxy_startjob(void *pjv, short *stop, short *do_update, float *prog
 	Scene *scene=pj->scene;
 	MovieClip *clip= pj->clip;
 	struct MovieDistortion *distortion= NULL;
-	int cfra, undistort;
-	short tc_flag, size_flag, quality, build_flag;
-	int sfra= SFRA, efra= EFRA;
+	short tc_flag, size_flag, quality;
+	int cfra, sfra= SFRA, efra= EFRA;
 	int build_sizes[4], build_count= 0;
+	int build_undistort_sizes[4], build_undistort_count= 0;
 
 	tc_flag= clip->proxy.build_tc_flag;
 	size_flag= clip->proxy.build_size_flag;
 	quality= clip->proxy.quality;
-	build_flag= clip->proxy.build_flag;
-	undistort= build_flag&MCLIP_PROXY_RENDER_UNDISTORT;
+
+	build_count= proxy_bitflag_to_array(size_flag, build_sizes, 0);
+	build_undistort_count= proxy_bitflag_to_array(size_flag, build_undistort_sizes, 1);
 
 	if(clip->source == MCLIP_SRC_MOVIE) {
 		if(clip->anim)
 			IMB_anim_index_rebuild(clip->anim, tc_flag, size_flag, quality, stop, do_update, progress);
 
-		if(!undistort) {
+		if(!build_undistort_count) {
 			return;
 		}
 		else {
@@ -868,20 +887,14 @@ static void proxy_startjob(void *pjv, short *stop, short *do_update, float *prog
 		}
 	}
 
-	if(size_flag&IMB_PROXY_25) build_sizes[build_count++]= MCLIP_PROXY_RENDER_SIZE_25;
-	if(size_flag&IMB_PROXY_50) build_sizes[build_count++]= MCLIP_PROXY_RENDER_SIZE_50;
-	if(size_flag&IMB_PROXY_75) build_sizes[build_count++]= MCLIP_PROXY_RENDER_SIZE_75;
-	if(size_flag&IMB_PROXY_100) build_sizes[build_count++]= MCLIP_PROXY_RENDER_SIZE_100;
-
-	if(undistort)
+	if(build_undistort_count)
 		distortion= BKE_tracking_distortion_create();
 
 	for(cfra= sfra; cfra<=efra; cfra++) {
 		if(clip->source != MCLIP_SRC_MOVIE)
 			BKE_movieclip_build_proxy_frame(clip, pj->clip_flag, NULL, cfra, build_sizes, build_count, 0);
 
-		if(undistort)
-			BKE_movieclip_build_proxy_frame(clip, pj->clip_flag, distortion, cfra, build_sizes, build_count, 1);
+		BKE_movieclip_build_proxy_frame(clip, pj->clip_flag, distortion, cfra, build_undistort_sizes, build_undistort_count, 1);
 
 		if(*stop || G.afbreek)
 			break;
@@ -1002,5 +1015,5 @@ void ED_operatormacros_clip(void)
 	ot->description = "Add new marker and slide it with mouse until mouse button release";
 	WM_operatortype_macro_define(ot, "CLIP_OT_add_marker");
 	otmacro= WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-	RNA_boolean_set(otmacro->ptr, "release_confirm", 1);
+	RNA_boolean_set(otmacro->ptr, "release_confirm", TRUE);
 }

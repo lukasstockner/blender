@@ -49,7 +49,7 @@ struct bGPdata;
 struct uiBlock;
 struct Image;
 
-#define NODE_MAXSTR 32
+#define NODE_MAXSTR 64
 
 typedef struct bNodeStack {
 	float vec[4];
@@ -82,7 +82,7 @@ typedef struct bNodeStack {
 typedef struct bNodeSocket {
 	struct bNodeSocket *next, *prev, *new_sock;
 	
-	char name[32];
+	char name[64];	/* MAX_NAME */
 	
 	void *storage;				/* custom storage */
 	
@@ -96,19 +96,21 @@ typedef struct bNodeSocket {
 	
 	/* execution data */
 	short stack_index;			/* local stack index */
-	short stack_type;			/* deprecated, kept for forward compatibility */
+	/* XXX deprecated, kept for forward compatibility */
+	short stack_type  DNA_DEPRECATED;
 	int resizemode;				/* compositor resize mode of the socket */
 	void *cache;				/* cached data from execution */
 	
 	/* internal data to retrieve relations and groups */
 	int own_index;				/* group socket identifiers, to find matching pairs after reading files */
-	int to_index  DNA_DEPRECATED;  /* XXX deprecated, only used for restoring old group node links */
+	/* XXX deprecated, only used for restoring old group node links */
+	int to_index  DNA_DEPRECATED;
 	struct bNodeSocket *groupsock;
 	
 	struct bNodeLink *link;		/* a link pointer, set in ntreeUpdateTree */
 
-	/* DEPRECATED only needed for do_versions */
-	bNodeStack ns;				/* custom data for inputs, only UI writes in this */
+	/* XXX deprecated, socket input values are stored in default_value now. kept for forward compatibility */
+	bNodeStack ns  DNA_DEPRECATED;	/* custom data for inputs, only UI writes in this */
 } bNodeSocket;
 
 /* sock->type */
@@ -140,6 +142,8 @@ typedef struct bNodeSocket {
 #define SOCK_COLLAPSED			64
 	/* hide socket value, if it gets auto default */
 #define SOCK_HIDE_VALUE			128
+	/* socket hidden automatically, to distinguish from manually hidden */
+#define SOCK_AUTO_HIDDEN		256
 
 typedef struct bNodePreview {
 	unsigned char *rect;
@@ -151,7 +155,7 @@ typedef struct bNodePreview {
 typedef struct bNode {
 	struct bNode *next, *prev, *new_node;
 	
-	char name[32];
+	char name[64];	/* MAX_NAME */
 	short type, flag;
 	short done, level;		/* both for dependency and sorting */
 	short lasty, menunr;	/* lasty: check preview render status, menunr: browse ID blocks */
@@ -169,7 +173,7 @@ typedef struct bNode {
 	
 	int update;				/* update flags */
 	
-	char label[32];			/* custom user-defined label */
+	char label[64];			/* custom user-defined label, MAX_NAME */
 	short custom1, custom2;	/* to be abused for buttons */
 	float custom3, custom4;
 	
@@ -430,7 +434,7 @@ typedef struct NodeHueSat {
 } NodeHueSat;
 
 typedef struct NodeImageFile {
-	char name[256];
+	char name[1024]; /* 1024 = FILE_MAX */
 	struct ImageFormatData im_format;
 	int sfra, efra;
 } NodeImageFile;
@@ -452,12 +456,12 @@ typedef struct NodeTwoFloats {
 } NodeTwoFloats;
 
 typedef struct NodeGeometry {
-	char uvname[32];
-	char colname[32];
+	char uvname[64];	/* MAX_CUSTOMDATA_LAYER_NAME */
+	char colname[64];
 } NodeGeometry;
 
 typedef struct NodeVertexCol {
-	char name[32];
+	char name[64];
 } NodeVertexCol;
 
 /* qdn: Defocus blur node */
@@ -531,6 +535,10 @@ typedef struct NodeTexImage {
 	int color_space, pad;
 } NodeTexImage;
 
+typedef struct NodeTexChecker {
+	NodeTexBase base;
+} NodeTexChecker;
+
 typedef struct NodeTexEnvironment {
 	NodeTexBase base;
 	int color_space, pad;
@@ -576,7 +584,7 @@ typedef struct NodeShaderAttribute {
 
 /* TEX_output */
 typedef struct TexNodeOutput {
-	char name[32];
+	char name[64];
 } TexNodeOutput;
 
 /* comp channel matte */

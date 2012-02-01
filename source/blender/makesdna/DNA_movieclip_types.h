@@ -51,20 +51,18 @@ typedef struct MovieClipUser {
 } MovieClipUser;
 
 typedef struct MovieClipProxy {
-	char dir[160];			/* custom directory for index and proxy files (defaults to BL_proxy) */
+	char dir[768];			/* custom directory for index and proxy files (defaults to BL_proxy) */
 
 	short tc;				/* time code in use */
 	short quality;			/* proxy build quality */
 	short build_size_flag;	/* size flags (see below) of all proxies to build */
 	short build_tc_flag;	/* time code flags (see below) of all tc indices to build */
-	short build_flag, pad;	/* other build flags */
-	char pad2[4];
 } MovieClipProxy;
 
 typedef struct MovieClip {
 	ID id;
 
-	char name[240];		/* file path */
+	char name[1024];		/* file path, 1024 = FILE_MAX */
 
 	int source;			/* sequence or movie */
 	int lastframe;		/* last accessed frame number */
@@ -98,8 +96,15 @@ typedef struct MovieClipScopes {
 	float slide_scale[2];			/* scale used for sliding from previewe area */
 } MovieClipScopes;
 
-/* MovieClipProxy->build_flag */
-#define MCLIP_PROXY_BUILD_UNDISTORT	1	/* build undistorted proxies as well */
+/* MovieClipProxy->build_size_flag */
+#define MCLIP_PROXY_SIZE_25		(1<<0)
+#define MCLIP_PROXY_SIZE_50		(1<<1)
+#define MCLIP_PROXY_SIZE_75		(1<<2)
+#define MCLIP_PROXY_SIZE_100	(1<<3)
+#define MCLIP_PROXY_UNDISTORTED_SIZE_25		(1<<4)
+#define MCLIP_PROXY_UNDISTORTED_SIZE_50		(1<<5)
+#define MCLIP_PROXY_UNDISTORTED_SIZE_75		(1<<6)
+#define MCLIP_PROXY_UNDISTORTED_SIZE_100	(1<<7)
 
 /* MovieClip->source */
 #define MCLIP_SRC_SEQUENCE	1

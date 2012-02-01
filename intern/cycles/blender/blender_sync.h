@@ -60,7 +60,7 @@ public:
 
 	/* get parameters */
 	static SceneParams get_scene_params(BL::Scene b_scene, bool background);
-	static SessionParams get_session_params(BL::Scene b_scene, bool background);
+	static SessionParams get_session_params(BL::UserPreferences b_userpref, BL::Scene b_scene, bool background);
 	static bool get_session_pause(BL::Scene b_scene, bool background);
 	static BufferParams get_buffer_params(BL::Scene b_scene, BL::RegionView3D b_rv3d, int width, int height);
 
@@ -80,6 +80,7 @@ private:
 	Mesh *sync_mesh(BL::Object b_ob, bool object_updated);
 	void sync_object(BL::Object b_parent, int b_index, BL::Object b_object, Transform& tfm, uint layer_flag);
 	void sync_light(BL::Object b_parent, int b_index, BL::Object b_ob, Transform& tfm);
+	void sync_background_light();
 
 	/* util */
 	void find_shader(BL::ID id, vector<uint>& used_shaders, int default_shader);

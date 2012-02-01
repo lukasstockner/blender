@@ -68,6 +68,9 @@
 #include "BL_System.h"
 #endif
 
+#include "RNA_access.h"
+#include "RNA_define.h"
+
 #include "view3d_intern.h"	// own include
 
 /* use this call when executing an operator,
@@ -120,7 +123,8 @@ struct SmoothViewStore {
 
 /* will start timer if appropriate */
 /* the arguments are the desired situation */
-void smooth_view(bContext *C, View3D *v3d, ARegion *ar, Object *oldcamera, Object *camera, float *ofs, float *quat, float *dist, float *lens)
+void smooth_view(bContext *C, View3D *v3d, ARegion *ar, Object *oldcamera, Object *camera,
+                 float *ofs, float *quat, float *dist, float *lens)
 {
 	wmWindowManager *wm= CTX_wm_manager(C);
 	wmWindow *win= CTX_wm_window(C);
@@ -466,12 +470,17 @@ void VIEW3D_OT_camera_to_view_selected(wmOperatorType *ot)
 
 
 static int view3d_setobjectascamera_exec(bContext *C, wmOperator *UNUSED(op))
-{
-	View3D *v3d = CTX_wm_view3d(C);
-	ARegion *ar= ED_view3d_context_region_unlock(C);
-	RegionView3D *rv3d= ar->regiondata; /* no NULL check is needed, poll checks */
+{	
+	View3D *v3d;
+	ARegion *ar;
+	RegionView3D *rv3d;
+
 	Scene *scene= CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
+
+	/* no NULL check is needed, poll checks */
+	ED_view3d_context_user_region(C, &v3d, &ar);
+	rv3d = ar->regiondata;
 
 	if(ob) {
 		Object *camera_old= (rv3d->persp == RV3D_CAMOB) ? V3D_CAMERA_SCENE(scene, v3d) : NULL;
@@ -489,9 +498,12 @@ static int view3d_setobjectascamera_exec(bContext *C, wmOperator *UNUSED(op))
 	return OPERATOR_FINISHED;
 }
 
-int ED_operator_rv3d_unlock_poll(bContext *C)
+int ED_operator_rv3d_user_region_poll(bContext *C)
 {
-	return ED_view3d_context_region_unlock(C) != NULL;
+	View3D *v3d_dummy;
+	ARegion *ar_dummy;
+
+	return ED_view3d_context_user_region(C, &v3d_dummy, &ar_dummy);
 }
 
 void VIEW3D_OT_object_as_camera(wmOperatorType *ot)
@@ -504,7 +516,7 @@ void VIEW3D_OT_object_as_camera(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= view3d_setobjectascamera_exec;
-	ot->poll= ED_operator_rv3d_unlock_poll;
+	ot->poll= ED_operator_rv3d_user_region_poll;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -938,21 +950,27 @@ void project_short_noclip(ARegion *ar, const float vec[3], short adr[2])
 	}
 }
 
-void project_float(ARegion *ar, const float vec[3], float adr[2])
+void apply_project_float(float persmat[4][4], int winx, int winy, const float vec[3], float adr[2])
 {
-	RegionView3D *rv3d= ar->regiondata;
 	float vec4[4];
-	
+
 	copy_v3_v3(vec4, vec);
 	vec4[3]= 1.0;
 	adr[0]= IS_CLIPPED;
-	
-	mul_m4_v4(rv3d->persmat, vec4);
-	
+
+	mul_m4_v4(persmat, vec4);
+
 	if(vec4[3] > (float)BL_NEAR_CLIP) {
-		adr[0] = (float)(ar->winx/2.0f)+(ar->winx/2.0f)*vec4[0]/vec4[3];
-		adr[1] = (float)(ar->winy/2.0f)+(ar->winy/2.0f)*vec4[1]/vec4[3];
+		adr[0] = (float)(winx/2.0f)+(winx/2.0f)*vec4[0]/vec4[3];
+		adr[1] = (float)(winy/2.0f)+(winy/2.0f)*vec4[1]/vec4[3];
 	}
+}
+
+void project_float(ARegion *ar, const float vec[3], float adr[2])
+{
+	RegionView3D *rv3d= ar->regiondata;
+
+	apply_project_float(rv3d->persmat, ar->winx, ar->winy, vec, adr);
 }
 
 void project_float_noclip(ARegion *ar, const float vec[3], float adr[2])
@@ -990,7 +1008,8 @@ int ED_view3d_clip_range_get(View3D *v3d, RegionView3D *rv3d, float *clipsta, fl
 }
 
 /* also exposed in previewrender.c */
-int ED_view3d_viewplane_get(View3D *v3d, RegionView3D *rv3d, int winx, int winy, rctf *viewplane, float *clipsta, float *clipend)
+int ED_view3d_viewplane_get(View3D *v3d, RegionView3D *rv3d, int winx, int winy,
+                            rctf *viewplane, float *clipsta, float *clipend)
 {
 	CameraParams params;
 
@@ -1015,7 +1034,12 @@ void setwinmatrixview3d(ARegion *ar, View3D *v3d, rctf *rect)		/* rect: for pick
 	orth= ED_view3d_viewplane_get(v3d, rv3d, ar->winx, ar->winy, &viewplane, &clipsta, &clipend);
 	rv3d->is_persp= !orth;
 
-	//	printf("%d %d %f %f %f %f %f %f\n", winx, winy, viewplane.xmin, viewplane.ymin, viewplane.xmax, viewplane.ymax, clipsta, clipend);
+#if 0
+	printf("%s: %d %d %f %f %f %f %f %f\n", __func__, winx, winy,
+	       viewplane.xmin, viewplane.ymin, viewplane.xmax, viewplane.ymax,
+	       clipsta, clipend);
+#endif
+
 	x1= viewplane.xmin;
 	y1= viewplane.ymin;
 	x2= viewplane.xmax;
@@ -1838,4 +1862,43 @@ float ED_view3d_pixel_size(struct RegionView3D *rv3d, const float co[3])
 				rv3d->persmat[1][3]*co[1] +
 				rv3d->persmat[2][3]*co[2])
 			) * rv3d->pixsize;
+}
+
+/* view matrix properties utilities */
+
+void ED_view3d_operator_properties_viewmat(wmOperatorType *ot)
+{
+	PropertyRNA *prop;
+
+	prop = RNA_def_int(ot->srna, "region_width", 0, 0, INT_MAX, "Region Width", "", 0, INT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+
+	prop = RNA_def_int(ot->srna, "region_height", 0, 0, INT_MAX, "Region height", "", 0, INT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+
+	prop = RNA_def_float_matrix(ot->srna, "perspective_matrix", 4, 4, NULL, 0.0f, 0.0f, "", "Perspective Matrix", 0.0f, 0.0f);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+}
+
+void ED_view3d_operator_properties_viewmat_set(bContext *C, wmOperator *op)
+{
+	ARegion *ar= CTX_wm_region(C);
+	RegionView3D *rv3d= ED_view3d_context_rv3d(C);
+
+	if(!RNA_struct_property_is_set(op->ptr, "region_width"))
+		RNA_int_set(op->ptr, "region_width", ar->winx);
+
+	if(!RNA_struct_property_is_set(op->ptr, "region_height"))
+		RNA_int_set(op->ptr, "region_height", ar->winy);
+
+	if(!RNA_struct_property_is_set(op->ptr, "perspective_matrix"))
+		RNA_float_set_array(op->ptr, "perspective_matrix", (float *)rv3d->persmat);
+}
+
+void ED_view3d_operator_properties_viewmat_get(wmOperator *op, int *winx, int *winy, float persmat[4][4])
+{
+	*winx = RNA_int_get(op->ptr, "region_width");
+	*winy = RNA_int_get(op->ptr, "region_height");
+
+	RNA_float_get_array(op->ptr, "perspective_matrix", (float *)persmat);
 }

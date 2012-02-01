@@ -628,7 +628,7 @@ static uiBlock *operator_search_menu(bContext *C, ARegion *ar, void *arg_kmi)
 	/* fake button, it holds space for search items */
 	uiDefBut(block, LABEL, 0, "", 10, 15, 150, uiSearchBoxhHeight(), NULL, 0, 0, 0, 0, NULL);
 	
-	but= uiDefSearchBut(block, search, 0, ICON_VIEWZOOM, 256, 10, 0, 150, UI_UNIT_Y, 0, 0, "");
+	but= uiDefSearchBut(block, search, 0, ICON_VIEWZOOM, sizeof(search), 10, 0, 150, UI_UNIT_Y, 0, 0, "");
 	uiButSetSearchFunc(but, operator_search_cb, arg_kmi, operator_call_cb, ot);
 	
 	uiBoundsBlock(block, 6);
@@ -1022,6 +1022,8 @@ static void tselem_draw_icon(uiBlock *block, int xmax, float x, float y, TreeSto
 						UI_icon_draw(x, y, ICON_MOD_VERTEX_WEIGHT); break;
 					case eModifierType_DynamicPaint:
 						UI_icon_draw(x, y, ICON_MOD_DYNAMICPAINT); break;
+					case eModifierType_Ocean:
+						UI_icon_draw(x, y, ICON_MOD_WAVE); break;
 					default:
 						UI_icon_draw(x, y, ICON_DOT); break;
 				}
@@ -1258,8 +1260,10 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 		if ( (SEARCHING_OUTLINER(soops) || (soops->outlinevis==SO_DATABLOCKS && soops->search_string[0]!=0)) && 
 			 (tselem->flag & TSE_SEARCHMATCH)) 
 		{
-			/* TODO - add search highlight color to theme? */
-			glColor4f(0.2f, 0.5f, 0.2f, 0.3f);
+			char col[4];
+			UI_GetThemeColorType4ubv(TH_MATCH, SPACE_OUTLINER, col);
+			col[3]=100;
+			glColor4ubv((GLubyte *)col);
 			glRecti(startx, *starty+1, ar->v2d.cur.xmax, *starty+UI_UNIT_Y-1);
 		}
 
@@ -1513,8 +1517,8 @@ static void outliner_draw_tree(bContext *C, uiBlock *block, Scene *scene, ARegio
 	}
 	
 	/* always draw selection fill before hierarchy */
-	UI_GetThemeColor3fv(TH_BACK, col);
-	glColor3f(col[0]+0.06f, col[1]+0.08f, col[2]+0.10f);
+	UI_GetThemeColor3fv(TH_SELECT_HIGHLIGHT, col);
+	glColor3fv(col);
 	starty= (int)ar->v2d.tot.ymax-UI_UNIT_Y-OL_Y_OFFSET;
 	outliner_draw_selection(ar, soops, &soops->tree, &starty);
 	
@@ -1649,7 +1653,7 @@ void draw_outliner(const bContext *C)
 
 	/* draw outliner stuff (background, hierachy lines and names) */
 	outliner_back(ar);
-	block= uiBeginBlock(C, ar, "outliner buttons", UI_EMBOSS);
+	block= uiBeginBlock(C, ar, __func__, UI_EMBOSS);
 	outliner_draw_tree((bContext *)C, block, scene, ar, soops);
 	
 	if(ELEM(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF)) {

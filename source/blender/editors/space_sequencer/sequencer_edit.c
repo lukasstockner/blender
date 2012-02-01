@@ -2711,8 +2711,8 @@ static int sequencer_swap_data_exec(bContext *C, wmOperator *op)
 	calc_sequence(scene, seq_act);
 	calc_sequence(scene, seq_other);
 
-	if(seq_act->sound)		sound_add_scene_sound(scene, seq_act, seq_act->startdisp, seq_act->enddisp, seq_act->startofs + seq_act->anim_startofs);
-	if(seq_other->sound)	sound_add_scene_sound(scene, seq_other, seq_other->startdisp, seq_other->enddisp, seq_other->startofs + seq_other->anim_startofs);
+	if(seq_act->sound)		sound_add_scene_sound_defaults(scene, seq_act);
+	if(seq_other->sound)	sound_add_scene_sound_defaults(scene, seq_other);
 
 	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER, scene);
 
@@ -3034,10 +3034,10 @@ static int sequencer_change_path_invoke(bContext *C, wmOperator *op, wmEvent *UN
 
 	/* set default display depending on seq type */
 	if(seq->type == SEQ_IMAGE) {
-		RNA_boolean_set(op->ptr, "filter_movie", 0);
+		RNA_boolean_set(op->ptr, "filter_movie", FALSE);
 	}
 	else {
-		RNA_boolean_set(op->ptr, "filter_image", 0);
+		RNA_boolean_set(op->ptr, "filter_image", FALSE);
 	}
 
 	WM_event_add_fileselect(C, op);
@@ -3060,5 +3060,5 @@ void SEQUENCER_OT_change_path(struct wmOperatorType *ot)
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
-	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_DIRECTORY|WM_FILESEL_RELPATH|WM_FILESEL_FILEPATH|WM_FILESEL_FILES);
+	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_DIRECTORY|WM_FILESEL_RELPATH|WM_FILESEL_FILEPATH|WM_FILESEL_FILES, FILE_DEFAULTDISPLAY);
 }

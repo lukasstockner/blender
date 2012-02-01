@@ -587,11 +587,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             layout.prop(md, "use_keep_above_surface")
 
     def SIMPLE_DEFORM(self, layout, ob, md):
-        split = layout.split()
 
-        col = split.column()
-        col.label(text="Mode:")
-        col.prop(md, "deform_method", text="")
+        layout.row().prop(md, "deform_method", expand=True)
+
+        split = layout.split()
 
         col = split.column()
         col.label(text="Vertex Group:")
@@ -610,7 +609,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.label(text="Deform:")
         col.prop(md, "factor")
         col.prop(md, "limits", slider=True)
-        if md.deform_method in {'TAPER', 'STRETCH'}:
+        if md.deform_method in {'TAPER', 'STRETCH', 'TWIST'}:
             col.prop(md, "lock_x")
             col.prop(md, "lock_y")
 
@@ -815,12 +814,13 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
     def REMESH(self, layout, ob, md):
         layout.prop(md, "mode")
-
-        layout.prop(md, "octree_depth")
-        layout.prop(md, "scale")
+        
         row = layout.row()
-        row.active = md.mode == "SHARP"
-        row.prop(md, "sharpness")
+        row.prop(md, "octree_depth")
+        row.prop(md, "scale")
+
+        if md.mode == "SHARP":
+            layout.prop(md, "sharpness")
 
         layout.prop(md, "remove_disconnected_pieces")
         row = layout.row()

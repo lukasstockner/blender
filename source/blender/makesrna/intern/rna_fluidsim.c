@@ -304,7 +304,7 @@ static void rna_def_fluidsim_domain(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_fluid_find_enframe");
 
 	prop= RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
-	RNA_def_property_string_maxlength(prop, 240);
+	RNA_def_property_string_maxlength(prop, FILE_MAX);
 	RNA_def_property_string_sdna(prop, NULL, "surfdataPath");
 	RNA_def_property_ui_text(prop, "Path", "Directory (and/or filename prefix) to store baked fluid simulation files in");
 	RNA_def_property_update(prop, 0, "rna_fluid_update");
@@ -335,10 +335,20 @@ static void rna_def_fluidsim_domain(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0, 100);
 	RNA_def_property_ui_text(prop, "End Time", "Simulation time of the last blender frame (in seconds)");
 	
+	prop= RNA_def_property(srna, "frame_offset", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "frameOffset");
+	RNA_def_property_ui_text(prop, "Cache Offset", "Offset when reading baked cache");
+	RNA_def_property_update(prop, NC_OBJECT, "rna_fluid_update");
+	
 	prop= RNA_def_property(srna, "simulation_scale", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "realsize");
 	RNA_def_property_range(prop, 0.001, 10);
 	RNA_def_property_ui_text(prop, "Real World Size", "Size of the simulation domain in metres");
+	
+	prop= RNA_def_property(srna, "simulation_rate", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "animRate");
+	RNA_def_property_range(prop, 0.0, 100.0);
+	RNA_def_property_ui_text(prop, "Simulation Speed", "Fluid motion rate (0 = stationary, 1 = normal speed)");
 	
 	prop= RNA_def_property(srna, "viscosity_preset", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "viscosityMode");
@@ -381,7 +391,7 @@ static void rna_def_fluidsim_domain(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "surfaceSubdivs");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_range(prop, 0, 5);
-	RNA_def_property_ui_text(prop, "Surface Subdivisions", "Number of isosurface subdivisions (this is necessary for the inclusion of particles into the surface generation - WARNING: can lead to longer computation times !)");
+	RNA_def_property_ui_text(prop, "Surface Subdivisions", "Number of isosurface subdivisions (this is necessary for the inclusion of particles into the surface generation - WARNING: can lead to longer computation times !)");
 
 	prop= RNA_def_property(srna, "use_speed_vectors", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "domainNovecgen", 0);
@@ -554,7 +564,7 @@ static void rna_def_fluidsim_particle(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Alpha Influence", "Amount of particle alpha change, inverse of size influence: 0=off (all same alpha), 1=full (large particles get lower alphas, smaller ones higher values)");
 
 	prop= RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
-	RNA_def_property_string_maxlength(prop, 240);
+	RNA_def_property_string_maxlength(prop, FILE_MAX);
 	RNA_def_property_string_sdna(prop, NULL, "surfdataPath");
 	RNA_def_property_ui_text(prop, "Path", "Directory (and/or filename prefix) to store and load particles from");
 	RNA_def_property_update(prop, 0, "rna_fluid_update");
