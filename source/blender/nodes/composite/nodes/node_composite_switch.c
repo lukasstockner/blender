@@ -45,13 +45,13 @@ static bNodeSocketTemplate cmp_node_switch_out[]= {
 };
 
 /* custom1 = mix type */
-void register_node_type_cmp_switch(ListBase *lb)
+void register_node_type_cmp_switch(bNodeTreeType *ttype)
 {
 	static bNodeType ntype;
 
-	node_type_base(lb, &ntype, CMP_NODE_SWITCH, "Switch", NODE_CLASS_OP_COLOR, NODE_OPTIONS);
+	node_type_base(ttype, &ntype, CMP_NODE_SWITCH, "Switch", NODE_CLASS_OP_COLOR, NODE_OPTIONS);
 	node_type_socket_templates(&ntype, cmp_node_switch_in, cmp_node_switch_out);
 	node_type_size(&ntype, 110, 60, 120);
-	nodeRegisterType(lb, &ntype);
+	nodeRegisterType(ttype, &ntype);
 }
 

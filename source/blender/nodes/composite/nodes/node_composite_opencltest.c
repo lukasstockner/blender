@@ -41,15 +41,15 @@ static bNodeSocketTemplate cmp_node_opencltest_out[]= {
 	{	-1, 0, ""	}
 };
 
-void register_node_type_cmp_opencltest(ListBase *lb)
+void register_node_type_cmp_opencltest(bNodeTreeType *ttype)
 {
 	static bNodeType ntype;
 
-	node_type_base(lb, &ntype, CMP_NODE_OPENCLTEST, "OpenCL test", NODE_CLASS_INPUT, NODE_OPTIONS);
+	node_type_base(ttype, &ntype, CMP_NODE_OPENCLTEST, "OpenCL test", NODE_CLASS_INPUT, NODE_OPTIONS);
 	node_type_socket_templates(&ntype, NULL, cmp_node_opencltest_out);
 	node_type_size(&ntype, 140, 80, 140);
 
-	nodeRegisterType(lb, &ntype);
+	nodeRegisterType(ttype, &ntype);
 }
 
 

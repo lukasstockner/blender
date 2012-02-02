@@ -48,15 +48,12 @@ static bNodeSocketTemplate cmp_node_bokehblur_out[]= {
 	{	-1, 0, ""	}
 };
 
-void register_node_type_cmp_bokehblur(ListBase *lb)
+void register_node_type_cmp_bokehblur(bNodeTreeType *ttype)
 {
 	static bNodeType ntype;
 
-	node_type_base(lb, &ntype, CMP_NODE_BOKEHBLUR, "Bokeh blur", NODE_CLASS_OP_FILTER, NODE_OPTIONS);
+	node_type_base(ttype, &ntype, CMP_NODE_BOKEHBLUR, "Bokeh blur", NODE_CLASS_OP_FILTER, NODE_OPTIONS);
 	node_type_socket_templates(&ntype, cmp_node_bokehblur_in, cmp_node_bokehblur_out);
 	node_type_size(&ntype, 120, 80, 200);
-	nodeRegisterType(lb, &ntype);
+	nodeRegisterType(ttype, &ntype);
 }
-
-
-

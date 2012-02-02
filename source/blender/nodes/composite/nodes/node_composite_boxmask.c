@@ -57,17 +57,17 @@ static void node_composit_init_boxmask(bNodeTree *UNUSED(ntree), bNode* node, bN
     node->storage = data;
 }
 
-void register_node_type_cmp_boxmask(ListBase *lb)
+void register_node_type_cmp_boxmask(bNodeTreeType *ttype)
 {
 	static bNodeType ntype;
 
-        node_type_base(lb, &ntype, CMP_NODE_MASK_BOX, "Box mask", NODE_CLASS_MATTE, NODE_OPTIONS);
-		node_type_socket_templates(&ntype, cmp_node_boxmask_in, cmp_node_boxmask_out);
+	node_type_base(ttype, &ntype, CMP_NODE_MASK_BOX, "Box mask", NODE_CLASS_MATTE, NODE_OPTIONS);
+	node_type_socket_templates(&ntype, cmp_node_boxmask_in, cmp_node_boxmask_out);
 	node_type_size(&ntype, 120, 110, 160);
-        node_type_init(&ntype, node_composit_init_boxmask);
-        node_type_storage(&ntype, "NodeBoxMask", node_free_standard_storage, node_copy_standard_storage);
+	node_type_init(&ntype, node_composit_init_boxmask);
+	node_type_storage(&ntype, "NodeBoxMask", node_free_standard_storage, node_copy_standard_storage);
 
-	nodeRegisterType(lb, &ntype);
+	nodeRegisterType(ttype, &ntype);
 }
 
 
