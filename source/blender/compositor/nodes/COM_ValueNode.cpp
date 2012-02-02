@@ -31,7 +31,8 @@ ValueNode::ValueNode(bNode *editorNode): Node(editorNode) {
 void ValueNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context) {
 	SetValueOperation *operation = new SetValueOperation();
 	bNodeSocket* socket = this->getEditorOutputSocket(0);
+	bNodeSocketValueFloat *dval = (bNodeSocketValueFloat*)socket->default_value;
 	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());
-	operation->setValue(socket->ns.vec[0]);
+	operation->setValue(dval->value);
 	graph->addOperation(operation);
 }

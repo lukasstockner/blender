@@ -37,9 +37,10 @@ void NormalNode::convertToOperations(ExecutionSystem *graph, CompositorContext *
 
     SetVectorOperation * operationSet = new SetVectorOperation();
     bNodeSocket * insock = (bNodeSocket*)editorNode->outputs.first;
-    operationSet->setX(insock->ns.vec[0]);
-    operationSet->setY(insock->ns.vec[1]);
-    operationSet->setZ(insock->ns.vec[2]);
+    bNodeSocketValueVector *dval = (bNodeSocketValueVector*)insock->default_value;
+    operationSet->setX(dval->value[0]);
+    operationSet->setY(dval->value[1]);
+    operationSet->setZ(dval->value[2]);
     operationSet->setW(0.0f);
 
     outputSocket->relinkConnections(operationSet->getOutputSocket(0));

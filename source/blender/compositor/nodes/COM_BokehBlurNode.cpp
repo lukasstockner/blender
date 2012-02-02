@@ -54,7 +54,7 @@ void BokehBlurNode::convertToOperations(ExecutionSystem *graph, CompositorContex
 		this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), true, 0, graph);
 		this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), true, 1, graph);
 		this->getInputSocket(3)->relinkConnections(operation->getInputSocket(2), true, 3, graph);
-		operation->setSize(this->getInputSocket(2)->getbNodeSocket()->ns.vec[0]);
+		operation->setSize(((bNodeSocketValueFloat*)this->getInputSocket(2)->getbNodeSocket()->default_value)->value);
 		operation->setQuality(context->getQuality());
 		graph->addOperation(operation);
 		this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());

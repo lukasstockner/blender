@@ -35,7 +35,7 @@ void BlurNode::convertToOperations(ExecutionSystem *graph, CompositorContext * c
     bNode* editorNode = this->getbNode();
 	NodeBlurData * data = (NodeBlurData*)editorNode->storage;
 	const bNodeSocket *sock = this->getInputSocket(1)->getbNodeSocket();
-	const float size = sock->ns.vec[0];
+	const float size = ((const bNodeSocketValueFloat*)sock->default_value)->value;
 	if (!data->bokeh) {
 		GaussianXBlurOperation *operationx = new GaussianXBlurOperation();
 		operationx->setData(data);
