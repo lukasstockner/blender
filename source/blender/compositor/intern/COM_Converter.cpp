@@ -80,6 +80,7 @@
 #include "COM_DistanceMatteNode.h"
 #include "COM_ChromaMatteNode.h"
 #include "COM_ColorMatteNode.h"
+#include "COM_ChannelMatteNode.h"
 #include "COM_BlurNode.h"
 #include "COM_BokehBlurNode.h"
 #include "COM_DilateErodeNode.h"
@@ -254,6 +255,9 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_COLOR_MATTE:
 		node = new ColorMatteNode(bNode);
 		break;
+	case CMP_NODE_CHANNEL_MATTE:
+		node = new ChannelMatteNode(bNode);
+		break;
 	case CMP_NODE_BLUR:
 		node = new BlurNode(bNode);
 		break;
@@ -305,7 +309,6 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_VECBLUR:
 	case CMP_NODE_OUTPUT_FILE:
 	case CMP_NODE_COLOR_SPILL:
-	case CMP_NODE_CHANNEL_MATTE:
 	case CMP_NODE_DOUBLEEDGEMASK:
 	case CMP_NODE_DEFOCUS:
 	case CMP_NODE_CROP:
