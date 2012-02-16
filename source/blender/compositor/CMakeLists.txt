@@ -131,6 +131,8 @@ set(SRC
 	nodes/COM_TimeNode.h
 	nodes/COM_SwitchNode.cpp
 	nodes/COM_SwitchNode.h
+	nodes/COM_MovieClipNode.cpp
+	nodes/COM_MovieClipNode.h
 
 # output nodes
 		nodes/COM_CompositorNode.cpp
@@ -544,6 +546,12 @@ operations/COM_ConvertDepthToRadiusOperation.cpp
 	nodes/COM_OpenCLTestNode.h
 	operations/COM_OpenCLTestOperation.cpp
 	operations/COM_OpenCLTestOperation.h
+
+	operations/COM_MovieClipOperation.cpp
+	operations/COM_MovieClipOperation.h
+	operations/COM_ConvertColorProfileOperation.cpp
+	operations/COM_ConvertColorProfileOperation.h
+
 #     operations/COM_OpenCLKernels.cl.cpp
 )
 

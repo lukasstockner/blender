@@ -20,28 +20,28 @@
  *		Monique Dewanchand
  */
 
-#include "COM_CompositorContext.h"
-#include "COM_defines.h"
-#include <stdio.h>
+#include "COM_ConvertColorProfileOperation.h"
 
-CompositorContext::CompositorContext() {
-	this->scene = NULL;
-	this->quality = COM_QUALITY_HIGH;
-	this->hasActiveOpenCLDevices = false;
+extern "C" {
+	#include "IMB_imbuf.h"
+}
+ConvertColorProfileOperation::ConvertColorProfileOperation(): NodeOperation() {
+    this->addInputSocket(COM_DT_COLOR);
+    this->addOutputSocket(COM_DT_COLOR);
+    this->inputOperation = NULL;
+	this->predivided = false;
 }
 
-const int CompositorContext::getFramenumber() const {
-	if (this->scene) {
-		return this->scene->r.cfra;
-	} else {
-		return -1; /* this should never happen */
-	}
+void ConvertColorProfileOperation::initExecution() {
+	this->inputOperation = this->getInputSocketReader(0);
 }
 
-const int CompositorContext::isColorManaged() const {
-	if (this->scene) {
-		return this->scene->r.color_mgt_flag & R_COLOR_MANAGEMENT;
-	} else {
-		return 0; /* this should never happen */
-	}
+void ConvertColorProfileOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
+	float color[4];
+	inputOperation->read(color, x, y, inputBuffers);
+	IMB_buffer_float_from_float(outputValue, color, 4, this->toProfile, this->fromProfile, this->predivided, 1, 1, 0, 0);
+}
+
+void ConvertColorProfileOperation::deinitExecution() {
+    this->inputOperation = NULL;
 }

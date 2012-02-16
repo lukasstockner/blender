@@ -20,28 +20,18 @@
  *		Monique Dewanchand
  */
 
-#include "COM_CompositorContext.h"
-#include "COM_defines.h"
-#include <stdio.h>
+#include "COM_Node.h"
+#include "DNA_node_types.h"
 
-CompositorContext::CompositorContext() {
-	this->scene = NULL;
-	this->quality = COM_QUALITY_HIGH;
-	this->hasActiveOpenCLDevices = false;
-}
+/**
+  * @brief MovieClipNode
+  * @ingroup Node
+  */
+class MovieClipNode : public Node {
 
-const int CompositorContext::getFramenumber() const {
-	if (this->scene) {
-		return this->scene->r.cfra;
-	} else {
-		return -1; /* this should never happen */
-	}
-}
 
-const int CompositorContext::isColorManaged() const {
-	if (this->scene) {
-		return this->scene->r.color_mgt_flag & R_COLOR_MANAGEMENT;
-	} else {
-		return 0; /* this should never happen */
-	}
-}
+public:
+    MovieClipNode(bNode* editorNode);
+	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
+
+};

@@ -139,6 +139,8 @@ public:
 	}
 	
 	int getChunksize() {return this->getbNodeTree()->chunksize;}
+	
+	const int isColorManaged() const;
 };
 
 

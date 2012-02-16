@@ -101,6 +101,7 @@
 #include "COM_SwitchNode.h"
 #include "COM_OpenCLTestNode.h"
 #include "COM_GlareNode.h"
+#include "COM_MovieClipNode.h"
 
 Node* Converter::convert(bNode *bNode) {
 	Node * node;
@@ -304,6 +305,9 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_GLARE:
 		node = new GlareNode(bNode);
 		break;
+	case CMP_NODE_MOVIECLIP:
+		node = new MovieClipNode(bNode);
+		break;
 	/* not inplemented yet */
 	case CMP_NODE_MAP_VALUE:
 	case CMP_NODE_VECBLUR:
@@ -315,7 +319,6 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_BILATERALBLUR:
 	case CMP_NODE_PREMULKEY:
 	case CMP_NODE_VIEW_LEVELS:
-	case CMP_NODE_MOVIECLIP:
 	case CMP_NODE_TRANSFORM:
 	case CMP_NODE_STABILIZE2D:
 	case CMP_NODE_MOVIEDISTORTION:
