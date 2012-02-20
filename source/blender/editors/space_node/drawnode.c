@@ -1702,6 +1702,92 @@ static void node_composit_buts_view_levels(uiLayout *layout, bContext *UNUSED(C)
 	uiItemR(layout, ptr, "channel", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
 }
 
+static void node_composit_buts_colorcorrection(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiLayout *row;
+	
+	row = uiLayoutRow(layout, 0);
+	uiItemR(row, ptr, "red", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "green", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "blue", 0, NULL, ICON_NONE);
+	row = uiLayoutRow(layout, 0);
+	uiItemR(row, ptr, "midtones_start", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "midtones_end", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+
+	row = uiLayoutRow(layout, 0);
+	uiItemR(row, ptr, "master_saturation", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "master_contrast", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "master_gamma", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "master_gain", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "master_lift", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	row = uiLayoutRow(layout, 0);
+	uiItemL(row, "Saturation", 0);
+	uiItemL(row, "Contrast", 0);
+	uiItemL(row, "Gamma", 0);
+	uiItemL(row, "Gain", 0);
+	uiItemL(row, "Lift", 0);
+	row = uiLayoutRow(layout, 0);
+	uiItemR(row, ptr, "highlights_saturation", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "highlights_contrast", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "highlights_gamma", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "highlights_gain", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "highlights_lift", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	row = uiLayoutRow(layout, 0);
+	uiItemR(row, ptr, "midtones_saturation", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "midtones_contrast", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "midtones_gamma", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "midtones_gain", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "midtones_lift", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	row = uiLayoutRow(layout, 0);
+	uiItemR(row, ptr, "shadows_saturation", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "shadows_contrast", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "shadows_gamma", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "shadows_gain", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "shadows_lift", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+}
+static void node_composit_buts_colorcorrection_but(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr) {
+	uiLayout *row;
+	
+	row = uiLayoutRow(layout, 0);
+	uiItemR(row, ptr, "red", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "green", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "blue", 0, NULL, ICON_NONE);
+	row = layout;
+	uiItemL(row, "Saturation", 0);
+	uiItemR(row, ptr, "master_saturation", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "highlights_saturation", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "midtones_saturation", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "shadows_saturation", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+
+	uiItemL(row, "Contrast", 0);
+	uiItemR(row, ptr, "master_contrast", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "highlights_contrast", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "midtones_contrast", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "shadows_contrast", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+
+	uiItemL(row, "Gamma", 0);
+	uiItemR(row, ptr, "master_gamma", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "highlights_gamma", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "midtones_gamma", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "shadows_gamma", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+
+	uiItemL(row, "Gain", 0);
+	uiItemR(row, ptr, "master_gain", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "highlights_gain", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "midtones_gain", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "shadows_gain", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	
+	uiItemL(row, "Lift", 0);
+	uiItemR(row, ptr, "master_lift", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "highlights_lift", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "midtones_lift", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+	uiItemR(row, ptr, "shadows_lift", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+
+	row = uiLayoutRow(layout, 0);
+	uiItemR(row, ptr, "midtones_start", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "midtones_end", 0, NULL, ICON_NONE);
+}
+
 static void node_composit_buts_colorbalance(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *split, *col, *row;
@@ -2124,6 +2210,10 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 		case CMP_NODE_COLORBALANCE:
 			ntype->uifunc=node_composit_buts_colorbalance;
 			ntype->uifuncbut=node_composit_buts_colorbalance_but;
+			break;
+		case CMP_NODE_COLORCORRECTION:
+			ntype->uifunc=node_composit_buts_colorcorrection;
+			ntype->uifuncbut=node_composit_buts_colorcorrection_but;
 			break;
 		case CMP_NODE_HUECORRECT:
 			ntype->uifunc=node_composit_buts_huecorrect;

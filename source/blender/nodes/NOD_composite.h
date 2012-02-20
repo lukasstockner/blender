@@ -66,6 +66,7 @@ void register_node_type_cmp_invert(struct bNodeTreeType *ttype);
 void register_node_type_cmp_alphaover(struct bNodeTreeType *ttype);
 void register_node_type_cmp_zcombine(struct bNodeTreeType *ttype);
 void register_node_type_cmp_colorbalance(struct bNodeTreeType *ttype);
+void register_node_type_cmp_colorcorrection(struct bNodeTreeType *ttype);
 void register_node_type_cmp_huecorrect(struct bNodeTreeType *ttype);
 
 void register_node_type_cmp_normal(struct bNodeTreeType *ttype);

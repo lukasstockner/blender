@@ -1815,6 +1815,7 @@ static void registerCompositNodes(bNodeTreeType *ttype)
 	register_node_type_cmp_alphaover(ttype);
 	register_node_type_cmp_zcombine(ttype);
 	register_node_type_cmp_colorbalance(ttype);
+	register_node_type_cmp_colorcorrection(ttype);
 	register_node_type_cmp_huecorrect(ttype);
 	
 	register_node_type_cmp_normal(ttype);

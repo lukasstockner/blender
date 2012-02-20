@@ -161,7 +161,8 @@ DefNode( CompositorNode, CMP_NODE_DILATEERODE2,   def_cmp_dilate_erode2,  "DILAT
 DefNode( CompositorNode, CMP_NODE_MASK_BOX,       def_cmp_boxmask,        "BOXMASK"        ,BoxMask,          "Box mask",          ""              )
 DefNode( CompositorNode, CMP_NODE_MASK_ELLIPSE,   def_cmp_ellipsemask,    "ELLIPSEMASK"    ,EllipseMask,      "Ellipse mask",      ""              )
 DefNode( CompositorNode, CMP_NODE_BOKEHIMAGE,     def_cmp_bokehimage,     "BOKEHIMAGE"     ,BokehImage,       "Bokeh image",       ""              )
-DefNode( CompositorNode, CMP_NODE_SWITCH,         def_cmp_switch,         "SWITCH"         ,Switch,           "Switch",             ""             )
+DefNode( CompositorNode, CMP_NODE_SWITCH,         def_cmp_switch,         "SWITCH"         ,Switch,           "Switch",            ""             )
+DefNode( CompositorNode, CMP_NODE_COLORCORRECTION,def_cmp_colorcorrection,"COLORCORRECTION",ColorCorrection,  "ColorCorrection",   ""             )
                                                                                                                                                    
 DefNode( TextureNode,    TEX_NODE_OUTPUT,         def_tex_output,         "OUTPUT",         Output,           "Output",            ""              )
 DefNode( TextureNode,    TEX_NODE_CHECKER,        0,                      "CHECKER",        Checker,          "Checker",           ""              )
