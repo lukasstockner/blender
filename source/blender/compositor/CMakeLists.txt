@@ -286,7 +286,11 @@ nodes/COM_BoxMaskNode.cpp
 nodes/COM_BoxMaskNode.h
 nodes/COM_EllipseMaskNode.cpp
 nodes/COM_EllipseMaskNode.h
+nodes/COM_ColorSpillNode.cpp
+nodes/COM_ColorSpillNode.h
 
+operations/COM_ColorSpillOperation.cpp
+operations/COM_ColorSpillOperation.h
 		operations/COM_RenderLayersBaseProg.cpp
 		operations/COM_RenderLayersBaseProg.h
 		operations/COM_RenderLayersImageProg.cpp
