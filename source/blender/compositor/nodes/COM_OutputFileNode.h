@@ -20,28 +20,18 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_CompositorOperation_h
-#define _COM_CompositorOperation_h
-#include "COM_NodeOperation.h"
-#include "DNA_scene_types.h"
-#include "BLI_rect.h"
+#ifndef _COM_OutputFileNode_h
+#define _COM_OutputFileNode_h
 
-class CompositorOperation : public NodeOperation {
-private:
-	const Scene* scene;
-	const bNodeTree* tree;
-    float *outputBuffer;
-
-	SocketReader* imageInput;
-	SocketReader* alphaInput;
+#include "COM_Node.h"
+#include "DNA_node_types.h"
+/**
+  * @brief OutputFileNode
+  * @ingroup Node
+  */
+class OutputFileNode : public Node {
 public:
-    CompositorOperation();
-    void executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer** memoryBuffers);
-	void setScene(const Scene* scene) {this->scene = scene;}
-	void setbNodeTree(const bNodeTree* tree) {this->tree= tree;}
-	bool isOutputOperation(bool rendering) const {return rendering;}
-    void initExecution();
-    void deinitExecution();
-	const int getRenderPriority() const {return 7;}
+	OutputFileNode(bNode *editorNode);
+	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
 };
 #endif

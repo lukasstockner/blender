@@ -154,7 +154,7 @@ public:
 	  * @param clKernelsToCleanUp all created cl_kernel references must be added to this list. Framework will clean this after execution
 	  */
 	virtual void executeOpenCL(cl_context context,cl_program program, cl_command_queue queue, MemoryBuffer* outputMemoryBuffer, cl_mem clOutputBuffer, MemoryBuffer** inputMemoryBuffers, list<cl_mem> *clMemToCleanUp, list<cl_kernel> *clKernelsToCleanUp) {}
-	void deinitExecution();
+	virtual void deinitExecution();
 	void deinitMutex();
 
 	/**

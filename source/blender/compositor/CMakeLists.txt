@@ -133,6 +133,8 @@ set(SRC
 	nodes/COM_SwitchNode.h
 	nodes/COM_MovieClipNode.cpp
 	nodes/COM_MovieClipNode.h
+	nodes/COM_OutputFileNode.cpp
+	nodes/COM_OutputFileNode.h
 
 # output nodes
 		nodes/COM_CompositorNode.cpp
@@ -347,6 +349,8 @@ operations/COM_LensGlowImageOperation.h
 
 		operations/COM_CompositorOperation.h
 		operations/COM_CompositorOperation.cpp
+	operations/COM_OutputFileOperation.h
+	operations/COM_OutputFileOperation.cpp
 		operations/COM_ViewerBaseOperation.h
 		operations/COM_ViewerBaseOperation.cpp
 		operations/COM_ViewerOperation.h

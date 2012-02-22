@@ -103,6 +103,7 @@
 #include "COM_GlareNode.h"
 #include "COM_MovieClipNode.h"
 #include "COM_ColorSpillNode.h"
+#include "COM_OutputFileNode.h"
 
 Node* Converter::convert(bNode *bNode) {
 	Node * node;
@@ -312,10 +313,12 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_COLOR_SPILL:
 		node = new ColorSpillNode(bNode);
 		break;
+	case CMP_NODE_OUTPUT_FILE:
+		node = new OutputFileNode(bNode);
+		break;
 	/* not inplemented yet */
 	case CMP_NODE_MAP_VALUE:
 	case CMP_NODE_VECBLUR:
-	case CMP_NODE_OUTPUT_FILE:
 	case CMP_NODE_DOUBLEEDGEMASK:
 	case CMP_NODE_DEFOCUS:
 	case CMP_NODE_CROP:

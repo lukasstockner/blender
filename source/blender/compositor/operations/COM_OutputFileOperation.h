@@ -20,28 +20,30 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_CompositorOperation_h
-#define _COM_CompositorOperation_h
+#ifndef _COM_OutputFileOperation_h
+#define _COM_OutputFileOperation_h
 #include "COM_NodeOperation.h"
 #include "DNA_scene_types.h"
 #include "BLI_rect.h"
 
-class CompositorOperation : public NodeOperation {
+class OutputFileOperation : public NodeOperation {
 private:
-	const Scene* scene;
+	float *outputBuffer;
+	float *zBuffer;
+	const Scene *scene;
+	NodeImageFile *imageFile;
 	const bNodeTree* tree;
-    float *outputBuffer;
-
 	SocketReader* imageInput;
-	SocketReader* alphaInput;
+	SocketReader* zInput;
 public:
-    CompositorOperation();
-    void executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer** memoryBuffers);
-	void setScene(const Scene* scene) {this->scene = scene;}
-	void setbNodeTree(const bNodeTree* tree) {this->tree= tree;}
-	bool isOutputOperation(bool rendering) const {return rendering;}
-    void initExecution();
-    void deinitExecution();
+	OutputFileOperation();
+	void executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer** memoryBuffers);
+	bool isOutputOperation(bool rendering) const {return true;}
+	void initExecution();
+	void deinitExecution();
+	void setScene(const Scene*scene) {this->scene = scene;}
+	void setbNodeTree(const bNodeTree *tree) {this->tree= tree;}
+	void setNodeImageFile(NodeImageFile*file) {this->imageFile= file;}
 	const int getRenderPriority() const {return 7;}
 };
 #endif
