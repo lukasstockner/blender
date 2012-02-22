@@ -555,9 +555,9 @@ static  void ntree_composite_texnode(bNodeTree *ntree, int init)
 }
 
 /* optimized tree execute test for compositing */
-void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int do_preview)
+void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int rendering, int do_preview)
 {
-	COM_execute(ntree, !do_preview);
+	COM_execute(ntree, rendering);
 }
 
 /* *********************************************** */
