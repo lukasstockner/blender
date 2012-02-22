@@ -251,6 +251,8 @@ set(SRC
 	nodes/COM_NormalizeNode.h
 	nodes/COM_MathNode.cpp
 	nodes/COM_MathNode.h
+	nodes/COM_MapValueNode.cpp
+	nodes/COM_MapValueNode.h
 
 	operations/COM_NormalizeOperation.cpp
 	operations/COM_NormalizeOperation.h
@@ -489,6 +491,8 @@ operations/COM_ConvertDepthToRadiusOperation.cpp
 		operations/COM_InvertOperation.h
 	operations/COM_SetAlphaOperation.cpp
 	operations/COM_SetAlphaOperation.h
+	operations/COM_MapValueOperation.cpp
+	operations/COM_MapValueOperation.h
 
 # Distort operation
 		operations/COM_TranslateOperation.h
