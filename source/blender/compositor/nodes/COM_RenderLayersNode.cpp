@@ -82,12 +82,15 @@ void RenderLayersNode::testSocketConnection(ExecutionSystem* system, int outputS
 		}
 		if (data->angle != 0.0) {
 			RotateOperation * rotate = new RotateOperation();
-			rotate->setDegree(data->angle);
+			SetValueOperation * valueangle = new SetValueOperation();
+			valueangle->setValue(data->angle);
 			lastConnection->getOutputSocket()->relinkConnections(rotate->getOutputSocket());
+			addLink(system, valueangle->getOutputSocket(), rotate->getInputSocket(1));
 			addLink(system, lastConnection->getOutputSocket(), rotate->getInputSocket(0));
 			lastConnection = rotate;
 
 			system->addOperation(rotate);
+			system->addOperation(valueangle);
 		}
 		if (data->offsetx != 0 || data->offsety != 0) {
 			TranslateOperation * translate = new TranslateOperation();

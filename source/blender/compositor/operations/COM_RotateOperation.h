@@ -28,18 +28,19 @@
 class RotateOperation: public NodeOperation {
 private:
 	SocketReader *imageSocket;
-	float degree;
-    float centerX;
-    float centerY;
-    float cosine;
-    float sine;
+	SocketReader *degreeSocket;
+	float centerX;
+	float centerY;
+	float cosine;
+	float sine;
+	bool doDegree2RadConversion;
 public:
-    RotateOperation();
-    bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
+	RotateOperation();
+	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 	void executePixel(float *color, float x, float y, MemoryBuffer *inputBuffers[]);
-	void setDegree(float degree) {this->degree = degree;}
-    void initExecution();
-    void deinitExecution();
+	void initExecution();
+	void deinitExecution();
+	void setDoDegree2RadConversion(bool abool) {this->doDegree2RadConversion = abool;}
 };
 
 #endif

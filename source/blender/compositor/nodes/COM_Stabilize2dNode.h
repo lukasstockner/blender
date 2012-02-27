@@ -20,22 +20,15 @@
  *		Monique Dewanchand
  */
 
-#include "COM_RotateNode.h"
+#include "COM_Node.h"
+#include "DNA_node_types.h"
 
-#include "COM_RotateOperation.h"
-#include "COM_ExecutionSystem.h"
-
-RotateNode::RotateNode(bNode *editorNode) : Node(editorNode) {
-}
-
-void RotateNode::convertToOperations(ExecutionSystem *system, CompositorContext * context) {
-	InputSocket *inputSocket = this->getInputSocket(0);
-	InputSocket *inputDegreeSocket = this->getInputSocket(1);
-	OutputSocket *outputSocket = this->getOutputSocket(0);
-	RotateOperation *operation = new RotateOperation();
-	
-	inputSocket->relinkConnections(operation->getInputSocket(0), true, 0, system);
-	inputDegreeSocket->relinkConnections(operation->getInputSocket(1), true, 1, system);
-	outputSocket->relinkConnections(operation->getOutputSocket(0));
-	system->addOperation(operation);
-}
+/**
+  * @brief Stabilize2dNode
+  * @ingroup Node
+  */
+class Stabilize2dNode : public Node {
+public:
+	Stabilize2dNode(bNode* editorNode);
+	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
+};

@@ -45,9 +45,9 @@ void TranslateOperation::initExecution() {
 }
 
 void TranslateOperation::deinitExecution() {
-    this->inputOperation = NULL;
-    this->inputXOperation = NULL;
-    this->inputYOperation = NULL;
+	this->inputOperation = NULL;
+	this->inputXOperation = NULL;
+	this->inputYOperation = NULL;
 }
 
 
@@ -56,12 +56,12 @@ void TranslateOperation::executePixel(float *color,float x, float y, MemoryBuffe
 }
 
 bool TranslateOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
-    rcti newInput;
-
-    newInput.xmax = input->xmax - this->getDeltaX();
-    newInput.xmin = input->xmin - this->getDeltaX();
-    newInput.ymax = input->ymax - this->getDeltaY();
-    newInput.ymin = input->ymin - this->getDeltaY();
-
-    return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+	rcti newInput;
+	
+	newInput.xmax = input->xmax - this->getDeltaX();
+	newInput.xmin = input->xmin - this->getDeltaX();
+	newInput.ymax = input->ymax - this->getDeltaY();
+	newInput.ymin = input->ymin - this->getDeltaY();
+	
+	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 }

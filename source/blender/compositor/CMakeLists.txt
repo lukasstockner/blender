@@ -183,7 +183,10 @@ set(SRC
 		operations/COM_LensGlowOperation.h
 		operations/COM_LensGhostOperation.cpp
 		operations/COM_LensGhostOperation.h
-
+	nodes/COM_TransformNode.cpp
+	nodes/COM_TransformNode.h
+	nodes/COM_Stabilize2dNode.cpp
+	nodes/COM_Stabilize2dNode.h
 
 # color nodes
 		nodes/COM_VectorCurveNode.cpp
@@ -284,7 +287,8 @@ set(SRC
 	operations/COM_BlurBaseOperation.h
 	operations/COM_DirectionalBlurOperation.cpp
 	operations/COM_DirectionalBlurOperation.h
-
+	operations/COM_MovieClipAttributeOperation.cpp
+	operations/COM_MovieClipAttributeOperation.h
 # Matte nodes
 nodes/COM_BoxMaskNode.cpp
 nodes/COM_BoxMaskNode.h

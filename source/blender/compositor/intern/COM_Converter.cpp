@@ -105,6 +105,8 @@
 #include "COM_ColorSpillNode.h"
 #include "COM_OutputFileNode.h"
 #include "COM_MapValueNode.h"
+#include "COM_TransformNode.h"
+#include "COM_Stabilize2dNode.h"
 
 Node* Converter::convert(bNode *bNode) {
 	Node * node;
@@ -320,6 +322,12 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_MAP_VALUE:
 		node = new MapValueNode(bNode);
 		break;
+	case CMP_NODE_TRANSFORM:
+		node = new TransformNode(bNode);
+		break;
+	case CMP_NODE_STABILIZE2D:
+		node = new Stabilize2dNode(bNode);
+		break;
 	/* not inplemented yet */
 	case CMP_NODE_VECBLUR:
 	case CMP_NODE_DOUBLEEDGEMASK:
@@ -328,8 +336,6 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_BILATERALBLUR:
 	case CMP_NODE_PREMULKEY:
 	case CMP_NODE_VIEW_LEVELS:
-	case CMP_NODE_TRANSFORM:
-	case CMP_NODE_STABILIZE2D:
 	case CMP_NODE_MOVIEDISTORTION:
 	default:
 		node = new MuteNode(bNode);

@@ -79,7 +79,9 @@ void MovieClipOperation::executePixel(float *color, float x, float y, MemoryBuff
 		color[2] = 0.0f;
 		color[3] = 1.0f;
 	} else {
-		int offset = 4* (y*getWidth() + x);
+		int iy = y;
+		int ix = x;
+		int offset = 4* (iy*getWidth() + ix);
 		color[0] = this->movieClipBuffer->rect_float[offset];
 		color[1] = this->movieClipBuffer->rect_float[offset+1];
 		color[2] = this->movieClipBuffer->rect_float[offset+2];
