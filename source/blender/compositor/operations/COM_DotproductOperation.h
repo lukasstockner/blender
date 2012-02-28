@@ -31,7 +31,7 @@ private:
 	SocketReader *input2Operation;
 public:
     DotproductOperation();
-	void executePixel(float *color, float x, float y, MemoryBuffer *inputBuffers[]);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 
     void initExecution();
     void deinitExecution();

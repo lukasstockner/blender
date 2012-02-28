@@ -38,7 +38,7 @@ void MapUVOperation::initExecution() {
 	this->inputUVProgram = this->getInputSocketReader(1);
 }
 
-void MapUVOperation::executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]) {
+void MapUVOperation::executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	float inputUV[4];
 	float uv_a[4], uv_b[4];
 	float u,v;
@@ -47,7 +47,7 @@ void MapUVOperation::executePixel(float* color, float x, float y, MemoryBuffer *
 	float uv_l, uv_r;
 	float uv_u, uv_d;
 
-	this->inputUVProgram->read(inputUV, x, y, inputBuffers);
+	this->inputUVProgram->read(inputUV, x, y, sampler, inputBuffers);
 	if (inputUV[2] == 0.f) {
 		color[0] = 0.f;
 		color[1] = 0.f;
@@ -56,24 +56,24 @@ void MapUVOperation::executePixel(float* color, float x, float y, MemoryBuffer *
 	 return;
 	}
 	/* adaptive sampling, red (U) channel */
-	this->inputUVProgram->read(uv_a, x-1, y, inputBuffers);
-	this->inputUVProgram->read(uv_b, x+1, y, inputBuffers);
+	this->inputUVProgram->read(uv_a, x-1, y, COM_PS_NEAREST, inputBuffers);
+	this->inputUVProgram->read(uv_b, x+1, y, COM_PS_NEAREST, inputBuffers);
 	uv_l= uv_a[2]!=0.f? fabs(inputUV[0] - uv_a[0]) : 0.f;
 	uv_r= uv_b[2]!=0.f? fabs(inputUV[0] - uv_b[0]) : 0.f;
 
 	dx= 0.5f * (uv_l + uv_r);
 
 	/* adaptive sampling, green (V) channel */
-	this->inputUVProgram->read(uv_a, x, y-1, inputBuffers);
-	this->inputUVProgram->read(uv_b, x, y+1, inputBuffers);
+	this->inputUVProgram->read(uv_a, x, y-1, COM_PS_NEAREST, inputBuffers);
+	this->inputUVProgram->read(uv_b, x, y+1, COM_PS_NEAREST, inputBuffers);
 	uv_u= uv_a[2]!=0.f? fabs(inputUV[1] - uv_a[1]) : 0.f;
 	uv_d= uv_b[2]!=0.f? fabs(inputUV[1] - uv_b[1]) : 0.f;
 
 	dy= 0.5f * (uv_u + uv_d);
 
 	/* more adaptive sampling, red and green (UV) channels */
-	this->inputUVProgram->read(uv_a, x-1, y-1, inputBuffers);
-	this->inputUVProgram->read(uv_b, x-1, y+1, inputBuffers);
+	this->inputUVProgram->read(uv_a, x-1, y-1, COM_PS_NEAREST, inputBuffers);
+	this->inputUVProgram->read(uv_b, x-1, y+1, COM_PS_NEAREST, inputBuffers);
 	uv_l= uv_a[2]!=0.f? fabsf(inputUV[0] - uv_a[0]) : 0.f;
 	uv_r= uv_b[2]!=0.f? fabsf(inputUV[0] - uv_b[0]) : 0.f;
 	uv_u= uv_a[2]!=0.f? fabsf(inputUV[1] - uv_a[1]) : 0.f;
@@ -82,8 +82,8 @@ void MapUVOperation::executePixel(float* color, float x, float y, MemoryBuffer *
 	dx+= 0.25f * (uv_l + uv_r);
 	dy+= 0.25f * (uv_u + uv_d);
 
-	this->inputUVProgram->read(uv_a, x+1, y-1, inputBuffers);
-	this->inputUVProgram->read(uv_b, x+1, y+1, inputBuffers);
+	this->inputUVProgram->read(uv_a, x+1, y-1, COM_PS_NEAREST, inputBuffers);
+	this->inputUVProgram->read(uv_b, x+1, y+1, COM_PS_NEAREST, inputBuffers);
 	uv_l= uv_a[2]!=0.f? fabsf(inputUV[0] - uv_a[0]) : 0.f;
 	uv_r= uv_b[2]!=0.f? fabsf(inputUV[0] - uv_b[0]) : 0.f;
 	uv_u= uv_a[2]!=0.f? fabsf(inputUV[1] - uv_a[1]) : 0.f;

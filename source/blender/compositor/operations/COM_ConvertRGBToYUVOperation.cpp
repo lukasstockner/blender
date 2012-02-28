@@ -32,9 +32,9 @@ void ConvertRGBToYUVOperation::initExecution() {
 	this->inputOperation = this->getInputSocketReader(0);
 }
 
-void ConvertRGBToYUVOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
+void ConvertRGBToYUVOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	float inputColor[4];
-	inputOperation->read(inputColor, x, y, inputBuffers);
+	inputOperation->read(inputColor, x, y, sampler, inputBuffers);
 	rgb_to_yuv(inputColor[0], inputColor[1], inputColor[2], &outputValue[0], &outputValue[1], &outputValue[2]);
 	outputValue[3] = inputColor[3];
 }

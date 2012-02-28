@@ -51,7 +51,7 @@ public:
     /**
       * the inner loop of this program
       */
-	void executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]);
+	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 
 	void setMovieClip(MovieClip* clip) {this->clip = clip;}
 	void setFramenumber(int framenumber) {this->framenumber = framenumber;}

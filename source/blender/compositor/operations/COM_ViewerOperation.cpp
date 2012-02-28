@@ -78,9 +78,9 @@ void ViewerOperation::executeRegion(rcti *rect, unsigned int tileNumber, MemoryB
 
 	for (y = y1 ; y < y2 && (!breaked) ; y++) {
 		for (x = x1 ; x < x2; x++) {
-			imageInput->read(&(buffer[offset]), x, y, memoryBuffers);
+			imageInput->read(&(buffer[offset]), x, y, COM_PS_NEAREST, memoryBuffers);
 			if (alphaInput != NULL) {
-				alphaInput->read(alpha, x, y, memoryBuffers);
+				alphaInput->read(alpha, x, y, COM_PS_NEAREST, memoryBuffers);
 				buffer[offset+3] = alpha[0];
 			}
 			/// @todo: linear conversion only when scene color management is selected, also check predivide.

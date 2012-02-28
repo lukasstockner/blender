@@ -41,7 +41,7 @@ void ColorMatteOperation::deinitExecution() {
 	this->inputKeyProgram= NULL;
 }
 
-void ColorMatteOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
+void ColorMatteOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	float inColor[4];
 	float inKey[4];
 
@@ -51,8 +51,8 @@ void ColorMatteOperation::executePixel(float* outputValue, float x, float y, Mem
 
 	float h_wrap;
 
-	this->inputImageProgram->read(inColor, x, y, inputBuffers);
-	this->inputKeyProgram->read(inKey, x, y, inputBuffers);
+	this->inputImageProgram->read(inColor, x, y, sampler, inputBuffers);
+	this->inputKeyProgram->read(inKey, x, y, sampler, inputBuffers);
 
 
 	/* store matte(alpha) value in [0] to go with

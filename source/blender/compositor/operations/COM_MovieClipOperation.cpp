@@ -72,7 +72,7 @@ void MovieClipOperation::determineResolution(unsigned int resolution[], unsigned
 	}
 }
 
-void MovieClipOperation::executePixel(float *color, float x, float y, MemoryBuffer *inputBuffers[]) {
+void MovieClipOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	if (this->movieClipBuffer == NULL || x<0.0f || y < 0.0f || x >= getWidth() || y >= getHeight()) {
 		color[0] = 0.0f;
 		color[1] = 0.0f;

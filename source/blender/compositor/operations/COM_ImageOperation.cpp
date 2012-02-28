@@ -91,7 +91,7 @@ void BaseImageOperation::determineResolution(unsigned int resolution[], unsigned
     }
 }
 
-void ImageOperation::executePixel(float *color, float x, float y, MemoryBuffer *inputBuffers[]) {
+void ImageOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	int ix = x;
 	int iy = y;
 
@@ -167,7 +167,7 @@ void ImageOperation::executePixel(float *color, float x, float y, MemoryBuffer *
 	}
 }
 
-void ImageAlphaOperation::executePixel(float *color, float x, float y, MemoryBuffer *inputBuffers[]) {
+void ImageAlphaOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	int ix = x;
 	int iy = y;
 

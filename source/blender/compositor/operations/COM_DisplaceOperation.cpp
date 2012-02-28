@@ -62,9 +62,9 @@ void DisplaceOperation::executePixel(float* color, int x, int y, MemoryBuffer *i
 	float dxt, dyt;
 	float u, v;
 
-	this->inputScaleXProgram->read(inScale, x, y, inputBuffers);
+	this->inputScaleXProgram->read(inScale, x, y, COM_PS_NEAREST, inputBuffers);
 	float xs = inScale[0];
-	this->inputScaleYProgram->read(inScale, x, y, inputBuffers);
+	this->inputScaleYProgram->read(inScale, x, y, COM_PS_NEAREST, inputBuffers);
 	float ys = inScale[0];
 
 	/* clamp x and y displacement to triple image resolution - 
@@ -72,7 +72,7 @@ void DisplaceOperation::executePixel(float* color, int x, int y, MemoryBuffer *i
 	CLAMP(xs, -width_x4, width_x4);
 	CLAMP(ys, -height_x4, height_x4);
 
-	this->inputVectorProgram->read(inVector, x, y, inputBuffers);
+	this->inputVectorProgram->read(inVector, x, y, COM_PS_NEAREST, inputBuffers);
 	p_dx = inVector[0] * xs;
 	p_dy = inVector[1] * ys;
 
@@ -81,9 +81,9 @@ void DisplaceOperation::executePixel(float* color, int x, int y, MemoryBuffer *i
 	v = y - p_dy + 0.5f;
 
 	/* calc derivatives */
-	this->inputVectorProgram->read(inVector, x+1, y, inputBuffers);
+	this->inputVectorProgram->read(inVector, x+1, y, COM_PS_NEAREST, inputBuffers);
 	d_dx = inVector[0] * xs;
-	this->inputVectorProgram->read(inVector, x, y+1, inputBuffers);
+	this->inputVectorProgram->read(inVector, x, y+1, COM_PS_NEAREST, inputBuffers);
 	d_dy = inVector[0] * ys;
 
 	/* clamp derivatives to minimum displacement distance in UV space */

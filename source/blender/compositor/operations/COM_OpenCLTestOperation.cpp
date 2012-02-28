@@ -30,7 +30,7 @@ OpenCLTestOperation::OpenCLTestOperation(): NodeOperation() {
 	this->openCLKernel = NULL;
 }
 
-void OpenCLTestOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
+void OpenCLTestOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
     outputValue[0] = 1.0f;
     outputValue[1] = 0.0f;
     outputValue[2] = 1.0f;

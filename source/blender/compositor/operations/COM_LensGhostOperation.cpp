@@ -654,7 +654,7 @@ void LensGhostOperation::deinitializeTileData(rcti *rect, MemoryBuffer **memoryB
 }
 
 
-void LensGhostProjectionOperation::executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]) {
+void LensGhostProjectionOperation::executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	float bokeh[4];
 	LensSystem *system = (LensSystem*)this->system;
 	LensInterface *interface1 = system->interfaces[0];
@@ -706,7 +706,7 @@ void LensGhostProjectionOperation::executePixel(float* color, float x, float y, 
 				float u = ((result.uv[0]+1.0f)/2)*bokehReader->getWidth();
 				float v = ((result.uv[1]+1.0f)/2)*bokehReader->getHeight();
 
-				bokehReader->read(bokeh, u, v, inputBuffers);
+				bokehReader->read(bokeh, u, v, sampler, inputBuffers);
 
 				intensity += result.intensity *bokeh[iw];
 			}

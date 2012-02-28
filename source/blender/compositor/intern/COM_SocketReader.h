@@ -25,6 +25,12 @@
 #include "BLI_rect.h"
 #include "COM_defines.h"
 
+typedef enum PixelSampler {
+	COM_PS_NEAREST,
+	COM_PS_BILINEAR,
+	COM_PS_BICUBIC
+} PixelSampler;
+
 class MemoryBuffer;
 /**
   * @brief Helper class for reading socket data.
@@ -53,7 +59,7 @@ protected:
 	   * @param y the y-coordinate of the pixel to calculate in image space
 	   * @param inputBuffers chunks that can be read by their ReadBufferOperation.
 	  */
-	virtual void executePixel(float* result, float x, float y, MemoryBuffer *inputBuffers[]) {}
+	virtual void executePixel(float* result, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {}
 
 	/**
 	  * @brief calculate a single pixel
@@ -65,7 +71,7 @@ protected:
 	* @param chunkData chunk specific data a during execution time.
 	  */
 	virtual void executePixel(float* result, int x, int y, MemoryBuffer *inputBuffers[], void* chunkData) {
-		executePixel(result, x, y, inputBuffers);
+		executePixel(result, x, y, COM_PS_NEAREST, inputBuffers);
 	}
     
 	/**
@@ -81,10 +87,10 @@ protected:
 	virtual void executePixel(float* result, float x, float y, float dx, float dy, MemoryBuffer *inputBuffers[]) {}
 
 public:
-	inline void read(float* result, float x, float y, MemoryBuffer *inputBuffers[]) {
-		executePixel(result, x, y, inputBuffers);
+	inline void read(float* result, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
+		executePixel(result, x, y, sampler, inputBuffers);
 	}
-	inline void read(float* result, float x, float y, MemoryBuffer *inputBuffers[], void* chunkData) {
+	inline void read(float* result, int x, int y, MemoryBuffer *inputBuffers[], void* chunkData) {
 		executePixel(result, x, y, inputBuffers, chunkData);
 	}
 	inline void read(float* result, float x, float y, float dx, float dy, MemoryBuffer *inputBuffers[]) {

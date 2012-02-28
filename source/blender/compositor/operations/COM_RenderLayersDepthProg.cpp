@@ -26,7 +26,7 @@ RenderLayersDepthProg::RenderLayersDepthProg() :RenderLayersBaseProg(SCE_PASS_Z,
     this->addOutputSocket(COM_DT_VALUE);
 }
 
-//void RenderLayersDepthProg::executePixel(float* output, float x, float y, MemoryBuffer *inputBuffers[]) {
+//void RenderLayersDepthProg::executePixel(float* output, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 //    float * inputBuffer = this->getInputBuffer();
 //    unsigned int offset = (y*getWidth()+x);
 //    output[0] = inputBuffer[offset];

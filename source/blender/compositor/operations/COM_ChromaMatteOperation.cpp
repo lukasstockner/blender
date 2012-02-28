@@ -41,7 +41,7 @@ void ChromaMatteOperation::deinitExecution() {
 	this->inputKeyProgram= NULL;
 }
 
-void ChromaMatteOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
+void ChromaMatteOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	float inKey[4];
 	float inImage[4];
 
@@ -53,8 +53,8 @@ void ChromaMatteOperation::executePixel(float* outputValue, float x, float y, Me
 	float theta, beta;
 	float kfg;
 
-	this->inputKeyProgram->read(inKey, x, y, inputBuffers);
-	this->inputImageProgram->read(inImage, x, y, inputBuffers);
+	this->inputKeyProgram->read(inKey, x, y, sampler, inputBuffers);
+	this->inputImageProgram->read(inImage, x, y, sampler, inputBuffers);
 
 	/* store matte(alpha) value in [0] to go with
 	 * COM_SetAlphaOperation and the Value output

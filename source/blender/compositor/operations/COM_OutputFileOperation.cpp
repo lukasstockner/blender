@@ -110,13 +110,13 @@ void OutputFileOperation::executeRegion(rcti *rect, unsigned int tileNumber, Mem
 
 	for (y = y1 ; y < y2 && (!breaked); y++) {
 		for (x = x1 ; x < x2 && (!breaked) ; x++) {
-			imageInput->read(color, x, y, memoryBuffers);
+			imageInput->read(color, x, y, COM_PS_NEAREST, memoryBuffers);
 			buffer[offset] = color[0];
 			buffer[offset+1] = color[1];
 			buffer[offset+2] = color[2];
 			buffer[offset+3] = color[3];
 			if (zInput != NULL) {
-				zInput->read(z, x, y, memoryBuffers);
+				zInput->read(z, x, y, COM_PS_NEAREST, memoryBuffers);
 				zbuffer[zoffset] = z[0];
 			}
 			offset +=4;

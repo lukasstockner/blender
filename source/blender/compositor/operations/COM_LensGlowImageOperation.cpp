@@ -29,7 +29,7 @@ LensGlowImageOperation::LensGlowImageOperation(): NodeOperation() {
 void LensGlowImageOperation::initExecution() {
 	this->scale = 1/20000.0f;
 }
-void LensGlowImageOperation::executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]) {
+void LensGlowImageOperation::executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	const float cs_r = 1.f, cs_g = 1.f, cs_b = 1.f;
 	const float v = 2.f*(y / (float)512.0f) - 1.f;
 	const float u = 2.f*(x / (float)512.0f) - 1.f;

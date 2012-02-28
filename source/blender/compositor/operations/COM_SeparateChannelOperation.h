@@ -31,7 +31,7 @@ private:
     int channel;
 public:
     SeparateChannelOperation();
-	void executePixel(float *color, float x, float y, MemoryBuffer *inputBuffers[]);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 
     void initExecution();
     void deinitExecution();

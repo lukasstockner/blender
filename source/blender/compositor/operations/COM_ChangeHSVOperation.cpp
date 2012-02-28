@@ -36,10 +36,10 @@ void ChangeHSVOperation::deinitExecution() {
     this->inputOperation = NULL;
 }
 
-void ChangeHSVOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
+void ChangeHSVOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
     float inputColor1[4];
 
-	inputOperation->read(inputColor1, x, y, inputBuffers);
+	inputOperation->read(inputColor1, x, y, sampler, inputBuffers);
 
     outputValue[0] = inputColor1[0] + (this->hue - 0.5f);
     if (outputValue[0]>1.0f) outputValue[0]-=1.0; else if(outputValue[0]<0.0) outputValue[0]+= 1.0;

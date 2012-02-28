@@ -38,7 +38,7 @@ void RotateOperation::initExecution() {
     this->centerX = this->getWidth()/2.0;
     this->centerY = this->getHeight()/2.0;
 	float degree[4];
-	this->degreeSocket->read(degree, 0, 0, NULL);
+	this->degreeSocket->read(degree, 0, 0, COM_PS_NEAREST, NULL);
 	double rad;
 	if (this->doDegree2RadConversion) {
 		rad = DEG2RAD(degree[0]);
@@ -55,12 +55,12 @@ void RotateOperation::deinitExecution() {
 }
 
 
-void RotateOperation::executePixel(float *color,float x, float y, MemoryBuffer *inputBuffers[]) {
+void RotateOperation::executePixel(float *color,float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	const float dy = y - this->centerY;
 	const float dx = x - this->centerX;
 	const float nx = this->centerX+(this->cosine*dx + this->sine*dy);
 	const float ny = this->centerY+(-this->sine*dx + this->cosine*dy);
-	this->imageSocket->read(color, nx, ny, inputBuffers);
+	this->imageSocket->read(color, nx, ny, sampler, inputBuffers);
 }
 
 bool RotateOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {

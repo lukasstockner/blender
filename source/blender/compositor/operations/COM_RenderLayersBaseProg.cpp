@@ -67,7 +67,7 @@ void RenderLayersBaseProg::initExecution() {
     }
 }
 
-void RenderLayersBaseProg::executePixel(float* output, float x, float y, MemoryBuffer *inputBuffers[]) {
+void RenderLayersBaseProg::executePixel(float* output, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	int ix = x;
 	int iy = y;
 

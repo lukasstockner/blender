@@ -59,7 +59,7 @@ protected:
 	TextureBaseOperation();
 
 public:
-	void executePixel(float *color, float x, float y, MemoryBuffer *inputBuffers[]);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 
 	void setTexture(Tex* texture) {this->texture = texture;}
 	void setTextureOffset(float* offset) {this->textureOffset= offset;}
@@ -75,7 +75,7 @@ public:
 class TextureAlphaOperation:public TextureBaseOperation {
 public:
 	TextureAlphaOperation();
-	void executePixel(float *color, float x, float y, MemoryBuffer *inputBuffers[]);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 
 };
 

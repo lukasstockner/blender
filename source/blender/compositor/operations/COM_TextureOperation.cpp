@@ -45,15 +45,15 @@ void TextureBaseOperation::determineResolution(unsigned int resolution[], unsign
 	}
 }
 
-void TextureAlphaOperation::executePixel(float *color, float x, float y, MemoryBuffer *inputBuffers[]) {
-	TextureBaseOperation::executePixel(color, x, y, inputBuffers);
+void TextureAlphaOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
+	TextureBaseOperation::executePixel(color, x, y, sampler, inputBuffers);
 	color[0] = color[3];
 	color[1] = 0.0f;
 	color[2] = 0.0f;
 	color[3] = 0.0f;
 }
 
-void TextureBaseOperation::executePixel(float *color, float x, float y, MemoryBuffer *inputBuffers[]) {
+void TextureBaseOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	TexResult texres= {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, NULL};
 	float vec[3];
 	int retval;

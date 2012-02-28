@@ -58,7 +58,7 @@ public:
     void setMovieClipUser(MovieClipUser* imageuser) {this->movieClipUser = imageuser;}
 
 	void setFramenumber(int framenumber) {this->framenumber = framenumber;}
-	void executePixel(float *color, float x, float y, MemoryBuffer *inputBuffers[]);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 
 #endif

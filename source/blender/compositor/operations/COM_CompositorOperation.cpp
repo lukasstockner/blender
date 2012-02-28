@@ -92,9 +92,9 @@ void CompositorOperation::executeRegion(rcti *rect, unsigned int tileNumber, Mem
 
 	for (y = y1 ; y < y2 && (!breaked); y++) {
 		for (x = x1 ; x < x2 && (!breaked) ; x++) {
-			imageInput->read(color, x, y, memoryBuffers);
+			imageInput->read(color, x, y, COM_PS_NEAREST, memoryBuffers);
 			if (alphaInput != NULL) {
-				alphaInput->read(&(color[3]), x, y, memoryBuffers);
+				alphaInput->read(&(color[3]), x, y, COM_PS_NEAREST, memoryBuffers);
 			}
 			buffer[offset] = color[0];
 			buffer[offset+1] = color[1];

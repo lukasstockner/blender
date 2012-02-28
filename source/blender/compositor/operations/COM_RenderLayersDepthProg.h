@@ -28,7 +28,7 @@
 class RenderLayersDepthProg : public RenderLayersBaseProg {
 public:
     RenderLayersDepthProg();
-//    void executePixel(float* output, float x, float y, MemoryBuffer *inputBuffers[]);
+//    void executePixel(float* output, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 
 };
 

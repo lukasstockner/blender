@@ -41,7 +41,7 @@ void DifferenceMatteOperation::deinitExecution() {
 	this->inputImage2Program= NULL;
 }
 
-void DifferenceMatteOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
+void DifferenceMatteOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	float inColor1[4];
 	float inColor2[4];
 
@@ -50,8 +50,8 @@ void DifferenceMatteOperation::executePixel(float* outputValue, float x, float y
 	float difference;
 	float alpha;
 
-	this->inputImage1Program->read(inColor1, x, y, inputBuffers);
-	this->inputImage2Program->read(inColor2, x, y, inputBuffers);
+	this->inputImage1Program->read(inColor1, x, y, sampler, inputBuffers);
+	this->inputImage2Program->read(inColor2, x, y, sampler, inputBuffers);
 
 	difference= fabs(inColor2[0]-inColor1[0])+
 			   fabs(inColor2[1]-inColor1[1])+

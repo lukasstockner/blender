@@ -33,7 +33,7 @@ void LensGlowOperation::initExecution() {
 	this->inputProgram = this->getInputSocketReader(0);
 }
 
-void LensGlowOperation::executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]) {
+void LensGlowOperation::executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 //	const float emit100 = this->lamp->energy*100;
 //	const float emit200 = emit100*2;
 //	const float deltaX = 160-x;

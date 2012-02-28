@@ -52,12 +52,12 @@ void ColorBalanceLGGOperation::initExecution() {
 	this->inputColorOperation = this->getInputSocketReader(1);
 }
 
-void ColorBalanceLGGOperation::executePixel(float* outputColor, float x, float y, MemoryBuffer *inputBuffers[]) {
+void ColorBalanceLGGOperation::executePixel(float* outputColor, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
     float inputColor[4];
     float value[4];
 
-	inputValueOperation->read(value, x, y, inputBuffers);
-	inputColorOperation->read(inputColor, x, y, inputBuffers);
+	inputValueOperation->read(value, x, y, sampler, inputBuffers);
+	inputColorOperation->read(inputColor, x, y, sampler, inputBuffers);
 
     float fac = value[0];
     fac = min(1.0f, fac);

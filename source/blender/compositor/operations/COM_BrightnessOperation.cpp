@@ -35,14 +35,14 @@ void BrightnessOperation::initExecution() {
 	this->inputContrastProgram = this->getInputSocketReader(2);
 }
 
-void BrightnessOperation::executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]) {
+void BrightnessOperation::executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
     float inputValue[4];
     float a, b;
     float inputBrightness[4];
     float inputContrast[4];
-	this->inputProgram->read(inputValue, x, y, inputBuffers);
-	this->inputBrightnessProgram->read(inputBrightness, x, y, inputBuffers);
-	this->inputContrastProgram->read(inputContrast, x, y, inputBuffers);
+	this->inputProgram->read(inputValue, x, y, sampler, inputBuffers);
+	this->inputBrightnessProgram->read(inputBrightness, x, y, sampler, inputBuffers);
+	this->inputContrastProgram->read(inputContrast, x, y, sampler, inputBuffers);
     float brightness = inputBrightness[0];
     float contrast = inputContrast[0];
     brightness /= 100.0f;

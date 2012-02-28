@@ -26,7 +26,7 @@
 FogGlowImageOperation::FogGlowImageOperation(): NodeOperation() {
 	this->addOutputSocket(COM_DT_COLOR);
 }
-void FogGlowImageOperation::executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]) {
+void FogGlowImageOperation::executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	const float cs_r = 1.f, cs_g = 1.f, cs_b = 1.f;
 
 	float u, v, w, d, r;

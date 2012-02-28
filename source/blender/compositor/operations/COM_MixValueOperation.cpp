@@ -29,14 +29,14 @@ extern "C" {
 MixValueOperation::MixValueOperation(): MixBaseOperation() {
 }
 
-void MixValueOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
+void MixValueOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	float inputColor1[4];
 	float inputColor2[4];
 	float value;
 
-	inputValueOperation->read(&value, x, y, inputBuffers);
-	inputColor1Operation->read(&inputColor1[0], x, y, inputBuffers);
-	inputColor2Operation->read(&inputColor2[0], x, y, inputBuffers);
+	inputValueOperation->read(&value, x, y, sampler, inputBuffers);
+	inputColor1Operation->read(&inputColor1[0], x, y, sampler, inputBuffers);
+	inputColor2Operation->read(&inputColor2[0], x, y, sampler, inputBuffers);
 
 	if (this->useValueAlphaMultiply()) {
 		value *= inputColor2[3];

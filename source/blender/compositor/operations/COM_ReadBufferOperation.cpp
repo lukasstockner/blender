@@ -44,7 +44,7 @@ void ReadBufferOperation::determineResolution(unsigned int resolution[], unsigne
 		if (memoryProxy->getExecutor()) memoryProxy->getExecutor()->setResolution(resolution);
 	}
 }
-void ReadBufferOperation::executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]) {
+void ReadBufferOperation::executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	MemoryBuffer *inputBuffer = inputBuffers[this->offset];
 	if (inputBuffer) {
 		if (readmode == COM_RM_NORMAL) {

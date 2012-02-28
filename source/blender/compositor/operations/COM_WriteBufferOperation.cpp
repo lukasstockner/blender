@@ -40,8 +40,8 @@ WriteBufferOperation::~WriteBufferOperation() {
 	}
 }
 
-void WriteBufferOperation::executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]) {
-	input->read(color, x, y, inputBuffers);
+void WriteBufferOperation::executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
+	input->read(color, x, y, sampler, inputBuffers);
 }
 void WriteBufferOperation::initExecution() {
 		this->input = this->getInputOperation(0);
@@ -91,7 +91,7 @@ void WriteBufferOperation::executeRegion(rcti *rect, unsigned int tileNumber, Me
 		bool breaked = false;
 		for (y = y1 ; y < y2 && (!breaked) ; y++) {
 			for (x = x1 ; x < x2 ; x++) {
-				input->read(&(buffer[offset4]), x, y, memoryBuffers);
+				input->read(&(buffer[offset4]), x, y, COM_PS_NEAREST, memoryBuffers);
 				offset4 +=4;
 			}
 			if (tree->test_break && tree->test_break(tree->tbh)) {

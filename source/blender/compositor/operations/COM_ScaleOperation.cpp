@@ -47,19 +47,19 @@ void ScaleOperation::deinitExecution() {
 }
 
 
-void ScaleOperation::executePixel(float *color,float x, float y, MemoryBuffer *inputBuffers[]) {
+void ScaleOperation::executePixel(float *color,float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	float scaleX[4];
 	float scaleY[4];
 
-	this->inputXOperation->read(scaleX, x, y, inputBuffers);
-	this->inputYOperation->read(scaleY, x, y, inputBuffers);
+	this->inputXOperation->read(scaleX, x, y, sampler, inputBuffers);
+	this->inputYOperation->read(scaleY, x, y, sampler, inputBuffers);
 
 	const float scx = scaleX[0];
 	const float scy = scaleY[0];
 
 	float nx = this->centerX+ (x - this->centerX) / scx;
 	float ny = this->centerY+ (y - this->centerY) / scy;
-	this->inputOperation->read(color, nx, ny, inputBuffers);
+	this->inputOperation->read(color, nx, ny, sampler, inputBuffers);
 }
 
 bool ScaleOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
@@ -67,8 +67,8 @@ bool ScaleOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOpe
 	float scaleX[4];
 	float scaleY[4];
 
-	this->inputXOperation->read(scaleX, 0, 0, NULL);
-	this->inputYOperation->read(scaleY, 0, 0, NULL);
+	this->inputXOperation->read(scaleX, 0, 0, COM_PS_NEAREST, NULL);
+	this->inputYOperation->read(scaleY, 0, 0, COM_PS_NEAREST, NULL);
 
 	const float scx = scaleX[0];
 	const float scy = scaleY[0];

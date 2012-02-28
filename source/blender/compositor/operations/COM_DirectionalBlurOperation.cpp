@@ -88,7 +88,7 @@ void DirectionalBlurOperation::executePixel(float* color, int x, int y, MemoryBu
 		const float v= isc * (y - center_y_pix) + lty;
 		const float u= isc * (x - center_x_pix) + ltx;
 
-		this->inputProgram->read(col, cs * u + ss * v + center_x_pix, cs * v - ss * u + center_y_pix, inputBuffers);
+		this->inputProgram->read(col, cs * u + ss * v + center_x_pix, cs * v - ss * u + center_y_pix, COM_PS_NEAREST, inputBuffers);
 
 		col2[0] += col[0];
 		col2[1] += col[1];

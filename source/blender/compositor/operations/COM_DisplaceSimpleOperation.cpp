@@ -51,7 +51,7 @@ void DisplaceSimpleOperation::initExecution() {
  * in order to take effect */
 #define DISPLACE_EPSILON	0.01f
 
-void DisplaceSimpleOperation::executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[])
+void DisplaceSimpleOperation::executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[])
 {
 	float inVector[4];
 	float inScale[4];
@@ -59,9 +59,9 @@ void DisplaceSimpleOperation::executePixel(float* color, float x, float y, Memor
 	float p_dx, p_dy;	/* main displacement in pixel space */
 	float u, v;
 
-	this->inputScaleXProgram->read(inScale, x, y, inputBuffers);
+	this->inputScaleXProgram->read(inScale, x, y, sampler, inputBuffers);
 	float xs = inScale[0];
-	this->inputScaleYProgram->read(inScale, x, y, inputBuffers);
+	this->inputScaleYProgram->read(inScale, x, y, sampler, inputBuffers);
 	float ys = inScale[0];
 
 	/* clamp x and y displacement to triple image resolution - 
@@ -69,7 +69,7 @@ void DisplaceSimpleOperation::executePixel(float* color, float x, float y, Memor
 	CLAMP(xs, -width_x4, width_x4);
 	CLAMP(ys, -height_x4, height_x4);
 
-	this->inputVectorProgram->read(inVector, x, y, inputBuffers);
+	this->inputVectorProgram->read(inVector, x, y, sampler, inputBuffers);
 	p_dx = inVector[0] * xs;
 	p_dy = inVector[1] * ys;
 
@@ -80,7 +80,7 @@ void DisplaceSimpleOperation::executePixel(float* color, float x, float y, Memor
 	CLAMP(u, 0.f, this->getWidth()-1.f);
 	CLAMP(v, 0.f, this->getHeight()-1.f);
 
-	this->inputColorProgram->read(color, u, v, inputBuffers);
+	this->inputColorProgram->read(color, u, v, sampler, inputBuffers);
 }
 
 void DisplaceSimpleOperation::deinitExecution() {

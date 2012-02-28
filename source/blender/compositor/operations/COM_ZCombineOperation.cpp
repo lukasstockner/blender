@@ -44,32 +44,32 @@ void ZCombineOperation::initExecution() {
 	this->depth2Reader = this->getInputSocketReader(3);
 }
 
-void ZCombineOperation::executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]) {
+void ZCombineOperation::executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	float depth1[4];
 	float depth2[4];
 
-	this->depth1Reader->read(depth1, x, y, inputBuffers);
-	this->depth2Reader->read(depth2, x, y, inputBuffers);
+	this->depth1Reader->read(depth1, x, y, sampler, inputBuffers);
+	this->depth2Reader->read(depth2, x, y, sampler, inputBuffers);
 	if (depth1[0]<depth2[0]) {
-		this->image1Reader->read(color, x, y, inputBuffers);
+		this->image1Reader->read(color, x, y, sampler, inputBuffers);
 	} else {
-		this->image2Reader->read(color, x, y, inputBuffers);
+		this->image2Reader->read(color, x, y, sampler, inputBuffers);
 	}
 }
-void ZCombineAlphaOperation::executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]) {
+void ZCombineAlphaOperation::executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	float depth1[4];
 	float depth2[4];
 	float color1[4];
 	float color2[4];
 
-	this->depth1Reader->read(depth1, x, y, inputBuffers);
-	this->depth2Reader->read(depth2, x, y, inputBuffers);
+	this->depth1Reader->read(depth1, x, y, sampler, inputBuffers);
+	this->depth2Reader->read(depth2, x, y, sampler, inputBuffers);
 	if (depth1[0]<depth2[0]) {
-		this->image1Reader->read(color1, x, y, inputBuffers);
-		this->image2Reader->read(color2, x, y, inputBuffers);
+		this->image1Reader->read(color1, x, y, sampler, inputBuffers);
+		this->image2Reader->read(color2, x, y, sampler, inputBuffers);
 	} else {
-		this->image1Reader->read(color2, x, y, inputBuffers);
-		this->image2Reader->read(color1, x, y, inputBuffers);
+		this->image1Reader->read(color2, x, y, sampler, inputBuffers);
+		this->image2Reader->read(color1, x, y, sampler, inputBuffers);
 	}
 	float fac = color1[3];
 	float ifac = 1.0f-fac;

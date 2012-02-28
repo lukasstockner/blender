@@ -77,7 +77,7 @@ public:
       * Constructor
       */
     ImageOperation();
-	void executePixel(float *color, float x, float y, MemoryBuffer *inputBuffers[]);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 class ImageAlphaOperation: public BaseImageOperation {
 public:
@@ -85,6 +85,6 @@ public:
       * Constructor
       */
     ImageAlphaOperation();
-	void executePixel(float *color, float x, float y, MemoryBuffer *inputBuffers[]);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 #endif

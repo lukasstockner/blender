@@ -33,9 +33,9 @@ void ConvertRGBToHSVOperation::initExecution() {
 	this->inputOperation = this->getInputSocketReader(0);
 }
 
-void ConvertRGBToHSVOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
+void ConvertRGBToHSVOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
     float inputColor[4];
-	inputOperation->read(inputColor, x, y, inputBuffers);
+	inputOperation->read(inputColor, x, y, sampler, inputBuffers);
     rgb_to_hsv(inputColor[0], inputColor[1], inputColor[2], &outputValue[0], &outputValue[1], &outputValue[2]);
     outputValue[3] = inputColor[3];
 }

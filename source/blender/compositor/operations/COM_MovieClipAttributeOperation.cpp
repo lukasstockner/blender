@@ -32,7 +32,7 @@ MovieClipAttributeOperation::MovieClipAttributeOperation(): NodeOperation() {
 	this->attribute = MCA_X;
 }
 
-void MovieClipAttributeOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
+void MovieClipAttributeOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	if (!valueSet) {
 		float loc[2], scale, angle;
 		loc[0] = 0.0f;

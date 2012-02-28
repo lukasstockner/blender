@@ -42,7 +42,7 @@ public:
     /**
       * the inner loop of this program
       */
-	void executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]);
+	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 	void executeOpenCL(cl_context context,cl_program program, cl_command_queue queue, MemoryBuffer* outputMemoryBuffer, cl_mem clOutputBuffer, MemoryBuffer** inputMemoryBuffers, list<cl_mem> *clMemToCleanUp, list<cl_kernel> *clKernelsToCleanUp);
     void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
 

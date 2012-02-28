@@ -25,15 +25,15 @@
 MixBlendOperation::MixBlendOperation(): MixBaseOperation() {
 }
 
-void MixBlendOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
+void MixBlendOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
     float inputColor1[4];
     float inputColor2[4];
     float inputValue[4];
     float value;
 
-	inputValueOperation->read(inputValue, x, y, inputBuffers);
-	inputColor1Operation->read(inputColor1, x, y, inputBuffers);
-	inputColor2Operation->read(inputColor2, x, y, inputBuffers);
+	inputValueOperation->read(inputValue, x, y, sampler, inputBuffers);
+	inputColor1Operation->read(inputColor1, x, y, sampler, inputBuffers);
+	inputColor2Operation->read(inputColor2, x, y, sampler, inputBuffers);
     value = inputValue[0];
 
     if (this->useValueAlphaMultiply()) {

@@ -32,9 +32,9 @@ void MapValueOperation::initExecution() {
 	this->inputOperation = this->getInputSocketReader(0);
 }
 
-void MapValueOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
+void MapValueOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	float src[4];
-	inputOperation->read(src, x, y, inputBuffers);
+	inputOperation->read(src, x, y, sampler, inputBuffers);
 	TexMapping *texmap= this->settings;
 	float value = (src[0] + texmap->loc[0])*texmap->size[0];
 	if(texmap->flag & TEXMAP_CLIP_MIN)

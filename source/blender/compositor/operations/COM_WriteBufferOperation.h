@@ -39,7 +39,7 @@ public:
     ~WriteBufferOperation();
     int isBufferOperation() {return true;}
     MemoryProxy* getMemoryProxy() {return this->memoryProxy;}
-	void executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]);
+	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 	const bool isWriteBufferOperation() const {return true;}
 
     void executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer** memoryBuffers);

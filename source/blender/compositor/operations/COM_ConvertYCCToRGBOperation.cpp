@@ -48,9 +48,9 @@ void ConvertYCCToRGBOperation::setMode(int mode) {
 	}
 }
 
-void ConvertYCCToRGBOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
+void ConvertYCCToRGBOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	float inputColor[4];
-	inputOperation->read(inputColor, x, y, inputBuffers);
+	inputOperation->read(inputColor, x, y, sampler, inputBuffers);
 
 	/* need to un-normalize the data */
 	inputColor[0] *= 255.f; /* Y */

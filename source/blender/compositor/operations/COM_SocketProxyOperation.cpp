@@ -36,6 +36,6 @@ void SocketProxyOperation::deinitExecution() {
     this->inputOperation = NULL;
 }
 
-void SocketProxyOperation::executePixel(float *color,float x, float y, MemoryBuffer *inputBuffers[]) {
-	this->inputOperation->read(color, x, y, inputBuffers);
+void SocketProxyOperation::executePixel(float *color,float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
+	this->inputOperation->read(color, x, y, sampler, inputBuffers);
 }

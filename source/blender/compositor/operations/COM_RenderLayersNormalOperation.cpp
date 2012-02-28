@@ -26,7 +26,7 @@ RenderLayersNormalOperation::RenderLayersNormalOperation() :RenderLayersBaseProg
     this->addOutputSocket(COM_DT_VECTOR);
 }
 
-//void RenderLayersNormalOperation::executePixel(float* output, float x, float y, MemoryBuffer *inputBuffers[]) {
+//void RenderLayersNormalOperation::executePixel(float* output, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 //    float * inputBuffer = this->getInputBuffer();
 //    unsigned int offset = (y*this->getWidth()+x) *3;
 //    output[0] = inputBuffer[offset];

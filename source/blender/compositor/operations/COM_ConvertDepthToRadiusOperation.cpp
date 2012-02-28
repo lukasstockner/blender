@@ -59,9 +59,9 @@ void ConvertDepthToRadiusOperation::initExecution() {
 	this->focalDistance = determineFocalDistance();
 }
 
-void ConvertDepthToRadiusOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
+void ConvertDepthToRadiusOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
     float inputColor[4];
-	inputOperation->read(&inputColor[0], x, y, inputBuffers);
+	inputOperation->read(&inputColor[0], x, y, sampler, inputBuffers);
 	float inputValue = inputColor[0];
 	if (inputValue<0.0f) {
 		inputValue = 0.0f;

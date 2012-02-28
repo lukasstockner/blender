@@ -55,19 +55,19 @@ void ColorCurveOperation::initExecution() {
 
 }
 
-void ColorCurveOperation::executePixel(float* color, float x, float y, MemoryBuffer *inputBuffers[]) {
+void ColorCurveOperation::executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	float black[4];
 	float white[4];
 	float fac[4];
 	float image[4];
 
-	this->inputBlackProgram->read(black, x, y, inputBuffers);
-	this->inputWhiteProgram->read(white, x, y, inputBuffers);
+	this->inputBlackProgram->read(black, x, y, sampler, inputBuffers);
+	this->inputWhiteProgram->read(white, x, y, sampler, inputBuffers);
 
 	curvemapping_set_black_white(this->curveMapping, black, white);
 
-	this->inputFacProgram->read(fac, x, y, inputBuffers);
-	this->inputImageProgram->read(image, x, y, inputBuffers);
+	this->inputFacProgram->read(fac, x, y, sampler, inputBuffers);
+	this->inputImageProgram->read(image, x, y, sampler, inputBuffers);
 
 	if(fac[0]>=1.0)
 		curvemapping_evaluate_premulRGBF(this->curveMapping, color, image);

@@ -92,7 +92,7 @@ public:
     short getLayerId() {return this->layerId;}
     void initExecution();
     void deinitExecution();
-	void executePixel(float* output, float x, float y, MemoryBuffer *inputBuffers[]);
+	void executePixel(float* output, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 
 };
 

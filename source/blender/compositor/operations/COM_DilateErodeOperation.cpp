@@ -72,7 +72,7 @@ void DilateErodeOperation::executePixel(float* color, int x, int y, MemoryBuffer
 	const int bufferWidth = rect->xmax-rect->xmin;
 	int offset;
 
-	this->inputProgram->read(inputValue, x, y, inputBuffers);
+	this->inputProgram->read(inputValue, x, y, inputBuffers, NULL);
 	if (inputValue[0]>sw) {
 		for (int yi = miny ; yi<maxy;yi++) {
 			offset = ((yi-rect->ymin)*bufferWidth+(minx-rect->xmin))*4;

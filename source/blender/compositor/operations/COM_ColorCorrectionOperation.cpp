@@ -38,11 +38,11 @@ void ColorCorrectionOperation::initExecution() {
 	this->inputMask = this->getInputSocketReader(1);
 }
 
-void ColorCorrectionOperation::executePixel(float* output, float x, float y, MemoryBuffer *inputBuffers[]) {
+void ColorCorrectionOperation::executePixel(float* output, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
     float inputImageColor[4];
     float inputMask[4];
-	this->inputImage->read(inputImageColor, x, y, inputBuffers);
-	this->inputMask->read(inputMask, x, y, inputBuffers);
+	this->inputImage->read(inputImageColor, x, y, sampler, inputBuffers);
+	this->inputMask->read(inputMask, x, y, sampler, inputBuffers);
 
     float level = (inputImageColor[0] + inputImageColor[1] + inputImageColor[2])/3.0f;
     float contrast= this->data->master.contrast;

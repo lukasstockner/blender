@@ -39,14 +39,14 @@ void MixBaseOperation::initExecution() {
 	this->inputColor2Operation = this->getInputSocketReader(2);
 }
 
-void MixBaseOperation::executePixel(float* outputColor, float x, float y, MemoryBuffer *inputBuffers[]) {
+void MixBaseOperation::executePixel(float* outputColor, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
     float inputColor1[4];
     float inputColor2[4];
     float value;
 
-	inputValueOperation->read(&value, x, y, inputBuffers);
-	inputColor1Operation->read(&inputColor1[0], x, y, inputBuffers);
-	inputColor2Operation->read(&inputColor2[0], x, y, inputBuffers);
+	inputValueOperation->read(&value, x, y, sampler, inputBuffers);
+	inputColor1Operation->read(&inputColor1[0], x, y, sampler, inputBuffers);
+	inputColor2Operation->read(&inputColor2[0], x, y, sampler, inputBuffers);
 
     if (this->useValueAlphaMultiply()) {
         value *= inputColor2[3];

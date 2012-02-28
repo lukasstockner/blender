@@ -27,7 +27,7 @@ SetVectorOperation::SetVectorOperation(): NodeOperation() {
     this->addOutputSocket(COM_DT_VECTOR);
 }
 
-void SetVectorOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
+void SetVectorOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
     outputValue[0] = this->x;
     outputValue[1] = this->y;
     outputValue[2] = this->z;

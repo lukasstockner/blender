@@ -37,7 +37,7 @@ void LuminanceMatteOperation::deinitExecution() {
 	this->inputImageProgram= NULL;
 }
 
-void LuminanceMatteOperation::executePixel(float* outputValue, float x, float y, MemoryBuffer *inputBuffers[]) {
+void LuminanceMatteOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	float inColor[4];
 
 	const float high=this->settings->t1;
@@ -45,7 +45,7 @@ void LuminanceMatteOperation::executePixel(float* outputValue, float x, float y,
 
 	float alpha;
 
-	this->inputImageProgram->read(inColor, x, y, inputBuffers);
+	this->inputImageProgram->read(inColor, x, y, sampler, inputBuffers);
 	
 	/* one line thread-friend algorithm:
 	outputValue[0] = max(inputValue[3], min(high, max(low, ((inColor[0]-low)/(high-low))))
