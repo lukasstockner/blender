@@ -107,6 +107,7 @@
 #include "COM_MapValueNode.h"
 #include "COM_TransformNode.h"
 #include "COM_Stabilize2dNode.h"
+#include "COM_SamplerNode.h"
 
 Node* Converter::convert(bNode *bNode) {
 	Node * node;
@@ -327,6 +328,9 @@ Node* Converter::convert(bNode *bNode) {
 		break;
 	case CMP_NODE_STABILIZE2D:
 		node = new Stabilize2dNode(bNode);
+		break;
+	case CMP_NODE_SAMPLER:
+		node = new SamplerNode(bNode);
 		break;
 	/* not inplemented yet */
 	case CMP_NODE_VECBLUR:

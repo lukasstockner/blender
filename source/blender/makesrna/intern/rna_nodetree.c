@@ -1611,6 +1611,23 @@ static void def_cmp_dilate_erode2(StructRNA *srna)
 		RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 }
 
+static void def_cmp_sampler(StructRNA *srna)
+{
+	PropertyRNA *prop;
+	
+	static EnumPropertyItem sampler_items[] = {
+		{0, "NEAREST",   0, "Nearest",   ""},
+		{1, "BILINEAR",   0, "Bilinear",   ""},
+		{2, "BICUBIC", 0, "Bicubic", ""},
+		{0, NULL, 0, NULL, NULL}};
+	
+	prop = RNA_def_property(srna, "filter_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "custom1");
+	RNA_def_property_enum_items(prop, sampler_items);
+	RNA_def_property_ui_text(prop, "Filter", "Method to use to filter rotation");
+	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
+}
+
 static void def_cmp_colorcorrection(StructRNA *srna) {
 	PropertyRNA *prop;
 	prop = RNA_def_property(srna, "red", PROP_BOOLEAN, PROP_NONE);

@@ -20,35 +20,19 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_SetValueOperation_h
-#define _COM_SetValueOperation_h
-#include "COM_NodeOperation.h"
+#ifndef _COM_SamplerNode_h_
+#define _COM_SamplerNode_h_
 
+#include "COM_Node.h"
 
 /**
-  * this program converts an input colour to an output value.
-  * it assumes we are in sRGB colour space.
+  * @brief SamplerNode
+  * @ingroup Node
   */
-class SetValueOperation : public NodeOperation {
-private:
-	float value;
-
+class SamplerNode: public Node {
 public:
-	/**
-	  * Default constructor
-	  */
-	SetValueOperation();
-	
-	const float getValue() {return this->value;}
-	void setValue(float value) {this->value = value;}
-	
-	
-	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
-	
-	const bool isSetOperation() const {return true;}
+	SamplerNode(bNode *editorNode);
+	void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
 };
+
 #endif

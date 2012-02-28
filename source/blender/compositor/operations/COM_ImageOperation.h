@@ -35,11 +35,6 @@ extern "C" {
     #include "MEM_guardedalloc.h"
 }
 
-typedef enum InterpolationMode {
-	COM_IM_NEAREST,
-	COM_IM_LINEAR
-} InterpolationMode;
-
 /**
   * Base class for all renderlayeroperations
   *
@@ -47,13 +42,13 @@ typedef enum InterpolationMode {
   */
 class BaseImageOperation : public NodeOperation {
 protected:
+	ImBuf* buffer;
 	Image* image;
     ImageUser* imageUser;
     float *imageBuffer;
     int imageheight;
     int imagewidth;
 	int framenumber;
-	InterpolationMode interpolation;
 
 	BaseImageOperation();
     /**
@@ -69,7 +64,6 @@ public:
     void setImageUser(ImageUser* imageuser) {this->imageUser = imageuser;}
 
 	void setFramenumber(int framenumber) {this->framenumber = framenumber;}
-	void setInterpolationMode(InterpolationMode mode) {this->interpolation= mode;}
 };
 class ImageOperation: public BaseImageOperation {
 public:

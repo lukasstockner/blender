@@ -128,5 +128,6 @@ void register_node_type_cmp_bokehimage(struct bNodeTreeType *ttype);
 void register_node_type_cmp_bokehblur(struct bNodeTreeType *ttype);
 void register_node_type_cmp_switch(struct bNodeTreeType *ttype);
 void register_node_type_cmp_opencltest(struct bNodeTreeType *ttype);
+void register_node_type_cmp_sampler(struct bNodeTreeType *ttype);
 
 #endif

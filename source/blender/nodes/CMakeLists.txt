@@ -115,6 +115,7 @@ set(SRC
 	composite/nodes/node_composite_dilate2.c
 	composite/nodes/node_composite_ellipsemask.c
 	composite/nodes/node_composite_opencltest.c
+	composite/nodes/node_composite_sampler.c
 	composite/nodes/node_composite_switch.c
 	composite/node_composite_tree.c
 	composite/node_composite_util.c

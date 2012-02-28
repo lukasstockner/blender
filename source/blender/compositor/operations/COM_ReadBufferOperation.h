@@ -30,7 +30,6 @@ class ReadBufferOperation: public NodeOperation {
 private:
 	MemoryProxy *memoryProxy;
 	unsigned int offset;
-    int readmode;
 public:
     ReadBufferOperation();
     int isBufferOperation() {return true;}
@@ -45,7 +44,6 @@ public:
 	void setOffset(unsigned int offset) {this->offset = offset;}
 	unsigned int getOffset() {return this->offset;}
     bool determineDependingAreaOfInterest(rcti * input, ReadBufferOperation *readOperation, rcti* output);
-    void setReadMode(int readmode) {this->readmode = readmode;}
 	MemoryBuffer* getInputMemoryBuffer(MemoryBuffer** memoryBuffers) {return memoryBuffers[offset];}
 	
 };

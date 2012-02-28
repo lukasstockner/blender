@@ -1702,6 +1702,11 @@ static void node_composit_buts_view_levels(uiLayout *layout, bContext *UNUSED(C)
 	uiItemR(layout, ptr, "channel", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
 }
 
+static void node_composit_buts_sampler(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "filter_type", 0, "", ICON_NONE);
+}
+
 static void node_composit_buts_colorcorrection(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *row;
@@ -2253,6 +2258,9 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 			break;
 		case CMP_NODE_BOKEHIMAGE:
 			ntype->uifunc= node_composit_buts_bokehimage;
+			break;
+		case CMP_NODE_SAMPLER:
+			ntype->uifunc= node_composit_buts_sampler;
 			break;
 		case CMP_NODE_VIEWER:
 			ntype->uifunc = NULL;

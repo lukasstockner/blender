@@ -20,35 +20,20 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_SetValueOperation_h
-#define _COM_SetValueOperation_h
-#include "COM_NodeOperation.h"
+#include "COM_SetSamplerOperation.h"
 
+SetSamplerOperation::SetSamplerOperation(): NodeOperation() {
+	this->addInputSocket(COM_DT_COLOR);
+	this->addOutputSocket(COM_DT_COLOR);
+}
 
-/**
-  * this program converts an input colour to an output value.
-  * it assumes we are in sRGB colour space.
-  */
-class SetValueOperation : public NodeOperation {
-private:
-	float value;
+void SetSamplerOperation::initExecution() {
+	this->reader = this->getInputSocketReader(0);
+}
+void SetSamplerOperation::deinitExecution() {
+	this->reader = NULL;
+}
 
-public:
-	/**
-	  * Default constructor
-	  */
-	SetValueOperation();
-	
-	const float getValue() {return this->value;}
-	void setValue(float value) {this->value = value;}
-	
-	
-	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
-	
-	const bool isSetOperation() const {return true;}
-};
-#endif
+void SetSamplerOperation::executePixel(float* output, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
+	reader->read(output, x, y, this->sampler, inputBuffers);
+}

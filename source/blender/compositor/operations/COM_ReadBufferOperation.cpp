@@ -27,7 +27,6 @@
 ReadBufferOperation::ReadBufferOperation():NodeOperation() {
     this->addOutputSocket(COM_DT_COLOR);
     this->offset = 0;
-    this->readmode = COM_RM_NORMAL;
 }
 
 void* ReadBufferOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers) {
@@ -47,7 +46,7 @@ void ReadBufferOperation::determineResolution(unsigned int resolution[], unsigne
 void ReadBufferOperation::executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	MemoryBuffer *inputBuffer = inputBuffers[this->offset];
 	if (inputBuffer) {
-		if (readmode == COM_RM_NORMAL) {
+		if (sampler == COM_PS_NEAREST) {
 			inputBuffer->read(color, x, y);
 		} else {
 			inputBuffer->readCubic(color, x, y);

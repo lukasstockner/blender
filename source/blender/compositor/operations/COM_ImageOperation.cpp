@@ -38,12 +38,12 @@ extern "C" {
 
 BaseImageOperation::BaseImageOperation(): NodeOperation() {
     this->image = NULL;
+	this->buffer = NULL;
     this->imageBuffer = NULL;
     this->imageUser = NULL;
     this->imagewidth = 0;
     this->imageheight = 0;
 	this->framenumber = 0;
-	this->interpolation = COM_IM_NEAREST;
 }
 ImageOperation::ImageOperation(): BaseImageOperation() {
     this->addOutputSocket(COM_DT_COLOR);
@@ -71,6 +71,7 @@ static ImBuf *node_composit_get_image(Image *ima, ImageUser *iuser)
 void BaseImageOperation::initExecution() {
 	BKE_image_user_calc_frame(this->imageUser, this->framenumber, 0);
 	ImBuf *stackbuf= node_composit_get_image(this->image, this->imageUser);
+	this->buffer = stackbuf;
     if (stackbuf) {
         this->imageBuffer = stackbuf->rect_float;
         this->imagewidth = stackbuf->x;
@@ -92,123 +93,44 @@ void BaseImageOperation::determineResolution(unsigned int resolution[], unsigned
 }
 
 void ImageOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
-	int ix = x;
-	int iy = y;
-
 	if (this->imageBuffer == NULL || x < 0 || y < 0 || x >= this->getWidth() || y >= this->getHeight() ) {
 		color[0] = 0.0f;
 		color[1] = 0.0f;
 		color[2] = 0.0f;
 		color[3] = 0.0f;
 	} else {
-		int index;
-		switch (interpolation) {
-		case COM_IM_NEAREST:
-			index = (iy*this->imagewidth+ix)*4;
-			color[0] = this->imageBuffer[index];
-			color[1] = this->imageBuffer[index+1];
-			color[2] = this->imageBuffer[index+2];
-			color[3] = this->imageBuffer[index+3];
+		switch (sampler) {
+		case COM_PS_NEAREST:
+			neareast_interpolation_color(this->buffer, NULL, color, x, y);
 			break;
-		case COM_IM_LINEAR:
-			int x1 = floor(x);
-			int x2 = min(x1 + 1, (int)this->getWidth()-1);
-			int y1 = floor(y);
-			int y2 = min(y1 + 1, (int)this->getHeight()-1);
-
-			float valuex = x - x1;
-			float valuey = y - y1;
-			float mvaluex = 1.0 - valuex;
-			float mvaluey = 1.0 - valuey;
-
-			float color1[4];
-			float color2[4];
-			float color3[4];
-			float color4[4];
-
-			index = (y1*this->imagewidth+x1)*4;
-			color1[0] = this->imageBuffer[index];
-			color1[1] = this->imageBuffer[index+1];
-			color1[2] = this->imageBuffer[index+2];
-			color1[3] = this->imageBuffer[index+3];
-			index = (y2*this->imagewidth+x1)*4;
-			color2[0] = this->imageBuffer[index];
-			color2[1] = this->imageBuffer[index+1];
-			color2[2] = this->imageBuffer[index+2];
-			color2[3] = this->imageBuffer[index+3];
-                        index = (y1*this->imagewidth+x2)*4;
-			color3[0] = this->imageBuffer[index];
-			color3[1] = this->imageBuffer[index+1];
-			color3[2] = this->imageBuffer[index+2];
-			color3[3] = this->imageBuffer[index+3];
-			index = (y2*this->imagewidth+x2)*4;
-			color4[0] = this->imageBuffer[index];
-			color4[1] = this->imageBuffer[index+1];
-			color4[2] = this->imageBuffer[index+2];
-			color4[3] = this->imageBuffer[index+3];
-
-			color1[0] = color1[0]*mvaluey + color2[0]*valuey;
-			color1[1] = color1[1]*mvaluey + color2[1]*valuey;
-			color1[2] = color1[2]*mvaluey + color2[2]*valuey;
-			color1[3] = color1[3]*mvaluey + color2[3]*valuey;
-
-			color3[0] = color3[0]*mvaluey + color4[0]*valuey;
-			color3[1] = color3[1]*mvaluey + color4[1]*valuey;
-			color3[2] = color3[2]*mvaluey + color4[2]*valuey;
-			color3[3] = color3[3]*mvaluey + color4[3]*valuey;
-
-			color[0] = color1[0]*mvaluex + color3[0]*valuex;
-			color[1] = color1[1]*mvaluex + color3[1]*valuex;
-			color[2] = color1[2]*mvaluex + color3[2]*valuex;
-			color[3] = color1[3]*mvaluex + color3[3]*valuex;
-
+		case COM_PS_BILINEAR:
+			bilinear_interpolation_color(this->buffer, NULL, color, x, y);
+			break;
+		case COM_PS_BICUBIC:
+			bicubic_interpolation_color(this->buffer, NULL, color, x, y);
 			break;
 		}
 	}
 }
 
 void ImageAlphaOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
-	int ix = x;
-	int iy = y;
+	float tempcolor[4];
 
 	if (this->imageBuffer == NULL || x < 0 || y < 0 || x >= this->getWidth() || y >= this->getHeight() ) {
 		color[0] = 0.0f;
 	} else {
-		int index;
-		switch (interpolation) {
-		case COM_IM_NEAREST:
-			index = (iy*this->imagewidth+ix)*4;
-			color[0] = this->imageBuffer[index+3];
+		tempcolor[3] = 1.0f;
+		switch (sampler) {
+		case COM_PS_NEAREST:
+			neareast_interpolation_color(this->buffer, NULL, tempcolor, x, y);
 			break;
-		case COM_IM_LINEAR:
-			int x1 = floor(x);
-			int x2 = min(x1 + 1, (int)this->getWidth()-1);
-			int y1 = floor(y);
-			int y2 = min(y1 + 1, (int)this->getHeight()-1);
-
-			float valuex = x - x1;
-			float valuey = y - y1;
-			float mvaluex = 1.0 - valuex;
-			float mvaluey = 1.0 - valuey;
-
-			float color1;
-			float color2;
-			float color3;
-			float color4;
-
-			index = (y1*this->imagewidth+x1)*4;
-			color1 = this->imageBuffer[index+3];
-			index = (y2*this->imagewidth+x1)*4;
-			color2 = this->imageBuffer[index+3];
-			index = (y1*this->imagewidth+x2)*4;
-			color3 = this->imageBuffer[index+3];
-			index = (y2*this->imagewidth+x2)*4;
-			color4 = this->imageBuffer[index+3];
-
-			color1 = color1*mvaluey + color2*valuey;
-			color3 = color3*mvaluey + color4*valuey;
-			color[0] = color1*mvaluex + color3*valuex;
+		case COM_PS_BILINEAR:
+			bilinear_interpolation_color(this->buffer, NULL, tempcolor, x, y);
+			break;
+		case COM_PS_BICUBIC:
+			bicubic_interpolation_color(this->buffer, NULL, tempcolor, x, y);
 			break;
 		}
+		color[0] = tempcolor[3];
 	}
 }

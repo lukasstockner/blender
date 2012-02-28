@@ -152,9 +152,6 @@ void ExecutionGroup::initExecution()
 			ReadBufferOperation *readOperation = (ReadBufferOperation*)operation;
 			this->cachedReadOperations.push_back(readOperation);
 			maxNumber = max(maxNumber, readOperation->getOffset());
-			if (!this->isComplex()) {
-				readOperation->setReadMode(COM_RM_LINEAR);
-			}
 		}
 	}
 	maxNumber++;

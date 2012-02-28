@@ -670,6 +670,7 @@ void			ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMaterial *mat);
 #define CMP_NODE_SWITCH         318
 
 #define CMP_NODE_OPENCLTEST     319
+#define CMP_NODE_SAMPLER        320
 
 /* channel toggles */
 #define CMP_CHAN_RGB		1

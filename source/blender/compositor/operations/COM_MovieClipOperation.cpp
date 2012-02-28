@@ -73,18 +73,22 @@ void MovieClipOperation::determineResolution(unsigned int resolution[], unsigned
 }
 
 void MovieClipOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
-	if (this->movieClipBuffer == NULL || x<0.0f || y < 0.0f || x >= getWidth() || y >= getHeight()) {
+	if (this->movieClipBuffer == NULL || x < 0 || y < 0 || x >= this->getWidth() || y >= this->getHeight() ) {
 		color[0] = 0.0f;
 		color[1] = 0.0f;
 		color[2] = 0.0f;
-		color[3] = 1.0f;
+		color[3] = 0.0f;
 	} else {
-		int iy = y;
-		int ix = x;
-		int offset = 4* (iy*getWidth() + ix);
-		color[0] = this->movieClipBuffer->rect_float[offset];
-		color[1] = this->movieClipBuffer->rect_float[offset+1];
-		color[2] = this->movieClipBuffer->rect_float[offset+2];
-		color[3] = this->movieClipBuffer->rect_float[offset+3];
+		switch (sampler) {
+		case COM_PS_NEAREST:
+			neareast_interpolation_color(this->movieClipBuffer, NULL, color, x, y);
+			break;
+		case COM_PS_BILINEAR:
+			bilinear_interpolation_color(this->movieClipBuffer, NULL, color, x, y);
+			break;
+		case COM_PS_BICUBIC:
+			bicubic_interpolation_color(this->movieClipBuffer, NULL, color, x, y);
+			break;
+		}
 	}
 }

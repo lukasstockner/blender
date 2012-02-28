@@ -42,7 +42,6 @@ void ImageNode::convertToOperations(ExecutionSystem *graph, CompositorContext * 
 	operation->setImage(image);
 	operation->setImageUser(imageuser);
 	operation->setFramenumber(context->getFramenumber());
-	operation->setInterpolationMode(context->getQuality() == COM_QUALITY_LOW?COM_IM_NEAREST:COM_IM_LINEAR);
 	graph->addOperation(operation);
 	addPreviewOperation(graph, operation->getOutputSocket(), 9);
 
@@ -52,7 +51,6 @@ void ImageNode::convertToOperations(ExecutionSystem *graph, CompositorContext * 
 		alphaOperation->setImage(image);
 		alphaOperation->setImageUser(imageuser);
 		alphaOperation->setFramenumber(context->getFramenumber());
-		alphaOperation->setInterpolationMode(context->getQuality() == COM_QUALITY_LOW?COM_IM_NEAREST:COM_IM_LINEAR);
 		alphaImage->relinkConnections(alphaOperation->getOutputSocket());
 		graph->addOperation(alphaOperation);
 	}

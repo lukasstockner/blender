@@ -261,6 +261,9 @@ set(SRC
 	operations/COM_NormalizeOperation.h
 
 # Filter nodes
+	nodes/COM_SamplerNode.cpp
+	nodes/COM_SamplerNode.h
+
 		nodes/COM_FilterNode.cpp
 		nodes/COM_FilterNode.h
 		nodes/COM_DilateErode2Node.cpp
@@ -535,19 +538,21 @@ operations/COM_ConvertDepthToRadiusOperation.cpp
 	operations/COM_GlareSimpleStarOperation.h
 	operations/COM_GlareStreaksOperation.cpp
 	operations/COM_GlareStreaksOperation.h
+	operations/COM_SetSamplerOperation.cpp
+	operations/COM_SetSamplerOperation.h
 
 
 #Convert operations
-		operations/COM_IDMaskOperation.cpp
-		operations/COM_IDMaskOperation.h
+	operations/COM_IDMaskOperation.cpp
+	operations/COM_IDMaskOperation.h
 
-		operations/COM_SeparateChannelOperation.cpp
-		operations/COM_SeparateChannelOperation.h
-		operations/COM_CombineChannelsOperation.cpp
-		operations/COM_CombineChannelsOperation.h
+	operations/COM_SeparateChannelOperation.cpp
+	operations/COM_SeparateChannelOperation.h
+	operations/COM_CombineChannelsOperation.cpp
+	operations/COM_CombineChannelsOperation.h
 
-		operations/COM_DotproductOperation.cpp
-		operations/COM_DotproductOperation.h
+	operations/COM_DotproductOperation.cpp
+	operations/COM_DotproductOperation.h
 
 #    operations/COM_ConvertColorSpaceOperation.h
 #    operations/COM_ConvertColorSpaceOperation.cpp
@@ -567,7 +572,6 @@ operations/COM_ConvertDepthToRadiusOperation.cpp
 	operations/COM_MovieClipOperation.h
 	operations/COM_ConvertColorProfileOperation.cpp
 	operations/COM_ConvertColorProfileOperation.h
-
 #     operations/COM_OpenCLKernels.cl.cpp
 )
 

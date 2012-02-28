@@ -20,35 +20,29 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_SetValueOperation_h
-#define _COM_SetValueOperation_h
-#include "COM_NodeOperation.h"
+#include "COM_SamplerNode.h"
+#include "DNA_scene_types.h"
+#include "COM_SetSamplerOperation.h"
+#include "COM_ExecutionSystem.h"
 
+SamplerNode::SamplerNode(bNode *editorNode): Node(editorNode) {
+}
 
-/**
-  * this program converts an input colour to an output value.
-  * it assumes we are in sRGB colour space.
-  */
-class SetValueOperation : public NodeOperation {
-private:
-	float value;
-
-public:
-	/**
-	  * Default constructor
-	  */
-	SetValueOperation();
-	
-	const float getValue() {return this->value;}
-	void setValue(float value) {this->value = value;}
-	
-	
-	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
-	
-	const bool isSetOperation() const {return true;}
-};
-#endif
+void SamplerNode::convertToOperations(ExecutionSystem *system, CompositorContext * context) {
+	SetSamplerOperation *operation = new SetSamplerOperation();
+	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), true, 0, system);
+	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());
+	bNode* node = this->getbNode();
+	switch (node->custom1) {
+	case 0:
+		operation->setSampler(COM_PS_NEAREST);
+		break;
+	case 1:
+		operation->setSampler(COM_PS_BILINEAR);
+		break;
+	case 2:
+		operation->setSampler(COM_PS_BICUBIC);
+		break;
+	}
+	system->addOperation(operation);
+}
