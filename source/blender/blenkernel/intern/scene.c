@@ -52,6 +52,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
+#include "DNA_movieclip_types.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -86,6 +87,8 @@
 #include "BKE_sequencer.h"
 #include "BKE_sound.h"
 #include "BKE_world.h"
+#include "BKE_movieclip.h"
+#include "BKE_tracking.h"
 
 #include "RE_engine.h"
 
@@ -1890,4 +1893,15 @@ int BKE_scene_num_omp_threads(const struct Scene *scene)
 		return BLI_system_thread_count_omp();
 	else
 		return scene->omp_threads;
+}
+
+/* overscan */
+void BKE_scene_update_overscan(Scene *scene)
+{
+	float overscan = scene->r.overscan;
+
+	if (scene->r.detect_overscan && scene->clip)
+		overscan = BKE_tracking_overscan_detect(scene->clip);
+
+	scene->r.overscan = overscan;
 }

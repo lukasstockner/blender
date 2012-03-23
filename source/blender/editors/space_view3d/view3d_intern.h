@@ -208,7 +208,7 @@ void ED_view3d_smooth_view(struct bContext *C, struct View3D *v3d, struct ARegio
                            float *ofs, float *quat, float *dist, float *lens,
                            const int smooth_viewtx);
 
-void setwinmatrixview3d(ARegion *ar, View3D *v3d, rctf *rect);
+void setwinmatrixview3d(ARegion *ar, View3D *v3d, rctf *rect, float overscan);
 void setviewmatrixview3d(Scene *scene, View3D *v3d, RegionView3D *rv3d);
 
 void fly_modal_keymap(struct wmKeyConfig *keyconf);

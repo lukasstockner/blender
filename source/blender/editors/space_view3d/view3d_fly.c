@@ -234,7 +234,7 @@ static void drawFlyPixel(const struct bContext *UNUSED(C), ARegion *UNUSED(ar), 
 	float x1, x2, y1, y2;
 
 	if (fly->scene->camera) {
-		ED_view3d_calc_camera_border(fly->scene, fly->ar, fly->v3d, fly->rv3d, &viewborder, false);
+		ED_view3d_calc_camera_border(fly->scene, fly->ar, fly->v3d, fly->rv3d, &viewborder, NULL, false);
 		xoff = viewborder.xmin;
 		yoff = viewborder.ymin;
 	}
@@ -391,7 +391,7 @@ static bool initFlyInfo(bContext *C, FlyInfo *fly, wmOperator *op, const wmEvent
 
 	/* calculate center */
 	if (fly->scene->camera) {
-		ED_view3d_calc_camera_border(fly->scene, fly->ar, fly->v3d, fly->rv3d, &viewborder, false);
+		ED_view3d_calc_camera_border(fly->scene, fly->ar, fly->v3d, fly->rv3d, &viewborder, NULL, false);
 
 		fly->width = BLI_rctf_size_x(&viewborder);
 		fly->height = BLI_rctf_size_y(&viewborder);

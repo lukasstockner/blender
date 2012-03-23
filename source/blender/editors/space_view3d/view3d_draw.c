@@ -934,17 +934,27 @@ static void draw_selected_name(Scene *scene, Object *ob, rcti *rect)
 	BLF_draw_default(offset, 0.5f * U.widget_unit, 0.0f, info, sizeof(info));
 }
 
+static void view3d_camera_border_within_viewport(ARegion *ar, rctf *rect_view, rctf *rect_camera, rctf *viewborder_r)
+{
+	viewborder_r->xmin = ((rect_camera->xmin - rect_view->xmin)/BLI_rctf_size_x(rect_view))*ar->winx;
+	viewborder_r->xmax = ((rect_camera->xmax - rect_view->xmin)/BLI_rctf_size_x(rect_view))*ar->winx;
+	viewborder_r->ymin = ((rect_camera->ymin - rect_view->ymin)/BLI_rctf_size_y(rect_view))*ar->winy;
+	viewborder_r->ymax = ((rect_camera->ymax - rect_view->ymin)/BLI_rctf_size_y(rect_view))*ar->winy;
+}
+
 static void view3d_camera_border(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d,
-                                 rctf *r_viewborder, const bool no_shift, const bool no_zoom)
+                                 rctf *r_viewborder, rctf *r_underscan_viewborder,
+                                 const bool no_shift, const bool no_zoom)
 {
 	CameraParams params;
-	rctf rect_view, rect_camera;
+	rctf rect_view, rect_camera, rect_camera_underscan;
 
 	/* get viewport viewplane */
 	BKE_camera_params_init(&params);
 	BKE_camera_params_from_view3d(&params, v3d, rv3d);
 	if (no_zoom)
 		params.zoom = 1.0f;
+	params.overscan = scene->r.overscan;
 	BKE_camera_params_compute_viewplane(&params, ar->winx, ar->winy, 1.0f, 1.0f);
 	rect_view = params.viewplane;
 
@@ -958,29 +968,33 @@ static void view3d_camera_border(Scene *scene, ARegion *ar, View3D *v3d, RegionV
 		params.shiftx = 0.0f;
 		params.shifty = 0.0f;
 	}
+	params.overscan = scene->r.overscan;
 	BKE_camera_params_compute_viewplane(&params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
 	rect_camera = params.viewplane;
+	rect_camera_underscan = params.underscan_viewplane;
 
 	/* get camera border within viewport */
-	r_viewborder->xmin = ((rect_camera.xmin - rect_view.xmin) / BLI_rctf_size_x(&rect_view)) * ar->winx;
-	r_viewborder->xmax = ((rect_camera.xmax - rect_view.xmin) / BLI_rctf_size_x(&rect_view)) * ar->winx;
-	r_viewborder->ymin = ((rect_camera.ymin - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
-	r_viewborder->ymax = ((rect_camera.ymax - rect_view.ymin) / BLI_rctf_size_y(&rect_view)) * ar->winy;
+	if (r_viewborder)
+		view3d_camera_border_within_viewport(ar, &rect_view, &rect_camera, r_viewborder);
+
+	if (r_underscan_viewborder)
+		view3d_camera_border_within_viewport(ar, &rect_view, &rect_camera_underscan, r_underscan_viewborder);
 }
 
 void ED_view3d_calc_camera_border_size(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d, float r_size[2])
 {
 	rctf viewborder;
 
-	view3d_camera_border(scene, ar, v3d, rv3d, &viewborder, true, true);
+	view3d_camera_border(scene, ar, v3d, rv3d, &viewborder, NULL, true, true);
 	r_size[0] = BLI_rctf_size_x(&viewborder);
 	r_size[1] = BLI_rctf_size_y(&viewborder);
 }
 
 void ED_view3d_calc_camera_border(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d,
-                                  rctf *r_viewborder, const bool no_shift)
+                                  rctf *r_viewborder, rctf *r_underscan_viewborder,
+                                  const bool no_shift)
 {
-	view3d_camera_border(scene, ar, v3d, rv3d, r_viewborder, no_shift, false);
+	view3d_camera_border(scene, ar, v3d, rv3d, r_viewborder, r_underscan_viewborder, no_shift, false);
 }
 
 static void drawviewborder_grid3(float x1, float x2, float y1, float y2, float fac)
@@ -1058,24 +1072,31 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 {
 	float hmargin, vmargin;
 	float x1, x2, y1, y2;
-	float x1i, x2i, y1i, y2i;
+	float x1i, x2i, y1i, y2i, x5i, x6i, y5i, y6i;
+	float x5, y5, x6, y6;
 
-	rctf viewborder;
+	rctf viewborder, underscan_viewborder;
 	Camera *ca = NULL;
 	RegionView3D *rv3d = ar->regiondata;
+	int draw_passepart;
 	
 	if (v3d->camera == NULL)
 		return;
 	if (v3d->camera->type == OB_CAMERA)
 		ca = v3d->camera->data;
 	
-	ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &viewborder, false);
+	ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &viewborder, &underscan_viewborder, false);
 	/* the offsets */
 	x1 = viewborder.xmin;
 	y1 = viewborder.ymin;
 	x2 = viewborder.xmax;
 	y2 = viewborder.ymax;
-	
+
+	x5 = underscan_viewborder.xmin;
+	y5 = underscan_viewborder.ymin;
+	x6 = underscan_viewborder.xmax;
+	y6 = underscan_viewborder.ymax;
+
 	/* apply offsets so the real 3D camera shows through */
 
 	/* note: quite un-scientific but without this bit extra
@@ -1085,11 +1106,18 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 	 * but keep it here in case we need to remove the workaround */
 	x1i = (int)(x1 - 1.0001f);
 	y1i = (int)(y1 - 1.0001f);
-	x2i = (int)(x2 + (1.0f - 0.0001f));
-	y2i = (int)(y2 + (1.0f - 0.0001f));
+	x2i = (int)(x2 + (1.0f-0.0001f));
+	y2i = (int)(y2 + (1.0f-0.0001f));
+
+	/* same goes to underscan border */
+	x5i = (int)(x5 - 1.0001f);
+	y5i = (int)(y5 - 1.0001f);
+	x6i = (int)(x6 + (1.0f-0.0001f));
+	y6i = (int)(y6 + (1.0f-0.0001f));
 	
 	/* passepartout, specified in camera edit buttons */
-	if (ca && (ca->flag & CAM_SHOWPASSEPARTOUT) && ca->passepartalpha > 0.000001f) {
+	draw_passepart= (ca->flag & CAM_SHOWPASSEPARTOUT) && ca->passepartalpha > 0.000001f;
+	if (draw_passepart) {
 		if (ca->passepartalpha == 1.0f) {
 			glColor3f(0, 0, 0);
 		}
@@ -1138,6 +1166,32 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 	UI_ThemeColor(TH_VIEW_OVERLAY);
 	glRectf(x1i, y1i, x2i, y2i);
 
+	if (scene->r.overscan > 0.0f) {
+		UI_ThemeColorShade(TH_WIRE, 100);
+		uiDrawBox(GL_LINE_LOOP, x5i, y5i, x6i, y6i, 2.0);
+
+		if (draw_passepart) {
+			setlinestyle(0);
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glEnable(GL_BLEND);
+			glColor4f(0, 0, 0, ca->passepartalpha*0.5f);
+
+			if (x5i > x1i)
+				glRectf(x1i, y1i, x5i, y2i);
+			if (x6i < x2i)
+				glRectf(x6i, y1i, x2i, y2i);
+			if (y6i < y2i)
+				glRectf(x5i, y6i, x6i, y2i);
+			if (y5i > y1i)
+				glRectf(x5i, y5i, x6i, y1i);
+			setlinestyle(3);
+		}
+
+		glDisable(GL_BLEND);
+	}
+
 	/* border */
 	if (scene->r.mode & R_BORDER) {
 		float x3, y3, x4, y4;
@@ -1148,7 +1202,7 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 		y4 = y1 + scene->r.border.ymax * (y2 - y1);
 
 		cpack(0x4040FF);
-		glRecti(x3,  y3,  x4,  y4);
+		glRectf(x3,  y3,  x4,  y4);
 	}
 
 	/* safety border */
@@ -1158,15 +1212,15 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 
 			UI_ThemeColorBlendShade(TH_VIEW_OVERLAY, TH_BACK, 0.25, 0);
 
-			x3 = x1 + 0.5f * (x2 - x1);
-			y3 = y1 + 0.5f * (y2 - y1);
+			x3 = x5+ 0.5f*(x6-x5);
+			y3 = y5+ 0.5f*(y6-y5);
 
 			glBegin(GL_LINES);
-			glVertex2f(x1, y3);
-			glVertex2f(x2, y3);
+			glVertex2f(x5, y3);
+			glVertex2f(x6, y3);
 
-			glVertex2f(x3, y1);
-			glVertex2f(x3, y2);
+			glVertex2f(x3, y5);
+			glVertex2f(x3, y6);
 			glEnd();
 		}
 
@@ -1174,54 +1228,54 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 			UI_ThemeColorBlendShade(TH_VIEW_OVERLAY, TH_BACK, 0.25, 0);
 
 			glBegin(GL_LINES);
-			glVertex2f(x1, y1);
-			glVertex2f(x2, y2);
+			glVertex2f(x5, y5);
+			glVertex2f(x6, y6);
 
-			glVertex2f(x1, y2);
-			glVertex2f(x2, y1);
+			glVertex2f(x5, y6);
+			glVertex2f(x6, y5);
 			glEnd();
 		}
 
 		if (ca->dtx & CAM_DTX_THIRDS) {
 			UI_ThemeColorBlendShade(TH_VIEW_OVERLAY, TH_BACK, 0.25, 0);
-			drawviewborder_grid3(x1, x2, y1, y2, 1.0f / 3.0f);
+			drawviewborder_grid3(x5, x6, y5, y6, 1.0f / 3.0f);
 		}
 
 		if (ca->dtx & CAM_DTX_GOLDEN) {
 			UI_ThemeColorBlendShade(TH_VIEW_OVERLAY, TH_BACK, 0.25, 0);
-			drawviewborder_grid3(x1, x2, y1, y2, 1.0f - (1.0f / 1.61803399f));
+			drawviewborder_grid3(x5, x6, y5, y6, 1.0f - (1.0f / 1.61803399f));
 		}
 
 		if (ca->dtx & CAM_DTX_GOLDEN_TRI_A) {
 			UI_ThemeColorBlendShade(TH_VIEW_OVERLAY, TH_BACK, 0.25, 0);
-			drawviewborder_triangle(x1, x2, y1, y2, 0, 'A');
+			drawviewborder_triangle(x5, x6, y5, y6, 0, 'A');
 		}
 
 		if (ca->dtx & CAM_DTX_GOLDEN_TRI_B) {
 			UI_ThemeColorBlendShade(TH_VIEW_OVERLAY, TH_BACK, 0.25, 0);
-			drawviewborder_triangle(x1, x2, y1, y2, 0, 'B');
+			drawviewborder_triangle(x5, x6, y5, y6, 0, 'B');
 		}
 
 		if (ca->dtx & CAM_DTX_HARMONY_TRI_A) {
 			UI_ThemeColorBlendShade(TH_VIEW_OVERLAY, TH_BACK, 0.25, 0);
-			drawviewborder_triangle(x1, x2, y1, y2, 1, 'A');
+			drawviewborder_triangle(x5, x6, y5, y6, 1, 'A');
 		}
 
 		if (ca->dtx & CAM_DTX_HARMONY_TRI_B) {
 			UI_ThemeColorBlendShade(TH_VIEW_OVERLAY, TH_BACK, 0.25, 0);
-			drawviewborder_triangle(x1, x2, y1, y2, 1, 'B');
+			drawviewborder_triangle(x5, x6, y5, y6, 1, 'B');
 		}
 
 		if (ca->flag & CAM_SHOWTITLESAFE) {
 			UI_ThemeColorBlendShade(TH_VIEW_OVERLAY, TH_BACK, 0.25, 0);
 
-			hmargin = 0.1f  * (x2 - x1);
-			vmargin = 0.05f * (y2 - y1);
-			uiDrawBox(GL_LINE_LOOP, x1 + hmargin, y1 + vmargin, x2 - hmargin, y2 - vmargin, 2.0f);
+			hmargin = 0.1f  * (x6 - x5);
+			vmargin = 0.05f * (y6 - y5);
+			uiDrawBox(GL_LINE_LOOP, x5 + hmargin, y5 + vmargin, x6 - hmargin, y6 - vmargin, 2.0f);
 
-			hmargin = 0.035f * (x2 - x1);
-			vmargin = 0.035f * (y2 - y1);
-			uiDrawBox(GL_LINE_LOOP, x1 + hmargin, y1 + vmargin, x2 - hmargin, y2 - vmargin, 2.0f);
+			hmargin = 0.035f * (x6 - x5);
+			vmargin = 0.035f * (y6 - y5);
+			uiDrawBox(GL_LINE_LOOP, x5 + hmargin, y5 + vmargin, x6 - hmargin, y6 - vmargin, 2.0f);
 		}
 		if (ca->flag & CAM_SHOWSENSOR) {
 			/* determine sensor fit, and get sensor x/y, for auto fit we
@@ -1236,22 +1290,22 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 			rctf rect;
 
 			if (sensor_fit == CAMERA_SENSOR_FIT_HOR) {
-				float sensor_scale = (x2i - x1i) / sensor_x;
+				float sensor_scale = (x6i-x5i) / sensor_x;
 				float sensor_height = sensor_scale * sensor_y;
 
-				rect.xmin = x1i;
-				rect.xmax = x2i;
-				rect.ymin = (y1i + y2i) * 0.5f - sensor_height * 0.5f;
+				rect.xmin = x5i;
+				rect.xmax = x6i;
+				rect.ymin = (y5i + y6i) * 0.5f - sensor_height * 0.5f;
 				rect.ymax = rect.ymin + sensor_height;
 			}
 			else {
-				float sensor_scale = (y2i - y1i) / sensor_y;
+				float sensor_scale = (y6i-y5i) / sensor_y;
 				float sensor_width = sensor_scale * sensor_x;
 
-				rect.xmin = (x1i + x2i) * 0.5f - sensor_width * 0.5f;
+				rect.xmin = (x5i + x6i) * 0.5f - sensor_width * 0.5f;
 				rect.xmax = rect.xmin + sensor_width;
-				rect.ymin = y1i;
-				rect.ymax = y2i;
+				rect.ymin = y5i;
+				rect.ymax = y6i;
 			}
 
 			/* draw */
@@ -1669,7 +1723,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 
 				if (do_camera_frame) {
 					rctf vb;
-					ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &vb, false);
+					ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, NULL, &vb, false);
 					x1 = vb.xmin;
 					y1 = vb.ymin;
 					x2 = vb.xmax;
@@ -2221,9 +2275,10 @@ float view3d_depth_near(ViewDepths *d)
 void draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d)
 {
 	short zbuf = v3d->zbuf;
+	float overscan = scene->r.overscan;
 	RegionView3D *rv3d = ar->regiondata;
 
-	setwinmatrixview3d(ar, v3d, NULL);
+	setwinmatrixview3d(ar, v3d, NULL, overscan);
 	setviewmatrixview3d(scene, v3d, rv3d);  /* note: calls BKE_object_where_is_calc for camera... */
 
 	mul_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
@@ -2253,6 +2308,7 @@ void draw_depth(Scene *scene, ARegion *ar, View3D *v3d, int (*func)(void *), boo
 	short flag = v3d->flag;
 	float glalphaclip = U.glalphaclip;
 	int obcenter_dia = U.obcenter_dia;
+	float overscan = scene->r.overscan;
 	/* temp set drawtype to solid */
 	
 	/* Setting these temporarily is not nice */
@@ -2260,7 +2316,7 @@ void draw_depth(Scene *scene, ARegion *ar, View3D *v3d, int (*func)(void *), boo
 	U.glalphaclip = alphaoverride ? 0.5f : glalphaclip; /* not that nice but means we wont zoom into billboards */
 	U.obcenter_dia = 0;
 	
-	setwinmatrixview3d(ar, v3d, NULL);
+	setwinmatrixview3d(ar, v3d, NULL, overscan);
 	setviewmatrixview3d(scene, v3d, rv3d);  /* note: calls BKE_object_where_is_calc for camera... */
 	
 	mul_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
@@ -2514,12 +2570,13 @@ CustomDataMask ED_view3d_screen_datamask(bScreen *screen)
 void ED_view3d_update_viewmat(Scene *scene, View3D *v3d, ARegion *ar, float viewmat[4][4], float winmat[4][4])
 {
 	RegionView3D *rv3d = ar->regiondata;
+	float overscan= scene->r.overscan;
 
 	/* setup window matrices */
 	if (winmat)
 		copy_m4_m4(rv3d->winmat, winmat);
 	else
-		setwinmatrixview3d(ar, v3d, NULL);
+		setwinmatrixview3d(ar, v3d, NULL, overscan);
 
 	/* setup view matrix */
 	if (viewmat)
@@ -3027,7 +3084,7 @@ bool ED_view3d_calc_render_border(Scene *scene, View3D *v3d, ARegion *ar, rcti *
 
 	/* compute border */
 	if (rv3d->persp == RV3D_CAMOB) {
-		ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &viewborder, false);
+		ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &viewborder, NULL, false);
 
 		rect->xmin = viewborder.xmin + scene->r.border.xmin * BLI_rctf_size_x(&viewborder);
 		rect->ymin = viewborder.ymin + scene->r.border.ymin * BLI_rctf_size_y(&viewborder);

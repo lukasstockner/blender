@@ -194,9 +194,9 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 			rctf viewplane;
 			float clipsta, clipend;
 
-			bool is_ortho = ED_view3d_viewplane_get(v3d, rv3d, sizex, sizey, &viewplane, &clipsta, &clipend, NULL);
+			bool is_ortho = ED_view3d_viewplane_get(v3d, rv3d, sizex, sizey, 0.0f, &viewplane, &clipsta, &clipend, NULL);
 			if (is_ortho) orthographic_m4(winmat, viewplane.xmin, viewplane.xmax, viewplane.ymin, viewplane.ymax, -clipend, clipend);
-			else perspective_m4(winmat, viewplane.xmin, viewplane.xmax, viewplane.ymin, viewplane.ymax, clipsta, clipend);
+			else  perspective_m4(winmat, viewplane.xmin, viewplane.xmax, viewplane.ymin, viewplane.ymax, clipsta, clipend);
 		}
 
 		rect = MEM_mallocN(sizex * sizey * sizeof(unsigned char) * 4, "offscreen rect");

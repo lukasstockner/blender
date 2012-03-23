@@ -1035,7 +1035,7 @@ static int render_view3d_disprect(Scene *scene, ARegion *ar, View3D *v3d, Region
 
 	if (draw_border) {
 		if (rv3d->persp == RV3D_CAMOB) {
-			ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &viewborder, false);
+			ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &viewborder, NULL, false);
 			
 			disprect->xmin = viewborder.xmin + scene->r.border.xmin * BLI_rctf_size_x(&viewborder);
 			disprect->ymin = viewborder.ymin + scene->r.border.ymin * BLI_rctf_size_y(&viewborder);
@@ -1063,7 +1063,7 @@ static bool render_view3d_get_rects(ARegion *ar, View3D *v3d, RegionView3D *rv3d
 	
 	if (ar->winx < 4 || ar->winy < 4) return false;
 	
-	*r_ortho = ED_view3d_viewplane_get(v3d, rv3d, ar->winx, ar->winy, viewplane, r_clipsta, r_clipend, r_pixsize);
+	*r_ortho = ED_view3d_viewplane_get(v3d, rv3d, ar->winx, ar->winy, 0.0f, viewplane, r_clipsta, r_clipend, r_pixsize);
 	
 	engine->resolution_x = ar->winx;
 	engine->resolution_y = ar->winy;

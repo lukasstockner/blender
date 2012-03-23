@@ -1278,7 +1278,7 @@ static void gp_paint_initstroke(tGPsdata *p, short paintmode)
 			
 			/* for camera view set the subrect */
 			if (rv3d->persp == RV3D_CAMOB) {
-				ED_view3d_calc_camera_border(p->scene, p->ar, v3d, rv3d, &p->subrect_data, true); /* no shift */
+				ED_view3d_calc_camera_border(p->scene, p->ar, v3d, rv3d, &p->subrect_data, NULL, true); /* no shift */
 				p->subrect = &p->subrect_data;
 			}
 		}

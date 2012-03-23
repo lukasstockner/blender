@@ -138,6 +138,10 @@ int BKE_scene_num_threads(const struct Scene *scene);
 int BKE_render_num_threads(const struct RenderData *r);
 
 int BKE_scene_num_omp_threads(const struct Scene *scene);
+
+/* overscan */
+void BKE_scene_update_overscan(struct Scene *scene);
+
 #ifdef __cplusplus
 }
 #endif

@@ -49,6 +49,7 @@
 #include "BLI_listbase.h"
 #include "BLI_ghash.h"
 #include "BLI_path_util.h"
+#include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 
@@ -1952,6 +1953,34 @@ void BKE_tracking_max_undistortion_delta_across_bound(MovieTracking *tracking, r
 		if (a >= rect->ymax)
 			break;
 	}
+}
+
+float BKE_tracking_overscan_detect(MovieClip *clip)
+{
+	float overscan = 0.0f;
+	float scalex = 1.0f, scaley = 1.0f;
+	int width, height;
+	float delta[2];
+	rcti rect;
+	MovieClipUser user= {0};
+
+	BKE_movieclip_user_set_frame(&user, 1);
+
+	BKE_movieclip_get_size(clip, &user, &width, &height);
+	BLI_rcti_init(&rect, 0, width, 0, height);
+	BKE_tracking_max_undistortion_delta_across_bound(&clip->tracking, &rect, delta);
+
+	if (delta[0] > 0.0f) {
+		scalex = 1.0f + delta[0] / width;
+	}
+
+	if (delta[1] > 0.0f) {
+		scaley = 1.0f + delta[1] / height;
+	}
+
+	overscan = (MAX2(scalex, scaley) - 1.0f) * 100.0f;
+
+	return overscan;
 }
 
 /*********************** Image sampling *************************/

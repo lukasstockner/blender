@@ -493,9 +493,11 @@ void RE_SetEnvmapCamera(Render *re, Object *cam_ob, float viewscale, float clips
 void RE_SetCamera(Render *re, Object *cam_ob)
 {
 	CameraParams params;
+	float overscan = re->scene->r.overscan;
 
 	/* setup parameters */
 	BKE_camera_params_init(&params);
+	params.overscan = overscan;
 	BKE_camera_params_from_object(&params, cam_ob);
 
 	params.use_fields = (re->r.mode & R_FIELDS);
@@ -521,6 +523,14 @@ void RE_GetCameraWindow(struct Render *re, struct Object *camera, int frame, flo
 	re->r.cfra = frame;
 	RE_SetCamera(re, camera);
 	copy_m4_m4(mat, re->winmat);
+}
+
+void RE_SceneRenderSize(Scene *scene, int *width, int *height)
+{
+	float overscan_factor = 1.0f + scene->r.overscan / 100.0f;
+
+	*width  = (scene->r.size*scene->r.xsch*overscan_factor) / 100;
+	*height = (scene->r.size*scene->r.ysch*overscan_factor) / 100;
 }
 
 /* ~~~~~~~~~~~~~~~~ part (tile) calculus ~~~~~~~~~~~~~~~~~~~~~~ */

@@ -511,6 +511,19 @@ static void rna_Scene_volume_set(PointerRNA *ptr, float value)
 		sound_set_scene_volume(scene, value);
 }
 
+static void rna_Scene_overscan_set(PointerRNA *ptr, float value)
+{
+	Scene *scene = (Scene*)(ptr->id.data);
+
+	if (!scene->r.detect_overscan)
+		scene->r.overscan = value;
+}
+
+static void rna_Scene_detect_overscan_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *UNUSED(ptr))
+{
+	BKE_scene_update_overscan(scene);
+}
+
 static void rna_Scene_framelen_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *UNUSED(ptr))
 {
 	scene->r.framelen = (float)scene->r.framapto / (float)scene->r.images;
@@ -4240,6 +4253,20 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "FPS Base", "Framerate base");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_fps_update");
 	
+	prop = RNA_def_property(srna, "overscan", PROP_FLOAT, PROP_PERCENTAGE);
+	RNA_def_property_float_sdna(prop, NULL, "overscan");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_float_funcs(prop, NULL, "rna_Scene_overscan_set", NULL);
+	RNA_def_property_range(prop, 0.0f, 100.0f);
+	RNA_def_property_ui_range(prop, 0, 100, 10, 1);
+	RNA_def_property_ui_text(prop, "Overscan", "Amount of overscan meaning percentage from original resolution to be added in both directions");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+	prop = RNA_def_property(srna, "use_detect_overscan", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "detect_overscan", 1);
+	RNA_def_property_ui_text(prop, "Detect Overscan", "Automatically detect overscan from distortion mode of active scene clip");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_detect_overscan_update");
+
 	/* frame mapping */
 	prop = RNA_def_property(srna, "frame_map_old", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "framapto");

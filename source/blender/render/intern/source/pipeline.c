@@ -1568,8 +1568,7 @@ static void render_scene(Render *re, Scene *sce, int cfra)
 
 	/* exception: scene uses own size (unfinished code) */
 	if (0) {
-		winx = (sce->r.size * sce->r.xsch) / 100;
-		winy = (sce->r.size * sce->r.ysch) / 100;
+		RE_SceneRenderSize(sce, &winx, &winy);
 	}
 	
 	/* initial setup */
@@ -2559,8 +2558,7 @@ static int render_initialize_from_main(Render *re, Main *bmain, Scene *scene, Sc
 	 * r.border is the clipping rect */
 	
 	/* calculate actual render result and display size */
-	winx = (scene->r.size * scene->r.xsch) / 100;
-	winy = (scene->r.size * scene->r.ysch) / 100;
+	RE_SceneRenderSize(scene, &winx, &winy);
 	
 	/* we always render smaller part, inserting it in larger image is compositor bizz, it uses disprect for it */
 	if (scene->r.mode & R_BORDER) {
@@ -2953,8 +2951,7 @@ void RE_PreviewRender(Render *re, Main *bmain, Scene *sce)
 	Object *camera;
 	int winx, winy;
 
-	winx = (sce->r.size * sce->r.xsch) / 100;
-	winy = (sce->r.size * sce->r.ysch) / 100;
+	RE_SceneRenderSize(sce, &winx, &winy);
 
 	RE_InitState(re, NULL, &sce->r, NULL, winx, winy, NULL);
 
@@ -2985,8 +2982,7 @@ bool RE_ReadRenderResult(Scene *scene, Scene *scenode)
 	rcti disprect;
 	
 	/* calculate actual render result and display size */
-	winx = (scene->r.size * scene->r.xsch) / 100;
-	winy = (scene->r.size * scene->r.ysch) / 100;
+	RE_SceneRenderSize(scene, &winx, &winy);
 	
 	/* only in movie case we render smaller part */
 	if (scene->r.mode & R_BORDER) {

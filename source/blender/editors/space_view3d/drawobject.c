@@ -1723,6 +1723,7 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 	float drawsize;
 	const bool is_view = (rv3d->persp == RV3D_CAMOB && ob == v3d->camera);
 	MovieClip *clip = BKE_object_movieclip_get(scene, base->object, false);
+	float overscan_factor = 1.0f + scene->r.overscan / 100.0f;
 
 	/* draw data for movie clip set as active for scene */
 	if (clip) {
@@ -1795,15 +1796,15 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 		else if (i == 1 && (ob == v3d->camera)) glBegin(GL_TRIANGLES);
 		else break;
 
-		tvec[0] = shift[0] + ((-0.7f * drawsize) * scale[0]);
-		tvec[1] = shift[1] + ((drawsize * (asp[1] + 0.1f)) * scale[1]);
+		tvec[0] = shift[0] + ((-0.7f * drawsize) * scale[0]) * overscan_factor;
+		tvec[1] = shift[1] + ((drawsize * (asp[1] + 0.1f)) * scale[1]) * overscan_factor;
 		glVertex3fv(tvec); /* left */
 		
-		tvec[0] = shift[0] + ((0.7f * drawsize) * scale[0]);
+		tvec[0] = shift[0] + ((0.7f * drawsize) * scale[0]) * overscan_factor;
 		glVertex3fv(tvec); /* right */
 		
 		tvec[0] = shift[0];
-		tvec[1] = shift[1] + ((1.1f * drawsize * (asp[1] + 0.7f)) * scale[1]);
+		tvec[1] = shift[1] + ((1.1f * drawsize * (asp[1] + 0.7f)) * scale[1]) * overscan_factor;
 		glVertex3fv(tvec); /* top */
 
 		glEnd();

@@ -2475,8 +2475,14 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 
 		if (idtype == ID_MC) {
 			MovieClip *clip = (MovieClip *) id;
+			Scene *scene;
 
 			BKE_tracking_dopesheet_tag_update(&clip->tracking);
+
+			for (scene = bmain->scene.first; scene; scene = scene->id.next) {
+				if (scene->clip == (MovieClip*)id)
+					BKE_scene_update_overscan(scene);
+			}
 
 			for (obt = bmain->object.first; obt; obt = obt->id.next) {
 				bConstraint *con;

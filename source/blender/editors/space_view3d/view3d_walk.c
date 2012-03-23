@@ -308,7 +308,7 @@ static void drawWalkPixel(const struct bContext *UNUSED(C), ARegion *ar, void *a
 	rctf viewborder;
 
 	if (walk->scene->camera) {
-		ED_view3d_calc_camera_border(walk->scene, ar, walk->v3d, walk->rv3d, &viewborder, false);
+		ED_view3d_calc_camera_border(walk->scene, ar, walk->v3d, walk->rv3d, &viewborder, NULL, false);
 		xoff = viewborder.xmin + BLI_rctf_size_x(&viewborder) * 0.5f;
 		yoff = viewborder.ymin + BLI_rctf_size_y(&viewborder) * 0.5f;
 	}

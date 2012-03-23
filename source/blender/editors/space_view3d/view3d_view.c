@@ -728,12 +728,13 @@ bool ED_view3d_clip_range_get(View3D *v3d, RegionView3D *rv3d, float *r_clipsta,
 }
 
 /* also exposed in previewrender.c */
-bool ED_view3d_viewplane_get(View3D *v3d, RegionView3D *rv3d, int winx, int winy,
+bool ED_view3d_viewplane_get(View3D *v3d, RegionView3D *rv3d, int winx, int winy, float overscan,
                              rctf *r_viewplane, float *r_clipsta, float *r_clipend, float *r_pixsize)
 {
 	CameraParams params;
 
 	BKE_camera_params_init(&params);
+	params.overscan = overscan;
 	BKE_camera_params_from_view3d(&params, v3d, rv3d);
 	BKE_camera_params_compute_viewplane(&params, winx, winy, 1.0f, 1.0f);
 
@@ -767,14 +768,14 @@ void ED_view3d_polygon_offset(const RegionView3D *rv3d, const float dist)
 /*!
  * \param rect for picking, NULL not to use.
  */
-void setwinmatrixview3d(ARegion *ar, View3D *v3d, rctf *rect)
+void setwinmatrixview3d(ARegion *ar, View3D *v3d, rctf *rect, float overscan)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	rctf viewplane;
 	float clipsta, clipend, x1, y1, x2, y2;
 	bool is_ortho;
 	
-	is_ortho = ED_view3d_viewplane_get(v3d, rv3d, ar->winx, ar->winy, &viewplane, &clipsta, &clipend, NULL);
+	is_ortho = ED_view3d_viewplane_get(v3d, rv3d, ar->winx, ar->winy, overscan, &viewplane, &clipsta, &clipend, NULL);
 	rv3d->is_persp = !is_ortho;
 
 #if 0
@@ -963,6 +964,7 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 	char dt;
 	short dtx;
 	const bool use_obedit_skip = (scene->obedit != NULL) && (vc->obedit == NULL);
+	float overscan = scene->r.overscan;
 	
 	G.f |= G_PICKSEL;
 	
@@ -977,7 +979,7 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 		BLI_rctf_rcti_copy(&rect, input);
 	}
 	
-	setwinmatrixview3d(ar, v3d, &rect);
+	setwinmatrixview3d(ar, v3d, &rect, overscan);
 	mul_m4_m4m4(vc->rv3d->persmat, vc->rv3d->winmat, vc->rv3d->viewmat);
 	
 	if (v3d->drawtype > OB_WIRE) {
@@ -1061,7 +1063,7 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 	hits = glRenderMode(GL_RENDER);
 	
 	G.f &= ~G_PICKSEL;
-	setwinmatrixview3d(ar, v3d, NULL);
+	setwinmatrixview3d(ar, v3d, NULL, overscan);
 	mul_m4_m4m4(vc->rv3d->persmat, vc->rv3d->winmat, vc->rv3d->viewmat);
 	
 	if (v3d->drawtype > OB_WIRE) {
@@ -1550,7 +1552,7 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	{
 		/* Letterbox */
 		rctf cam_framef;
-		ED_view3d_calc_camera_border(startscene, ar, CTX_wm_view3d(C), rv3d, &cam_framef, false);
+		ED_view3d_calc_camera_border(startscene, ar, CTX_wm_view3d(C), rv3d, &cam_framef, NULL, false);
 		cam_frame.xmin = cam_framef.xmin + ar->winrct.xmin;
 		cam_frame.xmax = cam_framef.xmax + ar->winrct.xmin;
 		cam_frame.ymin = cam_framef.ymin + ar->winrct.ymin;

@@ -533,7 +533,10 @@ typedef struct RenderData {
 	char seq_prev_type;
 	char seq_rend_type;
 	char seq_flag; /* flag use for sequence render/draw */
-	char pad5[5];
+
+	/* overscan */
+	char detect_overscan;
+	float overscan;
 
 	/* render simplify */
 	int simplify_flag;

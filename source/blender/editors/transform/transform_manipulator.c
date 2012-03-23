@@ -1692,7 +1692,7 @@ void BIF_draw_manipulator(const bContext *C)
 	}
 }
 
-static int manipulator_selectbuf(ScrArea *sa, ARegion *ar, const int mval[2], float hotspot)
+static int manipulator_selectbuf(Scene *scene, ScrArea *sa, ARegion *ar, const int mval[2], float hotspot)
 {
 	View3D *v3d = sa->spacedata.first;
 	RegionView3D *rv3d = ar->regiondata;
@@ -1701,19 +1701,24 @@ static int manipulator_selectbuf(ScrArea *sa, ARegion *ar, const int mval[2], fl
 	short hits;
 	const bool is_picksel = true;
 
-	extern void setwinmatrixview3d(ARegion *, View3D *, rctf *); // XXX check a bit later on this... (ton)
+	extern void setwinmatrixview3d(ARegion *, View3D *, rctf *, float /*overscan*/); // XXX check a bit later on this... (ton)
+	float overscan = 0.0f;
 
 	/* when looking through a selected camera, the manipulator can be at the
 	 * exact same position as the view, skip so we don't break selection */
 	if (fabsf(mat4_to_scale(rv3d->twmat)) < 1e-7f)
 		return 0;
 
+	if (rv3d->persp == RV3D_CAMOB) {
+		overscan = scene->r.overscan;
+	}
+
 	rect.xmin = mval[0] - hotspot;
 	rect.xmax = mval[0] + hotspot;
 	rect.ymin = mval[1] - hotspot;
 	rect.ymax = mval[1] + hotspot;
 
-	setwinmatrixview3d(ar, v3d, &rect);
+	setwinmatrixview3d(ar, v3d, &rect, overscan);
 	mul_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
 
 	glSelectBuffer(64, buffer);
@@ -1734,7 +1739,7 @@ static int manipulator_selectbuf(ScrArea *sa, ARegion *ar, const int mval[2], fl
 	glPopName();
 	hits = glRenderMode(GL_RENDER);
 
-	setwinmatrixview3d(ar, v3d, NULL);
+	setwinmatrixview3d(ar, v3d, NULL, overscan);
 	mul_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
 
 	if (hits == 1) return buffer[3];
@@ -1786,6 +1791,7 @@ int BIF_do_manipulator(bContext *C, const struct wmEvent *event, wmOperator *op)
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = sa->spacedata.first;
 	ARegion *ar = CTX_wm_region(C);
+	Scene *scene = CTX_data_scene(C);
 	int constraint_axis[3] = {0, 0, 0};
 	int val;
 	int shift = event->shift;
@@ -1797,11 +1803,11 @@ int BIF_do_manipulator(bContext *C, const struct wmEvent *event, wmOperator *op)
 	RNA_enum_set(op->ptr, "constraint_orientation", v3d->twmode);
 
 	// find the hotspots first test narrow hotspot
-	val = manipulator_selectbuf(sa, ar, event->mval, 0.5f * (float)U.tw_hotspot);
+	val = manipulator_selectbuf(scene, sa, ar, event->mval, 0.5f * (float)U.tw_hotspot);
 	if (val) {
 
 		// drawflags still global, for drawing call above
-		drawflags = manipulator_selectbuf(sa, ar, event->mval, 0.2f * (float)U.tw_hotspot);
+		drawflags = manipulator_selectbuf(scene, sa, ar, event->mval, 0.2f * (float)U.tw_hotspot);
 		if (drawflags == 0) drawflags = val;
 
 		if (drawflags & MAN_TRANS_C) {

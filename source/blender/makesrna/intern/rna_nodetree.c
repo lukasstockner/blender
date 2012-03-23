@@ -5486,6 +5486,24 @@ static void def_cmp_moviedistortion(StructRNA *srna)
 	RNA_def_property_enum_items(prop, distortion_type_items);
 	RNA_def_property_ui_text(prop, "Distortion", "Distortion to use to filter image");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "overscan", PROP_FLOAT, PROP_PERCENTAGE);
+	RNA_def_property_float_sdna(prop, NULL, "custom3");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_range(prop, 0.0f, 100.0f);
+	RNA_def_property_ui_range(prop, 0, 100, 10, 1);
+	RNA_def_property_ui_text(prop, "Overscan", "Factor of overscan meaning percentage from original resolution to be added in both directions");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "use_detect_overscan", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "custom2", CMP_NODE_MOVIEDISTORTION_DETECTOVERSCAN);
+	RNA_def_property_ui_text(prop, "Detect Overscan", "Automatically detect overscan value from input image buffer");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "use_crop_overscan", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "custom2", CMP_NODE_MOVIEDISTORTION_CROPOVERSCAN);
+	RNA_def_property_ui_text(prop, "Crop Overscan", "Crop overscan pixels from output image");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
 static void def_cmp_mask(StructRNA *srna)

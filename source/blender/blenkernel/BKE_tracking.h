@@ -188,6 +188,8 @@ void BKE_tracking_distortion_free(struct MovieDistortion *distortion);
 void BKE_tracking_distort_v2(struct MovieTracking *tracking, const float co[2], float r_co[2]);
 void BKE_tracking_undistort_v2(struct MovieTracking *tracking, const float co[2], float r_co[2]);
 
+float BKE_tracking_overscan_detect(struct MovieClip *clip);
+
 struct ImBuf *BKE_tracking_undistort_frame(struct MovieTracking *tracking, struct ImBuf *ibuf,
                                            int calibration_width, int calibration_height, float overscan);
 struct ImBuf *BKE_tracking_distort_frame(struct MovieTracking *tracking, struct ImBuf *ibuf,

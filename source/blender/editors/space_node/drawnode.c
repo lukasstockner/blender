@@ -1897,6 +1897,18 @@ static void node_composit_buts_moviedistortion(uiLayout *layout, bContext *C, Po
 		return;
 
 	uiItemR(layout, ptr, "distortion_type", 0, "", ICON_NONE);
+	uiItemR(layout, ptr, "use_detect_overscan", 0, NULL, 0);
+
+	if ((node->custom2 & CMP_NODE_MOVIEDISTORTION_DETECTOVERSCAN) == 0) {
+		uiItemR(layout, ptr, "overscan", 0, NULL, 0);
+	}
+	else {
+		char buf[64];
+		BLI_snprintf(buf, sizeof(buf), "Overscan: %.1f%%", node->custom3);
+		uiItemL(layout, buf, 0);
+	}
+
+	uiItemR(layout, ptr, "use_crop_overscan", 0, NULL, 0);
 }
 
 static void node_composit_buts_colorcorrection(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)

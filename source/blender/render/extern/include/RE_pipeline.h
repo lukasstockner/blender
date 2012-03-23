@@ -200,6 +200,8 @@ void RE_SetWindow(struct Render *re, rctf *viewplane, float clipsta, float clipe
 void RE_SetOrtho(struct Render *re, rctf *viewplane, float clipsta, float clipend);
 void RE_SetPixelSize(struct Render *re, float pixsize);
 
+void RE_SceneRenderSize(struct Scene *scene, int *width, int *height);
+
 /* option to set viewmatrix before making dbase */
 void RE_SetView(struct Render *re, float mat[4][4]);
 

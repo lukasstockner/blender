@@ -202,6 +202,9 @@ void BKE_camera_params_init(CameraParams *params)
 	/* fallback for non camera objects */
 	params->clipsta = 0.1f;
 	params->clipsta = 100.0f;
+
+	params->overscan = 0.0f;
+	params->apply_overscan = false;
 }
 
 void BKE_camera_params_from_object(CameraParams *params, Object *ob)
@@ -227,6 +230,8 @@ void BKE_camera_params_from_object(CameraParams *params, Object *ob)
 
 		params->clipsta = cam->clipsta;
 		params->clipend = cam->clipend;
+
+		params->apply_overscan = true;
 	}
 	else if (ob->type == OB_LAMP) {
 		/* lamp object */
@@ -286,9 +291,11 @@ void BKE_camera_params_from_view3d(CameraParams *params, View3D *v3d, RegionView
 
 void BKE_camera_params_compute_viewplane(CameraParams *params, int winx, int winy, float xasp, float yasp)
 {
-	rctf viewplane;
+	rctf viewplane, underscan_viewplane;
 	float pixsize, viewfac, sensor_size, dx, dy;
 	int sensor_fit;
+	float overscan = params->overscan / 100.0f;
+	float viewx, viewy;
 
 	/* fields rendering */
 	params->ycor = yasp / xasp;
@@ -335,15 +342,32 @@ void BKE_camera_params_compute_viewplane(CameraParams *params, int winx, int win
 	viewplane.xmax += dx;
 	viewplane.ymax += dy;
 
+	underscan_viewplane = viewplane;
+
+	/* apply overscan */
+	if (params->apply_overscan) {
+		viewx = viewplane.xmax - viewplane.xmin;
+		viewy = viewplane.ymax - viewplane.ymin;
+
+		viewplane.xmin -= 0.5f*overscan*viewx;
+		viewplane.xmax += 0.5f*overscan*viewx;
+		viewplane.ymin -= 0.5f*overscan*viewy;
+		viewplane.ymax += 0.5f*overscan*viewy;
+	}
+
 	/* fields offset */
 	if (params->field_second) {
 		if (params->field_odd) {
 			viewplane.ymin -= 0.5f * params->ycor;
 			viewplane.ymax -= 0.5f * params->ycor;
+			underscan_viewplane.ymin -= 0.5f * params->ycor;
+			underscan_viewplane.ymax -= 0.5f * params->ycor;
 		}
 		else {
 			viewplane.ymin += 0.5f * params->ycor;
 			viewplane.ymax += 0.5f * params->ycor;
+			underscan_viewplane.ymin += 0.5f * params->ycor;
+			underscan_viewplane.ymax += 0.5f * params->ycor;
 		}
 	}
 
@@ -354,9 +378,15 @@ void BKE_camera_params_compute_viewplane(CameraParams *params, int winx, int win
 	viewplane.ymin *= pixsize;
 	viewplane.ymax *= pixsize;
 
+	underscan_viewplane.xmin *= pixsize;
+	underscan_viewplane.xmax *= pixsize;
+	underscan_viewplane.ymin *= pixsize;
+	underscan_viewplane.ymax *= pixsize;
+
 	params->viewdx = pixsize;
 	params->viewdy = params->ycor * pixsize;
 	params->viewplane = viewplane;
+	params->underscan_viewplane = underscan_viewplane;
 }
 
 /* viewplane is assumed to be already computed */
@@ -380,12 +410,15 @@ void BKE_camera_view_frame_ex(Scene *scene, Camera *camera, float drawsize, cons
 {
 	float facx, facy;
 	float depth;
+	float overscan_factor= 1.0f;
 
 	/* aspect correcton */
 	if (scene) {
 		float aspx = (float) scene->r.xsch * scene->r.xasp;
 		float aspy = (float) scene->r.ysch * scene->r.yasp;
 		int sensor_fit = BKE_camera_sensor_fit(camera->sensor_fit, aspx, aspy);
+
+		overscan_factor = 1.0f + scene->r.overscan / 100.0f;
 
 		if (sensor_fit == CAMERA_SENSOR_FIT_HOR) {
 			r_asp[0] = 1.0;
@@ -401,12 +434,12 @@ void BKE_camera_view_frame_ex(Scene *scene, Camera *camera, float drawsize, cons
 		r_asp[1] = 1.0f;
 	}
 
-	if (camera->type == CAM_ORTHO) {
-		facx = 0.5f * camera->ortho_scale * r_asp[0] * scale[0];
-		facy = 0.5f * camera->ortho_scale * r_asp[1] * scale[1];
-		r_shift[0] = camera->shiftx * camera->ortho_scale * scale[0];
-		r_shift[1] = camera->shifty * camera->ortho_scale * scale[1];
-		depth = do_clip ? -((camera->clipsta * scale[2]) + 0.1f) : -drawsize * camera->ortho_scale * scale[2];
+	if (camera->type==CAM_ORTHO) {
+		facx = 0.5f * camera->ortho_scale * r_asp[0] * scale[0] * overscan_factor;
+		facy = 0.5f * camera->ortho_scale * r_asp[1] * scale[1] * overscan_factor;
+		r_shift[0] = camera->shiftx * camera->ortho_scale * scale[0] * overscan_factor;
+		r_shift[1] = camera->shifty * camera->ortho_scale * scale[1] * overscan_factor;
+		depth = do_clip ? -((camera->clipsta * scale[2]) + 0.1f) : - drawsize * camera->ortho_scale * scale[2];
 
 		*r_drawsize = 0.5f * camera->ortho_scale;
 	}
@@ -435,10 +468,10 @@ void BKE_camera_view_frame_ex(Scene *scene, Camera *camera, float drawsize, cons
 			scale_y = scale[1];
 		}
 
-		facx = fac * r_asp[0] * scale_x;
-		facy = fac * r_asp[1] * scale_y;
-		r_shift[0] = camera->shiftx * fac * 2.0f * scale_x;
-		r_shift[1] = camera->shifty * fac * 2.0f * scale_y;
+		facx = fac * r_asp[0] * scale_x * overscan_factor;
+		facy = fac * r_asp[1] * scale_y * overscan_factor;
+		r_shift[0] = camera->shiftx * fac * 2.0f * scale_x * overscan_factor;
+		r_shift[1] = camera->shifty * fac * 2.0f * scale_y * overscan_factor;
 	}
 
 	r_vec[0][0] = r_shift[0] + facx; r_vec[0][1] = r_shift[1] + facy; r_vec[0][2] = depth;

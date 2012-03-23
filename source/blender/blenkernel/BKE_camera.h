@@ -97,7 +97,12 @@ typedef struct CameraParams {
 	float ycor;
 	float viewdx;
 	float viewdy;
-	rctf viewplane;
+	rctf viewplane;  /* viewplane used for displaying/rendering which might include overscan correction */
+	rctf underscan_viewplane;  /* viewplane which isn't affected by overscan */
+
+	/* overscan */
+	float overscan;
+	bool apply_overscan;
 
 	/* computed matrix */
 	float winmat[4][4];

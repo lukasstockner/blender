@@ -172,6 +172,12 @@ class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
         subrow.prop(rd, "frame_map_old", text="Old")
         subrow.prop(rd, "frame_map_new", text="New")
 
+        col = layout.column()
+        col.prop(rd, "use_detect_overscan")
+        sub = col.row()
+        sub.active = not rd.use_detect_overscan
+        sub.prop(rd, "overscan")
+
 
 class RENDER_PT_antialiasing(RenderButtonsPanel, Panel):
     bl_label = "Anti-Aliasing"

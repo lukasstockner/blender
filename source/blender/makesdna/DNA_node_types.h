@@ -1041,4 +1041,8 @@ enum {
 /* viewer and cmposite output */
 #define CMP_NODE_OUTPUT_IGNORE_ALPHA		1
 
+/* movie distoriton */
+#define CMP_NODE_MOVIEDISTORTION_DETECTOVERSCAN	(1<<0)
+#define CMP_NODE_MOVIEDISTORTION_CROPOVERSCAN	(1<<1)
+
 #endif

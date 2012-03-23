@@ -3082,7 +3082,7 @@ static int render_border_exec(bContext *C, wmOperator *op)
 	/* calculate range */
 
 	if (rv3d->persp == RV3D_CAMOB) {
-		ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &vb, false);
+		ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &vb, NULL, false);
 	}
 	else {
 		vb.xmin = 0;
