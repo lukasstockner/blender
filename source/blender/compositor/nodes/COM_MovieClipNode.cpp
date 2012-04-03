@@ -94,25 +94,25 @@ void MovieClipNode::convertToOperations(ExecutionSystem *graph, CompositorContex
 	if (offsetXMovieClip->isConnected()) {
 		SetValueOperation * operationSetValue = new SetValueOperation();
 		operationSetValue->setValue(loc[0]);
-		offsetXMovieClip->relinkConnections(operation->getOutputSocket());
+		offsetXMovieClip->relinkConnections(operationSetValue->getOutputSocket());
 		graph->addOperation(operationSetValue);
 	}
 	if (offsetYMovieClip->isConnected()) {
 		SetValueOperation * operationSetValue = new SetValueOperation();
 		operationSetValue->setValue(loc[1]);
-		offsetYMovieClip->relinkConnections(operation->getOutputSocket());
+		offsetYMovieClip->relinkConnections(operationSetValue->getOutputSocket());
 		graph->addOperation(operationSetValue);
 	}
 	if (scaleMovieClip->isConnected()) {
 		SetValueOperation * operationSetValue = new SetValueOperation();
 		operationSetValue->setValue(scale);
-		scaleMovieClip->relinkConnections(operation->getOutputSocket());
+		scaleMovieClip->relinkConnections(operationSetValue->getOutputSocket());
 		graph->addOperation(operationSetValue);
 	}
 	if (angleMovieClip->isConnected()) {
 		SetValueOperation * operationSetValue = new SetValueOperation();
 		operationSetValue->setValue(angle);
-		angleMovieClip->relinkConnections(operation->getOutputSocket());
+		angleMovieClip->relinkConnections(operationSetValue->getOutputSocket());
 		graph->addOperation(operationSetValue);
 	}
 }

@@ -117,5 +117,11 @@ public:
 	  * @return the new created SocketConnection
 	  */
 	static SocketConnection* addLink(vector<SocketConnection*>& links, OutputSocket* fromSocket, InputSocket* toSocket);
+	
+	/**
+	  * @brief dumps the content of the execution system to standard out
+	  * @param system the execution system to dump
+	  */
+	static void debugDump(ExecutionSystem* system);
 };
 #endif

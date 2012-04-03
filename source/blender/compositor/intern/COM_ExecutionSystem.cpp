@@ -69,6 +69,9 @@ ExecutionSystem::ExecutionSystem(bNodeTree* editingtree, bool rendering) {
 			executionGroup->determineResolution(resolution);
 		}
 	}
+#ifdef DEBUG
+	ExecutionSystemHelper::debugDump(this);
+#endif
 }
 
 ExecutionSystem::~ExecutionSystem() {
