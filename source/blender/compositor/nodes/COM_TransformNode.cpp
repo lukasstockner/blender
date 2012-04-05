@@ -26,6 +26,7 @@
 #include "COM_RotateOperation.h"
 #include "COM_ScaleOperation.h"
 #include "COM_SetValueOperation.h"
+#include "COM_SetSamplerOperation.h"
 
 TransformNode::TransformNode(bNode *editorNode): Node(editorNode) {
 }
@@ -40,8 +41,22 @@ void TransformNode::convertToOperations(ExecutionSystem *graph, CompositorContex
 	ScaleOperation * scaleOperation = new ScaleOperation();
 	RotateOperation * rotateOperation = new RotateOperation();
 	TranslateOperation * translateOperation = new TranslateOperation();
+	SetSamplerOperation *sampler = new SetSamplerOperation();
+
+	switch (this->getbNode()->custom1) {
+	case 0:
+		sampler->setSampler(COM_PS_NEAREST);
+		break ;
+	case 1:
+		sampler->setSampler(COM_PS_BILINEAR);
+		break;
+	case 2:
+		sampler->setSampler(COM_PS_BICUBIC);
+		break;
+	}
 	
-	imageInput->relinkConnections(scaleOperation->getInputSocket(0), true, 0, graph);
+	imageInput->relinkConnections(sampler->getInputSocket(0), true, 0, graph);
+	addLink(graph, sampler->getOutputSocket(), scaleOperation->getInputSocket(0));
 	scaleInput->relinkConnections(scaleOperation->getInputSocket(1), true, 4, graph);
 	addLink(graph, scaleOperation->getInputSocket(1)->getConnection()->getFromSocket(), scaleOperation->getInputSocket(2)); // xscale = yscale
 	
@@ -55,6 +70,7 @@ void TransformNode::convertToOperations(ExecutionSystem *graph, CompositorContex
 	
 	this->getOutputSocket()->relinkConnections(translateOperation->getOutputSocket());
 	
+	graph->addOperation(sampler);
 	graph->addOperation(scaleOperation);
 	graph->addOperation(rotateOperation);
 	graph->addOperation(translateOperation);

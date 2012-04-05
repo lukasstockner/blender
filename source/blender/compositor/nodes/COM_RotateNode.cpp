@@ -24,6 +24,7 @@
 
 #include "COM_RotateOperation.h"
 #include "COM_ExecutionSystem.h"
+#include "COM_SetSamplerOperation.h"
 
 RotateNode::RotateNode(bNode *editorNode) : Node(editorNode) {
 }
@@ -33,9 +34,27 @@ void RotateNode::convertToOperations(ExecutionSystem *system, CompositorContext 
 	InputSocket *inputDegreeSocket = this->getInputSocket(1);
 	OutputSocket *outputSocket = this->getOutputSocket(0);
 	RotateOperation *operation = new RotateOperation();
+	SetSamplerOperation *sampler = new SetSamplerOperation();
+
+	switch (this->getbNode()->custom1) {
+	case 0:
+		sampler->setSampler(COM_PS_NEAREST);
+		break ;
+	case 1:
+		sampler->setSampler(COM_PS_BILINEAR);
+		break;
+	case 2:
+		sampler->setSampler(COM_PS_BICUBIC);
+		break;
 	
-	inputSocket->relinkConnections(operation->getInputSocket(0), true, 0, system);
+	}
+
+	addLink(system, sampler->getOutputSocket(), operation->getInputSocket(0));
+	
+	inputSocket->relinkConnections(sampler->getInputSocket(0), true, 0, system);
 	inputDegreeSocket->relinkConnections(operation->getInputSocket(1), true, 1, system);
 	outputSocket->relinkConnections(operation->getOutputSocket(0));
+	system->addOperation(sampler);
 	system->addOperation(operation);
+	
 }
