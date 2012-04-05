@@ -25,7 +25,6 @@ extern "C" {
 	#include "BKE_tracking.h"
 }
 MovieClipAttributeOperation::MovieClipAttributeOperation(): NodeOperation() {
-	this->addInputSocket(COM_DT_COLOR);
     this->addOutputSocket(COM_DT_VALUE);
 	this->valueSet = false;
 	this->framenumber = 0;
@@ -60,3 +59,9 @@ void MovieClipAttributeOperation::executePixel(float* outputValue, float x, floa
 	}
 	outputValue[0] = this->value;
 }
+
+void MovieClipAttributeOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {
+	resolution[0] = preferredResolution[0];
+	resolution[1] = preferredResolution[1];
+}
+
