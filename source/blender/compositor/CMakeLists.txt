@@ -263,6 +263,10 @@ set(SRC
 # Filter nodes
 	nodes/COM_SamplerNode.cpp
 	nodes/COM_SamplerNode.h
+	nodes/COM_BilateralBlurNode.cpp
+	nodes/COM_BilateralBlurNode.h
+	operations/COM_BilateralBlurOperation.cpp
+	operations/COM_BilateralBlurOperation.h
 
 		nodes/COM_FilterNode.cpp
 		nodes/COM_FilterNode.h
