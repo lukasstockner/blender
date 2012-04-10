@@ -46,6 +46,8 @@ void VectorBlurOperation::initExecution() {
 	this->inputZProgram = getInputSocketReader(1);
 	this->inputSpeedProgram = getInputSocketReader(2);
 	this->cachedInstance = NULL;
+	QualityStepHelper::initExecution(COM_QH_INCREASE);
+	
 }
 
 void VectorBlurOperation::executePixel(float* color, int x, int y, MemoryBuffer *inputBuffers[], void* data) {
@@ -95,7 +97,13 @@ bool VectorBlurOperation::determineDependingAreaOfInterest(rcti *input, ReadBuff
 
 void VectorBlurOperation::generateVectorBlur(float* data, MemoryBuffer* inputImage, MemoryBuffer* inputSpeed, MemoryBuffer* inputZ) {
 	float *zbuf = inputZ->convertToValueBuffer();
-	RE_zbuf_accumulate_vecblur(this->settings, this->getWidth(), this->getHeight(), data, inputImage->getBuffer(), inputSpeed->getBuffer(), zbuf);
+	NodeBlurData blurdata;
+	blurdata.samples = this->settings->samples/QualityStepHelper::getStep();
+	blurdata.maxspeed = this->settings->maxspeed;
+	blurdata.minspeed = this->settings->minspeed;
+	blurdata.curved = this->settings->curved;
+	blurdata.fac = this->settings->fac;
+	RE_zbuf_accumulate_vecblur(&blurdata, this->getWidth(), this->getHeight(), data, inputImage->getBuffer(), inputSpeed->getBuffer(), zbuf);
 	delete zbuf;
 	return;
 }

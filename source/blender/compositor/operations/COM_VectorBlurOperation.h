@@ -24,8 +24,9 @@
 #define _COM_VectorBlurOperation_h
 #include "COM_NodeOperation.h"
 #include "DNA_node_types.h"
+#include "COM_QualityStepHelper.h"
 
-class VectorBlurOperation : public NodeOperation {
+class VectorBlurOperation : public NodeOperation, public QualityStepHelper {
 private:
 	/**
 	  * @brief Cached reference to the inputProgram
