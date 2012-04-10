@@ -50,10 +50,12 @@ void BilateralBlurOperation::executePixel(float* color, int x, int y, MemoryBuff
 	float tempColor[4];
 	float blurColor[4];
 	float blurDivider;
-	int minx = x - this->data->sigma_space;
-	int maxx = x + this->data->sigma_space;
-	int miny = y - this->data->sigma_space;
-	int maxy = y + this->data->sigma_space;
+	float sigmaspace = this->data->sigma_space;
+	float sigmacolor = this->data->sigma_color;
+	int minx = x - sigmaspace;
+	int maxx = x + sigmaspace;
+	int miny = y - sigmaspace;
+	int maxy = y + sigmaspace;
 	float deltaColor;
 	this->inputDeterminatorProgram->read(determinatorReferenceColor, x, y, inputBuffers, data);
 	
@@ -61,14 +63,14 @@ void BilateralBlurOperation::executePixel(float* color, int x, int y, MemoryBuff
 	blurColor[1] = 0.0f;
 	blurColor[2] = 0.0f;
 	blurDivider = 0.0f;
-	for (int yi = miny ; yi < maxy ; yi++) {
-		for (int xi = minx ; xi < maxx ; xi++) {
+	for (int yi = miny ; yi < maxy ; yi+=QualityStepHelper::getStep()) {
+		for (int xi = minx ; xi < maxx ; xi+=QualityStepHelper::getStep()) {
 			// read determinator
 			this->inputDeterminatorProgram->read(determinator, xi, yi, inputBuffers, data);
 			deltaColor = fabsf(determinatorReferenceColor[0] - determinator[0])+
 			        fabsf(determinatorReferenceColor[1] - determinator[1])+
 			        fabsf(determinatorReferenceColor[2] - determinator[2]); // do not take the alpha channel into account
-			if (deltaColor< this->data->sigma_color) {
+			if (deltaColor< sigmacolor) {
 				// add this to the blur
 				this->inputColorProgram->read(tempColor, xi, yi, inputBuffers, data);
 				blurColor[0]+=tempColor[0];
