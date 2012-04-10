@@ -65,6 +65,18 @@ void MemoryBuffer::clear() {
 	memset(this->buffer, 0, this->determineBufferSize()*4*sizeof(float));
 }
 
+float* MemoryBuffer::convertToValueBuffer() {
+	int size = this->determineBufferSize();
+	int i;
+	int offset4;
+	float* result = new float[size];
+	for (i = 0, offset4 = 0 ; i < size ; i ++, offset4 +=4) {
+		result[i] = this->buffer[offset4];
+	}
+
+	return result;
+}
+
 MemoryBuffer::~MemoryBuffer() {
 	if (this->buffer) {
 		MEM_freeN(this->buffer);

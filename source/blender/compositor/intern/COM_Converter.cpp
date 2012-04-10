@@ -109,6 +109,7 @@
 #include "COM_Stabilize2dNode.h"
 #include "COM_SamplerNode.h"
 #include "COM_BilateralBlurNode.h"
+#include "COM_VectorBlurNode.h"
 
 Node* Converter::convert(bNode *bNode) {
 	Node * node;
@@ -336,8 +337,10 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_BILATERALBLUR:
 		node = new BilateralBlurNode(bNode);
 		break;
-	/* not inplemented yet */
 	case CMP_NODE_VECBLUR:
+		node = new VectorBlurNode(bNode);
+		break;
+	/* not inplemented yet */
 	case CMP_NODE_DOUBLEEDGEMASK:
 	case CMP_NODE_DEFOCUS:
 	case CMP_NODE_CROP:
@@ -375,6 +378,8 @@ void Converter::convertDataType(SocketConnection* connection, ExecutionSystem *s
 		inputSocket->relinkConnections(converter->getInputSocket(0));
 		ExecutionSystemHelper::addLink(system->getConnections(), converter->getOutputSocket(), inputSocket);
 		system->addOperation(converter);
+//		converter->getInputSocket(0)->setActualDataType(fromDatatype);
+//		converter->getOutputSocket(1)->setActualDataType(toDatatype);
 	}
 }
 

@@ -161,6 +161,8 @@ public:
 	void clear();
 	
 	MemoryBuffer* duplicate();
+	
+	float* convertToValueBuffer();
 private:
     unsigned int determineBufferSize();
 };

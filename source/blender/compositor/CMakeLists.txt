@@ -267,6 +267,12 @@ set(SRC
 	nodes/COM_BilateralBlurNode.h
 	operations/COM_BilateralBlurOperation.cpp
 	operations/COM_BilateralBlurOperation.h
+	nodes/COM_VectorBlurNode.cpp
+	nodes/COM_VectorBlurNode.h
+	operations/COM_VectorBlurOperation.cpp
+	operations/COM_VectorBlurOperation.h
+
+
 
 		nodes/COM_FilterNode.cpp
 		nodes/COM_FilterNode.h

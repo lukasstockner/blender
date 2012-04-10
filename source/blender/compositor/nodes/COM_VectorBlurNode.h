@@ -20,8 +20,19 @@
  *		Monique Dewanchand
  */
 
-#include "COM_RenderLayersSpeedOperation.h"
+#ifndef _COM_VectorBlurNode_h_
+#define _COM_VectorBlurNode_h_
 
-RenderLayersSpeedOperation::RenderLayersSpeedOperation() :RenderLayersBaseProg(SCE_PASS_VECTOR, 4) {
-	this->addOutputSocket(COM_DT_COLOR);
-}
+#include "COM_Node.h"
+
+/**
+  * @brief VectorBlurNode
+  * @ingroup Node
+  */
+class VectorBlurNode: public Node {
+public:
+	VectorBlurNode(bNode *editorNode);
+    void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
+};
+
+#endif
