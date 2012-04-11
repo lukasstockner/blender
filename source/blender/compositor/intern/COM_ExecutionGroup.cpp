@@ -54,6 +54,7 @@ ExecutionGroup::ExecutionGroup() {
 	this->numberOfChunks = 0;
 	this->initialized = false;
 	this->openCL = false;
+	this->chunksFinished = 0;
 }
 
 int ExecutionGroup::getRenderPriotrity() {
