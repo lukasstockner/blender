@@ -78,7 +78,7 @@ void* VectorBlurOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryB
 		MemoryBuffer* speed= (MemoryBuffer*)inputSpeedProgram->initializeTileData(rect, memoryBuffers);
 		MemoryBuffer* z = (MemoryBuffer*)inputZProgram->initializeTileData(rect, memoryBuffers);
 		float* data = new float[this->getWidth()*this->getHeight()*COM_NUMBER_OF_CHANNELS];
-//		memcpy(data, tile->getBuffer(),this->getWidth()*this->getHeight()*COM_NUMBER_OF_CHANNELS*sizeof(float));
+		memcpy(data, tile->getBuffer(),this->getWidth()*this->getHeight()*COM_NUMBER_OF_CHANNELS*sizeof(float));
 		this->generateVectorBlur(data, tile, speed, z);
 		this->cachedInstance = data;
 	}

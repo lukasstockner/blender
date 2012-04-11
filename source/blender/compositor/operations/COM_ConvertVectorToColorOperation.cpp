@@ -23,9 +23,9 @@
 #include "COM_ConvertVectorToColorOperation.h"
 
 ConvertVectorToColorOperation::ConvertVectorToColorOperation(): NodeOperation() {
-    this->addInputSocket(COM_DT_VECTOR);
-    this->addOutputSocket(COM_DT_COLOR);
-    this->inputOperation = NULL;
+	this->addInputSocket(COM_DT_VECTOR);
+	this->addOutputSocket(COM_DT_COLOR);
+	this->inputOperation = NULL;
 }
 
 void ConvertVectorToColorOperation::initExecution() {
@@ -34,9 +34,9 @@ void ConvertVectorToColorOperation::initExecution() {
 
 void ConvertVectorToColorOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	inputOperation->read(outputValue, x, y, sampler, inputBuffers);
-    outputValue[3] = 1.0f;
+	outputValue[3] = 1.0f;
 }
 
 void ConvertVectorToColorOperation::deinitExecution() {
-    this->inputOperation = NULL;
+	this->inputOperation = NULL;
 }

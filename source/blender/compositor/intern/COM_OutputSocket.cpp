@@ -99,7 +99,7 @@ void OutputSocket::relinkConnections(OutputSocket *relinkToSocket, bool single) 
 			SocketConnection *connection = this->connections[0];
 			connection->setFromSocket(relinkToSocket);
 			relinkToSocket->addConnection(connection);
-			relinkToSocket->setActualDataType(this->getActualDataType());
+//			relinkToSocket->setActualDataType(this->getActualDataType());
 			this->connections.erase(this->connections.begin());
 		} else {
 			unsigned int index;
@@ -108,7 +108,7 @@ void OutputSocket::relinkConnections(OutputSocket *relinkToSocket, bool single) 
 				connection->setFromSocket(relinkToSocket);
 				relinkToSocket->addConnection(connection);
 			}
-			relinkToSocket->setActualDataType(this->getActualDataType());
+//			relinkToSocket->setActualDataType(this->getActualDataType());
 			this->connections.clear();
 		}
 	}
