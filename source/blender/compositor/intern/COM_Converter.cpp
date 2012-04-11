@@ -110,6 +110,7 @@
 #include "COM_SamplerNode.h"
 #include "COM_BilateralBlurNode.h"
 #include "COM_VectorBlurNode.h"
+#include "COM_MovieDistortionNode.h"
 
 Node* Converter::convert(bNode *bNode) {
 	Node * node;
@@ -340,13 +341,15 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_VECBLUR:
 		node = new VectorBlurNode(bNode);
 		break;
+	case CMP_NODE_MOVIEDISTORTION:
+		node = new MovieDistortionNode(bNode);
+		break;
 	/* not inplemented yet */
 	case CMP_NODE_DOUBLEEDGEMASK:
 	case CMP_NODE_DEFOCUS:
 	case CMP_NODE_CROP:
 	case CMP_NODE_PREMULKEY:
 	case CMP_NODE_VIEW_LEVELS:
-	case CMP_NODE_MOVIEDISTORTION:
 	default:
 		node = new MuteNode(bNode);
 		break;
@@ -378,8 +381,6 @@ void Converter::convertDataType(SocketConnection* connection, ExecutionSystem *s
 		inputSocket->relinkConnections(converter->getInputSocket(0));
 		ExecutionSystemHelper::addLink(system->getConnections(), converter->getOutputSocket(), inputSocket);
 		system->addOperation(converter);
-//		converter->getInputSocket(0)->setActualDataType(fromDatatype);
-//		converter->getOutputSocket(1)->setActualDataType(toDatatype);
 	}
 }
 

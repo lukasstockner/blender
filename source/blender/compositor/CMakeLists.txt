@@ -187,6 +187,8 @@ set(SRC
 	nodes/COM_TransformNode.h
 	nodes/COM_Stabilize2dNode.cpp
 	nodes/COM_Stabilize2dNode.h
+	nodes/COM_MovieDistortionNode.cpp
+	nodes/COM_MovieDistortionNode.h
 
 # color nodes
 		nodes/COM_VectorCurveNode.cpp
@@ -302,6 +304,11 @@ set(SRC
 	operations/COM_DirectionalBlurOperation.h
 	operations/COM_MovieClipAttributeOperation.cpp
 	operations/COM_MovieClipAttributeOperation.h
+	operations/COM_MovieDistortionOperation.cpp
+	operations/COM_MovieDistortionOperation.h
+	operations/COM_MovieUndistortionOperation.cpp
+	operations/COM_MovieUndistortionOperation.h
+
 # Matte nodes
 nodes/COM_BoxMaskNode.cpp
 nodes/COM_BoxMaskNode.h
