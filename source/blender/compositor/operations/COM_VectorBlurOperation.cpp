@@ -87,12 +87,16 @@ void* VectorBlurOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryB
 }
 
 bool VectorBlurOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
-	rcti newInput;
-	newInput.xmax = this->getWidth();
-	newInput.xmin = 0;
-	newInput.ymax = this->getHeight();
-	newInput.ymin = 0;
-	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+	if (this->cachedInstance == NULL) {
+		rcti newInput;
+		newInput.xmax = this->getWidth();
+		newInput.xmin = 0;
+		newInput.ymax = this->getHeight();
+		newInput.ymin = 0;
+		return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+	} else {
+		return false;
+	}
 }
 
 void VectorBlurOperation::generateVectorBlur(float* data, MemoryBuffer* inputImage, MemoryBuffer* inputSpeed, MemoryBuffer* inputZ) {
