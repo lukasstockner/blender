@@ -306,8 +306,6 @@ set(SRC
 	operations/COM_MovieClipAttributeOperation.h
 	operations/COM_MovieDistortionOperation.cpp
 	operations/COM_MovieDistortionOperation.h
-	operations/COM_MovieUndistortionOperation.cpp
-	operations/COM_MovieUndistortionOperation.h
 
 # Matte nodes
 nodes/COM_BoxMaskNode.cpp

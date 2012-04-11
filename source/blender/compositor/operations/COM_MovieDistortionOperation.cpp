@@ -24,17 +24,39 @@
 
 extern "C" {
 	#include "BKE_tracking.h"
+
+#include "BLI_linklist.h"
 }
 
-MovieDistortionOperation::MovieDistortionOperation() : NodeOperation() {
+
+vector<DistortionCache*> s_cache;
+
+
+MovieDistortionOperation::MovieDistortionOperation(bool distortion) : NodeOperation() {
     this->addInputSocket(COM_DT_COLOR);
     this->addOutputSocket(COM_DT_COLOR);
     this->setResolutionInputSocketIndex(0);
     this->inputOperation = NULL;
 	this->movieClip = NULL;
+	this->cache = NULL;
+	this->distortion = distortion;
 }
 void MovieDistortionOperation::initExecution() {
 	this->inputOperation = this->getInputSocketReader(0);
+	if (this->movieClip) {
+		for (int i = 0 ; i < s_cache.size() ; i ++) {
+			DistortionCache* c = (DistortionCache*)s_cache[i];
+			if (c->isCacheFor(this->movieClip, this->width, this->height, this->distortion)) {
+				this->cache = c;
+				return;
+			}
+		}
+		DistortionCache* newC = new DistortionCache(this->movieClip, this->width, this->height, this->distortion);
+		s_cache.push_back(newC);
+		this->cache = newC;
+	} else {
+		this->cache = NULL;
+	}
 }
 
 void MovieDistortionOperation::deinitExecution() {
@@ -45,19 +67,13 @@ void MovieDistortionOperation::deinitExecution() {
 
 void MovieDistortionOperation::executePixel(float *color,float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	
-	if (this->movieClip != NULL) {
-		float in[2];
-		float out[2];
-		
-		in[0] = x;
-		in[1] = y;
-		
-		BKE_tracking_invert_intrinsics(&this->movieClip->tracking, in, out);
-		this->inputOperation->read(color, out[0], out[1], sampler, inputBuffers);
+	if (this->cache != NULL) {
+		float u, v;
+		this->cache->getUV(&this->movieClip->tracking, x, y, &u, &v);
+		this->inputOperation->read(color, u, v, sampler, inputBuffers);
 	} 
 	else {
 		this->inputOperation->read(color, x, y, sampler, inputBuffers);
-		
 	}
 }
 

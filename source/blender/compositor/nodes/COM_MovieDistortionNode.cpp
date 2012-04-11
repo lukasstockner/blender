@@ -23,7 +23,6 @@
 #include "COM_MovieDistortionNode.h"
 
 #include "COM_MovieDistortionOperation.h"
-#include "COM_MovieUndistortionOperation.h"
 #include "COM_ExecutionSystem.h"
 #include "DNA_movieclip_types.h"
 
@@ -36,13 +35,7 @@ void MovieDistortionNode::convertToOperations(ExecutionSystem *system, Composito
 	bNode* bnode = this->getbNode();
 	MovieClip * clip = (MovieClip*)bnode->id;
 	
-	MovieDistortionOperation * operation;
-	if (bnode->custom1 == 0) {
-		operation = new MovieUndistortionOperation();
-		
-	} else {
-		operation = new MovieDistortionOperation();
-	}
+	MovieDistortionOperation * operation = new MovieDistortionOperation(bnode->custom1 == 1);
 	operation->setMovieClip(clip);
 
 	inputSocket->relinkConnections(operation->getInputSocket(0), true, 0, system);
