@@ -357,6 +357,8 @@ operations/COM_ColorSpillOperation.h
 		operations/COM_RenderLayersEnvironmentOperation.h
 		operations/COM_RenderLayersIndirectOperation.cpp
 		operations/COM_RenderLayersIndirectOperation.h
+		operations/COM_RenderLayersCyclesOperation.cpp
+		operations/COM_RenderLayersCyclesOperation.h
 
 operations/COM_ImageOperation.cpp
 operations/COM_ImageOperation.h

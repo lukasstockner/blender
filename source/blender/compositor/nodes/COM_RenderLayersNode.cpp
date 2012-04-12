@@ -41,6 +41,7 @@
 #include "COM_RenderLayersEnvironmentOperation.h"
 #include "COM_RenderLayersIndirectOperation.h"
 #include "COM_RenderLayersMaterialIndexOperation.h"
+#include "COM_RenderLayersCyclesOperation.h"
 #include "COM_TranslateOperation.h"
 #include "COM_RotateOperation.h"
 #include "COM_ScaleOperation.h"
@@ -142,4 +143,15 @@ void RenderLayersNode::convertToOperations(ExecutionSystem *graph, CompositorCon
 	testSocketConnection(graph, 16, new RenderLayersMistOperation());
 	testSocketConnection(graph, 17, new RenderLayersEmitOperation());
 	testSocketConnection(graph, 18, new RenderLayersEnvironmentOperation());
+	
+	// cycles passes
+	testSocketConnection(graph, 19, new RenderLayersCyclesOperation(SCE_PASS_DIFFUSE_DIRECT));
+	testSocketConnection(graph, 20, new RenderLayersCyclesOperation(SCE_PASS_DIFFUSE_INDIRECT));
+	testSocketConnection(graph, 21, new RenderLayersCyclesOperation(SCE_PASS_DIFFUSE_COLOR));
+	testSocketConnection(graph, 22, new RenderLayersCyclesOperation(SCE_PASS_GLOSSY_DIRECT));
+	testSocketConnection(graph, 23, new RenderLayersCyclesOperation(SCE_PASS_GLOSSY_INDIRECT));
+	testSocketConnection(graph, 24, new RenderLayersCyclesOperation(SCE_PASS_GLOSSY_COLOR));
+	testSocketConnection(graph, 25, new RenderLayersCyclesOperation(SCE_PASS_TRANSM_DIRECT));
+	testSocketConnection(graph, 26, new RenderLayersCyclesOperation(SCE_PASS_TRANSM_INDIRECT));
+	testSocketConnection(graph, 27, new RenderLayersCyclesOperation(SCE_PASS_TRANSM_COLOR));
 }
