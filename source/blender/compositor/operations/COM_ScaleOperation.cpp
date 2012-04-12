@@ -81,3 +81,74 @@ bool ScaleOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOpe
     return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 }
 
+
+// SCALE ABSOLUTE
+ScaleAbsoluteOperation::ScaleAbsoluteOperation() : NodeOperation() {
+	this->addInputSocket(COM_DT_COLOR);
+	this->addInputSocket(COM_DT_VALUE);
+	this->addInputSocket(COM_DT_VALUE);	
+	this->addOutputSocket(COM_DT_COLOR);
+	this->setResolutionInputSocketIndex(0);
+	this->inputOperation = NULL;
+	this->inputXOperation= NULL;
+	this->inputYOperation = NULL;
+}
+void ScaleAbsoluteOperation::initExecution() {
+	this->inputOperation = this->getInputSocketReader(0);
+	this->inputXOperation = this->getInputSocketReader(1);
+	this->inputYOperation = this->getInputSocketReader(2);
+    this->centerX = this->getWidth()/2.0;
+    this->centerY = this->getHeight()/2.0;
+}
+
+void ScaleAbsoluteOperation::deinitExecution() {
+    this->inputOperation = NULL;
+    this->inputXOperation = NULL;
+    this->inputYOperation = NULL;
+}
+
+
+void ScaleAbsoluteOperation::executePixel(float *color,float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
+	float scaleX[4];
+	float scaleY[4];
+
+	this->inputXOperation->read(scaleX, x, y, sampler, inputBuffers);
+	this->inputYOperation->read(scaleY, x, y, sampler, inputBuffers);
+
+	const float scx = scaleX[0]; // target absolute scale
+	const float scy = scaleY[0]; // target absolute scale
+	const float width = this->getWidth();
+	const float height = this->getHeight();
+	//div
+	float relativeXScale = scx/width;
+	float relativeYScale = scy/height;
+
+	float nx = this->centerX+ (x - this->centerX) / relativeXScale;
+	float ny = this->centerY+ (y - this->centerY) / relativeYScale;
+	this->inputOperation->read(color, nx, ny, sampler, inputBuffers);
+}
+
+bool ScaleAbsoluteOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
+    rcti newInput;
+	float scaleX[4];
+	float scaleY[4];
+
+	this->inputXOperation->read(scaleX, 0, 0, COM_PS_NEAREST, NULL);
+	this->inputYOperation->read(scaleY, 0, 0, COM_PS_NEAREST, NULL);
+
+	const float scx = scaleX[0];
+	const float scy = scaleY[0];
+	const float width = this->getWidth();
+	const float height = this->getHeight();
+	//div
+	float relateveXScale = scx/width;
+	float relateveYScale = scy/height;
+
+	newInput.xmax = this->centerX+ (input->xmax - this->centerX) / relateveXScale;
+	newInput.xmin = this->centerX+ (input->xmin - this->centerX) / relateveXScale;
+	newInput.ymax = this->centerY+ (input->ymax - this->centerY) / relateveYScale;
+	newInput.ymin = this->centerY+ (input->ymin - this->centerY) / relateveYScale;
+
+    return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+}
+

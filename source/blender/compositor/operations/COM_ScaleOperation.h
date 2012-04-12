@@ -30,16 +30,30 @@ private:
 	SocketReader *inputOperation;
 	SocketReader *inputXOperation;
 	SocketReader *inputYOperation;
-    float centerX;
-    float centerY;
+	float centerX;
+	float centerY;
 public:
-    ScaleOperation();
-    bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
+	ScaleOperation();
+	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 
-    void initExecution();
-    void deinitExecution();
+	void initExecution();
+	void deinitExecution();
+};
 
+class ScaleAbsoluteOperation: public NodeOperation {
+	SocketReader *inputOperation;
+	SocketReader *inputXOperation;
+	SocketReader *inputYOperation;
+	float centerX;
+	float centerY;
+public:
+	ScaleAbsoluteOperation();
+	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+
+	void initExecution();
+	void deinitExecution();
 };
 
 #endif
