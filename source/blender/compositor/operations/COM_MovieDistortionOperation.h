@@ -63,24 +63,29 @@ public:
 	}
 	
 	void getUV(MovieTracking* trackingData, int x, int y, float *u, float*v) {
-		int offset = y * this->width + x;
-		int offset2 = offset*2;
-		if (!bufferCalculated[offset]) {
-			float in[2];
-			float out[2];
-			in[0] = x;
-			in[1] = y;
-			if (inverted) {
-				BKE_tracking_invert_intrinsics(trackingData, in, out);
-			} else {
-				BKE_tracking_apply_intrinsics(trackingData, in, out);
+		if (x<0 || x >= this->width || y <0 || y >= this->height) {
+			*u = x;
+			*v = y;
+		} else {
+			int offset = y * this->width + x;
+			int offset2 = offset*2;
+			if (!bufferCalculated[offset]) {
+				float in[2];
+				float out[2];
+				in[0] = x;
+				in[1] = y;
+				if (inverted) {
+					BKE_tracking_invert_intrinsics(trackingData, in, out);
+				} else {
+					BKE_tracking_apply_intrinsics(trackingData, in, out);
+				}
+				buffer[offset2] = out[0];
+				buffer[offset2+1] = out[1];
+				bufferCalculated[offset] = 1;
 			}
-			buffer[offset2] = out[0];
-			buffer[offset2+1] = out[1];
-			bufferCalculated[offset] = 1;
+			*u = buffer[offset2];
+			*v = buffer[offset2+1];
 		}
-		*u = buffer[offset2];
-		*v = buffer[offset2+1];
 	}
 };
 
