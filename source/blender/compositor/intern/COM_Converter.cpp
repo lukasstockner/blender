@@ -65,6 +65,7 @@
 #include "COM_VectorCurveNode.h"
 #include "COM_DilateErode2Node.h"
 #include "COM_SetAlphaNode.h"
+#include "COM_ConvertAlphaNode.h"
 #include "COM_MapUVNode.h"
 #include "COM_DisplaceNode.h"
 #include "COM_MathNode.h"
@@ -214,6 +215,9 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_SETALPHA:
 		node = new SetAlphaNode(bNode);
 		break;
+	case CMP_NODE_PREMULKEY:
+		node = new ConvertAlphaNode(bNode);
+		break;
 	case CMP_NODE_MATH:
 		node = new MathNode(bNode);
 		break;
@@ -348,7 +352,6 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_DOUBLEEDGEMASK:
 	case CMP_NODE_DEFOCUS:
 	case CMP_NODE_CROP:
-	case CMP_NODE_PREMULKEY:
 	case CMP_NODE_VIEW_LEVELS:
 	default:
 		node = new MuteNode(bNode);

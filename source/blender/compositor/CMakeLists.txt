@@ -217,6 +217,8 @@ set(SRC
 #    nodes/COM_ColorSpaceNode.h
 	nodes/COM_SetAlphaNode.cpp
 	nodes/COM_SetAlphaNode.h
+	nodes/COM_ConvertAlphaNode.cpp
+	nodes/COM_ConvertAlphaNode.h
 	nodes/COM_AlphaOverNode.cpp
 	nodes/COM_AlphaOverNode.h
 	nodes/COM_HueSaturationValueNode.cpp
@@ -440,6 +442,10 @@ operations/COM_ConvertDepthToRadiusOperation.cpp
 	operations/COM_ColorMatteOperation.h
 	operations/COM_ChannelMatteOperation.cpp
 	operations/COM_ChannelMatteOperation.h
+	operations/COM_ConvertPremulToKeyOperation.cpp
+	operations/COM_ConvertPremulToKeyOperation.h
+	operations/COM_ConvertKeyToPremulOperation.cpp
+	operations/COM_ConvertKeyToPremulOperation.h
 
 	operations/COM_ReadBufferOperation.cpp
 	operations/COM_ReadBufferOperation.h
