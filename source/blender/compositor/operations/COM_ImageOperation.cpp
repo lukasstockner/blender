@@ -44,6 +44,7 @@ BaseImageOperation::BaseImageOperation(): NodeOperation() {
     this->imagewidth = 0;
     this->imageheight = 0;
 	this->framenumber = 0;
+	this->numberOfChannels = 0;
 }
 ImageOperation::ImageOperation(): BaseImageOperation() {
     this->addOutputSocket(COM_DT_COLOR);
@@ -52,30 +53,30 @@ ImageAlphaOperation::ImageAlphaOperation(): BaseImageOperation() {
     this->addOutputSocket(COM_DT_VALUE);
 }
 
-static ImBuf *node_composit_get_image(Image *ima, ImageUser *iuser)
-{
-        ImBuf *ibuf;
-
-        ibuf= BKE_image_get_ibuf(ima, iuser);
-        if(ibuf==NULL || (ibuf->rect==NULL && ibuf->rect_float==NULL)) {
-                return NULL;
-        }
-
-        if (ibuf->rect_float == NULL) {
-                IMB_float_from_rect(ibuf);
-        }
-
-        return ibuf;
+ImBuf* BaseImageOperation::getImBuf() {
+	ImBuf *ibuf;
+	
+	ibuf= BKE_image_get_ibuf(this->image, this->imageUser);
+	if(ibuf==NULL || (ibuf->rect==NULL && ibuf->rect_float==NULL)) {
+			return NULL;
+	}
+	
+	if (ibuf->rect_float == NULL) {
+			IMB_float_from_rect(ibuf);
+	}
+	return ibuf;
 }
+
 
 void BaseImageOperation::initExecution() {
 	BKE_image_user_calc_frame(this->imageUser, this->framenumber, 0);
-	ImBuf *stackbuf= node_composit_get_image(this->image, this->imageUser);
+	ImBuf *stackbuf= getImBuf();
 	this->buffer = stackbuf;
     if (stackbuf) {
         this->imageBuffer = stackbuf->rect_float;
         this->imagewidth = stackbuf->x;
         this->imageheight = stackbuf->y;
+		this->numberOfChannels = stackbuf->channels;
     }
 }
 
@@ -84,12 +85,12 @@ void BaseImageOperation::deinitExecution() {
 }
 
 void BaseImageOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {
-    BKE_image_user_calc_frame(this->imageUser, 0, 0);
-	ImBuf *stackbuf= node_composit_get_image(this->image, this->imageUser);
-    if (stackbuf) {
-        resolution[0] = stackbuf->x;
-        resolution[1] = stackbuf->y;
-    }
+	BKE_image_user_calc_frame(this->imageUser, 0, 0);
+	ImBuf *stackbuf= getImBuf();
+	if (stackbuf) {
+		resolution[0] = stackbuf->x;
+		resolution[1] = stackbuf->y;
+	}
 }
 
 void ImageOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {

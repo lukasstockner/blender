@@ -364,6 +364,8 @@ operations/COM_ColorSpillOperation.h
 
 operations/COM_ImageOperation.cpp
 operations/COM_ImageOperation.h
+operations/COM_MultilayerImageOperation.cpp
+operations/COM_MultilayerImageOperation.h
 operations/COM_TextureOperation.cpp
 operations/COM_TextureOperation.h
 operations/COM_BokehImageOperation.cpp

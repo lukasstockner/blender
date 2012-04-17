@@ -49,12 +49,15 @@ protected:
     int imageheight;
     int imagewidth;
 	int framenumber;
+	int numberOfChannels;
 
 	BaseImageOperation();
     /**
       * Determine the output resolution. The resolution is retrieved from the Renderer
       */
     void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
+	
+	virtual ImBuf* getImBuf();
 
 public:
 
