@@ -1221,9 +1221,7 @@ static int edgetag_shortest_path(Scene *scene, BMEditMesh *em, BMEdge *source, B
 	/* note, would pass BM_EDGE except we are looping over all edges anyway */
 	BM_mesh_elem_index_ensure(em->bm, BM_VERT /* | BM_EDGE */);
 
-	BM_ITER(e, &iter, em->bm, BM_EDGES_OF_MESH, NULL)
-	{
-		e->oflags[0].f = 0; /* XXX, whats this for, BMESH_TODO, double check if this is needed */
+	BM_ITER(e, &iter, em->bm, BM_EDGES_OF_MESH, NULL) {
 		if (BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
 			BLI_smallhash_insert(&visithash, (uintptr_t)e, NULL);
 		}
@@ -1276,15 +1274,6 @@ static int edgetag_shortest_path(Scene *scene, BMEditMesh *em, BMEdge *source, B
 	 * the same data as the cost arry, but inverted: it is a worklist of edges prioritized
 	 * by the shortest path found so far to the edge.
 	 */
-
-#if 0 /* UNUSED */ /* this block does nothing, not sure why its here? - campbell */
-	for (i = 0; i < totvert; i++) {
-		int start = nedges[i], end = nedges[i + 1], cur;
-		for (cur = start; cur < end; cur++) {
-			BMEdge *e = EDBM_edge_at_index(em, edges[cur]);
-		}
-	}
-#endif
 
 	/* regular dijkstra shortest path, but over edges instead of vertices */
 	heap = BLI_heap_new();
@@ -1895,7 +1884,7 @@ static int edbm_select_linked_exec(bContext *C, wmOperator *op)
 
 		BMW_init(&walker, bm, BMW_ISLAND,
 		         BMW_MASK_NOP, limit ? BM_ELEM_SELECT : BMW_MASK_NOP, BMW_MASK_NOP,
-		         BMW_FLAG_NOP, /* BMESH_TODO - should be BMW_FLAG_TEST_HIDDEN ? */
+		         BMW_FLAG_TEST_HIDDEN,
 		         BMW_NIL_LAY);
 
 		BM_ITER(efa, &iter, em->bm, BM_FACES_OF_MESH, NULL) {
@@ -2066,7 +2055,7 @@ static void walker_deselect_nth(BMEditMesh *em, int nth, int offset, BMHeader *h
 	/* Walk over selected elements starting at active */
 	BMW_init(&walker, bm, walktype,
 	         mask_vert, mask_edge, mask_face,
-	         BMW_FLAG_NOP, /* BMESH_TODO - should be BMW_FLAG_TEST_HIDDEN ? */
+	         BMW_FLAG_NOP, /* don't use BMW_FLAG_TEST_HIDDEN here since we want to desel all */
 	         BMW_NIL_LAY);
 
 	BLI_assert(walker.order == BMW_BREADTH_FIRST);
