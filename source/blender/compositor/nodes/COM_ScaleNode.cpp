@@ -61,18 +61,13 @@ void ScaleNode::convertToOperations(ExecutionSystem *graph, CompositorContext * 
 		break;
 		
 	case CMP_SCALE_RENDERPERCENT: {
-		SetValueOperation * scaleWidthOperation = new SetValueOperation();
-		SetValueOperation * scaleHeightOperation = new SetValueOperation();
 		const RenderData* data = &context->getScene()->r;
-		scaleWidthOperation->setValue(data->xsch*data->size/100.0f);
-		scaleHeightOperation->setValue(data->ysch*data->size/100.0f);
-		ScaleAbsoluteOperation * operation = new ScaleAbsoluteOperation();
+		ScaleFixedSizeOperation * operation = new ScaleFixedSizeOperation();
+		operation->setNewWidth(data->xsch*data->size/100.0f);
+		operation->setNewHeight(data->ysch*data->size/100.0f);
 		inputSocket->relinkConnections(operation->getInputSocket(0), true, 0, graph);
-		addLink(graph, scaleWidthOperation->getOutputSocket(), operation->getInputSocket(1));
-		addLink(graph, scaleHeightOperation->getOutputSocket(), operation->getInputSocket(2));
 	    outputSocket->relinkConnections(operation->getOutputSocket(0));
-		graph->addOperation(scaleWidthOperation);
-		graph->addOperation(scaleHeightOperation);
+		operation->getInputSocket(0)->getConnection()->setIgnoreResizeCheck(true);
 		graph->addOperation(operation);
 	}
 		break;

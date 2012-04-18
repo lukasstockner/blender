@@ -152,3 +152,45 @@ bool ScaleAbsoluteOperation::determineDependingAreaOfInterest(rcti *input, ReadB
     return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 }
 
+
+// Absolute fixed siez
+ScaleFixedSizeOperation::ScaleFixedSizeOperation() : NodeOperation() {
+	this->addInputSocket(COM_DT_COLOR);
+	this->addOutputSocket(COM_DT_COLOR);
+	this->setResolutionInputSocketIndex(0);
+	this->inputOperation = NULL;
+}
+void ScaleFixedSizeOperation::initExecution() {
+	this->inputOperation = this->getInputSocketReader(0);
+	this->relX = inputOperation->getWidth() / (float)this->newWidth;
+	this->relY = inputOperation->getHeight() / (float)this->newHeight;
+}
+
+void ScaleFixedSizeOperation::deinitExecution() {
+    this->inputOperation = NULL;
+}
+
+
+void ScaleFixedSizeOperation::executePixel(float *color,float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
+	this->inputOperation->read(color, x*relX, y*relY, sampler, inputBuffers);
+}
+
+bool ScaleFixedSizeOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
+    rcti newInput;
+	
+	newInput.xmax = input->xmax *relX;
+	newInput.xmin = input->xmin *relX;
+	newInput.ymax = input->ymax *relY;
+	newInput.ymin = input->ymin *relY;
+
+    return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+}
+
+void ScaleFixedSizeOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {
+	unsigned int nr[2];
+	nr[0] = newWidth;
+	nr[1] = newHeight;
+	NodeOperation::determineResolution(resolution, nr);
+	resolution[0] = newWidth;
+	resolution[1] = newHeight;
+}

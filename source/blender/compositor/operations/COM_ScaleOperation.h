@@ -56,4 +56,22 @@ public:
 	void deinitExecution();
 };
 
+class ScaleFixedSizeOperation: public NodeOperation {
+	SocketReader *inputOperation;
+	int newWidth;
+	int newHeight;
+	float relX;
+	float relY;
+public:
+	ScaleFixedSizeOperation();
+	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
+	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+
+	void initExecution();
+	void deinitExecution();
+	void setNewWidth(int width) {this->newWidth = width;}
+	void setNewHeight(int height) {this->newHeight = height;}
+};
+
 #endif
