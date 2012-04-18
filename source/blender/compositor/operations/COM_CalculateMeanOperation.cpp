@@ -111,7 +111,7 @@ void CalculateMeanOperation::calculateMean(MemoryBuffer * tile) {
 			case 5:
 				{
 					float yuv[3];
-					rgb_to_yuv(buffer[0], buffer[offset+1], buffer[offset+2], &yuv[0], &yuv[1], &yuv[2]);
+					rgb_to_yuv(buffer[offset], buffer[offset+1], buffer[offset+2], &yuv[0], &yuv[1], &yuv[2]);
 					sum+=yuv[0];
 					break;
 				}
