@@ -192,7 +192,6 @@ void ExecutionSystemHelper::debugDump(ExecutionSystem* system) {
 		printf("// OPERATION: %p\r\n", operation);
 		printf("\t\"O_%p\"", operation);
 		printf(" [shape=record,label=\"{");
-		printf("");
 		tot2 = operation->getNumberOfInputSockets();
 		if (tot2 != 0) {
 			printf("{");
@@ -284,7 +283,7 @@ void ExecutionSystemHelper::debugDump(ExecutionSystem* system) {
 	tot = system->getConnections().size();
 	for (int i = 0 ; i < tot ; i ++) {
 		connection = system->getConnections()[i];
-		printf("// CONNECTION: %d.%d -> %d.%d\r\n", connection->getFromNode(), connection->getFromSocket(), connection->getToNode(), connection->getToSocket());
+		printf("// CONNECTION: %p.%p -> %p.%p\r\n", connection->getFromNode(), connection->getFromSocket(), connection->getToNode(), connection->getToSocket());
 		printf("\t\"O_%p\":\"OUT_%p\" -> \"O_%p\":\"IN_%p\"", connection->getFromNode(), connection->getFromSocket(), connection->getToNode(), connection->getToSocket());
 		if (!connection->isValid()) {
 			printf(" [color=red]");

@@ -27,10 +27,10 @@
 #include <stdio.h>
 
 OutputSocket::OutputSocket(DataType datatype) :Socket(datatype) {
-    this->inputSocketDataTypeDeterminatorIndex = -1;
+	this->inputSocketDataTypeDeterminatorIndex = -1;
 }
 OutputSocket::OutputSocket(DataType datatype, int inputSocketDataTypeDeterminatorIndex) :Socket(datatype) {
-    this->inputSocketDataTypeDeterminatorIndex = inputSocketDataTypeDeterminatorIndex;
+	this->inputSocketDataTypeDeterminatorIndex = inputSocketDataTypeDeterminatorIndex;
 }
 
 OutputSocket::OutputSocket(OutputSocket *from): Socket(from->getDataType()) {
@@ -41,14 +41,14 @@ int OutputSocket::isOutputSocket() const { return true; }
 const int OutputSocket::isConnected() const { return this->connections.size()!=0; }
 
 void OutputSocket::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {
-    NodeBase* node = this->getNode();
-    if (node->isOperation()) {
-        NodeOperation* operation = (NodeOperation*)node;
-        operation->determineResolution(resolution, preferredResolution);
-        operation->setResolution(resolution);
-    } else {
-        printf("ERROR is not an operation\n");
-    }
+	NodeBase* node = this->getNode();
+	if (node->isOperation()) {
+		NodeOperation* operation = (NodeOperation*)node;
+		operation->determineResolution(resolution, preferredResolution);
+		operation->setResolution(resolution);
+	} else {
+		printf("ERROR is not an operation\n");
+	}
 }
 
 void OutputSocket::determineActualDataType() {
@@ -78,20 +78,20 @@ void OutputSocket::determineActualDataType() {
 		break;
 	}
 
-    this->setActualDataType(actualDatatype);
-    this->fireActualDataType();
+	this->setActualDataType(actualDatatype);
+	this->fireActualDataType();
 }
 
 void OutputSocket::addConnection(SocketConnection *connection) {
-    this->connections.push_back(connection);
+	this->connections.push_back(connection);
 }
 
 void OutputSocket::fireActualDataType() {
-    unsigned int index;
-    for (index = 0 ; index < this->connections.size();index ++) {
-        SocketConnection *connection = this->connections[index];
-        connection->getToSocket()->notifyActualInputType(this->getActualDataType());
-    }
+	unsigned int index;
+	for (index = 0 ; index < this->connections.size();index ++) {
+		SocketConnection *connection = this->connections[index];
+		connection->getToSocket()->notifyActualInputType(this->getActualDataType());
+	}
 }
 void OutputSocket::relinkConnections(OutputSocket *relinkToSocket, bool single) {
 	if (isConnected()) {
@@ -114,18 +114,18 @@ void OutputSocket::relinkConnections(OutputSocket *relinkToSocket, bool single) 
 	}
 }
 void OutputSocket::removeFirstConnection() {
-    SocketConnection *connection = this->connections[0];
-    InputSocket* inputSocket = connection->getToSocket();
-    if (inputSocket != NULL) {
-        inputSocket->setConnection(NULL);
-    }
-    this->connections.erase(this->connections.begin());
+	SocketConnection *connection = this->connections[0];
+	InputSocket* inputSocket = connection->getToSocket();
+	if (inputSocket != NULL) {
+		inputSocket->setConnection(NULL);
+	}
+	this->connections.erase(this->connections.begin());
 }
 
 void OutputSocket::clearConnections() {
-    while (this->isConnected()) {
-        removeFirstConnection();
-    }
+	while (this->isConnected()) {
+		removeFirstConnection();
+	}
 }
 
 WriteBufferOperation* OutputSocket::findAttachedWriteBufferOperation() const {

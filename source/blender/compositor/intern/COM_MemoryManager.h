@@ -105,10 +105,10 @@
   */
 class MemoryManager {
 private:
-    /**
+	/**
 	  * @brief retrieve the state of a certain MemoryProxy;
 	  * @param memoryProxy the MemoryProxy to retrieve the state from
-      */
+	  */
 	static MemoryManagerState* getState(MemoryProxy* memoryProxy);
 public:
 	/**
@@ -136,11 +136,11 @@ public:
 	/**
 	  * @brief clear the memory manager
 	  */
-    static void clear();
+	static void clear();
 
 	/**
 	  * @brief initialize the memory manager.
 	  */
-    static void initialize();
+	static void initialize();
 };
 #endif

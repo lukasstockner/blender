@@ -156,7 +156,7 @@ public:
 	/**
 	  * Destructor
 	  */
-    ~ExecutionSystem();
+	~ExecutionSystem();
 
 
 	/**
@@ -174,11 +174,11 @@ public:
 	  */
 	void addOperation(NodeOperation* operation);
 
-    /**
-      * Add an editor link to the system. convert it to an socketconnection (CPP-representative)
-      * this converted socket is returned.
-      */
-    SocketConnection* addNodeLink(bNodeLink* bNodeLink);
+	/**
+	  * Add an editor link to the system. convert it to an socketconnection (CPP-representative)
+	  * this converted socket is returned.
+	  */
+	SocketConnection* addNodeLink(bNodeLink* bNodeLink);
 	void addSocketConnection(SocketConnection* connection);
 
 	/**

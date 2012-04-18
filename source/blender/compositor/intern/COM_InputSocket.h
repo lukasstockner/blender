@@ -65,60 +65,60 @@ private:
 	  * @brief connection connected to this InputSocket.
 	  * An input socket can only have a single connection
 	  */
-    SocketConnection* connection;
-
+	SocketConnection* connection;
+	
 	/**
 	  * @brief resize mode of this socket
 	  */
 	InputSocketResizeMode resizeMode;
-
-
-    /**
+	
+	
+	/**
 	  * @brief convert a data type to a by the socket supported data type.
 	  *
 	  * @param datatype the datatype that needs to be checked
-      * @section data-conversion
-      */
+	  * @section data-conversion
+	  */
 	DataType convertToSupportedDataType(DataType datatype);
-
+	
 	/**
 	  * @brief called when the ActualDataType is set. notifies other parties
 	  */
-    void fireActualDataTypeSet();
+	void fireActualDataTypeSet();
 
 public:
 	InputSocket(DataType datatype);
 	InputSocket(DataType datatype, InputSocketResizeMode resizeMode);
 	InputSocket(InputSocket* from);
-
-    void setConnection(SocketConnection* connection);
-    SocketConnection* getConnection();
-
-    const int isConnected() const;
-    int isInputSocket() const;
-
+	
+	void setConnection(SocketConnection* connection);
+	SocketConnection* getConnection();
+	
+	const int isConnected() const;
+	int isInputSocket() const;
+	
 	/**
 	  * @brief determine the resolution of this data going through this socket
 	  * @param resolution the result of this operation
 	  * @param preferredResolution the preferrable resolution as no resolution could be determined
 	  */
-    void determineResolution(unsigned int resolution[],unsigned int preferredResolution[]);
-
-    void determineActualDataType();
-
+	void determineResolution(unsigned int resolution[],unsigned int preferredResolution[]);
+	
+	void determineActualDataType();
+	
 	/**
 	  * @brief Notifies the Input of the data type (via a SocketConnection)
 	  * @param datatype the datatype to evaluate
 	  */
 	void notifyActualInputType(DataType datatype);
-
+	
 	/**
 	  * @brief move all connections of this input socket to another socket
 	  * only use this method when already checked the availability of a SocketConnection
 	  * @param relinkToSocket the socket to move to connections to
 	  */
-    void relinkConnections(InputSocket *relinkToSocket);
-
+	void relinkConnections(InputSocket *relinkToSocket);
+	
 	/**
 	  * @brief move all connections of this input socket to another socket
 	  * @param relinkToSocket the socket to move to connections to
@@ -127,7 +127,7 @@ public:
 	  * @param system ExecutionSystem to update to
 	  */
 	void relinkConnections(InputSocket *relinkToSocket, bool autoconnect, int editorNodeInputSocketIndex, ExecutionSystem* system);
-
+	
 	/**
 	  * @brief move all connections of this input socket to another socket
 	  * @param relinkToSocket the socket to move to connections to
@@ -137,26 +137,26 @@ public:
 	  * @param system ExecutionSystem to update to
 	  */
 	void relinkConnections(InputSocket *relinkToSocket, bool autoconnect, int editorNodeInputSocketIndex, bool duplicate, ExecutionSystem* system);
-
+	
 	/**
 	  * @brief set the resize mode
 	  * @param resizeMode the new resize mode.
 	  */
 	void setResizeMode(InputSocketResizeMode resizeMode) {this->resizeMode = resizeMode;}
-
+	
 	/**
 	  * @brief get the resize mode of this socket
 	  * @return InputSocketResizeMode
 	  */
 	InputSocketResizeMode getResizeMode() const {return this->resizeMode;}
-
+	
 	const ChannelInfo* getChannelInfo(const int channelnumber);
-
+	
 	bool isStatic();
-
+	
 	float* getStaticValues();
 	SocketReader* getReader();
-        NodeOperation* getOperation() const;
+	NodeOperation* getOperation() const;
 };
 
 #endif

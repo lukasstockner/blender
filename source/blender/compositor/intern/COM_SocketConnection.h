@@ -48,69 +48,69 @@ private:
 	/**
 	  * @brief Startpoint of the connection
 	  */
-    OutputSocket *fromSocket;
-
+	OutputSocket *fromSocket;
+	
 	/**
 	  * @brief Endpoint of the connection
 	  */
 	InputSocket *toSocket;
-
+	
 	/**
 	  * @brief has the resize already been done for this connection
 	  */
 	bool ignoreResizeCheck;
 public:
-    SocketConnection();
-
+	SocketConnection();
+	
 	/**
 	  * @brief set the startpoint of the connection
 	  * @param fromsocket
 	  */
 	void setFromSocket(OutputSocket* fromsocket);
-
+	
 	/**
 	  * @brief get the startpoint of the connection
 	  * @return from OutputSocket
 	  */
-    OutputSocket* getFromSocket() const;
-
+	OutputSocket* getFromSocket() const;
+	
 	/**
 	  * @brief set the endpoint of the connection
 	  * @param tosocket
 	  */
 	void setToSocket(InputSocket* tosocket);
-
+	
 	/**
 	  * @brief get the endpoint of the connection
 	  * @return to InputSocket
 	  */
 	InputSocket* getToSocket() const;
-
+	
 	/**
 	  * @brief check if this connection is valid
 	  */
 	bool isValid() const;
-
+	
 	/**
 	  * @brief return the Node where this connection is connected from
 	  */
 	NodeBase * getFromNode() const;
-
+	
 	/**
 	  * @brief return the Node where this connection is connected to
 	  */
 	NodeBase * getToNode() const;
-
+	
 	/**
 	  * @brief set, whether the resize has already been done for this SocketConnection
 	  */
 	void setIgnoreResizeCheck(bool check) {this->ignoreResizeCheck = check;}
-
+	
 	/**
 	  * @brief has the resize already been done for this SocketConnection
 	  */
 	bool isIgnoreResizeCheck() const { return this->ignoreResizeCheck;}
-
+	
 	/**
 	  * @brief does this SocketConnection need resolution conversion
 	  * @note PreviewOperation's will be ignored

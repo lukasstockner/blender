@@ -54,8 +54,8 @@ void NodeBase::addInputSocket(DataType datatype, InputSocketResizeMode resizeMod
 void NodeBase::addInputSocket(DataType datatype, InputSocketResizeMode resizeMode, bNodeSocket* bSocket) {
 	InputSocket *socket = new InputSocket(datatype, resizeMode);
 	socket->setEditorSocket(bSocket);
-    socket->setNode(this);
-    this->inputsockets.push_back(socket);
+	socket->setNode(this);
+	this->inputsockets.push_back(socket);
 }
 
 void NodeBase::addOutputSocket(DataType datatype) {
@@ -65,19 +65,19 @@ void NodeBase::addOutputSocket(DataType datatype) {
 void NodeBase::addOutputSocket(DataType datatype, bNodeSocket* bSocket) {
 	OutputSocket *socket = new OutputSocket(datatype);
 	socket->setEditorSocket(bSocket);
-    socket->setNode(this);
-    this->outputsockets.push_back(socket);
+	socket->setNode(this);
+	this->outputsockets.push_back(socket);
 }
 const bool NodeBase::isInputNode() const {
-    return this->inputsockets.size() == 0;
+	return this->inputsockets.size() == 0;
 }
 
 OutputSocket* NodeBase::getOutputSocket(int index) {
-    return this->outputsockets[index];
+	return this->outputsockets[index];
 }
 
 InputSocket* NodeBase::getInputSocket(int index) {
-    return this->inputsockets[index];
+	return this->inputsockets[index];
 }
 
 
@@ -108,21 +108,21 @@ DataType NodeBase::determineActualDataType(OutputSocket *outputsocket) {
 
 void NodeBase::notifyActualDataTypeSet(InputSocket *socket, DataType actualType) {
 	unsigned int index;
-    int socketIndex = -1;
-    for (index = 0 ; index < this->inputsockets.size() ; index ++) {
-        if (this->inputsockets[index] == socket) {
+	int socketIndex = -1;
+	for (index = 0 ; index < this->inputsockets.size() ; index ++) {
+		if (this->inputsockets[index] == socket) {
 			socketIndex = (int)index;
-            break;
-        }
-    }
-    if (socketIndex == -1) return;
-
-    for (index = 0 ; index < this->outputsockets.size() ; index ++) {
-        OutputSocket* socket = this->outputsockets[index];
-        if (socket->isActualDataTypeDeterminedByInputSocket() &&
-                socket->getInputSocketDataTypeDeterminatorIndex() == socketIndex) {
-            socket->setActualDataType(actualType);
-            socket->fireActualDataType();
-        }
-    }
+			break;
+		}
+	}
+	if (socketIndex == -1) return;
+	
+	for (index = 0 ; index < this->outputsockets.size() ; index ++) {
+		OutputSocket* socket = this->outputsockets[index];
+		if (socket->isActualDataTypeDeterminedByInputSocket() &&
+				socket->getInputSocketDataTypeDeterminatorIndex() == socketIndex) {
+			socket->setActualDataType(actualType);
+			socket->fireActualDataType();
+		}
+	}
 }

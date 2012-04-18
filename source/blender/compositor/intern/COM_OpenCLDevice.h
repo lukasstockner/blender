@@ -36,25 +36,25 @@ class OpenCLDevice;
   */
 class OpenCLDevice: public Device {
 private:
-    /**
-      *@brief opencl context
-      */
-    cl_context context;
-    
-    /**
-      *@brief opencl device
-      */
-    cl_device_id device;
-
 	/**
-      *@brief opencl program
-      */
-    cl_program program;
-    
-    /**
-      *@brief opencl command queue
-      */
-    cl_command_queue queue;
+	  *@brief opencl context
+	  */
+	cl_context context;
+	
+	/**
+	  *@brief opencl device
+	  */
+	cl_device_id device;
+	
+	/**
+	  *@brief opencl program
+	  */
+	cl_program program;
+	
+	/**
+	  *@brief opencl command queue
+	  */
+	cl_command_queue queue;
 public:
 	/**
 	  *@brief constructor with opencl device
@@ -62,22 +62,22 @@ public:
 	  *@param device
 	  */
 	OpenCLDevice(cl_context context, cl_device_id device, cl_program program);
-    
-    
-    /**
-      * @brief initialize the device
+	
+	
+	/**
+	  * @brief initialize the device
 	  * During initialization the OpenCL cl_command_queue is created
 	  * the command queue is stored in the field queue.
 	  * @see queue 
-      */
-    bool initialize();
-    
+	  */
+	bool initialize();
+	
 	/**
 	  * @brief deinitialize the device
 	  * During deintiialization the command queue is cleared
 	  */
 	void deinitialize();
-    
+	
 	/**
 	  * @brief execute a WorkPackage
 	  * @param work the WorkPackage to execute

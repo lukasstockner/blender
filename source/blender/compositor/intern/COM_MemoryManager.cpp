@@ -31,38 +31,38 @@ ThreadMutex mutex;
 
 MemoryBuffer* MemoryManager::allocateMemoryBuffer(MemoryProxy *id, unsigned int chunkNumber, rcti *rect) {
 	MemoryBuffer *result = new MemoryBuffer(id, chunkNumber, rect);
-    MemoryManagerState * state = MemoryManager::getState(id);
-    state->addMemoryBuffer(result);
-    BLI_mutex_lock(&mutex);
-    buffers.push_back(result);
-    BLI_mutex_unlock(&mutex);
-    return result;
+	MemoryManagerState * state = MemoryManager::getState(id);
+	state->addMemoryBuffer(result);
+	BLI_mutex_lock(&mutex);
+	buffers.push_back(result);
+	BLI_mutex_unlock(&mutex);
+	return result;
 }
 
 void MemoryManager::addMemoryProxy(MemoryProxy *memoryProxy) {
 	MemoryManagerState * state = MemoryManager::getState(memoryProxy);
-    if (!state) {
+	if (!state) {
 		state = new MemoryManagerState(memoryProxy);
 		memoryProxy->setState(state);
-    }
+	}
 }
 MemoryBuffer* MemoryManager::getMemoryBuffer(MemoryProxy *id, unsigned int chunkNumber){
-    MemoryManagerState * state = MemoryManager::getState(id);
-    if (!state) {
-        return NULL;
-    }
+	MemoryManagerState * state = MemoryManager::getState(id);
+	if (!state) {
+		return NULL;
+	}
 	MemoryBuffer* buffer = state->getMemoryBuffer(chunkNumber);
 	if (!buffer) return NULL;
-    return buffer;
+	return buffer;
 }
 
 MemoryManagerState* MemoryManager::getState(MemoryProxy* memoryProxy) {
 	return memoryProxy->getState();
 }
 void MemoryManager::initialize() {
-    BLI_mutex_init(&mutex);
+	BLI_mutex_init(&mutex);
 }
 void MemoryManager::clear() {
-    buffers.clear();
-    BLI_mutex_end(&mutex);
+	buffers.clear();
+	BLI_mutex_end(&mutex);
 }

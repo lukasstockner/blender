@@ -25,13 +25,13 @@
 
 class ChunkOrderHotspot {
 private:
-    int x;
-    int y;
-    float addition;
+	int x;
+	int y;
+	float addition;
 
 public:
 	ChunkOrderHotspot(int x, int y, float addition);
-    double determineDistance(int x, int y);
+	double determineDistance(int x, int y);
 };
 
 #endif

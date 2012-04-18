@@ -97,10 +97,10 @@ public:
 		executePixel(result, x, y, dx, dy, inputBuffers);
 	}
 
-    virtual void* initializeTileData(rcti *rect, MemoryBuffer** memoryBuffers) {
+	virtual void* initializeTileData(rcti *rect, MemoryBuffer** memoryBuffers) {
 		return 0;
 	}
-    virtual void deinitializeTileData(rcti *rect, MemoryBuffer** memoryBuffers, void* data) {
+	virtual void deinitializeTileData(rcti *rect, MemoryBuffer** memoryBuffers, void* data) {
 	}
 	
 	virtual MemoryBuffer* getInputMemoryBuffer(MemoryBuffer** memoryBuffers) {return 0;}

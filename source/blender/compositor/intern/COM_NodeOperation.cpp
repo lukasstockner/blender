@@ -28,40 +28,40 @@
 #include "stdio.h"
 
 NodeOperation::NodeOperation() {
-    this->resolutionInputSocketIndex = 0;
+	this->resolutionInputSocketIndex = 0;
 	this->complex = false;
-    this->width = 0;
-    this->height = 0;
+	this->width = 0;
+	this->height = 0;
 	this->openCL = false;
 }
 
 void NodeOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {
-    unsigned int temp[2];
-    unsigned int temp2[2];
+	unsigned int temp[2];
+	unsigned int temp2[2];
 	vector<InputSocket*> &inputsockets = this->getInputSockets();
-
+	
 	for (unsigned int index = 0 ; index < inputsockets.size();index++) {
 		InputSocket* inputSocket = inputsockets[index];
 		if (inputSocket->isConnected()) {
-            if (index == this->resolutionInputSocketIndex) {
+			if (index == this->resolutionInputSocketIndex) {
 				inputSocket->determineResolution(resolution, preferredResolution);
-                temp2[0] = resolution[0];
+				temp2[0] = resolution[0];
 				temp2[1] = resolution[1];
 				break;
 			}
-        }
-    }
+		}
+	}
 	for (unsigned int index = 0 ; index < inputsockets.size();index++) {
 		InputSocket* inputSocket = inputsockets[index];
 		if (inputSocket->isConnected()) {
 			if (index != resolutionInputSocketIndex) {
 				inputSocket->determineResolution(temp, temp2);
-            }
-        }
-    }
+			}
+		}
+	}
 }
 void NodeOperation::setResolutionInputSocketIndex(unsigned int index) {
-    this->resolutionInputSocketIndex = index;
+	this->resolutionInputSocketIndex = index;
 }
 void NodeOperation::initExecution() {
 }
@@ -84,31 +84,31 @@ NodeOperation* NodeOperation::getInputOperation(unsigned int inputSocketIndex) {
 void NodeOperation::getConnectedInputSockets(vector<InputSocket*> *sockets) {
 	vector<InputSocket*> &inputsockets = this->getInputSockets();
 	for (vector<InputSocket*>::iterator iterator = inputsockets.begin() ; iterator!= inputsockets.end() ; iterator++) {
-        InputSocket *socket = *iterator;
-        if (socket->isConnected()) {
-            sockets->push_back(socket);
-        }
-    }
+		InputSocket *socket = *iterator;
+		if (socket->isConnected()) {
+			sockets->push_back(socket);
+		}
+	}
 }
 
 bool NodeOperation::determineDependingAreaOfInterest(rcti * input, ReadBufferOperation *readOperation, rcti* output) {
-    if (this->isInputNode()) {
-        BLI_init_rcti(output, input->xmin, input->xmax, input->ymin, input->ymax);
-        return false;
-    } else {
-        unsigned int index;
+	if (this->isInputNode()) {
+		BLI_init_rcti(output, input->xmin, input->xmax, input->ymin, input->ymax);
+		return false;
+	} else {
+		unsigned int index;
 		vector<InputSocket*> &inputsockets = this->getInputSockets();
-
+	
 		for (index = 0 ; index < inputsockets.size() ; index++) {
 			InputSocket* inputsocket = inputsockets[index];
 			if (inputsocket->isConnected()) {
 				NodeOperation* inputoperation = (NodeOperation*)inputsocket->getConnection()->getFromNode();
 				bool result = inputoperation->determineDependingAreaOfInterest(input, readOperation, output);
-                if (result) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
+				if (result) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
 }

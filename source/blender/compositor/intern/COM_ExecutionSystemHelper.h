@@ -49,17 +49,17 @@ public:
 	  * @return Node representing the "Compositor node" of the maintree. or NULL when a subtree is added
 	  */
 	static Node* addbNodeTree(ExecutionSystem &system, int nodes_start, bNodeTree * tree);
-
+	
 	/**
 	  * @brief add an editor node to the system.
-      * this node is converted to a Node instance.
-      * and the converted node is returned
+	  * this node is converted to a Node instance.
+	  * and the converted node is returned
 	  *
 	  * @param bNode node to add
 	  * @return Node that represents the bNode or null when not able to convert.
-      */
+	  */
 	static Node* addNode(vector<Node*>& nodes, bNode* bNode);
-
+	
 	/**
 	  * @brief Add a Node to a list
 	  *
@@ -67,7 +67,7 @@ public:
 	  * @param node the node to be added
 	  */
 	static void addNode(vector<Node*>& nodes, Node* node);
-
+	
 	/**
 	  * @brief Add an operation to the operation list
 	  *
@@ -77,7 +77,7 @@ public:
 	  * @param operation the operation to add
 	  */
 	static void addOperation(vector<NodeOperation*> &operations, NodeOperation* operation);
-
+	
 	/**
 	  * @brief Add an ExecutionGroup to a list
 	  *
@@ -87,7 +87,7 @@ public:
 	  * @param executionGroup the ExecutionGroup to add
 	  */
 	static void addExecutionGroup(vector<ExecutionGroup*>& executionGroups, ExecutionGroup *executionGroup);
-
+	
 	/**
 	  * Find all Node Operations that needs to be executed.
 	  * @param rendering
@@ -95,7 +95,7 @@ public:
 	  * FALSE is editing, TRUE is rendering
 	  */
 	static void findOutputNodeOperations(vector<NodeOperation*>* result, vector<NodeOperation*>& operations , bool rendering);
-
+	
 	/**
 	  * @brief add a bNodeLink to the list of links
 	  * the bNodeLink will be wrapped in a SocketConnection
@@ -108,7 +108,7 @@ public:
 	  * @return the created SocketConnection or NULL
 	  */
 	static SocketConnection* addNodeLink(NodeRange &node_range, vector<SocketConnection*>& links, bNodeLink *bNodeLink);
-
+	
 	/**
 	  * @brief create a new SocketConnection and add to a vector of links
 	  * @param links the vector of links

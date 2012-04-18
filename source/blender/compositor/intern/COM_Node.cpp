@@ -39,8 +39,8 @@
 #include "COM_defines.h"
 
 Node::Node(bNode* editorNode, bool create_sockets) {
-    this->editorNode = editorNode;
-
+	this->editorNode = editorNode;
+	
 	if (create_sockets) {
 		bNodeSocket * input = (bNodeSocket*)editorNode->inputs.first;
 		while (input != NULL) {
@@ -63,18 +63,18 @@ Node::Node(bNode* editorNode, bool create_sockets) {
 	}
 }
 Node::Node() {
-    this->editorNode = NULL;
+	this->editorNode = NULL;
 }
 
 bNode* Node::getbNode() {return this->editorNode;}
 
 void Node::addSetValueOperation(ExecutionSystem *graph, InputSocket* inputsocket, int editorNodeInputSocketIndex) {
-    bNodeSocket *bSock = (bNodeSocket*)this->getEditorInputSocket(editorNodeInputSocketIndex);
-    SetValueOperation *operation = new SetValueOperation();
+	bNodeSocket *bSock = (bNodeSocket*)this->getEditorInputSocket(editorNodeInputSocketIndex);
+	SetValueOperation *operation = new SetValueOperation();
 	bNodeSocketValueFloat *val = (bNodeSocketValueFloat*)bSock->default_value;
-    operation->setValue(val->value);
+	operation->setValue(val->value);
 	this->addLink(graph, operation->getOutputSocket(), inputsocket);
-    graph->addOperation(operation);
+	graph->addOperation(operation);
 }
 
 void Node::addPreviewOperation(ExecutionSystem *system, OutputSocket *outputSocket, int priority) {
@@ -89,10 +89,10 @@ void Node::addPreviewOperation(ExecutionSystem *system, OutputSocket *outputSock
 }
 
 void Node::addPreviewOperation(ExecutionSystem *system, InputSocket *inputSocket, int priority) {
-    if (inputSocket->isConnected()) {
-        OutputSocket *outputsocket = inputSocket->getConnection()->getFromSocket();
+	if (inputSocket->isConnected()) {
+		OutputSocket *outputsocket = inputSocket->getConnection()->getFromSocket();
 		this->addPreviewOperation(system, outputsocket, priority);
-    }
+	}
 }
 
 SocketConnection* Node::addLink(ExecutionSystem *graph, OutputSocket* outputSocket, InputSocket* inputsocket) {

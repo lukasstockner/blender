@@ -53,103 +53,103 @@ class MemoryProxy;
   */
 class MemoryBuffer {
 private:
-    /**
+	/**
 	  * @brief proxy of the memory (same for all chunks in the same buffer)
-      */
+	  */
 	MemoryProxy * memoryProxy;
-
-    /**
+	
+	/**
 	  * @brief the type of buffer COM_DT_VALUE, COM_DT_VECTOR, COM_DT_COLOR
-      */
+	  */
 	DataType datatype;
-
-
-    /**
+	
+	
+	/**
 	  * @brief region of this buffer inside reative to the MemoryProxy
-      */
-    rcti rect;
-
-    /**
+	  */
+	rcti rect;
+	
+	/**
 	  * brief refers to the chunknumber within the executiongroup where related to the MemoryProxy
 	  * @see memoryProxy
-      */
+	  */
 	unsigned int chunkNumber;
-
+	
 	/**
 	  * @brief width of the chunk
 	  */
-    unsigned int chunkWidth;
-
-    /**
+	unsigned int chunkWidth;
+	
+	/**
 	  * @brief state of the buffer
-      */
+	  */
 	MemoryBufferState state;
-
-    /**
+	
+	/**
 	  * @brief the actual float buffer/data
-      */
-    float* buffer;
+	  */
+	float* buffer;
 
 public:
 	/**
 	  * @brief construct new MemoryBuffer for a chunk
 	  */
 	MemoryBuffer(MemoryProxy *memoryProxy, unsigned int chunkNumber, rcti* rect);
-
+	
 	/**
 	  * @brief construct new temporarily MemoryBuffer for an area
 	  */
 	MemoryBuffer(MemoryProxy *memoryProxy, rcti* rect);
-
+	
 	/**
 	  * @brief destructor
 	  */
-    ~MemoryBuffer();
-
+	~MemoryBuffer();
+	
 	/**
 	  * @brief read the ChunkNumber of this MemoryBuffer
 	  */
 	unsigned int getChunkNumber() {return this->chunkNumber;}
-
+	
 	/**
 	  * @brief get the data of this MemoryBuffer
 	  * @note buffer should already be available in memory
 	  */
-    float* getBuffer() {return this->buffer;}
-
+	float* getBuffer() {return this->buffer;}
+	
 	/**
 	  * @brief after execution the state will be set to available by calling this method
 	  */
-    void setCreatedState() {
-        this->state = COM_MB_AVAILABLE;
-    }
-
-    void read(float* result, int x, int y);
+	void setCreatedState() {
+		this->state = COM_MB_AVAILABLE;
+	}
+	
+	void read(float* result, int x, int y);
 	void writePixel(int x, int y, float color[4]);
-    void readCubic(float* result, float x, float y);
+	void readCubic(float* result, float x, float y);
 	void readEWA(float *result, float fx, float fy, float dx, float dy);
-
+	
 	/**
 	  * @brief is this MemoryBuffer a temporarily buffer (based on an area, not on a chunk)
 	  */
 	inline const bool isTemporarily() const {return this->state == COM_MB_TEMPORARILY;}
-
+	
 	/**
 	  * @brief add the content from otherBuffer to this MemoryBuffer
 	  * @param otherBuffer source buffer
 	  */
-    void copyContentFrom(MemoryBuffer* otherBuffer);
-
+	void copyContentFrom(MemoryBuffer* otherBuffer);
+	
 	/**
 	  * @brief get the rect of this MemoryBuffer
 	  */
-    rcti* getRect() {return &this->rect;}
-
+	rcti* getRect() {return &this->rect;}
+	
 	/**
 	  * @brief get the width of this MemoryBuffer
 	  */
 	int getWidth() const;
-
+	
 	/**
 	  * @brief get the height of this MemoryBuffer
 	  */
@@ -164,7 +164,7 @@ public:
 	
 	float* convertToValueBuffer();
 private:
-    unsigned int determineBufferSize();
+	unsigned int determineBufferSize();
 };
 
 #endif

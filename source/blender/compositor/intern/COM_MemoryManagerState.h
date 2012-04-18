@@ -42,21 +42,21 @@ private:
 	  * @brief reference to the MemoryProxy of this state
 	  */
 	MemoryProxy *memoryProxy;
-
+	
 	/**
 	  * @brief list of all chunkbuffers
 	  */
 	MemoryBuffer** chunkBuffers;
-
+	
 	/**
 	  * @brief size of the chunkBuffers
 	  */
-    unsigned int currentSize;
-
+	unsigned int currentSize;
+	
 	/**
 	  * @brief lock to this memory for multithreading
 	  */
-    ThreadMutex mutex;
+	ThreadMutex mutex;
 public:
 	/**
 	  * @brief creates a new MemoryManagerState for a certain MemoryProxy.
@@ -65,18 +65,18 @@ public:
 	/**
 	  * @brief destructor
 	  */
-    ~MemoryManagerState();
-
+	~MemoryManagerState();
+	
 	/**
 	  * @brief get the reference to the MemoryProxy this state belongs to.
 	  */
 	MemoryProxy *getMemoryProxy();
-
+	
 	/**
 	  * @brief add a new memorybuffer to the state
 	  */
-    void addMemoryBuffer(MemoryBuffer* buffer);
-
+	void addMemoryBuffer(MemoryBuffer* buffer);
+	
 	/**
 	  * @brief get the MemoryBuffer assiciated to a chunk.
 	  * @param chunkNumber the chunknumber

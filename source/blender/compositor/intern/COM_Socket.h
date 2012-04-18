@@ -46,31 +46,31 @@ class NodeBase;
   */
 class Socket {
 private:
-    /**
-      * Reference to the node where this Socket belongs to
-      */
-    NodeBase* node;
-
-    /**
-      * the datatype of this socket. Is used for automatically data transformation.
-      * @section data-conversion
-      */
+	/**
+	  * Reference to the node where this Socket belongs to
+	  */
+	NodeBase* node;
+	
+	/**
+	  * the datatype of this socket. Is used for automatically data transformation.
+	  * @section data-conversion
+	  */
 	DataType datatype;
-
-    /**
-      * the actual data type during execution. This can be different than the field datatype, based on the conversion rules of the node
-      * @section data-conversion
-      */
+	
+	/**
+	  * the actual data type during execution. This can be different than the field datatype, based on the conversion rules of the node
+	  * @section data-conversion
+	  */
 	DataType actualType;
-
-    bNodeSocket* editorSocket;
+	
+	bNodeSocket* editorSocket;
 public:
 	Socket(DataType datatype);
-
+	
 	DataType getDataType() const;
-    void setNode(NodeBase* node);
-    NodeBase* getNode() const;
-
+	void setNode(NodeBase* node);
+	NodeBase* getNode() const;
+	
 	/**
 	  * @brief get the actual data type
 	  *
@@ -78,22 +78,22 @@ public:
 	  * @return actual DataType
 	  */
 	DataType getActualDataType() const;
-
+	
 	/**
 	  * @brief set the actual data type
 	  * @param actualType the new actual type
 	  */
 	void setActualDataType(DataType actualType);
-
-    const virtual int isConnected() const;
-    int isInputSocket() const;
-    int isOutputSocket() const;
-    virtual void determineResolution(int resolution[], unsigned int preferredResolution[]) {}
-    virtual void determineActualDataType() {}
-
+	
+	const virtual int isConnected() const;
+	int isInputSocket() const;
+	int isOutputSocket() const;
+	virtual void determineResolution(int resolution[], unsigned int preferredResolution[]) {}
+	virtual void determineActualDataType() {}
+	
 	void setEditorSocket(bNodeSocket* editorSocket) {this->editorSocket = editorSocket;}
 	bNodeSocket* getbNodeSocket() const {return this->editorSocket;}
-
+	
 };
 
 
