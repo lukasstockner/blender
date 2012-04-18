@@ -1407,13 +1407,10 @@ void LbmFsgrSolver::initMovingObstacles(bool staticInit) {
 		ntlGeometryObject *obj = (*mpGiObjects)[OId];
 		bool skip = false;
 
-		int wasActive = ((obj->getGeoActive(sourceTime)>0.)? 1:0);
-		int active =    ((obj->getGeoActive(targetTime)>0.)? 1:0);
 
 		if(obj->getGeoInitId() != mLbmInitId) skip=true;
 		if( (!staticInit) && (!obj->getIsAnimated()) ) skip=true;
 		if( ( staticInit) && ( obj->getIsAnimated()) ) skip=true;
-		
 		if(skip) continue;
 		debMsgStd("LbmFsgrSolver::initMovingObstacles",DM_MSG," obj "<<obj->getName()<<" skip:"<<skip<<", static:"<<staticInit<<" anim:"<<obj->getIsAnimated()<<" gid:"<<obj->getGeoInitId()<<" simgid:"<<mLbmInitId, 10);
 
@@ -1453,6 +1450,8 @@ void LbmFsgrSolver::initMovingObstacles(bool staticInit) {
 					otype = ntype = CFMbndOutflow; 
 					break;
 			}
+			int wasActive = ((obj->getGeoActive(sourceTime)>0.)? 1:0);
+			int active =    ((obj->getGeoActive(targetTime)>0.)? 1:0);
 			//errMsg("GEOACTT"," obj "<<obj->getName()<<" a:"<<active<<","<<wasActive<<"  s"<<sourceTime<<" t"<<targetTime <<" v"<<mObjectSpeeds[OId] );
 			// skip inactive in/out flows
 			if(ntype==CFInvalid){ errMsg("LbmFsgrSolver::initMovingObstacles","Invalid obj type "<<obj->getGeoInitType()); continue; }
@@ -1866,10 +1865,7 @@ bool LbmFsgrSolver::initGeometryFlags() {
 							rhomass = 1.0;
 							ntype = CFFluid | CFMbndInflow;
 						} else {
-						    // ntype = CFInvalid;
-
-							rhomass = 1.0;
-							ntype = CFFluid;
+							ntype = CFInvalid;
 					    }
 						break;
 					case FGI_MBNDOUTFLOW: 
