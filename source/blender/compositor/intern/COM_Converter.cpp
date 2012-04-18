@@ -112,6 +112,7 @@
 #include "COM_BilateralBlurNode.h"
 #include "COM_VectorBlurNode.h"
 #include "COM_MovieDistortionNode.h"
+#include "COM_ViewLevelsNode.h"
 
 Node* Converter::convert(bNode *bNode) {
 	Node * node;
@@ -348,11 +349,13 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_MOVIEDISTORTION:
 		node = new MovieDistortionNode(bNode);
 		break;
+	case CMP_NODE_VIEW_LEVELS:
+		node = new ViewLevelsNode(bNode);
+		break;
 	/* not inplemented yet */
 	case CMP_NODE_DOUBLEEDGEMASK:
 	case CMP_NODE_DEFOCUS:
 	case CMP_NODE_CROP:
-	case CMP_NODE_VIEW_LEVELS:
 	default:
 		node = new MuteNode(bNode);
 		break;

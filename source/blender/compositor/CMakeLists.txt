@@ -143,6 +143,12 @@ set(SRC
 		nodes/COM_ViewerNode.h
 		nodes/COM_SplitViewerNode.cpp
 		nodes/COM_SplitViewerNode.h
+	nodes/COM_ViewLevelsNode.cpp
+	nodes/COM_ViewLevelsNode.h
+	operations/COM_CalculateStandardDeviationOperation.cpp
+	operations/COM_CalculateStandardDeviationOperation.h
+	operations/COM_CalculateMeanOperation.cpp
+	operations/COM_CalculateMeanOperation.h
 
 # distort nodes
 		nodes/COM_TranslateNode.cpp
