@@ -1406,9 +1406,14 @@ void LbmFsgrSolver::initMovingObstacles(bool staticInit) {
 	for(int OId=0; OId<numobjs; OId++) {
 		ntlGeometryObject *obj = (*mpGiObjects)[OId];
 		bool skip = false;
+
+		int wasActive = ((obj->getGeoActive(sourceTime)>0.)? 1:0);
+		int active =    ((obj->getGeoActive(targetTime)>0.)? 1:0);
+
 		if(obj->getGeoInitId() != mLbmInitId) skip=true;
 		if( (!staticInit) && (!obj->getIsAnimated()) ) skip=true;
 		if( ( staticInit) && ( obj->getIsAnimated()) ) skip=true;
+		
 		if(skip) continue;
 		debMsgStd("LbmFsgrSolver::initMovingObstacles",DM_MSG," obj "<<obj->getName()<<" skip:"<<skip<<", static:"<<staticInit<<" anim:"<<obj->getIsAnimated()<<" gid:"<<obj->getGeoInitId()<<" simgid:"<<mLbmInitId, 10);
 
@@ -1448,8 +1453,6 @@ void LbmFsgrSolver::initMovingObstacles(bool staticInit) {
 					otype = ntype = CFMbndOutflow; 
 					break;
 			}
-			int wasActive = ((obj->getGeoActive(sourceTime)>0.)? 1:0);
-			int active =    ((obj->getGeoActive(targetTime)>0.)? 1:0);
 			//errMsg("GEOACTT"," obj "<<obj->getName()<<" a:"<<active<<","<<wasActive<<"  s"<<sourceTime<<" t"<<targetTime <<" v"<<mObjectSpeeds[OId] );
 			// skip inactive in/out flows
 			if(ntype==CFInvalid){ errMsg("LbmFsgrSolver::initMovingObstacles","Invalid obj type "<<obj->getGeoInitType()); continue; }
@@ -1658,7 +1661,7 @@ void LbmFsgrSolver::initMovingObstacles(bool staticInit) {
 				const LbmFloat usqr = (vel[0]*vel[0]+vel[1]*vel[1]+vel[2]*vel[2])*1.5;
 				USQRMAXCHECK(usqr,vel[0],vel[1],vel[2], mMaxVlen, mMxvx,mMxvy,mMxvz);
 				//errMsg("LbmFsgrSolver::initMovingObstacles","id"<<OId<<" "<<obj->getName()<<" inflow "<<staticInit<<" "<<mMOIVertices.size() );
-				
+
 				for(size_t n=0; n<mMOIVertices.size(); n++) {
 					POS2GRID_CHECK(mMOIVertices,n);
 					// TODO - also reinit interface cells !?
@@ -1696,6 +1699,7 @@ void LbmFsgrSolver::initMovingObstacles(bool staticInit) {
 
 			else if(ntype&CFMbndOutflow){
 				const LbmFloat iniRho = 0.0;
+
 				for(size_t n=0; n<mMOIVertices.size(); n++) {
 					POS2GRID_CHECK(mMOIVertices,n);
 					// FIXME check fluid/inter cells for non-static!?
@@ -1792,7 +1796,7 @@ bool LbmFsgrSolver::initGeometryFlags() {
 	int numobjs = (int)(mpGiObjects->size());
 	for(int o=0; o<numobjs; o++) {
 		ntlGeometryObject *obj = (*mpGiObjects)[o];
-		//debMsgStd("LbmFsgrSolver::initMovingObstacles",DM_MSG," obj "<<obj->getName()<<" type "<<obj->getGeoInitType()<<" anim"<<obj->getIsAnimated()<<" "<<obj->getVolumeInit() ,9);
+		// debMsgStd("LbmFsgrSolver::initMovingObstacles",DM_MSG," obj "<<obj->getName()<<" type "<<obj->getGeoInitType()<<" anim"<<obj->getIsAnimated()<<" "<<obj->getVolumeInit() ,9);
 		if(
 				((obj->getGeoInitType()&FGI_ALLBOUNDS) && (obj->getIsAnimated())) ||
 				(obj->getVolumeInit()&VOLUMEINIT_SHELL) ) {
@@ -1857,16 +1861,19 @@ bool LbmFsgrSolver::initGeometryFlags() {
 				if(inside) {
 					pObj = (*mpGiObjects)[OId];
 					switch( pObj->getGeoInitType() ){
-					case FGI_MBNDINFLOW:  
-					  if(! pObj->getIsAnimated() ) {
+					case FGI_MBNDINFLOW:
+					  if(! pObj->getIsAnimated()) {
 							rhomass = 1.0;
 							ntype = CFFluid | CFMbndInflow;
 						} else {
-							ntype = CFInvalid;
-						}
+						    // ntype = CFInvalid;
+
+							rhomass = 1.0;
+							ntype = CFFluid;
+					    }
 						break;
 					case FGI_MBNDOUTFLOW: 
-					  if(! pObj->getIsAnimated() ) {
+					  if(! pObj->getIsAnimated()) {
 							rhomass = 0.0;
 							ntype = CFEmpty|CFMbndOutflow; 
 						} else {
