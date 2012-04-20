@@ -797,20 +797,23 @@ static void smokeModifier_freeCollision(SmokeModifierData *smd)
 	{
 		SmokeCollSettings *scs = smd->coll;
 
-		if(scs->points)
+		if(scs->numpoints)
 		{
-			MEM_freeN(scs->points);
-			scs->points = NULL;
-		}
-		if(scs->points_old)
-		{
-			MEM_freeN(scs->points_old);
-			scs->points_old = NULL;
-		}
-		if(scs->tridivs)
-		{
-			MEM_freeN(scs->tridivs);
-			scs->tridivs = NULL;
+			if(scs->points)
+			{
+				MEM_freeN(scs->points);
+				scs->points = NULL;
+			}
+			if(scs->points_old)
+			{
+				MEM_freeN(scs->points_old);
+				scs->points_old = NULL;
+			}
+			if(scs->tridivs)
+			{
+				MEM_freeN(scs->tridivs);
+				scs->tridivs = NULL;
+			}
 		}
 
 		if(scs->bvhtree)
@@ -876,7 +879,7 @@ void smokeModifier_reset(struct SmokeModifierData *smd)
 		{
 			SmokeCollSettings *scs = smd->coll;
 
-			if(scs->points)
+			if(scs->numpoints && scs->points)
 			{
 				MEM_freeN(scs->points);
 				scs->points = NULL;
@@ -978,6 +981,7 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			smd->coll->points = NULL;
 			smd->coll->points_old = NULL;
 			smd->coll->tridivs = NULL;
+			smd->coll->vel = NULL;
 			smd->coll->numpoints = 0;
 			smd->coll->numtris = 0;
 			smd->coll->bvhtree = NULL;
@@ -1681,12 +1685,12 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 	{
 		/* Check if domain resolution changed */
 		/* DG TODO: can this be solved more elegant using dependancy graph? */
-		if(smd->coll)
 		{
 			SmokeCollSettings *scs = smd->coll;
 			Base *base = scene->base.first;
 			int changed = 0;
 			float dx = FLT_MAX;
+			int haveDomain = 0;
 
 			for ( ; base; base = base->next) 
 			{
@@ -1701,8 +1705,13 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 						dx = sds->dx;
 						changed = 1;
 					}
+
+					haveDomain = 1;
 				}
 			}
+
+			if(!haveDomain)
+				return;
 			
 			if(changed)
 			{
