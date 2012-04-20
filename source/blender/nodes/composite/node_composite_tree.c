@@ -181,7 +181,12 @@ static void local_merge(bNodeTree *localtree, bNodeTree *ntree)
 	/* move over the compbufs and previews */
 	for(lnode= localtree->nodes.first; lnode; lnode= lnode->next) {
 		if(ntreeNodeExists(ntree, lnode->new_node)) {
-			if(lnode->type==CMP_NODE_MOVIEDISTORTION) {
+			if (ELEM(lnode->type, CMP_NODE_VIEWER, CMP_NODE_SPLITVIEWER)) {
+				if (lnode->id && (lnode->flag & NODE_DO_OUTPUT)) {
+					/* image_merge does sanity check for pointers */
+					BKE_image_merge((Image *)lnode->new_node->id, (Image *)lnode->id);
+				}
+			} else if(lnode->type==CMP_NODE_MOVIEDISTORTION) {
 				/* special case for distortion node: distortion context is allocating in exec function
 				   and to achive much better performance on further calls this context should be
 				   copied back to original node */

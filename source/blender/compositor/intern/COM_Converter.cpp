@@ -63,7 +63,6 @@
 #include "COM_BokehImageNode.h"
 #include "COM_ColorCurveNode.h"
 #include "COM_VectorCurveNode.h"
-#include "COM_DilateErode2Node.h"
 #include "COM_SetAlphaNode.h"
 #include "COM_ConvertAlphaNode.h"
 #include "COM_MapUVNode.h"
@@ -91,7 +90,6 @@
 #include "COM_ColorNode.h"
 #include "COM_ValueNode.h"
 #include "COM_TimeNode.h"
-#include "COM_LensFlareNode.h"
 #include "COM_DirectionalBlurNode.h"
 #include "COM_ZCombineNode.h"
 #include <stdio.h>
@@ -100,7 +98,6 @@
 #include "COM_ExecutionSystemHelper.h"
 #include "COM_TonemapNode.h"
 #include "COM_SwitchNode.h"
-#include "COM_OpenCLTestNode.h"
 #include "COM_GlareNode.h"
 #include "COM_MovieClipNode.h"
 #include "COM_ColorSpillNode.h"
@@ -210,9 +207,6 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_IMAGE:
 		node = new ImageNode(bNode);
 		break;
-	case CMP_NODE_DILATEERODE2:
-		node = new DilateErode2Node(bNode);
-		break;
 	case CMP_NODE_SETALPHA:
 		node = new SetAlphaNode(bNode);
 		break;
@@ -287,7 +281,6 @@ Node* Converter::convert(bNode *bNode) {
 		break;
 	case CMP_NODE_LENSDIST:
 		node = new LensDistortionNode(bNode);
-//		node = new FallbackNode(bNode);
 		break;
 	case CMP_NODE_RGB:
 		node = new ColorNode(bNode);
@@ -301,9 +294,6 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_DBLUR:
 		node = new DirectionalBlurNode(bNode);
 		break;
-	case CMP_NODE_LENSFLARE:
-		node = new LensFlareNode(bNode);
-		break;
 	case CMP_NODE_ZCOMBINE:
 		node = new ZCombineNode(bNode);
 		break;
@@ -312,9 +302,6 @@ Node* Converter::convert(bNode *bNode) {
 		break;
 	case CMP_NODE_SWITCH:
 		node = new SwitchNode(bNode);
-		break;
-	case CMP_NODE_OPENCLTEST:
-		node = new OpenCLTestNode(bNode);
 		break;
 	case CMP_NODE_GLARE:
 		node = new GlareNode(bNode);

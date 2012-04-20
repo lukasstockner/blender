@@ -105,8 +105,6 @@ set(SRC
 		operations/COM_QualityStepHelper.cpp
 
 # Internal nodes
-		nodes/COM_ConvertDataTypeNode.cpp
-		nodes/COM_ConvertDataTypeNode.h
 		nodes/COM_MuteNode.cpp
 		nodes/COM_MuteNode.h
 		nodes/COM_GroupNode.cpp
@@ -182,8 +180,6 @@ set(SRC
 
 		nodes/COM_GlareNode.cpp
 		nodes/COM_GlareNode.h
-		nodes/COM_LensFlareNode.cpp
-		nodes/COM_LensFlareNode.h
 
 		operations/COM_LensGlowOperation.cpp
 		operations/COM_LensGlowOperation.h
@@ -219,8 +215,6 @@ set(SRC
 		nodes/COM_InvertNode.h
 	nodes/COM_GammaNode.cpp
 	nodes/COM_GammaNode.h
-#    nodes/COM_ColorSpaceNode.cpp
-#    nodes/COM_ColorSpaceNode.h
 	nodes/COM_SetAlphaNode.cpp
 	nodes/COM_SetAlphaNode.h
 	nodes/COM_ConvertAlphaNode.cpp
@@ -286,8 +280,6 @@ set(SRC
 
 		nodes/COM_FilterNode.cpp
 		nodes/COM_FilterNode.h
-		nodes/COM_DilateErode2Node.cpp
-		nodes/COM_DilateErode2Node.h
 		nodes/COM_DilateErodeNode.cpp
 		nodes/COM_DilateErodeNode.h
 	nodes/COM_BlurNode.cpp
@@ -584,20 +576,11 @@ operations/COM_ConvertDepthToRadiusOperation.cpp
 
 	operations/COM_DotproductOperation.cpp
 	operations/COM_DotproductOperation.h
-
-#    operations/COM_ConvertColorSpaceOperation.h
-#    operations/COM_ConvertColorSpaceOperation.cpp
-
 # Matte operation
 	operations/COM_BoxMaskOperation.h
 	operations/COM_BoxMaskOperation.cpp
 	operations/COM_EllipseMaskOperation.h
 	operations/COM_EllipseMaskOperation.cpp
-
-	nodes/COM_OpenCLTestNode.cpp
-	nodes/COM_OpenCLTestNode.h
-	operations/COM_OpenCLTestOperation.cpp
-	operations/COM_OpenCLTestOperation.h
 
 	operations/COM_MovieClipOperation.cpp
 	operations/COM_MovieClipOperation.h
