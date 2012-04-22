@@ -370,11 +370,6 @@ if(MINGW)
 		                    "because it is currently unsupported, remove this "
 		                    "line if youre a developer who wants to add support.")
 	endif()
-
-	if((NOT WITH_CODEC_FFMPEG) AND (WITH_CYCLES OR WITH_IMAGE_OPENEXR OR WITH_IMAGE_TIFF))
-		message(FATAL_ERROR "MINGW has a problem with: WITH_CYCLES/WITH_IMAGE_OPENEXR/WITH_IMAGE_TIFF "
-		                    "when WITH_CODEC_FFMPEG is disabled, enable FFMPEG or disable CYCLES/EXR/TIFF.")
-	endif()
 endif()
 
 TEST_SSE_SUPPORT(COMPILER_SSE_FLAG COMPILER_SSE2_FLAG)
@@ -1137,7 +1132,7 @@ elseif(APPLE)
 		set(WITH_LIBS10.5 ON CACHE BOOL "Use 10.5 libs" FORCE) # valid also for 10.6/10.7
 	endif()
 
-	if(${XCODE_VERSION} LESS 4.3)
+	if(${XCODE_VERSION} VERSION_LESS 4.3)
 		SET(CMAKE_OSX_SYSROOT /Developer/SDKs/MacOSX${OSX_SYSTEM}.sdk CACHE PATH "" FORCE ) # use guaranteed existing sdk
 	else()
 		# note: i don't use xcode-select path on purpose, cause also /Applications/Xcode.app would be allowed

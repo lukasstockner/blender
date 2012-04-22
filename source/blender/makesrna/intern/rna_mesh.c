@@ -1,4 +1,4 @@
-/**
+/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -20,9 +20,9 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/*note: the original vertex color stuff is now just used for
-  getting info on the layers themselves, accessing the data is
-  done through the (not yet written) mpoly interfaces.*/
+/* note: the original vertex color stuff is now just used for
+ * getting info on the layers themselves, accessing the data is
+ * done through the (not yet written) mpoly interfaces.*/
 
 /** \file blender/makesrna/intern/rna_mesh.c
  *  \ingroup RNA
@@ -1432,10 +1432,6 @@ static void rna_def_medge(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "is_loose", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ME_LOOSEEDGE);
 	RNA_def_property_ui_text(prop, "Loose", "Loose edge");
-
-	prop = RNA_def_property(srna, "is_fgon", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", ME_FGON);
-	RNA_def_property_ui_text(prop, "Fgon", "Fgon edge");
 
 	prop = RNA_def_property(srna, "index", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);

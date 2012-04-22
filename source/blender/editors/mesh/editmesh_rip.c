@@ -31,6 +31,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 
 #include "RNA_define.h"
@@ -44,6 +45,7 @@
 #include "BKE_report.h"
 #include "BKE_tessmesh.h"
 
+#include "WM_api.h"
 #include "WM_types.h"
 
 #include "ED_mesh.h"
@@ -64,7 +66,7 @@ static float edbm_rip_rip_edgedist(ARegion *ar, float mat[][4], float *co1, floa
 	return dist_to_line_segment_v2(mvalf, vec1, vec2);
 }
 
-static float edbm_rip_edge_side_measure(BMEdge *e,
+static float edbm_rip_edge_side_measure(BMEdge *e, BMLoop *e_l,
                                         ARegion *ar,
                                         float projectMat[4][4], const float fmval[2])
 {
@@ -78,6 +80,8 @@ static float edbm_rip_edge_side_measure(BMEdge *e,
 	BMVert *v1_other;
 	BMVert *v2_other;
 
+	BLI_assert(BM_vert_in_edge(e, e_l->v));
+
 	/* method for calculating distance:
 	 *
 	 * for each edge: calculate face center, then made a vector
@@ -86,8 +90,8 @@ static float edbm_rip_edge_side_measure(BMEdge *e,
 
 	/* rather then the face center, get the middle of
 	 * both edge verts connected to this one */
-	v1_other = BM_face_other_vert_loop(e->l->f, e->v2, e->v1)->v;
-	v2_other = BM_face_other_vert_loop(e->l->f, e->v1, e->v2)->v;
+	v1_other = BM_face_other_vert_loop(e_l->f, e->v2, e->v1)->v;
+	v2_other = BM_face_other_vert_loop(e_l->f, e->v1, e->v2)->v;
 	mid_v3_v3v3(cent, v1_other->co, v2_other->co);
 	mid_v3_v3v3(mid, e->v1->co, e->v2->co);
 
@@ -154,11 +158,11 @@ static float edbm_rip_edge_side_measure(BMEdge *e,
 #define INVALID_UID INT_MIN
 
 /* mark, assign uid and step */
-static BMEdge *edbm_ripsel_edge_mark_step(BMesh *bm, BMVert *v, const int uid)
+static BMEdge *edbm_ripsel_edge_mark_step(BMVert *v, const int uid)
 {
 	BMIter iter;
 	BMEdge *e;
-	BM_ITER(e, &iter, bm, BM_EDGES_OF_VERT, v) {
+	BM_ITER_ELEM (e, &iter, v, BM_EDGES_OF_VERT) {
 		if (IS_VISIT_POSSIBLE(e) && !IS_VISIT_DONE(e)) {
 			BMLoop *l_a, *l_b;
 
@@ -196,8 +200,8 @@ static EdgeLoopPair *edbm_ripsel_looptag_helper(BMesh *bm)
 	EdgeLoopPair *lp;
 
 	/* initialize loops with dummy invalid index values */
-	BM_ITER(f, &fiter, bm, BM_FACES_OF_MESH, NULL) {
-		BM_ITER(l, &liter, bm, BM_LOOPS_OF_FACE, f) {
+	BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
+		BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
 			BM_elem_index_set(l, INVALID_UID);
 		}
 	}
@@ -213,7 +217,7 @@ static EdgeLoopPair *edbm_ripsel_looptag_helper(BMesh *bm)
 		BMEdge *e_last;
 
 		e_first = NULL;
-		BM_ITER(e, &eiter, bm, BM_EDGES_OF_MESH, NULL) {
+		BM_ITER_MESH (e, &eiter, bm, BM_EDGES_OF_MESH) {
 			if (IS_VISIT_POSSIBLE(e) && !IS_VISIT_DONE(e)) {
 				e_first = e;
 				break;
@@ -224,13 +228,13 @@ static EdgeLoopPair *edbm_ripsel_looptag_helper(BMesh *bm)
 			break;
 		}
 
-		e_first = e;
-
 		/* initialize  */
+		e_first = e;
 		v_step = e_first->v1;
+		e_step = NULL; /* quiet warning, will never remain this value */
 
 		uid_start = uid;
-		while ((e = edbm_ripsel_edge_mark_step(bm, v_step, uid))) {
+		while ((e = edbm_ripsel_edge_mark_step(v_step, uid))) {
 			BM_elem_flag_disable(e, BM_ELEM_SMOOTH);
 			v_step = BM_edge_other_vert((e_step = e), v_step);
 			uid++; /* only different line */
@@ -247,7 +251,7 @@ static EdgeLoopPair *edbm_ripsel_looptag_helper(BMesh *bm)
 		/* initialize */
 		v_step = e_first->v1;
 
-		while ((e = edbm_ripsel_edge_mark_step(bm, v_step, uid))) {
+		while ((e = edbm_ripsel_edge_mark_step(v_step, uid))) {
 			BM_elem_flag_disable(e, BM_ELEM_SMOOTH);
 			v_step = BM_edge_other_vert((e_step = e), v_step);
 			uid--; /* only different line */
@@ -283,14 +287,14 @@ static EdgeLoopPair *edbm_ripsel_looptag_helper(BMesh *bm)
 /* - De-Select the worst rip-edge side -------------------------------- */
 
 
-static BMEdge *edbm_ripsel_edge_uid_step(BMesh *bm, BMEdge *e_orig, BMVert **v_prev)
+static BMEdge *edbm_ripsel_edge_uid_step(BMEdge *e_orig, BMVert **v_prev)
 {
 	BMIter eiter;
 	BMEdge *e;
 	BMVert *v = BM_edge_other_vert(e_orig, *v_prev);
 	const int uid_cmp = BM_elem_index_get(e_orig->l) - 1;
 
-	BM_ITER(e, &eiter, bm, BM_EDGES_OF_VERT, v) {
+	BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
 		if (BM_elem_index_get(e->l) == uid_cmp) {
 			*v_prev = v;
 			return e;
@@ -299,11 +303,11 @@ static BMEdge *edbm_ripsel_edge_uid_step(BMesh *bm, BMEdge *e_orig, BMVert **v_p
 	return NULL;
 }
 
-static BMVert *edbm_ripsel_edloop_pair_start_vert(BMesh *bm, BMEdge *e)
+static BMVert *edbm_ripsel_edloop_pair_start_vert(BMEdge *e)
 {
 	/* try step in a direction, if it fails we know do go the other way */
 	BMVert *v_test = e->v1;
-	return (edbm_ripsel_edge_uid_step(bm, e, &v_test)) ? e->v1 : e->v2;
+	return (edbm_ripsel_edge_uid_step(e, &v_test)) ? e->v1 : e->v2;
 }
 
 static void edbm_ripsel_deselect_helper(BMesh *bm, EdgeLoopPair *eloop_pairs,
@@ -319,297 +323,227 @@ static void edbm_ripsel_deselect_helper(BMesh *bm, EdgeLoopPair *eloop_pairs,
 		float score_b = 0.0f;
 
 		e = lp->l_a->e;
-		v_prev = edbm_ripsel_edloop_pair_start_vert(bm, e);
-		for (; e; e = edbm_ripsel_edge_uid_step(bm, e, &v_prev)) {
-			score_a += edbm_rip_edge_side_measure(e, ar, projectMat, fmval);
+		v_prev = edbm_ripsel_edloop_pair_start_vert(e);
+		for (; e; e = edbm_ripsel_edge_uid_step(e, &v_prev)) {
+			score_a += edbm_rip_edge_side_measure(e, e->l, ar, projectMat, fmval);
 		}
 		e = lp->l_b->e;
-		v_prev = edbm_ripsel_edloop_pair_start_vert(bm, e);
-		for (; e; e = edbm_ripsel_edge_uid_step(bm, e, &v_prev)) {
-			score_b += edbm_rip_edge_side_measure(e, ar, projectMat, fmval);
+		v_prev = edbm_ripsel_edloop_pair_start_vert(e);
+		for (; e; e = edbm_ripsel_edge_uid_step(e, &v_prev)) {
+			score_b += edbm_rip_edge_side_measure(e, e->l, ar, projectMat, fmval);
 		}
 
 		e = (score_a > score_b) ? lp->l_a->e : lp->l_b->e;
-		v_prev = edbm_ripsel_edloop_pair_start_vert(bm, e);
-		for (; e; e = edbm_ripsel_edge_uid_step(bm, e, &v_prev)) {
-			BM_elem_select_set(bm, e, FALSE);
+		v_prev = edbm_ripsel_edloop_pair_start_vert(e);
+		for (; e; e = edbm_ripsel_edge_uid_step(e, &v_prev)) {
+			BM_edge_select_set(bm, e, FALSE);
 		}
 	}
 }
 /* --- end 'ripsel' selection handling code --- */
 
+static int edbm_rip_call_edgesplit(BMEditMesh *em, wmOperator *op)
+{
+	BMOperator bmop;
 
+	if (!EDBM_op_init(em, &bmop, op, "edgesplit edges=%he verts=%hv use_verts=%b",
+					  BM_ELEM_TAG, BM_ELEM_SELECT, TRUE)) {
+		return FALSE;
+	}
+	BMO_op_exec(em->bm, &bmop);
+	if (!EDBM_op_finish(em, &bmop, op, TRUE)) {
+		return FALSE;
+	}
 
-/* based on mouse cursor position, it defines how is being ripped */
-static int edbm_rip_invoke(bContext *C, wmOperator *op, wmEvent *event)
+	return TRUE;
+}
+
+/**
+ * This is the main vert ripping function (rip when one vertex is selected)
+ */
+static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, wmEvent *event)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	ARegion *ar = CTX_wm_region(C);
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
 	BMEditMesh *em = BMEdit_FromObject(obedit);
 	BMesh *bm = em->bm;
-	BMOperator bmop;
-	BMIter iter, eiter, liter;
+	BMIter iter, liter;
 	BMLoop *l;
 	BMEdge *e, *e2;
 	BMVert *v, *ripvert = NULL;
-	int i, singlesel = FALSE;
+	int i;
 	float projectMat[4][4], fmval[3] = {event->mval[0], event->mval[1]};
 	float dist = FLT_MAX;
 	float d;
-	const int totedge_orig = bm->totedge;
 
-	EdgeLoopPair *eloop_pairs;
-
-	/* note on selection:
-	 * When calling edge split we operate on tagged edges rather then selected
-	 * this is important because the edges to operate on are extended by one,
-	 * but the selection is left alone.
-	 *
-	 * After calling edge split - the duplicated edges have the same selection state as the
-	 * original, so all we do is de-select the far side from the mouse and we have a
-	 * useful selection for grabbing.
-	 */
+	BMEditSelection ese;
+	int totboundary_edge = 0;
 
 	ED_view3d_ob_project_mat_get(rv3d, obedit, projectMat);
 
-	/* BM_ELEM_SELECT --> BM_ELEM_TAG */
-	BM_ITER(e, &iter, em->bm, BM_EDGES_OF_MESH, NULL) {
-		BM_elem_flag_set(e, BM_ELEM_TAG, BM_elem_flag_test(e, BM_ELEM_SELECT));
-	}
-
-	/* handle case of one vert selected.  identify
-	 * closest edge around that vert to mouse cursor,
-	 * then rip two adjacent edges in the vert fan. */
-	if (bm->totvertsel == 1 && bm->totedgesel == 0 && bm->totfacesel == 0) {
-		BMEditSelection ese;
-		int totboundary_edge = 0;
-		singlesel = TRUE;
-
-		/* find selected vert - same some time and check history first */
-		if (EDBM_editselection_active_get(em, &ese) && ese.htype == BM_VERT) {
-			v = (BMVert *)ese.ele;
-		}
-		else {
-			ese.ele = NULL;
-
-			BM_ITER(v, &iter, bm, BM_VERTS_OF_MESH, NULL) {
-				if (BM_elem_flag_test(v, BM_ELEM_SELECT))
-					break;
-			}
-		}
-
-		/* this should be impossible, but sanity checks are a good thing */
-		if (!v)
-			return OPERATOR_CANCELLED;
-
-		e2 = NULL;
-
-		if (v->e) {
-			/* find closest edge to mouse cursor */
-			BM_ITER(e, &iter, bm, BM_EDGES_OF_VERT, v) {
-				int is_boundary = BM_edge_is_boundary(e);
-				/* consider wire as boundary for this purpose,
-				 * otherwise we can't a face away from a wire edge */
-				totboundary_edge += (is_boundary != 0 || BM_edge_is_wire(e));
-				if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
-					if (is_boundary == FALSE && BM_edge_is_manifold(e)) {
-						d = edbm_rip_rip_edgedist(ar, projectMat, e->v1->co, e->v2->co, fmval);
-						if (d < dist) {
-							dist = d;
-							e2 = e;
-						}
-					}
-				}
-			}
-
-		}
-
-		/* should we go ahead with edge rip or do we need to do special case, split off vertex?:
-		 * split off vertex if...
-		 * - we cant find an edge - this means we are ripping a faces vert that is connected to other
-		 *   geometry only at the vertex.
-		 * - the boundary edge total is greater then 2,
-		 *   in this case edge split _can_ work but we get far nicer results if we use this special case. */
-		if (totboundary_edge > 2) {
-			BMVert **vout;
-			int vout_len;
-
-			BM_elem_select_set(bm, v, FALSE);
-			bmesh_vert_separate(bm, v, &vout, &vout_len);
-
-			if (vout_len < 2) {
-				/* set selection back to avoid active-unselected vertex */
-				BM_elem_select_set(bm, v, TRUE);
-				/* should never happen */
-				BKE_report(op->reports, RPT_ERROR, "Error ripping vertex from faces");
-				return OPERATOR_CANCELLED;
-			}
-			else {
-				int vi_best = 0;
-
-				if (ese.ele) {
-					EDBM_editselection_remove(em, &ese.ele->head);
-				}
-
-				dist = FLT_MAX;
-
-				for (i = 0; i < vout_len; i++) {
-					BM_ITER(l, &iter, bm, BM_LOOPS_OF_VERT, vout[i]) {
-						if (!BM_elem_flag_test(l->f, BM_ELEM_HIDDEN)) {
-							float l_mid_co[3];
-							BM_loop_face_tangent(l, l_mid_co);
-
-							/* scale to average of surrounding edge size, only needs to be approx */
-							mul_v3_fl(l_mid_co, (BM_edge_length_calc(l->e) + BM_edge_length_calc(l->prev->e)) / 2.0f);
-							add_v3_v3(l_mid_co, v->co);
-
-							d = edbm_rip_rip_edgedist(ar, projectMat, v->co, l_mid_co, fmval);
-
-							if (d < dist) {
-								dist = d;
-								vi_best = i;
-							}
-						}
-					}
-				}
-
-				/* select the vert from the best region */
-				v = vout[vi_best];
-				BM_elem_select_set(bm, v, TRUE);
-
-				if (ese.ele) {
-					EDBM_editselection_store(em, &v->head);
-				}
-
-				/* splice all others back together */
-				if (vout_len > 2) {
-
-					/* vout[0]  == best
-					 * vout[1]  == glue
-					 * vout[2+] == splice with glue
-					 */
-					if (vi_best != 0) {
-						SWAP(BMVert *, vout[0], vout[vi_best]);
-						vi_best = 0;
-					}
-
-					for (i = 2; i < vout_len; i++) {
-						BM_vert_splice(bm, vout[i], vout[1]);
-					}
-				}
-
-				MEM_freeN(vout);
-
-				return OPERATOR_FINISHED;
-			}
-		}
-
-		if (!e2) {
-			BKE_report(op->reports, RPT_ERROR, "Selected vertex has no edge/face pairs attached");
-			return OPERATOR_CANCELLED;
-		}
-
-		/* rip two adjacent edges */
-		if (BM_edge_is_boundary(e2) || BM_vert_face_count(v) == 2) {
-			l = e2->l;
-			ripvert = BM_face_vert_separate(bm, l->f, v);
-
-			BLI_assert(ripvert);
-			if (!ripvert) {
-				return OPERATOR_CANCELLED;
-			}
-		}
-		else if (BM_edge_is_manifold(e2)) {
-			l = e2->l;
-			e = BM_face_other_edge_loop(l->f, e2, v)->e;
-			BM_elem_flag_enable(e, BM_ELEM_TAG);
-			
-			l = e2->l->radial_next;
-			e = BM_face_other_edge_loop(l->f, e2, v)->e;
-			BM_elem_flag_enable(e, BM_ELEM_TAG);
-		}
-
-		dist = FLT_MAX;
+	/* find selected vert - same some time and check history first */
+	if (EDBM_editselection_active_get(em, &ese) && ese.htype == BM_VERT) {
+		v = (BMVert *)ese.ele;
 	}
 	else {
-		/* expand edge selection */
-		BM_ITER(v, &iter, bm, BM_VERTS_OF_MESH, NULL) {
-			e2 = NULL;
-			i = 0;
-			BM_ITER(e, &eiter, bm, BM_EDGES_OF_VERT, v) {
-				/* important to check selection rather then tag here
-				 * else we get feedback loop */
-				if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-					e2 = e;
-					i++;
-				}
-			}
-			
-			if (i == 1 && e2->l) {
-				l = BM_face_other_edge_loop(e2->l->f, e2, v);
-				l = l->radial_next;
-				l = BM_face_other_edge_loop(l->f, l->e, v);
+		ese.ele = NULL;
 
-				if (l) {
-					BM_elem_flag_enable(l->e, BM_ELEM_TAG);
-				}
-			}
+		BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+			if (BM_elem_flag_test(v, BM_ELEM_SELECT))
+				break;
 		}
 	}
 
-	eloop_pairs = edbm_ripsel_looptag_helper(bm);
-
-	if (!EDBM_op_init(em, &bmop, op, "edgesplit edges=%he verts=%hv use_verts=%b",
-	                  BM_ELEM_TAG, BM_ELEM_SELECT, TRUE)) {
-		MEM_freeN(eloop_pairs);
+	/* this should be impossible, but sanity checks are a good thing */
+	if (!v)
 		return OPERATOR_CANCELLED;
-	}
-	
-	BMO_op_exec(bm, &bmop);
 
-	if (totedge_orig == bm->totedge) {
-		EDBM_op_finish(em, &bmop, op, TRUE);
+	e2 = NULL;
 
-		BKE_report(op->reports, RPT_ERROR, "No edges could be ripped");
-		MEM_freeN(eloop_pairs);
-		return OPERATOR_CANCELLED;
-	}
-
-#if 1
-	edbm_ripsel_deselect_helper(bm, eloop_pairs,
-	                            ar, projectMat, fmval);
-	MEM_freeN(eloop_pairs);
-#else
-	{
-		/* simple per edge selection check, saves a lot of code and is almost good enough */
-		BMOIter siter;
-		BMO_ITER(e, &siter, bm, &bmop, "edgeout", BM_EDGE) {
-			if (edbm_rip_edge_side_measure(e, ar, projectMat, fmval) > 0.0f) {
-				BM_elem_select_set(bm, e, FALSE);
+	if (v->e) {
+		/* find closest edge to mouse cursor */
+		BM_ITER_ELEM (e, &iter, v, BM_EDGES_OF_VERT) {
+			int is_boundary = BM_edge_is_boundary(e);
+			/* consider wire as boundary for this purpose,
+			 * otherwise we can't a face away from a wire edge */
+			totboundary_edge += (is_boundary != 0 || BM_edge_is_wire(e));
+			if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
+				if (is_boundary == FALSE && BM_edge_is_manifold(e)) {
+					d = edbm_rip_rip_edgedist(ar, projectMat, e->v1->co, e->v2->co, fmval);
+					if (d < dist) {
+						dist = d;
+						e2 = e;
+					}
+				}
 			}
 		}
-	}
-#endif
 
-	if (singlesel) {
+	}
+
+	/* should we go ahead with edge rip or do we need to do special case, split off vertex?:
+	 * split off vertex if...
+	 * - we cant find an edge - this means we are ripping a faces vert that is connected to other
+	 *   geometry only at the vertex.
+	 * - the boundary edge total is greater then 2,
+	 *   in this case edge split _can_ work but we get far nicer results if we use this special case. */
+	if (totboundary_edge > 2) {
+		BMVert **vout;
+		int vout_len;
+
+		BM_vert_select_set(bm, v, FALSE);
+		bmesh_vert_separate(bm, v, &vout, &vout_len);
+
+		if (vout_len < 2) {
+			/* set selection back to avoid active-unselected vertex */
+			BM_vert_select_set(bm, v, TRUE);
+			/* should never happen */
+			BKE_report(op->reports, RPT_ERROR, "Error ripping vertex from faces");
+			return OPERATOR_CANCELLED;
+		}
+		else {
+			int vi_best = 0;
+
+			if (ese.ele) {
+				EDBM_editselection_remove(em, &ese.ele->head);
+			}
+
+			dist = FLT_MAX;
+
+			for (i = 0; i < vout_len; i++) {
+				BM_ITER_ELEM (l, &iter, vout[i], BM_LOOPS_OF_VERT) {
+					if (!BM_elem_flag_test(l->f, BM_ELEM_HIDDEN)) {
+						float l_mid_co[3];
+						BM_loop_face_tangent(l, l_mid_co);
+
+						/* scale to average of surrounding edge size, only needs to be approx */
+						mul_v3_fl(l_mid_co, (BM_edge_length_calc(l->e) + BM_edge_length_calc(l->prev->e)) / 2.0f);
+						add_v3_v3(l_mid_co, v->co);
+
+						d = edbm_rip_rip_edgedist(ar, projectMat, v->co, l_mid_co, fmval);
+
+						if (d < dist) {
+							dist = d;
+							vi_best = i;
+						}
+					}
+				}
+			}
+
+			/* select the vert from the best region */
+			v = vout[vi_best];
+			BM_vert_select_set(bm, v, TRUE);
+
+			if (ese.ele) {
+				EDBM_editselection_store(em, &v->head);
+			}
+
+			/* splice all others back together */
+			if (vout_len > 2) {
+
+				/* vout[0]  == best
+				 * vout[1]  == glue
+				 * vout[2+] == splice with glue
+				 */
+				if (vi_best != 0) {
+					SWAP(BMVert *, vout[0], vout[vi_best]);
+					vi_best = 0;
+				}
+
+				for (i = 2; i < vout_len; i++) {
+					BM_vert_splice(bm, vout[i], vout[1]);
+				}
+			}
+
+			MEM_freeN(vout);
+
+			return OPERATOR_FINISHED;
+		}
+	}
+
+	if (!e2) {
+		BKE_report(op->reports, RPT_ERROR, "Selected vertex has no edge/face pairs attached");
+		return OPERATOR_CANCELLED;
+	}
+
+	/* rip two adjacent edges */
+	if (BM_edge_is_boundary(e2) || BM_vert_face_count(v) == 2) {
+		l = e2->l;
+		ripvert = BM_face_vert_separate(bm, l->f, v);
+
+		BLI_assert(ripvert);
+		if (!ripvert) {
+			return OPERATOR_CANCELLED;
+		}
+	}
+	else if (BM_edge_is_manifold(e2)) {
+		l = e2->l;
+		e = BM_face_other_edge_loop(l->f, e2, v)->e;
+		BM_elem_flag_enable(e, BM_ELEM_TAG);
+
+		l = e2->l->radial_next;
+		e = BM_face_other_edge_loop(l->f, e2, v)->e;
+		BM_elem_flag_enable(e, BM_ELEM_TAG);
+	}
+
+	dist = FLT_MAX;
+
+	if (!edbm_rip_call_edgesplit(em, op)) {
+		return OPERATOR_CANCELLED;
+	}
+	else {
+		/* --- select which vert --- */
 		BMVert *v_best = NULL;
 		float l_prev_co[3], l_next_co[3], l_corner_co[3];
 		float scale;
 
-		/* not good enough! - original vert may not be attached to the closest edge */
-#if 0
-		EDBM_flag_disable_all(em, BM_ELEM_SELECT);
-		BM_elem_select_set(bm, ripvert, TRUE);
-#else
-
 		dist = FLT_MAX;
-		BM_ITER(v, &iter, em->bm, BM_VERTS_OF_MESH, NULL) {
+		BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
 			if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
 				/* disable by default, re-enable winner at end */
-				BM_elem_select_set(bm, v, FALSE);
+				BM_vert_select_set(bm, v, FALSE);
 
-				BM_ITER(l, &liter, bm, BM_LOOPS_OF_VERT, v) {
+				BM_ITER_ELEM (l, &liter, v, BM_LOOPS_OF_VERT) {
 					/* calculate a point in the face, rather then calculate the middle,
 					 * make a vector pointing between the 2 edges attached to this loop */
 					sub_v3_v3v3(l_prev_co, l->prev->v->co, l->v->co);
@@ -632,18 +566,172 @@ static int edbm_rip_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		}
 
 		if (v_best) {
-			BM_elem_select_set(bm, v_best, TRUE);
+			BM_vert_select_set(bm, v_best, TRUE);
+			if (ese.ele) {
+				EDBM_editselection_store(em, &v_best->head);
+			}
 		}
-#endif
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+/**
+ * This is the main edge ripping function
+ */
+static int edbm_rip_invoke__edge(bContext *C, wmOperator *op, wmEvent *event)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	ARegion *ar = CTX_wm_region(C);
+	RegionView3D *rv3d = CTX_wm_region_view3d(C);
+	BMEditMesh *em = BMEdit_FromObject(obedit);
+	BMesh *bm = em->bm;
+	BMIter iter, eiter;
+	BMLoop *l;
+	BMEdge *e, *e2;
+	BMVert *v;
+	int i;
+	float projectMat[4][4], fmval[3] = {event->mval[0], event->mval[1]};
+
+	int totedge;
+	int all_minifold;
+
+	EdgeLoopPair *eloop_pairs;
+
+	ED_view3d_ob_project_mat_get(rv3d, obedit, projectMat);
+
+	/* important this runs on the original selection, before tempering with tagging */
+	eloop_pairs = edbm_ripsel_looptag_helper(bm);
+
+	/* expand edge selection */
+	BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+		e2 = NULL;
+		i = 0;
+		totedge = 0;
+		all_minifold = TRUE;
+		BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
+
+			if (!BM_edge_is_wire(e) &&
+			    !BM_elem_flag_test(e, BM_ELEM_HIDDEN))
+			{
+				/* important to check selection rather then tag here
+				 * else we get feedback loop */
+				if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+					e2 = e;
+					i++;
+				}
+				totedge++;
+			}
+
+			/** #BM_vert_other_disk_edge has no hidden checks so don't check hidden here */
+			if ((all_minifold == TRUE) && (BM_edge_is_manifold(e) == FALSE)) {
+				all_minifold = FALSE;
+			}
+		}
+
+		/* single edge, extend */
+		if (i == 1 && e2->l) {
+			if ((totedge == 4) || (all_minifold == FALSE)) {
+				BMLoop *l_a = e2->l;
+				BMLoop *l_b = l_a->radial_next;
+
+				/* find the best face to follow, this what the edge won't point away from
+				 * the mouse when there are more then 4 (takes the shortest face fan around) */
+				l = (edbm_rip_edge_side_measure(e2, l_a, ar, projectMat, fmval) <
+				     edbm_rip_edge_side_measure(e2, l_b, ar, projectMat, fmval)) ? l_a : l_b;
+
+				l = BM_face_other_edge_loop(l->f, e2, v);
+				l = l->radial_next;
+				l = BM_face_other_edge_loop(l->f, l->e, v);
+
+				if (l) {
+					BM_elem_flag_enable(l->e, BM_ELEM_TAG);
+				}
+			}
+			else {
+				e = BM_vert_other_disk_edge(v, e2);
+
+				if (e) {
+					BM_elem_flag_enable(e, BM_ELEM_TAG);
+				}
+			}
+		}
+	}
+
+	if (!edbm_rip_call_edgesplit(em, op)) {
+		return OPERATOR_CANCELLED;
+	}
+
+	/* note: the output of the bmesh operator is ignored, since we built
+	 * the contiguous loop pairs to split already, its possible that some
+	 * edge did not split even though it was tagged which would not work
+	 * as expected (but not crash), however there are checks to ensure
+	 * tagged edges will split. So far its not been an issue. */
+	edbm_ripsel_deselect_helper(bm, eloop_pairs,
+	                            ar, projectMat, fmval);
+	MEM_freeN(eloop_pairs);
+
+
+	return OPERATOR_FINISHED;
+}
+
+/* based on mouse cursor position, it defines how is being ripped */
+static int edbm_rip_invoke(bContext *C, wmOperator *op, wmEvent *event)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	BMEditMesh *em = BMEdit_FromObject(obedit);
+	BMesh *bm = em->bm;
+	BMIter iter;
+	BMEdge *e;
+	int singlesel = (bm->totvertsel == 1 && bm->totedgesel == 0 && bm->totfacesel == 0);
+	const int totedge_orig = bm->totedge;
+	int ret;
+
+	/* running in face mode hardly makes sense, so convert to region loop and rip */
+	if (em->bm->totfacesel) {
+		/* highly nifty but hard to sypport since the operator can fail and we're left
+		 * with modified selection */
+		// WM_operator_name_call(C, "MESH_OT_region_to_loop", WM_OP_INVOKE_DEFAULT, NULL);
+
+		BKE_report(op->reports, RPT_ERROR, "Can't rip selected faces");
+		return OPERATOR_CANCELLED;
+	}
+
+	/* note on selection:
+	 * When calling edge split we operate on tagged edges rather then selected
+	 * this is important because the edges to operate on are extended by one,
+	 * but the selection is left alone.
+	 *
+	 * After calling edge split - the duplicated edges have the same selection state as the
+	 * original, so all we do is de-select the far side from the mouse and we have a
+	 * useful selection for grabbing.
+	 */
+
+	/* BM_ELEM_SELECT --> BM_ELEM_TAG */
+	BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
+		BM_elem_flag_set(e, BM_ELEM_TAG, BM_elem_flag_test(e, BM_ELEM_SELECT));
+	}
+
+	/* split 2 main parts of this operator out into vertex and edge ripping */
+	if (singlesel) {
+		ret = edbm_rip_invoke__vert(C, op, event);
+	}
+	else {
+		ret = edbm_rip_invoke__edge(C, op, event);
+	}
+
+	if (ret == OPERATOR_CANCELLED) {
+		return OPERATOR_CANCELLED;
 	}
 
 	EDBM_selectmode_flush(em);
 
-	BLI_assert(singlesel ? (bm->totvertsel > 0) : (bm->totedgesel > 0));
-
-	if (!EDBM_op_finish(em, &bmop, op, TRUE)) {
+	if (totedge_orig == bm->totedge) {
+		BKE_report(op->reports, RPT_ERROR, "No edges could be ripped");
 		return OPERATOR_CANCELLED;
 	}
+
+	BLI_assert(singlesel ? (bm->totvertsel > 0) : (bm->totedgesel > 0));
 
 	if (bm->totvertsel == 0) {
 		return OPERATOR_CANCELLED;
@@ -653,6 +741,7 @@ static int edbm_rip_invoke(bContext *C, wmOperator *op, wmEvent *event)
 
 	return OPERATOR_FINISHED;
 }
+
 
 void MESH_OT_rip(wmOperatorType *ot)
 {

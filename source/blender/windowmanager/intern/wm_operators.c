@@ -952,7 +952,7 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *ar, void *arg_op)
 	uiBlockSetFlag(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_RET_1 | UI_BLOCK_MOVEMOUSE_QUIT);
 
 	/* if register is not enabled, the operator gets freed on OPERATOR_FINISHED
-	* ui_apply_but_funcs_after calls ED_undo_operator_repeate_cb and crashes */
+	 * ui_apply_but_funcs_after calls ED_undo_operator_repeate_cb and crashes */
 	assert(op->type->flag & OPTYPE_REGISTER);
 
 	uiBlockSetHandleFunc(block, ED_undo_operator_repeat_cb_evt, arg_op);
@@ -2240,7 +2240,7 @@ static int wm_console_toggle_op(bContext *UNUSED(C), wmOperator *UNUSED(op))
 static void WM_OT_console_toggle(wmOperatorType *ot)
 {
 	/* XXX Have to mark these for xgettext, as under linux they do not exists...
-	 *     And even worth, have to give the context as text, as xgettext doesn’t expand macros. :( */
+	 *     And even worth, have to give the context as text, as xgettext doesn't expand macros. :( */
 	ot->name = CTX_N_("Operator"/* BLF_I18NCONTEXT_OPERATOR_DEFAULT */, "Toggle System Console");
 	ot->idname = "WM_OT_console_toggle";
 	ot->description = N_("Toggle System Console");
