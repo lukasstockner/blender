@@ -25,6 +25,7 @@
 
 BokehImageOperation::BokehImageOperation(): NodeOperation() {
     this->addOutputSocket(COM_DT_COLOR);
+	this->deleteData = false;
 }
 void BokehImageOperation::initExecution() {
 	this->centerX = getWidth() / 2;
@@ -97,6 +98,12 @@ void BokehImageOperation::executePixel(float* color, float x, float y, PixelSamp
 }
 
 void BokehImageOperation::deinitExecution() {
+	if (deleteData) {
+		if (data) {
+			delete data;
+			data = NULL;
+		}
+	}
 }
 
 void BokehImageOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {

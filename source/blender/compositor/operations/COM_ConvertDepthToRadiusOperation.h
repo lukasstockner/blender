@@ -31,38 +31,42 @@
   */
 class ConvertDepthToRadiusOperation : public NodeOperation {
 private:
-    /**
-      * Cached reference to the inputProgram
-      */
+	/**
+	  * Cached reference to the inputProgram
+	  */
 	SocketReader * inputOperation;
 	float fStop;
+	float aspect;
 	float maxRadius;
-	float focalDistance;
+	float inverseFocalDistance;
+	float aperture;
+	float cam_lens;
+	float dof_sp;
 	Object *cameraObject;
 public:
-    /**
-      * Default constructor
-      */
+	/**
+	  * Default constructor
+	  */
 	ConvertDepthToRadiusOperation();
-
-    /**
-      * the inner loop of this program
-      */
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-
-    /**
-      * Initialize the execution
-      */
-    void initExecution();
-
-    /**
-      * Deinitialize the execution
-      */
-    void deinitExecution();
-
+	
+	/**
+	  * Initialize the execution
+	  */
+	void initExecution();
+	
+	/**
+	  * Deinitialize the execution
+	  */
+	void deinitExecution();
+	
 	void setfStop(float fStop) {this->fStop = fStop;}
 	void setMaxRadius(float maxRadius) {this->maxRadius = maxRadius;}
 	void setCameraObject(Object* camera) {this->cameraObject = camera;}
-	float determineFocalDistance() const;
+	float determineFocalDistance();
 };
 #endif

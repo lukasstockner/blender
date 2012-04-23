@@ -20,9 +20,20 @@
  *		Monique Dewanchand
  */
 
-#include "COM_RenderLayersDepthProg.h"
+#ifndef _COM_DefocusNode_h_
+#define _COM_DefocusNode_h_
 
-RenderLayersDepthProg::RenderLayersDepthProg() :RenderLayersBaseProg(SCE_PASS_Z, 1) {
-	this->addOutputSocket(COM_DT_VALUE);
-}
+#include "COM_Node.h"
 
+/**
+  * @brief DefocusNode
+  * @ingroup Node
+  */
+
+class DefocusNode: public Node {
+public:
+	DefocusNode(bNode *editorNode);
+    void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
+};
+
+#endif

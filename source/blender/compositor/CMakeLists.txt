@@ -29,88 +29,88 @@ set(INC
 	../blenkernel
 	../blenlib
 	../makesdna
-		../render/extern/include
-		../render/intern/include
-		../makesrna
-		../blenloader
-		../blenlib
-		../windowmanager
-		../imbuf
-		../../../intern/guardedalloc
-		nodes
-		../nodes/
-		../nodes/composite
-		../nodes/intern
-		intern
-		operations
-		../opencl
+	../render/extern/include
+	../render/intern/include
+	../makesrna
+	../blenloader
+	../blenlib
+	../windowmanager
+	../imbuf
+	../../../intern/guardedalloc
+	nodes
+	../nodes/
+	../nodes/composite
+	../nodes/intern
+	intern
+	operations
+	../opencl
 )
 
 set(SRC
-		COM_compositor.h
-		COM_defines.h
+	COM_compositor.h
+	COM_defines.h
 
-		intern/COM_compositor.cpp
-		intern/COM_ExecutionSystem.cpp
-		intern/COM_ExecutionSystem.h
-		intern/COM_ExecutionSystemHelper.cpp
-		intern/COM_ExecutionSystemHelper.h
-		intern/COM_Converter.cpp
-		intern/COM_Converter.h
-		intern/COM_ExecutionGroup.cpp
-		intern/COM_ExecutionGroup.h
-		intern/COM_Node.cpp
-		intern/COM_Node.h
-		intern/COM_NodeBase.cpp
-		intern/COM_NodeBase.h
-		intern/COM_NodeOperation.cpp
-		intern/COM_NodeOperation.h
-		intern/COM_Socket.cpp
-		intern/COM_Socket.h
-		intern/COM_SocketReader.cpp
-		intern/COM_SocketReader.h
-		intern/COM_InputSocket.cpp
-		intern/COM_InputSocket.h
-		intern/COM_OutputSocket.cpp
-		intern/COM_OutputSocket.h
-		intern/COM_SocketConnection.cpp
-		intern/COM_SocketConnection.h
-		intern/COM_MemoryProxy.cpp
-		intern/COM_MemoryProxy.h
-		intern/COM_MemoryBuffer.cpp
-		intern/COM_MemoryBuffer.h
-		intern/COM_MemoryManager.cpp
-		intern/COM_MemoryManager.h
-		intern/COM_MemoryManagerState.cpp
-		intern/COM_MemoryManagerState.h
-		intern/COM_WorkScheduler.cpp
-		intern/COM_WorkScheduler.h
-		intern/COM_WorkPackage.cpp
-		intern/COM_WorkPackage.h
-		intern/COM_ChunkOrder.cpp
-		intern/COM_ChunkOrder.h
-		intern/COM_ChunkOrderHotspot.cpp
-		intern/COM_ChunkOrderHotspot.h
-		intern/COM_Device.cpp
-		intern/COM_Device.h
-		intern/COM_CPUDevice.cpp
-		intern/COM_CPUDevice.h
-		intern/COM_OpenCLDevice.cpp
-		intern/COM_OpenCLDevice.h
-		intern/COM_CompositorContext.cpp
-		intern/COM_CompositorContext.h
-		intern/COM_ChannelInfo.cpp
-		intern/COM_ChannelInfo.h
-		operations/COM_QualityStepHelper.h
-		operations/COM_QualityStepHelper.cpp
+	intern/COM_compositor.cpp
+	intern/COM_ExecutionSystem.cpp
+	intern/COM_ExecutionSystem.h
+	intern/COM_ExecutionSystemHelper.cpp
+	intern/COM_ExecutionSystemHelper.h
+	intern/COM_Converter.cpp
+	intern/COM_Converter.h
+	intern/COM_ExecutionGroup.cpp
+	intern/COM_ExecutionGroup.h
+	intern/COM_Node.cpp
+	intern/COM_Node.h
+	intern/COM_NodeBase.cpp
+	intern/COM_NodeBase.h
+	intern/COM_NodeOperation.cpp
+	intern/COM_NodeOperation.h
+	intern/COM_Socket.cpp
+	intern/COM_Socket.h
+	intern/COM_SocketReader.cpp
+	intern/COM_SocketReader.h
+	intern/COM_InputSocket.cpp
+	intern/COM_InputSocket.h
+	intern/COM_OutputSocket.cpp
+	intern/COM_OutputSocket.h
+	intern/COM_SocketConnection.cpp
+	intern/COM_SocketConnection.h
+	intern/COM_MemoryProxy.cpp
+	intern/COM_MemoryProxy.h
+	intern/COM_MemoryBuffer.cpp
+	intern/COM_MemoryBuffer.h
+	intern/COM_MemoryManager.cpp
+	intern/COM_MemoryManager.h
+	intern/COM_MemoryManagerState.cpp
+	intern/COM_MemoryManagerState.h
+	intern/COM_WorkScheduler.cpp
+	intern/COM_WorkScheduler.h
+	intern/COM_WorkPackage.cpp
+	intern/COM_WorkPackage.h
+	intern/COM_ChunkOrder.cpp
+	intern/COM_ChunkOrder.h
+	intern/COM_ChunkOrderHotspot.cpp
+	intern/COM_ChunkOrderHotspot.h
+	intern/COM_Device.cpp
+	intern/COM_Device.h
+	intern/COM_CPUDevice.cpp
+	intern/COM_CPUDevice.h
+	intern/COM_OpenCLDevice.cpp
+	intern/COM_OpenCLDevice.h
+	intern/COM_CompositorContext.cpp
+	intern/COM_CompositorContext.h
+	intern/COM_ChannelInfo.cpp
+	intern/COM_ChannelInfo.h
+	operations/COM_QualityStepHelper.h
+	operations/COM_QualityStepHelper.cpp
 
 # Internal nodes
-		nodes/COM_MuteNode.cpp
-		nodes/COM_MuteNode.h
-		nodes/COM_GroupNode.cpp
-		nodes/COM_GroupNode.h
-		nodes/COM_SocketProxyNode.cpp
-		nodes/COM_SocketProxyNode.h
+	nodes/COM_MuteNode.cpp
+	nodes/COM_MuteNode.h
+	nodes/COM_GroupNode.cpp
+	nodes/COM_GroupNode.h
+	nodes/COM_SocketProxyNode.cpp
+	nodes/COM_SocketProxyNode.h
 
 # input nodes
 	nodes/COM_RenderLayersNode.cpp
@@ -135,12 +135,12 @@ set(SRC
 	nodes/COM_OutputFileNode.h
 
 # output nodes
-		nodes/COM_CompositorNode.cpp
-		nodes/COM_CompositorNode.h
-		nodes/COM_ViewerNode.cpp
-		nodes/COM_ViewerNode.h
-		nodes/COM_SplitViewerNode.cpp
-		nodes/COM_SplitViewerNode.h
+	nodes/COM_CompositorNode.cpp
+	nodes/COM_CompositorNode.h
+	nodes/COM_ViewerNode.cpp
+	nodes/COM_ViewerNode.h
+	nodes/COM_SplitViewerNode.cpp
+	nodes/COM_SplitViewerNode.h
 	nodes/COM_ViewLevelsNode.cpp
 	nodes/COM_ViewLevelsNode.h
 	operations/COM_CalculateStandardDeviationOperation.cpp
@@ -149,48 +149,50 @@ set(SRC
 	operations/COM_CalculateMeanOperation.h
 
 # distort nodes
-		nodes/COM_TranslateNode.cpp
-		nodes/COM_TranslateNode.h
-		nodes/COM_ScaleNode.cpp
-		nodes/COM_ScaleNode.h
-		nodes/COM_RotateNode.cpp
-		nodes/COM_RotateNode.h
-		nodes/COM_FlipNode.cpp
-		nodes/COM_FlipNode.h
+	nodes/COM_TranslateNode.cpp
+	nodes/COM_TranslateNode.h
+	nodes/COM_ScaleNode.cpp
+	nodes/COM_ScaleNode.h
+	nodes/COM_RotateNode.cpp
+	nodes/COM_RotateNode.h
+	nodes/COM_FlipNode.cpp
+	nodes/COM_FlipNode.h
 
-		nodes/COM_MapUVNode.cpp
-		nodes/COM_MapUVNode.h
-		nodes/COM_DisplaceNode.cpp
-		nodes/COM_DisplaceNode.h
+	nodes/COM_MapUVNode.cpp
+	nodes/COM_MapUVNode.h
+	nodes/COM_DisplaceNode.cpp
+	nodes/COM_DisplaceNode.h
 
-		nodes/COM_DifferenceMatteNode.cpp
-		nodes/COM_DifferenceMatteNode.h
-		nodes/COM_LuminanceMatteNode.cpp
-		nodes/COM_LuminanceMatteNode.h
-		nodes/COM_DistanceMatteNode.cpp
-		nodes/COM_DistanceMatteNode.h
-		nodes/COM_ChromaMatteNode.cpp
-		nodes/COM_ChromaMatteNode.h
-		nodes/COM_ColorMatteNode.cpp
-		nodes/COM_ColorMatteNode.h
-		nodes/COM_ChannelMatteNode.cpp
-		nodes/COM_ChannelMatteNode.h
-		nodes/COM_LensDistortionNode.cpp
-		nodes/COM_LensDistortionNode.h
+	nodes/COM_DifferenceMatteNode.cpp
+	nodes/COM_DifferenceMatteNode.h
+	nodes/COM_LuminanceMatteNode.cpp
+	nodes/COM_LuminanceMatteNode.h
+	nodes/COM_DistanceMatteNode.cpp
+	nodes/COM_DistanceMatteNode.h
+	nodes/COM_ChromaMatteNode.cpp
+	nodes/COM_ChromaMatteNode.h
+	nodes/COM_ColorMatteNode.cpp
+	nodes/COM_ColorMatteNode.h
+	nodes/COM_ChannelMatteNode.cpp
+	nodes/COM_ChannelMatteNode.h
+	nodes/COM_LensDistortionNode.cpp
+	nodes/COM_LensDistortionNode.h
 
-		nodes/COM_GlareNode.cpp
-		nodes/COM_GlareNode.h
+	nodes/COM_GlareNode.cpp
+	nodes/COM_GlareNode.h
 
-		operations/COM_LensGlowOperation.cpp
-		operations/COM_LensGlowOperation.h
-		operations/COM_LensGhostOperation.cpp
-		operations/COM_LensGhostOperation.h
+	operations/COM_LensGlowOperation.cpp
+	operations/COM_LensGlowOperation.h
+	operations/COM_LensGhostOperation.cpp
+	operations/COM_LensGhostOperation.h
 	nodes/COM_TransformNode.cpp
 	nodes/COM_TransformNode.h
 	nodes/COM_Stabilize2dNode.cpp
 	nodes/COM_Stabilize2dNode.h
 	nodes/COM_MovieDistortionNode.cpp
 	nodes/COM_MovieDistortionNode.h
+	nodes/COM_DefocusNode.cpp
+	nodes/COM_DefocusNode.h
 
 # color nodes
 		nodes/COM_VectorCurveNode.cpp
@@ -306,6 +308,8 @@ set(SRC
 	operations/COM_MovieClipAttributeOperation.h
 	operations/COM_MovieDistortionOperation.cpp
 	operations/COM_MovieDistortionOperation.h
+	operations/COM_GammaCorrectOperation.h
+	operations/COM_GammaCorrectOperation.cpp
 
 # Matte nodes
 nodes/COM_BoxMaskNode.cpp

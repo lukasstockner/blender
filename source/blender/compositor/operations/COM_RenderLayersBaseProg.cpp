@@ -26,52 +26,52 @@
 #include "DNA_scene_types.h"
 
 extern "C" {
-    #include "RE_pipeline.h"
-    #include "RE_shader_ext.h"
-    #include "RE_render_ext.h"
+	#include "RE_pipeline.h"
+	#include "RE_shader_ext.h"
+	#include "RE_render_ext.h"
 }
 
 RenderLayersBaseProg::RenderLayersBaseProg(int renderpass, int elementsize): NodeOperation() {
-    this->renderpass = renderpass;
-    this->setScene(NULL);
-    this->inputBuffer = NULL;
+	this->renderpass = renderpass;
+	this->setScene(NULL);
+	this->inputBuffer = NULL;
 	this->elementsize = elementsize;
 }
 
 
 void RenderLayersBaseProg::initExecution() {
-    Scene * scene = this->getScene();
-    Render *re= (scene)? RE_GetRender(scene->id.name): NULL;
-    RenderResult *rr= NULL;
-
-    if(re)
-            rr= RE_AcquireResultRead(re);
-
-    if(rr) {
-        SceneRenderLayer *srl= (SceneRenderLayer*)BLI_findlink(&scene->r.layers, getLayerId());
-        if(srl) {
-
-               RenderLayer *rl= RE_GetRenderLayer(rr, srl->name);
-               if(rl && rl->rectf) {
-                   this->inputBuffer = RE_RenderLayerGetPass(rl, renderpass);
-
-                   if (this->inputBuffer == NULL || renderpass == SCE_PASS_COMBINED) {
+	Scene * scene = this->getScene();
+	Render *re= (scene)? RE_GetRender(scene->id.name): NULL;
+	RenderResult *rr= NULL;
+	
+	if(re)
+			rr= RE_AcquireResultRead(re);
+	
+	if(rr) {
+		SceneRenderLayer *srl= (SceneRenderLayer*)BLI_findlink(&scene->r.layers, getLayerId());
+		if(srl) {
+	
+			   RenderLayer *rl= RE_GetRenderLayer(rr, srl->name);
+			   if(rl && rl->rectf) {
+				   this->inputBuffer = RE_RenderLayerGetPass(rl, renderpass);
+	
+				   if (this->inputBuffer == NULL || renderpass == SCE_PASS_COMBINED) {
 					   this->inputBuffer = rl->rectf;
-                   }
-               }
-           }
-    }
-    if (re) {
-        RE_ReleaseResult(re);
-        re = NULL;
-    }
+				   }
+			   }
+		   }
+	}
+	if (re) {
+		RE_ReleaseResult(re);
+		re = NULL;
+	}
 }
 
 void RenderLayersBaseProg::executePixel(float* output, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
 	int ix = x;
 	int iy = y;
-
-        if (inputBuffer == NULL || ix < 0 || iy < 0 || ix >= (int)this->getWidth() || iy >= (int)this->getHeight() ) {
+	
+	if (inputBuffer == NULL || ix < 0 || iy < 0 || ix >= (int)this->getWidth() || iy >= (int)this->getHeight() ) {
 		output[0] = 0.0f;
 		output[1] = 0.0f;
 		output[2] = 0.0f;

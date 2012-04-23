@@ -23,10 +23,12 @@
 #ifndef _COM_BokehVariableSizeBokehBlurOperation_h
 #define _COM_VariableSizeBokehBlurOperation_h
 #include "COM_NodeOperation.h"
+#include "COM_QualityStepHelper.h"
 
-class VariableSizeBokehBlurOperation : public NodeOperation {
+class VariableSizeBokehBlurOperation : public NodeOperation, public QualityStepHelper {
 private:
-	int radx, rady;
+	int maxBlur;
+	float threshold;
 	SocketReader* inputProgram;
 	SocketReader* inputBokehProgram;
 	SocketReader* inputSizeProgram;
@@ -34,23 +36,26 @@ private:
 public:
 	VariableSizeBokehBlurOperation();
 
-	void* initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers);
-    /**
-      * the inner loop of this program
-      */
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, int x, int y, MemoryBuffer *inputBuffers[], void* data);
-
-    /**
-      * Initialize the execution
-      */
-    void initExecution();
-
-    /**
-      * Deinitialize the execution
-      */
-    void deinitExecution();
-
-    bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
+	
+	/**
+	  * Initialize the execution
+	  */
+	void initExecution();
+	
+	/**
+	  * Deinitialize the execution
+	  */
+	void deinitExecution();
+	
+	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
+	
+	void setMaxBlur(int maxRadius) {this->maxBlur = maxRadius;}
+	
+	void setThreshold(float threshold) {this->threshold = threshold;}
 
 
 };

@@ -73,7 +73,6 @@ typedef enum CompositorQuality {
   * COM_CURRENT_THREADING_MODEL can be one of the above, COM_TM_QUEUE is currently default.
   */
 #define COM_CURRENT_THREADING_MODEL COM_TM_QUEUE
-
 // chunk order
 /**
   * @brief The order of chunks to be scheduled
