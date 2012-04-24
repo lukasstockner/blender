@@ -23,13 +23,13 @@
 #include "COM_ConvolutionFilterOperation.h"
 
 ConvolutionFilterOperation::ConvolutionFilterOperation() : NodeOperation() {
-    this->addInputSocket(COM_DT_COLOR);
-    this->addInputSocket(COM_DT_VALUE);
-    this->addOutputSocket(COM_DT_COLOR);
-    this->setResolutionInputSocketIndex(0);
-    this->inputOperation = NULL;
-    this->filter = NULL;
-    this->setComplex(true);
+	this->addInputSocket(COM_DT_COLOR);
+	this->addInputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_COLOR);
+	this->setResolutionInputSocketIndex(0);
+	this->inputOperation = NULL;
+	this->filter = NULL;
+	this->setComplex(true);
 }
 void ConvolutionFilterOperation::initExecution() {
 	this->inputOperation = this->getInputSocketReader(0);
@@ -37,100 +37,100 @@ void ConvolutionFilterOperation::initExecution() {
 }
 
 void ConvolutionFilterOperation::set3x3Filter(float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8, float f9) {
-    this->filter = new float[9];
-    this->filter[0] = f1;
-    this->filter[1] = f2;
-    this->filter[2] = f3;
-    this->filter[3] = f4;
-    this->filter[4] = f5;
-    this->filter[5] = f6;
-    this->filter[6] = f7;
-    this->filter[7] = f8;
-    this->filter[8] = f9;
-    this->filterHeight = 3;
-    this->filterWidth = 3;
+	this->filter = new float[9];
+	this->filter[0] = f1;
+	this->filter[1] = f2;
+	this->filter[2] = f3;
+	this->filter[3] = f4;
+	this->filter[4] = f5;
+	this->filter[5] = f6;
+	this->filter[6] = f7;
+	this->filter[7] = f8;
+	this->filter[8] = f9;
+	this->filterHeight = 3;
+	this->filterWidth = 3;
 }
 
 void ConvolutionFilterOperation::deinitExecution() {
-    this->inputOperation = NULL;
-    this->inputValueOperation = NULL;
-    if (this->filter) {
-        delete this->filter;
-        this->filter = NULL;
-    }
+	this->inputOperation = NULL;
+	this->inputValueOperation = NULL;
+	if (this->filter) {
+		delete this->filter;
+		this->filter = NULL;
+	}
 }
 
 
-void ConvolutionFilterOperation::executePixel(float *color,int x, int y, MemoryBuffer *inputBuffers[]) {
-    color[0] = 0.0;
-    color[1] = 0.0;
-    color[2] = 0.0;
-    color[3] = 0.0;
-    float in1[4];
-    float in2[4];
-    float value[4];
+void ConvolutionFilterOperation::executePixel(float *color,int x, int y, MemoryBuffer *inputBuffers[], void* data) {
+	color[0] = 0.0;
+	color[1] = 0.0;
+	color[2] = 0.0;
+	color[3] = 0.0;
+	float in1[4];
+	float in2[4];
+	float value[4];
 	this->inputValueOperation->read(value, x, y, inputBuffers, NULL);
-    float mval = 1.0f - value[0];
-
+	float mval = 1.0f - value[0];
+	
 	this->inputOperation->read(in1, x-1, y-1, inputBuffers, NULL);
-    color[0] += in1[0] * this->filter[0];
-    color[1] += in1[1] * this->filter[0];
-    color[2] += in1[2] * this->filter[0];
-    color[3] += in1[3] * this->filter[0];
+	color[0] += in1[0] * this->filter[0];
+	color[1] += in1[1] * this->filter[0];
+	color[2] += in1[2] * this->filter[0];
+	color[3] += in1[3] * this->filter[0];
 	this->inputOperation->read(in1, x, y-1, inputBuffers, NULL);
-    color[0] += in1[0] * this->filter[1];
-    color[1] += in1[1] * this->filter[1];
-    color[2] += in1[2] * this->filter[1];
-    color[3] += in1[3] * this->filter[1];
+	color[0] += in1[0] * this->filter[1];
+	color[1] += in1[1] * this->filter[1];
+	color[2] += in1[2] * this->filter[1];
+	color[3] += in1[3] * this->filter[1];
 	this->inputOperation->read(in1, x+1, y-1, inputBuffers, NULL);
-    color[0] += in1[0] * this->filter[2];
-    color[1] += in1[1] * this->filter[2];
-    color[2] += in1[2] * this->filter[2];
-    color[3] += in1[3] * this->filter[2];
+	color[0] += in1[0] * this->filter[2];
+	color[1] += in1[1] * this->filter[2];
+	color[2] += in1[2] * this->filter[2];
+	color[3] += in1[3] * this->filter[2];
 	this->inputOperation->read(in1, x-1, y, inputBuffers, NULL);
-    color[0] += in1[0] * this->filter[3];
-    color[1] += in1[1] * this->filter[3];
-    color[2] += in1[2] * this->filter[3];
-    color[3] += in1[3] * this->filter[3];
+	color[0] += in1[0] * this->filter[3];
+	color[1] += in1[1] * this->filter[3];
+	color[2] += in1[2] * this->filter[3];
+	color[3] += in1[3] * this->filter[3];
 	this->inputOperation->read(in2, x, y, inputBuffers, NULL);
-    color[0] += in2[0] * this->filter[4];
-    color[1] += in2[1] * this->filter[4];
-    color[2] += in2[2] * this->filter[4];
-    color[3] += in2[3] * this->filter[4];
+	color[0] += in2[0] * this->filter[4];
+	color[1] += in2[1] * this->filter[4];
+	color[2] += in2[2] * this->filter[4];
+	color[3] += in2[3] * this->filter[4];
 	this->inputOperation->read(in1, x+1, y, inputBuffers, NULL);
-    color[0] += in1[0] * this->filter[5];
-    color[1] += in1[1] * this->filter[5];
-    color[2] += in1[2] * this->filter[5];
-    color[3] += in1[3] * this->filter[5];
+	color[0] += in1[0] * this->filter[5];
+	color[1] += in1[1] * this->filter[5];
+	color[2] += in1[2] * this->filter[5];
+	color[3] += in1[3] * this->filter[5];
 	this->inputOperation->read(in1, x-1, y+1, inputBuffers, NULL);
-    color[0] += in1[0] * this->filter[6];
-    color[1] += in1[1] * this->filter[6];
-    color[2] += in1[2] * this->filter[6];
-    color[3] += in1[3] * this->filter[6];
+	color[0] += in1[0] * this->filter[6];
+	color[1] += in1[1] * this->filter[6];
+	color[2] += in1[2] * this->filter[6];
+	color[3] += in1[3] * this->filter[6];
 	this->inputOperation->read(in1, x, y+1, inputBuffers, NULL);
-    color[0] += in1[0] * this->filter[7];
-    color[1] += in1[1] * this->filter[7];
-    color[2] += in1[2] * this->filter[7];
-    color[3] += in1[3] * this->filter[7];
+	color[0] += in1[0] * this->filter[7];
+	color[1] += in1[1] * this->filter[7];
+	color[2] += in1[2] * this->filter[7];
+	color[3] += in1[3] * this->filter[7];
 	this->inputOperation->read(in1, x+1, y+1, inputBuffers, NULL);
-    color[0] += in1[0] * this->filter[8];
-    color[1] += in1[1] * this->filter[8];
-    color[2] += in1[2] * this->filter[8];
-    color[3] += in1[3] * this->filter[8];
-
-    color[0] = color[0]*value[0] + in2[0] * mval;
-    color[1] = color[1]*value[0] + in2[1] * mval;
-    color[2] = color[2]*value[0] + in2[2] * mval;
+	color[0] += in1[0] * this->filter[8];
+	color[1] += in1[1] * this->filter[8];
+	color[2] += in1[2] * this->filter[8];
+	color[3] += in1[3] * this->filter[8];
+	
+	color[0] = color[0]*value[0] + in2[0] * mval;
+	color[1] = color[1]*value[0] + in2[1] * mval;
+	color[2] = color[2]*value[0] + in2[2] * mval;
 }
 
 bool ConvolutionFilterOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
-    rcti newInput;
-    int addx = (this->filterWidth-1)/2+1;
-    int addy = (this->filterHeight-1)/2+1;
-    newInput.xmax = input->xmax + addx;
-    newInput.xmin = input->xmin - addx;
-    newInput.ymax = input->ymax + addy;
-    newInput.ymin = input->ymin - addy;
-
-    return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+	rcti newInput;
+	int addx = (this->filterWidth-1)/2+1;
+	int addy = (this->filterHeight-1)/2+1;
+	newInput.xmax = input->xmax + addx;
+	newInput.xmin = input->xmin - addx;
+	newInput.ymax = input->ymax + addy;
+	newInput.ymin = input->ymin - addy;
+	
+	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 }
