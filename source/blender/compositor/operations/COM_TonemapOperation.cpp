@@ -28,7 +28,7 @@
 
 TonemapOperation::TonemapOperation(): NodeOperation() {
 	this->addInputSocket(COM_DT_COLOR, COM_SC_NO_RESIZE);
-    this->addOutputSocket(COM_DT_VALUE);
+    this->addOutputSocket(COM_DT_COLOR);
 	this->imageReader = NULL;
 	this->data = NULL;
 	this->cachedInstance = NULL;
