@@ -26,9 +26,9 @@ extern "C" {
 	#include "IMB_imbuf.h"
 }
 ConvertColorProfileOperation::ConvertColorProfileOperation(): NodeOperation() {
-    this->addInputSocket(COM_DT_COLOR);
-    this->addOutputSocket(COM_DT_COLOR);
-    this->inputOperation = NULL;
+	this->addInputSocket(COM_DT_COLOR);
+	this->addOutputSocket(COM_DT_COLOR);
+	this->inputOperation = NULL;
 	this->predivided = false;
 }
 
@@ -43,5 +43,5 @@ void ConvertColorProfileOperation::executePixel(float* outputValue, float x, flo
 }
 
 void ConvertColorProfileOperation::deinitExecution() {
-    this->inputOperation = NULL;
+	this->inputOperation = NULL;
 }

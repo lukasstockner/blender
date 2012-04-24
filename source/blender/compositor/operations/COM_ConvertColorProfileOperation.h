@@ -31,9 +31,9 @@
   */
 class ConvertColorProfileOperation : public NodeOperation {
 private:
-    /**
-      * Cached reference to the inputProgram
-      */
+	/**
+	  * Cached reference to the inputProgram
+	  */
 	SocketReader * inputOperation;
 	
 	/**
@@ -51,25 +51,25 @@ private:
 	  */
 	bool predivided;
 public:
-    /**
-      * Default constructor
-      */
-    ConvertColorProfileOperation();
-
-    /**
-      * the inner loop of this program
-      */
+	/**
+	  * Default constructor
+	  */
+	ConvertColorProfileOperation();
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-
-    /**
-      * Initialize the execution
-      */
-    void initExecution();
-
-    /**
-      * Deinitialize the execution
-      */
-    void deinitExecution();
+	
+	/**
+	  * Initialize the execution
+	  */
+	void initExecution();
+	
+	/**
+	  * Deinitialize the execution
+	  */
+	void deinitExecution();
 	
 	void setFromColorProfile(int colorProfile) {this->fromProfile = colorProfile;}
 	void setToColorProfile(int colorProfile) {this->toProfile = colorProfile;}

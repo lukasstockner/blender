@@ -30,18 +30,18 @@ class CompositorOperation : public NodeOperation {
 private:
 	const Scene* scene;
 	const bNodeTree* tree;
-    float *outputBuffer;
-
+	float *outputBuffer;
+	
 	SocketReader* imageInput;
 	SocketReader* alphaInput;
 public:
-    CompositorOperation();
-    void executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer** memoryBuffers);
+	CompositorOperation();
+	void executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer** memoryBuffers);
 	void setScene(const Scene* scene) {this->scene = scene;}
 	void setbNodeTree(const bNodeTree* tree) {this->tree= tree;}
 	bool isOutputOperation(bool rendering) const {return rendering;}
-    void initExecution();
-    void deinitExecution();
+	void initExecution();
+	void deinitExecution();
 	const int getRenderPriority() const {return 7;}
 };
 #endif

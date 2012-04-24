@@ -31,18 +31,18 @@
   */
 class AlphaOverMixedOperation : public MixBaseOperation {
 private:
-    float x;
+	float x;
 public:
-    /**
-      * Default constructor
-      */
-    AlphaOverMixedOperation();
-
-    /**
-      * the inner loop of this program
-      */
+	/**
+	  * Default constructor
+	  */
+	AlphaOverMixedOperation();
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-
-    void setX(float x) {this->x = x;}
+	
+	void setX(float x) {this->x = x;}
 };
 #endif

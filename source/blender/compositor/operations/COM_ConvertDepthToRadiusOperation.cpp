@@ -67,7 +67,7 @@ void ConvertDepthToRadiusOperation::initExecution() {
 }
 
 void ConvertDepthToRadiusOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
-    float inputValue[4];
+	float inputValue[4];
 	float z;
 	float radius;
 	inputOperation->read(inputValue, x, y, sampler, inputBuffers);

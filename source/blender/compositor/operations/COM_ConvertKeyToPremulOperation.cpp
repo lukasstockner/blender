@@ -49,5 +49,5 @@ void ConvertKeyToPremulOperation::executePixel(float* outputValue, float x, floa
 }
 
 void ConvertKeyToPremulOperation::deinitExecution() {
-    this->inputColor = NULL;
+	this->inputColor = NULL;
 }

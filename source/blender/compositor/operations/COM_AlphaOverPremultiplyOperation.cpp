@@ -26,34 +26,34 @@ AlphaOverPremultiplyOperation::AlphaOverPremultiplyOperation(): MixBaseOperation
 }
 
 void AlphaOverPremultiplyOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
-    float inputColor1[4];
-    float inputOverColor[4];
-    float value[4];
-
+	float inputColor1[4];
+	float inputOverColor[4];
+	float value[4];
+	
 	inputValueOperation->read(value, x, y, sampler, inputBuffers);
 	inputColor1Operation->read(inputColor1, x, y, sampler, inputBuffers);
 	inputColor2Operation->read(inputOverColor, x, y, sampler, inputBuffers);
-
+	
 	/* Zero alpha values should still permit an add of RGB data */
-    if(inputOverColor[3]<0.0f) {
-        outputValue[0] = inputColor1[0];
-        outputValue[1] = inputColor1[1];
-        outputValue[2] = inputColor1[2];
-        outputValue[3] = inputColor1[3];
-    }
-    else if(value[0]==1.0f && inputOverColor[3]>=1.0f) {
-        outputValue[0] = inputOverColor[0];
-        outputValue[1] = inputOverColor[1];
-        outputValue[2] = inputOverColor[2];
-        outputValue[3] = inputOverColor[3];
-    }
-    else {
-        float mul= 1.0f - value[0]*inputOverColor[3];
-
-        outputValue[0]= (mul*inputColor1[0]) + value[0]*inputOverColor[0];
-        outputValue[1]= (mul*inputColor1[1]) + value[0]*inputOverColor[1];
-        outputValue[2]= (mul*inputColor1[2]) + value[0]*inputOverColor[2];
-        outputValue[3]= (mul*inputColor1[3]) + value[0]*inputOverColor[3];
-    }
+	if(inputOverColor[3]<0.0f) {
+		outputValue[0] = inputColor1[0];
+		outputValue[1] = inputColor1[1];
+		outputValue[2] = inputColor1[2];
+		outputValue[3] = inputColor1[3];
+	}
+	else if(value[0]==1.0f && inputOverColor[3]>=1.0f) {
+		outputValue[0] = inputOverColor[0];
+		outputValue[1] = inputOverColor[1];
+		outputValue[2] = inputOverColor[2];
+		outputValue[3] = inputOverColor[3];
+	}
+	else {
+		float mul= 1.0f - value[0]*inputOverColor[3];
+	
+		outputValue[0]= (mul*inputColor1[0]) + value[0]*inputOverColor[0];
+		outputValue[1]= (mul*inputColor1[1]) + value[0]*inputOverColor[1];
+		outputValue[2]= (mul*inputColor1[2]) + value[0]*inputOverColor[2];
+		outputValue[3]= (mul*inputColor1[3]) + value[0]*inputOverColor[3];
+	}
 }
 

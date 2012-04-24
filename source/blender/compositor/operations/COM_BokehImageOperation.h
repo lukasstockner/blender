@@ -44,21 +44,21 @@ private:
 public:
 	BokehImageOperation();
 
-    /**
-      * the inner loop of this program
-      */
-    void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-
-    /**
-      * Initialize the execution
-      */
-    void initExecution();
-
-    /**
-      * Deinitialize the execution
-      */
-    void deinitExecution();
-
+	/**
+	  * the inner loop of this program
+	  */
+	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	
+	/**
+	  * Initialize the execution
+	  */
+	void initExecution();
+	
+	/**
+	  * Deinitialize the execution
+	  */
+	void deinitExecution();
+	
 	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
 
 	void setData(NodeBokehImage *data) {this->data = data;}

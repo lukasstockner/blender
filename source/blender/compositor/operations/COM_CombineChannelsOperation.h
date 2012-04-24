@@ -32,11 +32,11 @@ private:
 	SocketReader *inputChannel3Operation;
 	SocketReader *inputChannel4Operation;
 public:
-    CombineChannelsOperation();
+	CombineChannelsOperation();
 	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-
-    void initExecution();
-    void deinitExecution();
+	
+	void initExecution();
+	void deinitExecution();
 };
 
 #endif

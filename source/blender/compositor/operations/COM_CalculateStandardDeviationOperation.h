@@ -36,9 +36,9 @@ protected:
 public:
 	CalculateStandardDeviationOperation();
 
-    /**
-      * the inner loop of this program
-      */
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, int x, int y, MemoryBuffer *inputBuffers[], void * data);
 
 	void* initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers);

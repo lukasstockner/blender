@@ -27,39 +27,39 @@
 
 class BoxMaskOperation : public NodeOperation {
 private:
-    /**
-      * Cached reference to the inputProgram
-      */
+	/**
+	  * Cached reference to the inputProgram
+	  */
 	SocketReader * inputMask;
 	SocketReader * inputValue;
-
-    float sine;
-    float cosine;
-    float aspectRatio;
-    int maskType;
-
-    NodeBoxMask *data;
+	
+	float sine;
+	float cosine;
+	float aspectRatio;
+	int maskType;
+	
+	NodeBoxMask *data;
 public:
-    BoxMaskOperation();
-
-    /**
-      * the inner loop of this program
-      */
+	BoxMaskOperation();
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-
-    /**
-      * Initialize the execution
-      */
-    void initExecution();
-
-    /**
-      * Deinitialize the execution
-      */
-    void deinitExecution();
-
-    void setData(NodeBoxMask *data) {this->data = data;}
-
-    void setMaskType(int maskType) {this->maskType = maskType;}
+	
+	/**
+	  * Initialize the execution
+	  */
+	void initExecution();
+	
+	/**
+	  * Deinitialize the execution
+	  */
+	void deinitExecution();
+	
+	void setData(NodeBoxMask *data) {this->data = data;}
+	
+	void setMaskType(int maskType) {this->maskType = maskType;}
 
 };
 #endif

@@ -39,18 +39,18 @@ protected:
 	float size;
 
 public:
-    /**
-      * Initialize the execution
-      */
-    void initExecution();
-
-    /**
-      * Deinitialize the execution
-      */
-    void deinitExecution();
-
+	/**
+	  * Initialize the execution
+	  */
+	void initExecution();
+	
+	/**
+	  * Deinitialize the execution
+	  */
+	void deinitExecution();
+	
 	void setData(NodeBlurData* data) {this->data= data;}
-
+	
 	void setSize(float size) {this->size = size;}
 };
 #endif

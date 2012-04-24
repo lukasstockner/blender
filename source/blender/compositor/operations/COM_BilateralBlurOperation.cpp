@@ -68,8 +68,8 @@ void BilateralBlurOperation::executePixel(float* color, int x, int y, MemoryBuff
 			// read determinator
 			this->inputDeterminatorProgram->read(determinator, xi, yi, inputBuffers, data);
 			deltaColor = fabsf(determinatorReferenceColor[0] - determinator[0])+
-			        fabsf(determinatorReferenceColor[1] - determinator[1])+
-			        fabsf(determinatorReferenceColor[2] - determinator[2]); // do not take the alpha channel into account
+				fabsf(determinatorReferenceColor[1] - determinator[1])+
+				fabsf(determinatorReferenceColor[2] - determinator[2]); // do not take the alpha channel into account
 			if (deltaColor< sigmacolor) {
 				// add this to the blur
 				this->inputColorProgram->read(tempColor, xi, yi, inputBuffers, data);

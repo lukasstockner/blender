@@ -33,27 +33,27 @@ class ChangeHSVOperation : public NodeOperation {
 private:
 	SocketReader * inputOperation;
 
-    float hue;
-    float saturation;
-    float value;
+	float hue;
+	float saturation;
+	float value;
 
 public:
-    /**
-      * Default constructor
-      */
-    ChangeHSVOperation();
-
-    void initExecution();
-    void deinitExecution();
-
-    /**
-      * the inner loop of this program
-      */
+	/**
+	  * Default constructor
+	  */
+	ChangeHSVOperation();
+	
+	void initExecution();
+	void deinitExecution();
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-
-    void setHue(float hue) {this->hue = hue;}
-    void setSaturation(float saturation) {this->saturation = saturation;}
-    void setValue(float value) {this->value = value;}
+	
+	void setHue(float hue) {this->hue = hue;}
+	void setSaturation(float saturation) {this->saturation = saturation;}
+	void setValue(float value) {this->value = value;}
 
 };
 #endif

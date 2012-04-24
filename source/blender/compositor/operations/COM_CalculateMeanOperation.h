@@ -31,35 +31,35 @@
   */
 class CalculateMeanOperation : public NodeOperation {
 protected:
-    /**
+	/**
 	  * @brief Cached reference to the reader
-      */
+	  */
 	SocketReader * imageReader;
-
+	
 	bool iscalculated;
 	float result;
 	int setting;
 
 public:
 	CalculateMeanOperation();
-
-    /**
-      * the inner loop of this program
-      */
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, int x, int y, MemoryBuffer *inputBuffers[], void * data);
-
-    /**
-      * Initialize the execution
-      */
-    void initExecution();
-
+	
+	/**
+	  * Initialize the execution
+	  */
+	void initExecution();
+	
 	void* initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers);
-
-    /**
-      * Deinitialize the execution
-      */
-    void deinitExecution();
-
+	
+	/**
+	  * Deinitialize the execution
+	  */
+	void deinitExecution();
+	
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 	void setSetting(int setting) {this->setting = setting;}
 	

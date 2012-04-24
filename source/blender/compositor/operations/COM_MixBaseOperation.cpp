@@ -59,8 +59,8 @@ void MixBaseOperation::executePixel(float* outputColor, float x, float y, PixelS
 }
 
 void MixBaseOperation::deinitExecution() {
-    this->inputValueOperation = NULL;
-    this->inputColor1Operation = NULL;
-    this->inputColor2Operation = NULL;
+	this->inputValueOperation = NULL;
+	this->inputColor1Operation = NULL;
+	this->inputColor2Operation = NULL;
 }
 

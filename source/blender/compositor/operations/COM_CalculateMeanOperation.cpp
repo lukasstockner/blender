@@ -28,7 +28,7 @@
 
 CalculateMeanOperation::CalculateMeanOperation(): NodeOperation() {
 	this->addInputSocket(COM_DT_COLOR, COM_SC_NO_RESIZE);
-    this->addOutputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_VALUE);
 	this->imageReader = NULL;
 	this->iscalculated = false;
 	this->setting = 1;

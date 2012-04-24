@@ -23,9 +23,9 @@
 #include "COM_ConvertValueToVectorOperation.h"
 
 ConvertValueToVectorOperation::ConvertValueToVectorOperation(): NodeOperation() {
-    this->addInputSocket(COM_DT_VALUE);
-    this->addOutputSocket(COM_DT_VECTOR);
-    this->inputOperation = NULL;
+	this->addInputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_VECTOR);
+	this->inputOperation = NULL;
 }
 
 void ConvertValueToVectorOperation::initExecution() {
@@ -33,14 +33,14 @@ void ConvertValueToVectorOperation::initExecution() {
 }
 
 void ConvertValueToVectorOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
-    float input[4];
+	float input[4];
 	inputOperation->read(input, x, y, sampler, inputBuffers);
-    outputValue[0] = input[0];
-    outputValue[1] = input[0];
-    outputValue[2] = input[0];
-    outputValue[3] = 0.0f;
+	outputValue[0] = input[0];
+	outputValue[1] = input[0];
+	outputValue[2] = input[0];
+	outputValue[3] = 0.0f;
 }
 
 void ConvertValueToVectorOperation::deinitExecution() {
-    this->inputOperation = NULL;
+	this->inputOperation = NULL;
 }

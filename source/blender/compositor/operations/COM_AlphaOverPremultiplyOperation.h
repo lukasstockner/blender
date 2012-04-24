@@ -31,14 +31,14 @@
   */
 class AlphaOverPremultiplyOperation : public MixBaseOperation {
 public:
-    /**
-      * Default constructor
-      */
-    AlphaOverPremultiplyOperation();
-
-    /**
-      * the inner loop of this program
-      */
+	/**
+	  * Default constructor
+	  */
+	AlphaOverPremultiplyOperation();
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 
 };
