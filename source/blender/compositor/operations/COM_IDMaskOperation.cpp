@@ -23,23 +23,23 @@
 #include "COM_IDMaskOperation.h"
 
 IDMaskOperation::IDMaskOperation(): NodeOperation() {
-    this->addInputSocket(COM_DT_VALUE);
-    this->addOutputSocket(COM_DT_VALUE);
-    this->inputProgram = NULL;
+	this->addInputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_VALUE);
+	this->inputProgram = NULL;
 }
 void IDMaskOperation::initExecution() {
 	this->inputProgram = this->getInputSocketReader(0);
 }
 
 void IDMaskOperation::executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
-    float inputValue[4];
-
+	float inputValue[4];
+	
 	this->inputProgram->read(inputValue, x, y, sampler, inputBuffers);
-    const float a = (inputValue[0] == this->objectIndex)?1.0f:0.0f;
-    color[0] = a;
+	const float a = (inputValue[0] == this->objectIndex)?1.0f:0.0f;
+	color[0] = a;
 }
 
 void IDMaskOperation::deinitExecution() {
-    this->inputProgram = NULL;
+	this->inputProgram = NULL;
 }
 

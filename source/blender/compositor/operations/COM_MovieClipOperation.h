@@ -38,25 +38,25 @@
 class MovieClipOperation : public NodeOperation {
 protected:
 	MovieClip* movieClip;
-    MovieClipUser* movieClipUser;
-    ImBuf *movieClipBuffer;
-    int movieClipheight;
-    int movieClipwidth;
+	MovieClipUser* movieClipUser;
+	ImBuf *movieClipBuffer;
+	int movieClipheight;
+	int movieClipwidth;
 	int framenumber;
-
-    /**
-      * Determine the output resolution. The resolution is retrieved from the Renderer
-      */
-    void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
+	
+	/**
+	  * Determine the output resolution. The resolution is retrieved from the Renderer
+	  */
+	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
 
 public:
 	MovieClipOperation();
-
-    void initExecution();
-    void deinitExecution();
-    void setMovieClip(MovieClip* image) {this->movieClip = image;}
-    void setMovieClipUser(MovieClipUser* imageuser) {this->movieClipUser = imageuser;}
-
+	
+	void initExecution();
+	void deinitExecution();
+	void setMovieClip(MovieClip* image) {this->movieClip = image;}
+	void setMovieClipUser(MovieClipUser* imageuser) {this->movieClipUser = imageuser;}
+	
 	void setFramenumber(int framenumber) {this->framenumber = framenumber;}
 	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };

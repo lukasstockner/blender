@@ -26,19 +26,19 @@ MixDivideOperation::MixDivideOperation(): MixBaseOperation() {
 }
 
 void MixDivideOperation::executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
-    float inputColor1[4];
-    float inputColor2[4];
-    float value;
-
+	float inputColor1[4];
+	float inputColor2[4];
+	float value;
+	
 	inputValueOperation->read(&value, x, y, sampler, inputBuffers);
 	inputColor1Operation->read(&inputColor1[0], x, y, sampler, inputBuffers);
 	inputColor2Operation->read(&inputColor2[0], x, y, sampler, inputBuffers);
-
-    if (this->useValueAlphaMultiply()) {
-        value *= inputColor2[3];
-    }
-    float valuem= 1.0f-value;
-
+	
+	if (this->useValueAlphaMultiply()) {
+		value *= inputColor2[3];
+	}
+	float valuem= 1.0f-value;
+	
 	if(inputColor2[0]!=0.0f)
 		outputValue[0] = valuem*(inputColor1[0]) + value*(inputColor1[0])/inputColor2[0];
 	else

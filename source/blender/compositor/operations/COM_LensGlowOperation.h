@@ -27,30 +27,30 @@
 
 class LensGlowOperation : public NodeOperation {
 private:
-    /**
-      * Cached reference to the inputProgram
-      */
+	/**
+	  * Cached reference to the inputProgram
+	  */
 	SocketReader * inputProgram;
 	Lamp* lamp;
 
 public:
 	LensGlowOperation();
-
-    /**
-      * the inner loop of this program
-      */
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-
-    /**
-      * Initialize the execution
-      */
-    void initExecution();
-
-    /**
-      * Deinitialize the execution
-      */
-    void deinitExecution();
-
+	
+	/**
+	  * Initialize the execution
+	  */
+	void initExecution();
+	
+	/**
+	  * Deinitialize the execution
+	  */
+	void deinitExecution();
+	
 	void setLamp(Lamp* lamp) {this->lamp = lamp;}
 };
 #endif

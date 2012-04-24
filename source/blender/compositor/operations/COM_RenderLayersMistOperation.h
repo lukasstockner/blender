@@ -5,7 +5,7 @@
 
 class RenderLayersMistOperation : public RenderLayersBaseProg {
 public:
-    RenderLayersMistOperation();
+	RenderLayersMistOperation();
 };
 
 #endif

@@ -35,17 +35,17 @@ private:
 	SocketReader *inputAlpha;
 
 public:
-    /**
-      * Default constructor
-      */
-    SetAlphaOperation();
-
-    /**
-      * the inner loop of this program
-      */
+	/**
+	  * Default constructor
+	  */
+	SetAlphaOperation();
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-
-    void initExecution();
-    void deinitExecution();
+	
+	void initExecution();
+	void deinitExecution();
 };
 #endif

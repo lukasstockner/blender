@@ -38,19 +38,19 @@ typedef enum MovieClipAttribute {
 class MovieClipAttributeOperation : public NodeOperation {
 private:
 	MovieClip * clip;
-    float value;
+	float value;
 	bool valueSet;
 	int framenumber;
 	MovieClipAttribute attribute;
 public:
-    /**
-      * Default constructor
-      */
-    MovieClipAttributeOperation();
-
-    /**
-      * the inner loop of this program
-      */
+	/**
+	  * Default constructor
+	  */
+	MovieClipAttributeOperation();
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
 

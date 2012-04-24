@@ -31,22 +31,22 @@ private:
 	int rad;
 public:
 	GaussianYBlurOperation();
-
-    /**
-      * the inner loop of this program
-      */
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, int x, int y, MemoryBuffer *inputBuffers[], void *data);
-
-    /**
-      * Initialize the execution
-      */
-    void initExecution();
-
-    /**
-      * Deinitialize the execution
-      */
-    void deinitExecution();
-
+	
+	/**
+	  * Initialize the execution
+	  */
+	void initExecution();
+	
+	/**
+	  * Deinitialize the execution
+	  */
+	void deinitExecution();
+	
 	void* initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers);
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 };

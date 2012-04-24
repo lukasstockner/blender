@@ -27,7 +27,7 @@
 
 class RenderLayersSpeedOperation : public RenderLayersBaseProg {
 public:
-    RenderLayersSpeedOperation();
+	RenderLayersSpeedOperation();
 };
 
 #endif

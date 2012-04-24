@@ -27,18 +27,18 @@
 
 class CurveBaseOperation : public NodeOperation {
 protected:
-    /**
-      * Cached reference to the inputProgram
-      */
+	/**
+	  * Cached reference to the inputProgram
+	  */
 	CurveMapping *curveMapping;
 public:
 	CurveBaseOperation();
-
+	
 	/**
-      * Initialize the execution
-      */
-    void initExecution();
-
+	 * Initialize the execution
+	 */
+	void initExecution();
+	
 	void setCurveMapping(CurveMapping* mapping) {this->curveMapping = mapping;}
 };
 #endif

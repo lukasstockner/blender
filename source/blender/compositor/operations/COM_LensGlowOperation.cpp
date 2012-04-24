@@ -24,9 +24,9 @@
 #include "BLI_math.h"
 
 LensGlowOperation::LensGlowOperation(): NodeOperation() {
-    this->addInputSocket(COM_DT_COLOR);
-    this->addOutputSocket(COM_DT_COLOR);
-    this->inputProgram = NULL;
+	this->addInputSocket(COM_DT_COLOR);
+	this->addOutputSocket(COM_DT_COLOR);
+	this->inputProgram = NULL;
 	this->lamp = NULL;
 }
 void LensGlowOperation::initExecution() {
@@ -50,5 +50,5 @@ void LensGlowOperation::executePixel(float* color, float x, float y, PixelSample
 }
 
 void LensGlowOperation::deinitExecution() {
-    this->inputProgram = NULL;
+	this->inputProgram = NULL;
 }

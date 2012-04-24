@@ -27,7 +27,7 @@
 
 class RenderLayersMaterialIndexOperation : public RenderLayersBaseProg {
 public:
-    RenderLayersMaterialIndexOperation();
+	RenderLayersMaterialIndexOperation();
 };
 
 #endif

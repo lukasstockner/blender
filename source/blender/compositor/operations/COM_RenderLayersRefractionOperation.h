@@ -27,7 +27,7 @@
 
 class RenderLayersRefractionOperation : public RenderLayersBaseProg {
 public:
-    RenderLayersRefractionOperation();
+	RenderLayersRefractionOperation();
 };
 
 #endif

@@ -27,7 +27,7 @@
 
 class RenderLayersReflectionOperation : public RenderLayersBaseProg {
 public:
-    RenderLayersReflectionOperation();
+	RenderLayersReflectionOperation();
 };
 
 #endif

@@ -33,17 +33,17 @@
 #include "COM_defines.h"
 #include "BLI_math.h"
 extern "C" {
-    #include "MEM_guardedalloc.h"
-    #include "IMB_imbuf.h"
-    #include "IMB_imbuf_types.h"
+	#include "MEM_guardedalloc.h"
+	#include "IMB_imbuf.h"
+	#include "IMB_imbuf_types.h"
 }
 
 
 PreviewOperation::PreviewOperation() : NodeOperation() {
 	this->addInputSocket(COM_DT_COLOR, COM_SC_NO_RESIZE);
-    this->outputBuffer = NULL;
-    this->input = NULL;
-    this->divider = 1.0f;
+	this->outputBuffer = NULL;
+	this->input = NULL;
+	this->divider = 1.0f;
 	this->node = NULL;
 	this->priority = 0;
 }
@@ -70,57 +70,56 @@ void PreviewOperation::initExecution() {
 }
 
 void PreviewOperation::deinitExecution() {
-    this->outputBuffer = NULL;
-    this->input = NULL;
-//    this->node->done=1;
+	this->outputBuffer = NULL;
+	this->input = NULL;
 }
 
 void PreviewOperation::executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer **memoryBuffers) {
-    int offset;
+	int offset;
 	float color[4];
 	for (int y = rect->ymin ; y < rect->ymax ; y++) {
-        offset = (y * getWidth() + rect->xmin)*4;
-        for (int x = rect->xmin ; x < rect->xmax ; x++) {
-            float rx = floor(x/divider);
-            float ry = floor(y/divider);
-
+		offset = (y * getWidth() + rect->xmin)*4;
+		for (int x = rect->xmin ; x < rect->xmax ; x++) {
+			float rx = floor(x/divider);
+			float ry = floor(y/divider);
+	
 			color[0] = 0.0f;
-            color[1] = 0.0f;
-            color[2] = 0.0f;
-            color[3] = 1.0f;
+			color[1] = 0.0f;
+			color[2] = 0.0f;
+			color[3] = 1.0f;
 			input->read(color, rx, ry, COM_PS_NEAREST, memoryBuffers);
-            /// @todo: linear conversion only when scene color management is selected, also check predivide.
+			/// @todo: linear conversion only when scene color management is selected, also check predivide.
 			linearrgb_to_srgb_v4(color, color);
-            F4TOCHAR4(color, outputBuffer+offset);
-            offset +=4;
-        }
-    }
+			F4TOCHAR4(color, outputBuffer+offset);
+			offset +=4;
+		}
+	}
 }
 bool PreviewOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
-    rcti newInput;
+	rcti newInput;
 
-    newInput.xmin = input->xmin/divider;
-    newInput.xmax = input->xmax/divider;
-    newInput.ymin = input->ymin/divider;
-    newInput.ymax = input->ymax/divider;
+	newInput.xmin = input->xmin/divider;
+	newInput.xmax = input->xmax/divider;
+	newInput.ymin = input->ymin/divider;
+	newInput.ymax = input->ymax/divider;
 
-    return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 }
 void PreviewOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {
-    NodeOperation::determineResolution(resolution, preferredResolution);
-    int width = resolution[0];
-    int height = resolution[1];
-    this->divider = 0.0f;
-    if (width > height) {
-        divider = COM_PREVIEW_SIZE / (width-1);
-    } else {
-        divider = COM_PREVIEW_SIZE / (height-1);
-    }
-    width = width * divider;
-    height = height * divider;
-
-    resolution[0] = width;
-    resolution[1] = height;
+	NodeOperation::determineResolution(resolution, preferredResolution);
+	int width = resolution[0];
+	int height = resolution[1];
+	this->divider = 0.0f;
+	if (width > height) {
+		divider = COM_PREVIEW_SIZE / (width-1);
+	} else {
+		divider = COM_PREVIEW_SIZE / (height-1);
+	}
+	width = width * divider;
+	height = height * divider;
+	
+	resolution[0] = width;
+	resolution[1] = height;
 }
 
 const int PreviewOperation::getRenderPriority() const {

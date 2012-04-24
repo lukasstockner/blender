@@ -35,19 +35,19 @@ private:
 	SocketReader * inputImage1Program;
 	SocketReader* inputImage2Program;
 public:
-    /**
-      * Default constructor
-      */
+	/**
+	  * Default constructor
+	  */
 	DifferenceMatteOperation();
-
-    /**
-      * the inner loop of this program
-      */
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-
+	
 	void initExecution();
 	void deinitExecution();
-
+	
 	void setSettings(NodeChroma* nodeChroma) {this->settings= nodeChroma;}
 };
 #endif

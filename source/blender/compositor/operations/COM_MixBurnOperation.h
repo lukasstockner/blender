@@ -31,14 +31,14 @@
   */
 class MixBurnOperation : public MixBaseOperation {
 public:
-    /**
-      * Default constructor
-      */
-    MixBurnOperation();
-
-    /**
-      * the inner loop of this program
-      */
+	/**
+	  * Default constructor
+	  */
+	MixBurnOperation();
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 
 };

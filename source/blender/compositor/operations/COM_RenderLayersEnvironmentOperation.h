@@ -27,7 +27,7 @@
 
 class RenderLayersEnvironmentOperation : public RenderLayersBaseProg {
 public:
-    RenderLayersEnvironmentOperation();
+	RenderLayersEnvironmentOperation();
 };
 
 #endif

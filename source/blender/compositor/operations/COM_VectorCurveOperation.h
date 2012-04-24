@@ -27,26 +27,26 @@
 
 class VectorCurveOperation : public CurveBaseOperation {
 private:
-    /**
-      * Cached reference to the inputProgram
-      */
+	/**
+	  * Cached reference to the inputProgram
+	  */
 	SocketReader * inputProgram;
 public:
 	VectorCurveOperation();
-
-    /**
-      * the inner loop of this program
-      */
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* Vector, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-
-    /**
-      * Initialize the execution
-      */
-    void initExecution();
-
-    /**
-      * Deinitialize the execution
-      */
-    void deinitExecution();
+	
+	/**
+	  * Initialize the execution
+	  */
+	void initExecution();
+	
+	/**
+	  * Deinitialize the execution
+	  */
+	void deinitExecution();
 };
 #endif

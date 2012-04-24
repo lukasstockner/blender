@@ -98,33 +98,33 @@ void RenderLayersBaseProg::executePixel(float* output, float x, float y, PixelSa
 }
 
 void RenderLayersBaseProg::deinitExecution() {
-    this->inputBuffer = NULL;
+	this->inputBuffer = NULL;
 }
 
 void RenderLayersBaseProg::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {
-    Scene *sce= this->getScene();
-    Render *re= (sce)? RE_GetRender(sce->id.name): NULL;
-    RenderResult *rr= NULL;
-
+	Scene *sce= this->getScene();
+	Render *re= (sce)? RE_GetRender(sce->id.name): NULL;
+	RenderResult *rr= NULL;
+	
 	resolution[0] = 0;
 	resolution[1] = 0;
-
-    if(re)
-            rr= RE_AcquireResultRead(re);
-
-    if(rr) {
-        SceneRenderLayer *srl= (SceneRenderLayer*)BLI_findlink(&sce->r.layers, getLayerId());
-        if(srl) {
-               RenderLayer *rl= RE_GetRenderLayer(rr, srl->name);
-               if(rl && rl->rectf) {
-                   resolution[0]=rl->rectx;
-                   resolution[1]=rl->recty;
-               }
-        }
-    }
-
-    if(re)
-         RE_ReleaseResult(re);
+	
+	if(re)
+			rr= RE_AcquireResultRead(re);
+	
+	if(rr) {
+		SceneRenderLayer *srl= (SceneRenderLayer*)BLI_findlink(&sce->r.layers, getLayerId());
+		if(srl) {
+			   RenderLayer *rl= RE_GetRenderLayer(rr, srl->name);
+			   if(rl && rl->rectf) {
+				   resolution[0]=rl->rectx;
+				   resolution[1]=rl->recty;
+			   }
+		}
+	}
+	
+	if(re)
+		 RE_ReleaseResult(re);
 
 }
 

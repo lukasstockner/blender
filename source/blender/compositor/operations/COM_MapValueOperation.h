@@ -31,36 +31,36 @@
   */
 class MapValueOperation : public NodeOperation {
 private:
-    /**
-      * Cached reference to the inputProgram
-      */
+	/**
+	  * Cached reference to the inputProgram
+	  */
 	SocketReader * inputOperation;
 	TexMapping * settings;
 public:
-    /**
-      * Default constructor
-      */
-    MapValueOperation();
-
-    /**
-      * the inner loop of this program
-      */
+	/**
+	  * Default constructor
+	  */
+	MapValueOperation();
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-
-    /**
-      * Initialize the execution
-      */
-    void initExecution();
-
-    /**
-      * Deinitialize the execution
-      */
-    void deinitExecution();
+	
+	/**
+	  * Initialize the execution
+	  */
+	void initExecution();
+	
+	/**
+	  * Deinitialize the execution
+	  */
+	void deinitExecution();
 	
 	/**
 	  * @brief set the TexMapping settings
 	  */
 	void setSettings(TexMapping* settings) {this->settings = settings;}
-
+	
 };
 #endif

@@ -29,10 +29,10 @@
 #include "DNA_texture_types.h"
 #include "BLI_listbase.h"
 extern "C" {
-    #include "RE_pipeline.h"
-    #include "RE_shader_ext.h"
-    #include "RE_render_ext.h"
-    #include "MEM_guardedalloc.h"
+	#include "RE_pipeline.h"
+	#include "RE_shader_ext.h"
+	#include "RE_render_ext.h"
+	#include "MEM_guardedalloc.h"
 }
 
 /**
@@ -48,11 +48,11 @@ private:
 
 protected:
 
-    /**
-      * Determine the output resolution. The resolution is retrieved from the Renderer
-      */
-    void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
-
+	/**
+	  * Determine the output resolution. The resolution is retrieved from the Renderer
+	  */
+	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
+	
 	/**
 	  * Constructor
 	  */

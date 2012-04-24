@@ -34,19 +34,19 @@ private:
 	SocketReader *inputImageProgram;
 	SocketReader *inputKeyProgram;
 public:
-    /**
-      * Default constructor
-      */
+	/**
+	  * Default constructor
+	  */
 	DistanceMatteOperation();
-
-    /**
-      * the inner loop of this program
-      */
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-
+	
 	void initExecution();
 	void deinitExecution();
-
+	
 	void setSettings(NodeChroma* nodeChroma) {this->settings= nodeChroma;}
 };
 #endif

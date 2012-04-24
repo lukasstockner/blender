@@ -27,7 +27,7 @@
 
 class RenderLayersUVOperation : public RenderLayersBaseProg {
 public:
-    RenderLayersUVOperation();
+	RenderLayersUVOperation();
 };
 
 #endif

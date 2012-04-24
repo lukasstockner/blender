@@ -36,17 +36,17 @@ protected:
 	SocketReader* image2Reader;
 	SocketReader* depth2Reader;
 public:
-    /**
-      * Default constructor
-      */
+	/**
+	  * Default constructor
+	  */
 	ZCombineOperation();
-
+	
 	void initExecution();
 	void deinitExecution();
-
-    /**
-      * the inner loop of this program
-      */
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 

@@ -33,11 +33,11 @@ extern "C" {
 
 MovieClipOperation::MovieClipOperation(): NodeOperation() {
 	this->addOutputSocket(COM_DT_COLOR);
-    this->movieClip = NULL;
-    this->movieClipBuffer = NULL;
-    this->movieClipUser = NULL;
-    this->movieClipwidth = 0;
-    this->movieClipheight = 0;
+	this->movieClip = NULL;
+	this->movieClipBuffer = NULL;
+	this->movieClipUser = NULL;
+	this->movieClipwidth = 0;
+	this->movieClipheight = 0;
 	this->framenumber = 0;
 }
 

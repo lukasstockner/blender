@@ -70,13 +70,13 @@ public:
 
 	void* initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers);
 	void deinitializeTileData(rcti *rect, MemoryBuffer **memoryBuffers, void *data);
-    /**
-      * the inner loop of this program
-      */
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, int x, int y, MemoryBuffer *inputBuffers[], void * data);
-    /**
-      * Initialize the execution
-      */
-    void initExecution();
+	/**
+	  * Initialize the execution
+	  */
+	void initExecution();
 };
 #endif

@@ -27,7 +27,7 @@
 
 class RenderLayersCyclesOperation : public RenderLayersBaseProg {
 public:
-    RenderLayersCyclesOperation(int pass);
+	RenderLayersCyclesOperation(int pass);
 };
 
 #endif

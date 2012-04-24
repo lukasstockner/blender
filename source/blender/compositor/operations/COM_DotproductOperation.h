@@ -30,11 +30,11 @@ private:
 	SocketReader *input1Operation;
 	SocketReader *input2Operation;
 public:
-    DotproductOperation();
+	DotproductOperation();
 	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-
-    void initExecution();
-    void deinitExecution();
+	
+	void initExecution();
+	void deinitExecution();
 
 };
 

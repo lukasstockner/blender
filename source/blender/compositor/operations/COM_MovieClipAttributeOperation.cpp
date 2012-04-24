@@ -25,7 +25,7 @@ extern "C" {
 	#include "BKE_tracking.h"
 }
 MovieClipAttributeOperation::MovieClipAttributeOperation(): NodeOperation() {
-    this->addOutputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_VALUE);
 	this->valueSet = false;
 	this->framenumber = 0;
 	this->attribute = MCA_X;

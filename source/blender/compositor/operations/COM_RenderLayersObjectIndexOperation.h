@@ -27,7 +27,7 @@
 
 class RenderLayersObjectIndexOperation : public RenderLayersBaseProg {
 public:
-    RenderLayersObjectIndexOperation();
+	RenderLayersObjectIndexOperation();
 };
 
 #endif

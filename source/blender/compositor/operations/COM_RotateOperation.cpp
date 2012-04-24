@@ -25,9 +25,9 @@
 
 RotateOperation::RotateOperation() : NodeOperation() {
 	this->addInputSocket(COM_DT_COLOR);
-    this->addInputSocket(COM_DT_VALUE);
+	this->addInputSocket(COM_DT_VALUE);
 	this->addOutputSocket(COM_DT_COLOR);
-    this->setResolutionInputSocketIndex(0);
+	this->setResolutionInputSocketIndex(0);
 	this->imageSocket = NULL;
 	this->degreeSocket =  NULL;
 	this->doDegree2RadConversion = false;
@@ -35,8 +35,8 @@ RotateOperation::RotateOperation() : NodeOperation() {
 void RotateOperation::initExecution() {
 	this->imageSocket = this->getInputSocketReader(0);
 	this->degreeSocket = this->getInputSocketReader(1);
-    this->centerX = this->getWidth()/2.0;
-    this->centerY = this->getHeight()/2.0;
+	this->centerX = this->getWidth()/2.0;
+	this->centerY = this->getHeight()/2.0;
 	float degree[4];
 	this->degreeSocket->read(degree, 0, 0, COM_PS_NEAREST, NULL);
 	double rad;

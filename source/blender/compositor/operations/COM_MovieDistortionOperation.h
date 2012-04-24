@@ -55,11 +55,11 @@ public:
 	}
 	bool isCacheFor(MovieClip* movieclip, int width, int height, bool inverted) {
 		return this->k1 == movieclip->tracking.camera.k1 &&
-		        this->k2 == movieclip->tracking.camera.k2 &&
-		        this->k3 == movieclip->tracking.camera.k3 &&
-		        this->inverted == inverted &&
-		        this->width == width && 
-		        this->height == height;
+			this->k2 == movieclip->tracking.camera.k2 &&
+			this->k3 == movieclip->tracking.camera.k3 &&
+			this->inverted == inverted &&
+			this->width == width && 
+			this->height == height;
 	}
 	
 	void getUV(MovieTracking* trackingData, int x, int y, float *u, float*v) {

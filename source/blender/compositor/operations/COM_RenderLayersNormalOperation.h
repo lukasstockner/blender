@@ -27,8 +27,7 @@
 
 class RenderLayersNormalOperation : public RenderLayersBaseProg {
 public:
-    RenderLayersNormalOperation();
-//    void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	RenderLayersNormalOperation();
 };
 
 #endif

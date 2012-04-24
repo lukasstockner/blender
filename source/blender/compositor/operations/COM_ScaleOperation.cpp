@@ -23,27 +23,27 @@
 #include "COM_ScaleOperation.h"
 
 ScaleOperation::ScaleOperation() : NodeOperation() {
-    this->addInputSocket(COM_DT_COLOR);
-    this->addInputSocket(COM_DT_VALUE);
-    this->addInputSocket(COM_DT_VALUE);
-    this->addOutputSocket(COM_DT_COLOR);
-    this->setResolutionInputSocketIndex(0);
-    this->inputOperation = NULL;
-    this->inputXOperation = NULL;
-    this->inputYOperation = NULL;
+	this->addInputSocket(COM_DT_COLOR);
+	this->addInputSocket(COM_DT_VALUE);
+	this->addInputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_COLOR);
+	this->setResolutionInputSocketIndex(0);
+	this->inputOperation = NULL;
+	this->inputXOperation = NULL;
+	this->inputYOperation = NULL;
 }
 void ScaleOperation::initExecution() {
 	this->inputOperation = this->getInputSocketReader(0);
 	this->inputXOperation = this->getInputSocketReader(1);
 	this->inputYOperation = this->getInputSocketReader(2);
-    this->centerX = this->getWidth()/2.0;
-    this->centerY = this->getHeight()/2.0;
+	this->centerX = this->getWidth()/2.0;
+	this->centerY = this->getHeight()/2.0;
 }
 
 void ScaleOperation::deinitExecution() {
-    this->inputOperation = NULL;
-    this->inputXOperation = NULL;
-    this->inputYOperation = NULL;
+	this->inputOperation = NULL;
+	this->inputXOperation = NULL;
+	this->inputYOperation = NULL;
 }
 
 
@@ -63,22 +63,22 @@ void ScaleOperation::executePixel(float *color,float x, float y, PixelSampler sa
 }
 
 bool ScaleOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
-    rcti newInput;
+	rcti newInput;
 	float scaleX[4];
 	float scaleY[4];
-
+	
 	this->inputXOperation->read(scaleX, 0, 0, COM_PS_NEAREST, NULL);
 	this->inputYOperation->read(scaleY, 0, 0, COM_PS_NEAREST, NULL);
-
+	
 	const float scx = scaleX[0];
 	const float scy = scaleY[0];
-
+	
 	newInput.xmax = this->centerX+ (input->xmax - this->centerX) / scx;
 	newInput.xmin = this->centerX+ (input->xmin - this->centerX) / scx;
 	newInput.ymax = this->centerY+ (input->ymax - this->centerY) / scy;
 	newInput.ymin = this->centerY+ (input->ymin - this->centerY) / scy;
-
-    return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+	
+	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 }
 
 
@@ -97,14 +97,14 @@ void ScaleAbsoluteOperation::initExecution() {
 	this->inputOperation = this->getInputSocketReader(0);
 	this->inputXOperation = this->getInputSocketReader(1);
 	this->inputYOperation = this->getInputSocketReader(2);
-    this->centerX = this->getWidth()/2.0;
-    this->centerY = this->getHeight()/2.0;
+	this->centerX = this->getWidth()/2.0;
+	this->centerY = this->getHeight()/2.0;
 }
 
 void ScaleAbsoluteOperation::deinitExecution() {
-    this->inputOperation = NULL;
-    this->inputXOperation = NULL;
-    this->inputYOperation = NULL;
+	this->inputOperation = NULL;
+	this->inputXOperation = NULL;
+	this->inputYOperation = NULL;
 }
 
 
@@ -129,7 +129,7 @@ void ScaleAbsoluteOperation::executePixel(float *color,float x, float y, PixelSa
 }
 
 bool ScaleAbsoluteOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
-    rcti newInput;
+	rcti newInput;
 	float scaleX[4];
 	float scaleY[4];
 
@@ -149,7 +149,7 @@ bool ScaleAbsoluteOperation::determineDependingAreaOfInterest(rcti *input, ReadB
 	newInput.ymax = this->centerY+ (input->ymax - this->centerY) / relateveYScale;
 	newInput.ymin = this->centerY+ (input->ymin - this->centerY) / relateveYScale;
 
-    return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 }
 
 
@@ -167,7 +167,7 @@ void ScaleFixedSizeOperation::initExecution() {
 }
 
 void ScaleFixedSizeOperation::deinitExecution() {
-    this->inputOperation = NULL;
+	this->inputOperation = NULL;
 }
 
 
@@ -176,14 +176,14 @@ void ScaleFixedSizeOperation::executePixel(float *color,float x, float y, PixelS
 }
 
 bool ScaleFixedSizeOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
-    rcti newInput;
+	rcti newInput;
 	
 	newInput.xmax = input->xmax *relX;
 	newInput.xmin = input->xmin *relX;
 	newInput.ymax = input->ymax *relY;
 	newInput.ymin = input->ymin *relY;
 
-    return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 }
 
 void ScaleFixedSizeOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {

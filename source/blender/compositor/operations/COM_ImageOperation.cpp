@@ -29,28 +29,28 @@
 #include "BLI_math.h"
 
 extern "C" {
-    #include "RE_pipeline.h"
-    #include "RE_shader_ext.h"
-    #include "RE_render_ext.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+	#include "RE_pipeline.h"
+	#include "RE_shader_ext.h"
+	#include "RE_render_ext.h"
+	#include "IMB_imbuf.h"
+	#include "IMB_imbuf_types.h"
 }
 
 BaseImageOperation::BaseImageOperation(): NodeOperation() {
-    this->image = NULL;
+	this->image = NULL;
 	this->buffer = NULL;
-    this->imageBuffer = NULL;
-    this->imageUser = NULL;
-    this->imagewidth = 0;
-    this->imageheight = 0;
+	this->imageBuffer = NULL;
+	this->imageUser = NULL;
+	this->imagewidth = 0;
+	this->imageheight = 0;
 	this->framenumber = 0;
 	this->numberOfChannels = 0;
 }
 ImageOperation::ImageOperation(): BaseImageOperation() {
-    this->addOutputSocket(COM_DT_COLOR);
+	this->addOutputSocket(COM_DT_COLOR);
 }
 ImageAlphaOperation::ImageAlphaOperation(): BaseImageOperation() {
-    this->addOutputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_VALUE);
 }
 
 ImBuf* BaseImageOperation::getImBuf() {
@@ -72,16 +72,16 @@ void BaseImageOperation::initExecution() {
 	BKE_image_user_calc_frame(this->imageUser, this->framenumber, 0);
 	ImBuf *stackbuf= getImBuf();
 	this->buffer = stackbuf;
-    if (stackbuf) {
-        this->imageBuffer = stackbuf->rect_float;
-        this->imagewidth = stackbuf->x;
-        this->imageheight = stackbuf->y;
+	if (stackbuf) {
+		this->imageBuffer = stackbuf->rect_float;
+		this->imagewidth = stackbuf->x;
+		this->imageheight = stackbuf->y;
 		this->numberOfChannels = stackbuf->channels;
-    }
+	}
 }
 
 void BaseImageOperation::deinitExecution() {
-    this->imageBuffer= NULL;
+	this->imageBuffer= NULL;
 }
 
 void BaseImageOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {

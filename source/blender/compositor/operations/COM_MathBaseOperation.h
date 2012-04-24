@@ -31,119 +31,119 @@
   */
 class MathBaseOperation : public NodeOperation {
 protected:
-    /**
-      * Prefetched reference to the inputProgram
-      */
+	/**
+	  * Prefetched reference to the inputProgram
+	  */
 	SocketReader * inputValue1Operation;
 	SocketReader * inputValue2Operation;
 
 protected:
-    /**
-      * Default constructor
-      */
-    MathBaseOperation();
+	/**
+	  * Default constructor
+	  */
+	MathBaseOperation();
 public:
-    /**
-      * the inner loop of this program
-      */
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) = 0;
-
-    /**
-      * Initialize the execution
-      */
-    void initExecution();
-
-    /**
-      * Deinitialize the execution
-      */
-    void deinitExecution();
+	
+	/**
+	  * Initialize the execution
+	  */
+	void initExecution();
+	
+	/**
+	  * Deinitialize the execution
+	  */
+	void deinitExecution();
 
 };
 
 class MathAddOperation: public MathBaseOperation {
 public:
-    MathAddOperation() : MathBaseOperation() {}
+	MathAddOperation() : MathBaseOperation() {}
 	void executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 class MathSubtractOperation: public MathBaseOperation {
 public:
-    MathSubtractOperation() : MathBaseOperation() {}
+	MathSubtractOperation() : MathBaseOperation() {}
 	void executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 class MathMultiplyOperation: public MathBaseOperation {
 public:
-    MathMultiplyOperation() : MathBaseOperation() {}
+	MathMultiplyOperation() : MathBaseOperation() {}
 	void executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 class MathDivideOperation: public MathBaseOperation {
 public:
-    MathDivideOperation() : MathBaseOperation() {}
+	MathDivideOperation() : MathBaseOperation() {}
 	void executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 class MathSineOperation: public MathBaseOperation {
 public:
-    MathSineOperation() : MathBaseOperation() {}
+	MathSineOperation() : MathBaseOperation() {}
 	void executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 class MathCosineOperation: public MathBaseOperation {
 public:
-    MathCosineOperation() : MathBaseOperation() {}
+	MathCosineOperation() : MathBaseOperation() {}
 	void executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 class MathTangentOperation: public MathBaseOperation {
 public:
-    MathTangentOperation() : MathBaseOperation() {}
+	MathTangentOperation() : MathBaseOperation() {}
 	void executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 
 class MathArcSineOperation: public MathBaseOperation {
 public:
-    MathArcSineOperation() : MathBaseOperation() {}
+	MathArcSineOperation() : MathBaseOperation() {}
 	void executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 class MathArcCosineOperation: public MathBaseOperation {
 public:
-    MathArcCosineOperation() : MathBaseOperation() {}
+	MathArcCosineOperation() : MathBaseOperation() {}
 	void executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 class MathArcTangentOperation: public MathBaseOperation {
 public:
-    MathArcTangentOperation() : MathBaseOperation() {}
+	MathArcTangentOperation() : MathBaseOperation() {}
 	void executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 class MathPowerOperation: public MathBaseOperation {
 public:
-    MathPowerOperation() : MathBaseOperation() {}
+	MathPowerOperation() : MathBaseOperation() {}
 	void executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 class MathLogarithmOperation: public MathBaseOperation {
 public:
-    MathLogarithmOperation() : MathBaseOperation() {}
+	MathLogarithmOperation() : MathBaseOperation() {}
 	void executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 class MathMinimumOperation: public MathBaseOperation {
 public:
-    MathMinimumOperation() : MathBaseOperation() {}
+	MathMinimumOperation() : MathBaseOperation() {}
 	void executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 class MathMaximumOperation: public MathBaseOperation {
 public:
-    MathMaximumOperation() : MathBaseOperation() {}
+	MathMaximumOperation() : MathBaseOperation() {}
 	void executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 class MathRoundOperation: public MathBaseOperation {
 public:
-    MathRoundOperation() : MathBaseOperation() {}
+	MathRoundOperation() : MathBaseOperation() {}
 	void executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 class MathLessThanOperation: public MathBaseOperation {
 public:
-    MathLessThanOperation() : MathBaseOperation() {}
+	MathLessThanOperation() : MathBaseOperation() {}
 	void executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 class MathGreaterThanOperation: public MathBaseOperation {
 public:
-    MathGreaterThanOperation() : MathBaseOperation() {}
+	MathGreaterThanOperation() : MathBaseOperation() {}
 	void executePixel(float* outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 

@@ -31,7 +31,7 @@ ScreenLensDistortionOperation::ScreenLensDistortionOperation(): NodeOperation() 
 	this->addInputSocket(COM_DT_COLOR);
 	this->addOutputSocket(COM_DT_COLOR);
 	this->setComplex(true);
-    this->inputProgram = NULL;
+	this->inputProgram = NULL;
 }
 void ScreenLensDistortionOperation::initExecution() {
 	this->inputProgram = this->getInputSocketReader(0);

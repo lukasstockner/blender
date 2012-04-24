@@ -24,10 +24,10 @@
 #include "BLI_math.h"
 
 DilateErodeOperation::DilateErodeOperation(): NodeOperation() {
-    this->addInputSocket(COM_DT_VALUE);
-    this->addOutputSocket(COM_DT_VALUE);
+	this->addInputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_VALUE);
 	this->setComplex(true);
-    this->inputProgram = NULL;
+	this->inputProgram = NULL;
 	this->inset = 0.0f;
 	this->_switch = 0.5f;
 	this->distance = 0.0f;

@@ -27,7 +27,7 @@
 
 class RenderLayersAOOperation : public RenderLayersBaseProg {
 public:
-    RenderLayersAOOperation();
+	RenderLayersAOOperation();
 };
 
 #endif

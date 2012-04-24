@@ -23,14 +23,14 @@
 #include "COM_MixBaseOperation.h"
 
 MixBaseOperation::MixBaseOperation(): NodeOperation() {
-    this->addInputSocket(COM_DT_VALUE);
-    this->addInputSocket(COM_DT_COLOR);
-    this->addInputSocket(COM_DT_COLOR);
-    this->addOutputSocket(COM_DT_COLOR);
-    this->inputValueOperation = NULL;
-    this->inputColor1Operation = NULL;
-    this->inputColor2Operation = NULL;
-    this->setUseValueAlphaMultiply(false);
+	this->addInputSocket(COM_DT_VALUE);
+	this->addInputSocket(COM_DT_COLOR);
+	this->addInputSocket(COM_DT_COLOR);
+	this->addOutputSocket(COM_DT_COLOR);
+	this->inputValueOperation = NULL;
+	this->inputColor1Operation = NULL;
+	this->inputColor2Operation = NULL;
+	this->setUseValueAlphaMultiply(false);
 }
 
 void MixBaseOperation::initExecution() {
@@ -40,22 +40,22 @@ void MixBaseOperation::initExecution() {
 }
 
 void MixBaseOperation::executePixel(float* outputColor, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
-    float inputColor1[4];
-    float inputColor2[4];
-    float value;
-
+	float inputColor1[4];
+	float inputColor2[4];
+	float value;
+	
 	inputValueOperation->read(&value, x, y, sampler, inputBuffers);
 	inputColor1Operation->read(&inputColor1[0], x, y, sampler, inputBuffers);
 	inputColor2Operation->read(&inputColor2[0], x, y, sampler, inputBuffers);
-
-    if (this->useValueAlphaMultiply()) {
-        value *= inputColor2[3];
-    }
-    float valuem= 1.0f-value;
-    outputColor[0] = valuem*(inputColor1[0])+value*(inputColor2[0]);
-    outputColor[1] = valuem*(inputColor1[1])+value*(inputColor2[1]);
-    outputColor[2] = valuem*(inputColor1[2])+value*(inputColor2[2]);
-    outputColor[3] = inputColor1[3];
+	
+	if (this->useValueAlphaMultiply()) {
+		value *= inputColor2[3];
+	}
+	float valuem= 1.0f-value;
+	outputColor[0] = valuem*(inputColor1[0])+value*(inputColor2[0]);
+	outputColor[1] = valuem*(inputColor1[1])+value*(inputColor2[1]);
+	outputColor[2] = valuem*(inputColor1[2])+value*(inputColor2[2]);
+	outputColor[3] = inputColor1[3];
 }
 
 void MixBaseOperation::deinitExecution() {

@@ -33,9 +33,9 @@ private:
 	SocketReader* alphaInput;
 
 public:
-    ViewerOperation();
-    void executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer** memoryBuffers);
-    void initExecution();
-    void deinitExecution();
+	ViewerOperation();
+	void executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer** memoryBuffers);
+	void initExecution();
+	void deinitExecution();
 };
 #endif

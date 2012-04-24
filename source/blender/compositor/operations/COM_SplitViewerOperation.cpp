@@ -30,73 +30,73 @@
 #include "BLI_math_vector.h"
 
 extern "C" {
-    #include "MEM_guardedalloc.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+	#include "MEM_guardedalloc.h"
+	#include "IMB_imbuf.h"
+	#include "IMB_imbuf_types.h"
 }
 
 
 SplitViewerOperation::SplitViewerOperation() : ViewerBaseOperation() {
-    this->addInputSocket(COM_DT_COLOR);
-    this->addInputSocket(COM_DT_COLOR);
-    this->image1Input = NULL;
-    this->image2Input = NULL;
+	this->addInputSocket(COM_DT_COLOR);
+	this->addInputSocket(COM_DT_COLOR);
+	this->image1Input = NULL;
+	this->image2Input = NULL;
 }
 
 void SplitViewerOperation::initExecution() {
-    // When initializing the tree during initial load the width and height can be zero.
+	// When initializing the tree during initial load the width and height can be zero.
 	this->image1Input = getInputSocketReader(0);
 	this->image2Input = getInputSocketReader(1);
-    ViewerBaseOperation::initExecution();
+	ViewerBaseOperation::initExecution();
 }
 
 void SplitViewerOperation::deinitExecution() {
-    this->image1Input = NULL;
-    this->image2Input = NULL;
-    ViewerBaseOperation::deinitExecution();
+	this->image1Input = NULL;
+	this->image2Input = NULL;
+	ViewerBaseOperation::deinitExecution();
 }
 
 
 void SplitViewerOperation::executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer** memoryBuffers) {
-    float* buffer = this->outputBuffer;
-    unsigned char* bufferDisplay = this->outputBufferDisplay;
-
-    if (!buffer) return;
-    int x1 = rect->xmin;
-    int y1 = rect->ymin;
-    int x2 = rect->xmax;
-    int y2 = rect->ymax;
-    int offset = (y1*this->getWidth() + x1 ) * 4;
-    int x;
-    int y;
-    int perc = xSplit?this->splitPercentage*getWidth()/100.0f:this->splitPercentage*getHeight()/100.0f;
-    for (y = y1 ; y < y2 ; y++) {
-        for (x = x1 ; x < x2 ; x++) {
-            bool image1;
+	float* buffer = this->outputBuffer;
+	unsigned char* bufferDisplay = this->outputBufferDisplay;
+	
+	if (!buffer) return;
+	int x1 = rect->xmin;
+	int y1 = rect->ymin;
+	int x2 = rect->xmax;
+	int y2 = rect->ymax;
+	int offset = (y1*this->getWidth() + x1 ) * 4;
+	int x;
+	int y;
+	int perc = xSplit?this->splitPercentage*getWidth()/100.0f:this->splitPercentage*getHeight()/100.0f;
+	for (y = y1 ; y < y2 ; y++) {
+		for (x = x1 ; x < x2 ; x++) {
+			bool image1;
 			float srgb[4];
-            image1 = xSplit?x>perc:y>perc;
-            if (image1) {
+			image1 = xSplit?x>perc:y>perc;
+			if (image1) {
 				image1Input->read(&(buffer[offset]), x, y, COM_PS_NEAREST, memoryBuffers);
-            } else {
+			} else {
 				image2Input->read(&(buffer[offset]), x, y, COM_PS_NEAREST, memoryBuffers);
-            }
-            /// @todo: linear conversion only when scene color management is selected, also check predivide.
-            if (this->doColorManagement) {
+			}
+			/// @todo: linear conversion only when scene color management is selected, also check predivide.
+			if (this->doColorManagement) {
 				if(this->doColorPredivide) {
 					linearrgb_to_srgb_predivide_v4(srgb, buffer+offset);
 				} else {
 					linearrgb_to_srgb_v4(srgb, buffer+offset);
 				}
-            } else {
+			} else {
 				copy_v4_v4(srgb, buffer+offset);
-            }
-
+			}
+	
 			F4TOCHAR4(srgb, bufferDisplay+offset);
-
-            offset +=4;
-        }
-        offset += (this->getWidth()-(x2-x1))*4;
-    }
-    updateImage(rect);
+	
+			offset +=4;
+		}
+		offset += (this->getWidth()-(x2-x1))*4;
+	}
+	updateImage(rect);
 }
 

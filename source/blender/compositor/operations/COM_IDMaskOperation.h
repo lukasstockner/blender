@@ -27,31 +27,31 @@
 
 class IDMaskOperation : public NodeOperation {
 private:
-    /**
-      * Cached reference to the inputProgram
-      */
+	/**
+	  * Cached reference to the inputProgram
+	  */
 	SocketReader* inputProgram;
-
-    float objectIndex;
+	
+	float objectIndex;
 public:
-    IDMaskOperation();
-
-    /**
-      * the inner loop of this program
-      */
+	IDMaskOperation();
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-
-    /**
-      * Initialize the execution
-      */
-    void initExecution();
-
-    /**
-      * Deinitialize the execution
-      */
-    void deinitExecution();
-
-    void setObjectIndex(float objectIndex) {this->objectIndex = objectIndex;}
+	
+	/**
+	  * Initialize the execution
+	  */
+	void initExecution();
+	
+	/**
+	  * Deinitialize the execution
+	  */
+	void deinitExecution();
+	
+	void setObjectIndex(float objectIndex) {this->objectIndex = objectIndex;}
 
 };
 #endif

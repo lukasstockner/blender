@@ -27,7 +27,7 @@
 
 class RenderLayersSpecularOperation : public RenderLayersBaseProg {
 public:
-    RenderLayersSpecularOperation();
+	RenderLayersSpecularOperation();
 };
 
 #endif

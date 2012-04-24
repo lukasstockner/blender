@@ -43,16 +43,16 @@ typedef struct AvgLogLum {
   */
 class TonemapOperation : public NodeOperation {
 protected:
-    /**
+	/**
 	  * @brief Cached reference to the reader
-      */
+	  */
 	SocketReader * imageReader;
-
+	
 	/**
 	  * @brief settings of the Tonemap
 	  */
 	NodeTonemap * data;
-
+	
 	/**
 	  * @brief temporarily cache of the execution storage
 	  */
@@ -60,27 +60,27 @@ protected:
 
 public:
 	TonemapOperation();
-
-    /**
-      * the inner loop of this program
-      */
+	
+	/**
+	  * the inner loop of this program
+	  */
 	void executePixel(float* color, int x, int y, MemoryBuffer *inputBuffers[], void * data);
-
-    /**
-      * Initialize the execution
-      */
-    void initExecution();
-
+	
+	/**
+	  * Initialize the execution
+	  */
+	void initExecution();
+	
 	void* initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers);
 	void deinitializeTileData(rcti *rect, MemoryBuffer **memoryBuffers, void *data);
-
-    /**
-      * Deinitialize the execution
-      */
-    void deinitExecution();
-
+	
+	/**
+	  * Deinitialize the execution
+	  */
+	void deinitExecution();
+	
 	void setData(NodeTonemap* data) {this->data = data;}
-
+	
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 
 

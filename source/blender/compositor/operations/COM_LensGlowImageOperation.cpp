@@ -24,7 +24,7 @@
 #include "BLI_math.h"
 
 LensGlowImageOperation::LensGlowImageOperation(): NodeOperation() {
-    this->addOutputSocket(COM_DT_COLOR);
+	this->addOutputSocket(COM_DT_COLOR);
 }
 void LensGlowImageOperation::initExecution() {
 	this->scale = 1/20000.0f;

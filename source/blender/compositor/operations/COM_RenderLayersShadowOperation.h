@@ -27,7 +27,7 @@
 
 class RenderLayersShadowOperation : public RenderLayersBaseProg {
 public:
-    RenderLayersShadowOperation();
+	RenderLayersShadowOperation();
 };
 
 #endif

@@ -23,9 +23,9 @@
 #include "COM_MapValueOperation.h"
 
 MapValueOperation::MapValueOperation(): NodeOperation() {
-    this->addInputSocket(COM_DT_VALUE);
-    this->addOutputSocket(COM_DT_VALUE);
-    this->inputOperation = NULL;
+	this->addInputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_VALUE);
+	this->inputOperation = NULL;
 }
 
 void MapValueOperation::initExecution() {

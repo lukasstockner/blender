@@ -44,7 +44,7 @@ void GaussianXBlurOperation::initExecution() {
 }
 
 void* GaussianXBlurOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers) {
-        void* buffer = getInputOperation(0)->initializeTileData(NULL, memoryBuffers);
+	void* buffer = getInputOperation(0)->initializeTileData(NULL, memoryBuffers);
 	return buffer;
 }
 

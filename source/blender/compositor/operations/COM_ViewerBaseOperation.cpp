@@ -32,48 +32,47 @@
 #include "BLI_math_color.h"
 
 extern "C" {
-    #include "MEM_guardedalloc.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+	#include "MEM_guardedalloc.h"
+	#include "IMB_imbuf.h"
+	#include "IMB_imbuf_types.h"
 }
 
 
 ViewerBaseOperation::ViewerBaseOperation() : NodeOperation() {
-//    this->setCpuBound(true);
-    this->setImage(NULL);
-    this->setImageUser(NULL);
-    this->outputBuffer = NULL;
-    this->outputBufferDisplay = NULL;
-    this->active = false;
-    this->doColorManagement = true;
+	this->setImage(NULL);
+	this->setImageUser(NULL);
+	this->outputBuffer = NULL;
+	this->outputBufferDisplay = NULL;
+	this->active = false;
+	this->doColorManagement = true;
 }
 
 void ViewerBaseOperation::initExecution() {
-    // When initializing the tree during initial load the width and height can be zero.
-    initImage();
+	// When initializing the tree during initial load the width and height can be zero.
+	initImage();
 }
 
 void ViewerBaseOperation::initImage() {
-    Image* anImage = this->image;
-    ImBuf *ibuf= BKE_image_acquire_ibuf(anImage, this->imageUser, &this->lock);
-
-    if (!ibuf) return;
-    if (ibuf->x != (int)getWidth() || ibuf->y != (int)getHeight()) {
-        imb_freerectImBuf(ibuf);
-        imb_freerectfloatImBuf(ibuf);
-        IMB_freezbuffloatImBuf(ibuf);
-        ibuf->x= getWidth();
-        ibuf->y= getHeight();
-        imb_addrectImBuf(ibuf);
-        imb_addrectfloatImBuf(ibuf);
-        anImage->ok= IMA_OK_LOADED;
-    }
-
-    /* now we combine the input with ibuf */
-    this->outputBuffer = ibuf->rect_float;
-    this->outputBufferDisplay = (unsigned char*)ibuf->rect;
-
-    BKE_image_release_ibuf(this->image, this->lock);
+	Image* anImage = this->image;
+	ImBuf *ibuf= BKE_image_acquire_ibuf(anImage, this->imageUser, &this->lock);
+	
+	if (!ibuf) return;
+	if (ibuf->x != (int)getWidth() || ibuf->y != (int)getHeight()) {
+		imb_freerectImBuf(ibuf);
+		imb_freerectfloatImBuf(ibuf);
+		IMB_freezbuffloatImBuf(ibuf);
+		ibuf->x= getWidth();
+		ibuf->y= getHeight();
+		imb_addrectImBuf(ibuf);
+		imb_addrectfloatImBuf(ibuf);
+		anImage->ok= IMA_OK_LOADED;
+	}
+	
+	/* now we combine the input with ibuf */
+	this->outputBuffer = ibuf->rect_float;
+	this->outputBufferDisplay = (unsigned char*)ibuf->rect;
+	
+	BKE_image_release_ibuf(this->image, this->lock);
 }
 void ViewerBaseOperation:: updateImage(rcti *rect) {
 	/// @todo: introduce new event to update smaller area
@@ -81,7 +80,7 @@ void ViewerBaseOperation:: updateImage(rcti *rect) {
 }
 
 void ViewerBaseOperation::deinitExecution() {
-    this->outputBuffer = NULL;
+	this->outputBuffer = NULL;
 }
 
 const int ViewerBaseOperation::getRenderPriority() const {

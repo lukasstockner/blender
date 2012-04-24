@@ -28,7 +28,7 @@
 /// @TODO rename to image operation
 class RenderLayersColourProg : public RenderLayersBaseProg {
 public:
-    RenderLayersColourProg();
+	RenderLayersColourProg();
 };
 
 #endif

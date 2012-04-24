@@ -33,10 +33,10 @@ vector<DistortionCache*> s_cache;
 
 
 MovieDistortionOperation::MovieDistortionOperation(bool distortion) : NodeOperation() {
-    this->addInputSocket(COM_DT_COLOR);
-    this->addOutputSocket(COM_DT_COLOR);
-    this->setResolutionInputSocketIndex(0);
-    this->inputOperation = NULL;
+	this->addInputSocket(COM_DT_COLOR);
+	this->addOutputSocket(COM_DT_COLOR);
+	this->setResolutionInputSocketIndex(0);
+	this->inputOperation = NULL;
 	this->movieClip = NULL;
 	this->cache = NULL;
 	this->distortion = distortion;

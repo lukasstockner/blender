@@ -141,16 +141,16 @@ void GaussianBokehBlurOperation::deinitExecution() {
 }
 
 bool GaussianBokehBlurOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
-    rcti newInput;
-
+	rcti newInput;
+	
 	int addx = radx;
 	int addy = rady;
-
+	
 	newInput.xmax = input->xmax + addx;
 	newInput.xmin = input->xmin - addx;
 	newInput.ymax = input->ymax + addy;
 	newInput.ymin = input->ymin - addy;
-
-    return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+	
+	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 
 }

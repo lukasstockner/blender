@@ -25,8 +25,8 @@
 #include "COM_defines.h"
 
 ReadBufferOperation::ReadBufferOperation():NodeOperation() {
-    this->addOutputSocket(COM_DT_COLOR);
-    this->offset = 0;
+	this->addOutputSocket(COM_DT_COLOR);
+	this->offset = 0;
 }
 
 void* ReadBufferOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers) {
@@ -62,9 +62,9 @@ void ReadBufferOperation::executePixel(float *color, float x, float y, float dx,
 }
 
 bool ReadBufferOperation::determineDependingAreaOfInterest(rcti * input, ReadBufferOperation* readOperation, rcti* output) {
-    if (this==readOperation) {
-        BLI_init_rcti(output, input->xmin, input->xmax, input->ymin, input->ymax);
-        return true;
-    }
-    return false;
+	if (this==readOperation) {
+		BLI_init_rcti(output, input->xmin, input->xmax, input->ymin, input->ymax);
+		return true;
+	}
+	return false;
 }

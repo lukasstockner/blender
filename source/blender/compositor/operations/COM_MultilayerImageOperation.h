@@ -34,9 +34,9 @@ protected:
 	ImBuf* getImBuf();
 public:
 	/**
-      * Constructor
-      */
-    MultilayerBaseOperation(int pass);
+	  * Constructor
+	  */
+	MultilayerBaseOperation(int pass);
 	void setRenderLayer(RenderLayer *renderlayer) {this->renderlayer = renderlayer;}
 };
 

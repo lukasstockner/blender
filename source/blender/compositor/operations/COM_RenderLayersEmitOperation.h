@@ -27,7 +27,7 @@
 
 class RenderLayersEmitOperation : public RenderLayersBaseProg {
 public:
-    RenderLayersEmitOperation();
+	RenderLayersEmitOperation();
 };
 
 #endif

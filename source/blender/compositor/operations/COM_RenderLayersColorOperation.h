@@ -27,7 +27,7 @@
 
 class RenderLayersColorOperation : public RenderLayersBaseProg {
 public:
-    RenderLayersColorOperation();
+	RenderLayersColorOperation();
 };
 
 #endif

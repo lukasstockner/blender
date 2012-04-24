@@ -27,7 +27,7 @@
 
 class RenderLayersDiffuseOperation : public RenderLayersBaseProg {
 public:
-    RenderLayersDiffuseOperation();
+	RenderLayersDiffuseOperation();
 };
 
 #endif

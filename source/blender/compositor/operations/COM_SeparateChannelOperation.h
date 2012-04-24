@@ -28,15 +28,15 @@
 class SeparateChannelOperation: public NodeOperation {
 private:
 	SocketReader *inputOperation;
-    int channel;
+	int channel;
 public:
-    SeparateChannelOperation();
+	SeparateChannelOperation();
 	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-
-    void initExecution();
-    void deinitExecution();
-
-    void setChannel(int channel) {this->channel = channel;}
+	
+	void initExecution();
+	void deinitExecution();
+	
+	void setChannel(int channel) {this->channel = channel;}
 };
 
 #endif

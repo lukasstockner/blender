@@ -31,14 +31,14 @@ private:
 	SocketReader* image1Input;
 	SocketReader* image2Input;
 
-    float splitPercentage;
-    bool xSplit;
+	float splitPercentage;
+	bool xSplit;
 public:
-    SplitViewerOperation();
-    void executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer** memoryBuffers);
-    void initExecution();
-    void deinitExecution();
-    void setSplitPercentage(float splitPercentage) {this->splitPercentage = splitPercentage;}
-    void setXSplit(bool xsplit) {this->xSplit = xsplit;}
+	SplitViewerOperation();
+	void executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer** memoryBuffers);
+	void initExecution();
+	void deinitExecution();
+	void setSplitPercentage(float splitPercentage) {this->splitPercentage = splitPercentage;}
+	void setXSplit(bool xsplit) {this->xSplit = xsplit;}
 };
 #endif

@@ -23,14 +23,14 @@
 #include "COM_TranslateOperation.h"
 
 TranslateOperation::TranslateOperation() : NodeOperation() {
-    this->addInputSocket(COM_DT_COLOR);
-    this->addInputSocket(COM_DT_VALUE);
-    this->addInputSocket(COM_DT_VALUE);
-    this->addOutputSocket(COM_DT_COLOR);
-    this->setResolutionInputSocketIndex(0);
-    this->inputOperation = NULL;
-    this->inputXOperation = NULL;
-    this->inputYOperation = NULL;
+	this->addInputSocket(COM_DT_COLOR);
+	this->addInputSocket(COM_DT_VALUE);
+	this->addInputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_COLOR);
+	this->setResolutionInputSocketIndex(0);
+	this->inputOperation = NULL;
+	this->inputXOperation = NULL;
+	this->inputYOperation = NULL;
 }
 void TranslateOperation::initExecution() {
 	this->inputOperation = this->getInputSocketReader(0);

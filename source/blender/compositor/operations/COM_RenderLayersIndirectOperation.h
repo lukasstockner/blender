@@ -27,7 +27,7 @@
 
 class RenderLayersIndirectOperation : public RenderLayersBaseProg {
 public:
-    RenderLayersIndirectOperation();
+	RenderLayersIndirectOperation();
 };
 
 #endif

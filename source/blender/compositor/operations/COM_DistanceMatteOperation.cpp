@@ -55,8 +55,8 @@ void DistanceMatteOperation::executePixel(float* outputValue, float x, float y, 
 	this->inputImageProgram->read(inImage, x, y, sampler, inputBuffers);
 	
 	distance = sqrt(pow((inKey[0]-inImage[0]),2)+
-	                pow((inKey[1]-inImage[1]),2)+
-	                pow((inKey[2]-inImage[2]),2));
+		pow((inKey[1]-inImage[1]),2)+
+		pow((inKey[2]-inImage[2]),2));
 
 	/* store matte(alpha) value in [0] to go with
 	 * COM_SetAlphaOperation and the Value output

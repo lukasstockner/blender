@@ -29,10 +29,10 @@
 #include "BLI_listbase.h"
 #include "BKE_image.h"
 extern "C" {
-    #include "RE_pipeline.h"
-    #include "RE_shader_ext.h"
-    #include "RE_render_ext.h"
-    #include "MEM_guardedalloc.h"
+	#include "RE_pipeline.h"
+	#include "RE_shader_ext.h"
+	#include "RE_render_ext.h"
+	#include "MEM_guardedalloc.h"
 }
 
 /**
@@ -44,44 +44,44 @@ class BaseImageOperation : public NodeOperation {
 protected:
 	ImBuf* buffer;
 	Image* image;
-    ImageUser* imageUser;
-    float *imageBuffer;
-    int imageheight;
-    int imagewidth;
+	ImageUser* imageUser;
+	float *imageBuffer;
+	int imageheight;
+	int imagewidth;
 	int framenumber;
 	int numberOfChannels;
-
+	
 	BaseImageOperation();
-    /**
-      * Determine the output resolution. The resolution is retrieved from the Renderer
-      */
-    void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
+	/**
+	  * Determine the output resolution. The resolution is retrieved from the Renderer
+	  */
+	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
 	
 	virtual ImBuf* getImBuf();
 
 public:
-
-    void initExecution();
-    void deinitExecution();
-    void setImage(Image* image) {this->image = image;}
-    void setImageUser(ImageUser* imageuser) {this->imageUser = imageuser;}
-
+	
+	void initExecution();
+	void deinitExecution();
+	void setImage(Image* image) {this->image = image;}
+	void setImageUser(ImageUser* imageuser) {this->imageUser = imageuser;}
+	
 	void setFramenumber(int framenumber) {this->framenumber = framenumber;}
 };
 class ImageOperation: public BaseImageOperation {
 public:
 	/**
-      * Constructor
-      */
-    ImageOperation();
+	  * Constructor
+	  */
+	ImageOperation();
 	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 class ImageAlphaOperation: public BaseImageOperation {
 public:
 	/**
-      * Constructor
-      */
-    ImageAlphaOperation();
+	  * Constructor
+	  */
+	ImageAlphaOperation();
 	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 #endif

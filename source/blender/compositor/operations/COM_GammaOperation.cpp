@@ -24,11 +24,11 @@
 #include "BLI_math.h"
 
 GammaOperation::GammaOperation(): NodeOperation() {
-    this->addInputSocket(COM_DT_COLOR);
-    this->addInputSocket(COM_DT_VALUE);
-    this->addOutputSocket(COM_DT_COLOR);
-    this->inputProgram = NULL;
-    this->inputGammaProgram = NULL;
+	this->addInputSocket(COM_DT_COLOR);
+	this->addInputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_COLOR);
+	this->inputProgram = NULL;
+	this->inputGammaProgram = NULL;
 }
 void GammaOperation::initExecution() {
 	this->inputProgram = this->getInputSocketReader(0);
@@ -36,21 +36,21 @@ void GammaOperation::initExecution() {
 }
 
 void GammaOperation::executePixel(float* color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
-    float inputValue[4];
-    float inputGamma[4];
-
+	float inputValue[4];
+	float inputGamma[4];
+	
 	this->inputProgram->read(inputValue, x, y, sampler, inputBuffers);
 	this->inputGammaProgram->read(inputGamma, x, y, sampler, inputBuffers);
-    const float gamma = inputGamma[0];
-        /* check for negative to avoid nan's */
-    color[0] = inputValue[0]>0.0f?pow(inputValue[0], gamma):inputValue[0];
-    color[1] = inputValue[1]>0.0f?pow(inputValue[1], gamma):inputValue[1];
-    color[2] = inputValue[2]>0.0f?pow(inputValue[2], gamma):inputValue[2];
-
-        color[3] = inputValue[3];
+	const float gamma = inputGamma[0];
+	/* check for negative to avoid nan's */
+	color[0] = inputValue[0]>0.0f?pow(inputValue[0], gamma):inputValue[0];
+	color[1] = inputValue[1]>0.0f?pow(inputValue[1], gamma):inputValue[1];
+	color[2] = inputValue[2]>0.0f?pow(inputValue[2], gamma):inputValue[2];
+	
+	color[3] = inputValue[3];
 }
 
 void GammaOperation::deinitExecution() {
-    this->inputProgram = NULL;
-    this->inputGammaProgram = NULL;
+	this->inputProgram = NULL;
+	this->inputGammaProgram = NULL;
 }
