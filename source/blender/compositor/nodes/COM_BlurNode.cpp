@@ -32,7 +32,7 @@ BlurNode::BlurNode(bNode *editorNode): Node(editorNode) {
 }
 
 void BlurNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context) {
-    bNode* editorNode = this->getbNode();
+	bNode* editorNode = this->getbNode();
 	NodeBlurData * data = (NodeBlurData*)editorNode->storage;
 	const bNodeSocket *sock = this->getInputSocket(1)->getbNodeSocket();
 	const float size = ((const bNodeSocketValueFloat*)sock->default_value)->value;

@@ -31,8 +31,8 @@
   */
 class TranslateNode: public Node {
 public:
-    TranslateNode(bNode *editorNode);
-    void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
+	TranslateNode(bNode *editorNode);
+	void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
 };
 
 #endif

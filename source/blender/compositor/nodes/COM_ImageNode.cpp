@@ -55,10 +55,10 @@ void ImageNode::doMultilayerCheck(ExecutionSystem *system, RenderLayer* rl, Imag
 
 void ImageNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context) {
 	/// Image output
-    OutputSocket *outputImage = this->getOutputSocket(0);
-    bNode *editorNode = this->getbNode();
-    Image *image = (Image*)editorNode->id;
-    ImageUser *imageuser = (ImageUser*)editorNode->storage;
+	OutputSocket *outputImage = this->getOutputSocket(0);
+	bNode *editorNode = this->getbNode();
+	Image *image = (Image*)editorNode->id;
+	ImageUser *imageuser = (ImageUser*)editorNode->storage;
 	int framenumber = context->getFramenumber();
 
 	/* first set the right frame number in iuser */

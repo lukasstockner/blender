@@ -30,8 +30,8 @@ MovieDistortionNode::MovieDistortionNode(bNode *editorNode) : Node(editorNode) {
 }
 
 void MovieDistortionNode::convertToOperations(ExecutionSystem *system, CompositorContext * context) {
-    InputSocket *inputSocket = this->getInputSocket(0);
-    OutputSocket *outputSocket = this->getOutputSocket(0);
+	InputSocket *inputSocket = this->getInputSocket(0);
+	OutputSocket *outputSocket = this->getOutputSocket(0);
 	bNode* bnode = this->getbNode();
 	MovieClip * clip = (MovieClip*)bnode->id;
 	

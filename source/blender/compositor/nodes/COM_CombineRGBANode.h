@@ -31,7 +31,7 @@
   */
 class CombineRGBANode : public Node {
 public:
-    CombineRGBANode(bNode *editorNode);
+	CombineRGBANode(bNode *editorNode);
 	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
 };
 #endif

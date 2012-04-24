@@ -31,12 +31,12 @@ SeparateHSVANode::SeparateHSVANode(bNode *editorNode): SeparateRGBANode(editorNo
 }
 
 void SeparateHSVANode::convertToOperations(ExecutionSystem *graph, CompositorContext * context) {
-    ConvertRGBToHSVOperation *operation = new ConvertRGBToHSVOperation();
-    InputSocket *inputSocket = this->getInputSocket(0);
-    if (inputSocket->isConnected()) {
-        inputSocket->relinkConnections(operation->getInputSocket(0));
-        addLink(graph, operation->getOutputSocket(), inputSocket);
-    }
-    graph->addOperation(operation);
+	ConvertRGBToHSVOperation *operation = new ConvertRGBToHSVOperation();
+	InputSocket *inputSocket = this->getInputSocket(0);
+	if (inputSocket->isConnected()) {
+		inputSocket->relinkConnections(operation->getInputSocket(0));
+		addLink(graph, operation->getOutputSocket(), inputSocket);
+	}
+	graph->addOperation(operation);
 	SeparateRGBANode::convertToOperations(graph, context);
 }

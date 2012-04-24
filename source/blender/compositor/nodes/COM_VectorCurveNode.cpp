@@ -36,5 +36,5 @@ void VectorCurveNode::convertToOperations(ExecutionSystem *graph, CompositorCont
 
 	operation->setCurveMapping((CurveMapping*)this->getbNode()->storage);
 
-    graph->addOperation(operation);
+	graph->addOperation(operation);
 }

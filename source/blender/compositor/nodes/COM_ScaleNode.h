@@ -31,8 +31,8 @@
   */
 class ScaleNode: public Node {
 public:
-    ScaleNode(bNode *editorNode);
-    void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
+	ScaleNode(bNode *editorNode);
+	void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
 };
 
 #endif

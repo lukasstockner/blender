@@ -31,8 +31,8 @@
   */
 class BrightnessNode: public Node {
 public:
-    BrightnessNode(bNode *editorNode);
-    void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
+	BrightnessNode(bNode *editorNode);
+	void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
 };
 
 #endif

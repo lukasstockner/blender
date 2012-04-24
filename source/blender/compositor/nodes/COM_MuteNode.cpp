@@ -34,13 +34,12 @@ void MuteNode::reconnect(OutputSocket * output) {
 		if (input->getDataType() == output->getDataType()) {
 			if (input->isConnected()) {
 				output->relinkConnections(input->getConnection()->getFromSocket(), false);
-                return;
-            }
-        }
-    }
+				return;
+			}
+		}
+	}
 
 	output->clearConnections();
-    printf("!Unknown how to mute\n");
 }
 
 void MuteNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context) {
@@ -49,7 +48,7 @@ void MuteNode::convertToOperations(ExecutionSystem *graph, CompositorContext * c
 	for (unsigned int index = 0 ; index < outputsockets.size() ; index ++) {
 		OutputSocket * output = outputsockets[index];
 		if (output->isConnected()) {
-            reconnect(output);
-        }
-    }
+			reconnect(output);
+		}
+	}
 }

@@ -31,10 +31,10 @@ ColorRampNode::ColorRampNode(bNode* editorNode): Node(editorNode)
 {}
 
 void ColorRampNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context) {
-    InputSocket *inputSocket = this->getInputSocket(0);
-    OutputSocket *outputSocket = this->getOutputSocket(0);
+	InputSocket *inputSocket = this->getInputSocket(0);
+	OutputSocket *outputSocket = this->getOutputSocket(0);
 	OutputSocket *outputSocketAlpha = this->getOutputSocket(1);
-    bNode* editorNode = this->getbNode();
+	bNode* editorNode = this->getbNode();
 
 	ColorRampOperation * operation = new ColorRampOperation();
 	outputSocket->relinkConnections(operation->getOutputSocket(0));

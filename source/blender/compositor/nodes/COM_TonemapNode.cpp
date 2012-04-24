@@ -34,6 +34,6 @@ void TonemapNode::convertToOperations(ExecutionSystem *system, CompositorContext
 
 	operation->setData(data);
 	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), true, 0, system);
-    this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket(0));
+	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket(0));
 	system->addOperation(operation);
 }

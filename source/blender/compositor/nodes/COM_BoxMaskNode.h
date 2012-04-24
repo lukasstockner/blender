@@ -31,8 +31,8 @@
   */
 class BoxMaskNode: public Node {
 public:
-    BoxMaskNode(bNode *editorNode);
-    void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
+	BoxMaskNode(bNode *editorNode);
+	void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
 };
 
 #endif

@@ -31,7 +31,7 @@
   */
 class HueSaturationValueNode : public Node {
 public:
-    HueSaturationValueNode(bNode *editorNode);
+	HueSaturationValueNode(bNode *editorNode);
 	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
 };
 #endif

@@ -31,8 +31,8 @@
   */
 class GammaNode: public Node {
 public:
-    GammaNode(bNode *editorNode);
-    void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
+	GammaNode(bNode *editorNode);
+	void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
 };
 
 #endif

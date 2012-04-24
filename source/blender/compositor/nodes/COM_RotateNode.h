@@ -31,8 +31,8 @@
   */
 class RotateNode: public Node {
 public:
-    RotateNode(bNode *editorNode);
-    void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
+	RotateNode(bNode *editorNode);
+	void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
 };
 
 #endif

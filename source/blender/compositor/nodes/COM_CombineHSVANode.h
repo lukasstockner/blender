@@ -32,7 +32,7 @@
   */
 class CombineHSVANode : public CombineRGBANode {
 public:
-    CombineHSVANode(bNode *editorNode);
+	CombineHSVANode(bNode *editorNode);
 	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
 };
 #endif

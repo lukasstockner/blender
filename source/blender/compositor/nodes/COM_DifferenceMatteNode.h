@@ -33,7 +33,7 @@ class DifferenceMatteNode : public Node
 {
 public:
 	DifferenceMatteNode(bNode* editorNode);
-    void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
+	void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
 };
 
 #endif // COM_DifferenceMatteNODE_H

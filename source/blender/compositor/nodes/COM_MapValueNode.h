@@ -31,7 +31,7 @@
   */
 class MapValueNode : public Node {
 public:
-    MapValueNode(bNode *editorNode);
+	MapValueNode(bNode *editorNode);
 	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
 };
 #endif

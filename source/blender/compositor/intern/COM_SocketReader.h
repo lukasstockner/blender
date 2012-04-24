@@ -73,7 +73,7 @@ protected:
 	virtual void executePixel(float* result, int x, int y, MemoryBuffer *inputBuffers[], void* chunkData) {
 		executePixel(result, x, y, COM_PS_NEAREST, inputBuffers);
 	}
-    
+
 	/**
 	 * @brief calculate a single pixel using an EWA filter
 	 * @note this method is called for complex

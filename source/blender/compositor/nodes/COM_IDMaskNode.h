@@ -31,8 +31,8 @@
   */
 class IDMaskNode: public Node {
 public:
-    IDMaskNode(bNode *editorNode);
-    void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
+	IDMaskNode(bNode *editorNode);
+	void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
 };
 
 #endif

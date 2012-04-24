@@ -33,7 +33,7 @@
   */
 class SeparateHSVANode : public SeparateRGBANode {
 public:
-    SeparateHSVANode(bNode *editorNode);
+	SeparateHSVANode(bNode *editorNode);
 	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
 };
 #endif

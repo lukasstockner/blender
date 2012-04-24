@@ -40,5 +40,5 @@ void ColorCurveNode::convertToOperations(ExecutionSystem *graph, CompositorConte
 
 	operation->setCurveMapping((CurveMapping*)this->getbNode()->storage);
 
-    graph->addOperation(operation);
+	graph->addOperation(operation);
 }

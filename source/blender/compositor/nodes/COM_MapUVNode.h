@@ -30,7 +30,7 @@
  */
 class MapUVNode : public Node {
 public:
-    MapUVNode(bNode *editorNode);
+	MapUVNode(bNode *editorNode);
 	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
 };
 #endif

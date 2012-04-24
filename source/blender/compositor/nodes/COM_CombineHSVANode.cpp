@@ -32,12 +32,12 @@ CombineHSVANode::CombineHSVANode(bNode *editorNode): CombineRGBANode(editorNode)
 }
 
 void CombineHSVANode::convertToOperations(ExecutionSystem *graph, CompositorContext * context) {
-    ConvertHSVToRGBOperation *operation = new ConvertHSVToRGBOperation();
-    OutputSocket *outputSocket = this->getOutputSocket(0);
-    if (outputSocket->isConnected()) {
-        outputSocket->relinkConnections(operation->getOutputSocket());
-        addLink(graph, outputSocket, operation->getInputSocket(0));
-    }
-    graph->addOperation(operation);
+	ConvertHSVToRGBOperation *operation = new ConvertHSVToRGBOperation();
+	OutputSocket *outputSocket = this->getOutputSocket(0);
+	if (outputSocket->isConnected()) {
+		outputSocket->relinkConnections(operation->getOutputSocket());
+		addLink(graph, outputSocket, operation->getInputSocket(0));
+	}
+	graph->addOperation(operation);
 	CombineRGBANode::convertToOperations(graph, context);
 }

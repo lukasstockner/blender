@@ -31,7 +31,7 @@
   */
 class InvertNode: public Node {
 public:
-    InvertNode(bNode *editorNode);
+	InvertNode(bNode *editorNode);
 	void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
 };
 

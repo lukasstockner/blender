@@ -31,7 +31,7 @@
   */
 class ViewerNode : public Node {
 public:
-    ViewerNode(bNode *editorNode);
+	ViewerNode(bNode *editorNode);
 	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
 };
 #endif

@@ -31,8 +31,8 @@
   */
 class MuteNode: public Node {
 public:
-    MuteNode(bNode *editorNode);
-    void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
+	MuteNode(bNode *editorNode);
+	void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
 private:
 	void reconnect(OutputSocket * output);
 };

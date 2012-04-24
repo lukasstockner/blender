@@ -31,8 +31,8 @@
   */
 class EllipseMaskNode: public Node {
 public:
-    EllipseMaskNode(bNode *editorNode);
-    void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
+	EllipseMaskNode(bNode *editorNode);
+	void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
 };
 
 #endif

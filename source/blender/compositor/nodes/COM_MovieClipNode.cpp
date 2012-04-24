@@ -42,9 +42,9 @@ void MovieClipNode::convertToOperations(ExecutionSystem *graph, CompositorContex
 	OutputSocket *scaleMovieClip = this->getOutputSocket(3);
 	OutputSocket *angleMovieClip = this->getOutputSocket(4);
 	
-    bNode *editorNode = this->getbNode();
-    MovieClip *movieClip = (MovieClip*)editorNode->id;
-    MovieClipUser *movieClipUser = (MovieClipUser*)editorNode->storage;
+	bNode *editorNode = this->getbNode();
+	MovieClip *movieClip = (MovieClip*)editorNode->id;
+	MovieClipUser *movieClipUser = (MovieClipUser*)editorNode->storage;
 	
 	ImBuf * ibuf= NULL;
 	if (movieClip) {

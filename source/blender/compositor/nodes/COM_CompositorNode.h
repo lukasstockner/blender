@@ -31,7 +31,7 @@
   */
 class CompositorNode : public Node {
 public:
-    CompositorNode(bNode *editorNode);
+	CompositorNode(bNode *editorNode);
 	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
 };
 #endif

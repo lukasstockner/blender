@@ -31,8 +31,8 @@
   */
 class ColorCorrectionNode: public Node {
 public:
-    ColorCorrectionNode(bNode *editorNode);
-    void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
+	ColorCorrectionNode(bNode *editorNode);
+	void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
 };
 
 #endif

@@ -31,8 +31,8 @@
   */
 class MovieDistortionNode: public Node {
 public:
-    MovieDistortionNode(bNode *editorNode);
-    void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
+	MovieDistortionNode(bNode *editorNode);
+	void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
 };
 
 #endif

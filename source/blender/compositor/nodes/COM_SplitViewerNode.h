@@ -31,7 +31,7 @@
   */
 class SplitViewerNode : public Node {
 public:
-    SplitViewerNode(bNode *editorNode);
+	SplitViewerNode(bNode *editorNode);
 	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
 };
 #endif

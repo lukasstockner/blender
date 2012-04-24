@@ -30,27 +30,27 @@ NormalNode::NormalNode(bNode* editorNode): Node(editorNode)
 {}
 
 void NormalNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context) {
-    InputSocket *inputSocket = this->getInputSocket(0);
-    OutputSocket *outputSocket = this->getOutputSocket(0);
-    OutputSocket *outputSocketDotproduct = this->getOutputSocket(1);
-    bNode* editorNode = this->getbNode();
-
-    SetVectorOperation * operationSet = new SetVectorOperation();
-    bNodeSocket * insock = (bNodeSocket*)editorNode->outputs.first;
-    bNodeSocketValueVector *dval = (bNodeSocketValueVector*)insock->default_value;
-    operationSet->setX(dval->value[0]);
-    operationSet->setY(dval->value[1]);
-    operationSet->setZ(dval->value[2]);
-    operationSet->setW(0.0f);
-
-    outputSocket->relinkConnections(operationSet->getOutputSocket(0));
-    graph->addOperation(operationSet);
-
-    if (outputSocketDotproduct->isConnected()) {
-        DotproductOperation *operation = new DotproductOperation();
-        outputSocketDotproduct->relinkConnections(operation->getOutputSocket(0));
-        inputSocket->relinkConnections(operation->getInputSocket(0), true, 0, graph);
-        addLink(graph, operationSet->getOutputSocket(0), operation->getInputSocket(1));
-        graph->addOperation(operation);
-    }
+	InputSocket *inputSocket = this->getInputSocket(0);
+	OutputSocket *outputSocket = this->getOutputSocket(0);
+	OutputSocket *outputSocketDotproduct = this->getOutputSocket(1);
+	bNode* editorNode = this->getbNode();
+	
+	SetVectorOperation * operationSet = new SetVectorOperation();
+	bNodeSocket * insock = (bNodeSocket*)editorNode->outputs.first;
+	bNodeSocketValueVector *dval = (bNodeSocketValueVector*)insock->default_value;
+	operationSet->setX(dval->value[0]);
+	operationSet->setY(dval->value[1]);
+	operationSet->setZ(dval->value[2]);
+	operationSet->setW(0.0f);
+	
+	outputSocket->relinkConnections(operationSet->getOutputSocket(0));
+	graph->addOperation(operationSet);
+	
+	if (outputSocketDotproduct->isConnected()) {
+		DotproductOperation *operation = new DotproductOperation();
+		outputSocketDotproduct->relinkConnections(operation->getOutputSocket(0));
+		inputSocket->relinkConnections(operation->getInputSocket(0), true, 0, graph);
+		addLink(graph, operationSet->getOutputSocket(0), operation->getInputSocket(1));
+		graph->addOperation(operation);
+	}
 }

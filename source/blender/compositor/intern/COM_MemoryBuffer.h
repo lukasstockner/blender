@@ -29,7 +29,7 @@ class MemoryBuffer;
 #include "BLI_rect.h"
 #include "COM_MemoryProxy.h"
 extern "C" {
-    #include "BLI_threads.h"
+	#include "BLI_threads.h"
 }
 #include <vector>
 

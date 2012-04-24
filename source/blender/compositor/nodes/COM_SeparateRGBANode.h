@@ -31,7 +31,7 @@
   */
 class SeparateRGBANode : public Node {
 public:
-    SeparateRGBANode(bNode *editorNode);
+	SeparateRGBANode(bNode *editorNode);
 	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
 };
 #endif

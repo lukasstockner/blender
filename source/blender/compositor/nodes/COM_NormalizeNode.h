@@ -30,8 +30,8 @@
   */
 class NormalizeNode: public Node {
 public:
-    NormalizeNode(bNode *editorNode);
-    void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
+	NormalizeNode(bNode *editorNode);
+	void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
 };
 
 #endif

@@ -31,7 +31,7 @@
   */
 class ColourToBWNode : public Node {
 public:
-    ColourToBWNode(bNode *editorNode);
+	ColourToBWNode(bNode *editorNode);
 	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
 };
 #endif

@@ -33,7 +33,7 @@ void DifferenceMatteNode::convertToOperations(ExecutionSystem *graph, Compositor
 	InputSocket *inputSocket2 = this->getInputSocket(1);
 	OutputSocket *outputSocketImage = this->getOutputSocket(0);
 	OutputSocket *outputSocketMatte = this->getOutputSocket(1);
-    bNode* editorNode = this->getbNode();
+	bNode* editorNode = this->getbNode();
 
 	DifferenceMatteOperation * operationSet = new DifferenceMatteOperation();
 	operationSet->setSettings((NodeChroma*)editorNode->storage);
