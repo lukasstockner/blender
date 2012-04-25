@@ -36,6 +36,7 @@ Object::Object()
 	mesh = NULL;
 	tfm = transform_identity();
 	visibility = ~0;
+	pass_id = 0;
 }
 
 Object::~Object()
@@ -53,7 +54,7 @@ void Object::apply_transform()
 		return;
 	
 	for(size_t i = 0; i < mesh->verts.size(); i++)
-		mesh->verts[i] = transform(&tfm, mesh->verts[i]);
+		mesh->verts[i] = transform_point(&tfm, mesh->verts[i]);
 
 	Attribute *attr_fN = mesh->attributes.find(Attribute::STD_FACE_NORMAL);
 	Attribute *attr_vN = mesh->attributes.find(Attribute::STD_VERTEX_NORMAL);
@@ -135,6 +136,7 @@ void ObjectManager::device_update_transforms(Device *device, DeviceScene *dscene
 		/* todo: correct for displacement, and move to a better place */
 		float uniform_scale;
 		float surface_area = 0.0f;
+		float pass_id = ob->pass_id;
 		
 		if(transform_uniform_scale(tfm, uniform_scale)) {
 			map<Mesh*, float>::iterator it = surface_area_map.find(mesh);
@@ -157,9 +159,9 @@ void ObjectManager::device_update_transforms(Device *device, DeviceScene *dscene
 		}
 		else {
 			foreach(Mesh::Triangle& t, mesh->triangles) {
-				float3 p1 = transform(&tfm, mesh->verts[t.v[0]]);
-				float3 p2 = transform(&tfm, mesh->verts[t.v[1]]);
-				float3 p3 = transform(&tfm, mesh->verts[t.v[2]]);
+				float3 p1 = transform_point(&tfm, mesh->verts[t.v[0]]);
+				float3 p2 = transform_point(&tfm, mesh->verts[t.v[1]]);
+				float3 p3 = transform_point(&tfm, mesh->verts[t.v[2]]);
 
 				surface_area += triangle_area(p1, p2, p3);
 			}
@@ -171,7 +173,7 @@ void ObjectManager::device_update_transforms(Device *device, DeviceScene *dscene
 		memcpy(&objects[offset], &tfm, sizeof(float4)*4);
 		memcpy(&objects[offset+4], &itfm, sizeof(float4)*4);
 		memcpy(&objects[offset+8], &ntfm, sizeof(float4)*4);
-		objects[offset+12] = make_float4(surface_area, 0.0f, 0.0f, 0.0f);
+		objects[offset+12] = make_float4(surface_area, pass_id, 0.0f, 0.0f);
 
 		i++;
 

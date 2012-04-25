@@ -25,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef BKE_POINTCACHE_H
-#define BKE_POINTCACHE_H
+#ifndef __BKE_POINTCACHE_H__
+#define __BKE_POINTCACHE_H__
 
 /** \file BKE_pointcache.h
  *  \ingroup bke
@@ -187,7 +187,7 @@ typedef struct PTCacheBaker {
 #define PEK_HIDE		4
 #define PEK_USE_WCO		8
 
-typedef struct PTCacheEditKey{
+typedef struct PTCacheEditKey {
 	float *co;
 	float *vel;
 	float *rot;
@@ -287,12 +287,6 @@ int BKE_ptcache_mem_index_find(struct PTCacheMem *pm, unsigned int index);
 void BKE_ptcache_mem_pointers_init(struct PTCacheMem *pm);
 void BKE_ptcache_mem_pointers_incr(struct PTCacheMem *pm);
 int  BKE_ptcache_mem_pointers_seek(int point_index, struct PTCacheMem *pm);
-
-/* Copy a specific data type from cache data to point data. */
-void	BKE_ptcache_data_get(void **data, int type, int index, void *to);
-
-/* Copy a specific data type from point data to cache data. */
-void	BKE_ptcache_data_set(void **data, int type, void *from);
 
 /* Main cache reading call. */
 int		BKE_ptcache_read(PTCacheID *pid, float cfra);

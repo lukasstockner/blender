@@ -32,8 +32,8 @@
  */
 
 
-#ifndef MATHUTILS_VECTOR_H
-#define MATHUTILS_VECTOR_H
+#ifndef __MATHUTILS_VECTOR_H__
+#define __MATHUTILS_VECTOR_H__
 
 extern PyTypeObject vector_Type;
 #define VectorObject_Check(_v) PyObject_TypeCheck((_v), &vector_Type)
@@ -46,7 +46,8 @@ typedef struct {
 
 /*prototypes*/
 PyObject *Vector_CreatePyObject(float *vec, const int size, const int type, PyTypeObject *base_type);
-PyObject *Vector_CreatePyObject_cb(PyObject *user, int size, int callback_type, int subtype);
+PyObject *Vector_CreatePyObject_cb(PyObject *user, int size,
+                                   unsigned char cb_type, unsigned char subtype);
 PyObject *Vector_CreatePyObject_alloc(float *vec, const int size, PyTypeObject *base_type);
 
-#endif				/* MATHUTILS_VECTOR_H */
+#endif				/* __MATHUTILS_VECTOR_H__ */

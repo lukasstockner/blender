@@ -40,14 +40,14 @@ The Blender/Python API **can't** (yet)...
 Before Starting
 ===============
 
-This document isn't intended to fully cover each topic. Rather, its purpose is to familiarize you with Blender 2.5's new Python API.
+This document isn't intended to fully cover each topic. Rather, its purpose is to familiarize you with Blender Python API.
 
 
 A quick list of helpful things to know before starting:
 
 * Blender uses Python 3.x; some 3rd party extensions are not available yet.
 
-* The interactive console in Blender 2.5 has been improved; testing one-liners in the console is a good way to learn.
+* The interactive console is great for testing one-liners, It also has autocompleation so you can inspect the api quickly.
 
 * Button tool tips show Python attributes and operator names.
 
@@ -113,7 +113,7 @@ Once you have a data block, such as a material, object, groups etc., its attribu
    bpy.data.materials['MyMaterial']
 
 
-For testing what data to access it's useful to use the "Console", which is its own space type in Blender 2.5. This supports auto-complete, giving you a fast way to dig into different data in your file.
+For testing what data to access it's useful to use the "Console", which is its own space type. This supports auto-complete, giving you a fast way to dig into different data in your file.
 
 Example of a data path that can be quickly found via the console:
 
@@ -121,6 +121,29 @@ Example of a data path that can be quickly found via the console:
    100
    >>> bpy.data.scenes[0].objects["Torus"].data.vertices[0].co.x
    1.0
+
+
+Data Creation/Removal
+^^^^^^^^^^^^^^^^^^^^^
+
+Those of you familiar with other python api's may be surprised that new datablocks in the bpy api can't be created by calling the class:
+
+   >>> bpy.types.Mesh()
+   Traceback (most recent call last):
+     File "<blender_console>", line 1, in <module>
+   TypeError: bpy_struct.__new__(type): expected a single argument
+
+
+This is an intentional part of the API design.
+The blender/python api can't create blender data that exists outside the main blender database (accessed through bpy.data), because this data is managed by blender (save/load/undo/append... etc).
+
+Data is added and removed via methods on the collections in bpy.data, eg:
+
+   >>> mesh = bpy.data.meshes.new(name="MyMesh")
+   >>> print(mesh)
+   <bpy_struct, Mesh("MyMesh.001")>
+
+   >>> bpy.data.meshes.remove(mesh)
 
 
 Custom Properties

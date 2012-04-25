@@ -29,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_MESHOBJECT
-#define __RAS_MESHOBJECT
+#ifndef __RAS_MESHOBJECT_H__
+#define __RAS_MESHOBJECT_H__
 
 #if defined(WIN32) && !defined(FREE_WINDOWS)
 // disable the STL warnings ("debug information length > 255")
@@ -178,5 +178,5 @@ public:
 #endif
 };
 
-#endif //__RAS_MESHOBJECT
+#endif //__RAS_MESHOBJECT_H__
 

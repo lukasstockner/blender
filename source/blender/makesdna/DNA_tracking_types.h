@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
+ * The Original Code is Copyright (C) 2011 Blender Foundation.
  * All rights reserved.
  *
  * The Original Code is: all of this file.
@@ -32,8 +32,8 @@
  *  \author Sergey Sharybin
  */
 
-#ifndef DNA_TRACKING_TYPES_H
-#define DNA_TRACKING_TYPES_H
+#ifndef __DNA_TRACKING_TYPES_H__
+#define __DNA_TRACKING_TYPES_H__
 
 #include "DNA_listBase.h"
 
@@ -75,7 +75,7 @@ typedef struct MovieTrackingMarker {
 typedef struct MovieTrackingTrack {
 	struct MovieTrackingTrack *next, *prev;
 
-	char name[24];
+	char name[64];	/* MAX_NAME */
 
 	/* ** setings ** */
 	float pat_min[2], pat_max[2];		/* positions of left-bottom and right-top corners of pattern (in unified 0..1 space) */
@@ -91,12 +91,8 @@ typedef struct MovieTrackingTrack {
 	float bundle_pos[3];			/* reconstructed position */
 	float error;					/* average track reprojection error */
 
-	int pad;
-
 	/* ** UI editing ** */
 	int flag, pat_flag, search_flag;	/* flags (selection, ...) */
-	short transflag;					/* transform flags */
-	char pad3[2];
 	float color[3];						/* custom color for track */
 
 	/* tracking algorithm to use; can be KLT or SAD */
@@ -125,6 +121,9 @@ typedef struct MovieTrackingSettings {
 	short default_frames_limit;			/* number of frames to be tarcked during single tracking session (if TRACKING_FRAMES_LIMIT is set) */
 	short default_margin;				/* margin from frame boundaries */
 	short default_pattern_match;		/* re-adjust every N frames */
+	short default_flag;					/* default flags like color channels used by default */
+
+	short pod;
 
 	/* ** common tracker settings ** */
 	short speed;			/* speed of tracking */
@@ -133,7 +132,7 @@ typedef struct MovieTrackingSettings {
 	int keyframe1, keyframe2;	/* two keyframes for reconstrution initialization */
 
 	/* ** which camera intrinsics to refine. uses on the REFINE_* flags */
-	short refine_camera_intrinsics, pad2;
+	short refine_camera_intrinsics, pad23;
 
 	/* ** tool settings ** */
 
@@ -146,6 +145,8 @@ typedef struct MovieTrackingSettings {
 
 	/* set object scale */
 	float object_distance;		/* distance between two bundles used for object scaling */
+
+	int pad3;
 } MovieTrackingSettings;
 
 typedef struct MovieTrackingStabilization {
@@ -158,8 +159,10 @@ typedef struct MovieTrackingStabilization {
 
 	float locinf, scaleinf, rotinf;	/* influence on location, scale and rotation */
 
+	int filter;		/* filter used for pixel interpolation */
+
 	/* some pre-computing run-time variables */
-	int ok, pad;				/* are precomputed values and scaled buf relevant? */
+	int ok;						/* are precomputed values and scaled buf relevant? */
 	float scale;				/* autoscale factor */
 
 	struct ImBuf *scaleibuf;	/* currently scaled ibuf */
@@ -178,7 +181,7 @@ typedef struct MovieTrackingReconstruction {
 typedef struct MovieTrackingObject {
 	struct MovieTrackingObject *next, *prev;
 
-	char name[24];			/* Name of tracking object */
+	char name[64];			/* Name of tracking object, MAX_NAME */
 	int flag;
 	float scale;			/* scale of object solution in amera space */
 
@@ -213,7 +216,9 @@ enum {
 /* MovieTrackingMarker->flag */
 #define MARKER_DISABLED	(1<<0)
 #define MARKER_TRACKED	(1<<1)
-#define MARKER_GRAPH_SEL (1<<2)
+#define MARKER_GRAPH_SEL_X (1<<2)
+#define MARKER_GRAPH_SEL_Y (1<<3)
+#define MARKER_GRAPH_SEL	(MARKER_GRAPH_SEL_X|MARKER_GRAPH_SEL_Y)
 
 /* MovieTrackingTrack->flag */
 #define TRACK_HAS_BUNDLE	(1<<1)
@@ -255,6 +260,11 @@ enum {
 #define TRACKING_2D_STABILIZATION	(1<<0)
 #define TRACKING_AUTOSCALE			(1<<1)
 #define TRACKING_STABILIZE_ROTATION	(1<<2)
+
+/* MovieTrackingStrabilization->filter */
+#define TRACKING_FILTER_NEAREAST	0
+#define TRACKING_FILTER_BILINEAR	1
+#define TRACKING_FILTER_BICUBIC		2
 
 /* MovieTrackingReconstruction->flag */
 #define TRACKING_RECONSTRUCTED	(1<<0)

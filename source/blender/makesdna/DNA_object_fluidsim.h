@@ -31,10 +31,11 @@
  *  \ingroup DNA
  */
 
-#ifndef DNA_OBJECT_FLUIDSIM_H
-#define DNA_OBJECT_FLUIDSIM_H
+#ifndef __DNA_OBJECT_FLUIDSIM_H__
+#define __DNA_OBJECT_FLUIDSIM_H__
 
 #include "DNA_ID.h"
+#include "DNA_defs.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -66,7 +67,7 @@ typedef struct FluidsimSettings {
 
 	/* fluid properties */
 	float viscosityValue;
-	short viscosityMode;
+	short viscosityMode DNA_DEPRECATED;
 	short viscosityExponent;
 	/* gravity strength */
 	float grav[3];
@@ -74,6 +75,9 @@ typedef struct FluidsimSettings {
 	float animStart, animEnd;
 	/* bake start end time (in blender frames) */
 	int bakeStart, bakeEnd;
+	/* offset for baked frames */
+	int frameOffset;
+	int pad;
 	/* g star param (LBM compressibility) */
 	float gstar;
 	/* activate refinement? */
@@ -89,8 +93,8 @@ typedef struct FluidsimSettings {
 	struct Mesh *meshBB;
 
 	/* store output path, and file prefix for baked fluid surface */
-	/* strlens; 80= FILE_MAXFILE, 160= FILE_MAXDIR */
-	char surfdataPath[240];
+	/* strlens; 256= FILE_MAXFILE, 768= FILE_MAXDIR */
+	char surfdataPath[1024];
 
 	/* store start coords of axis aligned bounding box together with size */
 	/* values are inited during derived mesh display */
@@ -140,8 +144,8 @@ typedef struct FluidsimSettings {
 
 	int lastgoodframe;
 	
-	int pad;
-
+	/* Simulation/flow rate control (i.e. old "Fac-Time") */
+	float animRate;
 } FluidsimSettings;
 
 /* ob->fluidsimSettings defines */

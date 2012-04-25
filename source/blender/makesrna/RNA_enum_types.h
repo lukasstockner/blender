@@ -20,8 +20,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef RNA_ENUM_TYPES_H
-#define RNA_ENUM_TYPES_H
+#ifndef __RNA_ENUM_TYPES_H__
+#define __RNA_ENUM_TYPES_H__
 
 /** \file RNA_enum_types.h
  *  \ingroup RNA
@@ -129,12 +129,15 @@ EnumPropertyItem *rna_Actuator_type_itemf(struct bContext *C, struct PointerRNA 
 /* Generic functions, return an enum from library data, index is the position
  * in the linked list can add more for different types as needed */
 EnumPropertyItem *RNA_action_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
-EnumPropertyItem *RNA_action_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
+// EnumPropertyItem *RNA_action_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
 EnumPropertyItem *RNA_group_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
 EnumPropertyItem *RNA_group_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
 EnumPropertyItem *RNA_image_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
 EnumPropertyItem *RNA_image_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
 EnumPropertyItem *RNA_scene_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
 EnumPropertyItem *RNA_scene_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
+EnumPropertyItem *RNA_movieclip_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
+EnumPropertyItem *RNA_movieclip_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
 
-#endif /* RNA_ENUM_TYPES_H */
+
+#endif /* __RNA_ENUM_TYPES_H__ */

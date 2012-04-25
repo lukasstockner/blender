@@ -29,8 +29,8 @@
  *  \ingroup DNA
  */
 
-#ifndef DNA_PARTICLE_TYPES_H
-#define DNA_PARTICLE_TYPES_H
+#ifndef __DNA_PARTICLE_TYPES_H__
+#define __DNA_PARTICLE_TYPES_H__
 
 #include "DNA_defs.h"
 #include "DNA_ID.h"
@@ -261,7 +261,7 @@ typedef struct ParticleSystem
 
 	struct ListBase targets;				/* used for keyed and boid physics */
 
-	char name[32];							/* particle system name */
+	char name[64];							/* particle system name, MAX_NAME */
 	
 	float imat[4][4];	/* used for duplicators */
 	float cfra, tree_frame, bvhtree_frame;
@@ -269,7 +269,7 @@ typedef struct ParticleSystem
 	int flag, totpart, totunexist, totchild, totcached, totchildcache;
 	short recalc, target_psys, totkeyed, bakespace;
 
-	char bb_uvname[3][32];					/* billboard uv name */
+	char bb_uvname[3][64];					/* billboard uv name, MAX_CUSTOMDATA_LAYER_NAME */
 
 	/* if you change these remember to update array lengths to PSYS_TOT_VG! */
 	short vgroup[12], vg_neg, rt3;			/* vertex groups, 0==disable, 1==starting index */
@@ -321,7 +321,7 @@ typedef struct ParticleSystem
 #define PART_TRAND			128	
 #define PART_EDISTR			256	/* particle/face from face areas */
 
-//#define PART_STICKY			512	/*collided particles can stick to collider*/
+#define PART_ROTATIONS		512	/* calculate particle rotations (and store them in pointcache) */
 #define PART_DIE_ON_COL		(1<<12)
 #define PART_SIZE_DEFL		(1<<13) /* swept sphere deflections */
 #define PART_ROT_DYN		(1<<14)	/* dynamic rotation */
@@ -463,8 +463,13 @@ typedef struct ParticleSystem
 #define PART_ROT_OB_Z		8
 
 /* part->avemode */
-#define PART_AVE_SPIN		1
+#define PART_AVE_VELOCITY	1
 #define PART_AVE_RAND		2
+#define PART_AVE_HORIZONTAL	3
+#define PART_AVE_VERTICAL	4
+#define PART_AVE_GLOBAL_X	5
+#define PART_AVE_GLOBAL_Y	6
+#define PART_AVE_GLOBAL_Z	7
 
 /* part->reactevent */
 #define PART_EVENT_DEATH	0
@@ -476,13 +481,13 @@ typedef struct ParticleSystem
 #define PART_CHILD_FACES		2
 
 /* psys->recalc */
-/* starts from 8 so that the first bits can be ob->recalc */
-#define PSYS_RECALC_REDO	8	/* only do pathcache etc */
-#define PSYS_RECALC_RESET	16	/* reset everything including pointcache */
-#define PSYS_RECALC_TYPE	32	/* handle system type change */
-#define PSYS_RECALC_CHILD	64	/* only child settings changed */
-#define PSYS_RECALC_PHYS	128	/* physics type changed */
-#define PSYS_RECALC			248
+/* starts from (1 << 3) so that the first bits can be ob->recalc */
+#define PSYS_RECALC_REDO   (1 << 3) /* only do pathcache etc */
+#define PSYS_RECALC_RESET  (1 << 4) /* reset everything including pointcache */
+#define PSYS_RECALC_TYPE   (1 << 5) /* handle system type change */
+#define PSYS_RECALC_CHILD  (1 << 6) /* only child settings changed */
+#define PSYS_RECALC_PHYS   (1 << 7) /* physics type changed */
+#define PSYS_RECALC        (PSYS_RECALC_REDO | PSYS_RECALC_RESET | PSYS_RECALC_TYPE | PSYS_RECALC_CHILD | PSYS_RECALC_PHYS)
 
 /* psys->flag */
 #define PSYS_CURRENT		1
@@ -498,7 +503,8 @@ typedef struct ParticleSystem
 #define PSYS_KEYED			1024
 #define PSYS_EDITED			2048
 //#define PSYS_PROTECT_CACHE	4096 /* deprecated */
-#define PSYS_DISABLED		8192
+#define PSYS_DISABLED			8192
+#define PSYS_OB_ANIM_RESTORE	16384 /* runtime flag */
 
 /* pars->flag */
 #define PARS_UNEXIST		1

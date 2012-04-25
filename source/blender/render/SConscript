@@ -5,8 +5,8 @@ sources = env.Glob('intern/source/*.c')
 raysources = env.Glob('intern/raytrace/*.cpp')
 
 incs = 'intern/include #/intern/guardedalloc ../blenlib ../makesdna ../makesrna'
-incs += ' extern/include ../blenkernel ../radiosity/extern/include ../imbuf'
-incs += ' ../include ../blenloader ../../../intern/smoke/extern ../../../intern/mikktspace'
+incs += ' extern/include ../blenkernel ../imbuf ../blenfont'
+incs += ' ../include ../blenloader ../../../intern/smoke/extern ../../../intern/mikktspace ../bmesh'
 
 cflags_raytrace = env['CCFLAGS']
 cxxflags_raytrace = env['CXXFLAGS']
@@ -14,7 +14,8 @@ cxxflags_raytrace = env['CXXFLAGS']
 defs = []
 defs_raytrace = []
 
-defs.append('WITH_SMOKE')  # TODO, make optional
+if env['WITH_BF_SMOKE']:
+    defs.append('WITH_SMOKE')
 
 if env['WITH_BF_PYTHON']:
     incs += ' ../python'

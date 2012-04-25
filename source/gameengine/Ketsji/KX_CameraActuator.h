@@ -32,15 +32,15 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_CAMERAACTUATOR
-#define __KX_CAMERAACTUATOR
+#ifndef __KX_CAMERAACTUATOR_H__
+#define __KX_CAMERAACTUATOR_H__
 
 #include "SCA_IActuator.h"
 #include "MT_Scalar.h"
 #include "SCA_LogicManager.h"
 
 /**
- * The camera actuator does a Robbie Muller prespective for you. This is a 
+ * The camera actuator does a Robbie Muller perspective for you. This is a
  * weird set of rules that positions the camera sort of behind the object,
  * tracking, while avoiding any objects between the 'ideal' position and the
  * actor being tracked.
@@ -70,8 +70,8 @@ private :
 	/** max (float), */
 	float m_maxHeight;
 	
-	/** xy toggle (pick one): true == x, false == y */
-	bool m_x;
+	/** axis the camera tries to get behind: +x/+y/-x/-y */
+	short m_axis;
 	
 	/** damping (float), */
 	float m_damping;
@@ -97,7 +97,7 @@ private :
 		float hght,
 		float minhght,
 		float maxhght,
-		bool xytog,
+		short axis,
 		float damping
 	);
 
@@ -135,5 +135,5 @@ private :
 
 };
 
-#endif //__KX_CAMERAACTUATOR
+#endif //__KX_CAMERAACTUATOR_H__
 

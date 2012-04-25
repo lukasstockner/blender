@@ -30,8 +30,8 @@
  *  \author nzc
  */
 
-#ifndef DNA_SPACE_TYPES_H
-#define DNA_SPACE_TYPES_H
+#ifndef __DNA_SPACE_TYPES_H__
+#define __DNA_SPACE_TYPES_H__
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
@@ -133,8 +133,6 @@ typedef struct SpaceButs {
 	float blockscale  DNA_DEPRECATED;
 	
 	short blockhandler[8]  DNA_DEPRECATED;
-	
-	struct RenderInfo *ri;
 
 	View2D v2d  DNA_DEPRECATED;						/* deprecated, copied to region */
 	
@@ -176,10 +174,11 @@ typedef struct SpaceSeq {
 
 typedef struct FileSelectParams {
 	char title[32]; /* title, also used for the text of the execute button */
-	char dir[240]; /* directory */
-	char file[80]; /* file */
-	char renamefile[80];
-	char renameedit[80]; /* annoying but the first is only used for initialization */
+	char dir[1056]; /* directory, FILE_MAX_LIBEXTRA, 1024 + 32, this is for extreme case when 1023 length path
+	                 * needs to be linked in, where foo.blend/Armature need adding  */
+	char file[256]; /* file */
+	char renamefile[256];
+	char renameedit[256]; /* annoying but the first is only used for initialization */
 
 	char filter_glob[64]; /* list of filetypes to filter */
 
@@ -216,10 +215,10 @@ typedef struct SpaceFile {
 	ListBase *folders_next; /* holds the list of next directories (pushed from previous) to show */
 
 	/* operator that is invoking fileselect 
-	   op->exec() will be called on the 'Load' button.
-	   if operator provides op->cancel(), then this will be invoked
-	   on the cancel button.
-	*/
+	 * op->exec() will be called on the 'Load' button.
+	 * if operator provides op->cancel(), then this will be invoked
+	 * on the cancel button.
+	 */
 	struct wmOperator *op; 
 
 	struct wmTimer *smoothscroll_timer;
@@ -345,10 +344,11 @@ typedef struct Script {
 	void *py_globaldict;
 
 	int flags, lastspace;
-	char scriptname[256]; /* store the script file here so we can re-run it on loading blender, if "Enable Scripts" is on */
-	char scriptarg[256];
+	/* store the script file here so we can re-run it on loading blender, if "Enable Scripts" is on */
+	char scriptname[1024]; /* 1024 = FILE_MAX */
+	char scriptarg[256]; /* 1024 = FILE_MAX */
 } Script;
-#define SCRIPT_SET_NULL(_script) _script->py_draw = _script->py_event = _script->py_button = _script->py_browsercallback = _script->py_globaldict = NULL; _script->flags = 0;
+#define SCRIPT_SET_NULL(_script) _script->py_draw = _script->py_event = _script->py_button = _script->py_browsercallback = _script->py_globaldict = NULL; _script->flags = 0
 
 typedef struct SpaceScript {
 	SpaceLink *next, *prev;
@@ -516,8 +516,13 @@ typedef struct SpaceClip {
 	/* current stabilization data */
 	float loc[2], scale, angle;	/* pre-composed stabilization data */
 	int pad;
-	float stabmat[4][4], unistabmat[4][4];		/* current stabilization matrix and the same matrix in unified space,
-												   defined when drawing and used for mouse position calculation */
+	float stabmat[4][4], unistabmat[4][4];  /* current stabilization matrix and the same matrix in unified space,
+	                                         * defined when drawing and used for mouse position calculation */
+
+	/* movie postprocessing */
+	int postproc_flag;
+
+	int runtime_flag;			/* different runtime flags */
 } SpaceClip;
 
 /* view3d  Now in DNA_view3d_types.h */
@@ -605,7 +610,8 @@ typedef struct SpaceClip {
 
 /* FileSelectParams.display */
 enum FileDisplayTypeE {
-	FILE_SHORTDISPLAY = 1,
+	FILE_DEFAULTDISPLAY = 0,
+	FILE_SHORTDISPLAY,
 	FILE_LONGDISPLAY,
 	FILE_IMGDISPLAY
 };
@@ -621,13 +627,15 @@ enum FileSortTypeE {
 
 /* these values need to be hardcoded in structs, dna does not recognize defines */
 /* also defined in BKE */
-#define FILE_MAXDIR			160
-#define FILE_MAXFILE		80
-#define FILE_MAX			240
+#define FILE_MAXDIR			768
+#define FILE_MAXFILE		256
+#define FILE_MAX			1024
+
+#define FILE_MAX_LIBEXTRA   (FILE_MAX + 32)
 
 /* filesel types */
 #define FILE_UNIX			8
-#define FILE_BLENDER		8 /* dont display relative paths */
+#define FILE_BLENDER		8 /* don't display relative paths */
 #define FILE_SPECIAL		9
 
 #define FILE_LOADLIB		1
@@ -685,7 +693,7 @@ enum FileSortTypeE {
 
 /* SpaceImage->sticky
  * Note DISABLE should be 0, however would also need to re-arrange icon order,
- * also, sticky loc is the default mode so this means we dont need to 'do_versons' */
+ * also, sticky loc is the default mode so this means we don't need to 'do_versons' */
 #define SI_STICKY_LOC		0
 #define SI_STICKY_DISABLE	1
 #define SI_STICKY_VERTEX	2
@@ -697,7 +705,7 @@ enum FileSortTypeE {
 #define SI_DRAWTOOL		(1<<3)
 #define SI_NO_DRAWFACES	(1<<4)
 #define SI_DRAWSHADOW   (1<<5)
-#define SI_SELACTFACE   (1<<6)	/* deprecated */
+/* #define SI_SELACTFACE   (1<<6) */ /* deprecated */
 #define SI_DEPRECATED2	(1<<7)
 #define SI_DEPRECATED3  (1<<8)	/* stick UV selection to mesh vertex (UVs wont always be touching) */
 #define SI_COORDFLOATS  (1<<9)
@@ -858,7 +866,7 @@ enum {
 /* sseq->flag */
 #define SEQ_DRAWFRAMES   1
 #define SEQ_MARKER_TRANS 2
-#define SEQ_DRAW_COLOR_SEPERATED     4
+#define SEQ_DRAW_COLOR_SEPARATED     4
 #define SEQ_DRAW_SAFE_MARGINS        8
 #define SEQ_DRAW_GPENCIL			16
 #define SEQ_NO_DRAW_CFRANUM			32
@@ -890,11 +898,12 @@ enum {
 #define SC_SHOW_GRID			(1<<9)
 #define SC_SHOW_STABLE			(1<<10)
 #define SC_MANUAL_CALIBRATION	(1<<11)
-#define SC_SHOW_GPENCIL			(1<<12)
+/*#define SC_SHOW_GPENCIL			(1<<12)*/	/* UNUSED */
 #define SC_SHOW_FILTERS			(1<<13)
 #define SC_SHOW_GRAPH_FRAMES	(1<<14)
 #define SC_SHOW_GRAPH_TRACKS	(1<<15)
-#define SC_SHOW_PYRAMID_LEVELS		(1<<16)
+/*#define SC_SHOW_PYRAMID_LEVELS	(1<<16) */	/* UNUSED */
+#define SC_LOCK_TIMECURSOR		(1<<17)
 
 /* SpaceClip->mode */
 #define SC_MODE_TRACKING		0
@@ -904,6 +913,9 @@ enum {
 /* SpaceClip->view */
 #define SC_VIEW_CLIP		0
 #define SC_VIEW_GRAPH		1
+
+/* SpaceClip->runtime_flag */
+#define SC_GRAPH_BOTTOM		(1<<0)
 
 /* space types, moved from DNA_screen_types.h */
 /* Do NOT change order, append on end. types are hardcoded needed */

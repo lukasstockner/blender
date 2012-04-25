@@ -101,7 +101,7 @@ void RAS_TexVert::SetFlag(const short flag)
 
 void RAS_TexVert::SetUnit(const unsigned int u)
 {
-	m_unit = u<=MAX_UNIT?u:MAX_UNIT;
+	m_unit = u <= (unsigned int) MAX_UNIT ? u: (unsigned int)MAX_UNIT;
 }
 
 void RAS_TexVert::SetNormal(const MT_Vector3& normal)
@@ -124,13 +124,13 @@ bool RAS_TexVert::closeTo(const RAS_TexVert* other)
 
 	return (
 		/* m_flag == other->m_flag && */
-		/* at the moment the face only stores the smooth/flat setting so dont bother comparing it */
+		/* at the moment the face only stores the smooth/flat setting so don't bother comparing it */
 		m_rgba == other->m_rgba &&
 		MT_fuzzyEqual(MT_Vector3(m_normal), MT_Vector3(other->m_normal)) &&
 		MT_fuzzyEqual(MT_Vector3(m_tangent), MT_Vector3(other->m_tangent)) &&
 		uv_match /* &&
-		MT_fuzzyEqual(MT_Vector3(m_localxyz), MT_Vector3(other->m_localxyz))*/) ;
-	/* dont bother comparing m_localxyz since we know there from the same vert */
+		MT_fuzzyEqual(MT_Vector3(m_localxyz), MT_Vector3(other->m_localxyz))*/);
+	/* don't bother comparing m_localxyz since we know there from the same vert */
 }
 
 short RAS_TexVert::getFlag() const

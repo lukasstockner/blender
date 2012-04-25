@@ -104,13 +104,13 @@ __device_inline void sample_uniform_hemisphere(const float3 N,
 
 __device float3 sample_uniform_sphere(float u1, float u2)
 {
-    float z = 1.0f - 2.0f*u1;
-    float r = sqrtf(fmaxf(0.0f, 1.0f - z*z));
-    float phi = 2.0f*M_PI_F*u2;
-    float x = r*cosf(phi);
-    float y = r*sinf(phi);
+	float z = 1.0f - 2.0f*u1;
+	float r = sqrtf(fmaxf(0.0f, 1.0f - z*z));
+	float phi = 2.0f*M_PI_F*u2;
+	float x = r*cosf(phi);
+	float y = r*sinf(phi);
 
-    return make_float3(x, y, z);
+	return make_float3(x, y, z);
 }
 
 __device float power_heuristic(float a, float b)
@@ -185,7 +185,7 @@ __device float2 regular_polygon_sample(float corners, float rotation, float u, f
 	return make_float2(cr*p.x - sr*p.y, sr*p.x + cr*p.y);
 }
 
-/* Spherical coordinates <-> Cartesion direction  */
+/* Spherical coordinates <-> Cartesian direction  */
 
 __device float2 direction_to_spherical(float3 dir)
 {
@@ -201,6 +201,59 @@ __device float3 spherical_to_direction(float theta, float phi)
 		sinf(theta)*cosf(phi),
 		sinf(theta)*sinf(phi),
 		cosf(theta));
+}
+
+/* Equirectangular coordinates <-> Cartesian direction */
+
+__device float2 direction_to_equirectangular(float3 dir)
+{
+	float u = -atan2f(dir.y, dir.x)/(2.0f*M_PI_F) + 0.5f;
+	float v = atan2f(dir.z, hypotf(dir.x, dir.y))/M_PI_F + 0.5f;
+
+	return make_float2(u, v);
+}
+
+__device float3 equirectangular_to_direction(float u, float v)
+{
+	float phi = M_PI_F*(1.0f - 2.0f*u);
+	float theta = M_PI_F*(1.0f - v);
+
+	return make_float3(
+		sin(theta)*cos(phi),
+		sin(theta)*sin(phi),
+		cos(theta));
+}
+
+/* Mirror Ball <-> Cartesion direction */
+
+__device float3 mirrorball_to_direction(float u, float v)
+{
+	/* point on sphere */
+	float3 dir;
+
+	dir.x = 2.0f*u - 1.0f;
+	dir.z = 2.0f*v - 1.0f;
+	dir.y = -sqrt(max(1.0f - dir.x*dir.x - dir.z*dir.z, 0.0f));
+
+	/* reflection */
+	float3 I = make_float3(0.0f, -1.0f, 0.0f);
+
+	return 2.0f*dot(dir, I)*dir - I;
+}
+
+__device float2 direction_to_mirrorball(float3 dir)
+{
+	/* inverse of mirrorball_to_direction */
+	dir.y -= 1.0f;
+
+	float div = 2.0f*sqrt(max(-0.5f*dir.y, 0.0f));
+	if(div > 0.0f)
+		dir /= div;
+
+	float u = 0.5f*(dir.x + 1.0f);
+	float v = 0.5f*(dir.z + 1.0f);
+
+	return make_float2(u, v);
 }
 
 CCL_NAMESPACE_END

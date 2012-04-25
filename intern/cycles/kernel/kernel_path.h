@@ -25,38 +25,15 @@
 #else
 #include "kernel_bvh.h"
 #endif
+#include "kernel_accumulate.h"
 #include "kernel_camera.h"
 #include "kernel_shader.h"
 #include "kernel_light.h"
 #include "kernel_emission.h"
 #include "kernel_random.h"
+#include "kernel_passes.h"
 
 CCL_NAMESPACE_BEGIN
-
-#ifdef __MODIFY_TP__
-__device float3 path_terminate_modified_throughput(KernelGlobals *kg, __global float3 *buffer, int x, int y, int offset, int stride, int sample)
-{
-	/* modify throughput to influence path termination probability, to avoid
-	   darker regions receiving fewer samples than lighter regions. also RGB
-	   are weighted differently. proper validation still remains to be done. */
-	const float3 weights = make_float3(1.0f, 1.33f, 0.66f);
-	const float3 one = make_float3(1.0f, 1.0f, 1.0f);
-	const int minsample = 5;
-	const float minL = 0.1f;
-
-	if(sample >= minsample) {
-		float3 L = buffer[offset + x + y*stride];
-		float3 Lmin = make_float3(minL, minL, minL);
-		float correct = (float)(sample+1)/(float)sample;
-
-		L = film_map(L*correct, sample);
-
-		return weights/clamp(L, Lmin, one);
-	}
-
-	return weights;
-}
-#endif
 
 typedef struct PathState {
 	uint flag;
@@ -168,12 +145,15 @@ __device_inline float path_state_terminate_probability(KernelGlobals *kg, PathSt
 	return average(throughput);
 }
 
-__device_inline bool shadow_blocked(KernelGlobals *kg, PathState *state, Ray *ray, Intersection *isect, float3 *light_L)
+__device_inline bool shadow_blocked(KernelGlobals *kg, PathState *state, Ray *ray, float3 *shadow)
 {
+	*shadow = make_float3(1.0f, 1.0f, 1.0f);
+
 	if(ray->t == 0.0f)
 		return false;
 	
-	bool result = scene_intersect(kg, ray, PATH_RAY_SHADOW_OPAQUE, isect);
+	Intersection isect;
+	bool result = scene_intersect(kg, ray, PATH_RAY_SHADOW_OPAQUE, &isect);
 
 #ifdef __TRANSPARENT_SHADOWS__
 	if(result && kernel_data.integrator.transparent_shadows) {
@@ -185,7 +165,7 @@ __device_inline bool shadow_blocked(KernelGlobals *kg, PathState *state, Ray *ra
 		   
 		   also note that for this to work correct, multi close sampling must
 		   be used, since we don't pass a random number to shader_eval_surface */
-		if(shader_transparent_shadow(kg, isect)) {
+		if(shader_transparent_shadow(kg, &isect)) {
 			float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
 			float3 Pend = ray->P + ray->D*ray->t;
 			int bounce = state->transparent_bounce;
@@ -207,16 +187,16 @@ __device_inline bool shadow_blocked(KernelGlobals *kg, PathState *state, Ray *ra
 #endif
 				}
 
-				if(!scene_intersect(kg, ray, PATH_RAY_SHADOW_TRANSPARENT, isect)) {
-					*light_L *= throughput;
+				if(!scene_intersect(kg, ray, PATH_RAY_SHADOW_TRANSPARENT, &isect)) {
+					*shadow *= throughput;
 					return false;
 				}
 
-				if(!shader_transparent_shadow(kg, isect))
+				if(!shader_transparent_shadow(kg, &isect))
 					return true;
 
 				ShaderData sd;
-				shader_setup_from_ray(kg, &sd, isect, ray);
+				shader_setup_from_ray(kg, &sd, &isect, ray);
 				shader_eval_surface(kg, &sd, 0.0f, PATH_RAY_SHADOW);
 
 				throughput *= shader_bsdf_transparency(kg, &sd);
@@ -234,15 +214,16 @@ __device_inline bool shadow_blocked(KernelGlobals *kg, PathState *state, Ray *ra
 	return result;
 }
 
-__device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, Ray ray, float3 throughput)
+__device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, Ray ray, __global float *buffer)
 {
 	/* initialize */
-	float3 L = make_float3(0.0f, 0.0f, 0.0f);
-	float Ltransparent = 0.0f;
+	PathRadiance L;
+	float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
+	float L_transparent = 0.0f;
 
-#ifdef __EMISSION__
+	path_radiance_init(&L, kernel_data.film.use_light_pass);
+
 	float ray_pdf = 0.0f;
-#endif
 	PathState state;
 	int rng_offset = PRNG_BASE_NUM;
 
@@ -257,18 +238,15 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 		if(!scene_intersect(kg, &ray, visibility, &isect)) {
 			/* eval background shader if nothing hit */
 			if(kernel_data.background.transparent && (state.flag & PATH_RAY_CAMERA)) {
-				Ltransparent += average(throughput);
+				L_transparent += average(throughput);
 			}
-			else {
 #ifdef __BACKGROUND__
-				ShaderData sd;
-				shader_setup_from_background(kg, &sd, &ray);
-				L += throughput*shader_eval_background(kg, &sd, state.flag);
-				shader_release(kg, &sd);
-#else
-				L += throughput*make_float3(0.8f, 0.8f, 0.8f);
-#endif
+			else {
+				/* sample background shader */
+				float3 L_background = indirect_background(kg, &ray, state.flag, ray_pdf);
+				path_radiance_accum_background(&L, throughput, L_background, state.bounce);
 			}
+#endif
 
 			break;
 		}
@@ -279,19 +257,24 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 		float rbsdf = path_rng(kg, rng, sample, rng_offset + PRNG_BSDF);
 		shader_eval_surface(kg, &sd, rbsdf, state.flag);
 
+		kernel_write_data_passes(kg, buffer, &L, &sd, sample, state.flag, throughput);
+
 #ifdef __HOLDOUT__
 		if((sd.flag & SD_HOLDOUT) && (state.flag & PATH_RAY_CAMERA)) {
 			float3 holdout_weight = shader_holdout_eval(kg, &sd);
 
 			if(kernel_data.background.transparent)
-				Ltransparent += average(holdout_weight*throughput);
+				/* any throughput is ok, should all be identical here */
+				L_transparent += average(holdout_weight*throughput);
 		}
 #endif
 
 #ifdef __EMISSION__
 		/* emission */
-		if(sd.flag & SD_EMISSION)
-			L += throughput*indirect_emission(kg, &sd, isect.t, state.flag, ray_pdf);
+		if(sd.flag & SD_EMISSION) {
+			float3 emission = indirect_emission(kg, &sd, isect.t, state.flag, ray_pdf);
+			path_radiance_accum_emission(&L, throughput, emission, state.bounce);
+		}
 #endif
 
 		/* path termination. this is a strange place to put the termination, it's
@@ -305,6 +288,34 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 
 		throughput /= probability;
 
+#ifdef __AO__
+		/* ambient occlusion */
+		if(kernel_data.integrator.use_ambient_occlusion) {
+			/* todo: solve correlation */
+			float bsdf_u = path_rng(kg, rng, sample, rng_offset + PRNG_BSDF_U);
+			float bsdf_v = path_rng(kg, rng, sample, rng_offset + PRNG_BSDF_V);
+
+			float3 ao_D;
+			float ao_pdf;
+
+			sample_cos_hemisphere(sd.N, bsdf_u, bsdf_v, &ao_D, &ao_pdf);
+
+			if(dot(sd.Ng, ao_D) > 0.0f && ao_pdf != 0.0f) {
+				Ray light_ray;
+				float3 ao_shadow;
+
+				light_ray.P = ray_offset(sd.P, sd.Ng);
+				light_ray.D = ao_D;
+				light_ray.t = kernel_data.background.ao_distance;
+
+				if(!shadow_blocked(kg, &state, &light_ray, &ao_shadow)) {
+					float3 ao_bsdf = shader_bsdf_diffuse(kg, &sd)*kernel_data.background.ao_factor;
+					path_radiance_accum_ao(&L, throughput, ao_bsdf, ao_shadow, state.bounce);
+				}
+			}
+		}
+#endif
+
 #ifdef __EMISSION__
 		if(kernel_data.integrator.use_direct_light) {
 			/* sample illumination from lights to find path contribution */
@@ -315,7 +326,8 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 				float light_v = path_rng(kg, rng, sample, rng_offset + PRNG_LIGHT_V);
 
 				Ray light_ray;
-				float3 light_L;
+				BsdfEval L_light;
+				bool is_lamp;
 
 #ifdef __MULTI_LIGHT__
 				/* index -1 means randomly sample from distribution */
@@ -325,10 +337,14 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 #else
 				const int i = -1;
 #endif
-					if(direct_emission(kg, &sd, i, light_t, light_o, light_u, light_v, &light_ray, &light_L)) {
+					if(direct_emission(kg, &sd, i, light_t, light_o, light_u, light_v, &light_ray, &L_light, &is_lamp)) {
 						/* trace shadow ray */
-						if(!shadow_blocked(kg, &state, &light_ray, &isect, &light_L))
-							L += throughput*light_L;
+						float3 shadow;
+
+						if(!shadow_blocked(kg, &state, &light_ray, &shadow)) {
+							/* accumulate */
+							path_radiance_accum_light(&L, throughput, &L_light, shadow, state.bounce, is_lamp);
+						}
 					}
 #ifdef __MULTI_LIGHT__
 				}
@@ -343,7 +359,7 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 
 		/* sample BSDF */
 		float bsdf_pdf;
-		float3 bsdf_eval;
+		BsdfEval bsdf_eval;
 		float3 bsdf_omega_in;
 		differential3 bsdf_domega_in;
 		float bsdf_u = path_rng(kg, rng, sample, rng_offset + PRNG_BSDF_U);
@@ -355,16 +371,15 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 
 		shader_release(kg, &sd);
 
-		if(bsdf_pdf == 0.0f || is_zero(bsdf_eval))
+		if(bsdf_pdf == 0.0f || bsdf_eval_is_zero(&bsdf_eval))
 			break;
 
 		/* modify throughput */
-		throughput *= bsdf_eval/bsdf_pdf;
+		path_radiance_bsdf_bounce(&L, &throughput, &bsdf_eval, bsdf_pdf, state.bounce, label);
 
 		/* set labels */
-#ifdef __EMISSION__
-		ray_pdf = bsdf_pdf;
-#endif
+		if(!(label & LABEL_TRANSPARENT))
+			ray_pdf = bsdf_pdf;
 
 		/* update path state */
 		path_state_next(kg, &state, label);
@@ -379,18 +394,35 @@ __device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, R
 #endif
 	}
 
-	return make_float4(L.x, L.y, L.z, 1.0f - Ltransparent);
+	float3 L_sum = path_radiance_sum(&L);
+
+#ifdef __CLAMP_SAMPLE__
+	path_radiance_clamp(&L, &L_sum, kernel_data.integrator.sample_clamp);
+#endif
+
+	kernel_write_light_passes(kg, buffer, &L, sample);
+
+	return make_float4(L_sum.x, L_sum.y, L_sum.z, 1.0f - L_transparent);
 }
 
-__device void kernel_path_trace(KernelGlobals *kg, __global float4 *buffer, __global uint *rng_state, int sample, int x, int y, int offset, int stride)
+__device void kernel_path_trace(KernelGlobals *kg,
+	__global float *buffer, __global uint *rng_state,
+	int sample, int x, int y, int offset, int stride)
 {
+	/* buffer offset */
+	int index = offset + x + y*stride;
+	int pass_stride = kernel_data.film.pass_stride;
+
+	rng_state += index;
+	buffer += index*pass_stride;
+
 	/* initialize random numbers */
 	RNG rng;
 
 	float filter_u;
 	float filter_v;
 
-	path_rng_init(kg, rng_state, sample, &rng, x, y, offset, stride, &filter_u, &filter_v);
+	path_rng_init(kg, rng_state, sample, &rng, x, y, &filter_u, &filter_v);
 
 	/* sample camera ray */
 	Ray ray;
@@ -401,23 +433,12 @@ __device void kernel_path_trace(KernelGlobals *kg, __global float4 *buffer, __gl
 	camera_sample(kg, x, y, filter_u, filter_v, lens_u, lens_v, &ray);
 
 	/* integrate */
-#ifdef __MODIFY_TP__
-	float3 throughput = path_terminate_modified_throughput(kg, buffer, x, y, offset, stride, sample);
-	float4 L = kernel_path_integrate(kg, &rng, sample, ray, throughput)/throughput;
-#else
-	float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
-	float4 L = kernel_path_integrate(kg, &rng, sample, ray, throughput);
-#endif
+	float4 L = kernel_path_integrate(kg, &rng, sample, ray, buffer);
 
 	/* accumulate result in output buffer */
-	int index = offset + x + y*stride;
+	kernel_write_pass_float4(buffer, sample, L);
 
-	if(sample == 0)
-		buffer[index] = L;
-	else
-		buffer[index] += L;
-
-	path_rng_end(kg, rng_state, rng, x, y, offset, stride);
+	path_rng_end(kg, rng_state, rng);
 }
 
 CCL_NAMESPACE_END

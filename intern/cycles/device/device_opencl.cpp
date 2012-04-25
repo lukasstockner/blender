@@ -165,7 +165,7 @@ public:
 			return;
 		}
 
-		ciErr = clGetPlatformIDs(num_platforms, &cpPlatform, NULL);
+		ciErr = clGetPlatformIDs(1, &cpPlatform, NULL);
 		if(opencl_error(ciErr))
 			return;
 
@@ -298,11 +298,17 @@ public:
 	{
 		string build_options = " -cl-fast-relaxed-math ";
 		
-		/* full shading only on NVIDIA cards at the moment */
+		/* Multi Closure for nVidia cards */
 		if(platform_name == "NVIDIA CUDA")
 			build_options += "-D__KERNEL_SHADING__ -D__MULTI_CLOSURE__ -cl-nv-maxrregcount=24 -cl-nv-verbose ";
-		if(platform_name == "Apple")
-			build_options += " -D__CL_NO_FLOAT3__ ";
+			
+		/* No Float3 for Apple */
+		else if(platform_name == "Apple")
+			build_options += "-D__CL_NO_FLOAT3__ ";
+			
+		/* Basic shading for AMD cards (non Apple) */
+		else if(platform_name == "AMD Accelerated Parallel Processing")
+			build_options += "-D__KERNEL_SHADING__ -D__CL_NO_FLOAT3__ ";
 
 		return build_options;
 	}
@@ -451,20 +457,6 @@ public:
 			clReleaseCommandQueue(cqCommandQueue);
 		if(cxContext)
 			clReleaseContext(cxContext);
-	}
-
-	bool support_full_kernel()
-	{
-		return false;
-	}
-
-	string description()
-	{
-		char name[1024];
-
-		clGetDeviceInfo(cdDevice, CL_DEVICE_NAME, sizeof(name), &name, NULL);
-
-		return string("OpenCL ") + name;
 	}
 
 	void mem_alloc(device_memory& mem, MemoryType type)
@@ -723,7 +715,7 @@ void device_opencl_info(vector<DeviceInfo>& devices)
 	if(clGetPlatformIDs(0, NULL, &num_platforms) != CL_SUCCESS || num_platforms == 0)
 		return;
 
-	if(clGetPlatformIDs(num_platforms, &platform_id, NULL) != CL_SUCCESS)
+	if(clGetPlatformIDs(1, &platform_id, NULL) != CL_SUCCESS)
 		return;
 
 	if(clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_GPU|CL_DEVICE_TYPE_ACCELERATOR, 0, NULL, &num_devices) != CL_SUCCESS)
@@ -750,6 +742,7 @@ void device_opencl_info(vector<DeviceInfo>& devices)
 		info.num = num;
 		/* we don't know if it's used for display, but assume it is */
 		info.display_device = true;
+		info.advanced_shading = false;
 
 		devices.push_back(info);
 	}

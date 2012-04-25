@@ -61,7 +61,7 @@ int getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
 	/* sanity checks */
 	if (name == NULL)
 		return icon;
-	else if ELEM3(NULL, id, fcu, fcu->rna_path) {
+	else if (ELEM3(NULL, id, fcu, fcu->rna_path)) {
 		if (fcu == NULL)
 			strcpy(name, "<invalid>");
 		else if (fcu->rna_path == NULL)
@@ -134,8 +134,8 @@ int getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
 				char c= RNA_property_array_item_char(prop, fcu->array_index);
 				
 				/* we need to write the index to a temp buffer (in py syntax) */
-				if (c) sprintf(arrayindbuf, "%c ", c);
-				else sprintf(arrayindbuf, "[%d]", fcu->array_index);
+				if (c) BLI_snprintf(arrayindbuf, sizeof(arrayindbuf), "%c ", c);
+				else BLI_snprintf(arrayindbuf, sizeof(arrayindbuf), "[%d]", fcu->array_index);
 				
 				arrayname= &arrayindbuf[0];
 			}

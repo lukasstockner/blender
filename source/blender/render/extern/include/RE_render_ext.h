@@ -29,8 +29,8 @@
  */
 
 
-#ifndef RE_RENDER_EXT_H
-#define RE_RENDER_EXT_H
+#ifndef __RE_RENDER_EXT_H__
+#define __RE_RENDER_EXT_H__
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 /* this include is for non-render pipeline exports (still old cruft here) */
@@ -50,9 +50,6 @@ struct MTex;
 struct ImBuf;
 struct DerivedMesh;
 
-// RADIO REMOVED, Maybe this will be useful later
-//void    RE_zbufferall_radio(struct RadView *vw, struct RNode **rg_elem, int rg_totelem, struct Render *re);
-
 /* particle.c, effect.c, editmesh_modes.c and brush.c, returns 1 if rgb, 0 otherwise */
 int	externtex(struct MTex *mtex, const float vec[3], float *tin, float *tr, float *tg, float *tb, float *ta, const int thread);
 
@@ -70,5 +67,5 @@ void RE_free_sample_material(struct Material *mat);
 void RE_sample_material_color(struct Material *mat, float color[3], float *alpha, const float volume_co[3], const float surface_co[3],
 						   int face_index, short hit_quad, struct DerivedMesh *orcoDm, struct Object *ob);
 
-#endif /* RE_RENDER_EXT_H */
+#endif /* __RE_RENDER_EXT_H__ */
 

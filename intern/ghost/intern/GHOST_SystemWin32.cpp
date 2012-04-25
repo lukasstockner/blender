@@ -60,6 +60,8 @@
 #endif
 #endif
 
+#include "utfconv.h"
+
 #include "GHOST_DisplayManagerWin32.h"
 #include "GHOST_EventButton.h"
 #include "GHOST_EventCursor.h"
@@ -292,8 +294,8 @@ bool GHOST_SystemWin32::processEvents(bool waitForEvent)
 		}
 
 		// Process all the events waiting for us
-		while (::PeekMessage(&msg, 0, 0, 0, PM_REMOVE) != 0) {
-			::DispatchMessage(&msg);
+		while (::PeekMessageW(&msg, 0, 0, 0, PM_REMOVE) != 0) {
+			::DispatchMessageW(&msg);
 			anyProcessed = true;
 		}
 	} while (waitForEvent && !anyProcessed);
@@ -394,7 +396,7 @@ GHOST_TSuccess GHOST_SystemWin32::init()
 	}
 
 	if (success) {
-		WNDCLASS wc;
+		WNDCLASSW wc;
 		wc.style= CS_HREDRAW | CS_VREDRAW;
 		wc.lpfnWndProc= s_wndProc;
 		wc.cbClsExtra= 0;
@@ -408,10 +410,10 @@ GHOST_TSuccess GHOST_SystemWin32::init()
 		wc.hCursor = ::LoadCursor(0, IDC_ARROW);
 		wc.hbrBackground= (HBRUSH)::GetStockObject(BLACK_BRUSH);
 		wc.lpszMenuName = 0;
-		wc.lpszClassName= GHOST_WindowWin32::getWindowClassName();
+		wc.lpszClassName= L"GHOST_WindowClass";
 
 		// Use RegisterClassEx for setting small icon
-		if (::RegisterClass(&wc) == 0) {
+		if (::RegisterClassW(&wc) == 0) {
 			success = GHOST_kFailure;
 		}
 	}
@@ -716,21 +718,35 @@ GHOST_EventKey* GHOST_SystemWin32::processKeyEvent(GHOST_IWindow *window, RAWINP
 	GHOST_EventKey* event;
 
 	if (key != GHOST_kKeyUnknown) {
-		char utf8_char[6] = {0} ;
+		char utf8_char[6] = {0};
+		char ascii = 0;
 
-		wchar_t utf16[2]={0};
-		BYTE state[256];
-		GetKeyboardState((PBYTE)state);  
+		wchar_t utf16[3]={0};
+		BYTE state[256] ={0};
+		int r;
+		GetKeyboardState((PBYTE)state);
 
-		if(ToUnicodeEx(vk, 0, state, utf16, 2, 0, system->m_keylayout))
-			WideCharToMultiByte(CP_UTF8, 0, 
-									(wchar_t*)utf16, 1,
-									(LPSTR) utf8_char, 5,
-									NULL,NULL); else *utf8_char = 0;
+		if(r = ToUnicodeEx(vk, 0, state, utf16, 2, 0, system->m_keylayout)) {
+			if((r>0 && r<3)){
+				utf16[r]=0;
+				conv_utf_16_to_8(utf16,utf8_char,6);
+			}
+			else if (r==-1) {
+				utf8_char[0] = '\0';
+			}
+		}
 
-		if(!keyDown) utf8_char[0] = '\0';
-		
-		event = new GHOST_EventKey(system->getMilliSeconds(), keyDown ? GHOST_kEventKeyDown: GHOST_kEventKeyUp, window, key, (*utf8_char & 0x80)?'?':*utf8_char, utf8_char);
+		if(!keyDown) {
+			utf8_char[0] = '\0';
+			ascii='\0';
+		}
+		else {
+			ascii = utf8_char[0]& 0x80?'?' : utf8_char[0];
+		}
+
+		if(0x80&state[VK_MENU]) utf8_char[0]='\0';
+
+		event = new GHOST_EventKey(system->getMilliSeconds(), keyDown ? GHOST_kEventKeyDown: GHOST_kEventKeyUp, window, key, ascii, utf8_char);
 		
 #ifdef GHOST_DEBUG
 		std::cout << ascii << std::endl;
@@ -799,9 +815,10 @@ bool GHOST_SystemWin32::processNDOF(RAWINPUT const& raw)
 	// send motion. Mark as 'sent' so motion will always get dispatched.
 	eventSent = true;
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(FREE_WINDOWS64)
 	// using Microsoft compiler & header files
-	// they invented the RawInput API, so this version is (probably) correct
+	// they invented the RawInput API, so this version is (probably) correct.
+	// MinGW64 also works fine with this
 	BYTE const* data = raw.data.hid.bRawData;
 	// struct RAWHID {
 	// DWORD dwSizeHid;
@@ -1183,8 +1200,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 					 * DefWindowProc returns. 
 					 */
 					break;
-					
-				////////////////////////////////////////////////////////////////////////
+									////////////////////////////////////////////////////////////////////////
 				// Other events
 				////////////////////////////////////////////////////////////////////////
 				case WM_GETTEXT:
@@ -1233,17 +1249,38 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 	}
 
 	if (!eventHandled)
-		lResult = ::DefWindowProc(hwnd, msg, wParam, lParam);
+		lResult = ::DefWindowProcW(hwnd, msg, wParam, lParam);
 
 	return lResult;
 }
 
 GHOST_TUns8* GHOST_SystemWin32::getClipboard(bool selection) const 
 {
-	char *buffer;
 	char *temp_buff;
 	
-	if ( IsClipboardFormatAvailable(CF_TEXT) && OpenClipboard(NULL) ) {
+	if ( IsClipboardFormatAvailable(CF_UNICODETEXT) && OpenClipboard(NULL) ) {
+		wchar_t *buffer;
+		HANDLE hData = GetClipboardData( CF_UNICODETEXT );
+		if (hData == NULL) {
+			CloseClipboard();
+			return NULL;
+		}
+		buffer = (wchar_t*)GlobalLock( hData );
+		if (!buffer) {
+			CloseClipboard();
+			return NULL;
+		}
+		
+		temp_buff = alloc_utf_8_from_16(buffer,0);
+		
+		/* Buffer mustn't be accessed after CloseClipboard
+		   it would like accessing free-d memory */
+		GlobalUnlock( hData );
+		CloseClipboard();
+		
+		return (GHOST_TUns8*)temp_buff;
+	} else if ( IsClipboardFormatAvailable(CF_TEXT) && OpenClipboard(NULL) ) {
+		char *buffer;
 		size_t len = 0;
 		HANDLE hData = GetClipboardData( CF_TEXT );
 		if (hData == NULL) {
@@ -1276,20 +1313,21 @@ void GHOST_SystemWin32::putClipboard(GHOST_TInt8 *buffer, bool selection) const
 {
 	if(selection) {return;} // for copying the selection, used on X11
 
-	if (OpenClipboard(NULL)) {
+	if(OpenClipboard(NULL)) {
 		HLOCAL clipbuffer;
-		char *data;
+		wchar_t *data;
 		
 		if (buffer) {
+			size_t len = count_utf_16_from_8(buffer);
 			EmptyClipboard();
 			
-			clipbuffer = LocalAlloc(LMEM_FIXED,((strlen(buffer)+1)));
-			data = (char*)GlobalLock(clipbuffer);
+			clipbuffer = LocalAlloc(LMEM_FIXED,sizeof(wchar_t) * len);
+			data = (wchar_t*)GlobalLock(clipbuffer);
 
-			strcpy(data, (char*)buffer);
-			data[strlen(buffer)] = '\0';
+			conv_utf_8_to_16(buffer, data, len);
+
 			LocalUnlock(clipbuffer);
-			SetClipboardData(CF_TEXT,clipbuffer);
+			SetClipboardData(CF_UNICODETEXT,clipbuffer);
 		}
 		CloseClipboard();
 	} else {
@@ -1348,4 +1386,10 @@ int GHOST_SystemWin32::toggleConsole(int action)
 
 
 	return m_consoleStatus;
+}
+
+int GHOST_SystemWin32::confirmQuit(GHOST_IWindow * window) const
+{
+	return (MessageBox(window ? ((GHOST_WindowWin32*)window)->getHWND() : 0, "Some changes have not been saved.\nDo you really want to quit ?",
+			"Exit Blender", MB_OKCANCEL | MB_ICONWARNING | MB_TOPMOST) == IDOK);
 }

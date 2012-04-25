@@ -30,8 +30,8 @@
  *  \brief blenloader genfile private function prototypes
  */
 
-#ifndef DNA_GENFILE_H
-#define DNA_GENFILE_H
+#ifndef __DNA_GENFILE_H__
+#define __DNA_GENFILE_H__
 
 struct SDNA;
 
@@ -48,13 +48,13 @@ typedef enum eSDNA_Type {
 	SDNA_TYPE_ULONG    = 6,
 	SDNA_TYPE_FLOAT    = 7,
 	SDNA_TYPE_DOUBLE   = 8,
-	SDNA_TYPE_INT64    = 9,
-	SDNA_TYPE_UINT64   = 10
-	/* ,SDNA_TYPE_VOID     = 11 */ /* nothing uses yet */
+	/* ,SDNA_TYPE_VOID = 9 */ /* nothing uses yet */
+	SDNA_TYPE_INT64    = 10,
+	SDNA_TYPE_UINT64   = 11
 } eSDNA_Type;
 
 /* define so switch statements don't complain */
-#define SDNA_TYPE_VOID 11
+#define SDNA_TYPE_VOID 9
 
 struct SDNA *DNA_sdna_from_data(void *data, int datalen, int do_endian_swap);
 void DNA_sdna_free(struct SDNA *sdna);
@@ -70,4 +70,4 @@ int DNA_elem_offset(struct SDNA *sdna, const char *stype, const char *vartype, c
 
 int DNA_elem_type_size(const eSDNA_Type elem_nr);
 
-#endif
+#endif /* __DNA_GENFILE_H__ */

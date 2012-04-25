@@ -76,16 +76,6 @@ public:
 			delete sub.device;
 	}
 
-	bool support_full_kernel()
-	{
-		foreach(SubDevice& sub, devices) {
-			if(!sub.device->support_full_kernel())
-				return false;
-		}
-
-		return true;
-	}
-
 	const string& error_message()
 	{
 		foreach(SubDevice& sub, devices) {
@@ -97,38 +87,6 @@ public:
 		}
 
 		return error_msg;
-	}
-
-	string description()
-	{
-		/* create map to find duplicate descriptions */
-		map<string, int> dupli_map;
-		map<string, int>::iterator dt;
-
-		foreach(SubDevice& sub, devices) {
-			string key = sub.device->description();
-
-			if(dupli_map.find(key) == dupli_map.end())
-				dupli_map[key] = 1;
-			else
-				dupli_map[key]++;
-		}
-
-		/* generate string */
-		stringstream desc;
-		bool first = true;
-
-		for(dt = dupli_map.begin(); dt != dupli_map.end(); dt++) {
-			if(!first) desc << ", ";
-			first = false;
-
-			if(dt->second > 1)
-				desc << dt->second << "x " << dt->first;
-			else
-				desc << dt->first;
-		}
-
-		return desc.str();
 	}
 
 	bool load_kernels(bool experimental)
@@ -335,7 +293,7 @@ Device *device_multi_create(DeviceInfo& info, bool background)
 	return new MultiDevice(info, background);
 }
 
-static void device_multi_add(vector<DeviceInfo>& devices, DeviceType type, bool with_display, const char *id_fmt, int num)
+static bool device_multi_add(vector<DeviceInfo>& devices, DeviceType type, bool with_display, bool with_advanced_shading, const char *id_fmt, int num)
 {
 	DeviceInfo info;
 
@@ -344,8 +302,12 @@ static void device_multi_add(vector<DeviceInfo>& devices, DeviceType type, bool 
 	map<string, int>::iterator dt;
 	int num_added = 0, num_display = 0;
 
+	info.advanced_shading = with_advanced_shading;
+
 	foreach(DeviceInfo& subinfo, devices) {
 		if(subinfo.type == type) {
+			if(subinfo.advanced_shading != info.advanced_shading)
+				continue;
 			if(subinfo.display_device) {
 				if(with_display)
 					num_display++;
@@ -368,7 +330,7 @@ static void device_multi_add(vector<DeviceInfo>& devices, DeviceType type, bool 
 	}
 
 	if(num_added <= 1 || (with_display && num_display == 0))
-		return;
+		return false;
 
 	/* generate string */
 	stringstream desc;
@@ -422,17 +384,24 @@ static void device_multi_add(vector<DeviceInfo>& devices, DeviceType type, bool 
 		devices.push_back(info);
 	else
 		devices.insert(devices.begin(), info);
+	
+	return true;
 }
 
 void device_multi_info(vector<DeviceInfo>& devices)
 {
 	int num = 0;
-	device_multi_add(devices, DEVICE_CUDA, false, "CUDA_MULTI_%d", num++);
-	device_multi_add(devices, DEVICE_CUDA, true, "CUDA_MULTI_%d", num++);
+
+	if(!device_multi_add(devices, DEVICE_CUDA, false, true, "CUDA_MULTI_%d", num++))
+		device_multi_add(devices, DEVICE_CUDA, false, false, "CUDA_MULTI_%d", num++);
+	if(!device_multi_add(devices, DEVICE_CUDA, true, true, "CUDA_MULTI_%d", num++))
+		device_multi_add(devices, DEVICE_CUDA, true, false, "CUDA_MULTI_%d", num++);
 
 	num = 0;
-	device_multi_add(devices, DEVICE_OPENCL, false, "OPENCL_MULTI_%d", num++);
-	device_multi_add(devices, DEVICE_OPENCL, true, "OPENCL_MULTI_%d", num++);
+	if(!device_multi_add(devices, DEVICE_OPENCL, false, true, "OPENCL_MULTI_%d", num++))
+		device_multi_add(devices, DEVICE_OPENCL, false, false, "OPENCL_MULTI_%d", num++);
+	if(!device_multi_add(devices, DEVICE_OPENCL, true, true, "OPENCL_MULTI_%d", num++))
+		device_multi_add(devices, DEVICE_OPENCL, true, false, "OPENCL_MULTI_%d", num++);
 }
 
 CCL_NAMESPACE_END

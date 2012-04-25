@@ -32,7 +32,13 @@ def build_property_typemap(skip_classes):
         if issubclass(cls, skip_classes):
             continue
 
-        properties = cls.bl_rna.properties.keys()
+        ## to support skip-save we cant get all props
+        # properties = cls.bl_rna.properties.keys()
+        properties = []
+        for prop_id, prop in cls.bl_rna.properties.items():
+            if not prop.is_skip_save:
+                properties.append(prop_id)
+
         properties.remove("rna_type")
         property_typemap[attr] = properties
 
@@ -47,7 +53,8 @@ def rna2xml(fw=print_ln,
             root_node="",
             root_rna=None,  # must be set
             root_rna_skip=set(),
-            ident_val="    ",
+            root_ident="",
+            ident_val="  ",
             skip_classes=(bpy.types.Operator,
                           bpy.types.Panel,
                           bpy.types.KeyingSet,
@@ -134,7 +141,7 @@ def rna2xml(fw=print_ln,
                                     return number_to_str(s, subsubvalue_type)
                                 else:
                                     return " ".join([str_recursive(si) for si in s])
-                            
+
                             array_value = " ".join(str_recursive(v) for v in subvalue_rna)
 
                         node_attrs.append("%s=\"%s\"" % (prop, array_value))
@@ -143,13 +150,14 @@ def rna2xml(fw=print_ln,
 
         # declare + attributes
         if pretty_format:
-            tmp_str = "<%s " % value_type_name
-            tmp_ident = "\n" + ident + (" " * len(tmp_str))
-
-            fw("%s%s%s>\n" % (ident, tmp_str, tmp_ident.join(node_attrs)))
-
-            del tmp_str
-            del tmp_ident
+            if node_attrs:
+                tmp_str = "<%s " % value_type_name
+                tmp_ident = "\n" + ident + (" " * len(tmp_str))
+                fw("%s%s%s>\n" % (ident, tmp_str, tmp_ident.join(node_attrs)))
+                del tmp_str
+                del tmp_ident
+            else:
+                fw("%s<%s>\n" % (ident, value_type_name))
         else:
             fw("%s<%s %s>\n" % (ident, value_type_name, " ".join(node_attrs)))
 
@@ -173,10 +181,11 @@ def rna2xml(fw=print_ln,
     # needs re-workign to be generic
 
     if root_node:
-        fw("<%s>\n" % root_node)
+        fw("%s<%s>\n" % (root_ident, root_node))
 
     # bpy.data
     if method == 'DATA':
+        ident = root_ident + ident_val
         for attr in dir(root_rna):
 
             # exceptions
@@ -192,16 +201,16 @@ def rna2xml(fw=print_ln,
                 ls = None
 
             if type(ls) == list:
-                fw("%s<%s>\n" % (ident_val, attr))
+                fw("%s<%s>\n" % (ident, attr))
                 for blend_id in ls:
-                    rna2xml_node(ident_val + ident_val, blend_id, None)
+                    rna2xml_node(ident + ident_val, blend_id, None)
                 fw("%s</%s>\n" % (ident_val, attr))
     # any attribute
     elif method == 'ATTR':
-        rna2xml_node("", root_rna, None)
+        rna2xml_node(root_ident, root_rna, None)
 
     if root_node:
-        fw("</%s>\n" % root_node)
+        fw("%s</%s>\n" % (root_ident, root_node))
 
 
 def xml2rna(root_xml,
@@ -300,12 +309,12 @@ def xml2rna(root_xml,
     rna2xml_node(root_xml, root_rna)
 
 
-
 # -----------------------------------------------------------------------------
 # Utility function used by presets.
 # The idea is you can run a preset like a script with a few args.
 #
 # This roughly matches the operator 'bpy.ops.script.python_file_run'
+
 
 def _get_context_val(context, path):
     path_full = "context." + path
@@ -319,6 +328,7 @@ def _get_context_val(context, path):
         value = Ellipsis
 
     return value
+
 
 def xml_file_run(context, filepath, rna_map):
 
@@ -336,7 +346,7 @@ def xml_file_run(context, filepath, rna_map):
         value = _get_context_val(context, rna_path)
 
         if value is not Ellipsis and value is not None:
-            print("  loading XML: %r" % rna_path)
+            print("  loading XML: %r -> %r" % (filepath, rna_path))
             xml2rna(xml_node, root_rna=value)
 
 
@@ -350,7 +360,11 @@ def xml_file_write(context, filepath, rna_map):
     for rna_path, xml_tag in rna_map:
         # xml_tag is ignored, we get this from the rna
         value = _get_context_val(context, rna_path)
-        rna2xml(fw, root_rna=value, method='ATTR')
+        rna2xml(fw,
+                root_rna=value,
+                method='ATTR',
+                root_ident="  ",
+                ident_val="  ")
 
     fw("</bpy>\n")
     file.close()

@@ -101,7 +101,7 @@
 // correctly when GetStackTrace() is called with max_depth == 0.
 // Some code may do that.
 
-#if __MINGW32__
+#if defined(__MINGW32__) || defined(__FreeBSD__)
 # undef STACKTRACE_H
 #elif defined(HAVE_LIB_UNWIND)
 # define STACKTRACE_H "stacktrace_libunwind-inl.h"
@@ -161,6 +161,7 @@ typedef double WallTime;
 WallTime WallTime_Now();
 
 int32 GetMainThreadPid();
+bool PidHasChanged();
 
 pid_t GetTID();
 
@@ -214,6 +215,9 @@ struct CrashReason {
 };
 
 void SetCrashReason(const CrashReason* r);
+
+void InitGoogleLoggingUtilities(const char* argv0);
+void ShutdownGoogleLoggingUtilities();
 
 }  // namespace glog_internal_namespace_
 

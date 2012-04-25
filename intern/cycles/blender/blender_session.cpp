@@ -96,7 +96,7 @@ void BlenderSession::create_session()
 	if(b_rv3d)
 		sync->sync_view(b_v3d, b_rv3d, width, height);
 	else
-		sync->sync_camera(width, height);
+		sync->sync_camera(b_engine.camera_override(), width, height);
 
 	/* create session */
 	session = new Session(session_params);
@@ -116,9 +116,70 @@ void BlenderSession::free_session()
 	delete session;
 }
 
+static PassType get_pass_type(BL::RenderPass b_pass)
+{
+	switch(b_pass.type()) {
+		case BL::RenderPass::type_COMBINED:
+			return PASS_COMBINED;
+
+		case BL::RenderPass::type_Z:
+			return PASS_DEPTH;
+		case BL::RenderPass::type_NORMAL:
+			return PASS_NORMAL;
+		case BL::RenderPass::type_OBJECT_INDEX:
+			return PASS_OBJECT_ID;
+		case BL::RenderPass::type_UV:
+			return PASS_UV;
+		case BL::RenderPass::type_MATERIAL_INDEX:
+			return PASS_MATERIAL_ID;
+
+		case BL::RenderPass::type_DIFFUSE_DIRECT:
+			return PASS_DIFFUSE_DIRECT;
+		case BL::RenderPass::type_GLOSSY_DIRECT:
+			return PASS_GLOSSY_DIRECT;
+		case BL::RenderPass::type_TRANSMISSION_DIRECT:
+			return PASS_TRANSMISSION_DIRECT;
+
+		case BL::RenderPass::type_DIFFUSE_INDIRECT:
+			return PASS_DIFFUSE_INDIRECT;
+		case BL::RenderPass::type_GLOSSY_INDIRECT:
+			return PASS_GLOSSY_INDIRECT;
+		case BL::RenderPass::type_TRANSMISSION_INDIRECT:
+			return PASS_TRANSMISSION_INDIRECT;
+
+		case BL::RenderPass::type_DIFFUSE_COLOR:
+			return PASS_DIFFUSE_COLOR;
+		case BL::RenderPass::type_GLOSSY_COLOR:
+			return PASS_GLOSSY_COLOR;
+		case BL::RenderPass::type_TRANSMISSION_COLOR:
+			return PASS_TRANSMISSION_COLOR;
+
+		case BL::RenderPass::type_EMIT:
+			return PASS_EMISSION;
+		case BL::RenderPass::type_ENVIRONMENT:
+			return PASS_BACKGROUND;
+		case BL::RenderPass::type_AO:
+			return PASS_AO;
+		case BL::RenderPass::type_SHADOW:
+			return PASS_SHADOW;
+
+		case BL::RenderPass::type_DIFFUSE:
+		case BL::RenderPass::type_COLOR:
+		case BL::RenderPass::type_REFRACTION:
+		case BL::RenderPass::type_SPECULAR:
+		case BL::RenderPass::type_REFLECTION:
+		case BL::RenderPass::type_VECTOR:
+		case BL::RenderPass::type_MIST:
+			return PASS_NONE;
+	}
+	
+	return PASS_NONE;
+}
+
 void BlenderSession::render()
 {
 	/* get buffer parameters */
+	SessionParams session_params = BlenderSync::get_session_params(b_userpref, b_scene, background);
 	BufferParams buffer_params = BlenderSync::get_buffer_params(b_scene, b_rv3d, width, height);
 	int w = buffer_params.width, h = buffer_params.height;
 
@@ -132,19 +193,36 @@ void BlenderSession::render()
 	BL::RenderResult::layers_iterator b_iter;
 	BL::RenderLayers b_rr_layers(r.ptr);
 	
-	int active = 0;
-
 	/* render each layer */
-	for(b_rr.layers.begin(b_iter); b_iter != b_rr.layers.end(); ++b_iter, ++active) {
-		/* single layer render */
-		if(r.use_single_layer())
-			active = b_rr_layers.active_index();
-
+	for(b_rr.layers.begin(b_iter); b_iter != b_rr.layers.end(); ++b_iter) {
 		/* set layer */
 		b_rlay = *b_iter;
 
+		/* add passes */
+		vector<Pass> passes;
+		Pass::add(PASS_COMBINED, passes);
+
+		if(session_params.device.advanced_shading) {
+			BL::RenderLayer::passes_iterator b_pass_iter;
+			
+			for(b_rlay.passes.begin(b_pass_iter); b_pass_iter != b_rlay.passes.end(); ++b_pass_iter) {
+				BL::RenderPass b_pass(*b_pass_iter);
+				PassType pass_type = get_pass_type(b_pass);
+
+				if(pass_type != PASS_NONE)
+					Pass::add(pass_type, passes);
+			}
+		}
+
+		buffer_params.passes = passes;
+		scene->film->passes = passes;
+		scene->film->tag_update(scene);
+
+		/* update session */
+		session->reset(buffer_params, session_params.samples);
+
 		/* update scene */
-		sync->sync_data(b_v3d, active);
+		sync->sync_data(b_v3d, b_iter->name().c_str());
 
 		/* render */
 		session->start();
@@ -165,22 +243,41 @@ void BlenderSession::write_render_result()
 {
 	/* get state */
 	RenderBuffers *buffers = session->buffers;
+
+	/* copy data from device */
+	if(!buffers->copy_from_device())
+		return;
+
+	BufferParams& params = buffers->params;
 	float exposure = scene->film->exposure;
 	double total_time, sample_time;
 	int sample;
+
 	session->progress.get_sample(sample, total_time, sample_time);
 
-	/* get pixels */
-	float4 *pixels = buffers->copy_from_device(exposure, sample);
+	vector<float> pixels(params.width*params.height*4);
 
-	if(!pixels)
-		return;
+	/* copy each pass */
+	BL::RenderLayer::passes_iterator b_iter;
+	
+	for(b_rlay.passes.begin(b_iter); b_iter != b_rlay.passes.end(); ++b_iter) {
+		BL::RenderPass b_pass(*b_iter);
 
-	/* write pixels */
-	rna_RenderLayer_rect_set(&b_rlay.ptr, (float*)pixels);
+		/* find matching pass type */
+		PassType pass_type = get_pass_type(b_pass);
+		int components = b_pass.channels();
+
+		/* copy pixels */
+		if(buffers->get_pass(pass_type, exposure, sample, components, &pixels[0]))
+			rna_RenderPass_rect_set(&b_pass.ptr, &pixels[0]);
+	}
+
+	/* copy combined pass */
+	if(buffers->get_pass(PASS_COMBINED, exposure, sample, 4, &pixels[0]))
+		rna_RenderLayer_rect_set(&b_rlay.ptr, &pixels[0]);
+
+	/* tag result as updated */
 	RE_engine_update_result((RenderEngine*)b_engine.ptr.data, (RenderResult*)b_rr.ptr.data);
-
-	delete [] pixels;
 }
 
 void BlenderSession::synchronize()
@@ -217,7 +314,7 @@ void BlenderSession::synchronize()
 	if(b_rv3d)
 		sync->sync_view(b_v3d, b_rv3d, width, height);
 	else
-		sync->sync_camera(width, height);
+		sync->sync_camera(b_engine.camera_override(), width, height);
 
 	/* unlock */
 	session->scene->mutex.unlock();
@@ -293,7 +390,7 @@ void BlenderSession::get_progress(float& progress, double& total_time)
 
 void BlenderSession::update_status_progress()
 {
-	string status, substatus;
+	string timestatus, status, substatus;
 	float progress;
 	double total_time;
 	char time_str[128];
@@ -302,13 +399,13 @@ void BlenderSession::update_status_progress()
 	get_progress(progress, total_time);
 
 	BLI_timestr(total_time, time_str);
-	status = "Elapsed: " + string(time_str) + " | " + status;
+	timestatus = "Elapsed: " + string(time_str) + " | ";
 
 	if(substatus.size() > 0)
 		status += " | " + substatus;
 
 	if(status != last_status) {
-		RE_engine_update_stats((RenderEngine*)b_engine.ptr.data, "", status.c_str());
+		RE_engine_update_stats((RenderEngine*)b_engine.ptr.data, "", (timestatus + status).c_str());
 		last_status = status;
 	}
 	if(progress != last_progress) {

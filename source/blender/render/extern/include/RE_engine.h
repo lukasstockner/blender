@@ -29,8 +29,8 @@
  *  \ingroup render
  */
 
-#ifndef RE_ENGINE_H
-#define RE_ENGINE_H
+#ifndef __RE_ENGINE_H__
+#define __RE_ENGINE_H__
 
 #include "DNA_listBase.h"
 #include "RNA_types.h"
@@ -84,6 +84,7 @@ typedef struct RenderEngine {
 	void *py_instance;
 
 	int flag;
+	struct Object *camera_override;
 
 	struct Render *re;
 	ListBase fullresult;
@@ -116,5 +117,5 @@ void RE_engines_exit(void);
 
 RenderEngineType *RE_engines_find(const char *idname);
 
-#endif /* RE_ENGINE_H */
+#endif /* __RE_ENGINE_H__ */
 

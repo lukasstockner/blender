@@ -147,9 +147,8 @@ if toolset:
         env.Tool('mstoolkit', [toolpath])
     else:
         env = BlenderEnvironment(tools=[toolset], ENV = os.environ)
-        # xxx commented out, as was supressing warnings under mingw..
-        #if env:
-        #    btools.SetupSpawn(env)
+        if env:
+            btools.SetupSpawn(env)
 else:
     if bitness==64 and platform=='win32':
         env = BlenderEnvironment(ENV = os.environ, MSVS_ARCH='amd64')
@@ -252,6 +251,7 @@ if 'blenderlite' in B.targets:
     target_env_defs['WITH_BF_REDCODE'] = False
     target_env_defs['WITH_BF_DDS'] = False
     target_env_defs['WITH_BF_CINEON'] = False
+    target_env_defs['WITH_BF_FRAMESERVER'] = False
     target_env_defs['WITH_BF_HDR'] = False
     target_env_defs['WITH_BF_ZLIB'] = False
     target_env_defs['WITH_BF_SDL'] = False
@@ -262,11 +262,13 @@ if 'blenderlite' in B.targets:
     target_env_defs['BF_BUILDINFO'] = False
     target_env_defs['WITH_BF_FLUID'] = False
     target_env_defs['WITH_BF_OCEANSIM'] = False
+    target_env_defs['WITH_BF_SMOKE'] = False
     target_env_defs['WITH_BF_DECIMATE'] = False
     target_env_defs['WITH_BF_BOOLEAN'] = False
     target_env_defs['WITH_BF_REMESH'] = False
     target_env_defs['WITH_BF_PYTHON'] = False
     target_env_defs['WITH_BF_3DMOUSE'] = False
+    target_env_defs['WITH_BF_LIBMV'] = False
     
     # Merge blenderlite, let command line to override
     for k,v in target_env_defs.iteritems():
@@ -275,7 +277,7 @@ if 'blenderlite' in B.targets:
 
 # Extended OSX_SDK and 3D_CONNEXION_CLIENT_LIBRARY and JAckOSX detection for OSX
 if env['OURPLATFORM']=='darwin':
-    print B.bc.OKGREEN + "Detected Xcode version: -- " + B.bc.ENDC + env['XCODE_CUR_VER'][:9] + " --"
+    print B.bc.OKGREEN + "Detected Xcode version: -- " + B.bc.ENDC + env['XCODE_CUR_VER'] + " --"
     print "Available " + env['MACOSX_SDK_CHECK']
     if not 'Mac OS X 10.5' in env['MACOSX_SDK_CHECK']:
         print  B.bc.OKGREEN + "MacOSX10.5.sdk not available:" + B.bc.ENDC + " using MacOSX10.6.sdk"
@@ -757,6 +759,7 @@ if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
 
     if env['WITH_BF_OPENAL']:
         dllsources.append('${LCGDIR}/openal/lib/OpenAL32.dll')
+        dllsources.append('${LCGDIR}/openal/lib/wrap_oal.dll')
 
     if env['WITH_BF_SNDFILE']:
         dllsources.append('${LCGDIR}/sndfile/lib/libsndfile-1.dll')

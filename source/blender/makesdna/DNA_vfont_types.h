@@ -31,8 +31,8 @@
  *  \author nzc
  */
 
-#ifndef DNA_VFONT_TYPES_H
-#define DNA_VFONT_TYPES_H
+#ifndef __DNA_VFONT_TYPES_H__
+#define __DNA_VFONT_TYPES_H__
 
 #include "DNA_ID.h"
 
@@ -42,7 +42,7 @@ struct VFontData;
 typedef struct VFont {
 	ID id;
 	
-	char name[256];
+	char name[1024]; /* 1024 = FILE_MAX */
 	
 	struct VFontData *data;
 	struct PackedFile * packedfile;

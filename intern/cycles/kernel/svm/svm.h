@@ -104,6 +104,12 @@ __device_inline float4 read_node_float(KernelGlobals *kg, int *offset)
 	return f;
 }
 
+__device_inline float4 fetch_node_float(KernelGlobals *kg, int offset)
+{
+	uint4 node = kernel_tex_fetch(__svm_nodes, offset);
+	return make_float4(__int_as_float(node.x), __int_as_float(node.y), __int_as_float(node.z), __int_as_float(node.w));
+}
+
 __device_inline void decode_node_uchar4(uint i, uint *x, uint *y, uint *z, uint *w)
 {
 	if(x) *x = (i & 0xFF);
@@ -131,6 +137,7 @@ CCL_NAMESPACE_END
 #include "svm_hsv.h"
 #include "svm_image.h"
 #include "svm_gamma.h"
+#include "svm_brightness.h"
 #include "svm_invert.h"
 #include "svm_light_path.h"
 #include "svm_magic.h"
@@ -139,6 +146,7 @@ CCL_NAMESPACE_END
 #include "svm_wave.h"
 #include "svm_math.h"
 #include "svm_mix.h"
+#include "svm_ramp.h"
 #include "svm_sepcomb_rgb.h"
 #include "svm_musgrave.h"
 #include "svm_sky.h"
@@ -270,6 +278,9 @@ __device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderT
 			case NODE_GAMMA:
 				svm_node_gamma(sd, stack, node.y, node.z, node.w);
 				break;
+			case NODE_BRIGHTCONTRAST:
+				svm_node_brightness(sd, stack, node.y, node.z, node.w);
+				break;
 			case NODE_MIX:
 				svm_node_mix(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
@@ -326,6 +337,12 @@ __device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderT
 				break;
 			case NODE_EMISSION_SET_WEIGHT_TOTAL:
 				svm_node_emission_set_weight_total(kg, sd, node.y, node.z, node.w);
+				break;
+			case NODE_RGB_RAMP:
+				svm_node_rgb_ramp(kg, sd, stack, node, &offset);
+				break;
+			case NODE_RGB_CURVES:
+				svm_node_rgb_curves(kg, sd, stack, node, &offset);
 				break;
 			case NODE_END:
 			default:

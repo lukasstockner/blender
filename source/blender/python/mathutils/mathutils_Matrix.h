@@ -31,8 +31,8 @@
  */
 
 
-#ifndef MATHUTILS_MATRIX_H
-#define MATHUTILS_MATRIX_H
+#ifndef __MATHUTILS_MATRIX_H__
+#define __MATHUTILS_MATRIX_H__
 
 extern PyTypeObject matrix_Type;
 extern PyTypeObject matrix_access_Type;
@@ -71,11 +71,11 @@ PyObject *Matrix_CreatePyObject(float *mat,
                                 int type, PyTypeObject *base_type);
 PyObject *Matrix_CreatePyObject_cb(PyObject *user,
                                    const unsigned short num_col, const unsigned short num_row,
-                                   int cb_type, int cb_subtype);
+                                   unsigned char cb_type, unsigned char cb_subtype);
 
-extern int mathutils_matrix_row_cb_index; /* default */
-extern int mathutils_matrix_col_cb_index;
-extern int mathutils_matrix_translation_cb_index;
+extern unsigned char mathutils_matrix_row_cb_index; /* default */
+extern unsigned char mathutils_matrix_col_cb_index;
+extern unsigned char mathutils_matrix_translation_cb_index;
 
 extern struct Mathutils_Callback mathutils_matrix_row_cb; /* default */
 extern struct Mathutils_Callback mathutils_matrix_col_cb;
@@ -83,4 +83,4 @@ extern struct Mathutils_Callback mathutils_matrix_translation_cb;
 
 void matrix_as_3x3(float mat[3][3], MatrixObject *self);
 
-#endif /* MATHUTILS_MATRIX_H */
+#endif /* __MATHUTILS_MATRIX_H__ */

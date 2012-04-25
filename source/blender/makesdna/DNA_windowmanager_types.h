@@ -28,8 +28,8 @@
  *  \ingroup DNA
  */
 
-#ifndef DNA_WINDOWMANAGER_TYPES_H
-#define DNA_WINDOWMANAGER_TYPES_H
+#ifndef __DNA_WINDOWMANAGER_TYPES_H__
+#define __DNA_WINDOWMANAGER_TYPES_H__
 
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
@@ -85,7 +85,7 @@ enum ReportListFlags {
 	RPT_PRINT = 1,
 	RPT_STORE = 2,
 	RPT_FREE = 4,
-	RPT_OP_HOLD = 8 /* dont move them into the operator global list (caller will use) */
+	RPT_OP_HOLD = 8 /* don't move them into the operator global list (caller will use) */
 };
 #
 #
@@ -98,7 +98,7 @@ typedef struct Report {
 	const char *message;
 } Report;
 
-/* saved in the wm, dont remove */
+/* saved in the wm, don't remove */
 typedef struct ReportList {
 	ListBase list;
 	int printlevel; /* ReportType */
@@ -159,7 +159,7 @@ typedef struct wmWindowManager {
 typedef struct wmWindow {
 	struct wmWindow *next, *prev;
 	
-	void *ghostwin;		/* dont want to include ghost.h stuff */
+	void *ghostwin;		/* don't want to include ghost.h stuff */
 	
 	int winid;		/* winid also in screens, is for retrieving this window after read */
 
@@ -168,7 +168,7 @@ typedef struct wmWindow {
 	
 	struct bScreen *screen;		/* active screen */
 	struct bScreen *newscreen;	/* temporary when switching */
-	char screenname[32];	/* MAX_ID_NAME for matching window with active screen after file read */
+	char screenname[64];	/* MAX_ID_NAME for matching window with active screen after file read */
 	
 	short posx, posy, sizex, sizey;	/* window coords */
 	short windowstate;	/* borderless, full */
@@ -197,7 +197,7 @@ typedef struct wmWindow {
 	ListBase gesture;		/* gesture stuff */
 } wmWindow;
 
-/* should be somthing like DNA_EXCLUDE 
+/* should be something like DNA_EXCLUDE 
  * but the preprocessor first removes all comments, spaces etc */
 
 #
@@ -222,6 +222,7 @@ typedef struct wmKeyMapItem {
 	IDProperty *properties;			/* operator properties, assigned to ptr->data and can be written to a file */
 	
 	/* modal */
+	char propvalue_str[64];			/* runtime temporary storage for loading */
 	short propvalue;				/* if used, the item is from modal map */
 
 	/* event */
@@ -338,4 +339,4 @@ typedef struct wmOperator {
 /* wmOperator flag */
 #define OP_GRAB_POINTER			1
 
-#endif /* DNA_WINDOWMANAGER_TYPES_H */
+#endif /* __DNA_WINDOWMANAGER_TYPES_H__ */

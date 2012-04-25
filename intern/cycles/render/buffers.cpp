@@ -22,6 +22,7 @@
 #include "device.h"
 
 #include "util_debug.h"
+#include "util_foreach.h"
 #include "util_hash.h"
 #include "util_image.h"
 #include "util_math.h"
@@ -30,6 +31,48 @@
 #include "util_types.h"
 
 CCL_NAMESPACE_BEGIN
+
+/* Buffer Params */
+
+BufferParams::BufferParams()
+{
+	width = 0;
+	height = 0;
+
+	full_x = 0;
+	full_y = 0;
+	full_width = 0;
+	full_height = 0;
+
+	Pass::add(PASS_COMBINED, passes);
+}
+
+void BufferParams::get_offset_stride(int& offset, int& stride)
+{
+	offset = -(full_x + full_y*width);
+	stride = width;
+}
+
+bool BufferParams::modified(const BufferParams& params)
+{
+	return !(full_x == params.full_x
+		&& full_y == params.full_y
+		&& width == params.width
+		&& height == params.height
+		&& full_width == params.full_width
+		&& full_height == params.full_height
+		&& Pass::equals(passes, params.passes));
+}
+
+int BufferParams::get_passes_size()
+{
+	int size = 0;
+
+	foreach(Pass& pass, passes)
+		size += pass.components;
+	
+	return align_up(size, 4);
+}
 
 /* Render Buffers */
 
@@ -64,7 +107,7 @@ void RenderBuffers::reset(Device *device, BufferParams& params_)
 	device_free();
 	
 	/* allocate buffer */
-	buffer.resize(params.width, params.height);
+	buffer.resize(params.width*params.height*params.get_passes_size());
 	device->mem_alloc(buffer, MEM_READ_WRITE);
 	device->mem_zero(buffer);
 
@@ -76,37 +119,126 @@ void RenderBuffers::reset(Device *device, BufferParams& params_)
 	
 	for(x=0; x<width; x++)
 		for(y=0; y<height; y++)
-			init_state[x + y*width] = hash_int_2d(x, y);
+			init_state[x + y*width] = hash_int_2d(params.full_x+x, params.full_y+y);
 
 	device->mem_alloc(rng_state, MEM_READ_WRITE);
 	device->mem_copy_to(rng_state);
 }
 
-float4 *RenderBuffers::copy_from_device(float exposure, int sample)
+bool RenderBuffers::copy_from_device()
 {
 	if(!buffer.device_pointer)
-		return NULL;
+		return false;
 
-	device->mem_copy_from(buffer, 0, params.width, params.height, sizeof(float4));
+	device->mem_copy_from(buffer, 0, params.width, params.height, params.get_passes_size()*sizeof(float));
 
-	float4 *out = new float4[params.width*params.height];
-	float4 *in = (float4*)buffer.data_pointer;
-	float scale = 1.0f/(float)sample;
-	
-	for(int i = params.width*params.height - 1; i >= 0; i--) {
-		float4 rgba = in[i]*scale;
+	return true;
+}
 
-		rgba.x = rgba.x*exposure;
-		rgba.y = rgba.y*exposure;
-		rgba.z = rgba.z*exposure;
+bool RenderBuffers::get_pass(PassType type, float exposure, int sample, int components, float *pixels)
+{
+	int pass_offset = 0;
 
-		/* clamp since alpha might be > 1.0 due to russian roulette */
-		rgba.w = clamp(rgba.w, 0.0f, 1.0f);
+	foreach(Pass& pass, params.passes) {
+		if(pass.type != type) {
+			pass_offset += pass.components;
+			continue;
+		}
 
-		out[i] = rgba;
+		float *in = (float*)buffer.data_pointer + pass_offset;
+		int pass_stride = params.get_passes_size();
+
+		float scale = (pass.filter)? 1.0f/(float)sample: 1.0f;
+		float scale_exposure = (pass.exposure)? scale*exposure: scale;
+
+		int size = params.width*params.height;
+
+		if(components == 1) {
+			assert(pass.components == components);
+
+			/* scalar */
+			if(type == PASS_DEPTH) {
+				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
+					float f = *in;
+					pixels[0] = (f == 0.0f)? 1e10f: f*scale_exposure;
+				}
+			}
+			else {
+				for(int i = 0; i < size; i++, in += pass_stride, pixels++) {
+					float f = *in;
+					pixels[0] = f*scale_exposure;
+				}
+			}
+		}
+		else if(components == 3) {
+			assert(pass.components == 4);
+
+			if(pass.divide_type != PASS_NONE) {
+				/* RGB lighting passes that need to divide out color */
+				pass_offset = 0;
+				foreach(Pass& color_pass, params.passes) {
+					if(color_pass.type == pass.divide_type)
+						break;
+					pass_offset += color_pass.components;
+				}
+
+				float *in_divide = (float*)buffer.data_pointer + pass_offset;
+
+				for(int i = 0; i < size; i++, in += pass_stride, in_divide += pass_stride, pixels += 3) {
+					float3 f = make_float3(in[0], in[1], in[2]);
+					float3 f_divide = make_float3(in_divide[0], in_divide[1], in_divide[2]);
+
+					f = safe_divide_color(f*exposure, f_divide);
+
+					pixels[0] = f.x;
+					pixels[1] = f.y;
+					pixels[2] = f.z;
+				}
+			}
+			else {
+				/* RGB/vector */
+				for(int i = 0; i < size; i++, in += pass_stride, pixels += 3) {
+					float3 f = make_float3(in[0], in[1], in[2]);
+
+					pixels[0] = f.x*scale_exposure;
+					pixels[1] = f.y*scale_exposure;
+					pixels[2] = f.z*scale_exposure;
+				}
+			}
+		}
+		else if(components == 4) {
+			assert(pass.components == components);
+
+			/* RGBA */
+			if(type == PASS_SHADOW) {
+				for(int i = 0; i < size; i++, in += pass_stride, pixels += 4) {
+					float4 f = make_float4(in[0], in[1], in[2], in[3]);
+					float invw = (f.w > 0.0f)? 1.0f/f.w: 1.0f;
+
+					pixels[0] = f.x*invw;
+					pixels[1] = f.y*invw;
+					pixels[2] = f.z*invw;
+					pixels[3] = 1.0f;
+				}
+			}
+			else {
+				for(int i = 0; i < size; i++, in += pass_stride, pixels += 4) {
+					float4 f = make_float4(in[0], in[1], in[2], in[3]);
+
+					pixels[0] = f.x*scale_exposure;
+					pixels[1] = f.y*scale_exposure;
+					pixels[2] = f.z*scale_exposure;
+
+					/* clamp since alpha might be > 1.0 due to russian roulette */
+					pixels[3] = clamp(f.w*scale, 0.0f, 1.0f);
+				}
+			}
+		}
+
+		return true;
 	}
 
-	return out;
+	return false;
 }
 
 /* Display Buffer */
@@ -155,36 +287,10 @@ void DisplayBuffer::draw_set(int width, int height)
 	draw_height = height;
 }
 
-void DisplayBuffer::draw_transparency_grid()
-{
-	GLubyte checker_stipple_sml[32*32/8] = {
-		255,0,255,0,255,0,255,0,255,0,255,0,255,0,255,0, \
-		255,0,255,0,255,0,255,0,255,0,255,0,255,0,255,0, \
-		0,255,0,255,0,255,0,255,0,255,0,255,0,255,0,255, \
-		0,255,0,255,0,255,0,255,0,255,0,255,0,255,0,255, \
-		255,0,255,0,255,0,255,0,255,0,255,0,255,0,255,0, \
-		255,0,255,0,255,0,255,0,255,0,255,0,255,0,255,0, \
-		0,255,0,255,0,255,0,255,0,255,0,255,0,255,0,255, \
-		0,255,0,255,0,255,0,255,0,255,0,255,0,255,0,255, \
-	};
-
-	glColor4ub(50, 50, 50, 255);
-	glRectf(0, 0, params.width, params.height);
-	glEnable(GL_POLYGON_STIPPLE);
-	glColor4ub(55, 55, 55, 255);
-	glPolygonStipple(checker_stipple_sml);
-	glRectf(0, 0, params.width, params.height);
-	glDisable(GL_POLYGON_STIPPLE);
-}
-
 void DisplayBuffer::draw(Device *device)
 {
-	if(draw_width != 0 && draw_height != 0) {
-		if(transparent)
-			draw_transparency_grid();
-
+	if(draw_width != 0 && draw_height != 0)
 		device->draw_pixels(rgba, 0, draw_width, draw_height, 0, params.width, params.height, transparent);
-	}
 }
 
 bool DisplayBuffer::draw_ready()

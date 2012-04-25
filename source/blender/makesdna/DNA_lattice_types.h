@@ -29,8 +29,8 @@
  *  \ingroup DNA
  */
 
-#ifndef DNA_LATTICE_TYPES_H
-#define DNA_LATTICE_TYPES_H
+#ifndef __DNA_LATTICE_TYPES_H__
+#define __DNA_LATTICE_TYPES_H__
 
 #include "DNA_defs.h"
 #include "DNA_ID.h"
@@ -66,7 +66,7 @@ typedef struct Lattice {
 	struct Key *key;
 	
 	struct MDeformVert *dvert;
-	char vgroup[32]; /* multiply the influence */
+	char vgroup[64]; /* multiply the influence, MAX_VGROUP_NAME */
 	
 	/* used while deforming, always free and NULL after use */
 	float *latticedata;

@@ -30,8 +30,8 @@
  *  \author nzc
  */
 
-#ifndef DNA_SOUND_TYPES_H
-#define DNA_SOUND_TYPES_H
+#ifndef __DNA_SOUND_TYPES_H__
+#define __DNA_SOUND_TYPES_H__
 
 #include "DNA_listBase.h"
 #include "DNA_ID.h"
@@ -49,7 +49,7 @@ typedef struct bSound {
 	/**
 	 * The path to the sound file.
 	 */
-	char name[240];
+	char name[1024];  /* 1024 = FILE_MAX */
 
 	/**
 	 * The packed file.
@@ -75,8 +75,9 @@ typedef struct bSound {
 	int flags;
 	int pad;
 
-/**	currently	int type;
-	struct bSound *child_sound;*/
+	/* unused currently
+	int type;
+	struct bSound *child_sound; */
 
 	/**
 	 * The audaspace handle for cache.
@@ -94,17 +95,19 @@ typedef struct bSound {
 	 */
 	void *playback_handle;
 
-/**	XXX unused currently	// SOUND_TYPE_LIMITER
-	float start, end;*/
+	/* XXX unused currently	(SOUND_TYPE_LIMITER) */
+	/* float start, end; */
 } bSound;
 
-/* XXX unused currently
+/* XXX unused currently */
+#if 0
 typedef enum eSound_Type {
 	SOUND_TYPE_INVALID = -1,
 	SOUND_TYPE_FILE = 0,
 	SOUND_TYPE_BUFFER,
 	SOUND_TYPE_LIMITER
-} eSound_Type;*/
+} eSound_Type;
+#endif
 
 /* spacesound->flag */
 #define SND_DRAWFRAMES	1

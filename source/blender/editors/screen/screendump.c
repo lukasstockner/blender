@@ -56,6 +56,8 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
+#include "UI_interface.h"
+
 #include "WM_types.h"
 #include "WM_api.h"
 
@@ -69,6 +71,8 @@ typedef struct ScreenshotData {
 	unsigned int *dumprect;
 	int dumpsx, dumpsy;
 	rcti crop;
+
+	ImageFormatData im_format;
 } ScreenshotData;
 
 /* get shot from frontbuffer */
@@ -106,16 +110,20 @@ static int screenshot_data_create(bContext *C, wmOperator *op)
 	
 	dumprect= screenshot(C, &dumpsx, &dumpsy);
 
-	if(dumprect) {
+	if (dumprect) {
 		ScreenshotData *scd= MEM_callocN(sizeof(ScreenshotData), "screenshot");
 		ScrArea *sa= CTX_wm_area(C);
 		
 		scd->dumpsx= dumpsx;
 		scd->dumpsy= dumpsy;
 		scd->dumprect= dumprect;
-		if(sa)
+		if (sa) {
 			scd->crop= sa->totrct;
-		op->customdata= scd;
+		}
+
+		BKE_imformat_defaults(&scd->im_format);
+
+		op->customdata = scd;
 
 		return TRUE;
 	}
@@ -129,8 +137,8 @@ static void screenshot_data_free(wmOperator *op)
 {
 	ScreenshotData *scd= op->customdata;
 
-	if(scd) {
-		if(scd->dumprect)
+	if (scd) {
+		if (scd->dumprect)
 			MEM_freeN(scd->dumprect);
 		MEM_freeN(scd);
 		op->customdata= NULL;
@@ -143,8 +151,8 @@ static void screenshot_crop(ImBuf *ibuf, rcti crop)
 	unsigned int *from= ibuf->rect + crop.ymin*ibuf->x + crop.xmin;
 	int y, cropw= crop.xmax - crop.xmin, croph = crop.ymax - crop.ymin;
 
-	if(cropw > 0 && croph > 0) {
-		for(y=0; y<croph; y++, to+=cropw, from+=ibuf->x)
+	if (cropw > 0 && croph > 0) {
+		for (y=0; y<croph; y++, to+=cropw, from+=ibuf->x)
 			memmove(to, from, sizeof(unsigned int)*cropw);
 
 		ibuf->x= cropw;
@@ -156,36 +164,33 @@ static int screenshot_exec(bContext *C, wmOperator *op)
 {
 	ScreenshotData *scd= op->customdata;
 
-	if(scd == NULL) {
+	if (scd == NULL) {
 		/* when running exec directly */
 		screenshot_data_create(C, op);
 		scd= op->customdata;
 	}
 
-	if(scd) {
-		if(scd->dumprect) {
-			Scene *scene= CTX_data_scene(C);
+	if (scd) {
+		if (scd->dumprect) {
 			ImBuf *ibuf;
 			char path[FILE_MAX];
 
 			RNA_string_get(op->ptr, "filepath", path);
-
-			BLI_strncpy(G.ima, path, sizeof(G.ima));
 			BLI_path_abs(path, G.main->name);
 
-			/* BKE_add_image_extension() checks for if extension was already set */
-			if(scene->r.scemode & R_EXTENSION)
-				if(strlen(path)<FILE_MAX-5)
-					BKE_add_image_extension(path, scene->r.im_format.imtype);
-
+			/* operator ensures the extension */
 			ibuf= IMB_allocImBuf(scd->dumpsx, scd->dumpsy, 24, 0);
 			ibuf->rect= scd->dumprect;
 
 			/* crop to show only single editor */
-			if(!RNA_boolean_get(op->ptr, "full"))
+			if (!RNA_boolean_get(op->ptr, "full"))
 				screenshot_crop(ibuf, scd->crop);
 
-			BKE_write_ibuf(ibuf, path, &scene->r.im_format);
+			if (scd->im_format.planes == R_IMF_PLANES_BW) {
+				/* bw screenshot? - users will notice if it fails! */
+				IMB_color_to_bw(ibuf);
+			}
+			BKE_write_ibuf(ibuf, path, &scd->im_format);
 
 			IMB_freeImBuf(ibuf);
 		}
@@ -197,11 +202,12 @@ static int screenshot_exec(bContext *C, wmOperator *op)
 
 static int screenshot_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
 {
-	if(screenshot_data_create(C, op)) {
-		if(RNA_property_is_set(op->ptr, "filepath"))
+	if (screenshot_data_create(C, op)) {
+		if (RNA_struct_property_is_set(op->ptr, "filepath"))
 			return screenshot_exec(C, op);
-		
-		RNA_string_set(op->ptr, "filepath", G.ima);
+
+		/* extension is added by 'screenshot_check' after */
+		RNA_string_set(op->ptr, "filepath", G.relbase_valid ? G.main->name : "//screen");
 		
 		WM_event_add_fileselect(C, op);
 	
@@ -210,25 +216,56 @@ static int screenshot_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED(event)
 	return OPERATOR_CANCELLED;
 }
 
+static int screenshot_check(bContext *UNUSED(C), wmOperator *op)
+{
+	ScreenshotData *scd = op->customdata;
+	return WM_operator_filesel_ensure_ext_imtype(op, scd->im_format.imtype);
+}
+
 static int screenshot_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	screenshot_data_free(op);
 	return OPERATOR_CANCELLED;
 }
 
+static int screenshot_draw_check_prop(PointerRNA *UNUSED(ptr), PropertyRNA *prop)
+{
+	const char *prop_id = RNA_property_identifier(prop);
+
+	return !(strcmp(prop_id, "filepath") == 0);
+}
+
+static void screenshot_draw(bContext *UNUSED(C), wmOperator *op)
+{
+	uiLayout *layout = op->layout;
+	ScreenshotData *scd = op->customdata;
+	PointerRNA ptr;
+
+	/* image template */
+	RNA_pointer_create(NULL, &RNA_ImageFormatSettings, &scd->im_format, &ptr);
+	uiTemplateImageSettings(layout, &ptr);
+
+	/* main draw call */
+	RNA_pointer_create(NULL, op->type->srna, op->properties, &ptr);
+	uiDefAutoButsRNA(layout, &ptr, screenshot_draw_check_prop, '\0');
+}
+
+
 void SCREEN_OT_screenshot(wmOperatorType *ot)
 {
-	ot->name= "Save Screenshot"; /* weak: opname starting with 'save' makes filewindow give save-over */
-	ot->idname= "SCREEN_OT_screenshot";
+	ot->name = "Save Screenshot"; /* weak: opname starting with 'save' makes filewindow give save-over */
+	ot->idname = "SCREEN_OT_screenshot";
 	
-	ot->invoke= screenshot_invoke;
-	ot->exec= screenshot_exec;
-	ot->poll= WM_operator_winactive;
-	ot->cancel= screenshot_cancel;
+	ot->invoke = screenshot_invoke;
+	ot->check = screenshot_check;
+	ot->exec = screenshot_exec;
+	ot->cancel = screenshot_cancel;
+	ot->ui = screenshot_draw;
+	ot->poll = WM_operator_winactive;
 	
-	ot->flag= 0;
+	ot->flag = 0;
 	
-	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE, FILE_SPECIAL, FILE_SAVE, WM_FILESEL_FILEPATH);
+	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE, FILE_SPECIAL, FILE_SAVE, WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
 	RNA_def_boolean(ot->srna, "full", 1, "Full Screen", "");
 }
 
@@ -249,7 +286,7 @@ static void screenshot_freejob(void *sjv)
 {
 	ScreenshotJob *sj= sjv;
 	
-	if(sj->dumprect)
+	if (sj->dumprect)
 		MEM_freeN(sj->dumprect);
 	
 	MEM_freeN(sj);
@@ -262,7 +299,7 @@ static void screenshot_updatejob(void *sjv)
 	ScreenshotJob *sj= sjv;
 	unsigned int *dumprect;
 	
-	if(sj->dumprect==NULL) {
+	if (sj->dumprect==NULL) {
 		dumprect= MEM_mallocN(sizeof(int) * sj->dumpsx * sj->dumpsy, "dumprect");
 		glReadPixels(sj->x, sj->y, sj->dumpsx, sj->dumpsy, GL_RGBA, GL_UNSIGNED_BYTE, dumprect);
 		glFinish();
@@ -283,8 +320,8 @@ static void screenshot_startjob(void *sjv, short *stop, short *do_update, float 
 	rd.frs_sec= U.scrcastfps;
 	rd.frs_sec_base= 1.0f;
 	
-	if(BKE_imtype_is_movie(rd.im_format.imtype)) {
-		if(!mh->start_movie(sj->scene, &rd, sj->dumpsx, sj->dumpsy, &sj->reports)) {
+	if (BKE_imtype_is_movie(rd.im_format.imtype)) {
+		if (!mh->start_movie(sj->scene, &rd, sj->dumpsx, sj->dumpsy, &sj->reports)) {
 			printf("screencast job stopped\n");
 			return;
 		}
@@ -297,16 +334,20 @@ static void screenshot_startjob(void *sjv, short *stop, short *do_update, float 
 	
 	*do_update= 1; // wait for opengl rect
 	
-	while(*stop==0) {
+	while (*stop==0) {
 		
-		if(sj->dumprect) {
+		if (sj->dumprect) {
 			
-			if(mh) {
-				if(mh->append_movie(&rd, rd.cfra, (int *)sj->dumprect, sj->dumpsx, sj->dumpsy, &sj->reports)) {
+			if (mh) {
+				if (mh->append_movie(&rd, rd.sfra, rd.cfra, (int *)sj->dumprect,
+				                    sj->dumpsx, sj->dumpsy, &sj->reports))
+				{
 					BKE_reportf(&sj->reports, RPT_INFO, "Appended frame: %d", rd.cfra);
 					printf("Appended frame %d\n", rd.cfra);
-				} else
+				}
+				else {
 					break;
+				}
 			}
 			else {
 				ImBuf *ibuf= IMB_allocImBuf(sj->dumpsx, sj->dumpsy, rd.im_format.planes, 0);
@@ -318,7 +359,7 @@ static void screenshot_startjob(void *sjv, short *stop, short *do_update, float 
 				ibuf->rect= sj->dumprect;
 				ok= BKE_write_ibuf(ibuf, name, &rd.im_format);
 				
-				if(ok==0) {
+				if (ok==0) {
 					printf("Write error: cannot save %s\n", name);
 					BKE_reportf(&sj->reports, RPT_INFO, "Write error: cannot save %s\n", name);
 					break;
@@ -344,7 +385,7 @@ static void screenshot_startjob(void *sjv, short *stop, short *do_update, float 
 			PIL_sleep_ms(U.scrcastwait);
 	}
 	
-	if(mh)
+	if (mh)
 		mh->end_movie();
 
 	BKE_report(&sj->reports, RPT_INFO, "Screencast job stopped");
@@ -357,7 +398,7 @@ static int screencast_exec(bContext *C, wmOperator *op)
 	ScreenshotJob *sj= MEM_callocN(sizeof(ScreenshotJob), "screenshot job");
 
 	/* setup sj */
-	if(RNA_boolean_get(op->ptr, "full")) {
+	if (RNA_boolean_get(op->ptr, "full")) {
 		wmWindow *win= CTX_wm_window(C);
 		sj->x= 0;
 		sj->y= 0;
@@ -390,14 +431,14 @@ static int screencast_exec(bContext *C, wmOperator *op)
 
 void SCREEN_OT_screencast(wmOperatorType *ot)
 {
-	ot->name= "Make Screencast";
-	ot->idname= "SCREEN_OT_screencast";
+	ot->name = "Make Screencast";
+	ot->idname = "SCREEN_OT_screencast";
 	
-	ot->invoke= WM_operator_confirm;
-	ot->exec= screencast_exec;
-	ot->poll= WM_operator_winactive;
+	ot->invoke = WM_operator_confirm;
+	ot->exec = screencast_exec;
+	ot->poll = WM_operator_winactive;
 	
-	ot->flag= 0;
+	ot->flag = 0;
 	
 	RNA_def_property(ot->srna, "filepath", PROP_STRING, PROP_FILEPATH);
 	RNA_def_boolean(ot->srna, "full", 1, "Full Screen", "");

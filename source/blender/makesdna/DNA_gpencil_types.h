@@ -27,8 +27,8 @@
  *  \ingroup DNA
  */
 
-#ifndef DNA_GPENCIL_TYPES_H
-#define DNA_GPENCIL_TYPES_H
+#ifndef __DNA_GPENCIL_TYPES_H__
+#define __DNA_GPENCIL_TYPES_H__
 
 #include "DNA_listBase.h"
 #include "DNA_ID.h"
@@ -132,7 +132,7 @@ typedef struct bGPdata {
 	int flag;				/* settings for this datablock */
 	
 	/* not-saved stroke buffer data (only used during paint-session) 
-	 * 	- buffer must be initialised before use, but freed after 
+	 * 	- buffer must be initialized before use, but freed after 
 	 *	  whole paint operation is over
 	 */
 	short sbuffer_size;			/* number of elements currently in cache */
@@ -160,4 +160,4 @@ typedef struct bGPdata {
 
 #define GP_DATA_DEPTH_STROKE_ENDPOINTS (1<<7)
 
-#endif /*  DNA_GPENCIL_TYPES_H */
+#endif /*  __DNA_GPENCIL_TYPES_H__ */

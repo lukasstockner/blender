@@ -28,8 +28,8 @@
  *  \ingroup edobj
  */
 
-#ifndef ED_OBJECT_INTERN_H
-#define ED_OBJECT_INTERN_H
+#ifndef __OBJECT_INTERN_H__
+#define __OBJECT_INTERN_H__
 
 struct wmOperatorType;
 struct KeyBlock;
@@ -96,14 +96,12 @@ void OBJECT_OT_game_physics_copy(struct wmOperatorType *ot);
 
 /* object_select.c */
 void OBJECT_OT_select_all(struct wmOperatorType *ot);
-void OBJECT_OT_select_inverse(struct wmOperatorType *ot);
 void OBJECT_OT_select_random(struct wmOperatorType *ot);
 void OBJECT_OT_select_by_type(struct wmOperatorType *ot);
 void OBJECT_OT_select_by_layer(struct wmOperatorType *ot);
 void OBJECT_OT_select_linked(struct wmOperatorType *ot);
 void OBJECT_OT_select_grouped(struct wmOperatorType *ot);
 void OBJECT_OT_select_mirror(struct wmOperatorType *ot);
-void OBJECT_OT_select_name(struct wmOperatorType *ot);
 void OBJECT_OT_select_same_group(struct wmOperatorType *ot);
 
 /* object_add.c */
@@ -216,6 +214,7 @@ void OBJECT_OT_vertex_group_move(struct wmOperatorType *ot);
 void OBJECT_OT_shape_key_add(struct wmOperatorType *ot);
 void OBJECT_OT_shape_key_remove(struct wmOperatorType *ot);
 void OBJECT_OT_shape_key_clear(struct wmOperatorType *ot);
+void OBJECT_OT_shape_key_retime(struct wmOperatorType *ot);
 void OBJECT_OT_shape_key_mirror(struct wmOperatorType *ot);
 void OBJECT_OT_shape_key_move(struct wmOperatorType *ot);
 
@@ -227,5 +226,5 @@ void OBJECT_OT_group_remove(struct wmOperatorType *ot);
 /* object_bake.c */
 void OBJECT_OT_bake_image(wmOperatorType *ot);
 
-#endif /* ED_OBJECT_INTERN_H */
+#endif /* __OBJECT_INTERN_H__ */
 

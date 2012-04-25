@@ -27,8 +27,8 @@
  *  \ingroup DNA
  */
 
-#ifndef DNA_ARMATURE_TYPES_H
-#define DNA_ARMATURE_TYPES_H
+#ifndef __DNA_ARMATURE_TYPES_H__
+#define __DNA_ARMATURE_TYPES_H__
 
 #include "DNA_listBase.h"
 #include "DNA_ID.h"
@@ -36,20 +36,20 @@
 struct AnimData;
 
 /* this system works on different transformation space levels;
-
-1) Bone Space;		with each Bone having own (0,0,0) origin
-2) Armature Space;  the rest position, in Object space, Bones Spaces are applied hierarchical
-3) Pose Space;		the animation position, in Object space
-4) World Space;		Object matrix applied to Pose or Armature space
-
-*/
+ *
+ * 1) Bone Space;      with each Bone having own (0,0,0) origin
+ * 2) Armature Space;  the rest position, in Object space, Bones Spaces are applied hierarchical
+ * 3) Pose Space;      the animation position, in Object space
+ * 4) World Space;     Object matrix applied to Pose or Armature space
+ *
+ */
 
 typedef struct Bone {
 	struct Bone		*next, *prev;	/*	Next/prev elements within this list	*/
 	IDProperty 		*prop;			/* User-Defined Properties on this Bone */
 	struct Bone		*parent;		/*	Parent (ik parent if appropriate flag is set		*/
 	ListBase		childbase;		/*	Children	*/
-	char			name[32];		/*  Name of the bone - must be unique within the armature */
+	char			name[64];		/*  Name of the bone - must be unique within the armature, MAXBONENAME */
 
 	float			roll;   /*  roll is input for editmode, length calculated */
 	float			head[3];		
@@ -113,7 +113,7 @@ typedef struct bArmature {
 } bArmature;
 
 /* armature->flag */
-/* dont use bit 7, was saved in files to disable stuff */
+/* don't use bit 7, was saved in files to disable stuff */
 typedef enum eArmature_Flag {
 	ARM_RESTPOS			= (1<<0),
 	ARM_DRAWXRAY		= (1<<1),	/* XRAY is here only for backwards converting */
@@ -182,7 +182,7 @@ typedef enum eBone_Flag {
 	BONE_CONNECTED 				= (1<<4),	/* when bone has a parent, connect head of bone to parent's tail*/
 	/* 32 used to be quatrot, was always set in files, do not reuse unless you clear it always */	
 	BONE_HIDDEN_P				= (1<<6), 	/* hidden Bones when drawing PoseChannels */	
-	BONE_DONE					= (1<<7),	/* For detecting cyclic dependancies */
+	BONE_DONE					= (1<<7),	/* For detecting cyclic dependencies */
 	BONE_DRAW_ACTIVE			= (1<<8), 	/* active is on mouse clicks only - deprecated, ONLY USE FOR DRAWING */
 	BONE_HINGE					= (1<<9),	/* No parent rotation or scale */
 	BONE_HIDDEN_A				= (1<<10), 	/* hidden Bones when drawing Armature Editmode */
@@ -200,6 +200,6 @@ typedef enum eBone_Flag {
 	BONE_NO_LOCAL_LOCATION		= (1<<22)	/* bone location is in armature space */
 } eBone_Flag;
 
-#define MAXBONENAME 32
+#define MAXBONENAME 64
 
 #endif

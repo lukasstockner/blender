@@ -30,8 +30,8 @@
  *  \brief Object is a sort of wrapper for general info.
  */
 
-#ifndef DNA_OBJECT_TYPES_H
-#define DNA_OBJECT_TYPES_H
+#ifndef __DNA_OBJECT_TYPES_H__
+#define __DNA_OBJECT_TYPES_H__
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
@@ -61,11 +61,11 @@ struct bGPdata;
 /* Vertex Groups - Name Info */
 typedef struct bDeformGroup {
 	struct bDeformGroup *next, *prev;
-	char name[32];
+	char name[64];	/* MAX_VGROUP_NAME */
 	/* need this flag for locking weights */
 	char flag, pad[7];
 } bDeformGroup;
-#define MAX_VGROUP_NAME 32
+#define MAX_VGROUP_NAME 64
 
 /* bDeformGroup->flag */
 #define DG_LOCK_WEIGHT 1
@@ -107,7 +107,7 @@ typedef struct Object {
 	
 	short type, partype;
 	int par1, par2, par3;	/* can be vertexnrs */
-	char parsubstr[32];	/* String describing subobject info */
+	char parsubstr[64];	/* String describing subobject info, MAX_ID_NAME-2 */
 	struct Object *parent, *track;
 	/* if ob->proxy (or proxy_group), this object is proxy for object ob->proxy */
 	/* proxy_from is set in target back to the proxy. */
@@ -136,7 +136,7 @@ typedef struct Object {
 
 	/* materials */
 	struct Material **mat;	/* material slots */
-	char *matbits;			/* a boolean field, with each byte 1 if corrusponding material is linked to object */
+	char *matbits;			/* a boolean field, with each byte 1 if corresponding material is linked to object */
 	int totcol;				/* copy of mesh or curve or meta */
 	int actcol;				/* currently selected material in the UI */
 	
@@ -276,7 +276,7 @@ typedef struct ObHook {
 	float cent[3];			/* visualization of hook */
 	float falloff;			/* if not zero, falloff is distance where influence zero */
 	
-	char name[32];
+	char name[64];	/* MAX_NAME */
 
 	int *indexar;
 	int totindex, curindex; /* curindex is cache for fast lookup */
@@ -356,7 +356,7 @@ typedef struct DupliObject {
 #define OB_NO_CONSTRAINTS	8192 /* runtime constraints disable */
 
 /* (short) ipoflag */
-/* XXX: many old flags for features removed due to incompatability 
+/* XXX: many old flags for features removed due to incompatibility
  * with new system and/or other design issues were here 
  */
 	/* for stride/path editing (XXX: NEEDS REVIEW) */
@@ -442,13 +442,14 @@ typedef struct DupliObject {
 // #define OB_RADIO			2048	/* deprecated */
 #define OB_FROMGROUP		4096
 
+/* WARNING - when adding flags check on PSYS_RECALC */
 /* ob->recalc (flag bits!) */
-#define OB_RECALC_OB		1
-#define OB_RECALC_DATA		2
-		/* time flag is set when time changes need recalc, so baked systems can ignore it */
-#define OB_RECALC_TIME		4
-		/* only use for matching any flag, NOT as an argument since more flags may be added. */
-#define OB_RECALC_ALL		(OB_RECALC_OB|OB_RECALC_DATA|OB_RECALC_TIME)
+#define OB_RECALC_OB        (1 << 0)
+#define OB_RECALC_DATA      (1 << 1)
+/* time flag is set when time changes need recalc, so baked systems can ignore it */
+#define OB_RECALC_TIME      (1 << 2)
+/* only use for matching any flag, NOT as an argument since more flags may be added. */
+#define OB_RECALC_ALL       (OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME)
 
 /* controller state */
 #define OB_MAX_STATES		30

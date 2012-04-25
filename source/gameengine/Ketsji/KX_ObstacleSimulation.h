@@ -23,8 +23,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __KX_OBSTACLESIMULATION
-#define __KX_OBSTACLESIMULATION
+#ifndef __KX_OBSTACLESIMULATION_H__
+#define __KX_OBSTACLESIMULATION_H__
 
 #include <vector>
 #include "MT_Point2.h"
@@ -90,7 +90,7 @@ public:
 	virtual void AdjustObstacleVelocity(KX_Obstacle* activeObst, KX_NavMeshObject* activeNavMeshObj, 
 								MT_Vector3& velocity, MT_Scalar maxDeltaSpeed,MT_Scalar maxDeltaAngle);
 
-}; 
+};
 class KX_ObstacleSimulationTOI: public KX_ObstacleSimulation
 {
 protected:

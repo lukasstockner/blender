@@ -29,8 +29,8 @@
  *  \ingroup DNA
  */
 
-#ifndef DNA_CAMERA_TYPES_H
-#define DNA_CAMERA_TYPES_H
+#ifndef __DNA_CAMERA_TYPES_H__
+#define __DNA_CAMERA_TYPES_H__
 
 #include "DNA_defs.h"
 
@@ -58,8 +58,8 @@ typedef struct Camera {
 	float shiftx, shifty;
 	
 	/* yafray: dof params */
-	/* qdn: yafray var 'YF_dofdist' now enabled for defocus composit node as well.
-			The name was not changed so that no other files need to be modified */
+	/* qdn: yafray var 'YF_dofdist' now enabled for defocus composite node as well.
+	 * The name was not changed so that no other files need to be modified */
 	float YF_dofdist;
 
 	struct Ipo *ipo  DNA_DEPRECATED; /* old animation system, deprecated for 2.5 */

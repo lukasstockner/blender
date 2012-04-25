@@ -29,8 +29,8 @@
  *  \ingroup DNA
  */
 
-#ifndef DNA_SMOKE_TYPES_H
-#define DNA_SMOKE_TYPES_H
+#ifndef __DNA_SMOKE_TYPES_H__
+#define __DNA_SMOKE_TYPES_H__
 
 /* flags */
 #define MOD_SMOKE_HIGHRES (1<<1) /* enable high resolution */
@@ -109,8 +109,8 @@ typedef struct SmokeDomainSettings {
 
 /* flags */
 #define MOD_SMOKE_FLOW_ABSOLUTE (1<<1) /*old style emission*/
-#define MOD_SMOKE_FLOW_INITVELOCITY (1<<2) /* passes particles speed to
-										 the smoke*/
+#define MOD_SMOKE_FLOW_INITVELOCITY (1<<2) /* passes particles speed to the smoke */
+#define MOD_SMOKE_FLOW_INIT  (1 << 3) /* is the flow object already initialized? */
 
 
 typedef struct SmokeFlowSettings {
@@ -128,17 +128,17 @@ typedef struct SmokeFlowSettings {
 	int flags; /* absolute emission etc*/
 } SmokeFlowSettings;
 
-/*
-	struct BVHTreeFromMesh *bvh;
-	float mat[4][4];
-	float mat_old[4][4];
-	*/
+
+// struct BVHTreeFromMesh *bvh;
+// float mat[4][4];
+// float mat_old[4][4];
 
 /* collision objects (filled with smoke) */
 typedef struct SmokeCollSettings {
 	struct SmokeModifierData *smd; /* for fast RNA access */
 	struct BVHTree *bvhtree; /* bounding volume hierarchy for this cloth object */
-	struct DerivedMesh *dm;
+
+//	struct DerivedMesh *dm; // UNUSED, ifdef'd in code for now.
 	float *points;
 	float *points_old;
 	float *vel;

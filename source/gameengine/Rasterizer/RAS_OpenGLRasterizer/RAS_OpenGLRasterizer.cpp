@@ -352,7 +352,7 @@ void RAS_OpenGLRasterizer::SetDrawingMode(int drawingmode)
 {
 	m_drawingmode = drawingmode;
 
-	if(m_drawingmode == KX_WIREFRAME)
+	if (m_drawingmode == KX_WIREFRAME)
 		glDisable(GL_CULL_FACE);
 
 	m_storage->SetDrawingMode(drawingmode);
@@ -390,7 +390,7 @@ void RAS_OpenGLRasterizer::ClearCachingInfo(void)
 
 void RAS_OpenGLRasterizer::FlushDebugShapes()
 {
-	if(!m_debugShapes.size())
+	if (!m_debugShapes.size())
 		return;
 
 	// DrawDebugLines
@@ -399,8 +399,8 @@ void RAS_OpenGLRasterizer::FlushDebugShapes()
 	light= glIsEnabled(GL_LIGHTING);
 	tex= glIsEnabled(GL_TEXTURE_2D);
 
-	if(light) glDisable(GL_LIGHTING);
-	if(tex) glDisable(GL_TEXTURE_2D);
+	if (light) glDisable(GL_LIGHTING);
+	if (tex) glDisable(GL_TEXTURE_2D);
 
 	//draw lines
 	glBegin(GL_LINES);
@@ -424,7 +424,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes()
 		glBegin(GL_LINE_LOOP);
 		glColor4f(m_debugShapes[i].m_color[0],m_debugShapes[i].m_color[1],m_debugShapes[i].m_color[2],1.f);
 
-		static const MT_Vector3 worldUp(0.,0.,1.);
+		static const MT_Vector3 worldUp(0.0, 0.0, 1.0);
 		MT_Vector3 norm = m_debugShapes[i].m_param;
 		MT_Matrix3x3 tr;
 		if (norm.fuzzyZero() || norm == worldUp)
@@ -445,7 +445,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes()
 		for (int j = 0; j<n; j++)
 		{
 			MT_Scalar theta = j*M_PI*2/n;
-			MT_Vector3 pos(cos(theta)*rad, sin(theta)*rad, 0.);
+			MT_Vector3 pos(cos(theta) * rad, sin(theta) * rad, 0.0);
 			pos = pos*tr;
 			pos += m_debugShapes[i].m_pos;
 			const MT_Scalar* posPtr = &pos.x();
@@ -454,8 +454,8 @@ void RAS_OpenGLRasterizer::FlushDebugShapes()
 		glEnd();
 	}
 
-	if(light) glEnable(GL_LIGHTING);
-	if(tex) glEnable(GL_TEXTURE_2D);
+	if (light) glEnable(GL_LIGHTING);
+	if (tex) glEnable(GL_TEXTURE_2D);
 
 	m_debugShapes.clear();
 }
@@ -544,7 +544,7 @@ RAS_IRasterizer::StereoMode RAS_OpenGLRasterizer::GetStereoMode()
 
 bool RAS_OpenGLRasterizer::Stereo()
 {
-	if(m_stereomode > RAS_STEREO_NOSTEREO) // > 0
+	if (m_stereomode > RAS_STEREO_NOSTEREO) // > 0
 		return true;
 	else
 		return false;
@@ -655,17 +655,17 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot& ms,
 	else
 		glEnableClientState(GL_COLOR_ARRAY);
 
-	for(ms.begin(it); !ms.end(it); ms.next(it)) {
+	for (ms.begin(it); !ms.end(it); ms.next(it)) {
 		RAS_TexVert *vertex;
 		size_t i, j, numvert;
 		
 		numvert = it.array->m_type;
 
-		if(it.array->m_type == RAS_DisplayArray::LINE) {
+		if (it.array->m_type == RAS_DisplayArray::LINE) {
 			// line drawing, no text
 			glBegin(GL_LINES);
 
-			for(i=0; i<it.totindex; i+=2)
+			for (i=0; i<it.totindex; i+=2)
 			{
 				vertex = &it.vertex[it.index[i]];
 				glVertex3fv(vertex->getXYZ());
@@ -678,12 +678,12 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot& ms,
 		}
 		else {
 			// triangle and quad text drawing
-			for(i=0; i<it.totindex; i+=numvert)
+			for (i=0; i<it.totindex; i+=numvert)
 			{
 				float v[4][3];
 				int glattrib, unit;
 
-				for(j=0; j<numvert; j++) {
+				for (j=0; j<numvert; j++) {
 					vertex = &it.vertex[it.index[i+j]];
 
 					v[j][0] = vertex->getXYZ()[0];
@@ -693,9 +693,9 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot& ms,
 
 				// find the right opengl attribute
 				glattrib = -1;
-				if(GLEW_ARB_vertex_program)
-					for(unit=0; unit<m_attrib_num; unit++)
-						if(m_attrib[unit] == RAS_TEXCO_UV)
+				if (GLEW_ARB_vertex_program)
+					for (unit=0; unit<m_attrib_num; unit++)
+						if (m_attrib[unit] == RAS_TEXCO_UV)
 							glattrib = unit;
 				
 				rendertools->RenderText(polymat->GetDrawingMode(), polymat,
@@ -712,28 +712,28 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot& ms,
 void RAS_OpenGLRasterizer::SetTexCoordNum(int num)
 {
 	m_texco_num = num;
-	if(m_texco_num > RAS_MAX_TEXCO)
+	if (m_texco_num > RAS_MAX_TEXCO)
 		m_texco_num = RAS_MAX_TEXCO;
 }
 
 void RAS_OpenGLRasterizer::SetAttribNum(int num)
 {
 	m_attrib_num = num;
-	if(m_attrib_num > RAS_MAX_ATTRIB)
+	if (m_attrib_num > RAS_MAX_ATTRIB)
 		m_attrib_num = RAS_MAX_ATTRIB;
 }
 
 void RAS_OpenGLRasterizer::SetTexCoord(TexCoGen coords, int unit)
 {
 	// this changes from material to material
-	if(unit < RAS_MAX_TEXCO)
+	if (unit < RAS_MAX_TEXCO)
 		m_texco[unit] = coords;
 }
 
 void RAS_OpenGLRasterizer::SetAttrib(TexCoGen coords, int unit)
 {
 	// this changes from material to material
-	if(unit < RAS_MAX_ATTRIB)
+	if (unit < RAS_MAX_ATTRIB)
 		m_attrib[unit] = coords;
 }
 
@@ -783,12 +783,12 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetFrustumMatrix(
 	float frustfar,
 	float focallength,
 	bool 
-){
+) {
 	MT_Matrix4x4 result;
 	double mat[16];
 
 	// correction for stereo
-	if(Stereo())
+	if (Stereo())
 	{
 			float near_div_focallength;
 			float offset;
@@ -832,7 +832,7 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetOrthoMatrix(
 	float top,
 	float frustnear,
 	float frustfar
-){
+) {
 	MT_Matrix4x4 result;
 	double mat[16];
 
@@ -857,7 +857,7 @@ void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 	m_viewmatrix = mat;
 
 	// correction for stereo
-	if(Stereo() && perspective)
+	if (Stereo() && perspective)
 	{
 		MT_Vector3 unitViewDir(0.0, -1.0, 0.0);  // minus y direction, Blender convention
 		MT_Vector3 unitViewupVec(0.0, 0.0, 1.0);
@@ -987,7 +987,7 @@ void RAS_OpenGLRasterizer::EnableMotionBlur(float motionblurvalue)
 {
 	/* don't just set m_motionblur to 1, but check if it is 0 so
 	 * we don't reset a motion blur that is already enabled */
-	if(m_motionblur == 0)
+	if (m_motionblur == 0)
 		m_motionblur = 1;
 	m_motionblurvalue = motionblurvalue;
 }
@@ -1002,26 +1002,26 @@ void RAS_OpenGLRasterizer::SetAlphaBlend(int alphablend)
 {
 	GPU_set_material_alpha_blend(alphablend);
 /*
-	if(alphablend == m_last_alphablend)
+	if (alphablend == m_last_alphablend)
 		return;
 
-	if(alphablend == GPU_BLEND_SOLID) {
+	if (alphablend == GPU_BLEND_SOLID) {
 		glDisable(GL_BLEND);
 		glDisable(GL_ALPHA_TEST);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
-	else if(alphablend == GPU_BLEND_ADD) {
+	else if (alphablend == GPU_BLEND_ADD) {
 		glBlendFunc(GL_ONE, GL_ONE);
 		glEnable(GL_BLEND);
 		glDisable(GL_ALPHA_TEST);
 	}
-	else if(alphablend == GPU_BLEND_ALPHA) {
+	else if (alphablend == GPU_BLEND_ALPHA) {
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_BLEND);
 		glEnable(GL_ALPHA_TEST);
 		glAlphaFunc(GL_GREATER, 0.0f);
 	}
-	else if(alphablend == GPU_BLEND_CLIP) {
+	else if (alphablend == GPU_BLEND_CLIP) {
 		glDisable(GL_BLEND); 
 		glEnable(GL_ALPHA_TEST);
 		glAlphaFunc(GL_GREATER, 0.5f);
@@ -1033,10 +1033,10 @@ void RAS_OpenGLRasterizer::SetAlphaBlend(int alphablend)
 
 void RAS_OpenGLRasterizer::SetFrontFace(bool ccw)
 {
-	if(m_last_frontface == ccw)
+	if (m_last_frontface == ccw)
 		return;
 
-	if(ccw)
+	if (ccw)
 		glFrontFace(GL_CCW);
 	else
 		glFrontFace(GL_CW);

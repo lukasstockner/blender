@@ -29,8 +29,8 @@
  *  \ingroup render
  */
 
-#ifndef RE_PIPELINE_H
-#define RE_PIPELINE_H
+#ifndef __RE_PIPELINE_H__
+#define __RE_PIPELINE_H__
 
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
@@ -58,12 +58,12 @@ struct EnvMap;
 typedef struct Render Render;
 
 /* Render Result usage:
-
-- render engine allocates/frees and delivers raw floating point rects
-- right now it's full rects, but might become tiles or file 
-- the display client has to allocate display rects, sort out what to display, 
-  and how it's converted
-*/
+ *
+ * - render engine allocates/frees and delivers raw floating point rects
+ * - right now it's full rects, but might become tiles or file
+ * - the display client has to allocate display rects, sort out what to display,
+ *   and how it's converted
+ */
 
 typedef struct RenderPass {
 	struct RenderPass *next, *prev;
@@ -165,6 +165,8 @@ void RE_InitRenderCB(struct Render *re);
 void RE_FreeRender (struct Render *re);
 /* only called on exit */
 void RE_FreeAllRender (void);
+/* only call on file load */
+void RE_FreeAllRenderResults(void);
 
 /* get results and statistics */
 void RE_FreeRenderResult(struct RenderResult *rr);
@@ -272,5 +274,5 @@ struct Scene *RE_GetScene(struct Render *re);
 
 int RE_is_rendering_allowed(struct Scene *scene, struct Object *camera_override, struct ReportList *reports);
 
-#endif /* RE_PIPELINE_H */
+#endif /* __RE_PIPELINE_H__ */
 

@@ -29,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef RAS_FRAMINGMANAGER_H
-#define RAS_FRAMINGMANAGER_H
+#ifndef __RAS_FRAMINGMANAGER_H__
+#define __RAS_FRAMINGMANAGER_H__
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -39,7 +39,7 @@
 class RAS_Rect;
 
 /**
- * @section RAS_FrameSettings
+ * \section RAS_FrameSettings
  * This is a value type describing the framing used
  * by a particular scene in the game engine.
  * Each KX_Scene contains a RAS_FrameSetting describing
@@ -174,7 +174,7 @@ struct RAS_FrameFrustum
 	float camnear,camfar;
 	float x1,y1;
 	float x2,y2;
-};	
+};
 
 /* must match R_CULLING_... from DNA_scene_types.h */
 enum RAS_CullingMode
@@ -193,7 +193,7 @@ enum RAS_SensorFit
 };
 
 /**
- * @section RAS_FramingManager
+ * \section RAS_FramingManager
  * This class helps to compute a view frustum
  * and a viewport rectangle given the 
  * above settings and a description of the 
@@ -307,7 +307,7 @@ public:
 	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_FramingManager"); }
 	void operator delete( void *mem ) { MEM_freeN(mem); }
 #endif
-};		
-		
+};
+
 #endif
 

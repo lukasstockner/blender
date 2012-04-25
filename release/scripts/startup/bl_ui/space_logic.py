@@ -49,15 +49,16 @@ class LOGIC_PT_properties(Panel):
                 sub.prop(prop, "name", text="")
                 row.prop(prop, "type", text="")
                 # get the property from the body, not the game property
-                # note, don't do this - it's too slow and body can potentually be a really long string.
-                # row.prop(ob.data, "body", text="")
+                # note, don't do this - it's too slow and body can potentially be a really long string.
+                #~ row.prop(ob.data, "body", text="")
                 row.label("See Text Object")
             else:
                 props = layout.operator("object.game_property_new", text="Add Text Game Property", icon='ZOOMIN')
                 props.name = 'Text'
                 props.type = 'STRING'
 
-        layout.operator("object.game_property_new", text="Add Game Property", icon='ZOOMIN')
+        props = layout.operator("object.game_property_new", text="Add Game Property", icon='ZOOMIN')
+        props.name = ''
 
         for i, prop in enumerate(game.properties):
 
@@ -68,7 +69,7 @@ class LOGIC_PT_properties(Panel):
             row = box.row()
             row.prop(prop, "name", text="")
             row.prop(prop, "type", text="")
-            row.prop(prop, "value", text="", toggle=True)  # we don't care about the type. rna will display correctly
+            row.prop(prop, "value", text="")
             row.prop(prop, "show_debug", text="", toggle=True, icon='INFO')
             row.operator("object.game_property_remove", text="", icon='X', emboss=False).index = i
 

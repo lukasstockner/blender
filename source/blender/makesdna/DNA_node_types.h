@@ -29,8 +29,8 @@
  *  \ingroup DNA
  */
 
-#ifndef DNA_NODE_TYPES_H
-#define DNA_NODE_TYPES_H
+#ifndef __DNA_NODE_TYPES_H__
+#define __DNA_NODE_TYPES_H__
 
 #include "DNA_ID.h"
 #include "DNA_vec_types.h"
@@ -49,7 +49,7 @@ struct bGPdata;
 struct uiBlock;
 struct Image;
 
-#define NODE_MAXSTR 32
+#define NODE_MAXSTR 64
 
 typedef struct bNodeStack {
 	float vec[4];
@@ -71,13 +71,13 @@ typedef struct bNodeStack {
 typedef struct bNodeSocket {
 	struct bNodeSocket *next, *prev, *new_sock;
 	
-	char name[32];
+	char name[64];	/* MAX_NAME */
 	
 	void *storage;				/* custom storage */
 	
 	short type, flag;
 	short limit;				/* max. number of links */
-	short pad1;
+	short struct_type;			/* optional identifier for RNA struct subtype */
 	
 	float locx, locy;
 	
@@ -85,19 +85,21 @@ typedef struct bNodeSocket {
 	
 	/* execution data */
 	short stack_index;			/* local stack index */
-	short stack_type;			/* deprecated, kept for forward compatibility */
+	/* XXX deprecated, kept for forward compatibility */
+	short stack_type  DNA_DEPRECATED;
 	int pad3;
 	void *cache;				/* cached data from execution */
 	
 	/* internal data to retrieve relations and groups */
 	int own_index;				/* group socket identifiers, to find matching pairs after reading files */
-	int to_index  DNA_DEPRECATED;  /* XXX deprecated, only used for restoring old group node links */
+	/* XXX deprecated, only used for restoring old group node links */
+	int to_index  DNA_DEPRECATED;
 	struct bNodeSocket *groupsock;
 	
 	struct bNodeLink *link;		/* a link pointer, set in ntreeUpdateTree */
 
-	/* DEPRECATED only needed for do_versions */
-	bNodeStack ns;				/* custom data for inputs, only UI writes in this */
+	/* XXX deprecated, socket input values are stored in default_value now. kept for forward compatibility */
+	bNodeStack ns  DNA_DEPRECATED;	/* custom data for inputs, only UI writes in this */
 } bNodeSocket;
 
 /* sock->type */
@@ -109,6 +111,10 @@ typedef struct bNodeSocket {
 #define SOCK_MESH			5
 #define SOCK_INT			6
 #define NUM_SOCKET_TYPES	7	/* must be last! */
+
+/* sock->struct_type */
+#define SOCK_STRUCT_NONE				0	/* default, type is defined by sock->type only */
+#define SOCK_STRUCT_OUTPUT_FILE			1	/* file output node socket */
 
 /* socket side (input/output) */
 #define SOCK_IN		1
@@ -130,7 +136,8 @@ typedef struct bNodeSocket {
 	/* hide socket value, if it gets auto default */
 #define SOCK_HIDE_VALUE			128
 	/* socket hidden automatically, to distinguish from manually hidden */
-#define SOCK_AUTO_HIDDEN		256
+	/* DEPRECATED, only kept here to avoid reusing the flag */
+#define SOCK_AUTO_HIDDEN__DEPRECATED	256
 
 typedef struct bNodePreview {
 	unsigned char *rect;
@@ -142,7 +149,7 @@ typedef struct bNodePreview {
 typedef struct bNode {
 	struct bNode *next, *prev, *new_node;
 	
-	char name[32];
+	char name[64];	/* MAX_NAME */
 	short type, flag;
 	short done, level;		/* both for dependency and sorting */
 	short lasty, menunr;	/* lasty: check preview render status, menunr: browse ID blocks */
@@ -160,7 +167,7 @@ typedef struct bNode {
 	
 	int update;				/* update flags */
 	
-	char label[32];			/* custom user-defined label */
+	char label[64];			/* custom user-defined label, MAX_NAME */
 	short custom1, custom2;	/* to be abused for buttons */
 	float custom3, custom4;
 	
@@ -187,7 +194,7 @@ typedef struct bNode {
 #define NODE_GROUP_EDIT		128
 	/* free test flag, undefined */
 #define NODE_TEST			256
-	/* composite: don't do node but pass on buffer(s) */
+	/* node is disabled */
 #define NODE_MUTED			512
 #define NODE_CUSTOM_NAME	1024	/* deprecated! */
 	/* group node types: use const outputs by default */
@@ -232,7 +239,7 @@ typedef struct bNodeTree {
 	
 	int type, init;					/* set init on fileread */
 	int cur_index;					/* sockets in groups have unique identifiers, adding new sockets always 
-									   will increase this counter */
+									 * will increase this counter */
 	int flag;
 	int update;						/* update flags */
 	
@@ -347,10 +354,25 @@ typedef struct NodeHueSat {
 } NodeHueSat;
 
 typedef struct NodeImageFile {
-	char name[256];
+	char name[1024]; /* 1024 = FILE_MAX */
 	struct ImageFormatData im_format;
 	int sfra, efra;
 } NodeImageFile;
+
+/* XXX first struct fields should match NodeImageFile to ensure forward compatibility */
+typedef struct NodeImageMultiFile {
+	char base_path[1024];	/* 1024 = FILE_MAX */
+	ImageFormatData format;
+	int sfra DNA_DEPRECATED, efra DNA_DEPRECATED;	/* XXX old frame rand values from NodeImageFile for forward compatibility */
+	int active_input;		/* selected input in details view list */
+	int pad;
+} NodeImageMultiFile;
+typedef struct NodeImageMultiFileSocket {
+	short use_render_format  DNA_DEPRECATED;
+	short use_node_format;	/* use overall node image format */
+	int pad2;
+	ImageFormatData format;
+} NodeImageMultiFileSocket;
 
 typedef struct NodeChroma {
 	float t1,t2,t3;
@@ -369,12 +391,12 @@ typedef struct NodeTwoFloats {
 } NodeTwoFloats;
 
 typedef struct NodeGeometry {
-	char uvname[32];
-	char colname[32];
+	char uvname[64];	/* MAX_CUSTOMDATA_LAYER_NAME */
+	char colname[64];
 } NodeGeometry;
 
 typedef struct NodeVertexCol {
-	char name[32];
+	char name[64];
 } NodeVertexCol;
 
 /* qdn: Defocus blur node */
@@ -454,7 +476,7 @@ typedef struct NodeTexChecker {
 
 typedef struct NodeTexEnvironment {
 	NodeTexBase base;
-	int color_space, pad;
+	int color_space, projection;
 } NodeTexEnvironment;
 
 typedef struct NodeTexGradient {
@@ -497,7 +519,7 @@ typedef struct NodeShaderAttribute {
 
 /* TEX_output */
 typedef struct TexNodeOutput {
-	char name[32];
+	char name[64];
 } TexNodeOutput;
 
 /* comp channel matte */
@@ -561,8 +583,12 @@ typedef struct TexNodeOutput {
 #define SHD_WAVE_TRI	2
 
 /* image/environment texture */
-#define SHD_COLORSPACE_LINEAR	0
-#define SHD_COLORSPACE_SRGB		1
+#define SHD_COLORSPACE_NONE		0
+#define SHD_COLORSPACE_COLOR	1
+
+/* environment texture */
+#define SHD_PROJ_EQUIRECTANGULAR	0
+#define SHD_PROJ_MIRROR_BALL		1
 
 /* blur node */
 #define CMP_NODE_BLUR_ASPECT_NONE		0

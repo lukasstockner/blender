@@ -84,7 +84,7 @@ static float gaussianFactors[5] = {	0.996849f,
 								0.524141f};
 static float gaussianTotal = 3.309425f;
 
-/* UV Image neighbouring pixel table x and y list */
+/* UV Image neighboring pixel table x and y list */
 static int neighX[8] = {1,1,0,-1,-1,-1, 0, 1};
 static int neighY[8] = {0,1,1, 1, 0,-1,-1,-1};
 
@@ -97,13 +97,18 @@ static int neighY[8] = {0,1,1, 1, 0,-1,-1,-1};
 /* brush mesh raycast status */
 #define HIT_VOLUME 1
 #define HIT_PROXIMITY 2
+/* dynamicPaint_findNeighbourPixel() return codes */
+#define NOT_FOUND -1
+#define ON_MESH_EDGE -2
+#define OUT_OF_TEXTURE -3
 /* paint effect default movement per frame in global units */
 #define EFF_MOVEMENT_PER_FRAME 0.05f
 /* initial wave time factor */
 #define WAVE_TIME_FAC (1.0f/24.f)
-#define WAVE_INIT_SIZE 5.0f
+#define CANVAS_REL_SIZE 5.0f
 /* drying limits */
 #define MIN_WETNESS 0.001f
+#define MAX_WETNESS 5.0f
 /* dissolve macro */
 #define VALUE_DISSOLVE(VALUE, TIME, SCALE, LOG) (VALUE) = (LOG) ? (VALUE) * (pow(MIN_WETNESS,1.0f/(1.2f*((float)(TIME))/(SCALE)))) : (VALUE) - 1.0f/(TIME)*(SCALE)
 
@@ -133,10 +138,10 @@ typedef struct Vec3f {
 	float v[3];
 } Vec3f;
 
-typedef struct BakeNeighPoint {
-	float dir[3];	/* vector pointing towards this neighbour */
+typedef struct BakeAdjPoint {
+	float dir[3];	/* vector pointing towards this neighbor */
 	float dist;		/* distance to */
-} BakeNeighPoint;
+} BakeAdjPoint;
 
 /* Surface data used while processing a frame	*/
 typedef struct PaintBakeNormal {
@@ -151,11 +156,11 @@ typedef struct PaintBakeData {
 	int *s_pos;	/* index to start reading point sample realCoord */
 	int *s_num;	/* num of realCoord samples */
 	Vec3f *realCoord;  /* current pixel center world-space coordinates for each sample
-					   *  ordered as (s_pos+s_num)*/
+	                    *  ordered as (s_pos+s_num)*/
 	Bounds3D mesh_bounds;
 
 	/* adjacency info */
-	BakeNeighPoint *bNeighs; /* current global neighbour distances and directions, if required */
+	BakeAdjPoint *bNeighs; /* current global neighbor distances and directions, if required */
 	double average_dist;
 	/* space partitioning */
 	VolumeGrid *grid;		/* space partitioning grid to optimize brush checks */
@@ -178,7 +183,7 @@ typedef struct PaintUVPoint {
 	unsigned int v1, v2, v3;				/* vertex indexes */
 
 	unsigned int neighbour_pixel;	/* If this pixel isn't uv mapped to any face,
-									   but it's neighbouring pixel is */
+									   but it's neighboring pixel is */
 	short quad;
 } PaintUVPoint;
 
@@ -187,17 +192,11 @@ typedef struct ImgSeqFormatData {
 	Vec3f *barycentricWeights;		/* b-weights for all pixel samples */
 } ImgSeqFormatData;
 
-typedef struct EffVelPoint {
-	float previous_pos[3];
-	float previous_vel[3];
-} EffVelPoint;
-
-
 /* adjacency data flags */
 #define ADJ_ON_MESH_EDGE (1<<0)
 
 typedef struct PaintAdjData {
-	int *n_target;		/* array of neighbouring point indexes,
+	int *n_target;		/* array of neighboring point indexes,
 							       for single sample use (n_index+neigh_num) */
 	int *n_index;		/* index to start reading n_target for each point */
 	int *n_num;		/* num of neighs for each point */
@@ -247,8 +246,8 @@ struct DynamicPaintSurface *get_activeSurface(DynamicPaintCanvasSettings *canvas
 	DynamicPaintSurface *surface = canvas->surfaces.first;
 	int i;
 
-	for(i=0; surface; surface=surface->next) {
-		if(i == canvas->active_sur)
+	for (i=0; surface; surface=surface->next) {
+		if (i == canvas->active_sur)
 			return surface;
 		i++;
 	}
@@ -261,7 +260,7 @@ void dynamicPaint_resetPreview(DynamicPaintCanvasSettings *canvas)
 	DynamicPaintSurface *surface = canvas->surfaces.first;
 	int done=0;
 
-	for(; surface; surface=surface->next) {
+	for (; surface; surface=surface->next) {
 		if (!done && dynamicPaint_surfaceHasColorPreview(surface)) {
 			surface->flags |= MOD_DPAINT_PREVIEW;
 			done=1;
@@ -275,7 +274,7 @@ void dynamicPaint_resetPreview(DynamicPaintCanvasSettings *canvas)
 static void dynamicPaint_setPreview(DynamicPaintSurface *t_surface)
 {
 	DynamicPaintSurface *surface = t_surface->canvas->surfaces.first;
-	for(; surface; surface=surface->next) {
+	for (; surface; surface=surface->next) {
 		if (surface == t_surface)
 			surface->flags |= MOD_DPAINT_PREVIEW;
 		else
@@ -311,11 +310,11 @@ static int surface_duplicateOutputExists(void *arg, const char *name)
 	DynamicPaintSurface *t_surface = (DynamicPaintSurface*)arg;
 	DynamicPaintSurface *surface = t_surface->canvas->surfaces.first;
 
-	for(; surface; surface=surface->next) {
+	for (; surface; surface=surface->next) {
 		if (surface!=t_surface && surface->type==t_surface->type &&
 			surface->format==t_surface->format) {
-			if (surface->output_name[0]!='\0' && !strcmp(name, surface->output_name)) return 1;
-			if (surface->output_name2[0]!='\0' && !strcmp(name, surface->output_name2)) return 1;
+			if (surface->output_name[0]!='\0' && !BLI_path_cmp(name, surface->output_name)) return 1;
+			if (surface->output_name2[0]!='\0' && !BLI_path_cmp(name, surface->output_name2)) return 1;
 		}
 	}
 	return 0;
@@ -337,7 +336,7 @@ static int surface_duplicateNameExists(void *arg, const char *name)
 	DynamicPaintSurface *t_surface = (DynamicPaintSurface*)arg;
 	DynamicPaintSurface *surface = t_surface->canvas->surfaces.first;
 
-	for(; surface; surface=surface->next) {
+	for (; surface; surface=surface->next) {
 		if (surface!=t_surface && !strcmp(name, surface->name)) return 1;
 	}
 	return 0;
@@ -361,8 +360,8 @@ void dynamicPaintSurface_updateType(struct DynamicPaintSurface *surface)
 		surface->depth_clamp = 1.0f;
 	}
 	else {
-		sprintf(surface->output_name, "dp_");
-		strcpy(surface->output_name2,surface->output_name);
+		strcpy(surface->output_name, "dp_");
+		strcpy(surface->output_name2, surface->output_name);
 		surface->flags &= ~MOD_DPAINT_ANTIALIAS;
 		surface->depth_clamp = 0.0f;
 	}
@@ -422,15 +421,31 @@ static void blendColors(float t_color[3], float t_alpha, float s_color[3], float
 	result[3] = f_alpha;
 }
 
-/* assumes source alpha > 0.0f or results NaN colors */
-static void mixColors(float *t_color, float t_alpha, float *s_color, float s_alpha)
+/* Mix two alpha weighed colors by a defined ratio. output is saved at a_color */
+static float mixColors(float a_color[3], float a_weight, float b_color[3], float b_weight, float ratio)
 {
-	float factor = (s_alpha<t_alpha) ? 1.0f : t_alpha/s_alpha;
+	float weight_ratio, factor;
+	if (b_weight) {
+		/* if first value has no weight just use b_color */
+		if (!a_weight) {
+			copy_v3_v3(a_color, b_color);
+			return b_weight*ratio;
+		}
+		weight_ratio = b_weight/(a_weight+b_weight);
+	}
+	else return a_weight*(1.0f-ratio);
 
-	/* set initial color depending on existing alpha */
-	interp_v3_v3v3(t_color, s_color, t_color, factor);
+	/* calculate final interpolation factor */
+	if (ratio<=0.5f) {
+		factor = weight_ratio*(ratio*2.0f);
+	}
+	else {
+		ratio = (ratio*2.0f - 1.0f);
+		factor = weight_ratio*(1.0f-ratio) + ratio;
+	}
 	/* mix final color */
-	interp_v3_v3v3(t_color, t_color, s_color, s_alpha);
+	interp_v3_v3v3(a_color, a_color, b_color, factor);
+	return (1.0f-factor)*a_weight + factor*b_weight;
 }
 
 /* set "ignore cache" flag for all caches on this object */
@@ -440,8 +455,8 @@ static void object_cacheIgnoreClear(Object *ob, int state)
 	PTCacheID *pid;
 	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
 
-	for(pid=pidlist.first; pid; pid=pid->next) {
-		if(pid->cache) {
+	for (pid=pidlist.first; pid; pid=pid->next) {
+		if (pid->cache) {
 			if (state)
 				pid->cache->flag |= PTCACHE_IGNORE_CLEAR;
 			else
@@ -452,19 +467,25 @@ static void object_cacheIgnoreClear(Object *ob, int state)
 	BLI_freelistN(&pidlist);
 }
 
-static void subframe_updateObject(Scene *scene, Object *ob, int flags, float frame)
+static int subframe_updateObject(Scene *scene, Object *ob, int flags, float frame)
 {
 	DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)modifiers_findByType(ob, eModifierType_DynamicPaint);
 	bConstraint *con;
 
-	/* if other is dynamic paint canvas, dont update */
+	/* if other is dynamic paint canvas, don't update */
 	if (pmd && pmd->canvas)
-		return;
+		return 1;
 
 	/* if object has parents, update them too */
 	if (flags & UPDATE_PARENTS) {
-		if (ob->parent) subframe_updateObject(scene, ob->parent, 0, frame);
-		if (ob->track) subframe_updateObject(scene, ob->track, 0, frame);
+		int is_canvas = 0;
+		if (ob->parent) is_canvas += subframe_updateObject(scene, ob->parent, 0, frame);
+		if (ob->track) is_canvas += subframe_updateObject(scene, ob->track, 0, frame);
+
+		/* skip subframe if object is parented
+		*  to vertex of a dynamic paint canvas */
+		if (is_canvas && (ob->partype == PARVERT1 || ob->partype == PARVERT3))
+			return 0;
 
 		/* also update constraint targets */
 		for (con = ob->constraints.first; con; con=con->next) {
@@ -485,12 +506,13 @@ static void subframe_updateObject(Scene *scene, Object *ob, int flags, float fra
 		}
 	}
 	/* for curve following objects, parented curve has to be updated too */
-	if(ob->type==OB_CURVE) {
+	if (ob->type==OB_CURVE) {
 		Curve *cu= ob->data;
 		BKE_animsys_evaluate_animdata(scene, &cu->id, cu->adt, frame, ADT_RECALC_ANIM);
 	}
 
-	ob->recalc |= OB_RECALC_ALL;
+	/* was originally OB_RECALC_ALL - TODO - which flags are really needed??? */
+	ob->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
 	BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, frame, ADT_RECALC_ANIM);
 	if (flags & UPDATE_MESH) {
 		/* ignore cache clear during subframe updates
@@ -501,6 +523,8 @@ static void subframe_updateObject(Scene *scene, Object *ob, int flags, float fra
 	}
 	else
 		where_is_object_time(scene, ob, frame);
+
+	return 0;
 }
 
 static void scene_setSubframe(Scene *scene, float subframe)
@@ -519,7 +543,7 @@ static int surface_getBrushFlags(DynamicPaintSurface *surface, Scene *scene)
 
 	int flags = 0;
 
-	if(surface->brush_group)
+	if (surface->brush_group)
 		go = surface->brush_group->gobject.first;
 	else
 		base = scene->base.first;
@@ -529,26 +553,26 @@ static int surface_getBrushFlags(DynamicPaintSurface *surface, Scene *scene)
 		brushObj = NULL;
 
 		/* select object */
-		if(surface->brush_group) {						
-			if(go->ob)	brushObj = go->ob;					
+		if (surface->brush_group) {						
+			if (go->ob)	brushObj = go->ob;					
 		}					
 		else						
 			brushObj = base->object;
 
-		if(!brushObj)					
+		if (!brushObj)					
 		{
-			if(surface->brush_group) go = go->next;
+			if (surface->brush_group) go = go->next;
 			else base= base->next;					
 			continue;			
 		}
 
-		if(surface->brush_group)
+		if (surface->brush_group)
 			go = go->next;
 		else
 			base= base->next;
 
 		md = modifiers_findByType(brushObj, eModifierType_DynamicPaint);
-		if(md && md->mode & (eModifierMode_Realtime | eModifierMode_Render))					
+		if (md && md->mode & (eModifierMode_Realtime | eModifierMode_Render))					
 		{
 			DynamicPaintModifierData *pmd2 = (DynamicPaintModifierData *)md;
 
@@ -615,6 +639,12 @@ static void boundInsert(Bounds3D *b, float point[3])
 			if (point[i] > b->max[i]) b->max[i]=point[i];
 		}
 	}
+}
+
+float getSurfaceDimension(PaintSurfaceData *sData)
+{
+	Bounds3D *mb = &sData->bData->mesh_bounds;
+	return MAX3((mb->max[0]-mb->min[0]), (mb->max[1]-mb->min[1]), (mb->max[2]-mb->min[2]));
 }
 
 static void freeGrid(PaintSurfaceData *data)
@@ -716,7 +746,7 @@ static void surfaceGenerateGrid(struct DynamicPaintSurface *surface)
 		grid->t_index = MEM_callocN(sizeof(int) * sData->total_points, "Surface Grid Target Ids");
 		temp_t_index = MEM_callocN(sizeof(int) * sData->total_points, "Temp Surface Grid Target Ids");
 
-		/* in case of an allocation failture abort here */
+		/* in case of an allocation failure abort here */
 		if (!grid->bounds || !grid->s_pos || !grid->s_num || !grid->t_index || !temp_s_num || !temp_t_index)
 			error = 1;
 
@@ -803,15 +833,15 @@ static void surfaceGenerateGrid(struct DynamicPaintSurface *surface)
 /* Free brush data */
 void dynamicPaint_freeBrush(struct DynamicPaintModifierData *pmd)
 {
-	if(pmd->brush) {
-		if(pmd->brush->dm)
+	if (pmd->brush) {
+		if (pmd->brush->dm)
 			pmd->brush->dm->release(pmd->brush->dm);
 		pmd->brush->dm = NULL;
 
-		if(pmd->brush->paint_ramp)
+		if (pmd->brush->paint_ramp)
 			 MEM_freeN(pmd->brush->paint_ramp);
 		pmd->brush->paint_ramp = NULL;
-		if(pmd->brush->vel_ramp)
+		if (pmd->brush->vel_ramp)
 			 MEM_freeN(pmd->brush->vel_ramp);
 		pmd->brush->vel_ramp = NULL;
 
@@ -893,7 +923,7 @@ void dynamicPaint_freeSurface(DynamicPaintSurface *surface)
 	BKE_ptcache_free_list(&(surface->ptcaches));
 	surface->pointcache = NULL;
 
-	if(surface->effector_weights)
+	if (surface->effector_weights)
 		MEM_freeN(surface->effector_weights);
 	surface->effector_weights = NULL;
 
@@ -905,7 +935,7 @@ void dynamicPaint_freeSurface(DynamicPaintSurface *surface)
 /* Free canvas data */
 void dynamicPaint_freeCanvas(DynamicPaintModifierData *pmd)
 {
-	if(pmd->canvas) {
+	if (pmd->canvas) {
 		/* Free surface data */
 		DynamicPaintSurface *surface = pmd->canvas->surfaces.first;
 		DynamicPaintSurface *next_surface = NULL;
@@ -929,7 +959,7 @@ void dynamicPaint_freeCanvas(DynamicPaintModifierData *pmd)
 /* Free whole dp modifier */
 void dynamicPaint_Modifier_free(struct DynamicPaintModifierData *pmd)
 {
-	if(pmd) {
+	if (pmd) {
 		dynamicPaint_freeCanvas(pmd);
 		dynamicPaint_freeBrush(pmd);
 	}
@@ -959,16 +989,20 @@ struct DynamicPaintSurface *dynamicPaint_createNewSurface(DynamicPaintCanvasSett
 
 	/* Set initial values */
 	surface->flags = MOD_DPAINT_ANTIALIAS | MOD_DPAINT_MULALPHA | MOD_DPAINT_DRY_LOG | MOD_DPAINT_DISSOLVE_LOG |
-					 MOD_DPAINT_ACTIVE | MOD_DPAINT_PREVIEW | MOD_DPAINT_OUT1;
+					 MOD_DPAINT_ACTIVE | MOD_DPAINT_PREVIEW | MOD_DPAINT_OUT1 | MOD_DPAINT_USE_DRYING;
 	surface->effect = 0;
 	surface->effect_ui = 1;
 
 	surface->diss_speed = 250;
 	surface->dry_speed = 500;
+	surface->color_dry_threshold = 1.0f;
 	surface->depth_clamp = 0.0f;
 	surface->disp_factor = 1.0f;
 	surface->disp_type = MOD_DPAINT_DISP_DISPLACE;
 	surface->image_fileformat = MOD_DPAINT_IMGFORMAT_PNG;
+
+	surface->influence_scale = 1.0f;
+	surface->radius_scale = 1.0f;
 
 	surface->init_color[0] = 1.0f;
 	surface->init_color[1] = 1.0f;
@@ -1014,10 +1048,10 @@ struct DynamicPaintSurface *dynamicPaint_createNewSurface(DynamicPaintCanvasSett
 */
 int dynamicPaint_createType(struct DynamicPaintModifierData *pmd, int type, struct Scene *scene)
 {
-	if(pmd) {
-		if(type == MOD_DYNAMICPAINT_TYPE_CANVAS) {
+	if (pmd) {
+		if (type == MOD_DYNAMICPAINT_TYPE_CANVAS) {
 			DynamicPaintCanvasSettings *canvas;
-			if(pmd->canvas)
+			if (pmd->canvas)
 				dynamicPaint_freeCanvas(pmd);
 
 			canvas = pmd->canvas = MEM_callocN(sizeof(DynamicPaintCanvasSettings), "DynamicPaint Canvas");
@@ -1031,9 +1065,9 @@ int dynamicPaint_createType(struct DynamicPaintModifierData *pmd, int type, stru
 				return 0;
 
 		}
-		else if(type == MOD_DYNAMICPAINT_TYPE_BRUSH) {
+		else if (type == MOD_DYNAMICPAINT_TYPE_BRUSH) {
 			DynamicPaintBrushSettings *brush;
-			if(pmd->brush)
+			if (pmd->brush)
 				dynamicPaint_freeBrush(pmd);
 
 			brush = pmd->brush = MEM_callocN(sizeof(DynamicPaintBrushSettings), "DynamicPaint Paint");
@@ -1115,8 +1149,8 @@ void dynamicPaint_Modifier_copy(struct DynamicPaintModifierData *pmd, struct Dyn
 	/* Copy data	*/
 	if (tpmd->canvas) {
 		tpmd->canvas->pmd = tpmd;
-
-	} else if (tpmd->brush) {
+	}
+	else if (tpmd->brush) {
 		DynamicPaintBrushSettings *brush = pmd->brush, *t_brush = tpmd->brush;
 		t_brush->pmd = tpmd;
 
@@ -1194,15 +1228,16 @@ static int surface_usesAdjData(DynamicPaintSurface *surface)
 static void dynamicPaint_initAdjacencyData(DynamicPaintSurface *surface, int force_init)
 {
 	PaintSurfaceData *sData = surface->data;
-	PaintAdjData *ed;
+	DerivedMesh *dm = surface->canvas->dm;
+	PaintAdjData *ad;
 	int *temp_data;
 	int neigh_points = 0;
 
 	if (!surface_usesAdjData(surface) && !force_init) return;
 
 	if (surface->format == MOD_DPAINT_SURFACE_F_VERTEX) {
-		/* For vertex format, neighbours are connected by edges */
-		neigh_points = 2*surface->canvas->dm->getNumEdges(surface->canvas->dm);
+		/* For vertex format, neighbors are connected by edges */
+		neigh_points = 2*dm->getNumEdges(dm);
 	}
 	else if (surface->format == MOD_DPAINT_SURFACE_F_IMAGESEQ)
 		neigh_points = sData->total_points*8;
@@ -1210,17 +1245,17 @@ static void dynamicPaint_initAdjacencyData(DynamicPaintSurface *surface, int for
 	if (!neigh_points) return;
 
 	/* allocate memory */
-	ed = sData->adj_data = MEM_callocN(sizeof(PaintAdjData), "Surface Adj Data");
-	if (!ed) return;
-	ed->n_index = MEM_callocN(sizeof(int)*sData->total_points, "Surface Adj Index");
-	ed->n_num = MEM_callocN(sizeof(int)*sData->total_points, "Surface Adj Counts");
+	ad = sData->adj_data = MEM_callocN(sizeof(PaintAdjData), "Surface Adj Data");
+	if (!ad) return;
+	ad->n_index = MEM_callocN(sizeof(int)*sData->total_points, "Surface Adj Index");
+	ad->n_num = MEM_callocN(sizeof(int)*sData->total_points, "Surface Adj Counts");
 	temp_data = MEM_callocN(sizeof(int)*sData->total_points, "Temp Adj Data");
-	ed->n_target = MEM_callocN(sizeof(int)*neigh_points, "Surface Adj Targets");
-	ed->flags = MEM_callocN(sizeof(int)*sData->total_points, "Surface Adj Flags");
-	ed->total_targets = neigh_points;
+	ad->n_target = MEM_callocN(sizeof(int)*neigh_points, "Surface Adj Targets");
+	ad->flags = MEM_callocN(sizeof(int)*sData->total_points, "Surface Adj Flags");
+	ad->total_targets = neigh_points;
 
 	/* in case of allocation error, free memory */
-	if (!ed->n_index || !ed->n_num || !ed->n_target || !temp_data) {
+	if (!ad->n_index || !ad->n_num || !ad->n_target || !temp_data) {
 		dynamicPaint_freeAdjData(sData);
 		if (temp_data) MEM_freeN(temp_data);
 		setError(surface->canvas, "Not enough free memory.");
@@ -1232,27 +1267,28 @@ static void dynamicPaint_initAdjacencyData(DynamicPaintSurface *surface, int for
 		int n_pos;
 
 		/* For vertex format, count every vertex that is connected by an edge */
-		int numOfEdges = surface->canvas->dm->getNumEdges(surface->canvas->dm);
-		int numOfFaces = surface->canvas->dm->getNumFaces(surface->canvas->dm);
-		struct MEdge *edge =  surface->canvas->dm->getEdgeArray(surface->canvas->dm);
-		struct MFace *face =  surface->canvas->dm->getFaceArray(surface->canvas->dm);
+		int numOfEdges = dm->getNumEdges(dm);
+		int numOfPolys = dm->getNumPolys(dm);
+		struct MEdge *edge =  dm->getEdgeArray(dm);
+		struct MPoly *mpoly = dm->getPolyArray(dm);
+		struct MLoop *mloop = dm->getLoopArray(dm);
 
 		/* count number of edges per vertex */
 		for (i=0; i<numOfEdges; i++) {
-			ed->n_num[edge[i].v1]++;
-			ed->n_num[edge[i].v2]++;
+			ad->n_num[edge[i].v1]++;
+			ad->n_num[edge[i].v2]++;
 
 			temp_data[edge[i].v1]++;
 			temp_data[edge[i].v2]++;
 		}
 
-		/* to locate points on "mesh edge" */
-		for (i=0; i<numOfFaces; i++) {
-			temp_data[face[i].v1]++;
-			temp_data[face[i].v2]++;
-			temp_data[face[i].v3]++;
-			if (face[i].v4)
-				temp_data[face[i].v4]++;
+		/* also add number of vertices to temp_data
+		*  to locate points on "mesh edge" */
+		for (i=0; i<numOfPolys; i++) {
+			int j=0;
+			for (; j<mpoly[i].totloop; j++) {
+				temp_data[mloop[mpoly[i].loopstart + j].v]++;
+			}
 		}
 
 		/* now check if total number of edges+faces for
@@ -1260,7 +1296,7 @@ static void dynamicPaint_initAdjacencyData(DynamicPaintSurface *surface, int for
 		for (i=0; i<sData->total_points; i++) {
 			if ((temp_data[i]%2) ||
 				temp_data[i] < 4)
-				ed->flags[i] |= ADJ_ON_MESH_EDGE;
+				ad->flags[i] |= ADJ_ON_MESH_EDGE;
 				
 			/* reset temp data */ 
 			temp_data[i] = 0;
@@ -1269,22 +1305,22 @@ static void dynamicPaint_initAdjacencyData(DynamicPaintSurface *surface, int for
 		/* order n_index array */
 		n_pos = 0;
 		for (i=0; i<sData->total_points; i++) {
-			ed->n_index[i] = n_pos;
-			n_pos += ed->n_num[i];
+			ad->n_index[i] = n_pos;
+			n_pos += ad->n_num[i];
 		}
 
-		/* and now add neighbour data using that info */
+		/* and now add neighbor data using that info */
 		for (i=0; i<numOfEdges; i++) {
 			/* first vertex */
 			int index = edge[i].v1;
-			n_pos = ed->n_index[index]+temp_data[index];
-			ed->n_target[n_pos] = edge[i].v2;
+			n_pos = ad->n_index[index]+temp_data[index];
+			ad->n_target[n_pos] = edge[i].v2;
 			temp_data[index]++;
 
 			/* second vertex */
 			index = edge[i].v2;
-			n_pos = ed->n_index[index]+temp_data[index];
-			ed->n_target[n_pos] = edge[i].v1;
+			n_pos = ad->n_index[index]+temp_data[index];
+			ad->n_target[n_pos] = edge[i].v1;
 			temp_data[index]++;
 		}
 	}
@@ -1321,9 +1357,9 @@ void dynamicPaint_setInitialColor(DynamicPaintSurface *surface)
 	else if (surface->init_color_type == MOD_DPAINT_INITIAL_TEXTURE) {
 		Tex *tex = surface->init_texture;
 		MTFace *tface;
-		MFace *mface = dm->getFaceArray(dm);
-		int numOfFaces = dm->getNumFaces(dm);
-		char uvname[40];
+		MFace *mface = dm->getTessFaceArray(dm);
+		int numOfFaces = dm->getNumTessFaces(dm);
+		char uvname[MAX_CUSTOMDATA_LAYER_NAME];
 
 		if (!tex) return;
 
@@ -1391,31 +1427,27 @@ void dynamicPaint_setInitialColor(DynamicPaintSurface *surface)
 	}
 	/* vertex color layer */
 	else if (surface->init_color_type == MOD_DPAINT_INITIAL_VERTEXCOLOR) {
-		MCol *col = CustomData_get_layer_named(&dm->faceData, CD_MCOL, surface->init_layername);
-		if (!col) return;
 
 		/* for vertex surface, just copy colors from mcol */
 		if (surface->format == MOD_DPAINT_SURFACE_F_VERTEX) {
-			MFace *mface = dm->getFaceArray(dm);
-			int numOfFaces = dm->getNumFaces(dm);
+			MLoop *mloop = dm->getLoopArray(dm);
+			int numOfLoops = dm->getNumLoops(dm);
+			MCol *col = CustomData_get_layer_named(&dm->loopData, CD_MLOOPCOL, surface->init_layername);
+			if (!col) return;
 
 			#pragma omp parallel for schedule(static)
-			for (i=0; i<numOfFaces; i++) {
-				int numOfVert = (mface[i].v4) ? 4 : 3;
-				int j;
-				for (j=0; j<numOfVert; j++) {
-					unsigned int *vert = ((&mface[i].v1)+j);
-
-					pPoint[*vert].color[0] = 1.0f/255.f*(float)col[i*4+j].b;
-					pPoint[*vert].color[1] = 1.0f/255.f*(float)col[i*4+j].g;
-					pPoint[*vert].color[2] = 1.0f/255.f*(float)col[i*4+j].r;
-					pPoint[*vert].alpha = 1.0f/255.f*(float)col[i*4+j].a;
-				}
+			for (i=0; i<numOfLoops; i++) {
+				pPoint[mloop[i].v].color[0] = 1.0f/255.f*(float)col[i].b;
+				pPoint[mloop[i].v].color[1] = 1.0f/255.f*(float)col[i].g;
+				pPoint[mloop[i].v].color[2] = 1.0f/255.f*(float)col[i].r;
+				pPoint[mloop[i].v].alpha = 1.0f/255.f*(float)col[i].a;
 			}
 		}
 		else if (surface->format == MOD_DPAINT_SURFACE_F_IMAGESEQ) {
 			ImgSeqFormatData *f_data = (ImgSeqFormatData*)sData->format_data;
 			int samples = (surface->flags & MOD_DPAINT_ANTIALIAS) ? 5 : 1;
+			MCol *col = CustomData_get_layer_named(&dm->faceData, CD_MCOL, surface->init_layername);
+			if (!col) return;
 
 			#pragma omp parallel for schedule(static)
 			for (i=0; i<sData->total_points; i++) {
@@ -1472,10 +1504,11 @@ void dynamicPaint_clearSurface(DynamicPaintSurface *surface)
 int dynamicPaint_resetSurface(DynamicPaintSurface *surface)
 {
 	int numOfPoints = dynamicPaint_surfaceNumOfPoints(surface);
-	/* dont touch image sequence types. they get handled only on bake */
-	if (surface->format == MOD_DPAINT_SURFACE_F_IMAGESEQ) return 1;
-
+	/* free existing data */
 	if (surface->data) dynamicPaint_freeSurfaceData(surface);
+
+	/* don't reallocate for image sequence types. they get handled only on bake */
+	if (surface->format == MOD_DPAINT_SURFACE_F_IMAGESEQ) return 1;
 	if (numOfPoints < 1) return 0;
 
 	/* allocate memory */
@@ -1508,7 +1541,7 @@ static int dynamicPaint_checkSurfaceData(DynamicPaintSurface *surface)
 
 
 /* apply displacing vertex surface to the derived mesh */
-static void dynamicPaint_applySurfaceDisplace(DynamicPaintSurface *surface, DerivedMesh *result, int update_normals)
+static void dynamicPaint_applySurfaceDisplace(DynamicPaintSurface *surface, DerivedMesh *result)
 {
 	PaintSurfaceData *sData = surface->data;
 
@@ -1531,10 +1564,6 @@ static void dynamicPaint_applySurfaceDisplace(DynamicPaintSurface *surface, Deri
 			mvert[i].co[2] -= normal[2]*val;
 		}
 	}
-	else return;
-
-	if (update_normals)
-		CDDM_calc_normals(result);
 }
 
 /*
@@ -1546,16 +1575,16 @@ static struct DerivedMesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData 
 {	
 	DerivedMesh *result = CDDM_copy(dm);
 
-	if(pmd->canvas && !(pmd->canvas->flags & MOD_DPAINT_BAKING)) {
+	if (pmd->canvas && !(pmd->canvas->flags & MOD_DPAINT_BAKING)) {
 
-		DynamicPaintSurface *surface = pmd->canvas->surfaces.first;
-		pmd->canvas->flags &= ~MOD_DPAINT_PREVIEW_READY;
+		DynamicPaintSurface *surface;
+		int update_normals = 0;
 
 		/* loop through surfaces */
-		for (; surface; surface=surface->next) {
+		for (surface = pmd->canvas->surfaces.first; surface; surface=surface->next) {
 			PaintSurfaceData *sData = surface->data;
 
-			if (surface && surface->format != MOD_DPAINT_SURFACE_F_IMAGESEQ && sData) {
+			if (surface->format != MOD_DPAINT_SURFACE_F_IMAGESEQ && sData) {
 				if (!(surface->flags & (MOD_DPAINT_ACTIVE))) continue;
 
 				/* process vertex surface previews */
@@ -1564,11 +1593,11 @@ static struct DerivedMesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData 
 					/* vertex color paint */
 					if (surface->type == MOD_DPAINT_SURFACE_T_PAINT) {
 
-						MFace *mface = result->getFaceArray(result);
-						int numOfFaces = result->getNumFaces(result);
 						int i;
 						PaintPoint* pPoint = (PaintPoint*)sData->type_data;
-						MCol *col;
+						MLoopCol *col = NULL;
+						MLoop *mloop = CDDM_get_loops(result);
+						int totloop = result->numLoopData;
 
 						/* paint is stored on dry and wet layers, so mix final color first */
 						float *fcolor = MEM_callocN(sizeof(float)*sData->total_points*4, "Temp paint color");
@@ -1581,26 +1610,41 @@ static struct DerivedMesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData 
 
 						/* viewport preview */
 						if (surface->flags & MOD_DPAINT_PREVIEW) {
-							/* Save preview results to weight layer, to be
+							MPoly *mp = CDDM_get_polys(result);
+							int totpoly = result->numPolyData;
+
+#if 0
+							/* XXX We have to create a CD_PREVIEW_MCOL, else it might sigsev
+							 *     (after a SubSurf mod, eg)... */
+							if (!result->getTessFaceDataArray(result, CD_PREVIEW_MCOL)) {
+								int numFaces = result->getNumTessFaces(result);
+								CustomData_add_layer(&result->faceData, CD_PREVIEW_MCOL, CD_CALLOC, NULL, numFaces);
+							}
+#endif
+
+							/* Save preview results to weight layer to be
 							*   able to share same drawing methods */
-							col = result->getFaceDataArray(result, CD_WEIGHT_MCOL);
-							if (!col) col = CustomData_add_layer(&result->faceData, CD_WEIGHT_MCOL, CD_CALLOC, NULL, numOfFaces);
+							col = CustomData_get_layer(&result->loopData, CD_PREVIEW_MLOOPCOL);
+							if (!col)
+								col = CustomData_add_layer(&result->loopData, CD_PREVIEW_MLOOPCOL, CD_CALLOC,
+								                           NULL, totloop);
 
 							if (col) {
 								#pragma omp parallel for schedule(static)
-								for (i=0; i<numOfFaces; i++) {
+								for (i=0; i<totpoly; i++) {
 									int j=0;
-									Material *material = give_current_material(ob, mface[i].mat_nr+1);
+									Material *material = give_current_material(ob, mp[i].mat_nr + 1);
 
-									for (; j<((mface[i].v4)?4:3); j++) {
-										int index = (j==0)?mface[i].v1: (j==1)?mface[i].v2: (j==2)?mface[i].v3: mface[i].v4;
+									for (; j<mp[i].totloop; j++) {
+										int l_index = mp[i].loopstart + j;
+										int v_index = mloop[l_index].v;
 
 										if (surface->preview_id == MOD_DPAINT_SURFACE_PREV_PAINT) {
 											float c[3];
-											index *= 4;
+											v_index *= 4;
 
 											/* Apply material color as base vertex color for preview */
-											col[i*4+j].a = 255;
+											col[l_index].a = 255;
 											if (material) {
 												c[0] = material->r;
 												c[1] = material->g;
@@ -1612,21 +1656,18 @@ static struct DerivedMesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData 
 												c[2] = 0.65f;
 											}
 											/* mix surface color */
-											interp_v3_v3v3(c, c, &fcolor[index], fcolor[index+3]);
+											interp_v3_v3v3(c, c, &fcolor[v_index], fcolor[v_index+3]);
 
-											col[i*4+j].r = FTOCHAR(c[2]);
-											col[i*4+j].g = FTOCHAR(c[1]);
-											col[i*4+j].b = FTOCHAR(c[0]);
+											rgb_float_to_uchar((unsigned char *)&col[l_index].r, c);
 										}
 										else {
-											col[i*4+j].a = 255;
-											col[i*4+j].r = FTOCHAR(pPoint[index].wetness);
-											col[i*4+j].g = FTOCHAR(pPoint[index].wetness);
-											col[i*4+j].b = FTOCHAR(pPoint[index].wetness);
+											col[l_index].r =
+											col[l_index].g =
+											col[l_index].b = FTOCHAR(pPoint[v_index].wetness);
+											col[l_index].a = 255;
 										}
 									}
 								}
-								pmd->canvas->flags |= MOD_DPAINT_PREVIEW_READY;
 							}
 						}
 
@@ -1634,82 +1675,54 @@ static struct DerivedMesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData 
 						/* save layer data to output layer */
 
 						/* paint layer */
-						col = CustomData_get_layer_named(&result->faceData, CD_MCOL, surface->output_name);
+						col = CustomData_get_layer_named(&result->loopData, CD_MLOOPCOL, surface->output_name);
 						/* if output layer is lost from a constructive modifier, re-add it */
 						if (!col && dynamicPaint_outputLayerExists(surface, ob, 0))
-							col = CustomData_add_layer_named(&result->faceData, CD_MCOL, CD_CALLOC, NULL, numOfFaces, surface->output_name);
+							col = CustomData_add_layer_named(&result->loopData, CD_MLOOPCOL, CD_CALLOC, NULL, totloop, surface->output_name);
 						/* apply color */
 						if (col) {
 							#pragma omp parallel for schedule(static)
-							for (i=0; i<numOfFaces; i++) {
-								int j=0;
-								for (; j<((mface[i].v4)?4:3); j++) {
-									int index = (j==0)?mface[i].v1: (j==1)?mface[i].v2: (j==2)?mface[i].v3: mface[i].v4;
-									index *= 4;
-
-									col[i*4+j].a = FTOCHAR(fcolor[index+3]);
-									col[i*4+j].r = FTOCHAR(fcolor[index+2]);
-									col[i*4+j].g = FTOCHAR(fcolor[index+1]);
-									col[i*4+j].b = FTOCHAR(fcolor[index]);
-								}
+							for (i=0; i<totloop; i++) {
+								int index = mloop[i].v*4;
+								rgb_float_to_uchar((unsigned char *)&col[i].r, &fcolor[index]);
+								col[i].a = FTOCHAR(fcolor[index+3]); /* IS THIS NEEDED? */
 							}
 						}
 						
 						MEM_freeN(fcolor);
 
 						/* wet layer */
-						col = CustomData_get_layer_named(&result->faceData, CD_MCOL, surface->output_name2);
+						col = CustomData_get_layer_named(&result->loopData, CD_MLOOPCOL, surface->output_name2);
 						/* if output layer is lost from a constructive modifier, re-add it */
 						if (!col && dynamicPaint_outputLayerExists(surface, ob, 1))
-							col = CustomData_add_layer_named(&result->faceData, CD_MCOL, CD_CALLOC, NULL, numOfFaces, surface->output_name2);
+							col = CustomData_add_layer_named(&result->loopData, CD_MLOOPCOL, CD_CALLOC, NULL, totloop, surface->output_name2);
 						/* apply color */
 						if (col) {
 							#pragma omp parallel for schedule(static)
-							for (i=0; i<numOfFaces; i++) {
-								int j=0;
-
-								for (; j<((mface[i].v4)?4:3); j++) {
-									int index = (j==0)?mface[i].v1: (j==1)?mface[i].v2: (j==2)?mface[i].v3: mface[i].v4;
-									col[i*4+j].a = 255;
-									col[i*4+j].r = FTOCHAR(pPoint[index].wetness);
-									col[i*4+j].g = FTOCHAR(pPoint[index].wetness);
-									col[i*4+j].b = FTOCHAR(pPoint[index].wetness);
-								}
+							for (i=0; i<totloop; i++) {
+								int index = mloop[i].v;
+								col[i].r =
+								col[i].g =
+								col[i].b = FTOCHAR(pPoint[index].wetness);
+								col[i].a = 255;
 							}
 						}
+
+						/* Mark tessellated CD layers as dirty. */
+						result->dirty |= DM_DIRTY_TESS_CDLAYERS;
 					}
 					/* vertex group paint */
 					else if (surface->type == MOD_DPAINT_SURFACE_T_WEIGHT) {
 						int defgrp_index = defgroup_name_index(ob, surface->output_name);
 						MDeformVert *dvert = result->getVertDataArray(result, CD_MDEFORMVERT);
 						float *weight = (float*)sData->type_data;
+
 						/* viewport preview */
 						if (surface->flags & MOD_DPAINT_PREVIEW) {
-							/* Save preview results to weight layer, to be
-							*   able to share same drawing methods */
-							MFace *mface = result->getFaceArray(result);
-							int numOfFaces = result->getNumFaces(result);
-							int i;
-							MCol *col = result->getFaceDataArray(result, CD_WEIGHT_MCOL);
-							if (!col) col = CustomData_add_layer(&result->faceData, CD_WEIGHT_MCOL, CD_CALLOC, NULL, numOfFaces);
-
-							if (col) {
-								#pragma omp parallel for schedule(static)
-								for (i=0; i<numOfFaces; i++) {
-									float temp_color[3];
-									int j=0;
-									for (; j<((mface[i].v4)?4:3); j++) {
-										int index = (j==0)?mface[i].v1: (j==1)?mface[i].v2: (j==2)?mface[i].v3: mface[i].v4;
-
-										weight_to_rgb(temp_color, weight[index]);
-										col[i*4+j].r = FTOCHAR(temp_color[2]);
-										col[i*4+j].g = FTOCHAR(temp_color[1]);
-										col[i*4+j].b = FTOCHAR(temp_color[0]);
-										col[i*4+j].a = 255;
-									}
-								}
-								pmd->canvas->flags |= MOD_DPAINT_PREVIEW_READY;
-							}
+							/* Save preview results to weight layer to be
+							 * able to share same drawing methods.
+							 * Note this func also sets DM_DIRTY_TESS_CDLAYERS flag! */
+							DM_update_weight_mcol(ob, result, 0, weight, 0, NULL);
 						}
 
 						/* apply weights into a vertex group, if doesnt exists add a new layer */
@@ -1718,7 +1731,7 @@ static struct DerivedMesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData 
 																NULL, sData->total_points, surface->output_name);
 						if (defgrp_index >= 0 && dvert) {
 							int i;
-							for(i=0; i<sData->total_points; i++) {
+							for (i=0; i<sData->total_points; i++) {
 								MDeformVert *dv= &dvert[i];
 								MDeformWeight *def_weight = defvert_find_index(dv, defgrp_index);
 
@@ -1748,14 +1761,20 @@ static struct DerivedMesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData 
 							normal_short_to_float_v3(normal, mvert[i].no);
 							madd_v3_v3fl(mvert[i].co, normal, wPoint[i].height);
 						}
-						CDDM_calc_normals(result);
+						update_normals = 1;
 					}
 
 					/* displace */
-					dynamicPaint_applySurfaceDisplace(surface, result, 1);
+					if (surface->type == MOD_DPAINT_SURFACE_T_DISPLACE) {
+						dynamicPaint_applySurfaceDisplace(surface, result);
+						update_normals = 1;
+					}
 				}
 			}
 		}
+
+		if (update_normals)
+			CDDM_calc_normals(result);
 	}
 	/* make a copy of dm to use as brush data */
 	if (pmd->brush) {
@@ -1786,7 +1805,7 @@ void canvas_copyDerivedMesh(DynamicPaintCanvasSettings *canvas, DerivedMesh *dm)
 */
 static void dynamicPaint_frameUpdate(DynamicPaintModifierData *pmd, Scene *scene, Object *ob, DerivedMesh *dm)
 {
-	if(pmd->canvas) {
+	if (pmd->canvas) {
 		DynamicPaintCanvasSettings *canvas = pmd->canvas;
 		DynamicPaintSurface *surface = canvas->surfaces.first;
 
@@ -1825,20 +1844,18 @@ static void dynamicPaint_frameUpdate(DynamicPaintModifierData *pmd, Scene *scene
 				BKE_ptcache_id_time(&pid, scene, (float)scene->r.cfra, NULL, NULL, NULL);
 
 				/* reset non-baked cache at first frame */
-				if((int)scene->r.cfra == surface->start_frame && !(cache->flag & PTCACHE_BAKED))
-				{
+				if ((int)scene->r.cfra == surface->start_frame && !(cache->flag & PTCACHE_BAKED)) {
 					cache->flag |= PTCACHE_REDO_NEEDED;
 					BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 					cache->flag &= ~PTCACHE_REDO_NEEDED;
 				}
 
 				/* try to read from cache */
-				if(BKE_ptcache_read(&pid, (float)scene->r.cfra)) {
+				if (BKE_ptcache_read(&pid, (float)scene->r.cfra)) {
 					BKE_ptcache_validate(cache, (int)scene->r.cfra);
 				}
 				/* if read failed and we're on surface range do recalculate */
-				else if ((int)scene->r.cfra == current_frame
-					&& !(cache->flag & PTCACHE_BAKED)) {
+				else if ((int)scene->r.cfra == current_frame && !(cache->flag & PTCACHE_BAKED)) {
 					/* calculate surface frame */
 					canvas->flags |= MOD_DPAINT_BAKING;
 					dynamicPaint_calculateFrame(surface, scene, ob, current_frame);
@@ -1860,6 +1877,10 @@ static void dynamicPaint_frameUpdate(DynamicPaintModifierData *pmd, Scene *scene
 /* Modifier call. Processes dynamic paint modifier step. */
 struct DerivedMesh *dynamicPaint_Modifier_do(DynamicPaintModifierData *pmd, Scene *scene, Object *ob, DerivedMesh *dm)
 {	
+	/* For now generate tessfaces in every case
+	*  XXX - move/remove when most of dpaint functions are converted to use bmesh types */
+	DM_ensure_tessface(dm);
+
 	/* Update canvas data for a new frame */
 	dynamicPaint_frameUpdate(pmd, scene, ob, dm);
 
@@ -1871,15 +1892,16 @@ struct DerivedMesh *dynamicPaint_Modifier_do(DynamicPaintModifierData *pmd, Scen
 /***************************** Image Sequence / UV Image Surface Calls ******************************/
 
 /*
-*	Tries to find the neighbouring pixel in given (uv space) direction.
+*	Tries to find the neighboring pixel in given (uv space) direction.
 *	Result is used by effect system to move paint on the surface.
 *
 *   px,py : origin pixel x and y
 *	n_index : lookup direction index (use neighX,neighY to get final index)
 */
-static int dynamicPaint_findNeighbourPixel(PaintUVPoint *tempPoints, DerivedMesh *dm, char *uvname, int w, int h, int px, int py, int n_index)
+static int dynamicPaint_findNeighbourPixel(PaintUVPoint *tempPoints, DerivedMesh *dm,
+                                           const char *uvname, int w, int h, int px, int py, int n_index)
 {
-	/* Note: Current method only uses polygon edges to detect neighbouring pixels.
+	/* Note: Current method only uses polygon edges to detect neighboring pixels.
 	*  -> It doesn't always lead to the optimum pixel but is accurate enough
 	*  and faster/simplier than including possible face tip point links)
 	*/
@@ -1892,14 +1914,14 @@ static int dynamicPaint_findNeighbourPixel(PaintUVPoint *tempPoints, DerivedMesh
 	x = px + neighX[n_index];
 	y = py + neighY[n_index];
 
-	if (x<0 || x>=w) return -1;
-	if (y<0 || y>=h) return -1;
+	if (x<0 || x>=w) return OUT_OF_TEXTURE;
+	if (y<0 || y>=h) return OUT_OF_TEXTURE;
 
-	tPoint = &tempPoints[x+w*y];		/* UV neighbour */
+	tPoint = &tempPoints[x+w*y];		/* UV neighbor */
 	cPoint = &tempPoints[px+w*py];		/* Origin point */
 
 	/*
-	*	Check if shifted point is on same face -> it's a correct neighbour
+	*	Check if shifted point is on same face -> it's a correct neighbor
 	*   (and if it isn't marked as an "edge pixel")
 	*/
 	if ((tPoint->face_index == cPoint->face_index) && (tPoint->neighbour_pixel == -1))
@@ -1918,11 +1940,11 @@ static int dynamicPaint_findNeighbourPixel(PaintUVPoint *tempPoints, DerivedMesh
 	}
 
 	/*
-	*	If we get here, the actual neighbouring pixel
+	*	If we get here, the actual neighboring pixel
 	*	is located on a non-linked uv face, and we have to find
 	*	it's "real" position.
 	*
-	*	Simple neighbouring face finding algorithm:
+	*	Simple neighboring face finding algorithm:
 	*	- find closest uv edge to shifted pixel and get
 	*	  the another face that shares that edge
 	*	- find corresponding position of that new face edge
@@ -1931,8 +1953,8 @@ static int dynamicPaint_findNeighbourPixel(PaintUVPoint *tempPoints, DerivedMesh
 	*	TODO: Implement something more accurate / optimized?
 	*/
 	{
-		int numOfFaces = dm->getNumFaces(dm);
-		MFace *mface = dm->getFaceArray(dm);
+		int numOfFaces = dm->getNumTessFaces(dm);
+		MFace *mface = dm->getTessFaceArray(dm);
 		MTFace *tface =  CustomData_get_layer_named(&dm->faceData, CD_MTFACE, uvname);
 
 		/* Get closest edge to that subpixel on UV map	*/
@@ -2006,8 +2028,8 @@ static int dynamicPaint_findNeighbourPixel(PaintUVPoint *tempPoints, DerivedMesh
 				}
 			}
 
-			/* If none found return -1	*/
-			if (target_face == -1) return -1;
+			/* If none found pixel is on mesh edge	*/
+			if (target_face == -1) return ON_MESH_EDGE;
 
 			/*
 			*	If target face is connected in UV space as well, just use original index
@@ -2045,18 +2067,18 @@ static int dynamicPaint_findNeighbourPixel(PaintUVPoint *tempPoints, DerivedMesh
 			final_pixel[1] = (int)floor(pixel[1]);
 
 			/* If current pixel uv is outside of texture	*/
-			if (final_pixel[0] < 0 || final_pixel[0] >= w) return -1;
-			if (final_pixel[1] < 0 || final_pixel[1] >= h) return -1;
+			if (final_pixel[0] < 0 || final_pixel[0] >= w) return OUT_OF_TEXTURE;
+			if (final_pixel[1] < 0 || final_pixel[1] >= h) return OUT_OF_TEXTURE;
 
 			final_index = final_pixel[0] + w * final_pixel[1];
 
 			/* If we ended up to our origin point ( mesh has smaller than pixel sized faces)	*/
-			if (final_index == (px+w*py)) return -1;
+			if (final_index == (px+w*py)) return NOT_FOUND;
 			/* If found pixel still lies on wrong face ( mesh has smaller than pixel sized faces)	*/
-			if (tempPoints[final_index].face_index != target_face) return -1;
+			if (tempPoints[final_index].face_index != target_face) return NOT_FOUND;
 
 			/*
-			*	If final point is an "edge pixel", use it's "real" neighbour instead
+			*	If final point is an "edge pixel", use it's "real" neighbor instead
 			*/
 			if (tempPoints[final_index].neighbour_pixel != -1) final_index = cPoint->neighbour_pixel;
 
@@ -2079,7 +2101,7 @@ int dynamicPaint_createUVSurface(DynamicPaintSurface *surface)
 	int ty;
 	int w,h;
 	int numOfFaces;
-	char uvname[32];
+	char uvname[MAX_CUSTOMDATA_LAYER_NAME];
 	int active_points = 0;
 	int error = 0;
 
@@ -2098,8 +2120,8 @@ int dynamicPaint_createUVSurface(DynamicPaintSurface *surface)
 	if (!dm) return setError(canvas, "Canvas mesh not updated.");
 	if (surface->format != MOD_DPAINT_SURFACE_F_IMAGESEQ) return setError(canvas, "Can't bake non-\"image sequence\" formats.");
 
-	numOfFaces = dm->getNumFaces(dm);
-	mface = dm->getFaceArray(dm);
+	numOfFaces = dm->getNumTessFaces(dm);
+	mface = dm->getTessFaceArray(dm);
 
 	/* get uv map */
 	CustomData_validate_layer_name(&dm->faceData, CD_MTFACE, surface->uvlayer_name, uvname);
@@ -2303,7 +2325,7 @@ int dynamicPaint_createUVSurface(DynamicPaintSurface *surface)
 
 		/*
 		*	Now loop through every pixel that was left without index
-		*	and find if they have neighbouring pixels that have an index.
+		*	and find if they have neighboring pixels that have an index.
 		*	If so use that polygon as pixel surface.
 		*	(To avoid seams on uv island edges)
 		*/
@@ -2316,7 +2338,7 @@ int dynamicPaint_createUVSurface(DynamicPaintSurface *surface)
 				int index = tx+w*ty;
 				PaintUVPoint *tPoint = (&tempPoints[index]);
 
-				/* If point isnt't on canvas mesh	*/
+				/* If point isn't't on canvas mesh	*/
 				if (tPoint->face_index == -1) {
 					int u_min, u_max, v_min, v_max;
 					int u,v, ind;
@@ -2331,14 +2353,14 @@ int dynamicPaint_createUVSurface(DynamicPaintSurface *surface)
 					point[0] = ((float)tx + 0.5f) / w;
 					point[1] = ((float)ty + 0.5f) / h;
 
-					/* search through defined area for neighbour	*/
+					/* search through defined area for neighbor	*/
 					for (u=u_min; u<=u_max; u++)
 						for (v=v_min; v<=v_max; v++) {
 							/* if not this pixel itself	*/
 							if (u!=0 || v!=0) {
 								ind = (tx+u)+w*(ty+v);
 
-								/* if neighbour has index	*/
+								/* if neighbor has index	*/
 								if (tempPoints[ind].face_index != -1) {
 
 									float uv1co[2], uv2co[2], uv3co[2], uv[2];
@@ -2383,7 +2405,7 @@ int dynamicPaint_createUVSurface(DynamicPaintSurface *surface)
 		}
 
 		/*
-		*	When base loop is over convert found neighbour indexes to real ones
+		*	When base loop is over convert found neighbor indexes to real ones
 		*	Also count the final number of active surface points
 		*/
 		for (ty = 0; ty < h; ty++)
@@ -2431,14 +2453,17 @@ int dynamicPaint_createUVSurface(DynamicPaintSurface *surface)
 
 							for (i=0; i<8; i++) {
 
-								/* Try to find a neighbouring pixel in defined direction
+								/* Try to find a neighboring pixel in defined direction
 								*  If not found, -1 is returned */
 								int n_target = dynamicPaint_findNeighbourPixel(tempPoints, dm, uvname, w, h, tx, ty, i);
 
-								if (n_target != -1) {
+								if (n_target >= 0) {
 									ed->n_target[n_pos] = final_index[n_target];
 									ed->n_num[final_index[index]]++;
 									n_pos++;
+								}
+								else if (n_target == ON_MESH_EDGE || n_target == OUT_OF_TEXTURE) {
+									ed->flags[final_index[index]] |= ADJ_ON_MESH_EDGE;
 								}
 							}
 						}
@@ -2473,7 +2498,7 @@ int dynamicPaint_createUVSurface(DynamicPaintSurface *surface)
 				sData->total_points = active_points;
 				sData->format_data = f_data;
 
-				for(index = 0; index < (w*h); index++) {
+				for (index = 0; index < (w*h); index++) {
 					if (tempPoints[index].face_index != -1) {
 						memcpy(&f_data->uv_p[cursor], &tempPoints[index], sizeof(PaintUVPoint));
 						memcpy(&f_data->barycentricWeights[cursor*aa_samples], &tempWeights[index*aa_samples], sizeof(Vec3f)*aa_samples);
@@ -2573,14 +2598,8 @@ void dynamicPaint_outputSurfaceImage(DynamicPaintSurface *surface, char* filenam
 			if (surface->type == MOD_DPAINT_SURFACE_T_PAINT) {
 				PaintPoint *point = &((PaintPoint*)sData->type_data)[index];
 
-				ibuf->rect_float[pos]   = point->color[0];
-				ibuf->rect_float[pos+1] = point->color[1];
-				ibuf->rect_float[pos+2] = point->color[2];
-				/* mix wet layer */
-				if (point->e_alpha) mixColors(&ibuf->rect_float[pos], point->alpha, point->e_color, point->e_alpha);
-
-				/* use highest alpha	*/
-				ibuf->rect_float[pos+3] = (point->e_alpha > point->alpha) ? point->e_alpha : point->alpha;
+				/* blend wet and dry layers */
+				blendColors(point->color, point->alpha, point->e_color, point->e_alpha, &ibuf->rect_float[pos]);
 
 				/* Multiply color by alpha if enabled	*/
 				if (surface->flags & MOD_DPAINT_MULALPHA) {
@@ -2623,7 +2642,7 @@ void dynamicPaint_outputSurfaceImage(DynamicPaintSurface *surface, char* filenam
 		}
 	}
 
-	/* Set output format, png in case exr isnt supported */
+	/* Set output format, png in case exr isn't supported */
 	ibuf->ftype= PNG|95;
 #ifdef WITH_OPENEXR
 	if (format == R_IMF_IMTYPE_OPENEXR) {	/* OpenEXR 32-bit float */
@@ -2697,7 +2716,7 @@ static void dynamicPaint_freeBrushMaterials(BrushMaterials *bMats)
 void dynamicPaint_doMaterialTex(BrushMaterials *bMats, float color[3], float *alpha, Object *brushOb, const float volume_co[3], const float surface_co[3], int faceIndex, short isQuad, DerivedMesh *orcoDm)
 {
 	Material *mat = bMats->mat;
-	MFace *mface = orcoDm->getFaceArray(orcoDm);
+	MFace *mface = orcoDm->getTessFaceArray(orcoDm);
 
 	/* If no material defined, use the one assigned to the mesh face */
 	if (mat == NULL) {
@@ -2740,7 +2759,7 @@ static void mesh_faces_spherecast_dp(void *userdata, int index, const BVHTreeRay
 	{	
 		float dist = bvhtree_ray_tri_intersection(ray, hit->dist, t0, t1, t2);
 
-		if(dist >= 0 && dist < hit->dist)
+		if (dist >= 0 && dist < hit->dist)
 		{
 			hit->index = index;
 			hit->dist = dist;
@@ -2752,7 +2771,7 @@ static void mesh_faces_spherecast_dp(void *userdata, int index, const BVHTreeRay
 		t3 = NULL;
 		quad = 1;
 
-	} while(t2);
+	} while (t2);
 }
 
 /* A modified callback to bvh tree nearest point. The tree must bust have been built using bvhtree_from_mesh_faces.
@@ -2780,7 +2799,7 @@ static void mesh_faces_nearest_point_dp(void *userdata, int index, const float *
 		int vertex, edge;
 		
 		dist = nearest_point_in_tri_surface(t0, t1, t2, co, &vertex, &edge, nearest_tmp);
-		if(dist < nearest->dist)
+		if (dist < nearest->dist)
 		{
 			nearest->index = index;
 			nearest->dist = dist;
@@ -2793,7 +2812,7 @@ static void mesh_faces_nearest_point_dp(void *userdata, int index, const float *
 		t3 = NULL;
 		quad = 1;
 
-	} while(t2);
+	} while (t2);
 }
 
 
@@ -2911,7 +2930,13 @@ static void dynamicPaint_updatePointData(DynamicPaintSurface *surface, unsigned 
 										 float paint[3], float influence, float depth, float vel_factor, float timescale)
 {
 		PaintSurfaceData *sData = surface->data;
-		float strength = influence * brush->alpha;
+		float strength;
+
+		/* apply influence scale */
+		influence *= surface->influence_scale;
+		depth *= surface->influence_scale;
+
+		strength = influence * brush->alpha;
 		CLAMP(strength, 0.0f, 1.0f);
 
 		/* Sample velocity colorband if required */
@@ -2990,12 +3015,12 @@ static void dynamicPaint_updatePointData(DynamicPaintSurface *surface, unsigned 
 }
 
 /* checks whether surface and brush bounds intersect depending on brush type */
-static int meshBrush_boundsIntersect(Bounds3D *b1, Bounds3D *b2, DynamicPaintBrushSettings *brush)
+static int meshBrush_boundsIntersect(Bounds3D *b1, Bounds3D *b2, DynamicPaintBrushSettings *brush, float brush_radius)
 {
 	if (brush->collision == MOD_DPAINT_COL_VOLUME)
 		return boundsIntersect(b1, b2);
 	else if (brush->collision == MOD_DPAINT_COL_DIST || brush->collision == MOD_DPAINT_COL_VOLDIST)
-		return boundsIntersectDist(b1, b2, brush->paint_distance);
+		return boundsIntersectDist(b1, b2, brush_radius);
 	else return 1;
 }
 
@@ -3122,6 +3147,7 @@ static int dynamicPaint_paintMesh(DynamicPaintSurface *surface,
 	{
 		BVHTreeFromMesh treeData = {0};
 		float avg_brushNor[3] = {0.0f};
+		float brush_radius = brush->paint_distance * surface->radius_scale;
 		int numOfVerts;
 		int ii;
 		Bounds3D mesh_bb = {0};
@@ -3129,7 +3155,7 @@ static int dynamicPaint_paintMesh(DynamicPaintSurface *surface,
 
 		dm = CDDM_copy(brush->dm);
 		mvert = dm->getVertArray(dm);
-		mface = dm->getFaceArray(dm);
+		mface = dm->getTessFaceArray(dm);
 		numOfVerts = dm->getNumVerts(dm);
 
 		/*	Transform collider vertices to global space
@@ -3139,8 +3165,8 @@ static int dynamicPaint_paintMesh(DynamicPaintSurface *surface,
 			mul_m4_v3(brushOb->obmat, mvert[ii].co);
 			boundInsert(&mesh_bb, mvert[ii].co);
 
-			/* for project brush calculate average normal */
-			if (brush->collision & MOD_DPAINT_COL_DIST && brush->flags & MOD_DPAINT_PROX_PROJECT) {
+			/* for proximity project calculate average normal */
+			if (brush->flags & MOD_DPAINT_PROX_PROJECT && brush->collision != MOD_DPAINT_COL_VOLUME) {
 				float nor[3];
 				normal_short_to_float_v3(nor, mvert[ii].no);
 				mul_mat3_m4_v3(brushOb->obmat, nor);
@@ -3150,7 +3176,7 @@ static int dynamicPaint_paintMesh(DynamicPaintSurface *surface,
 			}
 		}
 
-		if (brush->collision & MOD_DPAINT_COL_DIST && brush->flags & MOD_DPAINT_PROX_PROJECT) {
+		if (brush->flags & MOD_DPAINT_PROX_PROJECT && brush->collision != MOD_DPAINT_COL_VOLUME) {
 			mul_v3_fl(avg_brushNor, 1.0f/(float)numOfVerts);
 			/* instead of null vector use positive z */
 			if (!(MIN3(avg_brushNor[0],avg_brushNor[1],avg_brushNor[2])))
@@ -3160,7 +3186,7 @@ static int dynamicPaint_paintMesh(DynamicPaintSurface *surface,
 		}
 
 		/* check bounding box collision */
-		if(grid && meshBrush_boundsIntersect(&grid->grid_bounds, &mesh_bb, brush))
+		if (grid && meshBrush_boundsIntersect(&grid->grid_bounds, &mesh_bb, brush, brush_radius))
 		/* Build a bvh tree from transformed vertices	*/
 		if (bvhtree_from_mesh_faces(&treeData, dm, 0.0f, 4, 8))
 		{
@@ -3172,7 +3198,7 @@ static int dynamicPaint_paintMesh(DynamicPaintSurface *surface,
 				int id;
 
 				/* check grid cell bounding box */
-				if (!grid->s_num[c_index] || !meshBrush_boundsIntersect(&grid->bounds[c_index], &mesh_bb, brush))
+				if (!grid->s_num[c_index] || !meshBrush_boundsIntersect(&grid->bounds[c_index], &mesh_bb, brush, brush_radius))
 					continue;
 
 				/* loop through cell points and process brush */
@@ -3233,11 +3259,11 @@ static int dynamicPaint_paintMesh(DynamicPaintSurface *surface,
 						hit.index = -1;
 						hit.dist = 9999;
 						nearest.index = -1;
-						nearest.dist = brush->paint_distance * brush->paint_distance; /* find_nearest uses squared distance */
+						nearest.dist = brush_radius * brush_radius; /* find_nearest uses squared distance */
 
 						/* Check volume collision	*/
 						if (brush->collision == MOD_DPAINT_COL_VOLUME || brush->collision == MOD_DPAINT_COL_VOLDIST)
-						if(BLI_bvhtree_ray_cast(treeData.tree, ray_start, ray_dir, 0.0f, &hit, mesh_faces_spherecast_dp, &treeData) != -1)
+						if (BLI_bvhtree_ray_cast(treeData.tree, ray_start, ray_dir, 0.0f, &hit, mesh_faces_spherecast_dp, &treeData) != -1)
 						{
 							/* We hit a triangle, now check if collision point normal is facing the point	*/
 
@@ -3264,7 +3290,7 @@ static int dynamicPaint_paintMesh(DynamicPaintSurface *surface,
 
 								BLI_bvhtree_ray_cast(treeData.tree, ray_start, ray_dir, 0.0f, &hit, mesh_faces_spherecast_dp, &treeData);
 
-								if(hit.index != -1) {
+								if (hit.index != -1) {
 									/* Add factor on supersample filter	*/
 									volume_factor = 1.0f;
 									hit_found = HIT_VOLUME;
@@ -3291,9 +3317,9 @@ static int dynamicPaint_paintMesh(DynamicPaintSurface *surface,
 							if (inner_proximity && !hit_found) continue;
 
 							/* If pure distance proximity, find the nearest point on the mesh */
-							if (brush->collision != MOD_DPAINT_COL_DIST || !(brush->flags & MOD_DPAINT_PROX_PROJECT)) {
+							if (!(brush->flags & MOD_DPAINT_PROX_PROJECT)) {
 								if (BLI_bvhtree_find_nearest(treeData.tree, ray_start, &nearest, mesh_faces_nearest_point_dp, &treeData) != -1) {
-									proxDist = sqrt(nearest.dist);
+									proxDist = sqrtf(nearest.dist);
 									copy_v3_v3(hitCo, nearest.co);
 									hQuad = (nearest.no[0] == 1.0f);
 									face = nearest.index;
@@ -3309,14 +3335,14 @@ static int dynamicPaint_paintMesh(DynamicPaintSurface *surface,
 								else if (brush->ray_dir == MOD_DPAINT_RAY_BRUSH_AVG) {
 									copy_v3_v3(proj_ray, avg_brushNor);
 								}
-								else  { /* MOD_DPAINT_RAY_ZPLUS */
+								else { /* MOD_DPAINT_RAY_ZPLUS */
 									proj_ray[2] = 1.0f;
 								}
 								hit.index = -1;
-								hit.dist = brush->paint_distance;
+								hit.dist = brush_radius;
 
 								/* Do a face normal directional raycast, and use that distance	*/
-								if(BLI_bvhtree_ray_cast(treeData.tree, ray_start, proj_ray, 0.0f, &hit, mesh_faces_spherecast_dp, &treeData) != -1)
+								if (BLI_bvhtree_ray_cast(treeData.tree, ray_start, proj_ray, 0.0f, &hit, mesh_faces_spherecast_dp, &treeData) != -1)
 								{
 									proxDist = hit.dist;
 									madd_v3_v3v3fl(hitCo, ray_start, proj_ray, hit.dist);	/* Calculate final hit coordinates */
@@ -3326,8 +3352,8 @@ static int dynamicPaint_paintMesh(DynamicPaintSurface *surface,
 							}
 
 							/* If a hit was found, calculate required values	*/
-							if (proxDist >= 0.0f && proxDist <= brush->paint_distance) {
-								proximity_factor = proxDist / brush->paint_distance;
+							if (proxDist >= 0.0f && proxDist <= brush_radius) {
+								proximity_factor = proxDist / brush_radius;
 								CLAMP(proximity_factor, 0.0f, 1.0f);
 								if (!inner_proximity)
 									proximity_factor = 1.0f - proximity_factor;
@@ -3513,8 +3539,8 @@ static int dynamicPaint_paintParticles(DynamicPaintSurface *surface,
 	int invalidParticles = 0;
 	int p = 0;
 
-	float solidradius = (brush->flags & MOD_DPAINT_PART_RAD) ? psys->part->size : brush->particle_radius;
-	float smooth = brush->particle_smooth;
+	float solidradius = surface->radius_scale*((brush->flags & MOD_DPAINT_PART_RAD) ? psys->part->size : brush->particle_radius);
+	float smooth = brush->particle_smooth*surface->radius_scale;
 
 	float range = solidradius + smooth;
 	float particle_timestep = 0.04f * part->timetweak;
@@ -3529,12 +3555,12 @@ static int dynamicPaint_paintParticles(DynamicPaintSurface *surface,
 	tree= BLI_kdtree_new(psys->totpart);
 
 	/* loop through particles and insert valid ones	to the tree	*/
-	for(p=0, pa=psys->particles; p<psys->totpart; p++, pa++)	{
+	for (p=0, pa=psys->particles; p<psys->totpart; p++, pa++)	{
 
 		/* Proceed only if particle is active	*/
-		if(pa->alive == PARS_UNBORN && (part->flag & PART_UNBORN)==0) continue;									
-		else if(pa->alive == PARS_DEAD && (part->flag & PART_DIED)==0) continue;									
-		else if(pa->flag & PARS_NO_DISP || pa->flag & PARS_UNEXIST) continue;
+		if (pa->alive == PARS_UNBORN && (part->flag & PART_UNBORN)==0) continue;									
+		else if (pa->alive == PARS_DEAD && (part->flag & PART_DIED)==0) continue;									
+		else if (pa->flag & PARS_UNEXIST) continue;
 
 		/*	for debug purposes check if any NAN particle proceeds
 		*	For some reason they get past activity check, this should rule most of them out	*/
@@ -3641,7 +3667,7 @@ static int dynamicPaint_paintParticles(DynamicPaintSurface *surface,
 					particles = BLI_kdtree_range_search(tree, max_range, bData->realCoord[bData->s_pos[index]].v, NULL, &nearest);
 
 					/* Find particle that produces highest influence */
-					for(n=0; n<particles; n++) {
+					for (n=0; n<particles; n++) {
 						ParticleData *pa = psys->particles + nearest[n].index;
 						float s_range;
 
@@ -3743,6 +3769,7 @@ static int dynamicPaint_paintSinglePoint(DynamicPaintSurface *surface, float *po
                                          Object *brushOb, BrushMaterials *bMats, Scene *scene, float timescale)
 {
 	int index;
+	float brush_radius = brush->paint_distance * surface->radius_scale;
 	PaintSurfaceData *sData = surface->data;
 	PaintBakeData *bData = sData->bData;
 	Vec3f brushVel;
@@ -3760,13 +3787,13 @@ static int dynamicPaint_paintSinglePoint(DynamicPaintSurface *surface, float *po
 		float colorband[4] = {0.0f};
 		float strength;
 
-		if (distance>brush->paint_distance) continue;
+		if (distance > brush_radius) continue;
 
 		/* Smooth range or color ramp	*/
 		if (brush->proximity_falloff == MOD_DPAINT_PRFALL_SMOOTH ||
 			brush->proximity_falloff == MOD_DPAINT_PRFALL_RAMP) {
 			
-			strength = 1.0f - distance / brush->paint_distance;
+			strength = 1.0f - distance / brush_radius;
 			CLAMP(strength, 0.0f, 1.0f);
 		}
 		else strength = 1.0f;
@@ -3831,8 +3858,8 @@ static int dynamicPaint_paintSinglePoint(DynamicPaintSurface *surface, float *po
 			else if (surface->type == MOD_DPAINT_SURFACE_T_DISPLACE ||
 					 surface->type == MOD_DPAINT_SURFACE_T_WAVE) {
 				 /* get displace depth	*/
-				float disp_intersect = (1.0f - sqrtf((brush->paint_distance-distance) / brush->paint_distance)) * brush->paint_distance;
-				depth = (brush->paint_distance - disp_intersect) / bData->bNormal[index].normal_scale;
+				float disp_intersect = (1.0f - sqrtf((brush_radius-distance) / brush_radius)) * brush_radius;
+				depth = (brush_radius - disp_intersect) / bData->bNormal[index].normal_scale;
 				if (depth<0.0f) depth = 0.0f;
 			}
 			dynamicPaint_updatePointData(surface, index, brush, paintColor, strength, depth, velocity_val, timescale);
@@ -3846,14 +3873,13 @@ static int dynamicPaint_paintSinglePoint(DynamicPaintSurface *surface, float *po
 /***************************** Dynamic Paint Step / Baking ******************************/
 
 /*
-*	Calculate current frame neighbouring point distances
-*	and direction vectors
+*	Calculate current frame distances and directions for adjacency data
 */
-static void dynamicPaint_prepareNeighbourData(DynamicPaintSurface *surface, int force_init)
+static void dynamicPaint_prepareAdjacencyData(DynamicPaintSurface *surface, int force_init)
 {
 	PaintSurfaceData *sData = surface->data;
 	PaintBakeData *bData = sData->bData;
-	BakeNeighPoint *bNeighs;
+	BakeAdjPoint *bNeighs;
 	PaintAdjData *adj_data = sData->adj_data;
 	Vec3f *realCoord = bData->realCoord;
 	int index;
@@ -3861,7 +3887,7 @@ static void dynamicPaint_prepareNeighbourData(DynamicPaintSurface *surface, int 
 	if ((!surface_usesAdjDistance(surface) && !force_init) || !sData->adj_data) return;
 
 	if (bData->bNeighs) MEM_freeN(bData->bNeighs);
-	bNeighs = bData->bNeighs = MEM_mallocN(sData->adj_data->total_targets*sizeof(struct BakeNeighPoint),"PaintEffectBake");
+	bNeighs = bData->bNeighs = MEM_mallocN(sData->adj_data->total_targets*sizeof(struct BakeAdjPoint),"PaintEffectBake");
 	if (!bNeighs) return;
 
 	#pragma omp parallel for schedule(static)
@@ -3900,7 +3926,7 @@ static void dynamicPaint_prepareNeighbourData(DynamicPaintSurface *surface, int 
 /* find two adjacency points (closest_id) and influence (closest_d) to move paint towards when affected by a force  */
 void surface_determineForceTargetPoints(PaintSurfaceData *sData, int index, float force[3], float closest_d[2], int closest_id[2])
 {
-	BakeNeighPoint *bNeighs = sData->bData->bNeighs;
+	BakeAdjPoint *bNeighs = sData->bData->bNeighs;
 	int numOfNeighs = sData->adj_data->n_num[index];
 	int i;
 
@@ -3925,7 +3951,7 @@ void surface_determineForceTargetPoints(PaintSurfaceData *sData, int index, floa
 
 		if (n_index == closest_id[0]) continue;
 
-		/* only accept neighbour at "other side" of the first one in relation to force dir
+		/* only accept neighbor at "other side" of the first one in relation to force dir
 		*  so make sure angle between this and closest neigh is greater than first angle */
 		if (dir_dot>closest_d[1] && closest_dot<closest_d[0] && dir_dot>0.0f) {closest_d[1]=dir_dot; closest_id[1]=n_index;}
 	}
@@ -3935,7 +3961,7 @@ void surface_determineForceTargetPoints(PaintSurfaceData *sData, int index, floa
 	if (closest_id[1] != -1) {
 		float force_proj[3];
 		float tangent[3];
-		float neigh_diff = acos(dot_v3v3(bNeighs[closest_id[0]].dir, bNeighs[closest_id[1]].dir));
+		float neigh_diff = acosf(dot_v3v3(bNeighs[closest_id[0]].dir, bNeighs[closest_id[1]].dir));
 		float force_intersect;
 		float temp;
 
@@ -3947,7 +3973,7 @@ void surface_determineForceTargetPoints(PaintSurfaceData *sData, int index, floa
 		madd_v3_v3v3fl(force_proj, force, tangent, (-1.0f)*force_intersect);
 		normalize_v3(force_proj);
 
-		/* get drip factor based on force dir in relation to angle between those neighbours */
+		/* get drip factor based on force dir in relation to angle between those neighbors */
 		temp = dot_v3v3(bNeighs[closest_id[0]].dir, force_proj);
 		CLAMP(temp, -1.0f, 1.0f); /* float precision might cause values > 1.0f that return infinite */
 		closest_d[1] = acosf(temp)/neigh_diff;
@@ -3960,7 +3986,7 @@ void surface_determineForceTargetPoints(PaintSurfaceData *sData, int index, floa
 		closest_d[1] *= acosf(temp)/1.57079633f;
 	}
 	else {
-		/* if only single neighbour, still linearize force intersection effect */
+		/* if only single neighbor, still linearize force intersection effect */
 		closest_d[0] = 1.0f - acosf(closest_d[0])/1.57079633f;
 	}
 }
@@ -3969,7 +3995,7 @@ static void dynamicPaint_doSmudge(DynamicPaintSurface *surface, DynamicPaintBrus
 {
 	PaintSurfaceData *sData = surface->data;
 	PaintBakeData *bData = sData->bData;
-	BakeNeighPoint *bNeighs = sData->bData->bNeighs;
+	BakeAdjPoint *bNeighs = sData->bData->bNeighs;
 	int index, steps, step;
 	float eff_scale, max_velocity = 0.0f;
 
@@ -4007,7 +4033,6 @@ static void dynamicPaint_doSmudge(DynamicPaintSurface *surface, DynamicPaintBrus
 				if (n_index != -1 && closest_d[i]>0.0f) {
 					float dir_dot = closest_d[i], dir_factor;
 					float speed_scale = eff_scale*smudge_str/bNeighs[n_index].dist;
-					float mix;
 					PaintPoint *ePoint = &((PaintPoint*)sData->type_data)[sData->adj_data->n_target[n_index]];
 
 					/* just skip if angle is too extreme */
@@ -4017,13 +4042,11 @@ static void dynamicPaint_doSmudge(DynamicPaintSurface *surface, DynamicPaintBrus
 					if (dir_factor > brush->smudge_strength) dir_factor = brush->smudge_strength;
 
 					/* mix new color and alpha */
-					mix = dir_factor*pPoint->alpha;
-					if (mix) mixColors(ePoint->color, ePoint->alpha, pPoint->color, mix);
+					mixColors(ePoint->color, ePoint->alpha, pPoint->color, pPoint->alpha, dir_factor);
 					ePoint->alpha = ePoint->alpha*(1.0f-dir_factor) + pPoint->alpha*dir_factor;
 
 					/* smudge "wet layer" */
-					mix = dir_factor*pPoint->e_alpha;
-					if (mix) mixColors(ePoint->e_color, ePoint->e_alpha, pPoint->e_color, mix);
+					mixColors(ePoint->e_color, ePoint->e_alpha, pPoint->e_color, pPoint->e_alpha, dir_factor);
 					ePoint->e_alpha = ePoint->e_alpha*(1.0f-dir_factor) + pPoint->e_alpha*dir_factor;
 					pPoint->wetness *= (1.0f-dir_factor);
 				}
@@ -4040,7 +4063,7 @@ static int dynamicPaint_prepareEffectStep(DynamicPaintSurface *surface, Scene *s
 {
 	double average_force = 0.0f;
 	float shrink_speed=0.0f, spread_speed=0.0f;
-	float fastest_effect;
+	float fastest_effect, avg_dist;
 	int steps;
 	PaintSurfaceData *sData = surface->data;
 	PaintBakeData *bData = sData->bData;
@@ -4117,30 +4140,32 @@ static int dynamicPaint_prepareEffectStep(DynamicPaintSurface *surface, Scene *s
 		shrink_speed = surface->shrink_speed;
 
 	fastest_effect = MAX3(spread_speed, shrink_speed, average_force);
+	avg_dist = bData->average_dist*CANVAS_REL_SIZE/getSurfaceDimension(sData);
 
-	steps = (int)ceil(1.5f*EFF_MOVEMENT_PER_FRAME*fastest_effect/bData->average_dist*timescale);
-	CLAMP(steps, 1, 14);
+	steps = (int)ceil(1.5f*EFF_MOVEMENT_PER_FRAME*fastest_effect/avg_dist*timescale);
+	CLAMP(steps, 1, 20);
 
 	return steps;
 }
 
-/*
-*	Processes active effect step.
-*/
+/**
+ *	Processes active effect step.
+ */
 static void dynamicPaint_doEffectStep(DynamicPaintSurface *surface, float *force, PaintPoint *prevPoint, float timescale, float steps)
 {
 	PaintSurfaceData *sData = surface->data;
-	BakeNeighPoint *bNeighs = sData->bData->bNeighs;
+	BakeAdjPoint *bNeighs = sData->bData->bNeighs;
+	float distance_scale = getSurfaceDimension(sData)/CANVAS_REL_SIZE;
 	int index;
 	timescale /= steps;
 
 	if (!sData->adj_data) return;
 
 	/*
-	*	Spread Effect
-	*/
-	if (surface->effect & MOD_DPAINT_EFFECT_DO_SPREAD)  {
-		float eff_scale = EFF_MOVEMENT_PER_FRAME*surface->spread_speed*timescale;
+	 *	Spread Effect
+	 */
+	if (surface->effect & MOD_DPAINT_EFFECT_DO_SPREAD) {
+		float eff_scale = distance_scale*EFF_MOVEMENT_PER_FRAME*surface->spread_speed*timescale;
 
 		/* Copy current surface to the previous points array to read unmodified values	*/
 		memcpy(prevPoint, sData->type_data, sData->total_points*sizeof(struct PaintPoint));
@@ -4150,57 +4175,40 @@ static void dynamicPaint_doEffectStep(DynamicPaintSurface *surface, float *force
 		{
 			int i;
 			int numOfNeighs = sData->adj_data->n_num[index];
-			float totalAlpha = 0.0f;
 			PaintPoint *pPoint = &((PaintPoint*)sData->type_data)[index];
 
 			/*  Only reads values from the surface copy (prevPoint[]),
-			*	so this one is thread safe */
+			 *	so this one is thread safe */
 
-			/*	Loop through neighbouring points	*/
+			/*	Loop through neighboring points	*/
 			for (i=0; i<numOfNeighs; i++) {
 				int n_index = sData->adj_data->n_index[index]+i;
-				float w_factor, alphaAdd = 0.0f;
+				float w_factor;
 				PaintPoint *ePoint = &prevPoint[sData->adj_data->n_target[n_index]];
 				float speed_scale = (bNeighs[n_index].dist<eff_scale) ? 1.0f : eff_scale/bNeighs[n_index].dist;
-				float color_mix = (MIN2(ePoint->wetness, pPoint->wetness))*0.25f*surface->color_spread_speed;
-
-				totalAlpha += ePoint->e_alpha;
+				float color_mix = (MIN3(ePoint->wetness, pPoint->wetness, 1.0f))*0.25f*surface->color_spread_speed;
 
 				/* do color mixing */
-				if (color_mix > MIN_WETNESS) mixColors(pPoint->e_color, pPoint->e_alpha, ePoint->e_color, color_mix);
+				if (color_mix) mixColors(pPoint->e_color, pPoint->e_alpha, ePoint->e_color, ePoint->e_alpha, color_mix);
 
-				/* Check if neighbouring point has higher wetness,
-				*  if so, add it's wetness to this point as well*/
-				if (ePoint->wetness <= pPoint->wetness) continue;
-				w_factor = ePoint->wetness/numOfNeighs * (ePoint->wetness - pPoint->wetness) * speed_scale;
-				if (w_factor <= MIN_WETNESS) continue;
+				/* Only continue if surrounding point has higher wetness */
+				if (ePoint->wetness<pPoint->wetness || ePoint->wetness<MIN_WETNESS) continue;
 
-				if (ePoint->e_alpha > pPoint->e_alpha) {
-					alphaAdd = ePoint->e_alpha/numOfNeighs * (ePoint->wetness*ePoint->e_alpha - pPoint->wetness*pPoint->e_alpha) * speed_scale;
-				}
+				w_factor = 1.0f/numOfNeighs * MIN2(ePoint->wetness, 1.0f) * speed_scale;
+				CLAMP(w_factor, 0.0f, 1.0f);
 
-				/* mix new color */
-				mixColors(pPoint->e_color, pPoint->e_alpha, ePoint->e_color, w_factor);
-
-				pPoint->e_alpha += alphaAdd;
-				pPoint->wetness += w_factor;
-
-				if (pPoint->e_alpha > 1.0f) pPoint->e_alpha = 1.0f;
-			}
-
-			/* For antialiasing sake, don't let alpha go much higher than average alpha of neighbours	*/
-			if (pPoint->e_alpha > (totalAlpha/numOfNeighs+0.25f)) {
-				pPoint->e_alpha = (totalAlpha/numOfNeighs+0.25f);
-				if (pPoint->e_alpha>1.0f) pPoint->e_alpha = 1.0f;
+				/* mix new wetness and color */
+				pPoint->wetness = (1.0f-w_factor)*pPoint->wetness + w_factor*ePoint->wetness;
+				pPoint->e_alpha = mixColors(pPoint->e_color, pPoint->e_alpha, ePoint->e_color, ePoint->e_alpha, w_factor);
 			}
 		}
 	}
 
 	/*
-	*	Shrink Effect
-	*/
-	if (surface->effect & MOD_DPAINT_EFFECT_DO_SHRINK)  {
-		float eff_scale = EFF_MOVEMENT_PER_FRAME*surface->shrink_speed*timescale;
+	 *	Shrink Effect
+	 */
+	if (surface->effect & MOD_DPAINT_EFFECT_DO_SHRINK) {
+		float eff_scale = distance_scale*EFF_MOVEMENT_PER_FRAME*surface->shrink_speed*timescale;
 
 		/* Copy current surface to the previous points array to read unmodified values	*/
 		memcpy(prevPoint, sData->type_data, sData->total_points*sizeof(struct PaintPoint));
@@ -4221,8 +4229,8 @@ static void dynamicPaint_doEffectStep(DynamicPaintSurface *surface, float *force
 
 				totalAlpha += ePoint->e_alpha;
 
-				/* Check if neighbouring point has lower alpha,
-				*  if so, decrease this point's alpha as well*/
+				/* Check if neighboring point has lower alpha,
+				 *  if so, decrease this point's alpha as well*/
 				if (pPoint->alpha <= 0.0f && pPoint->e_alpha <= 0.0f && pPoint->wetness <= 0.0f) continue;
 
 				/* decrease factor for dry paint alpha */
@@ -4246,11 +4254,11 @@ static void dynamicPaint_doEffectStep(DynamicPaintSurface *surface, float *force
 	}
 
 	/*
-	*	Drip Effect
-	*/
+	 *	Drip Effect
+	 */
 	if (surface->effect & MOD_DPAINT_EFFECT_DO_DRIP && force) 
 	{
-		float eff_scale = EFF_MOVEMENT_PER_FRAME*timescale/2.0f;
+		float eff_scale = distance_scale*EFF_MOVEMENT_PER_FRAME*timescale/2.0f;
 		/* Copy current surface to the previous points array to read unmodified values	*/
 		memcpy(prevPoint, sData->type_data, sData->total_points*sizeof(struct PaintPoint));
 
@@ -4263,8 +4271,9 @@ static void dynamicPaint_doEffectStep(DynamicPaintSurface *surface, float *force
 			float closest_d[2];
 
 			/* adjust drip speed depending on wetness */
-			float w_factor = pPoint_prev->wetness*0.5f - 0.025f;
+			float w_factor = pPoint_prev->wetness - 0.025f;
 			if (w_factor <= 0) continue;
+			CLAMP(w_factor, 0.0f, 1.0f);
 
 			/* get force affect points */
 			surface_determineForceTargetPoints(sData, index, &force[index*4], closest_d, closest_id);
@@ -4273,40 +4282,37 @@ static void dynamicPaint_doEffectStep(DynamicPaintSurface *surface, float *force
 			for (i=0; i<2; i++) {
 				int n_index = closest_id[i];
 				if (n_index != -1 && closest_d[i]>0.0f) {
-					float dir_dot = closest_d[i], dir_factor;
+					float dir_dot = closest_d[i], dir_factor, a_factor;
 					float speed_scale = eff_scale*force[index*4+3]/bNeighs[n_index].dist;
 					PaintPoint *ePoint = &((PaintPoint*)sData->type_data)[sData->adj_data->n_target[n_index]];
+					float e_wet = ePoint->wetness;
 
 					/* just skip if angle is too extreme */
 					if (dir_dot <= 0.0f) continue;
 
-					dir_factor = dir_dot * speed_scale * w_factor;
-					if (dir_factor > (0.5f/steps)) dir_factor = (0.5f/steps);
+					dir_factor = dir_dot * MIN2(speed_scale, 1.0f) * w_factor;
+					if (dir_factor > 0.5f) dir_factor = 0.5f;
+
+					/* mix new wetness*/
+					ePoint->wetness += dir_factor;
+					CLAMP(ePoint->wetness, 0.0f, MAX_WETNESS);
 
 					/* mix new color */
-					if (dir_factor) mixColors(ePoint->e_color, ePoint->e_alpha, pPoint->e_color, dir_factor);
+					a_factor = dir_factor / pPoint_prev->wetness;
+					CLAMP(a_factor, 0.0f, 1.0f);
+					mixColors(ePoint->e_color, ePoint->e_alpha, pPoint_prev->e_color, pPoint_prev->e_alpha, a_factor);
+					/* dripping is supposed to preserve alpha level */
+					if (pPoint_prev->e_alpha > ePoint->e_alpha) {
+						ePoint->e_alpha += a_factor * pPoint_prev->e_alpha;
+						if (ePoint->e_alpha > pPoint_prev->e_alpha)
+							ePoint->e_alpha = pPoint_prev->e_alpha;
+					}
 
-					ePoint->e_alpha += dir_factor;
-					ePoint->wetness += dir_factor;
-					if (ePoint->e_alpha > 1.0f) ePoint->e_alpha = 1.0f;
-
-					/* and decrease paint wetness on current point */
-					pPoint->wetness -= dir_factor;
+					/* decrease paint wetness on current point */
+					pPoint->wetness -= (ePoint->wetness - e_wet);
+					CLAMP(pPoint->wetness, 0.0f, MAX_WETNESS);
 				}
 			}
-		}
-
-		/* Keep values within acceptable range */
-		#pragma omp parallel for schedule(static)
-		for (index = 0; index < sData->total_points; index++)
-		{
-			PaintPoint *cPoint = &((PaintPoint*)sData->type_data)[index];
-
-			if (cPoint->e_alpha > 1.0f) cPoint->e_alpha=1.0f;
-			if (cPoint->wetness > 2.0f) cPoint->wetness=2.0f;
-
-			if (cPoint->e_alpha < 0.0f) cPoint->e_alpha=0.0f;
-			if (cPoint->wetness < 0.0f) cPoint->wetness=0.0f;
 		}
 	}
 }
@@ -4314,7 +4320,7 @@ static void dynamicPaint_doEffectStep(DynamicPaintSurface *surface, float *force
 void dynamicPaint_doWaveStep(DynamicPaintSurface *surface, float timescale)
 {
 	PaintSurfaceData *sData = surface->data;
-	BakeNeighPoint *bNeighs = sData->bData->bNeighs;
+	BakeAdjPoint *bNeighs = sData->bData->bNeighs;
 	int index;
 	int steps, ss;
 	float dt, min_dist, damp_factor;
@@ -4322,7 +4328,7 @@ void dynamicPaint_doWaveStep(DynamicPaintSurface *surface, float timescale)
 	double average_dist = 0.0f;
 	Bounds3D *mb = &sData->bData->mesh_bounds;
 	float canvas_size = MAX3((mb->max[0]-mb->min[0]), (mb->max[1]-mb->min[1]), (mb->max[2]-mb->min[2]));
-	float wave_scale = WAVE_INIT_SIZE/canvas_size;
+	float wave_scale = CANVAS_REL_SIZE/canvas_size;
 
 	/* allocate memory */
 	PaintWavePoint *prevPoint = MEM_mallocN(sData->total_points*sizeof(PaintWavePoint), "Temp previous points for wave simulation");
@@ -4435,48 +4441,53 @@ static void dynamicPaint_surfacePreStep(DynamicPaintSurface *surface, float time
 		if (surface->type == MOD_DPAINT_SURFACE_T_PAINT) {
 			PaintPoint *pPoint = &((PaintPoint*)sData->type_data)[index];
 			/* drying */
-			if (pPoint->wetness >= MIN_WETNESS) {
-				int i;
-				float dry_ratio, f_color[4];
-				float p_wetness = pPoint->wetness;
-				VALUE_DISSOLVE(pPoint->wetness, surface->dry_speed, timescale, (surface->flags & MOD_DPAINT_DRY_LOG));
-				if (pPoint->wetness<0.0f) pPoint->wetness=0.0f;
-				dry_ratio = pPoint->wetness/p_wetness;
+			if (surface->flags & MOD_DPAINT_USE_DRYING) {
+				if (pPoint->wetness >= MIN_WETNESS) {
+					int i;
+					float dry_ratio, f_color[4];
+					float p_wetness = pPoint->wetness;
+					VALUE_DISSOLVE(pPoint->wetness, surface->dry_speed, timescale, (surface->flags & MOD_DPAINT_DRY_LOG));
+					if (pPoint->wetness<0.0f) pPoint->wetness=0.0f;
 
-				/*
-				*	Slowly "shift" paint from wet layer to dry layer as it drys:
-				*/
-				/* make sure alpha values are within proper range */
-				CLAMP(pPoint->alpha, 0.0f, 1.0f);
-				CLAMP(pPoint->e_alpha, 0.0f, 1.0f);
+					if (pPoint->wetness < surface->color_dry_threshold) {
+						dry_ratio = pPoint->wetness/p_wetness;
 
-				/* get current final blended color of these layers */
-				blendColors(pPoint->color, pPoint->alpha, pPoint->e_color, pPoint->e_alpha, f_color);
-				/* reduce wet layer alpha by dry factor */
-				pPoint->e_alpha *= dry_ratio;
+						/*
+						 *	Slowly "shift" paint from wet layer to dry layer as it drys:
+						 */
+						/* make sure alpha values are within proper range */
+						CLAMP(pPoint->alpha, 0.0f, 1.0f);
+						CLAMP(pPoint->e_alpha, 0.0f, 1.0f);
 
-				/* now calculate new alpha for dry layer that keeps final blended color unchanged */
-				pPoint->alpha = (f_color[3] - pPoint->e_alpha)/(1.0f-pPoint->e_alpha);
-				/* for each rgb component, calculate a new dry layer color that keeps the final blend color
-				*  with these new alpha values. (wet layer color doesnt change)*/
-				if (pPoint->alpha) {
-					for (i=0; i<3; i++) {
-						pPoint->color[i] = (f_color[i]*f_color[3] - pPoint->e_color[i]*pPoint->e_alpha)/(pPoint->alpha*(1.0f-pPoint->e_alpha));
+						/* get current final blended color of these layers */
+						blendColors(pPoint->color, pPoint->alpha, pPoint->e_color, pPoint->e_alpha, f_color);
+						/* reduce wet layer alpha by dry factor */
+						pPoint->e_alpha *= dry_ratio;
+
+						/* now calculate new alpha for dry layer that keeps final blended color unchanged */
+						pPoint->alpha = (f_color[3] - pPoint->e_alpha)/(1.0f-pPoint->e_alpha);
+						/* for each rgb component, calculate a new dry layer color that keeps the final blend color
+						 *  with these new alpha values. (wet layer color doesnt change)*/
+						if (pPoint->alpha) {
+							for (i=0; i<3; i++) {
+								pPoint->color[i] = (f_color[i]*f_color[3] - pPoint->e_color[i]*pPoint->e_alpha)/(pPoint->alpha*(1.0f-pPoint->e_alpha));
+							}
+						}
 					}
-				}
 
-				pPoint->state = DPAINT_PAINT_WET;
-			}
-			/* in case of just dryed paint, just mix it to the dry layer and mark it empty */
-			else if (pPoint->state > 0) {
-				float f_color[4];
-				blendColors(pPoint->color, pPoint->alpha, pPoint->e_color, pPoint->e_alpha, f_color);
-				copy_v3_v3(pPoint->color, f_color);
-				pPoint->alpha = f_color[3];
-				/* clear wet layer */
-				pPoint->wetness = 0.0f;
-				pPoint->e_alpha = 0.0f;
-				pPoint->state = DPAINT_PAINT_DRY;
+					pPoint->state = DPAINT_PAINT_WET;
+				}
+				/* in case of just dryed paint, just mix it to the dry layer and mark it empty */
+				else if (pPoint->state > 0) {
+					float f_color[4];
+					blendColors(pPoint->color, pPoint->alpha, pPoint->e_color, pPoint->e_alpha, f_color);
+					copy_v3_v3(pPoint->color, f_color);
+					pPoint->alpha = f_color[3];
+					/* clear wet layer */
+					pPoint->wetness = 0.0f;
+					pPoint->e_alpha = 0.0f;
+					pPoint->state = DPAINT_PAINT_DRY;
+				}
 			}
 
 			if (surface->flags & MOD_DPAINT_DISSOLVE) {
@@ -4627,8 +4638,8 @@ static int dynamicPaint_generateBakeData(DynamicPaintSurface *surface, Scene *sc
 	}
 
 	/*
-	*	Make a transformed copy of canvas derived mesh vertices to avoid recalculation.
-	*/
+	 *	Make a transformed copy of canvas derived mesh vertices to avoid recalculation.
+	 */
 	bData->mesh_bounds.valid = 0;
 	for (index=0; index<canvasNumOfVerts; index++) {
 		copy_v3_v3(canvas_verts[index].v, mvert[index].co);
@@ -4637,8 +4648,8 @@ static int dynamicPaint_generateBakeData(DynamicPaintSurface *surface, Scene *sc
 	}
 
 	/*
-	*	Prepare each surface point for a new step
-	*/
+	 *	Prepare each surface point for a new step
+	 */
 	#pragma omp parallel for schedule(static)
 	for (index=0; index<sData->total_points; index++)
 	{
@@ -4647,8 +4658,8 @@ static int dynamicPaint_generateBakeData(DynamicPaintSurface *surface, Scene *sc
 			copy_v3_v3(prev_point, bData->realCoord[bData->s_pos[index]].v);
 		}
 		/*
-		*	Calculate current 3D-position and normal of each surface point
-		*/
+		 *	Calculate current 3D-position and normal of each surface point
+		 */
 		if (surface->format == MOD_DPAINT_SURFACE_F_IMAGESEQ) {
 			float n1[3], n2[3], n3[3];
 			ImgSeqFormatData *f_data = (ImgSeqFormatData*)sData->format_data;
@@ -4708,7 +4719,7 @@ static int dynamicPaint_generateBakeData(DynamicPaintSurface *surface, Scene *sc
 		}
 
 		/* Prepare surface normal directional scale to easily convert
-		*  brush intersection amount between global and local space */
+		 *  brush intersection amount between global and local space */
 		if (surface->type == MOD_DPAINT_SURFACE_T_DISPLACE ||
 			surface->type == MOD_DPAINT_SURFACE_T_WAVE) {
 			float temp_nor[3];
@@ -4742,8 +4753,8 @@ static int dynamicPaint_generateBakeData(DynamicPaintSurface *surface, Scene *sc
 
 	/* generate surface space partitioning grid */
 	surfaceGenerateGrid(surface);
-	/* calculate current frame neighbouring point distances and global dirs */
-	dynamicPaint_prepareNeighbourData(surface, 0);
+	/* calculate current frame adjacency point distances and global dirs */
+	dynamicPaint_prepareAdjacencyData(surface, 0);
 
 	/* Copy current frame vertices to check against in next frame */
 	copy_m4_m4(bData->prev_obmat, ob->obmat);
@@ -4755,8 +4766,8 @@ static int dynamicPaint_generateBakeData(DynamicPaintSurface *surface, Scene *sc
 }
 
 /*
-*	Do Dynamic Paint step. Paints scene brush objects of current state/frame to the surface.
-*/
+ * Do Dynamic Paint step. Paints scene brush objects of current state/frame to the surface.
+ */
 static int dynamicPaint_doStep(Scene *scene, Object *ob, DynamicPaintSurface *surface, float timescale, float subframe)
 {
 	PaintSurfaceData *sData = surface->data;
@@ -4767,8 +4778,8 @@ static int dynamicPaint_doStep(Scene *scene, Object *ob, DynamicPaintSurface *su
 
 	dynamicPaint_surfacePreStep(surface, timescale);
 	/*
-	*	Loop through surface's target paint objects and do painting
-	*/
+	 * Loop through surface's target paint objects and do painting
+	 */
 	{
 		Base *base = NULL;
 		GroupObject *go = NULL;	
@@ -4780,7 +4791,7 @@ static int dynamicPaint_doStep(Scene *scene, Object *ob, DynamicPaintSurface *su
 		float scene_subframe = scene->r.subframe;
 
 		/* either from group or from all objects */
-		if(surface->brush_group)
+		if (surface->brush_group)
 			go = surface->brush_group->gobject.first;
 		else
 			base = scene->base.first;
@@ -4789,28 +4800,28 @@ static int dynamicPaint_doStep(Scene *scene, Object *ob, DynamicPaintSurface *su
 		{
 			brushObj = NULL;
 			/* select object */
-			if(surface->brush_group) {						
-				if(go->ob)	brushObj = go->ob;					
+			if (surface->brush_group) {						
+				if (go->ob)	brushObj = go->ob;					
 			}					
 			else						
 				brushObj = base->object;
 
-			if(!brushObj) {			
+			if (!brushObj) {			
 				/* skip item */
-				if(surface->brush_group) go = go->next;
+				if (surface->brush_group) go = go->next;
 				else base= base->next;					
 				continue;			
 			}
 
 			/* next item */
-			if(surface->brush_group)
+			if (surface->brush_group)
 				go = go->next;
 			else
 				base= base->next;
 
 			/* check if target has an active dp modifier	*/
 			md = modifiers_findByType(brushObj, eModifierType_DynamicPaint);
-			if(md && md->mode & (eModifierMode_Realtime | eModifierMode_Render))					
+			if (md && md->mode & (eModifierMode_Realtime | eModifierMode_Render))					
 			{
 				DynamicPaintModifierData *pmd2 = (DynamicPaintModifierData *)md;
 				/* make sure we're dealing with a brush	*/
@@ -4826,7 +4837,7 @@ static int dynamicPaint_doStep(Scene *scene, Object *ob, DynamicPaintSurface *su
 						if (!sData->adj_data)
 							dynamicPaint_initAdjacencyData(surface, 1);
 						if (!bData->bNeighs)
-							dynamicPaint_prepareNeighbourData(surface, 1);
+							dynamicPaint_prepareAdjacencyData(surface, 1);
 					}
 
 					/* update object data on this subframe */
@@ -4881,16 +4892,14 @@ static int dynamicPaint_doStep(Scene *scene, Object *ob, DynamicPaintSurface *su
 	}
 
 	/* surfaces operations that use adjacency data */
-	if (sData->adj_data && bData->bNeighs)
-	{
+	if (sData->adj_data && bData->bNeighs) {
 		/* wave type surface simulation step */
 		if (surface->type == MOD_DPAINT_SURFACE_T_WAVE) {
 			dynamicPaint_doWaveStep(surface, timescale);
 		}
 
 		/* paint surface effects */
-		if (surface->effect && surface->type == MOD_DPAINT_SURFACE_T_PAINT)
-		{
+		if (surface->effect && surface->type == MOD_DPAINT_SURFACE_T_PAINT) {
 			int steps = 1, s;
 			PaintPoint *prevPoint;
 			float *force = NULL;
@@ -4916,20 +4925,20 @@ static int dynamicPaint_doStep(Scene *scene, Object *ob, DynamicPaintSurface *su
 }
 
 /*
-*	Calculate a single frame and included subframes for surface
-*/
+ * Calculate a single frame and included subframes for surface
+ */
 int dynamicPaint_calculateFrame(DynamicPaintSurface *surface, Scene *scene, Object *cObject, int frame)
 {
 	float timescale = 1.0f;
 
 	/* apply previous displace on derivedmesh if incremental surface */
 	if (surface->flags & MOD_DPAINT_DISP_INCREMENTAL)
-		dynamicPaint_applySurfaceDisplace(surface, surface->canvas->dm, 0);
+		dynamicPaint_applySurfaceDisplace(surface, surface->canvas->dm);
 
 	/* update bake data */
 	dynamicPaint_generateBakeData(surface, scene, cObject); 
 	
-	/* dont do substeps for first frame */
+	/* don't do substeps for first frame */
 	if (surface->substeps && (frame != surface->start_frame)) {
 		int st;
 		timescale = 1.0f / (surface->substeps+1);

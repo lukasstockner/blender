@@ -35,6 +35,7 @@ CCL_NAMESPACE_BEGIN
 Shader::Shader()
 {
 	name = "";
+	pass_id = 0;
 
 	graph = NULL;
 	graph_bump = NULL;
@@ -167,7 +168,7 @@ void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Sc
 	if(scene->shaders.size() == 0)
 		return;
 
-	uint shader_flag_size = scene->shaders.size()*2;
+	uint shader_flag_size = scene->shaders.size()*4;
 	uint *shader_flag = dscene->shader_flag.resize(shader_flag_size);
 	uint i = 0;
 
@@ -184,7 +185,9 @@ void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Sc
 			flag |= SD_HOMOGENEOUS_VOLUME;
 
 		shader_flag[i++] = flag;
+		shader_flag[i++] = shader->pass_id;
 		shader_flag[i++] = flag;
+		shader_flag[i++] = shader->pass_id;
 	}
 
 	device->tex_alloc("__shader_flag", dscene->shader_flag);
@@ -252,6 +255,33 @@ void ShaderManager::add_default(Scene *scene)
 		shader->graph = graph;
 		scene->shaders.push_back(shader);
 		scene->default_background = scene->shaders.size() - 1;
+	}
+
+	/* default holdout */
+	{
+		graph = new ShaderGraph();
+
+		closure = graph->add(new HoldoutNode());
+		out = graph->output();
+
+		graph->connect(closure->output("Holdout"), out->input("Surface"));
+
+		shader = new Shader();
+		shader->name = "default_holdout";
+		shader->graph = graph;
+		scene->shaders.push_back(shader);
+		scene->default_holdout = scene->shaders.size() - 1;
+	}
+
+	/* default empty */
+	{
+		graph = new ShaderGraph();
+
+		shader = new Shader();
+		shader->name = "default_empty";
+		shader->graph = graph;
+		scene->shaders.push_back(shader);
+		scene->default_empty = scene->shaders.size() - 1;
 	}
 }
 

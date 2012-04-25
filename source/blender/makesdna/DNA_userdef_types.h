@@ -31,8 +31,8 @@
  *  \author nzc
  */
 
-#ifndef DNA_USERDEF_TYPES_H
-#define DNA_USERDEF_TYPES_H
+#ifndef __DNA_USERDEF_TYPES_H__
+#define __DNA_USERDEF_TYPES_H__
 
 #include "DNA_listBase.h"
 #include "DNA_texture_types.h" /* ColorBand */
@@ -60,7 +60,7 @@ struct ColorBand;
 /* first font is the default (index 0), others optional */
 typedef struct uiFont {
 	struct uiFont *next, *prev;
-	char filename[256];
+	char filename[1024];/* 1024 = FILE_MAX */
 	short blf_id;		/* from blfont lib */
 	short uifont_id;	/* own id */
 	short r_to_l;		/* fonts that read from left to right */
@@ -151,14 +151,14 @@ typedef struct ThemeUI {
 	uiWidgetColors wcol_regular, wcol_tool, wcol_text;
 	uiWidgetColors wcol_radio, wcol_option, wcol_toggle;
 	uiWidgetColors wcol_num, wcol_numslider;
-	uiWidgetColors wcol_menu, wcol_pulldown, wcol_menu_back, wcol_menu_item;
+	uiWidgetColors wcol_menu, wcol_pulldown, wcol_menu_back, wcol_menu_item, wcol_tooltip;
 	uiWidgetColors wcol_box, wcol_scroll, wcol_progress, wcol_list_item;
 	
 	uiWidgetStateColors wcol_state;
 
 	uiPanelColors panel;
 
-	char iconfile[80];	// FILE_MAXFILE length
+	char iconfile[256];	// FILE_MAXFILE length
 	float icon_alpha;
 
 	float pad;
@@ -205,7 +205,7 @@ typedef struct ThemeSpace {
 	char grid[4]; 
 	
 	char wire[4], select[4];
-	char lamp[4], speaker[4], pad2[4];
+	char lamp[4], speaker[4], empty[4],camera[4], pad[8];
 	char active[4], group[4], group_active[4], transform[4];
 	char vertex[4], vertex_select[4];
 	char edge[4], edge_select[4];
@@ -236,7 +236,7 @@ typedef struct ThemeSpace {
 	char syntaxl[4], syntaxn[4], syntaxb[4]; // syntax for textwindow and nodes
 	char syntaxv[4], syntaxc[4];
 	
-	char movie[4], image[4], scene[4], audio[4];		// for sequence editor
+	char movie[4], movieclip[4], image[4], scene[4], audio[4];		// for sequence editor
 	char effect[4], plugin[4], transition[4], meta[4];
 	char editmesh_active[4]; 
 
@@ -252,7 +252,15 @@ typedef struct ThemeSpace {
 	char hpad[7];
 	
 	char preview_back[4];
+	char preview_stitch_face[4];
+	char preview_stitch_edge[4];
+	char preview_stitch_vert[4];
+	char preview_stitch_stitchable[4];
+	char preview_stitch_unstitchable[4];
+	char preview_stitch_active[4];
 	
+	char match[4];				/* outliner - filter match */
+	char selected_highlight[4];	/* outliner - selected item */
 } ThemeSpace;
 
 
@@ -318,16 +326,16 @@ typedef struct SolidLight {
 typedef struct UserDef {
 	int flag, dupflag;
 	int savetime;
-	char tempdir[160];	// FILE_MAXDIR length
-	char fontdir[160];
-	char renderdir[240]; // FILE_MAX length
-	char textudir[160];
-	char plugtexdir[160];
-	char plugseqdir[160];
-	char pythondir[160];
-	char sounddir[160];
-	char image_editor[240];	// FILE_MAX length
-	char anim_player[240];	// FILE_MAX length
+	char tempdir[768];	/* FILE_MAXDIR length */
+	char fontdir[768];
+	char renderdir[1024]; /* FILE_MAX length */
+	char textudir[768];
+	char plugtexdir[768];
+	char plugseqdir[768];
+	char pythondir[768];
+	char sounddir[768];
+	char image_editor[1024];	/* 1024 = FILE_MAX */
+	char anim_player[1024];	/* 1024 = FILE_MAX */
 	int anim_player_preset;
 	
 	short v2d_min_gridsize;		/* minimum spacing between gridlines in View2D grids */
@@ -391,19 +399,17 @@ typedef struct UserDef {
 	
 	short widget_unit;		/* defaults to 20 for 72 DPI setting */
 	short anisotropic_filter;
-	/*short pad[3];			*/
+	short use_16bit_textures, pad8;
 
 	float ndof_sensitivity;	/* overall sensitivity of 3D mouse */
 	int ndof_flag;			/* flags for 3D mouse */
 
-	char versemaster[160];
-	char verseuser[160];
 	float glalphaclip;
 	
 	short autokey_mode;		/* autokeying mode */
 	short autokey_flag;		/* flags for autokeying */
 	
-	short text_render, pad9[3];		/*options for text rendering*/
+	short text_render, pad9;		/*options for text rendering*/
 
 	struct ColorBand coba_weight;	/* from texture.h */
 
@@ -416,6 +422,9 @@ typedef struct UserDef {
 
 	int compute_device_type;
 	int compute_device_id;
+	
+	float fcu_inactive_alpha;	/* opacity of inactive F-Curves in F-Curve Editor */
+	float pad;
 } UserDef;
 
 extern UserDef U; /* from blenkernel blender.c */
@@ -504,6 +513,7 @@ extern UserDef U; /* from blenkernel blender.c */
 #define USER_SPLASH_DISABLE		(1 << 27)
 #define USER_HIDE_RECENT		(1 << 28)
 #define USER_SHOW_THUMBNAILS	(1 << 29)
+#define USER_QUIT_PROMPT		(1 << 30)
 
 /* Auto-Keying mode */
 	/* AUTOKEY_ON is a bitflag */
@@ -611,13 +621,13 @@ extern UserDef U; /* from blenkernel blender.c */
 #define NDOF_SHOULD_ZOOM    (1 << 4)
 #define NDOF_SHOULD_ROTATE  (1 << 5)
 /* orbit navigation modes
- * only two options, so it's sort of a hyrbrid bool/enum
+ * only two options, so it's sort of a hybrid bool/enum
  * if ((U.ndof_flag & NDOF_ORBIT_MODE) == NDOF_OM_OBJECT)... */
-/*
-#define NDOF_ORBIT_MODE     (1 << 6)
-#define NDOF_OM_TARGETCAMERA 0
-#define NDOF_OM_OBJECT      NDOF_ORBIT_MODE
-*/
+
+// #define NDOF_ORBIT_MODE     (1 << 6)
+// #define NDOF_OM_TARGETCAMERA 0
+// #define NDOF_OM_OBJECT      NDOF_ORBIT_MODE
+
 /* actually... users probably don't care about what the mode
  * is called, just that it feels right */
 /* zoom is up/down if this flag is set (otherwise forward/backward) */

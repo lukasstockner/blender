@@ -24,8 +24,8 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef BKE_EFFECT_H
-#define BKE_EFFECT_H
+#ifndef __BKE_EFFECT_H__
+#define __BKE_EFFECT_H__
 
 /** \file BKE_effect.h
  *  \ingroup bke
@@ -108,10 +108,6 @@ typedef struct EffectorCache {
 	float frame;
 	int flag;
 } EffectorCache;
-
-struct Effect *copy_effect(struct Effect *eff);
-void copy_effects(struct ListBase *lbn, struct ListBase *lb);
-void deselectall_eff(struct Object *ob);
 
 void			free_partdeflect(struct PartDeflect *pd);
 struct ListBase *pdInitEffectors(struct Scene *scene, struct Object *ob_src, struct ParticleSystem *psys_src, struct EffectorWeights *weights);

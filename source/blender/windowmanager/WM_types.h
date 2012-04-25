@@ -28,8 +28,8 @@
  *  \ingroup wm
  */
 
-#ifndef WM_TYPES_H
-#define WM_TYPES_H
+#ifndef __WM_TYPES_H__
+#define __WM_TYPES_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -137,13 +137,13 @@ typedef struct wmNotifier {
 } wmNotifier;
 
 
-/* 4 levels 
-
-0xFF000000; category
-0x00FF0000; data
-0x0000FF00; data subtype (unused?)
-0x000000FF; action
-*/
+/* 4 levels
+ *
+ * 0xFF000000; category
+ * 0x00FF0000; data
+ * 0x0000FF00; data subtype (unused?)
+ * 0x000000FF; action
+ */
 
 /* category */
 #define NOTE_CATEGORY		0xFF000000
@@ -348,8 +348,8 @@ typedef struct wmEvent {
 	int mval[2];		/* region mouse position, name convention pre 2.5 :) */
 	char utf8_buf[6];	/* from, ghost if utf8 is enabled for the platform,
 						 * BLI_str_utf8_size() must _always_ be valid, check
-						 * when assigning s we dont need to check on every access after */
-	char ascii;			/* from ghost, fallback if utf8 isnt set */
+						 * when assigning s we don't need to check on every access after */
+	char ascii;			/* from ghost, fallback if utf8 isn't set */
 	char pad;
 
 	/* previous state */
@@ -428,7 +428,6 @@ typedef struct wmTimer {
 	int sleep;				/* internal, put timers to sleep when needed */
 } wmTimer;
 
-
 typedef struct wmOperatorType {
 	const char *name;		/* text for ui, undo */
 	const char *idname;		/* unique identifier */
@@ -448,7 +447,7 @@ typedef struct wmOperatorType {
 
 	/* for modal temporary operators, initially invoke is called. then
 	 * any further events are handled in modal. if the operation is
-	 * cancelled due to some external reason, cancel is called
+	 * canceled due to some external reason, cancel is called
 	 * - see defines below for return values */
 	int (*invoke)(struct bContext *, struct wmOperator *, struct wmEvent *);
 	int (*cancel)(struct bContext *, struct wmOperator *);
@@ -463,6 +462,9 @@ typedef struct wmOperatorType {
 
 	/* rna for properties */
 	struct StructRNA *srna;
+
+	/* previous settings - for initializing on re-use */
+	struct IDProperty *last_properties;
 
 	/* rna property to use for generic invoke functions.
 	 * menus, enum search... etc */
@@ -526,14 +528,14 @@ typedef struct wmDrag {
 	
 	int icon, type;					/* type, see WM_DRAG defines above */
 	void *poin;
-	char path[240]; /* FILE_MAX */
+	char path[1024]; /* FILE_MAX */
 	double value;
 	
 	struct ImBuf *imb;						/* if no icon but imbuf should be drawn around cursor */
 	float scale;
 	int sx, sy;
 	
-	char opname[240]; /* FILE_MAX */			/* if set, draws operator name*/
+	char opname[200]; /* if set, draws operator name*/
 } wmDrag;
 
 /* dropboxes are like keymaps, part of the screen/area/region definition */
@@ -569,5 +571,5 @@ typedef struct RecentFile {
 }
 #endif
 
-#endif /* WM_TYPES_H */
+#endif /* __WM_TYPES_H__ */
 

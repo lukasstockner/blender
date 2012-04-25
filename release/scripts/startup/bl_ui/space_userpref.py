@@ -244,6 +244,9 @@ class USERPREF_PT_interface(Panel):
 
         col.prop(view, "show_splash")
 
+        if os.name == 'nt':
+            col.prop(view, "quit_dialog")
+
 
 class USERPREF_PT_edit(Panel):
     bl_space_type = 'USER_PREFERENCES'
@@ -293,7 +296,7 @@ class USERPREF_PT_edit(Panel):
         col.label(text="Grease Pencil:")
         col.prop(edit, "grease_pencil_manhattan_distance", text="Manhattan Distance")
         col.prop(edit, "grease_pencil_euclidean_distance", text="Euclidean Distance")
-        #col.prop(edit, "use_grease_pencil_simplify_stroke", text="Simplify Stroke")
+        #~ col.prop(edit, "use_grease_pencil_simplify_stroke", text="Simplify Stroke")
         col.prop(edit, "grease_pencil_eraser_radius", text="Eraser Radius")
         col.prop(edit, "use_grease_pencil_smooth_stroke", text="Smooth Stroke")
         col.separator()
@@ -301,6 +304,11 @@ class USERPREF_PT_edit(Panel):
         col.separator()
         col.label(text="Playback:")
         col.prop(edit, "use_negative_frames")
+        col.separator()
+        col.separator()
+        col.separator()
+        col.label(text="Animation Editors:")
+        col.prop(edit, "fcurve_unselected_alpha", text="F-Curve Visibility")
 
         row.separator()
         row.separator()
@@ -316,7 +324,7 @@ class USERPREF_PT_edit(Panel):
 
         sub = col.column()
 
-        # sub.active = edit.use_keyframe_insert_auto # incorrect, timeline can enable
+        #~ sub.active = edit.use_keyframe_insert_auto # incorrect, time-line can enable
         sub.prop(edit, "use_keyframe_insert_available", text="Only Insert Available")
 
         col.separator()
@@ -425,6 +433,7 @@ class USERPREF_PT_system(Panel):
         col.label(text="OpenGL:")
         col.prop(system, "gl_clip_alpha", slider=True)
         col.prop(system, "use_mipmaps")
+        col.prop(system, "use_16bit_textures")
         col.label(text="Anisotropic Filtering")
         col.prop(system, "anisotropic_filter", text="")
         col.prop(system, "use_vertex_buffer_objects")
@@ -507,32 +516,40 @@ class USERPREF_PT_theme(Panel):
     @staticmethod
     def _theme_generic(split, themedata):
 
-        row = split.row()
+        col = split.column()
 
-        subsplit = row.split(percentage=0.95)
+        def theme_generic_recurse(data):
+            col.label(data.rna_type.name)
+            row = col.row()
+            subsplit = row.split(percentage=0.95)
 
-        padding1 = subsplit.split(percentage=0.15)
-        padding1.column()
+            padding1 = subsplit.split(percentage=0.15)
+            padding1.column()
 
-        subsplit = row.split(percentage=0.85)
+            subsplit = row.split(percentage=0.85)
 
-        padding2 = subsplit.split(percentage=0.15)
-        padding2.column()
+            padding2 = subsplit.split(percentage=0.15)
+            padding2.column()
 
-        colsub_pair = padding1.column(), padding2.column()
+            colsub_pair = padding1.column(), padding2.column()
 
-        props_type = {}
+            props_type = {}
 
-        for i, prop in enumerate(themedata.rna_type.properties):
-            attr = prop.identifier
-            if attr == "rna_type":
-                continue
+            for i, prop in enumerate(data.rna_type.properties):
+                if prop.identifier == "rna_type":
+                    continue
 
-            props_type.setdefault((prop.type, prop.subtype), []).append(prop.identifier)
+                props_type.setdefault((prop.type, prop.subtype), []).append(prop)
 
-        for props_type, props_ls in sorted(props_type.items()):
-            for i, attr in enumerate(props_ls):
-                colsub_pair[i % 2].row().prop(themedata, attr)
+            for props_type, props_ls in sorted(props_type.items()):
+                if props_type[0] == 'POINTER':
+                    for i, prop in enumerate(props_ls):
+                        theme_generic_recurse(getattr(data, prop.identifier))
+                else:
+                    for i, prop in enumerate(props_ls):
+                        colsub_pair[i % 2].row().prop(data, prop.identifier)
+
+        theme_generic_recurse(themedata)
 
     @classmethod
     def poll(cls, context):
@@ -614,6 +631,14 @@ class USERPREF_PT_theme(Panel):
 
             ui = theme.user_interface.wcol_menu_back
             col.label(text="Menu Back:")
+            ui_items_general(col, ui)
+
+            ui = theme.user_interface.wcol_tooltip
+            col.label(text="Tooltip:")
+            ui_items_general(col, ui)
+
+            ui = theme.user_interface.wcol_tooltip
+            col.label(text="Tooltip:")
             ui_items_general(col, ui)
 
             ui = theme.user_interface.wcol_menu_item
@@ -820,11 +845,11 @@ class USERPREF_PT_file(Panel):
         col.prop(system, "use_tabs_as_spaces")
 
 
-from .space_userpref_keymap import InputKeyMapPanel
+from bl_ui.space_userpref_keymap import InputKeyMapPanel
 
 
 class USERPREF_MT_ndof_settings(Menu):
-    # accessed from the window keybindings in C (only)
+    # accessed from the window key-bindings in C (only)
     bl_label = "3D Mouse Settings"
 
     def draw(self, context):
@@ -890,6 +915,7 @@ class USERPREF_PT_input(Panel, InputKeyMapPanel):
         sub1.prop(inputs, "use_mouse_emulate_3_button")
         sub.prop(inputs, "use_mouse_continuous")
         sub.prop(inputs, "drag_threshold")
+        sub.prop(inputs, "tweak_threshold")
 
         sub.label(text="Select With:")
         sub.row().prop(inputs, "select_mouse", expand=True)
@@ -927,8 +953,6 @@ class USERPREF_PT_input(Panel, InputKeyMapPanel):
         sub.label(text="NDOF Device:")
         sub.prop(inputs, "ndof_sensitivity", text="NDOF Sensitivity")
 
-        col.prop(inputs, "tweak_threshold")
-
         row.separator()
 
     def draw(self, context):
@@ -956,7 +980,7 @@ class USERPREF_PT_input(Panel, InputKeyMapPanel):
 class USERPREF_MT_addons_dev_guides(Menu):
     bl_label = "Development Guides"
 
-    # menu to open webpages with addons development guides
+    # menu to open web-pages with addons development guides
     def draw(self, context):
         layout = self.layout
         layout.operator("wm.url_open", text="API Concepts", icon='URL').url = "http://wiki.blender.org/index.php/Dev:2.5/Py/API/Intro"
@@ -1088,7 +1112,7 @@ class USERPREF_PT_addons(Panel):
                 else:
                     row.operator("wm.addon_enable", icon='CHECKBOX_DEHLT', text="", emboss=False).module = module_name
 
-                # Expanded UI (only if additional infos are available)
+                # Expanded UI (only if additional info is available)
                 if info["show_expanded"]:
                     if info["description"]:
                         split = colsub.row().split(percentage=0.15)
@@ -1098,6 +1122,10 @@ class USERPREF_PT_addons(Panel):
                         split = colsub.row().split(percentage=0.15)
                         split.label(text="Location:")
                         split.label(text=info["location"])
+                    if mod:
+                        split = colsub.row().split(percentage=0.15)
+                        split.label(text="File:")
+                        split.label(text=mod.__file__)
                     if info["author"]:
                         split = colsub.row().split(percentage=0.15)
                         split.label(text="Author:")

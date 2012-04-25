@@ -47,8 +47,8 @@
 // doxygen would get a conflict
 */
 
-#ifndef MEM_SYS_TYPES_H
-#define MEM_SYS_TYPES_H
+#ifndef __MEM_SYS_TYPES_H__
+#define __MEM_SYS_TYPES_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -108,8 +108,10 @@ typedef uint64_t  u_int64_t;
 #include <inttypes.h>
 
 #elif defined(FREE_WINDOWS)
+#ifndef FREE_WINDOWS64
 /* define htoln here, there must be a syntax error in winsock2.h in MinGW */
 unsigned long __attribute__((__stdcall__)) htonl(unsigned long);
+#endif
 #include <stdint.h>
 
 #else
@@ -141,5 +143,5 @@ unsigned long __attribute__((__stdcall__)) htonl(unsigned long);
 }
 #endif
 
-#endif /* MEM_SYS_TYPES_H */
+#endif /* __MEM_SYS_TYPES_H__ */
 

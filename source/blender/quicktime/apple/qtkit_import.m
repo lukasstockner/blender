@@ -81,11 +81,14 @@ int anim_is_quicktime (const char *name)
 {
 	NSAutoreleasePool *pool;
 	
-	// dont let quicktime movie import handle these
+	// don't let quicktime movie import handle these
 	if( BLI_testextensie(name, ".swf") ||
 		BLI_testextensie(name, ".txt") ||
 		BLI_testextensie(name, ".mpg") ||
 		BLI_testextensie(name, ".avi") ||	// wouldnt be appropriate ;)
+		BLI_testextensie(name, ".mov") ||	// disabled, suboptimal decoding speed   
+		BLI_testextensie(name, ".mp4") ||	// disabled, suboptimal decoding speed
+		BLI_testextensie(name, ".m4v") ||	// disabled, suboptimal decoding speed
 		BLI_testextensie(name, ".tga") ||
 		BLI_testextensie(name, ".png") ||
 		BLI_testextensie(name, ".bmp") ||
@@ -393,7 +396,7 @@ int imb_is_a_quicktime (char *name)
 
 	pool = [[NSAutoreleasePool alloc] init];
 	
-	// dont let quicktime image import handle these
+	// don't let quicktime image import handle these
 	if( BLI_testextensie(name, ".swf") ||
 		BLI_testextensie(name, ".txt") ||
 		BLI_testextensie(name, ".mpg") ||

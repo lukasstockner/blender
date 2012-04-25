@@ -107,6 +107,7 @@ def validate_arguments(args, bc):
             'WITH_BF_FFMPEG', 'BF_FFMPEG_LIB','BF_FFMPEG_EXTRA', 'BF_FFMPEG',  'BF_FFMPEG_INC', 'BF_FFMPEG_DLL',
             'WITH_BF_STATICFFMPEG', 'BF_FFMPEG_LIB_STATIC',
             'WITH_BF_OGG', 'BF_OGG', 'BF_OGG_LIB',
+            'WITH_BF_FRAMESERVER',
             'WITH_BF_JPEG', 'BF_JPEG', 'BF_JPEG_INC', 'BF_JPEG_LIB', 'BF_JPEG_LIBPATH',
             'WITH_BF_OPENJPEG', 'BF_OPENJPEG', 'BF_OPENJPEG_INC', 'BF_OPENJPEG_LIB', 'BF_OPENJPEG_LIBPATH',
             'WITH_BF_REDCODE', 'BF_REDCODE', 'BF_REDCODE_INC', 'BF_REDCODE_LIB', 'BF_REDCODE_LIBPATH',
@@ -138,6 +139,7 @@ def validate_arguments(args, bc):
             'WITH_BF_OPENMP', 'BF_OPENMP', 'BF_OPENMP_LIBPATH',
             'WITH_GHOST_COCOA',
             'WITH_GHOST_SDL',
+            'WITH_GHOST_XDND',
             'BF_GHOST_DEBUG',
             'USE_QTKIT',
             'BF_FANCY', 'BF_QUIET', 'BF_LINE_OVERWRITE',
@@ -146,7 +148,6 @@ def validate_arguments(args, bc):
             'WITH_BF_DOCS',
             'BF_NUMJOBS',
             'BF_MSVS',
-            'BF_VERSION',
             'WITH_BF_RAYOPTIMIZATION',
             'BF_RAYOPTIMIZATION_SSE_FLAGS',
             'WITH_BF_FLUID',
@@ -154,14 +155,15 @@ def validate_arguments(args, bc):
             'WITH_BF_BOOLEAN',
             'WITH_BF_REMESH',
             'WITH_BF_OCEANSIM',
+            'WITH_BF_SMOKE',
             'WITH_BF_CXX_GUARDEDALLOC',
             'WITH_BF_JEMALLOC', 'WITH_BF_STATICJEMALLOC', 'BF_JEMALLOC', 'BF_JEMALLOC_INC', 'BF_JEMALLOC_LIBPATH', 'BF_JEMALLOC_LIB', 'BF_JEMALLOC_LIB_STATIC',
             'BUILDBOT_BRANCH',
             'WITH_BF_3DMOUSE', 'WITH_BF_STATIC3DMOUSE', 'BF_3DMOUSE', 'BF_3DMOUSE_INC', 'BF_3DMOUSE_LIB', 'BF_3DMOUSE_LIBPATH', 'BF_3DMOUSE_LIB_STATIC',
-            'WITH_BF_CYCLES', 'WITH_BF_CYCLES_CUDA_BINARIES' 'BF_CYCLES_CUDA_NVCC', 'BF_CYCLES_CUDA_NVCC', 'WITH_BF_CYCLES_CUDA_THREADED_COMPILE',
+            'WITH_BF_CYCLES', 'WITH_BF_CYCLES_CUDA_BINARIES', 'BF_CYCLES_CUDA_NVCC', 'BF_CYCLES_CUDA_NVCC', 'WITH_BF_CYCLES_CUDA_THREADED_COMPILE',
             'WITH_BF_OIIO', 'WITH_BF_STATICOIIO', 'BF_OIIO', 'BF_OIIO_INC', 'BF_OIIO_LIB', 'BF_OIIO_LIB_STATIC', 'BF_OIIO_LIBPATH',
             'WITH_BF_BOOST', 'WITH_BF_STATICBOOST', 'BF_BOOST', 'BF_BOOST_INC', 'BF_BOOST_LIB', 'BF_BOOST_LIB_STATIC', 'BF_BOOST_LIBPATH',
-            'WITH_BF_LIBMV'
+            'WITH_BF_LIBMV', 'WITH_BF_CARVE'
             ]
     
     # Have options here that scons expects to be lists
@@ -222,15 +224,15 @@ class ourSpawn:
         newargs = string.join(args[1:], ' ')
         cmdline = cmd + " " + newargs
         startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        #startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         proc = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.PIPE, startupinfo=startupinfo, shell = False)
         data, err = proc.communicate()
         rv = proc.wait()
-        if rv:
-            print "====="
-            print err
-            print "====="
+        if data:
+            print(data)
+        if err:
+            print(err)
         return rv
 
 def SetupSpawn( env ):
@@ -242,8 +244,8 @@ def SetupSpawn( env ):
 def read_opts(env, cfg, args):
     localopts = Variables.Variables(cfg, args)
     localopts.AddVariables(
-        ('LCGDIR', 'location of cvs lib dir'),
-        ('LIBDIR', 'root dir of libs'),
+        ('LCGDIR', 'Location of SVN lib dir'),
+        ('LIBDIR', 'Root dir of libs'),
         (BoolVariable('WITH_BF_PYTHON', 'Compile with python', True)),
         (BoolVariable('WITH_BF_PYTHON_SAFETY', 'Internal API error checking to track invalid data to prevent crash on access (at the expense of some effeciency)', False)),
         ('BF_PYTHON', 'Base path for python', ''),
@@ -264,6 +266,7 @@ def read_opts(env, cfg, args):
         (BoolVariable('WITH_BF_BOOLEAN', 'Build with boolean modifier', True)),
         (BoolVariable('WITH_BF_REMESH', 'Build with remesh modifier', True)),
         (BoolVariable('WITH_BF_OCEANSIM', 'Build with ocean simulation', False)),
+        (BoolVariable('WITH_BF_SMOKE', 'Build with smoke simulation', True)),
         ('BF_PROFILE_FLAGS', 'Profiling compiler flags', ''),
         (BoolVariable('WITH_BF_OPENAL', 'Use OpenAL if true', False)),
         ('BF_OPENAL', 'Base path for OpenAL', ''),
@@ -311,6 +314,8 @@ def read_opts(env, cfg, args):
         (BoolVariable('WITH_BF_CINEON', 'Support CINEON and DPX image formats if true', True)),
 
         (BoolVariable('WITH_BF_HDR', 'Support HDR image formats if true', True)),
+        
+        (BoolVariable('WITH_BF_FRAMESERVER', 'Support export to a frameserver', True)),
 
         (BoolVariable('WITH_BF_FFMPEG', 'Use FFMPEG if true', False)),
         ('BF_FFMPEG', 'FFMPEG base path', ''),
@@ -521,6 +526,7 @@ def read_opts(env, cfg, args):
         
         (BoolVariable('WITH_BF_LZO', 'Enable fast LZO pointcache compression', True)),
         (BoolVariable('WITH_BF_LZMA', 'Enable best LZMA pointcache compression', True)),
+        (BoolVariable('WITH_BF_CARVE', 'Enable carve library for mesh boolean operations', True)),
         
         (BoolVariable('WITH_BF_LIBMV', 'Enable libmv structure from motion library', True)),
 
@@ -531,8 +537,6 @@ def read_opts(env, cfg, args):
         ('BF_CONFIG', 'SCons python config file used to set default options', 'user_config.py'),
         ('BF_NUMJOBS', 'Number of build processes to spawn', '1'),
         ('BF_MSVS', 'Generate MSVS project files and solution', False),
-
-        ('BF_VERSION', 'The root path for Unix (non-apple)', '2.5'),
 
         (BoolVariable('BF_UNIT_TEST', 'Build with unit test support.', False)),
         
@@ -566,7 +570,9 @@ def read_opts(env, cfg, args):
         ('BF_BOOST_INC', 'Boost include path', ''),
         ('BF_BOOST_LIB', 'Boost library', ''),
         ('BF_BOOST_LIBPATH', 'Boost library path', ''),
-        ('BF_BOOST_LIB_STATIC', 'Boost static library', '')
+        ('BF_BOOST_LIB_STATIC', 'Boost static library', ''),
+
+        (BoolVariable('WITH_GHOST_XDND', 'Build with drag-n-drop support on Linux platforms using XDND protocol', True))
     ) # end of opts.AddOptions()
 
     return localopts

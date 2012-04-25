@@ -88,8 +88,8 @@ class prettyface(object):
             self.children = []
 
         else:  # blender face
-            # self.uv = data.uv
-            self.uv = data.id_data.uv_textures.active.data[data.index].uv  # XXX25
+            uv_layer = data.id_data.uv_layers.active.data
+            self.uv = [uv_layer[i].uv for i in data.loop_indices]
 
             # cos = [v.co for v in data]
             cos = [data.id_data.vertices[v].co for v in data.vertices]  # XXX25
@@ -158,7 +158,8 @@ class prettyface(object):
                 I = [i for a, i in angles_co]
 
                 #~ fuv = f.uv
-                fuv = f.id_data.uv_textures.active.data[f.index].uv  # XXX25
+                uv_layer = f.id_data.uv_layers.active.data
+                fuv = [uv_layer[i].uv for i in f.loops]  # XXX25
 
                 if self.rot:
                     fuv[I[2]] = p1
@@ -219,15 +220,10 @@ def lightmap_uvpack(meshes,
         face_groups = []
 
     for me in meshes:
-        # Add face UV if it does not exist.
-        # All new faces are selected.
-        if not me.uv_textures:
-            me.uv_textures.new()
-
         if PREF_SEL_ONLY:
-            faces = [f for f in me.faces if f.select]
+            faces = [f for f in me.polygons if f.select]
         else:
-            faces = me.faces[:]
+            faces = me.polygons[:]
 
         if PREF_PACK_IN_ONE:
             face_groups[0].extend(faces)
@@ -237,6 +233,11 @@ def lightmap_uvpack(meshes,
         if PREF_NEW_UVLAYER:
             me.uv_textures.new()
 
+        # Add face UV if it does not exist.
+        # All new faces are selected.
+        if not me.uv_textures:
+            me.uv_textures.new()
+
     for face_sel in face_groups:
         print("\nStarting unwrap")
 
@@ -244,12 +245,12 @@ def lightmap_uvpack(meshes,
             print("\tWarning, less then 4 faces, skipping")
             continue
 
-        pretty_faces = [prettyface(f) for f in face_sel if len(f.vertices) == 4]
+        pretty_faces = [prettyface(f) for f in face_sel if f.loop_total == 4]
 
-        # Do we have any tri's
+        # Do we have any triangles?
         if len(pretty_faces) != len(face_sel):
 
-            # Now add tri's, not so simple because we need to pair them up.
+            # Now add triangles, not so simple because we need to pair them up.
             def trylens(f):
                 # f must be a tri
 
@@ -268,7 +269,7 @@ def lightmap_uvpack(meshes,
 
                 return f, lens, lens_order
 
-            tri_lengths = [trylens(f) for f in face_sel if len(f.vertices) == 3]
+            tri_lengths = [trylens(f) for f in face_sel if f.loop_total == 3]
             del trylens
 
             def trilensdiff(t1, t2):
@@ -528,7 +529,7 @@ def unwrap(operator, context, **kwargs):
         if obj and obj.type == 'MESH':
             meshes = [obj.data]
     else:
-        meshes = list({me for obj in context.selected_objects if obj.type == 'MESH' for me in (obj.data,) if me.faces and me.library is None})
+        meshes = list({me for obj in context.selected_objects if obj.type == 'MESH' for me in (obj.data,) if me.polygons and me.library is None})
 
     if not meshes:
         operator.report({'ERROR'}, "No mesh object")
@@ -548,7 +549,16 @@ class LightMapPack(Operator):
     '''Follow UVs from active quads along continuous face loops'''
     bl_idname = "uv.lightmap_pack"
     bl_label = "Lightmap Pack"
-    bl_options = {'REGISTER', 'UNDO'}
+
+    # Disable REGISTER flag for now because this operator might create new
+    # images. This leads to non-proper operator redo because current undo
+    # stack is local for edit mode and can not remove images created by this
+    # oprtator.
+    # Proper solution would be to make undo stack aware of such things,
+    # but for now just disable redo. Keep undo here so unwanted changes to uv
+    # coords might be undone.
+    # This fixes infinite image creation reported there [#30968] (sergey)
+    bl_options = {'UNDO'}
 
     PREF_CONTEXT = bpy.props.EnumProperty(
             name="Selection",

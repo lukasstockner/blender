@@ -38,17 +38,17 @@ addons_fake_modules = {}
 
 def paths():
     # RELEASE SCRIPTS: official scripts distributed in Blender releases
-    paths = _bpy.utils.script_paths("addons")
+    addon_paths = _bpy.utils.script_paths("addons")
 
     # CONTRIB SCRIPTS: good for testing but not official scripts yet
     # if folder addons_contrib/ exists, scripts in there will be loaded too
-    paths += _bpy.utils.script_paths("addons_contrib")
+    addon_paths += _bpy.utils.script_paths("addons_contrib")
 
     # EXTERN SCRIPTS: external projects scripts
     # if folder addons_extern/ exists, scripts in there will be loaded too
-    paths += _bpy.utils.script_paths("addons_extern")
+    addon_paths += _bpy.utils.script_paths("addons_extern")
 
-    return paths
+    return addon_paths
 
 
 def modules(module_cache):
@@ -65,7 +65,7 @@ def modules(module_cache):
     def fake_module(mod_name, mod_path, speedy=True, force_support=None):
         global error_encoding
 
-        if _bpy.app.debug:
+        if _bpy.app.debug_python:
             print("fake_module", mod_path, mod_name)
         import ast
         ModuleType = type(ast)
@@ -284,7 +284,7 @@ def enable(module_name, default_set=True):
 
     mod.__addon_enabled__ = True
 
-    if _bpy.app.debug:
+    if _bpy.app.debug_python:
         print("\taddon_utils.enable", mod.__name__)
 
     return mod
@@ -323,7 +323,7 @@ def disable(module_name, default_set=True):
             if addon:
                 addons.remove(addon)
 
-    if _bpy.app.debug:
+    if _bpy.app.debug_python:
         print("\taddon_utils.disable", module_name)
 
 
@@ -361,7 +361,6 @@ def module_bl_info(mod, info_basis={"name": "",
                                     "author": "",
                                     "version": (),
                                     "blender": (),
-                                    "api": 0,
                                     "location": "",
                                     "description": "",
                                     "wiki_url": "",

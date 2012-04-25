@@ -30,8 +30,8 @@
  */
 
 
-#ifndef NODE_COMPOSITE_UTIL_H_
-#define NODE_COMPOSITE_UTIL_H_
+#ifndef __NODE_COMPOSITE_UTIL_H__
+#define __NODE_COMPOSITE_UTIL_H__
 
 #include <stdlib.h>
 #include <string.h>
@@ -124,7 +124,6 @@ CompBuf *pass_on_compbuf(CompBuf *cbuf);
 void free_compbuf(CompBuf *cbuf);
 void print_compbuf(char *str, CompBuf *cbuf);
 void compbuf_set_node(struct CompBuf *cbuf, struct bNode *node);
-void node_compo_pass_on(void *data, int thread, struct bNode *node, void *nodedata, struct bNodeStack **in, struct bNodeStack **out);
 
 CompBuf *get_cropped_compbuf(rcti *drect, float *rectf, int rectx, int recty, int type);
 CompBuf *scalefast_compbuf(CompBuf *inbuf, int newx, int newy);

@@ -40,9 +40,17 @@ blender_include_dirs(
 	../blender/windowmanager
 )
 
+if(WIN32)
+	blender_include_dirs(../../intern/utfconv)
+endif()
+
 if(WITH_LIBMV)
 	blender_include_dirs(../../extern/libmv)
 	add_definitions(-DWITH_LIBMV)
+endif()
+
+if(WITH_CODEC_FFMPEG)
+	add_definitions(-DWITH_FFMPEG)
 endif()
 
 if(WITH_PYTHON)
@@ -165,36 +173,36 @@ if(WITH_PYTHON_MODULE)
 	add_definitions(-DWITH_PYTHON_MODULE)
 
 	# creates ./bin/bpy.so which can be imported as a python module.
+	#
+	# note that 'SHARED' works on Linux and Windows,
+	# but not OSX which _must_ be 'MODULE'
+	add_library(blender MODULE ${SRC})
+	set_target_properties(
+		blender
+		PROPERTIES
+			PREFIX ""
+			OUTPUT_NAME bpy
+			LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+			RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin  # only needed on windows
+	)
+
 	if(APPLE)
-		add_library(blender MODULE ${SRC})
 		set_target_properties(
 			blender
 			PROPERTIES
-				PREFIX ""
-				OUTPUT_NAME bpy
-				LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+				LINK_FLAGS_RELEASE "${PLATFORM_LINKFLAGS}"
+				LINK_FLAGS_DEBUG "${PLATFORM_LINKFLAGS_DEBUG}"
 		)
+	endif()
 
-	else(APPLE)
-		add_library(blender SHARED ${SRC})
+	if(WIN32)
+		# python modules use this
 		set_target_properties(
 			blender
 			PROPERTIES
-				PREFIX ""
-				OUTPUT_NAME bpy
-				LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-				RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin  # only needed on windows
+			SUFFIX ".pyd"
 		)
-
-		if(WIN32)
-			# python modules use this
-			set_target_properties(
-				blender
-				PROPERTIES
-				SUFFIX ".pyd"
-			)
-		endif()
-	endif(APPLE)
+	endif()
 
 else()
 	add_executable(blender ${EXETYPE} ${SRC})
@@ -226,7 +234,7 @@ set(BLENDER_TEXT_FILES
 
 
 # -----------------------------------------------------------------------------
-# Platform Spesific Var: TARGETDIR_VER
+# Platform Specific Var: TARGETDIR_VER
 
 if(UNIX AND NOT APPLE)
 	if(WITH_INSTALL_PORTABLE)
@@ -243,7 +251,11 @@ elseif(WIN32)
 	set(TARGETDIR_VER ${TARGETDIR}/${BLENDER_VERSION})
 
 elseif(APPLE)
-	set(TARGETDIR_VER ${TARGETDIR}/blender.app/Contents/MacOS/${BLENDER_VERSION})
+	if(WITH_PYTHON_MODULE)
+		set(TARGETDIR_VER ${TARGETDIR}/${BLENDER_VERSION})
+	else()
+		set(TARGETDIR_VER ${TARGETDIR}/blender.app/Contents/MacOS/${BLENDER_VERSION})
+	endif()
 
 endif()
 
@@ -384,7 +396,7 @@ if(UNIX AND NOT APPLE)
 		)
 	endif()
 
-		# plugins in blender 2.5 don't work at the moment.
+		# plugins in blender 2.6 don't work at the moment.
 		#
 		# install(
 		# 	DIRECTORY ${CMAKE_SOURCE_DIR}/release/plugins
@@ -394,12 +406,21 @@ if(UNIX AND NOT APPLE)
 
 	if(WITH_PYTHON)
 		if(WITH_PYTHON_INSTALL)
+			# on some platforms (like openSUSE) Python is linked
+			# to be used from lib64 folder.
+			# determine this from Python's libraries path
+			if(${PYTHON_LIBPATH} MATCHES "lib64$")
+				set(_target_LIB "lib64")
+			else()
+				set(_target_LIB "lib")
+			endif()
+
 			# Copy the systems python into the install directory
 			# Scons copy in tools/Blender.py
 			# install(CODE "message(\"copying a subset of the systems python...\")")
 			install(
 				DIRECTORY ${PYTHON_LIBPATH}/python${PYTHON_VERSION}
-				DESTINATION ${TARGETDIR_VER}/python/lib
+				DESTINATION ${TARGETDIR_VER}/python/${_target_LIB}
 				PATTERN ".svn" EXCLUDE
 				PATTERN "__pycache__" EXCLUDE               # * any cache *
 				PATTERN "distutils" EXCLUDE                 # ./distutils
@@ -417,6 +438,7 @@ if(UNIX AND NOT APPLE)
 
 			# # doesnt work, todo
 			# install(CODE "execute_process(COMMAND find ${TARGETDIR}/${BLENDER_VERSION}/python/lib/ -name '*.so' -exec strip -s {} '\;')")
+			unset(_target_LIB)
 		endif()
 	endif()
 elseif(WIN32)
@@ -426,7 +448,7 @@ elseif(WIN32)
 		DESTINATION ${TARGETDIR}
 	)
 
-	if(WITH_INTERNATIONAL)
+	if(WITH_INTERNATIONAL AND (NOT WITH_MINGW64))
 		install(
 			FILES ${LIBDIR}/gettext/lib/gnu_gettext.dll
 			DESTINATION ${TARGETDIR}
@@ -440,7 +462,7 @@ elseif(WIN32)
 		endif()
 	endif()
 
-	# plugins in blender 2.5 don't work at the moment.
+	# plugins in blender 2.6 don't work at the moment.
 	#
 	# install(
 	# 	DIRECTORY ${CMAKE_SOURCE_DIR}/release/plugins
@@ -501,11 +523,14 @@ elseif(WIN32)
 			DESTINATION ${TARGETDIR}
 		)
 	else()
-		install(
-			FILES
-				${LIBDIR}/zlib/lib/zlib.dll
-			DESTINATION ${TARGETDIR}
-		)
+		#not needed since we link statically, maybe also unneeded for MinGW?
+		if(NOT WITH_MINGW64)
+			install(
+				FILES
+					${LIBDIR}/zlib/lib/zlib.dll
+				DESTINATION ${TARGETDIR}
+			)
+		endif()
 	endif()
 
 	if(MSVC)
@@ -514,10 +539,13 @@ elseif(WIN32)
 			DESTINATION ${TARGETDIR}
 		)
 	else()
-		install(
-			FILES ${LIBDIR}/pthreads/lib/pthreadGC2.dll
-			DESTINATION ${TARGETDIR}
-		)
+		#MinGW64 comes with own version. For portable builds it will probaly have to be copied to work
+		if(NOT WITH_MINGW64)
+			install(
+				FILES ${LIBDIR}/pthreads/lib/pthreadGC2.dll
+				DESTINATION ${TARGETDIR}
+			)
+		endif()
 	endif()
 
 	if(WITH_CODEC_FFMPEG)
@@ -544,6 +572,7 @@ elseif(WIN32)
 		install(
 			FILES
 				${LIBDIR}/openal/lib/OpenAL32.dll
+				${LIBDIR}/openal/lib/wrap_oal.dll
 			DESTINATION ${TARGETDIR}
 		)
 	endif()
@@ -625,10 +654,11 @@ elseif(APPLE)
 	)
 
 	# python
-	if(WITH_PYTHON)
+	if(WITH_PYTHON AND NOT WITH_PYTHON_MODULE)
 		# the python zip is first extract as part of the build process,
 		# and then later installed as part of make install. this is much
 		# quicker, and means we can easily exclude files on copy
+		# Not needed for PYTHON_MODULE or WEB_PLUGIN due uses  Pyhon framework
 		add_custom_target(
 			extractpyzip
 			DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/python)
@@ -781,8 +811,10 @@ endif()
 		bf_python
 		bf_python_ext
 		bf_python_mathutils
+		bf_python_bmesh
 		bf_ikplugin
 		bf_modifiers
+		bf_bmesh
 		bf_blenkernel
 		bf_nodes
 		bf_gpu
@@ -805,6 +837,7 @@ endif()
 		bf_intern_memutil
 		bf_intern_guardedalloc
 		bf_intern_ctr
+		bf_intern_utfconv
 		ge_blen_routines
 		ge_converter
 		ge_phys_dummy
@@ -870,6 +903,14 @@ endif()
 
 	if(WITH_CODEC_QUICKTIME)
 		list(APPEND BLENDER_SORTED_LIBS bf_quicktime)
+	endif()
+
+	if(WITH_CARVE)
+		list(APPEND BLENDER_SORTED_LIBS extern_carve)
+	endif()
+
+	if(WITH_GHOST_XDND)
+		list(APPEND BLENDER_SORTED_LIBS extern_xdnd)
 	endif()
 
 	foreach(SORTLIB ${BLENDER_SORTED_LIBS})

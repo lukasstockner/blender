@@ -20,6 +20,7 @@
 
 import bpy
 from bpy.types import Menu, Operator
+from bpy.props import StringProperty, BoolProperty
 
 
 class AddPresetBase():
@@ -31,14 +32,15 @@ class AddPresetBase():
     # bl_label = "Add a Python Preset"
     bl_options = {'REGISTER'}  # only because invoke_props_popup requires.
 
-    name = bpy.props.StringProperty(
+    name = StringProperty(
             name="Name",
             description="Name of the preset, used to make the path name",
             maxlen=64,
+            options={'SKIP_SAVE'},
             )
-    remove_active = bpy.props.BoolProperty(
+    remove_active = BoolProperty(
             default=False,
-            options={'HIDDEN'},
+            options={'HIDDEN', 'SKIP_SAVE'},
             )
 
     @staticmethod
@@ -165,12 +167,10 @@ class ExecutePreset(Operator):
     bl_idname = "script.execute_preset"
     bl_label = "Execute a Python Preset"
 
-    filepath = bpy.props.StringProperty(
-            name="Path",
-            description="Path of the Python file to execute",
-            maxlen=512,
+    filepath = StringProperty(
+            subtype='FILE_PATH',
             )
-    menu_idname = bpy.props.StringProperty(
+    menu_idname = StringProperty(
             name="Menu ID Name",
             description="ID name of the menu this was called from",
             )
@@ -195,7 +195,7 @@ class ExecutePreset(Operator):
                                  preset_class.preset_xml_map)
         else:
             self.report({'ERROR'}, "unknown filetype: %r" % ext)
-            return {'CANCELLED '}
+            return {'CANCELLED'}
 
         return {'FINISHED'}
 
@@ -293,6 +293,24 @@ class AddPresetCloth(AddPresetBase, Operator):
     ]
 
     preset_subdir = "cloth"
+
+
+class AddPresetFluid(AddPresetBase, Operator):
+    '''Add a Fluid Preset'''
+    bl_idname = "fluid.preset_add"
+    bl_label = "Add Fluid Preset"
+    preset_menu = "FLUID_MT_presets"
+
+    preset_defines = [
+    "fluid = bpy.context.fluid"
+    ]
+
+    preset_values = [
+    "fluid.settings.viscosity_base",
+    "fluid.settings.viscosity_exponent",
+    ]
+
+    preset_subdir = "fluid"
 
 
 class AddPresetSunSky(AddPresetBase, Operator):
@@ -409,7 +427,10 @@ class AddPresetTrackingSettings(AddPresetBase, Operator):
         "settings.default_search_size",
         "settings.default_frames_limit",
         "settings.default_pattern_match",
-        "settings.default_margin"
+        "settings.default_margin",
+        "settings.use_default_red_channel",
+        "settings.use_default_green_channel",
+        "settings.use_default_blue_channel"
     ]
 
     preset_subdir = "tracking_settings"
@@ -424,7 +445,7 @@ class AddPresetInterfaceTheme(AddPresetBase, Operator):
 
 
 class AddPresetKeyconfig(AddPresetBase, Operator):
-    '''Add a Keyconfig Preset'''
+    '''Add a Key-config Preset'''
     bl_idname = "wm.keyconfig_preset_add"
     bl_label = "Add Keyconfig Preset"
     preset_menu = "USERPREF_MT_keyconfigs"
@@ -452,7 +473,7 @@ class AddPresetOperator(AddPresetBase, Operator):
     bl_label = "Operator Preset"
     preset_menu = "WM_MT_operator_presets"
 
-    operator = bpy.props.StringProperty(
+    operator = StringProperty(
             name="Operator",
             maxlen=64,
             options={'HIDDEN'},

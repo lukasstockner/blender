@@ -29,9 +29,6 @@ from bpy.props import (StringProperty,
 
 from rna_prop_ui import rna_idprop_ui_prop_get, rna_idprop_ui_prop_clear
 
-import subprocess
-import os
-
 
 class MESH_OT_delete_edgeloop(Operator):
     '''Delete an edge loop by merging the faces on each side to a single face loop'''
@@ -146,12 +143,12 @@ class BRUSH_OT_active_index_set(Operator):
     bl_label = "Set Brush Number"
 
     mode = StringProperty(
-            name="mode",
+            name="Mode",
             description="Paint mode to set brush for",
             maxlen=1024,
             )
     index = IntProperty(
-            name="number",
+            name="Number",
             description="Brush number",
             )
 
@@ -166,9 +163,10 @@ class BRUSH_OT_active_index_set(Operator):
         if attr is None:
             return {'CANCELLED'}
 
+        toolsettings = context.tool_settings
         for i, brush in enumerate((cur for cur in bpy.data.brushes if getattr(cur, attr))):
             if i == self.index:
-                getattr(context.tool_settings, self.mode).brush = brush
+                getattr(toolsettings, self.mode).brush = brush
                 return {'FINISHED'}
 
         return {'CANCELLED'}
@@ -396,7 +394,7 @@ class WM_OT_context_cycle_int(Operator):
         exec("context.%s = value" % data_path)
 
         if value != eval("context.%s" % data_path):
-            # relies on rna clamping int's out of the range
+            # relies on rna clamping integers out of the range
             if self.reverse:
                 value = (1 << 31) - 1
             else:
@@ -643,6 +641,10 @@ class WM_OT_context_modal_mouse(Operator):
 
     data_path_iter = data_path_iter
     data_path_item = data_path_item
+    header_text = StringProperty(
+            name="Header Text",
+            description="Text to display in header during scale",
+            )
 
     input_scale = FloatProperty(
             description="Scale the mouse movement by this value before applying the delta",
@@ -702,14 +704,24 @@ class WM_OT_context_modal_mouse(Operator):
         if event_type == 'MOUSEMOVE':
             delta = event.mouse_x - self.initial_x
             self._values_delta(delta)
+            header_text = self.header_text
+            if header_text:
+                if len(self._values) == 1:
+                    (item, ) = self._values.keys()
+                    header_text = header_text % eval("item.%s" % self.data_path_item)
+                else:
+                    header_text = (self.header_text % delta) + " (delta)"
+                context.area.header_text_set(header_text)
 
         elif 'LEFTMOUSE' == event_type:
             item = next(iter(self._values.keys()))
             self._values_clear()
+            context.area.header_text_set()
             return operator_value_undo_return(item)
 
         elif event_type in {'RIGHTMOUSE', 'ESC'}:
             self._values_restore()
+            context.area.header_text_set()
             return {'CANCELLED'}
 
         return {'RUNNING_MODAL'}
@@ -730,7 +742,7 @@ class WM_OT_context_modal_mouse(Operator):
 
 
 class WM_OT_url_open(Operator):
-    "Open a website in the Webbrowser"
+    "Open a website in the web-browser"
     bl_idname = "wm.url_open"
     bl_label = ""
 
@@ -1027,6 +1039,7 @@ class WM_OT_properties_add(Operator):
     '''Internal use (edit a property data_path)'''
     bl_idname = "wm.properties_add"
     bl_label = "Add Property"
+    bl_options = {'UNDO'}
 
     data_path = rna_path
 
@@ -1069,6 +1082,7 @@ class WM_OT_properties_remove(Operator):
     '''Internal use (edit a property data_path)'''
     bl_idname = "wm.properties_remove"
     bl_label = "Remove Property"
+    bl_options = {'UNDO'}
 
     data_path = rna_path
     property = rna_property
@@ -1178,30 +1192,38 @@ class WM_OT_copy_prev_settings(Operator):
         return {'CANCELLED'}
 
 
-class WM_OT_blenderplayer_start(bpy.types.Operator):
-    '''Launch the Blenderplayer with the current blendfile'''
+class WM_OT_blenderplayer_start(Operator):
+    '''Launch the blender-player with the current blend-file'''
     bl_idname = "wm.blenderplayer_start"
-    bl_label = "Start"
-
-    blender_bin_path = bpy.app.binary_path
-    blender_bin_dir = os.path.dirname(blender_bin_path)
-    ext = os.path.splitext(blender_bin_path)[-1]
-    player_path = os.path.join(blender_bin_dir, "blenderplayer" + ext)
+    bl_label = "Start Game In Player"
 
     def execute(self, context):
+        import os
         import sys
+        import subprocess
+
+        # these remain the same every execution
+        blender_bin_path = bpy.app.binary_path
+        blender_bin_dir = os.path.dirname(blender_bin_path)
+        ext = os.path.splitext(blender_bin_path)[-1]
+        player_path = os.path.join(blender_bin_dir, "blenderplayer" + ext)
+        # done static vars
 
         if sys.platform == "darwin":
-            self.player_path = os.path.join(self.blender_bin_dir, "../../../blenderplayer.app/Contents/MacOS/blenderplayer")
+            player_path = os.path.join(blender_bin_dir, "../../../blenderplayer.app/Contents/MacOS/blenderplayer")
 
-        filepath = bpy.app.tempdir + "game.blend"
+        if not os.path.exists(player_path):
+            self.report({'ERROR'}, "Player path: %r not found" % player_path)
+            return {'CANCELLED'}
+
+        filepath = os.path.join(bpy.app.tempdir, "game.blend")
         bpy.ops.wm.save_as_mainfile(filepath=filepath, check_existing=False, copy=True)
-        subprocess.call([self.player_path, filepath])
+        subprocess.call([player_path, filepath])
         return {'FINISHED'}
 
 
 class WM_OT_keyconfig_test(Operator):
-    "Test keyconfig for conflicts"
+    "Test key-config for conflicts"
     bl_idname = "wm.keyconfig_test"
     bl_label = "Test Key Configuration for Conflicts"
 
@@ -1768,4 +1790,3 @@ class WM_OT_addon_expand(Operator):
         info = addon_utils.module_bl_info(mod)
         info["show_expanded"] = not info["show_expanded"]
         return {'FINISHED'}
-

@@ -2,14 +2,16 @@
 /* src/config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Namespace for Google classes */
-#ifdef __APPLE__
+#if defined(__APPLE__)
  #include "config_mac.h"
-#elif __FreeBSD__
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
  #include "config_freebsd.h"
-#elif __MINGW32__
+#elif defined(__MINGW32__)
  #include "windows/config.h"
-#elif __GNUC__
+#elif defined(__linux__)
  #include "config_linux.h"
-#elif _MSC_VER
+#elif defined(_MSC_VER)
  #include "windows/config.h"
+#elif defined(__GNU__)
+ #include "config_hurd.h"
 #endif

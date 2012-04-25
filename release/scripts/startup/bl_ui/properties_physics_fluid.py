@@ -18,7 +18,14 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Panel
+from bpy.types import Panel, Menu
+
+
+class FLUID_MT_presets(Menu):
+    bl_label = "Fluid Presets"
+    preset_subdir = "fluid"
+    preset_operator = "script.execute_preset"
+    draw = Menu.draw_preset
 
 
 class PhysicButtonsPanel():
@@ -42,20 +49,21 @@ class PHYSICS_PT_fluid(PhysicButtonsPanel, Panel):
         md = context.fluid
         fluid = md.settings
 
-        row = layout.row()
+        col = layout.column()
         if fluid is None:
-            row.label("Built without fluids")
+            col.label("Built without fluids")
             return
 
-        row.prop(fluid, "type")
-        if fluid.type not in {'NONE', 'DOMAIN', 'PARTICLE', 'FLUID'}:
-            row.prop(fluid, "use", text="")
+        col.prop(fluid, "type")
+        if fluid.type not in {'NONE', 'DOMAIN', 'PARTICLE', 'FLUID', 'OBSTACLE'}:
+            col.prop(fluid, "use")
 
         layout = layout.column()
-        if fluid.type not in {'NONE', 'DOMAIN', 'PARTICLE', 'FLUID'}:
+        if fluid.type not in {'NONE', 'DOMAIN', 'PARTICLE', 'FLUID', 'OBSTACLE'}:
             layout.active = fluid.use
 
         if fluid.type == 'DOMAIN':
+            # odd formatting here so translation script can extract string
             layout.operator("fluid.bake", text="Bake (Req. Memory:" + " %s)" % fluid.memory_estimate, icon='MOD_FLUIDSIM')
             split = layout.split()
 
@@ -78,11 +86,13 @@ class PHYSICS_PT_fluid(PhysicButtonsPanel, Panel):
             sub = col.column(align=True)
             sub.prop(fluid, "start_time", text="Start")
             sub.prop(fluid, "end_time", text="End")
+            col.prop(fluid, "simulation_rate", text="Speed")
 
             col = split.column()
             col.label()
             col.prop(fluid, "use_speed_vectors")
             col.prop(fluid, "use_reverse_frames")
+            col.prop(fluid, "frame_offset", text="Offset")
 
             layout.prop(fluid, "filepath", text="")
 
@@ -131,14 +141,10 @@ class PHYSICS_PT_fluid(PhysicButtonsPanel, Panel):
             col.prop(fluid, "inflow_velocity", text="")
 
         elif fluid.type == 'OUTFLOW':
-            split = layout.split()
-
-            col = split.column()
+            col = layout.column()
             col.label(text="Volume Initialization:")
             col.prop(fluid, "volume_initialization", text="")
             col.prop(fluid, "use_animated_mesh")
-
-            split.column()
 
         elif fluid.type == 'PARTICLE':
             split = layout.split()
@@ -223,12 +229,14 @@ class PHYSICS_PT_domain_gravity(PhysicButtonsPanel, Panel):
 
         col = split.column()
         col.label(text="Viscosity Presets:")
-        sub = col.column(align=True)
-        sub.prop(fluid, "viscosity_preset", text="")
+        sub = col.row(align=True)
+        sub.menu("FLUID_MT_presets", text=bpy.types.FLUID_MT_presets.bl_label)
+        sub.operator("fluid.preset_add", text="", icon='ZOOMIN')
+        sub.operator("fluid.preset_add", text="", icon='ZOOMOUT').remove_active = True
 
-        if fluid.viscosity_preset == 'MANUAL':
-            sub.prop(fluid, "viscosity_base", text="Base")
-            sub.prop(fluid, "viscosity_exponent", text="Exponent", slider=True)
+        subsub = col.column(align=True)
+        subsub.prop(fluid, "viscosity_base", text="Base")
+        subsub.prop(fluid, "viscosity_exponent", text="Exponent", slider=True)
 
         col.label(text="Optimization:")
         col.prop(fluid, "grid_levels", slider=True)

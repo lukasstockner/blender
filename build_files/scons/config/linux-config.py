@@ -1,6 +1,8 @@
 # find library directory
 import platform
 import os
+from Modules.FindPython import FindPython
+
 bitness = platform.architecture()[0]
 if bitness == '64bit':
     LCGDIR = '../lib/linux64'
@@ -8,10 +10,12 @@ else:
     LCGDIR = '../lib/linux'
 LIBDIR = "#${LCGDIR}"
 
-BF_PYTHON_ABI_FLAGS = 'm'  # Most common for linux distros
-BF_PYTHON = '/usr'
-BF_PYTHON_LIBPATH = '${BF_PYTHON}/lib'
-BF_PYTHON_VERSION = '3.2'
+py = FindPython()
+
+BF_PYTHON_ABI_FLAGS = py['ABI_FLAGS']
+BF_PYTHON = py['PYTHON']
+BF_PYTHON_LIBPATH = py['LIBPATH']
+BF_PYTHON_VERSION = py['VERSION']
 WITH_BF_STATICPYTHON = False
 BF_PYTHON_INC = '${BF_PYTHON}/include/python${BF_PYTHON_VERSION}${BF_PYTHON_ABI_FLAGS}'
 BF_PYTHON_BINARY = '${BF_PYTHON}/bin/python${BF_PYTHON_VERSION}'
@@ -101,13 +105,12 @@ BF_BULLET = '#extern/bullet2/src'
 BF_BULLET_INC = '${BF_BULLET}'
 BF_BULLET_LIB = 'extern_bullet'
 
-# enable freetype2 support for text objects
 BF_FREETYPE = '/usr'
 BF_FREETYPE_INC = '${BF_FREETYPE}/include ${BF_FREETYPE}/include/freetype2'
 BF_FREETYPE_LIB = 'freetype'
 #BF_FREETYPE_LIB_STATIC = '${BF_FREETYPE}/lib/libfreetype.a'
 
-WITH_BF_QUICKTIME = False # -DWITH_QUICKTIME
+WITH_BF_QUICKTIME = False
 BF_QUICKTIME = '/usr/local'
 BF_QUICKTIME_INC = '${BF_QUICKTIME}/include'
 
@@ -120,7 +123,7 @@ BF_ICONV_LIBPATH = '${BF_ICONV}/lib'
 WITH_BF_BINRELOC = True
 
 # enable ffmpeg  support
-WITH_BF_FFMPEG = True  # -DWITH_FFMPEG
+WITH_BF_FFMPEG = True
 BF_FFMPEG = LIBDIR + '/ffmpeg'
 if os.path.exists(LCGDIR + '/ffmpeg'):
     WITH_BF_STATICFFMPEG = True

@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Menu, OperatorProperties
+from bpy.types import Menu
 
 
 class USERPREF_MT_keyconfigs(Menu):
@@ -180,7 +180,7 @@ class InputKeyMapPanel:
                     sub.prop(kmi, "propvalue", text="")
                 else:
                     # One day...
-                    # sub.prop_search(kmi, "idname", bpy.context.window_manager, "operators_all", text="")
+                    #~ sub.prop_search(kmi, "idname", bpy.context.window_manager, "operators_all", text="")
                     sub.prop(kmi, "idname", text="")
 
                 sub = split.column()

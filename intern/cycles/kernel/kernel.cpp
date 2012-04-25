@@ -84,6 +84,25 @@ void kernel_tex_copy(KernelGlobals *kg, const char *name, device_ptr mem, size_t
 #define KERNEL_IMAGE_TEX(type, ttype, tname)
 #include "kernel_textures.h"
 
+	else if(strstr(name, "__tex_image_float")) {
+		texture_image_float4 *tex = NULL;
+		int id = atoi(name + strlen("__tex_image_float_"));
+
+		switch(id) {
+			case 95: tex = &kg->__tex_image_float_095; break;
+			case 96: tex = &kg->__tex_image_float_096; break;
+			case 97: tex = &kg->__tex_image_float_097; break;
+			case 98: tex = &kg->__tex_image_float_098; break;
+			case 99: tex = &kg->__tex_image_float_099; break;
+			default: break;
+		}
+
+		if(tex) {
+			tex->data = (float4*)mem;
+			tex->width = width;
+			tex->height = height;
+		}
+	}
 	else if(strstr(name, "__tex_image")) {
 		texture_image_uchar4 *tex = NULL;
 		int id = atoi(name + strlen("__tex_image_"));
@@ -184,11 +203,6 @@ void kernel_tex_copy(KernelGlobals *kg, const char *name, device_ptr mem, size_t
 			case 92: tex = &kg->__tex_image_092; break;
 			case 93: tex = &kg->__tex_image_093; break;
 			case 94: tex = &kg->__tex_image_094; break;
-			case 95: tex = &kg->__tex_image_095; break;
-			case 96: tex = &kg->__tex_image_096; break;
-			case 97: tex = &kg->__tex_image_097; break;
-			case 98: tex = &kg->__tex_image_098; break;
-			case 99: tex = &kg->__tex_image_099; break;
 			default: break;
 		}
 
@@ -204,21 +218,21 @@ void kernel_tex_copy(KernelGlobals *kg, const char *name, device_ptr mem, size_t
 
 /* Path Tracing */
 
-void kernel_cpu_path_trace(KernelGlobals *kg, float4 *buffer, unsigned int *rng_state, int sample, int x, int y, int offset, int stride)
+void kernel_cpu_path_trace(KernelGlobals *kg, float *buffer, unsigned int *rng_state, int sample, int x, int y, int offset, int stride)
 {
 	kernel_path_trace(kg, buffer, rng_state, sample, x, y, offset, stride);
 }
 
 /* Tonemapping */
 
-void kernel_cpu_tonemap(KernelGlobals *kg, uchar4 *rgba, float4 *buffer, int sample, int resolution, int x, int y, int offset, int stride)
+void kernel_cpu_tonemap(KernelGlobals *kg, uchar4 *rgba, float *buffer, int sample, int resolution, int x, int y, int offset, int stride)
 {
 	kernel_film_tonemap(kg, rgba, buffer, sample, resolution, x, y, offset, stride);
 }
 
 /* Shader Evaluation */
 
-void kernel_cpu_shader(KernelGlobals *kg, uint4 *input, float3 *output, int type, int i)
+void kernel_cpu_shader(KernelGlobals *kg, uint4 *input, float4 *output, int type, int i)
 {
 	kernel_shader_evaluate(kg, input, output, (ShaderEvalType)type, i);
 }

@@ -25,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef BLI_SCANFILL_H
-#define BLI_SCANFILL_H
+#ifndef __BLI_SCANFILL_H__
+#define __BLI_SCANFILL_H__
 
 /** \file BLI_scanfill.h
  *  \ingroup bli
@@ -35,32 +35,78 @@
  *  \brief Filling meshes.
  */
 
-/**
- * @attention Defined in scanfill.c
- */
-extern struct ListBase fillvertbase;
-extern struct ListBase filledgebase;
-extern struct ListBase fillfacebase;
-
-struct EditVert;
+struct ScanFillVert;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+typedef struct ScanFillContext
+{
+	ListBase fillvertbase;
+	ListBase filledgebase;
+	ListBase fillfacebase;
+
+	/* simple optimization for allocating thousands of small memory blocks
+	 * only to be used within loops, and not by one function at a time
+	 * free in the end, with argument '-1'
+	 */
+#define MEM_ELEM_BLOCKSIZE 16384
+	struct mem_elements *melem__cur;
+	int melem__offs;                   /* the current free address */
+	ListBase melem__lb;
+
+	/* private */
+	struct ScanFillVertLink *_scdata;
+} ScanFillContext;
+
+/* note; changing this also might affect the undo copy in editmesh.c */
+typedef struct ScanFillVert
+{
+	struct ScanFillVert *next, *prev;
+	union {
+		struct ScanFillVert *v;
+		void                *p;
+		intptr_t             l;
+	} tmp;
+	float co[3]; /* vertex location */
+	float xy[2]; /* 2D copy of vertex location (using dominant axis) */
+	int keyindex; /* original index #, for restoring  key information */
+	short poly_nr;
+	unsigned char f, h;
+} ScanFillVert;
+
+typedef struct ScanFillEdge
+{
+	struct ScanFillEdge *next, *prev;
+	struct ScanFillVert *v1, *v2;
+	short poly_nr;
+	unsigned char f;
+} ScanFillEdge;
+
+typedef struct ScanFillFace
+{
+	struct ScanFillFace *next, *prev;
+	struct ScanFillVert *v1, *v2, *v3;
+} ScanFillFace;
+
 /* scanfill.c: used in displist only... */
-struct EditVert *BLI_addfillvert(float *vec);
-struct EditEdge *BLI_addfilledge(struct EditVert *v1, struct EditVert *v2);
-int BLI_edgefill(short mat_nr);
-void BLI_end_edgefill(void);
+struct ScanFillVert *BLI_addfillvert(ScanFillContext *sf_ctx, const float vec[3]);
+struct ScanFillEdge *BLI_addfilledge(ScanFillContext *sf_ctx, struct ScanFillVert *v1, struct ScanFillVert *v2);
+
+int BLI_begin_edgefill(ScanFillContext *sf_ctx);
+int BLI_edgefill(ScanFillContext *sf_ctx, const short do_quad_tri_speedup);
+int BLI_edgefill_ex(ScanFillContext *sf_ctx, const short do_quad_tri_speedup,
+                    const float nor_proj[3]);
+void BLI_end_edgefill(ScanFillContext *sf_ctx);
 
 /* These callbacks are needed to make the lib finction properly */
 
 /**
  * Set a function taking a char* as argument to flag errors. If the
  * callback is not set, the error is discarded.
- * @param f The function to use as callback
- * @attention used in creator.c
+ * \param f The function to use as callback
+ * \attention used in creator.c
  */
 void BLI_setErrorCallBack(void (*f)(const char*));
 
@@ -69,8 +115,8 @@ void BLI_setErrorCallBack(void (*f)(const char*));
  * in this module. If the function returns true, the execution will
  * terminate gracefully. If the callback is not set, interruption is
  * not possible.
- * @param f The function to use as callback
- * @attention used in creator.c
+ * \param f The function to use as callback
+ * \attention used in creator.c
  */
 void BLI_setInterruptCallBack(int (*f)(void));
 

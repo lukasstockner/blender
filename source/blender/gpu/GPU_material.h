@@ -29,8 +29,8 @@
  *  \ingroup gpu
  */
 
-#ifndef __GPU_MATERIAL__
-#define __GPU_MATERIAL__
+#ifndef __GPU_MATERIAL_H__
+#define __GPU_MATERIAL_H__
 
 #include "DNA_listBase.h"
 
@@ -46,7 +46,6 @@ struct Lamp;
 struct Image;
 struct bNode;
 struct LinkNode;
-struct LinkInOutsMuteNode;
 struct Scene;
 struct GPUVertexAttribs;
 struct GPUNode;
@@ -116,7 +115,6 @@ GPUNodeLink *GPU_builtin(GPUBuiltin builtin);
 
 int GPU_link(GPUMaterial *mat, const char *name, ...);
 int GPU_stack_link(GPUMaterial *mat, const char *name, GPUNodeStack *in, GPUNodeStack *out, ...);
-int GPU_stack_link_mute(GPUMaterial *mat, const char *name, struct LinkInOutsMuteNode *mlnk);
 
 void GPU_material_output_link(GPUMaterial *material, GPUNodeLink *link);
 void GPU_material_enable_alpha(GPUMaterial *material);
@@ -245,5 +243,5 @@ int GPU_lamp_shadow_layer(GPULamp *lamp);
 }
 #endif
 
-#endif /*__GPU_MATERIAL__*/
+#endif /*__GPU_MATERIAL_H__*/
 

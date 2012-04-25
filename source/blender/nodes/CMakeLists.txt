@@ -115,6 +115,7 @@ set(SRC
 	shader/nodes/node_shader_curves.c
 	shader/nodes/node_shader_dynamic.c
 	shader/nodes/node_shader_gamma.c
+	shader/nodes/node_shader_brightness.c
 	shader/nodes/node_shader_geom.c
 	shader/nodes/node_shader_hueSatVal.c
 	shader/nodes/node_shader_invert.c
@@ -219,6 +220,14 @@ if(WITH_PYTHON)
 		${PYTHON_INCLUDE_DIRS}
 	)
 	add_definitions(-DWITH_PYTHON)
+endif()
+
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+if(WITH_IMAGE_OPENEXR)
+	add_definitions(-DWITH_OPENEXR)
 endif()
 
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}")

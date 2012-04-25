@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
+ * The Original Code is Copyright (C) 2011 Blender Foundation.
  * All rights reserved.
  *
  * The Original Code is: all of this file.
@@ -32,13 +32,14 @@
  *  \author Sergey Sharybin
  */
 
-#ifndef DNA_MOVIECLIP_TYPES_H
-#define DNA_MOVIECLIP_TYPES_H
+#ifndef __DNA_MOVIECLIP_TYPES_H__
+#define __DNA_MOVIECLIP_TYPES_H__
 
 #include "DNA_ID.h"
 #include "DNA_tracking_types.h"
 
 struct anim;
+struct AnimData;
 struct bGPdata;
 struct ImBuf;
 struct MovieClipProxy;
@@ -51,20 +52,19 @@ typedef struct MovieClipUser {
 } MovieClipUser;
 
 typedef struct MovieClipProxy {
-	char dir[160];			/* custom directory for index and proxy files (defaults to BL_proxy) */
+	char dir[768];			/* 768=FILE_MAXDIR custom directory for index and proxy files (defaults to BL_proxy) */
 
 	short tc;				/* time code in use */
 	short quality;			/* proxy build quality */
 	short build_size_flag;	/* size flags (see below) of all proxies to build */
 	short build_tc_flag;	/* time code flags (see below) of all tc indices to build */
-	short build_flag, pad;	/* other build flags */
-	char pad2[4];
 } MovieClipProxy;
 
 typedef struct MovieClip {
 	ID id;
+	struct AnimData *adt;	/* animation data (must be immediately after id for utilities to use it) */
 
-	char name[240];		/* file path */
+	char name[1024];		/* file path, 1024 = FILE_MAX */
 
 	int source;			/* sequence or movie */
 	int lastframe;		/* last accessed frame number */
@@ -78,11 +78,13 @@ typedef struct MovieClip {
 
 	struct MovieTracking tracking;		/* data for SfM tracking */
 	void *tracking_context;				/* context of tracking job
-										   used to synchronize data like framenumber
-										   in SpaceClip clip user */
+										 * used to synchronize data like framenumber
+										 * in SpaceClip clip user */
 
 	struct MovieClipProxy proxy;		/* proxy to clip data */
-	int flag, pad;
+	int flag;
+
+	int len;	/* lenght of movie */
 } MovieClip;
 
 typedef struct MovieClipScopes {
@@ -98,8 +100,15 @@ typedef struct MovieClipScopes {
 	float slide_scale[2];			/* scale used for sliding from previewe area */
 } MovieClipScopes;
 
-/* MovieClipProxy->build_flag */
-#define MCLIP_PROXY_BUILD_UNDISTORT	1	/* build undistorted proxies as well */
+/* MovieClipProxy->build_size_flag */
+#define MCLIP_PROXY_SIZE_25		(1<<0)
+#define MCLIP_PROXY_SIZE_50		(1<<1)
+#define MCLIP_PROXY_SIZE_75		(1<<2)
+#define MCLIP_PROXY_SIZE_100	(1<<3)
+#define MCLIP_PROXY_UNDISTORTED_SIZE_25		(1<<4)
+#define MCLIP_PROXY_UNDISTORTED_SIZE_50		(1<<5)
+#define MCLIP_PROXY_UNDISTORTED_SIZE_75		(1<<6)
+#define MCLIP_PROXY_UNDISTORTED_SIZE_100	(1<<7)
 
 /* MovieClip->source */
 #define MCLIP_SRC_SEQUENCE	1

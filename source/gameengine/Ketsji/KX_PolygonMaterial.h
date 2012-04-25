@@ -37,6 +37,7 @@
 #include "RAS_MaterialBucket.h"
 #include "RAS_IRasterizer.h"
 #include "DNA_ID.h"
+#include "DNA_meshdata_types.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -58,9 +59,9 @@ class KX_PolygonMaterial : public PyObjectPlus, public RAS_IPolyMaterial
 	Py_Header
 private:
 	/** Blender texture face structure. */
-	MTFace*			m_tface;
-	unsigned int*	m_mcol;
-	Material*		m_material;
+	mutable MTFace       m_tface;
+	mutable unsigned int m_mcol;
+	Material*            m_material;
 
 #ifdef WITH_PYTHON
 	PyObject*		m_pymaterial;
@@ -89,7 +90,7 @@ public:
 	/**
 	 * Returns the caching information for this material,
 	 * This can be used to speed up the rasterizing process.
-	 * @return The caching information.
+	 * \return The caching information.
 	 */
 	virtual TCachingInfo GetCachingInfo(void) const
 	{
@@ -100,8 +101,8 @@ public:
 	 * Activates the material in the (OpenGL) rasterizer.
 	 * On entry, the cachingInfo contains info about the last activated material.
 	 * On exit, the cachingInfo should contain updated info about this material.
-	 * @param rasty			The rasterizer in which the material should be active.
-	 * @param cachingInfo	The information about the material used to speed up rasterizing.
+	 * \param rasty			The rasterizer in which the material should be active.
+	 * \param cachingInfo	The information about the material used to speed up rasterizing.
 	 */
 	void DefaultActivate(RAS_IRasterizer* rasty, TCachingInfo& cachingInfo) const;
 	virtual bool Activate(RAS_IRasterizer* rasty, TCachingInfo& cachingInfo) const;
@@ -115,16 +116,16 @@ public:
 
 	/**
 	 * Returns the Blender texture face structure that is used for this material.
-	 * @return The material's texture face.
+	 * \return The material's texture face.
 	 */
 	MTFace* GetMTFace(void) const
 	{
-		return m_tface;
+		return &m_tface;
 	}
 
 	unsigned int* GetMCol(void) const
 	{
-		return m_mcol;
+		return &m_mcol;
 	}
 	virtual void GetMaterialRGBAColor(unsigned char *rgba) const;
 

@@ -30,8 +30,8 @@
  */
 
 
-#ifndef NODE_TEXTURE_UTIL_H_
-#define NODE_TEXTURE_UTIL_H_
+#ifndef __NODE_TEXTURE_UTIL_H__
+#define __NODE_TEXTURE_UTIL_H__
 
 #include <math.h>
 #include <string.h>
@@ -118,7 +118,5 @@ void tex_output(bNode *node, bNodeStack **in, bNodeStack *out, TexFn texfn, TexC
 void tex_do_preview(bNode *node, float *coord, float *col);
 
 void params_from_cdata(TexParams *out, TexCallData *in);
-
-void node_tex_pass_on(void *data, int thread, struct bNode *node, void *nodedata, struct bNodeStack **in, struct bNodeStack **out);
 
 #endif

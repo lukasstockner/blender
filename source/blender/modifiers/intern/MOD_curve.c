@@ -64,7 +64,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 
 	tcmd->defaxis = cmd->defaxis;
 	tcmd->object = cmd->object;
-	BLI_strncpy(tcmd->name, cmd->name, 32);
+	BLI_strncpy(tcmd->name, cmd->name, sizeof(tcmd->name));
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
@@ -73,7 +73,7 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 	CustomDataMask dataMask = 0;
 
 	/* ask for vertexgroups if we need them */
-	if(cmd->name[0]) dataMask |= CD_MASK_MDEFORMVERT;
+	if (cmd->name[0]) dataMask |= CD_MASK_MDEFORMVERT;
 
 	return dataMask;
 }
@@ -119,21 +119,23 @@ static void deformVerts(ModifierData *md, Object *ob,
 {
 	CurveModifierData *cmd = (CurveModifierData*) md;
 
+	/* silly that defaxis and curve_deform_verts are off by 1
+	 * but leave for now to save having to call do_versions */
 	curve_deform_verts(md->scene, cmd->object, ob, derivedData, vertexCos, numVerts,
-	                   cmd->name, cmd->defaxis);
+	                   cmd->name, cmd->defaxis-1);
 }
 
 static void deformVertsEM(
-					ModifierData *md, Object *ob, struct EditMesh *editData,
+					ModifierData *md, Object *ob, struct BMEditMesh *editData,
 	 DerivedMesh *derivedData, float (*vertexCos)[3], int numVerts)
 {
 	DerivedMesh *dm = derivedData;
 
-	if(!derivedData) dm = CDDM_from_editmesh(editData, ob->data);
+	if (!derivedData) dm = CDDM_from_BMEditMesh(editData, ob->data, FALSE, FALSE);
 
 	deformVerts(md, ob, dm, vertexCos, numVerts, 0, 0);
 
-	if(!derivedData) dm->release(dm);
+	if (!derivedData) dm->release(dm);
 }
 
 

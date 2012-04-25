@@ -24,8 +24,8 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef BKE_TEXTURE_H
-#define BKE_TEXTURE_H
+#ifndef __BKE_TEXTURE_H__
+#define __BKE_TEXTURE_H__
 
 /** \file BKE_texture.h
  *  \ingroup bke
@@ -69,9 +69,9 @@ void init_colorband(struct ColorBand *coba, int rangetype);
 struct ColorBand *add_colorband(int rangetype);
 int do_colorband(const struct ColorBand *coba, float in, float out[4]);
 void colorband_table_RGBA(struct ColorBand *coba, float **array, int *size);
-int vergcband(const void *a1, const void *a2);
 struct CBData *colorband_element_add(struct ColorBand *coba, float position);
 int colorband_element_remove(struct ColorBand *coba, int index);
+void colorband_update_sort(struct ColorBand *coba);
 
 void default_tex(struct Tex *tex);
 struct Tex *add_texture(const char *name);

@@ -15,6 +15,7 @@ set(SRC
 
 set(SRC_HEADERS
 	kernel.h
+	kernel_accumulate.h
 	kernel_bvh.h
 	kernel_camera.h
 	kernel_compat_cpu.h
@@ -30,6 +31,7 @@ set(SRC_HEADERS
 	kernel_mbvh.h
 	kernel_montecarlo.h
 	kernel_object.h
+	kernel_passes.h
 	kernel_path.h
 	kernel_qbvh.h
 	kernel_random.h
@@ -61,6 +63,7 @@ set(SRC_SVM_HEADERS
 	svm/svm_displace.h
 	svm/svm_fresnel.h
 	svm/svm_gamma.h
+	svm/svm_brightness.h
 	svm/svm_geometry.h
 	svm/svm_gradient.h
 	svm/svm_hsv.h
@@ -75,6 +78,7 @@ set(SRC_SVM_HEADERS
 	svm/svm_noise.h
 	svm/svm_noisetex.h
 	svm/svm_normal.h
+	svm/svm_ramp.h
 	svm/svm_sepcomb_rgb.h
 	svm/svm_sky.h
 	svm/svm_tex_coord.h
@@ -101,7 +105,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
 		set(CUDA_BITS 32)
 	endif()
 
-	set(cuda_sources kernel.cu ${headers} ${svm_headers})
+	set(cuda_sources kernel.cu ${SRC_HEADERS} ${SRC_SVM_HEADERS} ${SRC_UTIL_HEADERS})
 	set(cuda_cubins)
 
 	foreach(arch ${CYCLES_CUDA_BINARIES_ARCH})

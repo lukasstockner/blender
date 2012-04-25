@@ -12,7 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
-# Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # The Original Code is Copyright (C) 2006, Blender Foundation
 # All rights reserved.
@@ -66,4 +66,14 @@ endif()
 
 if(WITH_LIBMV)
 	add_subdirectory(libmv)
+endif()
+
+if(WITH_CARVE)
+	add_subdirectory(carve)
+endif()
+
+if(WITH_GHOST_XDND)
+	if(UNIX AND NOT APPLE)
+		add_subdirectory(xdnd)
+	endif()
 endif()

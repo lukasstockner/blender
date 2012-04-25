@@ -29,8 +29,8 @@
  *  \ingroup DNA
  */
 
-#ifndef DNA_CONTROLLER_TYPES_H
-#define DNA_CONTROLLER_TYPES_H
+#ifndef __DNA_CONTROLLER_TYPES_H__
+#define __DNA_CONTROLLER_TYPES_H__
 
 struct bActuator;
 struct Text;
@@ -54,7 +54,7 @@ typedef struct bController {
 	short type, flag, inputs, totlinks;
 	short otype, totslinks, pad2, pad3;
 	
-	char name[32];
+	char name[64];
 	void *data;
 	
 	struct bActuator **links;

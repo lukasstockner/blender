@@ -25,8 +25,8 @@
  */
 
 
-#ifndef PY_IDPROP_API_H
-#define PY_IDPROP_API_H
+#ifndef __IDPROP_PY_API_H__
+#define __IDPROP_PY_API_H__
 
 struct ID;
 struct IDProperty;
@@ -34,7 +34,7 @@ struct BPy_IDGroup_Iter;
 
 typedef struct BPy_IDProperty {
 	PyObject_VAR_HEAD
-	struct ID *id;
+	struct ID *id;           /* can be NULL */
 	struct IDProperty *prop; /* must be second member */
 	struct IDProperty *parent;
 	PyObject *data_wrap;
@@ -42,7 +42,7 @@ typedef struct BPy_IDProperty {
 
 typedef struct BPy_IDArray {
 	PyObject_VAR_HEAD
-	struct ID *id;
+	struct ID *id;            /* can be NULL */
 	struct IDProperty *prop;  /* must be second member */
 } BPy_IDArray;
 
@@ -64,7 +64,9 @@ const char *BPy_IDProperty_Map_ValidateAndCreate(PyObject *key, struct IDPropert
 
 void IDProp_Init_Types(void);
 
+PyObject *BPyInit_idprop(void);
+
 #define IDPROP_ITER_KEYS	0
 #define IDPROP_ITER_ITEMS	1
 
-#endif /* PY_IDPROP_API_H */
+#endif /* __IDPROP_PY_API_H__ */

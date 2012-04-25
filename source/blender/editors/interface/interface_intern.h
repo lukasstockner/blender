@@ -30,8 +30,8 @@
  */
 
 
-#ifndef INTERFACE_H
-#define INTERFACE_H
+#ifndef __INTERFACE_INTERN_H__
+#define __INTERFACE_INTERN_H__
 
 #include "UI_resources.h"
 #include "RNA_types.h"
@@ -68,6 +68,7 @@ typedef enum {
 	UI_WTYPE_NUMBER,
 	UI_WTYPE_SLIDER,
 	UI_WTYPE_EXEC,
+	UI_WTYPE_TOOLTIP,
 	
 	/* strings */
 	UI_WTYPE_NAME,
@@ -84,7 +85,7 @@ typedef enum {
 	UI_WTYPE_PULLDOWN,
 	UI_WTYPE_MENU_ITEM,
 	UI_WTYPE_MENU_BACK,
-	
+
 	/* specials */
 	UI_WTYPE_ICON,
 	UI_WTYPE_SWATCH,
@@ -163,7 +164,7 @@ struct uiBut {
 	float hardmin, hardmax, softmin, softmax;
 	float a1, a2;
 	float aspect;
-	char col[4];
+	unsigned char col[4];
 
 	uiButHandleFunc func;
 	void *func_arg1;
@@ -176,10 +177,10 @@ struct uiBut {
 	struct bContextStore *context;
 
 	/* not ysed yet, was used in 2.4x for ui_draw_pulldown_round & friends */
-	/*
+#if 0
 	void (*embossfunc)(int , int , float, float, float, float, float, int);
 	void (*sliderfunc)(int , float, float, float, float, float, float, int);
-	*/
+#endif
 
 	uiButCompleteFunc autocomplete_func;
 	void *autofunc_arg;
@@ -356,6 +357,7 @@ extern void ui_get_but_string(uiBut *but, char *str, size_t maxlen);
 extern void ui_convert_to_unit_alt_name(uiBut *but, char *str, size_t maxlen);
 extern int ui_set_but_string(struct bContext *C, uiBut *but, const char *str);
 extern int ui_get_but_string_max_length(uiBut *but);
+extern int ui_set_but_string_eval_num(struct bContext *C, uiBut *but, const char *str, double *value);
 
 extern void ui_set_but_default(struct bContext *C, short all);
 
@@ -444,7 +446,7 @@ extern void ui_draw_aligned_panel(struct uiStyle *style, uiBlock *block, rcti *r
 /* interface_draw.c */
 extern void ui_dropshadow(rctf *rct, float radius, float aspect, int select);
 
-void ui_draw_gradient(rcti *rect, float *hsv, int type, float alpha);
+void ui_draw_gradient(rcti *rect, const float hsv[3], int type, float alpha);
 
 void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol, rcti *rect);
 void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, struct uiWidgetColors *wcol, rcti *rect);
@@ -464,6 +466,8 @@ extern int ui_button_is_active(struct ARegion *ar);
 void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3);
 void ui_draw_anti_roundbox(int mode, float minx, float miny, float maxx, float maxy, float rad);
 void ui_draw_menu_back(struct uiStyle *style, uiBlock *block, rcti *rect);
+uiWidgetColors* ui_tooltip_get_theme(void);
+void ui_draw_tooltip_background(uiStyle *UNUSED(style), uiBlock *block, rcti *rect);
 void ui_draw_search_back(struct uiStyle *style, uiBlock *block, rcti *rect);
 int ui_link_bezier_points(rcti *rect, float coord_array[][2], int resol);
 void ui_draw_link_bezier(rcti *rect);
@@ -497,6 +501,7 @@ void ui_resources_free(void);
 void ui_layout_add_but(uiLayout *layout, uiBut *but);
 int ui_but_can_align(uiBut *but);
 void ui_but_add_search(uiBut *but, PointerRNA *ptr, PropertyRNA *prop, PointerRNA *searchptr, PropertyRNA *searchprop);
+void ui_but_add_shortcut(uiBut *but, const char *key_str, const short do_strip);
 
 /* interface_anim.c */
 void ui_but_anim_flag(uiBut *but, float cfra);

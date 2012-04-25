@@ -25,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef BLI_VFONTDATA_H
-#define BLI_VFONTDATA_H
+#ifndef __BLI_VFONTDATA_H__
+#define __BLI_VFONTDATA_H__
 
 /** \file BLI_vfontdata.h
  *  \ingroup bli
@@ -70,8 +70,8 @@ struct TmpFont
  * Construct a new VFontData structure from 
  * Freetype font data in a PackedFile.
  * 
- * @param pf The font data.
- * @retval A new VFontData structure, or NULL
+ * \param pf The font data.
+ * \retval A new VFontData structure, or NULL
  * if unable to load.
  */
 	VFontData*

@@ -24,8 +24,8 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef BKE_ANIM_H
-#define BKE_ANIM_H
+#ifndef __BKE_ANIM_H__
+#define __BKE_ANIM_H__
 
 /** \file BKE_anim.h
  *  \ingroup bke
@@ -61,7 +61,7 @@ void animviz_calc_motionpaths(struct Scene *scene, ListBase *targets);
 void free_path(struct Path *path);
 void calc_curvepath(struct Object *ob);
 int interval_test(int min, int max, int p1, int cycl);
-int where_on_path(struct Object *ob, float ctime, float *vec, float *dir, float *quat, float *radius, float *weight);
+int where_on_path(struct Object *ob, float ctime, float vec[4], float dir[3], float quat[4], float *radius, float *weight);
 
 /* ---------------------------------------------------- */
 /* Dupli-Geometry */

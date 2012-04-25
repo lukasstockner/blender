@@ -12,9 +12,9 @@
 
 MTex* getImageFromMaterial(Material *mat, int index)
 {
-	if(!mat) return 0;
+	if (!mat) return 0;
 	
-	if(!(index >=0 && index < MAX_MTEX) ) return 0;
+	if (!(index >=0 && index < MAX_MTEX) ) return 0;
 	
 	MTex *m = mat->mtex[index];
 	return m?m:0;
@@ -23,9 +23,9 @@ MTex* getImageFromMaterial(Material *mat, int index)
 int getNumTexChannels( Material *mat )
 {
 	int count = -1;
-	if(!mat) return -1;
+	if (!mat) return -1;
 
-	for(count =0; (count < 10) && mat->mtex[count] != 0; count++) {}
+	for (count =0; (count < 10) && mat->mtex[count] != 0; count++) {}
 	return count;
 }
 
@@ -58,7 +58,7 @@ void BL_Material::Initialize()
 	alpha = 1.f;
 	emit = 0.f;
 	material = 0;
-	tface = 0;
+	memset(&tface, 0, sizeof(tface));
 	materialindex = 0;
 	amb=0.5f;
 	num_enabled = 0;
@@ -66,13 +66,13 @@ void BL_Material::Initialize()
 	share = false;
 
 	int i,j;
-	for(i=0; i<4; i++)
+	for (i=0; i<4; i++)
 	{
 		for(j=0; j<MAXTEX; j++)
 			uvs[i][j] = MT_Point2(0.0,0.0);
 	}
 
-	for(i=0; i<MAXTEX; i++) // :(
+	for (i=0; i<MAXTEX; i++) // :(
 	{
 		mapping[i].mapping = 0;
 		mapping[i].offsets[0] = 0.f;
@@ -135,7 +135,7 @@ void BL_Material::GetConversionUV(MT_Point2 nuv[4][8])
 
 void BL_Material::SetSharedMaterial(bool v)
 {
-	if((v && num_users == -1) || num_users > 1 )
+	if ((v && num_users == -1) || num_users > 1 )
 		share = true;
 	else 
 		share = false;

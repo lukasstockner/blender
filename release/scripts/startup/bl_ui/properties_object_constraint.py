@@ -434,25 +434,28 @@ class ConstraintButtonsPanel():
     def ACTION(self, context, layout, con):
         self.target_template(layout, con)
 
-        layout.prop(con, "action")
-
-        layout.prop(con, "transform_channel")
-
         split = layout.split()
 
-        col = split.column(align=True)
-        col.label(text="Action Length:")
-        col.prop(con, "frame_start", text="Start")
-        col.prop(con, "frame_end", text="End")
+        col = split.column()
+        col.label(text="From Target:")
+        col.prop(con, "transform_channel", text="")
+        col.prop(con, "target_space", text="")
+
+        col = split.column()
+        col.label(text="To Action:")
+        col.prop(con, "action", text="")
+
+        split = layout.split()
 
         col = split.column(align=True)
         col.label(text="Target Range:")
         col.prop(con, "min", text="Min")
         col.prop(con, "max", text="Max")
 
-        row = layout.row()
-        row.label(text="Convert:")
-        row.prop(con, "target_space", text="")
+        col = split.column(align=True)
+        col.label(text="Action Range:")
+        col.prop(con, "frame_start", text="Start")
+        col.prop(con, "frame_end", text="End")
 
     def LOCKED_TRACK(self, context, layout, con):
         self.target_template(layout, con)
@@ -793,7 +796,6 @@ class ConstraintButtonsPanel():
         layout.operator("clip.constraint_to_fcurve")
 
     def OBJECT_SOLVER(self, context, layout, con):
-        scene = context.scene
         clip = self._getConstraintClip(context, con)
 
         layout.prop(con, "use_active_clip")
@@ -813,12 +815,13 @@ class ConstraintButtonsPanel():
         layout.operator("clip.constraint_to_fcurve")
 
     def SCRIPT(self, context, layout, con):
-        layout.label("Blender 2.5 has no py-constraints")
+        layout.label("Blender 2.6 doesn't support python constraints yet.")
 
 
 class OBJECT_PT_constraints(ConstraintButtonsPanel, Panel):
     bl_label = "Object Constraints"
     bl_context = "constraint"
+    bl_options = {'HIDE_HEADER'}
 
     @classmethod
     def poll(cls, context):
@@ -843,6 +846,7 @@ class OBJECT_PT_constraints(ConstraintButtonsPanel, Panel):
 class BONE_PT_constraints(ConstraintButtonsPanel, Panel):
     bl_label = "Bone Constraints"
     bl_context = "bone_constraint"
+    bl_options = {'HIDE_HEADER'}
 
     @classmethod
     def poll(cls, context):

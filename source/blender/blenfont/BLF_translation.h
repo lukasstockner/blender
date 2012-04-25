@@ -30,8 +30,8 @@
  */
 
 
-#ifndef BLF_TRANSLATION_H
-#define BLF_TRANSLATION_H
+#ifndef __BLF_TRANSLATION_H__
+#define __BLF_TRANSLATION_H__
 
 #define TEXT_DOMAIN_NAME "blender"
 
@@ -47,8 +47,7 @@ const char *BLF_pgettext(const char *context, const char *message);
 
 /* blf_lang.c */
 
-/*
- * Search the path directory to the locale files, this try all
+/* Search the path directory to the locale files, this try all
  * the case for Linux, Win and Mac.
  */
 void BLF_lang_init(void);
@@ -57,22 +56,45 @@ void BLF_lang_init(void);
 void BLF_lang_set(const char *);
 
 /* Set the current encoding name. */
-void BLF_lang_encoding_name(const char *str);
-
 void BLF_lang_encoding(const char *str);
 
 /* translation */
 int BLF_translate_iface(void);
 int BLF_translate_tooltips(void);
-const char *BLF_translate_do_iface(const char *msgid);
-const char *BLF_translate_do_tooltip(const char *msgid);
+const char *BLF_translate_do_iface(const char *contex, const char *msgid);
+const char *BLF_translate_do_tooltip(const char *contex, const char *msgid);
 
 
-/*#define _(msgid) BLF_gettext(msgid)*/
 /* The "translation-marker" macro. */
 #define N_(msgid) msgid
+#define CTX_N_(context, msgid) msgid
 /* Those macros should be used everywhere in UI code. */
-#define IFACE_(msgid) BLF_translate_do_iface(msgid)
-#define TIP_(msgid) BLF_translate_do_tooltip(msgid)
+#ifdef WITH_INTERNATIONAL
+/*	#define _(msgid) BLF_gettext(msgid) */
+	#define IFACE_(msgid) BLF_translate_do_iface(NULL, msgid)
+	#define TIP_(msgid) BLF_translate_do_tooltip(NULL, msgid)
+	#define CTX_IFACE_(context, msgid) BLF_translate_do_iface(context, msgid)
+	#define CTX_TIP_(context, msgid) BLF_translate_do_tooltip(context, msgid)
+#else
+/*	#define _(msgid) msgid */
+	#define IFACE_(msgid) msgid
+	#define TIP_(msgid) msgid
+	#define CTX_IFACE_(context, msgid) msgid
+	#define CTX_TIP_(context, msgid) msgid
+#endif
 
-#endif /* BLF_TRANSLATION_H */
+/******************************************************************************
+ * All i18n contexts must be defined here.
+ * This is a nice way to be sure not to use a context twice for different
+ * things, and limit the number of existing contexts!
+ */
+
+/* Default, void context. Just in case... */
+#define BLF_I18NCONTEXT_DEFAULT ""
+
+/* Default context for operator names/labels. */
+#define BLF_I18NCONTEXT_OPERATOR_DEFAULT "Operator"
+
+
+
+#endif /* __BLF_TRANSLATION_H__ */

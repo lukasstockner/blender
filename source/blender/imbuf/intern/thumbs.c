@@ -53,16 +53,18 @@
 #include <stdio.h>
 
 #ifdef WIN32
-#include <windows.h> /* need to include windows.h so _WIN32_IE is defined  */
-#ifndef _WIN32_IE
-#define _WIN32_IE 0x0400 /* minimal requirements for SHGetSpecialFolderPath on MINGW MSVC has this defined already */
-#endif
-#include <shlobj.h> /* for SHGetSpecialFolderPath, has to be done before BLI_winstuff because 'near' is disabled through BLI_windstuff */
-#include <process.h> /* getpid */
-#include <direct.h> /* chdir */
-#include "BLI_winstuff.h"
+#  include <windows.h> /* need to include windows.h so _WIN32_IE is defined  */
+#  ifndef _WIN32_IE
+#    define _WIN32_IE 0x0400 /* minimal requirements for SHGetSpecialFolderPath on MINGW MSVC has this defined already */
+#  endif
+#  include <shlobj.h>  /* for SHGetSpecialFolderPath, has to be done before BLI_winstuff
+                        * because 'near' is disabled through BLI_windstuff */
+#  include <process.h> /* getpid */
+#  include <direct.h> /* chdir */
+#  include "BLI_winstuff.h"
+#  include "utfconv.h"
 #else
-#include <unistd.h>
+#  include <unistd.h>
 #endif
 
 #define URI_MAX FILE_MAX*3 + 8
@@ -70,8 +72,12 @@
 static int get_thumb_dir( char* dir , ThumbSize size)
 {
 #ifdef WIN32
+	wchar_t dir_16 [MAX_PATH];
 	/* yes, applications shouldn't store data there, but so does GIMP :)*/
-	SHGetSpecialFolderPath(0, dir, CSIDL_PROFILE, 0);
+	SHGetSpecialFolderPathW(0, dir_16, CSIDL_PROFILE, 0);
+	conv_utf_16_to_8(dir_16,dir,FILE_MAX);
+
+
 #else
 	const char* home = getenv("HOME");
 	if (!home) return 0;
@@ -144,7 +150,8 @@ static void escape_uri_string (const char *string, char* escaped_string, int len
 			*q++ = '%'; /* means hex coming */
 			*q++ = hex[c >> 4];
 			*q++ = hex[c & 15];
-		} else {
+		}
+		else {
 			*q++ = *p;
 		}
 	}
@@ -167,7 +174,7 @@ static void to_hex_char(char* hexbytes, const unsigned char* bytes, int len)
 
 /** ----- end of adapted code from glib --- */
 
-static int uri_from_filename( const char *path, char *uri )
+static int uri_from_filename(const char *path, char *uri)
 {
 	char orig_uri[URI_MAX];	
 	const char* dirstart = path;
@@ -216,6 +223,8 @@ static void thumbname_from_uri(const char* uri, char* thumb, const int thumb_len
 	to_hex_char(hexdigest, digest, 16);
 	hexdigest[32] = '\0';
 	BLI_snprintf(thumb, thumb_len, "%s.png", hexdigest);
+
+	// printf("%s: '%s' --> '%s'\n", __func__, uri, thumb);
 }
 
 static int thumbpath_from_uri(const char* uri, char* path, const int path_len, ThumbSize size)
@@ -251,8 +260,8 @@ ImBuf* IMB_thumb_create(const char* path, ThumbSize size, ThumbSource source, Im
 	char tpath[FILE_MAX];
 	char tdir[FILE_MAX];
 	char temp[FILE_MAX];
-	char mtime[40]= "0"; /* incase we can't stat the file */
-	char cwidth[40]= "0"; /* incase images have no data */
+	char mtime[40]= "0"; /* in case we can't stat the file */
+	char cwidth[40]= "0"; /* in case images have no data */
 	char cheight[40]= "0";
 	char thumb[40];
 	short tsize = 128;
@@ -275,9 +284,9 @@ ImBuf* IMB_thumb_create(const char* path, ThumbSize size, ThumbSource source, Im
 	}
 
 	/* exception, skip images over 100mb */
-	if(source == THB_SOURCE_IMAGE) {
+	if (source == THB_SOURCE_IMAGE) {
 		const size_t size= BLI_file_size(path);
-		if(size != -1 && size > THUMB_SIZE_MAX) {
+		if (size != -1 && size > THUMB_SIZE_MAX) {
 			// printf("file too big: %d, skipping %s\n", (int)size, path);
 			return NULL;
 		}
@@ -295,12 +304,13 @@ ImBuf* IMB_thumb_create(const char* path, ThumbSize size, ThumbSource source, Im
 		if (size == THB_FAIL) {
 			img = IMB_allocImBuf(1,1,32, IB_rect | IB_metadata);
 			if (!img) return NULL;
-		} else {
+		}
+		else {
 			if (THB_SOURCE_IMAGE == source || THB_SOURCE_BLEND == source) {
 				
 				/* only load if we didnt give an image */
-				if(img==NULL) {
-					if(THB_SOURCE_BLEND == source) {
+				if (img==NULL) {
+					if (THB_SOURCE_BLEND == source) {
 						img = IMB_loadblend_thumb(path);
 					}
 					else {
@@ -314,14 +324,16 @@ ImBuf* IMB_thumb_create(const char* path, ThumbSize size, ThumbSource source, Im
 					BLI_snprintf(cwidth, sizeof(cwidth), "%d", img->x);
 					BLI_snprintf(cheight, sizeof(cheight), "%d", img->y);
 				}
-			} else if (THB_SOURCE_MOVIE == source) {
+			}
+			else if (THB_SOURCE_MOVIE == source) {
 				struct anim * anim = NULL;
 				anim = IMB_open_anim(path, IB_rect | IB_metadata, 0);
 				if (anim != NULL) {
 					img = IMB_anim_absolute(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
 					if (img == NULL) {
 						printf("not an anim; %s\n", path);
-					} else {
+					}
+					else {
 						IMB_freeImBuf(img);
 						img = IMB_anim_previewframe(anim);						
 					}
@@ -344,8 +356,8 @@ ImBuf* IMB_thumb_create(const char* path, ThumbSize size, ThumbSource source, Im
 			ey = (short)scaledy;
 			
 			/* save some time by only scaling byte buf */
-			if(img->rect_float) {
-				if(img->rect == NULL) {
+			if (img->rect_float) {
+				if (img->rect == NULL) {
 					IMB_rect_from_float(img);
 				}
 
@@ -368,7 +380,9 @@ ImBuf* IMB_thumb_create(const char* path, ThumbSize size, ThumbSource source, Im
 		if (IMB_saveiff(img, temp, IB_rect | IB_metadata)) {
 #ifndef WIN32
 			chmod(temp, S_IRUSR | S_IWUSR);
-#endif	
+#endif
+			// printf("%s saving thumb: '%s'\n", __func__, tpath);
+
 			BLI_rename(temp, tpath);
 		}
 
@@ -431,14 +445,21 @@ ImBuf* IMB_thumb_manage(const char* path, ThumbSize size, ThumbSource source)
 	if (thumbpath_from_uri(uri, thumb, sizeof(thumb), THB_FAIL)) {
 		/* failure thumb exists, don't try recreating */
 		if (BLI_exists(thumb)) {
-			return NULL;
+			/* clear out of date fail case */
+			if (BLI_file_older(thumb, path)) {
+				BLI_delete(thumb, 0, 0);
+			}
+			else {
+				return NULL;
+			}
 		}
 	}
 
 	if (thumbpath_from_uri(uri, thumb, sizeof(thumb), size)) {
 		if (BLI_path_ncmp(path, thumb, sizeof(thumb)) == 0) {
 			img = IMB_loadiffname(path, IB_rect);
-		} else {
+		}
+		else {
 			img = IMB_loadiffname(thumb, IB_rect | IB_metadata);
 			if (img) {
 				char mtime[40];
@@ -446,7 +467,8 @@ ImBuf* IMB_thumb_manage(const char* path, ThumbSize size, ThumbSource source)
 					/* illegal thumb, forget it! */
 					IMB_freeImBuf(img);
 					img = NULL;
-				} else {
+				}
+				else {
 					time_t t = atol(mtime);
 					if (st.st_mtime != t) {
 						/* recreate all thumbs */
@@ -456,7 +478,7 @@ ImBuf* IMB_thumb_manage(const char* path, ThumbSize size, ThumbSource source)
 						IMB_thumb_delete(path, THB_LARGE);
 						IMB_thumb_delete(path, THB_FAIL);
 						img = IMB_thumb_create(path, size, source, NULL);
-						if(!img){
+						if (!img) {
 							/* thumb creation failed, write fail thumb */
 							img = IMB_thumb_create(path, THB_FAIL, source, NULL);
 							if (img) {
@@ -467,9 +489,10 @@ ImBuf* IMB_thumb_manage(const char* path, ThumbSize size, ThumbSource source)
 						}
 					}
 				}
-			} else {
+			}
+			else {
 				img = IMB_thumb_create(path, size, source, NULL);
-				if(!img){
+				if (!img) {
 					/* thumb creation failed, write fail thumb */
 					img = IMB_thumb_create(path, THB_FAIL, source, NULL);
 					if (img) {

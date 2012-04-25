@@ -29,8 +29,8 @@
  *  \ingroup DNA
  */
 
-#ifndef DNA_SCENE_TYPES_H
-#define DNA_SCENE_TYPES_H
+#ifndef __DNA_SCENE_TYPES_H__
+#define __DNA_SCENE_TYPES_H__
 
 #include "DNA_defs.h"
 
@@ -171,7 +171,7 @@ typedef struct AudioData {
 typedef struct SceneRenderLayer {
 	struct SceneRenderLayer *next, *prev;
 	
-	char name[32];
+	char name[64];	/* MAX_NAME */
 	
 	struct Material *mat_override;
 	struct Group *light_override;
@@ -202,25 +202,34 @@ typedef struct SceneRenderLayer {
 #define SCE_LAY_NEG_ZMASK	0x80000
 
 /* srl->passflag */
-#define SCE_PASS_COMBINED		(1<<0)
-#define SCE_PASS_Z				(1<<1)
-#define SCE_PASS_RGBA			(1<<2)
-#define SCE_PASS_DIFFUSE		(1<<3)
-#define SCE_PASS_SPEC			(1<<4)
-#define SCE_PASS_SHADOW			(1<<5)
-#define SCE_PASS_AO				(1<<6)
-#define SCE_PASS_REFLECT		(1<<7)
-#define SCE_PASS_NORMAL			(1<<8)
-#define SCE_PASS_VECTOR			(1<<9)
-#define SCE_PASS_REFRACT		(1<<10)
-#define SCE_PASS_INDEXOB		(1<<11)
-#define SCE_PASS_UV				(1<<12)
-#define SCE_PASS_INDIRECT		(1<<13)
-#define SCE_PASS_MIST			(1<<14)
-#define SCE_PASS_RAYHITS		(1<<15)
-#define SCE_PASS_EMIT			(1<<16)
-#define SCE_PASS_ENVIRONMENT	(1<<17)
-#define SCE_PASS_INDEXMA	(1<<18)
+#define SCE_PASS_COMBINED			(1<<0)
+#define SCE_PASS_Z					(1<<1)
+#define SCE_PASS_RGBA				(1<<2)
+#define SCE_PASS_DIFFUSE			(1<<3)
+#define SCE_PASS_SPEC				(1<<4)
+#define SCE_PASS_SHADOW				(1<<5)
+#define SCE_PASS_AO					(1<<6)
+#define SCE_PASS_REFLECT			(1<<7)
+#define SCE_PASS_NORMAL				(1<<8)
+#define SCE_PASS_VECTOR				(1<<9)
+#define SCE_PASS_REFRACT			(1<<10)
+#define SCE_PASS_INDEXOB			(1<<11)
+#define SCE_PASS_UV					(1<<12)
+#define SCE_PASS_INDIRECT			(1<<13)
+#define SCE_PASS_MIST				(1<<14)
+#define SCE_PASS_RAYHITS			(1<<15)
+#define SCE_PASS_EMIT				(1<<16)
+#define SCE_PASS_ENVIRONMENT		(1<<17)
+#define SCE_PASS_INDEXMA			(1<<18)
+#define SCE_PASS_DIFFUSE_DIRECT		(1<<19)
+#define SCE_PASS_DIFFUSE_INDIRECT	(1<<20)
+#define SCE_PASS_DIFFUSE_COLOR		(1<<21)
+#define SCE_PASS_GLOSSY_DIRECT		(1<<22)
+#define SCE_PASS_GLOSSY_INDIRECT	(1<<23)
+#define SCE_PASS_GLOSSY_COLOR		(1<<24)
+#define SCE_PASS_TRANSM_DIRECT		(1<<25)
+#define SCE_PASS_TRANSM_INDIRECT	(1<<26)
+#define SCE_PASS_TRANSM_COLOR		(1<<27)
 
 /* note, srl->passflag is treestore element 'nr' in outliner, short still... */
 
@@ -240,7 +249,7 @@ typedef struct ImageFormatData {
 	char depth;    /* bits per channel, R_IMF_CHAN_DEPTH_8 -> 32,
 	                * not a flag, only set 1 at a time */
 
-	char planes  ; /* - R_IMF_PLANES_BW, R_IMF_PLANES_RGB, R_IMF_PLANES_RGBA */
+	char planes;   /* - R_IMF_PLANES_BW, R_IMF_PLANES_RGB, R_IMF_PLANES_RGBA */
 	char flag;     /* generic options for all image types, alpha zbuffer */
 
 	char quality;  /* (0 - 100), eg: jpeg quality */
@@ -471,14 +480,14 @@ typedef struct RenderData {
 	float bake_maxdist, bake_biasdist, bake_pad;
 
 	/* path to render output */
-	char pic[240];
+	char pic[1024]; /* 1024 = FILE_MAX */
 
 	/* stamps flags. */
 	int stamp;
 	short stamp_font_id, pad3; /* select one of blenders bitmap fonts */
 
 	/* stamp info user data. */
-	char stamp_udata[160];
+	char stamp_udata[768];
 
 	/* foreground/background color. */
 	float fg_stamp[4];
@@ -605,7 +614,7 @@ typedef struct GameData {
 	/*
 	 * bit 3: (gameengine): Activity culling is enabled.
 	 * bit 5: (gameengine) : enable Bullet DBVT tree for view frustrum culling
-	*/
+	 */
 	int flag;
 	short mode, matmode;
 	short occlusionRes;		/* resolution of occlusion Z buffer in pixel */
@@ -642,10 +651,6 @@ typedef struct GameData {
 
 /* physicsEngine */
 #define WOPHY_NONE		0
-#define WOPHY_ENJI		1
-#define WOPHY_SUMO		2
-#define WOPHY_DYNAMO	3
-#define WOPHY_ODE		4
 #define WOPHY_BULLET	5
 
 /* obstacleSimulation */
@@ -688,10 +693,20 @@ typedef struct GameData {
 #define GAME_MAT_MULTITEX	1
 #define GAME_MAT_GLSL		2
 
-/* *************************************************************** */
+/* UV Paint */
+#define UV_SCULPT_LOCK_BORDERS				1
+#define UV_SCULPT_ALL_ISLANDS				2
+
+#define UV_SCULPT_TOOL_PINCH				1
+#define UV_SCULPT_TOOL_RELAX				2
+#define UV_SCULPT_TOOL_GRAB					3
+
+#define UV_SCULPT_TOOL_RELAX_LAPLACIAN	1
+#define UV_SCULPT_TOOL_RELAX_HC			2
+
 /* Markers */
 
-typedef struct TimeMarker {
+typedef struct TimeMarker {	
 	struct TimeMarker *next, *prev;
 	int frame;
 	char name[64];
@@ -797,6 +812,9 @@ typedef struct Sculpt {
 	int pad;
 } Sculpt;
 
+typedef struct UvSculpt {
+	Paint paint;
+} UvSculpt;
 /* ------------------------------------------- */
 /* Vertex Paint */
 
@@ -814,21 +832,57 @@ typedef struct VPaint {
 
 /* VPaint flag */
 #define VP_COLINDEX	1
-#define VP_AREA		2
+#define VP_AREA		2  /* vertex paint only */
 
 #define VP_NORMALS	8
 #define VP_SPRAY	16
 // #define VP_MIRROR_X	32 // deprecated in 2.5x use (me->editflag & ME_EDIT_MIRROR_X)
-#define VP_ONLYVGROUP	128
+#define VP_ONLYVGROUP	128  /* weight paint only */
 
 /* *************************************************************** */
 /* Transform Orientations */
 
 typedef struct TransformOrientation {
 	struct TransformOrientation *next, *prev;
-	char name[36];
+	char name[64];	/* MAX_NAME */
 	float mat[3][3];
+	int pad;
 } TransformOrientation;
+
+/* *************************************************************** */
+/* Unified Paint Settings
+ */
+
+/* These settings can override the equivalent fields in the active
+ * Brush for any paint mode; the flag field controls whether these
+ * values are used */
+typedef struct UnifiedPaintSettings {
+	/* unified radius of brush in pixels */
+	int size;
+
+	/* unified radius of brush in Blender units */
+	float unprojected_radius;
+
+	/* unified strength of brush */
+	float alpha;
+
+	/* user preferences for sculpt and paint */
+	int flag;
+} UnifiedPaintSettings;
+
+typedef enum {
+	UNIFIED_PAINT_SIZE  = (1<<0),
+	UNIFIED_PAINT_ALPHA = (1<<1),
+
+	/* only used if unified size is enabled, mirros the brush flags
+	 * BRUSH_LOCK_SIZE and BRUSH_SIZE_PRESSURE */
+	UNIFIED_PAINT_BRUSH_LOCK_SIZE = (1<<2),
+	UNIFIED_PAINT_BRUSH_SIZE_PRESSURE   = (1<<3),
+
+	/* only used if unified alpha is enabled, mirrors the brush flag
+	 * BRUSH_ALPHA_PRESSURE */
+	UNIFIED_PAINT_BRUSH_ALPHA_PRESSURE  = (1<<4)
+} UnifiedPaintSettingsFlags;
 
 /* *************************************************************** */
 /* Tool Settings */
@@ -837,13 +891,14 @@ typedef struct ToolSettings {
 	VPaint *vpaint;		/* vertex paint */
 	VPaint *wpaint;		/* weight paint */
 	Sculpt *sculpt;
+	UvSculpt *uvsculpt;	/* uv smooth */
 	
 	/* Vertex groups */
 	float vgroup_weight;
 
 	/* Subdivide Settings */
 	short cornertype;
-	short editbutflag;
+	short pad3;
 	/*Triangle to Quad conversion threshold*/
 	float jointrilimit;
 	/* Editmode Tools */
@@ -876,7 +931,7 @@ typedef struct ToolSettings {
 	short uvcalc_mapalign;
 	short uvcalc_flag;
 	short uv_flag, uv_selectmode;
-	short uv_pad;
+	short uv_subsurf_level;
 	
 	/* Grease Pencil */
 	short gpencil_flags;
@@ -901,15 +956,11 @@ typedef struct ToolSettings {
 
 	/* Auto-Keying Mode */
 	short autokey_mode, autokey_flag;	/* defines in DNA_userdef_types.h */
-	
-	/* Retopo */
-	char retopo_mode;
-	char retopo_paint_tool;
-	char line_div, ellipse_div, retopo_hotspot;
 
 	/* Multires */
 	char multires_subdiv_type;
-	
+	char pad2[5];
+
 	/* Skeleton generation */
 	short skgen_resolution;
 	float skgen_threshold_internal;
@@ -927,7 +978,7 @@ typedef struct ToolSettings {
 	char  skgen_postpro_passes;
 	char  skgen_subdivisions[3];
 	char  skgen_multi_level;
-	
+
 	/* Skeleton Sketching */
 	struct Object *skgen_template;
 	char bone_sketching;
@@ -952,11 +1003,20 @@ typedef struct ToolSettings {
 	char auto_normalize; /*auto normalizing mode in wpaint*/
 	char multipaint; /* paint multiple bones in wpaint */
 
-	short sculpt_paint_settings; /* user preferences for sculpt and paint */
-	short pad1;
-	int sculpt_paint_unified_size; /* unified radius of brush in pixels */
-	float sculpt_paint_unified_unprojected_radius;/* unified radius of brush in Blender units */
-	float sculpt_paint_unified_alpha; /* unified strength of brush */
+	/* UV painting */
+	int use_uv_sculpt;
+	int uv_sculpt_settings;
+	int uv_sculpt_tool;
+	int uv_relax_method;
+	/* XXX: these sculpt_paint_* fields are deprecated, use the
+	 * unified_paint_settings field instead! */
+	short sculpt_paint_settings DNA_DEPRECATED;	short pad1;
+	int sculpt_paint_unified_size DNA_DEPRECATED;
+	float sculpt_paint_unified_unprojected_radius DNA_DEPRECATED;
+	float sculpt_paint_unified_alpha DNA_DEPRECATED;
+
+	/* Unified Paint Settings */
+	struct UnifiedPaintSettings unified_paint_settings;
 } ToolSettings;
 
 /* *************************************************************** */
@@ -978,7 +1038,7 @@ typedef struct UnitSettings {
 	/* Display/Editing unit options for each scene */
 	float scale_length; /* maybe have other unit conversions? */
 	char system; /* imperial, metric etc */
-	char system_rotation; /* not implimented as a propper unit system yet */
+	char system_rotation; /* not implemented as a propper unit system yet */
 	short flag;
 } UnitSettings;
 
@@ -1040,7 +1100,7 @@ typedef struct Scene {
 	
 	void *fps_info;					/* (runtime) info/cache used for presenting playback framerate info to the user */
 	
-	/* none of the dependancy graph  vars is mean to be saved */
+	/* none of the dependency graph  vars is mean to be saved */
 	struct  DagForest *theDag;
 	short dagisvalid, dagflags;
 	short recalc;				/* recalc = counterpart of ob->recalc */
@@ -1361,6 +1421,7 @@ typedef struct Scene {
 
 #define FFMPEG_MULTIPLEX_AUDIO  1 /* deprecated, you can choose none as audiocodec now */
 #define FFMPEG_AUTOSPLIT_OUTPUT 2
+#define FFMPEG_LOSSLESS_OUTPUT  4
 
 /* Paint.flags */
 typedef enum {
@@ -1383,13 +1444,6 @@ typedef enum SculptFlags {
 	SCULPT_ONLY_DEFORM = (1<<8),
 } SculptFlags;
 
-/* sculpt_paint_settings */
-#define SCULPT_PAINT_USE_UNIFIED_SIZE        (1<<0)
-#define SCULPT_PAINT_USE_UNIFIED_ALPHA       (1<<1)
-#define SCULPT_PAINT_UNIFIED_LOCK_BRUSH_SIZE (1<<2)
-#define SCULPT_PAINT_UNIFIED_SIZE_PRESSURE   (1<<3)
-#define SCULPT_PAINT_UNIFIED_ALPHA_PRESSURE  (1<<4)
-
 /* ImagePaintSettings.flag */
 #define IMAGEPAINT_DRAWING				1
 // #define IMAGEPAINT_DRAW_TOOL			2 // deprecated
@@ -1408,6 +1462,7 @@ typedef enum SculptFlags {
 #define UVCALC_FILLHOLES			1
 #define UVCALC_NO_ASPECT_CORRECT	2	/* would call this UVCALC_ASPECT_CORRECT, except it should be default with old file */
 #define UVCALC_TRANSFORM_CORRECT	4	/* adjust UV's while transforming to avoid distortion */
+#define UVCALC_USESUBSURF			8	/* Use mesh data after subsurf to compute UVs*/
 
 /* toolsettings->uv_flag */
 #define UV_SYNC_SELECTION	1
@@ -1459,15 +1514,6 @@ typedef enum SculptFlags {
 #define PE_TYPE_PARTICLES	0
 #define PE_TYPE_SOFTBODY	1
 #define PE_TYPE_CLOTH		2
-
-/* toolsettings->retopo_mode */
-#define RETOPO 1
-#define RETOPO_PAINT 2
-
-/* toolsettings->retopo_paint_tool */ /*UNUSED*/
-/* #define RETOPO_PEN 1 */
-/* #define RETOPO_LINE 2 */
-/* #define RETOPO_ELLIPSE 4 */
 
 /* toolsettings->skgen_options */
 #define SKGEN_FILTER_INTERNAL	(1 << 0)

@@ -29,8 +29,8 @@
  */
 
 
-#ifndef ED_IMAGE_INTERN_H
-#define ED_IMAGE_INTERN_H
+#ifndef __IMAGE_INTERN_H__
+#define __IMAGE_INTERN_H__
 
 /* internal exports only */
 struct bContext;
@@ -51,11 +51,8 @@ struct ARegion *image_has_scope_region(struct ScrArea *sa);
 
 extern const char *image_context_dir[]; /* doc access */
 
-void IMAGE_OT_toolbox(struct wmOperatorType *ot);
-
 /* image_draw.c */
 void draw_image_main(struct SpaceImage *sima, struct ARegion *ar, struct Scene *scene);
-void draw_image_info(struct ARegion *ar, int color_manage, int channels, int x, int y, const char cp[4], const float fp[4], int *zp, float *zpf);
 void draw_image_grease_pencil(struct bContext *C, short onlyv2d);
 
 /* image_ops.c */
@@ -96,5 +93,5 @@ void image_buttons_register(struct ARegionType *art);
 void IMAGE_OT_properties(struct wmOperatorType *ot);
 void IMAGE_OT_scopes(struct wmOperatorType *ot);
 
-#endif /* ED_IMAGE_INTERN_H */
+#endif /* __IMAGE_INTERN_H__ */
 

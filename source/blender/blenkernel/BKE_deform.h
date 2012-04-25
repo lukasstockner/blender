@@ -25,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef BKE_DEFORM_H
-#define BKE_DEFORM_H
+#ifndef __BKE_DEFORM_H__
+#define __BKE_DEFORM_H__
 
 /** \file BKE_deform.h
  *  \ingroup bke
@@ -53,6 +53,7 @@ struct MDeformWeight	*defvert_find_index(const struct MDeformVert *dv, const int
 struct MDeformWeight	*defvert_verify_index(struct MDeformVert *dv, const int defgroup);
 void                     defvert_add_index_notest(struct MDeformVert *dv, int defgroup, const float weight);
 void                     defvert_remove_group(struct MDeformVert *dvert, struct MDeformWeight *dw);
+void                     defvert_clear(struct MDeformVert *dvert);
 
 float  defvert_find_weight(const struct MDeformVert *dvert, const int defgroup);
 float  defvert_array_find_weight_safe(const struct MDeformVert *dvert, const int index, const int defgroup);
@@ -64,12 +65,13 @@ void defvert_sync_mapped(struct MDeformVert *dvert_dst, const struct MDeformVert
                          const int *flip_map, const int flip_map_len, const int use_verify);
 void defvert_remap (struct MDeformVert *dvert, int *map, const int map_len);
 void defvert_flip(struct MDeformVert *dvert, const int *flip_map, const int flip_map_len);
+void defvert_flip_merged(struct MDeformVert *dvert, const int *flip_map, const int flip_map_len);
 void defvert_normalize(struct MDeformVert *dvert);
 void defvert_normalize_lock(struct MDeformVert *dvert, const int def_nr_lock);
 
 /* utility function, note that 32 chars is the maximum string length since its only
  * used with defgroups currently */
-void flip_side_name(char name[32], const char from_name[32], int strip_number);
+void flip_side_name(char name[64], const char from_name[64], int strip_number);
 
 #endif
 

@@ -57,7 +57,7 @@ _script_module_dirs = "startup", "modules"
 
 
 def _test_import(module_name, loaded_modules):
-    use_time = _bpy.app.debug
+    use_time = _bpy.app.debug_python
 
     if module_name in loaded_modules:
         return None
@@ -126,7 +126,7 @@ def load_scripts(reload_scripts=False, refresh_scripts=False):
        as modules.
     :type refresh_scripts: bool
     """
-    use_time = _bpy.app.debug
+    use_time = _bpy.app.debug_python
 
     prefs = _bpy.context.user_preferences
 
@@ -281,10 +281,7 @@ def script_paths(subdir=None, user_pref=True, check_all=False):
     prefs = _bpy.context.user_preferences
 
     # add user scripts dir
-    if user_pref:
-        user_script_path = prefs.filepaths.script_directory
-    else:
-        user_script_path = None
+    user_script = prefs.filepaths.script_directory if user_pref else None
 
     if check_all:
         # all possible paths
@@ -294,7 +291,7 @@ def script_paths(subdir=None, user_pref=True, check_all=False):
         # only paths blender uses
         base_paths = _bpy_script_paths()
 
-    for path in base_paths + (user_script_path, ):
+    for path in base_paths + (user_script, ):
         if path:
             path = _os.path.normpath(path)
             if path not in scripts and _os.path.isdir(path):
@@ -303,13 +300,13 @@ def script_paths(subdir=None, user_pref=True, check_all=False):
     if subdir is None:
         return scripts
 
-    script_paths = []
+    scripts_subdir = []
     for path in scripts:
         path_subdir = _os.path.join(path, subdir)
         if _os.path.isdir(path_subdir):
-            script_paths.append(path_subdir)
+            scripts_subdir.append(path_subdir)
 
-    return script_paths
+    return scripts_subdir
 
 
 def refresh_script_paths():
@@ -328,9 +325,6 @@ def refresh_script_paths():
         path = _os.path.join(path, "modules")
         if _os.path.isdir(path):
             _sys_path_ensure(path)
-
-
-_presets = _os.path.join(_scripts[0], "presets")  # FIXME - multiple paths
 
 
 def preset_paths(subdir):
@@ -432,7 +426,7 @@ def preset_find(name, preset_path, display_name=False, ext=".py"):
 def keyconfig_set(filepath):
     from os.path import basename, splitext
 
-    if _bpy.app.debug:
+    if _bpy.app.debug_python:
         print("loading preset:", filepath)
 
     keyconfigs = _bpy.context.window_manager.keyconfigs
@@ -464,7 +458,7 @@ def keyconfig_set(filepath):
     keyconfigs.active = kc_new
 
 
-def user_resource(type, path="", create=False):
+def user_resource(resource_type, path="", create=False):
     """
     Return a user resource path (normally from the users home directory).
 
@@ -479,7 +473,7 @@ def user_resource(type, path="", create=False):
     :rtype: string
     """
 
-    target_path = _user_resource(type, path)
+    target_path = _user_resource(resource_type, path)
 
     if create:
         # should always be true.

@@ -51,9 +51,6 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
-/* XXX */
-extern void ui_rasterpos_safe(float x, float y, float aspect);
-
 /* *************************************************** */
 /* TIME CODE FORMATTING */
 
@@ -180,7 +177,7 @@ void ANIM_timecode_string_from_frame (char *str, Scene *scene, int power, short 
 static void draw_cfra_number (Scene *scene, View2D *v2d, float cfra, short time)
 {
 	float xscale, yscale, x, y;
-	char str[32] = "    t";	/* t is the character to start replacing from */
+	char numstr[32] = "    t";	/* t is the character to start replacing from */
 	short slen;
 	
 	/* because the frame number text is subject to the same scaling as the contents of the view */
@@ -189,14 +186,14 @@ static void draw_cfra_number (Scene *scene, View2D *v2d, float cfra, short time)
 	
 	/* get timecode string 
 	 *	- padding on str-buf passed so that it doesn't sit on the frame indicator
-	 *	- power = 0, gives 'standard' behaviour for time
+	 *	- power = 0, gives 'standard' behavior for time
 	 *	  but power = 1 is required for frames (to get integer frames)
 	 */
 	if (time)
-		ANIM_timecode_string_from_frame(&str[4], scene, 0, time, FRA2TIME(cfra));
+		ANIM_timecode_string_from_frame(&numstr[4], scene, 0, time, FRA2TIME(cfra));
 	else	
-		ANIM_timecode_string_from_frame(&str[4], scene, 1, time, cfra);
-	slen= (short)UI_GetStringWidth(str) - 1;
+		ANIM_timecode_string_from_frame(&numstr[4], scene, 1, time, cfra);
+	slen= (short)UI_GetStringWidth(numstr) - 1;
 	
 	/* get starting coordinates for drawing */
 	x= cfra * xscale;
@@ -208,7 +205,7 @@ static void draw_cfra_number (Scene *scene, View2D *v2d, float cfra, short time)
 	
 	/* draw current frame number - black text */
 	UI_ThemeColor(TH_TEXT);
-	UI_DrawString(x-5, y+3, str);
+	UI_DrawString(x-5, y+3, numstr);
 	
 	/* restore view transform */
 	glScalef(xscale, 1.0, 1.0);
@@ -367,18 +364,15 @@ void ANIM_nla_mapping_apply_fcurve (AnimData *adt, FCurve *fcu, short restore, s
 float ANIM_unit_mapping_get_factor (Scene *scene, ID *id, FCurve *fcu, short restore)
 {
 	/* sanity checks */
-	if (id && fcu && fcu->rna_path) 
-	{
+	if (id && fcu && fcu->rna_path) {
 		PointerRNA ptr, id_ptr;
 		PropertyRNA *prop;
 		
 		/* get RNA property that F-Curve affects */
 		RNA_id_pointer_create(id, &id_ptr);
-		if (RNA_path_resolve(&id_ptr, fcu->rna_path, &ptr, &prop)) 
-		{
+		if (RNA_path_resolve(&id_ptr, fcu->rna_path, &ptr, &prop)) {
 			/* rotations: radians <-> degrees? */
-			if (RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)) == PROP_UNIT_ROTATION)
-			{
+			if (RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)) == PROP_UNIT_ROTATION) {
 				/* if the radians flag is not set, default to using degrees which need conversions */
 				if ((scene) && (scene->unit.system_rotation == USER_UNIT_ROT_RADIANS) == 0) {
 					if (restore)

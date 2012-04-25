@@ -27,8 +27,8 @@
  *  \ingroup bke
  */
 
-#ifndef DEPSGRAPH_PRIVATE
-#define DEPSGRAPH_PRIVATE
+#ifndef __DEPSGRAPH_PRIVATE_H__
+#define __DEPSGRAPH_PRIVATE_H__
 
 #include "BKE_depsgraph.h"
 #include "DNA_constraint_types.h"
@@ -132,6 +132,4 @@ void graph_print_queue(DagNodeQueue *nqueue);
 void graph_print_queue_dist(DagNodeQueue *nqueue);
 void graph_print_adj_list(void);
 
-int build_deps(short mask);
-
-#endif
+#endif /* __DEPSGRAPH_PRIVATE_H__ */

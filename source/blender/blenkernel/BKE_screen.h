@@ -24,8 +24,8 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef BKE_SCREEN_H
-#define BKE_SCREEN_H
+#ifndef __BKE_SCREEN_H__
+#define __BKE_SCREEN_H__
 
 /** \file BKE_screen.h
  *  \ingroup bke
@@ -55,7 +55,7 @@ struct wmWindowManager;
 #include "RNA_types.h"
 
 /* spacetype has everything stored to get an editor working, it gets initialized via 
-   ED_spacetypes_init() in editors/area/spacetypes.c   */
+ * ED_spacetypes_init() in editors/area/spacetypes.c   */
 /* an editor in Blender is a combined ScrArea + SpaceType + SpaceData */
 
 #define BKE_ST_MAXNAME	64

@@ -20,7 +20,7 @@
 import bpy
 from bpy.types import Menu, Panel
 
-from .properties_physics_common import (
+from bl_ui.properties_physics_common import (
     point_cache_ui,
     effector_weights_ui,
     )
@@ -31,9 +31,6 @@ def cloth_panel_enabled(md):
 
 
 class CLOTH_MT_presets(Menu):
-    '''
-    Creates the menu items by scanning scripts/templates
-    '''
     bl_label = "Cloth Presets"
     preset_subdir = "cloth"
     preset_operator = "script.execute_preset"
@@ -87,6 +84,7 @@ class PHYSICS_PT_cloth(PhysicButtonsPanel, Panel):
         col.label(text="Damping:")
         col.prop(cloth, "spring_damping", text="Spring")
         col.prop(cloth, "air_damping", text="Air")
+        col.prop(cloth, "vel_damping", text="Velocity")
 
         col.prop(cloth, "use_pin_cloth", text="Pinning")
         sub = col.column()

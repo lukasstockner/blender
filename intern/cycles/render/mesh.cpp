@@ -38,7 +38,6 @@ CCL_NAMESPACE_BEGIN
 /* Mesh */
 
 Mesh::Mesh()
-: attributes(this)
 {
 	need_update = true;
 	transform_applied = false;
@@ -49,6 +48,8 @@ Mesh::Mesh()
 
 	tri_offset = 0;
 	vert_offset = 0;
+
+	attributes.mesh = this;
 }
 
 Mesh::~Mesh()
@@ -586,6 +587,7 @@ void MeshManager::device_update_bvh(Device *device, DeviceScene *dscene, Scene *
 	bparams.top_level = true;
 	bparams.use_qbvh = scene->params.use_qbvh;
 	bparams.use_spatial_split = scene->params.use_bvh_spatial_split;
+	bparams.use_cache = scene->params.use_bvh_cache;
 
 	delete bvh;
 	bvh = BVH::create(bparams, scene->objects);

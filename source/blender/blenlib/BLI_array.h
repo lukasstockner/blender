@@ -51,7 +51,7 @@
  *
  * arrays are buffered, using double-buffering (so on each reallocation,
  * the array size is doubled).  supposedly this should give good Big Oh
- * behaviour, though it may not be the best in practice.
+ * behavior, though it may not be the best in practice.
  */
 
 #define BLI_array_declare(arr)                                                \
@@ -64,12 +64,12 @@
 #define BLI_array_staticdeclare(arr, maxstatic)                               \
 	int   _##arr##_count = 0;                                                 \
 	void *_##arr##_tmp;                                                       \
-	char _##arr##_static[maxstatic*sizeof(arr)]
+	char _##arr##_static[maxstatic * sizeof(arr)]
 
 
 /* this returns the entire size of the array, including any buffering. */
 #define BLI_array_totalsize_dyn(arr)  (                                       \
-	((arr)==NULL) ?                                                           \
+	((arr) == NULL) ?                                                         \
 	    0 :                                                                   \
 	    MEM_allocN_len(arr) / sizeof(*arr)                                    \
 )
@@ -117,8 +117,8 @@
 
 /* grow an array by a specified number of items */
 #define BLI_array_growitems(arr, num)  (                                      \
-	((void *)(arr)==NULL && (void *)(_##arr##_static) != NULL) ?              \
-	    ((arr= (void*)_##arr##_static), (_##arr##_count += num)) :            \
+	((void *)(arr) == NULL && (void *)(_##arr##_static) != NULL) ?            \
+	    ((arr = (void*)_##arr##_static), (_##arr##_count += num)) :           \
 	    _bli_array_grow_items(arr, num)                                       \
 )
 
@@ -140,6 +140,10 @@
 	(&arr[_##arr##_count - 1])                                                \
 )
 
+#define BLI_array_reserve(arr, num)                                           \
+	BLI_array_growitems(arr, num), (void)(_##arr##_count -= (num))
+
+
 #define BLI_array_free(arr)                                                   \
 	if (arr && (char *)arr != _##arr##_static) {                              \
 	    BLI_array_fake_user(arr);                                             \
@@ -147,15 +151,15 @@
 	}
 
 #define BLI_array_pop(arr)  (                                                 \
-	(arr&&_##arr##_count) ?                                                   \
+	(arr && _##arr##_count) ?                                                 \
 	    arr[--_##arr##_count] :                                               \
-	    0                                                                     \
+	    NULL                                                                  \
 )
 
 /* resets the logical size of an array to zero, but doesn't
  * free the memory. */
 #define BLI_array_empty(arr)                                                  \
-	_##arr##_count=0
+	_##arr##_count = 0
 
 /* set the count of the array, doesn't actually increase the allocated array
  * size.  don't use this unless you know what you're doing. */
@@ -173,11 +177,11 @@
  * same purpose as BLI_array_staticdeclare()
  * but use when the max size is known ahead of time */
 #define BLI_array_fixedstack_declare(arr, maxstatic, realsize, allocstr)      \
-	char _##arr##_static[maxstatic*sizeof(*arr)];                             \
-	const int _##arr##_is_static= ((void *)_##arr##_static) != (              \
-	    arr= (realsize <= maxstatic) ?                                        \
+	char _##arr##_static[maxstatic * sizeof(*(arr))];                         \
+	const int _##arr##_is_static = ((void *)_##arr##_static) != (             \
+	    arr = ((realsize) <= maxstatic) ?                                     \
 	        (void *)_##arr##_static :                                         \
-	        MEM_mallocN(sizeof(*arr)*realsize, allocstr)                      \
+	        MEM_mallocN(sizeof(*(arr)) * (realsize), allocstr)                \
 	    )                                                                     \
 
 #define BLI_array_fixedstack_free(arr)                                        \

@@ -162,7 +162,7 @@ class DATA_PT_vertex_groups(MeshButtonsPanel, Panel):
             row = layout.row()
 
             sub = row.row(align=True)
-            sub.operator("object.vertex_group_assign", text="Assign")
+            sub.operator("object.vertex_group_assign", text="Assign").new = False
             sub.operator("object.vertex_group_remove_from", text="Remove")
 
             sub = row.row(align=True)
@@ -226,14 +226,17 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
             row.alignment = 'RIGHT'
 
             sub = row.row(align=True)
+            sub.label()  # XXX, for alignment only
             subsub = sub.row(align=True)
             subsub.active = enable_edit_value
             subsub.prop(ob, "show_only_shape_key", text="")
-            subsub.prop(kb, "mute", text="")
             sub.prop(ob, "use_shape_key_edit_mode", text="")
 
             sub = row.row()
-            sub.operator("object.shape_key_clear", icon='X', text="")
+            if key.use_relative:
+                sub.operator("object.shape_key_clear", icon='X', text="")
+            else:
+                sub.operator("object.shape_key_retime", icon='RECOVER_LAST', text="")
 
             row = layout.row()
             row.prop(kb, "name")
@@ -259,8 +262,9 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
                     col.prop_search(kb, "relative_key", key, "key_blocks", text="")
 
             else:
-                row = layout.row()
+                row = layout.column()
                 row.active = enable_edit_value
+                row.prop(key, "eval_time")
                 row.prop(key, "slurph")
 
 

@@ -28,8 +28,8 @@
  *  \ingroup editors
  */
 
-#ifndef ED_OBJECT_H
-#define ED_OBJECT_H
+#ifndef __ED_OBJECT_H__
+#define __ED_OBJECT_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,6 +40,7 @@ struct bConstraint;
 struct bContext;
 struct bPoseChannel;
 struct Curve;
+struct EnumPropertyItem;
 struct KeyBlock;
 struct Lattice;
 struct Main;
@@ -63,6 +64,29 @@ struct Object *ED_object_active_context(struct bContext *C); /* context.object o
 void ED_operatortypes_object(void);
 void ED_operatormacros_object(void);
 void ED_keymap_object(struct wmKeyConfig *keyconf);
+
+/* object_relations.c */
+typedef enum eParentType {
+	PAR_OBJECT,
+	PAR_ARMATURE,
+	PAR_ARMATURE_NAME,
+	PAR_ARMATURE_ENVELOPE,
+	PAR_ARMATURE_AUTO,
+	PAR_BONE,
+	PAR_CURVE,
+	PAR_FOLLOW,
+	PAR_PATH_CONST,
+	PAR_LATTICE,
+	PAR_VERTEX,
+	PAR_TRIA
+} eParentType;
+
+extern struct EnumPropertyItem prop_clear_parent_types[];
+extern struct EnumPropertyItem prop_make_parent_types[];
+
+int ED_object_parent_set(struct ReportList *reports, struct Main *bmain, struct Scene *scene, struct Object *ob, struct Object *par, int partype);
+void ED_object_parent_clear(struct bContext *C, int type);
+
 
 /* generic editmode keys like pet
  * do_pet
@@ -103,8 +127,8 @@ float ED_object_new_primitive_matrix(struct bContext *C, struct Object *editob, 
 
 void ED_object_add_generic_props(struct wmOperatorType *ot, int do_editmode);
 int ED_object_add_generic_invoke(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
-int ED_object_add_generic_get_opts(struct bContext *C, struct wmOperator *op,
-	float *loc, float *rot, int *enter_editmode, unsigned int *layer);
+int ED_object_add_generic_get_opts(struct bContext *C, struct wmOperator *op, 
+	float *loc, float *rot, int *enter_editmode, unsigned int *layer, int *is_view_aligned);
 
 struct Object *ED_object_add_type(struct bContext *C, int type, float *loc,
 	float *rot, int enter_editmode, unsigned int layer);
@@ -154,5 +178,5 @@ int ED_object_modifier_copy(struct ReportList *reports, struct Object *ob, struc
 }
 #endif
 
-#endif /* ED_OBJECT_H */
+#endif /* __ED_OBJECT_H__ */
 

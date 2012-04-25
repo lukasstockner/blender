@@ -368,26 +368,6 @@ void set_rgba_zero(out vec4 outval)
 	outval = vec4(0.0);
 }
 
-void copy_raw(vec4 val, out vec4 outval)
-{
-	outval = val;
-}
-
-void copy_raw(vec3 val, out vec3 outval)
-{
-	outval = val;
-}
-
-void copy_raw(vec2 val, out vec2 outval)
-{
-	outval = val;
-}
-
-void copy_raw(float val, out float outval)
-{
-	outval = val;
-}
-
 void mix_blend(float fac, vec4 col1, vec4 col2, out vec4 outcol)
 {
 	fac = clamp(fac, 0.0, 1.0);
@@ -1230,6 +1210,11 @@ void mtex_bump_tap3( vec3 texco, sampler2D ima, float hScale,
 void mtex_bump_bicubic( vec3 texco, sampler2D ima, float hScale, 
                      out float dBs, out float dBt ) 
 {
+	float Hl;
+	float Hr;
+	float Hd;
+	float Hu;
+	
 	vec2 TexDx = dFdx(texco.xy);
 	vec2 TexDy = dFdy(texco.xy);
  
@@ -1238,10 +1223,10 @@ void mtex_bump_bicubic( vec3 texco, sampler2D ima, float hScale,
 	vec2 STd = texco.xy - 0.5 * TexDy ;
 	vec2 STu = texco.xy + 0.5 * TexDy ;
 	
-	float Hl = texture2D(ima, STl).x;
-	float Hr = texture2D(ima, STr).x;
-	float Hd = texture2D(ima, STd).x;
-	float Hu = texture2D(ima, STu).x;
+	rgbtobw(texture2D(ima, STl), Hl);
+	rgbtobw(texture2D(ima, STr), Hr);
+	rgbtobw(texture2D(ima, STd), Hd);
+	rgbtobw(texture2D(ima, STu), Hu);
 	
 	vec2 dHdxy = vec2(Hr - Hl, Hu - Hd);
 	float fBlend = clamp(1.0-textureQueryLOD(ima, texco.xy).x, 0.0, 1.0);
@@ -1251,11 +1236,13 @@ void mtex_bump_bicubic( vec3 texco, sampler2D ima, float hScale,
 		ivec2 vDim;
 		vDim = textureSize(ima, 0);
 
-		vec2 fTexLoc = vDim*texco.xy-vec2(0.5,0.5);
+		// taking the fract part of the texture coordinate is a hardcoded wrap mode.
+		// this is acceptable as textures use wrap mode exclusively in 3D view elsewhere in blender. 
+		// this is done so that we can still get a valid texel with uvs outside the 0,1 range
+		// by texelFetch below, as coordinates are clamped when using this function.
+		vec2 fTexLoc = vDim*fract(texco.xy) - vec2(0.5, 0.5);
 		ivec2 iTexLoc = ivec2(floor(fTexLoc));
 		vec2 t = clamp(fTexLoc - iTexLoc, 0.0, 1.0);		// sat just to be pedantic
-
-		ivec2 iTexLocMod = iTexLoc + ivec2(-1, -1);
 
 /*******************************************************************************************
  * This block will replace the one below when one channel textures are properly supported. *
@@ -1264,17 +1251,26 @@ void mtex_bump_bicubic( vec3 texco, sampler2D ima, float hScale,
 		vec4 vSamplesUR = textureGather(ima, (iTexLoc+ivec2(1,-1) + vec2(0.5,0.5))/vDim );
 		vec4 vSamplesLL = textureGather(ima, (iTexLoc+ivec2(-1,1) + vec2(0.5,0.5))/vDim );
 		vec4 vSamplesLR = textureGather(ima, (iTexLoc+ivec2(1,1) + vec2(0.5,0.5))/vDim );
-		
+
 		mat4 H = mat4(vSamplesUL.w, vSamplesUL.x, vSamplesLL.w, vSamplesLL.x,
 					vSamplesUL.z, vSamplesUL.y, vSamplesLL.z, vSamplesLL.y,
 					vSamplesUR.w, vSamplesUR.x, vSamplesLR.w, vSamplesLR.x,
 					vSamplesUR.z, vSamplesUR.y, vSamplesLR.z, vSamplesLR.y);
 */	
+		ivec2 iTexLocMod = iTexLoc + ivec2(-1, -1);
+
 		mat4 H;
 		
 		for(int i = 0; i < 4; i++){
 			for(int j = 0; j < 4; j++){
-				mtex_rgbtoint(texelFetch(ima, (iTexLocMod + ivec2(i,j)), 0), H[i][j]);
+				ivec2 iTexTmp = iTexLocMod + ivec2(i,j);
+				
+				// wrap texture coordinates manually for texelFetch to work on uvs oitside the 0,1 range.
+				// this is guaranteed to work since we take the fractional part of the uv above.
+				iTexTmp.x = (iTexTmp.x < 0)? iTexTmp.x + vDim.x : ((iTexTmp.x >= vDim.x)? iTexTmp.x - vDim.x : iTexTmp.x);
+				iTexTmp.y = (iTexTmp.y < 0)? iTexTmp.y + vDim.y : ((iTexTmp.y >= vDim.y)? iTexTmp.y - vDim.y : iTexTmp.y);
+
+				rgbtobw(texelFetch(ima, iTexTmp, 0), H[i][j]);
 			}
 		}
 		
@@ -2061,19 +2057,21 @@ void node_tex_coord(vec3 I, vec3 N, mat4 toworld,
 
 /* textures */
 
-void node_tex_blend(vec3 co, out float fac)
+void node_tex_gradient(vec3 co, out vec4 color, out float fac)
 {
+	color = vec4(1.0);
+	fac = 1.0;
+}
+
+void node_tex_checker(vec3 co, vec4 color1, vec4 color2, float scale, out vec4 color, out float fac)
+{
+	color = vec4(1.0);
 	fac = 1.0;
 }
 
 void node_tex_clouds(vec3 co, float size, out vec4 color, out float fac)
 {
 	color = vec4(1.0);
-	fac = 1.0;
-}
-
-void node_tex_distnoise(vec3 co, float size, float distortion, out float fac)
-{
 	fac = 1.0;
 }
 
@@ -2085,93 +2083,25 @@ void node_tex_environment(vec3 co, sampler2D ima, out vec4 color)
 	color = texture2D(ima, vec2(u, v));
 }
 
-void node_tex_image(vec3 co, sampler2D ima, out vec4 color)
+void node_tex_image(vec3 co, sampler2D ima, out vec4 color, out float alpha)
 {
 	color = texture2D(ima, co.xy);
+	alpha = color.a;
 }
 
-void node_tex_magic(vec3 p, float turbulence, float n, out vec4 color)
+void node_tex_magic(vec3 p, float scale, float distortion, out vec4 color, out float fac)
 {
-	float turb = turbulence/5.0;
-
-	float x = sin((p.x + p.y + p.z)*5.0);
-	float y = cos((-p.x + p.y - p.z)*5.0);
-	float z = -cos((-p.x - p.y + p.z)*5.0);
-
-	if(n > 0.0) {
-		x *= turb;
-		y *= turb;
-		z *= turb;
-		y = -cos(x-y+z);
-		y *= turb;
-
-		if(n > 1.0) {
-			x= cos(x-y-z);
-			x *= turb;
-
-			if(n > 2.0) {
-				z= sin(-x-y-z);
-				z *= turb;
-
-				if(n > 3.0) {
-					x= -cos(-x+y-z);
-					x *= turb;
-
-					if(n > 4.0) {
-						y= -sin(-x+y+z);
-						y *= turb;
-
-						if(n > 5.0) {
-							y= -cos(-x+y+z);
-							y *= turb;
-
-							if(n > 6.0) {
-								x= cos(x+y+z);
-								x *= turb;
-
-								if(n > 7.0) {
-									z= sin(x+y-z);
-									z *= turb;
-
-									if(n > 8.0) {
-										x= -cos(-x-y+z);
-										x *= turb;
-
-										if(n > 9.0) {
-											y= -sin(x-y+z);
-											y *= turb;
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if(turb != 0.0) {
-		turb *= 2.0;
-		x /= turb;
-		y /= turb;
-		z /= turb;
-	}
-
-	color = vec4(0.5 - x, 0.5 - y, 0.5 - z, 1.0);
-}
-
-void node_tex_marble(vec3 co, float size, float turbulence, out float fac)
-{
+	color = vec4(1.0);
 	fac = 1.0;
 }
 
-void node_tex_musgrave(vec3 co, float size, float dimension, float lacunarity, float octaves, float offset, float gain, out float fac)
+void node_tex_musgrave(vec3 co, float scale, float detail, float dimension, float lacunarity, float offset, float gain, out vec4 color, out float fac)
 {
+	color = vec4(1.0);
 	fac = 1.0;
 }
 
-void node_tex_noise(vec3 co, out vec4 color, out float fac)
+void node_tex_noise(vec3 co, float scale, float detail, float distortion, out vec4 color, out float fac)
 {
 	color = vec4(1.0);
 	fac = 1.0;
@@ -2182,19 +2112,15 @@ void node_tex_sky(vec3 co, out vec4 color)
 	color = vec4(1.0);
 }
 
-void node_tex_stucci(vec3 co, float size, float turbulence, out float fac)
-{
-	fac = 1.0;
-}
-
-void node_tex_voronoi(vec3 co, float size, float weight1, float weight2, float weight3, float weight4, float exponent, out vec4 color, out float fac)
+void node_tex_voronoi(vec3 co, float scale, out vec4 color, out float fac)
 {
 	color = vec4(1.0);
 	fac = 1.0;
 }
 
-void node_tex_wood(vec3 co, float size, float turbulence, out float fac)
+void node_tex_wave(vec3 co, float scale, float distortion, float detail, float detail_scale, out vec4 color, out float fac)
 {
+	color = vec4(1.0);
 	fac = 1.0;
 }
 

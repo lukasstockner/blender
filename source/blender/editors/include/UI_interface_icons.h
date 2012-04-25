@@ -29,8 +29,8 @@
  *  \ingroup editorui
  */
 
-#ifndef UI_INTERFACE_ICONS_H
-#define UI_INTERFACE_ICONS_H
+#ifndef __UI_INTERFACE_ICONS_H__
+#define __UI_INTERFACE_ICONS_H__
 
 struct Image;
 struct ImBuf;
@@ -41,7 +41,7 @@ struct Material;
 
 typedef struct IconFile {
 	struct IconFile *next, *prev;
-	char filename[80];	// FILE_MAXFILE size
+	char filename[256];	// FILE_MAXFILE size
 	int index;
 } IconFile;
 
@@ -54,8 +54,8 @@ typedef struct IconFile {
 #define PREVIEW_DEFAULT_HEIGHT 96
 
 /*
- Resizable Icons for Blender
-*/
+ * Resizable Icons for Blender
+ */
 void UI_icons_init(int first_dyn_id);
 int UI_icon_get_width(int icon_id);
 int UI_icon_get_height(int icon_id);
@@ -66,7 +66,7 @@ void UI_icon_draw_preview_aspect(float x, float y, int icon_id, float aspect);
 void UI_icon_draw_preview_aspect_size(float x, float y, int icon_id, float aspect, int size);
 
 void UI_icon_draw_aspect(float x, float y, int icon_id, float aspect, float alpha);
-void UI_icon_draw_aspect_color(float x, float y, int icon_id, float aspect, float *rgb);
+void UI_icon_draw_aspect_color(float x, float y, int icon_id, float aspect, const float rgb[3]);
 void UI_icon_draw_size(float x, float y, int size, int icon_id, float alpha);
 void UI_icons_free(void);
 void UI_icons_free_drawinfo(void *drawinfo);
@@ -75,4 +75,4 @@ struct ListBase *UI_iconfile_list(void);
 int UI_iconfile_get_index(const char *filename);
 
 
-#endif /*  UI_INTERFACE_ICONS_H */
+#endif /*  __UI_INTERFACE_ICONS_H__ */

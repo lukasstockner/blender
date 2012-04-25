@@ -75,6 +75,13 @@ class SEQUENCER_HT_header(Header):
                     row.prop(ed, "overlay_frame", text="")
                     row.prop(ed, "overlay_lock", text="", icon='LOCKED')
 
+                row = layout.row(align=True)
+                props = row.operator("render.opengl", text="", icon='RENDER_STILL')
+                props.sequencer = True
+                props = row.operator("render.opengl", text="", icon='RENDER_ANIMATION')
+                props.animation = True
+                props.sequencer = True
+
         layout.template_running_jobs()
 
 
@@ -114,10 +121,7 @@ class SEQUENCER_MT_view(Menu):
 
         layout.operator("sequencer.view_selected")
 
-        if st.show_frames:
-            layout.operator("anim.time_toggle", text="Show Seconds")
-        else:
-            layout.operator("anim.time_toggle", text="Show Frames")
+        layout.prop(st, "show_seconds")
 
         layout.prop(st, "show_frame_indicator")
         if st.display_mode == 'IMAGE':
@@ -146,10 +150,10 @@ class SEQUENCER_MT_select(Menu):
         layout.operator("sequencer.select_handles", text="Left Handle").side = 'LEFT'
         layout.operator("sequencer.select_handles", text="Right Handle").side = 'RIGHT'
         layout.separator()
-        layout.operator_menu_enum("object.select_grouped", "type", text="Grouped")
+        layout.operator_menu_enum("sequencer.select_grouped", "type", text="Grouped")
         layout.operator("sequencer.select_linked")
-        layout.operator("sequencer.select_all_toggle")
-        layout.operator("sequencer.select_inverse")
+        layout.operator("sequencer.select_all").action = 'TOGGLE'
+        layout.operator("sequencer.select_all").action = 'INVERT'
 
 
 class SEQUENCER_MT_marker(Menu):
@@ -158,7 +162,7 @@ class SEQUENCER_MT_marker(Menu):
     def draw(self, context):
         layout = self.layout
 
-        from .space_time import marker_menu_generic
+        from bl_ui.space_time import marker_menu_generic
         marker_menu_generic(layout)
 
 
@@ -187,6 +191,12 @@ class SEQUENCER_MT_add(Menu):
             layout.operator("sequencer.scene_strip_add", text="Scene...")
         else:
             layout.operator_menu_enum("sequencer.scene_strip_add", "scene", text="Scene...")
+
+        if len(bpy.data.movieclips) > 10:
+            layout.operator_context = 'INVOKE_DEFAULT'
+            layout.operator("sequencer.movieclip_strip_add", text="Clips...")
+        else:
+            layout.operator_menu_enum("sequencer.movieclip_strip_add", "clip", text="Clip...")
 
         layout.operator("sequencer.movie_strip_add", text="Movie")
         layout.operator("sequencer.image_strip_add", text="Image")
@@ -267,6 +277,9 @@ class SEQUENCER_MT_strip(Menu):
                 layout.separator()
                 # layout.operator("sequencer.movie_change")
                 layout.operator("sequencer.rendersize")
+            elif stype == 'SOUND':
+                layout.separator()
+                layout.operator("sequencer.crossfade_sounds")
 
         layout.separator()
 
@@ -279,13 +292,16 @@ class SEQUENCER_MT_strip(Menu):
         #}
 
         layout.separator()
-        layout.operator("sequencer.reload")
+        props = layout.operator("sequencer.reload", text="Reload Strips")
+        props.adjust_length = False
+        props = layout.operator("sequencer.reload", text="Reload Strips and Adjust Length")
+        props.adjust_length = True
         layout.operator("sequencer.reassign_inputs")
         layout.operator("sequencer.swap_inputs")
         layout.separator()
         layout.operator("sequencer.lock")
         layout.operator("sequencer.unlock")
-        layout.operator("sequencer.mute")
+        layout.operator("sequencer.mute").unselected = False
         layout.operator("sequencer.unmute")
 
         layout.operator("sequencer.mute", text="Mute Deselected Strips").unselected = True
@@ -534,7 +550,7 @@ class SEQUENCER_PT_input(SequencerButtonsPanel, Panel):
         if not strip:
             return False
 
-        return strip.type in {'MOVIE', 'IMAGE', 'SCENE', 'META',
+        return strip.type in {'MOVIE', 'IMAGE', 'SCENE', 'MOVIECLIP', 'META',
                               'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
                               'CROSS', 'GAMMA_CROSS', 'MULTIPLY', 'OVER_DROP',
                               'PLUGIN',
@@ -625,6 +641,7 @@ class SEQUENCER_PT_sound(SequencerButtonsPanel, Panel):
         layout = self.layout
 
         strip = act_strip(context)
+        sound = strip.sound
 
         layout.template_ID(strip, "sound", open="sound.open")
 
@@ -632,12 +649,12 @@ class SEQUENCER_PT_sound(SequencerButtonsPanel, Panel):
         layout.prop(strip, "filepath", text="")
 
         row = layout.row()
-        if strip.sound.packed_file:
+        if sound.packed_file:
             row.operator("sound.unpack", icon='PACKAGE', text="Unpack")
         else:
             row.operator("sound.pack", icon='UGLYPACKAGE', text="Pack")
 
-        row.prop(strip.sound, "use_memory_cache")
+        row.prop(sound, "use_memory_cache")
 
         layout.prop(strip, "waveform")
         layout.prop(strip, "volume")
@@ -696,7 +713,7 @@ class SEQUENCER_PT_filter(SequencerButtonsPanel, Panel):
         if not strip:
             return False
 
-        return strip.type in {'MOVIE', 'IMAGE', 'SCENE', 'META',
+        return strip.type in {'MOVIE', 'IMAGE', 'SCENE', 'MOVIECLIP', 'META',
                               'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
                               'CROSS', 'GAMMA_CROSS', 'MULTIPLY', 'OVER_DROP',
                               'PLUGIN',
@@ -711,6 +728,15 @@ class SEQUENCER_PT_filter(SequencerButtonsPanel, Panel):
         col = layout.column()
         col.label(text="Video:")
         col.prop(strip, "strobe")
+
+        if strip.type == 'MOVIECLIP':
+            col = layout.column()
+            col.label(text="Tracker:")
+            col.prop(strip, "stabilize2d")
+
+            col = layout.column()
+            col.label(text="Distortion:")
+            col.prop(strip, "undistort")
 
         row = layout.row()
         row.label(text="Flip:")

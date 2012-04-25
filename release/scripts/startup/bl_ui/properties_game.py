@@ -122,7 +122,8 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col = split.column()
             col.label(text="Attributes:")
             col.prop(game, "mass")
-            col.prop(soft, "weld_threshold")
+            # disabled in the code
+            # col.prop(soft, "weld_threshold")
             col.prop(soft, "location_iterations")
             col.prop(soft, "linear_stiffness", slider=True)
             col.prop(soft, "dynamic_friction", slider=True)
@@ -165,7 +166,12 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             subsub.active = game.use_anisotropic_friction
             subsub.prop(game, "friction_coefficients", text="", slider=True)
 
-        elif physics_type in {'SENSOR', 'INVISIBLE', 'NO_COLLISION', 'OCCLUDE'}:
+        elif physics_type == 'SENSOR':
+            col = layout.column()
+            col.prop(game, "use_actor", text="Detect Actors")
+            col.prop(ob, "hide_render", text="Invisible")
+
+        elif physics_type in {'INVISIBLE', 'NO_COLLISION', 'OCCLUDE'}:
             layout.prop(ob, "hide_render", text="Invisible")
             
         elif physics_type in {'INVISIBLE', 'NO_COLLISION', 'OCCLUDE'}:
@@ -252,7 +258,7 @@ class RenderButtonsPanel():
         return (rd.engine in cls.COMPAT_ENGINES)
 
 
-class RENDER_PT_embedded(RenderButtonsPanel, bpy.types.Panel):
+class RENDER_PT_embedded(RenderButtonsPanel, Panel):
     bl_label = "Embedded Player"
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
@@ -337,7 +343,7 @@ class RENDER_PT_game_stereo(RenderButtonsPanel, Panel):
                 col.prop(gs, "dome_angle", slider=True)
 
                 col = split.column()
-                col.prop(gs, "dome_tesselation", text="Tesselation")
+                col.prop(gs, "dome_tessellation", text="Tessellation")
                 col.prop(gs, "dome_tilt")
 
             elif dome_type == 'PANORAM_SPH':
@@ -345,7 +351,7 @@ class RENDER_PT_game_stereo(RenderButtonsPanel, Panel):
 
                 col.prop(gs, "dome_buffer_resolution", text="Resolution", slider=True)
                 col = split.column()
-                col.prop(gs, "dome_tesselation", text="Tesselation")
+                col.prop(gs, "dome_tessellation", text="Tessellation")
 
             else:  # cube map
                 col = split.column()

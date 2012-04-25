@@ -28,8 +28,8 @@
  *  \ingroup edarmature
  */
 
-#ifndef ED_ARMATURE_INTERN_H
-#define ED_ARMATURE_INTERN_H
+#ifndef __ARMATURE_INTERN_H__
+#define __ARMATURE_INTERN_H__
 
 /* internal exports only */
 struct wmOperatorType;
@@ -99,7 +99,6 @@ void POSE_OT_copy(struct wmOperatorType *ot);
 void POSE_OT_paste(struct wmOperatorType *ot);
 
 void POSE_OT_select_all(struct wmOperatorType *ot);
-void POSE_OT_select_inverse(struct wmOperatorType *ot);
 void POSE_OT_select_parent(struct wmOperatorType *ot);
 void POSE_OT_select_hierarchy(struct wmOperatorType *ot);
 void POSE_OT_select_linked(struct wmOperatorType *ot);
@@ -220,5 +219,5 @@ struct EditBone *duplicateEditBoneObjects(struct EditBone *curBone, const char *
 /* editbones is the source list */
 void updateDuplicateSubtargetObjects(struct EditBone *dupBone, struct ListBase *editbones, struct Object *src_ob, struct Object *dst_ob);
 
-#endif /* ED_ARMATURE_INTERN_H */
+#endif /* __ARMATURE_INTERN_H__ */
 

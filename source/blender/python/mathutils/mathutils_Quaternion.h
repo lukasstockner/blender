@@ -32,8 +32,8 @@
  */
 
 
-#ifndef MATHUTILS_QUAT_H
-#define MATHUTILS_QUAT_H
+#ifndef __MATHUTILS_QUATERNION_H__
+#define __MATHUTILS_QUATERNION_H__
 
 extern PyTypeObject quaternion_Type;
 #define QuaternionObject_Check(_v) PyObject_TypeCheck((_v), &quaternion_Type)
@@ -42,13 +42,14 @@ typedef struct {
 	BASE_MATH_MEMBERS(quat);
 } QuaternionObject;
 
-/*struct data contains a pointer to the actual data that the
-object uses. It can use either PyMem allocated data (which will
-be stored in py_data) or be a wrapper for data allocated through
-blender (stored in blend_data). This is an either/or struct not both*/
+/* struct data contains a pointer to the actual data that the
+ * object uses. It can use either PyMem allocated data (which will
+ * be stored in py_data) or be a wrapper for data allocated through
+ * blender (stored in blend_data). This is an either/or struct not both */
 
 //prototypes
-PyObject *Quaternion_CreatePyObject( float *quat, int type, PyTypeObject *base_type);
-PyObject *Quaternion_CreatePyObject_cb(PyObject *cb_user, int cb_type, int cb_subtype);
+PyObject *Quaternion_CreatePyObject(float *quat, int type, PyTypeObject *base_type);
+PyObject *Quaternion_CreatePyObject_cb(PyObject *cb_user,
+                                       unsigned char cb_type, unsigned char cb_subtype);
 
-#endif /* MATHUTILS_QUAT_H */
+#endif /* __MATHUTILS_QUATERNION_H__ */

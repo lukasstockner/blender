@@ -29,8 +29,8 @@
  *  \ingroup nodes
  */
 
-#ifndef NOD_SHADER_H
-#define NOD_SHADER_H
+#ifndef __NOD_SHADER_H__
+#define __NOD_SHADER_H__
 
 #include "BKE_node.h"
 
@@ -55,6 +55,7 @@ void register_node_type_sh_rgbtobw(struct bNodeTreeType *ttype);
 void register_node_type_sh_texture(struct bNodeTreeType *ttype);
 void register_node_type_sh_normal(struct bNodeTreeType *ttype);
 void register_node_type_sh_gamma(struct bNodeTreeType *ttype);
+void register_node_type_sh_brightcontrast(struct bNodeTreeType *ttype);
 void register_node_type_sh_geom(struct bNodeTreeType *ttype);
 void register_node_type_sh_mapping(struct bNodeTreeType *ttype);
 void register_node_type_sh_curve_vec(struct bNodeTreeType *ttype);

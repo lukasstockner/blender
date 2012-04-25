@@ -24,8 +24,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef BKE_MOVIECLIP_H
-#define BKE_MOVIECLIP_H
+#ifndef __BKE_MOVIECLIP_H__
+#define __BKE_MOVIECLIP_H__
 
 /** \file BKE_movieclip.h
  *  \ingroup bke
@@ -47,24 +47,29 @@ struct MovieClip *BKE_add_movieclip_file(const char *name);
 void BKE_movieclip_reload(struct MovieClip *clip);
 
 struct ImBuf *BKE_movieclip_get_ibuf(struct MovieClip *clip, struct MovieClipUser *user);
-struct ImBuf *BKE_movieclip_get_stable_ibuf(struct MovieClip *clip, struct MovieClipUser *user, float loc[2], float *scale, float *angle);
-struct ImBuf *BKE_movieclip_get_ibuf_flag(struct MovieClip *clip, struct MovieClipUser *user, int flag);
+struct ImBuf *BKE_movieclip_get_postprocessed_ibuf(struct MovieClip *clip, struct MovieClipUser *user, int postprocess_flag);
+struct ImBuf *BKE_movieclip_get_stable_ibuf(struct MovieClip *clip, struct MovieClipUser *user, float loc[2], float *scale, float *angle, int postprocess_flag);
+struct ImBuf *BKE_movieclip_get_ibuf_flag(struct MovieClip *clip, struct MovieClipUser *user, int flag, int cache_flag);
 void BKE_movieclip_get_size(struct MovieClip *clip, struct MovieClipUser *user, int *width, int *height);
+int BKE_movieclip_get_duration(struct MovieClip *clip);
 void BKE_movieclip_aspect(struct MovieClip *clip, float *aspx, float *aspy);
 int BKE_movieclip_has_frame(struct MovieClip *clip, struct MovieClipUser *user);
 void BKE_movieclip_user_set_frame(struct MovieClipUser *user, int framenr);
-
-void BKE_movieclip_select_track(struct MovieClip *clip, struct MovieTrackingTrack *track, int area, int extend);
 
 void BKE_movieclip_update_scopes(struct MovieClip *clip, struct MovieClipUser *user, struct MovieClipScopes *scopes);
 
 void BKE_movieclip_get_cache_segments(struct MovieClip *clip, struct MovieClipUser *user, int *totseg_r, int **points_r);
 
 void BKE_movieclip_build_proxy_frame(struct MovieClip *clip, int clip_flag, struct MovieDistortion *distortion,
-			int cfra, int *build_sizes, int build_count, int undistorted);
+                                     int cfra, int *build_sizes, int build_count, int undistorted);
 
-#define TRACK_CLEAR_UPTO		0
-#define TRACK_CLEAR_REMAINED	1
-#define TRACK_CLEAR_ALL			2
+/* cacheing flags */
+#define MOVIECLIP_CACHE_SKIP        (1<<0)
+
+/* postprocessing flags */
+#define MOVIECLIP_DISABLE_RED       (1<<0)
+#define MOVIECLIP_DISABLE_GREEN     (1<<1)
+#define MOVIECLIP_DISABLE_BLUE      (1<<2)
+#define MOVIECLIP_PREVIEW_GRAYSCALE (1<<3)
 
 #endif

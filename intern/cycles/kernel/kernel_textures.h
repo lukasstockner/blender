@@ -33,6 +33,8 @@ KERNEL_TEX(float4, texture_float4, __attributes_float3)
 /* lights */
 KERNEL_TEX(float4, texture_float4, __light_distribution)
 KERNEL_TEX(float4, texture_float4, __light_data)
+KERNEL_TEX(float2, texture_float2, __light_background_marginal_cdf)
+KERNEL_TEX(float2, texture_float2, __light_background_conditional_cdf)
 
 /* shaders */
 KERNEL_TEX(uint4, texture_uint4, __svm_nodes)
@@ -140,11 +142,13 @@ KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_091)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_092)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_093)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_094)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_095)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_096)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_097)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_098)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_099)
+
+/* full-float image */
+KERNEL_IMAGE_TEX(float4, texture_image_float4, __tex_image_float_095)
+KERNEL_IMAGE_TEX(float4, texture_image_float4, __tex_image_float_096)
+KERNEL_IMAGE_TEX(float4, texture_image_float4, __tex_image_float_097)
+KERNEL_IMAGE_TEX(float4, texture_image_float4, __tex_image_float_098)
+KERNEL_IMAGE_TEX(float4, texture_image_float4, __tex_image_float_099)
 
 #undef KERNEL_TEX
 #undef KERNEL_IMAGE_TEX

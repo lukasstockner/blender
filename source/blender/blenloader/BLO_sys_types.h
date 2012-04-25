@@ -40,8 +40,8 @@
  *
  */
 
-#ifndef BLO_SYS_TYPES_H
-#define BLO_SYS_TYPES_H
+#ifndef __BLO_SYS_TYPES_H__
+#define __BLO_SYS_TYPES_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,7 +49,7 @@ extern "C" {
  
 #if defined(_WIN32) && !defined(FREE_WINDOWS)
 
-/* The __intXX are built-in types of the visual complier! So we don't
+/* The __intXX are built-in types of the visual compiler! So we don't
  * need to include anything else here. */
 
 
@@ -100,8 +100,10 @@ typedef uint64_t  u_int64_t;
 #include <inttypes.h>
 
 #elif defined(FREE_WINDOWS)
+#ifndef FREE_WINDOWS64
 /* define htoln here, there must be a syntax error in winsock2.h in MinGW */
 unsigned long __attribute__((__stdcall__)) htonl(unsigned long);
+#endif
 #include <stdint.h>
 
 #else

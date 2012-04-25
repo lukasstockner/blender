@@ -28,8 +28,8 @@
  *  \ingroup editors
  */
 
-#ifndef ED_SCREEN_H
-#define ED_SCREEN_H
+#ifndef __ED_SCREEN_H__
+#define __ED_SCREEN_H__
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -100,7 +100,7 @@ bScreen *ED_screen_duplicate(struct wmWindow *win, struct bScreen *sc);
 bScreen *ED_screen_add(struct wmWindow *win, struct Scene *scene, const char *name);
 void	ED_screen_set(struct bContext *C, struct bScreen *sc);
 void	ED_screen_delete(struct bContext *C, struct bScreen *sc);
-void	ED_screen_set_scene(struct bContext *C, struct Scene *scene);
+void	ED_screen_set_scene(struct bContext *C, struct bScreen *screen, struct Scene *scene);
 void	ED_screen_delete_scene(struct bContext *C, struct Scene *scene);
 void	ED_screen_set_subwinactive(struct bContext *C, struct wmEvent *event);
 void	ED_screen_exit(struct bContext *C, struct wmWindow *window, struct bScreen *screen);
@@ -110,8 +110,6 @@ ScrArea *ED_screen_full_newspace(struct bContext *C, ScrArea *sa, int type);
 void	ED_screen_full_prevspace(struct bContext *C, ScrArea *sa);
 void	ED_screen_full_restore(struct bContext *C, ScrArea *sa);
 struct ScrArea *ED_screen_full_toggle(struct bContext *C, struct wmWindow *win, struct ScrArea *sa);
-
-void	ED_screen_new_window(struct bContext *C, struct rcti *position, int type);
 
 /* anim */
 void	ED_update_for_newframe(struct Main *bmain, struct Scene *scene, struct bScreen *screen, int mute);
@@ -181,5 +179,5 @@ int		ED_operator_posemode(struct bContext *C);
 #define ED_KEYMAP_GPENCIL	32
 #define ED_KEYMAP_HEADER	64
 
-#endif /* ED_SCREEN_H */
+#endif /* __ED_SCREEN_H__ */
 

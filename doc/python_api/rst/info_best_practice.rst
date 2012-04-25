@@ -10,7 +10,7 @@ For your own work this is of course fine, but if you want to collaborate with ot
 Style Conventions
 =================
 
-For Blender 2.5 we have chosen to follow python suggested style guide to avoid mixing styles amongst our own scripts and make it easier to use python scripts from other projects.
+For Blender/Python development we have chosen to follow python suggested style guide to avoid mixing styles amongst our own scripts and make it easier to use python scripts from other projects.
 
 Using our style guide for your own scripts makes it easier if you eventually want to contribute them to blender.
 
@@ -264,11 +264,11 @@ if your unsure whether the text is upper or lower case use lower or upper string
 Use try/except Sparingly
 ------------------------
 
-The **try** statement useful to save time writing error checking code.
+The **try** statement is useful to save time writing error checking code.
 
 However **try** is significantly slower then an **if** since an exception has to be set each time, so avoid using **try** in areas of your code that execute in a loop and runs many times.
 
-There are cases where using **try** is faster than checking weather the condition will raise an error, so it is worth experimenting.
+There are cases where using **try** is faster than checking whether the condition will raise an error, so it is worth experimenting.
 
 
 Value Comparison

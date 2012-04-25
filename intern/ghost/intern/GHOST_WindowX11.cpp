@@ -35,6 +35,10 @@
 #include "STR_String.h"
 #include "GHOST_Debug.h"
 
+#ifdef WITH_XDND
+#include "GHOST_DropTargetX11.h"
+#endif
+
 // For standard X11 cursors
 #include <X11/cursorfont.h>
 #include <X11/Xatom.h>
@@ -325,7 +329,13 @@ GHOST_WindowX11(
 		XSelectInput(m_display , parentWindow, SubstructureNotifyMask);
 		
 	}	
-	
+
+#ifdef WITH_XDND
+	/* initialize drop target for newly created window */
+	m_dropTarget = new GHOST_DropTargetX11(this, m_system);
+	GHOST_PRINT("Set drop target\n");
+#endif
+
 	/*
 	 * One of the problem with WM-spec is that can't set a property
 	 * to a window that isn't mapped. That is why we can't "just
@@ -363,7 +373,7 @@ GHOST_WindowX11(
 	XFree(xsizehints);
 
 	XClassHint * xclasshint = XAllocClassHint();
-	int len = title.Length() +1 ;
+	const int len = title.Length() + 1;
 	char *wmclass = (char *)malloc(sizeof(char) * len);
 	strncpy(wmclass, (const char*)title, sizeof(char) * len);
 	xclasshint->res_name = wmclass;
@@ -475,10 +485,10 @@ GHOST_WindowX11(
 static int ApplicationErrorHandler(Display *display, XErrorEvent *theEvent)
 {
 	fprintf(stderr, "Ignoring Xlib error: error code %d request code %d\n",
-		theEvent->error_code, theEvent->request_code) ;
+		theEvent->error_code, theEvent->request_code);
 
 	/* No exit! - but keep lint happy */
-	return 0 ;
+	return 0;
 }
 
 /* These C functions are copied from Wine 1.1.13's wintab.c */
@@ -578,7 +588,7 @@ static BOOL is_eraser(const char *name, const char *type)
 
 void GHOST_WindowX11::initXInputDevices()
 {
-	static XErrorHandler old_handler = (XErrorHandler) 0 ;
+	static XErrorHandler old_handler = (XErrorHandler) 0;
 	XExtensionVersion *version = XGetExtensionVersion(m_display, INAME);
 
 	if(version && (version != (XExtensionVersion*)NoSuchExtension)) {
@@ -590,7 +600,7 @@ void GHOST_WindowX11::initXInputDevices()
 			m_xtablet.CommonData.Active= GHOST_kTabletModeNone;
 
 			/* Install our error handler to override Xlib's termination behavior */
-			old_handler = XSetErrorHandler(ApplicationErrorHandler) ;
+			old_handler = XSetErrorHandler(ApplicationErrorHandler);
 
 			for(int i=0; i<device_count; ++i) {
 				char *device_type = device_info[i].type ? XGetAtomName(m_display, device_info[i].type) : NULL;
@@ -638,7 +648,7 @@ void GHOST_WindowX11::initXInputDevices()
 			}
 
 			/* Restore handler */
-			(void) XSetErrorHandler(old_handler) ;
+			(void) XSetErrorHandler(old_handler);
 
 			XFreeDeviceList(device_info);
 
@@ -1318,6 +1328,9 @@ GHOST_WindowX11::
 	}
 #endif
 
+#ifdef WITH_XDND
+	delete m_dropTarget;
+#endif
 
 	XDestroyWindow(m_display, m_window);
 	XFree(m_visual);

@@ -31,8 +31,8 @@
  *  \author nzc
  */
 
-#ifndef DNA_TEXTURE_TYPES_H
-#define DNA_TEXTURE_TYPES_H
+#ifndef __DNA_TEXTURE_TYPES_H__
+#define __DNA_TEXTURE_TYPES_H__
 
 #include "DNA_defs.h"
 #include "DNA_ID.h"
@@ -60,7 +60,7 @@ typedef struct MTex {
 	short texco, mapto, maptoneg, blendtype;
 	struct Object *object;
 	struct Tex *tex;
-	char uvname[32];
+	char uvname[64];	/* MAX_CUSTOMDATA_LAYER_NAME */
 	
 	char projx, projy, projz, mapping;
 	float ofs[3], size[3], rot;
@@ -97,15 +97,15 @@ typedef struct MTex {
 #ifndef DNA_USHORT_FIX
 #define DNA_USHORT_FIX
 /**
- * @deprecated This typedef serves to avoid badly typed functions when
- * @deprecated compiling while delivering a proper dna.c. Do not use
- * @deprecated it in any case.
+ * \deprecated This typedef serves to avoid badly typed functions when
+ * \deprecated compiling while delivering a proper dna.c. Do not use
+ * \deprecated it in any case.
  */
 typedef unsigned short dna_ushort_fix;
 #endif
 
 typedef struct PluginTex {
-	char name[160];
+	char name[1024];
 	void *handle;
 	
 	char *pname;
@@ -200,7 +200,7 @@ typedef struct VoxelData {
 	struct Object *object; /* for rendering smoke sims */
 	float int_multiplier;	
 	int still_frame;
-	char source_path[240];
+	char source_path[1024];  /* 1024 = FILE_MAX */
 
 	/* temporary data */
 	float *dataset;
@@ -232,7 +232,7 @@ typedef struct Tex {
 	/* newnoise: distorted noise amount, musgrave & voronoi ouput scale */
 	float dist_amount, ns_outscale;
 
-	/* newnoise: voronoi nearest neighbour weights, minkovsky exponent, distance metric & color type */
+	/* newnoise: voronoi nearest neighbor weights, minkovsky exponent, distance metric & color type */
 	float vn_w1;
 	float vn_w2;
 	float vn_w3;

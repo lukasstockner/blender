@@ -32,8 +32,8 @@
 
 //Include this file for access to vector, quat, matrix, euler, etc...
 
-#ifndef MATHUTILS_H
-#define MATHUTILS_H
+#ifndef __MATHUTILS_H__
+#define __MATHUTILS_H__
 
 /* Can cast different mathutils types to this, use for generic funcs */
 
@@ -67,8 +67,8 @@ typedef struct {
 #include "mathutils_geometry.h"
 #include "mathutils_noise.h"
 
-PyObject *BaseMathObject_owner_get( BaseMathObject * self, void * );
-PyObject *BaseMathObject_is_wrapped_get( BaseMathObject *self, void * );
+PyObject *BaseMathObject_owner_get(BaseMathObject * self, void *);
+PyObject *BaseMathObject_is_wrapped_get(BaseMathObject *self, void *);
 
 int BaseMathObject_traverse(BaseMathObject *self, visitproc visit, void *arg);
 int BaseMathObject_clear(BaseMathObject *self);
@@ -98,7 +98,7 @@ struct Mathutils_Callback {
 	BaseMathSetIndexFunc	set_index;
 };
 
-int Mathutils_RegisterCallback(Mathutils_Callback *cb);
+unsigned char Mathutils_RegisterCallback(Mathutils_Callback *cb);
 
 int _BaseMathObject_ReadCallback(BaseMathObject *self);
 int _BaseMathObject_WriteCallback(BaseMathObject *self);
@@ -118,11 +118,13 @@ int _BaseMathObject_WriteIndexCallback(BaseMathObject *self, int index);
 /* utility func */
 int mathutils_array_parse(float *array, int array_min, int array_max, PyObject *value, const char *error_prefix);
 int mathutils_array_parse_alloc(float **array, int array_min, PyObject *value, const char *error_prefix);
+int mathutils_array_parse_alloc_v(float **array, int array_dim, PyObject *value, const char *error_prefix);
 int mathutils_any_to_rotmat(float rmat[3][3], PyObject *value, const char *error_prefix);
 
 int column_vector_multiplication(float rvec[4], VectorObject *vec, MatrixObject *mat);
 
 /* dynstr as python string utility funcions */
 PyObject *mathutils_dynstr_to_py(struct DynStr *ds);
+int mathutils_deepcopy_args_check(PyObject *args);
 
-#endif /* MATHUTILS_H */
+#endif /* __MATHUTILS_H__ */
