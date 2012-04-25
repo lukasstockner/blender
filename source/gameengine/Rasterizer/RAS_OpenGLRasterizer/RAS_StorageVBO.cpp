@@ -88,8 +88,8 @@ void VBO::UpdateData()
 		memcpy(&this->vbo[j+6], data->m_vertex[i].getTangent(), sizeof(float)*4);
 		memcpy(&this->vbo[j+10], data->m_vertex[i].getRGBA(), sizeof(char)*4);
 
-		for (unsigned int k=0; k<RAS_TexVert::MAX_UNIT; k+=2)
-			memcpy(&this->vbo[j+11+k], data->m_vertex[i].getUV(k), sizeof(float)*2);
+		for (unsigned int k=0; k<RAS_TexVert::MAX_UNIT; k++)
+			memcpy(&this->vbo[j+11+(k*2)], data->m_vertex[i].getUV(k), sizeof(float)*2);
 	}
 
 	// Upload Data to GPU
@@ -131,41 +131,36 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, 
 		for (int unit=0; unit<texco_num; ++unit)
 		{
 			glClientActiveTexture(GL_TEXTURE0_ARB + unit);
-
 			switch(texco[unit])
 			{
 				case RAS_IRasterizer::RAS_TEXCO_ORCO:
 				case RAS_IRasterizer::RAS_TEXCO_GLOB:
-					glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->vbo_id);
 					glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 					glTexCoordPointer(3, GL_FLOAT, this->stride, this->vertex_offset);
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_UV:
-					glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->vbo_id);
 					glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 					glTexCoordPointer(2, GL_FLOAT, this->stride, (void*)((intptr_t)this->uv_offset+(sizeof(GLfloat)*2*unit)));
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_NORM:
-					glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->vbo_id);
 					glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 					glTexCoordPointer(3, GL_FLOAT, this->stride, this->normal_offset);
 					break;
 				case RAS_IRasterizer::RAS_TEXTANGENT:
-					glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->vbo_id);
 					glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 					glTexCoordPointer(4, GL_FLOAT, this->stride, this->tangent_offset);
 					break;
 				default:
-					glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->vbo_id);
 					glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 					glTexCoordPointer(1, GL_SHORT, this->stride, this->dummy_offset);
 					break;
 			}
 		}
+		glClientActiveTextureARB(GL_TEXTURE0_ARB);
 	}
 	else //TexFace
 	{
-		glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->vbo_id);
+		glClientActiveTextureARB(GL_TEXTURE0_ARB);
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 		glTexCoordPointer(2, GL_FLOAT, this->stride, this->uv_offset);
 	}
@@ -179,22 +174,19 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, 
 			{
 				case RAS_IRasterizer::RAS_TEXCO_ORCO:
 				case RAS_IRasterizer::RAS_TEXCO_GLOB:
-					glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->vbo_id);
 					glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, this->stride, this->vertex_offset);
 					glEnableVertexAttribArrayARB(unit);
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_UV:
-					glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->vbo_id);
-					glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, this->stride, (void*)((intptr_t)this->uv_offset+(sizeof(GLfloat)*2*uv++)));
+					glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, this->stride, (void*)((intptr_t)this->uv_offset+uv));
+					uv += sizeof(GLfloat)*2;
 					glEnableVertexAttribArrayARB(unit);
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_NORM:
-					glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->vbo_id);
 					glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, stride, this->normal_offset);
 					glEnableVertexAttribArrayARB(unit);
 					break;
 				case RAS_IRasterizer::RAS_TEXTANGENT:
-					glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->vbo_id);
 					glVertexAttribPointerARB(unit, 4, GL_FLOAT, GL_FALSE, this->stride, this->tangent_offset);
 					glEnableVertexAttribArrayARB(unit);
 					break;
