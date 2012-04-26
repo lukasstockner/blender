@@ -69,50 +69,50 @@ void RAS_StorageIM::TexCoord(const RAS_TexVert &tv)
 {
 	int unit;
 
-	if(GLEW_ARB_multitexture) {
-		for(unit=0; unit<*m_texco_num; unit++) {
+	if (GLEW_ARB_multitexture) {
+		for (unit = 0; unit < *m_texco_num; unit++) {
 			switch(m_texco[unit]) {
-			case RAS_IRasterizer::RAS_TEXCO_ORCO:
-			case RAS_IRasterizer::RAS_TEXCO_GLOB:
-				glMultiTexCoord3fvARB(GL_TEXTURE0_ARB+unit, tv.getXYZ());
-				break;
-			case RAS_IRasterizer::RAS_TEXCO_UV:
-				glMultiTexCoord2fvARB(GL_TEXTURE0_ARB+unit, tv.getUV(unit));
-				break;
-			case RAS_IRasterizer::RAS_TEXCO_NORM:
-				glMultiTexCoord3fvARB(GL_TEXTURE0_ARB+unit, tv.getNormal());
-				break;
-			case RAS_IRasterizer::RAS_TEXTANGENT:
-				glMultiTexCoord4fvARB(GL_TEXTURE0_ARB+unit, tv.getTangent());
-				break;
-			default:
-				break;
+				case RAS_IRasterizer::RAS_TEXCO_ORCO:
+				case RAS_IRasterizer::RAS_TEXCO_GLOB:
+					glMultiTexCoord3fvARB(GL_TEXTURE0_ARB + unit, tv.getXYZ());
+					break;
+				case RAS_IRasterizer::RAS_TEXCO_UV:
+					glMultiTexCoord2fvARB(GL_TEXTURE0_ARB + unit, tv.getUV(unit));
+					break;
+				case RAS_IRasterizer::RAS_TEXCO_NORM:
+					glMultiTexCoord3fvARB(GL_TEXTURE0_ARB + unit, tv.getNormal());
+					break;
+				case RAS_IRasterizer::RAS_TEXTANGENT:
+					glMultiTexCoord4fvARB(GL_TEXTURE0_ARB + unit, tv.getTangent());
+					break;
+				default:
+					break;
 			}
 		}
 	}
 
-	if(GLEW_ARB_vertex_program) {
+	if (GLEW_ARB_vertex_program) {
 		int uv = 0;
-		for(unit=0; unit<*m_attrib_num; unit++) {
+		for (unit = 0; unit < *m_attrib_num; unit++) {
 			switch(m_attrib[unit]) {
-			case RAS_IRasterizer::RAS_TEXCO_ORCO:
-			case RAS_IRasterizer::RAS_TEXCO_GLOB:
-				glVertexAttrib3fvARB(unit, tv.getXYZ());
-				break;
-			case RAS_IRasterizer::RAS_TEXCO_UV:
-				glVertexAttrib2fvARB(unit, tv.getUV(uv++));
-				break;
-			case RAS_IRasterizer::RAS_TEXCO_NORM:
-				glVertexAttrib3fvARB(unit, tv.getNormal());
-				break;
-			case RAS_IRasterizer::RAS_TEXTANGENT:
-				glVertexAttrib4fvARB(unit, tv.getTangent());
-				break;
-			case RAS_IRasterizer::RAS_TEXCO_VCOL:
-				glVertexAttrib4ubvARB(unit, tv.getRGBA());
-				break;
-			default:
-				break;
+				case RAS_IRasterizer::RAS_TEXCO_ORCO:
+				case RAS_IRasterizer::RAS_TEXCO_GLOB:
+					glVertexAttrib3fvARB(unit, tv.getXYZ());
+					break;
+				case RAS_IRasterizer::RAS_TEXCO_UV:
+					glVertexAttrib2fvARB(unit, tv.getUV(uv++));
+					break;
+				case RAS_IRasterizer::RAS_TEXCO_NORM:
+					glVertexAttrib3fvARB(unit, tv.getNormal());
+					break;
+				case RAS_IRasterizer::RAS_TEXTANGENT:
+					glVertexAttrib4fvARB(unit, tv.getTangent());
+					break;
+				case RAS_IRasterizer::RAS_TEXCO_VCOL:
+					glVertexAttrib4ubvARB(unit, tv.getRGBA());
+					break;
+				default:
+					break;
 			}
 		}
 	}
@@ -249,17 +249,17 @@ void RAS_StorageIM::IndexPrimitivesInternal(RAS_MeshSlot& ms, bool multi)
 		return;
 	}
 	// iterate over display arrays, each containing an index + vertex array
-	for(ms.begin(it); !ms.end(it); ms.next(it)) {
+	for (ms.begin(it); !ms.end(it); ms.next(it)) {
 		RAS_TexVert *vertex;
 		size_t i, j, numvert;
 		
 		numvert = it.array->m_type;
 
-		if(it.array->m_type == RAS_DisplayArray::LINE) {
+		if (it.array->m_type == RAS_DisplayArray::LINE) {
 			// line drawing
 			glBegin(GL_LINES);
 
-			for(i=0; i<it.totindex; i+=2)
+			for (i = 0; i < it.totindex; i += 2)
 			{
 				vertex = &it.vertex[it.index[i]];
 				glVertex3fv(vertex->getXYZ());
@@ -272,26 +272,26 @@ void RAS_StorageIM::IndexPrimitivesInternal(RAS_MeshSlot& ms, bool multi)
 		}
 		else {
 			// triangle and quad drawing
-			if(it.array->m_type == RAS_DisplayArray::TRIANGLE)
+			if (it.array->m_type == RAS_DisplayArray::TRIANGLE)
 				glBegin(GL_TRIANGLES);
 			else
 				glBegin(GL_QUADS);
 
-			for(i=0; i<it.totindex; i+=numvert)
+			for (i = 0; i < it.totindex; i += numvert)
 			{
-				if(obcolor)
+				if (obcolor)
 					glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
 
-				for(j=0; j<numvert; j++) {
+				for (j = 0; j < numvert; j++) {
 					vertex = &it.vertex[it.index[i+j]];
 
-					if(!wireframe) {
-						if(!obcolor)
+					if (!wireframe) {
+						if (!obcolor)
 							glColor4ubv((const GLubyte *)(vertex->getRGBA()));
 
 						glNormal3fv(vertex->getNormal());
 
-						if(multi)
+						if (multi)
 							TexCoord(*vertex);
 						else
 							glTexCoord2fv(vertex->getUV(0));

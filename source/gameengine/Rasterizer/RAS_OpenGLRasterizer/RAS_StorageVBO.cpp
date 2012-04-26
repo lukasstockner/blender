@@ -75,20 +75,22 @@ VBO::~VBO()
 
 void VBO::UpdateData()
 {
+	unsigned int i, j, k;
+	
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->vbo_id);
 
 	// Lets the video card know we are done with the old VBO
 	glBufferDataARB(GL_ARRAY_BUFFER_ARB, 0, NULL, GL_DYNAMIC_DRAW_ARB);
 
 	// Gather data
-	for (unsigned int i=0, j=0; i<data->m_vertex.size(); i++, j+=this->stride/sizeof(GLfloat))
+	for (i = 0, j = 0; i < data->m_vertex.size(); i++, j += this->stride/sizeof(GLfloat))
 	{
 		memcpy(&this->vbo[j], data->m_vertex[i].getXYZ(), sizeof(float)*3);
 		memcpy(&this->vbo[j+3], data->m_vertex[i].getNormal(), sizeof(float)*3);
 		memcpy(&this->vbo[j+6], data->m_vertex[i].getTangent(), sizeof(float)*4);
 		memcpy(&this->vbo[j+10], data->m_vertex[i].getRGBA(), sizeof(char)*4);
 
-		for (unsigned int k=0; k<RAS_TexVert::MAX_UNIT; k++)
+		for (k = 0; k < RAS_TexVert::MAX_UNIT; k++)
 			memcpy(&this->vbo[j+11+(k*2)], data->m_vertex[i].getUV(k), sizeof(float)*2);
 	}
 
@@ -110,6 +112,8 @@ void VBO::UpdateIndices()
 
 void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, RAS_IRasterizer::TexCoGen* attrib, bool multi)
 {
+	int unit;
+	
 	// Bind buffers
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, this->ibo);
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->vbo_id);
@@ -128,10 +132,10 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, 
 
 	if (multi)
 	{
-		for (int unit=0; unit<texco_num; ++unit)
+		for (unit = 0; unit < texco_num; ++unit)
 		{
 			glClientActiveTexture(GL_TEXTURE0_ARB + unit);
-			switch(texco[unit])
+			switch (texco[unit])
 			{
 				case RAS_IRasterizer::RAS_TEXCO_ORCO:
 				case RAS_IRasterizer::RAS_TEXCO_GLOB:
@@ -168,9 +172,9 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, 
 	if (GLEW_ARB_vertex_program)
 	{
 		int uv = 0;
-		for (int unit=0; unit<attrib_num; ++unit)
+		for (unit = 0; unit < attrib_num; ++unit)
 		{
-			switch(attrib[unit])
+			switch (attrib[unit])
 			{
 				case RAS_IRasterizer::RAS_TEXCO_ORCO:
 				case RAS_IRasterizer::RAS_TEXCO_GLOB:
@@ -205,7 +209,7 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, 
 
 	if (GLEW_ARB_vertex_program)
 	{
-		for (int i=0; i<attrib_num; ++i)
+		for (int i = 0; i < attrib_num; ++i)
 			glDisableVertexAttribArrayARB(i);
 	}
 
@@ -254,7 +258,7 @@ void RAS_StorageVBO::IndexPrimitivesInternal(RAS_MeshSlot& ms, bool multi)
 	{
 		vbo = m_vbo_lookup[it.array];
 
-		if(vbo == 0)
+		if (vbo == 0)
 			m_vbo_lookup[it.array] = vbo = new VBO(it.array, it.totindex);
 
 		// Update the vbo

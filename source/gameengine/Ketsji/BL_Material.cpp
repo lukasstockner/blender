@@ -66,13 +66,13 @@ void BL_Material::Initialize()
 	share = false;
 
 	int i,j;
-	for (i=0; i<4; i++)
+	for (i = 0; i < 4; i++)
 	{
-		for(j=0; j<MAXTEX; j++)
+		for (j = 0; j < MAXTEX; j++)
 			uvs[i][j] = MT_Point2(0.0,0.0);
 	}
 
-	for (i=0; i<MAXTEX; i++) // :(
+	for (i = 0; i < MAXTEX; i++) // :(
 	{
 		mapping[i].mapping = 0;
 		mapping[i].offsets[0] = 0.f;
@@ -116,18 +116,20 @@ void BL_Material::GetConversionRGB(unsigned int *nrgb)
 
 void BL_Material::SetConversionUV(const MT_Point2 nuv[4][MAXTEX])
 {
-	for(int i=0; i<4; ++i)
+	int i, j;
+	for (i = 0; i < 4; ++i)
 	{
-		for (int j=0; j<MAXTEX; ++j)
+		for (j = 0; j < MAXTEX; ++j)
 			uvs[i][j] = nuv[i][j];
 	}
 }
 
 void BL_Material::GetConversionUV(MT_Point2 nuv[4][8])
 {
-	for(int i=0; i<4; ++i)
+	int i, j;
+	for (i = 0; i < 4; ++i)
 	{
-		for (int j=0; j<MAXTEX; ++j)
+		for (j = 0; j < MAXTEX; ++j)
 			nuv[i][j] = this->uvs[i][j];
 	}
 }

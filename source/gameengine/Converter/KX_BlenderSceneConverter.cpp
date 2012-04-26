@@ -348,7 +348,7 @@ void KX_BlenderSceneConverter::ConvertScene(class KX_Scene* destinationscene,
 	}
 
 	// Lights added to the scene during the light pool initialization are now skipped when converting objects
-	if(blenderscene && m_useglslmat)
+	if (blenderscene && m_useglslmat)
 		KX_LightObject::InitBlenderLightPool(blenderscene,
 											blenderscene->gm.dynpoints,
 											blenderscene->gm.dynspots,

@@ -70,18 +70,18 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot& ms)
 	RAS_MeshSlot::iterator it;
 	GLenum drawmode;
 
-	if(!wireframe)
+	if (!wireframe)
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 	// use glDrawElements to draw each vertexarray
-	for(ms.begin(it); !ms.end(it); ms.next(it)) {
-		if(it.totindex == 0)
+	for (ms.begin(it); !ms.end(it); ms.next(it)) {
+		if (it.totindex == 0)
 			continue;
 
 		// drawing mode
-		if(it.array->m_type == RAS_DisplayArray::TRIANGLE)
+		if (it.array->m_type == RAS_DisplayArray::TRIANGLE)
 			drawmode = GL_TRIANGLES;
-		else if(it.array->m_type == RAS_DisplayArray::QUAD)
+		else if (it.array->m_type == RAS_DisplayArray::QUAD)
 			drawmode = GL_QUADS;
 		else
 			drawmode = GL_LINES;
@@ -104,9 +104,9 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot& ms)
 
 		glVertexPointer(3, GL_FLOAT, stride, it.vertex->getXYZ());
 		glNormalPointer(GL_FLOAT, stride, it.vertex->getNormal());
-		if(!wireframe) {
+		if (!wireframe) {
 			glTexCoordPointer(2, GL_FLOAT, stride, it.vertex->getUV(0));
-			if(glIsEnabled(GL_COLOR_ARRAY))
+			if (glIsEnabled(GL_COLOR_ARRAY))
 				glColorPointer(4, GL_UNSIGNED_BYTE, stride, it.vertex->getRGBA());
 		}
 
@@ -114,7 +114,7 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot& ms)
 		glDrawElements(drawmode, it.totindex, GL_UNSIGNED_SHORT, it.index);
 	}
 
-	if(!wireframe) {
+	if (!wireframe) {
 		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		glDisableClientState(GL_COLOR_ARRAY);
 	}
@@ -127,18 +127,18 @@ void RAS_StorageVA::IndexPrimitivesMulti(class RAS_MeshSlot& ms)
 	RAS_MeshSlot::iterator it;
 	GLenum drawmode;
 
-	if(!wireframe)
+	if (!wireframe)
 		EnableTextures(true);
 
 	// use glDrawElements to draw each vertexarray
-	for(ms.begin(it); !ms.end(it); ms.next(it)) {
-		if(it.totindex == 0)
+	for (ms.begin(it); !ms.end(it); ms.next(it)) {
+		if (it.totindex == 0)
 			continue;
 
 		// drawing mode
-		if(it.array->m_type == RAS_DisplayArray::TRIANGLE)
+		if (it.array->m_type == RAS_DisplayArray::TRIANGLE)
 			drawmode = GL_TRIANGLES;
-		else if(it.array->m_type == RAS_DisplayArray::QUAD)
+		else if (it.array->m_type == RAS_DisplayArray::QUAD)
 			drawmode = GL_QUADS;
 		else
 			drawmode = GL_LINES;
@@ -161,9 +161,9 @@ void RAS_StorageVA::IndexPrimitivesMulti(class RAS_MeshSlot& ms)
 
 		glVertexPointer(3, GL_FLOAT, stride, it.vertex->getXYZ());
 		glNormalPointer(GL_FLOAT, stride, it.vertex->getNormal());
-		if(!wireframe) {
+		if (!wireframe) {
 			TexCoordPtr(it.vertex);
-			if(glIsEnabled(GL_COLOR_ARRAY))
+			if (glIsEnabled(GL_COLOR_ARRAY))
 				glColorPointer(4, GL_UNSIGNED_BYTE, stride, it.vertex->getRGBA());
 		}
 
@@ -171,7 +171,7 @@ void RAS_StorageVA::IndexPrimitivesMulti(class RAS_MeshSlot& ms)
 		glDrawElements(drawmode, it.totindex, GL_UNSIGNED_SHORT, it.index);
 	}
 
-	if(!wireframe) {
+	if (!wireframe) {
 		glDisableClientState(GL_COLOR_ARRAY);
 		EnableTextures(false);
 	}
@@ -184,56 +184,56 @@ void RAS_StorageVA::TexCoordPtr(const RAS_TexVert *tv)
 	 * materials can still be used and cause crashes */
 	int unit;
 
-	if(GLEW_ARB_multitexture)
+	if (GLEW_ARB_multitexture)
 	{
-		for(unit=0; unit<*m_texco_num; unit++)
+		for (unit = 0; unit < *m_texco_num; unit++)
 		{
 			glClientActiveTextureARB(GL_TEXTURE0_ARB+unit);
-			switch(m_texco[unit])
+			switch (m_texco[unit])
 			{
-			case RAS_IRasterizer::RAS_TEXCO_ORCO:
-			case RAS_IRasterizer::RAS_TEXCO_GLOB:
-				glTexCoordPointer(3, GL_FLOAT, sizeof(RAS_TexVert),tv->getXYZ());
-				break;
-			case RAS_IRasterizer::RAS_TEXCO_UV:
-				glTexCoordPointer(2, GL_FLOAT, sizeof(RAS_TexVert),tv->getUV(unit));
-				break;
-			case RAS_IRasterizer::RAS_TEXCO_NORM:
-				glTexCoordPointer(3, GL_FLOAT, sizeof(RAS_TexVert),tv->getNormal());
-				break;
-			case RAS_IRasterizer::RAS_TEXTANGENT:
-				glTexCoordPointer(4, GL_FLOAT, sizeof(RAS_TexVert),tv->getTangent());
-				break;
-			default:
-				break;
+				case RAS_IRasterizer::RAS_TEXCO_ORCO:
+				case RAS_IRasterizer::RAS_TEXCO_GLOB:
+					glTexCoordPointer(3, GL_FLOAT, sizeof(RAS_TexVert),tv->getXYZ());
+					break;
+				case RAS_IRasterizer::RAS_TEXCO_UV:
+					glTexCoordPointer(2, GL_FLOAT, sizeof(RAS_TexVert),tv->getUV(unit));
+					break;
+				case RAS_IRasterizer::RAS_TEXCO_NORM:
+					glTexCoordPointer(3, GL_FLOAT, sizeof(RAS_TexVert),tv->getNormal());
+					break;
+				case RAS_IRasterizer::RAS_TEXTANGENT:
+					glTexCoordPointer(4, GL_FLOAT, sizeof(RAS_TexVert),tv->getTangent());
+					break;
+				default:
+					break;
 			}
 		}
 
 		glClientActiveTextureARB(GL_TEXTURE0_ARB);
 	}
 
-	if(GLEW_ARB_vertex_program) {
+	if (GLEW_ARB_vertex_program) {
 		int uv = 0;
-		for(unit=0; unit<*m_attrib_num; unit++) {
-			switch(m_attrib[unit]) {
-			case RAS_IRasterizer::RAS_TEXCO_ORCO:
-			case RAS_IRasterizer::RAS_TEXCO_GLOB:
-				glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getXYZ());
-				break;
-			case RAS_IRasterizer::RAS_TEXCO_UV:
-				glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getUV(uv++));
-				break;
-			case RAS_IRasterizer::RAS_TEXCO_NORM:
-				glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getNormal());
-				break;
-			case RAS_IRasterizer::RAS_TEXTANGENT:
-				glVertexAttribPointerARB(unit, 4, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getTangent());
-				break;
-			case RAS_IRasterizer::RAS_TEXCO_VCOL:
-				glVertexAttribPointerARB(unit, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(RAS_TexVert), tv->getRGBA());
-				break;
-			default:
-				break;
+		for (unit = 0; unit < *m_attrib_num; unit++) {
+			switch (m_attrib[unit]) {
+				case RAS_IRasterizer::RAS_TEXCO_ORCO:
+				case RAS_IRasterizer::RAS_TEXCO_GLOB:
+					glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getXYZ());
+					break;
+				case RAS_IRasterizer::RAS_TEXCO_UV:
+					glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getUV(uv++));
+					break;
+				case RAS_IRasterizer::RAS_TEXCO_NORM:
+					glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getNormal());
+					break;
+				case RAS_IRasterizer::RAS_TEXTANGENT:
+					glVertexAttribPointerARB(unit, 4, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getTangent());
+					break;
+				case RAS_IRasterizer::RAS_TEXCO_VCOL:
+					glVertexAttribPointerARB(unit, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(RAS_TexVert), tv->getRGBA());
+					break;
+				default:
+					break;
 			}
 		}
 	}
@@ -246,7 +246,7 @@ void RAS_StorageVA::EnableTextures(bool enable)
 
 	/* we cache last texcoords and attribs to ensure we disable the ones that
 	 * were actually last set */
-	if(enable) {
+	if (enable) {
 		texco = m_texco;
 		texco_num = *m_texco_num;
 		attrib = m_attrib;
@@ -264,55 +264,55 @@ void RAS_StorageVA::EnableTextures(bool enable)
 		attrib_num = m_last_attrib_num;
 	}
 
-	if(GLEW_ARB_multitexture) {
-		for(unit=0; unit<texco_num; unit++) {
-			glClientActiveTextureARB(GL_TEXTURE0_ARB+unit);
+	if (GLEW_ARB_multitexture) {
+		for (unit = 0; unit < texco_num; unit++) {
+			glClientActiveTextureARB(GL_TEXTURE0_ARB + unit);
 
-			switch(texco[unit])
+			switch (texco[unit])
 			{
-			case RAS_IRasterizer::RAS_TEXCO_ORCO:
-			case RAS_IRasterizer::RAS_TEXCO_GLOB:
-			case RAS_IRasterizer::RAS_TEXCO_UV:
-			case RAS_IRasterizer::RAS_TEXCO_NORM:
-			case RAS_IRasterizer::RAS_TEXTANGENT:
-				if(enable) glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-				else glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-				break;
-			default:
-				glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-				break;
+				case RAS_IRasterizer::RAS_TEXCO_ORCO:
+				case RAS_IRasterizer::RAS_TEXCO_GLOB:
+				case RAS_IRasterizer::RAS_TEXCO_UV:
+				case RAS_IRasterizer::RAS_TEXCO_NORM:
+				case RAS_IRasterizer::RAS_TEXTANGENT:
+					if (enable) glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+					else glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+					break;
+				default:
+					glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+					break;
 			}
 		}
 
 		glClientActiveTextureARB(GL_TEXTURE0_ARB);
 	}
 	else {
-		if(texco_num) {
-			if(enable) glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		if (texco_num) {
+			if (enable) glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 			else glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		}
 	}
 
-	if(GLEW_ARB_vertex_program) {
-		for(unit=0; unit<attrib_num; unit++) {
-			switch(attrib[unit]) {
-			case RAS_IRasterizer::RAS_TEXCO_ORCO:
-			case RAS_IRasterizer::RAS_TEXCO_GLOB:
-			case RAS_IRasterizer::RAS_TEXCO_UV:
-			case RAS_IRasterizer::RAS_TEXCO_NORM:
-			case RAS_IRasterizer::RAS_TEXTANGENT:
-			case RAS_IRasterizer::RAS_TEXCO_VCOL:
-				if(enable) glEnableVertexAttribArrayARB(unit);
-				else glDisableVertexAttribArrayARB(unit);
-				break;
-			default:
-				glDisableVertexAttribArrayARB(unit);
-				break;
+	if (GLEW_ARB_vertex_program) {
+		for (unit = 0; unit < attrib_num; unit++) {
+			switch (attrib[unit]) {
+				case RAS_IRasterizer::RAS_TEXCO_ORCO:
+				case RAS_IRasterizer::RAS_TEXCO_GLOB:
+				case RAS_IRasterizer::RAS_TEXCO_UV:
+				case RAS_IRasterizer::RAS_TEXCO_NORM:
+				case RAS_IRasterizer::RAS_TEXTANGENT:
+				case RAS_IRasterizer::RAS_TEXCO_VCOL:
+					if (enable) glEnableVertexAttribArrayARB(unit);
+					else glDisableVertexAttribArrayARB(unit);
+					break;
+				default:
+					glDisableVertexAttribArrayARB(unit);
+					break;
 			}
 		}
 	}
 
-	if(!enable) {
+	if (!enable) {
 		m_last_texco_num = 0;
 		m_last_attrib_num = 0;
 	}

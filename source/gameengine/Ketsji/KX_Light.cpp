@@ -451,7 +451,7 @@ void KX_LightObject::FreeBlenderLightPool()
 		BLI_remlink(&m_blenderlight_scene->base, base);
 		GPU_lamp_free(base->object);
 		free_libblock_us(&G.main->object, base->object);
-		if(m_blenderlight_scene->basact==base) m_blenderlight_scene->basact=NULL;
+		if (m_blenderlight_scene->basact == base) m_blenderlight_scene->basact = NULL;
 		MEM_freeN(base);
 		subpool->pop_back();
 	}

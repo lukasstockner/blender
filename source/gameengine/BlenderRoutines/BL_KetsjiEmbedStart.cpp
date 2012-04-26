@@ -206,7 +206,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		
 		//Don't use displaylists with VBOs
 		//If auto starts using VBOs, make sure to check for that here
-		if(displaylists && startscene->gm.raster_storage != RAS_STORE_VBO)
+		if (displaylists && startscene->gm.raster_storage != RAS_STORE_VBO)
 			rasterizer = new RAS_ListRasterizer(canvas, true, startscene->gm.raster_storage);
 		else
 			rasterizer = new RAS_OpenGLRasterizer(canvas, startscene->gm.raster_storage);

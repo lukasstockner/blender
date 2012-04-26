@@ -50,7 +50,7 @@ RAS_TexVert::RAS_TexVert(const MT_Point3& xyz,
 	m_unit = 2;
 	m_softBodyIndex = -1;
 
-	for(int i=0; i<MAX_UNIT; ++i)
+	for (int i = 0; i < MAX_UNIT; ++i)
 	{
 		uvs[i].getValue(m_uvs[i]);
 	}

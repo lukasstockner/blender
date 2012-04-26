@@ -93,14 +93,14 @@ void BL_BlenderShader::SetAttribs(RAS_IRasterizer* ras, const BL_Material *mat)
 
 		ras->SetTexCoordNum(0);
 		ras->SetAttribNum(attrib_num);
-		for (i=0; i<attrib_num; i++)
+		for (i = 0; i < attrib_num; i++)
 			ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, i);
 
 		for (i = 0; i < attribs.totlayer; i++) {
 			if (attribs.layer[i].glindex > attrib_num)
 				continue;
 
-			if(attribs.layer[i].type == CD_MTFACE)
+			if (attribs.layer[i].type == CD_MTFACE)
 				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_UV, attribs.layer[i].glindex);
 			else if (attribs.layer[i].type == CD_TANGENT)
 				ras->SetAttrib(RAS_IRasterizer::RAS_TEXTANGENT, attribs.layer[i].glindex);
