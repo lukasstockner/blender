@@ -111,6 +111,8 @@
 #include "COM_MovieDistortionNode.h"
 #include "COM_ViewLevelsNode.h"
 #include "COM_DefocusNode.h"
+#include "COM_DoubleEdgeMaskNode.h"
+#include "COM_CropNode.h"
 
 Node* Converter::convert(bNode *bNode) {
 	Node * node;
@@ -343,9 +345,13 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_DEFOCUS:
 		node = new DefocusNode(bNode);
 		break;
-	/* not inplemented yet */
 	case CMP_NODE_DOUBLEEDGEMASK:
+		node = new DoubleEdgeMaskNode(bNode);
+		break;
 	case CMP_NODE_CROP:
+		node = new CropNode(bNode);
+		break;
+	/* not inplemented yet */
 	default:
 		node = new MuteNode(bNode);
 		break;

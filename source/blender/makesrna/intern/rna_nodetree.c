@@ -3738,7 +3738,7 @@ static void rna_def_composite_nodetree(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "chunksize", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "chunksize");
 	RNA_def_property_ui_text(prop, "Chunksize", "Max size of a chunk during calculation");
-	RNA_def_property_range(prop, 16, 512);
+	RNA_def_property_range(prop, 32, 1024);
 
 	prop= RNA_def_property(srna, "use_opencl", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", NTREE_COM_OPENCL);

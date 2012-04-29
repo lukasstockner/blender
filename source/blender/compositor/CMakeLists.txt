@@ -181,6 +181,11 @@ set(SRC
 	nodes/COM_GlareNode.cpp
 	nodes/COM_GlareNode.h
 
+	nodes/COM_CropNode.cpp
+	nodes/COM_CropNode.h
+	operations/COM_CropOperation.cpp
+	operations/COM_CropOperation.h
+
 	operations/COM_LensGlowOperation.cpp
 	operations/COM_LensGlowOperation.h
 	operations/COM_LensGhostOperation.cpp
@@ -312,13 +317,17 @@ set(SRC
 	operations/COM_GammaCorrectOperation.cpp
 
 # Matte nodes
-nodes/COM_BoxMaskNode.cpp
-nodes/COM_BoxMaskNode.h
-nodes/COM_EllipseMaskNode.cpp
-nodes/COM_EllipseMaskNode.h
-nodes/COM_ColorSpillNode.cpp
-nodes/COM_ColorSpillNode.h
+	nodes/COM_BoxMaskNode.cpp
+	nodes/COM_BoxMaskNode.h
+	nodes/COM_EllipseMaskNode.cpp
+	nodes/COM_EllipseMaskNode.h
+	nodes/COM_ColorSpillNode.cpp
+	nodes/COM_ColorSpillNode.h
+	nodes/COM_DoubleEdgeMaskNode.cpp
+	nodes/COM_DoubleEdgeMaskNode.h
 
+	operations/COM_DoubleEdgeMaskOperation.cpp
+	operations/COM_DoubleEdgeMaskOperation.h
 operations/COM_ColorSpillOperation.cpp
 operations/COM_ColorSpillOperation.h
 		operations/COM_RenderLayersBaseProg.cpp
