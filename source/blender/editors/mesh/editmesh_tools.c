@@ -927,7 +927,9 @@ static int edbm_delete_exec(bContext *C, wmOperator *op)
 		//"Erase Only Faces";
 		if (!EDBM_op_callf(em, op, "del geom=%hf context=%i",
 		                   BM_ELEM_SELECT, DEL_ONLYFACES))
+		{
 			return OPERATOR_CANCELLED;
+		}
 	}
 
 	EDBM_flag_disable_all(em, BM_ELEM_SELECT);
@@ -1021,8 +1023,7 @@ static int edbm_add_edge_face__smooth_get(BMesh *bm)
 	unsigned int vote_on_smooth[2] = {0, 0};
 
 	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
-		if (BM_elem_flag_test(e, BM_ELEM_SELECT) && e->l)
-		{
+		if (BM_elem_flag_test(e, BM_ELEM_SELECT) && e->l) {
 			vote_on_smooth[BM_elem_flag_test_bool(e->l->f, BM_ELEM_SMOOTH)]++;
 		}
 	}
@@ -3639,22 +3640,6 @@ static int vergxco(const void *v1, const void *v2)
 	return (x2->org_idx < 0) - (x1->org_idx < 0);
 }
 
-#if 0 /* Unused */
-struct facesort {
-	uintptr_t x;
-	struct EditFace *efa;
-};
-
-static int vergface(const void *v1, const void *v2)
-{
-	const struct facesort *x1 = v1, *x2 = v2;
-
-	if (x1->x > x2->x) return 1;
-	else if (x1->x < x2->x) return -1;
-	return 0;
-}
-#endif
-
 static void xsortvert_flag__doSetX(void *userData, BMVert *UNUSED(eve), int x, int UNUSED(y), int index)
 {
 	xvertsort *sortblock = userData;
@@ -4280,3 +4265,4 @@ void MESH_OT_inset(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "use_outset", FALSE, "Outset", "Outset rather than inset");
 	RNA_def_boolean(ot->srna, "use_select_inset", TRUE, "Select Outer", "Select the new inset faces");
 }
+
