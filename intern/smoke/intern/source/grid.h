@@ -218,6 +218,8 @@ class Grid : public GridBase {
 		inline Scalar& get(int x,int y, int z) { return getGlobal(x,y,z); }
 		inline Scalar& get(nVec3i p) { return getGlobal(p[0],p[1],p[2]); }
 
+		inline Scalar *data() { return mpData; }
+
 		// direct access with given index
 		inline Scalar& operator[] (size_t index) {
 			if (gStrictGridDebug && (index<0 || index>=(mSizeX*mSizeY*mSizeZ)) ) {

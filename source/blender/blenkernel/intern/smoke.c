@@ -1623,30 +1623,39 @@ static void step(Scene *scene, Object *ob, SmokeModifierData *smd, float fps)
 	// printf("test maxVel: %f\n", (sds->dx * 1.5) / dt); // gives 0.9
 	maxVel = (sds->dx * 1.5);
 
-	for(i = 0; i < size; i++)
+	if(velX && velY && velZ)
 	{
-		float vtemp = (velX[i]*velX[i]+velY[i]*velY[i]+velZ[i]*velZ[i]);
-		if(vtemp > maxVelMag)
-			maxVelMag = vtemp;
+		for(i = 0; i < size; i++)
+		{
+			float vtemp = (velX[i]*velX[i]+velY[i]*velY[i]+velZ[i]*velZ[i]);
+			if(vtemp > maxVelMag)
+				maxVelMag = vtemp;
+		}
+
+		maxVelMag = sqrt(maxVelMag) * dt * sds->time_scale;
+		totalSubsteps = (int)((maxVelMag / maxVel) + 1.0f); /* always round up */
+		totalSubsteps = (totalSubsteps < 1) ? 1 : totalSubsteps;
+		totalSubsteps = (totalSubsteps > maxSubSteps) ? maxSubSteps : totalSubsteps;
+
+		// totalSubsteps = 2.0f; // DEBUG
+
+
+
+		// printf("totalSubsteps: %d, maxVelMag: %f, dt: %f\n", totalSubsteps, maxVelMag, dt);
 	}
-
-	maxVelMag = sqrt(maxVelMag) * dt * sds->time_scale;
-	totalSubsteps = (int)((maxVelMag / maxVel) + 1.0f); /* always round up */
-	totalSubsteps = (totalSubsteps < 1) ? 1 : totalSubsteps;
-	totalSubsteps = (totalSubsteps > maxSubSteps) ? maxSubSteps : totalSubsteps;
-
-	// totalSubsteps = 2.0f; // DEBUG
+	else // DG TODO this is only needed during dev phase of new smoke, normaly direct velocity access should be there
+		totalSubsteps = 1.0;
 
 	dtSubdiv = (float)dt / (float)totalSubsteps;
 
-	// printf("totalSubsteps: %d, maxVelMag: %f, dt: %f\n", totalSubsteps, maxVelMag, dt);
 
 	for(substep = 0; substep < totalSubsteps; substep++)
 	{
 		// calc animated obstacle velocities
-		update_obstacles(scene, ob, sds, dtSubdiv, substep, totalSubsteps);
-		update_flowsfluids(scene, ob, sds, smd->time);
-		update_effectors(scene, ob, sds, dtSubdiv); // DG TODO? problem --> uses forces instead of velocity, need to check how they need to be changed with variable dt
+		// DG TODO reenable this 3 calls again!
+		// update_obstacles(scene, ob, sds, dtSubdiv, substep, totalSubsteps);
+		// update_flowsfluids(scene, ob, sds, smd->time);
+		// update_effectors(scene, ob, sds, dtSubdiv); // DG TODO? problem --> uses forces instead of velocity, need to check how they need to be changed with variable dt
 
 		smoke_step(sds->fluid, dtSubdiv);
 

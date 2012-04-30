@@ -42,18 +42,13 @@ using namespace DDF;
 // y in smoke is z in blender
 extern "C" FLUID_3D *smoke_init(int *res, float *p0, float dtdef)
 {
-	res[0] = 200;
-	res[1] = 80;
-	res[2] = 150;
-	FLUID_3D *ddf = new FLUID_3D(res);
 	printf("-------------------- SMOKE INIT --------------------------\n");
-	ddf->init();
-	printf("-------------------- SMOKE STEP --------------------------\n");
-	ddf->step();
-	printf("-------------------- SMOKE DEL ---------------------------\n");
-	ddf->del();
-	delete ddf;
-	return NULL;
+	res[0] = 32;
+	res[1] = 32;
+	res[2] = 32;
+	FLUID_3D *fluid = new FLUID_3D(res);
+	fluid->init();
+	return fluid;
 }
 
 extern "C" WTURBULENCE *smoke_turbulence_init(int *res, int amplify, int noisetype)
@@ -63,6 +58,8 @@ extern "C" WTURBULENCE *smoke_turbulence_init(int *res, int amplify, int noisety
 
 extern "C" void smoke_free(FLUID_3D *fluid)
 {
+	printf("-------------------- SMOKE DEL ---------------------------\n");
+	fluid->del();
 	delete fluid;
 	fluid = NULL;
 }
@@ -76,7 +73,7 @@ extern "C" void smoke_turbulence_free(WTURBULENCE *wt)
 extern "C" size_t smoke_get_index(int x, int max_x, int y, int max_y, int z /*, int max_z */)
 {
 	// // const int index = x + y * smd->res[0] + z * smd->res[0]*smd->res[1];
-	return x + y * max_x + z * max_x*max_y;
+	return x + y * max_x + z * max_x*max_y; // (z*mSizeY+y)*mSizeX+x
 }
 
 extern "C" size_t smoke_get_index2d(int x, int max_x, int y /*, int max_y, int z, int max_z */)
@@ -86,7 +83,8 @@ extern "C" size_t smoke_get_index2d(int x, int max_x, int y /*, int max_y, int z
 
 extern "C" void smoke_step(FLUID_3D *fluid, float dtSubdiv)
 {
-	
+	printf("-------------------- SMOKE STEP --------------------------\n");
+	fluid->step();
 }
 
 extern "C" void smoke_turbulence_step(WTURBULENCE *wt, FLUID_3D *fluid)
@@ -131,7 +129,7 @@ extern "C" void smoke_turbulence_export(WTURBULENCE *wt, float **dens, float **d
 
 extern "C" float *smoke_get_density(FLUID_3D *fluid)
 {
-	return NULL;
+	return fluid->_density->data();
 }
 
 extern "C" float *smoke_get_heat(FLUID_3D *fluid)
