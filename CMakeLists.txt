@@ -228,6 +228,7 @@ if(UNIX AND NOT APPLE)
 	option(WITH_INSTALL_PORTABLE "Install redistributeable runtime, otherwise install into CMAKE_INSTALL_PREFIX" ON)
 endif()
 option(WITH_PYTHON_INSTALL       "Copy system python into the blender install folder" ON)
+option(WITH_PYTHON_INSTALL_NUMPY "Copy system numpy into the blender install folder"  ON)
 option(WITH_MINGW64                   "Use the 64-bit version of MinGW" OFF)
 mark_as_advanced(WITH_MINGW64)
 
@@ -827,7 +828,7 @@ elseif(WIN32)
 		set(CMAKE_C_FLAGS_RELWITHDEBINFO "/O2 /Ob1 /MT /Zi" CACHE STRING "MSVC MT flags " FORCE)
 
 		# most msvc warnings are C & C++
-		set(_WARNINGS "/W3 /wd4018 /wd4244 /wd4305 /wd4800 /wd4181 /wd4065 /wd4267 /we4013")
+		set(_WARNINGS "/W3 /wd4018 /wd4244 /wd4305 /wd4800 /wd4181 /wd4065 /wd4267 /we4013 /wd4200")
 		set(C_WARNINGS "${_WARNINGS}")
 		set(CXX_WARNINGS "${_WARNINGS}")
 		unset(_WARNINGS)
@@ -1612,6 +1613,13 @@ if(WITH_PYTHON)
 							"to a valid python include path. Containing "
 							"Python.h for python version \"${PYTHON_VERSION}\"")
 	endif()
+
+	if(WITH_PYTHON_INSTALL_NUMPY)
+		if(NOT EXISTS "${PYTHON_LIBPATH}/python${PYTHON_VERSION}/site-packages/numpy")
+			message(WARNING "Numpy path '${PYTHON_LIBPATH}/python${PYTHON_VERSION}/site-packages/numpy' is missing, "
+							"WITH_PYTHON_INSTALL_NUMPY option will be ignored when installing python")
+		endif()
+	endif()
 endif()
 
 
@@ -1668,7 +1676,7 @@ if(FIRST_RUN)
 		_setting)
 		set(_msg "   * ${_setting}")
 		string(LENGTH "${_msg}" _len)
-		while("28" GREATER "${_len}")
+		while("32" GREATER "${_len}")
 			set(_msg "${_msg} ")
 			 math(EXPR _len "${_len} + 1")
 		endwhile()
@@ -1728,6 +1736,7 @@ if(FIRST_RUN)
 
 	info_cfg_text("Python:")
 	info_cfg_option(WITH_PYTHON_INSTALL)
+	info_cfg_option(WITH_PYTHON_INSTALL_NUMPY)
 	info_cfg_option(WITH_PYTHON_MODULE)
 	info_cfg_option(WITH_PYTHON_SAFETY)
 
