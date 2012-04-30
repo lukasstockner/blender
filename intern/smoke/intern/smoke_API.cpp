@@ -283,11 +283,6 @@ extern "C" void smoke_get_ob_velocity(struct FLUID_3D *fluid, float **x, float *
 	*z = fluid->_zVelocityOb;
 }
 
-extern "C" unsigned char *smoke_get_obstacle_anim(FLUID_3D *fluid)
-{
-	return fluid->_obstaclesAnim;
-}
-
 extern "C" void smoke_turbulence_set_noise(WTURBULENCE *wt, int type)
 {
 	wt->setNoise(type);

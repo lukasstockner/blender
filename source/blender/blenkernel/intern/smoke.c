@@ -1279,8 +1279,7 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 				float *velocity_x = smoke_get_velocity_x(sds->fluid);								
 				float *velocity_y = smoke_get_velocity_y(sds->fluid);								
 				float *velocity_z = smoke_get_velocity_z(sds->fluid);								
-				unsigned char *obstacle = smoke_get_obstacle(sds->fluid);							
-				// DG TODO UNUSED unsigned char *obstacleAnim = smoke_get_obstacle_anim(sds->fluid);
+				unsigned char *obstacle = smoke_get_obstacle(sds->fluid);
 				int bigres[3];
 				short absolute_flow = (sfs->flags & MOD_SMOKE_FLOW_ABSOLUTE);
 				short high_emission_smoothing = bigdensity ? (sds->flags & MOD_SMOKE_HIGH_SMOOTH) : 0;
