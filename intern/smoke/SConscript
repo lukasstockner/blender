@@ -2,6 +2,8 @@
 Import ('env')
 
 sources = env.Glob('intern/*.cpp')
+sources += env.Glob('util/*.cpp')
+sources += env.Glob('source/*.cpp')
 
 incs = ''
 defs = ''
