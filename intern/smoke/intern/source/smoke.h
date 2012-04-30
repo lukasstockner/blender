@@ -62,13 +62,21 @@ namespace DDF
 			Grid<Vec3>	*_meanVel;
 			Grid<Vec3>	*_abl;
 
+			/* Run */
+			Grid<Real>	*_density;
+			Grid<Vec3>	*_vorticity;
+
 			FLUID_3D(int res[3]) 
 			{
 				_flags = NULL;
 				_normal = NULL;
 				_dist = NULL;
+
 				_meanVel = NULL;
 				_abl = NULL;
+
+				_density = NULL;
+				_vorticity = NULL;
 				
 				_res[0] = res[0];
 				_res[1] = res[1];
@@ -82,13 +90,20 @@ namespace DDF
 				delete _flags;
 				delete _normal;
 				delete _dist;
+
 				delete _meanVel;
 				delete _abl;
+
+				delete _density;
+				delete _vorticity;
 			};
 
 			void init();
+			
 			void precompute();
 			void step();
+
+			void del();
 	};
 
 };

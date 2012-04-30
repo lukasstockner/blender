@@ -46,9 +46,9 @@ namespace DDF
 	class SolverObject
 	{
 		public:
-		SolverObject(const std::string& name, const nVec3i& gridSize);
+		SolverObject(const std::string& name, const nVec3i& gridSize, int gridFlags = 0);
 		SolverObject(const std::string& name, const std::string& flagGridFile);
-		SolverObject(const std::string& name, const SolverObject& source, int multiplier);
+		SolverObject(const std::string& name, const SolverObject& source, int multiplier, int gridFlags);
 		SolverObject(const string& name, Grid<int> *flags);
 		~SolverObject();
 
@@ -71,7 +71,8 @@ namespace DDF
 		void addStandardSolverGrids();
 
 		protected:
-		void init(const std::string& name, const nVec3i& gridSize);
+		void init(const std::string& name, const nVec3i& gridSize, int gridFlags = 0);
+		void init(const string& name, const nVec3i& size, Grid<int> *flags);
 		SolverPlugin* createPlugin(const std::string& name, const PluginArgument&);
 		
 		FluidSolver* mSolver;

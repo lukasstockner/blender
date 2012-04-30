@@ -46,7 +46,12 @@ extern "C" FLUID_3D *smoke_init(int *res, float *p0, float dtdef)
 	res[1] = 80;
 	res[2] = 150;
 	FLUID_3D *ddf = new FLUID_3D(res);
+	printf("-------------------- SMOKE INIT --------------------------\n");
 	ddf->init();
+	printf("-------------------- SMOKE STEP --------------------------\n");
+	ddf->step();
+	printf("-------------------- SMOKE DEL ---------------------------\n");
+	ddf->del();
 	delete ddf;
 	return NULL;
 }

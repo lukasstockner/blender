@@ -57,9 +57,9 @@ PluginArgument operator+ (const PluginArgument& t, const PluginArgument& s)
 //******************************************************************************
 // SolverObject class
 
-SolverObject::SolverObject(const string& name, const nVec3i& gridSize)
+SolverObject::SolverObject(const string& name, const nVec3i& gridSize, int gridFlags)
 {
-	init(name, gridSize);
+	init(name, gridSize, gridFlags);
 }
 
 SolverObject::SolverObject(const string& name, const std::string& flagGridFile)
@@ -69,10 +69,10 @@ SolverObject::SolverObject(const string& name, const std::string& flagGridFile)
 	addInitPlugin ("load-universal", StringArg("grid","flags") + StringArg("file",flagGridFile));
 }
 
-SolverObject::SolverObject(const std::string& name, const SolverObject& source, int multiplier)
+SolverObject::SolverObject(const std::string& name, const SolverObject& source, int multiplier, int gridFlags)
 {
 	nVec3i size = source.getParams().getGridSize() * multiplier;
-	init(name, size);
+	init(name, size, gridFlags);
 	getParams().setMultiplier(multiplier);
 	getParams().adaptInit(&source.getParams());
 }
@@ -80,8 +80,7 @@ SolverObject::SolverObject(const std::string& name, const SolverObject& source, 
 SolverObject::SolverObject(const string& name, Grid<int> *flags)
 {
 	nVec3i size = flags->getSize();
-	init(name, size);
-	createIntGrid("flags", flags);	
+	init(name, size, flags);
 }
 
 SolverObject::~SolverObject()
@@ -90,7 +89,7 @@ SolverObject::~SolverObject()
 }
 
 // initialize default solver params
-void SolverObject::init(const string& name, const nVec3i& size)
+void SolverObject::init(const string& name, const nVec3i& size, int gridFlags)
 {
 	ParamSet par;
 	par.AddInt("host-vorticity-system", 1);
@@ -111,7 +110,43 @@ void SolverObject::init(const string& name, const nVec3i& size)
 	mSolver->setParams(solverParam);
 
 	// create default grids
-	createIntGrid("flags");
+	createIntGrid("flags", gridFlags);
+	createVec3Grid("vel-curr",false);
+	createRealGrid("pressure",false);
+
+	// globally register solver
+	gFluidSolvers[mSolver->getName()] = mSolver;
+	if (gpFsolver == NULL) gpFsolver = mSolver;
+
+	// setup GUI params
+	 #if DDF_GLUTGUI == 1
+	gGlutGuiParams.AddString("solvername", gpFsolver->getName());
+	#endif
+}
+
+// initialize default solver params
+void SolverObject::init(const string& name, const nVec3i& size, Grid<int> *flags)
+{
+	ParamSet par;
+	par.AddInt("host-vorticity-system", 1);
+	par.AddFloat("timestep", 1.0);
+	par.AddVector("gridsize", vec2R(size));
+	par.AddFloat("cg-max-iter-fac", 0.30);
+	par.AddFloat("cg-accuracy", 0.001);
+		// setup plugin lists
+	mInitPlugins.clear();
+	mPlugins.clear();
+	mEndPlugins.clear();
+	mStarted = false;
+
+	// create solver
+	SolverParams* solverParam = new SolverParams("p_" + name);
+	solverParam->initFromParamSet(par);
+	mSolver = new FluidSolver("s_" + name);
+	mSolver->setParams(solverParam);
+
+	// create default grids
+	createIntGrid("flags", flags);
 	createVec3Grid("vel-curr",false);
 	createRealGrid("pressure",false);
 
@@ -201,20 +236,17 @@ void SolverObject::createVec3Grid(const std::string& name, int gridFlags)
 /* Use existing arrays */
 void SolverObject::createIntGrid(const std::string& name, Grid<int> *grid)
 {
-	grid->setName(name);
-	mSolver->getParams()->mGridsInt[grid->getName()] = grid;
+	mSolver->getParams()->mGridsInt[name] = grid;
 }
 
 void SolverObject::createRealGrid(const std::string& name, Grid<Real> *grid)
 {
-	grid->setName(name);
-	mSolver->getParams()->mGridsReal[grid->getName()] = grid;
+	mSolver->getParams()->mGridsReal[name] = grid;
 }
 
 void SolverObject::createVec3Grid(const std::string& name, Grid<Vec3> *grid)
 {
-	grid->setName(name);
-	mSolver->getParams()->mGridsVec3[grid->getName()] = grid;
+	mSolver->getParams()->mGridsVec3[name] = grid;
 }
 
 void SolverObject::createNoiseField(const string& name, const Vec3& posOffset, const Vec3& posScale, Real valOffset, Real valScale, Real timeAnim)
