@@ -42,14 +42,16 @@ using namespace DDF;
 // y in smoke is z in blender
 extern "C" FLUID_3D *smoke_init(int *res, float *p0, float dtdef)
 {
-	printf("-------------------- SMOKE INIT --------------------------\n");
+	printf("-------------------- SMOKE CREATE --------------------------\n");
 	/*
 	res[0] = 32;
 	res[1] = 32;
 	res[2] = 32;
 	*/
 	FLUID_3D *fluid = new FLUID_3D(res);
-	fluid->init();
+	printf("-------------------- SMOKE INIT --------------------------\n");
+	if(!fluid->_init)
+		fluid->init();
 	return fluid;
 }
 

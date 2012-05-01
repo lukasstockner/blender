@@ -5,8 +5,10 @@ using namespace DDF;
 
 void FLUID_3D::init()
 {
+	/*
 	printf("-------------------- SMOKE INIT A-------------------------\n");
 	{ // static scene
+		printf("init res %d, %d, %d\n", _res[0], _res[1], _res[2]);
 		SolverObject* solver = new SolverObject( "makescene", nVec3i ( _res[0], _res[1], _res[2] ) ); // 200, 80, 150
 		solver->createVec3Grid ( "normal" );
 		solver->createRealGrid ( "dist" );
@@ -45,7 +47,7 @@ void FLUID_3D::init()
 		const int nFrames = 50;
 		precompute("static", inflow, nFrames, false);
 	}
-
+*/
 	printf("-------------------- SMOKE INIT B-------------------------\n");
 	{
 		Vec3 inflow (0.4, 0, 0);
@@ -56,12 +58,12 @@ void FLUID_3D::init()
 		// create grids
 		solver->createVec3Grid ( "mean-flow" );
 		solver->createRealGrid ( "dist" );
-		solver->createVec3Grid ( "vorticity" );
+		solver->createVec3Grid ( "vorticity", DDF_GRID_NO_FREE );
 		solver->createVec3Grid ( "ABL" );
 		solver->createVec3Grid ( "pre-ABL" );
 		solver->createVec3Grid ( "vort" );
 		solver->createRealGrid ( "pdf" );
-		solver->createRealGrid ( "density" );
+		solver->createRealGrid ( "density", DDF_GRID_NO_FREE );
 		solver->addStandardSolverGrids();
 		solver->createNoiseField("noise", Vec3(0.), Vec3(50,50,50), -0.4, 2.0, 0.002);
 
@@ -93,6 +95,8 @@ void FLUID_3D::init()
 
 	_vorticity = _solvers[0]->getParams().getGridVec3("vorticity");
 	_density = _solvers[0]->getParams().getGridReal("density");
+
+	_init = 1;
 
 }
 
@@ -176,4 +180,6 @@ void FLUID_3D::del()
 {
 	finalizeAllSolvers();
 	freeAllSolvers();
+
+	_init = 0;
 }

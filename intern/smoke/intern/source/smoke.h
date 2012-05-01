@@ -53,6 +53,8 @@ namespace DDF
 		public:
 			int _res[3];
 
+			bool _init;
+
 			/* Init */
 			Grid<int>	*_flags;
 			Grid<Vec3>	*_normal;
@@ -81,6 +83,8 @@ namespace DDF
 				_res[0] = res[0];
 				_res[1] = res[1];
 				_res[2] = res[2];
+
+				_init = 0;
 			};
 
 			~FLUID_3D() 

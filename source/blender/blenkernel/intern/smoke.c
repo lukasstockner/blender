@@ -935,7 +935,7 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			smd->domain->eff_group = NULL;
 			smd->domain->fluid_group = NULL;
 			smd->domain->coll_group = NULL;
-			smd->domain->maxres = 32;
+			smd->domain->maxres = 80;
 			smd->domain->amplify = 1;			
 			smd->domain->omega = 1.0;			
 			smd->domain->alpha = -0.001;
@@ -1884,9 +1884,11 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 			smoke_turbulence_step(sds->wt, sds->fluid);
 		}
 	
+		/* DG TODO
 		BKE_ptcache_validate(cache, framenr);
 		if(framenr != startframe)
 			BKE_ptcache_write(&pid, framenr);
+			*/
 
 		tend();
 		// printf ( "Frame: %d, Time: %f\n\n", (int)smd->time, ( float ) tval() );
