@@ -100,7 +100,7 @@ namespace DDF
 
 			void init();
 			
-			void precompute();
+			void precompute(const std::string& name, const Vec3& inflow, int frames, bool dynamic, const Vec3& rotAxis = Vec3(0.), Real rotSpeed = 0.);
 			void step();
 
 			void del();

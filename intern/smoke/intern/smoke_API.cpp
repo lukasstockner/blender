@@ -43,9 +43,11 @@ using namespace DDF;
 extern "C" FLUID_3D *smoke_init(int *res, float *p0, float dtdef)
 {
 	printf("-------------------- SMOKE INIT --------------------------\n");
+	/*
 	res[0] = 32;
 	res[1] = 32;
 	res[2] = 32;
+	*/
 	FLUID_3D *fluid = new FLUID_3D(res);
 	fluid->init();
 	return fluid;

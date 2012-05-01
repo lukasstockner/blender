@@ -7,23 +7,24 @@ void FLUID_3D::init()
 {
 	printf("-------------------- SMOKE INIT A-------------------------\n");
 	{ // static scene
-		SolverObject* solver = new SolverObject( "makescene", nVec3i ( _res[0], _res[1], _res[2] ), DDF_GRID_NO_FREE );
-		solver->createVec3Grid ( "normal", DDF_GRID_NO_FREE /* Do not free grid when freeing solver */);
-		solver->createRealGrid ( "dist", DDF_GRID_NO_FREE );
+		SolverObject* solver = new SolverObject( "makescene", nVec3i ( _res[0], _res[1], _res[2] ) ); // 200, 80, 150
+		solver->createVec3Grid ( "normal" );
+		solver->createRealGrid ( "dist" );
 		solver->addInitPlugin ( "init-box-domain",  IntArg ( "flag-inside",FFLUID ) + IntArg ( "flag-border",FINFLOW ) + IntArg("flag-floor", FOBSTACLE) );
-		
 		// obstacles
 		solver->addInitPlugin ( "init-sphere", VecArg("center",Vec3(0.25,0.6,0.35)) + RealArg("radius",0.1) + StringArg("norm","normal")+StringArg("dist","dist"));	
 		solver->addInitPlugin ( "init-box", VecArg("pos1",Vec3(0.2,0.0,0.3)) + VecArg("pos2",Vec3(0.3,0.6,0.4)) + StringArg("norm","normal")+StringArg("dist","dist"));	
 		solver->addInitPlugin ( "init-box", VecArg("pos1",Vec3(0.3,0.0,0.65)) + VecArg("pos2",Vec3(0.5,0.3,0.9)) + StringArg("norm","normal")+StringArg("dist","dist"));	
 		solver->addInitPlugin ( "init-box", VecArg("pos1",Vec3(0.6,0.0,0.3)) + VecArg("pos2",Vec3(0.65,0.4,0.5)) + StringArg("norm","normal")+StringArg("dist","dist"));	
-		
 		// smoke seed
 		solver->addInitPlugin ( "init-sphere", VecArg("center",Vec3(0.3,0.65,0.35)) + RealArg("radius",0.1) + IntArg("type", FDENSITYSOURCE));	
 		solver->addInitPlugin ( "init-box", VecArg("pos1",Vec3(0.25,0.0,0.3)) + VecArg("pos2",Vec3(0.35,0.65,0.4)) + IntArg("type", FDENSITYSOURCE));	
 		solver->addInitPlugin ( "init-box", VecArg("pos1",Vec3(0.35,0.0,0.65)) + VecArg("pos2",Vec3(0.55,0.35,0.9)) + IntArg("type", FDENSITYSOURCE));	
 		solver->addInitPlugin ( "init-box", VecArg("pos1",Vec3(0.65,0.0,0.3)) + VecArg("pos2",Vec3(0.7,0.45,0.5)) + IntArg("type", FDENSITYSOURCE));	
 
+		solver->addInitPlugin ( "dump-universal", StringArg ( "grid", "flags" ) + StringArg ( "override-name","scene/static-flags" )  + IntArg ( "single-dump", 1 ) );	
+		solver->addInitPlugin ( "dump-universal", StringArg ( "grid", "dist" ) + StringArg ( "override-name","scene/static-dist" )  + IntArg ( "single-dump", 1 ) );	
+		solver->addInitPlugin ( "dump-universal", StringArg ( "grid", "normal" ) + StringArg ( "override-name","scene/static-normal" )  + IntArg ( "single-dump", 1 ) );	
 		_solvers.push_back(solver);
 	}
 
@@ -33,48 +34,45 @@ void FLUID_3D::init()
 
 	finalizeAllSolvers();
 
-	_flags = _solvers[0]->getParams().getGridInt("flags");
-	_normal = _solvers[0]->getParams().getGridVec3("normal");
-	_dist = _solvers[0]->getParams().getGridReal("dist");
+	// _flags = _solvers[0]->getParams().getGridInt("flags");
+	// _normal = _solvers[0]->getParams().getGridVec3("normal");
+	// _dist = _solvers[0]->getParams().getGridReal("dist");
 
 	freeAllSolvers();
 
-	precompute();
+	{
+		Vec3 inflow (0.4, 0, 0);
+		const int nFrames = 50;
+		precompute("static", inflow, nFrames, false);
+	}
 
 	printf("-------------------- SMOKE INIT B-------------------------\n");
 	{
-		SolverObject* solver = new SolverObject( "run_static", _flags );
-
-		Vec3 inflow (0.0, 0, 0.4); // DG TODO: get this from blender
+		Vec3 inflow (0.4, 0, 0);
+		SolverObject* solver = new SolverObject( "run_static", "scene/static-flags.gz" );
 		solver->getParams().mU0 = inflow;
-
-		solver->getParams().mTimestepAnim = 0.005; // DG TODO: what is this parameter supposed to do?
+		solver->getParams().mTimestepAnim = 0.005;
 			
 		// create grids
-		solver->createVec3Grid ( "mean-flow", _meanVel ); // DG TODO: load this from mem? - constructed/dumped in precompute normally
-		solver->createRealGrid ( "dist", _dist );
-
-		solver->createVec3Grid ( "vorticity", DDF_GRID_NO_FREE ); // DG TODO: how to handle vorticity?
-
-		solver->createVec3Grid ( "ABL" ); // ABL = artificial boundary layer
-		solver->createVec3Grid ( "pre-ABL", _abl ); // DG TODO: load this from mem
-		solver->createVec3Grid ( "vort" ); // DG TODO: create this on init? what is this?
-		solver->createRealGrid ( "pdf" ); // DG TODO: create this on init? what is this?
-
-		solver->createRealGrid ( "density", DDF_GRID_NO_FREE ); // DG TODO: create this on init
-
-		solver->addStandardSolverGrids(); // DG TODO: make this grids global?
+		solver->createVec3Grid ( "mean-flow" );
+		solver->createRealGrid ( "dist" );
+		solver->createVec3Grid ( "vorticity" );
+		solver->createVec3Grid ( "ABL" );
+		solver->createVec3Grid ( "pre-ABL" );
+		solver->createVec3Grid ( "vort" );
+		solver->createRealGrid ( "pdf" );
+		solver->createRealGrid ( "density" );
+		solver->addStandardSolverGrids();
 		solver->createNoiseField("noise", Vec3(0.), Vec3(50,50,50), -0.4, 2.0, 0.002);
 
 		// program solver initialization process
-		// solver->addInitPlugin ( "load-universal", StringArg("grid","dist") + StringArg("file","scene/static-dist.gz"));
-		// solver->addInitPlugin ( "load-universal", StringArg("grid","mean-flow") + StringArg("file","scene/static-mean.gz"));
-		// solver->addInitPlugin ( "load-universal", StringArg("grid","pre-ABL") + StringArg("file","scene/static-abl.gz"));
+		solver->addInitPlugin ( "load-universal", StringArg("grid","dist") + StringArg("file","scene/static-dist.gz"));
+		solver->addInitPlugin ( "load-universal", StringArg("grid","mean-flow") + StringArg("file","scene/static-mean.gz"));
+		solver->addInitPlugin ( "load-universal", StringArg("grid","pre-ABL") + StringArg("file","scene/static-abl.gz"));
 		
 		// program solver main loop
 		solver->addPlugin ( "copy-grid", StringArg ( "src","mean-flow" ) + StringArg ( "dest","vel-curr") );
 		solver->addPlugin ("init-density-inflow", StringArg("density","density") + RealArg("target-value",0.7) + IntArg("flag", FDENSITYSOURCE) + StringArg("noise","noise")); 
-		
 		solver->addPlugin ( "gen-vpart", StringArg ("source","pre-ABL") + StringArg ("flow","ABL") + StringArg("dist","dist") + StringArg("pdf","pdf") +
 							RealArg("thres-vort", 2e-2) + RealArg("thres-pdf",5e-5) + RealArg("mult-pdf",1) + RealArg("scale-flow",0.94) + RealArg("max-bl",0.15) +
 							RealArg("min-dist", 3) + RealArg("min-rad", 3) + RealArg("max-rad", 7) + RealArg("vortex-gain", 2.5) + RealArg("fade-in", 0));
@@ -83,10 +81,10 @@ void FLUID_3D::init()
 		solver->addPlugin ( "apply-vpart", StringArg ( "vorticity", "vorticity" ) );
 		solver->addPlugin ( "advect-vpart");
 		solver->addPlugin ( "merge-vpart", StringArg("ndist","dist") + RealArg("init-time", 30) + RealArg("decay-time",450) + RealArg("merge-dist",0.8) +
-   		 					RealArg("dissipate-radius",1) + RealArg("radius-cascade",1.5) );
+   							RealArg("dissipate-radius",1) + RealArg("radius-cascade",1.5) );
 		solver->addPlugin ("compute-vorticity", StringArg("vorticity","vort"));	
 		solver->addPlugin ("maccormack-advect-real", StringArg("real-src","density"));
-		// solver->addPlugin( "dump-df3", IntArg("max-frames",200) + StringArg("gridname","density") + StringArg("prefix","sta") + RealArg("start-time",0) + IntArg("pbrt",1) + StringArg ( "override-name", "render/static" ));
+		solver->addPlugin( "dump-df3", IntArg("max-frames",200) + StringArg("gridname","density") + StringArg("prefix","sta") + RealArg("start-time",0) + IntArg("pbrt",1) + StringArg ( "override-name", "render/static" ));
 
 		_solvers.push_back(solver);
 	}
@@ -99,22 +97,29 @@ void FLUID_3D::init()
 }
 
 // static precompute
-void FLUID_3D::precompute(/* const std::string& name, const Vec3& inflow, int frames, bool dynamic, const Vec3& rotAxis = Vec3(0.), Real rotSpeed = 0. */)
+void FLUID_3D::precompute(const std::string& name, const Vec3& inflow, int frames, bool dynamic, const Vec3& rotAxis, Real rotSpeed)
 {
-	Vec3 inflow (0.0, 0, 0.4); /* DG TODO: Use blender stuff here */
-	const int frames = 50; /* DG TODO: Use blender stuff here */
-	SolverObject* solver = new SolverObject( "precompute", _flags );
+	bool rotate = (rotSpeed != 0.);
+	SolverObject* solver = new SolverObject( "precompute", "scene/" + name + "-flags.gz" );
 
 	// create grids
-	solver->createVec3Grid ( "normal", _normal );
-	solver->createRealGrid ( "dist", _dist );
-	solver->createVec3Grid ( "mean-vel", DDF_GRID_NO_FREE );
-	solver->createVec3Grid ( "abl", DDF_GRID_NO_FREE );
-	solver->addStandardSolverGrids(); // DG TODO: need to transfer them to smoke: Are these only temp grids? --> Don't think so, will get updated after every frame?
+	solver->createVec3Grid ( "normal" );
+	solver->createRealGrid ( "dist" );
+	solver->createVec3Grid ( "mean-vel" );
+	solver->createVec3Grid ( "abl" );
+	solver->addStandardSolverGrids();
+	
+	// additional grids for rot. precomputation
+	if (rotate) {
+		solver->createIntGrid ("obstacle-flags");
+		solver->createIntGrid ("empty-flags");
+		solver->addInitPlugin ( "load-universal", StringArg("grid","obstacle-flags") + StringArg("file","scene/" + name + "-flags.gz"));
+		solver->addInitPlugin ( "init-box-domain",  StringArg("gridname","empty-flags") + IntArg ( "flag-inside",FFLUID ) + IntArg ( "flag-border",FINFLOW ) );		
+	}
 
 	// load grids, initialize fluid velocities
-	// TODO solver->addInitPlugin ( "load-universal", StringArg("grid","dist") + StringArg("file","scene/" + name + "-dist.gz"));
-	// TODO solver->addInitPlugin ( "load-universal", StringArg("grid","normal") + StringArg("file","scene/" + name + "-normal.gz"));
+	solver->addInitPlugin ( "load-universal", StringArg("grid","dist") + StringArg("file","scene/" + name + "-dist.gz"));
+	solver->addInitPlugin ( "load-universal", StringArg("grid","normal") + StringArg("file","scene/" + name + "-normal.gz"));
 	solver->addInitPlugin ( "set-conditional", StringArg ( "gridname","vel-curr" ) + VecArg ( "target-vec",inflow ) + IntArg ( "flag", FFLUID ) );
 
 	// program solver main loop
@@ -122,25 +127,26 @@ void FLUID_3D::precompute(/* const std::string& name, const Vec3& inflow, int fr
 	solver->addPlugin ( "maccormack-advect-vec3", StringArg ( "vel-src", "vel-curr" ) );
 	solver->addPlugin ( "set-noslip-bcs", StringArg ( "grid","vel-curr" ) );
 	solver->addPlugin ( "diffuse-grid", StringArg ( "src-vec3", "vel-curr" ) + RealArg ( "diff", 0.3 ) );
-	
+	if (rotate)
+		solver->addPlugin ("set-moving-obs-bcs", StringArg("obstacle","obstacle-flags") + StringArg("flags-src","empty-flags") +
+							VecArg("obs-rot-axis", rotAxis) + RealArg("obs-rot-vel", rotSpeed) + VecArg("obs-center", Vec3(0.5,0.5,0.5)));
 	solver->addPlugin ( "solve-pressure", IntArg ( "openbound",0 ) );
-
-	solver->addPlugin ( "average", StringArg ( "gridname","vel-curr" ) + StringArg ( "sumgrid","mean-vel" ) + IntArg ( "from", frames ) + IntArg ( "frames", frames ) + IntArg ( "post-quit",1 ) );
+	if (rotate)
+		solver->addPlugin ( "average", StringArg ( "gridname","vel-curr" ) + StringArg ( "sumgrid","mean-vel" ) + IntArg ( "from", frames ) + IntArg ( "frames", 3 ) + IntArg ( "post-quit",1 ) + IntArg("stride", frames) );
+	else
+		solver->addPlugin ( "average", StringArg ( "gridname","vel-curr" ) + StringArg ( "sumgrid","mean-vel" ) + IntArg ( "from", frames ) + IntArg ( "frames", frames ) + IntArg ( "post-quit",1 ) );
 	
 	// program final steps
 	solver->addEndPlugin ( "calc-abl", StringArg ("mean-vel","mean-vel") + StringArg ("dist","dist") + StringArg("normal","normal") + StringArg("abl","abl") + RealArg("d", 1.7));
 	
-	// if (dynamic)
-	// 	solver->addEndPlugin ( "add-database", StringArg("grid","abl") + StringArg("normal","normal") + VecArg("u0",rotate ? (rotSpeed*rotAxis):inflow));
-	// else 
-	// {
-	//	solver->addEndPlugin ( "dump-universal", StringArg ( "grid","abl" ) + StringArg ( "override-name","scene/" + name + "-abl" )  + IntArg ( "single-dump", 1 ) );	
-	//	solver->addEndPlugin ( "dump-universal", StringArg ( "grid","mean-vel" ) + StringArg ( "override-name","scene/" + name + "-mean" ) + IntArg ( "single-dump", 1 ) );
-	// }
+	if (dynamic)
+		solver->addEndPlugin ( "add-database", StringArg("grid","abl") + StringArg("normal","normal") + VecArg("u0",rotate ? (rotSpeed*rotAxis):inflow));
+	else {
+		solver->addEndPlugin ( "dump-universal", StringArg ( "grid","abl" ) + StringArg ( "override-name","scene/" + name + "-abl" )  + IntArg ( "single-dump", 1 ) );	
+		solver->addEndPlugin ( "dump-universal", StringArg ( "grid","mean-vel" ) + StringArg ( "override-name","scene/" + name + "-mean" ) + IntArg ( "single-dump", 1 ) );
+	}
 		
-	_solvers.push_back(solver);		
-	
-	// run();
+	_solvers.push_back(solver);
 
 	initAllSolvers();
 
@@ -150,8 +156,8 @@ void FLUID_3D::precompute(/* const std::string& name, const Vec3& inflow, int fr
 
 	finalizeAllSolvers();
 
-	_abl = _solvers[0]->getParams().getGridVec3("abl");
-	_meanVel = _solvers[0]->getParams().getGridVec3("mean-vel");
+	// _abl = _solvers[0]->getParams().getGridVec3("abl");
+	// _meanVel = _solvers[0]->getParams().getGridVec3("mean-vel");
 
 	freeAllSolvers();
 }

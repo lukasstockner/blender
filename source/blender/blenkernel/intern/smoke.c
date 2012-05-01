@@ -244,7 +244,7 @@ static int smokeModifier_init (SmokeModifierData *smd, Object *ob, Scene *scene,
 
 		// TODO: put in failsafe if res<=0 - dg
 
-		// printf("res[0]: %d, res[1]: %d, res[2]: %d\n", smd->domain->res[0], smd->domain->res[1], smd->domain->res[2]);
+		printf("res[0]: %d, res[1]: %d, res[2]: %d\n", smd->domain->res[0], smd->domain->res[1], smd->domain->res[2]);
 		// dt max is 0.1
 		smd->domain->fluid = smoke_init(smd->domain->res, smd->domain->p0, DT_DEFAULT);
 		smd->time = scene->r.cfra;
@@ -1843,7 +1843,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 		/* if on second frame, write cache for first frame */
 		if((int)smd->time == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact==0)) {
 			// create shadows straight after domain initialization so we get nice shadows for startframe, too
-			if(get_lamp(scene, light))
+			if(smoke_get_density(sds->fluid) && get_lamp(scene, light))
 				smoke_calc_transparency(sds->shadow, smoke_get_density(sds->fluid), sds->p0, sds->p1, sds->res, sds->dx, light, calc_voxel_transp, -7.0*sds->dx);
 
 			if(sds->wt)
@@ -1853,7 +1853,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 				smoke_turbulence_step(sds->wt, sds->fluid);
 			}
 
-			BKE_ptcache_write(&pid, startframe);
+			// DG TODO BKE_ptcache_write(&pid, startframe);
 		}
 		
 		// set new time
