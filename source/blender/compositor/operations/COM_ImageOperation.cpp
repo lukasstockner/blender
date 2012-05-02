@@ -44,12 +44,16 @@ BaseImageOperation::BaseImageOperation(): NodeOperation() {
 	this->imagewidth = 0;
 	this->imageheight = 0;
 	this->framenumber = 0;
+	this->depthBuffer = NULL;
 	this->numberOfChannels = 0;
 }
 ImageOperation::ImageOperation(): BaseImageOperation() {
 	this->addOutputSocket(COM_DT_COLOR);
 }
 ImageAlphaOperation::ImageAlphaOperation(): BaseImageOperation() {
+	this->addOutputSocket(COM_DT_VALUE);
+}
+ImageDepthOperation::ImageDepthOperation(): BaseImageOperation() {
 	this->addOutputSocket(COM_DT_VALUE);
 }
 
@@ -74,6 +78,7 @@ void BaseImageOperation::initExecution() {
 	this->buffer = stackbuf;
 	if (stackbuf) {
 		this->imageBuffer = stackbuf->rect_float;
+		this->depthBuffer = stackbuf->zbuf_float;
 		this->imagewidth = stackbuf->x;
 		this->imageheight = stackbuf->y;
 		this->numberOfChannels = stackbuf->channels;
@@ -133,5 +138,14 @@ void ImageAlphaOperation::executePixel(float *color, float x, float y, PixelSamp
 			break;
 		}
 		color[0] = tempcolor[3];
+	}
+}
+
+void ImageDepthOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {
+	if (this->depthBuffer == NULL || x < 0 || y < 0 || x >= this->getWidth() || y >= this->getHeight() ) {
+		color[0] = 0.0f;
+	} else {
+		int offset = y * width + x;
+		color[0] = this->depthBuffer[offset];
 	}
 }

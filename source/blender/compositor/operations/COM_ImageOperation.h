@@ -36,9 +36,7 @@ extern "C" {
 }
 
 /**
-  * Base class for all renderlayeroperations
-  *
-  * @todo: rename to operation.
+  * @brief Base class for all image operations
   */
 class BaseImageOperation : public NodeOperation {
 protected:
@@ -46,6 +44,7 @@ protected:
 	Image* image;
 	ImageUser* imageUser;
 	float *imageBuffer;
+	float *depthBuffer;
 	int imageheight;
 	int imagewidth;
 	int framenumber;
@@ -82,6 +81,14 @@ public:
 	  * Constructor
 	  */
 	ImageAlphaOperation();
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+};
+class ImageDepthOperation: public BaseImageOperation {
+public:
+	/**
+	  * Constructor
+	  */
+	ImageDepthOperation();
 	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 };
 #endif

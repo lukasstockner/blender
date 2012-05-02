@@ -88,6 +88,16 @@ void ImageNode::convertToOperations(ExecutionSystem *graph, CompositorContext * 
 		alphaImage->relinkConnections(alphaOperation->getOutputSocket());
 		graph->addOperation(alphaOperation);
 	}
+
+	OutputSocket *depthImage = this->getOutputSocket(2);
+	if (depthImage->isConnected()) {
+		ImageDepthOperation *depthOperation = new ImageDepthOperation();
+		depthOperation->setImage(image);
+		depthOperation->setImageUser(imageuser);
+		depthOperation->setFramenumber(framenumber);
+		depthImage->relinkConnections(depthOperation->getOutputSocket());
+		graph->addOperation(depthOperation);
+	}
 	
 	if(image && image->type==IMA_TYPE_MULTILAYER && image->rr) {
 		RenderLayer *rl= (RenderLayer*)BLI_findlink(&image->rr->layers, imageuser->layer);
