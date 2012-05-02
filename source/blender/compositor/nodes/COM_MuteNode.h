@@ -34,7 +34,7 @@ public:
 	MuteNode(bNode *editorNode);
 	void convertToOperations(ExecutionSystem* graph, CompositorContext * context);
 private:
-	void reconnect(OutputSocket * output);
+	void reconnect(ExecutionSystem* graph, OutputSocket * output);
 };
 
 #endif

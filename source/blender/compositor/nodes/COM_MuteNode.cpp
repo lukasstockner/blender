@@ -23,11 +23,14 @@
 #include "COM_MuteNode.h"
 #include "COM_SocketConnection.h"
 #include "stdio.h"
+#include "COM_SetValueOperation.h"
+#include "COM_SetVectorOperation.h"
+#include "COM_SetColorOperation.h"
 
 MuteNode::MuteNode(bNode *editorNode): Node(editorNode) {
 }
 
-void MuteNode::reconnect(OutputSocket * output) {
+void MuteNode::reconnect(ExecutionSystem * graph, OutputSocket * output) {
 	vector<InputSocket*> &inputsockets = this->getInputSockets();
 	for (unsigned int index = 0; index < inputsockets.size() ; index ++) {
 		InputSocket *input = inputsockets[index];
@@ -37,6 +40,40 @@ void MuteNode::reconnect(OutputSocket * output) {
 				return;
 			}
 		}
+	}
+	
+	NodeOperation * operation;
+	switch (output->getDataType()) {
+	case COM_DT_VALUE:
+	{
+		SetValueOperation *valueoperation = new SetValueOperation();
+		valueoperation->setValue(0.0f);
+		operation = valueoperation;
+		break;
+	}
+	case COM_DT_VECTOR:
+	{
+		SetVectorOperation *vectoroperation = new SetVectorOperation();
+		vectoroperation->setX(0.0f);
+		vectoroperation->setY(0.0f);
+		vectoroperation->setW(0.0f);
+		operation = vectoroperation;
+		break;
+	}
+	case COM_DT_COLOR:
+	{
+		SetColorOperation *coloroperation = new SetColorOperation();
+		coloroperation->setChannel1(0.0f);
+		coloroperation->setChannel2(0.0f);
+		coloroperation->setChannel3(0.0f);
+		coloroperation->setChannel4(0.0f);
+		operation = coloroperation;
+		break;
+	}
+	}
+	if (operation) {
+		output->relinkConnections(operation->getOutputSocket(), false);
+		graph->addOperation(operation);
 	}
 
 	output->clearConnections();
@@ -48,7 +85,7 @@ void MuteNode::convertToOperations(ExecutionSystem *graph, CompositorContext * c
 	for (unsigned int index = 0 ; index < outputsockets.size() ; index ++) {
 		OutputSocket * output = outputsockets[index];
 		if (output->isConnected()) {
-			reconnect(output);
+			reconnect(graph, output);
 		}
 	}
 }
