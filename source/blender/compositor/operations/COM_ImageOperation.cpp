@@ -90,7 +90,7 @@ void BaseImageOperation::deinitExecution() {
 }
 
 void BaseImageOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {
-	BKE_image_user_calc_frame(this->imageUser, 0, 0);
+	BKE_image_user_calc_frame(this->imageUser, this->framenumber, 0);
 	ImBuf *stackbuf= getImBuf();
 	if (stackbuf) {
 		resolution[0] = stackbuf->x;
