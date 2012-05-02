@@ -36,16 +36,22 @@ void BlurNode::convertToOperations(ExecutionSystem *graph, CompositorContext * c
 	NodeBlurData * data = (NodeBlurData*)editorNode->storage;
 	const bNodeSocket *sock = this->getInputSocket(1)->getbNodeSocket();
 	const float size = ((const bNodeSocketValueFloat*)sock->default_value)->value;
+	CompositorQuality quality = context->getQuality();
+	
+	if (data->filtertype == R_FILTER_MITCH || data->filtertype == R_FILTER_CATROM) {
+		quality = COM_QUALITY_HIGH;
+	}
+	
 	if (!data->bokeh) {
 		GaussianXBlurOperation *operationx = new GaussianXBlurOperation();
 		operationx->setData(data);
-		operationx->setQuality(context->getQuality());
+		operationx->setQuality(quality);
 		this->getInputSocket(0)->relinkConnections(operationx->getInputSocket(0), true, 0, graph);
 		operationx->setSize(size);
 		graph->addOperation(operationx);
 		GaussianYBlurOperation *operationy = new GaussianYBlurOperation();
 		operationy->setData(data);
-		operationy->setQuality(context->getQuality());
+		operationy->setQuality(quality);
 		this->getOutputSocket(0)->relinkConnections(operationy->getOutputSocket());
 		operationy->setSize(size);
 		graph->addOperation(operationy);
@@ -56,7 +62,7 @@ void BlurNode::convertToOperations(ExecutionSystem *graph, CompositorContext * c
 		operation->setData(data);
 		this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), true, 0, graph);
 		operation->setSize(size);
-		operation->setQuality(context->getQuality());
+		operation->setQuality(quality);
 		graph->addOperation(operation);
 		this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket());
 		addPreviewOperation(graph, operation->getOutputSocket(), 5);
