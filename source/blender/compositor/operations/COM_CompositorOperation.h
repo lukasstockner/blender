@@ -26,13 +26,34 @@
 #include "DNA_scene_types.h"
 #include "BLI_rect.h"
 
+/**
+  * @brief Compositor output operation
+  */
 class CompositorOperation : public NodeOperation {
 private:
+	/**
+	  * @brief local reference to the scene
+	  */
 	const Scene* scene;
+	
+	/**
+	  * @brief local reference to the node tree
+	  */
 	const bNodeTree* tree;
+	
+	/**
+	  * @brief reference to the output float buffer
+	  */
 	float *outputBuffer;
 	
+	/**
+	  * @brief local reference to the input image operation
+	  */
 	SocketReader* imageInput;
+
+	/**
+	  * @brief local reference to the input alpha operation
+	  */
 	SocketReader* alphaInput;
 public:
 	CompositorOperation();
@@ -43,5 +64,6 @@ public:
 	void initExecution();
 	void deinitExecution();
 	const int getRenderPriority() const {return 7;}
+	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
 };
 #endif

@@ -108,3 +108,15 @@ void CompositorOperation::executeRegion(rcti *rect, unsigned int tileNumber, Mem
 		offset += (this->getWidth()-(x2-x1))*4;
 	}
 }
+
+void CompositorOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {
+	int width = this->scene->r.xsch*this->scene->r.size/100;
+	int height= this->scene->r.ysch*this->scene->r.size/100;
+	preferredResolution[0] = width;
+	preferredResolution[1] = height;
+	
+	NodeOperation::determineResolution(resolution, preferredResolution);
+
+	resolution[0] = width;
+	resolution[1] = height;
+}
