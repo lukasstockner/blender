@@ -25,7 +25,7 @@
 InvertOperation::InvertOperation(): NodeOperation() {
 	this->addInputSocket(COM_DT_VALUE);
 	this->addInputSocket(COM_DT_COLOR);
-	this->addOutputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_COLOR);
 	this->inputValueProgram = NULL;
 	this->inputColorProgram = NULL;
 	this->color = true;
