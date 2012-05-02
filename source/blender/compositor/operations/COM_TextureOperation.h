@@ -43,8 +43,8 @@ extern "C" {
 class TextureBaseOperation : public NodeOperation {
 private:
 	Tex* texture;
-	float *textureSize;
-	float *textureOffset;
+	SocketReader *inputSize;
+	SocketReader *inputOffset;
 
 protected:
 
@@ -62,9 +62,8 @@ public:
 	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
 
 	void setTexture(Tex* texture) {this->texture = texture;}
-	void setTextureOffset(float* offset) {this->textureOffset= offset;}
-	void setTextureSize(float* size) {this->textureSize= size;}
-
+	void initExecution();
+	void deinitExecution();
 };
 
 class TextureOperation:public TextureBaseOperation {
