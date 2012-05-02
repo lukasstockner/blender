@@ -24,33 +24,40 @@
 #include "BLI_math.h"
 
 CropBaseOperation::CropBaseOperation() :NodeOperation(){
-	this->addInputSocket(COM_DT_COLOR);
+	this->addInputSocket(COM_DT_COLOR, COM_SC_NO_RESIZE);
 	this->addOutputSocket(COM_DT_COLOR);
 	this->inputOperation = NULL;
 	this->settings = NULL;
 }
 
-void CropBaseOperation::initExecution(){
-	this->inputOperation = this->getInputSocketReader(0);
+void CropBaseOperation::updateArea() {
+	SocketReader * inputReference = this->getInputSocketReader(0);
+	float width = inputReference->getWidth();
+	float height = inputReference->getHeight();
 	if (this->relative){
-		settings->x1= this->width * settings->fac_x1;
-		settings->x2= this->width * settings->fac_x2;
-		settings->y1= this->height * settings->fac_y1;
-		settings->y2= this->height * settings->fac_y2;
+		settings->x1= width * settings->fac_x1;
+		settings->x2= width * settings->fac_x2;
+		settings->y1= height * settings->fac_y1;
+		settings->y2= height * settings->fac_y2;
 	}
-	if (this->width <= settings->x1 + 1)
-		settings->x1 = this->width - 1;
-	if (this->height <= settings->y1 + 1)
-		settings->y1 = this->height - 1;
-	if (this->width <= settings->x2 + 1)
-		settings->x2 = this->width - 1;
-	if (this->height <= settings->y2 + 1)
-		settings->y2 = this->height - 1;
+	if (width <= settings->x1 + 1)
+		settings->x1 = width - 1;
+	if (height <= settings->y1 + 1)
+		settings->y1 = height - 1;
+	if (width <= settings->x2 + 1)
+		settings->x2 = width - 1;
+	if (height <= settings->y2 + 1)
+		settings->y2 = height - 1;
 	
 	this->xmax = MAX2(settings->x1, settings->x2) + 1;
 	this->xmin = MIN2(settings->x1, settings->x2);
 	this->ymax = MAX2(settings->y1, settings->y2) + 1;
 	this->ymin = MIN2(settings->y1, settings->y2);
+}
+
+void CropBaseOperation::initExecution(){
+	this->inputOperation = this->getInputSocketReader(0);
+	updateArea();
 }
 
 void CropBaseOperation::deinitExecution(){
@@ -87,7 +94,7 @@ bool CropImageOperation::determineDependingAreaOfInterest(rcti *input, ReadBuffe
 
 void CropImageOperation::determineResolution(unsigned int resolution[], unsigned int preferedResolution[]){
 	NodeOperation::determineResolution(resolution, preferedResolution);
-	
+	updateArea();
 	resolution[0] = this->xmax - this->xmin;
 	resolution[1] = this->ymax - this->ymin;
 }

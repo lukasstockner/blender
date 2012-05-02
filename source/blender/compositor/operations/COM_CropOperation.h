@@ -34,6 +34,8 @@ protected:
 	int xmin;
 	int ymax;
 	int ymin;
+	
+	void updateArea();
 public:
 	CropBaseOperation();	
 	void initExecution();
