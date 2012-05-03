@@ -53,8 +53,8 @@ static void Downsample(float *from, float *to, int n, int stride){
 	const float *a = &_aCoeffs[16];
 	for (int i = 0; i < n / 2; i++) {
 		to[i * stride] = 0;
-		for (int k = 2 * i - 16; k < 2 * i + 16; k++) // DG correcting for now
-			to[i * stride] += a[k - 2 * i] * from[modFast128(k) * stride]; // DG TODO: correct this? < <= need to test if this goes outside bounds, also with upsampling!
+		for (int k = 2 * i - 16; k < 2 * i + 16; k++)
+			to[i * stride] += a[k - 2 * i] * from[modFast128(k) * stride];
 	}
 }
 

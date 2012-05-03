@@ -316,7 +316,7 @@ void Grid<Scalar>::initGridMem(int set_x,int set_y, int set_z) {
 	mpData = new Scalar[numElems];
 	mDataSize = numElems;
 
-	for (int i=0; i<mSizeX*mSizeY*mSizeZ; i++) {
+	for (int i=0; i<numElems; i++) {
 		mpData[i] = zero;
 	} 
 	
@@ -361,6 +361,11 @@ void Grid<Scalar>::resizeGridMem(int set_x,int set_y, int set_z) {
 	size_t allocSize = (numElems * 1.5);
 	mpData = new Scalar[allocSize];
 	mDataSize = allocSize;
+	
+	for (int i=0; i<allocSize; i++) {
+		mpData[i] = zero;
+	} 
+
 	if (debugRealloc) debMsg("Grid::resizeGridMem","Data block re-allocated");
 }
 

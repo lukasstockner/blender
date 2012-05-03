@@ -81,11 +81,12 @@ class MTRand {
 		uint32 hiBit( const uint32& u ) const { return u & 0x80000000UL; }
 		uint32 loBit( const uint32& u ) const { return u & 0x00000001UL; }
 		uint32 loBits( const uint32& u ) const { return u & 0x7fffffffUL; }
-		uint32 mixBits( const uint32& u, const uint32& v ) const { 
-			return hiBit(u) | loBits(v); 
-		}
-		uint32 twist( const uint32& m, const uint32& s0, const uint32& s1 ) const { 
-			return m ^ (mixBits(s0,s1)>>1) ^ (-loBit(s1) & 0x9908b0dfUL); 
+		uint32 mixBits( const uint32& u, const uint32& v ) const 
+		{ return hiBit(u) | loBits(v); }
+		uint32 twist( const uint32& m, const uint32& s0, const uint32& s1 ) const 
+		{ 
+			return m ^ (mixBits(s0,s1)>>1) ^ ((~loBit(s1) + 1) & 0x9908b0dfUL);
+			// return m ^ (mixBits(s0,s1)>>1) ^ (-((int)loBit(s1)) & 0x9908b0dfUL); 
 		}
 		static uint32 hash( time_t t, clock_t c );
 };
@@ -216,6 +217,10 @@ inline void MTRand::seed( uint32 *const bigSeed, const uint32 seedLength )
 
 inline void MTRand::seed()
 {
+  // seed deterministically to produce reproducible runs
+  seed(123456);
+  
+  /*
 	// Seed the generator with an array from /dev/urandom if available
 	// Otherwise use a hash of time() and clock() values
 	
@@ -235,6 +240,7 @@ inline void MTRand::seed()
 	
 	// Was not successful, so use time() and clock() instead
 	seed( hash( time(NULL), clock() ) );
+  */
 }
 
 

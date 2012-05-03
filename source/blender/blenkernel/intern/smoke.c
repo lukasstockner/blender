@@ -1874,7 +1874,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 		}
 
 		// create shadows before writing cache so they get stored
-		if(get_lamp(scene, light))
+		if(smoke_get_density(sds->fluid) && get_lamp(scene, light))
 			smoke_calc_transparency(sds->shadow, smoke_get_density(sds->fluid), sds->p0, sds->p1, sds->res, sds->dx, light, calc_voxel_transp, -7.0*sds->dx);
 
 		if(sds->wt)

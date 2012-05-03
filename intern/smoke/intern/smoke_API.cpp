@@ -43,11 +43,6 @@ using namespace DDF;
 extern "C" FLUID_3D *smoke_init(int *res, float *p0, float dtdef)
 {
 	printf("-------------------- SMOKE CREATE --------------------------\n");
-	/*
-	res[0] = 32;
-	res[1] = 32;
-	res[2] = 32;
-	*/
 	FLUID_3D *fluid = new FLUID_3D(res);
 	printf("-------------------- SMOKE INIT --------------------------\n");
 	if(!fluid->_init)
@@ -133,7 +128,10 @@ extern "C" void smoke_turbulence_export(WTURBULENCE *wt, float **dens, float **d
 
 extern "C" float *smoke_get_density(FLUID_3D *fluid)
 {
-	return fluid->_density->data();
+	if(fluid->_density)
+		return fluid->_density->data();
+	else
+		return NULL;
 }
 
 extern "C" float *smoke_get_heat(FLUID_3D *fluid)
