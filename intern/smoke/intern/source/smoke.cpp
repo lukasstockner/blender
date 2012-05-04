@@ -51,7 +51,40 @@ void FLUID_3D::init()
 	printf("-------------------- SMOKE INIT B-------------------------\n");
 	{
 		Vec3 inflow (0.4, 0, 0);
-		SolverObject* solver = new SolverObject( "run_static", _flags);
+		SolverObject* solver = new SolverObject( "run_static",/*_flags */  "scene/static-flags.gz" );
+
+		{
+			Grid<int> *tf = solver->getParams().getGridInt("flags");
+
+			printf("data size: %ld, %ld\n", _flags->getDataSize(), tf->getDataSize());
+			printf("display flags: %d, %d\n", _flags->getDisplayFlags(), tf->getDisplayFlags());
+			printf("grid flags: %d, %d\n", _flags->getGridFlags(), tf->getGridFlags());
+			printf("grid id: %d, %d\n", _flags->getGridId(), tf->getGridId());
+			printf("grid size: %d, %d, %d; %d, %d, %d\n", _flags->getGridSize().x, _flags->getGridSize().y, _flags->getGridSize().z, tf->getGridSize().x, tf->getGridSize().y, tf->getGridSize().z);
+			printf("max size: %d, %d\n", _flags->getMaxSize(), tf->getMaxSize());
+			printf("name: %s, %s\n", _flags->getName().c_str(), tf->getName().c_str());
+			printf("numelements: %d, %d\n", _flags->getNumElements(), tf->getNumElements());
+			printf("sanity: %d, %d\n", _flags->getSanityCheckMode(), tf->getSanityCheckMode());
+
+			int count = 0;
+			int min = INT_MAX, max = -INT_MAX;
+			for(unsigned int x = 0; x < tf->getGridSize().x; x++)
+				for(unsigned int y= 0; y< tf->getGridSize().y; y++)
+					for(unsigned int z = 0; z < tf->getGridSize().z; z++)
+			{
+				if(_flags->get(x, y, z) != tf->get(x, y, z))
+					count++;
+
+				int tm = tf->get(x, y, z);
+
+				if(min > tm)
+					min = tm;
+				if(max < tm)
+					max = tm;
+			}
+			printf("count: %d, min: %d, max: %d\n", count, min, max);
+		}
+
 		solver->getParams().mU0 = inflow;
 		solver->getParams().mTimestepAnim = 0.005;
 			

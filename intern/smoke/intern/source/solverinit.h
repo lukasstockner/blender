@@ -72,7 +72,7 @@ namespace DDF
 
 		protected:
 		void init(const std::string& name, const nVec3i& gridSize, int gridFlags = 0);
-		void init(const string& name, const nVec3i& size, Grid<int> *flags);
+		void init(const string& name, const nVec3i& size, Grid<int> *flagsGrid);
 		SolverPlugin* createPlugin(const std::string& name, const PluginArgument&);
 		
 		FluidSolver* mSolver;

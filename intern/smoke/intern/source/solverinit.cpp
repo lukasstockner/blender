@@ -125,7 +125,7 @@ void SolverObject::init(const string& name, const nVec3i& size, int gridFlags)
 }
 
 // initialize default solver params
-void SolverObject::init(const string& name, const nVec3i& size, Grid<int> *flags)
+void SolverObject::init(const string& name, const nVec3i& size, Grid<int> *flagsGrid)
 {
 	ParamSet par;
 	par.AddInt("host-vorticity-system", 1);
@@ -146,7 +146,7 @@ void SolverObject::init(const string& name, const nVec3i& size, Grid<int> *flags
 	mSolver->setParams(solverParam);
 
 	// create default grids
-	createIntGrid("flags", flags);
+	createIntGrid("flags", flagsGrid);
 	createVec3Grid("vel-curr",false);
 	createRealGrid("pressure",false);
 
