@@ -30,16 +30,17 @@ ViewLevelsNode::ViewLevelsNode(bNode *editorNode): Node(editorNode) {
 }
 void ViewLevelsNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context) {
 	InputSocket * input = this->getInputSocket(0);
+	bool firstOperationConnected = false;
 	if (input->isConnected()) {
 		OutputSocket* inputSocket= input->getConnection()->getFromSocket();
-		inputSocket->clearConnections();
 		// add preview to inputSocket;
 		
 		OutputSocket * socket = this->getOutputSocket(0);
 		if (socket->isConnected()) {
 			// calculate mean operation
 			CalculateMeanOperation * operation = new CalculateMeanOperation();
-			addLink(graph, inputSocket, operation->getInputSocket(0));
+			input->relinkConnections(operation->getInputSocket(0), true, 0, graph);
+			firstOperationConnected = true;
 			operation->setSetting(this->getbNode()->custom1);
 			socket->relinkConnections(operation->getOutputSocket());
 			graph->addOperation(operation);
@@ -49,7 +50,11 @@ void ViewLevelsNode::convertToOperations(ExecutionSystem *graph, CompositorConte
 		if (socket->isConnected()) {
 			// calculate standard deviation operation
 			CalculateStandardDeviationOperation * operation = new CalculateStandardDeviationOperation();
-			addLink(graph, inputSocket, operation->getInputSocket(0));
+			if (firstOperationConnected) {
+				addLink(graph, inputSocket, operation->getInputSocket(0));
+			}else{
+				input->relinkConnections(operation->getInputSocket(0), true, 0, graph);
+			}
 			operation->setSetting(this->getbNode()->custom1);
 			socket->relinkConnections(operation->getOutputSocket());
 			graph->addOperation(operation);
