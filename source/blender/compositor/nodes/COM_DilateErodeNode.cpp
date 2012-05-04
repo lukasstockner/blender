@@ -24,6 +24,7 @@
 #include "DNA_scene_types.h"
 #include "COM_ExecutionSystem.h"
 #include "COM_DilateErodeOperation.h"
+#include "COM_AntiAliasOperation.h"
 
 DilateErodeNode::DilateErodeNode(bNode *editorNode): Node(editorNode) {
 }
@@ -32,9 +33,13 @@ void DilateErodeNode::convertToOperations(ExecutionSystem *graph, CompositorCont
 	bNode* editorNode = this->getbNode();
 	DilateErodeOperation *operation = new DilateErodeOperation();
 	operation->setDistance(editorNode->custom2);
+	operation->setInset(0.0f);
 
 	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0));
-	this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket(0));
 
+	AntiAliasOperation * antiAlias = new AntiAliasOperation();
+	addLink(graph, operation->getOutputSocket(), antiAlias->getInputSocket(0));
+	this->getOutputSocket(0)->relinkConnections(antiAlias->getOutputSocket(0));
 	graph->addOperation(operation);
+	graph->addOperation(antiAlias);
 }
