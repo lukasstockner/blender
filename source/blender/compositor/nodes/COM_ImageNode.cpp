@@ -89,44 +89,47 @@ void ImageNode::convertToOperations(ExecutionSystem *graph, CompositorContext * 
 		graph->addOperation(alphaOperation);
 	}
 
-	OutputSocket *depthImage = this->getOutputSocket(2);
-	if (depthImage->isConnected()) {
-		ImageDepthOperation *depthOperation = new ImageDepthOperation();
-		depthOperation->setImage(image);
-		depthOperation->setImageUser(imageuser);
-		depthOperation->setFramenumber(framenumber);
-		depthImage->relinkConnections(depthOperation->getOutputSocket());
-		graph->addOperation(depthOperation);
+	if(image && image->type==IMA_TYPE_MULTILAYER) {
+		if(image->rr) {
+			RenderLayer *rl= (RenderLayer*)BLI_findlink(&image->rr->layers, imageuser->layer);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_Z, SCE_PASS_Z, COM_DT_VALUE);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_VEC, SCE_PASS_VECTOR, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_NORMAL, SCE_PASS_NORMAL, COM_DT_VECTOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_UV, SCE_PASS_UV, COM_DT_VECTOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_RGBA, SCE_PASS_RGBA, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_DIFF, SCE_PASS_DIFFUSE, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_SPEC, SCE_PASS_SPEC, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_SHADOW, SCE_PASS_SHADOW, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_AO, SCE_PASS_AO, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_REFLECT, SCE_PASS_REFLECT, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_REFRACT, SCE_PASS_REFRACT, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_INDIRECT, SCE_PASS_INDIRECT, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_INDEXOB, SCE_PASS_INDEXOB, COM_DT_VALUE);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_INDEXMA, SCE_PASS_INDEXMA, COM_DT_VALUE);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_MIST, SCE_PASS_MIST, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_EMIT, SCE_PASS_EMIT, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_ENV, SCE_PASS_ENVIRONMENT, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_DIFF_DIRECT, SCE_PASS_DIFFUSE_DIRECT, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_DIFF_INDIRECT, SCE_PASS_DIFFUSE_INDIRECT, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_DIFF_COLOR, SCE_PASS_DIFFUSE_COLOR, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_GLOSSY_DIRECT, SCE_PASS_GLOSSY_DIRECT, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_GLOSSY_INDIRECT, SCE_PASS_GLOSSY_INDIRECT, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_GLOSSY_COLOR, SCE_PASS_GLOSSY_COLOR, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_TRANSM_DIRECT, SCE_PASS_TRANSM_DIRECT, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_TRANSM_INDIRECT, SCE_PASS_TRANSM_INDIRECT, COM_DT_COLOR);
+			doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_TRANSM_COLOR, SCE_PASS_TRANSM_COLOR, COM_DT_COLOR);
+		}
+	} else {
+	
+		OutputSocket *depthImage = this->getOutputSocket(2);
+		if (depthImage->isConnected()) {
+			ImageDepthOperation *depthOperation = new ImageDepthOperation();
+			depthOperation->setImage(image);
+			depthOperation->setImageUser(imageuser);
+			depthOperation->setFramenumber(framenumber);
+			depthImage->relinkConnections(depthOperation->getOutputSocket());
+			graph->addOperation(depthOperation);
+		}
 	}
 	
-	if(image && image->type==IMA_TYPE_MULTILAYER && image->rr) {
-		RenderLayer *rl= (RenderLayer*)BLI_findlink(&image->rr->layers, imageuser->layer);
-		
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_Z, SCE_PASS_Z, COM_DT_VALUE);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_VEC, SCE_PASS_VECTOR, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_NORMAL, SCE_PASS_NORMAL, COM_DT_VECTOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_UV, SCE_PASS_UV, COM_DT_VECTOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_RGBA, SCE_PASS_RGBA, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_DIFF, SCE_PASS_DIFFUSE, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_SPEC, SCE_PASS_SPEC, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_SHADOW, SCE_PASS_SHADOW, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_AO, SCE_PASS_AO, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_REFLECT, SCE_PASS_REFLECT, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_REFRACT, SCE_PASS_REFRACT, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_INDIRECT, SCE_PASS_INDIRECT, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_INDEXOB, SCE_PASS_INDEXOB, COM_DT_VALUE);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_INDEXMA, SCE_PASS_INDEXMA, COM_DT_VALUE);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_MIST, SCE_PASS_MIST, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_EMIT, SCE_PASS_EMIT, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_ENV, SCE_PASS_ENVIRONMENT, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_DIFF_DIRECT, SCE_PASS_DIFFUSE_DIRECT, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_DIFF_INDIRECT, SCE_PASS_DIFFUSE_INDIRECT, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_DIFF_COLOR, SCE_PASS_DIFFUSE_COLOR, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_GLOSSY_DIRECT, SCE_PASS_GLOSSY_DIRECT, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_GLOSSY_INDIRECT, SCE_PASS_GLOSSY_INDIRECT, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_GLOSSY_COLOR, SCE_PASS_GLOSSY_COLOR, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_TRANSM_DIRECT, SCE_PASS_TRANSM_DIRECT, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_TRANSM_INDIRECT, SCE_PASS_TRANSM_INDIRECT, COM_DT_COLOR);
-		doMultilayerCheck(graph, rl, image, imageuser, framenumber, RRES_OUT_TRANSM_COLOR, SCE_PASS_TRANSM_COLOR, COM_DT_COLOR);
-	}
 }
