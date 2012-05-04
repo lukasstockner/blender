@@ -40,6 +40,7 @@ BilateralBlurOperation::BilateralBlurOperation() : NodeOperation() {
 void BilateralBlurOperation::initExecution() {
 	this->inputColorProgram = getInputSocketReader(0);
 	this->inputDeterminatorProgram = getInputSocketReader(1);
+	this->space = this->data->sigma_space + this->data->iter;
 	QualityStepHelper::initExecution(COM_QH_INCREASE);
 }
 
@@ -50,12 +51,12 @@ void BilateralBlurOperation::executePixel(float* color, int x, int y, MemoryBuff
 	float tempColor[4];
 	float blurColor[4];
 	float blurDivider;
-	float sigmaspace = this->data->sigma_space;
+	float space = this->space;
 	float sigmacolor = this->data->sigma_color;
-	int minx = x - sigmaspace;
-	int maxx = x + sigmaspace;
-	int miny = y - sigmaspace;
-	int maxy = y + sigmaspace;
+	int minx = floor(x - space);
+	int maxx = ceil(x + space);
+	int miny = floor(y - space);
+	int maxy = ceil(y + space);
 	float deltaColor;
 	this->inputDeterminatorProgram->read(determinatorReferenceColor, x, y, inputBuffers, data);
 	
@@ -102,10 +103,10 @@ void BilateralBlurOperation::deinitExecution() {
 bool BilateralBlurOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
 	rcti newInput;
 
-	newInput.xmax = input->xmax + (this->data->sigma_space);
-	newInput.xmin = input->xmin - (this->data->sigma_space);
-	newInput.ymax = input->ymax + (this->data->sigma_space);
-	newInput.ymin = input->ymin - (this->data->sigma_space);
+	newInput.xmax = input->xmax + (this->space);
+	newInput.xmin = input->xmin - (this->space);
+	newInput.ymax = input->ymax + (this->space);
+	newInput.ymin = input->ymin - (this->space);
 
 	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 }

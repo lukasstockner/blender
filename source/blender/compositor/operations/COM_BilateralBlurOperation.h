@@ -30,6 +30,7 @@ private:
 	SocketReader* inputColorProgram;
 	SocketReader* inputDeterminatorProgram;
 	NodeBilateralBlurData* data;
+	float space;
 
 public:
 	BilateralBlurOperation();
