@@ -63,6 +63,7 @@ void BilateralBlurOperation::executePixel(float* color, int x, int y, MemoryBuff
 	blurColor[0] = 0.0f;
 	blurColor[1] = 0.0f;
 	blurColor[2] = 0.0f;
+	blurColor[3] = 0.0f;
 	blurDivider = 0.0f;
 	for (int yi = miny ; yi < maxy ; yi+=QualityStepHelper::getStep()) {
 		for (int xi = minx ; xi < maxx ; xi+=QualityStepHelper::getStep()) {
@@ -77,6 +78,7 @@ void BilateralBlurOperation::executePixel(float* color, int x, int y, MemoryBuff
 				blurColor[0]+=tempColor[0];
 				blurColor[1]+=tempColor[1];
 				blurColor[2]+=tempColor[2];
+				blurColor[3]+=tempColor[3];
 				blurDivider += 1.0f;
 			}
 		}
@@ -86,7 +88,7 @@ void BilateralBlurOperation::executePixel(float* color, int x, int y, MemoryBuff
 		color[0] = blurColor[0]/blurDivider;
 		color[1] = blurColor[1]/blurDivider;
 		color[2] = blurColor[2]/blurDivider;
-		color[3] = 1.0f;
+		color[3] = blurColor[3]/blurDivider;
 	} else {
 		color[0] = 0.0f;
 		color[1] = 0.0f;
