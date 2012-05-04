@@ -111,8 +111,8 @@ void SolverObject::init(const string& name, const nVec3i& size, int gridFlags)
 
 	// create default grids
 	createIntGrid("flags", gridFlags);
-	createVec3Grid("vel-curr",false);
-	createRealGrid("pressure",false);
+	createVec3Grid("vel-curr");
+	createRealGrid("pressure");
 
 	// globally register solver
 	gFluidSolvers[mSolver->getName()] = mSolver;
@@ -147,8 +147,8 @@ void SolverObject::init(const string& name, const nVec3i& size, Grid<int> *flags
 
 	// create default grids
 	createIntGrid("flags", flagsGrid);
-	createVec3Grid("vel-curr",false);
-	createRealGrid("pressure",false);
+	createVec3Grid("vel-curr");
+	createRealGrid("pressure");
 
 	// globally register solver
 	gFluidSolvers[mSolver->getName()] = mSolver;
@@ -175,18 +175,18 @@ void SolverObject::forceInit() {
 
 void SolverObject::addStandardSolverGrids()
 {
-	createVec3Grid("vec-temp",true);
-	createRealGrid("real-temp",true);
-	createRealGrid("temp1",true);
-	createRealGrid("temp2",true);
-	createRealGrid("tmp",true);	
-	createRealGrid("residual",true);
-	createRealGrid("rhs",true);
-	createRealGrid("search",true);
-	createRealGrid("A0",true);
-	createRealGrid("Ai",true);
-	createRealGrid("Aj",true);
-	createRealGrid("Ak",true);
+	createVec3Grid("vec-temp");
+	createRealGrid("real-temp");
+	createRealGrid("temp1");
+	createRealGrid("temp2");
+	createRealGrid("tmp");	
+	createRealGrid("residual");
+	createRealGrid("rhs");
+	createRealGrid("search");
+	createRealGrid("A0");
+	createRealGrid("Ai");
+	createRealGrid("Aj");
+	createRealGrid("Ak");
 }
 
 void SolverObject::finalize()
