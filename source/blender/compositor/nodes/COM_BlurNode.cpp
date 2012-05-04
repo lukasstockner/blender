@@ -49,6 +49,7 @@ void BlurNode::convertToOperations(ExecutionSystem *graph, CompositorContext * c
 		this->getInputSocket(0)->relinkConnections(operationfgb->getInputSocket(0), true, 0, graph);
 		this->getOutputSocket(0)->relinkConnections(operationfgb->getOutputSocket(0));
 		graph->addOperation(operationfgb);
+		ddPreviewOperation(graph, operationfgb->getOutputSocket(), 5);
 	}else if (!data->bokeh) {
 		GaussianXBlurOperation *operationx = new GaussianXBlurOperation();
 		operationx->setData(data);
