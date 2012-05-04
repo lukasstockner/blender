@@ -378,7 +378,7 @@ void ED_node_composit_default(Scene *sce)
 	sce->nodetree= ntreeAddTree("Compositing Nodetree", NTREE_COMPOSIT, 0);
 
 	sce->nodetree->chunksize = 256;
-	sce->nodetree->edit_quality = NTREE_QUALITY_LOW;
+	sce->nodetree->edit_quality = NTREE_QUALITY_HIGH;
 	sce->nodetree->render_quality = NTREE_QUALITY_HIGH;
 
 	ntemp.type = CMP_NODE_COMPOSITE;
