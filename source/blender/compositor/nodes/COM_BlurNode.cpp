@@ -44,12 +44,12 @@ void BlurNode::convertToOperations(ExecutionSystem *graph, CompositorContext * c
 	}
 	if (data->filtertype == R_FILTER_FAST_GAUSS) {
 		FastGaussianBlurOperation *operationfgb = new FastGaussianBlurOperation();
-		operationfgb->setdata(data);
+		operationfgb->setData(data);
 		operationfgb->setSize(size);
 		this->getInputSocket(0)->relinkConnections(operationfgb->getInputSocket(0), true, 0, graph);
 		this->getOutputSocket(0)->relinkConnections(operationfgb->getOutputSocket(0));
 		graph->addOperation(operationfgb);
-		ddPreviewOperation(graph, operationfgb->getOutputSocket(), 5);
+		addPreviewOperation(graph, operationfgb->getOutputSocket(), 5);
 	}else if (!data->bokeh) {
 		GaussianXBlurOperation *operationx = new GaussianXBlurOperation();
 		operationx->setData(data);

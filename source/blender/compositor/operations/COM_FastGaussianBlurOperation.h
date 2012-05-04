@@ -23,14 +23,11 @@
 #ifndef _COM_FastGaussianBlurOperation_h
 #define _COM_FastGaussianBlurOperation_h
 
-#include "COM_NodeOperation.h"
+#include "COM_BlurBaseOperation.h"
 #include "DNA_node_types.h"
 
-class FastGaussianBlurOperation: public NodeOperation {
+class FastGaussianBlurOperation: public BlurBaseOperation {
 private:
-	SocketReader *inputOperation;
-	NodeBlurData *data; 
-	float size;
 	float sx;
 	float sy;
 public:
@@ -39,9 +36,6 @@ public:
 	void executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void *data);
 	
 	void initExecution();
-	void deinitExecution();
-	void setdata(NodeBlurData *data){this->data = data;}
-	void setSize(float size){this->size = size;} 
 	void IIR_gauss(MemoryBuffer *src, float sigma, int channel, int xy);
 	void* initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers);
 	void deinitializeTileData(rcti *rect, MemoryBuffer **memoryBuffers, void *data);

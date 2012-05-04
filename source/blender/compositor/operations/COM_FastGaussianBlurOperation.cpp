@@ -24,23 +24,13 @@
 #include "MEM_guardedalloc.h"
 #include "BLI_utildefines.h"
 
-FastGaussianBlurOperation::FastGaussianBlurOperation(): NodeOperation(){
-	this->inputOperation = NULL;
-	this->addInputSocket(COM_DT_COLOR);
-	this->addOutputSocket(COM_DT_COLOR);
-	this->setComplex(true);
-	this->data = NULL;
+FastGaussianBlurOperation::FastGaussianBlurOperation(): BlurBaseOperation(){
 }
 
 void FastGaussianBlurOperation::initExecution(){
-	this->inputOperation = this->getInputSocketReader(0);
+	BlurBaseOperation::initExecution();
 	sx = data->sizex * this->size/2.0f;
 	sy = data->sizey * this->size/2.0f;
-}
-
-void FastGaussianBlurOperation::deinitExecution(){
-	this->inputOperation = NULL;
-	this->data = NULL;
 }
 
 void FastGaussianBlurOperation::executePixel(float *color,int x, int y, MemoryBuffer *inputBuffers[], void *data) {
@@ -62,7 +52,7 @@ bool FastGaussianBlurOperation::determineDependingAreaOfInterest(rcti *input, Re
 }
 
 void* FastGaussianBlurOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers){
-	MemoryBuffer *newBuf = (MemoryBuffer*)this->inputOperation->initializeTileData(rect, memoryBuffers);
+	MemoryBuffer *newBuf = (MemoryBuffer*)this->inputProgram->initializeTileData(rect, memoryBuffers);
 	MemoryBuffer *copy = newBuf->duplicate();
 	
 	int c;
