@@ -305,6 +305,8 @@ set(SRC
 	operations/COM_BokehBlurOperation.h
 	operations/COM_VariableSizeBokehBlurOperation.cpp
 	operations/COM_VariableSizeBokehBlurOperation.h
+	operations/COM_FastGaussianBlurOperation.cpp
+	operations/COM_FastGaussianBlurOperation.h
 	operations/COM_BlurBaseOperation.cpp
 	operations/COM_BlurBaseOperation.h
 	operations/COM_DirectionalBlurOperation.cpp

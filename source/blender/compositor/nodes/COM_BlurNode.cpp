@@ -27,6 +27,7 @@
 #include "COM_GaussianYBlurOperation.h"
 #include "COM_ExecutionSystem.h"
 #include "COM_GaussianBokehBlurOperation.h"
+#include "COM_FastGaussianBlurOperation.h"
 
 BlurNode::BlurNode(bNode *editorNode): Node(editorNode) {
 }
@@ -41,8 +42,14 @@ void BlurNode::convertToOperations(ExecutionSystem *graph, CompositorContext * c
 	if (data->filtertype == R_FILTER_MITCH || data->filtertype == R_FILTER_CATROM) {
 		quality = COM_QUALITY_HIGH;
 	}
-	
-	if (!data->bokeh) {
+	if (data->filtertype == R_FILTER_FAST_GAUSS) {
+		FastGaussianBlurOperation *operationfgb = new FastGaussianBlurOperation();
+		operationfgb->setdata(data);
+		operationfgb->setSize(size);
+		this->getInputSocket(0)->relinkConnections(operationfgb->getInputSocket(0), true, 0, graph);
+		this->getOutputSocket(0)->relinkConnections(operationfgb->getOutputSocket(0));
+		graph->addOperation(operationfgb);
+	}else if (!data->bokeh) {
 		GaussianXBlurOperation *operationx = new GaussianXBlurOperation();
 		operationx->setData(data);
 		operationx->setQuality(quality);
