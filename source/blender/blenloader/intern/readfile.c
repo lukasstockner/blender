@@ -13074,7 +13074,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		for (scene=main->scene.first; scene; scene=scene->id.next)
 			if (scene->nodetree) 
 				if ( scene->nodetree->chunksize == 0) {
-					scene->nodetree->chunksize = 128;
+					scene->nodetree->chunksize = 256;
 				}
 		}
 	}

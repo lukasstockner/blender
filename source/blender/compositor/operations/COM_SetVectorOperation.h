@@ -59,5 +59,10 @@ public:
 	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
 	const bool isSetOperation() const {return true;}
 
+	void setVector(float vector[3]) {
+		setX(vector[0]);
+		setY(vector[1]);
+		setZ(vector[2]);
+	}
 };
 #endif

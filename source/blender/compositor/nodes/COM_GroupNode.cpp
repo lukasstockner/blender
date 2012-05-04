@@ -42,16 +42,22 @@ void GroupNode::ungroup(ExecutionSystem &system) {
 		InputSocket * inputSocket = inputsockets[index];
 		bNodeSocket *editorInput = inputSocket->getbNodeSocket();
 		if (editorInput->groupsock) {
-			SocketProxyNode * proxy = new SocketProxyNode(this->getbNode(), editorInput, editorInput->groupsock);
-			inputSocket->relinkConnections(proxy->getInputSocket(0), true, index, &system);
-			ExecutionSystemHelper::addNode(system.getNodes(), proxy);
+			if (inputSocket->isConnected()) {
+				SocketProxyNode * proxy = new SocketProxyNode(this->getbNode(), editorInput, editorInput->groupsock);
+				inputSocket->relinkConnections(proxy->getInputSocket(0), true, index, &system);
+				ExecutionSystemHelper::addNode(system.getNodes(), proxy);
+			} else {
+				OutputSocketProxyNode * proxy = new OutputSocketProxyNode(this->getbNode(), editorInput, editorInput->groupsock);
+				inputSocket->relinkConnections(proxy->getInputSocket(0), true, index, &system);
+				ExecutionSystemHelper::addNode(system.getNodes(), proxy);
+			}
 		}
 	}
 
 	for (index = 0 ; index < outputsockets.size();index ++) {
 		OutputSocket * outputSocket = outputsockets[index];
 		bNodeSocket *editorOutput = outputSocket->getbNodeSocket();
-		if (editorOutput->groupsock) {
+		if (outputSocket->isConnected() && editorOutput->groupsock) {
 			SocketProxyNode * proxy = new SocketProxyNode(this->getbNode(), editorOutput->groupsock, editorOutput);
 			outputSocket->relinkConnections(proxy->getOutputSocket(0));
 			ExecutionSystemHelper::addNode(system.getNodes(), proxy);
