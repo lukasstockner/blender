@@ -599,6 +599,9 @@ operations/COM_ConvertDepthToRadiusOperation.cpp
 	operations/COM_MovieClipOperation.h
 	operations/COM_ConvertColorProfileOperation.cpp
 	operations/COM_ConvertColorProfileOperation.h
+
+	operations/COM_AntiAliasOperation.cpp
+	operations/COM_AntiAliasOperation.h
 )
 
 blender_add_lib(bf_compositor "${SRC}" "${INC}" "${INC_SYS}")
