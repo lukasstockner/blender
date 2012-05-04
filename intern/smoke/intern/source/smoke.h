@@ -22,7 +22,7 @@ namespace DDF
 			// functions taken over from standard main
 			bool advanceAllSolvers()
 			{
-				for (unsigned i=0;i<_solvers.size();i++) {
+				for (unsigned int i=0;i<_solvers.size();i++) {
 					if (_solvers[i]->performStep()) return true;
 				}
 				return false;
@@ -30,13 +30,13 @@ namespace DDF
 
 			void finalizeAllSolvers()
 			{
-				for (unsigned i=0;i<_solvers.size();i++)
+				for (unsigned int i=0;i<_solvers.size();i++)
 					_solvers[i]->finalize();
 			}
 
 			void initAllSolvers()
 			{
-				for (int i = 0; i < _solvers.size(); i++)
+				for (unsigned int i = 0; i < _solvers.size(); i++)
 					_solvers[i]->forceInit();
 			}
 
@@ -44,7 +44,7 @@ namespace DDF
 			{
 				finalizeAllSolvers();
 
-				for (unsigned i=0;i<_solvers.size();i++)
+				for (unsigned int i=0;i<_solvers.size();i++)
 					delete _solvers[i];
 
 				_solvers.clear();
