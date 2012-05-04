@@ -3,6 +3,8 @@
 using namespace std;
 using namespace DDF;
 
+#include <limits.h>
+
 void FLUID_3D::init()
 {
 	printf("-------------------- SMOKE INIT A-------------------------\n");
