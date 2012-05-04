@@ -35,6 +35,7 @@ void MapUVNode::convertToOperations(ExecutionSystem *graph, CompositorContext * 
 	
 	bNode* node = this->getbNode();
 	operation->setAlpha((float)node->custom1);
+	operation->setResolutionInputSocketIndex(1);
 
 	graph->addOperation(operation);
 }

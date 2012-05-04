@@ -104,8 +104,8 @@ void MapUVOperation::executePixel(float* color, float x, float y, PixelSampler s
 
 
 	/* EWA filtering */
-	u = inputUV[0] * this->width;
-	v = inputUV[1] * this->height;
+	u = inputUV[0] * inputColorProgram->getWidth();
+	v = inputUV[1] * inputColorProgram->getHeight();
 
 	this->inputColorProgram->read(color, u, v, dx, dy, inputBuffers);
 
