@@ -330,6 +330,7 @@ template<class Scalar>
 void Grid<Scalar>::resizeGridMem(int set_x,int set_y, int set_z) {
 	const bool debugRealloc = false;
 	size_t numElems = set_x*set_y*set_z;
+	Scalar zero;
 
 	if (debugRealloc) debMsg("Grid::resizeGridMem","Inited size="<<mDataSize<<", requested size="<<numElems<<" "<<PRINT_VEC(set_x,set_y,set_z) );
 
