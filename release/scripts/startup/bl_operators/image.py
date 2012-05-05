@@ -127,15 +127,15 @@ class SaveDirty(Operator):
                         image.pack(as_png=True)
                 else:
                     filepath = bpy.path.abspath(image.filepath, library=image.library)
-                if "\\" not in filepath and "/" not in filepath:
-                    self.report({'WARNING'}, "Invalid path: " + filepath)
-                elif filepath in unique_paths:
-                    self.report({'WARNING'},
-                                "Path used by more then one image: %r" %
-                                filepath)
-                else:
-                    unique_paths.add(filepath)
-                    image.save()
+                    if "\\" not in filepath and "/" not in filepath:
+                        self.report({'WARNING'}, "Invalid path: " + filepath)
+                    elif filepath in unique_paths:
+                        self.report({'WARNING'},
+                                    "Path used by more then one image: %r" %
+                                    filepath)
+                    else:
+                        unique_paths.add(filepath)
+                        image.save()
         return {'FINISHED'}
 
 

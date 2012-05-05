@@ -39,10 +39,10 @@ class CLIP_HT_header(Header):
             sub.menu("CLIP_MT_view")
 
             if sc.view == 'CLIP':
-            if clip:
-                sub.menu("CLIP_MT_select")
+                if clip:
+                    sub.menu("CLIP_MT_select")
 
-            sub.menu("CLIP_MT_clip")
+                sub.menu("CLIP_MT_clip")
 
                 sub.menu("CLIP_MT_track")
                 sub.menu("CLIP_MT_reconstruction")
@@ -51,7 +51,7 @@ class CLIP_HT_header(Header):
 
         if clip:
             if sc.view == 'CLIP':
-            layout.prop(sc, "mode", text="")
+                layout.prop(sc, "mode", text="")
             if sc.view == 'GRAPH':
                 row = layout.row(align=True)
 
@@ -331,8 +331,8 @@ class CLIP_PT_tools_object(CLIP_PT_reconstruction_panel, Panel):
     @classmethod
     def poll(cls, context):
         if CLIP_PT_reconstruction_panel.poll(context):
-        sc = context.space_data
-        clip = sc.clip
+            sc = context.space_data
+            clip = sc.clip
 
             tracking_object = clip.tracking.objects.active
 
@@ -504,9 +504,9 @@ class CLIP_PT_tracking_camera(Panel):
     @classmethod
     def poll(cls, context):
         if CLIP_PT_clip_view_panel.poll(context):
-        sc = context.space_data
+            sc = context.space_data
 
-        return sc.mode in {'TRACKING', 'DISTORTION'} and sc.clip
+            return sc.mode in {'TRACKING', 'DISTORTION'} and sc.clip
 
         return False
 
@@ -782,24 +782,24 @@ class CLIP_MT_view(Menu):
         sc = context.space_data
 
         if sc.view == 'CLIP':
-        layout.operator("clip.properties", icon='MENU_PANEL')
-        layout.operator("clip.tools", icon='MENU_PANEL')
-        layout.separator()
+            layout.operator("clip.properties", icon='MENU_PANEL')
+            layout.operator("clip.tools", icon='MENU_PANEL')
+            layout.separator()
 
-        layout.operator("clip.view_selected")
-        layout.operator("clip.view_all")
+            layout.operator("clip.view_selected")
+            layout.operator("clip.view_all")
 
-        layout.separator()
-        layout.operator("clip.view_zoom_in")
-        layout.operator("clip.view_zoom_out")
+            layout.separator()
+            layout.operator("clip.view_zoom_in")
+            layout.operator("clip.view_zoom_out")
 
-        layout.separator()
+            layout.separator()
 
-        ratios = ((1, 8), (1, 4), (1, 2), (1, 1), (2, 1), (4, 1), (8, 1))
+            ratios = ((1, 8), (1, 4), (1, 2), (1, 1), (2, 1), (4, 1), (8, 1))
 
-        for a, b in ratios:
-            text = "Zoom %d:%d" % (a, b)
-            layout.operator("clip.view_zoom_ratio", text=text).ratio = a / b
+            for a, b in ratios:
+                text = "Zoom %d:%d" % (a, b)
+                layout.operator("clip.view_zoom_ratio", text=text).ratio = a / b
         else:
             layout.prop(sc, "show_seconds")
             layout.separator()

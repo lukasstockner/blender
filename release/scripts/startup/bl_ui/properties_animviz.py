@@ -35,7 +35,7 @@ class MotionPathButtonsPanel():
         layout = self.layout
 
         mps = avs.motion_path
-
+        
         # Display Range
         layout.prop(mps, "type", expand=True)
 
@@ -50,7 +50,7 @@ class MotionPathButtonsPanel():
         elif (mps.type == 'RANGE'):
             sub.prop(mps, "frame_start", text="Start")
             sub.prop(mps, "frame_end", text="End")
-
+            
         sub.prop(mps, "frame_step", text="Step")
         
         col = split.column()
@@ -58,7 +58,7 @@ class MotionPathButtonsPanel():
             col.label(text="Cache for Bone:")
         else:
             col.label(text="Cache:")
-
+            
         if mpath:
             sub = col.column(align=True)
             sub.enabled = False
