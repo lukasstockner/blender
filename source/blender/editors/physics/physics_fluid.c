@@ -1,7 +1,4 @@
 /*
- * fluidsim.c
- * 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,9 +28,6 @@
 /** \file blender/editors/physics/physics_fluid.c
  *  \ingroup edphys
  */
-
-
-
 
 #include <math.h>
 #include <stdlib.h>
@@ -132,7 +126,7 @@ static float get_fluid_size_m(Scene *scene, Object *domainob, FluidsimSettings *
 		float dim[3];
 		float longest_axis;
 		
-		object_get_dimensions(domainob, dim);
+		BKE_object_dimensions_get(domainob, dim);
 		longest_axis = MAX3(dim[0], dim[1], dim[2]);
 		
 		return longest_axis * scene->unit.scale_length;

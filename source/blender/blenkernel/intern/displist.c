@@ -1,5 +1,4 @@
 /*
-
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -433,7 +432,7 @@ void filldisplist(ListBase *dispbase, ListBase *to, int flipnormal)
 		totvert= 0;
 		nextcol= 0;
 		
-		BLI_begin_edgefill(&sf_ctx);
+		BLI_scanfill_begin(&sf_ctx);
 		
 		dl= dispbase->first;
 		while (dl) {
@@ -450,18 +449,18 @@ void filldisplist(ListBase *dispbase, ListBase *to, int flipnormal)
 						while (a--) {
 							vlast= eve;
 
-							eve = BLI_addfillvert(&sf_ctx, f1);
+							eve = BLI_scanfill_vert_add(&sf_ctx, f1);
 							totvert++;
 
 							if (vlast==NULL) v1= eve;
 							else {
-								BLI_addfilledge(&sf_ctx, vlast, eve);
+								BLI_scanfill_edge_add(&sf_ctx, vlast, eve);
 							}
 							f1+=3;
 						}
 
 						if (eve!=NULL && v1!=NULL) {
-							BLI_addfilledge(&sf_ctx, eve, v1);
+							BLI_scanfill_edge_add(&sf_ctx, eve, v1);
 						}
 					}
 					else if (colnr<dl->col) {
@@ -474,7 +473,7 @@ void filldisplist(ListBase *dispbase, ListBase *to, int flipnormal)
 			dl= dl->next;
 		}
 		
-		if (totvert && (tot= BLI_edgefill(&sf_ctx, FALSE))) { // XXX (obedit && obedit->actcol)?(obedit->actcol-1):0)) {
+		if (totvert && (tot= BLI_scanfill_calc(&sf_ctx, FALSE))) { // XXX (obedit && obedit->actcol)?(obedit->actcol-1):0)) {
 			if (tot) {
 				dlnew= MEM_callocN(sizeof(DispList), "filldisplist");
 				dlnew->type= DL_INDEX3;
@@ -519,7 +518,7 @@ void filldisplist(ListBase *dispbase, ListBase *to, int flipnormal)
 			BLI_addhead(to, dlnew);
 			
 		}
-		BLI_end_edgefill(&sf_ctx);
+		BLI_scanfill_end(&sf_ctx);
 
 		if (nextcol) {
 			/* stay at current char but fill polys with next material */
@@ -1221,10 +1220,11 @@ static void rotateBevelPiece(Curve *cu, BevPoint *bevp, DispList *dlb, float wid
 	*data_r = data;
 }
 
-static void fillBevelCap(Curve *cu, Nurb *nu, BevPoint *bevp, DispList *dlb, float fac, float widfac, ListBase *dispbase)
+static void fillBevelCap(Nurb *nu, DispList *dlb, float *prev_fp, ListBase *dispbase)
 {
 	DispList *dl;
 	float *data;
+	int b;
 
 	dl= MEM_callocN(sizeof(DispList), "makeDispListbev2");
 	dl->verts= data= MEM_callocN(3*sizeof(float)*dlb->nr, "dlverts");
@@ -1240,7 +1240,8 @@ static void fillBevelCap(Curve *cu, Nurb *nu, BevPoint *bevp, DispList *dlb, flo
 	/* CU_2D conflicts with R_NOPUNOFLIP */
 	dl->rt= nu->flag & ~CU_2D;
 
-	rotateBevelPiece(cu, bevp, dlb, widfac, fac, &data);
+	for (b = 0; b < dlb->nr; b++, prev_fp += 3, data += 3)
+		copy_v3_v3(data, prev_fp);
 
 	BLI_addtail(dispbase, dl);
 }
@@ -1270,7 +1271,7 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 		if (cu->path) free_path(cu->path);
 		cu->path= NULL;
 
-		if (ob->type==OB_FONT) BKE_text_to_curve(G.main, scene, ob, 0);
+		if (ob->type==OB_FONT) BKE_vfont_to_curve(G.main, scene, ob, 0);
 
 		if (!forOrco) curve_calc_modifiers_pre(scene, ob, forRender, &originalVerts, &deformedVerts, &numVerts);
 
@@ -1333,9 +1334,26 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 						ListBase top_capbase = {NULL, NULL};
 
 						for (dlb=dlbev.first; dlb; dlb=dlb->next) {
+							int i, start, steps;
+							float bevfac1 = MIN2(cu->bevfac1, cu->bevfac2), bevfac2 = MAX2(cu->bevfac1, cu->bevfac2);
+							float firstblend = 0.0f, lastblend = 0.0f;
+
+							if (cu->bevfac1 - cu->bevfac2 == 0.0f)
+								continue;
+
+							start = (int)(bevfac1*(bl->nr-1));
+							steps = 2+(int)((bevfac2)*(bl->nr-1)) - start;
+							firstblend = 1.0f - ((float)bevfac1*(bl->nr-1) - (int)((float)bevfac1*(bl->nr-1)));
+							lastblend  = (float)bevfac2*(bl->nr-1) - (int)((float)bevfac2*(bl->nr-1));
+
+							if (steps > bl->nr) {
+								steps = bl->nr;
+								lastblend = 1.0f;
+							}
+
 							/* for each part of the bevel use a separate displblock */
 							dl= MEM_callocN(sizeof(DispList), "makeDispListbev1");
-							dl->verts= data= MEM_callocN(3*sizeof(float)*dlb->nr*bl->nr, "dlverts");
+							dl->verts= data= MEM_callocN(3*sizeof(float)*dlb->nr*steps, "dlverts");
 							BLI_addtail(dispbase, dl);
 	
 							dl->type= DL_SURF;
@@ -1344,7 +1362,7 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 							if (dlb->type==DL_POLY) dl->flag |= DL_CYCL_U;
 							if (bl->poly>=0) dl->flag |= DL_CYCL_V;
 							
-							dl->parts= bl->nr;
+							dl->parts= steps;
 							dl->nr= dlb->nr;
 							dl->col= nu->mat_nr;
 							dl->charidx= nu->charidx;
@@ -1353,18 +1371,20 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 							/* CU_2D conflicts with R_NOPUNOFLIP */
 							dl->rt= nu->flag & ~CU_2D;
 
-							dl->bevelSplitFlag= MEM_callocN(sizeof(*dl->col2)*((bl->nr+0x1F)>>5), "bevelSplitFlag");
+							dl->bevelSplitFlag= MEM_callocN(sizeof(*dl->col2)*((steps+0x1F)>>5), "bevelSplitFlag");
 	
 							/* for each point of poly make a bevel piece */
-							bevp= (BevPoint *)(bl+1);
-							for (a=0; a<bl->nr; a++, bevp++) {
+							bevp= (BevPoint *)(bl+1) + start;
+							for (i=start, a=0; a<steps; i++,bevp++,a++) {
 								float fac=1.0;
+								float *cur_data = data;
+
 								if (cu->taperobj==NULL) {
 									if ( (cu->bevobj!=NULL) || !((cu->flag & CU_FRONT) || (cu->flag & CU_BACK)) )
 										fac = bevp->radius;
 								}
 								else {
-									fac = calc_taper(scene, cu->taperobj, a, bl->nr);
+									fac = calc_taper(scene, cu->taperobj, i, bl->nr);
 								}
 
 								if (bevp->split_tag) {
@@ -1374,11 +1394,31 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 								/* rotate bevel piece and write in data */
 								rotateBevelPiece(cu, bevp, dlb, widfac, fac, &data);
 
+								if (a == 1 || a == steps - 1) {
+									float *cur_fp = cur_data, *prev_fp = cur_data - 3*dlb->nr;
+									int b;
+
+									for (b = 0; b < dlb->nr; b++, prev_fp += 3, cur_fp += 3) {
+										float cur[3], prev[3];
+
+										copy_v3_v3(cur, cur_fp);
+										copy_v3_v3(prev, prev_fp);
+
+										if (a == 1)
+											interp_v3_v3v3(prev, cur_fp, prev_fp, firstblend);
+										if (a == steps - 1)
+											interp_v3_v3v3(cur, prev_fp, cur_fp, lastblend);
+
+										copy_v3_v3(cur_fp, cur);
+										copy_v3_v3(prev_fp, prev);
+									}
+								}
+
 								if (cu->bevobj && (cu->flag & CU_FILL_CAPS)) {
-									if (a == 0)
-										fillBevelCap(cu, nu, bevp, dlb, fac, widfac, &bottom_capbase);
-									else if (a == bl->nr - 1)
-										fillBevelCap(cu, nu, bevp, dlb, fac, widfac, &top_capbase);
+									if (a == 1) 
+										fillBevelCap(nu, dlb, cur_data - 3*dlb->nr, &bottom_capbase);
+									if (a == steps - 1)
+										fillBevelCap(nu, dlb, cur_data, &top_capbase);
 								}
 							}
 
@@ -1529,7 +1569,7 @@ static void boundbox_displist(Object *ob)
 	}
 	
 	if (bb) {
-		boundbox_set_from_min_max(bb, min, max);
+		BKE_boundbox_init_from_minmax(bb, min, max);
 	}
 }
 

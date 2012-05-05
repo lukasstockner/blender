@@ -193,8 +193,9 @@ void draw_motion_path_instance(Scene *scene,
 		glVertex3fv(mpv->co);
 	glEnd();
 	
-	/* Draw big green dot where the current frame is */
-	// NOTE: only do this when drawing keyframes for now... 
+	/* Draw big green dot where the current frame is 
+	 * NOTE: this is only done when keyframes are shown, since this adds similar types of clutter
+	 */
 	if ((avs->path_viewflag & MOTIONPATH_VIEW_KFRAS) &&
 	    (sfra < CFRA) && (CFRA <= efra))
 	{
@@ -257,7 +258,7 @@ void draw_motion_path_instance(Scene *scene,
 			 * unless an option is set to always use the whole action
 			 */
 			if ((pchan) && (avs->path_viewflag & MOTIONPATH_VIEW_KFACT) == 0) {
-				bActionGroup *agrp = action_groups_find_named(adt->action, pchan->name);
+				bActionGroup *agrp = BKE_action_group_find_name(adt->action, pchan->name);
 				
 				if (agrp) {
 					agroup_to_keylist(adt, agrp, &keys, NULL);

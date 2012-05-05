@@ -131,7 +131,8 @@ void poseAnim_mapping_get(bContext *C, ListBase *pfLinks, Object *ob, bAction *a
 	/* for each Pose-Channel which gets affected, get the F-Curves for that channel 
 	 * and set the relevant transform flags...
 	 */
-	CTX_DATA_BEGIN (C, bPoseChannel*, pchan, selected_pose_bones) {
+	CTX_DATA_BEGIN (C, bPoseChannel*, pchan, selected_pose_bones)
+	{
 		fcurves_to_pchan_links_get(pfLinks, ob, act, pchan);
 	}
 	CTX_DATA_END;
@@ -140,7 +141,8 @@ void poseAnim_mapping_get(bContext *C, ListBase *pfLinks, Object *ob, bAction *a
 	 * i.e. if nothing selected, do whole pose
 	 */
 	if (pfLinks->first == NULL) {
-		CTX_DATA_BEGIN (C, bPoseChannel*, pchan, visible_pose_bones) {
+		CTX_DATA_BEGIN (C, bPoseChannel*, pchan, visible_pose_bones)
+		{
 			fcurves_to_pchan_links_get(pfLinks, ob, act, pchan);
 		}
 		CTX_DATA_END;
@@ -187,7 +189,7 @@ void poseAnim_mapping_refresh(bContext *C, Scene *scene, Object *ob)
 	if ((arm->flag & ARM_DELAYDEFORM)==0)
 		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);  /* sets recalc flags */
 	else
-		where_is_pose(scene, ob);
+		BKE_pose_where_is(scene, ob);
 	
 	/* note, notifier might evolve */
 	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);

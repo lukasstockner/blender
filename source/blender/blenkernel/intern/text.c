@@ -160,7 +160,7 @@ static void init_undo_text(Text *text)
 	text->undo_buf= MEM_mallocN(text->undo_len, "undo buf");
 }
 
-void free_text(Text *text)
+void BKE_text_free(Text *text)
 {
 	TextLine *tmp;
 
@@ -180,13 +180,13 @@ void free_text(Text *text)
 #endif
 }
 
-Text *add_empty_text(const char *name) 
+Text *BKE_text_add(const char *name) 
 {
 	Main *bmain= G.main;
 	Text *ta;
 	TextLine *tmp;
 	
-	ta= alloc_libblock(&bmain->text, ID_TXT, name);
+	ta= BKE_libblock_alloc(&bmain->text, ID_TXT, name);
 	ta->id.us= 1;
 	
 	ta->name= NULL;
@@ -278,7 +278,7 @@ static void cleanup_textline(TextLine * tl)
 	tl->len+= txt_extended_ascii_as_utf8(&tl->line);
 }
 
-int reopen_text(Text *text)
+int BKE_text_reload(Text *text)
 {
 	FILE *fp;
 	int i, llen, len;
@@ -373,7 +373,7 @@ int reopen_text(Text *text)
 	return 1;
 }
 
-Text *add_text(const char *file, const char *relpath) 
+Text *BKE_text_load(const char *file, const char *relpath)
 {
 	Main *bmain= G.main;
 	FILE *fp;
@@ -391,7 +391,7 @@ Text *add_text(const char *file, const char *relpath)
 	fp= BLI_fopen(str, "r");
 	if (fp==NULL) return NULL;
 	
-	ta= alloc_libblock(&bmain->text, ID_TXT, BLI_path_basename(str));
+	ta= BKE_libblock_alloc(&bmain->text, ID_TXT, BLI_path_basename(str));
 	ta->id.us= 1;
 
 	ta->lines.first= ta->lines.last= NULL;
@@ -473,12 +473,12 @@ Text *add_text(const char *file, const char *relpath)
 	return ta;
 }
 
-Text *copy_text(Text *ta)
+Text *BKE_text_copy(Text *ta)
 {
 	Text *tan;
 	TextLine *line, *tmp;
 	
-	tan= copy_libblock(&ta->id);
+	tan= BKE_libblock_copy(&ta->id);
 	
 	/* file name can be NULL */
 	if (ta->name) {
@@ -521,7 +521,7 @@ Text *copy_text(Text *ta)
 	return tan;
 }
 
-void unlink_text(Main *bmain, Text *text)
+void BKE_text_unlink(Main *bmain, Text *text)
 {
 	bScreen *scr;
 	ScrArea *area;
@@ -593,7 +593,7 @@ void unlink_text(Main *bmain, Text *text)
 	text->id.us= 0;
 }
 
-void clear_text(Text *text) /* called directly from rna */
+void BKE_text_clear(Text *text) /* called directly from rna */
 {
 	int oldstate;
 
@@ -606,7 +606,7 @@ void clear_text(Text *text) /* called directly from rna */
 	txt_make_dirty(text);
 }
 
-void write_text(Text *text, const char *str) /* called directly from rna */
+void BKE_text_write(Text *text, const char *str) /* called directly from rna */
 {
 	int oldstate;
 
@@ -957,9 +957,8 @@ void txt_move_right(Text *text, short sel)
 void txt_jump_left(Text *text, short sel)
 {
 	TextLine **linep, *oldl;
-	int *charp, oldc, oldflags, i;
+	int *charp, oldc, oldflags;
 	unsigned char oldu;
-	int pos;
 
 	if (!text) return;
 	if (sel) txt_curs_sel(text, &linep, &charp);
@@ -974,13 +973,9 @@ void txt_jump_left(Text *text, short sel)
 	oldu= undoing;
 	undoing= 1; /* Don't push individual moves to undo stack */
 
-	pos = *charp;
 	BLI_str_cursor_step_utf8((*linep)->line, (*linep)->len,
-	                         &pos, STRCUR_DIR_PREV,
+                             charp, STRCUR_DIR_PREV,
 	                         STRCUR_JUMP_DELIM);
-	for (i = *charp; i > pos; i--) {
-		txt_move_left(text, sel);
-	}
 
 	text->flags = oldflags;
 
@@ -991,9 +986,8 @@ void txt_jump_left(Text *text, short sel)
 void txt_jump_right(Text *text, short sel)
 {
 	TextLine **linep, *oldl;
-	int *charp, oldc, oldflags, i;
+	int *charp, oldc, oldflags;
 	unsigned char oldu;
-	int pos;
 
 	if (!text) return;
 	if (sel) txt_curs_sel(text, &linep, &charp);
@@ -1008,13 +1002,9 @@ void txt_jump_right(Text *text, short sel)
 	oldu= undoing;
 	undoing= 1; /* Don't push individual moves to undo stack */
 
-	pos = *charp;
 	BLI_str_cursor_step_utf8((*linep)->line, (*linep)->len,
-	                         &pos, STRCUR_DIR_NEXT,
+                             charp, STRCUR_DIR_NEXT,
 	                         STRCUR_JUMP_DELIM);
-	for (i = *charp; i < pos; i++) {
-		txt_move_right(text, sel);
-	}
 
 	text->flags = oldflags;
 
@@ -2210,6 +2200,12 @@ void txt_do_undo(Text *text)
 		case UNDO_DUPLICATE:
 			txt_delete_line(text, text->curl->next);
 			break;
+		case UNDO_MOVE_LINES_UP:
+			txt_move_lines(text, TXT_MOVE_LINE_DOWN);
+			break;
+		case UNDO_MOVE_LINES_DOWN:
+			txt_move_lines(text, TXT_MOVE_LINE_UP);
+			break;
 		default:
 			//XXX error("Undo buffer error - resetting");
 			text->undo_pos= -1;
@@ -2409,6 +2405,12 @@ void txt_do_redo(Text *text)
 			break;
 		case UNDO_DUPLICATE:
 			txt_duplicate_line(text);
+			break;
+		case UNDO_MOVE_LINES_UP:
+			txt_move_lines(text, TXT_MOVE_LINE_UP);
+			break;
+		case UNDO_MOVE_LINES_DOWN:
+			txt_move_lines(text, TXT_MOVE_LINE_DOWN);
 			break;
 		default:
 			//XXX error("Undo buffer error - resetting");
@@ -3040,6 +3042,61 @@ void txt_uncomment(Text *text)
 	
 	if (!undoing) {
 		txt_undo_add_toop(text, UNDO_UNCOMMENT, txt_get_span(text->lines.first, text->curl), text->curc, txt_get_span(text->lines.first, text->sell), text->selc);
+	}
+}
+
+
+void txt_move_lines_up(struct Text *text)
+{
+	TextLine *prev_line;
+	
+	if (!text || !text->curl || !text->sell) return;
+	
+	txt_order_cursors(text);
+	
+	prev_line= text->curl->prev;
+	
+	if (!prev_line) return;
+	
+	BLI_remlink(&text->lines, prev_line);
+	BLI_insertlinkafter(&text->lines, text->sell, prev_line);
+	
+	txt_make_dirty(text);
+	txt_clean_text(text);
+	
+	if (!undoing) {
+		txt_undo_add_op(text, UNDO_MOVE_LINES_UP);
+	}
+}
+
+void txt_move_lines(struct Text *text, const int direction)
+{
+	TextLine *line_other;
+
+	BLI_assert(ELEM(direction, TXT_MOVE_LINE_UP, TXT_MOVE_LINE_DOWN));
+
+	if (!text || !text->curl || !text->sell) return;
+	
+	txt_order_cursors(text);
+
+	line_other =  (direction == TXT_MOVE_LINE_DOWN) ? text->sell->next : text->curl->prev;
+	
+	if (!line_other) return;
+		
+	BLI_remlink(&text->lines, line_other);
+
+	if (direction == TXT_MOVE_LINE_DOWN) {
+		BLI_insertlinkbefore(&text->lines, text->curl, line_other);
+	}
+	else {
+		BLI_insertlinkafter(&text->lines, text->sell, line_other);
+	}
+
+	txt_make_dirty(text);
+	txt_clean_text(text);
+	
+	if (!undoing) {
+		txt_undo_add_op(text, (direction == TXT_MOVE_LINE_DOWN) ? UNDO_MOVE_LINES_DOWN : UNDO_MOVE_LINES_UP);
 	}
 }
 

@@ -141,4 +141,3 @@ typedef struct Image {
 #define IMA_GEN_FLOAT		1
 
 #endif
-

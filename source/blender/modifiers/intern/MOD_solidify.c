@@ -478,7 +478,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 				
 				sub_v3_v3v3(e1, mvert[ml_next->v].co, mvert[ml->v].co);
 				sub_v3_v3v3(e2, mvert[ml_prev->v].co, mvert[ml->v].co);
-				angle = M_PI - angle_normalized_v3v3(e1, e2);
+				angle = (float)M_PI - angle_normalized_v3v3(e1, e2);
 				BLI_array_append(face_angles, angle);
 			}
 			
@@ -673,7 +673,10 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 			}
 			
 #ifdef SOLIDIFY_SIDE_NORMALS
-			normal_quad_v3(nor, mvert[ml[j-4].v].co, mvert[ml[j-3].v].co, mvert[ml[j-2].v].co, mvert[ml[j-1].v].co);
+			normal_quad_v3(nor, mvert[ml[j - 4].v].co,
+			                    mvert[ml[j - 3].v].co,
+			                    mvert[ml[j - 2].v].co,
+			                    mvert[ml[j - 1].v].co);
 
 			add_v3_v3(edge_vert_nos[ed->v1], nor);
 			add_v3_v3(edge_vert_nos[ed->v2], nor);

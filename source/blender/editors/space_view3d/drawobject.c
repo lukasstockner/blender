@@ -164,7 +164,10 @@ typedef struct drawDMFacesSel_userData {
 
 typedef struct drawDMNormal_userData {
 	BMEditMesh *em;
+	int uniform_scale;
 	float normalsize;
+	float tmat[3][3];
+	float imat[3][3];
 } drawDMNormal_userData;
 
 typedef struct bbsObmodeMeshVerts_userData {
@@ -187,7 +190,7 @@ static int check_object_draw_texture(Scene *scene, View3D *v3d, int drawtype)
 		return TRUE;
 
 	/* textured solid */
-	if (v3d->drawtype == OB_SOLID && (v3d->flag2 & V3D_SOLID_TEX) && !scene_use_new_shading_nodes(scene))
+	if (v3d->drawtype == OB_SOLID && (v3d->flag2 & V3D_SOLID_TEX) && !BKE_scene_use_new_shading_nodes(scene))
 		return TRUE;
 	
 	return FALSE;
@@ -329,7 +332,7 @@ int draw_glsl_material(Scene *scene, Object *ob, View3D *v3d, int dt)
 		return 0;
 	if (ob == OBACT && (ob && ob->mode & OB_MODE_WEIGHT_PAINT))
 		return 0;
-	if (scene_use_new_shading_nodes(scene))
+	if (BKE_scene_use_new_shading_nodes(scene))
 		return 0;
 	
 	return (scene->gm.matmode == GAME_MAT_GLSL) && (dt > OB_SOLID);
@@ -1737,7 +1740,7 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 	int i;
 	float drawsize;
 	const short is_view = (rv3d->persp == RV3D_CAMOB && ob == v3d->camera);
-	MovieClip *clip = object_get_movieclip(scene, base->object, 0);
+	MovieClip *clip = BKE_object_movieclip_get(scene, base->object, 0);
 
 	/* draw data for movie clip set as active for scene */
 	if (clip) {
@@ -1759,7 +1762,7 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 	scale[1] = 1.0f / len_v3(ob->obmat[1]);
 	scale[2] = 1.0f / len_v3(ob->obmat[2]);
 
-	camera_view_frame_ex(scene, cam, cam->drawsize, is_view, scale,
+	BKE_camera_view_frame_ex(scene, cam, cam->drawsize, is_view, scale,
 	                     asp, shift, &drawsize, vec);
 
 	glDisable(GL_LIGHTING);
@@ -1831,7 +1834,7 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 			if (cam->flag & CAM_SHOWLIMITS) {
 				draw_limit_line(cam->clipsta, cam->clipend, 0x77FFFF);
 				/* qdn: was yafray only, now also enabled for Blender to be used with defocus composite node */
-				draw_focus_cross(object_camera_dof_distance(ob), cam->drawsize);
+				draw_focus_cross(BKE_camera_object_dof_distance(ob), cam->drawsize);
 			}
 
 			wrld = scene->world;
@@ -1968,7 +1971,7 @@ static void drawlattice(Scene *scene, View3D *v3d, Object *ob)
 
 	/* now we default make displist, this will modifiers work for non animated case */
 	if (ob->disp.first == NULL)
-		lattice_calc_modifiers(scene, ob);
+		BKE_lattice_modifiers_calc(scene, ob);
 	dl = find_displist(&ob->disp, DL_VERTS);
 	
 	if (is_edit) {
@@ -2269,24 +2272,55 @@ void nurbs_foreachScreenVert(
  * logic!!!
  */
 
+static void calcDrawDMNormalScale(Object *ob, drawDMNormal_userData *data)
+{
+	float obmat[3][3];
+
+	copy_m3_m4(obmat, ob->obmat);
+
+	data->uniform_scale = is_uniform_scaled_m3(obmat);
+
+	if (!data->uniform_scale) {
+		/* inverted matrix */
+		invert_m3_m3(data->imat, obmat);
+
+		/* transposed inverted matrix */
+		copy_m3_m3(data->tmat, data->imat);
+		transpose_m3(data->tmat);
+	}
+}
+
 static void draw_dm_face_normals__mapFunc(void *userData, int index, const float cent[3], const float no[3])
 {
 	drawDMNormal_userData *data = userData;
 	BMFace *efa = EDBM_face_at_index(data->em, index);
+	float n[3];
 
 	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
+		if (!data->uniform_scale) {
+			mul_v3_m3v3(n, data->tmat, (float *) no);
+			normalize_v3(n);
+			mul_m3_v3(data->imat, n);
+		}
+		else {
+			copy_v3_v3(n, no);
+		}
+
 		glVertex3fv(cent);
-		glVertex3f(cent[0] + no[0] * data->normalsize,
-		           cent[1] + no[1] * data->normalsize,
-		           cent[2] + no[2] * data->normalsize);
+		glVertex3f(cent[0] + n[0] * data->normalsize,
+		           cent[1] + n[1] * data->normalsize,
+		           cent[2] + n[2] * data->normalsize);
 	}
 }
-static void draw_dm_face_normals(BMEditMesh *em, Scene *scene, DerivedMesh *dm) 
+
+static void draw_dm_face_normals(BMEditMesh *em, Scene *scene, Object *ob, DerivedMesh *dm)
 {
 	drawDMNormal_userData data;
 
 	data.em = em;
 	data.normalsize = scene->toolsettings->normalsize;
+
+	calcDrawDMNormalScale(ob, &data);
 
 	glBegin(GL_LINES);
 	dm->foreachMappedFaceCenter(dm, draw_dm_face_normals__mapFunc, &data);
@@ -2317,26 +2351,41 @@ static void draw_dm_vert_normals__mapFunc(void *userData, int index, const float
 	BMVert *eve = EDBM_vert_at_index(data->em, index);
 
 	if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
-		glVertex3fv(co);
+		float no[3], n[3];
 
 		if (no_f) {
-			glVertex3f(co[0] + no_f[0] * data->normalsize,
-			           co[1] + no_f[1] * data->normalsize,
-			           co[2] + no_f[2] * data->normalsize);
+			copy_v3_v3(no, no_f);
 		}
 		else {
-			glVertex3f(co[0] + no_s[0] * (data->normalsize / 32767.0f),
-			           co[1] + no_s[1] * (data->normalsize / 32767.0f),
-			           co[2] + no_s[2] * (data->normalsize / 32767.0f));
+			no[0] = no_s[0] / 32767.0f;
+			no[1] = no_s[1] / 32767.0f;
+			no[2] = no_s[2] / 32767.0f;
 		}
+
+		if (!data->uniform_scale) {
+			mul_v3_m3v3(n, data->tmat, (float *) no);
+			normalize_v3(n);
+			mul_m3_v3(data->imat, n);
+	}
+		else {
+			copy_v3_v3(n, no);
+}
+
+		glVertex3fv(co);
+		glVertex3f(co[0] + n[0] * data->normalsize,
+		           co[1] + n[1] * data->normalsize,
+		           co[2] + n[2] * data->normalsize);
 	}
 }
-static void draw_dm_vert_normals(BMEditMesh *em, Scene *scene, DerivedMesh *dm) 
+
+static void draw_dm_vert_normals(BMEditMesh *em, Scene *scene, Object *ob, DerivedMesh *dm)
 {
 	drawDMNormal_userData data;
 
 	data.em = em;
 	data.normalsize = scene->toolsettings->normalsize;
+
+	calcDrawDMNormalScale(ob, &data);
 
 	glBegin(GL_LINES);
 	dm->foreachMappedVert(dm, draw_dm_vert_normals__mapFunc, &data);
@@ -2853,9 +2902,10 @@ static void draw_em_measure_stats(View3D *v3d, Object *ob, BMEditMesh *em, UnitS
 
 #define DRAW_EM_MEASURE_STATS_FACEAREA()                                      \
 	if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {                               \
-		mul_v3_fl(vmid, 1.0 / n);                                             \
+		mul_v3_fl(vmid, 1.0f / (float)n);                                     \
 		if (unit->system)                                                     \
-			bUnit_AsString(numstr, sizeof(numstr), area * unit->scale_length, \
+			bUnit_AsString(numstr, sizeof(numstr),                            \
+		                   (double)(area * unit->scale_length),               \
 			               3, unit->system, B_UNIT_LENGTH, do_split, FALSE);  \
 		else                                                                  \
 			BLI_snprintf(numstr, sizeof(numstr), conv_float, area);           \
@@ -3167,11 +3217,11 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 
 		if (me->drawflag & ME_DRAWNORMALS) {
 			UI_ThemeColor(TH_NORMAL);
-			draw_dm_face_normals(em, scene, cageDM);
+			draw_dm_face_normals(em, scene, ob, cageDM);
 		}
 		if (me->drawflag & ME_DRAW_VNORMALS) {
 			UI_ThemeColor(TH_VNORMAL);
-			draw_dm_vert_normals(em, scene, cageDM);
+			draw_dm_vert_normals(em, scene, ob, cageDM);
 		}
 
 		if ( (me->drawflag & (ME_DRAWEXTRA_EDGELEN | ME_DRAWEXTRA_FACEAREA | ME_DRAWEXTRA_FACEANG)) &&
@@ -3270,7 +3320,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	else if (dt == OB_WIRE || totface == 0) {
 		draw_wire = OBDRAW_WIRE_ON; /* draw wire only, no depth buffer stuff  */
 	}
-	else if ( (draw_flags & DRAW_FACE_SELECT || (is_obact && ob->mode & OB_MODE_TEXTURE_PAINT)) ||
+	else if ( ((is_obact && ob->mode & OB_MODE_TEXTURE_PAINT)) ||
 	          check_object_draw_texture(scene, v3d, dt))
 	{
 		if ( (v3d->flag & V3D_SELECT_OUTLINE) &&
@@ -3425,40 +3475,8 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 		}
 	}
 	else if (dt == OB_PAINT) {
-		if (is_obact) {
-			if (ob && ob->mode & OB_MODE_WEIGHT_PAINT) {
-				/* enforce default material settings */
-				GPU_enable_material(0, NULL);
-				
-				/* but set default spec */
-				glColorMaterial(GL_FRONT_AND_BACK, GL_SPECULAR);
-				glEnable(GL_COLOR_MATERIAL);    /* according manpages needed */
-				glColor3ub(120, 120, 120);
-				glDisable(GL_COLOR_MATERIAL);
-				/* diffuse */
-				glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-				glEnable(GL_LIGHTING);
-				glEnable(GL_COLOR_MATERIAL);
-
-				dm->drawMappedFaces(dm, NULL, GPU_enable_material, NULL, me->mpoly,
-				                    DM_DRAW_USE_COLORS | DM_DRAW_ALWAYS_SMOOTH);
-				glDisable(GL_COLOR_MATERIAL);
-				glDisable(GL_LIGHTING);
-
-				GPU_disable_material();
+		draw_mesh_paint(rv3d, ob, dm, draw_flags);
 			}
-			else if (ob->mode & OB_MODE_VERTEX_PAINT) {
-				if (me->mloopcol)
-					dm->drawMappedFaces(dm, NULL, GPU_enable_material, NULL, NULL,
-					                    DM_DRAW_USE_COLORS | DM_DRAW_ALWAYS_SMOOTH);
-				else {
-					glColor3f(1.0f, 1.0f, 1.0f);
-					dm->drawMappedFaces(dm, NULL, GPU_enable_material, NULL, NULL,
-					                    DM_DRAW_ALWAYS_SMOOTH);
-				}
-			}
-		}
-	}
 	
 	/* set default draw color back for wire or for draw-extra later on */
 	if (dt != OB_WIRE) {
@@ -4267,7 +4285,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 
 	totpart = psys->totpart;
 
-	cfra = BKE_curframe(scene);
+	cfra = BKE_scene_frame_get(scene);
 
 	if (draw_as == PART_DRAW_PATH && psys->pathcache == NULL && psys->childcache == NULL)
 		draw_as = PART_DRAW_DOT;
@@ -6074,7 +6092,7 @@ static void draw_box(float vec[8][3])
 #if 0
 static void get_local_bounds(Object *ob, float center[3], float size[3])
 {
-	BoundBox *bb = object_get_boundbox(ob);
+	BoundBox *bb = BKE_object_boundbox_get(ob);
 	
 	if (bb == NULL) {
 		zero_v3(center);
@@ -6150,7 +6168,7 @@ static void draw_bounding_volume(Scene *scene, Object *ob, char type)
 		}
 	}
 	else if (ob->type == OB_ARMATURE) {
-		bb = BKE_armature_get_bb(ob);
+		bb = BKE_armature_boundbox_get(ob);
 	}
 	else {
 		drawcube();
@@ -6417,7 +6435,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 	view3d_cached_text_draw_begin();
 	
 	/* patch? children objects with a timeoffs change the parents. How to solve! */
-	/* if ( ((int)ob->ctime) != F_(scene->r.cfra)) where_is_object(scene, ob); */
+	/* if ( ((int)ob->ctime) != F_(scene->r.cfra)) BKE_object_where_is_calc(scene, ob); */
 	
 	/* draw motion paths (in view space) */
 	if (ob->mpath && (v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
@@ -6629,7 +6647,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 				setlinestyle(0);
 
 
-				if (BKE_font_getselection(ob, &selstart, &selend) && cu->selboxes) {
+				if (BKE_vfont_select_get(ob, &selstart, &selend) && cu->selboxes) {
 					float selboxw;
 
 					cpack(0xffffff);
@@ -6973,7 +6991,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 				drawtexspace(ob);
 			}
 			if (dtx & OB_DRAWNAME) {
-				/* patch for several 3d cards (IBM mostly) that crash on glSelect with text drawing */
+				/* patch for several 3d cards (IBM mostly) that crash on GL_SELECT with text drawing */
 				/* but, we also don't draw names for sets or duplicators */
 				if (flag == 0) {
 					float zero[3] = {0, 0, 0};
@@ -7123,7 +7141,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 					for (ct = targets.first; ct; ct = ct->next) {
 						/* calculate target's matrix */
 						if (cti->get_target_matrix)
-							cti->get_target_matrix(curcon, cob, ct, BKE_curframe(scene));
+							cti->get_target_matrix(curcon, cob, ct, BKE_scene_frame_get(scene));
 						else
 							unit_m4(ct->matrix);
 						

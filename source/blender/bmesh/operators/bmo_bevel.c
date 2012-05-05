@@ -151,10 +151,10 @@ static void calc_corner_co(BMLoop *l, const float fac, float r_co[3],
 
 		/* done */
 		if (do_even) {
-			mul_v3_fl(co_ofs, (fac * 0.5) * shell_angle_to_dist(0.5f * angle));
+			mul_v3_fl(co_ofs, (fac * 0.5f) * shell_angle_to_dist(0.5f * angle));
 		}
 		else {
-			mul_v3_fl(co_ofs, fac * 0.5);
+			mul_v3_fl(co_ofs, fac * 0.5f);
 		}
 	}
 

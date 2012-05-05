@@ -605,7 +605,10 @@ static void node_composit_exec_blur(void *data, bNode *node, bNodeStack **in, bN
 		out[0]->data= new;
 	}
 	else if (nbd->filtertype == R_FILTER_FAST_GAUSS) {
-		CompBuf *new, *img = in[0]->data;
+		if (in[1]->vec[0] < 0.001f) { /* time node inputs can be a tiny value */
+			new = pass_on_compbuf(img);
+		}
+		else {
 		// TODO: can this be mapped with reference, too?
 		const float sx = ((float)nbd->sizex*in[1]->vec[0])/2.0f, sy = ((float)nbd->sizey*in[1]->vec[0])/2.0f;
 		int c;
@@ -633,8 +636,8 @@ static void node_composit_exec_blur(void *data, bNode *node, bNodeStack **in, bN
 					IIR_gauss(new, sy, c, 2);
 			}
 		}
+		}
 		out[0]->data = new;
-		
 	}
 	else {
 		/* All non fast gauss blur methods */

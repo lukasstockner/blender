@@ -1,7 +1,4 @@
 /*
- *
- * This is external code.
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,13 +23,13 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- *
  */
 
 /** \file blender/avi/intern/endian.h
  *  \ingroup avi
+ *
+ * This is external code.
  */
-
 
 #ifndef __ENDIAN_H__
 #define __ENDIAN_H__

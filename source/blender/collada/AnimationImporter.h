@@ -145,7 +145,7 @@ public:
 
 	void translate_Animations(COLLADAFW::Node * Node,
 	                          std::map<COLLADAFW::UniqueId, COLLADAFW::Node*>& root_map,
-	                          std::map<COLLADAFW::UniqueId, Object*>& object_map,
+							  std::multimap<COLLADAFW::UniqueId, Object*>& object_map,
 	                          std::map<COLLADAFW::UniqueId, const COLLADAFW::Object*> FW_object_map);
 
 	AnimMix* get_animation_type( const COLLADAFW::Node * node, std::map<COLLADAFW::UniqueId, const COLLADAFW::Object*> FW_object_map );
@@ -165,6 +165,7 @@ public:
 	int setAnimType ( const COLLADAFW::Animatable * prop, int type, int addition);
 	
 	void modify_fcurve(std::vector<FCurve*>* curves, const char* rna_path, int array_index );
+	void unused_fcurve(std::vector<FCurve*>* curves );
 	// prerequisites:
 	// animlist_map - map animlist id -> animlist
 	// curve_map - map anim id -> curve(s)

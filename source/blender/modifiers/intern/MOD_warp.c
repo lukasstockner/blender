@@ -230,8 +230,9 @@ static void warpModifier_do(WarpModifierData *wmd, Object *ob,
 		float *co = vertexCos[i];
 
 		if (wmd->falloff_type==eWarp_Falloff_None ||
-		        ((fac=len_v3v3(co, mat_from[3])) < wmd->falloff_radius && (fac=(wmd->falloff_radius-fac)/wmd->falloff_radius)) ) {
-
+		    ((fac = len_v3v3(co, mat_from[3])) < wmd->falloff_radius &&
+		     (fac = (wmd->falloff_radius-fac) / wmd->falloff_radius)))
+		{
 			/* skip if no vert group found */
 			if (dvert && defgrp_index >= 0) {
 				dv = &dvert[i];

@@ -308,14 +308,12 @@ class DATA_PT_motion_paths(MotionPathButtonsPanel, Panel):
         layout = self.layout
 
         ob = context.object
+        avs = ob.pose.animation_visualisation
 
-        self.draw_settings(context, ob.pose.animation_visualisation, bones=True)
+        pchan = context.active_pose_bone
+        mpath = pchan.motion_path if pchan else None
 
-        layout.separator()
-
-        split = layout.split()
-        split.operator("pose.paths_calculate", text="Calculate Paths")
-        split.operator("pose.paths_clear", text="Clear Paths")
+        self.draw_settings(context, avs, mpath, bones=True)
 
 
 class DATA_PT_onion_skinning(OnionSkinButtonsPanel):  # , Panel): # inherit from panel when ready

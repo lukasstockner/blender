@@ -42,7 +42,6 @@ typedef struct OceanResult {
     float Eplus[3];
 } OceanResult;
 	
-	
 typedef struct OceanCache {
 	struct ImBuf **ibufs_disp;
 	struct ImBuf **ibufs_foam;
@@ -74,7 +73,6 @@ typedef struct OceanCache {
 #define OCEAN_CACHING		1
 #define OCEAN_CACHED		2
 
-	
 struct Ocean *BKE_add_ocean(void);
 void BKE_free_ocean_data(struct Ocean *oc);
 void BKE_free_ocean(struct Ocean *oc);

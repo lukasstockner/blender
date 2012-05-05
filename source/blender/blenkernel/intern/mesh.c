@@ -412,7 +412,7 @@ void unlink_mesh(Mesh *me)
 }
 
 /* do not free mesh itself */
-void free_mesh(Mesh *me, int unlink)
+void BKE_mesh_free(Mesh *me, int unlink)
 {
 	if (unlink)
 		unlink_mesh(me);
@@ -484,23 +484,23 @@ static void mesh_tessface_clear_intern(Mesh *mesh, int free_customdata)
 	memset(&mesh->fdata, 0, sizeof(mesh->fdata));
 }
 
-Mesh *add_mesh(const char *name)
+Mesh *BKE_mesh_add(const char *name)
 {
 	Mesh *me;
 	
-	me= alloc_libblock(&G.main->mesh, ID_ME, name);
+	me= BKE_libblock_alloc(&G.main->mesh, ID_ME, name);
 	
 	me->size[0]= me->size[1]= me->size[2]= 1.0;
 	me->smoothresh= 30;
 	me->texflag= ME_AUTOSPACE;
 	me->flag= ME_TWOSIDED;
-	me->bb= unit_boundbox();
+	me->bb= BKE_boundbox_alloc_unit();
 	me->drawflag= ME_DRAWEDGES|ME_DRAWFACES|ME_DRAWCREASES;
 	
 	return me;
 }
 
-Mesh *copy_mesh(Mesh *me)
+Mesh *BKE_mesh_copy(Mesh *me)
 {
 	Mesh *men;
 	MTFace *tface;
@@ -508,7 +508,7 @@ Mesh *copy_mesh(Mesh *me)
 	int a, i;
 	const int do_tessface = ((me->totface != 0) && (me->totpoly == 0)); /* only do tessface if we have no polys */
 	
-	men= copy_libblock(&me->id);
+	men= BKE_libblock_copy(&me->id);
 	
 	men->mat= MEM_dupallocN(me->mat);
 	for (a=0; a<men->totcol; a++) {
@@ -555,7 +555,7 @@ Mesh *copy_mesh(Mesh *me)
 
 	men->bb= MEM_dupallocN(men->bb);
 	
-	men->key= copy_key(me->key);
+	men->key= BKE_key_copy(me->key);
 	if (men->key) men->key->from= (ID *)men;
 
 	return men;
@@ -611,7 +611,7 @@ static void expand_local_mesh(Mesh *me)
 	}
 }
 
-void make_local_mesh(Mesh *me)
+void BKE_mesh_make_local(Mesh *me)
 {
 	Main *bmain= G.main;
 	Object *ob;
@@ -641,7 +641,7 @@ void make_local_mesh(Mesh *me)
 		expand_local_mesh(me);
 	}
 	else if (is_local && is_lib) {
-		Mesh *me_new= copy_mesh(me);
+		Mesh *me_new= BKE_mesh_copy(me);
 		me_new->id.us= 0;
 
 
@@ -682,7 +682,7 @@ void boundbox_mesh(Mesh *me, float *loc, float *size)
 	size[1]= (max[1]-min[1])/2.0f;
 	size[2]= (max[2]-min[2])/2.0f;
 	
-	boundbox_set_from_min_max(bb, min, max);
+	BKE_boundbox_init_from_minmax(bb, min, max);
 }
 
 void tex_space_mesh(Mesh *me)
@@ -846,7 +846,7 @@ int test_index_face(MFace *mface, CustomData *fdata, int mfindex, int nr)
 	return nr;
 }
 
-Mesh *get_mesh(Object *ob)
+Mesh *BKE_mesh_from_object(Object *ob)
 {
 	
 	if (ob==NULL) return NULL;
@@ -1489,7 +1489,7 @@ void nurbs_to_mesh(Object *ob)
 		}
 
 		/* make mesh */
-		me= add_mesh("Mesh");
+		me= BKE_mesh_add("Mesh");
 		me->totvert= totvert;
 		me->totedge= totedge;
 		me->totloop = totloop;
@@ -1505,7 +1505,7 @@ void nurbs_to_mesh(Object *ob)
 		BKE_mesh_calc_edges(me, TRUE);
 	}
 	else {
-		me= add_mesh("Mesh");
+		me= BKE_mesh_add("Mesh");
 		DM_to_mesh(dm, me, ob);
 	}
 
@@ -1518,7 +1518,7 @@ void nurbs_to_mesh(Object *ob)
 	cu->totcol= 0;
 
 	if (ob->data) {
-		free_libblock(&bmain->curve, ob->data);
+		BKE_libblock_free(&bmain->curve, ob->data);
 	}
 	ob->data= me;
 	ob->type= OB_MESH;
@@ -1783,7 +1783,7 @@ void mesh_calc_normals_mapping(MVert *mverts, int numVerts,
 {
 	mesh_calc_normals_mapping_ex(mverts, numVerts, mloop, mpolys,
 	                              numLoops, numPolys, polyNors_r, mfaces, numFaces,
-	                              origIndexFace, faceNors_r, TRUE);
+	                              origIndexFace, faceNors_r, FALSE);
 }
 
 void mesh_calc_normals_mapping_ex(MVert *mverts, int numVerts,
@@ -2014,7 +2014,7 @@ static void bm_corners_to_loops(Mesh *me, int findex, int loopstart, int numTex,
 		
 			for (i=0; i<tot; i++, disps += side*side, ld++) {
 				ld->totdisp = side*side;
-				ld->level = (int)(logf(side - 1.0f) / M_LN2) + 1;
+				ld->level = (int)(logf(side - 1.0f) / (float)M_LN2) + 1;
 			
 				if (ld->disps)
 					MEM_freeN(ld->disps);
@@ -2481,24 +2481,24 @@ int mesh_recalcTessellation(CustomData *fdata,
 
 			ml = mloop + mp->loopstart;
 			
-			BLI_begin_edgefill(&sf_ctx);
+			BLI_scanfill_begin(&sf_ctx);
 			firstv = NULL;
 			lastv = NULL;
 			for (j=0; j<mp->totloop; j++, ml++) {
-				v = BLI_addfillvert(&sf_ctx, mvert[ml->v].co);
+				v = BLI_scanfill_vert_add(&sf_ctx, mvert[ml->v].co);
 	
 				v->keyindex = mp->loopstart + j;
 	
 				if (lastv)
-					BLI_addfilledge(&sf_ctx, lastv, v);
+					BLI_scanfill_edge_add(&sf_ctx, lastv, v);
 	
 				if (!firstv)
 					firstv = v;
 				lastv = v;
 			}
-			BLI_addfilledge(&sf_ctx, lastv, firstv);
+			BLI_scanfill_edge_add(&sf_ctx, lastv, firstv);
 			
-			totfilltri = BLI_edgefill(&sf_ctx, FALSE);
+			totfilltri = BLI_scanfill_calc(&sf_ctx, FALSE);
 			if (totfilltri) {
 				BLI_array_grow_items(mface_to_poly_map, totfilltri);
 				BLI_array_grow_items(mface, totfilltri);
@@ -2531,7 +2531,7 @@ int mesh_recalcTessellation(CustomData *fdata,
 				}
 			}
 	
-			BLI_end_edgefill(&sf_ctx);
+			BLI_scanfill_end(&sf_ctx);
 		}
 	}
 
@@ -2766,65 +2766,21 @@ int mesh_mpoly_to_mface(struct CustomData *fdata, struct CustomData *ldata,
 static void mesh_calc_ngon_normal(MPoly *mpoly, MLoop *loopstart, 
                                   MVert *mvert, float normal[3])
 {
-
-	MVert *v1, *v2, *v3;
-	double u[3], v[3], w[3];
-	double n[3] = {0.0, 0.0, 0.0}, l;
+	const int nverts = mpoly->totloop;
+	float const *v_prev = mvert[loopstart[nverts - 1].v].co;
+	float const *v_curr = mvert[loopstart->v].co;
+	float n[3] = {0.0f};
 	int i;
 
-	for (i = 0; i < mpoly->totloop; i++) {
-		v1 = mvert + loopstart[i].v;
-		v2 = mvert + loopstart[(i+1)%mpoly->totloop].v;
-		v3 = mvert + loopstart[(i+2)%mpoly->totloop].v;
-		
-		copy_v3db_v3fl(u, v1->co);
-		copy_v3db_v3fl(v, v2->co);
-		copy_v3db_v3fl(w, v3->co);
-
-		/*this fixes some weird numerical error*/
-		if (i==0) {
-			u[0] += 0.0001f;
-			u[1] += 0.0001f;
-			u[2] += 0.0001f;
+	/* Newell's Method */
+	for (i = 0; i < nverts; v_prev = v_curr, v_curr = mvert[loopstart[++i].v].co) {
+		add_newell_cross_v3_v3v3(n, v_prev, v_curr);
 		}
 		
-		/* newell's method
-		 * 
-		 * so thats?:
-		 * (a[1] - b[1]) * (a[2] + b[2]);
-		 * a[1]*b[2] - b[1]*a[2] - b[1]*b[2] + a[1]*a[2]
-		 * 
-		 * odd.  half of that is the cross product. . .what's the
-		 * other half?
-		 * 
-		 * also could be like a[1]*(b[2] + a[2]) - b[1]*(a[2] - b[2])
-		 */
-
-		n[0] += (u[1] - v[1]) * (u[2] + v[2]);
-		n[1] += (u[2] - v[2]) * (u[0] + v[0]);
-		n[2] += (u[0] - v[0]) * (u[1] + v[1]);
+	if (UNLIKELY(normalize_v3_v3(normal, n) == 0.0f)) {
+		normal[2] = 1.0f; /* other axis set to 0.0 */
 	}
-	
-	l = n[0]*n[0]+n[1]*n[1]+n[2]*n[2];
-	l = sqrt(l);
-
-	if (l == 0.0) {
-		normal[0] = 0.0f;
-		normal[1] = 0.0f;
-		normal[2] = 1.0f;
-
-		return;
 	}
-	else l = 1.0f / l;
-
-	n[0] *= l;
-	n[1] *= l;
-	n[2] *= l;
-	
-	normal[0] = (float) n[0];
-	normal[1] = (float) n[1];
-	normal[2] = (float) n[2];
-}
 
 void mesh_calc_poly_normal(MPoly *mpoly, MLoop *loopstart, 
                            MVert *mvarray, float no[3])
@@ -2857,55 +2813,21 @@ void mesh_calc_poly_normal(MPoly *mpoly, MLoop *loopstart,
 static void mesh_calc_ngon_normal_coords(MPoly *mpoly, MLoop *loopstart,
                                          const float (*vertex_coords)[3], float normal[3])
 {
-
-	const float *v1, *v2, *v3;
-	double u[3], v[3], w[3];
-	double n[3] = {0.0, 0.0, 0.0}, l;
+	const int nverts = mpoly->totloop;
+	float const *v_prev = vertex_coords[loopstart[nverts - 1].v];
+	float const *v_curr = vertex_coords[loopstart->v];
+	float n[3] = {0.0f};
 	int i;
 
-	for (i = 0; i < mpoly->totloop; i++) {
-		v1 = (const float *)(vertex_coords + loopstart[i].v);
-		v2 = (const float *)(vertex_coords + loopstart[(i+1)%mpoly->totloop].v);
-		v3 = (const float *)(vertex_coords + loopstart[(i+2)%mpoly->totloop].v);
-
-		copy_v3db_v3fl(u, v1);
-		copy_v3db_v3fl(v, v2);
-		copy_v3db_v3fl(w, v3);
-
-		/*this fixes some weird numerical error*/
-		if (i==0) {
-			u[0] += 0.0001f;
-			u[1] += 0.0001f;
-			u[2] += 0.0001f;
+	/* Newell's Method */
+	for (i = 0; i < nverts; v_prev = v_curr, v_curr = vertex_coords[loopstart[++i].v]) {
+		add_newell_cross_v3_v3v3(n, v_prev, v_curr);
 		}
 
-		n[0] += (u[1] - v[1]) * (u[2] + v[2]);
-		n[1] += (u[2] - v[2]) * (u[0] + v[0]);
-		n[2] += (u[0] - v[0]) * (u[1] + v[1]);
+	if (UNLIKELY(normalize_v3_v3(normal, n) == 0.0f)) {
+		normal[2] = 1.0f; /* other axis set to 0.0 */
 	}
-
-	l = n[0]*n[0]+n[1]*n[1]+n[2]*n[2];
-	l = sqrt(l);
-
-	if (l == 0.0) {
-		normal[0] = 0.0f;
-		normal[1] = 0.0f;
-		normal[2] = 1.0f;
-
-		return;
 	}
-	else {
-		l = 1.0f / l;
-	}
-
-	n[0] *= l;
-	n[1] *= l;
-	n[2] *= l;
-
-	normal[0] = (float) n[0];
-	normal[1] = (float) n[1];
-	normal[2] = (float) n[2];
-}
 
 void mesh_calc_poly_normal_coords(MPoly *mpoly, MLoop *loopstart,
                            const float (*vertex_coords)[3], float no[3])

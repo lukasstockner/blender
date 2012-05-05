@@ -723,7 +723,7 @@ static MovieTrackingTrack *find_nearest_track(SpaceClip *sc, ListBase *tracksbas
 	while (cur) {
 		MovieTrackingMarker *marker = BKE_tracking_get_marker(cur, sc->user.framenr);
 
-		if (((cur->flag & TRACK_HIDDEN) == 0) && MARKER_VISIBLE(sc, marker)) {
+		if (((cur->flag & TRACK_HIDDEN) == 0) && MARKER_VISIBLE(sc, cur, marker)) {
 			float dist, d1, d2 = FLT_MAX, d3 = FLT_MAX;
 
 			d1= sqrtf((co[0]-marker->pos[0]-cur->offset[0])*(co[0]-marker->pos[0]-cur->offset[0])+
@@ -788,6 +788,8 @@ static int mouse_select(bContext *C, float co[2], int extend)
 		sc->xlockof = 0.0f;
 		sc->ylockof = 0.0f;
 	}
+
+	BKE_tracking_dopesheet_tag_update(tracking);
 
 	WM_event_add_notifier(C, NC_GEOM|ND_SELECT, NULL);
 
@@ -861,8 +863,9 @@ static int border_select_exec(bContext *C, wmOperator *op)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	MovieClip *clip = ED_space_clip(sc);
+	MovieTracking *tracking = &clip->tracking;
 	MovieTrackingTrack *track;
-	ListBase *tracksbase = BKE_tracking_get_tracks(&clip->tracking);
+	ListBase *tracksbase = BKE_tracking_get_tracks(tracking);
 	rcti rect;
 	rctf rectf;
 	int change = FALSE, mode, extend;
@@ -885,7 +888,7 @@ static int border_select_exec(bContext *C, wmOperator *op)
 		if ((track->flag & TRACK_HIDDEN) == 0) {
 			MovieTrackingMarker *marker = BKE_tracking_get_marker(track, sc->user.framenr);
 
-			if (MARKER_VISIBLE(sc, marker)) {
+			if (MARKER_VISIBLE(sc, track, marker)) {
 				if (BLI_in_rctf(&rectf, marker->pos[0], marker->pos[1])) {
 					BKE_tracking_track_flag(track, TRACK_AREA_ALL, SELECT, mode!=GESTURE_MODAL_SELECT);
 				}
@@ -901,6 +904,8 @@ static int border_select_exec(bContext *C, wmOperator *op)
 	}
 
 	if (change) {
+		BKE_tracking_dopesheet_tag_update(tracking);
+
 		WM_event_add_notifier(C, NC_GEOM|ND_SELECT, NULL);
 
 		return OPERATOR_FINISHED;
@@ -947,8 +952,9 @@ static int circle_select_exec(bContext *C, wmOperator *op)
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	MovieClip *clip = ED_space_clip(sc);
 	ARegion *ar = CTX_wm_region(C);
+	MovieTracking *tracking = &clip->tracking;
 	MovieTrackingTrack *track;
-	ListBase *tracksbase = BKE_tracking_get_tracks(&clip->tracking);
+	ListBase *tracksbase = BKE_tracking_get_tracks(tracking);
 	int x, y, radius, width, height, mode, change = FALSE;
 	float zoomx, zoomy, offset[2], ellipse[2];
 
@@ -974,7 +980,7 @@ static int circle_select_exec(bContext *C, wmOperator *op)
 		if ((track->flag & TRACK_HIDDEN) == 0) {
 			MovieTrackingMarker *marker = BKE_tracking_get_marker(track, sc->user.framenr);
 
-			if (MARKER_VISIBLE(sc, marker) && marker_inside_ellipse(marker, offset, ellipse)) {
+			if (MARKER_VISIBLE(sc, track, marker) && marker_inside_ellipse(marker, offset, ellipse)) {
 				BKE_tracking_track_flag(track, TRACK_AREA_ALL, SELECT, mode!=GESTURE_MODAL_SELECT);
 
 				change = TRUE;
@@ -985,6 +991,8 @@ static int circle_select_exec(bContext *C, wmOperator *op)
 	}
 
 	if (change) {
+		BKE_tracking_dopesheet_tag_update(tracking);
+
 		WM_event_add_notifier(C, NC_GEOM|ND_SELECT, NULL);
 
 		return OPERATOR_FINISHED;
@@ -1022,9 +1030,10 @@ static int select_all_exec(bContext *C, wmOperator *op)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	MovieClip *clip = ED_space_clip(sc);
+	MovieTracking *tracking = &clip->tracking;
 	MovieTrackingTrack *track = NULL;	/* selected track */
 	MovieTrackingMarker *marker;
-	ListBase *tracksbase = BKE_tracking_get_tracks(&clip->tracking);
+	ListBase *tracksbase = BKE_tracking_get_tracks(tracking);
 	int action = RNA_enum_get(op->ptr, "action");
 	int framenr = sc->user.framenr;
 	int has_selection = FALSE;
@@ -1036,7 +1045,7 @@ static int select_all_exec(bContext *C, wmOperator *op)
 			if (TRACK_VIEW_SELECTED(sc, track)) {
 				marker = BKE_tracking_get_marker(track, framenr);
 
-				if (MARKER_VISIBLE(sc, marker)) {
+				if (MARKER_VISIBLE(sc, track, marker)) {
 					action = SEL_DESELECT;
 					break;
 				}
@@ -1051,7 +1060,7 @@ static int select_all_exec(bContext *C, wmOperator *op)
 		if ((track->flag & TRACK_HIDDEN)==0) {
 			marker = BKE_tracking_get_marker(track, framenr);
 
-			if (MARKER_VISIBLE(sc, marker)) {
+			if (MARKER_VISIBLE(sc, track, marker)) {
 				switch (action) {
 					case SEL_SELECT:
 						track->flag |= SELECT;
@@ -1080,6 +1089,8 @@ static int select_all_exec(bContext *C, wmOperator *op)
 
 	if (!has_selection)
 		sc->flag &= ~SC_LOCK_SELECTION;
+
+	BKE_tracking_dopesheet_tag_update(tracking);
 
 	WM_event_add_notifier(C, NC_GEOM|ND_SELECT, NULL);
 
@@ -1160,6 +1171,8 @@ static int select_groped_exec(bContext *C, wmOperator *op)
 
 		track = track->next;
 	}
+
+	BKE_tracking_dopesheet_tag_update(tracking);
 
 	WM_event_add_notifier(C, NC_MOVIECLIP|ND_DISPLAY, clip);
 
@@ -1960,13 +1973,13 @@ static Object *get_camera_with_movieclip(Scene *scene, MovieClip *clip)
 	Object *camera = scene->camera;
 	Base *base;
 
-	if (camera && object_get_movieclip(scene, camera, 0)==clip)
+	if (camera && BKE_object_movieclip_get(scene, camera, 0)==clip)
 		return camera;
 
 	base = scene->base.first;
 	while (base) {
 		if (base->object->type == OB_CAMERA) {
-			if (object_get_movieclip(scene, base->object, 0)==clip) {
+			if (BKE_object_movieclip_get(scene, base->object, 0)==clip) {
 				camera = base->object;
 				break;
 			}
@@ -2056,7 +2069,7 @@ static void object_solver_inverted_matrix(Scene *scene, Object *ob, float invmat
 			if (!found) {
 				Object *cam = data->camera ? data->camera : scene->camera;
 
-				where_is_object_mat(scene, cam, invmat);
+				BKE_object_where_is_calc_mat4(scene, cam, invmat);
 			}
 
 			mult_m4_m4m4(invmat, invmat, data->invmat);
@@ -2183,7 +2196,7 @@ static void set_axis(Scene *scene,  Object *ob, MovieClip *clip, MovieTrackingOb
 	int  flip = FALSE;
 	float mat[4][4], vec[3], obmat[4][4], dvec[3];
 
-	object_to_mat4(ob, obmat);
+	BKE_object_to_mat4(ob, obmat);
 
 	BKE_get_tracking_mat(scene, camera, mat);
 	mul_v3_m4v3(vec, mat, track->bundle_pos);
@@ -2268,7 +2281,7 @@ static void set_axis(Scene *scene,  Object *ob, MovieClip *clip, MovieTrackingOb
 		if (!flip) {
 			float lmat[4][4], ilmat[4][4], rmat[3][3];
 
-			object_rot_to_mat3(ob, rmat);
+			BKE_object_rot_to_mat3(ob, rmat);
 			invert_m3(rmat);
 			mul_m4_m4m3(mat, mat, rmat);
 
@@ -2283,7 +2296,7 @@ static void set_axis(Scene *scene,  Object *ob, MovieClip *clip, MovieTrackingOb
 		}
 	}
 
-	object_apply_mat4(ob, mat, 0, 0);
+	BKE_object_apply_mat4(ob, mat, 0, 0);
 }
 
 static int set_plane_exec(bContext *C, wmOperator *op)
@@ -2370,23 +2383,23 @@ static int set_plane_exec(bContext *C, wmOperator *op)
 	if (tracking_object->flag & TRACKING_OBJECT_CAMERA) {
 		invert_m4(mat);
 
-		object_to_mat4(object, obmat);
+		BKE_object_to_mat4(object, obmat);
 		mult_m4_m4m4(mat, mat, obmat);
 		mult_m4_m4m4(newmat, rot, mat);
-		object_apply_mat4(object, newmat, 0, 0);
+		BKE_object_apply_mat4(object, newmat, 0, 0);
 
 		/* make camera have positive z-coordinate */
 		if (object->loc[2]<0) {
 			invert_m4(rot);
 			mult_m4_m4m4(newmat, rot, mat);
-			object_apply_mat4(object, newmat, 0, 0);
+			BKE_object_apply_mat4(object, newmat, 0, 0);
 		}
 	}
 	else {
-		object_apply_mat4(object, mat, 0, 0);
+		BKE_object_apply_mat4(object, mat, 0, 0);
 	}
 
-	where_is_object(scene, object);
+	BKE_object_where_is_calc(scene, object);
 	set_axis(scene, object, clip, tracking_object, axis_track, 'X');
 
 	DAG_id_tag_update(&clip->id, 0);
@@ -2730,6 +2743,8 @@ static int hide_tracks_exec(bContext *C, wmOperator *op)
 		sc->flag &= ~SC_LOCK_SELECTION;
 	}
 
+	BKE_tracking_dopesheet_tag_update(tracking);
+
 	WM_event_add_notifier(C, NC_MOVIECLIP|ND_DISPLAY, NULL);
 
 	return OPERATOR_FINISHED;
@@ -2759,7 +2774,8 @@ static int hide_tracks_clear_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	MovieClip *clip = ED_space_clip(sc);
-	ListBase *tracksbase = BKE_tracking_get_tracks(&clip->tracking);
+	MovieTracking *tracking = &clip->tracking;
+	ListBase *tracksbase = BKE_tracking_get_tracks(tracking);
 	MovieTrackingTrack *track;
 
 	track = tracksbase->first;
@@ -2768,6 +2784,8 @@ static int hide_tracks_clear_exec(bContext *C, wmOperator *UNUSED(op))
 
 		track = track->next;
 	}
+
+	BKE_tracking_dopesheet_tag_update(tracking);
 
 	WM_event_add_notifier(C, NC_MOVIECLIP|ND_DISPLAY, NULL);
 

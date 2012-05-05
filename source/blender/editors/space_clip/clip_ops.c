@@ -147,6 +147,7 @@ static int open_cancel(bContext *UNUSED(C), wmOperator *op)
 static int open_exec(bContext *C, wmOperator *op)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
+	bScreen *screen = CTX_wm_screen(C);
 	PropertyPointerRNA *pprop;
 	PointerRNA idptr;
 	MovieClip *clip = NULL;
@@ -184,7 +185,7 @@ static int open_exec(bContext *C, wmOperator *op)
 		RNA_property_update(C, &pprop->ptr, pprop->prop);
 	}
 	else if (sc) {
-		ED_space_clip_set(C, sc, clip);
+		ED_space_clip_set(C, screen, sc, clip);
 	}
 
 	WM_event_add_notifier(C, NC_MOVIECLIP|NA_ADDED, clip);
@@ -401,13 +402,14 @@ void CLIP_OT_view_pan(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "View Pan";
 	ot->idname = "CLIP_OT_view_pan";
+	ot->description = "Pan the view";
 
 	/* api callbacks */
 	ot->exec = view_pan_exec;
 	ot->invoke = view_pan_invoke;
 	ot->modal = view_pan_modal;
 	ot->cancel = view_pan_cancel;
-	ot->poll = ED_space_clip_poll;
+	ot->poll = ED_space_clip_view_clip_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_BLOCKING;
@@ -527,13 +529,14 @@ void CLIP_OT_view_zoom(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "View Zoom";
 	ot->idname = "CLIP_OT_view_zoom";
+	ot->description = "Zoom on/out the view";
 
 	/* api callbacks */
 	ot->exec = view_zoom_exec;
 	ot->invoke = view_zoom_invoke;
 	ot->modal = view_zoom_modal;
 	ot->cancel = view_zoom_cancel;
-	ot->poll = ED_space_clip_poll;
+	ot->poll = ED_space_clip_view_clip_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_BLOCKING|OPTYPE_GRAB_POINTER;
@@ -575,11 +578,12 @@ void CLIP_OT_view_zoom_in(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "View Zoom In";
 	ot->idname = "CLIP_OT_view_zoom_in";
+	ot->description = "Zoom in the view";
 
 	/* api callbacks */
 	ot->exec = view_zoom_in_exec;
 	ot->invoke = view_zoom_in_invoke;
-	ot->poll = ED_space_clip_poll;
+	ot->poll = ED_space_clip_view_clip_poll;
 
 	/* properties */
 	RNA_def_float_vector(ot->srna, "location", 2, NULL, -FLT_MAX, FLT_MAX, "Location", "Cursor location in screen coordinates", -10.0f, 10.0f);
@@ -615,11 +619,12 @@ void CLIP_OT_view_zoom_out(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "View Zoom Out";
 	ot->idname = "CLIP_OT_view_zoom_out";
+	ot->description = "Zoom out the view";
 
 	/* api callbacks */
 	ot->exec = view_zoom_out_exec;
 	ot->invoke = view_zoom_out_invoke;
-	ot->poll = ED_space_clip_poll;
+	ot->poll = ED_space_clip_view_clip_poll;
 
 	/* properties */
 	RNA_def_float_vector(ot->srna, "location", 2, NULL, -FLT_MAX, FLT_MAX, "Location", "Cursor location in normalised (0.0-1.0) coordinates", -10.0f, 10.0f);
@@ -648,10 +653,11 @@ void CLIP_OT_view_zoom_ratio(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "View Zoom Ratio";
 	ot->idname = "CLIP_OT_view_zoom_ratio";
+	ot->description = "Set the zoom ratio (based on clip size)";
 
 	/* api callbacks */
 	ot->exec = view_zoom_ratio_exec;
-	ot->poll = ED_space_clip_poll;
+	ot->poll = ED_space_clip_view_clip_poll;
 
 	/* properties */
 	RNA_def_float(ot->srna, "ratio", 0.0f, 0.0f, FLT_MAX,
@@ -697,7 +703,7 @@ static int view_all_exec(bContext *C, wmOperator *op)
 			zoomy= (float) height / h;
 
 			/* find the zoom value that will fit the image in the image space */
-			sclip_zoom_set(sc, ar, 1.0f/power_of_2(1/MIN2(zoomx, zoomy)), NULL);
+			sclip_zoom_set(sc, ar, 1.0f / power_of_2(1.0f / MIN2(zoomx, zoomy)), NULL);
 		}
 		else
 			sclip_zoom_set(sc, ar, 1.0f, NULL);
@@ -715,10 +721,11 @@ void CLIP_OT_view_all(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "View All";
 	ot->idname = "CLIP_OT_view_all";
+	ot->description = "View whole image with markers";
 
 	/* api callbacks */
 	ot->exec = view_all_exec;
-	ot->poll = ED_space_clip_poll;
+	ot->poll = ED_space_clip_view_clip_poll;
 
 	/* properties */
 	RNA_def_boolean(ot->srna, "fit_view", 0, "Fit View", "Fit frame to the viewport");
@@ -745,10 +752,11 @@ void CLIP_OT_view_selected(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "View Selected";
 	ot->idname = "CLIP_OT_view_selected";
+	ot->description = "View all selected elements";
 
 	/* api callbacks */
 	ot->exec = view_selected_exec;
-	ot->poll = ED_space_clip_poll;
+	ot->poll = ED_space_clip_view_clip_poll;
 }
 
 /********************** change frame operator *********************/

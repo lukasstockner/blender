@@ -632,6 +632,25 @@ static void tracking_objects_free(ListBase *objects)
 	BLI_freelistN(objects);
 }
 
+static void tracking_dopesheet_free(MovieTrackingDopesheet *dopesheet)
+{
+	MovieTrackingDopesheetChannel *channel;
+
+	channel = dopesheet->channels.first;
+	while (channel) {
+		if (channel->segments) {
+			MEM_freeN(channel->segments);
+		}
+
+		channel = channel->next;
+	}
+
+	BLI_freelistN(&dopesheet->channels);
+
+	dopesheet->channels.first = dopesheet->channels.last = NULL;
+	dopesheet->tot_channel = 0;
+}
+
 void BKE_tracking_free(MovieTracking *tracking)
 {
 	tracking_tracks_free(&tracking->tracks);
@@ -643,6 +662,8 @@ void BKE_tracking_free(MovieTracking *tracking)
 
 	if (tracking->camera.intrinsics)
 		BKE_tracking_distortion_destroy(tracking->camera.intrinsics);
+
+	tracking_dopesheet_free(&tracking->dopesheet);
 }
 
 static MovieTrackingTrack *duplicate_track(MovieTrackingTrack *track)
@@ -679,6 +700,8 @@ void BKE_tracking_clipboard_copy_tracks(MovieTracking *tracking, MovieTrackingOb
 {
 	ListBase *tracksbase = BKE_tracking_object_tracks(tracking, object);
 	MovieTrackingTrack *track = tracksbase->first;
+
+	BKE_tracking_free_clipboard();
 
 	while (track) {
 		if (TRACK_SELECTED(track) && (track->flag & TRACK_HIDDEN) == 0) {
@@ -1352,6 +1375,8 @@ void BKE_tracking_sync(MovieTrackingContext *context)
 		newframe = context->user.framenr - 1;
 
 	context->sync_frame = newframe;
+
+	tracking->dopesheet.ok = FALSE;
 }
 
 void BKE_tracking_sync_user(MovieClipUser *user, MovieTrackingContext *context)
@@ -2098,11 +2123,11 @@ void BKE_get_tracking_mat(Scene *scene, Object *ob, float mat[4][4])
 		if (scene->camera)
 			ob = scene->camera;
 		else
-			ob = scene_find_camera(scene);
+			ob = BKE_scene_camera_find(scene);
 	}
 
 	if (ob)
-		where_is_object_mat(scene, ob, mat);
+		BKE_object_where_is_calc_mat4(scene, ob, mat);
 	else
 		unit_m4(mat);
 }
@@ -3032,4 +3057,217 @@ MovieTrackingObject *BKE_tracking_named_object(MovieTracking *tracking, const ch
 	}
 
 	return NULL;
+}
+
+/*********************** dopesheet functions *************************/
+
+static int channels_alpha_sort(void *a, void *b)
+{
+	MovieTrackingDopesheetChannel *channel_a = a;
+	MovieTrackingDopesheetChannel *channel_b = b;
+
+	if (BLI_strcasecmp(channel_a->track->name, channel_b->track->name) > 0)
+		return 1;
+	else
+		return 0;
+}
+
+static int channels_total_track_sort(void *a, void *b)
+{
+	MovieTrackingDopesheetChannel *channel_a = a;
+	MovieTrackingDopesheetChannel *channel_b = b;
+
+	if (channel_a->total_frames > channel_b->total_frames)
+		return 1;
+	else
+		return 0;
+}
+
+static int channels_longest_segment_sort(void *a, void *b)
+{
+	MovieTrackingDopesheetChannel *channel_a = a;
+	MovieTrackingDopesheetChannel *channel_b = b;
+
+	if (channel_a->max_segment > channel_b->max_segment)
+		return 1;
+	else
+		return 0;
+}
+
+static int channels_alpha_inverse_sort(void *a, void *b)
+{
+	if (channels_alpha_sort(a, b))
+		return 0;
+	else
+		return 1;
+}
+
+static int channels_total_track_inverse_sort(void *a, void *b)
+{
+	if (channels_total_track_sort(a, b))
+		return 0;
+	else
+		return 1;
+}
+
+static int channels_longest_segment_inverse_sort(void *a, void *b)
+{
+	if (channels_longest_segment_sort(a, b))
+		return 0;
+	else
+		return 1;
+}
+
+static void channels_segments_calc(MovieTrackingDopesheetChannel *channel)
+{
+	MovieTrackingTrack *track = channel->track;
+	int i, segment;
+
+	channel->tot_segment = 0;
+	channel->max_segment = 0;
+	channel->total_frames = 0;
+
+	/* count */
+	i = 0;
+	while (i < track->markersnr) {
+		MovieTrackingMarker *marker = &track->markers[i];
+
+		if ((marker->flag & MARKER_DISABLED) == 0) {
+			int prev_fra = marker->framenr, len = 0;
+
+			i++;
+			while (i < track->markersnr) {
+				marker = &track->markers[i];
+
+				if (marker->framenr != prev_fra + 1)
+					break;
+				if (marker->flag & MARKER_DISABLED)
+					break;
+
+				prev_fra = marker->framenr;
+				len++;
+				i++;
+			}
+
+			channel->tot_segment++;
+		}
+
+		i++;
+	}
+
+	if (!channel->tot_segment)
+		return;
+
+	channel->segments = MEM_callocN(2 * sizeof(int) * channel->tot_segment, "tracking channel segments");
+
+	/* create segments */
+	i = 0;
+	segment = 0;
+	while (i < track->markersnr) {
+		MovieTrackingMarker *marker = &track->markers[i];
+
+		if ((marker->flag & MARKER_DISABLED) == 0) {
+			MovieTrackingMarker *start_marker = marker;
+			int prev_fra = marker->framenr, len = 0;
+
+			i++;
+			while (i < track->markersnr) {
+				marker = &track->markers[i];
+
+				if (marker->framenr != prev_fra + 1)
+					break;
+				if (marker->flag & MARKER_DISABLED)
+					break;
+
+				prev_fra = marker->framenr;
+				channel->total_frames++;
+				len++;
+				i++;
+			}
+
+			channel->segments[2 * segment] = start_marker->framenr;
+			channel->segments[2 * segment + 1] = start_marker->framenr + len;
+
+			channel->max_segment =  MAX2(channel->max_segment, len);
+			segment++;
+		}
+
+		i++;
+	}
+}
+
+static void  tracking_dopesheet_sort(MovieTracking *tracking, int sort_method, int inverse)
+{
+	MovieTrackingDopesheet *dopesheet = &tracking->dopesheet;
+
+	if (dopesheet->sort_method == sort_method && dopesheet->sort_inverse == inverse)
+		return;
+
+	if (inverse) {
+		if (sort_method == TRACK_SORT_NAME) {
+			BLI_sortlist(&dopesheet->channels, channels_alpha_inverse_sort);
+		}
+		else if (sort_method == TRACK_SORT_LONGEST) {
+			BLI_sortlist(&dopesheet->channels, channels_longest_segment_inverse_sort);
+		}
+		else if (sort_method == TRACK_SORT_TOTAL) {
+			BLI_sortlist(&dopesheet->channels, channels_total_track_inverse_sort);
+		}
+	}
+	else {
+		if (sort_method == TRACK_SORT_NAME) {
+			BLI_sortlist(&dopesheet->channels, channels_alpha_sort);
+		}
+		else if (sort_method == TRACK_SORT_LONGEST) {
+			BLI_sortlist(&dopesheet->channels, channels_longest_segment_sort);
+		}
+		else if (sort_method == TRACK_SORT_TOTAL) {
+			BLI_sortlist(&dopesheet->channels, channels_total_track_sort);
+		}
+	}
+
+	dopesheet->sort_method = sort_method;
+	dopesheet->sort_inverse = inverse;
+}
+
+void BKE_tracking_dopesheet_tag_update(MovieTracking *tracking)
+{
+	MovieTrackingDopesheet *dopesheet = &tracking->dopesheet;
+
+	dopesheet->ok = FALSE;
+}
+
+void BKE_tracking_dopesheet_update(MovieTracking *tracking, int sort_method, int inverse)
+{
+	MovieTrackingObject *object = BKE_tracking_active_object(tracking);
+	MovieTrackingDopesheet *dopesheet = &tracking->dopesheet;
+	MovieTrackingTrack *track;
+	ListBase *tracksbase = BKE_tracking_object_tracks(tracking, object);
+
+	if (dopesheet->ok) {
+		tracking_dopesheet_sort(tracking, sort_method, inverse);
+		return;
+	}
+
+	tracking_dopesheet_free(dopesheet);
+
+	for (track = tracksbase->first; track; track = track->next) {
+		if (TRACK_SELECTED(track) && (track->flag & TRACK_HIDDEN) == 0) {
+			MovieTrackingDopesheetChannel *channel;
+
+			channel = MEM_callocN(sizeof(MovieTrackingDopesheetChannel), "tracking dopesheet channel");
+			channel->track = track;
+
+			channels_segments_calc(channel);
+
+			BLI_addtail(&dopesheet->channels, channel);
+			dopesheet->tot_channel++;
+		}
+	}
+
+	dopesheet->sort_method = TRACK_SORT_NONE;
+
+	tracking_dopesheet_sort(tracking, sort_method, inverse);
+
+	dopesheet->ok = TRUE;
 }

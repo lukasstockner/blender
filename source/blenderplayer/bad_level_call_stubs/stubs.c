@@ -267,7 +267,7 @@ struct EditMesh;
 struct FCurve *verify_fcurve (struct bAction *act, const char group[], const char rna_path[], const int array_index, short add){return (struct FCurve *) NULL;}
 int insert_vert_fcurve(struct FCurve *fcu, float x, float y, short flag){return 0;}
 void delete_fcurve_key(struct FCurve *fcu, int index, short do_recalc){}
-struct KeyingSetInfo *ANIM_keyingset_info_find_named (const char name[]){return (struct KeyingSetInfo *) NULL;}
+struct KeyingSetInfo *ANIM_keyingset_info_find_name (const char name[]){return (struct KeyingSetInfo *) NULL;}
 struct KeyingSet *ANIM_scene_get_active_keyingset (struct Scene *scene){return (struct KeyingSet *) NULL;}
 int ANIM_scene_get_keyingset_index(struct Scene *scene, struct KeyingSet *ks){return 0;}
 struct ListBase builtin_keyingsets;
@@ -499,6 +499,8 @@ float BPY_driver_exec(struct ChannelDriver *driver, const float evaltime) {retur
 void BPY_DECREF(void *pyob_ptr) {}
 void BPY_pyconstraint_exec(struct bPythonConstraint *con, struct bConstraintOb *cob, struct ListBase *targets) {}
 void macro_wrapper(struct wmOperatorType *ot, void *userdata) {}
+int pyrna_id_FromPyObject(struct PyObject *obj, struct ID **id){ return 0; }
+struct PyObject *pyrna_id_CreatePyObject(struct ID *id) {return NULL; }
 
 /* intern/dualcon */
 struct DualConMesh;

@@ -112,7 +112,7 @@ static void get_vert2geom_distance(int numVerts, float (*v_cos)[3],
                                 dist_f,loc2trgt) \
                          schedule(static)
 #endif
-	for (i = 0; i < numVerts; ++i) {
+	for (i = 0; i < numVerts; i++) {
 		float tmp_co[3];
 
 		/* Convert the vertex to tree coordinates. */
@@ -546,10 +546,10 @@ ModifierTypeInfo modifierType_WeightVGProximity = {
 	/* structName */        "WeightVGProximityModifierData",
 	/* structSize */        sizeof(WeightVGProximityModifierData),
 	/* type */              eModifierTypeType_NonGeometrical,
-	/* flags */             eModifierTypeFlag_AcceptsMesh
-	                       |eModifierTypeFlag_SupportsMapping
-	                       |eModifierTypeFlag_SupportsEditmode
-	                       |eModifierTypeFlag_UsesPreview,
+	/* flags */             eModifierTypeFlag_AcceptsMesh |
+	                        eModifierTypeFlag_SupportsMapping |
+	                        eModifierTypeFlag_SupportsEditmode |
+	                        eModifierTypeFlag_UsesPreview,
 
 	/* copyData */          copyData,
 	/* deformVerts */       NULL,

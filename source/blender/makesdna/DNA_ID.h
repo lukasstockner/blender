@@ -133,9 +133,8 @@ typedef struct Library {
 							 * some cases its useful to access the absolute one,
 							 * This is set on file read.
 							 * Use BKE_library_filepath_set() rather than
-							 * setting 'name' directly and it will be kepk in
+							 * setting 'name' directly and it will be kept in
 							 * sync - campbell */
-	int tot, pad;			/* tot, idblock and filedata are only fo read and write */
 	struct Library *parent;	/* set for indirectly linked libs, used in the outliner and while reading */
 } Library;
 
@@ -255,4 +254,3 @@ typedef struct PreviewImage {
 #endif
 
 #endif
-

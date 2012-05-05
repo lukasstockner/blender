@@ -284,7 +284,7 @@ static void createTransTexspace(TransInfo *t)
 	normalize_m3(td->axismtx);
 	invert_m3_m3(td->smtx, td->mtx);
 
-	if (give_obdata_texspace(ob, &texflag, &td->loc, &td->ext->size, &td->ext->rot)) {
+	if (BKE_object_obdata_texspace_get(ob, &texflag, &td->loc, &td->ext->size, &td->ext->rot)) {
 		ob->dtx |= OB_TEXSPACE;
 		*texflag &= ~ME_AUTOSPACE;
 	}
@@ -424,7 +424,7 @@ static short apply_targetless_ik(Object *ob)
 				bone= parchan->bone;
 				bone->flag |= BONE_TRANSFORM;	/* ensures it gets an auto key inserted */
 
-				armature_mat_pose_to_bone(parchan, parchan->pose_mat, rmat);
+				BKE_armature_mat_pose_to_bone(parchan, parchan->pose_mat, rmat);
 
 				/* apply and decompose, doesn't work for constraints or non-uniform scale well */
 				{
@@ -535,11 +535,11 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
 	/* proper way to get parent transform + own transform + constraints transform */
 	copy_m3_m4(omat, ob->obmat);
 
-	/* New code, using "generic" pchan_to_pose_mat(). */
+	/* New code, using "generic" BKE_pchan_to_pose_mat(). */
 	{
 		float rotscale_mat[4][4], loc_mat[4][4];
 
-		pchan_to_pose_mat(pchan, rotscale_mat, loc_mat);
+		BKE_pchan_to_pose_mat(pchan, rotscale_mat, loc_mat);
 		if (t->mode == TFM_TRANSLATION)
 			copy_m3_m4(pmat, loc_mat);
 		else
@@ -619,8 +619,7 @@ static void bone_children_clear_transflag(int mode, short around, ListBase *lb)
 	Bone *bone= lb->first;
 
 	for (;bone;bone= bone->next) {
-		if ((bone->flag & BONE_HINGE) && (bone->flag & BONE_CONNECTED))
-		{
+		if ((bone->flag & BONE_HINGE) && (bone->flag & BONE_CONNECTED)) {
 			bone->flag |= BONE_HINGE_CHILD_TRANSFORM;
 		}
 		else if ((bone->flag & BONE_TRANSFORM) &&
@@ -696,8 +695,7 @@ int count_set_pose_transflags(int *out_mode, short around, Object *ob)
 	}
 
 	/* if there are no translatable bones, do rotation */
-	if (mode == TFM_TRANSLATION && !hastranslation)
-	{
+	if (mode == TFM_TRANSLATION && !hastranslation) {
 		*out_mode = TFM_ROTATION;
 	}
 
@@ -886,7 +884,7 @@ static short pose_grab_with_ik_children(bPose *pose, Bone *bone)
 		}
 	}
 	if (wentdeeper==0) {
-		bPoseChannel *pchan= get_pose_channel(pose, bone->name);
+		bPoseChannel *pchan= BKE_pose_channel_find_name(pose, bone->name);
 		if (pchan)
 			added+= pose_grab_with_ik_add(pchan);
 	}
@@ -955,7 +953,7 @@ static void createTransPose(TransInfo *t, Object *ob)
 	t->total= 0;
 
 	/* check validity of state */
-	arm= get_armature(ob);
+	arm= BKE_armature_from_object(ob);
 	if ((arm==NULL) || (ob->pose==NULL)) return;
 
 	if (arm->flag & ARM_RESTPOS) {
@@ -1025,12 +1023,9 @@ static void createTransArmatureVerts(TransInfo *t)
 		t->mode= TFM_BONE_ENVELOPE;
 	
 	t->total = 0;
-	for (ebo = edbo->first; ebo; ebo = ebo->next)
-	{
-		if (EBONE_VISIBLE(arm, ebo) && !(ebo->flag & BONE_EDITMODE_LOCKED)) 
-		{
-			if (t->mode==TFM_BONESIZE)
-			{
+	for (ebo = edbo->first; ebo; ebo = ebo->next) {
+		if (EBONE_VISIBLE(arm, ebo) && !(ebo->flag & BONE_EDITMODE_LOCKED)) {
+			if (t->mode == TFM_BONESIZE) {
 				if (ebo->flag & BONE_SELECTED)
 					t->total++;
 			}
@@ -1054,16 +1049,12 @@ static void createTransArmatureVerts(TransInfo *t)
 
 	td = t->data = MEM_callocN(t->total*sizeof(TransData), "TransEditBone");
 
-	for (ebo = edbo->first; ebo; ebo = ebo->next)
-	{
+	for (ebo = edbo->first; ebo; ebo = ebo->next) {
 		ebo->oldlength = ebo->length;	// length==0.0 on extrude, used for scaling radius of bone points
 
-		if (EBONE_VISIBLE(arm, ebo) && !(ebo->flag & BONE_EDITMODE_LOCKED)) 
-		{
-			if (t->mode==TFM_BONE_ENVELOPE)
-			{
-				if (ebo->flag & BONE_ROOTSEL)
-				{
+		if (EBONE_VISIBLE(arm, ebo) && !(ebo->flag & BONE_EDITMODE_LOCKED)) {
+			if (t->mode==TFM_BONE_ENVELOPE) {
+				if (ebo->flag & BONE_ROOTSEL) {
 					td->val= &ebo->rad_head;
 					td->ival= *td->val;
 
@@ -1079,8 +1070,7 @@ static void createTransArmatureVerts(TransInfo *t)
 
 					td++;
 				}
-				if (ebo->flag & BONE_TIPSEL)
-				{
+				if (ebo->flag & BONE_TIPSEL) {
 					td->val= &ebo->rad_tail;
 					td->ival= *td->val;
 					copy_v3_v3(td->center, ebo->tail);
@@ -1099,8 +1089,7 @@ static void createTransArmatureVerts(TransInfo *t)
 			}
 			else if (t->mode==TFM_BONESIZE) {
 				if (ebo->flag & BONE_SELECTED) {
-					if (arm->drawtype==ARM_ENVELOPE)
-					{
+					if (arm->drawtype==ARM_ENVELOPE) {
 						td->loc= NULL;
 						td->val= &ebo->dist;
 						td->ival= ebo->dist;
@@ -1130,8 +1119,7 @@ static void createTransArmatureVerts(TransInfo *t)
 				}
 			}
 			else if (t->mode==TFM_BONE_ROLL) {
-				if (ebo->flag & BONE_SELECTED)
-				{
+				if (ebo->flag & BONE_SELECTED) {
 					td->loc= NULL;
 					td->val= &(ebo->roll);
 					td->ival= ebo->roll;
@@ -1146,8 +1134,7 @@ static void createTransArmatureVerts(TransInfo *t)
 				}
 			}
 			else {
-				if (ebo->flag & BONE_TIPSEL)
-				{
+				if (ebo->flag & BONE_TIPSEL) {
 					copy_v3_v3(td->iloc, ebo->tail);
 					copy_v3_v3(td->center, (t->around==V3D_LOCAL) ? ebo->head : td->iloc);
 					td->loc= ebo->tail;
@@ -1161,8 +1148,7 @@ static void createTransArmatureVerts(TransInfo *t)
 					sub_v3_v3v3(delta, ebo->tail, ebo->head);
 					vec_roll_to_mat3(delta, ebo->roll, td->axismtx);
 
-					if ((ebo->flag & BONE_ROOTSEL) == 0)
-					{
+					if ((ebo->flag & BONE_ROOTSEL) == 0) {
 						td->extra = ebo;
 					}
 
@@ -1172,8 +1158,7 @@ static void createTransArmatureVerts(TransInfo *t)
 
 					td++;
 				}
-				if (ebo->flag & BONE_ROOTSEL)
-				{
+				if (ebo->flag & BONE_ROOTSEL) {
 					copy_v3_v3(td->iloc, ebo->head);
 					copy_v3_v3(td->center, td->iloc);
 					td->loc= ebo->head;
@@ -1943,8 +1928,7 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 	char *selstate = NULL;
 	short selectmode = ts->selectmode;
 
-	if (t->flag & T_MIRROR)
-	{
+	if (t->flag & T_MIRROR) {
 		EDBM_verts_mirror_cache_begin(em, TRUE);
 		mirror = 1;
 	}
@@ -2071,8 +2055,7 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 		eve = BM_iter_new(&iter, bm, BM_VERTS_OF_MESH, NULL);
 		for (a=0; eve; eve=BM_iter_step(&iter), a++) {
 			if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN) && selstate[a] && eve->co[0]!=0.0f) {
-				if (eve->co[0]<0.0f)
-				{
+				if (eve->co[0] < 0.0f) {
 					t->mirror = -1;
 					mirror = -1;
 				}
@@ -2144,13 +2127,10 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 		}
 	}
 	
-	if (mirror != 0)
-	{
+	if (mirror != 0) {
 		tob = t->data;
-		for (a = 0; a < t->total; a++, tob++ )
-		{
-			if (ABS(tob->loc[0]) <= 0.00001f)
-			{
+		for (a = 0; a < t->total; a++, tob++ ) {
+			if (ABS(tob->loc[0]) <= 0.00001f) {
 				tob->flag |= TD_MIRROR_EDGE;
 			}
 		}
@@ -3714,9 +3694,9 @@ void flushTransGraphData(TransInfo *t)
 			switch (sipo->autosnap) {
 				case SACTSNAP_FRAME: /* snap to nearest frame (or second if drawing seconds) */
 					if (sipo->flag & SIPO_DRAWTIME)
-						td2d->loc[0]= (float)(floor((td2d->loc[0]/secf) + 0.5f) * secf);
+						td2d->loc[0] = (float)(floorf((td2d->loc[0]/secf) + 0.5f) * secf);
 					else
-						td2d->loc[0]= (float)(floor(td2d->loc[0]+0.5f));
+						td2d->loc[0] = (float)(floorf(td2d->loc[0]+0.5f));
 					break;
 				
 				case SACTSNAP_MARKER: /* snap to nearest marker */
@@ -4278,15 +4258,15 @@ static void ObjectToTransData(TransInfo *t, TransData *td, Object *ob)
 
 	if (skip_invert == 0 && constinv == 0) {
 		if (constinv == 0)
-			ob->transflag |= OB_NO_CONSTRAINTS; /* where_is_object_time checks this */
+			ob->transflag |= OB_NO_CONSTRAINTS; /* BKE_object_where_is_calc_time checks this */
 		
-		where_is_object(t->scene, ob);
+		BKE_object_where_is_calc(t->scene, ob);
 		
 		if (constinv == 0)
 			ob->transflag &= ~OB_NO_CONSTRAINTS;
 	}
 	else
-		where_is_object(t->scene, ob);
+		BKE_object_where_is_calc(t->scene, ob);
 
 	td->ob = ob;
 
@@ -4340,7 +4320,7 @@ static void ObjectToTransData(TransInfo *t, TransData *td, Object *ob)
 		 * NOTE: some Constraints, and also Tracking should never get this
 		 *		done, as it doesn't work well.
 		 */
-		object_to_mat3(ob, obmtx);
+		BKE_object_to_mat3(ob, obmtx);
 		copy_m3_m4(totmat, ob->obmat);
 		invert_m3_m3(obinv, totmat);
 		mul_m3_m3m3(td->smtx, obmtx, obinv);
@@ -4377,12 +4357,12 @@ static void set_trans_object_base_flags(TransInfo *t)
 		return;
 
 	/* makes sure base flags and object flags are identical */
-	copy_baseflags(t->scene);
+	BKE_scene_base_flag_to_objects(t->scene);
 
 	/* handle pending update events, otherwise they got copied below */
 	for (base= scene->base.first; base; base= base->next) {
 		if (base->object->recalc)
-			object_handle_update(t->scene, base->object);
+			BKE_object_handle_update(t->scene, base->object);
 	}
 
 	for (base= scene->base.first; base; base= base->next) {
@@ -4395,7 +4375,7 @@ static void set_trans_object_base_flags(TransInfo *t)
 			/* if parent selected, deselect */
 			while (parsel) {
 				if (parsel->flag & SELECT) {
-					Base *parbase = object_in_scene(parsel, scene);
+					Base *parbase = BKE_scene_base_find(scene, parsel);
 					if (parbase) { /* in rare cases this can fail */
 						if (TESTBASELIB_BGMODE(v3d, scene, parbase)) {
 							break;
@@ -5066,7 +5046,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			 * we need to update the pose otherwise no updates get called during
 			 * transform and the auto-ik is not applied. see [#26164] */
 			struct Object *pose_ob=t->poseobj;
-			where_is_pose(t->scene, pose_ob);
+			BKE_pose_where_is(t->scene, pose_ob);
 		}
 
 		/* set BONE_TRANSFORM flags for autokey, manipulator draw might have changed them */
@@ -5161,7 +5141,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			/* recalculating the frame positions means we loose our original transform if its not auto-keyed [#24451]
 			 * this hack re-applies it, which is annoying, only alternatives are...
 			 * - don't recalc paths.
-			 * - have an object_handle_update() which gives is the new transform without touching the objects.
+			 * - have an BKE_object_handle_update() which gives is the new transform without touching the objects.
 			 * - only recalc paths on auto-keying.
 			 * - ED_objects_recalculate_paths could backup/restore transforms.
 			 * - re-apply the transform which is simplest in this case. (2 lines below)
@@ -5204,7 +5184,8 @@ static void createTransObject(bContext *C, TransInfo *t)
 	td = t->data = MEM_callocN(t->total*sizeof(TransData), "TransOb");
 	tx = t->ext = MEM_callocN(t->total*sizeof(TransDataExtension), "TransObExtension");
 
-	CTX_DATA_BEGIN (C, Base*, base, selected_bases) {
+	CTX_DATA_BEGIN (C, Base*, base, selected_bases)
+	{
 		Object *ob= base->object;
 		
 		td->flag = TD_SELECTED;
@@ -5897,7 +5878,7 @@ void createTransData(bContext *C, TransInfo *t)
 		 * lines below just check is also visible */
 		Object *ob_armature= modifiers_isDeformedByArmature(ob);
 		if (ob_armature && ob_armature->mode & OB_MODE_POSE) {
-			Base *base_arm= object_in_scene(ob_armature, t->scene);
+			Base *base_arm= BKE_scene_base_find(t->scene, ob_armature);
 			if (base_arm) {
 				View3D *v3d = t->view;
 				if (BASE_VISIBLE(v3d, base_arm)) {

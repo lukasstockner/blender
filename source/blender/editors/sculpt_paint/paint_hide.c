@@ -1,6 +1,4 @@
 /*
- * $Id$
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -366,6 +364,7 @@ void PAINT_OT_hide_show(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Hide/Show";
 	ot->idname = "PAINT_OT_hide_show";
+	ot->description = "Hide/show some vertices";
 
 	/* api callbacks */
 	ot->invoke = hide_show_invoke;

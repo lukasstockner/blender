@@ -498,7 +498,7 @@ static int ui_but_float_precision(uiBut *but, double value)
 	return prec;
 }
 
-static void ui_draw_linkline(uiLinkLine *line)
+static void ui_draw_linkline(uiLinkLine *line, int hilightActiveLines)
 {
 	rcti rect;
 
@@ -511,6 +511,8 @@ static void ui_draw_linkline(uiLinkLine *line)
 	
 	if (line->flag & UI_SELECT) 
 		glColor3ub(100, 100, 100);
+	else if(hilightActiveLines && ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE))) 
+		UI_ThemeColor(TH_TEXT_HI);
 	else 
 		glColor3ub(0, 0, 0);
 
@@ -522,17 +524,36 @@ static void ui_draw_links(uiBlock *block)
 	uiBut *but;
 	uiLinkLine *line;
 	
-	but = block->buttons.first;
-	while (but) {
+	// Draw the inactive lines (lines with neither button being hovered over).
+	// As we go, remember if we see any active or selected lines.
+	int foundselectline = 0;
+	int foundactiveline = 0;
+	for (but=block->buttons.first; but; but=but->next) {
 		if (but->type == LINK && but->link) {
-			line = but->link->lines.first;
-			while (line) {
-				ui_draw_linkline(line);
-				line = line->next;
+			for (line=but->link->lines.first; line; line=line->next) {
+				if (!(line->from->flag & UI_ACTIVE) && !(line->to->flag & UI_ACTIVE))
+					ui_draw_linkline(line, 0);
+				else
+					foundactiveline = 1;
+
+				if ((line->from->flag & UI_SELECT) || (line->to->flag & UI_SELECT))
+					foundselectline = 1;
 			}
 		}
-		but = but->next;
 	}	
+
+	// Draw any active lines (lines with either button being hovered over).
+	// Do this last so they appear on top of inactive lines.
+	if (foundactiveline) {
+		for (but=block->buttons.first; but; but=but->next) {
+			if(but->type==LINK && but->link) {
+				for (line=but->link->lines.first; line; line=line->next) {
+					if ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE))
+						ui_draw_linkline(line, !foundselectline);
+}
+			}
+		}	
+	}
 }
 
 /* ************** BLOCK ENDING FUNCTION ************* */

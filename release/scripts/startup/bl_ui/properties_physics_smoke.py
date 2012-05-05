@@ -110,7 +110,6 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
             col.prop(coll, "collision_type")
         
 
-
 class PHYSICS_PT_smoke_groups(PhysicButtonsPanel, Panel):
     bl_label = "Smoke Groups"
     bl_options = {'DEFAULT_CLOSED'}

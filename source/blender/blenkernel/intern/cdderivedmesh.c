@@ -256,6 +256,7 @@ static struct PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 
 	if (!ob->sculpt)
 		return NULL;
+
 	if (ob->sculpt->pbvh) {
 		cddm->pbvh= ob->sculpt->pbvh;
 		cddm->pbvh_draw = can_pbvh_draw(ob, dm);
@@ -267,6 +268,8 @@ static struct PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 	if (!cddm->pbvh && ob->type == OB_MESH) {
 		SculptSession *ss= ob->sculpt;
 		Mesh *me= ob->data;
+		int deformed = 0;
+
 		cddm->pbvh = BLI_pbvh_new();
 		cddm->pbvh_draw = can_pbvh_draw(ob, dm);
 
@@ -275,7 +278,9 @@ static struct PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 		BLI_pbvh_build_mesh(cddm->pbvh, me->mface, me->mvert,
 		                    me->totface, me->totvert);
 
-		if (ss->modifiers_active && ob->derivedDeform) {
+		deformed = ss->modifiers_active || me->key;
+
+		if (deformed && ob->derivedDeform) {
 			DerivedMesh *deformdm= ob->derivedDeform;
 			float (*vertCos)[3];
 			int totvert;
@@ -984,20 +989,20 @@ static void cddm_draw_attrib_vertex(DMVertexAttribs *attribs, MVert *mvert, int 
 
 	/* orco texture coordinates */
 	if (attribs->totorco) {
-		if (attribs->orco.glTexco)
+		if (attribs->orco.gl_texco)
 			glTexCoord3fv(attribs->orco.array[index]);
 		else
-			glVertexAttrib3fvARB(attribs->orco.glIndex, attribs->orco.array[index]);
+			glVertexAttrib3fvARB(attribs->orco.gl_index, attribs->orco.array[index]);
 	}
 
 	/* uv texture coordinates */
 	for (b = 0; b < attribs->tottface; b++) {
 		MTFace *tf = &attribs->tface[b].array[a];
 
-		if (attribs->tface[b].glTexco)
+		if (attribs->tface[b].gl_texco)
 			glTexCoord2fv(tf->uv[vert]);
 		else
-			glVertexAttrib2fvARB(attribs->tface[b].glIndex, tf->uv[vert]);
+			glVertexAttrib2fvARB(attribs->tface[b].gl_index, tf->uv[vert]);
 	}
 
 	/* vertex colors */
@@ -1005,13 +1010,13 @@ static void cddm_draw_attrib_vertex(DMVertexAttribs *attribs, MVert *mvert, int 
 		MCol *cp = &attribs->mcol[b].array[a*4 + vert];
 		GLubyte col[4];
 		col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;
-		glVertexAttrib4ubvARB(attribs->mcol[b].glIndex, col);
+		glVertexAttrib4ubvARB(attribs->mcol[b].gl_index, col);
 	}
 
 	/* tangent for normal mapping */
 	if (attribs->tottang) {
 		float *tang = attribs->tang.array[a*4 + vert];
-		glVertexAttrib4fvARB(attribs->tang.glIndex, tang);
+		glVertexAttrib4fvARB(attribs->tang.gl_index, tang);
 	}
 
 	/* vertex normal */
@@ -1162,25 +1167,25 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 						DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
 
 						if (attribs.totorco) {
-							datatypes[numdata].index = attribs.orco.glIndex;
+							datatypes[numdata].index = attribs.orco.gl_index;
 							datatypes[numdata].size = 3;
 							datatypes[numdata].type = GL_FLOAT;
 							numdata++;
 						}
 						for (b = 0; b < attribs.tottface; b++) {
-							datatypes[numdata].index = attribs.tface[b].glIndex;
+							datatypes[numdata].index = attribs.tface[b].gl_index;
 							datatypes[numdata].size = 2;
 							datatypes[numdata].type = GL_FLOAT;
 							numdata++;
 						}	
 						for (b = 0; b < attribs.totmcol; b++) {
-							datatypes[numdata].index = attribs.mcol[b].glIndex;
+							datatypes[numdata].index = attribs.mcol[b].gl_index;
 							datatypes[numdata].size = 4;
 							datatypes[numdata].type = GL_UNSIGNED_BYTE;
 							numdata++;
 						}	
 						if (attribs.tottang) {
-							datatypes[numdata].index = attribs.tang.glIndex;
+							datatypes[numdata].index = attribs.tang.gl_index;
 							datatypes[numdata].size = 4;
 							datatypes[numdata].type = GL_FLOAT;
 							numdata++;

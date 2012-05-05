@@ -79,7 +79,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 	tpsmd->totdmvert = tpsmd->totdmedge = tpsmd->totdmface = 0;
 	//tpsmd->facepa = 0;
 	tpsmd->flag = psmd->flag;
-	/* need to keep this to recognise a bit later in copy_object */
+	/* need to keep this to recognise a bit later in BKE_object_copy */
 	tpsmd->psys = psmd->psys;
 }
 
@@ -226,7 +226,7 @@ ModifierTypeInfo modifierType_ParticleSystem = {
 
 	/* copyData */          copyData,
 	/* deformVerts */       deformVerts,
-	/* deformVertsEM */     NULL /* deformVertsEM */ ,
+	/* deformVertsEM */     NULL,
 	/* deformMatrices */    NULL,
 	/* deformMatricesEM */  NULL,
 	/* applyModifier */     NULL,

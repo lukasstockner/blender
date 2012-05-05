@@ -144,9 +144,11 @@ void animviz_free_motionpath(bMotionPath *mpath)
 /* ------------------- */
 
 /* Setup motion paths for the given data
- *	- scene: current scene (for frame ranges, etc.)
- *	- ob: object to add paths for (must be provided)
- *	- pchan: posechannel to add paths for (optional; if not provided, object-paths are assumed)
+ * - Only used when explicitly calculating paths on bones which may/may not be consider already
+ *
+ * < scene: current scene (for frame ranges, etc.)
+ * < ob: object to add paths for (must be provided)
+ * < pchan: posechannel to add paths for (optional; if not provided, object-paths are assumed)
  */
 bMotionPath *animviz_verify_motionpaths(ReportList *reports, Scene *scene, Object *ob, bPoseChannel *pchan)
 {
@@ -180,14 +182,25 @@ bMotionPath *animviz_verify_motionpaths(ReportList *reports, Scene *scene, Objec
 	}
 
 	/* if there is already a motionpath, just return that,
-	 * but provided it's settings are ok 
+	 * provided it's settings are ok (saves extra free+alloc)
 	 */
 	if (*dst != NULL) {
+		int expected_length = avs->path_ef - avs->path_sf;
+		
 		mpath= *dst;
 		
-		/* if range is not invalid, and/or length is set ok, just return */
-		if ((mpath->start_frame != mpath->end_frame) && (mpath->length > 0))
+		/* path is "valid" if length is valid, but must also be of the same length as is being requested */
+		if ((mpath->start_frame != mpath->end_frame) && (mpath->length > 0)) {
+			/* outer check ensures that we have some curve data for this path */
+			if (mpath->length == expected_length) {
+				/* return/use this as it is already valid length */
 			return mpath;
+	}
+	else {
+				/* clear the existing path (as the range has changed), and reallocate below */
+				animviz_free_motionpath_cache(mpath);
+			}
+		}
 	}
 	else {
 		/* create a new motionpath, and assign it */
@@ -328,7 +341,7 @@ static void motionpaths_calc_update_scene(Scene *scene)
 	// is animated but not attached to/updatable from objects
 	for (base=scene->base.first; base; base=base->next) {
 		/* update this object */
-		object_handle_update(scene, base->object);
+		BKE_object_handle_update(scene, base->object);
 		
 		/* if this is the last one we need to update, let's stop to save some time */
 		if (base == last)
@@ -340,7 +353,7 @@ static void motionpaths_calc_update_scene(Scene *scene)
 	 * 	  that doesn't force complete update, but for now, this is the
 	 *	  most accurate way!
 	 */
-	scene_update_for_newframe(G.main, scene, scene->lay); // XXX this is the best way we can get anything moving
+	BKE_scene_update_for_newframe(G.main, scene, scene->lay); // XXX this is the best way we can get anything moving
 #endif
 }
 
@@ -803,7 +816,7 @@ static void frames_duplilist(ListBase *lb, Scene *scene, Object *ob, int level, 
 			 * However, this has always been the way that this worked (i.e. pre 2.5), so I guess that it'll be fine!
 			 */
 			BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, (float)scene->r.cfra, ADT_RECALC_ANIM); /* ob-eval will do drivers, so we don't need to do them */
-			where_is_object_time(scene, ob, (float)scene->r.cfra);
+			BKE_object_where_is_calc_time(scene, ob, (float)scene->r.cfra);
 			
 			dob= new_dupli_object(lb, ob, ob->obmat, ob->lay, scene->r.cfra, OB_DUPLIFRAMES, animated);
 			copy_m4_m4(dob->omat, copyob.obmat);
@@ -818,7 +831,7 @@ static void frames_duplilist(ListBase *lb, Scene *scene, Object *ob, int level, 
 	scene->r.cfra= cfrao;
 	
 	BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, (float)scene->r.cfra, ADT_RECALC_ANIM); /* ob-eval will do drivers, so we don't need to do them */
-	where_is_object_time(scene, ob, (float)scene->r.cfra);
+	BKE_object_where_is_calc_time(scene, ob, (float)scene->r.cfra);
 	
 	/* but, to make sure unkeyed object transforms are still sane, 
 	 * let's copy object's original data back over
@@ -1236,7 +1249,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 	if (G.rendering == 0)
 		no_draw_flag |= PARS_NO_DISP;
 	
-	ctime = BKE_curframe(scene); /* NOTE: in old animsys, used parent object's timeoffset... */
+	ctime = BKE_scene_frame_get(scene); /* NOTE: in old animsys, used parent object's timeoffset... */
 
 	totpart = psys->totpart;
 	totchild = psys->totchild;
@@ -1296,7 +1309,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 			}
 
 			/* we also copy the actual objects to restore afterwards, since
-			 * where_is_object_time will change the object which breaks transform */
+			 * BKE_object_where_is_calc_time will change the object which breaks transform */
 			oblist = MEM_callocN(totgroup*sizeof(Object *), "dupgroup object list");
 			obcopylist = MEM_callocN(totgroup*sizeof(Object), "dupgroup copy list");
 
@@ -1432,7 +1445,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 			}
 			else {
 				/* to give ipos in object correct offset */
-				where_is_object_time(scene, ob, ctime-pa_time);
+				BKE_object_where_is_calc_time(scene, ob, ctime-pa_time);
 
 				copy_v3_v3(vec, obmat[3]);
 				obmat[3][0] = obmat[3][1] = obmat[3][2] = 0.0f;
@@ -1473,7 +1486,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 			}
 		}
 
-		/* restore objects since they were changed in where_is_object_time */
+		/* restore objects since they were changed in BKE_object_where_is_calc_time */
 		if (part->ren_as==PART_DRAW_GR) {
 			for (a=0; a<totgroup; a++)
 				*(oblist[a])= obcopylist[a];
@@ -1532,7 +1545,7 @@ static void font_duplilist(ListBase *lb, Scene *scene, Object *par, int level, i
 	
 	/* in par the family name is stored, use this to find the other objects */
 	
-	chartransdata= BKE_text_to_curve(G.main, scene, par, FO_DUPLI);
+	chartransdata= BKE_vfont_to_curve(G.main, scene, par, FO_DUPLI);
 	if (chartransdata==NULL) return;
 
 	cu= par->data;
