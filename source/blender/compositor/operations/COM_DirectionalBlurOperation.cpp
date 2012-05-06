@@ -53,7 +53,7 @@ void DirectionalBlurOperation::initExecution() {
 	const float width = getWidth();
 	const float height = getHeight();
 
-	const float a= angle * (float)M_PI / 180.f;
+	const float a= angle;
 	const float itsc= 1.f / pow(2.f, (float)iterations);
 	float D;
 
@@ -64,7 +64,7 @@ void DirectionalBlurOperation::initExecution() {
 	tx=  itsc * D * cos(a);
 	ty= -itsc * D * sin(a);
 	sc=  itsc * zoom;
-	rot= itsc * spin * (float)M_PI / 180.f;
+	rot= itsc * spin;
 
 }
 
@@ -114,10 +114,10 @@ void DirectionalBlurOperation::deinitExecution() {
 bool DirectionalBlurOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
 	rcti newInput;
 
-	newInput.xmax = input->xmax + (this->data->distance*this->getWidth());
-	newInput.xmin = input->xmin - (this->data->distance*this->getWidth());
-	newInput.ymax = input->ymax + (this->data->distance*this->getHeight());
-	newInput.ymin = input->ymin - (this->data->distance*this->getHeight());
+	newInput.xmax = this->getWidth();
+	newInput.xmin = 0;
+	newInput.ymax = this->getHeight();
+	newInput.ymin = 0;
 
 	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 }

@@ -26,7 +26,7 @@ BrightnessOperation::BrightnessOperation(): NodeOperation() {
 	this->addInputSocket(COM_DT_COLOR);
 	this->addInputSocket(COM_DT_VALUE);
 	this->addInputSocket(COM_DT_VALUE);
-	this->addOutputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_COLOR);
 	this->inputProgram = NULL;
 }
 void BrightnessOperation::initExecution() {
