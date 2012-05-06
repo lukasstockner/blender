@@ -25,6 +25,7 @@
 #include "COM_ExecutionSystem.h"
 #include "COM_DilateErodeOperation.h"
 #include "COM_AntiAliasOperation.h"
+#include "BLI_math.h"
 
 DilateErodeNode::DilateErodeNode(bNode *editorNode): Node(editorNode) {
 }
@@ -33,8 +34,8 @@ void DilateErodeNode::convertToOperations(ExecutionSystem *graph, CompositorCont
 	bNode* editorNode = this->getbNode();
 	DilateErodeOperation *operation = new DilateErodeOperation();
 	operation->setDistance(editorNode->custom2);
-	operation->setInset(0.0f);
-
+	operation->setInset(2.0f);
+	
 	this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0));
 
 	AntiAliasOperation * antiAlias = new AntiAliasOperation();

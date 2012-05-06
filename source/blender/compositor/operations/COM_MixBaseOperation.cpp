@@ -64,3 +64,32 @@ void MixBaseOperation::deinitExecution() {
 	this->inputColor2Operation = NULL;
 }
 
+void MixBaseOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {
+	unsigned int tempPreferred[2];
+	unsigned int facResolution[2];
+	unsigned int color1Resolution[2];
+	unsigned int color2Resolution[2];
+	InputSocket *socket;
+	
+	tempPreferred[0] = 0;
+	tempPreferred[1] = 0;
+	socket = this->getInputSocket(0);
+	socket->determineResolution(facResolution, tempPreferred);
+	tempPreferred[0] = 0;
+	tempPreferred[1] = 0;
+	socket = this->getInputSocket(1);
+	socket->determineResolution(color1Resolution, tempPreferred);
+	tempPreferred[0] = 0;
+	tempPreferred[1] = 0;
+	socket = this->getInputSocket(2);
+	socket->determineResolution(color2Resolution, tempPreferred);
+	
+	if (color1Resolution[0] != 0 && color1Resolution != 0) {
+		this->setResolutionInputSocketIndex(1);
+	} else if (color2Resolution[0] != 0 && color2Resolution != 0) {
+		this->setResolutionInputSocketIndex(2);
+	} else if (facResolution[0] != 0 && facResolution != 0) {
+		this->setResolutionInputSocketIndex(0);
+	}
+	NodeOperation::determineResolution(resolution, preferredResolution);
+}

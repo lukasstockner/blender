@@ -61,6 +61,6 @@ public:
 	
 	void setUseValueAlphaMultiply(const bool value) {this->valueAlphaMultiply = value;}
 	bool useValueAlphaMultiply() {return this->valueAlphaMultiply;}
-
+	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
 };
 #endif

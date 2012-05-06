@@ -118,13 +118,6 @@ void MixNode::convertToOperations(ExecutionSystem *graph, CompositorContext * co
 		break;
 	}
 	convertProg->setUseValueAlphaMultiply(this->getbNode()->custom2);
-	if (color1Socket->isConnected()) {
-		convertProg->setResolutionInputSocketIndex(1);
-	} else if (color2Socket->isConnected()) {
-		convertProg->setResolutionInputSocketIndex(2);
-	} else {
-		convertProg->setResolutionInputSocketIndex(0);
-	}
 	valueSocket->relinkConnections(convertProg->getInputSocket(0), true, 0, graph);
 	color1Socket->relinkConnections(convertProg->getInputSocket(1), true, 1, graph);
 	color2Socket->relinkConnections(convertProg->getInputSocket(2), true, 2, graph);
