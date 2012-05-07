@@ -146,7 +146,7 @@ void SolverObject::init(const string& name, const nVec3i& size, Grid<int> *flags
 	mSolver->setParams(solverParam);
 
 	// create default grids
-	createIntGrid("flags", flagsGrid);
+	createIntGrid("flags", flagsGrid); 
 	createVec3Grid("vel-curr");
 	createRealGrid("pressure");
 

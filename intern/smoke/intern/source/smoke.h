@@ -42,7 +42,7 @@ namespace DDF
 
 			void freeAllSolvers() 
 			{
-				finalizeAllSolvers();
+				// finalizeAllSolvers(); // DG: I call this directly from code
 
 				for (unsigned i=0;i<_solvers.size();i++)
 					delete _solvers[i];
