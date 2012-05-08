@@ -37,7 +37,7 @@ protected:
 	BlurBaseOperation();
 	float* make_gausstab(int rad);
 	float size;
-	bool deleteDataWhenFinished;
+	bool deleteData;
 
 public:
 	/**
@@ -54,6 +54,6 @@ public:
 	
 	void setSize(float size) {this->size = size;}
 	
-	void deleteDataWhenFinished() {this->deleteDataWhenFinished = true;}
+	void deleteDataWhenFinished() {this->deleteData = true;}
 };
 #endif
