@@ -34,6 +34,8 @@ BlurBaseOperation::BlurBaseOperation(): NodeOperation() {
 	this->inputProgram = NULL;
 	this->data = NULL;
 	this->size = 1.0f;
+	this->deleteDataWhenFinished = false;
+	
 
 }
 void BlurBaseOperation::initExecution() {
@@ -86,4 +88,8 @@ float* BlurBaseOperation::make_gausstab(int rad)
 
 void BlurBaseOperation::deinitExecution() {
 	this->inputProgram = NULL;
+	if (deleteDataWhenFinished) {
+		delete data;
+	}
+	this->data = NULL;
 }
