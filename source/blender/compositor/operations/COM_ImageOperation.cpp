@@ -73,7 +73,10 @@ ImBuf* BaseImageOperation::getImBuf() {
 
 
 void BaseImageOperation::initExecution() {
+#ifdef COM_TRUNK
+#else
 	BKE_image_user_calc_frame(this->imageUser, this->framenumber, 0);
+#endif
 	ImBuf *stackbuf= getImBuf();
 	this->buffer = stackbuf;
 	if (stackbuf) {
@@ -90,7 +93,10 @@ void BaseImageOperation::deinitExecution() {
 }
 
 void BaseImageOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[]) {
+#ifdef COM_TRUNK
+#else
 	BKE_image_user_calc_frame(this->imageUser, this->framenumber, 0);
+#endif
 	ImBuf *stackbuf= getImBuf();
 	if (stackbuf) {
 		resolution[0] = stackbuf->x;

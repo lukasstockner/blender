@@ -31,18 +31,28 @@ MultilayerBaseOperation::MultilayerBaseOperation(int pass): BaseImageOperation()
 }
 ImBuf* MultilayerBaseOperation::getImBuf() {
 	RenderPass *rpass;
+#ifdef COM_TRUNK
+	rpass = (RenderPass *)BLI_findlink(&this->renderlayer->passes, this->passId);
+	if(rpass) {
+		this->imageUser->pass= this->passId;
+		BKE_image_multilayer_index(image->rr, this->imageUser);
+		return BaseImageOperation::getImBuf();
+	}
+	return NULL;
+#else
 	short index;
-	
 	for(index=0, rpass= (RenderPass*)this->renderlayer->passes.first; rpass; rpass= rpass->next, index++)
 		if(rpass->passtype==passId)
 			break;
-	
+
 	if(rpass) {
 		this->imageUser->pass= index;
 		BKE_image_multilayer_index(image->rr, this->imageUser);
 		return BaseImageOperation::getImBuf();
 	}
 	return NULL;
+#endif
+	
 }
 
 void MultilayerColorOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]) {

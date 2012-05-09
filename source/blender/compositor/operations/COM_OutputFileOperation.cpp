@@ -57,7 +57,7 @@ void OutputFileOperation::initExecution() {
 }
 
 void OutputFileOperation::deinitExecution() {
-	// TODO: create ImBuf
+#ifndef COM_TRUNK
 	if (this->getWidth() * this->getHeight() != 0) {
 		
 		ImBuf *ibuf= IMB_allocImBuf(this->getWidth(), this->getHeight(), 32, 0);
@@ -76,7 +76,6 @@ void OutputFileOperation::deinitExecution() {
 		}
 		
 		BKE_makepicstring(string, this->imageFile->name, bmain->name, this->scene->r.cfra, this->imageFile->im_format.imtype, (this->scene->r.scemode & R_EXTENSION), true);
-		
 		if(0 == BKE_write_ibuf(ibuf, string, &this->imageFile->im_format))
 			printf("Cannot save Node File Output to %s\n", string);
 		else
@@ -84,6 +83,9 @@ void OutputFileOperation::deinitExecution() {
 		
 		IMB_freeImBuf(ibuf);	
 	}
+#else
+#warning still need to be synced with trunk
+#endif
 	this->outputBuffer = NULL;
 	this->zBuffer = NULL;
 	this->imageInput = NULL;
