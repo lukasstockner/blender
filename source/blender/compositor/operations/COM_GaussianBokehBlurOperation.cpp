@@ -146,9 +146,14 @@ void GaussianBokehBlurOperation::deinitExecution() {
 
 bool GaussianBokehBlurOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
 	rcti newInput;
-	
+	rcti sizeInput;
+	sizeInput.xmin = 0;
+	sizeInput.ymin = 0;
+	sizeInput.xmax = 5;
+	sizeInput.ymax = 5;
 	NodeOperation * operation = this->getInputOperation(1);
-	if (operation->determineDependingAreaOfInterest(input, readOperation, output)) {
+	
+	if (operation->determineDependingAreaOfInterest(&sizeInput, readOperation, output)) {
 		return true;
 	} else {
 		if (this->gausstab) {
