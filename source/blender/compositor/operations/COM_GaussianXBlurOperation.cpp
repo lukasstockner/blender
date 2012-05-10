@@ -32,20 +32,23 @@ GaussianXBlurOperation::GaussianXBlurOperation(): BlurBaseOperation() {
 	this->rad = 0;
 
 }
-void GaussianXBlurOperation::initExecution() {
-	BlurBaseOperation::initExecution();
-
-	float rad = size*this->data->sizex;
-	if(rad<1)
-		rad= 1;
-
-	this->rad = rad;
-	this->gausstab = BlurBaseOperation::make_gausstab(rad);
-}
 
 void* GaussianXBlurOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers) {
+	updateGauss(memoryBuffers);
 	void* buffer = getInputOperation(0)->initializeTileData(NULL, memoryBuffers);
 	return buffer;
+}
+
+void GaussianXBlurOperation::updateGauss(MemoryBuffer **memoryBuffers) {
+	if (this->gausstab == NULL) {
+		updateSize(memoryBuffers);
+		float rad = size*this->data->sizex;
+		if(rad<1)
+			rad= 1;
+
+		this->rad = rad;
+		this->gausstab = BlurBaseOperation::make_gausstab(rad);	
+	}	
 }
 
 void GaussianXBlurOperation::executePixel(float* color, int x, int y, MemoryBuffer *inputBuffers[], void *data) {
@@ -99,10 +102,22 @@ void GaussianXBlurOperation::deinitExecution() {
 
 bool GaussianXBlurOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
 	rcti newInput;
-	newInput.xmax = input->xmax + rad;
-	newInput.xmin = input->xmin - rad;
-	newInput.ymax = input->ymax;
-	newInput.ymin = input->ymin;
-
-	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+	
+	NodeOperation * operation = this->getInputOperation(1);
+	if (operation->determineDependingAreaOfInterest(input, readOperation, output)) {
+		return true;
+	}else {
+		if (this->gausstab == NULL) {
+			newInput.xmax = this->getWidth();
+			newInput.xmin = 0;
+			newInput.ymax = this->getHeight();
+			newInput.ymin = 0;
+		}else{
+			newInput.xmax = input->xmax + rad;
+			newInput.xmin = input->xmin - rad;
+			newInput.ymax = input->ymax;
+			newInput.ymin = input->ymin;
+		}
+		return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+	}
 }

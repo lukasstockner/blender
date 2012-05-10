@@ -30,6 +30,7 @@ class GaussianBokehBlurOperation : public BlurBaseOperation {
 private:
 	float* gausstab;
 	int radx, rady;
+	void updateGauss(MemoryBuffer **memoryBuffers);
 
 public:
 	GaussianBokehBlurOperation();
@@ -41,16 +42,10 @@ public:
 	void executePixel(float* color, int x, int y, MemoryBuffer *inputBuffers[], void* data);
 	
 	/**
-	  * Initialize the execution
-	  */
-	void initExecution();
-	
-	/**
 	  * Deinitialize the execution
 	  */
 	void deinitExecution();
 	
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
-
 };
 #endif

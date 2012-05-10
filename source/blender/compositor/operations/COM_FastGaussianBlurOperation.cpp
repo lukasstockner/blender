@@ -25,37 +25,47 @@
 #include "BLI_utildefines.h"
 
 FastGaussianBlurOperation::FastGaussianBlurOperation(): BlurBaseOperation(){
-}
-
-void FastGaussianBlurOperation::initExecution(){
-	BlurBaseOperation::initExecution();
-	sx = data->sizex * this->size/2.0f;
-	sy = data->sizey * this->size/2.0f;
+	this->iirgaus = false;
 }
 
 void FastGaussianBlurOperation::executePixel(float *color,int x, int y, MemoryBuffer *inputBuffers[], void *data) {
 	MemoryBuffer *newData = (MemoryBuffer*)data;
 	
-	newData->read(color, x, y);
-	
+	newData->read(color, x, y);	
 }
 
 bool FastGaussianBlurOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output){
 	rcti newInput;
 	
-	newInput.xmax = input->xmax + (sx);
-	newInput.xmin = input->xmin - (sx);
-	newInput.ymax = input->ymax + (sy);
-	newInput.ymin = input->ymin - (sy);
-	
-	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+	NodeOperation * operation = this->getInputOperation(1);
+	if (operation->determineDependingAreaOfInterest(input, readOperation, output)) {
+		return true;
+	}else {
+		if(this->iirgaus){
+			newInput.xmax = input->xmax + (sx);
+			newInput.xmin = input->xmin - (sx);
+			newInput.ymax = input->ymax + (sy);
+			newInput.ymin = input->ymin - (sy);
+		}else {
+			newInput.xmin = 0;
+			newInput.ymin = 0;
+			newInput.xmax = this->getWidth();
+			newInput.ymax = this->getHeight();
+		}
+		return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+	}
 }
 
 void* FastGaussianBlurOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers){
 	MemoryBuffer *newBuf = (MemoryBuffer*)this->inputProgram->initializeTileData(rect, memoryBuffers);
 	MemoryBuffer *copy = newBuf->duplicate();
+	updateSize(memoryBuffers);
 	
 	int c;
+	sx = data->sizex * this->size/2.0f;
+	sy = data->sizey * this->size/2.0f;	
+	this->iirgaus = true;
+	
 	if ((sx == sy) && (sx > 0.f)) {
 		for (c=0; c<COM_NUMBER_OF_CHANNELS; ++c)
 			IIR_gauss(copy, sx, c, 3);

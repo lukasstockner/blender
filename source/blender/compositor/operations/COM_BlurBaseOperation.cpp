@@ -29,6 +29,7 @@ extern "C" {
 
 BlurBaseOperation::BlurBaseOperation(): NodeOperation() {
 	this->addInputSocket(COM_DT_COLOR);
+	this->addInputSocket(COM_DT_VALUE);
 	this->addOutputSocket(COM_DT_COLOR);
 	this->setComplex(true);
 	this->inputProgram = NULL;
@@ -38,6 +39,7 @@ BlurBaseOperation::BlurBaseOperation(): NodeOperation() {
 }
 void BlurBaseOperation::initExecution() {
 	this->inputProgram = this->getInputSocketReader(0);
+	this->inputSize = this->getInputSocketReader(1);
 	this->data->image_in_width= this->getWidth();
 	this->data->image_in_height= this->getHeight();
 	if(this->data->relative) {
@@ -86,8 +88,15 @@ float* BlurBaseOperation::make_gausstab(int rad)
 
 void BlurBaseOperation::deinitExecution() {
 	this->inputProgram = NULL;
+	this->inputSize = NULL;
 	if (this->deleteData) {
 		delete this->data;
 	}
 	this->data = NULL;
+}
+
+void BlurBaseOperation::updateSize(MemoryBuffer **memoryBuffers){
+	float result[4];
+	this->getInputSocketReader(1)->read(result, 0, 0, COM_PS_NEAREST, memoryBuffers);
+	this->size = result[0];
 }

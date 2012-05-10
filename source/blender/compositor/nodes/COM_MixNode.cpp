@@ -118,6 +118,7 @@ void MixNode::convertToOperations(ExecutionSystem *graph, CompositorContext * co
 		break;
 	}
 	convertProg->setUseValueAlphaMultiply(this->getbNode()->custom2);
+
 	valueSocket->relinkConnections(convertProg->getInputSocket(0), true, 0, graph);
 	color1Socket->relinkConnections(convertProg->getInputSocket(1), true, 1, graph);
 	color2Socket->relinkConnections(convertProg->getInputSocket(2), true, 2, graph);
