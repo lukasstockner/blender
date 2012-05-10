@@ -65,7 +65,7 @@ bool ProjectorLensDistortionOperation::determineDependingAreaOfInterest(rcti *in
 	rcti newInput;
 	newInput.ymax = input->ymax;
 	newInput.ymin = input->ymin;
-	newInput.xmin = input->xmin-kr2-1;
-	newInput.xmax = input->xmax+kr2+1;
+	newInput.xmin = input->xmin-kr2-2;
+	newInput.xmax = input->xmax+kr2+2;
 	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 }

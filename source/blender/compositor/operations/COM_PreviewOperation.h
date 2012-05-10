@@ -41,7 +41,7 @@ protected:
 
 public:
 	PreviewOperation();
-	bool isOutputOperation(bool rendering) const {return !rendering;}
+	bool isOutputOperation(bool rendering) const {return true;}
 	void initExecution();
 	void deinitExecution();
 	const int getRenderPriority() const;

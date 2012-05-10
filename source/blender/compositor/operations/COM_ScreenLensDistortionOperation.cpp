@@ -133,6 +133,11 @@ void ScreenLensDistortionOperation::executePixel(float* outputColor, int x, int 
 
 		/* set alpha */
 		outputColor[3]= 1.0f;
+	} else {
+		outputColor[0]= 0.0f;
+		outputColor[1]= 0.0f;
+		outputColor[2]= 0.0f;
+		outputColor[3]= 0.0f;
 	}
 }
 
@@ -151,13 +156,6 @@ void ScreenLensDistortionOperation::determineUV(float result[2], float x, float 
 
 bool ScreenLensDistortionOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
 	rcti newInput;
-//	float uv[2];
-	//	determineUV(uv, input->xmin, input->ymin);
-	//	newInput.xmin = uv[0]-1;
-	//	newInput.ymin = uv[1]-1;
-	//	determineUV(uv, input->xmax, input->ymax);
-	//	newInput.ymax = uv[0]+1;
-	//	newInput.xmax = uv[1]+1;
 	newInput.xmin = 0;
 	newInput.ymin = 0;
 	newInput.ymax = inputProgram->getHeight();
