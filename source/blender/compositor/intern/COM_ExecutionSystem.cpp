@@ -38,6 +38,8 @@
 #include "COM_ReadBufferOperation.h"
 #include "COM_ExecutionSystemHelper.h"
 
+#include "BKE_global.h"
+
 ExecutionSystem::ExecutionSystem(bNodeTree* editingtree, bool rendering) {
 	this->context.setbNodeTree(editingtree);
 
@@ -69,9 +71,8 @@ ExecutionSystem::ExecutionSystem(bNodeTree* editingtree, bool rendering) {
 			executionGroup->determineResolution(resolution);
 		}
 	}
-#ifdef DEBUG
-	ExecutionSystemHelper::debugDump(this);
-#endif
+
+	if (G.f & G_DEBUG) ExecutionSystemHelper::debugDump(this);
 }
 
 ExecutionSystem::~ExecutionSystem() {
