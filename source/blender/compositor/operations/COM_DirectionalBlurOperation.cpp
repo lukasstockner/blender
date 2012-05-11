@@ -35,11 +35,6 @@ DirectionalBlurOperation::DirectionalBlurOperation() : NodeOperation() {
 	this->inputProgram = NULL;
 }
 
-void* DirectionalBlurOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers) {
-	void* buffer = inputProgram->initializeTileData(NULL, memoryBuffers);
-	return buffer;
-}
-
 void DirectionalBlurOperation::initExecution() {
 	this->inputProgram = getInputSocketReader(0);
 	QualityStepHelper::initExecution(COM_QH_INCREASE);

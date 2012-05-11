@@ -92,7 +92,6 @@
 #include "COM_TimeNode.h"
 #include "COM_DirectionalBlurNode.h"
 #include "COM_ZCombineNode.h"
-#include <stdio.h>
 #include "COM_SetValueOperation.h"
 #include "COM_ScaleOperation.h"
 #include "COM_ExecutionSystemHelper.h"
@@ -376,8 +375,6 @@ void Converter::convertDataType(SocketConnection* connection, ExecutionSystem *s
 		converter = new ConvertVectorToValueOperation();
 	} else if (fromDatatype == COM_DT_VECTOR && toDatatype == COM_DT_COLOR) {
 		converter = new ConvertVectorToColorOperation();
-	} else {
-		printf("ERROR: unknown conversion detected\n");
 	}
 	if (converter != NULL) {
 		inputSocket->relinkConnections(converter->getInputSocket(0));

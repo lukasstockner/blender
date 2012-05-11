@@ -24,7 +24,6 @@
 #include "COM_Node.h"
 #include "COM_SocketConnection.h"
 #include "COM_ExecutionSystem.h"
-#include <stdio.h>
 
 InputSocket::InputSocket(DataType datatype) :Socket(datatype) {
 	this->connection = NULL;
@@ -84,7 +83,6 @@ DataType InputSocket::convertToSupportedDataType(DataType datatype) {
 			return COM_DT_VALUE;
 		}
 	}
-	printf("WARNING: Unknown how to do conversion to supported datatype\n");
 	return this->getDataType();
 }
 
@@ -122,7 +120,6 @@ void InputSocket::relinkConnections(InputSocket *relinkToSocket, bool autoconnec
 			Node* node = (Node*)this->getNode();
 			switch (this->getActualDataType()) {
 			case COM_DT_UNKNOWN:
-				printf("relink autoconnect with unknown datatype\n");
 			case COM_DT_COLOR:
 				node->addSetColorOperation(graph, relinkToSocket, editorNodeInputSocketIndex);
 				break;
@@ -151,7 +148,6 @@ void InputSocket::relinkConnections(InputSocket *relinkToSocket, bool autoconnec
 			Node* node = (Node*)this->getNode();
 			switch (this->getActualDataType()) {
 			case COM_DT_UNKNOWN:
-				printf("relink autoconnect with unknown datatype\n");
 			case COM_DT_COLOR:
 				node->addSetColorOperation(graph, relinkToSocket, editorNodeInputSocketIndex);
 				break;

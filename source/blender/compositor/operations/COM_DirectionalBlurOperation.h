@@ -37,7 +37,6 @@ private:
 public:
 	DirectionalBlurOperation();
 
-	void* initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers);
 	/**
 	  * the inner loop of this program
 	  */

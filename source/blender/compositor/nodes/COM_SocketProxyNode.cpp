@@ -22,7 +22,6 @@
 
 #include "COM_SocketProxyNode.h"
 #include "COM_SocketConnection.h"
-#include "stdio.h"
 #include "COM_SocketProxyOperation.h"
 #include "COM_ExecutionSystem.h"
 #include "COM_SetValueOperation.h"

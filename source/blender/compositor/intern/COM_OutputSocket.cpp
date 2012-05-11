@@ -24,7 +24,6 @@
 #include "COM_Node.h"
 #include "COM_SocketConnection.h"
 #include "COM_NodeOperation.h"
-#include <stdio.h>
 
 OutputSocket::OutputSocket(DataType datatype) :Socket(datatype) {
 	this->inputSocketDataTypeDeterminatorIndex = -1;
@@ -46,8 +45,6 @@ void OutputSocket::determineResolution(unsigned int resolution[], unsigned int p
 		NodeOperation* operation = (NodeOperation*)node;
 		operation->determineResolution(resolution, preferredResolution);
 		operation->setResolution(resolution);
-	} else {
-		printf("ERROR is not an operation\n");
 	}
 }
 

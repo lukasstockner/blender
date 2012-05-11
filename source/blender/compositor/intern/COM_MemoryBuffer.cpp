@@ -23,7 +23,6 @@
 #include "COM_MemoryBuffer.h"
 #include "MEM_guardedalloc.h"
 #include "BLI_math.h"
-#include <fstream>
 #include "BKE_global.h"
 
 unsigned int MemoryBuffer::determineBufferSize() {
@@ -86,7 +85,6 @@ MemoryBuffer::~MemoryBuffer() {
 
 void MemoryBuffer::copyContentFrom(MemoryBuffer *otherBuffer) {
 	if (!otherBuffer) {
-		printf("no buffer to copy from\n");
 		return;
 	}
 	unsigned int otherY;
