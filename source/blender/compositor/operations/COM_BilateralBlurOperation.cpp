@@ -104,11 +104,12 @@ void BilateralBlurOperation::deinitExecution() {
 
 bool BilateralBlurOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output) {
 	rcti newInput;
+	int add = ceil(this->space)+1;
 
-	newInput.xmax = input->xmax + (this->space);
-	newInput.xmin = input->xmin - (this->space);
-	newInput.ymax = input->ymax + (this->space);
-	newInput.ymin = input->ymin - (this->space);
+	newInput.xmax = input->xmax + (add);
+	newInput.xmin = input->xmin - (add);
+	newInput.ymax = input->ymax + (add);
+	newInput.ymin = input->ymin - (add);
 
 	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 }
