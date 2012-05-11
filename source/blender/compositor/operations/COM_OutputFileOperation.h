@@ -18,32 +18,74 @@
  * Contributor: 
  *		Jeroen Bakker 
  *		Monique Dewanchand
+ *		Lukas Tönne
  */
 
 #ifndef _COM_OutputFileOperation_h
 #define _COM_OutputFileOperation_h
 #include "COM_NodeOperation.h"
-#include "DNA_scene_types.h"
 #include "BLI_rect.h"
+#include "BKE_utildefines.h"
 
-class OutputFileOperation : public NodeOperation {
+#include "intern/openexr/openexr_multi.h"
+#ifdef COM_TRUNK
+
+/* Writes the image to a single-layer file. */
+class OutputSingleLayerOperation : public NodeOperation {
 private:
-	float *outputBuffer;
-	float *zBuffer;
 	const Scene *scene;
-	NodeImageFile *imageFile;
 	const bNodeTree* tree;
+	
+	ImageFormatData *format;
+	char path[FILE_MAX];
+	
+	float *outputBuffer;
+	DataType datatype;
 	SocketReader* imageInput;
-	SocketReader* zInput;
+
 public:
-	OutputFileOperation();
+	OutputSingleLayerOperation(const Scene *scene, const bNodeTree *tree, DataType datatype, ImageFormatData *format, const char *path);
+	
 	void executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer** memoryBuffers);
 	bool isOutputOperation(bool rendering) const {return true;}
 	void initExecution();
 	void deinitExecution();
-	void setScene(const Scene*scene) {this->scene = scene;}
-	void setbNodeTree(const bNodeTree *tree) {this->tree= tree;}
-	void setNodeImageFile(NodeImageFile*file) {this->imageFile= file;}
 	const int getRenderPriority() const {return 7;}
 };
+
+/* extra info for OpenEXR layers */
+struct OutputOpenExrLayer {
+	OutputOpenExrLayer(const char *name, DataType datatype);
+	
+	char name[EXR_TOT_MAXNAME-2];
+	float *outputBuffer;
+	DataType datatype;
+	SocketReader* imageInput;
+};
+
+/* Writes inputs into OpenEXR multilayer channels. */
+class OutputOpenExrMultiLayerOperation : public NodeOperation {
+private:
+	typedef std::vector<OutputOpenExrLayer> LayerList;
+	
+	const Scene *scene;
+	const bNodeTree* tree;
+	
+	char path[FILE_MAX];
+	char exr_codec;
+	LayerList layers;
+	
+public:
+	OutputOpenExrMultiLayerOperation(const Scene *scene, const bNodeTree *tree, const char *path, char exr_codec);
+	
+	void add_layer(const char *name, DataType datatype);
+	
+	void executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer** memoryBuffers);
+	bool isOutputOperation(bool rendering) const {return true;}
+	void initExecution();
+	void deinitExecution();
+	const int getRenderPriority() const {return 7;}
+};
+
+#endif
 #endif

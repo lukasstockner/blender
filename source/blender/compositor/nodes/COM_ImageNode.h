@@ -18,6 +18,7 @@
  * Contributor: 
  *		Jeroen Bakker 
  *		Monique Dewanchand
+ *		Lukas Tönne
  */
 
 #include "COM_defines.h"

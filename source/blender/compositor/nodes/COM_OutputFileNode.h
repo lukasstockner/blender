@@ -18,6 +18,7 @@
  * Contributor: 
  *		Jeroen Bakker 
  *		Monique Dewanchand
+ *		Lukas Tönne
  */
 
 #ifndef _COM_OutputFileNode_h
@@ -25,6 +26,7 @@
 
 #include "COM_Node.h"
 #include "DNA_node_types.h"
+#ifdef COM_TRUNK
 /**
   * @brief OutputFileNode
   * @ingroup Node
@@ -34,4 +36,5 @@ public:
 	OutputFileNode(bNode *editorNode);
 	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
 };
+#endif
 #endif

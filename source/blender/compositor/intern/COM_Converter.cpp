@@ -314,9 +314,11 @@ Node* Converter::convert(bNode *bNode) {
 	case CMP_NODE_COLOR_SPILL:
 		node = new ColorSpillNode(bNode);
 		break;
+#ifdef COM_TRUNK
 	case CMP_NODE_OUTPUT_FILE:
 		node = new OutputFileNode(bNode);
 		break;
+#endif
 	case CMP_NODE_MAP_VALUE:
 		node = new MapValueNode(bNode);
 		break;

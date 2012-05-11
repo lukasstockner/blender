@@ -18,33 +18,71 @@
  * Contributor: 
  *		Jeroen Bakker 
  *		Monique Dewanchand
+ *		Lukas Tönne
  */
 
 #include "COM_OutputFileNode.h"
 #include "COM_OutputFileOperation.h"
 #include "COM_ExecutionSystem.h"
+#include "BLI_path_util.h"
+#include "BKE_utildefines.h"
 
+#ifdef COM_TRUNK
 OutputFileNode::OutputFileNode(bNode *editorNode): Node(editorNode) {
 }
 
 void OutputFileNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context) {
-	InputSocket *imageSocket = this->getInputSocket(0);
-	InputSocket *zSocket = this->getInputSocket(1);
-	NodeImageFile* storage = (NodeImageFile*)this->getbNode()->storage;
-	if (imageSocket->isConnected()) {
-//		if (context->isRendering()) {
-			if (storage->sfra == storage->efra || (context->getFramenumber()<=storage->efra && context->getFramenumber()>=storage->sfra)) {
-				OutputFileOperation *outputFileOperation = new OutputFileOperation();
-				outputFileOperation->setScene(context->getScene());
-				outputFileOperation->setNodeImageFile(storage);
-				outputFileOperation->setbNodeTree(context->getbNodeTree());
-				imageSocket->relinkConnections(outputFileOperation->getInputSocket(0));
-				zSocket->relinkConnections(outputFileOperation->getInputSocket(1));
-				graph->addOperation(outputFileOperation);
-				addPreviewOperation(graph, outputFileOperation->getInputSocket(0), 5);
-//			}
-		} else {
-			addPreviewOperation(graph, imageSocket->getOperation()->getOutputSocket(), 5);
+	NodeImageMultiFile* storage = (NodeImageMultiFile*)this->getbNode()->storage;
+	
+	if (!context->isRendering()) {
+		/* XXX TODO as in previous implementation?
+		 * add dummy operations and exit, to prevent file writing on each compo update.
+		 */
+	}
+	
+	if (storage->format.imtype==R_IMF_IMTYPE_MULTILAYER) {
+		/* single output operation for the multilayer file */
+		OutputOpenExrMultiLayerOperation *outputOperation = new OutputOpenExrMultiLayerOperation(
+				context->getScene(), context->getbNodeTree(), storage->base_path, storage->format.exr_codec);
+		
+		int num_inputs = getNumberOfInputSockets();
+		for (int i=0; i < num_inputs; ++i) {
+			InputSocket *input = getInputSocket(i);
+			if (input->isConnected()) {
+				NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)input->getbNodeSocket()->storage;
+				
+				outputOperation->add_layer(sockdata->path, input->getDataType());
+				
+				input->relinkConnections(outputOperation->getInputSocket(i));
+			}
+		}
+		if (num_inputs>0) addPreviewOperation(graph, outputOperation->getInputSocket(0), 5);
+		
+		graph->addOperation(outputOperation);
+	}
+	else {	/* single layer format */
+		int num_inputs = getNumberOfInputSockets();
+		bool previewAdded = false;
+		for (int i=0; i < num_inputs; ++i) {
+			InputSocket *input = getInputSocket(i);
+			if (input->isConnected()) {
+				NodeImageMultiFileSocket *sockdata = (NodeImageMultiFileSocket *)input->getbNodeSocket()->storage;
+				ImageFormatData *format = (sockdata->use_node_format ? &storage->format : &sockdata->format);
+				char path[FILE_MAX];
+				
+				/* combine file path for the input */
+				BLI_join_dirfile(path, FILE_MAX, storage->base_path, sockdata->path);
+				
+				OutputSingleLayerOperation *outputOperation = new OutputSingleLayerOperation(
+						context->getScene(), context->getbNodeTree(), input->getActualDataType(), format, path);
+				input->relinkConnections(outputOperation->getInputSocket(0));
+				graph->addOperation(outputOperation);
+				if (!previewAdded) {
+					addPreviewOperation(graph, outputOperation->getInputSocket(0), 5);
+					previewAdded = true;
+				}
+			}
 		}
 	}
 }
+#endif
