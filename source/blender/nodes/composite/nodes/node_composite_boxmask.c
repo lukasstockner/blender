@@ -36,14 +36,14 @@
 
 /* **************** SCALAR MATH ******************** */ 
 static bNodeSocketTemplate cmp_node_boxmask_in[]= {
-        { SOCK_FLOAT, 1, "Mask", 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
-        { SOCK_FLOAT, 1, "Value", 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
-	{ -1, 0, "" } 
+	{	SOCK_FLOAT, 1, "Mask", 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
+	{	SOCK_FLOAT, 1, "Value", 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
+	{	-1, 0, ""} 
 };
 
 static bNodeSocketTemplate cmp_node_boxmask_out[]= {
-        { SOCK_FLOAT, 0, "Mask", 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
-	{ -1, 0, "" } 
+	{	SOCK_FLOAT, 0, "Mask", 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
+	{	-1, 0, ""} 
 };
 
 static void node_composit_init_boxmask(bNodeTree *UNUSED(ntree), bNode* node, bNodeTemplate *UNUSED(ntemp))
@@ -61,7 +61,7 @@ void register_node_type_cmp_boxmask(bNodeTreeType *ttype)
 {
 	static bNodeType ntype;
 
-	node_type_base(ttype, &ntype, CMP_NODE_MASK_BOX, "Box mask", NODE_CLASS_MATTE, NODE_OPTIONS);
+	node_type_base(ttype, &ntype, CMP_NODE_MASK_BOX, "Box Mask", NODE_CLASS_MATTE, NODE_OPTIONS);
 	node_type_socket_templates(&ntype, cmp_node_boxmask_in, cmp_node_boxmask_out);
 	node_type_size(&ntype, 120, 110, 160);
 	node_type_init(&ntype, node_composit_init_boxmask);
@@ -69,7 +69,4 @@ void register_node_type_cmp_boxmask(bNodeTreeType *ttype)
 
 	nodeRegisterType(ttype, &ntype);
 }
-
-
-
 

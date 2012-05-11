@@ -36,15 +36,16 @@
 
 
 /* ******************* Color Balance ********************************* */
+
 static bNodeSocketTemplate cmp_node_colorcorrection_in[]={
-	{SOCK_RGBA,1,"Image", 1.0f, 1.0f, 1.0f, 1.0f},
-    {SOCK_FLOAT, 1, "Mask",	1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_FACTOR},
-	{-1,0,""}
+	{	SOCK_RGBA,  1, "Image", 1.0f, 1.0f, 1.0f, 1.0f},
+    {	SOCK_FLOAT, 1, "Mask",	1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, PROP_FACTOR},
+	{	-1, 0, ""}
 };
 
 static bNodeSocketTemplate cmp_node_colorcorrection_out[]={
-	{SOCK_RGBA,0,"Image"},
-	{-1,0,""}
+	{	SOCK_RGBA, 0, "Image"},
+	{	-1, 0, ""}
 };
 
 static void node_composit_init_colorcorrection(bNodeTree *UNUSED(ntree), bNode* node, bNodeTemplate *UNUSED(ntemp))

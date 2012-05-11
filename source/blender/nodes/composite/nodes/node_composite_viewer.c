@@ -132,7 +132,6 @@ static void node_composit_init_viewer(bNodeTree *UNUSED(ntree), bNode* node, bNo
 	node->custom1 = 0;
 	node->custom3 = 0.5f;
     node->custom4 = 0.5f;
-	
 }
 
 void register_node_type_cmp_viewer(bNodeTreeType *ttype)

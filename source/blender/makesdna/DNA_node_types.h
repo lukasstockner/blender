@@ -339,6 +339,7 @@ typedef struct NodeImageAnim {
 	char cyclic, movie;
 	short pad;
 } NodeImageAnim;
+
 typedef struct NodeRenderlayerData {
 	int offsetx;
 	int offsety;

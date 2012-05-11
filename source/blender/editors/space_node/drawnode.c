@@ -1715,6 +1715,7 @@ static void node_composit_buts_colorcorrection(uiLayout *layout, bContext *UNUSE
 	uiItemR(row, ptr, "red", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "green", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "blue", 0, NULL, ICON_NONE);
+
 	row = uiLayoutRow(layout, 0);
 	uiItemR(row, ptr, "midtones_start", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(row, ptr, "midtones_end", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
@@ -1725,24 +1726,28 @@ static void node_composit_buts_colorcorrection(uiLayout *layout, bContext *UNUSE
 	uiItemR(row, ptr, "master_gamma", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(row, ptr, "master_gain", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(row, ptr, "master_lift", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+
 	row = uiLayoutRow(layout, 0);
 	uiItemL(row, "Saturation", 0);
 	uiItemL(row, "Contrast", 0);
 	uiItemL(row, "Gamma", 0);
 	uiItemL(row, "Gain", 0);
 	uiItemL(row, "Lift", 0);
+
 	row = uiLayoutRow(layout, 0);
 	uiItemR(row, ptr, "highlights_saturation", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(row, ptr, "highlights_contrast", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(row, ptr, "highlights_gamma", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(row, ptr, "highlights_gain", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(row, ptr, "highlights_lift", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+
 	row = uiLayoutRow(layout, 0);
 	uiItemR(row, ptr, "midtones_saturation", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(row, ptr, "midtones_contrast", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(row, ptr, "midtones_gamma", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(row, ptr, "midtones_gain", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(row, ptr, "midtones_lift", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+
 	row = uiLayoutRow(layout, 0);
 	uiItemR(row, ptr, "shadows_saturation", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(row, ptr, "shadows_contrast", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
@@ -1757,6 +1762,7 @@ static void node_composit_buts_colorcorrection_but(uiLayout *layout, bContext *U
 	uiItemR(row, ptr, "red", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "green", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "blue", 0, NULL, ICON_NONE);
+
 	row = layout;
 	uiItemL(row, "Saturation", 0);
 	uiItemR(row, ptr, "master_saturation", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
@@ -1919,6 +1925,7 @@ static void node_composit_buts_switch(uiLayout *layout, bContext *UNUSED(C), Poi
 {
 	uiItemR(layout, ptr, "check", 0, NULL, ICON_NONE);
 }
+
 static void node_composit_buts_boxmask(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *row;
@@ -1943,6 +1950,7 @@ static void node_composit_buts_bokehimage(uiLayout *layout, bContext *UNUSED(C),
 	uiItemR(layout, ptr, "catadioptric", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(layout, ptr, "shift", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 }
+
 void node_composit_backdrop_viewer(SpaceNode* snode, ImBuf* backdrop, bNode* node, int x, int y) {
 //	node_composit_backdrop_canvas(snode, backdrop, node, x, y);
 	if (node->custom1 == 0) { /// @todo: why did we need this one?
@@ -1966,7 +1974,8 @@ void node_composit_backdrop_viewer(SpaceNode* snode, ImBuf* backdrop, bNode* nod
 //	node_composit_backdrop_canvas(snode, backdrop, node, x, y);
 //}
 
-void node_composit_backdrop_boxmask(SpaceNode* snode, ImBuf* backdrop, bNode* node, int x, int y) {
+void node_composit_backdrop_boxmask(SpaceNode* snode, ImBuf* backdrop, bNode* node, int x, int y)
+{
 	NodeBoxMask * boxmask = node->storage;
 	const float backdropWidth = backdrop->x;
 	const float backdropHeight = backdrop->y;
@@ -2005,7 +2014,9 @@ void node_composit_backdrop_boxmask(SpaceNode* snode, ImBuf* backdrop, bNode* no
 	glVertex2f(x4, y4);
 	glEnd();
 }
-void node_composit_backdrop_ellipsemask(SpaceNode* snode, ImBuf* backdrop, bNode* node, int x, int y) {
+
+void node_composit_backdrop_ellipsemask(SpaceNode* snode, ImBuf* backdrop, bNode* node, int x, int y)
+{
 	NodeEllipseMask * ellipsemask = node->storage;
 	const float backdropWidth = backdrop->x;
 	const float backdropHeight = backdrop->y;
@@ -2049,9 +2060,11 @@ void node_composit_backdrop_ellipsemask(SpaceNode* snode, ImBuf* backdrop, bNode
 static void node_composit_buts_ellipsemask(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *row;
+
 	row= uiLayoutRow(layout, 1);
 	uiItemR(row, ptr, "x", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "y", 0, NULL, ICON_NONE);
+
 	row= uiLayoutRow(layout, 1);
 	uiItemR(row, ptr, "width", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 	uiItemR(row, ptr, "height", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
@@ -2063,8 +2076,9 @@ static void node_composit_buts_viewer_but(uiLayout *layout, bContext *UNUSED(C),
 {
 	uiLayout *col;
 	
-	uiItemR(layout, ptr, "tileorder", 0, NULL, ICON_NONE);
-	if (RNA_enum_get(ptr, "tileorder")==0) {
+	uiItemR(layout, ptr, "tile_order", 0, NULL, ICON_NONE);
+
+	if (RNA_enum_get(ptr, "tile_order")==0) {
 		col= uiLayoutColumn(layout, 1);
 		uiItemR(col, ptr, "center_x", 0, NULL, ICON_NONE);
 		uiItemR(col, ptr, "center_y", 0, NULL, ICON_NONE);

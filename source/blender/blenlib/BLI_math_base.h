@@ -78,10 +78,10 @@
 #endif
 
 #ifndef sqrtf
-#define sqrtf(a) ((float)sqrt((float)a))
+#define sqrtf(a) ((float)sqrt((float)(a)))
 #endif
 #ifndef powf
-#define powf(a, b) ((float)pow((float)a, (float)b))
+#define powf(a, b) ((float)pow((float)(a), (float)(b)))
 #endif
 #ifndef cosf
 #define cosf(a) ((float)cos(a))

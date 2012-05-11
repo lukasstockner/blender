@@ -1,4 +1,3 @@
-
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -502,6 +501,7 @@ static void node_composit_exec_rlayers(void *data, bNode *node, bNodeStack **UNU
 static void node_composit_init_rlayers(bNodeTree *UNUSED(ntree), bNode* node, bNodeTemplate *UNUSED(ntemp))
 {
 	NodeRenderlayerData *data = MEM_callocN(sizeof(NodeRenderlayerData), "NodeRenderlayerData");
+
 	node->storage = data;
 	data->offsetx = 0;
 	data->offsety = 0;

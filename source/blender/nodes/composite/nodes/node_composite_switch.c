@@ -39,6 +39,7 @@ static bNodeSocketTemplate cmp_node_switch_in[]= {
 	{	SOCK_RGBA, 1, "Image",			0.8f, 0.8f, 0.8f, 1.0f, 0.0f, 1.0f},
 	{	-1, 0, ""	}
 };
+
 static bNodeSocketTemplate cmp_node_switch_out[]= {
 	{	SOCK_RGBA, 0, "Image",			0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
 	{	-1, 0, ""	}

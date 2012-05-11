@@ -13052,30 +13052,37 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		}
+
 		{
-		// composite redesign
-		Scene *scene;
-		bNode *node;
-		for (scene=main->scene.first; scene; scene=scene->id.next)
-			if (scene->nodetree)
-				for (node=scene->nodetree->nodes.first; node; node=node->next)
-					if (node->type==CMP_NODE_R_LAYERS) {
-						NodeRenderlayerData *data= node->storage;
-						if (!data) {
-							data = MEM_callocN(sizeof(NodeRenderlayerData), "NodeRenderLayerData");
-							data->angle = 0.0f;
-							data->offsetx = 0.0f;
-							data->offsety = 0.0f;
-							data->scalex = 1.0f;
-							data->scaley = 1.0f;
-							node->storage = data;
+			/* composite redesign */
+			Scene *scene;
+			bNode *node;
+
+			for (scene = main->scene.first; scene; scene = scene->id.next) {
+				if (scene->nodetree) {
+					for (node = scene->nodetree->nodes.first; node; node = node->next) {
+						if (node->type==CMP_NODE_R_LAYERS) {
+							NodeRenderlayerData *data = node->storage;
+
+							if (!data) {
+								data = MEM_callocN(sizeof(NodeRenderlayerData), "NodeRenderLayerData");
+								data->angle = 0.0f;
+								data->offsetx = 0.0f;
+								data->offsety = 0.0f;
+								data->scalex = 1.0f;
+								data->scaley = 1.0f;
+								node->storage = data;
+							}
 						}
 					}
-		for (scene=main->scene.first; scene; scene=scene->id.next)
-			if (scene->nodetree) 
-				if ( scene->nodetree->chunksize == 0) {
-					scene->nodetree->chunksize = 256;
+
+					if (scene->nodetree->chunksize == 0) {
+						scene->nodetree->chunksize = 256;
+						scene->nodetree->edit_quality = NTREE_QUALITY_HIGH;
+						scene->nodetree->render_quality = NTREE_QUALITY_HIGH;
+					}
 				}
+			}
 		}
 	}
 

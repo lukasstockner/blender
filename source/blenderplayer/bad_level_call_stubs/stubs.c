@@ -485,7 +485,7 @@ struct CCLDeviceInfo;
 struct CCLDeviceInfo *CCL_compute_device_list(int opencl) { return NULL; }
 
 /* composite */
-void COM_execute(struct bNodeTree *editingtree, int rendering){}
+void COM_execute(struct bNodeTree *editingtree, int rendering) {}
 
 char blender_path[] = "";
 

@@ -36,6 +36,7 @@
 #include "../node_composite_util.h"
 
 /* **************** BLUR ******************** */
+
 static bNodeSocketTemplate cmp_node_bokehblur_in[]= {
 	{	SOCK_RGBA, 1, "Image",			0.8f, 0.8f, 0.8f, 1.0f, 0.0f, 1.0f},
 	{	SOCK_RGBA, 1, "Bokeh",			1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f},
@@ -43,6 +44,7 @@ static bNodeSocketTemplate cmp_node_bokehblur_in[]= {
 	{	SOCK_FLOAT, 1, "Bounding box",	1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f},
 	{	-1, 0, ""	}
 };
+
 static bNodeSocketTemplate cmp_node_bokehblur_out[]= {
 	{	SOCK_RGBA, 0, "Image",			0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
 	{	-1, 0, ""	}
@@ -52,8 +54,9 @@ void register_node_type_cmp_bokehblur(bNodeTreeType *ttype)
 {
 	static bNodeType ntype;
 
-	node_type_base(ttype, &ntype, CMP_NODE_BOKEHBLUR, "Bokeh blur", NODE_CLASS_OP_FILTER, NODE_OPTIONS);
+	node_type_base(ttype, &ntype, CMP_NODE_BOKEHBLUR, "Bokeh Blur", NODE_CLASS_OP_FILTER, NODE_OPTIONS);
 	node_type_socket_templates(&ntype, cmp_node_bokehblur_in, cmp_node_bokehblur_out);
 	node_type_size(&ntype, 120, 80, 200);
 	nodeRegisterType(ttype, &ntype);
 }
+

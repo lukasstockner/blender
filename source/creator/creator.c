@@ -1184,6 +1184,7 @@ int main(int argc, const char **argv)
 	BLI_cb_init();
 
 	OCL_init();
+
 #ifdef WITH_GAMEENGINE
 	syshandle = SYS_GetSystem();
 #else

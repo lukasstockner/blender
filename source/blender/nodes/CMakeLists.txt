@@ -35,7 +35,7 @@ set(INC
 	../makesrna
 	../render/extern/include
 	../../../intern/guardedalloc
-        ../compositor
+	../compositor
 )
 
 set(INC_SYS
