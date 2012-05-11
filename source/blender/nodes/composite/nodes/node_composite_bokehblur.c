@@ -41,7 +41,7 @@ static bNodeSocketTemplate cmp_node_bokehblur_in[]= {
 	{	SOCK_RGBA, 1, "Image",			0.8f, 0.8f, 0.8f, 1.0f, 0.0f, 1.0f},
 	{	SOCK_RGBA, 1, "Bokeh",			1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f},
 	{	SOCK_FLOAT, 1, "Size",			0.01f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f},
-	{	SOCK_FLOAT, 1, "Bounding box",	1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f},
+	{	SOCK_FLOAT, 1, "Bounding Box",	1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f},
 	{	-1, 0, ""	}
 };
 
