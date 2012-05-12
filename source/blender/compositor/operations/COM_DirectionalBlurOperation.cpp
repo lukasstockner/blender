@@ -64,7 +64,7 @@ void DirectionalBlurOperation::initExecution() {
 }
 
 void DirectionalBlurOperation::executePixel(float* color, int x, int y, MemoryBuffer *inputBuffers[], void* data) {
-	const int iterations = pow(2, this->data->iter);
+	const int iterations = pow(2.f, this->data->iter);
 	float col[4]= {0,0,0,0};
 	float col2[4]= {0,0,0,0};
 	this->inputProgram->read(col2, x, y, COM_PS_NEAREST, inputBuffers);
