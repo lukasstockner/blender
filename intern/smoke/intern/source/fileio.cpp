@@ -283,7 +283,7 @@ class spluginDumpUniversal : public spluginDumperBase {
 					gI = mpPlParams->getGridInt(mGrid);
 					head.bytesPerElement = sizeof(int);
 					head.elementType = 0;
-					head.elements = 1;					
+					head.elements = 1;	
 				}
 				else if (mpPlParams->haveGridReal(mGrid)) {
 					gR = mpPlParams->getGridReal(mGrid);
@@ -394,6 +394,7 @@ class spluginLoadUniversal : public SolverPlugin {
 			mGrid = params.FindOneString("grid", "");
 			mSolver = params.FindOneString("solver", "" );
 			mFile = params.FindOneString("file", "" );
+			mSrcGrid = params.FindOneString("srcgrid", "");
 
 			// interpolate, but keep #mInterpolBorder cells from each side unscaled
 			// -1 means off, 0 means scale everything
@@ -411,6 +412,19 @@ class spluginLoadUniversal : public SolverPlugin {
 			Grid<int>* flags = param->getGridInt("flags");
 			nVec3i gridSize = flags->getSize();
 			if (gDim==2) gridSize[2] = 1;
+
+
+			/* DG: Only Int Grid supported for the moment */
+			/* Used during solver creation "new SolverObject()" with existing flags grid */
+			if(!mSrcGrid.empty())
+			{
+				// delete old grid
+				delete param->mGridsInt[mGrid];
+				// exchange grid pointer
+				param->mGridsInt[mGrid] = param->mGridsInt[mSrcGrid];
+
+				return true;
+			}
 
 			// load file into byte array
 			UniversalHeader head;
@@ -456,7 +470,7 @@ class spluginLoadUniversal : public SolverPlugin {
 		};
 
 	protected:		
-		std::string mGrid, mFile, mSolver;
+		std::string mGrid, mFile, mSolver, mSrcGrid;
 		bool onlyFluid;
 		int mInterpolBorder;
 };
