@@ -150,7 +150,7 @@ static void draw_triangulated(int mcords[][2], short tot)
 	}
 	
 	/* do the fill */
-	filldisplist(&lb, &lb, 0);
+	BKE_displist_fill(&lb, &lb, 0);
 
 	/* do the draw */
 	dl = lb.first;  /* filldisplist adds in head of list */
@@ -170,7 +170,7 @@ static void draw_triangulated(int mcords[][2], short tot)
 		glEnd();
 	}
 	
-	freedisplist(&lb);
+	BKE_displist_free(&lb);
 }
 
 
@@ -682,6 +682,7 @@ static EnumPropertyItem prop_similar_types[] = {
 	{SIMEDGE_FACE, "FACE", 0, "Amount of Faces Around an Edge", ""},
 	{SIMEDGE_FACE_ANGLE, "FACE_ANGLE", 0, "Face Angles", ""},
 	{SIMEDGE_CREASE, "CREASE", 0, "Crease", ""},
+	{SIMEDGE_BEVEL, "BEVEL", 0, "Bevel", ""},
 	{SIMEDGE_SEAM, "SEAM", 0, "Seam", ""},
 	{SIMEDGE_SHARP, "SHARP", 0, "Sharpness", ""},
 

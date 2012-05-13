@@ -491,7 +491,7 @@ static int apply_objects_internal(bContext *C, ReportList *reports, int apply_lo
 			}
 			
 			/* update normals */
-			mesh_calc_normals_mapping(me->mvert, me->totvert, me->mloop, me->mpoly, me->totloop, me->totpoly, NULL, NULL, 0, NULL, NULL);
+			BKE_mesh_calc_normals_mapping(me->mvert, me->totvert, me->mloop, me->mpoly, me->totloop, me->totpoly, NULL, NULL, 0, NULL, NULL);
 		}
 		else if (ob->type == OB_ARMATURE) {
 			ED_armature_apply_transform(ob, mat);
@@ -653,7 +653,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	Object *obedit = CTX_data_edit_object(C);
 	Object *tob;
-	float cursor[3], cent[3], cent_neg[3], centn[3], min[3], max[3];
+	float cursor[3], cent[3], cent_neg[3], centn[3];
 	int centermode = RNA_enum_get(op->ptr, "type");
 	int around = RNA_enum_get(op->ptr, "center"); /* initialized from v3d->around */
 
@@ -675,14 +675,11 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 	zero_v3(cent);
 
 	if (obedit) {
-		INIT_MINMAX(min, max);
-
 		if (obedit->type == OB_MESH) {
 			Mesh *me = obedit->data;
 			BMEditMesh *em = me->edit_btmesh;
 			BMVert *eve;
 			BMIter iter;
-			int total = 0;
 			
 			if (centermode == ORIGIN_TO_CURSOR) {
 				copy_v3_v3(cent, cursor);
@@ -690,16 +687,19 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 				mul_m4_v3(obedit->imat, cent);
 			}
 			else {
-				BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
-					if (around == V3D_CENTROID) {
-						total++;
-						add_v3_v3(cent, eve->co);
-						mul_v3_fl(cent, 1.0f / (float)total);
+				if (around == V3D_CENTROID) {
+					const float total_div = 1.0f / (float)em->bm->totvert;
+					BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
+						madd_v3_v3fl(cent, eve->co, total_div);
 					}
-					else {
-						DO_MINMAX(eve->co, min, max);
-						mid_v3_v3v3(cent, min, max);
+				}
+				else {
+					float min[3], max[3];
+					INIT_MINMAX(min, max);
+					BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
+						minmax_v3v3_v3(min, max, eve->co);
 					}
+					mid_v3_v3v3(cent, min, max);
 				}
 			}
 			
@@ -746,8 +746,11 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 						tot_lib_error++;
 					}
 					else {
-						if (centermode == ORIGIN_TO_CURSOR) { /* done */ }
+						if (centermode == ORIGIN_TO_CURSOR) {
+							/* done */
+						}
 						else {
+							float min[3], max[3];
 							/* only bounds support */
 							INIT_MINMAX(min, max);
 							BKE_object_minmax_dupli(scene, ob, min, max);
@@ -772,11 +775,11 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 				Mesh *me = ob->data;
 
 				if (centermode == ORIGIN_TO_CURSOR) { /* done */ }
-				else if (around == V3D_CENTROID) { mesh_center_median(me, cent); }
-				else { mesh_center_bounds(me, cent); }
+				else if (around == V3D_CENTROID) { BKE_mesh_center_median(me, cent); }
+				else { BKE_mesh_center_bounds(me, cent); }
 
 				negate_v3_v3(cent_neg, cent);
-				mesh_translate(me, cent_neg, 1);
+				BKE_mesh_translate(me, cent_neg, 1);
 
 				tot_change++;
 				me->id.flag |= LIB_DOIT;
@@ -867,11 +870,11 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 				MetaBall *mb = ob->data;
 
 				if (centermode == ORIGIN_TO_CURSOR) { /* done */ }
-				else if (around == V3D_CENTROID) { BKE_metaball_center_median(mb, cent); }
-				else { BKE_metaball_center_bounds(mb, cent);    }
+				else if (around == V3D_CENTROID) { BKE_mball_center_median(mb, cent); }
+				else { BKE_mball_center_bounds(mb, cent);    }
 
 				negate_v3_v3(cent_neg, cent);
-				BKE_metaball_translate(mb, cent_neg);
+				BKE_mball_translate(mb, cent_neg);
 
 				tot_change++;
 				mb->id.flag |= LIB_DOIT;

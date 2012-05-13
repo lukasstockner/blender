@@ -3809,7 +3809,7 @@ static void direct_link_mdisps(FileData *fd, int count, MDisps *mdisps, int exte
 				 * overwritten with the correct value in
 				 * bm_corners_to_loops() */
 				float gridsize = sqrtf(mdisps[i].totdisp);
-				mdisps[i].level = (int)(logf(gridsize - 1.0f) / M_LN2) + 1;
+				mdisps[i].level = (int)(logf(gridsize - 1.0f) / (float)M_LN2) + 1;
 			}
 
 			if ( (fd->flags & FD_FLAGS_SWITCH_ENDIAN) && (mdisps[i].disps) ) {
@@ -3824,6 +3824,19 @@ static void direct_link_mdisps(FileData *fd, int count, MDisps *mdisps, int exte
 			}
 			if (!external && !mdisps[i].disps)
 				mdisps[i].totdisp = 0;
+		}
+	}
+}
+
+static void direct_link_grid_paint_mask(FileData *fd, int count, GridPaintMask *grid_paint_mask)
+{
+	if(grid_paint_mask) {
+		int i;
+
+		for(i = 0; i < count; ++i) {
+			GridPaintMask *gpm = &grid_paint_mask[i];
+			if(gpm->data)
+				gpm->data = newdataadr(fd, gpm->data);
 		}
 	}
 }
@@ -3854,6 +3867,8 @@ static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 			layer->data = newdataadr(fd, layer->data);
 			if (layer->type == CD_MDISPS)
 				direct_link_mdisps(fd, count, layer->data, layer->flag & CD_FLAG_EXTERNAL);
+			else if(layer->type == CD_GRID_PAINT_MASK)
+				direct_link_grid_paint_mask(fd, count, layer->data);
 			i++;
 		}
 	}
@@ -3908,7 +3923,7 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 	if (mesh->mpoly) {
 		/* be clever and load polygons as mfaces */
 
-		mesh->totface= mesh_mpoly_to_mface(&mesh->fdata, &mesh->ldata, &mesh->pdata,
+		mesh->totface= BKE_mesh_mpoly_to_mface(&mesh->fdata, &mesh->ldata, &mesh->pdata,
 		                                   mesh->totface, mesh->totloop, mesh->totpoly);
 
 		CustomData_free(&mesh->pdata, mesh->totpoly);
@@ -6714,10 +6729,15 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
 			bNodeSocket *old_image = BLI_findlink(&node->inputs, 0);
 			bNodeSocket *old_z = BLI_findlink(&node->inputs, 1);
 			bNodeSocket *sock;
+			char basepath[FILE_MAXDIR];
+			char filename[FILE_MAXFILE];
 			
 			node->storage= nimf;
 			
-			BLI_strncpy(nimf->base_path, old_data->name, sizeof(nimf->base_path));
+			/* split off filename from the old path, to be used as socket sub-path */
+			BLI_split_dirfile(old_data->name, basepath, filename, sizeof(basepath), sizeof(filename));
+			
+			BLI_strncpy(nimf->base_path, basepath, sizeof(nimf->base_path));
 			nimf->format = old_data->im_format;
 			
 			/* if z buffer is saved, change the image type to multilayer exr.
@@ -6725,21 +6745,32 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
 			 * i'm just assuming here that IRIZ means IRIS with z buffer ...
 			 */
 			if (ELEM(old_data->im_format.imtype, R_IMF_IMTYPE_IRIZ, R_IMF_IMTYPE_OPENEXR)) {
+				char sockpath[FILE_MAX];
+				
 				nimf->format.imtype = R_IMF_IMTYPE_MULTILAYER;
-				sock = ntreeCompositOutputFileAddSocket(ntree, node, old_image->name, &nimf->format);
+				
+				BLI_snprintf(sockpath, sizeof(sockpath), "%s_Image", filename);
+				sock = ntreeCompositOutputFileAddSocket(ntree, node, sockpath, &nimf->format);
+				/* XXX later do_versions copies path from socket name, need to set this explicitely */
+				BLI_strncpy(sock->name, sockpath, sizeof(sock->name));
 				if (old_image->link) {
 					old_image->link->tosock = sock;
 					sock->link = old_image->link;
 				}
-				sock = ntreeCompositOutputFileAddSocket(ntree, node, old_z->name, &nimf->format);
+				
+				BLI_snprintf(sockpath, sizeof(sockpath), "%s_Z", filename);
+				sock = ntreeCompositOutputFileAddSocket(ntree, node, sockpath, &nimf->format);
+				/* XXX later do_versions copies path from socket name, need to set this explicitely */
+				BLI_strncpy(sock->name, sockpath, sizeof(sock->name));
 				if (old_z->link) {
 					old_z->link->tosock = sock;
 					sock->link = old_z->link;
 				}
 			}
 			else {
-				/* saves directly to base path, which is the old image output path */
-				sock = ntreeCompositOutputFileAddSocket(ntree, node, "", &nimf->format);
+				sock = ntreeCompositOutputFileAddSocket(ntree, node, filename, &nimf->format);
+				/* XXX later do_versions copies path from socket name, need to set this explicitely */
+				BLI_strncpy(sock->name, filename, sizeof(sock->name));
 				if (old_image->link) {
 					old_image->link->tosock = sock;
 					sock->link = old_image->link;
@@ -6808,6 +6839,52 @@ static void do_versions_nodetree_multi_file_output_path_2_64_0(bNodeTree *ntree)
 		}
 		}
 				}
+
+static void do_versions_nodetree_file_output_layers_2_64_5(bNodeTree *ntree)
+{
+	bNode *node;
+	
+	for (node=ntree->nodes.first; node; node=node->next) {
+		if (node->type==CMP_NODE_OUTPUT_FILE) {
+			bNodeSocket *sock;
+			for (sock=node->inputs.first; sock; sock=sock->next) {
+				NodeImageMultiFileSocket *input = sock->storage;
+				
+				/* multilayer names are stored as separate strings now,
+				 * used the path string before, so copy it over.
+				 */
+				BLI_strncpy(input->layer, input->path, sizeof(input->layer));
+				
+				/* paths/layer names also have to be unique now, initial check */
+				ntreeCompositOutputFileUniquePath(&node->inputs, sock, input->path, '_');
+				ntreeCompositOutputFileUniqueLayer(&node->inputs, sock, input->layer, '_');
+			}
+		}
+	}
+}
+
+static void do_versions_nodetree_image_layer_2_64_5(bNodeTree *ntree)
+{
+	bNode *node;
+	
+	for (node=ntree->nodes.first; node; node=node->next) {
+		if (node->type==CMP_NODE_IMAGE) {
+			ImageUser *iuser= (ImageUser *)node->storage;
+			bNodeSocket *sock;
+			for (sock=node->outputs.first; sock; sock=sock->next) {
+				NodeImageLayer *output = MEM_callocN(sizeof(NodeImageLayer), "node image layer");
+				
+				/* take layer index from image user (this is ignored from now on) */
+				output->layer_index = iuser->layer;
+				/* take pass index both from current storage ptr (actually an int) */
+				output->pass_index = GET_INT_FROM_POINTER(sock->storage);
+				
+				/* replace socket data pointer */
+				sock->storage = output;
+			}
+		}
+	}
+}
 
 static void do_versions(FileData *fd, Library *lib, Main *main)
 			{
@@ -7406,7 +7483,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		Curve *cu;
 
 		for (la= main->lamp.first; la; la= la->id.next) {
-			if (la->shadow_frustum_size == 0.0)
+			if (la->shadow_frustum_size == 0.0f)
 				la->shadow_frustum_size= 10.0f;
 		}
 
@@ -7421,6 +7498,26 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			if(cu->bevfac2 == 0.0f) {
 				cu->bevfac1 = 0.0f;
 				cu->bevfac2 = 1.0f;
+			}
+		}
+	}
+
+	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 5))
+	{
+		{
+			/* file output node paths are now stored in the file info struct instead socket name */
+			Scene *sce;
+			bNodeTree *ntree;
+			
+			for (sce = main->scene.first; sce; sce=sce->id.next) {
+				if (sce->nodetree) {
+					do_versions_nodetree_file_output_layers_2_64_5(sce->nodetree);
+					do_versions_nodetree_image_layer_2_64_5(sce->nodetree);
+				}
+			}
+			for (ntree = main->nodetree.first; ntree; ntree=ntree->id.next) {
+				do_versions_nodetree_file_output_layers_2_64_5(ntree);
+				do_versions_nodetree_image_layer_2_64_5(ntree);
 			}
 		}
 	}

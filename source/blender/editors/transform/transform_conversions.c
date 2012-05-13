@@ -538,6 +538,7 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
 	/* New code, using "generic" BKE_pchan_to_pose_mat(). */
 	{
 		float rotscale_mat[4][4], loc_mat[4][4];
+		float rpmat[3][3];
 
 		BKE_pchan_to_pose_mat(pchan, rotscale_mat, loc_mat);
 		if (t->mode == TFM_TRANSLATION)
@@ -545,13 +546,23 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
 		else
 			copy_m3_m4(pmat, rotscale_mat);
 
+		/* Grrr! Exceptional case: When translating pose bones that are either Hinge or NoLocal,
+		 * and want align snapping, we just need both loc_mat and rotscale_mat.
+		 * So simply always store rotscale mat in td->ext, and always use it to apply rotations...
+		 * Ugly to need such hacks! :/ */
+		copy_m3_m4(rpmat, rotscale_mat);
+
 		if (constraints_list_needinv(t, &pchan->constraints)) {
 			copy_m3_m4(tmat, pchan->constinv);
 			invert_m3_m3(cmat, tmat);
 			mul_serie_m3(td->mtx, pmat, omat, cmat, NULL, NULL, NULL, NULL, NULL);
+			mul_serie_m3(td->ext->r_mtx, rpmat, omat, cmat, NULL,NULL,NULL,NULL,NULL);
 		}
-		else
-			mul_serie_m3(td->mtx, pmat, omat, NULL, NULL, NULL, NULL, NULL, NULL);
+		else {
+			mul_serie_m3(td->mtx, pmat, omat, NULL, NULL,NULL,NULL,NULL,NULL);
+			mul_serie_m3(td->ext->r_mtx, rpmat, omat, NULL, NULL,NULL,NULL,NULL,NULL);
+		}
+		invert_m3_m3(td->ext->r_smtx, td->ext->r_mtx);
 	}
 
 	invert_m3_m3(td->smtx, td->mtx);
@@ -2181,7 +2192,7 @@ void flushTransNodes(TransInfo *t)
 
 void flushTransSeq(TransInfo *t)
 {
-	ListBase *seqbasep= seq_give_editing(t->scene, FALSE)->seqbasep; /* Editing null check already done */
+	ListBase *seqbasep= BKE_sequencer_editing_get(t->scene, FALSE)->seqbasep; /* Editing null check already done */
 	int a, new_frame, old_start;
 	TransData *td= NULL;
 	TransData2D *td2d= NULL;
@@ -3980,7 +3991,7 @@ static int SeqToTransData_Recursive(TransInfo *t, ListBase *seqbase, TransData *
 
 static void freeSeqData(TransInfo *t)
 {
-	Editing *ed= seq_give_editing(t->scene, FALSE);
+	Editing *ed= BKE_sequencer_editing_get(t->scene, FALSE);
 
 	if (ed != NULL) {
 		ListBase *seqbasep= ed->seqbasep;
@@ -4086,7 +4097,7 @@ static void freeSeqData(TransInfo *t)
 				}
 			}
 
-			sort_seq(t->scene);
+			BKE_sequencer_sort(t->scene);
 		}
 		else {
 			/* Cancelled, need to update the strips display */
@@ -4116,7 +4127,7 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 
 	View2D *v2d= UI_view2d_fromcontext(C);
 	Scene *scene= t->scene;
-	Editing *ed= seq_give_editing(t->scene, FALSE);
+	Editing *ed= BKE_sequencer_editing_get(t->scene, FALSE);
 	TransData *td = NULL;
 	TransData2D *td2d= NULL;
 	TransDataSeq *tdsq= NULL;

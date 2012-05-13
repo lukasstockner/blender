@@ -509,9 +509,9 @@ static void ui_draw_linkline(uiLinkLine *line, int hilightActiveLines)
 	rect.xmax = (line->to->x1 + line->to->x2) / 2.0f;
 	rect.ymax = (line->to->y1 + line->to->y2) / 2.0f;
 	
-	if (line->flag & UI_SELECT) 
+	if (line->flag & UI_SELECT)
 		glColor3ub(100, 100, 100);
-	else if(hilightActiveLines && ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE))) 
+	else if (hilightActiveLines && ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE)))
 		UI_ThemeColor(TH_TEXT_HI);
 	else 
 		glColor3ub(0, 0, 0);
@@ -523,14 +523,14 @@ static void ui_draw_links(uiBlock *block)
 {
 	uiBut *but;
 	uiLinkLine *line;
-	
+
 	// Draw the inactive lines (lines with neither button being hovered over).
 	// As we go, remember if we see any active or selected lines.
 	int foundselectline = 0;
 	int foundactiveline = 0;
-	for (but=block->buttons.first; but; but=but->next) {
+	for (but = block->buttons.first; but; but = but->next) {
 		if (but->type == LINK && but->link) {
-			for (line=but->link->lines.first; line; line=line->next) {
+			for (line = but->link->lines.first; line; line = line->next) {
 				if (!(line->from->flag & UI_ACTIVE) && !(line->to->flag & UI_ACTIVE))
 					ui_draw_linkline(line, 0);
 				else
@@ -545,12 +545,12 @@ static void ui_draw_links(uiBlock *block)
 	// Draw any active lines (lines with either button being hovered over).
 	// Do this last so they appear on top of inactive lines.
 	if (foundactiveline) {
-		for (but=block->buttons.first; but; but=but->next) {
-			if(but->type==LINK && but->link) {
-				for (line=but->link->lines.first; line; line=line->next) {
+		for (but = block->buttons.first; but; but = but->next) {
+			if (but->type == LINK && but->link) {
+				for (line = but->link->lines.first; line; line = line->next) {
 					if ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE))
 						ui_draw_linkline(line, !foundselectline);
-}
+				}
 			}
 		}	
 	}
@@ -2665,9 +2665,9 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str, 
  */
 
 #define UI_DEF_BUT_RNA_DISABLE(but) \
-    but->flag |= UI_BUT_DISABLED; \
-    but->lock = 1; \
-    but->lockstr = ""
+	but->flag |= UI_BUT_DISABLED; \
+	but->lock = 1; \
+	but->lockstr = ""
 
 
 static uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, const char *str, int x1, int y1, short x2, short y2, PointerRNA *ptr, PropertyRNA *prop, int index, float min, float max, float a1, float a2,  const char *tip)

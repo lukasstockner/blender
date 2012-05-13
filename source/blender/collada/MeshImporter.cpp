@@ -346,7 +346,7 @@ int MeshImporter::triangulate_poly(unsigned int *indices, int totvert, MVert *ve
 		vert += 3;
 	}
 	
-	filldisplist(&dispbase, &dispbase, 0);
+	BKE_displist_fill(&dispbase, &dispbase, 0);
 
 	int tottri = 0;
 	dl= (DispList*)dispbase.first;
@@ -368,7 +368,7 @@ int MeshImporter::triangulate_poly(unsigned int *indices, int totvert, MVert *ve
 		}
 	}
 
-	freedisplist(&dispbase);
+	BKE_displist_free(&dispbase);
 
 	return tottri;
 }
@@ -737,7 +737,7 @@ void MeshImporter::bmeshConversion()
 			BKE_mesh_convert_mfaces_to_mpolys(me);
 			BKE_mesh_tessface_clear(me);
 
-			mesh_calc_normals_mapping(me->mvert, me->totvert, me->mloop, me->mpoly, me->totloop, me->totpoly, NULL, NULL, 0, NULL, NULL);
+			BKE_mesh_calc_normals_mapping(me->mvert, me->totvert, me->mloop, me->mpoly, me->totloop, me->totpoly, NULL, NULL, 0, NULL, NULL);
 		}
 	}
 }
@@ -976,7 +976,7 @@ bool MeshImporter::write_geometry(const COLLADAFW::Geometry* geom)
 	
 	read_faces(mesh, me, new_tris);
 
-	make_edges(me, 0);
+	BKE_mesh_make_edges(me, 0);
 
 	return true;
 }

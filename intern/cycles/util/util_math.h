@@ -507,6 +507,11 @@ __device_inline float3 fabs(float3 a)
 
 #endif
 
+__device_inline float3 float2_to_float3(const float2 a)
+{
+	return make_float3(a.x, a.y, 0.0f);
+}
+
 __device_inline float3 float4_to_float3(const float4 a)
 {
 	return make_float3(a.x, a.y, a.z);
@@ -959,6 +964,20 @@ __device_inline void print_int4(const char *label, const int4& a)
 /* Int/Float conversion */
 
 #ifndef __KERNEL_OPENCL__
+
+__device_inline unsigned int as_int(uint i)
+{
+	union { unsigned int ui; int i; } u;
+	u.ui = i;
+	return u.i;
+}
+
+__device_inline unsigned int as_uint(int i)
+{
+	union { unsigned int ui; int i; } u;
+	u.i = i;
+	return u.ui;
+}
 
 __device_inline unsigned int as_uint(float f)
 {

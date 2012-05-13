@@ -59,6 +59,7 @@ __device float3 area_light_sample(float3 axisu, float3 axisv, float randu, float
 	return axisu*randu + axisv*randv;
 }
 
+#ifdef __BACKGROUND_MIS__
 __device float3 background_light_sample(KernelGlobals *kg, float randu, float randv, float *pdf)
 {
 	/* for the following, the CDF values are actually a pair of floats, with the
@@ -165,6 +166,7 @@ __device float background_light_pdf(KernelGlobals *kg, float3 direction)
 
 	return pdf * kernel_data.integrator.pdf_lights;
 }
+#endif
 
 __device void regular_light_sample(KernelGlobals *kg, int point,
 	float randu, float randv, float3 P, LightSample *ls, float *pdf)
@@ -268,7 +270,7 @@ __device void triangle_light_sample(KernelGlobals *kg, int prim, int object,
 		Transform itfm = object_fetch_transform(kg, ls->object, time, OBJECT_INVERSE_TRANSFORM);
 
 		ls->P = transform_point(&tfm, ls->P);
-		ls->Ng = transform_direction_transposed(&itfm, ls->Ng);
+		ls->Ng = normalize(transform_direction_transposed(&itfm, ls->Ng));
 	}
 #endif
 }

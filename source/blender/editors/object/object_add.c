@@ -1239,9 +1239,9 @@ static EnumPropertyItem convert_target_items[] = {
 static void curvetomesh(Scene *scene, Object *ob) 
 {
 	if (ob->disp.first == NULL)
-		makeDispListCurveTypes(scene, ob, 0);  /* force creation */
+		BKE_displist_make_curveTypes(scene, ob, 0);  /* force creation */
 
-	nurbs_to_mesh(ob); /* also does users */
+	BKE_mesh_from_nurbs(ob); /* also does users */
 
 	if (ob->type == OB_MESH)
 		BKE_object_free_modifiers(ob);
@@ -1347,7 +1347,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 				newob = ob;
 			}
 
-			mesh_to_curve(scene, newob);
+			BKE_mesh_from_curve(scene, newob);
 
 			if (newob->type == OB_CURVE)
 				BKE_object_free_modifiers(newob);   /* after derivedmesh calls! */
@@ -1405,7 +1405,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 			cu = newob->data;
 
 			if (!newob->disp.first)
-				makeDispListCurveTypes(scene, newob, 0);
+				BKE_displist_make_curveTypes(scene, newob, 0);
 
 			newob->type = OB_CURVE;
 			cu->type = OB_CURVE;
@@ -1446,7 +1446,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 				curvetomesh(scene, newob);
 
 				/* meshes doesn't use displist */
-				freedisplist(&newob->disp);
+				BKE_displist_free(&newob->disp);
 			}
 		}
 		else if (ELEM(ob->type, OB_CURVE, OB_SURF)) {
@@ -1467,7 +1467,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 					newob = ob;
 
 					/* meshes doesn't use displist */
-					freedisplist(&newob->disp);
+					BKE_displist_free(&newob->disp);
 				}
 
 				curvetomesh(scene, newob);
@@ -1479,7 +1479,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 			base->flag &= ~SELECT;
 			ob->flag &= ~SELECT;
 
-			baseob = BKE_metaball_basis_find(scene, ob);
+			baseob = BKE_mball_basis_find(scene, ob);
 
 			if (ob != baseob) {
 				/* if motherball is converting it would be marked as done later */
@@ -1487,7 +1487,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 			}
 
 			if (!baseob->disp.first) {
-				makeDispListMBall(scene, baseob);
+				BKE_displist_make_mball(scene, baseob);
 			}
 
 			if (!(baseob->flag & OB_DONE)) {
@@ -1509,7 +1509,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 					for (a = 0; a < newob->totcol; a++) id_us_plus((ID *)me->mat[a]);
 				}
 
-				mball_to_mesh(&baseob->disp, newob->data);
+				BKE_mesh_from_metaball(&baseob->disp, newob->data);
 
 				if (obact->type == OB_MBALL) {
 					basact = basen;
@@ -1736,7 +1736,7 @@ static Base *object_add_duplicate_internal(Main *bmain, Scene *scene, Base *base
 				if (dupflag & USER_DUP_MBALL) {
 					ID_NEW_US2(obn->data)
 					else {
-						obn->data = BKE_metaball_copy(obn->data);
+						obn->data = BKE_mball_copy(obn->data);
 						didit = 1;
 					}
 					id->us--;

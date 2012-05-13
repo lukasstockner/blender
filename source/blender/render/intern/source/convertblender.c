@@ -401,7 +401,7 @@ static void calc_edge_stress(Render *UNUSED(re), ObjectRen *obr, Mesh *me)
 	
 	if (obr->totvert==0) return;
 	
-	mesh_get_texspace(me, loc, NULL, size);
+	BKE_mesh_texspace_get(me, loc, NULL, size);
 	
 	accum= MEM_callocN(2*sizeof(float)*obr->totvert, "temp accum for stress");
 	
@@ -2437,7 +2437,7 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 	int a, need_orco, vlakindex, *index, negative_scale;
 	ListBase dispbase= {NULL, NULL};
 
-	if (ob!=BKE_metaball_basis_find(re->scene, ob))
+	if (ob!=BKE_mball_basis_find(re->scene, ob))
 		return;
 
 	mult_m4_m4m4(mat, re->viewmat, ob->obmat);
@@ -2452,7 +2452,7 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 		need_orco= 1;
 	}
 
-	makeDispListMBall_forRender(re->scene, ob, &dispbase);
+	BKE_displist_make_mball_forRender(re->scene, ob, &dispbase);
 	dl= dispbase.first;
 	if (dl==0) return;
 
@@ -2463,7 +2463,7 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 
 		if (!orco) {
 			/* orco hasn't been found in cache - create new one and add to cache */
-			orco= BKE_metaball_make_orco(ob, &dispbase);
+			orco= BKE_mball_make_orco(ob, &dispbase);
 			set_object_orco(re, ob, orco);
 		}
 	}
@@ -2526,7 +2526,7 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 	}
 
 	/* enforce display lists remade */
-	freedisplist(&dispbase);
+	BKE_displist_free(&dispbase);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -2828,11 +2828,11 @@ static void init_render_surf(Render *re, ObjectRen *obr, int timeoffset)
 
 	if (ob->parent && (ob->parent->type==OB_LATTICE)) need_orco= 1;
 
-	makeDispListSurf(re->scene, ob, &displist, &dm, 1, 0);
+	BKE_displist_make_surf(re->scene, ob, &displist, &dm, 1, 0);
 
 	if (dm) {
 		if (need_orco) {
-			orco= makeOrcoDispList(re->scene, ob, dm, 1);
+			orco= BKE_displist_make_orco(re->scene, ob, dm, 1);
 			if (orco) {
 				set_object_orco(re, ob, orco);
 			}
@@ -2854,7 +2854,7 @@ static void init_render_surf(Render *re, ObjectRen *obr, int timeoffset)
 		}
 	}
 
-	freedisplist(&displist);
+	BKE_displist_free(&displist);
 
 	MEM_freeN(matar);
 }
@@ -2878,7 +2878,7 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 	if (ob->type==OB_FONT && cu->str==NULL) return;
 	else if (ob->type==OB_CURVE && cu->nurb.first==NULL) return;
 
-	makeDispListCurveTypes_forRender(re->scene, ob, &disp, &dm, 0);
+	BKE_displist_make_curveTypes_forRender(re->scene, ob, &disp, &dm, 0);
 	dl= disp.first;
 	if (dl==NULL) return;
 	
@@ -2898,7 +2898,7 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 
 	if (dm) {
 		if (need_orco) {
-			orco= makeOrcoDispList(re->scene, ob, dm, 1);
+			orco= BKE_displist_make_orco(re->scene, ob, dm, 1);
 			if (orco) {
 				set_object_orco(re, ob, orco);
 			}
@@ -3005,7 +3005,7 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 
 						for (a=0; a<dl->parts; a++) {
 
-							if (surfindex_displist(dl, a, &b, &p1, &p2, &p3, &p4)==0)
+							if (BKE_displist_surfindex_get(dl, a, &b, &p1, &p2, &p3, &p4)==0)
 								break;
 
 							p1+= startvert;
@@ -3062,7 +3062,7 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 		}
 	}
 
-	freedisplist(&disp);
+	BKE_displist_free(&disp);
 
 	MEM_freeN(matar);
 }
@@ -4331,7 +4331,7 @@ static void finalize_render_object(Render *re, ObjectRen *obr, int timeoffset)
 				if ((a & 255)==0) ver= obr->vertnodes[a>>8].vert;
 				else ver++;
 
-				DO_MINMAX(ver->co, min, max);
+				minmax_v3v3_v3(min, max, ver->co);
 			}
 
 			if (obr->strandbuf) {
@@ -4357,8 +4357,8 @@ static void finalize_render_object(Render *re, ObjectRen *obr, int timeoffset)
 					copy_v3_v3(sbound->boundbox[0], smin);
 					copy_v3_v3(sbound->boundbox[1], smax);
 
-					DO_MINMAX(smin, min, max);
-					DO_MINMAX(smax, min, max);
+					minmax_v3v3_v3(min, max, smin);
+					minmax_v3v3_v3(min, max, smax);
 				}
 			}
 
@@ -4725,7 +4725,7 @@ static int allow_render_object(Render *re, Object *ob, int nolamps, int onlysele
 		return 0;
 	
 	/* don't add non-basic meta objects, ends up having renderobjects with no geometry */
-	if (ob->type == OB_MBALL && ob!=BKE_metaball_basis_find(re->scene, ob))
+	if (ob->type == OB_MBALL && ob!=BKE_mball_basis_find(re->scene, ob))
 		return 0;
 	
 	if (nolamps && (ob->type==OB_LAMP))

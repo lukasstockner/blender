@@ -339,14 +339,14 @@ bNode *nodeAddNode(bNodeTree *ntree, struct bNodeTemplate *ntemp)
 	
 	node_add_sockets_from_type(ntree, node, ntype);
 	
-	if (ntype->initfunc!=NULL)
-		ntype->initfunc(ntree, node, ntemp);
-	
 	/* initialize the node name with the node label */
 	BLI_strncpy(node->name, nodeLabel(node), NODE_MAXSTR);
 	nodeUniqueName(ntree, node);
 	
 	BLI_addtail(&ntree->nodes, node);
+	
+	if (ntype->initfunc!=NULL)
+		ntype->initfunc(ntree, node, ntemp);
 	
 	ntree->update |= NTREE_UPDATE_NODES;
 	
@@ -1969,6 +1969,7 @@ static void registerShaderNodes(bNodeTreeType *ttype)
 	register_node_type_sh_attribute(ttype);
 	register_node_type_sh_geometry(ttype);
 	register_node_type_sh_light_path(ttype);
+	register_node_type_sh_light_falloff(ttype);
 	register_node_type_sh_fresnel(ttype);
 	register_node_type_sh_layer_weight(ttype);
 	register_node_type_sh_tex_coord(ttype);
