@@ -34,14 +34,14 @@ BokehBlurNode::BokehBlurNode(bNode *editorNode): Node(editorNode) {
 }
 
 void BokehBlurNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context) {
-	bNode *node = this->getbNode();
-	Scene *scene= (Scene*)node->id;
-	Object* camob = (scene)? scene->camera: NULL;
+	Object* camob = context->getScene()->camera;
 
 	if (this->getInputSocket(2)->isConnected()) {
 		VariableSizeBokehBlurOperation *operation = new VariableSizeBokehBlurOperation();
 		ConvertDepthToRadiusOperation *converter = new ConvertDepthToRadiusOperation();
+		converter->setfStop(4.0f);
 		converter->setCameraObject(camob);
+		operation->setMaxBlur(16);
 		this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), true, 0, graph);
 		this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), true, 1, graph);
 		this->getInputSocket(2)->relinkConnections(converter->getInputSocket(0), true, 2, graph);

@@ -35,8 +35,8 @@
 
 /* **************** MIX RGB ******************** */
 static bNodeSocketTemplate cmp_node_switch_in[]= {
-	{	SOCK_RGBA, 1, "Image",			0.8f, 0.8f, 0.8f, 1.0f, 0.0f, 1.0f},
-	{	SOCK_RGBA, 1, "Image",			0.8f, 0.8f, 0.8f, 1.0f, 0.0f, 1.0f},
+	{	SOCK_RGBA, 1, "Off",			0.8f, 0.8f, 0.8f, 1.0f, 0.0f, 1.0f},
+	{	SOCK_RGBA, 1, "On",			0.8f, 0.8f, 0.8f, 1.0f, 0.0f, 1.0f},
 	{	-1, 0, ""	}
 };
 
