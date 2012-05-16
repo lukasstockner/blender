@@ -33,27 +33,25 @@ ImageNode::ImageNode(bNode *editorNode): Node(editorNode) {
 NodeOperation* ImageNode::doMultilayerCheck(ExecutionSystem *system, RenderLayer* rl, Image* image, ImageUser* user, int framenumber, int outputsocketIndex, int pass, DataType datatype) {
 	OutputSocket *outputSocket = this->getOutputSocket(outputsocketIndex);
 	MultilayerBaseOperation * operation = NULL;
-	if (outputSocket->isConnected()) {
-		switch (datatype) {
-		case COM_DT_VALUE:
-			operation = new MultilayerValueOperation(pass);
-			break;
-		case COM_DT_VECTOR:
-			operation = new MultilayerVectorOperation(pass);
-			break;
-		case COM_DT_COLOR:
-			operation = new MultilayerColorOperation(pass);
-			break;
-		default:
-			break;
-		}
-		operation->setImage(image);
-		operation->setRenderLayer(rl);
-		operation->setImageUser(user);
-		operation->setFramenumber(framenumber);
-		outputSocket->relinkConnections(operation->getOutputSocket());
-		system->addOperation(operation);
+	switch (datatype) {
+	case COM_DT_VALUE:
+		operation = new MultilayerValueOperation(pass);
+		break;
+	case COM_DT_VECTOR:
+		operation = new MultilayerVectorOperation(pass);
+		break;
+	case COM_DT_COLOR:
+		operation = new MultilayerColorOperation(pass);
+		break;
+	default:
+		break;
 	}
+	operation->setImage(image);
+	operation->setRenderLayer(rl);
+	operation->setImageUser(user);
+	operation->setFramenumber(framenumber);
+	outputSocket->relinkConnections(operation->getOutputSocket());
+	system->addOperation(operation);
 	return operation;
 }
 
@@ -152,18 +150,23 @@ void ImageNode::convertToOperations(ExecutionSystem *graph, CompositorContext * 
 	if(image && image->type==IMA_TYPE_MULTILAYER) {
 		BKE_image_get_ibuf(image, imageuser);
 		if(image->rr) {
-			RenderLayer *rl= (RenderLayer*)BLI_findlink(&image->rr->layers, imageuser->layer);
-			if (rl) {
-				OutputSocket * socket;
-				int index;
-				for (index = 0 ; index < numberOfOutputs ; index ++) {
-					socket = this->getOutputSocket(index);
-					if (socket->isConnected() || index == 0) {
-						bNodeSocket *bnodeSocket = socket->getbNodeSocket();
-						int passindex = GET_INT_FROM_POINTER(bnodeSocket->storage);
+			OutputSocket * socket;
+			int index;
+			for (index = 0 ; index < numberOfOutputs ; index ++) {
+				socket = this->getOutputSocket(index);
+				if (socket->isConnected() || index == 0) {
+					bNodeSocket *bnodeSocket = socket->getbNodeSocket();
+					NodeImageLayer *storage = (NodeImageLayer*)bnodeSocket->storage;
+					int passindex = storage->pass_index;
+					int layerindex = storage->layer_index;
+					RenderLayer *rl= (RenderLayer*)BLI_findlink(&image->rr->layers, layerindex);
+					if (rl) {
+					
 						RenderPass *rpass = (RenderPass *)BLI_findlink(&rl->passes, passindex);
 						if (rpass) {
 							NodeOperation * operation = NULL;
+							imageuser->pass = passindex;
+							imageuser->layer = layerindex;
 							switch (rpass->channels) {
 							case 1:
 								operation = doMultilayerCheck(graph, rl, image, imageuser, framenumber, index, passindex, COM_DT_VALUE);
