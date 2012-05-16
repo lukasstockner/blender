@@ -60,7 +60,6 @@ public:
 	  */
 	void deinitExecution();
 	
-	void setData(NodeDilateErode* data) {this->distance= data->distance;this->inset = data->inset;this->_switch = data->sw;}
 	void setDistance(float distance) {this->distance = distance;}
 	void setSwitch(float sw) {this->_switch = sw;}
 	void setInset(float inset) {this->inset = inset;}

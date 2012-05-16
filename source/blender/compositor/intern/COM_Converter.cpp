@@ -104,7 +104,6 @@
 #include "COM_MapValueNode.h"
 #include "COM_TransformNode.h"
 #include "COM_Stabilize2dNode.h"
-#include "COM_SamplerNode.h"
 #include "COM_BilateralBlurNode.h"
 #include "COM_VectorBlurNode.h"
 #include "COM_MovieDistortionNode.h"
@@ -327,9 +326,6 @@ Node* Converter::convert(bNode *bNode) {
 		break;
 	case CMP_NODE_STABILIZE2D:
 		node = new Stabilize2dNode(bNode);
-		break;
-	case CMP_NODE_SAMPLER:
-		node = new SamplerNode(bNode);
 		break;
 	case CMP_NODE_BILATERALBLUR:
 		node = new BilateralBlurNode(bNode);

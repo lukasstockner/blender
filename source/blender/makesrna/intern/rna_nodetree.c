@@ -1595,51 +1595,6 @@ static void def_cmp_switch(StructRNA *srna)
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 }
 
-static void def_cmp_dilate_erode2(StructRNA *srna)
-{
-	PropertyRNA *prop;
-
-	RNA_def_struct_sdna_from(srna, "NodeDilateErode", "storage");
-
-	prop = RNA_def_property(srna, "distance", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "distance");
-	RNA_def_property_float_default(prop, 0.0f);
-	RNA_def_property_range(prop, -100, 100);
-	RNA_def_property_ui_text(prop, "Distance", "Distance to grow/shrink");
-	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
-
-	prop = RNA_def_property(srna, "inset", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "inset");
-	RNA_def_property_float_default(prop, 0.0f);
-	RNA_def_property_range(prop, 0, 25);
-	RNA_def_property_ui_text(prop, "Inset", "The falloff (smoothness)");
-	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
-
-	prop = RNA_def_property(srna, "check", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "sw");
-	RNA_def_property_float_default(prop, 0.5f);
-	RNA_def_property_range(prop, -0.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "Switch", "Border of white and black");
-	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
-}
-
-static void def_cmp_sampler(StructRNA *srna)
-{
-	PropertyRNA *prop;
-	
-	static EnumPropertyItem sampler_items[] = {
-		{0, "NEAREST",   0, "Nearest",  ""},
-		{1, "BILINEAR",  0, "Bilinear", ""},
-		{2, "BICUBIC",   0, "Bicubic",  ""},
-		{0, NULL, 0, NULL, NULL}};
-	
-	prop = RNA_def_property(srna, "filter_type", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "custom1");
-	RNA_def_property_enum_items(prop, sampler_items);
-	RNA_def_property_ui_text(prop, "Filter", "Method to use to filter rotation");
-	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
-}
-
 static void def_cmp_colorcorrection(StructRNA *srna)
 {
 	PropertyRNA *prop;

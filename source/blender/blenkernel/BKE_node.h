@@ -660,7 +660,6 @@ void			ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMaterial *mat);
 #define CMP_NODE_TONEMAP	302
 #define CMP_NODE_LENSDIST	303
 
-#define CMP_NODE_DILATEERODE2	311
 #define CMP_NODE_COLORCORRECTION 312
 #define CMP_NODE_MASK_BOX       313
 #define CMP_NODE_MASK_ELLIPSE   314
@@ -668,9 +667,6 @@ void			ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMaterial *mat);
 #define CMP_NODE_BOKEHBLUR      316
 #define CMP_NODE_LENSFLARE      317
 #define CMP_NODE_SWITCH         318
-
-#define CMP_NODE_OPENCLTEST     319
-#define CMP_NODE_SAMPLER        320
 
 /* channel toggles */
 #define CMP_CHAN_RGB		1

@@ -402,13 +402,6 @@ typedef struct NodeEllipseMask {
     int pad;
 } NodeEllipseMask;
 
-typedef struct NodeDilateErode {
-    float distance;
-    float inset;
-    float sw;
-    int pad;
-} NodeDilateErode;
-
 typedef struct NodeBlurData {
 	short sizex, sizey;
 	short samples, maxspeed, minspeed, relative, aspect;

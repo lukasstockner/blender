@@ -1702,11 +1702,6 @@ static void node_composit_buts_view_levels(uiLayout *layout, bContext *UNUSED(C)
 	uiItemR(layout, ptr, "channel", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
 }
 
-static void node_composit_buts_sampler(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
-{
-	uiItemR(layout, ptr, "filter_type", 0, "", ICON_NONE);
-}
-
 static void node_composit_buts_colorcorrection(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiLayout *row;
@@ -1912,13 +1907,6 @@ static void node_composit_buts_moviedistortion(uiLayout *layout, bContext *C, Po
 		return;
 
 	uiItemR(layout, ptr, "distortion_type", 0, "", 0);
-}
-
-static void node_composit_buts_dilateerode2(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
-{
-	uiItemR(layout, ptr, "distance", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
-	uiItemR(layout, ptr, "inset", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
-	uiItemR(layout, ptr, "check", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 }
 
 static void node_composit_buts_switch(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -2256,9 +2244,6 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 		case CMP_NODE_MOVIEDISTORTION:
 			ntype->uifunc= node_composit_buts_moviedistortion;
 			break;
-		case CMP_NODE_DILATEERODE2:
-			ntype->uifunc= node_composit_buts_dilateerode2;
-			break;
 		case CMP_NODE_SWITCH:
 			ntype->uifunc= node_composit_buts_switch;
 			break;
@@ -2272,9 +2257,6 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 			break;
 		case CMP_NODE_BOKEHIMAGE:
 			ntype->uifunc= node_composit_buts_bokehimage;
-			break;
-		case CMP_NODE_SAMPLER:
-			ntype->uifunc= node_composit_buts_sampler;
 			break;
 		case CMP_NODE_VIEWER:
 			ntype->uifunc = NULL;
