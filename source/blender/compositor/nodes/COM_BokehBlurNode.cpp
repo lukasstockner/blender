@@ -42,6 +42,7 @@ void BokehBlurNode::convertToOperations(ExecutionSystem *graph, CompositorContex
 		converter->setfStop(4.0f);
 		converter->setCameraObject(camob);
 		operation->setMaxBlur(16);
+		operation->setQuality(context->getQuality());
 		this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), true, 0, graph);
 		this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), true, 1, graph);
 		this->getInputSocket(2)->relinkConnections(converter->getInputSocket(0), true, 2, graph);
