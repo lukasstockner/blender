@@ -184,16 +184,16 @@ GHOST_WindowX11(
 	int attributes[40], i, samples;
 	Atom atoms[2];
 	int natom;
-	int glxVersionMajor, glxVersionMinor; // As in GLX major.minor
+	int major, minor; // As in GLX major.minor
 
 #ifdef WITH_X11_XINPUT
 	/* initialize incase X11 fails to load */
 	memset(&m_xtablet, 0, sizeof(m_xtablet));
 #endif
 
-	m_visual = NULL;
+	m_visual= NULL;
 
-	if (!glXQueryVersion(m_display, &glxVersionMajor, &glxVersionMinor)) {
+	if (!glXQueryVersion(m_display, &major, &minor)) {
 		printf("%s:%d: X11 glXQueryVersion() failed, verify working openGL system!\n", __FILE__, __LINE__);
 		
 		/* exit if this is the first window */
@@ -219,7 +219,7 @@ GHOST_WindowX11(
 		attributes[i++] = GLX_GREEN_SIZE; attributes[i++] = 1;
 		attributes[i++] = GLX_DEPTH_SIZE; attributes[i++] = 1;
 		/* GLX >= 1.4 required for multi-sample */
-		if (samples && (glxVersionMajor >= 1) && (glxVersionMinor >= 4)) {
+		if(samples && (major >= 1) && (minor >= 4)) {
 			attributes[i++] = GLX_SAMPLE_BUFFERS; attributes[i++] = 1;
 			attributes[i++] = GLX_SAMPLES; attributes[i++] = samples;
 		}
