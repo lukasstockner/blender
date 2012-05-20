@@ -297,7 +297,6 @@ void blf_glyph_free(GlyphBLF *g)
 
 static void blf_texture_draw(float uv[2][2], float dx, float y1, float dx1, float y2)
 {
-	glBegin(GL_QUADS);
 	glTexCoord2f(uv[0][0], uv[0][1]);
 	glVertex2f(dx, y1);
 	
@@ -309,42 +308,46 @@ static void blf_texture_draw(float uv[2][2], float dx, float y1, float dx1, floa
 	
 	glTexCoord2f(uv[1][0], uv[0][1]);
 	glVertex2f(dx1, y1);
-	glEnd();
 }
 
 static void blf_texture5_draw(const float shadow_col[4], float uv[2][2], float x1, float y1, float x2, float y2)
 {
-	float soft[25] = {1 / 60.0f, 1 / 60.0f, 2 / 60.0f, 1 / 60.0f, 1 / 60.0f,
-	                  1 / 60.0f, 3 / 60.0f, 5 / 60.0f, 3 / 60.0f, 1 / 60.0f,
-	                  2 / 60.0f, 5 / 60.0f, 8 / 60.0f, 5 / 60.0f, 2 / 60.0f,
-	                  1 / 60.0f, 3 / 60.0f, 5 / 60.0f, 3 / 60.0f, 1 / 60.0f,
-	                  1 / 60.0f, 1 / 60.0f, 2 / 60.0f, 1 / 60.0f, 1 / 60.0f};
-	
-	float color[4], *fp = soft;
+	static const float soft[25] =
+	    {1 / 60.0f, 1 / 60.0f, 2 / 60.0f, 1 / 60.0f, 1 / 60.0f,
+	     1 / 60.0f, 3 / 60.0f, 5 / 60.0f, 3 / 60.0f, 1 / 60.0f,
+	     2 / 60.0f, 5 / 60.0f, 8 / 60.0f, 5 / 60.0f, 2 / 60.0f,
+	     1 / 60.0f, 3 / 60.0f, 5 / 60.0f, 3 / 60.0f, 1 / 60.0f,
+	     1 / 60.0f, 1 / 60.0f, 2 / 60.0f, 1 / 60.0f, 1 / 60.0f};
+
+	int i = 0;
+	float color[4];
 	int dx, dy;
 
 	color[0] = shadow_col[0];
 	color[1] = shadow_col[1];
 	color[2] = shadow_col[2];
-	
+
 	for (dx = -2; dx < 3; dx++) {
-		for (dy = -2; dy < 3; dy++, fp++) {
-			color[3] = *(fp) * shadow_col[3];
+		for (dy = -2; dy < 3; dy++) {
+			color[3] = soft[i++] * shadow_col[3];
 			glColor4fv(color);
+
 			blf_texture_draw(uv, x1 + dx, y1 + dy, x2 + dx, y2 + dy);
 		}
 	}
-	
+
 	glColor4fv(color);
 }
 
 static void blf_texture3_draw(const float shadow_col[4], float uv[2][2], float x1, float y1, float x2, float y2)
 {
-	float soft[9] = {1 / 16.0f, 2 / 16.0f, 1 / 16.0f,
-	                 2 / 16.0f, 4 / 16.0f, 2 / 16.0f,
-	                 1 / 16.0f, 2 / 16.0f, 1 / 16.0f};
+	static const float soft[9] =
+	    {1 / 16.0f, 2 / 16.0f, 1 / 16.0f,
+	     2 / 16.0f, 4 / 16.0f, 2 / 16.0f,
+	     1 / 16.0f, 2 / 16.0f, 1 / 16.0f};
 
-	float color[4], *fp = soft;
+	int i = 0;
+	float color[4];
 	int dx, dy;
 
 	color[0] = shadow_col[0];
@@ -352,8 +355,8 @@ static void blf_texture3_draw(const float shadow_col[4], float uv[2][2], float x
 	color[2] = shadow_col[2];
 
 	for (dx = -1; dx < 2; dx++) {
-		for (dy = -1; dy < 2; dy++, fp++) {
-			color[3] = *(fp) * shadow_col[3];
+		for (dy = -1; dy < 2; dy++) {
+			color[3] = soft[i++] * shadow_col[3];
 			glColor4fv(color);
 			blf_texture_draw(uv, x1 + dx, y1 + dy, x2 + dx, y2 + dy);
 		}
@@ -448,6 +451,8 @@ int blf_glyph_render(FontBLF *font, GlyphBLF *g, float x, float y)
 		glBindTexture(GL_TEXTURE_2D, (font->tex_bind_state = g->tex));
 	}
 
+	glBegin(GL_QUADS);
+
 	if (font->flags & BLF_SHADOW) {
 
 		switch (font->shadow) {
@@ -485,6 +490,8 @@ int blf_glyph_render(FontBLF *font, GlyphBLF *g, float x, float y)
 			blf_texture_draw(g->uv, dx, y1, dx1, y2);
 			break;
 	}
+
+	glEnd();
 
 	return 1;
 }
