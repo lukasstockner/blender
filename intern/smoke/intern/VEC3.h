@@ -1,35 +1,18 @@
+/** \file smoke/intern/VEC3.h
+ *  \ingroup smoke
+ */
 /******************************************************************************
- *  DDF Fluid solver with Turbulence extensions
- *
- *  copyright 2009 Nils Thuerey, Tobias Pfaff
- * 
- *  DDF is free software, distributed under the GNU General Public License (GPL v2).
- *  See the file COPYING for more information.
- *
- * Vector class
- *
+ * Copyright 2007 Nils Thuerey
+ * Basic vector class 
  *****************************************************************************/
+#ifndef BASICVECTOR_H
+#define BASICVECTOR_H
 
-
-#ifndef DDF_BASICVEC_H
-#define DDF_BASICVEC_H
-
-// get rid of windos min/max defines
-#ifdef WIN32
-#define NOMINMAX
-#endif
-
-#include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <iostream>
 #include <sstream>
-
-// if min/max are still around...
-#ifdef WIN32
-#undef min
-#undef max
-#endif
 
 // use which fp-precision? 1=float, 2=double
 #ifndef FLOATINGPOINT_PRECISION
@@ -40,12 +23,23 @@
 #endif // DDF_DEBUG==1
 #endif
 
-// dimension of solver&problem
-#ifndef DDF_DIM
-#define DDF_DIM 3
+// VECTOR_EPSILON is the minimal vector length
+// In order to be able to discriminate floating point values near zero, and
+// to be sure not to fail a comparison because of roundoff errors, use this
+// value as a threshold.  
+
+#if FLOATINGPOINT_PRECISION==1
+typedef float Real;
+#define FP_REAL_MAX __FLT_MAX__
+#define VECTOR_EPSILON (1e-5f)
+#else
+typedef double Real;
+#define FP_REAL_MAX __DBL_MAX__
+#define VECTOR_EPSILON (1e-10)
 #endif
 
-// windos, hardcoded limits for now...
+
+// hardcoded limits for now...
 // for e.g. MSVC compiler...
 // some of these defines can be needed
 // for linux systems as well (e.g. FLT_MAX)
@@ -64,101 +58,99 @@
 #	endif // DBL_MAX
 #endif // __DBL_MAX__
 
+#ifndef FLT_MAX
+#define FLT_MAX __FLT_MAX__
+#endif
+
+#ifndef DBL_MAX
+#define DBL_MAX __DBL_MAX__
+#endif
+
 #ifndef M_PI
 #	define M_PI 3.1415926536
 #	define M_E  2.7182818284
 #endif
 
 
-namespace DDF {
+
+namespace BasicVector {
 
 
 // basic inlined vector class
 template<class Scalar>
-class ntlVector3Dim
+class Vector3Dim
 {
 public:
   // Constructor
-  inline ntlVector3Dim();
+  inline Vector3Dim();
   // Copy-Constructor
-  inline ntlVector3Dim(const ntlVector3Dim<Scalar> &v );
-  inline ntlVector3Dim(const float *);
-  inline ntlVector3Dim(const double *);
+  inline Vector3Dim(const Vector3Dim<Scalar> &v );
+  inline Vector3Dim(const float *);
+  inline Vector3Dim(const double *);
   // construct a vector from one Scalar
-  inline ntlVector3Dim(Scalar);
+  inline Vector3Dim(Scalar);
   // construct a vector from three Scalars
-  inline ntlVector3Dim(Scalar, Scalar, Scalar);
+  inline Vector3Dim(Scalar, Scalar, Scalar);
 
 	// get address of array for OpenGL
 	Scalar *getAddress() { return value; }
 
   // Assignment operator
-  inline const ntlVector3Dim<Scalar>& operator=  (const ntlVector3Dim<Scalar>& v);
+  inline const Vector3Dim<Scalar>& operator=  (const Vector3Dim<Scalar>& v);
   // Assignment operator
-  inline const ntlVector3Dim<Scalar>& operator=  (Scalar s);
+  inline const Vector3Dim<Scalar>& operator=  (Scalar s);
   // Assign and add operator
-  inline const ntlVector3Dim<Scalar>& operator+= (const ntlVector3Dim<Scalar>& v);
+  inline const Vector3Dim<Scalar>& operator+= (const Vector3Dim<Scalar>& v);
   // Assign and add operator
-  inline const ntlVector3Dim<Scalar>& operator+= (Scalar s);
+  inline const Vector3Dim<Scalar>& operator+= (Scalar s);
   // Assign and sub operator
-  inline const ntlVector3Dim<Scalar>& operator-= (const ntlVector3Dim<Scalar>& v);
+  inline const Vector3Dim<Scalar>& operator-= (const Vector3Dim<Scalar>& v);
   // Assign and sub operator
-  inline const ntlVector3Dim<Scalar>& operator-= (Scalar s);
+  inline const Vector3Dim<Scalar>& operator-= (Scalar s);
   // Assign and mult operator
-  inline const ntlVector3Dim<Scalar>& operator*= (const ntlVector3Dim<Scalar>& v);
+  inline const Vector3Dim<Scalar>& operator*= (const Vector3Dim<Scalar>& v);
   // Assign and mult operator
-  inline const ntlVector3Dim<Scalar>& operator*= (Scalar s);
+  inline const Vector3Dim<Scalar>& operator*= (Scalar s);
   // Assign and div operator
-  inline const ntlVector3Dim<Scalar>& operator/= (const ntlVector3Dim<Scalar>& v);
+  inline const Vector3Dim<Scalar>& operator/= (const Vector3Dim<Scalar>& v);
   // Assign and div operator
-  inline const ntlVector3Dim<Scalar>& operator/= (Scalar s);
+  inline const Vector3Dim<Scalar>& operator/= (Scalar s);
 
 
   // unary operator
-  inline ntlVector3Dim<Scalar> operator- () const;
+  inline Vector3Dim<Scalar> operator- () const;
 
   // binary operator add
-  inline ntlVector3Dim<Scalar> operator+ (const ntlVector3Dim<Scalar>&) const;
+  inline Vector3Dim<Scalar> operator+ (const Vector3Dim<Scalar>&) const;
   // binary operator add
-  inline ntlVector3Dim<Scalar> operator+ (Scalar) const;
+  inline Vector3Dim<Scalar> operator+ (Scalar) const;
   // binary operator sub
-  inline ntlVector3Dim<Scalar> operator- (const ntlVector3Dim<Scalar>&) const;
+  inline Vector3Dim<Scalar> operator- (const Vector3Dim<Scalar>&) const;
   // binary operator sub
-  inline ntlVector3Dim<Scalar> operator- (Scalar) const;
+  inline Vector3Dim<Scalar> operator- (Scalar) const;
   // binary operator mult
-  inline ntlVector3Dim<Scalar> operator* (const ntlVector3Dim<Scalar>&) const;
+  inline Vector3Dim<Scalar> operator* (const Vector3Dim<Scalar>&) const;
   // binary operator mult
-  inline ntlVector3Dim<Scalar> operator* (Scalar) const;
+  inline Vector3Dim<Scalar> operator* (Scalar) const;
   // binary operator div
-  inline ntlVector3Dim<Scalar> operator/ (const ntlVector3Dim<Scalar>&) const;
+  inline Vector3Dim<Scalar> operator/ (const Vector3Dim<Scalar>&) const;
   // binary operator div
-  inline ntlVector3Dim<Scalar> operator/ (Scalar) const;
+  inline Vector3Dim<Scalar> operator/ (Scalar) const;
 
   // Projection normal to a vector
-  inline ntlVector3Dim<Scalar>	  getOrthogonalntlVector3Dim() const;
+  inline Vector3Dim<Scalar>	  getOrthogonalntlVector3Dim() const;
   // Project into a plane
-  inline const ntlVector3Dim<Scalar>& projectNormalTo(const ntlVector3Dim<Scalar> &v);
+  inline const Vector3Dim<Scalar>& projectNormalTo(const Vector3Dim<Scalar> &v);
   
-  inline Scalar min() const { return (x<y) ? ( (x<z) ? x:z ) : ( (y<z) ? y:z); }
-  inline Scalar max() const { return (x>y) ? ( (x>z) ? x:z ) : ( (y>z) ? y:z); }
-
   // minimize
-  inline const ntlVector3Dim<Scalar> &minimize(const ntlVector3Dim<Scalar> &);
+  inline const Vector3Dim<Scalar> &minimize(const Vector3Dim<Scalar> &);
   // maximize
-  inline const ntlVector3Dim<Scalar> &maximize(const ntlVector3Dim<Scalar> &);
+  inline const Vector3Dim<Scalar> &maximize(const Vector3Dim<Scalar> &);
   
   // access operator
   inline Scalar& operator[](unsigned int i);
   // access operator
   inline const Scalar& operator[](unsigned int i) const;
-
-  // return absolutes of all components
-  inline ntlVector3Dim<Scalar> getAbsolutes() const { return 
-  		ntlVector3Dim<Scalar>(fabs(value[0]), fabs(value[1]), fabs(value[2]) );
-  };
-
-  // debug output vector to a string
-  std::string toString();
 
 	//! actual values
 	union {
@@ -176,56 +168,11 @@ public:
   		Scalar Z;
 		};
 	};
-
-	// expe compatibility functions
-	void makeFloor(const ntlVector3Dim<Scalar>& cmp);
-	void makeCeil(const ntlVector3Dim<Scalar>& cmp);
-	Scalar squaredDistanceTo(const ntlVector3Dim<Scalar>& vec) const;
-
-    // Returns true if the vector's s components are all greater that the ones of the vector it is compared against.
-    inline bool operator < ( const ntlVector3Dim<Scalar>& vec ) const; 
-    // Returns true if the vector's s components are all greater or equal that the ones of the vector it is compared against.
-    inline bool operator <= ( const ntlVector3Dim<Scalar>& vec ) const; 
-    // Returns true if the vector's s components are all smaller that the ones of the vector it is compared against.
-    inline bool operator > ( const ntlVector3Dim<Scalar>& vec ) const; 
-    // Returns true if the vector's s components are all smaller or equal that the ones of the vector it is compared against.
-    inline bool operator >= ( const ntlVector3Dim<Scalar>& vec ) const; 
-
-	// Return the maximal component value.
-    inline Scalar maxComponent(void) const; 
-    // Return the minimal component value.
-    inline Scalar minComponent(void) const; 
-    // Return the index of the maximal coordinate value.
-    inline int maxComponentId(void) const; 
-    // Return the index of the minimal coordinate value.
-    inline int minComponentId(void) const;
-
-	// zero element
-   static const ntlVector3Dim<Scalar> ZERO;
-
 protected:
   
 };
 
 
-
-
-// VECTOR_EPSILON is the minimal vector length
-// In order to be able to discriminate floating point values near zero, and
-// to be sure not to fail a comparison because of roundoff errors, use this
-// value as a threshold.  
-
-#if FLOATINGPOINT_PRECISION==1
-typedef float Real;
-#define FP_REAL_MAX __FLT_MAX__
-#define VECTOR_EPSILON (1e-5f)
-#else
-typedef double Real;
-#define FP_REAL_MAX __DBL_MAX__
-#define VECTOR_EPSILON (1e-10)
-#endif
-// as variable in globals.cpp
-extern const Real gVecEpsilon;
 
 
 
@@ -239,7 +186,7 @@ extern const Real gVecEpsilon;
   Constructor.
   */
 template<class Scalar>
-inline ntlVector3Dim<Scalar>::ntlVector3Dim( void )
+inline Vector3Dim<Scalar>::Vector3Dim( void )
 {
   value[0] = value[1] = value[2] = 0;
 }
@@ -250,25 +197,25 @@ inline ntlVector3Dim<Scalar>::ntlVector3Dim( void )
   Copy-Constructor.
   */
 template<class Scalar>
-inline ntlVector3Dim<Scalar>::ntlVector3Dim( const ntlVector3Dim<Scalar> &v )
+inline Vector3Dim<Scalar>::Vector3Dim( const Vector3Dim<Scalar> &v )
 {
-	value[0] = v.value[0];
-	value[1] = v.value[1];
-	value[2] = v.value[2];
+  value[0] = v.value[0];
+  value[1] = v.value[1];
+  value[2] = v.value[2];
 }
-	template<class Scalar>
-inline ntlVector3Dim<Scalar>::ntlVector3Dim( const float *fvalue)
+template<class Scalar>
+inline Vector3Dim<Scalar>::Vector3Dim( const float *fvalue)
 {
-	value[0] = (Scalar)fvalue[0];
-	value[1] = (Scalar)fvalue[1];
-	value[2] = (Scalar)fvalue[2];
+  value[0] = (Scalar)fvalue[0];
+  value[1] = (Scalar)fvalue[1];
+  value[2] = (Scalar)fvalue[2];
 }
-	template<class Scalar>
-inline ntlVector3Dim<Scalar>::ntlVector3Dim( const double *fvalue)
+template<class Scalar>
+inline Vector3Dim<Scalar>::Vector3Dim( const double *fvalue)
 {
-	value[0] = (Scalar)fvalue[0];
-	value[1] = (Scalar)fvalue[1];
-	value[2] = (Scalar)fvalue[2];
+  value[0] = (Scalar)fvalue[0];
+  value[1] = (Scalar)fvalue[1];
+  value[2] = (Scalar)fvalue[2];
 }
 
 
@@ -280,7 +227,7 @@ inline ntlVector3Dim<Scalar>::ntlVector3Dim( const double *fvalue)
   \return The new vector
   */
 template<class Scalar>
-inline ntlVector3Dim<Scalar>::ntlVector3Dim(Scalar s )
+inline Vector3Dim<Scalar>::Vector3Dim(Scalar s )
 {
   value[0]= s;
   value[1]= s;
@@ -296,7 +243,7 @@ inline ntlVector3Dim<Scalar>::ntlVector3Dim(Scalar s )
   \return The new vector
   */
 template<class Scalar>
-inline ntlVector3Dim<Scalar>::ntlVector3Dim(Scalar s1, Scalar s2, Scalar s3)
+inline Vector3Dim<Scalar>::Vector3Dim(Scalar s1, Scalar s2, Scalar s3)
 {
   value[0]= s1;
   value[1]= s2;
@@ -304,29 +251,15 @@ inline ntlVector3Dim<Scalar>::ntlVector3Dim(Scalar s1, Scalar s2, Scalar s3)
 }
 
 
-/*************************************************************************
-  Compute the vector product of two 3D vectors
-  \param v Second vector to compute the product with
-  \return A new vector with the product values
-  */
-/*template<class Scalar>
-inline ntlVector3Dim<Scalar> 
-ntlVector3Dim<Scalar>::operator^( const ntlVector3Dim<Scalar> &v ) const
-{
-  return ntlVector3Dim<Scalar>(value[1]*v.value[2] - value[2]*v.value[1],
-			value[2]*v.value[0] - value[0]*v.value[2],
-			value[0]*v.value[1] - value[1]*v.value[0]);
-}*/
-
 
 /*************************************************************************
-  Copy a ntlVector3Dim componentwise.
+  Copy a Vector3Dim componentwise.
   \param v vector with values to be copied
   \return Reference to self
   */
 template<class Scalar>
-inline const ntlVector3Dim<Scalar>&
-ntlVector3Dim<Scalar>::operator=( const ntlVector3Dim<Scalar> &v )
+inline const Vector3Dim<Scalar>&
+Vector3Dim<Scalar>::operator=( const Vector3Dim<Scalar> &v )
 {
   value[0] = v.value[0];
   value[1] = v.value[1];
@@ -341,8 +274,8 @@ ntlVector3Dim<Scalar>::operator=( const ntlVector3Dim<Scalar> &v )
   \return Reference to self
   */
 template<class Scalar>
-inline const ntlVector3Dim<Scalar>&
-ntlVector3Dim<Scalar>::operator=(Scalar s)
+inline const Vector3Dim<Scalar>&
+Vector3Dim<Scalar>::operator=(Scalar s)
 {
   value[0] = s;
   value[1] = s;
@@ -352,13 +285,13 @@ ntlVector3Dim<Scalar>::operator=(Scalar s)
 
 
 /*************************************************************************
-  Add another ntlVector3Dim componentwise.
+  Add another Vector3Dim componentwise.
   \param v vector with values to be added
   \return Reference to self
   */
 template<class Scalar>
-inline const ntlVector3Dim<Scalar>&
-ntlVector3Dim<Scalar>::operator+=( const ntlVector3Dim<Scalar> &v )
+inline const Vector3Dim<Scalar>&
+Vector3Dim<Scalar>::operator+=( const Vector3Dim<Scalar> &v )
 {
   value[0] += v.value[0];
   value[1] += v.value[1];
@@ -373,8 +306,8 @@ ntlVector3Dim<Scalar>::operator+=( const ntlVector3Dim<Scalar> &v )
   \return Reference to self
   */
 template<class Scalar>
-inline const ntlVector3Dim<Scalar>&
-ntlVector3Dim<Scalar>::operator+=(Scalar s)
+inline const Vector3Dim<Scalar>&
+Vector3Dim<Scalar>::operator+=(Scalar s)
 {
   value[0] += s;
   value[1] += s;
@@ -389,8 +322,8 @@ ntlVector3Dim<Scalar>::operator+=(Scalar s)
   \return Reference to self
   */
 template<class Scalar>
-inline const ntlVector3Dim<Scalar>&
-ntlVector3Dim<Scalar>::operator-=( const ntlVector3Dim<Scalar> &v )
+inline const Vector3Dim<Scalar>&
+Vector3Dim<Scalar>::operator-=( const Vector3Dim<Scalar> &v )
 {
   value[0] -= v.value[0];
   value[1] -= v.value[1];
@@ -405,8 +338,8 @@ ntlVector3Dim<Scalar>::operator-=( const ntlVector3Dim<Scalar> &v )
   \return Reference to self
   */
 template<class Scalar>
-inline const ntlVector3Dim<Scalar>&
-ntlVector3Dim<Scalar>::operator-=(Scalar s)
+inline const Vector3Dim<Scalar>&
+Vector3Dim<Scalar>::operator-=(Scalar s)
 {
   value[0]-= s;
   value[1]-= s;
@@ -421,8 +354,8 @@ ntlVector3Dim<Scalar>::operator-=(Scalar s)
   \return Reference to self
   */
 template<class Scalar>
-inline const ntlVector3Dim<Scalar>&
-ntlVector3Dim<Scalar>::operator*=( const ntlVector3Dim<Scalar> &v )
+inline const Vector3Dim<Scalar>&
+Vector3Dim<Scalar>::operator*=( const Vector3Dim<Scalar> &v )
 {
   value[0] *= v.value[0];
   value[1] *= v.value[1];
@@ -437,8 +370,8 @@ ntlVector3Dim<Scalar>::operator*=( const ntlVector3Dim<Scalar> &v )
   \return Reference to self
   */
 template<class Scalar>
-inline const ntlVector3Dim<Scalar>&
-ntlVector3Dim<Scalar>::operator*=(Scalar s)
+inline const Vector3Dim<Scalar>&
+Vector3Dim<Scalar>::operator*=(Scalar s)
 {
   value[0] *= s;
   value[1] *= s;
@@ -448,13 +381,13 @@ ntlVector3Dim<Scalar>::operator*=(Scalar s)
 
 
 /*************************************************************************
-  Divide by another ntlVector3Dim componentwise.
+  Divide by another Vector3Dim componentwise.
   \param v vector of values to divide by
   \return Reference to self
   */
 template<class Scalar>
-inline const ntlVector3Dim<Scalar>&
-ntlVector3Dim<Scalar>::operator/=( const ntlVector3Dim<Scalar> &v )
+inline const Vector3Dim<Scalar>&
+Vector3Dim<Scalar>::operator/=( const Vector3Dim<Scalar> &v )
 {
   value[0] /= v.value[0];
   value[1] /= v.value[1];
@@ -469,8 +402,8 @@ ntlVector3Dim<Scalar>::operator/=( const ntlVector3Dim<Scalar> &v )
   \return Reference to self
   */
 template<class Scalar>
-inline const ntlVector3Dim<Scalar>&
-ntlVector3Dim<Scalar>::operator/=(Scalar s)
+inline const Vector3Dim<Scalar>&
+Vector3Dim<Scalar>::operator/=(Scalar s)
 {
   value[0] /= s;
   value[1] /= s;
@@ -489,10 +422,10 @@ ntlVector3Dim<Scalar>::operator/=(Scalar s)
   \return The new (negative) vector
   */
 template<class Scalar>
-inline ntlVector3Dim<Scalar>
-ntlVector3Dim<Scalar>::operator-() const
+inline Vector3Dim<Scalar>
+Vector3Dim<Scalar>::operator-() const
 {
-  return ntlVector3Dim<Scalar>(-value[0], -value[1], -value[2]);
+  return Vector3Dim<Scalar>(-value[0], -value[1], -value[2]);
 }
 
 
@@ -508,10 +441,10 @@ ntlVector3Dim<Scalar>::operator-() const
   \return The sum vector
   */
 template<class Scalar>
-inline ntlVector3Dim<Scalar>
-ntlVector3Dim<Scalar>::operator+( const ntlVector3Dim<Scalar> &v ) const
+inline Vector3Dim<Scalar>
+Vector3Dim<Scalar>::operator+( const Vector3Dim<Scalar> &v ) const
 {
-  return ntlVector3Dim<Scalar>(value[0]+v.value[0],
+  return Vector3Dim<Scalar>(value[0]+v.value[0],
 			value[1]+v.value[1],
 			value[2]+v.value[2]);
 }
@@ -523,10 +456,10 @@ ntlVector3Dim<Scalar>::operator+( const ntlVector3Dim<Scalar> &v ) const
   \return The sum vector
   */
 template<class Scalar>
-inline ntlVector3Dim<Scalar>
-ntlVector3Dim<Scalar>::operator+(Scalar s) const
+inline Vector3Dim<Scalar>
+Vector3Dim<Scalar>::operator+(Scalar s) const
 {
-  return ntlVector3Dim<Scalar>(value[0]+s,
+  return Vector3Dim<Scalar>(value[0]+s,
 			value[1]+s,
 			value[2]+s);
 }
@@ -538,10 +471,10 @@ ntlVector3Dim<Scalar>::operator+(Scalar s) const
   \return The difference vector
   */
 template<class Scalar>
-inline ntlVector3Dim<Scalar>
-ntlVector3Dim<Scalar>::operator-( const ntlVector3Dim<Scalar> &v ) const
+inline Vector3Dim<Scalar>
+Vector3Dim<Scalar>::operator-( const Vector3Dim<Scalar> &v ) const
 {
-  return ntlVector3Dim<Scalar>(value[0]-v.value[0],
+  return Vector3Dim<Scalar>(value[0]-v.value[0],
 			value[1]-v.value[1],
 			value[2]-v.value[2]);
 }
@@ -553,10 +486,10 @@ ntlVector3Dim<Scalar>::operator-( const ntlVector3Dim<Scalar> &v ) const
   \return The difference vector
   */
 template<class Scalar>
-inline ntlVector3Dim<Scalar>
-ntlVector3Dim<Scalar>::operator-(Scalar s ) const
+inline Vector3Dim<Scalar>
+Vector3Dim<Scalar>::operator-(Scalar s ) const
 {
-  return ntlVector3Dim<Scalar>(value[0]-s,
+  return Vector3Dim<Scalar>(value[0]-s,
 			value[1]-s,
 			value[2]-s);
 }
@@ -569,36 +502,26 @@ ntlVector3Dim<Scalar>::operator-(Scalar s ) const
   \return The product vector
   */
 template<class Scalar>
-inline ntlVector3Dim<Scalar>
-ntlVector3Dim<Scalar>::operator*( const ntlVector3Dim<Scalar>& v) const
+inline Vector3Dim<Scalar>
+Vector3Dim<Scalar>::operator*( const Vector3Dim<Scalar>& v) const
 {
-  return ntlVector3Dim<Scalar>(value[0]*v.value[0],
+  return Vector3Dim<Scalar>(value[0]*v.value[0],
 			value[1]*v.value[1],
 			value[2]*v.value[2]);
 }
 
 
 /*************************************************************************
-  Build a ntlVector3Dim with a Scalar value multiplied to each component.
+  Build a Vector3Dim with a Scalar value multiplied to each component.
   \param s The Scalar value to multiply with
   \return The product vector
   */
 template<class Scalar>
-inline ntlVector3Dim<Scalar>
-ntlVector3Dim<Scalar>::operator*(Scalar s) const
+inline Vector3Dim<Scalar>
+Vector3Dim<Scalar>::operator*(Scalar s) const
 {
-  return ntlVector3Dim<Scalar>(value[0]*s, value[1]*s, value[2]*s);
+  return Vector3Dim<Scalar>(value[0]*s, value[1]*s, value[2]*s);
 }
-
-
-// allow multiplications of the form: v2 = 3 * v1
-template<class Scalar>
-inline ntlVector3Dim<Scalar>
-operator*(Scalar s, ntlVector3Dim<Scalar> v) 
-{
-  return ntlVector3Dim<Scalar>(v.value[0]*s, v.value[1]*s, v.value[2]*s);
-}
-
 
 
 /*************************************************************************
@@ -607,10 +530,10 @@ operator*(Scalar s, ntlVector3Dim<Scalar> v)
   \return The ratio vector
   */
 template<class Scalar>
-inline ntlVector3Dim<Scalar>
-ntlVector3Dim<Scalar>::operator/(const ntlVector3Dim<Scalar>& v) const
+inline Vector3Dim<Scalar>
+Vector3Dim<Scalar>::operator/(const Vector3Dim<Scalar>& v) const
 {
-  return ntlVector3Dim<Scalar>(value[0]/v.value[0],
+  return Vector3Dim<Scalar>(value[0]/v.value[0],
 			value[1]/v.value[1],
 			value[2]/v.value[2]);
 }
@@ -623,10 +546,10 @@ ntlVector3Dim<Scalar>::operator/(const ntlVector3Dim<Scalar>& v) const
   \return The ratio vector
   */
 template<class Scalar>
-inline ntlVector3Dim<Scalar>
-ntlVector3Dim<Scalar>::operator/(Scalar s) const
+inline Vector3Dim<Scalar>
+Vector3Dim<Scalar>::operator/(Scalar s) const
 {
-  return ntlVector3Dim<Scalar>(value[0]/s,
+  return Vector3Dim<Scalar>(value[0]/s,
 			value[1]/s,
 			value[2]/s);
 }
@@ -642,7 +565,7 @@ ntlVector3Dim<Scalar>::operator/(Scalar s) const
   */
 template<class Scalar>
 inline Scalar&
-ntlVector3Dim<Scalar>::operator[]( unsigned int i )
+Vector3Dim<Scalar>::operator[]( unsigned int i )
 {
   return value[i];
 }
@@ -655,7 +578,7 @@ ntlVector3Dim<Scalar>::operator[]( unsigned int i )
   */
 template<class Scalar>
 inline const Scalar&
-ntlVector3Dim<Scalar>::operator[]( unsigned int i ) const
+Vector3Dim<Scalar>::operator[]( unsigned int i ) const
 {
   return value[i];
 }
@@ -674,7 +597,7 @@ ntlVector3Dim<Scalar>::operator[]( unsigned int i ) const
   \return The value of the scalar product
   */
 template<class Scalar>
-inline Scalar dot(const ntlVector3Dim<Scalar> &t, const ntlVector3Dim<Scalar> &v )
+inline Scalar dot(const Vector3Dim<Scalar> &t, const Vector3Dim<Scalar> &v )
 {
   //return t.value[0]*v.value[0] + t.value[1]*v.value[1] + t.value[2]*v.value[2];
   return ((t[0]*v[0]) + (t[1]*v[1]) + (t[2]*v[2]));
@@ -685,9 +608,9 @@ inline Scalar dot(const ntlVector3Dim<Scalar> &t, const ntlVector3Dim<Scalar> &v
   Calculate the cross product of this and another vector
  */
 template<class Scalar>
-inline ntlVector3Dim<Scalar> cross(const ntlVector3Dim<Scalar> &t, const ntlVector3Dim<Scalar> &v)
+inline Vector3Dim<Scalar> cross(const Vector3Dim<Scalar> &t, const Vector3Dim<Scalar> &v)
 {
-  ntlVector3Dim<Scalar> cp( 
+  Vector3Dim<Scalar> cp( 
 			((t[1]*v[2]) - (t[2]*v[1])),
 		  ((t[2]*v[0]) - (t[0]*v[2])),
 		  ((t[0]*v[1]) - (t[1]*v[0])) );
@@ -703,22 +626,22 @@ inline ntlVector3Dim<Scalar> cross(const ntlVector3Dim<Scalar> &t, const ntlVect
   \return The orthonormal vector
   */
 template<class Scalar>
-ntlVector3Dim<Scalar>
-ntlVector3Dim<Scalar>::getOrthogonalntlVector3Dim() const
+Vector3Dim<Scalar>
+Vector3Dim<Scalar>::getOrthogonalntlVector3Dim() const
 {
-	// Determine the  component with max. absolute value
-	int maxIndex= (fabs(value[0]) > fabs(value[1])) ? 0 : 1;
-	maxIndex= (fabs(value[maxIndex]) > fabs(value[2])) ? maxIndex : 2;
+  // Determine the  component with max. absolute value
+  int max= (fabs(value[0]) > fabs(value[1])) ? 0 : 1;
+  max= (fabs(value[max]) > fabs(value[2])) ? max : 2;
 
-	/*************************************************************************
-	  Choose another axis than the one with max. component and project
-	  orthogonal to self
-	 */
-	ntlVector3Dim<Scalar> vec(0.0);
-	vec[(maxIndex+1)%3]= 1;
-	vec.normalize();
-	vec.projectNormalTo(this->getNormalized());
-	return vec;
+  /*************************************************************************
+    Choose another axis than the one with max. component and project
+    orthogonal to self
+    */
+  Vector3Dim<Scalar> vec(0.0);
+  vec[(max+1)%3]= 1;
+  vec.normalize();
+  vec.projectNormalTo(this->getNormalized());
+  return vec;
 }
 
 
@@ -729,14 +652,14 @@ ntlVector3Dim<Scalar>::getOrthogonalntlVector3Dim() const
   \return The projected vector
   */
 template<class Scalar>
-inline const ntlVector3Dim<Scalar>&
-ntlVector3Dim<Scalar>::projectNormalTo(const ntlVector3Dim<Scalar> &v)
+inline const Vector3Dim<Scalar>&
+Vector3Dim<Scalar>::projectNormalTo(const Vector3Dim<Scalar> &v)
 {
-	Scalar sprod = dot(*this,v);
-	value[0]= value[0] - v.value[0] * sprod;
-	value[1]= value[1] - v.value[1] * sprod;
-	value[2]= value[2] - v.value[2] * sprod;  
-	return *this;
+  Scalar sprod = dot(*this,v);
+  value[0]= value[0] - v.value[0] * sprod;
+  value[1]= value[1] - v.value[1] * sprod;
+  value[2]= value[2] - v.value[2] * sprod;  
+  return *this;
 }
 
 
@@ -754,8 +677,8 @@ ntlVector3Dim<Scalar>::projectNormalTo(const ntlVector3Dim<Scalar> &v)
   \return Reference to the modified self
   */
 template<class Scalar>
-inline const ntlVector3Dim<Scalar> &
-ntlVector3Dim<Scalar>::minimize(const ntlVector3Dim<Scalar> &pnt)
+inline const Vector3Dim<Scalar> &
+Vector3Dim<Scalar>::minimize(const Vector3Dim<Scalar> &pnt)
 {
   for (unsigned int i = 0; i < 3; i++)
     value[i] = MIN(value[i],pnt[i]);
@@ -771,8 +694,8 @@ ntlVector3Dim<Scalar>::minimize(const ntlVector3Dim<Scalar> &pnt)
   \return Reference to the modified self
   */
 template<class Scalar>
-inline const ntlVector3Dim<Scalar> &
-ntlVector3Dim<Scalar>::maximize(const ntlVector3Dim<Scalar> &pnt)
+inline const Vector3Dim<Scalar> &
+Vector3Dim<Scalar>::maximize(const Vector3Dim<Scalar> &pnt)
 {
   for (unsigned int i = 0; i < 3; i++)
     value[i] = MAX(value[i],pnt[i]);
@@ -788,7 +711,7 @@ ntlVector3Dim<Scalar>::maximize(const ntlVector3Dim<Scalar> &pnt)
 // HELPER FUNCTIONS, independent of implementation
 /************************************************************************/
 
-#define VECTOR_TYPE ntlVector3Dim<Scalar>
+#define VECTOR_TYPE Vector3Dim<Scalar>
 
 
 /*************************************************************************
@@ -803,7 +726,7 @@ inline Scalar norm( const VECTOR_TYPE &v)
 }
 
 // for e.g. min max operator
-inline Real normHelper(const ntlVector3Dim<Real> &v) {
+inline Real normHelper(const Vector3Dim<Real> &v) {
 	return norm(v);
 }	
 inline Real normHelper(const Real &v) {
@@ -816,10 +739,11 @@ inline Real normHelper(const int &v) {
 
 /*************************************************************************
   Same as getNorm but doesnt sqrt  
- */
+  */
 template<class Scalar>
-inline Scalar normNoSqrt( const VECTOR_TYPE &v) {
-	return v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
+inline Scalar normNoSqrt( const VECTOR_TYPE &v)
+{
+  return v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
 }
 
 
@@ -830,67 +754,41 @@ inline Scalar normNoSqrt( const VECTOR_TYPE &v) {
 template<class Scalar>
 inline VECTOR_TYPE getNormalized( const VECTOR_TYPE &v)
 {
-	Scalar l = v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
-	if (fabs(l-1.) < VECTOR_EPSILON*VECTOR_EPSILON)
-		return v; /* normalized "enough"... */
-	else if (l > VECTOR_EPSILON*VECTOR_EPSILON)
-	{
-		Scalar fac = 1./sqrt(l);
-		return VECTOR_TYPE(v[0]*fac, v[1]*fac, v[2]*fac);
-	}
-	else
-		return VECTOR_TYPE((Scalar)0);
+  Scalar l = v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
+  if (fabs(l-1.) < VECTOR_EPSILON*VECTOR_EPSILON)
+    return v; /* normalized "enough"... */
+  else if (l > VECTOR_EPSILON*VECTOR_EPSILON)
+  {
+    Scalar fac = 1./sqrt(l);
+    return VECTOR_TYPE(v[0]*fac, v[1]*fac, v[2]*fac);
+  }
+  else
+    return VECTOR_TYPE((Scalar)0);
 }
 
 
 /*************************************************************************
   Compute the norm of the vector and normalize it.
   \return The value of the norm
- */
-	template<class Scalar>
+  */
+template<class Scalar>
 inline Scalar normalize( VECTOR_TYPE &v) 
 {
-	Scalar norm;
-	Scalar l = v[0]*v[0] + v[1]*v[1] + v[2]*v[2];  
-	if (fabs(l-1.) < VECTOR_EPSILON*VECTOR_EPSILON) {
-		norm = 1.;
+  Scalar norm;
+  Scalar l = v[0]*v[0] + v[1]*v[1] + v[2]*v[2];  
+  if (fabs(l-1.) < VECTOR_EPSILON*VECTOR_EPSILON) {
+    norm = 1.;
 	} else if (l > VECTOR_EPSILON*VECTOR_EPSILON) {
-		norm = sqrt(l);
-		Scalar fac = 1./norm;
-		v[0] *= fac;
-		v[1] *= fac;
-		v[2] *= fac; 
+    norm = sqrt(l);
+    Scalar fac = 1./norm;
+    v[0] *= fac;
+    v[1] *= fac;
+    v[2] *= fac; 
 	} else {
-		v[0]= v[1]= v[2]= 0;
-		norm = 0.;
-	}
-	return (Scalar)norm;
-}
-
-/*************************************************************************
-  Stable vector to angle conversion
-  \return unique Angles in the of phi=[0,2PI], th=[0,PI]
- */
-	template<class Scalar>
-inline void vecToAngle(const VECTOR_TYPE &v, Scalar& phi, Scalar& theta) 
-{
-	if (fabs(v.y) < VECTOR_EPSILON)
-		theta = M_PI/2;
-	else if (fabs(v.x) < VECTOR_EPSILON && fabs(v.z) < VECTOR_EPSILON )
-		theta = (v.y>=0) ? 0:M_PI;
-	else
-		theta = atan(sqrt(v.x*v.x+v.z*v.z)/v.y);
-	if (theta<0) theta+=M_PI;
-		
-	if (fabs(v.x) < VECTOR_EPSILON)
-		phi = M_PI/2;
-	else
-		phi = atan(v.z/v.x);	
-	if (phi<0) phi+=M_PI;
-	if (fabs(v.z) < VECTOR_EPSILON)
-		phi = (v.x>=0) ? 0 : M_PI;
-	else if (v.z < 0)
-		phi += M_PI;
+    v[0]= v[1]= v[2]= 0;
+    norm = 0.;
+  }
+  return (Scalar)norm;
 }
 
 
@@ -1030,7 +928,10 @@ inline void hsvToRgb( VECTOR_TYPE &V )
 
 
 //! global string for formatting vector output in utilities.cpp
-extern const char *globVecFormatStr;
+//extern const char *globVecFormatStr;
+#if 0
+static const char *globVecFormatStr = "[%6.4f,%6.4f,%6.4f]";
+#endif
 
 /*************************************************************************
   Outputs the object in human readable form using the format
@@ -1038,15 +939,19 @@ extern const char *globVecFormatStr;
   */
 template<class Scalar>
 std::ostream&
-operator<<( std::ostream& os, const DDF::ntlVector3Dim<Scalar>& i )
+operator<<( std::ostream& os, const BasicVector::Vector3Dim<Scalar>& i )
 {
+#if 0
 	char buf[256];
-	snprintf(buf,256,globVecFormatStr, (double)i[0],(double)i[1],(double)i[2]);
+#if _WIN32
+  sprintf(buf,globVecFormatStr, (double)i[0],(double)i[1],(double)i[2]);
+#else
+  snprintf(buf,256,globVecFormatStr, (double)i[0],(double)i[1],(double)i[2]);
+#endif
 	os << std::string(buf); 
-	//os << '[' << i[0] << ", " << i[1] << ", " << i[2] << ']';
-	return os;
+#endif
+  return os;
 }
-
 
 
 /*************************************************************************
@@ -1055,161 +960,30 @@ operator<<( std::ostream& os, const DDF::ntlVector3Dim<Scalar>& i )
   */
 template<class Scalar>
 std::istream&
-operator>>( std::istream& is, DDF::ntlVector3Dim<Scalar>& i )
+operator>>( std::istream& is, BasicVector::Vector3Dim<Scalar>& i )
 {
-	char c;
-	char dummy[3];
-	is >> c >> i[0] >> dummy >> i[1] >> dummy >> i[2] >> c;
-	return is;
+  char c;
+  char dummy[3];
+  is >> c >> i[0] >> dummy >> i[1] >> dummy >> i[2] >> c;
+  return is;
 }
 
-// helper function for output
-template<class Scalar> std::string ntlVector3Dim<Scalar>::toString() {
-	char buf[256];
-	snprintf(buf,256,globVecFormatStr, (double)(*this)[0],(double)(*this)[1],(double)(*this)[2]);
-	return std::string(buf);
-}
-
-// helper function for output
-template<class Vec> bool intVecIsEqual(Vec a, Vec b) {
-	return a[0]==b[0] && a[1]==b[1] && a[2]==b[2];
-}
 
 /**************************************************************************/
 // typedefs!
 /**************************************************************************/
 
-// a 3D vector with double precision
-typedef ntlVector3Dim<double>  nVec3d; 
-
-// a 3D vector with single precision
-typedef ntlVector3Dim<float>   nVec3f; 
-
-// a 3D integer vector
-typedef ntlVector3Dim<int>     nVec3i; 
-
-/* convert int,float and double vectors */
-template<class T> inline nVec3i vec2I(T v) { return nVec3i((int)v[0],(int)v[1],(int)v[2]); }
-template<class T> inline nVec3i vec2I(T v0, T v1, T v2) { return nVec3i((int)v0,(int)v1,(int)v2); }
-template<class T> inline nVec3d vec2D(T v) { return nVec3d(v[0],v[1],v[2]); }
-template<class T> inline nVec3i vec2D(T v0, T v1, T v2) { return nVec3d((double)v0,(double)v1,(double)v2); }
-template<class T> inline nVec3f vec2F(T v) { return nVec3f(v[0],v[1],v[2]); }
-template<class T> inline nVec3i vec2F(T v0, T v1, T v2) { return nVec3f((float)v0,(float)v1,(float)v2); }
-template<class T> inline nVec3i vecround(T v) { return nVec3i((int)round(v[0]),(int)round(v[1]),(int)round(v[2])); }
-
-
-
-/************************************************************************/
-// default vector typing
-
-
-// a 3D vector for graphics output, typically float?
-typedef ntlVector3Dim<Real>  Vec3; 
-
-/* convert to Real vec */
-template<class T> inline Vec3   vec2R(T v) { return Vec3(v[0],v[1],v[2]); }
-
-
 /* get minimal vector length value that can be discriminated.  */
 inline Real getVecEpsilon() { return (Real)VECTOR_EPSILON; }
 
-// expe compatibility functions
+// a 3D integer vector
+typedef Vector3Dim<int> Vec3Int; 
 
-//template<class Scalar>
-//inline XXX ntlVector3Dim<Scalar>::
-
-//--------------------------------------------------------------------------------
-template<class Scalar>
-inline Scalar ntlVector3Dim<Scalar>::squaredDistanceTo(const ntlVector3Dim<Scalar>& vec) const
-{
-    Scalar dx,dy,dz;
-    dx = x-vec.x;
-    dy = y-vec.y;
-    dz = z-vec.z;
-    return dx*dx + dy*dy + dz*dz;
-}
-//--------------------------------------------------------------------------------
-template<class Scalar>
-inline void ntlVector3Dim<Scalar>::makeFloor(const ntlVector3Dim<Scalar>& cmp)
-{
-    if( cmp.x < x ) x = cmp.x;
-    if( cmp.y < y ) y = cmp.y;
-    if( cmp.z < z ) z = cmp.z;
-}
-//--------------------------------------------------------------------------------
-template<class Scalar>
-inline void ntlVector3Dim<Scalar>::makeCeil(const ntlVector3Dim<Scalar>& cmp)
-{
-    if( cmp.x > x ) x = cmp.x;
-    if( cmp.y > y ) y = cmp.y;
-    if( cmp.z > z ) z = cmp.z;
-}
-
-//--------------------------------------------------------------------------------
-template<class Scalar>
-inline bool ntlVector3Dim<Scalar>::operator < ( const ntlVector3Dim<Scalar>& vec ) const
-{
-    if( x < vec.x && y < vec.y && z < vec.z )
-        return true;
-    return false;
-}
-//--------------------------------------------------------------------------------
-template<class Scalar>
-inline bool ntlVector3Dim<Scalar>::operator <= ( const ntlVector3Dim<Scalar>& vec ) const
-{
-    if( x <= vec.x && y <= vec.y && z <= vec.z )
-        return true;
-    return false;
-}
-//--------------------------------------------------------------------------------
-template<class Scalar>
-inline bool ntlVector3Dim<Scalar>::operator > ( const ntlVector3Dim<Scalar>& vec ) const
-{
-    if( x > vec.x && y > vec.y && z > vec.z )
-        return true;
-    return false;
-}
-//--------------------------------------------------------------------------------
-template<class Scalar>
-inline bool ntlVector3Dim<Scalar>::operator >= ( const ntlVector3Dim<Scalar>& vec ) const
-{
-    if( x >= vec.x && y >= vec.y && z >= vec.z )
-        return true;
-    return false;
-}
-
-//--------------------------------------------------------------------------------
-template<class Scalar>
-inline Scalar ntlVector3Dim<Scalar>::maxComponent(void) const
-{
-    return VMAX(*this);
-}
-//--------------------------------------------------------------------------------
-template<class Scalar>
-inline Scalar ntlVector3Dim<Scalar>::minComponent(void) const
-{
-    return VMIN(*this);
-}
-//--------------------------------------------------------------------------------
-template<class Scalar>
-inline int ntlVector3Dim<Scalar>::maxComponentId(void) const
-{
-    if (x<y)
-        return (y<z ? 2 : 1);
-    else
-        return (x<z ? 2 : 0);
-}
-//--------------------------------------------------------------------------------
-template<class Scalar>
-inline int ntlVector3Dim<Scalar>::minComponentId(void) const
-{
-    if (x<y)
-        return (x<z ? 0 : 2);
-    else
-        return (y<Z ? 1 : 2);
-}
-
-}; // namespace DDF
+// a 3D vector 
+typedef Vector3Dim<Real> Vec3; 
 
 
-#endif /* DDF_BASICVEC_H */
+}; // namespace 
+
+
+#endif /* BASICVECTOR_H */
