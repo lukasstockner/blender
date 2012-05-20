@@ -606,6 +606,72 @@ wmKeyMap* transform_modal_keymap(wmKeyConfig *keyconf)
 	return keymap;
 }
 
+static void transform_event_xyz_constraint(TransInfo *t, short key_type, char cmode)
+{
+	if (!(t->flag & T_NO_CONSTRAINT)) {
+		int constraint_axis, constraint_plane;
+		int edit_2d = (t->flag & T_2D_EDIT);
+		char msg1[] = "along _";
+		char msg2[] = "along %s _";
+		char msg3[] = "locking %s _";
+		char axis;
+	
+		/* Initialize */
+		switch(key_type) {
+			case XKEY:
+				axis = 'X';
+				constraint_axis = CON_AXIS0;
+				break;
+			case YKEY:
+				axis = 'Y';
+				constraint_axis = CON_AXIS1;
+				break;
+			case ZKEY:
+				axis = 'Z';
+				constraint_axis = CON_AXIS2;
+				break;
+			default:
+				/* Invalid key */
+				return;
+		}
+		msg1[sizeof(msg1) - 2] = axis;
+		msg2[sizeof(msg2) - 2] = axis;
+		msg3[sizeof(msg3) - 2] = axis;
+		constraint_plane = ((CON_AXIS0 | CON_AXIS1 | CON_AXIS2) &
+							(~constraint_axis));
+
+		if (edit_2d && (key_type != ZKEY)) {
+			if (cmode == axis) {
+				stopConstraint(t);
+			}
+			else {
+				setUserConstraint(t, V3D_MANIP_GLOBAL, constraint_axis, msg1);
+			}
+		}
+		else if (!edit_2d) {
+			if (cmode == axis) {
+				if (t->con.orientation != V3D_MANIP_GLOBAL) {
+					stopConstraint(t);
+				}
+				else {
+					short orientation = (t->current_orientation != V3D_MANIP_GLOBAL ?
+										 t->current_orientation : V3D_MANIP_LOCAL);
+					if (!(t->modifiers & MOD_CONSTRAINT_PLANE))
+						setUserConstraint(t, orientation, constraint_axis, msg2);
+					else if (t->modifiers & MOD_CONSTRAINT_PLANE)
+						setUserConstraint(t, orientation, constraint_plane, msg3);
+				}
+			}
+			else {
+				if (!(t->modifiers & MOD_CONSTRAINT_PLANE))
+					setUserConstraint(t, V3D_MANIP_GLOBAL, constraint_axis, msg2);
+				else if (t->modifiers & MOD_CONSTRAINT_PLANE)
+					setUserConstraint(t, V3D_MANIP_GLOBAL, constraint_plane, msg3);
+			}
+		}
+		t->redraw |= TREDRAW_HARD;
+	}
+}
 
 int transformEvent(TransInfo *t, wmEvent *event)
 {
@@ -950,93 +1016,9 @@ int transformEvent(TransInfo *t, wmEvent *event)
 			}
 			break;
 		case XKEY:
-			if ((t->flag & T_NO_CONSTRAINT)==0) {
-				if (t->flag & T_2D_EDIT) {
-					if (cmode == 'X') {
-						stopConstraint(t);
-					}
-					else {
-						setUserConstraint(t, V3D_MANIP_GLOBAL, (CON_AXIS0), "along X");
-					}
-				}
-				else {
-					if (cmode == 'X') {
-						if (t->con.orientation != V3D_MANIP_GLOBAL) {
-							stopConstraint(t);
-						}
-						else {
-							short orientation = t->current_orientation != V3D_MANIP_GLOBAL ? t->current_orientation : V3D_MANIP_LOCAL;
-							if ((t->modifiers & MOD_CONSTRAINT_PLANE) == 0)
-								setUserConstraint(t, orientation, (CON_AXIS0), "along %s X");
-							else if (t->modifiers & MOD_CONSTRAINT_PLANE)
-								setUserConstraint(t, orientation, (CON_AXIS1|CON_AXIS2), "locking %s X");
-						}
-					}
-					else {
-						if ((t->modifiers & MOD_CONSTRAINT_PLANE) == 0)
-							setUserConstraint(t, V3D_MANIP_GLOBAL, (CON_AXIS0), "along %s X");
-						else if (t->modifiers & MOD_CONSTRAINT_PLANE)
-							setUserConstraint(t, V3D_MANIP_GLOBAL, (CON_AXIS1|CON_AXIS2), "locking %s X");
-					}
-				}
-				t->redraw |= TREDRAW_HARD;
-			}
-			break;
 		case YKEY:
-			if ((t->flag & T_NO_CONSTRAINT)==0) {
-				if (t->flag & T_2D_EDIT) {
-					if (cmode == 'Y') {
-						stopConstraint(t);
-					}
-					else {
-						setUserConstraint(t, V3D_MANIP_GLOBAL, (CON_AXIS1), "along Y");
-					}
-				}
-				else {
-					if (cmode == 'Y') {
-						if (t->con.orientation != V3D_MANIP_GLOBAL) {
-							stopConstraint(t);
-						}
-						else {
-							short orientation = t->current_orientation != V3D_MANIP_GLOBAL ? t->current_orientation : V3D_MANIP_LOCAL;
-							if ((t->modifiers & MOD_CONSTRAINT_PLANE) == 0)
-								setUserConstraint(t, orientation, (CON_AXIS1), "along %s Y");
-							else if (t->modifiers & MOD_CONSTRAINT_PLANE)
-								setUserConstraint(t, orientation, (CON_AXIS0|CON_AXIS2), "locking %s Y");
-						}
-					}
-					else {
-						if ((t->modifiers & MOD_CONSTRAINT_PLANE) == 0)
-							setUserConstraint(t, V3D_MANIP_GLOBAL, (CON_AXIS1), "along %s Y");
-						else if (t->modifiers & MOD_CONSTRAINT_PLANE)
-							setUserConstraint(t, V3D_MANIP_GLOBAL, (CON_AXIS0|CON_AXIS2), "locking %s Y");
-					}
-				}
-				t->redraw |= TREDRAW_HARD;
-			}
-			break;
 		case ZKEY:
-			if ((t->flag & (T_NO_CONSTRAINT|T_2D_EDIT))==0) {
-				if (cmode == 'Z') {
-					if (t->con.orientation != V3D_MANIP_GLOBAL) {
-						stopConstraint(t);
-					}
-					else {
-						short orientation = t->current_orientation != V3D_MANIP_GLOBAL ? t->current_orientation : V3D_MANIP_LOCAL;
-						if ((t->modifiers & MOD_CONSTRAINT_PLANE) == 0)
-							setUserConstraint(t, orientation, (CON_AXIS2), "along %s Z");
-						else if (t->modifiers & MOD_CONSTRAINT_PLANE)
-							setUserConstraint(t, orientation, (CON_AXIS0|CON_AXIS1), "locking %s Z");
-					}
-				}
-				else {
-					if ((t->modifiers & MOD_CONSTRAINT_PLANE) == 0)
-						setUserConstraint(t, V3D_MANIP_GLOBAL, (CON_AXIS2), "along %s Z");
-					else if (t->modifiers & MOD_CONSTRAINT_PLANE)
-						setUserConstraint(t, V3D_MANIP_GLOBAL, (CON_AXIS0|CON_AXIS1), "locking %s Z");
-				}
-				t->redraw |= TREDRAW_HARD;
-			}
+			transform_event_xyz_constraint(t, event->type, cmode);
 			break;
 		case OKEY:
 			if (t->flag & T_PROP_EDIT && event->shift) {
@@ -1134,7 +1116,7 @@ int transformEvent(TransInfo *t, wmEvent *event)
 		return OPERATOR_PASS_THROUGH;
 }
 
-int calculateTransformCenter(bContext *C, int centerMode, float *vec)
+int calculateTransformCenter(bContext *C, int centerMode, float *cent3d, int *cent2d)
 {
 	TransInfo *t = MEM_callocN(sizeof(TransInfo), "TransInfo data");
 	int success = 1;
@@ -1159,8 +1141,12 @@ int calculateTransformCenter(bContext *C, int centerMode, float *vec)
 
 		calculateCenter(t);
 
-		// Copy center from constraint center. Transform center can be local
-		copy_v3_v3(vec, t->con.center);
+		if(cent2d)
+			copy_v2_v2_int(cent2d, t->center2d);
+		if(cent3d) {
+			// Copy center from constraint center. Transform center can be local
+			copy_v3_v3(cent3d, t->con.center);
+		}
 	}
 
 
@@ -2125,7 +2111,7 @@ static void constraintRotLim(TransInfo *UNUSED(t), TransData *td)
 		bConstraintTypeInfo *cti= get_constraint_typeinfo(CONSTRAINT_TYPE_ROTLIMIT);
 		bConstraintOb cob;
 		bConstraint *con;
-		int dolimit = 0;
+		int do_limit = FALSE;
 		
 		/* Evaluate valid constraints */
 		for (con= td->con; con; con= con->next) {
@@ -2147,9 +2133,9 @@ static void constraintRotLim(TransInfo *UNUSED(t), TransData *td)
 					continue;
 
 				/* only do conversion if necessary, to preserve quats and eulers */
-				if (!dolimit) {
+				if (do_limit == FALSE) {
 					constraintob_from_transdata(&cob, td);
-					dolimit= 1;
+					do_limit = TRUE;
 				}
 				
 				/* do space conversions */
@@ -2171,7 +2157,7 @@ static void constraintRotLim(TransInfo *UNUSED(t), TransData *td)
 			}
 		}
 		
-		if (dolimit) {
+		if (do_limit) {
 			/* copy results from cob->matrix */
 			if (td->ext->rotOrder == ROT_MODE_QUAT) {
 				/* quats */
@@ -2325,8 +2311,8 @@ int handleEventWarp(TransInfo *t, wmEvent *event)
 	
 	if (event->type == MIDDLEMOUSE && event->val == KM_PRESS) {
 		// Use customData pointer to signal warp direction
-		if	(t->customData == NULL)
-			t->customData = (void*)1;
+		if (t->customData == NULL)
+			t->customData = (void *)1;
 		else
 			t->customData = NULL;
 		
@@ -2465,7 +2451,7 @@ int handleEventShear(TransInfo *t, wmEvent *event)
 	
 	if (event->type == MIDDLEMOUSE && event->val == KM_PRESS) {
 		// Use customData pointer to signal Shear direction
-		if	(t->customData == NULL) {
+		if (t->customData == NULL) {
 			initMouseInputMode(t, &t->mouse, INPUT_VERTICAL_ABSOLUTE);
 			t->customData = (void*)1;
 		}
@@ -5452,10 +5438,10 @@ static void doAnimEdit_SnapFrame(TransInfo *t, TransData *td, TransData2D *td2d,
 	/* snap key to nearest frame? */
 	if (autosnap == SACTSNAP_FRAME) {
 
-#if 0   /* 'doTime' disabled for now */
+#if 0   /* 'do_time' disabled for now */
 
 		const Scene *scene= t->scene;
-		const short doTime= 0; //getAnimEdit_DrawTime(t); // NOTE: this works, but may be confusing behavior given the option's label, hence disabled
+		const short do_time= 0; //getAnimEdit_DrawTime(t); // NOTE: this works, but may be confusing behavior given the option's label, hence disabled
 		const double secf= FPS;
 #endif
 		double val;
@@ -5466,10 +5452,10 @@ static void doAnimEdit_SnapFrame(TransInfo *t, TransData *td, TransData2D *td2d,
 		else
 			val= *(td->val);
 		
-#if 0	/* 'doTime' disabled for now */
+#if 0	/* 'do_time' disabled for now */
 
 		/* do the snapping to nearest frame/second */
-		if (doTime) {
+		if (do_time) {
 			val= (float)(floor((val/secf) + 0.5f) * secf);
 		}
 		else
@@ -5554,19 +5540,19 @@ static void headerTimeTranslate(TransInfo *t, char *str)
 	else {
 		const Scene *scene = t->scene;
 		const short autosnap= getAnimEdit_SnapMode(t);
-		const short doTime = getAnimEdit_DrawTime(t);
+		const short do_time = getAnimEdit_DrawTime(t);
 		const double secf= FPS;
 		float val = t->values[0];
 		
 		/* apply snapping + frame->seconds conversions */
 		if (autosnap == SACTSNAP_STEP) {
-			if (doTime)
+			if (do_time)
 				val= floorf((double)val/secf + 0.5f);
 			else
 				val= floorf(val + 0.5f);
 		}
 		else {
-			if (doTime)
+			if (do_time)
 				val= (float)((double)val / secf);
 		}
 		
@@ -5586,7 +5572,7 @@ static void applyTimeTranslate(TransInfo *t, float UNUSED(sval))
 	Scene *scene = t->scene;
 	int i;
 
-	const short doTime= getAnimEdit_DrawTime(t);
+	const short do_time= getAnimEdit_DrawTime(t);
 	const double secf= FPS;
 
 	const short autosnap= getAnimEdit_SnapMode(t);
@@ -5608,7 +5594,7 @@ static void applyTimeTranslate(TransInfo *t, float UNUSED(sval))
 			deltax = t->values[0];
 
 			if (autosnap == SACTSNAP_STEP) {
-				if (doTime)
+				if (do_time)
 					deltax= (float)(floor((deltax/secf) + 0.5f) * secf);
 				else
 					deltax= (float)(floor(deltax + 0.5f));
@@ -5622,7 +5608,7 @@ static void applyTimeTranslate(TransInfo *t, float UNUSED(sval))
 			deltax = val = t->values[0];
 
 			if (autosnap == SACTSNAP_STEP) {
-				if (doTime)
+				if (do_time)
 					val= (float)(floor((deltax/secf) + 0.5f) * secf);
 				else
 					val= (float)(floor(val + 0.5f));
@@ -5860,7 +5846,7 @@ static void applyTimeScale(TransInfo *t)
 	int i;
 
 	const short autosnap= getAnimEdit_SnapMode(t);
-	const short doTime= getAnimEdit_DrawTime(t);
+	const short do_time= getAnimEdit_DrawTime(t);
 	const double secf= FPS;
 
 
@@ -5874,7 +5860,7 @@ static void applyTimeScale(TransInfo *t)
 		float fac= t->values[0];
 
 		if (autosnap == SACTSNAP_STEP) {
-			if (doTime)
+			if (do_time)
 				fac= (float)(floor(fac/secf + 0.5f) * secf);
 			else
 				fac= (float)(floor(fac + 0.5f));

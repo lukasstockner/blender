@@ -247,7 +247,7 @@ void set_active_action_group(bAction *act, bActionGroup *agrp, short select)
 	for (grp = act->groups.first; grp; grp = grp->next) {
 		if ((grp == agrp) && (select))
 			grp->flag |= AGRP_ACTIVE;
-		else	
+		else
 			grp->flag &= ~AGRP_ACTIVE;
 	}
 }
@@ -574,7 +574,7 @@ void BKE_pose_channels_hash_make(bPose *pose)
 	if (!pose->chanhash) {
 		bPoseChannel *pchan;
 
-		pose->chanhash = BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp, "make_pose_chan gh");
+		pose->chanhash = BLI_ghash_str_new("make_pose_chan gh");
 		for (pchan = pose->chanbase.first; pchan; pchan = pchan->next)
 			BLI_ghash_insert(pose->chanhash, pchan->name, pchan);
 	}
@@ -958,7 +958,7 @@ short action_get_item_transforms(bAction *act, Object *ob, bPoseChannel *pchan, 
 		RNA_pointer_create((ID *)ob, &RNA_PoseBone, pchan, &ptr);
 	else if (ob)
 		RNA_id_pointer_create((ID *)ob, &ptr);
-	else	
+	else
 		return 0;
 		
 	/* get the basic path to the properties of interest */

@@ -1392,7 +1392,7 @@ static int node_get_deplist_recurs(bNode *node, bNode ***nsort)
 	bNodeSocket *sock;
 	int level = 0xFFF;
 	
-	node->done= 1;
+	node->done = TRUE;
 	
 	/* check linked nodes */
 	for (sock= node->inputs.first; sock; sock= sock->next) {
@@ -1431,7 +1431,7 @@ void ntreeGetDependencyList(struct bNodeTree *ntree, struct bNode ***deplist, in
 	
 	/* first clear data */
 	for (node= ntree->nodes.first; node; node= node->next) {
-		node->done= 0;
+		node->done = FALSE;
 		(*totnodes)++;
 	}
 	if (*totnodes==0) {
@@ -1456,7 +1456,7 @@ static void ntree_update_node_level(bNodeTree *ntree)
 	
 	/* first clear tag */
 	for (node= ntree->nodes.first; node; node= node->next) {
-		node->done= 0;
+		node->done = FALSE;
 	}
 	
 	/* recursive check */
@@ -1930,6 +1930,13 @@ static void registerCompositNodes(bNodeTreeType *ttype)
 	register_node_type_cmp_transform(ttype);
 	register_node_type_cmp_stabilize2d(ttype);
 	register_node_type_cmp_moviedistortion(ttype);
+
+	register_node_type_cmp_colorcorrection(ttype);
+	register_node_type_cmp_boxmask(ttype);
+	register_node_type_cmp_ellipsemask(ttype);
+	register_node_type_cmp_bokehimage(ttype);
+	register_node_type_cmp_bokehblur(ttype);
+	register_node_type_cmp_switch(ttype);
 }
 
 static void registerShaderNodes(bNodeTreeType *ttype) 

@@ -1302,7 +1302,7 @@ static int composite_needs_render(Scene *sce, int this_scene)
 	bNode *node;
 	
 	if (ntree==NULL) return 1;
-	if (sce->use_nodes==0) return 1;
+	if (sce->use_nodes == FALSE) return 1;
 	if ((sce->r.scemode & R_DOCOMP)==0) return 1;
 	
 	for (node= ntree->nodes.first; node; node= node->next) {
@@ -1432,7 +1432,7 @@ static void do_merge_fullsample(Render *re, bNodeTree *ntree)
 			ntreeCompositTagRender(re->scene);
 			ntreeCompositTagAnimated(ntree);
 			
-			ntreeCompositExecTree(ntree, &re->r, G.background==0);
+			ntreeCompositExecTree(ntree, &re->r, 1, G.background==0);
 		}
 		
 		/* ensure we get either composited result or the active layer */
@@ -1596,7 +1596,7 @@ static void do_render_composite_fields_blur_3d(Render *re)
 				if (re->r.scemode & R_FULL_SAMPLE)
 					do_merge_fullsample(re, ntree);
 				else {
-					ntreeCompositExecTree(ntree, &re->r, G.background==0);
+					ntreeCompositExecTree(ntree, &re->r, 1, G.background==0);
 				}
 				
 				ntree->stats_draw= NULL;
@@ -2074,18 +2074,18 @@ static int do_write_image_or_movie(Render *re, Main *bmain, Scene *scene, bMovie
 
 	/* write movie or image */
 	if (BKE_imtype_is_movie(scene->r.im_format.imtype)) {
-		int dofree = 0;
+		int do_free = FALSE;
 		unsigned int *rect32 = (unsigned int *)rres.rect32;
 		/* note; the way it gets 32 bits rects is weak... */
 		if (rres.rect32 == NULL) {
 			rect32 = MEM_mapallocN(sizeof(int)*rres.rectx*rres.recty, "temp 32 bits rect");
 			RE_ResultGet32(re, rect32);
-			dofree = 1;
+			do_free = TRUE;
 		}
 
 		ok= mh->append_movie(&re->r, scene->r.sfra, scene->r.cfra, (int *)rect32,
 		                     rres.rectx, rres.recty, re->reports);
-		if (dofree) {
+		if (do_free) {
 			MEM_freeN(rect32);
 		}
 		printf("Append frame %d", scene->r.cfra);

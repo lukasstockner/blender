@@ -405,7 +405,7 @@ static void do_lasso_select_mesh__doSelectEdge(void *userData, BMEdge *eed, int 
 			    BLI_lasso_is_point_inside(data->mcords, data->moves, x1, y1, IS_CLIPPED))
 			{
 				BM_edge_select_set(data->vc->em->bm, eed, data->select);
-				data->done = 1;
+				data->done = TRUE;
 			}
 		}
 		else {
@@ -443,7 +443,7 @@ static void do_lasso_select_mesh(ViewContext *vc, int mcords[][2], short moves, 
 	data.mcords = mcords;
 	data.moves = moves;
 	data.select = select;
-	data.done = 0;
+	data.done = FALSE;
 	data.pass = 0;
 
 	if (extend == 0 && select)
@@ -827,22 +827,10 @@ static void view3d_lasso_select(bContext *C, ViewContext *vc, int mcords[][2], s
 static int view3d_lasso_select_exec(bContext *C, wmOperator *op)
 {
 	ViewContext vc;
-	int i = 0;
-	int mcords[1024][2];
-
-	RNA_BEGIN (op->ptr, itemptr, "path")
-	{
-		float loc[2];
-		
-		RNA_float_get_array(&itemptr, "loc", loc);
-		mcords[i][0] = (int)loc[0];
-		mcords[i][1] = (int)loc[1];
-		i++;
-		if (i >= 1024) break;
-	}
-	RNA_END;
+	int mcords_tot;
+	int (*mcords)[2] = WM_gesture_lasso_path_to_array(C, op, &mcords_tot);
 	
-	if (i > 1) {
+	if (mcords) {
 		short extend, select;
 		view3d_operator_needs_opengl(C);
 		
@@ -851,8 +839,10 @@ static int view3d_lasso_select_exec(bContext *C, wmOperator *op)
 		
 		extend = RNA_boolean_get(op->ptr, "extend");
 		select = !RNA_boolean_get(op->ptr, "deselect");
-		view3d_lasso_select(C, &vc, mcords, i, extend, select);
+		view3d_lasso_select(C, &vc, mcords, mcords_tot, extend, select);
 		
+		MEM_freeN(mcords);
+
 		return OPERATOR_FINISHED;
 	}
 	return OPERATOR_PASS_THROUGH;
@@ -1190,19 +1180,19 @@ static Base *mouse_select_eval_buffer(ViewContext *vc, unsigned int *buffer, int
 	View3D *v3d = vc->v3d;
 	Base *base, *basact = NULL;
 	static int lastmval[2] = {-100, -100};
-	int a, donearest = 0;
+	int a, do_nearest = FALSE;
 	
 	/* define if we use solid nearest select or not */
 	if (v3d->drawtype > OB_WIRE) {
-		donearest = 1;
+		do_nearest = TRUE;
 		if (ABS(mval[0] - lastmval[0]) < 3 && ABS(mval[1] - lastmval[1]) < 3) {
 			if (!has_bones) /* hrms, if theres bones we always do nearest */
-				donearest = 0;
+				do_nearest = FALSE;
 		}
 	}
 	lastmval[0] = mval[0]; lastmval[1] = mval[1];
 	
-	if (donearest) {
+	if (do_nearest) {
 		unsigned int min = 0xFFFFFFFF;
 		int selcol = 0, notcol = 0;
 		
@@ -1633,7 +1623,7 @@ static void do_mesh_box_select__doSelectEdge(void *userData, BMEdge *eed, int x0
 		if (data->pass == 0) {
 			if (edge_fully_inside_rect(data->rect, x0, y0, x1, y1)) {
 				BM_edge_select_set(data->vc->em->bm, eed, data->select);
-				data->done = 1;
+				data->done = TRUE;
 			}
 		}
 		else {
@@ -1661,7 +1651,7 @@ static int do_mesh_box_select(ViewContext *vc, rcti *rect, int select, int exten
 	data.rect = rect;
 	data.select = select;
 	data.pass = 0;
-	data.done = 0;
+	data.done = FALSE;
 
 	if (extend == 0 && select)
 		EDBM_flag_disable_all(vc->em, BM_ELEM_SELECT);

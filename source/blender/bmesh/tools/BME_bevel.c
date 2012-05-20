@@ -72,7 +72,7 @@ BME_TransData_Head *BME_init_transdata(int bufsize)
 	BME_TransData_Head *td;
 
 	td = MEM_callocN(sizeof(BME_TransData_Head), "BM transdata header");
-	td->gh = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "BME_init_transdata gh");
+	td->gh = BLI_ghash_ptr_new("BME_init_transdata gh");
 	td->ma = BLI_memarena_new(bufsize, "BME_TransData arena");
 	BLI_memarena_use_calloc(td->ma);
 
@@ -155,9 +155,9 @@ static void BME_Bevel_Dissolve_Disk(BMesh *bm, BMVert *v)
 	int done;
 
 	if (v->e) {
-		done = 0;
+		done = FALSE;
 		while (!done) {
-			done = 1;
+			done = TRUE;
 			e = v->e; /*loop the edge looking for a edge to dissolve*/
 			do {
 				f = NULL;
@@ -165,7 +165,7 @@ static void BME_Bevel_Dissolve_Disk(BMesh *bm, BMVert *v)
 					f = bmesh_jfke(bm, e->l->f, e->l->radial_next->f, e);
 				}
 				if (f) {
-					done = 0;
+					done = FALSE;
 					break;
 				}
 				e = bmesh_disk_edge_next(e, v);

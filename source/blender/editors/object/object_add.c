@@ -735,7 +735,7 @@ static int object_lamp_add_exec(bContext *C, wmOperator *op)
 
 	if (BKE_scene_use_new_shading_nodes(scene)) {
 		ED_node_shader_default(scene, &la->id);
-		la->use_nodes = 1;
+		la->use_nodes = TRUE;
 	}
 	
 	return OPERATOR_FINISHED;
@@ -901,7 +901,7 @@ static int object_delete_exec(bContext *C, wmOperator *op)
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	const short use_global = RNA_boolean_get(op->ptr, "use_global");
-	/* int islamp= 0; */ /* UNUSED */
+	/* int is_lamp = FALSE; */ /* UNUSED */
 	
 	if (CTX_data_edit_object(C)) 
 		return OPERATOR_CANCELLED;
@@ -909,7 +909,7 @@ static int object_delete_exec(bContext *C, wmOperator *op)
 	CTX_DATA_BEGIN (C, Base *, base, selected_bases)
 	{
 
-		/* if (base->object->type==OB_LAMP) islamp= 1; */
+		/* if (base->object->type==OB_LAMP) is_lamp = TRUE; */
 
 		/* deselect object -- it could be used in other scenes */
 		base->object->flag &= ~SELECT;
@@ -1067,8 +1067,8 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 	lb = object_duplilist(scene, base->object);
 
 	if (use_hierarchy || use_base_parent) {
-		dupli_gh = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "make_object_duplilist_real dupli_gh");
-		parent_gh = BLI_ghash_new(BLI_ghashutil_pairhash, BLI_ghashutil_paircmp, "make_object_duplilist_real parent_gh");
+		dupli_gh = BLI_ghash_ptr_new("make_object_duplilist_real dupli_gh");
+		parent_gh = BLI_ghash_pair_new("make_object_duplilist_real parent_gh");
 	}
 	
 	for (dob = lb->first; dob; dob = dob->next) {

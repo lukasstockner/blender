@@ -140,7 +140,7 @@ typedef struct VolumeGrid {
 	int *s_pos; /* (x*y*z) t_index begin id */
 	int *s_num; /* (x*y*z) number of t_index points */
 	int *t_index; /* actual surface point index,
-	                       access: (s_pos+s_num) */
+	               * access: (s_pos+s_num) */
 } VolumeGrid;
 
 typedef struct Vec3f {
@@ -192,7 +192,7 @@ typedef struct PaintUVPoint {
 	unsigned int v1, v2, v3;                /* vertex indexes */
 
 	unsigned int neighbour_pixel;   /* If this pixel isn't uv mapped to any face,
-	                                   but it's neighboring pixel is */
+	                                 * but it's neighboring pixel is */
 	short quad;
 } PaintUVPoint;
 
@@ -205,9 +205,9 @@ typedef struct ImgSeqFormatData {
 #define ADJ_ON_MESH_EDGE (1 << 0)
 
 typedef struct PaintAdjData {
-	int *n_target;      /* array of neighboring point indexes,
-	                               for single sample use (n_index+neigh_num) */
-	int *n_index;       /* index to start reading n_target for each point */
+	int *n_target;  /* array of neighboring point indexes,
+	                 * for single sample use (n_index + neigh_num) */
+	int *n_index;   /* index to start reading n_target for each point */
 	int *n_num;     /* num of neighs for each point */
 	int *flags;     /* vertex adjacency flags */
 	int total_targets; /* size of n_target */
@@ -259,7 +259,8 @@ int dynamicPaint_surfaceHasColorPreview(DynamicPaintSurface *surface)
 }
 
 /* get currently active surface (in user interface) */
-struct DynamicPaintSurface *get_activeSurface(DynamicPaintCanvasSettings *canvas){
+DynamicPaintSurface *get_activeSurface(DynamicPaintCanvasSettings *canvas)
+{
 	DynamicPaintSurface *surface = canvas->surfaces.first;
 	int i;
 
@@ -275,12 +276,12 @@ struct DynamicPaintSurface *get_activeSurface(DynamicPaintCanvasSettings *canvas
 void dynamicPaint_resetPreview(DynamicPaintCanvasSettings *canvas)
 {
 	DynamicPaintSurface *surface = canvas->surfaces.first;
-	int done = 0;
+	int done = FALSE;
 
 	for (; surface; surface = surface->next) {
 		if (!done && dynamicPaint_surfaceHasColorPreview(surface)) {
 			surface->flags |= MOD_DPAINT_PREVIEW;
-			done = 1;
+			done = TRUE;
 		}
 		else
 			surface->flags &= ~MOD_DPAINT_PREVIEW;
@@ -574,16 +575,16 @@ static int surface_getBrushFlags(DynamicPaintSurface *surface, Scene *scene)
 		brushObj = NULL;
 
 		/* select object */
-		if (surface->brush_group) {						
+		if (surface->brush_group) {
 			if (go->ob) brushObj = go->ob;
-		}					
-		else						
+		}
+		else
 			brushObj = base->object;
 
 		if (!brushObj) {
 			if (surface->brush_group) go = go->next;
 			else base = base->next;
-			continue;			
+			continue;
 		}
 
 		if (surface->brush_group)
@@ -993,7 +994,8 @@ void dynamicPaint_Modifier_free(struct DynamicPaintModifierData *pmd)
  * If scene is null, frame range of 1-250 is used
  * A pointer to this surface is returned
  */
-struct DynamicPaintSurface *dynamicPaint_createNewSurface(DynamicPaintCanvasSettings *canvas, Scene *scene){
+DynamicPaintSurface *dynamicPaint_createNewSurface(DynamicPaintCanvasSettings *canvas, Scene *scene)
+{
 	DynamicPaintSurface *surface = MEM_callocN(sizeof(DynamicPaintSurface), "DynamicPaintSurface");
 	if (!surface) return NULL;
 
@@ -1594,9 +1596,10 @@ static void dynamicPaint_applySurfaceDisplace(DynamicPaintSurface *surface, Deri
 /*
  *	Apply canvas data to the object derived mesh
  */
-static struct DerivedMesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd,
-                                                       Object *ob,
-                                                       DerivedMesh *dm){
+struct DerivedMesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd,
+                                                Object *ob,
+                                                DerivedMesh *dm)
+{
 	DerivedMesh *result = CDDM_copy(dm);
 
 	if (pmd->canvas && !(pmd->canvas->flags & MOD_DPAINT_BAKING)) {
@@ -1901,7 +1904,8 @@ static void dynamicPaint_frameUpdate(DynamicPaintModifierData *pmd, Scene *scene
 }
 
 /* Modifier call. Processes dynamic paint modifier step. */
-struct DerivedMesh *dynamicPaint_Modifier_do(DynamicPaintModifierData *pmd, Scene *scene, Object *ob, DerivedMesh *dm){
+DerivedMesh *dynamicPaint_Modifier_do(DynamicPaintModifierData *pmd, Scene *scene, Object *ob, DerivedMesh *dm)
+{
 	/* For now generate tessfaces in every case
 	 *  XXX - move/remove when most of dpaint functions are converted to use bmesh types */
 	DM_ensure_tessface(dm);
@@ -2540,8 +2544,8 @@ int dynamicPaint_createUVSurface(DynamicPaintSurface *surface)
 
 #if 0
 		/*  -----------------------------------------------------------------
-		*	For debug, output pixel statuses to the color map
-		*	-----------------------------------------------------------------*/
+		 *	For debug, output pixel statuses to the color map
+		 *	-----------------------------------------------------------------*/
 		#pragma omp parallel for schedule(static)
 		for (index = 0; index < sData->total_points; index++)
 		{
@@ -3293,7 +3297,7 @@ static int dynamicPaint_paintMesh(DynamicPaintSurface *surface,
 										int f_index = hit.index;
 
 										/* Also cast a ray in opposite direction to make sure
-										*  point is at least surrounded by two brush faces */
+										 * point is at least surrounded by two brush faces */
 										negate_v3(ray_dir);
 										hit.index = -1;
 										hit.dist = 9999;
@@ -3565,7 +3569,7 @@ static int dynamicPaint_paintParticles(DynamicPaintSurface *surface,
 	tree = BLI_kdtree_new(psys->totpart);
 
 	/* loop through particles and insert valid ones	to the tree	*/
-	for (p = 0, pa = psys->particles; p < psys->totpart; p++, pa++)   {
+	for (p = 0, pa = psys->particles; p < psys->totpart; p++, pa++) {
 
 		/* Proceed only if particle is active	*/
 		if (pa->alive == PARS_UNBORN && (part->flag & PART_UNBORN) == 0) continue;
@@ -4801,17 +4805,17 @@ static int dynamicPaint_doStep(Scene *scene, Object *ob, DynamicPaintSurface *su
 		while (base || go) {
 			brushObj = NULL;
 			/* select object */
-			if (surface->brush_group) {						
+			if (surface->brush_group) {
 				if (go->ob) brushObj = go->ob;
-			}					
-			else						
+			}
+			else
 				brushObj = base->object;
 
-			if (!brushObj) {			
+			if (!brushObj) {
 				/* skip item */
 				if (surface->brush_group) go = go->next;
 				else base = base->next;
-				continue;			
+				continue;
 			}
 
 			/* next item */

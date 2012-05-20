@@ -1045,7 +1045,7 @@ void subsurf_copy_grid_hidden(DerivedMesh *dm, const MPoly *mpoly,
 }
 
 /* Translate GridPaintMask into vertex paint masks. Assumes vertices
-   are in the order output by ccgDM_copyFinalVertArray. */
+ * are in the order output by ccgDM_copyFinalVertArray. */
 void subsurf_copy_grid_paint_mask(DerivedMesh *dm, const MPoly *mpoly,
                                   float *paint_mask,
                                   const GridPaintMask *grid_paint_mask)
@@ -1788,12 +1788,12 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	int gridFaces = gridSize - 1;
 	int edgeSize = ccgSubSurf_getEdgeSize(ss);
 	DMFlagMat *faceFlags = ccgdm->faceFlags;
-	int a, b, i, doDraw, numVerts, matnr, new_matnr, totface;
+	int a, b, i, do_draw, numVerts, matnr, new_matnr, totface;
 
 	CCG_key_top_level(&key, ss);
 	ccgdm_pbvh_update(ccgdm);
 
-	doDraw = 0;
+	do_draw = 0;
 	matnr = -1;
 
 #define PASSATTRIB(dx, dy, vert) {                                            \
@@ -1816,7 +1816,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		float *tang = attribs.tang.array[a * 4 + vert];                       \
 		glVertexAttrib4fvARB(attribs.tang.gl_index, tang);                    \
 	}                                                                         \
-}
+} (void)0
 
 	totface = ccgSubSurf_getNumFaces(ss);
 	for (a = 0, i = 0; i < totface; i++) {
@@ -1837,12 +1837,12 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		}
 
 		if (new_matnr != matnr) {
-			doDraw = setMaterial(matnr = new_matnr, &gattribs);
-			if (doDraw)
+			do_draw = setMaterial(matnr = new_matnr, &gattribs);
+			if (do_draw)
 				DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
 		}
 
-		if (!doDraw || (setDrawOptions && (origIndex != ORIGINDEX_NONE) &&
+		if (!do_draw || (setDrawOptions && (origIndex != ORIGINDEX_NONE) &&
 		                (setDrawOptions(userData, origIndex) == DM_DRAW_OPTION_SKIP)))
 		{
 			a += gridFaces * gridFaces * numVerts;
@@ -1972,7 +1972,7 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 		float *tang = attribs.tang.array[a * 4 + vert];                       \
 		glVertexAttrib4fvARB(attribs.tang.gl_index, tang);                    \
 	}                                                                         \
-}
+} (void)0
 
 	totface = ccgSubSurf_getNumFaces(ss);
 	for (a = 0, i = 0; i < totface; i++) {

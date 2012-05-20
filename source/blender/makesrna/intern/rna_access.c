@@ -74,7 +74,7 @@ void RNA_init(void)
 
 	for (srna = BLENDER_RNA.structs.first; srna; srna = srna->cont.next) {
 		if (!srna->cont.prophash) {
-			srna->cont.prophash = BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp, "RNA_init gh");
+			srna->cont.prophash = BLI_ghash_str_new("RNA_init gh");
 
 			for (prop = srna->cont.properties.first; prop; prop = prop->next)
 				if (!(prop->flag & PROP_BUILTIN))
@@ -701,7 +701,8 @@ FunctionRNA *RNA_struct_find_function(PointerRNA *ptr, const char *identifier)
 #endif
 }
 
-const struct ListBase *RNA_struct_type_functions(StructRNA *srna){
+const ListBase *RNA_struct_type_functions(StructRNA *srna)
+{
 	return &srna->functions;
 }
 
@@ -4851,7 +4852,8 @@ PropertyRNA *RNA_function_find_parameter(PointerRNA *UNUSED(ptr), FunctionRNA *f
 	return BLI_findstring(&func->cont.properties, identifier, offsetof(PropertyRNA, identifier));
 }
 
-const struct ListBase *RNA_function_defined_parameters(FunctionRNA *func){
+const ListBase *RNA_function_defined_parameters(FunctionRNA *func)
+{
 	return &func->cont.properties;
 }
 

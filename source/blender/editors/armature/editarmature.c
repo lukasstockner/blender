@@ -3325,9 +3325,9 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 	for (ebone = arm->edbo->first; ((ebone) && (ebone != first)); ebone = ebone->next) {
 		if (EBONE_VISIBLE(arm, ebone)) {
 			/* we extrude per definition the tip */
-			do_extrude = 0;
+			do_extrude = FALSE;
 			if (ebone->flag & (BONE_TIPSEL | BONE_SELECTED))
-				do_extrude = 1;
+				do_extrude = TRUE;
 			else if (ebone->flag & BONE_ROOTSEL) {
 				/* but, a bone with parent deselected we do the root... */
 				if (ebone->parent && (ebone->parent->flag & BONE_TIPSEL)) ;
@@ -3361,7 +3361,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 					totbone++;
 					newbone = MEM_callocN(sizeof(EditBone), "extrudebone");
 					
-					if (do_extrude == 1) {
+					if (do_extrude == TRUE) {
 						copy_v3_v3(newbone->head, ebone->tail);
 						copy_v3_v3(newbone->tail, newbone->head);
 						newbone->parent = ebone;
@@ -3653,7 +3653,7 @@ static int armature_switch_direction_exec(bContext *C, wmOperator *UNUSED(op))
 				ebo->parent = child;
 				if ((child) && equals_v3v3(ebo->head, child->tail))
 					ebo->flag |= BONE_CONNECTED;
-				else	
+				else
 					ebo->flag &= ~BONE_CONNECTED;
 				
 				/* get next bones 
@@ -5945,7 +5945,7 @@ void generateSkeletonFromReebGraph(Scene *scene, ReebGraph *rg)
 	
 	ED_armature_to_edit(obedit);
 
-	arcBoneMap = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "SkeletonFromReebGraph gh");
+	arcBoneMap = BLI_ghash_ptr_new("SkeletonFromReebGraph gh");
 	
 	BLI_markdownSymmetry((BGraph *)rg, rg->nodes.first, scene->toolsettings->skgen_symmetry_limit);
 	

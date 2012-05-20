@@ -980,9 +980,9 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	DMVertexAttribs attribs;
 	GPUVertexAttribs gattribs;
 
-	int i, b, matnr, new_matnr, dodraw;
+	int i, b, matnr, new_matnr, do_draw;
 
-	dodraw = 0;
+	do_draw = FALSE;
 	matnr = -1;
 
 	memset(&attribs, 0, sizeof(attribs));
@@ -1012,7 +1012,7 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 			float *tang = attribs.tang.array[i * 4 + vert];                         \
 			glVertexAttrib3fvARB(attribs.tang.gl_index, tang);                      \
 		}                                                                           \
-}
+	} (void)0
 
 
 	for (i = 0, ltri = em->looptris[0]; i < em->tottri; i++, ltri += 3) {
@@ -1026,12 +1026,12 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 
 		new_matnr = efa->mat_nr + 1;
 		if (new_matnr != matnr) {
-			dodraw = setMaterial(matnr = new_matnr, &gattribs);
-			if (dodraw)
+			do_draw = setMaterial(matnr = new_matnr, &gattribs);
+			if (do_draw)
 				DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
 		}
 
-		if (dodraw) {
+		if (do_draw) {
 			glBegin(GL_TRIANGLES);
 			if (!drawSmooth) {
 				if (vertexCos) glNormal3fv(bmdm->polyNos[BM_elem_index_get(efa)]);
@@ -1141,7 +1141,7 @@ static void emDM_drawMappedFacesMat(DerivedMesh *dm,
 			float *tang = attribs.tang.array[i * 4 + vert];                         \
 			glVertexAttrib4fvARB(attribs.tang.gl_index, tang);                      \
 		}                                                                           \
-}
+	} (void)0
 
 	for (i = 0, ltri = em->looptris[0]; i < em->tottri; i++, ltri += 3) {
 		int drawSmooth;

@@ -1967,7 +1967,7 @@ static void drawlattice(Scene *scene, View3D *v3d, Object *ob)
 	Lattice *lt = ob->data;
 	DispList *dl;
 	int u, v, w;
-	int use_wcol = 0, is_edit = (lt->editlatt != NULL);
+	int use_wcol = FALSE, is_edit = (lt->editlatt != NULL);
 
 	/* now we default make displist, this will modifiers work for non animated case */
 	if (ob->disp.first == NULL)
@@ -2951,6 +2951,7 @@ static void draw_em_measure_stats(View3D *v3d, Object *ob, BMEditMesh *em, UnitS
 
 	if (me->drawflag & ME_DRAWEXTRA_FACEANG) {
 		BMFace *efa;
+		int is_rad = unit->system_rotation == USER_UNIT_ROT_RADIANS;
 
 		UI_GetThemeColor3ubv(TH_DRAWEXTRA_FACEANG, col);
 
@@ -2961,37 +2962,41 @@ static void draw_em_measure_stats(View3D *v3d, Object *ob, BMEditMesh *em, UnitS
 			if (is_face_sel || do_moving) {
 				BMIter liter;
 				BMLoop *loop;
-				int cent_ok = FALSE;
+				int is_first = TRUE;
 
 				BM_ITER_ELEM(loop, &liter, efa, BM_LOOPS_OF_FACE) {
 					if (is_face_sel || (do_moving && BM_elem_flag_test(loop->v, BM_ELEM_SELECT))) {
-						/* yes, we should avoid triple matrix multiply every vertex for 'global' */
 						float angle;
 
 						/* lazy init center calc */
-						if (cent_ok == FALSE) {
+						if (is_first) {
 							BM_face_calc_center_bounds(efa, vmid);
-							cent_ok = TRUE;
+							/* Avoid triple matrix multiply every vertex for 'global' */
+							if (do_global) {
+								copy_v3_v3(v1, loop->prev->v->co);
+								copy_v3_v3(v2, loop->v->co);
+								mul_mat3_m4_v3(ob->obmat, v1);
+								mul_mat3_m4_v3(ob->obmat, v2);
+							}
+							is_first = FALSE;
 						}
 
 						if (do_global) {
-							copy_v3_v3(v1, loop->prev->v->co);
-							copy_v3_v3(v2, loop->v->co);
 							copy_v3_v3(v3, loop->next->v->co);
 
-							mul_mat3_m4_v3(ob->obmat, v1);
-							mul_mat3_m4_v3(ob->obmat, v2);
 							mul_mat3_m4_v3(ob->obmat, v3);
 
 							angle = angle_v3v3v3(v1, v2, v3);
 							interp_v3_v3v3(fvec, vmid, v2, 0.8f);
+							copy_v3_v3(v1, v2);
+							copy_v3_v3(v2, v3);
 						}
 						else {
-							angle = angle_v3v3v3(loop->prev->v->co, loop->v->co, loop->v->co);
+							angle = angle_v3v3v3(loop->prev->v->co, loop->v->co, loop->next->v->co);
 							interp_v3_v3v3(fvec, vmid, loop->v->co, 0.8f);
 						}
 
-						BLI_snprintf(numstr, sizeof(numstr), "%.3f", RAD2DEGF(angle));
+						BLI_snprintf(numstr, sizeof(numstr), "%.3f", is_rad ? angle : RAD2DEGF(angle));
 						view3d_cached_text_draw_add(fvec, numstr, 0, txt_flag, col);
 					}
 				}
@@ -3543,7 +3548,7 @@ static int draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	Object *obedit = scene->obedit;
 	Mesh *me = ob->data;
 	BMEditMesh *em = me->edit_btmesh;
-	int do_alpha_after = 0, drawlinked = 0, retval = 0, glsl, check_alpha, i;
+	int do_alpha_after = FALSE, drawlinked = 0, retval = 0, glsl, check_alpha, i;
 
 	/* If we are drawing shadows and any of the materials don't cast a shadow,
 	 * then don't draw the object */
@@ -3586,7 +3591,7 @@ static int draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	}
 	else {
 		/* ob->bb was set by derived mesh system, do NULL check just to be sure */
-		if (me->totpoly <= 4 || (ob->bb && ED_view3d_boundbox_clip(rv3d, ob->obmat, ob->bb))) {
+		if (me->totpoly <= 4 || (!ob->bb || ED_view3d_boundbox_clip(rv3d, ob->obmat, ob->bb))) {
 			glsl = draw_glsl_material(scene, ob, v3d, dt);
 			check_alpha = check_alpha_pass(base);
 
@@ -3603,19 +3608,21 @@ static int draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 		}
 	}
 	
-	/* GPU_begin_object_materials checked if this is needed */
-	if (do_alpha_after) {
-		if (ob->dtx & OB_DRAWXRAY) {
-			add_view3d_after(&v3d->afterdraw_xraytransp, base, flag);
+	if ((flag & DRAW_PICKING) == 0 && (base->flag & OB_FROMDUPLI) == 0) {
+		/* GPU_begin_object_materials checked if this is needed */
+		if (do_alpha_after) {
+			if (ob->dtx & OB_DRAWXRAY) {
+				add_view3d_after(&v3d->afterdraw_xraytransp, base, flag);
+			}
+			else {
+				add_view3d_after(&v3d->afterdraw_transp, base, flag);
+			}
 		}
-		else {
-			add_view3d_after(&v3d->afterdraw_transp, base, flag);
-		}
-	}
-	else if (ob->dtx & OB_DRAWXRAY && ob->dtx & OB_DRAWTRANSP) {
-		/* special case xray+transp when alpha is 1.0, without this the object vanishes */
-		if (v3d->xray == 0 && v3d->transp == 0) {
-			add_view3d_after(&v3d->afterdraw_xray, base, flag);
+		else if (ob->dtx & OB_DRAWXRAY && ob->dtx & OB_DRAWTRANSP) {
+			/* special case xray+transp when alpha is 1.0, without this the object vanishes */
+			if (v3d->xray == 0 && v3d->transp == 0) {
+				add_view3d_after(&v3d->afterdraw_xray, base, flag);
+			}
 		}
 	}
 	

@@ -520,7 +520,8 @@ static float char_width(Curve *cu, VChar *che, CharInfo *info)
 	}
 }
 
-struct chartrans *BKE_vfont_to_curve(Main *bmain, Scene *scene, Object *ob, int mode){
+struct chartrans *BKE_vfont_to_curve(Main *bmain, Scene *scene, Object *ob, int mode)
+{
 	VFont *vfont, *oldvfont;
 	VFontData *vfd = NULL;
 	Curve *cu;
@@ -633,7 +634,7 @@ makebreak:
 		 * But if the font is FO_BUILTIN_NAME then do not try loading since
 		 * whole font is in the memory already
 		 */
-		if (che == NULL && strcmp(vfont->name, FO_BUILTIN_NAME))    {
+		if (che == NULL && strcmp(vfont->name, FO_BUILTIN_NAME)) {
 			BLI_vfontchar_from_freetypefont(vfont, ascii);
 		}
 

@@ -431,7 +431,7 @@ static void viewops_data_create(bContext *C, wmOperator *op, wmEvent *event)
 
 	if (vod->use_dyn_ofs) {
 		/* If there's no selection, lastofs is unmodified and last value since static */
-		calculateTransformCenter(C, V3D_CENTROID, lastofs);
+		calculateTransformCenter(C, V3D_CENTROID, lastofs, NULL);
 		negate_v3_v3(vod->dyn_ofs, lastofs);
 	}
 	else if (U.uiflag & USER_ORBIT_ZBUF) {
@@ -1423,7 +1423,8 @@ void viewzoom_modal_keymap(wmKeyConfig *keyconf)
 		{VIEWROT_MODAL_SWITCH_ROTATE, "SWITCH_TO_ROTATE", 0, "Switch to Rotate"},
 		{VIEWROT_MODAL_SWITCH_MOVE, "SWITCH_TO_MOVE", 0, "Switch to Move"},
 
-		{0, NULL, 0, NULL, NULL}};
+		{0, NULL, 0, NULL, NULL}
+	};
 
 	wmKeyMap *keymap = WM_modalkeymap_get(keyconf, "View3D Zoom Modal");
 
@@ -2050,7 +2051,7 @@ static int view3d_all_exec(bContext *C, wmOperator *op) /* was view3d_home() in 
 	int center = RNA_boolean_get(op->ptr, "center");
 
 	float size, min[3], max[3], afm[3];
-	int ok = 1, onedone = 0;
+	int ok = 1, onedone = FALSE;
 
 	if (center) {
 		/* in 2.4x this also move the cursor to (0, 0, 0) (with shift+c). */
@@ -2065,7 +2066,7 @@ static int view3d_all_exec(bContext *C, wmOperator *op) /* was view3d_home() in 
 
 	for (base = scene->base.first; base; base = base->next) {
 		if (BASE_VISIBLE(v3d, base)) {
-			onedone = 1;
+			onedone = TRUE;
 
 			if (skip_camera && base->object == v3d->camera) {
 				continue;

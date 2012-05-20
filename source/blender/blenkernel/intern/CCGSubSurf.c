@@ -2406,7 +2406,7 @@ static void ccgSubSurf__allFaces(CCGSubSurf *ss, CCGFace ***faces, int *numFaces
 	CCGFace **array;
 	int i, num;
 
-	if (!*faces) {
+	if (*faces == NULL) {
 		array = MEM_mallocN(sizeof(*array) * ss->fMap->numEntries, "CCGSubsurf allFaces");
 		num = 0;
 		for (i = 0; i < ss->fMap->curSize; i++) {
@@ -3127,7 +3127,7 @@ void CCG_key(CCGKey *key, const CCGSubSurf *ss, int level)
 	key->num_layers = ss->meshIFC.numLayers;
 	
 	/* if normals are present, always the last three floats of an
-	   element */
+	 * element */
 	if (key->has_normals)
 		key->normal_offset = key->elem_size - sizeof(float) * 3;
 	else

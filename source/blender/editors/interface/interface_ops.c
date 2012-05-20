@@ -368,7 +368,7 @@ static void UI_OT_reset_default_button(wmOperatorType *ot)
 
 static int copy_to_selected_list(bContext *C, PointerRNA *ptr, ListBase *lb, int *use_path)
 {
-	*use_path = 0;
+	*use_path = FALSE;
 
 	if (RNA_struct_is_a(ptr->type, &RNA_EditBone))
 		*lb = CTX_data_collection_get(C, "selected_editable_bones");
@@ -381,7 +381,7 @@ static int copy_to_selected_list(bContext *C, PointerRNA *ptr, ListBase *lb, int
 
 		if (id && GS(id->name) == ID_OB) {
 			*lb = CTX_data_collection_get(C, "selected_editable_objects");
-			*use_path = 1;
+			*use_path = TRUE;
 		}
 		else
 			return 0;
@@ -589,9 +589,7 @@ static void ui_editsource_active_but_set(uiBut *but)
 	ui_editsource_info = MEM_callocN(sizeof(uiEditSourceStore), __func__);
 	memcpy(&ui_editsource_info->but_orig, but, sizeof(uiBut));
 
-	ui_editsource_info->hash = BLI_ghash_new(BLI_ghashutil_ptrhash,
-	                                         BLI_ghashutil_ptrcmp,
-	                                         __func__);
+	ui_editsource_info->hash = BLI_ghash_ptr_new(__func__);
 }
 
 static void ui_editsource_active_but_clear(void)

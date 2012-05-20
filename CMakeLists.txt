@@ -103,8 +103,8 @@ enable_testing()
 #-----------------------------------------------------------------------------
 # Redirect output files
 
-set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin CACHE INTERNAL "" FORCE )
-set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib CACHE INTERNAL "" FORCE )
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin CACHE INTERNAL "" FORCE)
+set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib CACHE INTERNAL "" FORCE)
 
 #-----------------------------------------------------------------------------
 # Set default config options
@@ -291,8 +291,9 @@ if(APPLE)
 			message(STATUS "Setting compiler to: " ${CMAKE_XCODE_ATTRIBUTE_GCC_VERSION})
 		endif()
 	else() # unix makefile generator does not fill XCODE_VERSION var, so we get it with a command
-		execute_process(COMMAND xcodebuild -version OUTPUT_VARIABLE XCODE_VERS_BUILDNR )
-		STRING(SUBSTRING ${XCODE_VERS_BUILDNR} 6 3 XCODE_VERSION) # truncate away build-nr
+		execute_process(COMMAND xcodebuild -version OUTPUT_VARIABLE XCODE_VERS_BUILD_NR)
+		string(SUBSTRING "${XCODE_VERS_BUILD_NR}" 6 3 XCODE_VERSION) # truncate away build-nr
+		unset(XCODE_VERS_BUILD_NR)
 	endif()
 	
 	message(STATUS "Detected Xcode-version: " ${XCODE_VERSION})
@@ -837,6 +838,17 @@ elseif(WIN32)
 			set(GETTEXT_LIBPATH ${GETTEXT}/lib)
 			set(GETTEXT_LIBRARIES gnu_gettext)
 		endif()
+		
+		if(WITH_MOD_CLOTH_ELTOPO)
+			set(LAPACK ${LIBDIR}/lapack)
+			# set(LAPACK_INCLUDE_DIR ${LAPACK}/include)
+			set_lib_path(LAPACK_LIBPATH ${LAPACK}/lib)	
+			set(LAPACK_LIBRARIES
+				${LIBDIR}/lapack/lib/libf2c.lib
+				${LIBDIR}/lapack/lib/clapack_nowrap.lib
+				${LIBDIR}/lapack/lib/BLAS_nowrap.lib
+			)
+		endif()
 
 		set(PNG_LIBRARIES libpng)
 		set(JPEG_LIBRARIES libjpeg)
@@ -1011,8 +1023,10 @@ elseif(WIN32)
 		set(PLATFORM_CFLAGS "-pipe -funsigned-char -fno-strict-aliasing")
 
 		if(WITH_MINGW64)
-			#Yes, the point for MinGW64 is moar optimization by default :)
-			set(PLATFORM_CFLAGS "${PLATFORM_CFLAGS} -mmmx -msse -msse2 -ftree-vectorize")
+			#We need to take care though not to have these on debug builds because they may play funky with gdb
+			if(CMAKE_BUILD_TYPE MATCHES "Release")
+				set(PLATFORM_CFLAGS "${PLATFORM_CFLAGS} -mmmx -ftree-vectorize")
+			endif()
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
 			set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} -lpthread")
 			
@@ -1077,7 +1091,11 @@ elseif(WIN32)
 				${LIBDIR}/opencollada/include/GeneratedSaxParser/include
 			)
 			set(OPENCOLLADA_LIBPATH ${OPENCOLLADA}/lib ${OPENCOLLADA}/lib)
-			set(OPENCOLLADA_LIBRARIES OpenCOLLADAStreamWriter OpenCOLLADASaxFrameworkLoader OpenCOLLADAFramework OpenCOLLADABaseUtils GeneratedSaxParser UTF MathMLSolver pcre buffer ftoa xml)
+			if(WITH_MINGW64)
+				set(OPENCOLLADA_LIBRARIES OpenCOLLADAStreamWriter OpenCOLLADASaxFrameworkLoader OpenCOLLADAFramework OpenCOLLADABaseUtils GeneratedSaxParser UTF MathMLSolver pcre buffer ftoa xml)
+			else()
+				set(OPENCOLLADA_LIBRARIES OpenCOLLADAStreamWriter OpenCOLLADASaxFrameworkLoader OpenCOLLADAFramework OpenCOLLADABaseUtils GeneratedSaxParser UTF MathMLSolver expat pcre buffer ftoa)
+			endif()
 			set(PCRE_LIBRARIES pcre)
 		endif()
 
@@ -1169,13 +1187,13 @@ elseif(APPLE)
 	endif()
 
 	if(${XCODE_VERSION} VERSION_LESS 4.3)
-		SET(CMAKE_OSX_SYSROOT /Developer/SDKs/MacOSX${OSX_SYSTEM}.sdk CACHE PATH "" FORCE ) # use guaranteed existing sdk
+		set(CMAKE_OSX_SYSROOT /Developer/SDKs/MacOSX${OSX_SYSTEM}.sdk CACHE PATH "" FORCE)  # use guaranteed existing sdk
 	else()
 		# note: i don't use xcode-select path on purpose, cause also /Applications/Xcode.app would be allowed
 		# absolute pathes are more foolproof here !
-		SET(OSX_SYSROOT_PREFIX /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform)
-		SET(OSX_DEVELOPER_PREFIX /Developer/SDKs/MacOSX${OSX_SYSTEM}.sdk) # use guaranteed existing sdk
-		SET(CMAKE_OSX_SYSROOT ${OSX_SYSROOT_PREFIX}/${OSX_DEVELOPER_PREFIX} CACHE PATH "" FORCE)
+		set(OSX_SYSROOT_PREFIX /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform)
+		set(OSX_DEVELOPER_PREFIX /Developer/SDKs/MacOSX${OSX_SYSTEM}.sdk) # use guaranteed existing sdk
+		set(CMAKE_OSX_SYSROOT ${OSX_SYSROOT_PREFIX}/${OSX_DEVELOPER_PREFIX} CACHE PATH "" FORCE)
 	endif()	
 	
 	if(WITH_LIBS10.5)
@@ -1347,7 +1365,7 @@ elseif(APPLE)
 		)
 
 		set(OPENCOLLADA_LIBPATH ${OPENCOLLADA}/lib)
-		set(OPENCOLLADA_LIBRARIES "OpenCOLLADASaxFrameworkLoader -lOpenCOLLADAFramework -lOpenCOLLADABaseUtils -lOpenCOLLADAStreamWriter -lMathMLSolver -lGeneratedSaxParser -lUTF -lxml2 -lbuffer -lftoa" )
+		set(OPENCOLLADA_LIBRARIES "OpenCOLLADASaxFrameworkLoader -lOpenCOLLADAFramework -lOpenCOLLADABaseUtils -lOpenCOLLADAStreamWriter -lMathMLSolver -lGeneratedSaxParser -lUTF -lxml2 -lbuffer -lftoa")
 		#pcre is bundled with openCollada
 		#set(PCRE ${LIBDIR}/pcre)
 		#set(PCRE_LIBPATH ${PCRE}/lib)

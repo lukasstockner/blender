@@ -114,24 +114,24 @@
 	(c)[0]= FTOCHAR((f)[0]);                                                  \
 	(c)[1]= FTOCHAR((f)[1]);                                                  \
 	(c)[2]= FTOCHAR((f)[2]);                                                  \
-}
+} (void)0
 #define IMAPAINT_FLOAT_RGBA_TO_CHAR(c, f)  {                                  \
 	(c)[0]= FTOCHAR((f)[0]);                                                  \
 	(c)[1]= FTOCHAR((f)[1]);                                                  \
 	(c)[2]= FTOCHAR((f)[2]);                                                  \
 	(c)[3]= FTOCHAR((f)[3]);                                                  \
-}
+} (void)0
 #define IMAPAINT_CHAR_RGB_TO_FLOAT(f, c)  {                                   \
 	(f)[0]= IMAPAINT_CHAR_TO_FLOAT((c)[0]);                                   \
 	(f)[1]= IMAPAINT_CHAR_TO_FLOAT((c)[1]);                                   \
 	(f)[2]= IMAPAINT_CHAR_TO_FLOAT((c)[2]);                                   \
-}
+} (void)0
 #define IMAPAINT_CHAR_RGBA_TO_FLOAT(f, c)  {                                  \
 	(f)[0]= IMAPAINT_CHAR_TO_FLOAT((c)[0]);                                   \
 	(f)[1]= IMAPAINT_CHAR_TO_FLOAT((c)[1]);                                   \
 	(f)[2]= IMAPAINT_CHAR_TO_FLOAT((c)[2]);                                   \
 	(f)[3]= IMAPAINT_CHAR_TO_FLOAT((c)[3]);                                   \
-}
+} (void)0
 
 #define IMAPAINT_FLOAT_RGB_COPY(a, b) copy_v3_v3(a, b)
 
@@ -1547,7 +1547,7 @@ static ProjPixel *project_paint_uvpixel_init(
 					if (ibuf_other->rect_float) { /* float to char */
 						float rgba[4];
 						project_face_pixel(tf_other, ibuf_other, w, side, NULL, rgba);
-						IMAPAINT_FLOAT_RGBA_TO_CHAR(((ProjPixelClone *)projPixel)->clonepx.ch, rgba)
+						IMAPAINT_FLOAT_RGBA_TO_CHAR(((ProjPixelClone *)projPixel)->clonepx.ch, rgba);
 					}
 					else { /* char to char */
 						project_face_pixel(tf_other, ibuf_other, w, side, ((ProjPixelClone *)projPixel)->clonepx.ch, NULL);
@@ -2433,8 +2433,8 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 					
 					/* Note about IsectPoly2Df_twoside, checking the face or uv flipping doesnt work,
 					 * could check the poly direction but better to do this */
-					if ((do_backfacecull          && IsectPoly2Df(uv, uv_clip, uv_clip_tot)) ||
-					    (do_backfacecull == 0     && IsectPoly2Df_twoside(uv, uv_clip, uv_clip_tot)))
+					if ((do_backfacecull == TRUE  && IsectPoly2Df(uv, uv_clip, uv_clip_tot)) ||
+					    (do_backfacecull == FALSE && IsectPoly2Df_twoside(uv, uv_clip, uv_clip_tot)))
 					{
 						
 						has_x_isect = has_isect = 1;
@@ -2453,7 +2453,9 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 						/* Is this UV visible from the view? - raytrace */
 						/* project_paint_PickFace is less complex, use for testing */
 						//if (project_paint_PickFace(ps, pixelScreenCo, w, &side) == face_index) {
-						if (ps->do_occlude == 0 || !project_bucket_point_occluded(ps, bucketFaceNodes, face_index, pixelScreenCo)) {
+						if ((ps->do_occlude == FALSE) ||
+						    !project_bucket_point_occluded(ps, bucketFaceNodes, face_index, pixelScreenCo))
+						{
 							
 							mask = project_paint_uvpixel_mask(ps, face_index, side, w);
 							
@@ -2629,8 +2631,9 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 											pixelScreenCo[2] = pixelScreenCo[2] / pixelScreenCo[3]; /* Use the depth for bucket point occlusion */
 										}
 										
-										if (ps->do_occlude == 0 || !project_bucket_point_occluded(ps, bucketFaceNodes, face_index, pixelScreenCo)) {
-											
+										if ((ps->do_occlude == FALSE) ||
+										    !project_bucket_point_occluded(ps, bucketFaceNodes, face_index, pixelScreenCo))
+										{
 											/* Only bother calculating the weights if we intersect */
 											if (ps->do_mask_normal || ps->dm_mtface_clone) {
 #if 1
@@ -3005,7 +3008,7 @@ static void project_paint_begin(ProjPaintState *ps)
 			ps->dm_mtface_clone = CustomData_get_layer_n(&ps->dm->faceData, CD_MTFACE, layer_num);
 		
 		if (ps->dm_mtface_clone == NULL || ps->dm_mtface_clone == ps->dm_mtface) {
-			ps->do_layer_clone = 0;
+			ps->do_layer_clone = FALSE;
 			ps->dm_mtface_clone = NULL;
 			printf("ACK!\n");
 		}
@@ -3018,7 +3021,7 @@ static void project_paint_begin(ProjPaintState *ps)
 			ps->dm_mtface_stencil = CustomData_get_layer_n(&ps->dm->faceData, CD_MTFACE, layer_num);
 		
 		if (ps->dm_mtface_stencil == NULL || ps->dm_mtface_stencil == ps->dm_mtface) {
-			ps->do_layer_stencil = 0;
+			ps->do_layer_stencil = FALSE;
 			ps->dm_mtface_stencil = NULL;
 		}
 	}
@@ -3850,7 +3853,7 @@ static void *do_projectpaint_thread(void *ph_v)
 	float falloff;
 	int bucket_index;
 	int is_floatbuf = 0;
-	int use_color_correction = 0;
+	int use_color_correction = FALSE;
 	const short tool =  ps->tool;
 	rctf bucket_bounds;
 	
@@ -4206,7 +4209,7 @@ static void imapaint_ibuf_rgb_get(ImBuf *ibuf, int x, int y, const short is_toru
 	}
 	else {
 		char *rrgb = (char *)ibuf->rect + (ibuf->x * y + x) * 4;
-		IMAPAINT_CHAR_RGB_TO_FLOAT(r_rgb, rrgb)
+		IMAPAINT_CHAR_RGB_TO_FLOAT(r_rgb, rrgb);
 	}
 }
 static void imapaint_ibuf_rgb_set(ImBuf *ibuf, int x, int y, const short is_torus, const float rgb[3])
@@ -4224,7 +4227,7 @@ static void imapaint_ibuf_rgb_set(ImBuf *ibuf, int x, int y, const short is_toru
 	}
 	else {
 		char *rrgb = (char *)ibuf->rect + (ibuf->x * y + x) * 4;
-		IMAPAINT_FLOAT_RGB_TO_CHAR(rrgb, rgb)
+		IMAPAINT_FLOAT_RGB_TO_CHAR(rrgb, rgb);
 	}
 }
 
@@ -4237,7 +4240,9 @@ static int imapaint_ibuf_add_if(ImBuf *ibuf, unsigned int x, unsigned int y, flo
 		if (torus) imapaint_ibuf_rgb_get(ibuf, x, y, 1, inrgb);
 		else return 0;
 	}
-	else imapaint_ibuf_rgb_get(ibuf, x, y, 0, inrgb);
+	else {
+		imapaint_ibuf_rgb_get(ibuf, x, y, 0, inrgb);
+	}
 
 	outrgb[0] += inrgb[0];
 	outrgb[1] += inrgb[1];
@@ -4806,7 +4811,7 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps)
 	ps->normal_angle_range = ps->normal_angle - ps->normal_angle_inner;
 
 	if (ps->normal_angle_range <= 0.0f)
-		ps->do_mask_normal = 0;  /* no need to do blending */
+		ps->do_mask_normal = FALSE;  /* no need to do blending */
 }
 
 static void paint_brush_init_tex(Brush *brush)

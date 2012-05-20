@@ -1715,6 +1715,7 @@ typedef struct View3DAfter {
 void add_view3d_after(ListBase *lb, Base *base, int flag)
 {
 	View3DAfter *v3da = MEM_callocN(sizeof(View3DAfter), "View 3d after");
+	BLI_assert((base->flag & OB_FROMDUPLI) == 0);
 	BLI_addtail(lb, v3da);
 	v3da->base = base;
 	v3da->flag = flag;
@@ -1815,7 +1816,7 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 	RegionView3D *rv3d = ar->regiondata;
 	ListBase *lb;
 	DupliObject *dob_prev = NULL, *dob, *dob_next = NULL;
-	Base tbase;
+	Base tbase = {NULL};
 	BoundBox bb, *bb_tmp; /* use a copy because draw_object, calls clear_mesh_caches */
 	GLuint displist = 0;
 	short transflag, use_displist = -1;  /* -1 is initialize */
@@ -1847,7 +1848,7 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 
 		/* generate displist, test for new object */
 		if (dob_prev && dob_prev->ob != dob->ob) {
-			if (use_displist == 1)
+			if (use_displist == TRUE)
 				glDeleteLists(displist, 1);
 
 			use_displist = -1;
@@ -1869,7 +1870,7 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 			    !(bb_tmp = BKE_object_boundbox_get(dob->ob)))
 			{
 				// printf("draw_dupli_objects_color: skipping displist for %s\n", dob->ob->id.name+2);
-				use_displist = 0;
+				use_displist = FALSE;
 			}
 			else {
 				// printf("draw_dupli_objects_color: using displist for %s\n", dob->ob->id.name+2);
@@ -1885,7 +1886,7 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 				draw_object(scene, ar, v3d, &tbase, DRAW_CONSTCOLOR);
 				glEndList();
 
-				use_displist = 1;
+				use_displist = TRUE;
 				BKE_object_boundbox_flag(dob->ob, OB_BB_DISABLED, 0);
 			}
 		}
@@ -2433,7 +2434,9 @@ void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar,
 	ar->winrct.ymin = 0;
 	ar->winrct.xmax = winx;
 	ar->winrct.ymax = winy;
-	
+
+	/* set theme */
+	UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
 	
 	/* set flags */
 	G.f |= G_RENDER_OGL;
@@ -3002,7 +3005,7 @@ static void view3d_main_area_draw_info(const bContext *C, ARegion *ar, const cha
 	
 	if (U.uiflag & USER_SHOW_ROTVIEWICON)
 		draw_view_axis(rv3d);
-	else	
+	else
 		draw_view_icon(rv3d);
 	
 	ob = OBACT;
