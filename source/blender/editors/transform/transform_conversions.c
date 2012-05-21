@@ -1393,10 +1393,10 @@ static void createTransCurveVerts(bContext *C, TransInfo *t)
 				if (bezt->hide==0) {
 					TransDataCurveHandleFlags *hdata = NULL;
 
-					if (		propmode ||
-							((bezt->f2 & SELECT) && hide_handles) ||
-							((bezt->f1 & SELECT) && hide_handles == 0)
-					  ) {
+					if (propmode ||
+					    ((bezt->f2 & SELECT) && hide_handles) ||
+					    ((bezt->f1 & SELECT) && hide_handles == 0))
+					{
 						copy_v3_v3(td->iloc, bezt->vec[0]);
 						td->loc= bezt->vec[0];
 						copy_v3_v3(td->center, bezt->vec[(hide_handles || bezt->f2 & SELECT) ? 1:0]);
@@ -1455,10 +1455,10 @@ static void createTransCurveVerts(bContext *C, TransInfo *t)
 						count++;
 						tail++;
 					}
-					if (		propmode ||
-							((bezt->f2 & SELECT) && hide_handles) ||
-							((bezt->f3 & SELECT) && hide_handles == 0)
-					  ) {
+					if (propmode ||
+					    ((bezt->f2 & SELECT) && hide_handles) ||
+					    ((bezt->f3 & SELECT) && hide_handles == 0))
+					{
 						copy_v3_v3(td->iloc, bezt->vec[2]);
 						td->loc= bezt->vec[2];
 						copy_v3_v3(td->center, bezt->vec[(hide_handles || bezt->f2 & SELECT) ? 1:2]);
@@ -3844,7 +3844,7 @@ static void SeqTransInfo(TransInfo *t, Sequence *seq, int *recursive, int *count
 			if (seq->type == SEQ_META) {
 				/* Meta's can only directly be moved between channels since they
 				 * don't have their start and length set directly (children affect that)
-				 * since this Meta is nested we don't need any of its data infact.
+				 * since this Meta is nested we don't need any of its data in fact.
 				 * calc_sequence() will update its settings when run on the toplevel meta */
 				*flag= 0;
 				*count= 0;
@@ -4438,7 +4438,7 @@ static void set_trans_object_base_flags(TransInfo *t)
 
 			if (parsel) {
 				/* rotation around local centers are allowed to propagate */
-				if ((t->mode == TFM_ROTATION || t->mode == TFM_TRACKBALL)  && t->around == V3D_LOCAL) {
+				if ((t->mode == TFM_ROTATION || t->mode == TFM_TRACKBALL) && t->around == V3D_LOCAL) {
 					base->flag |= BA_TRANSFORM_CHILD;
 				}
 				else {
@@ -4487,7 +4487,7 @@ static int count_proportional_objects(TransInfo *t)
 	Base *base;
 
 	/* rotations around local centers are allowed to propagate, so we take all objects */
-	if (!((t->mode == TFM_ROTATION || t->mode == TFM_TRACKBALL)  && t->around == V3D_LOCAL)) {
+	if (!((t->mode == TFM_ROTATION || t->mode == TFM_TRACKBALL) && t->around == V3D_LOCAL)) {
 		/* mark all parents */
 		for (base= scene->base.first; base; base= base->next) {
 			if (TESTBASELIB_BGMODE(v3d, scene, base)) {
