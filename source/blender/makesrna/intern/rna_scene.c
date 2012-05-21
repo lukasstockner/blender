@@ -1635,7 +1635,11 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	RNA_def_property_ui_text(prop, "Project to Self", "Snap onto itself (editmode)");
 	RNA_def_property_ui_icon(prop, ICON_ORTHO, 0);
 	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
-	
+
+	prop= RNA_def_property(srna, "retain_image_pos", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "retain_image_pos", 1);
+	RNA_def_property_ui_text(prop, "Retain Image", "Retain image position when transforming a vertex");
+
 	/* Grease Pencil */
 	prop = RNA_def_property(srna, "use_grease_pencil_sessions", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "gpencil_flags", GP_TOOL_FLAG_PAINTSESSIONS_ON);
