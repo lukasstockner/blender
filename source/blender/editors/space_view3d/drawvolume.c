@@ -195,7 +195,8 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 
 	/* Fragment program to calculate the view3d of smoke */
 	/* using 2 textures, density and shadow */
-	const char *text = "!!ARBfp1.0\n"
+	static const char *text =
+	                   "!!ARBfp1.0\n"
 	                   "PARAM dx = program.local[0];\n"
 	                   "PARAM darkness = program.local[1];\n"
 	                   "PARAM f = {1.442695041, 1.442695041, 1.442695041, 0.01};\n"
@@ -212,7 +213,7 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 	                   "MUL temp.b, temp.b, shadow.r;\n"
 	                   "MOV result.color, temp;\n"
 	                   "END\n";
-	GLuint prog;
+	static GLuint prog;
 
 	
 	float size[3];
@@ -339,7 +340,7 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 	// printf("i: %d\n", i);
 	// printf("point %f, %f, %f\n", cv[i][0], cv[i][1], cv[i][2]);
 
-	if (GL_TRUE == glewIsSupported("GL_ARB_fragment_program")) {
+	if (prog == 0 && GLEW_ARB_fragment_program) {
 		glEnable(GL_FRAGMENT_PROGRAM_ARB);
 		glGenProgramsARB(1, &prog);
 
@@ -439,9 +440,8 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 
 	if (GLEW_ARB_fragment_program) {
 		glDisable(GL_FRAGMENT_PROGRAM_ARB);
-		glDeleteProgramsARB(1, &prog);
+		/* XXX: should eventually delete 'prog' but when and how? */
 	}
-
 
 	MEM_freeN(points);
 
@@ -454,4 +454,3 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 		glDepthMask(GL_TRUE);	
 	}
 }
-

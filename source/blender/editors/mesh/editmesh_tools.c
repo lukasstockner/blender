@@ -3534,8 +3534,7 @@ static int edbm_select_by_number_vertices_exec(bContext *C, wmOperator *op)
 	int numverts = RNA_int_get(op->ptr, "number");
 	int type = RNA_enum_get(op->ptr, "type");
 
-	for (efa = BM_iter_new(&iter, em->bm, BM_FACES_OF_MESH, NULL);
-	     efa; efa = BM_iter_step(&iter)) {
+	BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
 
 		int select = 0;
 
@@ -3598,17 +3597,13 @@ static int edbm_select_loose_verts_exec(bContext *C, wmOperator *UNUSED(op))
 	BMEdge *eed;
 	BMIter iter;
 
-	for (eve = BM_iter_new(&iter, em->bm, BM_VERTS_OF_MESH, NULL);
-	     eve; eve = BM_iter_step(&iter)) {
-
+	BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
 		if (!eve->e) {
 			BM_vert_select_set(em->bm, eve, TRUE);
 		}
 	}
 
-	for (eed = BM_iter_new(&iter, em->bm, BM_EDGES_OF_MESH, NULL);
-	     eed; eed = BM_iter_step(&iter)) {
-
+	BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
 		if (!eed->l) {
 			BM_edge_select_set(em->bm, eed, TRUE);
 		}
@@ -3967,7 +3962,7 @@ static void sort_bmelem_flag(bContext *C, const int types, const int flag, const
 
 	else if (action == SRT_RANDOMIZE) {
 		if (totelem[0]) {
-			/* Re-init random generator for each element type, to get consistant random when
+			/* Re-init random generator for each element type, to get consistent random when
 			 * enabling/disabling an element type. */
 			BLI_srandom(seed);
 			pb = pblock[0] = MEM_callocN(sizeof(char) * totelem[0], "sort_bmelem vert pblock");

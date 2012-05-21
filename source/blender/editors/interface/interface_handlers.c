@@ -1309,7 +1309,7 @@ static void ui_textedit_set_cursor_pos(uiBut *but, uiHandleButtonData *data, sho
 
 			/* check if position is found */
 			if (cdist < x) {
-				/* check is previous location was infact closer */
+				/* check is previous location was in fact closer */
 				if (((float)x - cdist) > (cdist_prev - (float)x)) {
 					but->pos = pos_prev;
 				}
@@ -5751,7 +5751,8 @@ static int ui_handle_list_event(bContext *C, wmEvent *event, ARegion *ar)
 		Panel *pa = but->block->panel;
 
 		if (ELEM(event->type, UPARROWKEY, DOWNARROWKEY) ||
-		    ((ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE) && event->alt))) {
+		    ((ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE) && event->alt)))
+		{
 			/* activate up/down the list */
 			value = RNA_property_int_get(&but->rnapoin, but->rnaprop);
 
