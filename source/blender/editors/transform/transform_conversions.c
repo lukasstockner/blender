@@ -2029,6 +2029,11 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 	}
 	else t->total = countsel;
 
+	/* now we need to allocate store for affected verts if we do maintain image */
+	if(t->flag & T_IMAGE_PRESERVE_CALC) {
+		t->affected_verts = MEM_mallocN(t->total * sizeof(*t->affected_verts), "BMVert Map");
+	}
+
 	tob= t->data= MEM_callocN(t->total*sizeof(TransData), "TransObData(Mesh EditMode)");
 
 	copy_m3_m4(mtx, t->obedit->obmat);
@@ -2082,6 +2087,9 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 				float *bweight = CustomData_bmesh_get(&bm->vdata, eve->head.data, CD_BWEIGHT);
 				
 				VertsToTransData(t, tob, em, eve, bweight);
+
+				if(t->flag & T_IMAGE_PRESERVE_CALC)
+					t->affected_verts[a] = eve;
 
 				/* selected */
 				if (selstate[a]) tob->flag |= TD_SELECTED;

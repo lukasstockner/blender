@@ -1049,6 +1049,9 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 			v3d->twtype = 0;
 		}
 
+		if(ts->retain_image_pos)
+			t->flag |= T_IMAGE_PRESERVE_CALC;
+
 		if (v3d->flag & V3D_ALIGN) t->flag |= T_V3D_ALIGN;
 		t->around = v3d->around;
 		
@@ -1264,6 +1267,10 @@ void postTrans(bContext *C, TransInfo *t)
 		/* restore manipulator */
 		if (t->flag & T_MODAL) {
 			v3d->twtype = t->twtype;
+		}
+		if(t->flag & T_IMAGE_PRESERVE_CALC) {
+			if(t->affected_verts)
+				MEM_freeN(t->affected_verts);
 		}
 	}
 	
@@ -1587,6 +1594,91 @@ void calculateCenter(TransInfo *t)
 			initgrabz(t->ar->regiondata, t->center[0], t->center[1], t->center[2]);
 		}
 	}
+}
+
+/* this function detects boundary mesh elements that will encompass the faces to send to the unwrapper.
+ * These elements will be artificially pinned for this first attempt at the algorithm */
+void calculateImageMaintainBounds(TransInfo *t)
+{
+	int i, edge_counter = 0, boundary_edge_counter = 0;
+	BMIter iter;
+	BMFace *f;
+	BMEdge **edge_list, **edge_boundaries;
+	BMEdge *e;
+	GHashIterator *ghiter;
+	GHash *face_hash = BLI_ghash_ptr_new("maintain_image_face_hash");
+	GHash *edge_hash = BLI_ghash_ptr_new("maintain_image_edge_hash");
+	TransData *td = t->data;
+	char not_prop_edit = !(t->flag & T_PROP_EDIT);
+
+	/* store faces adjacent to verts */
+	for (i = 0 ; i < t->total; i++, td++) {
+		BMVert *v = t->affected_verts[i];
+
+		if(not_prop_edit || td->factor > 0.0) {
+			BM_ITER_ELEM(f, &iter, v, BM_FACES_OF_VERT) {
+				if(!BLI_ghash_haskey(face_hash, f)){
+					BLI_ghash_insert(face_hash, f, NULL);
+				}
+			}
+		}
+	}
+
+	ghiter = BLI_ghashIterator_new(face_hash);
+
+	/* count edges */
+	for(; BLI_ghashIterator_isDone(ghiter); BLI_ghashIterator_step(ghiter)) {
+		f = BLI_ghashIterator_getKey(ghiter);
+
+		BM_ITER_ELEM(e, &iter, f, BM_EDGES_OF_FACE) {
+			if(!BLI_ghash_haskey(edge_hash, e)) {
+				BLI_ghash_insert(edge_hash, e, NULL);
+				edge_counter++;
+			}
+		}
+	}
+
+	edge_list = MEM_mallocN(edge_counter*sizeof(*edge_list), "maintain_image_edge_list");
+	edge_boundaries = MEM_mallocN(edge_counter*sizeof(*edge_boundaries), "maintain_image_boundary_list");
+
+	BLI_ghashIterator_init(ghiter, edge_hash);
+	/* fill with count values */
+	for(i = 0; BLI_ghashIterator_isDone(ghiter); BLI_ghashIterator_step(ghiter)) {
+		edge_list[i++] = BLI_ghashIterator_getKey(ghiter);
+	}
+
+	BLI_ghashIterator_free(ghiter);
+	BLI_ghash_free(edge_hash, NULL, NULL);
+
+	/* count boundary edges edges */
+	for(i = 0; i < edge_counter; i++) {
+		int efc;
+
+		e = edge_list[i];
+		efc = BM_edge_face_count(e);
+
+		/* non-manifold case is ignored, should probably print a warning */
+		if(efc == 2) {
+			BMFace *f1, *f2;
+
+			BM_edge_face_pair(e, &f1, &f2);
+
+			if(BLI_ghash_haskey(face_hash, f1) && BLI_ghash_haskey(face_hash, f1))
+				/* ignore */
+				;
+			else {
+				edge_boundaries[boundary_edge_counter++] = e;
+			}
+		} else if(efc == 1) {
+			/* edges on boundaries of mesh are automatically added */
+			edge_boundaries[boundary_edge_counter++] = edge_list[i];
+		}
+
+	}
+
+	MEM_freeN(edge_boundaries);
+	MEM_freeN(edge_list);
+	BLI_ghash_free(face_hash, NULL, NULL);
 }
 
 void calculatePropRatio(TransInfo *t)

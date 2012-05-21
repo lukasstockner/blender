@@ -324,6 +324,7 @@ typedef struct TransInfo {
 	void		*draw_handle_view;
 	void		*draw_handle_pixel;
 	void		*draw_handle_cursor;
+	struct BMVert **affected_verts; /* stores pointers to bmverts to access connectivity data */
 } TransInfo;
 
 
@@ -384,6 +385,9 @@ typedef struct TransInfo {
 
 	/* alternative transformation. used to add offset to tracking markers */
 #define T_ALT_TRANSFORM		(1 << 24)
+
+    /* calculation of image maintain tool */
+#define T_IMAGE_PRESERVE_CALC (1 << 25)
 
 /* TransInfo->modifiers */
 #define	MOD_CONSTRAINT_SELECT	0x01
@@ -665,6 +669,7 @@ void calculateCenterCursor(TransInfo *t);
 
 void calculateCenterCursor2D(TransInfo *t);
 void calculatePropRatio(TransInfo *t);
+void calculateImageMaintainBounds(TransInfo *t);
 
 void getViewVector(TransInfo *t, float coord[3], float vec[3]);
 
