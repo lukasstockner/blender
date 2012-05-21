@@ -3096,7 +3096,7 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 		/* rotation */
 		if ((t->flag & T_V3D_ALIGN)==0) { // align mode doesn't rotate objects itself
 			/* euler or quaternion? */
-			   if ((td->ext->rotOrder == ROT_MODE_QUAT) || (td->flag & TD_USEQUAT)) {
+			if ((td->ext->rotOrder == ROT_MODE_QUAT) || (td->flag & TD_USEQUAT)) {
 				mul_serie_m3(fmat, td->mtx, mat, td->smtx, NULL, NULL, NULL, NULL, NULL);
 				mat3_to_quat(quat, fmat);	// Actual transform
 				
@@ -4711,7 +4711,7 @@ void projectSVData(TransInfo *t, int final)
 
 		/* BMESH_TODO, this interpolates between vertex/loops which are not moved
 		 * (are only apart of a face attached to a slide vert), couldn't we iterate BM_LOOPS_OF_VERT
-		 * here and only iterpolate those? */
+		 * here and only interpolate those? */
 		BM_ITER_ELEM (f, &fiter, sv->v, BM_FACES_OF_VERT) {
 			BMIter liter;
 			BMLoop *l;

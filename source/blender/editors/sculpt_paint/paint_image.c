@@ -2131,7 +2131,9 @@ static void project_bucket_clip_face(
 		
 		/* remove doubles */
 		/* first/last check */
-		if (fabsf(isectVCosSS[0][0] - isectVCosSS[(*tot) - 1][0]) < PROJ_GEOM_TOLERANCE &&  fabsf(isectVCosSS[0][1] - isectVCosSS[(*tot) - 1][1]) < PROJ_GEOM_TOLERANCE) {
+		if (fabsf(isectVCosSS[0][0] - isectVCosSS[(*tot) - 1][0]) < PROJ_GEOM_TOLERANCE &&
+		    fabsf(isectVCosSS[0][1] - isectVCosSS[(*tot) - 1][1]) < PROJ_GEOM_TOLERANCE)
+		{
 			(*tot)--;
 		}
 		
@@ -2340,7 +2342,7 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 	
 	
 	/* Use tf_uv_pxoffset instead of tf->uv so we can offset the UV half a pixel
-	 * this is done so we can avoid offseting all the pixels by 0.5 which causes
+	 * this is done so we can avoid offsetting all the pixels by 0.5 which causes
 	 * problems when wrapping negative coords */
 	xhalfpx = (0.5f +   (PROJ_GEOM_TOLERANCE / 3.0f)   ) / ibuf_xf;
 	yhalfpx = (0.5f +   (PROJ_GEOM_TOLERANCE / 4.0f)   ) / ibuf_yf;
