@@ -841,11 +841,11 @@ void ED_uvedit_live_unwrap(Scene *scene, Object *obedit)
 {
 	BMEditMesh *em = BMEdit_FromObject(obedit);
 
-    if (scene->toolsettings->edge_mode_live_unwrap &&
+	if (scene->toolsettings->edge_mode_live_unwrap &&
 	    CustomData_has_layer(&em->bm->ldata, CD_MLOOPUV))
 	{
-        ED_unwrap_lscm(scene, obedit, FALSE); /* unwrap all not just sel */
-    }
+		ED_unwrap_lscm(scene, obedit, FALSE); /* unwrap all not just sel */
+	}
 }
 
 /*************** UV Map Common Transforms *****************/
@@ -1180,7 +1180,7 @@ static int unwrap_exec(bContext *C, wmOperator *op)
 
 	/* remember last method for live unwrap */
 	if (RNA_struct_property_is_set(op->ptr, "method"))
-	scene->toolsettings->unwrapper = method;
+		scene->toolsettings->unwrapper = method;
 	else
 		RNA_enum_set(op->ptr, "method", scene->toolsettings->unwrapper);
 

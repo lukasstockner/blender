@@ -32,16 +32,16 @@ extern "C" {
 
 typedef struct OceanResult {
 	float disp[3];
-    float normal[3];
+	float normal[3];
 	float foam;
 	
 	/* raw eigenvalues/vectors */
 	float Jminus;
-    float Jplus;
+	float Jplus;
 	float Eminus[3];
-    float Eplus[3];
+	float Eplus[3];
 } OceanResult;
-	
+
 typedef struct OceanCache {
 	struct ImBuf **ibufs_disp;
 	struct ImBuf **ibufs_foam;

@@ -107,21 +107,21 @@ static void node_socket_button_default(const bContext *C, uiBlock *block,
 								bNodeTree *ntree, bNode *node, bNodeSocket *sock,
 								const char *name, int x, int y, int width)
 {
-		if (sock->link || (sock->flag & SOCK_HIDE_VALUE))
-			node_socket_button_label(C, block, ntree, node, sock, name, x, y, width);
-		else {
-			PointerRNA ptr;
-			uiBut *bt;
-			
-			RNA_pointer_create(&ntree->id, &RNA_NodeSocket, sock, &ptr);
-			
-			bt = uiDefButR(block, NUM, B_NODE_EXEC, name,
-						   x, y+1, width, NODE_DY-2, 
-						   &ptr, "default_value", 0, 0, 0, -1, -1, NULL);
-			if (node)
-				uiButSetFunc(bt, node_sync_cb, CTX_wm_space_node(C), node);
-		}
+	if (sock->link || (sock->flag & SOCK_HIDE_VALUE))
+		node_socket_button_label(C, block, ntree, node, sock, name, x, y, width);
+	else {
+		PointerRNA ptr;
+		uiBut *bt;
+		
+		RNA_pointer_create(&ntree->id, &RNA_NodeSocket, sock, &ptr);
+		
+		bt = uiDefButR(block, NUM, B_NODE_EXEC, name,
+					   x, y+1, width, NODE_DY-2, 
+					   &ptr, "default_value", 0, 0, 0, -1, -1, NULL);
+		if (node)
+			uiButSetFunc(bt, node_sync_cb, CTX_wm_space_node(C), node);
 	}
+}
 
 typedef struct SocketComponentMenuArgs {
 	PointerRNA ptr;
@@ -149,50 +149,50 @@ static void node_socket_button_components(const bContext *C, uiBlock *block,
 								   bNodeTree *ntree, bNode *node, bNodeSocket *sock,
 								   const char *name, int x, int y, int width)
 {
-		if (sock->link || (sock->flag & SOCK_HIDE_VALUE))
-			node_socket_button_label(C, block, ntree, node, sock, name, x, y, width);
-		else {
-			PointerRNA ptr;
-			SocketComponentMenuArgs *args;
-			
-			RNA_pointer_create(&ntree->id, &RNA_NodeSocket, sock, &ptr);
-			
-			args= MEM_callocN(sizeof(SocketComponentMenuArgs), "SocketComponentMenuArgs");
-			
-			args->ptr = ptr;
-			args->x = x;
-			args->y = y;
-			args->width = width;
-			args->cb = node_sync_cb;
-			args->arg1 = CTX_wm_space_node(C);
-			args->arg2 = node;
-			
-			uiDefBlockButN(block, socket_component_menu, args, name, x, y+1, width, NODE_DY-2, "");
-		}
+	if (sock->link || (sock->flag & SOCK_HIDE_VALUE))
+		node_socket_button_label(C, block, ntree, node, sock, name, x, y, width);
+	else {
+		PointerRNA ptr;
+		SocketComponentMenuArgs *args;
+		
+		RNA_pointer_create(&ntree->id, &RNA_NodeSocket, sock, &ptr);
+		
+		args= MEM_callocN(sizeof(SocketComponentMenuArgs), "SocketComponentMenuArgs");
+		
+		args->ptr = ptr;
+		args->x = x;
+		args->y = y;
+		args->width = width;
+		args->cb = node_sync_cb;
+		args->arg1 = CTX_wm_space_node(C);
+		args->arg2 = node;
+		
+		uiDefBlockButN(block, socket_component_menu, args, name, x, y+1, width, NODE_DY-2, "");
 	}
+}
 
 static void node_socket_button_color(const bContext *C, uiBlock *block,
 							  bNodeTree *ntree, bNode *node, bNodeSocket *sock,
 							  const char *name, int x, int y, int width)
 {
-		if (sock->link || (sock->flag & SOCK_HIDE_VALUE))
-			node_socket_button_label(C, block, ntree, node, sock, name, x, y, width);
-		else {
-			PointerRNA ptr;
-			uiBut *bt;
-			int labelw= width - 40;
-			RNA_pointer_create(&ntree->id, &RNA_NodeSocket, sock, &ptr);
-			
-			bt=uiDefButR(block, COL, B_NODE_EXEC, "",
-						 x, y+2, (labelw>0 ? 40 : width), NODE_DY-2, 
-						 &ptr, "default_value", 0, 0, 0, -1, -1, NULL);
-			if (node)
-				uiButSetFunc(bt, node_sync_cb, CTX_wm_space_node(C), node);
-			
-			if (name[0]!='\0' && labelw>0)
-				uiDefBut(block, LABEL, 0, name, x + 40, y+2, labelw, NODE_DY-2, NULL, 0, 0, 0, 0, "");
-		}
+	if (sock->link || (sock->flag & SOCK_HIDE_VALUE))
+		node_socket_button_label(C, block, ntree, node, sock, name, x, y, width);
+	else {
+		PointerRNA ptr;
+		uiBut *bt;
+		int labelw= width - 40;
+		RNA_pointer_create(&ntree->id, &RNA_NodeSocket, sock, &ptr);
+		
+		bt=uiDefButR(block, COL, B_NODE_EXEC, "",
+					 x, y+2, (labelw>0 ? 40 : width), NODE_DY-2, 
+					 &ptr, "default_value", 0, 0, 0, -1, -1, NULL);
+		if (node)
+			uiButSetFunc(bt, node_sync_cb, CTX_wm_space_node(C), node);
+		
+		if (name[0]!='\0' && labelw>0)
+			uiDefBut(block, LABEL, 0, name, x + 40, y+2, labelw, NODE_DY-2, NULL, 0, 0, 0, 0, "");
 	}
+}
 
 /* standard draw function, display the default input value */
 static void node_draw_input_default(const bContext *C, uiBlock *block,
@@ -204,7 +204,7 @@ static void node_draw_input_default(const bContext *C, uiBlock *block,
 		stype->buttonfunc(C, block, ntree, node, sock, name, x, y, width);
 	else
 		node_socket_button_label(C, block, ntree, node, sock, name, x, y, width);
-	}
+}
 
 static void node_draw_output_default(const bContext *C, uiBlock *block,
                                      bNodeTree *UNUSED(ntree), bNode *node, bNodeSocket *sock,
@@ -218,7 +218,7 @@ static void node_draw_output_default(const bContext *C, uiBlock *block,
 	while (slen > node->width) {
 		ofs++;
 		slen= snode->aspect*UI_GetStringWidth(name+ofs);
-}
+	}
 	uiDefBut(block, LABEL, 0, name+ofs, (short)(sock->locx-15.0f-slen), (short)(sock->locy-9.0f), 
              (short)(node->width-NODE_DY), NODE_DY,  NULL, 0, 0, 0, 0, "");
 }
@@ -1762,7 +1762,7 @@ static void node_composit_buts_distance_matte(uiLayout *layout, bContext *UNUSED
 	
 	col = uiLayoutColumn(layout, 1);
    
-   uiItemL(layout, "Color Space:", ICON_NONE);
+	uiItemL(layout, "Color Space:", ICON_NONE);
 	row= uiLayoutRow(layout, 0);
 	uiItemR(row, ptr, "channel", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
 

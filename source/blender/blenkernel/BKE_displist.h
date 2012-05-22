@@ -23,7 +23,7 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
-*/
+ */
 
 #ifndef __BKE_DISPLIST_H__
 #define __BKE_DISPLIST_H__

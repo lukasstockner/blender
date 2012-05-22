@@ -1098,7 +1098,7 @@ Object *MeshImporter::create_mesh_object(COLLADAFW::Node *node, COLLADAFW::Insta
 	// name Object
 	const std::string& id = node->getName().size() ? node->getName() : node->getOriginalId();
 	const char *name = (id.length())? id.c_str(): NULL;
-
+	
 	// add object
 	Object *ob = bc_add_object(scene, OB_MESH, name);
 
@@ -1132,7 +1132,7 @@ Object *MeshImporter::create_mesh_object(COLLADAFW::Node *node, COLLADAFW::Insta
 			fprintf(stderr, "invalid referenced material for %s\n", mat_array[i].getName().c_str());
 		}
 	}
-		
+
 	return ob;
 }
 

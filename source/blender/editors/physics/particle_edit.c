@@ -1484,7 +1484,7 @@ void PARTICLE_OT_select_tips(wmOperatorType *ot)
 	ot->name = "Select Tips";
 	ot->idname = "PARTICLE_OT_select_tips";
 	ot->description = "Select tips of all visible particles";
-	
+
 	/* api callbacks */
 	ot->exec = select_tips_exec;
 	ot->poll = PE_poll;

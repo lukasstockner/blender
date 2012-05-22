@@ -239,7 +239,7 @@ static int imb_tiff_CloseProc(thandle_t handle)
 	/* get the pointer to the in-memory file */
 	mfile = IMB_TIFF_GET_MEMFILE(handle);
 	if (!mfile || !mfile->mem) {
-		fprintf(stderr,"imb_tiff_CloseProc: !mfile || !mfile->mem!\n");
+		fprintf(stderr, "imb_tiff_CloseProc: !mfile || !mfile->mem!\n");
 		return (0);
 	}
 	
@@ -265,7 +265,7 @@ static toff_t imb_tiff_SizeProc(thandle_t handle)
 	/* get the pointer to the in-memory file */
 	mfile = IMB_TIFF_GET_MEMFILE(handle);
 	if (!mfile || !mfile->mem) {
-		fprintf(stderr,"imb_tiff_SizeProc: !mfile || !mfile->mem!\n");
+		fprintf(stderr, "imb_tiff_SizeProc: !mfile || !mfile->mem!\n");
 		return (0);
 	}
 
@@ -786,10 +786,10 @@ int imb_savetiff(ImBuf *ibuf, const char *name, int flags)
 					copy_v3_v3(rgb, &fromf[from_i]);
 
 				rgb[3] = fromf[from_i + 3];
-				
+
 				for (i = 0; i < samplesperpixel; i++, to_i++)
 					to16[to_i] = FTOUSHORT(rgb[i]);
-				}
+			}
 			else {
 				for (i = 0; i < samplesperpixel; i++, to_i++, from_i++)
 					to[to_i] = from[from_i];

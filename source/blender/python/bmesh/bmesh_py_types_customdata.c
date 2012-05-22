@@ -222,7 +222,7 @@ static PyGetSetDef bpy_bmlayeraccess_loop_getseters[] = {
 
 static PyGetSetDef bpy_bmlayercollection_getseters[] = {
     /* BMESH_TODO, make writeable */
-    {(char *)"active", (getter)bpy_bmlayercollection_active_get, (setter)NULL, (char *)bpy_bmlayercollection_active_doc, NULL},
+    {(char *)"active",       (getter)bpy_bmlayercollection_active_get,       (setter)NULL, (char *)bpy_bmlayercollection_active_doc, NULL},
     {(char *)"is_singleton", (getter)bpy_bmlayercollection_is_singleton_get, (setter)NULL, (char *)bpy_bmlayercollection_is_singleton_doc, NULL},
 
     {NULL, NULL, NULL, NULL, NULL} /* Sentinel */

@@ -696,13 +696,13 @@ public:
 			CUresult result = cuGraphicsGLRegisterBuffer(&pmem.cuPBOresource, pmem.cuPBO, CU_GRAPHICS_MAP_RESOURCE_FLAGS_NONE);
 
 			if(!cuda_error(result)) {
-			cuda_pop_context();
+				cuda_pop_context();
 
-			mem.device_pointer = pmem.cuTexId;
-			pixel_mem_map[mem.device_pointer] = pmem;
+				mem.device_pointer = pmem.cuTexId;
+				pixel_mem_map[mem.device_pointer] = pmem;
 
-			return;
-		}
+				return;
+			}
 			else {
 				/* failed to register buffer, fallback to no interop */
 				glDeleteBuffers(1, &pmem.cuPBO);

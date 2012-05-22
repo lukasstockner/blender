@@ -1407,7 +1407,7 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 							dl = MEM_callocN(sizeof(DispList), "makeDispListbev1");
 							dl->verts = data = MEM_callocN(3 * sizeof(float) * dlb->nr * steps, "dlverts");
 							BLI_addtail(dispbase, dl);
-							
+
 							dl->type = DL_SURF;
 
 							dl->flag = dlb->flag & (DL_FRONT_CURVE | DL_BACK_CURVE);

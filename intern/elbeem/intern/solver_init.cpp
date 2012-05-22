@@ -1405,8 +1405,6 @@ void LbmFsgrSolver::initMovingObstacles(bool staticInit) {
 	for(int OId=0; OId<numobjs; OId++) {
 		ntlGeometryObject *obj = (*mpGiObjects)[OId];
 		bool skip = false;
-
-
 		if(obj->getGeoInitId() != mLbmInitId) skip=true;
 		if( (!staticInit) && (!obj->getIsAnimated()) ) skip=true;
 		if( ( staticInit) && ( obj->getIsAnimated()) ) skip=true;
@@ -1657,7 +1655,7 @@ void LbmFsgrSolver::initMovingObstacles(bool staticInit) {
 				const LbmFloat usqr = (vel[0]*vel[0]+vel[1]*vel[1]+vel[2]*vel[2])*1.5;
 				USQRMAXCHECK(usqr,vel[0],vel[1],vel[2], mMaxVlen, mMxvx,mMxvy,mMxvz);
 				//errMsg("LbmFsgrSolver::initMovingObstacles","id"<<OId<<" "<<obj->getName()<<" inflow "<<staticInit<<" "<<mMOIVertices.size() );
-
+				
 				for(size_t n=0; n<mMOIVertices.size(); n++) {
 					POS2GRID_CHECK(mMOIVertices,n);
 					// TODO - also reinit interface cells !?
@@ -1695,7 +1693,6 @@ void LbmFsgrSolver::initMovingObstacles(bool staticInit) {
 
 			else if(ntype&CFMbndOutflow){
 				const LbmFloat iniRho = 0.0;
-
 				for(size_t n=0; n<mMOIVertices.size(); n++) {
 					POS2GRID_CHECK(mMOIVertices,n);
 					// FIXME check fluid/inter cells for non-static!?
@@ -1792,7 +1789,7 @@ bool LbmFsgrSolver::initGeometryFlags() {
 	int numobjs = (int)(mpGiObjects->size());
 	for(int o=0; o<numobjs; o++) {
 		ntlGeometryObject *obj = (*mpGiObjects)[o];
-		// debMsgStd("LbmFsgrSolver::initMovingObstacles",DM_MSG," obj "<<obj->getName()<<" type "<<obj->getGeoInitType()<<" anim"<<obj->getIsAnimated()<<" "<<obj->getVolumeInit() ,9);
+		//debMsgStd("LbmFsgrSolver::initMovingObstacles",DM_MSG," obj "<<obj->getName()<<" type "<<obj->getGeoInitType()<<" anim"<<obj->getIsAnimated()<<" "<<obj->getVolumeInit() ,9);
 		if(
 				((obj->getGeoInitType()&FGI_ALLBOUNDS) && (obj->getIsAnimated())) ||
 				(obj->getVolumeInit()&VOLUMEINIT_SHELL) ) {
@@ -1857,16 +1854,16 @@ bool LbmFsgrSolver::initGeometryFlags() {
 				if(inside) {
 					pObj = (*mpGiObjects)[OId];
 					switch( pObj->getGeoInitType() ){
-					case FGI_MBNDINFLOW:
-					  if(! pObj->getIsAnimated()) {
+					case FGI_MBNDINFLOW:  
+					  if(! pObj->getIsAnimated() ) {
 							rhomass = 1.0;
 							ntype = CFFluid | CFMbndInflow;
 						} else {
 							ntype = CFInvalid;
-					    }
+						}
 						break;
 					case FGI_MBNDOUTFLOW: 
-					  if(! pObj->getIsAnimated()) {
+					  if(! pObj->getIsAnimated() ) {
 							rhomass = 0.0;
 							ntype = CFEmpty|CFMbndOutflow; 
 						} else {

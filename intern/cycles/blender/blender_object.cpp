@@ -194,7 +194,7 @@ void BlenderSync::sync_object(BL::Object b_parent, int b_index, BL::Object b_ob,
 	/* light is handled separately */
 	if(object_is_light(b_ob)) {
 		if(!motion)
-		sync_light(b_parent, b_index, b_ob, tfm);
+			sync_light(b_parent, b_index, b_ob, tfm);
 		return;
 	}
 
@@ -233,7 +233,7 @@ void BlenderSync::sync_object(BL::Object b_parent, int b_index, BL::Object b_ob,
 		object_updated = true;
 	
 	bool use_holdout = (layer_flag & render_layer.holdout_layer) != 0;
-
+	
 	/* mesh sync */
 	object->mesh = sync_mesh(b_ob, object_updated);
 
@@ -276,11 +276,11 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, int motion)
 	uint scene_layer = render_layer.scene_layer;
 	
 	if(!motion) {
-	/* prepare for sync */
-	light_map.pre_sync();
-	mesh_map.pre_sync();
-	object_map.pre_sync();
-	mesh_synced.clear();
+		/* prepare for sync */
+		light_map.pre_sync();
+		mesh_map.pre_sync();
+		object_map.pre_sync();
+		mesh_synced.clear();
 	}
 
 	/* object loop */
@@ -336,17 +336,17 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, int motion)
 	}
 
 	if(!motion) {
-	sync_background_light();
+		sync_background_light();
 
-	/* handle removed data and modified pointers */
-	if(light_map.post_sync())
-		scene->light_manager->tag_update(scene);
-	if(mesh_map.post_sync())
-		scene->mesh_manager->tag_update(scene);
-	if(object_map.post_sync())
-		scene->object_manager->tag_update(scene);
-	mesh_synced.clear();
-}
+		/* handle removed data and modified pointers */
+		if(light_map.post_sync())
+			scene->light_manager->tag_update(scene);
+		if(mesh_map.post_sync())
+			scene->mesh_manager->tag_update(scene);
+		if(object_map.post_sync())
+			scene->object_manager->tag_update(scene);
+		mesh_synced.clear();
+	}
 }
 
 void BlenderSync::sync_motion(BL::SpaceView3D b_v3d, BL::Object b_override)

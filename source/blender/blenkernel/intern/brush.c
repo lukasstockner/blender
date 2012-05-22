@@ -730,8 +730,8 @@ void BKE_brush_weight_set(const Scene *scene, Brush *brush, float value)
 
 /* scale unprojected radius to reflect a change in the brush's 2D size */
 void BKE_brush_scale_unprojected_radius(float *unprojected_radius,
-									int new_brush_size,
-									int old_brush_size)
+                                        int new_brush_size,
+                                        int old_brush_size)
 {
 	float scale = new_brush_size;
 	/* avoid division by zero */
@@ -742,8 +742,8 @@ void BKE_brush_scale_unprojected_radius(float *unprojected_radius,
 
 /* scale brush size to reflect a change in the brush's unprojected radius */
 void BKE_brush_scale_size(int *BKE_brush_size_get,
-					  float new_unprojected_radius,
-					  float old_unprojected_radius)
+                          float new_unprojected_radius,
+                          float old_unprojected_radius)
 {
 	float scale = new_unprojected_radius;
 	/* avoid division by zero */
@@ -1089,7 +1089,7 @@ void BKE_brush_jitter_pos(const Scene *scene, Brush *brush, const float pos[2], 
 }
 
 int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float pos[2], double time, float pressure,
-                        void *user, int use_color_correction)
+                            void *user, int use_color_correction)
 {
 	Scene *scene = painter->scene;
 	Brush *brush = painter->brush;

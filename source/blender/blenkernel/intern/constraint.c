@@ -3368,7 +3368,7 @@ static bConstraintTypeInfo CTI_TRANSFORM = {
 
 static void shrinkwrap_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdata)
 {
-	bShrinkwrapConstraint *data= con->data;
+	bShrinkwrapConstraint *data = con->data;
 	
 	/* target only */
 	func(con, (ID **)&data->target, FALSE, userdata);
@@ -4531,7 +4531,7 @@ void copy_constraints(ListBase *dst, const ListBase *src, int do_extern)
 			/* perform custom copying operations if needed */
 			if (cti->copy_data)
 				cti->copy_data(con, srccon);
-			
+				
 			/* fix usercounts for all referenced data in referenced data */
 			if (cti->id_looper)
 				cti->id_looper(con, con_fix_copied_refs_cb, NULL);

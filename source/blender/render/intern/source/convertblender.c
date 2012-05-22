@@ -5700,7 +5700,7 @@ void RE_Database_FromScene_Vectors(Render *re, Main *bmain, Scene *sce, unsigned
  * RE_BAKE_TEXTURE:for baking, no lamps, only selected objects
  * RE_BAKE_DISPLACEMENT:for baking, no lamps, only selected objects
  * RE_BAKE_SHADOW: for baking, only shadows, but all objects
-*/
+ */
 void RE_Database_Baking(Render *re, Main *bmain, Scene *scene, unsigned int lay, const int type, Object *actob)
 {
 	Object *camera;

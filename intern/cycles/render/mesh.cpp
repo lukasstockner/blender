@@ -525,7 +525,7 @@ void MeshManager::device_update_attributes(Device *device, DeviceScene *dscene, 
 
 				for(size_t k = 0; k < size; k++)
 					attr_float3[req.offset+k] = float3_to_float4(data[k]);
-				}
+			}
 
 			/* mesh vertex/triangle index is global, not per object, so we sneak
 			   a correction for that in here */

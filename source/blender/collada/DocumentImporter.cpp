@@ -462,9 +462,9 @@ void DocumentImporter::write_node (COLLADAFW::Node *node, COLLADAFW::Node *paren
 				std::pair<std::multimap<COLLADAFW::UniqueId, Object *>::iterator, std::multimap<COLLADAFW::UniqueId, Object *>::iterator> pair_iter = object_map.equal_range(node_id);
 				for (std::multimap<COLLADAFW::UniqueId, Object *>::iterator it2 = pair_iter.first; it2 != pair_iter.second; it2++) {
 					Object *source_ob = (Object *)it2->second;
-				COLLADAFW::Node *source_node = node_map[node_id];
-				ob = create_instance_node(source_ob, source_node, node, sce, is_library_node);
-			}
+					COLLADAFW::Node *source_node = node_map[node_id];
+					ob = create_instance_node(source_ob, source_node, node, sce, is_library_node);
+				}
 			}
 			if (ob != NULL) objects_done->push_back(ob);
 			++inst_done;
@@ -483,28 +483,28 @@ void DocumentImporter::write_node (COLLADAFW::Node *node, COLLADAFW::Node *paren
 		if (!ob) return;
 		for (std::vector<Object *>::iterator it = objects_done->begin(); it != objects_done->end(); ++it) {
 			ob = *it;
-		std::string nodename = node->getName().size() ? node->getName() : node->getOriginalId();
-		rename_id(&ob->id, (char*)nodename.c_str());
+			std::string nodename = node->getName().size() ? node->getName() : node->getOriginalId();
+			rename_id(&ob->id, (char*)nodename.c_str());
 			object_map.insert(std::make_pair<COLLADAFW::UniqueId, Object *>(node->getUniqueId(), ob));
-		node_map[node->getUniqueId()] = node;
+			node_map[node->getUniqueId()] = node;
 
-		if (is_library_node)
-			libnode_ob.push_back(ob);
-	}
+			if (is_library_node)
+				libnode_ob.push_back(ob);
+		}
 
 	}
 
 	for (std::vector<Object *>::iterator it = objects_done->begin(); it != objects_done->end(); ++it) {
 		ob =*it;
 
-	if (read_transform)
-		anim_importer.read_node_transform(node, ob); // overwrites location set earlier
+		if (read_transform)
+			anim_importer.read_node_transform(node, ob); // overwrites location set earlier
 
-	if (!is_joint) {
-		// if par was given make this object child of the previous 
-		if (par && ob)
-			bc_set_parent(ob, par, mContext);
-	}
+		if (!is_joint) {
+			// if par was given make this object child of the previous
+			if (par && ob)
+				bc_set_parent(ob, par, mContext);
+		}
 	}
 	// if node has child nodes write them
 	COLLADAFW::NodePointerArray &child_nodes = node->getChildNodes();

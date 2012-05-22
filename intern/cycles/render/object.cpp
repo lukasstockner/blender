@@ -68,7 +68,7 @@ void Object::compute_bounds(bool motion_blur)
 
 			transform_motion_interpolate(&ttfm, &decomp, t);
 			bounds.grow(mbounds.transformed(&ttfm));
-}
+		}
 	}
 	else
 		bounds = mbounds.transformed(&tfm);
@@ -310,14 +310,14 @@ void ObjectManager::apply_static_transforms(Scene *scene, Progress& progress)
 	foreach(Object *object, scene->objects) {
 		if(mesh_users[object->mesh] == 1) {
 			if(!(motion_blur && object->use_motion)) {
-			if(!object->mesh->transform_applied) {
-				object->apply_transform();
-				object->mesh->transform_applied = true;
+				if(!object->mesh->transform_applied) {
+					object->apply_transform();
+					object->mesh->transform_applied = true;
 
-			if(progress.get_cancel()) return;
+					if(progress.get_cancel()) return;
+				}
+			}
 		}
-	}
-}
 	}
 }
 

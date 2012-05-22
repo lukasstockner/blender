@@ -258,7 +258,7 @@ void draw_motion_path_instance(Scene *scene,
 	/* Keyframes - dots and numbers */
 	if (avs->path_viewflag & MOTIONPATH_VIEW_KFRAS) {
 		unsigned char col[4];
-
+		
 		AnimData *adt = BKE_animdata_from_id(&ob->id);
 		DLRBT_Tree keys;
 		
@@ -286,7 +286,7 @@ void draw_motion_path_instance(Scene *scene,
 		/* Draw slightly-larger yellow dots at each keyframe */
 		UI_GetThemeColor3ubv(TH_VERTEX_SELECT, col);
 		col[3] = 255;
-
+		
 		glPointSize(4.0f); // XXX perhaps a bit too big
 		glColor3ubv(col);
 		

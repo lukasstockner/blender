@@ -180,8 +180,8 @@ public:
 		}
 		else
 		{
-		pthread_mutex_unlock(AUD_ReferenceHandler::getMutex());
-	}
+			pthread_mutex_unlock(AUD_ReferenceHandler::getMutex());
+		}
 	}
 
 	/**

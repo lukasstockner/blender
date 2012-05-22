@@ -43,5 +43,5 @@ void operator delete (void *p)
 {
 	/* delete NULL is valid in c++ */
 	if(p)
-	MEM_freeN(p);
+		MEM_freeN(p);
 }

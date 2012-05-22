@@ -796,9 +796,9 @@ void AnimationImporter::apply_matrix_curves( Object * ob, std::vector<FCurve*>& 
 }
 
 void AnimationImporter::translate_Animations ( COLLADAFW::Node * node,
-												   std::map<COLLADAFW::UniqueId, COLLADAFW::Node*>& root_map,
+												std::map<COLLADAFW::UniqueId, COLLADAFW::Node*>& root_map,
 												std::multimap<COLLADAFW::UniqueId, Object*>& object_map,
-												   std::map<COLLADAFW::UniqueId, const COLLADAFW::Object*> FW_object_map)
+												std::map<COLLADAFW::UniqueId, const COLLADAFW::Object*> FW_object_map)
 {
 	AnimationImporter::AnimMix* animType = get_animation_type(node, FW_object_map );
 

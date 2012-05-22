@@ -194,9 +194,9 @@ bMotionPath *animviz_verify_motionpaths(ReportList *reports, Scene *scene, Objec
 			/* outer check ensures that we have some curve data for this path */
 			if (mpath->length == expected_length) {
 				/* return/use this as it is already valid length */
-			return mpath;
-	}
-	else {
+				return mpath;
+			}
+			else {
 				/* clear the existing path (as the range has changed), and reallocate below */
 				animviz_free_motionpath_cache(mpath);
 			}

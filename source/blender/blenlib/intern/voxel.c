@@ -37,9 +37,9 @@
 
 BLI_INLINE float D(float *data, const int res[3], int x, int y, int z)
 {
-	CLAMP(x, 0, res[0]-1);
-	CLAMP(y, 0, res[1]-1);
-	CLAMP(z, 0, res[2]-1);
+	CLAMP(x, 0, res[0] - 1);
+	CLAMP(y, 0, res[1] - 1);
+	CLAMP(z, 0, res[2] - 1);
 	return data[BLI_VOXEL_INDEX(x, y, z, res)];
 }
 

@@ -67,7 +67,7 @@ void CamerasExporter::operator()(Object *ob, Scene *sce)
 	Camera *cam = (Camera*)ob->data;
 	std::string cam_id(get_camera_id(ob));
 	std::string cam_name(id_name(cam));
-	
+
 	switch (cam->type) {
 	case CAM_PANO:	
 	case CAM_PERSP: {
@@ -92,4 +92,4 @@ void CamerasExporter::operator()(Object *ob, Scene *sce)
 		addCamera(ccam);
 		break;
 	}}
-	}
+}

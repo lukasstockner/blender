@@ -278,11 +278,11 @@ static void init_frame_smoke(VoxelData *vd, float cfra)
 
 				if (smd->domain->flags & MOD_SMOKE_HIGHRES) {
 					smoke_turbulence_get_res(smd->domain->wt, vd->resol);
-					density = NULL; // DG TODO smoke_turbulence_get_density(smd->domain->wt);
+					density = smoke_turbulence_get_density(smd->domain->wt);
 				}
 				else {
 					copy_v3_v3_int(vd->resol, smd->domain->res);
-					density = NULL; // DG TODO smoke_get_density(smd->domain->fluid);
+					density = smoke_get_density(smd->domain->fluid);
 				}
 
 				/* TODO: is_vd_res_ok(rvd) doesnt check this resolution */

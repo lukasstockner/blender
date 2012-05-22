@@ -1690,7 +1690,7 @@ void LightPathNode::compile(SVMCompiler& compiler)
 	if(!out->links.empty()) {
 		compiler.stack_assign(out);
 		compiler.add_node(NODE_LIGHT_PATH, NODE_LP_ray_length, out->stack_offset);
-}
+	}
 
 }
 

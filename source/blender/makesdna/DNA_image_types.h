@@ -92,8 +92,8 @@ typedef struct Image {
 	unsigned int bindcode;	/* only for current image... */
 	unsigned int *repbind;	/* for repeat of parts of images */
 	
-	struct PackedFile * packedfile;
-	struct PreviewImage * preview;
+	struct PackedFile *packedfile;
+	struct PreviewImage *preview;
 
 	/* game engine tile animation */
 	float lastupdate;

@@ -834,7 +834,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		
 		node->typeinfo->drawoutputfunc(C, node->block, ntree, node, sock, IFACE_(sock->name),
 		                               sock->locx-node->width+NODE_DYS, sock->locy-NODE_DYS, node->width-NODE_DY);
-			}
+	}
 	
 	/* preview */
 	if (node->flag & NODE_PREVIEW) {

@@ -235,7 +235,7 @@ static void do_shared_vertex_tesscol(Mesh *me)
 		}
 		scol += 4;
 	}
-	
+
 	mface = me->mface;
 	mcol = (char *)me->mcol;
 	for (a = me->totface; a > 0; a--, mface++, mcol += 16) {
@@ -277,32 +277,32 @@ void do_shared_vertexcol(Mesh *me, int do_tessface)
 			ml = me->mloop + mp->loopstart;
 			lcol = me->mloopcol + mp->loopstart;
 			for (j = 0; j < mp->totloop; j++, ml++, lcol++) {
-		scol[ml->v][0] += lcol->r;
-		scol[ml->v][1] += lcol->g;
-		scol[ml->v][2] += lcol->b;
+				scol[ml->v][0] += lcol->r;
+				scol[ml->v][1] += lcol->g;
+				scol[ml->v][2] += lcol->b;
 				scol[ml->v][3] += 1.0f;
-		has_shared = 1;
-	}
+				has_shared = 1;
+			}
 		}
 	}
-	
+
 	if (has_shared) {
 		for (i = 0; i < me->totvert; i++) {
 			if (scol[i][3] != 0.0f) {
 				mul_v3_fl(scol[i], 1.0f / scol[i][3]);
+			}
 		}
-		}
-	
+
 		for (i = 0, mp = me->mpoly; i < me->totpoly; i++, mp++) {
 			if ((use_face_sel == FALSE) || (mp->flag & ME_FACE_SEL)) {
 				ml = me->mloop + mp->loopstart;
 				lcol = me->mloopcol + mp->loopstart;
 				for (j = 0; j < mp->totloop; j++, ml++, lcol++) {
-			lcol->r = scol[ml->v][0];
-			lcol->g = scol[ml->v][1];
-			lcol->b = scol[ml->v][2];
-		}
-	}
+					lcol->r = scol[ml->v][0];
+					lcol->g = scol[ml->v][1];
+					lcol->b = scol[ml->v][2];
+				}
+			}
 		}
 	}
 

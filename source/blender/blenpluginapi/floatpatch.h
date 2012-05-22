@@ -1,5 +1,5 @@
 /* Copyright (c) 1999, Not a Number / NeoGeo b.v. 
- * 
+ *
  * All rights reserved.
  * 
  * Contact:      info@blender.org   

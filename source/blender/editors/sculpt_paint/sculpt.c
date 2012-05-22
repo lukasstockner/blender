@@ -3710,8 +3710,8 @@ static void sculpt_restore_mesh(Sculpt *sd, SculptSession *ss)
 	    (brush->flag & BRUSH_RESTORE_MESH))
 	{
 		paint_mesh_restore_co(sd, ss);
-				}
-			}
+	}
+}
 
 static void sculpt_flush_update(bContext *C)
 {

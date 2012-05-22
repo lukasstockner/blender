@@ -2243,14 +2243,14 @@ static int viewselected_exec(bContext *C, wmOperator *UNUSED(op))
 		else { /* ortho */
 			if (size < 0.0001f) {
 				/* bounding box was a single point so do not zoom */
-			ok_dist = 0;
-		}
-		else {
+				ok_dist = 0;
+			}
+			else {
 				/* adjust zoom so it looks nicer */
-			size *= 0.7f;
+				size *= 0.7f;
+			}
 		}
 	}
-		}
 
 	add_v3_v3v3(new_ofs, min, max);
 	mul_v3_fl(new_ofs, -0.5f);

@@ -60,7 +60,7 @@ typedef struct SceneStats {
 	int totedge, totedgesel;
 	int totface, totfacesel;
 	int totbone, totbonesel;
-	int totobj, totobjsel;
+	int totobj,  totobjsel;
 	int totlamp, totlampsel; 
 	int tottri, totmesh, totcurve;
 

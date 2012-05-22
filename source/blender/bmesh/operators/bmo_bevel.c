@@ -208,9 +208,9 @@ void bmo_bevel_exec(BMesh *bm, BMOperator *op)
 	BLI_smallhash_init(&hash);
 	
 	BMO_ITER (e, &siter, bm, op, "geom", BM_EDGE) {
-		BMO_elem_flag_enable(bm, e, BEVEL_FLAG|BEVEL_DEL);
-		BMO_elem_flag_enable(bm, e->v1, BEVEL_FLAG|BEVEL_DEL);
-		BMO_elem_flag_enable(bm, e->v2, BEVEL_FLAG|BEVEL_DEL);
+		BMO_elem_flag_enable(bm, e, BEVEL_FLAG | BEVEL_DEL);
+		BMO_elem_flag_enable(bm, e->v1, BEVEL_FLAG | BEVEL_DEL);
+		BMO_elem_flag_enable(bm, e->v2, BEVEL_FLAG | BEVEL_DEL);
 		
 		if (BM_edge_face_count(e) < 2) {
 			BMO_elem_flag_disable(bm, e, BEVEL_DEL);
@@ -281,8 +281,8 @@ void bmo_bevel_exec(BMesh *bm, BMOperator *op)
 		BMLoop *l;
 		BMIter liter;
 
-		BMO_elem_flag_enable(bm, e->v1, BEVEL_FLAG|BEVEL_DEL);
-		BMO_elem_flag_enable(bm, e->v2, BEVEL_FLAG|BEVEL_DEL);
+		BMO_elem_flag_enable(bm, e->v1, BEVEL_FLAG | BEVEL_DEL);
+		BMO_elem_flag_enable(bm, e->v2, BEVEL_FLAG | BEVEL_DEL);
 		
 		if (BM_edge_face_count(e) < 2) {
 			BMO_elem_flag_disable(bm, e, BEVEL_DEL);
@@ -597,7 +597,7 @@ void bmo_bevel_exec(BMesh *bm, BMOperator *op)
 					continue;
 				}
 				
-				BMO_elem_flag_enable(bm, f, FACE_NEW|FACE_SPAN);
+				BMO_elem_flag_enable(bm, f, FACE_NEW | FACE_SPAN);
 				
 				/* un-tag edges in f for deletio */
 				BM_ITER_ELEM (l2, &liter2, f, BM_LOOPS_OF_FACE) {
@@ -775,7 +775,7 @@ void bmo_bevel_exec(BMesh *bm, BMOperator *op)
 				fprintf(stderr, "%s: in bevel vert fill! (bmesh internal error)\n", __func__);
 			}
 			else {
-				BMO_elem_flag_enable(bm, f, FACE_NEW|FACE_HOLE);
+				BMO_elem_flag_enable(bm, f, FACE_NEW | FACE_HOLE);
 			}
 		}
 		BLI_smallhash_release(&tmphash);

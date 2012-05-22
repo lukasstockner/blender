@@ -79,7 +79,7 @@ __device_inline void kernel_write_data_passes(KernelGlobals *kg, __global float 
 			float4 speed = triangle_motion_vector(kg, sd);
 			kernel_write_pass_float4(buffer + kernel_data.film.pass_motion, sample, speed);
 			kernel_write_pass_float(buffer + kernel_data.film.pass_motion_weight, sample, 1.0f);
-	}
+		}
 	}
 
 	if(flag & (PASS_DIFFUSE_INDIRECT|PASS_DIFFUSE_COLOR|PASS_DIFFUSE_DIRECT))

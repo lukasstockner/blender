@@ -2796,12 +2796,12 @@ static void mesh_calc_ngon_normal(MPoly *mpoly, MLoop *loopstart,
 		v_curr = mvert[loopstart[i].v].co;
 		add_newell_cross_v3_v3v3(normal, v_prev, v_curr);
 		v_prev = v_curr;
-		}
-		
+	}
+
 	if (UNLIKELY(normalize_v3(normal) == 0.0f)) {
 		normal[2] = 1.0f; /* other axis set to 0.0 */
 	}
-	}
+}
 
 void mesh_calc_poly_normal(MPoly *mpoly, MLoop *loopstart, 
                            MVert *mvarray, float no[3])
@@ -2846,12 +2846,12 @@ static void mesh_calc_ngon_normal_coords(MPoly *mpoly, MLoop *loopstart,
 		v_curr = vertex_coords[loopstart[i].v];
 		add_newell_cross_v3_v3v3(normal, v_prev, v_curr);
 		v_prev = v_curr;
-		}
+	}
 
 	if (UNLIKELY(normalize_v3(normal) == 0.0f)) {
 		normal[2] = 1.0f; /* other axis set to 0.0 */
 	}
-	}
+}
 
 void BKE_mesh_calc_poly_normal_coords(MPoly *mpoly, MLoop *loopstart,
                                       const float (*vertex_coords)[3], float no[3])

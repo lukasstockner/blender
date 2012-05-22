@@ -78,7 +78,7 @@ void BM_data_interp_from_verts(BMesh *bm, BMVert *v1, BMVert *v2, BMVert *v, con
 
 			src[0] = v1->head.data;
 			src[1] = v2->head.data;
-			w[0] = 1.0f-fac;
+			w[0] = 1.0f - fac;
 			w[1] = fac;
 			CustomData_bmesh_interp(&bm->vdata, src, w, NULL, 2, v->head.data);
 		}
@@ -199,10 +199,10 @@ static int compute_mdisp_quad(BMLoop *l, float v1[3], float v2[3], float v3[3], 
                               float e1[3], float e2[3])
 {
 	float cent[3], n[3], p[3];
-	
+
 	/* computer center */
 	BM_face_calc_center_mean(l->f, cent);
-	
+
 	add_v3_v3v3(p, l->prev->v->co, l->v->co);
 	mul_v3_fl(p, 0.5);
 	add_v3_v3v3(n, l->next->v->co, l->v->co);

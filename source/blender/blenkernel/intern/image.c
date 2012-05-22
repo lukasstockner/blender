@@ -525,15 +525,15 @@ Image *BKE_image_load(const char *filepath)
 	int file, len;
 	const char *libname;
 	char str[FILE_MAX];
-	
+
 	BLI_strncpy(str, filepath, sizeof(str));
 	BLI_path_abs(str, G.main->name);
-	
+
 	/* exists? */
 	file = BLI_open(str, O_BINARY | O_RDONLY, 0);
 	if (file == -1) return NULL;
 	close(file);
-	
+
 	/* create a short library name */
 	len = strlen(filepath);
 
@@ -579,7 +579,7 @@ Image *BKE_image_load_exists(const char *filepath)
 			}
 		}
 	}
-	
+
 	return BKE_image_load(filepath);
 }
 

@@ -2117,7 +2117,7 @@ void txt_do_undo(Text *text)
 		case UNDO_IBLOCK:
 			linep = txt_undo_read_uint32(text->undo_buf, &text->undo_pos);
 			txt_delete_sel(text);
-
+			
 			/* txt_backspace_char removes utf8-characters, not bytes */
 			buf = MEM_mallocN(linep + 1, "iblock buffer");
 			for (i = 0; i < linep; i++) {
@@ -2127,19 +2127,19 @@ void txt_do_undo(Text *text)
 			buf[i] = 0;
 			linep = txt_utf8_len(buf);
 			MEM_freeN(buf);
-
+			
 			while (linep > 0) {
 				txt_backspace_char(text);
 				linep--;
 			}
-
+			
 			text->undo_pos--;
 			text->undo_pos--;
 			text->undo_pos--; 
 			text->undo_pos--;
 			
 			text->undo_pos--;
-
+			
 			break;
 		case UNDO_INDENT:
 		case UNDO_UNINDENT:
@@ -2157,7 +2157,7 @@ void txt_do_undo(Text *text)
 			for (i = 0; i < linep; i++) {
 				text->sell = text->sell->next;
 			}
-
+			
 			linep = txt_undo_read_uint32(text->undo_buf, &text->undo_pos);
 			//first line to be selected
 			
@@ -2168,7 +2168,7 @@ void txt_do_undo(Text *text)
 			for (i = 0; i < linep; i++) {
 				text->curl = text->curl->next;
 			}
-
+			
 			
 			if (op == UNDO_INDENT) {
 				txt_unindent(text);
@@ -2182,7 +2182,7 @@ void txt_do_undo(Text *text)
 			else if (op == UNDO_UNCOMMENT) {
 				txt_comment(text);
 			}
-
+			
 			text->undo_pos--;
 			break;
 		case UNDO_DUPLICATE:
@@ -2403,7 +2403,7 @@ void txt_do_redo(Text *text)
 		default:
 			//XXX error("Undo buffer error - resetting");
 			text->undo_pos = -1;
-
+			
 			break;
 	}
 	

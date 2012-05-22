@@ -353,21 +353,21 @@ void BKE_camera_params_compute_viewplane(CameraParams *params, int winx, int win
 /* viewplane is assumed to be already computed */
 void BKE_camera_params_compute_matrix(CameraParams *params)
 {
-	rctf viewplane= params->viewplane;
+	rctf viewplane = params->viewplane;
 
 	/* compute projection matrix */
 	if (params->is_ortho)
 		orthographic_m4(params->winmat, viewplane.xmin, viewplane.xmax,
-			viewplane.ymin, viewplane.ymax, params->clipsta, params->clipend);
+		                viewplane.ymin, viewplane.ymax, params->clipsta, params->clipend);
 	else
 		perspective_m4(params->winmat, viewplane.xmin, viewplane.xmax,
-			viewplane.ymin, viewplane.ymax, params->clipsta, params->clipend);
+		               viewplane.ymin, viewplane.ymax, params->clipsta, params->clipend);
 }
 
 /***************************** Camera View Frame *****************************/
 
 void BKE_camera_view_frame_ex(Scene *scene, Camera *camera, float drawsize, const short do_clip, const float scale[3],
-                          float r_asp[2], float r_shift[2], float *r_drawsize, float r_vec[4][3])
+                              float r_asp[2], float r_shift[2], float *r_drawsize, float r_vec[4][3])
 {
 	float facx, facy;
 	float depth;

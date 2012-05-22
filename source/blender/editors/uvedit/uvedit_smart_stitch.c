@@ -1183,11 +1183,11 @@ static int stitch_init(bContext *C, wmOperator *op)
 				if (uvedit_uv_select_test(em, scene, l)) {
 					UvElement *element = ED_uv_element_get(state->element_map, efa, l);
 					if (element) {
-					stitch_select_uv(element, state, 1);
+						stitch_select_uv(element, state, 1);
+					}
 				}
 			}
 		}
-	}
 	}
 
 	/***** initialize static island preview data *****/

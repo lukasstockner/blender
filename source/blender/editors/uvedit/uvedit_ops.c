@@ -2604,8 +2604,8 @@ static int circle_select_exec(bContext *C, wmOperator *op)
 	if (change) {
 		uv_select_sync_flush(ts, em, select);
 
-			WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
-		}
+		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+	}
 
 	return OPERATOR_FINISHED;
 }

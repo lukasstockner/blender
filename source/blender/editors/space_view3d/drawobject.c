@@ -2065,9 +2065,9 @@ static void mesh_foreachScreenVert__mapFunc(void *userData, int index, const flo
 }
 
 void mesh_foreachScreenVert(
-    ViewContext *vc,
-    void (*func)(void *userData, BMVert *eve, int x, int y, int index),
-    void *userData, eV3DClipTest clipVerts)
+        ViewContext *vc,
+        void (*func)(void *userData, BMVert *eve, int x, int y, int index),
+        void *userData, eV3DClipTest clipVerts)
 {
 	foreachScreenVert_userData data;
 	DerivedMesh *dm = editbmesh_get_derived_cage(vc->scene, vc->obedit, vc->em, CD_MASK_BAREMESH);
@@ -2151,9 +2151,9 @@ static void mesh_foreachScreenEdge__mapFunc(void *userData, int index, const flo
 }
 
 void mesh_foreachScreenEdge(
-    ViewContext *vc,
-    void (*func)(void *userData, BMEdge *eed, int x0, int y0, int x1, int y1, int index),
-    void *userData, eV3DClipTest clipVerts)
+        ViewContext *vc,
+        void (*func)(void *userData, BMEdge *eed, int x0, int y0, int x1, int y1, int index),
+        void *userData, eV3DClipTest clipVerts)
 {
 	foreachScreenEdge_userData data;
 	DerivedMesh *dm = editbmesh_get_derived_cage(vc->scene, vc->obedit, vc->em, CD_MASK_BAREMESH);
@@ -2198,9 +2198,9 @@ static void mesh_foreachScreenFace__mapFunc(void *userData, int index, const flo
 }
 
 void mesh_foreachScreenFace(
-    ViewContext *vc,
-    void (*func)(void *userData, BMFace *efa, int x, int y, int index),
-    void *userData)
+        ViewContext *vc,
+        void (*func)(void *userData, BMFace *efa, int x, int y, int index),
+        void *userData)
 {
 	foreachScreenFace_userData data;
 	DerivedMesh *dm = editbmesh_get_derived_cage(vc->scene, vc->obedit, vc->em, CD_MASK_BAREMESH);
@@ -2377,10 +2377,10 @@ static void draw_dm_vert_normals__mapFunc(void *userData, int index, const float
 			mul_v3_m3v3(n, data->tmat, (float *) no);
 			normalize_v3(n);
 			mul_m3_v3(data->imat, n);
-	}
+		}
 		else {
 			copy_v3_v3(n, no);
-}
+		}
 
 		glVertex3fv(co);
 		glVertex3f(co[0] + n[0] * data->normalsize,
@@ -3511,7 +3511,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 
 		/* since we already draw wire as wp guide, don't draw over the top */
 		draw_wire = OBDRAW_WIRE_OFF;
-			}
+	}
 	
 	/* set default draw color back for wire or for draw-extra later on */
 	if (dt != OB_WIRE) {

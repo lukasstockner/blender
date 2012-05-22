@@ -150,7 +150,7 @@ typedef struct PreviewImage {
 	unsigned int h[2];
 	short changed[2];
 	short changed_timestamp[2];
-	unsigned int * rect[2];
+	unsigned int *rect[2];
 } PreviewImage;
 
 /**

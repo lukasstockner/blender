@@ -226,7 +226,7 @@ static int pose_calculate_paths_invoke(bContext *C, wmOperator *op, wmEvent *UNU
 /* For the object with pose/action: create path curves for selected bones 
  * This recalculates the WHOLE path within the pchan->pathsf and pchan->pathef range
  */
-static int pose_calculate_paths_exec (bContext *C, wmOperator *op)
+static int pose_calculate_paths_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
 	Scene *scene = CTX_data_scene(C);
@@ -259,7 +259,7 @@ static int pose_calculate_paths_exec (bContext *C, wmOperator *op)
 	ED_pose_recalculate_paths(scene, ob);
 	
 	/* notifiers for updates */
-	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
+	WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
 	
 	return OPERATOR_FINISHED; 
 }
@@ -357,7 +357,7 @@ static void ED_pose_clear_paths(Object *ob)
 static int pose_clear_paths_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
-	
+		
 	/* only continue if there's an object */
 	if (ELEM(NULL, ob, ob->pose))
 		return OPERATOR_CANCELLED;
@@ -366,7 +366,7 @@ static int pose_clear_paths_exec(bContext *C, wmOperator *UNUSED(op))
 	ED_pose_clear_paths(ob);
 	
 	/* notifiers for updates */
-	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
+	WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
 	
 	return OPERATOR_FINISHED; 
 }

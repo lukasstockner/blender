@@ -270,9 +270,9 @@ void bmo_wireframe_exec(BMesh *bm, BMOperator *op)
 							fac = inset;
 							if (use_even_offset) {
 								fac *= shell_angle_to_dist(((float)M_PI - angle_on_axis_v3v3v3_v3(va_other->co,
-								                                                           l_pair[i]->v->co,
-								                                                           vb_other->co,
-								                                                           no_face)) * 0.5f);
+								                                                                  l_pair[i]->v->co,
+								                                                                  vb_other->co,
+								                                                                  no_face)) * 0.5f);
 							}
 							if (use_relative_offset) {
 								fac *= verts_relfac[BM_elem_index_get(l_pair[i]->v)];

@@ -663,13 +663,13 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 				ml[j].v = ed->v1 + numVerts;
 				ml[j++].e = eidx + numEdges;
 
-				ml[j].v = ed->v2+numVerts;
-				ml[j++].e = numEdges*2 + old_vert_arr[ed->v2];
+				ml[j].v = ed->v2 + numVerts;
+				ml[j++].e = numEdges * 2 + old_vert_arr[ed->v2];
 			}
 			
 			if (edge_origIndex) {
-				edge_origIndex[ml[j-3].e] = ORIGINDEX_NONE;
-				edge_origIndex[ml[j-1].e] = ORIGINDEX_NONE;
+				edge_origIndex[ml[j - 3].e] = ORIGINDEX_NONE;
+				edge_origIndex[ml[j - 1].e] = ORIGINDEX_NONE;
 			}
 
 			/* use the next material index if option enabled */
@@ -686,9 +686,9 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 
 			if (crease_inner) {
 				/* crease += crease_inner; without wrapping */
-				unsigned char *cr= (unsigned char *)&(medge[numEdges + eidx].crease);
-				int tcr= *cr + crease_inner;
-				*cr= tcr > 255 ? 255 : tcr;
+				unsigned char *cr = (unsigned char *)&(medge[numEdges + eidx].crease);
+				int tcr = *cr + crease_inner;
+				*cr = tcr > 255 ? 255 : tcr;
 			}
 			
 #ifdef SOLIDIFY_SIDE_NORMALS
