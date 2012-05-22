@@ -25,6 +25,8 @@
 #ifndef EIGEN_PRODUCTBASE_H
 #define EIGEN_PRODUCTBASE_H
 
+namespace Eigen { 
+
 /** \class ProductBase
   * \ingroup Core_Module
   *
@@ -115,10 +117,10 @@ class ProductBase : public MatrixBase<Derived>
     inline void evalTo(Dest& dst) const { dst.setZero(); scaleAndAddTo(dst,Scalar(1)); }
 
     template<typename Dest>
-    inline void addTo(Dest& dst) const { scaleAndAddTo(dst,1); }
+    inline void addTo(Dest& dst) const { scaleAndAddTo(dst,Scalar(1)); }
 
     template<typename Dest>
-    inline void subTo(Dest& dst) const { scaleAndAddTo(dst,-1); }
+    inline void subTo(Dest& dst) const { scaleAndAddTo(dst,Scalar(-1)); }
 
     template<typename Dest>
     inline void scaleAndAddTo(Dest& dst,Scalar alpha) const { derived().scaleAndAddTo(dst,alpha); }
@@ -181,8 +183,8 @@ class ProductBase : public MatrixBase<Derived>
 
   protected:
 
-    const LhsNested m_lhs;
-    const RhsNested m_rhs;
+    LhsNested m_lhs;
+    RhsNested m_rhs;
 
     mutable PlainObject m_result;
 };
@@ -286,5 +288,6 @@ Derived& MatrixBase<Derived>::lazyAssign(const ProductBase<ProductDerived, Lhs,R
   return derived();
 }
 
+} // end namespace Eigen
 
 #endif // EIGEN_PRODUCTBASE_H

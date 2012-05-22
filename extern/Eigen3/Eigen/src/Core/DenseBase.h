@@ -26,6 +26,8 @@
 #ifndef EIGEN_DENSEBASE_H
 #define EIGEN_DENSEBASE_H
 
+namespace Eigen {
+
 /** \class DenseBase
   * \ingroup Core_Module
   *
@@ -376,12 +378,13 @@ template<typename Derived> class DenseBase
     inline Derived& operator*=(const Scalar& other);
     inline Derived& operator/=(const Scalar& other);
 
+    typedef typename internal::add_const_on_value_type<typename internal::eval<Derived>::type>::type EvalReturnType;
     /** \returns the matrix or vector obtained by evaluating this expression.
       *
       * Notice that in the case of a plain matrix or vector (not an expression) this function just returns
       * a const reference, in order to avoid a useless copy.
       */
-    EIGEN_STRONG_INLINE const typename internal::eval<Derived>::type eval() const
+    EIGEN_STRONG_INLINE EvalReturnType eval() const
     {
       // Even though MSVC does not honor strong inlining when the return type
       // is a dynamic matrix, we desperately need strong inlining for fixed
@@ -539,5 +542,7 @@ template<typename Derived> class DenseBase
     DenseBase(int,int);
     template<typename OtherDerived> explicit DenseBase(const DenseBase<OtherDerived>&);
 };
+
+} // end namespace Eigen
 
 #endif // EIGEN_DENSEBASE_H

@@ -25,6 +25,8 @@
 #ifndef EIGEN_REPLICATE_H
 #define EIGEN_REPLICATE_H
 
+namespace Eigen { 
+
 /**
   * \class Replicate
   * \ingroup Core_Module
@@ -92,7 +94,7 @@ template<typename MatrixType,int RowFactor,int ColFactor> class Replicate
     }
 
     template<typename OriginalMatrixType>
-    inline Replicate(const OriginalMatrixType& matrix, int rowFactor, int colFactor)
+    inline Replicate(const OriginalMatrixType& matrix, Index rowFactor, Index colFactor)
       : m_matrix(matrix), m_rowFactor(rowFactor), m_colFactor(colFactor)
     {
       EIGEN_STATIC_ASSERT((internal::is_same<typename internal::remove_const<MatrixType>::type,OriginalMatrixType>::value),
@@ -127,9 +129,13 @@ template<typename MatrixType,int RowFactor,int ColFactor> class Replicate
       return m_matrix.template packet<LoadMode>(actual_row, actual_col);
     }
 
+    const _MatrixTypeNested& nestedExpression() const
+    { 
+      return m_matrix; 
+    }
 
   protected:
-    const MatrixTypeNested m_matrix;
+    MatrixTypeNested m_matrix;
     const internal::variable_if_dynamic<Index, RowFactor> m_rowFactor;
     const internal::variable_if_dynamic<Index, ColFactor> m_colFactor;
 };
@@ -180,5 +186,7 @@ VectorwiseOp<ExpressionType,Direction>::replicate(Index factor) const
   return typename VectorwiseOp<ExpressionType,Direction>::ReplicateReturnType
           (_expression(),Direction==Vertical?factor:1,Direction==Horizontal?factor:1);
 }
+
+} // end namespace Eigen
 
 #endif // EIGEN_REPLICATE_H
