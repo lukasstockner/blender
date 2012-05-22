@@ -25,8 +25,7 @@
 
 set(INC
 	intern
-	../memutil
-	../../extern/bullet2/src
+	../../extern/Eigen3
 )
 
 set(INC_SYS

@@ -199,25 +199,25 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip)
 			float Acenter = 0.0f;
 			if (!skip[index])
 			{
-			  // set the matrix to the Poisson stencil in order
-			  if (!skip[index + 1]) Acenter += 1.;
-			  if (!skip[index - 1]) Acenter += 1.;
-			  if (!skip[index + _xRes]) Acenter += 1.;
-			  if (!skip[index - _xRes]) Acenter += 1.;
-			  if (!skip[index + _slabSize]) Acenter += 1.;
-			  if (!skip[index - _slabSize]) Acenter += 1.;
+				// set the matrix to the Poisson stencil in order
+				if (!skip[index + 1]) Acenter += 1.;
+				if (!skip[index - 1]) Acenter += 1.;
+				if (!skip[index + _xRes]) Acenter += 1.;
+				if (!skip[index - _xRes]) Acenter += 1.;
+				if (!skip[index + _slabSize]) Acenter += 1.;
+				if (!skip[index - _slabSize]) Acenter += 1.;
 
-			  _residual[index] = b[index] - (Acenter * field[index] +  
-			  field[index - 1] * (skip[index - 1] ? 0.0 : -1.0f)+ 
-			  field[index + 1] * (skip[index + 1] ? 0.0 : -1.0f)+
-			  field[index - _xRes] * (skip[index - _xRes] ? 0.0 : -1.0f)+ 
-			  field[index + _xRes] * (skip[index + _xRes] ? 0.0 : -1.0f)+
-			  field[index - _slabSize] * (skip[index - _slabSize] ? 0.0 : -1.0f)+ 
-			  field[index + _slabSize] * (skip[index + _slabSize] ? 0.0 : -1.0f) );
+				_residual[index] = b[index] - (Acenter * field[index] +  
+				field[index - 1] * (skip[index - 1] ? 0.0 : -1.0f)+ 
+				field[index + 1] * (skip[index + 1] ? 0.0 : -1.0f)+
+				field[index - _xRes] * (skip[index - _xRes] ? 0.0 : -1.0f)+ 
+				field[index + _xRes] * (skip[index + _xRes] ? 0.0 : -1.0f)+
+				field[index - _slabSize] * (skip[index - _slabSize] ? 0.0 : -1.0f)+ 
+				field[index + _slabSize] * (skip[index + _slabSize] ? 0.0 : -1.0f) );
 			}
 			else
 			{
-			_residual[index] = 0.0f;
+				_residual[index] = 0.0f;
 			}
 
 			// P^-1

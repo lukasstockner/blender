@@ -36,9 +36,17 @@
 
 #include "float.h"
 
+#include <iostream>
+#include <Eigen/Dense>
+#include <Eigen/Sparse>
+
+
 #if PARALLEL==1
 #include <omp.h>
 #endif // PARALLEL 
+
+using namespace std;
+using namespace Eigen;
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -789,6 +797,7 @@ void FLUID_3D::wipeBoundariesSL(int zBegin, int zEnd)
 	}
 
 }
+
 //////////////////////////////////////////////////////////////////////
 // add forces to velocity field
 //////////////////////////////////////////////////////////////////////
@@ -804,6 +813,9 @@ void FLUID_3D::addForce(int zBegin, int zEnd)
 		_zVelocityTemp[i] = _zVelocity[i] + _dt * _zForce[i];
 	}
 }
+
+#define INDEX(indexX, indexY, indexZ) ((indexZ) * _xRes * _yRes + (indexY) * _xRes + (indexX))
+
 //////////////////////////////////////////////////////////////////////
 // project into divergence free field
 //////////////////////////////////////////////////////////////////////
@@ -811,7 +823,29 @@ void FLUID_3D::project()
 {
 	int x, y, z;
 	size_t index;
+#if 0
+	VectorXf b(_totalCells);
+	VectorXf p(_totalCells);
+	SparseMatrix<float,RowMajor> A(_totalCells, _totalCells);
+	// DG TODO: A.reserve(VectorXi::Constant(_totalCells, 7));
 
+	ArrayXd gridToIndex(_totalCells);
+
+	ArrayXd A0(_totalCells);
+	ArrayXd Ai(_totalCells);
+	ArrayXd Aj(_totalCells);
+	ArrayXd Ak(_totalCells);
+
+	b.setZero(_totalCells);
+	p.setZero(_totalCells);
+
+	unsigned int linearIndex = 0;
+	for (x = 0; x < _xRes; x++)
+	for (y = 0; y < _yRes; y++)
+	for (z = 0; z < _zRes; z++)
+		if (!_obstacles[INDEX(x,y,z)])
+			gridToIndex(INDEX(x,y,z)) = linearIndex++;
+#endif
 	// float *_pressure = new float[_totalCells];
 	float *_divergence   = new float[_totalCells];
 
@@ -873,7 +907,62 @@ void FLUID_3D::project()
 				// Pressure is zero anyway since now a local array is used
 				_pressure[index] = 0.0f;
 			}
+#if 0
+	float scale = 1.0; // DG TODO: make this global and incooperate this into other functions
 
+	index = _slabSize + _xRes + 1;
+	for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+		for (y = 1; y < _yRes - 1; y++, index += 2)
+			for (x = 1; x < _xRes - 1; x++, index++)
+			{
+				if(!_obstacles[INDEX(x, y, z)])
+				{
+					if(_obstacles[INDEX(x + 1, y, z)]) A0[INDEX(x, y, z)] += scale;
+					if(_obstacles[INDEX(x - 1, y, z)]) A0[INDEX(x, y, z)] += scale;
+					if(_obstacles[INDEX(x, y + 1, z)]) A0[INDEX(x, y, z)] += scale;
+					if(_obstacles[INDEX(x, y - 1, z)]) A0[INDEX(x, y, z)] += scale;
+					if(_obstacles[INDEX(x, y, z + 1)]) A0[INDEX(x, y, z)] += scale;
+					if(_obstacles[INDEX(x, y, z - 1)]) A0[INDEX(x, y, z)] += scale;
+
+					if(_obstacles[INDEX(x + 1, y, z)]) Ai[INDEX(x, y, z)] = -scale;
+					if(_obstacles[INDEX(x, y + 1, z)]) Aj[INDEX(x, y, z)] = -scale;
+					if(_obstacles[INDEX(x, y, z + 1)]) Ak[INDEX(x, y, z)] = -scale;
+				}
+
+			}
+
+	unsigned int valCount = 0;
+	index = _slabSize + _xRes + 1;
+	for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+		for (y = 1; y < _yRes - 1; y++, index += 2)
+			for (x = 1; x < _xRes - 1; x++, index++)
+		if (!_obstacles[INDEX(x,y,z)])
+		{
+			if(Ai[INDEX(x - 1, y, z)] < 0)
+				A.insert(valCount, gridToIndex(INDEX(x - 1, y, z))) = Ai[INDEX(x - 1, y, z)];
+			if(Aj[INDEX(x, y - 1, z)] < 0)
+				A.insert(valCount, gridToIndex(INDEX(x, y - 1, z))) = Aj[INDEX(x, y - 1, z)];
+			if(Ak[INDEX(x, y, z - 1)] < 0)
+				A.insert(valCount, gridToIndex(INDEX(x, y, z - 1))) = Ak[INDEX(x, y, z - 1)];
+
+				A.insert(valCount, gridToIndex(INDEX(x, y, z))) = A0[INDEX(x, y, z)];
+
+			if(Ai[INDEX(x + 1, y, z)] > 0)
+				A.insert(valCount, gridToIndex(INDEX(x + 1, y, z))) = Ai[INDEX(x + 1, y, z)];
+			if(Aj[INDEX(x, y + 1, z)] > 0)
+				A.insert(valCount, gridToIndex(INDEX(x, y + 1, z))) = Aj[INDEX(x, y + 1, z)];
+			if(Ak[INDEX(x, y, z + 1)] > 0)
+				A.insert(valCount, gridToIndex(INDEX(x, y, z + 1))) = Ak[INDEX(x, y, z + 1)];
+
+				valCount++;
+		}
+
+	for (x = 0; x < _xRes; x++)
+	for (y = 0; y < _yRes; y++)
+	for (z = 0; z < _zRes; z++)
+		if (!_obstacles[INDEX(x,y,z)])
+			b[gridToIndex(INDEX(x, y, z))] = _divergence[INDEX(x,y,z)];
+#endif
 	// copyBorderAll(_pressure, 0, _zRes);
 
 	// solve Poisson equation

@@ -244,7 +244,7 @@ static int smokeModifier_init (SmokeModifierData *smd, Object *ob, Scene *scene,
 
 		// TODO: put in failsafe if res<=0 - dg
 
-		printf("res[0]: %d, res[1]: %d, res[2]: %d\n", smd->domain->res[0], smd->domain->res[1], smd->domain->res[2]);
+		// printf("res[0]: %d, res[1]: %d, res[2]: %d\n", smd->domain->res[0], smd->domain->res[1], smd->domain->res[2]);
 		// dt max is 0.1
 		smd->domain->fluid = smoke_init(smd->domain->res, smd->domain->p0, DT_DEFAULT);
 		smd->time = scene->r.cfra;
@@ -912,7 +912,7 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			smd->domain->eff_group = NULL;
 			smd->domain->fluid_group = NULL;
 			smd->domain->coll_group = NULL;
-			smd->domain->maxres = 80;
+			smd->domain->maxres = 32;
 			smd->domain->amplify = 1;			
 			smd->domain->omega = 1.0;			
 			smd->domain->alpha = -0.001;
@@ -1256,7 +1256,8 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 				float *velocity_x = smoke_get_velocity_x(sds->fluid);								
 				float *velocity_y = smoke_get_velocity_y(sds->fluid);								
 				float *velocity_z = smoke_get_velocity_z(sds->fluid);								
-				unsigned char *obstacle = smoke_get_obstacle(sds->fluid);
+				unsigned char *obstacle = smoke_get_obstacle(sds->fluid);							
+				// DG TODO UNUSED unsigned char *obstacleAnim = smoke_get_obstacle_anim(sds->fluid);
 				int bigres[3];
 				short absolute_flow = (sfs->flags & MOD_SMOKE_FLOW_ABSOLUTE);
 				short high_emission_smoothing = bigdensity ? (sds->flags & MOD_SMOKE_HIGH_SMOOTH) : 0;
@@ -1600,39 +1601,30 @@ static void step(Scene *scene, Object *ob, SmokeModifierData *smd, float fps)
 	// printf("test maxVel: %f\n", (sds->dx * 1.5) / dt); // gives 0.9
 	maxVel = (sds->dx * 1.5);
 
-	if(velX && velY && velZ)
+	for(i = 0; i < size; i++)
 	{
-		for(i = 0; i < size; i++)
-		{
-			float vtemp = (velX[i]*velX[i]+velY[i]*velY[i]+velZ[i]*velZ[i]);
-			if(vtemp > maxVelMag)
-				maxVelMag = vtemp;
-		}
-
-		maxVelMag = sqrt(maxVelMag) * dt * sds->time_scale;
-		totalSubsteps = (int)((maxVelMag / maxVel) + 1.0f); /* always round up */
-		totalSubsteps = (totalSubsteps < 1) ? 1 : totalSubsteps;
-		totalSubsteps = (totalSubsteps > maxSubSteps) ? maxSubSteps : totalSubsteps;
-
-		// totalSubsteps = 2.0f; // DEBUG
-
-
-
-		// printf("totalSubsteps: %d, maxVelMag: %f, dt: %f\n", totalSubsteps, maxVelMag, dt);
+		float vtemp = (velX[i]*velX[i]+velY[i]*velY[i]+velZ[i]*velZ[i]);
+		if(vtemp > maxVelMag)
+			maxVelMag = vtemp;
 	}
-	else // DG TODO this is only needed during dev phase of new smoke, normaly direct velocity access should be there
-		totalSubsteps = 1.0;
+
+	maxVelMag = sqrt(maxVelMag) * dt * sds->time_scale;
+	totalSubsteps = (int)((maxVelMag / maxVel) + 1.0f); /* always round up */
+	totalSubsteps = (totalSubsteps < 1) ? 1 : totalSubsteps;
+	totalSubsteps = (totalSubsteps > maxSubSteps) ? maxSubSteps : totalSubsteps;
+
+	// totalSubsteps = 2.0f; // DEBUG
 
 	dtSubdiv = (float)dt / (float)totalSubsteps;
 
+	// printf("totalSubsteps: %d, maxVelMag: %f, dt: %f\n", totalSubsteps, maxVelMag, dt);
 
 	for(substep = 0; substep < totalSubsteps; substep++)
 	{
 		// calc animated obstacle velocities
-		// DG TODO reenable this 3 calls again!
-		// update_obstacles(scene, ob, sds, dtSubdiv, substep, totalSubsteps);
-		// update_flowsfluids(scene, ob, sds, smd->time);
-		// update_effectors(scene, ob, sds, dtSubdiv); // DG TODO? problem --> uses forces instead of velocity, need to check how they need to be changed with variable dt
+		update_obstacles(scene, ob, sds, dtSubdiv, substep, totalSubsteps);
+		update_flowsfluids(scene, ob, sds, smd->time);
+		update_effectors(scene, ob, sds, dtSubdiv); // DG TODO? problem --> uses forces instead of velocity, need to check how they need to be changed with variable dt
 
 		smoke_step(sds->fluid, dtSubdiv);
 
@@ -1820,7 +1812,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 		/* if on second frame, write cache for first frame */
 		if((int)smd->time == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact==0)) {
 			// create shadows straight after domain initialization so we get nice shadows for startframe, too
-			if(smoke_get_density(sds->fluid) && get_lamp(scene, light))
+			if(get_lamp(scene, light))
 				smoke_calc_transparency(sds->shadow, smoke_get_density(sds->fluid), sds->p0, sds->p1, sds->res, sds->dx, light, calc_voxel_transp, -7.0*sds->dx);
 
 			if(sds->wt)
@@ -1830,7 +1822,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 				smoke_turbulence_step(sds->wt, sds->fluid);
 			}
 
-			// DG TODO BKE_ptcache_write(&pid, startframe);
+			BKE_ptcache_write(&pid, startframe);
 		}
 		
 		// set new time
@@ -1851,7 +1843,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 		}
 
 		// create shadows before writing cache so they get stored
-		if(smoke_get_density(sds->fluid) && get_lamp(scene, light))
+		if(get_lamp(scene, light))
 			smoke_calc_transparency(sds->shadow, smoke_get_density(sds->fluid), sds->p0, sds->p1, sds->res, sds->dx, light, calc_voxel_transp, -7.0*sds->dx);
 
 		if(sds->wt)
@@ -1861,11 +1853,9 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 			smoke_turbulence_step(sds->wt, sds->fluid);
 		}
 	
-		/* DG TODO
 		BKE_ptcache_validate(cache, framenr);
 		if(framenr != startframe)
 			BKE_ptcache_write(&pid, framenr);
-			*/
 
 		tend();
 		// printf ( "Frame: %d, Time: %f\n\n", (int)smd->time, ( float ) tval() );
