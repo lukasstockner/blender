@@ -640,9 +640,8 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 					if (drawParamsMapped)       { draw_option = drawParamsMapped(userData, orig); }
 					else                        { if (nors) nors += 3; continue; }
 				}
-				else
-				if (drawParamsMapped) draw_option = drawParamsMapped(userData, i);
-				else {    if (nors) nors += 3; continue; }
+				else if (drawParamsMapped) { draw_option = drawParamsMapped(userData, i); }
+				else                       { if (nors) nors += 3; continue; }
 			}
 			
 			if (draw_option != DM_DRAW_OPTION_SKIP) {
@@ -1892,6 +1891,14 @@ DerivedMesh *CDDM_from_BMEditMesh(BMEditMesh *em, Mesh *UNUSED(me), int use_mdis
 		
 		med->flag = BM_edge_flag_to_mflag(eed);
 
+		/* handle this differently to editmode switching,
+		 * only enable draw for single user edges rather then calculating angle */
+		if ((med->flag & ME_EDGEDRAW) == 0) {
+			if (eed->l && eed->l == eed->l->radial_next) {
+				med->flag |= ME_EDGEDRAW;
+			}
+		}
+
 		CustomData_from_bmesh_block(&bm->edata, &dm->edgeData, eed->head.data, i);
 		if (add_orig) *index = i;
 	}
@@ -2397,11 +2404,13 @@ void CDDM_calc_edges_tessface(DerivedMesh *dm)
 	CustomData_add_layer(&edgeData, CD_MEDGE, CD_CALLOC, NULL, numEdges);
 	CustomData_add_layer(&edgeData, CD_ORIGINDEX, CD_CALLOC, NULL, numEdges);
 
-	ehi = BLI_edgehashIterator_new(eh);
 	med = CustomData_get_layer(&edgeData, CD_MEDGE);
 	index = CustomData_get_layer(&edgeData, CD_ORIGINDEX);
-	for (i = 0; !BLI_edgehashIterator_isDone(ehi);
-	     BLI_edgehashIterator_step(ehi), ++i, ++med, ++index) {
+
+	for (ehi = BLI_edgehashIterator_new(eh), i = 0;
+	     BLI_edgehashIterator_isDone(ehi) == FALSE;
+	     BLI_edgehashIterator_step(ehi), ++i, ++med, ++index)
+	{
 		BLI_edgehashIterator_getKey(ehi, &med->v1, &med->v2);
 
 		med->flag = ME_EDGEDRAW | ME_EDGERENDER;
@@ -2460,11 +2469,13 @@ void CDDM_calc_edges(DerivedMesh *dm)
 	CustomData_add_layer(&edgeData, CD_MEDGE, CD_CALLOC, NULL, numEdges);
 	CustomData_add_layer(&edgeData, CD_ORIGINDEX, CD_CALLOC, NULL, numEdges);
 
-	ehi = BLI_edgehashIterator_new(eh);
 	med = CustomData_get_layer(&edgeData, CD_MEDGE);
 	index = CustomData_get_layer(&edgeData, CD_ORIGINDEX);
-	for (i = 0; !BLI_edgehashIterator_isDone(ehi);
-	     BLI_edgehashIterator_step(ehi), ++i, ++med, ++index) {
+
+	for (ehi = BLI_edgehashIterator_new(eh), i = 0;
+	     BLI_edgehashIterator_isDone(ehi) == FALSE;
+	     BLI_edgehashIterator_step(ehi), ++i, ++med, ++index)
+	{
 		BLI_edgehashIterator_getKey(ehi, &med->v1, &med->v2);
 		j = GET_INT_FROM_POINTER(BLI_edgehashIterator_getValue(ehi));
 

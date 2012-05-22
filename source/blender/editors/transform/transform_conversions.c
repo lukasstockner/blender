@@ -1393,10 +1393,10 @@ static void createTransCurveVerts(bContext *C, TransInfo *t)
 				if (bezt->hide==0) {
 					TransDataCurveHandleFlags *hdata = NULL;
 
-					if (		propmode ||
-							((bezt->f2 & SELECT) && hide_handles) ||
-							((bezt->f1 & SELECT) && hide_handles == 0)
-					  ) {
+					if (propmode ||
+					    ((bezt->f2 & SELECT) && hide_handles) ||
+					    ((bezt->f1 & SELECT) && hide_handles == 0))
+					{
 						copy_v3_v3(td->iloc, bezt->vec[0]);
 						td->loc= bezt->vec[0];
 						copy_v3_v3(td->center, bezt->vec[(hide_handles || bezt->f2 & SELECT) ? 1:0]);
@@ -1455,10 +1455,10 @@ static void createTransCurveVerts(bContext *C, TransInfo *t)
 						count++;
 						tail++;
 					}
-					if (		propmode ||
-							((bezt->f2 & SELECT) && hide_handles) ||
-							((bezt->f3 & SELECT) && hide_handles == 0)
-					  ) {
+					if (propmode ||
+					    ((bezt->f2 & SELECT) && hide_handles) ||
+					    ((bezt->f3 & SELECT) && hide_handles == 0))
+					{
 						copy_v3_v3(td->iloc, bezt->vec[2]);
 						td->loc= bezt->vec[2];
 						copy_v3_v3(td->center, bezt->vec[(hide_handles || bezt->f2 & SELECT) ? 1:2]);
@@ -1885,7 +1885,8 @@ static void get_edge_center(float cent_r[3], BMVert *eve)
 }
 
 /* way to overwrite what data is edited with transform */
-static void VertsToTransData(TransInfo *t, TransData *td, BMEditMesh *em, BMVert *eve, float *bweight)
+static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx,
+							 BMEditMesh *em, BMVert *eve, float *bweight)
 {
 	td->flag = 0;
 	//if (key)
@@ -1919,12 +1920,23 @@ static void VertsToTransData(TransInfo *t, TransData *td, BMEditMesh *em, BMVert
 		td->val = bweight;
 		td->ival = bweight ? *(bweight) : 1.0f;
 	}
+	else if (t->mode == TFM_SKIN_RESIZE) {
+		MVertSkin *vs = CustomData_bmesh_get(&em->bm->vdata,
+		                                     eve->head.data,
+		                                     CD_MVERT_SKIN);
+		/* skin node size */
+		td->ext = tx;
+		copy_v3_v3(tx->isize, vs->radius);
+		tx->size = vs->radius;
+		td->val = vs->radius;
+	}
 }
 
 static void createTransEditVerts(bContext *C, TransInfo *t)
 {
 	ToolSettings *ts = CTX_data_tool_settings(C);
 	TransData *tob = NULL;
+	TransDataExtension *tx = NULL;
 	BMEditMesh *em = BMEdit_FromObject(t->obedit);
 	BMesh *bm = em->bm;
 	BMVert *eve;
@@ -2030,6 +2042,10 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 	else t->total = countsel;
 
 	tob= t->data= MEM_callocN(t->total*sizeof(TransData), "TransObData(Mesh EditMode)");
+	if (t->mode == TFM_SKIN_RESIZE) {
+		tx = t->ext = MEM_callocN(t->total * sizeof(TransDataExtension),
+								  "TransObData ext");
+	}
 
 	copy_m3_m4(mtx, t->obedit->obmat);
 	invert_m3_m3(smtx, mtx);
@@ -2081,7 +2097,9 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 			if (propmode || selstate[a]) {
 				float *bweight = CustomData_bmesh_get(&bm->vdata, eve->head.data, CD_BWEIGHT);
 				
-				VertsToTransData(t, tob, em, eve, bweight);
+				VertsToTransData(t, tob, tx, em, eve, bweight);
+				if (tx)
+					tx++;
 
 				/* selected */
 				if (selstate[a]) tob->flag |= TD_SELECTED;
@@ -2180,7 +2198,6 @@ void flushTransNodes(TransInfo *t)
 	if (t->total==1) {
 		ED_node_link_intersect_test(t->sa, 1);
 	}
-	
 }
 
 /* *** SEQUENCE EDITOR *** */
@@ -3705,9 +3722,9 @@ void flushTransGraphData(TransInfo *t)
 			switch (sipo->autosnap) {
 				case SACTSNAP_FRAME: /* snap to nearest frame (or second if drawing seconds) */
 					if (sipo->flag & SIPO_DRAWTIME)
-						td2d->loc[0] = (float)(floorf((td2d->loc[0]/secf) + 0.5f) * secf);
+						td2d->loc[0] = floorf((td2d->loc[0] / secf) + 0.5) * secf;
 					else
-						td2d->loc[0] = (float)(floorf(td2d->loc[0]+0.5f));
+						td2d->loc[0] = floorf(td2d->loc[0] + 0.5);
 					break;
 				
 				case SACTSNAP_MARKER: /* snap to nearest marker */
@@ -3844,7 +3861,7 @@ static void SeqTransInfo(TransInfo *t, Sequence *seq, int *recursive, int *count
 			if (seq->type == SEQ_META) {
 				/* Meta's can only directly be moved between channels since they
 				 * don't have their start and length set directly (children affect that)
-				 * since this Meta is nested we don't need any of its data infact.
+				 * since this Meta is nested we don't need any of its data in fact.
 				 * calc_sequence() will update its settings when run on the toplevel meta */
 				*flag= 0;
 				*count= 0;
@@ -4438,7 +4455,7 @@ static void set_trans_object_base_flags(TransInfo *t)
 
 			if (parsel) {
 				/* rotation around local centers are allowed to propagate */
-				if ((t->mode == TFM_ROTATION || t->mode == TFM_TRACKBALL)  && t->around == V3D_LOCAL) {
+				if ((t->mode == TFM_ROTATION || t->mode == TFM_TRACKBALL) && t->around == V3D_LOCAL) {
 					base->flag |= BA_TRANSFORM_CHILD;
 				}
 				else {
@@ -4487,7 +4504,7 @@ static int count_proportional_objects(TransInfo *t)
 	Base *base;
 
 	/* rotations around local centers are allowed to propagate, so we take all objects */
-	if (!((t->mode == TFM_ROTATION || t->mode == TFM_TRACKBALL)  && t->around == V3D_LOCAL)) {
+	if (!((t->mode == TFM_ROTATION || t->mode == TFM_TRACKBALL) && t->around == V3D_LOCAL)) {
 		/* mark all parents */
 		for (base= scene->base.first; base; base= base->next) {
 			if (TESTBASELIB_BGMODE(v3d, scene, base)) {
@@ -4859,10 +4876,11 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 	}
 	else if (t->spacetype == SPACE_NODE) {
 		SpaceNode *snode= (SpaceNode *)t->sa->spacedata.first;
-		ED_node_update_hierarchy(C, snode->edittree);
-		
-		if (canceled == 0)
+		if (canceled == 0) {
+			ED_node_post_apply_transform(C, snode->edittree);
+			
 			ED_node_link_insert(t->sa);
+		}
 		
 		/* clear link line */
 		ED_node_link_intersect_test(t->sa, 0);

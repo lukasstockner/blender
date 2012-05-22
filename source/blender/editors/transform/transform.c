@@ -617,7 +617,7 @@ static void transform_event_xyz_constraint(TransInfo *t, short key_type, char cm
 		char axis;
 	
 		/* Initialize */
-		switch(key_type) {
+		switch (key_type) {
 			case XKEY:
 				axis = 'X';
 				constraint_axis = CON_AXIS0;
@@ -1141,9 +1141,11 @@ int calculateTransformCenter(bContext *C, int centerMode, float *cent3d, int *ce
 
 		calculateCenter(t);
 
-		if(cent2d)
+		if (cent2d) {
 			copy_v2_v2_int(cent2d, t->center2d);
-		if(cent3d) {
+		}
+
+		if (cent3d) {
 			// Copy center from constraint center. Transform center can be local
 			copy_v3_v3(cent3d, t->con.center);
 		}
@@ -1632,6 +1634,9 @@ int initTransform(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event, int
 		break;
 	case TFM_RESIZE:
 		initResize(t);
+		break;
+	case TFM_SKIN_RESIZE:
+		initSkinResize(t);
 		break;
 	case TFM_TOSPHERE:
 		initToSphere(t);
@@ -2701,7 +2706,7 @@ static void ElementResize(TransInfo *t, TransData *td, float mat[3][3])
 		
 		constraintSizeLim(t, td);
 	}
-	
+
 	/* For individual element center, Editmode need to use iloc */
 	if (t->flag & T_POINTS)
 		sub_v3_v3v3(vec, td->iloc, center);
@@ -2790,6 +2795,96 @@ int Resize(TransInfo *t, const int mval[2])
 		
 		for (i = 0, td=t->data; i < t->total; i++, td++)
 			ElementResize(t, td, mat);
+	}
+	
+	recalcData(t);
+	
+	ED_area_headerprint(t->sa, str);
+	
+	return 1;
+}
+
+/* ************************** SKIN *************************** */
+
+void initSkinResize(TransInfo *t)
+{
+	t->mode = TFM_SKIN_RESIZE;
+	t->transform = SkinResize;
+	
+	initMouseInputMode(t, &t->mouse, INPUT_SPRING_FLIP);
+	
+	t->flag |= T_NULL_ONE;
+	t->num.flag |= NUM_NULL_ONE;
+	t->num.flag |= NUM_AFFECT_ALL;
+	if (!t->obedit) {
+		t->flag |= T_NO_ZERO;
+		t->num.flag |= NUM_NO_ZERO;
+	}
+	
+	t->idx_max = 2;
+	t->num.idx_max = 2;
+	t->snap[0] = 0.0f;
+	t->snap[1] = 0.1f;
+	t->snap[2] = t->snap[1] * 0.1f;
+
+	t->num.increment = t->snap[1];
+}
+
+int SkinResize(TransInfo *t, const int UNUSED(mval[2]))
+{
+	TransData *td;
+	float size[3], mat[3][3];
+	float ratio;
+	int i;
+	char str[200];
+	
+	ratio = t->values[0];
+	size[0] = size[1] = size[2] = ratio;
+	
+	snapGrid(t, size);
+	
+	if (hasNumInput(&t->num)) {
+		applyNumInput(&t->num, size);
+		constraintNumInput(t, size);
+	}
+	
+	applySnapping(t, size);
+	
+	if (t->flag & T_AUTOVALUES) {
+		copy_v3_v3(size, t->auto_values);
+	}
+	
+	copy_v3_v3(t->values, size);
+	
+	size_to_mat3(mat, size);
+	
+	headerResize(t, size, str);
+	
+	for (i = 0, td = t->data; i < t->total; i++, td++) {
+		float tmat[3][3], smat[3][3];
+		float fsize[3];
+		
+		if (td->flag & TD_NOACTION)
+			break;
+		
+		if (td->flag & TD_SKIP)
+			continue;
+
+		if (t->flag & T_EDIT) {
+			mul_m3_m3m3(smat, mat, td->mtx);
+			mul_m3_m3m3(tmat, td->smtx, smat);
+		}
+		else {
+			copy_m3_m3(tmat, mat);
+		}
+	
+		if (t->con.applySize) {
+			t->con.applySize(t, NULL, tmat);
+		}
+
+		mat3_to_size(fsize, tmat);
+		td->val[0] = td->ext->isize[0] * (1 + (fsize[0] - 1) * td->factor);
+		td->val[1] = td->ext->isize[1] * (1 + (fsize[1] - 1) * td->factor);
 	}
 	
 	recalcData(t);
@@ -3096,7 +3191,7 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 		/* rotation */
 		if ((t->flag & T_V3D_ALIGN)==0) { // align mode doesn't rotate objects itself
 			/* euler or quaternion? */
-			   if ((td->ext->rotOrder == ROT_MODE_QUAT) || (td->flag & TD_USEQUAT)) {
+			if ((td->ext->rotOrder == ROT_MODE_QUAT) || (td->flag & TD_USEQUAT)) {
 				mul_serie_m3(fmat, td->mtx, mat, td->smtx, NULL, NULL, NULL, NULL, NULL);
 				mat3_to_quat(quat, fmat);	// Actual transform
 				
@@ -4711,7 +4806,7 @@ void projectSVData(TransInfo *t, int final)
 
 		/* BMESH_TODO, this interpolates between vertex/loops which are not moved
 		 * (are only apart of a face attached to a slide vert), couldn't we iterate BM_LOOPS_OF_VERT
-		 * here and only iterpolate those? */
+		 * here and only interpolate those? */
 		BM_ITER_ELEM (f, &fiter, sv->v, BM_FACES_OF_VERT) {
 			BMIter liter;
 			BMLoop *l;
@@ -5461,7 +5556,7 @@ static void doAnimEdit_SnapFrame(TransInfo *t, TransData *td, TransData2D *td2d,
 		else
 #endif
 		{
-			val= floorf(val+0.5f);
+			val = floor(val + 0.5);
 		}
 		
 		/* convert frame out of nla-action time */
@@ -5547,7 +5642,7 @@ static void headerTimeTranslate(TransInfo *t, char *str)
 		/* apply snapping + frame->seconds conversions */
 		if (autosnap == SACTSNAP_STEP) {
 			if (do_time)
-				val= floorf((double)val/secf + 0.5f);
+				val= floorf((double)val / secf + 0.5);
 			else
 				val= floorf(val + 0.5f);
 		}
@@ -5595,9 +5690,9 @@ static void applyTimeTranslate(TransInfo *t, float UNUSED(sval))
 
 			if (autosnap == SACTSNAP_STEP) {
 				if (do_time)
-					deltax= (float)(floor((deltax/secf) + 0.5f) * secf);
+					deltax = (float)(floor(((double)deltax / secf) + 0.5) * secf);
 				else
-					deltax= (float)(floor(deltax + 0.5f));
+					deltax = (float)(floor(deltax + 0.5f));
 			}
 
 			val = BKE_nla_tweakedit_remap(adt, td->ival, NLATIME_CONVERT_MAP);
@@ -5609,9 +5704,9 @@ static void applyTimeTranslate(TransInfo *t, float UNUSED(sval))
 
 			if (autosnap == SACTSNAP_STEP) {
 				if (do_time)
-					val= (float)(floor((deltax/secf) + 0.5f) * secf);
+					val = (float)(floor(((double)deltax / secf) + 0.5) * secf);
 				else
-					val= (float)(floor(val + 0.5f));
+					val = (float)(floor(val + 0.5f));
 			}
 
 			*(td->val) = td->ival + val;
@@ -5861,9 +5956,9 @@ static void applyTimeScale(TransInfo *t)
 
 		if (autosnap == SACTSNAP_STEP) {
 			if (do_time)
-				fac= (float)(floor(fac/secf + 0.5f) * secf);
+				fac = (float)(floor((double)fac / secf + 0.5) * secf);
 			else
-				fac= (float)(floor(fac + 0.5f));
+				fac = (float)(floor(fac + 0.5f));
 		}
 
 		/* check if any need to apply nla-mapping */
@@ -5871,9 +5966,7 @@ static void applyTimeScale(TransInfo *t)
 			startx= BKE_nla_tweakedit_remap(adt, startx, NLATIME_CONVERT_UNMAP);
 
 		/* now, calculate the new value */
-		*(td->val) = td->ival - startx;
-		*(td->val) *= fac;
-		*(td->val) += startx;
+		*(td->val) = ((td->ival - startx) * fac) + startx;
 
 		/* apply nearest snapping */
 		doAnimEdit_SnapFrame(t, td, td2d, adt, autosnap);
