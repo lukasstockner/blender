@@ -596,6 +596,8 @@ else
 
 		m_frameTime += framestep;
 		
+		m_sceneconverter->MergeAsyncLoads();
+
 		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); ++sceneit)
 		// for each scene, call the proceed functions
 		{

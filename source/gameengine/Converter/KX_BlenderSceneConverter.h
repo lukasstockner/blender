@@ -50,6 +50,7 @@ class BL_InterpolatorList;
 class BL_Material;
 struct Main;
 struct Scene;
+struct ThreadInfo;
 
 class KX_BlenderSceneConverter : public KX_ISceneConverter
 {
@@ -58,6 +59,10 @@ class KX_BlenderSceneConverter : public KX_ISceneConverter
 	vector<pair<KX_Scene*,RAS_IPolyMaterial*> > m_polymaterials;
 	vector<pair<KX_Scene*,RAS_MeshObject*> > m_meshobjects;
 	vector<pair<KX_Scene*,BL_Material *> >	m_materials;
+
+	vector<pair<KX_Scene*,KX_Scene*> > m_mergequeue;
+	ThreadInfo	*m_threadinfo;
+
 	// Should also have a list of collision shapes. 
 	// For the time being this is held in KX_Scene::m_shapes
 
@@ -154,6 +159,9 @@ public:
 	RAS_MeshObject *ConvertMeshSpecial(KX_Scene* kx_scene, Main *maggie, const char *name);
 	bool FreeBlendFile(struct Main *maggie);
 	bool FreeBlendFile(const char *path);
+
+	virtual void MergeAsyncLoads();
+	void AddScenesToMergeQueue(KX_Scene *merge_scene, KX_Scene *other);
  
 	void PrintStats() {
 		printf("BGE STATS!\n");
@@ -182,6 +190,7 @@ public:
 	{
 		LIB_LOAD_LOAD_ACTIONS = 1,
 		LIB_LOAD_VERBOSE = 2,
+		LIB_LOAD_ASYNC = 3,
 	};
 
 

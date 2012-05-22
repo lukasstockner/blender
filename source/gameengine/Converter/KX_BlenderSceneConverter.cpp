@@ -112,6 +112,13 @@ extern "C" {
 	#include "../../blender/blenlib/BLI_linklist.h"
 }
 
+#include <pthread.h>
+
+/* This is used to avoid including pthread.h in KX_BlenderSceneConverter.h */
+typedef struct ThreadInfo {
+	vector<pthread_t> threads;
+} ThreadInfo;
+
 KX_BlenderSceneConverter::KX_BlenderSceneConverter(
 							struct Main* maggie,
 							class KX_KetsjiEngine* engine
@@ -125,6 +132,7 @@ KX_BlenderSceneConverter::KX_BlenderSceneConverter(
 {
 	tag_main(maggie, 0); /* avoid re-tagging later on */
 	m_newfilename = "";
+	m_threadinfo = new ThreadInfo();
 }
 
 
@@ -134,6 +142,12 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 	int i;
 	// delete sumoshapes
 	
+	vector<pthread_t>::iterator pit = m_threadinfo->threads.begin();
+	while (pit != m_threadinfo->threads.end()) {
+		pthread_cancel((*pit));
+		pthread_join((*pit), NULL);
+		pit++;
+	}
 
 	int numAdtLists = m_map_blender_to_gameAdtList.size();
 	for (i=0; i<numAdtLists; i++) {
@@ -913,6 +927,67 @@ Main* KX_BlenderSceneConverter::GetMainDynamicPath(const char *path)
 	return NULL;
 }
 
+void KX_BlenderSceneConverter::MergeAsyncLoads()
+{
+	vector<pair<KX_Scene*,KX_Scene*> >::iterator sit;
+	for (sit=m_mergequeue.begin(); sit!=m_mergequeue.end(); ++sit)
+	{
+		printf("Merging scene: %s\n", (*sit).first->GetName().ReadPtr());
+		(*sit).first->MergeScene((*sit).second);
+		delete (*sit).second;
+	}
+
+	m_mergequeue.clear();
+}
+
+void KX_BlenderSceneConverter::AddScenesToMergeQueue(KX_Scene *merge_scene, KX_Scene *other)
+{
+	m_mergequeue.push_back(pair<KX_Scene*,KX_Scene*>(merge_scene, other));
+}
+
+typedef struct {KX_BlenderSceneConverter *converter; KX_Scene **scene; struct Main *maggie;} cleanup_args;
+void async_cleanup(void *ptr)
+{
+	cleanup_args *args = (cleanup_args*)ptr;
+	KX_Scene **scene = args->scene;
+	if (*scene)
+	{
+		delete *scene;
+		*scene = NULL;
+	}
+
+	args->converter->FreeBlendFile(args->maggie);
+
+	delete args;
+	printf("Cleanup called\n");
+}
+
+typedef struct {KX_BlenderSceneConverter *converter; KX_KetsjiEngine *engine; Scene *scene; struct Main *maggie; KX_Scene *merge_scene;} async_args;
+void *async_convert(void *ptr)
+{
+	int cleanedup=0;
+	KX_Scene *new_scene=NULL;
+	async_args *args = (async_args*)ptr;
+
+	cleanup_args *cargs = new cleanup_args();
+	cargs->converter = args->converter;
+	cargs->scene = &new_scene;
+	cargs->maggie = args->maggie;
+
+	pthread_cleanup_push(async_cleanup, cargs);
+	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+	new_scene = args->engine->CreateScene(args->scene);
+
+	pthread_cleanup_pop(cleanedup);
+
+	if (new_scene)
+		args->converter->AddScenesToMergeQueue(args->merge_scene, new_scene);
+
+	delete args;
+	delete cargs;
+	return NULL;
+}
+
 bool KX_BlenderSceneConverter::LinkBlendFileMemory(void *data, int length, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options)
 {
 	BlendHandle *bpy_openlib = BLO_blendhandle_from_memory(data, length);
@@ -1037,12 +1112,27 @@ bool KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openlib, const cha
 			if (options & LIB_LOAD_VERBOSE)
 				printf("SceneName: %s\n", scene->name+2);
 			
-			/* merge into the base  scene */
-			KX_Scene* other= m_ketsjiEngine->CreateScene((Scene *)scene);
-			scene_merge->MergeScene(other);
+			if (options & LIB_LOAD_ASYNC)
+			{
+				pthread_t id;
+				async_args *args = new async_args(); // Gets deleted in the thread
+				args->converter = this;
+				args->engine = m_ketsjiEngine;
+				args->scene = (Scene*)scene;
+				args->maggie = main_newlib;
+				args->merge_scene = scene_merge;
+				pthread_create(&id, NULL, &async_convert, (void*)args);
+				m_threadinfo->threads.push_back(id);
+			}
+			else 
+			{
+				/* merge into the base  scene */
+				KX_Scene* other= m_ketsjiEngine->CreateScene((Scene *)scene);
+				scene_merge->MergeScene(other);
 			
-			// RemoveScene(other); // Don't run this, it frees the entire scene converter data, just delete the scene
-			delete other;
+				// RemoveScene(other); // Don't run this, it frees the entire scene converter data, just delete the scene
+				delete other;
+			}
 		}
 
 		/* Now handle all the actions */
