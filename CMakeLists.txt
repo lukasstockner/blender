@@ -127,7 +127,7 @@ option(WITH_PYTHON_SAFETY "Enable internal API error checking to track invalid d
 option(WITH_PYTHON_MODULE "Enable building as a python module (experimental, only enable for development)" OFF)
 option(WITH_BUILDINFO     "Include extra build details (only disable for development & faster builds)" ON)
 option(WITH_IK_ITASC      "Enable ITASC IK solver (only disable for development & for incompatible C++ compilers)" ON)
-option(WITH_FFTW3         "Enable FFTW3 support (Used for smoke and audio effects)" OFF)
+option(WITH_FFTW3         "Enable FFTW3 support (Used for smoke and audio effects)" ON)
 option(WITH_BULLET        "Enable Bullet (Physics Engine)" ON)
 option(WITH_GAMEENGINE    "Enable Game Engine" ON)
 option(WITH_PLAYER        "Build Player" OFF)
