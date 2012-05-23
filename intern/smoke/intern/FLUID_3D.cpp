@@ -917,16 +917,16 @@ void FLUID_3D::project()
 			{
 				if(!_obstacles[INDEX(x, y, z)])
 				{
-					if(_obstacles[INDEX(x + 1, y, z)]) A0[INDEX(x, y, z)] += scale;
-					if(_obstacles[INDEX(x - 1, y, z)]) A0[INDEX(x, y, z)] += scale;
-					if(_obstacles[INDEX(x, y + 1, z)]) A0[INDEX(x, y, z)] += scale;
-					if(_obstacles[INDEX(x, y - 1, z)]) A0[INDEX(x, y, z)] += scale;
-					if(_obstacles[INDEX(x, y, z + 1)]) A0[INDEX(x, y, z)] += scale;
-					if(_obstacles[INDEX(x, y, z - 1)]) A0[INDEX(x, y, z)] += scale;
+					if(!_obstacles[INDEX(x + 1, y, z)]) A0[INDEX(x, y, z)] += scale;
+					if(!_obstacles[INDEX(x - 1, y, z)]) A0[INDEX(x, y, z)] += scale;
+					if(!_obstacles[INDEX(x, y + 1, z)]) A0[INDEX(x, y, z)] += scale;
+					if(!_obstacles[INDEX(x, y - 1, z)]) A0[INDEX(x, y, z)] += scale;
+					if(!_obstacles[INDEX(x, y, z + 1)]) A0[INDEX(x, y, z)] += scale;
+					if(!_obstacles[INDEX(x, y, z - 1)]) A0[INDEX(x, y, z)] += scale;
 
-					if(_obstacles[INDEX(x + 1, y, z)]) Ai[INDEX(x, y, z)] = -scale;
-					if(_obstacles[INDEX(x, y + 1, z)]) Aj[INDEX(x, y, z)] = -scale;
-					if(_obstacles[INDEX(x, y, z + 1)]) Ak[INDEX(x, y, z)] = -scale;
+					if(!_obstacles[INDEX(x + 1, y, z)]) Ai[INDEX(x, y, z)] = -scale;
+					if(!_obstacles[INDEX(x, y + 1, z)]) Aj[INDEX(x, y, z)] = -scale;
+					if(!_obstacles[INDEX(x, y, z + 1)]) Ak[INDEX(x, y, z)] = -scale;
 				}
 
 			}
