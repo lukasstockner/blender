@@ -64,12 +64,12 @@ extern "C" {
 
 
 
-extern void gpuImmediateBufferSizes(
+extern void gpuImmediateElementSizes(
 	GLint vertexSize,
 	GLint normalSize,
 	GLint colorSize);
 
-extern void gpuImmediateBufferSize(GLsizei maxVertexCount);
+extern void gpuImmediateMaxVertexCount(GLsizei maxVertexCount);
 
 extern void gpuImmediateTextureUnitCount(size_t count);
 extern void gpuImmediateTexCoordSizes(const GLint *restrict sizes);

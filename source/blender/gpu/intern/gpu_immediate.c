@@ -495,7 +495,7 @@ void gpuImmediateLegacyPutState(void)
 #endif /* GPU_LEGACY_DEBUG */
 
 
-void gpuImmediateBufferSizes(
+void gpuImmediateElementSizes(
 	GLint vertexSize,
 	GLint normalSize,
 	GLint colorSize)
@@ -521,7 +521,7 @@ void gpuImmediateBufferSizes(
 	}
 }
 
-void gpuImmediateBufferSize(GLsizei maxVertexCount)
+void gpuImmediateMaxVertexCount(GLsizei maxVertexCount)
 {
 	assert(maxVertexCount >= 0);
 
