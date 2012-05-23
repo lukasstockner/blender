@@ -571,8 +571,8 @@ void gpuImmediateTextureUnitMap(const GLenum *restrict map)
 	CHECK();
 
 	for (i = 0; i < GPU_IMMEDIATE->textureUnitCount; i++) {
-		assert(sizes[i] >= GL_TEXTURE0);
-		assert(sizes[i] <= GL_TEXTURE32);
+		assert(map[i] >= GL_TEXTURE0);
+		assert(map[i] <= GL_TEXTURE31);
 
 		if (GPU_IMMEDIATE->textureUnitMap[i] != map[i]) {
 			GPU_IMMEDIATE->textureUnitMap[i] = map[i];
