@@ -50,6 +50,8 @@
 #include "blf_internal_types.h"
 #include "blf_internal.h"
 
+#include "GPU_compatibility.h"
+
 
 /* Max number of font in memory.
  * Take care that now every font have a glyph cache per size/dpi,
@@ -521,10 +523,28 @@ static void blf_draw__start(FontBLF *font, GLint *mode, GLint *param)
 	glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, param);
 	if (*param != GL_MODULATE)
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+	{ // XXX: setup immediate, common setups could be refactored into utilities
+		GLint  texCoordSizes[1] = { 2 };
+		GLenum texUnitMap[1];
+
+		glGetIntegerv(GL_ACTIVE_TEXTURE, texUnitMap);
+
+		gpuImmediateElementSizes(2, 0, 4);
+		gpuImmediateTextureUnitCount(1);
+		gpuImmediateTexCoordSizes(texCoordSizes);
+		gpuImmediateTextureUnitMap(texUnitMap);
+		gpuImmediateFloatAttribCount(0);
+		gpuImmediateUbyteAttribCount(0);
+	}
+
+	gpuBegin(GL_QUADS);
 }
 
 static void blf_draw__end(GLint mode, GLint param)
 {
+	gpuEnd(GL_QUADS);
+
 	/* and restore the original value. */
 	if (param != GL_MODULATE)
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, param);

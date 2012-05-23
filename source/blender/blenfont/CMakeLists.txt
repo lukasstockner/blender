@@ -28,6 +28,7 @@ set(INC
 	../editors/include
 	../makesdna
 	../../../intern/guardedalloc
+	../gpu
 )
 
 set(INC_SYS
