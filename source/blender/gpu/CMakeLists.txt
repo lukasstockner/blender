@@ -49,6 +49,7 @@ set(SRC
 	intern/gpu_codegen.c
 	intern/gpu_draw.c
 	intern/gpu_extensions.c
+	intern/gpu_immediate.c
 	intern/gpu_material.c
 	
 	shaders/gpu_shader_material.glsl.c
@@ -59,10 +60,12 @@ set(SRC
 	shaders/gpu_shader_vsm_store_vert.glsl.c
 
 	GPU_buffers.h
+	GPU_compatibility.h
 	GPU_draw.h
 	GPU_extensions.h
 	GPU_material.h
 	intern/gpu_codegen.h
+	intern/gpu_immediate.h
 )
 
 if(WITH_MOD_SMOKE)
