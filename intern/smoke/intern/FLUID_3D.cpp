@@ -932,6 +932,7 @@ void FLUID_3D::project()
 			}
 
 	unsigned int valCount = 0;
+	unsigned int rowCount = 0;
 	index = _slabSize + _xRes + 1;
 	for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
 		for (y = 1; y < _yRes - 1; y++, index += 2)
@@ -939,22 +940,22 @@ void FLUID_3D::project()
 		if (!_obstacles[INDEX(x,y,z)])
 		{
 			if(Ai[INDEX(x - 1, y, z)] < 0)
-				A.insert(valCount, gridToIndex(INDEX(x - 1, y, z))) = Ai[INDEX(x - 1, y, z)];
+				A.insert(rowCount, gridToIndex(INDEX(x - 1, y, z))) = Ai[INDEX(x - 1, y, z)];
 			if(Aj[INDEX(x, y - 1, z)] < 0)
-				A.insert(valCount, gridToIndex(INDEX(x, y - 1, z))) = Aj[INDEX(x, y - 1, z)];
+				A.insert(rowCount, gridToIndex(INDEX(x, y - 1, z))) = Aj[INDEX(x, y - 1, z)];
 			if(Ak[INDEX(x, y, z - 1)] < 0)
-				A.insert(valCount, gridToIndex(INDEX(x, y, z - 1))) = Ak[INDEX(x, y, z - 1)];
+				A.insert(rowCount, gridToIndex(INDEX(x, y, z - 1))) = Ak[INDEX(x, y, z - 1)];
 
-			A.insert(valCount, gridToIndex(INDEX(x, y, z))) = A0[INDEX(x, y, z)];
+			A.insert(rowCount, gridToIndex(INDEX(x, y, z))) = A0[INDEX(x, y, z)];
 
-			if(Ai[INDEX(x + 1, y, z)] < 0)
-				A.insert(valCount, gridToIndex(INDEX(x + 1, y, z))) = Ai[INDEX(x, y, z)];
-			if(Aj[INDEX(x, y + 1, z)] < 0)
-				A.insert(valCount, gridToIndex(INDEX(x, y + 1, z))) = Aj[INDEX(x, y, z)];
-			if(Ak[INDEX(x, y, z + 1)] < 0)
-				A.insert(valCount, gridToIndex(INDEX(x, y, z + 1))) = Ak[INDEX(x, y, z)];
+			if(Ai[INDEX(x, y, z)] < 0)
+				A.insert(rowCount, gridToIndex(INDEX(x + 1, y, z))) = Ai[INDEX(x, y, z)];
+			if(Aj[INDEX(x, y, z)] < 0)
+				A.insert(rowCount, gridToIndex(INDEX(x, y + 1, z))) = Aj[INDEX(x, y, z)];
+			if(Ak[INDEX(x, y, z)] < 0)
+				A.insert(rowCount, gridToIndex(INDEX(x, y, z + 1))) = Ak[INDEX(x, y, z)];
 
-				valCount++;
+				rowCount++;
 		}
 
 	index = _slabSize + _xRes + 1;
@@ -964,9 +965,9 @@ void FLUID_3D::project()
 		if (!_obstacles[INDEX(x,y,z)])
 			b[gridToIndex(INDEX(x, y, z))] = _divergence[INDEX(x,y,z)];
 
-	// A.makeCompressed();
+	A.makeCompressed();
 
-	ConjugateGradient<SparseMatrix<float>, Eigen::Lower> solver;
+	ConjugateGradient<SparseMatrix<float>, Eigen::Upper> solver;
 
 	solver.compute(A);
 	if(solver.info() != Success) 
