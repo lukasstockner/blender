@@ -823,7 +823,7 @@ void FLUID_3D::project()
 {
 	int x, y, z;
 	size_t index;
-#if 0
+
 	VectorXf b(_totalCells);
 	VectorXf p(_totalCells);
 	SparseMatrix<float,RowMajor> A(_totalCells, _totalCells);
@@ -845,7 +845,7 @@ void FLUID_3D::project()
 	for (z = 0; z < _zRes; z++)
 		if (!_obstacles[INDEX(x,y,z)])
 			gridToIndex(INDEX(x,y,z)) = linearIndex++;
-#endif
+
 	// float *_pressure = new float[_totalCells];
 	float *_divergence   = new float[_totalCells];
 
@@ -907,7 +907,7 @@ void FLUID_3D::project()
 				// Pressure is zero anyway since now a local array is used
 				_pressure[index] = 0.0f;
 			}
-#if 0
+
 	float scale = 1.0; // DG TODO: make this global and incooperate this into other functions
 
 	index = _slabSize + _xRes + 1;
@@ -945,24 +945,47 @@ void FLUID_3D::project()
 			if(Ak[INDEX(x, y, z - 1)] < 0)
 				A.insert(valCount, gridToIndex(INDEX(x, y, z - 1))) = Ak[INDEX(x, y, z - 1)];
 
-				A.insert(valCount, gridToIndex(INDEX(x, y, z))) = A0[INDEX(x, y, z)];
+			A.insert(valCount, gridToIndex(INDEX(x, y, z))) = A0[INDEX(x, y, z)];
 
-			if(Ai[INDEX(x + 1, y, z)] > 0)
-				A.insert(valCount, gridToIndex(INDEX(x + 1, y, z))) = Ai[INDEX(x + 1, y, z)];
-			if(Aj[INDEX(x, y + 1, z)] > 0)
-				A.insert(valCount, gridToIndex(INDEX(x, y + 1, z))) = Aj[INDEX(x, y + 1, z)];
-			if(Ak[INDEX(x, y, z + 1)] > 0)
-				A.insert(valCount, gridToIndex(INDEX(x, y, z + 1))) = Ak[INDEX(x, y, z + 1)];
+			if(Ai[INDEX(x + 1, y, z)] < 0)
+				A.insert(valCount, gridToIndex(INDEX(x + 1, y, z))) = Ai[INDEX(x, y, z)];
+			if(Aj[INDEX(x, y + 1, z)] < 0)
+				A.insert(valCount, gridToIndex(INDEX(x, y + 1, z))) = Aj[INDEX(x, y, z)];
+			if(Ak[INDEX(x, y, z + 1)] < 0)
+				A.insert(valCount, gridToIndex(INDEX(x, y, z + 1))) = Ak[INDEX(x, y, z)];
 
 				valCount++;
 		}
 
-	for (x = 0; x < _xRes; x++)
-	for (y = 0; y < _yRes; y++)
-	for (z = 0; z < _zRes; z++)
+	index = _slabSize + _xRes + 1;
+	for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+		for (y = 1; y < _yRes - 1; y++, index += 2)
+			for (x = 1; x < _xRes - 1; x++, index++)
 		if (!_obstacles[INDEX(x,y,z)])
 			b[gridToIndex(INDEX(x, y, z))] = _divergence[INDEX(x,y,z)];
-#endif
+
+	// A.makeCompressed();
+
+	ConjugateGradient<SparseMatrix<float>, Eigen::Lower> solver;
+
+	solver.compute(A);
+	if(solver.info() != Success) 
+	{
+	  // decomposition failed
+		printf("Solver error: Cannot create decomposition.\n");
+	}
+	else
+	{
+		VectorXf result = solver.solve(b);
+		if(solver.info() != Success) 
+		{
+		  // solving failed
+		  printf("Solver error: Cannot solve equation.\n");
+		}
+		else
+			printf("Solver finished.\n");
+	}
+
 	// copyBorderAll(_pressure, 0, _zRes);
 
 	// solve Poisson equation
