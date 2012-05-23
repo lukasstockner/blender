@@ -1098,6 +1098,8 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 	glLineWidth(1.0);
 	
 	glPopMatrix();
+
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 4); /* restore default value */
 }
 
 static void draw_b_bone_boxes(int dt, bPoseChannel *pchan, float xwidth, float length, float zwidth)

@@ -774,11 +774,6 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h, int mipmap)
 	else {
 		/* for the special case, we can do a partial update
 		 * which is much quicker for painting */
-		GLint row_length, skip_pixels, skip_rows;
-
-		glGetIntegerv(GL_UNPACK_ROW_LENGTH, &row_length);
-		glGetIntegerv(GL_UNPACK_SKIP_PIXELS, &skip_pixels);
-		glGetIntegerv(GL_UNPACK_SKIP_ROWS, &skip_rows);
 
 		/* if color correction is needed, we must update the part that needs updating. */
 		if (ibuf->rect_float && (!U.use_16bit_textures || (ibuf->profile == IB_PROFILE_LINEAR_RGB))) {
@@ -799,9 +794,14 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h, int mipmap)
 		
 		glBindTexture(GL_TEXTURE_2D, ima->bindcode);
 
-		glPixelStorei(GL_UNPACK_ROW_LENGTH, ibuf->x);
-		glPixelStorei(GL_UNPACK_SKIP_PIXELS, x);
-		glPixelStorei(GL_UNPACK_SKIP_ROWS, y);
+		if (ibuf->x != 0)
+			glPixelStorei(GL_UNPACK_ROW_LENGTH,  ibuf->x);
+
+		if (x != 0)
+			glPixelStorei(GL_UNPACK_SKIP_PIXELS, x);
+
+		if (y != 0)
+			glPixelStorei(GL_UNPACK_SKIP_ROWS,   y);
 
 		if (ibuf->rect_float)
 			glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h, GL_RGBA,
@@ -810,9 +810,14 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h, int mipmap)
 			glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h, GL_RGBA,
 				GL_UNSIGNED_BYTE, ibuf->rect);
 
-		glPixelStorei(GL_UNPACK_ROW_LENGTH, row_length);
-		glPixelStorei(GL_UNPACK_SKIP_PIXELS, skip_pixels);
-		glPixelStorei(GL_UNPACK_SKIP_ROWS, skip_rows);
+		if (ibuf->x != 0)
+			glPixelStorei(GL_UNPACK_ROW_LENGTH,  0); /* restore default value */
+
+		if (x != 0)
+			glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0); /* restore default value */
+
+		if (y != 0)
+			glPixelStorei(GL_UNPACK_SKIP_ROWS,   0); /* restore default value */
 
 		if (ima->tpageflag & IMA_MIPMAP_COMPLETE)
 			ima->tpageflag &= ~IMA_MIPMAP_COMPLETE;

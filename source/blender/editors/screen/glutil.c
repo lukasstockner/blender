@@ -483,7 +483,6 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 	float *f_rect = (float *)rect;
 	float xzoom = glaGetOneFloat(GL_ZOOM_X), yzoom = glaGetOneFloat(GL_ZOOM_Y);
 	int ltexid = glaGetOneInteger(GL_TEXTURE_2D);
-	int lrowlength = glaGetOneInteger(GL_UNPACK_ROW_LENGTH);
 	int subpart_x, subpart_y, tex_w, tex_h;
 	int seamless, offset_x, offset_y, nsubparts_x, nsubparts_y;
 	int texid = get_cached_work_texture(&tex_w, &tex_h);
@@ -492,6 +491,7 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 	 * This is useful for changing alpha without using glPixelTransferf()
 	 */
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, img_w);
 	glBindTexture(GL_TEXTURE_2D, texid);
 
@@ -571,7 +571,7 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 	}
 
 	glBindTexture(GL_TEXTURE_2D, ltexid);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, lrowlength);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0); /* restore default value */
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	
 #ifdef __APPLE__
@@ -628,8 +628,6 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 	draw_h = MIN2(img_h - off_y, ceil((scissor[3] - rast_y) / yzoom));
 
 	if (draw_w > 0 && draw_h > 0) {
-		int old_row_length = glaGetOneInteger(GL_UNPACK_ROW_LENGTH);
-
 		/* Don't use safe RasterPos (slower) if we can avoid it. */
 		if (rast_x >= 0 && rast_y >= 0) {
 			glRasterPos2f(rast_x, rast_y);
@@ -638,7 +636,10 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 			glaRasterPosSafe2f(rast_x, rast_y, 0, 0);
 		}
 
-		glPixelStorei(GL_UNPACK_ROW_LENGTH, row_w);
+		if (img_w != row_w) {
+			glPixelStorei(GL_UNPACK_ROW_LENGTH, row_w);
+		}
+
 		if (format == GL_LUMINANCE || format == GL_RED) {
 			if (type == GL_FLOAT) {
 				float *f_rect = (float *)rect;
@@ -659,8 +660,10 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 				glDrawPixels(draw_w, draw_h, format, type, uc_rect + (off_y * row_w + off_x) * 4);
 			}
 		}
-		
-		glPixelStorei(GL_UNPACK_ROW_LENGTH,  old_row_length);
+
+		if (img_w != row_w) {
+			glPixelStorei(GL_UNPACK_ROW_LENGTH, 0); /* restore default value */
+		}
 	}
 }
 

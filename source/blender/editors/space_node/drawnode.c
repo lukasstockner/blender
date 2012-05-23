@@ -2682,13 +2682,17 @@ void draw_nodespace_back_pix(ARegion *ar, SpaceNode *snode, int color_manage)
 			if (ibuf->rect) {
 				if (snode->flag & SNODE_SHOW_ALPHA) {
 					glPixelZoom(snode->zoom, snode->zoom);
+
 					/* swap bytes, so alpha is most significant one, then just draw it as luminance int */
-					if (ENDIAN_ORDER == B_ENDIAN)
-						glPixelStorei(GL_UNPACK_SWAP_BYTES, 1);
-					
+
+#if ENDIAN_ORDER == B_ENDIAN
+					glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_TRUE);
+#endif
 					glaDrawPixelsSafe(x, y, ibuf->x, ibuf->y, ibuf->x, GL_LUMINANCE, GL_UNSIGNED_INT, ibuf->rect);
-					
-					glPixelStorei(GL_UNPACK_SWAP_BYTES, 0);
+
+#if ENDIAN_ORDER == B_ENDIAN
+					glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE); /* restore default value */
+#endif
 					glPixelZoom(1.0f, 1.0f);
 				}
 				else if (snode->flag & SNODE_USE_ALPHA) {
