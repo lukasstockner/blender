@@ -29,9 +29,14 @@
 *  \ingroup gpu
 */
 
-#include "GPU_IMMEDIATE.h"
+#include "GPU_immediate.h"
 
 #include "MEM_guardedalloc.h"
+
+
+
+/* global symbol needed because the immediate drawing functons are inline */
+GPUimmediate* GPU_IMMEDIATE;
 
 
 
