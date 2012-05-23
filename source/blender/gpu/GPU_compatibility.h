@@ -32,7 +32,8 @@
 #ifndef __GPU_COMPATIBILITY_H__
 #define __GPU_COMPATIBILITY_H__
 
-#include "intern/GPU_IMMEDIATE.h"
+#include "intern/gpu_immediate.h"
+#include "intern/gpu_deprecated.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -106,6 +106,7 @@
 #include "GPU_buffers.h"
 #include "GPU_extensions.h"
 #include "GPU_draw.h"
+#include "GPU_compatibility.h"
 
 #include "BKE_depsgraph.h"
 #include "BKE_sound.h"
@@ -120,6 +121,8 @@ static void wm_free_reports(bContext *C)
 }
 
 int wm_start_with_console = 0; /* used in creator.c */
+
+static GPUimmediate* immediate;
 
 /* only called once, for startup */
 void WM_init(bContext *C, int argc, const char **argv)
@@ -178,7 +181,11 @@ void WM_init(bContext *C, int argc, const char **argv)
 		GPU_extensions_init();
 		GPU_set_mipmap(!(U.gameflags & USER_DISABLE_MIPMAP));
 		GPU_set_anisotropic(U.anisotropic_filter);
-	
+
+		immediate = gpuNewImmediate();
+		gpuImmediateMakeCurrent(immediate);
+		gpuImmediateMaxVertexCount(10000); // XXX: temporary!
+
 		UI_init();
 	}
 	
@@ -414,6 +421,8 @@ void WM_exit_ext(bContext *C, const short do_python)
 	GPU_global_buffer_pool_free();
 	GPU_free_unused_buffers();
 	GPU_extensions_exit();
+
+	gpuDeleteImmediate(immediate);
 
 	if (!G.background) {
 		BKE_undo_save_quit();  /* saves quit.blend if global undo is on */

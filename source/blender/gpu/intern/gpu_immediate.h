@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/gpu/intern/GPU_IMMEDIATE.h
+/** \file blender/gpu/intern/gpu_immediate.h
  *  \ingroup gpu
  */
 
@@ -102,6 +102,8 @@ typedef struct GPUimmediate {
 
 	GLsizei maxVertexCount;
 
+	GLenum lastTexture;
+
 	GLenum textureUnitMap[GPU_MAX_TEXTURE_UNITS];
 	size_t textureUnitCount;
 
@@ -126,8 +128,6 @@ typedef struct GPUimmediate {
 	size_t offset;
 	GLsizei count;
 
-	int timestampState;
-	int timestampBegin;
 	int hasBegun;
 
 	void (*beginBuffer)(void);
@@ -146,28 +146,32 @@ extern void gpuImmediateLegacyPutState(void);
 
 
 
-#define GPU_IMMEDIATE_CHECK() \
+#define GPU_CHECK_IMMEDIATE() \
 	assert(GPU_IMMEDIATE);    \
 	                          \
 	if (!GPU_IMMEDIATE) {     \
 	    return;               \
 	}
 
+#define GPU_CHECK_NO_BEGIN()              \
+	assert(!(GPU_IMMEDIATE->buffer)); \
+	                                  \
+	if (GPU_IMMEDIATE->buffer) {      \
+	    return;                       \
+	}
+
 BLI_INLINE void gpuBegin(GLenum mode)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
+	GPU_CHECK_NO_BEGIN();
 
-	GPU_IMMEDIATE->mode   = mode;
+	GPU_IMMEDIATE->mode = mode;
 
 #ifdef GPU_LEGACY_DEBUG
 	gpuImmediateLegacyGetState();
 #endif
 
-	if (GPU_IMMEDIATE->timestampBegin != GPU_IMMEDIATE->timestampState &&
-		GPU_IMMEDIATE->beginBuffer)
-	{
-		GPU_IMMEDIATE->timestampBegin = GPU_IMMEDIATE->timestampState;
-
+	if (GPU_IMMEDIATE->beginBuffer) {
 		GPU_IMMEDIATE->beginBuffer();
 	}
 }
@@ -176,7 +180,7 @@ BLI_INLINE void gpuBegin(GLenum mode)
 
 BLI_INLINE void gpuColor3f(GLfloat r, GLfloat g, GLfloat b)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * r);
 	GPU_IMMEDIATE->color[1] = (GLubyte)(255.0f * g);
@@ -185,7 +189,7 @@ BLI_INLINE void gpuColor3f(GLfloat r, GLfloat g, GLfloat b)
 
 BLI_INLINE void gpuColor3fv(const GLfloat *restrict v)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * v[0]);
 	GPU_IMMEDIATE->color[1] = (GLubyte)(255.0f * v[1]);
@@ -194,7 +198,7 @@ BLI_INLINE void gpuColor3fv(const GLfloat *restrict v)
 
 BLI_INLINE void gpuColor3ub(GLubyte r, GLubyte g, GLubyte b)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->color[0] = r;
 	GPU_IMMEDIATE->color[1] = g;
@@ -204,7 +208,7 @@ BLI_INLINE void gpuColor3ub(GLubyte r, GLubyte g, GLubyte b)
 
 BLI_INLINE void gpuColor3ubv(const GLubyte *restrict v)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->color[0] = v[0];
 	GPU_IMMEDIATE->color[1] = v[1];
@@ -214,7 +218,7 @@ BLI_INLINE void gpuColor3ubv(const GLubyte *restrict v)
 
 BLI_INLINE void gpuColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * r);
 	GPU_IMMEDIATE->color[1] = (GLubyte)(255.0f * g);
@@ -224,7 +228,7 @@ BLI_INLINE void gpuColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a)
 
 BLI_INLINE void gpuColor4fv(const GLfloat *restrict v)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * v[0]);
 	GPU_IMMEDIATE->color[1] = (GLubyte)(255.0f * v[1]);
@@ -234,7 +238,7 @@ BLI_INLINE void gpuColor4fv(const GLfloat *restrict v)
 
 BLI_INLINE void gpuColor4ub(GLubyte r, GLubyte g, GLubyte b, GLubyte a)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->color[0] = r;
 	GPU_IMMEDIATE->color[1] = g;
@@ -244,7 +248,7 @@ BLI_INLINE void gpuColor4ub(GLubyte r, GLubyte g, GLubyte b, GLubyte a)
 
 BLI_INLINE void gpuColor4ubv(const GLubyte *restrict v)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->color[0] = v[0];
 	GPU_IMMEDIATE->color[1] = v[1];
@@ -256,7 +260,7 @@ BLI_INLINE void gpuColor4ubv(const GLubyte *restrict v)
 
 BLI_INLINE void gpuNormal3f(GLfloat x, GLfloat y, GLfloat z)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->normal[0] = x;
 	GPU_IMMEDIATE->normal[1] = y;
@@ -265,7 +269,7 @@ BLI_INLINE void gpuNormal3f(GLfloat x, GLfloat y, GLfloat z)
 
 BLI_INLINE void gpuNormal3fv(const GLfloat *restrict v)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->normal[0] = v[0];
 	GPU_IMMEDIATE->normal[1] = v[1];
@@ -274,7 +278,7 @@ BLI_INLINE void gpuNormal3fv(const GLfloat *restrict v)
 
 BLI_INLINE void gpuNormal3sv(const GLshort *restrict v)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->normal[0] = v[0] / (float)SHRT_MAX;
 	GPU_IMMEDIATE->normal[1] = v[1] / (float)SHRT_MAX;
@@ -285,7 +289,7 @@ BLI_INLINE void gpuNormal3sv(const GLshort *restrict v)
 
 BLI_INLINE void gpuTexCoord2f(GLfloat s, GLfloat t)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->texCoord[0][0] = s;
 	GPU_IMMEDIATE->texCoord[0][1] = t;
@@ -295,7 +299,7 @@ BLI_INLINE void gpuTexCoord2f(GLfloat s, GLfloat t)
 
 BLI_INLINE void gpuTexCoord2fv(const GLfloat *restrict v)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->texCoord[0][0] = v[0];
 	GPU_IMMEDIATE->texCoord[0][1] = v[1];
@@ -305,7 +309,7 @@ BLI_INLINE void gpuTexCoord2fv(const GLfloat *restrict v)
 
 BLI_INLINE void gpuTexCoord3fv (const GLfloat *restrict v)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->texCoord[0][0] = v[0];
 	GPU_IMMEDIATE->texCoord[0][1] = v[1];
@@ -317,7 +321,7 @@ BLI_INLINE void gpuTexCoord3fv (const GLfloat *restrict v)
 
 BLI_INLINE void gpuMultiTexCoord2f(GLenum index, GLfloat s, GLfloat t)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->texCoord[index][0] = s;
 	GPU_IMMEDIATE->texCoord[index][1] = t;
@@ -327,7 +331,7 @@ BLI_INLINE void gpuMultiTexCoord2f(GLenum index, GLfloat s, GLfloat t)
 
 BLI_INLINE void gpuMultiTexCoord2fv(GLenum index, GLfloat *restrict v)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->texCoord[index][0] = v[0];
 	GPU_IMMEDIATE->texCoord[index][1] = v[1];
@@ -337,7 +341,7 @@ BLI_INLINE void gpuMultiTexCoord2fv(GLenum index, GLfloat *restrict v)
 
 BLI_INLINE void gpuMultiTexCoord3fv(GLenum index, GLfloat *restrict v)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->texCoord[index][0] = v[0];
 	GPU_IMMEDIATE->texCoord[index][1] = v[1];
@@ -347,7 +351,7 @@ BLI_INLINE void gpuMultiTexCoord3fv(GLenum index, GLfloat *restrict v)
 
 BLI_INLINE void gpuMultiTexCoord4fv(GLenum index, GLfloat *restrict v)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->texCoord[index][0] = v[0];
 	GPU_IMMEDIATE->texCoord[index][1] = v[1];
@@ -360,7 +364,7 @@ BLI_INLINE void gpuMultiTexCoord4fv(GLenum index, GLfloat *restrict v)
 
 BLI_INLINE void gpuVertexAttrib2fv(GLsizei index, const GLfloat *restrict v)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->attrib_f[index][0] = v[0];
 	GPU_IMMEDIATE->attrib_f[index][1] = v[1];
@@ -370,7 +374,7 @@ BLI_INLINE void gpuVertexAttrib2fv(GLsizei index, const GLfloat *restrict v)
 
 BLI_INLINE void gpuVertexAttrib3fv(GLsizei index, const GLfloat *restrict v)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->attrib_f[index][0] = v[0];
 	GPU_IMMEDIATE->attrib_f[index][1] = v[1];
@@ -380,7 +384,7 @@ BLI_INLINE void gpuVertexAttrib3fv(GLsizei index, const GLfloat *restrict v)
 
 BLI_INLINE void gpuVertexAttrib4fv(GLsizei index, const GLfloat *restrict v)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->attrib_f[index][0] = v[0];
 	GPU_IMMEDIATE->attrib_f[index][1] = v[1];
@@ -390,7 +394,7 @@ BLI_INLINE void gpuVertexAttrib4fv(GLsizei index, const GLfloat *restrict v)
 
 BLI_INLINE void gpuVertexAttrib4ubv(GLsizei index, const GLubyte *restrict v)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->attrib_ub[index][0] = v[0];
 	GPU_IMMEDIATE->attrib_ub[index][1] = v[1];
@@ -404,9 +408,15 @@ BLI_INLINE void gpu_vertex_copy()
 {
 	size_t i;
 	size_t size;
+	GLboolean countOK = GPU_IMMEDIATE->count < GPU_IMMEDIATE->maxVertexCount;
+
+	assert(countOK);
+
+	if (!countOK) {
+		return;
+	}
 
 	assert(GPU_IMMEDIATE->buffer);
-	assert(GPU_IMMEDIATE->count < GPU_IMMEDIATE->maxVertexCount);
 
 	if (!(GPU_IMMEDIATE->buffer)) {
 		return;
@@ -486,7 +496,7 @@ BLI_INLINE void gpu_vertex_copy()
 
 BLI_INLINE void gpuVertex2f(GLfloat x, GLfloat y)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->vertex[0] = x;
 	GPU_IMMEDIATE->vertex[1] = y;
@@ -498,7 +508,7 @@ BLI_INLINE void gpuVertex2f(GLfloat x, GLfloat y)
 
 BLI_INLINE void gpuVertex2fv(const GLfloat *restrict v)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->vertex[0] = v[0];
 	GPU_IMMEDIATE->vertex[1] = v[1];
@@ -510,7 +520,7 @@ BLI_INLINE void gpuVertex2fv(const GLfloat *restrict v)
 
 BLI_INLINE void gpuVertex3f(GLfloat x, GLfloat y, GLfloat z)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->vertex[0] = x;
 	GPU_IMMEDIATE->vertex[1] = y;
@@ -522,7 +532,7 @@ BLI_INLINE void gpuVertex3f(GLfloat x, GLfloat y, GLfloat z)
 
 BLI_INLINE void gpuVertex3fv(const GLfloat *restrict v)
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	GPU_IMMEDIATE->vertex[0] = v[0];
 	GPU_IMMEDIATE->vertex[1] = v[1];
@@ -536,7 +546,7 @@ BLI_INLINE void gpuVertex3fv(const GLfloat *restrict v)
 
 BLI_INLINE void gpuEnd()
 {
-	GPU_IMMEDIATE_CHECK();
+	GPU_CHECK_IMMEDIATE();
 
 	if (GPU_IMMEDIATE->endBuffer) {
 		GPU_IMMEDIATE->endBuffer();

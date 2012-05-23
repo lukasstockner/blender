@@ -25,7 +25,7 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file blender/gpu/intern/GPU_IMMEDIATE.c
+/** \file blender/gpu/intern/gpu_immediate.c
 *  \ingroup gpu
 */
 
@@ -162,17 +162,15 @@ void beginBufferGL11(void)
 
 	/* vertex */
 
-	if (GPU_IMMEDIATE->vertexSize > 0) {
-		glVertexPointer(
-			GPU_IMMEDIATE->vertexSize,
-			GL_FLOAT,
-			stride,
-			bufferData->ptr + offset);
+	glVertexPointer(
+		GPU_IMMEDIATE->vertexSize,
+		GL_FLOAT,
+		stride,
+		bufferData->ptr + offset);
 
-		offset += (size_t)(GPU_IMMEDIATE->vertexSize) * sizeof(GLfloat);
+	offset += (size_t)(GPU_IMMEDIATE->vertexSize) * sizeof(GLfloat);
 
-		glEnableClientState(GL_VERTEX_ARRAY);
-	}
+	glEnableClientState(GL_VERTEX_ARRAY);
 
 	/* normal */
 
@@ -280,9 +278,7 @@ void endBufferGL11(void)
 
 	/* vertex */
 
-	if (GPU_IMMEDIATE->vertexSize > 0) {
-		glDisableClientState(GL_VERTEX_ARRAY);
-	}
+	glDisableClientState(GL_VERTEX_ARRAY);
 
 	/* normal */
 
@@ -302,6 +298,7 @@ void endBufferGL11(void)
 
 	for (i = 0; i < GPU_IMMEDIATE->textureUnitCount; i++) {
 		if (GPU_IMMEDIATE->texCoordSize[i] > 0) {
+			glActiveTexture(GPU_IMMEDIATE->textureUnitMap[i]);
 			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		}
 	}
@@ -344,6 +341,22 @@ void shutdownBufferGL11(GPUimmediate *restrict immediate)
 }
 
 
+static calcLastTexture(GPUimmediate* immediate)
+{
+	GLint maxTextureCoords;
+	GLint maxCombinedTextureImageUnits;
+
+	glGetIntegerv(
+		GL_MAX_TEXTURE_COORDS,
+		&maxTextureCoords);
+
+	glGetIntegerv(
+		GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
+		&maxCombinedTextureImageUnits);
+
+	immediate->lastTexture =
+		GL_TEXTURE0 + MAX2(maxTextureCoords, maxCombinedTextureImageUnits) - 1;
+}
 
 GPUimmediate* gpuNewImmediate(void)
 {
@@ -352,7 +365,7 @@ GPUimmediate* gpuNewImmediate(void)
 
 	assert(immediate);
 
-	immediate->timestampBegin = -1; /* force initialization of buffer */
+	immediate->vertexSize = 3;
 
 	//if (GLEW_ARB_vertex_buffer_object) {
 	//	immediate->beginBuffer    = beginBufferVBO;
@@ -365,30 +378,28 @@ GPUimmediate* gpuNewImmediate(void)
 		immediate->shutdownBuffer = shutdownBufferGL11;
 	//}
 
+	calcLastTexture(immediate);
+
 	return immediate;
 }
 
-#define CHECK()              \
-	GPU_IMMEDIATE_CHECK();          \
-	assert(GPU_IMMEDIATE->buffer);  \
-	                                \
-	if (!(GPU_IMMEDIATE->buffer)) { \
-	    return;                     \
-	}
-
 void gpuImmediateMakeCurrent(GPUimmediate* immediate)
 {
-	CHECK();
-
 	GPU_IMMEDIATE = immediate;
 }
 
 void gpuDeleteImmediate(GPUimmediate* immediate)
 {
-	CHECK();
-
 	if (!immediate) {
 		return;
+	}
+
+	assert(!(immediate->buffer));
+
+	if (immediate->buffer) {
+		SWAP(GPUimmediate*, immediate, GPU_IMMEDIATE);
+		gpuEnd();
+		SWAP(GPUimmediate*, immediate, GPU_IMMEDIATE);
 	}
 
 	if (GPU_IMMEDIATE == immediate) {
@@ -412,7 +423,7 @@ void gpuImmediateLegacyGetState(void)
 	size_t i;
 	GLfloat color[4];
 
-	CHECK();
+	GPU_CHECK_NO_BEGIN();
 
 	glGetFloatv(GL_CURRENT_COLOR, color);
 	GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * color[0]);
@@ -469,7 +480,7 @@ void gpuImmediateLegacyPutState(void)
 	GLint savedActiveTexture;
 	size_t i;
 
-	CHECK();
+	GPU_CHECK_NO_BEGIN();
 
 	glColor4ubv(GPU_IMMEDIATE->color);
 
@@ -505,45 +516,54 @@ void gpuImmediateElementSizes(
 	GLint normalSize,
 	GLint colorSize)
 {
-	CHECK();
-	assert(vertexSize > 0 && vertexSize <= GPU_MAX_ELEMENT_SIZE);
-	assert(normalSize == 0 || normalSize == 3);
-	assert(colorSize == 3 || colorSize == 4); //-V112
+	GLboolean vertexOK =
+		vertexSize > 0 && vertexSize <= GPU_MAX_ELEMENT_SIZE;
 
-	if (GPU_IMMEDIATE->vertexSize != vertexSize) {
+	GLboolean normalOK =
+		normalSize == 0 || normalSize == 3;
+
+	GLboolean colorOK  =
+		colorSize == 0 || colorSize == 3 || colorSize == 4; //-V112
+
+	GPU_CHECK_NO_BEGIN();
+	assert(vertexOK);
+	assert(normalOK);
+	assert(colorOK);
+
+	if (vertexOK) {
 		GPU_IMMEDIATE->vertexSize = vertexSize;
-		GPU_IMMEDIATE->timestampState++;
 	}
 
-	if (GPU_IMMEDIATE->normalSize != normalSize) {
+	if (normalOK) {
 		GPU_IMMEDIATE->normalSize = normalSize;
-		GPU_IMMEDIATE->timestampState++;
 	}
 
-	if (GPU_IMMEDIATE->colorSize != colorSize) {
-		GPU_IMMEDIATE->colorSize = colorSize;
-		GPU_IMMEDIATE->timestampState++;
+	if (colorOK) {
+		GPU_IMMEDIATE->colorSize  = colorSize;
 	}
 }
 
 void gpuImmediateMaxVertexCount(GLsizei maxVertexCount)
 {
-	assert(maxVertexCount >= 0);
+	GLboolean maxVertexCountOK = maxVertexCount >= 0;
 
-	if (GPU_IMMEDIATE->maxVertexCount != maxVertexCount) {
+	GPU_CHECK_NO_BEGIN();
+	assert(maxVertexCountOK);
+
+	if (maxVertexCountOK) {
 		GPU_IMMEDIATE->maxVertexCount = maxVertexCount;
-		GPU_IMMEDIATE->timestampState++;
 	}
 }
 
 void gpuImmediateTextureUnitCount(size_t count)
 {
-	CHECK();
-	assert(count <= GPU_MAX_TEXTURE_UNITS);
+	GLboolean countOK = count <= GPU_MAX_TEXTURE_UNITS;
 
-	if (GPU_IMMEDIATE->textureUnitCount != count) {
+	GPU_CHECK_NO_BEGIN();
+	assert(countOK);
+
+	if (countOK) {
 		GPU_IMMEDIATE->textureUnitCount = count;
-		GPU_IMMEDIATE->timestampState++;
 	}
 }
 
@@ -551,15 +571,15 @@ void gpuImmediateTexCoordSizes(const GLint *restrict sizes)
 {
 	size_t i;
 
-	CHECK();
+	GPU_CHECK_NO_BEGIN();
 
 	for (i = 0; i < GPU_IMMEDIATE->textureUnitCount; i++) {
-		assert(sizes[i] >= 0);
-		assert(sizes[i] <= 4); //-V112
+		GLboolean texCoordSizeOK = sizes[i] >= 0 && sizes[i] <= 4; //-V112
 
-		if (GPU_IMMEDIATE->texCoordSize[i] != sizes[i]) {
+		assert(texCoordSizeOK);
+
+		if (texCoordSizeOK) {
 			GPU_IMMEDIATE->texCoordSize[i] = sizes[i];
-			GPU_IMMEDIATE->timestampState++;
 		}
 	}
 }
@@ -568,15 +588,14 @@ void gpuImmediateTextureUnitMap(const GLenum *restrict map)
 {
 	size_t i;
 
-	CHECK();
+	GPU_CHECK_NO_BEGIN();
 
 	for (i = 0; i < GPU_IMMEDIATE->textureUnitCount; i++) {
-		assert(map[i] >= GL_TEXTURE0);
-		assert(map[i] <= GL_TEXTURE31);
+		GLboolean mapOK =
+			map[i] >= GL_TEXTURE0 &&  map[i] <= GPU_IMMEDIATE->lastTexture;
 
-		if (GPU_IMMEDIATE->textureUnitMap[i] != map[i]) {
+		if (mapOK) {
 			GPU_IMMEDIATE->textureUnitMap[i] = map[i];
-			GPU_IMMEDIATE->timestampState++;
 		}
 	}
 }
@@ -584,12 +603,13 @@ void gpuImmediateTextureUnitMap(const GLenum *restrict map)
 
 void gpuImmediateFloatAttribCount(size_t count)
 {
-	CHECK();
-	assert(count <= GPU_MAX_FLOAT_ATTRIBS);
+	GLboolean countOK = count <= GPU_MAX_FLOAT_ATTRIBS;
 
-	if (GPU_IMMEDIATE->attribCount_f != count) {
+	GPU_CHECK_NO_BEGIN();
+	assert(countOK);
+
+	if (countOK) {
 		GPU_IMMEDIATE->attribCount_f = count;
-		GPU_IMMEDIATE->timestampState++;
 	}
 }
 
@@ -597,15 +617,16 @@ void gpuImmediateFloatAttribSizes(const GLint *restrict sizes)
 {
 	size_t i;
 
-	CHECK();
+	GPU_CHECK_NO_BEGIN();
 
 	for (i = 0; i < GPU_IMMEDIATE->attribCount_f; i++) {
-		assert(sizes[i] >= 0);
-		assert(sizes[i] <= 4); //-V112
+		GLboolean sizeOK =
+			sizes[i] >= 0 && sizes[i] <= GPU_MAX_ELEMENT_SIZE;
 
-		if (GPU_IMMEDIATE->attribSize_f[i] != sizes[i]) {
+		assert(sizeOK);
+
+		if (sizeOK) {
 			GPU_IMMEDIATE->attribSize_f[i] = sizes[i];
-			GPU_IMMEDIATE->timestampState++;
 		}
 	}
 }
@@ -614,24 +635,23 @@ void gpuImmediateFloatAttribIndexMap(const GLuint *restrict map)
 {
 	size_t i;
 
-	CHECK();
+	GPU_CHECK_NO_BEGIN();
 
 	for (i = 0; i < GPU_IMMEDIATE->attribCount_f; i++) {
-		if (GPU_IMMEDIATE->attribIndexMap_f[i] != map[i]) {
-			GPU_IMMEDIATE->attribIndexMap_f[i] = map[i];
-			GPU_IMMEDIATE->timestampState++;
-		}
+		GPU_IMMEDIATE->attribIndexMap_f[i] = map[i];
 	}
 }
 
 void gpuImmediateUbyteAttribCount(size_t count)
 {
-	CHECK();
-	assert(count <= GPU_MAX_UBYTE_ATTRIBS);
+	GLboolean countOK = count <= GPU_MAX_UBYTE_ATTRIBS;
 
-	if (GPU_IMMEDIATE->attribCount_ub != count) {
+	GPU_CHECK_NO_BEGIN();
+
+	assert(countOK);
+
+	if (countOK) {
 		GPU_IMMEDIATE->attribCount_ub = count;
-		GPU_IMMEDIATE->timestampState++;
 	}
 }
 
@@ -639,15 +659,15 @@ void gpuImmediateUbyteAttribSizes(const GLint *restrict sizes)
 {
 	size_t i;
 
-	CHECK();
+	GPU_CHECK_NO_BEGIN();
 
 	for (i = 0; i < GPU_IMMEDIATE->attribCount_f; i++) {
-		assert(sizes[i] >= 0);
-		assert(sizes[i] <= 4); //-V112
+		GLboolean sizeOK = sizes[i] >= 0 && sizes[i] <= 4; //-V112
 
-		if (GPU_IMMEDIATE->attribSize_f[i] != sizes[i]) {
+		assert(sizeOK);
+
+		if (sizeOK) {
 			GPU_IMMEDIATE->attribSize_f[i] = sizes[i];
-			GPU_IMMEDIATE->timestampState++;
 		}
 	}
 }
@@ -656,12 +676,9 @@ void gpuImmediateUbyteAttribIndexMap(const GLuint *restrict map)
 {
 	size_t i;
 
-	CHECK();
+	GPU_CHECK_NO_BEGIN();
 
 	for (i = 0; i < GPU_IMMEDIATE->attribCount_f; i++) {
-		if (GPU_IMMEDIATE->attribIndexMap_f[i] != map[i]) {
-			GPU_IMMEDIATE->attribIndexMap_f[i] = map[i];
-			GPU_IMMEDIATE->timestampState++;
-		}
+		GPU_IMMEDIATE->attribIndexMap_f[i] = map[i];
 	}
 }
