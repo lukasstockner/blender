@@ -65,6 +65,7 @@ set(SRC
 	GPU_extensions.h
 	GPU_material.h
 	intern/gpu_codegen.h
+	intern/gpu_deprecated.h
 	intern/gpu_immediate.h
 )
 
