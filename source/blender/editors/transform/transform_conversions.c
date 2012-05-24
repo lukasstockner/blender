@@ -1885,7 +1885,8 @@ static void get_edge_center(float cent_r[3], BMVert *eve)
 }
 
 /* way to overwrite what data is edited with transform */
-static void VertsToTransData(TransInfo *t, TransData *td, BMEditMesh *em, BMVert *eve, float *bweight)
+static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx,
+							 BMEditMesh *em, BMVert *eve, float *bweight)
 {
 	td->flag = 0;
 	//if (key)
@@ -1919,12 +1920,23 @@ static void VertsToTransData(TransInfo *t, TransData *td, BMEditMesh *em, BMVert
 		td->val = bweight;
 		td->ival = bweight ? *(bweight) : 1.0f;
 	}
+	else if (t->mode == TFM_SKIN_RESIZE) {
+		MVertSkin *vs = CustomData_bmesh_get(&em->bm->vdata,
+		                                     eve->head.data,
+		                                     CD_MVERT_SKIN);
+		/* skin node size */
+		td->ext = tx;
+		copy_v3_v3(tx->isize, vs->radius);
+		tx->size = vs->radius;
+		td->val = vs->radius;
+	}
 }
 
 static void createTransEditVerts(bContext *C, TransInfo *t)
 {
 	ToolSettings *ts = CTX_data_tool_settings(C);
 	TransData *tob = NULL;
+	TransDataExtension *tx = NULL;
 	BMEditMesh *em = BMEdit_FromObject(t->obedit);
 	BMesh *bm = em->bm;
 	BMVert *eve;
@@ -2035,6 +2047,10 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 	}
 
 	tob= t->data= MEM_callocN(t->total*sizeof(TransData), "TransObData(Mesh EditMode)");
+	if (t->mode == TFM_SKIN_RESIZE) {
+		tx = t->ext = MEM_callocN(t->total * sizeof(TransDataExtension),
+								  "TransObData ext");
+	}
 
 	copy_m3_m4(mtx, t->obedit->obmat);
 	invert_m3_m3(smtx, mtx);
@@ -2086,7 +2102,9 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 			if (propmode || selstate[a]) {
 				float *bweight = CustomData_bmesh_get(&bm->vdata, eve->head.data, CD_BWEIGHT);
 				
-				VertsToTransData(t, tob, em, eve, bweight);
+				VertsToTransData(t, tob, tx, em, eve, bweight);
+				if (tx)
+					tx++;
 
 				if(t->flag & T_IMAGE_PRESERVE_CALC)
 					t->affected_verts[a] = eve;
@@ -2188,7 +2206,6 @@ void flushTransNodes(TransInfo *t)
 	if (t->total==1) {
 		ED_node_link_intersect_test(t->sa, 1);
 	}
-	
 }
 
 /* *** SEQUENCE EDITOR *** */
@@ -3713,9 +3730,9 @@ void flushTransGraphData(TransInfo *t)
 			switch (sipo->autosnap) {
 				case SACTSNAP_FRAME: /* snap to nearest frame (or second if drawing seconds) */
 					if (sipo->flag & SIPO_DRAWTIME)
-						td2d->loc[0] = (float)(floorf((td2d->loc[0]/secf) + 0.5f) * secf);
+						td2d->loc[0] = floorf((td2d->loc[0] / secf) + 0.5) * secf;
 					else
-						td2d->loc[0] = (float)(floorf(td2d->loc[0]+0.5f));
+						td2d->loc[0] = floorf(td2d->loc[0] + 0.5);
 					break;
 				
 				case SACTSNAP_MARKER: /* snap to nearest marker */
@@ -4852,7 +4869,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 		/* marker transform, not especially nice but we may want to move markers
 		 * at the same time as keyframes in the dope sheet. */
 		if ((sseq->flag & SEQ_MARKER_TRANS) && (canceled == 0)) {
-			/* cant use , TFM_TIME_EXTEND
+			/* cant use TFM_TIME_EXTEND
 			 * for some reason EXTEND is changed into TRANSLATE, so use frame_side instead */
 
 			if (t->mode == TFM_SEQ_SLIDE) {
@@ -4867,10 +4884,11 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 	}
 	else if (t->spacetype == SPACE_NODE) {
 		SpaceNode *snode= (SpaceNode *)t->sa->spacedata.first;
-		ED_node_update_hierarchy(C, snode->edittree);
-		
-		if (canceled == 0)
+		if (canceled == 0) {
+			ED_node_post_apply_transform(C, snode->edittree);
+			
 			ED_node_link_insert(t->sa);
+		}
 		
 		/* clear link line */
 		ED_node_link_intersect_test(t->sa, 0);
