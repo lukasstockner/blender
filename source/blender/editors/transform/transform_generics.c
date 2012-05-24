@@ -1049,7 +1049,7 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 			v3d->twtype = 0;
 		}
 
-		if(ts->retain_image_pos)
+		if(ts->uvcalc_flag & UVCALC_TRANSFORM_CORRECT)
 			t->flag |= T_IMAGE_PRESERVE_CALC;
 
 		if (v3d->flag & V3D_ALIGN) t->flag |= T_V3D_ALIGN;
@@ -1089,8 +1089,8 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 				RNA_boolean_set(op->ptr, "correct_uv", t->settings->uvcalc_flag & UVCALC_TRANSFORM_CORRECT);
 			}
 		}
-
 	}
+
 	else if (t->spacetype==SPACE_IMAGE) {
 		SpaceImage *sima = sa->spacedata.first;
 		// XXX for now, get View2D from the active region
@@ -1269,8 +1269,10 @@ void postTrans(bContext *C, TransInfo *t)
 			v3d->twtype = t->twtype;
 		}
 		if(t->flag & T_IMAGE_PRESERVE_CALC) {
-			if(t->affected_verts)
+			if(t->affected_verts) {
 				MEM_freeN(t->affected_verts);
+				t->affected_verts = NULL;
+			}
 		}
 	}
 	

@@ -207,7 +207,7 @@ class VIEW3D_PT_tools_meshedit_options(View3DPanel, Panel):
         col.label("Edge Select Mode:")
         col.prop(tool_settings, "edge_path_mode", text="")
         col.prop(tool_settings, "edge_path_live_unwrap")
-        col.prop(tool_settings, "retain_image_pos")
+        col.prop(tool_settings, "correct_uv")
 
         col.label("Double Threshold:")
         col.prop(tool_settings, "double_threshold", text="")

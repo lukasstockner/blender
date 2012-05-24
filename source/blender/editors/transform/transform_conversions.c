@@ -1945,7 +1945,7 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 	float *mappedcos = NULL, *quats= NULL;
 	float mtx[3][3], smtx[3][3], (*defmats)[3][3] = NULL, (*defcos)[3] = NULL;
 	float *dists=NULL;
-	int count=0, countsel=0, a, totleft;
+	int count=0, countsel=0, a, i, totleft;
 	int propmode = (t->flag & T_PROP_EDIT) ? (t->flag & (T_PROP_EDIT | T_PROP_CONNECTED)) : 0;
 	int mirror = 0;
 	char *selstate = NULL;
@@ -2097,7 +2097,7 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 	}
 
 	eve = BM_iter_new(&iter, bm, BM_VERTS_OF_MESH, NULL);
-	for (a=0; eve; eve=BM_iter_step(&iter), a++) {
+	for (a=0, i=0; eve; eve=BM_iter_step(&iter), a++) {
 		if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
 			if (propmode || selstate[a]) {
 				float *bweight = CustomData_bmesh_get(&bm->vdata, eve->head.data, CD_BWEIGHT);
@@ -2107,7 +2107,7 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 					tx++;
 
 				if(t->flag & T_IMAGE_PRESERVE_CALC)
-					t->affected_verts[a] = eve;
+					t->affected_verts[i] = eve;
 
 				/* selected */
 				if (selstate[a]) tob->flag |= TD_SELECTED;
@@ -2160,6 +2160,7 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 					}
 				}
 				tob++;
+				i++;
 			}
 		}
 	}
