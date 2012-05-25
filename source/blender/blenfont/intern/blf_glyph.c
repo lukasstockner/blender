@@ -433,7 +433,7 @@ int blf_glyph_render(FontBLF *font, GlyphBLF *g, float x, float y)
 		glBindTexture(GL_TEXTURE_2D, g->tex);
 		glTexSubImage2D(GL_TEXTURE_2D, 0, g->xoff, g->yoff, g->width, g->height, GL_ALPHA, GL_UNSIGNED_BYTE, g->bitmap);
 
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 4); /* restore default value */
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 4); /* restore default value */ //-V112
 
 		g->uv[0][0] = ((float)g->xoff) / ((float)gc->p2_width);
 		g->uv[0][1] = ((float)g->yoff) / ((float)gc->p2_height);

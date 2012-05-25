@@ -76,6 +76,11 @@ void BLF_draw_default_ascii(float x, float y, float z, const char *str, size_t l
 void BLF_draw(int fontid, const char *str, size_t len);
 void BLF_draw_ascii(int fontid, const char *str, size_t len);
 
+/* Draw large blocks of text more efficiently by
+   explicitely reserving OpenGL for that purpose*/
+void BLF_draw_lock();
+void BLF_draw_unlock();
+
 /* This function return the bounding box of the string
  * and are not multiplied by the aspect.
  */
