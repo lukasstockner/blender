@@ -52,7 +52,7 @@ BLI_INLINE void gpu_clear_errors()
 
 
 
-GLsizei gpu_calc_stride();
+GLsizei gpu_calc_stride(void);
 
 
 

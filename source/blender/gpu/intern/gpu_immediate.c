@@ -38,11 +38,11 @@
 
 
 /* global symbol needed because the immediate drawing functons are inline */
-GPUimmediate *restrict GPU_IMMEDIATE;
+GPUimmediate *restrict GPU_IMMEDIATE = NULL;
 
 
 
-GLsizei gpu_calc_stride()
+GLsizei gpu_calc_stride(void)
 {
 	size_t i;
 	size_t stride = 0;
@@ -163,7 +163,7 @@ static void calc_last_texture(GPUimmediate* immediate)
 
 GPUimmediate *restrict gpuNewImmediate(void)
 {
-	GPUimmediate* immediate =
+	GPUimmediate *restrict immediate =
 		MEM_callocN(sizeof(GPUimmediate), "GPUimmediate");
 
 	assert(immediate);

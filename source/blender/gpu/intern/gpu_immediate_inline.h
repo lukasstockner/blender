@@ -347,7 +347,7 @@ BLI_INLINE void gpuVertex3fv(const GLfloat *restrict v)
 
 
 
-BLI_INLINE void gpuEnd()
+BLI_INLINE void gpuEnd(void)
 {
 	GPU_CHECK_IMMEDIATE();
 
