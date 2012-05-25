@@ -1199,6 +1199,11 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_ui_text(prop, "Camera Path", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "skin_root", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Skin Root", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
 }
 
 
@@ -1525,6 +1530,18 @@ static void rna_def_userdef_theme_space_node(BlenderRNA *brna)
 
 	rna_def_userdef_theme_spaces_main(srna);
 	rna_def_userdef_theme_spaces_list_main(srna);
+
+	prop = RNA_def_property(srna, "node_selected", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "select");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Node Selected", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "node_active", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "active");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Active Node", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
 	prop = RNA_def_property(srna, "wire", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_float_sdna(prop, NULL, "wire");
@@ -3036,7 +3053,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "memory_cache_limit", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "memcachelimit");
-	RNA_def_property_range(prop, 0, (sizeof(void *) == 8) ? 1024 * 16 : 1024); /* 32 bit 2 GB, 64 bit 16 GB */
+	RNA_def_property_range(prop, 0, (sizeof(void *) == 8) ? 1024 * 32 : 1024); /* 32 bit 2 GB, 64 bit 32 GB */
 	RNA_def_property_ui_text(prop, "Memory Cache Limit", "Memory cache limit (in megabytes)");
 	RNA_def_property_update(prop, 0, "rna_Userdef_memcache_update");
 

@@ -3790,7 +3790,8 @@ static GroupObject *add_render_lamp(Render *re, Object *ob)
 		lar->area_sizey= lar->area_size;
 
 		if ((la->sun_effect_type & LA_SUN_EFFECT_SKY) ||
-				(la->sun_effect_type & LA_SUN_EFFECT_AP)) {
+		    (la->sun_effect_type & LA_SUN_EFFECT_AP))
+		{
 			lar->sunsky = (struct SunSky*)MEM_callocN(sizeof(struct SunSky), "sunskyren");
 			lar->sunsky->effect_type = la->sun_effect_type;
 		
@@ -4318,7 +4319,7 @@ static void finalize_render_object(Render *re, ObjectRen *obr, int timeoffset)
 				/* Baking lets us define a quad split order */
 				split_quads(obr, re->r.bake_quad_split);
 			}
-			else if(BKE_object_is_animated(re->scene, ob))
+			else if (BKE_object_is_animated(re->scene, ob))
 				split_quads(obr, 1);
 			else {
 				if ((re->r.mode & R_SIMPLIFY && re->r.simplify_flag & R_SIMPLE_NO_TRIANGULATE) == 0)
