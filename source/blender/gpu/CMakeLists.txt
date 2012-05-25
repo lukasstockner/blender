@@ -50,6 +50,8 @@ set(SRC
 	intern/gpu_draw.c
 	intern/gpu_extensions.c
 	intern/gpu_immediate.c
+	intern/gpu_immediate_gl11.c
+	intern/gpu_immediate_vbo.c
 	intern/gpu_material.c
 	
 	shaders/gpu_shader_material.glsl.c
@@ -67,6 +69,8 @@ set(SRC
 	intern/gpu_codegen.h
 	intern/gpu_deprecated.h
 	intern/gpu_immediate.h
+	intern/gpu_immediate_inline.h
+	intern/gpu_immediate_internal.h
 )
 
 if(WITH_MOD_SMOKE)
