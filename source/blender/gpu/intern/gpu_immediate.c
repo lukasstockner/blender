@@ -38,7 +38,7 @@
 
 
 /* global symbol needed because the immediate drawing functons are inline */
-GPUimmediate* GPU_IMMEDIATE;
+GPUimmediate *restrict GPU_IMMEDIATE;
 
 
 
@@ -161,7 +161,7 @@ static void calc_last_texture(GPUimmediate* immediate)
 
 
 
-GPUimmediate* gpuNewImmediate(void)
+GPUimmediate *restrict gpuNewImmediate(void)
 {
 	GPUimmediate* immediate =
 		MEM_callocN(sizeof(GPUimmediate), "GPUimmediate");
@@ -192,14 +192,14 @@ GPUimmediate* gpuNewImmediate(void)
 
 
 
-void gpuImmediateMakeCurrent(GPUimmediate* immediate)
+void gpuImmediateMakeCurrent(GPUimmediate *restrict immediate)
 {
 	GPU_IMMEDIATE = immediate;
 }
 
 
 
-void gpuDeleteImmediate(GPUimmediate* immediate)
+void gpuDeleteImmediate(GPUimmediate *restrict immediate)
 {
 	assert(immediate);
 
