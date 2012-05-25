@@ -53,6 +53,8 @@
 
 #include "BIF_gl.h"
 
+#include "GPU_utility.h"
+
 #include "ED_datafiles.h"
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -1916,6 +1918,8 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	/* draw the text */
 	UI_ThemeColor(TH_TEXT);
 
+	GPU_STRING_MARKER("draw_text_main:begin");
+
 	BLF_draw_lock();
 
 	for (i = 0; y > 0 && i < st->viewlines && tmp; i++, tmp = tmp->next) {
@@ -1951,6 +1955,8 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	}
 
 	BLF_draw_unlock();
+
+	GPU_STRING_MARKER("draw_text_main:end");
 
 	if (st->flags & ST_SHOW_MARGIN) {
 		UI_ThemeColor(TH_HILITE);
