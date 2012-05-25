@@ -130,11 +130,11 @@ typedef struct GPUimmediate {
 
 	int lockCount;
 
-	void (*restrict lockBuffer)(void);
-	void (*restrict unlockBuffer)(void);
-	void (*restrict beginBuffer)(void);
-	void (*restrict endBuffer)(void);
-	void (*restrict shutdownBuffer)(struct GPUimmediate *restrict immediate);
+	void (*lockBuffer)(void);
+	void (*unlockBuffer)(void);
+	void (*beginBuffer)(void);
+	void (*endBuffer)(void);
+	void (*shutdownBuffer)(struct GPUimmediate *restrict immediate);
 } GPUimmediate;
 
 extern GPUimmediate *restrict GPU_IMMEDIATE;
