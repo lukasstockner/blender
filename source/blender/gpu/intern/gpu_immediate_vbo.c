@@ -29,7 +29,7 @@
 *  \ingroup gpu
 */
 
-#include "GPU_immediate_internal.h"
+#include "gpu_immediate_internal.h"
 
 
 

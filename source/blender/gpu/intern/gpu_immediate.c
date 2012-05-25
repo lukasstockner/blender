@@ -29,7 +29,7 @@
 *  \ingroup gpu
 */
 
-#include "GPU_immediate_internal.h"
+#include "gpu_immediate_internal.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -64,7 +64,7 @@ GLsizei gpu_calc_stride()
 
 	if (GPU_IMMEDIATE->colorSize != 0) {
 		/* color always get 4 bytes for efficient memory alignment */
-		stride += 4;
+		stride += 4; //-V112
 	}
 
 	/* texture coordinate */
