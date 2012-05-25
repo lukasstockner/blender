@@ -215,14 +215,6 @@ void gpuDeleteImmediate(GPUimmediate* immediate)
 		SWAP(GPUimmediate*, immediate, GPU_IMMEDIATE);
 	}
 
-	assert(!(immediate->bufferData));
-
-	if (immediate->bufferData) {
-		SWAP(GPUimmediate*, immediate, GPU_IMMEDIATE);
-		gpuImmediateUnlock();
-		SWAP(GPUimmediate*, immediate, GPU_IMMEDIATE);
-	}
-
 	if (GPU_IMMEDIATE == immediate) {
 		gpuImmediateMakeCurrent(NULL);
 	}

@@ -54,15 +54,15 @@ BLI_INLINE void gpuBegin(GLenum mode)
 {
 	GPU_CHECK_NO_BEGIN();
 
+#if GPU_LEGACY_INTEROP
+	gpu_legacy_get_state();
+#endif
+
 	GPU_IMMEDIATE->mode = mode;
 
 	assert(GPU_IMMEDIATE->beginBuffer);
 
 	if (GPU_IMMEDIATE->beginBuffer) {
-#if GPU_LEGACY_INTEROP
-		gpu_legacy_get_state();
-#endif
-
 		GPU_IMMEDIATE->beginBuffer();
 	}
 }
@@ -355,15 +355,15 @@ BLI_INLINE void gpuEnd()
 
 	if (GPU_IMMEDIATE->endBuffer) {
 		GPU_IMMEDIATE->endBuffer();
-
-#if GPU_LEGACY_INTEROP
-		gpu_legacy_put_state();
-#endif
 	}
 
 	GPU_IMMEDIATE->buffer = NULL;
 	GPU_IMMEDIATE->offset = 0;
 	GPU_IMMEDIATE->count  = 0;
+
+#if GPU_LEGACY_INTEROP
+	gpu_legacy_put_state();
+#endif
 }
 
 
