@@ -92,18 +92,6 @@ static int text_font_draw_character(SpaceText *st, int x, int y, char c)
 	return st->cwidth;
 }
 
-static int text_font_draw_character_utf8(SpaceText *st, int x, int y, const char *c)
-{
-	char str[BLI_UTF8_MAX + 1];
-	size_t len = BLI_str_utf8_size(c);
-	memcpy(str, c, len);
-	str[len] = '\0';
-
-	BLF_position(mono, x, y, 0);
-	BLF_draw(mono, str, len);
-
-	return st->cwidth;
-}
 
 /****************** flatten string **********************/
 
@@ -721,6 +709,12 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 	
 	for (i = 0, mi = 0; str[mi]; i++, mi += BLI_str_utf8_size(str + mi)) {
 		if (i - start >= max) {
+			int str_shift = 0;
+			int ox;
+			char last_format;
+			char buffer[BLF_DRAW_STR_DUMMY_MAX];
+			size_t len = 0;
+
 			/* skip hidden part of line */
 			if (skip) {
 				skip--;
@@ -729,11 +723,43 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 				continue;
 			}
 
-			/* Draw the visible portion of text on the overshot line */
-			for (a = start, ma = mstart; a < end; a++, ma += BLI_str_utf8_size(str + ma)) {
-				if (st->showsyntax && format) format_draw_color(format[a]);
-				x += text_font_draw_character_utf8(st, x, y, str + ma);
+			if (st->showsyntax && format) {
+				last_format = format[start];
+				format_draw_color(format[start]);
 			}
+
+			ox = x;
+
+			ma = mstart;
+
+			/* Draw the visible portion of text on the overshot line */
+			for (a = start; a < end; a++) {
+				size_t char_len;
+
+				if (st->showsyntax && format && last_format != format[a]) {
+					memcpy(buffer, str + ma - len, len);
+					buffer[len] = '\0';
+					text_font_draw(st, ox, y, buffer);
+
+					ox  = x;
+					len = 0;
+
+					format_draw_color(format[a]);
+					last_format = format[a];
+				}
+
+				char_len = BLI_str_utf8_size(str + ma);
+				len += char_len;
+				ma  += char_len;
+
+				x += st->cwidth;
+			}
+
+			/* draw last chunk */
+			memcpy(buffer, str + ma - len, len);
+			buffer[len] = '\0';
+			text_font_draw(st, ox, y, buffer);
+
 			y -= st->lheight;
 			x = basex;
 			lines++;
@@ -748,11 +774,48 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 	}
 
 	/* Draw the remaining text */
-	for (a = start, ma = mstart; str[ma] && y > 0; a++, ma += BLI_str_utf8_size(str + ma)) {
-		if (st->showsyntax && format)
-			format_draw_color(format[a]);
+	if (y > 0) {
+		int str_shift = 0;
+		int ox;
+		char last_format;
+		char buffer[BLF_DRAW_STR_DUMMY_MAX];
+		size_t len = 0;
 
-		x += text_font_draw_character_utf8(st, x, y, str + ma);
+		if (st->showsyntax && format) {
+			last_format = format[start];
+			format_draw_color(format[start]);
+		}
+
+		ox = x;
+
+		ma = mstart;
+
+		for (a = start; str[ma]; a++) {
+			size_t char_len;
+
+			if (st->showsyntax && format && last_format != format[a]) {
+				memcpy(buffer, str + ma - len, len);
+				buffer[len] = '\0';
+				text_font_draw(st, ox, y, buffer);
+
+				ox  = x;
+				len = 0;
+
+				format_draw_color(format[a]);
+				last_format = format[a];
+			}
+
+			char_len = BLI_str_utf8_size(str + ma);
+			len += char_len;
+			ma  += char_len;
+
+			x += st->cwidth;
+		}
+
+		/* draw last chunk */
+		memcpy(buffer, str + ma - len, len);
+		buffer[len] = '\0';
+		text_font_draw(st, ox, y, buffer);
 	}
 
 	flatten_string_free(&fs);
@@ -777,17 +840,52 @@ static int text_draw(SpaceText *st, char *str, int cshift, int maxwidth, int dra
 	w = w - cshift;
 
 	if (draw) {
-		int amount = maxwidth ? MIN2(w, maxwidth) : w;
-		
+		int amount =
+			maxwidth ?
+				MIN3(w, maxwidth, BLF_DRAW_STR_DUMMY_MAX) :
+				MIN2(w, BLF_DRAW_STR_DUMMY_MAX);
+
 		if (st->showsyntax && format) {
-			int a, str_shift = 0;
+			int a;
+			int str_shift = 0;
+			int ox;
+			char last_format;
+			char buffer[BLF_DRAW_STR_DUMMY_MAX];
+			size_t len = 0;
+
 			format = format + cshift;
 
+			last_format = format[0];
+			format_draw_color(format[0]);
+
+			ox = x;
+
 			for (a = 0; a < amount; a++) {
-				format_draw_color(format[a]);
-				x += text_font_draw_character_utf8(st, x, y, in + str_shift);
-				str_shift += BLI_str_utf8_size(in + str_shift);
+				size_t char_len;
+
+				if (last_format != format[a]) {
+					memcpy(buffer, in + str_shift - len, len);
+					buffer[len] = '\0';
+					text_font_draw(st, ox, y, buffer);
+
+					ox  = x;
+					len = 0;
+
+					format_draw_color(format[a]);
+					last_format = format[a];
+				}
+
+				char_len = BLI_str_utf8_size(in + str_shift);
+				str_shift += char_len;
+				len       += char_len;
+
+				x += st->cwidth;
 			}
+
+			/* draw last chunk */
+			memcpy(buffer, in + str_shift - len, len);
+			buffer[len] = '\0';
+			text_font_draw(st, ox, y, buffer);
 		}
 		else text_font_draw(st, x, y, in);
 	}
@@ -1381,6 +1479,8 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 	glEnd();
 	UI_ThemeColor(TH_TEXT);
 
+	BLF_draw_lock();
+
 	i = 0; br = DOC_WIDTH; lines = 0; // XXX -doc_scroll;
 	for (p = docs; *p; p++) {
 		if (*p == '\r' && *(++p) != '\n') *(--p) = '\n';  /* Fix line endings */
@@ -1406,6 +1506,8 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 		}
 		if (lines >= DOC_HEIGHT) break;
 	}
+
+	BLF_draw_unlock();
 
 	if (0 /* XXX doc_scroll*/ > 0 && lines < DOC_HEIGHT) {
 		// XXX doc_scroll--;
@@ -1454,6 +1556,8 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 	UI_ThemeColor(TH_BACK);
 	glRecti(x, y, x + boxw, y - boxh);
 
+	BLF_draw_lock();
+
 	/* Set the top 'item' of the visible list */
 	for (i = 0, item = first; i < *top && item->next; i++, item = item->next) ;
 
@@ -1485,6 +1589,8 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 
 		if (item == last) break;
 	}
+
+	BLF_draw_unlock();
 }
 
 /*********************** draw cursor ************************/
@@ -1810,6 +1916,8 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	/* draw the text */
 	UI_ThemeColor(TH_TEXT);
 
+	BLF_draw_lock();
+
 	for (i = 0; y > 0 && i < st->viewlines && tmp; i++, tmp = tmp->next) {
 		if (st->showsyntax && !tmp->format)
 			txt_format_line(st, tmp, 0);
@@ -1841,7 +1949,9 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 
 		wrap_skip = 0;
 	}
-	
+
+	BLF_draw_unlock();
+
 	if (st->flags & ST_SHOW_MARGIN) {
 		UI_ThemeColor(TH_HILITE);
 
@@ -1908,7 +2018,9 @@ void text_scroll_to_cursor(SpaceText *st, ScrArea *sa)
 		st->left = 0;
 	}
 	else {
+		BLF_draw_lock();
 		x = text_draw(st, text->sell->line, st->left, text->selc, 0, 0, 0, NULL);
+		BLF_draw_unlock();
 
 		if (x == 0 || x > winx)
 			st->left = text->curc - 0.5 * winx / st->cwidth;
