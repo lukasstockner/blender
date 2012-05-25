@@ -484,8 +484,8 @@ void BLF_rotation_default(float angle)
 void BLF_draw_lock(void)
 {
 	if (!gpuImmediateIsLocked()) {
-		GLint  texCoordSizes[1] = { 2 };
-		GLenum texUnitMap[1];
+		GLint texCoordSizes[1] = { 2 };
+		GLint texUnitMap[1];
 
 		glGetIntegerv(GL_ACTIVE_TEXTURE, texUnitMap);
 
@@ -500,7 +500,7 @@ void BLF_draw_lock(void)
 	}
 }
 
-void BLF_draw_unlock()
+void BLF_draw_unlock(void)
 {
 	if (gpuImmediateIsLocked()) {
 		gpuImmediateUnlock();
@@ -556,7 +556,7 @@ static void blf_draw__start(FontBLF *font, GLint *mode, GLint *param)
 
 static void blf_draw__end(GLint mode, GLint param)
 {
-	gpuEnd(GL_QUADS);
+	gpuEnd();
 	BLF_draw_unlock();
 
 	/* and restore the original value. */
