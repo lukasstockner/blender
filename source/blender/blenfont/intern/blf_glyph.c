@@ -367,7 +367,7 @@ int blf_glyph_render(FontBLF *font, GlyphBLF *g, float x, float y)
 	float dx, dx1;
 	float y1, y2;
 	float xo, yo;
-	int need_begin = 0;
+	int need_begin = font->tex_bind_state == -1;
 
 	if (g->width == 0 || g->height == 0) {
 		return TRUE;

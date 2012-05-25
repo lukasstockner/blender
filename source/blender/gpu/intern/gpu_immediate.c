@@ -122,14 +122,12 @@ void gpuImmediateUnlock(void)
 		}
 	}
 
-	if (GPU_IMMEDIATE->lockCount > 0) {
-		GPU_IMMEDIATE->lockCount--;
-	}
+	GPU_IMMEDIATE->lockCount--;
 }
 
 
 
-GLboolean gpuImmediateIsLocked(void)
+GLint gpuImmediateLockCount(void)
 {
 	assert(GPU_IMMEDIATE);
 
@@ -137,23 +135,27 @@ GLboolean gpuImmediateIsLocked(void)
 		return GL_FALSE;
 	}
 
-	return GPU_IMMEDIATE->lockCount > 0;
+	return GPU_IMMEDIATE->lockCount;
 }
 
 
 
 static void calc_last_texture(GPUimmediate* immediate)
 {
-	GLint maxTextureCoords;
-	GLint maxCombinedTextureImageUnits;
+	GLint maxTextureCoords = 1;
+	GLint maxCombinedTextureImageUnits = 0;
 
-	glGetIntegerv(
-		GL_MAX_TEXTURE_COORDS,
-		&maxTextureCoords);
+	if (GLEW_VERSION_1_3 || GLEW_ARB_multitexture) {
+		glGetIntegerv(
+			GL_MAX_TEXTURE_COORDS,
+			&maxTextureCoords);
+	}
 
-	glGetIntegerv(
-		GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
-		&maxCombinedTextureImageUnits);
+	if (GLEW_VERSION_2_0) {
+		glGetIntegerv(
+			GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
+			&maxCombinedTextureImageUnits);
+	}
 
 	immediate->lastTexture =
 		GL_TEXTURE0 + MAX2(maxTextureCoords, maxCombinedTextureImageUnits) - 1;
@@ -253,18 +255,16 @@ void gpu_legacy_get_state(void)
 		glGetFloatv(GL_CURRENT_NORMAL, GPU_IMMEDIATE->normal);
 	}
 
-	if (GPU_IMMEDIATE->textureUnitCount != 0) {
-		GLint savedActiveTexture;
-		glGetIntegerv(GL_ACTIVE_TEXTURE, &savedActiveTexture);
-
+	if (GPU_IMMEDIATE->textureUnitCount == 1) {
+		glGetFloatv(GL_CURRENT_TEXTURE_COORDS, GPU_IMMEDIATE->texCoord[0]);
+	}
+	else if (GPU_IMMEDIATE->textureUnitCount > 1) {
 		for (i = 0; i < GPU_IMMEDIATE->textureUnitCount; i++) {
-			glActiveTexture(GPU_IMMEDIATE->textureUnitMap[i]);
-			glGetFloatv(
-				GL_CURRENT_TEXTURE_COORDS,
-				GPU_IMMEDIATE->texCoord[i]);
+			glClientActiveTexture(GPU_IMMEDIATE->textureUnitMap[i]);
+			glGetFloatv(GL_CURRENT_TEXTURE_COORDS, GPU_IMMEDIATE->texCoord[i]);
 		}
 
-		glActiveTexture(savedActiveTexture);
+		glClientActiveTexture(GL_TEXTURE0);
 	}
 
 	for (i = 0; i < GPU_IMMEDIATE->attribCount_f; i++) {
@@ -295,7 +295,6 @@ void gpu_legacy_get_state(void)
    Copies GPU_IMMEDIATE state back into the current OpenGL context */
 void gpu_legacy_put_state(void)
 {
-	GLint savedActiveTexture;
 	size_t i;
 
 	GPU_CHECK_NO_BEGIN();
@@ -308,15 +307,16 @@ void gpu_legacy_put_state(void)
 		glNormal3fv(GPU_IMMEDIATE->normal);
 	}
 
-	if (GPU_IMMEDIATE->textureUnitCount != 0) {
-		glGetIntegerv(GL_ACTIVE_TEXTURE, &savedActiveTexture);
-
+	if (GPU_IMMEDIATE->textureUnitCount == 1) {
+		glTexCoord4fv(GPU_IMMEDIATE->texCoord[0]);
+	}
+	else if (GPU_IMMEDIATE->textureUnitCount > 1) {
 		for (i = 0; i < GPU_IMMEDIATE->textureUnitCount; i++) {
-			glActiveTexture(GPU_IMMEDIATE->textureUnitMap[i]);
+			glClientActiveTexture(GPU_IMMEDIATE->textureUnitMap[i]);
 			glTexCoord4fv(GPU_IMMEDIATE->texCoord[i]);
 		}
 
-		glActiveTexture(savedActiveTexture);
+		glClientActiveTexture(GL_TEXTURE0);
 	}
 
 	for (i = 0; i < GPU_IMMEDIATE->attribCount_f; i++) {
@@ -505,13 +505,13 @@ void gpuImmediateUbyteAttribSizes(const GLint *restrict sizes)
 
 	GPU_CHECK_NO_LOCK();
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_f; i++) {
+	for (i = 0; i < GPU_IMMEDIATE->attribCount_ub; i++) {
 		GLboolean sizeOK = sizes[i] > 0 && sizes[i] <= 4; //-V112
 
 		assert(sizeOK);
 
 		if (sizeOK) {
-			GPU_IMMEDIATE->attribSize_f[i] = sizes[i];
+			GPU_IMMEDIATE->attribSize_ub[i] = sizes[i];
 		}
 	}
 }
@@ -524,8 +524,8 @@ void gpuImmediateUbyteAttribIndexMap(const GLuint *restrict map)
 
 	GPU_CHECK_NO_LOCK();
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_f; i++) {
-		GPU_IMMEDIATE->attribIndexMap_f[i] = map[i];
+	for (i = 0; i < GPU_IMMEDIATE->attribCount_ub; i++) {
+		GPU_IMMEDIATE->attribIndexMap_ub[i] = map[i];
 	}
 }
 

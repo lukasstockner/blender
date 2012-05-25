@@ -54,6 +54,33 @@
 
 
 
+#ifndef GPU_SAFETY
+#define GPU_SAFETY 1
+#endif
+
+#if GPU_SAFETY
+
+#define GPU_SAFE_RETURN(test) \
+    assert(test);             \
+    if (!(test)) {            \
+        return;               \
+    }                         \
+
+#endif
+
+#define GPU_CHECK_IMMEDIATE()       \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE);
+
+#define GPU_CHECK_NO_BEGIN()                   \
+    GPU_CHECK_IMMEDIATE();                     \
+    GPU_SAFE_RETURN(!(GPU_IMMEDIATE->buffer));
+
+#define GPU_CHECK_NO_LOCK()                         \
+    GPU_CHECK_NO_BEGIN();                           \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount == 0);
+
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -81,7 +108,7 @@ void gpuImmediateUbyteAttribIndexMap(const GLuint *restrict map);
 
 void gpuImmediateLock(void);
 void gpuImmediateUnlock(void);
-GLboolean gpuImmediateIsLocked(void);
+GLint gpuImmediateLockCount(void);
 
 
 
@@ -147,41 +174,17 @@ void gpuDeleteImmediate(GPUimmediate *restrict  immediate);
 
 
 
-#define GPU_CHECK_IMMEDIATE() \
-	assert(GPU_IMMEDIATE);    \
-	                          \
-	if (!GPU_IMMEDIATE) {     \
-	    return;               \
-	}
-
-#define GPU_CHECK_NO_BEGIN()          \
-	GPU_CHECK_IMMEDIATE();            \
-	assert(!(GPU_IMMEDIATE->buffer)); \
-	                                  \
-	if (GPU_IMMEDIATE->buffer) {      \
-	    return;                       \
-	}
-
-#define GPU_CHECK_NO_LOCK()                \
-	GPU_CHECK_NO_BEGIN();                  \
-	assert(GPU_IMMEDIATE->lockCount == 0); \
-	                                       \
-	if (GPU_IMMEDIATE->lockCount != 0) {   \
-	    return;                            \
-	}
-
-
-
+#ifndef GPU_LEGACY_INTEROP
 #define GPU_LEGACY_INTEROP 1
-
-#ifdef GPU_LEGACY_INTEROP
-void gpu_legacy_get_state(void);
-void gpu_legacy_put_state(void);
 #endif
 
-
-
-void gpu_vector_copy(void);
+#if GPU_LEGACY_INTEROP
+void gpu_legacy_get_state(void);
+void gpu_legacy_put_state(void);
+#else
+#define gpu_legacy_get_state() ((void)0)
+#define gpu_legacy_put_state() ((void)0)
+#endif
 
 
 

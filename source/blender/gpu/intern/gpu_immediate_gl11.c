@@ -86,7 +86,6 @@ static void setup(void)
 {
 	size_t i;
 	size_t offset;
-	GLint savedActiveTexture;
 	bufferDataGL11* bufferData = (bufferDataGL11*)(GPU_IMMEDIATE->bufferData);
 
 	/* Assume that vertex arrays have been disabled for everything
@@ -139,23 +138,34 @@ static void setup(void)
 
 	/* texture coordinate */
 
-	glGetIntegerv(GL_ACTIVE_TEXTURE, &savedActiveTexture);
-
-	for (i = 0; i < GPU_IMMEDIATE->textureUnitCount; i++) {
-		glActiveTexture(GPU_IMMEDIATE->textureUnitMap[i]);
-
+	if (GPU_IMMEDIATE->textureUnitCount == 1) {
 		glTexCoordPointer(
-			GPU_IMMEDIATE->texCoordSize[i],
+			GPU_IMMEDIATE->texCoordSize[0],
 			GL_FLOAT,
 			bufferData->stride,
 			bufferData->ptr + offset);
 
-		offset += (size_t)(GPU_IMMEDIATE->texCoordSize[i]) * sizeof(GLfloat);
+		offset += (size_t)(GPU_IMMEDIATE->texCoordSize[0]) * sizeof(GLfloat);
 
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	}
+	else if (GPU_IMMEDIATE->textureUnitCount > 1) {
+		for (i = 0; i < GPU_IMMEDIATE->textureUnitCount; i++) {
+			glClientActiveTexture(GPU_IMMEDIATE->textureUnitMap[i]);
 
-	glActiveTexture(savedActiveTexture);
+			glTexCoordPointer(
+				GPU_IMMEDIATE->texCoordSize[i],
+				GL_FLOAT,
+				bufferData->stride,
+				bufferData->ptr + offset);
+
+			offset += (size_t)(GPU_IMMEDIATE->texCoordSize[i]) * sizeof(GLfloat);
+
+			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		}
+
+		glClientActiveTexture(GL_TEXTURE0);
+	}
 
 	/* float vertex attribute */
 
@@ -256,16 +266,16 @@ void gpu_unlock_buffer_gl11(void)
 
 	/* texture coordinate */
 
-	if (GPU_IMMEDIATE->textureUnitCount != 0) {
-		GLint savedActiveTexture;
-		glGetIntegerv(GL_ACTIVE_TEXTURE, &savedActiveTexture);
-
+	if (GPU_IMMEDIATE->textureUnitCount == 1) {
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	}
+	else {
 		for (i = 0; i < GPU_IMMEDIATE->textureUnitCount; i++) {
-			glActiveTexture(GPU_IMMEDIATE->textureUnitMap[i]);
+			glClientActiveTexture(GPU_IMMEDIATE->textureUnitMap[i]);
 			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		}
 
-		glActiveTexture(savedActiveTexture);
+		glClientActiveTexture(GL_TEXTURE0);
 	}
 
 	/* float vertex attribute */

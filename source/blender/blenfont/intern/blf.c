@@ -483,7 +483,7 @@ void BLF_rotation_default(float angle)
 
 void BLF_draw_lock(void)
 {
-	if (!gpuImmediateIsLocked()) {
+	if (gpuImmediateLockCount() == 0) {
 		GLint texCoordSizes[1] = { 2 };
 		GLint texUnitMap[1];
 
@@ -496,14 +496,23 @@ void BLF_draw_lock(void)
 		gpuImmediateFloatAttribCount(0);
 		gpuImmediateUbyteAttribCount(0);
 
-		gpuImmediateLock();
+		/* one time GL setup */
+
+		glEnable(GL_BLEND);
+		glEnable(GL_TEXTURE_2D);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
+
+	gpuImmediateLock();
 }
 
 void BLF_draw_unlock(void)
 {
-	if (gpuImmediateIsLocked()) {
-		gpuImmediateUnlock();
+	gpuImmediateUnlock();
+
+	if (gpuImmediateLockCount() == 0) {
+		glDisable(GL_BLEND);
+		glDisable(GL_TEXTURE_2D);
 	}
 }
 
@@ -513,10 +522,6 @@ static void blf_draw__start(FontBLF *font, GLint *mode, GLint *param)
 	 * The pixmap alignment hack is handle
 	 * in BLF_position (old ui_rasterpos_safe).
 	 */
-
-	glEnable(GL_BLEND);
-	glEnable(GL_TEXTURE_2D);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	/* Save the current matrix mode. */
 	glGetIntegerv(GL_MATRIX_MODE, mode);
@@ -551,7 +556,7 @@ static void blf_draw__start(FontBLF *font, GLint *mode, GLint *param)
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
 	BLF_draw_lock();
-	gpuBegin(GL_QUADS);
+	/* gpuBegin not called here because texture still needs binding */
 }
 
 static void blf_draw__end(GLint mode, GLint param)
@@ -571,9 +576,6 @@ static void blf_draw__end(GLint mode, GLint param)
 
 	if (mode != GL_MODELVIEW)
 		glMatrixMode(mode);
-
-	glDisable(GL_BLEND);
-	glDisable(GL_TEXTURE_2D);
 }
 
 void BLF_draw(int fontid, const char *str, size_t len)

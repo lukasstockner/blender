@@ -54,9 +54,7 @@ BLI_INLINE void gpuBegin(GLenum mode)
 {
 	GPU_CHECK_NO_BEGIN();
 
-#if GPU_LEGACY_INTEROP
 	gpu_legacy_get_state();
-#endif
 
 	GPU_IMMEDIATE->mode = mode;
 
@@ -297,6 +295,10 @@ BLI_INLINE void gpuVertexAttrib4ubv(GLsizei index, const GLubyte *restrict v)
 
 
 
+extern void gpu_vector_copy(void); /* internal function */
+
+
+
 BLI_INLINE void gpuVertex2f(GLfloat x, GLfloat y)
 {
 	GPU_CHECK_IMMEDIATE();
@@ -361,9 +363,7 @@ BLI_INLINE void gpuEnd(void)
 	GPU_IMMEDIATE->offset = 0;
 	GPU_IMMEDIATE->count  = 0;
 
-#if GPU_LEGACY_INTEROP
 	gpu_legacy_put_state();
-#endif
 }
 
 
