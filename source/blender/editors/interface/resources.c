@@ -58,9 +58,6 @@
 
 #include "interface_intern.h"
 
-/* global for themes */
-typedef void (*VectorDrawFunc)(int x, int y, int w, int h, float alpha);
-
 static bTheme *theme_active = NULL;
 static int theme_spacetype = SPACE_VIEW3D;
 static int theme_regionid = RGN_TYPE_WINDOW;

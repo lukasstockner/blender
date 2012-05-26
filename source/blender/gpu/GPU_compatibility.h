@@ -33,7 +33,18 @@
 #define __GPU_COMPATIBILITY_H__
 
 #include "intern/gpu_immediate_inline.h"
+
+
+
+#ifndef GPU_MANGLE_DEPRECATED
+#define GPU_MANGLE_DEPRECATED 1
+#endif
+
+#if GPU_MANGLE_DEPRECATED
 #include "intern/gpu_deprecated.h"
+#endif
+
+
 
 #ifdef __cplusplus
 extern "C" {
