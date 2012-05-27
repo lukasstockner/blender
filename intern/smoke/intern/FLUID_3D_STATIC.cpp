@@ -350,7 +350,7 @@ void FLUID_3D::advectFieldSemiLagrange(const float dt, const float* velx, const 
 			{
 				const int index = x + y * xres + z * xres*yres;
 				
-        // backtrace
+				// backtrace
 				float xTrace = x - dt * velx[index];
 				float yTrace = y - dt * vely[index];
 				float zTrace = z - dt * velz[index];

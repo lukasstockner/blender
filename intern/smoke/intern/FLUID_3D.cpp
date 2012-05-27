@@ -827,7 +827,7 @@ void FLUID_3D::project()
 	VectorXf b(_totalCells);
 	VectorXf p(_totalCells);
 	SparseMatrix<float,RowMajor> A(_totalCells, _totalCells);
-	// DG TODO: A.reserve(VectorXi::Constant(_totalCells, 7));
+	A.reserve(VectorXi::Constant(_totalCells, 7));
 
 	ArrayXd gridToIndex(_totalCells);
 
@@ -840,9 +840,10 @@ void FLUID_3D::project()
 	p.setZero(_totalCells);
 
 	unsigned int linearIndex = 0;
-	for (x = 0; x < _xRes; x++)
-	for (y = 0; y < _yRes; y++)
-	for (z = 0; z < _zRes; z++)
+	index = _slabSize + _xRes + 1;
+	for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+		for (y = 1; y < _yRes - 1; y++, index += 2)
+			for (x = 1; x < _xRes - 1; x++, index++)
 		if (!_obstacles[INDEX(x,y,z)])
 			gridToIndex(INDEX(x,y,z)) = linearIndex++;
 
@@ -907,7 +908,7 @@ void FLUID_3D::project()
 				// Pressure is zero anyway since now a local array is used
 				_pressure[index] = 0.0f;
 			}
-
+#if 0
 	float scale = 1.0; // DG TODO: make this global and incooperate this into other functions
 
 	index = _slabSize + _xRes + 1;
@@ -955,7 +956,7 @@ void FLUID_3D::project()
 			if(Ak[INDEX(x, y, z)] < 0)
 				A.insert(rowCount, gridToIndex(INDEX(x, y, z + 1))) = Ak[INDEX(x, y, z)];
 
-				rowCount++;
+			rowCount++;
 		}
 
 	index = _slabSize + _xRes + 1;
@@ -967,13 +968,15 @@ void FLUID_3D::project()
 
 	A.makeCompressed();
 
-	ConjugateGradient<SparseMatrix<float>, Eigen::Upper> solver;
+	ConjugateGradient<SparseMatrix<float>, Eigen::Symmetric > solver;
+	solver.setMaxIterations(100);
+	solver.setTolerance(1e-06);
 
 	solver.compute(A);
 	if(solver.info() != Success) 
 	{
 	  // decomposition failed
-		printf("Solver error: Cannot create decomposition.\n");
+		printf("Solver error: Cannot create decomposition: %d\n", solver.info());
 	}
 	else
 	{
@@ -981,12 +984,12 @@ void FLUID_3D::project()
 		if(solver.info() != Success) 
 		{
 		  // solving failed
-		  printf("Solver error: Cannot solve equation.\n");
+			printf("Solver error: Cannot solve equation: %d\n", solver.info());
 		}
 		else
 			printf("Solver finished.\n");
 	}
-
+#endif
 	// copyBorderAll(_pressure, 0, _zRes);
 
 	// solve Poisson equation
@@ -1534,35 +1537,6 @@ void FLUID_3D::advectMacCormackEnd2(int zBegin, int zEnd)
 
 	setZeroBorder(_density, res, zBegin, zEnd);
 	setZeroBorder(_heat, res, zBegin, zEnd);
-#if 0
-	{
-	const size_t index_ = _slabSize + _xRes + 1;
-	int bb=0;
-	int bt=0;
-
-	if (zBegin == 0) {bb = 1;}
-	if (zEnd == _zRes) {bt = 1;}
-	
-	for (int z = zBegin + bb; z < zEnd - bt; z++)
-	{
-		size_t index = index_ +(z-1)*_slabSize;
-
-		for (int y = 1; y < _yRes - 1; y++, index += 2)
-		{
-			for (int x = 1; x < _xRes - 1; x++, index++)
-			{
-				// clean custom velocities from moving obstacles again
-				if (_obstacles[index])
-				{
-					_xVelocity[index] =
-					_yVelocity[index] =
-					_zVelocity[index] = 0.0f;
-				}
-			}
-		}
-	}
-	}
-#endif
 
 	/*int begin=zBegin * _slabSize;
 	int end=begin + (zEnd - zBegin) * _slabSize;
