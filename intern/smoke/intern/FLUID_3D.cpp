@@ -142,9 +142,9 @@ FLUID_3D::FLUID_3D(int *res, float *p0, float dtdef) :
 
 	// boundary conditions of the fluid domain
 	// set default values -> vertically non-colliding
-	_domainBcFront = true;
+	_domainBcFront = false;
 	_domainBcTop = false;
-	_domainBcLeft = true;
+	_domainBcLeft = false;
 	_domainBcBack = _domainBcFront;
 	_domainBcBottom = _domainBcTop;
 	_domainBcRight	= _domainBcLeft;
@@ -246,16 +246,6 @@ void FLUID_3D::initBlenderRNA(float *alpha, float *beta, float *dt_factor, float
 //////////////////////////////////////////////////////////////////////
 void FLUID_3D::step(float dt)
 {
-#if 0
-	// If border rules have been changed
-	if (_colloPrev != *_borderColli) {
-		printf("Border collisions changed\n");
-		
-		// DG TODO: Need to check that no animated obstacle flags are overwritten
-		setBorderCollisions();
-	}
-#endif
-
 	// DG: TODO for the moment redo border for every timestep since it's been deleted every time by moving obstacles
 	setBorderCollisions();
 
