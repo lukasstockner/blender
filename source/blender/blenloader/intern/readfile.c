@@ -532,8 +532,9 @@ static void read_file_version(FileData *fd, Main *main)
 }
 
 
-static Main *blo_find_main(FileData *fd, ListBase *mainlist, const char *filepath, const char *relabase)
+static Main *blo_find_main(FileData *fd, const char *filepath, const char *relabase)
 {
+	ListBase *mainlist = fd->mainlist;
 	Main *m;
 	Library *lib;
 	char name1[FILE_MAX];
@@ -3826,7 +3827,7 @@ static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 			layer->data = newdataadr(fd, layer->data);
 			if (layer->type == CD_MDISPS)
 				direct_link_mdisps(fd, count, layer->data, layer->flag & CD_FLAG_EXTERNAL);
-			else if(layer->type == CD_GRID_PAINT_MASK)
+			else if (layer->type == CD_GRID_PAINT_MASK)
 				direct_link_grid_paint_mask(fd, count, layer->data);
 			i++;
 		}
@@ -4897,8 +4898,10 @@ static void link_recurs_seq(FileData *fd, ListBase *lb)
 
 static void direct_link_paint(FileData *fd, Paint **paint)
 {
-/* TODO. is this needed */
+	/* TODO. is this needed */
 	(*paint) = newdataadr(fd, (*paint));
+	if (*paint && (*paint)->num_input_samples < 1)
+		(*paint)->num_input_samples = 1;
 }
 
 static void direct_link_scene(FileData *fd, Scene *sce)
@@ -5941,14 +5944,14 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
 {
 	Main *newmain;
 	
-	for (newmain = fd->mainlist.first; newmain; newmain = newmain->next) {
+	for (newmain = fd->mainlist->first; newmain; newmain = newmain->next) {
 		if (newmain->curlib) {
 			if (BLI_path_cmp(newmain->curlib->filepath, lib->filepath) == 0) {
 				BKE_reportf_wrap(fd->reports, RPT_WARNING,
 				                 "Library '%s', '%s' had multiple instances, save and reload!",
 				                 lib->name, lib->filepath);
 				
-				change_idid_adr(&fd->mainlist, fd, lib, newmain->curlib);
+				change_idid_adr(fd->mainlist, fd, lib, newmain->curlib);
 //				change_idid_adr_fd(fd, lib, newmain->curlib);
 				
 				BLI_remlink(&main->library, lib);
@@ -5968,7 +5971,7 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
 	
 	/* new main */
 	newmain= MEM_callocN(sizeof(Main), "directlink");
-	BLI_addtail(&fd->mainlist, newmain);
+	BLI_addtail(fd->mainlist, newmain);
 	newmain->curlib = lib;
 	
 	lib->parent = NULL;
@@ -6793,6 +6796,29 @@ static void do_versions_nodetree_image_layer_2_64_5(bNodeTree *ntree)
 	}
 }
 
+static void do_versions_nodetree_frame_2_64_6(bNodeTree *ntree)
+{
+	bNode *node;
+	
+	for (node=ntree->nodes.first; node; node=node->next) {
+		if (node->type==NODE_FRAME) {
+			/* initialize frame node storage data */
+			if (node->storage == NULL) {
+				NodeFrame *data = (NodeFrame *)MEM_callocN(sizeof(NodeFrame), "frame node storage");
+				node->storage = data;
+				
+				/* copy current flags */
+				data->flag = node->custom1;
+				
+				data->label_size = 20;
+			}
+		}
+		
+		/* initialize custom node color */
+		node->color[0] = node->color[1] = node->color[2] = 0.608f;	/* default theme color */
+	}
+}
+
 static void do_versions(FileData *fd, Library *lib, Main *main)
 {
 	/* WATCH IT!!!: pointers from libdata have not been converted */
@@ -7412,7 +7438,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 		}
 		
-		for(cu = main->curve.first; cu; cu = cu->id.next) {
+		for (cu = main->curve.first; cu; cu = cu->id.next) {
 			if (cu->bevfac2 == 0.0f) {
 				cu->bevfac1 = 0.0f;
 				cu->bevfac2 = 1.0f;
@@ -7436,6 +7462,59 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			for (ntree = main->nodetree.first; ntree; ntree=ntree->id.next) {
 				do_versions_nodetree_file_output_layers_2_64_5(ntree);
 				do_versions_nodetree_image_layer_2_64_5(ntree);
+			}
+		}
+	}
+
+	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 6))
+	{
+		/* update use flags for node sockets (was only temporary before) */
+		Scene *sce;
+		Material *mat;
+		Tex *tex;
+		Lamp *lamp;
+		World *world;
+		bNodeTree *ntree;
+		
+		for (sce=main->scene.first; sce; sce=sce->id.next)
+			if (sce->nodetree)
+				do_versions_nodetree_frame_2_64_6(sce->nodetree);
+		
+		for (mat=main->mat.first; mat; mat=mat->id.next)
+			if (mat->nodetree)
+				do_versions_nodetree_frame_2_64_6(mat->nodetree);
+		
+		for (tex=main->tex.first; tex; tex=tex->id.next)
+			if (tex->nodetree)
+				do_versions_nodetree_frame_2_64_6(tex->nodetree);
+		
+		for (lamp=main->lamp.first; lamp; lamp=lamp->id.next)
+			if (lamp->nodetree)
+				do_versions_nodetree_frame_2_64_6(lamp->nodetree);
+		
+		for (world=main->world.first; world; world=world->id.next)
+			if (world->nodetree)
+				do_versions_nodetree_frame_2_64_6(world->nodetree);
+		
+		for (ntree=main->nodetree.first; ntree; ntree=ntree->id.next)
+			do_versions_nodetree_frame_2_64_6(ntree);
+	}
+
+	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 7))
+	{
+		Object *ob;
+
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			ModifierData *md;
+			for (md = ob->modifiers.first; md; md = md->next) {
+				if (md->type == eModifierType_Smoke) {
+					SmokeModifierData *smd = (SmokeModifierData *)md;
+					if ((smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain) {
+						int maxres = MAX3(smd->domain->res[0], smd->domain->res[1], smd->domain->res[2]);
+						smd->domain->scale = smd->domain->dx * maxres;
+						smd->domain->dx = 1.0f / smd->domain->scale;
+					}
+				}
 			}
 		}
 	}
@@ -7571,10 +7650,12 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
 {
 	BHead *bhead = blo_firstbhead(fd);
 	BlendFileData *bfd;
+	ListBase mainlist = {NULL, NULL};
 	
 	bfd = MEM_callocN(sizeof(BlendFileData), "blendfiledata");
 	bfd->main = MEM_callocN(sizeof(Main), "readfile_Main");
-	BLI_addtail(&fd->mainlist, bfd->main);
+	BLI_addtail(&mainlist, bfd->main);
+	fd->mainlist = &mainlist;
 	
 	bfd->main->versionfile = fd->fileversion;
 	
@@ -7618,7 +7699,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
 				/* always adds to the most recently loaded
 				 * ID_LI block, see direct_link_library.
 				 * this is part of the file format definition. */
-				bhead = read_libblock(fd, fd->mainlist.last, bhead, LIB_READ+LIB_EXTERN, NULL);
+				bhead = read_libblock(fd, mainlist.last, bhead, LIB_READ+LIB_EXTERN, NULL);
 			break;
 			
 			/* in 2.50+ files, the file identifier for screens is patched, forward compatibility */
@@ -7634,9 +7715,9 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
 //	if (fd->memfile==NULL) (the mesh shuffle hacks don't work yet? ton)
 		do_versions(fd, NULL, bfd->main);
 	
-	read_libraries(fd, &fd->mainlist);
+	read_libraries(fd, &mainlist);
 	
-	blo_join_main(&fd->mainlist);
+	blo_join_main(&mainlist);
 	
 	lib_link_all(fd, bfd->main);
 	//do_versions_after_linking(fd, NULL, bfd->main); // XXX: not here (or even in this function at all)! this causes crashes on many files - Aligorith (July 04, 2010)
@@ -7754,7 +7835,7 @@ static void expand_doit(FileData *fd, Main *mainvar, void *old)
 			
 			if (bheadlib) {
 				Library *lib = read_struct(fd, bheadlib, "Library");
-				Main *ptr = blo_find_main(fd, &fd->mainlist, lib->name, fd->relabase);
+				Main *ptr = blo_find_main(fd, lib->name, fd->relabase);
 				
 				id = is_yet_read(fd, ptr, bhead);
 				
@@ -8776,12 +8857,14 @@ static void append_id_part(FileData *fd, Main *mainvar, ID *id, ID **id_r)
 static Main *library_append_begin(Main *mainvar, FileData **fd, const char *filepath)
 {
 	Main *mainl;
+
+	(*fd)->mainlist = MEM_callocN(sizeof(ListBase), "FileData.mainlist");
 	
 	/* make mains */
-	blo_split_main(&(*fd)->mainlist, mainvar);
+	blo_split_main((*fd)->mainlist, mainvar);
 	
 	/* which one do we need? */
-	mainl = blo_find_main(*fd, &(*fd)->mainlist, filepath, G.main->name);
+	mainl = blo_find_main(*fd, filepath, G.main->name);
 	
 	/* needed for do_version */
 	mainl->versionfile = (*fd)->fileversion;
@@ -8807,7 +8890,7 @@ static void library_append_end(const bContext *C, Main *mainl, FileData **fd, in
 	expand_main(*fd, mainl);
 	
 	/* do this when expand found other libs */
-	read_libraries(*fd, &(*fd)->mainlist);
+	read_libraries(*fd, (*fd)->mainlist);
 	
 	curlib = mainl->curlib;
 	
@@ -8820,8 +8903,9 @@ static void library_append_end(const bContext *C, Main *mainl, FileData **fd, in
 		BLI_path_rel(curlib->name, G.main->name);
 	}
 	
-	blo_join_main(&(*fd)->mainlist);
-	mainvar = (*fd)->mainlist.first;
+	blo_join_main((*fd)->mainlist);
+	mainvar = (*fd)->mainlist->first;
+	MEM_freeN((*fd)->mainlist);
 	mainl = NULL; /* blo_join_main free's mainl, cant use anymore */
 	
 	lib_link_all(*fd, mainvar);
@@ -8917,6 +9001,12 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 					                 mainptr->curlib->filepath, mainptr->curlib->name);
 					
 					fd = blo_openblenderfile(mainptr->curlib->filepath, basefd->reports);
+
+					/* share the mainlist, so all libraries are added immediately in a
+					 * single list. it used to be that all FileData's had their own list,
+					 * but with indirectly linking this meant we didn't catch duplicate
+					 * libraries properly */
+					fd->mainlist = mainlist;
 					
 					/* allow typing in a new lib path */
 					if (G.rt == -666) {
@@ -8934,6 +9024,7 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 								cleanup_path(G.main->name, mainptr->curlib->filepath);
 								
 								fd = blo_openblenderfile(mainptr->curlib->filepath, basefd->reports);
+								fd->mainlist = mainlist;
 								
 								if (fd) {
 									printf("found: '%s', party on macuno!\n", mainptr->curlib->filepath);
@@ -8993,14 +9084,6 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 					}
 					
 					expand_main(fd, mainptr);
-					
-					/* dang FileData... now new libraries need to be appended to original filedata,
-					 * it is not a good replacement for the old global (ton) */
-					while (fd->mainlist.first) {
-						Main *mp = fd->mainlist.first;
-						BLI_remlink(&fd->mainlist, mp);
-						BLI_addtail(&basefd->mainlist, mp);
-					}
 				}
 			}
 			

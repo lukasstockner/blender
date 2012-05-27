@@ -1471,9 +1471,9 @@ static void cdDM_foreachMappedFaceCenter(
         void *userData)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-	MVert *mv = cddm->mvert;
-	MPoly *mp = cddm->mpoly;
-	MLoop *ml = cddm->mloop;
+	MVert *mvert = cddm->mvert;
+	MPoly *mp;
+	MLoop *ml;
 	int i, j, orig, *index;
 
 	index = CustomData_get_layer(&dm->polyData, CD_ORIGINDEX);
@@ -1492,23 +1492,23 @@ static void cdDM_foreachMappedFaceCenter(
 		ml = &cddm->mloop[mp->loopstart];
 		cent[0] = cent[1] = cent[2] = 0.0f;
 		for (j = 0; j < mp->totloop; j++, ml++) {
-			add_v3_v3v3(cent, cent, mv[ml->v].co);
+			add_v3_v3v3(cent, cent, mvert[ml->v].co);
 		}
 		mul_v3_fl(cent, 1.0f / (float)j);
 
 		ml = &cddm->mloop[mp->loopstart];
 		if (j > 3) {
 			normal_quad_v3(no,
-			               mv[(ml + 0)->v].co,
-			               mv[(ml + 1)->v].co,
-			               mv[(ml + 2)->v].co,
-			               mv[(ml + 3)->v].co);
+			               mvert[(ml + 0)->v].co,
+			               mvert[(ml + 1)->v].co,
+			               mvert[(ml + 2)->v].co,
+			               mvert[(ml + 3)->v].co);
 		}
 		else {
 			normal_tri_v3(no,
-			              mv[(ml + 0)->v].co,
-			              mv[(ml + 1)->v].co,
-			              mv[(ml + 2)->v].co);
+			              mvert[(ml + 0)->v].co,
+			              mvert[(ml + 1)->v].co,
+			              mvert[(ml + 2)->v].co);
 		}
 
 		func(userData, orig, cent, no);
@@ -1890,6 +1890,14 @@ DerivedMesh *CDDM_from_BMEditMesh(BMEditMesh *em, Mesh *UNUSED(me), int use_mdis
 			med->bweight = (unsigned char)(BM_elem_float_data_get(&bm->edata, eed, CD_BWEIGHT) * 255.0f);
 		
 		med->flag = BM_edge_flag_to_mflag(eed);
+
+		/* handle this differently to editmode switching,
+		 * only enable draw for single user edges rather then calculating angle */
+		if ((med->flag & ME_EDGEDRAW) == 0) {
+			if (eed->l && eed->l == eed->l->radial_next) {
+				med->flag |= ME_EDGEDRAW;
+			}
+		}
 
 		CustomData_from_bmesh_block(&bm->edata, &dm->edgeData, eed->head.data, i);
 		if (add_orig) *index = i;

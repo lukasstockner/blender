@@ -4317,7 +4317,7 @@ typedef struct {
 
 static void edbm_bevel_update_header(wmOperator *op, bContext *C)
 {
-	static char str[] = "Confirm: Enter/LClick, Cancel: (Esc/RClick), factor: %f, , Use Dist (D): %s: Use Even (E): %s";
+	static char str[] = "Confirm: Enter/LClick, Cancel: (Esc/RMB), factor: %f, Use Dist (D): %s: Use Even (E): %s";
 
 	char msg[HEADER_LENGTH];
 	ScrArea *sa = CTX_wm_area(C);
@@ -4541,7 +4541,7 @@ static int edbm_bevel_modal(bContext *C, wmOperator *op, wmEvent *event)
 			mdiff[1] = opdata->mcenter[1] - event->mval[1];
 
 			factor = len_v2(mdiff) / opdata->initial_length;
-			factor = MAX2(1.0 - factor, 0.0);
+			factor = MAX2(1.0f - factor, 0.0f);
 
 			RNA_float_set(op->ptr, "percent", factor);
 
@@ -4837,7 +4837,7 @@ static int edbm_inset_modal(bContext *C, wmOperator *op, wmEvent *event)
 			else {
 				amount = opdata->old_thickness - (len_v2(mdiff)
 				                                  - opdata->initial_length) / opdata->initial_length;
-				amount = MAX2(amount, 0.0);
+				amount = MAX2(amount, 0.0f);
 
 				RNA_float_set(op->ptr, "thickness", amount);
 			}

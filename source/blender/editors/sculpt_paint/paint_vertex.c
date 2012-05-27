@@ -259,8 +259,6 @@ static void do_shared_vertex_tesscol(Mesh *me)
 void do_shared_vertexcol(Mesh *me, int do_tessface)
 {
 	const int use_face_sel = (me->editflag & ME_EDIT_PAINT_MASK);
-	MLoop *ml = me->mloop;
-	MLoopCol *lcol = me->mloopcol;
 	MPoly *mp;
 	float (*scol)[4];
 	int i, j, has_shared = 0;
@@ -274,8 +272,8 @@ void do_shared_vertexcol(Mesh *me, int do_tessface)
 
 	for (i = 0, mp = me->mpoly; i < me->totpoly; i++, mp++) {
 		if ((use_face_sel == FALSE) || (mp->flag & ME_FACE_SEL)) {
-			ml = me->mloop + mp->loopstart;
-			lcol = me->mloopcol + mp->loopstart;
+			MLoop *ml = me->mloop + mp->loopstart;
+			MLoopCol *lcol = me->mloopcol + mp->loopstart;
 			for (j = 0; j < mp->totloop; j++, ml++, lcol++) {
 				scol[ml->v][0] += lcol->r;
 				scol[ml->v][1] += lcol->g;
@@ -295,8 +293,8 @@ void do_shared_vertexcol(Mesh *me, int do_tessface)
 
 		for (i = 0, mp = me->mpoly; i < me->totpoly; i++, mp++) {
 			if ((use_face_sel == FALSE) || (mp->flag & ME_FACE_SEL)) {
-				ml = me->mloop + mp->loopstart;
-				lcol = me->mloopcol + mp->loopstart;
+				MLoop *ml = me->mloop + mp->loopstart;
+				MLoopCol *lcol = me->mloopcol + mp->loopstart;
 				for (j = 0; j < mp->totloop; j++, ml++, lcol++) {
 					lcol->r = scol[ml->v][0];
 					lcol->g = scol[ml->v][1];
@@ -2125,7 +2123,7 @@ static char *wpaint_make_validmap(Object *ob)
 	return vgroup_validmap;
 }
 
-static int wpaint_stroke_test_start(bContext *C, wmOperator *op, wmEvent *UNUSED(event))
+static int wpaint_stroke_test_start(bContext *C, wmOperator *op, const float UNUSED(mouse[2]))
 {
 	Scene *scene = CTX_data_scene(C);
 	struct PaintStroke *stroke = op->customdata;
@@ -2673,7 +2671,7 @@ static void vpaint_build_poly_facemap(struct VPaintData *vd, Mesh *me)
 	}
 }
 
-static int vpaint_stroke_test_start(bContext *C, struct wmOperator *op, wmEvent *UNUSED(event))
+static int vpaint_stroke_test_start(bContext *C, struct wmOperator *op, const float UNUSED(mouse[2]))
 {
 	ToolSettings *ts = CTX_data_tool_settings(C);
 	struct PaintStroke *stroke = op->customdata;

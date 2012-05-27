@@ -1509,7 +1509,7 @@ static void addps_sss(void *cb_handle, int obi, int facenr, int x, int y, int z)
 	}
 }
 
-static void shade_sample_sss(ShadeSample *ssamp, Material *mat, ObjectInstanceRen *obi, VlakRen *vlr, int quad, float x, float y, float z, float *co, float *color, float *area)
+static void shade_sample_sss(ShadeSample *ssamp, Material *mat, ObjectInstanceRen *obi, VlakRen *vlr, int quad, float x, float y, float z, float *co, float color[3], float *area)
 {
 	ShadeInput *shi= ssamp->shi;
 	ShadeResult shr;
@@ -2169,7 +2169,7 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int UNUSED(qua
 	else {
 		unsigned char *col= (unsigned char *)(bs->rect + bs->rectx*y + x);
 
-		if (ELEM(bs->type, RE_BAKE_ALL, RE_BAKE_TEXTURE) &&	(R.r.color_mgt_flag & R_COLOR_MANAGEMENT)) {
+		if (ELEM(bs->type, RE_BAKE_ALL, RE_BAKE_TEXTURE) && (R.r.color_mgt_flag & R_COLOR_MANAGEMENT)) {
 			linearrgb_to_srgb_uchar3(col, shr.combined);
 		}
 		else {

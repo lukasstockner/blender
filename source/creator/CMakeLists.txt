@@ -1,4 +1,3 @@
-# -*- mode: cmake; indent-tabs-mode: t; -*-
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -38,7 +37,6 @@ blender_include_dirs(
 	../blender/makesdna
 	../blender/gpu
 	../blender/windowmanager
-	../blender/opencl
 )
 
 if(WIN32)
