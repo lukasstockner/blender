@@ -1786,6 +1786,12 @@ static void bli_where_am_i(char *fullname, const size_t maxlen, const char *name
 	const char *separator = ":";
 #endif
 
+#ifdef WITH_ANDROID
+/* probably we should use better method */
+    BLI_strncpy(fullname, "/data/data/org.blender.app/blender", maxlen);
+    return;
+	
+#endif
 	
 #ifdef WITH_BINRELOC
 	/* linux uses binreloc since argv[0] is not reliable, call br_init( NULL ) first */

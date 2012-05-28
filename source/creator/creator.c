@@ -29,6 +29,9 @@
  *  \ingroup creator
  */
 
+#ifdef WITH_ANDROID
+#undef __linux__
+#endif
 
 #if defined(__linux__) && defined(__GNUC__)
 #  define _GNU_SOURCE

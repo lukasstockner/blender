@@ -259,6 +259,11 @@ option(WITH_ASSERT_ABORT "Call abort() when raising an assertion through BLI_ass
 mark_as_advanced(WITH_ASSERT_ABORT)
 
 
+
+option(WITH_ANDROID "Compiles Blender for Android" OFF)
+mark_as_advanced(WITH_ANDROID)
+
+
 if(APPLE)
 	if(NOT CMAKE_OSX_ARCHITECTURES)
 		set(CMAKE_OSX_ARCHITECTURES x86_64 CACHE STRING
@@ -454,6 +459,18 @@ set(PLATFORM_LINKFLAGS_DEBUG "")
 #-----------------------------------------------------------------------------
 #Platform specifics
 
+
+
+if(WITH_ANDROID)
+add_definitions(-DWITH_ANDROID)
+add_definitions(-DNDEBUG)
+
+
+set(ANDROID_TARGET "armv7-a_9"  CACHE STRING "Processor Target")
+
+endif()
+
+
 if(UNIX AND NOT APPLE)
 
 	# needed for ubuntu 11.04
@@ -462,7 +479,10 @@ if(UNIX AND NOT APPLE)
 	endif()
 
 	# set lib directory if it exists
-	if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+	if(WITH_ANDROID)
+		set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/android/${ANDROID_TARGET})
+		set(ANDROID_PROJ ${LIBDIR}/aghosty-sdl CACHE STRING  "boo")
+	elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
 		if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
 			set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/linux64)
 		else()
@@ -474,12 +494,60 @@ if(UNIX AND NOT APPLE)
 		endif()
 	endif()
 
-	find_package(JPEG REQUIRED)
-	find_package(PNG REQUIRED)
-	find_package(ZLIB REQUIRED)
-	find_package(Freetype REQUIRED)
 
-	if(WITH_PYTHON)
+	if(WITH_ANDROID)
+		
+		
+
+	set(JPEG "${LIBDIR}/jpeg")
+	set(JPEG_INCLUDE_DIR "${JPEG}/include")
+	set(JPEG_LIBPATH ${JPEG}/lib)
+	set(JPEG_LIBRARIES ${JPEG_LIBPATH}/libjpeg.so)
+
+		
+		set(PNG "${LIBDIR}/png")
+		set(PNG_INCLUDE_DIR "${PNG}/include")
+		set(PNG_LIBPATH ${PNG}/lib) 
+		set(PNG_LIBRARIES ${PNG_LIBPATH}/libpng15.so.15.9.0)
+
+		set(ZLIB_INCLUDE_DIRS ${LIBDIR}/zlib/include)
+
+		set(ZLIB_LIBRARIES ${LIBDIR}/zlib/lib/libz.so.1)
+
+		set(SDL_INCLUDE_DIR ${LIBDIR}/aghosty-sdl/jni/SDL/include/)
+		
+		set(SDLMAIN_LIBRARY ${LIBDIR}/aghosty-sdl/jni/SDL/src/main/android/libSDLmain.a)
+		set(SDL_LIBRARY "${SDLMAIN_LIBRARY};${LIBDIR}/aghosty-sdl/libs/armeabi/libSDL.so")
+		set(SDL_LIBPATH ${LIBDIR}/aghosty-sdl/libs/armeabi/)
+
+
+		set(FREETYPE ${LIBDIR}/freetype)
+		set(FREETYPE_INCLUDE_DIRS
+			${LIBDIR}/freetype/include
+			${LIBDIR}/freetype/include/freetype2
+		)
+		set(FREETYPE_LIBRARY ${LIBDIR}/freetype/lib/libfreetype.so.6)
+
+		if(WITH_PYTHON)
+			# normally cached but not since we include them with blender
+			set(PYTHON_VERSION 3.2) #  CACHE STRING)
+			set(PYTHON_INCLUDE_DIR "${LIBDIR}/python/include/python${PYTHON_VERSION}m")  # CACHE PATH)
+			set(PYTHON_LIBRARY "${LIBDIR}/python/lib/libpython3.2m.so.1.0")  # CACHE FILEPATH)
+
+			# uncached vars
+			set(PYTHON_INCLUDE_DIRS "${PYTHON_INCLUDE_DIR}")
+			set(PYTHON_LIBRARIES  "${PYTHON_LIBRARY}")
+		endif()
+
+    
+	else()
+		find_package(JPEG REQUIRED)
+		find_package(PNG REQUIRED)
+		find_package(ZLIB REQUIRED)
+		find_package(Freetype REQUIRED)
+	endif()
+
+	if(WITH_PYTHON AND NOT WITH_ANDROID)
 		# No way to set py32. remove for now.
 		# find_package(PythonLibs)
 
@@ -518,7 +586,7 @@ if(UNIX AND NOT APPLE)
 		endif()
 	endif()
 
-	if(WITH_SDL)
+	if(WITH_SDL AND NOT WITH_ANDROID)
 		find_package(SDL)
 		mark_as_advanced(
 			SDLMAIN_LIBRARY
@@ -664,7 +732,10 @@ if(UNIX AND NOT APPLE)
 	endif()
 
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
-	set(PLATFORM_LINKLIBS "-lutil -lc -lm -lpthread -lstdc++")
+	set(PLATFORM_LINKLIBS "-lc -lm -lstdc++")
+	if(NOT WITH_ANDROID)
+		set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} -lutil -lpthread")
+	endif()
 
 	if((NOT WITH_HEADLESS) AND (NOT WITH_GHOST_SDL))
 		find_package(X11 REQUIRED)
@@ -699,7 +770,13 @@ if(UNIX AND NOT APPLE)
 		endif()
 	endif()
 
-	set(PLATFORM_LINKFLAGS "-pthread")
+	if(WITH_ANDROID)
+		set(PLATFORM_LINKFLAGS "-lGLESv1_CM")
+	else()
+		set(PLATFORM_LINKFLAGS "-pthread")
+	endif()
+
+
 
 	# lfs on glibc, all compilers should use
 	add_definitions(-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE)
@@ -1508,7 +1585,13 @@ endif()
 
 #-----------------------------------------------------------------------------
 # Configure OpenGL.
+if(WITH_ANDROID)
+set(OPENGL_INCLUDE_DIR ${LIBDIR}/fakeGL/)
+set(OPENGL_gl_LIBRARY ${OPENGL_INCLUDE_DIR}/libGLarm.so)
+set(OPENGL_glu_LIBRARY ${OPENGL_INCLUDE_DIR}/libGLUarm.so)
+else()
 find_package(OpenGL)
+endif()
 blender_include_dirs_sys("${OPENGL_INCLUDE_DIR}")
 # unset(OPENGL_LIBRARIES CACHE) # not compat with older cmake
 # unset(OPENGL_xmesa_INCLUDE_DIR CACHE) # not compat with older cmake
@@ -1539,7 +1622,11 @@ endif()
 
 if(WITH_BUILTIN_GLEW)
 	# set(GLEW_LIBRARY "")  # unused
-	set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew/include")
+	if(WITH_ANDROID)
+		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew-android/include")
+	elseif()
+		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew/include")
+	endif()
 else()
 	find_package(GLEW)
 

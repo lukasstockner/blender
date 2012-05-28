@@ -34,7 +34,6 @@
 #define __BIF_GL_H__
 
 #include "GL/glew.h"
-
 /*
  * these should be phased out. cpack should be replaced in
  * code with calls to glColor3ub. - zr
@@ -47,8 +46,13 @@
  * */
 #define cpack(x)    glColor3ub( ((x) & 0xFF), (((x) >> 8) & 0xFF), (((x) >> 16) & 0xFF) )
 
+#ifdef WITH_ANDROID
+#define glMultMatrixf(x)  fake_glMultMatrixf( (float *)(x))
+#define glLoadMatrixf(x)  fake_glLoadMatrixf( (float *)(x))
+#else
 #define glMultMatrixf(x)  glMultMatrixf( (float *)(x))
 #define glLoadMatrixf(x)  glLoadMatrixf( (float *)(x))
+#endif
 
 #endif /* #ifdef __BIF_GL_H__ */
 

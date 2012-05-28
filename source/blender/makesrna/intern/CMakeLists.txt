@@ -259,17 +259,32 @@ blender_include_dirs_sys(
 	${GLEW_INCLUDE_PATH}
 )
 
+if(WITH_ANDROID)
+add_library(makesrna SHARED ${SRC} ${SRC_RNA_INC} ${SRC_DNA_INC}  )
+else()
 add_executable(makesrna ${SRC} ${SRC_RNA_INC} ${SRC_DNA_INC})
+endif()
 target_link_libraries(makesrna bf_dna)
 target_link_libraries(makesrna bf_dna_blenlib)
 
 # Output rna_*_gen.c
 # note (linux only): with crashes try add this after COMMAND: valgrind --leak-check=full --track-origins=yes
+if(WITH_ANDROID)
+add_custom_command(
+	OUTPUT ${GENSRC}
+	WORKING_DIRECTORY ${ANDROID_PROJ}
+	COMMAND ${ANDROID_PROJ}/makesrna.sh ${CMAKE_BINARY_DIR}/lib/libmakesrna.so ${CMAKE_CURRENT_BINARY_DIR}/
+	DEPENDS makesrna
+)
+
+else()
 add_custom_command(
 	OUTPUT ${GENSRC}
 	COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/makesrna ${CMAKE_CURRENT_BINARY_DIR}/
 	DEPENDS makesrna
 )
+endif()
+
 
 # Build bf_rna
 set(SRC

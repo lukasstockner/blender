@@ -3052,7 +3052,7 @@ static int rna_preprocess(const char *outfile)
 		deffile[strlen(deffile) - 2] = '\0';
 		strcat(deffile, "_gen.c" TMP_EXT);
 
-		if (status) {
+        if (status) {
 			make_bad_file(deffile, __LINE__);
 		}
 		else {

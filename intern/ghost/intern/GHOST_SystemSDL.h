@@ -39,7 +39,7 @@ extern "C" {
 	#include "SDL.h"
 }
 
-#if !SDL_VERSION_ATLEAST(2, 0, 0)
+#if !SDL_VERSION_ATLEAST(2, 0, 0) && !defined(WITH_ANDROID)
 #  error "SDL 2.0 or newer is needed to build with Ghost"
 #endif
 

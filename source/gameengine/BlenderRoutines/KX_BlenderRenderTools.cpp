@@ -171,7 +171,7 @@ bool KX_BlenderRenderTools::RayHit(KX_ClientObjectInfo* client, KX_RayCast* resu
 				0,              0,              0, 1};
 	glTranslated(resultpoint[0],resultpoint[1],resultpoint[2]);
 	//glMultMatrixd(oglmatrix);
-	glMultMatrixd(maat);
+    glMultMatrixd(maat);
 	return true;
 }
 

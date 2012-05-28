@@ -32,11 +32,23 @@ if(WITH_CODEC_QUICKTIME)
 	add_definitions(-DWITH_QUICKTIME)
 endif()
 
+
+if(WITH_ANDROID)
+add_custom_command(
+	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/dna.c
+	WORKING_DIRECTORY ${ANDROID_PROJ}
+	COMMAND ${ANDROID_PROJ}/makesdna.sh ${CMAKE_BINARY_DIR}/lib/libmakesdna.so ${CMAKE_CURRENT_BINARY_DIR}/dna.c  ${CMAKE_SOURCE_DIR}/source/blender/makesdna/
+	DEPENDS makesdna
+)
+else()
 add_custom_command(
 	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/dna.c
 	COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/makesdna ${CMAKE_CURRENT_BINARY_DIR}/dna.c ${CMAKE_SOURCE_DIR}/source/blender/makesdna/
 	DEPENDS ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/makesdna
 )
+endif()
+
+
 
 if(WIN32 AND NOT UNIX)
 	string(SUBSTRING ${BLENDER_VERSION} 0 1 bver1)

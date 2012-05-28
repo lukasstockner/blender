@@ -204,8 +204,12 @@ if(WITH_PYTHON_MODULE)
 		)
 	endif()
 
+elseif(WITH_ANDROID)
+	add_library(blender SHARED ${SRC})
+message("lib")
 else()
 	add_executable(blender ${EXETYPE} ${SRC})
+message("exe")
 endif()
 
 if(WITH_BUILDINFO)

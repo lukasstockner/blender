@@ -144,7 +144,9 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 	
 	vector<pthread_t>::iterator pit = m_threadinfo->threads.begin();
 	while (pit != m_threadinfo->threads.end()) {
-		pthread_cancel((*pit));
+#ifndef WITH_ANDROID
+        pthread_cancel((*pit));
+#endif
 		pthread_join((*pit), NULL);
 		pit++;
 	}
@@ -975,7 +977,9 @@ void *async_convert(void *ptr)
 	cargs->maggie = args->maggie;
 
 	pthread_cleanup_push(async_cleanup, cargs);
-	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+#ifndef WITH_ANDROID
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+#endif
 	new_scene = args->engine->CreateScene(args->scene);
 
 	pthread_cleanup_pop(cleanedup);

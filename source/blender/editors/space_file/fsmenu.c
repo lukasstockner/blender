@@ -486,7 +486,8 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 
 		{
 			int found = 0;
-#ifdef __linux__
+/* Doesn't yet work with Android */
+#if defined(__linux__) && !defined(WITH_ANDROID)
 			/* loop over mount points */
 			struct mntent *mnt;
 			int len;

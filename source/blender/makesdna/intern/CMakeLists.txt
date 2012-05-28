@@ -51,15 +51,27 @@ endif()
 
 # SRC_DNA_INC is defined in the parent dir
 
+if(WITH_ANDROID)
+add_library(makesdna SHARED ${SRC} ${SRC_DNA_INC})
+else()
 add_executable(makesdna ${SRC} ${SRC_DNA_INC})
+endif()
 
 # Output dna.c
+if(WITH_ANDROID)
+add_custom_command(
+	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/dna.c
+	WORKING_DIRECTORY ${ANDROID_PROJ}
+	COMMAND ${ANDROID_PROJ}/makesdna.sh ${CMAKE_BINARY_DIR}/lib/libmakesdna.so ${CMAKE_CURRENT_BINARY_DIR}/dna.c  ${CMAKE_SOURCE_DIR}/source/blender/makesdna/
+	DEPENDS makesdna
+)
+else()
 add_custom_command(
 	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/dna.c
 	COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/makesdna ${CMAKE_CURRENT_BINARY_DIR}/dna.c ${CMAKE_SOURCE_DIR}/source/blender/makesdna/
 	DEPENDS makesdna
 )
-
+endif()
 
 # -----------------------------------------------------------------------------
 # Build bf_dna library
