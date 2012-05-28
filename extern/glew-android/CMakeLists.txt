@@ -23,61 +23,28 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-# Otherwise we get warnings here that we cant fix in external projects
-remove_strict_flags()
+set(INC
+	include
+)
 
-add_subdirectory(colamd)
+set(INC_SYS
 
-if(WITH_BULLET)
-	add_subdirectory(bullet2)
+)
+
+if(UNIX)
+	list(APPEND INC_SYS
+		${X11_X11_INCLUDE_PATH}
+	)
 endif()
 
-if(WITH_MOD_CLOTH_ELTOPO)
-	add_subdirectory(eltopo)
-endif()
+set(SRC
+	src/glew.c
 
-if(WITH_BINRELOC)
-	add_subdirectory(binreloc)
-endif()
+	include/GL/glew.h
+	include/GL/glxew.h
+	include/GL/wglew.h
+)
 
-if(WITH_BUILTIN_GLEW)
-if(WITH_ANDROID)
-	add_subdirectory(glew-android)
-elseif()
-	add_subdirectory(glew)
-endif()
-endif()
+add_definitions(-DGLEW_STATIC)
 
-if(WITH_GAMEENGINE)
-	add_subdirectory(recastnavigation)
-endif()
-
-if(WITH_IMAGE_OPENJPEG AND (NOT UNIX OR APPLE))
-	add_subdirectory(libopenjpeg)
-endif()
-
-if(WITH_IMAGE_REDCODE)
-	add_subdirectory(libredcode)
-endif()
-
-if(WITH_LZO)
-	add_subdirectory(lzo)
-endif()
-
-if(WITH_LZMA)
-	add_subdirectory(lzma)
-endif()
-
-if(WITH_LIBMV)
-	add_subdirectory(libmv)
-endif()
-
-if(WITH_CARVE)
-	add_subdirectory(carve)
-endif()
-
-if(WITH_GHOST_XDND)
-	if(UNIX AND NOT APPLE)
-		add_subdirectory(xdnd)
-	endif()
-endif()
+blender_add_lib(extern_glew "${SRC}" "${INC}" "${INC_SYS}")
