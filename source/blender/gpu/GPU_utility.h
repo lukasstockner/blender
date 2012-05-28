@@ -34,6 +34,12 @@
 
 
 
+/* XXX: temporary work around for MinGW32 build error */
+#ifdef __MINGW32__
+#undef GPU_ENABLE_STRING_MARKER
+#define GPU_ENABLE_STRING_MARKER 0
+#endif
+
 #ifndef GPU_ENABLE_STRING_MARKER
 #define GPU_ENABLE_STRING_MARKER 1
 #endif
