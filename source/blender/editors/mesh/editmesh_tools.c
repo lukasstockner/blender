@@ -1595,6 +1595,82 @@ void MESH_OT_vertices_smooth(wmOperatorType *ot)
 	RNA_def_int(ot->srna, "repeat", 1, 1, 100, "Number of times to smooth the mesh", "", 1, INT_MAX);
 }
 
+static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	BMEditMesh *em = BMEdit_FromObject(obedit);
+	ModifierData *md;
+	int mirrx = FALSE, mirry = FALSE, mirrz = FALSE;
+	int i, repeat;
+	float clipdist = 0.0f;
+
+	/* mirror before smooth */
+	if (((Mesh *)obedit->data)->editflag & ME_EDIT_MIRROR_X) {
+		EDBM_verts_mirror_cache_begin(em, TRUE);
+	}
+
+	/* if there is a mirror modifier with clipping, flag the verts that
+	 * are within tolerance of the plane(s) of reflection 
+	 */
+	for (md = obedit->modifiers.first; md; md = md->next) {
+		if (md->type == eModifierType_Mirror && (md->mode & eModifierMode_Realtime)) {
+			MirrorModifierData *mmd = (MirrorModifierData *)md;
+		
+			if (mmd->flag & MOD_MIR_CLIPPING) {
+				if (mmd->flag & MOD_MIR_AXIS_X)
+					mirrx = TRUE;
+				if (mmd->flag & MOD_MIR_AXIS_Y)
+					mirry = TRUE;
+				if (mmd->flag & MOD_MIR_AXIS_Z)
+					mirrz = TRUE;
+
+				clipdist = mmd->tolerance;
+			}
+		}
+	}
+
+	repeat = RNA_int_get(op->ptr, "repeat");
+	if (!repeat)
+		repeat = 1;
+	
+	for (i = 0; i < repeat; i++) {
+		if (!EDBM_op_callf(em, op,
+		                   "vertexsmoothlaplacian verts=%hv mirror_clip_x=%b mirror_clip_y=%b mirror_clip_z=%b clipdist=%f",
+		                   BM_ELEM_SELECT, mirrx, mirry, mirrz, clipdist))
+		{
+			return OPERATOR_CANCELLED;
+		}
+	}
+
+	/* apply mirror */
+	if (((Mesh *)obedit->data)->editflag & ME_EDIT_MIRROR_X) {
+		EDBM_verts_mirror_apply(em, BM_ELEM_SELECT, 0);
+		EDBM_verts_mirror_cache_end(em);
+	}
+
+	EDBM_update_generic(C, em, TRUE);
+
+	return OPERATOR_FINISHED;
+}
+
+void MESH_OT_vertices_smooth_laplacian(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Laplacian Smooth Vertex";
+	ot->description = "Laplacian smooth of selected vertices";
+	ot->idname = "MESH_OT_vertices_smooth_laplacian";
+	
+	/* api callbacks */
+	ot->exec = edbm_do_smooth_laplacian_vertex_exec;
+	ot->poll = ED_operator_editmesh;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_int(ot->srna, "repeat", 1, 1, 100, "Number of iterations to smooth the mesh", "", 1, INT_MAX);
+
+}
+
 /********************** Smooth/Solid Operators *************************/
 
 static void mesh_set_smooth_faces(BMEditMesh *em, short smooth)

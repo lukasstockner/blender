@@ -111,6 +111,24 @@ static BMOpDefine bmo_vertexsmooth_def = {
 };
 
 /*
+ * Vertext Smooth Laplacian 
+ * Smooths vertices by using Laplacian smoothing propose by.
+ * Desbrun, et al. Implicit Fairing of Irregular Meshes using Diffusion and Curvature Flow
+*/
+static BMOpDefine bmo_vertexsmoothlaplacian_def = {
+	"vertexsmoothlaplacian",
+	{{BMO_OP_SLOT_ELEMENT_BUF, "verts"}, //input vertices
+	 {BMO_OP_SLOT_BOOL, "mirror_clip_x"}, //set vertices close to the x axis before the operation to 0
+	 {BMO_OP_SLOT_BOOL, "mirror_clip_y"}, //set vertices close to the y axis before the operation to 0
+	 {BMO_OP_SLOT_BOOL, "mirror_clip_z"}, //set vertices close to the z axis before the operation to 0
+	 {BMO_OP_SLOT_FLT, "clipdist"}, //clipping threshod for the above three slots
+	{0} /* null-terminating sentinel */,
+	},
+	bmo_vertexsmoothlaplacian_exec,
+	0
+};
+
+/*
  * Right-Hand Faces
  *
  * Computes an "outside" normal for the specified input faces.
@@ -1208,6 +1226,7 @@ BMOpDefine *opdefines[] = {
 	&bmo_regionextend_def,
 	&bmo_righthandfaces_def,
 	&bmo_vertexsmooth_def,
+	&bmo_vertexsmoothlaplacian_def,
 	&bmo_extrude_edge_only_def,
 	&bmo_extrude_indivface_def,
 	&bmo_collapse_uvs_def,

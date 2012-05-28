@@ -66,6 +66,7 @@ void bmo_edgerotate_exec(BMesh *bm, BMOperator *op);
 void bmo_regionextend_exec(BMesh *bm, BMOperator *op);
 void bmo_righthandfaces_exec(BMesh *bm, BMOperator *op);
 void bmo_vertexsmooth_exec(BMesh *bm, BMOperator *op);
+void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op);
 void bmo_extrude_edge_only_exec(BMesh *bm, BMOperator *op);
 void bmo_extrude_face_indiv_exec(BMesh *bm, BMOperator *op);
 void bmo_collapse_uvs_exec(BMesh *bm, BMOperator *op);
