@@ -1215,6 +1215,22 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 	return 1;
 }
 
+void deleteUVTransCorrect(struct UVTransCorrect *uvtc)
+{
+	if(uvtc->boundary_edges) {
+		MEM_freeN(uvtc->boundary_edges);
+		uvtc->boundary_edges = NULL;
+	}
+	if(uvtc->unwrapped_faces) {
+		MEM_freeN(uvtc->unwrapped_faces);
+		uvtc->unwrapped_faces = NULL;
+	}
+	if(uvtc->affected_verts) {
+		MEM_freeN(uvtc->affected_verts);
+		uvtc->affected_verts = NULL;
+	}
+}
+
 /* Here I would suggest only TransInfo related issues, like free data & reset vars. Not redraws */
 void postTrans(bContext *C, TransInfo *t)
 {
@@ -1269,9 +1285,10 @@ void postTrans(bContext *C, TransInfo *t)
 			v3d->twtype = t->twtype;
 		}
 		if(t->flag & T_IMAGE_PRESERVE_CALC) {
-			if(t->affected_verts) {
-				MEM_freeN(t->affected_verts);
-				t->affected_verts = NULL;
+			if(t->uvtc) {
+				deleteUVTransCorrect(t->uvtc);
+				MEM_freeN(t->uvtc);
+				t->uvtc = NULL;
 			}
 		}
 	}
@@ -1600,7 +1617,7 @@ void calculateCenter(TransInfo *t)
 
 /* this function detects boundary mesh elements that will encompass the faces to send to the unwrapper.
  * These elements will be artificially pinned for this first attempt at the algorithm */
-void calculateImageMaintainBounds(TransInfo *t)
+void calculateUVTransformCorrection(TransInfo *t)
 {
 	int i, edge_counter = 0, boundary_edge_counter = 0;
 	BMIter iter;
@@ -1611,11 +1628,18 @@ void calculateImageMaintainBounds(TransInfo *t)
 	GHash *face_hash = BLI_ghash_ptr_new("maintain_image_face_hash");
 	GHash *edge_hash = BLI_ghash_ptr_new("maintain_image_edge_hash");
 	TransData *td = t->data;
+	UVTransCorrect *uvtc = t->uvtc;
 	char not_prop_edit = !(t->flag & T_PROP_EDIT);
+
+	/* cleanup previous data if it exists */
+	if(uvtc->boundary_edges)
+		MEM_freeN(uvtc->boundary_edges);
+	if(uvtc->unwrapped_faces)
+		MEM_freeN(uvtc->unwrapped_faces);
 
 	/* store faces adjacent to verts */
 	for (i = 0 ; i < t->total; i++, td++) {
-		BMVert *v = t->affected_verts[i];
+		BMVert *v = uvtc->affected_verts[i];
 
 		if(not_prop_edit || td->factor > 0.0) {
 			BM_ITER_ELEM(f, &iter, v, BM_FACES_OF_VERT) {
@@ -1641,7 +1665,8 @@ void calculateImageMaintainBounds(TransInfo *t)
 	}
 
 	edge_list = MEM_mallocN(edge_counter*sizeof(*edge_list), "maintain_image_edge_list");
-	edge_boundaries = MEM_mallocN(edge_counter*sizeof(*edge_boundaries), "maintain_image_boundary_list");
+	/* allocate more than we will need to avoid recounting */
+	uvtc->boundary_edges = edge_boundaries = MEM_mallocN(edge_counter*sizeof(*edge_boundaries), "maintain_image_boundary_list");
 
 	BLI_ghashIterator_init(ghiter, edge_hash);
 	/* fill with count values */
@@ -1678,7 +1703,18 @@ void calculateImageMaintainBounds(TransInfo *t)
 
 	}
 
-	MEM_freeN(edge_boundaries);
+	uvtc->num_boundary_edges = boundary_edge_counter;
+	uvtc->unwrapped_faces = MEM_mallocN(BLI_ghash_size(face_hash)*sizeof(*uvtc->unwrapped_faces), "maintain_image_face_list");
+
+	BLI_ghashIterator_init(ghiter, face_hash);
+	/* fill with count values */
+	for(i = 0; !BLI_ghashIterator_isDone(ghiter); BLI_ghashIterator_step(ghiter)) {
+		uvtc->unwrapped_faces[i++] = BLI_ghashIterator_getKey(ghiter);
+	}
+
+	uvtc->num_unwrapped_faces = i;
+	uvtc->init = TRUE;
+
 	MEM_freeN(edge_list);
 	BLI_ghash_free(face_hash, NULL, NULL);
 }
@@ -1787,5 +1823,10 @@ void calculatePropRatio(TransInfo *t)
 			td->factor = 1.0;
 		}
 		t->proptext[0]= '\0';
+	}
+
+	/* we need to redetect boundaries for uv */
+	if(t->flag & T_IMAGE_PRESERVE_CALC) {
+		t->uvtc->init = 0;
 	}
 }

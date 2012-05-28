@@ -66,6 +66,7 @@ struct wmTimer;
 struct ARegion;
 struct ReportList;
 struct SmallHash;
+struct UVTransCorrect;
 
 typedef struct TransSnapPoint {
 	struct TransSnapPoint *next, *prev;
@@ -220,6 +221,16 @@ typedef struct SlideData {
 	int curr_sv_index;
 } SlideData;
 
+/* unwrap transform correction structure, will contain mesh elements that will be used for unwrapping */
+typedef struct UVTransCorrect {
+	struct BMEdge **boundary_edges;
+	struct BMFace **unwrapped_faces;
+	struct BMVert **affected_verts;
+	int num_boundary_edges;
+	int num_unwrapped_faces;
+	char init;
+} UVTransCorrect;
+
 typedef struct TransData {
 	float  dist;         /* Distance needed to affect element (for Proportionnal Editing)                  */
 	float  rdist;        /* Distance to the nearest element (for Proportionnal Editing)                    */
@@ -333,7 +344,7 @@ typedef struct TransInfo {
 	void		*draw_handle_view;
 	void		*draw_handle_pixel;
 	void		*draw_handle_cursor;
-	struct BMVert **affected_verts; /* stores pointers to bmverts to access connectivity data */
+	struct UVTransCorrect *uvtc; /* stores uv transform correction data */
 } TransInfo;
 
 
@@ -684,7 +695,7 @@ void calculateCenterCursor(TransInfo *t);
 
 void calculateCenterCursor2D(TransInfo *t);
 void calculatePropRatio(TransInfo *t);
-void calculateImageMaintainBounds(TransInfo *t);
+void calculateUVTransformCorrection(TransInfo *t);
 
 void getViewVector(TransInfo *t, float coord[3], float vec[3]);
 

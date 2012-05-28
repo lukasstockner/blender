@@ -1939,7 +1939,7 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 	TransDataExtension *tx = NULL;
 	BMEditMesh *em = BMEdit_FromObject(t->obedit);
 	BMesh *bm = em->bm;
-	BMVert *eve;
+	BMVert *eve, **affected_verts;
 	BMIter iter;
 	BMVert *eve_act = NULL;
 	float *mappedcos = NULL, *quats= NULL;
@@ -2043,7 +2043,8 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 
 	/* now we need to allocate store for affected verts if we do maintain image */
 	if(t->flag & T_IMAGE_PRESERVE_CALC) {
-		t->affected_verts = MEM_mallocN(t->total * sizeof(*t->affected_verts), "BMVert Map");
+		t->uvtc = MEM_callocN(sizeof(*t->uvtc), "UVTransformCorrect");
+		t->uvtc->affected_verts = affected_verts = MEM_mallocN(t->total * sizeof(*t->uvtc->affected_verts), "BMVert Map");
 	}
 
 	tob= t->data= MEM_callocN(t->total*sizeof(TransData), "TransObData(Mesh EditMode)");
@@ -2107,7 +2108,7 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 					tx++;
 
 				if(t->flag & T_IMAGE_PRESERVE_CALC)
-					t->affected_verts[i] = eve;
+					affected_verts[i] = eve;
 
 				/* selected */
 				if (selstate[a]) tob->flag |= TD_SELECTED;
