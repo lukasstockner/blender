@@ -1624,7 +1624,7 @@ if(WITH_BUILTIN_GLEW)
 	# set(GLEW_LIBRARY "")  # unused
 	if(WITH_ANDROID)
 		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew-android/include")
-	elseif()
+	else()
 		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew/include")
 	endif()
 else()
