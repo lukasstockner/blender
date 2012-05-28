@@ -1629,7 +1629,7 @@ void calculateImageMaintainBounds(TransInfo *t)
 	ghiter = BLI_ghashIterator_new(face_hash);
 
 	/* count edges */
-	for(; BLI_ghashIterator_isDone(ghiter); BLI_ghashIterator_step(ghiter)) {
+	for(; !BLI_ghashIterator_isDone(ghiter); BLI_ghashIterator_step(ghiter)) {
 		f = BLI_ghashIterator_getKey(ghiter);
 
 		BM_ITER_ELEM(e, &iter, f, BM_EDGES_OF_FACE) {
@@ -1645,7 +1645,7 @@ void calculateImageMaintainBounds(TransInfo *t)
 
 	BLI_ghashIterator_init(ghiter, edge_hash);
 	/* fill with count values */
-	for(i = 0; BLI_ghashIterator_isDone(ghiter); BLI_ghashIterator_step(ghiter)) {
+	for(i = 0; !BLI_ghashIterator_isDone(ghiter); BLI_ghashIterator_step(ghiter)) {
 		edge_list[i++] = BLI_ghashIterator_getKey(ghiter);
 	}
 
