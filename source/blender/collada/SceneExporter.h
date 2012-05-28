@@ -43,6 +43,7 @@ extern "C" {
 #include "DNA_anim_types.h"
 #include "DNA_action_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_constraint_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_userdef_types.h"
