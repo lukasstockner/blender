@@ -269,6 +269,7 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 		UI_ThemeColorShadeAlpha(TH_CFRAME, -10, -50);
 		glLineWidth(2.0);
 		
+		// DOODLE single 2D line
 		glEnable(GL_BLEND);
 		glBegin(GL_LINE_STRIP);
 		vec[0] = v2d->cur.xmin;
@@ -287,7 +288,7 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 	
 	/* markers */
 	UI_view2d_view_orthoSpecial(ar, v2d, 1);
-	draw_markers_time(C, 0);
+	draw_markers_time(C, 0); // DOODLE multiple lines with labels
 	
 	/* preview range */
 	UI_view2d_view_ortho(v2d);

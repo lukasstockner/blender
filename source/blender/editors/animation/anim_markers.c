@@ -376,6 +376,7 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 		else
 			glColor4ub(0, 0, 0, 96);
 		
+		// DOODLE single 2D line, stippled
 		glBegin(GL_LINES);
 		glVertex2f((xpos * xscale) + 0.5f, 12.0f);
 		glVertex2f((xpos * xscale) + 0.5f, (v2d->cur.ymax + 12.0f) * yscale);
@@ -429,7 +430,7 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 		}
 #endif
 
-		UI_DrawString(x, y, marker->name);
+		UI_DrawString(x, y, marker->name); // DOODLE text label
 	}
 	
 	glScalef(xscale, 1.0f, 1.0f);

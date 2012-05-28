@@ -59,11 +59,6 @@ bool RAS_VAOpenGLRasterizer::Init(void)
 	
 	if (result)
 	{
-		glEnableClientState(GL_VERTEX_ARRAY);
-		glEnableClientState(GL_NORMAL_ARRAY);
-		glDisableClientState(GL_COLOR_ARRAY);
-		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	}
 
@@ -95,11 +90,6 @@ void RAS_VAOpenGLRasterizer::SetDrawingMode(int drawingmode)
 
 void RAS_VAOpenGLRasterizer::Exit()
 {
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_NORMAL_ARRAY);
-	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	glDisableClientState(GL_COLOR_ARRAY);
-
 	RAS_OpenGLRasterizer::Exit();
 }
 
@@ -115,6 +105,9 @@ void RAS_VAOpenGLRasterizer::IndexPrimitives(RAS_MeshSlot& ms)
 		RAS_OpenGLRasterizer::IndexPrimitivesInternal(ms, false);
 		return;
 	}
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_NORMAL_ARRAY);
 
 	if (!wireframe)
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -160,6 +153,9 @@ void RAS_VAOpenGLRasterizer::IndexPrimitives(RAS_MeshSlot& ms)
 		glDrawElements(drawmode, it.totindex, GL_UNSIGNED_SHORT, it.index);
 	}
 
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
+
 	if (!wireframe) {
 		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		glDisableClientState(GL_COLOR_ARRAY);
@@ -178,6 +174,9 @@ void RAS_VAOpenGLRasterizer::IndexPrimitivesMulti(RAS_MeshSlot& ms)
 		RAS_OpenGLRasterizer::IndexPrimitivesInternal(ms, true);
 		return;
 	}
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_NORMAL_ARRAY);
 
 	if (!wireframe)
 		EnableTextures(true);
@@ -222,6 +221,9 @@ void RAS_VAOpenGLRasterizer::IndexPrimitivesMulti(RAS_MeshSlot& ms)
 		// here the actual drawing takes places
 		glDrawElements(drawmode, it.totindex, GL_UNSIGNED_SHORT, it.index);
 	}
+
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
 
 	if (!wireframe) {
 		glDisableClientState(GL_COLOR_ARRAY);
