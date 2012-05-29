@@ -32,6 +32,11 @@
 #ifndef _GPU_DEPRECATED_H_
 #define _GPU_DEPRECATED_H_
 
+#undef glBegin
+#define glBegin DO_NOT_USE_glBegin
+#undef glEnd
+#define glEnd DO_NOT_USE_glEnd
+
 #undef glColor3b
 #define glColor3b DO_NOT_USE_glColor3b
 #undef glColor3bv
