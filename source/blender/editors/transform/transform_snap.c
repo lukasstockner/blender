@@ -746,8 +746,8 @@ static void UNUSED_FUNCTION(CalcSnapGrid)(TransInfo *t, float *UNUSED(vec))
 static void CalcSnapGeometry(TransInfo *t, float *UNUSED(vec))
 {
 	if (t->spacetype == SPACE_VIEW3D) {
-		float loc[3];
-		float no[3];
+		float loc[3]; //temporary snapPoint location
+		float no[3]; //snapNormal
 		float mval[2];
 		int found = 0;
 		int dist = SNAP_MIN_DISTANCE; // Use a user defined value here
@@ -1167,6 +1167,54 @@ static int snapEdge(ARegion *ar, float v1co[3], short v1no[3], float v2co[3], sh
 	return retval;
 }
 
+static int snapEdgeMiddle(ARegion *ar, float v1co[3], short v1no[3], float v2co[3], short v2no[3], float obmat[][4], float timat[][3],
+					const float ray_start[3], const float ray_start_local[3], const float ray_normal_local[3], const float mval[2],
+					float r_loc[3], float r_no[3], int *r_dist, float *r_depth)
+{
+	/*TODO: still need to calculate normal output properly using snapEdge code*/
+	float middle[3];
+	int retval = 0;
+	float dvec[3];
+
+
+	mid_v3_v3v3(middle, v1co, v2co); /*find the spot in the middle of the two edge vertices*/
+
+	sub_v3_v3v3(dvec, middle, ray_start_local);
+
+	if (dot_v3v3(ray_normal_local, dvec) > 0) {
+		float location[3];
+		float new_depth;
+		int screen_loc[2];
+		int new_dist;
+
+		copy_v3_v3(location, middle);
+
+		mul_m4_v3(obmat, location);
+
+		new_depth = len_v3v3(location, ray_start);
+
+		project_int(ar, location, screen_loc);
+		new_dist = abs(screen_loc[0] - (int)mval[0]) + abs(screen_loc[1] - (int)mval[1]);
+
+		if (new_dist <= *r_dist && new_depth < *r_depth) {
+			*r_depth = new_depth;
+			retval = 1;
+
+			copy_v3_v3(r_loc, location);
+
+			if (r_no) {
+				normal_short_to_float_v3(r_no, v1no);
+				mul_m3_v3(timat, r_no);
+				normalize_v3(r_no);
+			}
+
+			*r_dist = new_dist;
+		}
+	}
+
+	return retval;
+}
+
 static int snapVertex(ARegion *ar, float vco[3], short vno[3], float obmat[][4], float timat[][3],
                       const float ray_start[3], const float ray_start_local[3], const float ray_normal_local[3], const float mval[2],
                       float r_loc[3], float r_no[3], int *r_dist, float *r_depth)
@@ -1500,6 +1548,8 @@ static int snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMesh
 							else {
 								eed = EDBM_edge_at_index(em, index);
 								
+								/*if edge is hidden, or vertex on either end of the edge is selected, then
+								  don't use it to check for snapping*/
 								if (eed && (BM_elem_flag_test(eed, BM_ELEM_HIDDEN) ||
 									BM_elem_flag_test(eed->v1, BM_ELEM_SELECT) || 
 									BM_elem_flag_test(eed->v2, BM_ELEM_SELECT)))
@@ -1511,6 +1561,61 @@ static int snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMesh
 
 						if (test) {
 							retval |= snapEdge(ar, verts[e->v1].co, verts[e->v1].no, verts[e->v2].co, verts[e->v2].no, obmat, timat, ray_start, ray_start_local, ray_normal_local, mval, r_loc, r_no, r_dist, r_depth);
+						}
+					}
+
+					if (em != NULL) {
+						EDBM_index_arrays_free(em);
+					}
+					break;
+				}
+				case SCE_SNAP_MODE_EDGE_MIDDLE:
+				{
+					MVert *verts = dm->getVertArray(dm);
+					MEdge *edges = dm->getEdgeArray(dm);
+					int totedge = dm->getNumEdges(dm);
+					int *index_array = NULL;
+					int index = 0;
+					int i;
+
+					if (em != NULL) {
+						index_array = dm->getEdgeDataArray(dm, CD_ORIGINDEX);
+						EDBM_index_arrays_init(em, 0, 1, 0);
+					}
+
+					for ( i = 0; i < totedge; i++) {
+						BMEdge *eed = NULL;
+						MEdge *e = edges + i;
+
+						test = 1; /* reset for every vert */
+
+						if (em != NULL) {
+							if (index_array) {
+								index = index_array[i];
+							}
+							else {
+								index = i;
+							}
+
+							if (index == ORIGINDEX_NONE) {
+								test = 0;
+							}
+							else {
+								eed = EDBM_edge_at_index(em, index);
+
+								/*if edge is hidden, or vertex on either end of the edge is selected, then
+								  don't use it to check for snapping*/
+								if (eed && (BM_elem_flag_test(eed, BM_ELEM_HIDDEN) ||
+									BM_elem_flag_test(eed->v1, BM_ELEM_SELECT) ||
+									BM_elem_flag_test(eed->v2, BM_ELEM_SELECT)))
+								{
+									test = 0;
+								}
+							}
+						}
+
+						if (test) {
+							retval |= snapEdgeMiddle(ar, verts[e->v1].co, verts[e->v1].no, verts[e->v2].co, verts[e->v2].no, obmat, timat, ray_start, ray_start_local, ray_normal_local, mval, r_loc, r_no, r_dist, r_depth);
 						}
 					}
 
