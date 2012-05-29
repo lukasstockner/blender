@@ -151,6 +151,16 @@ const char *imb_ext_audio[] = {
 	NULL
 };
 
+// XXX: get list from assimp
+const char *imb_ext_assimp[] = {
+	".3ds",
+	".obj",
+	".ms3d",
+	".x",
+	".lwo",
+	NULL
+};
+
 static int IMB_ispic_name(const char *name)
 {
 	ImFileType *type;

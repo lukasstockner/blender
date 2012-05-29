@@ -204,6 +204,7 @@ endif()
 # 3D format support
 # disable opencollada on non-apple unix because opencollada has no package for debian
 option(WITH_OPENCOLLADA		"Enable OpenCollada Support (http://www.opencollada.org)"	OFF)
+option(WITH_ASSIMP		"Enable Assimp Support (http://www.assimp.sourceforge.net)"	OFF)
 
 # Sound output
 option(WITH_SDL           "Enable SDL for sound and joystick support" ON)
@@ -918,6 +919,7 @@ elseif(WIN32)
 			unset(OPENCOLLADA_LIBPATH)
 			
 		endif()
+
 
 		if(WITH_CODEC_FFMPEG)
 			set(FFMPEG_INCLUDE_DIRS
@@ -1760,6 +1762,7 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_BULLET)
 	info_cfg_option(WITH_IK_ITASC)
 	info_cfg_option(WITH_OPENCOLLADA)
+	info_cfg_option(WITH_ASSIMP)
 	info_cfg_option(WITH_FFTW3)
 	info_cfg_option(WITH_INTERNATIONAL)
 	info_cfg_option(WITH_INPUT_NDOF)

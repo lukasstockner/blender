@@ -878,6 +878,8 @@ void WM_operator_properties_filesel(wmOperatorType *ot, int filter, short type, 
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 	prop = RNA_def_boolean(ot->srna, "filter_collada", (filter & COLLADAFILE), "Filter COLLADA files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+	prop = RNA_def_boolean(ot->srna, "filter_assimp", (filter & ASSIMPFILE), "Filter assimp files", "");
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 	prop = RNA_def_boolean(ot->srna, "filter_folder", (filter & FOLDERFILE), "Filter folders", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
@@ -2230,6 +2232,46 @@ static void WM_OT_collada_import(wmOperatorType *ot)
 	ot->poll = WM_operator_winactive;
 	
 	WM_operator_properties_filesel(ot, FOLDERFILE | COLLADAFILE, FILE_BLENDER, FILE_OPENFILE, WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
+}
+
+#endif
+
+
+/* XXX: move these collada operators to a more appropriate place */
+#ifdef WITH_ASSIMP
+
+#include "../../assimp/bassimp.h"
+
+
+/* function used for WM_OT_save_mainfile too */
+static int wm_assimp_import_exec(bContext *C, wmOperator *op)
+{
+	char filename[FILE_MAX];
+
+	if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
+		BKE_report(op->reports, RPT_ERROR, "No filename given");
+		return OPERATOR_CANCELLED;
+	}
+
+	RNA_string_get(op->ptr, "filepath", filename);
+	if (bassimp_import(C, filename)) return OPERATOR_FINISHED;
+
+	BKE_report(op->reports, RPT_ERROR, "Errors found during importing. Please see console for error log.");
+
+	return OPERATOR_FINISHED;
+}
+
+static void WM_OT_assimp_import(wmOperatorType *ot)
+{
+	ot->name = "Import Open Asset Import Library (assimp)";
+	ot->description = "Load a supported 3D file";
+	ot->idname = "WM_OT_assimp_import";
+
+	ot->invoke = WM_operator_filesel;
+	ot->exec = wm_assimp_import_exec;
+	ot->poll = WM_operator_winactive;
+
+	WM_operator_properties_filesel(ot, FOLDERFILE | ASSIMPFILE, FILE_BLENDER, FILE_OPENFILE, WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
 }
 
 #endif
@@ -3775,6 +3817,11 @@ void wm_operatortype_init(void)
 	/* XXX: move these */
 	WM_operatortype_append(WM_OT_collada_export);
 	WM_operatortype_append(WM_OT_collada_import);
+#endif
+
+#ifdef WITH_ASSIMP
+	/* XXX: move these */
+	WM_operatortype_append(WM_OT_assimp_import);
 #endif
 }
 

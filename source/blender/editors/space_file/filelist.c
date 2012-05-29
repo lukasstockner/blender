@@ -798,6 +798,9 @@ static int file_extension_type(const char *relname)
 	else if (BLI_testextensie_array(relname, imb_ext_audio)) {
 		return SOUNDFILE;
 	} 
+	else if (BLI_testextensie_array(relname, imb_ext_assimp)) {
+		return ASSIMPFILE;
+	}
 	return 0;
 }
 
@@ -820,6 +823,8 @@ int ED_file_extension_icon(const char *relname)
 	else if (type ==  BTXFILE) 
 		return ICON_FILE_BLANK;
 	else if (type ==  COLLADAFILE) 
+		return ICON_FILE_BLANK;
+	else if (type ==  ASSIMPFILE) 
 		return ICON_FILE_BLANK;
 	
 	return ICON_FILE_BLANK;

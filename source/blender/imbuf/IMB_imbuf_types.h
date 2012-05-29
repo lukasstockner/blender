@@ -224,5 +224,6 @@ extern const char *imb_ext_image[];
 extern const char *imb_ext_image_qt[];
 extern const char *imb_ext_movie[];
 extern const char *imb_ext_audio[];
+extern const char *imb_ext_assimp[];
 
 #endif

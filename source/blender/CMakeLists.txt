@@ -131,3 +131,7 @@ endif()
 if(WITH_OPENCOLLADA)
 	add_subdirectory(collada)
 endif()
+
+if(WITH_ASSIMP)
+	add_subdirectory(assimp)
+endif()

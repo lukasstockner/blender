@@ -949,6 +949,12 @@ endif()
 	if(WITH_GHOST_XDND)
 		list(APPEND BLENDER_SORTED_LIBS extern_xdnd)
 	endif()
+	
+	if(WITH_ASSIMP)
+		list(APPEND BLENDER_SORTED_LIBS bf_assimp)
+		list(APPEND BLENDER_SORTED_LIBS extern_assimp)	
+	endif()
+	
 
 	foreach(SORTLIB ${BLENDER_SORTED_LIBS})
 		set(REMLIB ${SORTLIB})

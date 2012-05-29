@@ -77,3 +77,7 @@ if(WITH_GHOST_XDND)
 		add_subdirectory(xdnd)
 	endif()
 endif()
+
+if(WITH_ASSIMP)
+	add_subdirectory(assimp)
+endif()

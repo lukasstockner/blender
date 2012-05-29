@@ -272,6 +272,8 @@ static int get_file_icon(struct direntry *file)
 		return ICON_FILE_BLANK;
 	else if (file->flags & COLLADAFILE) 
 		return ICON_FILE_BLANK;
+	else if (file->flags & ASSIMPFILE) 
+		return ICON_FILE_BLANK;
 	else
 		return ICON_FILE_BLANK;
 }

@@ -157,6 +157,8 @@ class INFO_MT_file_import(Menu):
     def draw(self, context):
         if hasattr(bpy.types, "WM_OT_collada_import"):
             self.layout.operator("wm.collada_import", text="Collada (Default) (.dae)")
+        if hasattr(bpy.types, "WM_OT_assimp_import"):
+            self.layout.operator("wm.assimp_import", text="Open Asset Import Library (Default) (multiple)")
 
 
 class INFO_MT_file_export(Menu):
