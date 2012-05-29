@@ -120,33 +120,36 @@ GLint gpuImmediateLockCount(void);
 typedef struct GPUimmediate {
 	GLenum mode;
 
-	GLint vertexSize;
-	GLint normalSize;
-	GLint texCoordSize[GPU_MAX_TEXTURE_UNITS];
-	GLint colorSize;
-	GLint attribSize_f[GPU_MAX_FLOAT_ATTRIBS];
-	GLint attribSize_ub[GPU_MAX_UBYTE_ATTRIBS];
+	/* All variables that determine the vertex array format
+	   go in one structure so they can be easily cleared. */
+	struct {
+		GLint vertexSize;
+		GLint normalSize;
+		GLint texCoordSize[GPU_MAX_TEXTURE_UNITS];
+		GLint colorSize;
+		GLint attribSize_f[GPU_MAX_FLOAT_ATTRIBS];
+		GLint attribSize_ub[GPU_MAX_UBYTE_ATTRIBS];
+
+		GLenum textureUnitMap[GPU_MAX_TEXTURE_UNITS];
+		size_t textureUnitCount;
+
+		GLuint attribIndexMap_f[GPU_MAX_FLOAT_ATTRIBS];
+		size_t attribCount_f;
+		GLboolean attribNormalized_f[GPU_MAX_FLOAT_ATTRIBS];
+
+		GLuint attribIndexMap_ub[GPU_MAX_UBYTE_ATTRIBS];
+		size_t attribCount_ub;
+		GLboolean attribNormalized_ub[GPU_MAX_UBYTE_ATTRIBS];
+	} format;
 
 	GLsizei maxVertexCount;
 
 	GLenum lastTexture;
 
-	GLenum textureUnitMap[GPU_MAX_TEXTURE_UNITS];
-	size_t textureUnitCount;
-
-	GLuint attribIndexMap_f[GPU_MAX_FLOAT_ATTRIBS];
-	size_t attribCount_f;
-	GLboolean attribNormalized_f[GPU_MAX_FLOAT_ATTRIBS];
-
-	GLuint attribIndexMap_ub[GPU_MAX_UBYTE_ATTRIBS];
-	size_t attribCount_ub;
-	GLboolean attribNormalized_ub[GPU_MAX_UBYTE_ATTRIBS];
-
 	GLfloat vertex[GPU_MAX_ELEMENT_SIZE];
 	GLfloat normal[3];
 	GLfloat texCoord[GPU_MAX_TEXTURE_UNITS][GPU_MAX_ELEMENT_SIZE];
 	GLubyte color[4]; //-V112
-
 	GLfloat attrib_f[GPU_MAX_FLOAT_ATTRIBS][GPU_MAX_ELEMENT_SIZE];
 	GLubyte attrib_ub[GPU_MAX_UBYTE_ATTRIBS][4]; //-V112
 

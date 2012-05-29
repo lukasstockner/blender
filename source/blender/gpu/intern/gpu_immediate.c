@@ -49,41 +49,44 @@ GLsizei gpu_calc_stride(void)
 
 	/* vertex */
 
-	if (GPU_IMMEDIATE->vertexSize != 0) {
-		stride += (size_t)(GPU_IMMEDIATE->vertexSize) * sizeof(GLfloat);
+	if (GPU_IMMEDIATE->format.vertexSize != 0) {
+		stride += (size_t)(GPU_IMMEDIATE->format.vertexSize) * sizeof(GLfloat);
 	}
 
 	/* normal */
 
-	if (GPU_IMMEDIATE->normalSize != 0) {
+	if (GPU_IMMEDIATE->format.normalSize != 0) {
 		/* normals always have 3 components */
 		stride += 3 * sizeof(GLfloat);
 	}
 
 	/* color */
 
-	if (GPU_IMMEDIATE->colorSize != 0) {
+	if (GPU_IMMEDIATE->format.colorSize != 0) {
 		/* color always get 4 bytes for efficient memory alignment */
 		stride += 4; //-V112
 	}
 
 	/* texture coordinate */
 
-	for (i = 0; i < GPU_IMMEDIATE->textureUnitCount; i++) {
-		stride += (size_t)(GPU_IMMEDIATE->texCoordSize[i]) * sizeof(GLfloat);
+	for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
+		stride +=
+			(size_t)(GPU_IMMEDIATE->format.texCoordSize[i]) * sizeof(GLfloat);
 	}
 
 	/* float vertex attribute */
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_f; i++) {
-		stride += (size_t)(GPU_IMMEDIATE->attribSize_f[i]) * sizeof(GLfloat);
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++) {
+		stride +=
+			(size_t)(GPU_IMMEDIATE->format.attribSize_f[i]) * sizeof(GLfloat);
 	}
 
 	/* byte vertex attribute */
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_ub; i++) {
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
 		/* byte attributes always get 4 bytes for efficient memory alignment */
-		stride += (size_t)(GPU_IMMEDIATE->attribSize_ub[i]) * sizeof(GLfloat);
+		stride +=
+			(size_t)(GPU_IMMEDIATE->format.attribSize_ub[i]) * sizeof(GLfloat);
 	}
 
 	return (GLsizei)stride;
@@ -108,6 +111,14 @@ void gpuImmediateLock(void)
 
 
 
+static reset(void)
+{
+	memset(&(GPU_IMMEDIATE->format), 0, sizeof(GPU_IMMEDIATE->format));
+	GPU_IMMEDIATE->format.vertexSize = 3;
+}
+
+
+
 void gpuImmediateUnlock(void)
 {
 	GPU_CHECK_NO_BEGIN();
@@ -120,6 +131,8 @@ void gpuImmediateUnlock(void)
 		if (GPU_IMMEDIATE->unlockBuffer) {
 			GPU_IMMEDIATE->unlockBuffer();
 		}
+
+		reset();
 	}
 
 	GPU_IMMEDIATE->lockCount--;
@@ -170,7 +183,7 @@ GPUimmediate *restrict gpuNewImmediate(void)
 
 	assert(immediate);
 
-	immediate->vertexSize = 3;
+	immediate->format.vertexSize = 3;
 
 	//if (GLEW_ARB_vertex_buffer_object) {
 	//	immediate->lockBuffer     = gpu_lock_buffer_vbo;
@@ -242,7 +255,7 @@ void gpu_legacy_get_state(void)
 
 	GPU_CHECK_NO_BEGIN();
 
-	if (GPU_IMMEDIATE->colorSize != 0) {
+	if (GPU_IMMEDIATE->format.colorSize != 0) {
 		GLfloat color[4];
 		glGetFloatv(GL_CURRENT_COLOR, color);
 		GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * color[0]);
@@ -251,34 +264,34 @@ void gpu_legacy_get_state(void)
 		GPU_IMMEDIATE->color[3] = (GLubyte)(255.0f * color[3]);
 	}
 
-	if (GPU_IMMEDIATE->normalSize != 0) {
+	if (GPU_IMMEDIATE->format.normalSize != 0) {
 		glGetFloatv(GL_CURRENT_NORMAL, GPU_IMMEDIATE->normal);
 	}
 
-	if (GPU_IMMEDIATE->textureUnitCount == 1) {
+	if (GPU_IMMEDIATE->format.textureUnitCount == 1) {
 		glGetFloatv(GL_CURRENT_TEXTURE_COORDS, GPU_IMMEDIATE->texCoord[0]);
 	}
-	else if (GPU_IMMEDIATE->textureUnitCount > 1) {
-		for (i = 0; i < GPU_IMMEDIATE->textureUnitCount; i++) {
-			glClientActiveTexture(GPU_IMMEDIATE->textureUnitMap[i]);
+	else if (GPU_IMMEDIATE->format.textureUnitCount > 1) {
+		for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
+			glClientActiveTexture(GPU_IMMEDIATE->format.textureUnitMap[i]);
 			glGetFloatv(GL_CURRENT_TEXTURE_COORDS, GPU_IMMEDIATE->texCoord[i]);
 		}
 
 		glClientActiveTexture(GL_TEXTURE0);
 	}
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_f; i++) {
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++) {
 		glGetVertexAttribfv(
-			GPU_IMMEDIATE->attribIndexMap_f[i],
+			GPU_IMMEDIATE->format.attribIndexMap_f[i],
 			GL_CURRENT_VERTEX_ATTRIB,
 			GPU_IMMEDIATE->attrib_f[i]);
 	}
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_ub; i++) {
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
 		GLfloat attrib[4];
 
 		glGetVertexAttribfv(
-			GPU_IMMEDIATE->attribIndexMap_ub[i],
+			GPU_IMMEDIATE->format.attribIndexMap_ub[i],
 			GL_CURRENT_VERTEX_ATTRIB,
 			attrib);
 
@@ -299,35 +312,35 @@ void gpu_legacy_put_state(void)
 
 	GPU_CHECK_NO_BEGIN();
 
-	if (GPU_IMMEDIATE->colorSize != 0) {
+	if (GPU_IMMEDIATE->format.colorSize != 0) {
 		glColor4ubv(GPU_IMMEDIATE->color);
 	}
 
-	if (GPU_IMMEDIATE->normalSize != 0) {
+	if (GPU_IMMEDIATE->format.normalSize != 0) {
 		glNormal3fv(GPU_IMMEDIATE->normal);
 	}
 
-	if (GPU_IMMEDIATE->textureUnitCount == 1) {
+	if (GPU_IMMEDIATE->format.textureUnitCount == 1) {
 		glTexCoord4fv(GPU_IMMEDIATE->texCoord[0]);
 	}
-	else if (GPU_IMMEDIATE->textureUnitCount > 1) {
-		for (i = 0; i < GPU_IMMEDIATE->textureUnitCount; i++) {
-			glClientActiveTexture(GPU_IMMEDIATE->textureUnitMap[i]);
+	else if (GPU_IMMEDIATE->format.textureUnitCount > 1) {
+		for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
+			glClientActiveTexture(GPU_IMMEDIATE->format.textureUnitMap[i]);
 			glTexCoord4fv(GPU_IMMEDIATE->texCoord[i]);
 		}
 
 		glClientActiveTexture(GL_TEXTURE0);
 	}
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_f; i++) {
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++) {
 		glVertexAttrib4fv(
-			GPU_IMMEDIATE->attribIndexMap_f[i],
+			GPU_IMMEDIATE->format.attribIndexMap_f[i],
 			GPU_IMMEDIATE->attrib_f[i]);
 	}
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_ub; i++) {
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
 		glVertexAttrib4ubv(
-			GPU_IMMEDIATE->attribIndexMap_ub[i],
+			GPU_IMMEDIATE->format.attribIndexMap_ub[i],
 			GPU_IMMEDIATE->attrib_ub[i]);
 	}
 }
@@ -357,15 +370,15 @@ void gpuImmediateElementSizes(
 	assert(colorOK);
 
 	if (vertexOK) {
-		GPU_IMMEDIATE->vertexSize = vertexSize;
+		GPU_IMMEDIATE->format.vertexSize = vertexSize;
 	}
 
 	if (normalOK) {
-		GPU_IMMEDIATE->normalSize = normalSize;
+		GPU_IMMEDIATE->format.normalSize = normalSize;
 	}
 
 	if (colorOK) {
-		GPU_IMMEDIATE->colorSize  = colorSize;
+		GPU_IMMEDIATE->format.colorSize  = colorSize;
 	}
 }
 
@@ -393,7 +406,7 @@ void gpuImmediateTextureUnitCount(size_t count)
 	assert(countOK);
 
 	if (countOK) {
-		GPU_IMMEDIATE->textureUnitCount = count;
+		GPU_IMMEDIATE->format.textureUnitCount = count;
 	}
 }
 
@@ -405,14 +418,14 @@ void gpuImmediateTexCoordSizes(const GLint *restrict sizes)
 
 	GPU_CHECK_NO_LOCK();
 
-	for (i = 0; i < GPU_IMMEDIATE->textureUnitCount; i++) {
+	for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
 		GLboolean texCoordSizeOK =
 			sizes[i] > 0 && sizes[i] <= GPU_MAX_ELEMENT_SIZE;
 
 		assert(texCoordSizeOK);
 
 		if (texCoordSizeOK) {
-			GPU_IMMEDIATE->texCoordSize[i] = sizes[i];
+			GPU_IMMEDIATE->format.texCoordSize[i] = sizes[i];
 		}
 	}
 }
@@ -425,12 +438,12 @@ void gpuImmediateTextureUnitMap(const GLenum *restrict map)
 
 	GPU_CHECK_NO_LOCK();
 
-	for (i = 0; i < GPU_IMMEDIATE->textureUnitCount; i++) {
+	for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
 		GLboolean mapOK =
 			map[i] >= GL_TEXTURE0 &&  map[i] <= GPU_IMMEDIATE->lastTexture;
 
 		if (mapOK) {
-			GPU_IMMEDIATE->textureUnitMap[i] = map[i];
+			GPU_IMMEDIATE->format.textureUnitMap[i] = map[i];
 		}
 	}
 }
@@ -445,7 +458,7 @@ void gpuImmediateFloatAttribCount(size_t count)
 	assert(countOK);
 
 	if (countOK) {
-		GPU_IMMEDIATE->attribCount_f = count;
+		GPU_IMMEDIATE->format.attribCount_f = count;
 	}
 }
 
@@ -457,14 +470,14 @@ void gpuImmediateFloatAttribSizes(const GLint *restrict sizes)
 
 	GPU_CHECK_NO_LOCK();
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_f; i++) {
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++) {
 		GLboolean sizeOK =
 			sizes[i] > 0 && sizes[i] <= GPU_MAX_ELEMENT_SIZE;
 
 		assert(sizeOK);
 
 		if (sizeOK) {
-			GPU_IMMEDIATE->attribSize_f[i] = sizes[i];
+			GPU_IMMEDIATE->format.attribSize_f[i] = sizes[i];
 		}
 	}
 }
@@ -477,8 +490,8 @@ void gpuImmediateFloatAttribIndexMap(const GLuint *restrict map)
 
 	GPU_CHECK_NO_LOCK();
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_f; i++) {
-		GPU_IMMEDIATE->attribIndexMap_f[i] = map[i];
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++) {
+		GPU_IMMEDIATE->format.attribIndexMap_f[i] = map[i];
 	}
 }
 
@@ -493,7 +506,7 @@ void gpuImmediateUbyteAttribCount(size_t count)
 	assert(countOK);
 
 	if (countOK) {
-		GPU_IMMEDIATE->attribCount_ub = count;
+		GPU_IMMEDIATE->format.attribCount_ub = count;
 	}
 }
 
@@ -505,13 +518,13 @@ void gpuImmediateUbyteAttribSizes(const GLint *restrict sizes)
 
 	GPU_CHECK_NO_LOCK();
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_ub; i++) {
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
 		GLboolean sizeOK = sizes[i] > 0 && sizes[i] <= 4; //-V112
 
 		assert(sizeOK);
 
 		if (sizeOK) {
-			GPU_IMMEDIATE->attribSize_ub[i] = sizes[i];
+			GPU_IMMEDIATE->format.attribSize_ub[i] = sizes[i];
 		}
 	}
 }
@@ -524,8 +537,8 @@ void gpuImmediateUbyteAttribIndexMap(const GLuint *restrict map)
 
 	GPU_CHECK_NO_LOCK();
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_ub; i++) {
-		GPU_IMMEDIATE->attribIndexMap_ub[i] = map[i];
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
+		GPU_IMMEDIATE->format.attribIndexMap_ub[i] = map[i];
 	}
 }
 
@@ -558,13 +571,13 @@ void gpu_vector_copy(void)
 
 	/* vertex */
 
-	size = (size_t)(GPU_IMMEDIATE->vertexSize) * sizeof(GLfloat);
+	size = (size_t)(GPU_IMMEDIATE->format.vertexSize) * sizeof(GLfloat);
 	memcpy(buffer + offset, GPU_IMMEDIATE->vertex, size);
 	offset += size;
 
 	/* normal */
 
-	if (GPU_IMMEDIATE->normalSize != 0) {
+	if (GPU_IMMEDIATE->format.normalSize != 0) {
 		/* normals are always have 3 components */
 		memcpy(buffer + offset, GPU_IMMEDIATE->normal, 3*sizeof(GLfloat));
 		offset += 3*sizeof(GLfloat);
@@ -572,7 +585,7 @@ void gpu_vector_copy(void)
 
 	/* color */
 
-	if (GPU_IMMEDIATE->colorSize != 0) {
+	if (GPU_IMMEDIATE->format.colorSize != 0) {
 		/* 4 bytes are always reserved for color, for efficient memory alignment */
 		memcpy(buffer + offset, GPU_IMMEDIATE->color, 4*sizeof(GLubyte));
 		offset += 4*sizeof(GLubyte);
@@ -580,23 +593,23 @@ void gpu_vector_copy(void)
 
 	/* texture coordinate(s) */
 
-	for (i = 0; i < GPU_IMMEDIATE->textureUnitCount; i++) {
-		size = (size_t)(GPU_IMMEDIATE->texCoordSize[i]) * sizeof(GLfloat);
+	for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
+		size = (size_t)(GPU_IMMEDIATE->format.texCoordSize[i]) * sizeof(GLfloat);
 		memcpy(buffer + offset, GPU_IMMEDIATE->texCoord[i], size);
 		offset += size;
 	}
 
 	/* float vertex attribute(s) */
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_f; i++) {
-		size = (size_t)(GPU_IMMEDIATE->attribSize_f[i]) * sizeof(GLfloat);
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++) {
+		size = (size_t)(GPU_IMMEDIATE->format.attribSize_f[i]) * sizeof(GLfloat);
 		memcpy(buffer + offset, GPU_IMMEDIATE->attrib_f[i], size);
 		offset += size;
 	}
 
 	/* unsigned byte vertex attirbute(s) */
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_ub; i++) {
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
 		/* 4 bytes are always reserved for byte attributes, for efficient memory alignment */
 		memcpy(buffer + offset, GPU_IMMEDIATE->attrib_ub[i], 4*sizeof(GLubyte));
 		offset += 4*sizeof(GLubyte);

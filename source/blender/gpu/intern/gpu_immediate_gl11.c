@@ -99,18 +99,18 @@ static void setup(void)
 	/* vertex */
 
 	glVertexPointer(
-		GPU_IMMEDIATE->vertexSize,
+		GPU_IMMEDIATE->format.vertexSize,
 		GL_FLOAT,
 		bufferData->stride,
 		bufferData->ptr + offset);
 
-	offset += (size_t)(GPU_IMMEDIATE->vertexSize) * sizeof(GLfloat);
+	offset += (size_t)(GPU_IMMEDIATE->format.vertexSize) * sizeof(GLfloat);
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 
 	/* normal */
 
-	if (GPU_IMMEDIATE->normalSize != 0) {
+	if (GPU_IMMEDIATE->format.normalSize != 0) {
 		glNormalPointer(
 			GL_FLOAT,
 			bufferData->stride,
@@ -123,9 +123,9 @@ static void setup(void)
 
 	/* color */
 
-	if (GPU_IMMEDIATE->colorSize != 0) {
+	if (GPU_IMMEDIATE->format.colorSize != 0) {
 		glColorPointer(
-			GPU_IMMEDIATE->colorSize,
+			GPU_IMMEDIATE->format.colorSize,
 			GL_UNSIGNED_BYTE,
 			bufferData->stride,
 			bufferData->ptr + offset);
@@ -138,28 +138,30 @@ static void setup(void)
 
 	/* texture coordinate */
 
-	if (GPU_IMMEDIATE->textureUnitCount == 1) {
+	if (GPU_IMMEDIATE->format.textureUnitCount == 1) {
 		glTexCoordPointer(
-			GPU_IMMEDIATE->texCoordSize[0],
+			GPU_IMMEDIATE->format.texCoordSize[0],
 			GL_FLOAT,
 			bufferData->stride,
 			bufferData->ptr + offset);
 
-		offset += (size_t)(GPU_IMMEDIATE->texCoordSize[0]) * sizeof(GLfloat);
+		offset +=
+			(size_t)(GPU_IMMEDIATE->format.texCoordSize[0]) * sizeof(GLfloat);
 
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	}
-	else if (GPU_IMMEDIATE->textureUnitCount > 1) {
-		for (i = 0; i < GPU_IMMEDIATE->textureUnitCount; i++) {
-			glClientActiveTexture(GPU_IMMEDIATE->textureUnitMap[i]);
+	else if (GPU_IMMEDIATE->format.textureUnitCount > 1) {
+		for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
+			glClientActiveTexture(GPU_IMMEDIATE->format.textureUnitMap[i]);
 
 			glTexCoordPointer(
-				GPU_IMMEDIATE->texCoordSize[i],
+				GPU_IMMEDIATE->format.texCoordSize[i],
 				GL_FLOAT,
 				bufferData->stride,
 				bufferData->ptr + offset);
 
-			offset += (size_t)(GPU_IMMEDIATE->texCoordSize[i]) * sizeof(GLfloat);
+			offset +=
+				(size_t)(GPU_IMMEDIATE->format.texCoordSize[i]) * sizeof(GLfloat);
 
 			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 		}
@@ -169,38 +171,39 @@ static void setup(void)
 
 	/* float vertex attribute */
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_f; i++) {
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++) {
 		glVertexAttribPointer(
-			GPU_IMMEDIATE->attribIndexMap_f[i],
-			GPU_IMMEDIATE->attribSize_f[i],
+			GPU_IMMEDIATE->format.attribIndexMap_f[i],
+			GPU_IMMEDIATE->format.attribSize_f[i],
 			GL_FLOAT,
-			GPU_IMMEDIATE->attribNormalized_f[i],
+			GPU_IMMEDIATE->format.attribNormalized_f[i],
 			bufferData->stride,
 			bufferData->ptr + offset);
 
-		offset += (size_t)(GPU_IMMEDIATE->attribSize_f[i]) * sizeof(GLfloat);
+		offset +=
+			(size_t)(GPU_IMMEDIATE->format.attribSize_f[i]) * sizeof(GLfloat);
 
 		glEnableVertexAttribArray(
-			GPU_IMMEDIATE->attribIndexMap_f[i]);
+			GPU_IMMEDIATE->format.attribIndexMap_f[i]);
 	}
 
 	/* byte vertex attribute */
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_ub; i++) {
-		if (GPU_IMMEDIATE->attribSize_ub[i] > 0) {
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
+		if (GPU_IMMEDIATE->format.attribSize_ub[i] > 0) {
 			glVertexAttribPointer(
-				GPU_IMMEDIATE->attribIndexMap_ub[i],
-				GPU_IMMEDIATE->attribSize_ub[i],
+				GPU_IMMEDIATE->format.attribIndexMap_ub[i],
+				GPU_IMMEDIATE->format.attribSize_ub[i],
 				GL_FLOAT,
-				GPU_IMMEDIATE->attribNormalized_ub[i],
+				GPU_IMMEDIATE->format.attribNormalized_ub[i],
 				bufferData->stride,
 				bufferData->ptr + offset);
 
 			offset +=
-				(size_t)(GPU_IMMEDIATE->attribSize_ub[i]) * sizeof(GLfloat);
+				(size_t)(GPU_IMMEDIATE->format.attribSize_ub[i]) * sizeof(GLfloat);
 
 			glEnableVertexAttribArray(
-				GPU_IMMEDIATE->attribIndexMap_ub[i]);
+				GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
 		}
 	}
 
@@ -254,24 +257,24 @@ void gpu_unlock_buffer_gl11(void)
 
 	/* normal */
 
-	if (GPU_IMMEDIATE->normalSize != 0) {
+	if (GPU_IMMEDIATE->format.normalSize != 0) {
 		glDisableClientState(GL_NORMAL_ARRAY);
 	}
 
 	/* color */
 
-	if (GPU_IMMEDIATE->colorSize != 0) {
+	if (GPU_IMMEDIATE->format.colorSize != 0) {
 		glDisableClientState(GL_COLOR_ARRAY);
 	}
 
 	/* texture coordinate */
 
-	if (GPU_IMMEDIATE->textureUnitCount == 1) {
+	if (GPU_IMMEDIATE->format.textureUnitCount == 1) {
 		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 	}
 	else {
-		for (i = 0; i < GPU_IMMEDIATE->textureUnitCount; i++) {
-			glClientActiveTexture(GPU_IMMEDIATE->textureUnitMap[i]);
+		for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
+			glClientActiveTexture(GPU_IMMEDIATE->format.textureUnitMap[i]);
 			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		}
 
@@ -280,14 +283,14 @@ void gpu_unlock_buffer_gl11(void)
 
 	/* float vertex attribute */
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_f; i++) {
-		glDisableVertexAttribArray(GPU_IMMEDIATE->attribIndexMap_f[i]);
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_f; i++) {
+		glDisableVertexAttribArray(GPU_IMMEDIATE->format.attribIndexMap_f[i]);
 	}
 
 	/* byte vertex attribute */
 
-	for (i = 0; i < GPU_IMMEDIATE->attribCount_ub; i++) {
-		glDisableVertexAttribArray(GPU_IMMEDIATE->attribIndexMap_ub[i]);
+	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
+		glDisableVertexAttribArray(GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
 	}
 
 	assert(glGetError() == GL_NO_ERROR);
