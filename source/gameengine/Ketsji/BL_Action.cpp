@@ -41,6 +41,7 @@
 
 extern "C" {
 #include "BKE_animsys.h"
+#include "DNA_scene_types.h"
 #include "BKE_action.h"
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -444,5 +445,18 @@ void BL_Action::Update(float curtime)
 		}
 
 		m_obj->UpdateIPO(m_localtime, m_ipo_flags & ACT_IPOFLAG_CHILD);
+	}
+
+	// check markers
+	TimeMarker *marker = (TimeMarker*)m_action->markers.first;
+
+	while (marker)
+	{
+		//printf("LocalTime: %d\n", (int)m_localtime);
+		if ((int)m_localtime == marker->frame)
+		{
+			printf("Hit marker: %s\n", marker->name);
+		}
+		marker = marker->next;
 	}
 }

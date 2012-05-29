@@ -777,33 +777,27 @@ bool ConvertMaterial(
 		// No material - old default TexFace properties
 		material->ras_mode |= USE_LIGHT;
 	}
-	MT_Point2 uv[4];
-	MT_Point2 uv2[4];
-	const char *uvName = "", *uv2Name = "";
 
-	
-	uv2[0]= uv2[1]= uv2[2]= uv2[3]= MT_Point2(0.0f, 0.0f);
+	MT_Point2 uvs[4][MAXTEX];
 
 	/* No material, what to do? let's see what is in the UV and set the material accordingly
 	 * light and visible is always on */
 	if ( validface ) {
 		material->tile	= tface->tile;
 			
-		uv[0].setValue(tface->uv[0]);
-		uv[1].setValue(tface->uv[1]);
-		uv[2].setValue(tface->uv[2]);
+		uvs[0][0].setValue(tface->uv[0]);
+		uvs[1][0].setValue(tface->uv[1]);
+		uvs[2][0].setValue(tface->uv[2]);
 
 		if (mface->v4) 
-			uv[3].setValue(tface->uv[3]);
-
-		uvName = tfaceName;
+			uvs[3][0].setValue(tface->uv[3]);
 	} 
 	else {
 		// nothing at all
 		material->alphablend	= GEMAT_SOLID;
 		material->tile		= 0;
 		
-		uv[0]= uv[1]= uv[2]= uv[3]= MT_Point2(0.0f, 0.0f);
+		uvs[0][0]= uvs[1][0]= uvs[2][0]= uvs[3][0]= MT_Point2(0.0f, 0.0f);
 	}
 
 	if (validmat && validface) {
@@ -823,51 +817,43 @@ bool ConvertMaterial(
 	// get uv sets
 	if (validmat) 
 	{
-		bool isFirstSet = true;
-
-		// only two sets implemented, but any of the eight 
-		// sets can make up the two layers
 		for (int vind = 0; vind<material->num_enabled; vind++)
 		{
 			BL_Mapping &map = material->mapping[vind];
 
-			if (map.uvCoName.IsEmpty())
-				isFirstSet = false;
-			else
+			//If no UVSet is specified, try grabbing one from the UV/Image editor
+			if (map.uvCoName.IsEmpty() && validface)
+			{			
+				uvs[0][vind].setValue(tface->uv[0]);
+				uvs[1][vind].setValue(tface->uv[1]);
+				uvs[2][vind].setValue(tface->uv[2]);
+
+				if (mface->v4) 
+					uvs[3][vind].setValue(tface->uv[3]);
+
+				continue;
+			}
+
+
+			for (int lay=0; lay<MAX_MTFACE; lay++)
 			{
-				for (int lay=0; lay<MAX_MTFACE; lay++)
+				MTF_localLayer& layer = layers[lay];
+				if (layer.face == 0) break;
+
+				if (map.uvCoName.IsEmpty() || strcmp(map.uvCoName.ReadPtr(), layer.name)==0)
 				{
-					MTF_localLayer& layer = layers[lay];
-					if (layer.face == 0) break;
+					MT_Point2 uvSet[4];
 
-					if (strcmp(map.uvCoName.ReadPtr(), layer.name)==0)
-					{
-						MT_Point2 uvSet[4];
+					uvs[0][vind].setValue(layer.face->uv[0]);
+					uvs[1][vind].setValue(layer.face->uv[1]);
+					uvs[2][vind].setValue(layer.face->uv[2]);
 
-						uvSet[0].setValue(layer.face->uv[0]);
-						uvSet[1].setValue(layer.face->uv[1]);
-						uvSet[2].setValue(layer.face->uv[2]);
+					if (mface->v4) 
+						uvs[3][vind].setValue(layer.face->uv[3]);
+					else
+						uvs[3][vind].setValue(0.0f, 0.0f);
 
-						if (mface->v4) 
-							uvSet[3].setValue(layer.face->uv[3]);
-						else
-							uvSet[3].setValue(0.0f, 0.0f);
-
-						if (isFirstSet)
-						{
-							uv[0] = uvSet[0]; uv[1] = uvSet[1];
-							uv[2] = uvSet[2]; uv[3] = uvSet[3];
-							isFirstSet = false;
-							uvName = layer.name;
-						}
-						else if (strcmp(layer.name, uvName) != 0)
-						{
-							uv2[0] = uvSet[0]; uv2[1] = uvSet[1];
-							uv2[2] = uvSet[2]; uv2[3] = uvSet[3];
-							map.mapping |= USECUSTOMUV;
-							uv2Name = layer.name;
-						}
-					}
+					break;
 				}
 			}
 		}
@@ -886,8 +872,7 @@ bool ConvertMaterial(
 	}
 
 	material->SetConversionRGB(rgb);
-	material->SetConversionUV(uvName, uv);
-	material->SetConversionUV2(uv2Name, uv2);
+	material->SetConversionUV(uvs);
 
 	if (validmat)
 		material->matname	=(mat->id.name);
@@ -967,8 +952,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	{
 		Material* ma = 0;
 		bool collider = true;
-		MT_Point2 uv0(0.0,0.0),uv1(0.0,0.0),uv2(0.0,0.0),uv3(0.0,0.0);
-		MT_Point2 uv20(0.0,0.0),uv21(0.0,0.0),uv22(0.0,0.0),uv23(0.0,0.0);
+		MT_Point2 uvs[4][RAS_TexVert::MAX_UNIT];
 		unsigned int rgb0,rgb1,rgb2,rgb3 = 0;
 
 		MT_Point3 pt0, pt1, pt2, pt3;
@@ -1045,13 +1029,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 				rgb0 = rgb[0]; rgb1 = rgb[1];
 				rgb2 = rgb[2]; rgb3 = rgb[3];
 
-				bl_mat->GetConversionUV(uv);
-				uv0 = uv[0]; uv1 = uv[1];
-				uv2 = uv[2]; uv3 = uv[3];
-
-				bl_mat->GetConversionUV2(uv);
-				uv20 = uv[0]; uv21 = uv[1];
-				uv22 = uv[2]; uv23 = uv[3];
+				bl_mat->GetConversionUV(uvs);
 				
 				/* then the KX_BlenderMaterial */
 				if (kx_blmat == NULL)
@@ -1108,12 +1086,12 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 				/* set UV properties */
 				if (tface) {
-					uv0.setValue(tface->uv[0]);
-					uv1.setValue(tface->uv[1]);
-					uv2.setValue(tface->uv[2]);
+					uvs[0][0].setValue(tface->uv[0]);
+					uvs[1][0].setValue(tface->uv[1]);
+					uvs[2][0].setValue(tface->uv[2]);
 	
 					if (mface->v4)
-						uv3.setValue(tface->uv[3]);
+						uvs[3][0].setValue(tface->uv[3]);
 
 					tile = tface->tile;
 				} 
@@ -1232,12 +1210,12 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			poly->SetTwoside(twoside);
 			//poly->SetEdgeCode(mface->edcode);
 
-			meshobj->AddVertex(poly,0,pt0,uv0,uv20,tan0,rgb0,no0,flat,mface->v1);
-			meshobj->AddVertex(poly,1,pt1,uv1,uv21,tan1,rgb1,no1,flat,mface->v2);
-			meshobj->AddVertex(poly,2,pt2,uv2,uv22,tan2,rgb2,no2,flat,mface->v3);
+			meshobj->AddVertex(poly,0,pt0,uvs[0],tan0,rgb0,no0,flat,mface->v1);
+			meshobj->AddVertex(poly,1,pt1,uvs[1],tan1,rgb1,no1,flat,mface->v2);
+			meshobj->AddVertex(poly,2,pt2,uvs[2],tan2,rgb2,no2,flat,mface->v3);
 
 			if (nverts==4)
-				meshobj->AddVertex(poly,3,pt3,uv3,uv23,tan3,rgb3,no3,flat,mface->v4);
+				meshobj->AddVertex(poly,3,pt3,uvs[3],tan3,rgb3,no3,flat,mface->v4);
 		}
 
 		if (tface) 
