@@ -334,6 +334,10 @@ static ShaderNode *add_node(BL::BlendData b_data, ShaderGraph *graph, BL::Shader
 			node = new LightFalloffNode();
 			break;
 		}
+		case BL::ShaderNode::type_OBJECT_INFO: {
+			node = new ObjectInfoNode();
+			break;
+		}
 		case BL::ShaderNode::type_TEX_IMAGE: {
 			BL::ShaderNodeTexImage b_image_node(b_node);
 			BL::Image b_image(b_image_node.image());
@@ -413,7 +417,7 @@ static ShaderNode *add_node(BL::BlendData b_data, ShaderGraph *graph, BL::Shader
 			break;
 		}
 		case BL::ShaderNode::type_TEX_COORD: {
-			node = new TextureCoordinateNode();;
+			node = new TextureCoordinateNode();
 			break;
 		}
 		case BL::ShaderNode::type_TEX_SKY: {

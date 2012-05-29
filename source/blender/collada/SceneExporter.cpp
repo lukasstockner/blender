@@ -72,6 +72,7 @@ void SceneExporter::writeNodes(Object *ob, Scene *sce)
 {
 	COLLADASW::Node node(mSW);
 	node.setNodeId(translate_id(id_name(ob)));
+	node.setNodeName(translate_id(id_name(ob)));
 	node.setType(COLLADASW::Node::NODE);
 
 	node.start();
@@ -79,25 +80,28 @@ void SceneExporter::writeNodes(Object *ob, Scene *sce)
 	bool is_skinned_mesh = arm_exporter->is_skinned_mesh(ob);
 	std::list<Object*> child_objects;
 
-	// list child objects
-	Base *b = (Base*) sce->base.first;
-	while (b) {
-		// cob - child object
-		Object *cob = b->object;
 
-		if (cob->parent == ob) {
-			switch (cob->type) {
-				case OB_MESH:
-				case OB_CAMERA:
-				case OB_LAMP:
-				case OB_EMPTY:
-				case OB_ARMATURE:
-					child_objects.push_back(cob);
-					break;
+	if (this->export_settings->include_bone_children) {
+		// list child objects
+		Base *b = (Base*) sce->base.first;
+		while (b) {
+			// cob - child object
+			Object *cob = b->object;
+
+			if (cob->parent == ob) {
+				switch (cob->type) {
+					case OB_MESH:
+					case OB_CAMERA:
+					case OB_LAMP:
+					case OB_EMPTY:
+					case OB_ARMATURE:
+						child_objects.push_back(cob);
+						break;
+				}
 			}
-		}
 
-		b = b->next;
+			b = b->next;
+		}
 	}
 
 
@@ -114,7 +118,7 @@ void SceneExporter::writeNodes(Object *ob, Scene *sce)
 		}
 		else {
 			COLLADASW::InstanceGeometry instGeom(mSW);
-			instGeom.setUrl(COLLADASW::URI(COLLADABU::Utils::EMPTY_STRING, get_geometry_id(ob)));
+			instGeom.setUrl(COLLADASW::URI(COLLADABU::Utils::EMPTY_STRING, get_geometry_id(ob, this->export_settings->use_object_instantiation)));
 
 			InstanceWriter::add_material_bindings(instGeom.getBindMaterial(), ob);
 
