@@ -53,9 +53,6 @@
 
 #include "BIF_gl.h"
 
-#define GPU_MANGLE_DEPRECATED 0
-#include "GPU_compatibility.h"
-
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
 
@@ -904,7 +901,6 @@ void UI_ThemeColor(int colorid)
 	
 	cp = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid);
 	glColor3ubv(cp);
-	gpuColor3ubv(cp);
 }
 
 // plus alpha
@@ -914,7 +910,6 @@ void UI_ThemeColor4(int colorid)
 	
 	cp = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid);
 	glColor4ubv(cp);
-	gpuColor4ubv(cp);
 }
 
 // set the color with offset for shades
@@ -932,7 +927,6 @@ void UI_ThemeColorShade(int colorid, int offset)
 	CLAMP(b, 0, 255);
 	//glColor3ub(r, g, b);
 	glColor4ub(r, g, b, cp[3]);
-	gpuColor4ub(r, g, b, cp[3]);
 }
 void UI_ThemeColorShadeAlpha(int colorid, int coloffset, int alphaoffset)
 {
@@ -949,7 +943,6 @@ void UI_ThemeColorShadeAlpha(int colorid, int coloffset, int alphaoffset)
 	a = alphaoffset + (int) cp[3];
 	CLAMP(a, 0, 255);
 	glColor4ub(r, g, b, a);
-	gpuColor4ub(r, g, b, a);
 }
 
 // blend between to theme colors, and set it
@@ -967,7 +960,6 @@ void UI_ThemeColorBlend(int colorid1, int colorid2, float fac)
 	b = floorf((1.0f - fac) * cp1[2] + fac * cp2[2]);
 	
 	glColor3ub(r, g, b);
-	gpuColor3ub(r, g, b);
 }
 
 // blend between to theme colors, shade it, and set it
@@ -989,7 +981,6 @@ void UI_ThemeColorBlendShade(int colorid1, int colorid2, float fac, int offset)
 	CLAMP(b, 0, 255);
 	
 	glColor3ub(r, g, b);
-	gpuColor3ub(r, g, b);
 }
 
 // blend between to theme colors, shade it, and set it
@@ -1013,7 +1004,6 @@ void UI_ThemeColorBlendShadeAlpha(int colorid1, int colorid2, float fac, int off
 	CLAMP(a, 0, 255);
 
 	glColor4ub(r, g, b, a);
-	gpuColor4ub(r, g, b, a);
 }
 
 
