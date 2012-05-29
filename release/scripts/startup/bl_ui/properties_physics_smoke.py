@@ -78,28 +78,30 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
         elif md.smoke_type == 'FLOW':
 
             flow = md.flow_settings
+            
+            layout.prop(flow, "smoke_flow_type", expand=False)
 
-            split = layout.split()
+            if flow.smoke_flow_type != "OUTFLOW":
+                split = layout.split()
+                col = split.column()
+                col.label(text="Particle System:")
+                col.prop_search(flow, "particle_system", ob, "particle_systems", text="")
 
-            col = split.column()
-            col.prop(flow, "use_outflow")
-            col.label(text="Particle System:")
-            col.prop_search(flow, "particle_system", ob, "particle_systems", text="")
+                sub = col.column()
 
-            sub = col.column()
-            sub.active = not md.flow_settings.use_outflow
+                sub.prop(flow, "initial_velocity", text="Initial Velocity")
+                sub = sub.column()
+                sub.active = flow.initial_velocity
+                sub.prop(flow, "velocity_factor", text="Multiplier")
 
-            sub.prop(flow, "initial_velocity", text="Initial Velocity")
-            sub = sub.column()
-            sub.active = flow.initial_velocity
-            sub.prop(flow, "velocity_factor", text="Multiplier")
-
-            sub = split.column()
-            sub.active = not md.flow_settings.use_outflow
-            sub.label(text="Initial Values:")
-            sub.prop(flow, "use_absolute")
-            sub.prop(flow, "density")
-            sub.prop(flow, "temperature")
+                sub = split.column()
+                sub.label(text="Initial Values:")
+                sub.prop(flow, "use_absolute")
+                if flow.smoke_flow_type in {'SMOKE', 'BOTH'}:
+                    sub.prop(flow, "density")
+                    sub.prop(flow, "temperature")
+                if flow.smoke_flow_type in {'FIRE', 'BOTH'}:
+                    sub.prop(flow, "fuel_amount")
 
         elif md.smoke_type == 'COLLISION':
             coll = md.coll_settings
@@ -109,7 +111,33 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
             col = split.column()
             col.prop(coll, "collision_type")
 
+class PHYSICS_PT_smoke_fire(PhysicButtonsPanel, Panel):
+    bl_label = "Smoke Flames"
+    bl_options = {'DEFAULT_CLOSED'}
 
+    @classmethod
+    def poll(cls, context):
+        md = context.smoke
+        return md and (md.smoke_type == 'DOMAIN')
+
+    def draw(self, context):
+        layout = self.layout
+        domain = context.smoke.domain_settings
+
+        split = layout.split()
+        split.enabled = not domain.point_cache.is_baked
+
+        col = split.column(align=True)
+        col.label(text="Reaction:")
+        col.prop(domain, "burning_rate")
+        col.prop(domain, "flame_smoke")
+        col.prop(domain, "flame_vorticity")
+
+        col = split.column(align=True)
+        col.label(text="Temperatures:")
+        col.prop(domain, "flame_ignition")
+        col.prop(domain, "flame_max_temp")
+            
 class PHYSICS_PT_smoke_groups(PhysicButtonsPanel, Panel):
     bl_label = "Smoke Groups"
     bl_options = {'DEFAULT_CLOSED'}

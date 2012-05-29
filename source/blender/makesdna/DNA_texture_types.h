@@ -603,6 +603,7 @@ typedef struct ColorMapping {
 #define TEX_VD_SMOKEDENSITY		0
 #define TEX_VD_SMOKEHEAT		1
 #define TEX_VD_SMOKEVEL			2
+#define TEX_VD_SMOKEFLAME		3
 
 /******************** Ocean *****************************/
 /* output */

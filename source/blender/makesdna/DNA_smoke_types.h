@@ -71,6 +71,7 @@ typedef struct SmokeDomainSettings {
 	struct GPUTexture *tex;
 	struct GPUTexture *tex_wt;
 	struct GPUTexture *tex_shadow;
+	struct GPUTexture *tex_flame;
 	float *shadow;
 	float p0[3]; /* start point of BB */
 	float p1[3]; /* end point of BB */
@@ -103,14 +104,20 @@ typedef struct SmokeDomainSettings {
 	int border_collisions;	/* How domain border collisions are handled */
 	float time_scale;
 	float vorticity;
-	int pad2;
+
+	/* flame parameters */
+	float burning_rate, flame_smoke, flame_vorticity;
+	float flame_ignition, flame_max_temp;
 } SmokeDomainSettings;
 
 
 /* inflow / outflow */
 
 /* type */
-#define MOD_SMOKE_FLOW_TYPE_OUTFLOW (1<<1)
+#define MOD_SMOKE_FLOW_TYPE_SMOKE 0
+#define MOD_SMOKE_FLOW_TYPE_FIRE 1
+#define MOD_SMOKE_FLOW_TYPE_OUTFLOW 2
+#define MOD_SMOKE_FLOW_TYPE_SMOKEFIRE 3
 
 /* flags */
 #define MOD_SMOKE_FLOW_ABSOLUTE (1<<1) /*old style emission*/
@@ -120,6 +127,7 @@ typedef struct SmokeFlowSettings {
 	struct SmokeModifierData *smd; /* for fast RNA access */
 	struct ParticleSystem *psys;
 	float density;
+	float fuel_amount;
 	float temp; /* delta temperature (temp - ambient temp) */
 	float velocity[2]; /* UNUSED, velocity taken from particles */
 	float vel_multi; // Multiplier for particle velocity
@@ -127,8 +135,9 @@ typedef struct SmokeFlowSettings {
 	short vgroup_flow; /* where inflow/outflow happens - red=1=action */
 	short vgroup_density;
 	short vgroup_heat;
-	short type; /* inflow =0 or outflow = 1 */
+	short type; /* smoke, flames, both, outflow */
 	int flags; /* absolute emission etc*/
+	int pad;
 } SmokeFlowSettings;
 
 

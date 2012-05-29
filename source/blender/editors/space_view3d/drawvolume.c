@@ -156,12 +156,12 @@ static int convex(const float p0[3], const float up[3], const float a[3], const 
 	return dot_v3v3(up, tmp) >= 0;
 }
 
-void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int res[3], float dx, GPUTexture *tex_shadow)
+void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int res[3], float dx, GPUTexture *tex_shadow, GPUTexture *tex_flame)
 {
 	RegionView3D *rv3d = ar->regiondata;
 
 	float viewnormal[3];
-	int i, j, n, good_index;
+	int i, j, k, n, good_index;
 	float d /*, d0 */ /* UNUSED */, dd, ds;
 	float *points = NULL;
 	int numpoints = 0;
@@ -193,15 +193,22 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 		{{-1.0f, 1.0f, -1.0f}, {2.0f, 0.0f, 0.0f}}
 	};
 
+	unsigned char *spec_data;
+	float *spec_pixels;
+	GPUTexture *tex_spec;
+
 	/* Fragment program to calculate the view3d of smoke */
 	/* using 2 textures, density and shadow */
 	const char *text = "!!ARBfp1.0\n"
 	                   "PARAM dx = program.local[0];\n"
 	                   "PARAM darkness = program.local[1];\n"
+					   "PARAM render = program.local[2];\n"
 	                   "PARAM f = {1.442695041, 1.442695041, 1.442695041, 0.01};\n"
-	                   "TEMP temp, shadow, value;\n"
+	                   "TEMP temp, shadow, flame, spec, value;\n"
 	                   "TEX temp, fragment.texcoord[0], texture[0], 3D;\n"
 	                   "TEX shadow, fragment.texcoord[0], texture[1], 3D;\n"
+					   "TEX flame, fragment.texcoord[0], texture[2], 3D;\n"
+					   "TEX spec, flame.r, texture[3], 1D;\n"
 	                   "MUL value, temp, darkness;\n"
 	                   "MUL value, value, dx;\n"
 	                   "MUL value, value, f;\n"
@@ -210,7 +217,8 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 	                   "MUL temp.r, temp.r, shadow.r;\n"
 	                   "MUL temp.g, temp.g, shadow.r;\n"
 	                   "MUL temp.b, temp.b, shadow.r;\n"
-	                   "MOV result.color, temp;\n"
+					   /* for now this just replaces smoke shading if rendering fire */
+					   "CMP result.color, render.r, temp, spec;\n"
 	                   "END\n";
 	GLuint prog;
 
@@ -223,6 +231,32 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 	}
 
 	tstart();
+	/* generate flame spectrum texture */
+	#define SPEC_WIDTH 256
+	#define FIRE_THRESH 7
+	#define MAX_FIRE_ALPHA 0.06f
+	#define FULL_ON_FIRE 100
+	spec_data = malloc(SPEC_WIDTH*4 * sizeof(unsigned char));
+	flame_get_spectrum(spec_data, SPEC_WIDTH, 1500, 3000);
+	spec_pixels = malloc(SPEC_WIDTH*4*16*16 * sizeof(float));
+	for (i=0;i<16;i++){
+		for (j=0;j<16;j++) {
+			for (k=0;k<SPEC_WIDTH;k++) {
+				int index = (j*SPEC_WIDTH*16+i*SPEC_WIDTH+k)*4;
+				if (k>=FIRE_THRESH) {
+					spec_pixels[index] = ((float)spec_data[k*4])/255.0f;
+					spec_pixels[index+1] = ((float)spec_data[k*4+1])/255.0f;
+					spec_pixels[index+2] = ((float)spec_data[k*4+2])/255.0f;
+					spec_pixels[index+3] = MAX_FIRE_ALPHA*(
+					(k>FULL_ON_FIRE) ? 1.0f : (k-FIRE_THRESH)/((float)FULL_ON_FIRE-FIRE_THRESH));
+				} else {
+					spec_pixels[index] = spec_pixels[index+1] = spec_pixels[index+2] = spec_pixels[index+3] = 0.0f;
+				}
+			}
+		}
+	}
+
+	tex_spec = GPU_texture_create_1D(SPEC_WIDTH, spec_pixels, NULL);
 
 	sub_v3_v3v3(size, max, min);
 
@@ -302,7 +336,6 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 	glDepthMask(GL_FALSE);
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 #if 0
 	printf("Viewinv:\n");
@@ -360,6 +393,9 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 	else
 		printf("No volume shadow\n");
 
+	GPU_texture_bind(tex_flame, 2);
+	GPU_texture_bind(tex_spec, 3);
+
 	if (!GPU_non_power_of_two_support()) {
 		cor[0] = (float)res[0] / (float)power_of_2_max_i(res[0]);
 		cor[1] = (float)res[1] / (float)power_of_2_max_i(res[1]);
@@ -373,7 +409,7 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 
 	/* d0 = (viewnormal[0]*cv[i][0] + viewnormal[1]*cv[i][1] + viewnormal[2]*cv[i][2]); */ /* UNUSED */
 	ds = (ABS(viewnormal[0]) * size[0] + ABS(viewnormal[1]) * size[1] + ABS(viewnormal[2]) * size[2]);
-	dd = ds/96.f;
+	dd = MAX3(size[0],size[1],size[2])/128.f;
 	n = 0;
 	good_index = i;
 
@@ -417,6 +453,22 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 			}
 
 			// printf("numpoints: %d\n", numpoints);
+			/* render fire slice */
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+			glProgramLocalParameter4fARB(GL_FRAGMENT_PROGRAM_ARB, 2, 1.0, 0.0, 0.0, 0.0);
+			glBegin(GL_POLYGON);
+			glColor3f(1.0, 1.0, 1.0);
+			for (i = 0; i < numpoints; i++) {
+				glTexCoord3d((points[i * 3 + 0] - min[0]) * cor[0] / size[0],
+				             (points[i * 3 + 1] - min[1]) * cor[1] / size[1],
+				             (points[i * 3 + 2] - min[2]) * cor[2] / size[2]);
+				glVertex3f(points[i * 3 + 0], points[i * 3 + 1], points[i * 3 + 2]);
+			}
+			glEnd();
+
+			/* render smoke slice */
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glProgramLocalParameter4fARB(GL_FRAGMENT_PROGRAM_ARB, 2, -1.0, 0.0, 0.0, 0.0);
 			glBegin(GL_POLYGON);
 			glColor3f(1.0, 1.0, 1.0);
 			for (i = 0; i < numpoints; i++) {
@@ -436,6 +488,12 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 	if (tex_shadow)
 		GPU_texture_unbind(tex_shadow);
 	GPU_texture_unbind(tex);
+	GPU_texture_unbind(tex_flame);
+	GPU_texture_unbind(tex_spec);
+	GPU_texture_free(tex_spec);
+
+	free(spec_data);
+	free(spec_pixels);
 
 	if (GLEW_ARB_fragment_program) {
 		glDisable(GL_FRAGMENT_PROGRAM_ARB);

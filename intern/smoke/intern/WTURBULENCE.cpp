@@ -87,11 +87,18 @@ WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int no
 	// allocate high resolution density field
 	_totalStepsBig = 0;
 	_densityBig = new float[_totalCellsBig];
-	_densityBigOld = new float[_totalCellsBig]; 
+	_densityBigOld = new float[_totalCellsBig];
+	_flameBig = new float[_totalCellsBig];
+	_fuelBig = new float[_totalCellsBig];
+	_fuelBigOld = new float[_totalCellsBig];
 	
 	for(int i = 0; i < _totalCellsBig; i++) {
 		_densityBig[i] = 
 		_densityBigOld[i] = 0.;
+
+		_flameBig[i] = 
+		_fuelBig[i] = 
+		_fuelBigOld[i] = 0.;
 	}
 	
 	// allocate & init texture coordinates
@@ -134,6 +141,9 @@ WTURBULENCE::WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int no
 WTURBULENCE::~WTURBULENCE() {
   delete[] _densityBig;
   delete[] _densityBigOld;
+  delete[] _flameBig;
+  delete[] _fuelBig;
+  delete[] _fuelBigOld;
 
   delete[] _tcU;
   delete[] _tcV;
@@ -757,8 +767,9 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
 	// enlarge timestep to match grid
 	const float dt = dtOrg * _amplify;
 	const float invAmp = 1.0f / _amplify;
-	float *tempBig1 = (float *)calloc(_totalCellsBig, sizeof(float));
-	float *tempBig2 = (float *)calloc(_totalCellsBig, sizeof(float));
+	float *tempDensityBig = (float *)calloc(_totalCellsBig, sizeof(float));
+	float *tempFuelBig = (float *)calloc(_totalCellsBig, sizeof(float));
+	float *tempBig = (float *)calloc(_totalCellsBig, sizeof(float));
 	float *bigUx = (float *)calloc(_totalCellsBig, sizeof(float));
 	float *bigUy = (float *)calloc(_totalCellsBig, sizeof(float));
 	float *bigUz = (float *)calloc(_totalCellsBig, sizeof(float)); 
@@ -771,7 +782,7 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
 
 
 	// prepare textures
-	advectTextureCoordinates(dtOrg, xvel,yvel,zvel, tempBig1, tempBig2);
+	advectTextureCoordinates(dtOrg, xvel,yvel,zvel, tempDensityBig, tempBig);
 
 	// do wavelet decomposition of energy
 	computeEnergy(_energy, xvel, yvel, zvel, obstacles);
@@ -972,6 +983,7 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
 
   // prepare density for an advection
   SWAP_POINTERS(_densityBig, _densityBigOld);
+  SWAP_POINTERS(_fuelBig, _fuelBigOld);
 
   // based on the maximum velocity present, see if we need to substep,
   // but cap the maximum number of substeps to 5
@@ -1017,7 +1029,9 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
 		int zEnd = (int)((float)(i+1)*partSize + 0.5f);
 #endif
 		FLUID_3D::advectFieldMacCormack1(dtSubdiv, bigUx, bigUy, bigUz, 
-		    _densityBigOld, tempBig1, _resBig, zBegin, zEnd);
+		    _densityBigOld, tempDensityBig, _resBig, zBegin, zEnd);
+		FLUID_3D::advectFieldMacCormack1(dtSubdiv, bigUx, bigUy, bigUz, 
+		    _fuelBigOld, tempFuelBig, _resBig, zBegin, zEnd);
 #if PARALLEL==1
 	}
 
@@ -1030,18 +1044,23 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
 		int zEnd = (int)((float)(i+1)*partSize + 0.5f);
 #endif
 		FLUID_3D::advectFieldMacCormack2(dtSubdiv, bigUx, bigUy, bigUz, 
-		    _densityBigOld, _densityBig, tempBig1, tempBig2, _resBig, NULL, zBegin, zEnd);
+		    _densityBigOld, _densityBig, tempDensityBig, tempBig, _resBig, NULL, zBegin, zEnd);
+		FLUID_3D::advectFieldMacCormack2(dtSubdiv, bigUx, bigUy, bigUz, 
+		    _fuelBigOld, _fuelBig, tempFuelBig, tempBig, _resBig, NULL, zBegin, zEnd);
 #if PARALLEL==1
 	}
 	}
 #endif
 
-    if (substep < totalSubsteps - 1) 
+	if (substep < totalSubsteps - 1) {
       SWAP_POINTERS(_densityBig, _densityBigOld);
+	  SWAP_POINTERS(_fuelBig, _fuelBigOld);
+	}
   } // substep
 
-  free(tempBig1);
-  free(tempBig2);
+  free(tempDensityBig);
+  free(tempFuelBig);
+  free(tempBig);
   free(bigUx);
   free(bigUy);
   free(bigUz);
@@ -1050,6 +1069,7 @@ void WTURBULENCE::stepTurbulenceFull(float dtOrg, float* xvel, float* yvel, floa
   
   // wipe the density borders
   FLUID_3D::setZeroBorder(_densityBig, _resBig, 0 , _resBig[2]);
+  FLUID_3D::setZeroBorder(_fuelBig, _resBig, 0 , _resBig[2]);
     
   // reset texture coordinates now in preparation for next timestep
   // Shouldn't do this before generating the noise because then the 

@@ -31,6 +31,7 @@
 
 #include "FLUID_3D.h"
 #include "WTURBULENCE.h"
+#include "spectrum.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -81,17 +82,20 @@ extern "C" size_t smoke_get_index2d(int x, int max_x, int y /*, int max_y, int z
 
 extern "C" void smoke_step(FLUID_3D *fluid, float dtSubdiv)
 {
+	fluid->processBurn(fluid->_fuel, fluid->_density, fluid->_flame, fluid->_heat, fluid->_totalCells, (*fluid->_dtFactor)*dtSubdiv);
 	fluid->step(dtSubdiv);
 }
 
 extern "C" void smoke_turbulence_step(WTURBULENCE *wt, FLUID_3D *fluid)
 {
+	fluid->processBurn(wt->_fuelBig, wt->_densityBig, wt->_flameBig, 0, wt->_totalCellsBig, fluid->_dt);
 	wt->stepTurbulenceFull(fluid->_dt/fluid->_dx, fluid->_xVelocity, fluid->_yVelocity, fluid->_zVelocity, fluid->_obstacles); 
 }
 
-extern "C" void smoke_initBlenderRNA(FLUID_3D *fluid, float *alpha, float *beta, float *dt_factor, float *vorticity, int *border_colli)
+extern "C" void smoke_initBlenderRNA(FLUID_3D *fluid, float *alpha, float *beta, float *dt_factor, float *vorticity, int *border_colli,
+									 float *burning_rate, float *flame_smoke, float *flame_vorticity, float *flame_ignition_temp, float *flame_max_temp)
 {
-	fluid->initBlenderRNA(alpha, beta, dt_factor, vorticity, border_colli);
+	fluid->initBlenderRNA(alpha, beta, dt_factor, vorticity, border_colli, burning_rate, flame_smoke, flame_vorticity, flame_ignition_temp, flame_max_temp);
 }
 
 extern "C" void smoke_dissolve(FLUID_3D *fluid, int speed, int log)
@@ -185,31 +189,31 @@ template < class T > inline T ABS( T a )
 	return (0 < a) ? a : -a ;
 }
 
-extern "C" void smoke_export(FLUID_3D *fluid, float *dt, float *dx, float **dens, float **densold, float **heat, float **heatold, float **vx, float **vy, float **vz, float **vxold, float **vyold, float **vzold, unsigned char **obstacles)
+extern "C" void smoke_export(FLUID_3D *fluid, float *dt, float *dx, float **dens, float **flame, float **fuel, float **heat, 
+							 float **heatold, float **vx, float **vy, float **vz, unsigned char **obstacles)
 {
 	*dens = fluid->_density;
-	*densold = fluid->_densityOld;
+	*flame = fluid->_flame;
+	*fuel = fluid->_fuel;
 	*heat = fluid->_heat;
 	*heatold = fluid->_heatOld;
 	*vx = fluid->_xVelocity;
 	*vy = fluid->_yVelocity;
 	*vz = fluid->_zVelocity;
-	*vxold = fluid->_xVelocityOld;
-	*vyold = fluid->_yVelocityOld;
-	*vzold = fluid->_zVelocityOld;
 	*obstacles = fluid->_obstacles;
 	dt = &(fluid->_dt);
 	dx = &(fluid->_dx);
 
 }
 
-extern "C" void smoke_turbulence_export(WTURBULENCE *wt, float **dens, float **densold, float **tcu, float **tcv, float **tcw)
+extern "C" void smoke_turbulence_export(WTURBULENCE *wt, float **dens, float **flame, float **fuel, float **tcu, float **tcv, float **tcw)
 {
 	if(!wt)
 		return;
 
 	*dens = wt->_densityBig;
-	*densold = wt->_densityBigOld;
+	*fuel = wt->_fuelBig;
+	*flame = wt->_flameBig;
 	*tcu = wt->_tcU;
 	*tcv = wt->_tcV;
 	*tcw = wt->_tcW;
@@ -255,9 +259,29 @@ extern "C" float *smoke_get_force_z(FLUID_3D *fluid)
 	return fluid->_zForce;
 }
 
+extern "C" float *smoke_get_flame(FLUID_3D *fluid)
+{
+	return fluid->_flame;
+}
+
+extern "C" float *smoke_get_fuel(FLUID_3D *fluid)
+{
+	return fluid->_fuel;
+}
+
 extern "C" float *smoke_turbulence_get_density(WTURBULENCE *wt)
 {
 	return wt ? wt->getDensityBig() : NULL;
+}
+
+extern "C" float *smoke_turbulence_get_flame(WTURBULENCE *wt)
+{
+	return wt ? wt->getFlameBig() : NULL;
+}
+
+extern "C" float *smoke_turbulence_get_fuel(WTURBULENCE *wt)
+{
+	return wt ? wt->getFuelBig() : NULL;
 }
 
 extern "C" void smoke_turbulence_get_res(WTURBULENCE *wt, int *res)
@@ -291,4 +315,9 @@ extern "C" unsigned char *smoke_get_obstacle_anim(FLUID_3D *fluid)
 extern "C" void smoke_turbulence_set_noise(WTURBULENCE *wt, int type)
 {
 	wt->setNoise(type);
+}
+
+extern "C" void flame_get_spectrum(unsigned char *spec, int width, float t1, float t2)
+{
+	spectrum(t1, t2, width, spec);
 }

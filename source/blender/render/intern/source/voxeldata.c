@@ -272,6 +272,24 @@ static void init_frame_smoke(VoxelData *vd, float cfra)
 				}
 
 			}
+			else if (vd->smoked_type == TEX_VD_SMOKEFLAME) {
+				size_t totRes;
+				float *flame;
+
+				if (smd->domain->flags & MOD_SMOKE_HIGHRES) {
+					smoke_turbulence_get_res(smd->domain->wt, vd->resol);
+					flame = smoke_turbulence_get_flame(smd->domain->wt);
+				}
+				else {
+					copy_v3_v3_int(vd->resol, smd->domain->res);
+					flame = smoke_get_flame(smd->domain->fluid);
+				}
+
+				/* always store copy, as smoke internal data can change */
+				totRes= vd_resol_size(vd);
+				vd->dataset = MEM_mapallocN(sizeof(float)*(totRes), "smoke data");
+				memcpy(vd->dataset, flame, sizeof(float)*totRes);
+			}
 			else {
 				size_t totRes;
 				float *density;

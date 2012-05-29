@@ -38,16 +38,20 @@ extern "C" {
 struct FLUID_3D;
 
 // export
-void smoke_export(struct FLUID_3D *fluid, float *dt, float *dx, float **dens, float **densold, float **heat, float **heatold, float **vx, float **vy, float **vz, float **vxold, float **vyold, float **vzold, unsigned char **obstacles);
+void smoke_export(struct FLUID_3D *fluid, float *dt, float *dx, float **dens, float **flame, float **fuel, float **heat, float **heatold,
+				  float **vx, float **vy, float **vz, unsigned char **obstacles);
 
 // low res
 struct FLUID_3D *smoke_init(int *res, float *p0, float dtdef);
 void smoke_free(struct FLUID_3D *fluid);
 
-void smoke_initBlenderRNA(struct FLUID_3D *fluid, float *alpha, float *beta, float *dt_factor, float *vorticity, int *border_colli);
+void smoke_initBlenderRNA(struct FLUID_3D *fluid, float *alpha, float *beta, float *dt_factor, float *vorticity, int *border_colli,
+						  float *burning_rate, float *flame_smoke, float *flame_vorticity, float *flame_ignition_temp, float *flame_max_temp);
 void smoke_step(struct FLUID_3D *fluid, float dtSubdiv);
 
 float *smoke_get_density(struct FLUID_3D *fluid);
+float *smoke_get_flame(struct FLUID_3D *fluid);
+float *smoke_get_fuel(struct FLUID_3D *fluid);
 float *smoke_get_heat(struct FLUID_3D *fluid);
 float *smoke_get_velocity_x(struct FLUID_3D *fluid);
 float *smoke_get_velocity_y(struct FLUID_3D *fluid);
@@ -73,6 +77,8 @@ void smoke_turbulence_free(struct WTURBULENCE *wt);
 void smoke_turbulence_step(struct WTURBULENCE *wt, struct FLUID_3D *fluid);
 
 float *smoke_turbulence_get_density(struct WTURBULENCE *wt);
+float *smoke_turbulence_get_flame(struct WTURBULENCE *wt);
+float *smoke_turbulence_get_fuel(struct WTURBULENCE *wt);
 void smoke_turbulence_get_res(struct WTURBULENCE *wt, int *res);
 void smoke_turbulence_set_noise(struct WTURBULENCE *wt, int type);
 void smoke_initWaveletBlenderRNA(struct WTURBULENCE *wt, float *strength);
@@ -80,7 +86,9 @@ void smoke_initWaveletBlenderRNA(struct WTURBULENCE *wt, float *strength);
 void smoke_dissolve_wavelet(struct WTURBULENCE *wt, int speed, int log);
 
 // export
-void smoke_turbulence_export(struct WTURBULENCE *wt, float **dens, float **densold, float **tcu, float **tcv, float **tcw);
+void smoke_turbulence_export(struct WTURBULENCE *wt, float **dens, float **flame, float **fuel, float **tcu, float **tcv, float **tcw);
+
+void flame_get_spectrum(unsigned char *spec, int width, float t1, float t2);
 
 #ifdef __cplusplus
 }

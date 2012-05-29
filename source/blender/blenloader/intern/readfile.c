@@ -7532,6 +7532,34 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
+
+	{
+		Object *ob;
+
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			ModifierData *md;
+			for (md = ob->modifiers.first; md; md = md->next) {
+				if (md->type == eModifierType_Smoke) {
+					SmokeModifierData *smd = (SmokeModifierData *)md;
+					if ((smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain) {
+						/* hack to detect other blender branches without version number */
+						if (!smd->domain->flame_max_temp) {
+							smd->domain->burning_rate = 0.75f;
+							smd->domain->flame_smoke = 1.0f;
+							smd->domain->flame_vorticity = 0.5f;
+							smd->domain->flame_ignition = 1.25f;
+							smd->domain->flame_max_temp = 1.75f;
+						}
+					}
+					else if ((smd->type & MOD_SMOKE_TYPE_FLOW) && smd->flow) {
+						if (!smd->flow->fuel_amount) {
+							smd->flow->fuel_amount = 1.0;
+						}
+					}
+				}
+			}
+		}
+	}
 	
 	/* don't forget to set version number in blender.c! */
 }

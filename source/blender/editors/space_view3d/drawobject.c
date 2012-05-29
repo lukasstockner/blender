@@ -6961,7 +6961,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 				draw_volume(ar, smd->domain->tex,
 				            smd->domain->p0, smd->domain->p1,
 				            smd->domain->res, smd->domain->dx,
-				            smd->domain->tex_shadow);
+				            smd->domain->tex_shadow, smd->domain->tex_flame);
 				GPU_free_smoke(smd);
 // #endif
 #if 0
@@ -7014,7 +7014,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 				draw_volume(ar, smd->domain->tex,
 				            smd->domain->p0, smd->domain->p1,
 				            smd->domain->res_wt, smd->domain->dx_wt,
-				            smd->domain->tex_shadow);
+				            smd->domain->tex_shadow, smd->domain->tex_flame);
 				GPU_free_smoke(smd);
 			}
 		}

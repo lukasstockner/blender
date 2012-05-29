@@ -282,12 +282,50 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Vorticity", "Amount of turbulence/rotation in fluid");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 
+	prop = RNA_def_property(srna, "burning_rate", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.01, 4.0);
+	RNA_def_property_ui_range(prop, 0.01, 2.0, 1.0, 5);
+	RNA_def_property_ui_text(prop, "Speed", "Speed of the burning reaction. Use larger values for smaller flame");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "flame_smoke", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0, 8.0);
+	RNA_def_property_ui_range(prop, 0.0, 4.0, 1.0, 5);
+	RNA_def_property_ui_text(prop, "Smoke", "Amount of smoke created by burning fuel");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "flame_vorticity", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0, 2.0);
+	RNA_def_property_ui_range(prop, 0.0, 1.0, 1.0, 5);
+	RNA_def_property_ui_text(prop, "Vorticity", "Additional vorticity for the flames");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "flame_ignition", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.5, 5.0);
+	RNA_def_property_ui_range(prop, 0.5, 2.5, 1.0, 5);
+	RNA_def_property_ui_text(prop, "Ignition", "Minimum temperature of flames");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "flame_max_temp", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 1.0, 10.0);
+	RNA_def_property_ui_range(prop, 1.0, 5.0, 1.0, 5);
+	RNA_def_property_ui_text(prop, "Maximum", "Maximum temperature of flames");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
 }
 
 static void rna_def_smoke_flow_settings(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
+
+	static EnumPropertyItem smoke_flow_types[] = {
+		{MOD_SMOKE_FLOW_TYPE_OUTFLOW, "OUTFLOW", 0, "Outflow", "Delete smoke from simulation"},
+		{MOD_SMOKE_FLOW_TYPE_SMOKE, "SMOKE", 0, "Smoke", "Add smoke"},
+		{MOD_SMOKE_FLOW_TYPE_SMOKEFIRE, "BOTH", 0, "Fire + Smoke", "Add fire and smoke"},
+		{MOD_SMOKE_FLOW_TYPE_FIRE, "FIRE", 0, "Fire", "Add fire"},
+		{0, NULL, 0, NULL, NULL}
+	};
 
 	srna = RNA_def_struct(brna, "SmokeFlowSettings", NULL);
 	RNA_def_struct_ui_text(srna, "Flow Settings", "Smoke flow settings");
@@ -296,9 +334,15 @@ static void rna_def_smoke_flow_settings(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "density", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "density");
-	RNA_def_property_range(prop, 0.001, 1);
-	RNA_def_property_ui_range(prop, 0.001, 1.0, 1.0, 4);
+	RNA_def_property_range(prop, 0.0, 1);
+	RNA_def_property_ui_range(prop, 0.0, 1.0, 1.0, 4);
 	RNA_def_property_ui_text(prop, "Density", "");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "fuel_amount", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0, 1);
+	RNA_def_property_ui_range(prop, 0.0, 1.0, 1.0, 4);
+	RNA_def_property_ui_text(prop, "Flame Rate", "");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 
 	prop = RNA_def_property(srna, "temperature", PROP_FLOAT, PROP_NONE);
@@ -315,9 +359,10 @@ static void rna_def_smoke_flow_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Particle Systems", "Particle systems emitted from the object");
 	RNA_def_property_update(prop, 0, "rna_Smoke_reset_dependancy");
 
-	prop = RNA_def_property(srna, "use_outflow", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "type", MOD_SMOKE_FLOW_TYPE_OUTFLOW);
-	RNA_def_property_ui_text(prop, "Outflow", "Delete smoke from simulation");
+	prop = RNA_def_property(srna, "smoke_flow_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "type");
+	RNA_def_property_enum_items(prop, smoke_flow_types);
+	RNA_def_property_ui_text(prop, "Flow Type", "Change how flow affects the simulation");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 
 	prop = RNA_def_property(srna, "use_absolute", PROP_BOOLEAN, PROP_NONE);

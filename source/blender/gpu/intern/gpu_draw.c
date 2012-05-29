@@ -889,21 +889,32 @@ void GPU_free_smoke(SmokeModifierData *smd)
 		if (smd->domain->tex_shadow)
 			GPU_texture_free(smd->domain->tex_shadow);
 		smd->domain->tex_shadow = NULL;
+
+		if (smd->domain->tex_flame)
+			GPU_texture_free(smd->domain->tex_flame);
+		smd->domain->tex_flame = NULL;
 	}
 }
 
 void GPU_create_smoke(SmokeModifierData *smd, int highres)
 {
 #ifdef WITH_SMOKE
-	if (smd->type & MOD_SMOKE_TYPE_DOMAIN && !smd->domain->tex && !highres)
-		smd->domain->tex = GPU_texture_create_3D(smd->domain->res[0], smd->domain->res[1], smd->domain->res[2], smoke_get_density(smd->domain->fluid));
-	else if (smd->type & MOD_SMOKE_TYPE_DOMAIN && !smd->domain->tex && highres)
-		smd->domain->tex = GPU_texture_create_3D(smd->domain->res_wt[0], smd->domain->res_wt[1], smd->domain->res_wt[2], smoke_turbulence_get_density(smd->domain->wt));
+	if (smd->type & MOD_SMOKE_TYPE_DOMAIN) {
+		if (!smd->domain->tex && !highres) {
+			smd->domain->tex = GPU_texture_create_3D(smd->domain->res[0], smd->domain->res[1], smd->domain->res[2], smoke_get_density(smd->domain->fluid));
+			smd->domain->tex_flame = GPU_texture_create_3D(smd->domain->res[0], smd->domain->res[1], smd->domain->res[2], smoke_get_flame(smd->domain->fluid));
+		}
+		else if (!smd->domain->tex && highres) {
+			smd->domain->tex = GPU_texture_create_3D(smd->domain->res_wt[0], smd->domain->res_wt[1], smd->domain->res_wt[2], smoke_turbulence_get_density(smd->domain->wt));
+			smd->domain->tex_flame = GPU_texture_create_3D(smd->domain->res_wt[0], smd->domain->res_wt[1], smd->domain->res_wt[2], smoke_turbulence_get_flame(smd->domain->wt));
+		}
 
-	smd->domain->tex_shadow = GPU_texture_create_3D(smd->domain->res[0], smd->domain->res[1], smd->domain->res[2], smd->domain->shadow);
+		smd->domain->tex_shadow = GPU_texture_create_3D(smd->domain->res[0], smd->domain->res[1], smd->domain->res[2], smd->domain->shadow);
+	}
 #else // WITH_SMOKE
 	(void)highres;
 	smd->domain->tex= NULL;
+	smd->domain->tex_flame= NULL;
 	smd->domain->tex_shadow= NULL;
 #endif // WITH_SMOKE
 }

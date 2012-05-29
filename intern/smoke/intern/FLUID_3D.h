@@ -50,7 +50,8 @@ class FLUID_3D
 		FLUID_3D() {};
 		virtual ~FLUID_3D();
 
-		void initBlenderRNA(float *alpha, float *beta, float *dt_factor, float *vorticity, int *border_colli);
+		void initBlenderRNA(float *alpha, float *beta, float *dt_factor, float *vorticity, int *border_colli,
+						    float *burning_rate, float *flame_smoke, float *flame_vorticity, float *ignition_temp, float *max_temp);
 		
 		// create & allocate vector noise advection 
 		void initVectorNoise(int amplify);
@@ -115,6 +116,13 @@ class FLUID_3D
 		float* _heatTemp;
 		float* _densityTemp;
 
+		// fire simulation
+		float *_flame;
+		float *_fuel;
+		float *_fuelTemp;
+		float *_fuelOld;
+
+
 		// CG fields
 		int _iterations;
 
@@ -173,6 +181,14 @@ class FLUID_3D
 		void advectMacCormackBegin(int zBegin, int zEnd);
 		void advectMacCormackEnd1(int zBegin, int zEnd);
 		void advectMacCormackEnd2(int zBegin, int zEnd);
+
+		/* burning */
+		float *_burning_rate; // RNA pointer
+		float *_flame_smoke; // RNA pointer
+		float *_flame_vorticity; // RNA pointer
+		float *_ignition_temp; // RNA pointer
+		float *_max_temp; // RNA pointer
+		void processBurn(float *fuel, float *smoke, float *flame, float *heat, int total_cells, float dt);
 
 		// boundary setting functions
 		static void copyBorderX(float* field, Vec3Int res, int zBegin, int zEnd);

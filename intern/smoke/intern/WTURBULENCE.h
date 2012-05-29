@@ -63,6 +63,8 @@ class WTURBULENCE
 
 		// access functions
 		inline float* getDensityBig() { return _densityBig; }
+		inline float* getFlameBig() { return _flameBig; }
+		inline float* getFuelBig() { return _fuelBig; }
 		inline float* getArrayTcU() { return _tcU; }
 		inline float* getArrayTcV() { return _tcV; }
 		inline float* getArrayTcW() { return _tcW; }
@@ -111,6 +113,9 @@ class WTURBULENCE
 
 		float* _densityBig;
 		float* _densityBigOld;
+		float* _flameBig;
+		float* _fuelBig;
+		float* _fuelBigOld;
 
 		// texture coordinates for noise
 		float* _tcU;
