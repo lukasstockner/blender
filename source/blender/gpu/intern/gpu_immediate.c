@@ -111,7 +111,7 @@ void gpuImmediateLock(void)
 
 
 
-static reset(void)
+static void reset(void)
 {
 	memset(&(GPU_IMMEDIATE->format), 0, sizeof(GPU_IMMEDIATE->format));
 	GPU_IMMEDIATE->format.vertexSize = 3;
