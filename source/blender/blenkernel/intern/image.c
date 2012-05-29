@@ -290,7 +290,7 @@ static void image_assign_ibuf(Image *ima, ImBuf *ibuf, int index, int frame)
 		else
 			ibuf->flags &= ~IB_cm_predivide;
 
-		/* this function accepts link==NULL */
+		/* this function accepts (link == NULL) */
 		BLI_insertlinkbefore(&ima->ibufs, link, ibuf);
 
 		/* now we don't want copies? */
@@ -592,10 +592,12 @@ static ImBuf *add_ibuf_size(unsigned int width, unsigned int height, const char 
 	if (floatbuf) {
 		ibuf = IMB_allocImBuf(width, height, depth, IB_rectfloat);
 		rect_float = (float *)ibuf->rect_float;
+		ibuf->profile = IB_PROFILE_LINEAR_RGB;
 	}
 	else {
 		ibuf = IMB_allocImBuf(width, height, depth, IB_rect);
 		rect = (unsigned char *)ibuf->rect;
+		ibuf->profile = IB_PROFILE_SRGB;
 	}
 	
 	BLI_strncpy(ibuf->name, name, sizeof(ibuf->name));
@@ -800,7 +802,7 @@ void BKE_image_free_all_textures(void)
 {
 	Tex *tex;
 	Image *ima;
-	/* unsigned int totsize= 0; */
+	/* unsigned int totsize = 0; */
 	
 	for (ima = G.main->image.first; ima; ima = ima->id.next)
 		ima->id.flag &= ~LIB_DOIT;

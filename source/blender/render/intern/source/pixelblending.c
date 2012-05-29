@@ -73,7 +73,7 @@ extern struct Render R;
 
 /* ------------------------------------------------------------------------- */
 
-void addAlphaOverFloat(float *dest, float *source)
+void addAlphaOverFloat(float dest[4], const float source[4])
 {
 	/* d = s + (1-alpha_s)d*/
 	float mul;
@@ -90,7 +90,7 @@ void addAlphaOverFloat(float *dest, float *source)
 
 /* ------------------------------------------------------------------------- */
 
-void addAlphaUnderFloat(float *dest, float *source)
+void addAlphaUnderFloat(float dest[4], const float source[4])
 {
 	float mul;
 
@@ -104,7 +104,7 @@ void addAlphaUnderFloat(float *dest, float *source)
 
 
 /* ------------------------------------------------------------------------- */
-void addalphaAddfacFloat(float *dest, float *source, char addfac)
+void addalphaAddfacFloat(float dest[4], const float source[4], char addfac)
 {
 	float m; /* weiging factor of destination */
 	float c; /* intermediate color           */
@@ -148,7 +148,7 @@ void addalphaAddfacFloat(float *dest, float *source, char addfac)
 /* ------------------------------------------------------------------------- */
 
 /* filtered adding to scanlines */
-void add_filt_fmask(unsigned int mask, float *col, float *rowbuf, int row_w)
+void add_filt_fmask(unsigned int mask, const float col[4], float *rowbuf, int row_w)
 {
 	/* calc the value of mask */
 	float **fmask1= R.samples->fmask1, **fmask2=R.samples->fmask2;
@@ -242,7 +242,7 @@ void mask_array(unsigned int mask, float filt[][3])
  *      ---    ---   ---
  */
 
-void add_filt_fmask_coord(float filt[][3], float *col, float *rowbuf, int row_w, int col_h, int x, int y)
+void add_filt_fmask_coord(float filt[][3], const float col[4], float *rowbuf, int row_w, int col_h, int x, int y)
 {
 	float *fpoin[3][3];
 	float val, r, g, b, al, lfilt[3][3];
@@ -306,17 +306,27 @@ void add_filt_fmask_coord(float filt[][3], float *col, float *rowbuf, int row_w,
 	
 	
 	/* loop unroll */
-#define MASKFILT(i, j) 	val= lfilt[i][j]; if (val!=0.0f) {float *fp= fpoin[i][j]; fp[0]+= val*r; fp[1]+= val*g; fp[2]+= val*b; fp[3]+= val*al; }
+#define MASKFILT(i, j)                                                        \
+	val = lfilt[i][j];                                                        \
+	if (val != 0.0f) {                                                        \
+		float *fp = fpoin[i][j];                                              \
+		fp[0] += val * r;                                                     \
+		fp[1] += val * g;                                                     \
+		fp[2] += val * b;                                                     \
+		fp[3] += val * al;                                                    \
+	} (void)0
 	
-	MASKFILT(0, 0)
-	MASKFILT(0, 1)
-	MASKFILT(0, 2)
-	MASKFILT(1, 0)
-	MASKFILT(1, 1)
-	MASKFILT(1, 2)
-	MASKFILT(2, 0)
-	MASKFILT(2, 1)
-	MASKFILT(2, 2)
+	MASKFILT(0, 0);
+	MASKFILT(0, 1);
+	MASKFILT(0, 2);
+	MASKFILT(1, 0);
+	MASKFILT(1, 1);
+	MASKFILT(1, 2);
+	MASKFILT(2, 0);
+	MASKFILT(2, 1);
+	MASKFILT(2, 2);
+
+#undef MASKFILT
 }
 
 void add_filt_fmask_pixsize(unsigned int mask, float *in, float *rowbuf, int row_w, int pixsize)
@@ -366,7 +376,7 @@ void add_filt_fmask_pixsize(unsigned int mask, float *in, float *rowbuf, int row
 }
 
 /* ------------------------------------------------------------------------- */
-void addalphaAddFloat(float *dest, float *source)
+void addalphaAddFloat(float dest[4], const float source[4])
 {
 
 	/* Makes me wonder whether this is required... */

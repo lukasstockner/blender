@@ -2953,7 +2953,7 @@ static void draw_em_measure_stats(View3D *v3d, Object *ob, BMEditMesh *em, UnitS
 		else                                                                  \
 			BLI_snprintf(numstr, sizeof(numstr), conv_float, area);           \
 		view3d_cached_text_draw_add(vmid, numstr, 0, txt_flag, col);          \
-	}
+	} (void)0
 
 		UI_GetThemeColor3ubv(TH_DRAWEXTRA_FACEAREA, col);
 		
@@ -2974,16 +2974,16 @@ static void draw_em_measure_stats(View3D *v3d, Object *ob, BMEditMesh *em, UnitS
 			copy_v3_v3(v1, l[0]->v->co);
 			copy_v3_v3(v2, l[1]->v->co);
 			copy_v3_v3(v3, l[2]->v->co);
+			add_v3_v3(vmid, v1);
+			add_v3_v3(vmid, v2);
+			add_v3_v3(vmid, v3);
+			n += 3;
 			if (do_global) {
 				mul_mat3_m4_v3(ob->obmat, v1);
 				mul_mat3_m4_v3(ob->obmat, v2);
 				mul_mat3_m4_v3(ob->obmat, v3);
 			}
 			area += area_tri_v3(v1, v2, v3);
-			add_v3_v3(vmid, v1);
-			add_v3_v3(vmid, v2);
-			add_v3_v3(vmid, v3);
-			n += 3;
 		}
 
 		if (f) {
@@ -3030,16 +3030,15 @@ static void draw_em_measure_stats(View3D *v3d, Object *ob, BMEditMesh *em, UnitS
 							mul_mat3_m4_v3(ob->obmat, v3);
 
 							angle = angle_v3v3v3(v1, v2, v3);
-							interp_v3_v3v3(fvec, vmid, v2, 0.8f);
 							copy_v3_v3(v1, v2);
 							copy_v3_v3(v2, v3);
 						}
 						else {
 							angle = angle_v3v3v3(loop->prev->v->co, loop->v->co, loop->next->v->co);
-							interp_v3_v3v3(fvec, vmid, loop->v->co, 0.8f);
 						}
 
 						BLI_snprintf(numstr, sizeof(numstr), "%.3f", is_rad ? angle : RAD2DEGF(angle));
+						interp_v3_v3v3(fvec, vmid, loop->v->co, 0.8f);
 						view3d_cached_text_draw_add(fvec, numstr, 0, txt_flag, col);
 					}
 				}
@@ -3610,7 +3609,13 @@ static int draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 		else if (ob->modifiers.first || obedit->modifiers.first) {}
 		else drawlinked = 1;
 	}
-	
+
+	/* backface culling */
+	if (v3d->flag2 & V3D_BACKFACE_CULLING) {
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+	}
+
 	if (ob == obedit || drawlinked) {
 		DerivedMesh *finalDM, *cageDM;
 		
@@ -3669,6 +3674,9 @@ static int draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			}
 		}
 	}
+
+	if (v3d->flag2 & V3D_BACKFACE_CULLING)
+		glDisable(GL_CULL_FACE);
 	
 	return retval;
 }
@@ -3855,7 +3863,7 @@ static void drawDispListsolid(ListBase *lb, Object *ob, int glsl)
 
 				glVertexPointer(3, GL_FLOAT, 0, dl->verts);
 
-				/* voor polys only one normal needed */
+				/* for polys only one normal needed */
 				if (index3_nors_incr) {
 					glEnableClientState(GL_NORMAL_ARRAY);
 					glNormalPointer(GL_FLOAT, 0, dl->nors);
@@ -3939,7 +3947,17 @@ static int drawDispList(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *bas
 	const short solid = (dt > OB_WIRE);
 	int retval = 0;
 
+	/* backface culling */
+	if (v3d->flag2 & V3D_BACKFACE_CULLING) {
+		/* not all displists use same in/out normal direction convention */
+		glEnable(GL_CULL_FACE);
+		glCullFace((ob->type == OB_MBALL) ? GL_BACK : GL_FRONT);
+	}
+
 	if (drawCurveDerivedMesh(scene, v3d, rv3d, base, dt) == 0) {
+		if (v3d->flag2 & V3D_BACKFACE_CULLING)
+			glDisable(GL_CULL_FACE);
+
 		return 0;
 	}
 
@@ -4045,6 +4063,9 @@ static int drawDispList(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *bas
 			break;
 	}
 	
+	if (v3d->flag2 & V3D_BACKFACE_CULLING)
+		glDisable(GL_CULL_FACE);
+
 	return retval;
 }
 
@@ -6570,7 +6591,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 	if (v3d->zbuf == 0 && dt > OB_WIRE) dt = OB_WIRE;
 	dtx = 0;
 
-	/* faceselect exception: also draw solid when dt==wire, except in editmode */
+	/* faceselect exception: also draw solid when (dt == wire), except in editmode */
 	if (is_obact && (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT))) {
 		if (ob->type == OB_MESH) {
 

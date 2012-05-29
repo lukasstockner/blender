@@ -245,7 +245,7 @@ void wm_event_do_notifiers(bContext *C)
 			if (!G.rendering) {
 
 				/* depsgraph gets called, might send more notifiers */
-				ED_update_for_newframe(CTX_data_main(C), win->screen->scene, win->screen, 1);
+				ED_update_for_newframe(CTX_data_main(C), win->screen->scene, 1);
 			}
 		}
 	}
@@ -831,7 +831,7 @@ static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event, P
 		return WM_operator_poll(C, ot);
 
 	if (WM_operator_poll(C, ot)) {
-		wmOperator *op = wm_operator_create(wm, ot, properties, reports); /* if reports==NULL, theyll be initialized */
+		wmOperator *op = wm_operator_create(wm, ot, properties, reports); /* if reports == NULL, they'll be initialized */
 		const short is_nested_call = (wm->op_undo_depth != 0);
 		
 		/* initialize setting from previous run */
@@ -1961,7 +1961,7 @@ void wm_event_do_handlers(bContext *C)
 					CTX_wm_screen_set(C, win->screen);
 					CTX_data_scene_set(C, scene);
 					
-					if (((playing == 1) && (!win->screen->animtimer)) || ((playing == 0) && (win->screen->animtimer))) {
+					if (((playing == 1) && (!ED_screen_animation_playing(wm))) || ((playing == 0) && (ED_screen_animation_playing(wm)))) {
 						ED_screen_animation_play(C, -1, 1);
 					}
 					
@@ -1971,7 +1971,7 @@ void wm_event_do_handlers(bContext *C)
 							int ncfra = sound_sync_scene(scene) * (float)FPS + 0.5f;
 							if (ncfra != scene->r.cfra) {
 								scene->r.cfra = ncfra;
-								ED_update_for_newframe(CTX_data_main(C), scene, win->screen, 1);
+								ED_update_for_newframe(CTX_data_main(C), scene, 1);
 								WM_event_add_notifier(C, NC_WINDOW, NULL);
 							}
 						}

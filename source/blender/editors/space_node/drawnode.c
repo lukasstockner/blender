@@ -489,9 +489,9 @@ static int node_resize_area_default(bNode *node, int x, int y)
 		rctf totr= node->totr;
 		int dir = 0;
 		
-		if (x >= totr.xmax-size && x < totr.xmax && y >= totr.ymin && y < totr.ymax)
+		if (x >= totr.xmax - size && x < totr.xmax && y >= totr.ymin && y < totr.ymax)
 			dir |= NODE_RESIZE_RIGHT;
-		if (x >= totr.xmin && x < totr.xmin+size && y >= totr.ymin && y < totr.ymax)
+		if (x >= totr.xmin && x < totr.xmin + size && y >= totr.ymin && y < totr.ymax)
 			dir |= NODE_RESIZE_LEFT;
 		return dir;
 	}
@@ -932,15 +932,15 @@ static void node_update_frame(const bContext *UNUSED(C), bNodeTree *ntree, bNode
 	
 	/* init rect from current frame size */
 	nodeToView(node, node->offsetx, node->offsety, &rect.xmin, &rect.ymax);
-	nodeToView(node, node->offsetx+node->width, node->offsety-node->height, &rect.xmax, &rect.ymin);
+	nodeToView(node, node->offsetx + node->width, node->offsety - node->height, &rect.xmax, &rect.ymin);
 	
 	/* frame can be resized manually only if shrinking is disabled or no children are attached */
 	data->flag |= NODE_FRAME_RESIZEABLE;
 	/* for shrinking bbox, initialize the rect from first child node */
 	bbinit = (data->flag & NODE_FRAME_SHRINK);
 	/* fit bounding box to all children */
-	for (tnode=ntree->nodes.first; tnode; tnode=tnode->next) {
-		if (tnode->parent!=node)
+	for (tnode = ntree->nodes.first; tnode; tnode = tnode->next) {
+		if (tnode->parent != node)
 			continue;
 		
 		/* add margin to node rect */
@@ -974,8 +974,8 @@ static void node_draw_frame_label(bNode *node)
 	/* XXX font id is crap design */
 	const int fontid = blf_mono_font;
 	NodeFrame *data = (NodeFrame *)node->storage;
-	rctf *rct= &node->totr;
-	int color_id= node_get_colorid(node);
+	rctf *rct = &node->totr;
+	int color_id = node_get_colorid(node);
 	char label[128];
 	/* XXX a bit hacky, should use separate align values for x and y */
 	float width, ascender;
@@ -990,7 +990,7 @@ static void node_draw_frame_label(bNode *node)
 	width = BLF_width(fontid, label);
 	ascender = BLF_ascender(fontid);
 	
-	x = 0.5f*(rct->xmin + rct->xmax) - 0.5f*width;
+	x = 0.5f * (rct->xmin + rct->xmax) - 0.5f * width;
 	y = rct->ymax - NODE_DYS - ascender;
 	
 	BLF_position(fontid, x, y, 0);
@@ -999,15 +999,15 @@ static void node_draw_frame_label(bNode *node)
 
 static void node_draw_frame(const bContext *C, ARegion *ar, SpaceNode *snode, bNodeTree *UNUSED(ntree), bNode *node)
 {
-	rctf *rct= &node->totr;
-	int color_id= node_get_colorid(node);
+	rctf *rct = &node->totr;
+	int color_id = node_get_colorid(node);
 	
 	/* skip if out of view */
 	if (node->totr.xmax < ar->v2d.cur.xmin || node->totr.xmin > ar->v2d.cur.xmax ||
-			node->totr.ymax < ar->v2d.cur.ymin || node->totr.ymin > ar->v2d.cur.ymax) {
+	    node->totr.ymax < ar->v2d.cur.ymin || node->totr.ymin > ar->v2d.cur.ymax) {
 		
 		uiEndBlock(C, node->block);
-		node->block= NULL;
+		node->block = NULL;
 		return;
 	}
 	
@@ -1025,9 +1025,9 @@ static void node_draw_frame(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	glDisable(GL_BLEND);
 
 	/* outline active and selected emphasis */
-	if ( node->flag & (NODE_ACTIVE|SELECT) ) {
+	if (node->flag & (NODE_ACTIVE | SELECT) ) {
 		glEnable(GL_BLEND);
-		glEnable( GL_LINE_SMOOTH );
+		glEnable(GL_LINE_SMOOTH);
 		
 		if (node->flag & NODE_ACTIVE)
 			UI_ThemeColorShadeAlpha(TH_ACTIVE, 0, -40);
@@ -1036,7 +1036,7 @@ static void node_draw_frame(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		uiSetRoundBox(UI_CNR_ALL);
 		uiDrawBox(GL_LINE_LOOP, rct->xmin, rct->ymin, rct->xmax, rct->ymax, BASIS_RAD);
 		
-		glDisable( GL_LINE_SMOOTH );
+		glDisable(GL_LINE_SMOOTH);
 		glDisable(GL_BLEND);
 	}
 	
@@ -1047,27 +1047,27 @@ static void node_draw_frame(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		
 	uiEndBlock(C, node->block);
 	uiDrawBlock(C, node->block);
-	node->block= NULL;
+	node->block = NULL;
 }
 
 static int node_resize_area_frame(bNode *node, int x, int y)
 {
 	const float size = 10.0f;
 	NodeFrame *data = (NodeFrame *)node->storage;
-	rctf totr= node->totr;
+	rctf totr = node->totr;
 	int dir = 0;
 	
 	/* shrinking frame size is determined by child nodes */
 	if (!(data->flag & NODE_FRAME_RESIZEABLE))
 		return 0;
 	
-	if (x >= totr.xmax-size && x < totr.xmax && y >= totr.ymin && y < totr.ymax)
+	if (x >= totr.xmax - size && x < totr.xmax && y >= totr.ymin && y < totr.ymax)
 		dir |= NODE_RESIZE_RIGHT;
-	if (x >= totr.xmin && x < totr.xmin+size && y >= totr.ymin && y < totr.ymax)
+	if (x >= totr.xmin && x < totr.xmin + size && y >= totr.ymin && y < totr.ymax)
 		dir |= NODE_RESIZE_LEFT;
-	if (x >= totr.xmin && x < totr.xmax && y >= totr.ymax-size && y < totr.ymax)
+	if (x >= totr.xmin && x < totr.xmax && y >= totr.ymax - size && y < totr.ymax)
 		dir |= NODE_RESIZE_TOP;
-	if (x >= totr.xmin && x < totr.xmax && y >= totr.ymin && y < totr.ymin+size)
+	if (x >= totr.xmin && x < totr.xmax && y >= totr.ymin && y < totr.ymin + size)
 		dir |= NODE_RESIZE_BOTTOM;
 	
 	return dir;
@@ -1098,10 +1098,10 @@ static void node_common_set_butfunc(bNodeType *ntype)
 			ntype->drawupdatefunc= node_update_group;
 			break;
 		case NODE_FRAME:
-			ntype->drawfunc= node_draw_frame;
+			ntype->drawfunc = node_draw_frame;
 			ntype->drawupdatefunc= node_update_frame;
-			ntype->uifuncbut= node_buts_frame_details;
-			ntype->resize_area_func= node_resize_area_frame;
+			ntype->uifuncbut = node_buts_frame_details;
+			ntype->resize_area_func = node_resize_area_frame;
 			break;
 	}
 }
@@ -2186,7 +2186,8 @@ static void node_composit_buts_colorcorrection(uiLayout *layout, bContext *UNUSE
 	uiItemR(row, ptr, "midtones_end", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 }
 
-static void node_composit_buts_colorcorrection_but(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr) {
+static void node_composit_buts_colorcorrection_but(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
 	uiLayout *row;
 	
 	row = uiLayoutRow(layout, 0);
