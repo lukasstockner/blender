@@ -134,7 +134,7 @@ endif()
 		bf_modifiers
 		bf_intern_moto 
 		bf_nodes
-		bf_gpu
+
 		bf_imbuf
 		bf_avi 
 		ge_logic_network 
@@ -156,6 +156,7 @@ endif()
 		bf_dna
 		ge_videotex
 		bf_blenfont
+		bf_gpu
 		bf_intern_audaspace
 		blenkernel_blc
 		bf_bmesh
