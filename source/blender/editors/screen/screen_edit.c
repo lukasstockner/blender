@@ -180,19 +180,19 @@ void removenotused_scrverts(bScreen *sc)
 	
 	se = sc->edgebase.first;
 	while (se) {
-		se->v1->flag = 1;
-		se->v2->flag = 1;
+		se->v1->flag |= VERT_FLAG_SELECTED;
+		se->v2->flag |= VERT_FLAG_SELECTED;
 		se = se->next;
 	}
 	
 	sv = sc->vertbase.first;
 	while (sv) {
 		svn = sv->next;
-		if (sv->flag == 0) {
+		if (!(sv->flag & VERT_FLAG_SELECTED)) {
 			BLI_remlink(&sc->vertbase, sv);
 			MEM_freeN(sv);
 		}
-		else sv->flag = 0;
+		else sv->flag &= ~VERT_FLAG_SELECTED;
 		sv = svn;
 	}
 }
@@ -586,28 +586,30 @@ void select_connected_scredge(bScreen *sc, ScrEdge *edge)
 	
 	sv = sc->vertbase.first;
 	while (sv) {
-		sv->flag = 0;
+		sv->flag &= ~VERT_FLAG_SELECTED;
 		sv = sv->next;
 	}
 	
-	edge->v1->flag = 1;
-	edge->v2->flag = 1;
+	edge->v1->flag |= VERT_FLAG_SELECTED;
+	edge->v2->flag |= VERT_FLAG_SELECTED;
 	
 	oneselected = 1;
 	while (oneselected) {
 		se = sc->edgebase.first;
 		oneselected = 0;
 		while (se) {
-			if (se->v1->flag + se->v2->flag == 1) {
+			if ((se->v1->flag&VERT_FLAG_SELECTED) ^ (se->v2->flag&VERT_FLAG_SELECTED)) {
 				if (dir == 'h') {
 					if (se->v1->vec.y == se->v2->vec.y) {
-						se->v1->flag = se->v2->flag = 1;
+						se->v1->flag |= VERT_FLAG_SELECTED;
+						se->v2->flag |= VERT_FLAG_SELECTED;
 						oneselected = 1;
 					}
 				}
 				if (dir == 'v') {
 					if (se->v1->vec.x == se->v2->vec.x) {
-						se->v1->flag = se->v2->flag = 1;
+						se->v1->flag |= VERT_FLAG_SELECTED;
+						se->v2->flag |= VERT_FLAG_SELECTED;
 						oneselected = 1;
 					}
 				}
@@ -624,7 +626,7 @@ static void screen_test_scale(bScreen *sc, int winsizex, int winsizey)
 	ScrArea *sa;
 	int sizex, sizey;
 	float facx, facy, tempf, min[2], max[2];
-	
+
 	/* calculate size */
 	min[0] = min[1] = 10000.0f;
 	max[0] = max[1] = 0.0f;
@@ -692,7 +694,7 @@ static void screen_test_scale(bScreen *sc, int winsizex, int winsizey)
 				while (sv) {
 					/* if is a collapsed area */
 					if (sv != sa->v2 && sv != sa->v3) {
-						if (sv->flag) sv->vec.y = yval;
+						if (sv->flag&VERT_FLAG_SELECTED) sv->vec.y = yval;
 					}
 					sv = sv->next;
 				}
@@ -912,7 +914,19 @@ static void drawscredge_area(ScrArea *sa, int sizex, int sizey, int center)
 	short x2 = sa->v3->vec.x;
 	short y2 = sa->v3->vec.y;
 	short a, rt;
-	
+
+	if (sa->v1->flag&VERT_FLAG_OFFSET)
+	{
+		x1 += sa->v1->offset.x;
+		y1 += sa->v1->offset.y;
+	}
+
+	if (sa->v3->flag&VERT_FLAG_OFFSET)
+	{
+		x2 += sa->v3->offset.x;
+		y2 += sa->v3->offset.y;
+	}
+
 	rt = 0; // CLAMPIS(G.rt, 0, 16);
 	
 	if (center == 0) {

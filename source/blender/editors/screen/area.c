@@ -464,7 +464,7 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 		ar->drawrct.xmax = MIN2(winrct.xmax, ar->drawrct.xmax);
 		ar->drawrct.ymax = MIN2(winrct.ymax, ar->drawrct.ymax);
 	}
-	
+
 	/* note; this sets state, so we can use wmOrtho and friends */
 	wmSubWindowScissorSet(win, ar->swinid, &ar->drawrct);
 	
@@ -1124,7 +1124,19 @@ static void area_calc_totrct(ScrArea *sa, int sizex, int sizey)
 	else sa->totrct.ymin = sa->v1->vec.y;
 	if (sa->v2->vec.y < sizey - 1) sa->totrct.ymax = sa->v2->vec.y - 1 - rt;
 	else sa->totrct.ymax = sa->v2->vec.y;
-	
+
+	if (sa->v1->flag&VERT_FLAG_OFFSET)
+	{
+		sa->totrct.xmin += sa->v1->offset.x;
+		sa->totrct.ymin += sa->v1->offset.y;
+	}
+
+	if (sa->v4->flag&VERT_FLAG_OFFSET)
+		sa->totrct.xmax += sa->v4->offset.x;
+
+	if (sa->v2->flag&VERT_FLAG_OFFSET)
+		sa->totrct.ymax += sa->v2->offset.y;
+
 	/* for speedup */
 	sa->winx = sa->totrct.xmax - sa->totrct.xmin + 1;
 	sa->winy = sa->totrct.ymax - sa->totrct.ymin + 1;

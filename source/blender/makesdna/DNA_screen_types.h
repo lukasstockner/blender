@@ -85,6 +85,8 @@ typedef struct ScrVert {
 	struct ScrVert *next, *prev, *newv;
 	vec2s vec;
 	int flag;
+	vec2s offset;
+	int pad;
 } ScrVert;
 
 typedef struct ScrEdge {
@@ -172,6 +174,10 @@ typedef struct ARegion {
 	char *headerstr;			/* use this string to draw info */
 	void *regiondata;			/* XXX 2.50, need spacedata equivalent? */
 } ARegion;
+
+/* vert->flag */
+#define VERT_FLAG_SELECTED	1
+#define VERT_FLAG_OFFSET	2
 
 /* swap */
 #define WIN_BACK_OK		1

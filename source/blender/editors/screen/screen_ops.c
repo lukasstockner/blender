@@ -880,6 +880,8 @@ static void SCREEN_OT_area_dupli(wmOperatorType *ot)
 typedef struct sAreaMoveData {
 	int bigger, smaller, origval, step;
 	char dir;
+	ScrArea* split1;
+	ScrArea* split2;
 } sAreaMoveData;
 
 /* helper call to move area-edge, sets limits */
@@ -896,18 +898,18 @@ static void area_move_set_limits(bScreen *sc, int dir, int *bigger, int *smaller
 			int y1 = sa->v2->vec.y - sa->v1->vec.y - areaminy;
 			
 			/* if top or down edge selected, test height */
-			if (sa->v1->flag && sa->v4->flag)
+			if ((sa->v1->flag&VERT_FLAG_SELECTED) && (sa->v4->flag&VERT_FLAG_SELECTED))
 				*bigger = MIN2(*bigger, y1);
-			else if (sa->v2->flag && sa->v3->flag)
+			else if ((sa->v2->flag&VERT_FLAG_SELECTED) && (sa->v3->flag&VERT_FLAG_SELECTED))
 				*smaller = MIN2(*smaller, y1);
 		}
 		else {
 			int x1 = sa->v4->vec.x - sa->v1->vec.x - AREAMINX;
 			
 			/* if left or right edge selected, test width */
-			if (sa->v1->flag && sa->v2->flag)
+			if ((sa->v1->flag&VERT_FLAG_SELECTED) && (sa->v2->flag&VERT_FLAG_SELECTED))
 				*bigger = MIN2(*bigger, x1);
-			else if (sa->v3->flag && sa->v4->flag)
+			else if ((sa->v3->flag&VERT_FLAG_SELECTED) && (sa->v4->flag&VERT_FLAG_SELECTED))
 				*smaller = MIN2(*smaller, x1);
 		}
 	}
@@ -946,25 +948,42 @@ static int area_move_init(bContext *C, wmOperator *op)
 }
 
 /* moves selected screen edge amount of delta, used by split & move */
-static void area_move_apply_do(bContext *C, int origval, int delta, int dir, int bigger, int smaller)
+static void area_move_apply_do(bContext *C, int origval, int delta, int dir, int bigger, int smaller, ScrArea** split1, ScrArea** split2)
 {
 	wmWindow *win = CTX_wm_window(C);
 	bScreen *sc = CTX_wm_screen(C);
 	ScrVert *v1;
 	ScrArea *sa;
 	int areaminy = ED_area_headersize() + 1;
-	
+	int overflow = 0;
+	int offset = 22;
+
+	if (delta < -smaller)
+		overflow = -1;
+	if (delta > bigger)
+		overflow = 1;
+
 	delta = CLAMPIS(delta, -smaller, bigger);
-	
+
 	for (v1 = sc->vertbase.first; v1; v1 = v1->next) {
-		if (v1->flag) {
+		if (v1->flag&VERT_FLAG_SELECTED) {
 			/* that way a nice AREAGRID  */
 			if ((dir == 'v') && v1->vec.x > 0 && v1->vec.x < win->sizex - 1) {
 				v1->vec.x = origval + delta;
 				if (delta != bigger && delta != -smaller) v1->vec.x -= (v1->vec.x % AREAGRID);
+
+				if (overflow)
+				{
+					v1->flag |= VERT_FLAG_OFFSET;
+					v1->offset.x = overflow>0?offset:-offset;
+					v1->offset.y = 0;
+				}
+				else
+					v1->flag &= ~VERT_FLAG_OFFSET;
 			}
 			if ((dir == 'h') && v1->vec.y > 0 && v1->vec.y < win->sizey - 1) {
 				v1->vec.y = origval + delta;
+				if (delta != bigger && delta != -smaller) v1->vec.y -= (v1->vec.y % AREAGRID);
 				
 				v1->vec.y += AREAGRID - 1;
 				v1->vec.y -= (v1->vec.y % AREAGRID);
@@ -972,13 +991,65 @@ static void area_move_apply_do(bContext *C, int origval, int delta, int dir, int
 				/* prevent too small top header */
 				if (v1->vec.y > win->sizey - areaminy)
 					v1->vec.y = win->sizey - areaminy;
+
+				if (overflow)
+				{
+					v1->flag |= VERT_FLAG_OFFSET;
+					v1->offset.y = overflow>0?offset:-offset;
+					v1->offset.x = 0;
+				}
+				else
+					v1->flag &= ~VERT_FLAG_OFFSET;
 			}
 		}
 	}
 
+	*split1 = NULL;
+	*split2 = NULL;
+
 	for (sa = sc->areabase.first; sa; sa = sa->next) {
-		if (sa->v1->flag || sa->v2->flag || sa->v3->flag || sa->v4->flag)
+		if ((sa->v1->flag&VERT_FLAG_SELECTED) || (sa->v2->flag&VERT_FLAG_SELECTED) || (sa->v3->flag&VERT_FLAG_SELECTED) || (sa->v4->flag&VERT_FLAG_SELECTED))
+		{
+			if (overflow)
+			{
+				if (dir == 'v')
+				{
+					if (overflow < 0)
+					{
+						if ((sa->v1->flag&VERT_FLAG_SELECTED) && (sa->v2->flag&VERT_FLAG_SELECTED))
+							*split1 = sa;
+						else if ((sa->v3->flag&VERT_FLAG_SELECTED) && (sa->v4->flag&VERT_FLAG_SELECTED))
+							*split2 = sa;
+					}
+					else
+					{
+						if ((sa->v1->flag&VERT_FLAG_SELECTED) && (sa->v2->flag&VERT_FLAG_SELECTED))
+							*split2 = sa;
+						else if ((sa->v3->flag&VERT_FLAG_SELECTED) && (sa->v4->flag&VERT_FLAG_SELECTED))
+							*split1 = sa;
+					}
+				}
+				else
+				{
+					if (overflow > 0)
+					{
+						if ((sa->v2->flag&VERT_FLAG_SELECTED) && (sa->v3->flag&VERT_FLAG_SELECTED))
+							*split1 = sa;
+						else if ((sa->v1->flag&VERT_FLAG_SELECTED) && (sa->v4->flag&VERT_FLAG_SELECTED))
+							*split2 = sa;
+					}
+					else
+					{
+						if ((sa->v2->flag&VERT_FLAG_SELECTED) && (sa->v3->flag&VERT_FLAG_SELECTED))
+							*split2 = sa;
+						else if ((sa->v1->flag&VERT_FLAG_SELECTED) && (sa->v4->flag&VERT_FLAG_SELECTED))
+							*split1 = sa;
+					}
+				}
+			}
+
 			ED_area_tag_redraw(sa);
+		}
 	}
 
 	WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL); /* redraw everything */
@@ -990,11 +1061,36 @@ static void area_move_apply(bContext *C, wmOperator *op)
 	int delta;
 	
 	delta = RNA_int_get(op->ptr, "delta");
-	area_move_apply_do(C, md->origval, delta, md->dir, md->bigger, md->smaller);
+	area_move_apply_do(C, md->origval, delta, md->dir, md->bigger, md->smaller, &md->split1, &md->split2);
 }
 
 static void area_move_exit(bContext *C, wmOperator *op)
 {
+	bScreen *sc = CTX_wm_screen(C);
+	sAreaMoveData *md = op->customdata;
+	ScrVert *sv;
+
+	for (sv = sc->vertbase.first; sv; sv = sv->next)
+		sv->flag &= ~VERT_FLAG_OFFSET;
+
+	if (md->split1 && md->split2)
+	{
+		if (screen_area_join(C, CTX_wm_screen(C), md->split1, md->split2))
+		{
+			if (CTX_wm_area(C) == md->split2) {
+				CTX_wm_area_set(C, NULL);
+				CTX_wm_region_set(C, NULL);
+			}
+		}
+		else
+			ED_area_tag_redraw(md->split2);
+
+		WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
+		ED_area_tag_redraw(md->split1);
+		md->split1 = NULL;
+		md->split2 = NULL;
+	}
+
 	if (op->customdata)
 		MEM_freeN(op->customdata);
 	op->customdata = NULL;
@@ -1032,7 +1128,6 @@ static int area_move_invoke(bContext *C, wmOperator *op, wmEvent *event)
 
 static int area_move_cancel(bContext *C, wmOperator *op)
 {
-	
 	RNA_int_set(op->ptr, "delta", 0);
 	area_move_apply(C, op);
 	area_move_exit(C, op);
@@ -1150,11 +1245,11 @@ typedef struct sAreaSplitData {
 	int delta;              /* delta move edge */
 	int origmin, origsize;  /* to calculate fac, for property storage */
 	int previewmode;        /* draw previewline, then split */
+	int rejoin;
 
 	ScrEdge *nedge;         /* new edge */
 	ScrArea *sarea;         /* start area */
 	ScrArea *narea;         /* new area */
-	
 } sAreaSplitData;
 
 /* generic init, menu case, doesn't need active area */
@@ -1258,10 +1353,10 @@ static int area_split_apply(bContext *C, wmOperator *op)
 		
 		/* select newly created edge, prepare for moving edge */
 		for (sv = sc->vertbase.first; sv; sv = sv->next)
-			sv->flag = 0;
+			sv->flag &= ~(VERT_FLAG_SELECTED|VERT_FLAG_OFFSET);
 		
-		sd->nedge->v1->flag = 1;
-		sd->nedge->v2->flag = 1;
+		sd->nedge->v1->flag |= VERT_FLAG_SELECTED;
+		sd->nedge->v2->flag |= VERT_FLAG_SELECTED;
 		
 		if (dir == 'h') sd->origval = sd->nedge->v1->vec.y;
 		else sd->origval = sd->nedge->v1->vec.x;
@@ -1281,6 +1376,19 @@ static void area_split_exit(bContext *C, wmOperator *op)
 {
 	if (op->customdata) {
 		sAreaSplitData *sd = (sAreaSplitData *)op->customdata;
+
+		if (sd->rejoin)
+		{
+			if (screen_area_join(C, CTX_wm_screen(C), sd->sarea, sd->narea))
+			{
+				if (CTX_wm_area(C) == sd->narea) {
+					CTX_wm_area_set(C, NULL);
+					CTX_wm_region_set(C, NULL);
+				}
+				sd->narea = NULL;
+			}
+		}
+
 		if (sd->sarea) ED_area_tag_redraw(sd->sarea);
 		if (sd->narea) ED_area_tag_redraw(sd->narea);
 
@@ -1446,7 +1554,12 @@ static int area_split_modal(bContext *C, wmOperator *op, wmEvent *event)
 			
 			sd->delta = (dir == 'v') ? event->x - sd->origval : event->y - sd->origval;
 			if (sd->previewmode == 0)
-				area_move_apply_do(C, sd->origval, sd->delta, dir, sd->bigger, sd->smaller);
+			{
+				ScrArea* s1 = NULL;
+				ScrArea* s2 = NULL;
+				area_move_apply_do(C, sd->origval, sd->delta, dir, sd->bigger, sd->smaller, &s1, &s2);
+				sd->rejoin = !!s1;
+			}
 			else {
 				if (sd->sarea) {
 					sd->sarea->flag &= ~(AREA_FLAG_DRAWSPLIT_H | AREA_FLAG_DRAWSPLIT_V);
