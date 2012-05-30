@@ -2046,17 +2046,12 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 
 	/* now we need to allocate store for affected verts if we do maintain image */
 	if(t->flag & T_IMAGE_PRESERVE_CALC) {
-		int duck;
 		uvtc = t->uvtc = MEM_callocN(sizeof(*t->uvtc), "UVTransformCorrect");
 		uvtc->affected_verts = affected_verts = MEM_mallocN(t->total * sizeof(*t->uvtc->affected_verts), "uvtc_verts");
 		uvtc->initial_uvs = initial_uvs = MEM_mallocN(bm->totvert * sizeof(*t->uvtc->initial_uvs), "uvtc_inituvs");
 		uvtc->vert_indices = MEM_mallocN(bm->totvert * sizeof(*t->uvtc->vert_indices), "uvtc_indices");
 		uvtc->total_verts = bm->totvert;
-		duck = bm->totvert * sizeof(*t->uvtc->initial_uvs);
 		BM_mesh_elem_index_ensure(bm, BM_VERT);
-
-		if(!uvtc->initial_uvs || !uvtc->vert_indices)
-			printf("skata sta moutra sou");
 	}
 
 	tob= t->data= MEM_callocN(t->total*sizeof(TransData), "TransObData(Mesh EditMode)");

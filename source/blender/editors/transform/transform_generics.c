@@ -1687,10 +1687,10 @@ void calculateUVTransformCorrection(TransInfo *t)
 				if(index_other == -1) {
 					/* get BMvert coords since the vertex hasn't changed */
 					sub_v3_v3v3(edge_vec_init, l_other->v->co, td[i].iloc);
-					sub_v2_v2v2(edge_uv_init, luv_other->uv, uvtc->initial_uvs[index]->init_uv);
+					sub_v2_v2v2(edge_uv_init, luv_other->uv, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
 				} else {
 					sub_v3_v3v3(edge_vec_init, td[index_other].iloc, td[i].iloc);
-					sub_v2_v2v2(edge_uv_init, uvtc->initial_uvs[index_other]->init_uv, uvtc->initial_uvs[index]->init_uv);
+					sub_v2_v2v2(edge_uv_init, uvtc->initial_uvs[BM_elem_index_get(l_other->v)]->init_uv, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
 				}
 				sub_v3_v3v3(edge_vec_final, l_other->v->co, v->co);
 
@@ -1708,7 +1708,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 
 			}
 			mul_v2_fl(uv_tot, 1.0/uv_counter);
-			copy_v2_v2(uvtc->initial_uvs[index]->uv, uv_tot);
+			copy_v2_v2(uvtc->initial_uvs[BM_elem_index_get(v)]->uv, uv_tot);
 		}
 	}
 }
