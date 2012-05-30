@@ -1820,10 +1820,8 @@ void transformApply(bContext *C, TransInfo *t)
 	 * apply funtion */
 	if(t->flag & T_IMAGE_PRESERVE_CALC) {
 		/* can be invalidated if for instance we change the radius of proportional editing */
-		if(!t->uvtc->init)
-			calculateUVTransformCorrection(t);
-
-		//ED
+		//if(!t->uvtc->init)
+			//calculateUVTransformCorrection(t);
 	}
 
 	/* If auto confirm is on, break after one pass */

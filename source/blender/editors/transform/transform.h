@@ -221,13 +221,23 @@ typedef struct SlideData {
 	int curr_sv_index;
 } SlideData;
 
+
+typedef struct UVTransCorrInfoUV {
+		float init_uv[2]; /* initial uv value */
+		float *uv; /* pointer to the corresponding luv->uv */
+		struct UVTransCorrInfoUV *next; /* next uv for same vertex */
+}UVTransCorrInfoUV;
+
 /* unwrap transform correction structure, will contain mesh elements that will be used for unwrapping */
 typedef struct UVTransCorrect {
-	struct BMEdge **boundary_edges;
-	struct BMFace **unwrapped_faces;
+//	struct BMEdge **boundary_edges;
+//	struct BMFace **unwrapped_faces;
 	struct BMVert **affected_verts;
-	int num_boundary_edges;
-	int num_unwrapped_faces;
+	UVTransCorrInfoUV **initial_uvs;
+	int *vert_indices;
+//	int total_boundary_edges;
+//	int total_unwrapped_faces;
+	int total_verts;
 	char init;
 } UVTransCorrect;
 

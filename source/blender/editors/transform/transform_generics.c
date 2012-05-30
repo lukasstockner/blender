@@ -1049,8 +1049,9 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 			v3d->twtype = 0;
 		}
 
-		if(ts->uvcalc_flag & UVCALC_TRANSFORM_CORRECT)
+		if(ts->uvcalc_flag & UVCALC_TRANSFORM_CORRECT && EDBM_mtexpoly_check(BMEdit_FromObject(obedit))) {
 			t->flag |= T_IMAGE_PRESERVE_CALC;
+		}
 
 		if (v3d->flag & V3D_ALIGN) t->flag |= T_V3D_ALIGN;
 		t->around = v3d->around;
@@ -1217,6 +1218,7 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 
 void deleteUVTransCorrect(struct UVTransCorrect *uvtc)
 {
+	/*
 	if(uvtc->boundary_edges) {
 		MEM_freeN(uvtc->boundary_edges);
 		uvtc->boundary_edges = NULL;
@@ -1225,9 +1227,31 @@ void deleteUVTransCorrect(struct UVTransCorrect *uvtc)
 		MEM_freeN(uvtc->unwrapped_faces);
 		uvtc->unwrapped_faces = NULL;
 	}
+	*/
 	if(uvtc->affected_verts) {
 		MEM_freeN(uvtc->affected_verts);
 		uvtc->affected_verts = NULL;
+	}
+	if(uvtc->vert_indices) {
+		MEM_freeN(uvtc->vert_indices);
+		uvtc->vert_indices = NULL;
+	}
+	if(uvtc->initial_uvs) {
+		int i;
+		for(i = 0; i < uvtc->total_verts; i++) {
+			UVTransCorrInfoUV *uvtcuv;
+			uvtcuv = uvtc->initial_uvs[i];
+			if(uvtcuv) {
+				while(uvtcuv->next) {
+					UVTransCorrInfoUV *uvtcuvtmp = 	uvtcuv->next;
+					MEM_freeN(uvtcuv);
+					uvtcuv = uvtcuvtmp;
+				}
+				MEM_freeN(uvtcuv);
+			}
+		}
+		MEM_freeN(uvtc->initial_uvs);
+		uvtc->initial_uvs = NULL;
 	}
 }
 
@@ -1619,104 +1643,74 @@ void calculateCenter(TransInfo *t)
  * These elements will be artificially pinned for this first attempt at the algorithm */
 void calculateUVTransformCorrection(TransInfo *t)
 {
-	int i, edge_counter = 0, boundary_edge_counter = 0;
+	int i, index;
 	BMIter iter;
-	BMFace *f;
-	BMEdge **edge_list, **edge_boundaries;
-	BMEdge *e;
-	GHashIterator *ghiter;
-	GHash *face_hash = BLI_ghash_ptr_new("maintain_image_face_hash");
-	GHash *edge_hash = BLI_ghash_ptr_new("maintain_image_edge_hash");
+	BMLoop *l;
+	BMEditMesh *em = BMEdit_FromObject(t->obedit);
 	TransData *td = t->data;
 	UVTransCorrect *uvtc = t->uvtc;
+//	float modelviewprojmat[4][4];
 	char not_prop_edit = !(t->flag & T_PROP_EDIT);
 
-	/* cleanup previous data if it exists */
-	if(uvtc->boundary_edges)
-		MEM_freeN(uvtc->boundary_edges);
-	if(uvtc->unwrapped_faces)
-		MEM_freeN(uvtc->unwrapped_faces);
+	/* transform the edge vectors to view space */
+	//mult_m4_m4m4(modelviewprojmat, t->persmat, t->viewmat);
+	//mult_m4_m4m4(modelviewprojmat, modelviewprojmat, t->obedit->obmat);
 
-	/* store faces adjacent to verts */
-	for (i = 0 ; i < t->total; i++, td++) {
+	/* iterate through loops of vert and calculate image space diff of uvs */
+	for (i = 0 ; i < t->total; i++) {
 		BMVert *v = uvtc->affected_verts[i];
 
-		if(not_prop_edit || td->factor > 0.0) {
-			BM_ITER_ELEM(f, &iter, v, BM_FACES_OF_VERT) {
-				if(!BLI_ghash_haskey(face_hash, f)){
-					BLI_ghash_insert(face_hash, f, NULL);
+		if(not_prop_edit || td[i].factor > 0.0) {
+			float uv_tot[2] = {0.0, 0.0};
+			int uv_counter = 0;
+
+			index =  uvtc->vert_indices[BM_elem_index_get(v)];
+
+			BM_ITER_ELEM(l, &iter, v, BM_LOOPS_OF_VERT) {
+				float edge_len_init;
+				float edge_len_final;
+//				float edge_uv_len_init;
+				float edge_vec_init[3];
+				float edge_vec_final[3];
+				float edge_uv_init[2];
+				float uvdiff[2];
+				int index_other;
+				BMLoop *l_other;
+				MLoopUV *luv_other;
+				l_other = BM_loop_other_vert_loop(l, v);
+
+				luv_other = CustomData_bmesh_get(&em->bm->ldata, l_other->head.data, CD_MLOOPUV);
+
+				index_other = uvtc->vert_indices[BM_elem_index_get(l_other->v)];
+
+				/* find initial and final edge lengths */
+				if(index_other == -1) {
+					/* get BMvert coords since the vertex hasn't changed */
+					sub_v3_v3v3(edge_vec_init, l_other->v->co, td[i].iloc);
+					sub_v2_v2v2(edge_uv_init, luv_other->uv, uvtc->initial_uvs[index]->init_uv);
+				} else {
+					sub_v3_v3v3(edge_vec_init, td[index_other].iloc, td[i].iloc);
+					sub_v2_v2v2(edge_uv_init, uvtc->initial_uvs[index_other]->init_uv, uvtc->initial_uvs[index]->init_uv);
 				}
+				sub_v3_v3v3(edge_vec_final, l_other->v->co, v->co);
+
+				edge_len_init = len_v3(edge_vec_init);
+				edge_len_final = len_v3(edge_vec_final);
+//				edge_uv_len_init = len_v2(edge_uv_init);
+
+				mul_v2_v2fl(uvdiff, edge_uv_init, edge_len_final/edge_len_init);
+				add_v2_v2(uv_tot, uvdiff);
+
+				uv_counter++;
+				/* transform the edge difference in screen space and do perspective correct transform in uv space */
+				//mul_m4_v3(modelviewprojmat, diff);
+
+
 			}
+			mul_v2_fl(uv_tot, 1.0/uv_counter);
+			copy_v2_v2(uvtc->initial_uvs[index]->uv, uv_tot);
 		}
 	}
-
-	ghiter = BLI_ghashIterator_new(face_hash);
-
-	/* count edges */
-	for(; !BLI_ghashIterator_isDone(ghiter); BLI_ghashIterator_step(ghiter)) {
-		f = BLI_ghashIterator_getKey(ghiter);
-
-		BM_ITER_ELEM(e, &iter, f, BM_EDGES_OF_FACE) {
-			if(!BLI_ghash_haskey(edge_hash, e)) {
-				BLI_ghash_insert(edge_hash, e, NULL);
-				edge_counter++;
-			}
-		}
-	}
-
-	edge_list = MEM_mallocN(edge_counter*sizeof(*edge_list), "maintain_image_edge_list");
-	/* allocate more than we will need to avoid recounting */
-	uvtc->boundary_edges = edge_boundaries = MEM_mallocN(edge_counter*sizeof(*edge_boundaries), "maintain_image_boundary_list");
-
-	BLI_ghashIterator_init(ghiter, edge_hash);
-	/* fill with count values */
-	for(i = 0; !BLI_ghashIterator_isDone(ghiter); BLI_ghashIterator_step(ghiter)) {
-		edge_list[i++] = BLI_ghashIterator_getKey(ghiter);
-	}
-
-	BLI_ghashIterator_free(ghiter);
-	BLI_ghash_free(edge_hash, NULL, NULL);
-
-	/* count boundary edges edges */
-	for(i = 0; i < edge_counter; i++) {
-		int efc;
-
-		e = edge_list[i];
-		efc = BM_edge_face_count(e);
-
-		/* non-manifold case is ignored, should probably print a warning */
-		if(efc == 2) {
-			BMFace *f1, *f2;
-
-			BM_edge_face_pair(e, &f1, &f2);
-
-			if(BLI_ghash_haskey(face_hash, f1) && BLI_ghash_haskey(face_hash, f1))
-				/* ignore */
-				;
-			else {
-				edge_boundaries[boundary_edge_counter++] = e;
-			}
-		} else if(efc == 1) {
-			/* edges on boundaries of mesh are automatically added */
-			edge_boundaries[boundary_edge_counter++] = edge_list[i];
-		}
-
-	}
-
-	uvtc->num_boundary_edges = boundary_edge_counter;
-	uvtc->unwrapped_faces = MEM_mallocN(BLI_ghash_size(face_hash)*sizeof(*uvtc->unwrapped_faces), "maintain_image_face_list");
-
-	BLI_ghashIterator_init(ghiter, face_hash);
-	/* fill with count values */
-	for(i = 0; !BLI_ghashIterator_isDone(ghiter); BLI_ghashIterator_step(ghiter)) {
-		uvtc->unwrapped_faces[i++] = BLI_ghashIterator_getKey(ghiter);
-	}
-
-	uvtc->num_unwrapped_faces = i;
-	uvtc->init = TRUE;
-
-	MEM_freeN(edge_list);
-	BLI_ghash_free(face_hash, NULL, NULL);
 }
 
 void calculatePropRatio(TransInfo *t)

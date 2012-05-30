@@ -1940,7 +1940,10 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 	BMEditMesh *em = BMEdit_FromObject(t->obedit);
 	BMesh *bm = em->bm;
 	BMVert *eve, **affected_verts;
+	UVTransCorrect *uvtc;
+	UVTransCorrInfoUV **initial_uvs;
 	BMIter iter;
+	BMLoop *l;
 	BMVert *eve_act = NULL;
 	float *mappedcos = NULL, *quats= NULL;
 	float mtx[3][3], smtx[3][3], (*defmats)[3][3] = NULL, (*defcos)[3] = NULL;
@@ -2043,8 +2046,17 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 
 	/* now we need to allocate store for affected verts if we do maintain image */
 	if(t->flag & T_IMAGE_PRESERVE_CALC) {
-		t->uvtc = MEM_callocN(sizeof(*t->uvtc), "UVTransformCorrect");
-		t->uvtc->affected_verts = affected_verts = MEM_mallocN(t->total * sizeof(*t->uvtc->affected_verts), "BMVert Map");
+		int duck;
+		uvtc = t->uvtc = MEM_callocN(sizeof(*t->uvtc), "UVTransformCorrect");
+		uvtc->affected_verts = affected_verts = MEM_mallocN(t->total * sizeof(*t->uvtc->affected_verts), "uvtc_verts");
+		uvtc->initial_uvs = initial_uvs = MEM_mallocN(bm->totvert * sizeof(*t->uvtc->initial_uvs), "uvtc_inituvs");
+		uvtc->vert_indices = MEM_mallocN(bm->totvert * sizeof(*t->uvtc->vert_indices), "uvtc_indices");
+		uvtc->total_verts = bm->totvert;
+		duck = bm->totvert * sizeof(*t->uvtc->initial_uvs);
+		BM_mesh_elem_index_ensure(bm, BM_VERT);
+
+		if(!uvtc->initial_uvs || !uvtc->vert_indices)
+			printf("skata sta moutra sou");
 	}
 
 	tob= t->data= MEM_callocN(t->total*sizeof(TransData), "TransObData(Mesh EditMode)");
@@ -2099,6 +2111,11 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 
 	eve = BM_iter_new(&iter, bm, BM_VERTS_OF_MESH, NULL);
 	for (a=0, i=0; eve; eve=BM_iter_step(&iter), a++) {
+		if(t->flag & T_IMAGE_PRESERVE_CALC) {
+			uvtc->vert_indices[BM_elem_index_get(eve)] = -1;
+			initial_uvs[BM_elem_index_get(eve)] = NULL;
+		}
+
 		if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
 			if (propmode || selstate[a]) {
 				float *bweight = CustomData_bmesh_get(&bm->vdata, eve->head.data, CD_BWEIGHT);
@@ -2107,8 +2124,28 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 				if (tx)
 					tx++;
 
-				if(t->flag & T_IMAGE_PRESERVE_CALC)
+				if(t->flag & T_IMAGE_PRESERVE_CALC) {
+					BMIter iter2;
+					UVTransCorrInfoUV **uvtcuv = initial_uvs + a;
+					UVTransCorrInfoUV *uvprev = NULL;
+
 					affected_verts[i] = eve;
+					t->uvtc->vert_indices[BM_elem_index_get(eve)] = i;
+
+					BM_ITER_ELEM(l, &iter2, eve, BM_LOOPS_OF_VERT) {
+						MLoopUV *luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
+
+						*uvtcuv = MEM_mallocN(sizeof(**uvtcuv), "uvtcelem");
+						if(uvprev)
+							uvprev->next = *uvtcuv;
+						uvprev = *uvtcuv;
+
+						copy_v2_v2((*uvtcuv)->init_uv, luv->uv);
+						(*uvtcuv)->uv = luv->uv;
+						(*uvtcuv)->next = NULL;
+						uvtcuv = &((*uvtcuv)->next);
+					}
+				}
 
 				/* selected */
 				if (selstate[a]) tob->flag |= TD_SELECTED;
