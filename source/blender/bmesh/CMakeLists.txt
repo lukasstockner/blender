@@ -30,6 +30,7 @@ set(INC
 	../blenlib
 	../makesdna
 	../../../intern/guardedalloc
+	../../../intern/opennl/extern
 )
 
 set(SRC

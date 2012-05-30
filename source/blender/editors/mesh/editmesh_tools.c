@@ -1603,6 +1603,7 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 	int mirrx = FALSE, mirry = FALSE, mirrz = FALSE;
 	int i, repeat;
 	float clipdist = 0.0f;
+	float lambda = 0.1f;
 
 	/* mirror before smooth */
 	if (((Mesh *)obedit->data)->editflag & ME_EDIT_MIRROR_X) {
@@ -1630,13 +1631,14 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 	}
 
 	repeat = RNA_int_get(op->ptr, "repeat");
+	lambda = RNA_float_get(op->ptr, "lambda");
 	if (!repeat)
 		repeat = 1;
 	
 	for (i = 0; i < repeat; i++) {
 		if (!EDBM_op_callf(em, op,
-		                   "vertexsmoothlaplacian verts=%hv mirror_clip_x=%b mirror_clip_y=%b mirror_clip_z=%b clipdist=%f",
-		                   BM_ELEM_SELECT, mirrx, mirry, mirrz, clipdist))
+		                   "vertexsmoothlaplacian verts=%hv lambda=%f mirror_clip_x=%b mirror_clip_y=%b mirror_clip_z=%b clipdist=%f",
+		                   BM_ELEM_SELECT, lambda, mirrx, mirry, mirrz, clipdist))
 		{
 			return OPERATOR_CANCELLED;
 		}
@@ -1667,7 +1669,8 @@ void MESH_OT_vertices_smooth_laplacian(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_int(ot->srna, "repeat", 1, 1, 100, "Number of iterations to smooth the mesh", "", 1, INT_MAX);
+	RNA_def_int(ot->srna, "repeat", 1, 1, 50, "Number of iterations to smooth the mesh", "", 1, 50);
+	RNA_def_float(ot->srna, "lambda", 0.1f, 0.001f, 100.0f, "Lambda factor", "", 0.001, 100.0f);
 
 }
 

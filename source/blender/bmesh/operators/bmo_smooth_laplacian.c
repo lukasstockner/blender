@@ -31,65 +31,166 @@
 #include "BLI_array.h"
 #include "BLI_heap.h"
 #include "BLI_math.h"
+#include "BLI_math_geom.h"
 #include "BLI_smallhash.h"
 
 #include "BKE_customdata.h"
+#include "BKE_mesh.h"
 
 #include "bmesh.h"
 
+#include "ONL_opennl.h"
+
 #include "intern/bmesh_operators_private.h" /* own include */
+
+void init_index(BMesh *bm);
+void compute_weight(BMFace *f, int vid, float lambda);
+float compute_weight_return( BMFace *f, int vid, float lambda);
+static float cotan_weight(float *v1, float *v2, float *v3);
 
 void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 {
 	BMOIter siter;
 	BMIter iter;
 	BMVert *v;
-	BMEdge *e;
-	BLI_array_declare(cos);
-	float (*cos)[3] = NULL;
-	float *co, *co2, clipdist = BMO_slot_float_get(op, "clipdist");
-	int i, j, clipx, clipy, clipz;
+	BMFace *f;
+	int m_vertex_id;
+	NLContext *context;
+	float lambda = BMO_slot_float_get(op, "lambda");
+	float we;
+
+	init_index(bm);
+
+		nlNewContext();
+		context = nlGetCurrent();
+		nlSolverParameteri(NL_NB_VARIABLES, bm->totvert);
+		nlSolverParameteri(NL_LEAST_SQUARES, NL_TRUE);
+		nlSolverParameteri(NL_NB_ROWS, bm->totvert);
+		nlSolverParameteri(NL_NB_RIGHT_HAND_SIDES, 3);
+		nlBegin(NL_SYSTEM);
+		BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
+			m_vertex_id = BM_elem_index_get(v);
+			nlSetVariable(0,m_vertex_id, v->co[0]);
+			nlSetVariable(1,m_vertex_id, v->co[1]);
+			nlSetVariable(2,m_vertex_id, v->co[2]);
+		}
+		nlBegin(NL_MATRIX);
+		BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
+			m_vertex_id = BM_elem_index_get(v);
+			nlRightHandSideAdd(0, m_vertex_id, v->co[0]);
+			nlRightHandSideAdd(1, m_vertex_id, v->co[1]);
+			nlRightHandSideAdd(2, m_vertex_id, v->co[2]);
+			
+			nlMatrixAdd(m_vertex_id, m_vertex_id, 1.0f);
+			
+			BM_ITER_ELEM (f, &iter, v, BM_FACES_OF_VERT) {
+				we = compute_weight_return(f,m_vertex_id,  lambda);
+			}
+
+			BM_ITER_ELEM (f, &iter, v, BM_FACES_OF_VERT) {
+				compute_weight(f,m_vertex_id,  lambda/we);
+			}
+		}
+		
+		nlEnd(NL_MATRIX);
+		nlEnd(NL_SYSTEM);
+		nlSolveAdvanced(NULL, NL_TRUE);
+		BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
+			m_vertex_id = BM_elem_index_get(v);
+			v->co[0] =  nlGetVariable(0, m_vertex_id);
+			v->co[1] =  nlGetVariable(1, m_vertex_id);
+			v->co[2] =  nlGetVariable(2, m_vertex_id);
+		}
+		
+		nlDeleteContext(context);
+}
+
+void init_index(BMesh *bm){
+	BM_mesh_elem_index_ensure(bm, BM_VERT);
+}
+
+/*
+ *        v_i *
+ *          / | \
+ *         /  |  \
+ *  v_beta*   |   * v_alpha
+ *         \  |  /
+ *          \ | /
+ *            * v_neighbor
+*/
+void compute_weight( BMFace *f, int vid, float lambda){
+	BMIter iter;
+	BMVert *v;
+	BMVert *vf[3];
+	int i;
+	float wa = 0.0f;
+	i = 0;
+	BM_ITER_ELEM (v, &iter, f, BM_VERTS_OF_FACE) {
+		vf[i] = v;
+		i = i + 1;
+	}
 	
-	clipx = BMO_slot_bool_get(op, "mirror_clip_x");
-	clipy = BMO_slot_bool_get(op, "mirror_clip_y");
-	clipz = BMO_slot_bool_get(op, "mirror_clip_z");
-
-	i = 0;
-	BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
-		BLI_array_grow_one(cos);
-		co = cos[i];
-		
-		j  = 0;
-		BM_ITER_ELEM (e, &iter, v, BM_EDGES_OF_VERT) {
-			co2 = BM_edge_other_vert(e, v)->co;
-			add_v3_v3v3(co, co, co2);
-			j += 1;
+	for(i=0; i<3; i++){
+		int va = i;
+		int vb = (i+1)%3;
+		int vc = (i+2)%3;
+		int va_id = BM_elem_index_get(vf[va]);
+		int vb_id = BM_elem_index_get(vf[vb]);
+		int vc_id = BM_elem_index_get(vf[vc]);
+		if(va_id == vid ){
+			int vb_id = BM_elem_index_get(vf[vb]);
+			int vc_id = BM_elem_index_get(vf[vc]);
+			wa = lambda*cotan_weight(vf[vb]->co, vf[vc]->co, vf[va]->co);
+			nlMatrixAdd(vid, vc_id, -wa);
+			nlMatrixAdd(vid, vid, wa);
+			wa = lambda*cotan_weight(vf[vc]->co, vf[va]->co, vf[vb]->co);
+			nlMatrixAdd(vid, vb_id, -wa);
+			nlMatrixAdd(vid, vid, wa);
 		}
-		
-		if (!j) {
-			copy_v3_v3(co, v->co);
-			i++;
-			continue;
-		}
-
-		mul_v3_fl(co, 1.0f / (float)j);
-		mid_v3_v3v3(co, co, v->co);
-
-		if (clipx && fabsf(v->co[0]) <= clipdist)
-			co[0] = 0.0f;
-		if (clipy && fabsf(v->co[1]) <= clipdist)
-			co[1] = 0.0f;
-		if (clipz && fabsf(v->co[2]) <= clipdist)
-			co[2] = 0.0f;
-
-		i++;
 	}
+}
 
+float compute_weight_return( BMFace *f, int vid, float lambda){
+	BMIter iter;
+	BMVert *v;
+	BMVert *vf[3];
+	int i;
+	float wa = 0.0f;
 	i = 0;
-	BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
-		copy_v3_v3(v->co, cos[i]);
-		i++;
+	BM_ITER_ELEM (v, &iter, f, BM_VERTS_OF_FACE) {
+		vf[i] = v;
+		i = i + 1;
 	}
+	
+	for(i=0; i<3; i++){
+		int va = i;
+		int vb = (i+1)%3;
+		int vc = (i+2)%3;
+		int va_id = BM_elem_index_get(vf[va]);
+		int vb_id = BM_elem_index_get(vf[vb]);
+		int vc_id = BM_elem_index_get(vf[vc]);
+		if(va_id == vid ){
+			int vb_id = BM_elem_index_get(vf[vb]);
+			int vc_id = BM_elem_index_get(vf[vc]);
+			wa = cotan_weight(vf[vb]->co, vf[vc]->co, vf[va]->co); 
+			wa = wa + cotan_weight(vf[vc]->co, vf[va]->co, vf[vb]->co);
+		}
+	}
+	return wa;
+}
 
-	BLI_array_free(cos);
+static float cotan_weight(float *v1, float *v2, float *v3)
+{
+	float a[3], b[3], c[3], clen;
+
+	sub_v3_v3v3(a, v2, v1);
+	sub_v3_v3v3(b, v3, v1);
+	cross_v3_v3v3(c, a, b);
+
+	clen = len_v3(c);
+
+	if (clen == 0.0f)
+		return 0.0f;
+	
+	return dot_v3v3(a, b) / clen;
 }
