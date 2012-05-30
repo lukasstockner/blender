@@ -1980,6 +1980,40 @@ static void close_popup_cb(bContext *UNUSED(C), void *bt1, void *UNUSED(arg))
 		popup->menuretval = UI_RETURN_OK;
 }
 
+static void do_white_cb(bContext *UNUSED(C), void *bt1, void *UNUSED(arg))
+{
+	uiBut *but = (uiBut *)bt1;
+	uiPopupBlockHandle *popup = but->block->handle;
+	PropertyRNA *prop = but->rnaprop;
+	PointerRNA ptr = but->rnapoin;
+	float rgb[3];
+
+	rgb[0] = 1;
+	rgb[1] = 1;
+	rgb[2] = 1;
+	RNA_property_float_set_array(&ptr, prop, rgb);
+
+	if (popup)
+		popup->menuretval = UI_RETURN_UPDATE;
+}
+
+static void do_black_cb(bContext *UNUSED(C), void *bt1, void *UNUSED(arg))
+{
+	uiBut *but = (uiBut *)bt1;
+	uiPopupBlockHandle *popup = but->block->handle;
+	PropertyRNA *prop = but->rnaprop;
+	PointerRNA ptr = but->rnapoin;
+	float rgb[3];
+
+	rgb[0] = 0;
+	rgb[1] = 0;
+	rgb[2] = 0;
+	RNA_property_float_set_array(&ptr, prop, rgb);
+
+	if (popup)
+		popup->menuretval = UI_RETURN_UPDATE;
+}
+
 static void picker_new_hide_reveal(uiBlock *block, short colormode)
 {
 	uiBut *bt;
@@ -2120,6 +2154,11 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 
 	bt = uiDefIconButO(block, BUT, "UI_OT_eyedropper", WM_OP_INVOKE_DEFAULT, ICON_EYEDROPPER, butwidth + 10, -60, UI_UNIT_X, UI_UNIT_Y, NULL);
 	uiButSetFunc(bt, close_popup_cb, bt, NULL);
+
+	bt = uiDefButR_prop(block, BUT, 0, "W", butwidth + 10, -80, UI_UNIT_X, UI_UNIT_Y, ptr, prop, 0, 0.0, 0.0, 0, 0, TIP_("Set to white"));
+	uiButSetFunc(bt, do_white_cb, bt, NULL);
+	bt = uiDefButR_prop(block, BUT, 0, "B", butwidth + 10, -100, UI_UNIT_X, UI_UNIT_Y, ptr, prop, 0, 0.0, 0.0, 0, 0, TIP_("Set to black"));
+	uiButSetFunc(bt, do_black_cb, bt, NULL);
 	
 	/* RGB values */
 	uiBlockBeginAlign(block);
