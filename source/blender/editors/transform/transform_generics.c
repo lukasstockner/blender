@@ -1716,23 +1716,23 @@ void calculateUVTransformCorrection(TransInfo *t)
 				edge_uv_len_init = len_v2(edge_uv_init);
 				edge_uv_len_init2 = len_v2(edge_uv_init2);
 
-				printf("\nedge_uv_init %f %f\n", edge_uv_init[0], edge_uv_init[1]);
-				printf("edge_uv_init2 %f %f\n", edge_uv_init2[0], edge_uv_init2[1]);
+				//printf("\nedge_uv_init %f %f\n", edge_uv_init[0], edge_uv_init[1]);
+				//printf("edge_uv_init2 %f %f\n", edge_uv_init2[0], edge_uv_init2[1]);
 
-				mul_v2_v2fl(uvdiff, edge_uv_init, (edge_len_final - edge_len_init)/edge_len_init);
-				mul_v2_v2fl(uvdiff2, edge_uv_init2, (edge_len_final2 - edge_len_init2)/edge_len_init2);
+				mul_v2_v2fl(uvdiff, edge_uv_init, -(edge_len_final - edge_len_init)/edge_len_init);
+				mul_v2_v2fl(uvdiff2, edge_uv_init2, -(edge_len_final2 - edge_len_init2)/edge_len_init2);
 
-				printf("uv_diff %f %f\n", uvdiff[0], uvdiff[1]);
-				printf("uv_diff2 %f %f\n", uvdiff2[0], uvdiff2[1]);
+				//printf("uv_diff %f %f\n", uvdiff[0], uvdiff[1]);
+				//printf("uv_diff2 %f %f\n", uvdiff2[0], uvdiff2[1]);
 				add_v2_v2(uv_tot, uvdiff);
 				add_v2_v2(uv_tot, uvdiff2);
 
-				uv_counter += 2;
+				uv_counter++;
 				/* transform the edge difference in screen space and do perspective correct transform in uv space */
 				//mul_m4_v3(modelviewprojmat, diff);
 			}
 
-			printf("total loops %d\n", uv_counter);
+			//printf("total loops %d\n", uv_counter);
 			mul_v2_fl(uv_tot, 1.0/uv_counter);
 			add_v2_v2(uv_tot, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
 
