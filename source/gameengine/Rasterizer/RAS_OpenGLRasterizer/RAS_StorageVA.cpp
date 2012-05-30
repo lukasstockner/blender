@@ -124,6 +124,8 @@ void RAS_StorageVA::IndexPrimitivesMulti(class RAS_MeshSlot& ms)
 
 	if (!wireframe)
 		EnableTextures(true);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_NORMAL_ARRAY);
 
 	// use glDrawElements to draw each vertexarray
 	for (ms.begin(it); !ms.end(it); ms.next(it)) {
@@ -165,7 +167,9 @@ void RAS_StorageVA::IndexPrimitivesMulti(class RAS_MeshSlot& ms)
 		// here the actual drawing takes places
 		glDrawElements(drawmode, it.totindex, GL_UNSIGNED_SHORT, it.index);
 	}
-
+	
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
 	if (!wireframe) {
 		glDisableClientState(GL_COLOR_ARRAY);
 		EnableTextures(false);
