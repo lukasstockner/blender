@@ -1382,6 +1382,23 @@ void restoreTransObjects(TransInfo *t)
 		restoreElement(td);
 	}
 	
+	if(t->flag & T_IMAGE_PRESERVE_CALC) {
+		int i;
+		for(i = 0; i < t->total; i++) {
+			BMVert *eve;
+			UVTransCorrInfoUV *uvtcuv;
+
+			eve = t->uvtc->affected_verts[i];
+
+			uvtcuv = t->uvtc->initial_uvs[BM_elem_index_get(eve)];
+
+			while(uvtcuv) {
+				copy_v2_v2(uvtcuv->uv, uvtcuv->init_uv);
+				uvtcuv = uvtcuv->next;
+			}
+		}
+	}
+
 	for (td2d=t->data2d; t->data2d && td2d < t->data2d + t->total; td2d++) {
 		if (td2d->h1) {
 			td2d->h1[0] = td2d->ih1[0];
@@ -1669,7 +1686,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 			index =  uvtc->vert_indices[BM_elem_index_get(v)];
 			uv_tot[0] = uv_tot[1] = 0.0;
 
-			printf("disc loops %d\n",  bmesh_disk_facevert_count(v));
+			//printf("disc loops %d\n",  bmesh_disk_facevert_count(v));
 			BM_ITER_ELEM(l, &iter, v, BM_LOOPS_OF_VERT) {
 				float edge_len_init, edge_len_init2;
 				float edge_len_final, edge_len_final2;
