@@ -219,6 +219,9 @@ option(WITH_CARVE         "Enable Carve library to handle mesh boolean operation
 
 # Misc
 option(WITH_INPUT_NDOF "Enable NDOF input devices (SpaceNavigator and friends)" ON)
+if(WIN32)
+	option(WITH_INPUT_TOUCH "Enable Touch input (Windows 7 only)" OFF)
+endif()
 option(WITH_RAYOPTIMIZATION	"Enable use of SIMD (SSE) optimizations for the raytracer" ON)
 if(UNIX AND NOT APPLE)
 	option(WITH_INSTALL_PORTABLE "Install redistributeable runtime, otherwise install into CMAKE_INSTALL_PREFIX" ON)
@@ -1849,6 +1852,7 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_FFTW3)
 	info_cfg_option(WITH_INTERNATIONAL)
 	info_cfg_option(WITH_INPUT_NDOF)
+	info_cfg_option(WITH_INPUT_TOUCH)
 	info_cfg_option(WITH_CYCLES)
 
 	info_cfg_text("Compiler Options:")

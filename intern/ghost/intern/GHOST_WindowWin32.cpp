@@ -275,6 +275,12 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 		// Store a pointer to this class in the window structure
 		::SetWindowLongPtr(m_hWnd, GWL_USERDATA, (LONG_PTR) this);
 
+#ifdef WITH_INPUT_TOUCH
+		if (GetSystemMetrics(SM_DIGITIZER) & NID_MULTI_INPUT){
+			RegisterTouchWindow(m_hWnd, 0);
+		}
+#endif
+
 		// Store the device context
 		m_hDC = ::GetDC(m_hWnd);
 

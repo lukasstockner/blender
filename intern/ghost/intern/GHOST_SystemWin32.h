@@ -37,10 +37,41 @@
 #error WIN32 only!
 #endif // WIN32
 
-#define _WIN32_WINNT 0x501 // require Windows XP or newer
+#ifdef WITH_INPUT_TOUCH
+#	define _WIN32_WINNT 0x0601 // require Windows 7 or newer
+#else
+#	define _WIN32_WINNT 0x501 // require Windows XP or newer
+#endif
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <ole2.h> // for drag-n-drop
+
+#ifdef WITH_INPUT_TOUCH
+#	ifndef SM_DIGITIZER
+#		define SM_DIGITIZER 94
+#	endif // SM_DIGITIZER
+#	ifndef TABLET_CONFIG_NONE
+#		define TABLET_CONFIG_NONE 0x00000000
+#	endif // TABLET_CONFIG_NONE
+#	ifndef NID_INTEGRATED_TOUCH
+#		define NID_INTEGRATED_TOUCH 0x00000001
+#	endif // NID_INTEGRATED_TOUCH
+#	ifndef NID_EXTERNAL_TOUCH
+#		define NID_EXTERNAL_TOUCH 0x00000002
+#	endif // NID_EXTERNAL_TOUCH
+#	ifndef NID_INTEGRATED_PEN
+#		define NID_INTEGRATED_PEN 0x00000004
+#	endif // NID_INTEGRATED_PEN
+#	ifndef NID_EXTERNAL_PEN
+#		define NID_EXTERNAL_PEN 0x00000008
+#	endif // NID_EXTERNAL_PEN
+#	ifndef NID_MULTI_INPUT
+#		define NID_MULTI_INPUT 0x00000040
+#	endif // NID_MULTI_INPUT
+#	ifndef NID_READY
+#		define NID_READY 0x00000080
+#	endif // NID_READY
+#endif //WITH_INPUT_TOUCH
 
 #include "GHOST_System.h"
 

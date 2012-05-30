@@ -40,7 +40,11 @@
 #include "GHOST_Window.h"
 #include "GHOST_TaskbarWin32.h"
 
-#define _WIN32_WINNT 0x501 // require Windows XP or newer
+#ifdef WITH_INPUT_TOUCH
+#	define _WIN32_WINNT 0x0601 // require Windows 7 or newer
+#else
+#	define _WIN32_WINNT 0x501 // require Windows XP or newer
+#endif
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 

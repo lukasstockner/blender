@@ -108,6 +108,10 @@ if(WITH_INPUT_NDOF)
 	)
 endif()
 
+if(WITH_INPUT_TOUCH)
+	add_definitions(-DWITH_INPUT_TOUCH)
+endif()
+
 if(WITH_HEADLESS OR WITH_GHOST_SDL)
 	if(WITH_HEADLESS)
 		list(APPEND SRC

@@ -37,7 +37,7 @@
  * @date	May 7, 2001
  */
 
-#ifdef BF_GHOST_DEBUG
+#ifdef WITH_GHOST_DEBUG
 #include <iostream>
 #endif
 
@@ -985,6 +985,15 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 				case WT_PROXIMITY:
 					((GHOST_WindowWin32 *)window)->processWin32TabletInitEvent();
 					break;
+				////////////////////////////////////////////////////////////////////////
+				// Touch events, processed
+				////////////////////////////////////////////////////////////////////////
+#ifdef WITH_INPUT_TOUCH
+				case WM_TOUCHDOWN:
+				case WM_TOUCHUP:
+				case WM_TOUCHMOVE:
+					break;
+#endif
 				////////////////////////////////////////////////////////////////////////
 				// Mouse events, processed
 				////////////////////////////////////////////////////////////////////////
