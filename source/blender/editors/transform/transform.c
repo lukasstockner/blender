@@ -340,7 +340,9 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
 		// XXX: is this notifier a lame duck?
 		if ((t->animtimer) && IS_AUTOKEY_ON(t->scene))
 			WM_event_add_notifier(C, NC_OBJECT|ND_KEYS, NULL);
-		
+
+		if(t->flag & T_IMAGE_PRESERVE_CALC)
+					WM_event_add_notifier(C, NC_GEOM|ND_DATA, t->obedit->data);
 	}
 	else if (t->spacetype == SPACE_ACTION) {
 		//SpaceAction *saction= (SpaceAction *)t->sa->spacedata.first;

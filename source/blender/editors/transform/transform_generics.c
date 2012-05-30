@@ -1669,7 +1669,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 			BM_ITER_ELEM(l, &iter, v, BM_LOOPS_OF_VERT) {
 				float edge_len_init;
 				float edge_len_final;
-//				float edge_uv_len_init;
+				float edge_uv_len_init;
 				float edge_vec_init[3];
 				float edge_vec_final[3];
 				float edge_uv_init[2];
@@ -1696,9 +1696,9 @@ void calculateUVTransformCorrection(TransInfo *t)
 
 				edge_len_init = len_v3(edge_vec_init);
 				edge_len_final = len_v3(edge_vec_final);
-//				edge_uv_len_init = len_v2(edge_uv_init);
+				edge_uv_len_init = len_v2(edge_uv_init);
 
-				mul_v2_v2fl(uvdiff, edge_uv_init, edge_len_final/edge_len_init);
+				mul_v2_v2fl(uvdiff, edge_uv_init, edge_len_init/edge_len_final);
 				add_v2_v2(uv_tot, uvdiff);
 
 				uv_counter++;
@@ -1708,7 +1708,14 @@ void calculateUVTransformCorrection(TransInfo *t)
 
 			}
 			mul_v2_fl(uv_tot, 1.0/uv_counter);
-			copy_v2_v2(uvtc->initial_uvs[BM_elem_index_get(v)]->uv, uv_tot);
+			add_v2_v2(uv_tot, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
+
+			BM_ITER_ELEM(l, &iter, v, BM_LOOPS_OF_VERT) {
+				MLoopUV *luv;
+
+				luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
+				copy_v2_v2(luv->uv, uv_tot);
+			}
 		}
 	}
 }
