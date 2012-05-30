@@ -1639,6 +1639,8 @@ void calculateCenter(TransInfo *t)
 	}
 }
 
+int     bmesh_disk_facevert_count(BMVert *v);
+
 /* this function detects boundary mesh elements that will encompass the faces to send to the unwrapper.
  * These elements will be artificially pinned for this first attempt at the algorithm */
 void calculateUVTransformCorrection(TransInfo *t)
@@ -1661,52 +1663,76 @@ void calculateUVTransformCorrection(TransInfo *t)
 		BMVert *v = uvtc->affected_verts[i];
 
 		if(not_prop_edit || td[i].factor > 0.0) {
-			float uv_tot[2] = {0.0, 0.0};
+			float uv_tot[2];
 			int uv_counter = 0;
 
 			index =  uvtc->vert_indices[BM_elem_index_get(v)];
+			uv_tot[0] = uv_tot[1] = 0.0;
 
+			printf("disc loops %d\n",  bmesh_disk_facevert_count(v));
 			BM_ITER_ELEM(l, &iter, v, BM_LOOPS_OF_VERT) {
-				float edge_len_init;
-				float edge_len_final;
-				float edge_uv_len_init;
-				float edge_vec_init[3];
-				float edge_vec_final[3];
-				float edge_uv_init[2];
-				float uvdiff[2];
-				int index_other;
-				BMLoop *l_other;
-				MLoopUV *luv_other;
-				l_other = BM_loop_other_vert_loop(l, v);
+				float edge_len_init, edge_len_init2;
+				float edge_len_final, edge_len_final2;
+				float edge_uv_len_init, edge_uv_len_init2;
+				float edge_vec_init[3], edge_vec_init2[3];
+				float edge_vec_final[3], edge_vec_final2[3];
+				float edge_uv_init[2], edge_uv_init2[2];
+				float uvdiff[2], uvdiff2[2];
+				int index_next, index_prev;
+				BMLoop *l_next, *l_prev;
+				MLoopUV *luv_next, *luv_prev;
 
-				luv_other = CustomData_bmesh_get(&em->bm->ldata, l_other->head.data, CD_MLOOPUV);
+				l_next =l->next;
+				l_prev = l->prev;
+				luv_next = CustomData_bmesh_get(&em->bm->ldata, l_next->head.data, CD_MLOOPUV);
+				luv_prev = CustomData_bmesh_get(&em->bm->ldata, l_prev->head.data, CD_MLOOPUV);
 
-				index_other = uvtc->vert_indices[BM_elem_index_get(l_other->v)];
-
+				index_next = uvtc->vert_indices[BM_elem_index_get(l_next->v)];
+				index_prev = uvtc->vert_indices[BM_elem_index_get(l_prev->v)];
 				/* find initial and final edge lengths */
-				if(index_other == -1) {
+				if(index_next == -1) {
 					/* get BMvert coords since the vertex hasn't changed */
-					sub_v3_v3v3(edge_vec_init, l_other->v->co, td[i].iloc);
-					sub_v2_v2v2(edge_uv_init, luv_other->uv, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
+					sub_v3_v3v3(edge_vec_init, l_next->v->co, td[i].iloc);
+					sub_v2_v2v2(edge_uv_init, luv_next->uv, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
 				} else {
-					sub_v3_v3v3(edge_vec_init, td[index_other].iloc, td[i].iloc);
-					sub_v2_v2v2(edge_uv_init, uvtc->initial_uvs[BM_elem_index_get(l_other->v)]->init_uv, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
+					sub_v3_v3v3(edge_vec_init, td[index_next].iloc, td[i].iloc);
+					sub_v2_v2v2(edge_uv_init, uvtc->initial_uvs[BM_elem_index_get(l_next->v)]->init_uv, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
 				}
-				sub_v3_v3v3(edge_vec_final, l_other->v->co, v->co);
+				if(index_prev == -1) {
+					/* get BMvert coords since the vertex hasn't changed */
+					sub_v3_v3v3(edge_vec_init2, l_prev->v->co, td[i].iloc);
+					sub_v2_v2v2(edge_uv_init2, luv_prev->uv, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
+				} else {
+					sub_v3_v3v3(edge_vec_init2, td[index_prev].iloc, td[i].iloc);
+					sub_v2_v2v2(edge_uv_init2, uvtc->initial_uvs[BM_elem_index_get(l_prev->v)]->init_uv, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
+				}
+				sub_v3_v3v3(edge_vec_final, l_next->v->co, v->co);
+				sub_v3_v3v3(edge_vec_final2, l_prev->v->co, v->co);
 
 				edge_len_init = len_v3(edge_vec_init);
+				edge_len_init2 = len_v3(edge_vec_init2);
 				edge_len_final = len_v3(edge_vec_final);
+				edge_len_final2 = len_v3(edge_vec_final2);
 				edge_uv_len_init = len_v2(edge_uv_init);
+				edge_uv_len_init2 = len_v2(edge_uv_init2);
 
-				mul_v2_v2fl(uvdiff, edge_uv_init, edge_len_init/edge_len_final);
+				printf("\nedge_uv_init %f %f\n", edge_uv_init[0], edge_uv_init[1]);
+				printf("edge_uv_init2 %f %f\n", edge_uv_init2[0], edge_uv_init2[1]);
+
+				mul_v2_v2fl(uvdiff, edge_uv_init, (edge_len_final - edge_len_init)/edge_len_init);
+				mul_v2_v2fl(uvdiff2, edge_uv_init2, (edge_len_final2 - edge_len_init2)/edge_len_init2);
+
+				printf("uv_diff %f %f\n", uvdiff[0], uvdiff[1]);
+				printf("uv_diff2 %f %f\n", uvdiff2[0], uvdiff2[1]);
 				add_v2_v2(uv_tot, uvdiff);
+				add_v2_v2(uv_tot, uvdiff2);
 
-				uv_counter++;
+				uv_counter += 2;
 				/* transform the edge difference in screen space and do perspective correct transform in uv space */
 				//mul_m4_v3(modelviewprojmat, diff);
-
-
 			}
+
+			printf("total loops %d\n", uv_counter);
 			mul_v2_fl(uv_tot, 1.0/uv_counter);
 			add_v2_v2(uv_tot, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
 
