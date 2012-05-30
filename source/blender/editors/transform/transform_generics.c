@@ -1049,7 +1049,7 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 			v3d->twtype = 0;
 		}
 
-		if(ts->uvcalc_flag & UVCALC_TRANSFORM_CORRECT && EDBM_mtexpoly_check(BMEdit_FromObject(obedit))) {
+		if(ts->uvcalc_flag & UVCALC_TRANSFORM_CORRECT && obedit && EDBM_mtexpoly_check(BMEdit_FromObject(obedit))) {
 			t->flag |= T_IMAGE_PRESERVE_CALC;
 		}
 
