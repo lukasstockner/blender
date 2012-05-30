@@ -50,7 +50,6 @@
 #include "STR_String.h"
 
 #include "GPU_draw.h"
-#include "GPU_utility.h"
 
 #include "KX_BlenderGL.h" // for text printing
 #include "KX_BlenderRenderTools.h"
@@ -298,7 +297,6 @@ void KX_BlenderRenderTools::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 										 int width,
 										 int height)
 {
-	GPU_STRING_MARKER("RenderText2D");
 	if (mode == RAS_IRenderTools::RAS_TEXT_PADDED)
 		BL_print_gamedebug_line_padded(text, xco, yco, width, height);
 	else
