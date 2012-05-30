@@ -149,6 +149,7 @@ typedef struct wmWindowManager {
 
 	ListBase timers;					/* active timers */
 	struct wmTimer *autosavetimer;		/* timer for auto save */
+	double last_tooltip_close;
 } wmWindowManager;
 
 /* wmWindowManager.initialized */
