@@ -47,6 +47,10 @@
 #include <strings.h>
 #endif
 
+#ifdef GLES
+#include <GLES2/gl2.h>
+#endif
+
 #include <cstring>
 #include <cstdio>
 
@@ -149,8 +153,11 @@ static unsigned char BLENDER_ICON_48x48x24[] = {
 	0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0x3, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff, 0xff, 0x0, 0xff,
 };
 
-
+#ifdef GLES
+EGLContext GHOST_WindowX11::s_firstContext = NULL;
+#else
 GLXContext GHOST_WindowX11::s_firstContext = NULL;
+#endif
 
 GHOST_WindowX11::
 GHOST_WindowX11(
@@ -193,6 +200,7 @@ GHOST_WindowX11(
 
 	m_visual= NULL;
 
+#ifndef GLES
 	if (!glXQueryVersion(m_display, &major, &minor)) {
 		printf("%s:%d: X11 glXQueryVersion() failed, verify working openGL system!\n", __FILE__, __LINE__);
 		
@@ -250,7 +258,9 @@ GHOST_WindowX11(
 			break;
 		}
 	}
-
+#else
+	m_visual = (XVisualInfo*)calloc(1,sizeof(XVisualInfo));
+#endif
 	// Create a bunch of attributes needed to create an X window.
 
 
@@ -259,12 +269,14 @@ GHOST_WindowX11(
 
 	XSetWindowAttributes xattributes;
 	memset(&xattributes, 0, sizeof(xattributes));
-
+	
+#ifndef GLES
 	xattributes.colormap = XCreateColormap(m_display,
-	                                       RootWindow(m_display, m_visual->screen),
-	                                       m_visual->visual,
+											RootWindow(m_display, m_visual->screen),
+											m_visual->visual,
 	                                       AllocNone
 	                                       );
+#endif	                                       
 
 	xattributes.border_pixel = 0;
 
@@ -835,7 +847,7 @@ clientToScreen(
 	XTranslateCoordinates(
 	    m_display,
 	    m_window,
-	    RootWindow(m_display, m_visual->screen),
+        RootWindow(m_display, /*m_visual->screen*/0),
 	    inX, inY,
 	    &ax, &ay,
 	    &temp);
@@ -1210,7 +1222,11 @@ GHOST_WindowX11::
 swapBuffers()
 {
 	if (getDrawingContextType() == GHOST_kDrawingContextTypeOpenGL) {
-		glXSwapBuffers(m_display, m_window);
+#ifdef GLES
+        eglSwapBuffers(gl_display, gl_surface);
+#else
+        glXSwapBuffers(m_display, m_window);
+#endif
 		return GHOST_kSuccess;
 	}
 	else {
@@ -1223,9 +1239,13 @@ GHOST_WindowX11::
 activateDrawingContext()
 {
 	if (m_context != NULL) {
-		glXMakeCurrent(m_display, m_window, m_context);
+#ifdef GLES
+	//	eglMakeCurrent(gl_display, gl_surface, gl_surface, m_context);
+#else
+        glXMakeCurrent(m_display, m_window, m_context);
+#endif
 		return GHOST_kSuccess;
-	} 
+    }
 	return GHOST_kFailure;
 }
 
@@ -1306,8 +1326,12 @@ GHOST_WindowX11::
 #endif /* WITH_X11_XINPUT */
 
 	if (m_context != s_firstContext) {
+#ifdef GLES
+		eglDestroyContext(gl_display, m_context);
+#else
 		glXDestroyContext(m_display, m_context);
-	}
+#endif
+    }
 	
 	if (p_owner == m_window) {
 		XSetSelectionOwner(m_display, Primary_atom, None, CurrentTime);
@@ -1327,7 +1351,12 @@ GHOST_WindowX11::
 #endif
 
 	XDestroyWindow(m_display, m_window);
-	XFree(m_visual);
+	
+#ifdef GLES	
+	free(m_visual);
+#else
+    XFree(m_visual);
+#endif
 }
 
 
@@ -1347,6 +1376,7 @@ installDrawingContext(
 	GHOST_TSuccess success;
 	switch (type) {
 		case GHOST_kDrawingContextTypeOpenGL:
+#ifndef GLES
 			m_context = glXCreateContext(m_display, m_visual, s_firstContext, True);
 			if (m_context != NULL) {
 				if (!s_firstContext) {
@@ -1360,9 +1390,71 @@ installDrawingContext(
 			else {
 				success = GHOST_kFailure;
 			}
+#else
+		{
+			EGLint ver[2];
+			EGLint num_config;
+			EGLConfig config;
+			EGLint attribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE, EGL_NONE };
+			
 
+			EGLint attribList[] =
+			{
+				EGL_RED_SIZE,       5,
+				EGL_GREEN_SIZE,     6,
+				EGL_BLUE_SIZE,      5,
+				/*EGL_ALPHA_SIZE,     8,
+				EGL_DEPTH_SIZE,     8,
+				EGL_STENCIL_SIZE,   8,
+				EGL_SAMPLE_BUFFERS, 1,*/
+				EGL_NONE
+			};
+			gl_display = eglGetDisplay((EGLNativeDisplayType)m_display);
+			if(gl_display == EGL_NO_DISPLAY)
+			{
+				success = GHOST_kFailure;
+				break;
+			}
+			if(!eglInitialize(gl_display, &ver[0], &ver[1]))
+			{
+				success = GHOST_kFailure;
+				break;
+			}
+			if(!eglGetConfigs(gl_display, NULL, 0, &num_config))
+			{
+				success = GHOST_kFailure;
+				break;
+			}
+			if(!eglChooseConfig(gl_display, attribList, &config, 1, &num_config))
+			{
+				success = GHOST_kFailure;
+				break;
+			}
+			gl_surface = eglCreateWindowSurface(gl_display, config, (EGLNativeWindowType)m_window, NULL);
+			if (gl_surface == EGL_NO_SURFACE )
+			{
+				success = GHOST_kFailure;
+				break;
+			}
+			m_context = eglCreateContext(gl_display, config, EGL_NO_CONTEXT, attribs);
+			if(m_context == EGL_NO_CONTEXT)
+			{
+				success = GHOST_kFailure;
+				break;
+			}
+			if(!eglMakeCurrent(gl_display, gl_surface, gl_surface, m_context))
+			{
+				success = GHOST_kFailure;
+				break;
+			}
+
+			glClearColor(0.447, 0.447, 0.447, 0);
+			glClear(GL_COLOR_BUFFER_BIT);
+			eglSwapBuffers(gl_display, gl_surface);
+			success = GHOST_kSuccess;
 			break;
-
+		}
+#endif
 		case GHOST_kDrawingContextTypeNone:
 			success = GHOST_kSuccess;
 			break;
@@ -1383,8 +1475,9 @@ GHOST_TSuccess
 GHOST_WindowX11::
 removeDrawingContext()
 {
-	GHOST_TSuccess success;
+    GHOST_TSuccess success = GHOST_kFailure;
 
+#ifndef GLES
 	if (m_context != NULL) {
 		glXDestroyContext(m_display, m_context);
 		success = GHOST_kSuccess;
@@ -1392,6 +1485,8 @@ removeDrawingContext()
 	else {
 		success = GHOST_kFailure;
 	}
+
+#endif
 	return success;	
 }
 
