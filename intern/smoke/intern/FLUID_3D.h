@@ -43,6 +43,13 @@ using namespace std;
 using namespace BasicVector;
 class WTURBULENCE;
 
+#include <Eigen/Dense>
+#include <Eigen/Sparse>
+using namespace Eigen;
+
+// Fluid index
+#define FINDEX(indexX, indexY, indexZ) ((indexZ) * _xRes * _yRes + (indexY) * _xRes + (indexX))
+
 class FLUID_3D  
 {
 	public:
@@ -163,7 +170,8 @@ class FLUID_3D
 		void diffuseHeat();
 		void solvePressure(float* field, float* b, unsigned char* skip);
 		
-		void solvePressurePre(float* field, float* b, unsigned char* skip);
+		void solvePressurePre(float* field, float* b, unsigned char* skip, VectorXf &myb, SparseMatrix<float,RowMajor> &A);
+
 		void solvePressureJacobian(float* p, float* d, unsigned char* ob);
 
 		void solveHeat(float* field, float* b, unsigned char* skip);

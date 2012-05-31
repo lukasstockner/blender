@@ -45,8 +45,6 @@
 #include <omp.h>
 #endif // PARALLEL 
 
-using namespace std;
-using namespace Eigen;
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -762,8 +760,6 @@ void FLUID_3D::addForce(int zBegin, int zEnd)
 	}
 }
 
-#define INDEX(indexX, indexY, indexZ) ((indexZ) * _xRes * _yRes + (indexY) * _xRes + (indexX))
-
 //////////////////////////////////////////////////////////////////////
 // project into divergence free field
 //////////////////////////////////////////////////////////////////////
@@ -777,8 +773,6 @@ void FLUID_3D::project()
 	SparseMatrix<float,RowMajor> A(_totalCells, _totalCells);
 	A.reserve(VectorXi::Constant(_totalCells, 7));
 
-	ArrayXd gridToIndex(_totalCells);
-
 	ArrayXd A0(_totalCells);
 	ArrayXd Ai(_totalCells);
 	ArrayXd Aj(_totalCells);
@@ -786,14 +780,6 @@ void FLUID_3D::project()
 
 	b.setZero(_totalCells);
 	p.setZero(_totalCells);
-
-	unsigned int linearIndex = 0;
-	index = _slabSize + _xRes + 1;
-	for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
-		for (y = 1; y < _yRes - 1; y++, index += 2)
-			for (x = 1; x < _xRes - 1; x++, index++)
-		if (!_obstacles[INDEX(x,y,z)])
-			gridToIndex(INDEX(x,y,z)) = linearIndex++;
 
 	// float *_pressure = new float[_totalCells];
 	float *_divergence   = new float[_totalCells];
@@ -856,7 +842,7 @@ void FLUID_3D::project()
 				// Pressure is zero anyway since now a local array is used
 				_pressure[index] = 0.0f;
 			}
-#if 0
+
 	float scale = 1.0; // DG TODO: make this global and incooperate this into other functions
 
 	index = _slabSize + _xRes + 1;
@@ -864,61 +850,71 @@ void FLUID_3D::project()
 		for (y = 1; y < _yRes - 1; y++, index += 2)
 			for (x = 1; x < _xRes - 1; x++, index++)
 	{
-				if(!_obstacles[INDEX(x, y, z)])
-		{
-					if(!_obstacles[INDEX(x + 1, y, z)]) A0[INDEX(x, y, z)] += scale;
-					if(!_obstacles[INDEX(x - 1, y, z)]) A0[INDEX(x, y, z)] += scale;
-					if(!_obstacles[INDEX(x, y + 1, z)]) A0[INDEX(x, y, z)] += scale;
-					if(!_obstacles[INDEX(x, y - 1, z)]) A0[INDEX(x, y, z)] += scale;
-					if(!_obstacles[INDEX(x, y, z + 1)]) A0[INDEX(x, y, z)] += scale;
-					if(!_obstacles[INDEX(x, y, z - 1)]) A0[INDEX(x, y, z)] += scale;
-
-					if(!_obstacles[INDEX(x + 1, y, z)]) Ai[INDEX(x, y, z)] = -scale;
-					if(!_obstacles[INDEX(x, y + 1, z)]) Aj[INDEX(x, y, z)] = -scale;
-					if(!_obstacles[INDEX(x, y, z + 1)]) Ak[INDEX(x, y, z)] = -scale;
-		}
+				if(!_obstacles[FINDEX(x, y, z)])
+				{
+					if(!_obstacles[FINDEX(x + 1, y, z)]) A0[FINDEX(x, y, z)] += scale;
+					if(!_obstacles[FINDEX(x - 1, y, z)]) A0[FINDEX(x, y, z)] += scale;
+					if(!_obstacles[FINDEX(x, y + 1, z)]) A0[FINDEX(x, y, z)] += scale;
+					if(!_obstacles[FINDEX(x, y - 1, z)]) A0[FINDEX(x, y, z)] += scale;
+					if(!_obstacles[FINDEX(x, y, z + 1)]) A0[FINDEX(x, y, z)] += scale;
+					if(!_obstacles[FINDEX(x, y, z - 1)]) A0[FINDEX(x, y, z)] += scale;
+				}
 
 	}
 
-	unsigned int valCount = 0;
+	for (z = 0; z < _zRes - 1; z++)
+		for (y = 0; y < _yRes - 1; y++)
+			for (x = 0; x < _xRes - 1; x++)
+	{
+				if(!_obstacles[FINDEX(x, y, z)])
+				{
+					if(!_obstacles[FINDEX(x + 1, y, z)]) Ai[FINDEX(x, y, z)] = -scale;
+					if(!_obstacles[FINDEX(x, y + 1, z)]) Aj[FINDEX(x, y, z)] = -scale;
+					if(!_obstacles[FINDEX(x, y, z + 1)]) Ak[FINDEX(x, y, z)] = -scale;
+				}
+
+	}
+
 	unsigned int rowCount = 0;
-	index = _slabSize + _xRes + 1;
-	for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
-		for (y = 1; y < _yRes - 1; y++, index += 2)
-			for (x = 1; x < _xRes - 1; x++, index++)
-		if (!_obstacles[INDEX(x,y,z)])
+	for (z = 1; z < _zRes - 1; z++)
+		for (y = 1; y < _yRes - 1; y++)
+			for (x = 1; x < _xRes - 1; x++)
+		if (!_obstacles[FINDEX(x,y,z)])
 		{
-			if(Ai[INDEX(x - 1, y, z)] < 0)
-				A.insert(rowCount, gridToIndex(INDEX(x - 1, y, z))) = Ai[INDEX(x - 1, y, z)];
-			if(Aj[INDEX(x, y - 1, z)] < 0)
-				A.insert(rowCount, gridToIndex(INDEX(x, y - 1, z))) = Aj[INDEX(x, y - 1, z)];
-			if(Ak[INDEX(x, y, z - 1)] < 0)
-				A.insert(rowCount, gridToIndex(INDEX(x, y, z - 1))) = Ak[INDEX(x, y, z - 1)];
+			rowCount = FINDEX(x, y, z);
 
-			A.insert(rowCount, gridToIndex(INDEX(x, y, z))) = A0[INDEX(x, y, z)];
+			if(Ai[FINDEX(x - 1, y, z)] < 0)
+				A.insert(rowCount, FINDEX(x - 1, y, z)) = Ai[FINDEX(x - 1, y, z)];
+			if(Aj[FINDEX(x, y - 1, z)] < 0)
+				A.insert(rowCount, FINDEX(x, y - 1, z)) = Aj[FINDEX(x, y - 1, z)];
+			if(Ak[FINDEX(x, y, z - 1)] < 0)
+				A.insert(rowCount, FINDEX(x, y, z - 1)) = Ak[FINDEX(x, y, z - 1)];
 
-			if(Ai[INDEX(x, y, z)] < 0)
-				A.insert(rowCount, gridToIndex(INDEX(x + 1, y, z))) = Ai[INDEX(x, y, z)];
-			if(Aj[INDEX(x, y, z)] < 0)
-				A.insert(rowCount, gridToIndex(INDEX(x, y + 1, z))) = Aj[INDEX(x, y, z)];
-			if(Ak[INDEX(x, y, z)] < 0)
-				A.insert(rowCount, gridToIndex(INDEX(x, y, z + 1))) = Ak[INDEX(x, y, z)];
+			if(A0[FINDEX(x, y, z)] > 0)
+				A.insert(rowCount, FINDEX(x, y, z)) = A0[FINDEX(x, y, z)];
 
-			rowCount++;
+			if(Ai[FINDEX(x, y, z)] < 0)
+				A.insert(rowCount, FINDEX(x + 1, y, z)) = Ai[FINDEX(x, y, z)];
+			if(Aj[FINDEX(x, y, z)] < 0)
+				A.insert(rowCount, FINDEX(x, y + 1, z)) = Aj[FINDEX(x, y, z)];
+			if(Ak[FINDEX(x, y, z)] < 0)
+				A.insert(rowCount, FINDEX(x, y, z + 1)) = Ak[FINDEX(x, y, z)];
 		}
 
+	// DG TODO: for schleifen fixen
 	index = _slabSize + _xRes + 1;
 	for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
 		for (y = 1; y < _yRes - 1; y++, index += 2)
 			for (x = 1; x < _xRes - 1; x++, index++)
-		if (!_obstacles[INDEX(x,y,z)])
-			b[gridToIndex(INDEX(x, y, z))] = _divergence[INDEX(x,y,z)];
+		if (!_obstacles[FINDEX(x,y,z)])
+			b[FINDEX(x, y, z)] = _divergence[FINDEX(x,y,z)];
 
 	A.makeCompressed();
 
-	ConjugateGradient<SparseMatrix<float>, Eigen::Symmetric > solver;
+
+	ConjugateGradient< SparseMatrix<float, RowMajor> > solver;
 	solver.setMaxIterations(100);
-	solver.setTolerance(1e-06);
+	solver.setTolerance(1e-05);
 
 	solver.compute(A);
 	if(solver.info() != Success) 
@@ -936,13 +932,23 @@ void FLUID_3D::project()
 		}
 		else
 			printf("Solver finished.\n");
+
+		std::cout << "#iterations:     " << solver.iterations() << std::endl;
+		std::cout << "estimated error: " << solver.error()      << std::endl;
 	}
-#endif
+
 	// copyBorderAll(_pressure, 0, _zRes);
 
 	// solve Poisson equation
-	solvePressurePre(_pressure, _divergence, _obstacles);
+	solvePressurePre(_pressure, _divergence, _obstacles, b, A);
 
+	for(unsigned int i = 0; i < _xRes * _yRes * _zRes; i++)
+	{
+		float value = (_pressure[i] - b[i]);
+		if(value > 0.01)
+			printf("error: p: %f, b: %f\n", _pressure[i], b[i]);
+	}
+#if 0
 	{
 		float maxvalue = 0;
 		for(unsigned int i = 0; i < _xRes * _yRes * _zRes; i++)
@@ -964,7 +970,7 @@ void FLUID_3D::project()
 		}
 		// printf("Max pressure: %f, dx: %f\n", maxvalue, _dx);
 	}
-
+#endif
 	// DG TODO: check this function, for now this is done in the next function
 	// setObstaclePressure(_pressure, 0, _zRes);
 
@@ -978,13 +984,13 @@ void FLUID_3D::project()
 				float vMask[3] = {1.0f, 1.0f, 1.0f}, vObst[3] = {0, 0, 0};
 				float vR = 0.0f, vL = 0.0f, vT = 0.0f, vB = 0.0f, vD = 0.0f, vU = 0.0f;
 
-				float pC = _pressure[index]; // center
-				float pR = _pressure[index + 1]; // right
-				float pL = _pressure[index - 1]; // left
-				float pT = _pressure[index + _slabSize]; // top
-				float pB = _pressure[index - _slabSize]; // bottom
-				float pU = _pressure[index + _xRes]; // Up
-				float pD = _pressure[index - _xRes]; // Down
+				float pC = b[index]; // center
+				float pR = b[index + 1]; // right
+				float pL = b[index - 1]; // left
+				float pT = b[index + _slabSize]; // top
+				float pB = b[index - _slabSize]; // bottom
+				float pU = b[index + _xRes]; // Up
+				float pD = b[index - _xRes]; // Down
 
 				if(!_obstacles[index])
 				{
