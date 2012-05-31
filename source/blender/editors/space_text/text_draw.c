@@ -1481,7 +1481,7 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 	glEnd();
 	UI_ThemeColor(TH_TEXT);
 
-	BLF_draw_lock();
+	BLF_draw_lock(mono);
 
 	i = 0; br = DOC_WIDTH; lines = 0; // XXX -doc_scroll;
 	for (p = docs; *p; p++) {
@@ -1558,7 +1558,7 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 	UI_ThemeColor(TH_BACK);
 	glRecti(x, y, x + boxw, y - boxh);
 
-	BLF_draw_lock();
+	BLF_draw_lock(mono);
 
 	/* Set the top 'item' of the visible list */
 	for (i = 0, item = first; i < *top && item->next; i++, item = item->next) ;
@@ -1920,7 +1920,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 
 	GPU_STRING_MARKER("draw_text_main:begin");
 
-	BLF_draw_lock();
+	BLF_draw_lock(mono);
 
 	for (i = 0; y > 0 && i < st->viewlines && tmp; i++, tmp = tmp->next) {
 		if (st->showsyntax && !tmp->format)
@@ -2024,7 +2024,7 @@ void text_scroll_to_cursor(SpaceText *st, ScrArea *sa)
 		st->left = 0;
 	}
 	else {
-		BLF_draw_lock();
+		BLF_draw_lock(mono);
 		x = text_draw(st, text->sell->line, st->left, text->selc, 0, 0, 0, NULL);
 		BLF_draw_unlock();
 

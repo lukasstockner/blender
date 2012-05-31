@@ -362,7 +362,12 @@ static void blf_texture3_draw(const float shadow_col[4], float uv[2][2], float x
 	}
 }
 
-int blf_glyph_render(FontBLF *font, GlyphBLF *g, float x, float y)
+int blf_glyph_render(
+	FontBLF *font,
+	GlyphBLF *g,
+	float x,
+	float y,
+	int *needs_end)
 {
 	float dx, dx1;
 	float y1, y2;
@@ -402,7 +407,8 @@ int blf_glyph_render(FontBLF *font, GlyphBLF *g, float x, float y)
 
 		if (!need_begin) {
 			gpuEnd();
-			need_begin = 1;
+			need_begin = TRUE;
+			*needs_end = FALSE;
 		}
 
 		if (font->max_tex_size == -1)
@@ -450,7 +456,7 @@ int blf_glyph_render(FontBLF *font, GlyphBLF *g, float x, float y)
 	if (font->tex_bind_state != g->tex) {
 		if (!need_begin) {
 			gpuEnd();
-			need_begin = 1;
+			need_begin = TRUE;
 		}
 
 		glBindTexture(GL_TEXTURE_2D, (font->tex_bind_state = g->tex));
@@ -458,6 +464,7 @@ int blf_glyph_render(FontBLF *font, GlyphBLF *g, float x, float y)
 
 	if (need_begin) {
 		gpuBegin(GL_QUADS);
+		*needs_end = TRUE;
 	}
 
 	if (font->flags & BLF_SHADOW) {
@@ -500,5 +507,5 @@ int blf_glyph_render(FontBLF *font, GlyphBLF *g, float x, float y)
 			break;
 	}
 
-	return 1;
+	return TRUE;
 }

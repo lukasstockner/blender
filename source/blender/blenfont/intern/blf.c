@@ -481,29 +481,41 @@ void BLF_rotation_default(float angle)
 	}
 }
 
-void BLF_draw_lock(void)
+static void draw_lock(FontBLF *font)
 {
 	if (gpuImmediateLockCount() == 0) {
 		GLint texCoordSizes[1] = { 2 };
-		GLint texUnitMap[1];
+		GLint texUnitMap[1]    = { GL_TEXTURE0 };
 
-		glGetIntegerv(GL_ACTIVE_TEXTURE, texUnitMap);
+		if (font->shadow || font->blur) {
+			gpuImmediateElementSizes(2, 0, 4); //-V112
+		}
+		else {
+			gpuImmediateElementSizes(2, 0, 0);
+		}
 
-		gpuImmediateElementSizes(2, 0, 4); //-V112
 		gpuImmediateTextureUnitCount(1);
 		gpuImmediateTexCoordSizes(texCoordSizes);
 		gpuImmediateTextureUnitMap(texUnitMap);
-		gpuImmediateFloatAttribCount(0);
-		gpuImmediateUbyteAttribCount(0);
 
 		/* one time GL setup */
 
-		glEnable(GL_BLEND);
 		glEnable(GL_TEXTURE_2D);
+
+		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 
 	gpuImmediateLock();
+}
+
+void BLF_draw_lock(int fontid)
+{
+	FontBLF *font = BLF_get(fontid);
+
+	if (font) {
+		draw_lock(font);
+	}
 }
 
 void BLF_draw_unlock(void)
@@ -555,13 +567,11 @@ static void blf_draw__start(FontBLF *font, GLint *mode, GLint *param)
 	if (*param != GL_MODULATE)
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
-	BLF_draw_lock();
-	/* gpuBegin not called here because texture still needs binding */
+	draw_lock(font);
 }
 
 static void blf_draw__end(GLint mode, GLint param)
 {
-	gpuEnd();
 	BLF_draw_unlock();
 
 	/* and restore the original value. */
