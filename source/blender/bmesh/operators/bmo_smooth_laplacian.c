@@ -46,19 +46,20 @@
 #define SMOOTH_LAPLACIAN_AREA_FACTOR 4.0f
 
 static float cotan_weight(float *v1, float *v2, float *v3);
-void compute_weights_in_ring(BMVert *v, float lambda);
+void compute_weights_in_ring(BMVert *v, float lambda, float min_area);
 
 void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 {
 	int i;
 	int m_vertex_id;
-	float lambda;
+	float lambda, min_area;
 	BMOIter siter;
 	BMVert *v;
 	NLContext *context;
 
 	BM_mesh_elem_index_ensure(bm, BM_VERT);
 	lambda = BMO_slot_float_get(op, "lambda");
+	min_area = BMO_slot_float_get(op, "min_area");
 	nlNewContext();
 	context = nlGetCurrent();
 
@@ -85,7 +86,7 @@ void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 		nlRightHandSideAdd(0, m_vertex_id, v->co[0]);
 		nlRightHandSideAdd(1, m_vertex_id, v->co[1]);
 		nlRightHandSideAdd(2, m_vertex_id, v->co[2]);
-		compute_weights_in_ring(v, lambda);
+		compute_weights_in_ring(v, lambda, min_area);
 	}
 		
 	nlEnd(NL_MATRIX);
@@ -95,13 +96,13 @@ void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 		nlPrintMatrix();
 	}
 
-	nlSolveAdvanced(NULL, NL_TRUE);
-
-	BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
-		m_vertex_id = BM_elem_index_get(v);
-		v->co[0] =  nlGetVariable(0, m_vertex_id);
-		v->co[1] =  nlGetVariable(1, m_vertex_id);
-		v->co[2] =  nlGetVariable(2, m_vertex_id);
+	if (nlSolveAdvanced(NULL, NL_TRUE) ) {
+		BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
+			m_vertex_id = BM_elem_index_get(v);
+			v->co[0] =  nlGetVariable(0, m_vertex_id);
+			v->co[1] =  nlGetVariable(1, m_vertex_id);
+			v->co[2] =  nlGetVariable(2, m_vertex_id);
+		}
 	}
 		
 	nlDeleteContext(context);
@@ -134,9 +135,10 @@ static float cotan_weight(float *v1, float *v2, float *v3)
  *          \ | /
  *            * v_neighbor
 */
-void compute_weights_in_ring(BMVert *v, float lambda)
+void compute_weights_in_ring(BMVert *v, float lambda, float min_area)
 {	
 	float area = 0.0f;
+	float at;
 	float factor;
 	float sumw = 0.0f;
 	float w1, w2;
@@ -145,6 +147,7 @@ void compute_weights_in_ring(BMVert *v, float lambda)
 	int id1, id2, id3;
 	int i, j;
 	int * index = NULL;
+	int zeroa = 1;
 	BMIter fi;
 	BMIter vi;
 	BMFace *f;
@@ -173,34 +176,48 @@ void compute_weights_in_ring(BMVert *v, float lambda)
 			i = i + 1;
 		}
 		if (i == 3 && ai > -1){
-			area = area + area_tri_v3(vf[0]->co, vf[1]->co, vf[2]->co);
+			at = area_tri_v3(vf[0]->co, vf[1]->co, vf[2]->co);
+			if (fabsf(at) < min_area) {
+				zeroa = 0;
+			}
+			area = area + at;
 			w1 = cotan_weight (vf[bi]->co, vf[ci]->co, vf[ai]->co); 
 			w2 = cotan_weight (vf[ci]->co, vf[ai]->co, vf[bi]->co);
 			id2 = BM_elem_index_get (vf[bi]);
 			id3 = BM_elem_index_get (vf[ci]);
-			BLI_array_grow_one (index);
-			BLI_array_grow_one (weight);
+			BLI_array_grow_one(index);
+			BLI_array_grow_one(weight);
 			index[j] = id3;
 			weight[j] = w1;
 			j = j + 1;
-			BLI_array_grow_one (index);
-			BLI_array_grow_one (weight);
+			BLI_array_grow_one(index);
+			BLI_array_grow_one(weight);
 			index[j] = id2;
 			weight[j] = w2;
 			sumw = sumw + w1 + w2;
 			j = j + 1;
 		}
 	}
-	for(i = 0; i < j; i = i + 2){
-		factor = lambda / (SMOOTH_LAPLACIAN_AREA_FACTOR * sumw * area);
-		w1 = -factor * weight[i];
-		w2 = -factor * weight[i+1];
-		id2 = index[i];
-		id3 = index[i+1];
-		nlMatrixAdd(id1, id2, w1);
-		nlMatrixAdd(id1, id3, w2);
+	for (i = 0; i < j; i = i + 2) {
+		if (zeroa == 1) {
+			factor = lambda / (SMOOTH_LAPLACIAN_AREA_FACTOR * sumw * area);
+			w1 = -factor * weight[i];
+			w2 = -factor * weight[i+1];
+			id2 = index[i];
+			id3 = index[i+1];
+			nlMatrixAdd(id1, id2, w1);
+			nlMatrixAdd(id1, id3, w2);
+		} else {
+			nlMatrixAdd(id1, id2, 0.0f);
+			nlMatrixAdd(id1, id3, 0.0f);
+		}
 	}
-	nlMatrixAdd(id1, id1, 1.0f + lambda / (SMOOTH_LAPLACIAN_AREA_FACTOR * area));
+	if (zeroa == 1) {
+		nlMatrixAdd(id1, id1, 1.0f + lambda / (SMOOTH_LAPLACIAN_AREA_FACTOR * area));
+	} else {
+		nlMatrixAdd(id1, id1, 1.0f);
+
+	}
 
 	BLI_array_free(index);
 	BLI_array_free(weight);

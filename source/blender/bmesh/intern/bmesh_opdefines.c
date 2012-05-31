@@ -119,6 +119,7 @@ static BMOpDefine bmo_vertexsmoothlaplacian_def = {
 	"vertexsmoothlaplacian",
 	{{BMO_OP_SLOT_ELEMENT_BUF, "verts"}, //input vertices
 	 {BMO_OP_SLOT_FLT, "lambda"}, //lambda param
+	 {BMO_OP_SLOT_FLT, "min_area"}, //Minimun area permited
 	 {BMO_OP_SLOT_BOOL, "mirror_clip_x"}, //set vertices close to the x axis before the operation to 0
 	 {BMO_OP_SLOT_BOOL, "mirror_clip_y"}, //set vertices close to the y axis before the operation to 0
 	 {BMO_OP_SLOT_BOOL, "mirror_clip_z"}, //set vertices close to the z axis before the operation to 0
