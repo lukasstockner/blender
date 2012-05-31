@@ -1726,6 +1726,10 @@ void calculateUVTransformCorrection(TransInfo *t)
 				sub_v3_v3v3(edge_vec_final, l_next->v->co, v->co);
 				sub_v3_v3v3(edge_vec_final2, l_prev->v->co, v->co);
 
+				/* first project final edges to initial edges to get the translation along the edge axis */
+				project_v3_v3v3(edge_vec_final, edge_vec_final, edge_vec_init);
+				project_v3_v3v3(edge_vec_final2, edge_vec_final2, edge_vec_init2);
+
 				edge_len_init = len_v3(edge_vec_init);
 				edge_len_init2 = len_v3(edge_vec_init2);
 				edge_len_final = len_v3(edge_vec_final);
