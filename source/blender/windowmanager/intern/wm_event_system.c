@@ -331,18 +331,7 @@ static int wm_handler_ui_call(bContext *C, wmEventHandler *handler, wmEvent *eve
 	ScrArea *area = CTX_wm_area(C);
 	ARegion *region = CTX_wm_region(C);
 	ARegion *menu = CTX_wm_menu(C);
-	static int do_wheel_ui = TRUE;
-	int is_wheel = ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE);
 	int retval;
-	
-	/* UI is quite aggressive with swallowing events, like scrollwheel */
-	/* I realize this is not extremely nice code... when UI gets keymaps it can be maybe smarter */
-	if (do_wheel_ui == FALSE) {
-		if (is_wheel)
-			return WM_HANDLER_CONTINUE;
-		else if (wm_event_always_pass(event) == 0)
-			do_wheel_ui = TRUE;
-	}
 	
 	/* we set context to where ui handler came from */
 	if (handler->ui_area) CTX_wm_area_set(C, handler->ui_area);
@@ -366,10 +355,6 @@ static int wm_handler_ui_call(bContext *C, wmEventHandler *handler, wmEvent *eve
 	
 	if (retval == WM_UI_HANDLER_BREAK)
 		return WM_HANDLER_BREAK;
-	
-	/* event not handled in UI, if wheel then we temporarily disable it */
-	if (is_wheel)
-		do_wheel_ui = FALSE;
 	
 	return WM_HANDLER_CONTINUE;
 }

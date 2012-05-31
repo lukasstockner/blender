@@ -6045,6 +6045,12 @@ static int ui_handle_menu_event(bContext *C, wmEvent *event, uiPopupBlockHandle 
 			ui_menu_scroll(ar, block, my);
 	}
 	else {
+		// For these types to be called the mouse must be inside the block event.
+		int mousewheels = event->type == WHEELUPMOUSE || event->type == WHEELDOWNMOUSE;
+		int callblockevent = TRUE;
+		if (!inside && mousewheels)
+			callblockevent = FALSE;
+
 		/* for ui_mouse_motion_towards_block */
 		if (event->type == MOUSEMOVE) {
 			ui_mouse_motion_towards_init(menu, mx, my, 0);
@@ -6056,8 +6062,11 @@ static int ui_handle_menu_event(bContext *C, wmEvent *event, uiPopupBlockHandle 
 					    WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, MENU_SCROLL_INTERVAL);
 		}
 		
-		/* first block own event func */
-		if (block->block_event_func && block->block_event_func(C, block, event)) ;
+		/* If we shouldn't call the block event function, it's because we're running mouse wheels outside the block,
+		 * so don't run other stuff either. We don't want it to cycle buttons in this case. */
+		if (!callblockevent);
+		/* run the block event func */
+		else if (block->block_event_func && block->block_event_func(C, block, event)) ;
 		/* events not for active search menu button */
 		else if (but == NULL || but->type != SEARCH_MENU) {
 			switch (event->type) {
@@ -6359,7 +6368,7 @@ static int ui_handle_menu_event(bContext *C, wmEvent *event, uiPopupBlockHandle 
 	/* if we set a menu return value, ensure we continue passing this on to
 	 * lower menus and buttons, so always set continue then, and if we are
 	 * inside the region otherwise, ensure we swallow the event */
-	if (menu->menuretval)
+	if (menu->menuretval != UI_RETURN_UPDATE)
 		return WM_UI_HANDLER_CONTINUE;
 	else if (inside)
 		return WM_UI_HANDLER_BREAK;
@@ -6533,6 +6542,9 @@ static int ui_handler_region_menu(bContext *C, wmEvent *event, void *UNUSED(user
 				else
 					ui_handle_button_event(C, event, but);
 			}
+			/* If the menu keeps the input but wants an update anyway... */
+			else if (retval == WM_UI_HANDLER_BREAK && data->menu->menuretval == UI_RETURN_UPDATE)
+				ui_handle_button_return_submenu(C, event, but);
 		}
 		else {
 			/* handle events for the activated button */
