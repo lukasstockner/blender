@@ -89,13 +89,6 @@ public:
 	EnvMap*				cubemap[MAXTEX];
 
 	unsigned int rgb[4];
-	MT_Point2 uvs[4][MAXTEX];
-
-	void SetConversionRGB(unsigned int *rgb);
-	void GetConversionRGB(unsigned int *rgb);
-
-	void SetConversionUV(const MT_Point2 uv[4][MAXTEX]);
-	void GetConversionUV(MT_Point2 uv[4][MAXTEX]);
 
 	void SetSharedMaterial(bool v);
 	bool IsShared();

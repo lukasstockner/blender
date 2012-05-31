@@ -430,10 +430,7 @@ static void GetRGB(short type,
 	MFace* mface,
 	MCol* mmcol,
 	Material *mat,
-	unsigned int &c0, 
-	unsigned int &c1, 
-	unsigned int &c2, 
-	unsigned int &c3)
+	unsigned int c[4])
 {
 	unsigned int color = 0xFFFFFFFFL;
 	switch(type)
@@ -441,18 +438,18 @@ static void GetRGB(short type,
 		case 0:	// vertex colors
 		{
 			if (mmcol) {
-				c0 = KX_Mcol2uint_new(mmcol[0]);
-				c1 = KX_Mcol2uint_new(mmcol[1]);
-				c2 = KX_Mcol2uint_new(mmcol[2]);
+				c[0] = KX_Mcol2uint_new(mmcol[0]);
+				c[1] = KX_Mcol2uint_new(mmcol[1]);
+				c[2] = KX_Mcol2uint_new(mmcol[2]);
 				if (mface->v4)
-					c3 = KX_Mcol2uint_new(mmcol[3]);
+					c[3] = KX_Mcol2uint_new(mmcol[3]);
 			}else // backup white
 			{
-				c0 = KX_rgbaint2uint_new(color);
-				c1 = KX_rgbaint2uint_new(color);
-				c2 = KX_rgbaint2uint_new(color);	
+				c[0] = KX_rgbaint2uint_new(color);
+				c[1] = KX_rgbaint2uint_new(color);
+				c[2] = KX_rgbaint2uint_new(color);	
 				if (mface->v4)
-					c3 = KX_rgbaint2uint_new( color );
+					c[3] = KX_rgbaint2uint_new( color );
 			}
 		} break;
 		
@@ -470,20 +467,20 @@ static void GetRGB(short type,
 				col_converter.cp[0] = (unsigned char) (mat->alpha*255.0);
 				color = col_converter.integer;
 			}
-			c0 = KX_rgbaint2uint_new(color);
-			c1 = KX_rgbaint2uint_new(color);
-			c2 = KX_rgbaint2uint_new(color);	
+			c[0] = KX_rgbaint2uint_new(color);
+			c[1] = KX_rgbaint2uint_new(color);
+			c[2] = KX_rgbaint2uint_new(color);	
 			if (mface->v4)
-				c3 = KX_rgbaint2uint_new(color);
+				c[3] = KX_rgbaint2uint_new(color);
 		} break;
 		
 		default: // white
 		{
-			c0 = KX_rgbaint2uint_new(color);
-			c1 = KX_rgbaint2uint_new(color);
-			c2 = KX_rgbaint2uint_new(color);	
+			c[0] = KX_rgbaint2uint_new(color);
+			c[1] = KX_rgbaint2uint_new(color);
+			c[2] = KX_rgbaint2uint_new(color);	
 			if (mface->v4)
-				c3 = KX_rgbaint2uint_new(color);
+				c[3] = KX_rgbaint2uint_new(color);
 		} break;
 	}
 }
@@ -493,6 +490,65 @@ typedef struct MTF_localLayer
 	MTFace *face;
 	const char *name;
 }MTF_localLayer;
+
+static void GetUVs(BL_Material *material, MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Point2 uvs[4][MAXTEX])
+{
+	if (tface)
+	{
+			
+		uvs[0][0].setValue(tface->uv[0]);
+		uvs[1][0].setValue(tface->uv[1]);
+		uvs[2][0].setValue(tface->uv[2]);
+
+		if (mface->v4) 
+			uvs[3][0].setValue(tface->uv[3]);
+	}
+	else
+	{
+		uvs[0][0] = uvs[1][0] = uvs[2][0] = uvs[3][0] = MT_Point2(0.f, 0.f);
+	}
+	
+	for (int vind = 0; vind<material->num_enabled; vind++)
+	{
+		BL_Mapping &map = material->mapping[vind];
+
+		//If no UVSet is specified, try grabbing one from the UV/Image editor
+		if (map.uvCoName.IsEmpty() && tface)
+		{			
+			uvs[0][vind].setValue(tface->uv[0]);
+			uvs[1][vind].setValue(tface->uv[1]);
+			uvs[2][vind].setValue(tface->uv[2]);
+
+			if (mface->v4) 
+				uvs[3][vind].setValue(tface->uv[3]);
+
+			continue;
+		}
+
+
+		for (int lay=0; lay<MAX_MTFACE; lay++)
+		{
+			MTF_localLayer& layer = layers[lay];
+			if (layer.face == 0) break;
+
+			if (map.uvCoName.IsEmpty() || strcmp(map.uvCoName.ReadPtr(), layer.name)==0)
+			{
+				MT_Point2 uvSet[4];
+
+				uvs[0][vind].setValue(layer.face->uv[0]);
+				uvs[1][vind].setValue(layer.face->uv[1]);
+				uvs[2][vind].setValue(layer.face->uv[2]);
+
+				if (mface->v4) 
+					uvs[3][vind].setValue(layer.face->uv[3]);
+				else
+					uvs[3][vind].setValue(0.0f, 0.0f);
+
+				break;
+			}
+		}
+	}
+}
 
 // ------------------------------------
 bool ConvertMaterial(
@@ -784,20 +840,11 @@ bool ConvertMaterial(
 	 * light and visible is always on */
 	if ( validface ) {
 		material->tile	= tface->tile;
-			
-		uvs[0][0].setValue(tface->uv[0]);
-		uvs[1][0].setValue(tface->uv[1]);
-		uvs[2][0].setValue(tface->uv[2]);
-
-		if (mface->v4) 
-			uvs[3][0].setValue(tface->uv[3]);
-	} 
+	}
 	else {
 		// nothing at all
 		material->alphablend	= GEMAT_SOLID;
 		material->tile		= 0;
-		
-		uvs[0][0]= uvs[1][0]= uvs[2][0]= uvs[3][0]= MT_Point2(0.0f, 0.0f);
 	}
 
 	if (validmat && validface) {
@@ -814,53 +861,10 @@ bool ConvertMaterial(
 		material->ras_mode |= (mat && (mat->game.alpha_blend & GEMAT_ALPHA_SORT))? ZSORT: 0;
 	}
 
-	// get uv sets
-	if (validmat) 
-	{
-		for (int vind = 0; vind<material->num_enabled; vind++)
-		{
-			BL_Mapping &map = material->mapping[vind];
-
-			//If no UVSet is specified, try grabbing one from the UV/Image editor
-			if (map.uvCoName.IsEmpty() && validface)
-			{			
-				uvs[0][vind].setValue(tface->uv[0]);
-				uvs[1][vind].setValue(tface->uv[1]);
-				uvs[2][vind].setValue(tface->uv[2]);
-
-				if (mface->v4) 
-					uvs[3][vind].setValue(tface->uv[3]);
-
-				continue;
-			}
-
-
-			for (int lay=0; lay<MAX_MTFACE; lay++)
-			{
-				MTF_localLayer& layer = layers[lay];
-				if (layer.face == 0) break;
-
-				if (map.uvCoName.IsEmpty() || strcmp(map.uvCoName.ReadPtr(), layer.name)==0)
-				{
-					MT_Point2 uvSet[4];
-
-					uvs[0][vind].setValue(layer.face->uv[0]);
-					uvs[1][vind].setValue(layer.face->uv[1]);
-					uvs[2][vind].setValue(layer.face->uv[2]);
-
-					if (mface->v4) 
-						uvs[3][vind].setValue(layer.face->uv[3]);
-					else
-						uvs[3][vind].setValue(0.0f, 0.0f);
-
-					break;
-				}
-			}
-		}
-	}
-
+	// XXX The RGB values here were meant to be temporary storage for the conversion process,
+	// but fonts now make use of them too, so we leave them in for now.
 	unsigned int rgb[4];
-	GetRGB(type,mface,mmcol,mat,rgb[0],rgb[1],rgb[2], rgb[3]);
+	GetRGB(type,mface,mmcol,mat,rgb);
 
 	// swap the material color, so MCol on bitmap font works
 	if (validmat && type==1 && (mat->game.flag & GEMAT_TEXT))
@@ -870,9 +874,6 @@ bool ConvertMaterial(
 		rgb[2] = KX_rgbaint2uint_new(rgb[2]);
 		rgb[3] = KX_rgbaint2uint_new(rgb[3]);
 	}
-
-	material->SetConversionRGB(rgb);
-	material->SetConversionUV(uvs);
 
 	if (validmat)
 		material->matname	=(mat->id.name);
@@ -1016,7 +1017,6 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			if (converter->GetMaterials()) {
 				/* do Blender Multitexture and Blender GLSL materials */
 				unsigned int rgb[4];
-				MT_Point2 uv[4];
 
 				/* first is the BL_Material */
 				if (!bl_mat)
@@ -1024,12 +1024,13 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 				ConvertMaterial(bl_mat, ma, tface, tfaceName, mface, mcol,
 					layers, converter->GetGLSLMaterials());
 
-				/* vertex colors and uv's were stored in bl_mat temporarily */
-				bl_mat->GetConversionRGB(rgb);
+				short type = (bl_mat) ? ((ma->mode & MA_VERTEXCOLP || bl_mat->glslmat) ? 0 : 1) : 0;
+				GetRGB(type,mface,mcol,ma,rgb);
+
 				rgb0 = rgb[0]; rgb1 = rgb[1];
 				rgb2 = rgb[2]; rgb3 = rgb[3];
 
-				bl_mat->GetConversionUV(uvs);
+				GetUVs(bl_mat, layers, mface, tface, uvs);
 				
 				/* then the KX_BlenderMaterial */
 				if (kx_blmat == NULL)

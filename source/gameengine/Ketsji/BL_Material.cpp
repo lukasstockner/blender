@@ -65,12 +65,7 @@ void BL_Material::Initialize()
 	num_users = 1;
 	share = false;
 
-	int i,j;
-	for (i = 0; i < 4; i++)
-	{
-		for (j = 0; j < MAXTEX; j++)
-			uvs[i][j] = MT_Point2(0.0,0.0);
-	}
+	int i;
 
 	for (i = 0; i < MAXTEX; i++) // :(
 	{
@@ -97,43 +92,6 @@ void BL_Material::Initialize()
 		cubemap[i] = 0;
 	}
 }
-
-void BL_Material::SetConversionRGB(unsigned int *nrgb)
-{
-	rgb[0]=*nrgb++;
-	rgb[1]=*nrgb++;
-	rgb[2]=*nrgb++;
-	rgb[3]=*nrgb;
-}
-
-void BL_Material::GetConversionRGB(unsigned int *nrgb)
-{
-	*nrgb++ = rgb[0];
-	*nrgb++ = rgb[1];
-	*nrgb++ = rgb[2];
-	*nrgb   = rgb[3];
-}
-
-void BL_Material::SetConversionUV(const MT_Point2 nuv[4][MAXTEX])
-{
-	int i, j;
-	for (i = 0; i < 4; ++i)
-	{
-		for (j = 0; j < MAXTEX; ++j)
-			uvs[i][j] = nuv[i][j];
-	}
-}
-
-void BL_Material::GetConversionUV(MT_Point2 nuv[4][8])
-{
-	int i, j;
-	for (i = 0; i < 4; ++i)
-	{
-		for (j = 0; j < MAXTEX; ++j)
-			nuv[i][j] = this->uvs[i][j];
-	}
-}
-
 
 void BL_Material::SetSharedMaterial(bool v)
 {
