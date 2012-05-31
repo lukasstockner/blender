@@ -1662,7 +1662,7 @@ int     bmesh_disk_facevert_count(BMVert *v);
  * These elements will be artificially pinned for this first attempt at the algorithm */
 void calculateUVTransformCorrection(TransInfo *t)
 {
-	int i, index;
+	int i;
 	BMIter iter;
 	BMLoop *l;
 	BMEditMesh *em = BMEdit_FromObject(t->obedit);
@@ -1683,14 +1683,13 @@ void calculateUVTransformCorrection(TransInfo *t)
 			float uv_tot[2];
 			int uv_counter = 0;
 
-			index =  uvtc->vert_indices[BM_elem_index_get(v)];
 			uv_tot[0] = uv_tot[1] = 0.0;
 
 			//printf("disc loops %d\n",  bmesh_disk_facevert_count(v));
 			BM_ITER_ELEM(l, &iter, v, BM_LOOPS_OF_VERT) {
+				float mul;
 				float edge_len_init, edge_len_init2;
 				float edge_len_final, edge_len_final2;
-				float edge_uv_len_init, edge_uv_len_init2;
 				float edge_vec_init[3], edge_vec_init2[3];
 				float edge_vec_final[3], edge_vec_final2[3];
 				float edge_uv_init[2], edge_uv_init2[2];
@@ -1727,22 +1726,18 @@ void calculateUVTransformCorrection(TransInfo *t)
 					sub_v3_v3v3(edge_vec_final2, td[index_prev].iloc, v->co);
 					sub_v2_v2v2(edge_uv_init2, uvtc->initial_uvs[BM_elem_index_get(l_prev->v)]->init_uv, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
 				}
-				//sub_v3_v3v3(edge_vec_final, l_next->v->co, v->co);
-				//sub_v3_v3v3(edge_vec_final2, l_prev->v->co, v->co);
-
-				//sub_v3_v3v3(edge_vec_final, l_next->v->co, v->co);
-				//sub_v3_v3v3(edge_vec_final2, l_prev->v->co, v->co);
 
 				/* first project final edges to initial edges to get the translation along the edge axis */
-				project_v3_v3v3(edge_vec_final, edge_vec_final, edge_vec_init);
-				project_v3_v3v3(edge_vec_final2, edge_vec_final2, edge_vec_init2);
+				mul = dot_v3v3(edge_vec_final, edge_vec_init) / dot_v3v3(edge_vec_init, edge_vec_init);
+				mul_v3_v3fl(edge_vec_final, edge_vec_init, mul);
+				edge_len_final = signf(mul)*len_v3(edge_vec_final);
+
+				mul = dot_v3v3(edge_vec_final2, edge_vec_init2) / dot_v3v3(edge_vec_init2, edge_vec_init2);
+				mul_v3_v3fl(edge_vec_final2, edge_vec_init2, mul);
+				edge_len_final2 = signf(mul)*len_v3(edge_vec_final2);
 
 				edge_len_init = len_v3(edge_vec_init);
 				edge_len_init2 = len_v3(edge_vec_init2);
-				edge_len_final = len_v3(edge_vec_final);
-				edge_len_final2 = len_v3(edge_vec_final2);
-				edge_uv_len_init = len_v2(edge_uv_init);
-				edge_uv_len_init2 = len_v2(edge_uv_init2);
 
 				//printf("\nedge_uv_init %f %f\n", edge_uv_init[0], edge_uv_init[1]);
 				//printf("edge_uv_init2 %f %f\n", edge_uv_init2[0], edge_uv_init2[1]);
@@ -1764,6 +1759,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 			mul_v2_fl(uv_tot, 1.0/uv_counter);
 			add_v2_v2(uv_tot, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
 
+			/* flush to actual uvs */
 			BM_ITER_ELEM(l, &iter, v, BM_LOOPS_OF_VERT) {
 				MLoopUV *luv;
 
