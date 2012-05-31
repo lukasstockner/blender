@@ -40,14 +40,74 @@ extern "C" {
 
 
 
-#ifdef NDEBUG
-#define gpu_clear_errors() ((void)0)
-#else
+#if GPU_SAFETY
+
+/* Define some useful, but slow, checks for correct API usage. */
+
 BLI_INLINE void gpu_clear_errors()
 {
 	while (glGetError() != GL_NO_ERROR) {
 	}
 }
+
+/* Each block contains variables that can be inspected by a
+   debugger in the event that an assert is triggered. */
+
+#define GPU_CHECK_BUFFER_LOCK(var) \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->bufferLock != NULL, var);
+
+#define GPU_CHECK_BUFFER_UNLOCK(var) \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->bufferUnlock != NULL, var);
+
+#define GPU_CHECK_CAN_SETUP()         \
+    {                                 \
+    GLboolean immediateOK;            \
+    GLboolean noLockOK;               \
+    GLboolean noBeginOK;              \
+    GPU_CHECK_BASE(immediateOK);      \
+    GPU_CHECK_NO_LOCK(noLockOK)       \
+    GPU_CHECK_NO_BEGIN(noBeginOK)     \
+    }
+
+#define GPU_CHECK_CAN_LOCK()            \
+    {                                   \
+    GLboolean immediateOK;              \
+    GLboolean noBeginOK;                \
+    GLboolean bufferLockOK;             \
+    GPU_CHECK_BASE(immediateOK);        \
+    GPU_CHECK_NO_BEGIN(noBeginOK)       \
+    GPU_CHECK_BUFFER_LOCK(bufferLockOK) \
+    }
+
+#define GPU_CHECK_CAN_UNLOCK()              \
+    {                                       \
+    GLboolean immediateOK;                  \
+    GLboolean isLockedOK;                   \
+    GLboolean noBeginOK;                    \
+    GLboolean bufferUnlockOK;               \
+    GPU_CHECK_BASE(immediateOK);            \
+    GPU_CHECK_IS_LOCKED(isLockedOK)         \
+    GPU_CHECK_NO_BEGIN(noBeginOK)           \
+    GPU_CHECK_BUFFER_UNLOCK(bufferUnlockOK) \
+    }
+
+#define GPU_SAFE_STMT(var, test, stmt) \
+    var = (GLboolean)(test);           \
+    BLI_assert((#test, var));          \
+    if (var) {                         \
+        stmt;                          \
+    }
+
+#else
+
+#define gpu_clear_errors() ((void)0)
+
+#define GPU_CHECK_CAN_SETUP()
+#define GPU_CHECK_CAN_LOCK()
+#define GPU_CHECK_CAN_UNLOCK()
+
+#define GPU_SAFE_STMT(var, test, stmt) { (void)(var); stmt; }
+
 #endif
 
 

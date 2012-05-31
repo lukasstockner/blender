@@ -38,26 +38,26 @@
 typedef struct bufferDataGL11 {
 	size_t   size;
 	GLubyte* ptr;
-	GLsizei  stride;
 } bufferDataGL11;
 
 
 
 static void allocate(void)
 {
-	GLsizei stride;
 	size_t newSize;
 	bufferDataGL11* bufferData;
 
-	stride = gpu_calc_stride();
+	GPU_IMMEDIATE->stride = gpu_calc_stride();
 
-	newSize = (size_t)(stride * GPU_IMMEDIATE->maxVertexCount);
+	newSize = (size_t)(GPU_IMMEDIATE->stride * GPU_IMMEDIATE->maxVertexCount);
 
 	if (GPU_IMMEDIATE->bufferData) {
 		bufferData = (bufferDataGL11*)(GPU_IMMEDIATE->bufferData);
 
 		if (newSize > bufferData->size) {
-			MEM_reallocN(bufferData->ptr, newSize);
+			bufferData->ptr = MEM_reallocN(bufferData->ptr, newSize);
+			BLI_assert(bufferData->ptr != NULL);
+
 			bufferData->size = newSize;
 		}
 	}
@@ -67,17 +67,15 @@ static void allocate(void)
 				sizeof(bufferDataGL11),
 				"bufferDataGL11");
 
-		assert(bufferData);
+		BLI_assert(bufferData);
+
+		GPU_IMMEDIATE->bufferData = bufferData;
 
 		bufferData->ptr = MEM_mallocN(newSize, "bufferDataGL11->ptr");
-		assert(bufferData->ptr);
+		BLI_assert(bufferData->ptr != NULL);
 
 		bufferData->size = newSize;
 	}
-
-	bufferData->stride = stride;
-
-	GPU_IMMEDIATE->bufferData = bufferData;
 }
 
 
@@ -88,20 +86,20 @@ static void setup(void)
 	size_t offset;
 	bufferDataGL11* bufferData = (bufferDataGL11*)(GPU_IMMEDIATE->bufferData);
 
-	/* Assume that vertex arrays have been disabled for everything
-	   and only enable what is needed */
-
 	offset = 0;
 
-	/* setup vertex arrays */
 	gpu_clear_errors();
+
+	/* setup vertex arrays
+	   Assume that vertex arrays have been disabled for everything
+	   and only enable what is needed */
 
 	/* vertex */
 
 	glVertexPointer(
 		GPU_IMMEDIATE->format.vertexSize,
 		GL_FLOAT,
-		bufferData->stride,
+		GPU_IMMEDIATE->stride,
 		bufferData->ptr + offset);
 
 	offset += (size_t)(GPU_IMMEDIATE->format.vertexSize) * sizeof(GLfloat);
@@ -113,7 +111,7 @@ static void setup(void)
 	if (GPU_IMMEDIATE->format.normalSize != 0) {
 		glNormalPointer(
 			GL_FLOAT,
-			bufferData->stride,
+			GPU_IMMEDIATE->stride,
 			bufferData->ptr + offset);
 
 		offset += 3 * sizeof(GLfloat);
@@ -125,13 +123,13 @@ static void setup(void)
 
 	if (GPU_IMMEDIATE->format.colorSize != 0) {
 		glColorPointer(
-			GPU_IMMEDIATE->format.colorSize,
+			4, //-V112
 			GL_UNSIGNED_BYTE,
-			bufferData->stride,
+			GPU_IMMEDIATE->stride,
 			bufferData->ptr + offset);
 
 		/* 4 bytes are always reserved for color, for efficient memory alignment */
-		offset += 4 * sizeof(GLubyte);
+		offset += 4; //-V112
 
 		glEnableClientState(GL_COLOR_ARRAY);
 	}
@@ -142,7 +140,7 @@ static void setup(void)
 		glTexCoordPointer(
 			GPU_IMMEDIATE->format.texCoordSize[0],
 			GL_FLOAT,
-			bufferData->stride,
+			GPU_IMMEDIATE->stride,
 			bufferData->ptr + offset);
 
 		offset +=
@@ -157,7 +155,7 @@ static void setup(void)
 			glTexCoordPointer(
 				GPU_IMMEDIATE->format.texCoordSize[i],
 				GL_FLOAT,
-				bufferData->stride,
+				GPU_IMMEDIATE->stride,
 				bufferData->ptr + offset);
 
 			offset +=
@@ -177,7 +175,7 @@ static void setup(void)
 			GPU_IMMEDIATE->format.attribSize_f[i],
 			GL_FLOAT,
 			GPU_IMMEDIATE->format.attribNormalized_f[i],
-			bufferData->stride,
+			GPU_IMMEDIATE->stride,
 			bufferData->ptr + offset);
 
 		offset +=
@@ -196,7 +194,7 @@ static void setup(void)
 				GPU_IMMEDIATE->format.attribSize_ub[i],
 				GL_FLOAT,
 				GPU_IMMEDIATE->format.attribNormalized_ub[i],
-				bufferData->stride,
+				GPU_IMMEDIATE->stride,
 				bufferData->ptr + offset);
 
 			offset +=
@@ -207,7 +205,7 @@ static void setup(void)
 		}
 	}
 
-	assert(glGetError() == GL_NO_ERROR);
+	BLI_assert(glGetError() == GL_NO_ERROR);
 }
 
 
@@ -237,7 +235,7 @@ void gpu_end_buffer_gl11(void)
 
 		glDrawArrays(GPU_IMMEDIATE->mode, 0, GPU_IMMEDIATE->count);
 
-		assert(glGetError() == GL_NO_ERROR);
+		BLI_assert(glGetError() == GL_NO_ERROR);
 	}
 }
 
@@ -293,7 +291,7 @@ void gpu_unlock_buffer_gl11(void)
 		glDisableVertexAttribArray(GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
 	}
 
-	assert(glGetError() == GL_NO_ERROR);
+	BLI_assert(glGetError() == GL_NO_ERROR);
 }
 
 

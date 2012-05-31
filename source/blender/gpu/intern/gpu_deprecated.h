@@ -357,6 +357,71 @@
 #undef glMultiTexcoord4sv
 #define glMultiTexcoord4sv DO_NOT_USE_glMultiTexCoord4sv
 
+#undef glMultiTexCoord1dARB
+#define glMultiTexCoord1dARB DO_NOT_USE_glMultiTexCoord1dARB
+#undef glMultiTexCoord1dvARB
+#define glMultiTexCoord1dvARB DO_NOT_USE_glMultiTexCoord1dvARB
+#undef glMultiTexCoord1fARB
+#define glMultiTexCoord1fARB DO_NOT_USE_glMultiTexCoord1fARB
+#undef glMultiTexCoord1fvARB
+#define glMultiTexCoord1fvARB DO_NOT_USE_glMultiTexCoord1fvARB
+#undef glMultiTexCoord1iARB
+#define glMultiTexCoord1iARB DO_NOT_USE_glMultiTexCoord1iARB
+#undef glMultiTexCoord1ivARB
+#define glMultiTexCoord1ivARB DO_NOT_USE_glMultiTexCoord1ivARB
+#undef glMultiTexCoord1sARB
+#define glMultiTexCoord1sARB DO_NOT_USE_glMultiTexCoord1sARB
+#undef glMultiTexCoord1svARB
+#define glMultiTexCoord1svARB DO_NOT_USE_glMultiTexCoord1svARB
+#undef glMultiTexCoord2dARB
+#define glMultiTexCoord2dARB DO_NOT_USE_glMultiTexCoord2dARB
+#undef glMultiTexCoord2dvARB
+#define glMultiTexCoord2dvARB DO_NOT_USE_glMultiTexCoord2dvARB
+#undef glMultiTexCoord2fARB
+#define glMultiTexCoord2fARB DO_NOT_USE_glMultiTexCoord2fARB
+#undef glMultiTexCoord2fvARB
+#define glMultiTexCoord2fvARB DO_NOT_USE_glMultiTexCoord2fvARB
+#undef glMultiTexCoord2iARB
+#define glMultiTexCoord2iARB DO_NOT_USE_glMultiTexCoord2iARB
+#undef glMultiTexCoord2ivARB
+#define glMultiTexCoord2ivARB DO_NOT_USE_glMultiTexCoord2ivARB
+#undef glMultiTexCoord2sARB
+#define glMultiTexCoord2sARB DO_NOT_USE_glMultiTexCoord2sARB
+#undef glMultiTexCoord2svARB
+#define glMultiTexCoord2svARB DO_NOT_USE_glMultiTexCoord2svARB
+#undef glMultiTexCoord3dARB
+#define glMultiTexCoord3dARB DO_NOT_USE_glMultiTexCoord3dARB
+#undef glMultiTexCoord3dvARB
+#define glMultiTexCoord3dvARB DO_NOT_USE_glMultiTexCoord3dvARB
+#undef glMultiTexCoord3fARB
+#define glMultiTexCoord3fARB DO_NOT_USE_glMultiTexCoord3fARB
+#undef glMultiTexCoord3fvARB
+#define glMultiTexCoord3fvARB DO_NOT_USE_glMultiTexCoord3fvARB
+#undef glMultiTexCoord3iARB
+#define glMultiTexCoord3iARB DO_NOT_USE_glMultiTexCoord3iARB
+#undef glMultiTexCoord3ivARB
+#define glMultiTexCoord3ivARB DO_NOT_USE_glMultiTexCoord3ivARB
+#undef glMultiTexCoord3sARB
+#define glMultiTexCoord3sARB DO_NOT_USE_glMultiTexCoord3sARB
+#undef glMultiTexCoord3svARB
+#define glMultiTexCoord3svARB DO_NOT_USE_glMultiTexCoord3svARB
+#undef glMultiTexCoord4dARB
+#define glMultiTexCoord4dARB DO_NOT_USE_glMultiTexCoord4dARB
+#undef glMultiTexCoord4dvARB
+#define glMultiTexCoord4dvARB DO_NOT_USE_glMultiTexCoord4dvARB
+#undef glMultiTexCoord4fARB
+#define glMultiTexCoord4fARB DO_NOT_USE_glMultiTexCoord4fARB
+#undef glMultiTexCoord4fvARB
+#define glMultiTexCoord4fvARB DO_NOT_USE_glMultiTexCoord4fvARB
+#undef glMultiTexCoord4iARB
+#define glMultiTexCoord4iARB DO_NOT_USE_glMultiTexCoord4iARB
+#undef glMultiTexCoord4ivARB
+#define glMultiTexCoord4ivARB DO_NOT_USE_glMultiTexCoord4ivARB
+#undef glMultiTexCoord4sARB
+#define glMultiTexCoord4sARB DO_NOT_USE_glMultiTexCoord4sARB
+#undef glMultiTexcoord4svARB
+#define glMultiTexcoord4svARB DO_NOT_USE_glMultiTexCoord4svARB
+
 #undef glFogCoordd
 #define glFogCoordd DO_NOT_USE_glFogCoordd
 #undef glFogCoorddv

@@ -32,12 +32,8 @@
 #ifndef __GPU_IMMEDIATE_H__
 #define __GPU_IMMEDIATE_H__
 
-#include "BLI_utildefines.h"
-
 #include <GL/glew.h>
 
-#include <assert.h>
-#include <limits.h>
 #include <stdlib.h>
 
 
@@ -55,29 +51,86 @@
 
 
 #ifndef GPU_SAFETY
-#define GPU_SAFETY 1
+#define GPU_SAFETY DEBUG && WITH_GPU_SAFETY
 #endif
 
 #if GPU_SAFETY
 
-#define GPU_SAFE_RETURN(test) \
-    assert(test);             \
-    if (!(test)) {            \
-        return;               \
-    }                         \
+/* Define some useful, but slow, checks for correct API usage. */
+
+/* Bails out of function even if assert or abort are disabled.
+   Needs a variable in scope to store results of the test.
+   Can only be used in functions that return void. */
+#define GPU_SAFE_RETURN(test, var) \
+    var = (GLboolean)(test);       \
+    BLI_assert((#test, var));      \
+    if (!var) {                    \
+        return;                    \
+    }
+
+#define GPU_CHECK_BASE(var) \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE, var);
+
+#define GPU_CHECK_HAS_BEGUN(var) \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->buffer != NULL, var);
+
+#define GPU_CHECK_NO_BEGIN(var) \
+    GPU_SAFE_RETURN(!(GPU_IMMEDIATE->buffer != NULL), var);
+
+#define GPU_CHECK_IS_LOCKED(var) \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount > 0, var);
+
+#define GPU_CHECK_NO_LOCK(var) \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount == 0, var);
+
+#define GPU_CHECK_BUFFER_BEGIN(var) \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->bufferBegin != NULL, var);
+
+#define GPU_CHECK_BUFFER_END(var) \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->bufferEnd != NULL, var);
+
+/* Each block contains variables that can be inspected by a
+   debugger in the event that an assert is triggered. */
+
+#define GPU_CHECK_CAN_BEGIN()             \
+    {                                     \
+    GLboolean immediateOK;                \
+    GLboolean isLockedOK;                 \
+    GLboolean noBeginOK;                  \
+    GLboolean bufferBeginOK;              \
+    GPU_CHECK_BASE(immediateOK);          \
+    GPU_CHECK_IS_LOCKED(isLockedOK)       \
+    GPU_CHECK_NO_BEGIN(noBeginOK)         \
+    GPU_CHECK_BUFFER_BEGIN(bufferBeginOK) \
+    }
+
+#define GPU_CHECK_CAN_END()             \
+    {                                   \
+    GLboolean immediateOK;              \
+    GLboolean isLockedOK;               \
+    GLboolean hasBegunOK;               \
+    GLboolean bufferBeginOK;            \
+    GPU_CHECK_BASE(immediateOK);        \
+    GPU_CHECK_IS_LOCKED(isLockedOK)     \
+    GPU_CHECK_HAS_BEGUN(hasBegunOK)     \
+    GPU_CHECK_BUFFER_END(bufferBeginOK) \
+    }
+
+#define GPU_CHECK_CAN_CURRENT()  \
+    {                            \
+    GLboolean immediateOK;       \
+    GPU_CHECK_BASE(immediateOK); \
+    }
+
+#else
+
+#define GPU_SAFE_RETURN(test, var) { (void)var; }
+
+#define GPU_CHECK_CAN_BEGIN()
+#define GPU_CHECK_CAN_END()
+#define GPU_CHECK_CAN_CURRENT()
 
 #endif
-
-#define GPU_CHECK_IMMEDIATE()       \
-    GPU_SAFE_RETURN(GPU_IMMEDIATE);
-
-#define GPU_CHECK_NO_BEGIN()                   \
-    GPU_CHECK_IMMEDIATE();                     \
-    GPU_SAFE_RETURN(!(GPU_IMMEDIATE->buffer));
-
-#define GPU_CHECK_NO_LOCK()                         \
-    GPU_CHECK_NO_BEGIN();                           \
-    GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount == 0);
 
 
 
@@ -113,6 +166,7 @@ GLint gpuImmediateLockCount(void);
 
 
 #define GPU_MAX_ELEMENT_SIZE   4
+#define GPU_COLOR_COMPS        4
 #define GPU_MAX_TEXTURE_UNITS 32
 #define GPU_MAX_FLOAT_ATTRIBS 32
 #define GPU_MAX_UBYTE_ATTRIBS 32
@@ -142,20 +196,23 @@ typedef struct GPUimmediate {
 		GLboolean attribNormalized_ub[GPU_MAX_UBYTE_ATTRIBS];
 	} format;
 
-	GLsizei maxVertexCount;
 
+#if GPU_SAFETY
 	GLenum lastTexture;
+#endif
 
 	GLfloat vertex[GPU_MAX_ELEMENT_SIZE];
 	GLfloat normal[3];
 	GLfloat texCoord[GPU_MAX_TEXTURE_UNITS][GPU_MAX_ELEMENT_SIZE];
-	GLubyte color[4]; //-V112
+	GLubyte color[GPU_COLOR_COMPS]; //-V112
 	GLfloat attrib_f[GPU_MAX_FLOAT_ATTRIBS][GPU_MAX_ELEMENT_SIZE];
-	GLubyte attrib_ub[GPU_MAX_UBYTE_ATTRIBS][4]; //-V112
+	GLubyte attrib_ub[GPU_MAX_UBYTE_ATTRIBS][GPU_COLOR_COMPS]; //-V112
 
 	char *restrict buffer;
 	void *restrict bufferData;
-	size_t offset;
+	GLsizei stride;
+	size_t  offset;
+	GLsizei maxVertexCount;
 	GLsizei count;
 
 	int lockCount;
@@ -177,17 +234,14 @@ void gpuDeleteImmediate(GPUimmediate *restrict  immediate);
 
 
 
-#ifndef GPU_LEGACY_INTEROP
-#define GPU_LEGACY_INTEROP 1
-#endif
-
-#if GPU_LEGACY_INTEROP
-void gpu_legacy_get_state(void);
-void gpu_legacy_put_state(void);
-#else
-#define gpu_legacy_get_state() ((void)0)
-#define gpu_legacy_put_state() ((void)0)
-#endif
+/* utility functions to setup vertex format and lock */
+void gpuImmediateFormat_V2(void);
+void gpuImmediateFormat_V3(void);
+void gpuImmediateFormat_N3_V3(void);
+void gpuImmediateFormat_C4_V3(void);
+void gpuImmediateFormat_C4_N3_V3(void);
+void gpuImmediateFormat_T2_C4_N3_V3(void);
+void gpuImmediateUnformat(void);
 
 
 

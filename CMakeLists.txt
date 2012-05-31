@@ -260,7 +260,8 @@ mark_as_advanced(WITH_CXX_GUARDEDALLOC)
 option(WITH_ASSERT_ABORT "Call abort() when raising an assertion through BLI_assert()" OFF)
 mark_as_advanced(WITH_ASSERT_ABORT)
 
-
+option(WITH_GPU_SAFETY "Perform extensive runtime tests to catch certain graphics API usage errors (degrades performance)" OFF)
+mark_as_advanced(WITH_GPU_SAFETY)
 
 option(WITH_ANDROID "Compiles Blender for Android" OFF)
 mark_as_advanced(WITH_ANDROID)
@@ -1781,13 +1782,18 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PLATFORM_CFLAGS} ${CXX_WARNINGS}")
 #-------------------------------------------------------------------------------
 # Global Defines
 
-# better not set includes here but this debugging option is off by default.
+# better not set includes here but these debugging options are off by default.
+
 if(WITH_CXX_GUARDEDALLOC)
 	include_directories(${CMAKE_SOURCE_DIR}/intern/guardedalloc)
 endif()
 
 if(WITH_ASSERT_ABORT)
 	add_definitions(-DWITH_ASSERT_ABORT)
+endif()
+
+if(WITH_GPU_SAFETY)
+	add_definitions(-DWITH_GPU_SAFETY)
 endif()
 
 # message(STATUS "Using CFLAGS: ${CMAKE_C_FLAGS}")

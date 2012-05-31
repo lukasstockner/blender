@@ -32,6 +32,12 @@
  *  \ingroup bli
  */
 
+
+#ifndef NDEBUG /* for BLI_assert */
+#include <stdio.h>
+#endif
+
+
 #ifndef FALSE
 #  define FALSE 0
 #endif
