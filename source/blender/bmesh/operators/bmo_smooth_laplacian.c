@@ -47,6 +47,7 @@ void init_index(BMesh *bm);
 void compute_weight(BMFace *f, int vid, float lambda);
 float compute_weight_return( BMFace *f, int vid, float lambda);
 static float cotan_weight(float *v1, float *v2, float *v3);
+float area_ring(BMVert *v);
 
 void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 {
@@ -83,17 +84,22 @@ void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 			
 			nlMatrixAdd(m_vertex_id, m_vertex_id, 1.0f);
 			
+			we = 0.0f;
 			BM_ITER_ELEM (f, &iter, v, BM_FACES_OF_VERT) {
-				we = compute_weight_return(f,m_vertex_id,  lambda);
+				we = we + compute_weight_return(f,m_vertex_id,  lambda);
 			}
-
+			we = lambda/(we*4.0f*area_ring(v));
 			BM_ITER_ELEM (f, &iter, v, BM_FACES_OF_VERT) {
-				compute_weight(f,m_vertex_id,  lambda/we);
+				compute_weight(f,m_vertex_id,  we);
 			}
+			nlMatrixAdd(m_vertex_id, m_vertex_id, lambda/(4.0f*area_ring(v)));
 		}
 		
 		nlEnd(NL_MATRIX);
 		nlEnd(NL_SYSTEM);
+		if(bm->totvert <32){
+			nlPrintMatrix();
+		}
 		nlSolveAdvanced(NULL, NL_TRUE);
 		BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
 			m_vertex_id = BM_elem_index_get(v);
@@ -142,10 +148,10 @@ void compute_weight( BMFace *f, int vid, float lambda){
 			int vc_id = BM_elem_index_get(vf[vc]);
 			wa = lambda*cotan_weight(vf[vb]->co, vf[vc]->co, vf[va]->co);
 			nlMatrixAdd(vid, vc_id, -wa);
-			nlMatrixAdd(vid, vid, wa);
+			//nlMatrixAdd(vid, vid, wa);
 			wa = lambda*cotan_weight(vf[vc]->co, vf[va]->co, vf[vb]->co);
 			nlMatrixAdd(vid, vb_id, -wa);
-			nlMatrixAdd(vid, vid, wa);
+			//nlMatrixAdd(vid, vid, wa);
 		}
 	}
 }
@@ -193,4 +199,26 @@ static float cotan_weight(float *v1, float *v2, float *v3)
 		return 0.0f;
 	
 	return dot_v3v3(a, b) / clen;
+}
+
+float area_ring(BMVert *v){
+	BMIter fiter;
+	BMIter viter;
+	BMVert *vn;
+	BMFace *f;
+	BMVert *vf[3];
+	int i;
+	float area = 0.0f;
+	BM_ITER_ELEM (f, &fiter, v, BM_FACES_OF_VERT) {
+		i = 0;
+		BM_ITER_ELEM (vn, &viter, f, BM_VERTS_OF_FACE) {
+			vf[i] = vn;
+			i = i + 1;
+		}
+		if(i == 3){
+			area = area + area_tri_v3(vf[0]->co, vf[1]->co, vf[2]->co);
+		}
+	}
+	return area;
+
 }
