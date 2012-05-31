@@ -59,6 +59,7 @@ void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 	NLContext *context;
 	float lambda = BMO_slot_float_get(op, "lambda");
 	float we;
+	int i;
 
 	init_index(bm);
 
@@ -69,8 +70,13 @@ void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 		nlSolverParameteri(NL_NB_ROWS, bm->totvert);
 		nlSolverParameteri(NL_NB_RIGHT_HAND_SIDES, 3);
 		nlBegin(NL_SYSTEM);
+		
+		for(i=0; i<bm->totvert; i++){
+			nlLockVariable(i);
+		}
 		BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
 			m_vertex_id = BM_elem_index_get(v);
+			nlUnlockVariable(m_vertex_id);
 			nlSetVariable(0,m_vertex_id, v->co[0]);
 			nlSetVariable(1,m_vertex_id, v->co[1]);
 			nlSetVariable(2,m_vertex_id, v->co[2]);
@@ -148,10 +154,8 @@ void compute_weight( BMFace *f, int vid, float lambda){
 			int vc_id = BM_elem_index_get(vf[vc]);
 			wa = lambda*cotan_weight(vf[vb]->co, vf[vc]->co, vf[va]->co);
 			nlMatrixAdd(vid, vc_id, -wa);
-			//nlMatrixAdd(vid, vid, wa);
 			wa = lambda*cotan_weight(vf[vc]->co, vf[va]->co, vf[vb]->co);
 			nlMatrixAdd(vid, vb_id, -wa);
-			//nlMatrixAdd(vid, vid, wa);
 		}
 	}
 }

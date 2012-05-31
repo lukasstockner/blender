@@ -1604,6 +1604,23 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 	int i, repeat;
 	float clipdist = 0.0f;
 	float lambda = 0.1f;
+	BMIter fiter;
+	BMIter viter;
+	BMFace *f;
+	BMVert *v;
+	int count;
+	
+	/* Check if all faces are triangles	*/
+	BM_ITER_MESH (f, &fiter, em->bm, BM_FACES_OF_MESH) {
+		count = 0;
+		BM_ITER_ELEM(v, &viter, f, BM_VERTS_OF_FACE){
+			count = count + 1;
+		}
+		if(count>3){
+			BKE_report(op->reports, RPT_WARNING, "Selected faces must be triangles");
+			return OPERATOR_CANCELLED;
+		}
+	}
 
 	/* mirror before smooth */
 	if (((Mesh *)obedit->data)->editflag & ME_EDIT_MIRROR_X) {
