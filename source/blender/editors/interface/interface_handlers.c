@@ -5522,6 +5522,7 @@ static uiBut *uit_but_find_open_event(ARegion *ar, wmEvent *event)
 static int ui_handle_button_over(bContext *C, wmEvent *event, ARegion *ar)
 {
 	uiBut *but;
+	int retval = WM_UI_HANDLER_CONTINUE;
 
 	if (event->type == MOUSEMOVE) {
 		but = ui_but_find_mouse_over(ar, event->x, event->y);
@@ -5535,8 +5536,17 @@ static int ui_handle_button_over(bContext *C, wmEvent *event, ARegion *ar)
 			ui_do_button(C, but->block, but, event);
 		}
 	}
+	else if (event->type == LEFTMOUSE) {
+		but = ui_but_find_mouse_over(ar, event->x, event->y);
+		/* If the user clicked a button, quickly activate it and then run its ui stuff */
+		if (but)
+		{
+			button_activate_init(C, ar, but, BUTTON_ACTIVATE_OVER);
+			retval = ui_do_button(C, but->block, but, event);
+		}
+	}
 
-	return WM_UI_HANDLER_CONTINUE;
+	return retval;
 }
 
 /* exported to interface.c: uiButActiveOnly() */
@@ -6497,7 +6507,7 @@ static int ui_handler_region_menu(bContext *C, wmEvent *event, void *UNUSED(user
 	ARegion *ar;
 	uiBut *but;
 	uiHandleButtonData *data;
-	int retval;
+	int retval = WM_UI_HANDLER_CONTINUE;
 
 	/* here we handle buttons at the window level, modal, for example
 	 * while number sliding, text editing, or when a menu block is open */
@@ -6537,8 +6547,7 @@ static int ui_handler_region_menu(bContext *C, wmEvent *event, void *UNUSED(user
 	/* delayed apply callbacks */
 	ui_apply_but_funcs_after(C);
 
-	/* we block all events, this is modal interaction */
-	return WM_UI_HANDLER_BREAK;
+	return retval;
 }
 
 /* two types of popups, one with operator + enum, other with regular callbacks */
