@@ -1710,21 +1710,28 @@ void calculateUVTransformCorrection(TransInfo *t)
 				if(index_next == -1) {
 					/* get BMvert coords since the vertex hasn't changed */
 					sub_v3_v3v3(edge_vec_init, l_next->v->co, td[i].iloc);
+					sub_v3_v3v3(edge_vec_final, l_next->v->co, v->co);
 					sub_v2_v2v2(edge_uv_init, luv_next->uv, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
 				} else {
 					sub_v3_v3v3(edge_vec_init, td[index_next].iloc, td[i].iloc);
+					sub_v3_v3v3(edge_vec_final, td[index_next].iloc, v->co);
 					sub_v2_v2v2(edge_uv_init, uvtc->initial_uvs[BM_elem_index_get(l_next->v)]->init_uv, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
 				}
 				if(index_prev == -1) {
 					/* get BMvert coords since the vertex hasn't changed */
 					sub_v3_v3v3(edge_vec_init2, l_prev->v->co, td[i].iloc);
+					sub_v3_v3v3(edge_vec_final2, l_prev->v->co, v->co);
 					sub_v2_v2v2(edge_uv_init2, luv_prev->uv, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
 				} else {
 					sub_v3_v3v3(edge_vec_init2, td[index_prev].iloc, td[i].iloc);
+					sub_v3_v3v3(edge_vec_final2, td[index_prev].iloc, v->co);
 					sub_v2_v2v2(edge_uv_init2, uvtc->initial_uvs[BM_elem_index_get(l_prev->v)]->init_uv, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
 				}
-				sub_v3_v3v3(edge_vec_final, l_next->v->co, v->co);
-				sub_v3_v3v3(edge_vec_final2, l_prev->v->co, v->co);
+				//sub_v3_v3v3(edge_vec_final, l_next->v->co, v->co);
+				//sub_v3_v3v3(edge_vec_final2, l_prev->v->co, v->co);
+
+				//sub_v3_v3v3(edge_vec_final, l_next->v->co, v->co);
+				//sub_v3_v3v3(edge_vec_final2, l_prev->v->co, v->co);
 
 				/* first project final edges to initial edges to get the translation along the edge axis */
 				project_v3_v3v3(edge_vec_final, edge_vec_final, edge_vec_init);
