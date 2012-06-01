@@ -1606,20 +1606,15 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 	float lambda = 0.1f;
 	float min_area = 0.00001f;
 	BMIter fiter;
-	BMIter viter;
 	BMFace *f;
-	BMVert *v;
-	int count;
 	
-	/* Check if all faces are triangles	*/
+	/* Check if select faces are triangles	*/
 	BM_ITER_MESH (f, &fiter, em->bm, BM_FACES_OF_MESH) {
-		count = 0;
-		BM_ITER_ELEM(v, &viter, f, BM_VERTS_OF_FACE){
-			count = count + 1;
-		}
-		if(count>3){
-			BKE_report(op->reports, RPT_WARNING, "Selected faces must be triangles");
-			return OPERATOR_CANCELLED;
+		if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+			if(f->len > 3) {
+				BKE_report(op->reports, RPT_WARNING, "Selected faces must be triangles");
+				return OPERATOR_CANCELLED;
+			}	
 		}
 	}
 
@@ -1688,9 +1683,12 @@ void MESH_OT_vertices_smooth_laplacian(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_int(ot->srna, "repeat", 1, 1, 50, "Number of iterations to smooth the mesh", "", 1, 50);
-	RNA_def_float(ot->srna, "lambda", 0.00005f, 0.0000001f, 100.0f, "Lambda factor", "", 0.0000001f, 100.0f);
-	RNA_def_float(ot->srna, "min_area", 0.00001f, 0.0000000000000001f, 100.0f, "Minimum area permitted", "", 0.0000000000000001f, 100.0f);
+	RNA_def_int(ot->srna, "repeat", 1, 1, 50, 
+					"Number of iterations to smooth the mesh", "", 1, 50);
+	RNA_def_float(ot->srna, "lambda", 0.00005f, 0.0000001f, 100.0f, 
+					"Lambda factor", "", 0.0000001f, 100.0f);
+	RNA_def_float(ot->srna, "min_area", 0.00001f, 0.0000000000000001f, 100.0f, 
+					"Minimum area permitted", "", 0.0000000000000001f, 100.0f);
 
 }
 
