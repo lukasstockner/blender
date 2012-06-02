@@ -6368,7 +6368,7 @@ static int ui_handle_menu_event(bContext *C, wmEvent *event, uiPopupBlockHandle 
 	/* if we set a menu return value, ensure we continue passing this on to
 	 * lower menus and buttons, so always set continue then, and if we are
 	 * inside the region otherwise, ensure we swallow the event */
-	if (menu->menuretval != UI_RETURN_UPDATE)
+	if (menu->menuretval && menu->menuretval != UI_RETURN_UPDATE)
 		return WM_UI_HANDLER_CONTINUE;
 	else if (inside)
 		return WM_UI_HANDLER_BREAK;
