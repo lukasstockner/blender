@@ -778,6 +778,10 @@ void FLUID_3D::project()
 	ArrayXd Aj(_totalCells);
 	ArrayXd Ak(_totalCells);
 
+	A0.setZero(_totalCells);
+	Ai.setZero(_totalCells);
+	Aj.setZero(_totalCells);
+	Ak.setZero(_totalCells);
 	b.setZero(_totalCells);
 	p.setZero(_totalCells);
 
@@ -876,10 +880,10 @@ void FLUID_3D::project()
 	}
 
 	unsigned int rowCount = 0;
-	for (z = 1; z < _zRes - 1; z++)
-		for (y = 1; y < _yRes - 1; y++)
-			for (x = 1; x < _xRes - 1; x++)
-		if (!_obstacles[FINDEX(x,y,z)])
+	for (z = 1; z < _zRes; z++)
+		for (y = 1; y < _yRes; y++)
+			for (x = 1; x < _xRes; x++)
+		// if (!_obstacles[FINDEX(x,y,z)])
 		{
 			rowCount = FINDEX(x, y, z);
 
@@ -889,16 +893,17 @@ void FLUID_3D::project()
 				A.insert(rowCount, FINDEX(x, y - 1, z)) = Aj[FINDEX(x, y - 1, z)];
 			if(Ak[FINDEX(x, y, z - 1)] < 0)
 				A.insert(rowCount, FINDEX(x, y, z - 1)) = Ak[FINDEX(x, y, z - 1)];
-
+		
 			if(A0[FINDEX(x, y, z)] > 0)
 				A.insert(rowCount, FINDEX(x, y, z)) = A0[FINDEX(x, y, z)];
-
+/*
 			if(Ai[FINDEX(x, y, z)] < 0)
 				A.insert(rowCount, FINDEX(x + 1, y, z)) = Ai[FINDEX(x, y, z)];
 			if(Aj[FINDEX(x, y, z)] < 0)
 				A.insert(rowCount, FINDEX(x, y + 1, z)) = Aj[FINDEX(x, y, z)];
 			if(Ak[FINDEX(x, y, z)] < 0)
 				A.insert(rowCount, FINDEX(x, y, z + 1)) = Ak[FINDEX(x, y, z)];
+				*/
 		}
 
 	// DG TODO: for schleifen fixen
@@ -911,8 +916,7 @@ void FLUID_3D::project()
 
 	A.makeCompressed();
 
-
-	ConjugateGradient< SparseMatrix<float, RowMajor> > solver;
+	ConjugateGradient< SparseMatrix<float, RowMajor>, Lower > solver;
 	solver.setMaxIterations(100);
 	solver.setTolerance(1e-05);
 

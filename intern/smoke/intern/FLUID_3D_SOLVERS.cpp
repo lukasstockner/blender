@@ -29,7 +29,7 @@
 
 #include "FLUID_3D.h"
 #include <cstring>
-#define SOLVER_ACCURACY 1e-07
+#define SOLVER_ACCURACY 1e-06
 
 #include <iostream>
 #include <fstream>
@@ -160,7 +160,7 @@ void FLUID_3D::solveHeat(float* field, float* b, unsigned char* skip)
 
 								i++;
 			}
-			cout << i << " iterations converged to " << maxR << endl;
+			// cout << i << " iterations converged to " << maxR << endl;
 
 			if (_residual) delete[] _residual;
 			if (_direction) delete[] _direction;
@@ -238,7 +238,7 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, Vec
 			{
 				ofstream myfile;
 				myfile.open ("test.txt");  
-/*
+
 				printf("x: %d, y: %d, z: %d\n", _xRes, _yRes, _zRes);
 
 				for (int k=0; k<A.outerSize(); ++k)
@@ -247,13 +247,13 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, Vec
 						myfile << "(" << it.row() << ", " << it.col() << ") = " << it.value();
 						myfile << endl;
 					}
-				
-*/
+
+
 
 				VectorXf I(_totalCells);
 				VectorXf tmp(_totalCells);
 				I.fill(1.0f);
-				tmp = A * I; /* Symmetric */
+				tmp = A.selfadjointView<Upper>() * I; /* Symmetric */
 				
 
 				int count = 0;
@@ -280,14 +280,14 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, Vec
 									1.0f * (skip[index - _slabSize] ? 0.0 : -1.0f)+ 
 									1.0f * (skip[index + _slabSize] ? 0.0 : -1.0f);
 
-								if(indexValue != 0)
-								myfile << tmp[FINDEX(x, y, z)] << " " << indexValue << endl;
+								//if(indexValue != 0)
+								//myfile << tmp[FINDEX(x, y, z)] << " " << indexValue << endl;
 								//printf("index: %d, FINDEX: %d, value: %f\n", index, FINDEX(x, y, z), tmp[gridToIndex(FINDEX(x, y, z))]);
 							}
 						}
 
-				myfile << "---------------------------------------------" << endl;
-				myfile << endl;
+				//myfile << "---------------------------------------------" << endl;
+				//myfile << endl;
 				myfile.close();		
 			}
 #endif
@@ -335,47 +335,47 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, Vec
 						}
 
 
-						if (fabs(alpha) > 0.0f)
-							alpha = deltaNew / alpha;
+				if (fabs(alpha) > 0.0f)
+					alpha = deltaNew / alpha;
 
-						float deltaOld = deltaNew;
-						deltaNew = 0.0f;
+				float deltaOld = deltaNew;
+				deltaNew = 0.0f;
 
-						maxR = 0.0;
+				maxR = 0.0;
 
-						float tmp;
+				float tmp;
 
-						// x = x + alpha * d
-						index = _slabSize + _xRes + 1;
-						for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
-							for (y = 1; y < _yRes - 1; y++, index += 2)
-								for (x = 1; x < _xRes - 1; x++, index++)
-								{
-									field[index] += alpha * _direction[index];
+				// x = x + alpha * d
+				index = _slabSize + _xRes + 1;
+				for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+					for (y = 1; y < _yRes - 1; y++, index += 2)
+						for (x = 1; x < _xRes - 1; x++, index++)
+						{
+							field[index] += alpha * _direction[index];
 
-									_residual[index] -= alpha * _q[index];
+							_residual[index] -= alpha * _q[index];
 
-									_h[index] = _Precond[index] * _residual[index];
+							_h[index] = _Precond[index] * _residual[index];
 
-									tmp = _residual[index] * _h[index];
-									deltaNew += tmp;
-									maxR = (tmp > maxR) ? tmp : maxR;
+							tmp = _residual[index] * _h[index];
+							deltaNew += tmp;
+							maxR = (tmp > maxR) ? tmp : maxR;
 
-								}
+						}
 
 
-								// beta = deltaNew / deltaOld
-								float beta = deltaNew / deltaOld;
+				// beta = deltaNew / deltaOld
+				float beta = deltaNew / deltaOld;
 
-								// d = h + beta * d
-								index = _slabSize + _xRes + 1;
-								for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
-									for (y = 1; y < _yRes - 1; y++, index += 2)
-										for (x = 1; x < _xRes - 1; x++, index++)
-											_direction[index] = _h[index] + beta * _direction[index];
+				// d = h + beta * d
+				index = _slabSize + _xRes + 1;
+				for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+					for (y = 1; y < _yRes - 1; y++, index += 2)
+						for (x = 1; x < _xRes - 1; x++, index++)
+							_direction[index] = _h[index] + beta * _direction[index];
 
-								// i = i + 1
-								i++;
+				// i = i + 1
+				i++;
 			}
 			cout << i << " iterations converged to " << sqrt(maxR) << endl;
 

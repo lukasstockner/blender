@@ -1054,10 +1054,10 @@ static void calc_weightpaint_vert_color(
 	}
 
 	if (make_black) { /* TODO, theme color */
-		r_col[3] = 0;
+		r_col[3] = 255;
 		r_col[2] = 0;
 		r_col[1] = 0;
-		r_col[0] = 255;
+		r_col[0] = 0;
 	}
 	else {
 		CLAMP(input, 0.0f, 1.0f);
@@ -1651,7 +1651,9 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 					orcodm = create_orco_dm(ob, me, NULL, CD_ORCO);
 
 				nextmask &= ~CD_MASK_ORCO;
-				DM_set_only_copy(orcodm, nextmask | CD_MASK_ORIGINDEX);
+				DM_set_only_copy(orcodm, nextmask | CD_MASK_ORIGINDEX |
+								 (mti->requiredDataMask ?
+								  mti->requiredDataMask(ob, md) : 0));
 				ndm = mti->applyModifier(md, ob, orcodm, app_flags & ~MOD_APPLY_USECACHE);
 
 				if (ndm) {

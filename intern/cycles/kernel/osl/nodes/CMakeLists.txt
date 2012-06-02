@@ -5,7 +5,6 @@ set(SRC_OSL
 	node_add_closure.osl
 	node_attribute.osl
 	node_background.osl
-	node_blend_texture.osl
 	node_bump.osl
 	node_camera.osl
 	node_clouds_texture.osl
@@ -20,6 +19,7 @@ set(SRC_OSL
 	node_environment_texture.osl
 	node_fresnel.osl
 	node_gamma.osl
+	node_gradient_texture.osl
 	node_brightness.osl
 	node_geometry.osl
 	node_glass_bsdf.osl
@@ -30,7 +30,6 @@ set(SRC_OSL
 	node_light_path.osl
 	node_magic_texture.osl
 	node_mapping.osl
-	node_marble_texture.osl
 	node_math.osl
 	node_mix.osl
 	node_mix_closure.osl
@@ -43,7 +42,6 @@ set(SRC_OSL
 	node_output_volume.osl
 	node_sepcomb_rgb.osl
 	node_sky_texture.osl
-	node_stucci_texture.osl
 	node_texture_coordinate.osl
 	node_translucent_bsdf.osl
 	node_transparent_bsdf.osl
@@ -52,7 +50,7 @@ set(SRC_OSL
 	node_velvet_bsdf.osl
 	node_voronoi_texture.osl
 	node_ward_bsdf.osl
-	node_wood_texture.osl
+	node_wave_texture.osl
 )
 
 set(SRC_OSL_HEADERS

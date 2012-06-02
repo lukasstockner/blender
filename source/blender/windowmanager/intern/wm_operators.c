@@ -918,6 +918,13 @@ void WM_operator_properties_gesture_border(wmOperatorType *ot, int extend)
 		RNA_def_boolean(ot->srna, "extend", 1, "Extend", "Extend selection instead of deselecting everything first");
 }
 
+void WM_operator_properties_mouse_select(wmOperatorType *ot)
+{
+	RNA_def_boolean(ot->srna, "extend", 0, "Extend", "Extend selection instead of deselecting everything first");
+	RNA_def_boolean(ot->srna, "deselect", 0, "Deselect", "Remove from selection");
+	RNA_def_boolean(ot->srna, "toggle", 0, "Toggle Selection", "Toggle the selection");
+}
+
 void WM_operator_properties_gesture_straightline(wmOperatorType *ot, int cursor)
 {
 	RNA_def_int(ot->srna, "xstart", 0, INT_MIN, INT_MAX, "X Start", "", INT_MIN, INT_MAX);
@@ -1015,8 +1022,8 @@ static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
 	WM_operator_call(C, data->op);
 
 	/* let execute handle freeing it */
-	//data->free_op= FALSE;
-	//data->op= NULL;
+	//data->free_op = FALSE;
+	//data->op = NULL;
 
 	/* in this case, wm_operator_ui_popup_cancel wont run */
 	MEM_freeN(data);
@@ -1314,7 +1321,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 		menu.type = mt;
 		mt->draw(C, &menu);
 
-//		wmWindowManager *wm= CTX_wm_manager(C);
+//		wmWindowManager *wm = CTX_wm_manager(C);
 //		uiItemM(layout, C, "USERPREF_MT_keyconfigs", U.keyconfigstr, ICON_NONE);
 	}
 	

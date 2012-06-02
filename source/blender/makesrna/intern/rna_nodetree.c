@@ -1069,15 +1069,7 @@ static void alloc_node_type_items(EnumPropertyItem *items, int category)
 			item++;
 		}
 	}
-	
-	item->value = NODE_DYNAMIC;
-	item->identifier = "SCRIPT";
-	item->icon = 0;
-	item->name = "Script";
-	item->description = "";
-	
-	item++;
-	
+
 	item->value = NODE_GROUP;
 	item->identifier = "GROUP";
 	item->icon = 0;
@@ -2002,8 +1994,9 @@ static void def_cmp_dilate_erode(StructRNA *srna)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem type_items[] = {
-		{CMP_NODE_DILATEERODE_STEP,     "STEP",       0, "Step",     ""},
-		{CMP_NODE_DILATEERODE_DISTANCE, "DISTANCE",   0, "Distance", ""},
+		{CMP_NODE_DILATEERODE_STEP,            "STEP",      0, "Step",      ""},
+	    {CMP_NODE_DILATEERODE_DISTANCE_THRESH, "THRESHOLD", 0, "Threshold", ""},
+	    {CMP_NODE_DILATEERODE_DISTANCE,        "DISTANCE",  0, "Distance",  ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 	
@@ -4007,7 +4000,8 @@ static void rna_def_composite_nodetree(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "chunk_size", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "chunksize");
-	RNA_def_property_ui_text(prop, "Chunksize", "Max size of a tile. Smaller values gives better distribution of multiple threads, but more overhead");
+	RNA_def_property_ui_text(prop, "Chunksize", "Max size of a tile (smaller values gives better distribution "
+	                                            "of multiple threads, but more overhead)");
 	RNA_def_property_range(prop, 32, 1024);
 
 	prop = RNA_def_property(srna, "use_opencl", PROP_BOOLEAN, PROP_NONE);

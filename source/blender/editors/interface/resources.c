@@ -363,6 +363,8 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = ts->syntaxv; break;
 				case TH_NODE_GROUP:
 					cp = ts->syntaxc; break;
+				case TH_NODE_FRAME:
+					cp = ts->movie; break;
 				case TH_NODE_CURVING:
 					cp = &ts->noodle_curving; break;
 
@@ -378,8 +380,6 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = ts->audio; break;
 				case TH_SEQ_EFFECT:
 					cp = ts->effect; break;
-				case TH_SEQ_PLUGIN:
-					cp = ts->plugin; break;
 				case TH_SEQ_TRANSITION:
 					cp = ts->transition; break;
 				case TH_SEQ_META:
@@ -775,7 +775,6 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tseq.scene,  78, 152, 62, 255);
 	rgba_char_args_set(btheme->tseq.audio,  46, 143, 143, 255);
 	rgba_char_args_set(btheme->tseq.effect,     169, 84, 124, 255);
-	rgba_char_args_set(btheme->tseq.plugin,     126, 126, 80, 255);
 	rgba_char_args_set(btheme->tseq.transition, 162, 95, 111, 255);
 	rgba_char_args_set(btheme->tseq.meta,   109, 145, 131, 255);
 	rgba_char_args_set(btheme->tseq.preview_back,   0, 0, 0, 255);
@@ -1248,7 +1247,6 @@ void init_userdef_do_versions(void)
 	vDM_ColorBand_store((U.flag & USER_CUSTOM_RANGE) ? (&U.coba_weight) : NULL);
 
 	if (bmain->versionfile <= 191) {
-		BLI_strncpy(U.plugtexdir, U.textudir, sizeof(U.plugtexdir));
 		strcpy(U.sounddir, "/");
 	}
 	
@@ -1265,7 +1263,7 @@ void init_userdef_do_versions(void)
 		if (U.undosteps == 0) U.undosteps = 32;
 		
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
-			/* check for alpha==0 is safe, then color was never set */
+			/* check for (alpha == 0) is safe, then color was never set */
 			if (btheme->tv3d.edge_seam[3] == 0) {
 				rgba_char_args_set(btheme->tv3d.edge_seam, 230, 150, 50, 255);
 			}
@@ -1290,7 +1288,7 @@ void init_userdef_do_versions(void)
 		bTheme *btheme;
 		/* new space type */
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
-			/* check for alpha==0 is safe, then color was never set */
+			/* check for (alpha == 0) is safe, then color was never set */
 			if (btheme->ttime.back[3] == 0) {
 				// copied from ui_theme_init_default
 				btheme->ttime = btheme->tv3d;
@@ -1369,7 +1367,6 @@ void init_userdef_do_versions(void)
 				rgba_char_args_set(btheme->tseq.scene,  78, 152, 62, 255);
 				rgba_char_args_set(btheme->tseq.audio,  46, 143, 143, 255);
 				rgba_char_args_set(btheme->tseq.effect,     169, 84, 124, 255);
-				rgba_char_args_set(btheme->tseq.plugin,     126, 126, 80, 255);
 				rgba_char_args_set(btheme->tseq.transition, 162, 95, 111, 255);
 				rgba_char_args_set(btheme->tseq.meta,   109, 145, 131, 255);
 			}
