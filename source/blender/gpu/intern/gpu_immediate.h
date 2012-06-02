@@ -83,12 +83,6 @@
 #define GPU_CHECK_NO_LOCK(var) \
     GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount == 0, var);
 
-#define GPU_CHECK_BUFFER_BEGIN(var) \
-    GPU_SAFE_RETURN(GPU_IMMEDIATE->bufferBegin != NULL, var);
-
-#define GPU_CHECK_BUFFER_END(var) \
-    GPU_SAFE_RETURN(GPU_IMMEDIATE->bufferEnd != NULL, var);
-
 /* Each block contains variables that can be inspected by a
    debugger in the event that an assert is triggered. */
 
@@ -97,11 +91,9 @@
     GLboolean immediateOK;                \
     GLboolean isLockedOK;                 \
     GLboolean noBeginOK;                  \
-    GLboolean bufferBeginOK;              \
     GPU_CHECK_BASE(immediateOK);          \
     GPU_CHECK_IS_LOCKED(isLockedOK)       \
     GPU_CHECK_NO_BEGIN(noBeginOK)         \
-    GPU_CHECK_BUFFER_BEGIN(bufferBeginOK) \
     }
 
 #define GPU_CHECK_CAN_END()             \
@@ -109,11 +101,9 @@
     GLboolean immediateOK;              \
     GLboolean isLockedOK;               \
     GLboolean hasBegunOK;               \
-    GLboolean bufferBeginOK;            \
     GPU_CHECK_BASE(immediateOK);        \
     GPU_CHECK_IS_LOCKED(isLockedOK)     \
     GPU_CHECK_HAS_BEGUN(hasBegunOK)     \
-    GPU_CHECK_BUFFER_END(bufferBeginOK) \
     }
 
 #define GPU_CHECK_CAN_CURRENT()  \

@@ -73,10 +73,8 @@ BLI_INLINE void gpu_clear_errors()
     {                                   \
     GLboolean immediateOK;              \
     GLboolean noBeginOK;                \
-    GLboolean bufferLockOK;             \
     GPU_CHECK_BASE(immediateOK);        \
     GPU_CHECK_NO_BEGIN(noBeginOK)       \
-    GPU_CHECK_BUFFER_LOCK(bufferLockOK) \
     }
 
 #define GPU_CHECK_CAN_UNLOCK()              \
@@ -84,11 +82,9 @@ BLI_INLINE void gpu_clear_errors()
     GLboolean immediateOK;                  \
     GLboolean isLockedOK;                   \
     GLboolean noBeginOK;                    \
-    GLboolean bufferUnlockOK;               \
     GPU_CHECK_BASE(immediateOK);            \
     GPU_CHECK_IS_LOCKED(isLockedOK)         \
     GPU_CHECK_NO_BEGIN(noBeginOK)           \
-    GPU_CHECK_BUFFER_UNLOCK(bufferUnlockOK) \
     }
 
 #define GPU_SAFE_STMT(var, test, stmt) \
