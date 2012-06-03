@@ -80,9 +80,8 @@ void ExecutionSystemHelper::addNode(vector<Node*>& nodes, Node *node)
 
 Node *ExecutionSystemHelper::addNode(vector<Node*>& nodes, bNode *bNode)
 {
-	Converter converter;
 	Node * node;
-	node = converter.convert(bNode);
+	node = Converter::convert(bNode);
 	if (node != NULL) {
 		addNode(nodes, node);
 		return node;
