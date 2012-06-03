@@ -161,8 +161,8 @@ void SceneExporter::writeNodes(Object *ob, Scene *sce)
 	if (ob->constraints.first != NULL ){
 		bConstraint *con = (bConstraint*) ob->constraints.first;
 		while(con){
-			node.addExtraTechniqueParameter("blender","conType",con->type);
-			node.addExtraTechniqueParameter("blender","conName",con->name);
+			node.addExtraTechniqueParameter("blender","constraintType",con->type);
+			node.addExtraTechniqueParameter("blender","constraintName",con->name);
 			con = con->next;
 		}
 	}
