@@ -835,6 +835,9 @@ Object *BKE_object_add_only_object(int type, const char *name)
 	/* ob->pad3 == Contact Processing Threshold */
 	ob->m_contactProcessingThreshold = 1.0f;
 	ob->obstacleRad = 1.0f;
+	ob->step_height = 0.15f;
+	ob->jump_speed = 10.0f;
+	ob->fall_speed = 55.0f;
 	
 	/* NT fluid sim defaults */
 	ob->fluidsimSettings = NULL;
@@ -2258,8 +2261,15 @@ void BKE_object_minmax(Object *ob, float min_r[3], float max_r[3])
 		{
 			Curve *cu = ob->data;
 
-			if (cu->bb == NULL) BKE_curve_texspace_calc(cu);
-			bb = *(cu->bb);
+			/* Use the object bounding box so that modifier output
+			   gets taken into account */
+			if (ob->bb)
+				bb = *(ob->bb);
+			else {
+				if (cu->bb == NULL)
+					BKE_curve_texspace_calc(cu);
+				bb = *(cu->bb);
+			}
 
 			for (a = 0; a < 8; a++) {
 				mul_m4_v3(ob->obmat, bb.vec[a]);

@@ -356,6 +356,11 @@ static CVKeyIndex *getCVKeyIndex(EditNurb *editnurb, void *cv)
 	return BLI_ghash_lookup(editnurb->keyindex, cv);
 }
 
+static CVKeyIndex *popCVKeyIndex(EditNurb *editnurb, void *cv)
+{
+	return BLI_ghash_pop(editnurb->keyindex, cv, NULL);
+}
+
 static BezTriple *getKeyIndexOrig_bezt(EditNurb *editnurb, BezTriple *bezt)
 {
 	CVKeyIndex *index = getCVKeyIndex(editnurb, bezt);
@@ -459,9 +464,7 @@ static void keyIndex_updateCV(EditNurb *editnurb, char *cv,
 	}
 
 	for (i = 0; i < count; i++) {
-		index = getCVKeyIndex(editnurb, cv);
-
-		BLI_ghash_remove(editnurb->keyindex, cv, NULL, NULL);
+		index = popCVKeyIndex(editnurb, cv);
 
 		if (index) {
 			BLI_ghash_insert(editnurb->keyindex, newcv, index);
@@ -496,11 +499,8 @@ static void keyIndex_updateNurb(EditNurb *editnurb, Nurb *nu, Nurb *newnu)
 
 static void keyIndex_swap(EditNurb *editnurb, void *a, void *b)
 {
-	CVKeyIndex *index1 = getCVKeyIndex(editnurb, a);
-	CVKeyIndex *index2 = getCVKeyIndex(editnurb, b);
-
-	BLI_ghash_remove(editnurb->keyindex, a, NULL, NULL);
-	BLI_ghash_remove(editnurb->keyindex, b, NULL, NULL);
+	CVKeyIndex *index1 = popCVKeyIndex(editnurb, a);
+	CVKeyIndex *index2 = popCVKeyIndex(editnurb, b);
 
 	if (index2) BLI_ghash_insert(editnurb->keyindex, a, index2);
 	if (index1) BLI_ghash_insert(editnurb->keyindex, b, index1);
@@ -1448,7 +1448,7 @@ static short isNurbselUV(Nurb *nu, int *u, int *v, int flag)
 			if (*u == -1) *u = b;
 			else return 0;
 		}
-		else if (sel > 1) return 0;  /* because sel==1 is still ok */
+		else if (sel > 1) return 0;  /* because sel == 1 is still ok */
 	}
 
 	for (a = 0; a < nu->pntsu; a++) {
@@ -2965,7 +2965,7 @@ static void subdividenurb(Object *obedit, int number_cuts)
 					BKE_nurb_knot_calc_u(nu);
 				}
 			}
-		} /* End of 'else if (nu->pntsv==1)' */
+		} /* End of 'else if (nu->pntsv == 1)' */
 		else if (nu->type == CU_NURBS) {
 			/* This is a very strange test ... */
 			/**
@@ -3085,7 +3085,7 @@ static void subdividenurb(Object *obedit, int number_cuts)
 				nu->pntsv = (number_cuts + 1) * nu->pntsv - number_cuts;
 				BKE_nurb_knot_calc_u(nu);
 				BKE_nurb_knot_calc_v(nu);
-			} /* End of 'if (sel== nu->pntsu*nu->pntsv)' (subdivide entire NURB) */
+			} /* End of 'if (sel == nu->pntsu*nu->pntsv)' (subdivide entire NURB) */
 			else {
 				/* subdivide in v direction? */
 				sel = 0;
@@ -3258,7 +3258,7 @@ static void findnearestNurbvert__doClosest(void *userData, Nurb *nu, BPoint *bp,
 
 static short findnearestNurbvert(ViewContext *vc, short sel, const int mval[2], Nurb **nurb, BezTriple **bezt, BPoint **bp)
 {
-	/* sel==1: selected gets a disadvantage */
+	/* (sel == 1): selected gets a disadvantage */
 	/* in nurb and bezt or bp the nearest is written */
 	/* return 0 1 2: handlepunt */
 	struct { BPoint *bp; BezTriple *bezt; Nurb *nurb; int dist, hpoint, select, mval[2]; } data = {NULL};
@@ -3765,8 +3765,8 @@ static void merge_2_nurb(wmOperator *op, ListBase *editnurb, Nurb *nu1, Nurb *nu
 	
 	if (is_u_selected(nu1, nu1->pntsu - 1) ) ;
 	else {
-		/* For 2D curves blender uses orderv=0. It doesn't make any sense mathematically. */
-		/* but after rotating orderu=0 will be confusing. */
+		/* For 2D curves blender uses (orderv = 0). It doesn't make any sense mathematically. */
+		/* but after rotating (orderu = 0) will be confusing. */
 		if (nu1->orderv == 0) nu1->orderv = 1;
 
 		rotate_direction_nurb(nu1);
@@ -4126,7 +4126,7 @@ void CURVE_OT_make_segment(wmOperatorType *ot)
 
 /***************** pick select from 3d view **********************/
 
-int mouse_nurb(bContext *C, const int mval[2], int extend)
+int mouse_nurb(bContext *C, const int mval[2], int extend, int deselect, int toggle)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	Curve *cu = obedit->data;
@@ -4146,12 +4146,8 @@ int mouse_nurb(bContext *C, const int mval[2], int extend)
 	hand = findnearestNurbvert(&vc, 1, location, &nu, &bezt, &bp);
 
 	if (bezt || bp) {
-		if (extend == 0) {
-		
-			setflagsNurb(editnurb, 0);
-
+		if (extend) {
 			if (bezt) {
-
 				if (hand == 1) {
 					select_beztriple(bezt, SELECT, 1, HIDDEN);
 					cu->lastsel = bezt;
@@ -4167,9 +4163,26 @@ int mouse_nurb(bContext *C, const int mval[2], int extend)
 				cu->lastsel = bp;
 				select_bpoint(bp, SELECT, 1, HIDDEN);
 			}
-
 		}
-		else {
+		else if (deselect) {
+			if (bezt) {
+				if (hand == 1) {
+					select_beztriple(bezt, DESELECT, 1, HIDDEN);
+					if (bezt == cu->lastsel) cu->lastsel = NULL;
+				}
+				else if (hand == 0) {
+					bezt->f1 &= ~SELECT;
+				}
+				else {
+					bezt->f3 &= ~SELECT;
+				}
+			}
+			else {
+				select_bpoint(bp, DESELECT, 1, HIDDEN);
+				if (cu->lastsel == bp) cu->lastsel = NULL;
+			}
+		}
+		else if (toggle) {
 			if (bezt) {
 				if (hand == 1) {
 					if (bezt->f2 & SELECT) {
@@ -4198,7 +4211,27 @@ int mouse_nurb(bContext *C, const int mval[2], int extend)
 					cu->lastsel = bp;
 				}
 			}
+		}
+		else {
+			setflagsNurb(editnurb, 0);
 
+			if (bezt) {
+
+				if (hand == 1) {
+					select_beztriple(bezt, SELECT, 1, HIDDEN);
+					cu->lastsel = bezt;
+				}
+				else {
+					if (hand == 0) bezt->f1 |= SELECT;
+					else bezt->f3 |= SELECT;
+
+					cu->lastsel = NULL;
+				}
+			}
+			else {
+				cu->lastsel = bp;
+				select_bpoint(bp, SELECT, 1, HIDDEN);
+			}
 		}
 
 		if (nu != get_actNurb(obedit))

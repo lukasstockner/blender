@@ -93,6 +93,7 @@
 #include "ED_view3d.h"
 #include "ED_curve.h" /* for curve_editnurbs */
 #include "ED_clip.h"
+#include "ED_screen.h"
 
 //#include "BDR_unwrapper.h"
 
@@ -1038,9 +1039,10 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 
 	if (t->spacetype == SPACE_VIEW3D) {
 		View3D *v3d = sa->spacedata.first;
+		bScreen *animscreen = ED_screen_animation_playing(CTX_wm_manager(C));
 		
 		t->view = v3d;
-		t->animtimer= CTX_wm_screen(C)->animtimer;
+		t->animtimer= (animscreen)? animscreen->animtimer: NULL;
 		
 		/* turn manipulator off during transform */
 		// FIXME: but don't do this when USING the manipulator...
@@ -1107,6 +1109,13 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event)
 		SpaceIpo *sipo= sa->spacedata.first;
 		t->view = &ar->v2d;
 		t->around = sipo->around;
+	}
+	else if (t->spacetype==SPACE_CLIP) {
+		SpaceClip *sclip = sa->spacedata.first;
+		t->view = &ar->v2d;
+
+		if (ED_space_clip_show_trackedit(sclip))
+			t->options |= CTX_MOVIECLIP;
 	}
 	else {
 		if (ar) {
@@ -1227,11 +1236,12 @@ void deleteUVTransCorrect(struct UVTransCorrect *uvtc)
 		MEM_freeN(uvtc->unwrapped_faces);
 		uvtc->unwrapped_faces = NULL;
 	}
-	*/
+
 	if(uvtc->affected_verts) {
 		MEM_freeN(uvtc->affected_verts);
 		uvtc->affected_verts = NULL;
 	}
+	*/
 	if(uvtc->vert_indices) {
 		MEM_freeN(uvtc->vert_indices);
 		uvtc->vert_indices = NULL;
@@ -1382,13 +1392,14 @@ void restoreTransObjects(TransInfo *t)
 		restoreElement(td);
 	}
 	
+	td = t->data;
 	if(t->flag & T_IMAGE_PRESERVE_CALC) {
 		int i;
 		for(i = 0; i < t->total; i++) {
 			BMVert *eve;
 			UVTransCorrInfoUV *uvtcuv;
 
-			eve = t->uvtc->affected_verts[i];
+			eve = td[i].eve;
 
 			uvtcuv = t->uvtc->initial_uvs[BM_elem_index_get(eve)];
 
@@ -1668,6 +1679,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 	BMEditMesh *em = BMEdit_FromObject(t->obedit);
 	TransData *td = t->data;
 	UVTransCorrect *uvtc = t->uvtc;
+	UVTransCorrInfoUV *uvtcuv;
 //	float modelviewprojmat[4][4];
 	char not_prop_edit = !(t->flag & T_PROP_EDIT);
 
@@ -1677,7 +1689,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 
 	/* iterate through loops of vert and calculate image space diff of uvs */
 	for (i = 0 ; i < t->total; i++) {
-		BMVert *v = uvtc->affected_verts[i];
+		BMVert *v = td[i].eve;
 
 		if(not_prop_edit || td[i].factor > 0.0) {
 			float uv_tot[2];
@@ -1696,15 +1708,29 @@ void calculateUVTransformCorrection(TransInfo *t)
 				float uvdiff[2], uvdiff2[2];
 				int index_next, index_prev;
 				BMLoop *l_next, *l_prev;
-				MLoopUV *luv_next, *luv_prev;
+				MLoopUV *luv_next, *luv_prev, *luv;
 
 				l_next =l->next;
 				l_prev = l->prev;
+
+				luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
+				if(!not_prop_edit)
+					BLI_assert(BM_elem_index_get(v) == td[i].oldindex);
+				//print_v2("last =", luv->uv);
+				//print_v2("last =", uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
 				luv_next = CustomData_bmesh_get(&em->bm->ldata, l_next->head.data, CD_MLOOPUV);
 				luv_prev = CustomData_bmesh_get(&em->bm->ldata, l_prev->head.data, CD_MLOOPUV);
 
 				index_next = uvtc->vert_indices[BM_elem_index_get(l_next->v)];
 				index_prev = uvtc->vert_indices[BM_elem_index_get(l_prev->v)];
+
+				if(!not_prop_edit) {
+					BLI_assert(index_next == BM_elem_index_get(l_next->v));
+					BLI_assert(index_prev == BM_elem_index_get(l_prev->v));
+					if(td[index_next].oldindex == BM_elem_index_get(l_next->v) &&
+					       td[index_next].oldindex != BM_elem_index_get(l_next->v))
+						BLI_assert(td[index_prev].oldindex == BM_elem_index_get(l_prev->v));
+				}
 				/* find initial and final edge lengths */
 				if(index_next == -1) {
 					/* get BMvert coords since the vertex hasn't changed */
@@ -1745,8 +1771,8 @@ void calculateUVTransformCorrection(TransInfo *t)
 				mul_v2_v2fl(uvdiff, edge_uv_init, -(edge_len_final - edge_len_init)/edge_len_init);
 				mul_v2_v2fl(uvdiff2, edge_uv_init2, -(edge_len_final2 - edge_len_init2)/edge_len_init2);
 
-				//printf("uv_diff %f %f\n", uvdiff[0], uvdiff[1]);
-				//printf("uv_diff2 %f %f\n", uvdiff2[0], uvdiff2[1]);
+				print_v2("\nuv_diff", uvdiff);
+				print_v2("uv_diff2", uvdiff2);
 				add_v2_v2(uv_tot, uvdiff);
 				add_v2_v2(uv_tot, uvdiff2);
 
@@ -1759,12 +1785,18 @@ void calculateUVTransformCorrection(TransInfo *t)
 			mul_v2_fl(uv_tot, 1.0/uv_counter);
 			add_v2_v2(uv_tot, uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
 
+			uvtcuv = uvtc->initial_uvs[BM_elem_index_get(v)];
 			/* flush to actual uvs */
 			BM_ITER_ELEM(l, &iter, v, BM_LOOPS_OF_VERT) {
 				MLoopUV *luv;
+				printf("\nuv coordinate for vector %d", i);
+				print_v2("\ninitial =", uvtc->initial_uvs[BM_elem_index_get(v)]->init_uv);
 
 				luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
+				print_v2("pointed =", uvtcuv->uv);
+				BLI_assert(uvtcuv->uv == luv->uv);
 				copy_v2_v2(luv->uv, uv_tot);
+				uvtcuv = uvtcuv->next;
 			}
 		}
 	}

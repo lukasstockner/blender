@@ -232,7 +232,7 @@ typedef struct UVTransCorrInfoUV {
 typedef struct UVTransCorrect {
 //	struct BMEdge **boundary_edges;
 //	struct BMFace **unwrapped_faces;
-	struct BMVert **affected_verts;
+//	struct BMVert **affected_verts;
 	UVTransCorrInfoUV **initial_uvs;
 	int *vert_indices;
 //	int total_boundary_edges;
@@ -260,6 +260,8 @@ typedef struct TransData {
 	void  *extra;		 /* extra data (mirrored element pointer, in editmode mesh to BMVert) (editbone for roll fixing) (...) */
 	int  flag;           /* Various flags */
 	short  protectflag;	 /* If set, copy of Object or PoseChannel protection */
+	struct BMVert *eve;
+	int oldindex;
 } TransData;
 
 typedef struct MouseInput {

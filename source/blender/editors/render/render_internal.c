@@ -236,7 +236,7 @@ static int screen_render_exec(bContext *C, wmOperator *op)
 	RE_SetReports(re, NULL);
 
 	// no redraw needed, we leave state as we entered it
-	ED_update_for_newframe(mainp, scene, CTX_wm_screen(C), 1);
+	ED_update_for_newframe(mainp, scene, 1);
 
 	WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, scene);
 
@@ -407,8 +407,12 @@ static void render_endjob(void *rjv)
 		free_main(rj->main);
 
 	/* else the frame will not update for the original value */
-	if (!(rj->scene->r.scemode & R_NO_FRAME_UPDATE))
-		ED_update_for_newframe(G.main, rj->scene, rj->win->screen, 1);
+	if (!(rj->scene->r.scemode & R_NO_FRAME_UPDATE)) {
+		/* possible this fails of loading new file while rendering */
+		if (G.main->wm.first) {
+			ED_update_for_newframe(G.main, rj->scene, 1);
+		}
+	}
 	
 	/* XXX above function sets all tags in nodes */
 	ntreeCompositClearTags(rj->scene->nodetree);
@@ -470,7 +474,6 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	Main *mainp;
 	Scene *scene = CTX_data_scene(C);
 	SceneRenderLayer *srl = NULL;
-	bScreen *screen = CTX_wm_screen(C);
 	View3D *v3d = CTX_wm_view3d(C);
 	Render *re;
 	wmJob *steve;
@@ -507,7 +510,7 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		mainp = CTX_data_main(C);
 
 	/* cancel animation playback */
-	if (screen->animtimer)
+	if (ED_screen_animation_playing(CTX_wm_manager(C)))
 		ED_screen_animation_play(C, 0, 0);
 	
 	/* handle UI stuff */

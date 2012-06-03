@@ -1418,7 +1418,8 @@ static void selectconnected_posebonechildren(Object *ob, Bone *bone, int extend)
 /* previously known as "selectconnected_posearmature" */
 static int pose_select_connected_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
-	Object *ob = CTX_data_edit_object(C);
+	Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
+	bArmature *arm = (bArmature *)ob->data;
 	Bone *bone, *curBone, *next = NULL;
 	int extend = RNA_boolean_get(op->ptr, "extend");
 
@@ -1457,14 +1458,20 @@ static int pose_select_connected_invoke(bContext *C, wmOperator *op, wmEvent *ev
 	for (curBone = bone->childbase.first; curBone; curBone = next)
 		selectconnected_posebonechildren(ob, curBone, extend);
 	
+	/* updates */
 	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+	
+	if (arm->flag & ARM_HAS_VIZ_DEPS) {
+		/* mask modifier ('armature' mode), etc. */
+		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	}
 
 	return OPERATOR_FINISHED;
 }
 
 static int pose_select_linked_poll(bContext *C)
 {
-	return (ED_operator_view3d_active(C) && ED_operator_posemode(C) );
+	return (ED_operator_view3d_active(C) && ED_operator_posemode(C));
 }
 
 void POSE_OT_select_linked(wmOperatorType *ot)
@@ -1842,7 +1849,7 @@ static int ebone_select_flag(EditBone *ebone)
 }
 
 /* context: editmode armature in view3d */
-int mouse_armature(bContext *C, const int mval[2], int extend)
+int mouse_armature(bContext *C, const int mval[2], int extend, int deselect, int toggle)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	bArmature *arm = obedit->data;
@@ -1857,7 +1864,7 @@ int mouse_armature(bContext *C, const int mval[2], int extend)
 	nearBone = get_nearest_editbonepoint(&vc, mval, arm->edbo, 1, &selmask);
 	if (nearBone) {
 
-		if (!extend)
+		if (!extend && !deselect && !toggle)
 			ED_armature_deselect_all(obedit, 0);
 		
 		/* by definition the non-root connected bones have no root point drawn,
@@ -1867,6 +1874,18 @@ int mouse_armature(bContext *C, const int mval[2], int extend)
 			if (nearBone->parent && (nearBone->flag & BONE_CONNECTED)) {
 				/* click in a chain */
 				if (extend) {
+					/* select this bone */
+					nearBone->flag |= BONE_TIPSEL;
+					nearBone->parent->flag |= BONE_TIPSEL;
+				}
+				else if (deselect) {
+					/* deselect this bone */
+					nearBone->flag &= ~(BONE_TIPSEL | BONE_SELECTED);
+					/* only deselect parent tip if it is not selected */
+					if (!(nearBone->parent->flag & BONE_SELECTED))
+						nearBone->parent->flag &= ~BONE_TIPSEL;
+				}
+				else if (toggle) {
 					/* hold shift inverts this bone's selection */
 					if (nearBone->flag & BONE_SELECTED) {
 						/* deselect this bone */
@@ -1889,17 +1908,28 @@ int mouse_armature(bContext *C, const int mval[2], int extend)
 			}
 			else {
 				if (extend) {
+					nearBone->flag |= (BONE_TIPSEL | BONE_ROOTSEL);
+				}
+				else if (deselect) {
+					nearBone->flag &= ~(BONE_TIPSEL | BONE_ROOTSEL);
+				}
+				else if (toggle) {
 					/* hold shift inverts this bone's selection */
 					if (nearBone->flag & BONE_SELECTED)
 						nearBone->flag &= ~(BONE_TIPSEL | BONE_ROOTSEL);
 					else
 						nearBone->flag |= (BONE_TIPSEL | BONE_ROOTSEL);
 				}
-				else nearBone->flag |= (BONE_TIPSEL | BONE_ROOTSEL);
+				else
+					nearBone->flag |= (BONE_TIPSEL | BONE_ROOTSEL);
 			}
 		}
 		else {
-			if (extend && (nearBone->flag & selmask))
+			if (extend)
+				nearBone->flag |= selmask;
+			else if (deselect)
+				nearBone->flag &= ~selmask;
+			else if (toggle && (nearBone->flag & selmask))
 				nearBone->flag &= ~selmask;
 			else
 				nearBone->flag |= selmask;
@@ -4203,8 +4233,8 @@ static int armature_select_similar_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-void ARMATURE_OT_select_similar(wmOperatorType *ot) {
-
+void ARMATURE_OT_select_similar(wmOperatorType *ot)
+{
 	/* identifiers */
 	ot->name = "Select Similar";
 	ot->idname = "ARMATURE_OT_select_similar";
@@ -4475,7 +4505,7 @@ static int bone_looper(Object *ob, Bone *bone, void *data,
 
 /* called from editview.c, for mode-less pose selection */
 /* assumes scene obact and basact is still on old situation */
-int ED_do_pose_selectbuffer(Scene *scene, Base *base, unsigned int *buffer, short hits, short extend)
+int ED_do_pose_selectbuffer(Scene *scene, Base *base, unsigned int *buffer, short hits, short extend, short deselect, short toggle)
 {
 	Object *ob = base->object;
 	Bone *nearBone;
@@ -4494,7 +4524,7 @@ int ED_do_pose_selectbuffer(Scene *scene, Base *base, unsigned int *buffer, shor
 		 * note, special exception for armature mode so we can do multi-select
 		 * we could check for multi-select explicitly but think its fine to
 		 * always give predictable behavior in weight paint mode - campbell */
-		if (!extend || ((ob_act && (ob_act != ob) && (ob_act->mode & OB_MODE_WEIGHT_PAINT) == 0))) {
+		if ((!extend && !deselect && !toggle)|| ((ob_act && (ob_act != ob) && (ob_act->mode & OB_MODE_WEIGHT_PAINT) == 0))) {
 			ED_pose_deselectall(ob, 0);
 			nearBone->flag |= (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
 			arm->act_bone = nearBone;
@@ -4503,35 +4533,51 @@ int ED_do_pose_selectbuffer(Scene *scene, Base *base, unsigned int *buffer, shor
 			//select_actionchannel_by_name(ob->action, nearBone->name, 1);
 		}
 		else {
-			if (nearBone->flag & BONE_SELECTED) {
-				/* if not active, we make it active */
-				if (nearBone != arm->act_bone) {
-					arm->act_bone = nearBone;
-				}
-				else {
-					nearBone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
-					
-					// XXX old cruft! use notifiers instead
-					//select_actionchannel_by_name(ob->action, nearBone->name, 0);
-				}
-			}
-			else {
+			if (extend) {
 				nearBone->flag |= (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
 				arm->act_bone = nearBone;
+			}
+			else if (deselect) {
+				nearBone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
+			}
+			else if (toggle) {
+				if (nearBone->flag & BONE_SELECTED) {
+					/* if not active, we make it active */
+					if (nearBone != arm->act_bone) {
+						arm->act_bone = nearBone;
+					}
+					else {
+						nearBone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
+					
+						// XXX old cruft! use notifiers instead
+						//select_actionchannel_by_name(ob->action, nearBone->name, 0);
+					}
+				}
+				else {
+					nearBone->flag |= (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
+					arm->act_bone = nearBone;
 				
-				// XXX old cruft! use notifiers instead
-				//select_actionchannel_by_name(ob->action, nearBone->name, 1);
-			}
+					// XXX old cruft! use notifiers instead
+					//select_actionchannel_by_name(ob->action, nearBone->name, 1);
+				}
+			}	
 		}
 		
-		/* in weightpaint we select the associated vertex group too */
-		if (ob_act && ob_act->mode & OB_MODE_WEIGHT_PAINT) {
-			if (nearBone == arm->act_bone) {
-				ED_vgroup_select_by_name(OBACT, nearBone->name);
-				DAG_id_tag_update(&OBACT->id, OB_RECALC_DATA);
+		if (ob_act) {
+			/* in weightpaint we select the associated vertex group too */
+			if (ob_act->mode & OB_MODE_WEIGHT_PAINT) {
+				if (nearBone == arm->act_bone) {
+					ED_vgroup_select_by_name(ob_act, nearBone->name);
+					DAG_id_tag_update(&ob_act->id, OB_RECALC_DATA);
+				}
+			}
+			/* if there are some dependencies for visualising armature state 
+			 * (e.g. Mask Modifier in 'Armature' mode), force update 
+			 */
+			else if (arm->flag & ARM_HAS_VIZ_DEPS) {
+				DAG_id_tag_update(&ob_act->id, OB_RECALC_DATA);
 			}
 		}
-		
 	}
 	
 	return nearBone != NULL;
@@ -5233,6 +5279,8 @@ static int pose_de_select_all_exec(bContext *C, wmOperator *op)
 	int action = RNA_enum_get(op->ptr, "action");
 	
 	Scene *scene = CTX_data_scene(C);
+	Object *ob = ED_object_context(C);
+	bArmature *arm = ob->data;
 	int multipaint = scene->toolsettings->multipaint;
 
 	if (action == SEL_TOGGLE) {
@@ -5265,8 +5313,8 @@ static int pose_de_select_all_exec(bContext *C, wmOperator *op)
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, NULL);
 	
-	if (multipaint) {
-		Object *ob = ED_object_context(C);
+	/* weightpaint or mask modifiers need depsgraph updates */
+	if (multipaint || (arm->flag & ARM_HAS_VIZ_DEPS)) {
 		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	}
 
@@ -5293,12 +5341,12 @@ void POSE_OT_select_all(wmOperatorType *ot)
 static int pose_select_parent_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
+	bArmature *arm = (bArmature *)ob->data;
 	bPoseChannel *pchan, *parent;
 
-	/*	Determine if there is an active bone */
+	/* Determine if there is an active bone */
 	pchan = CTX_data_active_pose_bone(C);
 	if (pchan) {
-		bArmature *arm = ob->data;
 		parent = pchan->parent;
 		if ((parent) && !(parent->bone->flag & (BONE_HIDDEN_P | BONE_UNSELECTABLE))) {
 			parent->bone->flag |= BONE_SELECTED;
@@ -5311,8 +5359,14 @@ static int pose_select_parent_exec(bContext *C, wmOperator *UNUSED(op))
 	else {
 		return OPERATOR_CANCELLED;
 	}
-
+	
+	/* updates */
 	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+	
+	if (arm->flag & ARM_HAS_VIZ_DEPS) {
+		/* mask modifier ('armature' mode), etc. */
+		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	}
 	
 	return OPERATOR_FINISHED;
 }
