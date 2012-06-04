@@ -44,9 +44,12 @@
 #include "intern/bmesh_operators_private.h" /* own include */
 
 #define SMOOTH_LAPLACIAN_AREA_FACTOR 4.0f
+#define SMOOTH_LAPLACIAN_EDGE_FACTOR 2.0f
 
 static float cotan_weight(float *v1, float *v2, float *v3);
+int vert_is_boundary(BMVert *v);
 void compute_weights_in_ring(BMVert *v, float lambda, float min_area);
+void compute_weights_in_border(BMVert *v, float lambda, float min_area);
 
 void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 {
@@ -86,7 +89,12 @@ void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 		nlRightHandSideAdd(0, m_vertex_id, v->co[0]);
 		nlRightHandSideAdd(1, m_vertex_id, v->co[1]);
 		nlRightHandSideAdd(2, m_vertex_id, v->co[2]);
-		compute_weights_in_ring(v, lambda, min_area);
+		if (vert_is_boundary(v) == 0) {
+			compute_weights_in_ring(v, lambda, min_area);
+		}else{
+			compute_weights_in_border(v, lambda, min_area);
+		}
+		
 	}
 		
 	nlEnd(NL_MATRIX);
@@ -124,6 +132,17 @@ static float cotan_weight(float *v1, float *v2, float *v3)
 	return dot_v3v3(a, b) / clen;
 }
 
+int vert_is_boundary(BMVert *v){
+	BMEdge *ed;
+	BMIter ei;
+	BM_ITER_ELEM(ed, &ei, v, BM_EDGES_OF_VERT) {
+		if(BM_edge_is_boundary(ed)){
+			return 1;
+		}
+	}
+	return 0;
+}
+
 /* Compute weigth between vertice v_i and all your neighbors
  * weight between v_i and v_neighbor 
  * Wij = cot(alpha) + cot(beta) / (4.0 * total area of all faces  * sum all weight)
@@ -158,6 +177,8 @@ void compute_weights_in_ring(BMVert *v, float lambda, float min_area)
 	BLI_array_declare(weight);
 
 	if (v == NULL) {
+		BLI_array_free(index);
+		BLI_array_free(weight);
 		return;
 	}
 
@@ -222,4 +243,65 @@ void compute_weights_in_ring(BMVert *v, float lambda, float min_area)
 	BLI_array_free(index);
 	BLI_array_free(weight);
 	
+}
+
+void compute_weights_in_border(BMVert *v, float lambda, float min_area){
+	float factor;
+	float sumw = 0.0f;
+	float w1;
+	float *weight = NULL;
+	int id1, id2;
+	int i, j;
+	int * index = NULL;
+	int zerolen = 0;
+	BMEdge *ed;
+	BMIter ei;
+	BMVert *vn;
+	
+	BLI_array_declare(index);
+	BLI_array_declare(weight);
+
+	if (v == NULL) {
+		BLI_array_free(index);
+		BLI_array_free(weight);
+		return;
+	}
+	
+	id1 = BM_elem_index_get(v);
+	j = 0;
+	BM_ITER_ELEM (ed, &ei, v, BM_EDGES_OF_VERT) {
+		vn = BM_edge_other_vert(ed, v);
+		w1 = len_v3v3(v->co, vn->co);
+		if (fabsf(w1) < min_area) {
+			zerolen = 1;
+		}else{
+			w1 = 1.0f/w1;
+		}
+		id2 = BM_elem_index_get(vn);
+		BLI_array_grow_one(index);
+		BLI_array_grow_one(weight);
+		index[j] = id2;
+		weight[j] = w1;
+		j = j + 1;
+		sumw = sumw + w1;
+	}
+	for (i = 0; i < j; i++) {
+		if (zerolen == 0 ) {
+			factor = lambda *SMOOTH_LAPLACIAN_EDGE_FACTOR / sumw;
+			w1 = -factor * weight[i];
+			id2 = index[i];
+			nlMatrixAdd(id1, id2, w1);
+		} else {
+			nlMatrixAdd(id1, id2, 0.0f);
+		}
+	}
+	
+	if (zerolen == 0) {
+		nlMatrixAdd(id1, id1, 1.0f + lambda * SMOOTH_LAPLACIAN_EDGE_FACTOR);
+	} else {
+		nlMatrixAdd(id1, id1, 1.0f);
+	}
+
+	BLI_array_free(index);
+	BLI_array_free(weight);
 }
