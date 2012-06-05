@@ -57,7 +57,7 @@ void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 {
 	int i;
 	int m_vertex_id;
-	float lambda, min_area;
+	float lambda, lambda_border, min_area;
 	float vini, vend;
 	BMOIter siter;
 	BMVert *v;
@@ -65,6 +65,7 @@ void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 
 	BM_mesh_elem_index_ensure(bm, BM_VERT);
 	lambda = BMO_slot_float_get(op, "lambda");
+	lambda_border = BMO_slot_float_get(op, "lambda_border");
 	min_area = BMO_slot_float_get(op, "min_area");
 	nlNewContext();
 	context = nlGetCurrent();
@@ -95,7 +96,7 @@ void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 		if (vert_is_boundary(v) == 0) {
 			compute_weights_in_ring(v, lambda, min_area);
 		}else{
-			compute_weights_in_border(v, lambda, min_area);
+			compute_weights_in_border(v, lambda_border, min_area);
 		}
 		
 	}
