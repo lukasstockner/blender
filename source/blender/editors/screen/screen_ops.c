@@ -890,7 +890,7 @@ static void SCREEN_OT_area_dupli(wmOperatorType *ot)
  */
 
 typedef struct sAreaMoveData {
-	int bigger, smaller, origval, step;
+	int bigger, smaller, origval, step, nomerge;
 	char dir;
 	ScrArea* split1;
 	ScrArea* split2;
@@ -950,6 +950,7 @@ static int area_move_init(bContext *C, wmOperator *op)
 	md->dir = scredge_is_horizontal(actedge) ? 'h' : 'v';
 	if (md->dir == 'h') md->origval = actedge->v1->vec.y;
 	else md->origval = actedge->v1->vec.x;
+	md->nomerge = FALSE;
 	
 	select_connected_scredge(sc, actedge);
 	/* now all vertices with 'flag==1' are the ones that can be moved. */
@@ -974,6 +975,9 @@ static void area_move_apply_do(bContext *C, int origval, int delta, int dir, int
 		overflow = -1;
 	if (delta > bigger)
 		overflow = 1;
+
+	if (!split1)
+		overflow = 0;
 
 	delta = CLAMPIS(delta, -smaller, bigger);
 
@@ -1016,8 +1020,11 @@ static void area_move_apply_do(bContext *C, int origval, int delta, int dir, int
 		}
 	}
 
-	*split1 = NULL;
-	*split2 = NULL;
+	if (split1)
+	{
+		*split1 = NULL;
+		*split2 = NULL;
+	}
 
 	for (sa = sc->areabase.first; sa; sa = sa->next) {
 		if ((sa->v1->flag&VERT_FLAG_SELECTED) || (sa->v2->flag&VERT_FLAG_SELECTED) || (sa->v3->flag&VERT_FLAG_SELECTED) || (sa->v4->flag&VERT_FLAG_SELECTED))
@@ -1065,7 +1072,7 @@ static void area_move_apply_do(bContext *C, int origval, int delta, int dir, int
 	}
 
 	// split2 is the one that's closing
-	if (*split2 && (*split2)->type->spaceid == SPACE_INFO)
+	if (split2 && *split2 && (*split2)->type->spaceid == SPACE_INFO)
 	{
 		// Don't allow dragging closed of SPACE_INFO.
 		// It should be tougher to close, most users want it always open and new users don't want to accidentally close it.
@@ -1095,7 +1102,7 @@ static void area_move_apply(bContext *C, wmOperator *op)
 	int delta;
 	
 	delta = RNA_int_get(op->ptr, "delta");
-	area_move_apply_do(C, md->origval, delta, md->dir, md->bigger, md->smaller, &md->split1, &md->split2);
+	area_move_apply_do(C, md->origval, delta, md->dir, md->bigger, md->smaller, md->nomerge?NULL:&md->split1, md->nomerge?NULL:&md->split2);
 }
 
 static void area_move_exit(bContext *C, wmOperator *op)
@@ -1185,7 +1192,12 @@ static int area_move_modal(bContext *C, wmOperator *op, wmEvent *event)
 			delta = (md->dir == 'v') ? event->x - x : event->y - y;
 			if (md->step) delta = delta - (delta % md->step);
 			RNA_int_set(op->ptr, "delta", delta);
-			
+
+			if (event->ctrl)
+				md->nomerge = TRUE;
+			else
+				md->nomerge = FALSE;
+
 			area_move_apply(C, op);
 			break;
 			
@@ -1591,7 +1603,7 @@ static int area_split_modal(bContext *C, wmOperator *op, wmEvent *event)
 			{
 				ScrArea* s1 = NULL;
 				ScrArea* s2 = NULL;
-				area_move_apply_do(C, sd->origval, sd->delta, dir, sd->bigger, sd->smaller, &s1, &s2);
+				area_move_apply_do(C, sd->origval, sd->delta, dir, sd->bigger, sd->smaller, event->ctrl?NULL:&s1, event->ctrl?NULL:&s2);
 				sd->rejoin = !!s1;
 			}
 			else {
