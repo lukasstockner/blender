@@ -95,6 +95,7 @@
 #include "DNA_vfont_types.h"
 #include "DNA_world_types.h"
 #include "DNA_movieclip_types.h"
+#include "DNA_mask_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -1209,7 +1210,6 @@ static void change_idid_adr_fd(FileData *fd, void *old, void *new)
 		if (old==entry->newp && entry->nr==ID_ID) {
 			entry->newp = new;
 			if (new) entry->nr = GS( ((ID *)new)->name );
-			break;
 		}
 	}
 }
@@ -5354,9 +5354,10 @@ static void lib_link_screen(FileData *fd, Main *main)
 					}
 					else if (sl->spacetype == SPACE_CLIP) {
 						SpaceClip *sclip = (SpaceClip *)sl;
-						
+
 						sclip->clip = newlibadr_us(fd, sc->id.lib, sclip->clip);
-						
+						sclip->mask = newlibadr_us(fd, sc->id.lib, sclip->mask);
+
 						sclip->scopes.track_preview = NULL;
 						sclip->draw_context = NULL;
 						sclip->scopes.ok = 0;
@@ -5617,9 +5618,10 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 				}
 				else if (sl->spacetype == SPACE_CLIP) {
 					SpaceClip *sclip = (SpaceClip *)sl;
-					
+
 					sclip->clip = restore_pointer_by_name(newmain, (ID *)sclip->clip, 1);
-					
+					sclip->mask = restore_pointer_by_name(newmain, (ID *)sclip->mask, 1);
+
 					sclip->scopes.ok = 0;
 				}
 			}
@@ -6174,6 +6176,88 @@ static void lib_link_movieclip(FileData *fd, Main *main)
 	}
 }
 
+/* ***************** READ MOVIECLIP *************** */
+
+static void direct_link_mask(FileData *fd, Mask *mask)
+{
+	MaskLayer *masklay;
+
+	mask->adt = newdataadr(fd, mask->adt);
+
+	link_list(fd, &mask->masklayers);
+
+	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
+		MaskSpline *spline;
+		MaskLayerShape *masklay_shape;
+
+		link_list(fd, &masklay->splines);
+
+		for (spline = masklay->splines.first; spline; spline = spline->next) {
+			int i;
+
+			spline->points = newdataadr(fd, spline->points);
+
+			for (i = 0; i < spline->tot_point; i++) {
+				MaskSplinePoint *point = &spline->points[i];
+
+				if (point->tot_uw)
+					point->uw = newdataadr(fd, point->uw);
+			}
+		}
+
+		link_list(fd, &masklay->splines_shapes);
+
+		for (masklay_shape = masklay->splines_shapes.first; masklay_shape; masklay_shape = masklay_shape->next) {
+			masklay_shape->data = newdataadr(fd, masklay_shape->data);
+		}
+
+		masklay->act_spline = newdataadr(fd, masklay->act_spline);
+		masklay->act_point = newdataadr(fd, masklay->act_point);
+	}
+}
+
+static void lib_link_mask_parent(FileData *fd, Mask *mask, MaskParent *parent)
+{
+	parent->id = newlibadr_us(fd, mask->id.lib, parent->id);
+}
+
+static void lib_link_mask(FileData *fd, Main *main)
+{
+	Mask *mask;
+
+	mask = main->mask.first;
+	while (mask) {
+		if (mask->id.flag & LIB_NEEDLINK) {
+			MaskLayer *masklay;
+
+			if (mask->adt)
+				lib_link_animdata(fd, &mask->id, mask->adt);
+
+			for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
+				MaskSpline *spline;
+
+				spline = masklay->splines.first;
+				while (spline) {
+					int i;
+
+					for (i = 0; i < spline->tot_point; i++) {
+						MaskSplinePoint *point = &spline->points[i];
+
+						lib_link_mask_parent(fd, mask, &point->parent);
+					}
+
+					lib_link_mask_parent(fd, mask, &spline->parent);
+
+					spline = spline->next;
+				}
+			}
+
+			mask->id.flag -= LIB_NEEDLINK;
+		}
+		mask = mask->id.next;
+	}
+}
+
 /* ************** GENERAL & MAIN ******************** */
 
 
@@ -6378,6 +6462,9 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID
 			break;
 		case ID_MC:
 			direct_link_movieclip(fd, (MovieClip *)id);
+			break;
+		case ID_MSK:
+			direct_link_mask(fd, (Mask *)id);
 			break;
 	}
 	
@@ -6637,6 +6724,11 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
 			char basepath[FILE_MAXDIR];
 			char filename[FILE_MAXFILE];
 			
+			/* ugly, need to remove the old inputs list to avoid bad pointer checks when adding new sockets.
+			 * sock->storage is expected to contain path info in ntreeCompositOutputFileAddSocket.
+			 */
+			node->inputs.first = node->inputs.last = NULL;
+			
 			node->storage = nimf;
 			
 			/* split off filename from the old path, to be used as socket sub-path */
@@ -6807,6 +6899,22 @@ static void do_versions_nodetree_frame_2_64_6(bNodeTree *ntree)
 		
 		/* initialize custom node color */
 		node->color[0] = node->color[1] = node->color[2] = 0.608f;	/* default theme color */
+	}
+}
+
+static void do_version_ntree_image_user_264(void *UNUSED(data), ID *UNUSED(id), bNodeTree *ntree)
+{
+	bNode *node;
+
+	for (node = ntree->nodes.first; node; node = node->next) {
+		if (ELEM(node->type, SH_NODE_TEX_IMAGE, SH_NODE_TEX_ENVIRONMENT)) {
+			NodeTexImage *tex = node->storage;
+
+			tex->iuser.frames= 1;
+			tex->iuser.sfra= 1;
+			tex->iuser.fie_ima= 2;
+			tex->iuser.ok= 1;
+		}
 	}
 }
 
@@ -7507,7 +7615,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
-	
+
 	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 8))
 	{
 		/* set new deactivation values for game settings */
@@ -7519,6 +7627,13 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			sce->gm.angulardeactthreshold = 1.0f;
 			sce->gm.deactivationtime = 2.0f;
 		}
+	}
+
+	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 9)) {
+		bNodeTreeType *ntreetype = ntreeGetType(NTREE_SHADER);
+		
+		if (ntreetype && ntreetype->foreach_nodetree)
+			ntreetype->foreach_nodetree(main, NULL, do_version_ntree_image_user_264);
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
@@ -7534,7 +7649,29 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
-	
+
+	{
+		bScreen *sc;
+
+		for (sc = main->screen.first; sc; sc = sc->id.next) {
+			ScrArea *sa;
+
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				SpaceLink *sl;
+
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_CLIP) {
+						SpaceClip *sclip = (SpaceClip *)sl;
+
+						if (sclip->around == 0) {
+							sclip->around = V3D_CENTROID;
+						}
+					}
+				}
+			}
+		}
+	}
+
 	/* don't forget to set version number in blender.c! */
 }
 
@@ -7577,7 +7714,8 @@ static void lib_link_all(FileData *fd, Main *main)
 	lib_link_brush(fd, main);
 	lib_link_particlesettings(fd, main);
 	lib_link_movieclip(fd, main);
-	
+	lib_link_mask(fd, main);
+
 	lib_link_mesh(fd, main);		/* as last: tpage images with users at zero */
 	
 	lib_link_library(fd, main);		/* only init users */
@@ -7859,10 +7997,17 @@ static void expand_doit(FileData *fd, Main *mainvar, void *old)
 					
 					/* Update: the issue is that in file reading, the oldnewmap is OK, but for existing data, it has to be
 					 * inserted in the map to be found! */
-					if (id->flag & LIB_PRE_EXISTING)
-						oldnewmap_insert(fd->libmap, bhead->old, id, 1);
-					
+
+					/* Update: previously it was checking for id->flag & LIB_PRE_EXISTING, however that does not affect file
+					 * reading. For file reading we may need to insert it into the libmap as well, because you might have
+					 * two files indirectly linking the same datablock, and in that case we need this in the libmap for the
+					 * fd of both those files.
+					 *
+					 * The crash that this check avoided earlier was because bhead->code wasn't properly passed in, making
+					 * change_idid_adr not detect the mapping was for an ID_ID datablock. */
+					oldnewmap_insert(fd->libmap, bhead->old, id, bhead->code);
 					change_idid_adr_fd(fd, bhead->old, id);
+					
 					// commented because this can print way too much
 					// if (G.debug & G_DEBUG) printf("expand_doit: already linked: %s lib: %s\n", id->name, lib->name);
 				}
@@ -7878,7 +8023,7 @@ static void expand_doit(FileData *fd, Main *mainvar, void *old)
 			else {
 				/* this is actually only needed on UI call? when ID was already read before, and another append
 				 * happens which invokes same ID... in that case the lookup table needs this entry */
-				oldnewmap_insert(fd->libmap, bhead->old, id, 1);
+				oldnewmap_insert(fd->libmap, bhead->old, id, bhead->code);
 				// commented because this can print way too much
 				// if (G.debug & G_DEBUG) printf("expand: already read %s\n", id->name);
 			}
@@ -8763,7 +8908,7 @@ static ID *append_named_part(Main *mainl, FileData *fd, const char *idname, cons
 				else {
 					/* already linked */
 					printf("append: already linked\n");
-					oldnewmap_insert(fd->libmap, bhead->old, id, 1);
+					oldnewmap_insert(fd->libmap, bhead->old, id, bhead->code);
 					if (id->flag & LIB_INDIRECT) {
 						id->flag -= LIB_INDIRECT;
 						id->flag |= LIB_EXTERN;

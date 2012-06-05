@@ -67,6 +67,7 @@ struct wmOperator;
 struct wmTimer;
 struct MovieClip;
 struct MovieClipScopes;
+struct Mask;
 
 
 /* SpaceLink (Base) ==================================== */
@@ -1007,7 +1008,14 @@ typedef struct SpaceClip {
 	short dope_sort;		/* sort order in dopesheet view */
 	short dope_flag;		/* dopsheet view flags */
 
-	int pad3;
+	int around;			/* pivot point for transforms */
+
+	/* **** mask editing **** */
+	struct Mask *mask;
+	/* draw options */
+	char mask_draw_flag;
+	char mask_draw_type;
+	char pad3[6];
 } SpaceClip;
 
 /* SpaceClip->flag */
@@ -1038,6 +1046,7 @@ typedef enum eSpaceClip_Mode {
 	SC_MODE_TRACKING = 0,
 	SC_MODE_RECONSTRUCTION,
 	SC_MODE_DISTORTION,
+	SC_MODE_MASKEDIT,
 } eSpaceClip_Mode;
 
 /* SpaceClip->view */

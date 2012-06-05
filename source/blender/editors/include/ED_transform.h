@@ -71,6 +71,7 @@ enum {
 	TFM_BONESIZE,
 	TFM_BONE_ENVELOPE,
 	TFM_CURVE_SHRINKFATTEN,
+	TFM_MASK_SHRINKFATTEN,
 	TFM_BONE_ROLL,
 	TFM_TIME_TRANSLATE,
 	TFM_TIME_SLIDE,
@@ -96,6 +97,7 @@ enum {
 #define CTX_BMESH           64
 #define CTX_NDOF            128
 #define CTX_MOVIECLIP       256
+#define CTX_MASK            512
 
 /* Standalone call to get the transformation center corresponding to the current situation
  * returns 1 if successful, 0 otherwise (usually means there's no selection)
