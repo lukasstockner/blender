@@ -1054,6 +1054,28 @@ static void area_move_apply_do(bContext *C, int origval, int delta, int dir, int
 		}
 	}
 
+	// split2 is the one that's closing
+	if (*split2 && (*split2)->type->spaceid == SPACE_INFO)
+	{
+		// Don't allow dragging closed of SPACE_INFO.
+		// It should be tougher to close, most users want it always open and new users don't want to accidentally close it.
+		(*split2)->v1->flag &= ~VERT_FLAG_OFFSET;
+		(*split2)->v2->flag &= ~VERT_FLAG_OFFSET;
+		(*split2)->v3->flag &= ~VERT_FLAG_OFFSET;
+		(*split2)->v4->flag &= ~VERT_FLAG_OFFSET;
+
+		if (*split1)
+		{
+			(*split1)->v1->flag &= ~VERT_FLAG_OFFSET;
+			(*split1)->v2->flag &= ~VERT_FLAG_OFFSET;
+			(*split1)->v3->flag &= ~VERT_FLAG_OFFSET;
+			(*split1)->v4->flag &= ~VERT_FLAG_OFFSET;
+		}
+
+		*split1 = NULL;
+		*split2 = NULL;
+	}
+
 	WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL); /* redraw everything */
 }
 
