@@ -81,6 +81,7 @@ void register_node_type_sh_tex_coord(struct bNodeTreeType *ttype);
 
 void register_node_type_sh_background(struct bNodeTreeType *ttype);
 void register_node_type_sh_bsdf_diffuse(struct bNodeTreeType *ttype);
+void register_node_type_sh_mybsdf_diffuse(struct bNodeTreeType *ttype);//Copy of diffuse node added for testing
 void register_node_type_sh_bsdf_glossy(struct bNodeTreeType *ttype);
 void register_node_type_sh_bsdf_glass(struct bNodeTreeType *ttype);
 void register_node_type_sh_bsdf_translucent(struct bNodeTreeType *ttype);

@@ -1959,6 +1959,7 @@ static void registerShaderNodes(bNodeTreeType *ttype)
 
 	register_node_type_sh_background(ttype);
 	register_node_type_sh_bsdf_diffuse(ttype);
+    register_node_type_sh_mybsdf_diffuse(ttype);//Test node
 	register_node_type_sh_bsdf_glossy(ttype);
 	register_node_type_sh_bsdf_glass(ttype);
 	register_node_type_sh_bsdf_translucent(ttype);

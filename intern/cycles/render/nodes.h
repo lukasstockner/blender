@@ -197,6 +197,13 @@ public:
 	SHADER_NODE_CLASS(DiffuseBsdfNode)
 };
 
+/* Test Node for learning purposes. Copy of bsdf node */
+class MYBsdfNode : public BsdfNode {
+public:
+    SHADER_NODE_CLASS(MYBsdfNode)
+};
+
+
 class TranslucentBsdfNode : public BsdfNode {
 public:
 	SHADER_NODE_CLASS(TranslucentBsdfNode)

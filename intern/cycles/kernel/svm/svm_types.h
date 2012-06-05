@@ -288,6 +288,7 @@ typedef enum ClosureType {
 	CLOSURE_BSDF_ID,
 
 	CLOSURE_BSDF_DIFFUSE_ID,
+    CLOSURE_MYBSDF_ID, //diffuse clone, added for learning
 	CLOSURE_BSDF_OREN_NAYAR_ID,
 
 	CLOSURE_BSDF_REFLECTION_ID,

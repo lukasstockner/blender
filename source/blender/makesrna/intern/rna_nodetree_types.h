@@ -68,6 +68,8 @@ DefNode( ShaderNode,     SH_NODE_ATTRIBUTE,          def_sh_attribute,       "AT
 DefNode( ShaderNode,     SH_NODE_BACKGROUND,         0,                      "BACKGROUND",         Background,       "Background",        ""       )
 DefNode( ShaderNode,     SH_NODE_HOLDOUT,            0,                      "HOLDOUT",            Holdout,          "Holdout",           ""       )
 DefNode( ShaderNode,     SH_NODE_BSDF_DIFFUSE,       0,                      "BSDF_DIFFUSE",       BsdfDiffuse,      "Diffuse Bsdf",      ""       )
+//Custom node for learning purposes
+DefNode( ShaderNode,     SH_NODE_MYBSDF_DIFFUSE,     0,                      "MYBSDF_DIFFUSE",     MYBSDFDiffuse,    "CustomNode",        ""       )
 DefNode( ShaderNode,     SH_NODE_BSDF_GLOSSY,        def_glossy,             "BSDF_GLOSSY",        BsdfGlossy,       "Glossy Bsdf",       ""       )
 DefNode( ShaderNode,     SH_NODE_BSDF_GLASS,         def_glossy,             "BSDF_GLASS",         BsdfGlass,        "Glass Bsdf",        ""       )
 DefNode( ShaderNode,     SH_NODE_BSDF_TRANSLUCENT,   0,                      "BSDF_TRANSLUCENT",   BsdfTranslucent,  "Translucent Bsdf",  ""       )

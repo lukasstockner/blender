@@ -38,6 +38,9 @@ __device int svm_bsdf_sample(const ShaderData *sd, const ShaderClosure *sc, floa
 		case CLOSURE_BSDF_DIFFUSE_ID:
 			label = bsdf_diffuse_sample(sd, sc, randu, randv, eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
+        case CLOSURE_MYBSDF_ID:
+            label = bsdf_diffuse_sample(sd, sc, randu, randv, eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
+            break;
 #ifdef __SVM__
 		case CLOSURE_BSDF_OREN_NAYAR_ID:
 			label = bsdf_oren_nayar_sample(sd, sc, randu, randv, eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
@@ -94,6 +97,9 @@ __device float3 svm_bsdf_eval(const ShaderData *sd, const ShaderClosure *sc, con
 			case CLOSURE_BSDF_DIFFUSE_ID:
 				eval = bsdf_diffuse_eval_reflect(sd, sc, sd->I, omega_in, pdf);
 				break;
+            case CLOSURE_MYBSDF_ID:
+                eval = bsdf_diffuse_eval_reflect(sd, sc, sd->I, omega_in, pdf);
+                break;
 #ifdef __SVM__
 			case CLOSURE_BSDF_OREN_NAYAR_ID:
 				eval = bsdf_oren_nayar_eval_reflect(sd, sc, sd->I, omega_in, pdf);
@@ -143,6 +149,9 @@ __device float3 svm_bsdf_eval(const ShaderData *sd, const ShaderClosure *sc, con
 			case CLOSURE_BSDF_DIFFUSE_ID:
 				eval = bsdf_diffuse_eval_transmit(sd, sc, sd->I, omega_in, pdf);
 				break;
+            case CLOSURE_MYBSDF_ID:
+                eval = bsdf_diffuse_eval_transmit(sd, sc, sd->I, omega_in, pdf);
+                break;
 #ifdef __SVM__
 			case CLOSURE_BSDF_OREN_NAYAR_ID:
 				eval = bsdf_oren_nayar_eval_transmit(sd, sc, sd->I, omega_in, pdf);
@@ -197,6 +206,9 @@ __device void svm_bsdf_blur(ShaderClosure *sc, float roughness)
 		case CLOSURE_BSDF_DIFFUSE_ID:
 			bsdf_diffuse_blur(sc, roughness);
 			break;
+        case CLOSURE_MYBSDF_ID:
+            bsdf_diffuse_blur(sc, roughness);
+            break;
 #ifdef __SVM__
 		case CLOSURE_BSDF_OREN_NAYAR_ID:
 			bsdf_oren_nayar_blur(sc, roughness);

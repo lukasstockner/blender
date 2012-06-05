@@ -261,7 +261,11 @@ static ShaderNode *add_node(BL::BlendData b_data, BL::Scene b_scene, ShaderGraph
 		case BL::ShaderNode::type_BSDF_DIFFUSE: {
 			node = new DiffuseBsdfNode();
 			break;
-		}
+        }
+        case BL::ShaderNode::type_MYBSDF_DIFFUSE: {
+            node = new MYBsdfNode();
+            break;
+        }
 		case BL::ShaderNode::type_BSDF_GLOSSY: {
 			BL::ShaderNodeBsdfGlossy b_glossy_node(b_node);
 			GlossyBsdfNode *glossy = new GlossyBsdfNode();

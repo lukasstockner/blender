@@ -1227,6 +1227,25 @@ void DiffuseBsdfNode::compile(OSLCompiler& compiler)
 	compiler.add(this, "node_diffuse_bsdf");
 }
 
+/* START test bsdf closure */
+MYBsdfNode::MYBsdfNode()
+{
+    closure = CLOSURE_MYBSDF_ID;
+    add_input("Roughness", SHADER_SOCKET_FLOAT, 0.0f);
+}
+
+void MYBsdfNode::compile(SVMCompiler& compiler)
+{
+    BsdfNode::compile(compiler, input("Roughness"), NULL);
+}
+
+void MYBsdfNode::compile(OSLCompiler& compiler)
+{
+    compiler.add(this, "node_mydiffuse_bsdf");
+}
+
+/* END test bsdf closure */
+
 /* Translucent BSDF Closure */
 
 TranslucentBsdfNode::TranslucentBsdfNode()
