@@ -50,12 +50,15 @@ static float cotan_weight(float *v1, float *v2, float *v3);
 int vert_is_boundary(BMVert *v);
 void compute_weights_in_ring(BMVert *v, float lambda, float min_area);
 void compute_weights_in_border(BMVert *v, float lambda, float min_area);
+float compute_volume(BMesh *bm, BMOperator *op);
+void volume_preservation(BMesh *bm, BMOperator *op, float vini, float vend);
 
 void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 {
 	int i;
 	int m_vertex_id;
 	float lambda, min_area;
+	float vini, vend;
 	BMOIter siter;
 	BMVert *v;
 	NLContext *context;
@@ -105,12 +108,15 @@ void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 	}
 
 	if (nlSolveAdvanced(NULL, NL_TRUE) ) {
+		vini = compute_volume(bm, op);
 		BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
 			m_vertex_id = BM_elem_index_get(v);
 			v->co[0] =  nlGetVariable(0, m_vertex_id);
 			v->co[1] =  nlGetVariable(1, m_vertex_id);
 			v->co[2] =  nlGetVariable(2, m_vertex_id);
 		}
+		vend = compute_volume(bm, op);
+		volume_preservation(bm, op, vini, vend);
 	}
 		
 	nlDeleteContext(context);
@@ -141,6 +147,40 @@ int vert_is_boundary(BMVert *v){
 		}
 	}
 	return 0;
+}
+
+float compute_volume(BMesh *bm, BMOperator *op)
+{
+	float vol = 0.0f;
+	float x1, y1, z1, x2, y2, z2, x3, y3, z3;
+	int i;
+	BMFace *f;
+	BMIter fiter;
+	BMIter vi;
+	BMVert *vn;
+	BMVert *vf[3];
+	
+	BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
+		i = 0;
+		BM_ITER_ELEM (vn, &vi, f, BM_VERTS_OF_FACE) {
+			vf[i] = vn;
+			i = i + 1;
+		}
+		x1 = vf[0]->co[0];
+		y1 = vf[0]->co[1];
+		z1 = vf[0]->co[2];
+
+		x2 = vf[1]->co[0];
+		y2 = vf[1]->co[1];
+		z2 = vf[1]->co[2];
+
+		x3 = vf[2]->co[0];
+		y3 = vf[2]->co[1];
+		z3 = vf[2]->co[2];
+
+		vol = vol + (1.0 / 6.0) * (0.0 - x3*y2*z1 + x2*y3*z1 + x3*y1*z2 - x1*y3*z2 - x2*y1*z3 + x1*y2*z3);
+	}
+	return fabs(vol);
 }
 
 /* Compute weigth between vertice v_i and all your neighbors
@@ -271,19 +311,21 @@ void compute_weights_in_border(BMVert *v, float lambda, float min_area){
 	j = 0;
 	BM_ITER_ELEM (ed, &ei, v, BM_EDGES_OF_VERT) {
 		vn = BM_edge_other_vert(ed, v);
-		w1 = len_v3v3(v->co, vn->co);
-		if (fabsf(w1) < min_area) {
-			zerolen = 1;
-		}else{
-			w1 = 1.0f/w1;
+		if(vert_is_boundary(vn)==1){
+			w1 = len_v3v3(v->co, vn->co);
+			if (fabsf(w1) < min_area) {
+				zerolen = 1;
+			}else{
+				w1 = 1.0f/w1;
+			}
+			id2 = BM_elem_index_get(vn);
+			BLI_array_grow_one(index);
+			BLI_array_grow_one(weight);
+			index[j] = id2;
+			weight[j] = w1;
+			j = j + 1;
+			sumw = sumw + w1;
 		}
-		id2 = BM_elem_index_get(vn);
-		BLI_array_grow_one(index);
-		BLI_array_grow_one(weight);
-		index[j] = id2;
-		weight[j] = w1;
-		j = j + 1;
-		sumw = sumw + w1;
 	}
 	for (i = 0; i < j; i++) {
 		if (zerolen == 0 ) {
@@ -304,4 +346,18 @@ void compute_weights_in_border(BMVert *v, float lambda, float min_area){
 
 	BLI_array_free(index);
 	BLI_array_free(weight);
+}
+
+void volume_preservation(BMesh *bm, BMOperator *op, float vini, float vend)
+{
+	float beta;
+	BMOIter siter;
+	BMVert *v;
+
+	if (vend != 0.0f) {	
+		beta  = pow (vini / vend, 1.0f / 3.0f);
+		BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
+			mul_v3_fl(v->co, beta );
+		}
+	}
 }
