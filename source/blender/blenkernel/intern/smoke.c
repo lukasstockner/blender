@@ -88,10 +88,6 @@
 #include <conio.h>
 #include <windows.h>
 
-#define ADD_IF_LOWER_POS(a,b) (MIN2((a)+(b), MAX2((a),(b))))
-#define ADD_IF_LOWER_NEG(a,b) (MAX2((a)+(b), MIN2((a),(b))))
-#define ADD_IF_LOWER(a,b) (((b)>0)?ADD_IF_LOWER_POS((a),(b)):ADD_IF_LOWER_NEG((a),(b)))
-
 static LARGE_INTEGER liFrequency;
 static LARGE_INTEGER liStartTime;
 static LARGE_INTEGER liCurrentTime;
@@ -140,6 +136,10 @@ struct SmokeModifierData;
 
 // timestep default value for nice appearance 0.1f
 #define DT_DEFAULT 0.1f
+
+#define ADD_IF_LOWER_POS(a,b) (MIN2((a)+(b), MAX2((a),(b))))
+#define ADD_IF_LOWER_NEG(a,b) (MAX2((a)+(b), MIN2((a),(b))))
+#define ADD_IF_LOWER(a,b) (((b)>0)?ADD_IF_LOWER_POS((a),(b)):ADD_IF_LOWER_NEG((a),(b)))
 
 /* forward declerations */
 static void calcTriangleDivs(Object *ob, MVert *verts, int numverts, MFace *tris, int numfaces, int numtris, int **tridivs, float cell_len);
