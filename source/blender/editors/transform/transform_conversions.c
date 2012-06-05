@@ -1942,7 +1942,7 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 	TransDataExtension *tx = NULL;
 	BMEditMesh *em = BMEdit_FromObject(t->obedit);
 	BMesh *bm = em->bm;
-	BMVert *eve, **affected_verts;
+	BMVert *eve;
 	UVTransCorrect *uvtc;
 	UVTransCorrInfoUV **initial_uvs;
 	BMIter iter;
@@ -2052,7 +2052,7 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 		uvtc = t->uvtc = MEM_callocN(sizeof(*t->uvtc), "UVTransformCorrect");
 //		uvtc->affected_verts = affected_verts = MEM_mallocN(t->total * sizeof(*t->uvtc->affected_verts), "uvtc_verts");
 		uvtc->initial_uvs = initial_uvs = MEM_mallocN(bm->totvert * sizeof(*t->uvtc->initial_uvs), "uvtc_inituvs");
-		uvtc->vert_indices = MEM_mallocN(bm->totvert * sizeof(*t->uvtc->vert_indices), "uvtc_indices");
+		uvtc->init_vec = MEM_mallocN(bm->totvert * sizeof(*t->uvtc->init_vec), "uvtc_initial_vertexes");
 		uvtc->total_verts = bm->totvert;
 		BM_mesh_elem_index_ensure(bm, BM_VERT);
 	}
@@ -2110,7 +2110,8 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 	eve = BM_iter_new(&iter, bm, BM_VERTS_OF_MESH, NULL);
 	for (a=0, i=0; eve; eve=BM_iter_step(&iter), a++) {
 		if(t->flag & T_IMAGE_PRESERVE_CALC) {
-			uvtc->vert_indices[a] = -1;
+			/* will need to save initial position iteratable by vertex too */
+			copy_v3_v3(uvtc->init_vec[a], eve->co);
 			initial_uvs[a] = NULL;
 		}
 
@@ -2128,11 +2129,11 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 					UVTransCorrInfoUV *uvprev = NULL;
 
 					tob->eve = eve;
-					tob->oldindex = BM_elem_index_get(eve);
-					uvtc->vert_indices[a] = i;
+
 					if(propmode)
 						BLI_assert(i == a);
 					BLI_assert(BM_elem_index_get(eve) == a);
+
 					BM_ITER_ELEM(l, &iter2, eve, BM_LOOPS_OF_VERT) {
 						MLoopUV *luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
 
@@ -2204,8 +2205,6 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 		}
 	}
 
-	if(propmode)
-		BLI_assert(i == a);
 	if (mirror != 0) {
 		tob = t->data;
 		for (a = 0; a < t->total; a++, tob++ ) {

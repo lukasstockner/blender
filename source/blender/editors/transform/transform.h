@@ -230,13 +230,8 @@ typedef struct UVTransCorrInfoUV {
 
 /* unwrap transform correction structure, will contain mesh elements that will be used for unwrapping */
 typedef struct UVTransCorrect {
-//	struct BMEdge **boundary_edges;
-//	struct BMFace **unwrapped_faces;
-//	struct BMVert **affected_verts;
 	UVTransCorrInfoUV **initial_uvs;
-	int *vert_indices;
-//	int total_boundary_edges;
-//	int total_unwrapped_faces;
+	float (*init_vec)[3]; /* initial vertex value */
 	int total_verts;
 	char init;
 } UVTransCorrect;
@@ -261,7 +256,6 @@ typedef struct TransData {
 	int  flag;           /* Various flags */
 	short  protectflag;	 /* If set, copy of Object or PoseChannel protection */
 	struct BMVert *eve;
-	int oldindex;
 } TransData;
 
 typedef struct MouseInput {
