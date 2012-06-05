@@ -169,7 +169,7 @@ void FLUID_3D::solveHeat(float* field, float* b, unsigned char* skip)
 }
 
 
-void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, VectorXf &myb, SparseMatrix<float,RowMajor> &A)
+void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, VectorXf &myb, SparseMatrix<float,RowMajor> &A, ArrayXd &gti)
 {
 	int x, y, z;
 	size_t index;
@@ -234,7 +234,7 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, Vec
 
 				deltaNew += _residual[index] * _direction[index];
 			}
-#if 0
+
 			{
 				ofstream myfile;
 				myfile.open ("test.txt");  
@@ -281,16 +281,14 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, Vec
 									1.0f * (skip[index + _slabSize] ? 0.0 : -1.0f);
 
 								//if(indexValue != 0)
-								//myfile << tmp[FINDEX(x, y, z)] << " " << indexValue << endl;
-								//printf("index: %d, FINDEX: %d, value: %f\n", index, FINDEX(x, y, z), tmp[gridToIndex(FINDEX(x, y, z))]);
+								//myfile << tmp[gti(FINDEX(x, y, z))] << " " << indexValue << endl;
+								// printf("index: %d, FINDEX: %d, value: %f\n", index, FINDEX(x, y, z), tmp[gti(FINDEX(x, y, z))]);
 							}
 						}
 
-				//myfile << "---------------------------------------------" << endl;
-				//myfile << endl;
 				myfile.close();		
 			}
-#endif
+
 			// While deltaNew > (eps^2) * delta0
 			const float eps  = SOLVER_ACCURACY;
 			//while ((i < _iterations) && (deltaNew > eps*delta0))
