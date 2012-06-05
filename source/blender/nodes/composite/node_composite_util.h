@@ -57,6 +57,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_utildefines.h"
 
+#include "BLF_translation.h"
+
 #include "BKE_blender.h"
 #include "BKE_camera.h"
 #include "BKE_colortools.h"
@@ -155,6 +157,7 @@ void composit4_pixel_processor(bNode *node, CompBuf *out, CompBuf *src1_buf, flo
 									  int src1_type, int fac1_type, int src2_type, int fac2_type);
 
 CompBuf *valbuf_from_rgbabuf(CompBuf *cbuf, int channel);
+void valbuf_to_rgbabuf(CompBuf *valbuf, CompBuf *cbuf, int channel);
 void generate_preview(void *data, bNode *node, CompBuf *stackbuf);
 
 void do_copy_rgba(bNode *node, float *out, float *in);

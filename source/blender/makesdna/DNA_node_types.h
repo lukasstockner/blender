@@ -350,8 +350,9 @@ typedef struct bNodeSocketValueRGBA {
 #define CMP_NODE_LENSFLARE_CIRCLE  4
 #define CMP_NODE_LENSFLARE_STREAKS 8
 
-#define CMP_NODE_DILATEERODE_STEP     0
-#define CMP_NODE_DILATEERODE_DISTANCE 1
+#define CMP_NODE_DILATEERODE_STEP            0
+#define CMP_NODE_DILATEERODE_DISTANCE_THRESH 1
+#define CMP_NODE_DILATEERODE_DISTANCE        2
 
 typedef struct NodeFrame {
 	short flag;
@@ -562,6 +563,7 @@ typedef struct NodeTexSky {
 
 typedef struct NodeTexImage {
 	NodeTexBase base;
+	ImageUser iuser;
 	int color_space, pad;
 } NodeTexImage;
 
@@ -571,6 +573,7 @@ typedef struct NodeTexChecker {
 
 typedef struct NodeTexEnvironment {
 	NodeTexBase base;
+	ImageUser iuser;
 	int color_space, projection;
 } NodeTexEnvironment;
 

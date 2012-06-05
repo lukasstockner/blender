@@ -226,11 +226,6 @@ static void node_area_listener(ScrArea *sa, wmNotifier *wmn)
 					ED_area_tag_refresh(sa);
 			}
 			break;
-		case NC_TEXT:
-			/* pynodes */
-			if (wmn->data==ND_SHADING)
-				ED_area_tag_refresh(sa);
-			break;
 		case NC_SPACE:
 			if (wmn->data==ND_SPACE_NODE)
 				ED_area_tag_refresh(sa);
@@ -248,6 +243,13 @@ static void node_area_listener(ScrArea *sa, wmNotifier *wmn)
 				case ND_ANIMPLAY:
 					ED_area_tag_refresh(sa);
 					break;
+			}
+			break;
+		case NC_MASK:
+			if (wmn->action == NA_EDITED) {
+				if (type==NTREE_COMPOSIT) {
+					ED_area_tag_refresh(sa);
+				}
 			}
 			break;
 

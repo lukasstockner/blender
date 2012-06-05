@@ -1877,7 +1877,8 @@ static void do_weight_paint_vertex(
 		/* use locks and/or multipaint */
 		float oldw;
 		float neww;
-		float testw = 0;
+		/* float testw = 0; */ /* UNUSED */
+		float observedChange = 0;
 		float change = 0;
 		float oldChange = 0;
 		int i;
@@ -1889,13 +1890,14 @@ static void do_weight_paint_vertex(
 		                    wpi->brush_alpha_value, wpi->do_flip, do_multipaint_totsel);
 		
 		/* setup multi-paint */
-		if (do_multipaint_totsel) {
+		observedChange = neww - oldw;
+		if (do_multipaint_totsel && observedChange) {
 			dv_copy.dw = MEM_dupallocN(dv->dw);
 			dv_copy.flag = dv->flag;
 			dv_copy.totweight = dv->totweight;
 			tdw = dw;
 			tdw_prev = dw_prev;
-			change = get_mp_change(&wp->wpaint_prev[index], wpi->defbase_tot, wpi->defbase_sel, neww - oldw);
+			change = get_mp_change(&wp->wpaint_prev[index], wpi->defbase_tot, wpi->defbase_sel, observedChange);
 			if (change) {
 				if (!tdw->weight) {
 					i = get_first_selected_nonzero_weight(dv, wpi->defbase_tot, wpi->defbase_sel);
@@ -1910,8 +1912,8 @@ static void do_weight_paint_vertex(
 				if (change && tdw_prev->weight && tdw_prev->weight * change) {
 					if (tdw->weight != tdw_prev->weight) {
 						oldChange = tdw->weight / tdw_prev->weight;
-						testw = tdw_prev->weight * change;
-						if (testw > tdw_prev->weight) {
+						/* testw = tdw_prev->weight * change; */ /* UNUSED */
+						if (observedChange > 0) {
 							if (change > oldChange) {
 								/* reset the weights and use the new change */
 								defvert_reset_to_prev(wp->wpaint_prev + index, dv);
@@ -2100,8 +2102,7 @@ static char *wpaint_make_validmap(Object *ob)
 					if (chan->bone->flag & BONE_NO_DEFORM)
 						continue;
 
-					if (BLI_ghash_haskey(gh, chan->name)) {
-						BLI_ghash_remove(gh, chan->name, NULL, NULL);
+					if (BLI_ghash_remove(gh, chan->name, NULL, NULL)) {
 						BLI_ghash_insert(gh, chan->name, SET_INT_IN_POINTER(1));
 					}
 				}
@@ -2460,6 +2461,8 @@ static void wpaint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 	}
 	
 	DAG_id_tag_update(ob->data, 0);
+
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 }
 
 
@@ -2953,6 +2956,8 @@ static void vpaint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 {
 	ToolSettings *ts = CTX_data_tool_settings(C);
 	struct VPaintData *vpd = paint_stroke_mode_data(stroke);
+	ViewContext *vc = &vpd->vc;
+	Object *ob = vc->obact;
 	
 	if (vpd->vertexcosnos)
 		MEM_freeN(vpd->vertexcosnos);
@@ -2964,6 +2969,8 @@ static void vpaint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 	if (vpd->polyfacemap_arena) {
 		BLI_memarena_free(vpd->polyfacemap_arena);
 	}
+
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
 	MEM_freeN(vpd);
 }

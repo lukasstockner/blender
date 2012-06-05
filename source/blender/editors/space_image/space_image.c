@@ -473,6 +473,7 @@ static void image_operatortypes(void)
 
 	WM_operatortype_append(IMAGE_OT_new);
 	WM_operatortype_append(IMAGE_OT_open);
+	WM_operatortype_append(IMAGE_OT_match_movie_length);
 	WM_operatortype_append(IMAGE_OT_replace);
 	WM_operatortype_append(IMAGE_OT_reload);
 	WM_operatortype_append(IMAGE_OT_save);
@@ -589,8 +590,7 @@ static void image_refresh(const bContext *C, ScrArea *UNUSED(sa))
 
 	ima = ED_space_image(sima);
 
-	if (sima->iuser.flag & IMA_ANIM_ALWAYS)
-		BKE_image_user_frame_calc(&sima->iuser, scene->r.cfra, 0);
+	BKE_image_user_check_frame_calc(&sima->iuser, scene->r.cfra, 0);
 	
 	/* check if we have to set the image from the editmesh */
 	if (ima && (ima->source == IMA_SRC_VIEWER || sima->pin)) ;

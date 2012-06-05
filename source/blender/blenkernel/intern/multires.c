@@ -685,7 +685,7 @@ static void multires_del_higher(MultiresModifierData *mmd, Object *ob, int lvl)
 	multires_set_tot_level(ob, mmd, lvl);
 }
 
-/* direction=1 for delete higher, direction=0 for lower (not implemented yet) */
+/* (direction = 1) for delete higher, (direction = 0) for lower (not implemented yet) */
 void multiresModifier_del_levels(MultiresModifierData *mmd, Object *ob, int direction)
 {
 	Mesh *me = BKE_mesh_from_object(ob);
@@ -1058,7 +1058,8 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DerivedMesh *dm
 			/* if needed, reallocate multires paint mask */
 			if (gpm && gpm->level < key.level) {
 				gpm->level = key.level;
-				MEM_freeN(gpm->data);
+				if (gpm->data)
+					MEM_freeN(gpm->data);
 				gpm->data = MEM_callocN(sizeof(float) * key.grid_area, "gpm.data");
 			}
 

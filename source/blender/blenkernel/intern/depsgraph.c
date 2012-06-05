@@ -2611,6 +2611,18 @@ static void dag_id_flush_update(Scene *sce, ID *id)
 			}
 		}
 
+		if (idtype == ID_MSK) {
+			if (sce->nodetree) {
+				bNode *node;
+
+				for (node = sce->nodetree->nodes.first; node; node = node->next) {
+					if (node->id == id) {
+						nodeUpdate(sce->nodetree, node);
+					}
+				}
+			}
+		}
+
 		/* camera's matrix is used to orient reconstructed stuff,
 		 * so it should happen tracking-related constraints recalculation
 		 * when camera is changing (sergey) */
@@ -2938,7 +2950,7 @@ void DAG_pose_sort(Object *ob)
 	queue_delete(nqueue);
 	
 //	printf("\nordered\n");
-//	for (pchan = pose->chanbase.first; pchan; pchan= pchan->next) {
+//	for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
 //		printf(" %s\n", pchan->name);
 //	}
 	

@@ -395,11 +395,8 @@ static short acf_generic_dataexpand_setting_valid(bAnimContext *ac, bAnimListEle
 /* get backdrop color for summary widget */
 static void acf_summary_color(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale), float r_color[3])
 {
-	// FIXME: hardcoded color - same as the 'action' line in NLA
-	// reddish color
-	r_color[0] = 0.8f;
-	r_color[1] = 0.2f;
-	r_color[2] = 0.0f;
+	/* reddish color - same as the 'action' line in NLA */
+	UI_GetThemeColor3fv(TH_ANIM_ACTIVE, r_color);
 }
 
 /* backdrop for summary widget */
@@ -850,7 +847,7 @@ static int acf_group_setting_flag(bAnimContext *ac, int setting, short *neg)
 			return AGRP_MUTED;
 			
 		case ACHANNEL_SETTING_PROTECT: /* protected */
-			// *neg= 1; - if we change this to edtiability
+			// *neg = 1; - if we change this to edtiability
 			return AGRP_PROTECTED;
 			
 		case ACHANNEL_SETTING_VISIBLE: /* visiblity - graph editor */
@@ -938,7 +935,7 @@ static int acf_fcurve_setting_flag(bAnimContext *UNUSED(ac), int setting, short 
 			return FCURVE_MUTED;
 			
 		case ACHANNEL_SETTING_PROTECT: /* protected */
-			// *neg= 1; - if we change this to edtiability
+			// *neg = 1; - if we change this to edtiability
 			return FCURVE_PROTECTED;
 			
 		case ACHANNEL_SETTING_VISIBLE: /* visiblity - graph editor */
@@ -2483,7 +2480,7 @@ static int acf_gpl_setting_flag(bAnimContext *UNUSED(ac), int setting, short *ne
 			return GP_LAYER_HIDE;
 			
 		case ACHANNEL_SETTING_PROTECT: /* protected */
-			// *neg= 1; - if we change this to edtiability
+			// *neg = 1; - if we change this to edtiability
 			return GP_LAYER_LOCKED;
 			
 		default: /* unsupported */
@@ -2699,7 +2696,7 @@ short ANIM_channel_setting_get(bAnimContext *ac, bAnimListElem *ale, int setting
 			else if (smode == ACHANNEL_SETFLAG_ADD) (sval) |= (sflag); \
 			else (sval) &= ~(sflag); \
 		} \
-	}
+	} (void)0
 
 /* Change value of some setting for a channel 
  *	- setting: eAnimChannel_Settings
@@ -3060,7 +3057,7 @@ static void achannel_setting_slider_shapekey_cb(bContext *C, void *key_poin, voi
 		/* find or create new F-Curve */
 		// XXX is the group name for this ok?
 		bAction *act = verify_adt_action((ID *)key, 1);
-		FCurve *fcu = verify_fcurve(act, NULL, rna_path, 0, 1);
+		FCurve *fcu = verify_fcurve(act, NULL, &ptr, rna_path, 0, 1);
 		
 		/* set the special 'replace' flag if on a keyframe */
 		if (fcurve_frame_has_keyframe(fcu, cfra, 0))
@@ -3096,7 +3093,7 @@ static void draw_setting_widget(bAnimContext *ac, bAnimListElem *ale, bAnimChann
 	/* get the base icon for the setting */
 	switch (setting) {
 		case ACHANNEL_SETTING_VISIBLE:  /* visibility eyes */
-			//icon= ((enabled)? ICON_VISIBLE_IPO_ON : ICON_VISIBLE_IPO_OFF);
+			//icon = ((enabled) ? ICON_VISIBLE_IPO_ON : ICON_VISIBLE_IPO_OFF);
 			icon = ICON_VISIBLE_IPO_OFF;
 			
 			if (ale->type == ANIMTYPE_FCURVE)

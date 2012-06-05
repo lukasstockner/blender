@@ -101,8 +101,7 @@ endif()
 		bf_rna
 		bf_bmesh
 		bf_blenkernel
-		bf_blenloader 
-		bf_blenpluginapi 
+		bf_blenloader
 		ge_blen_routines
 		bf_editor_datafiles
 		ge_converter 
@@ -153,6 +152,7 @@ endif()
 		bf_blenkernel # duplicate for linking
 		bf_intern_mikktspace
 		extern_recastnavigation
+		bf_intern_raskter
 	)
 
 	if(WITH_MOD_CLOTH_ELTOPO)

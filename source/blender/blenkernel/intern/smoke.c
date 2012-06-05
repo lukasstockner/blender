@@ -1180,7 +1180,7 @@ static void update_obstacles(Scene *scene, Object *ob, SmokeDomainSettings *sds,
 
 				sub_v3_v3v3(vel, pos, oldpos);
 				/* Scale velocity to incorperate the object movement during this step */
-				mul_v3_fl(vel, 1.0 / (totalsteps * dt));
+				mul_v3_fl(vel, 1.0 / (totalsteps * dt * sds->scale));
 				// mul_v3_fl(vel, 1.0 / dt);
 
 				// DG TODO: cap velocity to maxVelMag (or maxvel)
@@ -1892,7 +1892,7 @@ static float calc_voxel_transp(float *result, float *input, int res[3], int *pix
 	
 	if(result[index] < 0.0f)	
 	{
-#pragma omp critical		
+// #pragma omp critical		
 		result[index] = *tRay;	
 	}	
 
@@ -2036,7 +2036,7 @@ static void smoke_calc_transparency(float *result, float *input, float *p0, floa
 	bv[4] = p0[2];
 	bv[5] = p1[2];
 
-//#pragma omp parallel for schedule(static,1)
+// #pragma omp parallel for schedule(static,1)
 	for(z = 0; z < res[2]; z++)
 	{
 		size_t index = z*slabsize;

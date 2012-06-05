@@ -37,6 +37,7 @@ BlurBaseOperation::BlurBaseOperation(): NodeOperation()
 	this->data = NULL;
 	this->size = 1.0f;
 	this->deleteData = false;
+	this->sizeavailable=false;
 }
 void BlurBaseOperation::initExecution()
 {
@@ -100,7 +101,10 @@ void BlurBaseOperation::deinitExecution()
 
 void BlurBaseOperation::updateSize(MemoryBuffer **memoryBuffers)
 {
-	float result[4];
-	this->getInputSocketReader(1)->read(result, 0, 0, COM_PS_NEAREST, memoryBuffers);
-	this->size = result[0];
+	if (!this->sizeavailable) {
+		float result[4];
+		this->getInputSocketReader(1)->read(result, 0, 0, COM_PS_NEAREST, memoryBuffers);
+		this->size = result[0];
+		this->sizeavailable = true;
+	}
 }
