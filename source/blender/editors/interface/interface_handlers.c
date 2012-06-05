@@ -6567,7 +6567,7 @@ static int ui_handler_region_menu(bContext *C, wmEvent *event, void *UNUSED(user
 		}
 		else {
 			/* handle events for the activated button */
-			ui_handle_button_event(C, event, but);
+			retval = ui_handle_button_event(C, event, but);
 		}
 	}
 
