@@ -1712,6 +1712,8 @@ void calculateUVTransformCorrection(TransInfo *t)
 	/* iterate through loops of vert and calculate image space diff of uvs */
 	for (i = 0 ; i < t->total; i++) {
 		if(not_prop_edit || td[i].factor > 0.0) {
+			char optimal_found = FALSE;
+			char nochange = FALSE;
 			int index;
 			float uv_tot[2];
 			int uv_counter = 0;
@@ -1721,11 +1723,13 @@ void calculateUVTransformCorrection(TransInfo *t)
 			uv_tot[0] = uv_tot[1] = 0.0;
 
 			BM_ITER_ELEM(l, &iter, v, BM_LOOPS_OF_VERT) {
-				float mul;
+				float angle1, angle2, angle_boundary;
+				float cross1[3], cross2[3];
+				float normal[3], projv[3];
 				float edge_len_init, edge_len_init2;
 				float edge_len_final, edge_len_final2;
 				float edge_vec_init[3], edge_vec_init2[3];
-				float edge_vec_final[3], edge_vec_final2[3];
+				//float edge_vec_final[3], edge_vec_final2[3];
 				float edge_uv_init[2], edge_uv_init2[2];
 				float uvdiff[2], uvdiff2[2];
 				int index_next, index_prev;
@@ -1740,7 +1744,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 
 				/* find initial and final edge lengths */
 				sub_v3_v3v3(edge_vec_init, uvtc->init_vec[index_next], td[i].iloc);
-				sub_v3_v3v3(edge_vec_final, uvtc->init_vec[index_next], v->co);
+				//sub_v3_v3v3(edge_vec_final, uvtc->init_vec[index_next], v->co);
 				if(uvtc->initial_uvs[index_next])
 					sub_v2_v2v2(edge_uv_init, uvtc->initial_uvs[index_next]->init_uv, uvtc->initial_uvs[index]->init_uv);
 				else {
@@ -1749,7 +1753,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 				}
 
 				sub_v3_v3v3(edge_vec_init2, uvtc->init_vec[index_prev], td[i].iloc);
-				sub_v3_v3v3(edge_vec_final2, uvtc->init_vec[index_prev], v->co);
+				//sub_v3_v3v3(edge_vec_final2, uvtc->init_vec[index_prev], v->co);
 				if(uvtc->initial_uvs[index_prev])
 					sub_v2_v2v2(edge_uv_init2, uvtc->initial_uvs[index_prev]->init_uv, uvtc->initial_uvs[index]->init_uv);
 				else {
@@ -1758,19 +1762,55 @@ void calculateUVTransformCorrection(TransInfo *t)
 				}
 
 				/* first project final edges to initial edges to get the translation along the edge axis */
-				mul = dot_v3v3(edge_vec_final, edge_vec_init) / dot_v3v3(edge_vec_init, edge_vec_init);
-				mul_v3_v3fl(edge_vec_final, edge_vec_init, mul);
-				edge_len_final = signf(mul)*len_v3(edge_vec_final);
+				copy_v3_v3(projv, v->co);
+				cross_v3_v3v3(normal, edge_vec_init, edge_vec_init2);
+				project_v3_plane(projv, normal, td[i].iloc);
+				sub_v3_v3v3(projv, projv, td[i].iloc);
 
-				mul = dot_v3v3(edge_vec_final2, edge_vec_init2) / dot_v3v3(edge_vec_init2, edge_vec_init2);
-				mul_v3_v3fl(edge_vec_final2, edge_vec_init2, mul);
-				edge_len_final2 = signf(mul)*len_v3(edge_vec_final2);
+				if(len_v3(projv) < 0.00001) {
+					nochange = TRUE;
+					break;
+				}
+
+				cross_v3_v3v3(cross1, l->f->no, edge_vec_init);
+				cross_v3_v3v3(cross2, l->f->no, edge_vec_init2);
+
+				add_v3_v3(cross1, cross2);
+
+				/* now get angles */
+				angle1 = acos(dot_v3v3(projv, edge_vec_init)/(len_v3(projv)*len_v3(edge_vec_init)));
+				angle_boundary = acos(dot_v3v3(edge_vec_init, edge_vec_init2)/(len_v3(edge_vec_init)*len_v3(edge_vec_init2)));
+
+				edge_len_final = len_v3(projv)*sin(M_PI - angle1 - angle_boundary)/sin(angle_boundary);
+
+				angle2 = acos(dot_v3v3(projv, edge_vec_init2)/(len_v3(projv)*len_v3(edge_vec_init2)));
+				edge_len_final2 = len_v3(projv)*sin(M_PI - angle2 - angle_boundary)/sin(angle_boundary);
+
+				//printf("angle1 : %f, angle2 : %f, angle_boundary : %f\n", angle1, angle2, angle_boundary);
+				/*
+				mul1 = dot_v3v3(edge_vec_final, edge_vec_init) / dot_v3v3(edge_vec_init, edge_vec_init);
+				mul_v3_v3fl(edge_vec_final, edge_vec_init, mul1);
+				edge_len_final = signf(mul1)*len_v3(edge_vec_final);
+
+				mul2 = dot_v3v3(edge_vec_final2, edge_vec_init2) / dot_v3v3(edge_vec_init2, edge_vec_init2);
+				mul_v3_v3fl(edge_vec_final2, edge_vec_init2, mul2);
+				edge_len_final2 = signf(mul2)*len_v3(edge_vec_final2);
+				*/
 
 				edge_len_init = len_v3(edge_vec_init);
 				edge_len_init2 = len_v3(edge_vec_init2);
 
-				mul_v2_v2fl(uvdiff, edge_uv_init, -(edge_len_final - edge_len_init)/edge_len_init);
-				mul_v2_v2fl(uvdiff2, edge_uv_init2, -(edge_len_final2 - edge_len_init2)/edge_len_init2);
+				mul_v2_v2fl(uvdiff, edge_uv_init, edge_len_final/edge_len_init);
+				mul_v2_v2fl(uvdiff2, edge_uv_init2, edge_len_final2/edge_len_init2);
+
+				/* fonud optimal direction */
+				if((dot_v3v3(cross1, projv) > 0.0) && !(angle_boundary > (angle1 + angle2 - 0.1))) {
+					optimal_found = TRUE;
+					uv_tot[0] = uv_tot[1] = 0.0;
+					add_v2_v2(uv_tot, uvdiff);
+					add_v2_v2(uv_tot, uvdiff2);
+					break;
+				}
 
 				add_v2_v2(uv_tot, uvdiff);
 				add_v2_v2(uv_tot, uvdiff2);
@@ -1780,7 +1820,12 @@ void calculateUVTransformCorrection(TransInfo *t)
 				//mul_m4_v3(modelviewprojmat, diff);
 			}
 
-			mul_v2_fl(uv_tot, 1.0/uv_counter);
+			if(nochange)
+				continue;
+			//printf("optimal found %d\n", optimal_found);
+			if(!optimal_found)
+				mul_v2_fl(uv_tot, 1.0/uv_counter);
+
 			add_v2_v2(uv_tot, uvtc->initial_uvs[index]->init_uv);
 
 			uvtcuv = uvtc->initial_uvs[index];
