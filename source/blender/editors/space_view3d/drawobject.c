@@ -6962,6 +6962,13 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 				            smd->domain->res, smd->domain->dx,
 				            smd->domain->tex_shadow, smd->domain->tex_flame);
 				GPU_free_smoke(smd);
+				/* smoke debug render */
+				#ifdef SMOKE_DEBUG_VELOCITY
+					draw_smoke_velocity(smd->domain);
+				#endif
+				#ifdef SMOKE_DEBUG_HEAT
+					draw_smoke_heat(smd->domain);
+				#endif
 // #endif
 #if 0
 				int x, y, z;

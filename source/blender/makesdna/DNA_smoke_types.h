@@ -119,25 +119,37 @@ typedef struct SmokeDomainSettings {
 #define MOD_SMOKE_FLOW_TYPE_OUTFLOW 2
 #define MOD_SMOKE_FLOW_TYPE_SMOKEFIRE 3
 
+/* flow source */
+#define MOD_SMOKE_FLOW_SOURCE_PARTICLES 0
+#define MOD_SMOKE_FLOW_SOURCE_MESH 1
+
 /* flags */
 #define MOD_SMOKE_FLOW_ABSOLUTE (1<<1) /*old style emission*/
 #define MOD_SMOKE_FLOW_INITVELOCITY (1<<2) /* passes particles speed to the smoke */
 
 typedef struct SmokeFlowSettings {
 	struct SmokeModifierData *smd; /* for fast RNA access */
+	struct DerivedMesh *dm;
 	struct ParticleSystem *psys;
+
+	/* initial velocity */
+	float *verts_old; /* previous vertex positions in domain space */
+	int numverts;
+	float vel_multi; // Multiplier for inherited velocity
+	float vel_normal;
+	float vel_random;
+	/* emission */
 	float density;
 	float fuel_amount;
 	float temp; /* delta temperature (temp - ambient temp) */
-	float velocity[2]; /* UNUSED, velocity taken from particles */
-	float vel_multi; // Multiplier for particle velocity
-	float vgrp_heat_scale[2]; /* min and max scaling for vgroup_heat */
-	short vgroup_flow; /* where inflow/outflow happens - red=1=action */
+	float volume_density; /* density emitted within mesh volume */
+	float surface_distance; /* maximum emission distance from mesh surface */
 	short vgroup_density;
-	short vgroup_heat;
+
 	short type; /* smoke, flames, both, outflow */
+	short source;
+	short pad;
 	int flags; /* absolute emission etc*/
-	int pad;
 } SmokeFlowSettings;
 
 

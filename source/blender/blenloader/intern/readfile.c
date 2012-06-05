@@ -4378,6 +4378,9 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				smd->coll = NULL;
 				smd->flow = newdataadr(fd, smd->flow);
 				smd->flow->smd = smd;
+				smd->flow->dm = NULL;
+				smd->flow->verts_old = NULL;
+				smd->flow->numverts = 0;
 				smd->flow->psys = newdataadr(fd, smd->flow->psys);
 			}
 			else if (smd->type == MOD_SMOKE_TYPE_COLL) {
@@ -7693,6 +7696,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					else if ((smd->type & MOD_SMOKE_TYPE_FLOW) && smd->flow) {
 						if (!smd->flow->fuel_amount) {
 							smd->flow->fuel_amount = 1.0;
+							smd->flow->surface_distance = 1.5;
 						}
 					}
 				}

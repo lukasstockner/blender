@@ -36,6 +36,7 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_smoke_types.h"
 #include "DNA_view3d_types.h"
 
 #include "BLI_utildefines.h"
@@ -513,3 +514,77 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 	}
 }
 
+#ifdef SMOKE_DEBUG_VELOCITY
+void draw_smoke_velocity(SmokeDomainSettings *domain)
+{
+	float x,y,z;
+	int *res = domain->res;
+	float *vel_x = smoke_get_velocity_x(domain->fluid);
+	float *vel_y = smoke_get_velocity_y(domain->fluid);
+	float *vel_z = smoke_get_velocity_z(domain->fluid);
+
+	float *min = domain->p0;
+	float cell_size = domain->dx * domain->scale;
+	float step_size = ((float)MAX3(res[0], res[1], res[2]))/16.f;
+	float vf = domain->scale / 16.f * 2.f;
+
+	glColor3f(1.0f, 0.5f, 0.0f);
+	glLineWidth(1.0f);
+
+	for (x=0; x<res[0]; x+=step_size)
+		for (y=0; y<res[1]; y+=step_size)
+			for (z=0; z<res[2]; z+=step_size) {
+				int index = floor(x) + floor(y)*res[0] + floor(z)*res[0]*res[1];
+
+				float pos[3] = {min[0]+((float)x + 0.5f)*cell_size, min[1]+((float)y + 0.5f)*cell_size, min[2]+((float)z + 0.5f)*cell_size};
+				float vel = sqrtf(vel_x[index]*vel_x[index] + vel_y[index]*vel_y[index] + vel_z[index]*vel_z[index]);
+
+				if (vel >= 0.01f) {
+					float col_g = 1.0f - vel;
+					CLAMP(col_g, 0.0f, 1.0f);
+					glColor3f(1.0f, col_g, 0.0f);
+					glPointSize(10.0f * vel);
+
+					glBegin(GL_LINES);
+					glVertex3f(pos[0], pos[1], pos[2]);
+					glVertex3f(pos[0]+vel_x[index]*vf, pos[1]+vel_y[index]*vf, pos[2]+vel_z[index]*vf);
+					glEnd();
+					glBegin(GL_POINTS);
+					glVertex3f(pos[0]+vel_x[index]*vf, pos[1]+vel_y[index]*vf, pos[2]+vel_z[index]*vf);
+					glEnd();
+				}
+	}
+}
+#endif
+
+#ifdef SMOKE_DEBUG_HEAT
+void draw_smoke_heat(SmokeDomainSettings *domain)
+{
+	float x,y,z;
+	int *res = domain->res;
+	float *heat = smoke_get_heat(domain->fluid);
+
+	float *min = domain->p0;
+	float cell_size = domain->dx * domain->scale;
+	float step_size = ((float)MAX3(res[0], res[1], res[2]))/16.f;
+
+	for (x=0; x<res[0]; x+=step_size)
+		for (y=0; y<res[1]; y+=step_size)
+			for (z=0; z<res[2]; z+=step_size) {
+				int index = floor(x) + floor(y)*res[0] + floor(z)*res[0]*res[1];
+
+				float pos[3] = {min[0]+((float)x + 0.5f)*cell_size, min[1]+((float)y + 0.5f)*cell_size, min[2]+((float)z + 0.5f)*cell_size};
+
+				if (heat[index] >= 0.01f) {
+					float col_gb = 1.0f - heat[index];
+					CLAMP(col_gb, 0.0f, 1.0f);
+					glColor3f(1.0f, col_gb, col_gb);
+					glPointSize(24.0f * heat[index]);
+
+					glBegin(GL_POINTS);
+					glVertex3f(pos[0], pos[1], pos[2]);
+					glEnd();
+				}
+	}
+}
+#endif

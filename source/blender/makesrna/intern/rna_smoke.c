@@ -111,6 +111,24 @@ static char *rna_SmokeCollSettings_path(PointerRNA *ptr)
 	return BLI_sprintfN("modifiers[\"%s\"].coll_settings", md->name);
 }
 
+static void rna_SmokeFlow_density_vgroup_get(PointerRNA *ptr, const char *value)
+{
+	SmokeFlowSettings *flow = (SmokeFlowSettings *)ptr->data;
+	rna_object_vgroup_name_index_get(ptr, value, flow->vgroup_density);
+}
+
+static int rna_SmokeFlow_density_vgroup_length(PointerRNA *ptr)
+{
+	SmokeFlowSettings *flow = (SmokeFlowSettings *)ptr->data;
+	return rna_object_vgroup_name_index_length(ptr, flow->vgroup_density);
+}
+
+static void rna_SmokeFlow_density_vgroup_set(PointerRNA *ptr, const char *value)
+{
+	SmokeFlowSettings *flow = (SmokeFlowSettings *)ptr->data;
+	rna_object_vgroup_name_index_set(ptr, value, &flow->vgroup_density);
+}
+
 #else
 
 static void rna_def_smoke_domain_settings(BlenderRNA *brna)
@@ -327,6 +345,12 @@ static void rna_def_smoke_flow_settings(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem smoke_flow_sources[] = {
+		{MOD_SMOKE_FLOW_SOURCE_PARTICLES, "PARTICLES", ICON_PARTICLES, "Particle System", "Emit smoke from particles"},
+		{MOD_SMOKE_FLOW_SOURCE_MESH, "MESH", ICON_META_CUBE, "Mesh", "Emit smoke from mesh surface or volume"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "SmokeFlowSettings", NULL);
 	RNA_def_struct_ui_text(srna, "Flow Settings", "Smoke flow settings");
 	RNA_def_struct_sdna(srna, "SmokeFlowSettings");
@@ -365,6 +389,12 @@ static void rna_def_smoke_flow_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Flow Type", "Change how flow affects the simulation");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 
+	prop = RNA_def_property(srna, "smoke_flow_source", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "source");
+	RNA_def_property_enum_items(prop, smoke_flow_sources);
+	RNA_def_property_ui_text(prop, "Source", "Change how smoke is emitted");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
 	prop = RNA_def_property(srna, "use_absolute", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", MOD_SMOKE_FLOW_ABSOLUTE);
 	RNA_def_property_ui_text(prop, "Absolute Density", "Only allow given density value in emitter area");
@@ -372,14 +402,48 @@ static void rna_def_smoke_flow_settings(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "initial_velocity", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", MOD_SMOKE_FLOW_INITVELOCITY);
-	RNA_def_property_ui_text(prop, "Initial Velocity", "Smoke inherits its velocity from the emitter particle");
+	RNA_def_property_ui_text(prop, "Initial Velocity", "Smoke has some initial velocity when it is emitted");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 
 	prop = RNA_def_property(srna, "velocity_factor", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "vel_multi");
 	RNA_def_property_range(prop, -2.0, 2.0);
 	RNA_def_property_ui_range(prop, -2.0, 2.0, 0.05, 5);
-	RNA_def_property_ui_text(prop, "Multiplier", "Multiplier to adjust velocity passed to smoke");
+	RNA_def_property_ui_text(prop, "Source", "Multiplier of source velocity passed to smoke");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "velocity_normal", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "vel_normal");
+	RNA_def_property_range(prop, -2.0, 2.0);
+	RNA_def_property_ui_range(prop, -2.0, 2.0, 0.05, 5);
+	RNA_def_property_ui_text(prop, "Normal", "Amount of normal directional velocity");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "velocity_random", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "vel_random");
+	RNA_def_property_range(prop, 0.0, 2.0);
+	RNA_def_property_ui_range(prop, 0.0, 2.0, 0.05, 5);
+	RNA_def_property_ui_text(prop, "Random", "Amount of random velocity");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "volume_density", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0, 1.0);
+	RNA_def_property_ui_range(prop, 0.0, 1.0, 0.05, 5);
+	RNA_def_property_ui_text(prop, "Volume", "Factor for smoke emitted from inside the mesh volume");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "surface_distance", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0, 10.0);
+	RNA_def_property_ui_range(prop, 0.0, 5.0, 0.05, 5);
+	RNA_def_property_ui_text(prop, "Surface", "Maximum distance from mesh surface to emit smoke");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "density_vertex_group", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_funcs(prop, "rna_SmokeFlow_density_vgroup_get",
+	                              "rna_SmokeFlow_density_vgroup_length",
+	                              "rna_SmokeFlow_density_vgroup_set");
+	RNA_def_property_ui_text(prop, "Vertex Group",
+	                         "Name of Vertex Group which determines surface emission rate");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 }
 

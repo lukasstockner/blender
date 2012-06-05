@@ -298,7 +298,6 @@ class QuickSmoke(Operator):
     style = EnumProperty(
             name="Smoke Style",
             items=(('STREAM', "Stream", ""),
-                   ('PUFF', "Puff", ""),
                    ('FIRE', "Fire", ""),
                    ),
             default='STREAM',
@@ -327,20 +326,9 @@ class QuickSmoke(Operator):
             bpy.ops.object.modifier_add(fake_context, type='SMOKE')
             obj.modifiers[-1].smoke_type = 'FLOW'
 
-            psys = obj.particle_systems[-1]
-            if self.style == 'PUFF':
-                psys.settings.frame_end = psys.settings.frame_start
-                psys.settings.emit_from = 'VOLUME'
-                psys.settings.distribution = 'RAND'
-            elif self.style == 'FIRE':
-                psys.settings.effector_weights.gravity = -1
-                psys.settings.lifetime = 5
-                psys.settings.count = 100000
+            if self.style == 'FIRE':
+                obj.modifiers[-1].flow_settings.smoke_flow_type = 'FIRE'
 
-                obj.modifiers[-2].flow_settings.initial_velocity = True
-                obj.modifiers[-2].flow_settings.temperature = 2
-
-            psys.settings.use_render_emitter = self.show_flows
             if not self.show_flows:
                 obj.draw_type = 'WIRE'
 
@@ -360,8 +348,6 @@ class QuickSmoke(Operator):
         bpy.ops.object.modifier_add(type='SMOKE')
         obj.modifiers[-1].smoke_type = 'DOMAIN'
         if self.style == 'FIRE':
-            obj.modifiers[-1].domain_settings.use_dissolve_smoke = True
-            obj.modifiers[-1].domain_settings.dissolve_speed = 20
             obj.modifiers[-1].domain_settings.use_high_resolution = True
 
         # create a volume material with a voxel data texture for the domain
@@ -383,9 +369,10 @@ class QuickSmoke(Operator):
 
         # for fire add a second texture for emission and emission color
         if self.style == 'FIRE':
-            mat.volume.emission = 5
-            tex = bpy.data.textures.new("Smoke Heat", 'VOXEL_DATA')
+            mat.volume.emission_color = Vector((0.0, 0.0, 0.0))
+            tex = bpy.data.textures.new("Flame", 'VOXEL_DATA')
             tex.voxel_data.domain_object = obj
+            tex.voxel_data.smoke_data_type = 'SMOKEFLAME'
             tex.use_color_ramp = True
 
             tex_slot = mat.texture_slots.add()
@@ -401,8 +388,9 @@ class QuickSmoke(Operator):
             elem.color[0] = elem.color[1] = elem.color[3] = 1
             elem.color[2] = 0
 
+            mat.texture_slots[1].use_map_density = True
             mat.texture_slots[1].use_map_emission = True
-            mat.texture_slots[1].blend_type = 'MULTIPLY'
+            mat.texture_slots[1].emission_factor = 5
 
         return {'FINISHED'}
 

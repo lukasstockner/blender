@@ -262,15 +262,6 @@ void FLUID_3D::step(float dt)
 	}
 #endif
 
-	for (int index = 0; index < _totalCells; index++)
-	{
-		_xVelocityOld[index] = -99999.f;
-		_yVelocityOld[index] = -99999.f;
-		_zVelocityOld[index] = -99999.f;
-		_densityOld[index] = -99999.f;
-		_fuelOld[index] = -99999.f;
-	}
-
 	// DG: TODO for the moment redo border for every timestep since it's been deleted every time by moving obstacles
 	setBorderCollisions();
 

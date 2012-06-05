@@ -84,15 +84,25 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
             if flow.smoke_flow_type != "OUTFLOW":
                 split = layout.split()
                 col = split.column()
-                col.label(text="Particle System:")
-                col.prop_search(flow, "particle_system", ob, "particle_systems", text="")
+                col.label(text="Flow Source:")
+                col.prop(flow, "smoke_flow_source", expand=False, text="")
+                if flow.smoke_flow_source == "PARTICLES":
+                    col.label(text="Particle System:")
+                    col.prop_search(flow, "particle_system", ob, "particle_systems", text="")
+                else:
+                    col.prop(flow, "surface_distance")
+                    col.prop_search(flow, "density_vertex_group", ob, "vertex_groups", text="")
+                    col.prop(flow, "volume_density")
 
-                sub = col.column()
+                sub = col.column(align=True)
 
-                sub.prop(flow, "initial_velocity", text="Initial Velocity")
+                sub.prop(flow, "initial_velocity")
                 sub = sub.column()
                 sub.active = flow.initial_velocity
-                sub.prop(flow, "velocity_factor", text="Multiplier")
+                sub.prop(flow, "velocity_factor")
+                if flow.smoke_flow_source == "MESH":
+                    sub.prop(flow, "velocity_normal")
+                    #sub.prop(flow, "velocity_random")
 
                 sub = split.column()
                 sub.label(text="Initial Values:")
