@@ -486,18 +486,27 @@ int BKE_brush_clone_image_delete(Brush *brush)
 }
 
 /* Brush Sampling */
-void BKE_brush_sample_tex(const Scene *scene, Brush *brush, const float xy[2], float rgba[4], const int thread)
+void BKE_brush_sample_tex(const Scene *scene, Brush *brush, const float xy[2], float rgba[4], const int thread, float angle)
 {
 	MTex *mtex = &brush->mtex;
 
 	if (mtex && mtex->tex) {
+		float co_angle, length;
 		float co[3], tin, tr, tg, tb, ta;
 		int hasrgb;
 		const int radius = BKE_brush_size_get(scene, brush);
 
-		co[0] = xy[0] / radius;
-		co[1] = xy[1] / radius;
+		co[0] = ((xy[0] - radius/2) / radius);
+		co[1] = ((xy[1] - radius/2) / radius);
 		co[2] = 0.0f;
+
+		length = normalize_v2(co);
+		co_angle = acos(co[0]);
+		co_angle = (co[1] > 0)? co_angle : - co_angle;
+
+		co_angle -= angle;
+		co[0] = cos(co_angle)*length + 0.5;
+		co[1] = sin(co_angle)*length + 0.5;
 
 		hasrgb = externtex(mtex, co, &tin, &tr, &tg, &tb, &ta, thread);
 
@@ -558,10 +567,10 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 					dstf[3] = alpha * BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius);
 				}
 				else if (texfall == 1) {
-					BKE_brush_sample_tex(scene, brush, xy, dstf, 0);
+					BKE_brush_sample_tex(scene, brush, xy, dstf, 0, 0);
 				}
 				else {
-					BKE_brush_sample_tex(scene, brush, xy, rgba, 0);
+					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, 0);
 					mul_v3_v3v3(dstf, rgba, brush_rgb);
 					dstf[3] = rgba[3] *alpha *BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius);
 				}
@@ -588,11 +597,11 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 					dst[3] = FTOCHAR(alpha_f);
 				}
 				else if (texfall == 1) {
-					BKE_brush_sample_tex(scene, brush, xy, rgba, 0);
+					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, 0);
 					rgba_float_to_uchar(dst, rgba);
 				}
 				else if (texfall == 2) {
-					BKE_brush_sample_tex(scene, brush, xy, rgba, 0);
+					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, 0);
 					mul_v3_v3(rgba, brush->rgb);
 					alpha_f = rgba[3] *alpha *BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius);
 
@@ -601,7 +610,7 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 					dst[3] = FTOCHAR(alpha_f);
 				}
 				else {
-					BKE_brush_sample_tex(scene, brush, xy, rgba, 0);
+					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, 0);
 					alpha_f = rgba[3] *alpha *BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius);
 
 					dst[0] = crgb[0];
@@ -898,7 +907,7 @@ static void brush_painter_do_partial(BrushPainter *painter, ImBuf *oldtexibuf,
 					xy[0] = x + xoff;
 					xy[1] = y + yoff;
 
-					BKE_brush_sample_tex(scene, brush, xy, tf, 0);
+					BKE_brush_sample_tex(scene, brush, xy, tf, 0, 0);
 				}
 
 				bf[0] = tf[0] * mf[0];
@@ -929,7 +938,7 @@ static void brush_painter_do_partial(BrushPainter *painter, ImBuf *oldtexibuf,
 					xy[0] = x + xoff;
 					xy[1] = y + yoff;
 
-					BKE_brush_sample_tex(scene, brush, xy, rgba, 0);
+					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, 0);
 					rgba_float_to_uchar(t, rgba);
 				}
 

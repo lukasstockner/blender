@@ -721,7 +721,7 @@ class VIEW3D_PT_tools_brush_texture(Panel, View3DPaintPanel):
         if brush.use_paint_image:
             col.prop(brush, "use_fixed_texture")
 
-        if context.sculpt_object:
+        if context.sculpt_object or context.image_paint_object:
             sculpt_brush_texture_settings(col, brush)
 
             # use_texture_overlay and texture_overlay_alpha
