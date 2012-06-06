@@ -27,7 +27,7 @@
 
 #include "RAS_StorageVA.h"
 
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 RAS_StorageVA::RAS_StorageVA(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib) :
 	m_texco_num(texco_num),

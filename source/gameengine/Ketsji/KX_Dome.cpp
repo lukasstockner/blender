@@ -39,7 +39,7 @@
 #include "RAS_CameraData.h"
 #include "BLI_math.h"
 
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 // constructor
 KX_Dome::KX_Dome (

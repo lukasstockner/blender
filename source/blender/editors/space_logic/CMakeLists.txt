@@ -48,4 +48,6 @@ if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)
 endif()
 
+add_definitions(-DGLEW_STATIC)
+
 blender_add_lib(bf_editor_space_logic "${SRC}" "${INC}" "${INC_SYS}")

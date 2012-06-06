@@ -29,7 +29,7 @@ http://www.gnu.org/copyleft/lesser.txt.
 #include <PyObjectPlus.h>
 #include <structmember.h>
 
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 #include "KX_PythonInit.h"
 #include "Texture.h"

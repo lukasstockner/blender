@@ -54,4 +54,6 @@ if(WITH_AUDASPACE)
 	add_definitions(-DWITH_AUDASPACE)
 endif()
 
+add_definitions(-DGLEW_STATIC)
+
 blender_add_lib(bf_editor_space_sequencer "${SRC}" "${INC}" "${INC_SYS}")

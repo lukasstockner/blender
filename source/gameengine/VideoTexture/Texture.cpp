@@ -50,7 +50,7 @@ http://www.gnu.org/copyleft/lesser.txt.
 #include "Exception.h"
 
 #include <memory.h>
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 
 // macro for exception handling and logging

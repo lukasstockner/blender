@@ -57,4 +57,6 @@ if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
+add_definitions(-DGLEW_STATIC)
+
 blender_add_lib(bf_editor_space_graph "${SRC}" "${INC}" "${INC_SYS}")

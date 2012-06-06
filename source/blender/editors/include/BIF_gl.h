@@ -33,7 +33,7 @@
 #ifndef __BIF_GL_H__
 #define __BIF_GL_H__
 
-#include "GL/glew.h"
+#include <GL/glew.h>
 /*
  * these should be phased out. cpack should be replaced in
  * code with calls to glColor3ub. - zr

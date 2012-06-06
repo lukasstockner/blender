@@ -47,4 +47,6 @@ set(SRC
 	uvedit_parametrizer.h
 )
 
+add_definitions(-DGLEW_STATIC)
+
 blender_add_lib(bf_editor_uvedit "${SRC}" "${INC}" "${INC_SYS}")

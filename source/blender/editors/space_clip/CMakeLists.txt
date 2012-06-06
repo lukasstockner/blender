@@ -56,4 +56,6 @@ set(SRC
 	clip_intern.h
 )
 
+add_definitions(-DGLEW_STATIC)
+
 blender_add_lib(bf_editor_space_clip "${SRC}" "${INC}" "${INC_SYS}")

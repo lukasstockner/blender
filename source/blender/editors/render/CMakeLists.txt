@@ -68,4 +68,6 @@ if(WITH_HEADLESS)
 	add_definitions(-DWITH_HEADLESS)
 endif()
 
+add_definitions(-DGLEW_STATIC)
+
 blender_add_lib(bf_editor_render "${SRC}" "${INC}" "${INC_SYS}")

@@ -30,7 +30,7 @@
  */
 
 
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 #include "RAS_IRenderTools.h"
 #include "RAS_IRasterizer.h"

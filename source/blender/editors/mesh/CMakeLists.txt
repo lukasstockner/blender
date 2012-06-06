@@ -68,4 +68,6 @@ if(WITH_GAMEENGINE)
 	)
 endif()
 
+add_definitions(-DGLEW_STATIC)
+
 blender_add_lib(bf_editor_mesh "${SRC}" "${INC}" "${INC_SYS}")

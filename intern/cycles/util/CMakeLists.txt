@@ -64,3 +64,5 @@ set(SRC_HEADERS
 include_directories(${INC})
 
 add_library(cycles_util ${SRC} ${SRC_HEADERS})
+
+add_definitions(-DGLEW_STATIC)

@@ -28,7 +28,7 @@ http://www.gnu.org/copyleft/lesser.txt.
 extern "C" {
 #include "bgl.h"
 }
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 #include <vector>
 #include <string.h>

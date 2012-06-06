@@ -30,7 +30,7 @@
  */
 
 
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 #include "DNA_image_types.h"
 

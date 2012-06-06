@@ -31,7 +31,7 @@
  */
 
 
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 #if defined(WIN32) && !defined(FREE_WINDOWS)
 #pragma warning (disable : 4786)

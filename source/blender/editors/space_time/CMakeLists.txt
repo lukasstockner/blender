@@ -40,4 +40,6 @@ set(SRC
 	time_intern.h
 )
 
+add_definitions(-DGLEW_STATIC)
+
 blender_add_lib(bf_editor_space_time "${SRC}" "${INC}" "${INC_SYS}")

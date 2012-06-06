@@ -35,7 +35,7 @@
 
 #include "DNA_listBase.h"
 #include "GPU_material.h"
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 struct ListBase;
 struct GPUShader;

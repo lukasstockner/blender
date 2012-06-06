@@ -10,7 +10,7 @@
 #include <windows.h>
 #endif // WIN32
 
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 #include "RAS_MaterialBucket.h"
 #include "RAS_TexVert.h"

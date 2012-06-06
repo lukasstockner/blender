@@ -32,7 +32,7 @@ http://www.gnu.org/copyleft/lesser.txt.
 #include <math.h>
 
 
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 #include "KX_PythonInit.h"
 #include "DNA_scene_types.h"

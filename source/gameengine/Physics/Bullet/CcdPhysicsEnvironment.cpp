@@ -57,7 +57,7 @@ btRaycastVehicle::btVehicleTuning	gTuning;
 #include "LinearMath/btAabbUtil2.h"
 #include "MT_Matrix4x4.h"
 #include "MT_Vector3.h"
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 #ifdef WIN32
 void DrawRasterizerLine(const float* from,const float* to,int color);

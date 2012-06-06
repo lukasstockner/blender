@@ -36,7 +36,7 @@
 #include <windows.h>
 #endif 
 
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"

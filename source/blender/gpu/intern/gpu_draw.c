@@ -32,7 +32,7 @@
 
 #include <string.h>
 
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"

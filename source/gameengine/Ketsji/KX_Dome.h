@@ -37,7 +37,7 @@ Developed as part of a Research and Development project for SAT - La Soci�t�
 #include "RAS_IRenderTools.h"
 #include "KX_KetsjiEngine.h"
 
-#include "GL/glew.h"
+#include <GL/glew.h>
 #include <vector>
 
 #include "MEM_guardedalloc.h"

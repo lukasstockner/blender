@@ -297,4 +297,6 @@ set(SRC
 	rna_mesh_utils.h
 )
 
+add_definitions(-DGLEW_STATIC)
+
 blender_add_lib(bf_rna "${SRC}" "${INC}" "${INC_SYS}")

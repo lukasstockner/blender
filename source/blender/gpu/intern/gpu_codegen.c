@@ -30,7 +30,7 @@
  */
 
 
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 #include "MEM_guardedalloc.h"
 

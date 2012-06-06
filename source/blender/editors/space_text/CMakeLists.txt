@@ -24,7 +24,7 @@ set(INC
 	../../blenkernel
 	../../blenlib
 	../../blenloader
-    ../../gpu
+	../../gpu
 	../../makesdna
 	../../makesrna
 	../../windowmanager
@@ -44,6 +44,8 @@ set(SRC
 
 	text_intern.h
 )
+
+add_definitions(-DGLEW_STATIC)
 
 if(WITH_PYTHON)
 	list(APPEND INC

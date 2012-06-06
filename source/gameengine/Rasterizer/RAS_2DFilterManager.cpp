@@ -44,7 +44,7 @@
 #include "RAS_2DFilterManager.h"
 #include <iostream>
 
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 #include <stdio.h>
 

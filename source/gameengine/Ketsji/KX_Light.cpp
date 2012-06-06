@@ -34,7 +34,7 @@
 #pragma warning (disable : 4786)
 #endif
 
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 #include "KX_Light.h"
 #include "KX_Camera.h"

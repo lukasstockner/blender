@@ -54,4 +54,6 @@ if(WITH_OPENMP)
 	add_definitions(-DPARALLEL=1)
 endif()
 
+add_definitions(-DGLEW_STATIC)
+
 blender_add_lib(bf_editor_physics "${SRC}" "${INC}" "${INC_SYS}")

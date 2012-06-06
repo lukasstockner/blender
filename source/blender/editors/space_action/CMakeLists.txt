@@ -43,4 +43,6 @@ set(SRC
 	action_intern.h
 )
 
+add_definitions(-DGLEW_STATIC)
+
 blender_add_lib(bf_editor_space_action "${SRC}" "${INC}" "${INC_SYS}")
