@@ -65,4 +65,5 @@ void unlockBufferVBO(void)
 
 void gpu_shutdown_buffer_vbo(GPUimmediate *restrict immediate)
 {
+	(void)immediate;
 }

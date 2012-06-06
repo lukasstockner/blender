@@ -20,39 +20,40 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Jason Wilkins, Alexandr Kuznetsov
+ * Contributor(s): Jason Wilkins
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GPU_compatibility.h
+/** \file GPU_lighting.c
  *  \ingroup gpu
  */
+
+#include <GL/glew.h>
+
+
  
-#ifndef __GPU_COMPATIBILITY_H__
-#define __GPU_COMPATIBILITY_H__
-
-#include "intern/gpu_immediate_inline.h"
-#include "GPU_lighting.h"
-#include "GPU_primitives.h" // XXX: temporary, these do not belong here
-
-
-#ifndef GPU_MANGLE_DEPRECATED
-#define GPU_MANGLE_DEPRECATED 1
-#endif
-
-#if GPU_MANGLE_DEPRECATED
-#include "intern/gpu_deprecated.h"
-#endif
-
-
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifdef __cplusplus
+void gpuMaterialfv(GLenum face, GLenum pname, const GLfloat *params)
+{
+    glMaterialfv(face, pname, params);
 }
-#endif
 
-#endif /* __GPU_COMPATIBILITY_H_ */
+void gpuMateriali(GLenum face, GLenum pname, GLint param)
+{
+    glMateriali(face, pname, param);
+}
+
+void gpuEnableColorMaterial(void)
+{
+    glEnable(GL_COLOR_MATERIAL);
+}
+
+void gpuDisableColorMaterial(void)
+{
+    glDisable(GL_COLOR_MATERIAL);
+}
+
+void gpuGetMaterialfv(GLenum face, GLenum pname, GLfloat *params)
+{
+    glGetMaterialfv(face, pname, params);
+}

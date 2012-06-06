@@ -20,30 +20,17 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Jason Wilkins, Alexandr Kuznetsov
+ * Contributor(s): Jason Wilkins
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GPU_compatibility.h
+/** \file GPU_lighting.h
  *  \ingroup gpu
  */
  
-#ifndef __GPU_COMPATIBILITY_H__
-#define __GPU_COMPATIBILITY_H__
-
-#include "intern/gpu_immediate_inline.h"
-#include "GPU_lighting.h"
-#include "GPU_primitives.h" // XXX: temporary, these do not belong here
-
-
-#ifndef GPU_MANGLE_DEPRECATED
-#define GPU_MANGLE_DEPRECATED 1
-#endif
-
-#if GPU_MANGLE_DEPRECATED
-#include "intern/gpu_deprecated.h"
-#endif
+#ifndef __GPU_LIGHTING_H__
+#define __GPU_LIGHTING_H__
 
 
 
@@ -51,8 +38,21 @@
 extern "C" {
 #endif
 
+
+
+void gpuMaterialfv(GLenum face, GLenum pname, const GLfloat *params);
+void gpuMateriali(GLenum face, GLenum pname, GLint param);
+
+void gpuEnableColorMaterial(void);
+void gpuDisableColorMaterial(void);
+
+void gpuGetMaterialfv(GLenum face, GLenum pname, GLfloat *params);
+
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __GPU_COMPATIBILITY_H_ */
+
+
+#endif /* __GPU_UTILITY_H_ */

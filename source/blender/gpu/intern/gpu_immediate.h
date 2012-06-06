@@ -58,30 +58,29 @@
 
 /* Define some useful, but slow, checks for correct API usage. */
 
+#define GPU_ASSERT(test) BLI_assert(test)
+
 /* Bails out of function even if assert or abort are disabled.
    Needs a variable in scope to store results of the test.
    Can only be used in functions that return void. */
-#define GPU_SAFE_RETURN(test, var) \
-    var = (GLboolean)(test);       \
-    BLI_assert((#test, var));      \
-    if (!var) {                    \
-        return;                    \
+#define GPU_SAFE_RETURN(test, var, ret) \
+    var = (GLboolean)(test);            \
+    GPU_ASSERT((#test, var));           \
+    if (!var) {                         \
+        return ret;                     \
     }
 
 #define GPU_CHECK_BASE(var) \
-    GPU_SAFE_RETURN(GPU_IMMEDIATE, var);
-
-#define GPU_CHECK_HAS_BEGUN(var) \
-    GPU_SAFE_RETURN(GPU_IMMEDIATE->buffer != NULL, var);
+    GPU_SAFE_RETURN(GPU_IMMEDIATE, var,);
 
 #define GPU_CHECK_NO_BEGIN(var) \
-    GPU_SAFE_RETURN(!(GPU_IMMEDIATE->buffer != NULL), var);
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->buffer == NULL, var,);
 
 #define GPU_CHECK_IS_LOCKED(var) \
-    GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount > 0, var);
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount > 0, var,);
 
 #define GPU_CHECK_NO_LOCK(var) \
-    GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount == 0, var);
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount == 0, var,);
 
 /* Each block contains variables that can be inspected by a
    debugger in the event that an assert is triggered. */
@@ -96,29 +95,46 @@
     GPU_CHECK_NO_BEGIN(noBeginOK)         \
     }
 
-#define GPU_CHECK_CAN_END()             \
-    {                                   \
-    GLboolean immediateOK;              \
-    GLboolean isLockedOK;               \
-    GLboolean hasBegunOK;               \
-    GPU_CHECK_BASE(immediateOK);        \
-    GPU_CHECK_IS_LOCKED(isLockedOK)     \
-    GPU_CHECK_HAS_BEGUN(hasBegunOK)     \
+#define GPU_CHECK_CAN_END()                                      \
+    {                                                            \
+    GLboolean immediateOK;                                       \
+    GLboolean isLockedOK;                                        \
+    GLboolean hasBegunOK;                                        \
+    GPU_CHECK_BASE(immediateOK);                                 \
+    GPU_CHECK_IS_LOCKED(isLockedOK)                              \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->buffer != NULL, hasBegunOK,); \
     }
 
-#define GPU_CHECK_CAN_CURRENT()  \
-    {                            \
-    GLboolean immediateOK;       \
-    GPU_CHECK_BASE(immediateOK); \
+#define GPU_CHECK_CAN_VERTEX_ATTRIB() GPU_CHECK_CAN_END()
+
+#define GPU_CHECK_MODE(_mode)                                   \
+    {                                                           \
+    GLboolean immediateOK;                                      \
+    GLboolean isModeOK;                                         \
+    GPU_CHECK_BASE(immediateOK);                                \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE->mode == (_mode), isModeOK,); \
     }
+
+#define GPU_CHECK_FORMAT(field, size)                                   \
+    {                                                                   \
+    GLboolean fieldSizeOK;                                              \
+    GPU_SAFE_RETURN(GPU_IMMEDIATE-> field##Size == size, fieldSizeOK,); \
+    }
+
+#define GPU_CHECK_CAN_REPEAT() GPU_CHECK_CAN_BEGIN()
 
 #else
 
-#define GPU_SAFE_RETURN(test, var) { (void)var; }
+#define GPU_ASSERT(test)
+
+#define GPU_SAFE_RETURN(test, var, ret) { (void)var; }
 
 #define GPU_CHECK_CAN_BEGIN()
 #define GPU_CHECK_CAN_END()
-#define GPU_CHECK_CAN_CURRENT()
+#define GPU_CHECK_CAN_VERTEX_ATTRIB()
+#define GPU_CHECK_MODE(mode)
+#define GPU_CHECK_FORMAT()
+#define GPU_CHECK_CAN_REPEAT()
 
 #endif
 
@@ -186,17 +202,12 @@ typedef struct GPUimmediate {
 		GLboolean attribNormalized_ub[GPU_MAX_UBYTE_ATTRIBS];
 	} format;
 
-
-#if GPU_SAFETY
-	GLenum lastTexture;
-#endif
-
 	GLfloat vertex[GPU_MAX_ELEMENT_SIZE];
 	GLfloat normal[3];
 	GLfloat texCoord[GPU_MAX_TEXTURE_UNITS][GPU_MAX_ELEMENT_SIZE];
-	GLubyte color[GPU_COLOR_COMPS]; //-V112
+	GLubyte color[GPU_COLOR_COMPS];
 	GLfloat attrib_f[GPU_MAX_FLOAT_ATTRIBS][GPU_MAX_ELEMENT_SIZE];
-	GLubyte attrib_ub[GPU_MAX_UBYTE_ATTRIBS][GPU_COLOR_COMPS]; //-V112
+	GLubyte attrib_ub[GPU_MAX_UBYTE_ATTRIBS][GPU_COLOR_COMPS];
 
 	char *restrict buffer;
 	void *restrict bufferData;
@@ -207,30 +218,67 @@ typedef struct GPUimmediate {
 
 	int lockCount;
 
+	void (*copyVertex)(void);
+
 	void (*lockBuffer)(void);
 	void (*unlockBuffer)(void);
 	void (*beginBuffer)(void);
 	void (*endBuffer)(void);
 	void (*shutdownBuffer)(struct GPUimmediate *restrict immediate);
+
+	void (*currentColor)(void);
+	void (*getCurrentColor)(GLubyte *restrict color);
+
+#if GPU_SAFETY
+	GLenum    lastTexture;
+	GLboolean hasOverflowed;
+#endif
 } GPUimmediate;
 
 extern GPUimmediate *restrict GPU_IMMEDIATE;
 
 
 
-GPUimmediate * gpuNewImmediate(void);
+GPUimmediate* gpuNewImmediate(void);
 void gpuImmediateMakeCurrent(GPUimmediate *restrict  immediate);
 void gpuDeleteImmediate(GPUimmediate *restrict  immediate);
 
 
 
+void gpuPushImmediate(void);
+GPUimmediate* gpuPopImmediate(void);
+void gpuImmediateSingleDraw(GLenum mode, GPUimmediate *restrict immediate);
+
+
+
+void gpuCurrentColor3f(GLfloat r, GLfloat g, GLfloat b);
+void gpuCurrentColor3fv(const GLfloat *restrict v);
+void gpuCurrentColor3ub(GLubyte r, GLubyte g, GLubyte b);
+void gpuCurrentColor3ubv(const GLubyte *restrict v);
+void gpuCurrentColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a);
+void gpuCurrentColor4fv(const GLfloat *restrict v);
+void gpuCurrentColor4ub(GLubyte r, GLubyte g, GLubyte b, GLubyte a);
+void gpuCurrentColor4ubv(const GLubyte *restrict v);
+void gpuCurrentColor4d(GLdouble r, GLdouble g, GLdouble b, GLdouble a);
+
+void gpuCurrentColorPack(GLuint rgb);
+
+void gpuGetCurrentColor4fv(GLfloat *restrict color);
+void gpuGetCurrentColor4ubv(GLubyte *restrict color);
+
+
+
 /* utility functions to setup vertex format and lock */
 void gpuImmediateFormat_V2(void);
+void gpuImmediateFormat_C4_V2(void);
+void gpuImmediateFormat_T2_V2(void);
+void gpuImmediateFormat_T2_C4_V2(void);
 void gpuImmediateFormat_V3(void);
 void gpuImmediateFormat_N3_V3(void);
 void gpuImmediateFormat_C4_V3(void);
 void gpuImmediateFormat_C4_N3_V3(void);
 void gpuImmediateFormat_T2_C4_N3_V3(void);
+void gpuImmediateFormat_T3_C4_V3(void);
 void gpuImmediateUnformat(void);
 
 

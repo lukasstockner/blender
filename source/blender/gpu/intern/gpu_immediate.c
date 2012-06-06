@@ -33,6 +33,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include <math.h>
 #include <string.h>
 
 
@@ -126,7 +127,7 @@ void gpuImmediateUnlock(void)
 
 GLint gpuImmediateLockCount(void)
 {
-	BLI_assert(GPU_IMMEDIATE);
+	GPU_ASSERT(GPU_IMMEDIATE);
 
 	if (!GPU_IMMEDIATE) {
 		return GL_FALSE;
@@ -162,30 +163,38 @@ static void calc_last_texture(GPUimmediate* immediate)
 
 
 
-GPUimmediate * gpuNewImmediate(void)
+static void gpu_copy_vertex(void);
+
+
+
+GPUimmediate* gpuNewImmediate(void)
 {
 	GPUimmediate *restrict immediate =
 		MEM_callocN(sizeof(GPUimmediate), "GPUimmediate");
 
-	BLI_assert(immediate);
+	GPU_ASSERT(immediate);
 
 	immediate->format.vertexSize = 3;
 
-	//if (GLEW_ARB_vertex_buffer_object) {
-	//	immediate->lockBuffer     = gpu_lock_buffer_vbo;
-	//	immediate->beginBuffer    = gpu_begin_buffer_vbo;
-	//	immediate->endBuffer      = gpu_end_buffer_vbo;
-	//	immediate->unlockBuffer   = gpu_unlock_buffer_vbo;
-	//	immediate->shutdownBuffer = gpu_shutdown_buffer_vbo;
+	immediate->copyVertex = gpu_copy_vertex;
+
+	//	immediate->lockBuffer      = gpu_lock_buffer_vbo;
+	//	immediate->beginBuffer     = gpu_begin_buffer_vbo;
+	//	immediate->endBuffer       = gpu_end_buffer_vbo;
+	//	immediate->unlockBuffer    = gpu_unlock_buffer_vbo;
+	//	immediate->shutdownBuffer  = gpu_shutdown_buffer_vbo;
+	//	immediate->currentColor    = gpu_current_color_vbo;
+	//	immediate->getCurrentColor = gpu_get_current_color_vbo;
 	//}
 	//else {
-		immediate->lockBuffer     = gpu_lock_buffer_gl11;
-		immediate->unlockBuffer   = gpu_unlock_buffer_gl11;
-		immediate->beginBuffer    = gpu_begin_buffer_gl11;
-		immediate->endBuffer      = gpu_end_buffer_gl11;
-		immediate->shutdownBuffer = gpu_shutdown_buffer_gl11;
+		immediate->lockBuffer      = gpu_lock_buffer_gl11;
+		immediate->unlockBuffer    = gpu_unlock_buffer_gl11;
+		immediate->beginBuffer     = gpu_begin_buffer_gl11;
+		immediate->endBuffer       = gpu_end_buffer_gl11;
+		immediate->shutdownBuffer  = gpu_shutdown_buffer_gl11;
+		immediate->currentColor    = gpu_current_color_gl11;
+		immediate->getCurrentColor = gpu_get_current_color_gl11;
 	//}
-
 #if GPU_SAFETY
 	calc_last_texture(immediate);
 #endif
@@ -204,25 +213,13 @@ void gpuImmediateMakeCurrent(GPUimmediate *restrict immediate)
 
 void gpuDeleteImmediate(GPUimmediate *restrict immediate)
 {
-	BLI_assert(immediate);
-
 	if (!immediate) {
 		return;
-	}
-
-	BLI_assert(!(immediate->buffer));
-
-	if (immediate->buffer) {
-		SWAP(GPUimmediate*, immediate, GPU_IMMEDIATE);
-		gpuEnd();
-		SWAP(GPUimmediate*, immediate, GPU_IMMEDIATE);
 	}
 
 	if (GPU_IMMEDIATE == immediate) {
 		gpuImmediateMakeCurrent(NULL);
 	}
-
-	BLI_assert(immediate->shutdownBuffer);
 
 	immediate->shutdownBuffer(immediate);
 
@@ -420,20 +417,28 @@ static void end_begin(void)
 	GPU_IMMEDIATE->offset = 0;
 	GPU_IMMEDIATE->count  = 1; /* count the vertex that triggered this */
 
+#if GPU_SAFETY
+	GPU_IMMEDIATE->hasOverflowed = GL_TRUE;
+#endif
+
 	GPU_IMMEDIATE->beginBuffer();
 }
 
 
 
-void gpu_vector_copy(void)
+static void gpu_copy_vertex(void)
 {
 	size_t i;
 	size_t size;
 	size_t offset;
 	char *restrict buffer;
-	int maxVertexCountOK = -1;
 
-	GPU_SAFE_RETURN(GPU_IMMEDIATE->maxVertexCount != 0, maxVertexCountOK);
+#if GPU_SAFETY
+	{
+	int maxVertexCountOK;
+	GPU_SAFE_RETURN(GPU_IMMEDIATE->maxVertexCount != 0, maxVertexCountOK,);
+	}
+#endif
 
 	if (GPU_IMMEDIATE->count == GPU_IMMEDIATE->maxVertexCount) {
 		end_begin(); /* draw and clear buffer */
@@ -507,6 +512,47 @@ void gpuImmediateFormat_V2(void)
 	gpuImmediateLock();
 }
 
+void gpuImmediateFormat_C4_V2(void)
+{
+	if (gpuImmediateLockCount() == 0) {
+		gpuImmediateElementSizes(2, 0, 4);
+	}
+
+	gpuImmediateLock();
+}
+
+void gpuImmediateFormat_T2_V2(void)
+{
+	if (gpuImmediateLockCount() == 0) {
+		GLint texCoordSizes[1] = { 2 };
+		GLenum texUnitMap[1]    = { GL_TEXTURE0 };
+
+		gpuImmediateElementSizes(2, 0, 0);
+
+		gpuImmediateTextureUnitCount(1);
+		gpuImmediateTexCoordSizes(texCoordSizes);
+		gpuImmediateTextureUnitMap(texUnitMap);
+	}
+
+	gpuImmediateLock();
+}
+
+void gpuImmediateFormat_T2_C4_V2(void)
+{
+	if (gpuImmediateLockCount() == 0) {
+		GLint texCoordSizes[1] = { 2 };
+		GLenum texUnitMap[1]    = { GL_TEXTURE0 };
+
+		gpuImmediateElementSizes(2, 0, 4); //-V112
+
+		gpuImmediateTextureUnitCount(1);
+		gpuImmediateTexCoordSizes(texCoordSizes);
+		gpuImmediateTextureUnitMap(texUnitMap);
+	}
+
+	gpuImmediateLock();
+}
+
 void gpuImmediateFormat_V3(void)
 {
 	if (gpuImmediateLockCount() == 0) {
@@ -528,7 +574,7 @@ void gpuImmediateFormat_N3_V3(void)
 void gpuImmediateFormat_C4_V3(void)
 {
 	if (gpuImmediateLockCount() == 0) {
-		gpuImmediateElementSizes(3, 0, 4);
+		gpuImmediateElementSizes(3, 0, 4); //-V112
 	}
 
 	gpuImmediateLock();
@@ -537,7 +583,7 @@ void gpuImmediateFormat_C4_V3(void)
 void gpuImmediateFormat_C4_N3_V3(void)
 {
 	if (gpuImmediateLockCount() == 0) {
-		gpuImmediateElementSizes(3, 3, 3);
+		gpuImmediateElementSizes(3, 3, 4); //-V112
 	}
 
 	gpuImmediateLock();
@@ -548,9 +594,25 @@ void gpuImmediateFormat_T2_C4_N3_V3(void)
 	if (gpuImmediateLockCount() == 0) {
 
 		GLint texCoordSizes[1] = { 2 };
-		GLint texUnitMap[1]    = { GL_TEXTURE0 };
+		GLenum texUnitMap[1]    = { GL_TEXTURE0 };
 
-		gpuImmediateElementSizes(3, 3, 4);
+		gpuImmediateElementSizes(3, 3, 4); //-V112
+		gpuImmediateTextureUnitCount(1);
+		gpuImmediateTexCoordSizes(texCoordSizes);
+		gpuImmediateTextureUnitMap(texUnitMap);
+	}
+
+	gpuImmediateLock();
+}
+
+void gpuImmediateFormat_T3_C4_V3(void)
+{
+	if (gpuImmediateLockCount() == 0) {
+
+		GLint texCoordSizes[1] = { 3 };
+		GLenum texUnitMap[1]    = { GL_TEXTURE0 };
+
+		gpuImmediateElementSizes(3, 0, 4); //V-112
 		gpuImmediateTextureUnitCount(1);
 		gpuImmediateTexCoordSizes(texCoordSizes);
 		gpuImmediateTextureUnitMap(texUnitMap);
@@ -562,4 +624,184 @@ void gpuImmediateFormat_T2_C4_N3_V3(void)
 void gpuImmediateUnformat(void)
 {
 	gpuImmediateUnlock();
+}
+
+
+
+void gpuCurrentColor3f(GLfloat r, GLfloat g, GLfloat b)
+{
+	GPU_CHECK_CAN_CURRENT();
+
+	GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * r);
+	GPU_IMMEDIATE->color[1] = (GLubyte)(255.0f * g);
+	GPU_IMMEDIATE->color[2] = (GLubyte)(255.0f * b);
+	GPU_IMMEDIATE->color[3] = 1;
+
+	GPU_IMMEDIATE->currentColor();
+}
+
+void gpuCurrentColor3fv(const GLfloat *restrict v)
+{
+	GPU_CHECK_CAN_CURRENT();
+
+	GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * v[0]);
+	GPU_IMMEDIATE->color[1] = (GLubyte)(255.0f * v[1]);
+	GPU_IMMEDIATE->color[2] = (GLubyte)(255.0f * v[2]);
+	GPU_IMMEDIATE->color[3] = 1;
+
+	GPU_IMMEDIATE->currentColor();
+}
+
+void gpuCurrentColor3ub(GLubyte r, GLubyte g, GLubyte b)
+{
+	GPU_CHECK_CAN_CURRENT();
+
+	GPU_IMMEDIATE->color[0] = r;
+	GPU_IMMEDIATE->color[1] = g;
+	GPU_IMMEDIATE->color[2] = b;
+	GPU_IMMEDIATE->color[3] = 255;
+
+	GPU_IMMEDIATE->currentColor();
+}
+
+void gpuCurrentColor3ubv(const GLubyte *restrict v)
+{
+	GPU_CHECK_CAN_CURRENT();
+
+	GPU_IMMEDIATE->color[0] = v[0];
+	GPU_IMMEDIATE->color[1] = v[1];
+	GPU_IMMEDIATE->color[2] = v[2];
+	GPU_IMMEDIATE->color[3] = 255;
+
+	GPU_IMMEDIATE->currentColor();
+}
+
+void gpuCurrentColor4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a)
+{
+	GPU_CHECK_CAN_CURRENT();
+
+	GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * r);
+	GPU_IMMEDIATE->color[1] = (GLubyte)(255.0f * g);
+	GPU_IMMEDIATE->color[2] = (GLubyte)(255.0f * b);
+	GPU_IMMEDIATE->color[3] = (GLubyte)(255.0f * a);
+
+	GPU_IMMEDIATE->currentColor();
+}
+
+void gpuCurrentColor4fv(const GLfloat *restrict v)
+{
+	GPU_CHECK_CAN_CURRENT();
+
+	GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * v[0]);
+	GPU_IMMEDIATE->color[1] = (GLubyte)(255.0f * v[1]);
+	GPU_IMMEDIATE->color[2] = (GLubyte)(255.0f * v[2]);
+	GPU_IMMEDIATE->color[3] = (GLubyte)(255.0f * v[3]);
+
+	GPU_IMMEDIATE->currentColor();
+}
+
+void gpuCurrentColor4ub(GLubyte r, GLubyte g, GLubyte b, GLubyte a)
+{
+	GPU_CHECK_CAN_CURRENT();
+
+	GPU_IMMEDIATE->color[0] = r;
+	GPU_IMMEDIATE->color[1] = g;
+	GPU_IMMEDIATE->color[2] = b;
+	GPU_IMMEDIATE->color[3] = a;
+
+	GPU_IMMEDIATE->currentColor();
+}
+
+void gpuCurrentColor4ubv(const GLubyte *restrict v)
+{
+	GPU_CHECK_CAN_CURRENT();
+
+	GPU_IMMEDIATE->color[0] = v[0];
+	GPU_IMMEDIATE->color[1] = v[1];
+	GPU_IMMEDIATE->color[2] = v[2];
+	GPU_IMMEDIATE->color[3] = v[3];
+
+	GPU_IMMEDIATE->currentColor();
+}
+
+void gpuCurrentColor4d(GLdouble r, GLdouble g, GLdouble b, GLdouble a)
+{
+	GPU_CHECK_CAN_CURRENT();
+
+	GPU_IMMEDIATE->color[0] = (GLubyte)r;
+	GPU_IMMEDIATE->color[1] = (GLubyte)g;
+	GPU_IMMEDIATE->color[2] = (GLubyte)b;
+	GPU_IMMEDIATE->color[3] = (GLubyte)a;
+
+	GPU_IMMEDIATE->currentColor();
+}
+
+
+
+/* This function converts a numerical value to the equivalent 24-bit
+ * color, while not being endian-sensitive. On little-endians, this
+ * is the same as doing a 'naive' indexing, on big-endian, it is not! */
+void gpuCurrentColorPack(GLuint rgb)
+{
+	GPU_CHECK_CAN_CURRENT();
+
+	GPU_IMMEDIATE->color[0] = (rgb >>  0) & 0xFF;
+	GPU_IMMEDIATE->color[1] = (rgb >>  8) & 0xFF;
+	GPU_IMMEDIATE->color[2] = (rgb >> 16) & 0xFF;
+	GPU_IMMEDIATE->color[3] = 255;
+
+	GPU_IMMEDIATE->currentColor();
+}
+
+
+
+void gpuGetCurrentColor4fv(GLfloat *restrict color)
+{
+	GLubyte v[4];
+
+	GPU_CHECK_CAN_CURRENT();
+
+	GPU_IMMEDIATE->getCurrentColor(v);
+
+	color[0] = (GLubyte)(255.0f * v[0]);
+	color[1] = (GLubyte)(255.0f * v[1]);
+	color[2] = (GLubyte)(255.0f * v[2]);
+	color[3] = (GLubyte)(255.0f * v[3]);
+}
+
+void gpuGetCurrentColor4ubv(GLubyte *restrict color)
+{
+	GPU_CHECK_CAN_CURRENT();
+
+	GPU_IMMEDIATE->getCurrentColor(color);
+}
+
+
+
+static GPUimmediate* immediateStack = NULL; /* stack size of one */
+
+
+
+void gpuPushImmediate(void)
+{
+	GPUimmediate* newImmediate;
+
+	GPU_CHECK_CAN_PUSH();
+
+	newImmediate   = gpuNewImmediate();
+	immediateStack = GPU_IMMEDIATE;
+	GPU_IMMEDIATE  = newImmediate;
+}
+
+GPUimmediate* gpuPopImmediate(void)
+{
+	GPUimmediate* newImmediate;
+
+	GPU_CHECK_CAN_POP();
+
+	newImmediate = GPU_IMMEDIATE;
+	GPU_IMMEDIATE = immediateStack;
+	immediateStack = NULL;
+
+	return newImmediate;
 }

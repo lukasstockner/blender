@@ -556,12 +556,10 @@ static void blf_draw__start(FontBLF *font, GLint *mode, GLint *param)
 	if (font->flags & BLF_ROTATION)
 		glRotatef(font->angle, 0.0f, 0.0f, 1.0f);
 
-	/*if (font->shadow || font->blur)
-		glGetFloatv(GL_CURRENT_COLOR, font->orig_col); */
+	if (font->shadow || font->blur)
+		gpuGetCurrentColor4fv(font->orig_col);
 
-	/* XXX: Temporarily needed to interoperate with legacy GL */
-	glGetFloatv(GL_CURRENT_COLOR, font->orig_col);
-	gpuColor4fv(font->orig_col);
+	gpuCurrentColor4fv(font->orig_col); // XXX: workaround
 
 	/* always bind the texture for the first glyph */
 	font->tex_bind_state = -1;

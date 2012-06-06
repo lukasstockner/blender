@@ -52,7 +52,9 @@ set(SRC
 	intern/gpu_immediate.c
 	intern/gpu_immediate_gl11.c
 	intern/gpu_immediate_vbo.c
+	intern/gpu_lighting.c
 	intern/gpu_material.c
+	intern/gpu_primitives.c
 	
 	shaders/gpu_shader_material.glsl.c
 	shaders/gpu_shader_vertex.glsl.c
@@ -67,6 +69,8 @@ set(SRC
 	GPU_extensions.h
 	GPU_material.h
 	GPU_utility.h
+	GPU_lighting.h
+	GPU_primitives.h
 
 	intern/gpu_codegen.h
 	intern/gpu_deprecated.h

@@ -33,6 +33,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include <string.h>
+
 
 
 typedef struct bufferDataGL11 {
@@ -52,27 +54,26 @@ static void allocate(void)
 	newSize = (size_t)(GPU_IMMEDIATE->stride * GPU_IMMEDIATE->maxVertexCount);
 
 	if (GPU_IMMEDIATE->bufferData) {
-		bufferData = (bufferDataGL11*)(GPU_IMMEDIATE->bufferData);
+		bufferData = GPU_IMMEDIATE->bufferData;
 
 		if (newSize > bufferData->size) {
 			bufferData->ptr = MEM_reallocN(bufferData->ptr, newSize);
-			BLI_assert(bufferData->ptr != NULL);
+			GPU_ASSERT(bufferData->ptr != NULL);
 
 			bufferData->size = newSize;
 		}
 	}
 	else {
-		bufferData =
-			(bufferDataGL11*)MEM_mallocN(
-				sizeof(bufferDataGL11),
-				"bufferDataGL11");
+		bufferData = MEM_mallocN(
+			sizeof(bufferDataGL11),
+			"bufferDataGL11");
 
-		BLI_assert(bufferData);
+		GPU_ASSERT(bufferData != NULL);
 
 		GPU_IMMEDIATE->bufferData = bufferData;
 
 		bufferData->ptr = MEM_mallocN(newSize, "bufferDataGL11->ptr");
-		BLI_assert(bufferData->ptr != NULL);
+		GPU_ASSERT(bufferData->ptr != NULL);
 
 		bufferData->size = newSize;
 	}
@@ -84,11 +85,11 @@ static void setup(void)
 {
 	size_t i;
 	size_t offset;
-	bufferDataGL11* bufferData = (bufferDataGL11*)(GPU_IMMEDIATE->bufferData);
+	bufferDataGL11* bufferData = GPU_IMMEDIATE->bufferData;
 
 	offset = 0;
 
-	gpu_clear_errors();
+	GPU_CLEAR_ERRORS();
 
 	/* setup vertex arrays
 	   Assume that vertex arrays have been disabled for everything
@@ -205,7 +206,7 @@ static void setup(void)
 		}
 	}
 
-	BLI_assert(glGetError() == GL_NO_ERROR);
+	GPU_ASSERT(glGetError() == GL_NO_ERROR);
 }
 
 
@@ -231,11 +232,11 @@ void gpu_begin_buffer_gl11(void)
 void gpu_end_buffer_gl11(void)
 {
 	if (GPU_IMMEDIATE->count > 0) {
-		gpu_clear_errors();
+		GPU_CLEAR_ERRORS();
 
 		glDrawArrays(GPU_IMMEDIATE->mode, 0, GPU_IMMEDIATE->count);
 
-		BLI_assert(glGetError() == GL_NO_ERROR);
+		GPU_ASSERT(glGetError() == GL_NO_ERROR);
 	}
 }
 
@@ -247,7 +248,7 @@ void gpu_unlock_buffer_gl11(void)
 
 	/* Disable any arrays that were used so that everything is off again. */
 
-	gpu_clear_errors();
+	GPU_CLEAR_ERRORS();
 
 	/* vertex */
 
@@ -291,7 +292,7 @@ void gpu_unlock_buffer_gl11(void)
 		glDisableVertexAttribArray(GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
 	}
 
-	BLI_assert(glGetError() == GL_NO_ERROR);
+	GPU_ASSERT(glGetError() == GL_NO_ERROR);
 }
 
 
@@ -299,8 +300,7 @@ void gpu_unlock_buffer_gl11(void)
 void gpu_shutdown_buffer_gl11(GPUimmediate *restrict immediate)
 {
 	if (immediate->bufferData) {
-		bufferDataGL11* bufferData =
-			(bufferDataGL11*)(immediate->bufferData);
+		bufferDataGL11* bufferData = immediate->bufferData;
 
 		if (bufferData->ptr) {
 			MEM_freeN(bufferData->ptr);
@@ -310,4 +310,23 @@ void gpu_shutdown_buffer_gl11(GPUimmediate *restrict immediate)
 		MEM_freeN(immediate->bufferData);
 		immediate->bufferData = NULL;
 	}
+}
+
+
+
+void gpu_current_color_gl11(void)
+{
+	glColor4ubv(GPU_IMMEDIATE->color);
+}
+
+void gpu_get_current_color_gl11(GLubyte *color)
+{
+	float v[4];
+
+	glGetFloatv(GL_CURRENT_COLOR, v);
+
+	color[0] = (GLubyte)(255.0f * v[0]);
+	color[1] = (GLubyte)(255.0f * v[1]);
+	color[2] = (GLubyte)(255.0f * v[2]);
+	color[3] = (GLubyte)(255.0f * v[3]);
 }
