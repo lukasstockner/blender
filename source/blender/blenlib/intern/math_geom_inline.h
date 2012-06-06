@@ -23,7 +23,7 @@
  * ***** END GPL LICENSE BLOCK *****
  * */
 
-/** \file blender/blenlib/intern/math_geom_inline.c
+/** \file blender/blenlib/intern/math_geom_inline.h
  *  \ingroup bli
  */
 
