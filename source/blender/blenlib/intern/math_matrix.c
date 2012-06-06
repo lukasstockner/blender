@@ -176,7 +176,7 @@ void mult_m4_m4m4(float m1[][4], float m3_[][4], float m2_[][4])
 	copy_m4_m4(m3, m3_);
 
 	/* matrix product: m1[j][k] = m2[j][i].m3[i][k] */
-	mult_m4_m4m4_q(m1, m2, m3);
+	mult_m4_m4m4_q(m1, m3, m2);
 
 }
 
