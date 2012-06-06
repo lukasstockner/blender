@@ -69,6 +69,8 @@ void BLF_size(int fontid, int size, int dpi);
 void BLF_matrix(int fontid, const double m[16]);
 
 /* Draw the string using the default font, size and dpi. */
+void BLF_draw_default_lock(void);
+void BLF_draw_default_unlock(void);
 void BLF_draw_default(float x, float y, float z, const char *str, size_t len);
 void BLF_draw_default_ascii(float x, float y, float z, const char *str, size_t len);
 
