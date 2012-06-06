@@ -29,7 +29,7 @@
  *  \ingroup gpu
  */
 
-#include "gpu_primitives.h"
+#include "GPU_primitives.h"
 
 
 
