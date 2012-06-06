@@ -926,7 +926,7 @@ static int tex_mat_set_face_editmesh_cb(void *userData, int index)
 	return !BM_elem_flag_test(efa, BM_ELEM_HIDDEN);
 }
 
-void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *dm, const int draw_flags)
+void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *dm, int draw_flags)
 {
 	if ((!BKE_scene_use_new_shading_nodes(scene)) || (draw_flags & DRAW_MODIFIERS_PREVIEW)) {
 		draw_mesh_textured_old(scene, v3d, rv3d, ob, dm, draw_flags);

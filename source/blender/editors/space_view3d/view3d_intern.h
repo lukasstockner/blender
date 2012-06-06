@@ -132,9 +132,9 @@ int draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base, int dt, in
 
 /* drawmesh.c */
 void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d,
-                        struct Object *ob, struct DerivedMesh *dm, const int draw_flags);
+                        struct Object *ob, struct DerivedMesh *dm, int draw_flags);
 void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
-                     struct Object *ob, struct DerivedMesh *dm, const int draw_flags);
+                     struct Object *ob, struct DerivedMesh *dm, int draw_flags);
 
 /* view3d_draw.c */
 void view3d_main_area_draw(const struct bContext *C, struct ARegion *ar);
