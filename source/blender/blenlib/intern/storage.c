@@ -446,22 +446,30 @@ unsigned int BLI_dir_contents(const char *dirname,  struct direntry **filelist)
 
 size_t BLI_file_descriptor_size(int file)
 {
-	struct stat buf;
+	if (file > 0) {
+		struct stat buf;
 
-	if (file <= 0) return (-1);
-	fstat(file, &buf); /* CHANGE */
-	return (buf.st_size);
+		fstat(file, &buf);
+
+		return (buf.st_size);
+	}
+	else {
+		return -1;
+	}
 }
 
 size_t BLI_file_size(const char *path)
 {
 	int size, file = BLI_open(path, O_BINARY | O_RDONLY, 0);
-	
-	if (file == -1)
+
+	if (file == -1) {
 		return -1;
-	
+	}
+
 	size = BLI_file_descriptor_size(file);
+
 	close(file);
+
 	return size;
 }
 
