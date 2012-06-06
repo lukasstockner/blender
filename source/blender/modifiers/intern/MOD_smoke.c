@@ -81,6 +81,19 @@ static void freeData(ModifierData *md)
 	smokeModifier_free(smd);
 }
 
+static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
+{
+	SmokeModifierData *smd  = (SmokeModifierData *)md;
+	CustomDataMask dataMask = 0;
+
+	if (smd && (smd->type & MOD_SMOKE_TYPE_FLOW) && smd->flow) {
+		if (smd->flow->source == MOD_SMOKE_FLOW_SOURCE_MESH && smd->flow->vgroup_density) {
+			dataMask |= (1 << CD_MDEFORMVERT);
+		}
+	}
+	return dataMask;
+}
+
 static void deformVerts(ModifierData *md, Object *ob,
                         DerivedMesh *derivedData,
                         float (*vertexCos)[3],
@@ -186,7 +199,7 @@ ModifierTypeInfo modifierType_Smoke = {
 	/* applyModifier */     NULL,
 	/* applyModifierEM */   NULL,
 	/* initData */          initData,
-	/* requiredDataMask */  NULL,
+	/* requiredDataMask */  requiredDataMask,
 	/* freeData */          freeData,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    updateDepgraph,
