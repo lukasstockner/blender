@@ -92,7 +92,7 @@ set(SRC
 	intern/COM_ChunkOrder.h
 	intern/COM_ChunkOrderHotspot.cpp
 	intern/COM_ChunkOrderHotspot.h
-	intern/COM_Device.cpp
+#	intern/COM_Device.cpp
 	intern/COM_Device.h
 	intern/COM_CPUDevice.cpp
 	intern/COM_CPUDevice.h
