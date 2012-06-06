@@ -54,8 +54,8 @@ void BLI_lasso_boundbox(rcti *rect, int mcords[][2], short moves)
 
 
 int BLI_lasso_is_point_inside(int mcords[][2], short moves,
-                              const int sx, const int sy,
-                              const int error_value)
+                              int sx, int sy,
+                              int error_value)
 {
 	/* we do the angle rule, define that all added angles should be about zero or (2 * PI) */
 	float angletot = 0.0, dot, ang, cross, fp1[2], fp2[2];
@@ -102,7 +102,7 @@ int BLI_lasso_is_point_inside(int mcords[][2], short moves,
 /* edge version for lasso select. we assume boundbox check was done */
 int BLI_lasso_is_edge_inside(int mcords[][2], short moves,
                              int x0, int y0, int x1, int y1,
-                             const int error_value)
+                             int error_value)
 {
 	int v1[2], v2[2];
 	int a;
