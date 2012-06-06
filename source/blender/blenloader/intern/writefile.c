@@ -2862,7 +2862,7 @@ static void write_thumb(WriteData *wd, const int *img)
 
 /* if MemFile * there's filesave to memory */
 static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFile *current, 
-                             int write_user_block, int write_flags, const int *thumb)
+                             int write_flags, const int *thumb)
 {
 	BHead bhead;
 	ListBase mainlist;
@@ -2884,41 +2884,44 @@ static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFil
 	write_thumb(wd, thumb);
 	write_global(wd, write_flags, mainvar);
 
-	/* no UI save in undo */
-	if (current==NULL) {
-		write_windowmanagers(wd, &mainvar->wm);
-		write_screens  (wd, &mainvar->screen);
+	if (!(write_flags & G_FILE_NO_DATA))
+	{
+		/* no UI save in undo */
+		if (current==NULL) {
+			write_windowmanagers(wd, &mainvar->wm);
+			write_screens  (wd, &mainvar->screen);
+		}
+		write_movieclips (wd, &mainvar->movieclip);
+		write_masks    (wd, &mainvar->mask);
+		write_scenes   (wd, &mainvar->scene);
+		write_curves   (wd, &mainvar->curve);
+		write_mballs   (wd, &mainvar->mball);
+		write_images   (wd, &mainvar->image);
+		write_cameras  (wd, &mainvar->camera);
+		write_lamps    (wd, &mainvar->lamp);
+		write_lattices (wd, &mainvar->latt);
+		write_vfonts   (wd, &mainvar->vfont);
+		write_keys     (wd, &mainvar->key);
+		write_worlds   (wd, &mainvar->world);
+		write_texts    (wd, &mainvar->text);
+		write_speakers (wd, &mainvar->speaker);
+		write_sounds   (wd, &mainvar->sound);
+		write_groups   (wd, &mainvar->group);
+		write_armatures(wd, &mainvar->armature);
+		write_actions  (wd, &mainvar->action);
+		write_objects  (wd, &mainvar->object);
+		write_materials(wd, &mainvar->mat);
+		write_textures (wd, &mainvar->tex);
+		write_meshs    (wd, &mainvar->mesh);
+		write_particlesettings(wd, &mainvar->particle);
+		write_nodetrees(wd, &mainvar->nodetree);
+		write_brushes  (wd, &mainvar->brush);
+		write_scripts  (wd, &mainvar->script);
+		write_gpencils (wd, &mainvar->gpencil);
+		write_libraries(wd,  mainvar->next);
 	}
-	write_movieclips (wd, &mainvar->movieclip);
-	write_masks    (wd, &mainvar->mask);
-	write_scenes   (wd, &mainvar->scene);
-	write_curves   (wd, &mainvar->curve);
-	write_mballs   (wd, &mainvar->mball);
-	write_images   (wd, &mainvar->image);
-	write_cameras  (wd, &mainvar->camera);
-	write_lamps    (wd, &mainvar->lamp);
-	write_lattices (wd, &mainvar->latt);
-	write_vfonts   (wd, &mainvar->vfont);
-	write_keys     (wd, &mainvar->key);
-	write_worlds   (wd, &mainvar->world);
-	write_texts    (wd, &mainvar->text);
-	write_speakers (wd, &mainvar->speaker);
-	write_sounds   (wd, &mainvar->sound);
-	write_groups   (wd, &mainvar->group);
-	write_armatures(wd, &mainvar->armature);
-	write_actions  (wd, &mainvar->action);
-	write_objects  (wd, &mainvar->object);
-	write_materials(wd, &mainvar->mat);
-	write_textures (wd, &mainvar->tex);
-	write_meshs    (wd, &mainvar->mesh);
-	write_particlesettings(wd, &mainvar->particle);
-	write_nodetrees(wd, &mainvar->nodetree);
-	write_brushes  (wd, &mainvar->brush);
-	write_scripts  (wd, &mainvar->script);
-	write_gpencils (wd, &mainvar->gpencil);
-	write_libraries(wd,  mainvar->next);
 
-	if (write_user_block) {
+	if (write_flags & G_FILE_PREFERENCES) {
 		write_userdef(wd);
 	}
 							
@@ -2973,9 +2976,8 @@ static int do_history(const char *name, ReportList *reports)
 /* return: success (1) */
 int BLO_write_file(Main *mainvar, const char *filepath, int write_flags, ReportList *reports, const int *thumb)
 {
-	char userfilename[FILE_MAX];
 	char tempname[FILE_MAX+1];
-	int file, err, write_user_block;
+	int file, err;
 
 	/* open temporary file, so we preserve the original in case we crash */
 	BLI_snprintf(tempname, sizeof(tempname), "%s@", filepath);
@@ -3011,14 +3013,11 @@ int BLO_write_file(Main *mainvar, const char *filepath, int write_flags, ReportL
 		}
 	}
 
-	BLI_make_file_string(G.main->name, userfilename, BLI_get_folder_create(BLENDER_USER_CONFIG, NULL), BLENDER_STARTUP_FILE);
-	write_user_block= (BLI_path_cmp(filepath, userfilename) == 0);
-
 	if (write_flags & G_FILE_RELATIVE_REMAP)
 		BLI_bpath_relative_convert(mainvar, filepath, NULL); /* note, making relative to something OTHER then G.main->name */
 
 	/* actual file writing */
-	err= write_file_handle(mainvar, file, NULL, NULL, write_user_block, write_flags, thumb);
+	err= write_file_handle(mainvar, file, NULL, NULL, write_flags, thumb);
 	close(file);
 
 	if (err) {
@@ -3078,7 +3077,7 @@ int BLO_write_file_mem(Main *mainvar, MemFile *compare, MemFile *current, int wr
 {
 	int err;
 
-	err= write_file_handle(mainvar, 0, compare, current, 0, write_flags, NULL);
+	err= write_file_handle(mainvar, 0, compare, current, write_flags, NULL);
 	
 	if (err==0) return 1;
 	return 0;

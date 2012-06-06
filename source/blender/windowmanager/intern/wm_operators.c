@@ -1552,9 +1552,20 @@ static void WM_OT_window_duplicate(wmOperatorType *ot)
 	ot->poll = wm_operator_winactive_normal;
 }
 
+static void WM_OT_save_preferences(wmOperatorType *ot)
+{
+	ot->name = "Save User Preferences";
+	ot->idname = "WM_OT_save_preferences";
+	ot->description = "Save the current user preferences as the defaults";
+		
+	ot->invoke = WM_operator_confirm;
+	ot->exec = WM_write_preferences;
+	ot->poll = WM_operator_winactive;
+}
+
 static void WM_OT_save_homefile(wmOperatorType *ot)
 {
-	ot->name = "Save User Settings";
+	ot->name = "Save Start-Up Project";
 	ot->idname = "WM_OT_save_homefile";
 	ot->description = "Make the current file the default .blend file";
 		
@@ -3816,6 +3827,7 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_window_duplicate);
 	WM_operatortype_append(WM_OT_read_homefile);
 	WM_operatortype_append(WM_OT_read_factory_settings);
+	WM_operatortype_append(WM_OT_save_preferences);
 	WM_operatortype_append(WM_OT_save_homefile);
 	WM_operatortype_append(WM_OT_window_fullscreen_toggle);
 	WM_operatortype_append(WM_OT_quit_blender);

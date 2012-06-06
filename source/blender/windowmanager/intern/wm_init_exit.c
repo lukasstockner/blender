@@ -143,7 +143,9 @@ void WM_init(bContext *C, int argc, const char **argv)
 	
 	BLF_init(11, U.dpi); /* Please update source/gamengine/GamePlayer/GPG_ghost.cpp if you change this */
 	BLF_lang_init();
+
 	/* get the default database, plus a wm */
+	WM_read_preferences(C);
 	WM_read_homefile(C, NULL, G.factory_startup);
 
 	BLF_lang_set(NULL);

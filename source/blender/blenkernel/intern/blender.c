@@ -251,11 +251,13 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 	sound_init_main(G.main);
 	
 	if (bfd->user) {
-		
-		/* only here free userdef themes... */
-		BKE_userdef_free();
-		
-		U = *bfd->user;
+		if (G.fileflags&G_FILE_PREFERENCES)
+		{
+			/* only here free userdef themes... */
+			BKE_userdef_free();
+			U = *bfd->user;
+		}
+
 		MEM_freeN(bfd->user);
 	}
 	
@@ -277,7 +279,7 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 	}
 	
 	/* this can happen when active scene was lib-linked, and doesn't exist anymore */
-	if (CTX_data_scene(C) == NULL) {
+	if (CTX_data_scene(C) == NULL && CTX_wm_screen(C) && bfd->main->scene.first) {
 		CTX_data_scene_set(C, bfd->main->scene.first);
 		CTX_wm_screen(C)->scene = CTX_data_scene(C);
 		curscene = CTX_data_scene(C);
@@ -323,7 +325,8 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 		BLI_strncpy(G.main->name, filepath, FILE_MAX);
 
 	/* baseflags, groups, make depsgraph, etc */
-	BKE_scene_set_background(G.main, CTX_data_scene(C));
+	if (CTX_data_scene(C))
+		BKE_scene_set_background(G.main, CTX_data_scene(C));
 	
 	MEM_freeN(bfd);
 
@@ -390,7 +393,7 @@ int BKE_read_file(bContext *C, const char *filepath, ReportList *reports)
 	BlendFileData *bfd;
 	int retval = BKE_READ_FILE_OK;
 
-	if (strstr(filepath, BLENDER_STARTUP_FILE) == NULL) /* don't print user-pref loading */
+	if (strstr(filepath, BLENDER_STARTUP_FILE) == NULL && strstr(filepath, BLENDER_PREFERENCES_FILE) == NULL) /* don't print user-pref loading */
 		printf("read blend: %s\n", filepath);
 
 	bfd = BLO_read_from_file(filepath, reports);

@@ -84,7 +84,7 @@ class USERPREF_HT_header(Header):
         userpref = context.user_preferences
 
         layout.operator_context = 'EXEC_AREA'
-        layout.operator("wm.save_homefile", text="Save As Default")
+        layout.operator("wm.save_preferences", text="Save As Default")
 
         layout.operator_context = 'INVOKE_DEFAULT'
 

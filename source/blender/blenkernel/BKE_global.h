@@ -154,6 +154,8 @@ enum {
 #define G_FILE_RELATIVE_REMAP    (1 << 24)
 #define G_FILE_HISTORY           (1 << 25)
 #define G_FILE_MESH_COMPAT       (1 << 26)              /* BMesh option to save as older mesh format */
+#define G_FILE_PREFERENCES       (1 << 27)
+#define G_FILE_NO_DATA		     (1 << 28)
 
 /* G.windowstate */
 #define G_WINDOWSTATE_USERDEF       0

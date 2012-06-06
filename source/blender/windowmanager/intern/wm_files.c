@@ -478,6 +478,42 @@ void WM_read_file(bContext *C, const char *filepath, ReportList *reports)
 
 }
 
+int WM_read_preferences(bContext *C)
+{
+	ListBase wmbase;
+	char tstr[FILE_MAX];
+	int success = 0;
+	char *cfgdir;
+	
+	G.relbase_valid = 0;
+
+	cfgdir = BLI_get_folder(BLENDER_USER_CONFIG, NULL);
+	if (cfgdir) {
+		BLI_make_file_string(G.main->name, tstr, cfgdir, BLENDER_PREFERENCES_FILE);
+	}
+
+	/* prevent loading no UI */
+	G.fileflags |= (G_FILE_NO_UI|G_FILE_NO_DATA|G_FILE_PREFERENCES);
+
+	/* put aside screens to match with persistent windows later */
+	wm_window_match_init(C, &wmbase); 
+
+	if (BLI_exists(tstr)) {
+		success = (BKE_read_file(C, tstr, NULL) != BKE_READ_FILE_FAIL);
+		
+		if (U.themes.first == NULL) {
+			printf("\nError: No valid "STRINGIFY (BLENDER_PREFERENCES_FILE)", user preferences not loaded.\n\n");
+			success = 0;
+		}
+	}
+
+	G.fileflags &= ~(G_FILE_PREFERENCES|G_FILE_NO_DATA);
+
+	if (success)
+		wm_init_userdef(C);
+
+	return TRUE;
+}
 
 /* called on startup,  (context entirely filled with NULLs) */
 /* or called for 'New File' */
@@ -486,7 +522,7 @@ int WM_read_homefile(bContext *C, ReportList *UNUSED(reports), short from_memory
 {
 	ListBase wmbase;
 	char tstr[FILE_MAX];
-	int success = 0;
+	int success = 0, loaded_preferences = 0;
 	
 	BKE_vfont_free_global_ttf(); /* still weird... what does it here? */
 		
@@ -504,7 +540,16 @@ int WM_read_homefile(bContext *C, ReportList *UNUSED(reports), short from_memory
 	
 	/* prevent loading no UI */
 	G.fileflags &= ~G_FILE_NO_UI;
-	
+
+	/* If preferences have already been loaded, don't load again. */
+	if (U.themes.first == NULL)
+	{
+		G.fileflags |= G_FILE_PREFERENCES;
+		loaded_preferences = 1;
+	}
+	else
+		G.fileflags &= ~G_FILE_PREFERENCES;
+
 	/* put aside screens to match with persistent windows later */
 	wm_window_match_init(C, &wmbase); 
 	
@@ -526,14 +571,15 @@ int WM_read_homefile(bContext *C, ReportList *UNUSED(reports), short from_memory
 		U.flag |= USER_SCRIPT_AUTOEXEC_DISABLE;
 #endif
 	}
-	
+
 	/* prevent buggy files that had G_FILE_RELATIVE_REMAP written out by mistake. Screws up autosaves otherwise
 	 * can remove this eventually, only in a 2.53 and older, now its not written */
 	G.fileflags &= ~G_FILE_RELATIVE_REMAP;
-	
-	/* check userdef before open window, keymaps etc */
-	wm_init_userdef(C);
-	
+
+	if (loaded_preferences)
+		/* check userdef before open window, keymaps etc */
+		wm_init_userdef(C);
+
 	/* match the read WM with current WM */
 	wm_window_match_do(C, &wmbase); 
 	WM_check(C); /* opens window(s), checks keymaps */
@@ -851,6 +897,39 @@ int WM_write_file(bContext *C, const char *target, int fileflags, ReportList *re
 	WM_cursor_wait(0);
 	
 	return 0;
+}
+
+int WM_write_preferences(bContext *C, wmOperator *op)
+{
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmWindow *win = CTX_wm_window(C);
+	char filepath[FILE_MAX];
+	int fileflags;
+
+	/* check current window and close it if temp */
+	if (win->screen->temp)
+		wm_window_close(C, wm, win);
+	
+	/* update keymaps in user preferences */
+	WM_keyconfig_update(wm);
+	
+	BLI_make_file_string("/", filepath, BLI_get_folder_create(BLENDER_USER_CONFIG, NULL), BLENDER_PREFERENCES_FILE);
+	printf("Saving preferences file at %s ... ", filepath);
+
+	/*  force save as a preferences blend file */
+	fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_AUTOPLAY | G_FILE_LOCK | G_FILE_SIGN | G_FILE_HISTORY);
+	fileflags |= (G_FILE_NO_DATA | G_FILE_PREFERENCES);
+
+	if (BLO_write_file(CTX_data_main(C), filepath, fileflags, op->reports, NULL) == 0) {
+		printf("fail\n");
+		return OPERATOR_CANCELLED;
+	}
+	
+	printf("ok\n");
+
+	G.save_over = 0;
+
+	return OPERATOR_FINISHED;
 }
 
 /* operator entry */
