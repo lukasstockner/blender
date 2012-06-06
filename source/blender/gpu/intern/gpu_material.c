@@ -1001,10 +1001,10 @@ static void do_material_tex(GPUShadeInput *shi)
 				texco= shi->ref;
 			}
 			else if (mtex->texco==TEXCO_UV) {
-				if (1) { //!(texco_uv && strcmp(mtex->uvname, lastuvname) == 0)) {
+				//if (!(texco_uv && strcmp(mtex->uvname, lastuvname) == 0)) {
 					GPU_link(mat, "texco_uv", GPU_attribute(CD_MTFACE, mtex->uvname), &texco_uv);
 					/*lastuvname = mtex->uvname;*/ /*UNUSED*/
-				}
+				//}
 				texco= texco_uv;
 			}
 			else
