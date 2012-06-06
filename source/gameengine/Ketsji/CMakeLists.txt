@@ -76,7 +76,6 @@ set(SRC
 	KX_CameraIpoSGController.cpp
 	KX_ConstraintActuator.cpp
 	KX_ConstraintWrapper.cpp
-	KX_ConvertPhysicsObjects.cpp
 	KX_Dome.cpp
 	KX_EmptyObject.cpp
 	KX_FontObject.cpp
@@ -243,10 +242,15 @@ if(WITH_AUDASPACE)
 endif()
 
 if(WITH_BULLET)
+	list(APPEND SRC
+		KX_ConvertPhysicsObjects.cpp
+	)
+
 	list(APPEND INC
 		../../../extern/bullet2/src
 		../Physics/Bullet
 	)
+
 	add_definitions(-DUSE_BULLET)
 endif()
 
