@@ -162,7 +162,7 @@ static void calc_last_texture(GPUimmediate* immediate)
 
 
 
-GPUimmediate *restrict gpuNewImmediate(void)
+GPUimmediate * gpuNewImmediate(void)
 {
 	GPUimmediate *restrict immediate =
 		MEM_callocN(sizeof(GPUimmediate), "GPUimmediate");

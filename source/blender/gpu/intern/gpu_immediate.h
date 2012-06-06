@@ -218,7 +218,7 @@ extern GPUimmediate *restrict GPU_IMMEDIATE;
 
 
 
-GPUimmediate *restrict gpuNewImmediate(void);
+GPUimmediate * gpuNewImmediate(void);
 void gpuImmediateMakeCurrent(GPUimmediate *restrict  immediate);
 void gpuDeleteImmediate(GPUimmediate *restrict  immediate);
 
