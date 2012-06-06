@@ -40,7 +40,7 @@
 #pragma warning (disable:4786)
 #endif
 
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 #include "KX_BlenderGL.h"
 #include "KX_BlenderCanvas.h"
@@ -194,7 +194,7 @@ int BL_KetsjiNextFrame(class KX_KetsjiEngine* ketsjiengine, struct bContext *C, 
 }
 
 struct BL_KetsjiNextFrameState {
-	struct KX_KetsjiEngine* ketsjiengine;
+	class KX_KetsjiEngine* ketsjiengine;
 	struct bContext *C;
 	struct wmWindow* win;
 	struct Scene* scene;
