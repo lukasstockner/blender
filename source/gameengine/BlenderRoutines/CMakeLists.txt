@@ -40,7 +40,7 @@ set(SRC
 	BL_System.cpp
 	KX_BlenderCanvas.cpp
 	KX_BlenderGL.cpp
-	KX_BlenderInputDevice.cpp
+#	KX_BlenderInputDevice.cpp
 	KX_BlenderKeyboardDevice.cpp
 	KX_BlenderMouseDevice.cpp
 	KX_BlenderRenderTools.cpp
