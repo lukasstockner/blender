@@ -142,9 +142,7 @@
 #  define CLAMP(a, b, c)  if ((a) < (b)) (a) = (b); else if ((a) > (c)) (a) = (c)
 #endif
 
-#ifdef __BLI_MATH_INLINE_H__
-#include "intern/math_base_inline.c"
-#endif
+#include "intern/math_base_inline.h"
 
 /******************************* Float ******************************/
 
