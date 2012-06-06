@@ -958,11 +958,11 @@ class CLIP_PT_footage(CLIP_PT_clip_view_panel, Panel):
         sc = context.space_data
         clip = sc.clip
 
-        if clip:
-            layout.template_movieclip(sc, "clip", compact=True)
-        else:
-            layout.operator("clip.open", icon='FILESEL')
-
+        col = layout.column()
+        col.template_movieclip(sc, "clip", compact=True)
+        col.prop(clip, "use_custom_start_frame")
+        if clip.use_custom_start_frame:
+            col.prop(clip, "start_frame")
 
 
 class CLIP_PT_tools_clip(CLIP_PT_clip_view_panel, Panel):
@@ -1225,12 +1225,9 @@ class CLIP_MT_mask(Menu):
         layout.operator("mask.parent_set")
 
         layout.separator()
-        layout.operator("mask.shape_key_clear")
-        layout.operator("mask.shape_key_insert")
-
-        layout.separator()
         layout.menu("CLIP_MT_mask_visibility")
         layout.menu("CLIP_MT_mask_transform")
+        layout.menu("CLIP_MT_mask_animation")
 
 
 class CLIP_MT_mask_visibility(Menu):
@@ -1257,6 +1254,17 @@ class CLIP_MT_mask_transform(Menu):
         layout.operator("transform.resize")
         props = layout.operator("transform.transform", text="Shrink/Fatten")
         props.mode = 'MASK_SHRINKFATTEN'
+
+
+class CLIP_MT_mask_animation(Menu):
+    bl_label = "Animation"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("mask.shape_key_clear")
+        layout.operator("mask.shape_key_insert")
+        layout.operator("mask.shape_key_feather_reset")
 
 
 class CLIP_MT_camera_presets(Menu):
