@@ -99,6 +99,8 @@ extern "C"
 #include "GHOST_IWindow.h"
 #include "GHOST_Rect.h"
 
+#include "GPU_matrix.h"
+
 static void frameTimerProc(GHOST_ITimerTask* task, GHOST_TUns64 time);
 
 static GHOST_ISystem* fSystem = 0;
@@ -534,6 +536,7 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 	if (!m_engineInitialized)
 	{
 		GPU_extensions_init();
+		GPU_ms_init();
 		bgl::InitExtensions(true);
 
 		// get and set the preferences
@@ -553,7 +556,11 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 
 		bool fixed_framerate= (SYS_GetCommandLineInt(syshandle, "fixed_framerate", fixedFr) != 0);
 		bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
-		bool useLists = (SYS_GetCommandLineInt(syshandle, "displaylists", gm->flag & GAME_DISPLAY_LISTS) != 0);
+#ifdef GLES
+		bool useLists = 0;
+#else		
+		bool useLists = (SYS_GetCommandLineInt(syshandle, "displaylists", gm->flag & GAME_DISPLAY_LISTS) != 0);		
+#endif
 		bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
 		bool restrictAnimFPS = gm->flag & GAME_RESTRICT_ANIM_UPDATES;
 
@@ -583,7 +590,11 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		if (useLists && gm->raster_storage != RAS_STORE_VBO)
 			m_rasterizer = new RAS_ListRasterizer(m_canvas, false, gm->raster_storage);
 		else
+#ifdef GLES
+			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, gm->raster_storage=RAS_VA);
+#else
 			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, gm->raster_storage);
+#endif
 
 		/* Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI */
 		m_rasterizer->SetStereoMode((RAS_IRasterizer::StereoMode) stereoMode);
@@ -835,6 +846,7 @@ void GPG_Application::exitEngine()
 	}
 
 	GPU_extensions_exit();
+	GPU_ms_exit();
 
 	m_exitRequested = 0;
 	m_engineInitialized = false;

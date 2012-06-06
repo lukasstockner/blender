@@ -66,6 +66,7 @@ void add_m4_m4m4(float R[4][4], float A[4][4], float B[4][4]);
 
 void sub_m3_m3m3(float R[3][3], float A[3][3], float B[3][3]);
 void sub_m4_m4m4(float R[4][4], float A[4][4], float B[4][4]);
+void mult_m4_m4m4_q(float m1[4][4], float m3[4][4], float m2[4][4]);
 
 void mul_m3_m3m3(float R[3][3], float A[3][3], float B[3][3]);
 void mul_m4_m3m4(float R[4][4], float A[3][3], float B[4][4]);
@@ -145,6 +146,8 @@ void pseudoinverse_m4_m4(float Ainv[4][4], float A[4][4], float epsilon);
 
 void scale_m3_fl(float R[3][3], float scale);
 void scale_m4_fl(float R[4][4], float scale);
+
+void scale_m4(float m[][4], float x, float y, float z);
 
 float mat3_to_scale(float M[3][3]);
 float mat4_to_scale(float M[4][4]);

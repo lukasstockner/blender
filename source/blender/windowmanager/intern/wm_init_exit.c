@@ -107,6 +107,7 @@
 #include "GPU_extensions.h"
 #include "GPU_draw.h"
 #include "GPU_compatibility.h"
+#include "GPU_matrix.h"
 
 #include "BKE_depsgraph.h"
 #include "BKE_sound.h"
@@ -181,6 +182,8 @@ void WM_init(bContext *C, int argc, const char **argv)
 		GPU_extensions_init();
 		GPU_set_mipmap(!(U.gameflags & USER_DISABLE_MIPMAP));
 		GPU_set_anisotropic(U.anisotropic_filter);
+		
+		GPU_ms_init();
 
 		immediate = gpuNewImmediate();
 		gpuImmediateMakeCurrent(immediate);
@@ -421,6 +424,7 @@ void WM_exit_ext(bContext *C, const short do_python)
 	GPU_global_buffer_pool_free();
 	GPU_free_unused_buffers();
 	GPU_extensions_exit();
+	GPU_ms_exit();
 
 	gpuDeleteImmediate(immediate);
 

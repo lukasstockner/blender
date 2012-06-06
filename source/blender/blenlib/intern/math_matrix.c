@@ -142,14 +142,8 @@ void swap_m4m4(float m1[][4], float m2[][4])
 
 /******************************** Arithmetic *********************************/
 
-void mult_m4_m4m4(float m1[][4], float m3_[][4], float m2_[][4])
+void mult_m4_m4m4_q(float m1[][4], float m3[][4], float m2[][4])
 {
-	float m2[4][4], m3[4][4];
-
-	/* copy so it works when m1 is the same pointer as m2 or m3 */
-	copy_m4_m4(m2, m2_);
-	copy_m4_m4(m3, m3_);
-
 	/* matrix product: m1[j][k] = m2[j][i].m3[i][k] */
 	m1[0][0] = m2[0][0] * m3[0][0] + m2[0][1] * m3[1][0] + m2[0][2] * m3[2][0] + m2[0][3] * m3[3][0];
 	m1[0][1] = m2[0][0] * m3[0][1] + m2[0][1] * m3[1][1] + m2[0][2] * m3[2][1] + m2[0][3] * m3[3][1];
@@ -170,6 +164,19 @@ void mult_m4_m4m4(float m1[][4], float m3_[][4], float m2_[][4])
 	m1[3][1] = m2[3][0] * m3[0][1] + m2[3][1] * m3[1][1] + m2[3][2] * m3[2][1] + m2[3][3] * m3[3][1];
 	m1[3][2] = m2[3][0] * m3[0][2] + m2[3][1] * m3[1][2] + m2[3][2] * m3[2][2] + m2[3][3] * m3[3][2];
 	m1[3][3] = m2[3][0] * m3[0][3] + m2[3][1] * m3[1][3] + m2[3][2] * m3[2][3] + m2[3][3] * m3[3][3];
+
+}
+
+void mult_m4_m4m4(float m1[][4], float m3_[][4], float m2_[][4])
+{
+	float m2[4][4], m3[4][4];
+
+	/* copy so it works when m1 is the same pointer as m2 or m3 */
+	copy_m4_m4(m2, m2_);
+	copy_m4_m4(m3, m3_);
+
+	/* matrix product: m1[j][k] = m2[j][i].m3[i][k] */
+	mult_m4_m4m4_q(m1, m2, m3);
 
 }
 
@@ -1163,11 +1170,19 @@ void scale_m4_fl(float m[][4], float scale)
 	m[3][0] = m[3][1] = m[3][2] = 0.0;
 }
 
+void scale_m4(float m[][4], float x, float y, float z)
+{
+	m[0][0]*=x; m[0][1]*=x; m[0][2]*=x; m[0][3]*=x;
+	m[1][0]*=y; m[1][1]*=y; m[1][2]*=y; m[1][3]*=y;
+	m[2][0]*=z; m[2][1]*=z; m[2][2]*=z; m[2][3]*=z;
+}
+
 void translate_m4(float mat[][4], float Tx, float Ty, float Tz)
 {
 	mat[3][0] += (Tx * mat[0][0] + Ty * mat[1][0] + Tz * mat[2][0]);
 	mat[3][1] += (Tx * mat[0][1] + Ty * mat[1][1] + Tz * mat[2][1]);
 	mat[3][2] += (Tx * mat[0][2] + Ty * mat[1][2] + Tz * mat[2][2]);
+	mat[3][3] += (Tx * mat[0][3] + Ty * mat[1][3] + Tz * mat[2][3]);
 }
 
 void rotate_m4(float mat[][4], const char axis, const float angle)
