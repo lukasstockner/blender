@@ -542,7 +542,7 @@ int WM_read_homefile(bContext *C, ReportList *UNUSED(reports), short from_memory
 	G.fileflags &= ~G_FILE_NO_UI;
 
 	/* If preferences have already been loaded, don't load again. */
-	if (U.themes.first == NULL)
+	if (U.themes.first == NULL || from_memory)
 	{
 		G.fileflags |= G_FILE_PREFERENCES;
 		loaded_preferences = 1;
