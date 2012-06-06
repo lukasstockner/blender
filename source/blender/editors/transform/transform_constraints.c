@@ -48,6 +48,8 @@
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
@@ -60,10 +62,6 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 #include "BLI_string.h"
-
-//#include "blendef.h"
-//
-//#include "mydevice.h"
 
 #include "UI_resources.h"
 
@@ -638,71 +636,6 @@ void setUserConstraint(TransInfo *t, short orientation, int mode, const char fte
 	t->con.mode |= CON_USER;
 }
 
-/*----------------- DRAWING CONSTRAINTS -------------------*/
-
-void drawConstraint(TransInfo *t)
-{
-	TransCon *tc = &(t->con);
-
-	if (!ELEM(t->spacetype, SPACE_VIEW3D, SPACE_IMAGE))
-		return;
-	if (!(tc->mode & CON_APPLY))
-		return;
-	if (t->flag & T_USES_MANIPULATOR)
-		return;
-	if (t->flag & T_NO_CONSTRAINT)
-		return;
-
-	/* nasty exception for Z constraint in camera view */
-	// TRANSFORM_FIX_ME
-//	if ((t->flag & T_OBJECT) && G.vd->camera==OBACT && G.vd->persp==V3D_CAMOB)
-//		return;
-
-	if (tc->drawExtra) {
-		tc->drawExtra(t);
-	}
-	else {
-		if (tc->mode & CON_SELECT) {
-			float vec[3];
-			char col2[3] = {255, 255, 255};
-			int depth_test_enabled;
-
-			convertViewVec(t, vec, (t->mval[0] - t->con.imval[0]), (t->mval[1] - t->con.imval[1]));
-			add_v3_v3(vec, tc->center);
-
-			drawLine(t, tc->center, tc->mtx[0], 'X', 0);
-			drawLine(t, tc->center, tc->mtx[1], 'Y', 0);
-			drawLine(t, tc->center, tc->mtx[2], 'Z', 0);
-
-			glColor3ubv((GLubyte *)col2);
-
-			depth_test_enabled = glIsEnabled(GL_DEPTH_TEST);
-			if (depth_test_enabled)
-				glDisable(GL_DEPTH_TEST);
-
-			setlinestyle(1);
-			glBegin(GL_LINE_STRIP);
-				glVertex3fv(tc->center);
-				glVertex3fv(vec);
-			glEnd();
-			setlinestyle(0);
-
-			if (depth_test_enabled)
-				glEnable(GL_DEPTH_TEST);
-		}
-
-		if (tc->mode & CON_AXIS0) {
-			drawLine(t, tc->center, tc->mtx[0], 'X', DRAWLIGHT);
-		}
-		if (tc->mode & CON_AXIS1) {
-			drawLine(t, tc->center, tc->mtx[1], 'Y', DRAWLIGHT);
-		}
-		if (tc->mode & CON_AXIS2) {
-			drawLine(t, tc->center, tc->mtx[2], 'Z', DRAWLIGHT);
-		}
-	}
-}
-
 /* called from drawview.c, as an extra per-window draw option */
 void drawPropCircle(const struct bContext *C, TransInfo *t)
 {
@@ -737,7 +670,7 @@ void drawPropCircle(const struct bContext *C, TransInfo *t)
 		}
 
 		set_inverted_drawing(1);
-		drawcircball(GL_LINE_LOOP, center, t->prop_size, imat);
+		gpuDrawFastBall(GL_LINE_LOOP, center, t->prop_size, imat);
 		set_inverted_drawing(0);
 
 		glPopMatrix();
@@ -749,6 +682,10 @@ static void drawObjectConstraint(TransInfo *t)
 	int i;
 	TransData * td = t->data;
 
+	gpuImmediateFormat_C4_V3();
+
+	gpuBegin(GL_LINES);
+
 	/* Draw the first one lighter because that's the one who controls the others.
 	 * Meaning the transformation is projected on that one and just copied on the others
 	 * constraint space.
@@ -756,28 +693,36 @@ static void drawObjectConstraint(TransInfo *t)
 	 * Without drawing the first light, users have little clue what they are doing.
 	 */
 	if (t->con.mode & CON_AXIS0) {
-		drawLine(t, td->ob->obmat[3], td->axismtx[0], 'X', DRAWLIGHT);
+		drawConstraintLine(t, td->ob->obmat[3], td->axismtx[0], 'X', DRAWLIGHT);
 	}
+
 	if (t->con.mode & CON_AXIS1) {
-		drawLine(t, td->ob->obmat[3], td->axismtx[1], 'Y', DRAWLIGHT);
+		drawConstraintLine(t, td->ob->obmat[3], td->axismtx[1], 'Y', DRAWLIGHT);
 	}
+
 	if (t->con.mode & CON_AXIS2) {
-		drawLine(t, td->ob->obmat[3], td->axismtx[2], 'Z', DRAWLIGHT);
+		drawConstraintLine(t, td->ob->obmat[3], td->axismtx[2], 'Z', DRAWLIGHT);
 	}
 
 	td++;
 
 	for (i=1; i < t->total; i++, td++) {
 		if (t->con.mode & CON_AXIS0) {
-			drawLine(t, td->ob->obmat[3], td->axismtx[0], 'X', 0);
+			drawConstraintLine(t, td->ob->obmat[3], td->axismtx[0], 'X', 0);
 		}
+
 		if (t->con.mode & CON_AXIS1) {
-			drawLine(t, td->ob->obmat[3], td->axismtx[1], 'Y', 0);
+			drawConstraintLine(t, td->ob->obmat[3], td->axismtx[1], 'Y', 0);
 		}
+
 		if (t->con.mode & CON_AXIS2) {
-			drawLine(t, td->ob->obmat[3], td->axismtx[2], 'Z', 0);
+			drawConstraintLine(t, td->ob->obmat[3], td->axismtx[2], 'Z', 0);
 		}
 	}
+
+	gpuEnd();
+
+	gpuImmediateUnformat();
 }
 
 /*--------------------- START / STOP CONSTRAINTS ---------------------- */

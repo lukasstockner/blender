@@ -66,6 +66,7 @@
 #include "BKE_pointcache.h"
 #include "BKE_tessmesh.h"
 
+#include "GPU_compatibility.h"
 #include "BIF_gl.h"
 
 #include "WM_api.h"
@@ -679,7 +680,7 @@ static void partial_doughnut(float radring, float radhole, int start, int end, i
 		sin_theta1= (float)sin(theta1);
 
 		if (do_caps && i==start) {	// cap
-			glBegin(GL_POLYGON);
+			gpuBegin(GL_POLYGON);
 			phi= 0.0;
 			for (j= nsides; j >= 0; j--) {
 				float cos_phi, sin_phi, dist;
@@ -689,12 +690,12 @@ static void partial_doughnut(float radring, float radhole, int start, int end, i
 				sin_phi= (float)sin(phi);
 				dist= radhole + radring * cos_phi;
 
-				glVertex3f(cos_theta1 * dist, -sin_theta1 * dist,  radring * sin_phi);
+				gpuVertex3f(cos_theta1 * dist, -sin_theta1 * dist,  radring * sin_phi);
 			}
-			glEnd();
+			gpuEnd();
 		}
 		if (i>=start && i<=end) {
-			glBegin(GL_QUAD_STRIP);
+			gpuBegin(GL_QUAD_STRIP);
 			phi= 0.0;
 			for (j= nsides; j >= 0; j--) {
 				float cos_phi, sin_phi, dist;
@@ -704,14 +705,14 @@ static void partial_doughnut(float radring, float radhole, int start, int end, i
 				sin_phi= (float)sin(phi);
 				dist= radhole + radring * cos_phi;
 
-				glVertex3f(cos_theta1 * dist, -sin_theta1 * dist, radring * sin_phi);
-				glVertex3f(cos_theta * dist, -sin_theta * dist,  radring * sin_phi);
+				gpuVertex3f(cos_theta1 * dist, -sin_theta1 * dist, radring * sin_phi);
+				gpuVertex3f(cos_theta * dist, -sin_theta * dist,  radring * sin_phi);
 			}
-			glEnd();
+			gpuEnd();
 		}
 
 		if (do_caps && i==end) {	// cap
-			glBegin(GL_POLYGON);
+			gpuBegin(GL_POLYGON);
 			phi= 0.0;
 			for (j= nsides; j >= 0; j--) {
 				float cos_phi, sin_phi, dist;
@@ -721,9 +722,9 @@ static void partial_doughnut(float radring, float radhole, int start, int end, i
 				sin_phi= (float)sin(phi);
 				dist= radhole + radring * cos_phi;
 
-				glVertex3f(cos_theta * dist, -sin_theta * dist,  radring * sin_phi);
+				gpuVertex3f(cos_theta * dist, -sin_theta * dist,  radring * sin_phi);
 			}
-			glEnd();
+			gpuEnd();
 		}
 
 
@@ -749,82 +750,113 @@ static char axisBlendAngle(float angle)
  * moving: in transform theme color
  * else the red/green/blue
  */
-static void manipulator_setcolor(View3D *v3d, char axis, int colcode, unsigned char alpha)
+static void set_manipulator_color(View3D *v3d, char axis, int colcode, unsigned char alpha)
 {
-	unsigned char col[4]= {0};
-	col[3]= alpha;
+	GLubyte col[4];
 
 	if (colcode==MAN_GHOST) {
-		col[3]= 70;
+		col[0] = 0;
+		col[1] = 0;
+		col[2] = 0;
+		col[3] = 70;
 	}
 	else if (colcode==MAN_MOVECOL) {
 		UI_GetThemeColor3ubv(TH_TRANSFORM, col);
+		col[3] = alpha;
 	}
 	else {
 		switch (axis) {
 		case 'C':
 			UI_GetThemeColor3ubv(TH_TRANSFORM, col);
 			if (v3d->twmode == V3D_MANIP_LOCAL) {
-				col[0]= col[0]>200?255:col[0]+55;
-				col[1]= col[1]>200?255:col[1]+55;
-				col[2]= col[2]>200?255:col[2]+55;
+				col[0] = col[0] > 200 ? 255 : col[0]+55;
+				col[1] = col[1] > 200 ? 255 : col[1]+55;
+				col[2] = col[2] > 200 ? 255 : col[2]+55;
+				col[3] = alpha;
 			}
 			else if (v3d->twmode == V3D_MANIP_NORMAL) {
-				col[0]= col[0]<55?0:col[0]-55;
-				col[1]= col[1]<55?0:col[1]-55;
-				col[2]= col[2]<55?0:col[2]-55;
+				col[0] = col[0] < 55 ? 0 : col[0]-55;
+				col[1] = col[1] < 55 ? 0 : col[1]-55;
+				col[2] = col[2] < 55 ? 0 : col[2]-55;
+				col[3] = alpha;
 			}
 			break;
 		case 'X':
-			col[0]= 220;
+			col[0] = 220;
+			col[1] =   0;
+			col[2] =   0;
+			col[3] = alpha;
 			break;
 		case 'Y':
-			col[1]= 220;
+			col[0] =   0;
+			col[1] = 220;
+			col[2] =   0;
+			col[3] = alpha;
 			break;
 		case 'Z':
-			col[0]= 30;
-			col[1]= 30;
-			col[2]= 220;
+			col[0] =  30;
+			col[1] =  30;
+			col[2] = 220;
+			col[3] = alpha;
 			break;
 		default:
 			BLI_assert(!"invalid axis arg");
 		}
 	}
 
-	glColor4ubv(col);
+	gpuCurrentColor4ubv(col);
 }
 
 /* viewmatrix should have been set OK, also no shademode! */
 static void draw_manipulator_axes(View3D *v3d, RegionView3D *rv3d, int colcode, int flagx, int flagy, int flagz)
 {
-
 	/* axes */
 	if (flagx) {
-		manipulator_setcolor(v3d, 'X', colcode, axisBlendAngle(rv3d->twangle[0]));
-		if (flagx & MAN_SCALE_X) glLoadName(MAN_SCALE_X);
-		else if (flagx & MAN_TRANS_X) glLoadName(MAN_TRANS_X);
-		glBegin(GL_LINES);
-		glVertex3f(0.2f, 0.0f, 0.0f);
-		glVertex3f(1.0f, 0.0f, 0.0f);
-		glEnd();
+		set_manipulator_color(v3d, 'X', colcode, axisBlendAngle(rv3d->twangle[0]));
+
+		if (flagx & MAN_SCALE_X) {
+			glLoadName(MAN_SCALE_X);
+		}
+		else if (flagx & MAN_TRANS_X) {
+			glLoadName(MAN_TRANS_X);
+		}
+
+		gpuBegin(GL_LINES);
+		gpuVertex3f(0.2f, 0.0f, 0.0f);
+		gpuVertex3f(1.0f, 0.0f, 0.0f);
+		gpuEnd();
 	}
+
 	if (flagy) {
-		if (flagy & MAN_SCALE_Y) glLoadName(MAN_SCALE_Y);
-		else if (flagy & MAN_TRANS_Y) glLoadName(MAN_TRANS_Y);
-		manipulator_setcolor(v3d, 'Y', colcode, axisBlendAngle(rv3d->twangle[1]));
-		glBegin(GL_LINES);
-		glVertex3f(0.0f, 0.2f, 0.0f);
-		glVertex3f(0.0f, 1.0f, 0.0f);
-		glEnd();
+		if (flagy & MAN_SCALE_Y) {
+			glLoadName(MAN_SCALE_Y);
+		}
+		else if (flagy & MAN_TRANS_Y) {
+			glLoadName(MAN_TRANS_Y);
+		}
+
+		set_manipulator_color(v3d, 'Y', colcode, axisBlendAngle(rv3d->twangle[1]));
+
+		gpuBegin(GL_LINES);
+		gpuVertex3f(0.0f, 0.2f, 0.0f);
+		gpuVertex3f(0.0f, 1.0f, 0.0f);
+		gpuEnd();
 	}
+
 	if (flagz) {
-		if (flagz & MAN_SCALE_Z) glLoadName(MAN_SCALE_Z);
-		else if (flagz & MAN_TRANS_Z) glLoadName(MAN_TRANS_Z);
-		manipulator_setcolor(v3d, 'Z', colcode, axisBlendAngle(rv3d->twangle[2]));
-		glBegin(GL_LINES);
-		glVertex3f(0.0f, 0.0f, 0.2f);
-		glVertex3f(0.0f, 0.0f, 1.0f);
-		glEnd();
+		if (flagz & MAN_SCALE_Z) {
+			glLoadName(MAN_SCALE_Z);
+		}
+		else if (flagz & MAN_TRANS_Z) {
+			glLoadName(MAN_TRANS_Z);
+		}
+
+		set_manipulator_color(v3d, 'Z', colcode, axisBlendAngle(rv3d->twangle[2]));
+
+		gpuBegin(GL_LINES);
+		gpuVertex3f(0.0f, 0.0f, 0.2f);
+		gpuVertex3f(0.0f, 0.0f, 1.0f);
+		gpuEnd();
 	}
 }
 
@@ -849,31 +881,27 @@ static void postOrtho(int ortho)
 
 static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving, int drawflags, int combo)
 {
-	GLUquadricObj *qobj;
 	double plane[4];
 	float matt[4][4];
-	float size, unitmat[4][4];
+	float size;
 	float cywid= 0.33f*0.01f*(float)U.tw_handlesize;
 	float cusize= cywid*0.65f;
-	int arcs= (G.rt!=2);
+	int arcs = (G.rt != 2);
 	int colcode;
 	int ortho;
 
-	if (moving) colcode= MAN_MOVECOL;
-	else colcode= MAN_RGB;
+	colcode = moving ? MAN_MOVECOL : MAN_RGB;
 
 	/* when called while moving in mixed mode, do not draw when... */
-	if ((drawflags & MAN_ROT_C)==0) return;
+	if (!(drawflags & MAN_ROT_C)) {
+		return;
+	}
 
 	/* Init stuff */
 	glDisable(GL_DEPTH_TEST);
-	unit_m4(unitmat);
-
-	qobj= gluNewQuadric();
-	gluQuadricDrawStyle(qobj, GLU_FILL);
 
 	/* prepare for screen aligned draw */
-	size= len_v3(rv3d->twmat[0]);
+	size = len_v3(rv3d->twmat[0]);
 	glPushMatrix();
 	glTranslatef(rv3d->twmat[3][0], rv3d->twmat[3][1], rv3d->twmat[3][2]);
 
@@ -883,30 +911,34 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 		plane[3]= -0.02f*size; // clip just a bit more
 		glClipPlane(GL_CLIP_PLANE0, plane);
 	}
+
 	/* sets view screen aligned */
 	glRotatef(-360.0f*saacos(rv3d->viewquat[0])/(float)M_PI, rv3d->viewquat[1], rv3d->viewquat[2], rv3d->viewquat[3]);
 
 	/* Screen aligned help circle */
-	if (arcs) {
-		if ((G.f & G_PICKSEL)==0) {
-			UI_ThemeColorShade(TH_BACK, -30);
-			drawcircball(GL_LINE_LOOP, unitmat[3], size, unitmat);
-		}
+	if (arcs && !(G.f & G_PICKSEL)) {
+		UI_ThemeColorShade(TH_BACK, -30);
+		gpuDrawFastCircleXY(size);
 	}
 
 	/* Screen aligned trackball rot circle */
 	if (drawflags & MAN_ROT_T) {
-		if (G.f & G_PICKSEL) glLoadName(MAN_ROT_T);
+		if (G.f & G_PICKSEL) {
+			glLoadName(MAN_ROT_T);
+		}
 
 		UI_ThemeColor(TH_TRANSFORM);
-		drawcircball(GL_LINE_LOOP, unitmat[3], 0.2f*size, unitmat);
+		gpuDrawFastCircleXY(0.2f*size);
 	}
 
 	/* Screen aligned view rot circle */
 	if (drawflags & MAN_ROT_V) {
-		if (G.f & G_PICKSEL) glLoadName(MAN_ROT_V);
+		if (G.f & G_PICKSEL) {
+			glLoadName(MAN_ROT_V);
+		}
+
 		UI_ThemeColor(TH_TRANSFORM);
-		drawcircball(GL_LINE_LOOP, unitmat[3], 1.2f*size, unitmat);
+		gpuDrawFastCircleXY(1.2f*size);
 
 		if (moving) {
 			float vec[3];
@@ -915,17 +947,18 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 			vec[2]= 0.0f;
 			normalize_v3(vec);
 			mul_v3_fl(vec, 1.2f*size);
-			glBegin(GL_LINES);
-			glVertex3f(0.0f, 0.0f, 0.0f);
-			glVertex3fv(vec);
-			glEnd();
+
+			gpuBegin(GL_LINES);
+			gpuVertex3f(0.0f, 0.0f, 0.0f);
+			gpuVertex3fv(vec);
+			gpuEnd();
 		}
 	}
+
 	glPopMatrix();
 
-
 	ortho = is_orthogonal_m4(rv3d->twmat);
-	
+
 	/* apply the transform delta */
 	if (moving) {
 		copy_m4_m4(matt, rv3d->twmat); // to copy the parts outside of [3][3]
@@ -935,82 +968,11 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 			glFrontFace(is_negative_m4(matt) ? GL_CW:GL_CCW);
 		}
 	}
-	else {
-		if (ortho) {
-			glFrontFace(is_negative_m4(rv3d->twmat) ? GL_CW:GL_CCW);
-			glMultMatrixf(rv3d->twmat);
-		}
+	else if (ortho) {
+		glFrontFace(is_negative_m4(rv3d->twmat) ? GL_CW:GL_CCW);
+		glMultMatrixf(rv3d->twmat);
 	}
 
-	/* axes */
-	if (arcs==0) {
-		if (!(G.f & G_PICKSEL)) {
-			if ( (combo & V3D_MANIP_SCALE)==0) {
-				/* axis */
-				if ( (drawflags & MAN_ROT_X) || (moving && (drawflags & MAN_ROT_Z)) ) {
-					preOrthoFront(ortho, rv3d->twmat, 2);
-					manipulator_setcolor(v3d, 'X', colcode, 255);
-					glBegin(GL_LINES);
-					glVertex3f(0.2f, 0.0f, 0.0f);
-					glVertex3f(1.0f, 0.0f, 0.0f);
-					glEnd();
-					postOrtho(ortho);
-				}
-				if ( (drawflags & MAN_ROT_Y) || (moving && (drawflags & MAN_ROT_X)) ) {
-					preOrthoFront(ortho, rv3d->twmat, 0);
-					manipulator_setcolor(v3d, 'Y', colcode, 255);
-					glBegin(GL_LINES);
-					glVertex3f(0.0f, 0.2f, 0.0f);
-					glVertex3f(0.0f, 1.0f, 0.0f);
-					glEnd();
-					postOrtho(ortho);
-				}
-				if ( (drawflags & MAN_ROT_Z) || (moving && (drawflags & MAN_ROT_Y)) ) {
-					preOrthoFront(ortho, rv3d->twmat, 1);
-					manipulator_setcolor(v3d, 'Z', colcode, 255);
-					glBegin(GL_LINES);
-					glVertex3f(0.0f, 0.0f, 0.2f);
-					glVertex3f(0.0f, 0.0f, 1.0f);
-					glEnd();
-					postOrtho(ortho);
-				}
-			}
-		}
-	}
-
-	if (arcs==0 && moving) {
-
-		/* Z circle */
-		if (drawflags & MAN_ROT_Z) {
-			preOrthoFront(ortho, matt, 2);
-			if (G.f & G_PICKSEL) glLoadName(MAN_ROT_Z);
-			manipulator_setcolor(v3d, 'Z', colcode, 255);
-			drawcircball(GL_LINE_LOOP, unitmat[3], 1.0, unitmat);
-			postOrtho(ortho);
-		}
-		/* X circle */
-		if (drawflags & MAN_ROT_X) {
-			preOrthoFront(ortho, matt, 0);
-			if (G.f & G_PICKSEL) glLoadName(MAN_ROT_X);
-			glRotatef(90.0, 0.0, 1.0, 0.0);
-			manipulator_setcolor(v3d, 'X', colcode, 255);
-			drawcircball(GL_LINE_LOOP, unitmat[3], 1.0, unitmat);
-			glRotatef(-90.0, 0.0, 1.0, 0.0);
-			postOrtho(ortho);
-		}
-		/* Y circle */
-		if (drawflags & MAN_ROT_Y) {
-			preOrthoFront(ortho, matt, 1);
-			if (G.f & G_PICKSEL) glLoadName(MAN_ROT_Y);
-			glRotatef(-90.0, 1.0, 0.0, 0.0);
-			manipulator_setcolor(v3d, 'Y', colcode, 255);
-			drawcircball(GL_LINE_LOOP, unitmat[3], 1.0, unitmat);
-			glRotatef(90.0, 1.0, 0.0, 0.0);
-			postOrtho(ortho);
-		}
-
-		if (arcs) glDisable(GL_CLIP_PLANE0);
-	}
 	// donut arcs
 	if (arcs) {
 		glEnable(GL_CLIP_PLANE0);
@@ -1018,27 +980,41 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 		/* Z circle */
 		if (drawflags & MAN_ROT_Z) {
 			preOrthoFront(ortho, rv3d->twmat, 2);
-			if (G.f & G_PICKSEL) glLoadName(MAN_ROT_Z);
-			manipulator_setcolor(v3d, 'Z', colcode, 255);
+
+			if (G.f & G_PICKSEL) {
+				glLoadName(MAN_ROT_Z);
+			}
+
+			set_manipulator_color(v3d, 'Z', colcode, 255);
 			partial_doughnut(cusize/4.0f, 1.0f, 0, 48, 8, 48);
 			postOrtho(ortho);
 		}
+
 		/* X circle */
 		if (drawflags & MAN_ROT_X) {
 			preOrthoFront(ortho, rv3d->twmat, 0);
-			if (G.f & G_PICKSEL) glLoadName(MAN_ROT_X);
+
+			if (G.f & G_PICKSEL) {
+				glLoadName(MAN_ROT_X);
+			}
+
 			glRotatef(90.0, 0.0, 1.0, 0.0);
-			manipulator_setcolor(v3d, 'X', colcode, 255);
+			set_manipulator_color(v3d, 'X', colcode, 255);
 			partial_doughnut(cusize/4.0f, 1.0f, 0, 48, 8, 48);
 			glRotatef(-90.0, 0.0, 1.0, 0.0);
 			postOrtho(ortho);
 		}
+
 		/* Y circle */
 		if (drawflags & MAN_ROT_Y) {
 			preOrthoFront(ortho, rv3d->twmat, 1);
-			if (G.f & G_PICKSEL) glLoadName(MAN_ROT_Y);
+
+			if (G.f & G_PICKSEL) {
+				glLoadName(MAN_ROT_Y);
+			}
+
 			glRotatef(-90.0, 1.0, 0.0, 0.0);
-			manipulator_setcolor(v3d, 'Y', colcode, 255);
+			set_manipulator_color(v3d, 'Y', colcode, 255);
 			partial_doughnut(cusize/4.0f, 1.0f, 0, 48, 8, 48);
 			glRotatef(90.0, 1.0, 0.0, 0.0);
 			postOrtho(ortho);
@@ -1046,31 +1022,125 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 
 		glDisable(GL_CLIP_PLANE0);
 	}
+	else /* !arcs */ {
+		/* axes */
+		if (!(G.f & G_PICKSEL) && !(combo & V3D_MANIP_SCALE)) {
 
-	if (arcs==0) {
+			if ( (drawflags & MAN_ROT_X) || (moving && (drawflags & MAN_ROT_Z)) ) {
+				preOrthoFront(ortho, rv3d->twmat, 2);
+				set_manipulator_color(v3d, 'X', colcode, 255);
+
+				gpuBegin(GL_LINES);
+				gpuVertex3f(0.2f, 0.0f, 0.0f);
+				gpuVertex3f(1.0f, 0.0f, 0.0f);
+				gpuEnd();
+
+				postOrtho(ortho);
+			}
+
+			if ( (drawflags & MAN_ROT_Y) || (moving && (drawflags & MAN_ROT_X)) ) {
+				preOrthoFront(ortho, rv3d->twmat, 0);
+				set_manipulator_color(v3d, 'Y', colcode, 255);
+
+				gpuBegin(GL_LINES);
+				gpuVertex3f(0.0f, 0.2f, 0.0f);
+				gpuVertex3f(0.0f, 1.0f, 0.0f);
+				gpuEnd();
+
+				postOrtho(ortho);
+			}
+
+			if ( (drawflags & MAN_ROT_Z) || (moving && (drawflags & MAN_ROT_Y)) ) {
+				preOrthoFront(ortho, rv3d->twmat, 1);
+				set_manipulator_color(v3d, 'Z', colcode, 255);
+
+				gpuBegin(GL_LINES);
+				gpuVertex3f(0.0f, 0.0f, 0.2f);
+				gpuVertex3f(0.0f, 0.0f, 1.0f);
+				gpuEnd();
+
+				postOrtho(ortho);
+			}
+		}
+
+		if (moving) {
+			/* Z circle */
+			if (drawflags & MAN_ROT_Z) {
+				preOrthoFront(ortho, matt, 2);
+
+				if (G.f & G_PICKSEL) {
+					glLoadName(MAN_ROT_Z);
+				}
+
+				set_manipulator_color(v3d, 'Z', colcode, 255);
+				gpuDrawFastCircleXY(1);
+				postOrtho(ortho);
+			}
+
+			/* X circle */
+			if (drawflags & MAN_ROT_X) {
+				preOrthoFront(ortho, matt, 0);
+
+				if (G.f & G_PICKSEL) {
+					glLoadName(MAN_ROT_X);
+				}
+
+				glPushMatrix();
+				glRotatef(90.0, 0.0, 1.0, 0.0);
+				set_manipulator_color(v3d, 'X', colcode, 255);
+				gpuDrawFastCircleXY(1);
+				glPopMatrix();
+				postOrtho(ortho);
+			}
+
+			/* Y circle */
+			if (drawflags & MAN_ROT_Y) {
+				preOrthoFront(ortho, matt, 1);
+
+				if (G.f & G_PICKSEL) {
+					glLoadName(MAN_ROT_Y);
+				}
+
+				glPushMatrix();
+				glRotatef(-90.0, 1.0, 0.0, 0.0);
+				set_manipulator_color(v3d, 'Y', colcode, 255);
+				gpuDrawFastCircleXY(1);
+				glPopMatrix();
+				postOrtho(ortho);
+			}
+
+			if (arcs) {
+				glDisable(GL_CLIP_PLANE0);
+			}
+		}
 
 		/* Z handle on X axis */
 		if (drawflags & MAN_ROT_Z) {
 			preOrthoFront(ortho, rv3d->twmat, 2);
-			glPushMatrix();
-			if (G.f & G_PICKSEL) glLoadName(MAN_ROT_Z);
-			manipulator_setcolor(v3d, 'Z', colcode, 255);
 
+			if (G.f & G_PICKSEL) {
+				glLoadName(MAN_ROT_Z);
+			}
+
+			set_manipulator_color(v3d, 'Z', colcode, 255);
 			partial_doughnut(0.7f*cusize, 1.0f, 31, 33, 8, 64);
 
-			glPopMatrix();
 			postOrtho(ortho);
 		}
 
 		/* Y handle on X axis */
 		if (drawflags & MAN_ROT_Y) {
 			preOrthoFront(ortho, rv3d->twmat, 1);
-			glPushMatrix();
-			if (G.f & G_PICKSEL) glLoadName(MAN_ROT_Y);
-			manipulator_setcolor(v3d, 'Y', colcode, 255);
 
+			if (G.f & G_PICKSEL) {
+				glLoadName(MAN_ROT_Y);
+			}
+
+			glPushMatrix();
 			glRotatef(90.0, 1.0, 0.0, 0.0);
 			glRotatef(90.0, 0.0, 0.0, 1.0);
+
+			set_manipulator_color(v3d, 'Y', colcode, 255);
 			partial_doughnut(0.7f*cusize, 1.0f, 31, 33, 8, 64);
 
 			glPopMatrix();
@@ -1080,25 +1150,29 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 		/* X handle on Z axis */
 		if (drawflags & MAN_ROT_X) {
 			preOrthoFront(ortho, rv3d->twmat, 0);
-			glPushMatrix();
-			if (G.f & G_PICKSEL) glLoadName(MAN_ROT_X);
-			manipulator_setcolor(v3d, 'X', colcode, 255);
 
+			if (G.f & G_PICKSEL) {
+				glLoadName(MAN_ROT_X);
+			}
+
+			glPushMatrix();
 			glRotatef(-90.0, 0.0, 1.0, 0.0);
-			glRotatef(90.0, 0.0, 0.0, 1.0);
+			glRotatef( 90.0, 0.0, 0.0, 1.0);
+
+			set_manipulator_color(v3d, 'X', colcode, 255);
 			partial_doughnut(0.7f*cusize, 1.0f, 31, 33, 8, 64);
 
 			glPopMatrix();
 			postOrtho(ortho);
 		}
-
 	}
 
 	/* restore */
 	glLoadMatrixf(rv3d->viewmat);
-	gluDeleteQuadric(qobj);
-	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 
+	if (v3d->zbuf) {
+		glEnable(GL_DEPTH_TEST);
+	}
 }
 
 static void drawsolidcube(float size)
@@ -1117,46 +1191,46 @@ static void drawsolidcube(float size)
 	glPushMatrix();
 	glScalef(size, size, size);
 
-	glBegin(GL_QUADS);
+	gpuBegin(GL_QUADS);
 	n[0]= -1.0;
-	glNormal3fv(n);
-	glVertex3fv(cube[0]); glVertex3fv(cube[1]); glVertex3fv(cube[2]); glVertex3fv(cube[3]);
+	gpuNormal3fv(n);
+	gpuVertex3fv(cube[0]); gpuVertex3fv(cube[1]); gpuVertex3fv(cube[2]); gpuVertex3fv(cube[3]);
 	n[0]=0;
-	glEnd();
+	gpuEnd();
 
-	glBegin(GL_QUADS);
+	gpuBegin(GL_QUADS);
 	n[1]= -1.0;
-	glNormal3fv(n);
-	glVertex3fv(cube[0]); glVertex3fv(cube[4]); glVertex3fv(cube[5]); glVertex3fv(cube[1]);
+	gpuNormal3fv(n);
+	gpuVertex3fv(cube[0]); gpuVertex3fv(cube[4]); gpuVertex3fv(cube[5]); gpuVertex3fv(cube[1]);
 	n[1]=0;
-	glEnd();
+	gpuEnd();
 
-	glBegin(GL_QUADS);
+	gpuBegin(GL_QUADS);
 	n[0]= 1.0;
-	glNormal3fv(n);
-	glVertex3fv(cube[4]); glVertex3fv(cube[7]); glVertex3fv(cube[6]); glVertex3fv(cube[5]);
+	gpuNormal3fv(n);
+	gpuVertex3fv(cube[4]); gpuVertex3fv(cube[7]); gpuVertex3fv(cube[6]); gpuVertex3fv(cube[5]);
 	n[0]=0;
-	glEnd();
+	gpuEnd();
 
-	glBegin(GL_QUADS);
+	gpuBegin(GL_QUADS);
 	n[1]= 1.0;
-	glNormal3fv(n);
-	glVertex3fv(cube[7]); glVertex3fv(cube[3]); glVertex3fv(cube[2]); glVertex3fv(cube[6]);
+	gpuNormal3fv(n);
+	gpuVertex3fv(cube[7]); gpuVertex3fv(cube[3]); gpuVertex3fv(cube[2]); gpuVertex3fv(cube[6]);
 	n[1]=0;
-	glEnd();
+	gpuEnd();
 
-	glBegin(GL_QUADS);
+	gpuBegin(GL_QUADS);
 	n[2]= 1.0;
-	glNormal3fv(n);
-	glVertex3fv(cube[1]); glVertex3fv(cube[5]); glVertex3fv(cube[6]); glVertex3fv(cube[2]);
+	gpuNormal3fv(n);
+	gpuVertex3fv(cube[1]); gpuVertex3fv(cube[5]); gpuVertex3fv(cube[6]); gpuVertex3fv(cube[2]);
 	n[2]=0;
-	glEnd();
+	gpuEnd();
 
-	glBegin(GL_QUADS);
+	gpuBegin(GL_QUADS);
 	n[2]= -1.0;
-	glNormal3fv(n);
-	glVertex3fv(cube[7]); glVertex3fv(cube[4]); glVertex3fv(cube[0]); glVertex3fv(cube[3]);
-	glEnd();
+	gpuNormal3fv(n);
+	gpuVertex3fv(cube[7]); gpuVertex3fv(cube[4]); gpuVertex3fv(cube[0]); gpuVertex3fv(cube[3]);
+	gpuEnd();
 
 	glPopMatrix();
 }
@@ -1180,11 +1254,11 @@ static void draw_manipulator_scale(View3D *v3d, RegionView3D *rv3d, int moving, 
 		/* center circle, do not add to selection when shift is pressed (planar constraint)  */
 		if ( (G.f & G_PICKSEL) && shift==0) glLoadName(MAN_SCALE_C);
 
-		manipulator_setcolor(v3d, 'C', colcode, 255);
+		set_manipulator_color(v3d, 'C', colcode, 255);
 		glPushMatrix();
 		size= screen_aligned(rv3d, rv3d->twmat);
 		unit_m4(unitmat);
-		drawcircball(GL_LINE_LOOP, unitmat[3], 0.2f*size, unitmat);
+		gpuDrawFastCircleXY(0.2f*size);
 		glPopMatrix();
 
 		dz= 1.0;
@@ -1213,21 +1287,23 @@ static void draw_manipulator_scale(View3D *v3d, RegionView3D *rv3d, int moving, 
 	glTranslatef(0.0, 0.0, dz);
 	if (drawflags & MAN_SCALE_Z) {
 		if (G.f & G_PICKSEL) glLoadName(MAN_SCALE_Z);
-		manipulator_setcolor(v3d, 'Z', colcode, axisBlendAngle(rv3d->twangle[2]));
+		set_manipulator_color(v3d, 'Z', colcode, axisBlendAngle(rv3d->twangle[2]));
 		drawsolidcube(cusize);
 	}
+
 	/* X cube */
 	glTranslatef(dz, 0.0, -dz);
 	if (drawflags & MAN_SCALE_X) {
 		if (G.f & G_PICKSEL) glLoadName(MAN_SCALE_X);
-		manipulator_setcolor(v3d, 'X', colcode, axisBlendAngle(rv3d->twangle[0]));
+		set_manipulator_color(v3d, 'X', colcode, axisBlendAngle(rv3d->twangle[0]));
 		drawsolidcube(cusize);
 	}
+
 	/* Y cube */
 	glTranslatef(-dz, dz, 0.0);
 	if (drawflags & MAN_SCALE_Y) {
 		if (G.f & G_PICKSEL) glLoadName(MAN_SCALE_Y);
-		manipulator_setcolor(v3d, 'Y', colcode, axisBlendAngle(rv3d->twangle[1]));
+		set_manipulator_color(v3d, 'Y', colcode, axisBlendAngle(rv3d->twangle[1]));
 		drawsolidcube(cusize);
 	}
 
@@ -1238,9 +1314,9 @@ static void draw_manipulator_scale(View3D *v3d, RegionView3D *rv3d, int moving, 
 		if (shift) {
 			glTranslatef(0.0, -dz, 0.0);
 			glLoadName(MAN_SCALE_C);
-			glBegin(GL_POINTS);
-			glVertex3f(0.0, 0.0, 0.0);
-			glEnd();
+			gpuBegin(GL_POINTS);
+			gpuVertex3f(0.0, 0.0, 0.0);
+			gpuEnd();
 		}
 	}
 
@@ -1251,39 +1327,17 @@ static void draw_manipulator_scale(View3D *v3d, RegionView3D *rv3d, int moving, 
 	glFrontFace(GL_CCW);
 }
 
-
 static void draw_cone(GLUquadricObj *qobj, float len, float width)
 {
-	glTranslatef(0.0, 0.0, -0.5f*len);
-	gluCylinder(qobj, width, 0.0, len, 8, 1);
-	gluQuadricOrientation(qobj, GLU_INSIDE);
-	gluDisk(qobj, 0.0, width, 8, 1);
-	gluQuadricOrientation(qobj, GLU_OUTSIDE);
-	glTranslatef(0.0, 0.0, 0.5f*len);
+	gpuDrawCone(len, width, 8, GL_TRUE);
+	gpuDrawDisk(0, 0, width, 8);
 }
-
-static void draw_cylinder(GLUquadricObj *qobj, float len, float width)
-{
-
-	width*= 0.8f;	// just for beauty
-
-	glTranslatef(0.0, 0.0, -0.5f*len);
-	gluCylinder(qobj, width, width, len, 8, 1);
-	gluQuadricOrientation(qobj, GLU_INSIDE);
-	gluDisk(qobj, 0.0, width, 8, 1);
-	gluQuadricOrientation(qobj, GLU_OUTSIDE);
-	glTranslatef(0.0, 0.0, len);
-	gluDisk(qobj, 0.0, width, 8, 1);
-	glTranslatef(0.0, 0.0, -0.5f*len);
-}
-
 
 static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUSED(moving), int drawflags, int combo, int colcode)
 {
 	GLUquadricObj *qobj;
 	float cylen= 0.01f*(float)U.tw_handlesize;
 	float cywid= 0.25f*cylen, dz, size;
-	float unitmat[4][4];
 	int shift= 0; // XXX
 
 	/* when called while moving in mixed mode, do not draw when... */
@@ -1296,13 +1350,15 @@ static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUS
 	gluQuadricDrawStyle(qobj, GLU_FILL);
 
 	/* center circle, do not add to selection when shift is pressed (planar constraint) */
-	if ( (G.f & G_PICKSEL) && shift==0) glLoadName(MAN_TRANS_C);
+	if ( (G.f & G_PICKSEL) && shift==0) {
+		glLoadName(MAN_TRANS_C);
+	}
 
-	manipulator_setcolor(v3d, 'C', colcode, 255);
+	set_manipulator_color(v3d, 'C', colcode, 255);
+
 	glPushMatrix();
 	size= screen_aligned(rv3d, rv3d->twmat);
-	unit_m4(unitmat);
-	drawcircball(GL_LINE_LOOP, unitmat[3], 0.2f*size, unitmat);
+	gpuDrawFastCircleXY(0.2f*size);
 	glPopMatrix();
 
 	/* and now apply matrix, we move to local matrix drawing */
@@ -1315,145 +1371,72 @@ static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUS
 	if ((combo & V3D_MANIP_SCALE)==0 || colcode==MAN_GHOST)
 		draw_manipulator_axes(v3d, rv3d, colcode, drawflags & MAN_TRANS_X, drawflags & MAN_TRANS_Y, drawflags & MAN_TRANS_Z);
 
-
 	/* offset in combo mode, for rotate a bit more */
-	if (combo & (V3D_MANIP_ROTATE)) dz= 1.0f+2.0f*cylen;
-	else if (combo & (V3D_MANIP_SCALE)) dz= 1.0f+0.5f*cylen;
-	else dz= 1.0f;
-
-	/* Z Cone */
-	glTranslatef(0.0, 0.0, dz);
-	if (drawflags & MAN_TRANS_Z) {
-		if (G.f & G_PICKSEL) glLoadName(MAN_TRANS_Z);
-		manipulator_setcolor(v3d, 'Z', colcode, axisBlendAngle(rv3d->twangle[2]));
-		draw_cone(qobj, cylen, cywid);
+	if (combo & (V3D_MANIP_ROTATE)) {
+		dz= 1.0f+2.0f*cylen;
 	}
-	/* X Cone */
-	glTranslatef(dz, 0.0, -dz);
-	if (drawflags & MAN_TRANS_X) {
-		if (G.f & G_PICKSEL) glLoadName(MAN_TRANS_X);
-		glRotatef(90.0, 0.0, 1.0, 0.0);
-		manipulator_setcolor(v3d, 'X', colcode, axisBlendAngle(rv3d->twangle[0]));
-		draw_cone(qobj, cylen, cywid);
-		glRotatef(-90.0, 0.0, 1.0, 0.0);
-	}
-	/* Y Cone */
-	glTranslatef(-dz, dz, 0.0);
-	if (drawflags & MAN_TRANS_Y) {
-		if (G.f & G_PICKSEL) glLoadName(MAN_TRANS_Y);
-		glRotatef(-90.0, 1.0, 0.0, 0.0);
-		manipulator_setcolor(v3d, 'Y', colcode, axisBlendAngle(rv3d->twangle[1]));
-		draw_cone(qobj, cylen, cywid);
-	}
-
-	gluDeleteQuadric(qobj);
-	glLoadMatrixf(rv3d->viewmat);
-
-	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
-
-}
-
-static void draw_manipulator_rotate_cyl(View3D *v3d, RegionView3D *rv3d, int moving, int drawflags, int combo, int colcode)
-{
-	GLUquadricObj *qobj;
-	float size;
-	float cylen= 0.01f*(float)U.tw_handlesize;
-	float cywid= 0.25f*cylen;
-
-	/* when called while moving in mixed mode, do not draw when... */
-	if ((drawflags & MAN_ROT_C)==0) return;
-
-	/* prepare for screen aligned draw */
-	glPushMatrix();
-	size= screen_aligned(rv3d, rv3d->twmat);
-
-	glDisable(GL_DEPTH_TEST);
-
-	qobj= gluNewQuadric();
-
-	/* Screen aligned view rot circle */
-	if (drawflags & MAN_ROT_V) {
-		float unitmat[4][4]= MAT4_UNITY;
-
-		if (G.f & G_PICKSEL) glLoadName(MAN_ROT_V);
-		UI_ThemeColor(TH_TRANSFORM);
-		drawcircball(GL_LINE_LOOP, unitmat[3], 1.2f*size, unitmat);
-
-		if (moving) {
-			float vec[3];
-			vec[0]= 0; // XXX (float)(t->imval[0] - t->center2d[0]);
-			vec[1]= 0; // XXX (float)(t->imval[1] - t->center2d[1]);
-			vec[2]= 0.0f;
-			normalize_v3(vec);
-			mul_v3_fl(vec, 1.2f*size);
-			glBegin(GL_LINES);
-			glVertex3f(0.0, 0.0, 0.0);
-			glVertex3fv(vec);
-			glEnd();
-		}
-	}
-	glPopMatrix();
-
-	/* apply the transform delta */
-	if (moving) {
-		float matt[4][4];
-		copy_m4_m4(matt, rv3d->twmat); // to copy the parts outside of [3][3]
-		// XXX 		if (t->flag & T_USES_MANIPULATOR) {
-		// XXX 			mul_m4_m3m4(matt, t->mat, rv3d->twmat);
-		// XXX }
-		glMultMatrixf(matt);
+	else if (combo & (V3D_MANIP_SCALE)) {
+		dz= 1.0f+0.5f*cylen;
 	}
 	else {
-		glMultMatrixf(rv3d->twmat);
+		dz= 1.0f;
 	}
 
-	glFrontFace(is_negative_m4(rv3d->twmat) ? GL_CW:GL_CCW);
+	/* Z Cone */
 
-	/* axis */
-	if ( (G.f & G_PICKSEL)==0 ) {
+	glTranslatef(0.0, 0.0, dz);
 
-		// only draw axis when combo didn't draw scale axes
-		if ((combo & V3D_MANIP_SCALE)==0)
-			draw_manipulator_axes(v3d, rv3d, colcode, drawflags & MAN_ROT_X, drawflags & MAN_ROT_Y, drawflags & MAN_ROT_Z);
+	if (drawflags & MAN_TRANS_Z) {
+		if (G.f & G_PICKSEL) {
+			glLoadName(MAN_TRANS_Z);
+		}
 
-		/* only has to be set when not in picking */
-		gluQuadricDrawStyle(qobj, GLU_FILL);
+		set_manipulator_color(v3d, 'Z', colcode, axisBlendAngle(rv3d->twangle[2]));
+
+		gpuDrawCone(cylen, cywid, 8, GL_TRUE);
 	}
 
-	/* Z cyl */
-	glTranslatef(0.0, 0.0, 1.0);
-	if (drawflags & MAN_ROT_Z) {
-		if (G.f & G_PICKSEL) glLoadName(MAN_ROT_Z);
-		manipulator_setcolor(v3d, 'Z', colcode, 255);
-		draw_cylinder(qobj, cylen, cywid);
+	/* X Cone */
+
+	glTranslatef(dz, 0.0, -dz);
+
+	if (drawflags & MAN_TRANS_X) {
+		if (G.f & G_PICKSEL) {
+			glLoadName(MAN_TRANS_X);
+		}
+
+		set_manipulator_color(v3d, 'X', colcode, axisBlendAngle(rv3d->twangle[0]));
+
+		glPushMatrix();
+		glRotatef( 90.0, 0.0, 1.0, 0.0);
+		gpuDrawCone(cylen, cywid, 8, GL_TRUE);
+		glPopMatrix();
 	}
-	/* X cyl */
-	glTranslatef(1.0, 0.0, -1.0);
-	if (drawflags & MAN_ROT_X) {
-		if (G.f & G_PICKSEL) glLoadName(MAN_ROT_X);
-		glRotatef(90.0, 0.0, 1.0, 0.0);
-		manipulator_setcolor(v3d, 'X', colcode, 255);
-		draw_cylinder(qobj, cylen, cywid);
-		glRotatef(-90.0, 0.0, 1.0, 0.0);
-	}
-	/* Y cylinder */
-	glTranslatef(-1.0, 1.0, 0.0);
-	if (drawflags & MAN_ROT_Y) {
-		if (G.f & G_PICKSEL) glLoadName(MAN_ROT_Y);
+
+	/* Y Cone */
+
+	glTranslatef(-dz, dz, 0.0);
+
+	if (drawflags & MAN_TRANS_Y) {
+		if (G.f & G_PICKSEL) {
+			glLoadName(MAN_TRANS_Y);
+		}
+
+		set_manipulator_color(v3d, 'Y', colcode, axisBlendAngle(rv3d->twangle[1]));
+
+		glPushMatrix();
 		glRotatef(-90.0, 1.0, 0.0, 0.0);
-		manipulator_setcolor(v3d, 'Y', colcode, 255);
-		draw_cylinder(qobj, cylen, cywid);
+		gpuDrawCone(cylen, cywid, 8, GL_TRUE);
+		glPopMatrix();
 	}
-
-	/* restore */
 
 	gluDeleteQuadric(qobj);
 	glLoadMatrixf(rv3d->viewmat);
 
-	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
-
+	if (v3d->zbuf) {
+		glEnable(GL_DEPTH_TEST);
+	}
 }
-
 
 /* ********************************************* */
 
@@ -1472,6 +1455,8 @@ void BIF_draw_manipulator(const bContext *C)
 
 	if (!(v3d->twflag & V3D_USE_MANIPULATOR)) return;
 //	if (G.moving && (G.moving & G_TRANSFORM_MANIP)==0) return;
+
+	gpuImmediateFormat_V3(); // draw manipulator
 
 //	if (G.moving==0) {
 	{
@@ -1515,13 +1500,7 @@ void BIF_draw_manipulator(const bContext *C)
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_BLEND);
 		if (v3d->twtype & V3D_MANIP_ROTATE) {
-
-			if (G.rt==3) {
-				if (G.moving) draw_manipulator_rotate_cyl(v3d, rv3d, 1, drawflags, v3d->twtype, MAN_MOVECOL);
-				else draw_manipulator_rotate_cyl(v3d, rv3d, 0, drawflags, v3d->twtype, MAN_RGB);
-			}
-			else
-				draw_manipulator_rotate(v3d, rv3d, 0 /* G.moving*/, drawflags, v3d->twtype);
+			draw_manipulator_rotate(v3d, rv3d, 0 /* G.moving*/, drawflags, v3d->twtype);
 		}
 		if (v3d->twtype & V3D_MANIP_SCALE) {
 			draw_manipulator_scale(v3d, rv3d, 0, drawflags, v3d->twtype, MAN_RGB);
@@ -1532,6 +1511,8 @@ void BIF_draw_manipulator(const bContext *C)
 
 		glDisable(GL_BLEND);
 	}
+
+	gpuImmediateUnformat();
 }
 
 static int manipulator_selectbuf(ScrArea *sa, ARegion *ar, const int mval[2], float hotspot)
@@ -1560,8 +1541,7 @@ static int manipulator_selectbuf(ScrArea *sa, ARegion *ar, const int mval[2], fl
 
 	/* do the drawing */
 	if (v3d->twtype & V3D_MANIP_ROTATE) {
-		if (G.rt==3) draw_manipulator_rotate_cyl(v3d, rv3d, 0, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB);
-		else draw_manipulator_rotate(v3d, rv3d, 0, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype);
+		draw_manipulator_rotate(v3d, rv3d, 0, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype);
 	}
 	if (v3d->twtype & V3D_MANIP_SCALE)
 		draw_manipulator_scale(v3d, rv3d, 0, MAN_SCALE_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB);
@@ -1629,6 +1609,8 @@ int BIF_do_manipulator(bContext *C, struct wmEvent *event, wmOperator *op)
 
 	/* Force orientation */
 	RNA_enum_set(op->ptr, "constraint_orientation", v3d->twmode);
+
+	gpuImmediateFormat_V3(); // DOODLE: do manipulator
 
 	// find the hotspots first test narrow hotspot
 	val= manipulator_selectbuf(sa, ar, event->mval, 0.5f*(float)U.tw_hotspot);
@@ -1725,6 +1707,8 @@ int BIF_do_manipulator(bContext *C, struct wmEvent *event, wmOperator *op)
 	}
 	/* after transform, restore drawflags */
 	drawflags= 0xFFFF;
+
+	gpuImmediateUnformat();
 
 	return val;
 }

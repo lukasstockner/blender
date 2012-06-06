@@ -57,15 +57,6 @@
 
 #include "RNA_access.h"
 
-//#include "BIF_screen.h"
-//#include "BIF_mywindow.h"
-#include "BIF_gl.h"
-#include "BIF_glutil.h"
-//#include "BIF_editmesh.h"
-//#include "BIF_editsima.h"
-//#include "BIF_editparticle.h"
-//#include "BIF_meshtools.h"
-
 #include "BKE_animsys.h"
 #include "BKE_action.h"
 #include "BKE_armature.h"
@@ -95,16 +86,10 @@
 #include "ED_clip.h"
 #include "ED_screen.h"
 
-//#include "BDR_unwrapper.h"
-
 #include "WM_types.h"
 #include "WM_api.h"
 
 #include "UI_resources.h"
-
-//#include "blendef.h"
-//
-//#include "mydevice.h"
 
 #include "transform.h"
 
@@ -903,44 +888,6 @@ void recalcData(TransInfo *t)
 	}
 	else if (t->spacetype == SPACE_CLIP) {
 		recalcData_spaceclip(t);
-	}
-}
-
-void drawLine(TransInfo *t, float *center, float *dir, char axis, short options)
-{
-	float v1[3], v2[3], v3[3];
-	unsigned char col[3], col2[3];
-
-	if (t->spacetype == SPACE_VIEW3D) {
-		View3D *v3d = t->view;
-		
-		glPushMatrix();
-		
-		//if (t->obedit) glLoadMatrixf(t->obedit->obmat);	// sets opengl viewing
-		
-		
-		copy_v3_v3(v3, dir);
-		mul_v3_fl(v3, v3d->far);
-		
-		sub_v3_v3v3(v2, center, v3);
-		add_v3_v3v3(v1, center, v3);
-		
-		if (options & DRAWLIGHT) {
-			col[0] = col[1] = col[2] = 220;
-		}
-		else {
-			UI_GetThemeColor3ubv(TH_GRID, col);
-		}
-		UI_make_axis_color(col, col2, axis);
-		glColor3ubv(col2);
-		
-		setlinestyle(0);
-		glBegin(GL_LINE_STRIP);
-			glVertex3fv(v1);
-			glVertex3fv(v2);
-		glEnd();
-		
-		glPopMatrix();
 	}
 }
 

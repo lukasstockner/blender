@@ -144,6 +144,26 @@ void gpuEndSprites(void);
 
 
 
+void gpuAppendCone(
+	GLfloat   height,
+	GLfloat   baseWidth,
+	GLint     slices,
+	GLboolean isFilled);
+
+void gpuDrawCone(
+	GLfloat   height,
+	GLfloat   baseWidth,
+	GLint     slices,
+	GLboolean isFilled);
+
+void gpuSingleCone(
+	GLfloat   height,
+	GLfloat   baseWidth,
+	GLint     slices,
+	GLboolean isFilled);
+
+
+
 #ifdef __cplusplus
 }
 #endif

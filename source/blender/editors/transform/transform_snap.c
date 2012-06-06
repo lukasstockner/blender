@@ -57,6 +57,7 @@
 //
 //#include "editmesh.h"
 //#include "BIF_editsima.h"
+#include "GPU_compatibility.h"
 #include "BIF_gl.h"
 //#include "BIF_mywindow.h"
 //#include "BIF_screen.h"
@@ -138,100 +139,6 @@ int activeSnap(TransInfo *t)
 	return (t->modifiers & (MOD_SNAP|MOD_SNAP_INVERT)) == MOD_SNAP || (t->modifiers & (MOD_SNAP|MOD_SNAP_INVERT)) == MOD_SNAP_INVERT;
 }
 
-void drawSnapping(const struct bContext *C, TransInfo *t)
-{
-	if (validSnap(t) && activeSnap(t)) {
-		
-		unsigned char col[4], selectedCol[4], activeCol[4];
-		UI_GetThemeColor3ubv(TH_TRANSFORM, col);
-		col[3]= 128;
-		
-		UI_GetThemeColor3ubv(TH_SELECT, selectedCol);
-		selectedCol[3]= 128;
-
-		UI_GetThemeColor3ubv(TH_ACTIVE, activeCol);
-		activeCol[3]= 192;
-
-		if (t->spacetype == SPACE_VIEW3D) {
-			TransSnapPoint *p;
-			View3D *v3d = CTX_wm_view3d(C);
-			RegionView3D *rv3d = CTX_wm_region_view3d(C);
-			float imat[4][4];
-			float size;
-			
-			glDisable(GL_DEPTH_TEST);
-	
-			size = 2.5f * UI_GetThemeValuef(TH_VERTEX_SIZE);
-
-			invert_m4_m4(imat, rv3d->viewmat);
-
-			for (p = t->tsnap.points.first; p; p = p->next) {
-				if (p == t->tsnap.selectedPoint) {
-					glColor4ubv(selectedCol);
-				}
-				else {
-					glColor4ubv(col);
-				}
-
-				drawcircball(GL_LINE_LOOP, p->co, ED_view3d_pixel_size(rv3d, p->co) * size * 0.75f, imat);
-			}
-
-			if (t->tsnap.status & POINT_INIT) {
-				glColor4ubv(activeCol);
-
-				drawcircball(GL_LINE_LOOP, t->tsnap.snapPoint, ED_view3d_pixel_size(rv3d, t->tsnap.snapPoint) * size, imat);
-			}
-			
-			/* draw normal if needed */
-			if (usingSnappingNormal(t) && validSnappingNormal(t)) {
-				glColor4ubv(activeCol);
-
-				glBegin(GL_LINES);
-					glVertex3f(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], t->tsnap.snapPoint[2]);
-					glVertex3f(t->tsnap.snapPoint[0] + t->tsnap.snapNormal[0],
-					           t->tsnap.snapPoint[1] + t->tsnap.snapNormal[1],
-					           t->tsnap.snapPoint[2] + t->tsnap.snapNormal[2]);
-					glEnd();
-			}
-			
-			if (v3d->zbuf)
-				glEnable(GL_DEPTH_TEST);
-		}
-		else if (t->spacetype==SPACE_IMAGE) {
-			/* This will not draw, and Im nor sure why - campbell */
-#if 0
-			float xuser_asp, yuser_asp;
-			int wi, hi;
-			float w, h;
-			
-			calc_image_view(G.sima, 'f');	// float
-			myortho2(G.v2d->cur.xmin, G.v2d->cur.xmax, G.v2d->cur.ymin, G.v2d->cur.ymax);
-			glLoadIdentity();
-			
-			ED_space_image_aspect(t->sa->spacedata.first, &xuser_aspx, &yuser_asp);
-			ED_space_image_width(t->sa->spacedata.first, &wi, &hi);
-			w = (((float)wi)/256.0f)*G.sima->zoom * xuser_asp;
-			h = (((float)hi)/256.0f)*G.sima->zoom * yuser_asp;
-			
-			cpack(0xFFFFFF);
-			glTranslatef(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], 0.0f);
-			
-			//glRectf(0, 0, 1, 1);
-			
-			setlinestyle(0);
-			cpack(0x0);
-			fdrawline(-0.020/w, 0, -0.1/w, 0);
-			fdrawline(0.1/w, 0, .020/w, 0);
-			fdrawline(0, -0.020/h, 0, -0.1/h);
-			fdrawline(0, 0.1/h, 0, 0.020/h);
-			
-			glTranslatef(-t->tsnap.snapPoint[0], -t->tsnap.snapPoint[1], 0.0f);
-			setlinestyle(0);
-#endif
-			
-		}
-	}
-}
 
 int  handleSnapping(TransInfo *t, wmEvent *event)
 {

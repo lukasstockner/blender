@@ -54,6 +54,8 @@
 
 #include "RNA_access.h"
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
@@ -1180,6 +1182,7 @@ typedef enum {
 	LEFT,
 	RIGHT
 } ArrowDirection;
+
 static void drawArrow(ArrowDirection d, short offset, short length, short size)
 {
 	switch (d) {
@@ -1187,29 +1190,34 @@ static void drawArrow(ArrowDirection d, short offset, short length, short size)
 			offset = -offset;
 			length = -length;
 			size = -size;
+			/* fall through! */
+
 		case RIGHT:
-			glBegin(GL_LINES);
-			glVertex2s(offset, 0);
-			glVertex2s(offset + length, 0);
-			glVertex2s(offset + length, 0);
-			glVertex2s(offset + length - size, -size);
-			glVertex2s(offset + length, 0);
-			glVertex2s(offset + length - size,  size);
-			glEnd();
+			gpuBegin(GL_LINES);
+			gpuVertex2i(offset, 0);
+			gpuVertex2i(offset + length, 0);
+			gpuVertex2i(offset + length, 0);
+			gpuVertex2i(offset + length - size, -size);
+			gpuVertex2i(offset + length, 0);
+			gpuVertex2i(offset + length - size,  size);
+			gpuEnd();
 			break;
+
 		case DOWN:
 			offset = -offset;
 			length = -length;
 			size = -size;
+			/* fall through! */
+
 		case UP:
-			glBegin(GL_LINES);
-			glVertex2s(0, offset);
-			glVertex2s(0, offset + length);
-			glVertex2s(0, offset + length);
-			glVertex2s(-size, offset + length - size);
-			glVertex2s(0, offset + length);
-			glVertex2s(size, offset + length - size);
-			glEnd();
+			gpuBegin(GL_LINES);
+			gpuVertex2i(0, offset);
+			gpuVertex2i(0, offset + length);
+			gpuVertex2i(0, offset + length);
+			gpuVertex2i(-size, offset + length - size);
+			gpuVertex2i(0, offset + length);
+			gpuVertex2i(size, offset + length - size);
+			gpuEnd();
 			break;
 	}
 }
@@ -1220,39 +1228,27 @@ static void drawArrowHead(ArrowDirection d, short size)
 		case LEFT:
 			size = -size;
 		case RIGHT:
-			glBegin(GL_LINES);
-			glVertex2s(0, 0);
-			glVertex2s(-size, -size);
-			glVertex2s(0, 0);
-			glVertex2s(-size,  size);
-			glEnd();
+			gpuBegin(GL_LINES);
+			gpuVertex2i(0, 0);
+			gpuVertex2i(-size, -size);
+			gpuVertex2i(0, 0);
+			gpuVertex2i(-size,  size);
+			gpuEnd();
 			break;
+
 		case DOWN:
 			size = -size;
+			/* fall through! */
+
 		case UP:
-			glBegin(GL_LINES);
-			glVertex2s(0, 0);
-			glVertex2s(-size, -size);
-			glVertex2s(0, 0);
-			glVertex2s(size, -size);
-			glEnd();
+			gpuBegin(GL_LINES);
+			gpuVertex2i(0, 0);
+			gpuVertex2i(-size, -size);
+			gpuVertex2i(0, 0);
+			gpuVertex2i(size, -size);
+			gpuEnd();
 			break;
 	}
-}
-
-static void drawArc(float size, float angle_start, float angle_end, int segments)
-{
-	float delta = (angle_end - angle_start) / segments;
-	float angle;
-
-	glBegin(GL_LINE_STRIP);
-
-	for ( angle = angle_start; angle < angle_end; angle += delta) {
-		glVertex2f(cosf(angle) * size, sinf(angle) * size);
-	}
-	glVertex2f(cosf(angle_end) * size, sinf(angle_end) * size);
-
-	glEnd();
 }
 
 static int helpline_poll(bContext *C)
@@ -1289,15 +1285,17 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 
 		glPushMatrix();
 
+		gpuImmediateFormat_V3();
+
 		switch (t->helpline) {
 			case HLP_SPRING:
 				UI_ThemeColor(TH_WIRE);
 
 				setlinestyle(3);
-				glBegin(GL_LINE_STRIP);
-				glVertex2iv(t->mval);
-				glVertex2fv(cent);
-				glEnd();
+				gpuBegin(GL_LINE_STRIP);
+				gpuVertex2iv(t->mval);
+				gpuVertex2fv(cent);
+				gpuEnd();
 
 				glTranslatef(mval[0], mval[1], 0);
 				glRotatef(-RAD2DEGF(atan2f(cent[0] - t->mval[0], cent[1] - t->mval[1])), 0, 0, 1);
@@ -1308,6 +1306,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				drawArrow(DOWN, 5, 10, 5);
 				glLineWidth(1.0);
 				break;
+
 			case HLP_HARROW:
 				UI_ThemeColor(TH_WIRE);
 
@@ -1318,17 +1317,19 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				drawArrow(LEFT, 5, 10, 5);
 				glLineWidth(1.0);
 				break;
+
 			case HLP_VARROW:
 				UI_ThemeColor(TH_WIRE);
 
 				glTranslatef(mval[0], mval[1], 0);
 
 				glLineWidth(3.0);
-				glBegin(GL_LINES);
+				gpuBegin(GL_LINES);
 				drawArrow(UP, 5, 10, 5);
 				drawArrow(DOWN, 5, 10, 5);
 				glLineWidth(1.0);
 				break;
+
 			case HLP_ANGLE:
 				{
 					float dx = t->mval[0] - cent[0], dy = t->mval[1] - cent[1];
@@ -1339,17 +1340,17 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 					UI_ThemeColor(TH_WIRE);
 
 					setlinestyle(3);
-					glBegin(GL_LINE_STRIP);
-					glVertex2iv(t->mval);
-					glVertex2fv(cent);
-					glEnd();
+					gpuBegin(GL_LINE_STRIP);
+					gpuVertex2iv(t->mval);
+					gpuVertex2fv(cent);
+					gpuEnd();
 
 					glTranslatef(cent[0] - t->mval[0] + mval[0], cent[1] - t->mval[1] + mval[1], 0);
 
 					setlinestyle(0);
 					glLineWidth(3.0);
-					drawArc(dist, angle - delta_angle, angle - spacing_angle, 10);
-					drawArc(dist, angle + spacing_angle, angle + delta_angle, 10);
+					gpuDrawArc(0, 0, angle - spacing_angle, delta_angle - spacing_angle, dist, dist, 10);
+					gpuDrawArc(0, 0, angle + spacing_angle, spacing_angle - delta_angle, dist, dist, 10);
 
 					glPushMatrix();
 
@@ -1368,7 +1369,8 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 					glLineWidth(1.0);
 					break;
 				}
-				case HLP_TRACKBALL:
+
+			case HLP_TRACKBALL:
 				{
 					unsigned char col[3], col2[3];
 					UI_GetThemeColor3ubv(TH_GRID, col);
@@ -1378,13 +1380,13 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 					glLineWidth(3.0);
 
 					UI_make_axis_color(col, col2, 'X');
-					glColor3ubv((GLubyte *)col2);
+					gpuCurrentColor3ubv((GLubyte *)col2);
 
 					drawArrow(RIGHT, 5, 10, 5);
 					drawArrow(LEFT, 5, 10, 5);
 
 					UI_make_axis_color(col, col2, 'Y');
-					glColor3ubv((GLubyte *)col2);
+					gpuCurrentColor3ubv((GLubyte *)col2);
 
 					drawArrow(UP, 5, 10, 5);
 					drawArrow(DOWN, 5, 10, 5);
@@ -1393,7 +1395,293 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				}
 		}
 
+		gpuImmediateUnformat();
+
 		glPopMatrix();
+	}
+}
+
+
+/*----------------- DRAWING CONSTRAINTS -------------------*/
+
+static void drawNonPropEdge(const struct bContext *C, TransInfo *t);
+static void drawConstraint(TransInfo *t);
+static void drawSnapping(const struct bContext *C, TransInfo *t);
+
+void drawConstraintLine(TransInfo *t, float *center, float *dir, char axis, short options)
+{
+	float v1[3], v2[3], v3[3];
+	unsigned char col[3], col2[3];
+
+	if (t->spacetype == SPACE_VIEW3D) {
+		View3D *v3d = t->view;
+
+		copy_v3_v3(v3, dir);
+		mul_v3_fl(v3, v3d->far);
+
+		sub_v3_v3v3(v2, center, v3);
+		add_v3_v3v3(v1, center, v3);
+
+		if (options & DRAWLIGHT) {
+			col[0] = col[1] = col[2] = 220;
+		}
+		else {
+			UI_GetThemeColor3ubv(TH_GRID, col);
+		}
+
+		UI_make_axis_color(col, col2, axis);
+		gpuColor3ubv(col2);
+
+		setlinestyle(0);
+		gpuVertex3fv(v1);
+		gpuVertex3fv(v2);
+	}
+}
+
+static void drawConstraint(TransInfo *t)
+{
+	TransCon *tc = &(t->con);
+
+	if (!ELEM(t->spacetype, SPACE_VIEW3D, SPACE_IMAGE))
+		return;
+	if (!(tc->mode & CON_APPLY))
+		return;
+	if (t->flag & T_USES_MANIPULATOR)
+		return;
+	if (t->flag & T_NO_CONSTRAINT)
+		return;
+
+	/* nasty exception for Z constraint in camera view */
+	// TRANSFORM_FIX_ME
+//	if ((t->flag & T_OBJECT) && G.vd->camera==OBACT && G.vd->persp==V3D_CAMOB)
+//		return;
+
+	if (tc->drawExtra) {
+		tc->drawExtra(t);
+	}
+	else {
+		gpuImmediateFormat_C4_V3();
+
+		if (tc->mode & CON_SELECT) {
+			float vec[3];
+			char col2[3] = {255, 255, 255};
+			int depth_test_enabled;
+
+			convertViewVec(t, vec, (t->mval[0] - t->con.imval[0]), (t->mval[1] - t->con.imval[1]));
+			add_v3_v3(vec, tc->center);
+
+			gpuBegin(GL_LINES);
+			drawConstraintLine(t, tc->center, tc->mtx[0], 'X', 0);
+			drawConstraintLine(t, tc->center, tc->mtx[1], 'Y', 0);
+			drawConstraintLine(t, tc->center, tc->mtx[2], 'Z', 0);
+			gpuEnd();
+
+			gpuColor3ubv((GLubyte *)col2);
+
+			depth_test_enabled = glIsEnabled(GL_DEPTH_TEST);
+			if (depth_test_enabled)
+				glDisable(GL_DEPTH_TEST);
+
+			setlinestyle(1);
+			gpuBegin(GL_LINE_STRIP);
+				gpuVertex3fv(tc->center);
+				gpuVertex3fv(vec);
+			gpuEnd();
+			setlinestyle(0);
+
+			if (depth_test_enabled)
+				glEnable(GL_DEPTH_TEST);
+		}
+
+		gpuBegin(GL_LINES);
+
+		if (tc->mode & CON_AXIS0) {
+			drawConstraintLine(t, tc->center, tc->mtx[0], 'X', DRAWLIGHT);
+		}
+
+		if (tc->mode & CON_AXIS1) {
+			drawConstraintLine(t, tc->center, tc->mtx[1], 'Y', DRAWLIGHT);
+		}
+
+		if (tc->mode & CON_AXIS2) {
+			drawConstraintLine(t, tc->center, tc->mtx[2], 'Z', DRAWLIGHT);
+		}
+
+		gpuEnd();
+
+		gpuImmediateUnformat();
+	}
+}
+
+static void drawSnapping(const struct bContext *C, TransInfo *t)
+{
+	if (validSnap(t) && activeSnap(t)) {
+		
+		unsigned char col[4], selectedCol[4], activeCol[4];
+		UI_GetThemeColor3ubv(TH_TRANSFORM, col);
+		col[3]= 128;
+		
+		UI_GetThemeColor3ubv(TH_SELECT, selectedCol);
+		selectedCol[3]= 128;
+
+		UI_GetThemeColor3ubv(TH_ACTIVE, activeCol);
+		activeCol[3]= 192;
+
+		gpuImmediateFormat_V3(); // DOODLE: 4 mono lines, commented out
+
+		if (t->spacetype == SPACE_VIEW3D) {
+			TransSnapPoint *p;
+			View3D *v3d = CTX_wm_view3d(C);
+			RegionView3D *rv3d = CTX_wm_region_view3d(C);
+			float imat[4][4];
+			float size;
+			
+			glDisable(GL_DEPTH_TEST);
+	
+			size = 2.5f * UI_GetThemeValuef(TH_VERTEX_SIZE);
+
+			invert_m4_m4(imat, rv3d->viewmat);
+
+			for (p = t->tsnap.points.first; p; p = p->next) {
+				if (p == t->tsnap.selectedPoint) {
+					gpuCurrentColor4ubv(selectedCol);
+				}
+				else {
+					gpuCurrentColor4ubv(col);
+				}
+
+				gpuDrawFastBall(GL_LINE_LOOP, p->co, ED_view3d_pixel_size(rv3d, p->co) * size * 0.75f, imat);
+			}
+
+			if (t->tsnap.status & POINT_INIT) {
+				gpuCurrentColor4ubv(activeCol);
+
+				gpuDrawFastBall(GL_LINE_LOOP, t->tsnap.snapPoint, ED_view3d_pixel_size(rv3d, t->tsnap.snapPoint) * size, imat);
+			}
+			
+			/* draw normal if needed */
+			if (usingSnappingNormal(t) && validSnappingNormal(t)) {
+				gpuCurrentColor4ubv(activeCol);
+
+				gpuBegin(GL_LINES);
+					gpuVertex3f(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], t->tsnap.snapPoint[2]);
+					gpuVertex3f(t->tsnap.snapPoint[0] + t->tsnap.snapNormal[0],
+					           t->tsnap.snapPoint[1] + t->tsnap.snapNormal[1],
+					           t->tsnap.snapPoint[2] + t->tsnap.snapNormal[2]);
+				gpuEnd();
+			}
+			
+			if (v3d->zbuf)
+				glEnable(GL_DEPTH_TEST);
+		}
+		else if (t->spacetype==SPACE_IMAGE) {
+			/* This will not draw, and Im nor sure why - campbell */
+#if 0
+			float xuser_asp, yuser_asp;
+			int wi, hi;
+			float w, h;
+			
+			calc_image_view(G.sima, 'f');	// float
+			myortho2(G.v2d->cur.xmin, G.v2d->cur.xmax, G.v2d->cur.ymin, G.v2d->cur.ymax);
+			glLoadIdentity();
+			
+			ED_space_image_aspect(t->sa->spacedata.first, &xuser_aspx, &yuser_asp);
+			ED_space_image_width(t->sa->spacedata.first, &wi, &hi);
+			w = (((float)wi)/256.0f)*G.sima->zoom * xuser_asp;
+			h = (((float)hi)/256.0f)*G.sima->zoom * yuser_asp;
+			
+			gpuCurrentColorPack(0xFFFFFF);
+			glTranslatef(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], 0.0f);
+
+			//gpuDrawRectf(GL_QUADS, 0, 0, 1, 1);
+
+			setlinestyle(0);
+			gpuCurrentColorPack(0x0);
+
+			gpuBegin(GL_LINES);
+			gpuAppendLinef(-0.020/w, 0, -0.1/w, 0);
+			gpuAppendLinef(0.1/w, 0, .020/w, 0);
+			gpuAppendLinef(0, -0.020/h, 0, -0.1/h);
+			gpuAppendLinef(0, 0.1/h, 0, 0.020/h);
+			glEnd();
+
+			glTranslatef(-t->tsnap.snapPoint[0], -t->tsnap.snapPoint[1], 0.0f);
+			setlinestyle(0);
+#endif
+		}
+
+		gpuImmediateUnformat();
+	}
+}
+
+static void drawNonPropEdge(const struct bContext *C, TransInfo *t)
+{
+	if (t->flag & TFM_EDGE_SLIDE) {
+		SlideData *sld = (SlideData *)t->customData;
+		/* Non-Prop mode */
+		if (sld && sld->is_proportional == FALSE) {
+			View3D *v3d = CTX_wm_view3d(C);
+			float marker[3];
+			float v1[3], v2[3];
+			float interp_v;
+			TransDataSlideVert *curr_sv = &sld->sv[sld->curr_sv_index];
+			const float ctrl_size = UI_GetThemeValuef(TH_FACEDOT_SIZE) + 1.5;
+			const float guide_size = ctrl_size - 0.5f;
+			const float line_size = UI_GetThemeValuef(TH_OUTLINE_WIDTH) + 0.5f;
+			const int alpha_shade = -30;
+
+			add_v3_v3v3(v1, curr_sv->origvert.co, curr_sv->upvec);
+			add_v3_v3v3(v2, curr_sv->origvert.co, curr_sv->downvec);
+
+			interp_v = (sld->perc + 1.0f) / 2.0f;
+			interp_v3_v3v3(marker, v2, v1, interp_v);
+
+			if (v3d && v3d->zbuf)
+				glDisable(GL_DEPTH_TEST);
+
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+			glPushAttrib(GL_CURRENT_BIT | GL_LINE_BIT | GL_POINT_BIT);
+			glPushMatrix();
+
+			glMultMatrixf(t->obedit->obmat);
+
+			glLineWidth(line_size);
+			UI_ThemeColorShadeAlpha(TH_EDGE_SELECT, 80, alpha_shade);
+			gpuBegin(GL_LINES);
+			gpuVertex3fv(curr_sv->up->co);
+			gpuVertex3fv(curr_sv->origvert.co);
+			gpuVertex3fv(curr_sv->down->co);
+			gpuVertex3fv(curr_sv->origvert.co);
+			gpuEnd();
+
+			UI_ThemeColorShadeAlpha(TH_SELECT, -30, alpha_shade);
+			glPointSize(ctrl_size);
+			gpuBeginSprites();
+			if (sld->flipped_vtx) {
+				gpuSprite3fv(curr_sv->down->co);
+			}
+			else {
+				gpuSprite3fv(curr_sv->up->co);
+			}
+			gpuEndSprites();
+
+			UI_ThemeColorShadeAlpha(TH_SELECT, 255, alpha_shade);
+			glPointSize(guide_size);
+			gpuBeginSprites();
+			gpuSprite3fv(marker);
+			gpuEndSprites();
+
+
+			glPopMatrix();
+			glPopAttrib();
+
+			glDisable(GL_BLEND);
+
+			if (v3d && v3d->zbuf)
+				glEnable(GL_DEPTH_TEST);
+		}
 	}
 }
 
@@ -1596,8 +1884,9 @@ int initTransform(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event, int
 		t->draw_handle_view = ED_region_draw_cb_activate(t->ar->type, drawTransformView, t, REGION_DRAW_POST_VIEW);
 		t->options |= CTX_MOVIECLIP;
 	}
-	else
+	else {
 		unit_m3(t->spacemtx);
+	}
 
 	createTransData(C, t);			// make TransData structs from selection
 
@@ -5110,80 +5399,6 @@ int handleEventEdgeSlide(struct TransInfo *t, struct wmEvent *event)
 		}
 	}
 	return 0;
-}
-
-void drawNonPropEdge(const struct bContext *C, TransInfo *t)
-{
-	if (t->flag & TFM_EDGE_SLIDE) {
-		SlideData *sld = (SlideData *)t->customData;
-		/* Non-Prop mode */
-		if (sld && sld->is_proportional == FALSE) {
-			View3D *v3d = CTX_wm_view3d(C);
-			float marker[3];
-			float v1[3], v2[3];
-			float interp_v;
-			TransDataSlideVert *curr_sv = &sld->sv[sld->curr_sv_index];
-			const float ctrl_size = UI_GetThemeValuef(TH_FACEDOT_SIZE) + 1.5;
-			const float guide_size = ctrl_size - 0.5f;
-			const float line_size = UI_GetThemeValuef(TH_OUTLINE_WIDTH) + 0.5f;
-			const int alpha_shade = -30;
-
-			add_v3_v3v3(v1, curr_sv->origvert.co, curr_sv->upvec);
-			add_v3_v3v3(v2, curr_sv->origvert.co, curr_sv->downvec);
-
-			interp_v = (sld->perc + 1.0f) / 2.0f;
-			interp_v3_v3v3(marker, v2, v1, interp_v);
-
-			if (v3d && v3d->zbuf)
-				glDisable(GL_DEPTH_TEST);
-
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-			glPushAttrib(GL_CURRENT_BIT | GL_LINE_BIT | GL_POINT_BIT);
-			glPushMatrix();
-
-			glMultMatrixf(t->obedit->obmat);
-
-			glLineWidth(line_size);
-			UI_ThemeColorShadeAlpha(TH_EDGE_SELECT, 80, alpha_shade);
-			glBegin(GL_LINES);
-			glVertex3fv(curr_sv->up->co);
-			glVertex3fv(curr_sv->origvert.co);
-			glVertex3fv(curr_sv->down->co);
-			glVertex3fv(curr_sv->origvert.co);
-			bglEnd();
-
-
-			UI_ThemeColorShadeAlpha(TH_SELECT, -30, alpha_shade);
-			glPointSize(ctrl_size);
-			if (sld->flipped_vtx) {
-				bglBegin(GL_POINTS);
-				bglVertex3fv(curr_sv->down->co);
-				bglEnd();
-			}
-			else {
-				bglBegin(GL_POINTS);
-				bglVertex3fv(curr_sv->up->co);
-				bglEnd();
-			}
-
-			UI_ThemeColorShadeAlpha(TH_SELECT, 255, alpha_shade);
-			glPointSize(guide_size);
-			bglBegin(GL_POINTS);
-			bglVertex3fv(marker);
-			bglEnd();
-
-
-			glPopMatrix();
-			glPopAttrib();
-
-			glDisable(GL_BLEND);
-
-			if (v3d && v3d->zbuf)
-				glEnable(GL_DEPTH_TEST);
-		}
-	}
 }
 
 static int doEdgeSlide(TransInfo *t, float perc)

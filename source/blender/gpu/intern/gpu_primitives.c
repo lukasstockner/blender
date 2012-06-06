@@ -640,3 +640,74 @@ void gpuEndSprites(void)
 		gpuEnd();
 	}
 }
+
+
+
+void gpuAppendCone(
+	GLfloat   height,
+	GLfloat   baseRadius,
+	GLint     slices,
+	GLboolean isFilled)
+{
+	GLfloat s, c;
+	GLfloat x[2], y[2];
+	int i;
+
+	const GLfloat half = height / 2;
+
+	GPU_ASSERT(slices > 0);
+
+	x[0] = baseRadius;
+	y[0] = 0;
+
+	for (i = 1; i <= slices; i++) {
+		GLfloat angle = (float)(2.0*M_PI*i / slices);
+
+		c = cosf(angle);
+		s = sinf(angle);
+
+		x[1] = c * baseRadius;
+		y[1] = s * baseRadius;
+
+		/* segment along base */
+		gpuVertex3f(x[0], y[0], -half);
+		gpuVertex3f(x[1], y[1], -half);
+
+		if (!isFilled) {
+			/* repeat vertex for next segment */
+			gpuVertex3f(x[1], y[1], -half);
+		}
+
+		/* top of cone */
+		gpuVertex3f(0, 0, half);
+
+		x[0] = x[1];
+		y[0] = y[1];
+	}
+}
+
+
+
+void gpuDrawCone(
+	GLfloat   height,
+	GLfloat   baseRadius,
+	GLint     slices,
+	GLboolean isSolid)
+{
+	gpuBegin(isSolid ? GL_TRIANGLES : GL_LINES);
+	gpuAppendCone(height, baseRadius, slices, isSolid);
+	gpuEnd();
+}
+
+
+
+void gpuSingleCone(
+	GLfloat   height,
+	GLfloat   baseRadius,
+	GLint     slices,
+	GLboolean isFilled)
+{
+	gpuImmediateFormat_V3();
+	gpuDrawCone(height, baseRadius, slices, isFilled);
+	gpuImmediateUnformat();
+}
