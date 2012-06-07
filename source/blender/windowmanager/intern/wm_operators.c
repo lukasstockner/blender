@@ -75,8 +75,8 @@
 
 #include "BKE_idcode.h"
 
-#include "BIF_gl.h"
-#include "BIF_glutil.h" /* for paint cursor */
+#include "GPU_compatibility.h"
+
 #include "BLF_api.h"
 
 #include "IMB_imbuf_types.h"
@@ -3080,9 +3080,11 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 	float rot;
 
 	/* set fill color */
-	if (rc->fill_col_prop)
+	if (rc->fill_col_prop) {
 		RNA_property_float_get_array(&rc->fill_col_ptr, rc->fill_col_prop, col);
-	glColor4f(col[0], col[1], col[2], alpha);
+	}
+
+	gpuCurrentColor4f(col[0], col[1], col[2], alpha);
 
 	if (rc->gltex) {
 		glBindTexture(GL_TEXTURE_2D, rc->gltex);
@@ -3099,25 +3101,28 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 
 		/* draw textured quad */
 		glEnable(GL_TEXTURE_2D);
-		glBegin(GL_QUADS);
-		glTexCoord2f(0, 0);
-		glVertex2f(-radius, -radius);
-		glTexCoord2f(1, 0);
-		glVertex2f(radius, -radius);
-		glTexCoord2f(1, 1);
-		glVertex2f(radius, radius);
-		glTexCoord2f(0, 1);
-		glVertex2f(-radius, radius);
-		glEnd();
+		gpuImmediateFormat_T2_V2();
+		gpuBegin(GL_QUADS);
+		gpuTexCoord2f(0, 0);
+		gpuVertex2f(-radius, -radius);
+		gpuTexCoord2f(1, 0);
+		gpuVertex2f( radius, -radius);
+		gpuTexCoord2f(1, 1);
+		gpuVertex2f( radius,  radius);
+		gpuTexCoord2f(0, 1);
+		gpuVertex2f(-radius,  radius);
+		gpuEnd();
+		gpuImmediateUnformat();
 		glDisable(GL_TEXTURE_2D);
 
 		/* undo rotation */
-		if (rc->rot_prop)
+		if (rc->rot_prop) {
 			glPopMatrix();
+		}
 	}
 	else {
 		/* flat color if no texture available */
-		glutil_draw_filled_arc(0, M_PI * 2, radius, 40);
+		gpuSingleDisk(0, 0, radius, 40);
 	}
 }
 
@@ -3126,7 +3131,7 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 	RadialControl *rc = customdata;
 	ARegion *ar = CTX_wm_region(C);
 	float r1 = 0.0f, r2 = 0.0f, tex_radius, alpha;
-	float zoom[2], col[3] = {1, 1, 1};
+	float zoom[2], col[4] = {1, 1, 1, 0.5f};
 
 	switch (rc->subtype) {
 		case PROP_DISTANCE:
@@ -3168,24 +3173,36 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 	radial_control_paint_tex(rc, tex_radius, alpha);
 
 	/* set line color */
-	if (rc->col_prop)
+
+	if (rc->col_prop) {
 		RNA_property_float_get_array(&rc->col_ptr, rc->col_prop, col);
-	glColor4f(col[0], col[1], col[2], 0.5);
+	}
+
+	gpuCurrentColor4fv(col);
+
+	gpuImmediateFormat_V2(); // DOODLE: radial control, pair of lines and a pair of circles
 
 	if (rc->subtype == PROP_ANGLE) {
 		glPushMatrix();
+
 		/* draw original angle line */
+
 		glRotatef(RAD2DEGF(rc->initial_value), 0, 0, 1);
-		fdrawline(0.0f, 0.0f, (float)WM_RADIAL_CONTROL_DISPLAY_SIZE, 0.0f);
+		gpuDrawLinef(0, 0, (float)WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
+
 		/* draw new angle line */
+
 		glRotatef(RAD2DEGF(rc->current_value - rc->initial_value), 0, 0, 1);
-		fdrawline(0.0f, 0.0f, (float)WM_RADIAL_CONTROL_DISPLAY_SIZE, 0.0f);
+		gpuDrawLinef(0, 0, (float)WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
+
 		glPopMatrix();
 	}
 
 	/* draw circles on top */
-	glutil_draw_lined_arc(0.0, (float)(M_PI * 2.0), r1, 40);
-	glutil_draw_lined_arc(0.0, (float)(M_PI * 2.0), r2, 40);
+	gpuDrawCircle(0, 0, r1, 40);
+	gpuDrawCircle(0, 0, r2, 40);
+
+	gpuImmediateUnformat();
 
 	glDisable(GL_BLEND);
 	glDisable(GL_LINE_SMOOTH);

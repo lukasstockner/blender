@@ -211,7 +211,7 @@ void gpuImmediateMakeCurrent(GPUimmediate *restrict immediate)
 
 
 
-void gpuDeleteImmediate(GPUimmediate *restrict immediate)
+void gpuImmediateDelete(GPUimmediate *restrict immediate)
 {
 	if (!immediate) {
 		return;
@@ -503,8 +503,16 @@ static void gpu_copy_vertex(void)
 
 /* vertex formats */
 
+#if GPU_SAFETY
+void gpu_ImmediateFormat_V2(const char* file, int line)
+#else
 void gpuImmediateFormat_V2(void)
+#endif
 {
+#if GPU_SAFETY
+	printf("%s(%d): gpuImmediateFormat_V2\n", file, line);
+#endif
+
 	if (gpuImmediateLockCount() == 0) {
 		gpuImmediateElementSizes(2, 0, 0);
 	}
@@ -512,8 +520,16 @@ void gpuImmediateFormat_V2(void)
 	gpuImmediateLock();
 }
 
+#if GPU_SAFETY
+void gpu_ImmediateFormat_C4_V2(const char* file, int line)
+#else
 void gpuImmediateFormat_C4_V2(void)
+#endif
 {
+#if GPU_SAFETY
+	printf("%s(%d): gpuImmediateFormat_C4_V2\n", file, line);
+#endif
+
 	if (gpuImmediateLockCount() == 0) {
 		gpuImmediateElementSizes(2, 0, 4);
 	}
@@ -521,8 +537,16 @@ void gpuImmediateFormat_C4_V2(void)
 	gpuImmediateLock();
 }
 
+#if GPU_SAFETY
+void gpu_ImmediateFormat_T2_V2(const char* file, int line)
+#else
 void gpuImmediateFormat_T2_V2(void)
+#endif
 {
+#if GPU_SAFETY
+	printf("%s(%d): gpuImmediateFormat_T2_V2\n", file, line);
+#endif
+
 	if (gpuImmediateLockCount() == 0) {
 		GLint texCoordSizes[1] = { 2 };
 		GLenum texUnitMap[1]    = { GL_TEXTURE0 };
@@ -537,8 +561,16 @@ void gpuImmediateFormat_T2_V2(void)
 	gpuImmediateLock();
 }
 
+#if GPU_SAFETY
+void gpu_ImmediateFormat_T2_C4_V2(const char* file, int line)
+#else
 void gpuImmediateFormat_T2_C4_V2(void)
+#endif
 {
+#if GPU_SAFETY
+	printf("%s(%d): gpuImmediateFormat_T2_C4_V2\n", file, line);
+#endif
+
 	if (gpuImmediateLockCount() == 0) {
 		GLint texCoordSizes[1] = { 2 };
 		GLenum texUnitMap[1]    = { GL_TEXTURE0 };
@@ -553,8 +585,16 @@ void gpuImmediateFormat_T2_C4_V2(void)
 	gpuImmediateLock();
 }
 
+#if GPU_SAFETY
+void gpu_ImmediateFormat_V3(const char* file, int line)
+#else
 void gpuImmediateFormat_V3(void)
+#endif
 {
+#if GPU_SAFETY
+	printf("%s(%d): gpuImmediateFormat_V3\n", file, line);
+#endif
+
 	if (gpuImmediateLockCount() == 0) {
 		gpuImmediateElementSizes(3, 0, 0);
 	}
@@ -562,8 +602,16 @@ void gpuImmediateFormat_V3(void)
 	gpuImmediateLock();
 }
 
+#if GPU_SAFETY
+void gpu_ImmediateFormat_N3_V3(const char* file, int line)
+#else
 void gpuImmediateFormat_N3_V3(void)
+#endif
 {
+#if GPU_SAFETY
+	printf("%s(%d): gpuImmediateFormat_N3_V3\n", file, line);
+#endif
+
 	if (gpuImmediateLockCount() == 0) {
 		gpuImmediateElementSizes(3, 3, 0);
 	}
@@ -571,8 +619,16 @@ void gpuImmediateFormat_N3_V3(void)
 	gpuImmediateLock();
 }
 
+#if GPU_SAFETY
+void gpu_ImmediateFormat_C4_V3(const char* file, int line)
+#else
 void gpuImmediateFormat_C4_V3(void)
+#endif
 {
+#if GPU_SAFETY
+	printf("%s(%d): gpuImmediateFormat_C4_V3\n", file, line);
+#endif
+
 	if (gpuImmediateLockCount() == 0) {
 		gpuImmediateElementSizes(3, 0, 4); //-V112
 	}
@@ -580,8 +636,16 @@ void gpuImmediateFormat_C4_V3(void)
 	gpuImmediateLock();
 }
 
+#if GPU_SAFETY
+void gpu_ImmediateFormat_C4_N3_V3(const char* file, int line)
+#else
 void gpuImmediateFormat_C4_N3_V3(void)
+#endif
 {
+#if GPU_SAFETY
+	printf("%s(%d): gpuImmediateFormat_C4_N3_V3\n", file, line);
+#endif
+
 	if (gpuImmediateLockCount() == 0) {
 		gpuImmediateElementSizes(3, 3, 4); //-V112
 	}
@@ -589,8 +653,16 @@ void gpuImmediateFormat_C4_N3_V3(void)
 	gpuImmediateLock();
 }
 
+#if GPU_SAFETY
+void gpu_ImmediateFormat_T2_C4_N3_V3(const char* file, int line)
+#else
 void gpuImmediateFormat_T2_C4_N3_V3(void)
+#endif
 {
+#if GPU_SAFETY
+	printf("%s(%d): gpuImmediateFormat_T2_C4_N3_V3\n", file, line);
+#endif
+
 	if (gpuImmediateLockCount() == 0) {
 
 		GLint texCoordSizes[1] = { 2 };
@@ -605,8 +677,16 @@ void gpuImmediateFormat_T2_C4_N3_V3(void)
 	gpuImmediateLock();
 }
 
+#if GPU_SAFETY
+void gpu_ImmediateFormat_T3_C4_V3(const char* file, int line)
+#else
 void gpuImmediateFormat_T3_C4_V3(void)
+#endif
 {
+#if GPU_SAFETY
+	printf("%s(%d): gpuImmediateFormat_T3_C4_V3\n", file, line);
+#endif
+
 	if (gpuImmediateLockCount() == 0) {
 
 		GLint texCoordSizes[1] = { 3 };
@@ -621,8 +701,16 @@ void gpuImmediateFormat_T3_C4_V3(void)
 	gpuImmediateLock();
 }
 
+#if GPU_SAFETY
+void gpu_ImmediateUnformat(const char* file, int line)
+#else
 void gpuImmediateUnformat(void)
+#endif
 {
+#if GPU_SAFETY
+	printf("%s(%d): gpuImmediateUnformat\n", file, line);
+#endif
+
 	gpuImmediateUnlock();
 }
 

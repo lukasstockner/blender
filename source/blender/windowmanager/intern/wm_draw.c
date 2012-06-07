@@ -31,7 +31,8 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <GL/glew.h>
+
+#include "GPU_compatibility.h"
 
 #include "DNA_listBase.h"
 #include "DNA_screen_types.h"
@@ -518,20 +519,25 @@ static void wm_triple_draw_textures(wmWindow *win, wmDrawTriple *triple)
 
 			glBindTexture(triple->target, triple->bind[x + y * triple->nx]);
 
-			glColor3f(1.0f, 1.0f, 1.0f);
-			glBegin(GL_QUADS);
-			glTexCoord2f(halfx, halfy);
-			glVertex2f(offx, offy);
+			gpuCurrentColor3f(1.0f, 1.0f, 1.0f);
 
-			glTexCoord2f(ratiox + halfx, halfy);
-			glVertex2f(offx + sizex, offy);
+			gpuImmediateFormat_T2_V2(); // DOODLE: triple backbuffer
 
-			glTexCoord2f(ratiox + halfx, ratioy + halfy);
-			glVertex2f(offx + sizex, offy + sizey);
+			gpuBegin(GL_QUADS);
+			gpuTexCoord2f(halfx, halfy);
+			gpuVertex2f(offx, offy);
 
-			glTexCoord2f(halfx, ratioy + halfy);
-			glVertex2f(offx, offy + sizey);
-			glEnd();
+			gpuTexCoord2f(ratiox + halfx, halfy);
+			gpuVertex2f(offx + sizex, offy);
+
+			gpuTexCoord2f(ratiox + halfx, ratioy + halfy);
+			gpuVertex2f(offx + sizex, offy + sizey);
+
+			gpuTexCoord2f(halfx, ratioy + halfy);
+			gpuVertex2f(offx, offy + sizey);
+			gpuEnd();
+
+			gpuImmediateUnformat();
 		}
 	}
 

@@ -452,7 +452,6 @@ static int get_default(void)
 void BLF_draw_default_lock(void)
 {
 	if (get_default()) {
-		BLF_size(global_font_default, global_font_points, global_font_dpi);
 		BLF_draw_lock(global_font_default);
 	}
 }
@@ -467,10 +466,9 @@ void BLF_draw_default_unlock(void)
 void BLF_draw_default(float x, float y, float z, const char *str, size_t len)
 {
 	if (str && get_default()) {
-		BLF_draw_default_lock();
+		BLF_size(global_font_default, global_font_points, global_font_dpi);
 		BLF_position(global_font_default, x, y, z);
 		BLF_draw(global_font_default, str, len);
-		BLF_draw_default_unlock();
 	}
 }
 
@@ -478,10 +476,8 @@ void BLF_draw_default(float x, float y, float z, const char *str, size_t len)
 void BLF_draw_default_ascii(float x, float y, float z, const char *str, size_t len)
 {
 	if (str && get_default()) {
-		BLF_draw_default_lock();
 		BLF_position(global_font_default, x, y, z);
 		BLF_draw(global_font_default, str, len);  /* XXX, use real length */
-		BLF_draw_default_unlock();
 	}
 }
 
@@ -500,16 +496,17 @@ static void draw_lock(FontBLF *font)
 	if (gpuImmediateLockCount() == 0) {
 		glEnable(GL_TEXTURE_2D);
 
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		if (font->shadow || font->blur) {
+			gpuImmediateFormat_T2_C4_V2(); // DOODLE: blurred and/or shadowed text
+		}
+		else {
+			gpuImmediateFormat_T2_V2(); // DOODLE: normal text
+		}
 	}
 
-	if (font->shadow || font->blur) {
-		gpuImmediateFormat_T2_C4_V2(); // DOODLE: blurred and/or shadowed text
-	}
-	else {
-		gpuImmediateFormat_T2_V2(); // DOODLE: normal text
-	}
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 }
 
 void BLF_draw_lock(int fontid)
@@ -523,11 +520,11 @@ void BLF_draw_lock(int fontid)
 
 void BLF_draw_unlock(void)
 {
-	gpuImmediateUnformat();
+	glDisable(GL_BLEND);
+	glDisable(GL_TEXTURE_2D);
 
-	if (gpuImmediateLockCount() == 0) {
-		glDisable(GL_BLEND);
-		glDisable(GL_TEXTURE_2D);
+	if (gpuImmediateLockCount() == 1) {
+		gpuImmediateUnformat();
 	}
 }
 

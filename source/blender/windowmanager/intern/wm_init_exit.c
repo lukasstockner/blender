@@ -187,7 +187,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 
 		immediate = gpuNewImmediate();
 		gpuImmediateMakeCurrent(immediate);
-		gpuImmediateMaxVertexCount(10000); // XXX: temporary!
+		gpuImmediateMaxVertexCount(500000); // XXX: temporary!
 
 		UI_init();
 	}
@@ -424,12 +424,14 @@ void WM_exit_ext(bContext *C, const short do_python)
 	GPU_global_buffer_pool_free();
 	GPU_free_unused_buffers();
 	GPU_extensions_exit();
-	GPU_ms_exit();
-
-	gpuDeleteImmediate(immediate);
 
 	if (!G.background) {
 		BKE_undo_save_quit();  /* saves quit.blend if global undo is on */
+
+		gpuImmediateDelete(immediate);
+		gpuImmediateMakeCurrent(NULL);
+
+		GPU_ms_exit();
 	}
 	BKE_reset_undo(); 
 	

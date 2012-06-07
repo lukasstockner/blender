@@ -241,7 +241,7 @@ extern GPUimmediate *restrict GPU_IMMEDIATE;
 
 GPUimmediate* gpuNewImmediate(void);
 void gpuImmediateMakeCurrent(GPUimmediate *restrict  immediate);
-void gpuDeleteImmediate(GPUimmediate *restrict  immediate);
+void gpuImmediateDelete(GPUimmediate *restrict  immediate);
 
 
 
@@ -269,6 +269,8 @@ void gpuGetCurrentColor4ubv(GLubyte *restrict color);
 
 
 /* utility functions to setup vertex format and lock */
+#if !GPU_SAFETY
+
 void gpuImmediateFormat_V2(void);
 void gpuImmediateFormat_C4_V2(void);
 void gpuImmediateFormat_T2_V2(void);
@@ -280,6 +282,34 @@ void gpuImmediateFormat_C4_N3_V3(void);
 void gpuImmediateFormat_T2_C4_N3_V3(void);
 void gpuImmediateFormat_T3_C4_V3(void);
 void gpuImmediateUnformat(void);
+
+#else
+
+void gpu_ImmediateFormat_V2(const char* file, int line);
+void gpu_ImmediateFormat_C4_V2(const char* file, int line);
+void gpu_ImmediateFormat_T2_V2(const char* file, int line);
+void gpu_ImmediateFormat_T2_C4_V2(const char* file, int line);
+void gpu_ImmediateFormat_V3(const char* file, int line);
+void gpu_ImmediateFormat_N3_V3(const char* file, int line);
+void gpu_ImmediateFormat_C4_V3(const char* file, int line);
+void gpu_ImmediateFormat_C4_N3_V3(const char* file, int line);
+void gpu_ImmediateFormat_T2_C4_N3_V3(const char* file, int line);
+void gpu_ImmediateFormat_T3_C4_V3(const char* file, int line);
+void gpu_ImmediateUnformat(const char* file, int line);
+
+#define gpuImmediateFormat_V2() gpu_ImmediateFormat_V2(__FILE__, __LINE__)
+#define gpuImmediateFormat_C4_V2() gpu_ImmediateFormat_C4_V2(__FILE__, __LINE__)
+#define gpuImmediateFormat_T2_V2() gpu_ImmediateFormat_T2_V2(__FILE__, __LINE__)
+#define gpuImmediateFormat_T2_C4_V2() gpu_ImmediateFormat_T2_C4_V2(__FILE__, __LINE__)
+#define gpuImmediateFormat_V3() gpu_ImmediateFormat_V3(__FILE__, __LINE__)
+#define gpuImmediateFormat_N3_V3() gpu_ImmediateFormat_N3_V3(__FILE__, __LINE__)
+#define gpuImmediateFormat_C4_V3() gpu_ImmediateFormat_C4_V3(__FILE__, __LINE__)
+#define gpuImmediateFormat_C4_N3_V3() gpu_ImmediateFormat_C4_N3_V3(__FILE__, __LINE__)
+#define gpuImmediateFormat_T2_C4_N3_V3() gpu_ImmediateFormat_T2_C4_N3_V3(__FILE__, __LINE__)
+#define gpuImmediateFormat_T3_C4_V3() gpu_ImmediateFormat_T3_C4_V3(__FILE__, __LINE__)
+#define gpuImmediateUnformat() gpu_ImmediateUnformat(__FILE__, __LINE__)
+
+#endif
 
 
 

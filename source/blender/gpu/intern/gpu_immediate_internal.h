@@ -78,12 +78,14 @@ BLI_INLINE void GPU_CLEAR_ERRORS()
     GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount == 0, noBeginOK, NULL); \
     }
 
-#define GPU_CHECK_CAN_LOCK()      \
-    {                             \
-    GLboolean immediateOK;        \
-    GLboolean noBeginOK;          \
-    GPU_CHECK_BASE(immediateOK);  \
-    GPU_CHECK_NO_BEGIN(noBeginOK) \
+#define GPU_CHECK_CAN_LOCK()       \
+    {                              \
+    GLboolean immediateOK;         \
+    GLboolean noBeginOK;           \
+    GLboolean noLockOK;            \
+    GPU_CHECK_BASE(immediateOK);   \
+    GPU_CHECK_NO_BEGIN(noBeginOK); \
+    GPU_CHECK_NO_LOCK(noLockOK);   \
     }
 
 #define GPU_CHECK_CAN_UNLOCK()      \
@@ -96,7 +98,13 @@ BLI_INLINE void GPU_CLEAR_ERRORS()
     GPU_CHECK_NO_BEGIN(noBeginOK)   \
     }
 
-#define GPU_CHECK_CAN_CURRENT() GPU_CHECK_CAN_LOCK()
+#define GPU_CHECK_CAN_CURRENT()    \
+    {                              \
+    GLboolean immediateOK;         \
+    GLboolean noBeginOK;           \
+    GPU_CHECK_BASE(immediateOK);   \
+    GPU_CHECK_NO_BEGIN(noBeginOK); \
+    }
 
 #define GPU_SAFE_STMT(var, test, stmt) \
     var = (GLboolean)(test);           \

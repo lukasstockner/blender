@@ -48,8 +48,7 @@
 #include "BKE_context.h"
 #include "BKE_global.h"
 
-#include "BIF_gl.h"
-
+#include "GPU_compatibility.h"
 #include "GPU_extensions.h"
 
 #include "WM_api.h"
@@ -241,40 +240,44 @@ void wm_subwindow_position(wmWindow *win, int swinid, rcti *winrct)
 /* ----------------- exported in WM_api.h ------------------------------------------------------ */
 
 /* internal state, no threaded opengl! XXX */
-static wmWindow *_curwindow = NULL;
-static wmSubWindow *_curswin = NULL;
+static wmWindow    *_curwindow  = NULL;
+static wmSubWindow *_curswin    = NULL;
 
 void wmSubWindowScissorSet(wmWindow *win, int swinid, rcti *srct)
 {
-	int width, height;
+	int x, y, width, height;
+
 	_curswin = swin_from_swinid(win, swinid);
-	
+
 	if (_curswin == NULL) {
 		printf("wmSubWindowSet %d: doesn't exist\n", swinid);
 		return;
 	}
-	
+
 	win->curswin = _curswin;
+
 	_curwindow = win;
-	
-	width = _curswin->winrct.xmax - _curswin->winrct.xmin + 1;
+
+	x      = _curswin->winrct.xmin;
+	y      = _curswin->winrct.ymin;
+	width  = _curswin->winrct.xmax - _curswin->winrct.xmin + 1;
 	height = _curswin->winrct.ymax - _curswin->winrct.ymin + 1;
-	glViewport(_curswin->winrct.xmin, _curswin->winrct.ymin, width, height);
+
+	glViewport(x, y, width, height);
 
 	if (srct) {
-		width = srct->xmax - srct->xmin + 1;
+		x      = srct->xmin;
+		y      = srct->ymin;
+		width  = srct->xmax - srct->xmin + 1;
 		height = srct->ymax - srct->ymin + 1;
-		glScissor(srct->xmin, srct->ymin, width, height);
 	}
-	else
-		glScissor(_curswin->winrct.xmin, _curswin->winrct.ymin, width, height);
-	
+
+	glScissor(x, y, width, height);
+
 	wmOrtho2(-0.375f, (float)width - 0.375f, -0.375f, (float)height - 0.375f);
-	glLoadIdentity();
 
-	glFlush();
+	glLoadIdentity(); /* reset MODELVIEW */
 }
-
 
 /* enable the WM versions of opengl calls */
 void wmSubWindowSet(wmWindow *win, int swinid)
@@ -294,17 +297,21 @@ void wmOrtho(float x1, float x2, float y1, float y2, float n, float f)
 {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-
 	glOrtho(x1, x2, y1, y2, n, f);
-
 	glMatrixMode(GL_MODELVIEW);
 }
 
 void wmOrtho2(float x1, float x2, float y1, float y2)
 {
-	/* prevent opengl from generating errors */
-	if (x1 == x2) x2 += 1.0f;
-	if (y1 == y2) y2 += 1.0f;
+	/* make sure the window rectangle is not degenerate */
+
+	if (x1 == x2) {
+		x2 += 1.0f;
+	}
+
+	if (y1 == y2) {
+		y2 += 1.0f;
+	}
 
 	wmOrtho(x1, x2, y1, y2, -100, 100);
 }
@@ -380,7 +387,7 @@ unsigned int index_to_framebuffer(int index)
 void WM_set_framebuffer_index_color(int index)
 {
 	const int col = index_to_framebuffer(index);
-	cpack(col);
+	gpuColorPack(col);
 }
 
 int WM_framebuffer_to_index(unsigned int col)
@@ -404,4 +411,3 @@ int WM_framebuffer_to_index(unsigned int col)
 
 
 /* ********** END MY WINDOW ************** */
-
