@@ -144,6 +144,7 @@ set(SRC
 	shader/nodes/node_shader_background.c
 	# shader/nodes/node_shader_bsdf_anisotropic.c  # XXX, why not included?
 	shader/nodes/node_shader_bsdf_diffuse.c
+    shader/nodes/node_shader_mybsdf_diffuse.c
 	shader/nodes/node_shader_bsdf_glossy.c
 	shader/nodes/node_shader_bsdf_glass.c
 	shader/nodes/node_shader_bsdf_translucent.c
