@@ -723,7 +723,7 @@ void gpuCurrentColor3f(GLfloat r, GLfloat g, GLfloat b)
 	GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * r);
 	GPU_IMMEDIATE->color[1] = (GLubyte)(255.0f * g);
 	GPU_IMMEDIATE->color[2] = (GLubyte)(255.0f * b);
-	GPU_IMMEDIATE->color[3] = 1;
+	GPU_IMMEDIATE->color[3] = 255;
 
 	GPU_IMMEDIATE->currentColor();
 }
@@ -735,7 +735,7 @@ void gpuCurrentColor3fv(const GLfloat *restrict v)
 	GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * v[0]);
 	GPU_IMMEDIATE->color[1] = (GLubyte)(255.0f * v[1]);
 	GPU_IMMEDIATE->color[2] = (GLubyte)(255.0f * v[2]);
-	GPU_IMMEDIATE->color[3] = 1;
+	GPU_IMMEDIATE->color[3] = 255;
 
 	GPU_IMMEDIATE->currentColor();
 }

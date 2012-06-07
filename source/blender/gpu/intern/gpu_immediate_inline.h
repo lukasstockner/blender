@@ -71,7 +71,7 @@ BLI_INLINE void gpuColor3f(GLfloat r, GLfloat g, GLfloat b)
 	GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * r);
 	GPU_IMMEDIATE->color[1] = (GLubyte)(255.0f * g);
 	GPU_IMMEDIATE->color[2] = (GLubyte)(255.0f * b);
-	GPU_IMMEDIATE->color[3] = 1;
+	GPU_IMMEDIATE->color[3] = 255;
 }
 
 BLI_INLINE void gpuColor3fv(const GLfloat *restrict v)
@@ -81,7 +81,7 @@ BLI_INLINE void gpuColor3fv(const GLfloat *restrict v)
 	GPU_IMMEDIATE->color[0] = (GLubyte)(255.0f * v[0]);
 	GPU_IMMEDIATE->color[1] = (GLubyte)(255.0f * v[1]);
 	GPU_IMMEDIATE->color[2] = (GLubyte)(255.0f * v[2]);
-	GPU_IMMEDIATE->color[3] = 1;
+	GPU_IMMEDIATE->color[3] = 255;
 }
 
 BLI_INLINE void gpuColor3ub(GLubyte r, GLubyte g, GLubyte b)
@@ -91,7 +91,7 @@ BLI_INLINE void gpuColor3ub(GLubyte r, GLubyte g, GLubyte b)
 	GPU_IMMEDIATE->color[0] = r;
 	GPU_IMMEDIATE->color[1] = g;
 	GPU_IMMEDIATE->color[2] = b;
-	GPU_IMMEDIATE->color[3] = 1;
+	GPU_IMMEDIATE->color[3] = 255;
 }
 
 BLI_INLINE void gpuColor3ubv(const GLubyte *restrict v)
