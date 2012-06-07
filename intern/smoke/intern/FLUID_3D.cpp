@@ -966,11 +966,9 @@ void FLUID_3D::project()
 			// rowCount++;
 		}
 
-	// DG TODO: for schleifen fixen
-	index = _slabSize + _xRes + 1;
-	for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
-		for (y = 1; y < _yRes - 1; y++, index += 2)
-			for (x = 1; x < _xRes - 1; x++, index++)
+	for (z = 0; z < _zRes; z++)
+		for (y = 0; y < _yRes; y++)
+			for (x = 0; x < _xRes; x++)
 		if (!_obstacles[FINDEX(x,y,z)])
 			b[gti(FINDEX(x, y, z))] = _divergence[FINDEX(x,y,z)];
 

@@ -168,29 +168,51 @@ void FLUID_3D::solveHeat(float* field, float* b, unsigned char* skip)
 			if (_Acenter)  delete[] _Acenter;
 }
 
-
 void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, VectorXf &myb, SparseMatrix<float,RowMajor> &A, ArrayXd &gti)
 {
 	int x, y, z;
 	size_t index;
 	float *_q, *_Precond, *_h, *_residual, *_direction;
+	unsigned int arraySize = myb.size();
 
 	// i = 0
 	int i = 0;
 
+	VectorXf result(arraySize);
+	result.setZero(arraySize);
+
 	_residual     = new float[_totalCells]; // set 0
+	VectorXf residual(arraySize);
+
 	_direction    = new float[_totalCells]; // set 0
+	VectorXf direction(arraySize);
+
 	_q            = new float[_totalCells]; // set 0
+	VectorXf q(arraySize);
+
 	_h			  = new float[_totalCells]; // set 0
+	VectorXf h(arraySize);
+	
 	_Precond	  = new float[_totalCells]; // set 0
+	SparseMatrix<float,RowMajor> Pi(arraySize, arraySize);
+	Pi.reserve(VectorXi::Constant(arraySize, 1));
 
 	memset(_residual, 0, sizeof(float)*_xRes*_yRes*_zRes);
+	residual.setZero(arraySize);
+
 	memset(_q, 0, sizeof(float)*_xRes*_yRes*_zRes);
+	q.setZero(arraySize);
+
 	memset(_direction, 0, sizeof(float)*_xRes*_yRes*_zRes);
+	direction.setZero(arraySize);
+
 	memset(_h, 0, sizeof(float)*_xRes*_yRes*_zRes);
+	h.setZero(arraySize);
+
 	memset(_Precond, 0, sizeof(float)*_xRes*_yRes*_zRes);
 
 	float deltaNew = 0.0f;
+	float delta_new = 0.0f;
 
 	// r = b - Ax
 	index = _slabSize + _xRes + 1;
@@ -235,153 +257,167 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, Vec
 				deltaNew += _residual[index] * _direction[index];
 			}
 
+	// r = b - A * x
+	residual = myb -  A.selfadjointView<Upper>() * result;
+
+	// z = M^-1 * r
+	for (int k=0; k<A.outerSize(); ++k)
+		for (SparseMatrix<float,RowMajor>::InnerIterator it(A,k); it; ++it)
+		{
+			// myfile << "(" << it.row() << ", " << it.col() << ") = " << it.value();
+			if(it.row() == it.col())
 			{
-				ofstream myfile;
-				myfile.open ("test.txt");  
+				float value = 0.0f;
 
-				printf("x: %d, y: %d, z: %d\n", _xRes, _yRes, _zRes);
+				if(it.value() < 1.0)
+					value = 0.0f;
+				else
+					value = 1.0f / it.value();
+				
+				Pi.insert(it.row(), it.col()) = value;
+			}
+		}
+	direction = Pi.selfadjointView<Upper>() * residual;
 
-				for (int k=0; k<A.outerSize(); ++k)
-					for (SparseMatrix<float,RowMajor>::InnerIterator it(A,k); it; ++it)
+
+	// ???
+	delta_new = residual.dot(direction);
+	printf("DELTA_NEW old: %.12f, new: %.12f\n", deltaNew, delta_new);
+
+
+	// While deltaNew > (eps^2) * delta0
+	const float eps  = SOLVER_ACCURACY;
+	//while ((i < _iterations) && (deltaNew > eps*delta0))
+	float maxR = 2.0f * eps;
+	// while (i < _iterations)
+	while ((i < _iterations) && (maxR > 0.001*eps))
+	{
+
+		float alpha = 0.0f;
+		float myalpha = 0.0f;
+
+		index = _slabSize + _xRes + 1;
+		for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+			for (y = 1; y < _yRes - 1; y++, index += 2)
+				for (x = 1; x < _xRes - 1; x++, index++)
+				{
+					// if the cell is a variable
+					float Acenter = 0.0f;
+					if (!skip[index])
 					{
-						myfile << "(" << it.row() << ", " << it.col() << ") = " << it.value();
-						myfile << endl;
+						// set the matrix to the Poisson stencil in order
+						if (!skip[index + 1]) Acenter += 1.;
+						if (!skip[index - 1]) Acenter += 1.;
+						if (!skip[index + _xRes]) Acenter += 1.;
+						if (!skip[index - _xRes]) Acenter += 1.;
+						if (!skip[index + _slabSize]) Acenter += 1.;
+						if (!skip[index - _slabSize]) Acenter += 1.;
+
+						_q[index] = Acenter * _direction[index] +  
+							_direction[index - 1] * (skip[index - 1] ? 0.0 : -1.0f) + 
+							_direction[index + 1] * (skip[index + 1] ? 0.0 : -1.0f) +
+							_direction[index - _xRes] * (skip[index - _xRes] ? 0.0 : -1.0f) + 
+							_direction[index + _xRes] * (skip[index + _xRes] ? 0.0 : -1.0f)+
+							_direction[index - _slabSize] * (skip[index - _slabSize] ? 0.0 : -1.0f) + 
+							_direction[index + _slabSize] * (skip[index + _slabSize] ? 0.0 : -1.0f);
+					}
+					else
+					{
+						_q[index] = 0.0f;
 					}
 
+					alpha += _direction[index] * _q[index];
+				}
 
+		// ???
+		q = A.selfadjointView<Upper>() * direction;
 
-				VectorXf I(_totalCells);
-				VectorXf tmp(_totalCells);
-				I.fill(1.0f);
-				tmp = A.selfadjointView<Upper>() * I; /* Symmetric */
-				
+		// alpha = ...??
+		myalpha = direction.dot(q);
 
-				int count = 0;
-				index = _slabSize + _xRes + 1;
-				for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
-					for (y = 1; y < _yRes - 1; y++, index += 2)
-						for (x = 1; x < _xRes - 1; x++, index++)
-						{
-							float Acenter = 0.0f;
-							if(!skip[index])
-							{
-								if (!skip[index + 1]) Acenter += 1.;
-								if (!skip[index - 1]) Acenter += 1.;
-								if (!skip[index + _xRes]) Acenter += 1.;
-								if (!skip[index - _xRes]) Acenter += 1.;
-								if (!skip[index + _slabSize]) Acenter += 1.;
-								if (!skip[index - _slabSize]) Acenter += 1.;
+		printf("ALPHA old: %.12f, new: %.12f\n", alpha, myalpha);	
+		printf("DELTA_NEW old: %.12f, new: %.12f\n", deltaNew, delta_new);
 
-								float indexValue = Acenter * 1.0f  +  
-									1.0f * (skip[index - 1] ? 0.0 : -1.0f)+ 
-									1.0f * (skip[index + 1] ? 0.0 : -1.0f)+
-									1.0f * (skip[index - _xRes] ? 0.0 : -1.0f)+ 
-									1.0f * (skip[index + _xRes] ? 0.0 : -1.0f)+
-									1.0f * (skip[index - _slabSize] ? 0.0 : -1.0f)+ 
-									1.0f * (skip[index + _slabSize] ? 0.0 : -1.0f);
+		if (fabs(alpha) > 0.0f)
+		{
+			alpha = deltaNew / alpha;
+			myalpha = delta_new / myalpha;
+		}
 
-								//if(indexValue != 0)
-								//myfile << tmp[gti(FINDEX(x, y, z))] << " " << indexValue << endl;
-								// printf("index: %d, FINDEX: %d, value: %f\n", index, FINDEX(x, y, z), tmp[gti(FINDEX(x, y, z))]);
-							}
-						}
+		printf("ALPHA old: %.12f, new: %.12f\n", alpha, myalpha);	
 
-				myfile.close();		
-			}
+		float deltaOld = deltaNew;
+		float delta_old = delta_new;
 
-			// While deltaNew > (eps^2) * delta0
-			const float eps  = SOLVER_ACCURACY;
-			//while ((i < _iterations) && (deltaNew > eps*delta0))
-			float maxR = 2.0f * eps;
-			// while (i < _iterations)
-			while ((i < _iterations) && (maxR > 0.001*eps))
-			{
+		deltaNew = 0.0f;
+		delta_new = 0.0f;
 
-				float alpha = 0.0f;
+		maxR = 0.0;
 
-				index = _slabSize + _xRes + 1;
-				for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
-					for (y = 1; y < _yRes - 1; y++, index += 2)
-						for (x = 1; x < _xRes - 1; x++, index++)
-						{
-							// if the cell is a variable
-							float Acenter = 0.0f;
-							if (!skip[index])
-							{
-								// set the matrix to the Poisson stencil in order
-								if (!skip[index + 1]) Acenter += 1.;
-								if (!skip[index - 1]) Acenter += 1.;
-								if (!skip[index + _xRes]) Acenter += 1.;
-								if (!skip[index - _xRes]) Acenter += 1.;
-								if (!skip[index + _slabSize]) Acenter += 1.;
-								if (!skip[index - _slabSize]) Acenter += 1.;
+		float tmp;
+		float mytmp;
 
-								_q[index] = Acenter * _direction[index] +  
-									_direction[index - 1] * (skip[index - 1] ? 0.0 : -1.0f) + 
-									_direction[index + 1] * (skip[index + 1] ? 0.0 : -1.0f) +
-									_direction[index - _xRes] * (skip[index - _xRes] ? 0.0 : -1.0f) + 
-									_direction[index + _xRes] * (skip[index + _xRes] ? 0.0 : -1.0f)+
-									_direction[index - _slabSize] * (skip[index - _slabSize] ? 0.0 : -1.0f) + 
-									_direction[index + _slabSize] * (skip[index + _slabSize] ? 0.0 : -1.0f);
-							}
-							else
-							{
-								_q[index] = 0.0f;
-							}
+		// x = x + alpha * d
+		index = _slabSize + _xRes + 1;
+		for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+			for (y = 1; y < _yRes - 1; y++, index += 2)
+				for (x = 1; x < _xRes - 1; x++, index++)
+				{
+					field[index] += alpha * _direction[index];
 
-							alpha += _direction[index] * _q[index];
-						}
+					_residual[index] -= alpha * _q[index];
 
+					_h[index] = _Precond[index] * _residual[index];
 
-				if (fabs(alpha) > 0.0f)
-					alpha = deltaNew / alpha;
+					tmp = _residual[index] * _h[index];
+					deltaNew += tmp;
+					maxR = (tmp > maxR) ? tmp : maxR;
 
-				float deltaOld = deltaNew;
-				deltaNew = 0.0f;
+				}
 
-				maxR = 0.0;
+		// x = x + alpha * d
+		result += myalpha * direction;
 
-				float tmp;
+		// ????
+		residual -= alpha * q;
 
-				// x = x + alpha * d
-				index = _slabSize + _xRes + 1;
-				for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
-					for (y = 1; y < _yRes - 1; y++, index += 2)
-						for (x = 1; x < _xRes - 1; x++, index++)
-						{
-							field[index] += alpha * _direction[index];
+		// ????
+		h = Pi.selfadjointView<Upper>() * residual;
 
-							_residual[index] -= alpha * _q[index];
+		// ????
+		// mytmp = residual.dot(h);
 
-							_h[index] = _Precond[index] * _residual[index];
+		// ????
+		delta_new = residual.dot(h);
 
-							tmp = _residual[index] * _h[index];
-							deltaNew += tmp;
-							maxR = (tmp > maxR) ? tmp : maxR;
+		printf("DELTA_NEW old: %.12f, new: %.12f\n", deltaNew, delta_new);
 
-						}
+		// ????
+		// DG TODO: maxR
 
+		// beta = deltaNew / deltaOld
+		float beta = deltaNew / deltaOld;
+		float mybeta = delta_new / delta_old;
 
-				// beta = deltaNew / deltaOld
-				float beta = deltaNew / deltaOld;
+		printf("BETA old: %.12f, new: %.12f\n\n", beta, mybeta);	
 
-				// d = h + beta * d
-				index = _slabSize + _xRes + 1;
-				for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
-					for (y = 1; y < _yRes - 1; y++, index += 2)
-						for (x = 1; x < _xRes - 1; x++, index++)
-							_direction[index] = _h[index] + beta * _direction[index];
+		// d = h + beta * d
+		index = _slabSize + _xRes + 1;
+		for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+			for (y = 1; y < _yRes - 1; y++, index += 2)
+				for (x = 1; x < _xRes - 1; x++, index++)
+					_direction[index] = _h[index] + beta * _direction[index];
 
-				// i = i + 1
-				i++;
-			}
-			cout << i << " iterations converged to " << sqrt(maxR) << endl;
+		// i = i + 1
+		i++;
+	}
+	cout << i << " iterations converged to " << sqrt(maxR) << endl;
 
-			if (_h) delete[] _h;
-			if (_Precond) delete[] _Precond;
-			if (_residual) delete[] _residual;
-			if (_direction) delete[] _direction;
-			if (_q)       delete[] _q;
+	if (_h) delete[] _h;
+	if (_Precond) delete[] _Precond;
+	if (_residual) delete[] _residual;
+	if (_direction) delete[] _direction;
+	if (_q)       delete[] _q;
 }
 #if 0
 void FLUID_3D::solvePressureJacobian(float* p, float* d, unsigned char* ob)
