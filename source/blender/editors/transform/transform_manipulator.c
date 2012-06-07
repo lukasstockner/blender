@@ -1327,15 +1327,13 @@ static void draw_manipulator_scale(View3D *v3d, RegionView3D *rv3d, int moving, 
 	glFrontFace(GL_CCW);
 }
 
-static void draw_cone(GLUquadricObj *qobj, float len, float width)
+static void draw_cone(float len, float width)
 {
 	gpuDrawCone(len, width, 8, GL_TRUE);
-	gpuDrawDisk(0, 0, width, 8);
 }
 
 static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUSED(moving), int drawflags, int combo, int colcode)
 {
-	GLUquadricObj *qobj;
 	float cylen= 0.01f*(float)U.tw_handlesize;
 	float cywid= 0.25f*cylen, dz, size;
 	int shift= 0; // XXX
@@ -1345,9 +1343,6 @@ static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUS
 
 	// XXX if (moving) glTranslatef(t->vec[0], t->vec[1], t->vec[2]);
 	glDisable(GL_DEPTH_TEST);
-
-	qobj= gluNewQuadric();
-	gluQuadricDrawStyle(qobj, GLU_FILL);
 
 	/* center circle, do not add to selection when shift is pressed (planar constraint) */
 	if ( (G.f & G_PICKSEL) && shift==0) {
@@ -1430,7 +1425,6 @@ static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUS
 		glPopMatrix();
 	}
 
-	gluDeleteQuadric(qobj);
 	glLoadMatrixf(rv3d->viewmat);
 
 	if (v3d->zbuf) {
@@ -1463,7 +1457,11 @@ void BIF_draw_manipulator(const bContext *C)
 		v3d->twflag &= ~V3D_DRAW_MANIPULATOR;
 
 		totsel= calc_manipulator_stats(C);
-		if (totsel==0) return;
+
+		if (totsel==0) {
+			gpuImmediateUnformat();
+			return;
+		}
 
 		v3d->twflag |= V3D_DRAW_MANIPULATOR;
 
