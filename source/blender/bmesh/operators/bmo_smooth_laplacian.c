@@ -104,10 +104,6 @@ void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 	nlEnd(NL_MATRIX);
 	nlEnd(NL_SYSTEM);
 
-	if(bm->totvert <32){
-		nlPrintMatrix();
-	}
-
 	if (nlSolveAdvanced(NULL, NL_TRUE) ) {
 		vini = compute_volume(bm, op);
 		BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
@@ -141,9 +137,16 @@ static float cotan_weight(float *v1, float *v2, float *v3)
 
 int vert_is_boundary(BMVert *v){
 	BMEdge *ed;
+	BMFace *f;
 	BMIter ei;
+	BMIter fi;
 	BM_ITER_ELEM(ed, &ei, v, BM_EDGES_OF_VERT) {
 		if(BM_edge_is_boundary(ed)){
+			return 1;
+		}
+	}
+	BM_ITER_ELEM (f, &fi, v, BM_FACES_OF_VERT) {
+		if(!BM_elem_flag_test(f, BM_ELEM_SELECT)){
 			return 1;
 		}
 	}
