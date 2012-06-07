@@ -51,7 +51,7 @@
 
 
 #ifndef GPU_SAFETY
-#define GPU_SAFETY DEBUG && WITH_GPU_SAFETY
+#define GPU_SAFETY (DEBUG && WITH_GPU_SAFETY)
 #endif
 
 #if GPU_SAFETY
@@ -269,7 +269,33 @@ void gpuGetCurrentColor4ubv(GLubyte *restrict color);
 
 
 /* utility functions to setup vertex format and lock */
-#if !GPU_SAFETY
+#if GPU_SAFETY
+
+void gpuSafetyImmediateFormat_V2          (const char* file, int line);
+void gpuSafetyImmediateFormat_C4_V2       (const char* file, int line);
+void gpuSafetyImmediateFormat_T2_V2       (const char* file, int line);
+void gpuSafetyImmediateFormat_T2_C4_V2    (const char* file, int line);
+void gpuSafetyImmediateFormat_V3          (const char* file, int line);
+void gpuSafetyImmediateFormat_N3_V3       (const char* file, int line);
+void gpuSafetyImmediateFormat_C4_V3       (const char* file, int line);
+void gpuSafetyImmediateFormat_C4_N3_V3    (const char* file, int line);
+void gpuSafetyImmediateFormat_T2_C4_N3_V3 (const char* file, int line);
+void gpuSafetyImmediateFormat_T3_C4_V3    (const char* file, int line);
+void gpuSafetyImmediateUnformat           (const char* file, int line);
+
+#define gpuImmediateFormat_V2()          gpuSafetyImmediateFormat_V2          (__FILE__, __LINE__)
+#define gpuImmediateFormat_C4_V2()       gpuSafetyImmediateFormat_C4_V2       (__FILE__, __LINE__)
+#define gpuImmediateFormat_T2_V2()       gpuSafetyImmediateFormat_T2_V2       (__FILE__, __LINE__)
+#define gpuImmediateFormat_T2_C4_V2()    gpuSafetyImmediateFormat_T2_C4_V2    (__FILE__, __LINE__)
+#define gpuImmediateFormat_V3()          gpuSafetyImmediateFormat_V3          (__FILE__, __LINE__)
+#define gpuImmediateFormat_N3_V3()       gpuSafetyImmediateFormat_N3_V3       (__FILE__, __LINE__)
+#define gpuImmediateFormat_C4_V3()       gpuSafetyImmediateFormat_C4_V3       (__FILE__, __LINE__)
+#define gpuImmediateFormat_C4_N3_V3()    gpuSafetyImmediateFormat_C4_N3_V3    (__FILE__, __LINE__)
+#define gpuImmediateFormat_T2_C4_N3_V3() gpuSafetyImmediateFormat_T2_C4_N3_V3 (__FILE__, __LINE__)
+#define gpuImmediateFormat_T3_C4_V3()    gpuSafetyImmediateFormat_T3_C4_V3    (__FILE__, __LINE__)
+#define gpuImmediateUnformat()           gpuSafetyImmediateUnformat           (__FILE__, __LINE__)
+
+#else
 
 void gpuImmediateFormat_V2(void);
 void gpuImmediateFormat_C4_V2(void);
@@ -282,32 +308,6 @@ void gpuImmediateFormat_C4_N3_V3(void);
 void gpuImmediateFormat_T2_C4_N3_V3(void);
 void gpuImmediateFormat_T3_C4_V3(void);
 void gpuImmediateUnformat(void);
-
-#else
-
-void gpu_ImmediateFormat_V2(const char* file, int line);
-void gpu_ImmediateFormat_C4_V2(const char* file, int line);
-void gpu_ImmediateFormat_T2_V2(const char* file, int line);
-void gpu_ImmediateFormat_T2_C4_V2(const char* file, int line);
-void gpu_ImmediateFormat_V3(const char* file, int line);
-void gpu_ImmediateFormat_N3_V3(const char* file, int line);
-void gpu_ImmediateFormat_C4_V3(const char* file, int line);
-void gpu_ImmediateFormat_C4_N3_V3(const char* file, int line);
-void gpu_ImmediateFormat_T2_C4_N3_V3(const char* file, int line);
-void gpu_ImmediateFormat_T3_C4_V3(const char* file, int line);
-void gpu_ImmediateUnformat(const char* file, int line);
-
-#define gpuImmediateFormat_V2() gpu_ImmediateFormat_V2(__FILE__, __LINE__)
-#define gpuImmediateFormat_C4_V2() gpu_ImmediateFormat_C4_V2(__FILE__, __LINE__)
-#define gpuImmediateFormat_T2_V2() gpu_ImmediateFormat_T2_V2(__FILE__, __LINE__)
-#define gpuImmediateFormat_T2_C4_V2() gpu_ImmediateFormat_T2_C4_V2(__FILE__, __LINE__)
-#define gpuImmediateFormat_V3() gpu_ImmediateFormat_V3(__FILE__, __LINE__)
-#define gpuImmediateFormat_N3_V3() gpu_ImmediateFormat_N3_V3(__FILE__, __LINE__)
-#define gpuImmediateFormat_C4_V3() gpu_ImmediateFormat_C4_V3(__FILE__, __LINE__)
-#define gpuImmediateFormat_C4_N3_V3() gpu_ImmediateFormat_C4_N3_V3(__FILE__, __LINE__)
-#define gpuImmediateFormat_T2_C4_N3_V3() gpu_ImmediateFormat_T2_C4_N3_V3(__FILE__, __LINE__)
-#define gpuImmediateFormat_T3_C4_V3() gpu_ImmediateFormat_T3_C4_V3(__FILE__, __LINE__)
-#define gpuImmediateUnformat() gpu_ImmediateUnformat(__FILE__, __LINE__)
 
 #endif
 

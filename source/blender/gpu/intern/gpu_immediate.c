@@ -504,7 +504,7 @@ static void gpu_copy_vertex(void)
 /* vertex formats */
 
 #if GPU_SAFETY
-void gpu_ImmediateFormat_V2(const char* file, int line)
+void gpuSafetyImmediateFormat_V2(const char* file, int line)
 #else
 void gpuImmediateFormat_V2(void)
 #endif
@@ -521,7 +521,7 @@ void gpuImmediateFormat_V2(void)
 }
 
 #if GPU_SAFETY
-void gpu_ImmediateFormat_C4_V2(const char* file, int line)
+void gpuSafetyImmediateFormat_C4_V2(const char* file, int line)
 #else
 void gpuImmediateFormat_C4_V2(void)
 #endif
@@ -538,7 +538,7 @@ void gpuImmediateFormat_C4_V2(void)
 }
 
 #if GPU_SAFETY
-void gpu_ImmediateFormat_T2_V2(const char* file, int line)
+void gpuSafetyImmediateFormat_T2_V2(const char* file, int line)
 #else
 void gpuImmediateFormat_T2_V2(void)
 #endif
@@ -562,7 +562,7 @@ void gpuImmediateFormat_T2_V2(void)
 }
 
 #if GPU_SAFETY
-void gpu_ImmediateFormat_T2_C4_V2(const char* file, int line)
+void gpuSafetyImmediateFormat_T2_C4_V2(const char* file, int line)
 #else
 void gpuImmediateFormat_T2_C4_V2(void)
 #endif
@@ -586,7 +586,7 @@ void gpuImmediateFormat_T2_C4_V2(void)
 }
 
 #if GPU_SAFETY
-void gpu_ImmediateFormat_V3(const char* file, int line)
+void gpuSafetyImmediateFormat_V3(const char* file, int line)
 #else
 void gpuImmediateFormat_V3(void)
 #endif
@@ -603,7 +603,7 @@ void gpuImmediateFormat_V3(void)
 }
 
 #if GPU_SAFETY
-void gpu_ImmediateFormat_N3_V3(const char* file, int line)
+void gpuSafetyImmediateFormat_N3_V3(const char* file, int line)
 #else
 void gpuImmediateFormat_N3_V3(void)
 #endif
@@ -620,7 +620,7 @@ void gpuImmediateFormat_N3_V3(void)
 }
 
 #if GPU_SAFETY
-void gpu_ImmediateFormat_C4_V3(const char* file, int line)
+void gpuSafetyImmediateFormat_C4_V3(const char* file, int line)
 #else
 void gpuImmediateFormat_C4_V3(void)
 #endif
@@ -637,7 +637,7 @@ void gpuImmediateFormat_C4_V3(void)
 }
 
 #if GPU_SAFETY
-void gpu_ImmediateFormat_C4_N3_V3(const char* file, int line)
+void gpuSafetyImmediateFormat_C4_N3_V3(const char* file, int line)
 #else
 void gpuImmediateFormat_C4_N3_V3(void)
 #endif
@@ -654,7 +654,7 @@ void gpuImmediateFormat_C4_N3_V3(void)
 }
 
 #if GPU_SAFETY
-void gpu_ImmediateFormat_T2_C4_N3_V3(const char* file, int line)
+void gpuSafetyImmediateFormat_T2_C4_N3_V3(const char* file, int line)
 #else
 void gpuImmediateFormat_T2_C4_N3_V3(void)
 #endif
@@ -678,7 +678,7 @@ void gpuImmediateFormat_T2_C4_N3_V3(void)
 }
 
 #if GPU_SAFETY
-void gpu_ImmediateFormat_T3_C4_V3(const char* file, int line)
+void gpuSafetyImmediateFormat_T3_C4_V3(const char* file, int line)
 #else
 void gpuImmediateFormat_T3_C4_V3(void)
 #endif
@@ -702,7 +702,7 @@ void gpuImmediateFormat_T3_C4_V3(void)
 }
 
 #if GPU_SAFETY
-void gpu_ImmediateUnformat(const char* file, int line)
+void gpuSafetyImmediateUnformat(const char* file, int line)
 #else
 void gpuImmediateUnformat(void)
 #endif
