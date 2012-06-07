@@ -213,6 +213,8 @@ typedef struct FontBLF {
 
 	/* and the color, the alphas is get from the glyph! */
 	float b_col[4];
+
+	int locked;
 } FontBLF;
 
 typedef struct DirBLF {
