@@ -551,8 +551,8 @@ void gpuBeginSprites(void)
 
 		pointhack = floor(size[0] + 0.5f);
 
-		if (pointhack > 4) {
-			pointhack = 4;
+		if (pointhack > 4) { //-V112
+			pointhack = 4; //-V112
 		}
 	}
 	else {

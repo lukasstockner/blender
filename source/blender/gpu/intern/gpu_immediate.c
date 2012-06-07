@@ -531,7 +531,7 @@ void gpuImmediateFormat_C4_V2(void)
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
-		gpuImmediateElementSizes(2, 0, 4);
+		gpuImmediateElementSizes(2, 0, 4); //-V112
 	}
 
 	gpuImmediateLock();
@@ -692,7 +692,7 @@ void gpuImmediateFormat_T3_C4_V3(void)
 		GLint texCoordSizes[1] = { 3 };
 		GLenum texUnitMap[1]    = { GL_TEXTURE0 };
 
-		gpuImmediateElementSizes(3, 0, 4); //V-112
+		gpuImmediateElementSizes(3, 0, 4); //-V112
 		gpuImmediateTextureUnitCount(1);
 		gpuImmediateTexCoordSizes(texCoordSizes);
 		gpuImmediateTextureUnitMap(texUnitMap);
@@ -845,7 +845,7 @@ void gpuCurrentColorPack(GLuint rgb)
 
 void gpuGetCurrentColor4fv(GLfloat *restrict color)
 {
-	GLubyte v[4];
+	GLubyte v[4]; //-V112
 
 	GPU_CHECK_CAN_CURRENT();
 

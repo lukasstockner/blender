@@ -459,7 +459,7 @@ void BLF_draw_default_lock(void)
 void BLF_draw_default_unlock(void)
 {
 	if (get_default()) {
-		BLF_draw_unlock();
+		BLF_draw_unlock(global_font_default);
 	}
 }
 
@@ -492,51 +492,72 @@ void BLF_rotation_default(float angle)
 
 static void draw_lock(FontBLF *font)
 {
-	/* one time GL setup */
-	if (gpuImmediateLockCount() == 0) {
-		glEnable(GL_TEXTURE_2D);
+	if (!font) {
+		return;
+	}
 
+	if (font->locked == 0) {
 		if (font->shadow || font->blur) {
 			gpuImmediateFormat_T2_C4_V2(); // DOODLE: blurred and/or shadowed text
 		}
 		else {
-			gpuImmediateFormat_T2_V2(); // DOODLE: normal text
+			gpuImmediateFormat_T2_V2();    // DOODLE: normal text
 		}
+
+		/* one-time GL setup */
+		glEnable(GL_TEXTURE_2D);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
+	font->locked++;
 }
 
-void BLF_draw_lock(int fontid)
+static void draw_unlock(FontBLF *font)
 {
-	FontBLF *font = BLF_get(fontid);
-
-	if (font) {
-		draw_lock(font);
+	if (!font) {
+		return;
 	}
-}
 
-void BLF_draw_unlock(void)
-{
-	glDisable(GL_BLEND);
-	glDisable(GL_TEXTURE_2D);
+	GPU_ASSERT(font->locked > 0);
 
-	if (gpuImmediateLockCount() == 1) {
+	font->locked--;
+
+	if (font->locked == 0) {
+		glDisable(GL_BLEND);
+		glDisable(GL_TEXTURE_2D);
+
 		gpuImmediateUnformat();
 	}
 }
 
-static void blf_draw__start(FontBLF *font, GLint *mode, GLint *param)
+void BLF_draw_lock(int fontid)
 {
-	/*
-	 * The pixmap alignment hack is handle
-	 * in BLF_position (old ui_rasterpos_safe).
-	 */
+	draw_lock(BLF_get(fontid));
+}
 
-	/* Save the current matrix mode. */
-	glGetIntegerv(GL_MATRIX_MODE, mode);
+void BLF_draw_unlock(int fontid)
+{
+	draw_unlock(BLF_get(fontid));
+}
+
+static void blf_draw__start(FontBLF *font)
+{
+	/* The pixmap alignment hack is handled
+	   in BLF_position (old ui_rasterpos_safe). */
+
+#if GPU_SAFETY
+	{
+	GLenum mode;
+	GLenum param;
+
+	glGetIntegerv(GL_MATRIX_MODE, &mode);
+	GPU_ASSERT(mode == GL_MODELVIEW);
+
+	glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &param);
+	GPU_ASSERT(param == GL_MODULATE);
+	}
+#endif
 
 	glMatrixMode(GL_TEXTURE);
 	glPushMatrix();
@@ -545,8 +566,9 @@ static void blf_draw__start(FontBLF *font, GLint *mode, GLint *param)
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 
-	if (font->flags & BLF_MATRIX)
+	if (font->flags & BLF_MATRIX) {
 		glMultMatrixd((GLdouble *)&font->m);
+	}
 
 	glTranslatef(font->pos[0], font->pos[1], font->pos[2]);
 
@@ -565,42 +587,29 @@ static void blf_draw__start(FontBLF *font, GLint *mode, GLint *param)
 	/* always bind the texture for the first glyph */
 	font->tex_bind_state = -1;
 
-	/* Save the current parameter to restore it later. */
-	glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, param);
-	if (*param != GL_MODULATE)
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
 	draw_lock(font);
 }
 
-static void blf_draw__end(GLint mode, GLint param)
+static void blf_draw__end(FontBLF *font)
 {
-	BLF_draw_unlock();
-
-	/* and restore the original value. */
-	if (param != GL_MODULATE)
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, param);
+	draw_unlock(font);
 
 	glMatrixMode(GL_TEXTURE);
 	glPopMatrix();
 
 	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();
-
-	if (mode != GL_MODELVIEW)
-		glMatrixMode(mode);
 }
 
 void BLF_draw(int fontid, const char *str, size_t len)
 {
 	if (len > 0 && str[0]) {
 		FontBLF *font = BLF_get(fontid);
-		GLint mode, param;
 
 		if (font && font->glyph_cache) {
-			blf_draw__start(font, &mode, &param);
+			blf_draw__start(font);
 			blf_font_draw(font, str, len);
-			blf_draw__end(mode, param);
+			blf_draw__end(font);
 		}
 	}
 }
@@ -609,12 +618,11 @@ void BLF_draw_ascii(int fontid, const char *str, size_t len)
 {
 	if (len > 0 && str[0]) {
 		FontBLF *font = BLF_get(fontid);
-		GLint mode, param;
 
 		if (font && font->glyph_cache) {
-			blf_draw__start(font, &mode, &param);
+			blf_draw__start(font);
 			blf_font_draw_ascii(font, str, len);
-			blf_draw__end(mode, param);
+			blf_draw__end(font);
 		}
 	}
 }
