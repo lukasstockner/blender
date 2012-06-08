@@ -51,9 +51,10 @@
 #include "BKE_text.h"
 
 
-#include "BIF_gl.h"
-
+#include "GPU_compatibility.h"
 #include "GPU_utility.h"
+
+#include "BIF_gl.h"
 
 #include "ED_datafiles.h"
 #include "UI_interface.h"
@@ -141,10 +142,10 @@ int flatten_string(SpaceText *st, FlattenString *fs, const char *in)
 		if (*in == '\t') {
 			i = st->tabnumber - (total % st->tabnumber);
 			total += i;
-			
+
 			while (i--)
 				flatten_string_append(fs, " ", r, 1);
-			
+
 			in++;
 		}
 		else {
@@ -154,7 +155,7 @@ int flatten_string(SpaceText *st, FlattenString *fs, const char *in)
 			total++;
 		}
 	}
-	
+
 	flatten_string_append(fs, "\0", r, 1);
 
 	return total;
@@ -1327,7 +1328,7 @@ static void draw_textscroll(SpaceText *st, rcti *scroll, rcti *back)
 	float rad;
 	
 	UI_ThemeColor(TH_BACK);
-	glRecti(back->xmin, back->ymin, back->xmax, back->ymax);
+	gpuSingleRecti(GL_QUADS, back->xmin, back->ymin, back->xmax, back->ymax);
 
 	uiWidgetScrollDraw(&wcol, scroll, &st->txtbar, (st->flags & ST_SCROLL_SELECT) ? UI_SCROLL_PRESSED : 0);
 
@@ -1335,7 +1336,7 @@ static void draw_textscroll(SpaceText *st, rcti *scroll, rcti *back)
 	rad = 0.4f * MIN2(st->txtscroll.xmax - st->txtscroll.xmin, st->txtscroll.ymax - st->txtscroll.ymin);
 	UI_GetThemeColor3ubv(TH_HILITE, col);
 	col[3] = 48;
-	glColor4ubv(col);
+	gpuCurrentColor4ubv(col);
 	glEnable(GL_BLEND);
 	uiRoundBox(st->txtscroll.xmin + 1, st->txtscroll.ymin, st->txtscroll.xmax - 1, st->txtscroll.ymax, rad);
 	glDisable(GL_BLEND);
@@ -1382,45 +1383,45 @@ static void draw_markers(SpaceText *st, ARegion *ar)
 		/* invisible part of line (before top, after last visible line) */
 		if (y2 < 0 || y1 > st->top + st->viewlines) continue;
 
-		glColor3ubv(marker->color);
+		gpuCurrentColor3ubv(marker->color);
 		x = st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
 		y = ar->winy - 3;
 
 		if (y1 == y2) {
 			y -= y1 * st->lheight;
-			glBegin(GL_LINE_LOOP);
-			glVertex2i(x + x2 * st->cwidth + 1, y);
-			glVertex2i(x + x1 * st->cwidth - 2, y);
-			glVertex2i(x + x1 * st->cwidth - 2, y - st->lheight);
-			glVertex2i(x + x2 * st->cwidth + 1, y - st->lheight);
-			glEnd();
+			gpuBegin(GL_LINE_LOOP);
+			gpuVertex2i(x + x2 * st->cwidth + 1, y);
+			gpuVertex2i(x + x1 * st->cwidth - 2, y);
+			gpuVertex2i(x + x1 * st->cwidth - 2, y - st->lheight);
+			gpuVertex2i(x + x2 * st->cwidth + 1, y - st->lheight);
+			gpuEnd();
 		}
 		else {
 			y -= y1 * st->lheight;
-			glBegin(GL_LINE_STRIP);
-			glVertex2i(ar->winx, y);
-			glVertex2i(x + x1 * st->cwidth - 2, y);
-			glVertex2i(x + x1 * st->cwidth - 2, y - st->lheight);
-			glVertex2i(ar->winx, y - st->lheight);
-			glEnd();
+			gpuBegin(GL_LINE_STRIP);
+			gpuVertex2i(ar->winx, y);
+			gpuVertex2i(x + x1 * st->cwidth - 2, y);
+			gpuVertex2i(x + x1 * st->cwidth - 2, y - st->lheight);
+			gpuVertex2i(ar->winx, y - st->lheight);
+			gpuEnd();
 			y -= st->lheight;
 
 			for (i = y1 + 1; i < y2; i++) {
-				glBegin(GL_LINES);
-				glVertex2i(x, y);
-				glVertex2i(ar->winx, y);
-				glVertex2i(x, y - st->lheight);
-				glVertex2i(ar->winx, y - st->lheight);
-				glEnd();
+				gpuBegin(GL_LINES);
+				gpuVertex2i(x, y);
+				gpuVertex2i(ar->winx, y);
+				gpuVertex2i(x, y - st->lheight);
+				gpuVertex2i(ar->winx, y - st->lheight);
+				gpuEnd();
 				y -= st->lheight;
 			}
 
-			glBegin(GL_LINE_STRIP);
-			glVertex2i(x, y);
-			glVertex2i(x + x2 * st->cwidth + 1, y);
-			glVertex2i(x + x2 * st->cwidth + 1, y - st->lheight);
-			glVertex2i(x, y - st->lheight);
-			glEnd();
+			gpuBegin(GL_LINE_STRIP);
+			gpuVertex2i(x, y);
+			gpuVertex2i(x + x2 * st->cwidth + 1, y);
+			gpuVertex2i(x + x2 * st->cwidth + 1, y - st->lheight);
+			gpuVertex2i(x, y - st->lheight);
+			gpuEnd();
 		}
 	}
 }
@@ -1461,24 +1462,24 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 
 	/* Draw panel */
 	UI_ThemeColor(TH_BACK);
-	glRecti(x, y, x + boxw, y - boxh);
+	gpuSingleRecti(GL_QUADS, x, y, x + boxw, y - boxh);
 	UI_ThemeColor(TH_SHADE1);
-	glBegin(GL_LINE_LOOP);
-	glVertex2i(x, y);
-	glVertex2i(x + boxw, y);
-	glVertex2i(x + boxw, y - boxh);
-	glVertex2i(x, y - boxh);
-	glEnd();
-	glBegin(GL_LINE_LOOP);
-	glVertex2i(x + boxw - 10, y - 7);
-	glVertex2i(x + boxw - 4, y - 7);
-	glVertex2i(x + boxw - 7, y - 2);
-	glEnd();
-	glBegin(GL_LINE_LOOP);
-	glVertex2i(x + boxw - 10, y - boxh + 7);
-	glVertex2i(x + boxw - 4, y - boxh + 7);
-	glVertex2i(x + boxw - 7, y - boxh + 2);
-	glEnd();
+	gpuBegin(GL_LINE_LOOP);
+	gpuVertex2i(x, y);
+	gpuVertex2i(x + boxw, y);
+	gpuVertex2i(x + boxw, y - boxh);
+	gpuVertex2i(x, y - boxh);
+	gpuEnd();
+	gpuBegin(GL_LINE_LOOP);
+	gpuVertex2i(x + boxw - 10, y - 7);
+	gpuVertex2i(x + boxw - 4, y - 7);
+	gpuVertex2i(x + boxw - 7, y - 2);
+	gpuEnd();
+	gpuBegin(GL_LINE_LOOP);
+	gpuVertex2i(x + boxw - 10, y - boxh + 7);
+	gpuVertex2i(x + boxw - 4, y - boxh + 7);
+	gpuVertex2i(x + boxw - 7, y - boxh + 2);
+	gpuEnd();
 	UI_ThemeColor(TH_TEXT);
 
 	BLF_draw_lock(mono);
@@ -1509,7 +1510,7 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 		if (lines >= DOC_HEIGHT) break;
 	}
 
-	BLF_draw_unlock();
+	BLF_draw_unlock(mono);
 
 	if (0 /* XXX doc_scroll*/ > 0 && lines < DOC_HEIGHT) {
 		// XXX doc_scroll--;
@@ -1554,9 +1555,9 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 	boxh = SUGG_LIST_SIZE * st->lheight + 8;
 	
 	UI_ThemeColor(TH_SHADE1);
-	glRecti(x - 1, y + 1, x + boxw + 1, y - boxh - 1);
+	gpuSingleRecti(GL_QUADS, x - 1, y + 1, x + boxw + 1, y - boxh - 1);
 	UI_ThemeColor(TH_BACK);
-	glRecti(x, y, x + boxw, y - boxh);
+	gpuSingleRecti(GL_QUADS, x, y, x + boxw, y - boxh);
 
 	BLF_draw_lock(mono);
 
@@ -1573,7 +1574,7 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 		
 		if (item == sel) {
 			UI_ThemeColor(TH_SHADE2);
-			glRecti(x + 16, y - 3, x + 16 + w, y + st->lheight - 3);
+			gpuSingleRecti(GL_QUADS, x + 16, y - 3, x + 16 + w, y + st->lheight - 3);
 		}
 		b = 1; /* b=1 color block, text is default. b=0 no block, color text */
 		switch (item->type) {
@@ -1584,7 +1585,7 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 			case '?': UI_ThemeColor(TH_TEXT); b = 0; break;
 		}
 		if (b) {
-			glRecti(x + 8, y + 2, x + 11, y + 5);
+			gpuSingleRecti(GL_QUADS, x + 8, y + 2, x + 11, y + 5);
 			UI_ThemeColor(TH_TEXT);
 		}
 		text_draw(st, str, 0, 0, 1, x + 16, y - 1, NULL);
@@ -1592,7 +1593,7 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 		if (item == last) break;
 	}
 
-	BLF_draw_unlock();
+	BLF_draw_unlock(mono);
 }
 
 /*********************** draw cursor ************************/
@@ -1624,9 +1625,9 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 		if (vcurl == vsell) {
 			y -= vcurl * st->lheight;
 			if (vcurc < vselc)
-				glRecti(x + vcurc * st->cwidth - 1, y, x + vselc * st->cwidth, y - st->lheight);
+				gpuSingleRecti(GL_QUADS, x + vcurc * st->cwidth - 1, y, x + vselc * st->cwidth, y - st->lheight);
 			else
-				glRecti(x + vselc * st->cwidth - 1, y, x + vcurc * st->cwidth, y - st->lheight);
+				gpuSingleRecti(GL_QUADS, x + vselc * st->cwidth - 1, y, x + vcurc * st->cwidth, y - st->lheight);
 		}
 		else {
 			int froml, fromc, tol, toc;
@@ -1641,11 +1642,11 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			}
 
 			y -= froml * st->lheight;
-			glRecti(x + fromc * st->cwidth - 1, y, ar->winx, y - st->lheight); y -= st->lheight;
+			gpuSingleRecti(GL_QUADS, x + fromc * st->cwidth - 1, y, ar->winx, y - st->lheight); y -= st->lheight;
 			for (i = froml + 1; i < tol; i++)
-				glRecti(x - 4, y, ar->winx, y - st->lheight),  y -= st->lheight;
+				gpuSingleRecti(GL_QUADS, x - 4, y, ar->winx, y - st->lheight),  y -= st->lheight;
 
-			glRecti(x - 4, y, x + toc * st->cwidth, y - st->lheight);  y -= st->lheight;
+			gpuSingleRecti(GL_QUADS, x - 4, y, x + toc * st->cwidth, y - st->lheight);  y -= st->lheight;
 		}
 	}
 	else {
@@ -1681,11 +1682,10 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			x1 = st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
 			x2 = x1 + ar->winx;
 
-			glColor4ub(255, 255, 255, 32);
+			gpuCurrentColor4ub(255, 255, 255, 32);
 			
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glEnable(GL_BLEND);
-			glRecti(x1 - 4, y1, x2, y2);
+			gpuSingleRecti(GL_QUADS, x1 - 4, y1, x2, y2);
 			glDisable(GL_BLEND);
 		}
 	}
@@ -1703,11 +1703,11 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			if (ch == '\t') w *= st->tabnumber - (vselc + st->left) % st->tabnumber;
 			
 			UI_ThemeColor(TH_HILITE);
-			glRecti(x, y - st->lheight - 1, x + w, y - st->lheight + 1);
+			gpuSingleRecti(GL_QUADS, x, y - st->lheight - 1, x + w, y - st->lheight + 1);
 		}
 		else {
 			UI_ThemeColor(TH_HILITE);
-			glRecti(x - 1, y, x + 1, y - st->lheight);
+			gpuSingleRecti(GL_QUADS, x - 1, y, x + 1, y - st->lheight);
 		}
 	}
 }
@@ -1903,7 +1903,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 		x = TXT_OFFSET + TEXTXLOC;
 
 		UI_ThemeColor(TH_GRID);
-		glRecti((TXT_OFFSET - 12), 0, (TXT_OFFSET - 5) + TEXTXLOC, ar->winy - 2);
+		gpuSingleRecti(GL_QUADS, (TXT_OFFSET - 12), 0, (TXT_OFFSET - 5) + TEXTXLOC, ar->winy - 2);
 	}
 	else {
 		st->linenrs_tot = 0; /* not used */
@@ -1954,17 +1954,17 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 		wrap_skip = 0;
 	}
 
-	BLF_draw_unlock();
+	BLF_draw_unlock(mono);
 
 	GPU_STRING_MARKER("draw_text_main:end");
 
 	if (st->flags & ST_SHOW_MARGIN) {
 		UI_ThemeColor(TH_HILITE);
 
-		glBegin(GL_LINES);
-		glVertex2i(x + st->cwidth * st->margin_column, 0);
-		glVertex2i(x + st->cwidth * st->margin_column, ar->winy - 2);
-		glEnd();
+		gpuBegin(GL_LINES);
+		gpuVertex2i(x + st->cwidth * st->margin_column, 0);
+		gpuVertex2i(x + st->cwidth * st->margin_column, ar->winy - 2);
+		gpuEnd();
 	}
 
 	/* draw other stuff */
@@ -2026,7 +2026,7 @@ void text_scroll_to_cursor(SpaceText *st, ScrArea *sa)
 	else {
 		BLF_draw_lock(mono);
 		x = text_draw(st, text->sell->line, st->left, text->selc, 0, 0, 0, NULL);
-		BLF_draw_unlock();
+		BLF_draw_unlock(mono);
 
 		if (x == 0 || x > winx)
 			st->left = text->curc - 0.5 * winx / st->cwidth;
