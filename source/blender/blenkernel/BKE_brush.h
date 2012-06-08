@@ -69,7 +69,7 @@ float BKE_brush_curve_strength(struct Brush *br, float p, const float len); /* u
 /* sampling */
 void BKE_brush_sample_tex(const struct Scene *scene, struct Brush *brush, const float xy[2], float rgba[4], const int thread, float angle);
 void BKE_brush_imbuf_new(const struct Scene *scene, struct Brush *brush, short flt, short texfalloff, int size,
-                         struct ImBuf **imbuf, int use_color_correction);
+                         struct ImBuf **imbuf, float angle, int use_color_correction);
 
 /* painting */
 struct BrushPainter;

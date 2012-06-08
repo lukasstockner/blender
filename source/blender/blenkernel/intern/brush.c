@@ -496,17 +496,24 @@ void BKE_brush_sample_tex(const Scene *scene, Brush *brush, const float xy[2], f
 		int hasrgb;
 		const int radius = BKE_brush_size_get(scene, brush);
 
+		co[0] = xy[0] / radius;
+		co[1] = xy[1] / radius;
+		co[2] = 0.0f;
+
+		/*
 		co[0] = ((xy[0] - radius/2) / radius);
 		co[1] = ((xy[1] - radius/2) / radius);
 		co[2] = 0.0f;
+		*/
+		if(fabs(angle) > 0.0001) {
+			length = normalize_v2(co);
+			co_angle = acos(co[0]);
+			co_angle = (co[1] > 0)? co_angle : - co_angle;
 
-		length = normalize_v2(co);
-		co_angle = acos(co[0]);
-		co_angle = (co[1] > 0)? co_angle : - co_angle;
-
-		co_angle -= angle;
-		co[0] = cos(co_angle)*length + 0.5;
-		co[1] = sin(co_angle)*length + 0.5;
+			co_angle -= angle;
+			co[0] = cos(co_angle)*length;
+			co[1] = sin(co_angle)*length;
+		}
 
 		hasrgb = externtex(mtex, co, &tin, &tr, &tg, &tb, &ta, thread);
 
@@ -529,7 +536,7 @@ void BKE_brush_sample_tex(const Scene *scene, Brush *brush, const float xy[2], f
 }
 
 /* TODO, use define for 'texfall' arg */
-void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texfall, int bufsize, ImBuf **outbuf, int use_color_correction)
+void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texfall, int bufsize, ImBuf **outbuf, float angle, int use_color_correction)
 {
 	ImBuf *ibuf;
 	float xy[2], rgba[4], *dstf;
@@ -567,10 +574,10 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 					dstf[3] = alpha * BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius);
 				}
 				else if (texfall == 1) {
-					BKE_brush_sample_tex(scene, brush, xy, dstf, 0, 0);
+					BKE_brush_sample_tex(scene, brush, xy, dstf, 0, angle);
 				}
 				else {
-					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, 0);
+					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, angle);
 					mul_v3_v3v3(dstf, rgba, brush_rgb);
 					dstf[3] = rgba[3] *alpha *BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius);
 				}
@@ -597,11 +604,11 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 					dst[3] = FTOCHAR(alpha_f);
 				}
 				else if (texfall == 1) {
-					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, 0);
+					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, angle);
 					rgba_float_to_uchar(dst, rgba);
 				}
 				else if (texfall == 2) {
-					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, 0);
+					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, angle);
 					mul_v3_v3(rgba, brush->rgb);
 					alpha_f = rgba[3] *alpha *BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius);
 
@@ -773,6 +780,7 @@ typedef struct BrushPainterCache {
 	int lastsize;
 	float lastalpha;
 	float lastjitter;
+	float lastrotation;
 
 	ImBuf *ibuf;
 	ImBuf *texibuf;
@@ -793,6 +801,7 @@ struct BrushPainter {
 	double lasttime;        /* time of last update */
 
 	float lastpressure;
+	float rotation;
 
 	short firsttouch;       /* first paint op */
 
@@ -1016,10 +1025,12 @@ static void brush_painter_refresh_cache(BrushPainter *painter, const float pos[2
 	short flt;
 	const int diameter = 2 * BKE_brush_size_get(scene, brush);
 	const float alpha = BKE_brush_alpha_get(scene, brush);
+	const float rotation = painter->rotation;
 
 	if (diameter != cache->lastsize ||
 	    alpha != cache->lastalpha ||
-	    brush->jitter != cache->lastjitter)
+	    brush->jitter != cache->lastjitter ||
+	    rotation != cache->lastrotation)
 	{
 		if (cache->ibuf) {
 			IMB_freeImBuf(cache->ibuf);
@@ -1034,15 +1045,16 @@ static void brush_painter_refresh_cache(BrushPainter *painter, const float pos[2
 		size = (cache->size) ? cache->size : diameter;
 
 		if (brush->flag & BRUSH_FIXED_TEX) {
-			BKE_brush_imbuf_new(scene, brush, flt, 3, size, &cache->maskibuf, use_color_correction);
+			BKE_brush_imbuf_new(scene, brush, flt, 3, size, &cache->maskibuf, rotation, use_color_correction);
 			brush_painter_fixed_tex_partial_update(painter, pos);
 		}
 		else
-			BKE_brush_imbuf_new(scene, brush, flt, 2, size, &cache->ibuf, use_color_correction);
+			BKE_brush_imbuf_new(scene, brush, flt, 2, size, &cache->ibuf, rotation, use_color_correction);
 
 		cache->lastsize = diameter;
 		cache->lastalpha = alpha;
 		cache->lastjitter = brush->jitter;
+		cache->lastrotation = rotation;
 	}
 	else if ((brush->flag & BRUSH_FIXED_TEX) && mtex && mtex->tex) {
 		int dx = (int)painter->lastpaintpos[0] - (int)pos[0];
@@ -1124,6 +1136,7 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 		painter->firsttouch = 0;
 		painter->lastpaintpos[0] = pos[0];
 		painter->lastpaintpos[1] = pos[1];
+		painter->rotation = 0;
 	}
 #if 0
 	else if (painter->brush->flag & BRUSH_AIRBRUSH) {
@@ -1174,6 +1187,14 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 		sub_v2_v2v2(dmousepos, pos, painter->lastmousepos);
 		len = normalize_v2(dmousepos);
 		painter->accumdistance += len;
+
+		if(brush->flag & BRUSH_RAKE) {
+			if(len > 0.001) {
+				float angle;
+				angle = acos(dmousepos[0]);
+				painter->rotation = (dmousepos[1] > 0)? angle : -angle;
+			}
+		}
 
 		if (brush->flag & BRUSH_SPACE) {
 			/* do paint op over unpainted distance */

@@ -141,12 +141,6 @@
 
 static void imapaint_image_update(SpaceImage *sima, Image *image, ImBuf *ibuf, short texpaint);
 
-
-typedef struct BrushRotationState {
-		float last_orientation[2]; /* orientation in screen space*/
-		float last_angle; /* last angle, stores angle to */
-} BrushRotationState;
-
 typedef struct ImagePaintState {
 	SpaceImage *sima;
 	View2D *v2d;
@@ -267,7 +261,6 @@ typedef struct ProjPaintState {
 
 	Brush *brush;
 	short tool, blend;
-	BrushRotationState rotation_state;
 	Object *ob;
 	/* end similarities with ImagePaintState */
 	
@@ -3410,13 +3403,6 @@ static void project_paint_begin_clone(ProjPaintState *ps, int mouse[2])
 		ps->cloneOffset[0] = mouse[0] - ((float)(ps->winx / 2.0f) + (ps->winx / 2.0f) * projCo[0] / projCo[3]);
 		ps->cloneOffset[1] = mouse[1] - ((float)(ps->winy / 2.0f) + (ps->winy / 2.0f) * projCo[1] / projCo[3]);
 	}
-
-	/* reset rake state */
-	if(ps->brush && ps->brush->flag & BRUSH_RAKE) {
-		ps->rotation_state.last_angle = 0.0;
-		ps->rotation_state.last_orientation[0] = 1.0;
-		ps->rotation_state.last_orientation[0] = 0.0;
-	}
 }	
 
 static void project_paint_end(ProjPaintState *ps)
@@ -3936,7 +3922,7 @@ static void *do_projectpaint_thread(void *ph_v)
 					if (falloff > 0.0f) {
 						if (ps->is_texbrush) {
 							/* note, for clone and smear, we only use the alpha, could be a special function */
-							BKE_brush_sample_tex(ps->scene, ps->brush, projPixel->projCoSS, rgba, thread_index, ps->rotation_state.last_angle);
+							BKE_brush_sample_tex(ps->scene, ps->brush, projPixel->projCoSS, rgba, thread_index, 0);
 							alpha = rgba[3];
 						}
 						else {
@@ -4054,21 +4040,6 @@ static int project_paint_op(void *state, ImBuf *UNUSED(ibufb), const float lastp
 	
 	if (!project_bucket_iter_init(ps, pos)) {
 		return 0;
-	}
-
-	if(ps->brush->flag & BRUSH_RAKE) {
-		float mdiff[2];
-
-		sub_v2_v2v2(mdiff, pos, lastpos);
-
-		if(len_v2(mdiff) > 0.001) {
-			float angle;
-			normalize_v2(mdiff);
-			angle = acos(mdiff[0]);
-			ps->rotation_state.last_orientation[0] = mdiff[0];
-			ps->rotation_state.last_orientation[0] = mdiff[1];
-			ps->rotation_state.last_angle = (mdiff[1] > 0)? angle : -angle;
-		}
 	}
 
 	if (ps->thread_tot > 1)
