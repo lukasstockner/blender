@@ -160,7 +160,7 @@ protected:
 	void find_frames(Object *ob, std::vector<float> &fra, const char *prefix, const char *tm_name);
 	void find_frames(Object *ob, std::vector<float> &fra);
 
-	void make_anim_frames_from_targets(Object *ob, std::vector<float> frames );
+	void make_anim_frames_from_targets(Object *ob, std::vector<float> &frames );
 
 	void find_rotation_frames(Object *ob, std::vector<float> &fra, const char *prefix, int rotmode);
 	

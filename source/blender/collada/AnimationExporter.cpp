@@ -152,7 +152,7 @@ void AnimationExporter::export_object_constraint_animation(Object *ob){
 	dae_baked_object_animation(fra, ob);
 }
 
-void AnimationExporter::make_anim_frames_from_targets(Object *ob, std::vector<float> frames ){
+void AnimationExporter::make_anim_frames_from_targets(Object *ob, std::vector<float> &frames ){
 	ListBase *conlist = get_active_constraints(ob);
 	if(conlist == NULL) return;
 	bConstraint *con;
@@ -898,7 +898,7 @@ std::string AnimationExporter::create_4x4_source(std::vector<float> &frames, Obj
 		j++;
 	}
 
-	enable_fcurves(ob->adt->action, NULL);
+	//enable_fcurves(ob->adt->action, NULL);
 
 	source.finish();
 
