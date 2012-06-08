@@ -1336,7 +1336,7 @@ static void createTransCurveVerts(bContext *C, TransInfo *t)
 	Object *obedit= CTX_data_edit_object(C);
 	Curve *cu= obedit->data;
 	TransData *td = NULL;
-	  Nurb *nu;
+	Nurb *nu;
 	BezTriple *bezt;
 	BPoint *bp;
 	float mtx[3][3], smtx[3][3];
@@ -1889,7 +1889,7 @@ static void get_edge_center(float cent_r[3], BMVert *eve)
 
 /* way to overwrite what data is edited with transform */
 static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx,
-							 BMEditMesh *em, BMVert *eve, float *bweight)
+                             BMEditMesh *em, BMVert *eve, float *bweight)
 {
 	td->flag = 0;
 	//if (key)
@@ -2285,7 +2285,7 @@ void flushTransSeq(TransInfo *t)
 			if ((seq->depth != 0 || seq_tx_test(seq))) /* for meta's, their children move */
 				seq->start= new_frame - tdsq->start_offset;
 #else
-			if (seq->type != SEQ_META && (seq->depth != 0 || seq_tx_test(seq))) /* for meta's, their children move */
+			if (seq->type != SEQ_TYPE_META && (seq->depth != 0 || seq_tx_test(seq))) /* for meta's, their children move */
 				seq->start= new_frame - tdsq->start_offset;
 #endif
 			if (seq->depth==0) {
@@ -2328,7 +2328,7 @@ void flushTransSeq(TransInfo *t)
 
 		/* calc all meta's then effects [#27953] */
 		for (seq = seqbasep->first; seq; seq = seq->next) {
-			if (seq->type == SEQ_META && seq->flag & SELECT) {
+			if (seq->type == SEQ_TYPE_META && seq->flag & SELECT) {
 				calc_sequence(t->scene, seq);
 			}
 		}
@@ -3833,7 +3833,7 @@ static void SeqTransInfo(TransInfo *t, Sequence *seq, int *recursive, int *count
 			*count = 0;
 			*flag = 0;
 		}
-		else if (seq->type == SEQ_META) {
+		else if (seq->type == SEQ_TYPE_META) {
 
 			/* for meta's we only ever need to extend their children, no matter what depth
 			 * just check the meta's are in the bounds */
@@ -3890,7 +3890,7 @@ static void SeqTransInfo(TransInfo *t, Sequence *seq, int *recursive, int *count
 
 				/* Recursive */
 
-				if ((seq->type == SEQ_META) && ((seq->flag & (SEQ_LEFTSEL|SEQ_RIGHTSEL)) == 0)) {
+				if ((seq->type == SEQ_TYPE_META) && ((seq->flag & (SEQ_LEFTSEL|SEQ_RIGHTSEL)) == 0)) {
 					/* if any handles are selected, don't recurse */
 					*recursive = TRUE;
 				}
@@ -3905,9 +3905,9 @@ static void SeqTransInfo(TransInfo *t, Sequence *seq, int *recursive, int *count
 #ifdef SEQ_TX_NESTED_METAS
 			*flag = (seq->flag | SELECT) & ~(SEQ_LEFTSEL|SEQ_RIGHTSEL);
 			*count = 1; /* ignore the selection for nested */
-			*recursive = (seq->type == SEQ_META);
+			*recursive = (seq->type == SEQ_TYPE_META);
 #else
-			if (seq->type == SEQ_META) {
+			if (seq->type == SEQ_TYPE_META) {
 				/* Meta's can only directly be moved between channels since they
 				 * don't have their start and length set directly (children affect that)
 				 * since this Meta is nested we don't need any of its data in fact.
@@ -4110,7 +4110,7 @@ static void freeSeqData(TransInfo *t)
 						seq= ((TransDataSeq *)td->extra)->seq;
 						if ((seq != seq_prev)) {
 							/* check effects strips, we cant change their time */
-							if ((seq->type & SEQ_EFFECT) && seq->seq1) {
+							if ((seq->type & SEQ_TYPE_EFFECT) && seq->seq1) {
 								has_effect= TRUE;
 							}
 							else {
@@ -4169,7 +4169,7 @@ static void freeSeqData(TransInfo *t)
 						for (a=0; a<t->total; a++, td++) {
 							seq= ((TransDataSeq *)td->extra)->seq;
 							if ((seq != seq_prev)) {
-								if ((seq->type & SEQ_EFFECT) && seq->seq1) {
+								if ((seq->type & SEQ_TYPE_EFFECT) && seq->seq1) {
 									calc_sequence(t->scene, seq);
 								}
 							}
@@ -4181,7 +4181,7 @@ static void freeSeqData(TransInfo *t)
 						for (a=0; a<t->total; a++, td++) {
 							seq= ((TransDataSeq *)td->extra)->seq;
 							if ((seq != seq_prev)) {
-								if ((seq->type & SEQ_EFFECT) && seq->seq1) {
+								if ((seq->type & SEQ_TYPE_EFFECT) && seq->seq1) {
 									if (seq_test_overlap(seqbasep, seq)) {
 										shuffle_seq(seqbasep, seq, t->scene);
 									}
@@ -4196,7 +4196,7 @@ static void freeSeqData(TransInfo *t)
 
 			for (seq= seqbasep->first; seq; seq= seq->next) {
 				/* We might want to build a list of effects that need to be updated during transform */
-				if (seq->type & SEQ_EFFECT) {
+				if (seq->type & SEQ_TYPE_EFFECT) {
 					if      (seq->seq1 && seq->seq1->flag & SELECT) calc_sequence(t->scene, seq);
 					else if (seq->seq2 && seq->seq2->flag & SELECT) calc_sequence(t->scene, seq);
 					else if (seq->seq3 && seq->seq3->flag & SELECT) calc_sequence(t->scene, seq);
@@ -4265,7 +4265,7 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 		Sequence *seq;
 		for (seq= ed->seqbasep->first; seq; seq= seq->next) {
 			/* hack */
-			if ((seq->flag & SELECT)==0 && seq->type & SEQ_EFFECT) {
+			if ((seq->flag & SELECT)==0 && seq->type & SEQ_TYPE_EFFECT) {
 				Sequence *seq_user;
 				int i;
 				for (i=0; i<3; i++) {
@@ -4961,7 +4961,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			if (IS_AUTOKEY_ON(t->scene)) {
 				Scene *scene = t->scene;
 
-				ED_mask_layer_shape_auto_key_all(mask, CFRA);
+				ED_mask_layer_shape_auto_key_select(mask, CFRA);
 			}
 		}
 	}
@@ -5520,7 +5520,8 @@ static void markerToTransDataInit(TransData *td, TransData2D *td2d, TransDataTra
 static void trackToTransData(SpaceClip *sc, TransData *td, TransData2D *td2d,
                              TransDataTracking *tdt, MovieTrackingTrack *track)
 {
-	MovieTrackingMarker *marker = BKE_tracking_ensure_marker(track, sc->user.framenr);
+	int framenr = ED_space_clip_clip_framenr(sc);
+	MovieTrackingMarker *marker = BKE_tracking_ensure_marker(track, framenr);
 
 	tdt->flag = marker->flag;
 	marker->flag &= ~(MARKER_DISABLED|MARKER_TRACKED);
@@ -5563,7 +5564,7 @@ static void createTransTrackingTracksData(bContext *C, TransInfo *t)
 	MovieTrackingTrack *track;
 	MovieTrackingMarker *marker;
 	TransDataTracking *tdt;
-	int framenr = sc->user.framenr;
+	int framenr = ED_space_clip_clip_framenr(sc);
 
 	/* count */
 	t->total = 0;
@@ -5793,7 +5794,7 @@ static void cancelTransTracking(TransInfo *t)
 	ListBase *tracksbase = BKE_tracking_get_tracks(&clip->tracking);
 	MovieTrackingTrack *track;
 	MovieTrackingMarker *marker;
-	int a, framenr = sc->user.framenr;
+	int a, framenr = ED_space_clip_clip_framenr(sc);
 
 	if (tdt->mode == transDataTracking_ModeTracks) {
 		track = tracksbase->first;
@@ -5892,7 +5893,7 @@ void flushTransTracking(TransInfo *t)
 
 /* * masking * */
 
-typedef struct TransDataMasking{
+typedef struct TransDataMasking {
 	int   is_handle;
 
 	float handle[2], orig_handle[2];

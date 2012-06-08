@@ -43,13 +43,16 @@
 typedef struct Mask {
 	ID id;
 	struct AnimData *adt;
-	ListBase masklayers;   /* mask layers */
-	int masklay_act;     /* index of active mask layer (-1 == None) */
-	int masklay_tot;     /* total number of mask layers */
+	ListBase masklayers;  /* mask layers */
+	int masklay_act;      /* index of active mask layer (-1 == None) */
+	int masklay_tot;      /* total number of mask layers */
+
+	int sfra, efra;       /* frames, used by the sequencer */
 } Mask;
 
 typedef struct MaskParent {
-	int flag;             /* parenting flags */
+	// int flag;             /* parenting flags */ /* not used */
+	int pad;
 	int id_type;          /* type of parenting */
 	ID *id;               /* ID block of entity to which mask/spline is parented to
 	                       * in case of parenting to movie tracking data set to MovieClip datablock */
@@ -128,7 +131,7 @@ typedef struct MaskLayer {
 } MaskLayer;
 
 /* MaskParent->flag */
-#define MASK_PARENT_ACTIVE  (1 << 0)
+/* #define MASK_PARENT_ACTIVE  (1 << 0) */ /* UNUSED */
 
 /* MaskSpline->flag */
 /* reserve (1 << 0) for SELECT */
@@ -165,6 +168,5 @@ enum {
 enum {
 	MASK_BLENDFLAG_INVERT = (1 << 0)
 };
-
 
 #endif // __DNA_MASK_TYPES_H__

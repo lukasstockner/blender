@@ -2175,7 +2175,11 @@ static int wm_collada_export_invoke(bContext *C, wmOperator *op, wmEvent *UNUSED
 static int wm_collada_export_exec(bContext *C, wmOperator *op)
 {
 	char filename[FILE_MAX];
-	int selected, second_life, apply_modifiers, include_bone_children, use_object_instantiation;
+	int selected, second_life, 
+		include_armatures,
+		apply_modifiers, 
+		include_bone_children,
+		use_object_instantiation;
 	
 	if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
 		BKE_report(op->reports, RPT_ERROR, "No filename given");
@@ -2187,6 +2191,7 @@ static int wm_collada_export_exec(bContext *C, wmOperator *op)
 	/* Options panel */
 	selected                 = RNA_boolean_get(op->ptr, "selected");
 	apply_modifiers          = RNA_boolean_get(op->ptr, "apply_modifiers");
+	include_armatures        = RNA_boolean_get(op->ptr, "include_armatures");
 	include_bone_children    = RNA_boolean_get(op->ptr, "include_bone_children");
 	use_object_instantiation = RNA_boolean_get(op->ptr, "use_object_instantiation");
 	second_life              = RNA_boolean_get(op->ptr, "second_life");
@@ -2199,6 +2204,7 @@ static int wm_collada_export_exec(bContext *C, wmOperator *op)
 		filename,
 		selected,
 		apply_modifiers,
+		include_armatures,
 		include_bone_children,
 		use_object_instantiation,
 		second_life)) {
@@ -2228,6 +2234,9 @@ static void WM_OT_collada_export(wmOperatorType *ot)
 
 	RNA_def_boolean(ot->srna, "apply_modifiers", 0, "Apply Modifiers",
 	                "Apply modifiers (Preview Resolution)");
+
+	RNA_def_boolean(ot->srna, "include_armatures", 0, "Include Armatures",
+	                "Include armature(s) used by the exported objects");
 
 	RNA_def_boolean(ot->srna, "include_bone_children", 0, "Include Bone Children",
 	                "Include all objects attached to bones of selected Armature(s)");
@@ -4216,3 +4225,13 @@ EnumPropertyItem *RNA_movieclip_local_itemf(bContext *C, PointerRNA *ptr, Proper
 {
 	return rna_id_itemf(C, ptr, do_free, C ? (ID *)CTX_data_main(C)->movieclip.first : NULL, TRUE);
 }
+
+EnumPropertyItem *RNA_mask_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), int *do_free)
+{
+	return rna_id_itemf(C, ptr, do_free, C ? (ID *)CTX_data_main(C)->mask.first : NULL, FALSE);
+}
+EnumPropertyItem *RNA_mask_local_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), int *do_free)
+{
+	return rna_id_itemf(C, ptr, do_free, C ? (ID *)CTX_data_main(C)->mask.first : NULL, TRUE);
+}
+

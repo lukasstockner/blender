@@ -65,7 +65,7 @@ public:
 
 	bool is_skinned_mesh(Object *ob);
 
-	void add_instance_controller(Object *ob);
+	bool add_instance_controller(Object *ob);
 
 	void export_controllers(Scene *sce);
 
@@ -85,8 +85,6 @@ private:
 
 	void find_objects_using_armature(Object *ob_arm, std::vector<Object *>& objects, Scene *sce);
 #endif
-
-	Object *get_assigned_armature(Object *ob);
 
 	std::string get_joint_sid(Bone *bone, Object *ob_arm);
 

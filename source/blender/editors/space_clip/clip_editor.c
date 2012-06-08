@@ -96,39 +96,6 @@ int ED_space_clip_tracking_poll(bContext *C)
 	return FALSE;
 }
 
-int ED_space_clip_tracking_size_poll(bContext *C)
-{
-	if (ED_space_clip_tracking_poll(C)) {
-		MovieClip *clip = CTX_data_edit_movieclip(C);
-
-		if (clip) {
-			SpaceClip *sc = CTX_wm_space_clip(C);
-			int width, height;
-
-			BKE_movieclip_get_size(clip, &sc->user, &width, &height);
-
-			return width > 0 && height > 0;
-		}
-	}
-
-	return FALSE;
-}
-
-int ED_space_clip_tracking_frame_poll(bContext *C)
-{
-	if (ED_space_clip_tracking_poll(C)) {
-		MovieClip *clip = CTX_data_edit_movieclip(C);
-
-		if (clip) {
-			SpaceClip *sc = CTX_wm_space_clip(C);
-
-			return BKE_movieclip_has_frame(clip, &sc->user);
-		}
-	}
-
-	return FALSE;
-}
-
 int ED_space_clip_maskedit_poll(bContext *C)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
@@ -362,6 +329,14 @@ void ED_clip_update_frame(const Main *mainp, int cfra)
 	}
 }
 
+/* return current frame number in clip space */
+int ED_space_clip_clip_framenr(SpaceClip *sc)
+{
+	MovieClip *clip = ED_space_clip(sc);
+
+	return BKE_movieclip_remap_scene_to_clip_frame(clip, sc->user.framenr);
+}
+
 static int selected_boundbox(SpaceClip *sc, float min[2], float max[2])
 {
 	MovieClip *clip = ED_space_clip(sc);
@@ -547,7 +522,6 @@ typedef struct SpaceClipDrawContext {
 
 	/* fields to check if cache is still valid */
 	int framenr, start_frame;
-	short custom_start_frame;
 } SpaceClipDrawContext;
 
 int ED_space_clip_texture_buffer_supported(SpaceClip *sc)
@@ -585,14 +559,7 @@ int ED_space_clip_load_movieclip_buffer(SpaceClip *sc, ImBuf *ibuf)
 	 * so not changed image buffer pointer means unchanged image content */
 	need_rebind |= context->texture_ibuf != ibuf;
 	need_rebind |= context->framenr != sc->user.framenr;
-
-	if (clip->flag & MCLIP_CUSTOM_START_FRAME) {
-		need_rebind |= context->custom_start_frame != TRUE;
-		need_rebind |= context->start_frame != clip->start_frame;
-	}
-	else {
-		need_rebind |= context->custom_start_frame != FALSE;
-	}
+	need_rebind |= context->start_frame != clip->start_frame;
 
 	if (need_rebind) {
 		int width = ibuf->x, height = ibuf->y;
@@ -648,7 +615,6 @@ int ED_space_clip_load_movieclip_buffer(SpaceClip *sc, ImBuf *ibuf)
 		context->image_height = ibuf->y;
 		context->framenr = sc->user.framenr;
 		context->start_frame = clip->start_frame;
-		context->custom_start_frame = (clip->flag & MCLIP_CUSTOM_START_FRAME) ? TRUE : FALSE;
 	}
 	else {
 		/* displaying exactly the same image which was loaded t oa texture,

@@ -99,7 +99,7 @@ void BKE_mask_point_segment_co(struct MaskSpline *spline, struct MaskSplinePoint
 void BKE_mask_point_normal(struct MaskSpline *spline, struct MaskSplinePoint *point,
                            float u, float n[2]);
 float BKE_mask_point_weight_scalar(struct MaskSpline *spline, struct MaskSplinePoint *point, const float u);
-float BKE_mask_point_weight(struct MaskSpline *spline, struct MaskSplinePoint *point, float u);
+float BKE_mask_point_weight(struct MaskSpline *spline, struct MaskSplinePoint *point, const float u);
 struct MaskSplinePointUW *BKE_mask_point_sort_uw(struct MaskSplinePoint *point, struct MaskSplinePointUW *uw);
 void BKE_mask_point_add_uw(struct MaskSplinePoint *point, float u, float w);
 
@@ -120,17 +120,20 @@ void BKE_mask_coord_to_movieclip(struct MovieClip *clip, struct MovieClipUser *u
 void BKE_mask_update_display(struct Mask *mask, float ctime);
 
 void BKE_mask_evaluate_all_masks(struct Main *bmain, float ctime, const int do_newframe);
+void BKE_mask_evaluate(struct Mask *mask, const float ctime, const int do_newframe);
 void BKE_mask_update_scene(struct Main *bmain, struct Scene *scene, const int do_newframe);
 void BKE_mask_parent_init(struct MaskParent *parent);
-void BKE_mask_calc_handle_adjacent_interp(struct Mask *mask, struct MaskSpline *spline, struct MaskSplinePoint *point,
-                                          const float u);
-void BKE_mask_calc_tangent_polyline(struct Mask *mask, struct MaskSpline *spline, struct MaskSplinePoint *point, float t[2]);
-void BKE_mask_calc_handle_point(struct Mask *mask, struct MaskSpline *spline, struct MaskSplinePoint *point);
-void BKE_mask_calc_handle_point_auto(struct Mask *mask, struct MaskSpline *spline, struct MaskSplinePoint *point,
+void BKE_mask_calc_handle_adjacent_interp(struct MaskSpline *spline, struct MaskSplinePoint *point, const float u);
+void BKE_mask_calc_tangent_polyline(struct MaskSpline *spline, struct MaskSplinePoint *point, float t[2]);
+void BKE_mask_calc_handle_point(struct MaskSpline *spline, struct MaskSplinePoint *point);
+void BKE_mask_calc_handle_point_auto(struct MaskSpline *spline, struct MaskSplinePoint *point,
                                      const short do_recalc_length);
-void BKE_mask_get_handle_point_adjacent(struct Mask *mask, struct MaskSpline *spline, struct MaskSplinePoint *point,
+void BKE_mask_get_handle_point_adjacent(struct MaskSpline *spline, struct MaskSplinePoint *point,
                                         struct MaskSplinePoint **r_point_prev, struct MaskSplinePoint **r_point_next);
+void BKE_mask_layer_calc_handles(struct MaskLayer *masklay);
+void BKE_mask_layer_calc_handles_deform(struct MaskLayer *masklay);
 void BKE_mask_calc_handles(struct Mask *mask);
+void BKE_mask_calc_handles_deform(struct Mask *mask);
 void BKE_mask_spline_ensure_deform(struct MaskSpline *spline);
 
 /* animation */
@@ -142,7 +145,7 @@ void BKE_mask_layer_shape_to_mask_interp(struct MaskLayer *masklay,
                                          struct MaskLayerShape *masklay_shape_b,
                                          const float fac);
 struct MaskLayerShape *BKE_mask_layer_shape_find_frame(struct MaskLayer *masklay, const int frame);
-int BKE_mask_layer_shape_find_frame_range(struct MaskLayer *masklay, const int frame,
+int BKE_mask_layer_shape_find_frame_range(struct MaskLayer *masklay, const float frame,
                                           struct MaskLayerShape **r_masklay_shape_a,
                                           struct MaskLayerShape **r_masklay_shape_b);
 struct MaskLayerShape *BKE_mask_layer_shape_alloc(struct MaskLayer *masklay, const int frame);
@@ -163,7 +166,9 @@ void BKE_mask_layer_shape_changed_add(struct MaskLayer *masklay, int index,
 void BKE_mask_layer_shape_changed_remove(struct MaskLayer *masklay, int index, int count);
 
 /* rasterization */
-void BKE_mask_rasterize(struct Mask *mask, int width, int height, float *buffer);
+int BKE_mask_get_duration(struct Mask *mask);
+void BKE_mask_rasterize(struct Mask *mask, int width, int height, float *buffer,
+                        const short do_aspect_correct, const short do_linear);
 
 #define MASKPOINT_ISSEL_ANY(p)          ( ((p)->bezt.f1 | (p)->bezt.f2 | (p)->bezt.f2) & SELECT)
 #define MASKPOINT_ISSEL_KNOT(p)         ( (p)->bezt.f2 & SELECT)

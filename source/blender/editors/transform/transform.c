@@ -716,7 +716,7 @@ static void transform_event_xyz_constraint(TransInfo *t, short key_type, char cm
 				}
 				else {
 					short orientation = (t->current_orientation != V3D_MANIP_GLOBAL ?
-										 t->current_orientation : V3D_MANIP_LOCAL);
+					                     t->current_orientation : V3D_MANIP_LOCAL);
 					if (!(t->modifiers & MOD_CONSTRAINT_PLANE))
 						setUserConstraint(t, orientation, constraint_axis, msg2);
 					else if (t->modifiers & MOD_CONSTRAINT_PLANE)
@@ -5212,7 +5212,7 @@ void initEdgeSlide(TransInfo *t)
 
 int handleEventEdgeSlide(struct TransInfo *t, struct wmEvent *event)
 {
-	if (t->flag & TFM_EDGE_SLIDE) {
+	if (t->mode == TFM_EDGE_SLIDE) {
 		SlideData *sld = t->customData;
 
 		if (sld) {
@@ -5254,7 +5254,7 @@ int handleEventEdgeSlide(struct TransInfo *t, struct wmEvent *event)
 
 void drawNonPropEdge(const struct bContext *C, TransInfo *t)
 {
-	if (t->flag & TFM_EDGE_SLIDE) {
+	if (t->mode == TFM_EDGE_SLIDE) {
 		SlideData *sld = (SlideData *)t->customData;
 		/* Non-Prop mode */
 		if (sld && sld->is_proportional == FALSE) {

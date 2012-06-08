@@ -47,8 +47,6 @@ int ED_space_clip_poll(struct bContext *C);
 int ED_space_clip_view_clip_poll(struct bContext *C);
 
 int ED_space_clip_tracking_poll(struct bContext *C);
-int ED_space_clip_tracking_size_poll(struct bContext *C);
-int ED_space_clip_tracking_frame_poll(struct bContext *C);
 int ED_space_clip_maskedit_poll(struct bContext *C);
 int ED_space_clip_maskedit_mask_poll(bContext *C);
 
@@ -59,6 +57,8 @@ void ED_space_clip_size(struct SpaceClip *sc, int *width, int *height);
 void ED_space_clip_zoom(struct SpaceClip *sc, ARegion *ar, float *zoomx, float *zoomy);
 void ED_space_clip_aspect(struct SpaceClip *sc, float *aspx, float *aspy);
 void ED_space_clip_aspect_dimension_aware(struct SpaceClip *sc, float *aspx, float *aspy);
+
+int ED_space_clip_clip_framenr(struct SpaceClip *sc);
 
 void ED_space_clip_mask_size(struct SpaceClip *sc, int *width, int *height);
 void ED_space_clip_mask_aspect(struct SpaceClip *sc, float *aspx, float *aspy);
