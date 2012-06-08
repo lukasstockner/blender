@@ -65,13 +65,13 @@
    Can only be used in functions that return void. */
 #define GPU_SAFE_RETURN(test, var, ret) \
     var = (GLboolean)(test);            \
-    GPU_ASSERT((#test, var));           \
+    GPU_ASSERT(((void)#test, var));     \
     if (!var) {                         \
         return ret;                     \
     }
 
 #define GPU_CHECK_BASE(var) \
-    GPU_SAFE_RETURN(GPU_IMMEDIATE, var,);
+    GPU_SAFE_RETURN(GPU_IMMEDIATE != NULL, var,);
 
 #define GPU_CHECK_NO_BEGIN(var) \
     GPU_SAFE_RETURN(GPU_IMMEDIATE->buffer == NULL, var,);

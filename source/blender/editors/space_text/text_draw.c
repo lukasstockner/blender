@@ -138,7 +138,8 @@ int flatten_string(SpaceText *st, FlattenString *fs, const char *in)
 	fs->accum = fs->fixedaccum;
 	fs->len = sizeof(fs->fixedbuf);
 
-	for (r = 0, i = 0; *in; r++) {
+	i = 0;
+	for (r = 0; *in; r++) {
 		if (*in == '\t') {
 			i = st->tabnumber - (total % st->tabnumber);
 			total += i;
@@ -712,7 +713,6 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 	
 	for (i = 0, mi = 0; str[mi]; i++, mi += BLI_str_utf8_size(str + mi)) {
 		if (i - start >= max) {
-			int str_shift = 0;
 			int ox;
 			char last_format;
 			char buffer[BLF_DRAW_STR_DUMMY_MAX];
@@ -778,13 +778,13 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 
 	/* Draw the remaining text */
 	if (y > 0) {
-		int str_shift = 0;
 		int ox;
 		char last_format;
 		char buffer[BLF_DRAW_STR_DUMMY_MAX];
 		size_t len = 0;
+		const int showsyntax = st->showsyntax && format;
 
-		if (st->showsyntax && format) {
+		if (showsyntax) {
 			last_format = format[start];
 			format_draw_color(format[start]);
 		}
@@ -796,7 +796,7 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 		for (a = start; str[ma]; a++) {
 			size_t char_len;
 
-			if (st->showsyntax && format && last_format != format[a]) {
+			if (showsyntax && last_format != format[a]) {
 				memcpy(buffer, str + ma - len, len);
 				buffer[len] = '\0';
 				text_font_draw(st, ox, y, buffer);
@@ -1642,11 +1642,15 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			}
 
 			y -= froml * st->lheight;
-			gpuSingleRecti(GL_QUADS, x + fromc * st->cwidth - 1, y, ar->winx, y - st->lheight); y -= st->lheight;
-			for (i = froml + 1; i < tol; i++)
-				gpuSingleRecti(GL_QUADS, x - 4, y, ar->winx, y - st->lheight),  y -= st->lheight;
+			gpuSingleRecti(GL_QUADS, x + fromc * st->cwidth - 1, y, ar->winx, y - st->lheight);
+			y -= st->lheight;
 
-			gpuSingleRecti(GL_QUADS, x - 4, y, x + toc * st->cwidth, y - st->lheight);  y -= st->lheight;
+			for (i = froml + 1; i < tol; i++) {
+				gpuSingleRecti(GL_QUADS, x - 4, y, ar->winx, y - st->lheight);
+				y -= st->lheight;
+			}
+
+			gpuSingleRecti(GL_QUADS, x - 4, y, x + toc * st->cwidth, y - st->lheight);
 		}
 	}
 	else {
@@ -1689,7 +1693,7 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			glDisable(GL_BLEND);
 		}
 	}
-	
+
 	if (!hidden) {
 		/* Draw the cursor itself (we draw the sel. cursor as this is the leading edge) */
 		x = st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
