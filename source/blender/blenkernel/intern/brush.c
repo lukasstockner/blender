@@ -1136,7 +1136,7 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 		painter->firsttouch = 0;
 		painter->lastpaintpos[0] = pos[0];
 		painter->lastpaintpos[1] = pos[1];
-		painter->rotation = 0;
+		painter->rotation = brush->mtex.rot;
 	}
 #if 0
 	else if (painter->brush->flag & BRUSH_AIRBRUSH) {
@@ -1193,6 +1193,7 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 				float angle;
 				angle = acos(dmousepos[0]);
 				painter->rotation = (dmousepos[1] > 0)? angle : -angle;
+				painter->rotation += brush->mtex.rot;
 			}
 		}
 

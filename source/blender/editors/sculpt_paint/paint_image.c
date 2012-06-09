@@ -4404,10 +4404,6 @@ static int imapaint_paint_op(void *state, ImBuf *ibufb, const float lastpos[2], 
 
 	imapaint_convert_brushco(ibufb, pos, bpos);
 
-	/* prints coordinates in image pixel space */
-	print_v2("position", pos);
-	print_v2("last position", lastpos);
-
 	/* lift from canvas */
 	if (s->tool == PAINT_TOOL_SOFTEN) {
 		imapaint_lift_soften(s->canvas, ibufb, bpos, torus);
