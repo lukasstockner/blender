@@ -133,8 +133,6 @@ static int panels_re_align(ScrArea *sa, ARegion *ar, Panel **r_pa)
 			if (sbuts->re_align || sbuts->mainbo != sbuts->mainb)
 				return 1;
 	}
-	else if (ar->regiontype == RGN_TYPE_UI)
-		return 1;
 	else if (sa->spacetype == SPACE_IMAGE && ar->regiontype == RGN_TYPE_PREVIEW)
 		return 1;
 	else if (sa->spacetype == SPACE_FILE && ar->regiontype == RGN_TYPE_CHANNELS)
