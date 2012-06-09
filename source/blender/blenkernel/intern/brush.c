@@ -1127,6 +1127,11 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 		painter->startpaintpos[0] = pos[0];
 		painter->startpaintpos[1] = pos[1];
 
+		if(brush->flag & BRUSH_RANDOM_ROTATION)
+			painter->rotation = BLI_frand()*2*M_PI;
+		else
+			painter->rotation = brush->mtex.rot;
+
 		brush_pressure_apply(painter, brush, pressure);
 		if (painter->cache.enabled)
 			brush_painter_refresh_cache(painter, pos, use_color_correction);
@@ -1136,7 +1141,6 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 		painter->firsttouch = 0;
 		painter->lastpaintpos[0] = pos[0];
 		painter->lastpaintpos[1] = pos[1];
-		painter->rotation = brush->mtex.rot;
 	}
 #if 0
 	else if (painter->brush->flag & BRUSH_AIRBRUSH) {
@@ -1195,7 +1199,8 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 				painter->rotation = (dmousepos[1] > 0)? angle : -angle;
 				painter->rotation += brush->mtex.rot;
 			}
-		}
+		} else if(brush->flag & BRUSH_RANDOM_ROTATION)
+			painter->rotation = BLI_frand()*2*M_PI;
 
 		if (brush->flag & BRUSH_SPACE) {
 			/* do paint op over unpainted distance */
