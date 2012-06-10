@@ -1724,11 +1724,11 @@ void calculateUVTransformCorrection(TransInfo *t)
 
 			BM_ITER_ELEM(l, &iter, v, BM_LOOPS_OF_VERT) {
 				float angle1, angle2, angle_boundary;
-				float cross1[3], cross2[3];
+				float cross1[3], cross2[3], cross[3];
 				float normal[3], projv[3];
 				float edge_len_init, edge_len_init2;
 				float edge_len_final, edge_len_final2;
-				float edge_vec_init[3], edge_vec_init2[3];
+				float edge_vec_init[3], edge_vec_init2[3], neg_edge_prev[3];
 				//float edge_vec_final[3], edge_vec_final2[3];
 				float edge_uv_init[2], edge_uv_init2[2];
 				float uvdiff[2], uvdiff2[2];
@@ -1772,21 +1772,24 @@ void calculateUVTransformCorrection(TransInfo *t)
 					break;
 				}
 
+				/* get the vector pointing inside the face (not sure if this will work) */
 				cross_v3_v3v3(cross1, l->f->no, edge_vec_init);
-				cross_v3_v3v3(cross2, l->f->no, edge_vec_init2);
+				/* we need to negate the second edge to follow the loop flow */
+				negate_v3_v3(neg_edge_prev, edge_vec_init2);
+				cross_v3_v3v3(cross2, l->f->no, neg_edge_prev);
 
-				add_v3_v3(cross1, cross2);
+				add_v3_v3(cross, cross2);
+				negate_v3(cross);
 
 				/* now get angles */
 				angle1 = acos(dot_v3v3(projv, edge_vec_init)/(len_v3(projv)*len_v3(edge_vec_init)));
 				angle_boundary = acos(dot_v3v3(edge_vec_init, edge_vec_init2)/(len_v3(edge_vec_init)*len_v3(edge_vec_init2)));
 
-				edge_len_final = len_v3(projv)*sin(M_PI - angle1 - angle_boundary)/sin(angle_boundary);
+				edge_len_final = len_v3(projv)*sin(angle_boundary - angle1)/sin(M_PI - angle_boundary);
 
 				angle2 = acos(dot_v3v3(projv, edge_vec_init2)/(len_v3(projv)*len_v3(edge_vec_init2)));
-				edge_len_final2 = len_v3(projv)*sin(M_PI - angle2 - angle_boundary)/sin(angle_boundary);
+				edge_len_final2 = len_v3(projv)*sin(angle_boundary - angle2)/sin(M_PI - angle_boundary);
 
-				//printf("angle1 : %f, angle2 : %f, angle_boundary : %f\n", angle1, angle2, angle_boundary);
 				/*
 				mul1 = dot_v3v3(edge_vec_final, edge_vec_init) / dot_v3v3(edge_vec_init, edge_vec_init);
 				mul_v3_v3fl(edge_vec_final, edge_vec_init, mul1);
@@ -1804,11 +1807,31 @@ void calculateUVTransformCorrection(TransInfo *t)
 				mul_v2_v2fl(uvdiff2, edge_uv_init2, edge_len_final2/edge_len_init2);
 
 				/* fonud optimal direction */
-				if((dot_v3v3(cross1, projv) > 0.0) && !(angle_boundary > (angle1 + angle2 - 0.1))) {
+				if((dot_v3v3(cross1, projv) > 0.0) && (angle_boundary < (angle1 + angle2 + 0.1))) {
+					BMIter iter2;
+					BMLoop *ltmp;
 					optimal_found = TRUE;
 					uv_tot[0] = uv_tot[1] = 0.0;
 					add_v2_v2(uv_tot, uvdiff);
 					add_v2_v2(uv_tot, uvdiff2);
+
+					print_v3("normal 1\n", l->f->no);
+					print_v3("coord 1", edge_vec_init);
+					print_v3("cross product 1\n", cross1);
+					print_v3("coord 2", edge_vec_init2);
+					print_v3("cross product 2\n", cross2);
+					print_v3("cross total\n", cross);
+					print_v3("diff vector\n", projv);
+					printf("angle1 : %f, angle2 : %f, angle_boundary : %f\n", angle1, angle2, angle_boundary);
+
+					BM_ITER_ELEM(ltmp, &iter2, v, BM_LOOPS_OF_VERT) {
+						ltmp->next->v->co[2] = uvtc->init_vec[BM_elem_index_get(ltmp->next->v)][2];
+						ltmp->prev->v->co[2] = uvtc->init_vec[BM_elem_index_get(ltmp->prev->v)][2];
+					}
+
+					l_next->v->co[2] = uvtc->init_vec[index_next][2] + 0.05;
+					l_prev->v->co[2] = uvtc->init_vec[index_prev][2] + 0.05;
+
 					break;
 				}
 
