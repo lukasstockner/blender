@@ -110,6 +110,17 @@ endif()
 
 if(WITH_INPUT_TOUCH)
 	add_definitions(-DWITH_INPUT_TOUCH)
+
+	list(APPEND SRC
+	intern/GHOST_TouchManager.cpp
+
+	intern/GHOST_EventTouch.h
+	intern/GHOST_TouchManager.h
+	)
+
+	list(APPEND INC_SYS
+		${TOUCH_INCLUDE_DIRS}
+	)
 endif()
 
 if(WITH_HEADLESS OR WITH_GHOST_SDL)
@@ -307,6 +318,14 @@ elseif(WIN32)
 			intern/GHOST_NDOFManagerWin32.cpp
 
 			intern/GHOST_NDOFManagerWin32.h
+		)
+	endif()
+
+	if(WITH_INPUT_TOUCH)
+		list(APPEND SRC
+			intern/GHOST_TouchManagerWin32.cpp
+
+			intern/GHOST_TouchManagerWin32.h
 		)
 	endif()
 

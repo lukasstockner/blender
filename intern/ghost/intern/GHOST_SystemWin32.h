@@ -37,6 +37,7 @@
 #error WIN32 only!
 #endif // WIN32
 
+// Windows dependency for system touch, replace later?
 #ifdef WITH_INPUT_TOUCH
 #	define _WIN32_WINNT 0x0601 // require Windows 7 or newer
 #else
@@ -347,6 +348,13 @@ protected:
 	 * @return Whether an event was generated and sent.
 	 */
 	bool processNDOF(RAWINPUT const& raw);
+#endif
+
+#ifdef WITH_INPUT_TOUCH
+	/**
+	  * Handles Touch events, communicates directly with GHOST_TouchManager.
+	  */
+	void processTouch(UINT msg, WPARAM wParam, LPARAM lParam);
 #endif
 
 	/**

@@ -39,6 +39,7 @@
 #include "GHOST_DisplayManager.h"
 #include "GHOST_EventManager.h"
 #include "GHOST_NDOFManager.h"
+#include "GHOST_TouchManager.h"
 #include "GHOST_TimerTask.h"
 #include "GHOST_TimerManager.h"
 #include "GHOST_WindowManager.h"
@@ -52,6 +53,9 @@ GHOST_System::GHOST_System()
 #ifdef WITH_INPUT_NDOF
 	, m_ndofManager(0)
 #endif
+#ifdef WITH_INPUT_TOUCH
+    , m_touchManager(0)
+#endif // WITH_INPUT_TOUCH
 {
 }
 
@@ -343,6 +347,12 @@ GHOST_TSuccess GHOST_System::exit()
 		m_ndofManager = 0;
 	}
 #endif
+#ifdef WITH_TOUCH_INPUT
+	if (m_touchManager) {
+		delete m_touchManager;
+		m_touchManager = 0;
+	}
+#endif // WITH_TOUCH_INPUT
 	return GHOST_kSuccess;
 }
 

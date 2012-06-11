@@ -161,6 +161,8 @@ typedef enum {
 	GHOST_kEventNDOFMotion,     /// N degree of freedom device motion event
 	GHOST_kEventNDOFButton,     /// N degree of freedom device button event
 
+	GHOST_kEventTouch,			/// Touch event
+
 	GHOST_kEventKeyDown,
 	GHOST_kEventKeyUp,
 //	GHOST_kEventKeyAuto,
@@ -461,6 +463,22 @@ typedef struct {
 	GHOST_TButtonAction action;
 	short button;
 } GHOST_TEventNDOFButtonData;
+
+typedef enum {
+	GHOST_kDown = 0,
+	GHOST_kMove,
+	GHOST_kUp
+} GHOST_TTouchState;
+
+typedef struct {
+	GHOST_TTouchState state;
+	GHOST_TUns8 index;
+	// Coordinates x and y represent position on the screen represented as 1/100th of a pixel
+	// e.g. x = 150, y = 275 represents a position 1.5 pixels to the right
+	// and 2.75 pixels down from top, left of the screen
+	GHOST_TInt32 x;
+	GHOST_TInt32 y;
+} GHOST_TEventTouchData;
 
 typedef struct {
 	/** The key code. */

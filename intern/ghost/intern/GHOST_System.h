@@ -49,6 +49,7 @@ class GHOST_TimerManager;
 class GHOST_Window;
 class GHOST_WindowManager;
 class GHOST_NDOFManager;
+class GHOST_TouchManager;
 
 /**
  * Implementation of platform independent functionality of the GHOST_ISystem
@@ -268,6 +269,14 @@ public:
 	virtual inline GHOST_NDOFManager *getNDOFManager() const;
 #endif
 
+#ifdef WITH_INPUT_TOUCH
+	/**
+	 * Returns a pointer to the touch manager.
+	 * @return A pointer to touch manager.
+	 */
+	virtual inline GHOST_TouchManager *getTouchManager() const;
+#endif
+
 	/**
 	 * Returns the state of all modifier keys.
 	 * @param keys	The state of all modifier keys (true == pressed).
@@ -342,6 +351,11 @@ protected:
 	/** The N-degree of freedom device manager */
 	GHOST_NDOFManager *m_ndofManager;
 #endif
+
+#ifdef WITH_INPUT_TOUCH
+	/** The touch device manager */
+	GHOST_TouchManager *m_touchManager;
+#endif
 	
 	/** Prints all the events. */
 #ifdef GHOST_DEBUG
@@ -371,6 +385,13 @@ inline GHOST_WindowManager *GHOST_System::getWindowManager() const
 inline GHOST_NDOFManager *GHOST_System::getNDOFManager() const
 {
 	return m_ndofManager;
+}
+#endif
+
+#ifdef WITH_INPUT_TOUCH
+inline GHOST_TouchManager *GHOST_System::getTouchManager() const
+{
+	return m_touchManager;
 }
 #endif
 

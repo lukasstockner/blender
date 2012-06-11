@@ -76,6 +76,10 @@
 #include "GHOST_NDOFManagerWin32.h"
 #endif
 
+#ifdef WITH_INPUT_TOUCH
+#include "GHOST_TouchManagerWin32.h"
+#endif
+
 // Key code values not found in winuser.h
 #ifndef VK_MINUS
 #define VK_MINUS 0xBD
@@ -127,6 +131,16 @@
 #define VK_MEDIA_PLAY_PAUSE 0xB3
 #endif // VK_MEDIA_PLAY_PAUSE
 
+// Corrects MinGW defines
+#ifdef TOUCHEVENTF_DOWN
+#	undef TOUCHEVENTF_DOWN
+#	define TOUCHEVENTF_DOWN 0x0002
+#endif //TOUCHEVENTF_DOWN
+#ifdef TOUCHEVENTF_MOVE
+#	undef TOUCHEVENTF_MOVE
+#	define TOUCHEVENTF_MOVE 0x0001
+#endif //TOUCHEVENTF_UP
+
 static void initRawInput()
 {
 #ifdef WITH_INPUT_NDOF
@@ -175,6 +189,10 @@ GHOST_SystemWin32::GHOST_SystemWin32()
 
 #ifdef WITH_INPUT_NDOF
 	m_ndofManager = new GHOST_NDOFManagerWin32(*this);
+#endif
+
+#ifdef WITH_INPUT_TOUCH
+	m_touchManager = new GHOST_TouchManagerWin32(*this);
 #endif
 }
 
@@ -878,6 +896,43 @@ bool GHOST_SystemWin32::processNDOF(RAWINPUT const& raw)
 }
 #endif // WITH_INPUT_NDOF
 
+#ifdef WITH_INPUT_TOUCH
+void GHOST_SystemWin32::processTouch(UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	UINT cInputs = LOWORD(wParam);
+	PTOUCHINPUT pInputs = new TOUCHINPUT[cInputs];
+	GHOST_TTouchState state;
+
+	if (NULL != pInputs) {
+		if (GetTouchInputInfo((HANDLE)lParam, cInputs, pInputs, sizeof(TOUCHINPUT))) {
+			for (UINT i = 0; i < cInputs; i++) {
+
+				switch (msg) {
+					case TOUCHEVENTF_DOWN:
+						state = GHOST_kDown;
+						break;
+					case TOUCHEVENTF_MOVE:
+						state = GHOST_kMove;
+						break;
+					case TOUCHEVENTF_UP:
+						state = GHOST_kUp;
+						break;
+					default:
+						break;
+				}
+
+				// Windows returns first ID as 2, then 3, 4... set to begin at 1
+				m_touchManager->sendTouchEvent((GHOST_TUns8) pInputs[i-1].dwID, state, (GHOST_TInt32) pInputs[i].x,
+				                               (GHOST_TInt32) pInputs[i].y, (GHOST_TUns64) getMilliSeconds());
+
+			} //end for(display touch)
+		} //end if(got touch info)
+	} //end if(pInputs exists)
+
+	delete [] pInputs;
+}
+#endif
+
 LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	GHOST_Event *event = 0;
@@ -989,9 +1044,15 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 				// Touch events, processed
 				////////////////////////////////////////////////////////////////////////
 #ifdef WITH_INPUT_TOUCH
+#	if defined(_MSC_VER) || defined(FREE_WINDOWS64) // MSVC or MinGW-w64 defines
+				case WM_TOUCH:
+#	else // MinGW defines
 				case WM_TOUCHDOWN:
-				case WM_TOUCHUP:
 				case WM_TOUCHMOVE:
+				case WM_TOUCHUP:
+#	endif
+					system->processTouch(msg, wParam, lParam);
+					eventHandled = true;
 					break;
 #endif
 				////////////////////////////////////////////////////////////////////////
