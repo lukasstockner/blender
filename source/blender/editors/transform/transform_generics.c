@@ -1711,8 +1711,6 @@ static void flushUVdisplacement(UVTransCorrInfoUV *first, float disp[2], int opt
 void calculateUVTransformCorrection(TransInfo *t)
 {
 	int i;
-	BMIter iter;
-	BMLoop *l;
 	BMEditMesh *em = BMEdit_FromObject(t->obedit);
 	TransData *td = t->data;
 	UVTransCorrect *uvtc = t->uvtc;
@@ -1727,15 +1725,13 @@ void calculateUVTransformCorrection(TransInfo *t)
 	/* iterate through loops of vert and calculate image space diff of uvs */
 	for (i = 0 ; i < t->total; i++) {
 		if(not_prop_edit || td[i].factor > 0.0) {
-
-			/* last island visited, if this changes without an optimal face found,
-			 * we flush the result */
-			int last_insland = 0;
+			/* first island visited, if this changes without an optimal face found,
+			 * we must flush the result */
+			UVTransCorrInfoUV *first_island_uv;
 
 			float min_angles[2] = {100.0, 100.0} /* arbitrary, just bigger than 2PI */;
 			BMLoop *boundary_loops[2];
 
-			char optimal_found = FALSE;
 			char nochange = FALSE;
 			int index;
 			float uv_tot[2];
@@ -1745,7 +1741,8 @@ void calculateUVTransformCorrection(TransInfo *t)
 
 			uv_tot[0] = uv_tot[1] = 0.0;
 
-			for(uvtcuv = uvtc->initial_uvs[index]; uvtcuv; uvtcuv = uvtcuv->next) {
+			first_island_uv = uvtc->initial_uvs[index];
+			for(uvtcuv = first_island_uv; uvtcuv; uvtcuv = uvtcuv->next) {
 				float angle1, angle2, angle_boundary;
 				float cross1[3], cross2[3], cross[3];
 				float normal[3], projv[3];
@@ -1758,6 +1755,23 @@ void calculateUVTransformCorrection(TransInfo *t)
 				int index_next, index_prev;
 				BMLoop *l_next, *l_prev, *l = uvtcuv->l;
 				MLoopUV *luv;
+
+				/* reset first island and flush the result if needed */
+				if(first_island_uv->island_index != uvtcuv->island_index) {
+					mul_v2_fl(uv_tot, 1.0/uv_counter);
+
+					while(first_island_uv && first_island_uv != uvtcuv) {
+						BMLoop *l_flush = first_island_uv->l;
+						MLoopUV *luv;
+
+						luv = CustomData_bmesh_get(&em->bm->ldata, l_flush->head.data, CD_MLOOPUV);
+						add_v2_v2v2(luv->uv, uv_tot, first_island_uv->init_uv);
+						first_island_uv = first_island_uv->next;
+					}
+
+					uv_tot[0] = uv_tot[1] = 0.0;
+					uv_counter = 0;
+				}
 
 				l_next =l->next;
 				l_prev = l->prev;
@@ -1832,7 +1846,6 @@ void calculateUVTransformCorrection(TransInfo *t)
 				if((dot_v3v3(cross, projv) > 0.0) && !(angle_boundary < (angle1 + angle2 - 0.01))) {
 					//BMIter iter2;
 					//BMLoop *ltmp;
-					optimal_found = TRUE;
 					uv_tot[0] = uv_tot[1] = 0.0;
 					add_v2_v2(uv_tot, uvdiff);
 					add_v2_v2(uv_tot, uvdiff2);
@@ -1847,7 +1860,23 @@ void calculateUVTransformCorrection(TransInfo *t)
 					print_v3("diff vector\n", projv);
 					printf("angle1 : %f, angle2 : %f, angle_boundary : %f\n", angle1, angle2, angle_boundary);
 #endif
-					break;
+
+					/* fast forward to next island, if it exists then flush */
+					while(uvtcuv && uvtcuv->island_index == first_island_uv->island_index)
+						uvtcuv = uvtcuv->next;
+
+					while(first_island_uv && first_island_uv != uvtcuv) {
+						BMLoop *l_flush = first_island_uv->l;
+						MLoopUV *luv;
+
+						luv = CustomData_bmesh_get(&em->bm->ldata, l_flush->head.data, CD_MLOOPUV);
+						add_v2_v2v2(luv->uv, uv_tot, first_island_uv->init_uv);
+						first_island_uv = first_island_uv->next;
+					}
+					if(uvtcuv)
+						continue;
+					else
+						break;
 				}
 
 				add_v2_v2(uv_tot, uvdiff);
@@ -1860,21 +1889,16 @@ void calculateUVTransformCorrection(TransInfo *t)
 
 			if(nochange)
 				continue;
-			//printf("optimal found %d\n", optimal_found);
-			if(!optimal_found)
-				mul_v2_fl(uv_tot, 1.0/uv_counter);
 
-			add_v2_v2(uv_tot, uvtc->initial_uvs[index]->init_uv);
+			mul_v2_fl(uv_tot, 1.0/uv_counter);
 
-			uvtcuv = uvtc->initial_uvs[index];
-			/* flush to actual uvs */
-			BM_ITER_ELEM(l, &iter, v, BM_LOOPS_OF_VERT) {
+			while(first_island_uv) {
+				BMLoop *l_flush = first_island_uv->l;
 				MLoopUV *luv;
 
-				luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
-
-				copy_v2_v2(luv->uv, uv_tot);
-				uvtcuv = uvtcuv->next;
+				luv = CustomData_bmesh_get(&em->bm->ldata, l_flush->head.data, CD_MLOOPUV);
+				add_v2_v2v2(luv->uv, uv_tot, first_island_uv->init_uv);
+				first_island_uv = first_island_uv->next;
 			}
 		}
 	}
