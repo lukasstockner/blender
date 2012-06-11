@@ -1732,7 +1732,10 @@ void calculateUVTransformCorrection(TransInfo *t)
 			float min_angles[2] = {100.0, 100.0} /* arbitrary, just bigger than 2PI */;
 			BMLoop *boundary_loops[2];
 
-			char nochange = FALSE;
+			/* nochange is set if we have very small displacement to avoid division
+			 * by zero. Good match is set to avoid reflushing uvs if a good face
+			 * match has been found */
+			char nochange = FALSE, goodmatch = FALSE;
 			int index;
 			float uv_tot[2];
 			int uv_counter = 0;
@@ -1782,20 +1785,28 @@ void calculateUVTransformCorrection(TransInfo *t)
 				/* find initial and final edge lengths */
 				sub_v3_v3v3(edge_vec_init, uvtc->init_vec[index_next], td[i].iloc);
 				//sub_v3_v3v3(edge_vec_final, uvtc->init_vec[index_next], v->co);
-				if(uvtc->initial_uvs[index_next])
-					sub_v2_v2v2(edge_uv_init, uvtc->initial_uvs[index_next]->init_uv, uvtc->initial_uvs[index]->init_uv);
-				else {
+				if(uvtc->initial_uvs[index_next]) {
+					UVTransCorrInfoUV *uvtmp = uvtc->initial_uvs[index_next];
+					while(uvtmp->l != l_next) {
+						uvtmp = uvtmp->next;
+					}
+					sub_v2_v2v2(edge_uv_init, uvtmp->init_uv, uvtcuv->init_uv);
+				} else {
 					luv = CustomData_bmesh_get(&em->bm->ldata, l_next->head.data, CD_MLOOPUV);
-					sub_v2_v2v2(edge_uv_init, luv->uv, uvtc->initial_uvs[index]->init_uv);
+					sub_v2_v2v2(edge_uv_init, luv->uv, uvtcuv->init_uv);
 				}
 
 				sub_v3_v3v3(edge_vec_init2, uvtc->init_vec[index_prev], td[i].iloc);
 				//sub_v3_v3v3(edge_vec_final2, uvtc->init_vec[index_prev], v->co);
-				if(uvtc->initial_uvs[index_prev])
-					sub_v2_v2v2(edge_uv_init2, uvtc->initial_uvs[index_prev]->init_uv, uvtc->initial_uvs[index]->init_uv);
-				else {
+				if(uvtc->initial_uvs[index_prev]) {
+					UVTransCorrInfoUV *uvtmp = uvtc->initial_uvs[index_prev];
+					while(uvtmp->l != l_prev) {
+						uvtmp = uvtmp->next;
+					}
+					sub_v2_v2v2(edge_uv_init2, uvtmp->init_uv, uvtcuv->init_uv);
+				} else {
 					luv = CustomData_bmesh_get(&em->bm->ldata, l_prev->head.data, CD_MLOOPUV);
-					sub_v2_v2v2(edge_uv_init2, luv->uv, uvtc->initial_uvs[index]->init_uv);
+					sub_v2_v2v2(edge_uv_init2, luv->uv, uvtcuv->init_uv);
 				}
 
 				/* first project final edges to initial edges to get the translation along the edge axis */
@@ -1842,11 +1853,10 @@ void calculateUVTransformCorrection(TransInfo *t)
 				mul_v2_v2fl(uvdiff, edge_uv_init, edge_len_final/edge_len_init);
 				mul_v2_v2fl(uvdiff2, edge_uv_init2, edge_len_final2/edge_len_init2);
 
-				/* fonud optimal direction */
+				/* check if this is an optimal face to project on */
 				if((dot_v3v3(cross, projv) > 0.0) && !(angle_boundary < (angle1 + angle2 - 0.01))) {
-					//BMIter iter2;
-					//BMLoop *ltmp;
 					uv_tot[0] = uv_tot[1] = 0.0;
+					uv_counter = 0;
 					add_v2_v2(uv_tot, uvdiff);
 					add_v2_v2(uv_tot, uvdiff2);
 
@@ -1875,8 +1885,11 @@ void calculateUVTransformCorrection(TransInfo *t)
 					}
 					if(uvtcuv)
 						continue;
-					else
+					else {
+						/* set good match to avoid reflushing uvs */
+						goodmatch = TRUE;
 						break;
+					}
 				}
 
 				add_v2_v2(uv_tot, uvdiff);
@@ -1887,7 +1900,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 				//mul_m4_v3(modelviewprojmat, diff);
 			}
 
-			if(nochange)
+			if(nochange || goodmatch)
 				continue;
 
 			mul_v2_fl(uv_tot, 1.0/uv_counter);
