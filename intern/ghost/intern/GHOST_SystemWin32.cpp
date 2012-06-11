@@ -132,14 +132,16 @@
 #endif // VK_MEDIA_PLAY_PAUSE
 
 // Corrects MinGW defines
-#ifdef TOUCHEVENTF_DOWN
-#	undef TOUCHEVENTF_DOWN
-#	define TOUCHEVENTF_DOWN 0x0002
-#endif //TOUCHEVENTF_DOWN
-#ifdef TOUCHEVENTF_MOVE
-#	undef TOUCHEVENTF_MOVE
-#	define TOUCHEVENTF_MOVE 0x0001
-#endif //TOUCHEVENTF_UP
+#ifdef FREE_WINDOWS
+#	ifdef TOUCHEVENTF_DOWN
+#		undef TOUCHEVENTF_DOWN
+#		define TOUCHEVENTF_DOWN 0x0002
+#	endif // TOUCHEVENTF_DOWN
+#	ifdef TOUCHEVENTF_MOVE
+#		undef TOUCHEVENTF_MOVE
+#		define TOUCHEVENTF_MOVE 0x0001
+#	endif // TOUCHEVENTF_UP
+#endif // FREE_WINDOWS
 
 static void initRawInput()
 {
@@ -897,32 +899,32 @@ bool GHOST_SystemWin32::processNDOF(RAWINPUT const& raw)
 #endif // WITH_INPUT_NDOF
 
 #ifdef WITH_INPUT_TOUCH
-void GHOST_SystemWin32::processTouch(UINT msg, WPARAM wParam, LPARAM lParam)
+void GHOST_SystemWin32::processTouch(WPARAM wParam, LPARAM lParam)
 {
 	UINT cInputs = LOWORD(wParam);
 	PTOUCHINPUT pInputs = new TOUCHINPUT[cInputs];
 	GHOST_TTouchState state;
 
 	if (NULL != pInputs) {
+#	if defined(_MSC_VER) || defined(FREE_WINDOWS64) // MSVC or MinGW-w64 defines
+		if (GetTouchInputInfo((HTOUCHINPUT)lParam, cInputs, pInputs, sizeof(TOUCHINPUT))) {
+#	else // MinGW defines
 		if (GetTouchInputInfo((HANDLE)lParam, cInputs, pInputs, sizeof(TOUCHINPUT))) {
+#	endif
 			for (UINT i = 0; i < cInputs; i++) {
-
-				switch (msg) {
-					case TOUCHEVENTF_DOWN:
+				if (pInputs[i].dwFlags & TOUCHEVENTF_DOWN) {
 						state = GHOST_kDown;
-						break;
-					case TOUCHEVENTF_MOVE:
+				}
+				else if (pInputs[i].dwFlags & TOUCHEVENTF_MOVE) {
 						state = GHOST_kMove;
-						break;
-					case TOUCHEVENTF_UP:
-						state = GHOST_kUp;
-						break;
-					default:
-						break;
+				}
+				else if (pInputs[i].dwFlags & TOUCHEVENTF_UP) {
+					state = GHOST_kUp;
 				}
 
-				// Windows returns first ID as 2, then 3, 4... set to begin at 1
-				m_touchManager->sendTouchEvent((GHOST_TUns8) pInputs[i-1].dwID, state, (GHOST_TInt32) pInputs[i].x,
+				// Windows returns first ID as 2, then 3, 4... subtract 1 to begin at 1
+				// Otherwise, Windows system touch functions as described in Pixar's Proton Chi
+				m_touchManager->sendTouchEvent((GHOST_TUns8) (pInputs[i].dwID - 1), state, (GHOST_TInt32) pInputs[i].x,
 				                               (GHOST_TInt32) pInputs[i].y, (GHOST_TUns64) getMilliSeconds());
 
 			} //end for(display touch)
@@ -1044,6 +1046,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 				// Touch events, processed
 				////////////////////////////////////////////////////////////////////////
 #ifdef WITH_INPUT_TOUCH
+
 #	if defined(_MSC_VER) || defined(FREE_WINDOWS64) // MSVC or MinGW-w64 defines
 				case WM_TOUCH:
 #	else // MinGW defines
@@ -1051,9 +1054,17 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 				case WM_TOUCHMOVE:
 				case WM_TOUCHUP:
 #	endif
-					system->processTouch(msg, wParam, lParam);
+					system->processTouch(wParam, lParam);
+
+#	if defined(_MSC_VER) || defined(FREE_WINDOWS64) // MSVC or MinGW-w64 defines
+					CloseTouchInputHandle((HTOUCHINPUT) lParam);
+#	else // MinGW defines
+					CloseTouchInputHandle((HANDLE) lParam);
+#	endif
+
 					eventHandled = true;
 					break;
+
 #endif
 				////////////////////////////////////////////////////////////////////////
 				// Mouse events, processed

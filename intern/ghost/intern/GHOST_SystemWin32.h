@@ -354,7 +354,7 @@ protected:
 	/**
 	  * Handles Touch events, communicates directly with GHOST_TouchManager.
 	  */
-	void processTouch(UINT msg, WPARAM wParam, LPARAM lParam);
+	void processTouch(WPARAM wParam, LPARAM lParam);
 #endif
 
 	/**
