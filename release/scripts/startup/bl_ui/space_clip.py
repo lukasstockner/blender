@@ -181,16 +181,6 @@ class CLIP_PT_reconstruction_panel:
         return clip and sc.mode == 'RECONSTRUCTION' and sc.view == 'CLIP'
 
 
-class CLIP_PT_distortion_panel:
-
-    @classmethod
-    def poll(cls, context):
-        sc = context.space_data
-        clip = sc.clip
-
-        return clip and sc.mode == 'DISTORTION' and sc.view == 'CLIP'
-
-
 class CLIP_PT_tools_marker(CLIP_PT_tracking_panel, Panel):
     bl_space_type = 'CLIP_EDITOR'
     bl_region_type = 'TOOLS'
@@ -240,10 +230,9 @@ class CLIP_PT_tools_marker(CLIP_PT_tracking_panel, Panel):
             sub.prop(settings, "default_search_size")
 
             col.label(text="Tracker:")
-            col.prop(settings, "default_tracker", text="")
-
-            if settings.default_tracker == 'KLT':
-                col.prop(settings, "default_pyramid_levels")
+            col.prop(settings, "default_motion_model")
+            col.prop(settings, "default_use_brute")
+            col.prop(settings, "default_use_normalization")
             col.prop(settings, "default_correlation_min")
 
             col.separator()
@@ -272,6 +261,7 @@ class CLIP_PT_tools_tracking(CLIP_PT_tracking_panel, Panel):
 
         props = row.operator("clip.track_markers", text="", icon='FRAME_PREV')
         props.backwards = True
+        props.sequence = False
         props = row.operator("clip.track_markers", text="",
                              icon='PLAY_REVERSE')
         props.backwards = True
@@ -279,7 +269,9 @@ class CLIP_PT_tools_tracking(CLIP_PT_tracking_panel, Panel):
         props = row.operator("clip.track_markers", text="", icon='PLAY')
         props.backwards = False
         props.sequence = True
-        row.operator("clip.track_markers", text="", icon='FRAME_NEXT')
+        props = row.operator("clip.track_markers", text="", icon='FRAME_NEXT')
+        props.backwards = False
+        props.sequence = False
 
         col = layout.column(align=True)
         props = col.operator("clip.clear_track_path", text="Clear After")
@@ -585,10 +577,9 @@ class CLIP_PT_track_settings(CLIP_PT_tracking_panel, Panel):
 
         active = clip.tracking.tracks.active
         if active:
-            col.prop(active, "tracker")
-
-            if active.tracker == 'KLT':
-                col.prop(active, "pyramid_levels")
+            col.prop(active, "motion_model")
+            col.prop(active, "use_brute")
+            col.prop(active, "use_normalization")
             col.prop(active, "correlation_min")
 
             col.separator()

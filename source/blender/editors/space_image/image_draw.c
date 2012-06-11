@@ -565,7 +565,6 @@ void draw_image_grease_pencil(bContext *C, short onlyv2d)
 	/* draw in View2D space? */
 	if (onlyv2d) {
 		/* draw grease-pencil ('image' strokes) */
-		//if (sima->flag & SI_DISPGP)
 		draw_gpencil_2dimage(C);
 	}
 	else {
@@ -573,8 +572,29 @@ void draw_image_grease_pencil(bContext *C, short onlyv2d)
 		//SpaceImage *sima= (SpaceImage *)CTX_wm_space_data(C);
 		
 		/* draw grease-pencil ('screen' strokes) */
-		//if (sima->flag & SI_DISPGP)
 		draw_gpencil_view2d(C, 0);
+	}
+}
+
+void draw_image_sample_line(SpaceImage *sima)
+{
+	if (sima->sample_line_hist.flag & HISTO_FLAG_SAMPLELINE) {
+		Histogram *hist = &sima->sample_line_hist;
+
+		glBegin(GL_LINES);
+		glColor3ub(0, 0, 0);
+		glVertex2fv(hist->co[0]);
+		glVertex2fv(hist->co[1]);
+		glEnd();
+
+		setlinestyle(1);
+		glBegin(GL_LINES);
+		glColor3ub(255, 255, 255);
+		glVertex2fv(hist->co[0]);
+		glVertex2fv(hist->co[1]);
+		glEnd();
+		setlinestyle(0);
+
 	}
 }
 

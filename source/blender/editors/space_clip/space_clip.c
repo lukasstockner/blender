@@ -35,7 +35,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_movieclip_types.h"
-#include "DNA_view3d_types.h"	/* for pivot point */
+#include "DNA_view3d_types.h"  /* for pivot point */
 
 #include "MEM_guardedalloc.h"
 
@@ -71,7 +71,7 @@
 #include "RNA_access.h"
 
 
-#include "clip_intern.h"	// own include
+#include "clip_intern.h"  /* own include */
 
 static void init_preview_region(const bContext *C, ARegion *ar)
 {
@@ -299,12 +299,15 @@ static SpaceLink *clip_new(const bContext *C)
 /* not spacelink itself */
 static void clip_free(SpaceLink *sl)
 {
-	SpaceClip *sc = (SpaceClip*) sl;
+	SpaceClip *sc = (SpaceClip *) sl;
 
 	sc->clip = NULL;
 
 	if (sc->scopes.track_preview)
 		IMB_freeImBuf(sc->scopes.track_preview);
+
+	if (sc->scopes.track_search)
+		IMB_freeImBuf(sc->scopes.track_search);
 
 	ED_space_clip_free_texture_buffer(sc);
 }
@@ -323,6 +326,7 @@ static SpaceLink *clip_duplicate(SpaceLink *sl)
 	SpaceClip *scn = MEM_dupallocN(sl);
 
 	/* clear or remove stuff from old */
+	scn->scopes.track_search = NULL;
 	scn->scopes.track_preview = NULL;
 	scn->scopes.ok = FALSE;
 	scn->draw_context = NULL;
@@ -393,8 +397,11 @@ static void clip_listener(ScrArea *sa, wmNotifier *wmn)
 			}
 			break;
 		case NC_SCREEN:
-			if (wmn->data == ND_ANIMPLAY) {
-				ED_area_tag_redraw(sa);
+			switch (wmn->data) {
+				case ND_ANIMPLAY:
+				case ND_GPENCIL:
+					ED_area_tag_redraw(sa);
+					break;
 			}
 			break;
 		case NC_SPACE:
@@ -627,17 +634,17 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "CLIP_OT_slide_marker", LEFTMOUSE, KM_PRESS, 0, 0);
 
 	kmi = WM_keymap_add_item(keymap, "CLIP_OT_disable_markers", DKEY, KM_PRESS, KM_SHIFT, 0);
-	RNA_enum_set(kmi->ptr, "action", 2);	/* toggle */
+	RNA_enum_set(kmi->ptr, "action", 2);    /* toggle */
 
 	/* tracks */
 	WM_keymap_add_item(keymap, "CLIP_OT_delete_track", DELKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "CLIP_OT_delete_track", XKEY, KM_PRESS, 0, 0);
 
 	kmi = WM_keymap_add_item(keymap, "CLIP_OT_lock_tracks", LKEY, KM_PRESS, KM_CTRL, 0);
-	RNA_enum_set(kmi->ptr, "action", 0);	/* lock */
+	RNA_enum_set(kmi->ptr, "action", 0);    /* lock */
 
 	kmi = WM_keymap_add_item(keymap, "CLIP_OT_lock_tracks", LKEY, KM_PRESS, KM_ALT, 0);
-	RNA_enum_set(kmi->ptr, "action", 1);	/* unlock */
+	RNA_enum_set(kmi->ptr, "action", 1);    /* unlock */
 
 	kmi = WM_keymap_add_item(keymap, "CLIP_OT_hide_tracks", HKEY, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "unselected", FALSE);
@@ -726,7 +733,7 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 
 	/* tracks */
 	kmi = WM_keymap_add_item(keymap, "CLIP_OT_graph_disable_markers", DKEY, KM_PRESS, KM_SHIFT, 0);
-	RNA_enum_set(kmi->ptr, "action", 2);	/* toggle */
+	RNA_enum_set(kmi->ptr, "action", 2);    /* toggle */
 
 	transform_keymap_for_space(keyconf, keymap, SPACE_CLIP);
 
@@ -735,7 +742,7 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 	keymap = WM_keymap_find(keyconf, "Clip Dopesheet Editor", SPACE_CLIP, 0);
 
 	kmi = WM_keymap_add_item(keymap, "CLIP_OT_dopesheet_select_channel", ACTIONMOUSE, KM_PRESS, 0, 0);
-	RNA_boolean_set(kmi->ptr, "extend", TRUE);	/* toggle */
+	RNA_boolean_set(kmi->ptr, "extend", TRUE);  /* toggle */
 }
 
 const char *clip_context_dir[] = {"edit_movieclip", "edit_mask", NULL};
@@ -1094,9 +1101,6 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 
 	clip_draw_main(sc, ar, scene);
 
-	/* Grease Pencil */
-	clip_draw_grease_pencil((bContext *)C, 1);
-
 	if (sc->mode == SC_MODE_MASKEDIT) {
 		int x, y;
 		int width, height;
@@ -1140,6 +1144,9 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 		glPopMatrix();
 	}
 
+	/* Grease Pencil */
+	clip_draw_grease_pencil((bContext *)C, 1);
+
 	/* reset view matrix */
 	UI_view2d_view_restore(C);
 
@@ -1154,7 +1161,7 @@ static void clip_main_area_listener(ARegion *ar, wmNotifier *wmn)
 		case NC_SCREEN:
 			if (wmn->data == ND_GPENCIL)
 				ED_region_tag_redraw(ar);
-		break;
+			break;
 	}
 }
 
@@ -1198,7 +1205,7 @@ static void graph_area_draw(const bContext *C, ARegion *ar)
 	UI_view2d_view_restore(C);
 
 	/* scrollers */
-	unitx = (sc->flag & SC_SHOW_SECONDS)? V2D_UNIT_SECONDS : V2D_UNIT_FRAMES;
+	unitx = (sc->flag & SC_SHOW_SECONDS) ? V2D_UNIT_SECONDS : V2D_UNIT_FRAMES;
 	unity = V2D_UNIT_VALUES;
 	scrollers = UI_view2d_scrollers_calc(C, v2d, unitx, V2D_GRID_NOCLAMP, unity, V2D_GRID_NOCLAMP);
 	UI_view2d_scrollers_draw(C, v2d, scrollers);
@@ -1225,7 +1232,7 @@ static void dopesheet_area_draw(const bContext *C, ARegion *ar)
 	UI_view2d_view_ortho(v2d);
 
 	/* time grid */
-	unit = (sc->flag & SC_SHOW_SECONDS)? V2D_UNIT_SECONDS : V2D_UNIT_FRAMES;
+	unit = (sc->flag & SC_SHOW_SECONDS) ? V2D_UNIT_SECONDS : V2D_UNIT_FRAMES;
 	grid = UI_view2d_grid_calc(CTX_data_scene(C), v2d, unit, V2D_GRID_CLAMP,
 	                           V2D_ARG_DUMMY, V2D_ARG_DUMMY, ar->winx, ar->winy);
 	UI_view2d_grid_draw(v2d, grid, V2D_GRIDLINES_ALL);
@@ -1324,10 +1331,10 @@ static void clip_header_area_listener(ARegion *ar, wmNotifier *wmn)
 				case ND_TOOLSETTINGS:
 					/* TODO - should do this when in mask mode only but no datas available */
 					// if (sc->mode == SC_MODE_MASKEDIT)
-					{
-						ED_region_tag_redraw(ar);
-					}
-					break;
+				{
+					ED_region_tag_redraw(ar);
+				}
+				break;
 			}
 			break;
 	}
