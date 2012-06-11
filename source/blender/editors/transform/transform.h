@@ -224,7 +224,7 @@ typedef struct SlideData {
 
 typedef struct UVTransCorrInfoUV {
 		float init_uv[2]; /* initial uv value */
-		float *uv; /* pointer to the corresponding luv->uv */
+		struct BMLoop *l; /* pointer to the corresponding luv->uv */
 		struct UVTransCorrInfoUV *next; /* next uv for same vertex */
 		int island_index; /* index of the per-vertex uv island */
 }UVTransCorrInfoUV;

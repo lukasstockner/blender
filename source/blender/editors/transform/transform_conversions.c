@@ -2141,7 +2141,7 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 						uvprev = *uvtcuv;
 
 						copy_v2_v2((*uvtcuv)->init_uv, luv->uv);
-						(*uvtcuv)->uv = luv->uv;
+						(*uvtcuv)->l = l;
 						(*uvtcuv)->next = NULL;
 						uvtcuv = &((*uvtcuv)->next);
 					}
@@ -2156,7 +2156,7 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 						while(uviter) {
 							UVTransCorrInfoUV *tmpuv = uviter->next;
 							float diff[2];
-							sub_v2_v2v2(diff, uviter->uv, uviter2->uv);
+							sub_v2_v2v2(diff, uviter->init_uv, uviter2->init_uv);
 							if(len_v2(diff) < STD_UV_CONNECT_LIMIT) {
 								uviter->island_index = island;
 

@@ -1423,6 +1423,7 @@ void restoreTransObjects(TransInfo *t)
 	
 	td = t->data;
 	if(t->flag & T_IMAGE_PRESERVE_CALC) {
+		CustomData *data = &(BMEdit_FromObject(t->obedit)->bm->ldata);
 		int i;
 		for(i = 0; i < t->total; i++) {
 			BMVert *eve;
@@ -1433,7 +1434,9 @@ void restoreTransObjects(TransInfo *t)
 			uvtcuv = t->uvtc->initial_uvs[BM_elem_index_get(eve)];
 
 			while(uvtcuv) {
-				copy_v2_v2(uvtcuv->uv, uvtcuv->init_uv);
+				MLoopUV *luv = CustomData_bmesh_get(data, uvtcuv->l->head.data, CD_MLOOPUV);
+
+				copy_v2_v2(luv->uv, uvtcuv->init_uv);
 				uvtcuv = uvtcuv->next;
 			}
 		}
@@ -1724,6 +1727,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 	/* iterate through loops of vert and calculate image space diff of uvs */
 	for (i = 0 ; i < t->total; i++) {
 		if(not_prop_edit || td[i].factor > 0.0) {
+
 			/* last island visited, if this changes without an optimal face found,
 			 * we flush the result */
 			int last_insland = 0;
@@ -1741,7 +1745,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 
 			uv_tot[0] = uv_tot[1] = 0.0;
 
-			BM_ITER_ELEM(l, &iter, v, BM_LOOPS_OF_VERT) {
+			for(uvtcuv = uvtc->initial_uvs[index]; uvtcuv; uvtcuv = uvtcuv->next) {
 				float angle1, angle2, angle_boundary;
 				float cross1[3], cross2[3], cross[3];
 				float normal[3], projv[3];
@@ -1752,7 +1756,7 @@ void calculateUVTransformCorrection(TransInfo *t)
 				float edge_uv_init[2], edge_uv_init2[2];
 				float uvdiff[2], uvdiff2[2];
 				int index_next, index_prev;
-				BMLoop *l_next, *l_prev;
+				BMLoop *l_next, *l_prev, *l = uvtcuv->l;
 				MLoopUV *luv;
 
 				l_next =l->next;
