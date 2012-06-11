@@ -45,7 +45,7 @@ void *GaussianYBlurOperation::initializeTileData(rcti *rect, MemoryBuffer **memo
 void GaussianYBlurOperation::initExecution()
 {
 	if (this->sizeavailable) {
-		float rad = size*this->data->sizex;
+		float rad = size*this->data->sizey;
 		if (rad<1)
 			rad = 1;
 
@@ -91,21 +91,22 @@ void GaussianYBlurOperation::executePixel(float *color, int x, int y, MemoryBuff
 	maxx = min(maxx, inputBuffer->getRect()->xmax);
 
 	int step = getStep();
-	int index = 0;
+	int index;
 	for (int ny = miny ; ny < maxy ; ny +=step) {
+		index = (ny-y)+this->rad;
 		int bufferindex = ((minx - bufferstartx)*4)+((ny-bufferstarty)*4*bufferwidth);
-		float multiplyer = gausstab[index++];
+		float multiplyer = gausstab[index];
 		tempColor[0] += multiplyer * buffer[bufferindex];
 		tempColor[1] += multiplyer * buffer[bufferindex+1];
 		tempColor[2] += multiplyer * buffer[bufferindex+2];
 		tempColor[3] += multiplyer * buffer[bufferindex+3];
 		overallmultiplyer += multiplyer;
 	}
-	float divider = 1.0/overallmultiplyer;
-	color[0] = tempColor[0]*divider;
-	color[1] = tempColor[1]*divider;
-	color[2] = tempColor[2]*divider;
-	color[3] = tempColor[3]*divider;
+	float divider = 1.0f / overallmultiplyer;
+	color[0] = tempColor[0] * divider;
+	color[1] = tempColor[1] * divider;
+	color[2] = tempColor[2] * divider;
+	color[3] = tempColor[3] * divider;
 }
 
 void GaussianYBlurOperation::deinitExecution()

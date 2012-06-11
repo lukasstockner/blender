@@ -3819,22 +3819,21 @@ static int ui_numedit_but_HISTOGRAM(uiBut *but, uiHandleButtonData *data, int mx
 	Histogram *hist = (Histogram *)but->poin;
 	/* rcti rect; */
 	int changed = 1;
-	float /* dx, */ dy, yfac = 1.f; /* UNUSED */
+	float /* dx, */ dy; /* UNUSED */
 	
 	/* rect.xmin = but->x1; rect.xmax = but->x2; */
 	/* rect.ymin = but->y1; rect.ymax = but->y2; */
 	
 	/* dx = mx - data->draglastx; */ /* UNUSED */
 	dy = my - data->draglasty;
-	
-	
+
 	if (in_scope_resize_zone(but, data->dragstartx, data->dragstarty)) {
 		/* resize histogram widget itself */
 		hist->height = (but->y2 - but->y1) + (data->dragstarty - my);
 	}
 	else {
 		/* scale histogram values */
-		yfac = MIN2(powf(hist->ymax, 2.f), 1.f) * 0.5f;
+		const float yfac = MIN2(powf(hist->ymax, 2.f), 1.f) * 0.5f;
 		hist->ymax += dy * yfac;
 	
 		CLAMP(hist->ymax, 1.f, 100.f);
@@ -4604,7 +4603,7 @@ static int ui_but_menu(bContext *C, uiBut *but)
 
 			WM_operator_properties_create(&ptr_props, "WM_OT_doc_view");
 			RNA_string_set(&ptr_props, "doc_id", buf);
-			uiItemFullO(layout, "WM_OT_doc_view", CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Python Documentation"),
+			uiItemFullO(layout, "WM_OT_doc_view", CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Online Python Reference"),
 			            ICON_NONE, ptr_props.data, WM_OP_EXEC_DEFAULT, 0);
 
 			/* XXX inactive option, not for public! */
@@ -4627,7 +4626,7 @@ static int ui_but_menu(bContext *C, uiBut *but)
 
 			WM_operator_properties_create(&ptr_props, "WM_OT_doc_view");
 			RNA_string_set(&ptr_props, "doc_id", buf);
-			uiItemFullO(layout, "WM_OT_doc_view", CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Python Documentation"),
+			uiItemFullO(layout, "WM_OT_doc_view", CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Online Python Reference"),
 			            ICON_NONE, ptr_props.data, WM_OP_EXEC_DEFAULT, 0);
 
 			/* XXX inactive option, not for public! */

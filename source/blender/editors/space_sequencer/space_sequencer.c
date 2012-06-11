@@ -33,6 +33,7 @@
 #include <stdio.h>
 
 #include "DNA_scene_types.h"
+#include "DNA_mask_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -380,6 +381,29 @@ static void sequencer_dropboxes(void)
 
 /* ************* end drop *********** */
 
+const char *sequencer_context_dir[] = {"edit_mask", NULL};
+
+static int sequencer_context(const bContext *C, const char *member, bContextDataResult *result)
+{
+	Scene *scene = CTX_data_scene(C);
+
+	if (CTX_data_dir(member)) {
+		CTX_data_dir_set(result, sequencer_context_dir);
+
+		return TRUE;
+	}
+	else if (CTX_data_equals(member, "edit_mask")) {
+		Sequence *seq_act = BKE_sequencer_active_get(scene);
+		if (seq_act && seq_act->type == SEQ_TYPE_MASK && seq_act->mask) {
+			CTX_data_id_pointer_set(result, &seq_act->mask->id);
+		}
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+
 /* add handlers, stuff you only do once or on area/region changes */
 static void sequencer_header_area_init(wmWindowManager *UNUSED(wm), ARegion *ar)
 {
@@ -461,6 +485,11 @@ static void sequencer_preview_area_listener(ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
+		case NC_SCREEN:
+			if (wmn->data == ND_GPENCIL) {
+				ED_region_tag_redraw(ar);
+			}
+			break;
 		case NC_SCENE:
 			switch (wmn->data) {
 				case ND_FRAME:
@@ -480,6 +509,12 @@ static void sequencer_preview_area_listener(ARegion *ar, wmNotifier *wmn)
 				case NA_RENAME:
 					ED_region_tag_redraw(ar);
 					break;
+			}
+			break;
+
+		case NC_MASK:
+			if (wmn->action == NA_EDITED) {
+				ED_region_tag_redraw(ar);
 			}
 			break;
 	}
@@ -504,6 +539,11 @@ static void sequencer_buttons_area_listener(ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
+		case NC_SCREEN:
+			if (wmn->data == ND_GPENCIL) {
+				ED_region_tag_redraw(ar);
+			}
+			break;
 		case NC_SCENE:
 			switch (wmn->data) {
 				case ND_FRAME:
@@ -539,6 +579,7 @@ void ED_spacetype_sequencer(void)
 	st->duplicate = sequencer_duplicate;
 	st->operatortypes = sequencer_operatortypes;
 	st->keymap = sequencer_keymap;
+	st->context = sequencer_context;
 	st->dropboxes = sequencer_dropboxes;
 	st->refresh = sequencer_refresh;
 
@@ -559,7 +600,7 @@ void ED_spacetype_sequencer(void)
 	art->init = sequencer_preview_area_init;
 	art->draw = sequencer_preview_area_draw;
 	art->listener = sequencer_preview_area_listener;
-	art->keymapflag = ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_ANIMATION;
+	art->keymapflag = ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_GPENCIL;
 	BLI_addhead(&st->regiontypes, art);
 	
 	/* regions: listview/buttons */
@@ -571,6 +612,8 @@ void ED_spacetype_sequencer(void)
 	art->init = sequencer_buttons_area_init;
 	art->draw = sequencer_buttons_area_draw;
 	BLI_addhead(&st->regiontypes, art);
+	
+	sequencer_buttons_register(art);
 
 	/* regions: header */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype sequencer region");
@@ -591,4 +634,3 @@ void ED_spacetype_sequencer(void)
 		sequencer_view3d_cb = ED_view3d_draw_offscreen_imbuf_simple;
 	}
 }
-

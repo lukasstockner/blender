@@ -98,7 +98,16 @@ static int outliner_parent_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
 				if (te_valid) {
 					/* check that parent/child are both in the same scene */
 					Scene *scene = (Scene *)outliner_search_back(soops, te_valid, ID_SCE);
-					if (BKE_scene_base_find(scene, (Object *)id)) {
+
+					if (!scene) {
+						/* currently outlier organized in a way, that if there's no parent scene
+						 * element for object it means that all displayed objects belong to
+						 * active scene and parenting them is allowed (sergey)
+						 */
+						return 1;
+					}
+
+					if (scene && BKE_scene_base_find(scene, (Object *)id)) {
 						return 1;
 					}
 				}
@@ -185,6 +194,35 @@ static void outliner_scene_drop_copy(wmDrag *drag, wmDropBox *drop)
 	RNA_string_set(drop->ptr, "object", id->name + 2);
 }
 
+static int outliner_material_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
+{
+	ARegion *ar = CTX_wm_region(C);
+	SpaceOops *soops = CTX_wm_space_outliner(C);
+	TreeElement *te = NULL;
+	float fmval[2];
+	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+
+	if (drag->type == WM_DRAG_ID) {
+		ID *id = (ID *)drag->poin;
+		if (GS(id->name) == ID_MA) {
+			/* Ensure item under cursor is valid drop target */
+			/* Find object hovered over */
+			for (te = soops->tree.first; te; te = te->next) {
+				if (outliner_dropzone_parent(C, event, te, fmval))
+					return 1;
+			}
+		}
+	}
+	return 0;
+}
+
+static void outliner_material_drop_copy(wmDrag *drag, wmDropBox *drop)
+{
+	ID *id = (ID *)drag->poin;
+
+	RNA_string_set(drop->ptr, "material", id->name + 2);
+}
+
 /* region dropbox definition */
 static void outliner_dropboxes(void)
 {
@@ -193,6 +231,7 @@ static void outliner_dropboxes(void)
 	WM_dropbox_add(lb, "OUTLINER_OT_parent_drop", outliner_parent_drop_poll, outliner_parent_drop_copy);
 	WM_dropbox_add(lb, "OUTLINER_OT_parent_clear", outliner_parent_clear_poll, outliner_parent_clear_copy);
 	WM_dropbox_add(lb, "OUTLINER_OT_scene_drop", outliner_scene_drop_poll, outliner_scene_drop_copy);
+	WM_dropbox_add(lb, "OUTLINER_OT_material_drop", outliner_material_drop_poll, outliner_material_drop_copy);
 }
 
 static void outliner_main_area_draw(const bContext *C, ARegion *ar)

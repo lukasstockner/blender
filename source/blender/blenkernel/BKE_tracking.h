@@ -48,7 +48,7 @@ struct Object;
 struct Scene;
 
 void BKE_tracking_init_settings(struct MovieTracking *tracking);
-void BKE_tracking_clamp_track(struct MovieTrackingTrack *track, int event);
+void BKE_tracking_clamp_marker(struct MovieTrackingMarker *marker, int event);
 void BKE_tracking_track_flag(struct MovieTrackingTrack *track, int area, int flag, int clear);
 
 struct MovieTrackingTrack *BKE_tracking_add_track(struct MovieTracking *tracking, struct ListBase *tracksbase,
@@ -57,6 +57,7 @@ struct MovieTrackingMarker *BKE_tracking_insert_marker(struct MovieTrackingTrack
                                                        struct MovieTrackingMarker *marker);
 void BKE_tracking_delete_marker(struct MovieTrackingTrack *track, int framenr);
 
+void BKE_tracking_marker_pattern_minmax(const struct MovieTrackingMarker *marker, float min[2], float max[2]);
 struct MovieTrackingMarker *BKE_tracking_get_marker(struct MovieTrackingTrack *track, int framenr);
 struct MovieTrackingMarker *BKE_tracking_ensure_marker(struct MovieTrackingTrack *track, int framenr);
 struct MovieTrackingMarker *BKE_tracking_exact_marker(struct MovieTrackingTrack *track, int framenr);
@@ -70,12 +71,15 @@ void BKE_tracking_clear_path(struct MovieTrackingTrack *track, int ref_frame, in
 void BKE_tracking_join_tracks(struct MovieTrackingTrack *dst_track, struct MovieTrackingTrack *src_track);
 void BKE_tracking_free(struct MovieTracking *tracking);
 
+struct ImBuf *BKE_tracking_sample_pattern_imbuf(int frame_width, int frame_height,
+                                                struct ImBuf *struct_ibuf, struct MovieTrackingMarker *marker,
+                                                int num_samples_x, int num_samples_y, float pos[2]);
 struct ImBuf *BKE_tracking_get_pattern_imbuf(struct ImBuf *ibuf, struct MovieTrackingTrack *track,
-                                             struct MovieTrackingMarker *marker, int margin, int anchored,
-                                             float pos[2], int origin[2]);
+                                             struct MovieTrackingMarker *marker, int anchored, int disable_channels);
 struct ImBuf *BKE_tracking_get_search_imbuf(struct ImBuf *ibuf, struct MovieTrackingTrack *track,
-                                            struct MovieTrackingMarker *marker, int margin, int anchored,
-                                            float pos[2], int origin[2]);
+                                            struct MovieTrackingMarker *marker, int anchored, int disable_channels);
+struct ImBuf *BKE_tracking_track_mask_get(struct MovieTracking *tracking, struct MovieTrackingTrack *track,
+                                          struct MovieTrackingMarker *marker, int width, int height);
 
 void BKE_track_unique_name(struct ListBase *tracksbase, struct MovieTrackingTrack *track);
 
@@ -109,7 +113,7 @@ void BKE_tracking_clipboard_paste_tracks(struct MovieTracking *tracking, struct 
 
 /* 2D tracking */
 struct MovieTrackingContext *BKE_tracking_context_new(struct MovieClip *clip, struct MovieClipUser *user,
-			short backwards, short sequence);
+                                                      short backwards, short sequence);
 void BKE_tracking_context_free(struct MovieTrackingContext *context);
 void BKE_tracking_sync(struct MovieTrackingContext *context);
 void BKE_tracking_sync_user(struct MovieClipUser *user, struct MovieTrackingContext *context);
@@ -119,15 +123,15 @@ int BKE_tracking_next(struct MovieTrackingContext *context);
 int BKE_tracking_can_reconstruct(struct MovieTracking *tracking, struct MovieTrackingObject *object,
                                  char *error_msg, int error_size);
 
-struct MovieReconstructContext* BKE_tracking_reconstruction_context_new(struct MovieTracking *tracking,
-			struct MovieTrackingObject *object, int keyframe1, int keyframe2, int width, int height);
+struct MovieReconstructContext *BKE_tracking_reconstruction_context_new(struct MovieTracking *tracking,
+                                                                        struct MovieTrackingObject *object, int keyframe1, int keyframe2, int width, int height);
 void BKE_tracking_reconstruction_context_free(struct MovieReconstructContext *context);
 void BKE_tracking_solve_reconstruction(struct MovieReconstructContext *context, short *stop, short *do_update,
                                        float *progress, char *stats_message, int message_size);
 int BKE_tracking_finish_reconstruction(struct MovieReconstructContext *context, struct MovieTracking *tracking);
 
 struct MovieReconstructedCamera *BKE_tracking_get_reconstructed_camera(struct MovieTracking *tracking,
-			struct MovieTrackingObject *object, int framenr);
+                                                                       struct MovieTrackingObject *object, int framenr);
 void BKE_tracking_get_interpolated_camera(struct MovieTracking *tracking, struct MovieTrackingObject *object,
                                           int framenr, float mat[4][4]);
 
@@ -168,39 +172,39 @@ void BKE_tracking_deselect_track(struct MovieTrackingTrack *track, int area);
 void BKE_tracking_dopesheet_tag_update(struct MovieTracking *tracking);
 void BKE_tracking_dopesheet_update(struct MovieTracking *tracking, int sort_method, int inverse);
 
-#define TRACK_SELECTED(track)				((track)->flag&SELECT || (track)->pat_flag&SELECT || (track)->search_flag&SELECT)
+#define TRACK_SELECTED(track)               ((track)->flag & SELECT || (track)->pat_flag & SELECT || (track)->search_flag & SELECT)
 
-#define TRACK_AREA_SELECTED(track, area)	((area)==TRACK_AREA_POINT ? (track)->flag&SELECT : \
-                                                                        ((area)==TRACK_AREA_PAT ? (track)->pat_flag&SELECT : \
-                                                                                                  (track)->search_flag&SELECT))
+#define TRACK_AREA_SELECTED(track, area)    ((area) == TRACK_AREA_POINT ? (track)->flag & SELECT : \
+                                             ((area) == TRACK_AREA_PAT ? (track)->pat_flag & SELECT : \
+                                              (track)->search_flag & SELECT))
 
-#define TRACK_VIEW_SELECTED(sc, track)		((((track)->flag & TRACK_HIDDEN)==0) && \
-                                             (  TRACK_AREA_SELECTED(track, TRACK_AREA_POINT) || \
-                                                (((sc)->flag & SC_SHOW_MARKER_PATTERN) && TRACK_AREA_SELECTED(track, TRACK_AREA_PAT)) || \
-                                                (((sc)->flag & SC_SHOW_MARKER_SEARCH) && TRACK_AREA_SELECTED(track, TRACK_AREA_SEARCH))))
+#define TRACK_VIEW_SELECTED(sc, track)      ((((track)->flag & TRACK_HIDDEN) == 0) && \
+                                             (TRACK_AREA_SELECTED(track, TRACK_AREA_POINT) || \
+                                              (((sc)->flag & SC_SHOW_MARKER_PATTERN) && TRACK_AREA_SELECTED(track, TRACK_AREA_PAT)) || \
+                                              (((sc)->flag & SC_SHOW_MARKER_SEARCH) && TRACK_AREA_SELECTED(track, TRACK_AREA_SEARCH))))
 
-#define MARKER_VISIBLE(sc, track, marker)		(((marker)->flag & MARKER_DISABLED)==0 || ((sc)->flag & SC_HIDE_DISABLED)==0 || (sc->clip->tracking.act_track == track))
+#define MARKER_VISIBLE(sc, track, marker)       (((marker)->flag & MARKER_DISABLED) == 0 || ((sc)->flag & SC_HIDE_DISABLED) == 0 || (sc->clip->tracking.act_track == track))
 
-#define TRACK_CLEAR_UPTO		0
-#define TRACK_CLEAR_REMAINED	1
-#define TRACK_CLEAR_ALL			2
+#define TRACK_CLEAR_UPTO        0
+#define TRACK_CLEAR_REMAINED    1
+#define TRACK_CLEAR_ALL         2
 
-#define CLAMP_PAT_DIM		1
-#define CLAMP_PAT_POS		2
-#define CLAMP_SEARCH_DIM	3
-#define CLAMP_SEARCH_POS	4
-#define CLAMP_PYRAMID_LEVELS	5
+#define CLAMP_PAT_DIM       1
+#define CLAMP_PAT_POS       2
+#define CLAMP_SEARCH_DIM    3
+#define CLAMP_SEARCH_POS    4
 
-#define TRACK_AREA_NONE		-1
-#define TRACK_AREA_POINT	1
-#define TRACK_AREA_PAT		2
-#define TRACK_AREA_SEARCH	4
+#define TRACK_AREA_NONE     -1
+#define TRACK_AREA_POINT    1
+#define TRACK_AREA_PAT      2
+#define TRACK_AREA_SEARCH   4
 
-#define TRACK_AREA_ALL		(TRACK_AREA_POINT|TRACK_AREA_PAT|TRACK_AREA_SEARCH)
+#define TRACK_AREA_ALL      (TRACK_AREA_POINT | TRACK_AREA_PAT | TRACK_AREA_SEARCH)
 
-#define TRACK_SORT_NONE		-1
-#define TRACK_SORT_NAME		0
-#define TRACK_SORT_LONGEST	1
-#define TRACK_SORT_TOTAL	2
+#define TRACK_SORT_NONE     -1
+#define TRACK_SORT_NAME     0
+#define TRACK_SORT_LONGEST  1
+#define TRACK_SORT_TOTAL    2
+#define TRACK_SORT_AVERAGE_ERROR    3
 
 #endif

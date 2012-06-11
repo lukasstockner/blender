@@ -245,6 +245,13 @@ static void node_area_listener(ScrArea *sa, wmNotifier *wmn)
 					break;
 			}
 			break;
+		case NC_MASK:
+			if (wmn->action == NA_EDITED) {
+				if (type==NTREE_COMPOSIT) {
+					ED_area_tag_refresh(sa);
+				}
+			}
+			break;
 
 		case NC_IMAGE:
 			if (wmn->action == NA_EDITED) {
@@ -461,7 +468,7 @@ static void node_region_listener(ARegion *ar, wmNotifier *wmn)
 	}
 }
 
-const char *node_context_dir[] = {"selected_nodes", NULL};
+const char *node_context_dir[] = {"selected_nodes", "active_node", NULL};
 
 static int node_context(const bContext *C, const char *member, bContextDataResult *result)
 {

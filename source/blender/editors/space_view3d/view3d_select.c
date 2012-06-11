@@ -64,6 +64,7 @@
 #include "BKE_context.h"
 #include "BKE_paint.h"
 #include "BKE_armature.h"
+#include "BKE_depsgraph.h"
 #include "BKE_tessmesh.h"
 #include "BKE_movieclip.h"
 #include "BKE_object.h"
@@ -333,7 +334,7 @@ static void do_lasso_select_pose(ViewContext *vc, Object *ob, int mcords[][2], s
 	int sco1[2], sco2[2];
 	bArmature *arm = ob->data;
 	
-	if (ob->type != OB_ARMATURE || ob->pose == NULL) return;
+	if ((ob->type != OB_ARMATURE) || (ob->pose == NULL)) return;
 
 	for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		if (PBONE_VISIBLE(arm, pchan->bone) && (pchan->bone->flag & BONE_UNSELECTABLE) == 0) {
@@ -347,6 +348,11 @@ static void do_lasso_select_pose(ViewContext *vc, Object *ob, int mcords[][2], s
 				else pchan->bone->flag &= ~BONE_SELECTED;
 			}
 		}
+	}
+	
+	if (arm->flag & ARM_HAS_VIZ_DEPS) {
+		/* mask modifier ('armature' mode), etc. */
+		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	}
 }
 
@@ -1864,7 +1870,6 @@ static int do_object_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, i
 		for (base = vc->scene->base.first; base && hits; base = base->next) {
 			if (BASE_SELECTABLE(vc->v3d, base)) {
 				while (base->selcol == (*col & 0xFFFF)) {   /* we got an object */
-					
 					if (*col & 0xFFFF0000) {                    /* we got a bone */
 						bone = get_indexed_bone(base->object, *col & ~(BONESEL_ANY));
 						if (bone) {
@@ -1872,16 +1877,13 @@ static int do_object_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, i
 								if ((bone->flag & BONE_UNSELECTABLE) == 0) {
 									bone->flag |= BONE_SELECTED;
 									bone_selected = 1;
-// XXX									select_actionchannel_by_name(base->object->action, bone->name, 1);
 								}
 							}
 							else {
 								bArmature *arm = base->object->data;
 								bone->flag &= ~BONE_SELECTED;
-// XXX									select_actionchannel_by_name(base->object->action, bone->name, 0);
 								if (arm->act_bone == bone)
 									arm->act_bone = NULL;
-								
 							}
 						}
 					}
@@ -1891,7 +1893,7 @@ static int do_object_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, i
 						else
 							ED_base_object_select(base, BA_DESELECT);
 					}
-
+					
 					col += 4; /* next color */
 					hits--;
 					if (hits == 0) break;
@@ -1899,12 +1901,22 @@ static int do_object_pose_box_select(bContext *C, ViewContext *vc, rcti *rect, i
 			}
 			
 			if (bone_selected) {
-				WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, base->object);
+				Object *ob = base->object;
+				
+				if (ob && (ob->type == OB_ARMATURE)) {
+					bArmature *arm = ob->data;
+					
+					WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+					
+					if (arm && (arm->flag & ARM_HAS_VIZ_DEPS)) {
+						/* mask modifier ('armature' mode), etc. */
+						DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+					}
+				}
 			}
 		}
-
+		
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, vc->scene);
-
 	}
 	MEM_freeN(vbuffer);
 
