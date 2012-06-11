@@ -960,6 +960,29 @@ static int area_move_init(bContext *C, wmOperator *op)
 	return 1;
 }
 
+static void area_move_reset_split_offset(ScrArea* split)
+{
+	split->v1->flag &= ~VERT_FLAG_OFFSET;
+	split->v2->flag &= ~VERT_FLAG_OFFSET;
+	split->v3->flag &= ~VERT_FLAG_OFFSET;
+	split->v4->flag &= ~VERT_FLAG_OFFSET;
+}
+
+static void area_move_reset_split_offsets(ScrArea** split1, ScrArea** split2)
+{
+	if (!split1 || !(*split1))
+		return;
+
+	if (!split2 || !(*split2))
+		return;
+
+	area_move_reset_split_offset(*split1);
+	area_move_reset_split_offset(*split2);
+
+	*split1 = NULL;
+	*split2 = NULL;
+}
+
 /* moves selected screen edge amount of delta, used by split & move */
 static void area_move_apply_do(bContext *C, int origval, int delta, int dir, int bigger, int smaller, ScrArea** split1, ScrArea** split2)
 {
@@ -1036,16 +1059,50 @@ static void area_move_apply_do(bContext *C, int origval, int delta, int dir, int
 					if (overflow < 0)
 					{
 						if ((sa->v1->flag&VERT_FLAG_SELECTED) && (sa->v2->flag&VERT_FLAG_SELECTED))
-							*split1 = sa;
+						{
+							// If there's already a split on this side then disallow joining.
+							// Blender doesn't support joining a split with multiple areas on one side.
+							if (*split1)
+							{
+								area_move_reset_split_offsets(split1, split2);
+								overflow = 0;
+							}
+							else
+								*split1 = sa;
+						}
 						else if ((sa->v3->flag&VERT_FLAG_SELECTED) && (sa->v4->flag&VERT_FLAG_SELECTED))
-							*split2 = sa;
+						{
+							if (*split2)
+							{
+								area_move_reset_split_offsets(split1, split2);
+								overflow = 0;
+							}
+							else
+								*split2 = sa;
+						}
 					}
 					else
 					{
 						if ((sa->v1->flag&VERT_FLAG_SELECTED) && (sa->v2->flag&VERT_FLAG_SELECTED))
-							*split2 = sa;
+						{
+							if (*split2)
+							{
+								area_move_reset_split_offsets(split1, split2);
+								overflow = 0;
+							}
+							else
+								*split2 = sa;
+						}
 						else if ((sa->v3->flag&VERT_FLAG_SELECTED) && (sa->v4->flag&VERT_FLAG_SELECTED))
-							*split1 = sa;
+						{
+							if (*split1)
+							{
+								area_move_reset_split_offsets(split1, split2);
+								overflow = 0;
+							}
+							else
+								*split1 = sa;
+						}
 					}
 				}
 				else
@@ -1053,44 +1110,63 @@ static void area_move_apply_do(bContext *C, int origval, int delta, int dir, int
 					if (overflow > 0)
 					{
 						if ((sa->v2->flag&VERT_FLAG_SELECTED) && (sa->v3->flag&VERT_FLAG_SELECTED))
-							*split1 = sa;
+						{
+							if (*split1)
+							{
+								area_move_reset_split_offsets(split1, split2);
+								overflow = 0;
+							}
+							else
+								*split1 = sa;
+						}
 						else if ((sa->v1->flag&VERT_FLAG_SELECTED) && (sa->v4->flag&VERT_FLAG_SELECTED))
-							*split2 = sa;
+						{
+							if (*split2)
+							{
+								area_move_reset_split_offsets(split1, split2);
+								overflow = 0;
+							}
+							else
+								*split2 = sa;
+						}
 					}
 					else
 					{
 						if ((sa->v2->flag&VERT_FLAG_SELECTED) && (sa->v3->flag&VERT_FLAG_SELECTED))
-							*split2 = sa;
+						{
+							if (*split2)
+							{
+								area_move_reset_split_offsets(split1, split2);
+								overflow = 0;
+							}
+							else
+								*split2 = sa;
+						}
 						else if ((sa->v1->flag&VERT_FLAG_SELECTED) && (sa->v4->flag&VERT_FLAG_SELECTED))
-							*split1 = sa;
+						{
+							if (*split1)
+							{
+								area_move_reset_split_offsets(split1, split2);
+								overflow = 0;
+							}
+							else
+								*split1 = sa;
+						}
 					}
 				}
 			}
+			else
+				area_move_reset_split_offset(sa);
 
 			ED_area_tag_redraw(sa);
 		}
 	}
 
-	// split2 is the one that's closing
-	if (split2 && *split2 && (*split2)->type->spaceid == SPACE_INFO)
+	if (split1 && *split1 && split2 && *split2 && ((*split2)->type->spaceid == SPACE_INFO || area_getorientation(*split1, *split2) < 0))
 	{
 		// Don't allow dragging closed of SPACE_INFO.
 		// It should be tougher to close, most users want it always open and new users don't want to accidentally close it.
-		(*split2)->v1->flag &= ~VERT_FLAG_OFFSET;
-		(*split2)->v2->flag &= ~VERT_FLAG_OFFSET;
-		(*split2)->v3->flag &= ~VERT_FLAG_OFFSET;
-		(*split2)->v4->flag &= ~VERT_FLAG_OFFSET;
-
-		if (*split1)
-		{
-			(*split1)->v1->flag &= ~VERT_FLAG_OFFSET;
-			(*split1)->v2->flag &= ~VERT_FLAG_OFFSET;
-			(*split1)->v3->flag &= ~VERT_FLAG_OFFSET;
-			(*split1)->v4->flag &= ~VERT_FLAG_OFFSET;
-		}
-
-		*split1 = NULL;
-		*split2 = NULL;
+		area_move_reset_split_offsets(split1, split2);
 	}
 
 	WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL); /* redraw everything */
