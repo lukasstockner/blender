@@ -1696,7 +1696,12 @@ void calculateCenter(TransInfo *t)
 	}
 }
 
-int     bmesh_disk_facevert_count(BMVert *v);
+/* flush the calculated displacement to uvs of the same uv island */
+static void flushUVdisplacement(UVTransCorrInfoUV *first, float disp[2], int optimal)
+{
+
+}
+
 
 /* this function detects boundary mesh elements that will encompass the faces to send to the unwrapper.
  * These elements will be artificially pinned for this first attempt at the algorithm */
@@ -1719,6 +1724,13 @@ void calculateUVTransformCorrection(TransInfo *t)
 	/* iterate through loops of vert and calculate image space diff of uvs */
 	for (i = 0 ; i < t->total; i++) {
 		if(not_prop_edit || td[i].factor > 0.0) {
+			/* last island visited, if this changes without an optimal face found,
+			 * we flush the result */
+			int last_insland = 0;
+
+			float min_angles[2] = {100.0, 100.0} /* arbitrary, just bigger than 2PI */;
+			BMLoop *boundary_loops[2];
+
 			char optimal_found = FALSE;
 			char nochange = FALSE;
 			int index;
@@ -1968,10 +1980,5 @@ void calculatePropRatio(TransInfo *t)
 			td->factor = 1.0;
 		}
 		t->proptext[0] = '\0';
-	}
-
-	/* we need to redetect boundaries for uv */
-	if(t->flag & T_IMAGE_PRESERVE_CALC) {
-		t->uvtc->init = 0;
 	}
 }

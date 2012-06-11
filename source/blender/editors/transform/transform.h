@@ -226,14 +226,16 @@ typedef struct UVTransCorrInfoUV {
 		float init_uv[2]; /* initial uv value */
 		float *uv; /* pointer to the corresponding luv->uv */
 		struct UVTransCorrInfoUV *next; /* next uv for same vertex */
+		int island_index; /* index of the per-vertex uv island */
 }UVTransCorrInfoUV;
 
 /* unwrap transform correction structure, will contain mesh elements that will be used for unwrapping */
 typedef struct UVTransCorrect {
 	UVTransCorrInfoUV **initial_uvs;
-	float (*init_vec)[3]; /* initial vertex value */
+	/* initial vertex value. We have to store it here too because for proportional editing
+	 * we can't correlate vertex indices to transdata anymore due to sorting */
+	float (*init_vec)[3];
 	int total_verts;
-	char init;
 } UVTransCorrect;
 
 typedef struct TransData {

@@ -89,6 +89,7 @@
 #include "BKE_tessmesh.h"
 #include "BKE_tracking.h"
 #include "BKE_mask.h"
+#include "BKE_mesh.h"
 
 
 #include "ED_anim_api.h"
@@ -2050,7 +2051,6 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 	/* now we need to allocate store for affected verts if we do maintain image */
 	if(t->flag & T_IMAGE_PRESERVE_CALC) {
 		uvtc = t->uvtc = MEM_callocN(sizeof(*t->uvtc), "UVTransformCorrect");
-//		uvtc->affected_verts = affected_verts = MEM_mallocN(t->total * sizeof(*t->uvtc->affected_verts), "uvtc_verts");
 		uvtc->initial_uvs = initial_uvs = MEM_mallocN(bm->totvert * sizeof(*t->uvtc->initial_uvs), "uvtc_inituvs");
 		uvtc->init_vec = MEM_mallocN(bm->totvert * sizeof(*t->uvtc->init_vec), "uvtc_initial_vertexes");
 		uvtc->total_verts = bm->totvert;
@@ -2124,15 +2124,13 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 					tx++;
 
 				if(t->flag & T_IMAGE_PRESERVE_CALC) {
+					int island = 0;
 					BMIter iter2;
 					UVTransCorrInfoUV **uvtcuv = initial_uvs + a;
 					UVTransCorrInfoUV *uvprev = NULL;
+					UVTransCorrInfoUV *uviter = NULL, *uviter2 = NULL;
 
 					tob->eve = eve;
-
-					if(propmode)
-						BLI_assert(i == a);
-					BLI_assert(BM_elem_index_get(eve) == a);
 
 					BM_ITER_ELEM(l, &iter2, eve, BM_LOOPS_OF_VERT) {
 						MLoopUV *luv = CustomData_bmesh_get(&em->bm->ldata, l->head.data, CD_MLOOPUV);
@@ -2146,6 +2144,47 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 						(*uvtcuv)->uv = luv->uv;
 						(*uvtcuv)->next = NULL;
 						uvtcuv = &((*uvtcuv)->next);
+					}
+
+					/* Now we need to sort uvs according to uv island */
+					uviter2 = initial_uvs[a];
+					while(uviter2) {
+						uviter2->island_index = island;
+						uviter = uviter2->next;
+						uvprev = uviter2;
+
+						while(uviter) {
+							UVTransCorrInfoUV *tmpuv = uviter->next;
+							float diff[2];
+							sub_v2_v2v2(diff, uviter->uv, uviter2->uv);
+							if(len_v2(diff) < STD_UV_CONNECT_LIMIT) {
+								uviter->island_index = island;
+
+								/* this avoids circular queue */
+								if(uviter2->next != uviter) {
+									uviter->next = uviter2->next;
+									/* change after if test to avoid altering the result
+									 * in case uviter2 equals uvprev */
+									uvprev->next = tmpuv;
+								} else {
+									/* change before altering uvprev */
+									uvprev->next = tmpuv;
+									/* if iter is equal to iter2, uvprev must move or
+									 * it will still point to iter2 */
+									 uvprev = uviter;
+								}
+
+								/* if uvprev and uviter2 are the same this overrides previous */
+								uviter2->next = uviter;
+								uviter2 = uviter;
+							} else {
+								uvprev = uviter;
+							}
+							uviter = tmpuv;
+						}
+
+						uviter2 = uviter2->next;
+						island++;
 					}
 				}
 

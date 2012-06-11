@@ -1887,9 +1887,7 @@ void transformApply(bContext *C, TransInfo *t)
 	/* stay here for now, maybe will find some other way to aviod duplicating in every transform
 	 * apply funtion */
 	if(t->flag & T_IMAGE_PRESERVE_CALC) {
-		/* can be invalidated if for instance we change the radius of proportional editing */
-		//if(!t->uvtc->init)
-			calculateUVTransformCorrection(t);
+		calculateUVTransformCorrection(t);
 	}
 
 	/* If auto confirm is on, break after one pass */
