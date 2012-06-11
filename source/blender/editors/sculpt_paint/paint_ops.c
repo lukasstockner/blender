@@ -748,7 +748,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 
 	ed_keymap_paint_brush_switch(keymap, "image_paint");
 	ed_keymap_paint_brush_size(keymap, "tool_settings.image_paint.brush.size");
-	ed_keymap_paint_brush_radial_control(keymap, "image_paint", RC_COLOR | RC_ZOOM);
+	ed_keymap_paint_brush_radial_control(keymap, "image_paint", RC_COLOR | RC_ZOOM | RC_ROTATION);
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", MKEY, KM_PRESS, 0, 0); /* mask toggle */
 	RNA_string_set(kmi->ptr, "data_path", "image_paint_object.data.use_paint_mask");
