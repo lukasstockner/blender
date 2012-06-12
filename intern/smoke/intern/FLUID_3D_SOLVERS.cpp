@@ -211,7 +211,7 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, Vec
 	memset(_Precond, 0, sizeof(float)*_xRes*_yRes*_zRes);
 
 	float deltaNew = 0.0f;
-	float delta_new = 0.0f;
+	float mydeltaNew = 0.0f;
 
 	// r = b - Ax
 	index = _slabSize + _xRes + 1;
@@ -280,8 +280,8 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, Vec
 	direction = Pi.selfadjointView<Upper>() * residual;
 
 	// ???
-	delta_new = residual.dot(direction);
-	printf("DELTA_NEW old: %.12f, new: %.12f\n", deltaNew, delta_new);
+	mydeltaNew = residual.dot(direction);
+	printf("DELTA_NEW old: %.12f, new: %.12f\n", deltaNew, mydeltaNew);
 
 
 	// While deltaNew > (eps^2) * delta0
@@ -335,21 +335,21 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, Vec
 		myalpha = direction.dot(q);
 
 		printf("ALPHA old: %.12f, new: %.12f\n", alpha, myalpha);	
-		printf("DELTA_NEW old: %.12f, new: %.12f\n", deltaNew, delta_new);
+		printf("DELTA_NEW old: %.12f, new: %.12f\n", deltaNew, mydeltaNew);
 
 		if (fabs(alpha) > 0.0f)
 		{
 			alpha = deltaNew / alpha;
-			myalpha = delta_new / myalpha;
+			myalpha = mydeltaNew / myalpha;
 		}
 
 		printf("ALPHA old: %.12f, new: %.12f\n", alpha, myalpha);	
 
 		float deltaOld = deltaNew;
-		float delta_old = delta_new;
+		float mydeltaOld = mydeltaNew;
 
 		deltaNew = 0.0f;
-		delta_new = 0.0f;
+		mydeltaNew = 0.0f;
 
 		maxR = 0.0;
 
@@ -378,7 +378,7 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, Vec
 		result += myalpha * direction;
 
 		// ????
-		residual -= alpha * q;
+		residual -= myalpha * q;
 
 		// ????
 		h = Pi.selfadjointView<Upper>() * residual;
@@ -387,16 +387,16 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, Vec
 		// mytmp = residual.dot(h);
 
 		// ????
-		delta_new = residual.dot(h);
+		mydeltaNew = residual.dot(h);
 
-		printf("DELTA_NEW old: %.12f, new: %.12f\n", deltaNew, delta_new);
+		printf("DELTA_NEW old: %.12f, new: %.12f\n", deltaNew, mydeltaNew);
 
 		// ????
 		// DG TODO: maxR
 
 		// beta = deltaNew / deltaOld
 		float beta = deltaNew / deltaOld;
-		float mybeta = delta_new / delta_old;
+		float mybeta = mydeltaNew / mydeltaOld;
 
 		printf("BETA old: %.12f, new: %.12f\n\n", beta, mybeta);	
 
