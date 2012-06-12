@@ -168,7 +168,7 @@ void FLUID_3D::solveHeat(float* field, float* b, unsigned char* skip)
 			if (_Acenter)  delete[] _Acenter;
 }
 
-void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, VectorXf &myb, SparseMatrix<float,RowMajor> &A, ArrayXd &gti)
+void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, VectorXf &myb, SparseMatrix<float,RowMajor> &A, ArrayXd &gti, VectorXf &result)
 {
 	int x, y, z;
 	size_t index;
@@ -178,7 +178,6 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, Vec
 	// i = 0
 	int i = 0;
 
-	VectorXf result(arraySize);
 	result.setZero(arraySize);
 
 	_residual     = new float[_totalCells]; // set 0
@@ -277,8 +276,8 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, Vec
 				Pi.insert(it.row(), it.col()) = value;
 			}
 		}
-	direction = Pi.selfadjointView<Upper>() * residual;
 
+	direction = Pi.selfadjointView<Upper>() * residual;
 
 	// ???
 	delta_new = residual.dot(direction);
@@ -407,6 +406,8 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip, Vec
 			for (y = 1; y < _yRes - 1; y++, index += 2)
 				for (x = 1; x < _xRes - 1; x++, index++)
 					_direction[index] = _h[index] + beta * _direction[index];
+
+		direction = h + mybeta * direction;
 
 		// i = i + 1
 		i++;

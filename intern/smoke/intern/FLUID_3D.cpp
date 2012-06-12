@@ -1001,14 +1001,17 @@ void FLUID_3D::project()
 */
 	// copyBorderAll(_pressure, 0, _zRes);
 
+	VectorXf result;
+	result.setZero(linearIndex);
+
 	// solve Poisson equation
-	solvePressurePre(_pressure, _divergence, _obstacles, b, A, gti);
+	solvePressurePre(_pressure, _divergence, _obstacles, b, A, gti, result);
 
 	for(unsigned int i = 0; i < _xRes * _yRes * _zRes; i++)
 	{
-		float value = (_pressure[i] - b[i]);
+		float value = (_pressure[i] - result[gti(i)]);
 		if(value > 0.01)
-			printf("error: p: %f, b: %f\n", _pressure[i], b[i]);
+			printf("error: p: %f, b: %f\n", _pressure[i], result[gti(i)]);
 	}
 #if 0
 	{
@@ -1045,14 +1048,23 @@ void FLUID_3D::project()
 			{
 				float vMask[3] = {1.0f, 1.0f, 1.0f}, vObst[3] = {0, 0, 0};
 				float vR = 0.0f, vL = 0.0f, vT = 0.0f, vB = 0.0f, vD = 0.0f, vU = 0.0f;
-
-				float pC = b[index]; // center
-				float pR = b[index + 1]; // right
-				float pL = b[index - 1]; // left
-				float pT = b[index + _slabSize]; // top
-				float pB = b[index - _slabSize]; // bottom
-				float pU = b[index + _xRes]; // Up
-				float pD = b[index - _xRes]; // Down
+/*
+				float pC = result[gti(FINDEX(x, y, z))]; // center
+				float pR = result[gti(FINDEX(x + 1, y, z))]; // right
+				float pL = result[gti(FINDEX(x - 1, y, z))]; // left
+				float pT = result[gti(FINDEX(x, y + 1, z))]; // top
+				float pB = result[gti(FINDEX(x, y - 1, z))]; // bottom
+				float pU = result[gti(FINDEX(x, y, z + 1))]; // Up
+				float pD = result[gti(FINDEX(x, y, z - 1))]; // Down
+*/
+				
+				float pC = _pressure[index]; // center
+				float pR = _pressure[index + 1]; // right
+				float pL = _pressure[index - 1]; // left
+				float pT = _pressure[index + _xRes]; // top
+				float pB = _pressure[index - _xRes]; // bottom
+				float pU = _pressure[index + _slabSize]; // Up
+				float pD = _pressure[index - _slabSize]; // Down
 
 				if(!_obstacles[index])
 				{

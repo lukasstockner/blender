@@ -170,7 +170,7 @@ class FLUID_3D
 		void diffuseHeat();
 		void solvePressure(float* field, float* b, unsigned char* skip);
 		
-		void solvePressurePre(float* field, float* b, unsigned char* skip, VectorXf &myb, SparseMatrix<float,RowMajor> &A, ArrayXd &gti);
+		void solvePressurePre(float* field, float* b, unsigned char* skip, VectorXf &myb, SparseMatrix<float,RowMajor> &A, ArrayXd &gti, VectorXf &result);
 
 		void solvePressureJacobian(float* p, float* d, unsigned char* ob);
 
