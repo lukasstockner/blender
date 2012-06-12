@@ -133,14 +133,10 @@
 
 // Corrects MinGW defines
 #ifdef FREE_WINDOWS
-#	ifdef TOUCHEVENTF_DOWN
-#		undef TOUCHEVENTF_DOWN
-#		define TOUCHEVENTF_DOWN 0x0002
-#	endif // TOUCHEVENTF_DOWN
-#	ifdef TOUCHEVENTF_MOVE
-#		undef TOUCHEVENTF_MOVE
-#		define TOUCHEVENTF_MOVE 0x0001
-#	endif // TOUCHEVENTF_UP
+#	undef TOUCHEVENTF_DOWN
+#	define TOUCHEVENTF_DOWN 0x0002
+#	undef TOUCHEVENTF_MOVE
+#	define TOUCHEVENTF_MOVE 0x0001
 #endif // FREE_WINDOWS
 
 static void initRawInput()

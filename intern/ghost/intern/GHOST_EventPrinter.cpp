@@ -95,6 +95,36 @@ bool GHOST_EventPrinter::processEvent(GHOST_IEvent *event)
 			std::cout << "GHOST_kEventKeyDown, key: " << str;
 		}
 		break;
+
+#ifdef WITH_INPUT_TOUCH
+		case GHOST_kEventTouch:
+		{
+			GHOST_TEventTouchData *touchData = (GHOST_TEventTouchData *)((GHOST_IEvent *)event)->getData();
+			char index[32] = {'\0'};
+			char state[32] = {'\0'};
+			float x = (float)touchData->x / 100;
+			float y = (float)touchData->y / 100;
+
+			sprintf(index, "%u", touchData->index);
+			switch (touchData->state) {
+				case GHOST_kDown:
+					sprintf(state, "%s", "down");
+					break;
+				case GHOST_kMove:
+					sprintf(state, "%s", "move");
+					break;
+				case GHOST_kUp:
+					sprintf(state, "%s", "up");
+					break;
+				default:
+					break;
+			}
+
+			std::cout << "GHOST_kEventTouch, index: " << index << " state: " << state
+			          << " (x,y): (" << x << "," << y << ")";
+		}
+		break;
+#endif // WITH_INPUT_TOUCH
 			
 		case GHOST_kEventDraggingEntered:
 		{

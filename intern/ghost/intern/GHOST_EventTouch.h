@@ -33,7 +33,7 @@ protected:
 
 public:
 	GHOST_EventTouch(GHOST_TUns64 time, GHOST_IWindow *window)
-		: GHOST_Event(time, GHOST_kEventNDOFMotion, window)
+		: GHOST_Event(time, GHOST_kEventTouch, window)
 	{
 		m_data = &m_touchData;
 	}
