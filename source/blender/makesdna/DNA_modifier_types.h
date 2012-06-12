@@ -77,6 +77,7 @@ typedef enum ModifierType {
 	eModifierType_Ocean,
 	eModifierType_DynamicPaint,
 	eModifierType_Remesh,
+	eModifierType_LaplacianSmooth,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -1064,5 +1065,18 @@ typedef struct RemeshModifierData {
 	char mode;
 	char pad;
 } RemeshModifierData;
+
+/* Smooth modifier flags */
+#define MOD_LAPLACIANSMOOTH_X (1<<1)
+#define MOD_LAPLACIANSMOOTH_Y (1<<2)
+#define MOD_LAPLACIANSMOOTH_Z (1<<3)
+
+typedef struct LaplacianSmoothModifierData {
+	ModifierData modifier;
+	float fac;
+	char defgrp_name[64];	/* MAX_VGROUP_NAME */
+	short flag, repeat;
+
+} LaplacianSmoothModifierData;
 
 #endif

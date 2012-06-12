@@ -64,6 +64,7 @@ set(SRC
 	intern/MOD_fluidsim_util.c
 	intern/MOD_hook.c
 	intern/MOD_lattice.c
+	intern/MOD_laplaciansmooth.c
 	intern/MOD_mask.c
 	intern/MOD_meshdeform.c
 	intern/MOD_mirror.c
