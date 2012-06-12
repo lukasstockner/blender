@@ -4,8 +4,9 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 
-
+#define GPU_MAT_CAST_ANY
 #include "GPU_matrix.h"
 
 #ifdef GLES
@@ -13,6 +14,8 @@
 #else 
 #include <GL/glew.h>
 #endif
+
+#define GLU_STACK_DEBUG;
 
 typedef float GPU_matrix[4][4];
 
@@ -32,7 +35,29 @@ GPU_matrix_stack ms_texture;
 
 GPU_matrix_stack * ms_current;
 
+
+
 #define CURMATRIX (ms_current->dynstack[ms_current->pos])
+
+
+/* Check if we have a good matrix */
+
+static void checkmat(float *m)
+{
+	int i;
+	for(i=0;i<16;i++){
+		if(isinf(m[i]))
+		{assert(0);};};
+
+
+}
+
+#if 0
+#define CHECKMAT checkmat(CURMATRIX);
+#else
+#define CHECKMAT
+#endif
+
 
 static void ms_init(GPU_matrix_stack * ms, int initsize)
 {
@@ -189,7 +214,7 @@ void gpuMatrixCommit(void)
 	}
 
 #endif
-
+CHECKMAT
 }
 
 
@@ -210,17 +235,25 @@ void gpuPushMatrix(void)
 	}
 
 	gpuLoadMatrix(ms_current->dynstack[ms_current->pos-1]);
+	CHECKMAT
 
 }
 
 void gpuPopMatrix(void)
 {
 	ms_current->pos--;
+
+
+
+
 	ms_current->changed = 1;
+
+
 #ifdef GLU_STACK_DEBUG
 	if(ms_current->pos < 0)
 		assert(0);
 #endif	
+	CHECKMAT
 }
 
 
@@ -246,7 +279,7 @@ void gpuMatrixMode(int mode)
 	
 	}
 
-
+CHECKMAT
 }
 
 
@@ -254,12 +287,17 @@ void gpuLoadMatrix(const float * m)
 {
 	copy_m4_m4(CURMATRIX, m);
 	ms_current->changed = 1;
+	CHECKMAT
 }
 
-void gpuGetMatrix(float * m)
+float * gpuGetMatrix(float * m)
 {
-	copy_m4_m4((float (*)[4])m,CURMATRIX);
+	if(m)
+		copy_m4_m4((float (*)[4])m,CURMATRIX);
+	else
+		return CURMATRIX;
 	ms_current->changed = 1;
+	return 0;
 }
 
 
@@ -267,6 +305,7 @@ void gpuLoadIdentity(void)
 {
 	unit_m4(CURMATRIX);
 	ms_current->changed = 1;
+	CHECKMAT
 }
 
 
@@ -277,6 +316,7 @@ void gpuTranslate(float x, float y, float z)
 
 	translate_m4(CURMATRIX, x, y, z);
 	ms_current->changed = 1;
+	CHECKMAT
 
 }
 
@@ -285,7 +325,73 @@ void gpuScale(float x, float y, float z)
 
 	scale_m4(CURMATRIX, x, y, z);
 	ms_current->changed = 1;
-
+	CHECKMAT
 }
 
 
+void gpuMultMatrix(const float *m)
+{
+	GPU_matrix cm;
+
+	copy_m4_m4(cm, CURMATRIX);
+
+	mult_m4_m4m4_q(CURMATRIX, cm, m);
+	ms_current->changed = 1;
+	CHECKMAT
+
+}
+
+void gpuLoadOrtho(float left, float right, float bottom, float top, float nearVal, float farVal)
+{
+	mat4_ortho_set(CURMATRIX, left, right, bottom, top, nearVal, farVal);
+	ms_current->changed = 1;
+	CHECKMAT
+}
+
+
+void gpuOrtho(float left, float right, float bottom, float top, float nearVal, float farVal)
+{
+	GPU_matrix om;
+
+	mat4_ortho_set(om, left, right, bottom, top, nearVal, farVal);
+
+	gpuMultMatrix(om);
+	CHECKMAT
+}
+
+
+void gpuFrustum(float left, float right, float bottom, float top, float nearVal, float farVal)
+{
+	GPU_matrix fm;
+	mat4_frustum_set(fm, left, right, bottom, top, nearVal, farVal);
+	gpuMultMatrix(fm);
+	CHECKMAT
+}
+
+void gpuLoadFrustum(float left, float right, float bottom, float top, float nearVal, float farVal)
+{
+	mat4_frustum_set(CURMATRIX, left, right, bottom, top, nearVal, farVal);
+	ms_current->changed = 1;
+	CHECKMAT
+}
+
+
+void gpuLookAt(float eyeX, float eyeY, float eyeZ, float centerX, float centerY, float centerZ, float upX, float upY, float upZ)
+{
+
+	GPU_matrix cm;
+	float lookdir[3];
+	float camup[3] = {upX, upY, upZ};
+
+	lookdir[0] =  centerX - eyeX;
+	lookdir[1] =  centerY - eyeY;
+	lookdir[2] =  centerZ - eyeZ;
+
+	mat4_look_from_origin(cm, lookdir, camup);
+
+	gpuMultMatrix(cm);
+
+	gpuTranslate(-eyeX, -eyeY, -eyeZ);
+CHECKMAT
+
+}

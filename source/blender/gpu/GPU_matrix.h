@@ -3,6 +3,9 @@
 extern "C" {
 #endif
 
+#ifndef GPU_MATRIX
+#define GPU_MATRIX
+
 #define GPU_MODELVIEW	1<<0
 #define GPU_PROJECTION	1<<1
 #define GPU_TEXTURE		1<<2
@@ -21,13 +24,38 @@ void gpuPopMatrix(void);
 void gpuMatrixMode(int mode);
 
 void gpuLoadMatrix(const float * m);
-void gpuGetMatrix(float * m);
+float * gpuGetMatrix(float * m);
 
 void gpuLoadIdentity(void);
+
+void gpuMultMatrix(const float *m);
 
 void gpuTranslate(float x, float y, float z);
 void gpuScale(float x, float y, float z);
 
+void gpuOrtho(float left, float right, float bottom, float top, float nearVal, float farVal);
+void gpuFrustum(float left, float right, float bottom, float top, float nearVal, float farVal);
+
+void gpuLoadOrtho(float left, float right, float bottom, float top, float nearVal, float farVal);
+void gpuLoadFrustum(float left, float right, float bottom, float top, float nearVal, float farVal);
+
+void gpuLookAt(float eyeX, float eyeY, float eyeZ, float centerX, float centerY, float centerZ, float upX, float upY, float upZ);
+
+
+#ifndef GPU_MAT_CAST_ANY
+#define GPU_MAT_CAST_ANY
+
+
+#define gpuLoadMatrix(m) gpuLoadMatrix((const float *) m);
+#define gpuGetMatrix(m) gpuGetMatrix((float *) m);
+#define gpuMultMatrix(m) gpuMultMatrix((const float *) m);
+
+#endif
+
+#endif
+
 #ifdef __cplusplus
 }
 #endif
+
+

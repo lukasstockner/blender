@@ -1850,3 +1850,83 @@ void pseudoinverse_m4_m4(float Ainv[4][4], float A[4][4], float epsilon)
 
 	mul_serie_m4(Ainv, U, Wm, V, NULL, NULL, NULL, NULL, NULL);
 }
+
+
+void mat4_ortho_set(float m[][4], float left, float right, float bottom, float top, float nearVal, float farVal)
+{
+
+	m[0][0] = 2.0/(right-left);	m[1][0] = 0.0f;			m[2][0] = 0.0f;						m[3][0] = -((double)right+left)/(right-left);
+	m[0][1] = 0.0f;				m[1][1] = 2.0/(top-bottom);m[2][1] = 0.0f;					m[3][1] = -((double)top+bottom)/(top-bottom);
+	m[0][2] = 0.0f;				m[1][2] = 0.0f;			m[2][2] = -2.0/(farVal-nearVal);	m[3][2] = -((double)farVal+nearVal)/(farVal-nearVal);
+	m[0][3] = 0.0f;				m[1][3] = 0.0f;			m[2][3] = 0.0f;						m[3][3] = 1.0;
+
+
+}
+
+
+void mat4_frustum_set(float m[][4], float left, float right, float bottom, float top, float nearVal, float farVal)
+{
+
+	m[0][0] = 2.0*nearVal/(right-left);	m[1][0] = 0.0f;	m[2][0] = (right+left)/(right-left);	m[3][0] = 0.0f;
+	m[0][1] = 0.0f;	m[1][1] = 2.0*nearVal/(top-bottom);	m[2][1] = (top+bottom)/(top-bottom);	m[3][1] = 0.0f;
+	m[0][2] = 0.0f;	m[1][2] = 0.0f;			m[2][2] = -(farVal+nearVal)/(farVal-nearVal);	m[3][2] = -2.0*farVal*nearVal/(farVal-nearVal);
+	m[0][3] = 0.0f;	m[1][3] = 0.0f;			m[2][3] = - 1.0f;								m[3][3] = 0.0f;
+
+}
+
+/*
+
+  Following functions are loosly base on Mesa implementation:
+	mat4_look_from_origin -> gluLookAt
+
+ *
+ * SGI FREE SOFTWARE LICENSE B (Version 2.0, Sept. 18, 2008)
+ * Copyright (C) 1991-2000 Silicon Graphics, Inc. All Rights Reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice including the dates of first publication and
+ * either this permission notice or a reference to
+ * http://oss.sgi.com/projects/FreeB/
+ * shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * SILICON GRAPHICS, INC. BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+ * OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * Except as contained in this notice, the name of Silicon Graphics, Inc.
+ * shall not be used in advertising or otherwise to promote the sale, use or
+ * other dealings in this Software without prior written authorization from
+ * Silicon Graphics, Inc.
+ */
+
+
+void mat4_look_from_origin(float m[4][4], float lookdir[3], float camup[3])
+{
+
+	float side[3];
+
+	normalize_v3(lookdir);
+
+	cross_v3_v3v3(side, lookdir, camup);
+
+	normalize_v3(side);
+
+	cross_v3_v3v3(camup, side, lookdir);
+
+	m[0][0] = side[0];		m[1][0] = side[1];		m[2][0] = side[2];		m[3][0] = 0.0f;
+	m[0][1] = camup[0];		m[1][1] = camup[1];		m[2][1] = camup[2];		m[3][1] = 0.0f;
+	m[0][2] = -lookdir[0];	m[1][2] = -lookdir[1];	m[2][2] = -lookdir[2];	m[3][2] = 0.0f;
+	m[0][3] = 0.0f;			m[1][3] = 0.0f;			m[2][3] = 0.0f;			m[3][3] = 1.0f;
+
+
+}

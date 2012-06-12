@@ -180,6 +180,13 @@ void blend_m4_m4m4(float R[4][4], float A[4][4], float B[4][4], const float t);
 int is_negative_m3(float mat[3][3]);
 int is_negative_m4(float mat[4][4]);
 
+/******************************** Projections ********************************/
+
+void mat4_ortho_set(float m[4][4], float left, float right, float bottom, float top, float nearVal, float farVal);
+void mat4_frustum_set(float m[4][4], float left, float right, float bottom, float top, float nearVal, float farVal);
+
+void mat4_look_from_origin(float m[4][4], float lookdir[3], float camup[3]);
+
 /*********************************** Other ***********************************/
 
 void print_m3(const char *str, float M[3][3]);
