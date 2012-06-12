@@ -6558,7 +6558,7 @@ static int ui_handler_region_menu(bContext *C, wmEvent *event, void *UNUSED(user
 				if (data->menu->menuretval)
 					ui_handle_button_return_submenu(C, event, but);
 				else
-					ui_handle_button_event(C, event, but);
+					retval = ui_handle_button_event(C, event, but);
 			}
 			/* If the menu keeps the input but wants an update anyway... */
 			else if (retval == WM_UI_HANDLER_BREAK && data->menu->menuretval == UI_RETURN_UPDATE)
