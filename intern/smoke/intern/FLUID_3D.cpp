@@ -1011,13 +1011,6 @@ void FLUID_3D::project()
 	solvePressurePre(_pressure, _divergence, _obstacles);
 #endif
 
-	for(unsigned int i = 0; i < _xRes * _yRes * _zRes; i++)
-	{
-		float value = (_pressure[i] - result[gti(i)]);
-		if(value > 0.01)
-			printf("error: p: %f, b: %f\n", _pressure[i], result[gti(i)]);
-	}
-#if 0
 	{
 		float maxvalue = 0;
 		for(unsigned int i = 0; i < _xRes * _yRes * _zRes; i++)
@@ -1039,7 +1032,7 @@ void FLUID_3D::project()
 		}
 		// printf("Max pressure: %f, dx: %f\n", maxvalue, _dx);
 	}
-#endif
+
 	// DG TODO: check this function, for now this is done in the next function
 	// setObstaclePressure(_pressure, 0, _zRes);
 
