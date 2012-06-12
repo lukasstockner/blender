@@ -47,6 +47,8 @@ class WTURBULENCE;
 #include <Eigen/Sparse>
 using namespace Eigen;
 
+#define USE_NEW_CG 0
+
 // Fluid index
 #define FINDEX(indexX, indexY, indexZ) ((indexZ) * _xRes * _yRes + (indexY) * _xRes + (indexX))
 
@@ -170,7 +172,11 @@ class FLUID_3D
 		void diffuseHeat();
 		void solvePressure(float* field, float* b, unsigned char* skip);
 		
-		void solvePressurePre(float* field, float* b, unsigned char* skip, VectorXf &myb, SparseMatrix<float,RowMajor> &A, ArrayXd &gti, VectorXf &result);
+#if USE_NEW_CG == 1
+		void solvePressurePre(VectorXf &b, SparseMatrix<float,RowMajor> &A, ArrayXd &gti, VectorXf &result);
+#else
+		void solvePressurePre(float* field, float* b, unsigned char* skip);
+#endif
 
 		void solvePressureJacobian(float* p, float* d, unsigned char* ob);
 
