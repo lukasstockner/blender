@@ -35,6 +35,9 @@
 #pragma warning (disable : 4786)
 #endif //WIN32
 
+#ifdef GLES
+#include <GLES2/gl2.h>
+#endif
 #include "KX_Scene.h"
 #include "KX_PythonInit.h"
 #include "MT_assert.h"

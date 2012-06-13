@@ -24,6 +24,7 @@
 #include "RAS_OpenGLRasterizer/RAS_GLExtensionManager.h"
 
 #include "GPU_draw.h"
+#include "GPU_matrix.h"
 
 #include "STR_HashedString.h"
 
@@ -658,12 +659,14 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 void KX_BlenderMaterial::setTexMatrixData(int i)
 {
 	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
+	gpuMatrixMode(GPU_TEXTURE);
+
+	gpuLoadIdentity(); gpuMatrixCommit();
 
 	if ( GLEW_ARB_texture_cube_map && 
 		mTextures[i].GetTextureType() == GL_TEXTURE_CUBE_MAP_ARB && 
 		mMaterial->mapping[i].mapping & USEREFL) {
-		glScalef( 
+		gpuScale(
 			mMaterial->mapping[i].scale[0], 
 			-mMaterial->mapping[i].scale[1], 
 			-mMaterial->mapping[i].scale[2]
@@ -671,19 +674,22 @@ void KX_BlenderMaterial::setTexMatrixData(int i)
 	}
 	else
 	{
-		glScalef( 
+		gpuScale(
 			mMaterial->mapping[i].scale[0], 
 			mMaterial->mapping[i].scale[1], 
 			mMaterial->mapping[i].scale[2]
 		);
 	}
-	glTranslatef(
+	gpuTranslate(
 		mMaterial->mapping[i].offsets[0],
 		mMaterial->mapping[i].offsets[1], 
 		mMaterial->mapping[i].offsets[2]
 	);
 
+	gpuMatrixCommit();
 	glMatrixMode(GL_MODELVIEW);
+	gpuMatrixMode(GPU_MODELVIEW);
+
 
 }
 
@@ -730,8 +736,10 @@ void KX_BlenderMaterial::setObjectMatrixData(int i, RAS_IRasterizer *ras)
 	const MT_Matrix4x4& mvmat = ras->GetViewMatrix();
 
 	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	glScalef( 
+	gpuMatrixMode(GPU_TEXTURE);
+
+	gpuLoadIdentity(); gpuMatrixCommit();
+	gpuScale(
 		mMaterial->mapping[i].scale[0], 
 		mMaterial->mapping[i].scale[1], 
 		mMaterial->mapping[i].scale[2]
@@ -741,9 +749,12 @@ void KX_BlenderMaterial::setObjectMatrixData(int i, RAS_IRasterizer *ras)
 	MT_Vector4 matmul = MT_Vector4(pos[0], pos[1], pos[2], 1.f);
 	MT_Vector4 t = mvmat*matmul;
 
-	glTranslatef( (float)(-t[0]), (float)(-t[1]), (float)(-t[2]) );
+	gpuTranslate( (float)(-t[0]), (float)(-t[1]), (float)(-t[2]) );
 
+	gpuMatrixCommit();
 	glMatrixMode(GL_MODELVIEW);
+	gpuMatrixMode(GPU_MODELVIEW);
+
 
 }
 

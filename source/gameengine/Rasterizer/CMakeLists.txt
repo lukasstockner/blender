@@ -30,6 +30,7 @@ set(INC
 	../SceneGraph
 	../../blender/makesdna
 	../../blender/blenkernel
+	../../blender/gpu
 	../../../intern/container
 	../../../intern/guardedalloc
 	../../../intern/moto/include

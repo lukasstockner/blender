@@ -43,6 +43,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+#include "GPU_matrix.h"
 #include <GL/glew.h>
 
 #include "MEM_guardedalloc.h"
@@ -158,24 +160,31 @@ void BL_print_gamedebug_line(const char* text, int xco, int yco, int width, int 
 	DisableForText();
 	glDisable(GL_DEPTH_TEST);
 
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
+	//glMatrixMode(GL_PROJECTION);
+	gpuMatrixMode(GPU_PROJECTION);
 
-	glOrtho(0, width, 0, height, -100, 100);
+	gpuPushMatrix();
+
+	gpuLoadOrtho(0, width, 0, height, -100, 100); gpuMatrixCommit();
 
 	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
+	gpuMatrixMode(GPU_MODELVIEW);
+
+	gpuPushMatrix();
+	gpuLoadIdentity(); gpuMatrixCommit();
 
 	/* the actual drawing */
 	glColor3ub(255, 255, 255);
 	BLF_draw_default((float)xco, (float)(height-yco), 0.0f, (char *)text, 65535); /* XXX, use real len */
 
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
+	//glMatrixMode(GL_PROJECTION);
+	gpuMatrixMode(GPU_PROJECTION);
+
+	gpuPopMatrix(); gpuMatrixCommit();
 	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	gpuMatrixMode(GPU_MODELVIEW);
+
+	gpuPopMatrix(); gpuMatrixCommit();
 	glEnable(GL_DEPTH_TEST);
 }
 
@@ -187,15 +196,18 @@ void BL_print_gamedebug_line_padded(const char* text, int xco, int yco, int widt
 	DisableForText();
 	glDisable(GL_DEPTH_TEST);
 
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
+	//glMatrixMode(GL_PROJECTION);
+	gpuMatrixMode(GPU_PROJECTION);
+
+	gpuPushMatrix();
 	
-	glOrtho(0, width, 0, height, -100, 100);
+	gpuLoadOrtho(0, width, 0, height, -100, 100); gpuMatrixCommit();
 	
 	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
+	gpuMatrixMode(GPU_MODELVIEW);
+
+	gpuPushMatrix();
+	gpuLoadIdentity(); gpuMatrixCommit();
 
 	/* draw in black first*/
 	glColor3ub(0, 0, 0);
@@ -203,10 +215,14 @@ void BL_print_gamedebug_line_padded(const char* text, int xco, int yco, int widt
 	glColor3ub(255, 255, 255);
 	BLF_draw_default((float)xco, (float)(height-yco), 0.0f, text, 65535); /* XXX, use real len */
 
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
+	//glMatrixMode(GL_PROJECTION);
+	gpuMatrixMode(GPU_PROJECTION);
+
+	gpuPopMatrix(); gpuMatrixCommit();
 	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	gpuMatrixMode(GPU_MODELVIEW);
+
+	gpuPopMatrix(); gpuMatrixCommit();
 	glEnable(GL_DEPTH_TEST);
 }
 

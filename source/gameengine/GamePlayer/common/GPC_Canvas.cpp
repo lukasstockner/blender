@@ -29,6 +29,9 @@
  *  \ingroup player
  */
 
+#ifdef GLES
+#include <GLES2/gl2.h>
+#endif
 
 #ifndef NOPNG
 #ifdef WIN32
@@ -70,12 +73,12 @@ GPC_Canvas::~GPC_Canvas()
 //  {
 //  	glViewport(0, 0, m_width, m_height);
 //  	glMatrixMode(GL_PROJECTION);
-//  	glLoadIdentity();
+//  	gpuLoadIdentity();
 	
-//  	glOrtho(-2.0, 2.0, -2.0, 2.0, -20.0, 20.0);
+//  	gpuOrtho(-2.0, 2.0, -2.0, 2.0, -20.0, 20.0); gpuMatrixCommit();
 
 //  	glMatrixMode(GL_MODELVIEW);
-//  	glLoadIdentity();
+//  	gpuLoadIdentity(); gpuMatrixCommit();
 
 //  	glEnable(GL_DEPTH_TEST);
 
@@ -105,7 +108,9 @@ void GPC_Canvas::EndFrame()
 
 void GPC_Canvas::ClearColor(float r, float g, float b, float a)
 {
+#include REAL_GL_MODE
 	::glClearColor(r,g,b,a);
+#include FAKE_GL_MODE
 }
 
 void GPC_Canvas::SetViewPort(int x1, int y1, int x2, int y2)
@@ -120,10 +125,12 @@ void GPC_Canvas::SetViewPort(int x1, int y1, int x2, int y2)
 		 * but where... definitely need to clean up this
 		 * whole canvas/rendertools mess.
 		 */
+#include REAL_GL_MODE
 	glEnable(GL_SCISSOR_TEST);
 
 	glViewport(x1,y1,x2-x1 + 1,y2-y1 + 1);
 	glScissor(x1,y1,x2-x1 + 1,y2-y1 + 1);
+#include FAKE_GL_MODE
 };
 
 
@@ -136,8 +143,9 @@ void GPC_Canvas::ClearBuffer(
 		ogltype |= GL_COLOR_BUFFER_BIT;
 	if (type & RAS_ICanvas::DEPTH_BUFFER )
 		ogltype |= GL_DEPTH_BUFFER_BIT;
-
+#include REAL_GL_MODE
 	::glClear(ogltype);
+#include FAKE_GL_MODE
 }
 
 
@@ -322,11 +330,11 @@ PushRenderState(
 #if 0
 
 	::glMatrixMode(GL_PROJECTION);
-	::glPushMatrix();
+	::gpuPushMatrix();
 	::glMatrixMode(GL_MODELVIEW);
-	::glPushMatrix();
+	::gpuPushMatrix();
 	::glMatrixMode(GL_TEXTURE);
-	::glPushMatrix();
+	::gpuPushMatrix();
 	// Save old OpenGL settings
 	::glGetIntegerv(GL_LIGHTING, (GLint*)&(render_state.oldLighting));
 	::glGetIntegerv(GL_DEPTH_TEST, (GLint*)&(render_state.oldDepthTest));
@@ -362,11 +370,11 @@ PopRenderState(
 	::glColor4fv(render_state.oldColor);
 	// Restore OpenGL matrices
 	::glMatrixMode(GL_TEXTURE);
-	::glPopMatrix();
+	::gpuPopMatrix(); gpuMatrixCommit();
 	::glMatrixMode(GL_PROJECTION);
-	::glPopMatrix();
+	::gpuPopMatrix(); gpuMatrixCommit();
 	::glMatrixMode(GL_MODELVIEW);
-	::glPopMatrix();
+	::gpuPopMatrix(); gpuMatrixCommit();
 
 #else
 
@@ -381,13 +389,16 @@ SetOrthoProjection(
 	// Set up OpenGL matrices 
 	::glViewport(0, 0, m_width, m_height);
 	::glScissor(0, 0, m_width, m_height);
-	::glMatrixMode(GL_PROJECTION);
-	::glLoadIdentity();
-	::glOrtho(0, m_width, 0, m_height, -1, 1);
-	::glMatrixMode(GL_MODELVIEW);
-	::glLoadIdentity();
+	//::glMatrixMode(GL_PROJECTION);
+	gpuMatrixMode(GPU_PROJECTION);
+
+	::gpuLoadOrtho(0, m_width, 0, m_height, -1, 1); gpuMatrixCommit();
+	//::glMatrixMode(GL_MODELVIEW);
+	gpuMatrixMode(GPU_MODELVIEW);
+
+	::gpuLoadIdentity(); gpuMatrixCommit();
 	::glMatrixMode(GL_TEXTURE);
-	::glLoadIdentity();
+	::gpuLoadIdentity(); gpuMatrixCommit();
 }
 
 	void

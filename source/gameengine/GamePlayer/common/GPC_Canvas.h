@@ -41,6 +41,7 @@
 #endif // WIN32
 
 #include <GL/glew.h>
+#include "GPU_matrix.h"
 
 #include <map>
 

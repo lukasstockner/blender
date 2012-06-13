@@ -37,7 +37,11 @@
 
 #include <iostream>
 #include <stdio.h>
-
+#ifdef GLES
+#include <GLES2/gl2.h>
+#include FAKE_GL_MODE
+#endif
+#include <stdio.h>
 #include "KX_KetsjiEngine.h"
 
 #include "ListValue.h"

@@ -44,6 +44,8 @@
 #include "RAS_2DFilterManager.h"
 #include <iostream>
 
+#include "GPU_matrix.h"
+
 #include <GL/glew.h>
 
 #include <stdio.h>
@@ -436,13 +438,17 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	// if the last rendered face had alpha add it would messes with the color of the plane we apply 2DFilter to
 	glDisable(GL_BLEND); 
-	glPushMatrix();		//GL_MODELVIEW
-	glLoadIdentity();	// GL_MODELVIEW
+	gpuPushMatrix();		//GL_MODELVIEW
+	gpuLoadIdentity(); gpuMatrixCommit();	// GL_MODELVIEW
 	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
+	gpuMatrixMode(GPU_TEXTURE);
+
+	gpuLoadIdentity(); gpuMatrixCommit();
 	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
+	gpuMatrixMode(GPU_PROJECTION);
+
+	gpuPushMatrix();
+	gpuLoadIdentity(); gpuMatrixCommit();
 
 	for (passindex =0; passindex<MAX_RENDER_PASS; passindex++)
 	{
@@ -468,9 +474,11 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 	glEnable(GL_DEPTH_TEST);
 	glViewport(viewport[0],viewport[1],viewport[2],viewport[3]);
 	EndShaderProgram();	
-	glPopMatrix();
+	gpuPopMatrix(); gpuMatrixCommit();
 	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	gpuMatrixMode(GPU_MODELVIEW);
+
+	gpuPopMatrix(); gpuMatrixCommit();
 }
 
 void RAS_2DFilterManager::EnableFilter(vector<STR_String>& propNames, void* gameObj, RAS_2DFILTER_MODE mode, int pass, STR_String& text)

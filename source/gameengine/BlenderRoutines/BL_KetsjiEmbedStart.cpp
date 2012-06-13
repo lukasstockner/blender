@@ -40,7 +40,12 @@
 #pragma warning (disable:4786)
 #endif
 
+#ifdef GLES
+#include <GLES2/gl2.h>
+#include FAKE_GL_MODE
+#endif
 #include <GL/glew.h>
+#include <stdio.h>
 
 #include "KX_BlenderGL.h"
 #include "KX_BlenderCanvas.h"

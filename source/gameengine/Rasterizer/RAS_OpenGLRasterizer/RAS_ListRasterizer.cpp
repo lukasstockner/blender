@@ -4,6 +4,10 @@
 //
 #include <iostream>
 
+#ifdef GLES
+#include <GLES2/gl2.h>
+#endif
+
 #include "RAS_ListRasterizer.h"
 
 #ifdef WIN32
@@ -110,8 +114,10 @@ RAS_ListRasterizer::RAS_ListRasterizer(RAS_ICanvas* canvas, bool lock, int stora
 :	RAS_OpenGLRasterizer(canvas, storage),
 	mATI(false)
 {
-	if (!strcmp((const char*)glGetString(GL_VENDOR), "ATI Technologies Inc."))
+#include REAL_GL_MODE
+    if (!strcmp((const char*)glGetString(GL_VENDOR), "ATI Technologies Inc."))
 		mATI = true;
+#include FAKE_GL_MODE
 }
 
 RAS_ListRasterizer::~RAS_ListRasterizer() 

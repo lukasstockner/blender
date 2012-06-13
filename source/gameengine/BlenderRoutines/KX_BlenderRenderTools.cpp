@@ -29,8 +29,12 @@
  *  \ingroup blroutines
  */
 
-
+#ifdef GLES
+#include <GLES2/gl2.h>
+#include FAKE_GL_MODE
+#endif
 #include <GL/glew.h>
+#include <stdio.h>
 
 #include "RAS_IRenderTools.h"
 #include "RAS_IRasterizer.h"
@@ -50,6 +54,7 @@
 #include "STR_String.h"
 
 #include "GPU_draw.h"
+#include "GPU_matrix.h"
 
 #include "KX_BlenderGL.h" // for text printing
 #include "KX_BlenderRenderTools.h"
@@ -58,6 +63,11 @@ unsigned int KX_BlenderRenderTools::m_numgllights;
 
 KX_BlenderRenderTools::KX_BlenderRenderTools()
 {
+#include REAL_GL_MODE
+//glClearColor(1.0f,1.0f,1.0f,0.0f);
+//glClear(GL_COLOR_BUFFER_BIT);
+#include FAKE_GL_MODE
+    printf("Done\n");
 	glGetIntegerv(GL_MAX_LIGHTS, (GLint*) &m_numgllights);
 	if (m_numgllights < 8)
 		m_numgllights = 8;
@@ -74,6 +84,8 @@ void KX_BlenderRenderTools::BeginFrame(RAS_IRasterizer* rasty)
 	m_lastauxinfo = NULL;
 	m_lastlighting = true; /* force disable in DisableOpenGLLights() */
 	DisableOpenGLLights();
+
+
 }
 
 void KX_BlenderRenderTools::EndFrame(RAS_IRasterizer* rasty)
@@ -164,14 +176,14 @@ bool KX_BlenderRenderTools::RayHit(KX_ClientObjectInfo* client, KX_RayCast* resu
 	left = (dir.cross(resultnormal)).safe_normalized();
 	// for the up vector, we take the 'resultnormal' returned by the physics
 	
-	double maat[16]={
+	float maat[16]={
 			left[0],        left[1],        left[2], 0,
 				dir[0],         dir[1],         dir[2], 0,
 		resultnormal[0],resultnormal[1],resultnormal[2], 0,
 				0,              0,              0, 1};
-	glTranslated(resultpoint[0],resultpoint[1],resultpoint[2]);
+	gpuTranslate(resultpoint[0],resultpoint[1],resultpoint[2]);
 	//glMultMatrixd(oglmatrix);
-    glMultMatrixd(maat);
+	gpuMultMatrix(maat); gpuMatrixCommit();
 	return true;
 }
 
@@ -227,13 +239,13 @@ void KX_BlenderRenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmat
 		left *= size[0];
 		dir  *= size[1];
 		up   *= size[2];
-		double maat[16]={
+		float maat[16]={
 			left[0], left[1],left[2], 0,
 				dir[0], dir[1],dir[2],0,
 				up[0],up[1],up[2],0,
 				0,0,0,1};
-			glTranslated(objpos[0],objpos[1],objpos[2]);
-			glMultMatrixd(maat);
+			gpuTranslate(objpos[0],objpos[1],objpos[2]);
+			gpuMultMatrix(maat); gpuMatrixCommit();
 			
 	} else
 	{
@@ -269,15 +281,20 @@ void KX_BlenderRenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmat
 			{ // we found the "ground", but the cast matrix doesn't take
 			  // scaling in consideration, so we must apply the object scale
 				MT_Vector3  size = gameobj->GetSGNode()->GetLocalScale();
-				glScalef(size[0], size[1], size[2]);
+				gpuScale(size[0], size[1], size[2]);
 			}
 		} else
 		{
-
+			float fm[16];
 			// 'normal' object
-			glMultMatrixd(oglmatrix);
+			for(int i =0; i<16;i++)
+				fm[i]=oglmatrix[i];
+			// 'normal' object
+			gpuMultMatrix(fm);
+			gpuMatrixCommit();
 		}
 	}
+	gpuMatrixCommit();
 }
 void KX_BlenderRenderTools::RenderText3D(int fontid,
 										 const char* text,
@@ -333,12 +350,12 @@ void KX_BlenderRenderTools::RenderText(
 
 void KX_BlenderRenderTools::PushMatrix()
 {
-	glPushMatrix();
+	gpuPushMatrix();
 }
 
 void KX_BlenderRenderTools::PopMatrix()
 {
-	glPopMatrix();
+	gpuPopMatrix(); gpuMatrixCommit();
 }
 
 
@@ -355,8 +372,8 @@ int KX_BlenderRenderTools::applyLights(int objectlayer, const MT_Transform& view
 
 	viewmat.getValue(glviewmat);
 	
-	glPushMatrix();
-	glLoadMatrixf(glviewmat);
+	gpuPushMatrix();
+	gpuLoadMatrix(glviewmat); gpuMatrixCommit();
 	for (lit = m_lights.begin(), count = 0; !(lit==m_lights.end()) && count < m_numgllights; ++lit)
 	{
 		RAS_LightObject* lightdata = (*lit);
@@ -365,7 +382,7 @@ int KX_BlenderRenderTools::applyLights(int objectlayer, const MT_Transform& view
 		if (kxlight->ApplyLight(kxscene, objectlayer, count))
 			count++;
 	}
-	glPopMatrix();
+	gpuPopMatrix(); gpuMatrixCommit();
 
 	return count;
 }

@@ -50,6 +50,7 @@
 #include "STR_String.h"
 
 #include "GPU_draw.h"
+#include "GPU_matrix.h"
 
 #include "BKE_bmfont.h" // for text printing
 #include "BKE_bmfont_types.h"
@@ -173,14 +174,16 @@ bool GPC_RenderTools::RayHit(KX_ClientObjectInfo* client, KX_RayCast* result, vo
 	left = (dir.cross(resultnormal)).safe_normalized();
 	// for the up vector, we take the 'resultnormal' returned by the physics
 	
-	double maat[16]={
+	float maat[16]={
 			left[0],        left[1],        left[2], 0,
 				dir[0],         dir[1],         dir[2], 0,
 		resultnormal[0],resultnormal[1],resultnormal[2], 0,
 				0,              0,              0, 1};
-	glTranslated(resultpoint[0],resultpoint[1],resultpoint[2]);
+	gpuTranslate(resultpoint[0],resultpoint[1],resultpoint[2]);
 	//glMultMatrixd(oglmatrix);
-	glMultMatrixd(maat);
+	gpuMultMatrix(maat); gpuMatrixCommit();
+
+	gpuMatrixCommit();
 	return true;
 }
 
@@ -236,13 +239,13 @@ void GPC_RenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmatrix,in
 		left *= size[0];
 		dir  *= size[1];
 		up   *= size[2];
-		double maat[16]={
+		float maat[16]={
 			left[0], left[1],left[2], 0,
 				dir[0], dir[1],dir[2],0,
 				up[0],up[1],up[2],0,
 				0,0,0,1};
-			glTranslated(objpos[0],objpos[1],objpos[2]);
-			glMultMatrixd(maat);
+			gpuTranslate(objpos[0],objpos[1],objpos[2]);
+			gpuMultMatrix(maat); gpuMatrixCommit();
 			
 	} else
 	{
@@ -276,9 +279,12 @@ void GPC_RenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmatrix,in
 			}
 		} else
 		{
+			float fm[16];
 
+			for(int i =0; i<16;i++)
+				fm[i]=oglmatrix[i];
 			// 'normal' object
-			glMultMatrixd(oglmatrix);
+			gpuMultMatrix(fm);
 		}
 	}
 }
@@ -361,13 +367,16 @@ void GPC_RenderTools::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 
 	
 	// Set up viewing settings
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
-	glOrtho(0, width, 0, height, -1, 1);
+	//glMatrixMode(GL_PROJECTION);
+	gpuMatrixMode(GPU_PROJECTION);
+
+	gpuPushMatrix();
+	gpuLoadOrtho(0, width, 0, height, -1, 1); gpuMatrixCommit();
 	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
+	gpuMatrixMode(GPU_MODELVIEW);
+
+	gpuPushMatrix();
+	gpuLoadIdentity(); gpuMatrixCommit();
 
 	// Actual drawing (draw black first if padded)
 	if (mode == RAS_IRenderTools::RAS_TEXT_PADDED)
@@ -380,10 +389,14 @@ void GPC_RenderTools::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 	BLF_draw_default(xco, height-yco, 0.f, text, 65536);
 
 	// Restore view settings
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
+	//glMatrixMode(GL_PROJECTION);
+	gpuMatrixMode(GPU_PROJECTION);
+
+	gpuPopMatrix(); gpuMatrixCommit();
 	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	gpuMatrixMode(GPU_MODELVIEW);
+
+	gpuPopMatrix(); gpuMatrixCommit();
 
 	// Restore OpenGL Settings
 	if (fog)
@@ -431,12 +444,14 @@ void GPC_RenderTools::RenderText(
 
 void GPC_RenderTools::PushMatrix()
 {
-	glPushMatrix();
+	gpuPushMatrix();
+	//gpuPushMatrix();
 }
 
 void GPC_RenderTools::PopMatrix()
 {
-	glPopMatrix();
+	gpuPopMatrix();
+	//gpuPopMatrix(); gpuMatrixCommit();
 }
 
 
@@ -453,8 +468,8 @@ int GPC_RenderTools::applyLights(int objectlayer, const MT_Transform& viewmat)
 
 	viewmat.getValue(glviewmat);
 	
-	glPushMatrix();
-	glLoadMatrixf(glviewmat);
+	gpuPushMatrix();
+	gpuLoadMatrix(glviewmat); gpuMatrixCommit();
 	for (lit = m_lights.begin(), count = 0; !(lit==m_lights.end()) && count < m_numgllights; ++lit)
 	{
 		RAS_LightObject* lightdata = (*lit);
@@ -463,7 +478,7 @@ int GPC_RenderTools::applyLights(int objectlayer, const MT_Transform& viewmat)
 		if (kxlight->ApplyLight(kxscene, objectlayer, count))
 			count++;
 	}
-	glPopMatrix();
+	gpuPopMatrix(); gpuMatrixCommit();
 
 	return count;
 }

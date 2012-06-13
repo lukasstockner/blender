@@ -33,6 +33,10 @@
 #include <math.h>
 #include <stdlib.h>
  
+#ifdef GLES
+#include "GLES2/gl2.h"
+#endif 
+ 
 #include "RAS_OpenGLRasterizer.h"
 
 #include <GL/glew.h>
@@ -50,6 +54,7 @@
 #include "GPU_draw.h"
 #include "GPU_material.h"
 #include "GPU_extensions.h"
+#include "GPU_matrix.h"
 
 #include "DNA_image_types.h"
 #include "DNA_meshdata_types.h"
@@ -147,9 +152,12 @@ bool RAS_OpenGLRasterizer::Init()
 	m_ambr = 0.0f;
 	m_ambg = 0.0f;
 	m_ambb = 0.0f;
-
+#include REAL_GL_MODE
 	glDisable(GL_BLEND);
 	glDisable(GL_ALPHA_TEST);
+
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#include FAKE_GL_MODE
 	//m_last_alphablend = GPU_BLEND_SOLID;
 	GPU_set_material_alpha_blend(GPU_BLEND_SOLID);
 
@@ -318,6 +326,7 @@ bool RAS_OpenGLRasterizer::BeginFrame(int drawingmode, double time)
 	SetDrawingMode(drawingmode);
 
 	// Blender camera routine destroys the settings
+#include REAL_GL_MODE
 	if (m_drawingmode < KX_SOLID)
 	{
 		glDisable (GL_CULL_FACE);
@@ -331,6 +340,7 @@ bool RAS_OpenGLRasterizer::BeginFrame(int drawingmode, double time)
 
 	glDisable(GL_BLEND);
 	glDisable(GL_ALPHA_TEST);
+#include FAKE_GL_MODE
 	//m_last_alphablend = GPU_BLEND_SOLID;
 	GPU_set_material_alpha_blend(GPU_BLEND_SOLID);
 
@@ -755,21 +765,34 @@ void RAS_OpenGLRasterizer::IndexPrimitivesMulti(RAS_MeshSlot& ms)
 
 void RAS_OpenGLRasterizer::SetProjectionMatrix(MT_CmMatrix4x4 &mat)
 {
-	glMatrixMode(GL_PROJECTION);
-	double* matrix = &mat(0,0);
-	glLoadMatrixd(matrix);
+	//glMatrixMode(GL_PROJECTION);
+	gpuMatrixMode(GPU_PROJECTION);
+
+	float matrix[16];
+	double *matrixd;
+	/*test me*/
+	matrixd = mat.getPointer();
+
+	for(int i=0;i<16;i++)
+		matrix[i]=matrixd[i];
+
+	gpuLoadMatrix(matrix);
+	gpuMatrixCommit();
 
 	m_camortho= (mat(3, 3) != 0.0f);
 }
 
 void RAS_OpenGLRasterizer::SetProjectionMatrix(const MT_Matrix4x4 & mat)
 {
-	glMatrixMode(GL_PROJECTION);
-	double matrix[16];
+	//glMatrixMode(GL_PROJECTION);
+	gpuMatrixMode(GPU_PROJECTION);
+
+	float matrix[16];
 	/* Get into argument. Looks a bit dodgy, but it's ok. */
 	mat.getValue(matrix);
 	/* Internally, MT_Matrix4x4 uses doubles (MT_Scalar). */
-	glLoadMatrixd(matrix);	
+	gpuLoadMatrix(matrix);
+	gpuMatrixCommit();
 
 	m_camortho= (mat[3][3] != 0.0f);
 }
@@ -815,12 +838,21 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetFrustumMatrix(
 			// leave bottom and top untouched
 	}
 	
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glFrustum(left, right, bottom, top, frustnear, frustfar);
+	//glMatrixMode(GL_PROJECTION);
+	gpuMatrixMode(GPU_PROJECTION);
+
+	gpuLoadIdentity(); gpuMatrixCommit();
+
+
+	gpuMatrixMode(GPU_PROJECTION);
+	gpuLoadIdentity();
+	gpuFrustum(left, right, bottom, top, frustnear, frustfar);
+
+	float tm [16];
+
+	gpuGetMatrix(tm);
 		
-	glGetDoublev(GL_PROJECTION_MATRIX, mat);
-	result.setValue(mat);
+	result.setValue(tm);
 
 	return result;
 }
@@ -837,12 +869,21 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetOrthoMatrix(
 	double mat[16];
 
 	// stereo is meaning less for orthographic, disable it
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(left, right, bottom, top, frustnear, frustfar);
+//	glMatrixMode(GL_PROJECTION);
+	gpuMatrixMode(GPU_PROJECTION);
+
+	gpuLoadIdentity(); gpuMatrixCommit();
+
+
+	gpuMatrixMode(GPU_PROJECTION);
+	gpuLoadIdentity();
+	gpuOrtho(left, right, bottom, top, frustnear, frustfar);
+
+	float tm [16];
+
+	gpuGetMatrix(tm);
 		
-	glGetDoublev(GL_PROJECTION_MATRIX, mat);
-	result.setValue(mat);
+	result.setValue(tm);
 
 	return result;
 }
@@ -901,9 +942,24 @@ void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 	// note: getValue gives back column major as needed by OpenGL
 	MT_Scalar glviewmat[16];
 	m_viewmatrix.getValue(glviewmat);
-
+	float tm[16];
+	for(int i=0;i<16;i++)tm[i]=glviewmat[i];
+	float pm[16];
 	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixd(glviewmat);
+	gpuMatrixMode(GPU_MODELVIEW);
+
+
+
+
+	//gpuMatrixMode(GPU_PROJECTION);
+	//gpuGetMatrix(pm);
+
+	gpuMatrixMode(GPU_MODELVIEW);
+	//gpuLoadMatrix(pm);
+	gpuLoadMatrix(tm);
+	gpuMatrixCommit();
+	//gpuMultMatrix(tm);
+
 	m_campos = pos;
 }
 

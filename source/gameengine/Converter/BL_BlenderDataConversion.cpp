@@ -1021,6 +1021,10 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 				/* first is the BL_Material */
 				if (!bl_mat)
 					bl_mat = new BL_Material();
+					
+				/* XXX fix me. Temp work around*/
+				if(!ma)
+					ma= &defmaterial;
 				ConvertMaterial(bl_mat, ma, tface, tfaceName, mface, mcol,
 					layers, converter->GetGLSLMaterials());
 
@@ -1204,7 +1208,11 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			}
 						 
 			int nverts = (mface->v4)? 4: 3;
+#ifdef GLES
+			RAS_Polygon *poly = meshobj->AddPolygon(bucket, 3);
+#else			
 			RAS_Polygon *poly = meshobj->AddPolygon(bucket, nverts);
+#endif
 
 			poly->SetVisible(visible);
 			poly->SetCollider(collider);
@@ -1216,7 +1224,25 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			meshobj->AddVertex(poly,2,pt2,uvs[2],tan2,rgb2,no2,flat,mface->v3);
 
 			if (nverts==4)
+			#ifndef GLES
 				meshobj->AddVertex(poly,3,pt3,uvs[3],tan3,rgb3,no3,flat,mface->v4);
+				#else
+			{
+			RAS_Polygon *poly = meshobj->AddPolygon(bucket, 3);
+
+			poly->SetVisible(visible);
+			poly->SetCollider(collider);
+			poly->SetTwoside(twoside);
+			
+			meshobj->AddVertex(poly,0,pt2,uvs[2],tan2,rgb2,no2,flat,mface->v3);
+						
+			meshobj->AddVertex(poly,1,pt3,uvs[3],tan3,rgb3,no3,flat,mface->v4);
+			meshobj->AddVertex(poly,2,pt0,uvs[0],tan0,rgb0,no0,flat,mface->v1);
+			
+			
+			}
+			#endif	
+			
 		}
 
 		if (tface) 
