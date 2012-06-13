@@ -738,7 +738,13 @@ static void recalcData_view3d(TransInfo *t)
 			}
 			if ((t->options & CTX_NO_MIRROR) == 0 && (t->flag & T_MIRROR))
 				editbmesh_apply_to_mirror(t);
-				
+
+			/* stay here for now, maybe will find some other way to avoid duplicating in every transform
+			 * apply funtion */
+			if(t->flag & T_IMAGE_PRESERVE_CALC) {
+				calculateUVTransformCorrection(t);
+			}
+
 			DAG_id_tag_update(t->obedit->data, 0);  /* sets recalc flags */
 			
 			EDBM_mesh_normals_update(em);

@@ -384,7 +384,7 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
 			WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, NULL);
 
 		if(t->flag & T_IMAGE_PRESERVE_CALC)
-					WM_event_add_notifier(C, NC_GEOM|ND_DATA, t->obedit->data);
+			WM_event_add_notifier(C, NC_GEOM|ND_DATA, t->obedit->data);
 	}
 	else if (t->spacetype == SPACE_ACTION) {
 		//SpaceAction *saction= (SpaceAction *)t->sa->spacedata.first;
@@ -1882,12 +1882,6 @@ void transformApply(bContext *C, TransInfo *t)
 	}
 	else if (t->redraw & TREDRAW_SOFT) {
 		viewRedrawForce(C, t);
-	}
-
-	/* stay here for now, maybe will find some other way to aviod duplicating in every transform
-	 * apply funtion */
-	if(t->flag & T_IMAGE_PRESERVE_CALC) {
-		calculateUVTransformCorrection(t);
 	}
 
 	/* If auto confirm is on, break after one pass */
