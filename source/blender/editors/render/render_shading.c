@@ -133,7 +133,7 @@ static int material_slot_remove_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	object_remove_material_slot(ob);
+	object_remove_material_slot(ob, RNA_int_get(op->ptr, "slot"));
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 	WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, ob);
@@ -154,6 +154,8 @@ void OBJECT_OT_material_slot_remove(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_int(ot->srna, "slot", -1, INT_MIN, INT_MAX, "Slot to remove", "< 0 means selection", INT_MIN, INT_MAX);
 }
 
 static int material_slot_assign_exec(bContext *C, wmOperator *UNUSED(op))

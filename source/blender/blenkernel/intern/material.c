@@ -840,7 +840,7 @@ void assign_matarar(struct Object *ob, struct Material ***matar, short totcol)
 	int actcol_orig = ob->actcol;
 	short i;
 
-	while (object_remove_material_slot(ob)) {}
+	while (object_remove_material_slot(ob, -1)) {}
 
 	/* now we have the right number of slots */
 	for (i = 0; i < totcol; i++)
@@ -1100,7 +1100,7 @@ void automatname(Material *ma)
 }
 #endif
 
-int object_remove_material_slot(Object *ob)
+int object_remove_material_slot(Object *ob, int slot)
 {
 	Material *mao, ***matarar;
 	Object *obt;
@@ -1111,9 +1111,12 @@ int object_remove_material_slot(Object *ob)
 		return FALSE;
 	}
 
+	if (slot < 0)
+		slot = ob->actcol;
+
 	/* this should never happen and used to crash */
-	if (ob->actcol <= 0) {
-		printf("%s: invalid material index %d, report a bug!\n", __func__, ob->actcol);
+	if (slot <= 0) {
+		printf("%s: invalid material index %d, report a bug!\n", __func__, slot);
 		BLI_assert(0);
 		return FALSE;
 	}
@@ -1130,10 +1133,10 @@ int object_remove_material_slot(Object *ob)
 	if (*matarar == NULL) return FALSE;
 
 	/* we delete the actcol */
-	mao = (*matarar)[ob->actcol - 1];
+	mao = (*matarar)[slot - 1];
 	if (mao) mao->id.us--;
 	
-	for (a = ob->actcol; a < ob->totcol; a++)
+	for (a = slot; a < ob->totcol; a++)
 		(*matarar)[a - 1] = (*matarar)[a];
 	(*totcolp)--;
 	
@@ -1142,7 +1145,7 @@ int object_remove_material_slot(Object *ob)
 		*matarar = NULL;
 	}
 	
-	actcol = ob->actcol;
+	actcol = slot;
 	obt = G.main->object.first;
 	while (obt) {
 	

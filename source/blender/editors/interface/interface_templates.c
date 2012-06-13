@@ -2150,9 +2150,13 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 		Scene *scene = CTX_data_scene(C);
 		Object *ob = (Object *)ptr->id.data;
 		int index = (Material **)itemptr->data - ob->mat;
+		PointerRNA remove_rna;
 		
 		/* default item with material base name */
-		uiItemL(sub, name, icon);
+		if (!name || name[0] == '\0')
+			uiItemL(sub, "<Unassigned>", icon);
+		else
+			uiItemL(sub, name, icon);
 		
 		ma = give_current_material(ob, index + 1);
 		if (ma && !BKE_scene_use_new_shading_nodes(scene)) {
@@ -2166,6 +2170,10 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 				uiItemL(sub, IFACE_("Node <none>"), ICON_NONE);
 			}
 		}
+
+		WM_operator_properties_create(&remove_rna, "OBJECT_OT_material_slot_remove");
+		RNA_int_set(&remove_rna, "slot", i+1);
+		uiItemFullO(sub, "object.material_slot_remove", "", ICON_X, remove_rna.data, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS|UI_ITEM_R_NO_BG);
 	}
 	else if (itemptr->type == &RNA_ShapeKey) {
 		Object *ob = (Object *)activeptr->data;

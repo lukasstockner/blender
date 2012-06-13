@@ -75,7 +75,7 @@ void assign_matarar(struct Object *ob, struct Material ***matar, short totcol);
 short find_material_index(struct Object *ob, struct Material *ma);
 
 int object_add_material_slot(struct Object *ob);
-int object_remove_material_slot(struct Object *ob);
+int object_remove_material_slot(struct Object *ob, int slot);
 
 /* rna api */
 void material_append_id(struct ID *id, struct Material *ma);
