@@ -1600,9 +1600,8 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BMEdit_FromObject(obedit);
 	ModifierData *md;
-	int mirrx = FALSE, mirry = FALSE, mirrz = FALSE;
+	int usex = TRUE, usey = TRUE, usez = TRUE;
 	int i, repeat;
-	float clipdist = 0.0f;
 	float lambda = 0.1f;
 	float lambda_border = 0.1f;
 	float min_area = 0.00001f;
@@ -1624,37 +1623,20 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 		EDBM_verts_mirror_cache_begin(em, TRUE);
 	}
 
-	/* if there is a mirror modifier with clipping, flag the verts that
-	 * are within tolerance of the plane(s) of reflection 
-	 */
-	for (md = obedit->modifiers.first; md; md = md->next) {
-		if (md->type == eModifierType_Mirror && (md->mode & eModifierMode_Realtime)) {
-			MirrorModifierData *mmd = (MirrorModifierData *)md;
-		
-			if (mmd->flag & MOD_MIR_CLIPPING) {
-				if (mmd->flag & MOD_MIR_AXIS_X)
-					mirrx = TRUE;
-				if (mmd->flag & MOD_MIR_AXIS_Y)
-					mirry = TRUE;
-				if (mmd->flag & MOD_MIR_AXIS_Z)
-					mirrz = TRUE;
-
-				clipdist = mmd->tolerance;
-			}
-		}
-	}
-
 	repeat = RNA_int_get(op->ptr, "repeat");
 	lambda = RNA_float_get(op->ptr, "lambda");
 	lambda_border = RNA_float_get(op->ptr, "lambda_border");
 	min_area = RNA_float_get(op->ptr, "min_area");
+	usex = RNA_boolean_get(op->ptr, "use_x");
+	usey = RNA_boolean_get(op->ptr, "use_y");
+	usez = RNA_boolean_get(op->ptr, "use_z");
 	if (!repeat)
 		repeat = 1;
 	
 	for (i = 0; i < repeat; i++) {
 		if (!EDBM_op_callf(em, op,
-		                   "vertexsmoothlaplacian verts=%hv lambda=%f lambda_border=%f min_area=%f mirror_clip_x=%b mirror_clip_y=%b mirror_clip_z=%b clipdist=%f",
-		                   BM_ELEM_SELECT, lambda, lambda_border, min_area, mirrx, mirry, mirrz, clipdist))
+		                   "vertexsmoothlaplacian verts=%hv lambda=%f lambda_border=%f min_area=%f use_x=%b use_y=%b use_z=%b",
+		                   BM_ELEM_SELECT, lambda, lambda_border, min_area, usex, usey, usez))
 		{
 			return OPERATOR_CANCELLED;
 		}
@@ -1693,6 +1675,9 @@ void MESH_OT_vertices_smooth_laplacian(wmOperatorType *ot)
 					"Lambda factor in border", "", 0.0000001f, 100.0f);
 	RNA_def_float(ot->srna, "min_area", 0.00001f, 0.0000000000000001f, 100.0f, 
 					"Minimum area permitted", "", 0.0000000000000001f, 100.0f);
+	RNA_def_boolean(ot->srna, "use_x", 1, "Smooth X Axis", "Smooth object along	X axis");
+	RNA_def_boolean(ot->srna, "use_y", 1, "Smooth Y Axis", "Smooth object along	Y axis");
+	RNA_def_boolean(ot->srna, "use_z", 1, "Smooth Z Axis", "Smooth object along	Z axis");
 
 }
 

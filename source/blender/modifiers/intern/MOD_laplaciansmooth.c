@@ -22,13 +22,14 @@
  *                 Ton Roosendaal,
  *                 Ben Batt,
  *                 Brecht Van Lommel,
- *                 Campbell Barton
+ *                 Campbell Barton,
+ *                 Alexander Pinzon
  *
  * ***** END GPL LICENSE BLOCK *****
  *
  */
 
-/** \file blender/modifiers/intern/MOD_smooth.c
+/** \file blender/modifiers/intern/MOD_laplaciansmooth.c
  *  \ingroup modifiers
  */
 
@@ -235,6 +236,12 @@ static void deformVertsEM(
 
 	if (dm != derivedData)
 		dm->release(dm);
+}
+
+static void laplaciansmoothModifier_do2(
+        LaplacianSmoothModifierData *smd, Object *ob, DerivedMesh *dm,
+        float (*vertexCos)[3], int numVerts)
+{
 }
 
 

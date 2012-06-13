@@ -121,10 +121,10 @@ static BMOpDefine bmo_vertexsmoothlaplacian_def = {
 	 {BMO_OP_SLOT_FLT, "lambda"}, //lambda param
 	 {BMO_OP_SLOT_FLT, "lambda_border"}, //lambda param in border
 	 {BMO_OP_SLOT_FLT, "min_area"}, //Minimun area permited
-	 {BMO_OP_SLOT_BOOL, "mirror_clip_x"}, //set vertices close to the x axis before the operation to 0
-	 {BMO_OP_SLOT_BOOL, "mirror_clip_y"}, //set vertices close to the y axis before the operation to 0
-	 {BMO_OP_SLOT_BOOL, "mirror_clip_z"}, //set vertices close to the z axis before the operation to 0
-	 {BMO_OP_SLOT_FLT, "clipdist"}, //clipping threshod for the above three slots
+	 {BMO_OP_SLOT_BOOL, "use_x"}, //Smooth object along X axis
+	 {BMO_OP_SLOT_BOOL, "use_y"}, //Smooth object along Y axis
+	 {BMO_OP_SLOT_BOOL, "use_z"}, //Smooth object along Z axis
+	 {BMO_OP_SLOT_MAPPING, "vertex_group"}, // Vertex group with weights for every vertice.
 	{0} /* null-terminating sentinel */,
 	},
 	bmo_vertexsmoothlaplacian_exec,

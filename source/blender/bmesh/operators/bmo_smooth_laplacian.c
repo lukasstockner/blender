@@ -15,7 +15,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor(s): Joseph Eagar.
+ * Contributor(s): Joseph Eagar,
+ *                 Alexander Pinzon
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -51,12 +52,13 @@ int vert_is_boundary(BMVert *v);
 void compute_weights_in_ring(BMVert *v, float lambda, float min_area);
 void compute_weights_in_border(BMVert *v, float lambda, float min_area);
 float compute_volume(BMesh *bm, BMOperator *op);
-void volume_preservation(BMesh *bm, BMOperator *op, float vini, float vend);
+void volume_preservation(BMesh *bm, BMOperator *op, float vini, float vend, int usex, int usey, int usez);
 
 void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 {
 	int i;
 	int m_vertex_id;
+	int usex, usey, usez;
 	float lambda, lambda_border, min_area;
 	float vini, vend;
 	BMOIter siter;
@@ -67,6 +69,10 @@ void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 	lambda = BMO_slot_float_get(op, "lambda");
 	lambda_border = BMO_slot_float_get(op, "lambda_border");
 	min_area = BMO_slot_float_get(op, "min_area");
+	usex = BMO_slot_bool_get(op, "use_x");
+	usey = BMO_slot_bool_get(op, "use_y");
+	usez = BMO_slot_bool_get(op, "use_z");
+
 	nlNewContext();
 	context = nlGetCurrent();
 
@@ -108,12 +114,18 @@ void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
 		vini = compute_volume(bm, op);
 		BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
 			m_vertex_id = BM_elem_index_get(v);
-			v->co[0] =  nlGetVariable(0, m_vertex_id);
-			v->co[1] =  nlGetVariable(1, m_vertex_id);
-			v->co[2] =  nlGetVariable(2, m_vertex_id);
+			if(usex){
+				v->co[0] =  nlGetVariable(0, m_vertex_id);
+			}
+			if(usey){
+				v->co[1] =  nlGetVariable(1, m_vertex_id);
+			}
+			if(usez){
+				v->co[2] =  nlGetVariable(2, m_vertex_id);
+			}
 		}
 		vend = compute_volume(bm, op);
-		volume_preservation(bm, op, vini, vend);
+		volume_preservation(bm, op, vini, vend, usex, usey, usez);
 	}
 		
 	nlDeleteContext(context);
@@ -352,7 +364,7 @@ void compute_weights_in_border(BMVert *v, float lambda, float min_area){
 	BLI_array_free(weight);
 }
 
-void volume_preservation(BMesh *bm, BMOperator *op, float vini, float vend)
+void volume_preservation(BMesh *bm, BMOperator *op, float vini, float vend, int usex, int usey, int usez)
 {
 	float beta;
 	BMOIter siter;
@@ -361,7 +373,16 @@ void volume_preservation(BMesh *bm, BMOperator *op, float vini, float vend)
 	if (vend != 0.0f) {	
 		beta  = pow (vini / vend, 1.0f / 3.0f);
 		BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
-			mul_v3_fl(v->co, beta );
+			if(usex){
+				v->co[0] = v->co[0] * beta;
+			}
+			if(usey){
+				v->co[1] = v->co[1] * beta;
+			}
+			if(usez){
+				v->co[2] = v->co[2] * beta;
+			}
+			
 		}
 	}
 }
