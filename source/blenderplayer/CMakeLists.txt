@@ -37,7 +37,7 @@ add_custom_command(
 	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/dna.c
 	WORKING_DIRECTORY ${ANDROID_PROJ}
 	COMMAND ${ANDROID_PROJ}/makesdna.sh ${CMAKE_BINARY_DIR}/lib/libmakesdna.so ${CMAKE_CURRENT_BINARY_DIR}/dna.c  ${CMAKE_SOURCE_DIR}/source/blender/makesdna/
-	DEPENDS makesdna
+	DEPENDS ${CMAKE_BINARY_DIR}/lib/${CMAKE_CFG_INTDIR}/libmakesdna.so
 )
 else()
 add_custom_command(
@@ -85,6 +85,10 @@ elseif(APPLE)
 		MACOSX_BUNDLE_SHORT_VERSION_STRING ${BLENDER_VERSION}
 		MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION} ${BLENDER_DATE}")
 
+elseif(WITH_ANDROID)
+message(${CMAKE_CURRENT_BINARY_DIR})
+message(${CMAKE_BINARY_DIR}/lib/${CMAKE_CFG_INTDIR}/libmakesdna.so)
+	add_library(blenderplayer SHARED ${CMAKE_CURRENT_BINARY_DIR}/dna.c ./androidfix.c)
 else()
 	add_executable(blenderplayer ${CMAKE_CURRENT_BINARY_DIR}/dna.c)
 endif()
@@ -134,7 +138,7 @@ endif()
 		bf_modifiers
 		bf_intern_moto 
 		bf_nodes
-
+		
 		bf_imbuf
 		bf_avi 
 		ge_logic_network 

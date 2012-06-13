@@ -266,6 +266,9 @@ mark_as_advanced(WITH_GPU_SAFETY)
 option(WITH_ANDROID "Compiles Blender for Android" OFF)
 mark_as_advanced(WITH_ANDROID)
 
+option(WITH_GLES "Compiles Blender with OpenGL ES 2.0" OFF)
+mark_as_advanced(WITH_GLES)
+
 
 if(APPLE)
 	if(NOT CMAKE_OSX_ARCHITECTURES)
@@ -467,11 +470,24 @@ set(PLATFORM_LINKFLAGS_DEBUG "")
 if(WITH_ANDROID)
 add_definitions(-DWITH_ANDROID)
 add_definitions(-DNDEBUG)
-
-
+set(WITH_GLES ON )
 set(ANDROID_TARGET "armv7-a_9"  CACHE STRING "Processor Target")
 
 endif()
+
+if(WITH_GLES)
+message(setting)
+add_definitions(-DGLES)
+add_definitions(-DREAL_GL_MODE=<GL/realgl.h>)
+add_definitions(-DFAKE_GL_MODE=<GL/fakegl.h>)
+
+else()
+add_definitions(-DREAL_GL_MODE=<${CMAKE_SOURCE_DIR}/source/blender/empty.h>)
+add_definitions(-DFAKE_GL_MODE=<${CMAKE_SOURCE_DIR}/source/blender/empty.h>)
+
+endif()
+
+
 
 
 if(UNIX AND NOT APPLE)
@@ -736,7 +752,11 @@ if(UNIX AND NOT APPLE)
 
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
 	set(PLATFORM_LINKLIBS "-lc -lm -lstdc++")
-	if(NOT WITH_ANDROID)
+	if(WITH_ANDROID)
+		set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS}  -lGLESv2")
+	elseif(WITH_GLES)
+		set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS}  -lGLESv2 -lEGL")
+	else()
 		set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} -lutil -lpthread")
 	endif()
 
@@ -1592,6 +1612,10 @@ if(WITH_ANDROID)
 set(OPENGL_INCLUDE_DIR ${LIBDIR}/fakeGL/)
 set(OPENGL_gl_LIBRARY ${OPENGL_INCLUDE_DIR}/libGLarm.so)
 set(OPENGL_glu_LIBRARY ${OPENGL_INCLUDE_DIR}/libGLUarm.so)
+elseif(WITH_GLES)
+set(OPENGL_INCLUDE_DIR "" CACHE PATH "")
+set(OPENGL_gl_LIBRARY "" CACHE FILEPATH "")
+set(OPENGL_glu_LIBRARY "" CACHE FILEPATH "")
 else()
 find_package(OpenGL)
 endif()
@@ -1625,7 +1649,7 @@ endif()
 
 if(WITH_BUILTIN_GLEW)
 	# set(GLEW_LIBRARY "")  # unused
-	if(WITH_ANDROID)
+	if(WITH_GLES)
 		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew-android/include")
 	else()
 		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew/include")

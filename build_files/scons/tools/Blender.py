@@ -765,7 +765,10 @@ class BlenderEnvironment(SConsEnvironment):
                 print bc.HEADER+'Configuring library '+bc.ENDC+bc.OKGREEN+libname + bc.ENDC
             lenv = self.Clone()
             lenv.Append(CPPPATH=includes)
+            lenv.Append(CPPDEFINES={'REAL_GL_MODE':'\\"'+os.getcwd()+'/source/blender/empty.h\\"'})
+            lenv.Append(CPPDEFINES={'FAKE_GL_MODE':'\\"'+os.getcwd()+'/source/blender/empty.h\\"'})
             lenv.Append(CPPDEFINES=defines)
+            
             if lenv['BF_DEBUG'] or (libname in quickdebug):
                 lenv.Append(CFLAGS = lenv['BF_DEBUG_CFLAGS'])
                 lenv.Append(CCFLAGS = lenv['BF_DEBUG_CCFLAGS'])

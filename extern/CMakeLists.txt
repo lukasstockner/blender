@@ -41,7 +41,7 @@ if(WITH_BINRELOC)
 endif()
 
 if(WITH_BUILTIN_GLEW)
-if(WITH_ANDROID)
+if(WITH_GLES)
 	add_subdirectory(glew-android)
 else()
 	add_subdirectory(glew)
