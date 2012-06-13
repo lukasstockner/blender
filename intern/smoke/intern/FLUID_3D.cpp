@@ -972,11 +972,17 @@ void FLUID_3D::project()
 		if (!_obstacles[FINDEX(x,y,z)])
 			b[gti(FINDEX(x, y, z))] = _divergence[FINDEX(x,y,z)];
 
+	// copyBorderAll(_pressure, 0, _zRes);
+
+	// solve Poisson equation
+#if USE_NEW_CG == 1
 	A.makeCompressed();
-/*
-	ConjugateGradient< SparseMatrix<float, RowMajor>, Lower > solver;
-	solver.setMaxIterations(100);
-	solver.setTolerance(1e-05);
+
+	VectorXf result(linearIndex);
+	result.setZero(linearIndex);
+	ConjugateGradient< SparseMatrix<float, RowMajor>, Upper > solver;
+	solver.setMaxIterations(300);
+	solver.setTolerance(1e-06);
 
 	solver.compute(A);
 	if(solver.info() != Success) 
@@ -986,7 +992,7 @@ void FLUID_3D::project()
 	}
 	else
 	{
-		VectorXf result = solver.solve(b);
+		result = solver.solve(b);
 		if(solver.info() != Success) 
 		{
 		  // solving failed
@@ -998,19 +1004,20 @@ void FLUID_3D::project()
 		std::cout << "#iterations:     " << solver.iterations() << std::endl;
 		std::cout << "estimated error: " << solver.error()      << std::endl;
 	}
-*/
-	// copyBorderAll(_pressure, 0, _zRes);
-
-	VectorXf result(linearIndex);
-	result.setZero(linearIndex);
-
-	// solve Poisson equation
-#if USE_NEW_CG == 1
-	solvePressurePre(b, A, gti, result);
 #else
 	solvePressurePre(_pressure, _divergence, _obstacles);
 #endif
 
+#if 0
+	for(unsigned int i = 0; i < _xRes * _yRes * _zRes; i++)
+	{
+		float value = (_pressure[i] - result[i]);
+		if(value > 0.01)
+			printf("error: p: %f, b: %f\n", _pressure[i], result[i]);
+	}
+#endif
+
+#if 0
 	{
 		float maxvalue = 0;
 		for(unsigned int i = 0; i < _xRes * _yRes * _zRes; i++)
@@ -1032,7 +1039,7 @@ void FLUID_3D::project()
 		}
 		// printf("Max pressure: %f, dx: %f\n", maxvalue, _dx);
 	}
-
+#endif
 	// DG TODO: check this function, for now this is done in the next function
 	// setObstaclePressure(_pressure, 0, _zRes);
 
@@ -1054,7 +1061,7 @@ void FLUID_3D::project()
 				float pT = result[gti(FINDEX(x, y, z + 1))]; // Up
 				float pB = result[gti(FINDEX(x, y, z - 1))]; // Down
 #else
-				
+
 				float pC = _pressure[index]; // center
 				float pR = _pressure[index + 1]; // right
 				float pL = _pressure[index - 1]; // left

@@ -167,104 +167,9 @@ void FLUID_3D::solveHeat(float* field, float* b, unsigned char* skip)
 			if (_q)       delete[] _q;
 			if (_Acenter)  delete[] _Acenter;
 }
+
 #if USE_NEW_CG == 1
-void FLUID_3D::solvePressurePre(VectorXf &b, SparseMatrix<float,RowMajor> &A, ArrayXd &gti, VectorXf &result)
-{
-	unsigned int arraySize = b.size();
-
-	// i = 0
-	int i = 0;
-
-	result.setZero(arraySize);
-
-	VectorXf residual(arraySize);
-	VectorXf direction(arraySize);
-	VectorXf q(arraySize);
-	VectorXf h(arraySize);
-
-	SparseMatrix<float,RowMajor> Pi(arraySize, arraySize);
-	Pi.reserve(VectorXi::Constant(arraySize, 1));
-
-	residual.setZero(arraySize);
-	q.setZero(arraySize);
-	direction.setZero(arraySize);
-	h.setZero(arraySize);
-
-	float deltaNew = 0.0f;
-
-	// r = b - A * x
-	residual = b -  A.selfadjointView<Upper>() * result;
-
-	// z = M^-1 * r
-	for (int k=0; k<A.outerSize(); ++k)
-		for (SparseMatrix<float,RowMajor>::InnerIterator it(A,k); it; ++it)
-		{
-			if(it.row() == it.col())
-			{
-				float value = 0.0f;
-
-				if(it.value() < 1.0)
-					value = 0.0f;
-				else
-					value = 1.0f / it.value();
-				
-				Pi.insert(it.row(), it.col()) = value;
-			}
-		}
-
-	direction = Pi.selfadjointView<Upper>() * residual;
-	deltaNew = residual.dot(direction);
-
-	// While deltaNew > (eps^2) * delta0
-	const float eps  = SOLVER_ACCURACY;
-	//while ((i < _iterations) && (deltaNew > eps*delta0))
-	float maxR = 2.0f * eps;
-	// while (i < _iterations)
-	while ((i < _iterations) && (maxR > 0.001*eps))
-	{
-
-		float alpha = 0.0f;
-
-		// ???
-		q = A.selfadjointView<Upper>() * direction;
-
-		// alpha = ...??
-		alpha = direction.dot(q);
-
-		if (fabs(alpha) > 0.0f)
-		{
-			alpha = deltaNew / alpha;
-		}
-
-		float deltaOld = deltaNew;
-
-		deltaNew = 0.0f;
-
-		result += alpha * direction;
-		residual -= alpha * q;
-		h = Pi.selfadjointView<Upper>() * residual;
-		deltaNew = residual.dot(h);
-
-		maxR = 0.0;
-		for(unsigned int j = 0; j < arraySize; j++)
-		{
-			if(maxR < residual[j])
-				maxR = residual[j];
-		}
-
-		// beta = deltaNew / deltaOld
-		float beta = deltaNew / deltaOld;
-
-		direction = h + beta * direction;
-
-		// i = i + 1
-		i++;
-	}
-	cout << i << " iterations converged to " << sqrt(maxR) << endl;
-}
-
 #else
-// Original code
 void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip)
 {
 	int x, y, z;
@@ -427,7 +332,6 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip)
 	if (_q)       delete[] _q;
 }
 #endif
-
 #if 0
 void FLUID_3D::solvePressureJacobian(float* p, float* d, unsigned char* ob)
 {
