@@ -640,7 +640,6 @@ static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds
 		BVHTreeFromMesh treeData = {0};
 		int numverts, i, z;
 		int *res = sds->res;
-		float *density = smoke_get_density(sds->fluid);
 
 		float surface_distance = 0.6;
 
@@ -758,7 +757,6 @@ static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds
 
 						/* tag obstacle cells */
 						obstacle_map[index] = 1;
-						density[index] = 0.0f;
 
 						if(has_velocity)
 							obstacle_map[index] |= 8;
@@ -792,7 +790,7 @@ static void update_obstacles(Scene *scene, Object *ob, SmokeDomainSettings *sds,
 	float *velxOrig = smoke_get_velocity_x(sds->fluid);
 	float *velyOrig = smoke_get_velocity_y(sds->fluid);
 	float *velzOrig = smoke_get_velocity_z(sds->fluid);
-	// float *density = smoke_get_density(sds->fluid);
+	float *density = smoke_get_density(sds->fluid);
 	unsigned int z;
 
 	smoke_get_ob_velocity(sds->fluid, &velx, &vely, &velz);
@@ -800,17 +798,6 @@ static void update_obstacles(Scene *scene, Object *ob, SmokeDomainSettings *sds,
 	// TODO: delete old obstacle flags
 	for(z = 0; z < sds->res[0] * sds->res[1] * sds->res[2]; z++)
 	{
-#if 0
-		if(obstacles[z])
-		{
-			// density[z] = 0;
-
-			velxOrig[z] = 0;
-			velyOrig[z] = 0;
-			velzOrig[z] = 0;
-		}
-#endif
-
 		if(obstacles[z] & 8) // Do not delete static obstacles
 		{
 			obstacles[z] = 0;
@@ -850,6 +837,8 @@ static void update_obstacles(Scene *scene, Object *ob, SmokeDomainSettings *sds,
 			velxOrig[z] = 0;
 			velyOrig[z] = 0;
 			velzOrig[z] = 0;
+
+			density[z] = 0;
 		}
 	}
 }
