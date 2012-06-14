@@ -4385,8 +4385,8 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				smd->domain = NULL;
 				smd->coll = newdataadr(fd, smd->coll);
 				if (smd->coll) {
-					smd->coll->points = NULL;
-					smd->coll->numpoints = 0;
+					smd->coll->verts_old = NULL;
+					smd->coll->numverts = 0;
 				}
 				else
 					smd->type = 0;

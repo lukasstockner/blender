@@ -139,20 +139,13 @@ typedef struct SmokeFlowSettings {
 /* collision objects (filled with smoke) */
 typedef struct SmokeCollSettings {
 	struct SmokeModifierData *smd; /* for fast RNA access */
-	struct BVHTree *bvhtree; /* bounding volume hierarchy for this cloth object */
-	float *points;
-	float *points_old;
-	float *vel; // UNUSED
-	int *tridivs;
+	struct DerivedMesh *dm;
+	float *verts_old;
 	float mat[4][4];
 	float mat_old[4][4];
-	int numpoints;
-	int numverts; // check if mesh changed
-	int numtris;
-	float dx; /* global domain cell length taken from (scale / resolution) */
+	int numverts;
 	short type; // static = 0, rigid = 1, dynamic = 2
 	short pad;
-	int pad2;
 } SmokeCollSettings;
 
 #endif

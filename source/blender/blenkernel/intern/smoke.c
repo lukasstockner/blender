@@ -281,441 +281,26 @@ static int smokeModifier_init (SmokeModifierData *smd, Object *ob, Scene *scene,
 	else if((smd->type & MOD_SMOKE_TYPE_COLL))
 	{
 		// todo: delete this when loading colls work -dg
+		SmokeCollSettings *scs;
 
 		if(!smd->coll)
 		{
 			smokeModifier_createType(smd);
 		}
 
-		if(!smd->coll->points)
-		{
-			// init collision points
-			SmokeCollSettings *scs = smd->coll;
+		// init collision points
+		scs = smd->coll;
 
-			smd->time = scene->r.cfra;
+		smd->time = scene->r.cfra;
 
-			// copy obmat
-			copy_m4_m4(scs->mat, ob->obmat);
-			copy_m4_m4(scs->mat_old, ob->obmat);
+		// copy obmat
+		copy_m4_m4(scs->mat, ob->obmat);
+		copy_m4_m4(scs->mat_old, ob->obmat);
 
-			DM_ensure_tessface(dm);
-			fill_scs_points(ob, dm, scs);
-		}
-
-		if(!smd->coll->bvhtree)
-		{
-			smd->coll->bvhtree = NULL; // bvhtree_build_from_smoke ( ob->obmat, dm->getTessFaceArray(dm), dm->getNumTessFaces(dm), dm->getVertArray(dm), dm->getNumVerts(dm), 0.0 );
-		}
 		return 1;
 	}
 
 	return 2;
-}
-
-static void fill_scs_points(Object *ob, DerivedMesh *dm, SmokeCollSettings *scs)
-{
-	MVert *mvert = dm->getVertArray(dm);
-	MFace *mface = dm->getTessFaceArray(dm);
-	int i = 0, divs = 0;
-
-	// DG TODO: need to do this dynamically according to the domain object!
-	float cell_len = scs->dx;
-	int newdivs = 0;
-	int quads = 0, facecounter = 0;
-
-	// count quads
-	for(i = 0; i < dm->getNumTessFaces(dm); i++)
-	{
-		if(mface[i].v4)
-			quads++;
-	}
-
-	scs->numtris = dm->getNumTessFaces(dm) + quads;
-	scs->tridivs = NULL;
-	calcTriangleDivs(ob, mvert, dm->getNumVerts(dm), mface,  dm->getNumTessFaces(dm), scs->numtris, &(scs->tridivs), cell_len);
-
-	// count triangle divisions
-	for(i = 0; i < dm->getNumTessFaces(dm) + quads; i++)
-	{
-		divs += (scs->tridivs[3 * i] + 1) * (scs->tridivs[3 * i + 1] + 1) * (scs->tridivs[3 * i + 2] + 1);
-	}
-
-	scs->points = MEM_callocN(sizeof(float) * (dm->getNumVerts(dm) + divs) * 3, "SmokeCollPoints");
-	scs->points_old = MEM_callocN(sizeof(float) * (dm->getNumVerts(dm) + divs) * 3, "SmokeCollPointsOld");
-
-	for(i = 0; i < dm->getNumVerts(dm); i++)
-	{
-		float tmpvec[3];
-		copy_v3_v3(tmpvec, mvert[i].co);
-		// mul_m4_v3(ob->obmat, tmpvec); // DG: use local coordinates, we save MAT anyway
-		copy_v3_v3(&scs->points[i * 3], tmpvec);
-	}
-	
-	for(i = 0, facecounter = 0; i < dm->getNumTessFaces(dm); i++)
-	{
-		int again = 0;
-		do
-		{
-			int j, k;
-			int divs1 = scs->tridivs[3 * facecounter + 0];
-			int divs2 = scs->tridivs[3 * facecounter + 1];
-			//int divs3 = scs->tridivs[3 * facecounter + 2];
-			float side1[3], side2[3], trinormorg[3], trinorm[3];
-			
-			if(again == 1 && mface[i].v4)
-			{
-				sub_v3_v3v3(side1,  mvert[ mface[i].v3 ].co, mvert[ mface[i].v1 ].co);
-				sub_v3_v3v3(side2,  mvert[ mface[i].v4 ].co, mvert[ mface[i].v1 ].co);
-			}
-			else {
-				sub_v3_v3v3(side1,  mvert[ mface[i].v2 ].co, mvert[ mface[i].v1 ].co);
-				sub_v3_v3v3(side2,  mvert[ mface[i].v3 ].co, mvert[ mface[i].v1 ].co);
-			}
-
-			cross_v3_v3v3(trinormorg, side1, side2);
-			normalize_v3(trinormorg);
-			copy_v3_v3(trinorm, trinormorg);
-			mul_v3_fl(trinorm, 0.25 * cell_len);
-
-			for(j = 0; j <= divs1; j++)
-			{
-				for(k = 0; k <= divs2; k++)
-				{
-					float p1[3], p2[3], p3[3], p[3]={0,0,0}; 
-					const float uf = (float)(j + TRI_UVOFFSET) / (float)(divs1 + 0.0);
-					const float vf = (float)(k + TRI_UVOFFSET) / (float)(divs2 + 0.0);
-					float tmpvec[3];
-					
-					if(uf+vf > 1.0) 
-					{
-						// printf("bigger - divs1: %d, divs2: %d\n", divs1, divs2);
-						continue;
-					}
-
-					copy_v3_v3(p1, mvert[ mface[i].v1 ].co);
-					if(again == 1 && mface[i].v4)
-					{
-						copy_v3_v3(p2, mvert[ mface[i].v3 ].co);
-						copy_v3_v3(p3, mvert[ mface[i].v4 ].co);
-					}
-					else {
-						copy_v3_v3(p2, mvert[ mface[i].v2 ].co);
-						copy_v3_v3(p3, mvert[ mface[i].v3 ].co);
-					}
-
-					mul_v3_fl(p1, (1.0-uf-vf));
-					mul_v3_fl(p2, uf);
-					mul_v3_fl(p3, vf);
-					
-					add_v3_v3v3(p, p1, p2);
-					add_v3_v3(p, p3);
-
-					if(newdivs > divs)
-						printf("mem problem\n");
-
-					// mMovPoints.push_back(p + trinorm);
-					add_v3_v3v3(tmpvec, p, trinorm);
-					// mul_m4_v3(ob->obmat, tmpvec); // DG: use local coordinates, we save MAT anyway
-					copy_v3_v3(&scs->points[3 * (dm->getNumVerts(dm) + newdivs)], tmpvec);
-					newdivs++;
-
-					if(newdivs > divs)
-						printf("mem problem\n");
-
-					// mMovPoints.push_back(p - trinorm);
-					copy_v3_v3(tmpvec, p);
-					sub_v3_v3(tmpvec, trinorm);
-					// mul_m4_v3(ob->obmat, tmpvec); // DG: use local coordinates, we save MAT anyway
-					copy_v3_v3(&scs->points[3 * (dm->getNumVerts(dm) + newdivs)], tmpvec);
-					newdivs++;
-				}
-			}
-
-			if(again == 0 && mface[i].v4)
-				again++;
-			else
-				again = 0;
-
-			facecounter++;
-
-		} while(again!=0);
-	}
-
-	scs->numverts = dm->getNumVerts(dm);
-	// DG TODO: also save triangle count?
-
-	scs->numpoints = dm->getNumVerts(dm) + newdivs;
-
-	for(i = 0; i < scs->numpoints * 3; i++)
-	{
-		scs->points_old[i] = scs->points[i];
-	}
-}
-
-
-static void fill_scs_points_anim(Object *UNUSED(ob), DerivedMesh *dm, SmokeCollSettings *scs)
-{
-	MVert *mvert = dm->getVertArray(dm);
-	MFace *mface = dm->getTessFaceArray(dm);
-	int quads = 0, numtris = 0, facecounter = 0;
-	unsigned int i = 0;
-	int divs = 0, newdivs = 0;
-	
-	// DG TODO: need to do this dynamically according to the domain object!
-	float cell_len = scs->dx;
-
-	// count quads
-	for(i = 0; i < dm->getNumTessFaces(dm); i++)
-	{
-		if(mface[i].v4)
-			quads++;
-	}
-
-	numtris = dm->getNumTessFaces(dm) + quads;
-
-	// check if mesh changed topology
-	if(scs->numtris != numtris)
-		return;
-	if(scs->numverts != dm->getNumVerts(dm))
-		return;
-
-	// update new positions
-	for(i = 0; i < dm->getNumVerts(dm); i++)
-	{
-		float tmpvec[3];
-		copy_v3_v3(tmpvec, mvert[i].co);
-		copy_v3_v3(&scs->points[i * 3], tmpvec);
-	}
-
-	// for every triangle // update div points
-	for(i = 0, facecounter = 0; i < dm->getNumTessFaces(dm); i++)
-	{
-		int again = 0;
-		do
-		{
-			int j, k;
-			int divs1 = scs->tridivs[3 * facecounter + 0];
-			int divs2 = scs->tridivs[3 * facecounter + 1];
-			float srcside1[3], srcside2[3], destside1[3], destside2[3], src_trinormorg[3], dest_trinormorg[3], src_trinorm[3], dest_trinorm[3];
-			
-			if(again == 1 && mface[i].v4)
-			{
-				sub_v3_v3v3(srcside1,  &scs->points_old[mface[i].v3 * 3], &scs->points_old[mface[i].v1 * 3]);
-				sub_v3_v3v3(destside1,  &scs->points[mface[i].v3 * 3], &scs->points[mface[i].v1 * 3]);
-
-				sub_v3_v3v3(srcside2,  &scs->points_old[mface[i].v4 * 3], &scs->points_old[mface[i].v1 * 3]);
-				sub_v3_v3v3(destside2,  &scs->points[mface[i].v4 * 3], &scs->points[mface[i].v1 * 3]);
-			}
-			else {
-				sub_v3_v3v3(srcside1,  &scs->points_old[mface[i].v2 * 3], &scs->points_old[mface[i].v1 * 3]);
-				sub_v3_v3v3(destside1,  &scs->points[mface[i].v2 * 3], &scs->points[mface[i].v1 * 3]);
-
-				sub_v3_v3v3(srcside2,  &scs->points_old[mface[i].v3 * 3], &scs->points_old[mface[i].v1 * 3]);
-				sub_v3_v3v3(destside2,  &scs->points[mface[i].v3 * 3], &scs->points[mface[i].v1 * 3]);
-			}
-
-			cross_v3_v3v3(src_trinormorg, srcside1, srcside2);
-			cross_v3_v3v3(dest_trinormorg, destside1, destside2);
-
-			normalize_v3(src_trinormorg);
-			normalize_v3(dest_trinormorg);
-
-			copy_v3_v3(src_trinorm, src_trinormorg);
-			copy_v3_v3(dest_trinorm, dest_trinormorg);
-
-			mul_v3_fl(src_trinorm, 0.25 * cell_len);
-			mul_v3_fl(dest_trinorm, 0.25 * cell_len);
-
-			for(j = 0; j <= divs1; j++)
-			{
-				for(k = 0; k <= divs2; k++)
-				{
-					float src_p1[3], src_p2[3], src_p3[3], src_p[3]={0,0,0};
-					float dest_p1[3], dest_p2[3], dest_p3[3], dest_p[3]={0,0,0};
-					const float uf = (float)(j + TRI_UVOFFSET) / (float)(divs1 + 0.0);
-					const float vf = (float)(k + TRI_UVOFFSET) / (float)(divs2 + 0.0);
-					float src_tmpvec[3], dest_tmpvec[3];
-					
-					if(uf+vf > 1.0) 
-					{
-						// printf("bigger - divs1: %d, divs2: %d\n", divs1, divs2);
-						continue;
-					}
-
-					copy_v3_v3(src_p1, &scs->points_old[mface[i].v1 * 3]);
-					copy_v3_v3(dest_p1, &scs->points[mface[i].v1 * 3]);
-					if(again == 1 && mface[i].v4)
-					{
-						copy_v3_v3(src_p2, &scs->points_old[mface[i].v3 * 3]);
-						copy_v3_v3(dest_p2, &scs->points[mface[i].v3 * 3]);
-
-						copy_v3_v3(src_p3,&scs->points_old[mface[i].v4 * 3]);
-						copy_v3_v3(dest_p3, &scs->points[mface[i].v4 * 3]);
-					}
-					else {
-						copy_v3_v3(src_p2, &scs->points_old[mface[i].v2 * 3]);
-						copy_v3_v3(dest_p2, &scs->points[mface[i].v2 * 3]);
-						copy_v3_v3(src_p3, &scs->points_old[mface[i].v3 * 3]);
-						copy_v3_v3(dest_p3, &scs->points[mface[i].v3 * 3]);
-					}
-
-					mul_v3_fl(src_p1, (1.0-uf-vf));
-					mul_v3_fl(dest_p1, (1.0-uf-vf));
-
-					mul_v3_fl(src_p2, uf);
-					mul_v3_fl(dest_p2, uf);
-
-					mul_v3_fl(src_p3, vf);
-					mul_v3_fl(dest_p3, vf);
-
-					add_v3_v3v3(src_p, src_p1, src_p2);
-					add_v3_v3v3(dest_p, dest_p1, dest_p2);
-
-					add_v3_v3(src_p, src_p3);
-					add_v3_v3(dest_p, dest_p3);
-
-					if(newdivs > divs)
-						printf("mem problem\n");
-
-					// mMovPoints.push_back(p + trinorm);
-					add_v3_v3v3(src_tmpvec, src_p, src_trinorm);
-					add_v3_v3v3(dest_tmpvec, dest_p, dest_trinorm);
-
-					// mul_m4_v3(ob->obmat, tmpvec); // DG: use local coordinates, we save MAT anyway
-					copy_v3_v3(&scs->points_old[3 * (dm->getNumVerts(dm) + newdivs)], src_tmpvec);
-					copy_v3_v3(&scs->points[3 * (dm->getNumVerts(dm) + newdivs)], dest_tmpvec);
-					newdivs++;
-
-					if(newdivs > divs)
-						printf("mem problem\n");
-
-					// mMovPoints.push_back(p - trinorm);
-					copy_v3_v3(src_tmpvec, src_p);
-					copy_v3_v3(dest_tmpvec, dest_p);
-
-					sub_v3_v3(src_tmpvec, src_trinorm);
-					sub_v3_v3(dest_tmpvec, dest_trinorm);
-
-					// mul_m4_v3(ob->obmat, tmpvec); // DG: use local coordinates, we save MAT anyway
-					copy_v3_v3(&scs->points_old[3 * (dm->getNumVerts(dm) + newdivs)], src_tmpvec);
-					copy_v3_v3(&scs->points[3 * (dm->getNumVerts(dm) + newdivs)], dest_tmpvec);
-					newdivs++;
-				}
-			}
-
-			if(again == 0 && mface[i].v4)
-				again++;
-			else
-				again = 0;
-
-			facecounter++;
-
-		} while(again!=0);
-	}
-
-	// scs->numpoints = dm->getNumVerts(dm) + newdivs;
-
-}
-
-/*! init triangle divisions */
-static void calcTriangleDivs(Object *ob, MVert *verts, int UNUSED(numverts), MFace *faces, int numfaces, int numtris, int **tridivs, float cell_len)
-{
-	// mTriangleDivs1.resize( faces.size() );
-	// mTriangleDivs2.resize( faces.size() );
-	// mTriangleDivs3.resize( faces.size() );
-
-	size_t i = 0, facecounter = 0;
-	float maxscale[3] = {1,1,1}; // = channelFindMaxVf(mcScale); get max scale value
-	float maxpart = ABS(maxscale[0]);
-	float scaleFac = 0;
-	float fsTri = 0;
-	if(ABS(maxscale[1])>maxpart) maxpart = ABS(maxscale[1]);
-	if(ABS(maxscale[2])>maxpart) maxpart = ABS(maxscale[2]);
-	scaleFac = 1.0 / maxpart;
-	// featureSize = mLevel[mMaxRefine].nodeSize
-	fsTri = cell_len * 0.75 * scaleFac; // fsTri = cell_len * 0.9;
-
-	if(*tridivs)
-		MEM_freeN(*tridivs);
-
-	*tridivs = MEM_callocN(sizeof(int) * numtris * 3, "Smoke_Tridivs");
-
-	for(i = 0, facecounter = 0; i < numfaces; i++) 
-	{
-		float p0[3], p1[3], p2[3];
-		float side1[3];
-		float side2[3];
-		float side3[3];
-		int divs1=0, divs2=0, divs3=0;
-
-		copy_v3_v3(p0, verts[faces[i].v1].co);
-		mul_m4_v3(ob->obmat, p0);
-		copy_v3_v3(p1, verts[faces[i].v2].co);
-		mul_m4_v3(ob->obmat, p1);
-		copy_v3_v3(p2, verts[faces[i].v3].co);
-		mul_m4_v3(ob->obmat, p2);
-
-		sub_v3_v3v3(side1, p1, p0);
-		sub_v3_v3v3(side2, p2, p0);
-		sub_v3_v3v3(side3, p1, p2);
-
-		if(dot_v3v3(side1, side1) > fsTri*fsTri)
-		{ 
-			float tmp = normalize_v3(side1);
-			divs1 = (int)ceil(tmp/fsTri); 
-		}
-		if(dot_v3v3(side2, side2) > fsTri*fsTri)
-		{ 
-			float tmp = normalize_v3(side2);
-			divs2 = (int)ceil(tmp/fsTri); 
-			
-			/*		
-			// debug
-			if(i==0)
-				printf("b tmp: %f, fsTri: %f, divs2: %d\n", tmp, fsTri, divs2);
-			*/
-			
-		}
-
-		(*tridivs)[3 * facecounter + 0] = divs1;
-		(*tridivs)[3 * facecounter + 1] = divs2;
-		(*tridivs)[3 * facecounter + 2] = divs3;
-
-		// TODO quad case
-		if(faces[i].v4)
-		{
-			divs1=0, divs2=0, divs3=0;
-
-			facecounter++;
-			
-			copy_v3_v3(p0, verts[faces[i].v3].co);
-			mul_m4_v3(ob->obmat, p0);
-			copy_v3_v3(p1, verts[faces[i].v4].co);
-			mul_m4_v3(ob->obmat, p1);
-			copy_v3_v3(p2, verts[faces[i].v1].co);
-			mul_m4_v3(ob->obmat, p2);
-
-			sub_v3_v3v3(side1, p1, p0);
-			sub_v3_v3v3(side2, p2, p0);
-			sub_v3_v3v3(side3, p1, p2);
-
-			if(dot_v3v3(side1, side1) > fsTri*fsTri)
-			{ 
-				float tmp = normalize_v3(side1);
-				divs1 = (int)ceil(tmp/fsTri); 
-			}
-			if(dot_v3v3(side2, side2) > fsTri*fsTri)
-			{ 
-				float tmp = normalize_v3(side2);
-				divs2 = (int)ceil(tmp/fsTri); 
-			}
-
-			(*tridivs)[3 * facecounter + 0] = divs1;
-			(*tridivs)[3 * facecounter + 1] = divs2;
-			(*tridivs)[3 * facecounter + 2] = divs3;
-		}
-		facecounter++;
-	}
 }
 
 #endif /* WITH_SMOKE */
@@ -769,36 +354,18 @@ static void smokeModifier_freeCollision(SmokeModifierData *smd)
 	{
 		SmokeCollSettings *scs = smd->coll;
 
-		if(scs->numpoints)
+		if(scs->numverts)
 		{
-			if(scs->points)
+			if(scs->verts_old)
 			{
-				MEM_freeN(scs->points);
-				scs->points = NULL;
-			}
-			if(scs->points_old)
-			{
-				MEM_freeN(scs->points_old);
-				scs->points_old = NULL;
-			}
-			if(scs->tridivs)
-			{
-				MEM_freeN(scs->tridivs);
-				scs->tridivs = NULL;
+				MEM_freeN(scs->verts_old);
+				scs->verts_old = NULL;
 			}
 		}
 
-		if(scs->bvhtree)
-		{
-			BLI_bvhtree_free(scs->bvhtree);
-			scs->bvhtree = NULL;
-		}
-
-#ifdef USE_SMOKE_COLLISION_DM
 		if(smd->coll->dm)
 			smd->coll->dm->release(smd->coll->dm);
 		smd->coll->dm = NULL;
-#endif
 
 		MEM_freeN(smd->coll);
 		smd->coll = NULL;
@@ -851,21 +418,10 @@ void smokeModifier_reset(struct SmokeModifierData *smd)
 		{
 			SmokeCollSettings *scs = smd->coll;
 
-			if(scs->numpoints && scs->points)
+			if(scs->numverts && scs->verts_old)
 			{
-				MEM_freeN(scs->points);
-				scs->points = NULL;
-			
-				if(scs->points_old)
-				{
-					MEM_freeN(scs->points_old);
-					scs->points_old = NULL;
-				}
-				if(scs->tridivs)
-				{
-					MEM_freeN(scs->tridivs);
-					scs->tridivs = NULL;
-				}
+				MEM_freeN(scs->verts_old);
+				scs->verts_old = NULL;
 			}
 		}
 	}
@@ -950,15 +506,10 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			smd->coll = MEM_callocN(sizeof(SmokeCollSettings), "SmokeColl");
 
 			smd->coll->smd = smd;
-			smd->coll->points = NULL;
-			smd->coll->points_old = NULL;
-			smd->coll->tridivs = NULL;
-			smd->coll->vel = NULL;
-			smd->coll->numpoints = 0;
-			smd->coll->numtris = 0;
-			smd->coll->bvhtree = NULL;
+			smd->coll->verts_old = NULL;
+			smd->coll->numverts = 0;
 			smd->coll->type = 0; // static obstacle
-			smd->coll->dx = 1.0f / 50.0f;
+			smd->coll->dm = NULL;
 
 #ifdef USE_SMOKE_COLLISION_DM
 			smd->coll->dm = NULL;
@@ -1078,6 +629,142 @@ static void smoke_calc_domain(Scene *UNUSED(scene), Object *UNUSED(ob), SmokeMod
 #endif
 }
 
+static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds, SmokeCollSettings *scs, unsigned char *obstacle_map, float *velocityX, float *velocityY, float *velocityZ, float dt)
+{
+	if (!scs->dm) return;
+	{
+		DerivedMesh *dm = NULL;
+		MDeformVert *dvert = NULL;
+		MVert *mvert = NULL;
+		MFace *mface = NULL;
+		BVHTreeFromMesh treeData = {0};
+		int numverts, i, z;
+		int *res = sds->res;
+
+		float surface_distance = 0.5f + FLT_EPSILON;
+
+		float *vert_vel = NULL;
+		int has_velocity = 0;
+
+		dm = CDDM_copy(scs->dm);
+		CDDM_calc_normals(dm);
+		mvert = dm->getVertArray(dm);
+		mface = dm->getTessFaceArray(dm);
+		numverts = dm->getNumVerts(dm);
+		dvert = dm->getVertDataArray(dm, CD_MDEFORMVERT);
+		
+		// DG TODO
+		// if (sfs->flags & MOD_SMOKE_FLOW_INITVELOCITY) 
+		{
+			vert_vel = MEM_callocN(sizeof(float) * numverts * 3, "smoke_obs_velocity");
+
+			if (scs->numverts != numverts || !scs->verts_old) {
+				if (scs->verts_old) MEM_freeN(scs->verts_old);
+
+				scs->verts_old = MEM_callocN(sizeof(float) * numverts * 3, "smoke_obs_verts_old");
+				scs->numverts = numverts;
+			}
+			else {
+				has_velocity = 1;
+			}
+		}
+
+		/*	Transform collider vertices to
+		*   domain grid space for fast lookups */
+		for (i = 0; i < numverts; i++) {
+			float n[3];
+
+			/* vert pos */
+			mul_m4_v3(coll_ob->obmat, mvert[i].co);
+			sub_v3_v3(mvert[i].co, sds->p0);
+			mul_v3_fl(mvert[i].co, (1.0f / sds->dx) / sds->scale);
+
+			/* vert normal */
+			normal_short_to_float_v3(n, mvert[i].no);
+			mul_mat3_m4_v3(coll_ob->obmat, n);
+			normalize_v3(n);
+			normal_float_to_short_v3(mvert[i].no, n);
+
+			/* vert velocity */
+			// DG TODO 
+			// if (sfs->flags & MOD_SMOKE_FLOW_INITVELOCITY) 
+			{
+				if (has_velocity) 
+				{
+					sub_v3_v3v3(&vert_vel[i*3], mvert[i].co, &scs->verts_old[i*3]);
+					mul_v3_fl(&vert_vel[i*3], sds->dx/dt);
+				}
+				copy_v3_v3(&scs->verts_old[i*3], mvert[i].co);
+			}
+		}
+
+		if (bvhtree_from_mesh_faces(&treeData, dm, 0.0f, 4, 8)) {
+			#pragma omp parallel for schedule(static)
+			for (z = 0; z < res[2]; z++) {
+				int x,y;
+				for (x = 0; x < res[0]; x++)
+				for (y = 0; y < res[1]; y++) {
+					int index = x + y*res[0] + z*res[0]*res[1];
+
+					float ray_start[3] = {(float)x + 0.5f, (float)y + 0.5f, (float)z + 0.5f};
+					float ray_dir[3] = {1.0f, 0.0f, 0.0f};
+
+					BVHTreeRayHit hit = {0};
+					BVHTreeNearest nearest = {0};
+
+					hit.index = -1;
+					hit.dist = 9999;
+					nearest.index = -1;
+					nearest.dist = surface_distance * surface_distance; /* find_nearest uses squared distance */
+
+					/* find the nearest point on the mesh */
+					if (BLI_bvhtree_find_nearest(treeData.tree, ray_start, &nearest, treeData.nearest_callback, &treeData) != -1) {
+						float weights[4];
+						int v1, v2, v3, f_index = nearest.index;
+						float n1[3], n2[3], n3[3], hit_normal[3];
+
+						/* calculate barycentric weights for nearest point */
+						v1 = mface[f_index].v1;
+						v2 = (nearest.flags & BVH_ONQUAD) ? mface[f_index].v3 : mface[f_index].v2;
+						v3 = (nearest.flags & BVH_ONQUAD) ? mface[f_index].v4 : mface[f_index].v3;
+						interp_weights_face_v3(weights, mvert[v1].co, mvert[v2].co, mvert[v3].co, NULL, nearest.co);
+
+						// DG TODO
+						// if(sfs->flags & MOD_SMOKE_FLOW_INITVELOCITY) 
+						if(has_velocity)
+						{
+							/* interpolate vertex normal vectors to get nearest point normal */
+							normal_short_to_float_v3(n1, mvert[v1].no);
+							normal_short_to_float_v3(n2, mvert[v2].no);
+							normal_short_to_float_v3(n3, mvert[v3].no);
+							interp_v3_v3v3v3(hit_normal, n1, n2, n3, weights);
+							normalize_v3(hit_normal);
+							
+							/* apply object velocity */
+							{
+								float hit_vel[3];
+								interp_v3_v3v3v3(hit_vel, &vert_vel[v1*3], &vert_vel[v2*3], &vert_vel[v3*3], weights);
+								velocityX[index] += hit_vel[0];
+								velocityY[index] += hit_vel[1];
+								velocityZ[index] += hit_vel[2];
+							}
+						}
+
+						/* tag obstacle cells */
+						obstacle_map[index] = 1 | 8;
+					}
+				}
+			}
+		}
+		/* free bvh tree */
+		free_bvhtree_from_mesh(&treeData);
+		dm->release(dm);
+
+		if (vert_vel) MEM_freeN(vert_vel);
+
+	}
+}
+
 /* Animated obstacles: dx_step = ((x_new - x_old) / totalsteps) * substep */
 static void update_obstacles(Scene *scene, Object *ob, SmokeDomainSettings *sds, float dt, int substep, int totalsteps)
 {
@@ -1100,14 +787,14 @@ static void update_obstacles(Scene *scene, Object *ob, SmokeDomainSettings *sds,
 	// TODO: delete old obstacle flags
 	for(z = 0; z < sds->res[0] * sds->res[1] * sds->res[2]; z++)
 	{
-		if(obstacles[z])
-		{
+		//if(obstacles[z])
+		// {
 			// density[z] = 0;
 
-			velxOrig[z] = 0;
-			velyOrig[z] = 0;
-			velzOrig[z] = 0;
-		}
+			//velxOrig[z] = 0;
+			//velyOrig[z] = 0;
+			//velzOrig[z] = 0;
+		//}
 
 		if(obstacles[z] & 8) // Do not delete static obstacles
 		{
@@ -1129,89 +816,11 @@ static void update_obstacles(Scene *scene, Object *ob, SmokeDomainSettings *sds,
 
 		// DG TODO: check if modifier is active?
 		
-		if((smd2->type & MOD_SMOKE_TYPE_COLL) && smd2->coll && smd2->coll->points && smd2->coll->points_old)
+		if((smd2->type & MOD_SMOKE_TYPE_COLL) && smd2->coll && smd2->coll->verts_old)
 		{
 			SmokeCollSettings *scs = smd2->coll;
-			unsigned int i;
-
-			/*
-			// DG TODO: support static cobstacles, but basicly we could even support static + rigid with one set of code
-			if(scs->type > SM_COLL_STATIC)
-			*/
-
-			/* Handle collisions */
-			for(i = 0; i < scs->numpoints; i++)
-			{
-				// 1. get corresponding cell
-				int cell[3];
-				float pos[3], oldpos[3], vel[3];
-				float cPos[3], cOldpos[3]; /* current position in substeps */
-				int badcell = 0;
-				size_t index;
-				int j;
-
-				// translate local points into global positions
-				copy_v3_v3(cPos, &scs->points[3 * i]);
-				mul_m4_v3(scs->mat, cPos);
-				copy_v3_v3(pos, cPos);
-
-				copy_v3_v3(cOldpos, &scs->points_old[3 * i]);
-				mul_m4_v3(scs->mat_old, cOldpos);
-				copy_v3_v3(oldpos, cOldpos);
-
-				/* support for rigid bodies, armatures etc */
-				{
-					float tmp[3];
-
-					/* x_current = x_old + (x_new - x_old) * step_current / steps_total */
-					float mulStep = (float)(((float)substep) / ((float)totalsteps));
-
-					sub_v3_v3v3(tmp, cPos, cOldpos);
-					mul_v3_fl(tmp, mulStep);
-					add_v3_v3(cOldpos, tmp);
-				}
-
-				sub_v3_v3v3(vel, pos, oldpos);
-				/* Scale velocity to incorperate the object movement during this step */
-				mul_v3_fl(vel, 1.0 / (totalsteps * dt * sds->scale));
-				// mul_v3_fl(vel, 1.0 / dt);
-
-				// DG TODO: cap velocity to maxVelMag (or maxvel)
-
-				// oldpos + velocity * dt = newpos
-				get_cell(sds->p0, sds->res, sds->dx*sds->scale, cOldpos /* use current position here instead of "pos" */, cell, 0);
-
-				// check if cell is valid (in the domain boundary)
-				for(j = 0; j < 3; j++)
-					if((cell[j] > sds->res[j] - 1) || (cell[j] < 0))
-					{
-						badcell = 1;
-						break;
-					}
-														
-				if(badcell)
-					continue;
-
-				// 2. set cell values (heat, density and velocity)
-				index = smoke_get_index(cell[0], sds->res[0], cell[1], sds->res[1], cell[2]);
-
-				// Don't overwrite existing obstacles
-				if(obstacles[index])
-					continue;
-												
-				// printf("cell[0]: %d, cell[1]: %d, cell[2]: %d\n", cell[0], cell[1], cell[2]);								
-				// printf("res[0]: %d, res[1]: %d, res[2]: %d, index: %d\n\n", sds->res[0], sds->res[1], sds->res[2], index);																	
-				obstacles[index] = 1 | 8 /* ANIMATED */;
-
-				if(len_v3(vel) > FLT_EPSILON)
-				{
-					// Collision object is moving
-
-					velx[index] = vel[0]; // use "+="?
-					vely[index] = vel[1];
-					velz[index] = vel[2];
-				}
-			}
+			
+			obstacles_from_derivedmesh(collob, sds, scs, obstacles, velx, vely, velz, dt);
 		}
 	}
 
@@ -1656,88 +1265,22 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 	}
 	else if(smd->type & MOD_SMOKE_TYPE_COLL)
 	{
-		/* Check if domain resolution changed */
-		/* DG TODO: can this be solved more elegant using dependancy graph? */
-		{
-			SmokeCollSettings *scs = smd->coll;
-			Base *base = scene->base.first;
-			int changed = 0;
-			float dx = FLT_MAX;
-			float scale = 1.0f;
-			int haveDomain = 0;
-
-			for ( ; base; base = base->next) 
-			{
-				SmokeModifierData *smd2 = (SmokeModifierData *)modifiers_findByType(base->object, eModifierType_Smoke);
-
-				if (smd2 && (smd2->type & MOD_SMOKE_TYPE_DOMAIN) && smd2->domain)
-				{
-					SmokeDomainSettings *sds = smd2->domain;
-
-					if(sds->dx * sds->scale < dx)
-					{
-						dx = sds->dx;
-						scale = sds->scale;
-						changed = 1;
-					}
-
-					haveDomain = 1;
-				}
-			}
-
-			if(!haveDomain)
-				return;
-			
-			if(changed)
-			{
-				if(dx*scale != scs->dx)
-				{
-					scs->dx = dx*scale;
-					smokeModifier_reset(smd);
-				}
-			}
-		}
-
 		if(scene->r.cfra >= smd->time)
 			smokeModifier_init(smd, ob, scene, dm);
 
+		if(smd->coll)
+		{
+			if (smd->coll->dm) 
+				smd->coll->dm->release(smd->coll->dm);
+
+			smd->coll->dm = CDDM_copy(dm);
+			DM_ensure_tessface(smd->coll->dm);
+		}
+
 		if(scene->r.cfra > smd->time)
 		{
-			unsigned int i;
 			SmokeCollSettings *scs = smd->coll;
-			float *points_old = scs->points_old;
-			float *points = scs->points;
-			unsigned int numpoints = scs->numpoints; 
-
-			// XXX TODO <-- DG: what is TODO here?
 			smd->time = scene->r.cfra;
-
-			// rigid movement support
-			copy_m4_m4(scs->mat_old, scs->mat);
-			copy_m4_m4(scs->mat, ob->obmat);
-
-			if(scs->type != SM_COLL_ANIMATED) // if(not_animated)
-			{
-				// nothing to do, "mat" is already up to date
-			}
-			else
-			{
-				// XXX TODO: need to update positions + divs
-
-				if(scs->numverts != dm->getNumVerts(dm))
-				{
-					// DG TODO: reset modifier?
-					return;
-				}
-
-				for(i = 0; i < numpoints * 3; i++)
-				{
-					points_old[i] = points[i];
-				}
-
-				DM_ensure_tessface(dm);
-				fill_scs_points_anim(ob, dm, scs);
-			}
 		}
 		else if(scene->r.cfra < smd->time)
 		{

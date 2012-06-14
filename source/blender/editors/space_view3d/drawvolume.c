@@ -502,7 +502,8 @@ void draw_smoke_heat(SmokeDomainSettings *domain)
 {
 	float x,y,z;
 	int *res = domain->res;
-	float *heat = smoke_get_heat(domain->fluid);
+	// float *heat = smoke_get_heat(domain->fluid);
+	unsigned char *heat = smoke_get_obstacle(domain->fluid);
 
 	float *min = domain->p0;
 	float cell_size = domain->dx * domain->scale;
@@ -516,10 +517,12 @@ void draw_smoke_heat(SmokeDomainSettings *domain)
 				float pos[3] = {min[0]+((float)x + 0.5f)*cell_size, min[1]+((float)y + 0.5f)*cell_size, min[2]+((float)z + 0.5f)*cell_size};
 
 				if (heat[index] >= 0.01f) {
-					float col_gb = 1.0f - heat[index];
-					CLAMP(col_gb, 0.0f, 1.0f);
-					glColor3f(1.0f, col_gb, col_gb);
-					glPointSize(24.0f * heat[index]);
+					//float col_gb = 1.0f - heat[index];
+					//CLAMP(0, 0.0f, 1.0f);
+					// glColor3f(1.0f, col_gb, col_gb);
+					glColor3f(0, 0, 1.0f);
+					// glPointSize(24.0f * heat[index]);
+					glPointSize(0.01f);
 
 					glBegin(GL_POINTS);
 					glVertex3f(pos[0], pos[1], pos[2]);
