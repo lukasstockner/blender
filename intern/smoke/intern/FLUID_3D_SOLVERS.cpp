@@ -323,7 +323,7 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip)
 		// i = i + 1
 		i++;
 	}
-	cout << i << " iterations converged to " << sqrt(maxR) << endl;
+	// cout << i << " iterations converged to " << sqrt(maxR) << endl;
 
 	if (_h) delete[] _h;
 	if (_Precond) delete[] _Precond;

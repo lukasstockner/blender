@@ -507,7 +507,8 @@ void draw_smoke_heat(SmokeDomainSettings *domain)
 
 	float *min = domain->p0;
 	float cell_size = domain->dx * domain->scale;
-	float step_size = ((float)MAX3(res[0], res[1], res[2]))/16.f;
+	//float step_size = ((float)MAX3(res[0], res[1], res[2]))/16.f;
+	float step_size = 1.0f;
 
 	for (x=0; x<res[0]; x+=step_size)
 		for (y=0; y<res[1]; y+=step_size)

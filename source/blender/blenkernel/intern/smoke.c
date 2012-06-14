@@ -103,7 +103,7 @@ static void tend ( void )
 {
 	QueryPerformanceCounter ( &liCurrentTime );
 }
-static double UNUSED_FUNCTION(tval)( void )
+static double tval( void )
 {
 	return ((double)( (liCurrentTime.QuadPart - liStartTime.QuadPart)* (double)1000.0/(double)liFrequency.QuadPart ));
 }
@@ -631,8 +631,6 @@ static void smoke_calc_domain(Scene *UNUSED(scene), Object *UNUSED(ob), SmokeMod
 
 static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds, SmokeCollSettings *scs, unsigned char *obstacle_map, float *velocityX, float *velocityY, float *velocityZ, float dt)
 {
-	printf("obstacles_from_derivedmesh\n");
-
 	if (!scs->dm) return;
 	{
 		DerivedMesh *dm = NULL;
@@ -642,11 +640,14 @@ static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds
 		BVHTreeFromMesh treeData = {0};
 		int numverts, i, z;
 		int *res = sds->res;
+		float *density = smoke_get_density(sds->fluid);
 
-		float surface_distance = 0.5f + FLT_EPSILON;
+		float surface_distance = 0.6;
 
 		float *vert_vel = NULL;
 		int has_velocity = 0;
+
+		tstart();
 
 		dm = CDDM_copy(scs->dm);
 		CDDM_calc_normals(dm);
@@ -655,9 +656,10 @@ static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds
 		numverts = dm->getNumVerts(dm);
 		dvert = dm->getVertDataArray(dm, CD_MDEFORMVERT);
 
-		printf("obstacles_from_derivedmesh with DM\n");
-		
 		// DG TODO
+		// if(scs->type > SM_COLL_STATIC)
+		// if line above is used, the code is in trouble if the object moves but is declared as "does not move"
+
 		// if (sfs->flags & MOD_SMOKE_FLOW_INITVELOCITY) 
 		{
 			vert_vel = MEM_callocN(sizeof(float) * numverts * 3, "smoke_obs_velocity");
@@ -755,9 +757,11 @@ static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds
 						}
 
 						/* tag obstacle cells */
-						obstacle_map[index] = 1 | 8;
+						obstacle_map[index] = 1;
+						density[index] = 0.0f;
 
-						// DEBUG printf("added obstacle\n");
+						if(has_velocity)
+							obstacle_map[index] |= 8;
 					}
 				}
 			}
@@ -767,6 +771,9 @@ static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds
 		dm->release(dm);
 
 		if (vert_vel) MEM_freeN(vert_vel);
+
+		tend();
+		printf ( "Time: %f\n\n", ( float ) tval() );
 
 	}
 }
@@ -793,14 +800,16 @@ static void update_obstacles(Scene *scene, Object *ob, SmokeDomainSettings *sds,
 	// TODO: delete old obstacle flags
 	for(z = 0; z < sds->res[0] * sds->res[1] * sds->res[2]; z++)
 	{
-		//if(obstacles[z])
-		// {
+#if 0
+		if(obstacles[z])
+		{
 			// density[z] = 0;
 
-			//velxOrig[z] = 0;
-			//velyOrig[z] = 0;
-			//velzOrig[z] = 0;
-		//}
+			velxOrig[z] = 0;
+			velyOrig[z] = 0;
+			velzOrig[z] = 0;
+		}
+#endif
 
 		if(obstacles[z] & 8) // Do not delete static obstacles
 		{
@@ -832,6 +841,17 @@ static void update_obstacles(Scene *scene, Object *ob, SmokeDomainSettings *sds,
 
 	if(collobjs)
 		MEM_freeN(collobjs);
+
+	/* obstacle cells should not contain any velocity from the smoke simulation */
+	for(z = 0; z < sds->res[0] * sds->res[1] * sds->res[2]; z++)
+	{
+		if(obstacles[z])
+		{
+			velxOrig[z] = 0;
+			velyOrig[z] = 0;
+			velzOrig[z] = 0;
+		}
+	}
 }
 
 static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sds, float time)
@@ -1281,8 +1301,6 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 
 			smd->coll->dm = CDDM_copy(dm);
 			DM_ensure_tessface(smd->coll->dm);
-
-			printf("Collision: Created dm!\n");
 		}
 
 		if(scene->r.cfra > smd->time)
@@ -1354,7 +1372,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 		if (framenr != scene->r.cfra)
 			return;
 
-		tstart();
+		// tstart();
 
 		smoke_calc_domain(scene, ob, smd);
 
@@ -1406,7 +1424,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 		if(framenr != startframe)
 			BKE_ptcache_write(&pid, framenr);
 
-		tend();
+		//tend();
 		// printf ( "Frame: %d, Time: %f\n\n", (int)smd->time, ( float ) tval() );
 	}
 }
