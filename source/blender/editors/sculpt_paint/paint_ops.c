@@ -99,7 +99,7 @@ static int brush_scale_size_exec(bContext *C, wmOperator *op)
 	if (brush) {
 		// pixel radius
 		{
-			const int old_size = BKE_brush_size_get(scene, brush);
+			const int old_size = BKE_brush_size_nonrandomized_get(scene, brush);
 			int size = (int)(scalar * old_size);
 
 			if (old_size == size) {

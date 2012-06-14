@@ -2957,7 +2957,7 @@ static void project_paint_begin(ProjPaintState *ps)
 	
 	MemArena *arena; /* at the moment this is just ps->arena_mt[0], but use this to show were not multithreading */
 
-	const int diameter = 2 * BKE_brush_size_get(ps->scene, ps->brush);
+	const int diameter = 2 * BKE_brush_size_nonrandomized_get(ps->scene, ps->brush);
 	
 	/* ---- end defines ---- */
 	
@@ -4871,7 +4871,7 @@ static int texture_paint_init(bContext *C, wmOperator *op)
 	if (pop->mode == PAINT_MODE_3D && (pop->s.tool == PAINT_TOOL_CLONE))
 		pop->s.tool = PAINT_TOOL_DRAW;
 	pop->s.blend = brush->blend;
-	pop->orig_brush_size = BKE_brush_size_get(scene, brush);
+	pop->orig_brush_size = BKE_brush_size_nonrandomized_get(scene, brush);
 
 	if (pop->mode != PAINT_MODE_2D) {
 		Object *ob = OBACT;
@@ -5226,7 +5226,7 @@ static void brush_drawcursor(bContext *C, int x, int y, void *UNUSED(customdata)
 	if (paint && brush && paint->flags & PAINT_SHOW_BRUSH) {
 		ToolSettings *ts;
 		float zoomx, zoomy;
-		const float size = (float)BKE_brush_size_get(scene, brush);
+		const float size = (float)BKE_brush_size_nonrandomized_get(scene, brush);
 		short use_zoom;
 		float pixel_size;
 		float alpha = 0.5f;

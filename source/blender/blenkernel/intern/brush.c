@@ -102,6 +102,8 @@ static void brush_defaults(Brush *brush)
 	brush->rate = 0.1f; /* time delay between dots of paint or sculpting when doing airbrush mode */
 
 	brush->jitter = 0.0f;
+	brush->random_size = 0.0;
+	brush->random_size_cache = 1.0;
 
 	/* BRUSH TEXTURE SETTINGS */
 	default_mtex(&brush->mtex);
@@ -296,6 +298,8 @@ void BKE_brush_debug_print_state(Brush *br)
 	BR_TEST_FLAG(BRUSH_CUSTOM_ICON);
 
 	BR_TEST(jitter, f);
+	BR_TEST(random_size, f);
+	BR_TEST(random_size_cache, f);
 	BR_TEST(spacing, d);
 	BR_TEST(smooth_stroke_radius, d);
 	BR_TEST(smooth_stroke_factor, f);
@@ -485,6 +489,14 @@ int BKE_brush_clone_image_delete(Brush *brush)
 	return 0;
 }
 
+/* reset the random size cache to a random value, proportional to the size of the brush.
+ * due to the many places BKE_brush_size_get is called it is not safe to generate a random
+ * number for every call. Instead we will generate a random number before each stroke */
+void BKE_brush_randomize_size(Brush *brush)
+{
+	brush->random_size_cache = (1.0 - brush->random_size/2.0) + brush->random_size*BLI_frand();
+}
+
 /* Brush Sampling */
 void BKE_brush_sample_tex(const Scene *scene, Brush *brush, const float xy[2], float rgba[4], const int thread, float angle)
 {
@@ -657,11 +669,18 @@ void BKE_brush_size_set(Scene *scene, Brush *brush, int size)
 		brush->size = size;
 }
 
-int BKE_brush_size_get(const Scene *scene, Brush *brush)
+int BKE_brush_size_nonrandomized_get(const Scene *scene, Brush *brush)
 {
 	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
 
 	return (ups->flag & UNIFIED_PAINT_SIZE) ? ups->size : brush->size;
+}
+
+int BKE_brush_size_get(const Scene *scene, Brush *brush)
+{
+	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+
+	return (ups->flag & UNIFIED_PAINT_SIZE) ? brush->random_size_cache*ups->size : brush->random_size_cache*brush->size;
 }
 
 int BKE_brush_use_locked_size(const Scene *scene, Brush *brush)
@@ -821,7 +840,7 @@ BrushPainter *BKE_brush_painter_new(Scene *scene, Brush *brush)
 	painter->firsttouch = 1;
 	painter->cache.lastsize = -1; /* force ibuf create in refresh */
 
-	painter->startsize = BKE_brush_size_get(scene, brush);
+	painter->startsize = BKE_brush_size_nonrandomized_get(scene, brush);
 	painter->startalpha = BKE_brush_alpha_get(scene, brush);
 	painter->startjitter = brush->jitter;
 	painter->startspacing = brush->spacing;
@@ -1115,6 +1134,8 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 	UnifiedPaintSettings *unified_paint_settings = &scene->toolsettings->unified_paint_settings;
 	Brush *brush = painter->brush;
 	int totpaintops = 0;
+
+	BKE_brush_randomize_size(brush);
 
 	if (pressure == 0.0f) {
 		if (painter->lastpressure) // XXX - hack, operator misses

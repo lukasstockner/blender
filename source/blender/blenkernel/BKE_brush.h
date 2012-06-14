@@ -91,7 +91,7 @@ unsigned int *BKE_brush_gen_texture_cache(struct Brush *br, int half_side);
 struct ImBuf *BKE_brush_gen_radial_control_imbuf(struct Brush *br);
 
 /* unified strength and size */
-
+int BKE_brush_size_nonrandomized_get(const struct Scene *scene, struct Brush *brush);
 int  BKE_brush_size_get(const struct Scene *scene, struct Brush *brush);
 void BKE_brush_size_set(struct Scene *scene, struct Brush *brush, int value);
 
