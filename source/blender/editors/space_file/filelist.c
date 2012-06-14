@@ -80,6 +80,11 @@
 
 #include "filelist.h"
 
+
+#ifdef WITH_ASSIMP
+#	include "../../assimp/bassimp.h"
+#endif
+
 /* max length of library group name within filesel */
 #define GROUP_MAX 32
 
@@ -796,9 +801,21 @@ static int file_extension_type(const char *relname)
 	else if (BLI_testextensie_array(relname, imb_ext_audio)) {
 		return SOUNDFILE;
 	} 
-	else if (BLI_testextensie_array(relname, imb_ext_assimp)) {
-		return ASSIMPFILE;
+
+#ifdef WITH_ASSIMP
+	else {
+		
+		// query list of file extensions from assimp
+		if (imb_ext_assimp[0] == NULL) {
+			bassimp_query_import_file_extensions(imb_ext_assimp,MAX_ASSIMP_EXT);
+		}
+		
+		if (BLI_testextensie_array(relname, imb_ext_assimp)) {
+			return ASSIMPFILE;
+		}
 	}
+#endif
+
 	return 0;
 }
 

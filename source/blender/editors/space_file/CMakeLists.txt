@@ -78,6 +78,10 @@ if(WITH_IMAGE_HDR)
 	add_definitions(-DWITH_HDR)
 endif()
 
+if(WITH_ASSIMP)
+	add_definitions(-DWITH_ASSIMP)
+endif()
+
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
