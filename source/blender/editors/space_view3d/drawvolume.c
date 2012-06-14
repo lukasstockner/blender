@@ -516,17 +516,21 @@ void draw_smoke_heat(SmokeDomainSettings *domain)
 
 				float pos[3] = {min[0]+((float)x + 0.5f)*cell_size, min[1]+((float)y + 0.5f)*cell_size, min[2]+((float)z + 0.5f)*cell_size};
 
-				if (heat[index] >= 0.01f) {
-					//float col_gb = 1.0f - heat[index];
-					//CLAMP(0, 0.0f, 1.0f);
-					// glColor3f(1.0f, col_gb, col_gb);
-					glColor3f(0, 0, 1.0f);
-					// glPointSize(24.0f * heat[index]);
-					glPointSize(0.01f);
+				if (heat[index] > 0) {
+					GLUquadricObj *qobj = gluNewQuadric();
+					gluQuadricDrawStyle(qobj, GLU_FILL);
 
-					glBegin(GL_POINTS);
-					glVertex3f(pos[0], pos[1], pos[2]);
-					glEnd();
+					glColor3f(0, 0, 1.0f);
+					
+					glPushMatrix();
+
+					glTranslatef(pos[0], pos[1], pos[2]);
+					glScalef(domain->dx * domain->scale * 0.1, domain->dx * domain->scale * 0.1, domain->dx * domain->scale * 0.1);
+					gluSphere(qobj, 1.0, 8, 5);	
+
+					glPopMatrix();
+	
+					gluDeleteQuadric(qobj);
 				}
 	}
 }

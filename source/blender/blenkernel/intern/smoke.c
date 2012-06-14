@@ -631,6 +631,8 @@ static void smoke_calc_domain(Scene *UNUSED(scene), Object *UNUSED(ob), SmokeMod
 
 static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds, SmokeCollSettings *scs, unsigned char *obstacle_map, float *velocityX, float *velocityY, float *velocityZ, float dt)
 {
+	printf("obstacles_from_derivedmesh\n");
+
 	if (!scs->dm) return;
 	{
 		DerivedMesh *dm = NULL;
@@ -652,6 +654,8 @@ static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds
 		mface = dm->getTessFaceArray(dm);
 		numverts = dm->getNumVerts(dm);
 		dvert = dm->getVertDataArray(dm, CD_MDEFORMVERT);
+
+		printf("obstacles_from_derivedmesh with DM\n");
 		
 		// DG TODO
 		// if (sfs->flags & MOD_SMOKE_FLOW_INITVELOCITY) 
@@ -752,6 +756,8 @@ static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds
 
 						/* tag obstacle cells */
 						obstacle_map[index] = 1 | 8;
+
+						// DEBUG printf("added obstacle\n");
 					}
 				}
 			}
@@ -816,7 +822,7 @@ static void update_obstacles(Scene *scene, Object *ob, SmokeDomainSettings *sds,
 
 		// DG TODO: check if modifier is active?
 		
-		if((smd2->type & MOD_SMOKE_TYPE_COLL) && smd2->coll && smd2->coll->verts_old)
+		if((smd2->type & MOD_SMOKE_TYPE_COLL) && smd2->coll)
 		{
 			SmokeCollSettings *scs = smd2->coll;
 			
@@ -1275,6 +1281,8 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 
 			smd->coll->dm = CDDM_copy(dm);
 			DM_ensure_tessface(smd->coll->dm);
+
+			printf("Collision: Created dm!\n");
 		}
 
 		if(scene->r.cfra > smd->time)
