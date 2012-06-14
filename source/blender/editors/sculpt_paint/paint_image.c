@@ -3840,6 +3840,8 @@ static void *do_projectpaint_thread(void *ph_v)
 	const float *lastpos =       ((ProjectHandle *)ph_v)->prevmval;
 	const float *pos =           ((ProjectHandle *)ph_v)->mval;
 	const int thread_index =     ((ProjectHandle *)ph_v)->thread_index;
+	Scene *scene = ps->scene;
+	UnifiedPaintSettings *unified_paint_settings = &scene->toolsettings->unified_paint_settings;
 	/* Done with args from ProjectHandle */
 
 	LinkNode *node;
@@ -3919,16 +3921,22 @@ static void *do_projectpaint_thread(void *ph_v)
 
 					if (falloff > 0.0f) {
 						if (ps->is_texbrush) {
+							float samplecos[2];
+							if(ps->brush->flag & (BRUSH_RAKE | BRUSH_RANDOM_ROTATION)) {
+								sub_v2_v2v2(samplecos, projPixel->projCoSS, pos);
+							} else {
+								copy_v2_v2(samplecos, projPixel->projCoSS);
+							}
 							/* note, for clone and smear, we only use the alpha, could be a special function */
-							BKE_brush_sample_tex(ps->scene, ps->brush, projPixel->projCoSS, rgba, thread_index, 0);
+							BKE_brush_sample_tex(ps->scene, ps->brush, samplecos, rgba, thread_index, unified_paint_settings->last_angle);
 							alpha = rgba[3];
 						}
 						else {
 							alpha = 1.0f;
 						}
 						
-						if (ps->is_airbrush) {
-							/* for an aurbrush there is no real mask, so just multiply the alpha by it */
+						if (ps->is_airbrush || (ps->brush->flag & (BRUSH_RANDOM_ROTATION | BRUSH_RAKE))) {
+							/* for an airbrush or rake brush there is no real mask, so just multiply the alpha by it */
 							alpha *= falloff * BKE_brush_alpha_get(ps->scene, ps->brush);
 							mask = ((float)projPixel->mask) / 65535.0f;
 						}

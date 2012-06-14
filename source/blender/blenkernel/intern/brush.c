@@ -801,7 +801,6 @@ struct BrushPainter {
 	double lasttime;        /* time of last update */
 
 	float lastpressure;
-	float rotation;
 
 	short firsttouch;       /* first paint op */
 
@@ -1025,7 +1024,7 @@ static void brush_painter_refresh_cache(BrushPainter *painter, const float pos[2
 	short flt;
 	const int diameter = 2 * BKE_brush_size_get(scene, brush);
 	const float alpha = BKE_brush_alpha_get(scene, brush);
-	const float rotation = painter->rotation;
+	const float rotation = scene->toolsettings->unified_paint_settings.last_angle;
 
 	if (diameter != cache->lastsize ||
 	    alpha != cache->lastalpha ||
@@ -1113,6 +1112,7 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
                             void *user, int use_color_correction)
 {
 	Scene *scene = painter->scene;
+	UnifiedPaintSettings *unified_paint_settings = &scene->toolsettings->unified_paint_settings;
 	Brush *brush = painter->brush;
 	int totpaintops = 0;
 
@@ -1128,9 +1128,10 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 		painter->startpaintpos[1] = pos[1];
 
 		if(brush->flag & BRUSH_RANDOM_ROTATION)
-			painter->rotation = BLI_frand()*2*M_PI;
-		else
-			painter->rotation = brush->mtex.rot;
+			unified_paint_settings->last_angle = BLI_frand()*2*M_PI;
+		else if(!(brush->flag & BRUSH_RAKE))
+			unified_paint_settings->last_angle = brush->mtex.rot;
+		copy_v2_v2(unified_paint_settings->last_pos, pos);
 
 		brush_pressure_apply(painter, brush, pressure);
 		if (painter->cache.enabled)
@@ -1193,14 +1194,24 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 		painter->accumdistance += len;
 
 		if(brush->flag & BRUSH_RAKE) {
-			if(len > 0.001) {
+			float mrakediff[2];
+			sub_v2_v2v2(mrakediff, pos, unified_paint_settings->last_pos);
+
+			if(len_squared_v2(mrakediff) > RAKE_THRESHHOLD*RAKE_THRESHHOLD) {
 				float angle;
-				angle = acos(dmousepos[0]);
-				painter->rotation = (dmousepos[1] > 0)? angle : -angle;
-				painter->rotation += brush->mtex.rot;
+				angle = atan2(dmousepos[1], dmousepos[0]);
+				unified_paint_settings->last_angle = angle;
+				unified_paint_settings->last_angle += brush->mtex.rot;
+
+				/* to match sculpt behaviour */
+				interp_v2_v2v2(unified_paint_settings->last_pos, unified_paint_settings->last_pos,
+				               pos, 0.5);
 			}
 		} else if(brush->flag & BRUSH_RANDOM_ROTATION)
-			painter->rotation = BLI_frand()*2*M_PI;
+			unified_paint_settings->last_angle = BLI_frand()*2*M_PI;
+		else
+			unified_paint_settings->last_angle = brush->mtex.rot;
+
 
 		if (brush->flag & BRUSH_SPACE) {
 			/* do paint op over unpainted distance */

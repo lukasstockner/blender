@@ -539,7 +539,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 		{
 			const float u = 0.5f;
 			const float v = 1 - u;
-			const float r = 20;
+			const float r = RAKE_THRESHHOLD;
 
 			const float dx = sd->last_x - x;
 			const float dy = sd->last_y - y;

@@ -864,10 +864,18 @@ typedef struct UnifiedPaintSettings {
 	/* unified brush weight, [0, 1] */
 	float weight;
 
+	/* storage for texture rake state to avoid recalculating the angle repeatedly */
+	float last_angle;
+	float last_pos[2];
+	int lock; /* avoid recalculating in display function, rather display the result */
+
 	/* user preferences for sculpt and paint */
 	int flag;
 	int pad;
 } UnifiedPaintSettings;
+
+/* threshhold to move before updating the brush rotation */
+#define RAKE_THRESHHOLD 20
 
 typedef enum {
 	UNIFIED_PAINT_SIZE  = (1<<0),
