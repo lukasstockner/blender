@@ -617,7 +617,7 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 					dst[3] = FTOCHAR(alpha_f);
 				}
 				else {
-					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, 0);
+					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, angle);
 					alpha_f = rgba[3] *alpha *BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius);
 
 					dst[0] = crgb[0];

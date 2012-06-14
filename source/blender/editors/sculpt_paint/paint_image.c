@@ -3878,9 +3878,7 @@ static void *do_projectpaint_thread(void *ph_v)
 		
 		smearArena = BLI_memarena_new(1 << 16, "paint smear arena");
 	}
-	
-	/* printf("brush bounds %d %d %d %d\n", bucketMin[0], bucketMin[1], bucketMax[0], bucketMax[1]); */
-	
+		
 	while (project_bucket_iter_next(ps, &bucket_index, &bucket_bounds, pos)) {				
 		
 		/* Check this bucket and its faces are initialized */
