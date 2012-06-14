@@ -203,8 +203,19 @@ void SceneExporter::writeNodes(Object *ob, Scene *sce)
 	if (ob->constraints.first != NULL ){
 		bConstraint *con = (bConstraint*) ob->constraints.first;
 		while(con){
-			node.addExtraTechniqueParameter("blender","constraintType",con->type);
-			node.addExtraTechniqueParameter("blender","constraintName",con->name);
+			std::string con_name(id_name(con));
+			std::string con_tag = con_name + "_constraint";
+			node.addExtraTechniqueChildParameter("blender",con_tag,"type",con->type);
+			node.addExtraTechniqueChildParameter("blender",con_tag,"enforce",con->enforce);
+			node.addExtraTechniqueChildParameter("blender",con_tag,"flag",con->flag);
+			node.addExtraTechniqueChildParameter("blender",con_tag,"headtail",con->headtail);
+			node.addExtraTechniqueChildParameter("blender",con_tag,"lin_error",con->lin_error);
+			/*node.addExtraTechniqueParameter("blender","lin_error",con->next);*/
+			node.addExtraTechniqueChildParameter("blender",con_tag,"own_space",con->ownspace);
+			node.addExtraTechniqueChildParameter("blender",con_tag,"rot_error",con->rot_error);
+			node.addExtraTechniqueChildParameter("blender",con_tag,"tar_space",con->tarspace);
+			node.addExtraTechniqueChildParameter("blender",con_tag,"lin_error",con->lin_error);
+
 			con = con->next;
 		}
 	}

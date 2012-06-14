@@ -396,13 +396,19 @@ Object* DocumentImporter::create_instance_node(Object *source_ob, COLLADAFW::Nod
 	return obn;
 }
 
+void DocumentImporter::create_constraints(ExtraTags *et){}
+
 void DocumentImporter::write_node (COLLADAFW::Node *node, COLLADAFW::Node *parent_node, Scene *sce, Object *par, bool is_library_node)
 {
 	Object *ob = NULL;
 	bool is_joint = node->getType() == COLLADAFW::Node::JOINT;
 	bool read_transform = true;
 
+	ExtraTags *et = getExtraTags(node->getUniqueId());
+
 	std::vector<Object*> * objects_done = new std::vector<Object *>();
+    
+	create_constraints(et);
 
 	if (is_joint) {
 		if ( par ) {
@@ -941,11 +947,12 @@ bool DocumentImporter::writeLight( const COLLADAFW::Light* light )
 	Lamp *lamp = NULL;
 	std::string la_id, la_name;
 
-	TagsMap::iterator etit;
+	ExtraTags *et = getExtraTags(light->getUniqueId());
+	/*TagsMap::iterator etit;
 	ExtraTags *et = 0;
 	etit = uid_tags_map.find(light->getUniqueId().toAscii());
 	if (etit != uid_tags_map.end())
-		et = etit->second;
+		et = etit->second;*/
 
 	la_id = light->getOriginalId();
 	la_name = light->getName();
