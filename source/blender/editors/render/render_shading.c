@@ -545,10 +545,16 @@ void SCENE_OT_render_layer_add(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int render_layer_remove_exec(bContext *C, wmOperator *UNUSED(op))
+static int render_layer_remove_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	SceneRenderLayer *rl = BLI_findlink(&scene->r.layers, scene->r.actlay);
+	int index = RNA_int_get(op->ptr, "index");
+	SceneRenderLayer *rl;
+	
+	if (index < 0)
+		rl = BLI_findlink(&scene->r.layers, scene->r.actlay);
+	else
+		rl = BLI_findlink(&scene->r.layers, index);
 
 	if (!BKE_scene_remove_render_layer(CTX_data_main(C), scene, rl))
 		return OPERATOR_CANCELLED;
@@ -570,6 +576,8 @@ void SCENE_OT_render_layer_remove(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_int(ot->srna, "index", -1, INT_MIN, INT_MAX, "Set to remove", "< 0 means selection", INT_MIN, INT_MAX);
 }
 
 static int texture_slot_move(bContext *C, wmOperator *op)

@@ -2140,9 +2140,15 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 		uiDefButR(block, OPTION, 0, "", 0, 0, UI_UNIT_X, UI_UNIT_Y, ptr, "use_textures", i, 0, 0, 0, 0,  NULL);
 	}
 	else if (RNA_struct_is_a(itemptr->type, &RNA_SceneRenderLayer)) {
+		PointerRNA remove_rna;
+
 		uiItemL(sub, name, icon);
 		uiBlockSetEmboss(block, UI_EMBOSS);
 		uiDefButR(block, OPTION, 0, "", 0, 0, UI_UNIT_X, UI_UNIT_Y, itemptr, "use", 0, 0, 0, 0, 0,  NULL);
+
+		WM_operator_properties_create(&remove_rna, "SCENE_OT_render_layer_remove");
+		RNA_int_set(&remove_rna, "index", i);
+		uiItemFullO(sub, "scene.render_layer_remove", "", ICON_X, remove_rna.data, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS|UI_ITEM_R_NO_BG);
 	}
 	else if (RNA_struct_is_a(itemptr->type, &RNA_MaterialSlot)) {
 		/* provision to draw active node name */
