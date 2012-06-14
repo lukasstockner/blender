@@ -2211,6 +2211,16 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 		uiBlockSetEmboss(block, UI_EMBOSS);
 #endif
 	}
+	else if (itemptr->type == &RNA_KeyingSet) {
+		PointerRNA remove_rna;
+
+		/* nothing else special to do... */
+		uiItemL(sub, name, icon); /* fails, backdrop LISTROW... */
+
+		WM_operator_properties_create(&remove_rna, "ANIM_OT_keying_set_remove");
+		RNA_int_set(&remove_rna, "slot", i+1);
+		uiItemFullO(sub, "anim.keying_set_remove", "", ICON_X, remove_rna.data, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS|UI_ITEM_R_NO_BG);
+	}
 	else if (itemptr->type == &RNA_KeyingSetPath) {
 		KS_Path *ksp = (KS_Path *)itemptr->data;
 		

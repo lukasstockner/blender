@@ -155,28 +155,33 @@ static int remove_active_keyingset_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	KeyingSet *ks;
-	
+	int remove = RNA_int_get(op->ptr, "slot");
+
+	if (remove < 0)
+		remove = scene->active_keyingset;
+
 	/* verify the Keying Set to use:
 	 *	- use the active one
 	 *	- return error if it doesn't exist
 	 */
-	if (scene->active_keyingset == 0) {
+	if (remove == 0) {
 		BKE_report(op->reports, RPT_ERROR, "No active Keying Set to remove");
 		return OPERATOR_CANCELLED;
 	}
-	else if (scene->active_keyingset < 0) {
+	else if (remove < 0) {
 		BKE_report(op->reports, RPT_ERROR, "Cannot remove built in Keying Set");
 		return OPERATOR_CANCELLED;
 	}
 	else
-		ks = BLI_findlink(&scene->keyingsets, scene->active_keyingset - 1);
+		ks = BLI_findlink(&scene->keyingsets, remove - 1);
 	
 	/* free KeyingSet's data, then remove it from the scene */
 	BKE_keyingset_free(ks);
 	BLI_freelinkN(&scene->keyingsets, ks);
-	
-	/* the active one should now be the previously second-to-last one */
-	scene->active_keyingset--;
+
+	if (RNA_int_get(op->ptr, "slot") < 0)
+		/* the active one should now be the previously second-to-last one */
+		scene->active_keyingset--;
 	
 	/* send notifiers */
 	WM_event_add_notifier(C, NC_SCENE | ND_KEYINGSET, NULL);
@@ -194,6 +199,8 @@ void ANIM_OT_keying_set_remove(wmOperatorType *ot)
 	/* callbacks */
 	ot->exec = remove_active_keyingset_exec;
 	ot->poll = keyingset_poll_active_edit;
+
+	RNA_def_int(ot->srna, "slot", -1, INT_MIN, INT_MAX, "Set to remove", "< 0 means selection", INT_MIN, INT_MAX);
 }
 
 /* Add Empty Keying Set Path ------------------------- */
