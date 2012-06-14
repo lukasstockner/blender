@@ -482,8 +482,8 @@ add_definitions(-DREAL_GL_MODE=<GL/realgl.h>)
 add_definitions(-DFAKE_GL_MODE=<GL/fakegl.h>)
 
 else()
-add_definitions(-DREAL_GL_MODE=<${CMAKE_SOURCE_DIR}/source/blender/empty.h>)
-add_definitions(-DFAKE_GL_MODE=<${CMAKE_SOURCE_DIR}/source/blender/empty.h>)
+add_definitions(-DREAL_GL_MODE=\"${CMAKE_SOURCE_DIR}/source/blender/empty.h\")
+add_definitions(-DFAKE_GL_MODE=\"${CMAKE_SOURCE_DIR}/source/blender/empty.h\")
 
 endif()
 
