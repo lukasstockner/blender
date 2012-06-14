@@ -186,12 +186,32 @@ void SceneExporter::writeNodes(Object *ob, Scene *sce)
 			colladaNode.addExtraTechniqueChildParameter("blender",con_tag,"flag",con->flag);
 			colladaNode.addExtraTechniqueChildParameter("blender",con_tag,"headtail",con->headtail);
 			colladaNode.addExtraTechniqueChildParameter("blender",con_tag,"lin_error",con->lin_error);
-			/*node.addExtraTechniqueParameter("blender","lin_error",con->next);*/
 			colladaNode.addExtraTechniqueChildParameter("blender",con_tag,"own_space",con->ownspace);
 			colladaNode.addExtraTechniqueChildParameter("blender",con_tag,"rot_error",con->rot_error);
 			colladaNode.addExtraTechniqueChildParameter("blender",con_tag,"tar_space",con->tarspace);
 			colladaNode.addExtraTechniqueChildParameter("blender",con_tag,"lin_error",con->lin_error);
-
+			
+			//not ideal: add the target object name as another parameter. 
+			//No real mapping in the .dae
+			//Need support for multiple target objects also.
+			bConstraintTypeInfo *cti = constraint_get_typeinfo(con);
+			ListBase targets = {NULL, NULL};
+			if (cti && cti->get_constraint_targets) {
+			
+				bConstraintTarget *ct;
+				Object *obtar;
+			
+				cti->get_constraint_targets(con, &targets);
+				if(cti){
+					int i = 1;
+					for (ct = (bConstraintTarget*)targets.first; ct; ct = ct->next){
+						obtar = ct->tar;
+						std::string tar_id(id_name(obtar));
+						node.addExtraTechniqueChildParameter("blender",con_tag,"target_id",tar_id);
+					}
+				}
+			}
+            
 			con = con->next;
 		}
 	}
