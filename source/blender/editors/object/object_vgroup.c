@@ -1943,9 +1943,15 @@ static int vgroup_object_in_wpaint_vert_select(Object *ob)
 	return 0;
 }
 
-static void vgroup_delete(Object *ob)
+static void vgroup_delete(Object *ob, int index)
 {
-	bDeformGroup *dg = BLI_findlink(&ob->defbase, ob->actdef - 1);
+	bDeformGroup *dg;
+	
+	if (index < 0)
+		dg = BLI_findlink(&ob->defbase, ob->actdef - 1);
+	else
+		dg = BLI_findlink(&ob->defbase, index);
+
 	if (!dg)
 		return;
 
@@ -2134,11 +2140,12 @@ void OBJECT_OT_vertex_group_add(wmOperatorType *ot)
 static int vertex_group_remove_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_object_context(C);
+	int index = RNA_int_get(op->ptr, "index");
 
 	if (RNA_boolean_get(op->ptr, "all"))
 		vgroup_delete_all(ob);
 	else
-		vgroup_delete(ob);
+		vgroup_delete(ob, index);
 
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
@@ -2166,6 +2173,7 @@ void OBJECT_OT_vertex_group_remove(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_boolean(ot->srna, "all", 0, "All", "Remove from all vertex groups");
+	RNA_def_int(ot->srna, "index", -1, INT_MIN, INT_MAX, "Index to remove", "< 0 means selection", INT_MIN, INT_MAX);
 }
 
 static int vertex_group_assign_exec(bContext *C, wmOperator *op)

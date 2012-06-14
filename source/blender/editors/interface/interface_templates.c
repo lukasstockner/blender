@@ -2204,6 +2204,7 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 		uiBlockSetEmboss(block, UI_EMBOSS);
 	}
 	else if (itemptr->type == &RNA_VertexGroup) {
+		PointerRNA remove_rna;
 		bDeformGroup *dg = (bDeformGroup *)itemptr->data;
 		uiItemL(sub, name, icon);
 		/* RNA does not allow nice lock icons, use lower level buttons */
@@ -2216,6 +2217,10 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 		                 TIP_("Maintain relative weights while painting"));
 		uiBlockSetEmboss(block, UI_EMBOSS);
 #endif
+
+		WM_operator_properties_create(&remove_rna, "OBJECT_OT_vertex_group_remove");
+		RNA_int_set(&remove_rna, "index", i);
+		uiItemFullO(sub, "object.vertex_group_remove", "", ICON_X, remove_rna.data, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS|UI_ITEM_R_NO_BG);
 	}
 	else if (itemptr->type == &RNA_KeyingSet) {
 		PointerRNA remove_rna;
