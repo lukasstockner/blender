@@ -215,6 +215,15 @@ static void clip_scopes_tag_refresh(ScrArea *sa)
 	sc->scopes.ok = FALSE;
 }
 
+static void clip_scopes_check_gpencil_change(ScrArea *sa)
+{
+	SpaceClip *sc = (SpaceClip *)sa->spacedata.first;
+
+	if (sc->gpencil_src == SC_GPENCIL_SRC_TRACK) {
+		clip_scopes_tag_refresh(sa);
+	}
+}
+
 static void clip_stabilization_tag_refresh(ScrArea *sa)
 {
 	SpaceClip *sc = (SpaceClip *) sa->spacedata.first;
@@ -400,6 +409,7 @@ static void clip_listener(ScrArea *sa, wmNotifier *wmn)
 			switch (wmn->data) {
 				case ND_ANIMPLAY:
 				case ND_GPENCIL:
+					clip_scopes_check_gpencil_change(sa);
 					ED_area_tag_redraw(sa);
 					break;
 			}
@@ -1223,7 +1233,7 @@ static void dopesheet_area_draw(const bContext *C, ARegion *ar)
 	short unit = 0;
 
 	if (clip)
-		BKE_tracking_dopesheet_update(&clip->tracking, sc->dope_sort, sc->dope_flag & SC_DOPE_SORT_INVERSE);
+		BKE_tracking_dopesheet_update(&clip->tracking);
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
@@ -1284,7 +1294,7 @@ static void clip_channels_area_draw(const bContext *C, ARegion *ar)
 	View2DScrollers *scrollers;
 
 	if (clip)
-		BKE_tracking_dopesheet_update(&clip->tracking, sc->dope_sort, sc->dope_flag & SC_DOPE_SORT_INVERSE);
+		BKE_tracking_dopesheet_update(&clip->tracking);
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);

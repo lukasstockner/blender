@@ -72,14 +72,15 @@ void BKE_tracking_join_tracks(struct MovieTrackingTrack *dst_track, struct Movie
 void BKE_tracking_free(struct MovieTracking *tracking);
 
 struct ImBuf *BKE_tracking_sample_pattern_imbuf(int frame_width, int frame_height,
-                                                struct ImBuf *struct_ibuf, struct MovieTrackingMarker *marker,
+                                                struct ImBuf *struct_ibuf, struct MovieTrackingTrack *track,
+                                                struct MovieTrackingMarker *marker, int use_mask,
                                                 int num_samples_x, int num_samples_y, float pos[2]);
 struct ImBuf *BKE_tracking_get_pattern_imbuf(struct ImBuf *ibuf, struct MovieTrackingTrack *track,
                                              struct MovieTrackingMarker *marker, int anchored, int disable_channels);
 struct ImBuf *BKE_tracking_get_search_imbuf(struct ImBuf *ibuf, struct MovieTrackingTrack *track,
                                             struct MovieTrackingMarker *marker, int anchored, int disable_channels);
-struct ImBuf *BKE_tracking_track_mask_get(struct MovieTracking *tracking, struct MovieTrackingTrack *track,
-                                          struct MovieTrackingMarker *marker, int width, int height);
+float *BKE_tracking_track_mask_get(int frame_width, int frame_height, struct MovieTrackingTrack *track,
+                                   struct MovieTrackingMarker *marker);
 
 void BKE_track_unique_name(struct ListBase *tracksbase, struct MovieTrackingTrack *track);
 
@@ -170,7 +171,7 @@ void BKE_tracking_deselect_track(struct MovieTrackingTrack *track, int area);
 
 /* Dopesheet */
 void BKE_tracking_dopesheet_tag_update(struct MovieTracking *tracking);
-void BKE_tracking_dopesheet_update(struct MovieTracking *tracking, int sort_method, int inverse);
+void BKE_tracking_dopesheet_update(struct MovieTracking *tracking);
 
 #define TRACK_SELECTED(track)               ((track)->flag & SELECT || (track)->pat_flag & SELECT || (track)->search_flag & SELECT)
 
@@ -200,11 +201,5 @@ void BKE_tracking_dopesheet_update(struct MovieTracking *tracking, int sort_meth
 #define TRACK_AREA_SEARCH   4
 
 #define TRACK_AREA_ALL      (TRACK_AREA_POINT | TRACK_AREA_PAT | TRACK_AREA_SEARCH)
-
-#define TRACK_SORT_NONE     -1
-#define TRACK_SORT_NAME     0
-#define TRACK_SORT_LONGEST  1
-#define TRACK_SORT_TOTAL    2
-#define TRACK_SORT_AVERAGE_ERROR    3
 
 #endif

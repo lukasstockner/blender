@@ -41,7 +41,14 @@
 
 ExecutionSystem::ExecutionSystem(bNodeTree *editingtree, bool rendering)
 {
-	this->context.setbNodeTree(editingtree);
+	context.setbNodeTree(editingtree);
+	bNode* gnode;
+	for (gnode = (bNode*)editingtree->nodes.first ; gnode ; gnode = (bNode*)gnode->next) {
+		if (gnode->type == NODE_GROUP && gnode->typeinfo->group_edit_get(gnode)) {
+			context.setActivegNode(gnode);
+			break;
+		}
+	}
 
 	/* initialize the CompositorContext */
 	if (rendering) {
@@ -55,25 +62,25 @@ ExecutionSystem::ExecutionSystem(bNodeTree *editingtree, bool rendering)
 
 	Node *mainOutputNode=NULL;
 
-	mainOutputNode = ExecutionSystemHelper::addbNodeTree(*this, 0, editingtree);
+	mainOutputNode = ExecutionSystemHelper::addbNodeTree(*this, 0, editingtree, NULL);
 
 	if (mainOutputNode) {
 		context.setScene((Scene*)mainOutputNode->getbNode()->id);
 		this->convertToOperations();
 		this->groupOperations(); /* group operations in ExecutionGroups */
-		vector<ExecutionGroup*> executionGroups;
-		this->findOutputExecutionGroup(&executionGroups);
 		unsigned int index;
 		unsigned int resolution[2];
-		for (index = 0 ; index < executionGroups.size(); index ++) {
+		for (index = 0 ; index < this->groups.size(); index ++) {
 			resolution[0]=0;
 			resolution[1]=0;
-			ExecutionGroup *executionGroup = executionGroups[index];
+			ExecutionGroup *executionGroup = groups[index];
 			executionGroup->determineResolution(resolution);
 		}
 	}
 
-	if (G.f & G_DEBUG) ExecutionSystemHelper::debugDump(this);
+#ifdef COM_DEBUG
+	ExecutionSystemHelper::debugDump(this);
+#endif
 }
 
 ExecutionSystem::~ExecutionSystem()
@@ -117,6 +124,7 @@ void ExecutionSystem::execute()
 
 	for (index = 0 ; index < this->operations.size() ; index ++) {
 		NodeOperation * operation = this->operations[index];
+		operation->setbNodeTree(this->context.getbNodeTree());
 		operation->initExecution();
 	}
 	for (index = 0 ; index < this->groups.size() ; index ++) {
@@ -146,7 +154,7 @@ void ExecutionSystem::execute()
 
 void ExecutionSystem::executeGroups(CompositorPriority priority)
 {
-	int index;
+	unsigned int index;
 	vector<ExecutionGroup*> executionGroups;
 	this->findOutputExecutionGroup(&executionGroups, priority);
 
@@ -159,6 +167,7 @@ void ExecutionSystem::executeGroups(CompositorPriority priority)
 void ExecutionSystem::addOperation(NodeOperation *operation)
 {
 	ExecutionSystemHelper::addOperation(this->operations, operation);
+//	operation->setBTree
 }
 
 void ExecutionSystem::addReadWriteBufferOperations(NodeOperation *operation)
@@ -180,11 +189,13 @@ void ExecutionSystem::addReadWriteBufferOperations(NodeOperation *operation)
 					writeoperation->setbNodeTree(this->getContext().getbNodeTree());
 					this->addOperation(writeoperation);
 					ExecutionSystemHelper::addLink(this->getConnections(), fromsocket, writeoperation->getInputSocket(0));
+					writeoperation->readResolutionFromInputSocket();
 				}
 				ReadBufferOperation *readoperation = new ReadBufferOperation();
 				readoperation->setMemoryProxy(writeoperation->getMemoryProxy());
 				connection->setFromSocket(readoperation->getOutputSocket());
 				readoperation->getOutputSocket()->addConnection(connection);
+				readoperation->readResolutionFromWriteBuffer();
 				this->addOperation(readoperation);
 			}
 		}
@@ -207,9 +218,11 @@ void ExecutionSystem::addReadWriteBufferOperations(NodeOperation *operation)
 			readoperation->setMemoryProxy(writeOperation->getMemoryProxy());
 			connection->setFromSocket(readoperation->getOutputSocket());
 			readoperation->getOutputSocket()->addConnection(connection);
+			readoperation->readResolutionFromWriteBuffer();
 			this->addOperation(readoperation);
 		}
 		ExecutionSystemHelper::addLink(this->getConnections(), outputsocket, writeOperation->getInputSocket(0));
+		writeOperation->readResolutionFromInputSocket();
 	}
 }
 
@@ -237,7 +250,16 @@ void ExecutionSystem::convertToOperations()
 	// determine all resolutions of the operations (Width/Height)
 	for (index = 0 ; index < this->operations.size(); index ++) {
 		NodeOperation *operation = this->operations[index];
-		if (operation->isOutputOperation(context.isRendering())) {
+		if (operation->isOutputOperation(context.isRendering()) && !operation->isPreviewOperation()) {
+			unsigned int resolution[2] = {0,0};
+			unsigned int preferredResolution[2] = {0,0};
+			operation->determineResolution(resolution, preferredResolution);
+			operation->setResolution(resolution);
+		}
+	}
+	for (index = 0 ; index < this->operations.size(); index ++) {
+		NodeOperation *operation = this->operations[index];
+		if (operation->isOutputOperation(context.isRendering()) && operation->isPreviewOperation()) {
 			unsigned int resolution[2] = {0,0};
 			unsigned int preferredResolution[2] = {0,0};
 			operation->determineResolution(resolution, preferredResolution);

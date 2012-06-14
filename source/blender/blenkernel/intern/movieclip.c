@@ -159,7 +159,7 @@ static void get_sequence_fname(MovieClip *clip, int framenr, char *name)
 	offset = sequence_guess_offset(clip->name, strlen(head), numlen);
 
 	if (numlen)
-		BLI_stringenc(name, head, tail, numlen, offset + framenr - clip->start_frame);
+		BLI_stringenc(name, head, tail, numlen, offset + framenr - clip->start_frame + clip->frame_offset);
 	else
 		BLI_strncpy(name, clip->name, sizeof(clip->name));
 
@@ -171,7 +171,7 @@ static void get_proxy_fname(MovieClip *clip, int proxy_render_size, int undistor
 {
 	int size = rendersize_to_number(proxy_render_size);
 	char dir[FILE_MAX], clipdir[FILE_MAX], clipfile[FILE_MAX];
-	int proxynr = framenr - clip->start_frame + 1;
+	int proxynr = framenr - clip->start_frame + 1 + clip->frame_offset;
 
 	BLI_split_dirfile(clip->name, clipdir, clipfile, FILE_MAX, FILE_MAX);
 
@@ -250,7 +250,7 @@ static ImBuf *movieclip_load_movie_file(MovieClip *clip, MovieClipUser *user, in
 		int fra;
 
 		dur = IMB_anim_get_duration(clip->anim, tc);
-		fra = framenr - clip->start_frame;
+		fra = framenr - clip->start_frame + clip->frame_offset;
 
 		if (fra < 0)
 			fra = 0;
@@ -446,6 +446,7 @@ static MovieClip *movieclip_alloc(const char *name)
 	clip->proxy.quality = 90;
 
 	clip->start_frame = 1;
+	clip->frame_offset = 0;
 
 	return clip;
 }
@@ -1039,6 +1040,7 @@ void BKE_movieclip_update_scopes(MovieClip *clip, MovieClipUser *user, MovieClip
 
 	scopes->marker = NULL;
 	scopes->track = NULL;
+	scopes->track_locked = TRUE;
 
 	if (clip) {
 		MovieTrackingTrack *act_track = BKE_tracking_active_track(&clip->tracking);
@@ -1055,6 +1057,8 @@ void BKE_movieclip_update_scopes(MovieClip *clip, MovieClipUser *user, MovieClip
 				ImBuf *ibuf = BKE_movieclip_get_ibuf(clip, user);
 
 				scopes->track_disabled = FALSE;
+				scopes->marker = marker;
+				scopes->track = track;
 
 				if (ibuf && (ibuf->rect || ibuf->rect_float)) {
 					ImBuf *search_ibuf;
@@ -1087,6 +1091,8 @@ void BKE_movieclip_update_scopes(MovieClip *clip, MovieClipUser *user, MovieClip
 
 					scopes->frame_width = ibuf->x;
 					scopes->frame_height = ibuf->y;
+
+					scopes->use_track_mask = track->flag & TRACK_PREVIEW_ALPHA;
 				}
 
 				IMB_freeImBuf(ibuf);
@@ -1095,8 +1101,7 @@ void BKE_movieclip_update_scopes(MovieClip *clip, MovieClipUser *user, MovieClip
 			if ((track->flag & TRACK_LOCKED) == 0) {
 				float pat_min[2], pat_max[2];
 
-				scopes->marker = marker;
-				scopes->track = track;
+				scopes->track_locked = FALSE;
 
 				/* XXX: would work fine with non-transformed patterns, but would likely fail
 				 *      with transformed patterns, but that would be easier to debug when

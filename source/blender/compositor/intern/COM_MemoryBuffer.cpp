@@ -141,6 +141,16 @@ void MemoryBuffer::writePixel(int x, int y, const float color[4])
 	}
 }
 
+void MemoryBuffer::addPixel(int x, int y, const float color[4])
+{
+	if (x >= this->rect.xmin && x < this->rect.xmax &&
+	    y >= this->rect.ymin && y < this->rect.ymax)
+	{
+		const int offset = (this->chunkWidth * y + x) * COM_NUMBER_OF_CHANNELS;
+		add_v4_v4(&this->buffer[offset], color);
+	}
+}
+
 void MemoryBuffer::readCubic(float result[4], float x, float y)
 {
 	int x1 = floor(x);
@@ -329,9 +339,7 @@ void MemoryBuffer::readEWA(float result[4], float fx, float fy, float dx, float 
 				float tc[4];
 				const float wt = EWA_WTS[(Q < 0.f) ? 0 : (unsigned int)Q];
 				read(tc, clipuv(u, width), clipuv(v, height));
-				result[0] += tc[0]*wt;
-				result[1] += tc[1]*wt;
-				result[2] += tc[2]*wt;
+				madd_v3_v3fl(result, tc, wt);
 				result[3] += result[3] ? tc[3]*wt : 0.f;
 				d += wt;
 			}
