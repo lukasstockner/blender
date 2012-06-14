@@ -176,22 +176,21 @@ void SceneExporter::writeNodes(Object *ob, Scene *sce)
 		colladaNode.end();
 	}
 
-<<<<<<< .working
 	if (ob->constraints.first != NULL ){
 		bConstraint *con = (bConstraint*) ob->constraints.first;
 		while(con){
 			std::string con_name(id_name(con));
 			std::string con_tag = con_name + "_constraint";
-			node.addExtraTechniqueChildParameter("blender",con_tag,"type",con->type);
-			node.addExtraTechniqueChildParameter("blender",con_tag,"enforce",con->enforce);
-			node.addExtraTechniqueChildParameter("blender",con_tag,"flag",con->flag);
-			node.addExtraTechniqueChildParameter("blender",con_tag,"headtail",con->headtail);
-			node.addExtraTechniqueChildParameter("blender",con_tag,"lin_error",con->lin_error);
+			colladaNode.addExtraTechniqueChildParameter("blender",con_tag,"type",con->type);
+			colladaNode.addExtraTechniqueChildParameter("blender",con_tag,"enforce",con->enforce);
+			colladaNode.addExtraTechniqueChildParameter("blender",con_tag,"flag",con->flag);
+			colladaNode.addExtraTechniqueChildParameter("blender",con_tag,"headtail",con->headtail);
+			colladaNode.addExtraTechniqueChildParameter("blender",con_tag,"lin_error",con->lin_error);
 			/*node.addExtraTechniqueParameter("blender","lin_error",con->next);*/
-			node.addExtraTechniqueChildParameter("blender",con_tag,"own_space",con->ownspace);
-			node.addExtraTechniqueChildParameter("blender",con_tag,"rot_error",con->rot_error);
-			node.addExtraTechniqueChildParameter("blender",con_tag,"tar_space",con->tarspace);
-			node.addExtraTechniqueChildParameter("blender",con_tag,"lin_error",con->lin_error);
+			colladaNode.addExtraTechniqueChildParameter("blender",con_tag,"own_space",con->ownspace);
+			colladaNode.addExtraTechniqueChildParameter("blender",con_tag,"rot_error",con->rot_error);
+			colladaNode.addExtraTechniqueChildParameter("blender",con_tag,"tar_space",con->tarspace);
+			colladaNode.addExtraTechniqueChildParameter("blender",con_tag,"lin_error",con->lin_error);
 
 			con = con->next;
 		}
@@ -205,6 +204,6 @@ void SceneExporter::writeNodes(Object *ob, Scene *sce)
 	}
 
 	if (ob->type != OB_ARMATURE)
-		node.end();
+		colladaNode.end();
 }
 
