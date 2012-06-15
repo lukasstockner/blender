@@ -1073,7 +1073,7 @@ typedef struct RemeshModifierData {
 
 typedef struct LaplacianSmoothModifierData {
 	ModifierData modifier;
-	float fac;
+	float lambda, lambda_border, min_area;
 	char defgrp_name[64];	/* MAX_VGROUP_NAME */
 	short flag, repeat;
 

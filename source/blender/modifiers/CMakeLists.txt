@@ -38,6 +38,7 @@ set(INC
 	../render/extern/include
 	../../../intern/elbeem/extern
 	../../../intern/guardedalloc
+	../../../intern/opennl/extern
 )
 
 set(INC_SYS

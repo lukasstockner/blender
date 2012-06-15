@@ -1761,16 +1761,30 @@ static void rna_def_modifier_laplaciansmooth(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Z", "Smooth object along Z axis");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
-	prop = RNA_def_property(srna, "factor", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "fac");
+	prop = RNA_def_property(srna, "lamb", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "lambda");
 	RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
-	RNA_def_property_ui_range(prop, -10, 10, 1, 3);
-	RNA_def_property_ui_text(prop, "Factor", "Strength of modifier effect");
+	RNA_def_property_ui_range(prop, 0.0000001, 100.0, 0.0000001, 8);
+	RNA_def_property_ui_text(prop, "Lambda Factor", "Smooth factor effect");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "lambdaborder", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "lambda_border");
+	RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0000001, 100.0, 0.0000001, 8);
+	RNA_def_property_ui_text(prop, "Lambda border", "Lambda factor in border");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "minarea", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "min_area");
+	RNA_def_property_range(prop, 0.0000000000000001, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0000000000000001, 100.0, 0.0000001, 18);
+	RNA_def_property_ui_text(prop, "Minimum area", "Minimum area permitted");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 	prop = RNA_def_property(srna, "iterations", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "repeat");
-	RNA_def_property_ui_range(prop, 0, 30, 1, 0);
+	RNA_def_property_ui_range(prop, 0, 50, 1, 0);
 	RNA_def_property_ui_text(prop, "Repeat", "");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 	

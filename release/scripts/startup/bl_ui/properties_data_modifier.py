@@ -317,8 +317,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "use_z")
 
         col = split.column()
-        col.prop(md, "factor")
         col.prop(md, "iterations")
+        col.prop(md, "lamb")
+        col.prop(md, "lambdaborder")
+        col.prop(md, "minarea")
         col.label(text="Vertex Group:")
         col.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
 
