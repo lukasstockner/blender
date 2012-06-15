@@ -280,22 +280,12 @@ static int smokeModifier_init (SmokeModifierData *smd, Object *ob, Scene *scene,
 	}
 	else if((smd->type & MOD_SMOKE_TYPE_COLL))
 	{
-		// todo: delete this when loading colls work -dg
-		SmokeCollSettings *scs;
-
 		if(!smd->coll)
 		{
 			smokeModifier_createType(smd);
 		}
 
-		// init collision points
-		scs = smd->coll;
-
 		smd->time = scene->r.cfra;
-
-		// copy obmat
-		copy_m4_m4(scs->mat, ob->obmat);
-		copy_m4_m4(scs->mat_old, ob->obmat);
 
 		return 1;
 	}
@@ -703,7 +693,7 @@ static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds
 			}
 		}
 
-		if (bvhtree_from_mesh_faces(&treeData, dm, 0.0f, 4, 8)) {
+		if (bvhtree_from_mesh_faces(&treeData, dm, 0.0f, 4, 6)) {
 			#pragma omp parallel for schedule(static)
 			for (z = 0; z < res[2]; z++) {
 				int x,y;

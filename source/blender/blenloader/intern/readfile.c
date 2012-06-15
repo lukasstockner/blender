@@ -4387,6 +4387,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				if (smd->coll) {
 					smd->coll->verts_old = NULL;
 					smd->coll->numverts = 0;
+					smd->coll->dm = NULL;
 				}
 				else
 					smd->type = 0;

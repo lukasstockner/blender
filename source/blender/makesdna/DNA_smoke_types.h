@@ -131,18 +131,11 @@ typedef struct SmokeFlowSettings {
 	int flags; /* absolute emission etc*/
 } SmokeFlowSettings;
 
-
-// struct BVHTreeFromMesh *bvh;
-// float mat[4][4];
-// float mat_old[4][4];
-
 /* collision objects (filled with smoke) */
 typedef struct SmokeCollSettings {
 	struct SmokeModifierData *smd; /* for fast RNA access */
 	struct DerivedMesh *dm;
 	float *verts_old;
-	float mat[4][4];
-	float mat_old[4][4];
 	int numverts;
 	short type; // static = 0, rigid = 1, dynamic = 2
 	short pad;
