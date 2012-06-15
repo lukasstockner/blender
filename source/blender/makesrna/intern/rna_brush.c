@@ -618,6 +618,12 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Unprojected Radius", "Radius of brush in Blender units");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
+	prop = RNA_def_property(srna, "random_size", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "random_size");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Randomize Radius", "Radius of brush changes while painting");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
 	prop = RNA_def_property(srna, "jitter", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "jitter");
 	RNA_def_property_range(prop, 0.0f, 1.0f);

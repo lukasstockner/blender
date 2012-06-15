@@ -3601,7 +3601,7 @@ static int project_bucket_iter_init(ProjPaintState *ps, const float mval_f[2])
 {
 	if (ps->source == PROJ_SRC_VIEW) {
 		float min_brush[2], max_brush[2];
-		const float radius = (float)BKE_brush_size_get(ps->scene, ps->brush);
+		const float radius = (float)BKE_brush_size_randomized_get(ps->scene, ps->brush);
 
 		/* so we don't have a bucket bounds that is way too small to paint into */
 		// if (radius < 1.0f) radius = 1.0f; // this doesn't work yet :/
@@ -3865,7 +3865,7 @@ static void *do_projectpaint_thread(void *ph_v)
 	float co[2];
 	float mask = 1.0f; /* airbrush wont use mask */
 	unsigned short mask_short;
-	const float radius = (float)BKE_brush_size_get(ps->scene, ps->brush);
+	const float radius = (float)BKE_brush_size_randomized_get(ps->scene, ps->brush);
 	const float radius_squared = radius * radius; /* avoid a square root with every dist comparison */
 	
 	short lock_alpha = ELEM(ps->brush->blend, IMB_BLEND_ERASE_ALPHA, IMB_BLEND_ADD_ALPHA) ? 0 : ps->brush->flag & BRUSH_LOCK_ALPHA;

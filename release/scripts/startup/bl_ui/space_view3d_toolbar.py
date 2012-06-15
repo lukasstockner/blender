@@ -643,6 +643,9 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             self.prop_unified_size(row, context, brush, "use_pressure_size")
 
             row = col.row(align=True)
+            row.prop(brush, "random_size", slider=True)
+
+            row = col.row(align=True)
             self.prop_unified_strength(row, context, brush, "strength", text="Strength")
             self.prop_unified_strength(row, context, brush, "use_pressure_strength")
 

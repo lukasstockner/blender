@@ -102,6 +102,9 @@ typedef struct Brush {
 
 	float add_col[3];
 	float sub_col[3];
+
+	float random_size;
+	float random_factor_cache;
 } Brush;
 
 /* Brush.flag */

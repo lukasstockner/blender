@@ -102,7 +102,8 @@ static void brush_defaults(Brush *brush)
 	brush->rate = 0.1f; /* time delay between dots of paint or sculpting when doing airbrush mode */
 
 	brush->jitter = 0.0f;
-
+	brush->random_size = 0.0;
+	brush->random_factor_cache = 1.0;
 	/* BRUSH TEXTURE SETTINGS */
 	default_mtex(&brush->mtex);
 
@@ -296,6 +297,8 @@ void BKE_brush_debug_print_state(Brush *br)
 	BR_TEST_FLAG(BRUSH_CUSTOM_ICON);
 
 	BR_TEST(jitter, f);
+	BR_TEST(random_size, f);
+	BR_TEST(random_factor_cache, f);
 	BR_TEST(spacing, d);
 	BR_TEST(smooth_stroke_radius, d);
 	BR_TEST(smooth_stroke_factor, f);
@@ -485,6 +488,15 @@ int BKE_brush_clone_image_delete(Brush *brush)
 	return 0;
 }
 
+/* reset the random size cache to a random value, proportional to the size of the brush.
+ * due to the many places BKE_brush_size_get is called it is not safe to generate a random
+ * number for every call. Instead we will generate a random number before each stroke */
+void BKE_brush_randomize_size(Brush *brush)
+{
+	brush->random_factor_cache = (1.0 - brush->random_size/2.0) + brush->random_size*BLI_frand();
+}
+
+
 /* Brush Sampling */
 void BKE_brush_sample_tex(const Scene *scene, Brush *brush, const float xy[2], float rgba[4], const int thread, float angle)
 {
@@ -494,7 +506,7 @@ void BKE_brush_sample_tex(const Scene *scene, Brush *brush, const float xy[2], f
 		float co_angle, length;
 		float co[3], tin, tr, tg, tb, ta;
 		int hasrgb;
-		const int radius = BKE_brush_size_get(scene, brush);
+		const int radius = BKE_brush_size_randomized_get(scene, brush);
 
 		co[0] = xy[0] / radius;
 		co[1] = xy[1] / radius;
@@ -541,11 +553,11 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 	ImBuf *ibuf;
 	float xy[2], rgba[4], *dstf;
 	int x, y, rowbytes, xoff, yoff, imbflag;
-	const int radius = BKE_brush_size_get(scene, brush);
+	const int radius = BKE_brush_size_randomized_get(scene, brush);
 	unsigned char *dst, crgb[3];
 	const float alpha = BKE_brush_alpha_get(scene, brush);
 	float brush_rgb[3];
-    
+
 	imbflag = (flt) ? IB_rectfloat : IB_rect;
 	xoff = -bufsize / 2.0f + 0.5f;
 	yoff = -bufsize / 2.0f + 0.5f;
@@ -662,6 +674,13 @@ int BKE_brush_size_get(const Scene *scene, Brush *brush)
 	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
 
 	return (ups->flag & UNIFIED_PAINT_SIZE) ? ups->size : brush->size;
+}
+
+int BKE_brush_size_randomized_get(const Scene *scene, Brush *brush)
+{
+	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+
+	return (ups->flag & UNIFIED_PAINT_SIZE) ? brush->random_factor_cache*ups->size : brush->random_factor_cache*brush->size;
 }
 
 int BKE_brush_use_locked_size(const Scene *scene, Brush *brush)
@@ -1022,7 +1041,7 @@ static void brush_painter_refresh_cache(BrushPainter *painter, const float pos[2
 	MTex *mtex = &brush->mtex;
 	int size;
 	short flt;
-	const int diameter = 2 * BKE_brush_size_get(scene, brush);
+	const int diameter = 2 * BKE_brush_size_randomized_get(scene, brush);
 	const float alpha = BKE_brush_alpha_get(scene, brush);
 	const float rotation = scene->toolsettings->unified_paint_settings.last_angle;
 
@@ -1116,6 +1135,8 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 	Brush *brush = painter->brush;
 	int totpaintops = 0;
 
+	BKE_brush_randomize_size(brush);
+
 	if (pressure == 0.0f) {
 		if (painter->lastpressure) // XXX - hack, operator misses
 			pressure = painter->lastpressure;
@@ -1180,7 +1201,7 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 	else {
 		float startdistance, spacing, step, paintpos[2], dmousepos[2], finalpos[2];
 		float t, len, press;
-		const int radius = BKE_brush_size_get(scene, brush);
+		const int radius = BKE_brush_size_randomized_get(scene, brush);
 
 		/* compute brush spacing adapted to brush radius, spacing may depend
 		 * on pressure, so update it */
