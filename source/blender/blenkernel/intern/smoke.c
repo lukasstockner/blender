@@ -120,7 +120,7 @@ static void tend ( void )
 	gettimeofday ( &_tend,&tz );
 }
 
-static double UNUSED_FUNCTION(tval)( void )
+static double tval( void )
 {
 	double t1, t2;
 	t1 = ( double ) _tstart.tv_sec*1000 + ( double ) _tstart.tv_usec/ ( 1000 );
@@ -140,9 +140,7 @@ struct SmokeModifierData;
 #define DT_DEFAULT 0.1f
 
 /* forward declerations */
-static void calcTriangleDivs(Object *ob, MVert *verts, int numverts, MFace *tris, int numfaces, int numtris, int **tridivs, float cell_len);
 static void get_cell(float *p0, int res[3], float dx, float *pos, int *cell, int correct);
-static void fill_scs_points(Object *ob, DerivedMesh *dm, SmokeCollSettings *scs);
 
 #else /* WITH_SMOKE */
 
