@@ -69,8 +69,6 @@ typedef struct Brush {
 	short ob_mode;      /* & with ob->mode to see if the brush is compatible, use for display only. */
 	float weight;       /* brush weight */
 	int size;           /* brush diameter */
-	float random_size;  /* randomize brush diameter */
-	float random_size_cache; /* cache the random size */
 	int flag;           /* general purpose flag */
 	float jitter;       /* jitter the position of the brush */
 	int spacing;        /* spacing of paint operations */
