@@ -410,6 +410,14 @@ typedef struct wmNDOFMotionData {
 	wmProgress progress; // is this the first event, the last, or one of many in between?
 } wmNDOFMotionData;
 
+typedef struct wmTouchData {
+	/* 1:1 copy of GHOST_TEventTouchData */
+	wmProgress state;
+	unsigned char index;
+	int x;
+	int y;
+} wmTouchData;
+
 typedef struct wmTimer {
 	struct wmTimer *next, *prev;
 	

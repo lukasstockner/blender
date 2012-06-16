@@ -2900,6 +2900,24 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			break;
 		}
 
+		case GHOST_kEventTouch: {
+			GHOST_TEventTouchData *e = customdata;
+			wmTouchData *data= MEM_mallocN(sizeof(wmTouchData), "customdata Touch");
+
+			data->state = (wmProgress)e->state;
+			data->index = (unsigned char)e->index;
+			data->x = (int)e->x;
+			data->y = (int)e->y;
+
+			event.type = TOUCH;
+			event.custom = EVT_DATA_TOUCH;
+			event.customdata = data;
+			event.customdatafree = 1;
+
+			wm_event_add(win, &event);
+			break;
+		}
+
 		case GHOST_kEventUnknown:
 		case GHOST_kNumEventTypes:
 			break;

@@ -44,6 +44,7 @@
 #define EVT_DATA_TIMER		3
 #define EVT_DATA_LISTBASE	4
 #define EVT_DATA_NDOF_MOTION 5
+#define EVT_DATA_TOUCH		6
 
 /* tablet active, matches GHOST_TTabletMode */
 #define EVT_TABLET_NONE		0
@@ -136,6 +137,7 @@ enum {
 	NDOF_LAST
 	};
 
+#define TOUCH 450
 
 /* SYSTEM : 0x01xx */
 #define	INPUTCHANGE		0x0103	/* input connected or disconnected */
@@ -302,8 +304,11 @@ enum {
 	/* test whether the event is a NDOF event */
 #define ISNDOF(event)	(event >= NDOF_MOTION && event < NDOF_LAST)
 
+	/* test whether the event is a touch event */
+#define ISTOUCH(event)	(event = TOUCH)
+
 /* test whether event type is acceptable as hotkey, excluding modifiers */
-#define ISHOTKEY(event)	((ISKEYBOARD(event) || ISMOUSE(event) || ISNDOF(event)) && event!=ESCKEY && !(event>=LEFTCTRLKEY && event<=LEFTSHIFTKEY) && !(event>=UNKNOWNKEY && event<=GRLESSKEY))
+#define ISHOTKEY(event)	((ISKEYBOARD(event) || ISMOUSE(event) || ISNDOF(event) || ISTOUCH(event)) && event!=ESCKEY && !(event>=LEFTCTRLKEY && event<=LEFTSHIFTKEY) && !(event>=UNKNOWNKEY && event<=GRLESSKEY))
 
 /* **************** BLENDER GESTURE EVENTS (0x5000) **************** */
 

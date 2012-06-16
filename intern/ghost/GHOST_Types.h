@@ -464,14 +464,8 @@ typedef struct {
 	short button;
 } GHOST_TEventNDOFButtonData;
 
-typedef enum {
-	GHOST_kDown = 0,
-	GHOST_kMove,
-	GHOST_kUp
-} GHOST_TTouchState;
-
 typedef struct {
-	GHOST_TTouchState state;
+	GHOST_TProgress state;
 	GHOST_TUns8 index;
 	// Coordinates x and y represent position on the screen represented as 1/100th of a pixel
 	// e.g. x = 150, y = 275 represents a position 1.5 pixels to the right

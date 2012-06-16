@@ -33,7 +33,7 @@ public:
 
 	virtual ~GHOST_TouchManager() {};
 
-	void sendTouchEvent(GHOST_TUns8 index, GHOST_TTouchState state, GHOST_TInt32 x,
+	void sendTouchEvent(GHOST_TUns8 index, GHOST_TProgress state, GHOST_TInt32 x,
 	                                        GHOST_TInt32 y, GHOST_TUns64 time);
 
 protected:

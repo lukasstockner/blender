@@ -899,7 +899,7 @@ void GHOST_SystemWin32::processTouch(WPARAM wParam, LPARAM lParam)
 {
 	UINT cInputs = LOWORD(wParam);
 	PTOUCHINPUT pInputs = new TOUCHINPUT[cInputs];
-	GHOST_TTouchState state;
+	GHOST_TProgress state;
 
 	if (NULL != pInputs) {
 #	if defined(_MSC_VER) || defined(FREE_WINDOWS64) // MSVC or MinGW-w64 defines
@@ -909,13 +909,13 @@ void GHOST_SystemWin32::processTouch(WPARAM wParam, LPARAM lParam)
 #	endif
 			for (UINT i = 0; i < cInputs; i++) {
 				if (pInputs[i].dwFlags & TOUCHEVENTF_DOWN) {
-						state = GHOST_kDown;
+					state = GHOST_kStarting;
 				}
 				else if (pInputs[i].dwFlags & TOUCHEVENTF_MOVE) {
-						state = GHOST_kMove;
+					state = GHOST_kInProgress;
 				}
 				else if (pInputs[i].dwFlags & TOUCHEVENTF_UP) {
-					state = GHOST_kUp;
+					state = GHOST_kFinishing;
 				}
 
 				// Windows returns first ID as 2, then 3, 4... subtract 1 to begin at 1

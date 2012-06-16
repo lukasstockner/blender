@@ -30,7 +30,7 @@ GHOST_TouchManager::GHOST_TouchManager(GHOST_System& sys)
 {
 }
 
-void GHOST_TouchManager::sendTouchEvent(GHOST_TUns8 index, GHOST_TTouchState state, GHOST_TInt32 x,
+void GHOST_TouchManager::sendTouchEvent(GHOST_TUns8 index, GHOST_TProgress state, GHOST_TInt32 x,
                                         GHOST_TInt32 y, GHOST_TUns64 time)
 {
 	GHOST_IWindow *window = m_system.getWindowManager()->getActiveWindow();
