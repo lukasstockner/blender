@@ -300,23 +300,25 @@ static void laplaciansmoothModifier_do(
         float (*vertexCos)[3], int numVerts)
 {
 	ModLaplacianSystem *sys;
+	MDeformVert *dvert = NULL;
+	MDeformVert *dv = NULL;
 	float *v1, *v2, *v3;
-	float w1, w2, w3;
+	float w1, w2, w3, wpaint;
 	float areaf;
 	int i, iter;
+	int defgrp_index;
 	unsigned int idv1, idv2, idv3;
 	MFace *mfaces = NULL;
 	MEdge *medges = NULL;
 
 	DM_ensure_tessface(dm);
 
-	
-
 	sys = init_ModLaplacianSystem(dm->getNumEdges(dm), dm->getNumTessFaces(dm), numVerts);
 	if(!sys) return;
 
 	mfaces = dm->getTessFaceArray(dm);
 	medges = dm->getEdgeArray(dm);
+	modifier_get_vgroup(ob, dm, smd->defgrp_name, &dvert, &defgrp_index);
 
 	
 	for (iter = 0; iter < smd->repeat; iter++) {
@@ -408,22 +410,30 @@ static void laplaciansmoothModifier_do(
 
 		nlBegin(NL_MATRIX);
 
+		dv = dvert;
 		for (i = 0; i < numVerts; i++) {
 			nlRightHandSideAdd(0, i, vertexCos[i][0]);
 			nlRightHandSideAdd(1, i, vertexCos[i][1]);
 			nlRightHandSideAdd(2, i, vertexCos[i][2]);
+
+			if (dv) {
+				wpaint = defvert_find_weight(dv, defgrp_index);
+				dv++;
+			} else {
+				wpaint = 1.0f;
+			}
 		
 			if (sys->zerola[i] == 0) {
 				if (sys->vweights[i] * sys->ring_areas[i] != 0.0f) {
-					sys->vweights[i] = - smd->lambda / (4.0f * sys->vweights[i] * sys->ring_areas[i]);
+					sys->vweights[i] = - smd->lambda * wpaint / (4.0f * sys->vweights[i] * sys->ring_areas[i]);
 				}
 				if (sys->vlengths[i] != 0.0f) {
-					sys->vlengths[i] = - smd->lambda_border * 2.0f / sys->vlengths[i];
+					sys->vlengths[i] = - smd->lambda_border * wpaint * 2.0f / sys->vlengths[i];
 				}
 				if (sys->numNeEd[i] == sys->numNeFa[i]) { 
-					nlMatrixAdd(i, i,  1.0f + smd->lambda / (4.0f * sys->ring_areas[i]));
+					nlMatrixAdd(i, i,  1.0f + smd->lambda * wpaint / (4.0f * sys->ring_areas[i]));
 				} else { 
-					nlMatrixAdd(i, i,  1.0f + smd->lambda_border * 2.0f);
+					nlMatrixAdd(i, i,  1.0f + smd->lambda_border * wpaint * 2.0f);
 				}
 			} else {
 				nlMatrixAdd(i, i, 1.0f);
