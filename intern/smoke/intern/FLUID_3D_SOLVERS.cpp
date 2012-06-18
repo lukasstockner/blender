@@ -181,10 +181,11 @@ void FLUID_3D::solvePressurePre(float* _x, float* b, unsigned char* skip)
 	size_t index;
 	float *_q, *_Precond, *_z, *_r, *_p;
 
-	float alpha = 0.0f, beta = 0;
+	float alpha = 0.0f, beta = 0.0f;
 
 	float eps  = SOLVER_ACCURACY;
-	float currentR = 0.0;
+	float currentR = 0.0f;
+	float targetR = 0.0f;
 
 	int k = 0;
 
@@ -248,7 +249,11 @@ void FLUID_3D::solvePressurePre(float* _x, float* b, unsigned char* skip)
 
 		// p = z
 		_p[index] = _z[index];
+
+		targetR += b[index] * b[index];
 	}
+
+	targetR = targetR * eps * eps;
 
 	while (k < _iterations)
 	{
@@ -302,11 +307,11 @@ void FLUID_3D::solvePressurePre(float* _x, float* b, unsigned char* skip)
 			// r_k+1 = r_k - alpha A p
 			_r[index] -= alpha * _q[index];
 
-			currentR = (_r[index] > currentR) ? _r[index] : currentR;
+			currentR += _r[index] * _r[index];
 		}
 
 		//if (r_k+1 > EPSILON) exit
-		if(currentR < 0.001*eps)
+		if(currentR < targetR)
 			break;
 
 		deltaNew = 0.0f;
@@ -330,7 +335,8 @@ void FLUID_3D::solvePressurePre(float* _x, float* b, unsigned char* skip)
 
 		k++;
 	}
-	cout << k << " iterations converged to " << sqrt(currentR) << endl;
+	// tol_error = sqrt(residualNorm2 / rhsNorm2); FROM Eigen3
+	cout << k << " iterations converged to " << sqrt(currentR / targetR) << endl;
 
 	if (_Precond) delete[] _Precond;
 	if (_r) delete[] _r;
