@@ -1206,43 +1206,34 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 				polymat = bucket->GetPolyMaterial();
 				// keep the material pointers, they will be reused for next face
 			}
-						 
-			int nverts = (mface->v4)? 4: 3;
+			
 #ifdef GLES
-			RAS_Polygon *poly = meshobj->AddPolygon(bucket, 3);
+			// Force 3 verts on GLES
+			int nverts = 3;
 #else			
-			RAS_Polygon *poly = meshobj->AddPolygon(bucket, nverts);
+			int nverts = (mface->v4)? 4: 3;
 #endif
+			RAS_Polygon *poly = meshobj->AddPolygon(bucket, nverts);
 
 			poly->SetVisible(visible);
 			poly->SetCollider(collider);
 			poly->SetTwoside(twoside);
 			//poly->SetEdgeCode(mface->edcode);
 
+#ifdef GLES
+			// Looks like we need a different vertex order for GLES
+			meshobj->AddVertex(poly,0,pt2,uvs[2],tan2,rgb2,no2,flat,mface->v3);
+			meshobj->AddVertex(poly,1,pt3,uvs[3],tan3,rgb3,no3,flat,mface->v4);
+			meshobj->AddVertex(poly,2,pt0,uvs[0],tan0,rgb0,no0,flat,mface->v1);
+#else
 			meshobj->AddVertex(poly,0,pt0,uvs[0],tan0,rgb0,no0,flat,mface->v1);
 			meshobj->AddVertex(poly,1,pt1,uvs[1],tan1,rgb1,no1,flat,mface->v2);
 			meshobj->AddVertex(poly,2,pt2,uvs[2],tan2,rgb2,no2,flat,mface->v3);
 
 			if (nverts==4)
-			#ifndef GLES
 				meshobj->AddVertex(poly,3,pt3,uvs[3],tan3,rgb3,no3,flat,mface->v4);
-				#else
-			{
-			RAS_Polygon *poly = meshobj->AddPolygon(bucket, 3);
+#endif
 
-			poly->SetVisible(visible);
-			poly->SetCollider(collider);
-			poly->SetTwoside(twoside);
-			
-			meshobj->AddVertex(poly,0,pt2,uvs[2],tan2,rgb2,no2,flat,mface->v3);
-						
-			meshobj->AddVertex(poly,1,pt3,uvs[3],tan3,rgb3,no3,flat,mface->v4);
-			meshobj->AddVertex(poly,2,pt0,uvs[0],tan0,rgb0,no0,flat,mface->v1);
-			
-			
-			}
-			#endif	
-			
 		}
 
 		if (tface) 
