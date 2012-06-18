@@ -41,7 +41,7 @@ GPU_matrix_stack * ms_current;
 
 
 /* Check if we have a good matrix */
-
+#if 0
 static void checkmat(float *m)
 {
 	int i;
@@ -52,7 +52,6 @@ static void checkmat(float *m)
 
 }
 
-#if 0
 #define CHECKMAT checkmat(CURMATRIX);
 #else
 #define CHECKMAT
