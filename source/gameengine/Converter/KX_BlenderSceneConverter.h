@@ -39,6 +39,8 @@
 #include "KX_ISceneConverter.h"
 #include "KX_IpoConvert.h"
 
+#include <map>
+
 using namespace std;
 
 class KX_WorldInfo;
@@ -62,6 +64,10 @@ class KX_BlenderSceneConverter : public KX_ISceneConverter
 
 	vector<pair<KX_Scene*,KX_Scene*> > m_mergequeue;
 	ThreadInfo	*m_threadinfo;
+
+	// Cached material conversions
+	map<struct Material*, BL_Material*> m_mat_cache;
+	map<struct Material*, RAS_IPolyMaterial*> m_polymat_cache;
 
 	// Should also have a list of collision shapes. 
 	// For the time being this is held in KX_Scene::m_shapes
@@ -115,8 +121,12 @@ public:
 	RAS_MeshObject *FindGameMesh(struct Mesh *for_blendermesh/*, unsigned int onlayer*/);
 
 	void RegisterPolyMaterial(RAS_IPolyMaterial *polymat);
+	void CachePolyMaterial(struct Material *mat, RAS_IPolyMaterial *polymat);
+	RAS_IPolyMaterial *FindCachedPolyMaterial(struct Material *mat);
 
 	void RegisterBlenderMaterial(BL_Material *mat);
+	void CacheBlenderMaterial(struct Material *mat, BL_Material *blmat);
+	BL_Material *FindCachedBlenderMaterial(struct Material *mat);
 	
 	void RegisterInterpolatorList(BL_InterpolatorList *actList, struct bAction *for_act);
 	BL_InterpolatorList *FindInterpolatorList(struct bAction *for_act);

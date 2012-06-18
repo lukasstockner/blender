@@ -888,8 +888,389 @@ bool ConvertMaterial(
 	return true;
 }
 
+RAS_MaterialBucket* material_from_mesh(Material *ma, MFace *mface, MTFace *tface, MCol *mcol, MTF_localLayer *layers, int lightlayer, unsigned int *rgb, MT_Point2 uvs[4][RAS_TexVert::MAX_UNIT], const char *tfaceName, KX_Scene* scene, KX_BlenderSceneConverter *converter)
+{
+	RAS_IPolyMaterial* polymat = converter->FindCachedPolyMaterial(ma);
+	BL_Material* bl_mat = converter->FindCachedBlenderMaterial(ma);
+	KX_BlenderMaterial* kx_blmat = NULL;
+	KX_PolygonMaterial* kx_polymat = NULL;
+		
+	if (converter->GetMaterials()) {
+		/* do Blender Multitexture and Blender GLSL materials */
+
+		/* first is the BL_Material */
+		if (!bl_mat)
+		{
+			bl_mat = new BL_Material();
+
+			ConvertMaterial(bl_mat, ma, tface, tfaceName, mface, mcol,
+				layers, converter->GetGLSLMaterials());
+
+			converter->CacheBlenderMaterial(ma, bl_mat);
+		}
+
+
+		short type = (ma) ? ((ma->mode & MA_VERTEXCOLP || bl_mat->glslmat) ? 0 : 1) : 0;
+		GetRGB(type,mface,mcol,ma,rgb);
+
+		GetUVs(bl_mat, layers, mface, tface, uvs);
+				
+		/* then the KX_BlenderMaterial */
+		if (polymat == NULL)
+		{
+			kx_blmat = new KX_BlenderMaterial();
+
+			kx_blmat->Initialize(scene, bl_mat, (ma?&ma->game:NULL));
+			polymat = static_cast<RAS_IPolyMaterial*>(kx_blmat);
+			converter->CachePolyMaterial(ma, polymat);
+		}
+	}
+	else {
+		/* do Texture Face materials */
+		Image* bima = (tface)? (Image*)tface->tpage: NULL;
+		STR_String imastr =  (tface)? (bima? (bima)->id.name : "" ) : "";
+		
+		char alpha_blend=0;
+		short tile=0;
+		int	tilexrep=4,tileyrep = 4;
+
+		/* set material properties - old TexFace */
+		if (ma) {
+			alpha_blend = ma->game.alpha_blend;
+			/* Commented out for now. If we ever get rid of
+				* "Texture Face/Singletexture" we can then think about it */
+
+			/* Texture Face mode ignores texture but requires "Face Textures to be True "*/
+	#if 0
+			if ((ma->mode &MA_FACETEXTURE)==0 && (ma->game.flag &GEMAT_TEXT)==0) {
+				bima = NULL;
+				imastr = "";
+				alpha_blend = GEMAT_SOLID;	 
+			}
+			else {
+				alpha_blend = ma->game.alpha_blend;
+			}
+	#endif
+		}
+		/* check for tface tex to fallback on */
+		else {
+			if (bima) {
+				/* see if depth of the image is 32 */
+				if (BKE_image_has_alpha(bima))
+					alpha_blend = GEMAT_ALPHA;
+				else
+					alpha_blend = GEMAT_SOLID;
+			}
+			else {
+				alpha_blend = GEMAT_SOLID;
+			}
+		}
+
+		if (bima) {
+			tilexrep = bima->xrep;
+			tileyrep = bima->yrep;
+		}
+
+		/* set UV properties */
+		if (tface) {
+			uvs[0][0].setValue(tface->uv[0]);
+			uvs[1][0].setValue(tface->uv[1]);
+			uvs[2][0].setValue(tface->uv[2]);
+	
+			if (mface->v4)
+				uvs[3][0].setValue(tface->uv[3]);
+
+			tile = tface->tile;
+		} 
+		else {
+			/* no texfaces */
+			tile = 0;
+		}
+
+		/* get vertex colors */
+		if (mcol) {
+			/* we have vertex colors */
+			rgb[0] = KX_Mcol2uint_new(mcol[0]);
+			rgb[1] = KX_Mcol2uint_new(mcol[1]);
+			rgb[2] = KX_Mcol2uint_new(mcol[2]);
+					
+			if (mface->v4)
+				rgb[3] = KX_Mcol2uint_new(mcol[3]);
+		}
+		else {
+			/* no vertex colors, take from material, otherwise white */
+			unsigned int color = 0xFFFFFFFFL;
+
+			if (ma)
+			{
+				union
+				{
+					unsigned char cp[4];
+					unsigned int integer;
+				} col_converter;
+						
+				col_converter.cp[3] = (unsigned char) (ma->r*255.0);
+				col_converter.cp[2] = (unsigned char) (ma->g*255.0);
+				col_converter.cp[1] = (unsigned char) (ma->b*255.0);
+				col_converter.cp[0] = (unsigned char) (ma->alpha*255.0);
+						
+				color = col_converter.integer;
+			}
+
+			rgb[0] = KX_rgbaint2uint_new(color);
+			rgb[1] = KX_rgbaint2uint_new(color);
+			rgb[2] = KX_rgbaint2uint_new(color);	
+					
+			if (mface->v4)
+				rgb[3] = KX_rgbaint2uint_new(color);
+		}
+
+		// only zsort alpha + add
+		bool alpha = ELEM3(alpha_blend, GEMAT_ALPHA, GEMAT_ADD, GEMAT_ALPHA_SORT);
+		bool zsort = (alpha_blend == GEMAT_ALPHA_SORT);
+		bool light = (ma)?(ma->mode & MA_SHLESS)==0:default_light_mode;
+
+		// don't need zort anymore, deal as if it it's alpha blend
+		if (alpha_blend == GEMAT_ALPHA_SORT) alpha_blend = GEMAT_ALPHA;
+
+		if (polymat == NULL)
+		{
+			kx_polymat = new KX_PolygonMaterial();
+			kx_polymat->Initialize(imastr, ma, (int)mface->mat_nr,
+				tile, tilexrep, tileyrep, 
+				alpha_blend, alpha, zsort, light, lightlayer, tface, (unsigned int*)mcol);
+			polymat = static_cast<RAS_IPolyMaterial*>(kx_polymat);
+	
+			if (ma) {
+				polymat->m_specular = MT_Vector3(ma->specr, ma->specg, ma->specb)*ma->spec;
+				polymat->m_shininess = (float)ma->har/4.0f; // 0 < ma->har <= 512
+				polymat->m_diffuse = MT_Vector3(ma->r, ma->g, ma->b)*(ma->emit + ma->ref);
+			}
+			else {
+				polymat->m_specular.setValue(0.0f,0.0f,0.0f);
+				polymat->m_shininess = 35.0;
+			}
+			
+			converter->CachePolyMaterial(ma, polymat);
+		}
+	}
+	
+	// see if a bucket was reused or a new one was created
+	// this way only one KX_BlenderMaterial object has to exist per bucket
+	bool bucketCreated; 
+	RAS_MaterialBucket* bucket = scene->FindBucket(polymat, bucketCreated);
+	if (bucketCreated) {
+		// this is needed to free up memory afterwards
+		converter->RegisterPolyMaterial(polymat);
+		if (converter->GetMaterials())
+			converter->RegisterBlenderMaterial(bl_mat);
+	}
+
+	return bucket;
+}
+
 /* blenderobj can be NULL, make sure its checked for */
 RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, KX_BlenderSceneConverter *converter)
+{
+	RAS_MeshObject *meshobj;
+	int lightlayer = blenderobj ? blenderobj->lay:(1<<20)-1; // all layers if no object.
+
+	if ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != NULL)
+		return meshobj;
+	// Get DerivedMesh data
+	DerivedMesh *dm = CDDM_from_mesh(mesh, blenderobj);
+	DM_ensure_tessface(dm);
+
+	MVert *mvert = dm->getVertArray(dm);
+	int totvert = dm->getNumVerts(dm);
+
+	MFace *mface = dm->getTessFaceArray(dm);
+	MTFace *tface = static_cast<MTFace*>(dm->getTessFaceDataArray(dm, CD_MTFACE));
+	MCol *mcol = static_cast<MCol*>(dm->getTessFaceDataArray(dm, CD_MCOL));
+	float (*tangent)[4] = NULL;
+	int totface = dm->getNumTessFaces(dm);
+	const char *tfaceName = "";
+
+	if (tface) {
+		DM_add_tangent_layer(dm);
+		tangent = (float(*)[4])dm->getTessFaceDataArray(dm, CD_TANGENT);
+	}
+
+	meshobj = new RAS_MeshObject(mesh);
+
+	// Extract avaiable layers
+	MTF_localLayer *layers =  new MTF_localLayer[MAX_MTFACE];
+	for (int lay=0; lay<MAX_MTFACE; lay++) {
+		layers[lay].face = 0;
+		layers[lay].name = "";
+	}
+
+	int validLayers = 0;
+	for (int i=0; i<dm->faceData.totlayer; i++)
+	{
+		if (dm->faceData.layers[i].type == CD_MTFACE)
+		{
+			assert(validLayers <= 8);
+
+			layers[validLayers].face = (MTFace*)(dm->faceData.layers[i].data);
+			layers[validLayers].name = dm->faceData.layers[i].name;
+			if (tface == layers[validLayers].face)
+				tfaceName = layers[validLayers].name;
+			validLayers++;
+		}
+	}
+
+	meshobj->SetName(mesh->id.name + 2);
+	meshobj->m_sharedvertex_map.resize(totvert);
+
+	Material* ma = 0;
+	bool collider = true;
+	MT_Point2 uvs[4][RAS_TexVert::MAX_UNIT];
+	unsigned int rgb[4] = {0};
+
+	MT_Point3 pt[4];
+	MT_Vector3 no[4];
+	MT_Vector4 tan[4];
+
+	for (int f=0;f<totface;f++,mface++)
+	{
+		/* get coordinates, normals and tangents */
+		pt[0].setValue(mvert[mface->v1].co);
+		pt[1].setValue(mvert[mface->v2].co);
+		pt[2].setValue(mvert[mface->v3].co);
+		if (mface->v4) pt[3].setValue(mvert[mface->v4].co);
+
+		if (mface->flag & ME_SMOOTH) {
+			float n0[3], n1[3], n2[3], n3[3];
+
+			normal_short_to_float_v3(n0, mvert[mface->v1].no);
+			normal_short_to_float_v3(n1, mvert[mface->v2].no);
+			normal_short_to_float_v3(n2, mvert[mface->v3].no);
+			no[0] = n0;
+			no[1] = n1;
+			no[2] = n2;
+
+			if (mface->v4) {
+				normal_short_to_float_v3(n3, mvert[mface->v4].no);
+				no[3] = n3;
+			}
+		}
+		else {
+			float fno[3];
+
+			if (mface->v4)
+				normal_quad_v3(fno,mvert[mface->v1].co, mvert[mface->v2].co, mvert[mface->v3].co, mvert[mface->v4].co);
+			else
+				normal_tri_v3(fno,mvert[mface->v1].co, mvert[mface->v2].co, mvert[mface->v3].co);
+
+			no[0] = no[1] = no[2] = no[3] = MT_Vector3(fno);
+		}
+
+		if (tangent) {
+			tan[0] = tangent[f*4 + 0];
+			tan[1] = tangent[f*4 + 1];
+			tan[2] = tangent[f*4 + 2];
+
+			if (mface->v4)
+				tan[3] = tangent[f*4 + 3];
+		}
+		
+		if (blenderobj)
+			ma = give_current_material(blenderobj, mface->mat_nr+1);
+		else
+			ma = mesh->mat ? mesh->mat[mface->mat_nr]:NULL;
+
+		/* ckeck for texface since texface _only_ is used as a fallback */
+		if (ma == NULL && tface == NULL) {
+			ma= &defmaterial;
+		}
+
+		{
+			bool visible = true;
+			bool twoside = false;
+
+			RAS_MaterialBucket* bucket = material_from_mesh(ma, mface, tface, mcol, layers, lightlayer, rgb, uvs, tfaceName, scene, converter);
+
+			// set render flags
+			if (ma)
+			{
+				visible = ((ma->game.flag & GEMAT_INVISIBLE)==0);
+				twoside = ((ma->game.flag  & GEMAT_BACKCULL)==0);
+				collider = ((ma->game.flag & GEMAT_NOPHYSICS)==0);
+			}
+			else{
+				visible = true;
+				twoside = false;
+				collider = true;
+			}
+
+			/* mark face as flat, so vertices are split */
+			bool flat = (mface->flag & ME_SMOOTH) == 0;
+			
+#ifdef GLES
+			// Force 3 verts on GLES
+			int nverts = 3;
+#else			
+			int nverts = (mface->v4)? 4: 3;
+#endif
+			RAS_Polygon *poly = meshobj->AddPolygon(bucket, nverts);
+
+			poly->SetVisible(visible);
+			poly->SetCollider(collider);
+			poly->SetTwoside(twoside);
+			//poly->SetEdgeCode(mface->edcode);
+
+#ifdef GLES
+			// Looks like we need a different vertex order for GLES
+			meshobj->AddVertex(poly,0,pt[2],uvs[2],tan[2],rgb[2],no[2],flat,mface->v3);
+			meshobj->AddVertex(poly,1,pt[3],uvs[3],tan[3],rgb[3],no[3],flat,mface->v4);
+			meshobj->AddVertex(poly,2,pt[0],uvs[0],tan[0],rgb[0],no[0],flat,mface->v1);
+#else
+			meshobj->AddVertex(poly,0,pt[0],uvs[0],tan[0],rgb[0],no[0],flat,mface->v1);
+			meshobj->AddVertex(poly,1,pt[1],uvs[1],tan[1],rgb[1],no[1],flat,mface->v2);
+			meshobj->AddVertex(poly,2,pt[2],uvs[2],tan[2],rgb[2],no[2],flat,mface->v3);
+
+			if (nverts==4)
+				meshobj->AddVertex(poly,3,pt[3],uvs[3],tan[3],rgb[3],no[3],flat,mface->v4);
+#endif
+
+		}
+
+		if (tface) 
+			tface++;
+		if (mcol)
+			mcol+=4;
+
+		for (int lay=0; lay<MAX_MTFACE; lay++)
+		{
+			MTF_localLayer &layer = layers[lay];
+			if (layer.face == 0) break;
+
+			layer.face++;
+		}
+	}
+	// keep meshobj->m_sharedvertex_map for reinstance phys mesh.
+	// 2.49a and before it did: meshobj->m_sharedvertex_map.clear();
+	// but this didnt save much ram. - Campbell
+	meshobj->EndConversion();
+
+	// pre calculate texture generation
+	for (list<RAS_MeshMaterial>::iterator mit = meshobj->GetFirstMaterial();
+		mit != meshobj->GetLastMaterial(); ++ mit) {
+		mit->m_bucket->GetPolyMaterial()->OnConstruction(lightlayer);
+	}
+
+	if (layers)
+		delete []layers;
+	
+	dm->release(dm);
+
+	converter->RegisterGameMesh(meshobj, mesh);
+	return meshobj;
+}
+
+/* blenderobj can be NULL, make sure its checked for */
+RAS_MeshObject* BL_ConvertMesh_old(Mesh* mesh, Object* blenderobj, KX_Scene* scene, KX_BlenderSceneConverter *converter)
 {
 	RAS_MeshObject *meshobj;
 	int lightlayer = blenderobj ? blenderobj->lay:(1<<20)-1; // all layers if no object.
@@ -956,15 +1337,15 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		MT_Point2 uvs[4][RAS_TexVert::MAX_UNIT];
 		unsigned int rgb0,rgb1,rgb2,rgb3 = 0;
 
-		MT_Point3 pt0, pt1, pt2, pt3;
-		MT_Vector3 no0(0,0,0), no1(0,0,0), no2(0,0,0), no3(0,0,0);
-		MT_Vector4 tan0(0,0,0,0), tan1(0,0,0,0), tan2(0,0,0,0), tan3(0,0,0,0);
+		MT_Point3 pt[4];
+		MT_Vector3 no[4];
+		MT_Vector4 tan[4];
 
 		/* get coordinates, normals and tangents */
-		pt0.setValue(mvert[mface->v1].co);
-		pt1.setValue(mvert[mface->v2].co);
-		pt2.setValue(mvert[mface->v3].co);
-		if (mface->v4) pt3.setValue(mvert[mface->v4].co);
+		pt[0].setValue(mvert[mface->v1].co);
+		pt[1].setValue(mvert[mface->v2].co);
+		pt[2].setValue(mvert[mface->v3].co);
+		if (mface->v4) pt[3].setValue(mvert[mface->v4].co);
 
 		if (mface->flag & ME_SMOOTH) {
 			float n0[3], n1[3], n2[3], n3[3];
@@ -972,13 +1353,13 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			normal_short_to_float_v3(n0, mvert[mface->v1].no);
 			normal_short_to_float_v3(n1, mvert[mface->v2].no);
 			normal_short_to_float_v3(n2, mvert[mface->v3].no);
-			no0 = n0;
-			no1 = n1;
-			no2 = n2;
+			no[0] = n0;
+			no[1] = n1;
+			no[2] = n2;
 
 			if (mface->v4) {
 				normal_short_to_float_v3(n3, mvert[mface->v4].no);
-				no3 = n3;
+				no[3] = n3;
 			}
 		}
 		else {
@@ -989,16 +1370,16 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			else
 				normal_tri_v3(fno,mvert[mface->v1].co, mvert[mface->v2].co, mvert[mface->v3].co);
 
-			no0 = no1 = no2 = no3 = MT_Vector3(fno);
+			no[0] = no[1] = no[2] = no[3] = MT_Vector3(fno);
 		}
 
 		if (tangent) {
-			tan0 = tangent[f*4 + 0];
-			tan1 = tangent[f*4 + 1];
-			tan2 = tangent[f*4 + 2];
+			tan[0] = tangent[f*4 + 0];
+			tan[1] = tangent[f*4 + 1];
+			tan[2] = tangent[f*4 + 2];
 
 			if (mface->v4)
-				tan3 = tangent[f*4 + 3];
+				tan[3] = tangent[f*4 + 3];
 		}
 		if (blenderobj)
 			ma = give_current_material(blenderobj, mface->mat_nr+1);
@@ -1222,16 +1603,16 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 #ifdef GLES
 			// Looks like we need a different vertex order for GLES
-			meshobj->AddVertex(poly,0,pt2,uvs[2],tan2,rgb2,no2,flat,mface->v3);
-			meshobj->AddVertex(poly,1,pt3,uvs[3],tan3,rgb3,no3,flat,mface->v4);
-			meshobj->AddVertex(poly,2,pt0,uvs[0],tan0,rgb0,no0,flat,mface->v1);
+			meshobj->AddVertex(poly,0,pt[2],uvs[2],tan[2],rgb2,no[2],flat,mface->v3);
+			meshobj->AddVertex(poly,1,pt[3],uvs[3],tan[3],rgb3,no[3],flat,mface->v4);
+			meshobj->AddVertex(poly,2,pt[0],uvs[0],tan[0],rgb0,no[0],flat,mface->v1);
 #else
-			meshobj->AddVertex(poly,0,pt0,uvs[0],tan0,rgb0,no0,flat,mface->v1);
-			meshobj->AddVertex(poly,1,pt1,uvs[1],tan1,rgb1,no1,flat,mface->v2);
-			meshobj->AddVertex(poly,2,pt2,uvs[2],tan2,rgb2,no2,flat,mface->v3);
+			meshobj->AddVertex(poly,0,pt[0],uvs[0],tan[0],rgb0,no[0],flat,mface->v1);
+			meshobj->AddVertex(poly,1,pt[1],uvs[1],tan[1],rgb1,no[1],flat,mface->v2);
+			meshobj->AddVertex(poly,2,pt[2],uvs[2],tan[2],rgb2,no[2],flat,mface->v3);
 
 			if (nverts==4)
-				meshobj->AddVertex(poly,3,pt3,uvs[3],tan3,rgb3,no3,flat,mface->v4);
+				meshobj->AddVertex(poly,3,pt[3],uvs[3],tan[3],rgb3,no[3],flat,mface->v4);
 #endif
 
 		}
@@ -1962,7 +2343,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		Mesh* mesh = static_cast<Mesh*>(ob->data);
 		float center[3], extents[3];
 		float radius = my_boundbox_mesh((Mesh*) ob->data, center, extents);
-		RAS_MeshObject* meshobj = BL_ConvertMesh(mesh,ob,kxscene,converter);
+		RAS_MeshObject* meshobj = BL_ConvertMesh_old(mesh,ob,kxscene,converter);
 		
 		// needed for python scripting
 		kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(),meshobj);
