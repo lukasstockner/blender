@@ -128,37 +128,37 @@ void FLUID_3D::solveHeat(float* field, float* b, unsigned char* skip)
 							alpha += _direction[index] * _q[index];
 						}
 
-						if (fabs(alpha) > 0.0f)
-							alpha = deltaNew / alpha;
+				if (fabs(alpha) > 0.0f)
+					alpha = deltaNew / alpha;
 
-						float deltaOld = deltaNew;
-						deltaNew = 0.0f;
+				float deltaOld = deltaNew;
+				deltaNew = 0.0f;
 
-						maxR = 0.0f;
+				maxR = 0.0f;
 
-						index = _slabSize + _xRes + 1;
-						for (z = 1; z < _zRes - 1; z++, index += twoxr)
-							for (y = 1; y < _yRes - 1; y++, index += 2)
-								for (x = 1; x < _xRes - 1; x++, index++)
-								{
-									field[index] += alpha * _direction[index];
+				index = _slabSize + _xRes + 1;
+				for (z = 1; z < _zRes - 1; z++, index += twoxr)
+					for (y = 1; y < _yRes - 1; y++, index += 2)
+						for (x = 1; x < _xRes - 1; x++, index++)
+						{
+							field[index] += alpha * _direction[index];
 
-									_residual[index] -= alpha * _q[index];
-									maxR = (_residual[index] > maxR) ? _residual[index] : maxR;
+							_residual[index] -= alpha * _q[index];
+							maxR = (_residual[index] > maxR) ? _residual[index] : maxR;
 
-									deltaNew += _residual[index] * _residual[index];
-								}
+							deltaNew += _residual[index] * _residual[index];
+						}
 
-								float beta = deltaNew / deltaOld;
+				float beta = deltaNew / deltaOld;
 
-								index = _slabSize + _xRes + 1;
-								for (z = 1; z < _zRes - 1; z++, index += twoxr)
-									for (y = 1; y < _yRes - 1; y++, index += 2)
-										for (x = 1; x < _xRes - 1; x++, index++)
-											_direction[index] = _residual[index] + beta * _direction[index];
+				index = _slabSize + _xRes + 1;
+				for (z = 1; z < _zRes - 1; z++, index += twoxr)
+					for (y = 1; y < _yRes - 1; y++, index += 2)
+						for (x = 1; x < _xRes - 1; x++, index++)
+							_direction[index] = _residual[index] + beta * _direction[index];
 
 
-								i++;
+				i++;
 			}
 			// cout << i << " iterations converged to " << maxR << endl;
 
@@ -169,6 +169,161 @@ void FLUID_3D::solveHeat(float* field, float* b, unsigned char* skip)
 }
 
 
+#if 1
+void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip)
+{
+  int x, y, z, index;
+  float *_q, *_h, *_residual, *_direction;
+
+  // i = 0
+  int i = 0;
+
+ _residual  = new float[_totalCells]; // set 0
+ _h  = new float[_totalCells]; // set 0
+ _q  = new float[_totalCells]; // set 0
+ _direction  = new float[_totalCells]; // set 0
+
+ memset(_residual, 0, sizeof(float)*_xRes*_yRes*_zRes);
+ memset(_h, 0, sizeof(float)*_xRes*_yRes*_zRes);
+ memset(_q, 0, sizeof(float)*_xRes*_yRes*_zRes);
+ memset(_direction, 0, sizeof(float)*_xRes*_yRes*_zRes);
+
+  // r = b - Ax
+  index = _slabSize + _xRes + 1;
+  for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+    for (y = 1; y < _yRes - 1; y++, index += 2)
+      for (x = 1; x < _xRes - 1; x++, index++)
+      {
+        // if the cell is a variable
+        float Acenter = 0.0f;
+        if (!skip[index])
+        {
+          // set the matrix to the Poisson stencil in order
+          if (!skip[index + 1]) Acenter += 1.;
+          if (!skip[index - 1]) Acenter += 1.;
+          if (!skip[index + _xRes]) Acenter += 1.;
+          if (!skip[index - _xRes]) Acenter += 1.;
+          if (!skip[index + _slabSize]) Acenter += 1.;
+          if (!skip[index - _slabSize]) Acenter += 1.;
+        }
+        
+        _residual[index] = b[index] - (Acenter * field[index] +  
+          field[index - 1] * (skip[index - 1] ? 0.0 : -1.0f)+ 
+          field[index + 1] * (skip[index + 1] ? 0.0 : -1.0f)+
+          field[index - _xRes] * (skip[index - _xRes] ? 0.0 : -1.0f)+ 
+          field[index + _xRes] * (skip[index + _xRes] ? 0.0 : -1.0f)+
+          field[index - _slabSize] * (skip[index - _slabSize] ? 0.0 : -1.0f)+ 
+          field[index + _slabSize] * (skip[index + _slabSize] ? 0.0 : -1.0f) );
+        _residual[index] = (skip[index]) ? 0.0f : _residual[index];
+      }
+
+  // d = r
+  index = _slabSize + _xRes + 1;
+  for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+    for (y = 1; y < _yRes - 1; y++, index += 2)
+      for (x = 1; x < _xRes - 1; x++, index++)
+        _direction[index] = _residual[index];
+
+  // deltaNew = transpose(r) * r
+  float deltaNew = 0.0f;
+  index = _slabSize + _xRes + 1;
+  for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+    for (y = 1; y < _yRes - 1; y++, index += 2)
+      for (x = 1; x < _xRes - 1; x++, index++)
+        deltaNew += _residual[index] * _residual[index];
+
+  // delta0 = deltaNew
+  float delta0 = deltaNew;
+
+  // While deltaNew > (eps^2) * delta0
+  const float eps  = SOLVER_ACCURACY;
+  float maxR = 2.0f * eps;
+  while ((i < _iterations) && (maxR > eps))
+  {
+    // q = Ad
+    index = _slabSize + _xRes + 1;
+    for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+      for (y = 1; y < _yRes - 1; y++, index += 2)
+        for (x = 1; x < _xRes - 1; x++, index++)
+        {
+          // if the cell is a variable
+          float Acenter = 0.0f;
+          if (!skip[index])
+          {
+            // set the matrix to the Poisson stencil in order
+            if (!skip[index + 1]) Acenter += 1.;
+            if (!skip[index - 1]) Acenter += 1.;
+            if (!skip[index + _xRes]) Acenter += 1.;
+            if (!skip[index - _xRes]) Acenter += 1.;
+            if (!skip[index + _slabSize]) Acenter += 1.;
+            if (!skip[index - _slabSize]) Acenter += 1.;
+          }
+          
+          _q[index] = Acenter * _direction[index] +  
+            _direction[index - 1] * (skip[index - 1] ? 0.0 : -1.0f) + 
+            _direction[index + 1] * (skip[index + 1] ? 0.0 : -1.0f) +
+            _direction[index - _xRes] * (skip[index - _xRes] ? 0.0 : -1.0f) + 
+            _direction[index + _xRes] * (skip[index + _xRes] ? 0.0 : -1.0f)+
+            _direction[index - _slabSize] * (skip[index - _slabSize] ? 0.0 : -1.0f) + 
+            _direction[index + _slabSize] * (skip[index + _slabSize] ? 0.0 : -1.0f);
+          _q[index] = (skip[index]) ? 0.0f : _q[index];
+        }
+
+    // alpha = deltaNew / (transpose(d) * q)
+    float alpha = 0.0f;
+    index = _slabSize + _xRes + 1;
+    for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+      for (y = 1; y < _yRes - 1; y++, index += 2)
+        for (x = 1; x < _xRes - 1; x++, index++)
+          alpha += _direction[index] * _q[index];
+    if (fabs(alpha) > 0.0f)
+      alpha = deltaNew / alpha;
+
+    // x = x + alpha * d
+    index = _slabSize + _xRes + 1;
+    for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+      for (y = 1; y < _yRes - 1; y++, index += 2)
+        for (x = 1; x < _xRes - 1; x++, index++)
+          field[index] += alpha * _direction[index];
+
+    // r = r - alpha * q
+    maxR = 0.0f;
+    index = _slabSize + _xRes + 1;
+    for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+      for (y = 1; y < _yRes - 1; y++, index += 2)
+        for (x = 1; x < _xRes - 1; x++, index++)
+        {
+          _residual[index] -= alpha * _q[index];
+          maxR = (_residual[index] > maxR) ? _residual[index] : maxR;
+        }
+
+    // deltaOld = deltaNew
+    float deltaOld = deltaNew;
+
+    // deltaNew = transpose(r) * r
+    deltaNew = 0.0f;
+    index = _slabSize + _xRes + 1;
+    for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+      for (y = 1; y < _yRes - 1; y++, index += 2)
+        for (x = 1; x < _xRes - 1; x++, index++)
+          deltaNew += _residual[index] * _residual[index];
+
+    // beta = deltaNew / deltaOld
+    float beta = deltaNew / deltaOld;
+
+    // d = r + beta * d
+    index = _slabSize + _xRes + 1;
+    for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
+      for (y = 1; y < _yRes - 1; y++, index += 2)
+        for (x = 1; x < _xRes - 1; x++, index++)
+          _direction[index] = _residual[index] + beta * _direction[index];
+
+    // i = i + 1
+    i++;
+  }
+  cout << i << " iterations converged to " << maxR << endl;
+}
+#else
 #define SMOKE_LOOP \
 		index = _slabSize + _xRes + 1; \
 		for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes) \
@@ -344,3 +499,4 @@ void FLUID_3D::solvePressurePre(float* _x, float* b, unsigned char* skip)
 	if (_z) delete[] _z;
 	if (_q) delete[] _q;
 }
+#endif
