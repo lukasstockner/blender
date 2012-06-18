@@ -863,7 +863,7 @@ void FLUID_3D::project()
 			}
 
 	float scale = 1.0; // DG TODO: make this global and incooperate this into other functions
-
+#if USE_NEW_CG == 1
 	for (z = 0; z < _zRes; z++)
 		for (y = 0; y < _yRes; y++)
 			for (x = 0; x < _xRes; x++)
@@ -971,7 +971,7 @@ void FLUID_3D::project()
 			for (x = 0; x < _xRes; x++)
 		if (!_obstacles[FINDEX(x,y,z)])
 			b[gti(FINDEX(x, y, z))] = _divergence[FINDEX(x,y,z)];
-
+#endif
 	// copyBorderAll(_pressure, 0, _zRes);
 
 	// solve Poisson equation
@@ -1017,7 +1017,7 @@ void FLUID_3D::project()
 	}
 #endif
 
-#if 0
+#if 1
 	{
 		float maxvalue = 0;
 		for(unsigned int i = 0; i < _xRes * _yRes * _zRes; i++)
