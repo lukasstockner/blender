@@ -144,9 +144,6 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 	
 	vector<pthread_t>::iterator pit = m_threadinfo->threads.begin();
 	while (pit != m_threadinfo->threads.end()) {
-#ifndef WITH_ANDROID
-        pthread_cancel((*pit));
-#endif
 		pthread_join((*pit), NULL);
 		pit++;
 	}
@@ -947,48 +944,19 @@ void KX_BlenderSceneConverter::AddScenesToMergeQueue(KX_Scene *merge_scene, KX_S
 	m_mergequeue.push_back(pair<KX_Scene*,KX_Scene*>(merge_scene, other));
 }
 
-typedef struct {KX_BlenderSceneConverter *converter; KX_Scene **scene; struct Main *maggie;} cleanup_args;
-void async_cleanup(void *ptr)
-{
-	cleanup_args *args = (cleanup_args*)ptr;
-	KX_Scene **scene = args->scene;
-	if (*scene)
-	{
-		delete *scene;
-		*scene = NULL;
-	}
-
-	args->converter->FreeBlendFile(args->maggie);
-
-	delete args;
-	printf("Cleanup called\n");
-}
-
-typedef struct {KX_BlenderSceneConverter *converter; KX_KetsjiEngine *engine; Scene *scene; struct Main *maggie; KX_Scene *merge_scene;} async_args;
+typedef struct {KX_BlenderSceneConverter *converter; KX_KetsjiEngine *engine; Scene *scene; KX_Scene *merge_scene;} async_args;
 void *async_convert(void *ptr)
 {
 	int cleanedup=0;
 	KX_Scene *new_scene=NULL;
 	async_args *args = (async_args*)ptr;
 
-	cleanup_args *cargs = new cleanup_args();
-	cargs->converter = args->converter;
-	cargs->scene = &new_scene;
-	cargs->maggie = args->maggie;
-
-	pthread_cleanup_push(async_cleanup, cargs);
-#ifndef WITH_ANDROID
-    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
-#endif
 	new_scene = args->engine->CreateScene(args->scene);
-
-	pthread_cleanup_pop(cleanedup);
 
 	if (new_scene)
 		args->converter->AddScenesToMergeQueue(args->merge_scene, new_scene);
 
 	delete args;
-	delete cargs;
 	return NULL;
 }
 
@@ -1123,7 +1091,6 @@ bool KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openlib, const cha
 				args->converter = this;
 				args->engine = m_ketsjiEngine;
 				args->scene = (Scene*)scene;
-				args->maggie = main_newlib;
 				args->merge_scene = scene_merge;
 				pthread_create(&id, NULL, &async_convert, (void*)args);
 				m_threadinfo->threads.push_back(id);
