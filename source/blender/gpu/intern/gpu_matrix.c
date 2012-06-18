@@ -15,7 +15,7 @@
 #include <GL/glew.h>
 #endif
 
-#define GLU_STACK_DEBUG;
+#define GLU_STACK_DEBUG
 
 typedef float GPU_matrix[4][4];
 
