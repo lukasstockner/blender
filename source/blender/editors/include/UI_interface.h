@@ -578,7 +578,7 @@ void uiComposeLinks(uiBlock *block);
 uiBut *uiFindInlink(uiBlock *block, void *poin);
 
 /* use inside searchfunc to add items */
-int     uiSearchItemAdd(uiSearchItems *items, const char *name, void *poin, int iconid);
+int     uiSearchItemAdd(uiSearchItems *items, const char *name, void *poin, int iconid, const char *unlink_operator);
 /* bfunc gets search item *poin as arg2, or if NULL the old string */
 void    uiButSetSearchFunc(uiBut *but,        uiButSearchFunc sfunc, void *arg1, uiButHandleFunc bfunc, void *active);
 /* height in pixels, it's using hardcoded values still */

@@ -600,7 +600,7 @@ static void operator_search_cb(const struct bContext *UNUSED(C), void *UNUSED(ar
 			/* display name for menu */
 			WM_operator_py_idname(name, ot->idname);
 			
-			if (0 == uiSearchItemAdd(items, name, ot, 0))
+			if (0 == uiSearchItemAdd(items, name, ot, 0, NULL))
 				break;
 		}
 	}

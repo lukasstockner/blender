@@ -1427,25 +1427,26 @@ void ED_screen_delete(bContext *C, bScreen *sc)
 		return;
 	}
 	
-		
-	/* screen can only be in use by one window at a time, so as
-	 * long as we are able to find a screen that is unused, we
-	 * can safely assume ours is not in use anywhere an delete it */
+	if (win->screen == sc) {
+		/* screen can only be in use by one window at a time, so as
+		 * long as we are able to find a screen that is unused, we
+		 * can safely assume ours is not in use anywhere an delete it */
 
-	for (newsc = sc->id.prev; newsc; newsc = newsc->id.prev)
-		if (!ed_screen_used(wm, newsc))
-			break;
-	
-	if (!newsc) {
-		for (newsc = sc->id.next; newsc; newsc = newsc->id.next)
+		for (newsc = sc->id.prev; newsc; newsc = newsc->id.prev)
 			if (!ed_screen_used(wm, newsc))
 				break;
+	
+		if (!newsc) {
+			for (newsc = sc->id.next; newsc; newsc = newsc->id.next)
+				if (!ed_screen_used(wm, newsc))
+					break;
+		}
+
+		if (!newsc)
+			return;
+
+		ED_screen_set(C, newsc);
 	}
-
-	if (!newsc)
-		return;
-
-	ED_screen_set(C, newsc);
 
 	if (delete && win->screen != sc)
 		BKE_libblock_free(&bmain->screen, sc);
@@ -1533,12 +1534,16 @@ void ED_screen_delete_scene(bContext *C, Scene *scene)
 	Main *bmain = CTX_data_main(C);
 	Scene *newscene;
 
-	if (scene->id.prev)
-		newscene = scene->id.prev;
-	else if (scene->id.next)
-		newscene = scene->id.next;
-	else
-		return;
+	if (CTX_wm_screen(C)->scene == scene) {
+		if (scene->id.prev)
+			newscene = scene->id.prev;
+		else if (scene->id.next)
+			newscene = scene->id.next;
+		else
+			return;
+	} else {
+		newscene = CTX_wm_screen(C)->scene;
+	}
 
 	ED_screen_set_scene(C, CTX_wm_screen(C), newscene);
 

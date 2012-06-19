@@ -3305,15 +3305,30 @@ void ui_draw_search_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 
 /* helper call to draw a menu item without button */
 /* state: UI_ACTIVE or 0 */
-void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state)
+void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, struct wmOperatorType* unlink_operator, int state)
 {
 	uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM);
 	rcti _rect = *rect;
+	rcti _rect_thinner = *rect;
 	char *cpoin;
-	
+
+	if (unlink_operator)
+	{
+		if (state & UI_BUT_ALIGN_RIGHT)
+			_rect_thinner.xmin = _rect_thinner.xmax - (ICON_DEFAULT_HEIGHT + 6);
+		else
+			_rect_thinner.xmax -= ICON_DEFAULT_HEIGHT + 6;
+	}
+
 	wt->state(wt, state);
-	wt->draw(&wt->wcol, rect, 0, 0);
-	
+	wt->draw(&wt->wcol, &_rect_thinner, 0, 0);
+
+	// If the delete button is active then it gets the highlight, so make sure the text color is as if the button weren't active.
+	if (state & UI_BUT_ALIGN_RIGHT) {
+		state &= ~UI_ACTIVE;
+		wt->state(wt, state);
+	}
+
 	uiStyleFontSet(fstyle);
 	fstyle->align = UI_STYLE_TEXT_LEFT;
 	
@@ -3347,6 +3362,13 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 		int ys = 1 + (rect->ymin + rect->ymax - UI_DPI_ICON_SIZE) / 2;
 		glEnable(GL_BLEND);
 		UI_icon_draw_aspect(xs, ys, iconid, 1.2f, 0.5f); /* XXX scale weak get from fstyle? */
+		glDisable(GL_BLEND);
+	}
+
+	if (unlink_operator)
+	{
+		glEnable(GL_BLEND);
+		UI_icon_draw(rect->xmax - ICON_DEFAULT_WIDTH - 3, (rect->ymax + rect->ymin)/2 - ICON_DEFAULT_HEIGHT/2, ICON_X);
 		glDisable(GL_BLEND);
 	}
 }

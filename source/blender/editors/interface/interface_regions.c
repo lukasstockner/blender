@@ -703,6 +703,7 @@ struct uiSearchItems {
 	char **names;
 	void **pointers;
 	int *icons;
+	wmOperatorType **unlink_operators;
 
 	AutoComplete *autocpl;
 	void *active;
@@ -713,6 +714,7 @@ typedef struct uiSearchboxData {
 	uiFontStyle fstyle;
 	uiSearchItems items;
 	int active;     /* index in items array */
+	int delete_active;	/* the mouse is over the delete button instead of the item text */
 	int noback;     /* when menu opened with enough space for this */
 	int preview;    /* draw thumbnail previews, rather than list */
 	int prv_rows, prv_cols;
@@ -722,7 +724,7 @@ typedef struct uiSearchboxData {
 
 /* exported for use by search callbacks */
 /* returns zero if nothing to add */
-int uiSearchItemAdd(uiSearchItems *items, const char *name, void *poin, int iconid)
+int uiSearchItemAdd(uiSearchItems *items, const char *name, void *poin, int iconid, const char *unlink_operator)
 {
 	/* hijack for autocomplete */
 	if (items->autocpl) {
@@ -755,6 +757,16 @@ int uiSearchItemAdd(uiSearchItems *items, const char *name, void *poin, int icon
 		items->pointers[items->totitem] = poin;
 	if (items->icons)
 		items->icons[items->totitem] = iconid;
+	if (items->unlink_operators && unlink_operator)
+	{
+		wmOperatorType* wm = WM_operatortype_find(unlink_operator, 0);
+		PropertyRNA* prna = RNA_struct_type_find_property(wm->srna, "index");
+
+		// Only add an delete "X" button if the unlink operator has an "index" property, so the "X" doesn't show up for operators that don't support it.
+		if (prna) {
+			items->unlink_operators[items->totitem] = wm;
+		}
+	}
 	
 	items->totitem++;
 	
@@ -845,16 +857,31 @@ void ui_searchbox_apply(uiBut *but, ARegion *ar)
 	uiSearchboxData *data = ar->regiondata;
 
 	but->func_arg2 = NULL;
+	but->optype = NULL;
 	
 	if (data->active) {
-		char *name = data->items.names[data->active - 1];
-		char *cpoin = strchr(name, '|');
+		if (data->delete_active) {
+			but->optype = data->items.unlink_operators[data->active - 1];
+
+			if (but->opptr) {
+				WM_operator_properties_free(but->opptr);
+				MEM_freeN(but->opptr);
+			}
+
+			but->opptr = MEM_callocN(sizeof(PointerRNA), "uiButOpPtr");
+
+			WM_operator_properties_create(but->opptr, but->optype->idname);
+			RNA_int_set(but->opptr, "index", data->active - 1);
+		} else {
+			char *name = data->items.names[data->active - 1];
+			char *cpoin = strchr(name, '|');
 		
-		if (cpoin) cpoin[0] = 0;
-		BLI_strncpy(but->editstr, name, data->items.maxstrlen);
-		if (cpoin) cpoin[0] = '|';
+			if (cpoin) cpoin[0] = 0;
+			BLI_strncpy(but->editstr, name, data->items.maxstrlen);
+			if (cpoin) cpoin[0] = '|';
 		
-		but->func_arg2 = data->items.pointers[data->active - 1];
+			but->func_arg2 = data->items.pointers[data->active - 1];
+		}
 	}
 }
 
@@ -879,7 +906,15 @@ void ui_searchbox_event(bContext *C, ARegion *ar, uiBut *but, wmEvent *event)
 				for (a = 0; a < data->items.totitem; a++) {
 					ui_searchbox_butrect(&rect, data, a);
 					if (BLI_in_rcti(&rect, event->x - ar->winrct.xmin, event->y - ar->winrct.ymin)) {
-						if (data->active != a + 1) {
+						int old_delete_active = data->delete_active;
+						if (data->items.unlink_operators[a]) {
+							rcti delete_rect = rect;
+							delete_rect.xmin = delete_rect.xmax - (ICON_DEFAULT_HEIGHT + 6);
+							data->delete_active = !!BLI_in_rcti(&delete_rect, event->x - ar->winrct.xmin, event->y - ar->winrct.ymin);
+						} else
+							data->delete_active = 0;
+
+						if (data->active != a + 1 || old_delete_active != data->delete_active) {
 							data->active = a + 1;
 							ui_searchbox_select(C, ar, but, 0);
 							break;
@@ -1001,7 +1036,7 @@ static void ui_searchbox_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 				if (data->preview)
 					ui_draw_preview_item(&data->fstyle, &rect, data->items.names[a], data->items.icons[a], (a + 1) == data->active ? UI_ACTIVE : 0);
 				else 
-					ui_draw_menu_item(&data->fstyle, &rect, data->items.names[a], data->items.icons[a], (a + 1) == data->active ? UI_ACTIVE : 0);
+					ui_draw_menu_item(&data->fstyle, &rect, data->items.names[a], data->items.icons[a], data->items.unlink_operators[a], (a + 1) == data->active ? UI_ACTIVE : 0);
 			}
 			
 			/* indicate more */
@@ -1022,11 +1057,14 @@ static void ui_searchbox_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 		else {
 			/* draw items */
 			for (a = 0; a < data->items.totitem; a++) {
+				int state = (a + 1) == data->active ? UI_ACTIVE : 0;
+				if (data->delete_active)
+					state |= UI_BUT_ALIGN_RIGHT;	// Means the delete button is active. I'm overloading it.
+
 				ui_searchbox_butrect(&rect, data, a);
 				
 				/* widget itself */
-				ui_draw_menu_item(&data->fstyle, &rect, data->items.names[a], data->items.icons[a], (a + 1) == data->active ? UI_ACTIVE : 0);
-				
+				ui_draw_menu_item(&data->fstyle, &rect, data->items.names[a], data->items.icons[a], data->items.unlink_operators[a], state);
 			}
 			/* indicate more */
 			if (data->items.more) {
@@ -1057,6 +1095,7 @@ static void ui_searchbox_region_free_cb(ARegion *ar)
 	MEM_freeN(data->items.names);
 	MEM_freeN(data->items.pointers);
 	MEM_freeN(data->items.icons);
+	MEM_freeN(data->items.unlink_operators);
 	
 	MEM_freeN(data);
 	ar->regiondata = NULL;
@@ -1207,6 +1246,7 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 	data->items.names = MEM_callocN(data->items.maxitem * sizeof(void *), "search names");
 	data->items.pointers = MEM_callocN(data->items.maxitem * sizeof(void *), "search pointers");
 	data->items.icons = MEM_callocN(data->items.maxitem * sizeof(int), "search icons");
+	data->items.unlink_operators = MEM_callocN(data->items.maxitem * sizeof(void *), "delete buttons");
 	for (x1 = 0; x1 < data->items.maxitem; x1++)
 		data->items.names[x1] = MEM_callocN(but->hardmax + 1, "search pointers");
 	

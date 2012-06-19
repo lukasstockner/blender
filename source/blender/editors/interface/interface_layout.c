@@ -1313,7 +1313,7 @@ static void rna_search_cb(const struct bContext *C, void *arg_but, const char *s
 	
 	/* add search items from temporary list */
 	for (cis = items_list->first; cis; cis = cis->next) {
-		if (!uiSearchItemAdd(items, cis->name, SET_INT_IN_POINTER(cis->index), cis->iconid)) {
+		if (!uiSearchItemAdd(items, cis->name, SET_INT_IN_POINTER(cis->index), cis->iconid, NULL)) {
 			break;
 		}
 	}

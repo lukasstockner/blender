@@ -97,6 +97,8 @@ typedef struct TemplateID {
 	ListBase *idlb;
 	int prv_rows, prv_cols;
 	int preview;
+
+	const char *unlink_operator;
 } TemplateID;
 
 /* Search browse menu, assign  */
@@ -146,7 +148,7 @@ static void id_search_cb(const bContext *C, void *arg_template, const char *str,
 
 				iconid = ui_id_icon_get((bContext *)C, id, template->preview);
 
-				if (!uiSearchItemAdd(items, name_ui, id, iconid))
+				if (!uiSearchItemAdd(items, name_ui, id, iconid, template->unlink_operator))
 					break;
 			}
 		}
@@ -351,6 +353,9 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 	id = idptr.data;
 	idfrom = template->ptr.id.data;
 	// lb = template->idlb;
+
+	if (unlinkop)
+		template->unlink_operator = unlinkop;
 
 	block = uiLayoutGetBlock(layout);
 	uiBlockBeginAlign(block);
@@ -2557,7 +2562,7 @@ static void operator_search_cb(const bContext *C, void *UNUSED(arg), const char 
 					}
 				}
 				
-				if (0 == uiSearchItemAdd(items, name, ot, 0))
+				if (0 == uiSearchItemAdd(items, name, ot, 0, NULL))
 					break;
 			}
 		}

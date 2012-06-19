@@ -3572,10 +3572,20 @@ static void SCREEN_OT_new(wmOperatorType *ot)
 
 /********************* delete screen operator *********************/
 
-static int screen_delete_exec(bContext *C, wmOperator *UNUSED(op))
+static int screen_delete_exec(bContext *C, wmOperator *op)
 {
+	int index = RNA_int_get(op->ptr, "index");
 	bScreen *sc = CTX_wm_screen(C);
-	
+
+	if (index >= 0)
+	{
+		int i = 0;
+		for (sc = CTX_data_main(C)->screen.first; sc; sc = sc->id.next, i++) {
+			if (i == index)
+				break;
+		}
+	}
+
 	WM_event_add_notifier(C, NC_SCREEN | ND_SCREENDELETE, sc);
 	
 	return OPERATOR_FINISHED;
@@ -3593,6 +3603,8 @@ static void SCREEN_OT_delete(wmOperatorType *ot)
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_int(ot->srna, "index", -1, INT_MIN, INT_MAX, "Index to remove", "< 0 means current", INT_MIN, INT_MAX);
 }
 
 /********************* new scene operator *********************/
@@ -3653,9 +3665,19 @@ static void SCENE_OT_new(wmOperatorType *ot)
 
 /********************* delete scene operator *********************/
 
-static int scene_delete_exec(bContext *C, wmOperator *UNUSED(op))
+static int scene_delete_exec(bContext *C, wmOperator *op)
 {
+	int index = RNA_int_get(op->ptr, "index");
 	Scene *scene = CTX_data_scene(C);
+
+	if (index >= 0)
+	{
+		int i = 0;
+		for (scene = CTX_data_main(C)->scene.first; scene; scene = scene->id.next, i++) {
+			if (i == index)
+				break;
+		}
+	}
 
 	ED_screen_delete_scene(C, scene);
 
@@ -3679,6 +3701,8 @@ static void SCENE_OT_delete(wmOperatorType *ot)
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_int(ot->srna, "index", -1, INT_MIN, INT_MAX, "Index to remove", "< 0 means current", INT_MIN, INT_MAX);
 }
 
 /* ****************  Assigning operatortypes to global list, adding handlers **************** */

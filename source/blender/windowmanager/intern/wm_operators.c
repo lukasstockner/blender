@@ -707,7 +707,7 @@ static void operator_enum_search_cb(const struct bContext *C, void *arg_ot, cons
 		for (item = item_array; item->identifier; item++) {
 			/* note: need to give the index rather than the identifier because the enum can be freed */
 			if (BLI_strcasestr(item->name, str))
-				if (0 == uiSearchItemAdd(items, item->name, SET_INT_IN_POINTER(item->value), 0))
+				if (0 == uiSearchItemAdd(items, item->name, SET_INT_IN_POINTER(item->value), 0, NULL))
 					break;
 		}
 
@@ -1424,7 +1424,7 @@ static void operator_search_cb(const struct bContext *C, void *UNUSED(arg), cons
 					}
 				}
 				
-				if (0 == uiSearchItemAdd(items, name, ot, 0))
+				if (0 == uiSearchItemAdd(items, name, ot, 0, NULL))
 					break;
 			}
 		}
