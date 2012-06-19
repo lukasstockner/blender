@@ -39,6 +39,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_lamp_types.h"
+#include "DNA_brush_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -59,6 +60,8 @@
 #include "BKE_action.h"
 #include "BKE_armature.h"
 #include "BKE_depsgraph.h" /* for ED_view3d_camera_lock_sync */
+#include "BKE_paint.h"
+#include "BKE_brush.h"
 
 
 #include "BIF_gl.h"
@@ -347,6 +350,7 @@ void ED_view3d_quadview_update(ScrArea *sa, ARegion *ar, short do_clip)
 /* ************************** init for view ops **********************************/
 
 typedef struct ViewOpsData {
+	Scene *scene;
 	ScrArea *sa;
 	ARegion *ar;
 	View3D *v3d;
@@ -410,6 +414,7 @@ static void viewops_data_create(bContext *C, wmOperator *op, wmEvent *event)
 
 	/* store data */
 	op->customdata = vod;
+	vod->scene = CTX_data_scene(C);
 	vod->sa = CTX_wm_area(C);
 	vod->ar = CTX_wm_region(C);
 	vod->v3d = vod->sa->spacedata.first;
@@ -1448,9 +1453,22 @@ void viewzoom_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_assign(keymap, "VIEW3D_OT_zoom");
 }
 
-static void view_zoom_mouseloc(ARegion *ar, float dfac, int mx, int my)
+static void viewzoom_texpaint_brush_radius_update(Scene *scene, float factor)
+{
+	Paint *p = paint_get_active(scene);
+	Brush *brush = paint_brush(p);
+
+	if (brush && (brush->flag & BRUSH_ZOOM_SCALE))
+	{
+		int oldsize = BKE_brush_size_get(scene, brush);
+		BKE_brush_size_set(scene, brush, oldsize*factor);
+	}
+}
+
+static void view_zoom_mouseloc(ARegion *ar, Scene *scene, float dfac, int mx, int my)
 {
 	RegionView3D *rv3d = ar->regiondata;
+	float old_dist = rv3d->dist;
 
 	if (U.uiflag & USER_ZOOM_TO_MOUSEPOS) {
 		float dvec[3];
@@ -1484,6 +1502,8 @@ static void view_zoom_mouseloc(ARegion *ar, float dfac, int mx, int my)
 	else {
 		rv3d->dist *= dfac;
 	}
+
+	viewzoom_texpaint_brush_radius_update(scene, old_dist/rv3d->dist);
 }
 
 
@@ -1561,7 +1581,7 @@ static void viewzoom_apply(ViewOpsData *vod, int x, int y, const short viewzoom,
 		if (zfac != 1.0f && zfac * vod->rv3d->dist > 0.001f * vod->grid &&
 		    zfac * vod->rv3d->dist < 10.0f * vod->far)
 		{
-			view_zoom_mouseloc(vod->ar, zfac, vod->oldx, vod->oldy);
+			view_zoom_mouseloc(vod->ar, vod->scene, zfac, vod->oldx, vod->oldy);
 		}
 	}
 
@@ -1630,6 +1650,7 @@ static int viewzoom_exec(bContext *C, wmOperator *op)
 	ScrArea *sa;
 	ARegion *ar;
 	short use_cam_zoom;
+	Scene *scene = CTX_data_scene(C);
 
 	int delta = RNA_int_get(op->ptr, "delta");
 	int mx, my;
@@ -1660,7 +1681,7 @@ static int viewzoom_exec(bContext *C, wmOperator *op)
 			if (rv3d->camzoom < RV3D_CAMZOOM_MIN) rv3d->camzoom = RV3D_CAMZOOM_MIN;
 		}
 		else if (rv3d->dist < 10.0f * v3d->far) {
-			view_zoom_mouseloc(ar, 1.2f, mx, my);
+			view_zoom_mouseloc(ar, scene, 1.2f, mx, my);
 		}
 	}
 	else {
@@ -1669,7 +1690,7 @@ static int viewzoom_exec(bContext *C, wmOperator *op)
 			if (rv3d->camzoom > RV3D_CAMZOOM_MAX) rv3d->camzoom = RV3D_CAMZOOM_MAX;
 		}
 		else if (rv3d->dist > 0.001f * v3d->grid) {
-			view_zoom_mouseloc(ar, 0.83333f, mx, my);
+			view_zoom_mouseloc(ar, scene, 0.83333f, mx, my);
 		}
 	}
 

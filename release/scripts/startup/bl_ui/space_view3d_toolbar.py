@@ -496,6 +496,9 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 if tool != 'ADD':
                     col.prop(brush, "strength", slider=True)
 
+                row = col.row(align=True)
+                col.prop(brush, "zoom_scale")
+
             if tool == 'ADD':
                 col.prop(brush, "count")
                 col = layout.column()
@@ -631,6 +634,9 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                     col.prop(brush, "use_persistent")
                     col.operator("sculpt.set_persistent_base")
 
+            row = col.row(align=True)
+            col.prop(brush, "zoom_scale")
+
         # Texture Paint Mode #
 
         elif context.image_paint_object and brush:
@@ -658,6 +664,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             col = layout.column()
             col.active = (brush.blend not in {'ERASE_ALPHA', 'ADD_ALPHA'})
             col.prop(brush, "use_alpha")
+            col.prop(brush, "zoom_scale")
 
         # Weight Paint Mode #
         elif context.weight_paint_object and brush:
@@ -681,6 +688,9 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             row.prop(brush, "jitter", slider=True)
             row.prop(brush, "use_pressure_jitter", toggle=True, text="")
 
+            row = col.row(align=True)
+            col.prop(brush, "zoom_scale")
+
         # Vertex Paint Mode #
         elif context.vertex_paint_object and brush:
             col = layout.column()
@@ -699,6 +709,9 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             #row = col.row(align=True)
             #row.prop(brush, "jitter", slider=True)
             #row.prop(brush, "use_pressure_jitter", toggle=True, text="")
+
+            row = col.row(align=True)
+            col.prop(brush, "zoom_scale")
 
 
 class VIEW3D_PT_tools_brush_texture(Panel, View3DPaintPanel):
