@@ -1461,7 +1461,9 @@ static void viewzoom_texpaint_brush_radius_update(Scene *scene, float factor)
 	if (brush && (brush->flag & BRUSH_ZOOM_SCALE))
 	{
 		int oldsize = BKE_brush_size_get(scene, brush);
-		BKE_brush_size_set(scene, brush, oldsize*factor);
+		int newsize = oldsize*factor + 0.5;
+		newsize = (newsize > 5)? newsize : 5;
+		BKE_brush_size_set(scene, brush, newsize);
 	}
 }
 
