@@ -5072,7 +5072,7 @@ static void paint_apply_event(bContext *C, wmOperator *op, wmEvent *event)
 	tablet = 0;
 	pop->s.blend = pop->s.brush->blend;
 
-	if (event->custom == EVT_DATA_TABLET) {
+	if (event->customdatatype == EVT_DATA_TABLET) {
 		wmtab = event->customdata;
 
 		tablet = (wmtab->Active != EVT_TABLET_NONE);

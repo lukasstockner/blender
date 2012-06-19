@@ -100,7 +100,7 @@ void wm_event_free(wmEvent *event)
 	if (event->customdata) {
 		if (event->customdatafree) {
 			/* note: pointer to listbase struct elsewhere */
-			if (event->custom == EVT_DATA_LISTBASE)
+			if (event->customdatatype == EVT_DATA_LISTBASE)
 				BLI_freelistN(event->customdata);
 			else
 				MEM_freeN(event->customdata);
@@ -1713,7 +1713,7 @@ static int wm_handlers_do(bContext *C, wmEvent *event, ListBase *handlers)
 					wmDropBox *drop = handler->dropboxes->first;
 					for (; drop; drop = drop->next) {
 						/* other drop custom types allowed */
-						if (event->custom == EVT_DATA_LISTBASE) {
+						if (event->customdatatype == EVT_DATA_LISTBASE) {
 							ListBase *lb = (ListBase *)event->customdata;
 							wmDrag *drag;
 							
@@ -1725,7 +1725,7 @@ static int wm_handlers_do(bContext *C, wmEvent *event, ListBase *handlers)
 									/* free the drags before calling operator */
 									BLI_freelistN(event->customdata);
 									event->customdata = NULL;
-									event->custom = 0;
+									event->customdatatype = 0;
 									
 									WM_operator_name_call(C, drop->ot->idname, drop->opcontext, drop->ptr);
 									action |= WM_HANDLER_BREAK;
@@ -1917,7 +1917,7 @@ static void wm_event_drag_test(wmWindowManager *wm, wmWindow *win, wmEvent *even
 				MEM_freeN(event->customdata);
 		}
 		
-		event->custom = EVT_DATA_LISTBASE;
+		event->customdatatype = EVT_DATA_LISTBASE;
 		event->customdata = &wm->drags;
 		event->customdatafree = 1;
 		
@@ -2537,7 +2537,7 @@ static void update_tablet_data(wmWindow *win, wmEvent *event)
 		wmtab->Xtilt = td->Xtilt;
 		wmtab->Ytilt = td->Ytilt;
 		
-		event->custom = EVT_DATA_TABLET;
+		event->customdatatype = EVT_DATA_TABLET;
 		event->customdata = wmtab;
 		event->customdatafree = 1;
 	} 
@@ -2580,7 +2580,7 @@ static void attach_ndof_data(wmEvent *event, const GHOST_TEventNDOFMotionData *g
 
 	data->progress = (wmProgress) ghost->progress;
 
-	event->custom = EVT_DATA_NDOF_MOTION;
+	event->customdatatype = EVT_DATA_NDOF_MOTION;
 	event->customdata = data;
 	event->customdatafree = 1;
 }
@@ -2861,7 +2861,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 		}
 		case GHOST_kEventTimer: {
 			event.type = TIMER;
-			event.custom = EVT_DATA_TIMER;
+			event.customdatatype = EVT_DATA_TIMER;
 			event.customdata = customdata;
 			wm_event_add(win, &event);
 
@@ -2892,7 +2892,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 					break;
 			}
 
-			event.custom = 0;
+			event.customdatatype = 0;
 			event.customdata = NULL;
 
 			wm_event_add(win, &event);
@@ -2910,7 +2910,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			data->y = (int)e->y;
 
 			event.type = TOUCH;
-			event.custom = EVT_DATA_TOUCH;
+			event.customdatatype = EVT_DATA_TOUCH;
 			event.customdata = data;
 			event.customdatafree = 1;
 

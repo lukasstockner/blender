@@ -369,7 +369,7 @@ typedef struct wmEvent {
 	const char *keymap_idname;
 	
 	/* custom data */
-	short custom;		/* custom data type, stylus, 6dof, see wm_event_types.h */
+	short customdatatype;		/* custom data type, stylus, 6dof, see wm_event_types.h */
 	short customdatafree;
 	int pad2;
 	void *customdata;	/* ascii, unicode, mouse coords, angles, vectors, dragdrop info */

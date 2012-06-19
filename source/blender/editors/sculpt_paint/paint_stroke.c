@@ -124,7 +124,7 @@ static float event_tablet_data(wmEvent *event, int *pen_flip)
 	int erasor = 0;
 	float pressure = 1;
 
-	if (event->custom == EVT_DATA_TABLET) {
+	if (event->customdatatype == EVT_DATA_TABLET) {
 		wmTabletData *wmtab = event->customdata;
 
 		erasor = (wmtab->Active == EVT_TABLET_ERASER);

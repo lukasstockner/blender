@@ -874,7 +874,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr private)
 				/* make blender drop event with custom data pointing to wm drags */
 				event.type = EVT_DROP;
 				event.val = KM_RELEASE;
-				event.custom = EVT_DATA_LISTBASE;
+				event.customdatatype = EVT_DATA_LISTBASE;
 				event.customdata = &wm->drags;
 				event.customdatafree = 1;
 				
@@ -947,7 +947,7 @@ static int wm_window_timer(const bContext *C)
 					wmEvent event = *(win->eventstate);
 					
 					event.type = wt->event_type;
-					event.custom = EVT_DATA_TIMER;
+					event.customdatatype = EVT_DATA_TIMER;
 					event.customdata = wt;
 					wm_event_add(win, &event);
 

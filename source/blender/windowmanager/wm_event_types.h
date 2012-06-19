@@ -305,7 +305,7 @@ enum {
 #define ISNDOF(event)	(event >= NDOF_MOTION && event < NDOF_LAST)
 
 	/* test whether the event is a touch event */
-#define ISTOUCH(event)	(event = TOUCH)
+#define ISTOUCH(event)	(event == TOUCH)
 
 /* test whether event type is acceptable as hotkey, excluding modifiers */
 #define ISHOTKEY(event)	((ISKEYBOARD(event) || ISMOUSE(event) || ISNDOF(event) || ISTOUCH(event)) && event!=ESCKEY && !(event>=LEFTCTRLKEY && event<=LEFTSHIFTKEY) && !(event>=UNKNOWNKEY && event<=GRLESSKEY))
