@@ -2190,6 +2190,7 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 		Object *ob = (Object *)activeptr->data;
 		Key *key = (Key *)itemptr->id.data;
 		KeyBlock *kb = (KeyBlock *)itemptr->data;
+		PointerRNA remove_rna;
 
 		split = uiLayoutSplit(sub, 0.66f, 0);
 
@@ -2207,6 +2208,10 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 			uiLayoutSetActive(row, 0);
 		}
 		uiBlockSetEmboss(block, UI_EMBOSS);
+
+		WM_operator_properties_create(&remove_rna, "OBJECT_OT_shape_key_remove");
+		RNA_int_set(&remove_rna, "index", i);
+		uiItemFullO(sub, "object.shape_key_remove", "", ICON_X, remove_rna.data, uiLayoutGetOperatorContext(layout), UI_ITEM_O_RETURN_PROPS|UI_ITEM_R_NO_BG);
 	}
 	else if (itemptr->type == &RNA_VertexGroup) {
 		PointerRNA remove_rna;

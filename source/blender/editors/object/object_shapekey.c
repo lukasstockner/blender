@@ -88,22 +88,26 @@ static void ED_object_shape_key_add(bContext *C, Scene *scene, Object *ob, int f
 
 /*********************** remove shape key ***********************/
 
-static int ED_object_shape_key_remove(bContext *C, Object *ob)
+static int ED_object_shape_key_remove(bContext *C, Object *ob, int index)
 {
 	Main *bmain = CTX_data_main(C);
 	KeyBlock *kb, *rkb;
 	Key *key;
+	int delete_index = index;
 	//IpoCurve *icu;
 
 	key = ob_get_key(ob);
 	if (key == NULL)
 		return 0;
+
+	if (delete_index < 0)
+		delete_index = ob->shapenr - 1;
 	
-	kb = BLI_findlink(&key->block, ob->shapenr - 1);
+	kb = BLI_findlink(&key->block, delete_index);
 
 	if (kb) {
 		for (rkb = key->block.first; rkb; rkb = rkb->next)
-			if (rkb->relative == ob->shapenr - 1)
+			if (rkb->relative == delete_index)
 				rkb->relative = 0;
 
 		BLI_remlink(&key->block, kb);
@@ -131,7 +135,7 @@ static int ED_object_shape_key_remove(bContext *C, Object *ob)
 		if (kb->data) MEM_freeN(kb->data);
 		MEM_freeN(kb);
 
-		if (ob->shapenr > 1) {
+		if (index < 0 && ob->shapenr > 1) {
 			ob->shapenr--;
 		}
 	}
@@ -295,11 +299,11 @@ void OBJECT_OT_shape_key_add(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "from_mix", 1, "From Mix", "Create the new shape key from the existing mix of keys");
 }
 
-static int shape_key_remove_exec(bContext *C, wmOperator *UNUSED(op))
+static int shape_key_remove_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_object_context(C);
 
-	if (!ED_object_shape_key_remove(C, ob))
+	if (!ED_object_shape_key_remove(C, ob, RNA_int_get(op->ptr, "index")))
 		return OPERATOR_CANCELLED;
 	
 	return OPERATOR_FINISHED;
@@ -318,6 +322,8 @@ void OBJECT_OT_shape_key_remove(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_int(ot->srna, "index", -1, INT_MIN, INT_MAX, "Index to remove", "< 0 means selection", INT_MIN, INT_MAX);
 }
 
 static int shape_key_clear_exec(bContext *C, wmOperator *UNUSED(op))
