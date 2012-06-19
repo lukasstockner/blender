@@ -1002,7 +1002,7 @@ static void node_draw_frame(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	glDisable(GL_BLEND);
 
 	/* outline active and selected emphasis */
-	if (node->flag & (NODE_ACTIVE | SELECT) ) {
+	if (node->flag & (NODE_ACTIVE | SELECT)) {
 		glEnable(GL_BLEND);
 		glEnable(GL_LINE_SMOOTH);
 		
@@ -1105,7 +1105,7 @@ static void node_draw_reroute(const bContext *C, ARegion *ar, SpaceNode *UNUSED(
 	/* XXX only kept for debugging
 	 * selection state is indicated by socket outline below!
 	 */
-	#if 0
+#if 0
 	/* body */
 	uiSetRoundBox(15);
 	UI_ThemeColor4(TH_NODE);
@@ -1116,18 +1116,18 @@ static void node_draw_reroute(const bContext *C, ARegion *ar, SpaceNode *UNUSED(
 	/* outline active and selected emphasis */
 	if (node->flag & (NODE_ACTIVE | SELECT)) {
 		glEnable(GL_BLEND);
-		glEnable( GL_LINE_SMOOTH );
+		glEnable(GL_LINE_SMOOTH);
 			/* using different shades of TH_TEXT_HI for the empasis, like triangle */
-			if( node->flag & NODE_ACTIVE )
+			if (node->flag & NODE_ACTIVE)
 				UI_ThemeColorShadeAlpha(TH_TEXT_HI, 0, -40);
 			else
 				UI_ThemeColorShadeAlpha(TH_TEXT_HI, -20, -120);
 			uiDrawBox(GL_LINE_LOOP, rct->xmin, rct->ymin, rct->xmax, rct->ymax, size);
 
-		glDisable( GL_LINE_SMOOTH );
+		glDisable(GL_LINE_SMOOTH);
 		glDisable(GL_BLEND);
 	}
-	#endif
+#endif
 
 	/* only draw input socket. as they all are placed on the same position.
 	 * highlight also if node itself is selected, since we don't display the node body separately!
@@ -1194,7 +1194,7 @@ static void node_buts_image_user(uiLayout *layout, bContext *C, PointerRNA *imap
 	uiLayout *col;
 	int source;
 
-	if(!imaptr->data)
+	if (!imaptr->data)
 		return;
 
 	col = uiLayoutColumn(layout, 0);
@@ -1574,9 +1574,6 @@ static void node_composit_buts_defocus(uiLayout *layout, bContext *UNUSED(C), Po
 
 	col = uiLayoutColumn(layout, 0);
 	uiItemR(col, ptr, "use_preview", 0, NULL, ICON_NONE);
-	sub = uiLayoutColumn(col, 0);
-	uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_preview"));
-	uiItemR(sub, ptr, "samples", 0, NULL, ICON_NONE);
 	
 	col = uiLayoutColumn(layout, 0);
 	uiItemR(col, ptr, "use_zbuffer", 0, NULL, ICON_NONE);
@@ -2018,6 +2015,14 @@ static void node_composit_buts_file_output_details(uiLayout *layout, bContext *C
 static void node_composit_buts_scale(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiItemR(layout, ptr, "space", 0, "", ICON_NONE);
+
+	if (RNA_enum_get(ptr, "space") == CMP_SCALE_RENDERPERCENT) {
+		uiLayout *row;
+		uiItemR(layout, ptr, "frame_method", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+		row = uiLayoutRow(layout, TRUE);
+		uiItemR(row, ptr, "offset_x", 0, "X", ICON_NONE);
+		uiItemR(row, ptr, "offset_y", 0, "Y", ICON_NONE);
+	}
 }
 
 static void node_composit_buts_rotate(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -2421,8 +2426,41 @@ static void node_composit_buts_viewer_but(uiLayout *layout, bContext *UNUSED(C),
 static void node_composit_buts_mask(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	uiTemplateID(layout, C, ptr, "mask", NULL, NULL, NULL);
-    uiItemR(layout, ptr, "smooth_mask", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "smooth_mask", 0, NULL, ICON_NONE);
 
+}
+
+static void node_composit_buts_keyingscreen(uiLayout *layout, bContext *C, PointerRNA *ptr)
+{
+	bNode *node= ptr->data;
+
+	uiTemplateID(layout, C, ptr, "clip", NULL, NULL, NULL);
+
+	if (node->id) {
+		MovieClip *clip = (MovieClip *) node->id;
+		uiLayout *col;
+		PointerRNA tracking_ptr;
+
+		RNA_pointer_create(&clip->id, &RNA_MovieTracking, &clip->tracking, &tracking_ptr);
+
+		col = uiLayoutColumn(layout, 1);
+		uiItemPointerR(col, ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
+	}
+}
+
+static void node_composit_buts_keying(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	/* bNode *node= ptr->data; */ /* UNUSED */
+
+	uiItemR(layout, ptr, "blur_pre", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "screen_balance", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "despill_factor", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "edge_kernel_radius", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "edge_kernel_tolerance", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "clip_black", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "clip_white", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "dilate_distance", 0, NULL, ICON_NONE);
+	uiItemR(layout, ptr, "blur_post", 0, NULL, ICON_NONE);
 }
 
 /* only once called */
@@ -2616,6 +2654,12 @@ static void node_composit_set_butfunc(bNodeType *ntype)
 			break;
 		case CMP_NODE_MASK:
 			ntype->uifunc= node_composit_buts_mask;
+			break;
+		case CMP_NODE_KEYINGSCREEN:
+			ntype->uifunc = node_composit_buts_keyingscreen;
+			break;
+		case CMP_NODE_KEYING:
+			ntype->uifunc = node_composit_buts_keying;
 			break;
 		default:
 			ntype->uifunc = NULL;

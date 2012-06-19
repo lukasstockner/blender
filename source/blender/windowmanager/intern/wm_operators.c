@@ -157,7 +157,7 @@ void WM_operatortype_append(void (*opfunc)(wmOperatorType *))
 		ot->name = N_("Dummy Name");
 	}
 
-	// XXX All ops should have a description but for now allow them not to.
+	/* XXX All ops should have a description but for now allow them not to. */
 	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description : N_("(undocumented operator)"));
 	RNA_def_struct_identifier(ot->srna, ot->idname);
 
@@ -1659,8 +1659,8 @@ static int wm_open_mainfile_exec(bContext *C, wmOperator *op)
 	else
 		G.f &= ~G_SCRIPT_AUTOEXEC;
 	
-	// XXX wm in context is not set correctly after WM_read_file -> crash
-	// do it before for now, but is this correct with multiple windows?
+	/* XXX wm in context is not set correctly after WM_read_file -> crash */
+	/* do it before for now, but is this correct with multiple windows? */
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 
 	WM_read_file(C, path, op->reports);
@@ -1890,8 +1890,8 @@ static int wm_recover_last_session_exec(bContext *C, wmOperator *op)
 
 	G.fileflags |= G_FILE_RECOVER;
 
-	// XXX wm in context is not set correctly after WM_read_file -> crash
-	// do it before for now, but is this correct with multiple windows?
+	/* XXX wm in context is not set correctly after WM_read_file -> crash */
+	/* do it before for now, but is this correct with multiple windows? */
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 
 	/* load file */
@@ -1922,8 +1922,8 @@ static int wm_recover_auto_save_exec(bContext *C, wmOperator *op)
 
 	G.fileflags |= G_FILE_RECOVER;
 
-	// XXX wm in context is not set correctly after WM_read_file -> crash
-	// do it before for now, but is this correct with multiple windows?
+	/* XXX wm in context is not set correctly after WM_read_file -> crash */
+	/* do it before for now, but is this correct with multiple windows? */
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 
 	/* load file */
@@ -2533,7 +2533,7 @@ int WM_border_select_modal(bContext *C, wmOperator *op, wmEvent *event)
 		}
 
 	}
-//	// Allow view navigation???
+//	/* Allow view navigation??? */
 //	else {
 //		return OPERATOR_PASS_THROUGH;
 //	}
@@ -2552,7 +2552,7 @@ int WM_border_select_cancel(bContext *C, wmOperator *op)
 /* works now only for selection or modal paint stuff, calls exec while hold mouse, exit on release */
 
 #ifdef GESTURE_MEMORY
-int circle_select_size = 25; // XXX - need some operator memory thing\!
+int circle_select_size = 25; /* XXX - need some operator memory thing! */
 #endif
 
 int WM_gesture_circle_invoke(bContext *C, wmOperator *op, wmEvent *event)
@@ -2635,7 +2635,7 @@ int WM_gesture_circle_modal(bContext *C, wmOperator *op, wmEvent *event)
 				return OPERATOR_FINISHED; /* use finish or we don't get an undo */
 		}
 	}
-//	// Allow view navigation???
+//	/* Allow view navigation??? */
 //	else {
 //		return OPERATOR_PASS_THROUGH;
 //	}
@@ -3765,14 +3765,14 @@ static void WM_OT_dependency_relations(wmOperatorType *ot)
 
 static int wm_ndof_sensitivity_exec(bContext *UNUSED(C), wmOperator *op)
 {
-	const float min = 0.25f, max = 4.f; // TODO: get these from RNA property
+	const float min = 0.25f, max = 4.0f; /* TODO: get these from RNA property */
 	float change;
 	float sensitivity = U.ndof_sensitivity;
 
 	if (RNA_boolean_get(op->ptr, "fast"))
-		change = 0.5f;  // 50% change
+		change = 0.5f;  /* 50% change */
 	else
-		change = 0.1f;  // 10%
+		change = 0.1f;  /* 10% */
 
 	if (RNA_boolean_get(op->ptr, "decrease")) {
 		sensitivity -= sensitivity * change; 
@@ -3860,12 +3860,6 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_console_toggle);
 #endif
 
-#ifdef WITH_COLLADA
-	/* XXX: move these */
-	WM_operatortype_append(WM_OT_collada_export);
-	WM_operatortype_append(WM_OT_collada_import);
-#endif
-
 #ifdef WITH_ASSIMP
 	/* XXX: move these */
 	WM_operatortype_append(WM_OT_assimp_import);
@@ -3904,7 +3898,7 @@ static void gesture_circle_modal_keymap(wmKeyConfig *keyconf)
 
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, 0, 0, GESTURE_MODAL_SELECT);
 
-#if 0 // Durien guys like this :S
+#if 0 /* Durien guys like this :S */
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, KM_SHIFT, 0, GESTURE_MODAL_DESELECT);
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_RELEASE, KM_SHIFT, 0, GESTURE_MODAL_NOP);
 #else
@@ -3983,7 +3977,7 @@ static void gesture_border_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_RELEASE, KM_ANY, 0, GESTURE_MODAL_SELECT);
 	WM_modalkeymap_add_item(keymap, RIGHTMOUSE, KM_RELEASE, KM_ANY, 0, GESTURE_MODAL_SELECT);
 
-#if 0 // Durian guys like this
+#if 0 /* Durian guys like this */
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, KM_SHIFT, 0, GESTURE_MODAL_BEGIN);
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_RELEASE, KM_SHIFT, 0, GESTURE_MODAL_DESELECT);
 #else

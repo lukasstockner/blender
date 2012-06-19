@@ -59,33 +59,33 @@ void BokehBlurOperation::initExecution()
 	int height = inputBokehProgram->getHeight();
 
 	float dimension;
-	if (width<height) {
+	if (width < height) {
 		dimension = width;
 	}
 	else {
 		dimension = height;
 	}
-	this->bokehMidX = width/2.0f;
-	this->bokehMidY = height/2.0f;
-	this->bokehDimension = dimension/2.0f;
+	this->bokehMidX = width / 2.0f;
+	this->bokehMidY = height / 2.0f;
+	this->bokehDimension = dimension / 2.0f;
 	QualityStepHelper::initExecution(COM_QH_INCREASE);
 }
 
 void BokehBlurOperation::executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void *data)
 {
-	float tempColor[4];
+	float color_accum[4];
 	float tempBoundingBox[4];
 	float bokeh[4];
 
 	inputBoundingBoxReader->read(tempBoundingBox, x, y, COM_PS_NEAREST, inputBuffers);
-	if (tempBoundingBox[0] >0.0f) {
-		float overallmultiplyer[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-		MemoryBuffer *inputBuffer = (MemoryBuffer*)data;
+	if (tempBoundingBox[0] > 0.0f) {
+		float multiplier_accum[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+		MemoryBuffer *inputBuffer = (MemoryBuffer *)data;
 		float *buffer = inputBuffer->getBuffer();
 		int bufferwidth = inputBuffer->getWidth();
 		int bufferstartx = inputBuffer->getRect()->xmin;
 		int bufferstarty = inputBuffer->getRect()->ymin;
-		int pixelSize = this->size*this->getWidth()/100.0f;
+		int pixelSize = this->size * this->getWidth() / 100.0f;
 
 		int miny = y - pixelSize;
 		int maxy = y + pixelSize;
@@ -96,27 +96,27 @@ void BokehBlurOperation::executePixel(float *color, int x, int y, MemoryBuffer *
 		maxy = min(maxy, inputBuffer->getRect()->ymax);
 		maxx = min(maxx, inputBuffer->getRect()->xmax);
 
-		zero_v4(tempColor);
+		zero_v4(color_accum);
 
 		int step = getStep();
 		int offsetadd = getOffsetAdd();
 
-		float m = this->bokehDimension/pixelSize;
-		for (int ny = miny ; ny < maxy ; ny +=step) {
-			int bufferindex = ((minx - bufferstartx)*4)+((ny-bufferstarty)*4*bufferwidth);
-			for (int nx = minx ; nx < maxx ; nx +=step) {
-				float u = this->bokehMidX - (nx-x) *m;
-				float v = this->bokehMidY - (ny-y) *m;
+		float m = this->bokehDimension / pixelSize;
+		for (int ny = miny; ny < maxy; ny += step) {
+			int bufferindex = ((minx - bufferstartx) * 4) + ((ny - bufferstarty) * 4 * bufferwidth);
+			for (int nx = minx; nx < maxx; nx += step) {
+				float u = this->bokehMidX - (nx - x) * m;
+				float v = this->bokehMidY - (ny - y) * m;
 				inputBokehProgram->read(bokeh, u, v, COM_PS_NEAREST, inputBuffers);
-				madd_v4_v4v4(tempColor, bokeh, &buffer[bufferindex]);
-				add_v4_v4(overallmultiplyer, bokeh);
-				bufferindex +=offsetadd;
+				madd_v4_v4v4(color_accum, bokeh, &buffer[bufferindex]);
+				add_v4_v4(multiplier_accum, bokeh);
+				bufferindex += offsetadd;
 			}
 		}
-		color[0] = tempColor[0] * (1.0f / overallmultiplyer[0]);
-		color[1] = tempColor[1] * (1.0f / overallmultiplyer[1]);
-		color[2] = tempColor[2] * (1.0f / overallmultiplyer[2]);
-		color[3] = tempColor[3] * (1.0f / overallmultiplyer[3]);
+		color[0] = color_accum[0] * (1.0f / multiplier_accum[0]);
+		color[1] = color_accum[1] * (1.0f / multiplier_accum[1]);
+		color[2] = color_accum[2] * (1.0f / multiplier_accum[2]);
+		color[3] = color_accum[3] * (1.0f / multiplier_accum[3]);
 	}
 	else {
 		inputProgram->read(color, x, y, COM_PS_NEAREST, inputBuffers);
@@ -135,10 +135,10 @@ bool BokehBlurOperation::determineDependingAreaOfInterest(rcti *input, ReadBuffe
 	rcti newInput;
 	rcti bokehInput;
 
-	newInput.xmax = input->xmax + (size*this->getWidth()/100.0f);
-	newInput.xmin = input->xmin - (size*this->getWidth()/100.0f);
-	newInput.ymax = input->ymax + (size*this->getWidth()/100.0f);
-	newInput.ymin = input->ymin - (size*this->getWidth()/100.0f);
+	newInput.xmax = input->xmax + (size * this->getWidth() / 100.0f);
+	newInput.xmin = input->xmin - (size * this->getWidth() / 100.0f);
+	newInput.ymax = input->ymax + (size * this->getWidth() / 100.0f);
+	newInput.ymin = input->ymin - (size * this->getWidth() / 100.0f);
 
 	NodeOperation *operation = getInputOperation(1);
 	bokehInput.xmax = operation->getWidth();
@@ -168,7 +168,7 @@ void BokehBlurOperation::executeOpenCL(cl_context context, cl_program program, c
 	if (!kernel) {
 		kernel = COM_clCreateKernel(program, "bokehBlurKernel", NULL);
 	}
-	cl_int radius = this->getWidth()*this->size/100.0f;
+	cl_int radius = this->getWidth() * this->size / 100.0f;
 	cl_int step = this->getStep();
 	
 	COM_clAttachMemoryBufferToKernelParameter(context, kernel, 0, -1, clMemToCleanUp, inputMemoryBuffers, this->inputBoundingBoxReader);

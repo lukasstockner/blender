@@ -98,8 +98,8 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 	float x;
 	int *points, totseg, i, a;
 	float sfra = SFRA, efra = EFRA, framelen = ar->winx / (efra - sfra + 1);
-	MovieTrackingTrack *act_track = BKE_tracking_active_track(&clip->tracking);
-	MovieTrackingReconstruction *reconstruction = BKE_tracking_get_reconstruction(&clip->tracking);
+	MovieTrackingTrack *act_track = BKE_tracking_track_get_active(&clip->tracking);
+	MovieTrackingReconstruction *reconstruction = BKE_tracking_get_active_reconstruction(&clip->tracking);
 
 	glEnable(GL_BLEND);
 
@@ -226,7 +226,7 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 
 static void draw_movieclip_notes(SpaceClip *sc, ARegion *ar)
 {
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 	MovieTracking *tracking = &clip->tracking;
 	char str[256] = {0};
 	int block = FALSE;
@@ -255,7 +255,7 @@ static void draw_movieclip_buffer(SpaceClip *sc, ARegion *ar, ImBuf *ibuf,
                                   int width, int height, float zoomx, float zoomy)
 {
 	int x, y;
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 
 	/* find window pixel coordinates of origin */
 	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &x, &y);
@@ -344,16 +344,16 @@ static void draw_track_path(SpaceClip *sc, MovieClip *UNUSED(clip), MovieTrackin
 	if (count == 0)
 		return;
 
-	start_frame = framenr = ED_space_clip_clip_framenr(sc);
+	start_frame = framenr = ED_space_clip_get_clip_frame_number(sc);
 
-	marker = BKE_tracking_get_marker(track, framenr);
+	marker = BKE_tracking_marker_get(track, framenr);
 	if (marker->framenr != framenr || marker->flag & MARKER_DISABLED)
 		return;
 
 	a = count;
 	i = framenr - 1;
 	while (i >= framenr - count) {
-		marker = BKE_tracking_get_marker(track, i);
+		marker = BKE_tracking_marker_get(track, i);
 
 		if (!marker || marker->flag & MARKER_DISABLED)
 			break;
@@ -375,7 +375,7 @@ static void draw_track_path(SpaceClip *sc, MovieClip *UNUSED(clip), MovieTrackin
 	b = count;
 	i = framenr;
 	while (i <= framenr + count) {
-		marker = BKE_tracking_get_marker(track, i);
+		marker = BKE_tracking_marker_get(track, i);
 
 		if (!marker || marker->flag & MARKER_DISABLED)
 			break;
@@ -811,6 +811,11 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 	}
 
 	if ((sc->flag & SC_SHOW_MARKER_PATTERN) && ((track->pat_flag & SELECT) == sel || outline)) {
+		int i;
+		float pat_min[2], pat_max[2];
+/*		float dx = 12.0f / width, dy = 12.0f / height;*/ /* XXX UNUSED */
+		float tilt_ctrl[2];
+
 		if (!outline) {
 			if (track->pat_flag & SELECT)
 				glColor3fv(scol);
@@ -818,26 +823,47 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 				glColor3fv(col);
 		}
 
-		/* XXX: need to be real check if affine tracking is enabled, but for now not
-		 *      sure how to do this, so assume affine tracker is always enabled */
-		if (TRUE) {
-			int i;
-
-			/* pattern's corners sliding squares */
-			for (i = 0; i < 4; i++) {
-				draw_marker_slide_square(marker->pattern_corners[i][0], marker->pattern_corners[i][1],
-				                         patdx / 1.5f, patdy / 1.5f, outline, px);
-			}
+		/* pattern's corners sliding squares */
+		for (i = 0; i < 4; i++) {
+			draw_marker_slide_square(marker->pattern_corners[i][0], marker->pattern_corners[i][1],
+			                         patdx / 1.5f, patdy / 1.5f, outline, px);
 		}
-		else {
-			/* pattern offset square */
-			draw_marker_slide_square(marker->pattern_corners[3][0], marker->pattern_corners[3][1],
-			                         patdx, patdy, outline, px);
 
-			/* pattern re-sizing triangle */
-			draw_marker_slide_triangle(marker->pattern_corners[1][0], marker->pattern_corners[1][1],
-			                           patdx, patdy, outline, px);
-		}
+		/* ** sliders to control overall pattern  ** */
+		add_v2_v2v2(tilt_ctrl, marker->pattern_corners[1], marker->pattern_corners[2]);
+
+		BKE_tracking_marker_pattern_minmax(marker, pat_min, pat_max);
+
+		glEnable(GL_LINE_STIPPLE);
+		glLineStipple(3, 0xaaaa);
+
+#if 0
+		/* TODO: disable for now, needs better approach visualizing this */
+
+		glBegin(GL_LINE_LOOP);
+		glVertex2f(pat_min[0] - dx, pat_min[1] - dy);
+		glVertex2f(pat_max[0] + dx, pat_min[1] - dy);
+		glVertex2f(pat_max[0] + dx, pat_max[1] + dy);
+		glVertex2f(pat_min[0] - dx, pat_max[1] + dy);
+		glEnd();
+
+		/* marker's offset slider */
+		draw_marker_slide_square(pat_min[0] - dx, pat_max[1] + dy, patdx, patdy, outline, px);
+
+		/* pattern re-sizing triangle */
+		draw_marker_slide_triangle(pat_max[0] + dx, pat_min[1] - dy, patdx, patdy, outline, px);
+#endif
+
+		glBegin(GL_LINES);
+		glVertex2f(0.0f, 0.0f);
+		glVertex2fv(tilt_ctrl);
+		glEnd();
+
+		glDisable(GL_LINE_STIPPLE);
+
+
+		/* slider to control pattern tilt */
+		draw_marker_slide_square(tilt_ctrl[0], tilt_ctrl[1], patdx, patdy, outline, px);
 	}
 
 	glPopMatrix();
@@ -898,7 +924,7 @@ static void draw_marker_texts(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 
 	if (marker->flag & MARKER_DISABLED)
 		strcpy(state, "disabled");
-	else if (marker->framenr != ED_space_clip_clip_framenr(sc))
+	else if (marker->framenr != ED_space_clip_get_clip_frame_number(sc))
 		strcpy(state, "estimated");
 	else if (marker->flag & MARKER_TRACKED)
 		strcpy(state, "tracked");
@@ -943,10 +969,10 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 {
 	float x, y;
 	MovieTracking *tracking = &clip->tracking;
-	ListBase *tracksbase = BKE_tracking_get_tracks(tracking);
+	ListBase *tracksbase = BKE_tracking_get_active_tracks(tracking);
 	MovieTrackingTrack *track, *act_track;
 	MovieTrackingMarker *marker;
-	int framenr = ED_space_clip_clip_framenr(sc);
+	int framenr = ED_space_clip_get_clip_frame_number(sc);
 	int undistort = sc->user.render_flag & MCLIP_PROXY_RENDER_UNDISTORT;
 	float *marker_pos = NULL, *fp, *active_pos = NULL, cur_pos[2];
 
@@ -967,7 +993,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 	glMultMatrixf(sc->stabmat);
 	glScalef(width, height, 0);
 
-	act_track = BKE_tracking_active_track(tracking);
+	act_track = BKE_tracking_track_get_active(tracking);
 
 	if (sc->user.render_flag & MCLIP_PROXY_RENDER_UNDISTORT) {
 		int count = 0;
@@ -976,7 +1002,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 		track = tracksbase->first;
 		while (track) {
 			if ((track->flag & TRACK_HIDDEN) == 0) {
-				marker = BKE_tracking_get_marker(track, framenr);
+				marker = BKE_tracking_marker_get(track, framenr);
 
 				if (MARKER_VISIBLE(sc, track, marker))
 					count++;
@@ -993,7 +1019,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 			fp = marker_pos;
 			while (track) {
 				if ((track->flag & TRACK_HIDDEN) == 0) {
-					marker = BKE_tracking_get_marker(track, framenr);
+					marker = BKE_tracking_marker_get(track, framenr);
 
 					if (MARKER_VISIBLE(sc, track, marker)) {
 						ED_clip_point_undistorted_pos(sc, marker->pos, fp);
@@ -1025,7 +1051,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 	fp = marker_pos;
 	while (track) {
 		if ((track->flag & TRACK_HIDDEN) == 0) {
-			marker = BKE_tracking_get_marker(track, framenr);
+			marker = BKE_tracking_marker_get(track, framenr);
 
 			if (MARKER_VISIBLE(sc, track, marker)) {
 				copy_v2_v2(cur_pos, fp ? fp : marker->pos);
@@ -1050,7 +1076,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 	while (track) {
 		if ((track->flag & TRACK_HIDDEN) == 0) {
 			int act = track == act_track;
-			marker = BKE_tracking_get_marker(track, framenr);
+			marker = BKE_tracking_marker_get(track, framenr);
 
 			if (MARKER_VISIBLE(sc, track, marker)) {
 				if (!act) {
@@ -1071,7 +1097,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 	/* active marker would be displayed on top of everything else */
 	if (act_track) {
 		if ((act_track->flag & TRACK_HIDDEN) == 0) {
-			marker = BKE_tracking_get_marker(act_track, framenr);
+			marker = BKE_tracking_marker_get(act_track, framenr);
 
 			if (MARKER_VISIBLE(sc, act_track, marker)) {
 				copy_v2_v2(cur_pos, active_pos ? active_pos : marker->pos);
@@ -1083,19 +1109,19 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 	}
 
 	if (sc->flag & SC_SHOW_BUNDLES) {
-		MovieTrackingObject *object = BKE_tracking_active_object(tracking);
+		MovieTrackingObject *object = BKE_tracking_object_get_active(tracking);
 		float pos[4], vec[4], mat[4][4], aspy;
 
 		glEnable(GL_POINT_SMOOTH);
 		glPointSize(3.0f);
 
 		aspy = 1.0f / clip->tracking.camera.pixel_aspect;
-		BKE_tracking_projection_matrix(tracking, object, framenr, width, height, mat);
+		BKE_tracking_get_projection_matrix(tracking, object, framenr, width, height, mat);
 
 		track = tracksbase->first;
 		while (track) {
 			if ((track->flag & TRACK_HIDDEN) == 0 && track->flag & TRACK_HAS_BUNDLE) {
-				marker = BKE_tracking_get_marker(track, framenr);
+				marker = BKE_tracking_marker_get(track, framenr);
 
 				if (MARKER_VISIBLE(sc, track, marker)) {
 					float npos[2];
@@ -1107,7 +1133,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 					pos[0] = (pos[0] / (pos[3] * 2.0f) + 0.5f) * width;
 					pos[1] = (pos[1] / (pos[3] * 2.0f) + 0.5f) * height * aspy;
 
-					BKE_tracking_apply_intrinsics(tracking, pos, npos);
+					BKE_tracking_distort_v2(tracking, pos, npos);
 
 					if (npos[0] >= 0.0f && npos[1] >= 0.0f && npos[0] <= width && npos[1] <= height * aspy) {
 						vec[0] = (marker->pos[0] + track->offset[0]) * width;
@@ -1145,7 +1171,7 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 		fp = marker_pos;
 		while (track) {
 			if ((track->flag & TRACK_HIDDEN) == 0) {
-				marker = BKE_tracking_get_marker(track, framenr);
+				marker = BKE_tracking_marker_get(track, framenr);
 
 				if (MARKER_VISIBLE(sc, track, marker)) {
 					int act = track == act_track;
@@ -1215,7 +1241,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 		for (i = 0; i <= n; i++) {
 			for (j = 0; j <= n; j++) {
 				if (i == 0 || j == 0 || i == n || j == n) {
-					BKE_tracking_apply_intrinsics(tracking, pos, tpos);
+					BKE_tracking_distort_v2(tracking, pos, tpos);
 
 					for (a = 0; a < 4; a++) {
 						int ok;
@@ -1246,7 +1272,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 			pos[0] = idx[a][0] * dx;
 			pos[1] = idx[a][1] * dy;
 
-			BKE_tracking_invert_intrinsics(tracking, pos, tpos);
+			BKE_tracking_undistort_v2(tracking, pos, tpos);
 
 			DO_MINMAX2(tpos, min, max);
 		}
@@ -1257,7 +1283,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 
 		for (i = 0; i <= n; i++) {
 			for (j = 0; j <= n; j++) {
-				BKE_tracking_apply_intrinsics(tracking, pos, grid[i][j]);
+				BKE_tracking_distort_v2(tracking, pos, grid[i][j]);
 
 				grid[i][j][0] /= width;
 				grid[i][j][1] /= height * aspy;
@@ -1289,11 +1315,11 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 	}
 
 	if (sc->gpencil_src == SC_GPENCIL_SRC_TRACK) {
-		MovieTrackingTrack *track = BKE_tracking_active_track(&sc->clip->tracking);
+		MovieTrackingTrack *track = BKE_tracking_track_get_active(&sc->clip->tracking);
 
 		if (track) {
 			int framenr = sc->user.framenr;
-			MovieTrackingMarker *marker = BKE_tracking_exact_marker(track, framenr);
+			MovieTrackingMarker *marker = BKE_tracking_marker_get_exact(track, framenr);
 
 			offsx = marker->pos[0];
 			offsy = marker->pos[1];
@@ -1343,15 +1369,15 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 
 								/* we want to distort only long straight lines */
 								if (stroke->totpoints == 2) {
-									BKE_tracking_invert_intrinsics(tracking, pos, pos);
-									BKE_tracking_invert_intrinsics(tracking, npos, npos);
+									BKE_tracking_undistort_v2(tracking, pos, pos);
+									BKE_tracking_undistort_v2(tracking, npos, npos);
 								}
 
 								sub_v2_v2v2(dpos, npos, pos);
 								mul_v2_fl(dpos, 1.0f / steps);
 
 								for (j = 0; j <= steps; j++) {
-									BKE_tracking_apply_intrinsics(tracking, pos, tpos);
+									BKE_tracking_distort_v2(tracking, pos, tpos);
 									glVertex2f(tpos[0] / width, tpos[1] / (height * aspy));
 
 									add_v2_v2(pos, dpos);
@@ -1384,7 +1410,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 
 void clip_draw_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 {
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 	ImBuf *ibuf;
 	int width, height;
 	float zoomx, zoomy;
@@ -1393,8 +1419,8 @@ void clip_draw_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 	if (!clip)
 		return;
 
-	ED_space_clip_size(sc, &width, &height);
-	ED_space_clip_zoom(sc, ar, &zoomx, &zoomy);
+	ED_space_clip_get_clip_size(sc, &width, &height);
+	ED_space_clip_get_zoom(sc, ar, &zoomx, &zoomy);
 
 	if (sc->flag & SC_SHOW_STABLE) {
 		float smat[4][4], ismat[4][4];
@@ -1410,7 +1436,7 @@ void clip_draw_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 			else
 				copy_v2_v2(loc, sc->loc);
 
-			BKE_tracking_stabdata_to_mat4(width, height, aspect, loc, sc->scale, sc->angle, sc->stabmat);
+			BKE_tracking_stabilization_data_to_mat4(width, height, aspect, loc, sc->scale, sc->angle, sc->stabmat);
 
 			unit_m4(smat);
 			smat[0][0] = 1.0f / width;
@@ -1450,7 +1476,7 @@ void clip_draw_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 void clip_draw_grease_pencil(bContext *C, int onlyv2d)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 
 	if (!clip)
 		return;
@@ -1463,12 +1489,12 @@ void clip_draw_grease_pencil(bContext *C, int onlyv2d)
 			glMultMatrixf(sc->unistabmat);
 
 			if (sc->gpencil_src == SC_GPENCIL_SRC_TRACK) {
-				MovieTrackingTrack *track = BKE_tracking_active_track(&sc->clip->tracking);
+				MovieTrackingTrack *track = BKE_tracking_track_get_active(&sc->clip->tracking);
 
 				if (track) {
 					int framenr = sc->user.framenr;
 					/* don't get the exact marker since it may not exist for the frame */
-					MovieTrackingMarker *marker = BKE_tracking_get_marker(track, framenr);
+					MovieTrackingMarker *marker = BKE_tracking_marker_get(track, framenr);
 					if (marker) {
 						glTranslatef(marker->pos[0], marker->pos[1], 0.0f);
 					}

@@ -1752,6 +1752,7 @@ void OBJECT_OT_game_property_copy(wmOperatorType *ot)
 
 	RNA_def_enum(ot->srna, "operation", game_properties_copy_operations, 3, "Operation", "");
 	prop = RNA_def_enum(ot->srna, "property", gameprops_items, 0, "Property", "Properties to copy");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 	RNA_def_enum_funcs(prop, gameprops_itemf);
 	ot->prop = prop;
 }
@@ -1770,7 +1771,7 @@ static int game_property_clear_exec(bContext *C, wmOperator *UNUSED(op))
 void OBJECT_OT_game_property_clear(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Clear Game Property";
+	ot->name = "Clear Game Properties";
 	ot->idname = "OBJECT_OT_game_property_clear";
 	ot->description = "Remove all game properties from all selected objects";
 

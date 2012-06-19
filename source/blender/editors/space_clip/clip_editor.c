@@ -91,7 +91,7 @@ int ED_space_clip_tracking_poll(bContext *C)
 	SpaceClip *sc = CTX_wm_space_clip(C);
 
 	if (sc && sc->clip)
-		return ED_space_clip_show_trackedit(sc);
+		return ED_space_clip_check_show_trackedit(sc);
 
 	return FALSE;
 }
@@ -101,7 +101,7 @@ int ED_space_clip_maskedit_poll(bContext *C)
 	SpaceClip *sc = CTX_wm_space_clip(C);
 
 	if (sc && sc->clip) {
-		return ED_space_clip_show_maskedit(sc);
+		return ED_space_clip_check_show_maskedit(sc);
 	}
 
 	return FALSE;
@@ -113,7 +113,7 @@ int ED_space_clip_maskedit_mask_poll(bContext *C)
 		MovieClip *clip = CTX_data_edit_movieclip(C);
 
 		if (clip) {
-			SpaceClip *sc= CTX_wm_space_clip(C);
+			SpaceClip *sc = CTX_wm_space_clip(C);
 
 			return sc->mask != NULL;
 		}
@@ -124,7 +124,7 @@ int ED_space_clip_maskedit_mask_poll(bContext *C)
 
 /* ******** editing functions ******** */
 
-void ED_space_clip_set(bContext *C, bScreen *screen, SpaceClip *sc, MovieClip *clip)
+void ED_space_clip_set_clip(bContext *C, bScreen *screen, SpaceClip *sc, MovieClip *clip)
 {
 	MovieClip *old_clip;
 
@@ -160,12 +160,12 @@ void ED_space_clip_set(bContext *C, bScreen *screen, SpaceClip *sc, MovieClip *c
 		WM_event_add_notifier(C, NC_MOVIECLIP | NA_SELECTED, sc->clip);
 }
 
-MovieClip *ED_space_clip(SpaceClip *sc)
+MovieClip *ED_space_clip_get_clip(SpaceClip *sc)
 {
 	return sc->clip;
 }
 
-Mask *ED_space_clip_mask(SpaceClip *sc)
+Mask *ED_space_clip_get_mask(SpaceClip *sc)
 {
 	return sc->mask;
 }
@@ -204,7 +204,7 @@ ImBuf *ED_space_clip_get_stable_buffer(SpaceClip *sc, float loc[2], float *scale
 	return NULL;
 }
 
-void ED_space_clip_size(SpaceClip *sc, int *width, int *height)
+void ED_space_clip_get_clip_size(SpaceClip *sc, int *width, int *height)
 {
 	if (!sc->clip) {
 		*width = *height = 0;
@@ -214,7 +214,7 @@ void ED_space_clip_size(SpaceClip *sc, int *width, int *height)
 	}
 }
 
-void ED_space_clip_mask_size(SpaceClip *sc, int *width, int *height)
+void ED_space_clip_get_mask_size(SpaceClip *sc, int *width, int *height)
 {
 	/* quite the same as ED_space_clip_size, but it also runs aspect correction on output resolution
 	 * this is needed because mask should be rasterized with exactly the same resolution as
@@ -228,20 +228,20 @@ void ED_space_clip_mask_size(SpaceClip *sc, int *width, int *height)
 	} else {
 		float aspx, aspy;
 
-		ED_space_clip_size(sc, width, height);
-		ED_space_clip_aspect(sc, &aspx, &aspy);
+		ED_space_clip_get_clip_size(sc, width, height);
+		ED_space_clip_get_clip_aspect(sc, &aspx, &aspy);
 
 		*width *= aspx;
 		*height *= aspy;
 	}
 }
 
-void ED_space_clip_mask_aspect(SpaceClip *sc, float *aspx, float *aspy)
+void ED_space_clip_get_mask_aspect(SpaceClip *sc, float *aspx, float *aspy)
 {
 	int w, h;
 
-	ED_space_clip_aspect(sc, aspx, aspy);
-	ED_space_clip_size(sc, &w, &h);
+	ED_space_clip_get_clip_aspect(sc, aspx, aspy);
+	ED_space_clip_get_clip_size(sc, &w, &h);
 
 	/* now this is not accounted for! */
 #if 0
@@ -250,28 +250,28 @@ void ED_space_clip_mask_aspect(SpaceClip *sc, float *aspx, float *aspy)
 #endif
 
 	if (*aspx < *aspy) {
-		*aspy= *aspy / *aspx;
-		*aspx= 1.0f;
+		*aspy = *aspy / *aspx;
+		*aspx = 1.0f;
 	}
 	else {
-		*aspx= *aspx / *aspy;
-		*aspy= 1.0f;
+		*aspx = *aspx / *aspy;
+		*aspy = 1.0f;
 	}
 }
 
-void ED_space_clip_zoom(SpaceClip *sc, ARegion *ar, float *zoomx, float *zoomy)
+void ED_space_clip_get_zoom(SpaceClip *sc, ARegion *ar, float *zoomx, float *zoomy)
 {
 	int width, height;
 
-	ED_space_clip_size(sc, &width, &height);
+	ED_space_clip_get_clip_size(sc, &width, &height);
 
 	*zoomx = (float)(ar->winrct.xmax - ar->winrct.xmin + 1) / (float)((ar->v2d.cur.xmax - ar->v2d.cur.xmin) * width);
 	*zoomy = (float)(ar->winrct.ymax - ar->winrct.ymin + 1) / (float)((ar->v2d.cur.ymax - ar->v2d.cur.ymin) * height);
 }
 
-void ED_space_clip_aspect(SpaceClip *sc, float *aspx, float *aspy)
+void ED_space_clip_get_clip_aspect(SpaceClip *sc, float *aspx, float *aspy)
 {
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 
 	if (clip)
 		BKE_movieclip_aspect(clip, aspx, aspy);
@@ -279,7 +279,7 @@ void ED_space_clip_aspect(SpaceClip *sc, float *aspx, float *aspy)
 		*aspx = *aspy = 1.0f;
 }
 
-void ED_space_clip_aspect_dimension_aware(SpaceClip *sc, float *aspx, float *aspy)
+void ED_space_clip_get_clip_aspect_dimension_aware(SpaceClip *sc, float *aspx, float *aspy)
 {
 	int w, h;
 
@@ -290,19 +290,19 @@ void ED_space_clip_aspect_dimension_aware(SpaceClip *sc, float *aspx, float *asp
 	 * mainly this is sued for transformation stuff
 	 */
 
-	ED_space_clip_aspect(sc, aspx, aspy);
-	ED_space_clip_size(sc, &w, &h);
+	ED_space_clip_get_clip_aspect(sc, aspx, aspy);
+	ED_space_clip_get_clip_size(sc, &w, &h);
 
 	*aspx *= (float)w;
 	*aspy *= (float)h;
 
 	if (*aspx < *aspy) {
-		*aspy= *aspy / *aspx;
-		*aspx= 1.0f;
+		*aspy = *aspy / *aspx;
+		*aspx = 1.0f;
 	}
 	else {
-		*aspx= *aspx / *aspy;
-		*aspy= 1.0f;
+		*aspx = *aspx / *aspy;
+		*aspy = 1.0f;
 	}
 }
 
@@ -330,28 +330,28 @@ void ED_clip_update_frame(const Main *mainp, int cfra)
 }
 
 /* return current frame number in clip space */
-int ED_space_clip_clip_framenr(SpaceClip *sc)
+int ED_space_clip_get_clip_frame_number(SpaceClip *sc)
 {
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 
 	return BKE_movieclip_remap_scene_to_clip_frame(clip, sc->user.framenr);
 }
 
 static int selected_boundbox(SpaceClip *sc, float min[2], float max[2])
 {
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 	MovieTrackingTrack *track;
 	int width, height, ok = FALSE;
-	ListBase *tracksbase = BKE_tracking_get_tracks(&clip->tracking);
+	ListBase *tracksbase = BKE_tracking_get_active_tracks(&clip->tracking);
 
 	INIT_MINMAX2(min, max);
 
-	ED_space_clip_size(sc, &width, &height);
+	ED_space_clip_get_clip_size(sc, &width, &height);
 
 	track = tracksbase->first;
 	while (track) {
 		if (TRACK_VIEW_SELECTED(sc, track)) {
-			MovieTrackingMarker *marker = BKE_tracking_get_marker(track, sc->user.framenr);
+			MovieTrackingMarker *marker = BKE_tracking_marker_get(track, sc->user.framenr);
 
 			if (marker) {
 				float pos[3];
@@ -388,7 +388,7 @@ int ED_clip_view_selection(SpaceClip *sc, ARegion *ar, int fit)
 	int w, h, frame_width, frame_height;
 	float min[2], max[2];
 
-	ED_space_clip_size(sc, &frame_width, &frame_height);
+	ED_space_clip_get_clip_size(sc, &frame_width, &frame_height);
 
 	if (frame_width == 0 || frame_height == 0)
 		return FALSE;
@@ -408,7 +408,7 @@ int ED_clip_view_selection(SpaceClip *sc, ARegion *ar, int fit)
 		int width, height;
 		float zoomx, zoomy, newzoom, aspx, aspy;
 
-		ED_space_clip_aspect(sc, &aspx, &aspy);
+		ED_space_clip_get_clip_aspect(sc, &aspx, &aspy);
 
 		width = ar->winrct.xmax - ar->winrct.xmin + 1;
 		height = ar->winrct.ymax - ar->winrct.ymin + 1;
@@ -430,31 +430,31 @@ void ED_clip_point_undistorted_pos(SpaceClip *sc, const float co[2], float r_co[
 	copy_v2_v2(r_co, co);
 
 	if (sc->user.render_flag & MCLIP_PROXY_RENDER_UNDISTORT) {
-		MovieClip *clip = ED_space_clip(sc);
+		MovieClip *clip = ED_space_clip_get_clip(sc);
 		float aspy = 1.0f / clip->tracking.camera.pixel_aspect;
 		int width, height;
 
-		ED_space_clip_size(sc, &width, &height);
+		ED_space_clip_get_clip_size(sc, &width, &height);
 
 		r_co[0] *= width;
 		r_co[1] *= height * aspy;
 
-		BKE_tracking_invert_intrinsics(&clip->tracking, r_co, r_co);
+		BKE_tracking_undistort_v2(&clip->tracking, r_co, r_co);
 
 		r_co[0] /= width;
 		r_co[1] /= height * aspy;
 	}
 }
 
-void ED_clip_point_stable_pos(bContext *C, float x, float y, float *xr, float *yr)
+void ED_clip_point_stable_pos(const bContext *C, float x, float y, float *xr, float *yr)
 {
 	ARegion *ar = CTX_wm_region(C);
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	int sx, sy, width, height;
 	float zoomx, zoomy, pos[3], imat[4][4];
 
-	ED_space_clip_zoom(sc, ar, &zoomx, &zoomy);
-	ED_space_clip_size(sc, &width, &height);
+	ED_space_clip_get_zoom(sc, ar, &zoomx, &zoomy);
+	ED_space_clip_get_clip_size(sc, &width, &height);
 
 	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
 
@@ -469,12 +469,12 @@ void ED_clip_point_stable_pos(bContext *C, float x, float y, float *xr, float *y
 	*yr = pos[1] / height;
 
 	if (sc->user.render_flag & MCLIP_PROXY_RENDER_UNDISTORT) {
-		MovieClip *clip = ED_space_clip(sc);
+		MovieClip *clip = ED_space_clip_get_clip(sc);
 		MovieTracking *tracking = &clip->tracking;
 		float aspy = 1.0f / tracking->camera.pixel_aspect;
 		float tmp[2] = {*xr * width, *yr * height * aspy};
 
-		BKE_tracking_apply_intrinsics(tracking, tmp, tmp);
+		BKE_tracking_distort_v2(tracking, tmp, tmp);
 
 		*xr = tmp[0] / width;
 		*yr = tmp[1] / (height * aspy);
@@ -493,8 +493,8 @@ void ED_clip_point_stable_pos__reverse(SpaceClip *sc, ARegion *ar, const float c
 	int sx, sy;
 
 	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
-	ED_space_clip_size(sc, &width, &height);
-	ED_space_clip_zoom(sc, ar, &zoomx, &zoomy);
+	ED_space_clip_get_clip_size(sc, &width, &height);
+	ED_space_clip_get_zoom(sc, ar, &zoomx, &zoomy);
 
 	ED_clip_point_undistorted_pos(sc, co, pos);
 	pos[2] = 0.0f;
@@ -506,7 +506,7 @@ void ED_clip_point_stable_pos__reverse(SpaceClip *sc, ARegion *ar, const float c
 	r_co[1] = (pos[1] * height * zoomy) + (float)sy;
 }
 
-void ED_clip_mouse_pos(bContext *C, wmEvent *event, float co[2])
+void ED_clip_mouse_pos(const bContext *C, wmEvent *event, float co[2])
 {
 	ED_clip_point_stable_pos(C, event->mval[0], event->mval[1], &co[0], &co[1]);
 }
@@ -552,7 +552,7 @@ int ED_space_clip_texture_buffer_supported(SpaceClip *sc)
 int ED_space_clip_load_movieclip_buffer(SpaceClip *sc, ImBuf *ibuf)
 {
 	SpaceClipDrawContext *context = sc->draw_context;
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 	int need_rebind = 0;
 
 	context->last_texture = glaGetOneInteger(GL_TEXTURE_2D);
@@ -657,7 +657,7 @@ void ED_space_clip_free_texture_buffer(SpaceClip *sc)
 
 /* ******** masking editing related functions ******** */
 
-int ED_space_clip_show_trackedit(SpaceClip *sc)
+int ED_space_clip_check_show_trackedit(SpaceClip *sc)
 {
 	if (sc) {
 		return ELEM3(sc->mode, SC_MODE_TRACKING, SC_MODE_RECONSTRUCTION, SC_MODE_DISTORTION);
@@ -666,7 +666,7 @@ int ED_space_clip_show_trackedit(SpaceClip *sc)
 	return FALSE;
 }
 
-int ED_space_clip_show_maskedit(SpaceClip *sc)
+int ED_space_clip_check_show_maskedit(SpaceClip *sc)
 {
 	if (sc) {
 		return sc->mode == SC_MODE_MASKEDIT;
@@ -679,11 +679,11 @@ void ED_space_clip_set_mask(bContext *C, SpaceClip *sc, Mask *mask)
 {
 	sc->mask = mask;
 
-	if (sc->mask && sc->mask->id.us==0) {
+	if (sc->mask && sc->mask->id.us == 0) {
 		sc->clip->id.us = 1;
 	}
 
 	if (C) {
-		WM_event_add_notifier(C, NC_MASK|NA_SELECTED, mask);
+		WM_event_add_notifier(C, NC_MASK | NA_SELECTED, mask);
 	}
 }

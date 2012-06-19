@@ -28,8 +28,6 @@
  * @ingroup Model
  */
 typedef enum DataType {
-	/** @brief Unknown data type (or not yet known) */
-	COM_DT_UNKNOWN = 0,
 	/** @brief Value data type */
 	COM_DT_VALUE   = 1,
 	/** @brief Vector data type */
@@ -69,7 +67,7 @@ typedef enum CompositorPriority {
 
 // chunk size determination
 #define COM_PREVIEW_SIZE 140.0f
-//#define COM_OPENCL_ENABLED
+#define COM_OPENCL_ENABLED
 //#define COM_DEBUG
 
 // workscheduler threading models
@@ -102,6 +100,8 @@ typedef enum OrderOfChunks {
 	/** @brief experimental ordering with 9 hotspots */
 	COM_TO_RULE_OF_THIRDS = 3
 } OrderOfChunks;
+
+#define COM_ORDER_OF_CHUNKS_DEFAULT COM_TO_CENTER_OUT
 
 #define COM_RULE_OF_THIRDS_DIVIDER 100.0f
 

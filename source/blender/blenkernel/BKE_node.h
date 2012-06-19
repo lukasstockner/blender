@@ -658,6 +658,8 @@ void			ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMaterial *mat);
 #define CMP_NODE_DOUBLEEDGEMASK    266
 #define CMP_NODE_OUTPUT_MULTI_FILE__DEPRECATED	267	/* DEPRECATED multi file node has been merged into regular CMP_NODE_OUTPUT_FILE */
 #define CMP_NODE_MASK		268
+#define CMP_NODE_KEYINGSCREEN		269
+#define CMP_NODE_KEYING			270
 
 #define CMP_NODE_GLARE		301
 #define CMP_NODE_TONEMAP	302
@@ -691,6 +693,9 @@ void			ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMaterial *mat);
 #define CMP_SCALE_ABSOLUTE		1
 #define CMP_SCALE_SCENEPERCENT	2
 #define CMP_SCALE_RENDERPERCENT 3
+/* custom2 */
+#define CMP_SCALE_RENDERSIZE_FRAME_ASPECT  (1 << 0)
+#define CMP_SCALE_RENDERSIZE_FRAME_CROP    (1 << 1)
 
 
 /* API */

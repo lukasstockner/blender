@@ -15,8 +15,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
+ * Contributor:
+ *		Jeroen Bakker
  *		Monique Dewanchand
  */
 
@@ -29,6 +29,7 @@
 
 ScaleNode::ScaleNode(bNode *editorNode) : Node(editorNode)
 {
+	/* pass */
 }
 
 void ScaleNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
@@ -65,6 +66,12 @@ void ScaleNode::convertToOperations(ExecutionSystem *graph, CompositorContext *c
 		case CMP_SCALE_RENDERPERCENT: {
 			const RenderData *data = &context->getScene()->r;
 			ScaleFixedSizeOperation *operation = new ScaleFixedSizeOperation();
+
+			/* framing options */
+			operation->setIsAspect((bnode->custom2 & CMP_SCALE_RENDERSIZE_FRAME_ASPECT) != 0);
+			operation->setIsCrop((bnode->custom2 & CMP_SCALE_RENDERSIZE_FRAME_CROP) != 0);
+			operation->setOffset(bnode->custom3, bnode->custom4);
+
 			operation->setNewWidth(data->xsch * data->size / 100.0f);
 			operation->setNewHeight(data->ysch * data->size / 100.0f);
 			inputSocket->relinkConnections(operation->getInputSocket(0), 0, graph);
