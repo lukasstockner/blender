@@ -151,6 +151,9 @@ Brush *BKE_brush_copy(Brush *brush)
 	if (brush->mtex.tex)
 		id_us_plus((ID *)brush->mtex.tex);
 
+	if (brush->alphamtex.tex)
+		id_us_plus((ID *)brush->alphamtex.tex);
+
 	if (brush->icon_imbuf)
 		brushn->icon_imbuf = IMB_dupImBuf(brush->icon_imbuf);
 
@@ -173,6 +176,9 @@ void BKE_brush_free(Brush *brush)
 	if (brush->mtex.tex)
 		brush->mtex.tex->id.us--;
 
+	if (brush->alphamtex.tex)
+		brush->alphamtex.tex->id.us--;
+
 	if (brush->icon_imbuf)
 		IMB_freeImBuf(brush->icon_imbuf);
 
@@ -184,6 +190,7 @@ void BKE_brush_free(Brush *brush)
 static void extern_local_brush(Brush *brush)
 {
 	id_lib_extern((ID *)brush->mtex.tex);
+	id_lib_extern((ID *)brush->alphamtex.tex);
 	id_lib_extern((ID *)brush->clone.image);
 }
 

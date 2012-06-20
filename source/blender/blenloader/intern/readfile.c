@@ -1671,6 +1671,7 @@ static void lib_link_brush(FileData *fd, Main *main)
 			brush->id.flag -= LIB_NEEDLINK;
 			
 			brush->mtex.tex = newlibadr_us(fd, brush->id.lib, brush->mtex.tex);
+			brush->alphamtex.tex = newlibadr_us(fd, brush->id.lib, brush->alphamtex.tex);
 			brush->clone.image = newlibadr_us(fd, brush->id.lib, brush->clone.image);
 		}
 	}
