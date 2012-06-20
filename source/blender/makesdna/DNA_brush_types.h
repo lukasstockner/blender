@@ -56,7 +56,7 @@ typedef struct Brush {
 	struct BrushClone clone;
 	struct CurveMapping *curve; /* falloff curve */
 	struct MTex mtex;
-	struct MTex alphamtex;
+	struct MTex mask_mtex;
 
 	struct Brush *toggle_brush;
 

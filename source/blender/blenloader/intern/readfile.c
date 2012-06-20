@@ -142,6 +142,7 @@
 #include "BKE_tracking.h"
 #include "BKE_utildefines.h" // SWITCH_INT DATA ENDB DNA1 O_BINARY GLOB USER TEST REND
 #include "BKE_sound.h"
+#include "BKE_texture.h"
 
 #include "IMB_imbuf.h"  // for proxy / timecode versioning stuff
 
@@ -1671,7 +1672,7 @@ static void lib_link_brush(FileData *fd, Main *main)
 			brush->id.flag -= LIB_NEEDLINK;
 			
 			brush->mtex.tex = newlibadr_us(fd, brush->id.lib, brush->mtex.tex);
-			brush->alphamtex.tex = newlibadr_us(fd, brush->id.lib, brush->alphamtex.tex);
+			brush->mask_mtex.tex = newlibadr_us(fd, brush->id.lib, brush->mask_mtex.tex);
 			brush->clone.image = newlibadr_us(fd, brush->id.lib, brush->clone.image);
 		}
 	}
@@ -7790,6 +7791,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				ma->strand_widthfade = 0.0f;
 	}
 
+	if (main->versionfile < 264) {
+		Brush *brush;
+		for (brush = main->brush.first; brush; brush = brush->id.next) {
+			default_mtex(&brush->mask_mtex);
+		}
+	}
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in editors/interface/resources.c! */
 

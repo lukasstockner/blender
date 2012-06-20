@@ -106,6 +106,7 @@ static void brush_defaults(Brush *brush)
 	brush->random_factor_cache = 1.0;
 	/* BRUSH TEXTURE SETTINGS */
 	default_mtex(&brush->mtex);
+	default_mtex(&brush->mask_mtex);
 
 	brush->texture_sample_bias = 0; /* value to added to texture samples */
 	brush->texture_overlay_alpha = 33;
@@ -151,8 +152,8 @@ Brush *BKE_brush_copy(Brush *brush)
 	if (brush->mtex.tex)
 		id_us_plus((ID *)brush->mtex.tex);
 
-	if (brush->alphamtex.tex)
-		id_us_plus((ID *)brush->alphamtex.tex);
+	if (brush->mask_mtex.tex)
+		id_us_plus((ID *)brush->mask_mtex.tex);
 
 	if (brush->icon_imbuf)
 		brushn->icon_imbuf = IMB_dupImBuf(brush->icon_imbuf);
@@ -176,8 +177,8 @@ void BKE_brush_free(Brush *brush)
 	if (brush->mtex.tex)
 		brush->mtex.tex->id.us--;
 
-	if (brush->alphamtex.tex)
-		brush->alphamtex.tex->id.us--;
+	if (brush->mask_mtex.tex)
+		brush->mask_mtex.tex->id.us--;
 
 	if (brush->icon_imbuf)
 		IMB_freeImBuf(brush->icon_imbuf);
@@ -190,7 +191,7 @@ void BKE_brush_free(Brush *brush)
 static void extern_local_brush(Brush *brush)
 {
 	id_lib_extern((ID *)brush->mtex.tex);
-	id_lib_extern((ID *)brush->alphamtex.tex);
+	id_lib_extern((ID *)brush->mask_mtex.tex);
 	id_lib_extern((ID *)brush->clone.image);
 }
 
@@ -519,11 +520,6 @@ void BKE_brush_sample_tex(const Scene *scene, Brush *brush, const float xy[2], f
 		co[1] = xy[1] / radius;
 		co[2] = 0.0f;
 
-		/*
-		co[0] = ((xy[0] - radius/2) / radius);
-		co[1] = ((xy[1] - radius/2) / radius);
-		co[2] = 0.0f;
-		*/
 		if(fabs(angle) > 0.0001) {
 			length = normalize_v2(co);
 			co_angle = acos(co[0]);
@@ -551,6 +547,45 @@ void BKE_brush_sample_tex(const Scene *scene, Brush *brush, const float xy[2], f
 	}
 	else {
 		rgba[0] = rgba[1] = rgba[2] = rgba[3] = 1.0f;
+	}
+}
+
+/* Brush Mask Sampling */
+float BKE_brush_sample_masktex(const Scene *scene, Brush *brush, const float xy[2], const int thread, float angle)
+{
+	MTex *mtex = &brush->mask_mtex;
+
+	if (mtex && mtex->tex) {
+		float co_angle, length;
+		float co[3], tin, rgb[3], ta;
+		int hasrgb;
+		const int radius = BKE_brush_size_randomized_get(scene, brush);
+
+		co[0] = xy[0] / radius;
+		co[1] = xy[1] / radius;
+		co[2] = 0.0f;
+
+		if(fabs(angle) > 0.0001) {
+			length = normalize_v2(co);
+			co_angle = acos(co[0]);
+			co_angle = (co[1] > 0)? co_angle : - co_angle;
+
+			co_angle -= angle;
+			co[0] = cos(co_angle)*length;
+			co[1] = sin(co_angle)*length;
+		}
+
+		hasrgb = externtex(mtex, co, &tin, rgb, rgb+1, rgb+2, &ta, thread);
+
+		if (hasrgb) {
+			return rgb_to_grayscale(rgb);
+		}
+		else {
+			return tin;
+		}
+	}
+	else {
+		return 1.0f;
 	}
 }
 

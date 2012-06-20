@@ -317,6 +317,7 @@ typedef struct ProjPaintState {
 	short is_ortho;
 	short is_airbrush;              /* only to avoid using (ps.brush->flag & BRUSH_AIRBRUSH) */
 	short is_texbrush;              /* only to avoid running  */
+	short is_maskbrush;             /* avoid getting mask value */
 #ifndef PROJ_DEBUG_NOSEAMBLEED
 	float seam_bleed_px;
 #endif
@@ -3915,18 +3916,22 @@ static void *do_projectpaint_thread(void *ph_v)
 
 				/*if (dist < radius) {*/ /* correct but uses a sqrtf */
 				if (dist_nosqrt <= radius_squared) {
+					float samplecos[2];
 					dist = sqrtf(dist_nosqrt);
 
 					falloff = BKE_brush_curve_strength_clamp(ps->brush, dist, radius);
 
+					/* will eventuallly be separated when mask textures get their own attributes */
+					if (ps->is_texbrush || ps->is_maskbrush) {
+						if(ps->brush->flag & (BRUSH_RAKE | BRUSH_RANDOM_ROTATION)) {
+							sub_v2_v2v2(samplecos, projPixel->projCoSS, pos);
+						} else {
+							copy_v2_v2(samplecos, projPixel->projCoSS);
+						}
+					}
+
 					if (falloff > 0.0f) {
 						if (ps->is_texbrush) {
-							float samplecos[2];
-							if(ps->brush->flag & (BRUSH_RAKE | BRUSH_RANDOM_ROTATION)) {
-								sub_v2_v2v2(samplecos, projPixel->projCoSS, pos);
-							} else {
-								copy_v2_v2(samplecos, projPixel->projCoSS);
-							}
 							/* note, for clone and smear, we only use the alpha, could be a special function */
 							BKE_brush_sample_tex(ps->scene, ps->brush, samplecos, rgba, thread_index, unified_paint_settings->last_angle);
 							alpha = rgba[3];
@@ -3934,7 +3939,7 @@ static void *do_projectpaint_thread(void *ph_v)
 						else {
 							alpha = 1.0f;
 						}
-						
+
 						if (ps->is_airbrush || (ps->brush->flag & (BRUSH_RANDOM_ROTATION | BRUSH_RAKE))) {
 							/* for an airbrush or rake brush there is no real mask, so just multiply the alpha by it */
 							alpha *= falloff * BKE_brush_alpha_get(ps->scene, ps->brush);
@@ -3957,7 +3962,11 @@ static void *do_projectpaint_thread(void *ph_v)
 								continue;
 							}
 						}
-						
+
+						if(ps->is_maskbrush) {
+							alpha *= BKE_brush_sample_masktex(ps->scene, ps->brush, samplecos, thread_index, unified_paint_settings->last_angle);
+						}
+
 						if (alpha > 0.0f) {
 
 							if (last_index != projPixel->image_index) {
@@ -4777,7 +4786,8 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps)
 	ps->blend = brush->blend;
 
 	ps->is_airbrush = (brush->flag & BRUSH_AIRBRUSH) ? 1 : 0;
-	ps->is_texbrush = (brush->mtex.tex) ? 1 : 0;
+	ps->is_texbrush = (brush->mtex.tex) ? TRUE : FALSE;
+	ps->is_maskbrush = (brush->mask_mtex.tex) ? TRUE : FALSE;
 
 
 	/* these can be NULL */
@@ -4826,6 +4836,10 @@ static void paint_brush_init_tex(Brush *brush)
 	/* init mtex nodes */ 
 	if (brush) {
 		MTex *mtex = &brush->mtex;
+		if (mtex->tex && mtex->tex->nodetree)
+			ntreeTexBeginExecTree(mtex->tex->nodetree, 1);  /* has internal flag to detect it only does it once */
+
+		mtex = &brush->mask_mtex;
 		if (mtex->tex && mtex->tex->nodetree)
 			ntreeTexBeginExecTree(mtex->tex->nodetree, 1);  /* has internal flag to detect it only does it once */
 	}
@@ -5000,6 +5014,10 @@ static void paint_brush_exit_tex(Brush *brush)
 		MTex *mtex = &brush->mtex;
 		if (mtex->tex && mtex->tex->nodetree)
 			ntreeTexEndExecTree(mtex->tex->nodetree->execdata, 1);
+
+		mtex = &brush->mask_mtex;
+		if (mtex->tex && mtex->tex->nodetree)
+			ntreeTexBeginExecTree(mtex->tex->nodetree, 1);  /* has internal flag to detect it only does it once */
 	}	
 }
 

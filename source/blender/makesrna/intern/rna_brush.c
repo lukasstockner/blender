@@ -912,16 +912,16 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Texture", "");
 	RNA_def_property_update(prop, NC_TEXTURE, "rna_Brush_update");
 
-	prop = RNA_def_property(srna, "alpha_texture_slot", PROP_POINTER, PROP_NONE);
+	prop = RNA_def_property(srna, "mask_texture_slot", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "BrushTextureSlot");
-	RNA_def_property_pointer_sdna(prop, NULL, "alphamtex");
+	RNA_def_property_pointer_sdna(prop, NULL, "mask_mtex");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Alpha Texture Slot", "");
+	RNA_def_property_ui_text(prop, "Mask Texture Slot", "");
 
-	prop = RNA_def_property(srna, "alpha_texture", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_sdna(prop, NULL, "alphamtex.tex");
+	prop = RNA_def_property(srna, "mask_texture", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "mask_mtex.tex");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Alpha Texture", "");
+	RNA_def_property_ui_text(prop, "Mask Texture", "");
 	RNA_def_property_update(prop, NC_TEXTURE, "rna_Brush_update");
 
 	prop = RNA_def_property(srna, "texture_overlay_alpha", PROP_INT, PROP_PERCENTAGE);

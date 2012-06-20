@@ -730,14 +730,14 @@ class VIEW3D_PT_tools_brush_texture(Panel, View3DPaintPanel):
         settings = self.paint_settings(context)
         brush = settings.brush
         tex_slot = brush.texture_slot
-        tex_slot_alpha = brush.alpha_texture_slot
+        tex_slot_alpha = brush.mask_texture_slot
 
         col = layout.column()
 
         col.template_ID_preview(brush, "texture", new="texture.new", rows=3, cols=8)
         if context.image_paint_object:
             col.label(text='Mask Texture')
-            col.template_ID_preview(brush, "alpha_texture", new="texture.new", rows=3, cols=8)
+            col.template_ID_preview(brush, "mask_texture", new="texture.new", rows=3, cols=8)
         if brush.use_paint_image:
             col.prop(brush, "use_fixed_texture")
 

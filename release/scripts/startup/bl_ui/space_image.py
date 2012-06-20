@@ -710,7 +710,7 @@ class IMAGE_PT_tools_brush_texture(BrushButtonsPanel, Panel):
         col = layout.column()
         col.template_ID_preview(brush, "texture", new="texture.new", rows=3, cols=8)
         col.label(text='Mask Texture')
-        col.template_ID_preview(brush, "alpha_texture", new="texture.new", rows=3, cols=8)
+        col.template_ID_preview(brush, "mask_texture", new="texture.new", rows=3, cols=8)
         col.prop(brush, "use_fixed_texture")
 
 
