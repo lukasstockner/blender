@@ -1611,8 +1611,8 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 	/* Check if select faces are triangles	*/
 	BM_ITER_MESH (f, &fiter, em->bm, BM_FACES_OF_MESH) {
 		if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
-			if(f->len > 3) {
-				BKE_report(op->reports, RPT_WARNING, "Selected faces must be triangles");
+			if(f->len > 4) {
+				BKE_report(op->reports, RPT_WARNING, "Selected faces must be triangles or quads");
 				return OPERATOR_CANCELLED;
 			}	
 		}
