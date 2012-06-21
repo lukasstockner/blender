@@ -177,10 +177,9 @@ float compute_volume(BMesh *bm, BMOperator *op)
 	BMVert *vf[3];
 	
 	BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
-		i = 0;
-		BM_ITER_ELEM (vn, &vi, f, BM_VERTS_OF_FACE) {
+		BM_ITER_ELEM_INDEX (vn, &vi, f, BM_VERTS_OF_FACE, i) {
 			vf[i] = vn;
-			i = i + 1;
+			
 		}
 		x1 = vf[0]->co[0];
 		y1 = vf[0]->co[1];
@@ -194,7 +193,7 @@ float compute_volume(BMesh *bm, BMOperator *op)
 		y3 = vf[2]->co[1];
 		z3 = vf[2]->co[2];
 
-		vol = vol + (1.0 / 6.0) * (0.0 - x3*y2*z1 + x2*y3*z1 + x3*y1*z2 - x1*y3*z2 - x2*y1*z3 + x1*y2*z3);
+		vol += (1.0 / 6.0) * (0.0 - x3*y2*z1 + x2*y3*z1 + x3*y1*z2 - x1*y3*z2 - x2*y1*z3 + x1*y2*z3);
 	}
 	return fabs(vol);
 }
@@ -241,23 +240,21 @@ void compute_weights_in_ring(BMVert *v, float lambda, float min_area)
 	id1 = BM_elem_index_get(v);
 	j = 0;
 	BM_ITER_ELEM (f, &fi, v, BM_FACES_OF_VERT) {
-		i = 0;
 		ai = -1;
-		BM_ITER_ELEM (vn, &vi, f, BM_VERTS_OF_FACE) {
+		BM_ITER_ELEM_INDEX (vn, &vi, f, BM_VERTS_OF_FACE, i) {
 			vf[i] = vn;
 			if (BM_elem_index_get (vf[i]) == id1) {
 				ai = i;
 				bi = (i + 1) % 3;
 				ci = (i + 2) % 3;
 			}
-			i = i + 1;
 		}
 		if (i == 3 && ai > -1){
 			at = area_tri_v3(vf[0]->co, vf[1]->co, vf[2]->co);
 			if (fabsf(at) < min_area) {
 				zeroa = 0;
 			}
-			area = area + at;
+			area += at;
 			w1 = cotan_weight (vf[bi]->co, vf[ci]->co, vf[ai]->co); 
 			w2 = cotan_weight (vf[ci]->co, vf[ai]->co, vf[bi]->co);
 			id2 = BM_elem_index_get (vf[bi]);
@@ -266,13 +263,13 @@ void compute_weights_in_ring(BMVert *v, float lambda, float min_area)
 			BLI_array_grow_one(weight);
 			index[j] = id3;
 			weight[j] = w1;
-			j = j + 1;
+			j += 1;
 			BLI_array_grow_one(index);
 			BLI_array_grow_one(weight);
 			index[j] = id2;
 			weight[j] = w2;
-			sumw = sumw + w1 + w2;
-			j = j + 1;
+			sumw += w1 + w2;
+			j += 1;
 		}
 	}
 	for (i = 0; i < j; i = i + 2) {
@@ -339,8 +336,8 @@ void compute_weights_in_border(BMVert *v, float lambda, float min_area){
 			BLI_array_grow_one(weight);
 			index[j] = id2;
 			weight[j] = w1;
-			j = j + 1;
-			sumw = sumw + w1;
+			j += 1;
+			sumw += w1;
 		}
 	}
 	for (i = 0; i < j; i++) {
@@ -374,13 +371,13 @@ void volume_preservation(BMesh *bm, BMOperator *op, float vini, float vend, int 
 		beta  = pow (vini / vend, 1.0f / 3.0f);
 		BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
 			if(usex){
-				v->co[0] = v->co[0] * beta;
+				v->co[0] *=  beta;
 			}
 			if(usey){
-				v->co[1] = v->co[1] * beta;
+				v->co[1] *= beta;
 			}
 			if(usez){
-				v->co[2] = v->co[2] * beta;
+				v->co[2] *= beta;
 			}
 			
 		}

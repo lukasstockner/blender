@@ -333,7 +333,7 @@ static void init_laplacian(ModLaplacianSystem * sys)
 		sys->numNeEd[idv1] = sys->numNeEd[idv1] + 1;
 		sys->numNeEd[idv2] = sys->numNeEd[idv2] + 1;
 		w1 = len_v3v3(v1, v2);
-		if (fabs(w1) < sys->min_area) {
+		if (w1 < sys->min_area) {
 			sys->zerola[idv1] = 1;
 			sys->zerola[idv2] = 1;
 		} else {
