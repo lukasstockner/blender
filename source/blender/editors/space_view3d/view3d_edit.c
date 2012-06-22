@@ -1458,7 +1458,7 @@ static void viewzoom_texpaint_brush_radius_update(Scene *scene, float factor)
 	Paint *p = paint_get_active(scene);
 	Brush *brush = paint_brush(p);
 
-	if (brush && (brush->flag & BRUSH_RADIUS_SYNC))
+	if (brush && BKE_brush_use_locked_size(scene, brush))
 	{
 		int oldsize = BKE_brush_size_get(scene, brush);
 		int newsize = oldsize*factor + 0.5;

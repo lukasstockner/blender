@@ -496,9 +496,6 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 if tool != 'ADD':
                     col.prop(brush, "strength", slider=True)
 
-                row = col.row(align=True)
-                col.prop(brush, "radius_sync")
-
             if tool == 'ADD':
                 col.prop(brush, "count")
                 col = layout.column()
@@ -634,9 +631,6 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                     col.prop(brush, "use_persistent")
                     col.operator("sculpt.set_persistent_base")
 
-            row = col.row(align=True)
-            col.prop(brush, "")
-
         # Texture Paint Mode #
 
         elif context.image_paint_object and brush:
@@ -645,6 +639,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             col.prop(brush, "color", text="")
 
             row = col.row(align=True)
+            self.prop_unified_size(row, context, brush, "use_locked_size", icon='LOCKED')
             self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
             self.prop_unified_size(row, context, brush, "use_pressure_size")
 
@@ -664,7 +659,6 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             col = layout.column()
             col.active = (brush.blend not in {'ERASE_ALPHA', 'ADD_ALPHA'})
             col.prop(brush, "use_alpha")
-            col.prop(brush, "radius_sync")
 
         # Weight Paint Mode #
         elif context.weight_paint_object and brush:
@@ -677,6 +671,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             self.prop_unified_weight(row, context, brush, "weight", slider=True, text="Weight")
 
             row = col.row(align=True)
+            self.prop_unified_size(row, context, brush, "use_locked_size", icon='LOCKED')
             self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
             self.prop_unified_size(row, context, brush, "use_pressure_size")
 
@@ -688,9 +683,6 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             row.prop(brush, "jitter", slider=True)
             row.prop(brush, "use_pressure_jitter", toggle=True, text="")
 
-            row = col.row(align=True)
-            col.prop(brush, "radius_sync")
-
         # Vertex Paint Mode #
         elif context.vertex_paint_object and brush:
             col = layout.column()
@@ -698,6 +690,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             col.prop(brush, "color", text="")
 
             row = col.row(align=True)
+            self.prop_unified_size(row, context, brush, "use_locked_size", icon='LOCKED')
             self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
             self.prop_unified_size(row, context, brush, "use_pressure_size")
 
@@ -709,9 +702,6 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             #row = col.row(align=True)
             #row.prop(brush, "jitter", slider=True)
             #row.prop(brush, "use_pressure_jitter", toggle=True, text="")
-
-            row = col.row(align=True)
-            col.prop(brush, "radius_sync")
 
 
 class VIEW3D_PT_tools_brush_texture(Panel, View3DPaintPanel):

@@ -141,8 +141,7 @@ typedef enum BrushFlags {
 
 	/* temporary flag which sets up automatically for correct brush
 	 * drawing when inverted modal operator is running */
-	BRUSH_INVERTED = (1 << 29),
-	BRUSH_RADIUS_SYNC = (1 << 30)
+	BRUSH_INVERTED = (1 << 29)
 } BrushFlags;
 
 /* Brush.sculpt_tool */

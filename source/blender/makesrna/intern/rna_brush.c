@@ -832,11 +832,6 @@ static void rna_def_brush(BlenderRNA *brna)
 	                         "Automatically adjust strength to give consistent results for different spacings");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-	prop = RNA_def_property(srna, "radius_sync", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_RADIUS_SYNC);
-	RNA_def_property_ui_text(prop, "Radius Sync", "Resize the brush when zooming");
-	RNA_def_property_update(prop, 0, "rna_Brush_update");
-
 	/* adaptive space is not implemented yet */
 	prop = RNA_def_property(srna, "use_adaptive_space", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_ADAPTIVE_SPACE);
