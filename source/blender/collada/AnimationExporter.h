@@ -177,4 +177,6 @@ protected:
 	void getBakedPoseData(Object *obarm, int startFrame, int endFrame, bool ActionBake, bool ActionBakeFirstFrame);
 
 	bool validateConstraints(bConstraint *con);
+
+	void calc_ob_mat_at_time(Object *ob, float ctime , float mat[][4]);
 };

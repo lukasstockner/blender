@@ -149,6 +149,7 @@ void AnimationExporter::export_object_constraint_animation(Object *ob){
 }
 
 void AnimationExporter::make_anim_frames_from_targets(Object *ob, std::vector<float> &frames ){
+	
 	ListBase *conlist = get_active_constraints(ob);
 	if(conlist == NULL) return;
 	bConstraint *con;
@@ -876,8 +877,7 @@ std::string AnimationExporter::create_4x4_source(std::vector<float> &frames, Obj
 
 		}
 		else {
-			BKE_object_where_is_calc_time(scene, ob, ctime);
-			copy_m4_m4(mat, ob->obmat);
+			calc_ob_mat_at_time(ob, ctime, mat);
 		}
 		
 		UnitConverter converter;
@@ -1419,3 +1419,27 @@ bool AnimationExporter::validateConstraints(bConstraint *con){
 
 	return valid;
 }
+
+void AnimationExporter::calc_ob_mat_at_time(Object *ob, float ctime , float mat[][4]){ 
+	ListBase *conlist = get_active_constraints(ob);
+	bConstraint *con;
+	for (con = (bConstraint*)conlist->first; con; con = con->next) {
+		ListBase targets = {NULL, NULL};
+		
+		bConstraintTypeInfo *cti = constraint_get_typeinfo(con);
+		
+		if (cti && cti->get_constraint_targets) {
+			bConstraintTarget *ct;
+			Object *obtar;
+			cti->get_constraint_targets(con, &targets);
+			for (ct = (bConstraintTarget*)targets.first; ct; ct = ct->next){
+				obtar = ct->tar;
+				BKE_animsys_evaluate_animdata(scene, &obtar->id, obtar->adt, ctime, ADT_RECALC_ANIM);
+				BKE_object_where_is_calc_time(scene, obtar, ctime);
+			}
+		}
+	}
+	BKE_object_where_is_calc_time(scene, ob, ctime);
+	copy_m4_m4(mat, ob->obmat);
+}
+
