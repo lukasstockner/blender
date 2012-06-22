@@ -154,17 +154,11 @@ void AnimationExporter::make_anim_frames_from_targets(Object *ob, std::vector<fl
 	bConstraint *con;
 	for (con = (bConstraint*)conlist->first; con; con = con->next) {
 		ListBase targets = {NULL, NULL};
+		
 		bConstraintTypeInfo *cti = constraint_get_typeinfo(con);
-		/* these we can skip completely (invalid constraints...) */
-		if (cti == NULL) continue;
-		if (con->flag & (CONSTRAINT_DISABLE | CONSTRAINT_OFF)) continue;
-		/* these constraints can't be evaluated anyway */
-		if (cti->evaluate_constraint == NULL) continue;
-		/* influence == 0 should be ignored */
-		if (con->enforce == 0.0f) continue;
 		
-		
-	
+		if(!validateConstraints(con)) continue;
+
 		if (cti && cti->get_constraint_targets) {
 			bConstraintTarget *ct;
 			Object *obtar;
@@ -1409,4 +1403,19 @@ void AnimationExporter::sample_animation(float *v, std::vector<float> &frames, i
 	}
 
 	enable_fcurves(ob_arm->adt->action, NULL);
+}
+
+bool AnimationExporter::validateConstraints(bConstraint *con){
+	
+	bool valid = true;
+	bConstraintTypeInfo *cti = constraint_get_typeinfo(con);
+	/* these we can skip completely (invalid constraints...) */
+	if (cti == NULL) valid = false;
+	if (con->flag & (CONSTRAINT_DISABLE | CONSTRAINT_OFF)) valid = false;
+	/* these constraints can't be evaluated anyway */
+	if (cti->evaluate_constraint == NULL) valid = false;
+	/* influence == 0 should be ignored */
+	if (con->enforce == 0.0f) valid = false;
+
+	return valid;
 }

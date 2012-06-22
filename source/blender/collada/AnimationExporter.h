@@ -175,4 +175,6 @@ protected:
 	std::string getObjectBoneName(Object *ob, const FCurve * fcu);
 
 	void getBakedPoseData(Object *obarm, int startFrame, int endFrame, bool ActionBake, bool ActionBakeFirstFrame);
+
+	bool validateConstraints(bConstraint *con);
 };
