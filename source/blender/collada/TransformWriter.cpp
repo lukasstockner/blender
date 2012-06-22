@@ -93,12 +93,13 @@ void TransformWriter::add_node_transform_ob(COLLADASW::Node& node, Object *ob)
 
 	add_transform(node, loc, rot, scale);
 #endif
-
+	UnitConverter converter;
+	
 	/* Using parentinv should allow use of existing curves */
 	if (ob->parent) {
 		// If parentinv is identity don't add it.
 		bool add_parinv = false;
-
+    		
 		for (int i = 0; i < 16; ++i) {
 			float f = (i % 4 == i / 4) ? 1.0f : 0.0f;
 			add_parinv |= (ob->parentinv[i % 4][i / 4] != f);
@@ -106,12 +107,14 @@ void TransformWriter::add_node_transform_ob(COLLADASW::Node& node, Object *ob)
 
 		if (add_parinv) {
 			double dmat[4][4];
-			UnitConverter converter;
 			converter.mat4_to_dae_double(dmat, ob->parentinv);
 			node.addMatrix("parentinverse", dmat);
 		}
 	}
-
+    
+	double d_obmat[4][4];	
+	converter.mat4_to_dae_double(d_obmat, ob->obmat);
+	node.addMatrix("transform",d_obmat);
 	add_transform(node, ob->loc, ob->rot, ob->size);
 }
 
