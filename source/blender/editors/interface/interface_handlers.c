@@ -2240,7 +2240,7 @@ static int ui_do_but_TOG(bContext *C, uiBut *but, uiHandleButtonData *data, wmEv
 			return WM_UI_HANDLER_BREAK;
 		}
 
-		if (ELEM(G.drag_button_func, but->func, but->rnaprop) && G.drag_button_state == (ui_get_but_val(but) == 0))
+		if (G.drag_button_func != NULL && ELEM(G.drag_button_func, but->func, but->rnaprop) && G.drag_button_state == (ui_get_but_val(but) == 0))
 		{
 			wmWindow *win = CTX_wm_window(C);
 
