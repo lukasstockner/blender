@@ -497,7 +497,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                     col.prop(brush, "strength", slider=True)
 
                 row = col.row(align=True)
-                col.prop(brush, "zoom_scale")
+                col.prop(brush, "radius_sync")
 
             if tool == 'ADD':
                 col.prop(brush, "count")
