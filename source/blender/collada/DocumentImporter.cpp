@@ -411,6 +411,8 @@ void DocumentImporter::write_node(COLLADAFW::Node *node, COLLADAFW::Node *parent
 	bool read_transform = true;
 
 	ExtraTags *et = getExtraTags(node->getUniqueId());
+    
+	
 
 	std::vector<Object *> *objects_done = new std::vector<Object *>();
     
