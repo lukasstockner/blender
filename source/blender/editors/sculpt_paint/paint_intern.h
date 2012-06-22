@@ -73,6 +73,7 @@ void paint_stroke_set_mode_data(struct PaintStroke *stroke, void *mode_data);
 int paint_poll(struct bContext *C);
 void paint_cursor_start(struct bContext *C, int (*poll)(struct bContext *C));
 void paint_draw_cursor(struct bContext *C, int x, int y, void *UNUSED(unused));
+int get_imapaint_zoom(bContext *C, float *zoomx, float *zoomy);
 
 /* paint_vertex.c */
 int weight_paint_poll(struct bContext *C);

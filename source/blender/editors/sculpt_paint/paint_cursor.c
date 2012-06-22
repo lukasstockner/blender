@@ -354,9 +354,6 @@ static int sculpt_get_brush_geometry(bContext *C, ViewContext *vc,
 		hit = 1;
 	}
 	else {
-		Sculpt *sd    = CTX_data_tool_settings(C)->sculpt;
-		Brush *brush = paint_brush(&sd->paint);
-
 		*pixel_radius = BKE_brush_size_get(scene, brush);
 		hit = 0;
 	}
@@ -508,8 +505,8 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	float translation[2];
 	float outline_alpha, *outline_col;
 	float location[3];
-	int pixel_radius, hit = 0, is_view3d;
-	ScrArea *sa = CTX_wm_area(C);
+	int pixel_radius, hit = 0, in_uv_editor;
+	float zoomx, zoomy;
 
 	/* set various defaults */
 	translation[0] = x;
@@ -522,7 +519,8 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	if (!(paint->flags & PAINT_SHOW_BRUSH))
 		return;
 
-	is_view3d = (sa && sa->spacetype == SPACE_VIEW3D)? TRUE : FALSE;
+	in_uv_editor = get_imapaint_zoom(C, &zoomx, &zoomy);
+
 	/* can't use stroke vc here because this will be called during
 	 * mouse over too, not just during a stroke */
 	view3d_set_viewcontext(C, &vc);
@@ -548,15 +546,34 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 		}
 	}
 
-	if(is_view3d) {
+	if(!in_uv_editor) {
 		/* test if brush is over the mesh. sculpt only for now */
 		hit = sculpt_get_brush_geometry(C, &vc, x, y, &pixel_radius, location);
+
+	/* uv sculpting brush won't get scaled maybe I should make this respect the setting
+	 * of lock size */
+	} else if(!(scene->toolsettings->use_uv_sculpt)){
+#define PX_SIZE_FADE_MAX 12.0f
+#define PX_SIZE_FADE_MIN 4.0f
+
+		final_radius = MAX2(final_radius * zoomx, final_radius * zoomy);
+
+		if (final_radius < PX_SIZE_FADE_MIN) {
+			return;
+		}
+		else if (final_radius < PX_SIZE_FADE_MAX) {
+			outline_alpha *= (final_radius - PX_SIZE_FADE_MIN) / (PX_SIZE_FADE_MAX - PX_SIZE_FADE_MIN);
+		}
+#undef PX_SIZE_FADE_MAX
+#undef PX_SIZE_FADE_MIN
 	}
 	/* draw overlay */
 	paint_draw_alpha_overlay(ups, brush, &vc, x, y);
 
-	if (BKE_brush_use_locked_size(scene, brush))
+	if (BKE_brush_use_locked_size(scene, brush)) {
 		BKE_brush_size_set(scene, brush, pixel_radius);
+		final_radius = pixel_radius;
+	}
 
 	/* check if brush is subtracting, use different color then */
 	/* TODO: no way currently to know state of pen flip or
@@ -589,9 +606,12 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	glColor4f(outline_col[0], outline_col[1], outline_col[2], outline_alpha);
 
 	/* draw brush outline */
+	glPushMatrix();
 	glTranslatef(translation[0], translation[1], 0);
+	if(in_uv_editor)
+		glScalef(zoomx, zoomy, 1.0f);
 	glutil_draw_lined_arc(0.0, M_PI * 2.0, final_radius, 40);
-	glTranslatef(-translation[0], -translation[1], 0);
+	glPopMatrix();
 
 	/* restore GL state */
 	glDisable(GL_BLEND);

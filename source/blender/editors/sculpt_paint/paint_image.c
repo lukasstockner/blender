@@ -5251,7 +5251,7 @@ static void brush_drawcursor(bContext *C, int x, int y, void *UNUSED(customdata)
 
 		ts = scene->toolsettings;
 		use_zoom = get_imapaint_zoom(C, &zoomx, &zoomy) &&
-		           !(ts->use_uv_sculpt && (scene->basact->object->mode == OB_MODE_EDIT));
+		           !(ts->use_uv_sculpt);
 
 		if (use_zoom) {
 			pixel_size = MAX2(size * zoomx, size * zoomy);
