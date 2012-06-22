@@ -91,6 +91,8 @@ typedef struct Global {
     
 	/* save the allowed windowstate of blender when using -W or -w */
 	int windowstate;
+
+	double last_tooltip_close;
 } Global;
 
 /* **************** GLOBAL ********************* */

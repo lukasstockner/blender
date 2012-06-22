@@ -46,6 +46,7 @@
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
+#include "BKE_global.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -63,6 +64,8 @@
 
 #include "BLF_api.h"
 #include "BLF_translation.h"
+
+#include "PIL_time.h"
 
 #include "ED_screen.h"
 
@@ -688,6 +691,8 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 
 void ui_tooltip_free(bContext *C, ARegion *ar)
 {
+	G.last_tooltip_close = PIL_check_seconds_timer();
+
 	ui_remove_temporary_region(C, CTX_wm_screen(C), ar);
 }
 

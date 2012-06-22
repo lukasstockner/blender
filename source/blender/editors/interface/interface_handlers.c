@@ -61,6 +61,7 @@
 #include "BKE_texture.h"
 #include "BKE_tracking.h"
 #include "BKE_unit.h"
+#include "BKE_global.h"
 
 #include "ED_screen.h"
 #include "ED_util.h"
@@ -83,6 +84,7 @@ static void ui_add_link(bContext *C, uiBut *from, uiBut *to);
 
 /***************** structs and defines ****************/
 
+#define BUTTON_TOOLTIP_RESET        0.200
 #define BUTTON_TOOLTIP_DELAY        0.500
 #define BUTTON_FLASH_DELAY          0.020
 #define MENU_SCROLL_INTERVAL        0.1
@@ -5104,10 +5106,16 @@ static void button_tooltip_timer_reset(bContext *C, uiBut *but)
 		data->tooltiptimer = NULL;
 	}
 
-	if (U.flag & USER_TOOLTIPS)
-		if (!but->block->tooltipdisabled)
-			if (!wm->drags.first)
-				data->tooltiptimer = WM_event_add_timer(data->wm, data->window, TIMER, BUTTON_TOOLTIP_DELAY);
+	if (U.flag & USER_TOOLTIPS) {
+		if (!but->block->tooltipdisabled) {
+			if (!wm->drags.first) {
+				if (!data->tooltip && PIL_check_seconds_timer() - G.last_tooltip_close < BUTTON_TOOLTIP_RESET)
+					data->tooltip = ui_tooltip_create(C, data->region, but);
+				else
+					data->tooltiptimer = WM_event_add_timer(data->wm, data->window, TIMER, BUTTON_TOOLTIP_DELAY);
+			}
+		}
+	}
 }
 
 static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState state)
