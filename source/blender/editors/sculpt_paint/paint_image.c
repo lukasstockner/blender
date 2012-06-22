@@ -5300,7 +5300,7 @@ static void toggle_paint_cursor(bContext *C, int enable)
 		settings->imapaint.paintcursor = NULL;
 	}
 	else if (enable)
-		settings->imapaint.paintcursor = WM_paint_cursor_activate(wm, image_paint_poll, brush_drawcursor, NULL);
+		settings->imapaint.paintcursor = WM_paint_cursor_activate(wm, image_paint_poll, paint_draw_cursor, NULL);
 }
 
 /* enable the paint cursor if it isn't already.
@@ -5315,7 +5315,7 @@ void ED_space_image_paint_update(wmWindowManager *wm, ToolSettings *settings)
 	if (!imapaint->paintcursor) {
 		imapaint->paintcursor =
 		    WM_paint_cursor_activate(wm, image_paint_poll,
-		                             brush_drawcursor, NULL);
+									 paint_draw_cursor, NULL);
 	}
 }
 

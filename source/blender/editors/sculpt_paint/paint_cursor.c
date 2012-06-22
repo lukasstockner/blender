@@ -39,6 +39,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
+#include "DNA_space_types.h"
 
 #include "BKE_brush.h"
 #include "BKE_context.h"
@@ -496,7 +497,7 @@ static void paint_cursor_on_hit(UnifiedPaintSettings *ups, Brush *brush, ViewCon
 	}
 }
 
-static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
+void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 {
 	Scene *scene = CTX_data_scene(C);
 	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
@@ -506,7 +507,10 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	float final_radius;
 	float translation[2];
 	float outline_alpha, *outline_col;
-	
+	float location[3];
+	int pixel_radius, hit = 0, is_view3d;
+	ScrArea *sa = CTX_wm_area(C);
+
 	/* set various defaults */
 	translation[0] = x;
 	translation[1] = y;
@@ -518,67 +522,63 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	if (!(paint->flags & PAINT_SHOW_BRUSH))
 		return;
 
+	is_view3d = (sa && sa->spacetype == SPACE_VIEW3D)? TRUE : FALSE;
 	/* can't use stroke vc here because this will be called during
 	 * mouse over too, not just during a stroke */
 	view3d_set_viewcontext(C, &vc);
 
-	/* TODO: as sculpt and other paint modes are unified, this
-	 * special mode of drawing will go away */
-	if (vc.obact->sculpt) {
-		float location[3];
-		int pixel_radius, hit;
 
-		/* this is probably here so that rake takes into
+	/* this is probably here so that rake takes into
 		 * account the brush movements before the stroke
 		 * starts, but this doesn't really belong in draw code
 		 *  TODO) */
-		{
-			const float u = 0.5f;
-			const float v = 1 - u;
-			const float r = RAKE_THRESHHOLD;
+	{
+		const float u = 0.5f;
+		const float v = 1 - u;
+		const float r = RAKE_THRESHHOLD;
 
-			const float dx = ups->last_pos[0] - x;
-			const float dy = ups->last_pos[1] - y;
+		const float dx = ups->last_pos[0] - x;
+		const float dy = ups->last_pos[1] - y;
 
-			if (dx * dx + dy * dy >= r * r) {
-				ups->last_angle = atan2(dx, dy);
+		if (dx * dx + dy * dy >= r * r) {
+			ups->last_angle = atan2(dx, dy);
 
-				ups->last_pos[0] = u * ups->last_pos[0] + v * x;
-				ups->last_pos[1] = u * ups->last_pos[1] + v * y;
-			}
+			ups->last_pos[0] = u * ups->last_pos[0] + v * x;
+			ups->last_pos[1] = u * ups->last_pos[1] + v * y;
 		}
+	}
 
-		/* test if brush is over the mesh */
+	if(is_view3d) {
+		/* test if brush is over the mesh. sculpt only for now */
 		hit = sculpt_get_brush_geometry(C, &vc, x, y, &pixel_radius, location);
+	}
+	/* draw overlay */
+	paint_draw_alpha_overlay(ups, brush, &vc, x, y);
 
-		/* draw overlay */
-		paint_draw_alpha_overlay(ups, brush, &vc, x, y);
+	if (BKE_brush_use_locked_size(scene, brush))
+		BKE_brush_size_set(scene, brush, pixel_radius);
 
-		if (BKE_brush_use_locked_size(scene, brush))
-			BKE_brush_size_set(scene, brush, pixel_radius);
-
-		/* check if brush is subtracting, use different color then */
-		/* TODO: no way currently to know state of pen flip or
+	/* check if brush is subtracting, use different color then */
+	/* TODO: no way currently to know state of pen flip or
 		 * invert key modifier without starting a stroke */
-		 /* TODO no.2 add interface to query the tool if it supports inversion */
-		if ((!(brush->flag & BRUSH_INVERTED) ^
-		     !(brush->flag & BRUSH_DIR_IN)) &&
-		    ELEM5(brush->sculpt_tool, SCULPT_TOOL_DRAW,
-		          SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY,
-		          SCULPT_TOOL_PINCH, SCULPT_TOOL_CREASE))
-		{
-			outline_col = brush->sub_col;
-		}
+	/* TODO no.2 add interface to query the tool if it supports inversion */
+	if ((!(brush->flag & BRUSH_INVERTED) ^
+		 !(brush->flag & BRUSH_DIR_IN)) &&
+			ELEM5(brush->sculpt_tool, SCULPT_TOOL_DRAW,
+				  SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY,
+				  SCULPT_TOOL_PINCH, SCULPT_TOOL_CREASE))
+	{
+		outline_col = brush->sub_col;
+	}
 
-		/* only do if brush is over the mesh */
-		if (hit)
-			paint_cursor_on_hit(ups, brush, &vc, location);
+	/* only do if brush is over the mesh */
+	if (hit)
+		paint_cursor_on_hit(ups, brush, &vc, location);
 
-		if (ups->draw_anchored) {
-			final_radius = ups->anchored_size;
-			translation[0] = ups->anchored_initial_mouse[0] - vc.ar->winrct.xmin;
-			translation[1] = ups->anchored_initial_mouse[1] - vc.ar->winrct.ymin;
-		}
+	if (ups->draw_anchored) {
+		final_radius = ups->anchored_size;
+		translation[0] = ups->anchored_initial_mouse[0] - vc.ar->winrct.xmin;
+		translation[1] = ups->anchored_initial_mouse[1] - vc.ar->winrct.ymin;
 	}
 
 	/* make lines pretty */
