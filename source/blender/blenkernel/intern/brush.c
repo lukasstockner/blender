@@ -623,6 +623,7 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 				xy[0] = x + xoff;
 				xy[1] = y + yoff;
 
+				/* texfall = 0, 1 seem unused from a qiock search */
 				if (texfall == 0) {
 					copy_v3_v3(dstf, brush_rgb);
 					dstf[3] = alpha * BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius);
@@ -633,7 +634,8 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 				else {
 					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, angle);
 					mul_v3_v3v3(dstf, rgba, brush_rgb);
-					dstf[3] = rgba[3] *alpha *BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius);
+					dstf[3] = rgba[3] *alpha *BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius)
+					        *BKE_brush_sample_masktex(scene, brush, xy, 0, angle);
 				}
 			}
 		}
@@ -664,7 +666,8 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 				else if (texfall == 2) {
 					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, angle);
 					mul_v3_v3(rgba, brush->rgb);
-					alpha_f = rgba[3] *alpha *BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius);
+					alpha_f = rgba[3] *alpha *BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius)
+					        *BKE_brush_sample_masktex(scene, brush, xy, 0, angle);
 
 					rgb_float_to_uchar(dst, rgba);
 
@@ -672,7 +675,8 @@ void BKE_brush_imbuf_new(const Scene *scene, Brush *brush, short flt, short texf
 				}
 				else {
 					BKE_brush_sample_tex(scene, brush, xy, rgba, 0, angle);
-					alpha_f = rgba[3] *alpha *BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius);
+					alpha_f = rgba[3] *alpha *BKE_brush_curve_strength_clamp(brush, len_v2(xy), radius)
+					        *BKE_brush_sample_masktex(scene, brush, xy, 0, angle);
 
 					dst[0] = crgb[0];
 					dst[1] = crgb[1];

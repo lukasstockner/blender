@@ -5563,7 +5563,7 @@ static uiBut *uit_but_find_open_event(ARegion *ar, wmEvent *event)
 	return NULL;
 }
 
-int ui_handle_button_event(bContext *C, wmEvent *event, uiBut *but);
+static int ui_handle_button_event(bContext *C, wmEvent *event, uiBut *but);
 
 static int ui_handle_button_over(bContext *C, wmEvent *event, ARegion *ar)
 {
