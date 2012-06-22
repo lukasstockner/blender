@@ -211,7 +211,7 @@ void SceneExporter::writeNodes(Object *ob, Scene *sce)
 					for (ct = (bConstraintTarget*)targets.first; ct; ct = ct->next){
 						obtar = ct->tar;
 						std::string tar_id(id_name(obtar));
-						node.addExtraTechniqueChildParameter("blender",con_tag,"target_id",tar_id);
+						colladaNode.addExtraTechniqueChildParameter("blender",con_tag,"target_id",tar_id);
 					}
 				}
 			}
