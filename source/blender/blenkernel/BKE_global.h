@@ -93,6 +93,10 @@ typedef struct Global {
 	int windowstate;
 
 	double last_tooltip_close;
+
+	// Fields to enable dragging a list of toggle buttons to turn them all on or off
+	void* drag_button_func;	// It's a func pointer, but we only need the value to compare and we won't call the function, so I use void* to avoid a dependency on uiButHandleFunc
+	int drag_button_state;	// Turn them on or off as we drag?
 } Global;
 
 /* **************** GLOBAL ********************* */

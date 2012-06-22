@@ -2231,6 +2231,22 @@ static int ui_do_but_TOG(bContext *C, uiBut *but, uiHandleButtonData *data, wmEv
 			data->togdual = event->ctrl;
 			data->togonly = !event->shift;
 			button_activate_state(C, but, BUTTON_STATE_EXIT);
+
+			G.drag_button_func = but->func;
+			G.drag_button_state = (ui_get_but_val(but) == 0);
+
+			return WM_UI_HANDLER_BREAK;
+		}
+
+		if (G.drag_button_func == but->func && G.drag_button_state == (ui_get_but_val(but) == 0))
+		{
+			wmWindow *win = CTX_wm_window(C);
+
+			button_activate_state(C, but, BUTTON_STATE_EXIT);
+
+			// Kind of a hack. We don't want this assignment to turn off others, so force shift on to cause handle_layer_buttons to skip that.
+			win->eventstate->shift = 1;
+
 			return WM_UI_HANDLER_BREAK;
 		}
 	}
@@ -5545,6 +5561,8 @@ static uiBut *uit_but_find_open_event(ARegion *ar, wmEvent *event)
 	return NULL;
 }
 
+int ui_handle_button_event(bContext *C, wmEvent *event, uiBut *but);
+
 static int ui_handle_button_over(bContext *C, wmEvent *event, ARegion *ar)
 {
 	uiBut *but;
@@ -5553,7 +5571,13 @@ static int ui_handle_button_over(bContext *C, wmEvent *event, ARegion *ar)
 	if (event->type == MOUSEMOVE) {
 		but = ui_but_find_mouse_over(ar, event->x, event->y);
 		if (but)
+		{
 			button_activate_init(C, ar, but, BUTTON_ACTIVATE_OVER);
+
+			if (G.drag_button_func)
+				// Make sure the button gets the event so it can toggle itself
+				ui_handle_button_event(C, event, but);
+		}
 	}
 	else if (event->type == EVT_BUT_OPEN) {
 		but = uit_but_find_open_event(ar, event);
@@ -5647,6 +5671,10 @@ static int ui_handle_button_event(bContext *C, wmEvent *event, uiBut *but)
 					ui_blocks_set_tooltips(ar, 1);
 					button_tooltip_timer_reset(C, but);
 				}
+
+				if (G.drag_button_func)
+					// Make sure the button gets the event so it can toggle itself
+					retval = ui_do_button(C, block, but, event);
 
 				break;
 			case TIMER: {

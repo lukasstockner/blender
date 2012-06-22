@@ -150,6 +150,8 @@ void initglobals(void)
 #else
 	G.f &= ~G_SCRIPT_AUTOEXEC;
 #endif
+
+	G.drag_button_func = 0;
 }
 
 /***/
