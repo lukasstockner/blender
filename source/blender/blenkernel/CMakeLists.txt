@@ -43,6 +43,7 @@ set(INC
 	../../../intern/memutil
 	../../../intern/mikktspace
 	../../../intern/opennl/extern
+	../editors/include
 
 	# XXX - BAD LEVEL CALL WM_api.h
 	../windowmanager
@@ -129,6 +130,7 @@ set(SRC
 	intern/shrinkwrap.c
 	intern/sketch.c
 	intern/smoke.c
+	intern/snap.c
 	intern/softbody.c
 	intern/sound.c
 	intern/speaker.c
@@ -213,6 +215,7 @@ set(SRC
 	BKE_shrinkwrap.h
 	BKE_sketch.h
 	BKE_smoke.h
+	BKE_snap.h
 	BKE_softbody.h
 	BKE_sound.h
 	BKE_speaker.h

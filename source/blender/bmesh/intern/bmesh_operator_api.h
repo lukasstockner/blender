@@ -32,6 +32,7 @@ extern "C" {
 #endif
 
 #include "BLI_ghash.h"
+#include "BLI_utildefines.h"
 
 #include <stdarg.h>
 

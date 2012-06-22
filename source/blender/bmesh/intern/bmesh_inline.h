@@ -29,6 +29,9 @@
 #ifndef __BMESH_INLINE_H__
 #define __BMESH_INLINE_H__
 
+#include "bmesh_class.h"
+#include "BLI_utildefines.h"
+
 /* stuff for dealing with header flags */
 #define BM_elem_flag_test(     ele, hflag)      _bm_elem_flag_test     (&(ele)->head, hflag)
 #define BM_elem_flag_test_bool(ele, hflag)      _bm_elem_flag_test_bool(&(ele)->head, hflag)
