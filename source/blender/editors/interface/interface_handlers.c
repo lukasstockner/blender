@@ -2261,7 +2261,7 @@ static int ui_do_but_EXIT(bContext *C, uiBut *but, uiHandleButtonData *data, wmE
 	if (data->state == BUTTON_STATE_HIGHLIGHT) {
 
 		/* first handle click on icondrag type button */
-		if (event->type == LEFTMOUSE && but->dragpoin) {
+		if (event->type == LEFTMOUSE && event->val == KM_PRESS && but->dragpoin) {
 			if (ui_but_mouse_inside_icon(but, data->region, event)) {
 				
 				/* tell the button to wait and keep checking further events to
