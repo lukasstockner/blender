@@ -882,8 +882,8 @@ std::string AnimationExporter::create_4x4_source(std::vector<float> &frames, Obj
 		
 		UnitConverter converter;
 
-		float outmat[4][4];
-		converter.mat4_to_dae(outmat, mat);
+		double outmat[4][4];
+		converter.mat4_to_dae_double(outmat, mat);
 
 		source.appendValues(outmat);
 

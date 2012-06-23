@@ -1561,8 +1561,6 @@ void AnimationImporter::evaluate_transform_at_frame(float mat[4][4], COLLADAFW::
 				default:
 					fprintf(stderr, "unsupported transformation type %d\n", type);
 			}
-			// dae_matrix_to_mat4(tm, m);
-			
 		}
 
 		float temp[4][4];
