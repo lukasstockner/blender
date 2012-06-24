@@ -46,7 +46,7 @@ class WTURBULENCE;
 class FLUID_3D  
 {
 	public:
-		FLUID_3D(int *res, /* int amplify, */ float *p0, float dtdef);
+		FLUID_3D(int *res, float dx, float dtdef);
 		FLUID_3D() {};
 		virtual ~FLUID_3D();
 
@@ -59,7 +59,7 @@ class FLUID_3D
 		void addSmokeColumn();
 		static void addSmokeTestCase(float* field, Vec3Int res);
 
-		void step(float dt);
+		void step(float dt, float gravity[3]);
 		void addObstacle(OBSTACLE* obstacle);
 
 		const float* xVelocity() { return _xVelocity; }; 
@@ -161,7 +161,7 @@ class FLUID_3D
 		void wipeBoundariesSL(int zBegin, int zEnd);
 		void addForce(int zBegin, int zEnd);
 		void addVorticity(int zBegin, int zEnd);
-		void addBuoyancy(float *heat, float *density, int zBegin, int zEnd);
+		void addBuoyancy(float *heat, float *density, float gravity[3], int zBegin, int zEnd);
 
 		// solver stuff
 		void project();

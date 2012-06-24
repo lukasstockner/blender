@@ -94,19 +94,13 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 	return dataMask;
 }
 
-static void deformVerts(ModifierData *md, Object *ob,
-                        DerivedMesh *derivedData,
-                        float (*vertexCos)[3],
-                        int UNUSED(numVerts),
-                        ModifierApplyFlag UNUSED(flag))
+static DerivedMesh *applyModifier(ModifierData *md, Object *ob, 
+                                  DerivedMesh *dm,
+                                  ModifierApplyFlag UNUSED(flag))
 {
 	SmokeModifierData *smd = (SmokeModifierData *) md;
-	DerivedMesh *dm = get_cddm(ob, NULL, derivedData, vertexCos);
 
-	smokeModifier_do(smd, md->scene, ob, dm);
-
-	if (dm != derivedData)
-		dm->release(dm);
+	return smokeModifier_do(smd, md->scene, ob, dm);
 }
 
 static int dependsOnTime(ModifierData *UNUSED(md))
@@ -186,17 +180,17 @@ ModifierTypeInfo modifierType_Smoke = {
 	/* name */              "Smoke",
 	/* structName */        "SmokeModifierData",
 	/* structSize */        sizeof(SmokeModifierData),
-	/* type */              eModifierTypeType_OnlyDeform,
+	/* type */              eModifierTypeType_Constructive,
 	/* flags */             eModifierTypeFlag_AcceptsMesh |
 	                        eModifierTypeFlag_UsesPointCache |
 	                        eModifierTypeFlag_Single,
 
 	/* copyData */          copyData,
-	/* deformVerts */       deformVerts,
+	/* deformVerts */       NULL,
 	/* deformMatrices */    NULL,
 	/* deformVertsEM */     NULL,
 	/* deformMatricesEM */  NULL,
-	/* applyModifier */     NULL,
+	/* applyModifier */     applyModifier,
 	/* applyModifierEM */   NULL,
 	/* initData */          initData,
 	/* requiredDataMask */  requiredDataMask,

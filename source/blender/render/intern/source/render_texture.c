@@ -2659,6 +2659,13 @@ void do_volume_tex(ShadeInput *shi, const float *xyz, int mapto_flag, float col_
 					Object *ob= shi->obi->ob;
 					copy_v3_v3(co, xyz);
 					mul_m4_v3(ob->imat_ren, co);
+
+					if (mtex->texflag & MTEX_MAPTO_BOUNDS && ob->bb) {
+						/* use bb vec[0] as min and bb vec[6] as max */
+						co[0] = (co[0] - ob->bb->vec[0][0]) / (ob->bb->vec[6][0]-ob->bb->vec[0][0]) * 2.0f - 1.0f;
+						co[1] = (co[1] - ob->bb->vec[0][1]) / (ob->bb->vec[6][1]-ob->bb->vec[0][1]) * 2.0f - 1.0f;
+						co[2] = (co[2] - ob->bb->vec[0][2]) / (ob->bb->vec[6][2]-ob->bb->vec[0][2]) * 2.0f - 1.0f;
+					}
 				}
 			}
 			else if (mtex->texco==TEXCO_GLOB) {

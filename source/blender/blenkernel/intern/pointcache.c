@@ -534,16 +534,24 @@ static int  ptcache_smoke_totpoint(void *smoke_v, int UNUSED(cfra))
 	SmokeDomainSettings *sds = smd->domain;
 	
 	if (sds->fluid) {
-		return sds->res[0]*sds->res[1]*sds->res[2];
+		return sds->base_res[0]*sds->base_res[1]*sds->base_res[2];
 	}
 	else
 		return 0;
 }
+
+#define SMOKE_CACHE_VERSION "1.00"
+
 static int  ptcache_smoke_write(PTCacheFile *pf, void *smoke_v)
 {	
 	SmokeModifierData *smd= (SmokeModifierData *)smoke_v;
 	SmokeDomainSettings *sds = smd->domain;
 	int ret = 0;
+
+	/* version header */
+	ptcache_file_write(pf, SMOKE_CACHE_VERSION, 4, sizeof(char));
+	ptcache_file_write(pf, &sds->res, 3, sizeof(int));
+	ptcache_file_write(pf, &sds->dx, 1, sizeof(float));
 	
 	if (sds->fluid) {
 		size_t res = sds->res[0]*sds->res[1]*sds->res[2];
@@ -569,6 +577,15 @@ static int  ptcache_smoke_write(PTCacheFile *pf, void *smoke_v)
 		ptcache_file_compressed_write(pf, (unsigned char *)obstacles, (unsigned int)res, out, mode);
 		ptcache_file_write(pf, &dt, 1, sizeof(float));
 		ptcache_file_write(pf, &dx, 1, sizeof(float));
+		ptcache_file_write(pf, &sds->p0, 3, sizeof(float));
+		ptcache_file_write(pf, &sds->p1, 3, sizeof(float));
+		ptcache_file_write(pf, &sds->dp0, 3, sizeof(float));
+		ptcache_file_write(pf, &sds->shift, 3, sizeof(int));
+		ptcache_file_write(pf, &sds->obj_shift_f, 3, sizeof(float));
+		ptcache_file_write(pf, &sds->obmat, 16, sizeof(float));
+		ptcache_file_write(pf, &sds->base_res, 3, sizeof(int));
+		ptcache_file_write(pf, &sds->res_min, 3, sizeof(int));
+		ptcache_file_write(pf, &sds->res_max, 3, sizeof(int));
 
 		MEM_freeN(out);
 		
@@ -616,6 +633,33 @@ static int ptcache_smoke_read(PTCacheFile *pf, void *smoke_v)
 {
 	SmokeModifierData *smd= (SmokeModifierData *)smoke_v;
 	SmokeDomainSettings *sds = smd->domain;
+	char version[4];
+	int ch_res[3];
+	float ch_dx;
+
+	/* version header */
+	ptcache_file_read(pf, version, 4, sizeof(char));
+	if (strncmp(version, SMOKE_CACHE_VERSION, 4)) return 0;
+	/* fluid info */
+	ptcache_file_read(pf, &ch_res, 3, sizeof(int));
+	ptcache_file_read(pf, &ch_dx, 1, sizeof(float));
+
+	/* check if resolution has changed */
+	if (sds->res[0] != ch_res[0] ||
+		sds->res[1] != ch_res[1] ||
+		sds->res[2] != ch_res[2])
+	{
+		if (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) {
+			smoke_reallocate_fluid(sds, ch_dx, ch_res, 1);
+			sds->dx = ch_dx;
+			VECCOPY(sds->res, ch_res);
+			sds->total_cells = ch_res[0]*ch_res[1]*ch_res[2];
+			if(sds->flags & MOD_SMOKE_HIGHRES) {
+				smoke_reallocate_highres_fluid(sds, ch_dx, ch_res, 1);
+			}
+		}
+		else return 0;
+	}
 	
 	if (sds->fluid) {
 		size_t res = sds->res[0]*sds->res[1]*sds->res[2];
@@ -637,6 +681,15 @@ static int ptcache_smoke_read(PTCacheFile *pf, void *smoke_v)
 		ptcache_file_compressed_read(pf, (unsigned char*)obstacles, (unsigned int)res);
 		ptcache_file_read(pf, &dt, 1, sizeof(float));
 		ptcache_file_read(pf, &dx, 1, sizeof(float));
+		ptcache_file_read(pf, &sds->p0, 3, sizeof(float));
+		ptcache_file_read(pf, &sds->p1, 3, sizeof(float));
+		ptcache_file_read(pf, &sds->dp0, 3, sizeof(float));
+		ptcache_file_read(pf, &sds->shift, 3, sizeof(int));
+		ptcache_file_read(pf, &sds->obj_shift_f, 3, sizeof(float));
+		ptcache_file_read(pf, &sds->obmat, 16, sizeof(float));
+		ptcache_file_read(pf, &sds->base_res, 3, sizeof(int));
+		ptcache_file_read(pf, &sds->res_min, 3, sizeof(int));
+		ptcache_file_read(pf, &sds->res_max, 3, sizeof(int));
 	}
 
 	if (pf->data_types & (1<<BPHYS_DATA_SMOKE_HIGH) && sds->wt) {
@@ -2464,10 +2517,10 @@ int  BKE_ptcache_id_reset(Scene *scene, PTCacheID *pid, int mode)
 			sbFreeSimulation(pid->calldata);
 		else if (pid->type == PTCACHE_TYPE_PARTICLES)
 			psys_reset(pid->calldata, PSYS_RESET_DEPSGRAPH);
-		else if (pid->type == PTCACHE_TYPE_SMOKE_DOMAIN)
+		/*else if (pid->type == PTCACHE_TYPE_SMOKE_DOMAIN)
 			smokeModifier_reset(pid->calldata);
 		else if (pid->type == PTCACHE_TYPE_SMOKE_HIGHRES)
-			smokeModifier_reset_turbulence(pid->calldata);
+			smokeModifier_reset_turbulence(pid->calldata);*/
 		else if (pid->type == PTCACHE_TYPE_DYNAMICPAINT)
 			dynamicPaint_clearSurface((DynamicPaintSurface*)pid->calldata);
 	}

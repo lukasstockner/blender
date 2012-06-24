@@ -330,6 +330,29 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Maximum", "Maximum temperature of flames");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 
+	prop = RNA_def_property(srna, "use_adaptive_domain", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", MOD_SMOKE_ADAPTIVE_DOMAIN);
+	RNA_def_property_ui_text(prop, "Adaptive Domain", "Adapt simulation resolution and size to fluid");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "additional_res", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "adapt_res");
+	RNA_def_property_range(prop, 0, 512);
+	RNA_def_property_ui_range(prop, 0, 512, 2, 0);
+	RNA_def_property_ui_text(prop, "Additional", "Maximum number of additional cells");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, NULL);
+
+	prop = RNA_def_property(srna, "adapt_margin", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "adapt_margin");
+	RNA_def_property_range(prop, 2, 24);
+	RNA_def_property_ui_range(prop, 2, 24, 2, 0);
+	RNA_def_property_ui_text(prop, "Margin", "Margin added around fluid to minimize boundary interference");
+
+	prop = RNA_def_property(srna, "adapt_threshold", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.01, 0.5);
+	RNA_def_property_ui_range(prop, 0.01, 0.5, 1.0, 5);
+	RNA_def_property_ui_text(prop, "Threshold", "Maximum amount of fluid cell can contain before it's considered empty");
 }
 
 static void rna_def_smoke_flow_settings(BlenderRNA *brna)

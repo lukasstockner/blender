@@ -38,10 +38,10 @@
 #include <math.h>
 
 // y in smoke is z in blender
-extern "C" FLUID_3D *smoke_init(int *res, float *p0, float dtdef)
+extern "C" FLUID_3D *smoke_init(int *res, float dx, float dtdef)
 {
 	// smoke lib uses y as top-bottom/vertical axis where blender uses z
-	FLUID_3D *fluid = new FLUID_3D(res, p0, dtdef);
+	FLUID_3D *fluid = new FLUID_3D(res, dx, dtdef);
 
 	// printf("xres: %d, yres: %d, zres: %d\n", res[0], res[1], res[2]);
 
@@ -80,10 +80,10 @@ extern "C" size_t smoke_get_index2d(int x, int max_x, int y /*, int max_y, int z
 	return x + y * max_x;
 }
 
-extern "C" void smoke_step(FLUID_3D *fluid, float dtSubdiv)
+extern "C" void smoke_step(FLUID_3D *fluid, float gravity[3], float dtSubdiv)
 {
 	fluid->processBurn(fluid->_fuel, fluid->_density, fluid->_flame, fluid->_heat, fluid->_totalCells, (*fluid->_dtFactor)*dtSubdiv);
-	fluid->step(dtSubdiv);
+	fluid->step(dtSubdiv, gravity);
 }
 
 extern "C" void smoke_turbulence_step(WTURBULENCE *wt, FLUID_3D *fluid)

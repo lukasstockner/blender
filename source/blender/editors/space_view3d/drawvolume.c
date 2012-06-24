@@ -157,11 +157,10 @@ static int convex(const float p0[3], const float up[3], const float a[3], const 
 	return dot_v3v3(up, tmp) >= 0;
 }
 
-void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int res[3], float dx, GPUTexture *tex_shadow, GPUTexture *tex_flame)
+void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob, ARegion *ar, GPUTexture *tex, float min[3], float max[3], int res[3], float dx, float base_scale, float viewnormal[3], GPUTexture *tex_shadow, GPUTexture *tex_flame)
 {
 	RegionView3D *rv3d = ar->regiondata;
 
-	float viewnormal[3];
 	int i, j, k, n, good_index;
 	float d /*, d0 */ /* UNUSED */, dd, ds;
 	float *points = NULL;
@@ -329,10 +328,7 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 	edges[11][1][0] = size[0];
 
 	glGetBooleanv(GL_BLEND, (GLboolean *)&gl_blend);
-	glGetBooleanv(GL_DEPTH_TEST, (GLboolean *)&gl_depth);
-
-	glLoadMatrixf(rv3d->viewmat);
-	// glMultMatrixf(ob->obmat);	
+	glGetBooleanv(GL_DEPTH_TEST, (GLboolean *)&gl_depth);	
 
 	glDepthMask(GL_FALSE);
 	glDisable(GL_DEPTH_TEST);
@@ -344,10 +340,6 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 	printf("%f, %f, %f\n", rv3d->viewinv[1][0], rv3d->viewinv[1][1], rv3d->viewinv[1][2]);
 	printf("%f, %f, %f\n", rv3d->viewinv[2][0], rv3d->viewinv[2][1], rv3d->viewinv[2][2]);
 #endif
-
-	// get view vector
-	copy_v3_v3(viewnormal, rv3d->viewinv[2]);
-	normalize_v3(viewnormal);
 
 	// find cube vertex that is closest to the viewer
 	for (i = 0; i < 8; i++) {
@@ -410,7 +402,9 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 
 	/* d0 = (viewnormal[0]*cv[i][0] + viewnormal[1]*cv[i][1] + viewnormal[2]*cv[i][2]); */ /* UNUSED */
 	ds = (ABS(viewnormal[0]) * size[0] + ABS(viewnormal[1]) * size[1] + ABS(viewnormal[2]) * size[2]);
-	dd = MAX3(size[0],size[1],size[2])/128.f;
+	dd = dx*base_scale/128.f;
+	dd = MAX3(sds->global_size[0],sds->global_size[1],sds->global_size[2])/128.f;
+	//dd = (viewnormal[0]*viewnormal[0]*sds->cell_size[0] + viewnormal[1]*viewnormal[1]*sds->cell_size[1] + viewnormal[2]*viewnormal[2]*sds->cell_size[2]) * sds->maxres / 128.f;
 	n = 0;
 	good_index = i;
 
@@ -463,7 +457,7 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 				glTexCoord3d((points[i * 3 + 0] - min[0]) * cor[0] / size[0],
 				             (points[i * 3 + 1] - min[1]) * cor[1] / size[1],
 				             (points[i * 3 + 2] - min[2]) * cor[2] / size[2]);
-				glVertex3f(points[i * 3 + 0], points[i * 3 + 1], points[i * 3 + 2]);
+				glVertex3f(points[i * 3 + 0]/ob->size[0], points[i * 3 + 1]/ob->size[1], points[i * 3 + 2]/ob->size[2]);
 			}
 			glEnd();
 
@@ -476,7 +470,7 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 				glTexCoord3d((points[i * 3 + 0] - min[0]) * cor[0] / size[0],
 				             (points[i * 3 + 1] - min[1]) * cor[1] / size[1],
 				             (points[i * 3 + 2] - min[2]) * cor[2] / size[2]);
-				glVertex3f(points[i * 3 + 0], points[i * 3 + 1], points[i * 3 + 2]);
+				glVertex3f(points[i * 3 + 0]/ob->size[0], points[i * 3 + 1]/ob->size[1], points[i * 3 + 2]/ob->size[2]);
 			}
 			glEnd();
 		}
@@ -515,28 +509,44 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 }
 
 #ifdef SMOKE_DEBUG_VELOCITY
-void draw_smoke_velocity(SmokeDomainSettings *domain)
+void draw_smoke_velocity(SmokeDomainSettings *domain, Object *ob)
 {
 	float x,y,z;
+	float x0,y0,z0;
+	int *base_res = domain->base_res;
 	int *res = domain->res;
+	int *res_min = domain->res_min;
+	int *res_max = domain->res_max;
 	float *vel_x = smoke_get_velocity_x(domain->fluid);
 	float *vel_y = smoke_get_velocity_y(domain->fluid);
 	float *vel_z = smoke_get_velocity_z(domain->fluid);
 
 	float *min = domain->p0;
-	float cell_size = domain->dx * domain->scale;
-	float step_size = ((float)MAX3(res[0], res[1], res[2]))/16.f;
+	float *cell_size = domain->cell_size;
+	float step_size = ((float)MAX3(base_res[0], base_res[1], base_res[2]))/16.f;
 	float vf = domain->scale / 16.f * 2.f;
 
 	glColor3f(1.0f, 0.5f, 0.0f);
 	glLineWidth(1.0f);
 
-	for (x=0; x<res[0]; x+=step_size)
-		for (y=0; y<res[1]; y+=step_size)
-			for (z=0; z<res[2]; z+=step_size) {
-				int index = floor(x) + floor(y)*res[0] + floor(z)*res[0]*res[1];
+	/* set first position so that it doesn't jump when domain moves */
+	/*x0 = fmod(-(float)domain->shift[0],step_size);
+	y0 = fmod(-(float)domain->shift[1],step_size);
+	z0 = fmod(-(float)domain->shift[2],step_size);
+	if (x0<0.0f) x0+=step_size;
+	if (y0<0.0f) y0+=step_size;
+	if (z0<0.0f) z0+=step_size;*/
 
-				float pos[3] = {min[0]+((float)x + 0.5f)*cell_size, min[1]+((float)y + 0.5f)*cell_size, min[2]+((float)z + 0.5f)*cell_size};
+	x0 = res_min[0];
+	y0 = res_min[1];
+	z0 = res_min[2];
+
+	for (x=floor(x0); x<res_max[0]; x+=step_size)
+		for (y=floor(y0); y<res_max[1]; y+=step_size)
+			for (z=floor(z0); z<res_max[2]; z+=step_size) {
+				int index = (floor(x)-res_min[0]) + (floor(y)-res_min[1])*res[0] + (floor(z)-res_min[2])*res[0]*res[1];
+
+				float pos[3] = {min[0]+((float)x + 0.5f)*cell_size[0], min[1]+((float)y + 0.5f)*cell_size[1], min[2]+((float)z + 0.5f)*cell_size[2]};
 				float vel = sqrtf(vel_x[index]*vel_x[index] + vel_y[index]*vel_y[index] + vel_z[index]*vel_z[index]);
 
 				if (vel >= 0.01f) {
@@ -558,7 +568,7 @@ void draw_smoke_velocity(SmokeDomainSettings *domain)
 #endif
 
 #ifdef SMOKE_DEBUG_HEAT
-void draw_smoke_heat(SmokeDomainSettings *domain)
+void draw_smoke_heat(SmokeDomainSettings *domain, Object *ob)
 {
 	float x,y,z;
 	int *res = domain->res;

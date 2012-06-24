@@ -39,6 +39,7 @@
 
 #define MOD_SMOKE_HIGH_SMOOTH (1<<5) /* smoothens high res emission*/
 #define MOD_SMOKE_FILE_LOAD (1<<6) /* flag for file load */
+#define MOD_SMOKE_ADAPTIVE_DOMAIN (1<<7)
 
 /* noise */
 #define MOD_SMOKE_NOISEWAVE (1<<0)
@@ -73,16 +74,36 @@ typedef struct SmokeDomainSettings {
 	struct GPUTexture *tex_shadow;
 	struct GPUTexture *tex_flame;
 	float *shadow;
-	float p0[3]; /* start point of BB */
-	float p1[3]; /* end point of BB */
-	float dx; /* edge length of one cell */
+
+	float p0[3]; /* start point of BB in local space (includes sub-cell shift for adaptive domain)*/
+	float p1[3]; /* end point of BB in local space */
+	float dp0[3]; /* difference from object center to grid start point */
+	float cell_size[3]; /* size of simulation cell in local space */
+	float global_size[3]; /* global size of domain axises */
+	float prev_loc[3];
+	int shift[3]; /* current domain shift in simulation cells */
+	float shift_f[3]; /* exact domain shift */
+	float obj_shift_f[3]; /* how much object has shifted since previous smoke frame (used to "lock" domain while drawing) */
+	float imat[4][4]; /* domain object imat */
+	float obmat[4][4]; /* domain obmat */
+
+	int base_res[3]; /* initial "non-adapted" resolution */
+	int res_min[3]; /* cell min */
+	int res_max[3]; /* cell max */
+	int res[3]; /* data resolution (res_max-res_min) */
+	int total_cells;
+
+	int adapt_margin;
+	int adapt_res;
+	float adapt_threshold;
+
+	float dx; /* edge length of one cell in domain space */
 	float omega; /* smoke color - from 0 to 1 */
 	float temp; /* fluid temperature */
 	float tempAmb; /* ambient temperature */
 	float alpha;
 	float beta;
 	float scale; /* largest domain size */
-	int res[3]; /* domain resolution */
 	int amplify; /* wavelet amplification */
 	int maxres; /* longest axis on the BB gets this resolution assigned */
 	int flags; /* show up-res or low res, etc */
@@ -160,20 +181,11 @@ typedef struct SmokeFlowSettings {
 /* collision objects (filled with smoke) */
 typedef struct SmokeCollSettings {
 	struct SmokeModifierData *smd; /* for fast RNA access */
-	struct BVHTree *bvhtree; /* bounding volume hierarchy for this cloth object */
-	float *points;
-	float *points_old;
-	float *vel; // UNUSED
-	int *tridivs;
-	float mat[4][4];
-	float mat_old[4][4];
-	int numpoints;
-	int numverts; // check if mesh changed
-	int numtris;
-	float dx; /* global domain cell length taken from (scale / resolution) */
+	struct DerivedMesh *dm;
+	float *verts_old;
+	int numverts;
 	short type; // static = 0, rigid = 1, dynamic = 2
 	short pad;
-	int pad2;
 } SmokeCollSettings;
 
 #endif

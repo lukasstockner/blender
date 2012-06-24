@@ -4388,8 +4388,9 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				smd->domain = NULL;
 				smd->coll = newdataadr(fd, smd->coll);
 				if (smd->coll) {
-					smd->coll->points = NULL;
-					smd->coll->numpoints = 0;
+					smd->coll->verts_old = NULL;
+					smd->coll->numverts = 0;
+					smd->coll->dm = NULL;
 				}
 				else
 					smd->type = 0;
@@ -7691,6 +7692,10 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 							smd->domain->flame_vorticity = 0.5f;
 							smd->domain->flame_ignition = 1.25f;
 							smd->domain->flame_max_temp = 1.75f;
+						}
+						if (!smd->domain->adapt_threshold) {
+							smd->domain->adapt_threshold = 0.02f;
+							smd->domain->adapt_margin = 4;
 						}
 					}
 					else if ((smd->type & MOD_SMOKE_TYPE_FLOW) && smd->flow) {

@@ -147,6 +147,38 @@ class PHYSICS_PT_smoke_fire(PhysicButtonsPanel, Panel):
         col.label(text="Temperatures:")
         col.prop(domain, "flame_ignition")
         col.prop(domain, "flame_max_temp")
+        
+class PHYSICS_PT_smoke_adaptive_domain(PhysicButtonsPanel, Panel):
+    bl_label = "Smoke Adaptive Domain"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        md = context.smoke
+        return md and (md.smoke_type == 'DOMAIN')
+
+    def draw_header(self, context):
+        md = context.smoke.domain_settings
+
+        self.layout.prop(md, "use_adaptive_domain", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        domain = context.smoke.domain_settings
+        layout.active = domain.use_adaptive_domain
+        
+        split = layout.split()
+        split.enabled = not domain.point_cache.is_baked
+ 
+        col = split.column(align=True)
+        col.label(text="Resolution:")
+        col.prop(domain, "additional_res")
+        col.prop(domain, "adapt_margin")
+
+        col = split.column(align=True)
+        col.label(text="Advanced:")
+        col.prop(domain, "adapt_threshold")
             
 class PHYSICS_PT_smoke_groups(PhysicButtonsPanel, Panel):
     bl_label = "Smoke Groups"

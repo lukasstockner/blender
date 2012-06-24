@@ -44,16 +44,11 @@
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
 
-FLUID_3D::FLUID_3D(int *res, float *p0, float dtdef) :
+FLUID_3D::FLUID_3D(int *res, float dx, float dtdef) :
 	_xRes(res[0]), _yRes(res[1]), _zRes(res[2]), _res(0.0f)
 {
 	// set simulation consts
 	_dt = dtdef;	// just in case. set in step from a RNA factor
-	
-	// start point of array
-	_p0[0] = p0[0];
-	_p0[1] = p0[1];
-	_p0[2] = p0[2];
 
 	_iterations = 100;
 	_tempAmb = 0; 
@@ -72,7 +67,10 @@ FLUID_3D::FLUID_3D(int *res, float *p0, float dtdef) :
 	*/
 	
 	// scale the constants according to the refinement of the grid
-	_dx = 1.0f / (float)_maxRes;
+	if (!dx)
+		_dx = 1.0f / (float)_maxRes;
+	else
+		_dx = dx;
 	_constantScaling = 64.0f / _maxRes;
 	_constantScaling = (_constantScaling < 1.0f) ? 1.0f : _constantScaling;
 	_vorticityEps = 2.0f / _constantScaling; // Just in case set a default value
@@ -250,7 +248,7 @@ void FLUID_3D::initBlenderRNA(float *alpha, float *beta, float *dt_factor, float
 //////////////////////////////////////////////////////////////////////
 // step simulation once
 //////////////////////////////////////////////////////////////////////
-void FLUID_3D::step(float dt)
+void FLUID_3D::step(float dt, float gravity[3])
 {
 #if 0
 	// If border rules have been changed
@@ -301,7 +299,7 @@ void FLUID_3D::step(float dt)
 
 		wipeBoundariesSL(zBegin, zEnd);
 		addVorticity(zBegin, zEnd);
-		addBuoyancy(_heat, _density, zBegin, zEnd);
+		addBuoyancy(_heat, _density, gravity, zBegin, zEnd);
 		addForce(zBegin, zEnd);
 
 #if PARALLEL==1
@@ -1200,7 +1198,7 @@ void FLUID_3D::setObstacleBoundaries(float *_pressure, int zBegin, int zEnd)
 //////////////////////////////////////////////////////////////////////
 // add buoyancy forces
 //////////////////////////////////////////////////////////////////////
-void FLUID_3D::addBuoyancy(float *heat, float *density, int zBegin, int zEnd)
+void FLUID_3D::addBuoyancy(float *heat, float *density, float gravity[3], int zBegin, int zEnd)
 {
 	int index = zBegin*_slabSize;
 
@@ -1208,7 +1206,10 @@ void FLUID_3D::addBuoyancy(float *heat, float *density, int zBegin, int zEnd)
 		for (int y = 0; y < _yRes; y++)
 			for (int x = 0; x < _xRes; x++, index++)
 			{
-				_zForce[index] += *_alpha * density[index] + (*_beta * (heat[index] - _tempAmb)); // DG: was _yForce, changed for Blender
+				float buoyancy = *_alpha * density[index] + (*_beta * (heat[index] - _tempAmb));
+				_xForce[index] -= gravity[0] * buoyancy;
+				_yForce[index] -= gravity[1] * buoyancy;
+				_zForce[index] -= gravity[2] * buoyancy;
 			}
 }
 
