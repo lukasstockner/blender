@@ -1597,7 +1597,9 @@ int BLI_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3],
 	return hit;
 }
 
-//#include <GL/glew.h>
+#if 0
+#include "GPU_compatibility.h"
+#endif
 
 void BLI_pbvh_node_draw(PBVHNode *node, void *setMaterial)
 {
@@ -1613,9 +1615,9 @@ void BLI_pbvh_node_draw(PBVHNode *node, void *setMaterial)
 		for (i = 0; i < 3; ++i)
 			col[i] = (rand() / (float)RAND_MAX) * 0.3 + 0.7;
 	}
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, col);
+	gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, col);
 
-	glColor3f(1, 0, 0);
+	gpuCurrentColor3f(1, 0, 0);
 #endif
 
 	if (!(node->flag & PBVH_FullyHidden))
