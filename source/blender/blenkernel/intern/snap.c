@@ -280,7 +280,8 @@ int SnapMesh_data_getNumFaces(Snap *sm){
 
 /* I've chosen to have MVert and MEdge as the format in use in snapping because it's
   much easier to convert from BMVert to MVert than the reverse*/
-inline void SnapMesh_data_getVert(Snap *sm, int index, MVert* mv){
+//should be inline?
+void SnapMesh_data_getVert(Snap *sm, int index, MVert* mv){
 	SnapMesh_data* sm_data = (SnapMesh_data*)sm->snap_data;
 	MVert *verts;
 	BMVert* bmv;
@@ -328,13 +329,15 @@ int SnapMesh_data_VertCheck(Snap *sm, int index){
 		return 0;
 	}
 }
-inline void SnapMesh_data_getEdge(SnapMesh_data *sm_data, SnapMesh_data_type data_type,
+//should be inline?
+void SnapMesh_data_getEdge(SnapMesh_data *sm_data, SnapMesh_data_type data_type,
 								   int index, MVert* mv){
 
 
 }
 
-inline void SnapMesh_data_getFace(SnapMesh_data *sm_data, SnapMesh_data_type data_type,
+//should be inline?
+void SnapMesh_data_getFace(SnapMesh_data *sm_data, SnapMesh_data_type data_type,
 								   int index, MVert* mv){
 
 }
