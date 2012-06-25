@@ -260,7 +260,8 @@ void bc_bubble_sort_by_Object_name(LinkNode *export_set)
  * can be root bones. Otherwise the top most deform bones in the hierarchy
  * are root bones.
  */
-bool bc_is_root_bone(Bone *aBone, bool deform_bones_only) {
+bool bc_is_root_bone(Bone *aBone, bool deform_bones_only)
+{
 	if (deform_bones_only) {
 		Bone *root = NULL;
 		Bone *bone = aBone;
@@ -273,4 +274,10 @@ bool bc_is_root_bone(Bone *aBone, bool deform_bones_only) {
 	}
 	else
 		return !(aBone->parent);
+}
+
+int bc_get_active_UVLayer(Object *ob)
+{
+	Mesh *me = (Mesh *)ob->data;
+	return CustomData_get_active_layer_index(&me->fdata, CD_MTFACE);
 }

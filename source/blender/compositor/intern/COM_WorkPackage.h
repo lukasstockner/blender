@@ -24,7 +24,7 @@ class WorkPackage;
 
 #ifndef _COM_WorkPackage_h_
 #define _COM_WorkPackage_h_
-
+class ExecutionGroup;
 #include "COM_ExecutionGroup.h"
 
 /**
@@ -59,6 +59,10 @@ public:
 	 * @brief get the number of the chunk
 	 */
 	unsigned int getChunkNumber() const { return this->chunkNumber; }
+
+#ifdef WITH_CXX_GUARDEDALLOC
+	MEM_CXX_CLASS_ALLOC_FUNCS("COM:WorkPackage")
+#endif
 };
 
 #endif

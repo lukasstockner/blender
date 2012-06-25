@@ -683,6 +683,8 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             row.prop(brush, "jitter", slider=True)
             row.prop(brush, "use_pressure_jitter", toggle=True, text="")
 
+            col.prop(brush, "vertex_tool", text="Blend")
+
         # Vertex Paint Mode #
         elif context.vertex_paint_object and brush:
             col = layout.column()
@@ -702,6 +704,8 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             #row = col.row(align=True)
             #row.prop(brush, "jitter", slider=True)
             #row.prop(brush, "use_pressure_jitter", toggle=True, text="")
+
+            col.prop(brush, "vertex_tool", text="Blend")
 
 
 class VIEW3D_PT_tools_brush_texture(Panel, View3DPaintPanel):
@@ -999,7 +1003,7 @@ class VIEW3D_PT_tools_weightpaint_options(Panel, View3DPaintPanel):
             col.prop(mesh, "use_mirror_topology")
 
         col.prop(wpaint, "input_samples")
-        
+
         self.unified_paint_settings(col, context)
 
 # Commented out because the Apply button isn't an operator yet, making these settings useless
@@ -1150,7 +1154,7 @@ class VIEW3D_MT_tools_projectpaint_stencil(Menu):
 
 
 class VIEW3D_PT_tools_particlemode(View3DPanel, Panel):
-    '''default tools for particle mode'''
+    """default tools for particle mode"""
     bl_context = "particlemode"
     bl_label = "Options"
 

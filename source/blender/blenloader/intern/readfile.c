@@ -6984,6 +6984,21 @@ static void do_version_ntree_image_user_264(void *UNUSED(data), ID *UNUSED(id), 
 	}
 }
 
+static void do_version_ntree_dilateerode_264(void *UNUSED(data), ID *UNUSED(id), bNodeTree *ntree)
+{
+	bNode *node;
+
+	for (node = ntree->nodes.first; node; node = node->next) {
+		if (node->type == CMP_NODE_DILATEERODE) {
+			if (node->storage == NULL) {
+				NodeDilateErode *data = MEM_callocN(sizeof(NodeDilateErode), __func__);
+				data->falloff = PROP_SMOOTH;
+				node->storage = data;
+			}
+		}
+	}
+}
+
 static void do_versions(FileData *fd, Library *lib, Main *main)
 {
 	/* WATCH IT!!!: pointers from libdata have not been converted */
@@ -7797,6 +7812,14 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			default_mtex(&brush->mask_mtex);
 		}
 	}
+
+	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 13)) {
+		bNodeTreeType *ntreetype = ntreeGetType(NTREE_COMPOSIT);
+
+		if (ntreetype && ntreetype->foreach_nodetree)
+			ntreetype->foreach_nodetree(main, NULL, do_version_ntree_dilateerode_264);
+	}
+
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in editors/interface/resources.c! */
 

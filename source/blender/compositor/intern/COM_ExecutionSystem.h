@@ -156,7 +156,7 @@ public:
 	 * @param editingtree [bNodeTree*]
 	 * @param rendering [true false]
 	 */
-	ExecutionSystem(bNodeTree *editingtree, bool rendering);
+	ExecutionSystem(RenderData *rd, bNodeTree *editingtree, bool rendering);
 
 	/**
 	 * Destructor
@@ -232,5 +232,9 @@ private:
 	
 	void executeGroups(CompositorPriority priority);
 
-};
+#ifdef WITH_CXX_GUARDEDALLOC
+	MEM_CXX_CLASS_ALLOC_FUNCS("COM:ExecutionSystem")
 #endif
+};
+
+#endif /* _COM_ExecutionSystem_h */

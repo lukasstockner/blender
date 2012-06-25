@@ -65,6 +65,9 @@ void KeyingScreenOperation::deinitExecution()
 		if (triangulation->triangles)
 			MEM_freeN(triangulation->triangles);
 
+		if (triangulation->triangles_AABB)
+			MEM_freeN(triangulation->triangles_AABB);
+
 		MEM_freeN(this->cachedTriangulation);
 
 		this->cachedTriangulation = NULL;
@@ -85,6 +88,7 @@ KeyingScreenOperation::TriangulationData *KeyingScreenOperation::buildVoronoiTri
 	int i;
 	int width = this->getWidth();
 	int height = this->getHeight();
+	int clip_frame = BKE_movieclip_remap_scene_to_clip_frame(this->movieClip, framenumber);
 
 	if (this->trackingObject[0]) {
 		MovieTrackingObject *object = BKE_tracking_object_get_named(tracking, this->trackingObject);
@@ -102,7 +106,7 @@ KeyingScreenOperation::TriangulationData *KeyingScreenOperation::buildVoronoiTri
 	if (!sites_total)
 		return NULL;
 
-	BKE_movieclip_user_set_frame(&user, framenumber);
+	BKE_movieclip_user_set_frame(&user, clip_frame);
 	ibuf = BKE_movieclip_get_ibuf(movieClip, &user);
 
 	if (!ibuf)
@@ -112,10 +116,9 @@ KeyingScreenOperation::TriangulationData *KeyingScreenOperation::buildVoronoiTri
 
 	sites = (VoronoiSite *) MEM_callocN(sizeof(VoronoiSite) * sites_total, "keyingscreen voronoi sites");
 	track = (MovieTrackingTrack *) tracksbase->first;
-	i = 0;
-	while (track) {
+	for (track = (MovieTrackingTrack *) tracksbase->first, i = 0; track; track = track->next, i++) {
 		VoronoiSite *site = &sites[i];
-		MovieTrackingMarker *marker = BKE_tracking_marker_get(track, framenumber);
+		MovieTrackingMarker *marker = BKE_tracking_marker_get(track, clip_frame);
 		ImBuf *pattern_ibuf = BKE_tracking_get_pattern_imbuf(ibuf, track, marker, TRUE, FALSE);
 		int j;
 
@@ -138,9 +141,6 @@ KeyingScreenOperation::TriangulationData *KeyingScreenOperation::buildVoronoiTri
 
 		site->co[0] = marker->pos[0] * width;
 		site->co[1] = marker->pos[1] * height;
-
-		track = track->next;
-		i++;
 	}
 
 	IMB_freeImBuf(ibuf);
@@ -153,6 +153,33 @@ KeyingScreenOperation::TriangulationData *KeyingScreenOperation::buildVoronoiTri
 
 	MEM_freeN(sites);
 	BLI_freelistN(&edges);
+
+	if (triangulation->triangles_total) {
+		rctf *rect;
+		rect = triangulation->triangles_AABB =
+			(rctf *) MEM_callocN(sizeof(rctf) * triangulation->triangles_total, "voronoi triangulation AABB");
+
+		for (i = 0; i < triangulation->triangles_total; i++, rect++) {
+			int *triangle = triangulation->triangles[i];
+			VoronoiTriangulationPoint *a = &triangulation->triangulated_points[triangle[0]],
+			                          *b = &triangulation->triangulated_points[triangle[1]],
+			                          *c = &triangulation->triangulated_points[triangle[2]];
+
+			float min[2], max[2];
+
+			INIT_MINMAX2(min, max);
+
+			DO_MINMAX2(a->co, min, max);
+			DO_MINMAX2(b->co, min, max);
+			DO_MINMAX2(c->co, min, max);
+
+			rect->xmin = min[0];
+			rect->ymin = min[1];
+
+			rect->xmax = max[0];
+			rect->ymax = max[1];
+		}
+	}
 
 	return triangulation;
 }
@@ -182,8 +209,9 @@ void KeyingScreenOperation::determineResolution(unsigned int resolution[], unsig
 	if (this->movieClip) {
 		MovieClipUser user = {0};
 		int width, height;
+		int clip_frame = BKE_movieclip_remap_scene_to_clip_frame(this->movieClip, framenumber);
 
-		BKE_movieclip_user_set_frame(&user, framenumber);
+		BKE_movieclip_user_set_frame(&user, clip_frame);
 		BKE_movieclip_get_size(this->movieClip, &user, &width, &height);
 
 		resolution[0] = width;
@@ -201,18 +229,24 @@ void KeyingScreenOperation::executePixel(float *color, int x, int y, MemoryBuffe
 	if (this->movieClip && data) {
 		TriangulationData *triangulation = (TriangulationData *) data;
 		int i;
-		for (i = 0; i < triangulation->triangles_total; i++) {
-			int *triangle = triangulation->triangles[i];
-			VoronoiTriangulationPoint *a = &triangulation->triangulated_points[triangle[0]],
-			*b = &triangulation->triangulated_points[triangle[1]],
-			*c = &triangulation->triangulated_points[triangle[2]];
-			float co[2] = {(float) x, (float) y}, w[3];
+		float co[2] = {(float) x, (float) y};
 
-			if (barycentric_coords_v2(a->co, b->co, c->co, co, w)) {
-				if (barycentric_inside_triangle_v2(w)) {
-					color[0] += a->color[0] * w[0] + b->color[0] * w[1] + c->color[0] * w[2];
-					color[1] += a->color[1] * w[0] + b->color[1] * w[1] + c->color[1] * w[2];
-					color[2] += a->color[2] * w[0] + b->color[2] * w[1] + c->color[2] * w[2];
+		for (i = 0; i < triangulation->triangles_total; i++) {
+			rctf *rect = &triangulation->triangles_AABB[i];
+
+			if (IN_RANGE_INCL(x, rect->xmin, rect->xmax) && IN_RANGE_INCL(y, rect->ymin, rect->ymax)) {
+				int *triangle = triangulation->triangles[i];
+				VoronoiTriangulationPoint *a = &triangulation->triangulated_points[triangle[0]],
+				                          *b = &triangulation->triangulated_points[triangle[1]],
+				                          *c = &triangulation->triangulated_points[triangle[2]];
+				float w[3];
+
+				if (barycentric_coords_v2(a->co, b->co, c->co, co, w)) {
+					if (barycentric_inside_triangle_v2(w)) {
+						color[0] += a->color[0] * w[0] + b->color[0] * w[1] + c->color[0] * w[2];
+						color[1] += a->color[1] * w[0] + b->color[1] * w[1] + c->color[1] * w[2];
+						color[2] += a->color[2] * w[0] + b->color[2] * w[1] + c->color[2] * w[2];
+					}
 				}
 			}
 		}
