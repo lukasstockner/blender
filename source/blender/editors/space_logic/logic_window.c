@@ -61,6 +61,8 @@
 
 #include "WM_types.h"
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 
 #include "UI_interface.h"
@@ -1161,7 +1163,7 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 		{
 			ysize= 24;
 			
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 			draw_default_sensor_header(sens, block, xco, yco, width);
@@ -1174,7 +1176,7 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 		{
 			ysize= 48; 
 			
-			glRects(xco, yco-ysize, xco+width, yco); 
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco); 
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1); 
 			
 			draw_default_sensor_header(sens, block, xco, yco, width);
@@ -1191,7 +1193,7 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 		{
 			ysize= 48;
 			
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 			draw_default_sensor_header(sens, block, xco, yco, width);
@@ -1228,7 +1230,7 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 		{
 			ysize= 72;
 			
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 			draw_default_sensor_header(sens, block, xco, yco, width);
@@ -1247,7 +1249,7 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 		{
 			ysize= 72; 
 			
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 			draw_default_sensor_header(sens, block, xco, yco, width);
@@ -1283,7 +1285,7 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 			/* 5 lines: 120 height */
 			ysize= (ks->type&1) ? 96:120;
 			
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 			/* header line */
@@ -1329,7 +1331,7 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 		{
 			ysize= 96;
 			
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize,
 				(float)xco+width, (float)yco, 1);
 			
@@ -1367,7 +1369,7 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 		{
 			ysize= 70;
 			
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize,
 				(float)xco+width, (float)yco, 1);
 			
@@ -1405,7 +1407,7 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 		{
 			ysize= 48;
 			
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize,
 				(float)xco+width, (float)yco, 1);
 			
@@ -1421,7 +1423,7 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 		{
 			ysize= 48;
 			
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize,
 				(float)xco+width, (float)yco, 1);
 			
@@ -1444,7 +1446,7 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 			/* Two lines: 48 pixels high. */
 			ysize = 48;
 			
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 			/* line 1: header */
@@ -1474,7 +1476,7 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 		{
 			ysize = 48;
 			
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 			draw_default_sensor_header(sens, block, xco, yco, width);
@@ -1491,7 +1493,7 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 	case SENS_RAY:
 		{
 			ysize = 72;
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 			draw_default_sensor_header(sens, block, xco, yco, width);
@@ -1538,7 +1540,7 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 			mes = sens->data;
 			ysize = 2 * 24; /* total number of lines * 24 pixels/line */
 			
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize,
 				(float)xco+width, (float)yco, 1);
 			
@@ -1560,7 +1562,7 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 
 			ysize =  72;
 			
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 			/* line 1: header */
@@ -1665,7 +1667,7 @@ static short draw_controllerbuttons(bController *cont, uiBlock *block, short xco
 		ysize= 28;
 
 		UI_ThemeColor(TH_PANEL);
-		glRects(xco, yco-ysize, xco+width, yco);
+		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 		uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 		
 		/* uiDefBut(block, LABEL, 1, "Not yet...", xco, yco-24, 80, 19, NULL, 0, 0, 0, 0, ""); */
@@ -1684,7 +1686,7 @@ static short draw_controllerbuttons(bController *cont, uiBlock *block, short xco
 		pc= cont->data;
 		
 		UI_ThemeColor(TH_PANEL);
-		glRects(xco, yco-ysize, xco+width, yco);
+		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 		uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
 	
@@ -1705,7 +1707,7 @@ static short draw_controllerbuttons(bController *cont, uiBlock *block, short xco
 		ysize= 4;
 
 		UI_ThemeColor(TH_PANEL);
-		glRects(xco, yco-ysize, xco+width, yco);
+		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 		uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 		
 		yco-= ysize;
@@ -1871,7 +1873,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 					ysize= 72;
 				}
 
-				glRects(xco, yco-ysize, xco+width, yco);
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 				
 				uiBlockBeginAlign(block);
@@ -1936,7 +1938,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 			else if (oa->type == ACT_OBJECT_SERVO) {
 				ysize= 195;
 				
-				glRects(xco, yco-ysize, xco+width, yco);
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 				
 				uiDefBut(block, LABEL, 0, "Ref",	xco, yco-45, 45, 19, NULL, 0, 0, 0, 0, "");
@@ -1994,7 +1996,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 			ysize= 92;
 #endif
 			
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 			aa = act->data;
@@ -2044,7 +2046,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 			
 			ysize= 72;
 			
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 			str = "Ipo types   %t|Play %x0|Ping Pong %x1|Flipper %x2|Loop Stop %x3|Loop End %x4|Property %x6";
@@ -2103,7 +2105,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		{
 			ysize= 68;
 			
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 			pa= act->data;
@@ -2140,7 +2142,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 				ysize = 92;
 
 			wval = (width-20)/2;
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 			if (bmain->sound.first) {
@@ -2206,7 +2208,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 
 		ysize= 48;
 
-		glRects(xco, yco-ysize, xco+width, yco);
+		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 		uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 		
 		ca= act->data;
@@ -2232,7 +2234,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 
 		if (eoa->type==ACT_EDOB_ADD_OBJECT) {
 			ysize = 92;
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
 			uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "OB:",		xco+10, yco-44, (width-20)/2, 19, &(eoa->ob), "Add this Object and all its children (cant be on an visible layer)");
@@ -2276,12 +2278,12 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		}
 		else if (eoa->type==ACT_EDOB_END_OBJECT) {
 			ysize= 28;
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 		}
 		else if (eoa->type==ACT_EDOB_REPLACE_MESH) {
 			ysize= 48;
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 	 
 			uiDefIDPoinBut(block, test_meshpoin_but, ID_ME, 1, "ME:",		xco+40, yco-44, (width-80)/2, 19, &(eoa->me), "replace the existing, when left blank 'Phys' will remake the existing physics mesh");
@@ -2291,7 +2293,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		}
 		else if (eoa->type==ACT_EDOB_TRACK_TO) {
 			ysize= 48;
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 	 
 			uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "OB:",		xco+10, yco-44, (width-20)/2, 19, &(eoa->ob), "Track to this Object");
@@ -2300,7 +2302,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		}
 		else if (eoa->type==ACT_EDOB_DYNAMICS) {
 			ysize= 69;
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 			str= "Dynamic Operation %t|Restore Dynamics %x0|Suspend Dynamics %x1|Enable Rigid Body %x2|Disable Rigid Body %x3|Set Mass %x4";
@@ -2324,7 +2326,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		if (coa->type == ACT_CONST_TYPE_LOC) {
 			ysize= 69;
 
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 	/*  		str= "Limit %t|None %x0|Loc X %x1|Loc Y %x2|Loc Z %x4|Rot X %x8|Rot Y %x16|Rot Z %x32"; */
@@ -2351,7 +2353,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		else if (coa->type == ACT_CONST_TYPE_DIST) {
 			ysize= 106;
 
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 			str= "Direction %t|None %x0|X axis %x1|Y axis %x2|Z axis %x4|-X axis %x8|-Y axis %x16|-Z axis %x32";
@@ -2392,7 +2394,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		else if (coa->type == ACT_CONST_TYPE_ORI) {
 			ysize= 87;
 
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 			str= "Direction %t|None %x0|X axis %x1|Y axis %x2|Z axis %x4";
@@ -2414,7 +2416,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		else if (coa->type == ACT_CONST_TYPE_FH) {
 			ysize= 106;
 
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			
 			str= "Direction %t|None %x0|X axis %x1|Y axis %x2|Z axis %x4|-X axis %x8|-Y axis %x16|-Z axis %x32";
@@ -2458,13 +2460,13 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		
 		if (sca->type==ACT_SCENE_RESTART) {
 			ysize= 28;
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 		}
 		else if (sca->type==ACT_SCENE_CAMERA) {
 
 			ysize= 48;
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
 			uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "OB:",		xco+40, yco-44, (width-80), 19, &(sca->camera), "Set this Camera. Leave empty to refer to self object");
@@ -2472,7 +2474,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		else if (sca->type==ACT_SCENE_SET) {
 			
 			ysize= 48;
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
 			uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Set this Scene");
@@ -2480,7 +2482,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		else if (sca->type==ACT_SCENE_ADD_FRONT) {
 			
 			ysize= 48;
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
 			uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Add an Overlay Scene");
@@ -2488,7 +2490,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		else if (sca->type==ACT_SCENE_ADD_BACK) {
 			
 			ysize= 48;
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
 			uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Add a Background Scene");
@@ -2496,7 +2498,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		else if (sca->type==ACT_SCENE_REMOVE) {
 			
 			ysize= 48;
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
 			uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Remove a Scene");
@@ -2504,7 +2506,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		else if (sca->type==ACT_SCENE_SUSPEND) {
 			
 			ysize= 48;
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
 			uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Pause a Scene");
@@ -2512,7 +2514,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		else if (sca->type==ACT_SCENE_RESUME) {
 			
 			ysize= 48;
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
 			uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Unpause a Scene");
@@ -2529,7 +2531,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 			if (gma->type == ACT_GAME_LOAD) {
 				//ysize = 68;
 				ysize = 48;
-				glRects(xco, yco-ysize, xco+width, yco); 
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco); 
 				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1); 
 				   uiDefBut(block, TEX, 1, "File: ", xco+10, yco-44, width-20, 19, &(gma->filename), 0, sizeof(gma->filename), 0, 0, "Load this blend file, use the \"//\" prefix for a path relative to the current blend file");
 //				uiDefBut(block, TEX, 1, "Anim: ", xco+10, yco-64, width-20, 19, &(gma->loadaniname), 0, sizeof(gma->loadaniname), 0, 0, "Use this loadinganimation");
@@ -2537,7 +2539,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 #if 0
 			else if (gma->type == ACT_GAME_START) {
 				ysize = 68; 
-				glRects(xco, yco-ysize, xco+width, yco); 
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco); 
 				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
 				   uiDefBut(block, TEX, 1, "File: ", xco+10, yco-44, width-20, 19, &(gma->filename), 0, sizeof(gma->filename), 0, 0, "Load this file");
@@ -2546,7 +2548,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 #endif
 			else if (ELEM4(gma->type, ACT_GAME_RESTART, ACT_GAME_QUIT, ACT_GAME_SAVECFG, ACT_GAME_LOADCFG)) {
 				ysize = 28; 
-				glRects(xco, yco-ysize, xco+width, yco); 
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco); 
 				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1); 
 			}
 
@@ -2562,7 +2564,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 
 		ysize= 52;
 
-		glRects(xco, yco-ysize, xco+width, yco);
+		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 		uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 		
 		str= "GroupKey types   %t|Set Key %x6|Play %x0|Ping Pong %x1|Flipper %x2|Loop Stop %x3|Loop End %x4|Property %x5";
@@ -2585,7 +2587,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 	case ACT_VISIBILITY:
 		ysize = 24;
 
-		glRects(xco, yco-ysize, xco+width, yco);
+		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 		uiEmboss((float)xco,
 			 (float)yco-ysize, (float)xco+width, (float)yco, 1);
 		
@@ -2617,7 +2619,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 	case ACT_STATE:
 		ysize = 34;
 
-		glRects(xco, yco-ysize, xco+width, yco);
+		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 		uiEmboss((float)xco,
 			 (float)yco-ysize, (float)xco+width, (float)yco, 1);
 		
@@ -2650,7 +2652,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 	case ACT_RANDOM:
 		ysize  = 69;
 
-		glRects(xco, yco-ysize, xco+width, yco);
+		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 		uiEmboss((float)xco,
 				  (float)yco-ysize, (float)xco+width, (float)yco, 1);
 		
@@ -2757,7 +2759,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 
 		ysize = 4 + (3 * 24); /* footer + number of lines * 24 pixels/line */
 	
-		glRects(xco, yco-ysize, xco+width, yco);
+		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 		uiEmboss((float)xco,	    (float)yco-ysize,
 				 (float)xco+width,  (float)yco, 1);
 
@@ -2805,7 +2807,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		if (tdfa->type == ACT_2DFILTER_CUSTOMFILTER) {
 			ysize +=20;
 		}
-		glRects(xco, yco-ysize, xco+width, yco);
+		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 		uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
 		switch (tdfa->type) {
@@ -2852,7 +2854,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		if (parAct->type==ACT_PARENT_SET) {
 			
 			ysize= 48;
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "OB:",		xco+95, yco-24, (width-100), 19, &(parAct->ob), "Set this object as parent");
 			uiBlockBeginAlign(block);
@@ -2871,7 +2873,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 		else if (parAct->type==ACT_PARENT_REMOVE) {
 
 			ysize= 28;
-			glRects(xco, yco-ysize, xco+width, yco);
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 		}
 
@@ -2917,7 +2919,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 				}
 			}
 		  }
-		glRects(xco, yco-ysize, xco+width, yco); 
+		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco); 
 		uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1); 
 		yco-= ysize;
 		break;
@@ -2925,7 +2927,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 	 default:
 		ysize= 4;
 
-		glRects(xco, yco-ysize, xco+width, yco);
+		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 		uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 		
 		yco-= ysize;
@@ -4922,8 +4924,8 @@ void logic_buttons(bContext *C, ARegion *ar)
 							if (yco-6 < ycoo) ycoo= (yco+ycoo-20)/2;
 						}
 						else {
-							cpack(0x999999);
-							glRecti(xco+22, yco, xco+width-22, yco+19);
+							gpuCurrentColorPack(0x999999);
+							gpuSingleFilledRecti(xco+22, yco, xco+width-22, yco+19);
 							but = uiDefBut(block, LABEL, 0, controller_name(cont->type), (short)(xco+22), yco, 70, UI_UNIT_Y, cont, 0, 0, 0, 0, "Controller type");
 							//uiButSetFunc(but, old_sca_move_controller, cont, NULL);
 							but = uiDefBut(block, LABEL, 0, cont->name, (short)(xco+92), yco, (short)(width-158), UI_UNIT_Y, cont, 0, 0, 0, 0, "Controller name");
@@ -5014,7 +5016,7 @@ void logic_buttons(bContext *C, ARegion *ar)
 					}
 					else {
 						set_col_sensor(sens->type, 1);
-						glRecti(xco + 22, yco, xco + width - 22, yco + 19);
+						gpuSingleFilledRecti(xco + 22, yco, xco + width - 22, yco + 19);
 						but = uiDefBut(block, LABEL, 0, sensor_name(sens->type),	(short)(xco+22), yco, 80, UI_UNIT_Y, sens, 0, 0, 0, 0, "");
 						//uiButSetFunc(but, old_sca_move_sensor, sens, NULL);
 						but = uiDefBut(block, LABEL, 0, sens->name, (short)(xco+102), yco, (short)(width-(pin?146:124)), UI_UNIT_Y, sens, 0, MAX_NAME, 0, 0, "");
@@ -5092,7 +5094,7 @@ void logic_buttons(bContext *C, ARegion *ar)
 					}
 					else {
 						set_col_actuator(act->type, 1);
-						glRecti((short)(xco+22), yco, (short)(xco+width-22), (short)(yco+19));
+						gpuSingleFilledRecti((short)(xco+22), yco, (short)(xco+width-22), (short)(yco+19));
 						/* but= */ uiDefBut(block, LABEL, 0, actuator_name(act->type), (short)(xco+22), yco, 90, UI_UNIT_Y, act, 0, 0, 0, 0, "Actuator type");
 						// uiButSetFunc(but, old_sca_move_actuator, act, NULL);
 						/* but= */ uiDefBut(block, LABEL, 0, act->name, (short)(xco+112), yco, (short)(width-(pin?156:134)), UI_UNIT_Y, act, 0, 0, 0, 0, "Actuator name");

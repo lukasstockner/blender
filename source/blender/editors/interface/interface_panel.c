@@ -50,6 +50,8 @@
 #include "BKE_context.h"
 #include "BKE_screen.h"
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
@@ -370,18 +372,21 @@ static void ui_draw_tria_rect(rctf *rect, char dir)
 
 static void ui_draw_anti_x(float x1, float y1, float x2, float y2)
 {
-
 	/* set antialias line */
 	glEnable(GL_LINE_SMOOTH);
 	glEnable(GL_BLEND);
 
 	glLineWidth(2.0);
-	
-	fdrawline(x1, y1, x2, y2);
-	fdrawline(x1, y2, x2, y1);
-	
+
+	gpuImmediateFormat_V2(); // DOODLE: an X, two thick lines, mono
+	gpuBegin(GL_LINES);
+	gpuAppendLinef(x1, y1, x2, y2);
+	gpuAppendLinef(x1, y2, x2, y1);
+	gpuEnd();
+	gpuImmediateUnformat();
+
 	glLineWidth(1.0);
-	
+
 	glDisable(GL_LINE_SMOOTH);
 	glDisable(GL_BLEND);
 	
@@ -411,13 +416,21 @@ static void ui_draw_panel_scalewidget(rcti *rect)
 	dy = 0.5f * (ymax - ymin);
 	
 	glEnable(GL_BLEND);
-	glColor4ub(255, 255, 255, 50);
-	fdrawline(xmin, ymin, xmax, ymax);
-	fdrawline(xmin + dx, ymin, xmax, ymax - dy);
+
+	gpuImmediateFormat_C4_V2(); // DOODLE: scale widget, fixed number of colored lines
+	gpuBegin(GL_LINES);
+
+	gpuColor4ub(255, 255, 255, 50);
+	gpuAppendLinef(xmin, ymin, xmax, ymax);
+	gpuAppendLinef(xmin + dx, ymin, xmax, ymax - dy);
 	
-	glColor4ub(0, 0, 0, 50);
-	fdrawline(xmin, ymin + 1, xmax, ymax + 1);
-	fdrawline(xmin + dx, ymin + 1, xmax, ymax - dy + 1);
+	gpuColor4ub(0, 0, 0, 50);
+	gpuAppendLinef(xmin, ymin + 1, xmax, ymax + 1);
+	gpuAppendLinef(xmin + dx, ymin + 1, xmax, ymax - dy + 1);
+
+	gpuEnd();
+	gpuImmediateUnformat();
+
 	glDisable(GL_BLEND);
 }
 
@@ -435,15 +448,23 @@ static void ui_draw_panel_dragwidget(rctf *rect)
 	dy = 0.333f * (ymax - ymin);
 	
 	glEnable(GL_BLEND);
-	glColor4ub(255, 255, 255, 50);
-	fdrawline(xmin, ymax, xmax, ymin);
-	fdrawline(xmin + dx, ymax, xmax, ymin + dy);
-	fdrawline(xmin + 2 * dx, ymax, xmax, ymin + 2 * dy);
+
+	gpuImmediateFormat_C4_V2(); // DOODLE: draw widge, 6 mono lines
+	gpuBegin(GL_LINES);
+
+	gpuColor4ub(255, 255, 255, 50);
+	gpuAppendLinef(xmin, ymax, xmax, ymin);
+	gpuAppendLinef(xmin + dx, ymax, xmax, ymin + dy);
+	gpuAppendLinef(xmin + 2 * dx, ymax, xmax, ymin + 2 * dy);
 	
-	glColor4ub(0, 0, 0, 50);
-	fdrawline(xmin, ymax + 1, xmax, ymin + 1);
-	fdrawline(xmin + dx, ymax + 1, xmax, ymin + dy + 1);
-	fdrawline(xmin + 2 * dx, ymax + 1, xmax, ymin + 2 * dy + 1);
+	gpuColor4ub(0, 0, 0, 50);
+	gpuAppendLinef(xmin, ymax + 1, xmax, ymin + 1);
+	gpuAppendLinef(xmin + dx, ymax + 1, xmax, ymin + dy + 1);
+	gpuAppendLinef(xmin + 2 * dx, ymax + 1, xmax, ymin + 2 * dy + 1);
+
+	gpuEnd();
+	gpuImmediateUnformat();
+
 	glDisable(GL_BLEND);
 }
 
@@ -518,32 +539,38 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect)
 
 		if (btheme->tui.panel.show_header) {
 			/* draw with background color */
-			glEnable(GL_BLEND);
-			glColor4ubv((unsigned char *)btheme->tui.panel.header);
-			glRectf(minx, headrect.ymin + 1, maxx, y);
+			gpuCurrentColor4ubv((unsigned char *)btheme->tui.panel.header);
+			gpuSingleFilledRectf(minx, headrect.ymin + 1, maxx, y);
 
-			fdrawline(minx, y, maxx, y);
-			fdrawline(minx, y, maxx, y);
+			gpuImmediateFormat_V2(); // DOODLE: 2 lines, mono
+			gpuBegin(GL_LINES);
+			gpuAppendLinef(minx, y, maxx, y);
+			gpuAppendLinef(minx, y, maxx, y);
+			gpuEnd();
+			gpuImmediateUnformat();
 		}
 		else if (!(panel->runtime_flag & PNL_FIRST)) {
 			/* draw embossed separator */
 			minx += 5.0f / block->aspect;
 			maxx -= 5.0f / block->aspect;
-			
-			glColor4f(0.0f, 0.0f, 0.0f, 0.5f);
-			fdrawline(minx, y, maxx, y);
-			glColor4f(1.0f, 1.0f, 1.0f, 0.25f);
-			fdrawline(minx, y - 1, maxx, y - 1);
-			glDisable(GL_BLEND);
+
+			gpuImmediateFormat_C4_V2(); // DOODLE: 2 lines, colored
+			gpuBegin(GL_LINES);
+			gpuColor4f(0.0f, 0.0f, 0.0f, 0.5f);
+			gpuAppendLinef(minx, y, maxx, y);
+			gpuColor4f(1.0f, 1.0f, 1.0f, 0.25f);
+			gpuAppendLinef(minx, y - 1, maxx, y - 1);
+			gpuEnd();
+			gpuImmediateUnformat();
 		}
 
 		glDisable(GL_BLEND);
 	}
-	
+
 	/* horizontal title */
 	if (!(panel->flag & PNL_CLOSEDX)) {
 		ui_draw_aligned_panel_header(style, block, &headrect, 'h');
-		
+
 		/* itemrect smaller */	
 		itemrect.xmax = headrect.xmax - 5.0f / block->aspect;
 		itemrect.xmin = itemrect.xmax - (headrect.ymax - headrect.ymin);

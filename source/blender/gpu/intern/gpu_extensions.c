@@ -46,6 +46,7 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "gpu_codegen.h"
+#include "GPU_compatibility.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -238,7 +239,7 @@ int GPU_print_error(const char *str)
 
 	if (G.debug & G_DEBUG) {
 		if ((errCode = glGetError()) != GL_NO_ERROR) {
-			fprintf(stderr, "%s opengl error: %s\n", str, gluErrorString(errCode));
+			fprintf(stderr, "%s opengl error: %s\n", str, gpuErrorString(errCode));
 			return 1;
 		}
 	}
@@ -349,12 +350,12 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 
 	if (!tex->bindcode) {
 		if (err_out) {
-			BLI_snprintf(err_out, 256, "GPUTexture: texture create failed: %d",
-				(int)glGetError());
+			BLI_snprintf(err_out, 256, "GPUTexture: texture create failed: %s",
+				gpuErrorString(glGetError()));
 		}
 		else {
-			fprintf(stderr, "GPUTexture: texture create failed: %d\n",
-				(int)glGetError());
+			fprintf(stderr, "GPUTexture: texture create failed: %s\n",
+				gpuErrorString(glGetError()));
 		}
 		GPU_texture_free(tex);
 		return NULL;
@@ -463,8 +464,8 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, float *fpixels)
 	glGenTextures(1, &tex->bindcode);
 
 	if (!tex->bindcode) {
-		fprintf(stderr, "GPUTexture: texture create failed: %d\n",
-			(int)glGetError());
+		fprintf(stderr, "GPUTexture: texture create failed: %s\n",
+			gpuErrorString(glGetError()));
 		GPU_texture_free(tex);
 		return NULL;
 	}
@@ -735,8 +736,8 @@ GPUFrameBuffer *GPU_framebuffer_create(void)
 	glGenFramebuffersEXT(1, &fb->object);
 
 	if (!fb->object) {
-		fprintf(stderr, "GPUFFrameBuffer: framebuffer gen failed. %d\n",
-			(int)glGetError());
+		fprintf(stderr, "GPUFFrameBuffer: framebuffer gen failed. %s\n",
+			gpuErrorString(glGetError()));
 		GPU_framebuffer_free(fb);
 		return NULL;
 	}
@@ -912,13 +913,15 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 
 	GPU_texture_bind(tex, 0);
 
+	gpuImmediateFormat_T2_V2();
+
 	/* Drawing quad */
-	glBegin(GL_QUADS);
-	glTexCoord2d(0, 0); glVertex2f(1, 1);
-	glTexCoord2d(1, 0); glVertex2f(-1, 1);
-	glTexCoord2d(1, 1); glVertex2f(-1, -1);
-	glTexCoord2d(0, 1); glVertex2f(1, -1);
-	glEnd();
+	gpuBegin(GL_QUADS);
+	gpuTexCoord2f(0, 0); gpuVertex2f(1, 1);
+	gpuTexCoord2f(1, 0); gpuVertex2f(-1, 1);
+	gpuTexCoord2f(1, 1); gpuVertex2f(-1, -1);
+	gpuTexCoord2f(0, 1); gpuVertex2f(1, -1);
+	gpuEnd();
 		
 	/* Blurring vertically */
 
@@ -928,12 +931,14 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 	GPU_shader_uniform_texture(blur_shader, texture_source_uniform, blurtex);
 	GPU_texture_bind(blurtex, 0);
 
-	glBegin(GL_QUADS);
-	glTexCoord2d(0, 0); glVertex2f(1, 1);
-	glTexCoord2d(1, 0); glVertex2f(-1, 1);
-	glTexCoord2d(1, 1); glVertex2f(-1, -1);
-	glTexCoord2d(0, 1); glVertex2f(1, -1);
-	glEnd();
+	gpuBegin(GL_QUADS);
+	gpuTexCoord2f(0, 0); gpuVertex2f(1, 1);
+	gpuTexCoord2f(1, 0); gpuVertex2f(-1, 1);
+	gpuTexCoord2f(1, 1); gpuVertex2f(-1, -1);
+	gpuTexCoord2f(0, 1); gpuVertex2f(1, -1);
+	gpuEnd();
+
+	gpuImmediateUnformat();
 
 	GPU_shader_unbind(blur_shader);
 }

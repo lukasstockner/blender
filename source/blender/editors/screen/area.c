@@ -57,8 +57,8 @@
 #include "ED_types.h"
 #include "ED_fileselect.h" 
 
-#include "BIF_gl.h"
-#include "BIF_glutil.h"
+#include "GPU_compatibility.h"
+
 #include "BLF_api.h"
 
 #include "UI_interface.h"
@@ -72,33 +72,38 @@
 static void region_draw_emboss(ARegion *ar, rcti *scirct)
 {
 	rcti rect;
-	
+
 	/* translate scissor rect to region space */
 	rect.xmin = scirct->xmin - ar->winrct.xmin;
 	rect.ymin = scirct->ymin - ar->winrct.ymin;
 	rect.xmax = scirct->xmax - ar->winrct.xmin;
 	rect.ymax = scirct->ymax - ar->winrct.ymin;
-	
+
 	/* set transp line */
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	
+
+	gpuImmediateFormat_C4_V2(); // DOODLE: emboss, 4 lines, colored
+	gpuBegin(GL_LINES);
+
 	/* right  */
-	glColor4ub(0, 0, 0, 30);
-	sdrawline(rect.xmax, rect.ymin, rect.xmax, rect.ymax);
+	gpuColor4ub(0, 0, 0, 30);
+	gpuAppendLinei(rect.xmax, rect.ymin, rect.xmax, rect.ymax);
 	
 	/* bottom  */
-	glColor4ub(0, 0, 0, 30);
-	sdrawline(rect.xmin, rect.ymin, rect.xmax, rect.ymin);
-	
+	gpuColor4ub(0, 0, 0, 30);
+	gpuAppendLinei(rect.xmin, rect.ymin, rect.xmax, rect.ymin);
+
 	/* top  */
-	glColor4ub(255, 255, 255, 30);
-	sdrawline(rect.xmin, rect.ymax, rect.xmax, rect.ymax);
+	gpuColor4ub(255, 255, 255, 30);
+	gpuAppendLinei(rect.xmin, rect.ymax, rect.xmax, rect.ymax);
 
 	/* left  */
-	glColor4ub(255, 255, 255, 30);
-	sdrawline(rect.xmin, rect.ymin, rect.xmin, rect.ymax);
-	
+	gpuColor4ub(255, 255, 255, 30);
+	gpuAppendLinei(rect.xmin, rect.ymin, rect.xmin, rect.ymax);
+
+	gpuEnd();
+	gpuImmediateUnformat();
+
 	glDisable(GL_BLEND);
 }
 
@@ -177,20 +182,26 @@ static void area_draw_azone(short x1, short y1, short x2, short y2)
 
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
-	
-	glColor4ub(255, 255, 255, 180);
-	fdrawline(x1, y2, x2, y1);
-	glColor4ub(255, 255, 255, 130);
-	fdrawline(x1, y2 - dy, x2 - dx, y1);
-	glColor4ub(255, 255, 255, 80);
-	fdrawline(x1, y2 - 2 * dy, x2 - 2 * dx, y1);
-	
-	glColor4ub(0, 0, 0, 210);
-	fdrawline(x1, y2 + 1, x2 + 1, y1);
-	glColor4ub(0, 0, 0, 180);
-	fdrawline(x1, y2 - dy + 1, x2 - dx + 1, y1);
-	glColor4ub(0, 0, 0, 150);
-	fdrawline(x1, y2 - 2 * dy + 1, x2 - 2 * dx + 1, y1);
+
+	gpuImmediateFormat_C4_V2(); // DOODLE: azone, 6 lines, colored
+	gpuBegin(GL_LINES);
+
+	gpuColor4ub(255, 255, 255, 180);
+	gpuAppendLinef(x1, y2, x2, y1);
+	gpuColor4ub(255, 255, 255, 130);
+	gpuAppendLinef(x1, y2 - dy, x2 - dx, y1);
+	gpuColor4ub(255, 255, 255, 80);
+	gpuAppendLinef(x1, y2 - 2 * dy, x2 - 2 * dx, y1);
+
+	gpuColor4ub(0, 0, 0, 210);
+	gpuAppendLinef(x1, y2 + 1, x2 + 1, y1);
+	gpuColor4ub(0, 0, 0, 180);
+	gpuAppendLinef(x1, y2 - dy + 1, x2 - dx + 1, y1);
+	gpuColor4ub(0, 0, 0, 150);
+	gpuAppendLinef(x1, y2 - 2 * dy + 1, x2 - 2 * dx + 1, y1);
+
+	gpuEnd();
+	gpuImmediateUnformat();
 
 	glDisable(GL_LINE_SMOOTH);
 	glDisable(GL_BLEND);
@@ -206,28 +217,30 @@ static void region_draw_azone_icon(AZone *az)
 	
 	glPushMatrix();
 	glTranslatef(midx, midy, 0.0);
-	
+
+	gpuImmediateFormat_V2(); // DOODLE, azone icon, disk, circle, and plus (cross), 2 lines mono
+
 	/* outlined circle */
 	glEnable(GL_LINE_SMOOTH);
 
-	glColor4f(1.f, 1.f, 1.f, 0.8f);
+	gpuCurrentColor4f(1.f, 1.f, 1.f, 0.8f);
+	gpuDrawDisk(0, 0, 4.25f, 16);
 
-	gluQuadricDrawStyle(qobj, GLU_FILL); 
-	gluDisk(qobj, 0.0,  4.25f, 16, 1);
+	gpuCurrentColor4f(0.2f, 0.2f, 0.2f, 0.9f);
+	gpuDrawCircle(0, 0, 4.25, 16);
 
-	glColor4f(0.2f, 0.2f, 0.2f, 0.9f);
-	
-	gluQuadricDrawStyle(qobj, GLU_SILHOUETTE); 
-	gluDisk(qobj, 0.0,  4.25f, 16, 1);
-	
 	glDisable(GL_LINE_SMOOTH);
-	
+
 	glPopMatrix();
 	gluDeleteQuadric(qobj);
-	
+
 	/* + */
-	sdrawline(midx, midy - 2, midx, midy + 3);
-	sdrawline(midx - 2, midy, midx + 3, midy);
+	gpuBegin(GL_LINES);
+	gpuAppendLinei(midx, midy - 2, midx, midy + 3);
+	gpuAppendLinei(midx - 2, midy, midx + 3, midy);
+	gpuEnd();
+
+	gpuImmediateUnformat();
 }
 
 static void draw_azone_plus(float x1, float y1, float x2, float y2)
@@ -235,9 +248,13 @@ static void draw_azone_plus(float x1, float y1, float x2, float y2)
 	float width = 2.0f;
 	float pad = 4.0f;
 	
-	glRectf((x1 + x2 - width) * 0.5f, y1 + pad, (x1 + x2 + width) * 0.5f, y2 - pad);
-	glRectf(x1 + pad, (y1 + y2 - width) * 0.5f, (x1 + x2 - width) * 0.5f, (y1 + y2 + width) * 0.5f);
-	glRectf((x1 + x2 + width) * 0.5f, (y1 + y2 - width) * 0.5f, x2 - pad, (y1 + y2 + width) * 0.5f);
+	gpuImmediateFormat_V2();
+	gpuBegin(GL_TRIANGLES);
+	gpuAppendFilledRectf((x1 + x2 - width) * 0.5f, y1 + pad, (x1 + x2 + width) * 0.5f, y2 - pad);
+	gpuAppendFilledRectf((x1 + pad), (y1 + y2 - width) * 0.5f, (x1 + x2 - width) * 0.5f, (y1 + y2 + width) * 0.5f);
+	gpuAppendFilledRectf((x1 + x2 + width) * 0.5f, (y1 + y2 - width) * 0.5f, x2 - pad, (y1 + y2 + width) * 0.5f);
+	gpuEnd();
+	gpuImmediateUnformat();
 }
 
 static void region_draw_azone_tab_plus(AZone *az)
@@ -262,12 +279,12 @@ static void region_draw_azone_tab_plus(AZone *az)
 			break;
 	}
 
-	glColor4f(0.05f, 0.05f, 0.05f, 0.4f);
+	gpuCurrentColor4f(0.05f, 0.05f, 0.05f, 0.4f);
 	uiRoundBox((float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2, 4.0f);
 
 	glEnable(GL_BLEND);
 
-	glColor4f(0.8f, 0.8f, 0.8f, 0.4f);
+	gpuCurrentColor4f(0.8f, 0.8f, 0.8f, 0.4f);
 	draw_azone_plus((float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2);
 
 	glDisable(GL_BLEND);
@@ -279,7 +296,7 @@ static void region_draw_azone_tab(AZone *az)
 	
 	glEnable(GL_BLEND);
 	UI_GetThemeColor3fv(TH_HEADER, col);
-	glColor4f(col[0], col[1], col[2], 0.5f);
+	gpuCurrentColor4f(col[0], col[1], col[2], 0.5f);
 	
 	/* add code to draw region hidden as 'too small' */
 	switch (az->edge) {
@@ -287,28 +304,28 @@ static void region_draw_azone_tab(AZone *az)
 			uiSetRoundBox(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT | UI_RB_ALPHA);
 			
 			uiDrawBoxShade(GL_POLYGON, (float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2, 4.0f, -0.3f, 0.05f);
-			glColor4ub(0, 0, 0, 255);
+			gpuCurrentColor4ub(0, 0, 0, 255);
 			uiRoundRect((float)az->x1, 0.3f + (float)az->y1, (float)az->x2, 0.3f + (float)az->y2, 4.0f);
 			break;
 		case AE_BOTTOM_TO_TOPLEFT:
 			uiSetRoundBox(UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT | UI_RB_ALPHA);
 			
 			uiDrawBoxShade(GL_POLYGON, (float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2, 4.0f, -0.3f, 0.05f);
-			glColor4ub(0, 0, 0, 255);
+			gpuCurrentColor4ub(0, 0, 0, 255);
 			uiRoundRect((float)az->x1, 0.3f + (float)az->y1, (float)az->x2, 0.3f + (float)az->y2, 4.0f);
 			break;
 		case AE_LEFT_TO_TOPRIGHT:
 			uiSetRoundBox(UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT | UI_RB_ALPHA);
 			
 			uiDrawBoxShade(GL_POLYGON, (float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2, 4.0f, -0.3f, 0.05f);
-			glColor4ub(0, 0, 0, 255);
+			gpuCurrentColor4ub(0, 0, 0, 255);
 			uiRoundRect((float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2, 4.0f);
 			break;
 		case AE_RIGHT_TO_TOPLEFT:
 			uiSetRoundBox(UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT | UI_RB_ALPHA);
 			
 			uiDrawBoxShade(GL_POLYGON, (float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2, 4.0f, -0.3f, 0.05f);
-			glColor4ub(0, 0, 0, 255);
+			gpuCurrentColor4ub(0, 0, 0, 255);
 			uiRoundRect((float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2, 4.0f);
 			break;
 	}
@@ -322,7 +339,7 @@ static void region_draw_azone_tria(AZone *az)
 	
 	glEnable(GL_BLEND);
 	//UI_GetThemeColor3fv(TH_HEADER, col);
-	glColor4f(0.0f, 0.0f, 0.0f, 0.35f);
+	gpuCurrentColor4f(0.0f, 0.0f, 0.0f, 0.35f);
 	
 	/* add code to draw region hidden as 'too small' */
 	switch (az->edge) {
@@ -358,8 +375,7 @@ void ED_area_overdraw(bContext *C)
 	wmSubWindowSet(win, screen->mainwin);
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	
+
 	for (sa = screen->areabase.first; sa; sa = sa->next) {
 		AZone *az;
 		for (az = sa->actionzones.first; az; az = az->next) {
@@ -1803,9 +1819,8 @@ void ED_region_info_draw(ARegion *ar, const char *text, int block, float alpha)
 	rect.ymax = ar->winrct.ymax - ar->winrct.ymin;
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glColor4f(0.0f, 0.0f, 0.0f, alpha);
-	glRecti(rect.xmin, rect.ymin, rect.xmax + 1, rect.ymax + 1);
+	gpuCurrentColor4f(0.0f, 0.0f, 0.0f, alpha);
+	gpuSingleFilledRecti(rect.xmin, rect.ymin, rect.xmax + 1, rect.ymax + 1);
 	glDisable(GL_BLEND);
 
 	/* text */
@@ -1825,7 +1840,7 @@ void ED_region_grid_draw(ARegion *ar, float zoomx, float zoomy)
 
 	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &x1, &y1);
 	UI_view2d_to_region_no_clip(&ar->v2d, 1.0f, 1.0f, &x2, &y2);
-	glRectf(x1, y1, x2, y2);
+	gpuSingleFilledRectf(x1, y1, x2, y2);
 
 	/* gridsize adapted to zoom level */
 	gridsize = 0.5f * (zoomx + zoomy);
@@ -1845,31 +1860,34 @@ void ED_region_grid_draw(ARegion *ar, float zoomx, float zoomy)
 		}
 	}
 
-	/* the fine resolution level */
 	blendfac = 0.25f * gridsize - floorf(0.25f * gridsize);
 	CLAMP(blendfac, 0.0f, 1.0f);
-	UI_ThemeColorShade(TH_BACK, (int)(20.0f * (1.0f - blendfac)));
 
+	gpuImmediateFormat_C4_V2();
+	gpuBegin(GL_LINES);
+
+	/* the fine resolution level */
 	fac = 0.0f;
-	glBegin(GL_LINES);
+	UI_ThemeAppendColorShade(TH_BACK, (int)(20.0f * (1.0f - blendfac)));
 	while (fac < 1.0f) {
-		glVertex2f(x1, y1 * (1.0f - fac) + y2 * fac);
-		glVertex2f(x2, y1 * (1.0f - fac) + y2 * fac);
-		glVertex2f(x1 * (1.0f - fac) + x2 * fac, y1);
-		glVertex2f(x1 * (1.0f - fac) + x2 * fac, y2);
+		gpuVertex2f(x1, y1 * (1.0f - fac) + y2 * fac);
+		gpuVertex2f(x2, y1 * (1.0f - fac) + y2 * fac);
+		gpuVertex2f(x1 * (1.0f - fac) + x2 * fac, y1);
+		gpuVertex2f(x1 * (1.0f - fac) + x2 * fac, y2);
 		fac += gridstep;
 	}
 
 	/* the large resolution level */
-	UI_ThemeColor(TH_BACK);
-
+	UI_ThemeAppendColor(TH_BACK);
 	fac = 0.0f;
 	while (fac < 1.0f) {
-		glVertex2f(x1, y1 * (1.0f - fac) + y2 * fac);
-		glVertex2f(x2, y1 * (1.0f - fac) + y2 * fac);
-		glVertex2f(x1 * (1.0f - fac) + x2 * fac, y1);
-		glVertex2f(x1 * (1.0f - fac) + x2 * fac, y2);
+		gpuVertex2f(x1, y1 * (1.0f - fac) + y2 * fac);
+		gpuVertex2f(x2, y1 * (1.0f - fac) + y2 * fac);
+		gpuVertex2f(x1 * (1.0f - fac) + x2 * fac, y1);
+		gpuVertex2f(x1 * (1.0f - fac) + x2 * fac, y2);
 		fac += 4.0f * gridstep;
 	}
-	glEnd();
+
+	gpuEnd();
+	gpuImmediateUnformat();
 }

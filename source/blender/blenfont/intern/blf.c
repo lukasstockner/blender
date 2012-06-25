@@ -507,7 +507,6 @@ static void draw_lock(FontBLF *font)
 		/* one-time GL setup */
 		glEnable(GL_TEXTURE_2D);
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 
 	font->locked++;
@@ -578,11 +577,8 @@ static void blf_draw__start(FontBLF *font)
 	if (font->flags & BLF_ROTATION)
 		glRotatef(font->angle, 0.0f, 0.0f, 1.0f);
 
-	/* if (font->shadow || font->blur) 
-		gpuGetCurrentColor4fv(font->orig_col); */
-
-	gpuGetCurrentColor4fv(font->orig_col);  // XXX: workaround
-	gpuCurrentColor4fv(font->orig_col);
+	if (font->shadow || font->blur) 
+		gpuGetCurrentColor4fv(font->orig_col);
 
 	/* always bind the texture for the first glyph */
 	font->tex_bind_state = -1;
@@ -599,6 +595,11 @@ static void blf_draw__end(FontBLF *font)
 
 	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();
+
+	/* XXX: current color becomes undefined due to use of vertex arrays,
+	        but a lot of code relies on it remaining the same */
+	if (font->shadow || font->blur) 
+		gpuCurrentColor4fv(font->orig_col);
 }
 
 void BLF_draw(int fontid, const char *str, size_t len)

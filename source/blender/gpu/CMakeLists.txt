@@ -79,6 +79,7 @@ set(SRC
 	intern/gpu_immediate.h
 	intern/gpu_immediate_inline.h
 	intern/gpu_immediate_internal.h
+	intern/gpu_primitives_inline.h
 )
 
 if(WITH_MOD_SMOKE)

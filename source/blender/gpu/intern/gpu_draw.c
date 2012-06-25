@@ -32,8 +32,6 @@
 
 #include <string.h>
 
-#include <GL/glew.h>
-
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
@@ -65,6 +63,7 @@
 #include "BLI_threads.h"
 #include "BLI_blenlib.h"
 
+#include "GPU_compatibility.h"
 #include "GPU_buffers.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
@@ -84,7 +83,7 @@ static void gpu_mcol(unsigned int ucol)
 {
 	/* mcol order is swapped */
 	char *cp= (char *)&ucol;
-	glColor3ub(cp[3], cp[2], cp[1]);
+	gpuColor3ub(cp[3], cp[2], cp[1]);
 }
 
 void GPU_render_text(MTFace *tface, int mode,
@@ -112,7 +111,7 @@ void GPU_render_text(MTFace *tface, int mode,
 		if (tface->mode & TF_OBCOL)
 			col= NULL;
 		else if (!col)
-			glColor3f(1.0f, 1.0f, 1.0f);
+			gpuCurrentColor3f(1.0f, 1.0f, 1.0f);
 
 		glPushMatrix();
 		
@@ -153,32 +152,32 @@ void GPU_render_text(MTFace *tface, int mode,
 			uv[2][0] = (tface->uv[2][0] - centerx) * sizex + transx;
 			uv[2][1] = (tface->uv[2][1] - centery) * sizey + transy;
 			
-			glBegin(GL_POLYGON);
-			if (glattrib >= 0) glVertexAttrib2fvARB(glattrib, uv[0]);
-			else glTexCoord2fv(uv[0]);
+			gpuBegin(GL_POLYGON);
+			if (glattrib >= 0) gpuVertexAttrib2fv(glattrib, uv[0]);
+			else gpuTexCoord2fv(uv[0]);
 			if (col) gpu_mcol(col[0]);
-			glVertex3f(sizex * v1[0] + movex, sizey * v1[1] + movey, v1[2]);
+			gpuVertex3f(sizex * v1[0] + movex, sizey * v1[1] + movey, v1[2]);
 			
-			if (glattrib >= 0) glVertexAttrib2fvARB(glattrib, uv[1]);
-			else glTexCoord2fv(uv[1]);
+			if (glattrib >= 0) gpuVertexAttrib2fv(glattrib, uv[1]);
+			else gpuTexCoord2fv(uv[1]);
 			if (col) gpu_mcol(col[1]);
-			glVertex3f(sizex * v2[0] + movex, sizey * v2[1] + movey, v2[2]);
+			gpuVertex3f(sizex * v2[0] + movex, sizey * v2[1] + movey, v2[2]);
 
-			if (glattrib >= 0) glVertexAttrib2fvARB(glattrib, uv[2]);
-			else glTexCoord2fv(uv[2]);
+			if (glattrib >= 0) gpuVertexAttrib2fv(glattrib, uv[2]);
+			else gpuTexCoord2fv(uv[2]);
 			if (col) gpu_mcol(col[2]);
-			glVertex3f(sizex * v3[0] + movex, sizey * v3[1] + movey, v3[2]);
+			gpuVertex3f(sizex * v3[0] + movex, sizey * v3[1] + movey, v3[2]);
 
 			if (v4) {
 				uv[3][0] = (tface->uv[3][0] - centerx) * sizex + transx;
 				uv[3][1] = (tface->uv[3][1] - centery) * sizey + transy;
 
-				if (glattrib >= 0) glVertexAttrib2fvARB(glattrib, uv[3]);
-				else glTexCoord2fv(uv[3]);
+				if (glattrib >= 0) gpuVertexAttrib2fv(glattrib, uv[3]);
+				else gpuTexCoord2fv(uv[3]);
 				if (col) gpu_mcol(col[3]);
-				glVertex3f(sizex * v4[0] + movex, sizey * v4[1] + movey, v4[2]);
+				gpuVertex3f(sizex * v4[0] + movex, sizey * v4[1] + movey, v4[2]);
 			}
-			glEnd();
+			gpuEnd();
 
 			glTranslatef(advance, 0.0, 0.0);
 			line_start -= advance; /* so we can go back to the start of the line */
@@ -321,6 +320,8 @@ static void gpu_make_repbind(Image *ima)
 		ima->repbind= MEM_callocN(sizeof(int)*ima->totbind, "repbind");
 }
 
+static void reset_default_alphablend_state(void);
+
 static void gpu_clear_tpage(void)
 {
 	if (GTS.lasttface==NULL)
@@ -339,45 +340,47 @@ static void gpu_clear_tpage(void)
 	GTS.curtileYRep=0;
 	GTS.alphablend= -1;
 	
-	glDisable(GL_BLEND);
 	glDisable(GL_TEXTURE_2D);
 	glDisable(GL_TEXTURE_GEN_S);
 	glDisable(GL_TEXTURE_GEN_T);
-	glDisable(GL_ALPHA_TEST);
+
+	reset_default_alphablend_state();
 }
+
+static void disable_blend(void);
+static void enable_blendfunc_blend(void);
+static void enable_blendfunc_add(void);
+static void disable_alphatest(void);
+static void enable_alphatest(GLfloat alpharef);
+static void user_defined_blend(void);
 
 static void gpu_set_alpha_blend(GPUBlendMode alphablend)
 {
-	if (alphablend == GPU_BLEND_SOLID) {
-		glDisable(GL_BLEND);
-		glDisable(GL_ALPHA_TEST);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	}
-	else if (alphablend==GPU_BLEND_ADD) {
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_ONE, GL_ONE);
-		glDisable(GL_ALPHA_TEST);
-	}
-	else if (ELEM(alphablend, GPU_BLEND_ALPHA, GPU_BLEND_ALPHA_SORT)) {
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		
-		/* if U.glalphaclip == 1.0, some cards go bonkers...
-		 * turn off alpha test in this case */
+	switch (alphablend) {
+		case GPU_BLEND_SOLID:
+			disable_blend();
+			disable_alphatest();
+			break;
 
-		/* added after 2.45 to clip alpha */
-		if (U.glalphaclip == 1.0f) {
-			glDisable(GL_ALPHA_TEST);
-		}
-		else {
-			glEnable(GL_ALPHA_TEST);
-			glAlphaFunc(GL_GREATER, U.glalphaclip);
-		}
-	}
-	else if (alphablend==GPU_BLEND_CLIP) {
-		glDisable(GL_BLEND); 
-		glEnable(GL_ALPHA_TEST);
-		glAlphaFunc(GL_GREATER, 0.5f);
+		case GPU_BLEND_ADD:
+			enable_blendfunc_add();
+			disable_alphatest();
+			break;
+
+		case GPU_BLEND_ALPHA:
+		case GPU_BLEND_ALPHA_SORT:
+			enable_blendfunc_blend();
+			enable_alphatest(U.glalphaclip);
+			break;
+
+		case GPU_BLEND_CLIP:
+			disable_blend();
+			enable_alphatest(0.5f);
+			break;
+
+		default:
+			user_defined_blend();
+			break;
 	}
 }
 
@@ -1030,7 +1033,103 @@ static struct GPUMaterialState {
 
 	int lastmatnr, lastretval;
 	GPUBlendMode lastalphablend;
+
+	GLboolean lastblendenabled;
+	GLboolean lastblendfuncdefault;
+	GLboolean lastalphatestenabled;
+	GLfloat   lastalphatestref;
 } GMS = {NULL};
+
+static void disable_blend(void)
+{
+	if (GMS.lastblendenabled) {
+		glDisable(GL_BLEND);
+		GMS.lastblendenabled = GL_FALSE;
+	}
+}
+
+static void enable_blend(void)
+{
+	if (!GMS.lastblendenabled) {
+		glEnable(GL_BLEND);
+		GMS.lastblendenabled = GL_TRUE;
+	}
+}
+
+static void enable_blendfunc_blend(void)
+{
+	enable_blend();
+
+	if (!GMS.lastblendfuncdefault) {
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  /* set blender default */
+		GMS.lastblendfuncdefault = GL_TRUE;
+	}
+}
+
+static void enable_blendfunc_add(void)
+{
+	enable_blend();
+
+	if (!GMS.lastblendfuncdefault) {
+		glBlendFunc(GL_ONE, GL_ONE); /* non-standard blend function */
+		GMS.lastblendfuncdefault = GL_FALSE;
+	}
+}
+
+static void disable_alphatest(void)
+{
+	if (GMS.lastalphatestenabled) {
+		glDisable(GL_ALPHA_TEST);
+		GMS.lastalphatestenabled = GL_FALSE;
+	}
+}
+
+static void enable_alphatest(GLfloat alphatestref)
+{
+	/* if ref == 1, some cards go bonkers; turn off alpha test in this case */
+	GLboolean enable    = alphatestref < 1.0f;
+	GLboolean refchange = enable && (alphatestref != GMS.lastalphatestref);
+
+	if (refchange || enable != GMS.lastalphatestenabled) {
+		if (enable) {
+			glEnable(GL_ALPHA_TEST);
+
+			if (refchange) {
+				glAlphaFunc(GL_GREATER, alphatestref);
+				GMS.lastalphatestref = alphatestref;
+			}
+		}
+		else {
+			glDisable(GL_ALPHA_TEST);
+		}
+
+		GMS.lastalphatestenabled = enable;
+	}
+}
+
+/* For when some external code needs to set up a custom blend mode
+   disables alpha test, enables blending, and marks blend mode as non-default */
+static void user_defined_blend()
+{
+	enable_blend();
+	disable_alphatest();
+	GMS.lastblendfuncdefault = GL_FALSE; 
+}
+
+static void reset_default_alphablend_state(void)
+{
+	disable_alphatest();
+	disable_blend();
+
+	if (!GMS.lastblendfuncdefault) {
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* reset blender default */
+	}
+
+	if (GMS.lastalphatestref != 0.5f) {
+		glAlphaFunc(GL_GREATER, 0.5f); /* reset blender default */
+		GMS.lastalphatestref = 0.5f;
+	}
+}
 
 /* fixed function material, alpha handed by caller */
 static void gpu_material_to_fixed(GPUMaterialFixed *smat, const Material *bmat, const int gamma, const Object *ob, const int new_shading_nodes)
@@ -1088,9 +1187,16 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 	
 	/* initialize state */
 	memset(&GMS, 0, sizeof(GMS));
-	GMS.lastmatnr = -1;
+
+	GMS.lastmatnr  = -1;
 	GMS.lastretval = -1;
-	GMS.lastalphablend = GPU_BLEND_SOLID;
+
+	GMS.lastalphablend        = GPU_BLEND_SOLID;
+
+	GMS.lastalphatestenabled  = GL_FALSE;
+	GMS.lastalphatestref      = 0.5f;
+	GMS.lastblendenabled      = GL_FALSE;
+	GMS.lastblendfuncdefault  = GL_TRUE;
 
 	GMS.backface_culling = (v3d->flag2 & V3D_BACKFACE_CULLING);
 
@@ -1191,15 +1297,20 @@ int GPU_enable_material(int nr, void *attribs)
 
 		memset(&GMS, 0, sizeof(GMS));
 
+		GMS.lastalphatestenabled  = GL_FALSE;
+		GMS.lastalphatestref      = 0.5f;
+		GMS.lastblendenabled      = GL_FALSE;
+		GMS.lastblendfuncdefault  = GL_TRUE;
+
 		mul_v3_v3fl(diff, &defmaterial.r, defmaterial.ref + defmaterial.emit);
 		diff[3]= 1.0;
 
 		mul_v3_v3fl(spec, &defmaterial.specr, defmaterial.spec);
 		spec[3]= 1.0;
 
-		glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diff);
-		glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
-		glMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 35); /* blender default */
+		gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diff);
+		gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
+		gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 35); /* blender default */
 
 		return 0;
 	}
@@ -1266,10 +1377,10 @@ int GPU_enable_material(int nr, void *attribs)
 			}
 		}
 		else {
-			/* or do fixed function opengl material */
-			glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, GMS.matbuf[nr].diff);
-			glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, GMS.matbuf[nr].spec);
-			glMateriali(GL_FRONT_AND_BACK, GL_SHININESS, GMS.matbuf[nr].hard);
+			/* or do a basic material */
+			gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, GMS.matbuf[nr].diff);
+			gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, GMS.matbuf[nr].spec);
+			gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, GMS.matbuf[nr].hard);
 		}
 
 		/* set (alpha) blending mode */
@@ -1281,11 +1392,10 @@ int GPU_enable_material(int nr, void *attribs)
 
 void GPU_set_material_alpha_blend(int alphablend)
 {
-	if (GMS.lastalphablend == alphablend)
-		return;
-	
-	gpu_set_alpha_blend(alphablend);
-	GMS.lastalphablend = alphablend;
+	if (GMS.lastalphablend != alphablend) {
+		gpu_set_alpha_blend(alphablend);
+		GMS.lastalphablend = alphablend;
+	}
 }
 
 int GPU_get_material_alpha_blend(void)
@@ -1307,7 +1417,7 @@ void GPU_disable_material(void)
 		GMS.gboundmat= NULL;
 	}
 
-	GPU_set_material_alpha_blend(GPU_BLEND_SOLID);
+	reset_default_alphablend_state();
 }
 
 void GPU_end_object_materials(void)
@@ -1489,10 +1599,10 @@ void GPU_state_init(void)
 	GLubyte pat[32*32];
 	const GLubyte *patc= pat;
 	
-	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_ambient);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_specular);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
-	glMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 35);
+	gpuMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_ambient);
+	gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_specular);
+	gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
+	gpuMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 35);
 
 	GPU_default_lights();
 	
@@ -1549,6 +1659,9 @@ void GPU_state_init(void)
 	glFrontFace(GL_CCW);
 	glCullFace(GL_BACK);
 	glDisable(GL_CULL_FACE);
+
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* init blender default */
+	glAlphaFunc(GL_GREATER, 0.5f); /* init blender default */
 
 	/* calling this makes drawing very slow when AA is not set up in ghost
 	 * on Linux/NVIDIA. */

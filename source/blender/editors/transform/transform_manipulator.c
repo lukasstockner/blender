@@ -1327,13 +1327,10 @@ static void draw_manipulator_scale(View3D *v3d, RegionView3D *rv3d, int moving, 
 	glFrontFace(GL_CCW);
 }
 
-static void draw_cone(float len, float width)
-{
-	gpuDrawCone(len, width, 8, GL_TRUE);
-}
-
 static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUSED(moving), int drawflags, int combo, int colcode)
 {
+	GPUprim3 prim = GPU_PRIM_LOFI_SHADELESS;
+
 	float cylen= 0.01f*(float)U.tw_handlesize;
 	float cywid= 0.25f*cylen, dz, size;
 	int shift= 0; // XXX
@@ -1377,6 +1374,12 @@ static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUS
 		dz= 1.0f;
 	}
 
+	prim.vsegs = 1;
+
+	gpuBegin(GL_NOOP);
+	gpuAppendCone(&prim, cywid, cylen);
+	gpuEnd();
+
 	/* Z Cone */
 
 	glTranslatef(0.0, 0.0, dz);
@@ -1388,7 +1391,7 @@ static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUS
 
 		set_manipulator_color(v3d, 'Z', colcode, axisBlendAngle(rv3d->twangle[2]));
 
-		gpuDrawCone(cylen, cywid, 8, GL_TRUE);
+		gpuDrawElements(GL_TRIANGLES);
 	}
 
 	/* X Cone */
@@ -1404,7 +1407,7 @@ static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUS
 
 		glPushMatrix();
 		glRotatef( 90.0, 0.0, 1.0, 0.0);
-		gpuDrawCone(cylen, cywid, 8, GL_TRUE);
+		gpuDrawElements(GL_TRIANGLES);
 		glPopMatrix();
 	}
 
@@ -1421,7 +1424,7 @@ static void draw_manipulator_translate(View3D *v3d, RegionView3D *rv3d, int UNUS
 
 		glPushMatrix();
 		glRotatef(-90.0, 1.0, 0.0, 0.0);
-		gpuDrawCone(cylen, cywid, 8, GL_TRUE);
+		gpuDrawElements(GL_TRIANGLES);
 		glPopMatrix();
 	}
 
@@ -1495,7 +1498,6 @@ void BIF_draw_manipulator(const bContext *C)
 
 	if (v3d->twflag & V3D_DRAW_MANIPULATOR) {
 
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_BLEND);
 		if (v3d->twtype & V3D_MANIP_ROTATE) {
 			draw_manipulator_rotate(v3d, rv3d, 0 /* G.moving*/, drawflags, v3d->twtype);

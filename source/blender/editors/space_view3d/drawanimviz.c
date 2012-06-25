@@ -50,6 +50,8 @@
 #include "BKE_animsys.h"
 #include "BKE_action.h"
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 
 #include "ED_armature.h"
@@ -135,7 +137,7 @@ void draw_motion_path_instance(Scene *scene,
 	/* draw curve-line of path */
 	glShadeModel(GL_SMOOTH);
 	
-	glBegin(GL_LINE_STRIP); 				
+	gpuBegin(GL_LINE_STRIP); 				
 	for (i = 0, mpv = mpv_start; i < len; i++, mpv++) {
 		short sel = (pchan) ? (pchan->bone->flag & BONE_SELECTED) : (ob->flag & SELECT);
 		float intensity; /* how faint */
@@ -182,10 +184,10 @@ void draw_motion_path_instance(Scene *scene,
 		}	
 		
 		/* draw a vertex with this color */ 
-		glVertex3fv(mpv->co);
+		gpuVertex3fv(mpv->co);
 	}
 	
-	glEnd();
+	gpuEnd();
 	glShadeModel(GL_FLAT);
 	
 	glPointSize(1.0);
@@ -193,17 +195,17 @@ void draw_motion_path_instance(Scene *scene,
 	/* draw little black point at each frame
 	 * NOTE: this is not really visible/noticeable
 	 */
-	glBegin(GL_POINTS);
+	gpuBegin(GL_POINTS);
 	for (i = 0, mpv = mpv_start; i < len; i++, mpv++)
-		glVertex3fv(mpv->co);
-	glEnd();
+		gpuVertex3fv(mpv->co);
+	gpuEnd();
 	
 	/* Draw little white dots at each framestep value */
 	UI_ThemeColor(TH_TEXT_HI);
-	glBegin(GL_POINTS);
+	gpuBegin(GL_POINTS);
 	for (i = 0, mpv = mpv_start; i < len; i += stepsize, mpv += stepsize)
-		glVertex3fv(mpv->co);
-	glEnd();
+		gpuVertex3fv(mpv->co);
+	gpuEnd();
 	
 	/* Draw big green dot where the current frame is 
 	 * NOTE: this is only done when keyframes are shown, since this adds similar types of clutter
@@ -214,10 +216,10 @@ void draw_motion_path_instance(Scene *scene,
 		UI_ThemeColor(TH_CFRAME);
 		glPointSize(6.0f);
 		
-		glBegin(GL_POINTS);
+		gpuBegin(GL_POINTS);
 		mpv = mpv_start + (CFRA - sfra);
-		glVertex3fv(mpv->co);
-		glEnd();
+		gpuVertex3fv(mpv->co);
+		gpuEnd();
 		
 		glPointSize(1.0f);
 		UI_ThemeColor(TH_TEXT_HI);
@@ -288,16 +290,16 @@ void draw_motion_path_instance(Scene *scene,
 		col[3] = 255;
 		
 		glPointSize(4.0f); // XXX perhaps a bit too big
-		glColor3ubv(col);
+		gpuCurrentColor3ubv(col);
 		
-		glBegin(GL_POINTS);
+		gpuBegin(GL_POINTS);
 		for (i = 0, mpv = mpv_start; i < len; i++, mpv++) {
 			float mframe = (float)(sfra + i);
 			
 			if (BLI_dlrbTree_search_exact(&keys, compare_ak_cfraPtr, &mframe))
-				glVertex3fv(mpv->co);
+				gpuVertex3fv(mpv->co);
 		}
-		glEnd();
+		gpuEnd();
 		
 		glPointSize(1.0f);
 		

@@ -66,8 +66,7 @@
 #include "PIL_time.h"
 #include "BLI_array.h"
 
-#include "GL/glew.h"
-
+#include "GPU_compatibility.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
@@ -1521,10 +1520,12 @@ static void ccgDM_drawVerts(DerivedMesh *dm)
 	CCGEdgeIterator *ei;
 	CCGFaceIterator *fi;
 
-	glBegin(GL_POINTS);
+	gpuImmediateFormat_V3(); // DOODLE: heavy point drawing
+	gpuBegin(GL_POINTS);
+
 	for (vi = ccgSubSurf_getVertIterator(ss); !ccgVertIterator_isStopped(vi); ccgVertIterator_next(vi)) {
 		CCGVert *v = ccgVertIterator_getCurrent(vi);
-		glVertex3fv(ccgSubSurf_getVertData(ss, v));
+		gpuVertex3fv(ccgSubSurf_getVertData(ss, v));
 	}
 	ccgVertIterator_free(vi);
 
@@ -1533,7 +1534,7 @@ static void ccgDM_drawVerts(DerivedMesh *dm)
 		int x;
 
 		for (x = 1; x < edgeSize - 1; x++)
-			glVertex3fv(ccgSubSurf_getEdgeData(ss, e, x));
+			gpuVertex3fv(ccgSubSurf_getEdgeData(ss, e, x));
 	}
 	ccgEdgeIterator_free(ei);
 
@@ -1541,17 +1542,19 @@ static void ccgDM_drawVerts(DerivedMesh *dm)
 		CCGFace *f = ccgFaceIterator_getCurrent(fi);
 		int x, y, S, numVerts = ccgSubSurf_getFaceNumVerts(f);
 
-		glVertex3fv(ccgSubSurf_getFaceCenterData(f));
+		gpuVertex3fv(ccgSubSurf_getFaceCenterData(f));
 		for (S = 0; S < numVerts; S++)
 			for (x = 1; x < gridSize - 1; x++)
-				glVertex3fv(ccgSubSurf_getFaceGridEdgeData(ss, f, S, x));
+				gpuVertex3fv(ccgSubSurf_getFaceGridEdgeData(ss, f, S, x));
 		for (S = 0; S < numVerts; S++)
 			for (y = 1; y < gridSize - 1; y++)
 				for (x = 1; x < gridSize - 1; x++)
-					glVertex3fv(ccgSubSurf_getFaceGridData(ss, f, S, x, y));
+					gpuVertex3fv(ccgSubSurf_getFaceGridData(ss, f, S, x, y));
 	}
 	ccgFaceIterator_free(fi);
-	glEnd();
+
+	gpuEnd();
+	gpuImmediateUnformat();
 }
 
 static void ccgdm_pbvh_update(CCGDerivedMesh *ccgdm)
@@ -1584,6 +1587,8 @@ static void ccgDM_drawEdges(DerivedMesh *dm, int drawLooseEdges, int drawAllEdge
 
 	ccgSubSurf_getUseAgeCounts(ss, &useAging, NULL, NULL, NULL);
 
+	gpuImmediateFormat_V3(); // DOODLE: heavy edge drawing
+
 	for (j = 0; j < totedge; j++) {
 		CCGEdge *e = ccgdm->edgeMap[j].edge;
 		CCGElem *edgeData = ccgSubSurf_getEdgeDataArray(ss, e);
@@ -1596,19 +1601,19 @@ static void ccgDM_drawEdges(DerivedMesh *dm, int drawLooseEdges, int drawAllEdge
 
 		if (useAging && !(G.f & G_BACKBUFSEL)) {
 			int ageCol = 255 - ccgSubSurf_getEdgeAge(ss, e) * 4;
-			glColor3ub(0, ageCol > 0 ? ageCol : 0, 0);
+			gpuCurrentColor3ub(0, ageCol > 0 ? ageCol : 0, 0);
 		}
 
-		glBegin(GL_LINE_STRIP);
+		gpuBegin(GL_LINE_STRIP);
 		for (i = 0; i < edgeSize - 1; i++) {
-			glVertex3fv(CCG_elem_offset_co(&key, edgeData, i));
-			glVertex3fv(CCG_elem_offset_co(&key, edgeData, i + 1));
+			gpuVertex3fv(CCG_elem_offset_co(&key, edgeData, i));
+			gpuVertex3fv(CCG_elem_offset_co(&key, edgeData, i + 1));
 		}
-		glEnd();
+		gpuEnd();
 	}
 
 	if (useAging && !(G.f & G_BACKBUFSEL)) {
-		glColor3ub(0, 0, 0);
+		gpuCurrentColor3ub(0, 0, 0);
 	}
 
 	if (ccgdm->drawInteriorEdges) {
@@ -1621,25 +1626,27 @@ static void ccgDM_drawEdges(DerivedMesh *dm, int drawLooseEdges, int drawAllEdge
 			for (S = 0; S < numVerts; S++) {
 				CCGElem *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);
 
-				glBegin(GL_LINE_STRIP);
+				gpuBegin(GL_LINE_STRIP);
 				for (x = 0; x < gridSize; x++)
-					glVertex3fv(CCG_elem_offset_co(&key, faceGridData, x));
-				glEnd();
+					gpuVertex3fv(CCG_elem_offset_co(&key, faceGridData, x));
+				gpuEnd();
 				for (y = 1; y < gridSize - 1; y++) {
-					glBegin(GL_LINE_STRIP);
+					gpuBegin(GL_LINE_STRIP);
 					for (x = 0; x < gridSize; x++)
-						glVertex3fv(CCG_grid_elem_co(&key, faceGridData, x, y));
-					glEnd();
+						gpuVertex3fv(CCG_grid_elem_co(&key, faceGridData, x, y));
+					gpuEnd();
 				}
 				for (x = 1; x < gridSize - 1; x++) {
-					glBegin(GL_LINE_STRIP);
+					gpuBegin(GL_LINE_STRIP);
 					for (y = 0; y < gridSize; y++)
-						glVertex3fv(CCG_grid_elem_co(&key, faceGridData, x, y));
-					glEnd();
+						gpuVertex3fv(CCG_grid_elem_co(&key, faceGridData, x, y));
+					gpuEnd();
 				}
 			}
 		}
 	}
+
+	gpuImmediateUnformat();
 }
 
 static void ccgDM_drawLooseEdges(DerivedMesh *dm)
@@ -1652,22 +1659,26 @@ static void ccgDM_drawLooseEdges(DerivedMesh *dm)
 
 	CCG_key_top_level(&key, ss);
 
+	gpuImmediateFormat_V3(); // DOODLE: heavy edge drawing
+
 	for (j = 0; j < totedge; j++) {
 		CCGEdge *e = ccgdm->edgeMap[j].edge;
 		CCGElem *edgeData = ccgSubSurf_getEdgeDataArray(ss, e);
 
 		if (!ccgSubSurf_getEdgeNumFaces(e)) {
-			glBegin(GL_LINE_STRIP);
+			gpuBegin(GL_LINE_STRIP);
 			for (i = 0; i < edgeSize - 1; i++) {
-				glVertex3fv(CCG_elem_offset_co(&key, edgeData, i));
-				glVertex3fv(CCG_elem_offset_co(&key, edgeData, i + 1));
+				gpuVertex3fv(CCG_elem_offset_co(&key, edgeData, i));
+				gpuVertex3fv(CCG_elem_offset_co(&key, edgeData, i + 1));
 			}
-			glEnd();
+			gpuEnd();
 		}
 	}
+
+	gpuImmediateUnformat();
 }
 
-static void ccgDM_glNormalFast(float *a, float *b, float *c, float *d)
+static void ccgDM_gpuNormalFast(float *a, float *b, float *c, float *d)
 {
 	float a_cX = c[0] - a[0], a_cY = c[1] - a[1], a_cZ = c[2] - a[2];
 	float b_dX = d[0] - b[0], b_dY = d[1] - b[1], b_dZ = d[2] - b[2];
@@ -1678,7 +1689,7 @@ static void ccgDM_glNormalFast(float *a, float *b, float *c, float *d)
 	no[2] = b_dX * a_cY - b_dY * a_cX;
 
 	/* don't normalize, GL_NORMALIZE is enabled */
-	glNormal3fv(no);
+	gpuNormal3fv(no);
 }
 
 /* Only used by non-editmesh types */
@@ -1705,6 +1716,9 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 		return;
 	}
 
+	gpuImmediateFormat_N3_V3(); // DOODLE: heavy lit solid face drawing
+	gpuBegin(GL_QUADS);
+
 	for (i = 0; i < totface; i++) {
 		CCGFace *f = ccgdm->faceMap[i].face;
 		int S, x, y, numVerts = ccgSubSurf_getFaceNumVerts(f);
@@ -1720,13 +1734,14 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 			new_matnr = 0;
 		}
 		
-		if (shademodel != new_shademodel || matnr != new_matnr) {
-			matnr = new_matnr;
+		if (shademodel != new_shademodel) {
 			shademodel = new_shademodel;
-
-			drawcurrent = setMaterial(matnr + 1, NULL);
-
 			glShadeModel(shademodel);
+		}
+		
+		if (matnr != new_matnr) {
+			matnr = new_matnr;
+			drawcurrent = setMaterial(matnr + 1, NULL);
 		}
 
 		if (!drawcurrent)
@@ -1737,21 +1752,24 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 
 			if (shademodel == GL_SMOOTH) {
 				for (y = 0; y < gridSize - 1; y += step) {
-					glBegin(GL_QUAD_STRIP);
-					for (x = 0; x < gridSize; x += step) {
-						CCGElem *a = CCG_grid_elem(&key, faceGridData, x, y + 0);
-						CCGElem *b = CCG_grid_elem(&key, faceGridData, x, y + step);
+					for (x = 0; x < gridSize - 1; x += step) {
+						CCGElem *a = CCG_grid_elem(&key, faceGridData, x, y);
+						CCGElem *b = CCG_grid_elem(&key, faceGridData, x + step, y);
+						CCGElem *c = CCG_grid_elem(&key, faceGridData, x + step, y + step);
+						CCGElem *d = CCG_grid_elem(&key, faceGridData, x, y + step);
 
-						glNormal3fv(CCG_elem_no(&key, a));
-						glVertex3fv(CCG_elem_co(&key, a));
-						glNormal3fv(CCG_elem_no(&key, b));
-						glVertex3fv(CCG_elem_co(&key, b));
+						gpuNormal3fv(CCG_elem_no(&key, d));
+						gpuVertex3fv(CCG_elem_co(&key, d));
+						gpuNormal3fv(CCG_elem_no(&key, c));
+						gpuVertex3fv(CCG_elem_co(&key, c));
+						gpuNormal3fv(CCG_elem_no(&key, b));
+						gpuVertex3fv(CCG_elem_co(&key, b));
+						gpuNormal3fv(CCG_elem_no(&key, a));
+						gpuVertex3fv(CCG_elem_co(&key, a));
 					}
-					glEnd();
 				}
 			}
 			else {
-				glBegin(GL_QUADS);
 				for (y = 0; y < gridSize - 1; y += step) {
 					for (x = 0; x < gridSize - 1; x += step) {
 						float *a = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
@@ -1759,18 +1777,78 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 						float *c = CCG_grid_elem_co(&key, faceGridData, x + step, y + step);
 						float *d = CCG_grid_elem_co(&key, faceGridData, x, y + step);
 
-						ccgDM_glNormalFast(a, b, c, d);
+						ccgDM_gpuNormalFast(a, b, c, d);
 
-						glVertex3fv(d);
-						glVertex3fv(c);
-						glVertex3fv(b);
-						glVertex3fv(a);
+						gpuVertex3fv(d);
+						gpuVertex3fv(c);
+						gpuVertex3fv(b);
+						gpuVertex3fv(a);
 					}
 				}
-				glEnd();
 			}
 		}
 	}
+
+	gpuEnd();
+	gpuImmediateUnformat();
+}
+
+static void ccg_format_attrib_vertex(DMVertexAttribs *attribs)
+{
+	int b;
+	GLint attribMap_f[16];
+	GLint attribSize_f[16];
+	GLint attrib_f = 0;
+	GLint attribMap_ub[16];
+	GLint attribSize_ub[16];
+	GLint attrib_ub = 0;
+
+	/* orco texture coordinates */
+	if (attribs->totorco) {
+		attribMap_f[attrib_f] = attribs->orco.gl_index;
+		attribSize_f[attrib_f] = 3;
+		attrib_f++;
+	}
+
+	/* uv texture coordinates */
+	for (b = 0; b < attribs->tottface; b++) {
+		attribMap_f[attrib_f] = attribs->tface[b].gl_index;
+		attribSize_f[attrib_f] = 2;
+		attrib_f++;
+	}
+
+	/* vertex colors */
+	for (b = 0; b < attribs->totmcol; b++) {
+		attribMap_ub[attrib_ub] = attribs->mcol[b].gl_index;
+		attribSize_ub[attrib_ub] = 4;
+		attrib_ub++;
+	}
+
+	/* tangent for normal mapping */
+	if (attribs->tottang) {
+		attribMap_f[attrib_f] = attribs->tang.gl_index;
+		attribSize_f[attrib_f] = 4;
+		attrib_f++;
+	}
+
+	gpuImmediateFormatReset();
+
+	gpuImmediateElementSizes(3, 3, 0);
+
+	gpuImmediateFloatAttribCount(attrib_f);
+	gpuImmediateFloatAttribIndexMap(attribMap_f);
+	gpuImmediateFloatAttribSizes(attribSize_f);
+
+	gpuImmediateUbyteAttribCount(attrib_ub);
+	gpuImmediateUbyteAttribIndexMap(attribMap_ub);
+	gpuImmediateUbyteAttribSizes(attribMap_ub);
+
+	gpuImmediateLock();
+}
+
+static void ccg_unformat_attrib_vertex(void)
+{
+	gpuImmediateUnlock();
 }
 
 /* Only used by non-editmesh types */
@@ -1800,22 +1878,22 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 #define PASSATTRIB(dx, dy, vert) {                                            \
 	if (attribs.totorco) {                                                    \
 		index = getFaceIndex(ss, f, S, x + dx, y + dy, edgeSize, gridSize);   \
-		glVertexAttrib3fvARB(attribs.orco.gl_index,                           \
+		gpuVertexAttrib3fv(attribs.orco.gl_index,                             \
 		                     attribs.orco.array[index]);                      \
 	}                                                                         \
 	for (b = 0; b < attribs.tottface; b++) {                                  \
 		MTFace *tf = &attribs.tface[b].array[a];                              \
-		glVertexAttrib2fvARB(attribs.tface[b].gl_index, tf->uv[vert]);        \
+		gpuVertexAttrib2fv(attribs.tface[b].gl_index, tf->uv[vert]);          \
 	}                                                                         \
 	for (b = 0; b < attribs.totmcol; b++) {                                   \
 		MCol *cp = &attribs.mcol[b].array[a * 4 + vert];                      \
 		GLubyte col[4];                                                       \
 		col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;       \
-		glVertexAttrib4ubvARB(attribs.mcol[b].gl_index, col);                 \
+		gpuVertexAttrib4ubv(attribs.mcol[b].gl_index, col);                   \
 	}                                                                         \
 	if (attribs.tottang) {                                                    \
 		float *tang = attribs.tang.array[a * 4 + vert];                       \
-		glVertexAttrib4fvARB(attribs.tang.gl_index, tang);                    \
+		gpuVertexAttrib4fv(attribs.tang.gl_index, tang);                      \
 	}                                                                         \
 } (void)0
 
@@ -1843,6 +1921,8 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 				DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
 		}
 
+		ccg_format_attrib_vertex(&attribs);
+
 		if (!do_draw || (setDrawOptions && (origIndex != ORIGINDEX_NONE) &&
 		                (setDrawOptions(userData, origIndex) == DM_DRAW_OPTION_SKIP)))
 		{
@@ -1857,18 +1937,18 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 
 			if (drawSmooth) {
 				for (y = 0; y < gridFaces; y++) {
-					glBegin(GL_QUAD_STRIP);
+					gpuBegin(GL_QUAD_STRIP);
 					for (x = 0; x < gridFaces; x++) {
 						vda = CCG_grid_elem(&key, faceGridData, x, y + 0);
 						vdb = CCG_grid_elem(&key, faceGridData, x, y + 1);
 						
 						PASSATTRIB(0, 0, 0);
-						glNormal3fv(CCG_elem_no(&key, vda));
-						glVertex3fv(CCG_elem_co(&key, vda));
+						gpuNormal3fv(CCG_elem_no(&key, vda));
+						gpuVertex3fv(CCG_elem_co(&key, vda));
 
 						PASSATTRIB(0, 1, 1);
-						glNormal3fv(CCG_elem_no(&key, vdb));
-						glVertex3fv(CCG_elem_co(&key, vdb));
+						gpuNormal3fv(CCG_elem_no(&key, vdb));
+						gpuVertex3fv(CCG_elem_co(&key, vdb));
 
 						if (x != gridFaces - 1)
 							a++;
@@ -1878,20 +1958,20 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 					vdb = CCG_grid_elem(&key, faceGridData, x, y + 1);
 
 					PASSATTRIB(0, 0, 3);
-					glNormal3fv(CCG_elem_no(&key, vda));
-					glVertex3fv(CCG_elem_co(&key, vda));
+					gpuNormal3fv(CCG_elem_no(&key, vda));
+					gpuVertex3fv(CCG_elem_co(&key, vda));
 
 					PASSATTRIB(0, 1, 2);
-					glNormal3fv(CCG_elem_no(&key, vdb));
-					glVertex3fv(CCG_elem_co(&key, vdb));
+					gpuNormal3fv(CCG_elem_no(&key, vdb));
+					gpuVertex3fv(CCG_elem_co(&key, vdb));
 
-					glEnd();
+					gpuEnd();
 
 					a++;
 				}
 			}
 			else {
-				glBegin(GL_QUADS);
+				gpuBegin(GL_QUADS);
 				for (y = 0; y < gridFaces; y++) {
 					for (x = 0; x < gridFaces; x++) {
 						float *aco = CCG_grid_elem_co(&key, faceGridData, x, y);
@@ -1899,23 +1979,25 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 						float *cco = CCG_grid_elem_co(&key, faceGridData, x + 1, y + 1);
 						float *dco = CCG_grid_elem_co(&key, faceGridData, x, y + 1);
 
-						ccgDM_glNormalFast(aco, bco, cco, dco);
+						ccgDM_gpuNormalFast(aco, bco, cco, dco);
 
 						PASSATTRIB(0, 1, 1);
-						glVertex3fv(dco);
+						gpuVertex3fv(dco);
 						PASSATTRIB(1, 1, 2);
-						glVertex3fv(cco);
+						gpuVertex3fv(cco);
 						PASSATTRIB(1, 0, 3);
-						glVertex3fv(bco);
+						gpuVertex3fv(bco);
 						PASSATTRIB(0, 0, 0);
-						glVertex3fv(aco);
+						gpuVertex3fv(aco);
 						
 						a++;
 					}
 				}
-				glEnd();
+				gpuEnd();
 			}
 		}
+
+		ccg_unformat_attrib_vertex();
 	}
 
 #undef PASSATTRIB
@@ -1951,27 +2033,27 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 	if (attribs.totorco) {                                                    \
 		index = getFaceIndex(ss, f, S, x + dx, y + dy, edgeSize, gridSize);   \
 		if (attribs.orco.gl_texco)                                            \
-			glTexCoord3fv(attribs.orco.array[index]);                         \
+			gpuTexCoord3fv(attribs.orco.array[index]);                        \
 		else                                                                  \
-			glVertexAttrib3fvARB(attribs.orco.gl_index,                       \
+			gpuVertexAttrib3fv(attribs.orco.gl_index,                         \
 			                     attribs.orco.array[index]);                  \
 	}                                                                         \
 	for (b = 0; b < attribs.tottface; b++) {                                  \
 		MTFace *tf = &attribs.tface[b].array[a];                              \
 		if (attribs.tface[b].gl_texco)                                        \
-			glTexCoord2fv(tf->uv[vert]);                                      \
+			gpuTexCoord2fv(tf->uv[vert]);                                     \
 		else                                                                  \
-			glVertexAttrib2fvARB(attribs.tface[b].gl_index, tf->uv[vert]);    \
+			gpuVertexAttrib2fv(attribs.tface[b].gl_index, tf->uv[vert]);      \
 	}                                                                         \
 	for (b = 0; b < attribs.totmcol; b++) {                                   \
 		MCol *cp = &attribs.mcol[b].array[a * 4 + vert];                      \
 		GLubyte col[4];                                                       \
 		col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;       \
-		glVertexAttrib4ubvARB(attribs.mcol[b].gl_index, col);                 \
+		gpuVertexAttrib4ubv(attribs.mcol[b].gl_index, col);                   \
 	}                                                                         \
 	if (attribs.tottang) {                                                    \
 		float *tang = attribs.tang.array[a * 4 + vert];                       \
-		glVertexAttrib4fvARB(attribs.tang.gl_index, tang);                    \
+		gpuVertexAttrib4fv(attribs.tang.gl_index, tang);                      \
 	}                                                                         \
 } (void)0
 
@@ -2014,18 +2096,18 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 
 			if (drawSmooth) {
 				for (y = 0; y < gridFaces; y++) {
-					glBegin(GL_QUAD_STRIP);
+					gpuBegin(GL_QUAD_STRIP);
 					for (x = 0; x < gridFaces; x++) {
 						vda = CCG_grid_elem(&key, faceGridData, x, y);
 						vdb = CCG_grid_elem(&key, faceGridData, x, y + 1);
 						
 						PASSATTRIB(0, 0, 0);
-						glNormal3fv(CCG_elem_no(&key, vda));
-						glVertex3fv(CCG_elem_co(&key, vda));
+						gpuNormal3fv(CCG_elem_no(&key, vda));
+						gpuVertex3fv(CCG_elem_co(&key, vda));
 
 						PASSATTRIB(0, 1, 1);
-						glNormal3fv(CCG_elem_no(&key, vdb));
-						glVertex3fv(CCG_elem_co(&key, vdb));
+						gpuNormal3fv(CCG_elem_no(&key, vdb));
+						gpuVertex3fv(CCG_elem_co(&key, vdb));
 
 						if (x != gridFaces - 1)
 							a++;
@@ -2035,20 +2117,20 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 					vdb = CCG_grid_elem(&key, faceGridData, x, y + 1);
 
 					PASSATTRIB(0, 0, 3);
-					glNormal3fv(CCG_elem_no(&key, vda));
-					glVertex3fv(CCG_elem_co(&key, vda));
+					gpuNormal3fv(CCG_elem_no(&key, vda));
+					gpuVertex3fv(CCG_elem_co(&key, vda));
 
 					PASSATTRIB(0, 1, 2);
-					glNormal3fv(CCG_elem_no(&key, vdb));
-					glVertex3fv(CCG_elem_co(&key, vdb));
+					gpuNormal3fv(CCG_elem_no(&key, vdb));
+					gpuVertex3fv(CCG_elem_co(&key, vdb));
 
-					glEnd();
+					gpuEnd();
 
 					a++;
 				}
 			}
 			else {
-				glBegin(GL_QUADS);
+				gpuBegin(GL_QUADS);
 				for (y = 0; y < gridFaces; y++) {
 					for (x = 0; x < gridFaces; x++) {
 						float *aco = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
@@ -2056,21 +2138,21 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 						float *cco = CCG_grid_elem_co(&key, faceGridData, x + 1, y + 1);
 						float *dco = CCG_grid_elem_co(&key, faceGridData, x, y + 1);
 
-						ccgDM_glNormalFast(aco, bco, cco, dco);
+						ccgDM_gpuNormalFast(aco, bco, cco, dco);
 
 						PASSATTRIB(0, 1, 1);
-						glVertex3fv(dco);
+						gpuVertex3fv(dco);
 						PASSATTRIB(1, 1, 2);
-						glVertex3fv(cco);
+						gpuVertex3fv(cco);
 						PASSATTRIB(1, 0, 3);
-						glVertex3fv(bco);
+						gpuVertex3fv(bco);
 						PASSATTRIB(0, 0, 0);
-						glVertex3fv(aco);
+						gpuVertex3fv(aco);
 						
 						a++;
 					}
 				}
-				glEnd();
+				gpuEnd();
 			}
 		}
 	}
@@ -2104,6 +2186,8 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 
 	if (!mcol)
 		mcol = dm->getTessFaceDataArray(dm, CD_TEXTURE_MCOL);
+
+	gpuImmediateFormat_T2_C4_N3_V3(); // DOODLE: heavy textured face drawing
 
 	totface = ccgSubSurf_getNumFaces(ss);
 	for (i = 0; i < totface; i++) {
@@ -2151,20 +2235,20 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 			if (drawSmooth) {
 				glShadeModel(GL_SMOOTH);
 				for (y = 0; y < gridFaces; y++) {
-					glBegin(GL_QUAD_STRIP);
+					gpuBegin(GL_QUAD_STRIP);
 					for (x = 0; x < gridFaces; x++) {
 						a = CCG_grid_elem(&key, faceGridData, x, y + 0);
 						b = CCG_grid_elem(&key, faceGridData, x, y + 1);
 
-						if (tf) glTexCoord2fv(tf->uv[0]);
-						if (cp) glColor3ub(cp[3], cp[2], cp[1]);
-						glNormal3fv(CCG_elem_no(&key, a));
-						glVertex3fv(CCG_elem_co(&key, a));
+						if (tf) gpuTexCoord2fv(tf->uv[0]);
+						if (cp) gpuColor3ub(cp[3], cp[2], cp[1]);
+						gpuNormal3fv(CCG_elem_no(&key, a));
+						gpuVertex3fv(CCG_elem_co(&key, a));
 
-						if (tf) glTexCoord2fv(tf->uv[1]);
-						if (cp) glColor3ub(cp[7], cp[6], cp[5]);
-						glNormal3fv(CCG_elem_no(&key, b));
-						glVertex3fv(CCG_elem_co(&key, b));
+						if (tf) gpuTexCoord2fv(tf->uv[1]);
+						if (cp) gpuColor3ub(cp[7], cp[6], cp[5]);
+						gpuNormal3fv(CCG_elem_no(&key, b));
+						gpuVertex3fv(CCG_elem_co(&key, b));
 						
 						if (x != gridFaces - 1) {
 							if (tf) tf++;
@@ -2175,25 +2259,25 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 					a = CCG_grid_elem(&key, faceGridData, x, y + 0);
 					b = CCG_grid_elem(&key, faceGridData, x, y + 1);
 
-					if (tf) glTexCoord2fv(tf->uv[3]);
-					if (cp) glColor3ub(cp[15], cp[14], cp[13]);
-					glNormal3fv(CCG_elem_no(&key, a));
-					glVertex3fv(CCG_elem_co(&key, a));
+					if (tf) gpuTexCoord2fv(tf->uv[3]);
+					if (cp) gpuColor3ub(cp[15], cp[14], cp[13]);
+					gpuNormal3fv(CCG_elem_no(&key, a));
+					gpuVertex3fv(CCG_elem_co(&key, a));
 
-					if (tf) glTexCoord2fv(tf->uv[2]);
-					if (cp) glColor3ub(cp[11], cp[10], cp[9]);
-					glNormal3fv(CCG_elem_no(&key, b));
-					glVertex3fv(CCG_elem_co(&key, b));
+					if (tf) gpuTexCoord2fv(tf->uv[2]);
+					if (cp) gpuColor3ub(cp[11], cp[10], cp[9]);
+					gpuNormal3fv(CCG_elem_no(&key, b));
+					gpuVertex3fv(CCG_elem_co(&key, b));
 
 					if (tf) tf++;
 					if (cp) cp += 16;
 
-					glEnd();
+					gpuEnd();
 				}
 			}
 			else {
 				glShadeModel((cp) ? GL_SMOOTH : GL_FLAT);
-				glBegin(GL_QUADS);
+				gpuBegin(GL_QUADS);
 				for (y = 0; y < gridFaces; y++) {
 					for (x = 0; x < gridFaces; x++) {
 						float *a_co = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
@@ -2201,32 +2285,34 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 						float *c_co = CCG_grid_elem_co(&key, faceGridData, x + 1, y + 1);
 						float *d_co = CCG_grid_elem_co(&key, faceGridData, x, y + 1);
 
-						ccgDM_glNormalFast(a_co, b_co, c_co, d_co);
+						ccgDM_gpuNormalFast(a_co, b_co, c_co, d_co);
 
-						if (tf) glTexCoord2fv(tf->uv[1]);
-						if (cp) glColor3ub(cp[7], cp[6], cp[5]);
-						glVertex3fv(d_co);
+						if (tf) gpuTexCoord2fv(tf->uv[1]);
+						if (cp) gpuColor3ub(cp[7], cp[6], cp[5]);
+						gpuVertex3fv(d_co);
 
-						if (tf) glTexCoord2fv(tf->uv[2]);
-						if (cp) glColor3ub(cp[11], cp[10], cp[9]);
-						glVertex3fv(c_co);
+						if (tf) gpuTexCoord2fv(tf->uv[2]);
+						if (cp) gpuColor3ub(cp[11], cp[10], cp[9]);
+						gpuVertex3fv(c_co);
 
-						if (tf) glTexCoord2fv(tf->uv[3]);
-						if (cp) glColor3ub(cp[15], cp[14], cp[13]);
-						glVertex3fv(b_co);
+						if (tf) gpuTexCoord2fv(tf->uv[3]);
+						if (cp) gpuColor3ub(cp[15], cp[14], cp[13]);
+						gpuVertex3fv(b_co);
 
-						if (tf) glTexCoord2fv(tf->uv[0]);
-						if (cp) glColor3ub(cp[3], cp[2], cp[1]);
-						glVertex3fv(a_co);
+						if (tf) gpuTexCoord2fv(tf->uv[0]);
+						if (cp) gpuColor3ub(cp[3], cp[2], cp[1]);
+						gpuVertex3fv(a_co);
 
 						if (tf) tf++;
 						if (cp) cp += 16;
 					}
 				}
-				glEnd();
+				gpuEnd();
 			}
 		}
 	}
+
+	gpuImmediateUnformat();
 }
 
 static void ccgDM_drawFacesTex(DerivedMesh *dm,
@@ -2253,29 +2339,31 @@ static void ccgDM_drawUVEdges(DerivedMesh *dm)
 	int i;
 	
 	if (tf) {
-		glBegin(GL_LINES);
+		gpuImmediateFormat_V2(); // DOODLE: heavy 2D uv edge drawing
+		gpuBegin(GL_LINES);
 		for (i = 0; i < dm->numTessFaceData; i++, mf++, tf++) {
 			if (!(mf->flag & ME_HIDE)) {
-				glVertex2fv(tf->uv[0]);
-				glVertex2fv(tf->uv[1]);
+				gpuVertex2fv(tf->uv[0]);
+				gpuVertex2fv(tf->uv[1]);
 	
-				glVertex2fv(tf->uv[1]);
-				glVertex2fv(tf->uv[2]);
+				gpuVertex2fv(tf->uv[1]);
+				gpuVertex2fv(tf->uv[2]);
 	
 				if (!mf->v4) {
-					glVertex2fv(tf->uv[2]);
-					glVertex2fv(tf->uv[0]);
+					gpuVertex2fv(tf->uv[2]);
+					gpuVertex2fv(tf->uv[0]);
 				}
 				else {
-					glVertex2fv(tf->uv[2]);
-					glVertex2fv(tf->uv[3]);
+					gpuVertex2fv(tf->uv[2]);
+					gpuVertex2fv(tf->uv[3]);
 	
-					glVertex2fv(tf->uv[3]);
-					glVertex2fv(tf->uv[0]);
+					gpuVertex2fv(tf->uv[3]);
+					gpuVertex2fv(tf->uv[0]);
 				}
 			}
 		}
-		glEnd();
+		gpuEnd();
+		gpuImmediateUnformat();
 	}
 }
 
@@ -2304,6 +2392,8 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 		if (!mcol)
 			mcol = dm->getTessFaceDataArray(dm, CD_MCOL);
 	}
+
+	gpuImmediateFormat_C4_N3_V3(); // DOODLE: heavy, lit, colored solid faces
 
 	totface = ccgSubSurf_getNumFaces(ss);
 	for (i = 0; i < totface; i++) {
@@ -2341,23 +2431,23 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 				/* no need to set shading mode to flat because
 				 *  normals are already used to change shading */
 				glShadeModel(GL_SMOOTH);
-				
+
 				for (S = 0; S < numVerts; S++) {
 					CCGElem *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);
 					if (drawSmooth) {
 						for (y = 0; y < gridFaces; y++) {
 							CCGElem *a, *b;
-							glBegin(GL_QUAD_STRIP);
+							gpuBegin(GL_QUAD_STRIP);
 							for (x = 0; x < gridFaces; x++) {
 								a = CCG_grid_elem(&key, faceGridData, x, y + 0);
 								b = CCG_grid_elem(&key, faceGridData, x, y + 1);
 	
-								if (cp) glColor3ub(cp[3], cp[2], cp[1]);
-								glNormal3fv(CCG_elem_no(&key, a));
-								glVertex3fv(CCG_elem_co(&key, a));
-								if (cp) glColor3ub(cp[7], cp[6], cp[5]);
-								glNormal3fv(CCG_elem_no(&key, b));
-								glVertex3fv(CCG_elem_co(&key, b));
+								if (cp) gpuColor3ub(cp[3], cp[2], cp[1]);
+								gpuNormal3fv(CCG_elem_no(&key, a));
+								gpuVertex3fv(CCG_elem_co(&key, a));
+								if (cp) gpuColor3ub(cp[7], cp[6], cp[5]);
+								gpuNormal3fv(CCG_elem_no(&key, b));
+								gpuVertex3fv(CCG_elem_co(&key, b));
 
 								if (x != gridFaces - 1) {
 									if (cp) cp += 16;
@@ -2367,20 +2457,20 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 							a = CCG_grid_elem(&key, faceGridData, x, y + 0);
 							b = CCG_grid_elem(&key, faceGridData, x, y + 1);
 
-							if (cp) glColor3ub(cp[15], cp[14], cp[13]);
-							glNormal3fv(CCG_elem_no(&key, a));
-							glVertex3fv(CCG_elem_co(&key, a));
-							if (cp) glColor3ub(cp[11], cp[10], cp[9]);
-							glNormal3fv(CCG_elem_no(&key, b));
-							glVertex3fv(CCG_elem_co(&key, b));
+							if (cp) gpuColor3ub(cp[15], cp[14], cp[13]);
+							gpuNormal3fv(CCG_elem_no(&key, a));
+							gpuVertex3fv(CCG_elem_co(&key, a));
+							if (cp) gpuColor3ub(cp[11], cp[10], cp[9]);
+							gpuNormal3fv(CCG_elem_no(&key, b));
+							gpuVertex3fv(CCG_elem_co(&key, b));
 
 							if (cp) cp += 16;
 
-							glEnd();
+							gpuEnd();
 						}
 					}
 					else {
-						glBegin(GL_QUADS);
+						gpuBegin(GL_QUADS);
 						for (y = 0; y < gridFaces; y++) {
 							for (x = 0; x < gridFaces; x++) {
 								float *a = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
@@ -2388,21 +2478,21 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 								float *c = CCG_grid_elem_co(&key, faceGridData, x + 1, y + 1);
 								float *d = CCG_grid_elem_co(&key, faceGridData, x, y + 1);
 
-								ccgDM_glNormalFast(a, b, c, d);
+								ccgDM_gpuNormalFast(a, b, c, d);
 	
-								if (cp) glColor3ub(cp[7], cp[6], cp[5]);
-								glVertex3fv(d);
-								if (cp) glColor3ub(cp[11], cp[10], cp[9]);
-								glVertex3fv(c);
-								if (cp) glColor3ub(cp[15], cp[14], cp[13]);
-								glVertex3fv(b);
-								if (cp) glColor3ub(cp[3], cp[2], cp[1]);
-								glVertex3fv(a);
+								if (cp) gpuColor3ub(cp[7], cp[6], cp[5]);
+								gpuVertex3fv(d);
+								if (cp) gpuColor3ub(cp[11], cp[10], cp[9]);
+								gpuVertex3fv(c);
+								if (cp) gpuColor3ub(cp[15], cp[14], cp[13]);
+								gpuVertex3fv(b);
+								if (cp) gpuColor3ub(cp[3], cp[2], cp[1]);
+								gpuVertex3fv(a);
 
 								if (cp) cp += 16;
 							}
 						}
-						glEnd();
+						gpuEnd();
 					}
 				}
 				if (draw_option == DM_DRAW_OPTION_STIPPLE)
@@ -2410,6 +2500,8 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 			}
 		}
 	}
+
+	gpuImmediateUnformat();
 }
 
 static void ccgDM_drawMappedEdges(DerivedMesh *dm,
@@ -2425,25 +2517,29 @@ static void ccgDM_drawMappedEdges(DerivedMesh *dm,
 	CCG_key_top_level(&key, ss);
 	ccgSubSurf_getUseAgeCounts(ss, &useAging, NULL, NULL, NULL);
 
+	gpuImmediateFormat_C4_V3(); // DOODLE: heavy, colored, edges
+
 	for (ei = ccgSubSurf_getEdgeIterator(ss); !ccgEdgeIterator_isStopped(ei); ccgEdgeIterator_next(ei)) {
 		CCGEdge *e = ccgEdgeIterator_getCurrent(ei);
 		CCGElem *edgeData = ccgSubSurf_getEdgeDataArray(ss, e);
 		int index = ccgDM_getEdgeMapIndex(ss, e);
 
-		glBegin(GL_LINE_STRIP);
+		gpuBegin(GL_LINE_STRIP);
 		if (index != -1 && (!setDrawOptions || (setDrawOptions(userData, index) != DM_DRAW_OPTION_SKIP))) {
 			if (useAging && !(G.f & G_BACKBUFSEL)) {
 				int ageCol = 255 - ccgSubSurf_getEdgeAge(ss, e) * 4;
-				glColor3ub(0, ageCol > 0 ? ageCol : 0, 0);
+				gpuColor3ub(0, ageCol > 0 ? ageCol : 0, 0);
 			}
 
 			for (i = 0; i < edgeSize - 1; i++) {
-				glVertex3fv(CCG_elem_offset_co(&key, edgeData, i));
-				glVertex3fv(CCG_elem_offset_co(&key, edgeData, i + 1));
+				gpuVertex3fv(CCG_elem_offset_co(&key, edgeData, i));
+				gpuVertex3fv(CCG_elem_offset_co(&key, edgeData, i + 1));
 			}
 		}
-		glEnd();
+		gpuEnd();
 	}
+
+	gpuImmediateUnformat();
 
 	ccgEdgeIterator_free(ei);
 }
@@ -2467,20 +2563,20 @@ static void ccgDM_drawMappedEdgesInterp(DerivedMesh *dm,
 		CCGElem *edgeData = ccgSubSurf_getEdgeDataArray(ss, e);
 		int index = ccgDM_getEdgeMapIndex(ss, e);
 
-		glBegin(GL_LINE_STRIP);
+		gpuBegin(GL_LINE_STRIP);
 		if (index != -1 && (!setDrawOptions || (setDrawOptions(userData, index) != DM_DRAW_OPTION_SKIP))) {
 			for (i = 0; i < edgeSize; i++) {
 				setDrawInterpOptions(userData, index, (float) i / (edgeSize - 1));
 
 				if (useAging && !(G.f & G_BACKBUFSEL)) {
 					int ageCol = 255 - ccgSubSurf_getEdgeAge(ss, e) * 4;
-					glColor3ub(0, ageCol > 0 ? ageCol : 0, 0);
+					gpuColor3ub(0, ageCol > 0 ? ageCol : 0, 0);
 				}
 
-				glVertex3fv(CCG_elem_offset_co(&key, edgeData, i));
+				gpuVertex3fv(CCG_elem_offset_co(&key, edgeData, i));
 			}
 		}
-		glEnd();
+		gpuEnd();
 	}
 
 	ccgEdgeIterator_free(ei);

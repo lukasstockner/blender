@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GPU_lighting.c
+/** \file gpu_lighting.c
  *  \ingroup gpu
  */
 

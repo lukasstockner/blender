@@ -54,6 +54,7 @@
 #include "DNA_userdef_types.h"
 
 #include "GPU_buffers.h"
+#include "GPU_compatibility.h"
 
 typedef enum {
 	GPU_BUFFER_VERTEX_STATE = 1,
@@ -1344,7 +1345,7 @@ static void gpu_color_from_mask_copy(float mask, unsigned char out[3])
 static void gpu_color_from_mask_set(float mask)
 {
 	float color = gpu_color_from_mask(mask);
-	glColor3f(color, color, color);
+	gpuColor3f(color, color, color);
 }
 
 static float gpu_color_from_mask_quad(const CCGKey *key,
@@ -1378,7 +1379,7 @@ static void gpu_color_from_mask_quad_set(const CCGKey *key,
                                          CCGElem *c, CCGElem *d)
 {
 	float color = gpu_color_from_mask_quad(key, a, b, c, d);
-	glColor3f(color, color, color);
+	gpuColor3f(color, color, color);
 }
 
 void GPU_update_mesh_buffers(GPU_Buffers *buffers, MVert *mvert,
@@ -1772,6 +1773,8 @@ static void gpu_draw_buffers_legacy_mesh(GPU_Buffers *buffers, int smooth)
 
 	gpu_colors_enable(VBO_DISABLED);
 
+	gpuImmediateFormat_C4_N3_V3(); // DOODLE: draw legacy mesh
+
 	for (i = 0; i < buffers->totface; ++i) {
 		MFace *f = buffers->mface + buffers->face_indices[i];
 		int S = f->v4 ? 4 : 3;
@@ -1780,13 +1783,13 @@ static void gpu_draw_buffers_legacy_mesh(GPU_Buffers *buffers, int smooth)
 		if (paint_is_face_hidden(f, buffers->mvert))
 			continue;
 
-		glBegin((f->v4) ? GL_QUADS : GL_TRIANGLES);
+		gpuBegin((f->v4) ? GL_QUADS : GL_TRIANGLES);
 
 		if (smooth) {
 			for (j = 0; j < S; j++) {
 				gpu_color_from_mask_set(buffers->vmask[fv[j]]);
-				glNormal3sv(mvert[fv[j]].no);
-				glVertex3fv(mvert[fv[j]].co);
+				gpuNormal3sv(mvert[fv[j]].no);
+				gpuVertex3fv(mvert[fv[j]].co);
 			}
 		}
 		else {
@@ -1799,7 +1802,7 @@ static void gpu_draw_buffers_legacy_mesh(GPU_Buffers *buffers, int smooth)
 			}
 			else
 				normal_tri_v3(fno, mvert[fv[0]].co, mvert[fv[1]].co, mvert[fv[2]].co);
-			glNormal3fv(fno);
+			gpuNormal3fv(fno);
 
 			/* calculate face mask color */
 			fmask = (buffers->vmask[fv[0]] +
@@ -1810,13 +1813,15 @@ static void gpu_draw_buffers_legacy_mesh(GPU_Buffers *buffers, int smooth)
 			else
 				fmask /= 3.0f;
 			gpu_color_from_mask_set(fmask);
-			
+
 			for (j = 0; j < S; j++)
-				glVertex3fv(mvert[fv[j]].co);
+				gpuVertex3fv(mvert[fv[j]].co);
 		}
 		
-		glEnd();
+		gpuEnd();
 	}
+
+	gpuImmediateUnformat();
 
 	gpu_colors_disable(VBO_DISABLED);
 }
@@ -1828,6 +1833,8 @@ static void gpu_draw_buffers_legacy_grids(GPU_Buffers *buffers, int smooth)
 
 	gpu_colors_enable(VBO_DISABLED);
 
+	gpuImmediateFormat_C4_N3_V3();
+
 	for (i = 0; i < buffers->totgrid; ++i) {
 		int g = buffers->grid_indices[i];
 		CCGElem *grid = buffers->grids[g];
@@ -1836,7 +1843,7 @@ static void gpu_draw_buffers_legacy_grids(GPU_Buffers *buffers, int smooth)
 		/* TODO: could use strips with hiding as well */
 
 		if (gh) {
-			glBegin(GL_QUADS);
+			gpuBegin(GL_QUADS);
 			
 			for (y = 0; y < gridsize - 1; y++) {
 				for (x = 0; x < gridsize - 1; x++) {
@@ -1854,8 +1861,8 @@ static void gpu_draw_buffers_legacy_grids(GPU_Buffers *buffers, int smooth)
 					if (smooth) {
 						for (j = 0; j < 4; j++) {
 							gpu_color_from_mask_set(*CCG_elem_mask(key, e[j]));
-							glNormal3fv(CCG_elem_no(key, e[j]));
-							glVertex3fv(CCG_elem_co(key, e[j]));
+							gpuNormal3fv(CCG_elem_no(key, e[j]));
+							gpuVertex3fv(CCG_elem_co(key, e[j]));
 						}
 					}
 					else {
@@ -1865,37 +1872,37 @@ static void gpu_draw_buffers_legacy_grids(GPU_Buffers *buffers, int smooth)
 						               CCG_elem_co(key, e[1]),
 						               CCG_elem_co(key, e[2]),
 						               CCG_elem_co(key, e[3]));
-						glNormal3fv(fno);
+						gpuNormal3fv(fno);
 						gpu_color_from_mask_quad_set(key, e[0], e[1], e[2], e[3]);
 
 						for (j = 0; j < 4; j++)
-							glVertex3fv(CCG_elem_co(key, e[j]));
+							gpuVertex3fv(CCG_elem_co(key, e[j]));
 					}
 				}
 			}
 
-			glEnd();
+			gpuEnd();
 		}
 		else if (smooth) {
 			for (y = 0; y < gridsize - 1; y++) {
-				glBegin(GL_QUAD_STRIP);
+				gpuBegin(GL_QUAD_STRIP);
 				for (x = 0; x < gridsize; x++) {
 					CCGElem *a = CCG_grid_elem(key, grid, x, y);
 					CCGElem *b = CCG_grid_elem(key, grid, x, y + 1);
 
 					gpu_color_from_mask_set(*CCG_elem_mask(key, a));
-					glNormal3fv(CCG_elem_no(key, a));
-					glVertex3fv(CCG_elem_co(key, a));
+					gpuNormal3fv(CCG_elem_no(key, a));
+					gpuVertex3fv(CCG_elem_co(key, a));
 					gpu_color_from_mask_set(*CCG_elem_mask(key, b));
-					glNormal3fv(CCG_elem_no(key, b));
-					glVertex3fv(CCG_elem_co(key, b));
+					gpuNormal3fv(CCG_elem_no(key, b));
+					gpuVertex3fv(CCG_elem_co(key, b));
 				}
-				glEnd();
+				gpuEnd();
 			}
 		}
 		else {
 			for (y = 0; y < gridsize - 1; y++) {
-				glBegin(GL_QUAD_STRIP);
+				gpuBegin(GL_QUAD_STRIP);
 				for (x = 0; x < gridsize; x++) {
 					CCGElem *a = CCG_grid_elem(key, grid, x, y);
 					CCGElem *b = CCG_grid_elem(key, grid, x, y + 1);
@@ -1910,18 +1917,20 @@ static void gpu_draw_buffers_legacy_grids(GPU_Buffers *buffers, int smooth)
 						               CCG_elem_co(key, b),
 						               CCG_elem_co(key, a),
 						               CCG_elem_co(key, c));
-						glNormal3fv(fno);
+						gpuNormal3fv(fno);
 
 						gpu_color_from_mask_quad_set(key, a, b, c, d);
 					}
 
-					glVertex3fv(CCG_elem_co(key, a));
-					glVertex3fv(CCG_elem_co(key, b));
+					gpuVertex3fv(CCG_elem_co(key, a));
+					gpuVertex3fv(CCG_elem_co(key, b));
 				}
-				glEnd();
+				gpuEnd();
 			}
 		}
 	}
+
+	gpuImmediateUnformat();
 
 	gpu_colors_disable(VBO_DISABLED);
 }

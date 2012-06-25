@@ -59,6 +59,8 @@
 #include "ED_uvedit.h"
 #include "ED_view3d.h"
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 
 #include "DNA_scene_types.h"
@@ -160,14 +162,14 @@ static void draw_triangulated(int mcords[][2], short tot)
 		a = dl->parts;
 		fp = dl->verts;
 		index = dl->index;
-		glBegin(GL_TRIANGLES);
+		gpuBegin(GL_TRIANGLES);
 		while (a--) {
-			glVertex3fv(fp + 3 * index[0]);
-			glVertex3fv(fp + 3 * index[1]);
-			glVertex3fv(fp + 3 * index[2]);
+			gpuVertex3fv(fp + 3 * index[0]);
+			gpuVertex3fv(fp + 3 * index[1]);
+			gpuVertex3fv(fp + 3 * index[2]);
 			index += 3;
 		}
-		glEnd();
+		gpuEnd();
 	}
 	
 	BKE_displist_free(&lb);
@@ -250,17 +252,17 @@ int EDBM_backbuf_border_mask_init(ViewContext *vc, int mcords[][2], short tot, s
 	/* draw the mask */
 	glDisable(GL_DEPTH_TEST);
 	
-	glColor3ub(0, 0, 0);
+	gpuCurrentColor3ub(0, 0, 0);
 	
 	/* yah, opengl doesn't do concave... tsk! */
 	ED_region_pixelspace(vc->ar);
 	draw_triangulated(mcords, tot);
 	
-	glBegin(GL_LINE_LOOP);  /* for zero sized masks, lines */
+	gpuBegin(GL_LINE_LOOP);  /* for zero sized masks, lines */
 	for (a = 0; a < tot; a++) {
-		glVertex2iv(mcords[a]);
+		gpuVertex2iv(mcords[a]);
 	}
-	glEnd();
+	gpuEnd();
 	
 	glFinish(); /* to be sure readpixels sees mask */
 	

@@ -31,6 +31,7 @@ set(INC
 	../../makesrna
 	../../render/extern/include
 	../../windowmanager
+	../../gpu
 	../../../../intern/guardedalloc
 	../../../../intern/smoke/extern
 )

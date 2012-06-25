@@ -57,6 +57,8 @@
 
 #include "paint_intern.h"
 
+#include "GPU_compatibility.h"
+
 #include <float.h>
 #include <math.h>
 
@@ -100,21 +102,30 @@ typedef struct PaintStroke {
 /*** Cursor ***/
 static void paint_draw_smooth_stroke(bContext *C, int x, int y, void *customdata) 
 {
-	Brush *brush = paint_brush(paint_get_active(CTX_data_scene(C)));
 	PaintStroke *stroke = customdata;
 
-	glColor4ubv(paint_get_active(CTX_data_scene(C))->paint_cursor_col);
-	glEnable(GL_LINE_SMOOTH);
-	glEnable(GL_BLEND);
+	if (stroke) {
+		Brush *brush = paint_brush(paint_get_active(CTX_data_scene(C)));
 
-	if (stroke && brush && (brush->flag & BRUSH_SMOOTH_STROKE)) {
-		ARegion *ar = CTX_wm_region(C);
-		sdrawline(x, y, (int)stroke->last_mouse_position[0] - ar->winrct.xmin,
-		          (int)stroke->last_mouse_position[1] - ar->winrct.ymin);
+		if (brush && (brush->flag & BRUSH_SMOOTH_STROKE)) {
+			ARegion *ar = CTX_wm_region(C);
+
+			gpuCurrentColor4ubv(paint_get_active(CTX_data_scene(C))->paint_cursor_col);
+
+			glEnable(GL_LINE_SMOOTH);
+			glEnable(GL_BLEND);
+
+			// DOODLE: single line
+			gpuSingleLinei(
+				x,
+				y,
+				(int)stroke->last_mouse_position[0] - ar->winrct.xmin,
+				(int)stroke->last_mouse_position[1] - ar->winrct.ymin);
+
+			glDisable(GL_BLEND);
+			glDisable(GL_LINE_SMOOTH);
+		}
 	}
-
-	glDisable(GL_BLEND);
-	glDisable(GL_LINE_SMOOTH);
 }
 
 /* if this is a tablet event, return tablet pressure and set *pen_flip

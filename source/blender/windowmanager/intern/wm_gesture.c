@@ -186,11 +186,11 @@ static void wm_gesture_draw_rect(wmGesture *gt)
 
 	gpuCurrentColor3ub(96, 96, 96);
 	glLineStipple(1, 0xCCCC);
-	gpuDrawRecti(GL_LINE_LOOP, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
+	gpuDrawWireRecti(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 
 	gpuCurrentColor3ub(255, 255, 255);
 	glLineStipple(1, 0x3333);
-	gpuDrawRecti(GL_LINE_LOOP, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
+	gpuDrawWireRecti(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 
 	glDisable(GL_LINE_STIPPLE);
 }

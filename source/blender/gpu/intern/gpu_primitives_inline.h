@@ -71,7 +71,33 @@ BLI_INLINE void gpuDrawLinei(GLint x1, GLint y1, GLint x2, GLint y2)
 
 
 
-BLI_INLINE void gpuAppendRectf(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2)
+BLI_INLINE void gpuAppendFilledRectf(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2)
+{
+	gpuVertex2f(x1, y1);
+	gpuVertex2f(x2, y1);
+	gpuVertex2f(x2, y2);
+
+	gpuVertex2f(x1, y1);
+	gpuVertex2f(x2, y2);
+	gpuVertex2f(x1, y2);
+}
+
+BLI_INLINE void gpuAppendFilledRecti(GLint x1, GLint y1, GLint x2, GLint y2)
+{
+	gpuVertex2i(x1, y1);
+	gpuVertex2i(x2, y1);
+	gpuVertex2i(x2, y2);
+
+	gpuVertex2i(x1, y1);
+	gpuVertex2i(x2, y2);
+	gpuVertex2i(x1, y2);
+}
+
+BLI_INLINE void gpuAppendWireRectf(
+	GLfloat x1,
+	GLfloat y1,
+	GLfloat x2,
+	GLfloat y2)
 {
 	gpuVertex2f(x1, y1);
 	gpuVertex2f(x2, y1);
@@ -79,7 +105,11 @@ BLI_INLINE void gpuAppendRectf(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2)
 	gpuVertex2f(x1, y2);
 }
 
-BLI_INLINE void gpuAppendRecti(GLint x1, GLint y1, GLint x2, GLint y2)
+BLI_INLINE void gpuAppendWireRecti(
+	GLint x1,
+	GLint y1,
+	GLint x2,
+	GLint y2)
 {
 	gpuVertex2i(x1, y1);
 	gpuVertex2i(x2, y1);
@@ -87,27 +117,47 @@ BLI_INLINE void gpuAppendRecti(GLint x1, GLint y1, GLint x2, GLint y2)
 	gpuVertex2i(x1, y2);
 }
 
-BLI_INLINE void gpuDrawRectf(
-	GLenum mode,
+BLI_INLINE void gpuDrawFilledRectf(
 	GLfloat x1,
 	GLfloat y1,
 	GLfloat x2,
 	GLfloat y2)
 {
-	gpuBegin(mode);
-	gpuAppendRectf(x1, y1, x2, y2);
+	gpuBegin(GL_TRIANGLES);
+	gpuAppendFilledRectf(x1, y1, x2, y2);
 	gpuEnd();
 }
 
-BLI_INLINE void gpuDrawRecti(
-	GLenum mode,
+BLI_INLINE void gpuDrawFilledRecti(
 	GLint x1,
 	GLint y1,
 	GLint x2,
 	GLint y2)
 {
-	gpuBegin(mode);
-	gpuAppendRecti(x1, y1, x2, y2);
+	gpuBegin(GL_TRIANGLES);
+	gpuAppendFilledRecti(x1, y1, x2, y2);
+	gpuEnd();
+}
+
+BLI_INLINE void gpuDrawWireRectf(
+	GLfloat x1,
+	GLfloat y1,
+	GLfloat x2,
+	GLfloat y2)
+{
+	gpuBegin(GL_LINE_LOOP);
+	gpuAppendWireRectf(x1, y1, x2, y2);
+	gpuEnd();
+}
+
+BLI_INLINE void gpuDrawWireRecti(
+	GLint x1,
+	GLint y1,
+	GLint x2,
+	GLint y2)
+{
+	gpuBegin(GL_LINE_LOOP);
+	gpuAppendWireRecti(x1, y1, x2, y2);
 	gpuEnd();
 }
 

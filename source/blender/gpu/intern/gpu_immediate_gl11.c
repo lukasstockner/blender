@@ -89,7 +89,7 @@ static void setup(void)
 
 	offset = 0;
 
-	GPU_CLEAR_ERRORS();
+	GPU_CHECK_NO_ERROR();
 
 	/* setup vertex arrays
 	   Assume that vertex arrays have been disabled for everything
@@ -206,14 +206,56 @@ static void setup(void)
 		}
 	}
 
-	GPU_ASSERT(glGetError() == GL_NO_ERROR);
+	GPU_CHECK_NO_ERROR();
 }
 
+typedef struct indexBufferDataGL11 {
+	void*  ptr;
+	size_t size;
+} indexBufferDataGL11;
+
+static void allocateIndex(void)
+{
+	if (GPU_IMMEDIATE->index) {
+		indexBufferDataGL11* bufferData;
+		GPUindex* index;
+		size_t newSize;
+
+		index = GPU_IMMEDIATE->index;
+		newSize = index->maxIndexCount * sizeof(GLuint);
+
+		if (index->bufferData) {
+			bufferData = index->bufferData;
+
+			if (newSize > bufferData->size) {
+				bufferData->ptr = MEM_reallocN(bufferData->ptr, newSize);
+				GPU_ASSERT(bufferData->ptr != NULL);
+
+				bufferData->size = newSize;
+			}
+		}
+		else {
+			bufferData = MEM_mallocN(
+				sizeof(indexBufferDataGL11),
+				"indexBufferDataG11");
+
+			GPU_ASSERT(bufferData != NULL);
+
+			index->bufferData = bufferData;
+
+			bufferData->ptr = MEM_mallocN(newSize, "indexBufferData->ptr");
+			GPU_ASSERT(bufferData->ptr != NULL);
+
+			bufferData->size = newSize;
+		}
+	}
+}
 
 
 void gpu_lock_buffer_gl11(void)
 {
 	allocate();
+	allocateIndex();
 	setup();
 }
 
@@ -221,9 +263,7 @@ void gpu_lock_buffer_gl11(void)
 
 void gpu_begin_buffer_gl11(void)
 {
-	bufferDataGL11* bufferData;
-
-	bufferData = (bufferDataGL11*)(GPU_IMMEDIATE->bufferData);
+	bufferDataGL11* bufferData = GPU_IMMEDIATE->bufferData;
 	GPU_IMMEDIATE->buffer = bufferData->ptr;
 }
 
@@ -232,11 +272,11 @@ void gpu_begin_buffer_gl11(void)
 void gpu_end_buffer_gl11(void)
 {
 	if (GPU_IMMEDIATE->count > 0) {
-		GPU_CLEAR_ERRORS();
+		GPU_CHECK_NO_ERROR();
 
 		glDrawArrays(GPU_IMMEDIATE->mode, 0, GPU_IMMEDIATE->count);
 
-		GPU_ASSERT(glGetError() == GL_NO_ERROR);
+		GPU_CHECK_NO_ERROR();
 	}
 }
 
@@ -248,7 +288,7 @@ void gpu_unlock_buffer_gl11(void)
 
 	/* Disable any arrays that were used so that everything is off again. */
 
-	GPU_CLEAR_ERRORS();
+	GPU_CHECK_NO_ERROR();
 
 	/* vertex */
 
@@ -271,7 +311,7 @@ void gpu_unlock_buffer_gl11(void)
 	if (GPU_IMMEDIATE->format.textureUnitCount == 1) {
 		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 	}
-	else {
+	else if (GPU_IMMEDIATE->format.textureUnitCount > 1) {
 		for (i = 0; i < GPU_IMMEDIATE->format.textureUnitCount; i++) {
 			glClientActiveTexture(GPU_IMMEDIATE->format.textureUnitMap[i]);
 			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -292,7 +332,7 @@ void gpu_unlock_buffer_gl11(void)
 		glDisableVertexAttribArray(GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
 	}
 
-	GPU_ASSERT(glGetError() == GL_NO_ERROR);
+	GPU_CHECK_NO_ERROR();
 }
 
 
@@ -309,6 +349,23 @@ void gpu_shutdown_buffer_gl11(GPUimmediate *restrict immediate)
 
 		MEM_freeN(immediate->bufferData);
 		immediate->bufferData = NULL;
+
+		gpu_index_shutdown_buffer_gl11(immediate->index);
+	}
+}
+
+void gpu_index_shutdown_buffer_gl11(GPUindex *restrict index)
+{
+	if (index && index->bufferData) {
+		indexBufferDataGL11* bufferData = index->bufferData;
+
+		if (bufferData->ptr) {
+			MEM_freeN(bufferData->ptr);
+			bufferData->ptr = NULL;
+		}
+
+		MEM_freeN(index->bufferData);
+		index->bufferData = NULL;
 	}
 }
 
@@ -316,17 +373,78 @@ void gpu_shutdown_buffer_gl11(GPUimmediate *restrict immediate)
 
 void gpu_current_color_gl11(void)
 {
+	GPU_CHECK_NO_ERROR();
+
 	glColor4ubv(GPU_IMMEDIATE->color);
+
+	GPU_CHECK_NO_ERROR();
 }
 
-void gpu_get_current_color_gl11(GLubyte *color)
+void gpu_get_current_color_gl11(GLfloat *color)
 {
-	float v[4];
+	GPU_CHECK_NO_ERROR();
 
-	glGetFloatv(GL_CURRENT_COLOR, v);
+	glGetFloatv(GL_CURRENT_COLOR, color);
 
-	color[0] = (GLubyte)(255.0f * v[0]);
-	color[1] = (GLubyte)(255.0f * v[1]);
-	color[2] = (GLubyte)(255.0f * v[2]);
-	color[3] = (GLubyte)(255.0f * v[3]);
+	GPU_CHECK_NO_ERROR();
+}
+
+
+
+void gpu_current_normal_gl11(void)
+{
+	GPU_CHECK_NO_ERROR();
+
+	glNormal3fv(GPU_IMMEDIATE->normal);
+
+	GPU_CHECK_NO_ERROR();
+}
+
+
+
+void gpu_index_begin_buffer_gl11(void)
+{
+	GPUindex *restrict index = GPU_IMMEDIATE->index;
+	indexBufferDataGL11* bufferData = index->bufferData;
+	index->buffer = bufferData->ptr;
+	index->unmappedBuffer = NULL;
+}
+
+void gpu_index_end_buffer_gl11(void)
+{
+	GPUindex *restrict index = GPU_IMMEDIATE->index;
+	indexBufferDataGL11* bufferData = index->bufferData;
+	index->unmappedBuffer = bufferData->ptr;
+}
+
+void gpu_draw_elements_gl11(void)
+{
+	GPUindex* index = GPU_IMMEDIATE->index;
+
+	GPU_CHECK_NO_ERROR();
+
+	glDrawElements(
+		GPU_IMMEDIATE->mode,
+		index->count,
+		GL_UNSIGNED_INT,
+		index->unmappedBuffer);
+
+	GPU_CHECK_NO_ERROR();
+}
+
+void gpu_draw_range_elements_gl11(void)
+{
+	GPUindex* index = GPU_IMMEDIATE->index;
+
+	GPU_CHECK_NO_ERROR();
+
+	glDrawRangeElements(
+		GPU_IMMEDIATE->mode,
+		index->indexMin,
+		index->indexMax,
+		index->count,
+		GL_UNSIGNED_INT,
+		index->unmappedBuffer);
+
+	GPU_CHECK_NO_ERROR();
 }

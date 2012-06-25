@@ -28,6 +28,7 @@ set(INC
 	../../makesdna
 	../../makesrna
 	../../windowmanager
+	../../gpu
 	../../../../intern/guardedalloc
 )
 

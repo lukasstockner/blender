@@ -55,6 +55,8 @@
 
 #include "mesh_intern.h"
 
+#include "GPU_compatibility.h"
+
 #define VTX_SLIDE_SNAP_THRSH 15
 
 /* Cusom VertexSlide Operator data */
@@ -292,19 +294,19 @@ static void vtx_slide_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		glMultMatrixf(vso->obj->obmat);
 
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-			
+
+		gpuImmediateFormat_V3(); // DOODLE: edge slide
 
 		if (vso->slide_mode && vso->disk_edges > 0) {
 			/* Draw intermediate edge frame */
 			UI_ThemeColorShadeAlpha(TH_EDGE_SELECT, 50, -50);
 
+			gpuBegin(GL_LINES);
 			for (i = 0; i < vso->disk_edges; i++) {
-				glBegin(GL_LINES);
-				glVertex3fv(vso->vtx_frame[i]);
-				glVertex3fv(vso->interp);
-				glEnd();
+				gpuVertex3fv(vso->vtx_frame[i]);
+				gpuVertex3fv(vso->interp);
 			}
+			gpuEnd();
 		}
 
 		/* Draw selected edge
@@ -313,22 +315,24 @@ static void vtx_slide_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 
 		glLineWidth(outline_w);
 
-		glBegin(GL_LINES);
-		bglVertex3fv(vso->sel_edge->v1->co);
-		bglVertex3fv(vso->sel_edge->v2->co);
-		glEnd();
+		gpuBegin(GL_LINES);
+		gpuVertex3fv(vso->sel_edge->v1->co);
+		gpuVertex3fv(vso->sel_edge->v2->co);
+		gpuEnd();
 
 		if (vso->slide_mode) {
 			/* Draw interpolated vertex */
-			
+
 			UI_ThemeColorShadeAlpha(TH_FACE_DOT, -80, -50);
 
 			glPointSize(pt_size);
 
-			bglBegin(GL_POINTS);
-			bglVertex3fv(vso->interp);
-			bglEnd();
+			gpuBeginSprites();
+			gpuSprite3fv(vso->interp);
+			gpuEndSprites();
 		}
+
+		gpuImmediateUnformat();
 
 		glDisable(GL_BLEND);
 		glPopMatrix();

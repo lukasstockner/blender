@@ -39,8 +39,6 @@
  
 #include "RAS_OpenGLRasterizer.h"
 
-#include <GL/glew.h>
-
 #include "RAS_Rect.h"
 #include "RAS_TexVert.h"
 #include "RAS_MeshObject.h"
@@ -51,6 +49,7 @@
 #include "RAS_StorageVA.h"
 #include "RAS_StorageVBO.h"
 
+#include "GPU_compatibility.h"
 #include "GPU_draw.h"
 #include "GPU_material.h"
 #include "GPU_extensions.h"
@@ -147,7 +146,6 @@ bool RAS_OpenGLRasterizer::Init()
 {
 	bool storage_init;
 	GPU_state_init();
-
 
 	m_ambr = 0.0f;
 	m_ambg = 0.0f;
@@ -309,8 +307,9 @@ void RAS_OpenGLRasterizer::Exit()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glDepthMask (GL_TRUE);
 	glDepthFunc(GL_LEQUAL);
-	glBlendFunc(GL_ONE, GL_ZERO);
-	
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* reset blender default */
+	glAlphaFunc(GL_GREATER, 0.5f); /* reset blender default */
+
 	glDisable(GL_POLYGON_STIPPLE);
 	
 	glDisable(GL_LIGHTING);
@@ -413,26 +412,26 @@ void RAS_OpenGLRasterizer::FlushDebugShapes()
 	if (tex) glDisable(GL_TEXTURE_2D);
 
 	//draw lines
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	for (unsigned int i=0;i<m_debugShapes.size();i++)
 	{
 		if (m_debugShapes[i].m_type != OglDebugShape::LINE)
 			continue;
-		glColor4f(m_debugShapes[i].m_color[0],m_debugShapes[i].m_color[1],m_debugShapes[i].m_color[2],1.f);
+		gpuColor4f(m_debugShapes[i].m_color[0],m_debugShapes[i].m_color[1],m_debugShapes[i].m_color[2],1.f);
 		const MT_Scalar* fromPtr = &m_debugShapes[i].m_pos.x();
 		const MT_Scalar* toPtr= &m_debugShapes[i].m_param.x();
-		glVertex3dv(fromPtr);
-		glVertex3dv(toPtr);
+		gpuVertex3dv(fromPtr);
+		gpuVertex3dv(toPtr);
 	}
-	glEnd();
+	gpuEnd();
 
 	//draw circles
 	for (unsigned int i=0;i<m_debugShapes.size();i++)
 	{
 		if (m_debugShapes[i].m_type != OglDebugShape::CIRCLE)
 			continue;
-		glBegin(GL_LINE_LOOP);
-		glColor4f(m_debugShapes[i].m_color[0],m_debugShapes[i].m_color[1],m_debugShapes[i].m_color[2],1.f);
+		gpuBegin(GL_LINE_LOOP);
+		gpuColor4f(m_debugShapes[i].m_color[0],m_debugShapes[i].m_color[1],m_debugShapes[i].m_color[2],1.f);
 
 		static const MT_Vector3 worldUp(0.0, 0.0, 1.0);
 		MT_Vector3 norm = m_debugShapes[i].m_param;
@@ -459,9 +458,9 @@ void RAS_OpenGLRasterizer::FlushDebugShapes()
 			pos = pos*tr;
 			pos += m_debugShapes[i].m_pos;
 			const MT_Scalar* posPtr = &pos.x();
-			glVertex3dv(posPtr);
+			gpuVertex3dv(posPtr);
 		}
-		glEnd();
+		gpuEnd();
 	}
 
 	if (light) glEnable(GL_LIGHTING);
@@ -660,7 +659,7 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot& ms,
 	// handle object color
 	if (obcolor) {
 		glDisableClientState(GL_COLOR_ARRAY);
-		glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
+		gpuCurrentColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
 	}
 	else
 		glEnableClientState(GL_COLOR_ARRAY);
@@ -673,18 +672,18 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot& ms,
 
 		if (it.array->m_type == RAS_DisplayArray::LINE) {
 			// line drawing, no text
-			glBegin(GL_LINES);
+			gpuBegin(GL_LINES);
 
 			for (i=0; i<it.totindex; i+=2)
 			{
 				vertex = &it.vertex[it.index[i]];
-				glVertex3fv(vertex->getXYZ());
+				gpuVertex3fv(vertex->getXYZ());
 
 				vertex = &it.vertex[it.index[i+1]];
-				glVertex3fv(vertex->getXYZ());
+				gpuVertex3fv(vertex->getXYZ());
 			}
 
-			glEnd();
+			gpuEnd();
 		}
 		else {
 			// triangle and quad text drawing
@@ -808,7 +807,6 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetFrustumMatrix(
 	bool 
 ) {
 	MT_Matrix4x4 result;
-	double mat[16];
 
 	// correction for stereo
 	if (Stereo())
@@ -866,7 +864,6 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetOrthoMatrix(
 	float frustfar
 ) {
 	MT_Matrix4x4 result;
-	double mat[16];
 
 	// stereo is meaning less for orthographic, disable it
 //	glMatrixMode(GL_PROJECTION);
@@ -944,7 +941,6 @@ void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 	m_viewmatrix.getValue(glviewmat);
 	float tm[16];
 	for(int i=0;i<16;i++)tm[i]=glviewmat[i];
-	float pm[16];
 	glMatrixMode(GL_MODELVIEW);
 	gpuMatrixMode(GPU_MODELVIEW);
 
@@ -996,7 +992,7 @@ void RAS_OpenGLRasterizer::SetSpecularity(float specX,
 										  float specval)
 {
 	GLfloat mat_specular[] = {specX, specY, specZ, specval};
-	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
+	gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
 }
 
 
@@ -1004,7 +1000,7 @@ void RAS_OpenGLRasterizer::SetSpecularity(float specX,
 void RAS_OpenGLRasterizer::SetShinyness(float shiny)
 {
 	GLfloat mat_shininess[] = {	shiny };
-	glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, mat_shininess);
+	gpuMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, mat_shininess);
 }
 
 
@@ -1012,13 +1008,13 @@ void RAS_OpenGLRasterizer::SetShinyness(float shiny)
 void RAS_OpenGLRasterizer::SetDiffuse(float difX,float difY,float difZ,float diffuse)
 {
 	GLfloat mat_diffuse [] = {difX, difY,difZ, diffuse};
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);
+	gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);
 }
 
 void RAS_OpenGLRasterizer::SetEmissive(float eX, float eY, float eZ, float e)
 {
 	GLfloat mat_emit [] = {eX,eY,eZ,e};
-	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, mat_emit);
+	gpuMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, mat_emit);
 }
 
 
@@ -1057,34 +1053,6 @@ void RAS_OpenGLRasterizer::DisableMotionBlur()
 void RAS_OpenGLRasterizer::SetAlphaBlend(int alphablend)
 {
 	GPU_set_material_alpha_blend(alphablend);
-/*
-	if (alphablend == m_last_alphablend)
-		return;
-
-	if (alphablend == GPU_BLEND_SOLID) {
-		glDisable(GL_BLEND);
-		glDisable(GL_ALPHA_TEST);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	}
-	else if (alphablend == GPU_BLEND_ADD) {
-		glBlendFunc(GL_ONE, GL_ONE);
-		glEnable(GL_BLEND);
-		glDisable(GL_ALPHA_TEST);
-	}
-	else if (alphablend == GPU_BLEND_ALPHA) {
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glEnable(GL_BLEND);
-		glEnable(GL_ALPHA_TEST);
-		glAlphaFunc(GL_GREATER, 0.0f);
-	}
-	else if (alphablend == GPU_BLEND_CLIP) {
-		glDisable(GL_BLEND); 
-		glEnable(GL_ALPHA_TEST);
-		glAlphaFunc(GL_GREATER, 0.5f);
-	}
-
-	m_last_alphablend = alphablend;
-*/
 }
 
 void RAS_OpenGLRasterizer::SetFrontFace(bool ccw)

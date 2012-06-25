@@ -45,6 +45,8 @@
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 #include "BIF_glutil.h" /* for paint cursor */
 
@@ -880,10 +882,10 @@ static void knifetool_draw_angle_snapping(KnifeTool_OpData *kcd)
 
 	UI_ThemeColor(TH_TRANSFORM);
 	glLineWidth(2.0);
-	glBegin(GL_LINES);
-	glVertex3dv(v1);
-	glVertex3dv(v2);
-	glEnd();
+	gpuBegin(GL_LINES);
+	gpuVertex3dv(v1);
+	gpuVertex3dv(v2);
+	gpuEnd();
 }
 
 static void knife_init_colors(KnifeColors *colors)
@@ -918,45 +920,45 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		if (kcd->angle_snapping != ANGLE_FREE)
 			knifetool_draw_angle_snapping(kcd);
 
-		glColor3ubv(kcd->colors.line);
+		gpuCurrentColor3ubv(kcd->colors.line);
 		
 		glLineWidth(2.0);
 
-		glBegin(GL_LINES);
-		glVertex3fv(kcd->prev.cage);
-		glVertex3fv(kcd->cur.cage);
-		glEnd();
+		gpuBegin(GL_LINES);
+		gpuVertex3fv(kcd->prev.cage);
+		gpuVertex3fv(kcd->cur.cage);
+		gpuEnd();
 
 		glLineWidth(1.0);
 	}
 
 	if (kcd->cur.edge) {
-		glColor3ubv(kcd->colors.edge);
+		gpuCurrentColor3ubv(kcd->colors.edge);
 		glLineWidth(2.0);
 
-		glBegin(GL_LINES);
-		glVertex3fv(kcd->cur.edge->v1->cageco);
-		glVertex3fv(kcd->cur.edge->v2->cageco);
-		glEnd();
+		gpuBegin(GL_LINES);
+		gpuVertex3fv(kcd->cur.edge->v1->cageco);
+		gpuVertex3fv(kcd->cur.edge->v2->cageco);
+		gpuEnd();
 
 		glLineWidth(1.0);
 	}
 	else if (kcd->cur.vert) {
-		glColor3ubv(kcd->colors.point);
+		gpuCurrentColor3ubv(kcd->colors.point);
 		glPointSize(11);
 
-		glBegin(GL_POINTS);
-		glVertex3fv(kcd->cur.cage);
-		glEnd();
+		gpuBegin(GL_POINTS);
+		gpuVertex3fv(kcd->cur.cage);
+		gpuEnd();
 	}
 
 	if (kcd->cur.bmface) {
-		glColor3ubv(kcd->colors.curpoint);
+		gpuCurrentColor3ubv(kcd->colors.curpoint);
 		glPointSize(9);
 
-		glBegin(GL_POINTS);
-		glVertex3fv(kcd->cur.cage);
-		glEnd();
+		gpuBegin(GL_POINTS);
+		gpuVertex3fv(kcd->cur.cage);
+		gpuEnd();
 	}
 
 	if (kcd->totlinehit > 0) {
@@ -964,12 +966,11 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		int i;
 
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 		/* draw any snapped verts first */
-		glColor4ubv(kcd->colors.point_a);
+		gpuCurrentColor4ubv(kcd->colors.point_a);
 		glPointSize(11);
-		glBegin(GL_POINTS);
+		gpuBegin(GL_POINTS);
 		lh = kcd->linehits;
 		for (i = 0; i < kcd->totlinehit; i++, lh++) {
 			float sv1[3], sv2[3];
@@ -980,26 +981,26 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 
 			if (len_v2v2(lh->schit, sv1) < kcd->vthresh / 4.0f) {
 				copy_v3_v3(lh->cagehit, lh->kfe->v1->cageco);
-				glVertex3fv(lh->cagehit);
+				gpuVertex3fv(lh->cagehit);
 				lh->v = lh->kfe->v1;
 			}
 			else if (len_v2v2(lh->schit, sv2) < kcd->vthresh / 4.0f) {
 				copy_v3_v3(lh->cagehit, lh->kfe->v2->cageco);
-				glVertex3fv(lh->cagehit);
+				gpuVertex3fv(lh->cagehit);
 				lh->v = lh->kfe->v2;
 			}
 		}
-		glEnd();
+		gpuEnd();
 
 		/* now draw the rest */
-		glColor4ubv(kcd->colors.curpoint_a);
+		gpuCurrentColor4ubv(kcd->colors.curpoint_a);
 		glPointSize(7);
-		glBegin(GL_POINTS);
+		gpuBegin(GL_POINTS);
 		lh = kcd->linehits;
 		for (i = 0; i < kcd->totlinehit; i++, lh++) {
-			glVertex3fv(lh->cagehit);
+			gpuVertex3fv(lh->cagehit);
 		}
-		glEnd();
+		gpuEnd();
 		glDisable(GL_BLEND);
 	}
 
@@ -1008,20 +1009,20 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		KnifeEdge *kfe;
 
 		glLineWidth(1.0);
-		glBegin(GL_LINES);
+		gpuBegin(GL_LINES);
 
 		BLI_mempool_iternew(kcd->kedges, &iter);
 		for (kfe = BLI_mempool_iterstep(&iter); kfe; kfe = BLI_mempool_iterstep(&iter)) {
 			if (!kfe->draw)
 				continue;
 
-			glColor3ubv(kcd->colors.line);
+			gpuColor3ubv(kcd->colors.line);
 
-			glVertex3fv(kfe->v1->cageco);
-			glVertex3fv(kfe->v2->cageco);
+			gpuVertex3fv(kfe->v1->cageco);
+			gpuVertex3fv(kfe->v2->cageco);
 		}
 
-		glEnd();
+		gpuEnd();
 		glLineWidth(1.0);
 	}
 
@@ -1031,18 +1032,18 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 
 		glPointSize(5.0);
 
-		glBegin(GL_POINTS);
+		gpuBegin(GL_POINTS);
 		BLI_mempool_iternew(kcd->kverts, &iter);
 		for (kfv = BLI_mempool_iterstep(&iter); kfv; kfv = BLI_mempool_iterstep(&iter)) {
 			if (!kfv->draw)
 				continue;
 
-			glColor3ubv(kcd->colors.point);
+			gpuColor3ubv(kcd->colors.point);
 
-			glVertex3fv(kfv->cageco);
+			gpuVertex3fv(kfv->cageco);
 		}
 
-		glEnd();
+		gpuEnd();
 	}
 
 	glPopMatrix();

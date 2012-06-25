@@ -46,6 +46,8 @@
 
 #include "WM_api.h"
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
@@ -445,22 +447,22 @@ static void paint_draw_alpha_overlay(Sculpt *sd, Brush *brush,
 		}
 
 		/* set quad color */
-		glColor4f(U.sculpt_paint_overlay_col[0],
+		gpuCurrentColor4f(U.sculpt_paint_overlay_col[0],
 		          U.sculpt_paint_overlay_col[1],
 		          U.sculpt_paint_overlay_col[2],
 		          brush->texture_overlay_alpha / 100.0f);
 
 		/* draw textured quad */
-		glBegin(GL_QUADS);
-		glTexCoord2f(0, 0);
-		glVertex2f(quad.xmin, quad.ymin);
-		glTexCoord2f(1, 0);
-		glVertex2f(quad.xmax, quad.ymin);
-		glTexCoord2f(1, 1);
-		glVertex2f(quad.xmax, quad.ymax);
-		glTexCoord2f(0, 1);
-		glVertex2f(quad.xmin, quad.ymax);
-		glEnd();
+		gpuBegin(GL_QUADS);
+		gpuTexCoord2f(0, 0);
+		gpuVertex2f(quad.xmin, quad.ymin);
+		gpuTexCoord2f(1, 0);
+		gpuVertex2f(quad.xmax, quad.ymin);
+		gpuTexCoord2f(1, 1);
+		gpuVertex2f(quad.xmax, quad.ymax);
+		gpuTexCoord2f(0, 1);
+		gpuVertex2f(quad.xmin, quad.ymax);
+		gpuEnd();
 
 		glPopMatrix();
 	}
@@ -589,12 +591,10 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	glEnable(GL_LINE_SMOOTH);
 
 	/* set brush color */
-	glColor4f(outline_col[0], outline_col[1], outline_col[2], outline_alpha);
+	gpuCurrentColor4f(outline_col[0], outline_col[1], outline_col[2], outline_alpha);
 
 	/* draw brush outline */
-	glTranslatef(translation[0], translation[1], 0);
-	glutil_draw_lined_arc(0.0, M_PI * 2.0, final_radius, 40);
-	glTranslatef(-translation[0], -translation[1], 0);
+	gpuSingleCircle(translation[0], translation[1], final_radius, 40);
 
 	/* restore GL state */
 	glDisable(GL_BLEND);

@@ -24,8 +24,7 @@
  *  \ingroup bgerast
  */
 
- 
-#define STRINGIFY(A)  #A
+#include "BLI_utildefines.h" /* for STRINGIFY */
 
 #include "RAS_OpenGLFilters/RAS_Blur2DFilter.h"
 #include "RAS_OpenGLFilters/RAS_Sharpen2DFilter.h"
@@ -45,12 +44,11 @@
 #include <iostream>
 
 #include "GPU_matrix.h"
-
-#include <GL/glew.h>
-
 #include <stdio.h>
 
 #include "Value.h"
+
+#include "GPU_compatibility.h"
 
 RAS_2DFilterManager::RAS_2DFilterManager():
 texturewidth(-1), textureheight(-1),
@@ -461,13 +459,35 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 			glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 0, 0, texturewidth, textureheight, 0);
 			glClear(GL_COLOR_BUFFER_BIT);
 
-			glBegin(GL_QUADS);
-				glColor4f(1.f, 1.f, 1.f, 1.f);
-				glTexCoord2f(1.0, 1.0);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[1], canvascoord[3]); glVertex2f(1,1);
-				glTexCoord2f(0.0, 1.0);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[0], canvascoord[3]); glVertex2f(-1,1);
-				glTexCoord2f(0.0, 0.0);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[0], canvascoord[2]); glVertex2f(-1,-1);
-				glTexCoord2f(1.0, 0.0);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[1], canvascoord[2]); glVertex2f(1,-1);
-			glEnd();
+			gpuCurrentColor4f(1, 1, 1, 1);
+
+			{
+				GLenum map[1] = { GL_TEXTURE3 };
+
+				gpuImmediateElementSizes(2, 0, 0);
+				gpuImmediateTextureUnitCount(1);
+				gpuImmediateTextureUnitMap(map);
+			}
+
+			gpuImmediateLock();
+			gpuBegin(GL_QUADS);
+				gpuTexCoord2f(1, 1);
+				gpuMultiTexCoord2f(0, canvascoord[1], canvascoord[3]);
+				gpuVertex2f( 1, 1);
+
+				gpuTexCoord2f(0, 1);
+				gpuMultiTexCoord2f(0, canvascoord[0], canvascoord[3]);
+				gpuVertex2f(-1, 1);
+
+				gpuTexCoord2f(0, 0);
+				gpuMultiTexCoord2f(0, canvascoord[0], canvascoord[2]);
+				gpuVertex2f(-1,-1);
+
+				gpuTexCoord2f(1, 0);
+				gpuMultiTexCoord2f(0, canvascoord[1], canvascoord[2]);
+				gpuVertex2f( 1,-1);
+			gpuEnd();
+			gpuImmediateUnlock();
 		}
 	}
 

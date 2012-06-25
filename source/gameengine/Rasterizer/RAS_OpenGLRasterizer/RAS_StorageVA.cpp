@@ -32,7 +32,7 @@
 #include "GPU_matrix.h"
 #include "RAS_StorageVA.h"
 
-#include <GL/glew.h>
+#include "GPU_compatibility.h"
 
 RAS_StorageVA::RAS_StorageVA(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib) :
 	m_texco_num(texco_num),
@@ -227,15 +227,15 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot& ms)
 				const MT_Vector4& rgba = ms.m_RGBAcolor;
 
 				glDisableClientState(GL_COLOR_ARRAY);
-				glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
+				gpuCurrentColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
 			}
 			else {
-				glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+				gpuCurrentColor4f(0, 0, 0, 1);
 				glEnableClientState(GL_COLOR_ARRAY);
 			}
 		}
 		else
-			glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+			gpuCurrentColor4f(0, 0, 0, 1);
 
 #include REAL_GL_MODE
 		//glVertexPointer(3, GL_FLOAT, stride, it.vertex->getXYZ());
@@ -336,15 +336,16 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot& ms)
 				const MT_Vector4& rgba = ms.m_RGBAcolor;
 
 				glDisableClientState(GL_COLOR_ARRAY);
-				glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
+				gpuCurrentColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
 			}
 			else {
-				glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+				gpuCurrentColor4f(0, 0, 0, 1);
 				glEnableClientState(GL_COLOR_ARRAY);
 			}
 		}
-		else
-			glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+		else {
+			gpuCurrentColor4f(0, 0, 0, 1);
+		}
 
 		glVertexPointer(3, GL_FLOAT, stride, it.vertex->getXYZ());
 		glNormalPointer(GL_FLOAT, stride, it.vertex->getNormal());
@@ -401,15 +402,16 @@ void RAS_StorageVA::IndexPrimitivesMulti(class RAS_MeshSlot& ms)
 				const MT_Vector4& rgba = ms.m_RGBAcolor;
 
 				glDisableClientState(GL_COLOR_ARRAY);
-				glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
+				gpuCurrentColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
 			}
 			else {
-				glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+				gpuCurrentColor4f(0, 0, 0, 1);
 				glEnableClientState(GL_COLOR_ARRAY);
 			}
 		}
-		else
-			glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+		else {
+			gpuCurrentColor4f(0, 0, 0, 1);
+		}
 
 		glVertexPointer(3, GL_FLOAT, stride, it.vertex->getXYZ());
 		glNormalPointer(GL_FLOAT, stride, it.vertex->getNormal());

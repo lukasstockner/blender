@@ -65,6 +65,7 @@
 #include "BKE_material.h"
 #include "BKE_global.h"     // XXX remove me!
 
+#include "GPU_compatibility.h"
 
 #include "BIF_gl.h"
 
@@ -504,12 +505,12 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 		displist1 = glGenLists(1);
 		glNewList(displist1, GL_COMPILE);
 			
-		glBegin(GL_LINE_LOOP);
-		glVertex2fv(_unit_diamond_shape[0]);
-		glVertex2fv(_unit_diamond_shape[1]);
-		glVertex2fv(_unit_diamond_shape[2]);
-		glVertex2fv(_unit_diamond_shape[3]);
-		glEnd();
+		gpuBegin(GL_LINE_LOOP);
+		gpuVertex2fv(_unit_diamond_shape[0]);
+		gpuVertex2fv(_unit_diamond_shape[1]);
+		gpuVertex2fv(_unit_diamond_shape[2]);
+		gpuVertex2fv(_unit_diamond_shape[3]);
+		gpuEnd();
 
 		glEndList();
 	}
@@ -517,12 +518,12 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 		displist2 = glGenLists(1);
 		glNewList(displist2, GL_COMPILE);
 			
-		glBegin(GL_QUADS);
-		glVertex2fv(_unit_diamond_shape[0]);
-		glVertex2fv(_unit_diamond_shape[1]);
-		glVertex2fv(_unit_diamond_shape[2]);
-		glVertex2fv(_unit_diamond_shape[3]);
-		glEnd();
+		gpuBegin(GL_QUADS);
+		gpuVertex2fv(_unit_diamond_shape[0]);
+		gpuVertex2fv(_unit_diamond_shape[1]);
+		gpuVertex2fv(_unit_diamond_shape[2]);
+		gpuVertex2fv(_unit_diamond_shape[3]);
+		gpuEnd();
 
 		glEndList();
 	}
@@ -545,22 +546,22 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 		switch (key_type) {
 			case BEZT_KEYTYPE_BREAKDOWN: /* bluish frames for now */
 			{
-				if (sel) glColor4f(0.33f, 0.75f, 0.93f, alpha);
-				else glColor4f(0.70f, 0.86f, 0.91f, alpha);
+				if (sel) gpuCurrentColor4f(0.33f, 0.75f, 0.93f, alpha);
+				else gpuCurrentColor4f(0.70f, 0.86f, 0.91f, alpha);
 			}
 			break;
 				
 			case BEZT_KEYTYPE_EXTREME: /* redish frames for now */
 			{
-				if (sel) glColor4f(0.95f, 0.5f, 0.5f, alpha);
-				else glColor4f(0.91f, 0.70f, 0.80f, alpha);
+				if (sel) gpuCurrentColor4f(0.95f, 0.5f, 0.5f, alpha);
+				else gpuCurrentColor4f(0.91f, 0.70f, 0.80f, alpha);
 			}
 			break;
 				
 			case BEZT_KEYTYPE_JITTER: /* greenish frames for now? */
 			{
-				if (sel) glColor4f(0.38f, 0.75f, 0.26f, alpha);
-				else glColor4f(0.58f, 0.90f, 0.46f, alpha);
+				if (sel) gpuCurrentColor4f(0.38f, 0.75f, 0.26f, alpha);
+				else gpuCurrentColor4f(0.58f, 0.90f, 0.46f, alpha);
 			}
 			break;
 				
@@ -568,7 +569,7 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 			default:
 			{
 				if (sel) UI_ThemeColorShadeAlpha(TH_STRIP_SELECT, 50, -255 * (1.0f - alpha));
-				else glColor4f(0.91f, 0.91f, 0.91f, alpha);
+				else gpuCurrentColor4f(0.91f, 0.91f, 0.91f, alpha);
 			}
 			break;
 		}
@@ -578,7 +579,7 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 	
 	if (ELEM(mode, KEYFRAME_SHAPE_FRAME, KEYFRAME_SHAPE_BOTH)) {
 		/* exterior - black frame */
-		glColor4f(0.0f, 0.0f, 0.0f, alpha);
+		gpuCurrentColor4f(0.0f, 0.0f, 0.0f, alpha);
 		
 		glCallList(displist1);
 	}
@@ -611,7 +612,7 @@ static void draw_keylist(View2D *v2d, DLRBT_Tree *keys, DLRBT_Tree *blocks, floa
 				else
 					UI_ThemeColor4(TH_STRIP);
 				
-				glRectf(ab->start, ypos - 5, ab->end, ypos + 5);
+				gpuSingleFilledRectf(ab->start, ypos - 5, ab->end, ypos + 5);
 			}
 		}
 	}

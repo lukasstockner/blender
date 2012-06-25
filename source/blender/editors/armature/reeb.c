@@ -3349,12 +3349,12 @@ void REEB_draw()
 	ReebGraph *rg;
 	ReebArc *arc;
 	int i = 0;
-	
+
 	if (GLOBAL_RG == NULL)
 	{
 		return;
 	}
-	
+
 	if (GLOBAL_RG->link_up && G.scene->toolsettings->skgen_options & SKGEN_DISP_ORIG)
 	{
 		for (rg = GLOBAL_RG; rg->link_up; rg = rg->link_up) ;
@@ -3364,10 +3364,11 @@ void REEB_draw()
 		
 		for (rg = GLOBAL_RG; rg->multi_level != i && rg->link_up; rg = rg->link_up) ;
 	}
-	
+
 	glPointSize(BIF_GetThemeValuef(TH_VERTEX_SIZE));
-	
+
 	glDisable(GL_DEPTH_TEST);
+
 	for (arc = rg->arcs.first; arc; arc = arc->next, i++)
 	{
 		ReebArcIterator arc_iter;
@@ -3375,76 +3376,80 @@ void REEB_draw()
 		float vec[3];
 		char text[128];
 		char *s = text;
-		
+
 		glLineWidth(BIF_GetThemeValuef(TH_VERTEX_SIZE) + 2);
-		glColor3f(0, 0, 0);
-		glBegin(GL_LINE_STRIP);
-		glVertex3fv(arc->head->p);
-			
+		gpuCurrentColor3f(0, 0, 0);
+
+		gpuImmediateFormat_V3(); // DOODLE: REEB (commented out)
+
+		gpuBegin(GL_LINE_STRIP);
+		gpuVertex3fv(arc->head->p);
+
 		if (arc->bcount)
 		{
 			initArcIterator(iter, arc, arc->head);
 			for (IT_next(iter); IT_stopped(iter) == 0; IT_next(iter))
 			{
-				glVertex3fv(iter->p);
+				gpuVertex3fv(iter->p);
 			}
 		}
-			
-		glVertex3fv(arc->tail->p);
-		glEnd();
+
+		gpuVertex3fv(arc->tail->p);
+		gpuEnd();
 
 		glLineWidth(BIF_GetThemeValuef(TH_VERTEX_SIZE));
 
 		if (arc->symmetry_level == 1)
 		{
-			glColor3f(1, 0, 0);
+			gpuCurrentColor3f(1, 0, 0);
 		}
 		else if (arc->symmetry_flag == SYM_SIDE_POSITIVE || arc->symmetry_flag == SYM_SIDE_NEGATIVE)
 		{
-			glColor3f(1, 0.5f, 0);
+			gpuCurrentColor3f(1, 0.5f, 0);
 		}
 		else if (arc->symmetry_flag >= SYM_SIDE_RADIAL)
 		{
-			glColor3f(0.5f, 1, 0);
+			gpuCurrentColor3f(0.5f, 1, 0);
 		}
 		else {
-			glColor3f(1, 1, 0);
+			gpuCurrentColor3f(1, 1, 0);
 		}
-		glBegin(GL_LINE_STRIP);
-		glVertex3fv(arc->head->p);
+		gpuBegin(GL_LINE_STRIP);
+		gpuVertex3fv(arc->head->p);
 			
 		if (arc->bcount)
 		{
 			initArcIterator(iter, arc, arc->head);
 			for (iter->next(iter); IT_stopped(iter) == 0; iter->next(iter))
 			{
-				glVertex3fv(iter->p);
+				gpuVertex3fv(iter->p);
 			}
 		}
-			
-		glVertex3fv(arc->tail->p);
-		glEnd();
 
-		
+		gpuVertex3fv(arc->tail->p);
+		gpuEnd();
+
 		if (G.scene->toolsettings->skgen_options & SKGEN_DISP_EMBED)
 		{
-			glColor3f(1, 1, 1);				
-			glBegin(GL_POINTS);
-			glVertex3fv(arc->head->p);
-			glVertex3fv(arc->tail->p);
-				
-			glColor3f(0.5f, 0.5f, 1);
+			gpuCurrentColor3f(1, 1, 1);				
+			gpuBegin(GL_POINTS);
+			gpuVertex3fv(arc->head->p);
+			gpuVertex3fv(arc->tail->p);
+
+			gpuColor3f(0.5f, 0.5f, 1);
 			if (arc->bcount)
 			{
 				initArcIterator(iter, arc, arc->head);
 				for (iter->next(iter); IT_stopped(iter) == 0; iter->next(iter))
 				{
-					glVertex3fv(iter->p);
+					gpuVertex3fv(iter->p);
 				}
 			}
-			glEnd();
+			gpuEnd();
 		}
-		
+
+		gpuImmediateUnformat();
+
 		if (G.scene->toolsettings->skgen_options & SKGEN_DISP_INDEX)
 		{
 			mid_v3_v3v3(vec, arc->head->p, arc->tail->p);
@@ -3459,8 +3464,8 @@ void REEB_draw()
 			{
 				s += sprintf(s, "l:%0.3f", arc->length);
 			}
-			
-			glColor3f(0, 1, 0);
+
+			gpuCurrentColor3f(0, 1, 0);
 			glRasterPos3fv(vec);
 			BMF_DrawString(G.fonts, text);
 		}
@@ -3470,14 +3475,15 @@ void REEB_draw()
 			sprintf(text, "  %i", arc->head->index);
 			glRasterPos3fv(arc->head->p);
 			BMF_DrawString(G.fonts, text);
-	
+
 			sprintf(text, "  %i", arc->tail->index);
 			glRasterPos3fv(arc->tail->p);
 			BMF_DrawString(G.fonts, text);
 		}
 	}
+
 	glEnable(GL_DEPTH_TEST);
-	
+
 	glLineWidth(1.0);
 	glPointSize(1.0);
 }

@@ -42,6 +42,8 @@
 #include "BLI_math.h"
 #include "BLI_threads.h"
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
@@ -129,67 +131,36 @@ GLubyte stipple_diag_stripes_neg[128] = {
 	0x3f, 0xc0, 0x3f, 0xc0, 0x7f, 0x80, 0x7f, 0x80};
 
 
-void fdrawbezier(float vec[4][3])
-{
-	float dist;
-	float curve_res = 24, spline_step = 0.0f;
-	
-	dist = 0.5f * ABS(vec[0][0] - vec[3][0]);
-	
-	/* check direction later, for top sockets */
-	vec[1][0] = vec[0][0] + dist;
-	vec[1][1] = vec[0][1];
-	
-	vec[2][0] = vec[3][0] - dist;
-	vec[2][1] = vec[3][1];
-	/* we can reuse the dist variable here to increment the GL curve eval amount*/
-	dist = 1.0f / curve_res;
-	
-	cpack(0x0);
-	glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 4, vec[0]);
-	glBegin(GL_LINE_STRIP);
-	while (spline_step < 1.000001f) {
-#if 0
-		if (do_shaded)
-			UI_ThemeColorBlend(th_col1, th_col2, spline_step);
-#endif
-		glEvalCoord1f(spline_step);
-		spline_step += dist;
-	}
-	glEnd();
-}
+//void fdrawbezier(float vec[4][3])
+//{
+//	float dist;
+//	float curve_res = 24, spline_step = 0.0f;
+//	
+//	dist = 0.5f * ABS(vec[0][0] - vec[3][0]);
+//	
+//	/* check direction later, for top sockets */
+//	vec[1][0] = vec[0][0] + dist;
+//	vec[1][1] = vec[0][1];
+//	
+//	vec[2][0] = vec[3][0] - dist;
+//	vec[2][1] = vec[3][1];
+//	/* we can reuse the dist variable here to increment the GL curve eval amount*/
+//	dist = 1.0f / curve_res;
+//	
+//	gpuCurrentColorPack(0x000000);
+//	glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 4, vec[0]);
+//	gpuBegin(GL_LINE_STRIP);
+//	while (spline_step < 1.000001f) {
+//#if 0
+//		if (do_shaded)
+//			UI_ThemeColorBlend(th_col1, th_col2, spline_step);
+//#endif
+//		glEvalCoord1f(spline_step);
+//		spline_step += dist;
+//	}
+//	gpuEnd();
+//}
 
-void fdrawline(float x1, float y1, float x2, float y2)
-{
-	float v[2];
-	
-	glBegin(GL_LINE_STRIP);
-	v[0] = x1; v[1] = y1;
-	glVertex2fv(v);
-	v[0] = x2; v[1] = y2;
-	glVertex2fv(v);
-	glEnd();
-}
-
-void fdrawbox(float x1, float y1, float x2, float y2)
-{
-	float v[2];
-	
-	glBegin(GL_LINE_STRIP);
-	
-	v[0] = x1; v[1] = y1;
-	glVertex2fv(v);
-	v[0] = x1; v[1] = y2;
-	glVertex2fv(v);
-	v[0] = x2; v[1] = y2;
-	glVertex2fv(v);
-	v[0] = x2; v[1] = y1;
-	glVertex2fv(v);
-	v[0] = x1; v[1] = y1;
-	glVertex2fv(v);
-	
-	glEnd();
-}
 
 void fdrawcheckerboard(float x1, float y1, float x2, float y2)
 {
@@ -205,26 +176,14 @@ void fdrawcheckerboard(float x1, float y1, float x2, float y2)
 		0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
 		0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255};
 	
-	glColor3ubv(col1);
-	glRectf(x1, y1, x2, y2);
-	glColor3ubv(col2);
+	gpuCurrentColor3ubv(col1);
+	gpuSingleFilledRectf(x1, y1, x2, y2);
+	gpuCurrentColor3ubv(col2);
 
 	glEnable(GL_POLYGON_STIPPLE);
 	glPolygonStipple(checker_stipple);
-	glRectf(x1, y1, x2, y2);
+	gpuSingleFilledRectf(x1, y1, x2, y2);
 	glDisable(GL_POLYGON_STIPPLE);
-}
-
-void sdrawline(short x1, short y1, short x2, short y2)
-{
-	short v[2];
-	
-	glBegin(GL_LINE_STRIP);
-	v[0] = x1; v[1] = y1;
-	glVertex2sv(v);
-	v[0] = x2; v[1] = y2;
-	glVertex2sv(v);
-	glEnd();
 }
 
 /*
@@ -239,45 +198,25 @@ static void sdrawtripoints(short x1, short y1, short x2, short y2)
 {
 	short v[2];
 	v[0] = x1; v[1] = y1;
-	glVertex2sv(v);
+	gpuVertex2sv(v);
 	v[0] = x1; v[1] = y2;
-	glVertex2sv(v);
+	gpuVertex2sv(v);
 	v[0] = x2; v[1] = y1;
-	glVertex2sv(v);
+	gpuVertex2sv(v);
 }
 
 void sdrawtri(short x1, short y1, short x2, short y2)
 {
-	glBegin(GL_LINE_STRIP);
+	gpuBegin(GL_LINE_STRIP);
 	sdrawtripoints(x1, y1, x2, y2);
-	glEnd();
+	gpuEnd();
 }
 
 void sdrawtrifill(short x1, short y1, short x2, short y2)
 {
-	glBegin(GL_TRIANGLES);
+	gpuBegin(GL_TRIANGLES);
 	sdrawtripoints(x1, y1, x2, y2);
-	glEnd();
-}
-
-void sdrawbox(short x1, short y1, short x2, short y2)
-{
-	short v[2];
-	
-	glBegin(GL_LINE_STRIP);
-	
-	v[0] = x1; v[1] = y1;
-	glVertex2sv(v);
-	v[0] = x1; v[1] = y2;
-	glVertex2sv(v);
-	v[0] = x2; v[1] = y2;
-	glVertex2sv(v);
-	v[0] = x2; v[1] = y1;
-	glVertex2sv(v);
-	v[0] = x1; v[1] = y1;
-	glVertex2sv(v);
-	
-	glEnd();
+	gpuEnd();
 }
 
 
@@ -311,12 +250,12 @@ void sdrawXORline(int x0, int y0, int x1, int y1)
 	if (x0 == x1 && y0 == y1) return;
 
 	set_inverted_drawing(1);
-	
-	glBegin(GL_LINES);
-	glVertex2i(x0, y0);
-	glVertex2i(x1, y1);
-	glEnd();
-	
+
+	gpuBegin(GL_LINES);
+	gpuVertex2i(x0, y0);
+	gpuVertex2i(x1, y1);
+	gpuEnd();
+
 	set_inverted_drawing(0);
 }
 
@@ -329,12 +268,12 @@ void sdrawXORline4(int nr, int x0, int y0, int x1, int y1)
 
 	set_inverted_drawing(1);
 		
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	if (nr == -1) { /* flush */
 		for (nr = 0; nr < 4; nr++) {
 			if (flags[nr]) {
-				glVertex2sv(old[nr][0]);
-				glVertex2sv(old[nr][1]);
+				gpuVertex2sv(old[nr][0]);
+				gpuVertex2sv(old[nr][1]);
 				flags[nr] = 0;
 			}
 		}
@@ -342,8 +281,8 @@ void sdrawXORline4(int nr, int x0, int y0, int x1, int y1)
 	else {
 		if (nr >= 0 && nr < 4) {
 			if (flags[nr]) {
-				glVertex2sv(old[nr][0]);
-				glVertex2sv(old[nr][1]);
+				gpuVertex2sv(old[nr][0]);
+				gpuVertex2sv(old[nr][1]);
 			}
 
 			old[nr][0][0] = x0;
@@ -354,67 +293,30 @@ void sdrawXORline4(int nr, int x0, int y0, int x1, int y1)
 			flags[nr] = 1;
 		}
 		
-		glVertex2i(x0, y0);
-		glVertex2i(x1, y1);
+		gpuVertex2i(x0, y0);
+		gpuVertex2i(x1, y1);
 	}
-	glEnd();
+	gpuEnd();
 	
 	set_inverted_drawing(0);
 }
 
 void fdrawXORellipse(float xofs, float yofs, float hw, float hh)
 {
-	if (hw == 0) return;
+	if (hw == 0) {
+		return;
+	}
 
 	set_inverted_drawing(1);
-
-	glPushMatrix();
-	glTranslatef(xofs, yofs, 0.0f);
-	glScalef(1.0f, hh / hw, 1.0f);
-	glutil_draw_lined_arc(0.0, M_PI * 2.0, hw, 20);
-	glPopMatrix();
-
+	gpuSingleEllipse(xofs, yofs, hw, hh, 20);
 	set_inverted_drawing(0);
 }
+
 void fdrawXORcirc(float xofs, float yofs, float rad)
 {
 	set_inverted_drawing(1);
-
-	glPushMatrix();
-	glTranslatef(xofs, yofs, 0.0);
-	glutil_draw_lined_arc(0.0, M_PI * 2.0, rad, 20);
-	glPopMatrix();
-
+	gpuSingleCircle(xofs, yofs, rad, 20);
 	set_inverted_drawing(0);
-}
-
-void glutil_draw_filled_arc(float start, float angle, float radius, int nsegments)
-{
-	int i;
-	
-	glBegin(GL_TRIANGLE_FAN);
-	glVertex2f(0.0, 0.0);
-	for (i = 0; i < nsegments; i++) {
-		float t = (float) i / (nsegments - 1);
-		float cur = start + t * angle;
-		
-		glVertex2f(cosf(cur) * radius, sinf(cur) * radius);
-	}
-	glEnd();
-}
-
-void glutil_draw_lined_arc(float start, float angle, float radius, int nsegments)
-{
-	int i;
-	
-	glBegin(GL_LINE_STRIP);
-	for (i = 0; i < nsegments; i++) {
-		float t = (float) i / (nsegments - 1);
-		float cur = start + t * angle;
-		
-		glVertex2f(cosf(cur) * radius, sinf(cur) * radius);
-	}
-	glEnd();
 }
 
 int glaGetOneInteger(int param)
@@ -553,19 +455,25 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 			}
 
 			glEnable(GL_TEXTURE_2D);
-			glBegin(GL_QUADS);
-			glTexCoord2f((float)(0 + offset_left) / tex_w, (float)(0 + offset_bot) / tex_h);
-			glVertex2f(rast_x + (float)offset_left * xzoom, rast_y + (float)offset_bot * xzoom);
 
-			glTexCoord2f((float)(subpart_w - offset_right) / tex_w, (float)(0 + offset_bot) / tex_h);
-			glVertex2f(rast_x + (float)(subpart_w - offset_right) * xzoom * scaleX, rast_y + (float)offset_bot * xzoom);
+			gpuImmediateFormat_T2_V2();
+			gpuBegin(GL_QUADS);
 
-			glTexCoord2f((float)(subpart_w - offset_right) / tex_w, (float)(subpart_h - offset_top) / tex_h);
-			glVertex2f(rast_x + (float)(subpart_w - offset_right) * xzoom * scaleX, rast_y + (float)(subpart_h - offset_top) * yzoom * scaleY);
+			gpuTexCoord2f((float)(0 + offset_left) / tex_w, (float)(0 + offset_bot) / tex_h);
+			gpuVertex2f(rast_x + (float)offset_left * xzoom, rast_y + (float)offset_bot * xzoom);
 
-			glTexCoord2f((float)(0 + offset_left) / tex_w, (float)(subpart_h - offset_top) / tex_h);
-			glVertex2f(rast_x + (float)offset_left * xzoom, rast_y + (float)(subpart_h - offset_top) * yzoom * scaleY);
-			glEnd();
+			gpuTexCoord2f((float)(subpart_w - offset_right) / tex_w, (float)(0 + offset_bot) / tex_h);
+			gpuVertex2f(rast_x + (float)(subpart_w - offset_right) * xzoom * scaleX, rast_y + (float)offset_bot * xzoom);
+
+			gpuTexCoord2f((float)(subpart_w - offset_right) / tex_w, (float)(subpart_h - offset_top) / tex_h);
+			gpuVertex2f(rast_x + (float)(subpart_w - offset_right) * xzoom * scaleX, rast_y + (float)(subpart_h - offset_top) * yzoom * scaleY);
+
+			gpuTexCoord2f((float)(0 + offset_left) / tex_w, (float)(subpart_h - offset_top) / tex_h);
+			gpuVertex2f(rast_x + (float)offset_left * xzoom, rast_y + (float)(subpart_h - offset_top) * yzoom * scaleY);
+
+			gpuEnd();
+			gpuImmediateUnformat();
+
 			glDisable(GL_TEXTURE_2D);
 		}
 	}
@@ -636,9 +544,7 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 			glaRasterPosSafe2f(rast_x, rast_y, 0, 0);
 		}
 
-		if (img_w != row_w) {
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, row_w);
-		}
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, row_w);
 
 		if (format == GL_LUMINANCE || format == GL_RED) {
 			if (type == GL_FLOAT) {
@@ -661,9 +567,7 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 			}
 		}
 
-		if (img_w != row_w) {
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, 0); /* restore default value */
-		}
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0); /* restore default value */
 	}
 }
 
@@ -784,94 +688,6 @@ void glaEnd2DDraw(gla2DDrawInfo *di)
 }
 #endif
 
-/* **************** GL_POINT hack ************************ */
-
-static int curmode = 0;
-static int pointhack = 0;
-static GLubyte Squaredot[16] = {0xff, 0xff, 0xff, 0xff,
-                                0xff, 0xff, 0xff, 0xff,
-                                0xff, 0xff, 0xff, 0xff,
-                                0xff, 0xff, 0xff, 0xff};
-
-void bglBegin(int mode)
-{
-	curmode = mode;
-	
-	if (mode == GL_POINTS) {
-		float value[4];
-		glGetFloatv(GL_POINT_SIZE_RANGE, value);
-		if (value[1] < 2.0f) {
-			glGetFloatv(GL_POINT_SIZE, value);
-			pointhack = floor(value[0] + 0.5f);
-			if (pointhack > 4) pointhack = 4;
-		}
-		else glBegin(mode);
-	}
-}
-
-#if 0 /* UNUSED */
-int bglPointHack(void)
-{
-	float value[4];
-	int pointhack_px;
-	glGetFloatv(GL_POINT_SIZE_RANGE, value);
-	if (value[1] < 2.0f) {
-		glGetFloatv(GL_POINT_SIZE, value);
-		pointhack_px = floorf(value[0] + 0.5f);
-		if (pointhack_px > 4) pointhack_px = 4;
-		return pointhack_px;
-	}
-	return 0;
-}
-#endif
-
-void bglVertex3fv(const float vec[3])
-{
-	switch (curmode) {
-		case GL_POINTS:
-			if (pointhack) {
-				glRasterPos3fv(vec);
-				glBitmap(pointhack, pointhack, (float)pointhack / 2.0f, (float)pointhack / 2.0f, 0.0, 0.0, Squaredot);
-			}
-			else glVertex3fv(vec);
-			break;
-	}
-}
-
-void bglVertex3f(float x, float y, float z)
-{
-	switch (curmode) {
-		case GL_POINTS:
-			if (pointhack) {
-				glRasterPos3f(x, y, z);
-				glBitmap(pointhack, pointhack, (float)pointhack / 2.0f, (float)pointhack / 2.0f, 0.0, 0.0, Squaredot);
-			}
-			else glVertex3f(x, y, z);
-			break;
-	}
-}
-
-void bglVertex2fv(const float vec[2])
-{
-	switch (curmode) {
-		case GL_POINTS:
-			if (pointhack) {
-				glRasterPos2fv(vec);
-				glBitmap(pointhack, pointhack, (float)pointhack / 2, pointhack / 2, 0.0, 0.0, Squaredot);
-			}
-			else glVertex2fv(vec);
-			break;
-	}
-}
-
-
-void bglEnd(void)
-{
-	if (pointhack) pointhack = 0;
-	else glEnd();
-	
-}
-
 /* Uses current OpenGL state to get view matrices for gluProject/gluUnProject */
 void bgl_get_mats(bglMats *mats)
 {
@@ -936,14 +752,3 @@ void bglPolygonOffset(float viewdist, float dist)
 		glMatrixMode(GL_MODELVIEW);
 	}
 }
-
-#if 0 /* UNUSED */
-void bglFlush(void) 
-{
-	glFlush();
-#ifdef __APPLE__
-//	if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_MAC, GPU_DRIVER_OFFICIAL))
-// XXX		myswapbuffers(); //hack to get mac intel graphics to show frontbuffer
-#endif
-}
-#endif

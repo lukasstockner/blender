@@ -92,6 +92,7 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "GPU_compatibility.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 
@@ -188,8 +189,6 @@ typedef struct bbsObmodeMeshVerts_userData {
 
 static void draw_bounding_volume(Scene *scene, Object *ob, char type);
 
-static void drawcube_size(float size);
-static void drawcircle_size(float size);
 static void draw_empty_sphere(float size);
 static void draw_empty_cone(float size);
 
@@ -369,92 +368,6 @@ static unsigned int colortab[24] =
  0xFFFFFF};
 
 
-static float cube[8][3] = {
-	{-1.0, -1.0, -1.0},
-	{-1.0, -1.0,  1.0},
-	{-1.0,  1.0,  1.0},
-	{-1.0,  1.0, -1.0},
-	{ 1.0, -1.0, -1.0},
-	{ 1.0, -1.0,  1.0},
-	{ 1.0,  1.0,  1.0},
-	{ 1.0,  1.0, -1.0},
-};
-
-/* ----------------- OpenGL Circle Drawing - Tables for Optimized Drawing Speed ------------------ */
-/* 32 values of sin function (still same result!) */
-#define CIRCLE_RESOL 32
-
-static const float sinval[CIRCLE_RESOL] = {
-	0.00000000,
-	0.20129852,
-	0.39435585,
-	0.57126821,
-	0.72479278,
-	0.84864425,
-	0.93775213,
-	0.98846832,
-	0.99871650,
-	0.96807711,
-	0.89780453,
-	0.79077573,
-	0.65137248,
-	0.48530196,
-	0.29936312,
-	0.10116832,
-	-0.10116832,
-	-0.29936312,
-	-0.48530196,
-	-0.65137248,
-	-0.79077573,
-	-0.89780453,
-	-0.96807711,
-	-0.99871650,
-	-0.98846832,
-	-0.93775213,
-	-0.84864425,
-	-0.72479278,
-	-0.57126821,
-	-0.39435585,
-	-0.20129852,
-	0.00000000
-};
-
-/* 32 values of cos function (still same result!) */
-static const float cosval[CIRCLE_RESOL] = {
-	1.00000000,
-	0.97952994,
-	0.91895781,
-	0.82076344,
-	0.68896691,
-	0.52896401,
-	0.34730525,
-	0.15142777,
-	-0.05064916,
-	-0.25065253,
-	-0.44039415,
-	-0.61210598,
-	-0.75875812,
-	-0.87434661,
-	-0.95413925,
-	-0.99486932,
-	-0.99486932,
-	-0.95413925,
-	-0.87434661,
-	-0.75875812,
-	-0.61210598,
-	-0.44039415,
-	-0.25065253,
-	-0.05064916,
-	0.15142777,
-	0.34730525,
-	0.52896401,
-	0.68896691,
-	0.82076344,
-	0.91895781,
-	0.97952994,
-	1.00000000
-};
-
 static void draw_xyz_wire(const float c[3], float size, int axis)
 {
 	float v1[3] = {0.f, 0.f, 0.f}, v2[3] = {0.f, 0.f, 0.f};
@@ -467,7 +380,7 @@ static void draw_xyz_wire(const float c[3], float size, int axis)
 
 	switch (axis) {
 		case 0:     /* x axis */
-			glBegin(GL_LINES);
+			gpuBegin(GL_LINES);
 			
 			/* bottom left to top right */
 			sub_v3_v3v3(v1, c, dx);
@@ -475,21 +388,21 @@ static void draw_xyz_wire(const float c[3], float size, int axis)
 			add_v3_v3v3(v2, c, dx);
 			add_v3_v3(v2, dy);
 			
-			glVertex3fv(v1);
-			glVertex3fv(v2);
+			gpuVertex3fv(v1);
+			gpuVertex3fv(v2);
 			
 			/* top left to bottom right */
 			mul_v3_fl(dy, 2.f);
 			add_v3_v3(v1, dy);
 			sub_v3_v3(v2, dy);
 			
-			glVertex3fv(v1);
-			glVertex3fv(v2);
+			gpuVertex3fv(v1);
+			gpuVertex3fv(v2);
 			
-			glEnd();
+			gpuEnd();
 			break;
 		case 1:     /* y axis */
-			glBegin(GL_LINES);
+			gpuBegin(GL_LINES);
 			
 			/* bottom left to top right */
 			mul_v3_fl(dx, 0.75f);
@@ -498,44 +411,44 @@ static void draw_xyz_wire(const float c[3], float size, int axis)
 			add_v3_v3v3(v2, c, dx);
 			add_v3_v3(v2, dy);
 			
-			glVertex3fv(v1);
-			glVertex3fv(v2);
+			gpuVertex3fv(v1);
+			gpuVertex3fv(v2);
 			
 			/* top left to center */
 			mul_v3_fl(dy, 2.f);
 			add_v3_v3(v1, dy);
 			copy_v3_v3(v2, c);
 			
-			glVertex3fv(v1);
-			glVertex3fv(v2);
+			gpuVertex3fv(v1);
+			gpuVertex3fv(v2);
 			
-			glEnd();
+			gpuEnd();
 			break;
 		case 2:     /* z axis */
-			glBegin(GL_LINE_STRIP);
+			gpuBegin(GL_LINE_STRIP);
 			
 			/* start at top left */
 			sub_v3_v3v3(v1, c, dx);
 			add_v3_v3v3(v1, c, dz);
 			
-			glVertex3fv(v1);
+			gpuVertex3fv(v1);
 			
 			mul_v3_fl(dx, 2.f);
 			add_v3_v3(v1, dx);
 
-			glVertex3fv(v1);
+			gpuVertex3fv(v1);
 			
 			mul_v3_fl(dz, 2.f);
 			sub_v3_v3(v1, dx);
 			sub_v3_v3(v1, dz);
 			
-			glVertex3fv(v1);
+			gpuVertex3fv(v1);
 			
 			add_v3_v3(v1, dx);
 		
-			glVertex3fv(v1);
+			gpuVertex3fv(v1);
 			
-			glEnd();
+			gpuEnd();
 			break;
 	}
 	
@@ -547,35 +460,43 @@ void drawaxes(float size, char drawtype)
 	float v1[3] = {0.0, 0.0, 0.0};
 	float v2[3] = {0.0, 0.0, 0.0};
 	float v3[3] = {0.0, 0.0, 0.0};
-	
+
 	switch (drawtype) {
 
 		case OB_PLAINAXES:
+			gpuImmediateFormat_V3(); // DOODLE: draw axes
+
 			for (axis = 0; axis < 3; axis++) {
-				glBegin(GL_LINES);
+				gpuBegin(GL_LINES);
 
 				v1[axis] = size;
 				v2[axis] = -size;
-				glVertex3fv(v1);
-				glVertex3fv(v2);
+				gpuVertex3fv(v1);
+				gpuVertex3fv(v2);
 
 				/* reset v1 & v2 to zero */
 				v1[axis] = v2[axis] = 0.0f;
 
-				glEnd();
+				gpuEnd();
 			}
+
+			gpuImmediateUnformat();
+
 			break;
+
 		case OB_SINGLE_ARROW:
 
-			glBegin(GL_LINES);
+			gpuImmediateFormat_V3(); // DOODLE: draw axes
+
+			gpuBegin(GL_LINES);
 			/* in positive z direction only */
 			v1[2] = size;
-			glVertex3fv(v1);
-			glVertex3fv(v2);
-			glEnd();
+			gpuVertex3fv(v1);
+			gpuVertex3fv(v2);
+			gpuEnd();
 
 			/* square pyramid */
-			glBegin(GL_TRIANGLES);
+			gpuBegin(GL_TRIANGLES);
 
 			v2[0] = size * 0.035f; v2[1] = size * 0.035f;
 			v3[0] = size * -0.035f; v3[1] = size * 0.035f;
@@ -591,20 +512,25 @@ void drawaxes(float size, char drawtype)
 					v3[0] = -v3[0];
 				}
 
-				glVertex3fv(v1);
-				glVertex3fv(v2);
-				glVertex3fv(v3);
+				gpuVertex3fv(v1);
+				gpuVertex3fv(v2);
+				gpuVertex3fv(v3);
 
 			}
-			glEnd();
+
+			gpuEnd();
+
+			gpuImmediateUnformat();
 
 			break;
+
 		case OB_CUBE:
-			drawcube_size(size);
+			gpuSingleWireCube(size);
+
 			break;
 
 		case OB_CIRCLE:
-			drawcircle_size(size);
+			gpuSingleFastCircleXZ(size);
 			break;
 
 		case OB_EMPTY_SPHERE:
@@ -618,25 +544,27 @@ void drawaxes(float size, char drawtype)
 		case OB_ARROWS:
 		default:
 		{
+			gpuImmediateFormat_V3(); // DOODLE: draw axes
+
 			for (axis = 0; axis < 3; axis++) {
 				const int arrow_axis = (axis == 0) ? 1 : 0;
 
-				glBegin(GL_LINES);
+				gpuBegin(GL_LINES);
 
 				v2[axis] = size;
-				glVertex3fv(v1);
-				glVertex3fv(v2);
+				gpuVertex3fv(v1);
+				gpuVertex3fv(v2);
 				
 				v1[axis] = size * 0.85f;
 				v1[arrow_axis] = -size * 0.08f;
-				glVertex3fv(v1);
-				glVertex3fv(v2);
+				gpuVertex3fv(v1);
+				gpuVertex3fv(v2);
 				
 				v1[arrow_axis] = size * 0.08f;
-				glVertex3fv(v1);
-				glVertex3fv(v2);
+				gpuVertex3fv(v1);
+				gpuVertex3fv(v2);
 
-				glEnd();
+				gpuEnd();
 				
 				v2[axis] += size * 0.125f;
 
@@ -646,9 +574,13 @@ void drawaxes(float size, char drawtype)
 				/* reset v1 & v2 to zero */
 				v1[arrow_axis] = v1[axis] = v2[axis] = 0.0f;
 			}
+
+			gpuImmediateUnformat();
+
 			break;
 		}
 	}
+
 }
 
 
@@ -714,10 +646,9 @@ static void draw_empty_image(Object *ob)
 	if (ibuf && ibuf->rect) {
 		/* Setup GL params */
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA,  GL_ONE_MINUS_SRC_ALPHA);
 
 		/* Use the object color and alpha */
-		glColor4fv(ob->col);
+		gpuCurrentColor4fv(ob->col);
 
 		/* Draw the Image on the screen */
 		glaDrawPixelsTex(ofs_x, ofs_y, ima_x, ima_y, GL_UNSIGNED_BYTE, ibuf->rect);
@@ -729,87 +660,77 @@ static void draw_empty_image(Object *ob)
 	UI_ThemeColor((ob->flag & SELECT) ? TH_SELECT : TH_WIRE);
 
 	/* Calculate the outline vertex positions */
-	glBegin(GL_LINE_LOOP);
-	glVertex2f(ofs_x, ofs_y);
-	glVertex2f(ofs_x + ima_x, ofs_y);
-	glVertex2f(ofs_x + ima_x, ofs_y + ima_y);
-	glVertex2f(ofs_x, ofs_y + ima_y);
-	glEnd();
+	gpuImmediateFormat_V2();
+	gpuBegin(GL_LINE_LOOP);
+	gpuVertex2f(ofs_x, ofs_y);
+	gpuVertex2f(ofs_x + ima_x, ofs_y);
+	gpuVertex2f(ofs_x + ima_x, ofs_y + ima_y);
+	gpuVertex2f(ofs_x, ofs_y + ima_y);
+	gpuEnd();
+	gpuImmediateUnformat();
 
 	/* Reset GL settings */
 	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();
 }
 
-static void circball_array_fill(float verts[CIRCLE_RESOL][3], const float cent[3], float rad, float tmat[][4])
-{
-	float vx[3], vy[3];
-	float *viter = (float *)verts;
-	unsigned int a;
-
-	mul_v3_v3fl(vx, tmat[0], rad);
-	mul_v3_v3fl(vy, tmat[1], rad);
-
-	for (a = 0; a < CIRCLE_RESOL; a++, viter += 3) {
-		viter[0] = cent[0] + sinval[a] * vx[0] + cosval[a] * vy[0];
-		viter[1] = cent[1] + sinval[a] * vx[1] + cosval[a] * vy[1];
-		viter[2] = cent[2] + sinval[a] * vx[2] + cosval[a] * vy[2];
-	}
-}
-
-void drawcircball(int mode, const float cent[3], float rad, float tmat[][4])
-{
-	float verts[CIRCLE_RESOL][3];
-
-	circball_array_fill(verts, cent, rad, tmat);
-
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(3, GL_FLOAT, 0, verts);
-	glDrawArrays(mode, 0, CIRCLE_RESOL);
-	glDisableClientState(GL_VERTEX_ARRAY);
-}
-
 /* circle for object centers, special_color is for library or ob users */
 static void drawcentercircle(View3D *v3d, RegionView3D *rv3d, const float co[3], int selstate, int special_color)
 {
 	const float size = ED_view3d_pixel_size(rv3d, co) * (float)U.obcenter_dia * 0.5f;
-	float verts[CIRCLE_RESOL][3];
 
 	/* using gldepthfunc guarantees that it does write z values,
 	 * but not checks for it, so centers remain visible independent order of drawing */
-	if (v3d->zbuf) glDepthFunc(GL_ALWAYS);
-	glEnable(GL_BLEND);
-	
-	if (special_color) {
-		if (selstate == ACTIVE || selstate == SELECT) glColor4ub(0x88, 0xFF, 0xFF, 155);
+	if (v3d->zbuf) {
+		glDepthFunc(GL_ALWAYS);
+	}
 
-		else glColor4ub(0x55, 0xCC, 0xCC, 155);
+	glEnable(GL_BLEND);
+
+	if (special_color) {
+		if (selstate == ACTIVE || selstate == SELECT) {
+			gpuCurrentColor4ub(0x88, 0xFF, 0xFF, 155);
+		}
+		else {
+			gpuCurrentColor4ub(0x55, 0xCC, 0xCC, 155);
+		}
 	}
 	else {
-		if (selstate == ACTIVE) UI_ThemeColorShadeAlpha(TH_ACTIVE, 0, -80);
-		else if (selstate == SELECT) UI_ThemeColorShadeAlpha(TH_SELECT, 0, -80);
-		else if (selstate == DESELECT) UI_ThemeColorShadeAlpha(TH_TRANSFORM, 0, -80);
+		int colorid;
+
+		switch (selstate) {
+			case ACTIVE:
+				colorid = TH_ACTIVE;
+				break;
+
+			case SELECT:
+				colorid = TH_SELECT;
+				break;
+
+			case DESELECT:
+				colorid = TH_TRANSFORM;
+				break;
+		}
+
+		UI_ThemeColorShadeAlpha(colorid, 0, -80);
 	}
 
-	circball_array_fill(verts, co, size, rv3d->viewinv);
-
-	/* enable vertex array */
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(3, GL_FLOAT, 0, verts);
+	gpuImmediateFormat_V3();
 
 	/* 1. draw filled, blended polygon */
-	glDrawArrays(GL_POLYGON, 0, CIRCLE_RESOL);
+	gpuDrawFastBall(GL_POLYGON, co, size, rv3d->viewinv);
 
 	/* 2. draw outline */
 	UI_ThemeColorShadeAlpha(TH_WIRE, 0, -30);
-	glDrawArrays(GL_LINE_LOOP, 0, CIRCLE_RESOL);
+	gpuDraw(GL_LINE_LOOP);
 
-	/* finish up */
-	glDisableClientState(GL_VERTEX_ARRAY);
+	gpuImmediateUnformat();
 
 	glDisable(GL_BLEND);
 
-	if (v3d->zbuf) glDepthFunc(GL_LEQUAL);
+	if (v3d->zbuf) {
+		glDepthFunc(GL_LEQUAL);
+	}
 }
 
 /* *********** text drawing for object/particles/armature ************* */
@@ -849,10 +770,11 @@ void view3d_cached_text_draw_add(const float co[3],
 
 	BLI_addtail(strings, vos);
 	copy_v3_v3(vos->vec, co);
-	vos->col.pack = *((int *)col);
 	vos->xoffs = xoffs;
 	vos->flag = flag;
 	vos->str_len = alloc_len - 1;
+
+	memcpy(vos->col.ub, col, 4);//V-112
 
 	/* allocate past the end */
 	memcpy(++vos, str, alloc_len);
@@ -923,7 +845,7 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, int depth_write, floa
 				const char *str = (char *)(vos + 1);
 
 				if (col_pack_prev != vos->col.pack) {
-					glColor3ubv(vos->col.ub);
+					gpuCurrentColor3ubv(vos->col.ub);
 					col_pack_prev = vos->col.pack;
 				}
 
@@ -961,86 +883,6 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, int depth_write, floa
 
 /* ******************** primitive drawing ******************* */
 
-static void drawcube(void)
-{
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3fv(cube[0]); glVertex3fv(cube[1]); glVertex3fv(cube[2]); glVertex3fv(cube[3]);
-	glVertex3fv(cube[0]); glVertex3fv(cube[4]); glVertex3fv(cube[5]); glVertex3fv(cube[6]);
-	glVertex3fv(cube[7]); glVertex3fv(cube[4]);
-	glEnd();
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3fv(cube[1]); glVertex3fv(cube[5]);
-	glEnd();
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3fv(cube[2]); glVertex3fv(cube[6]);
-	glEnd();
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3fv(cube[3]); glVertex3fv(cube[7]);
-	glEnd();
-}
-
-/* draws a cube on given the scaling of the cube, assuming that 
- * all required matrices have been set (used for drawing empties)
- */
-static void drawcube_size(float size)
-{
-	glBegin(GL_LINE_STRIP);
-	glVertex3f(-size, -size, -size); glVertex3f(-size, -size, size);
-	glVertex3f(-size, size, size); glVertex3f(-size, size, -size);
-
-	glVertex3f(-size, -size, -size); glVertex3f(size, -size, -size);
-	glVertex3f(size, -size, size); glVertex3f(size, size, size);
-
-	glVertex3f(size, size, -size); glVertex3f(size, -size, -size);
-	glEnd();
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3f(-size, -size, size); glVertex3f(size, -size, size);
-	glEnd();
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3f(-size, size, size); glVertex3f(size, size, size);
-	glEnd();
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3f(-size, size, -size); glVertex3f(size, size, -size);
-	glEnd();
-}
-
-/* this is an unused (old) cube-drawing function based on a given size */
-#if 0
-static void drawcube_size(const float size[3])
-{
-
-	glPushMatrix();
-	glScalef(size[0],  size[1],  size[2]);
-	
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3fv(cube[0]); glVertex3fv(cube[1]); glVertex3fv(cube[2]); glVertex3fv(cube[3]);
-	glVertex3fv(cube[0]); glVertex3fv(cube[4]); glVertex3fv(cube[5]); glVertex3fv(cube[6]);
-	glVertex3fv(cube[7]); glVertex3fv(cube[4]);
-	glEnd();
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3fv(cube[1]); glVertex3fv(cube[5]);
-	glEnd();
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3fv(cube[2]); glVertex3fv(cube[6]);
-	glEnd();
-
-	glBegin(GL_LINE_STRIP);
-	glVertex3fv(cube[3]); glVertex3fv(cube[7]);
-	glEnd();
-	
-	glPopMatrix();
-}
-#endif
 
 static void drawshadbuflimits(Lamp *la, float mat[][4])
 {
@@ -1052,16 +894,16 @@ static void drawshadbuflimits(Lamp *la, float mat[][4])
 	madd_v3_v3v3fl(sta, mat[3], lavec, la->clipsta);
 	madd_v3_v3v3fl(end, mat[3], lavec, la->clipend);
 
-	glBegin(GL_LINE_STRIP);
-	glVertex3fv(sta);
-	glVertex3fv(end);
-	glEnd();
+	gpuBegin(GL_LINE_STRIP);
+	gpuVertex3fv(sta);
+	gpuVertex3fv(end);
+	gpuEnd();
 
 	glPointSize(3.0);
-	bglBegin(GL_POINTS);
-	bglVertex3fv(sta);
-	bglVertex3fv(end);
-	bglEnd();
+	gpuBeginSprites();
+	gpuSprite3fv(sta);
+	gpuSprite3fv(end);
+	gpuEndSprites();
 	glPointSize(1.0);
 }
 
@@ -1136,15 +978,15 @@ static void draw_spot_cone(Lamp *la, float x, float z)
 {
 	z = fabs(z);
 
-	glBegin(GL_TRIANGLE_FAN);
-	glVertex3f(0.0f, 0.0f, -x);
+	gpuBegin(GL_TRIANGLE_FAN);
+	gpuVertex3f(0.0f, 0.0f, -x);
 
 	if (la->mode & LA_SQUARE) {
-		glVertex3f(z, z, 0);
-		glVertex3f(-z, z, 0);
-		glVertex3f(-z, -z, 0);
-		glVertex3f(z, -z, 0);
-		glVertex3f(z, z, 0);
+		gpuVertex3f(z, z, 0);
+		gpuVertex3f(-z, z, 0);
+		gpuVertex3f(-z, -z, 0);
+		gpuVertex3f(z, -z, 0);
+		gpuVertex3f(z, z, 0);
 	}
 	else {
 		float angle;
@@ -1152,11 +994,11 @@ static void draw_spot_cone(Lamp *la, float x, float z)
 
 		for (a = 0; a < 33; a++) {
 			angle = a * M_PI * 2 / (33 - 1);
-			glVertex3f(z * cosf(angle), z * sinf(angle), 0);
+			gpuVertex3f(z * cosf(angle), z * sinf(angle), 0);
 		}
 	}
 
-	glEnd();
+	gpuEnd();
 }
 
 static void draw_transp_spot_volume(Lamp *la, float x, float z)
@@ -1168,21 +1010,21 @@ static void draw_transp_spot_volume(Lamp *la, float x, float z)
 	/* draw backside darkening */
 	glCullFace(GL_FRONT);
 
-	glBlendFunc(GL_ZERO, GL_SRC_ALPHA);
-	glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
+	glBlendFunc(GL_ZERO, GL_SRC_ALPHA); /* non-standard blend function */
+	gpuCurrentColor4f(0.0f, 0.0f, 0.0f, 0.4f);
 
 	draw_spot_cone(la, x, z);
 
 	/* draw front side lighting */
 	glCullFace(GL_BACK);
 
-	glBlendFunc(GL_ONE, GL_ONE);
-	glColor4f(0.2f, 0.2f, 0.2f, 1.0f);
+	glBlendFunc(GL_ONE, GL_ONE); /* non-standard blend function */
+	gpuCurrentColor4f(0.2f, 0.2f, 0.2f, 1.0f);
 
 	draw_spot_cone(la, x, z);
 
 	/* restore state */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); /* reset blender default */
 	glDisable(GL_BLEND);
 	glDepthMask(1);
 	glDisable(GL_CULL_FACE);
@@ -1228,39 +1070,40 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 
 	/* lamp center */
 	copy_v3_v3(vec, ob->obmat[3]);
-	
+
 	/* for AA effects */
-	glGetFloatv(GL_CURRENT_COLOR, curcol);
-	curcol[3] = 0.6;
-	glColor4fv(curcol);
-	
+	gpuCurrentAlpha(0.6f);
+	gpuGetCurrentColor4fv(curcol);
+
+	gpuImmediateFormat_V3(); // DOODLE: lamp
+
 	if (lampsize > 0.0f) {
 
 		if (ob->id.us > 1) {
-			if (ob == OBACT || (ob->flag & SELECT)) glColor4ub(0x88, 0xFF, 0xFF, 155);
-			else glColor4ub(0x77, 0xCC, 0xCC, 155);
+			if (ob == OBACT || (ob->flag & SELECT)) gpuCurrentColor4ub(0x88, 0xFF, 0xFF, 155);
+			else gpuCurrentColor4ub(0x77, 0xCC, 0xCC, 155);
 		}
-		
+
 		/* Inner Circle */
 		glEnable(GL_BLEND);
-		drawcircball(GL_LINE_LOOP, vec, lampsize, imat);
+		gpuDrawFastBall(GL_LINE_LOOP, vec, lampsize, imat);
 		glDisable(GL_BLEND);
-		drawcircball(GL_POLYGON, vec, lampsize, imat);
-		
+		gpuDrawFastBall(GL_POLYGON, vec, lampsize, imat);
+
 		/* restore */
 		if (ob->id.us > 1)
-			glColor4fv(curcol);
+			gpuCurrentColor4fv(curcol);
 
 		/* Outer circle */
 		circrad = 3.0f * lampsize;
 		setlinestyle(3);
 
-		drawcircball(GL_LINE_LOOP, vec, circrad, imat);
+		gpuDrawFastBall(GL_LINE_LOOP, vec, circrad, imat);
 
 		/* draw dashed outer circle if shadow is on. remember some lamps can't have certain shadows! */
 		if (la->type != LA_HEMI) {
 			if ((la->mode & LA_SHAD_RAY) || ((la->mode & LA_SHAD_BUF) && (la->type == LA_SPOT))) {
-				drawcircball(GL_LINE_LOOP, vec, circrad + 3.0f * pixsize, imat);
+				gpuDrawFastBall(GL_LINE_LOOP, vec, circrad + 3.0f * pixsize, imat);
 			}
 		}
 	}
@@ -1268,46 +1111,46 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 		setlinestyle(3);
 		circrad = 0.0f;
 	}
-	
+
 	/* draw the pretty sun rays */
 	if (la->type == LA_SUN) {
 		float v1[3], v2[3], mat[3][3];
 		short axis;
-		
+
 		/* setup a 45 degree rotation matrix */
 		vec_rot_to_mat3(mat, imat[2], (float)M_PI / 4.0f);
-		
+
 		/* vectors */
 		mul_v3_v3fl(v1, imat[0], circrad * 1.2f);
 		mul_v3_v3fl(v2, imat[0], circrad * 2.5f);
-		
+
 		/* center */
 		glTranslatef(vec[0], vec[1], vec[2]);
-		
+
 		setlinestyle(3);
-		
-		glBegin(GL_LINES);
+
+		gpuBegin(GL_LINES);
 		for (axis = 0; axis < 8; axis++) {
-			glVertex3fv(v1);
-			glVertex3fv(v2);
+			gpuVertex3fv(v1);
+			gpuVertex3fv(v2);
 			mul_m3_v3(mat, v1);
 			mul_m3_v3(mat, v2);
 		}
-		glEnd();
-		
+		gpuEnd();
+
 		glTranslatef(-vec[0], -vec[1], -vec[2]);
 
 	}
-	
+
 	if (la->type == LA_LOCAL) {
 		if (la->mode & LA_SPHERE) {
-			drawcircball(GL_LINE_LOOP, vec, la->dist, imat);
+			gpuDrawFastBall(GL_LINE_LOOP, vec, la->dist, imat);
 		}
 	}
-	
+
 	glPopMatrix();  /* back in object space */
 	zero_v3(vec);
-	
+
 	if (is_view) {
 		/* skip drawing extra info */
 	}
@@ -1328,11 +1171,11 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 		mul_v3_fl(vvec, x);
 
 		/* draw the angled sides of the cone */
-		glBegin(GL_LINE_STRIP);
-		glVertex3fv(vvec);
-		glVertex3fv(vec);
-		glVertex3fv(lvec);
-		glEnd();
+		gpuBegin(GL_LINE_STRIP);
+		gpuVertex3fv(vvec);
+		gpuVertex3fv(vec);
+		gpuVertex3fv(lvec);
+		gpuEnd();
 		
 		z = x * sqrtf(1.0f - y * y);
 		x *= y;
@@ -1346,18 +1189,20 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 			tvec[0] = tvec[1] = z_abs;
 			tvec[2] = 0.0;
 
-			glBegin(GL_LINE_LOOP);
-			glVertex3fv(tvec);
+			gpuBegin(GL_LINE_LOOP);
+			gpuVertex3fv(tvec);
 			tvec[1] = -z_abs; /* neg */
-			glVertex3fv(tvec);
+			gpuVertex3fv(tvec);
 			tvec[0] = -z_abs; /* neg */
-			glVertex3fv(tvec);
+			gpuVertex3fv(tvec);
 			tvec[1] = z_abs; /* pos */
-			glVertex3fv(tvec);
-			glEnd();
+			gpuVertex3fv(tvec);
+			gpuEnd();
 		}
-		else circ(0.0, 0.0, fabsf(z));
-		
+		else {
+			gpuDrawFastCircleXY(fabsf(z));
+		}
+
 		/* draw the circle/square representing spotbl */
 		if (la->type == LA_SPOT) {
 			float spotblcirc = fabs(z) * (1 - pow(la->spotblend, 2));
@@ -1365,7 +1210,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 			 * previously it adjusted to always to show it but that seems
 			 * confusing because it doesn't show the actual blend size */
 			if (spotblcirc != 0 && spotblcirc != fabsf(z))
-				circ(0.0, 0.0, spotblcirc);
+				gpuDrawFastCircleXY(spotblcirc);
 		}
 
 		if (drawcone)
@@ -1381,22 +1226,22 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 			interp_v3_v3v3(lvec_clip, vec, lvec, clipsta_fac);
 			interp_v3_v3v3(vvec_clip, vec, vvec, clipsta_fac);
 
-			glBegin(GL_LINE_STRIP);
-			glVertex3fv(lvec_clip);
-			glVertex3fv(vvec_clip);
-			glEnd();
+			gpuBegin(GL_LINE_STRIP);
+			gpuVertex3fv(lvec_clip);
+			gpuVertex3fv(vvec_clip);
+			gpuEnd();
 		}
 	}
 	else if (ELEM(la->type, LA_HEMI, LA_SUN)) {
-		
+
 		/* draw the line from the circle along the dist */
-		glBegin(GL_LINE_STRIP);
+		gpuBegin(GL_LINE_STRIP);
 		vec[2] = -circrad;
-		glVertex3fv(vec);
+		gpuVertex3fv(vec);
 		vec[2] = -la->dist;
-		glVertex3fv(vec);
-		glEnd();
-		
+		gpuVertex3fv(vec);
+		gpuEnd();
+
 		if (la->type == LA_HEMI) {
 			/* draw the hemisphere curves */
 			short axis, steps, dir;
@@ -1410,7 +1255,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 				float v[3] = {0.0, 0.0, 0.0};
 				zdist = 0.02;
 				
-				glBegin(GL_LINE_STRIP);
+				gpuBegin(GL_LINE_STRIP);
 				
 				for (steps = 0; steps < 6; steps++) {
 					if (axis == 0 || axis == 1) {       /* x axis up, x axis down */
@@ -1425,12 +1270,12 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 
 					v[2] = v[2] - steps * zdist;
 					
-					glVertex3fv(v);
+					gpuVertex3fv(v);
 					
 					zdist = zdist * mul;
 				}
 				
-				glEnd();
+				gpuEnd();
 				/* flip the direction */
 				dir = -dir;
 			}
@@ -1439,66 +1284,73 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 	else if (la->type == LA_AREA) {
 		setlinestyle(3);
 		if (la->area_shape == LA_AREA_SQUARE)
-			fdrawbox(-la->area_size * 0.5f, -la->area_size * 0.5f, la->area_size * 0.5f, la->area_size * 0.5f);
+			gpuDrawWireRectf(-la->area_size * 0.5f, -la->area_size * 0.5f, la->area_size * 0.5f, la->area_size * 0.5f);
 		else if (la->area_shape == LA_AREA_RECT)
-			fdrawbox(-la->area_size * 0.5f, -la->area_sizey * 0.5f, la->area_size * 0.5f, la->area_sizey * 0.5f);
+			gpuDrawWireRectf(-la->area_size * 0.5f, -la->area_sizey * 0.5f, la->area_size * 0.5f, la->area_sizey * 0.5f);
 
-		glBegin(GL_LINE_STRIP);
-		glVertex3f(0.0, 0.0, -circrad);
-		glVertex3f(0.0, 0.0, -la->dist);
-		glEnd();
+		gpuBegin(GL_LINE_STRIP);
+		gpuVertex3f(0.0, 0.0, -circrad);
+		gpuVertex3f(0.0, 0.0, -la->dist);
+		gpuEnd();
 	}
-	
+
 	/* and back to viewspace */
 	glLoadMatrixf(rv3d->viewmat);
 	copy_v3_v3(vec, ob->obmat[3]);
 
 	setlinestyle(0);
-	
+
 	if ((la->type == LA_SPOT) && (la->mode & LA_SHAD_BUF) && (is_view == FALSE)) {
 		drawshadbuflimits(la, ob->obmat);
 	}
-	
+
 	UI_GetThemeColor4ubv(TH_LAMP, col);
-	glColor4ubv(col);
+	gpuCurrentColor4ubv(col);
 
 	glEnable(GL_BLEND);
-	
-	if (vec[2] > 0) vec[2] -= circrad;
-	else vec[2] += circrad;
-	
-	glBegin(GL_LINE_STRIP);
-	glVertex3fv(vec);
-	vec[2] = 0;
-	glVertex3fv(vec);
-	glEnd();
-	
-	glPointSize(2.0);
-	glBegin(GL_POINTS);
-	glVertex3fv(vec);
-	glEnd();
-	glPointSize(1.0);
-	
-	glDisable(GL_BLEND);
-	
-	/* restore for drawing extra stuff */
-	glColor3fv(curcol);
 
+	if (vec[2] > 0) {
+		vec[2] -= circrad;
+	}
+	else {
+		vec[2] += circrad;
+	}
+
+	gpuBegin(GL_LINES);
+	gpuVertex3fv(vec);
+	vec[2] = 0;
+	gpuVertex3fv(vec);
+	gpuEnd();
+
+	glPointSize(2.0);
+
+	gpuBegin(GL_POINTS);
+	gpuVertex3fv(vec);
+	gpuEnd();
+
+	glPointSize(1.0);
+
+	gpuImmediateUnformat();
+
+	glDisable(GL_BLEND);
+
+	/* restore for drawing extra stuff */
+	gpuCurrentColor3fv(curcol);
 }
 
 static void draw_limit_line(float sta, float end, unsigned int col)
 {
-	glBegin(GL_LINES);
-	glVertex3f(0.0, 0.0, -sta);
-	glVertex3f(0.0, 0.0, -end);
-	glEnd();
+	gpuBegin(GL_LINES);
+	gpuVertex3f(0.0, 0.0, -sta);
+	gpuVertex3f(0.0, 0.0, -end);
+	gpuEnd();
 
 	glPointSize(3.0);
-	glBegin(GL_POINTS);
-	cpack(col);
-	glVertex3f(0.0, 0.0, -sta);
-	glVertex3f(0.0, 0.0, -end);
-	glEnd();
+	gpuBegin(GL_POINTS);
+	gpuColorPack(col);
+	gpuVertex3f(0.0, 0.0, -sta);
+	gpuVertex3f(0.0, 0.0, -end);
+	gpuEnd();
 	glPointSize(1.0);
 }		
 
@@ -1507,12 +1359,12 @@ static void draw_limit_line(float sta, float end, unsigned int col)
 /* qdn: now also enabled for Blender to set focus point for defocus composite node */
 static void draw_focus_cross(float dist, float size)
 {
-	glBegin(GL_LINES);
-	glVertex3f(-size, 0.f, -dist);
-	glVertex3f(size, 0.f, -dist);
-	glVertex3f(0.f, -size, -dist);
-	glVertex3f(0.f, size, -dist);
-	glEnd();
+	gpuBegin(GL_LINES);
+	gpuVertex3f(-size, 0.f, -dist);
+	gpuVertex3f(size, 0.f, -dist);
+	gpuVertex3f(0.f, -size, -dist);
+	gpuVertex3f(0.f, size, -dist);
+	gpuEnd();
 }
 
 #ifdef VIEW3D_CAMERA_BORDER_HACK
@@ -1524,25 +1376,23 @@ short view3d_camera_border_hack_test = FALSE;
 
 static void draw_bundle_sphere(void)
 {
-	static GLuint displist = 0;
+	static GPUimmediate *displist = NULL;
 
-	if (displist == 0) {
-		GLUquadricObj *qobj;
+	glShadeModel(GL_SMOOTH);
 
-		displist = glGenLists(1);
-		glNewList(displist, GL_COMPILE);
+	if (!displist) {
+		GPUprim3 prim = GPU_PRIM_LOFI_SOLID;
 
-		qobj = gluNewQuadric();
-		gluQuadricDrawStyle(qobj, GLU_FILL);
-		glShadeModel(GL_SMOOTH);
-		gluSphere(qobj, 0.05, 8, 8);
-		glShadeModel(GL_FLAT);
-		gluDeleteQuadric(qobj);
-
-		glEndList();
+		gpuPushImmediate();
+		//GLU gluSphere(qobj, 0.05, 8, 8);
+		gpuSingleSphere(&prim, 0.05f);
+		displist = gpuPopImmediate();
+	}
+	else {
+		gpuImmediateSingleRepeat(displist);
 	}
 
-	glCallList(displist);
+	glShadeModel(GL_FLAT);
 }
 
 static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D *v3d,
@@ -1605,7 +1455,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 				else UI_ThemeColor(TH_SELECT);
 			}
 			else {
-				if (track->flag & TRACK_CUSTOMCOLOR) glColor3fv(track->color);
+				if (track->flag & TRACK_CUSTOMCOLOR) gpuCurrentColor3fv(track->color);
 				else UI_ThemeColor(TH_WIRE);
 			}
 
@@ -1631,7 +1481,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 					glLineWidth(1.f);
 				}
 
-				if (track->flag & TRACK_CUSTOMCOLOR) glColor3fv(track->color);
+				if (track->flag & TRACK_CUSTOMCOLOR) gpuCurrentColor3fv(track->color);
 				else UI_ThemeColor(TH_BUNDLE_SOLID);
 
 				draw_bundle_sphere();
@@ -1644,7 +1494,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 					else UI_ThemeColor(TH_SELECT);
 				}
 				else {
-					if (track->flag & TRACK_CUSTOMCOLOR) glColor3fv(track->color);
+					if (track->flag & TRACK_CUSTOMCOLOR) gpuCurrentColor3fv(track->color);
 					else UI_ThemeColor(TH_WIRE);
 				}
 
@@ -1683,11 +1533,11 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 				UI_ThemeColor(TH_CAMERA_PATH);
 				glLineWidth(2.0f);
 
-				glBegin(GL_LINE_STRIP);
+				gpuBegin(GL_LINE_STRIP);
 				for (a = 0; a < reconstruction->camnr; a++, camera++) {
-					glVertex3fv(camera->mat[3]);
+					gpuVertex3fv(camera->mat[3]);
 				}
-				glEnd();
+				gpuEnd();
 
 				glLineWidth(1.0f);
 				glEnable(GL_LIGHTING);
@@ -1714,7 +1564,7 @@ static void draw_viewport_reconstruction(Scene *scene, Base *base, View3D *v3d, 
 	if (v3d->flag2 & V3D_RENDER_OVERRIDE)
 		return;
 
-	glGetFloatv(GL_CURRENT_COLOR, curcol);
+	gpuGetCurrentColor4fv(curcol);
 
 	glEnable(GL_LIGHTING);
 	glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
@@ -1734,7 +1584,7 @@ static void draw_viewport_reconstruction(Scene *scene, Base *base, View3D *v3d, 
 	glDisable(GL_COLOR_MATERIAL);
 	glDisable(GL_LIGHTING);
 
-	glColor4fv(curcol);
+	gpuCurrentColor4fv(curcol);
 
 	if (flag & DRAW_PICKING)
 		glLoadName(base->selcol);
@@ -1761,7 +1611,7 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 
 #ifdef VIEW3D_CAMERA_BORDER_HACK
 	if (is_view && !(G.f & G_PICKSEL)) {
-		glGetFloatv(GL_CURRENT_COLOR, view3d_camera_border_hack_col);
+		gpuGetCurrentColor4fv(view3d_camera_border_hack_col);
 		view3d_camera_border_hack_test = TRUE;
 		return;
 	}
@@ -1779,29 +1629,33 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 	glDisable(GL_LIGHTING);
 	glDisable(GL_CULL_FACE);
 
-	/* camera frame */
-	glBegin(GL_LINE_LOOP);
-	glVertex3fv(vec[0]);
-	glVertex3fv(vec[1]);
-	glVertex3fv(vec[2]);
-	glVertex3fv(vec[3]);
-	glEnd();
+	gpuImmediateFormat_V3(); // DOODLE: camera
 
-	if (is_view)
+	/* camera frame */
+	gpuBegin(GL_LINE_STRIP);
+
+	gpuVertex3fv(vec[1]);
+	gpuVertex3fv(vec[2]);
+	gpuVertex3fv(vec[3]);
+	gpuVertex3fv(vec[0]);
+	gpuVertex3fv(vec[1]);
+
+	if (is_view) {
+		gpuEnd();
+		gpuImmediateUnformat();
 		return;
+	}
 
 	zero_v3(tvec);
 
 	/* center point to camera frame */
-	glBegin(GL_LINE_STRIP);
-	glVertex3fv(vec[1]);
-	glVertex3fv(tvec);
-	glVertex3fv(vec[0]);
-	glVertex3fv(vec[3]);
-	glVertex3fv(tvec);
-	glVertex3fv(vec[2]);
-	glEnd();
+	gpuVertex3fv(tvec);
+	gpuVertex3fv(vec[0]);
+	gpuVertex3fv(vec[3]);
+	gpuVertex3fv(tvec);
+	gpuVertex3fv(vec[2]);
 
+	gpuEnd();
 
 	/* arrow on top */
 	tvec[2] = vec[1][2]; /* copy the depth */
@@ -1811,22 +1665,28 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 	 * for active cameras. We actually draw both outline+filled
 	 * for active cameras so the wire can be seen side-on */
 	for (i = 0; i < 2; i++) {
-		if (i == 0) glBegin(GL_LINE_LOOP);
-		else if (i == 1 && (ob == v3d->camera)) glBegin(GL_TRIANGLES);
-		else break;
+		if (i == 0) {
+			gpuBegin(GL_LINE_LOOP);
+		}
+		else if (i == 1 && (ob == v3d->camera)) {
+			gpuBegin(GL_TRIANGLES);
+		}
+		else {
+			break;
+		}
 
 		tvec[0] = shift[0] + ((-0.7f * drawsize) * scale[0]);
 		tvec[1] = shift[1] + ((drawsize * (asp[1] + 0.1f)) * scale[1]);
-		glVertex3fv(tvec); /* left */
+		gpuVertex3fv(tvec); /* left */
 		
 		tvec[0] = shift[0] + ((0.7f * drawsize) * scale[0]);
-		glVertex3fv(tvec); /* right */
+		gpuVertex3fv(tvec); /* right */
 		
 		tvec[0] = shift[0];
 		tvec[1] = shift[1] + ((1.1f * drawsize * (asp[1] + 0.7f)) * scale[1]);
-		glVertex3fv(tvec); /* top */
+		gpuVertex3fv(tvec); /* top */
 
-		glEnd();
+		gpuEnd();
 	}
 
 	if (flag == 0) {
@@ -1855,6 +1715,8 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 			glPopMatrix();
 		}
 	}
+
+	gpuImmediateUnformat();
 }
 
 /* flag similar to draw_object() */
@@ -1868,22 +1730,24 @@ static void drawspeaker(Scene *UNUSED(scene), View3D *UNUSED(v3d), RegionView3D 
 
 	glEnable(GL_BLEND);
 
+	gpuImmediateFormat_V3();
+
 	for (j = 0; j < 3; j++) {
 		vec[2] = 0.25f * j - 0.125f;
 
-		glBegin(GL_LINE_LOOP);
+		gpuBegin(GL_LINE_LOOP);
 		for (i = 0; i < 16; i++) {
 			vec[0] = cosf((float)M_PI * i / 8.0f) * (j == 0 ? 0.5f : 0.25f);
 			vec[1] = sinf((float)M_PI * i / 8.0f) * (j == 0 ? 0.5f : 0.25f);
-			glVertex3fv(vec);
+			gpuVertex3fv(vec);
 		}
-		glEnd();
+		gpuEnd();
 	}
 
 	for (j = 0; j < 4; j++) {
 		vec[0] = (((j + 1) % 2) * (j - 1)) * 0.5f;
 		vec[1] = ((j % 2) * (j - 2)) * 0.5f;
-		glBegin(GL_LINE_STRIP);
+		gpuBegin(GL_LINE_STRIP);
 		for (i = 0; i < 3; i++) {
 			if (i == 1) {
 				vec[0] *= 0.5f;
@@ -1891,10 +1755,12 @@ static void drawspeaker(Scene *UNUSED(scene), View3D *UNUSED(v3d), RegionView3D 
 			}
 
 			vec[2] = 0.25f * i - 0.125f;
-			glVertex3fv(vec);
+			gpuVertex3fv(vec);
 		}
-		glEnd();
+		gpuEnd();
 	}
+
+	gpuImmediateUnformat();
 
 	glDisable(GL_BLEND);
 }
@@ -1907,7 +1773,7 @@ static void lattice_draw_verts(Lattice *lt, DispList *dl, short sel)
 
 	UI_ThemeColor(sel ? TH_VERTEX_SELECT : TH_VERTEX);
 	glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
-	bglBegin(GL_POINTS);
+	gpuBeginSprites();
 
 	for (w = 0; w < lt->pntsw; w++) {
 		int wxt = (w == 0 || w == lt->pntsw - 1);
@@ -1918,7 +1784,7 @@ static void lattice_draw_verts(Lattice *lt, DispList *dl, short sel)
 				if (!(lt->flag & LT_OUTSIDE) || uxt || vxt || wxt) {
 					if (bp->hide == 0) {
 						if ((bp->f1 & SELECT) == sel) {
-							bglVertex3fv(dl ? co : bp->vec);
+							gpuSprite3fv(dl ? co : bp->vec);
 						}
 					}
 				}
@@ -1927,7 +1793,7 @@ static void lattice_draw_verts(Lattice *lt, DispList *dl, short sel)
 	}
 	
 	glPointSize(1.0);
-	bglEnd();
+	gpuEndSprites();
 }
 
 void lattice_foreachScreenVert(ViewContext *vc, void (*func)(void *userData, BPoint *bp, int x, int y), void *userData)
@@ -1960,15 +1826,15 @@ static void drawlattice__point(Lattice *lt, DispList *dl, int u, int v, int w, i
 		MDeformWeight *mdw = defvert_find_index(lt->dvert + index, use_wcol - 1);
 		
 		weight_to_rgb(col, mdw ? mdw->weight : 0.0f);
-		glColor3fv(col);
+		gpuColor3fv(col);
 
 	}
 	
 	if (dl) {
-		glVertex3fv(&dl->verts[index * 3]);
+		gpuVertex3fv(&dl->verts[index * 3]);
 	}
 	else {
-		glVertex3fv(lt->def[index].vec);
+		gpuVertex3fv(lt->def[index].vec);
 	}
 }
 
@@ -1988,7 +1854,7 @@ static void drawlattice(Scene *scene, View3D *v3d, Object *ob)
 	if (is_edit) {
 		lt = lt->editlatt->latt;
 
-		cpack(0x004000);
+		gpuCurrentColorPack(0x004000);
 		
 		if (ob->defbase.first && lt->dvert) {
 			use_wcol = ob->actdef;
@@ -1996,7 +1862,14 @@ static void drawlattice(Scene *scene, View3D *v3d, Object *ob)
 		}
 	}
 	
-	glBegin(GL_LINES);
+	if (use_wcol) {
+		gpuImmediateFormat_V3();
+	}
+	else {
+		gpuImmediateFormat_C4_V3();
+	}
+
+	gpuBegin(GL_LINES);
 	for (w = 0; w < lt->pntsw; w++) {
 		int wxt = (w == 0 || w == lt->pntsw - 1);
 		for (v = 0; v < lt->pntsv; v++) {
@@ -2019,20 +1892,29 @@ static void drawlattice(Scene *scene, View3D *v3d, Object *ob)
 			}
 		}
 	}
-	glEnd();
-	
+	gpuEnd();
+
+	if (use_wcol) {
+		gpuImmediateUnformat();
+		gpuImmediateFormat_V3();
+	}
+
 	/* restoration for weight colors */
 	if (use_wcol)
 		glShadeModel(GL_FLAT);
 
 	if (is_edit) {
-		if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
-		
+		if (v3d->zbuf) {
+			glDisable(GL_DEPTH_TEST);
+		}
+
 		lattice_draw_verts(lt, dl, 0);
 		lattice_draw_verts(lt, dl, 1);
-		
+
 		if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 	}
+
+	gpuImmediateUnformat();
 }
 
 /* ***************** ******************** */
@@ -2098,21 +1980,21 @@ static void drawSelectedVertices__mapFunc(void *userData, int index, const float
 
 		// TODO define selected color
 		if (sel) {
-			glColor3f(1.0f, 1.0f, 0.0f);
+			gpuColor3f(1.0f, 1.0f, 0.0f);
 		}
 		else {
-			glColor3f(0.0f, 0.0f, 0.0f);
+			gpuColor3f(0.0f, 0.0f, 0.0f);
 		}
 
-		glVertex3fv(co);
+		gpuVertex3fv(co);
 	}
 }
 
 static void drawSelectedVertices(DerivedMesh *dm, Mesh *me)
 {
-	glBegin(GL_POINTS);
+	gpuBegin(GL_POINTS);
 	dm->foreachMappedVert(dm, drawSelectedVertices__mapFunc, me->mvert);
-	glEnd();
+	gpuEnd();
 }
 
 static void mesh_foreachScreenEdge__mapFunc(void *userData, int index, const float v0co[3], const float v1co[3])
@@ -2308,6 +2190,8 @@ static void draw_dm_face_normals__mapFunc(void *userData, int index, const float
 	float n[3];
 
 	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
+		float p[3];
+
 		if (!data->uniform_scale) {
 			mul_v3_m3v3(n, data->tmat, (float *) no);
 			normalize_v3(n);
@@ -2317,10 +2201,11 @@ static void draw_dm_face_normals__mapFunc(void *userData, int index, const float
 			copy_v3_v3(n, no);
 		}
 
-		glVertex3fv(cent);
-		glVertex3f(cent[0] + n[0] * data->normalsize,
-		           cent[1] + n[1] * data->normalsize,
-		           cent[2] + n[2] * data->normalsize);
+		mul_v3_v3fl(p, n, data->normalsize);
+		add_v3_v3(p, cent);
+
+		gpuVertex3fv(cent);
+		gpuVertex3fv(p);
 	}
 }
 
@@ -2333,9 +2218,9 @@ static void draw_dm_face_normals(BMEditMesh *em, Scene *scene, Object *ob, Deriv
 
 	calcDrawDMNormalScale(ob, &data);
 
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	dm->foreachMappedFaceCenter(dm, draw_dm_face_normals__mapFunc, &data);
-	glEnd();
+	gpuEnd();
 }
 
 static void draw_dm_face_centers__mapFunc(void *userData, int index, const float cent[3], const float UNUSED(no[3]))
@@ -2344,16 +2229,18 @@ static void draw_dm_face_centers__mapFunc(void *userData, int index, const float
 	int sel = *(((int **)userData)[1]);
 	
 	if (efa && !BM_elem_flag_test(efa, BM_ELEM_HIDDEN) && BM_elem_flag_test(efa, BM_ELEM_SELECT) == sel) {
-		bglVertex3fv(cent);
+		gpuSprite3fv(cent);
 	}
 }
 static void draw_dm_face_centers(BMEditMesh *em, DerivedMesh *dm, int sel)
 {
 	void *ptrs[2] = {em, &sel};
 
-	bglBegin(GL_POINTS);
+	gpuImmediateFormat_V3();
+	gpuBeginSprites();
 	dm->foreachMappedFaceCenter(dm, draw_dm_face_centers__mapFunc, ptrs);
-	bglEnd();
+	gpuEndSprites();
+	gpuImmediateUnformat();
 }
 
 static void draw_dm_vert_normals__mapFunc(void *userData, int index, const float co[3], const float no_f[3], const short no_s[3])
@@ -2362,7 +2249,7 @@ static void draw_dm_vert_normals__mapFunc(void *userData, int index, const float
 	BMVert *eve = EDBM_vert_at_index(data->em, index);
 
 	if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
-		float no[3], n[3];
+		float no[3], n[3], p[3];
 
 		if (no_f) {
 			copy_v3_v3(no, no_f);
@@ -2382,10 +2269,11 @@ static void draw_dm_vert_normals__mapFunc(void *userData, int index, const float
 			copy_v3_v3(n, no);
 		}
 
-		glVertex3fv(co);
-		glVertex3f(co[0] + n[0] * data->normalsize,
-		           co[1] + n[1] * data->normalsize,
-		           co[2] + n[2] * data->normalsize);
+		mul_v3_v3fl(p, n, data->normalsize);
+		add_v3_v3(p, co);
+
+		gpuVertex3fv(co);
+		gpuVertex3fv(p);
 	}
 }
 
@@ -2398,9 +2286,9 @@ static void draw_dm_vert_normals(BMEditMesh *em, Scene *scene, Object *ob, Deriv
 
 	calcDrawDMNormalScale(ob, &data);
 
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	dm->foreachMappedVert(dm, draw_dm_vert_normals__mapFunc, &data);
-	glEnd();
+	gpuEnd();
 }
 
 /* Draw verts with color set based on selection */
@@ -2411,41 +2299,43 @@ static void draw_dm_verts__mapFunc(void *userData, int index, const float co[3],
 	BMVert *eve = EDBM_vert_at_index(data->em, index);
 
 	if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN) && BM_elem_flag_test(eve, BM_ELEM_SELECT) == data->sel) {
-		/* skin nodes: draw a red circle around the root
-		 * node(s) */
+		/* skin nodes: draw a red circle around the root node(s) */
 		if (data->has_vskin) {
-			const MVertSkin *vs = CustomData_bmesh_get(&data->em->bm->vdata,
-			                                           eve->head.data,
-			                                           CD_MVERT_SKIN);
+			const MVertSkin *vs =
+				CustomData_bmesh_get(
+					&data->em->bm->vdata,
+					eve->head.data,
+					CD_MVERT_SKIN);
+
 			if (vs->flag & MVERT_SKIN_ROOT) {
 				float radius = (vs->radius[0] + vs->radius[1]) * 0.5f;
-				bglEnd();
-			
-				glColor4ubv(data->th_skin_root);
-				drawcircball(GL_LINES, co, radius, data->imat);
+				gpuEndSprites();
 
-				glColor4ubv(data->sel ? data->th_vertex_select : data->th_vertex);
-				bglBegin(GL_POINTS);
+				gpuCurrentColor4ubv(data->th_skin_root);
+				gpuDrawFastBall(GL_LINES, co, radius, data->imat);
+
+				gpuCurrentColor4ubv(data->sel ? data->th_vertex_select : data->th_vertex);
+				gpuBeginSprites();
 			}
 		}
 
 		/* draw active larger - need to stop/start point drawing for this :/ */
 		if (eve == data->eve_act) {
-			glColor4ubv(data->th_editmesh_active);
-			
-			bglEnd();
-			
-			glPointSize(data->th_vertex_size);
-			bglBegin(GL_POINTS);
-			bglVertex3fv(co);
-			bglEnd();
+			gpuColor4ubv(data->th_editmesh_active);
 
-			glColor4ubv(data->sel ? data->th_vertex_select : data->th_vertex);
+			gpuEndSprites();
+
 			glPointSize(data->th_vertex_size);
-			bglBegin(GL_POINTS);
+			gpuBeginSprites();
+			gpuSprite3fv(co);
+			gpuEndSprites();
+
+			gpuCurrentColor4ubv(data->sel ? data->th_vertex_select : data->th_vertex);
+			glPointSize(data->th_vertex_size);
+			gpuBeginSprites();
 		}
 		else {
-			bglVertex3fv(co);
+			gpuSprite3fv(co);
 		}
 	}
 }
@@ -2471,9 +2361,11 @@ static void draw_dm_verts(BMEditMesh *em, DerivedMesh *dm, int sel, BMVert *eve_
 	mult_m4_m4m4(data.imat, rv3d->viewmat, em->ob->obmat);
 	invert_m4(data.imat);
 
-	bglBegin(GL_POINTS);
+	gpuImmediateFormat_V3();
+	gpuBeginSprites();
 	dm->foreachMappedVert(dm, draw_dm_verts__mapFunc, &data);
-	bglEnd();
+	gpuEndSprites();
+	gpuImmediateUnformat();
 }
 
 /* Draw edges with color set based on selection */
@@ -2488,7 +2380,7 @@ static DMDrawOption draw_dm_edges_sel__setDrawOptions(void *userData, int index)
 
 	if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
 		if (eed == data->eed_act) {
-			glColor4ubv(data->actCol);
+			gpuColor4ubv(data->actCol);
 		}
 		else {
 			if (BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
@@ -2501,7 +2393,7 @@ static DMDrawOption draw_dm_edges_sel__setDrawOptions(void *userData, int index)
 			if (col[3] == 0)
 				return DM_DRAW_OPTION_SKIP;
 			
-			glColor4ubv(col);
+			gpuColor4ubv(col);
 		}
 		return DM_DRAW_OPTION_NORMAL;
 	}
@@ -2544,6 +2436,7 @@ static DMDrawOption draw_dm_edges_sel_interp__setDrawOptions(void *userData, int
 	else
 		return DM_DRAW_OPTION_NORMAL;
 }
+
 static void draw_dm_edges_sel_interp__setDrawInterpOptions(void *userData, int index, float t)
 {
 	BMEdge *eed = EDBM_edge_at_index(((void **)userData)[0], index);
@@ -2551,7 +2444,7 @@ static void draw_dm_edges_sel_interp__setDrawInterpOptions(void *userData, int i
 	unsigned char *col0 = cols[(BM_elem_flag_test(eed->v1, BM_ELEM_SELECT)) ? 2 : 1];
 	unsigned char *col1 = cols[(BM_elem_flag_test(eed->v2, BM_ELEM_SELECT)) ? 2 : 1];
 
-	glColor4ub(col0[0] + (col1[0] - col0[0]) * t,
+	gpuColor4ub(col0[0] + (col1[0] - col0[0]) * t,
 	           col0[1] + (col1[1] - col0[1]) * t,
 	           col0[2] + (col1[2] - col0[2]) * t,
 	           col0[3] + (col1[3] - col0[3]) * t);
@@ -2561,7 +2454,9 @@ static void draw_dm_edges_sel_interp(BMEditMesh *em, DerivedMesh *dm, unsigned c
 {
 	void *cols[3] = {em, baseCol, selCol};
 
+	gpuImmediateFormat_C4_V3();
 	dm->drawMappedEdgesInterp(dm, draw_dm_edges_sel_interp__setDrawOptions, draw_dm_edges_sel_interp__setDrawInterpOptions, cols);
+	gpuImmediateUnformat();
 }
 
 /* Draw only seam edges */
@@ -2610,14 +2505,14 @@ static DMDrawOption draw_dm_faces_sel__setDrawOptions(void *userData, int index)
 	
 	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
 		if (efa == data->efa_act) {
-			glColor4ubv(data->cols[2]);
+			gpuColor4ubv(data->cols[2]);
 			return DM_DRAW_OPTION_STIPPLE;
 		}
 		else {
 			col = data->cols[BM_elem_flag_test(efa, BM_ELEM_SELECT) ? 1 : 0];
 			if (col[3] == 0)
 				return DM_DRAW_OPTION_SKIP;
-			glColor4ubv(col);
+			gpuColor4ubv(col);
 			return DM_DRAW_OPTION_NORMAL;
 		}
 	}
@@ -2698,12 +2593,13 @@ static DMDrawOption draw_dm_bweights__setDrawOptions(void *userData, int index)
 {
 	BMEditMesh *em = userData;
 	BMEdge *eed = EDBM_edge_at_index(userData, index);
-	float *bweight = (float *)CustomData_bmesh_get(&em->bm->edata, eed->head.data, CD_BWEIGHT);
 
-	if (!bweight)
-		return DM_DRAW_OPTION_SKIP;
-	
-	if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN) && *bweight != 0.0f) {
+	float *bweight = 
+		CustomData_bmesh_get(&em->bm->edata, eed->head.data, CD_BWEIGHT);
+
+	if (bweight && *bweight != 0.0f &&
+		!BM_elem_flag_test(eed, BM_ELEM_HIDDEN))
+	{
 		UI_ThemeColorBlend(TH_WIRE, TH_EDGE_SELECT, *bweight);
 		return DM_DRAW_OPTION_NORMAL;
 	}
@@ -2711,30 +2607,35 @@ static DMDrawOption draw_dm_bweights__setDrawOptions(void *userData, int index)
 		return DM_DRAW_OPTION_SKIP;
 	}
 }
+
 static void draw_dm_bweights__mapFunc(void *userData, int index, const float co[3],
                                       const float UNUSED(no_f[3]), const short UNUSED(no_s[3]))
 {
 	BMEditMesh *em = userData;
 	BMVert *eve = EDBM_vert_at_index(userData, index);
-	float *bweight = (float *)CustomData_bmesh_get(&em->bm->vdata, eve->head.data, CD_BWEIGHT);
-	
-	if (!bweight)
-		return;
-	
-	if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN) && *bweight != 0.0f) {
-		UI_ThemeColorBlend(TH_VERTEX, TH_VERTEX_SELECT, *bweight);
-		bglVertex3fv(co);
+
+	float *bweight =
+		CustomData_bmesh_get(&em->bm->vdata, eve->head.data, CD_BWEIGHT);
+
+	if (bweight && *bweight != 0.0f &&
+		!BM_elem_flag_test(eve, BM_ELEM_HIDDEN))
+	{
+		UI_ThemeAppendColorBlend(TH_VERTEX, TH_VERTEX_SELECT, *bweight);
+		gpuSprite3fv(co);
 	}
 }
+
 static void draw_dm_bweights(BMEditMesh *em, Scene *scene, DerivedMesh *dm)
 {
 	ToolSettings *ts = scene->toolsettings;
 
 	if (ts->selectmode & SCE_SELECT_VERTEX) {
 		glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE) + 2);
-		bglBegin(GL_POINTS);
+		gpuImmediateFormat_C4_V3();
+		gpuBeginSprites();
 		dm->foreachMappedVert(dm, draw_dm_bweights__mapFunc, em);
-		bglEnd();
+		gpuEndSprites();
+		gpuImmediateUnformat();
 	}
 	else {
 		glLineWidth(3.0);
@@ -2792,13 +2693,13 @@ static void draw_em_fancy_verts(Scene *scene, View3D *v3d, Object *obedit,
 
 			if (ts->selectmode & SCE_SELECT_VERTEX) {
 				glPointSize(size);
-				glColor4ubv(col);
+				gpuCurrentColor4ubv(col);
 				draw_dm_verts(em, cageDM, sel, eve_act, rv3d);
 			}
 			
 			if (check_ob_drawface_dot(scene, v3d, obedit->dt)) {
 				glPointSize(fsize);
-				glColor4ubv(fcol);
+				gpuCurrentColor4ubv(fcol);
 				draw_dm_face_centers(em, cageDM, sel);
 			}
 			
@@ -2864,7 +2765,7 @@ static void draw_em_fancy_edges(BMEditMesh *em, Scene *scene, View3D *v3d,
 		}
 		else {
 			if (!sel_only) {
-				glColor4ubv(wireCol);
+				gpuCurrentColor4ubv(wireCol);
 				draw_dm_edges(em, cageDM);
 			}
 		}
@@ -3246,7 +3147,7 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 
 			draw_dm_edges_seams(em, cageDM);
 
-			glColor3ub(0, 0, 0);
+			gpuCurrentColor3ub(0, 0, 0);
 			glLineWidth(1);
 		}
 		
@@ -3256,7 +3157,7 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 
 			draw_dm_edges_sharp(em, cageDM);
 
-			glColor3ub(0, 0, 0);
+			gpuCurrentColor3ub(0, 0, 0);
 			glLineWidth(1);
 		}
 
@@ -3421,6 +3322,9 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				dm->drawFacesSolid(dm, NULL, 0, GPU_enable_material);
 			}
 			else {
+				const GLfloat spec[4] 
+					= { 120/255.0f, 120/255.0f, 120/255.0f, 255/255.0f };
+
 				/* draw outline */
 				if ( (v3d->flag & V3D_SELECT_OUTLINE) &&
 				     ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) &&
@@ -3435,12 +3339,10 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				GPU_end_object_materials();
 
 				GPU_enable_material(0, NULL);
-				
+
 				/* set default spec */
-				glColorMaterial(GL_FRONT_AND_BACK, GL_SPECULAR);
-				glEnable(GL_COLOR_MATERIAL);    /* according manpages needed */
-				glColor3ub(120, 120, 120);
-				glDisable(GL_COLOR_MATERIAL);
+				gpuMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
+
 				/* diffuse */
 				glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 				glEnable(GL_LIGHTING);
@@ -3522,14 +3424,14 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			else if (flag != DRAW_CONSTCOLOR)
 				UI_ThemeColor(is_obact ? TH_ACTIVE : TH_SELECT);
 			else
-				glColor3ub(80, 80, 80);
+				gpuCurrentColor3ub(80, 80, 80);
 		}
 		else {
 			if (ob->flag & OB_FROMGROUP)
 				UI_ThemeColor(TH_GROUP);
 			else {
 				if (ob->dtx & OB_DRAWWIRE && flag == DRAW_CONSTCOLOR)
-					glColor3ub(80, 80, 80);
+					gpuCurrentColor3ub(80, 80, 80);
 				else
 					UI_ThemeColor(TH_WIRE);
 			}
@@ -3544,9 +3446,9 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			float col_wire[4], col_bg[4], col[3];
 
 			UI_GetThemeColor3fv(TH_BACK, col_bg);
-			glGetFloatv(GL_CURRENT_COLOR, col_wire);
+			gpuGetCurrentColor4fv(col_wire);
 			interp_v3_v3v3(col, col_bg, col_wire, 0.15);
-			glColor3fv(col);
+			gpuCurrentColor3fv(col);
 		}
 
 		/* If drawing wire and drawtype is not OB_WIRE then we are
@@ -3574,7 +3476,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	
 	if (is_obact && paint_vertsel_test(ob)) {
 		
-		glColor3f(0.0f, 0.0f, 0.0f);
+		gpuCurrentColor3f(0.0f, 0.0f, 0.0f);
 		glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
 		
 		drawSelectedVertices(dm, ob->data);
@@ -3691,90 +3593,107 @@ static int drawDispListwire(ListBase *dlbase)
 {
 	DispList *dl;
 	int parts, nr;
-	float *data;
 
-	if (dlbase == NULL) return 1;
-	
-	glEnableClientState(GL_VERTEX_ARRAY);
+	if (dlbase == NULL) {
+		return 1;
+	}
+
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	for (dl = dlbase->first; dl; dl = dl->next) {
-		if (dl->parts == 0 || dl->nr == 0)
+		GPUarrays arrays;
+
+		if (dl->parts == 0 || dl->nr == 0) {
 			continue;
-		
-		data = dl->verts;
+		}
+
+		arrays = GPU_ARRAYS_V3F;
+		arrays.vertexPointer = dl->verts;
 
 		switch (dl->type) {
 			case DL_SEGM:
 
-				glVertexPointer(3, GL_FLOAT, 0, data);
+				gpuImmediateFormat_V3();
+				for (parts = 0; parts < dl->parts; parts++) {
+					gpuDrawClientArrays(
+						GL_LINE_STRIP,
+						&arrays,
+						parts * dl->nr,
+						dl->nr);
+				}
+				gpuImmediateUnformat();
 
-				for (parts = 0; parts < dl->parts; parts++)
-					glDrawArrays(GL_LINE_STRIP, parts * dl->nr, dl->nr);
-				
 				break;
+
 			case DL_POLY:
 
-				glVertexPointer(3, GL_FLOAT, 0, data);
-
-				for (parts = 0; parts < dl->parts; parts++)
-					glDrawArrays(GL_LINE_LOOP, parts * dl->nr, dl->nr);
+				gpuImmediateFormat_V3();
+				for (parts = 0; parts < dl->parts; parts++) {
+					gpuDrawClientArrays(
+						GL_LINE_LOOP,
+						&arrays,
+						parts * dl->nr,
+						dl->nr);
+				}
+				gpuImmediateUnformat();
 
 				break;
+
 			case DL_SURF:
 
-				glVertexPointer(3, GL_FLOAT, 0, data);
+				gpuImmediateFormat_V3();
 
 				for (parts = 0; parts < dl->parts; parts++) {
-					if (dl->flag & DL_CYCL_U)
-						glDrawArrays(GL_LINE_LOOP, parts * dl->nr, dl->nr);
-					else
-						glDrawArrays(GL_LINE_STRIP, parts * dl->nr, dl->nr);
+					gpuDrawClientArrays(
+						(dl->flag & DL_CYCL_U) ? GL_LINE_LOOP : GL_LINE_STRIP,
+						&arrays,
+						parts * dl->nr,
+						dl->nr);
 				}
+
+				arrays.vertexStride = 3 * sizeof(float) * dl->nr;
 
 				for (nr = 0; nr < dl->nr; nr++) {
-					int ofs = 3 * dl->nr;
+					arrays.vertexPointer = (dl->verts) + 3 * nr;
 
-					data = (dl->verts) + 3 * nr;
-					parts = dl->parts;
-
-					if (dl->flag & DL_CYCL_V) glBegin(GL_LINE_LOOP);
-					else glBegin(GL_LINE_STRIP);
-
-					while (parts--) {
-						glVertex3fv(data);
-						data += ofs;
-					}
-					glEnd();
-
-/* (ton) this code crashes for me when resolv is 86 or higher... no clue */
-//				glVertexPointer(3, GL_FLOAT, sizeof(float)*3*dl->nr, data + 3*nr);
-//				if (dl->flag & DL_CYCL_V)
-//					glDrawArrays(GL_LINE_LOOP, 0, dl->parts);
-//				else
-//					glDrawArrays(GL_LINE_STRIP, 0, dl->parts);
+					gpuDrawClientArrays(
+						(dl->flag & DL_CYCL_V) ? GL_LINE_LOOP : GL_LINE_STRIP,
+						&arrays,
+						0,
+						dl->parts);
 				}
+
+				gpuImmediateUnformat();
+
 				break;
 
 			case DL_INDEX3:
 				if (draw_index_wire) {
-					glVertexPointer(3, GL_FLOAT, 0, dl->verts);
-					glDrawElements(GL_TRIANGLES, 3 * dl->parts, GL_UNSIGNED_INT, dl->index);
+					gpuSingleClientElements_V3F(
+						GL_TRIANGLES,
+						dl->verts,
+						0,
+						3 * dl->parts,
+						dl->index);
 				}
+
 				break;
 
 			case DL_INDEX4:
 				if (draw_index_wire) {
-					glVertexPointer(3, GL_FLOAT, 0, dl->verts);
-					glDrawElements(GL_QUADS, 4 * dl->parts, GL_UNSIGNED_INT, dl->index);
+					gpuSingleClientElements_V3F(
+						GL_QUADS, dl->verts,
+						0,
+						4 * dl->parts,
+						dl->index);
 				}
+
 				break;
 		}
 	}
-	
-	glDisableClientState(GL_VERTEX_ARRAY);
+
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	
+
 	return 0;
 }
 
@@ -3782,117 +3701,108 @@ static void drawDispListsolid(ListBase *lb, Object *ob, int glsl)
 {
 	DispList *dl;
 	GPUVertexAttribs gattribs;
-	float *data, curcol[4];
-	float *ndata;
-	
-	if (lb == NULL) return;
-	
+	float curcol[4];
+
+	GPU_ASSERT(gpuImmediateLockCount() == 0);
+
+	if (lb == NULL) {
+		return;
+	}
+
 	/* for drawing wire */
-	glGetFloatv(GL_CURRENT_COLOR, curcol);
+	gpuGetCurrentColor4fv(curcol);
 
 	glEnable(GL_LIGHTING);
-	glEnableClientState(GL_VERTEX_ARRAY);
-	
-	if (ob->transflag & OB_NEG_SCALE) glFrontFace(GL_CW);
-	else glFrontFace(GL_CCW);
-	
+
+	if (ob->transflag & OB_NEG_SCALE) {
+		glFrontFace(GL_CW);
+	}
+	else {
+		glFrontFace(GL_CCW);
+	}
+
 	if (ob->type == OB_MBALL) {   // mball always smooth shaded
 		glShadeModel(GL_SMOOTH);
 	}
-	
+
 	dl = lb->first;
 	while (dl) {
-		data = dl->verts;
-		ndata = dl->nors;
-
 		switch (dl->type) {
 			case DL_SEGM:
 				if (ob->type == OB_SURF) {
-					int nr;
-
 					glDisable(GL_LIGHTING);
-					glColor3fv(curcol);
-
-					// glVertexPointer(3, GL_FLOAT, 0, dl->verts);
-					// glDrawArrays(GL_LINE_STRIP, 0, dl->nr);
-
-					glBegin(GL_LINE_STRIP);
-					for (nr = dl->nr; nr; nr--, data += 3)
-						glVertex3fv(data);
-					glEnd();
-
+					gpuCurrentColor3fv(curcol);
+					gpuSingleClientArrays_V3F(GL_LINE_STRIP, dl->verts, 0, 0, dl->nr);
 					glEnable(GL_LIGHTING);
 				}
 				break;
 			case DL_POLY:
 				if (ob->type == OB_SURF) {
-					int nr;
-
 					glDisable(GL_LIGHTING);
-
-					/* for some reason glDrawArrays crashes here in half of the platforms (not osx) */
-					//glVertexPointer(3, GL_FLOAT, 0, dl->verts);
-					//glDrawArrays(GL_LINE_LOOP, 0, dl->nr);
-
-					glBegin(GL_LINE_LOOP);
-					for (nr = dl->nr; nr; nr--, data += 3)
-						glVertex3fv(data);
-					glEnd();
-
+					gpuSingleClientArrays_V3F(GL_LINE_LOOP, dl->verts, 0, 0, dl->nr);
 					glEnable(GL_LIGHTING);
 					break;
 				}
 			case DL_SURF:
 
 				if (dl->index) {
-					GPU_enable_material(dl->col + 1, (glsl) ? &gattribs : NULL);
+					GPU_enable_material(dl->col + 1, glsl ? &gattribs : NULL);
 
-					if (dl->rt & CU_SMOOTH) glShadeModel(GL_SMOOTH);
-					else glShadeModel(GL_FLAT);
+					glShadeModel((dl->rt & CU_SMOOTH) ? GL_SMOOTH : GL_FLAT);
 
-					glEnableClientState(GL_NORMAL_ARRAY);
-					glVertexPointer(3, GL_FLOAT, 0, dl->verts);
-					glNormalPointer(GL_FLOAT, 0, dl->nors);
-					glDrawElements(GL_QUADS, 4 * dl->totindex, GL_UNSIGNED_INT, dl->index);
-					glDisableClientState(GL_NORMAL_ARRAY);
+					gpuSingleClientElements_N3F_V3F(
+						GL_QUADS,
+						dl->nors,
+						0,
+						dl->verts,
+						0,
+						4 * dl->totindex,
+						dl->index);
 				}
 				break;
 
 			case DL_INDEX3:
-				GPU_enable_material(dl->col + 1, (glsl) ? &gattribs : NULL);
+				GPU_enable_material(dl->col + 1, glsl ? &gattribs : NULL);
 
-				glVertexPointer(3, GL_FLOAT, 0, dl->verts);
-
-				/* for polys only one normal needed */
 				if (index3_nors_incr) {
-					glEnableClientState(GL_NORMAL_ARRAY);
-					glNormalPointer(GL_FLOAT, 0, dl->nors);
+					gpuSingleClientElements_N3F_V3F(
+						GL_TRIANGLES,
+						dl->nors,
+						0,
+						dl->verts,
+						0,
+						3 * dl->parts,
+						dl->index);
 				}
-				else
-					glNormal3fv(ndata);
-
-				glDrawElements(GL_TRIANGLES, 3 * dl->parts, GL_UNSIGNED_INT, dl->index);
-
-				if (index3_nors_incr)
-					glDisableClientState(GL_NORMAL_ARRAY);
+				else {
+					gpuCurrentNormal3fv(dl->nors);
+					gpuSingleClientElements_V3F(
+						GL_TRIANGLES,
+						dl->verts,
+						0,
+						3 * dl->parts,
+						dl->index);
+				}
 
 				break;
 
 			case DL_INDEX4:
-				GPU_enable_material(dl->col + 1, (glsl) ? &gattribs : NULL);
+				GPU_enable_material(dl->col + 1, glsl ? &gattribs : NULL);
 
-				glEnableClientState(GL_NORMAL_ARRAY);
-				glVertexPointer(3, GL_FLOAT, 0, dl->verts);
-				glNormalPointer(GL_FLOAT, 0, dl->nors);
-				glDrawElements(GL_QUADS, 4 * dl->parts, GL_UNSIGNED_INT, dl->index);
-				glDisableClientState(GL_NORMAL_ARRAY);
+				gpuSingleClientElements_N3F_V3F(
+					GL_QUADS,
+					dl->nors,
+					0,
+					dl->verts,
+					0,
+					4 * dl->parts,
+					dl->index);
 
 				break;
 		}
 		dl = dl->next;
 	}
 
-	glDisableClientState(GL_VERTEX_ARRAY);
 	glShadeModel(GL_FLAT);
 	glDisable(GL_LIGHTING);
 	glFrontFace(GL_CCW);
@@ -3994,7 +3904,7 @@ static int drawDispList(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *bas
 						GPU_end_object_materials();
 					}
 					if (cu->editnurb && cu->bevobj == NULL && cu->taperobj == NULL && cu->ext1 == 0.0f && cu->ext2 == 0.0f) {
-						cpack(0);
+						gpuCurrentColorPack(0);
 						draw_index_wire = 0;
 						drawDispListwire(lb);
 						draw_index_wire = 1;
@@ -4070,30 +3980,53 @@ static int drawDispList(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *bas
 }
 
 /* *********** drawing for particles ************* */
-static void draw_particle_arrays(int draw_as, int totpoint, int ob_dt, int select)
+static void draw_particle_arrays(int draw_as, int totpoint, int ob_dt, int select, void* c, void *n, void *v)
 {
-	/* draw created data arrays */
-	switch (draw_as) {
-		case PART_DRAW_AXIS:
-		case PART_DRAW_CROSS:
-			glDrawArrays(GL_LINES, 0, 6 * totpoint);
-			break;
-		case PART_DRAW_LINE:
-			glDrawArrays(GL_LINES, 0, 2 * totpoint);
-			break;
-		case PART_DRAW_BB:
-			if (ob_dt <= OB_WIRE || select)
-				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			else
-				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	if (v) {
+		GLenum mode;
+		GLint count;
 
-			glDrawArrays(GL_QUADS, 0, 4 * totpoint);
-			break;
-		default:
-			glDrawArrays(GL_POINTS, 0, totpoint);
-			break;
+		/* draw created data arrays */
+		switch (draw_as) {
+			case PART_DRAW_AXIS:
+			case PART_DRAW_CROSS:
+				mode  = GL_LINES;
+				count = 6 * totpoint;
+				break;
+			case PART_DRAW_LINE:
+				mode  = GL_LINES;
+				count = 2 * totpoint;
+				break;
+			case PART_DRAW_BB:
+				if (ob_dt <= OB_WIRE || select)
+					glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+				else
+					glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+				mode  = GL_QUADS;
+				count = 4 * totpoint;
+				break;
+			default:
+				mode  = GL_POINTS;
+				count = totpoint;
+				break;
+		}
+
+		if (c && n) {
+			gpuSingleClientArrays_C3F_N3F_V3F(mode, c, 0, n, 0, v, 0, 0, count);
+		}
+		else if (c) {
+			gpuSingleClientArrays_C3F_V3F(mode, c, 0, v, 0, 0, count);
+		}
+		else if (n) {
+			gpuSingleClientArrays_N3F_V3F(mode, n, 0, v, 0, 0, count);
+		}
+		else {
+			gpuSingleClientArrays_V3F(mode, v, 0, 0, count);
+		}
 	}
 }
+
 static void draw_particle(ParticleKey *state, int draw_as, short draw, float pixsize,
                           float imat[4][4], float *draw_line, ParticleBillboardData *bb, ParticleDrawData *pdd)
 {
@@ -4201,7 +4134,7 @@ static void draw_particle(ParticleKey *state, int draw_as, short draw, float pix
 		}
 		case PART_DRAW_CIRC:
 		{
-			drawcircball(GL_LINE_LOOP, state->co, pixsize, imat);
+			gpuDrawFastBall(GL_LINE_LOOP, state->co, pixsize, imat);
 			break;
 		}
 		case PART_DRAW_BB:
@@ -4328,7 +4261,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 		copy_v3_v3(ma_col, &ma->r);
 	}
 
-	glColor3ubv(tcol);
+	gpuCurrentColor3ubv(tcol);
 
 	timestep = psys_get_timestep(&sim);
 
@@ -4507,6 +4440,10 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 			totpoint = pdd->totpoint; /* draw data is up to date */
 		}
 		else {
+			if (draw_as == PART_DRAW_CIRC) {
+				gpuImmediateFormat_V3();
+			}
+
 			for (a = 0, pa = pars; a < totpart + totchild; a++, pa++) {
 				/* setup per particle individual stuff */
 				if (a < totpart) {
@@ -4657,7 +4594,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 
 					if (part->draw & PART_DRAW_SIZE) {
 						setlinestyle(3);
-						drawcircball(GL_LINE_LOOP, state.co, pa_size, imat);
+						gpuDrawFastBall(GL_LINE_LOOP, state.co, pa_size, imat);
 						setlinestyle(0);
 					}
 
@@ -4690,86 +4627,98 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 					}
 				}
 			}
+
+			if (draw_as == PART_DRAW_CIRC) {
+				gpuImmediateUnformat();
+			}
 		}
 	}
 /* 6. */
 
 	glGetIntegerv(GL_POLYGON_MODE, polygonmode);
-	glEnableClientState(GL_VERTEX_ARRAY);
 
 	if (draw_as == PART_DRAW_PATH) {
 		ParticleCacheKey **cache, *path;
-		float /* *cd2=NULL, */ /* UNUSED */ *cdata2 = NULL;
+		float* cdata2 = NULL;
 
 		/* setup gl flags */
-		if (1) { //ob_dt > OB_WIRE) {
-			glEnableClientState(GL_NORMAL_ARRAY);
+		glEnable(GL_LIGHTING);
+		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+		glEnable(GL_COLOR_MATERIAL);
 
-			if (part->draw_col == PART_DRAW_COL_MAT)
-				glEnableClientState(GL_COLOR_ARRAY);
-
-			glEnable(GL_LIGHTING);
-			glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-			glEnable(GL_COLOR_MATERIAL);
-		}
-#if 0
-		else {
-			glDisableClientState(GL_NORMAL_ARRAY);
-
-			glDisable(GL_COLOR_MATERIAL);
-			glDisable(GL_LIGHTING);
-			UI_ThemeColor(TH_WIRE);
-		}
-#endif
-
-		if (totchild && (part->draw & PART_DRAW_PARENT) == 0)
+		if (totchild && (part->draw & PART_DRAW_PARENT) == 0) {
 			totpart = 0;
-		else if (psys->pathcache == NULL)
+		}
+		else if (psys->pathcache == NULL) {
 			totpart = 0;
+		}
 
 		/* draw actual/parent particles */
 		cache = psys->pathcache;
 		for (a = 0, pa = psys->particles; a < totpart; a++, pa++) {
 			path = cache[a];
 			if (path->steps > 0) {
-				glVertexPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->co);
-
-				if (1) { //ob_dt > OB_WIRE) {
-					glNormalPointer(GL_FLOAT, sizeof(ParticleCacheKey), path->vel);
-					if (part->draw_col == PART_DRAW_COL_MAT)
-						glColorPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->col);
+				if (part->draw_col == PART_DRAW_COL_MAT) {
+					gpuSingleClientArrays_C3F_N3F_V3F(
+						GL_LINE_STRIP,
+						path->col,
+						sizeof(ParticleCacheKey),
+						path->vel,
+						sizeof(ParticleCacheKey),
+						path->co,
+						sizeof(ParticleCacheKey),
+						0,
+						path->steps + 1);
 				}
-
-				glDrawArrays(GL_LINE_STRIP, 0, path->steps + 1);
+				else {
+					gpuSingleClientArrays_N3F_V3F(
+						GL_LINE_STRIP,
+						path->vel,
+						sizeof(ParticleCacheKey),
+						path->co,
+						sizeof(ParticleCacheKey),
+						0,
+						path->steps + 1);
+				}
 			}
 		}
-		
+
 		/* draw child particles */
 		cache = psys->childcache;
 		for (a = 0; a < totchild; a++) {
 			path = cache[a];
-			glVertexPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->co);
-
-			if (1) { //ob_dt > OB_WIRE) {
-				glNormalPointer(GL_FLOAT, sizeof(ParticleCacheKey), path->vel);
-				if (part->draw_col == PART_DRAW_COL_MAT)
-					glColorPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->col);
+			if (part->draw_col == PART_DRAW_COL_MAT) {
+				gpuSingleClientArrays_C3F_N3F_V3F(
+					GL_LINE_STRIP,
+					path->col,
+					sizeof(ParticleCacheKey),
+					path->vel,
+					sizeof(ParticleCacheKey),
+					path->co,
+					sizeof(ParticleCacheKey),
+					0,
+					path->steps + 1);
 			}
-
-			glDrawArrays(GL_LINE_STRIP, 0, path->steps + 1);
+			else {
+				gpuSingleClientArrays_N3F_V3F(
+					GL_LINE_STRIP,
+					path->vel,
+					sizeof(ParticleCacheKey),
+					path->co,
+					sizeof(ParticleCacheKey),
+					0,
+					path->steps + 1);
+			}
 		}
-
 
 		/* restore & clean up */
-		if (1) { //ob_dt > OB_WIRE) {
-			if (part->draw_col == PART_DRAW_COL_MAT)
-				glDisable(GL_COLOR_ARRAY);
-			glDisable(GL_COLOR_MATERIAL);
-		}
 
-		if (cdata2)
+		glDisable(GL_COLOR_MATERIAL);
+
+		if (cdata2) {
 			MEM_freeN(cdata2);
-		/* cd2= */ /* UNUSED */ cdata2 = NULL;
+			cdata2 = NULL;
+		}
 
 		glLineWidth(1.0f);
 
@@ -4785,32 +4734,36 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 			}
 		}
 	}
-	else if (pdd && ELEM(draw_as, 0, PART_DRAW_CIRC) == 0) {
-		glDisableClientState(GL_COLOR_ARRAY);
+	else if (pdd && !ELEM(draw_as, 0, PART_DRAW_CIRC)) {
+		float* cPtr;
+		float* nPtr;
+		float* vPtr;
 
 		/* enable point data array */
 		if (pdd->vdata) {
-			glEnableClientState(GL_VERTEX_ARRAY);
-			glVertexPointer(3, GL_FLOAT, 0, pdd->vdata);
+			vPtr = pdd->vdata;
 		}
-		else
-			glDisableClientState(GL_VERTEX_ARRAY);
+		else {
+			vPtr = NULL;
+		}
 
 		if (select) {
 			UI_ThemeColor(TH_ACTIVE);
 			
-			if (part->draw_size)
+			if (part->draw_size) {
 				glPointSize(part->draw_size + 2);
-			else
+			}
+			else {
 				glPointSize(4.0);
+			}
 
 			glLineWidth(3.0);
 
-			draw_particle_arrays(draw_as, totpoint, ob_dt, 1);
+			draw_particle_arrays(draw_as, totpoint, ob_dt, 1, NULL, NULL, vPtr);
 		}
 
 		/* restore from select */
-		glColor3fv(ma_col);
+		gpuCurrentColor3fv(ma_col);
 		glPointSize(part->draw_size ? part->draw_size : 2.0);
 		glLineWidth(1.0);
 
@@ -4818,47 +4771,51 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 
 		/* billboards are drawn this way */
 		if (pdd->ndata && ob_dt > OB_WIRE) {
-			glEnableClientState(GL_NORMAL_ARRAY);
-			glNormalPointer(GL_FLOAT, 0, pdd->ndata);
+			nPtr = pdd->ndata;
 			glEnable(GL_LIGHTING);
 		}
 		else {
-			glDisableClientState(GL_NORMAL_ARRAY);
+			nPtr = NULL;
 			glDisable(GL_LIGHTING);
 		}
 
 		if (pdd->cdata) {
-			glEnableClientState(GL_COLOR_ARRAY);
-			glColorPointer(3, GL_FLOAT, 0, pdd->cdata);
+			cPtr = pdd->cdata;
+		}
+		else {
+			cPtr = NULL;
 		}
 
-		draw_particle_arrays(draw_as, totpoint, ob_dt, 0);
+		draw_particle_arrays(draw_as, totpoint, ob_dt, 0, cPtr, nPtr, vPtr);
 
 		pdd->flag |= PARTICLE_DRAW_DATA_UPDATED;
 		pdd->totpoint = totpoint;
 	}
 
 	if (pdd && pdd->vedata) {
-		glDisableClientState(GL_COLOR_ARRAY);
-		cpack(0xC0C0C0);
-		
-		glVertexPointer(3, GL_FLOAT, 0, pdd->vedata);
-		
-		glDrawArrays(GL_LINES, 0, 2 * totve);
+		gpuCurrentColorPack(0xC0C0C0);
+
+		draw_particle_arrays(
+			PART_DRAW_LINE,
+			totve,
+			0,
+			0,
+			NULL,
+			NULL,
+			pdd->vedata);
 	}
 
 	glPolygonMode(GL_FRONT, polygonmode[0]);
-	glPolygonMode(GL_BACK, polygonmode[1]);
+	glPolygonMode(GL_BACK,  polygonmode[1]);
 
 /* 7. */
-	
-	glDisable(GL_LIGHTING);
-	glDisableClientState(GL_COLOR_ARRAY);
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_NORMAL_ARRAY);
 
-	if (states)
+	glDisable(GL_LIGHTING);
+
+	if (states) {
 		MEM_freeN(states);
+		states = NULL;
+	}
 
 	psys->flag &= ~PSYS_DRAWING;
 
@@ -4925,9 +4882,6 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 		pathcol = MEM_callocN(steps * 4 * sizeof(float), "particle path color data");
 	}
 
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_COLOR_ARRAY);
-
 	glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 	glEnable(GL_COLOR_MATERIAL);
 	glShadeModel(GL_SMOOTH);
@@ -4939,25 +4893,50 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 
 	cache = edit->pathcache;
 	for (i = 0; i < totpoint; i++) {
+		GLfloat* cPtr;
+		GLint    cStride;
+
 		path = cache[i];
-		glVertexPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->co);
 
 		if (timed) {
 			for (k = 0, pcol = pathcol, pkey = path; k < steps; k++, pkey++, pcol += 4) {
 				copy_v3_v3(pcol, pkey->col);
-				pcol[3] = 1.0f - fabsf((float)(CFRA) -pkey->time) / (float)pset->fade_frames;
+				pcol[3] = 1.0f - fabsf((float)(CFRA) - pkey->time) / (float)pset->fade_frames;
 			}
 
-			glColorPointer(4, GL_FLOAT, 4 * sizeof(float), pathcol);
+			cPtr    = pathcol;
+			cStride = 0;
 		}
-		else
-			glColorPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->col);
+		else {
+			cPtr    = path->col;
+			cStride = sizeof(ParticleCacheKey);
+		}
 
-		glDrawArrays(GL_LINE_STRIP, 0, path->steps + 1);
+		if (timed) {
+			gpuSingleClientArrays_C4F_V3F(
+				GL_LINE_STRIP,
+				cPtr,
+				cStride,
+				path->co,
+				sizeof(ParticleCacheKey),
+				0,
+				path->steps + 1);
+		}
+		else {
+			gpuSingleClientArrays_C3F_V3F(
+				GL_LINE_STRIP,
+				cPtr,
+				cStride,
+				path->co,
+				sizeof(ParticleCacheKey),
+				0,
+				path->steps + 1);
+		}
 	}
 
-	if (pathcol) { MEM_freeN(pathcol); pathcol = pcol = NULL; }
-
+	if (pathcol) {
+		MEM_freeN(pathcol); pathcol = pcol = NULL; 
+	}
 
 	/* draw edit vertices */
 	if (pset->selectmode != SCE_SELECT_PATH) {
@@ -4968,17 +4947,22 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 			float *cd = NULL, *cdata = NULL;
 			int totkeys = 0;
 
-			for (i = 0, point = edit->points; i < totpoint; i++, point++)
-				if (!(point->flag & PEP_HIDE))
+			for (i = 0, point = edit->points; i < totpoint; i++, point++) {
+				if (!(point->flag & PEP_HIDE)) {
 					totkeys += point->totkey;
+				}
+			}
 
-			if (edit->points && !(edit->points->keys->flag & PEK_USE_WCO))
+			if (edit->points && !(edit->points->keys->flag & PEK_USE_WCO)) {
 				pd = pdata = MEM_callocN(totkeys * 3 * sizeof(float), "particle edit point data");
+			}
+
 			cd = cdata = MEM_callocN(totkeys * (timed ? 4 : 3) * sizeof(float), "particle edit color data");
 
 			for (i = 0, point = edit->points; i < totpoint; i++, point++) {
-				if (point->flag & PEP_HIDE)
+				if (point->flag & PEP_HIDE) {
 					continue;
+				}
 
 				for (k = 0, key = point->keys; k < point->totkey; k++, key++) {
 					if (pd) {
@@ -4993,8 +4977,9 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 						copy_v3_v3(cd, nosel_col);
 					}
 
-					if (timed)
+					if (timed) {
 						*(cd + 3) = 1.0f - fabsf((float)CFRA - *key->time) / (float)pset->fade_frames;
+					}
 
 					cd += (timed ? 4 : 3);
 				}
@@ -5002,49 +4987,80 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 			cd = cdata;
 			pd = pdata;
 			for (i = 0, point = edit->points; i < totpoint; i++, point++) {
-				if (point->flag & PEP_HIDE || point->totkey == 0)
+				GLfloat* vPtr;
+				GLint vStride;
+
+				if (point->flag & PEP_HIDE || point->totkey == 0) {
 					continue;
+				}
 
-				if (point->keys->flag & PEK_USE_WCO)
-					glVertexPointer(3, GL_FLOAT, sizeof(PTCacheEditKey), point->keys->world_co);
-				else
-					glVertexPointer(3, GL_FLOAT, 3 * sizeof(float), pd);
+				if (point->keys->flag & PEK_USE_WCO) {
+					vPtr    = point->keys->world_co;
+					vStride = sizeof(PTCacheEditKey);
+				}
+				else {
+					vPtr    = pd;
+					vStride = 0;
+				}
 
-				glColorPointer((timed ? 4 : 3), GL_FLOAT, (timed ? 4 : 3) * sizeof(float), cd);
-
-				glDrawArrays(GL_POINTS, 0, point->totkey);
+				if (timed) {
+					gpuSingleClientArrays_C4F_V3F(
+						GL_POINTS,
+						cd,
+						0,
+						vPtr,
+						vStride,
+						0,
+						point->totkey);
+				}
+				else {
+					gpuSingleClientArrays_C3F_V3F(
+						GL_POINTS,
+						cd,
+						0,
+						vPtr,
+						vStride,
+						0,
+						point->totkey);
+				}
 
 				pd += pd ? 3 * point->totkey : 0;
 				cd += (timed ? 4 : 3) * point->totkey;
 			}
-			if (pdata) { MEM_freeN(pdata); pd = pdata = NULL; }
-			if (cdata) { MEM_freeN(cdata); cd = cdata = NULL; }
+
+			if (pdata) {
+				MEM_freeN(pdata); pd = pdata = NULL;
+			}
+
+			if (cdata) {
+				MEM_freeN(cdata); cd = cdata = NULL;
+			}
 		}
 		else if (pset->selectmode == SCE_SELECT_END) {
+			gpuImmediateFormat_C4_V3();
+			gpuBegin(GL_POINTS);
 			for (i = 0, point = edit->points; i < totpoint; i++, point++) {
 				if ((point->flag & PEP_HIDE) == 0 && point->totkey) {
 					key = point->keys + point->totkey - 1;
-					if (key->flag & PEK_SELECT)
-						glColor3fv(sel_col);
-					else
-						glColor3fv(nosel_col);
-					/* has to be like this.. otherwise selection won't work, have try glArrayElement later..*/
-					glBegin(GL_POINTS);
-					glVertex3fv(key->flag & PEK_USE_WCO ? key->world_co : key->co);
-					glEnd();
+
+					gpuColor3fv(key->flag & PEK_SELECT ? sel_col : nosel_col);
+					gpuVertex3fv(key->flag & PEK_USE_WCO ? key->world_co : key->co);
 				}
 			}
+			gpuEnd();
+			gpuImmediateUnformat();
 		}
 	}
 
 	glDisable(GL_BLEND);
 	glDisable(GL_LIGHTING);
 	glDisable(GL_COLOR_MATERIAL);
-	glDisableClientState(GL_COLOR_ARRAY);
-	glDisableClientState(GL_NORMAL_ARRAY);
-	glDisableClientState(GL_VERTEX_ARRAY);
 	glShadeModel(GL_FLAT);
-	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
+
+	if (v3d->zbuf) {
+		glEnable(GL_DEPTH_TEST);
+	}
+
 	glLineWidth(1.0f);
 	glPointSize(1.0);
 }
@@ -5059,156 +5075,160 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 	tw = itw * drw_size;
 	th = ith * drw_size;
 
-	glColor4ub(0x7F, 0x00, 0x00, 155);
-	glBegin(GL_LINES);
+	gpuImmediateFormat_V3();
+
+	gpuCurrentColor4ub(0x7F, 0x00, 0x00, 155);
+	gpuBegin(GL_LINES);
 	root[1] = root[2] = 0.0f;
 	root[0] = -drw_size;
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
-	glVertex3fv(root);
+	gpuVertex3fv(root);
 	tip[1] = tip[2] = 0.0f;
 	tip[0] = drw_size;
 	mul_m3_v3(tr, tip);
 	add_v3_v3(tip, com);
-	glVertex3fv(tip);
-	glEnd();
+	gpuVertex3fv(tip);
+	gpuEnd();
 
 	root[1] = 0.0f; root[2] = tw;
 	root[0] = th;
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
-	glVertex3fv(root);
-	glVertex3fv(tip);
-	glEnd();
+	gpuVertex3fv(root);
+	gpuVertex3fv(tip);
+	gpuEnd();
 
 	root[1] = 0.0f; root[2] = -tw;
 	root[0] = th;
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
-	glVertex3fv(root);
-	glVertex3fv(tip);
-	glEnd();
+	gpuVertex3fv(root);
+	gpuVertex3fv(tip);
+	gpuEnd();
 
 	root[1] = tw; root[2] = 0.0f;
 	root[0] = th;
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
-	glVertex3fv(root);
-	glVertex3fv(tip);
-	glEnd();
+	gpuVertex3fv(root);
+	gpuVertex3fv(tip);
+	gpuEnd();
 
 	root[1] = -tw; root[2] = 0.0f;
 	root[0] = th;
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
-	glVertex3fv(root);
-	glVertex3fv(tip);
-	glEnd();
+	gpuVertex3fv(root);
+	gpuVertex3fv(tip);
+	gpuEnd();
 
-	glColor4ub(0x00, 0x7F, 0x00, 155);
+	gpuCurrentColor4ub(0x00, 0x7F, 0x00, 155);
 
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	root[0] = root[2] = 0.0f;
 	root[1] = -drw_size;
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
-	glVertex3fv(root);
+	gpuVertex3fv(root);
 	tip[0] = tip[2] = 0.0f;
 	tip[1] = drw_size;
 	mul_m3_v3(tr, tip);
 	add_v3_v3(tip, com);
-	glVertex3fv(tip);
-	glEnd();
+	gpuVertex3fv(tip);
+	gpuEnd();
 
 	root[0] = 0.0f; root[2] = tw;
 	root[1] = th;
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
-	glVertex3fv(root);
-	glVertex3fv(tip);
-	glEnd();
+	gpuVertex3fv(root);
+	gpuVertex3fv(tip);
+	gpuEnd();
 
 	root[0] = 0.0f; root[2] = -tw;
 	root[1] = th;
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
-	glVertex3fv(root);
-	glVertex3fv(tip);
-	glEnd();
+	gpuVertex3fv(root);
+	gpuVertex3fv(tip);
+	gpuEnd();
 
 	root[0] = tw; root[2] = 0.0f;
 	root[1] = th;
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
-	glVertex3fv(root);
-	glVertex3fv(tip);
-	glEnd();
+	gpuVertex3fv(root);
+	gpuVertex3fv(tip);
+	gpuEnd();
 
 	root[0] = -tw; root[2] = 0.0f;
 	root[1] = th;
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
-	glVertex3fv(root);
-	glVertex3fv(tip);
-	glEnd();
+	gpuVertex3fv(root);
+	gpuVertex3fv(tip);
+	gpuEnd();
 
-	glColor4ub(0x00, 0x00, 0x7F, 155);
-	glBegin(GL_LINES);
+	gpuCurrentColor4ub(0x00, 0x00, 0x7F, 155);
+	gpuBegin(GL_LINES);
 	root[0] = root[1] = 0.0f;
 	root[2] = -drw_size;
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
-	glVertex3fv(root);
+	gpuVertex3fv(root);
 	tip[0] = tip[1] = 0.0f;
 	tip[2] = drw_size;
 	mul_m3_v3(tr, tip);
 	add_v3_v3(tip, com);
-	glVertex3fv(tip);
-	glEnd();
+	gpuVertex3fv(tip);
+	gpuEnd();
 
 	root[0] = 0.0f; root[1] = tw;
 	root[2] = th;
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
-	glVertex3fv(root);
-	glVertex3fv(tip);
-	glEnd();
+	gpuVertex3fv(root);
+	gpuVertex3fv(tip);
+	gpuEnd();
 
 	root[0] = 0.0f; root[1] = -tw;
 	root[2] = th;
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
-	glVertex3fv(root);
-	glVertex3fv(tip);
-	glEnd();
+	gpuVertex3fv(root);
+	gpuVertex3fv(tip);
+	gpuEnd();
 
 	root[0] = tw; root[1] = 0.0f;
 	root[2] = th;
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
-	glVertex3fv(root);
-	glVertex3fv(tip);
-	glEnd();
+	gpuVertex3fv(root);
+	gpuVertex3fv(tip);
+	gpuEnd();
 
 	root[0] = -tw; root[1] = 0.0f;
 	root[2] = th;
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
-	glVertex3fv(root);
-	glVertex3fv(tip);
-	glEnd();
+	gpuVertex3fv(root);
+	gpuVertex3fv(tip);
+	gpuEnd();
+
+	gpuImmediateUnformat();
 }
 
 /*place to add drawers */
@@ -5221,7 +5241,7 @@ static void tekenhandlesN(Nurb *nu, short sel, short hide_handles)
 
 	if (nu->hide || hide_handles) return;
 
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 
 	if (nu->type == CU_BEZIER) {
 
@@ -5241,27 +5261,27 @@ static void tekenhandlesN(Nurb *nu, short sel, short hide_handles)
 				if ( (bezt->f2 & SELECT) == sel) {
 					fp = bezt->vec[0];
 
-					glColor3ubv(handle_cols[MIN2(bezt->h1, TH_HANDLE_COL_TOT - 1)]);
-					glVertex3fv(fp);
-					glVertex3fv(fp + 3);
+					gpuColor3ubv(handle_cols[MIN2(bezt->h1, TH_HANDLE_COL_TOT - 1)]);
+					gpuVertex3fv(fp);
+					gpuVertex3fv(fp + 3);
 
-					glColor3ubv(handle_cols[MIN2(bezt->h2, TH_HANDLE_COL_TOT - 1)]);
-					glVertex3fv(fp + 3);
-					glVertex3fv(fp + 6);
+					gpuColor3ubv(handle_cols[MIN2(bezt->h2, TH_HANDLE_COL_TOT - 1)]);
+					gpuVertex3fv(fp + 3);
+					gpuVertex3fv(fp + 6);
 				}
 				else if ( (bezt->f1 & SELECT) == sel) {
 					fp = bezt->vec[0];
 
-					glColor3ubv(handle_cols[MIN2(bezt->h1, TH_HANDLE_COL_TOT - 1)]);
-					glVertex3fv(fp);
-					glVertex3fv(fp + 3);
+					gpuColor3ubv(handle_cols[MIN2(bezt->h1, TH_HANDLE_COL_TOT - 1)]);
+					gpuVertex3fv(fp);
+					gpuVertex3fv(fp + 3);
 				}
 				else if ( (bezt->f3 & SELECT) == sel) {
 					fp = bezt->vec[1];
 
-					glColor3ubv(handle_cols[MIN2(bezt->h2, TH_HANDLE_COL_TOT - 1)]);
-					glVertex3fv(fp);
-					glVertex3fv(fp + 3);
+					gpuColor3ubv(handle_cols[MIN2(bezt->h2, TH_HANDLE_COL_TOT - 1)]);
+					gpuVertex3fv(fp);
+					gpuVertex3fv(fp + 3);
 				}
 			}
 			bezt++;
@@ -5270,7 +5290,7 @@ static void tekenhandlesN(Nurb *nu, short sel, short hide_handles)
 #undef TH_HANDLE_COL_TOT
 
 	}
-	glEnd();
+	gpuEnd();
 }
 
 static void tekenhandlesN_active(Nurb *nu)
@@ -5284,7 +5304,7 @@ static void tekenhandlesN_active(Nurb *nu)
 	UI_ThemeColor(TH_ACTIVE_SPLINE);
 	glLineWidth(2);
 
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 
 	if (nu->type == CU_BEZIER) {
 		bezt = nu->bezt;
@@ -5293,18 +5313,18 @@ static void tekenhandlesN_active(Nurb *nu)
 			if (bezt->hide == 0) {
 				fp = bezt->vec[0];
 
-				glVertex3fv(fp);
-				glVertex3fv(fp + 3);
+				gpuVertex3fv(fp);
+				gpuVertex3fv(fp + 3);
 
-				glVertex3fv(fp + 3);
-				glVertex3fv(fp + 6);
+				gpuVertex3fv(fp + 3);
+				gpuVertex3fv(fp + 6);
 			}
 			bezt++;
 		}
 	}
-	glEnd();
+	gpuEnd();
 
-	glColor3ub(0, 0, 0);
+	gpuCurrentColor3ub(0, 0, 0);
 	glLineWidth(1);
 }
 
@@ -5325,7 +5345,7 @@ static void tekenvertsN(Nurb *nu, short sel, short hide_handles, void *lastsel)
 	size = UI_GetThemeValuef(TH_VERTEX_SIZE);
 	glPointSize(size);
 	
-	bglBegin(GL_POINTS);
+	gpuBeginSprites();
 	
 	if (nu->type == CU_BEZIER) {
 
@@ -5334,23 +5354,23 @@ static void tekenvertsN(Nurb *nu, short sel, short hide_handles, void *lastsel)
 		while (a--) {
 			if (bezt->hide == 0) {
 				if (sel == 1 && bezt == lastsel) {
-					UI_ThemeColor(TH_LASTSEL_POINT);
-					bglVertex3fv(bezt->vec[1]);
+					UI_ThemeAppendColor(TH_LASTSEL_POINT);
+					gpuSprite3fv(bezt->vec[1]);
 
 					if (!hide_handles) {
-						if (bezt->f1 & SELECT) bglVertex3fv(bezt->vec[0]);
-						if (bezt->f3 & SELECT) bglVertex3fv(bezt->vec[2]);
+						if (bezt->f1 & SELECT) gpuSprite3fv(bezt->vec[0]);
+						if (bezt->f3 & SELECT) gpuSprite3fv(bezt->vec[2]);
 					}
 
-					UI_ThemeColor(color);
+					UI_ThemeAppendColor(color);
 				}
 				else if (hide_handles) {
-					if ((bezt->f2 & SELECT) == sel) bglVertex3fv(bezt->vec[1]);
+					if ((bezt->f2 & SELECT) == sel) gpuSprite3fv(bezt->vec[1]);
 				}
 				else {
-					if ((bezt->f1 & SELECT) == sel) bglVertex3fv(bezt->vec[0]);
-					if ((bezt->f2 & SELECT) == sel) bglVertex3fv(bezt->vec[1]);
-					if ((bezt->f3 & SELECT) == sel) bglVertex3fv(bezt->vec[2]);
+					if ((bezt->f1 & SELECT) == sel) gpuSprite3fv(bezt->vec[0]);
+					if ((bezt->f2 & SELECT) == sel) gpuSprite3fv(bezt->vec[1]);
+					if ((bezt->f3 & SELECT) == sel) gpuSprite3fv(bezt->vec[2]);
 				}
 			}
 			bezt++;
@@ -5362,19 +5382,19 @@ static void tekenvertsN(Nurb *nu, short sel, short hide_handles, void *lastsel)
 		while (a--) {
 			if (bp->hide == 0) {
 				if (bp == lastsel) {
-					UI_ThemeColor(TH_LASTSEL_POINT);
-					bglVertex3fv(bp->vec);
-					UI_ThemeColor(color);
+					UI_ThemeAppendColor(TH_LASTSEL_POINT);
+					gpuSprite3fv(bp->vec);
+					UI_ThemeAppendColor(color);
 				}
 				else {
-					if ((bp->f1 & SELECT) == sel) bglVertex3fv(bp->vec);
+					if ((bp->f1 & SELECT) == sel) gpuSprite3fv(bp->vec);
 				}
 			}
 			bp++;
 		}
 	}
 	
-	bglEnd();
+	gpuEndSprites();
 	glPointSize(1.0);
 }
 
@@ -5388,17 +5408,17 @@ static void editnurb_draw_active_poly(Nurb *nu)
 
 	bp = nu->bp;
 	for (b = 0; b < nu->pntsv; b++) {
-		if (nu->flagu & 1) glBegin(GL_LINE_LOOP);
-		else glBegin(GL_LINE_STRIP);
+		if (nu->flagu & 1) gpuBegin(GL_LINE_LOOP);
+		else gpuBegin(GL_LINE_STRIP);
 
 		for (a = 0; a < nu->pntsu; a++, bp++) {
-			glVertex3fv(bp->vec);
+			gpuVertex3fv(bp->vec);
 		}
 
-		glEnd();
+		gpuEnd();
 	}
 
-	glColor3ub(0, 0, 0);
+	gpuCurrentColor3ub(0, 0, 0);
 	glLineWidth(1);
 }
 
@@ -5410,7 +5430,7 @@ static void editnurb_draw_active_nurbs(Nurb *nu)
 	UI_ThemeColor(TH_ACTIVE_SPLINE);
 	glLineWidth(2);
 
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	bp = nu->bp;
 	for (b = 0; b < nu->pntsv; b++) {
 		bp1 = bp;
@@ -5418,8 +5438,8 @@ static void editnurb_draw_active_nurbs(Nurb *nu)
 
 		for (a = nu->pntsu - 1; a > 0; a--, bp++) {
 			if (bp->hide == 0 && bp1->hide == 0) {
-				glVertex3fv(bp->vec);
-				glVertex3fv(bp1->vec);
+				gpuVertex3fv(bp->vec);
+				gpuVertex3fv(bp1->vec);
 			}
 			bp1 = bp;
 		}
@@ -5433,17 +5453,17 @@ static void editnurb_draw_active_nurbs(Nurb *nu)
 			bp = bp1 + ofs;
 			for (a = nu->pntsv - 1; a > 0; a--, bp += ofs) {
 				if (bp->hide == 0 && bp1->hide == 0) {
-					glVertex3fv(bp->vec);
-					glVertex3fv(bp1->vec);
+					gpuVertex3fv(bp->vec);
+					gpuVertex3fv(bp1->vec);
 				}
 				bp1 = bp;
 			}
 		}
 	}
 
-	glEnd();
+	gpuEnd();
 
-	glColor3ub(0, 0, 0);
+	gpuCurrentColor3ub(0, 0, 0);
 	glLineWidth(1);
 }
 
@@ -5468,14 +5488,14 @@ static void draw_editnurb(Object *ob, Nurb *nurb, int sel)
 					UI_ThemeColor(TH_NURB_ULINE);
 					bp = nu->bp;
 					for (b = 0; b < nu->pntsv; b++) {
-						if (nu->flagu & 1) glBegin(GL_LINE_LOOP);
-						else glBegin(GL_LINE_STRIP);
+						if (nu->flagu & 1) gpuBegin(GL_LINE_LOOP);
+						else gpuBegin(GL_LINE_STRIP);
 
 						for (a = 0; a < nu->pntsu; a++, bp++) {
-							glVertex3fv(bp->vec);
+							gpuVertex3fv(bp->vec);
 						}
 
-						glEnd();
+						gpuEnd();
 					}
 					break;
 				case CU_NURBS:
@@ -5494,10 +5514,10 @@ static void draw_editnurb(Object *ob, Nurb *nurb, int sel)
 									if ( (bp->f1 & SELECT) && (bp1->f1 & SELECT) ) {
 										UI_ThemeColor(TH_NURB_SEL_ULINE);
 
-										glBegin(GL_LINE_STRIP);
-										glVertex3fv(bp->vec);
-										glVertex3fv(bp1->vec);
-										glEnd();
+										gpuBegin(GL_LINE_STRIP);
+										gpuVertex3fv(bp->vec);
+										gpuVertex3fv(bp1->vec);
+										gpuEnd();
 									}
 								}
 								else {
@@ -5507,10 +5527,10 @@ static void draw_editnurb(Object *ob, Nurb *nurb, int sel)
 									else {
 										UI_ThemeColor(TH_NURB_ULINE);
 
-										glBegin(GL_LINE_STRIP);
-										glVertex3fv(bp->vec);
-										glVertex3fv(bp1->vec);
-										glEnd();
+										gpuBegin(GL_LINE_STRIP);
+										gpuVertex3fv(bp->vec);
+										gpuVertex3fv(bp1->vec);
+										gpuEnd();
 									}
 								}
 							}
@@ -5529,10 +5549,10 @@ static void draw_editnurb(Object *ob, Nurb *nurb, int sel)
 										if ( (bp->f1 & SELECT) && (bp1->f1 & SELECT) ) {
 											UI_ThemeColor(TH_NURB_SEL_VLINE);
 
-											glBegin(GL_LINE_STRIP);
-											glVertex3fv(bp->vec);
-											glVertex3fv(bp1->vec);
-											glEnd();
+											gpuBegin(GL_LINE_STRIP);
+											gpuVertex3fv(bp->vec);
+											gpuVertex3fv(bp1->vec);
+											gpuEnd();
 										}
 									}
 									else {
@@ -5542,10 +5562,10 @@ static void draw_editnurb(Object *ob, Nurb *nurb, int sel)
 										else {
 											UI_ThemeColor(TH_NURB_VLINE);
 
-											glBegin(GL_LINE_STRIP);
-											glVertex3fv(bp->vec);
-											glVertex3fv(bp1->vec);
-											glEnd();
+											gpuBegin(GL_LINE_STRIP);
+											gpuVertex3fv(bp->vec);
+											gpuVertex3fv(bp1->vec);
+											gpuEnd();
 										}
 									}
 								}
@@ -5577,8 +5597,12 @@ static void drawnurb(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 	UI_ThemeColor(TH_WIRE);
 	drawDispList(scene, v3d, rv3d, base, dt);
 
-	if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
-	
+	gpuImmediateFormat_V3();
+
+	if (v3d->zbuf) {
+		glDisable(GL_DEPTH_TEST);
+	}
+
 	/* first non-selected and active handles */
 	index = 0;
 	for (nu = nurb; nu; nu = nu->next) {
@@ -5589,6 +5613,7 @@ static void drawnurb(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 		}
 		index++;
 	}
+
 	draw_editnurb(ob, nurb, 0);
 	draw_editnurb(ob, nurb, 1);
 	/* selected handles */
@@ -5604,12 +5629,14 @@ static void drawnurb(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 	 * when at its lowest, don't render normals */
 	if ((cu->flag & CU_3D) && (ts->normalsize > 0.0015f) && (cu->drawflag & CU_HIDE_NORMALS) == 0) {
 
+
 		UI_ThemeColor(TH_WIRE);
+
 		for (bl = cu->bev.first, nu = nurb; nu && bl; bl = bl->next, nu = nu->next) {
 			BevPoint *bevp = (BevPoint *)(bl + 1);
 			int nr = bl->nr;
 			int skip = nu->resolu / 16;
-			
+
 			while (nr-- > 0) { /* accounts for empty bevel lists */
 				const float fac = bevp->radius * ts->normalsize;
 				float vec_a[3]; // Offset perpendicular to the curve
@@ -5622,7 +5649,7 @@ static void drawnurb(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 				vec_b[0] = -fac;
 				vec_b[1] = 0.0f;
 				vec_b[2] = 0.0f;
-				
+
 				mul_qt_v3(bevp->quat, vec_a);
 				mul_qt_v3(bevp->quat, vec_b);
 				add_v3_v3(vec_a, bevp->vec);
@@ -5631,81 +5658,85 @@ static void drawnurb(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 				madd_v3_v3fl(vec_a, bevp->dir, -fac);
 				madd_v3_v3fl(vec_b, bevp->dir, -fac);
 
-				glBegin(GL_LINE_STRIP);
-				glVertex3fv(vec_a);
-				glVertex3fv(bevp->vec);
-				glVertex3fv(vec_b);
-				glEnd();
-				
+				gpuBegin(GL_LINE_STRIP);
+				gpuVertex3fv(vec_a);
+				gpuVertex3fv(bevp->vec);
+				gpuVertex3fv(vec_b);
+				gpuEnd();
+
 				bevp += skip + 1;
 				nr -= skip;
 			}
 		}
+
 	}
 
-	if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
-	
+	if (v3d->zbuf) {
+		glDisable(GL_DEPTH_TEST);
+	}
+
 	for (nu = nurb; nu; nu = nu->next) {
 		tekenvertsN(nu, 1, hide_handles, cu->lastsel);
 	}
-	
-	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
+
+	if (v3d->zbuf) {
+		glEnable(GL_DEPTH_TEST);
+	}
+
+	gpuImmediateUnformat();
 }
 
 /* draw a sphere for use as an empty drawtype */
 static void draw_empty_sphere(float size)
 {
-	static GLuint displist = 0;
-	
-	if (displist == 0) {
-		GLUquadricObj   *qobj;
-		
-		displist = glGenLists(1);
-		glNewList(displist, GL_COMPILE);
-		
-		glPushMatrix();
-		
-		qobj = gluNewQuadric();
-		gluQuadricDrawStyle(qobj, GLU_SILHOUETTE);
-		gluDisk(qobj, 0.0,  1, 16, 1);
-		
-		glRotatef(90, 0, 1, 0);
-		gluDisk(qobj, 0.0,  1, 16, 1);
-		
-		glRotatef(90, 1, 0, 0);
-		gluDisk(qobj, 0.0,  1, 16, 1);
-		
-		gluDeleteQuadric(qobj);
-		
-		glPopMatrix();
-		glEndList();
-	}
-	
+	glPushMatrix();
 	glScalef(size, size, size);
-	glCallList(displist);
-	glScalef(1.0f / size, 1.0f / size, 1.0f / size);
+
+	gpuImmediateFormat_V2();
+
+	gpuDrawCircle(0, 0, 1, 16);
+
+	glRotatef(90, 0, 1, 0);
+	gpuRepeat();
+
+	glRotatef(90, 1, 0, 0);
+	gpuRepeat();
+
+	gpuImmediateUnformat();
+
+	glPopMatrix();
 }
 
 /* draw a cone for use as an empty drawtype */
 static void draw_empty_cone(float size)
 {
-	float cent = 0;
-	float radius;
-	GLUquadricObj *qobj = gluNewQuadric();
-	gluQuadricDrawStyle(qobj, GLU_SILHOUETTE);
-	
-	
+	static GPUimmediate *displist;
+	static GPUindex *index;
+
 	glPushMatrix();
-	
-	radius = size;
-	glTranslatef(cent, cent, cent);
-	glScalef(radius, size * 2.0f, radius);
+	glScalef(size, 2.0f * size, size);
 	glRotatef(-90.0, 1.0, 0.0, 0.0);
-	gluCylinder(qobj, 1.0, 0.0, 1.0, 8, 1);
+
+	if (!displist) {
+		GPUprim3 prim = GPU_PRIM_LOFI_WIRE;
+		prim.vsegs = 1;
+
+		gpuPushImmediate();
+		gpuImmediateMaxVertexCount(16);
+
+		index = gpuNewIndex();
+		gpuImmediateIndex(index);
+		gpuImmediateMaxIndexCount(96);
+
+		//GLU gluCylinder(qobj, 1.0, 0.0, 1.0, 8, 1);
+		gpuSingleCone(&prim, 1, 1);
+		displist = gpuPopImmediate();
+	}
+	else {
+		gpuImmediateSingleDrawElements(GL_LINES, displist);
+	}
 
 	glPopMatrix();
-	
-	gluDeleteQuadric(qobj);
 }
 
 /* draw points on curve speed handles */
@@ -5726,144 +5757,59 @@ static void curve_draw_speed(Scene *scene, Object *ob)
 		return;
 	
 	glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
-	bglBegin(GL_POINTS);
+	gpuBeginSprites();
 
 	for (a = 0, bezt = icu->bezt; a < icu->totvert; a++, bezt++) {
 		if (where_on_path(ob, bezt->vec[1][1], loc, dir)) {
 			UI_ThemeColor((bezt->f2 & SELECT) && ob == OBACT ? TH_VERTEX_SELECT : TH_VERTEX);
-			bglVertex3fv(loc);
+			gpuSprite3fv(loc);
 		}
 	}
 
 	glPointSize(1.0);
-	bglEnd();
+	gpuEndSprites();
 }
 #endif // XXX old animation system stuff
 
 
 static void draw_textcurs(float textcurs[4][2])
 {
-	cpack(0);
-	
+	gpuImmediateFormat_V3();
+
+	gpuCurrentColorPack(0x000000);
 	set_inverted_drawing(1);
-	glBegin(GL_QUADS);
-	glVertex2fv(textcurs[0]);
-	glVertex2fv(textcurs[1]);
-	glVertex2fv(textcurs[2]);
-	glVertex2fv(textcurs[3]);
-	glEnd();
+	gpuBegin(GL_QUADS);
+	gpuVertex2fv(textcurs[0]);
+	gpuVertex2fv(textcurs[1]);
+	gpuVertex2fv(textcurs[2]);
+	gpuVertex2fv(textcurs[3]);
+	gpuEnd();
 	set_inverted_drawing(0);
-}
 
-static void drawspiral(const float cent[3], float rad, float tmat[][4], int start)
-{
-	float vec[3], vx[3], vy[3];
-	const float tot_inv = (1.0f / (float)CIRCLE_RESOL);
-	int a;
-	char inverse = FALSE;
-	float x, y, fac;
-
-	if (start < 0) {
-		inverse = TRUE;
-		start = -start;
-	}
-
-	mul_v3_v3fl(vx, tmat[0], rad);
-	mul_v3_v3fl(vy, tmat[1], rad);
-
-	glBegin(GL_LINE_STRIP);
-
-	if (inverse == 0) {
-		copy_v3_v3(vec, cent);
-		glVertex3fv(vec);
-
-		for (a = 0; a < CIRCLE_RESOL; a++) {
-			if (a + start >= CIRCLE_RESOL)
-				start = -a + 1;
-
-			fac = (float)a * tot_inv;
-			x = sinval[a + start] * fac;
-			y = cosval[a + start] * fac;
-
-			vec[0] = cent[0] + (x * vx[0] + y * vy[0]);
-			vec[1] = cent[1] + (x * vx[1] + y * vy[1]);
-			vec[2] = cent[2] + (x * vx[2] + y * vy[2]);
-
-			glVertex3fv(vec);
-		}
-	}
-	else {
-		fac = (float)(CIRCLE_RESOL - 1) * tot_inv;
-		x = sinval[start] * fac;
-		y = cosval[start] * fac;
-
-		vec[0] = cent[0] + (x * vx[0] + y * vy[0]);
-		vec[1] = cent[1] + (x * vx[1] + y * vy[1]);
-		vec[2] = cent[2] + (x * vx[2] + y * vy[2]);
-
-		glVertex3fv(vec);
-
-		for (a = 0; a < CIRCLE_RESOL; a++) {
-			if (a + start >= CIRCLE_RESOL)
-				start = -a + 1;
-
-			fac = (float)(-a + (CIRCLE_RESOL - 1)) * tot_inv;
-			x = sinval[a + start] * fac;
-			y = cosval[a + start] * fac;
-
-			vec[0] = cent[0] + (x * vx[0] + y * vy[0]);
-			vec[1] = cent[1] + (x * vx[1] + y * vy[1]);
-			vec[2] = cent[2] + (x * vx[2] + y * vy[2]);
-			glVertex3fv(vec);
-		}
-	}
-
-	glEnd();
-}
-
-/* draws a circle on x-z plane given the scaling of the circle, assuming that 
- * all required matrices have been set (used for drawing empties)
- */
-static void drawcircle_size(float size)
-{
-	float x, y;
-	short degrees;
-
-	glBegin(GL_LINE_LOOP);
-
-	/* coordinates are: cos(degrees*11.25)=x, sin(degrees*11.25)=y, 0.0f=z */
-	for (degrees = 0; degrees < CIRCLE_RESOL; degrees++) {
-		x = cosval[degrees];
-		y = sinval[degrees];
-		
-		glVertex3f(x * size, 0.0f, y * size);
-	}
-	
-	glEnd();
-
+	gpuImmediateUnformat();
 }
 
 /* needs fixing if non-identity matrice used */
 static void drawtube(const float vec[3], float radius, float height, float tmat[][4])
 {
 	float cur[3];
-	drawcircball(GL_LINE_LOOP, vec, radius, tmat);
+	gpuDrawFastBall(GL_LINE_LOOP, vec, radius, tmat);
 
 	copy_v3_v3(cur, vec);
 	cur[2] += height;
 
-	drawcircball(GL_LINE_LOOP, cur, radius, tmat);
+	gpuDrawFastBall(GL_LINE_LOOP, cur, radius, tmat);
 
-	glBegin(GL_LINES);
-	glVertex3f(vec[0] + radius, vec[1], vec[2]);
-	glVertex3f(cur[0] + radius, cur[1], cur[2]);
-	glVertex3f(vec[0] - radius, vec[1], vec[2]);
-	glVertex3f(cur[0] - radius, cur[1], cur[2]);
-	glVertex3f(vec[0], vec[1] + radius, vec[2]);
-	glVertex3f(cur[0], cur[1] + radius, cur[2]);
-	glVertex3f(vec[0], vec[1] - radius, vec[2]);
-	glVertex3f(cur[0], cur[1] - radius, cur[2]);
-	glEnd();
+	gpuBegin(GL_LINES);
+	gpuVertex3f(vec[0] + radius, vec[1], vec[2]);
+	gpuVertex3f(cur[0] + radius, cur[1], cur[2]);
+	gpuVertex3f(vec[0] - radius, vec[1], vec[2]);
+	gpuVertex3f(cur[0] - radius, cur[1], cur[2]);
+	gpuVertex3f(vec[0], vec[1] + radius, vec[2]);
+	gpuVertex3f(cur[0], cur[1] + radius, cur[2]);
+	gpuVertex3f(vec[0], vec[1] - radius, vec[2]);
+	gpuVertex3f(cur[0], cur[1] - radius, cur[2]);
+	gpuEnd();
 }
 /* needs fixing if non-identity matrice used */
 static void drawcone(const float vec[3], float radius, float height, float tmat[][4])
@@ -5873,19 +5819,20 @@ static void drawcone(const float vec[3], float radius, float height, float tmat[
 	copy_v3_v3(cur, vec);
 	cur[2] += height;
 
-	drawcircball(GL_LINE_LOOP, cur, radius, tmat);
+	gpuDrawFastBall(GL_LINE_LOOP, cur, radius, tmat);
 
-	glBegin(GL_LINES);
-	glVertex3f(vec[0], vec[1], vec[2]);
-	glVertex3f(cur[0] + radius, cur[1], cur[2]);
-	glVertex3f(vec[0], vec[1], vec[2]);
-	glVertex3f(cur[0] - radius, cur[1], cur[2]);
-	glVertex3f(vec[0], vec[1], vec[2]);
-	glVertex3f(cur[0], cur[1] + radius, cur[2]);
-	glVertex3f(vec[0], vec[1], vec[2]);
-	glVertex3f(cur[0], cur[1] - radius, cur[2]);
-	glEnd();
+	gpuBegin(GL_LINES);
+	gpuVertex3f(vec[0], vec[1], vec[2]);
+	gpuVertex3f(cur[0] + radius, cur[1], cur[2]);
+	gpuVertex3f(vec[0], vec[1], vec[2]);
+	gpuVertex3f(cur[0] - radius, cur[1], cur[2]);
+	gpuVertex3f(vec[0], vec[1], vec[2]);
+	gpuVertex3f(cur[0], cur[1] + radius, cur[2]);
+	gpuVertex3f(vec[0], vec[1], vec[2]);
+	gpuVertex3f(cur[0], cur[1] - radius, cur[2]);
+	gpuEnd();
 }
+
 /* return 1 if nothing was drawn */
 static int drawmball(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, int dt)
 {
@@ -5894,63 +5841,85 @@ static int drawmball(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 	MetaElem *ml;
 	float imat[4][4];
 	int code = 1;
-	
+
 	mb = ob->data;
 
 	if (mb->editelems) {
 		UI_ThemeColor(TH_WIRE);
-		if ((G.f & G_PICKSEL) == 0) drawDispList(scene, v3d, rv3d, base, dt);
+
+		if ((G.f & G_PICKSEL) == 0) {
+			drawDispList(scene, v3d, rv3d, base, dt);
+		}
+
 		ml = mb->editelems->first;
 	}
 	else {
-		if ((base->flag & OB_FROMDUPLI) == 0)
+		if ((base->flag & OB_FROMDUPLI) == 0) {
 			drawDispList(scene, v3d, rv3d, base, dt);
+		}
+
 		ml = mb->elems.first;
 	}
 
-	if (ml == NULL) return 1;
+	if (ml == NULL) {
+		return 1;
+	}
 
-	if (v3d->flag2 & V3D_RENDER_OVERRIDE) return 0;
-	
+	if (v3d->flag2 & V3D_RENDER_OVERRIDE) {
+		return 0;
+	}
+
 	/* in case solid draw, reset wire colors */
 	if (ob->flag & SELECT) {
-		if (ob == OBACT) UI_ThemeColor(TH_ACTIVE);
-		else UI_ThemeColor(TH_SELECT);
+		if (ob == OBACT) {
+			UI_ThemeColor(TH_ACTIVE);
+		}
+		else {
+			UI_ThemeColor(TH_SELECT);
+		}
 	}
-	else UI_ThemeColor(TH_WIRE);
+	else {
+		UI_ThemeColor(TH_WIRE);
+	}
 
 	invert_m4_m4(imat, rv3d->viewmatob);
 	normalize_v3(imat[0]);
 	normalize_v3(imat[1]);
-	
+
+	gpuImmediateFormat_V3();
+
 	while (ml) {
 
 		/* draw radius */
 		if (mb->editelems) {
-			if ((ml->flag & SELECT) && (ml->flag & MB_SCALE_RAD)) cpack(0xA0A0F0);
-			else cpack(0x3030A0);
+			if ((ml->flag & SELECT) && (ml->flag & MB_SCALE_RAD)) gpuCurrentColorPack(0xA0A0F0);
+			else gpuCurrentColorPack(0x3030A0);
 			
 			if (G.f & G_PICKSEL) {
 				ml->selcol1 = code;
 				glLoadName(code++);
 			}
 		}
-		drawcircball(GL_LINE_LOOP, &(ml->x), ml->rad, imat);
+
+		gpuDrawFastBall(GL_LINE_LOOP, &(ml->x), ml->rad, imat);
 
 		/* draw stiffness */
 		if (mb->editelems) {
-			if ((ml->flag & SELECT) && !(ml->flag & MB_SCALE_RAD)) cpack(0xA0F0A0);
-			else cpack(0x30A030);
+			if ((ml->flag & SELECT) && !(ml->flag & MB_SCALE_RAD)) gpuCurrentColorPack(0xA0F0A0);
+			else gpuCurrentColorPack(0x30A030);
 			
 			if (G.f & G_PICKSEL) {
 				ml->selcol2 = code;
 				glLoadName(code++);
 			}
-			drawcircball(GL_LINE_LOOP, &(ml->x), ml->rad * atanf(ml->s) / (float)M_PI_2, imat);
+			gpuDrawFastBall(GL_LINE_LOOP, &(ml->x), ml->rad * atanf(ml->s) / (float)M_PI_2, imat);
 		}
-		
+
 		ml = ml->next;
 	}
+
+	gpuImmediateUnformat();
+
 	return 0;
 }
 
@@ -5961,6 +5930,8 @@ static void draw_forcefield(Scene *scene, Object *ob, RegionView3D *rv3d)
 	float vec[3] = {0.0, 0.0, 0.0};
 	int curcol;
 	float size;
+
+	gpuImmediateFormat_V3(); // DOODLE: force field
 
 	/* XXX why? */
 	if (ob != scene->obedit && (ob->flag & SELECT)) {
@@ -5991,15 +5962,14 @@ static void draw_forcefield(Scene *scene, Object *ob, RegionView3D *rv3d)
 			force_val = pd->f_strength;
 		}
 		force_val *= 0.1f;
-		drawcircball(GL_LINE_LOOP, vec, size, tmat);
+		gpuDrawFastBall(GL_LINE_LOOP, vec, size, tmat);
 		vec[2] = 0.5f * force_val;
-		drawcircball(GL_LINE_LOOP, vec, size, tmat);
+		gpuDrawFastBall(GL_LINE_LOOP, vec, size, tmat);
 		vec[2] = 1.0f * force_val;
-		drawcircball(GL_LINE_LOOP, vec, size, tmat);
+		gpuDrawFastBall(GL_LINE_LOOP, vec, size, tmat);
 		vec[2] = 1.5f * force_val;
-		drawcircball(GL_LINE_LOOP, vec, size, tmat);
+		gpuDrawFastBall(GL_LINE_LOOP, vec, size, tmat);
 		vec[2] = 0.0f; /* reset vec for max dist circle */
-		
 	}
 	else if (pd->forcefield == PFIELD_FORCE) {
 		float ffall_val;
@@ -6012,11 +5982,11 @@ static void draw_forcefield(Scene *scene, Object *ob, RegionView3D *rv3d)
 		}
 
 		UI_ThemeColorBlend(curcol, TH_BACK, 0.5);
-		drawcircball(GL_LINE_LOOP, vec, size, imat);
+		gpuDrawFastBall(GL_LINE_LOOP, vec, size, imat);
 		UI_ThemeColorBlend(curcol, TH_BACK, 0.9f - 0.4f / powf(1.5f, ffall_val));
-		drawcircball(GL_LINE_LOOP, vec, size * 1.5f, imat);
+		gpuDrawFastBall(GL_LINE_LOOP, vec, size * 1.5f, imat);
 		UI_ThemeColorBlend(curcol, TH_BACK, 0.9f - 0.4f / powf(2.0f, ffall_val));
-		drawcircball(GL_LINE_LOOP, vec, size * 2.0f, imat);
+		gpuDrawFastBall(GL_LINE_LOOP, vec, size * 2.0f, imat);
 	}
 	else if (pd->forcefield == PFIELD_VORTEX) {
 		float /*ffall_val,*/ force_val;
@@ -6036,12 +6006,12 @@ static void draw_forcefield(Scene *scene, Object *ob, RegionView3D *rv3d)
 
 		UI_ThemeColorBlend(curcol, TH_BACK, 0.7f);
 		if (force_val < 0) {
-			drawspiral(vec, size, tmat, 1);
-			drawspiral(vec, size, tmat, 16);
+			gpuDrawSpiral(vec, size, tmat, 1);
+			gpuDrawSpiral(vec, size, tmat, 16);
 		}
 		else {
-			drawspiral(vec, size, tmat, -1);
-			drawspiral(vec, size, tmat, -16);
+			gpuDrawSpiral(vec, size, tmat, -1);
+			gpuDrawSpiral(vec, size, tmat, -16);
 		}
 	}
 	else if (pd->forcefield == PFIELD_GUIDE && ob->type == OB_CURVE) {
@@ -6060,13 +6030,13 @@ static void draw_forcefield(Scene *scene, Object *ob, RegionView3D *rv3d)
 			setlinestyle(3);
 			where_on_path(ob, 1.0f, guidevec1, guidevec2, NULL, NULL, NULL);
 			UI_ThemeColorBlend(curcol, TH_BACK, 0.5);
-			drawcircball(GL_LINE_LOOP, guidevec1, mindist, imat);
+			gpuDrawFastBall(GL_LINE_LOOP, guidevec1, mindist, imat);
 
 			/*path beginning*/
 			setlinestyle(0);
 			where_on_path(ob, 0.0f, guidevec1, guidevec2, NULL, NULL, NULL);
 			UI_ThemeColorBlend(curcol, TH_BACK, 0.5);
-			drawcircball(GL_LINE_LOOP, guidevec1, mindist, imat);
+			gpuDrawFastBall(GL_LINE_LOOP, guidevec1, mindist, imat);
 			
 			copy_v3_v3(vec, guidevec1); /* max center */
 		}
@@ -6077,11 +6047,13 @@ static void draw_forcefield(Scene *scene, Object *ob, RegionView3D *rv3d)
 
 	if (pd->falloff == PFIELD_FALL_SPHERE) {
 		/* as last, guide curve alters it */
-		if (pd->flag & PFIELD_USEMAX)
-			drawcircball(GL_LINE_LOOP, vec, pd->maxdist, imat);
+		if (pd->flag & PFIELD_USEMAX) {
+			gpuDrawFastBall(GL_LINE_LOOP, vec, pd->maxdist, imat);
+		}
 
-		if (pd->flag & PFIELD_USEMIN)
-			drawcircball(GL_LINE_LOOP, vec, pd->mindist, imat);
+		if (pd->flag & PFIELD_USEMIN) {
+			gpuDrawFastBall(GL_LINE_LOOP, vec, pd->mindist, imat);
+		}
 	}
 	else if (pd->falloff == PFIELD_FALL_TUBE) {
 		float radius, distance;
@@ -6129,21 +6101,27 @@ static void draw_forcefield(Scene *scene, Object *ob, RegionView3D *rv3d)
 		}
 	}
 	setlinestyle(0);
+
+	gpuImmediateUnformat();
 }
 
 static void draw_box(float vec[8][3])
 {
-	glBegin(GL_LINE_STRIP);
-	glVertex3fv(vec[0]); glVertex3fv(vec[1]); glVertex3fv(vec[2]); glVertex3fv(vec[3]);
-	glVertex3fv(vec[0]); glVertex3fv(vec[4]); glVertex3fv(vec[5]); glVertex3fv(vec[6]);
-	glVertex3fv(vec[7]); glVertex3fv(vec[4]);
-	glEnd();
+	gpuImmediateFormat_V3();
 
-	glBegin(GL_LINES);
-	glVertex3fv(vec[1]); glVertex3fv(vec[5]);
-	glVertex3fv(vec[2]); glVertex3fv(vec[6]);
-	glVertex3fv(vec[3]); glVertex3fv(vec[7]);
-	glEnd();
+	gpuBegin(GL_LINE_STRIP);
+	gpuVertex3fv(vec[0]); gpuVertex3fv(vec[1]); gpuVertex3fv(vec[2]); gpuVertex3fv(vec[3]);
+	gpuVertex3fv(vec[0]); gpuVertex3fv(vec[4]); gpuVertex3fv(vec[5]); gpuVertex3fv(vec[6]);
+	gpuVertex3fv(vec[7]); gpuVertex3fv(vec[4]);
+	gpuEnd();
+
+	gpuBegin(GL_LINES);
+	gpuVertex3fv(vec[1]); gpuVertex3fv(vec[5]);
+	gpuVertex3fv(vec[2]); gpuVertex3fv(vec[6]);
+	gpuVertex3fv(vec[3]); gpuVertex3fv(vec[7]);
+	gpuEnd();
+
+	gpuImmediateUnformat();
 }
 
 /* uses boundbox, function used by Ketsji */
@@ -6171,10 +6149,6 @@ static void get_local_bounds(Object *ob, float center[3], float size[3])
 static void draw_bb_quadric(BoundBox *bb, char type)
 {
 	float size[3], cent[3];
-	GLUquadricObj *qobj = gluNewQuadric();
-	
-	gluQuadricDrawStyle(qobj, GLU_SILHOUETTE);
-	
 	size[0] = 0.5f * fabsf(bb->vec[0][0] - bb->vec[4][0]);
 	size[1] = 0.5f * fabsf(bb->vec[0][1] - bb->vec[2][1]);
 	size[2] = 0.5f * fabsf(bb->vec[0][2] - bb->vec[1][2]);
@@ -6182,28 +6156,92 @@ static void draw_bb_quadric(BoundBox *bb, char type)
 	cent[0] = 0.5f * (bb->vec[0][0] + bb->vec[4][0]);
 	cent[1] = 0.5f * (bb->vec[0][1] + bb->vec[2][1]);
 	cent[2] = 0.5f * (bb->vec[0][2] + bb->vec[1][2]);
-	
+
 	glPushMatrix();
+
 	if (type == OB_BOUND_SPHERE) {
+		static GPUimmediate *displist = NULL;
+		static GPUindex *index = NULL;
+
 		glTranslatef(cent[0], cent[1], cent[2]);
 		glScalef(size[0], size[1], size[2]);
-		gluSphere(qobj, 1.0, 8, 5);
+
+		if (!displist) {
+			GPUprim3 prim = GPU_PRIM_LOFI_WIRE;
+			prim.usegs = 8;
+			prim.vsegs = 5;
+
+			gpuPushImmediate();
+			gpuImmediateMaxVertexCount(48);
+
+			index = gpuNewIndex();
+			gpuImmediateIndex(index);
+			gpuImmediateMaxIndexCount(176);
+
+			gpuSingleSphere(&prim, 1);
+
+			displist = gpuPopImmediate();
+		}
+		else {
+			gpuImmediateSingleRepeatElements(displist);
+		}
 	}
 	else if (type == OB_BOUND_CYLINDER) {
+		static GPUimmediate *displist = NULL;
+		static GPUindex *index = NULL;
+
 		float radius = size[0] > size[1] ? size[0] : size[1];
 		glTranslatef(cent[0], cent[1], cent[2] - size[2]);
 		glScalef(radius, radius, 2.0f * size[2]);
-		gluCylinder(qobj, 1.0, 1.0, 1.0, 8, 1);
+
+		if (!displist) {
+			GPUprim3 prim = GPU_PRIM_LOFI_WIRE;
+			prim.vsegs = 1;
+
+			gpuPushImmediate();
+			gpuImmediateMaxVertexCount(16);
+
+			index = gpuNewIndex();
+			gpuImmediateIndex(index);
+			gpuImmediateMaxIndexCount(48);
+
+			//GLU gluCylinder(qobj, 1.0, 1.0, 1.0, 8, 1);
+			gpuSingleCylinder(&prim, 1, 1, 1);
+			displist = gpuPopImmediate();
+		}
+		else {
+			gpuImmediateSingleRepeatElements(displist);
+		}
 	}
 	else if (type == OB_BOUND_CONE) {
+		static GPUimmediate *displist = NULL;
+		static GPUindex *index = NULL;
+
 		float radius = size[0] > size[1] ? size[0] : size[1];
 		glTranslatef(cent[0], cent[1], cent[2] - size[2]);
 		glScalef(radius, radius, 2.0f * size[2]);
-		gluCylinder(qobj, 1.0, 0.0, 1.0, 8, 1);
+
+		if (!displist) {
+			GPUprim3 prim = GPU_PRIM_LOFI_WIRE;
+			prim.vsegs = 1;
+
+			gpuPushImmediate();
+			gpuImmediateMaxVertexCount(16);
+
+			index = gpuNewIndex();
+			gpuImmediateIndex(index);
+			gpuImmediateMaxIndexCount(48);
+
+			//GLU gluCylinder(qobj, 1.0, 0.0, 1.0, 8, 1);
+			gpuSingleCone(&prim, 1, 1);
+			displist = gpuPopImmediate();
+		}
+		else {
+			gpuImmediateSingleRepeatElements(displist);
+		}
 	}
+
 	glPopMatrix();
-	
-	gluDeleteQuadric(qobj);
 }
 
 static void draw_bounding_volume(Scene *scene, Object *ob, char type)
@@ -6229,7 +6267,7 @@ static void draw_bounding_volume(Scene *scene, Object *ob, char type)
 		bb = BKE_armature_boundbox_get(ob);
 	}
 	else {
-		drawcube();
+		gpuSingleWireUnitCube();
 		return;
 	}
 	
@@ -6339,7 +6377,7 @@ static void drawWireExtra(Scene *scene, RegionView3D *rv3d, Object *ob)
 			UI_ThemeColor(TH_GROUP);
 		else {
 			if (ob->dtx & OB_DRAWWIRE) {
-				glColor3ub(80, 80, 80);
+				gpuCurrentColor3ub(80, 80, 80);
 			}
 			else {
 				UI_ThemeColor(TH_WIRE);
@@ -6383,6 +6421,8 @@ static void draw_hooks(Object *ob)
 	ModifierData *md;
 	float vec[3];
 	
+	gpuImmediateFormat_V3();
+
 	for (md = ob->modifiers.first; md; md = md->next) {
 		if (md->type == eModifierType_Hook) {
 			HookModifierData *hmd = (HookModifierData *) md;
@@ -6391,20 +6431,22 @@ static void draw_hooks(Object *ob)
 
 			if (hmd->object) {
 				setlinestyle(3);
-				glBegin(GL_LINES);
-				glVertex3fv(hmd->object->obmat[3]);
-				glVertex3fv(vec);
-				glEnd();
+				gpuBegin(GL_LINES);
+				gpuVertex3fv(hmd->object->obmat[3]);
+				gpuVertex3fv(vec);
+				gpuEnd();
 				setlinestyle(0);
 			}
 
 			glPointSize(3.0);
-			bglBegin(GL_POINTS);
-			bglVertex3fv(vec);
-			bglEnd();
+			gpuBeginSprites();
+			gpuSprite3fv(vec);
+			gpuEndSprites();
 			glPointSize(1.0);
 		}
 	}
+
+	gpuImmediateUnformat();
 }
 
 static void drawRBpivot(bRigidBodyJointConstraint *data)
@@ -6414,11 +6456,9 @@ static void drawRBpivot(bRigidBodyJointConstraint *data)
 	float mat[4][4];
 
 	/* color */
-	float curcol[4];
 	unsigned char tcol[4];
 
-	glGetFloatv(GL_CURRENT_COLOR, curcol);
-	rgb_float_to_uchar(tcol, curcol);
+	gpuGetCurrentColor4ubv(tcol);
 	tcol[3] = 255;
 
 	eul_to_mat4(mat, &data->axX);
@@ -6431,12 +6471,14 @@ static void drawRBpivot(bRigidBodyJointConstraint *data)
 		copy_v3_v3(v, &data->pivX);
 
 		dir[axis] = 1.f;
-		glBegin(GL_LINES);
+		gpuImmediateFormat_V3();
+		gpuBegin(GL_LINES);
 		mul_m4_v3(mat, dir);
 		add_v3_v3(v, dir);
-		glVertex3fv(&data->pivX);
-		glVertex3fv(v);
-		glEnd();
+		gpuVertex3fv(&data->pivX);
+		gpuVertex3fv(v);
+		gpuEnd();
+		gpuImmediateUnformat();
 
 		view3d_cached_text_draw_add(v, axis_str[axis], 0, V3D_CACHE_TEXT_ASCII, tcol);
 	}
@@ -6458,9 +6500,6 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 	int i, selstart, selend, empty_object = 0;
 	short dt, dtx, zbufoff = 0;
 	const short is_obact = (ob == OBACT);
-
-	/* only once set now, will be removed too, should become a global standard */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	if (ob != scene->obedit) {
 		if (ob->restrictflag & OB_RESTRICT_VIEW) {
@@ -6580,7 +6619,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 		}
 		else {
 			col = colortab[colindex];
-			cpack(col);
+			gpuCurrentColorPack(col);
 		}
 	}
 
@@ -6659,7 +6698,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 				draw_textcurs(cu->editfont->textcurs);
 
 				if (cu->flag & CU_FAST) {
-					cpack(0xFFFFFF);
+					gpuCurrentColorPack(0xFFFFFF);
 					set_inverted_drawing(1);
 					drawDispList(scene, v3d, rv3d, base, OB_WIRE);
 					set_inverted_drawing(0);
@@ -6677,10 +6716,12 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 					vec1[1] += cu->linedist * cu->fsize;
 					vec2[1] -= cu->lines * cu->linedist * cu->fsize;
 					setlinestyle(3);
-					glBegin(GL_LINE_STRIP);
-					glVertex2fv(vec1);
-					glVertex2fv(vec2);
-					glEnd();
+					gpuImmediateFormat_V3();
+					gpuBegin(GL_LINE_STRIP);
+					gpuVertex2fv(vec1);
+					gpuVertex2fv(vec2);
+					gpuEnd();
+					gpuImmediateUnformat();
 					setlinestyle(0);
 				}
 
@@ -6691,17 +6732,19 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 						vec1[0] = (cu->xof * cu->fsize) + cu->tb[i].x;
 						vec1[1] = (cu->yof * cu->fsize) + cu->tb[i].y + cu->fsize;
 						vec1[2] = 0.001;
-						glBegin(GL_LINE_STRIP);
-						glVertex3fv(vec1);
+						gpuImmediateFormat_V3();
+						gpuBegin(GL_LINE_STRIP);
+						gpuVertex3fv(vec1);
 						vec1[0] += cu->tb[i].w;
-						glVertex3fv(vec1);
+						gpuVertex3fv(vec1);
 						vec1[1] -= cu->tb[i].h;
-						glVertex3fv(vec1);
+						gpuVertex3fv(vec1);
 						vec1[0] -= cu->tb[i].w;
-						glVertex3fv(vec1);
+						gpuVertex3fv(vec1);
 						vec1[1] += cu->tb[i].h;
-						glVertex3fv(vec1);
-						glEnd();
+						gpuVertex3fv(vec1);
+						gpuEnd();
+						gpuImmediateUnformat();
 					}
 				}
 				setlinestyle(0);
@@ -6710,7 +6753,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 				if (BKE_vfont_select_get(ob, &selstart, &selend) && cu->selboxes) {
 					float selboxw;
 
-					cpack(0xffffff);
+					gpuCurrentColorPack(0xFFFFFF);
 					set_inverted_drawing(1);
 					for (i = 0; i < (selend - selstart + 1); i++) {
 						SelBox *sb = &(cu->selboxes[i]);
@@ -6724,12 +6767,15 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 						else {
 							selboxw = sb->w;
 						}
-						glBegin(GL_QUADS);
-						glVertex3f(sb->x, sb->y, 0.001);
-						glVertex3f(sb->x + selboxw, sb->y, 0.001);
-						glVertex3f(sb->x + selboxw, sb->y + sb->h, 0.001);
-						glVertex3f(sb->x, sb->y + sb->h, 0.001);
-						glEnd();
+
+						gpuImmediateFormat_V3();
+						gpuBegin(GL_QUADS);
+						gpuVertex3f(sb->x, sb->y, 0.001);
+						gpuVertex3f(sb->x + selboxw, sb->y, 0.001);
+						gpuVertex3f(sb->x + selboxw, sb->y + sb->h, 0.001);
+						gpuVertex3f(sb->x, sb->y + sb->h, 0.001);
+						gpuEnd();
+						gpuImmediateUnformat();
 					}
 					set_inverted_drawing(0);
 				}
@@ -6867,7 +6913,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 	{
 		ParticleSystem *psys;
 
-		if (col || (ob->flag & SELECT)) cpack(0xFFFFFF);    /* for visibility, also while wpaint */
+		if (col || (ob->flag & SELECT)) gpuCurrentColorPack(0xFFFFFF);    /* for visibility, also while wpaint */
 		//glDepthMask(GL_FALSE);
 
 		glLoadMatrixf(rv3d->viewmat);
@@ -6890,7 +6936,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 		glMultMatrixf(ob->obmat);
 		
 		//glDepthMask(GL_TRUE);
-		if (col) cpack(col);
+		if (col) gpuCurrentColorPack(col);
 	}
 
 	/* draw edit particles last so that they can draw over child particles */
@@ -6923,26 +6969,26 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 
 				glLoadMatrixf(rv3d->viewmat);
 
-				if (col || (ob->flag & SELECT)) cpack(0xFFFFFF);
+				if (col || (ob->flag & SELECT)) gpuCurrentColorPack(0xFFFFFF);
 				glDepthMask(GL_FALSE);
 				glEnable(GL_BLEND);
 				
 
 				// glPointSize(3.0);
-				bglBegin(GL_POINTS);
+				gpuBeginSprites();
 
 				for (i = 0; i < scs->numpoints; i++)
 				{
-					bglVertex3fv(&scs->points[3 * i]);
+					gpuSprite3fv(&scs->points[3 * i]);
 				}
 
-				bglEnd();
+				gpuEndSprites();
 				glPointSize(1.0);
 
 				glMultMatrixf(ob->obmat);
 				glDisable(GL_BLEND);
 				glDepthMask(GL_TRUE);
-				if (col) cpack(col);
+				if (col) gpuCurrentColorPack(col);
 				
 			}
 #endif
@@ -6970,13 +7016,13 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 				glLoadMatrixf(rv3d->viewmat);
 				// glMultMatrixf(ob->obmat);
 
-				if (col || (ob->flag & SELECT)) cpack(0xFFFFFF);
+				if (col || (ob->flag & SELECT)) gpuCurrentColorPack(0xFFFFFF);
 				glDepthMask(GL_FALSE);
 				glEnable(GL_BLEND);
 				
 
 				// glPointSize(3.0);
-				bglBegin(GL_POINTS);
+				gpuBeginSprites();
 
 				for (x = 0; x < smd->domain->res[0]; x++) {
 					for (y = 0; y < smd->domain->res[1]; y++) {
@@ -6991,20 +7037,20 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 								tmp[1] += smd->domain->dx * y + smd->domain->dx * 0.5;
 								tmp[2] += smd->domain->dx * z + smd->domain->dx * 0.5;
 								color[0] = color[1] = color[2] = density[index];
-								glColor3fv(color);
-								bglVertex3fv(tmp);
+								gpuColor3fv(color);
+								gpuSprite3fv(tmp);
 							}
 						}
 					}
 				}
 
-				bglEnd();
+				gpuEndSprites();
 				glPointSize(1.0);
 
 				glMultMatrixf(ob->obmat);
 				glDisable(GL_BLEND);
 				glDepthMask(GL_TRUE);
-				if (col) cpack(col);
+				if (col) gpuCurrentColorPack(col);
 #endif
 			}
 			else if (smd->domain->wt && (smd->domain->viewsettings & MOD_SMOKE_VIEW_SHOWBIG)) {
@@ -7055,10 +7101,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 				/* but, we also don't draw names for sets or duplicators */
 				if (flag == 0) {
 					float zero[3] = {0, 0, 0};
-					float curcol[4];
 					unsigned char tcol[4];
-					glGetFloatv(GL_CURRENT_COLOR, curcol);
-					rgb_float_to_uchar(tcol, curcol);
+					gpuGetCurrentColor4ubv(tcol);
 					tcol[3] = 255;
 					view3d_cached_text_draw_add(zero, ob->id.name + 2, 10, 0, tcol);
 				}
@@ -7079,11 +7123,11 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 			invert_m4_m4(imat, rv3d->viewmatob);
 
 			setlinestyle(2);
-			drawcircball(GL_LINE_LOOP, vec, ob->inertia, imat);
+			gpuSingleFastBall(GL_LINE_LOOP, vec, ob->inertia, imat);
 			setlinestyle(0);
 		}
 	}
-	
+
 	/* return warning, this is cached text draw */
 	invert_m4_m4(ob->imat, ob->obmat);
 	view3d_cached_text_draw_end(v3d, ar, 1, NULL);
@@ -7118,9 +7162,11 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 		if (do_draw_center != -1) {
 			if (flag & DRAW_PICKING) {
 				/* draw a single point for opengl selection */
-				glBegin(GL_POINTS);
-				glVertex3fv(ob->obmat[3]);
-				glEnd();
+				gpuImmediateFormat_V3(); // DOODLE: point for selection
+				gpuBegin(GL_POINTS);
+				gpuVertex3fv(ob->obmat[3]);
+				gpuEnd();
+				gpuImmediateUnformat();
 			}
 			else if ((flag & DRAW_CONSTCOLOR) == 0) {
 				/* we don't draw centers for duplicators and sets */
@@ -7142,10 +7188,12 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 		/* help lines and so */
 		if (ob != scene->obedit && ob->parent && (ob->parent->lay & v3d->lay)) {
 			setlinestyle(3);
-			glBegin(GL_LINES);
-			glVertex3fv(ob->obmat[3]);
-			glVertex3fv(ob->orig);
-			glEnd();
+			gpuImmediateFormat_V3();
+			gpuBegin(GL_LINES);
+			gpuVertex3fv(ob->obmat[3]);
+			gpuVertex3fv(ob->orig);
+			gpuEnd();
+			gpuImmediateUnformat();
 			setlinestyle(0);
 		}
 
@@ -7159,7 +7207,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 			
 			UI_GetThemeColor3ubv(TH_GRID, col1);
 			UI_make_axis_color(col1, col2, 'Z');
-			glColor3ubv(col2);
+			gpuCurrentColor3ubv(col2);
 			
 			cob = constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT);
 			
@@ -7188,10 +7236,12 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 
 					if (camob) {
 						setlinestyle(3);
-						glBegin(GL_LINES);
-						glVertex3fv(camob->obmat[3]);
-						glVertex3fv(ob->obmat[3]);
-						glEnd();
+						gpuImmediateFormat_V3();
+						gpuBegin(GL_LINES);
+						gpuVertex3fv(camob->obmat[3]);
+						gpuVertex3fv(ob->obmat[3]);
+						gpuEnd();
+						gpuImmediateUnformat();
 						setlinestyle(0);
 					}
 				}
@@ -7206,10 +7256,12 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 							unit_m4(ct->matrix);
 						
 						setlinestyle(3);
-						glBegin(GL_LINES);
-						glVertex3fv(ct->matrix[3]);
-						glVertex3fv(ob->obmat[3]);
-						glEnd();
+						gpuImmediateFormat_V3();
+						gpuBegin(GL_LINES);
+						gpuVertex3fv(ct->matrix[3]);
+						gpuVertex3fv(ob->obmat[3]);
+						gpuEnd();
+						gpuImmediateUnformat();
 						setlinestyle(0);
 					}
 					
@@ -7236,7 +7288,7 @@ static void bbs_obmode_mesh_verts__mapFunc(void *userData, int index, const floa
 
 	if (!(mv->flag & ME_HIDE)) {
 		WM_set_framebuffer_index_color(offset + index);
-		bglVertex3fv(co);
+		gpuSprite3fv(co);
 	}
 }
 
@@ -7248,9 +7300,9 @@ static void bbs_obmode_mesh_verts(Object *ob, DerivedMesh *dm, int offset)
 	data.mvert = mvert;
 	data.offset = (void *)(intptr_t) offset;
 	glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
-	bglBegin(GL_POINTS);
+	gpuBeginSprites();
 	dm->foreachMappedVert(dm, bbs_obmode_mesh_verts__mapFunc, &data);
-	bglEnd();
+	gpuEndSprites();
 	glPointSize(1.0);
 }
 
@@ -7263,7 +7315,7 @@ static void bbs_mesh_verts__mapFunc(void *userData, int index, const float co[3]
 
 	if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
 		WM_set_framebuffer_index_color(offset + index);
-		bglVertex3fv(co);
+		gpuSprite3fv(co);
 	}
 }
 static void bbs_mesh_verts(BMEditMesh *em, DerivedMesh *dm, int offset)
@@ -7271,9 +7323,9 @@ static void bbs_mesh_verts(BMEditMesh *em, DerivedMesh *dm, int offset)
 	void *ptrs[2] = {(void *)(intptr_t) offset, em};
 
 	glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
-	bglBegin(GL_POINTS);
+	gpuBeginSprites();
 	dm->foreachMappedVert(dm, bbs_mesh_verts__mapFunc, ptrs);
-	bglEnd();
+	gpuEndSprites();
 	glPointSize(1.0);
 }		
 
@@ -7319,7 +7371,7 @@ static void bbs_mesh_solid__drawCenter(void *userData, int index, const float ce
 	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
 		WM_set_framebuffer_index_color(index + 1);
 
-		bglVertex3fv(cent);
+		gpuSprite3fv(cent);
 	}
 }
 
@@ -7328,7 +7380,7 @@ static void bbs_mesh_solid_EM(BMEditMesh *em, Scene *scene, View3D *v3d,
                               Object *ob, DerivedMesh *dm, int facecol)
 {
 	void *ptrs[2] = {em, NULL}; //second one being null means to draw black
-	cpack(0);
+	gpuCurrentColorPack(0x000000);
 
 	if (facecol) {
 		ptrs[1] = (void *)(intptr_t) 1;
@@ -7337,9 +7389,9 @@ static void bbs_mesh_solid_EM(BMEditMesh *em, Scene *scene, View3D *v3d,
 		if (check_ob_drawface_dot(scene, v3d, ob->dt)) {
 			glPointSize(UI_GetThemeValuef(TH_FACEDOT_SIZE));
 
-			bglBegin(GL_POINTS);
+			gpuBeginSprites();
 			dm->foreachMappedFaceCenter(dm, bbs_mesh_solid__drawCenter, ptrs);
-			bglEnd();
+			gpuEndSprites();
 		}
 
 	}
@@ -7384,7 +7436,7 @@ static void bbs_mesh_solid(Scene *scene, Object *ob)
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
 	Mesh *me = (Mesh *)ob->data;
 	
-	glColor3ub(0, 0, 0);
+	gpuCurrentColor3ub(0, 0, 0);
 
 	if ((me->editflag & ME_EDIT_PAINT_MASK))
 		dm->drawMappedFaces(dm, bbs_mesh_solid_hide__setDrawOpts, GPU_enable_material, NULL, me, 0);
@@ -7447,7 +7499,7 @@ void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 				    (ob->mode & OB_MODE_WEIGHT_PAINT))
 				{
 					DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
-					glColor3ub(0, 0, 0);
+					gpuCurrentColor3ub(0, 0, 0);
 
 					dm->drawMappedFaces(dm, bbs_mesh_solid_hide2__setDrawOpts, GPU_enable_material, NULL, me, 0);
 

@@ -56,6 +56,8 @@
 #include "BKE_image.h"
 #include "BKE_paint.h"
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
@@ -130,17 +132,16 @@ void ED_image_draw_info(ARegion *ar, int color_manage, int channels, int x, int 
 	float hue = 0, sat = 0, val = 0, lum = 0, u = 0, v = 0;
 	float col[4], finalcol[4];
 
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 
 	/* noisy, high contrast make impossible to read if lower alpha is used. */
-	glColor4ub(0, 0, 0, 190);
-	glRecti(0.0, 0.0, ar->winrct.xmax - ar->winrct.xmin + 1, 20);
+	gpuCurrentColor4ub(0, 0, 0, 190);
+	gpuSingleFilledRecti(0.0, 0.0, ar->winrct.xmax - ar->winrct.xmin + 1, 20);
 	glDisable(GL_BLEND);
 
 	BLF_size(blf_mono_font, 11, 72);
 
-	glColor3ub(255, 255, 255);
+	gpuCurrentColor3ub(255, 255, 255);
 	BLI_snprintf(str, sizeof(str), "X:%-4d  Y:%-4d |", x, y);
 	// UI_DrawString(6, 6, str); // works ok but fixed width is nicer.
 	BLF_position(blf_mono_font, dx, 6, 0);
@@ -148,14 +149,14 @@ void ED_image_draw_info(ARegion *ar, int color_manage, int channels, int x, int 
 	dx += BLF_width(blf_mono_font, str);
 
 	if (zp) {
-		glColor3ub(255, 255, 255);
+		gpuCurrentColor3ub(255, 255, 255);
 		BLI_snprintf(str, sizeof(str), " Z:%-.4f |", 0.5f + 0.5f * (((float)*zp) / (float)0x7fffffff));
 		BLF_position(blf_mono_font, dx, 6, 0);
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 		dx += BLF_width(blf_mono_font, str);
 	}
 	if (zpf) {
-		glColor3ub(255, 255, 255);
+		gpuCurrentColor3ub(255, 255, 255);
 		BLI_snprintf(str, sizeof(str), " Z:%-.3f |", *zpf);
 		BLF_position(blf_mono_font, dx, 6, 0);
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
@@ -163,7 +164,7 @@ void ED_image_draw_info(ARegion *ar, int color_manage, int channels, int x, int 
 	}
 
 	if (channels >= 3) {
-		glColor3ubv(red);
+		gpuCurrentColor3ubv(red);
 		if (fp)
 			BLI_snprintf(str, sizeof(str), "  R:%-.4f", fp[0]);
 		else if (cp)
@@ -174,7 +175,7 @@ void ED_image_draw_info(ARegion *ar, int color_manage, int channels, int x, int 
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 		dx += BLF_width(blf_mono_font, str);
 		
-		glColor3ubv(green);
+		gpuCurrentColor3ubv(green);
 		if (fp)
 			BLI_snprintf(str, sizeof(str), "  G:%-.4f", fp[1]);
 		else if (cp)
@@ -185,7 +186,7 @@ void ED_image_draw_info(ARegion *ar, int color_manage, int channels, int x, int 
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 		dx += BLF_width(blf_mono_font, str);
 		
-		glColor3ubv(blue);
+		gpuCurrentColor3ubv(blue);
 		if (fp)
 			BLI_snprintf(str, sizeof(str), "  B:%-.4f", fp[2]);
 		else if (cp)
@@ -197,7 +198,7 @@ void ED_image_draw_info(ARegion *ar, int color_manage, int channels, int x, int 
 		dx += BLF_width(blf_mono_font, str);
 		
 		if (channels == 4) {
-			glColor3ub(255, 255, 255);
+			gpuCurrentColor3ub(255, 255, 255);
 			if (fp)
 				BLI_snprintf(str, sizeof(str), "  A:%-.4f", fp[3]);
 			else if (cp)
@@ -257,27 +258,32 @@ void ED_image_draw_info(ARegion *ar, int color_manage, int channels, int x, int 
 		copy_v4_v4(finalcol, col);
 	}
 	glDisable(GL_BLEND);
-	glColor3fv(finalcol);
+
+	gpuImmediateFormat_C4_V2();
+
+	gpuCurrentColor3fv(finalcol);
 	dx += 5;
-	glBegin(GL_QUADS);
-	glVertex2f(dx, 3);
-	glVertex2f(dx, 17);
-	glVertex2f(dx + 30, 17);
-	glVertex2f(dx + 30, 3);
-	glEnd();
+	gpuBegin(GL_QUADS);
+	gpuVertex2f(dx, 3);
+	gpuVertex2f(dx, 17);
+	gpuVertex2f(dx + 30, 17);
+	gpuVertex2f(dx + 30, 3);
+	gpuEnd();
 
 	/* draw outline */
-	glColor3ub(128, 128, 128);
-	glBegin(GL_LINE_LOOP);
-	glVertex2f(dx, 3);
-	glVertex2f(dx, 17);
-	glVertex2f(dx + 30, 17);
-	glVertex2f(dx + 30, 3);
-	glEnd();
+	gpuCurrentColor3ub(128, 128, 128);
+	gpuBegin(GL_LINE_LOOP);
+	gpuVertex2f(dx, 3);
+	gpuVertex2f(dx, 17);
+	gpuVertex2f(dx + 30, 17);
+	gpuVertex2f(dx + 30, 3);
+	gpuEnd();
+
+	gpuImmediateUnformat();
 
 	dx += 35;
 
-	glColor3ub(255, 255, 255);
+	gpuCurrentColor3ub(255, 255, 255);
 	if (channels == 1) {
 		if (fp) {
 			rgb_to_hsv(fp[0], fp[0], fp[0], &hue, &sat, &val);
@@ -452,7 +458,6 @@ static void draw_image_buffer(SpaceImage *sima, ARegion *ar, Scene *scene, Image
 			fdrawcheckerboard(x, y, x + ibuf->x * zoomx, y + ibuf->y * zoomy);
 
 			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		}
 
 		/* we don't draw floats buffers directly but
@@ -675,7 +680,6 @@ static void draw_image_paint_helpers(ARegion *ar, Scene *scene, float zoomx, flo
 			glPixelZoom(zoomx, zoomy);
 
 			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glaDrawPixelsSafe(x, y, w, h, w, GL_RGBA, GL_UNSIGNED_BYTE, clonerect);
 			glDisable(GL_BLEND);
 
@@ -747,10 +751,10 @@ void draw_image_main(SpaceImage *sima, ARegion *ar, Scene *scene)
 		if (image_preview_active(sa, &xim, &yim)) {
 			xoffs = scene->r.disprect.xmin;
 			yoffs = scene->r.disprect.ymin;
-			glColor3ub(0, 0, 0);
+			gpuCurrentColor3ub(0, 0, 0);
 			calc_image_view(sima, 'f');	
 			myortho2(G.v2d->cur.xmin, G.v2d->cur.xmax, G.v2d->cur.ymin, G.v2d->cur.ymax);
-			glRectf(0.0f, 0.0f, 1.0f, 1.0f);
+			gpuSingleFilledRectf(0.0f, 0.0f, 1.0f, 1.0f);
 			glLoadIdentity();
 		}
 	}

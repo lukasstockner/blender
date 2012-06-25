@@ -54,6 +54,7 @@
 #include "BKE_curve.h"
 #include "BKE_fcurve.h"
 
+#include "GPU_compatibility.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -92,38 +93,38 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm, View2D *v2d)
 	int i;
 	
 	/* draw two black lines showing the standard reference levels */
-	glColor3f(0.0f, 0.0f, 0.0f);
+	gpuCurrentColor3f(0.0f, 0.0f, 0.0f);
 	setlinestyle(5);
 	
-	glBegin(GL_LINES);
-	glVertex2f(v2d->cur.xmin, env->midval + env->min);
-	glVertex2f(v2d->cur.xmax, env->midval + env->min);
+	gpuBegin(GL_LINES);
+	gpuVertex2f(v2d->cur.xmin, env->midval + env->min);
+	gpuVertex2f(v2d->cur.xmax, env->midval + env->min);
 		
-	glVertex2f(v2d->cur.xmin, env->midval + env->max);
-	glVertex2f(v2d->cur.xmax, env->midval + env->max);
-	glEnd(); // GL_LINES
+	gpuVertex2f(v2d->cur.xmin, env->midval + env->max);
+	gpuVertex2f(v2d->cur.xmax, env->midval + env->max);
+	gpuEnd(); // GL_LINES
 	setlinestyle(0);
 	
 	/* set size of vertices (non-adjustable for now) */
 	glPointSize(2.0f);
 	
 	// for now, point color is fixed, and is white
-	glColor3f(1.0f, 1.0f, 1.0f);
+	gpuCurrentColor3f(1.0f, 1.0f, 1.0f);
 	
 	/* we use bgl points not standard gl points, to workaround vertex 
 	 * drawing bugs that some drivers have (probably legacy ones only though)
 	 */
-	bglBegin(GL_POINTS);
+	gpuBeginSprites();
 	for (i = 0, fed = env->data; i < env->totvert; i++, fed++) {
 		/* only draw if visible
 		 *	- min/max here are fixed, not relative
 		 */
 		if (IN_RANGE(fed->time, (v2d->cur.xmin - fac), (v2d->cur.xmax + fac))) {
-			glVertex2f(fed->time, fed->min);
-			glVertex2f(fed->time, fed->max);
+			gpuSprite2f(fed->time, fed->min);
+			gpuSprite2f(fed->time, fed->max);
 		}
 	}
-	bglEnd(); // GL_POINTS
+	gpuEndSprites();
 	
 	glPointSize(1.0f);
 }
@@ -143,7 +144,7 @@ static void draw_fcurve_vertices_keyframes(FCurve *fcu, SpaceIpo *UNUSED(sipo), 
 	/* we use bgl points not standard gl points, to workaround vertex 
 	 * drawing bugs that some drivers have (probably legacy ones only though)
 	 */
-	bglBegin(GL_POINTS);
+	gpuBeginSprites();
 	
 	for (i = 0; i < fcu->totvert; i++, bezt++) {
 		/* as an optimization step, only draw those in view 
@@ -156,17 +157,17 @@ static void draw_fcurve_vertices_keyframes(FCurve *fcu, SpaceIpo *UNUSED(sipo), 
 				 *	- 
 				 */
 				if ((bezt->f2 & SELECT) == sel)
-					bglVertex3fv(bezt->vec[1]);
+					gpuSprite3fv(bezt->vec[1]);
 			}
 			else {
 				/* no check for selection here, as curve is not editable... */
 				// XXX perhaps we don't want to even draw points?   maybe add an option for that later
-				bglVertex3fv(bezt->vec[1]);
+				gpuSprite3fv(bezt->vec[1]);
 			}
 		}
 	}
 	
-	bglEnd(); // GL_POINTS
+	gpuEndSprites();
 }
 
 
@@ -176,33 +177,16 @@ static void draw_fcurve_vertices_keyframes(FCurve *fcu, SpaceIpo *UNUSED(sipo), 
  */
 static void draw_fcurve_handle_control(float x, float y, float xscale, float yscale, float hsize)
 {
-	static GLuint displist = 0;
-	
-	/* initialize round circle shape */
-	if (displist == 0) {
-		GLUquadricObj *qobj;
-		
-		displist = glGenLists(1);
-		glNewList(displist, GL_COMPILE);
-		
-		qobj    = gluNewQuadric();
-		gluQuadricDrawStyle(qobj, GLU_SILHOUETTE); 
-		gluDisk(qobj, 0,  0.7, 8, 1);
-		gluDeleteQuadric(qobj);  
-		
-		glEndList();
-	}
-	
+	glPushMatrix();
+
 	/* adjust view transform before starting */
 	glTranslatef(x, y, 0.0f);
 	glScalef(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
-	
+
 	/* draw! */
-	glCallList(displist);
-	
-	/* restore view transform */
-	glScalef(xscale / hsize, yscale / hsize, 1.0);
-	glTranslatef(-x, -y, 0.0f);
+	gpuSingleCircle(0, 0, 0.7, 8);
+
+	glPopMatrix();
 }
 
 /* helper func - draw handle vertices only for an F-Curve (if it is not protected) */
@@ -334,7 +318,7 @@ static void draw_fcurve_handles(SpaceIpo *sipo, FCurve *fcu)
 	 * get separate line segments, but which aren't wrapped with GL_LINE_STRIP every time we
 	 * want a single line
 	 */
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	
 	/* slightly hacky, but we want to draw unselected points before selected ones 
 	 * so that selected points are clearly visible
@@ -362,18 +346,18 @@ static void draw_fcurve_handles(SpaceIpo *sipo, FCurve *fcu)
 				if ((!prevbezt && (bezt->ipo == BEZT_IPO_BEZ)) || (prevbezt && (prevbezt->ipo == BEZT_IPO_BEZ))) {
 					UI_GetThemeColor3ubv(basecol + bezt->h1, col);
 					col[3] = fcurve_display_alpha(fcu) * 255;
-					glColor4ubv((GLubyte *)col);
+					gpuColor4ubv((GLubyte *)col);
 					
-					glVertex2fv(fp); glVertex2fv(fp + 3);
+					gpuVertex2fv(fp); gpuVertex2fv(fp + 3);
 				}
 				
 				/* only draw second handle if this segment is bezier */
 				if (bezt->ipo == BEZT_IPO_BEZ) {
 					UI_GetThemeColor3ubv(basecol + bezt->h2, col);
 					col[3] = fcurve_display_alpha(fcu) * 255;
-					glColor4ubv((GLubyte *)col);
+					gpuColor4ubv((GLubyte *)col);
 					
-					glVertex2fv(fp + 3); glVertex2fv(fp + 6);
+					gpuVertex2fv(fp + 3); gpuVertex2fv(fp + 6);
 				}
 			}
 			else {
@@ -384,9 +368,9 @@ static void draw_fcurve_handles(SpaceIpo *sipo, FCurve *fcu)
 					fp = bezt->vec[0];
 					UI_GetThemeColor3ubv(basecol + bezt->h1, col);
 					col[3] = fcurve_display_alpha(fcu) * 255;
-					glColor4ubv((GLubyte *)col);
+					gpuColor4ubv((GLubyte *)col);
 					
-					glVertex2fv(fp); glVertex2fv(fp + 3);
+					gpuVertex2fv(fp); gpuVertex2fv(fp + 3);
 				}
 				
 				/* only draw second handle if this segment is bezier, and selection is ok */
@@ -396,15 +380,15 @@ static void draw_fcurve_handles(SpaceIpo *sipo, FCurve *fcu)
 					fp = bezt->vec[1];
 					UI_GetThemeColor3ubv(basecol + bezt->h2, col);
 					col[3] = fcurve_display_alpha(fcu) * 255;
-					glColor4ubv((GLubyte *)col);
+					gpuColor4ubv((GLubyte *)col);
 					
-					glVertex2fv(fp); glVertex2fv(fp + 3);
+					gpuVertex2fv(fp); gpuVertex2fv(fp + 3);
 				}
 			}
 		}
 	}
 	
-	glEnd(); // GL_LINES 
+	gpuEnd(); // GL_LINES 
 }
 
 /* Samples ---------------- */
@@ -422,13 +406,13 @@ static void draw_fcurve_sample_control(float x, float y, float xscale, float ysc
 		displist = glGenLists(1);
 		glNewList(displist, GL_COMPILE);
 		
-		glBegin(GL_LINES);
-		glVertex2f(-0.7f, -0.7f);
-		glVertex2f(+0.7f, +0.7f);
+		gpuBegin(GL_LINES);
+		gpuVertex2f(-0.7f, -0.7f);
+		gpuVertex2f(+0.7f, +0.7f);
 			
-		glVertex2f(-0.7f, +0.7f);
-		glVertex2f(+0.7f, -0.7f);
-		glEnd(); // GL_LINES
+		gpuVertex2f(-0.7f, +0.7f);
+		gpuVertex2f(+0.7f, -0.7f);
+		gpuEnd(); // GL_LINES
 		
 		glEndList();
 	}
@@ -529,12 +513,12 @@ static void draw_fcurve_curve(bAnimContext *ac, ID *id, FCurve *fcu, View2D *v2d
 	 *	- apply the unit correction factor to the calculated values so that 
 	 *	  the displayed values appear correctly in the viewport
 	 */
-	glBegin(GL_LINE_STRIP);
+	gpuBegin(GL_LINE_STRIP);
 	
 	for (ctime = stime; ctime <= etime; ctime += samplefreq)
-		glVertex2f(ctime, evaluate_fcurve(fcu, ctime) * unitFac);
+		gpuVertex2f(ctime, evaluate_fcurve(fcu, ctime) * unitFac);
 	
-	glEnd();
+	gpuEnd();
 	
 	/* restore driver */
 	fcu->driver = driver;
@@ -548,7 +532,7 @@ static void draw_fcurve_curve_samples(bAnimContext *ac, ID *id, FCurve *fcu, Vie
 	float fac, v[2];
 	int b = fcu->totvert - 1;
 	
-	glBegin(GL_LINE_STRIP);
+	gpuBegin(GL_LINE_STRIP);
 	
 	/* apply unit mapping */
 	ANIM_unit_mapping_apply_fcurve(ac->scene, id, fcu, 0);
@@ -569,18 +553,18 @@ static void draw_fcurve_curve_samples(bAnimContext *ac, ID *id, FCurve *fcu, Vie
 			v[1] = prevfpt->vec[1] - fac * (prevfpt->vec[1] - fpt->vec[1]);
 		}
 		
-		glVertex2fv(v);
+		gpuVertex2fv(v);
 	}
 	
 	/* if only one sample, add it now */
 	if (fcu->totvert == 1)
-		glVertex2fv(prevfpt->vec);
+		gpuVertex2fv(prevfpt->vec);
 	
 	/* loop over samples, drawing segments */
 	/* draw curve between first and last keyframe (if there are enough to do so) */
 	while (b--) {
 		/* Linear interpolation: just add one point (which should add a new line segment) */
-		glVertex2fv(prevfpt->vec);
+		gpuVertex2fv(prevfpt->vec);
 		
 		/* get next pointers */
 		prevfpt = fpt;
@@ -588,7 +572,7 @@ static void draw_fcurve_curve_samples(bAnimContext *ac, ID *id, FCurve *fcu, Vie
 		
 		/* last point? */
 		if (b == 0)
-			glVertex2fv(prevfpt->vec);
+			gpuVertex2fv(prevfpt->vec);
 	}
 	
 	/* extrapolate to right? (see code for left-extrapolation above too) */
@@ -608,13 +592,13 @@ static void draw_fcurve_curve_samples(bAnimContext *ac, ID *id, FCurve *fcu, Vie
 			v[1] = prevfpt->vec[1] - fac * (prevfpt->vec[1] - fpt->vec[1]);
 		}
 		
-		glVertex2fv(v);
+		gpuVertex2fv(v);
 	}
 	
 	/* unapply unit mapping */
 	ANIM_unit_mapping_apply_fcurve(ac->scene, id, fcu, ANIM_UNITCONV_RESTORE);
 	
-	glEnd();
+	gpuEnd();
 }
 
 /* helper func - draw one repeat of an F-Curve */
@@ -628,7 +612,7 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 	int b = fcu->totvert - 1;
 	int resol;
 	
-	glBegin(GL_LINE_STRIP);
+	gpuBegin(GL_LINE_STRIP);
 	
 	/* apply unit mapping */
 	ANIM_unit_mapping_apply_fcurve(ac->scene, id, fcu, 0);
@@ -656,14 +640,14 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 			v1[1] = prevbezt->vec[1][1] - fac * (prevbezt->vec[0][1] - prevbezt->vec[1][1]);
 		}
 		
-		glVertex2fv(v1);
+		gpuVertex2fv(v1);
 	}
 	
 	/* if only one keyframe, add it now */
 	if (fcu->totvert == 1) {
 		v1[0] = prevbezt->vec[1][0];
 		v1[1] = prevbezt->vec[1][1];
-		glVertex2fv(v1);
+		gpuVertex2fv(v1);
 	}
 	
 	/* draw curve between first and last keyframe (if there are enough to do so) */
@@ -673,17 +657,17 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 			/* Constant-Interpolation: draw segment between previous keyframe and next, but holding same value */
 			v1[0] = prevbezt->vec[1][0];
 			v1[1] = prevbezt->vec[1][1];
-			glVertex2fv(v1);
+			gpuVertex2fv(v1);
 			
 			v1[0] = bezt->vec[1][0];
 			v1[1] = prevbezt->vec[1][1];
-			glVertex2fv(v1);
+			gpuVertex2fv(v1);
 		}
 		else if (prevbezt->ipo == BEZT_IPO_LIN) {
 			/* Linear interpolation: just add one point (which should add a new line segment) */
 			v1[0] = prevbezt->vec[1][0];
 			v1[1] = prevbezt->vec[1][1];
-			glVertex2fv(v1);
+			gpuVertex2fv(v1);
 		}
 		else {
 			/* Bezier-Interpolation: draw curve as series of segments between keyframes 
@@ -701,7 +685,7 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 				/* only draw one */
 				v1[0] = prevbezt->vec[1][0];
 				v1[1] = prevbezt->vec[1][1];
-				glVertex2fv(v1);
+				gpuVertex2fv(v1);
 			}
 			else {
 				/* clamp resolution to max of 32 */
@@ -724,7 +708,7 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 				BKE_curve_forward_diff_bezier(v1[1], v2[1], v3[1], v4[1], data + 1, resol, sizeof(float) * 3);
 				
 				for (fp = data; resol; resol--, fp += 3)
-					glVertex2fv(fp);
+					gpuVertex2fv(fp);
 			}
 		}
 		
@@ -736,7 +720,7 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 		if (b == 0) {
 			v1[0] = prevbezt->vec[1][0];
 			v1[1] = prevbezt->vec[1][1];
-			glVertex2fv(v1);
+			gpuVertex2fv(v1);
 		}
 	}
 	
@@ -763,13 +747,13 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 			v1[1] = prevbezt->vec[1][1] - fac * (prevbezt->vec[2][1] - prevbezt->vec[1][1]);
 		}
 		
-		glVertex2fv(v1);
+		gpuVertex2fv(v1);
 	}
 	
 	/* unapply unit mapping */
 	ANIM_unit_mapping_apply_fcurve(ac->scene, id, fcu, ANIM_UNITCONV_RESTORE);
 	
-	glEnd();
+	gpuEnd();
 } 
 
 /* Public Curve-Drawing API  ---------------- */
@@ -795,7 +779,7 @@ void graph_draw_ghost_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar)
 		 *  - this is set by the function which creates these
 		 *	- draw with a fixed opacity of 2
 		 */
-		glColor4f(fcu->color[0], fcu->color[1], fcu->color[2], 0.5f);
+		gpuCurrentColor4f(fcu->color[0], fcu->color[1], fcu->color[2], 0.5f);
 		
 		/* simply draw the stored samples */
 		draw_fcurve_curve_samples(ac, NULL, fcu, &ar->v2d);
@@ -859,7 +843,7 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 				/* set whatever color the curve has set 
 				 *	- unselected curves draw less opaque to help distinguish the selected ones
 				 */
-				glColor4f(fcu->color[0], fcu->color[1], fcu->color[2], fcurve_display_alpha(fcu));
+				gpuCurrentColor4f(fcu->color[0], fcu->color[1], fcu->color[2], fcurve_display_alpha(fcu));
 			}
 			
 			/* draw active F-Curve thicker than the rest to make it stand out */
@@ -996,11 +980,9 @@ void graph_draw_channel_names(bContext *C, bAnimContext *ac, ARegion *ar)
 		size_t channel_index = 0;
 		
 		y = (float)ACHANNEL_FIRST;
-		
-		/* set blending again, as may not be set in previous step */
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 		glEnable(GL_BLEND);
-		
+
 		for (ale = anim_data.first, i = 0; ale; ale = ale->next, i++) {
 			const float yminc = (float)(y - ACHANNEL_HEIGHT_HALF);
 			const float ymaxc = (float)(y + ACHANNEL_HEIGHT_HALF);

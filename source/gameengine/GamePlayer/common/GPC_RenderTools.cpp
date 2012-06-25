@@ -30,7 +30,7 @@
  */
 
 
-#include <GL/glew.h>
+#include "GPU_compatibility.h"
 
 #include "RAS_IRenderTools.h"
 #include "RAS_IRasterizer.h"
@@ -321,7 +321,7 @@ void GPC_RenderTools::RenderText3D(	int fontid,
 	}
 
 	/* the actual drawing */
-	glColor4fv(color);
+	gpuCurrentColor4fv(color);
  
 	/* multiply the text matrix by the object matrix */
 	BLF_enable(fontid, BLF_MATRIX|BLF_ASPECT);
@@ -381,11 +381,11 @@ void GPC_RenderTools::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 	// Actual drawing (draw black first if padded)
 	if (mode == RAS_IRenderTools::RAS_TEXT_PADDED)
 	{
-		glColor3ub(0, 0, 0);
+		gpuCurrentColor3ub(0, 0, 0);
 		BLF_draw_default(xco+1, height-yco-1, 0.f, text, 65536);
 	}
 
-	glColor3ub(255, 255, 255);
+	gpuCurrentColor3ub(255, 255, 255);
 	BLF_draw_default(xco, height-yco, 0.f, text, 65536);
 
 	// Restore view settings

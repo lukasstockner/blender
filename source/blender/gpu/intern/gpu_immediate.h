@@ -123,6 +123,9 @@
 
 #define GPU_CHECK_CAN_REPEAT() GPU_CHECK_CAN_BEGIN()
 
+#define GPU_CURRENT_COLOR_VALID(v)  (GPU_IMMEDIATE->isColorValid  = (v))
+#define GPU_CURRENT_NORMAL_VALID(v) (GPU_IMMEDIATE->isNormalValid = (v))
+
 #else
 
 #define GPU_ASSERT(test)
@@ -136,6 +139,9 @@
 #define GPU_CHECK_FORMAT()
 #define GPU_CHECK_CAN_REPEAT()
 
+#define GPU_CURRENT_COLOR_VALID  (valid)
+#define GPU_CURRENT_NORMAL_VALID (valid)
+
 #endif
 
 
@@ -143,6 +149,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+
+
+const char* gpuErrorString(GLenum err);
 
 
 
@@ -165,11 +175,28 @@ void gpuImmediateUbyteAttribCount(size_t count);
 void gpuImmediateUbyteAttribSizes(const GLint *restrict sizes);
 void gpuImmediateUbyteAttribIndexMap(const GLuint *restrict map);
 
+void gpuImmediateFormatReset(void);
 void gpuImmediateLock(void);
 void gpuImmediateUnlock(void);
 GLint gpuImmediateLockCount(void);
 
 
+
+typedef struct GPUarrays {
+	GLenum colorType;
+	GLint  colorSize;
+	GLint  colorStride;
+	const void *restrict colorPointer;
+
+	GLenum normalType;
+	GLint  normalStride;
+	const void *restrict normalPointer;
+
+	GLenum vertexType;
+	GLint  vertexSize;
+	GLint  vertexStride;
+	const void *restrict vertexPointer;
+} GPUarrays;
 
 #define GPU_MAX_ELEMENT_SIZE   4
 #define GPU_COLOR_COMPS        4
@@ -220,6 +247,11 @@ typedef struct GPUimmediate {
 
 	void (*copyVertex)(void);
 
+	void (*appendClientArrays)(
+		const GPUarrays *arrays,
+		GLint first,
+		GLsizei count);
+
 	void (*lockBuffer)(void);
 	void (*unlockBuffer)(void);
 	void (*beginBuffer)(void);
@@ -227,11 +259,24 @@ typedef struct GPUimmediate {
 	void (*shutdownBuffer)(struct GPUimmediate *restrict immediate);
 
 	void (*currentColor)(void);
-	void (*getCurrentColor)(GLubyte *restrict color);
+	void (*getCurrentColor)(GLfloat *restrict color);
+
+	void (*currentNormal)(void);
+
+	struct GPUindex *restrict index;
+
+	void (*indexBeginBuffer)(void);
+	void (*indexEndBuffer)(void);
+	void (*indexShutdownBuffer)(struct GPUindex *restrict index);
+
+	void (*drawElements)(void);
+	void (*drawRangeElements)(void);
 
 #if GPU_SAFETY
 	GLenum    lastTexture;
 	GLboolean hasOverflowed;
+	GLboolean isColorValid;
+	GLboolean isNormalValid;
 #endif
 } GPUimmediate;
 
@@ -241,13 +286,20 @@ extern GPUimmediate *restrict GPU_IMMEDIATE;
 
 GPUimmediate* gpuNewImmediate(void);
 void gpuImmediateMakeCurrent(GPUimmediate *restrict  immediate);
-void gpuImmediateDelete(GPUimmediate *restrict  immediate);
+void gpuDeleteImmediate(GPUimmediate *restrict  immediate);
 
 
 
 void gpuPushImmediate(void);
 GPUimmediate* gpuPopImmediate(void);
 void gpuImmediateSingleDraw(GLenum mode, GPUimmediate *restrict immediate);
+void gpuImmediateSingleRepeat(GPUimmediate *restrict immediate);
+
+void gpuImmediateSingleDrawElements(GLenum mode, GPUimmediate *restrict immediate);
+void gpuImmediateSingleRepeatElements(GPUimmediate *restrict immediate);
+
+void gpuImmediateSingleDrawRangeElements(GLenum mode, GPUimmediate *restrict immediate);
+void gpuImmediateSingleRepeatRangeElements(GPUimmediate *restrict immediate);
 
 
 
@@ -263,8 +315,15 @@ void gpuCurrentColor4d(GLdouble r, GLdouble g, GLdouble b, GLdouble a);
 
 void gpuCurrentColorPack(GLuint rgb);
 
+void gpuCurrentAlpha(GLfloat a);
+void gpuMultCurrentAlpha(GLfloat factor);
+
 void gpuGetCurrentColor4fv(GLfloat *restrict color);
 void gpuGetCurrentColor4ubv(GLubyte *restrict color);
+
+
+
+void gpuCurrentNormal3fv(const GLfloat *restrict v);
 
 
 
@@ -310,6 +369,169 @@ void gpuImmediateFormat_T3_C4_V3(void);
 void gpuImmediateUnformat(void);
 
 #endif
+
+
+
+extern const GPUarrays GPU_ARRAYS_V2F;
+extern const GPUarrays GPU_ARRAYS_C4UB_V2F;
+extern const GPUarrays GPU_ARRAYS_V3F;
+extern const GPUarrays GPU_ARRAYS_C3F_V3F;
+extern const GPUarrays GPU_ARRAYS_C4F_V3F;
+extern const GPUarrays GPU_ARRAYS_N3F_V3F;
+extern const GPUarrays GPU_ARRAYS_C3F_N3F_V3F;
+
+
+
+typedef struct GPUindex {
+	struct GPUimmediate *restrict immediate;
+
+	void   *restrict bufferData;
+	GLuint *restrict buffer;         /* mapped pointer for editing */
+	void   *restrict unmappedBuffer; /* for passing to draw api */
+	GLsizei maxIndexCount;
+	GLsizei count;
+
+	GLuint indexMin;
+	GLuint indexMax;
+
+	GLuint restart;
+} GPUindex;
+
+GPUindex* gpuNewIndex(void);
+void gpuDeleteIndex(GPUindex *restrict index);
+
+void gpuImmediateIndex(GPUindex * index);
+void gpuImmediateMaxIndexCount(GLsizei maxIndexCount);
+void gpuImmediateIndexRange(GLuint indexMin, GLuint indexMax);
+void gpuImmediateIndexComputeRange(void);
+void gpuImmediateIndexRestartValue(GLuint restart);
+
+void gpuIndexBegin(void);
+void gpuIndexRelativev(GLint offset, GLsizei count, const void *restrict indexes);
+void gpuIndex(GLuint index);
+void gpuIndexRestart(void);
+void gpuIndexEnd(void);
+
+
+
+void gpuAppendClientArrays(
+	const GPUarrays* arrays,
+	GLint first,
+	GLsizei count);
+
+void gpuDrawClientArrays(
+	GLenum mode,
+	const GPUarrays *arrays,
+	GLint first,
+	GLsizei count);
+
+void gpuSingleClientArrays_V2F(
+	GLenum mode,
+	const void *restrict vertexPointer,
+	GLint vertexStride,
+	GLint first,
+	GLsizei count);
+
+void gpuSingleClientArrays_V3F(
+	GLenum mode,
+	const void *restrict vertexPointer,
+	GLint vertexStride,
+	GLint first,
+	GLsizei count);
+
+void gpuSingleClientArrays_C3F_V3F(
+	GLenum mode,
+	const void *restrict colorPointer,
+	GLint colorStride,
+	const void *restrict vertexPointer,
+	GLint vertexStride,
+	GLint first,
+	GLsizei count);
+
+void gpuSingleClientArrays_C4F_V3F(
+	GLenum mode,
+	const void *restrict colorPointer,
+	GLint colorStride,
+	const void *restrict vertexPointer,
+	GLint vertexStride,
+	GLint first,
+	GLsizei count);
+
+void gpuSingleClientArrays_N3F_V3F(
+	GLenum mode,
+	const void *restrict normalPointer,
+	GLint normalStride,
+	const void *restrict vertexPointer,
+	GLint vertexStride,
+	GLint first,
+	GLsizei count);
+
+void gpuSingleClientArrays_C3F_N3F_V3F(
+	GLenum mode,
+	const void *restrict colorPointer,
+	GLint colorStride,
+	const void *restrict normalPointer,
+	GLint normalStride,
+	const void *restrict vertexPointer,
+	GLint vertexStride,
+	GLint first,
+	GLsizei count);
+
+void gpuSingleClientArrays_C4UB_V2F(
+	GLenum mode,
+	const void *restrict colorPointer,
+	GLint colorStride,
+	const void *restrict vertexPointer,
+	GLint vertexStride,
+	GLint first,
+	GLsizei count);
+
+
+
+void gpuSingleClientElements_V3F(
+	GLenum mode,
+	const void *restrict vertexPointer,
+	GLint vertexStride,
+	GLsizei count,
+	const void *restrict index);
+
+void gpuSingleClientElements_N3F_V3F(
+	GLenum mode,
+	const void *restrict normalPointer,
+	GLint normalStride,
+	const void *restrict vertexPointer,
+	GLint vertexStride,
+	GLsizei count,
+	void *restrict indexes);
+
+
+void gpuDrawClientRangeElements(
+	GLenum mode,
+	const GPUarrays *restrict arrays,
+	GLuint indexMin,
+	GLuint indexMax,
+	GLsizei count,
+	const void *restrict indexes);
+
+void gpuSingleClientRangeElements_V3F(
+	GLenum mode,
+	const void *restrict vertexPointer,
+	GLint vertexStride,
+	GLuint indexMin,
+	GLuint indexMax,
+	GLsizei count,
+	const void *restrict indexes);
+
+void gpuSingleClientRangeElements_N3F_V3F(
+	GLenum mode,
+	const void *restrict normalPointer,
+	GLint normalStride,
+	const void *restrict vertexPointer,
+	GLint vertexStride,
+	GLuint indexMin,
+	GLuint indexMax,
+	GLsizei count,
+	const GLvoid *restrict indexes);
 
 
 

@@ -39,9 +39,8 @@
 #include "RAS_CameraData.h"
 #include "BLI_math.h"
 
+#include "GPU_compatibility.h"
 #include "GPU_matrix.h"
-
-#include <GL/glew.h>
 
 // constructor
 KX_Dome::KX_Dome (
@@ -376,14 +375,14 @@ bool KX_Dome::CreateFBO(void)
 void KX_Dome::GLDrawTriangles(vector <DomeFace>& face, int nfaces)
 {
 	int i,j;
-	glBegin(GL_TRIANGLES);
+	gpuBegin(GL_TRIANGLES);
 		for (i=0;i<nfaces;i++) {
 			for (j=0;j<3;j++) {
-				glTexCoord2f(face[i].u[j],face[i].v[j]);
-				glVertex3f((GLfloat)face[i].verts[j][0],(GLfloat)face[i].verts[j][1],(GLfloat)face[i].verts[j][2]);
+				gpuTexCoord2f(face[i].u[j],face[i].v[j]);
+				gpuVertex3f((GLfloat)face[i].verts[j][0],(GLfloat)face[i].verts[j][1],(GLfloat)face[i].verts[j][2]);
 			}
 		}
-	glEnd();
+	gpuEnd();
 }
 
 void KX_Dome::GLDrawWarpQuads(void)
@@ -394,33 +393,33 @@ void KX_Dome::GLDrawWarpQuads(void)
 	float uv_height = (float)(warp.bufferheight) / warp.imagesize;
 
 	if (warp.mode ==2 ) {
-		glBegin(GL_QUADS);
+		gpuBegin(GL_QUADS);
 		for (i=0;i<warp.n_height-1;i++) {
 			for (j=0;j<warp.n_width-1;j++) {
 				if (warp.nodes[i][j].i < 0 || warp.nodes[i+1][j].i < 0 || warp.nodes[i+1][j+1].i < 0 || warp.nodes[i][j+1].i < 0)
 					continue;
 
-				glColor3f(warp.nodes[i][j].i, warp.nodes[i][j].i, warp.nodes[i][j].i);
-				glTexCoord2f((warp.nodes[i][j].u * uv_width), (warp.nodes[i][j].v * uv_height));
-				glVertex3f(warp.nodes[i][j].x, warp.nodes[i][j].y,0.0);
+				gpuColor3f(warp.nodes[i][j].i, warp.nodes[i][j].i, warp.nodes[i][j].i);
+				gpuTexCoord2f((warp.nodes[i][j].u * uv_width), (warp.nodes[i][j].v * uv_height));
+				gpuVertex3f(warp.nodes[i][j].x, warp.nodes[i][j].y,0.0);
 
-				glColor3f(warp.nodes[i+1][j].i, warp.nodes[i+1][j].i, warp.nodes[i+1][j].i);
-				glTexCoord2f((warp.nodes[i+1][j].u * uv_width), (warp.nodes[i+1][j].v * uv_height));
-				glVertex3f(warp.nodes[i+1][j].x, warp.nodes[i+1][j].y,0.0);
+				gpuColor3f(warp.nodes[i+1][j].i, warp.nodes[i+1][j].i, warp.nodes[i+1][j].i);
+				gpuTexCoord2f((warp.nodes[i+1][j].u * uv_width), (warp.nodes[i+1][j].v * uv_height));
+				gpuVertex3f(warp.nodes[i+1][j].x, warp.nodes[i+1][j].y,0.0);
 
-				glColor3f(warp.nodes[i+1][j+1].i, warp.nodes[i+1][j+1].i, warp.nodes[i+1][j+1].i);
-				glTexCoord2f((warp.nodes[i+1][j+1].u * uv_width), (warp.nodes[i+1][j+1].v * uv_height));
-				glVertex3f(warp.nodes[i+1][j+1].x, warp.nodes[i+1][j+1].y,0.0);
+				gpuColor3f(warp.nodes[i+1][j+1].i, warp.nodes[i+1][j+1].i, warp.nodes[i+1][j+1].i);
+				gpuTexCoord2f((warp.nodes[i+1][j+1].u * uv_width), (warp.nodes[i+1][j+1].v * uv_height));
+				gpuVertex3f(warp.nodes[i+1][j+1].x, warp.nodes[i+1][j+1].y,0.0);
 
-				glColor3f(warp.nodes[i][j+1].i, warp.nodes[i][j+1].i, warp.nodes[i][j+1].i);
-				glTexCoord2f((warp.nodes[i][j+1].u * uv_width), (warp.nodes[i][j+1].v * uv_height));
-				glVertex3f(warp.nodes[i][j+1].x, warp.nodes[i][j+1].y,0.0);
+				gpuColor3f(warp.nodes[i][j+1].i, warp.nodes[i][j+1].i, warp.nodes[i][j+1].i);
+				gpuTexCoord2f((warp.nodes[i][j+1].u * uv_width), (warp.nodes[i][j+1].v * uv_height));
+				gpuVertex3f(warp.nodes[i][j+1].x, warp.nodes[i][j+1].y,0.0);
 			}
 		}
-		glEnd();
+		gpuEnd();
 	}
 	else if (warp.mode == 1) {
-		glBegin(GL_QUADS);
+		gpuBegin(GL_QUADS);
 		for (i=0;i<warp.n_height-1;i++) {
 			for (j=0;j<warp.n_width-1;j++) {
 				i2 = (i+1) % warp.n_width; // Wrap around, i = warp.n_width = 0
@@ -428,25 +427,25 @@ void KX_Dome::GLDrawWarpQuads(void)
 				if (warp.nodes[i][j].i < 0 || warp.nodes[i2][j].i < 0 || warp.nodes[i2][j+1].i < 0 || warp.nodes[i][j+1].i < 0)
 					continue;
 
-				glColor3f(warp.nodes[i][j].i,warp.nodes[i][j].i,warp.nodes[i][j].i);
-				glTexCoord2f((warp.nodes[i][j].u * uv_width), (warp.nodes[i][j].v * uv_height));
-				glVertex3f(warp.nodes[i][j].x,warp.nodes[i][j].y,0.0);
+				gpuColor3f(warp.nodes[i][j].i,warp.nodes[i][j].i,warp.nodes[i][j].i);
+				gpuTexCoord2f((warp.nodes[i][j].u * uv_width), (warp.nodes[i][j].v * uv_height));
+				gpuVertex3f(warp.nodes[i][j].x,warp.nodes[i][j].y,0.0);
 
-				glColor3f(warp.nodes[i2][j].i,warp.nodes[i2][j].i,warp.nodes[i2][j].i);
-				glTexCoord2f((warp.nodes[i2][j].u * uv_width), (warp.nodes[i2][j].v * uv_height));
-				glVertex3f(warp.nodes[i2][j].x,warp.nodes[i2][j].y,0.0);
+				gpuColor3f(warp.nodes[i2][j].i,warp.nodes[i2][j].i,warp.nodes[i2][j].i);
+				gpuTexCoord2f((warp.nodes[i2][j].u * uv_width), (warp.nodes[i2][j].v * uv_height));
+				gpuVertex3f(warp.nodes[i2][j].x,warp.nodes[i2][j].y,0.0);
 
-				glColor3f(warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i);
-				glTexCoord2f((warp.nodes[i2][j+1].u * uv_width), (warp.nodes[i2][j+1].v * uv_height));
-				glVertex3f(warp.nodes[i2][j+1].x,warp.nodes[i2][j+1].y,0.0);
+				gpuColor3f(warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i);
+				gpuTexCoord2f((warp.nodes[i2][j+1].u * uv_width), (warp.nodes[i2][j+1].v * uv_height));
+				gpuVertex3f(warp.nodes[i2][j+1].x,warp.nodes[i2][j+1].y,0.0);
 
-				glColor3f(warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i);
-				glTexCoord2f((warp.nodes[i2][j+1].u * uv_width), (warp.nodes[i2][j+1].v * uv_height));
-				glVertex3f(warp.nodes[i2][j+1].x,warp.nodes[i2][j+1].y,0.0);
+				gpuColor3f(warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i);
+				gpuTexCoord2f((warp.nodes[i2][j+1].u * uv_width), (warp.nodes[i2][j+1].v * uv_height));
+				gpuVertex3f(warp.nodes[i2][j+1].x,warp.nodes[i2][j+1].y,0.0);
 
 			}
 		}
-		glEnd();
+		gpuEnd();
 	} else{
 		printf("Dome Error: Warp Mode %d unsupported. Try 1 for Polar Mesh or 2 for Fisheye.\n", warp.mode);
 	}
@@ -1701,88 +1700,88 @@ void KX_Dome::DrawEnvMap(void)
 	glDisable(GL_DEPTH_TEST);
 
 	glEnable(GL_TEXTURE_2D);
-	glColor3f(1.0,1.0,1.0);
+	gpuCurrentColor3f(1.0,1.0,1.0);
 
 	float uv_ratio = (float)(m_buffersize-1) / m_imagesize;
 	double onebythree = 1.0f / 3;
 
 	// domefacesId[0] =>  (top)
 	glBindTexture(GL_TEXTURE_2D, domefacesId[0]);
-	glBegin(GL_QUADS);
-		glTexCoord2f(uv_ratio,uv_ratio);
-		glVertex3f( onebythree, 0.0f, 3.0f);
-		glTexCoord2f(0.0,uv_ratio);
-		glVertex3f(-onebythree, 0.0f, 3.0f);
-		glTexCoord2f(0.0,0.0);
-		glVertex3f(-onebythree,-2 * onebythree, 3.0f);
-		glTexCoord2f(uv_ratio,0.0);
-		glVertex3f(onebythree,-2 * onebythree, 3.0f);
-	glEnd();
+	gpuBegin(GL_QUADS);
+		gpuTexCoord2f(uv_ratio,uv_ratio);
+		gpuVertex3f( onebythree, 0.0f, 3.0f);
+		gpuTexCoord2f(0.0,uv_ratio);
+		gpuVertex3f(-onebythree, 0.0f, 3.0f);
+		gpuTexCoord2f(0.0,0.0);
+		gpuVertex3f(-onebythree,-2 * onebythree, 3.0f);
+		gpuTexCoord2f(uv_ratio,0.0);
+		gpuVertex3f(onebythree,-2 * onebythree, 3.0f);
+	gpuEnd();
 
 	// domefacesId[1] =>  (bottom)
 	glBindTexture(GL_TEXTURE_2D, domefacesId[1]);
-	glBegin(GL_QUADS);
-		glTexCoord2f(uv_ratio,uv_ratio);
-		glVertex3f(-onebythree, 0.0f, 3.0f);
-		glTexCoord2f(0.0,uv_ratio);
-		glVertex3f(-1.0f, 0.0f, 3.0f);
-		glTexCoord2f(0.0,0.0);
-		glVertex3f(-1.0f,-2 * onebythree, 3.0f);
-		glTexCoord2f(uv_ratio,0.0);
-		glVertex3f(-onebythree,-2 * onebythree, 3.0f);
-	glEnd();
+	gpuBegin(GL_QUADS);
+		gpuTexCoord2f(uv_ratio,uv_ratio);
+		gpuVertex3f(-onebythree, 0.0f, 3.0f);
+		gpuTexCoord2f(0.0,uv_ratio);
+		gpuVertex3f(-1.0f, 0.0f, 3.0f);
+		gpuTexCoord2f(0.0,0.0);
+		gpuVertex3f(-1.0f,-2 * onebythree, 3.0f);
+		gpuTexCoord2f(uv_ratio,0.0);
+		gpuVertex3f(-onebythree,-2 * onebythree, 3.0f);
+	gpuEnd();
 
 	// domefacesId[2] => -90deg (left)
 	glBindTexture(GL_TEXTURE_2D, domefacesId[2]);
-	glBegin(GL_QUADS);
-		glTexCoord2f(uv_ratio,uv_ratio);
-		glVertex3f(-onebythree, 2 * onebythree, 3.0f);
-		glTexCoord2f(0.0,uv_ratio);
-		glVertex3f(-1.0f, 2 * onebythree, 3.0f);
-		glTexCoord2f(0.0,0.0);
-		glVertex3f(-1.0f, 0.0f, 3.0f);
-		glTexCoord2f(uv_ratio,0.0);
-		glVertex3f(-onebythree, 0.0f, 3.0f);
-	glEnd();
+	gpuBegin(GL_QUADS);
+		gpuTexCoord2f(uv_ratio,uv_ratio);
+		gpuVertex3f(-onebythree, 2 * onebythree, 3.0f);
+		gpuTexCoord2f(0.0,uv_ratio);
+		gpuVertex3f(-1.0f, 2 * onebythree, 3.0f);
+		gpuTexCoord2f(0.0,0.0);
+		gpuVertex3f(-1.0f, 0.0f, 3.0f);
+		gpuTexCoord2f(uv_ratio,0.0);
+		gpuVertex3f(-onebythree, 0.0f, 3.0f);
+	gpuEnd();
 
 	// domefacesId[3] => 90deg (right)
 	glBindTexture(GL_TEXTURE_2D, domefacesId[3]);
-	glBegin(GL_QUADS);
-		glTexCoord2f(uv_ratio,uv_ratio);
-		glVertex3f( 1.0f, 2 * onebythree, 3.0f);
-		glTexCoord2f(0.0,uv_ratio);
-		glVertex3f( onebythree, 2 * onebythree, 3.0f);
-		glTexCoord2f(0.0,0.0);
-		glVertex3f( onebythree, 0.0f, 3.0f);
-		glTexCoord2f(uv_ratio,0.0);
-		glVertex3f(1.0f, 0.0f, 3.0f);
-	glEnd();
+	gpuBegin(GL_QUADS);
+		gpuTexCoord2f(uv_ratio,uv_ratio);
+		gpuVertex3f( 1.0f, 2 * onebythree, 3.0f);
+		gpuTexCoord2f(0.0,uv_ratio);
+		gpuVertex3f( onebythree, 2 * onebythree, 3.0f);
+		gpuTexCoord2f(0.0,0.0);
+		gpuVertex3f( onebythree, 0.0f, 3.0f);
+		gpuTexCoord2f(uv_ratio,0.0);
+		gpuVertex3f(1.0f, 0.0f, 3.0f);
+	gpuEnd();
 
 	// domefacesId[4] => 0deg (front)
 	glBindTexture(GL_TEXTURE_2D, domefacesId[4]);
-	glBegin(GL_QUADS);
-		glTexCoord2f(uv_ratio,uv_ratio);
-		glVertex3f( 1.0f, 0.0f, 3.0f);
-		glTexCoord2f(0.0,uv_ratio);
-		glVertex3f( onebythree, 0.0f, 3.0f);
-		glTexCoord2f(0.0,0.0);
-		glVertex3f( onebythree,-2 * onebythree, 3.0f);
-		glTexCoord2f(uv_ratio,0.0);
-		glVertex3f(1.0f, -2 * onebythree, 3.0f);
-	glEnd();
+	gpuBegin(GL_QUADS);
+		gpuTexCoord2f(uv_ratio,uv_ratio);
+		gpuVertex3f( 1.0f, 0.0f, 3.0f);
+		gpuTexCoord2f(0.0,uv_ratio);
+		gpuVertex3f( onebythree, 0.0f, 3.0f);
+		gpuTexCoord2f(0.0,0.0);
+		gpuVertex3f( onebythree,-2 * onebythree, 3.0f);
+		gpuTexCoord2f(uv_ratio,0.0);
+		gpuVertex3f(1.0f, -2 * onebythree, 3.0f);
+	gpuEnd();
 
 	// domefacesId[5] => 180deg (back)
 	glBindTexture(GL_TEXTURE_2D, domefacesId[5]);
-	glBegin(GL_QUADS);
-		glTexCoord2f(uv_ratio,uv_ratio);
-		glVertex3f( onebythree, 2 * onebythree, 3.0f);
-		glTexCoord2f(0.0,uv_ratio);
-		glVertex3f(-onebythree, 2 * onebythree, 3.0f);
-		glTexCoord2f(0.0,0.0);
-		glVertex3f(-onebythree, 0.0f, 3.0f);
-		glTexCoord2f(uv_ratio,0.0);
-		glVertex3f(onebythree, 0.0f, 3.0f);
-	glEnd();
+	gpuBegin(GL_QUADS);
+		gpuTexCoord2f(uv_ratio,uv_ratio);
+		gpuVertex3f( onebythree, 2 * onebythree, 3.0f);
+		gpuTexCoord2f(0.0,uv_ratio);
+		gpuVertex3f(-onebythree, 2 * onebythree, 3.0f);
+		gpuTexCoord2f(0.0,0.0);
+		gpuVertex3f(-onebythree, 0.0f, 3.0f);
+		gpuTexCoord2f(uv_ratio,0.0);
+		gpuVertex3f(onebythree, 0.0f, 3.0f);
+	gpuEnd();
 
 	glDisable(GL_TEXTURE_2D);
 	glEnable(GL_DEPTH_TEST);
@@ -1857,7 +1856,7 @@ void KX_Dome::DrawDomeFisheye(void)
 	glDisable(GL_DEPTH_TEST);
 
 	glEnable(GL_TEXTURE_2D);
-	glColor3f(1.0,1.0,1.0);
+	gpuCurrentColor3f(1.0,1.0,1.0);
 
 	if (dlistSupported) {
 		for (i=0;i<m_numfaces;i++) {
@@ -1947,7 +1946,7 @@ void KX_Dome::DrawPanorama(void)
 	glDisable(GL_DEPTH_TEST);
 
 	glEnable(GL_TEXTURE_2D);
-	glColor3f(1.0,1.0,1.0);
+	gpuCurrentColor3f(1.0,1.0,1.0);
 
 	if (dlistSupported) {
 		for (i=0;i<m_numfaces;i++) {
@@ -2021,7 +2020,7 @@ void KX_Dome::DrawDomeWarped(void)
 	glDisable(GL_DEPTH_TEST);
 
 	glEnable(GL_TEXTURE_2D);
-	glColor3f(1.0,1.0,1.0);
+	gpuCurrentColor3f(1.0,1.0,1.0);
 
 	if (dlistSupported) {
 		glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);

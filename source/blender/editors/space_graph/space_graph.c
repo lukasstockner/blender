@@ -53,7 +53,7 @@
 #include "ED_anim_api.h"
 #include "ED_markers.h"
 
-#include "BIF_gl.h"
+#include "GPU_compatibility.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -261,23 +261,20 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 	
 	/* horizontal component of value-cursor (value line before the current frame line) */
 	if ((sipo->flag & SIPO_NODRAWCURSOR) == 0) {
-		float vec[2];
-		
 		/* Draw a green line to indicate the cursor value */
-		vec[1] = sipo->cursorVal;
-		
+
 		UI_ThemeColorShadeAlpha(TH_CFRAME, -10, -50);
 		glLineWidth(2.0);
-		
-		// DOODLE single 2D line
+
 		glEnable(GL_BLEND);
-		glBegin(GL_LINE_STRIP);
-		vec[0] = v2d->cur.xmin;
-		glVertex2fv(vec);
-			
-		vec[0] = v2d->cur.xmax;
-		glVertex2fv(vec);
-		glEnd(); // GL_LINE_STRIP
+
+		// DOODLE single 2D line
+		gpuSingleLinef(
+			v2d->cur.xmin,
+			sipo->cursorVal,
+			v2d->cur.xmax,
+			sipo->cursorVal);
+
 		glDisable(GL_BLEND);
 	}
 	

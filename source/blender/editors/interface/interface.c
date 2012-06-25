@@ -52,6 +52,8 @@
 #include "BKE_idprop.h"
 #include "BKE_utildefines.h" /* FILE_MAX */
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 
 #include "BLF_api.h"
@@ -510,11 +512,11 @@ static void ui_draw_linkline(uiLinkLine *line, int hilightActiveLines)
 	rect.ymax = (line->to->y1 + line->to->y2) / 2.0f;
 	
 	if (line->flag & UI_SELECT)
-		glColor3ub(100, 100, 100);
+		gpuCurrentColor3ub(100, 100, 100);
 	else if (hilightActiveLines && ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE)))
 		UI_ThemeColor(TH_TEXT_HI);
 	else 
-		glColor3ub(0, 0, 0);
+		gpuCurrentColor3ub(0, 0, 0);
 
 	ui_draw_link_bezier(&rect);
 }
@@ -1029,9 +1031,6 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	if (multisample_enabled)
 		glDisable(GL_MULTISAMPLE_ARB);
 
-	/* we set this only once */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	
 	/* scale fonts */
 	ui_fontscale(&style.paneltitle.points, block->aspect);
 	ui_fontscale(&style.grouplabel.points, block->aspect);

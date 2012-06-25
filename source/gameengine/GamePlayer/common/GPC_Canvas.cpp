@@ -44,6 +44,8 @@
 #include "RAS_IPolygonMaterial.h"
 #include "GPC_Canvas.h"
 
+#include "GPU_compatibility.h"
+
 GPC_Canvas::TBannerId GPC_Canvas::s_bannerId = 0;
 
 
@@ -237,7 +239,6 @@ void GPC_Canvas::DrawAllBanners(void)
 	::glDisable(GL_FOG);
 	::glEnable(GL_TEXTURE_2D);
 	::glEnable(GL_BLEND);
-	::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	TBannerMap::iterator it = m_banners.begin();
 	while (it != m_banners.end()) {
@@ -309,17 +310,19 @@ void GPC_Canvas::DrawBanner(TBannerData& banner)
 	}
 
 	// Draw the rectangle with the texture on it
-	::glBegin(GL_QUADS);
-	::glColor4f(1.f, 1.f, 1.f, 1.f);
-	::glTexCoord2iv((GLint*)uvs[0]);
-	::glVertex2iv((GLint*)coords[0]);
-	::glTexCoord2iv((GLint*)uvs[1]);
-	::glVertex2iv((GLint*)coords[1]);
-	::glTexCoord2iv((GLint*)uvs[2]);
-	::glVertex2iv((GLint*)coords[2]);
-	::glTexCoord2iv((GLint*)uvs[3]);
-	::glVertex2iv((GLint*)coords[3]);
-	::glEnd();
+	::gpuImmediateFormat_T2_V2();
+	::gpuBegin(GL_QUADS);
+	::gpuColor4f(1, 1, 1, 1);
+	::gpuTexCoord2iv((GLint*)uvs[0]);
+	::gpuVertex2iv((GLint*)coords[0]);
+	::gpuTexCoord2iv((GLint*)uvs[1]);
+	::gpuVertex2iv((GLint*)coords[1]);
+	::gpuTexCoord2iv((GLint*)uvs[2]);
+	::gpuVertex2iv((GLint*)coords[2]);
+	::gpuTexCoord2iv((GLint*)uvs[3]);
+	::gpuVertex2iv((GLint*)coords[3]);
+	::gpuEnd();
+	::gpuImmediateUnformat();
 }
 
 	void
@@ -343,7 +346,7 @@ PushRenderState(
 	::glGetIntegerv(GL_BLEND, (GLint*)&(render_state.oldBlend));
 	::glGetIntegerv(GL_BLEND_SRC, (GLint*)&(render_state.oldBlendSrc));
 	::glGetIntegerv(GL_BLEND_DST, (GLint*)&(render_state.oldBlendDst));
-	::glGetFloatv(GL_CURRENT_COLOR, render_state.oldColor);
+	::gpuGetCurrentColor4fv(render_state.oldColor);
 	::glGetIntegerv(GL_DEPTH_WRITEMASK,(GLint*)&(render_state.oldWriteMask));
 #else
 
@@ -367,7 +370,7 @@ PopRenderState(
 	::glBlendFunc((GLenum)render_state.oldBlendSrc, (GLenum)render_state.oldBlendDst);
 	render_state.oldWriteMask ? ::glEnable(GL_DEPTH_WRITEMASK) : glDisable(GL_DEPTH_WRITEMASK);
 
-	::glColor4fv(render_state.oldColor);
+	::gpuCurrentColor4fv(render_state.oldColor);
 	// Restore OpenGL matrices
 	::glMatrixMode(GL_TEXTURE);
 	::gpuPopMatrix(); gpuMatrixCommit();

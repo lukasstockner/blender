@@ -53,6 +53,8 @@
 
 #include "IMB_imbuf.h"
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
@@ -205,7 +207,7 @@ static void drawseqwave(Scene *scene, Sequence *seq, float x1, float y1, float x
 		if (length > floor((waveform->length - startsample) / samplestep))
 			length = floor((waveform->length - startsample) / samplestep);
 
-		glBegin(GL_LINE_STRIP);
+		gpuBegin(GL_LINE_STRIP);
 		for (i = 0; i < length; i++) {
 			pos = startsample + i * samplestep;
 
@@ -216,11 +218,11 @@ static void drawseqwave(Scene *scene, Sequence *seq, float x1, float y1, float x
 					value = waveform->data[j * 3];
 			}
 
-			glVertex2f(x1 + i * stepsize, ymid + value * yscale);
+			gpuVertex2f(x1 + i * stepsize, ymid + value * yscale);
 		}
-		glEnd();
+		gpuEnd();
 
-		glBegin(GL_LINE_STRIP);
+		gpuBegin(GL_LINE_STRIP);
 		for (i = 0; i < length; i++) {
 			pos = startsample + i * samplestep;
 
@@ -231,9 +233,9 @@ static void drawseqwave(Scene *scene, Sequence *seq, float x1, float y1, float x
 					value = waveform->data[j * 3 + 1];
 			}
 
-			glVertex2f(x1 + i * stepsize, ymid + value * yscale);
+			gpuVertex2f(x1 + i * stepsize, ymid + value * yscale);
 		}
-		glEnd();
+		gpuEnd();
 	}
 }
 
@@ -268,7 +270,6 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
 	float draw_height;
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	if (seqm->flag & SEQ_MUTE)
 		drawmeta_stipple(1);
@@ -295,7 +296,7 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
 
 			get_seq_color3ubv(scene, seq, col);
 
-			glColor4ubv(col);
+			gpuCurrentColor4ubv(col);
 			
 			/* clamp within parent sequence strip bounds */
 			if (x1_chan < x1) x1_chan = x1;
@@ -304,11 +305,11 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
 			y1_chan = y1 + y_chan + (draw_height * SEQ_STRIP_OFSBOTTOM);
 			y2_chan = y1 + y_chan + (draw_height * SEQ_STRIP_OFSTOP);
 
-			glRectf(x1_chan,  y1_chan, x2_chan,  y2_chan);
+			gpuSingleFilledRectf(x1_chan,  y1_chan, x2_chan,  y2_chan);
 
 			UI_GetColorPtrShade3ubv(col, col, -30);
-			glColor4ubv(col);
-			fdrawbox(x1_chan,  y1_chan, x2_chan,  y2_chan);
+			gpuCurrentColor4ubv(col);
+			gpuSingleWireRectf(x1_chan,  y1_chan, x2_chan,  y2_chan);
 
 			if ((seqm->flag & SEQ_MUTE) == 0 && (seq->flag & SEQ_MUTE))
 				drawmeta_stipple(0);
@@ -370,22 +371,20 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, float pixelx, short dire
 	    get_sequence_effect_num_inputs(seq->type) == 0)
 	{
 		glEnable(GL_BLEND);
+
+		if (seq->flag & whichsel) gpuCurrentColor4ub(0, 0, 0, 80);
+		else if (seq->flag & SELECT) gpuCurrentColor4ub(255, 255, 255, 30);
+		else gpuCurrentColor4ub(0, 0, 0, 22);
 		
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		gpuSingleFilledRectf(rx1, y1, rx2, y2);
 		
-		if (seq->flag & whichsel) glColor4ub(0, 0, 0, 80);
-		else if (seq->flag & SELECT) glColor4ub(255, 255, 255, 30);
-		else glColor4ub(0, 0, 0, 22);
-		
-		glRectf(rx1, y1, rx2, y2);
-		
-		if (seq->flag & whichsel) glColor4ub(255, 255, 255, 200);
-		else glColor4ub(0, 0, 0, 50);
+		if (seq->flag & whichsel) gpuCurrentColor4ub(255, 255, 255, 200);
+		else gpuCurrentColor4ub(0, 0, 0, 50);
 		
 		glEnable(GL_POLYGON_SMOOTH);
-		glBegin(GL_TRIANGLES);
-		glVertex2fv(v1); glVertex2fv(v2); glVertex2fv(v3);
-		glEnd();
+		gpuBegin(GL_TRIANGLES);
+		gpuVertex2fv(v1); gpuVertex2fv(v2); gpuVertex2fv(v3);
+		gpuEnd();
 		
 		glDisable(GL_POLYGON_SMOOTH);
 		glDisable(GL_BLEND);
@@ -412,105 +411,111 @@ static void draw_seq_extensions(Scene *scene, ARegion *ar, Sequence *seq)
 	float x1, x2, y1, y2, pixely, a;
 	unsigned char col[3], blendcol[3];
 	View2D *v2d = &ar->v2d;
-	
+
 	if (seq->type >= SEQ_EFFECT) return;
 
 	x1 = seq->startdisp;
 	x2 = seq->enddisp;
-	
+
 	y1 = seq->machine + SEQ_STRIP_OFSBOTTOM;
 	y2 = seq->machine + SEQ_STRIP_OFSTOP;
 
 	pixely = (v2d->cur.ymax - v2d->cur.ymin) / (v2d->mask.ymax - v2d->mask.ymin);
-	
+
 	if (pixely <= 0) return;  /* can happen when the view is split/resized */
-	
+
 	blendcol[0] = blendcol[1] = blendcol[2] = 120;
+
+	gpuImmediateFormat_V2(); // DOODLE: sequencer extensions
 
 	if (seq->startofs) {
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		
+
 		get_seq_color3ubv(scene, seq, col);
-		
+
 		if (seq->flag & SELECT) {
 			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
-			glColor4ub(col[0], col[1], col[2], 170);
+			gpuCurrentColor4ub(col[0], col[1], col[2], 170);
 		}
 		else {
 			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
-			glColor4ub(col[0], col[1], col[2], 110);
+			gpuCurrentColor4ub(col[0], col[1], col[2], 110);
 		}
-		
-		glRectf((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);
-		
-		if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
-		else glColor4ub(col[0], col[1], col[2], 160);
 
-		fdrawbox((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);  //outline
-		
+		gpuDrawFilledRectf((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);
+
+		if (seq->flag & SELECT) gpuCurrentColor4ub(col[0], col[1], col[2], 255);
+		else gpuCurrentColor4ub(col[0], col[1], col[2], 160);
+
+		gpuDrawWireRectf((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);  //outline
+
 		glDisable(GL_BLEND);
 	}
 	if (seq->endofs) {
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		
+
 		get_seq_color3ubv(scene, seq, col);
-		
+
 		if (seq->flag & SELECT) {
 			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.3, -40);
-			glColor4ub(col[0], col[1], col[2], 170);
+			gpuCurrentColor4ub(col[0], col[1], col[2], 170);
 		}
 		else {
 			UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.6, 0);
-			glColor4ub(col[0], col[1], col[2], 110);
+			gpuCurrentColor4ub(col[0], col[1], col[2], 110);
 		}
-		
-		glRectf(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM);
-		
-		if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
-		else glColor4ub(col[0], col[1], col[2], 160);
 
-		fdrawbox(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM); //outline
+		gpuDrawFilledRectf(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM);
+		
+		if (seq->flag & SELECT) gpuCurrentColor4ub(col[0], col[1], col[2], 255);
+		else gpuCurrentColor4ub(col[0], col[1], col[2], 160);
+
+		gpuDrawWireRectf(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM); //outline
 		
 		glDisable(GL_BLEND);
 	}
 	if (seq->startstill) {
 		get_seq_color3ubv(scene, seq, col);
 		UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
-		glColor3ubv((GLubyte *)col);
-		
+		gpuCurrentColor3ubv((GLubyte *)col);
+
 		draw_shadedstrip(seq, col, x1, y1, (float)(seq->start), y2);
-		
+
 		/* feint pinstripes, helps see exactly which is extended and which isn't,
 		 * especially when the extension is very small */ 
 		if (seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 24);
 		else UI_GetColorPtrShade3ubv(col, col, -16);
-		
-		glColor3ubv((GLubyte *)col);
-		
+
+		gpuCurrentColor3ubv((GLubyte *)col);
+
+		gpuBegin(GL_LINES);
 		for (a = y1; a < y2; a += pixely * 2.0f) {
-			fdrawline(x1,  a,  (float)(seq->start),  a);
+			gpuAppendLinef(x1,  a,  (float)(seq->start),  a);
 		}
+		gpuEnd();
 	}
 	if (seq->endstill) {
 		get_seq_color3ubv(scene, seq, col);
 		UI_GetColorPtrBlendShade3ubv(col, blendcol, col, 0.75, 40);
-		glColor3ubv((GLubyte *)col);
-		
+		gpuCurrentColor3ubv((GLubyte *)col);
+
 		draw_shadedstrip(seq, col, (float)(seq->start + seq->len), y1, x2, y2);
-		
+
 		/* feint pinstripes, helps see exactly which is extended and which isn't,
 		 * especially when the extension is very small */ 
 		if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, 24);
 		else UI_GetColorPtrShade3ubv(col, col, -16);
-		
-		glColor3ubv((GLubyte *)col);
-		
+
+		gpuCurrentColor3ubv((GLubyte *)col);
+
+		gpuBegin(GL_LINES);
 		for (a = y1; a < y2; a += pixely * 2.0f) {
-			fdrawline((float)(seq->start + seq->len),  a,  x2,  a);
+			gpuAppendLinef((float)(seq->start + seq->len),  a,  x2,  a);
 		}
+		gpuEnd();
 	}
+
+	gpuImmediateUnformat();
 }
 
 /* draw info text on a sequence strip */
@@ -625,44 +630,44 @@ static void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, floa
 	ymid2 = (y2 - y1) * 0.65f + y1;
 	
 	glShadeModel(GL_SMOOTH);
-	glBegin(GL_QUADS);
+	gpuBegin(GL_QUADS);
 	
 	if (seq->flag & SEQ_INVALID_EFFECT) { col[0] = 255; col[1] = 0; col[2] = 255; }
 	else if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, -50);
 	/* else UI_GetColorPtrShade3ubv(col, col, 0); */ /* DO NOTHING */
 	
-	glColor3ubv(col);
+	gpuColor3ubv(col);
 	
-	glVertex2f(x1, y1);
-	glVertex2f(x2, y1);
+	gpuVertex2f(x1, y1);
+	gpuVertex2f(x2, y1);
 
 	if (seq->flag & SEQ_INVALID_EFFECT) { col[0] = 255; col[1] = 0; col[2] = 255; }
 	else if (seq->flag & SELECT) UI_GetColorPtrBlendShade3ubv(col, col, col, 0.0, 5);
 	else UI_GetColorPtrShade3ubv(col, col, -5);
 
-	glColor3ubv((GLubyte *)col);
+	gpuColor3ubv((GLubyte *)col);
 	
-	glVertex2f(x2, ymid1);
-	glVertex2f(x1, ymid1);
+	gpuVertex2f(x2, ymid1);
+	gpuVertex2f(x1, ymid1);
 	
-	glEnd();
+	gpuEnd();
 	
-	glRectf(x1,  ymid1,  x2,  ymid2);
+	gpuSingleFilledRectf(x1,  ymid1,  x2,  ymid2);
 	
-	glBegin(GL_QUADS);
+	gpuBegin(GL_QUADS);
 	
-	glVertex2f(x1, ymid2);
-	glVertex2f(x2, ymid2);
+	gpuVertex2f(x1, ymid2);
+	gpuVertex2f(x2, ymid2);
 	
 	if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, -15);
 	else UI_GetColorPtrShade3ubv(col, col, 25);
 	
-	glColor3ubv((GLubyte *)col);
+	gpuColor3ubv((GLubyte *)col);
 	
-	glVertex2f(x2, y2);
-	glVertex2f(x1, y2);
+	gpuVertex2f(x2, y2);
+	gpuVertex2f(x1, y2);
 	
-	glEnd();
+	gpuEnd();
 	
 	if (seq->flag & SEQ_MUTE) {
 		glDisable(GL_POLYGON_STIPPLE);
@@ -724,14 +729,14 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 		glEnable(GL_BLEND);
 
 		/* light stripes */
-		glColor4ub(255, 255, 255, 32);
+		gpuCurrentColor4ub(255, 255, 255, 32);
 		glPolygonStipple(stipple_diag_stripes_pos);
-		glRectf(x1, y1, x2, y2);
+		gpuSingleFilledRectf(x1, y1, x2, y2);
 
 		/* dark stripes */
-		glColor4ub(0, 0, 0, 32);
+		gpuCurrentColor4ub(0, 0, 0, 32);
 		glPolygonStipple(stipple_diag_stripes_neg);
-		glRectf(x1, y1, x2, y2);
+		gpuSingleFilledRectf(x1, y1, x2, y2);
 
 		glDisable(GL_POLYGON_STIPPLE);
 		glDisable(GL_BLEND);
@@ -748,7 +753,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	else
 		UI_GetColorPtrShade3ubv(col, col, outline_tint);
 	
-	glColor3ubv((GLubyte *)col);
+	gpuCurrentColor3ubv((GLubyte *)col);
 	
 	if (seq->flag & SEQ_MUTE) {
 		glEnable(GL_LINE_STIPPLE);
@@ -839,7 +844,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	}
 
 	/* without this colors can flicker from previous opengl state */
-	glColor4ub(255, 255, 255, 255);
+	gpuCurrentColor4ub(255, 255, 255, 255);
 
 	UI_view2d_totRect_set(v2d, viewrectx + 0.5f, viewrecty + 0.5f);
 	UI_view2d_curRect_validate(v2d);
@@ -907,7 +912,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
-	glBegin(GL_QUADS);
+	gpuBegin(GL_QUADS);
 
 	if (frame_ofs) {
 		rctf tot_clip;
@@ -916,18 +921,18 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		tot_clip.xmax = v2d->tot.xmin + (ABS(v2d->tot.xmax - v2d->tot.xmin) * scene->ed->over_border.xmax);
 		tot_clip.ymax = v2d->tot.ymin + (ABS(v2d->tot.ymax - v2d->tot.ymin) * scene->ed->over_border.ymax);
 
-		glTexCoord2f(scene->ed->over_border.xmin, scene->ed->over_border.ymin); glVertex2f(tot_clip.xmin, tot_clip.ymin);
-		glTexCoord2f(scene->ed->over_border.xmin, scene->ed->over_border.ymax); glVertex2f(tot_clip.xmin, tot_clip.ymax);
-		glTexCoord2f(scene->ed->over_border.xmax, scene->ed->over_border.ymax); glVertex2f(tot_clip.xmax, tot_clip.ymax);
-		glTexCoord2f(scene->ed->over_border.xmax, scene->ed->over_border.ymin); glVertex2f(tot_clip.xmax, tot_clip.ymin);
+		gpuTexCoord2f(scene->ed->over_border.xmin, scene->ed->over_border.ymin); gpuVertex2f(tot_clip.xmin, tot_clip.ymin);
+		gpuTexCoord2f(scene->ed->over_border.xmin, scene->ed->over_border.ymax); gpuVertex2f(tot_clip.xmin, tot_clip.ymax);
+		gpuTexCoord2f(scene->ed->over_border.xmax, scene->ed->over_border.ymax); gpuVertex2f(tot_clip.xmax, tot_clip.ymax);
+		gpuTexCoord2f(scene->ed->over_border.xmax, scene->ed->over_border.ymin); gpuVertex2f(tot_clip.xmax, tot_clip.ymin);
 	}
 	else {
-		glTexCoord2f(0.0f, 0.0f); glVertex2f(v2d->tot.xmin, v2d->tot.ymin);
-		glTexCoord2f(0.0f, 1.0f); glVertex2f(v2d->tot.xmin, v2d->tot.ymax);
-		glTexCoord2f(1.0f, 1.0f); glVertex2f(v2d->tot.xmax, v2d->tot.ymax);
-		glTexCoord2f(1.0f, 0.0f); glVertex2f(v2d->tot.xmax, v2d->tot.ymin);
+		gpuTexCoord2f(0.0f, 0.0f); gpuVertex2f(v2d->tot.xmin, v2d->tot.ymin);
+		gpuTexCoord2f(0.0f, 1.0f); gpuVertex2f(v2d->tot.xmin, v2d->tot.ymax);
+		gpuTexCoord2f(1.0f, 1.0f); gpuVertex2f(v2d->tot.xmax, v2d->tot.ymax);
+		gpuTexCoord2f(1.0f, 0.0f); gpuVertex2f(v2d->tot.xmax, v2d->tot.ymin);
 	}
-	glEnd();
+	gpuEnd();
 	glBindTexture(GL_TEXTURE_2D, last_texid);
 	glDisable(GL_TEXTURE_2D);
 	glDeleteTextures(1, &texid);
@@ -944,12 +949,12 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 		UI_ThemeColorBlendShade(TH_WIRE, TH_BACK, 1.0, 0);
 
-		glBegin(GL_LINE_LOOP);
-		glVertex2f(x1 - 0.5f, y1 - 0.5f);
-		glVertex2f(x1 - 0.5f, y2 + 0.5f);
-		glVertex2f(x2 + 0.5f, y2 + 0.5f);
-		glVertex2f(x2 + 0.5f, y1 - 0.5f);
-		glEnd();
+		gpuBegin(GL_LINE_LOOP);
+		gpuVertex2f(x1 - 0.5f, y1 - 0.5f);
+		gpuVertex2f(x1 - 0.5f, y2 + 0.5f);
+		gpuVertex2f(x2 + 0.5f, y2 + 0.5f);
+		gpuVertex2f(x2 + 0.5f, y1 - 0.5f);
+		gpuEnd();
 
 		/* safety border */
 		if ((sseq->flag & SEQ_DRAW_SAFE_MARGINS) != 0) {
@@ -1021,41 +1026,45 @@ static void draw_seq_backdrop(View2D *v2d)
 {
 	int i;
 	
+	gpuImmediateFormat_V2();
+
 	/* darker grey overlay over the view backdrop */
 	UI_ThemeColorShade(TH_BACK, -20);
-	glRectf(v2d->cur.xmin,  -1.0,  v2d->cur.xmax,  1.0);
+	gpuDrawFilledRectf(v2d->cur.xmin,  -1.0,  v2d->cur.xmax,  1.0);
 
 	/* Alternating horizontal stripes */
 	i = MAX2(1, ((int)v2d->cur.ymin) - 1);
 
-	glBegin(GL_QUADS);
+	gpuBegin(GL_QUADS);
 	while (i < v2d->cur.ymax) {
 		if (((int)i) & 1)
-			UI_ThemeColorShade(TH_BACK, -15);
+			UI_ThemeAppendColorShade(TH_BACK, -15);
 		else
-			UI_ThemeColorShade(TH_BACK, -25);
+			UI_ThemeAppendColorShade(TH_BACK, -25);
 			
-		glVertex2f(v2d->cur.xmax, i);
-		glVertex2f(v2d->cur.xmin, i);
-		glVertex2f(v2d->cur.xmin, i + 1);
-		glVertex2f(v2d->cur.xmax, i + 1);
+		gpuVertex2f(v2d->cur.xmax, i);
+		gpuVertex2f(v2d->cur.xmin, i);
+		gpuVertex2f(v2d->cur.xmin, i + 1);
+		gpuVertex2f(v2d->cur.xmax, i + 1);
 
 		i += 1.0;
 	}
-	glEnd();
+	gpuEnd();
 	
 	/* Darker lines separating the horizontal bands */
 	i = MAX2(1, ((int)v2d->cur.ymin) - 1);
 	UI_ThemeColor(TH_GRID);
 	
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	while (i < v2d->cur.ymax) {
-		glVertex2f(v2d->cur.xmax, i);
-		glVertex2f(v2d->cur.xmin, i);
+		gpuVertex2f(v2d->cur.xmax, i);
+		gpuVertex2f(v2d->cur.xmin, i);
 			
 		i += 1.0;
 	}
-	glEnd();
+	gpuEnd();
+
+	gpuImmediateUnformat();
 }
 
 /* draw the contents of the sequencer strips view */
@@ -1104,18 +1113,23 @@ static void seq_draw_sfra_efra(Scene *scene, View2D *v2d)
 	UI_ThemeColorShadeAlpha(TH_BACK, -25, -100);
 
 	if (PSFRA < PEFRA) {
-		glRectf(v2d->cur.xmin, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
-		glRectf((float)PEFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+		gpuSingleFilledRectf(v2d->cur.xmin, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
+		gpuSingleFilledRectf((float)PEFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 	}
 	else {
-		glRectf(v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+		gpuSingleFilledRectf(v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 	}
 
 	UI_ThemeColorShade(TH_BACK, -60);
 	/* thin lines where the actual frames are */
-	fdrawline((float)PSFRA, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
-	fdrawline((float)PEFRA, v2d->cur.ymin, (float)PEFRA, v2d->cur.ymax);
-	
+
+	gpuImmediateFormat_V2(); // DOODLE: two lines, start frame & end frame (copy paste code)
+	gpuBegin(GL_LINES);
+	gpuAppendLinef((float)PSFRA, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
+	gpuAppendLinef((float)PEFRA, v2d->cur.ymin, (float)PEFRA, v2d->cur.ymax);
+	gpuEnd();
+	gpuImmediateUnformat();
+
 	glDisable(GL_BLEND);
 }
 
@@ -1139,17 +1153,16 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	UI_view2d_view_ortho(v2d);
-	
-	
+
+
 	/* calculate extents of sequencer strips/data 
 	 * NOTE: needed for the scrollers later
 	 */
 	boundbox_seq(scene, &v2d->tot);
-	
-	
+
 	/* draw backdrop */
 	draw_seq_backdrop(v2d);
-	
+
 	/* regular grid-pattern over the rest of the view (i.e. 25-frame grid lines) */
 	// NOTE: the gridlines are currently spaced every 25 frames, which is only fine for 25 fps, but maybe not for 30...
 	UI_view2d_constant_grid_draw(v2d);
@@ -1164,17 +1177,17 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 		/* text draw cached (for sequence names), in pixelspace now */
 		UI_view2d_text_cache_draw(ar);
 	}
-	
+
 	/* current frame */
 	UI_view2d_view_ortho(v2d);
 	if ((sseq->flag & SEQ_DRAWFRAMES) == 0)      flag |= DRAWCFRA_UNIT_SECONDS;
 	if ((sseq->flag & SEQ_NO_DRAW_CFRANUM) == 0) flag |= DRAWCFRA_SHOW_NUMBOX;
 	ANIM_draw_cfra(C, v2d, flag);
-	
+
 	/* markers */
 	UI_view2d_view_orthoSpecial(ar, v2d, 1);
 	draw_markers_time(C, DRAW_MARKERS_LINES);
-	
+
 	/* preview range */
 	UI_view2d_view_ortho(v2d);
 	ANIM_draw_previewrange(C, v2d);
@@ -1182,16 +1195,12 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	/* overlap playhead */
 	if (scene->ed && scene->ed->over_flag & SEQ_EDIT_OVERLAY_SHOW) {
 		int cfra_over = (scene->ed->over_flag & SEQ_EDIT_OVERLAY_ABS) ? scene->ed->over_cfra : scene->r.cfra + scene->ed->over_ofs;
-		glColor3f(0.2, 0.2, 0.2);
-		// glRectf(cfra_over, v2d->cur.ymin, scene->ed->over_ofs + scene->r.cfra + 1, v2d->cur.ymax);
+		gpuCurrentColor3f(0.2, 0.2, 0.2);
+		// gpuSingleFilledRectf(cfra_over, v2d->cur.ymin, scene->ed->over_ofs + scene->r.cfra + 1, v2d->cur.ymax);
 
-		glBegin(GL_LINES);
-		glVertex2f(cfra_over, v2d->cur.ymin);
-		glVertex2f(cfra_over, v2d->cur.ymax);
-		glEnd();
-
+		gpuSingleLinef(cfra_over, v2d->cur.ymin, cfra_over, v2d->cur.ymax);
 	}
-	
+
 	/* reset view matrix */
 	UI_view2d_view_restore(C);
 
@@ -1201,5 +1210,3 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	UI_view2d_scrollers_draw(C, v2d, scrollers);
 	UI_view2d_scrollers_free(scrollers);
 }
-
-

@@ -43,6 +43,8 @@
 #include "BKE_tracking.h"
 #include "BKE_depsgraph.h"
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
@@ -240,13 +242,13 @@ void clip_draw_cfra(SpaceClip *sc, ARegion *ar, Scene *scene)
 	UI_ThemeColor(TH_CFRAME);
 	glLineWidth(2.0);
 
-	glBegin(GL_LINE_STRIP);
+	gpuBegin(GL_LINE_STRIP);
 		vec[1] = v2d->cur.ymin;
-		glVertex2fv(vec);
+		gpuVertex2fv(vec);
 
 		vec[1] = v2d->cur.ymax;
-		glVertex2fv(vec);
-	glEnd();
+		gpuVertex2fv(vec);
+	gpuEnd();
 
 	glLineWidth(1.0);
 
@@ -267,17 +269,20 @@ void clip_draw_sfra_efra(View2D *v2d, Scene *scene)
 	UI_view2d_view_ortho(v2d);
 
 	/* currently clip editor supposes that editing clip length is equal to scene frame range */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
-		glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
+		gpuCurrentColor4f(0.0f, 0.0f, 0.0f, 0.4f);
 
-		glRectf(v2d->cur.xmin, v2d->cur.ymin, (float)SFRA, v2d->cur.ymax);
-		glRectf((float)EFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+		gpuSingleFilledRectf(v2d->cur.xmin, v2d->cur.ymin, (float)SFRA, v2d->cur.ymax);
+		gpuSingleFilledRectf((float)EFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 	glDisable(GL_BLEND);
 
 	UI_ThemeColorShade(TH_BACK, -60);
 
 	/* thin lines where the actual frames are */
-	fdrawline((float)SFRA, v2d->cur.ymin, (float)SFRA, v2d->cur.ymax);
-	fdrawline((float)EFRA, v2d->cur.ymin, (float)EFRA, v2d->cur.ymax);
+	gpuImmediateFormat_V2(); // DOODLE: pair of mono lines
+	gpuBegin(GL_LINES);
+	gpuAppendLinef((float)SFRA, v2d->cur.ymin, (float)SFRA, v2d->cur.ymax);
+	gpuAppendLinef((float)EFRA, v2d->cur.ymin, (float)EFRA, v2d->cur.ymax);
+	gpuEnd();
+	gpuImmediateUnformat();
 }

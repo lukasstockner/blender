@@ -43,9 +43,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-
+#include "GPU_compatibility.h"
 #include "GPU_matrix.h"
-#include <GL/glew.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -136,7 +135,7 @@ void BL_print_game_line(int fontid, const char* text, int size, int dpi, float* 
 	DisableForText();
 
 	/* the actual drawing */
-	glColor4fv(color);
+	gpuCurrentColor4fv(color);
 
 	/* multiply the text matrix by the object matrix */
 	BLF_enable(fontid, BLF_MATRIX|BLF_ASPECT);
@@ -165,7 +164,7 @@ void BL_print_gamedebug_line(const char* text, int xco, int yco, int width, int 
 
 	gpuPushMatrix();
 
-	gpuLoadOrtho(0, width, 0, height, -100, 100); gpuMatrixCommit();
+	gpuLoadOrtho(0, (float)width, 0, (float)height, -100, 100); gpuMatrixCommit();
 
 	glMatrixMode(GL_MODELVIEW);
 	gpuMatrixMode(GPU_MODELVIEW);
@@ -174,7 +173,7 @@ void BL_print_gamedebug_line(const char* text, int xco, int yco, int width, int 
 	gpuLoadIdentity(); gpuMatrixCommit();
 
 	/* the actual drawing */
-	glColor3ub(255, 255, 255);
+	gpuCurrentColor3ub(255, 255, 255);
 	BLF_draw_default((float)xco, (float)(height-yco), 0.0f, (char *)text, 65535); /* XXX, use real len */
 
 	//glMatrixMode(GL_PROJECTION);
@@ -198,10 +197,10 @@ void BL_print_gamedebug_line_padded(const char* text, int xco, int yco, int widt
 
 	//glMatrixMode(GL_PROJECTION);
 	gpuMatrixMode(GPU_PROJECTION);
-
+	
 	gpuPushMatrix();
 	
-	gpuLoadOrtho(0, width, 0, height, -100, 100); gpuMatrixCommit();
+	gpuLoadOrtho(0, (float)width, 0, (float)height, -100, 100); gpuMatrixCommit();
 	
 	glMatrixMode(GL_MODELVIEW);
 	gpuMatrixMode(GPU_MODELVIEW);
@@ -210,9 +209,9 @@ void BL_print_gamedebug_line_padded(const char* text, int xco, int yco, int widt
 	gpuLoadIdentity(); gpuMatrixCommit();
 
 	/* draw in black first*/
-	glColor3ub(0, 0, 0);
+	gpuCurrentColor3ub(0, 0, 0);
 	BLF_draw_default((float)(xco+2), (float)(height-yco-2), 0.0f, text, 65535); /* XXX, use real len */
-	glColor3ub(255, 255, 255);
+	gpuCurrentColor3ub(255, 255, 255);
 	BLF_draw_default((float)xco, (float)(height-yco), 0.0f, text, 65535); /* XXX, use real len */
 
 	//glMatrixMode(GL_PROJECTION);

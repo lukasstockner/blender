@@ -1593,7 +1593,7 @@ static void drawSnapping(const struct bContext *C, TransInfo *t)
 			gpuCurrentColorPack(0xFFFFFF);
 			glTranslatef(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], 0.0f);
 
-			//gpuDrawRectf(GL_QUADS, 0, 0, 1, 1);
+			//gpuDrawFilledRectf(0, 0, 1, 1);
 
 			setlinestyle(0);
 			gpuCurrentColorPack(0x0);
@@ -1603,7 +1603,7 @@ static void drawSnapping(const struct bContext *C, TransInfo *t)
 			gpuAppendLinef(0.1/w, 0, .020/w, 0);
 			gpuAppendLinef(0, -0.020/h, 0, -0.1/h);
 			gpuAppendLinef(0, 0.1/h, 0, 0.020/h);
-			glEnd();
+			gpuEnd();
 
 			glTranslatef(-t->tsnap.snapPoint[0], -t->tsnap.snapPoint[1], 0.0f);
 			setlinestyle(0);
@@ -1640,7 +1640,6 @@ static void drawNonPropEdge(const struct bContext *C, TransInfo *t)
 				glDisable(GL_DEPTH_TEST);
 
 			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			glPushAttrib(GL_CURRENT_BIT | GL_LINE_BIT | GL_POINT_BIT);
 			glPushMatrix();

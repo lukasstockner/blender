@@ -70,6 +70,8 @@
 #include "ED_transform.h"
 #include "ED_types.h"
 
+#include "GPU_compatibility.h"
+
 /* ************* Marker API **************** */
 
 /* helper function for getting the list of markers to work on */
@@ -360,7 +362,6 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 	glScalef(1.0f / xscale, 1.0f, 1.0f);
 	
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);			
 	
 	/* vertical line - dotted */
 #ifdef DURIAN_CAMERA_SWITCH
@@ -370,18 +371,21 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 #endif
 	{
 		setlinestyle(3);
-		
-		if (marker->flag & SELECT)
-			glColor4ub(255, 255, 255, 96);
-		else
-			glColor4ub(0, 0, 0, 96);
-		
+
+		if (marker->flag & SELECT) {
+			gpuCurrentColor4ub(255, 255, 255, 96);
+		}
+		else {
+			gpuCurrentColor4ub(0, 0, 0, 96);
+		}
+
 		// DOODLE single 2D line, stippled
-		glBegin(GL_LINES);
-		glVertex2f((xpos * xscale) + 0.5f, 12.0f);
-		glVertex2f((xpos * xscale) + 0.5f, (v2d->cur.ymax + 12.0f) * yscale);
-		glEnd();
-		
+		gpuSingleLinef(
+			(xpos * xscale) + 0.5f,
+			12.0f,
+			(xpos * xscale) + 0.5f,
+			(v2d->cur.ymax + 12.0f) * yscale);
+
 		setlinestyle(0);
 	}
 	
@@ -423,10 +427,7 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 
 #ifdef DURIAN_CAMERA_SWITCH
 		if (marker->camera && (marker->camera->restrictflag & OB_RESTRICT_RENDER)) {
-			float col[4];
-			glGetFloatv(GL_CURRENT_COLOR, col);
-			col[3] = 0.4;
-			glColor4fv(col);
+			gpuCurrentAlpha(0.4f);
 		}
 #endif
 

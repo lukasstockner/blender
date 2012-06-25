@@ -62,6 +62,8 @@
 #include "BKE_tessmesh.h"
 #include "BKE_depsgraph.h"
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 #include "BIF_glutil.h" /* for paint cursor */
 
@@ -118,13 +120,13 @@ static void ringsel_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		glPushMatrix();
 		glMultMatrixf(lcd->ob->obmat);
 
-		glColor3ub(255, 0, 255);
-		glBegin(GL_LINES);
+		gpuCurrentColor3ub(255, 0, 255);
+		gpuBegin(GL_LINES);
 		for (i = 0; i < lcd->totedge; i++) {
-			glVertex3fv(lcd->edges[i][0]);
-			glVertex3fv(lcd->edges[i][1]);
+			gpuVertex3fv(lcd->edges[i][0]);
+			gpuVertex3fv(lcd->edges[i][1]);
 		}
-		glEnd();
+		gpuEnd();
 
 		glPopMatrix();
 		if (v3d && v3d->zbuf)

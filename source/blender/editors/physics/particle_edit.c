@@ -67,6 +67,8 @@
 
 #include "BKE_pointcache.h"
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
@@ -2505,18 +2507,12 @@ static void brush_drawcursor(bContext *C, int x, int y, void *UNUSED(customdata)
 	brush= &pset->brush[pset->brushtype];
 
 	if (brush) {
-		glPushMatrix();
-
-		glTranslatef((float)x, (float)y, 0.0f);
-
-		glColor4ub(255, 255, 255, 128);
+		gpuCurrentColor4ub(255, 255, 255, 128);
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
-		glutil_draw_lined_arc(0.0, M_PI*2.0, brush->size, 40);
+		gpuSingleCircle((float)x, (float)y, brush->size, 40);
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
-		
-		glPopMatrix();
 	}
 }
 

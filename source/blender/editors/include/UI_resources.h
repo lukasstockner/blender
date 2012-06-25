@@ -213,18 +213,21 @@ struct PointerRNA;
 
 // sets the color
 void    UI_ThemeColor(int colorid);
+void    UI_ThemeAppendColor(int colorid);
 
 // sets the color plus alpha
 void    UI_ThemeColor4(int colorid);
 
 // sets color plus offset for shade
 void    UI_ThemeColorShade(int colorid, int offset);
+void    UI_ThemeAppendColorShade(int colorid, int offset);
 
 // sets color plus offset for alpha
 void    UI_ThemeColorShadeAlpha(int colorid, int coloffset, int alphaoffset);
 
 // sets color, which is blend between two theme colors
 void    UI_ThemeColorBlend(int colorid1, int colorid2, float fac);
+void    UI_ThemeAppendColorBlend(int colorid1, int colorid2, float fac);
 // same, with shade offset
 void    UI_ThemeColorBlendShade(int colorid1, int colorid2, float fac, int offset);
 void    UI_ThemeColorBlendShadeAlpha(int colorid1, int colorid2, float fac, int offset, int alphaoffset);

@@ -64,6 +64,7 @@
 #include "ED_sequencer.h"
 #include "ED_view3d.h"
 
+#include "GPU_compatibility.h"
 
 #include "gpencil_intern.h"
 
@@ -106,9 +107,9 @@ static void gp_draw_stroke_buffer(tGPspoint *points, int totpoints, short thickn
 	/* if drawing a single point, draw it larger */	
 	if (totpoints == 1) {		
 		/* draw point */
-		glBegin(GL_POINTS);
-		glVertex2iv(&points->x);
-		glEnd();
+		gpuBegin(GL_POINTS);
+		gpuVertex2f(points->x, points->y);
+		gpuEnd();
 	}
 	else if (sflag & GP_STROKE_ERASER) {
 		/* don't draw stroke at all! */
@@ -120,29 +121,30 @@ static void gp_draw_stroke_buffer(tGPspoint *points, int totpoints, short thickn
 		if (G.debug & G_DEBUG) setlinestyle(2);
 
 		glLineWidth(oldpressure * thickness);
-		glBegin(GL_LINE_STRIP);
+		gpuBegin(GL_LINE_STRIP);
 
 		for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
 			/* if there was a significant pressure change, stop the curve, change the thickness of the stroke,
 			 * and continue drawing again (since line-width cannot change in middle of GL_LINE_STRIP)
 			 */
 			if (fabsf(pt->pressure - oldpressure) > 0.2f) {
-				glEnd();
+				gpuEnd();
 				glLineWidth(pt->pressure * thickness);
-				glBegin(GL_LINE_STRIP);
+				gpuBegin(GL_LINE_STRIP);
 				
 				/* need to roll-back one point to ensure that there are no gaps in the stroke */
-				if (i != 0) glVertex2iv(&(pt - 1)->x);
+				if (i != 0)
+					gpuVertex2f((pt - 1)->x, (pt -1)->y);
 
 				/* now the point we want... */
-				glVertex2iv(&pt->x);
-				
+				gpuVertex2f(pt->x, pt->y);
+
 				oldpressure = pt->pressure;
 			}
 			else
-				glVertex2iv(&pt->x);
+				gpuVertex2f(pt->x, pt->y);
 		}
-		glEnd();
+		gpuEnd();
 
 		/* reset for predictable OpenGL context */
 		glLineWidth(1.0f);
@@ -158,13 +160,13 @@ static void gp_draw_stroke_point(bGPDspoint *points, short thickness, short dfla
 {
 	/* draw point */
 	if (sflag & GP_STROKE_3DSPACE) {
-		glBegin(GL_POINTS);
-		glVertex3fv(&points->x);
-		glEnd();
+		gpuBegin(GL_POINTS);
+		gpuVertex3fv(&points->x);
+		gpuEnd();
 	}
 	else {
 		float co[2];
-		
+
 		/* get coordinates of point */
 		if (sflag & GP_STROKE_2DSPACE) {
 			co[0] = points->x;
@@ -178,29 +180,19 @@ static void gp_draw_stroke_point(bGPDspoint *points, short thickness, short dfla
 			co[0] = (points->x / 100 * winx) + offsx;
 			co[1] = (points->y / 100 * winy) + offsy;
 		}
-		
+
 		/* if thickness is less than GP_DRAWTHICKNESS_SPECIAL, simple dot looks ok
 		 *  - also mandatory in if Image Editor 'image-based' dot
 		 */
 		if ( (thickness < GP_DRAWTHICKNESS_SPECIAL) ||
 		     ((dflag & GP_DRAWDATA_IEDITHACK) && (sflag & GP_STROKE_2DSPACE)) )
 		{
-			glBegin(GL_POINTS);
-			glVertex2fv(co);
-			glEnd();
+			gpuBegin(GL_POINTS);
+			gpuVertex2fv(co);
+			gpuEnd();
 		}
 		else {
-			/* draw filled circle as is done in circf (but without the matrix push/pops which screwed things up) */
-			GLUquadricObj *qobj = gluNewQuadric(); 
-			
-			gluQuadricDrawStyle(qobj, GLU_FILL); 
-			
-			/* need to translate drawing position, but must reset after too! */
-			glTranslatef(co[0], co[1], 0.0);
-			gluDisk(qobj, 0.0,  thickness, 32, 1); 
-			glTranslatef(-co[0], -co[1], 0.0);
-			
-			gluDeleteQuadric(qobj);
+			gpuDrawDisk(co[0], co[1], thickness, 32);
 		}
 	}
 }
@@ -213,36 +205,36 @@ static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness
 	int i;
 	
 	/* draw stroke curve */
-	glBegin(GL_LINE_STRIP);
+	gpuBegin(GL_LINE_STRIP);
 	for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
 		/* if there was a significant pressure change, stop the curve, change the thickness of the stroke,
 		 * and continue drawing again (since line-width cannot change in middle of GL_LINE_STRIP)
 		 */
 		if (fabsf(pt->pressure - oldpressure) > 0.2f) {
-			glEnd();
+			gpuEnd();
 			glLineWidth(pt->pressure * thickness);
-			glBegin(GL_LINE_STRIP);
+			gpuBegin(GL_LINE_STRIP);
 			
 			/* need to roll-back one point to ensure that there are no gaps in the stroke */
-			if (i != 0) glVertex3fv(&(pt - 1)->x);
+			if (i != 0) gpuVertex3fv(&(pt - 1)->x);
 
 			/* now the point we want... */
-			glVertex3fv(&pt->x);
+			gpuVertex3fv(&pt->x);
 			
 			oldpressure = pt->pressure;
 		}
 		else {
-			glVertex3fv(&pt->x);
+			gpuVertex3fv(&pt->x);
 		}
 	}
-	glEnd();
+	gpuEnd();
 	
 	/* draw debug points of curve on top? */
 	if (debug) {
-		glBegin(GL_POINTS);
+		gpuBegin(GL_POINTS);
 		for (i = 0, pt = points; i < totpoints && pt; i++, pt++)
-			glVertex3fv(&pt->x);
-		glEnd();
+			gpuVertex3fv(&pt->x);
+		gpuEnd();
 	}
 }
 
@@ -264,25 +256,25 @@ static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s,
 		bGPDspoint *pt;
 		int i;
 		
-		glBegin(GL_LINE_STRIP);
+		gpuBegin(GL_LINE_STRIP);
 		for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
 			if (sflag & GP_STROKE_2DSPACE) {
-				glVertex2f(pt->x, pt->y);
+				gpuVertex2f(pt->x, pt->y);
 			}
 			else if (sflag & GP_STROKE_2DIMAGE) {
 				const float x = (pt->x * winx) + offsx;
 				const float y = (pt->y * winy) + offsy;
 				
-				glVertex2f(x, y);
+				gpuVertex2f(x, y);
 			}
 			else {
 				const float x = (pt->x / 100 * winx) + offsx;
 				const float y = (pt->y / 100 * winy) + offsy;
 				
-				glVertex2f(x, y);
+				gpuVertex2f(x, y);
 			}
 		}
-		glEnd();
+		gpuEnd();
 	}
 	
 	/* tessellation code - draw stroke as series of connected quads with connection
@@ -294,7 +286,7 @@ static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s,
 		int i;
 		
 		glShadeModel(GL_FLAT);
-		glBegin(GL_QUADS);
+		gpuBegin(GL_QUADS);
 		
 		for (i = 0, pt1 = points, pt2 = points + 1; i < (totpoints - 1); i++, pt1++, pt2++) {
 			float s0[2], s1[2];     /* segment 'center' points */
@@ -346,8 +338,8 @@ static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s,
 				t1[0] = sc[0] + mt[0];
 				t1[1] = sc[1] + mt[1];
 				
-				glVertex2fv(t0);
-				glVertex2fv(t1);
+				gpuVertex2fv(t0);
+				gpuVertex2fv(t1);
 				
 				/* calculate points for start of segment */
 				mt[0] = m2[0] * pthick;
@@ -359,10 +351,10 @@ static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s,
 				t1[1] = s0[1] + mt[1];
 				
 				/* draw this line twice (first to finish off start cap, then for stroke) */
-				glVertex2fv(t1);
-				glVertex2fv(t0);
-				glVertex2fv(t0);
-				glVertex2fv(t1);
+				gpuVertex2fv(t1);
+				gpuVertex2fv(t0);
+				gpuVertex2fv(t0);
+				gpuVertex2fv(t1);
 			}
 			/* if not the first segment, use bisector of angle between segments */
 			else {
@@ -395,10 +387,10 @@ static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s,
 				t1[1] = s0[1] + mt[1];
 				
 				/* draw this line twice (once for end of current segment, and once for start of next) */
-				glVertex2fv(t1);
-				glVertex2fv(t0);
-				glVertex2fv(t0);
-				glVertex2fv(t1);
+				gpuVertex2fv(t1);
+				gpuVertex2fv(t0);
+				gpuVertex2fv(t0);
+				gpuVertex2fv(t1);
 			}
 			
 			/* if last segment, also draw end of segment (defined as segment's normal) */
@@ -416,10 +408,10 @@ static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s,
 				t1[1] = s1[1] + mt[1];
 				
 				/* draw this line twice (once for end of stroke, and once for endcap)*/
-				glVertex2fv(t1);
-				glVertex2fv(t0);
-				glVertex2fv(t0);
-				glVertex2fv(t1);
+				gpuVertex2fv(t1);
+				gpuVertex2fv(t0);
+				gpuVertex2fv(t0);
+				gpuVertex2fv(t1);
 				
 				
 				/* draw end cap as last step 
@@ -435,15 +427,15 @@ static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s,
 				t1[0] = sc[0] + mt[0];
 				t1[1] = sc[1] + mt[1];
 				
-				glVertex2fv(t1);
-				glVertex2fv(t0);
+				gpuVertex2fv(t1);
+				gpuVertex2fv(t0);
 			}
 			
 			/* store stroke's 'natural' normal for next stroke to use */
 			copy_v2_v2(pm, m2);
 		}
 		
-		glEnd();
+		gpuEnd();
 	}
 	
 	/* draw debug points of curve on top? (original stroke points) */
@@ -451,25 +443,25 @@ static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s,
 		bGPDspoint *pt;
 		int i;
 		
-		glBegin(GL_POINTS);
+		gpuBegin(GL_POINTS);
 		for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
 			if (sflag & GP_STROKE_2DSPACE) {
-				glVertex2fv(&pt->x);
+				gpuVertex2fv(&pt->x);
 			}
 			else if (sflag & GP_STROKE_2DIMAGE) {
 				const float x = (float)((pt->x * winx) + offsx);
 				const float y = (float)((pt->y * winy) + offsy);
 				
-				glVertex2f(x, y);
+				gpuVertex2f(x, y);
 			}
 			else {
 				const float x = (float)(pt->x / 100 * winx) + offsx;
 				const float y = (float)(pt->y / 100 * winy) + offsy;
 				
-				glVertex2f(x, y);
+				gpuVertex2f(x, y);
 			}
 		}
-		glEnd();
+		gpuEnd();
 	}
 }
 
@@ -482,7 +474,7 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 	bGPDstroke *gps;
 	
 	/* set color first (may need to reset it again later too) */
-	glColor4fv(color);
+	gpuCurrentColor4fv(color);
 	
 	for (gps = gpf->strokes.first; gps; gps = gps->next) {
 		/* check if stroke can be drawn - checks here generally fall into pairs */
@@ -543,7 +535,9 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy, int cfra, int dflag)
 {
 	bGPDlayer *gpl;
-	
+
+	gpuImmediateFormat_V3();
+
 	/* reset line drawing style (in case previous user didn't reset) */
 	setlinestyle(0);
 	
@@ -551,7 +545,6 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 	glEnable(GL_LINE_SMOOTH);
 	
 	/* turn on alpha-blending */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 		
 	/* loop over layers, drawing them */
@@ -575,7 +568,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		glLineWidth(lthick);
 		copy_v4_v4(color, gpl->color); // just for copying 4 array elements
 		copy_v4_v4(tcolor, gpl->color); // additional copy of color (for ghosting)
-		glColor4fv(color);
+		gpuCurrentColor4fv(color);
 		glPointSize((float)(gpl->thickness + 2));
 		
 		/* apply xray layer setting */
@@ -616,7 +609,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 				}	
 				
 				/* restore alpha */
-				glColor4fv(color);
+				gpuCurrentColor4fv(color);
 			}
 			else {
 				/* draw the strokes for the ghost frames (at half of the alpha set by user) */
@@ -631,7 +624,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 				}
 				
 				/* restore alpha */
-				glColor4fv(color);
+				gpuCurrentColor4fv(color);
 			}
 		}
 		
@@ -657,7 +650,9 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 	/* restore initial gl conditions */
 	glLineWidth(1.0);
 	glPointSize(1.0);
-	glColor4f(0, 0, 0, 1);
+	gpuCurrentColor4f(0, 0, 0, 1);
+
+	gpuImmediateUnformat();
 }
 
 /* ----- Grease Pencil Sketches Drawing API ------ */
@@ -682,7 +677,7 @@ void draw_gpencil_2dimage(bContext *C, ImBuf *ibuf)
 	if (ELEM(NULL, sa, ibuf)) return;
 	gpd = gpencil_data_get_active(C); // XXX
 	if (gpd == NULL) return;
-	
+
 	/* calculate rect */
 	switch (sa->spacetype) {
 		case SPACE_IMAGE: /* image */
@@ -764,7 +759,11 @@ void draw_gpencil_view2d(bContext *C, short onlyv2d)
 		dflag |= GP_DRAWDATA_IEDITHACK;
 	
 	/* draw it! */
-	if (onlyv2d) dflag |= (GP_DRAWDATA_ONLYV2D | GP_DRAWDATA_NOSTATUS);
+
+	if (onlyv2d) {
+		dflag |= (GP_DRAWDATA_ONLYV2D | GP_DRAWDATA_NOSTATUS);
+	}
+
 	gp_draw_data(gpd, 0, 0, ar->winx, ar->winy, CFRA, dflag);
 }
 
@@ -796,9 +795,12 @@ void draw_gpencil_view3d(Scene *scene, View3D *v3d, ARegion *ar, short only3d)
 		rect.xmax = ar->winx;
 		rect.ymax = ar->winy;
 	}
-	
+
 	/* draw it! */
-	if (only3d) dflag |= (GP_DRAWDATA_ONLY3D | GP_DRAWDATA_NOSTATUS);
+
+	if (only3d) {
+		dflag |= (GP_DRAWDATA_ONLY3D | GP_DRAWDATA_NOSTATUS);
+	}
 
 	gp_draw_data(gpd, rect.xmin, rect.ymin, rect.xmax, rect.ymax, CFRA, dflag);
 }

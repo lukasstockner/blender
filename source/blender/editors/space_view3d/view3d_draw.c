@@ -88,6 +88,7 @@
 #include "UI_interface_icons.h"
 #include "UI_resources.h"
 
+#include "GPU_compatibility.h"
 #include "GPU_draw.h"
 #include "GPU_material.h"
 #include "GPU_extensions.h"
@@ -98,53 +99,20 @@
 
 static void star_stuff_init_func(void)
 {
-	cpack(0xFFFFFF);
+	gpuImmediateFormat_V3();
+	gpuCurrentColorPack(0xFFFFFF);
 	glPointSize(1.0);
-	glBegin(GL_POINTS);
+	gpuBegin(GL_POINTS);
 }
 static void star_stuff_vertex_func(float *i)
 {
-	glVertex3fv(i);
+	gpuVertex3fv(i);
 }
 static void star_stuff_term_func(void)
 {
-	glEnd();
+	gpuEnd();
+	gpuImmediateUnformat();
 }
-
-void circf(float x, float y, float rad)
-{
-	GLUquadricObj *qobj = gluNewQuadric(); 
-	
-	gluQuadricDrawStyle(qobj, GLU_FILL); 
-	
-	glPushMatrix(); 
-	
-	glTranslatef(x, y, 0.0);
-	
-	gluDisk(qobj, 0.0,  rad, 32, 1);
-	
-	glPopMatrix(); 
-	
-	gluDeleteQuadric(qobj);
-}
-
-void circ(float x, float y, float rad)
-{
-	GLUquadricObj *qobj = gluNewQuadric(); 
-	
-	gluQuadricDrawStyle(qobj, GLU_SILHOUETTE); 
-	
-	glPushMatrix(); 
-	
-	glTranslatef(x, y, 0.0);
-	
-	gluDisk(qobj, 0.0,  rad, 32, 1);
-	
-	glPopMatrix(); 
-	
-	gluDeleteQuadric(qobj);
-}
-
 
 /* ********* custom clipping *********** */
 
@@ -153,24 +121,30 @@ static void view3d_draw_clipping(RegionView3D *rv3d)
 	BoundBox *bb = rv3d->clipbb;
 
 	if (bb) {
-		static unsigned int clipping_index[6][4] = {{0, 1, 2, 3},
-		                                            {0, 4, 5, 1},
-		                                            {4, 7, 6, 5},
-		                                            {7, 3, 2, 6},
-		                                            {1, 5, 6, 2},
-		                                            {7, 4, 0, 3}};
+		static const unsigned int clipping_index[6][4] = {
+			{0, 1, 2, 3},
+			{0, 4, 5, 1},
+			{4, 7, 6, 5},
+			{7, 3, 2, 6},
+			{1, 5, 6, 2},
+			{7, 4, 0, 3},
+		};
+
+		unsigned char col[4];
 
 		/* fill in zero alpha for rendering & re-projection [#31530] */
-		unsigned char col[4];
 		UI_GetThemeColorShade3ubv(TH_BACK, -8, col);
 		col[3] = 0;
-		glColor4ubv(col);
+		gpuCurrentColor4ubv(col);
 
-		glEnableClientState(GL_VERTEX_ARRAY);
-		glVertexPointer(3, GL_FLOAT, 0, bb->vec);
-		glDrawElements(GL_QUADS, sizeof(clipping_index) / sizeof(unsigned int), GL_UNSIGNED_INT, clipping_index);
-		glDisableClientState(GL_VERTEX_ARRAY);
-
+		gpuSingleClientRangeElements_V3F(
+			GL_QUADS,
+			bb->vec,
+			0,
+			0,
+			7,
+			sizeof(clipping_index) / sizeof(unsigned int),
+			clipping_index);
 	}
 }
 
@@ -230,38 +204,41 @@ int ED_view3d_clipping_test(RegionView3D *rv3d, const float vec[3], const int is
 
 
 static void drawgrid_draw(ARegion *ar, double wx, double wy, double x, double y, double dx)
-{	
-	double verts[2][2];
+{
+	float verts[2][2];
 
 	x += (wx);
 	y += (wy);
 
+	gpuImmediateFormat_V2();
+	gpuBegin(GL_LINES);
+
 	/* set fixed 'Y' */
 	verts[0][1] = 0.0f;
-	verts[1][1] = (double)ar->winy;
+	verts[1][1] = (float)ar->winy;
 
 	/* iter over 'X' */
 	verts[0][0] = verts[1][0] = x - dx *floor(x / dx);
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(2, GL_DOUBLE, 0, verts);
 
 	while (verts[0][0] < ar->winx) {
-		glDrawArrays(GL_LINES, 0, 2);
+		gpuAppendLinef(verts[0][0], verts[0][1], verts[1][0], verts[1][1]);
 		verts[0][0] = verts[1][0] = verts[0][0] + dx;
 	}
 
 	/* set fixed 'X' */
 	verts[0][0] = 0.0f;
-	verts[1][0] = (double)ar->winx;
+	verts[1][0] = (float)ar->winx;
 
 	/* iter over 'Y' */
 	verts[0][1] = verts[1][1] = y - dx *floor(y / dx);
+
 	while (verts[0][1] < ar->winy) {
-		glDrawArrays(GL_LINES, 0, 2);
+		gpuAppendLinef(verts[0][0], verts[0][1], verts[1][0], verts[1][1]);
 		verts[0][1] = verts[1][1] = verts[0][1] + dx;
 	}
 
-	glDisableClientState(GL_VERTEX_ARRAY);
+	gpuEnd();
+	gpuImmediateUnformat();
 }
 
 #define GRID_MIN_PX_D   6.0
@@ -415,23 +392,37 @@ static void drawgrid(UnitSettings *unit, ARegion *ar, View3D *v3d, const char **
 	UI_GetThemeColor3ubv(TH_GRID, col);
 
 	setlinestyle(0);
-	
+
+	gpuImmediateFormat_V3(); // DOODLE: grid floor axis, 2 standard colored lines
+	gpuBegin(GL_LINES);
+
 	/* center cross */
 	/* horizontal line */
-	if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT))
+	if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
 		UI_make_axis_color(col, col2, 'Y');
-	else UI_make_axis_color(col, col2, 'X');
-	glColor3ubv(col2);
+	}
+	else {
+		UI_make_axis_color(col, col2, 'X');
+	}
+
+	gpuColor3ubv(col2);
 	
-	fdrawline(0.0,  y,  (float)ar->winx,  y); 
+	gpuAppendLinef(0.0,  y,  (float)ar->winx,  y); 
 	
 	/* vertical line */
-	if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM))
+	if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
 		UI_make_axis_color(col, col2, 'Y');
-	else UI_make_axis_color(col, col2, 'Z');
-	glColor3ubv(col2);
+	}
+	else {
+		UI_make_axis_color(col, col2, 'Z');
+	}
 
-	fdrawline(x, 0.0, x, (float)ar->winy); 
+	gpuColor3ubv(col2);
+
+	gpuAppendLinef(x, 0.0, x, (float)ar->winy); 
+
+	gpuEnd();
+	gpuImmediateUnformat();
 
 	glDepthMask(1);     // enable write in zbuffer
 }
@@ -470,7 +461,7 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 
 	/* draw the Y axis and/or grid lines */
 	if (v3d->gridflag & V3D_SHOW_FLOOR) {
-		float vert[4][3] = {{0.0f}};
+		float vert[4][2];
 		unsigned char col_bg[3];
 		unsigned char col_grid_emphasise[3], col_grid_light[3];
 		int a;
@@ -485,18 +476,18 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 		                         (col_bg[0] + col_bg[1] + col_bg[2])) ? 20 : -10);
 
 		/* set fixed axis */
-		vert[0][0] = vert[2][1] = grid;
+		vert[0][0] = vert[2][1] =  grid;
 		vert[1][0] = vert[3][1] = -grid;
 
-		glEnableClientState(GL_VERTEX_ARRAY);
-		glVertexPointer(3, GL_FLOAT, 0, vert);
+		gpuImmediateFormat_C4_V2();
+		gpuBegin(GL_LINES);
 
 		for (a = -gridlines; a <= gridlines; a++) {
 			const float line = a * grid_scale;
 			const int is_emphasise = (a % 10) == 0;
 
 			if (is_emphasise != prev_emphasise) {
-				glColor3ubv(is_emphasise ? col_grid_emphasise : col_grid_light);
+				gpuColor3ubv(is_emphasise ? col_grid_emphasise : col_grid_light);
 				prev_emphasise = is_emphasise;
 			}
 
@@ -504,10 +495,12 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 			vert[0][1] = vert[1][1] =
 			vert[2][0] = vert[3][0] = line;
 
-			glDrawArrays(GL_LINES, 0, 4);
+			gpuAppendLinef(vert[0][0], vert[0][1], vert[1][0], vert[1][1]);
+			gpuAppendLinef(vert[2][0], vert[2][1], vert[3][0], vert[3][1]);
 		}
 
-		glDisableClientState(GL_VERTEX_ARRAY);
+		gpuEnd();
+		gpuImmediateUnformat();
 
 		GPU_print_error("sdsd");
 	}
@@ -516,23 +509,28 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 	/* check for the 'show Z axis' preference */
 	if (v3d->gridflag & (V3D_SHOW_X | V3D_SHOW_Y | V3D_SHOW_Z)) {
 		int axis;
+
+		gpuImmediateFormat_V3();
+		gpuBegin(GL_LINES);
+
 		for (axis = 0; axis < 3; axis++) {
 			if (v3d->gridflag & (V3D_SHOW_X << axis)) {
 				float vert[3];
 				unsigned char tcol[3];
 
 				UI_make_axis_color(col_grid, tcol, 'X' + axis);
-				glColor3ubv(tcol);
+				gpuColor3ubv(tcol);
 
-				glBegin(GL_LINE_STRIP);
 				zero_v3(vert);
 				vert[axis] = grid;
-				glVertex3fv(vert);
+				gpuVertex3fv(vert);
 				vert[axis] = -grid;
-				glVertex3fv(vert);
-				glEnd();
+				gpuVertex3fv(vert);
 			}
 		}
+
+		gpuEnd();
+		gpuImmediateUnformat();
 	}
 
 
@@ -546,30 +544,80 @@ static void drawcursor(Scene *scene, ARegion *ar, View3D *v3d)
 {
 	int mx, my, co[2];
 	int flag;
-	
+
 	/* we don't want the clipping for cursor */
 	flag = v3d->flag;
 	v3d->flag = 0;
 	project_int(ar, give_cursor(scene, v3d), co);
 	v3d->flag = flag;
-	
+
 	mx = co[0];
 	my = co[1];
-	
+
 	if (mx != IS_CLIPPED) {
+		gpuImmediateFormat_V2(); // DOODLE: view3d cursor, 2 stippled circles, 4 mono lines
+
 		setlinestyle(0); 
-		cpack(0xFF);
-		circ((float)mx, (float)my, 10.0);
+		gpuCurrentColorPack(0xFF);
+		gpuDrawCircle((float)mx, (float)my, 10.0, 32);
+
 		setlinestyle(4); 
-		cpack(0xFFFFFF);
-		circ((float)mx, (float)my, 10.0);
+		gpuCurrentColorPack(0xFFFFFF);
+		gpuRepeat();
+
 		setlinestyle(0);
-		cpack(0x0);
-		
-		sdrawline(mx - 20, my, mx - 5, my);
-		sdrawline(mx + 5, my, mx + 20, my);
-		sdrawline(mx, my - 20, mx, my - 5);
-		sdrawline(mx, my + 5, mx, my + 20);
+		gpuCurrentColorPack(0x0);
+
+		gpuBegin(GL_LINES);
+		gpuAppendLinei(mx - 20, my, mx - 5, my);
+		gpuAppendLinei(mx + 5, my, mx + 20, my);
+		gpuAppendLinei(mx, my - 20, mx, my - 5);
+		gpuAppendLinei(mx, my + 5, mx, my + 20);
+		gpuEnd();
+
+		gpuImmediateUnformat();
+	}
+}
+
+static void sort3(int sort[3], float a, float b, float c)
+{
+	if (a < b) {
+		if (a < c) {
+			sort[0] = 0;
+
+			if (b < c) {
+				sort[1] = 1;
+				sort[2] = 2;
+			}
+			else {
+				sort[1] = 2;
+				sort[2] = 1;
+			}
+		}
+		else {
+			sort[0] = 2;
+			sort[1] = 0;
+			sort[2] = 1;
+		}
+	}
+	else {
+		if (b < c) {
+			sort[0] = 1;
+
+			if (a < c) {
+				sort[1] = 0;
+				sort[2] = 2;
+			}
+			else {
+				sort[1] = 2;
+				sort[2] = 0;
+			}
+		}
+		else {
+			sort[0] = 2;
+			sort[1] = 1;
+			sort[2] = 0;
+		}
 	}
 }
 
@@ -577,81 +625,106 @@ static void drawcursor(Scene *scene, ARegion *ar, View3D *v3d)
  * colors copied from transform_manipulator.c, we should keep these matching. */
 static void draw_view_axis(RegionView3D *rv3d)
 {
-	const float k = U.rvisize;   /* axis size */
-	const float toll = 0.5;      /* used to see when view is quasi-orthogonal */
-	const float start = k + 1.0f; /* axis center in screen coordinates, x=y */
-	float ydisp = 0.0;          /* vertical displacement to allow obj info text */
-	int bright = 25 * (float)U.rvibright + 5; /* axis alpha (rvibright has range 0-10) */
+	/* axis size */
+	const float k = U.rvisize;
 
-	float vec[3];
-	float dx, dy;
-	
-	/* thickness of lines is proportional to k */
-	glLineWidth(2);
+	 /* line width is proportional to size */
+	const float size = k/25.0f;
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	/* axis center in screen coordinates, x=y=z */
+	const float start = k + 1.0f;
+	float origin[3] = 
+		{ start, start, start };
 
-	/* X */
-	vec[0] = 1;
-	vec[1] = vec[2] = 0;
-	mul_qt_v3(rv3d->viewquat, vec);
-	dx = vec[0] * k;
-	dy = vec[1] * k;
+	/* used to see when view is quasi-orthogonal */
+	const float toll = 0.5;
 
-	glColor4ub(220, 0, 0, bright);
-	glBegin(GL_LINES);
-	glVertex2f(start, start + ydisp);
-	glVertex2f(start + dx, start + dy + ydisp);
-	glEnd();
+	/* axis alpha (rvibright has range 0-10) */
+	const int bright = 25*U.rvibright + U.rvibright/51;
 
-	if (fabsf(dx) > toll || fabsf(dy) > toll) {
-		BLF_draw_default_ascii(start + dx + 2, start + dy + ydisp + 2, 0.0f, "x", 1);
-	}
-	
-	/* BLF_draw_default disables blending */
-	glEnable(GL_BLEND);
+	float axis[3][3] = {
+		{ 1, 0, 0 },
+		{ 0, 1, 0 },
+		{ 0, 0, 1 },
+	};
 
-	/* Y */
-	vec[1] = 1;
-	vec[0] = vec[2] = 0;
-	mul_qt_v3(rv3d->viewquat, vec);
-	dx = vec[0] * k;
-	dy = vec[1] * k;
+	float offset[3][3] = {
+		{ size, 0, 0 },
+		{ 0, size, 0 },
+		{ 0, 0, size },
+	};
 
-	glColor4ub(0, 220, 0, bright);
-	glBegin(GL_LINES);
-	glVertex2f(start, start + ydisp);
-	glVertex2f(start + dx, start + dy + ydisp);
-	glEnd();
+	const unsigned char label[] = "xyz";
+	GLboolean showLabel[3];
 
-	if (fabsf(dx) > toll || fabsf(dy) > toll) {
-		BLF_draw_default_ascii(start + dx + 2, start + dy + ydisp + 2, 0.0f, "y", 1);
-	}
+	const GLubyte color[3][4] = {
+		{ 220,   0,   0, bright },
+		{   0, 220,   0, bright },
+		{  30,  30, 220, bright },
+	};
 
-	glEnable(GL_BLEND);
-	
-	/* Z */
-	vec[2] = 1;
-	vec[1] = vec[0] = 0;
-	mul_qt_v3(rv3d->viewquat, vec);
-	dx = vec[0] * k;
-	dy = vec[1] * k;
+	const GLfloat jitter[4][3] = {
+		{  -size/2,  0, 0 },
+		{   0, -size/2, 0 },
+		{   size/2,  0, 0 },
+		{   0,  size/2, 0 },
+	};
 
-	glColor4ub(30, 30, 220, bright);
-	glBegin(GL_LINES);
-	glVertex2f(start, start + ydisp);
-	glVertex2f(start + dx, start + dy + ydisp);
-	glEnd();
+	int sort[3];
 
-	if (fabsf(dx) > toll || fabsf(dy) > toll) {
-		BLF_draw_default_ascii(start + dx + 2, start + dy + ydisp + 2, 0.0f, "z", 1);
+	int i;
+
+	for (i = 0; i < 3; i++) {
+		mul_qt_v3(rv3d->viewquat, axis[i]);
+		mul_qt_v3(rv3d->viewquat, offset[i]);
+		mul_v3_fl(axis[i], k);
+
+		showLabel[i] = fabsf(axis[i][0]) > toll || fabsf(axis[i][1]) > toll;
+
+		add_v3_v3(axis[i], origin);
+		add_v3_v3(offset[i], origin);
 	}
 
-	/* restore line-width */
-	
-	glLineWidth(1.0);
+	sort3(sort, axis[0][2], axis[1][2], axis[2][2]);
+
+	glLineWidth(size);
+	glEnable(GL_BLEND);
+	gpuImmediateFormat_C4_V2();
+	gpuBegin(GL_LINES);
+	for (i = 0; i < 3; i++) {
+		if (showLabel[sort[i]]) {
+			int j;
+			GLfloat p0[3], p1[3];
+
+			gpuColor4ub(color[sort[i]][0], color[sort[i]][1], color[sort[i]][2], bright / 2);
+
+			for (j = 0; j < 4; j++) {
+				add_v3_v3v3(p0, offset[sort[i]], jitter[j]);
+				add_v3_v3v3(p1, axis[sort[i]], jitter[j]);
+
+				gpuVertex2fv(p0);
+				gpuVertex2fv(p1);
+			}
+		}
+	}
+	gpuEnd();
+	gpuImmediateUnformat();
 	glDisable(GL_BLEND);
+	glLineWidth(1.0);
+
+	BLF_draw_default_lock();
+	for (i = 0; i < 3; i++) {
+		if (showLabel[sort[i]]) {
+			gpuCurrentColor4ubv(color[sort[i]]);
+			BLF_draw_default_ascii(
+				axis[sort[i]][0] + size,
+				axis[sort[i]][1] + size,
+				0,
+				label + sort[i],
+				1);
+		}
+	}
+	BLF_draw_default_unlock();
 }
 
 /* draw center and axis of rotation for ongoing 3D mouse navigation */
@@ -665,7 +738,6 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 	negate_v3_v3(o, rv3d->ofs);
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glShadeModel(GL_SMOOTH);
 	glPointSize(5);
 	glEnable(GL_POINT_SMOOTH);
@@ -678,24 +750,24 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 		mul_v3_v3fl(scaled_axis, rv3d->rot_axis, scale);
 
 
-		glBegin(GL_LINE_STRIP);
+		gpuBegin(GL_LINE_STRIP);
 		color[3] = 0.f; // more transparent toward the ends
-		glColor4fv(color);
+		gpuColor4fv(color);
 		add_v3_v3v3(end, o, scaled_axis);
-		glVertex3fv(end);
+		gpuVertex3fv(end);
 
 		// color[3] = 0.2f + fabsf(rv3d->rot_angle); // modulate opacity with angle
 		// ^^ neat idea, but angle is frame-rate dependent, so it's usually close to 0.2
 
 		color[3] = 0.5f; // more opaque toward the center
-		glColor4fv(color);
-		glVertex3fv(o);
+		gpuColor4fv(color);
+		gpuVertex3fv(o);
 
 		color[3] = 0.f;
-		glColor4fv(color);
+		gpuColor4fv(color);
 		sub_v3_v3v3(end, o, scaled_axis);
-		glVertex3fv(end);
-		glEnd();
+		gpuVertex3fv(end);
+		gpuEnd();
 		
 		// -- draw ring around rotation center --
 		{
@@ -718,8 +790,8 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 			}
 
 			color[3] = 0.25f; // somewhat faint
-			glColor4fv(color);
-			glBegin(GL_LINE_LOOP);
+			gpuCurrentColor4fv(color);
+			gpuBegin(GL_LINE_LOOP);
 			for (i = 0, angle = 0.f; i < ROT_AXIS_DETAIL; ++i, angle += step) {
 				float p[3] = {s *cosf(angle), s * sinf(angle), 0.0f};
 
@@ -728,9 +800,9 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 				}
 
 				add_v3_v3(p, o);
-				glVertex3fv(p);
+				gpuVertex3fv(p);
 			}
-			glEnd();
+			gpuEnd();
 
 #undef      ROT_AXIS_DETAIL
 		}
@@ -741,10 +813,10 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 		color[3] = 0.5f;  // see-through dot
 
 	// -- draw rotation center --
-	glColor4fv(color);
-	glBegin(GL_POINTS);
-	glVertex3fv(o);
-	glEnd();
+	gpuCurrentColor4fv(color);
+	gpuBegin(GL_POINTS);
+	gpuVertex3fv(o);
+	gpuEnd();
 
 	// find screen coordinates for rotation center, then draw pretty icon
 	// mul_m4_v3(rv3d->persinv, rot_center);
@@ -769,7 +841,6 @@ static void draw_view_icon(RegionView3D *rv3d)
 	else return;
 	
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA,  GL_ONE_MINUS_SRC_ALPHA); 
 	
 	UI_icon_draw(5.0, 5.0, icon);
 	
@@ -992,19 +1063,12 @@ static void drawviewborder_grid3(float x1, float x2, float y1, float y2, float f
 	x4 = x1 + (1.0f - fac) * (x2 - x1);
 	y4 = y1 + (1.0f - fac) * (y2 - y1);
 
-	glBegin(GL_LINES);
-	glVertex2f(x1, y3);
-	glVertex2f(x2, y3);
-
-	glVertex2f(x1, y4);
-	glVertex2f(x2, y4);
-
-	glVertex2f(x3, y1);
-	glVertex2f(x3, y2);
-
-	glVertex2f(x4, y1);
-	glVertex2f(x4, y2);
-	glEnd();
+	gpuBegin(GL_LINES);
+	gpuAppendLinef(x1, y3, x2, y3);
+	gpuAppendLinef(x1, y4, x2, y4);
+	gpuAppendLinef(x3, y1, x3, y2);
+	gpuAppendLinef(x4, y1, x4, y2);
+	gpuEnd();
 }
 
 /* harmonious triangle */
@@ -1014,7 +1078,7 @@ static void drawviewborder_triangle(float x1, float x2, float y1, float y2, cons
 	float w = x2 - x1;
 	float h = y2 - y1;
 
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	if (w > h) {
 		if (golden) {
 			ofs = w * (1.0f - (1.0f / 1.61803399f));
@@ -1024,14 +1088,9 @@ static void drawviewborder_triangle(float x1, float x2, float y1, float y2, cons
 		}
 		if (dir == 'B') SWAP(float, y1, y2);
 
-		glVertex2f(x1, y1);
-		glVertex2f(x2, y2);
-
-		glVertex2f(x2, y1);
-		glVertex2f(x1 + (w - ofs), y2);
-
-		glVertex2f(x1, y2);
-		glVertex2f(x1 + ofs, y1);
+		gpuAppendLinef(x1, y1, x2, y2);
+		gpuAppendLinef(x2, y1, x1 + (w - ofs), y2);
+		gpuAppendLinef(x1, y2, x1 + ofs, y1);
 	}
 	else {
 		if (golden) {
@@ -1042,16 +1101,11 @@ static void drawviewborder_triangle(float x1, float x2, float y1, float y2, cons
 		}
 		if (dir == 'B') SWAP(float, x1, x2);
 
-		glVertex2f(x1, y1);
-		glVertex2f(x2, y2);
-
-		glVertex2f(x2, y1);
-		glVertex2f(x1, y1 + ofs);
-
-		glVertex2f(x1, y2);
-		glVertex2f(x2, y1 + (h - ofs));
+		gpuAppendLinef(x1, y1, x2, y2);
+		gpuAppendLinef(x2, y1, x1, y1 + ofs);
+		gpuAppendLinef(x1, y2, x2, y1 + (h - ofs));
 	}
-	glEnd();
+	gpuEnd();
 }
 
 static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
@@ -1063,19 +1117,21 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 	rctf viewborder;
 	Camera *ca = NULL;
 	RegionView3D *rv3d = (RegionView3D *)ar->regiondata;
-	
+
+	gpuImmediateFormat_V2();
+
 	if (v3d->camera == NULL)
 		return;
 	if (v3d->camera->type == OB_CAMERA)
 		ca = v3d->camera->data;
-	
+
 	ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &viewborder, FALSE);
 	/* the offsets */
 	x1 = viewborder.xmin;
 	y1 = viewborder.ymin;
 	x2 = viewborder.xmax;
 	y2 = viewborder.ymax;
-	
+
 	/* apply offsets so the real 3D camera shows through */
 
 	/* note: quite un-scientific but without this bit extra
@@ -1091,21 +1147,20 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 	/* passepartout, specified in camera edit buttons */
 	if (ca && (ca->flag & CAM_SHOWPASSEPARTOUT) && ca->passepartalpha > 0.000001f) {
 		if (ca->passepartalpha == 1.0f) {
-			glColor3f(0, 0, 0);
+			gpuCurrentColor3f(0, 0, 0);
 		}
 		else {
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glEnable(GL_BLEND);
-			glColor4f(0, 0, 0, ca->passepartalpha);
+			gpuCurrentColor4f(0, 0, 0, ca->passepartalpha);
 		}
 		if (x1i > 0.0f)
-			glRectf(0.0, (float)ar->winy, x1i, 0.0);
+			gpuDrawFilledRectf(0.0, (float)ar->winy, x1i, 0.0);
 		if (x2i < (float)ar->winx)
-			glRectf(x2i, (float)ar->winy, (float)ar->winx, 0.0);
+			gpuDrawFilledRectf(x2i, (float)ar->winy, (float)ar->winx, 0.0);
 		if (y2i < (float)ar->winy)
-			glRectf(x1i, (float)ar->winy, x2i, y2i);
+			gpuDrawFilledRectf(x1i, (float)ar->winy, x2i, y2i);
 		if (y2i > 0.0f)
-			glRectf(x1i, y1i, x2i, 0.0);
+			gpuDrawFilledRectf(x1i, y1i, x2i, 0.0);
 		
 		glDisable(GL_BLEND);
 	}
@@ -1117,12 +1172,12 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 
 	UI_ThemeColor(TH_BACK);
 		
-	glRectf(x1i, y1i, x2i, y2i);
+	gpuDrawFilledRectf(x1i, y1i, x2i, y2i);
 
 #ifdef VIEW3D_CAMERA_BORDER_HACK
 	if (view3d_camera_border_hack_test == TRUE) {
-		glColor4fv(view3d_camera_border_hack_col);
-		glRectf(x1i + 1, y1i + 1, x2i - 1, y2i - 1);
+		gpuCurrentColor4fv(view3d_camera_border_hack_col);
+		gpuDrawFilledRectf(x1i + 1, y1i + 1, x2i - 1, y2i - 1);
 		view3d_camera_border_hack_test = FALSE;
 	}
 #endif
@@ -1132,52 +1187,49 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 	/* outer line not to confuse with object selecton */
 	if (v3d->flag2 & V3D_LOCK_CAMERA) {
 		UI_ThemeColor(TH_REDALERT);
-		glRectf(x1i - 1, y1i - 1, x2i + 1, y2i + 1);
+		gpuDrawFilledRectf(x1i - 1, y1i - 1, x2i + 1, y2i + 1);
 	}
 
 	UI_ThemeColor(TH_WIRE);
-	glRectf(x1i, y1i, x2i, y2i);
+	gpuDrawFilledRectf(x1i, y1i, x2i, y2i);
 
 	/* border */
 	if (scene->r.mode & R_BORDER) {
 		
-		cpack(0);
 		x3 = x1 + scene->r.border.xmin * (x2 - x1);
 		y3 = y1 + scene->r.border.ymin * (y2 - y1);
 		x4 = x1 + scene->r.border.xmax * (x2 - x1);
 		y4 = y1 + scene->r.border.ymax * (y2 - y1);
 		
-		cpack(0x4040FF);
-		glRectf(x3,  y3,  x4,  y4); 
+		gpuCurrentColorPack(0x4040FF);
+		gpuDrawFilledRectf(x3,  y3,  x4,  y4); 
 	}
+
+	gpuImmediateUnformat();
 
 	/* safety border */
 	if (ca) {
+		gpuImmediateFormat_V2();
+
 		if (ca->dtx & CAM_DTX_CENTER) {
 			UI_ThemeColorBlendShade(TH_WIRE, TH_BACK, 0.25, 0);
 
 			x3 = x1 + 0.5f * (x2 - x1);
 			y3 = y1 + 0.5f * (y2 - y1);
 
-			glBegin(GL_LINES);
-			glVertex2f(x1, y3);
-			glVertex2f(x2, y3);
-
-			glVertex2f(x3, y1);
-			glVertex2f(x3, y2);
-			glEnd();
+			gpuBegin(GL_LINES);
+			gpuAppendLinef(x1, y3, x2, y3);
+			gpuAppendLinef(x3, y1, x3, y2);
+			gpuEnd();
 		}
 
 		if (ca->dtx & CAM_DTX_CENTER_DIAG) {
 			UI_ThemeColorBlendShade(TH_WIRE, TH_BACK, 0.25, 0);
 
-			glBegin(GL_LINES);
-			glVertex2f(x1, y1);
-			glVertex2f(x2, y2);
-
-			glVertex2f(x1, y2);
-			glVertex2f(x2, y1);
-			glEnd();
+			gpuBegin(GL_LINES);
+			gpuAppendLinef(x1, y1, x2, y2);
+			gpuAppendLinef(x1, y2, x2, y1);
+			gpuEnd();
 		}
 
 		if (ca->dtx & CAM_DTX_THIRDS) {
@@ -1209,6 +1261,8 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 			UI_ThemeColorBlendShade(TH_WIRE, TH_BACK, 0.25, 0);
 			drawviewborder_triangle(x1, x2, y1, y2, 1, 'B');
 		}
+
+		gpuImmediateUnformat();
 
 		if (ca->flag & CAM_SHOWTITLESAFE) {
 			fac = 0.1;
@@ -1658,7 +1712,6 @@ static void draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d, int foreground)
 			glDepthMask(0);
 
 			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA,  GL_ONE_MINUS_SRC_ALPHA);
 
 			glMatrixMode(GL_PROJECTION);
 			glPushMatrix();
@@ -1667,7 +1720,7 @@ static void draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d, int foreground)
 			ED_region_pixelspace(ar);
 
 			glPixelZoom(zoomx, zoomy);
-			glColor4f(1.0f, 1.0f, 1.0f, 1.0f - bgpic->blend);
+			gpuCurrentColor4f(1.0f, 1.0f, 1.0f, 1.0f - bgpic->blend);
 			glaDrawPixelsTex(x1, y1, ibuf->x, ibuf->y, GL_UNSIGNED_BYTE, ibuf->rect);
 
 			glPixelZoom(1.0, 1.0);
@@ -2597,7 +2650,7 @@ void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar,
 	glPopMatrix();
 
 	// XXX, without this the sequencer flickers with opengl draw enabled, need to find out why - campbell
-	glColor4ub(255, 255, 255, 255);
+	gpuCurrentColor4ub(255, 255, 255, 255);
 
 	G.f &= ~G_RENDER_OGL;
 }

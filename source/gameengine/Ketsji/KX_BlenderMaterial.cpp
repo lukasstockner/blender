@@ -238,7 +238,7 @@ void KX_BlenderMaterial::OnExit()
 	/* used to call with 'mMaterial->tface' but this can be a freed array,
 	 * see: [#30493], so just call with NULL, this is best since it clears
 	 * the 'lastface' pointer in GPU too - campbell */
-	GPU_set_tpage(NULL, 1, mMaterial->alphablend);
+	GPU_set_tpage(NULL, 1, mMaterial->alphablend); // BLENDFUNC
 }
 
 
@@ -278,12 +278,10 @@ void KX_BlenderMaterial::setShaderData( bool enable, RAS_IRasterizer *ras)
 		ras->SetAlphaBlend(mMaterial->alphablend);
 	}
 	else {
-		ras->SetAlphaBlend(TF_SOLID);
 		ras->SetAlphaBlend(-1); // indicates custom mode
 
 		// tested to be valid enums
-		glEnable(GL_BLEND);
-		glBlendFunc(mBlendFunc[0], mBlendFunc[1]);
+		glBlendFunc(mBlendFunc[0], mBlendFunc[1]); /* non-standard blend function */
 	}
 }
 
@@ -364,11 +362,10 @@ void KX_BlenderMaterial::setTexData( bool enable, RAS_IRasterizer *ras)
 		ras->SetAlphaBlend(mMaterial->alphablend);
 	}
 	else {
-		ras->SetAlphaBlend(TF_SOLID);
 		ras->SetAlphaBlend(-1); // indicates custom mode
 
-		glEnable(GL_BLEND);
-		glBlendFunc(mBlendFunc[0], mBlendFunc[1]);
+		// tested to be valid enums
+		glBlendFunc(mBlendFunc[0], mBlendFunc[1]);  /* non-standard blend function */
 	}
 }
 

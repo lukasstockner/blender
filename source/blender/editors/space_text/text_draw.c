@@ -1328,7 +1328,7 @@ static void draw_textscroll(SpaceText *st, rcti *scroll, rcti *back)
 	float rad;
 	
 	UI_ThemeColor(TH_BACK);
-	gpuSingleRecti(GL_QUADS, back->xmin, back->ymin, back->xmax, back->ymax);
+	gpuSingleFilledRecti(back->xmin, back->ymin, back->xmax, back->ymax);
 
 	uiWidgetScrollDraw(&wcol, scroll, &st->txtbar, (st->flags & ST_SCROLL_SELECT) ? UI_SCROLL_PRESSED : 0);
 
@@ -1462,7 +1462,7 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 
 	/* Draw panel */
 	UI_ThemeColor(TH_BACK);
-	gpuSingleRecti(GL_QUADS, x, y, x + boxw, y - boxh);
+	gpuSingleFilledRecti(x, y, x + boxw, y - boxh);
 	UI_ThemeColor(TH_SHADE1);
 	gpuBegin(GL_LINE_LOOP);
 	gpuVertex2i(x, y);
@@ -1555,9 +1555,9 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 	boxh = SUGG_LIST_SIZE * st->lheight + 8;
 	
 	UI_ThemeColor(TH_SHADE1);
-	gpuSingleRecti(GL_QUADS, x - 1, y + 1, x + boxw + 1, y - boxh - 1);
+	gpuSingleFilledRecti(x - 1, y + 1, x + boxw + 1, y - boxh - 1);
 	UI_ThemeColor(TH_BACK);
-	gpuSingleRecti(GL_QUADS, x, y, x + boxw, y - boxh);
+	gpuSingleFilledRecti(x, y, x + boxw, y - boxh);
 
 	BLF_draw_lock(mono);
 
@@ -1574,7 +1574,7 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 		
 		if (item == sel) {
 			UI_ThemeColor(TH_SHADE2);
-			gpuSingleRecti(GL_QUADS, x + 16, y - 3, x + 16 + w, y + st->lheight - 3);
+			gpuSingleFilledRecti(x + 16, y - 3, x + 16 + w, y + st->lheight - 3);
 		}
 		b = 1; /* b=1 color block, text is default. b=0 no block, color text */
 		switch (item->type) {
@@ -1585,7 +1585,7 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 			case '?': UI_ThemeColor(TH_TEXT); b = 0; break;
 		}
 		if (b) {
-			gpuSingleRecti(GL_QUADS, x + 8, y + 2, x + 11, y + 5);
+			gpuSingleFilledRecti(x + 8, y + 2, x + 11, y + 5);
 			UI_ThemeColor(TH_TEXT);
 		}
 		text_draw(st, str, 0, 0, 1, x + 16, y - 1, NULL);
@@ -1625,9 +1625,9 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 		if (vcurl == vsell) {
 			y -= vcurl * st->lheight;
 			if (vcurc < vselc)
-				gpuSingleRecti(GL_QUADS, x + vcurc * st->cwidth - 1, y, x + vselc * st->cwidth, y - st->lheight);
+				gpuSingleFilledRecti(x + vcurc * st->cwidth - 1, y, x + vselc * st->cwidth, y - st->lheight);
 			else
-				gpuSingleRecti(GL_QUADS, x + vselc * st->cwidth - 1, y, x + vcurc * st->cwidth, y - st->lheight);
+				gpuSingleFilledRecti(x + vselc * st->cwidth - 1, y, x + vcurc * st->cwidth, y - st->lheight);
 		}
 		else {
 			int froml, fromc, tol, toc;
@@ -1642,15 +1642,15 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			}
 
 			y -= froml * st->lheight;
-			gpuSingleRecti(GL_QUADS, x + fromc * st->cwidth - 1, y, ar->winx, y - st->lheight);
+			gpuSingleFilledRecti(x + fromc * st->cwidth - 1, y, ar->winx, y - st->lheight);
 			y -= st->lheight;
 
 			for (i = froml + 1; i < tol; i++) {
-				gpuSingleRecti(GL_QUADS, x - 4, y, ar->winx, y - st->lheight);
+				gpuSingleFilledRecti(x - 4, y, ar->winx, y - st->lheight);
 				y -= st->lheight;
 			}
 
-			gpuSingleRecti(GL_QUADS, x - 4, y, x + toc * st->cwidth, y - st->lheight);
+			gpuSingleFilledRecti(x - 4, y, x + toc * st->cwidth, y - st->lheight);
 		}
 	}
 	else {
@@ -1689,7 +1689,7 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			gpuCurrentColor4ub(255, 255, 255, 32);
 			
 			glEnable(GL_BLEND);
-			gpuSingleRecti(GL_QUADS, x1 - 4, y1, x2, y2);
+			gpuSingleFilledRecti(x1 - 4, y1, x2, y2);
 			glDisable(GL_BLEND);
 		}
 	}
@@ -1707,11 +1707,11 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			if (ch == '\t') w *= st->tabnumber - (vselc + st->left) % st->tabnumber;
 			
 			UI_ThemeColor(TH_HILITE);
-			gpuSingleRecti(GL_QUADS, x, y - st->lheight - 1, x + w, y - st->lheight + 1);
+			gpuSingleFilledRecti(x, y - st->lheight - 1, x + w, y - st->lheight + 1);
 		}
 		else {
 			UI_ThemeColor(TH_HILITE);
-			gpuSingleRecti(GL_QUADS, x - 1, y, x + 1, y - st->lheight);
+			gpuSingleFilledRecti(x - 1, y, x + 1, y - st->lheight);
 		}
 	}
 }
@@ -1907,7 +1907,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 		x = TXT_OFFSET + TEXTXLOC;
 
 		UI_ThemeColor(TH_GRID);
-		gpuSingleRecti(GL_QUADS, (TXT_OFFSET - 12), 0, (TXT_OFFSET - 5) + TEXTXLOC, ar->winy - 2);
+		gpuSingleFilledRecti((TXT_OFFSET - 12), 0, (TXT_OFFSET - 5) + TEXTXLOC, ar->winy - 2);
 	}
 	else {
 		st->linenrs_tot = 0; /* not used */

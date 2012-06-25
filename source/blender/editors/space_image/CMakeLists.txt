@@ -26,6 +26,7 @@ set(INC
 	../../blenloader
 	../../imbuf
 	../../bmesh
+	../../gpu
 	../../makesdna
 	../../makesrna
 	../../render/extern/include

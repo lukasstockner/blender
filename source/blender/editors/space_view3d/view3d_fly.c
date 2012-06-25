@@ -45,6 +45,8 @@
 
 #include "BKE_depsgraph.h" /* for fly mode updating */
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 
 #include "WM_api.h"
@@ -231,37 +233,37 @@ static void drawFlyPixel(const struct bContext *UNUSED(C), struct ARegion *UNUSE
 	y1 = 0.45f * (float)fly->ar->winy;
 	x2 = 0.55f * (float)fly->ar->winx;
 	y2 = 0.55f * (float)fly->ar->winy;
-	cpack(0);
+	gpuCurrentColorPack(0x000000);
 
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	/* bottom left */
-	glVertex2f(x1, y1);
-	glVertex2f(x1, y1 + 5);
+	gpuVertex2f(x1, y1);
+	gpuVertex2f(x1, y1 + 5);
 
-	glVertex2f(x1, y1);
-	glVertex2f(x1 + 5, y1);
+	gpuVertex2f(x1, y1);
+	gpuVertex2f(x1 + 5, y1);
 
 	/* top right */
-	glVertex2f(x2, y2);
-	glVertex2f(x2, y2 - 5);
+	gpuVertex2f(x2, y2);
+	gpuVertex2f(x2, y2 - 5);
 
-	glVertex2f(x2, y2);
-	glVertex2f(x2 - 5, y2);
+	gpuVertex2f(x2, y2);
+	gpuVertex2f(x2 - 5, y2);
 
 	/* top left */
-	glVertex2f(x1, y2);
-	glVertex2f(x1, y2 - 5);
+	gpuVertex2f(x1, y2);
+	gpuVertex2f(x1, y2 - 5);
 
-	glVertex2f(x1, y2);
-	glVertex2f(x1 + 5, y2);
+	gpuVertex2f(x1, y2);
+	gpuVertex2f(x1 + 5, y2);
 
 	/* bottom right */
-	glVertex2f(x2, y1);
-	glVertex2f(x2, y1 + 5);
+	gpuVertex2f(x2, y1);
+	gpuVertex2f(x2, y1 + 5);
 
-	glVertex2f(x2, y1);
-	glVertex2f(x2 - 5, y1);
-	glEnd();
+	gpuVertex2f(x2, y1);
+	gpuVertex2f(x2 - 5, y1);
+	gpuEnd();
 }
 
 /* FlyInfo->state */

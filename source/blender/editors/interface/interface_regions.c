@@ -55,6 +55,9 @@
 
 #include "RNA_access.h"
 
+#include "GPU_compatibility.h"
+#include "GPU_utility.h"
+
 #include "BIF_gl.h"
 
 #include "UI_interface.h"
@@ -395,10 +398,12 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 	bbox.ymin = bbox.ymax - data->lineh;
 
 	for (i = 0; i < data->totline; i++) {
-		glColor3fv(tip_colors[data->color_id[i]]);
+		GPU_STRING_MARKER("tooltip text start");
+		gpuCurrentColor3fv(tip_colors[data->color_id[i]]);
 		uiStyleFontDraw(&data->fstyle, &bbox, data->lines[i]);
 		bbox.ymin -= data->lineh + data->spaceh;
 		bbox.ymax -= data->lineh + data->spaceh;
+		GPU_STRING_MARKER("tooltip text end");
 	}
 }
 

@@ -239,8 +239,6 @@ void ED_view3d_clipping_disable(void);
 
 float ED_view3d_pixel_size(struct RegionView3D *rv3d, const float co[3]);
 
-void drawcircball(int mode, const float cent[3], float rad, float tmat[][4]);
-
 /* backbuffer select and draw support */
 void view3d_validate_backbuf(struct ViewContext *vc);
 struct ImBuf *view3d_read_backbuf(struct ViewContext *vc, short xmin, short ymin, short xmax, short ymax);

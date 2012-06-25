@@ -57,6 +57,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
@@ -518,16 +520,22 @@ static void outliner_draw_rnacols(ARegion *ar, int sizex)
 
 	UI_ThemeColorShadeAlpha(TH_BACK, -15, -200);
 
+	gpuImmediateFormat_V2(); // DOODLE: a pair of mono lines
+	gpuBegin(GL_LINES);
+
 	/* draw column separator lines */
-	fdrawline((float)sizex,
+	gpuAppendLinef((float)sizex,
 	          v2d->cur.ymax,
 	          (float)sizex,
 	          miny);
 
-	fdrawline((float)sizex + OL_RNA_COL_SIZEX,
+	gpuAppendLinef((float)sizex + OL_RNA_COL_SIZEX,
 	          v2d->cur.ymax,
 	          (float)sizex + OL_RNA_COL_SIZEX,
 	          miny);
+
+	gpuEnd();
+	gpuImmediateUnformat();
 }
 
 static void outliner_draw_rnabuts(uiBlock *block, Scene *scene, ARegion *ar, SpaceOops *soops, int sizex, ListBase *lb)
@@ -1191,7 +1199,7 @@ static void outliner_draw_iconrow(bContext *C, uiBlock *block, Scene *scene, Spa
 				float ufac = UI_UNIT_X / 20.0f;
 
 				uiSetRoundBox(UI_CNR_ALL);
-				glColor4ub(255, 255, 255, 100);
+				gpuCurrentColor4ub(255, 255, 255, 100);
 				uiRoundBox((float) *offsx - 0.5f * ufac, (float)ys - 1.0f * ufac, (float)*offsx + UI_UNIT_Y - 3.0f * ufac, (float)ys + UI_UNIT_Y - 3.0f * ufac, UI_UNIT_Y / 2.0f - 2.0f * ufac);
 				glEnable(GL_BLEND); /* roundbox disables */
 			}
@@ -1255,15 +1263,15 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 			char col[4];
 			UI_GetThemeColorType4ubv(TH_MATCH, SPACE_OUTLINER, col);
 			col[3] = 100;
-			glColor4ubv((GLubyte *)col);
-			glRecti(startx, *starty + 1, ar->v2d.cur.xmax, *starty + UI_UNIT_Y - 1);
+			gpuCurrentColor4ubv((GLubyte *)col);
+			gpuSingleFilledRecti(startx, *starty + 1, ar->v2d.cur.xmax, *starty + UI_UNIT_Y - 1);
 		}
 
 		/* colors for active/selected data */
 		if (tselem->type == 0) {
 			if (te->idcode == ID_SCE) {
 				if (tselem->id == (ID *)scene) {
-					glColor4ub(255, 255, 255, 100);
+					gpuCurrentColor4ub(255, 255, 255, 100);
 					active = 2;
 				}
 			}
@@ -1274,7 +1282,7 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 					char col[4];
 					UI_GetThemeColorType4ubv(TH_SELECT, SPACE_VIEW3D, col);
 					col[3] = 100;
-					glColor4ubv((GLubyte *)col);
+					gpuCurrentColor4ubv((GLubyte *)col);
 					
 					active = 2;
 				}
@@ -1301,24 +1309,24 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 						col[3] = 100;
 					}
 					
-					glColor4ubv((GLubyte *)col);
+					gpuCurrentColor4ubv((GLubyte *)col);
 				}
 			
 			}
 			else if (scene->obedit && scene->obedit->data == tselem->id) {
-				glColor4ub(255, 255, 255, 100);
+				gpuCurrentColor4ub(255, 255, 255, 100);
 				active = 2;
 			}
 			else {
 				if (tree_element_active(C, scene, soops, te, 0)) {
-					glColor4ub(220, 220, 255, 100);
+					gpuCurrentColor4ub(220, 220, 255, 100);
 					active = 2;
 				}
 			}
 		}
 		else {
 			if (tree_element_type_active(NULL, scene, soops, te, tselem, 0) ) active = 2;
-			glColor4ub(220, 220, 255, 100);
+			gpuCurrentColor4ub(220, 220, 255, 100);
 		}
 		
 		/* active circle */
@@ -1386,7 +1394,7 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 					
 					// divider
 					UI_ThemeColorShade(TH_BACK, -40);
-					glRecti(tempx - 10, *starty + 4, tempx - 8, *starty + UI_UNIT_Y - 4);
+					gpuSingleFilledRecti(tempx - 10, *starty + 4, tempx - 8, *starty + UI_UNIT_Y - 4);
 					
 					glEnable(GL_BLEND);
 					glPixelTransferf(GL_ALPHA_SCALE, 0.5);
@@ -1433,7 +1441,7 @@ static void outliner_draw_hierarchy(SpaceOops *soops, ListBase *lb, int startx, 
 		
 		/* horizontal line? */
 		if (tselem->type == 0 && (te->idcode == ID_OB || te->idcode == ID_SCE))
-			glRecti(startx, *starty, startx + UI_UNIT_X, *starty - 1);
+			gpuSingleFilledRecti(startx, *starty, startx + UI_UNIT_X, *starty - 1);
 			
 		*starty -= UI_UNIT_Y;
 		
@@ -1447,7 +1455,7 @@ static void outliner_draw_hierarchy(SpaceOops *soops, ListBase *lb, int startx, 
 		tselem = TREESTORE(te);
 		if (tselem->type == 0 && te->idcode == ID_OB) {
 			
-			glRecti(startx, y1 + UI_UNIT_Y, startx + 1, y2);
+			gpuSingleFilledRecti(startx, y1 + UI_UNIT_Y, startx + 1, y2);
 		}
 	}
 }
@@ -1456,22 +1464,34 @@ static void outliner_draw_struct_marks(ARegion *ar, SpaceOops *soops, ListBase *
 {
 	TreeElement *te;
 	TreeStoreElem *tselem;
-	
+
+	gpuImmediateFormat_V2(); // DOODLE: struct marks, drawn recursively
+	gpuBegin(GL_LINES);
+
 	for (te = lb->first; te; te = te->next) {
 		tselem = TREESTORE(te);
 		
 		/* selection status */
-		if (TSELEM_OPEN(tselem, soops))
-			if (tselem->type == TSE_RNA_STRUCT)
-				glRecti(0, *starty + 1, (int)ar->v2d.cur.xmax + V2D_SCROLL_WIDTH, *starty + UI_UNIT_Y - 1);
+		if (TSELEM_OPEN(tselem, soops)) {
+			if (tselem->type == TSE_RNA_STRUCT) {
+				gpuEnd();
+				gpuDrawFilledRecti(0, *starty + 1, (int)ar->v2d.cur.xmax + V2D_SCROLL_WIDTH, *starty + UI_UNIT_Y - 1);
+				gpuBegin(GL_LINES);
+			}
+		}
 
 		*starty -= UI_UNIT_Y;
+
 		if (TSELEM_OPEN(tselem, soops)) {
 			outliner_draw_struct_marks(ar, soops, &te->subtree, starty);
-			if (tselem->type == TSE_RNA_STRUCT)
-				fdrawline(0, (float)*starty + UI_UNIT_Y, ar->v2d.cur.xmax + V2D_SCROLL_WIDTH, (float)*starty + UI_UNIT_Y);
+			if (tselem->type == TSE_RNA_STRUCT) {
+				gpuAppendLinef(0, (float)*starty + UI_UNIT_Y, ar->v2d.cur.xmax + V2D_SCROLL_WIDTH, (float)*starty + UI_UNIT_Y);
+			}
 		}
 	}
+
+	gpuEnd();
+	gpuImmediateUnformat();
 }
 
 static void outliner_draw_selection(ARegion *ar, SpaceOops *soops, ListBase *lb, int *starty) 
@@ -1484,7 +1504,7 @@ static void outliner_draw_selection(ARegion *ar, SpaceOops *soops, ListBase *lb,
 		
 		/* selection status */
 		if (tselem->flag & TSE_SELECTED) {
-			glRecti(0, *starty + 1, (int)ar->v2d.cur.xmax, *starty + UI_UNIT_Y - 1);
+			gpuSingleFilledRecti(0, *starty + 1, (int)ar->v2d.cur.xmax, *starty + UI_UNIT_Y - 1);
 		}
 		*starty -= UI_UNIT_Y;
 		if (TSELEM_OPEN(tselem, soops)) outliner_draw_selection(ar, soops, &te->subtree, starty);
@@ -1497,9 +1517,7 @@ static void outliner_draw_tree(bContext *C, uiBlock *block, Scene *scene, ARegio
 	TreeElement *te;
 	int starty, startx;
 	float col[4];
-		
-	glBlendFunc(GL_SRC_ALPHA,  GL_ONE_MINUS_SRC_ALPHA); // only once
-	
+
 	if (ELEM(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF)) {
 		/* struct marks */
 		UI_ThemeColorShadeAlpha(TH_BACK, -15, -200);
@@ -1510,7 +1528,7 @@ static void outliner_draw_tree(bContext *C, uiBlock *block, Scene *scene, ARegio
 	
 	/* always draw selection fill before hierarchy */
 	UI_GetThemeColor3fv(TH_SELECT_HIGHLIGHT, col);
-	glColor3fv(col);
+	gpuCurrentColor3fv(col);
 	starty = (int)ar->v2d.tot.ymax - UI_UNIT_Y - OL_Y_OFFSET;
 	outliner_draw_selection(ar, soops, &soops->tree, &starty);
 	
@@ -1538,7 +1556,7 @@ static void outliner_back(ARegion *ar)
 	ystart = UI_UNIT_Y * (ystart / (UI_UNIT_Y)) - OL_Y_OFFSET;
 	
 	while (ystart + 2 * UI_UNIT_Y > ar->v2d.cur.ymin) {
-		glRecti(0, ystart, (int)ar->v2d.cur.xmax + V2D_SCROLL_WIDTH, ystart + UI_UNIT_Y);
+		gpuSingleFilledRecti(0, ystart, (int)ar->v2d.cur.xmax + V2D_SCROLL_WIDTH, ystart + UI_UNIT_Y);
 		ystart -= 2 * UI_UNIT_Y;
 	}
 }
@@ -1549,36 +1567,42 @@ static void outliner_draw_restrictcols(ARegion *ar)
 	
 	/* background underneath */
 	UI_ThemeColor(TH_BACK);
-	glRecti((int)ar->v2d.cur.xmax - OL_TOGW, (int)ar->v2d.cur.ymin - V2D_SCROLL_HEIGHT - 1, (int)ar->v2d.cur.xmax + V2D_SCROLL_WIDTH, (int)ar->v2d.cur.ymax);
+	gpuSingleFilledRecti((int)ar->v2d.cur.xmax - OL_TOGW, (int)ar->v2d.cur.ymin - V2D_SCROLL_HEIGHT - 1, (int)ar->v2d.cur.xmax + V2D_SCROLL_WIDTH, (int)ar->v2d.cur.ymax);
 	
 	UI_ThemeColorShade(TH_BACK, 6);
 	ystart = (int)ar->v2d.tot.ymax;
 	ystart = UI_UNIT_Y * (ystart / (UI_UNIT_Y)) - OL_Y_OFFSET;
 	
 	while (ystart + 2 * UI_UNIT_Y > ar->v2d.cur.ymin) {
-		glRecti((int)ar->v2d.cur.xmax - OL_TOGW, ystart, (int)ar->v2d.cur.xmax, ystart + UI_UNIT_Y);
+		gpuSingleFilledRecti((int)ar->v2d.cur.xmax - OL_TOGW, ystart, (int)ar->v2d.cur.xmax, ystart + UI_UNIT_Y);
 		ystart -= 2 * UI_UNIT_Y;
 	}
 	
 	UI_ThemeColorShadeAlpha(TH_BACK, -15, -200);
 
+	gpuImmediateFormat_V2(); // DOODLE: 3 mono lines
+	gpuBegin(GL_LINES);
+
 	/* view */
-	fdrawline(ar->v2d.cur.xmax - OL_TOG_RESTRICT_VIEWX,
+	gpuAppendLinef(ar->v2d.cur.xmax - OL_TOG_RESTRICT_VIEWX,
 	          ar->v2d.cur.ymax,
 	          ar->v2d.cur.xmax - OL_TOG_RESTRICT_VIEWX,
 	          ar->v2d.cur.ymin - V2D_SCROLL_HEIGHT);
 
 	/* render */
-	fdrawline(ar->v2d.cur.xmax - OL_TOG_RESTRICT_SELECTX,
+	gpuAppendLinef(ar->v2d.cur.xmax - OL_TOG_RESTRICT_SELECTX,
 	          ar->v2d.cur.ymax,
 	          ar->v2d.cur.xmax - OL_TOG_RESTRICT_SELECTX,
 	          ar->v2d.cur.ymin - V2D_SCROLL_HEIGHT);
 
 	/* render */
-	fdrawline(ar->v2d.cur.xmax - OL_TOG_RESTRICT_RENDERX,
+	gpuAppendLinef(ar->v2d.cur.xmax - OL_TOG_RESTRICT_RENDERX,
 	          ar->v2d.cur.ymax,
 	          ar->v2d.cur.xmax - OL_TOG_RESTRICT_RENDERX,
 	          ar->v2d.cur.ymin - V2D_SCROLL_HEIGHT);
+
+	gpuEnd();
+	gpuImmediateUnformat();
 }
 
 /* ****************************************************** */

@@ -82,6 +82,7 @@ static DerivedMesh *navmesh_dm_createNavMeshForVisualization(DerivedMesh *dm);
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
+#include "GPU_compatibility.h"
 
 static void add_shapekey_layers(DerivedMesh *dm, Mesh *me, Object *ob);
 static void shapekey_layers_to_keyblocks(DerivedMesh *dm, Mesh *me, int actshape_uid);
@@ -2947,7 +2948,7 @@ static void navmesh_drawColored(DerivedMesh *dm)
 	/* if (GPU_buffer_legacy(dm) ) */ { /* TODO - VBO draw code, not high priority - campbell */
 		DEBUG_VBO("Using legacy code. drawNavMeshColored\n");
 		//glShadeModel(GL_SMOOTH);
-		glBegin(glmode = GL_QUADS);
+		gpuBegin(glmode = GL_QUADS);
 		for (a = 0; a < dm->numTessFaceData; a++, mface++) {
 			int new_glmode = mface->v4 ? GL_QUADS : GL_TRIANGLES;
 			int pi = polygonIdx[a];
@@ -2959,18 +2960,18 @@ static void navmesh_drawColored(DerivedMesh *dm)
 			}
 
 			if (new_glmode != glmode) {
-				glEnd();
-				glBegin(glmode = new_glmode);
+				gpuEnd();
+				gpuBegin(glmode = new_glmode);
 			}
-			glColor3fv(col);
-			glVertex3fv(mvert[mface->v1].co);
-			glVertex3fv(mvert[mface->v2].co);
-			glVertex3fv(mvert[mface->v3].co);
+			gpuColor3fv(col);
+			gpuVertex3fv(mvert[mface->v1].co);
+			gpuVertex3fv(mvert[mface->v2].co);
+			gpuVertex3fv(mvert[mface->v3].co);
 			if (mface->v4) {
-				glVertex3fv(mvert[mface->v4].co);
+				gpuVertex3fv(mvert[mface->v4].co);
 			}
 		}
-		glEnd();
+		gpuEnd();
 	}
 	glEnable(GL_LIGHTING);
 }

@@ -69,6 +69,7 @@
 #include "BIF_gl.h"
 
 #include "GPU_extensions.h"
+#include "GPU_compatibility.h"
 
 #include "ED_mesh.h"
 
@@ -303,7 +304,6 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 	glDepthMask(GL_FALSE);
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 #if 0
 	printf("Viewinv:\n");
@@ -418,15 +418,21 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 			}
 
 			// printf("numpoints: %d\n", numpoints);
-			glBegin(GL_POLYGON);
-			glColor3f(1.0, 1.0, 1.0);
+			gpuImmediateFormat_T3_C4_V3();
+			gpuBegin(GL_POLYGON);
+			gpuColor3f(1.0, 1.0, 1.0);
 			for (i = 0; i < numpoints; i++) {
-				glTexCoord3d((points[i * 3 + 0] - min[0]) * cor[0] / size[0],
-				             (points[i * 3 + 1] - min[1]) * cor[1] / size[1],
-				             (points[i * 3 + 2] - min[2]) * cor[2] / size[2]);
-				glVertex3f(points[i * 3 + 0], points[i * 3 + 1], points[i * 3 + 2]);
+				gpuTexCoord3f(
+					(points[i * 3 + 0] - min[0]) * cor[0] / size[0],
+					(points[i * 3 + 1] - min[1]) * cor[1] / size[1],
+					(points[i * 3 + 2] - min[2]) * cor[2] / size[2]);
+				gpuVertex3f(
+					points[i * 3 + 0],
+					points[i * 3 + 1],
+					points[i * 3 + 2]);
 			}
-			glEnd();
+			gpuEnd();
+			gpuImmediateUnformat();
 		}
 		n++;
 	}

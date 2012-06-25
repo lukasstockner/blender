@@ -25,6 +25,7 @@ set(INC
 	../../blenfont
 	../../blenloader
 	../../imbuf
+	../../gpu
 	../../makesdna
 	../../makesrna
 	../../windowmanager

@@ -45,11 +45,15 @@
 
 #include "RNA_access.h"
 
+#include "GPU_compatibility.h"
+
 #include "BIF_gl.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
+
+#include "GPU_compatibility.h"
 
 /* *************************************************** */
 /* TIME CODE FORMATTING */
@@ -201,7 +205,7 @@ static void draw_cfra_number(Scene *scene, View2D *v2d, float cfra, short time)
 	
 	/* draw green box around/behind text */
 	UI_ThemeColorShade(TH_CFRAME, 0);
-	glRectf(x, y,  x + slen,  y + 15);
+	gpuSingleFilledRectf(x, y,  x + slen,  y + 15);
 	
 	/* draw current frame number - black text */
 	UI_ThemeColor(TH_TEXT);
@@ -216,26 +220,30 @@ void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag)
 {
 	Scene *scene = CTX_data_scene(C);
 	float vec[2];
-	
+
 	/* Draw a light green line to indicate current frame */
 	vec[0] = (float)(scene->r.cfra * scene->r.framelen);
-	
+
 	UI_ThemeColor(TH_CFRAME);
 	if (flag & DRAWCFRA_WIDE)
 		glLineWidth(3.0);
 	else
 		glLineWidth(2.0);
-	
-	glBegin(GL_LINE_STRIP);
+
+	gpuImmediateFormat_V2();
+
+	gpuBegin(GL_LINE_STRIP);
 	vec[1] = v2d->cur.ymin - 500.0f;    /* XXX arbitrary... want it go to bottom */
-	glVertex2fv(vec);
-		
+	gpuVertex2fv(vec);
+
 	vec[1] = v2d->cur.ymax;
-	glVertex2fv(vec);
-	glEnd();
-	
+	gpuVertex2fv(vec);
+	gpuEnd();
+
+	gpuImmediateUnformat();
+
 	glLineWidth(1.0);
-	
+
 	/* Draw current frame number in a little box */
 	if (flag & DRAWCFRA_SHOW_NUMBOX) {
 		UI_view2d_view_orthoSpecial(CTX_wm_region(C), v2d, 1);
@@ -254,17 +262,16 @@ void ANIM_draw_previewrange(const bContext *C, View2D *v2d)
 	
 	/* only draw this if preview range is set */
 	if (PRVRANGEON) {
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_BLEND);
-		glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
+		gpuCurrentColor4f(0.0f, 0.0f, 0.0f, 0.4f);
 		
 		/* only draw two separate 'curtains' if there's no overlap between them */
 		if (PSFRA < PEFRA) {
-			glRectf(v2d->cur.xmin, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
-			glRectf((float)PEFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);	
+			gpuSingleFilledRectf(v2d->cur.xmin, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
+			gpuSingleFilledRectf((float)PEFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);	
 		} 
 		else {
-			glRectf(v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+			gpuSingleFilledRectf(v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 		}
 		
 		glDisable(GL_BLEND);

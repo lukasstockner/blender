@@ -49,17 +49,33 @@ void gpuSingleLinei(GLint x1, GLint y1, GLint x2, GLint y2)
 
 
 
-void gpuSingleRectf(GLenum mode, GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2)
+void gpuSingleFilledRectf(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2)
 {
 	gpuImmediateFormat_V2();
-	gpuDrawRectf(mode, x1, y1, x2, y2);
+	gpuDrawFilledRectf(x1, y1, x2, y2);
 	gpuImmediateUnformat();
 }
 
-void gpuSingleRecti(GLenum mode, GLint x1, GLint y1, GLint x2, GLint y2)
+void gpuSingleFilledRecti(GLint x1, GLint y1, GLint x2, GLint y2)
 {
 	gpuImmediateFormat_V2();
-	gpuDrawRecti(mode, x1, y1, x2, y2);
+	gpuDrawFilledRecti(x1, y1, x2, y2);
+	gpuImmediateUnformat();
+}
+
+
+
+void gpuSingleWireRectf(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2)
+{
+	gpuImmediateFormat_V2();
+	gpuDrawWireRectf(x1, y1, x2, y2);
+	gpuImmediateUnformat();
+}
+
+void gpuSingleWireRecti(GLint x1, GLint y1, GLint x2, GLint y2)
+{
+	gpuImmediateFormat_V2();
+	gpuDrawWireRecti(x1, y1, x2, y2);
 	gpuImmediateUnformat();
 }
 
@@ -168,6 +184,61 @@ void gpuImmediateSingleDraw(GLenum mode, GPUimmediate *restrict immediate)
 	GPU_IMMEDIATE = immediate;
 	gpuImmediateLock();
 	gpuDraw(mode);
+	gpuImmediateUnlock();
+	GPU_IMMEDIATE = oldImmediate;
+}
+
+void gpuImmediateSingleRepeat(GPUimmediate *restrict immediate)
+{
+	GPUimmediate* oldImmediate = GPU_IMMEDIATE;
+
+	GPU_IMMEDIATE = immediate;
+	gpuImmediateLock();
+	gpuRepeat();
+	gpuImmediateUnlock();
+	GPU_IMMEDIATE = oldImmediate;
+}
+
+void gpuImmediateSingleDrawElements(GLenum mode, GPUimmediate *restrict immediate)
+{
+	GPUimmediate* oldImmediate = GPU_IMMEDIATE;
+
+	GPU_IMMEDIATE = immediate;
+	gpuImmediateLock();
+	gpuDrawElements(mode);
+	gpuImmediateUnlock();
+	GPU_IMMEDIATE = oldImmediate;
+}
+
+void gpuImmediateSingleRepeatElements(GPUimmediate *restrict immediate)
+{
+	GPUimmediate* oldImmediate = GPU_IMMEDIATE;
+
+	GPU_IMMEDIATE = immediate;
+	gpuImmediateLock();
+	gpuRepeatElements();
+	gpuImmediateUnlock();
+	GPU_IMMEDIATE = oldImmediate;
+}
+
+void gpuImmediateSingleDrawRangeElements(GLenum mode, GPUimmediate *restrict immediate)
+{
+	GPUimmediate* oldImmediate = GPU_IMMEDIATE;
+
+	GPU_IMMEDIATE = immediate;
+	gpuImmediateLock();
+	gpuDrawRangeElements(mode);
+	gpuImmediateUnlock();
+	GPU_IMMEDIATE = oldImmediate;
+}
+
+void gpuImmediateSingleRepeatRangeElements(GPUimmediate *restrict immediate)
+{
+	GPUimmediate* oldImmediate = GPU_IMMEDIATE;
+
+	GPU_IMMEDIATE = immediate;
+	gpuImmediateLock();
+	gpuRepeatRangeElements();
 	gpuImmediateUnlock();
 	GPU_IMMEDIATE = oldImmediate;
 }
@@ -491,7 +562,7 @@ void gpuSingleDisk(
 
 
 // lit, solid, wire, solid w/ base, solid w/ end caps
-//void gpuAppendCone(GLfloat baseRadius, GLfloat height, GLint )
+//void gpuAppendCone(GLfloat radiusBase, GLfloat height, GLint )
 //{
 //	int i;
 //
@@ -641,73 +712,704 @@ void gpuEndSprites(void)
 	}
 }
 
+	//GLfloat s, c;
+	//GLfloat x[2], y[2];
+	//int i;
+
+	//const GLfloat half = height / 2;
+
+	//GPU_ASSERT(slices > 0);
+
+	//x[0] = radiusBase;
+	//y[0] = 0;
+
+	//for (i = 1; i <= slices; i++) {
+	//	GLfloat angle = (float)(2.0*M_PI*i / slices);
+
+	//	c = cosf(angle);
+	//	s = sinf(angle);
+
+	//	x[1] = c * radiusBase;
+	//	y[1] = s * radiusBase;
+
+	//	/* segment along base */
+	//	gpuVertex3f(x[0], y[0], -half);
+	//	gpuVertex3f(x[1], y[1], -half);
+
+	//	if (!isFilled) {
+	//		/* repeat vertex for next segment */
+	//		gpuVertex3f(x[1], y[1], -half);
+	//	}
+
+	//	/* top of cone */
+	//	gpuVertex3f(0, 0, half);
+
+	//	x[0] = x[1];
+	//	y[0] = y[1];
+	//}
+
+BLI_INLINE primFormat(GPUprim3 *prim)
+{
+	GPU_ASSERT(
+		ELEM3(prim->normals,
+			GPU_NORMALS_SMOOTH,
+			GPU_NORMALS_FLAT,
+			GPU_NORMALS_NONE));
+
+	switch (prim->normals) {
+		case GPU_NORMALS_NONE:
+			gpuImmediateFormat_V3();
+			break;
+
+		case GPU_NORMALS_SMOOTH:
+		case GPU_NORMALS_FLAT:
+		default:
+			gpuImmediateFormat_N3_V3();
+			break;
+	}
+}
+
+BLI_INLINE void primDraw(GPUprim3 *prim)
+{
+	GPU_ASSERT(
+		ELEM4(prim->drawStyle,
+			GPU_DRAW_STYLE_FILL,
+			GPU_DRAW_STYLE_SILHOUETTE,
+			GPU_DRAW_STYLE_LINES,
+			GPU_DRAW_STYLE_POINTS));
+
+	switch (prim->drawStyle) {
+		case GPU_DRAW_STYLE_FILL:
+			gpuDrawElements(GL_TRIANGLES);
+			break;
+
+		case GPU_DRAW_STYLE_SILHOUETTE:
+		case GPU_DRAW_STYLE_LINES:
+			gpuDrawElements(GL_LINES);
+			break;
+
+		case GPU_DRAW_STYLE_POINTS:
+			gpuDraw(GL_POINTS);
+			break;
+
+		default:
+			break;
+	}
+}
+
+static GLfloat sweep(GPUprim3* prim, GLfloat z)
+{
+	float l[3];
+	float l0[3];
+	float lz;
+	float d;
+	float x[3];
+	float p0[3];
+	float r[3];
+
+	copy_v3_v3(l0, prim->params.sweep.point1);
+	sub_v3_v3v3(l, prim->params.sweep.point2, l0);
+	lz = prim->params.sweep.point1[2];
+	d = (z - lz) / l[2];
+	madd_v3_v3v3fl(x, l0, l, d);
+	copy_v3_flflfl(p0, 0, 0, z);
+	sub_v3_v3v3(r, p0, x);
+	return len_v3(r);
+}
+
+static GLfloat sphere(GPUprim3* prim, GLfloat z)
+{
+	float a = z / prim->params.sphere.radius;
+	float b = asinf(a);
+	return prim->params.sphere.radius * cosf(b);
+}
+
+static void sphereNormals(
+	GLfloat no[GPU_MAX_SEGS+1][GPU_MAX_SEGS+1][3],
+	GLfloat co[GPU_MAX_SEGS+1][GPU_MAX_SEGS+1][3],
+	int usegs,
+	int vsegs)
+{
+	int i, j;
+
+	for (j = 0; j <= vsegs; j++) {
+		for (i = 0; i <= usegs; i++) {
+			normalize_v3_v3(no[j][i], co[j][i]);
+		}
+	}
+}
+
+BLI_INLINE float modfi(float a, int *b)
+{
+	double c, d;
+	d = modf(a, &c);
+	*b = (int)c;
+	return d;
+}
+
+typedef void (*calc_normals_func)(
+	GLfloat out[GPU_MAX_SEGS+1][GPU_MAX_SEGS+1][3],
+	GLfloat pos[GPU_MAX_SEGS+1][GPU_MAX_SEGS+1][3],
+	int usegs,
+	int vsegs);
+
+BLI_INLINE void shape3(
+	GPUprim3* prim,
+	GLfloat (*radius)(GPUprim3* prim, GLfloat z),
+	calc_normals_func calc_normals,
+	GLfloat zMin,
+	GLfloat zMax,
+	GLboolean linearV)
+{
+	GLfloat uArc[GPU_MAX_SEGS+1][2];
+	GLfloat vArc[GPU_MAX_SEGS+1];
+	GLfloat co[GPU_MAX_SEGS+1][GPU_MAX_SEGS+1][3];
+	GLfloat no[GPU_MAX_SEGS+1][GPU_MAX_SEGS+1][3];
+	GLfloat uFracSegs;
+	int uWholeSegs;
+	GLfloat vFracSegs;
+	int vWholeSegs;
+	GLfloat sweepAngle;
+	GLfloat uFracAngle;
+	GLfloat z;
+	GLfloat r;
+	int usegs, vsegs;
+	int i, uIndex;
+	int j, vIndex;
+	GLboolean uCycle;
+	GLuint base;
+	GLboolean doNormals;
+
+
+	uFracSegs = modfi(prim->usegs, &uWholeSegs);
+
+	sweepAngle = prim->thetaMax - prim->thetaMin;
+
+	uFracAngle = (uFracSegs/2) * (sweepAngle/(prim->usegs));
+
+	uIndex = 0;
+
+	if (uFracAngle != 0) {
+		copy_v2_flfl(uArc[uIndex++], cosf(prim->thetaMin), sinf(prim->thetaMin));
+	}
+
+	for (i = 0; i <= uWholeSegs; i++) {
+		GLfloat a = prim->thetaMin + uFracAngle + i*sweepAngle/(prim->usegs);
+
+		copy_v2_flfl(uArc[uIndex++], cosf(a), sinf(a));
+	}
+
+	if (uFracSegs == 0) {
+		usegs = uIndex - 1;
+	}
+	else {
+		usegs = uIndex;
+		copy_v2_flfl(uArc[usegs], cosf(prim->thetaMax), sinf(prim->thetaMax));
+	}
+
+	uCycle =
+		fabs(uArc[usegs][0] - uArc[0][0]) < 0.001f &&
+		fabs(uArc[usegs][1] - uArc[0][1]) < 0.001f;
+
+	if (uCycle) {
+		usegs--;
+	}
+
+	vFracSegs = modfi(prim->vsegs, &vWholeSegs);
+
+	if (linearV) {
+		GLfloat sweepHeight;
+		GLfloat vFracHeight;
+
+		sweepHeight = zMax - zMin;
+
+		vFracHeight = (vFracSegs/2) * (sweepHeight/(prim->vsegs));
+
+		vIndex = 0;
+
+		if (vFracHeight != 0) {
+			vArc[vIndex++] = zMin;
+		}
+
+		for (j = 0; j <= vWholeSegs; j++) {
+			vArc[vIndex++] = zMin + vFracHeight + j*sweepHeight/(prim->vsegs);
+		}
+	}
+	else {
+		GLfloat angleMin;
+		GLfloat angleMax;
+		GLfloat vSweepAngle;
+		GLfloat vecMin[3] = { 0, 0, zMin };
+		GLfloat vecMax[3] = { 0, 0, zMax };
+		GLfloat vFracAngle;
+		GLfloat zDiff;
+
+		normalize_v3(vecMin);
+		angleMin = asinf(vecMin[2]);
+
+		normalize_v3(vecMax);
+		angleMax = asinf(vecMax[2]);
+
+		vSweepAngle = angleMax - angleMin;
+
+		vFracAngle = (vFracSegs/2) * (vSweepAngle/(prim->vsegs));
+
+		zDiff = (zMax - zMin) / 2;
+
+		vIndex = 0;
+
+		if (vFracAngle != 0) {
+			vArc[vIndex++] = zMin;
+		}
+
+		for (j = 0; j <= vWholeSegs; j++) {
+			GLfloat a = angleMin + vFracAngle + j*vSweepAngle/(prim->vsegs);
+			vArc[vIndex++] = zDiff*sinf(a);
+		}
+	}
+
+	if (vFracSegs == 0) {
+		vsegs = vIndex - 1;
+	}
+	else {
+		vsegs = vIndex;
+		vArc[vsegs] = zMax;
+	}
+
+	for (j = 0; j <= vsegs; j++) {
+		z = vArc[j];
+		r = radius(prim, z);
+
+		for (i = 0; i <= usegs; i++) {
+			copy_v3_flflfl(co[j][i], r*uArc[i][0], r*uArc[i][1], z);
+		}
+	}
+
+	doNormals = calc_normals && prim->normals != GPU_NORMALS_NONE;
+
+	if (doNormals) {
+		calc_normals(no, co, usegs, vsegs);
+	}
+
+	for (j = 0; j <= vsegs; j++) {
+		for (i = 0; i <= usegs; i++) {
+			if (doNormals) {
+				gpuNormal3fv(no[j][i]);
+			}
+
+			gpuVertex3fv(co[j][i]);
+		}
+	}
+
+	gpuIndexBegin();
+
+	switch (prim->drawStyle) {
+		case GPU_DRAW_STYLE_FILL:
+			for (j = 0; j < vsegs; j++) {
+				base = (usegs+1) * j;
+				for (i = 0; i < usegs; i++) {
+					if (prim->normals == GPU_NORMALS_FLAT || (i+j) % 2 == 0) {
+						gpuIndex(base+1);
+						gpuIndex(base+usegs+2);
+						gpuIndex(base);
+
+						gpuIndex(base+usegs+2);
+						gpuIndex(base+usegs+1);
+						gpuIndex(base);
+					}
+					else {
+						gpuIndex(base+1);
+						gpuIndex(base+usegs+1);
+						gpuIndex(base);
+
+						gpuIndex(base+usegs+2);
+						gpuIndex(base+usegs+1);
+						gpuIndex(base+1);
+					}
+
+					base++;
+				}
+			}
+
+			if (uCycle) {
+				base = usegs;
+
+				for (j = 0; j < vsegs; j++) {
+					if (prim->normals == GPU_NORMALS_FLAT || (usegs+j) % 2 == 0) {
+						gpuIndex(base-usegs);
+						gpuIndex(base+1);
+						gpuIndex(base);
+
+						gpuIndex(base+1);
+						gpuIndex(base+usegs+1);
+						gpuIndex(base);
+					}
+					else {
+						gpuIndex(base);
+						gpuIndex(base-usegs);
+						gpuIndex(base+usegs+1);
+
+						gpuIndex(base+usegs+1);
+						gpuIndex(base-usegs);
+						gpuIndex(base+1);
+					}
+
+					base += usegs+1;
+				}
+			}
+
+			break;
+
+		case GPU_DRAW_STYLE_SILHOUETTE:
+			for (j = 0; j < vsegs; j++) {
+				base = (usegs+1) * j;
+				for (i = 0; i < usegs; i++) {
+					gpuIndex(base+usegs+1);
+					gpuIndex(base);
+
+					gpuIndex(base+1);
+					gpuIndex(base);
+
+					base++;
+				}
+			}
+
+			base = (usegs+1) * vsegs;
+
+			for (i = 0; i < usegs; i++) {
+				gpuIndex(base+1);
+				gpuIndex(base);
+
+				base++;
+			}
+
+			base = usegs;
+
+			for (j = 0; j < vsegs; j++) {
+				gpuIndex(base+usegs+1);
+				gpuIndex(base);
+
+				if (uCycle) {
+					gpuIndex(base-usegs);
+					gpuIndex(base);
+				}
+
+				base += usegs+1;
+			}
+
+			if (uCycle) {
+				gpuIndex(base-usegs);
+				gpuIndex(base);
+			}
+
+			break;
+
+		case GPU_DRAW_STYLE_LINES:
+			for (j = 0; j < vsegs; j++) {
+				base = (usegs+1) * j;
+				for (i = 0; i < usegs; i++) {
+					gpuIndex(base+usegs+1);
+					gpuIndex(base);
+
+					gpuIndex(base+1);
+					gpuIndex(base);
+
+					gpuIndex(base+usegs+2);
+					gpuIndex(base);
+
+					base++;
+				}
+			}
+
+			base = (usegs+1) * vsegs;
+
+			for (i = 0; i < usegs; i++) {
+				gpuIndex(base+1);
+				gpuIndex(base);
+
+				base++;
+			}
+
+			base = usegs;
+
+			for (j = 0; j < vsegs; j++) {
+				gpuIndex(base+usegs+1);
+				gpuIndex(base);
+
+				if (uCycle) {
+					gpuIndex(base-usegs);
+					gpuIndex(base);
+
+					gpuIndex(base+1);
+					gpuIndex(base);
+				}
+
+				base += usegs+1;
+			}
+
+			if (uCycle) {
+				gpuIndex(base-usegs);
+				gpuIndex(base);
+			}
+
+			break;
+
+		case GPU_DRAW_STYLE_POINTS:
+			/* making an index would be wasteful */
+			break;
+
+		default:
+			break;
+	}
+
+	gpuIndexEnd();
+}
+
 
 
 void gpuAppendCone(
-	GLfloat   height,
-	GLfloat   baseRadius,
-	GLint     slices,
-	GLboolean isFilled)
+	GPUprim3* prim,
+	GLfloat   radiusBase,
+	GLfloat   height)
 {
-	GLfloat s, c;
-	GLfloat x[2], y[2];
-	int i;
+	copy_v3_flflfl(prim->params.sweep.point1, radiusBase, 0, 0);
+	copy_v3_flflfl(prim->params.sweep.point2, 0, 0, height);
 
-	const GLfloat half = height / 2;
-
-	GPU_ASSERT(slices > 0);
-
-	x[0] = baseRadius;
-	y[0] = 0;
-
-	for (i = 1; i <= slices; i++) {
-		GLfloat angle = (float)(2.0*M_PI*i / slices);
-
-		c = cosf(angle);
-		s = sinf(angle);
-
-		x[1] = c * baseRadius;
-		y[1] = s * baseRadius;
-
-		/* segment along base */
-		gpuVertex3f(x[0], y[0], -half);
-		gpuVertex3f(x[1], y[1], -half);
-
-		if (!isFilled) {
-			/* repeat vertex for next segment */
-			gpuVertex3f(x[1], y[1], -half);
-		}
-
-		/* top of cone */
-		gpuVertex3f(0, 0, half);
-
-		x[0] = x[1];
-		y[0] = y[1];
-	}
+	shape3(prim, sweep, NULL, 0, height, GL_TRUE);
 }
 
 
 
 void gpuDrawCone(
-	GLfloat   height,
-	GLfloat   baseRadius,
-	GLint     slices,
-	GLboolean isSolid)
+	GPUprim3* prim,
+	GLfloat   radiusBase,
+	GLfloat   height)
 {
-	gpuBegin(isSolid ? GL_TRIANGLES : GL_LINES);
-	gpuAppendCone(height, baseRadius, slices, isSolid);
+	gpuBegin(GL_NOOP);
+	gpuAppendCone(prim, radiusBase, height);
 	gpuEnd();
+
+	primDraw(prim);
 }
 
 
 
 void gpuSingleCone(
-	GLfloat   height,
-	GLfloat   baseRadius,
-	GLint     slices,
-	GLboolean isFilled)
+	GPUprim3* prim,
+	GLfloat   radiusBase,
+	GLfloat   height)
+{
+	primFormat(prim);
+	gpuDrawCone(prim, radiusBase, height);
+	gpuImmediateUnformat();
+}
+
+
+
+void gpuAppendCylinder(
+	GPUprim3* prim,
+	GLfloat   radiusBase,
+	GLfloat   radiusTop,
+	GLfloat   height)
+{
+	copy_v3_flflfl(prim->params.sweep.point1, radiusBase, 0, 0);
+	copy_v3_flflfl(prim->params.sweep.point2, radiusTop, 0, height);
+
+	shape3(prim, sweep, NULL, 0, height, GL_FALSE);
+}
+
+
+
+void gpuDrawCylinder(
+	GPUprim3* prim,
+	GLfloat   radiusBase,
+	GLfloat   radiusTop,
+	GLfloat   height)
+{
+	gpuBegin(GL_NOOP);
+	gpuAppendCylinder(prim, radiusBase, radiusTop, height);
+	gpuEnd();
+
+	primDraw(prim);
+}
+
+
+
+void gpuSingleCylinder(
+	GPUprim3* prim,
+	GLfloat   radiusBase,
+	GLfloat   radiusTop,
+	GLfloat   height)
+{
+	primFormat(prim);
+	gpuDrawCylinder(prim, radiusBase, radiusTop, height);
+	gpuImmediateUnformat();
+}
+
+
+
+void gpuAppendSphere(
+	GPUprim3* prim,
+	GLfloat   radius)
+{
+	prim->params.sphere.radius =  radius;
+	prim->params.sphere.zMin   = -radius;
+	prim->params.sphere.zMax   =  radius;
+
+	shape3(
+		prim,
+		sphere,
+		sphereNormals,
+		prim->params.sphere.zMin,
+		prim->params.sphere.zMax,
+		GL_FALSE);
+}
+
+
+
+void gpuDrawSphere(
+	GPUprim3* prim,
+	GLfloat   radius)
+{
+	gpuBegin(GL_NOOP);
+	gpuAppendSphere(prim, radius);
+	gpuEnd();
+
+	primDraw(prim);
+}
+
+
+
+void gpuSingleSphere(
+	GPUprim3* prim,
+	GLfloat   radius)
+{
+	primFormat(prim);
+	gpuDrawSphere(prim, radius);
+	gpuImmediateUnformat();
+}
+
+
+
+const GPUprim3 GPU_PRIM_LOFI_SOLID = {
+	GPU_LOD_LO,          /* GLfloat usegs;     */
+	GPU_LOD_LO/2.0f,     /* GLfloat vsegs;     */
+	GPU_NORMALS_SMOOTH,  /* GLenum  normals;   */
+	GPU_DRAW_STYLE_FILL, /* GLenum  drawStyle; */
+	GL_FALSE,            /* GLboolean flipNormals */
+	GL_FALSE,            /* GLboolean texCoords */
+	0,                   /* GLfloat thetaMin   */
+	(float)(2*M_PI),     /* GLfloat thetaMax   */
+};
+
+const GPUprim3 GPU_PRIM_LOFI_SHADELESS = {
+	GPU_LOD_LO,          /* GLfloat usegs;     */
+	GPU_LOD_LO/2.0f,     /* GLfloat vsegs;     */
+	GPU_NORMALS_NONE,    /* GLenum  normals;   */
+	GPU_DRAW_STYLE_FILL, /* GLenum  drawStyle; */
+	GL_FALSE,            /* GLboolean flipNormals */
+	GL_FALSE,            /* GLboolean texCoords */
+	0,                   /* GLfloat thetaMin   */
+	(float)(2*M_PI),     /* GLfloat thetaMax   */
+};
+
+const GPUprim3 GPU_PRIM_LOFI_WIRE = {
+	GPU_LOD_LO,                /* GLfloat usegs;     */
+	GPU_LOD_LO/2.0f,           /* GLfloat vsegs;     */
+	GPU_NORMALS_NONE,          /* GLenum  normals;   */
+	GPU_DRAW_STYLE_SILHOUETTE, /* GLenum  drawStyle; */
+	GL_FALSE,                  /* GLboolean flipNormals */
+	GL_FALSE,                  /* GLboolean texCoords */
+	0,                         /* GLfloat thetaMin   */
+	(float)(2*M_PI),           /* GLfloat thetaMax   */
+};
+
+const GPUprim3 GPU_PRIM_MIDFI_SOLID = {
+	GPU_LOD_MID,          /* GLfloat usegs;     */
+	GPU_LOD_MID/2.0f,     /* GLfloat vsegs;     */
+	GPU_NORMALS_SMOOTH,   /* GLenum  normals;   */
+	GPU_DRAW_STYLE_FILL,  /* GLenum  drawStyle; */
+	GL_FALSE,             /* GLboolean flipNormals */
+	GL_FALSE,             /* GLboolean texCoords */
+	0,                    /* GLfloat thetaMin   */
+	(float)(2*M_PI),      /* GLfloat thetaMax   */
+};
+
+const GPUprim3 GPU_PRIM_MIDFI_WIRE = {
+	GPU_LOD_MID,               /* GLfloat usegs;     */
+	GPU_LOD_MID/2.0f,          /* GLfloat vsegs;     */
+	GPU_NORMALS_NONE,          /* GLenum  normals;   */
+	GPU_DRAW_STYLE_SILHOUETTE, /* GLenum  drawStyle; */
+	GL_FALSE,                  /* GLboolean flipNormals */
+	GL_FALSE,                  /* GLboolean texCoords */
+	0,                         /* GLfloat thetaMin   */
+	(float)(2*M_PI),           /* GLfloat thetaMax   */
+};
+
+const GPUprim3 GPU_PRIM_HIFI_SOLID = {
+	GPU_LOD_HI,          /* GLfloat usegs;     */
+	GPU_LOD_HI/2.0f,     /* GLfloat vsegs;     */
+	GPU_NORMALS_SMOOTH,  /* GLenum  normals;   */
+	GPU_DRAW_STYLE_FILL, /* GLenum  drawStyle; */
+	GL_FALSE,            /* GLboolean flipNormals */
+	GL_FALSE,            /* GLboolean texCoords */
+	0,                   /* GLfloat thetaMin   */
+	(float)(2*M_PI),     /* GLfloat thetaMax   */
+};
+
+
+static float cube[8][3] = {
+	{-1.0, -1.0, -1.0},
+	{-1.0, -1.0,  1.0},
+	{-1.0,  1.0,  1.0},
+	{-1.0,  1.0, -1.0},
+	{ 1.0, -1.0, -1.0},
+	{ 1.0, -1.0,  1.0},
+	{ 1.0,  1.0,  1.0},
+	{ 1.0,  1.0, -1.0},
+};
+
+void gpuSingleWireUnitCube(void)
 {
 	gpuImmediateFormat_V3();
-	gpuDrawCone(height, baseRadius, slices, isFilled);
+
+	gpuBegin(GL_LINE_STRIP);
+	gpuVertex3fv(cube[0]); gpuVertex3fv(cube[1]); gpuVertex3fv(cube[2]); gpuVertex3fv(cube[3]);
+	gpuVertex3fv(cube[0]); gpuVertex3fv(cube[4]); gpuVertex3fv(cube[5]); gpuVertex3fv(cube[6]);
+	gpuVertex3fv(cube[7]); gpuVertex3fv(cube[4]);
+	gpuEnd();
+
+	gpuBegin(GL_LINES);
+	gpuVertex3fv(cube[1]); gpuVertex3fv(cube[5]);
+	gpuVertex3fv(cube[2]); gpuVertex3fv(cube[6]);
+	gpuVertex3fv(cube[3]); gpuVertex3fv(cube[7]);
+	gpuEnd();
+
+	gpuImmediateUnformat();
+}
+
+/* draws a cube on given the scaling of the cube, assuming that 
+ * all required matrices have been set (used for drawing empties)
+ */
+void gpuSingleWireCube(GLfloat size)
+{
+	gpuImmediateFormat_V3();
+
+	gpuBegin(GL_LINE_STRIP);
+	gpuVertex3f(-size, -size, -size); gpuVertex3f(-size, -size, size);
+	gpuVertex3f(-size, size, size); gpuVertex3f(-size, size, -size);
+
+	gpuVertex3f(-size, -size, -size); gpuVertex3f(size, -size, -size);
+	gpuVertex3f(size, -size, size); gpuVertex3f(size, size, size);
+
+	gpuVertex3f(size, size, -size); gpuVertex3f(size, -size, -size);
+	gpuEnd();
+
+	gpuBegin(GL_LINES);
+	gpuVertex3f(-size, -size, size); gpuVertex3f(size, -size, size);
+	gpuVertex3f(-size, size, size); gpuVertex3f(size, size, size);
+	gpuVertex3f(-size, size, -size); gpuVertex3f(size, size, -size);
+	gpuEnd();
+
 	gpuImmediateUnformat();
 }

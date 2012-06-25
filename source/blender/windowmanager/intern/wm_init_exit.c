@@ -124,6 +124,7 @@ static void wm_free_reports(bContext *C)
 int wm_start_with_console = 0; /* used in creator.c */
 
 static GPUimmediate* immediate;
+static GPUindex*     index;
 
 /* only called once, for startup */
 void WM_init(bContext *C, int argc, const char **argv)
@@ -182,12 +183,16 @@ void WM_init(bContext *C, int argc, const char **argv)
 		GPU_extensions_init();
 		GPU_set_mipmap(!(U.gameflags & USER_DISABLE_MIPMAP));
 		GPU_set_anisotropic(U.anisotropic_filter);
-		
+
 		GPU_ms_init();
 
 		immediate = gpuNewImmediate();
 		gpuImmediateMakeCurrent(immediate);
 		gpuImmediateMaxVertexCount(500000); // XXX: temporary!
+
+		index = gpuNewIndex();
+		gpuImmediateIndex(index);
+		gpuImmediateMaxIndexCount(500000); // XXX: temporary!
 
 		UI_init();
 	}
@@ -195,8 +200,6 @@ void WM_init(bContext *C, int argc, const char **argv)
 	clear_matcopybuf();
 	ED_render_clear_mtex_copybuf();
 
-	//	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-		
 	ED_preview_init_dbase();
 	
 	WM_read_history();
@@ -428,8 +431,11 @@ void WM_exit_ext(bContext *C, const short do_python)
 	if (!G.background) {
 		BKE_undo_save_quit();  /* saves quit.blend if global undo is on */
 
-		gpuImmediateDelete(immediate);
+		gpuDeleteIndex(index);
+		gpuImmediateIndex(NULL);
+
 		gpuImmediateMakeCurrent(NULL);
+		gpuDeleteImmediate(immediate);
 
 		GPU_ms_exit();
 	}
