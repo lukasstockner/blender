@@ -1492,7 +1492,7 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 		adjustDomainResolution(sds, new_shift, emaps, numflowobj, dt);
 
 	tend();
-	printf ("Domain scaling time: %f\n\n", ( float ) tval());
+	//printf ("Domain scaling time: %f\n\n", ( float ) tval());
 
 	/* Apply emission data */
 	if (sds->fluid) {
