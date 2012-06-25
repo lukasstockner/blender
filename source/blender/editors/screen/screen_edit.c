@@ -851,17 +851,21 @@ static void draw_vertical_join_shape(ScrArea *sa, char dir)
 	gpuVertex2f(points[0].x, points[0].y);
 	gpuEnd();
 
-	gpuSingleFilledRectf(points[2].x, points[2].y, points[8].x, points[8].y);
-	gpuSingleFilledRectf(points[6].x, points[6].y, points[9].x, points[9].y);
+	gpuDrawFilledRectf(points[2].x, points[2].y, points[8].x, points[8].y);
+	gpuDrawFilledRectf(points[6].x, points[6].y, points[9].x, points[9].y);
 }
 
 /* draw join shape due to direction of joining */
 static void draw_join_shape(ScrArea *sa, char dir)
 {
+	gpuImmediateFormat_V2();
+
 	if (dir == 'u' || dir == 'd')
 		draw_vertical_join_shape(sa, dir);
 	else
 		draw_horizontal_join_shape(sa, dir);
+
+	gpuImmediateUnformat();
 }
 
 /* draw screen area darker with arrow (visualisation of future joining) */
