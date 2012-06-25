@@ -139,8 +139,8 @@
 #define GPU_CHECK_FORMAT()
 #define GPU_CHECK_CAN_REPEAT()
 
-#define GPU_CURRENT_COLOR_VALID  (valid)
-#define GPU_CURRENT_NORMAL_VALID (valid)
+#define GPU_CURRENT_COLOR_VALID(valid)
+#define GPU_CURRENT_NORMAL_VALID(valid)
 
 #endif
 

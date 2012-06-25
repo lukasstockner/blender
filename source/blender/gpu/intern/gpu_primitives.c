@@ -748,7 +748,7 @@ void gpuEndSprites(void)
 	//	y[0] = y[1];
 	//}
 
-BLI_INLINE primFormat(GPUprim3 *prim)
+BLI_INLINE void primFormat(GPUprim3 *prim)
 {
 	GPU_ASSERT(
 		ELEM3(prim->normals,

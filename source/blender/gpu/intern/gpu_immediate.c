@@ -770,7 +770,7 @@ void gpuImmediateUnformat(void)
 
 
 
-BLI_INLINE currentColor(void)
+BLI_INLINE void currentColor(void)
 {
 	GPU_IMMEDIATE->currentColor();
 

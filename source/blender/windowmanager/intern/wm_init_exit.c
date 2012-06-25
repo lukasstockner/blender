@@ -124,7 +124,7 @@ static void wm_free_reports(bContext *C)
 int wm_start_with_console = 0; /* used in creator.c */
 
 static GPUimmediate* immediate;
-static GPUindex*     index;
+static GPUindex*     gindex;
 
 /* only called once, for startup */
 void WM_init(bContext *C, int argc, const char **argv)
@@ -190,8 +190,8 @@ void WM_init(bContext *C, int argc, const char **argv)
 		gpuImmediateMakeCurrent(immediate);
 		gpuImmediateMaxVertexCount(500000); // XXX: temporary!
 
-		index = gpuNewIndex();
-		gpuImmediateIndex(index);
+		gindex = gpuNewIndex();
+		gpuImmediateIndex(gindex);
 		gpuImmediateMaxIndexCount(500000); // XXX: temporary!
 
 		UI_init();
@@ -431,7 +431,7 @@ void WM_exit_ext(bContext *C, const short do_python)
 	if (!G.background) {
 		BKE_undo_save_quit();  /* saves quit.blend if global undo is on */
 
-		gpuDeleteIndex(index);
+		gpuDeleteIndex(gindex);
 		gpuImmediateIndex(NULL);
 
 		gpuImmediateMakeCurrent(NULL);
