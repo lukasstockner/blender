@@ -2037,6 +2037,7 @@ static void do_white_cb(bContext *UNUSED(C), void *bt1, void *UNUSED(arg))
 	rgb[1] = 1;
 	rgb[2] = 1;
 	RNA_property_float_set_array(&ptr, prop, rgb);
+	ui_update_block_buts_rgb(but->block, rgb);
 
 	if (popup)
 		popup->menuretval = UI_RETURN_UPDATE;
@@ -2054,6 +2055,7 @@ static void do_black_cb(bContext *UNUSED(C), void *bt1, void *UNUSED(arg))
 	rgb[1] = 0;
 	rgb[2] = 0;
 	RNA_property_float_set_array(&ptr, prop, rgb);
+	ui_update_block_buts_rgb(but->block, rgb);
 
 	if (popup)
 		popup->menuretval = UI_RETURN_UPDATE;
