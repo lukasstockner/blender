@@ -97,7 +97,7 @@ typedef struct SmokeDomainSettings {
 	int adapt_res;
 	float adapt_threshold;
 
-	float dx; /* edge length of one cell in domain space */
+	float dx; /* 1.0f / res */
 	float omega; /* smoke color - from 0 to 1 */
 	float temp; /* fluid temperature */
 	float tempAmb; /* ambient temperature */

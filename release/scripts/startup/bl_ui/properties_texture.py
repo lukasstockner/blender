@@ -874,6 +874,8 @@ class TEXTURE_PT_mapping(TextureSlotPanel, Panel):
                         col.prop(tex, "use_map_to_bounds")
                 elif tex.texture_coords == 'OBJECT':
                     col.prop(tex, "use_from_original")
+                    if (idblock.type == 'VOLUME'):
+                        col.prop(tex, "use_map_to_bounds")
                 else:
                     col.label()
 

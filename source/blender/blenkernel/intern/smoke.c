@@ -139,10 +139,6 @@ struct SmokeModifierData;
 #define ADD_IF_LOWER_NEG(a,b) (MAX2((a)+(b), MIN2((a),(b))))
 #define ADD_IF_LOWER(a,b) (((b)>0)?ADD_IF_LOWER_POS((a),(b)):ADD_IF_LOWER_NEG((a),(b)))
 
-/* forward declerations */
-static void get_cell(float *p0, int res[3], float dx, float *pos, int *cell, int correct);
-static void get_cell_global(float p0[3], float imat[4][4], int res[3], float cell_size[3], float pos[3], int *cell, int correct);
-
 #else /* WITH_SMOKE */
 
 /* Stubs to use when smoke is disabled */
@@ -272,6 +268,7 @@ static int smokeModifier_init(SmokeModifierData *smd, Object *ob, Scene *scene, 
 	if((smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain && !smd->domain->fluid)
 	{
 		SmokeDomainSettings *sds = smd->domain;
+		int res[3];
 		/* set domain dimensions from derivedmesh */
 		smoke_set_domain_from_derivedmesh(sds, ob, dm);
 		/* reset domain values */
@@ -282,10 +279,16 @@ static int smokeModifier_init(SmokeModifierData *smd, Object *ob, Scene *scene, 
 		mul_m4_v3(ob->obmat, sds->prev_loc);
 
 		/* set resolutions */
-		VECCOPY(sds->res, sds->base_res);
+		if (smd->domain->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) {
+			res[0] = res[1] = res[2] = 1; /* use minimum res for adaptive init */
+		}
+		else {
+			VECCOPY(res, sds->base_res);
+		}
+		VECCOPY(sds->res, res);
 		sds->total_cells = sds->res[0]*sds->res[1]*sds->res[2];
 		sds->res_min[0] = sds->res_min[1] = sds->res_min[2] = 0;
-		VECCOPY(sds->res_max, sds->base_res);
+		VECCOPY(sds->res_max, res);
 
 		/* allocate fluid */
 		smoke_reallocate_fluid(sds, sds->dx, sds->res, 0);
@@ -355,14 +358,6 @@ static void smokeModifier_freeFlow(SmokeModifierData *smd)
 {
 	if(smd->flow)
 	{
-/*
-		if(smd->flow->bvh)
-		{
-			free_bvhtree_from_mesh(smd->flow->bvh);
-			MEM_freeN(smd->flow->bvh);
-		}
-		smd->flow->bvh = NULL;
-*/
 		if (smd->flow->dm) smd->flow->dm->release(smd->flow->dm);
 		if (smd->flow->verts_old) MEM_freeN(smd->flow->verts_old);
 		MEM_freeN(smd->flow);
@@ -423,19 +418,9 @@ void smokeModifier_reset(struct SmokeModifierData *smd)
 
 			smd->time = -1;
 			smd->domain->total_cells = 0;
-
-			// printf("reset domain end\n");
 		}
 		else if(smd->flow)
 		{
-			/*
-			if(smd->flow->bvh)
-			{
-				free_bvhtree_from_mesh(smd->flow->bvh);
-				MEM_freeN(smd->flow->bvh);
-			}
-			smd->flow->bvh = NULL;
-			*/
 		}
 		else if(smd->coll)
 		{
@@ -613,7 +598,7 @@ void smokeModifier_copy(struct SmokeModifierData *smd, struct SmokeModifierData 
 #ifdef WITH_SMOKE
 
 // forward decleration
-static void smoke_calc_transparency(float *result, float *input, float *p0, float *p1, int res[3], float dx, float *light, bresenham_callback cb, float correct);
+static void smoke_calc_transparency(SmokeDomainSettings *sds, Scene *scene);
 static float calc_voxel_transp(float *result, float *input, int res[3], int *pixel, float *tRay, float correct);
 
 static int get_lamp(Scene *scene, float *light)
@@ -1285,8 +1270,6 @@ static void adjustDomainResolution(SmokeDomainSettings *sds, int new_shift[3], E
 	/* calculate new bounds based on these values */
 	clampBoundsInDomain(sds, min, max, min_vel, max_vel, sds->adapt_margin+1, dt);
 
-	printf("content boundaries : (%i,%i) (%i,%i) (%i,%i)\n new shift : (%i,%i,%i)", min[0], max[0], min[1], max[1], min[2], max[2], new_shift[0], new_shift[1], new_shift[2]);
-
 	for (i=0; i<3; i++) {
 		/* calculate new resolution */
 		res[i] = max[i] - min[i];
@@ -1412,8 +1395,6 @@ static void adjustDomainResolution(SmokeDomainSettings *sds, int new_shift[3], E
 		VECCOPY(sds->res_max, max);
 		VECCOPY(sds->res, res);
 		sds->total_cells = total_cells;
-
-		printf("domain res changed to %i, %i, %i\n", res[0], res[1], res[2]);
 	}
 }
 
@@ -1482,17 +1463,12 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 			else {
 				emit_from_derivedmesh(collob, sds, sfs, em, dt);
 			}
-		} // end emission
+		}
 	}
-
-	tstart();
 
 	/* Adjust domain size if needed */
 	if (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN)
 		adjustDomainResolution(sds, new_shift, emaps, numflowobj, dt);
-
-	tend();
-	//printf ("Domain scaling time: %f\n\n", ( float ) tval());
 
 	/* Apply emission data */
 	if (sds->fluid) {
@@ -1688,7 +1664,6 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 											}
 										} // hires loop
 							}  // bigdensity
-
 						} // low res loop
 
 				// free emission maps
@@ -1726,6 +1701,7 @@ static void update_effectors(Scene *scene, Object *ob, SmokeDomainSettings *sds,
 				for(z = 0; z < sds->res[2]; z++)
 		{	
 			EffectedPoint epoint;
+			float mag;
 			float voxelCenter[3] = {0,0,0}, vel[3] = {0,0,0}, retvel[3] = {0,0,0};
 			unsigned int index = smoke_get_index(x, sds->res[0], y, sds->res[1], z);
 
@@ -1736,12 +1712,25 @@ static void update_effectors(Scene *scene, Object *ob, SmokeDomainSettings *sds,
 			vel[1] = velocity_y[index];
 			vel[2] = velocity_z[index];
 
-			voxelCenter[0] = sds->p0[0] + sds->dx * sds->scale * x + sds->dx * sds->scale * 0.5;
-			voxelCenter[1] = sds->p0[1] + sds->dx * sds->scale * y + sds->dx * sds->scale * 0.5;
-			voxelCenter[2] = sds->p0[2] + sds->dx * sds->scale * z + sds->dx * sds->scale * 0.5;
+			/* convert vel to global space */
+			mag = len_v3(vel);
+			mul_mat3_m4_v3(sds->obmat, vel);
+			normalize_v3(vel);
+			mul_v3_fl(vel, mag);
+
+			voxelCenter[0] = sds->p0[0] + sds->cell_size[0] * ((float)x + 0.5f);
+			voxelCenter[1] = sds->p0[1] + sds->cell_size[1] * ((float)y + 0.5f);
+			voxelCenter[2] = sds->p0[2] + sds->cell_size[2] * ((float)z + 0.5f);
+			mul_m4_v3(sds->obmat, voxelCenter);
 
 			pd_point_from_loc(scene, voxelCenter, vel, index, &epoint);
 			pdDoEffectors(effectors, NULL, sds->effector_weights, &epoint, retvel, NULL);
+
+			/* convert retvel to local space */
+			mag = len_v3(retvel);
+			mul_mat3_m4_v3(sds->imat, retvel);
+			normalize_v3(retvel);
+			mul_v3_fl(retvel, mag);
 
 			// TODO dg - do in force!
 			force_x[index] = MIN2(MAX2(-1.0, retvel[0] * 0.2), 1.0); 
@@ -1898,7 +1887,8 @@ static DerivedMesh *createDomainGeometry(SmokeDomainSettings *sds, Object *ob)
 		mp = &mpolys[5]; ml = &mloops[5 * 4]; mp->loopstart = 5 * 4; mp->totloop = 4;
 		ml[0].v = 1; ml[1].v = 0; ml[2].v = 4; ml[3].v = 5;
 
-		/* calculate shift */
+		/* calculate required shift to match domain's global position
+		*  where it was originally simulated (if object moves without smoke step) */
 		invert_m4_m4(ob->imat, ob->obmat);
 		mul_m4_v3(ob->obmat, ob_loc);
 		mul_m4_v3(sds->obmat, ob_cache_loc);
@@ -1929,14 +1919,7 @@ void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *ob, Der
 
 		if(scene->r.cfra > smd->time)
 		{
-			// XXX TODO
 			smd->time = scene->r.cfra;
-
-			// rigid movement support
-			/*
-			copy_m4_m4(smd->flow->mat_old, smd->flow->mat);
-			copy_m4_m4(smd->flow->mat, ob->obmat);
-			*/
 		}
 		else if(scene->r.cfra < smd->time)
 		{
@@ -1967,7 +1950,6 @@ void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *ob, Der
 	else if(smd->type & MOD_SMOKE_TYPE_DOMAIN)
 	{
 		SmokeDomainSettings *sds = smd->domain;
-		float light[3];	
 		PointCache *cache = NULL;
 		PTCacheID pid;
 		int startframe, endframe, framenr;
@@ -2026,8 +2008,7 @@ void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *ob, Der
 		/* if on second frame, write cache for first frame */
 		if((int)smd->time == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact==0)) {
 			// create shadows straight after domain initialization so we get nice shadows for startframe, too
-			if(get_lamp(scene, light))
-				smoke_calc_transparency(sds->shadow, smoke_get_density(sds->fluid), sds->p0, sds->p1, sds->res, sds->dx, light, calc_voxel_transp, -7.0*sds->dx);
+			smoke_calc_transparency(sds, scene);
 
 			if(sds->wt && sds->total_cells>1)
 			{
@@ -2057,8 +2038,7 @@ void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *ob, Der
 		}
 
 		// create shadows before writing cache so they get stored
-		if(get_lamp(scene, light))
-			smoke_calc_transparency(sds->shadow, smoke_get_density(sds->fluid), sds->p0, sds->p1, sds->res, sds->dx, light, calc_voxel_transp, -7.0*sds->dx);
+		smoke_calc_transparency(sds, scene);
 
 		if(sds->wt)
 		{
@@ -2205,100 +2185,75 @@ static void bresenham_linie_3D(int x1, int y1, int z1, int x2, int y2, int z2, f
 	cb(result, input, res, pixel, tRay, correct);
 }
 
-static void get_cell_global(float p0[3], float imat[4][4], int res[3], float cell_size[3], float pos[3], int *cell, int correct)
+static void smoke_calc_transparency(SmokeDomainSettings *sds, Scene *scene)
 {
-	float tmp[3];
+	float bv[6] = {0};
+	float light[3];
+	int a, z, slabsize=sds->res[0]*sds->res[1], size= sds->res[0]*sds->res[1]*sds->res[2];
+	float *density = smoke_get_density(sds->fluid);
+	float correct = -7.0*sds->dx;
 
-	mul_v3_m4v3(tmp, imat, pos);
-	sub_v3_v3(tmp, p0);
-	tmp[0] *= 1.0f/cell_size[0];
-	tmp[1] *= 1.0f/cell_size[1];
-	tmp[2] *= 1.0f/cell_size[2];
+	if (!get_lamp(scene, light)) return;
 
-	if (correct) {
-		cell[0] = MIN2(res[0] - 1, MAX2(0, (int)floor(tmp[0])));
-		cell[1] = MIN2(res[1] - 1, MAX2(0, (int)floor(tmp[1])));
-		cell[2] = MIN2(res[2] - 1, MAX2(0, (int)floor(tmp[2])));
-	}
-	else {
-		cell[0] = (int)floor(tmp[0]);
-		cell[1] = (int)floor(tmp[1]);
-		cell[2] = (int)floor(tmp[2]);
-	}
-}
-
-static void get_cell(float *p0, int res[3], float dx, float *pos, int *cell, int correct)
-{
-	float tmp[3];
-
-	sub_v3_v3v3(tmp, pos, p0);
-	mul_v3_fl(tmp, 1.0 / dx);
-
-	if (correct) {
-		cell[0] = MIN2(res[0] - 1, MAX2(0, (int)floor(tmp[0])));
-		cell[1] = MIN2(res[1] - 1, MAX2(0, (int)floor(tmp[1])));
-		cell[2] = MIN2(res[2] - 1, MAX2(0, (int)floor(tmp[2])));
-	}
-	else {
-		cell[0] = (int)floor(tmp[0]);
-		cell[1] = (int)floor(tmp[1]);
-		cell[2] = (int)floor(tmp[2]);
-	}
-}
-
-static void smoke_calc_transparency(float *result, float *input, float *p0, float *p1, int res[3], float dx, float *light, bresenham_callback cb, float correct)
-{
-	float bv[6];
-	int a, z, slabsize=res[0]*res[1], size= res[0]*res[1]*res[2];
+	/* convert light pos to sim cell space */
+	mul_m4_v3(sds->imat, light);
+	light[0] = (light[0] - sds->p0[0]) / sds->cell_size[0] - 0.5f;
+	light[1] = (light[1] - sds->p0[1]) / sds->cell_size[1] - 0.5f;
+	light[2] = (light[2] - sds->p0[2]) / sds->cell_size[2] - 0.5f;
 
 	for(a=0; a<size; a++)
-		result[a]= -1.0f;
+		sds->shadow[a]= -1.0f;
 
-	bv[0] = p0[0];
-	bv[1] = p1[0];
-	// y
-	bv[2] = p0[1];
-	bv[3] = p1[1];
-	// z
-	bv[4] = p0[2];
-	bv[5] = p1[2];
+	/* calculate domain bounds in sim cell space */
+	// 0,2,4 = 0.0f
+	bv[1] = (float)sds->res[0]; // x
+	bv[3] = (float)sds->res[1]; // y
+	bv[5] = (float)sds->res[2]; // z
 
 // #pragma omp parallel for schedule(static,1)
-	for(z = 0; z < res[2]; z++)
+	for(z = 0; z < sds->res[2]; z++)
 	{
 		size_t index = z*slabsize;
 		int x,y;
 
-		for(y = 0; y < res[1]; y++)
-			for(x = 0; x < res[0]; x++, index++)
+		for(y = 0; y < sds->res[1]; y++)
+			for(x = 0; x < sds->res[0]; x++, index++)
 			{
 				float voxelCenter[3];
 				float pos[3];
 				int cell[3];
 				float tRay = 1.0;
 
-				if(result[index] >= 0.0f)					
+				if(sds->shadow[index] >= 0.0f)					
 					continue;								
-				voxelCenter[0] = p0[0] + dx *  x + dx * 0.5;
-				voxelCenter[1] = p0[1] + dx *  y + dx * 0.5;
-				voxelCenter[2] = p0[2] + dx *  z + dx * 0.5;
+				voxelCenter[0] = (float)x;
+				voxelCenter[1] = (float)y;
+				voxelCenter[2] = (float)z;
 
-				// get starting position (in voxel coords)
+				// get starting cell (light)
 				if(BLI_bvhtree_bb_raycast(bv, light, voxelCenter, pos) > FLT_EPSILON)
 				{
-					// we're ouside
-					get_cell(p0, res, dx, pos, cell, 1);
+					// we're ouside -> use point on side of domain
+					cell[0] = (int)floor(pos[0]);
+					cell[1] = (int)floor(pos[1]);
+					cell[2] = (int)floor(pos[2]);
 				}
 				else {
-					// we're inside
-					get_cell(p0, res, dx, light, cell, 1);
+					// we're inside -> use light itself
+					cell[0] = (int)floor(light[0]);
+					cell[1] = (int)floor(light[1]);
+					cell[2] = (int)floor(light[2]);
 				}
+				/* clamp within grid bounds */
+				CLAMP(cell[0], 0, sds->res[0]-1);
+				CLAMP(cell[1], 0, sds->res[1]-1);
+				CLAMP(cell[2], 0, sds->res[2]-1);
 
-				bresenham_linie_3D(cell[0], cell[1], cell[2], x, y, z, &tRay, cb, result, input, res, correct);
+				bresenham_linie_3D(cell[0], cell[1], cell[2], x, y, z, &tRay, calc_voxel_transp, sds->shadow, density, sds->res, correct);
 
 				// convention -> from a RGBA float array, use G value for tRay
 // #pragma omp critical
-				result[index] = tRay;			
+				sds->shadow[index] = tRay;			
 			}
 	}
 }
