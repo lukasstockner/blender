@@ -866,6 +866,11 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Fixed Texture", "Keep texture origin in fixed position");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
+	prop = RNA_def_property(srna, "use_mask", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_USE_MASK);
+	RNA_def_property_ui_text(prop, "Mask Texture", "Use a texture as mask for the brush");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
 	/* only for projection paint, TODO, other paint modes */
 	prop = RNA_def_property(srna, "use_alpha", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", BRUSH_LOCK_ALPHA);

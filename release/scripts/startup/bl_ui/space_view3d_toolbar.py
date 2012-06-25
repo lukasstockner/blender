@@ -730,8 +730,10 @@ class VIEW3D_PT_tools_brush_texture(Panel, View3DPaintPanel):
 
         col.template_ID_preview(brush, "texture", new="texture.new", rows=3, cols=8)
         if context.image_paint_object:
-            col.label(text='Mask Texture')
-            col.template_ID_preview(brush, "mask_texture", new="texture.new", rows=3, cols=8)
+            col.prop(brush, 'use_mask')
+            if brush.use_mask:
+                col.template_ID_preview(brush, "mask_texture", new="texture.new", rows=3, cols=8)
+
         if brush.use_paint_image:
             col.prop(brush, "use_fixed_texture")
 

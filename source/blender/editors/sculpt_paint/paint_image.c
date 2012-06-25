@@ -4787,7 +4787,7 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps)
 
 	ps->is_airbrush = (brush->flag & BRUSH_AIRBRUSH) ? 1 : 0;
 	ps->is_texbrush = (brush->mtex.tex) ? TRUE : FALSE;
-	ps->is_maskbrush = (brush->mask_mtex.tex) ? TRUE : FALSE;
+	ps->is_maskbrush = (brush->flag & BRUSH_USE_MASK && brush->mask_mtex.tex) ? TRUE : FALSE;
 
 
 	/* these can be NULL */
