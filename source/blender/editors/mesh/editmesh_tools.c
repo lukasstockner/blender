@@ -1667,14 +1667,14 @@ void MESH_OT_vertices_smooth_laplacian(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_int(ot->srna, "repeat", 1, 1, 50, 
-					"Number of iterations to smooth the mesh", "", 1, 50);
-	RNA_def_float(ot->srna, "lambda", 0.00005f, 0.0000001f, 100.0f, 
-					"Lambda factor", "", 0.0000001f, 100.0f);
-	RNA_def_float(ot->srna, "lambda_border", 0.00005f, 0.0000001f, 100.0f, 
-					"Lambda factor in border", "", 0.0000001f, 100.0f);
-	RNA_def_float(ot->srna, "min_area", 0.00001f, 0.0000000000000001f, 100.0f, 
-					"Minimum area permitted", "", 0.0000000000000001f, 100.0f);
+	RNA_def_int(ot->srna, "repeat", 1, 1, 200, 
+					"Number of iterations to smooth the mesh", "", 1, 200);
+	RNA_def_float(ot->srna, "lambda", 0.00005f, 0.0000001f, 1000.0f, 
+					"Lambda factor", "", 0.0000001f, 1000.0f);
+	RNA_def_float(ot->srna, "lambda_border", 0.00005f, 0.0000001f, 1000.0f, 
+					"Lambda factor in border", "", 0.0000001f, 1000.0f);
+	RNA_def_float(ot->srna, "min_area", 0.00001f, 0.0000000000000001f, 1000.0f, 
+					"Minimum area permitted", "", 0.0000000000000001f, 1000.0f);
 	RNA_def_boolean(ot->srna, "use_x", 1, "Smooth X Axis", "Smooth object along	X axis");
 	RNA_def_boolean(ot->srna, "use_y", 1, "Smooth Y Axis", "Smooth object along	Y axis");
 	RNA_def_boolean(ot->srna, "use_z", 1, "Smooth Z Axis", "Smooth object along	Z axis");
