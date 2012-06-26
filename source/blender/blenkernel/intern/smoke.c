@@ -564,6 +564,10 @@ void smokeModifier_copy(struct SmokeModifierData *smd, struct SmokeModifierData 
 		tsmd->domain->time_scale = smd->domain->time_scale;
 		tsmd->domain->border_collisions = smd->domain->border_collisions;
 
+		tsmd->domain->adapt_margin = smd->domain->adapt_margin;
+		tsmd->domain->adapt_res = smd->domain->adapt_res;
+		tsmd->domain->adapt_threshold = smd->domain->adapt_threshold;
+
 		tsmd->domain->burning_rate = smd->domain->burning_rate;
 		tsmd->domain->flame_smoke = smd->domain->flame_smoke;
 		tsmd->domain->flame_vorticity = smd->domain->flame_vorticity;
@@ -1509,12 +1513,13 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 					for(gy = em->min[1]; gy < em->max[1]; gy++)
 						for(gz = em->min[2]; gz < em->max[2]; gz++)													
 						{
-							// get emission map index
+							/* get emission map index */
 							ex = gx-em->min[0];
 							ey = gy-em->min[1];
 							ez = gz-em->min[2];
 							e_index = smoke_get_index(ex, em->res[0], ey, em->res[1], ez);
 							if (!emission_map[e_index]) continue;
+							/* get domain index */
 							dx = gx-sds->res_min[0];
 							dy = gy-sds->res_min[1];
 							dz = gz-sds->res_min[2];
@@ -1530,8 +1535,8 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 							}
 							else { // inflow
 								heat[d_index] = MAX2(emission_map[e_index]*sfs->temp, heat[d_index]);
-								if (absolute_flow) // absolute
-								{
+								/* absolute */
+								if (absolute_flow) {
 									if (sfs->type != MOD_SMOKE_FLOW_TYPE_FIRE) {
 										if (emission_map[e_index] * sfs->density > density[d_index])
 											density[d_index] = emission_map[e_index] * sfs->density;
@@ -1541,8 +1546,8 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 											fuel[d_index] = emission_map[e_index] * sfs->fuel_amount;
 									}
 								}
-								else // additive
-								{
+								/* additive */
+								else {
 									if (sfs->type != MOD_SMOKE_FLOW_TYPE_FIRE)
 										density[d_index] += emission_map[e_index] * sfs->density;
 									if (sfs->type != MOD_SMOKE_FLOW_TYPE_SMOKE)
@@ -1785,16 +1790,15 @@ static void step(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMesh *
 
 	/* adapt timestep for different framerates, dt = 0.1 is at 25fps */
 	dt *= (25.0f / fps);
-
 	// maximum timestep/"CFL" constraint: dt < 5.0 *dx / maxVel
 	maxVel = (sds->dx * 5.0);
 
-	for(i = 0; i < size; i++)
+	/*for(i = 0; i < size; i++)
 	{
 		float vtemp = (velX[i]*velX[i]+velY[i]*velY[i]+velZ[i]*velZ[i]);
 		if(vtemp > maxVelMag)
 			maxVelMag = vtemp;
-	}
+	}*/
 
 	maxVelMag = sqrt(maxVelMag) * dt * sds->time_scale;
 	totalSubsteps = (int)((maxVelMag / maxVel) + 1.0f); /* always round up */
@@ -1839,7 +1843,7 @@ static DerivedMesh *createDomainGeometry(SmokeDomainSettings *sds, Object *ob)
 	float ob_loc[3] = {0};
 	float ob_cache_loc[3] = {0};
 
-	/* dont generate any mesh if there is domain area */
+	/* dont generate any mesh if there isnt any content */
 	if (sds->total_cells <= 1) {
 		num_verts = 0;
 		num_faces = 0;
@@ -1889,7 +1893,7 @@ static DerivedMesh *createDomainGeometry(SmokeDomainSettings *sds, Object *ob)
 		ml[0].v = 1; ml[1].v = 0; ml[2].v = 4; ml[3].v = 5;
 
 		/* calculate required shift to match domain's global position
-		*  where it was originally simulated (if object moves without smoke step) */
+		*  it was originally simulated at (if object moves without smoke step) */
 		invert_m4_m4(ob->imat, ob->obmat);
 		mul_m4_v3(ob->obmat, ob_loc);
 		mul_m4_v3(sds->obmat, ob_cache_loc);
@@ -1976,7 +1980,6 @@ void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *ob, Der
 			return;
 
 		smd->domain->flags &= ~MOD_SMOKE_FILE_LOAD;
-
 		CLAMP(framenr, startframe, endframe);
 
 		/* If already viewing a pre/after frame, no need to reload */
@@ -2026,8 +2029,6 @@ void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *ob, Der
 
 		/* do simulation */
 
-		// low res
-
 		// simulate the actual smoke (c++ code in intern/smoke)
 		// DG: interesting commenting this line + deactivating loading of noise files
 		if(framenr!=startframe)
@@ -2061,6 +2062,7 @@ struct DerivedMesh *smokeModifier_do(SmokeModifierData *smd, Scene *scene, Objec
 {
 	smokeModifier_process(smd, scene, ob, dm);
 
+	/* return generated geometry for adaptive domain */
 	if(smd->type & MOD_SMOKE_TYPE_DOMAIN && smd->domain &&
 		smd->domain->flags & MOD_SMOKE_ADAPTIVE_DOMAIN)
 	{
@@ -2231,7 +2233,7 @@ static void smoke_calc_transparency(SmokeDomainSettings *sds, Scene *scene)
 				voxelCenter[1] = (float)y;
 				voxelCenter[2] = (float)z;
 
-				// get starting cell (light)
+				// get starting cell (light pos)
 				if(BLI_bvhtree_bb_raycast(bv, light, voxelCenter, pos) > FLT_EPSILON)
 				{
 					// we're ouside -> use point on side of domain

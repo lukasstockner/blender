@@ -404,7 +404,6 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob, ARegion *ar, GPUTex
 	ds = (ABS(viewnormal[0]) * size[0] + ABS(viewnormal[1]) * size[1] + ABS(viewnormal[2]) * size[2]);
 	dd = dx*base_scale/128.f;
 	dd = MAX3(sds->global_size[0],sds->global_size[1],sds->global_size[2])/128.f;
-	//dd = (viewnormal[0]*viewnormal[0]*sds->cell_size[0] + viewnormal[1]*viewnormal[1]*sds->cell_size[1] + viewnormal[2]*viewnormal[2]*sds->cell_size[2]) * sds->maxres / 128.f;
 	n = 0;
 	good_index = i;
 
@@ -447,7 +446,6 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob, ARegion *ar, GPUTex
 				}
 			}
 
-			// printf("numpoints: %d\n", numpoints);
 			/* render fire slice */
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 			glProgramLocalParameter4fARB(GL_FRAGMENT_PROGRAM_ARB, 2, 1.0, 0.0, 0.0, 0.0);
@@ -521,25 +519,21 @@ void draw_smoke_velocity(SmokeDomainSettings *domain, Object *ob)
 	float *vel_y = smoke_get_velocity_y(domain->fluid);
 	float *vel_z = smoke_get_velocity_z(domain->fluid);
 
-	float *min = domain->p0;
+	float min[3];
 	float *cell_size = domain->cell_size;
 	float step_size = ((float)MAX3(base_res[0], base_res[1], base_res[2]))/16.f;
-	float vf = domain->scale / 16.f * 2.f;
+	float vf = domain->scale / 16.f * 2.f; /* velocity factor */
 
-	glColor3f(1.0f, 0.5f, 0.0f);
 	glLineWidth(1.0f);
 
 	/* set first position so that it doesn't jump when domain moves */
-	/*x0 = fmod(-(float)domain->shift[0],step_size);
-	y0 = fmod(-(float)domain->shift[1],step_size);
-	z0 = fmod(-(float)domain->shift[2],step_size);
-	if (x0<0.0f) x0+=step_size;
-	if (y0<0.0f) y0+=step_size;
-	if (z0<0.0f) z0+=step_size;*/
-
-	x0 = res_min[0];
-	y0 = res_min[1];
-	z0 = res_min[2];
+	x0 = res_min[0] + fmod(-(float)domain->shift[0]+res_min[0],step_size);
+	y0 = res_min[1] + fmod(-(float)domain->shift[1]+res_min[1],step_size);
+	z0 = res_min[2] + fmod(-(float)domain->shift[2]+res_min[2],step_size);
+	if (x0<res_min[0]) x0+=step_size;
+	if (y0<res_min[1]) y0+=step_size;
+	if (z0<res_min[2]) z0+=step_size;
+	add_v3_v3v3(min, domain->p0, domain->obj_shift_f);
 
 	for (x=floor(x0); x<res_max[0]; x+=step_size)
 		for (y=floor(y0); y<res_max[1]; y+=step_size)
@@ -549,6 +543,7 @@ void draw_smoke_velocity(SmokeDomainSettings *domain, Object *ob)
 				float pos[3] = {min[0]+((float)x + 0.5f)*cell_size[0], min[1]+((float)y + 0.5f)*cell_size[1], min[2]+((float)z + 0.5f)*cell_size[2]};
 				float vel = sqrtf(vel_x[index]*vel_x[index] + vel_y[index]*vel_y[index] + vel_z[index]*vel_z[index]);
 
+				/* draw heat as scaled "arrows" */
 				if (vel >= 0.01f) {
 					float col_g = 1.0f - vel;
 					CLAMP(col_g, 0.0f, 1.0f);
@@ -571,20 +566,35 @@ void draw_smoke_velocity(SmokeDomainSettings *domain, Object *ob)
 void draw_smoke_heat(SmokeDomainSettings *domain, Object *ob)
 {
 	float x,y,z;
+	float x0,y0,z0;
+	int *base_res = domain->base_res;
 	int *res = domain->res;
+	int *res_min = domain->res_min;
+	int *res_max = domain->res_max;
 	float *heat = smoke_get_heat(domain->fluid);
 
-	float *min = domain->p0;
-	float cell_size = domain->dx * domain->scale;
-	float step_size = ((float)MAX3(res[0], res[1], res[2]))/16.f;
+	float min[3];
+	float *cell_size = domain->cell_size;
+	float step_size = ((float)MAX3(base_res[0], base_res[1], base_res[2]))/16.f;
+	float vf = domain->scale / 16.f * 2.f; /* velocity factor */
 
-	for (x=0; x<res[0]; x+=step_size)
-		for (y=0; y<res[1]; y+=step_size)
-			for (z=0; z<res[2]; z+=step_size) {
-				int index = floor(x) + floor(y)*res[0] + floor(z)*res[0]*res[1];
+	/* set first position so that it doesn't jump when domain moves */
+	x0 = res_min[0] + fmod(-(float)domain->shift[0]+res_min[0],step_size);
+	y0 = res_min[1] + fmod(-(float)domain->shift[1]+res_min[1],step_size);
+	z0 = res_min[2] + fmod(-(float)domain->shift[2]+res_min[2],step_size);
+	if (x0<res_min[0]) x0+=step_size;
+	if (y0<res_min[1]) y0+=step_size;
+	if (z0<res_min[2]) z0+=step_size;
+	add_v3_v3v3(min, domain->p0, domain->obj_shift_f);
 
-				float pos[3] = {min[0]+((float)x + 0.5f)*cell_size, min[1]+((float)y + 0.5f)*cell_size, min[2]+((float)z + 0.5f)*cell_size};
+	for (x=floor(x0); x<res_max[0]; x+=step_size)
+		for (y=floor(y0); y<res_max[1]; y+=step_size)
+			for (z=floor(z0); z<res_max[2]; z+=step_size) {
+				int index = (floor(x)-res_min[0]) + (floor(y)-res_min[1])*res[0] + (floor(z)-res_min[2])*res[0]*res[1];
 
+				float pos[3] = {min[0]+((float)x + 0.5f)*cell_size[0], min[1]+((float)y + 0.5f)*cell_size[1], min[2]+((float)z + 0.5f)*cell_size[2]};
+
+				/* draw heat as different sized points */
 				if (heat[index] >= 0.01f) {
 					float col_gb = 1.0f - heat[index];
 					CLAMP(col_gb, 0.0f, 1.0f);
