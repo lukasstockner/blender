@@ -70,6 +70,7 @@
 #include "BKE_context.h"
 #include "BKE_tessmesh.h"
 #include "BKE_mesh.h"
+#include "BKE_snap.h"
 
 #include "ED_armature.h"
 #include "ED_image.h"
@@ -85,6 +86,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "transform.h"
+
 
 //#include "blendef.h" /* for selection modes */
 
@@ -1530,7 +1532,7 @@ static int snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMesh
 					
 					for ( i = 0; i < totedge; i++) {
 						BMEdge *eed = NULL;
-						MEdge *e = edges + i;
+						MEdge *e = edges + i; //is this pointer arithmatic necessary? why not e = edges[i] ?
 						
 						test = 1; /* reset for every vert */
 					
@@ -1631,7 +1633,7 @@ static int snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMesh
 	return retval;
 } 
 
-static int snapObject(Scene *scene, ARegion *ar, Object *ob, int editobject, float obmat[][4],
+static int snapObject(Scene *scene, View3D *v3d, ARegion *ar, Object *ob, int editobject, float obmat[][4],
                       const float ray_start[3], const float ray_normal[3], const float mval[2],
                       float r_loc[3], float r_no[3], int *r_dist, float *r_depth)
 {
@@ -1652,8 +1654,24 @@ static int snapObject(Scene *scene, ARegion *ar, Object *ob, int editobject, flo
 			dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
 		}
 		
-		retval = snapDerivedMesh(ts->snap_mode, ar, ob, dm, em, obmat, ray_start, ray_normal, mval, r_loc, r_no, r_dist, r_depth);
-
+		if(ts->snap_mode == SCE_SNAP_MODE_VERTEX){
+			int mval_i[2] = {mval[0], mval[1]};
+			Snap* sm;
+			SnapPoint* sp;
+			if(em == NULL){
+				sm = SnapMesh_create(dm, SNAPMESH_DATA_TYPE_DerivedMesh, SNAPMESH_TYPE_VERTEX, scene, ob, v3d, ar, mval_i);
+			}else{
+				sm = SnapMesh_create(em, SNAPMESH_DATA_TYPE_BMEditMesh, SNAPMESH_TYPE_VERTEX, scene, ob, v3d, ar, mval_i);
+			}
+			Snap_run(sm);
+			retval = Snap_getretval(sm);
+			sp = Snap_getSnapPoint(sm);
+			copy_v3_v3(r_loc, sp->location);
+			copy_v3_v3(r_no, sp->normal);
+			Snap_free(sm);
+		}else{
+			retval = snapDerivedMesh(ts->snap_mode, ar, ob, dm, em, obmat, ray_start, ray_normal, mval, r_loc, r_no, r_dist, r_depth);
+		}
 		dm->release(dm);
 	}
 	else if (ob->type == OB_ARMATURE) {
@@ -1676,7 +1694,7 @@ static int snapObjects(Scene *scene, View3D *v3d, ARegion *ar, Object *obedit, c
 	if (mode == SNAP_ALL && obedit) {
 		Object *ob = obedit;
 
-		retval |= snapObject(scene, ar, ob, 1, ob->obmat, ray_start, ray_normal, mval, r_loc, r_no, r_dist, &depth);
+		retval |= snapObject(scene, v3d, ar, ob, 1, ob->obmat, ray_start, ray_normal, mval, r_loc, r_no, r_dist, &depth);
 	}
 
 	/* Need an exception for particle edit because the base is flagged with BA_HAS_RECALC_DATA
@@ -1687,7 +1705,7 @@ static int snapObjects(Scene *scene, View3D *v3d, ARegion *ar, Object *obedit, c
 	base= BASACT;
 	if (base && base->object && base->object->mode & OB_MODE_PARTICLE_EDIT) {
 		Object *ob = base->object;
-		retval |= snapObject(scene, ar, ob, 0, ob->obmat, ray_start, ray_normal, mval, r_loc, r_no, r_dist, &depth);
+		retval |= snapObject(scene, v3d, ar, ob, 0, ob->obmat, ray_start, ray_normal, mval, r_loc, r_no, r_dist, &depth);
 	}
 
 	for ( base = FIRSTBASE; base != NULL; base = base->next ) {
@@ -1706,13 +1724,13 @@ static int snapObjects(Scene *scene, View3D *v3d, ARegion *ar, Object *obedit, c
 				for (dupli_ob = lb->first; dupli_ob; dupli_ob = dupli_ob->next) {
 					Object *dob = dupli_ob->ob;
 					
-					retval |= snapObject(scene, ar, dob, 0, dupli_ob->mat, ray_start, ray_normal, mval, r_loc, r_no, r_dist, &depth);
+					retval |= snapObject(scene, v3d, ar, dob, 0, dupli_ob->mat, ray_start, ray_normal, mval, r_loc, r_no, r_dist, &depth);
 				}
 				
 				free_object_duplilist(lb);
 			}
 			
-			retval |= snapObject(scene, ar, ob, 0, ob->obmat, ray_start, ray_normal, mval, r_loc, r_no, r_dist, &depth);
+			retval |= snapObject(scene, v3d, ar, ob, 0, ob->obmat, ray_start, ray_normal, mval, r_loc, r_no, r_dist, &depth);
 		}
 	}
 	
