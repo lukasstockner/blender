@@ -23,7 +23,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/python/bmesh/bmesh_py_api.c
+/** \file blender/python/bmesh/bmesh_py_utils.c
  *  \ingroup pybmesh
  *
  * This file defines the 'bmesh.utils' module.
@@ -370,7 +370,7 @@ static PyObject *bpy_bm_utils_edge_rotate(PyObject *UNUSED(self), PyObject *args
 PyDoc_STRVAR(bpy_bm_utils_face_split_doc,
 ".. method:: face_split(face, vert_a, vert_b, coords=(), use_exist=True, example=None)\n"
 "\n"
-"   Split an edge, return the newly created data.\n"
+"   Face split with optional intermediate points.\n"
 "\n"
 "   :arg face: The face to cut.\n"
 "   :type face: :class:`bmesh.types.BMFace`\n"
@@ -457,6 +457,7 @@ static PyObject *bpy_bm_utils_face_split(PyObject *UNUSED(self), PyObject *args,
 		                        py_vert_a->v, py_vert_b->v,
 		                        (float (*)[3])coords, ncoords,
 		                        &l_new, py_edge_example ? py_edge_example->e : NULL);
+		PyMem_Free(coords);
 	}
 	else {
 		f_new = BM_face_split(bm, py_face->f,

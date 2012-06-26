@@ -478,7 +478,7 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob, ARegion *ar, GPUTex
 	}
 
 	tend();
-	// printf ( "Draw Time: %f\n",( float ) tval() );
+	// printf ( "Draw Time: %f\n",(float) tval() );
 
 	if (tex_shadow)
 		GPU_texture_unbind(tex_shadow);

@@ -105,7 +105,8 @@ KX_Dome::KX_Dome (
 
 				CreateMeshDome180();
 				m_numfaces = 4;
-			}else if (m_angle > 180) {
+			}
+			else if (m_angle > 180) {
 				cubetop.resize(2);
 				cubebottom.resize(2);
 				cubeleft.resize(2);
@@ -140,7 +141,8 @@ KX_Dome::KX_Dome (
 
 				CreateMeshDome180();
 				m_numfaces = 4;
-			}else if (m_angle > 180) {
+			}
+			else if (m_angle > 180) {
 				cubetop.resize(2);
 				cubebottom.resize(2);
 				cubeleft.resize(2);
@@ -445,7 +447,8 @@ void KX_Dome::GLDrawWarpQuads(void)
 			}
 		}
 		glEnd();
-	} else{
+	}
+	else {
 		printf("Dome Error: Warp Mode %d unsupported. Try 1 for Polar Mesh or 2 for Fisheye.\n", warp.mode);
 	}
 }
@@ -502,7 +505,8 @@ bool KX_Dome::ParseWarpMesh(STR_String text)
 	if ((int)lines.size() < 2 + (warp.n_width * warp.n_height)) {
 		printf("Dome Error: Warp Mesh File with insufficient data!\n");
 		return false;
-	}else{
+	}
+	else {
 		warp.nodes = vector<vector<WarpMeshNode> > (warp.n_height, vector<WarpMeshNode>(warp.n_width));
 
 		for (i=2; i-2 < (warp.n_width*warp.n_height); i++) {
@@ -520,7 +524,7 @@ bool KX_Dome::ParseWarpMesh(STR_String text)
 				warp.nodes[nodeY][nodeX].v = atof(columns[3]);
 				warp.nodes[nodeY][nodeX].i = atof(columns[4]);
 			}
-			else{
+			else {
 				warp.nodes.clear();
 				printf("Dome Error: Warp Mesh File with wrong number of fields. You should use 5: x y u v i.\n");
 				return false;
@@ -593,7 +597,7 @@ void KX_Dome::CreateMeshDome180(void)
 	/* Left face - two triangles */
 	
 	cubeleft[0].verts[0][0] = -M_SQRT2 / 2.0;
-	cubeleft[0].verts[0][1] = .0;
+	cubeleft[0].verts[0][1] = 0.0;
 	cubeleft[0].verts[0][2] = -0.5;
 	cubeleft[0].u[0] = 0.0;
 	cubeleft[0].v[0] = 0.0;
@@ -1545,7 +1549,7 @@ void KX_Dome::CalculateCameraOrientation()
 
 		m_locRot[1] = MT_Matrix3x3( // Bottom
 						c, s, 0.0,
-						0.0 ,0.0, 1.0,
+						0.0, 0.0, 1.0,
 						s, -c, 0.0);
 
 		m_locRot[2] = MT_Matrix3x3( // 45deg - Left
@@ -1671,7 +1675,8 @@ void KX_Dome::DrawEnvMap(void)
 		if (can_width/3 <= can_height/2) {
 			ortho_width = 1.0;
 			ortho_height = (float)can_height/can_width;
-		}else{
+		}
+		else {
 			ortho_height = 2.0f / 3;
 			ortho_width = (float)can_width/can_height * ortho_height;
 		}
@@ -1801,7 +1806,8 @@ void KX_Dome::DrawDomeFisheye(void)
 			if (can_width < can_height) {
 				ortho_width = 1.0;
 				ortho_height = (float)can_height/can_width;
-			}else{
+			}
+			else {
 				ortho_width = (float)can_width/can_height;
 				ortho_height = 1.0;
 			}
@@ -1897,7 +1903,8 @@ void KX_Dome::DrawPanorama(void)
 		if ((can_width / 2) <= (can_height)) {
 			ortho_width = 1.0;
 			ortho_height = (float)can_height/can_width;
-		}else{
+		}
+		else {
 			ortho_width = (float)can_width/can_height * 0.5;
 			ortho_height = 0.5;
 		}
@@ -1995,7 +2002,7 @@ void KX_Dome::DrawDomeWarped(void)
 		glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);
 		glCallList(dlistId + m_numfaces);
 	}
-	else{
+	else {
 		glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);
 		GLDrawWarpQuads();
 	}

@@ -28,37 +28,40 @@
 class ProjectorLensDistortionOperation : public NodeOperation {
 private:
 	/**
-	  * Cached reference to the inputProgram
-	  */
-	SocketReader * inputProgram;
+	 * Cached reference to the inputProgram
+	 */
+	SocketReader *m_inputProgram;
 	
-	NodeLensDist * data;
+	NodeLensDist *m_data;
 	
-	float dispersion;
-	float kr, kr2;
+	float m_dispersion;
+	bool m_dispersionAvailable;
+	
+	float m_kr, m_kr2;
 public:
 	ProjectorLensDistortionOperation();
 	
 	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void *data);
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, int x, int y, MemoryBuffer * inputBuffers[], void *data);
 	
 	/**
-	  * Initialize the execution
-	  */
+	 * Initialize the execution
+	 */
 	void initExecution();
 	
 	void *initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers);
 	/**
-	  * Deinitialize the execution
-	  */
+	 * Deinitialize the execution
+	 */
 	void deinitExecution();
 	
-	void setData(NodeLensDist *data) {this->data = data;}
-	void setDispertion(float dispersion) {this->dispersion = dispersion;}
+	void setData(NodeLensDist *data) { this->m_data = data; }
 	
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
+
+	void updateDispersion(MemoryBuffer** inputBuffers);
 
 };
 #endif

@@ -187,7 +187,8 @@ class PHYSICS_PT_smoke_groups(PhysicButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         md = context.smoke
-        return md and (md.smoke_type == 'DOMAIN')
+        rd = context.scene.render
+        return md and (md.smoke_type == 'DOMAIN') and (not rd.use_game_engine)
 
     def draw(self, context):
         layout = self.layout
@@ -215,7 +216,8 @@ class PHYSICS_PT_smoke_highres(PhysicButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         md = context.smoke
-        return md and (md.smoke_type == 'DOMAIN')
+        rd = context.scene.render
+        return md and (md.smoke_type == 'DOMAIN') and (not rd.use_game_engine)
 
     def draw_header(self, context):
         md = context.smoke.domain_settings
@@ -252,7 +254,8 @@ class PHYSICS_PT_smoke_cache(PhysicButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         md = context.smoke
-        return md and (md.smoke_type == 'DOMAIN')
+        rd = context.scene.render
+        return md and (md.smoke_type == 'DOMAIN') and (not rd.use_game_engine)
 
     def draw(self, context):
         layout = self.layout
@@ -272,8 +275,9 @@ class PHYSICS_PT_smoke_field_weights(PhysicButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        smoke = context.smoke
-        return (smoke and smoke.smoke_type == 'DOMAIN')
+        md = context.smoke
+        rd = context.scene.render
+        return md and (md.smoke_type == 'DOMAIN') and (not rd.use_game_engine)
 
     def draw(self, context):
         domain = context.smoke.domain_settings

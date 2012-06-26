@@ -35,7 +35,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_movieclip_types.h"
-#include "DNA_view3d_types.h"	/* for pivot point */
+#include "DNA_view3d_types.h"  /* for pivot point */
 
 #include "MEM_guardedalloc.h"
 
@@ -71,7 +71,7 @@
 #include "RNA_access.h"
 
 
-#include "clip_intern.h"	// own include
+#include "clip_intern.h"  /* own include */
 
 static void init_preview_region(const bContext *C, ARegion *ar)
 {
@@ -215,10 +215,19 @@ static void clip_scopes_tag_refresh(ScrArea *sa)
 	sc->scopes.ok = FALSE;
 }
 
+static void clip_scopes_check_gpencil_change(ScrArea *sa)
+{
+	SpaceClip *sc = (SpaceClip *)sa->spacedata.first;
+
+	if (sc->gpencil_src == SC_GPENCIL_SRC_TRACK) {
+		clip_scopes_tag_refresh(sa);
+	}
+}
+
 static void clip_stabilization_tag_refresh(ScrArea *sa)
 {
 	SpaceClip *sc = (SpaceClip *) sa->spacedata.first;
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 
 	if (clip) {
 		MovieTrackingStabilization *stab = &clip->tracking.stabilization;
@@ -299,12 +308,15 @@ static SpaceLink *clip_new(const bContext *C)
 /* not spacelink itself */
 static void clip_free(SpaceLink *sl)
 {
-	SpaceClip *sc = (SpaceClip*) sl;
+	SpaceClip *sc = (SpaceClip *) sl;
 
 	sc->clip = NULL;
 
 	if (sc->scopes.track_preview)
 		IMB_freeImBuf(sc->scopes.track_preview);
+
+	if (sc->scopes.track_search)
+		IMB_freeImBuf(sc->scopes.track_search);
 
 	ED_space_clip_free_texture_buffer(sc);
 }
@@ -323,6 +335,7 @@ static SpaceLink *clip_duplicate(SpaceLink *sl)
 	SpaceClip *scn = MEM_dupallocN(sl);
 
 	/* clear or remove stuff from old */
+	scn->scopes.track_search = NULL;
 	scn->scopes.track_preview = NULL;
 	scn->scopes.ok = FALSE;
 	scn->draw_context = NULL;
@@ -392,9 +405,13 @@ static void clip_listener(ScrArea *sa, wmNotifier *wmn)
 					break;
 			}
 			break;
-		 case NC_SCREEN:
-			if (wmn->data == ND_ANIMPLAY) {
-				ED_area_tag_redraw(sa);
+		case NC_SCREEN:
+			switch (wmn->data) {
+				case ND_ANIMPLAY:
+				case ND_GPENCIL:
+					clip_scopes_check_gpencil_change(sa);
+					ED_area_tag_redraw(sa);
+					break;
 			}
 			break;
 		case NC_SPACE:
@@ -627,17 +644,17 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "CLIP_OT_slide_marker", LEFTMOUSE, KM_PRESS, 0, 0);
 
 	kmi = WM_keymap_add_item(keymap, "CLIP_OT_disable_markers", DKEY, KM_PRESS, KM_SHIFT, 0);
-	RNA_enum_set(kmi->ptr, "action", 2);	/* toggle */
+	RNA_enum_set(kmi->ptr, "action", 2);    /* toggle */
 
 	/* tracks */
 	WM_keymap_add_item(keymap, "CLIP_OT_delete_track", DELKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "CLIP_OT_delete_track", XKEY, KM_PRESS, 0, 0);
 
 	kmi = WM_keymap_add_item(keymap, "CLIP_OT_lock_tracks", LKEY, KM_PRESS, KM_CTRL, 0);
-	RNA_enum_set(kmi->ptr, "action", 0);	/* lock */
+	RNA_enum_set(kmi->ptr, "action", 0);    /* lock */
 
 	kmi = WM_keymap_add_item(keymap, "CLIP_OT_lock_tracks", LKEY, KM_PRESS, KM_ALT, 0);
-	RNA_enum_set(kmi->ptr, "action", 1);	/* unlock */
+	RNA_enum_set(kmi->ptr, "action", 1);    /* unlock */
 
 	kmi = WM_keymap_add_item(keymap, "CLIP_OT_hide_tracks", HKEY, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "unselected", FALSE);
@@ -726,7 +743,7 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 
 	/* tracks */
 	kmi = WM_keymap_add_item(keymap, "CLIP_OT_graph_disable_markers", DKEY, KM_PRESS, KM_SHIFT, 0);
-	RNA_enum_set(kmi->ptr, "action", 2);	/* toggle */
+	RNA_enum_set(kmi->ptr, "action", 2);    /* toggle */
 
 	transform_keymap_for_space(keyconf, keymap, SPACE_CLIP);
 
@@ -735,7 +752,7 @@ static void clip_keymap(struct wmKeyConfig *keyconf)
 	keymap = WM_keymap_find(keyconf, "Clip Dopesheet Editor", SPACE_CLIP, 0);
 
 	kmi = WM_keymap_add_item(keymap, "CLIP_OT_dopesheet_select_channel", ACTIONMOUSE, KM_PRESS, 0, 0);
-	RNA_boolean_set(kmi->ptr, "extend", TRUE);	/* toggle */
+	RNA_boolean_set(kmi->ptr, "extend", TRUE);  /* toggle */
 }
 
 const char *clip_context_dir[] = {"edit_movieclip", "edit_mask", NULL};
@@ -991,13 +1008,14 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 /********************* main region ********************/
 
 /* sets up the fields of the View2D from zoom and offset */
-static void movieclip_main_area_set_view2d(SpaceClip *sc, ARegion *ar)
+static void movieclip_main_area_set_view2d(const bContext *C, ARegion *ar)
 {
-	MovieClip *clip = ED_space_clip(sc);
+	SpaceClip *sc = CTX_wm_space_clip(C);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 	float x1, y1, w, h;
 	int width, height, winx, winy;
 
-	ED_space_clip_size(sc, &width, &height);
+	ED_space_clip_get_size(C, &width, &height);
 
 	w = width;
 	h = height;
@@ -1047,7 +1065,7 @@ static void clip_main_area_init(wmWindowManager *wm, ARegion *ar)
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_STANDARD, ar->winx, ar->winy);
 
 	/* own keymap */
-	keymap= WM_keymap_find(wm->defaultconf, "Mask Editing", 0, 0);
+	keymap = WM_keymap_find(wm->defaultconf, "Mask Editing", 0, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 
 	keymap = WM_keymap_find(wm->defaultconf, "Clip", SPACE_CLIP, 0);
@@ -1057,17 +1075,60 @@ static void clip_main_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 }
 
+static void clip_main_area_draw_mask(const bContext *C, ARegion *ar)
+{
+	SpaceClip *sc = CTX_wm_space_clip(C);
+	int x, y;
+	int width, height;
+	float zoomx, zoomy;
+
+	/* frame image */
+	float maxdim;
+	float xofs, yofs;
+
+	/* find window pixel coordinates of origin */
+	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &x, &y);
+
+	ED_space_clip_get_size(C, &width, &height);
+	ED_space_clip_get_zoom(C, &zoomx, &zoomy);
+
+	/* frame the image */
+	maxdim = maxf(width, height);
+	if (width == height) {
+		xofs = yofs = 0;
+	}
+	else if (width < height) {
+		xofs = ((height - width) / -2.0f) * zoomx;
+		yofs = 0.0f;
+	}
+	else { /* (width > height) */
+		xofs = 0.0f;
+		yofs = ((width - height) / -2.0f) * zoomy;
+	}
+
+	/* apply transformation so mask editing tools will assume drawing from the origin in normalized space */
+	glPushMatrix();
+	glTranslatef(x + xofs, y + yofs, 0);
+	glScalef(maxdim * zoomx, maxdim * zoomy, 0);
+	glMultMatrixf(sc->stabmat);
+
+	ED_mask_draw(C, sc->mask_draw_flag, sc->mask_draw_type);
+
+	ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
+
+	glPopMatrix();
+}
+
 static void clip_main_area_draw(const bContext *C, ARegion *ar)
 {
 	/* draw entirely, view changes should be handled here */
 	SpaceClip *sc = CTX_wm_space_clip(C);
-	Scene *scene = CTX_data_scene(C);
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 
 	/* if tracking is in progress, we should synchronize framenr from clipuser
 	 * so latest tracked frame would be shown */
 	if (clip && clip->tracking_context)
-		BKE_tracking_sync_user(&sc->user, clip->tracking_context);
+		BKE_tracking_context_sync_user(clip->tracking_context, &sc->user);
 
 	if (sc->flag & SC_LOCK_SELECTION) {
 		ImBuf *tmpibuf = NULL;
@@ -1076,7 +1137,7 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 			tmpibuf = ED_space_clip_get_stable_buffer(sc, NULL, NULL, NULL);
 		}
 
-		if (ED_clip_view_selection(sc, ar, 0)) {
+		if (ED_clip_view_selection(C, ar, 0)) {
 			sc->xof += sc->xlockof;
 			sc->yof += sc->ylockof;
 		}
@@ -1090,55 +1151,16 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	/* data... */
-	movieclip_main_area_set_view2d(sc, ar);
+	movieclip_main_area_set_view2d(C, ar);
 
-	clip_draw_main(sc, ar, scene);
+	clip_draw_main(C, ar);
+
+	if (sc->mode == SC_MODE_MASKEDIT) {
+		clip_main_area_draw_mask(C, ar);
+	}
 
 	/* Grease Pencil */
 	clip_draw_grease_pencil((bContext *)C, 1);
-
-	if (sc->mode == SC_MODE_MASKEDIT) {
-		int x, y;
-		int width, height;
-		float zoomx, zoomy, aspx, aspy;
-
-		/* frame image */
-		float maxdim;
-		float xofs, yofs;
-
-		/* find window pixel coordinates of origin */
-		UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &x, &y);
-
-		ED_space_clip_size(sc, &width, &height);
-		ED_space_clip_zoom(sc, ar, &zoomx, &zoomy);
-		ED_space_clip_aspect(sc, &aspx, &aspy);
-
-		/* frame the image */
-		maxdim = maxf(width, height);
-		if (width == height) {
-			xofs = yofs = 0;
-		}
-		else if (width < height) {
-			xofs = ((height - width) / -2.0f) * zoomx;
-			yofs = 0.0f;
-		}
-		else { /* (width > height) */
-			xofs = 0.0f;
-			yofs = ((width - height) / -2.0f) * zoomy;
-		}
-
-		/* apply transformation so mask editing tools will assume drawing from the origin in normalized space */
-		glPushMatrix();
-		glTranslatef(x + xofs, y + yofs, 0);
-		glScalef(maxdim * zoomx, maxdim * zoomy, 0);
-		glMultMatrixf(sc->stabmat);
-
-		ED_mask_draw((bContext *)C, sc->mask_draw_flag, sc->mask_draw_type);
-
-		ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
-
-		glPopMatrix();
-	}
 
 	/* reset view matrix */
 	UI_view2d_view_restore(C);
@@ -1154,7 +1176,7 @@ static void clip_main_area_listener(ARegion *ar, wmNotifier *wmn)
 		case NC_SCREEN:
 			if (wmn->data == ND_GPENCIL)
 				ED_region_tag_redraw(ar);
-		break;
+			break;
 	}
 }
 
@@ -1198,7 +1220,7 @@ static void graph_area_draw(const bContext *C, ARegion *ar)
 	UI_view2d_view_restore(C);
 
 	/* scrollers */
-	unitx = (sc->flag & SC_SHOW_SECONDS)? V2D_UNIT_SECONDS : V2D_UNIT_FRAMES;
+	unitx = (sc->flag & SC_SHOW_SECONDS) ? V2D_UNIT_SECONDS : V2D_UNIT_FRAMES;
 	unity = V2D_UNIT_VALUES;
 	scrollers = UI_view2d_scrollers_calc(C, v2d, unitx, V2D_GRID_NOCLAMP, unity, V2D_GRID_NOCLAMP);
 	UI_view2d_scrollers_draw(C, v2d, scrollers);
@@ -1209,14 +1231,14 @@ static void dopesheet_area_draw(const bContext *C, ARegion *ar)
 {
 	Scene *scene = CTX_data_scene(C);
 	SpaceClip *sc = CTX_wm_space_clip(C);
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 	View2D *v2d = &ar->v2d;
 	View2DGrid *grid;
 	View2DScrollers *scrollers;
 	short unit = 0;
 
 	if (clip)
-		BKE_tracking_dopesheet_update(&clip->tracking, sc->dope_sort, sc->dope_flag & SC_DOPE_SORT_INVERSE);
+		BKE_tracking_dopesheet_update(&clip->tracking);
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
@@ -1225,7 +1247,7 @@ static void dopesheet_area_draw(const bContext *C, ARegion *ar)
 	UI_view2d_view_ortho(v2d);
 
 	/* time grid */
-	unit = (sc->flag & SC_SHOW_SECONDS)? V2D_UNIT_SECONDS : V2D_UNIT_FRAMES;
+	unit = (sc->flag & SC_SHOW_SECONDS) ? V2D_UNIT_SECONDS : V2D_UNIT_FRAMES;
 	grid = UI_view2d_grid_calc(CTX_data_scene(C), v2d, unit, V2D_GRID_CLAMP,
 	                           V2D_ARG_DUMMY, V2D_ARG_DUMMY, ar->winx, ar->winy);
 	UI_view2d_grid_draw(v2d, grid, V2D_GRIDLINES_ALL);
@@ -1272,12 +1294,12 @@ static void clip_channels_area_init(wmWindowManager *wm, ARegion *ar)
 static void clip_channels_area_draw(const bContext *C, ARegion *ar)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 	View2D *v2d = &ar->v2d;
 	View2DScrollers *scrollers;
 
 	if (clip)
-		BKE_tracking_dopesheet_update(&clip->tracking, sc->dope_sort, sc->dope_flag & SC_DOPE_SORT_INVERSE);
+		BKE_tracking_dopesheet_update(&clip->tracking);
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
@@ -1324,10 +1346,10 @@ static void clip_header_area_listener(ARegion *ar, wmNotifier *wmn)
 				case ND_TOOLSETTINGS:
 					/* TODO - should do this when in mask mode only but no datas available */
 					// if (sc->mode == SC_MODE_MASKEDIT)
-					{
-						ED_region_tag_redraw(ar);
-					}
-					break;
+				{
+					ED_region_tag_redraw(ar);
+				}
+				break;
 			}
 			break;
 	}

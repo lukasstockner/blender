@@ -25,20 +25,20 @@
 
 #include "COM_NodeOperation.h"
 
-class FlipOperation: public NodeOperation {
+class FlipOperation : public NodeOperation {
 private:
-	SocketReader *inputOperation;
-	bool flipX;
-	bool flipY;
+	SocketReader *m_inputOperation;
+	bool m_flipX;
+	bool m_flipY;
 public:
 	FlipOperation();
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 	
 	void initExecution();
 	void deinitExecution();
-	void setFlipX(bool flipX) {this->flipX = flipX;}
-	void setFlipY(bool flipY) {this->flipY = flipY;}
+	void setFlipX(bool flipX) { this->m_flipX = flipX; }
+	void setFlipY(bool flipY) { this->m_flipY = flipY; }
 };
 
 #endif

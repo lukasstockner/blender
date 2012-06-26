@@ -20,10 +20,12 @@
  *		Monique Dewanchand
  */
 
-#include "COM_NodeBase.h"
-#include "string.h"
-#include "COM_NodeOperation.h"
+#include <string.h>
+
 #include "BKE_node.h"
+
+#include "COM_NodeBase.h"
+#include "COM_NodeOperation.h"
 #include "COM_SetValueOperation.h"
 #include "COM_SetColorOperation.h"
 #include "COM_SocketConnection.h"
@@ -31,18 +33,19 @@
 
 NodeBase::NodeBase()
 {
+	/* pass */
 }
 
 
 NodeBase::~NodeBase()
 {
-	while (!this->outputsockets.empty()) {
-		delete (this->outputsockets.back());
-		this->outputsockets.pop_back();
+	while (!this->m_outputsockets.empty()) {
+		delete (this->m_outputsockets.back());
+		this->m_outputsockets.pop_back();
 	}
-	while (!this->inputsockets.empty()) {
-		delete (this->inputsockets.back());
-		this->inputsockets.pop_back();
+	while (!this->m_inputsockets.empty()) {
+		delete (this->m_inputsockets.back());
+		this->m_inputsockets.pop_back();
 	}
 }
 
@@ -60,7 +63,7 @@ void NodeBase::addInputSocket(DataType datatype, InputSocketResizeMode resizeMod
 	InputSocket *socket = new InputSocket(datatype, resizeMode);
 	socket->setEditorSocket(bSocket);
 	socket->setNode(this);
-	this->inputsockets.push_back(socket);
+	this->m_inputsockets.push_back(socket);
 }
 
 void NodeBase::addOutputSocket(DataType datatype)
@@ -73,71 +76,21 @@ void NodeBase::addOutputSocket(DataType datatype, bNodeSocket *bSocket)
 	OutputSocket *socket = new OutputSocket(datatype);
 	socket->setEditorSocket(bSocket);
 	socket->setNode(this);
-	this->outputsockets.push_back(socket);
+	this->m_outputsockets.push_back(socket);
 }
 const bool NodeBase::isInputNode() const
 {
-	return this->inputsockets.size() == 0;
+	return this->m_inputsockets.size() == 0;
 }
 
-OutputSocket *NodeBase::getOutputSocket(int index)
+OutputSocket *NodeBase::getOutputSocket(unsigned int index)
 {
-	return this->outputsockets[index];
+	BLI_assert(index < this->m_outputsockets.size());
+	return this->m_outputsockets[index];
 }
 
-InputSocket *NodeBase::getInputSocket(int index)
+InputSocket *NodeBase::getInputSocket(unsigned int index)
 {
-	return this->inputsockets[index];
-}
-
-
-void NodeBase::determineActualSocketDataTypes()
-{
-	unsigned int index;
-	for (index = 0 ; index < this->outputsockets.size() ; index ++) {
-		OutputSocket *socket = this->outputsockets[index];
-		if (socket->getActualDataType() ==COM_DT_UNKNOWN && socket->isConnected()) {
-			socket->determineActualDataType();
-		}
-	}
-	for (index = 0 ; index < this->inputsockets.size() ; index ++) {
-		InputSocket *socket = this->inputsockets[index];
-		if (socket->getActualDataType() ==COM_DT_UNKNOWN) {
-			socket->determineActualDataType();
-		}
-	}
-}
-
-DataType NodeBase::determineActualDataType(OutputSocket *outputsocket)
-{
-	const int inputIndex = outputsocket->getInputSocketDataTypeDeterminatorIndex();
-	if (inputIndex != -1) {
-		return this->getInputSocket(inputIndex)->getActualDataType();
-	}
-	else {
-		return outputsocket->getDataType();
-	}
-}
-
-void NodeBase::notifyActualDataTypeSet(InputSocket *socket, DataType actualType)
-{
-	unsigned int index;
-	int socketIndex = -1;
-	for (index = 0 ; index < this->inputsockets.size() ; index ++) {
-		if (this->inputsockets[index] == socket) {
-			socketIndex = (int)index;
-			break;
-		}
-	}
-	if (socketIndex == -1) return;
-	
-	for (index = 0 ; index < this->outputsockets.size() ; index ++) {
-		OutputSocket *socket = this->outputsockets[index];
-		if (socket->isActualDataTypeDeterminedByInputSocket() &&
-		    socket->getInputSocketDataTypeDeterminatorIndex() == socketIndex)
-		{
-			socket->setActualDataType(actualType);
-			socket->fireActualDataType();
-		}
-	}
+	BLI_assert(index < this->m_inputsockets.size());
+	return this->m_inputsockets[index];
 }

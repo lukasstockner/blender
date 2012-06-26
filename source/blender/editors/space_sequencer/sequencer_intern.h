@@ -138,6 +138,7 @@ void SEQUENCER_OT_select_grouped(struct wmOperatorType *ot);
 void SEQUENCER_OT_scene_strip_add(struct wmOperatorType *ot);
 void SEQUENCER_OT_movie_strip_add(struct wmOperatorType *ot);
 void SEQUENCER_OT_movieclip_strip_add(struct wmOperatorType *ot);
+void SEQUENCER_OT_mask_strip_add(struct wmOperatorType *ot);
 void SEQUENCER_OT_sound_strip_add(struct wmOperatorType *ot);
 void SEQUENCER_OT_image_strip_add(struct wmOperatorType *ot);
 void SEQUENCER_OT_effect_strip_add(struct wmOperatorType *ot);
@@ -173,7 +174,7 @@ struct ImBuf *make_zebra_view_from_ibuf(struct ImBuf * ibuf, float perc);
 struct ImBuf *make_histogram_view_from_ibuf(struct ImBuf * ibuf);
 
 /* sequencer_buttons.c */
-
+void sequencer_buttons_register(struct ARegionType *art);
 void SEQUENCER_OT_properties(struct wmOperatorType *ot);
 
 #endif /* __SEQUENCER_INTERN_H__ */

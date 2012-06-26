@@ -135,6 +135,8 @@ static void rna_CurveMapping_clipmaxy_range(PointerRNA *ptr, float *min, float *
 
 static char *rna_ColorRamp_path(PointerRNA *ptr)
 {
+	char *path = NULL;
+	
 	/* handle the cases where a single datablock may have 2 ramp types */
 	if (ptr->id.data) {
 		ID *id = ptr->id.data;
@@ -145,16 +147,47 @@ static char *rna_ColorRamp_path(PointerRNA *ptr)
 				Material *ma = (Material *)id;
 				
 				if (ptr->data == ma->ramp_col)
-					return BLI_strdup("diffuse_ramp");
+					path = BLI_strdup("diffuse_ramp");
 				else if (ptr->data == ma->ramp_spec)
-					return BLI_strdup("specular_ramp");
+					path = BLI_strdup("specular_ramp");
+				break;
 			}
-			break;
+			
+			case ID_NT:
+			{
+				bNodeTree *ntree = (bNodeTree *)id;
+				bNode *node;
+				PointerRNA node_ptr;
+				char *node_path;
+				
+				for (node = ntree->nodes.first; node; node = node->next) {
+					if (ELEM3(node->type, SH_NODE_VALTORGB, CMP_NODE_VALTORGB, TEX_NODE_VALTORGB)) {
+						if (node->storage == ptr->data) {
+							/* all node color ramp properties called 'color_ramp'
+							 * prepend path from ID to the node
+							 */
+							RNA_pointer_create(id, &RNA_Node, node, &node_ptr);
+							node_path = RNA_path_from_ID_to_struct(&node_ptr);
+							path = BLI_sprintfN("%s.color_ramp", node_path);
+							MEM_freeN(node_path);
+						}
+					}
+				}
+				break;
+			}
+			
+			default:
+				/* everything else just uses 'color_ramp' */
+				path = BLI_strdup("color_ramp");
+				break;
 		}
 	}
+	else {
+		/* everything else just uses 'color_ramp' */
+		path = BLI_strdup("color_ramp");
+	}
 	
-	/* everything else just uses 'color_ramp' */
-	return BLI_strdup("color_ramp");
+	return path;
 }
 
 static char *rna_ColorRampElement_path(PointerRNA *ptr)
@@ -204,7 +237,6 @@ static char *rna_ColorRampElement_path(PointerRNA *ptr)
 			}
 			break;
 				
-			/* TODO: node trees need special attention */
 			case ID_NT:
 			{
 				bNodeTree *ntree = (bNodeTree *)id;
@@ -570,14 +602,15 @@ static void rna_def_histogram(BlenderRNA *brna)
 	PropertyRNA *prop;
 	
 	static EnumPropertyItem prop_mode_items[] = {
-		{HISTO_MODE_LUMA, "LUMA", ICON_COLOR, "Luma", ""},
-		{HISTO_MODE_RGB, "RGB", ICON_COLOR, "Red Green Blue", ""},
-		{HISTO_MODE_R, "R", ICON_COLOR, "Red", ""},
-		{HISTO_MODE_G, "G", ICON_COLOR, "Green", ""},
-		{HISTO_MODE_B, "B", ICON_COLOR, "Blue", ""},
+		{HISTO_MODE_LUMA, "LUMA", 0, "Luma", "Luma"},
+		{HISTO_MODE_RGB, "RGB", 0, "RGB", "Red Green Blue"},
+		{HISTO_MODE_R, "R", 0, "R", "Red"},
+		{HISTO_MODE_G, "G", 0, "G", "Green"},
+		{HISTO_MODE_B, "B", 0, "B", "Blue"},
+		{HISTO_MODE_ALPHA, "A", 0, "A", "Alpha"},
 		{0, NULL, 0, NULL, NULL}
 	};
-		
+
 	srna = RNA_def_struct(brna, "Histogram", NULL);
 	RNA_def_struct_ui_text(srna, "Histogram", "Statistical view of the levels of color in an image");
 	
@@ -585,7 +618,11 @@ static void rna_def_histogram(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "mode");
 	RNA_def_property_enum_items(prop, prop_mode_items);
 	RNA_def_property_ui_text(prop, "Mode", "Channels to display when drawing the histogram");
-	
+
+	prop = RNA_def_property(srna, "show_line", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", HISTO_FLAG_LINE);
+	RNA_def_property_ui_text(prop, "Show Line", "Display lines rather then filled shapes");
+	RNA_def_property_ui_icon(prop, ICON_IPO, 0);
 }
 
 static void rna_def_scopes(BlenderRNA *brna)

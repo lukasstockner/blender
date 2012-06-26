@@ -145,17 +145,21 @@ extern char build_system[];
 #endif
 
 /*	Local Function prototypes */
+#ifndef WITH_PYTHON_MODULE
 static int print_help(int argc, const char **argv, void *data);
 static int print_version(int argc, const char **argv, void *data);
+#endif
 
 /* for the callbacks: */
 
 #define BLEND_VERSION_STRING_FMT                                              \
-	"Blender %d.%02d (sub %d)\n",                                             \
-	BLENDER_VERSION/100, BLENDER_VERSION%100, BLENDER_SUBVERSION              \
+    "Blender %d.%02d (sub %d)\n",                                             \
+    BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION          \
 
 /* Initialize callbacks for the modules that need them */
 static void setCallbacks(void); 
+
+#ifndef WITH_PYTHON_MODULE
 
 /* set breakpoints here when running in debug mode, useful to catch floating point errors */
 #if defined(__linux__) || defined(_WIN32) || defined(OSX_SSE_FPE)
@@ -165,7 +169,6 @@ static void fpe_handler(int UNUSED(sig))
 }
 #endif
 
-#ifndef WITH_PYTHON_MODULE
 /* handling ctrl-c event in console */
 static void blender_esc(int sig)
 {
@@ -182,7 +185,6 @@ static void blender_esc(int sig)
 		count++;
 	}
 }
-#endif
 
 static int print_version(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
@@ -384,6 +386,19 @@ static int debug_mode_libmv(int UNUSED(argc), const char **UNUSED(argv), void *U
 	return 0;
 }
 #endif
+
+static int set_debug_value(int argc, const char **argv, void *UNUSED(data))
+{
+	if (argc > 1) {
+		G.rt = atoi(argv[1]);
+
+		return 1;
+	}
+	else {
+		printf("\nError: you must specify debug value to set.\n");
+		return 0;
+	}
+}
 
 static int set_fpe(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
@@ -972,7 +987,6 @@ static int set_addons(int argc, const char **argv, void *data)
 	}
 }
 
-
 static int load_file(int UNUSED(argc), const char **argv, void *data)
 {
 	bContext *C = data;
@@ -1114,6 +1128,7 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 	BLI_argsAdd(ba, 1, "-a", NULL, playback_doc, playback_mode, NULL);
 
 	BLI_argsAdd(ba, 1, "-d", "--debug", debug_doc, debug_mode, ba);
+
 #ifdef WITH_FFMPEG
 	BLI_argsAdd(ba, 1, NULL, "--debug-ffmpeg", "\n\tEnable debug messages from FFmpeg library", debug_mode_generic, (void *)G_DEBUG_FFMPEG);
 #endif
@@ -1127,6 +1142,8 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 #ifdef WITH_LIBMV
 	BLI_argsAdd(ba, 1, NULL, "--debug-libmv", "\n\tEnable debug messages from libmv library", debug_mode_libmv, NULL);
 #endif
+
+	BLI_argsAdd(ba, 1, NULL, "--debug-value", "<value>\n\tSet debug value of <value> on startup\n", set_debug_value, NULL);
 
 	BLI_argsAdd(ba, 1, NULL, "--verbose", "<verbose>\n\tSet logging verbosity level.", set_verbosity, NULL);
 
@@ -1171,6 +1188,7 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 	BLI_argsAdd(ba, 4, "-x", "--use-extension", "<bool>\n\tSet option to add the file extension to the end of the file", set_extension, C);
 
 }
+#endif /* WITH_PYTHON_MODULE */
 
 #ifdef WITH_PYTHON_MODULE
 /* allow python module to call main */
@@ -1191,9 +1209,12 @@ int main(int argc, const char **UNUSED(argv_c)) /* Do not mess with const */
 int main(int argc, const char **argv)
 #endif
 {
-	SYS_SystemHandle syshandle;
 	bContext *C = CTX_create();
+	SYS_SystemHandle syshandle;
+
+#ifndef WITH_PYTHON_MODULE
 	bArgs *ba;
+#endif
 
 #ifdef WIN32
 	wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
@@ -1268,10 +1289,12 @@ int main(int argc, const char **argv)
 #endif
 
 	/* first test for background */
+#ifndef WITH_PYTHON_MODULE
 	ba = BLI_argsInit(argc, (const char **)argv); /* skip binary path */
 	setupArguments(C, ba, &syshandle);
 
 	BLI_argsParse(ba, 1, NULL, NULL);
+#endif
 
 #if defined(WITH_PYTHON_MODULE) || defined(WITH_HEADLESS)
 	G.background = 1; /* python module mode ALWAYS runs in background mode (for now) */
@@ -1290,9 +1313,10 @@ int main(int argc, const char **argv)
 	init_def_material();
 
 	if (G.background == 0) {
+#ifndef WITH_PYTHON_MODULE
 		BLI_argsParse(ba, 2, NULL, NULL);
 		BLI_argsParse(ba, 3, NULL, NULL);
-
+#endif
 		WM_init(C, argc, (const char **)argv);
 
 		/* this is properly initialized with user defs, but this is default */
@@ -1304,7 +1328,9 @@ int main(int argc, const char **argv)
 #endif
 	}
 	else {
+#ifndef WITH_PYTHON_MODULE
 		BLI_argsParse(ba, 3, NULL, NULL);
+#endif
 
 		WM_init(C, argc, (const char **)argv);
 
@@ -1328,9 +1354,13 @@ int main(int argc, const char **argv)
 	WM_keymap_init(C);
 
 	/* OK we are ready for it */
+#ifndef WITH_PYTHON_MODULE
 	BLI_argsParse(ba, 4, load_file, C);
+#endif
 
+#ifndef WITH_PYTHON_MODULE
 	BLI_argsFree(ba);
+#endif
 
 #ifdef WIN32
 	while (argci) {

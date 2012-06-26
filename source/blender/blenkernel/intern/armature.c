@@ -986,7 +986,7 @@ void armature_deform_verts(Object *armOb, Object *target, DerivedMesh *dm, float
 
 			for (j = dvert->totweight; j != 0; j--, dw++) {
 				const int index = dw->def_nr;
-				if (index < defbase_tot && (pchan = defnrToPC[index])) {
+				if (index >= 0 && index < defbase_tot && (pchan = defnrToPC[index])) {
 					float weight = dw->weight;
 					Bone *bone = pchan->bone;
 					pdef_info = pdef_info_array + defnrToPCIndex[index];
@@ -1588,7 +1588,11 @@ static void pose_proxy_synchronize(Object *ob, Object *from, int layer_protected
 	for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
 		pchanp = BKE_pose_channel_find_name(frompose, pchan->name);
 
-		if (pchan->bone->layer & layer_protected) {
+		if (UNLIKELY(pchanp == NULL)) {
+			/* happens for proxies that become invalid because of a missing link
+			 * for regulat cases it shouldn't happen at all */
+		}
+		else if (pchan->bone->layer & layer_protected) {
 			ListBase proxylocal_constraints = {NULL, NULL};
 
 			/* copy posechannel to temp, but restore important pointers */

@@ -550,7 +550,7 @@ static void image_keymap(struct wmKeyConfig *keyconf)
 
 	/* fast switch to render slots */
 	for (i = 0; i < MAX2(IMA_MAX_RENDER_SLOT, 9); i++) {
-		kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_int", ONEKEY+i, KM_PRESS, 0, 0);
+		kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_int", ONEKEY + i, KM_PRESS, 0, 0);
 		RNA_string_set(kmi->ptr, "data_path", "space_data.image.render_slot");
 		RNA_int_set(kmi->ptr, "value", i);
 	}
@@ -824,15 +824,18 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 	draw_uvedit_main(sima, ar, scene, obedit, obact);
 
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
-		
+
 	/* Grease Pencil too (in addition to UV's) */
 	draw_image_grease_pencil((bContext *)C, 1); 
+
+	/* sample line */
+	draw_image_sample_line(sima);
 
 	UI_view2d_view_restore(C);
 
 	/* draw Grease Pencil - screen space only */
 	draw_image_grease_pencil((bContext *)C, 0);
-	
+
 	/* scrollers? */
 #if 0
 	scrollers = UI_view2d_scrollers_calc(C, v2d, V2D_UNIT_VALUES, V2D_GRID_CLAMP, V2D_ARG_DUMMY, V2D_ARG_DUMMY);
@@ -911,6 +914,9 @@ static void image_scope_area_draw(const bContext *C, ARegion *ar)
 	void *lock;
 	ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock);
 	if (ibuf) {
+		if (!sima->scopes.ok) {
+			BKE_histogram_update_sample_line(&sima->sample_line_hist, ibuf, scene->r.color_mgt_flag & R_COLOR_MANAGEMENT);
+		}
 		scopes_update(&sima->scopes, ibuf, scene->r.color_mgt_flag & R_COLOR_MANAGEMENT);
 	}
 	ED_space_image_release_buffer(sima, lock);

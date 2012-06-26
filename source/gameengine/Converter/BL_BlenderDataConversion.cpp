@@ -446,8 +446,8 @@ static void GetRGB(short type,
 				c2 = KX_Mcol2uint_new(mmcol[2]);
 				if (mface->v4)
 					c3 = KX_Mcol2uint_new(mmcol[3]);
-			}else // backup white
-			{
+			}
+			else { // backup white
 				c0 = KX_rgbaint2uint_new(color);
 				c1 = KX_rgbaint2uint_new(color);
 				c2 = KX_rgbaint2uint_new(color);	
@@ -488,11 +488,10 @@ static void GetRGB(short type,
 	}
 }
 
-typedef struct MTF_localLayer
-{
+typedef struct MTF_localLayer {
 	MTFace *face;
 	const char *name;
-}MTF_localLayer;
+} MTF_localLayer;
 
 // ------------------------------------
 bool ConvertMaterial(
@@ -1193,7 +1192,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 				twoside = ((ma->game.flag  & GEMAT_BACKCULL)==0);
 				collider = ((ma->game.flag & GEMAT_NOPHYSICS)==0);
 			}
-			else{
+			else {
 				visible = true;
 				twoside = false;
 				collider = true;

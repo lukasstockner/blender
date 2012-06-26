@@ -3684,7 +3684,7 @@ static void lib_link_mesh(FileData *fd, Main *main)
 				Main *gmain = G.main;
 				G.main = main;
 				
-				BKE_mesh_convert_mfaces_to_mpolys(me);
+				BKE_mesh_do_versions_convert_mfaces_to_mpolys(me);
 				
 				G.main = gmain;
 			}
@@ -4832,11 +4832,15 @@ static void lib_link_scene(FileData *fd, Main *main)
 					seq->clip = newlibadr(fd, sce->id.lib, seq->clip);
 					seq->clip->id.us++;
 				}
+				if (seq->mask) {
+					seq->mask = newlibadr(fd, sce->id.lib, seq->mask);
+					seq->mask->id.us++;
+				}
 				if (seq->scene_camera) seq->scene_camera = newlibadr(fd, sce->id.lib, seq->scene_camera);
 				if (seq->sound) {
 					seq->scene_sound = NULL;
-					if (seq->type == SEQ_HD_SOUND)
-						seq->type = SEQ_SOUND;
+					if (seq->type == SEQ_TYPE_SOUND_HD)
+						seq->type = SEQ_TYPE_SOUND_RAM;
 					else
 						seq->sound = newlibadr(fd, sce->id.lib, seq->sound);
 					if (seq->sound) {
@@ -4961,10 +4965,10 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 			
 			seq->effectdata = newdataadr(fd, seq->effectdata);
 			
-			if (seq->type & SEQ_EFFECT)
+			if (seq->type & SEQ_TYPE_EFFECT)
 				seq->flag |= SEQ_EFFECT_NOT_LOADED;
 			
-			if (seq->type == SEQ_SPEED) {
+			if (seq->type == SEQ_TYPE_SPEED) {
 				SpeedControlVars *s = seq->effectdata;
 				s->frameMap = NULL;
 			}
@@ -4973,7 +4977,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 			if (seq->strip && seq->strip->done==0) {
 				seq->strip->done = TRUE;
 				
-				if (ELEM4(seq->type, SEQ_IMAGE, SEQ_MOVIE, SEQ_RAM_SOUND, SEQ_HD_SOUND)) {
+				if (ELEM4(seq->type, SEQ_TYPE_IMAGE, SEQ_TYPE_MOVIE, SEQ_TYPE_SOUND_RAM, SEQ_TYPE_SOUND_HD)) {
 					seq->strip->stripdata = newdataadr(fd, seq->strip->stripdata);
 				}
 				else {
@@ -5288,6 +5292,14 @@ static void lib_link_screen(FileData *fd, Main *main)
 						 */
 						sima->gpd = newlibadr_us(fd, sc->id.lib, sima->gpd);
 					}
+					else if (sl->spacetype == SPACE_SEQ) {
+						SpaceSeq *sseq = (SpaceSeq *)sl;
+						
+						/* NOTE: pre-2.5, this was local data not lib data, but now we need this as lib data
+						 * so fingers crossed this works fine!
+						 */
+						sseq->gpd = newlibadr_us(fd, sc->id.lib, sseq->gpd);
+					}
 					else if (sl->spacetype == SPACE_NLA) {
 						SpaceNla *snla= (SpaceNla *)sl;
 						bDopeSheet *ads= snla->ads;
@@ -5362,11 +5374,17 @@ static void lib_link_screen(FileData *fd, Main *main)
 						sclip->clip = newlibadr_us(fd, sc->id.lib, sclip->clip);
 						sclip->mask = newlibadr_us(fd, sc->id.lib, sclip->mask);
 						
+						sclip->scopes.track_search = NULL;
 						sclip->scopes.track_preview = NULL;
 						sclip->draw_context = NULL;
 						sclip->scopes.ok = 0;
 					}
+					else if (sl->spacetype == SPACE_LOGIC) {
+						SpaceLogic *slogic = (SpaceLogic *)sl;
+						
+						slogic->gpd = newlibadr_us(fd, sc->id.lib, slogic->gpd);
 				}
+			}
 			}
 			sc->id.flag -= LIB_NEEDLINK;
 		}
@@ -5537,6 +5555,12 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 					
 					if (saction->ads.filter_grp)
 						saction->ads.filter_grp= restore_pointer_by_name(newmain, (ID *)saction->ads.filter_grp, 0);
+						
+					
+					/* force recalc of list of channels, potentially updating the active action 
+					 * while we're at it (as it can only be updated that way) [#28962] 
+					 */
+					saction->flag |= SACTION_TEMP_NEEDCHANSYNC;
 				}
 				else if (sl->spacetype == SPACE_IMAGE) {
 					SpaceImage *sima = (SpaceImage *)sl;
@@ -5557,6 +5581,14 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 					 * so assume that here we're doing for undo only...
 					 */
 					sima->gpd = restore_pointer_by_name(newmain, (ID *)sima->gpd, 1);
+				}
+				else if (sl->spacetype == SPACE_SEQ) {
+					SpaceSeq *sseq = (SpaceSeq *)sl;
+					
+					/* NOTE: pre-2.5, this was local data not lib data, but now we need this as lib data
+					 * so assume that here we're doing for undo only...
+					 */
+					sseq->gpd = restore_pointer_by_name(newmain, (ID *)sseq->gpd, 1);
 				}
 				else if (sl->spacetype == SPACE_NLA) {
 					SpaceNla *snla = (SpaceNla *)sl;
@@ -5628,8 +5660,13 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 					
 					sclip->scopes.ok = 0;
 				}
+				else if (sl->spacetype == SPACE_LOGIC) {
+					SpaceLogic *slogic = (SpaceLogic *)sl;
+					
+					slogic->gpd = restore_pointer_by_name(newmain, (ID *)slogic->gpd, 1);
 			}
 		}
+	}
 	}
 
 	/* update IDs stored in all possible clipboards */
@@ -5869,6 +5906,7 @@ static void direct_link_screen(FileData *fd, bScreen *sc)
 			else if (sl->spacetype == SPACE_LOGIC) {
 				SpaceLogic *slogic = (SpaceLogic *)sl;
 					
+				/* XXX: this is new stuff, which shouldn't be directly linking to gpd... */
 				if (slogic->gpd) {
 					slogic->gpd = newdataadr(fd, slogic->gpd);
 					direct_link_gpencil(fd, slogic->gpd);
@@ -6164,17 +6202,35 @@ static void direct_link_movieclip(FileData *fd, MovieClip *clip)
 	}
 }
 
+static void lib_link_movieTracks(FileData *fd, MovieClip *clip, ListBase *tracksbase)
+{
+	MovieTrackingTrack *track;
+
+	for (track = tracksbase->first; track; track = track->next) {
+		track->gpd = newlibadr_us(fd, clip->id.lib, track->gpd);
+	}
+}
+
 static void lib_link_movieclip(FileData *fd, Main *main)
 {
 	MovieClip *clip;
 	
 	for (clip = main->movieclip.first; clip; clip = clip->id.next) {
 		if (clip->id.flag & LIB_NEEDLINK) {
+			MovieTracking *tracking = &clip->tracking;
+			MovieTrackingObject *object;
+
 			if (clip->adt)
 				lib_link_animdata(fd, &clip->id, clip->adt);
 			
 			clip->gpd = newlibadr_us(fd, clip->id.lib, clip->gpd);
 			
+			lib_link_movieTracks(fd, clip, &tracking->tracks);
+
+			for (object = tracking->objects.first; object; object = object->next) {
+				lib_link_movieTracks(fd, clip, &object->tracks);
+			}
+
 			clip->id.flag -= LIB_NEEDLINK;
 		}
 	}
@@ -6735,17 +6791,24 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
 			
 			node->storage = nimf;
 			
+			/* looks like storage data can be messed up somehow, stupid check here */
+			if (old_data) {
 			/* split off filename from the old path, to be used as socket sub-path */
 			BLI_split_dirfile(old_data->name, basepath, filename, sizeof(basepath), sizeof(filename));
 			
 			BLI_strncpy(nimf->base_path, basepath, sizeof(nimf->base_path));
 			nimf->format = old_data->im_format;
+			}
+			else {
+				basepath[0] = '\0';
+				BLI_strncpy(filename, old_image->name, sizeof(filename));
+			}
 			
 			/* if z buffer is saved, change the image type to multilayer exr.
 			 * XXX this is slightly messy, Z buffer was ignored before for anything but EXR and IRIS ...
 			 * i'm just assuming here that IRIZ means IRIS with z buffer ...
 			 */
-			if (ELEM(old_data->im_format.imtype, R_IMF_IMTYPE_IRIZ, R_IMF_IMTYPE_OPENEXR)) {
+			if (old_data && ELEM(old_data->im_format.imtype, R_IMF_IMTYPE_IRIZ, R_IMF_IMTYPE_OPENEXR)) {
 				char sockpath[FILE_MAX];
 				
 				nimf->format.imtype = R_IMF_IMTYPE_MULTILAYER;
@@ -6780,6 +6843,7 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
 			
 			nodeRemoveSocket(ntree, node, old_image);
 			nodeRemoveSocket(ntree, node, old_z);
+			if (old_data)
 			MEM_freeN(old_data);
 		}
 		else if (node->type==CMP_NODE_OUTPUT_MULTI_FILE__DEPRECATED) {
@@ -6918,6 +6982,21 @@ static void do_version_ntree_image_user_264(void *UNUSED(data), ID *UNUSED(id), 
 			tex->iuser.sfra= 1;
 			tex->iuser.fie_ima= 2;
 			tex->iuser.ok= 1;
+		}
+	}
+}
+
+static void do_version_ntree_dilateerode_264(void *UNUSED(data), ID *UNUSED(id), bNodeTree *ntree)
+{
+	bNode *node;
+
+	for (node = ntree->nodes.first; node; node = node->next) {
+		if (node->type == CMP_NODE_DILATEERODE) {
+			if (node->storage == NULL) {
+				NodeDilateErode *data = MEM_callocN(sizeof(NodeDilateErode), __func__);
+				data->falloff = PROP_SMOOTH;
+				node->storage = data;
+			}
 		}
 	}
 }
@@ -7066,9 +7145,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					
 				track = clip->tracking.tracks.first;
 				while (track) {
-					if (track->pyramid_levels == 0)
-						track->pyramid_levels = 2;
-					
 					if (track->minimum_correlation == 0.0f)
 						track->minimum_correlation = 0.75f;
 					
@@ -7090,9 +7166,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		for (clip= main->movieclip.first; clip; clip= clip->id.next) {
 			MovieTrackingSettings *settings= &clip->tracking.settings;
 			
-			if (settings->default_pyramid_levels == 0) {
-				settings->default_tracker= TRACKER_KLT;
-				settings->default_pyramid_levels = 2;
+			if (settings->default_pattern_size == 0.0f) {
+				settings->default_motion_model = TRACK_MOTION_MODEL_TRANSLATION;
 				settings->default_minimum_correlation = 0.75;
 				settings->default_pattern_size = 11;
 				settings->default_search_size = 51;
@@ -7212,7 +7287,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					tracking->settings.object_distance = 1.0f;
 				
 				if (tracking->objects.first == NULL)
-					BKE_tracking_new_object(tracking, "Camera");
+					BKE_tracking_object_add(tracking, "Camera");
 				
 				while (tracking_object) {
 					if (!tracking_object->scale)
@@ -7620,6 +7695,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 	
+
 	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 8))
 	{
 		/* set new deactivation values for game settings */
@@ -7640,8 +7716,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			ntreetype->foreach_nodetree(main, NULL, do_version_ntree_image_user_264);
 	}
 
-	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
-	/* WATCH IT 2!: Userdef struct init has to be in editors/interface/resources.c! */
+	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 10)) {
 	{
 		Scene *scene;
 		// composite redesign
@@ -7675,6 +7750,73 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
+
+		{
+			MovieClip *clip;
+
+			for (clip = main->movieclip.first; clip; clip = clip->id.next) {
+				clip->start_frame = 1;
+			}
+		}
+	}
+
+	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 11)) {
+		MovieClip *clip;
+
+		for (clip = main->movieclip.first; clip; clip = clip->id.next) {
+			MovieTrackingTrack *track;
+
+			track = clip->tracking.tracks.first;
+			while (track) {
+				int i;
+
+				for (i = 0; i < track->markersnr; i++) {
+					MovieTrackingMarker *marker = &track->markers[i];
+
+					if (is_zero_v2(marker->pattern_corners[0]) && is_zero_v2(marker->pattern_corners[1]) &&
+					    is_zero_v2(marker->pattern_corners[3]) && is_zero_v2(marker->pattern_corners[3]))
+					{
+						marker->pattern_corners[0][0] = track->pat_min[0];
+						marker->pattern_corners[0][1] = track->pat_min[1];
+
+						marker->pattern_corners[1][0] = track->pat_max[0];
+						marker->pattern_corners[1][1] = track->pat_min[1];
+
+						marker->pattern_corners[2][0] = track->pat_max[0];
+						marker->pattern_corners[2][1] = track->pat_max[1];
+
+						marker->pattern_corners[3][0] = track->pat_min[0];
+						marker->pattern_corners[3][1] = track->pat_max[1];
+					}
+
+					if (is_zero_v2(marker->search_min) && is_zero_v2(marker->search_max)) {
+						copy_v2_v2(marker->search_min, track->search_min);
+						copy_v2_v2(marker->search_max, track->search_max);
+					}
+				}
+
+				track = track->next;
+			}
+		}
+	}
+
+	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 12)) {
+		Material *ma;
+
+		for (ma = main->mat.first; ma; ma = ma->id.next)
+			if (ma->strand_widthfade == 2.0f)
+				ma->strand_widthfade = 0.0f;
+	}
+
+	if (main->versionfile < 263 || (main->versionfile == 263 && main->subversionfile < 13)) {
+		bNodeTreeType *ntreetype = ntreeGetType(NTREE_COMPOSIT);
+
+		if (ntreetype && ntreetype->foreach_nodetree)
+			ntreetype->foreach_nodetree(main, NULL, do_version_ntree_dilateerode_264);
+	}
+
+	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
+	/* WATCH IT 2!: Userdef struct init has to be in editors/interface/resources.c! */
 
 	{
 		Object *ob;
@@ -8443,6 +8585,7 @@ static void expand_constraints(FileData *fd, Main *mainvar, ListBase *lb)
 	}
 }
 
+#if 0 /* Disabled as it doesn't actually do anything except recurse... */
 static void expand_bones(FileData *fd, Main *mainvar, Bone *bone)
 {
 	Bone *curBone;
@@ -8451,6 +8594,7 @@ static void expand_bones(FileData *fd, Main *mainvar, Bone *bone)
 		expand_bones(fd, mainvar, curBone);
 	}
 }
+#endif
 
 static void expand_pose(FileData *fd, Main *mainvar, bPose *pose)
 {
@@ -8467,14 +8611,18 @@ static void expand_pose(FileData *fd, Main *mainvar, bPose *pose)
 
 static void expand_armature(FileData *fd, Main *mainvar, bArmature *arm)
 {
-	Bone *curBone;
-	
 	if (arm->adt)
 		expand_animdata(fd, mainvar, arm->adt);
 	
+#if 0 /* Disabled as this currently only recurses down the chain doing nothing */
+	{
+		Bone *curBone;
+		
 	for (curBone = arm->bonebase.first; curBone; curBone=curBone->next) {
 		expand_bones(fd, mainvar, curBone);
 	}
+}
+#endif
 }
 
 static void expand_object_expandModifiers(void *userData, Object *UNUSED(ob),

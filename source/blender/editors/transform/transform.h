@@ -494,6 +494,9 @@ int Tilt(TransInfo *t, const int mval[2]);
 void initCurveShrinkFatten(TransInfo *t);
 int CurveShrinkFatten(TransInfo *t, const int mval[2]);
 
+void initMaskShrinkFatten(TransInfo *t);
+int MaskShrinkFatten(TransInfo *t, const int mval[2]);
+
 void initTrackball(TransInfo *t);
 int Trackball(TransInfo *t, const int mval[2]);
 
@@ -552,7 +555,7 @@ struct wmKeyMap *transform_modal_keymap(struct wmKeyConfig *keyconf);
 /*********************** transform_conversions.c ********** */
 struct ListBase;
 
-void flushTransGPactionData(TransInfo *t);
+void flushTransIntFrameActionData(TransInfo *t);
 void flushTransGraphData(TransInfo *t);
 void remake_graph_transdata(TransInfo *t, struct ListBase *anim_data);
 void flushTransUVs(TransInfo *t);

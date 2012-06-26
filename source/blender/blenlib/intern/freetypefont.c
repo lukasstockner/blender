@@ -136,7 +136,7 @@ static void freetypechar_to_vchar(FT_Face face, FT_ULong charcode, VFontData *vf
 					onpoints[j]++;
 
 				if (k < npoints[j] - 1) {
-					if (ftoutline.tags[l]   == FT_Curve_Tag_Conic &&
+					if (ftoutline.tags[l] == FT_Curve_Tag_Conic &&
 					    ftoutline.tags[l + 1] == FT_Curve_Tag_Conic)
 					{
 						onpoints[j]++;
@@ -614,7 +614,7 @@ font driver produces such outlines.
    #               \
 					#
 
-	 Two "on" points
+     Two "on" points
    and two "cubic" point
 	  between them
 

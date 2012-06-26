@@ -20,18 +20,18 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_CompositorNode_h
-#define _COM_CompositorNode_h
+#ifndef _COM_CompositorNode_h_
+#define _COM_CompositorNode_h_
 
 #include "COM_Node.h"
 #include "DNA_node_types.h"
 /**
-  * @brief CompositorNode
-  * @ingroup Node
-  */
+ * @brief CompositorNode
+ * @ingroup Node
+ */
 class CompositorNode : public Node {
 public:
 	CompositorNode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
+	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
 };
 #endif

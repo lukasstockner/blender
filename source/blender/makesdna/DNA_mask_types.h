@@ -43,13 +43,19 @@
 typedef struct Mask {
 	ID id;
 	struct AnimData *adt;
-	ListBase masklayers;   /* mask layers */
-	int masklay_act;     /* index of active mask layer (-1 == None) */
-	int masklay_tot;     /* total number of mask layers */
+	ListBase masklayers;  /* mask layers */
+	int masklay_act;      /* index of active mask layer (-1 == None) */
+	int masklay_tot;      /* total number of mask layers */
+
+	int sfra, efra;       /* frames, used by the sequencer */
+
+	int flag;  /* for anim info */
+	int pad;
 } Mask;
 
 typedef struct MaskParent {
-	int flag;             /* parenting flags */
+	// int flag;             /* parenting flags */ /* not used */
+	int pad;
 	int id_type;          /* type of parenting */
 	ID *id;               /* ID block of entity to which mask/spline is parented to
 	                       * in case of parenting to movie tracking data set to MovieClip datablock */
@@ -93,9 +99,18 @@ typedef struct MaskLayerShape {
 	float *data;             /* u coordinate along spline segment and weight of this point */
 	int    tot_vert;         /* to ensure no buffer overruns's: alloc size is (tot_vert * MASK_OBJECT_SHAPE_ELEM_SIZE) */
 	int    frame;            /* different flags of this point */
-	char   flag;
+	char   flag;             /* animation flag */
 	char   pad[7];
 } MaskLayerShape;
+
+/* cast to this for convenience, not saved */
+#define MASK_OBJECT_SHAPE_ELEM_SIZE 8 /* 3x 2D points + weight + radius == 8 */
+
+#
+#
+typedef struct MaskLayerShapeElem {
+	float value[MASK_OBJECT_SHAPE_ELEM_SIZE];
+} MaskLayerShapeElem;
 
 typedef struct MaskLayer {
 	struct MaskLayer *next, *prev;
@@ -113,13 +128,12 @@ typedef struct MaskLayer {
 	char   blend;
 	char   blend_flag;
 
-	//char   flag;             /* not used yet */
+	char   flag;             /* for animation */
 	char   restrictflag;     /* matching 'Object' flag of the same name - eventually use in the outliner  */
-	char   pad[1];
 } MaskLayer;
 
 /* MaskParent->flag */
-#define MASK_PARENT_ACTIVE  (1 << 0)
+/* #define MASK_PARENT_ACTIVE  (1 << 0) */ /* UNUSED */
 
 /* MaskSpline->flag */
 /* reserve (1 << 0) for SELECT */
@@ -128,8 +142,6 @@ typedef struct MaskLayer {
 /* MaskSpline->weight_interp */
 #define MASK_SPLINE_INTERP_LINEAR   1
 #define MASK_SPLINE_INTERP_EASE     2
-
-#define MASK_OBJECT_SHAPE_ELEM_SIZE 8 /* 3x 2D points + weight + radius == 8 */
 
 /* ob->restrictflag */
 #define MASK_RESTRICT_VIEW      1
@@ -143,9 +155,9 @@ typedef struct MaskLayer {
 /* SpaceClip->mask_draw_type */
 enum {
 	MASK_DT_OUTLINE = 0,
-	MASK_DT_DASH,
-	MASK_DT_BLACK,
-	MASK_DT_WHITE
+	MASK_DT_DASH    = 1,
+	MASK_DT_BLACK   = 2,
+	MASK_DT_WHITE   = 3
 };
 
 /* masklay->blend */
@@ -159,5 +171,21 @@ enum {
 	MASK_BLENDFLAG_INVERT = (1 << 0)
 };
 
+/* masklay->flag */
+enum {
+	MASK_LAYERFLAG_LOCKED = (1 << 4),
+	MASK_LAYERFLAG_SELECT = (1 << 5)
+};
+
+/* masklay_shape->flag */
+enum {
+	MASK_SHAPE_SELECT = (1 << 0)
+};
+
+
+/* mask->flag */
+enum {
+	MASK_ANIMF_EXPAND = (1 << 4)
+};
 
 #endif // __DNA_MASK_TYPES_H__

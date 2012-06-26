@@ -145,6 +145,7 @@ struct SmokeModifierData;
 struct WTURBULENCE *smoke_turbulence_init(int *UNUSED(res), int UNUSED(amplify), int UNUSED(noisetype)) { return NULL; }
 struct FLUID_3D *smoke_init(int *UNUSED(res), float *UNUSED(dx), float *UNUSED(dtdef)) { return NULL; }
 void smoke_free(struct FLUID_3D *UNUSED(fluid)) {}
+float *smoke_get_density(struct FLUID_3D *UNUSED(fluid)) { return NULL; }
 void smoke_turbulence_free(struct WTURBULENCE *UNUSED(wt)) {}
 void smoke_initWaveletBlenderRNA(struct WTURBULENCE *UNUSED(wt), float *UNUSED(strength)) {}
 void smoke_initBlenderRNA(struct FLUID_3D *UNUSED(fluid), float *UNUSED(alpha), float *UNUSED(beta), float *UNUSED(dt_factor), float *UNUSED(vorticity), int *UNUSED(border_colli),
@@ -2052,7 +2053,7 @@ void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *ob, Der
 			BKE_ptcache_write(&pid, framenr);
 
 		tend();
-		// printf ( "Frame: %d, Time: %f\n\n", (int)smd->time, ( float ) tval() );
+		// printf ( "Frame: %d, Time: %f\n\n", (int)smd->time, (float) tval() );
 	}
 }
 

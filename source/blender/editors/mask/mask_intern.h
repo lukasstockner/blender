@@ -56,16 +56,17 @@ void MASK_OT_hide_view_clear(struct wmOperatorType *ot);
 void MASK_OT_hide_view_set(struct wmOperatorType *ot);
 void MASK_OT_feather_weight_clear(struct wmOperatorType *ot);
 void MASK_OT_switch_direction(struct wmOperatorType *ot);
+void MASK_OT_normals_make_consistent(struct wmOperatorType *ot);
 
 void MASK_OT_handle_type_set(struct wmOperatorType *ot);
 
 int ED_mask_feather_find_nearest(
-        struct bContext *C, struct Mask *mask, float normal_co[2], int threshold,
+        const struct bContext *C, struct Mask *mask, float normal_co[2], int threshold,
         struct MaskLayer **masklay_r, struct MaskSpline **spline_r, struct MaskSplinePoint **point_r,
         struct MaskSplinePointUW **uw_r, float *score);
 
 struct MaskSplinePoint *ED_mask_point_find_nearest(
-        struct bContext *C, struct Mask *mask, float normal_co[2], int threshold,
+        const struct bContext *C, struct Mask *mask, float normal_co[2], int threshold,
         struct MaskLayer **masklay_r, struct MaskSpline **spline_r, int *is_handle_r,
         float *score);
 
@@ -96,17 +97,19 @@ void ED_mask_select_flush_all(struct Mask *mask);
 int ED_maskedit_poll(struct bContext *C);
 int ED_maskedit_mask_poll(struct bContext *C);
 
-void ED_mask_size(struct bContext *C, int *width, int *height);
-void ED_mask_aspect(struct bContext *C, float *aspx, float *aspy);
+void ED_mask_size(const struct bContext *C, int *width, int *height);
+void ED_mask_aspect(const struct bContext *C, float *aspx, float *aspy);
 
-void ED_mask_pixelspace_factor(struct bContext *C, float *scalex, float *scaley);
-void ED_mask_mouse_pos(struct bContext *C, struct wmEvent *event, float co[2]);
+void ED_mask_pixelspace_factor(const struct bContext *C, float *scalex, float *scaley);
+void ED_mask_mouse_pos(const struct bContext *C, struct wmEvent *event, float co[2]);
 
-void ED_mask_point_pos(struct bContext *C, float x, float y, float *xr, float *yr);
-void ED_mask_point_pos__reverse(struct bContext *C, float x, float y, float *xr, float *yr);
+void ED_mask_point_pos(const struct bContext *C, float x, float y, float *xr, float *yr);
+void ED_mask_point_pos__reverse(const struct bContext *C, float x, float y, float *xr, float *yr);
 
 /* mask_shapekey.c */
 void MASK_OT_shape_key_insert(struct wmOperatorType *ot);
 void MASK_OT_shape_key_clear(struct wmOperatorType *ot);
+void MASK_OT_shape_key_feather_reset(struct wmOperatorType *ot);
+void MASK_OT_shape_key_rekey(struct wmOperatorType *ot);
 
 #endif /* __MASK_INTERN_H__ */

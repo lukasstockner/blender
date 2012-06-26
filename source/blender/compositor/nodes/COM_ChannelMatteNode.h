@@ -19,17 +19,16 @@
  *		Dalai Felinto
  */
 
-#ifndef COM_ChannelMatteNODE_H
-#define COM_ChannelMatteNODE_H
+#ifndef _COM_ChannelMatteNode_h_
+#define _COM_ChannelMatteNode_h_
 
 #include "COM_Node.h"
 
 /**
-  * @brief ChannelMatteNode
-  * @ingroup Node
-  */
-class ChannelMatteNode : public Node
-{
+ * @brief ChannelMatteNode
+ * @ingroup Node
+ */
+class ChannelMatteNode : public Node {
 public:
 	ChannelMatteNode(bNode *editorNode);
 	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);

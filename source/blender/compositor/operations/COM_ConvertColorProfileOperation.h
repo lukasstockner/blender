@@ -26,53 +26,53 @@
 
 
 /**
-  * this program converts an input colour to an output value.
-  * it assumes we are in sRGB colour space.
-  */
+ * this program converts an input colour to an output value.
+ * it assumes we are in sRGB colour space.
+ */
 class ConvertColorProfileOperation : public NodeOperation {
 private:
 	/**
-	  * Cached reference to the inputProgram
-	  */
-	SocketReader * inputOperation;
+	 * Cached reference to the inputProgram
+	 */
+	SocketReader *m_inputOperation;
 	
 	/**
-	  * @brief color profile where to convert from
-	  */
-	int fromProfile;
+	 * @brief color profile where to convert from
+	 */
+	int m_fromProfile;
 	
 	/**
-	  * @brief color profile where to convert to
-	  */
-	int toProfile;
+	 * @brief color profile where to convert to
+	 */
+	int m_toProfile;
 	
 	/**
-	  * @brief is color predivided
-	  */
-	bool predivided;
+	 * @brief is color predivided
+	 */
+	bool m_predivided;
 public:
 	/**
-	  * Default constructor
-	  */
+	 * Default constructor
+	 */
 	ConvertColorProfileOperation();
 	
 	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 	
 	/**
-	  * Initialize the execution
-	  */
+	 * Initialize the execution
+	 */
 	void initExecution();
 	
 	/**
-	  * Deinitialize the execution
-	  */
+	 * Deinitialize the execution
+	 */
 	void deinitExecution();
 	
-	void setFromColorProfile(int colorProfile) {this->fromProfile = colorProfile;}
-	void setToColorProfile(int colorProfile) {this->toProfile = colorProfile;}
-	void setPredivided(bool predivided) {this->predivided = predivided;}
+	void setFromColorProfile(int colorProfile) { this->m_fromProfile = colorProfile; }
+	void setToColorProfile(int colorProfile) { this->m_toProfile = colorProfile; }
+	void setPredivided(bool predivided) { this->m_predivided = predivided; }
 };
 #endif

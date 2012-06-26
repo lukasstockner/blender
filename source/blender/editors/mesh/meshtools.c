@@ -45,6 +45,7 @@
 #include "DNA_key_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -418,8 +419,17 @@ int join_mesh_exec(bContext *C, wmOperator *op)
 			}
 
 			if (me->totloop) {
-				if (base->object != ob)
+				if (base->object != ob) {
+					MultiresModifierData *mmd;
+
 					multiresModifier_prepare_join(scene, base->object, ob);
+
+					if ((mmd = get_multires_modifier(scene, base->object, TRUE))) {
+						ED_object_iter_other(bmain, base->object, TRUE,
+											 ED_object_multires_update_totlevels_cb,
+											 &mmd->totlvl);
+					}
+				}
 				
 				CustomData_merge(&me->ldata, &ldata, CD_MASK_MESH, CD_DEFAULT, totloop);
 				CustomData_copy_data(&me->ldata, &ldata, 0, loopofs, me->totloop);
@@ -690,7 +700,8 @@ static void mesh_octree_free_node(MocNode **bt)
 /* temporal define, just to make nicer code below */
 #define MOC_INDEX(vx, vy, vz)  (((vx) * MOC_RES * MOC_RES) + (vy) * MOC_RES + (vz))
 
-static void mesh_octree_add_nodes(MocNode **basetable, float *co, float *offs, float *div, intptr_t index)
+static void mesh_octree_add_nodes(MocNode **basetable, const float co[3], const float offs[3],
+                                  const float div[3], intptr_t index)
 {
 	float fx, fy, fz;
 	int vx, vy, vz;

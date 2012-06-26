@@ -198,6 +198,12 @@ class SEQUENCER_MT_add(Menu):
         else:
             layout.operator_menu_enum("sequencer.movieclip_strip_add", "clip", text="Clip...")
 
+        if len(bpy.data.masks) > 10:
+            layout.operator_context = 'INVOKE_DEFAULT'
+            layout.operator("sequencer.mask_strip_add", text="Masks...")
+        else:
+            layout.operator_menu_enum("sequencer.mask_strip_add", "mask", text="Mask...")
+
         layout.operator("sequencer.movie_strip_add", text="Movie")
         layout.operator("sequencer.image_strip_add", text="Image")
         layout.operator("sequencer.sound_strip_add", text="Sound")
@@ -250,7 +256,7 @@ class SEQUENCER_MT_strip(Menu):
         layout.operator("sequencer.rebuild_proxy")
         layout.separator()
 
-        layout.operator("sequencer.duplicate")
+        layout.operator("sequencer.duplicate_move")
         layout.operator("sequencer.delete")
 
         strip = act_strip(context)
@@ -346,7 +352,7 @@ class SEQUENCER_PT_edit(SequencerButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        
+
         scene = context.scene
         frame_current = scene.frame_current
         strip = act_strip(context)
@@ -468,7 +474,7 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
         elif strip.type == 'TRANSFORM':
             layout = self.layout
             col = layout.column()
-    
+
             col.prop(strip, "interpolation")
             col.prop(strip, "translation_unit")
             col = layout.column(align=True)
@@ -477,7 +483,7 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
             col.prop(strip, "translate_start_y", text="Y")
 
             layout.separator()
-    
+
             col = layout.column(align=True)
             col.prop(strip, "use_uniform_scale")
             if (strip.use_uniform_scale):
@@ -562,10 +568,10 @@ class SEQUENCER_PT_input(SequencerButtonsPanel, Panel):
             split = layout.split(percentage=0.2)
             split.label(text="Path:")
             split.prop(strip, "filepath", text="")
-            
+
             layout.prop(strip, "mpeg_preseek")
             layout.prop(strip, "stream_index")
-        
+
         layout.prop(strip, "use_translation", text="Image Offset")
         if strip.use_translation:
             col = layout.column(align=True)
@@ -670,6 +676,35 @@ class SEQUENCER_PT_scene(SequencerButtonsPanel, Panel):
             layout.label(text="Original frame range" + ": %d-%d (%d)" % (sta, end, end - sta + 1))
 
 
+class SEQUENCER_PT_mask(SequencerButtonsPanel, Panel):
+    bl_label = "Mask"
+
+    @classmethod
+    def poll(cls, context):
+        if not cls.has_sequencer(context):
+            return False
+
+        strip = act_strip(context)
+        if not strip:
+            return False
+
+        return (strip.type == 'MASK')
+
+    def draw(self, context):
+        layout = self.layout
+
+        strip = act_strip(context)
+
+        layout.template_ID(strip, "mask")
+
+        mask = strip.mask
+
+        if mask:
+            sta = mask.frame_start
+            end = mask.frame_end
+            layout.label(text="Original frame range" + ": %d-%d (%d)" % (sta, end, end - sta + 1))
+
+
 class SEQUENCER_PT_filter(SequencerButtonsPanel, Panel):
     bl_label = "Filter"
 
@@ -682,10 +717,10 @@ class SEQUENCER_PT_filter(SequencerButtonsPanel, Panel):
         if not strip:
             return False
 
-        return strip.type in {'MOVIE', 'IMAGE', 'SCENE', 'MOVIECLIP', 'META',
-                              'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
-                              'CROSS', 'GAMMA_CROSS', 'MULTIPLY', 'OVER_DROP',
-                              'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
+        return strip.type in {'MOVIE', 'IMAGE', 'SCENE', 'MOVIECLIP', 'MASK',
+                              'META', 'ADD', 'SUBTRACT', 'ALPHA_OVER',
+                              'ALPHA_UNDER', 'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
+                              'OVER_DROP', 'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
                               'MULTICAM', 'SPEED', 'ADJUSTMENT'}
 
     def draw(self, context):
@@ -705,13 +740,13 @@ class SEQUENCER_PT_filter(SequencerButtonsPanel, Panel):
             col = layout.column()
             col.label(text="Distortion:")
             col.prop(strip, "undistort")
-            
+
         split = layout.split(percentage=0.65)
 
         col = split.column()
         col.prop(strip, "use_reverse_frames", text="Backwards")
         col.prop(strip, "use_deinterlace")
-        
+
         col = split.column()
         col.label(text="Flip:")
         col.prop(strip, "use_flip_x", text="X")

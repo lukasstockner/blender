@@ -76,6 +76,8 @@ set(SRC
 	composite/nodes/node_composite_idMask.c
 	composite/nodes/node_composite_image.c
 	composite/nodes/node_composite_invert.c
+	composite/nodes/node_composite_keyingscreen.c
+	composite/nodes/node_composite_keying.c
 	composite/nodes/node_composite_lensdist.c
 	composite/nodes/node_composite_levels.c
 	composite/nodes/node_composite_lummaMatte.c
@@ -160,6 +162,7 @@ set(SRC
 	shader/nodes/node_shader_light_path.c
 	shader/nodes/node_shader_light_falloff.c
 	shader/nodes/node_shader_object_info.c
+	shader/nodes/node_shader_particle_info.c
 	shader/nodes/node_shader_mix_shader.c
 	shader/nodes/node_shader_add_shader.c
 	shader/nodes/node_shader_output_lamp.c

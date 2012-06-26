@@ -25,53 +25,66 @@
 
 #include "COM_NodeOperation.h"
 
-class ScaleOperation: public NodeOperation {
+class ScaleOperation : public NodeOperation {
 private:
-	SocketReader *inputOperation;
-	SocketReader *inputXOperation;
-	SocketReader *inputYOperation;
-	float centerX;
-	float centerY;
+	SocketReader *m_inputOperation;
+	SocketReader *m_inputXOperation;
+	SocketReader *m_inputYOperation;
+	float m_centerX;
+	float m_centerY;
 public:
 	ScaleOperation();
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 
 	void initExecution();
 	void deinitExecution();
 };
 
-class ScaleAbsoluteOperation: public NodeOperation {
-	SocketReader *inputOperation;
-	SocketReader *inputXOperation;
-	SocketReader *inputYOperation;
-	float centerX;
-	float centerY;
+class ScaleAbsoluteOperation : public NodeOperation {
+	SocketReader *m_inputOperation;
+	SocketReader *m_inputXOperation;
+	SocketReader *m_inputYOperation;
+	float m_centerX;
+	float m_centerY;
+
 public:
 	ScaleAbsoluteOperation();
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 
 	void initExecution();
 	void deinitExecution();
 };
 
-class ScaleFixedSizeOperation: public NodeOperation {
-	SocketReader *inputOperation;
-	int newWidth;
-	int newHeight;
-	float relX;
-	float relY;
+class ScaleFixedSizeOperation : public NodeOperation {
+	SocketReader *m_inputOperation;
+	int m_newWidth;
+	int m_newHeight;
+	float m_relX;
+	float m_relY;
+
+	/* center is only used for aspect correction */
+	float m_offsetX;
+	float m_offsetY;
+	bool m_is_aspect;
+	bool m_is_crop;
+	/* set from other properties on initialization,
+	 * check if we need to apply offset */
+	bool m_is_offset;
 public:
 	ScaleFixedSizeOperation();
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 
 	void initExecution();
 	void deinitExecution();
-	void setNewWidth(int width) {this->newWidth = width;}
-	void setNewHeight(int height) {this->newHeight = height;}
+	void setNewWidth(int width) { this->m_newWidth = width; }
+	void setNewHeight(int height) { this->m_newHeight = height; }
+	void setIsAspect(bool is_aspect) { this->m_is_aspect = is_aspect; }
+	void setIsCrop(bool is_crop) { this->m_is_crop = is_crop; }
+	void setOffset(float x, float y) { this->m_offsetX = x; this->m_offsetY = y; }
 };
 
 #endif

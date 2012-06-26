@@ -50,8 +50,7 @@ struct bNodeLink;
 struct Main;
 
 /* temp data to pass on to modal */
-typedef struct bNodeLinkDrag
-{
+typedef struct bNodeLinkDrag {
 	struct bNodeLinkDrag *next, *prev;
 	
 	/* List of links dragged by the operator.
@@ -150,6 +149,7 @@ void NODE_OT_add_reroute(struct wmOperatorType *ot);
 
 void NODE_OT_group_make(struct wmOperatorType *ot);
 void NODE_OT_group_ungroup(struct wmOperatorType *ot);
+void NODE_OT_group_separate(struct wmOperatorType *ot);
 void NODE_OT_group_edit(struct wmOperatorType *ot);
 void NODE_OT_group_socket_add(struct wmOperatorType *ot);
 void NODE_OT_group_socket_remove(struct wmOperatorType *ot);

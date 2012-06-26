@@ -32,6 +32,8 @@
 #define __ED_MASK_H__
 
 struct wmKeyConfig;
+struct MaskLayer;
+struct MaskLayerShape;
 
 /* mask_editor.c */
 void ED_operatortypes_mask(void);
@@ -42,6 +44,31 @@ void ED_operatormacros_mask(void);
 void ED_mask_draw(const bContext *C, const char draw_flag, const char draw_type);
 
 /* mask_shapekey.c */
+void ED_mask_layer_shape_auto_key(struct MaskLayer *masklay, const int frame);
 int ED_mask_layer_shape_auto_key_all(struct Mask *mask, const int frame);
+int ED_mask_layer_shape_auto_key_select(struct Mask *mask, const int frame);
 
-#endif /* ED_TEXT_H */
+/* ----------- Mask AnimEdit API ------------------ */
+short ED_masklayer_frames_looper(struct MaskLayer *masklay, struct Scene *scene,
+                                 short (*masklay_shape_cb)(struct MaskLayerShape *, struct Scene *));
+void ED_masklayer_make_cfra_list(struct MaskLayer *masklay, ListBase *elems, short onlysel);
+
+short ED_masklayer_frame_select_check(struct MaskLayer *masklay);
+void  ED_masklayer_frame_select_set(struct MaskLayer *masklay, short mode);
+void  ED_masklayer_frames_select_border(struct MaskLayer *masklay, float min, float max, short select_mode);
+void  ED_mask_select_frames(struct MaskLayer *masklay, short select_mode);
+void  ED_mask_select_frame(struct MaskLayer *masklay, int selx, short select_mode);
+
+void ED_masklayer_frames_delete(struct MaskLayer *masklay);
+void ED_masklayer_frames_duplicate(struct MaskLayer *masklay);
+
+#if 0
+void free_gpcopybuf(void);
+void copy_gpdata(void);
+void paste_gpdata(void);
+
+ void snap_masklayer_frames(struct MaskLayer *masklay, short mode);
+ void mirror_masklayer_frames(struct MaskLayer *masklay, short mode);
+#endif
+
+#endif /* __ED_MASK_H__ */

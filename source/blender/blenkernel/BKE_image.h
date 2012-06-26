@@ -70,6 +70,7 @@ char    BKE_imtype_valid_depths(const char imtype);
 char    BKE_imtype_from_arg(const char *arg);
 
 void    BKE_imformat_defaults(struct ImageFormatData *im_format);
+void    BKE_imbuf_to_image_format(struct ImageFormatData *im_format, const struct ImBuf *imbuf);
 
 struct anim *openanim(const char *name, int flags, int streamindex);
 
@@ -157,7 +158,7 @@ void BKE_image_assign_ibuf(struct Image *ima, struct ImBuf *ibuf);
 void BKE_image_user_frame_calc(struct ImageUser *iuser, int cfra, int fieldnr);
 void BKE_image_user_check_frame_calc(struct ImageUser *iuser, int cfra, int fieldnr);
 int  BKE_image_user_frame_get(const struct ImageUser *iuser, int cfra, int fieldnr);
-void BKE_image_user_file_path(struct ImageUser *iuser, struct Image *ima, int cfra, char *path); 
+void BKE_image_user_file_path(struct ImageUser *iuser, struct Image *ima, char *path); 
 
 /* sets index offset for multilayer files */
 struct RenderPass *BKE_image_multilayer_index(struct RenderResult *rr, struct ImageUser *iuser);

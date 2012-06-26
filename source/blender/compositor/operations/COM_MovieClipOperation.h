@@ -31,22 +31,22 @@
 #include "IMB_imbuf_types.h"
 
 /**
-  * Base class for all renderlayeroperations
-  *
-  * @todo: rename to operation.
-  */
+ * Base class for all renderlayeroperations
+ *
+ * @todo: rename to operation.
+ */
 class MovieClipOperation : public NodeOperation {
 protected:
-	MovieClip *movieClip;
-	MovieClipUser *movieClipUser;
-	ImBuf *movieClipBuffer;
-	int movieClipheight;
-	int movieClipwidth;
-	int framenumber;
+	MovieClip *m_movieClip;
+	MovieClipUser *m_movieClipUser;
+	ImBuf *m_movieClipBuffer;
+	int m_movieClipheight;
+	int m_movieClipwidth;
+	int m_framenumber;
 	
 	/**
-	  * Determine the output resolution. The resolution is retrieved from the Renderer
-	  */
+	 * Determine the output resolution. The resolution is retrieved from the Renderer
+	 */
 	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
 
 public:
@@ -54,11 +54,11 @@ public:
 	
 	void initExecution();
 	void deinitExecution();
-	void setMovieClip(MovieClip *image) {this->movieClip = image;}
-	void setMovieClipUser(MovieClipUser *imageuser) {this->movieClipUser = imageuser;}
-	
-	void setFramenumber(int framenumber) {this->framenumber = framenumber;}
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	void setMovieClip(MovieClip *image) { this->m_movieClip = image; }
+	void setMovieClipUser(MovieClipUser *imageuser) { this->m_movieClipUser = imageuser; }
+
+	void setFramenumber(int framenumber) { this->m_framenumber = framenumber; }
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 };
 
 #endif

@@ -36,24 +36,24 @@ extern "C" {
 }
 
 /**
-  * @brief Base class for all image operations
-  */
+ * @brief Base class for all image operations
+ */
 class BaseImageOperation : public NodeOperation {
 protected:
-	ImBuf *buffer;
-	Image *image;
-	ImageUser *imageUser;
-	float *imageBuffer;
-	float *depthBuffer;
-	int imageheight;
-	int imagewidth;
-	int framenumber;
-	int numberOfChannels;
+	ImBuf *m_buffer;
+	Image *m_image;
+	ImageUser *m_imageUser;
+	float *m_imageBuffer;
+	float *m_depthBuffer;
+	int m_imageheight;
+	int m_imagewidth;
+	int m_framenumber;
+	int m_numberOfChannels;
 	
 	BaseImageOperation();
 	/**
-	  * Determine the output resolution. The resolution is retrieved from the Renderer
-	  */
+	 * Determine the output resolution. The resolution is retrieved from the Renderer
+	 */
 	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
 	
 	virtual ImBuf *getImBuf();
@@ -62,33 +62,33 @@ public:
 	
 	void initExecution();
 	void deinitExecution();
-	void setImage(Image *image) {this->image = image;}
-	void setImageUser(ImageUser *imageuser) {this->imageUser = imageuser;}
-	
-	void setFramenumber(int framenumber) {this->framenumber = framenumber;}
+	void setImage(Image *image) { this->m_image = image; }
+	void setImageUser(ImageUser *imageuser) { this->m_imageUser = imageuser; }
+
+	void setFramenumber(int framenumber) { this->m_framenumber = framenumber; }
 };
-class ImageOperation: public BaseImageOperation {
+class ImageOperation : public BaseImageOperation {
 public:
 	/**
-	  * Constructor
-	  */
+	 * Constructor
+	 */
 	ImageOperation();
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 };
-class ImageAlphaOperation: public BaseImageOperation {
+class ImageAlphaOperation : public BaseImageOperation {
 public:
 	/**
-	  * Constructor
-	  */
+	 * Constructor
+	 */
 	ImageAlphaOperation();
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 };
-class ImageDepthOperation: public BaseImageOperation {
+class ImageDepthOperation : public BaseImageOperation {
 public:
 	/**
-	  * Constructor
-	  */
+	 * Constructor
+	 */
 	ImageDepthOperation();
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 };
 #endif

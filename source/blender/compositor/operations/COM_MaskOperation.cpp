@@ -32,93 +32,87 @@
 
 extern "C" {
 	#include "BKE_mask.h"
+	#include "../../../../intern/raskter/raskter.h"
 }
 
-MaskOperation::MaskOperation(): NodeOperation()
+MaskOperation::MaskOperation() : NodeOperation()
 {
-	this->addInputSocket(COM_DT_COLOR);
-	this->addOutputSocket(COM_DT_COLOR);
-	this->mask = NULL;
-	this->maskWidth = 0;
-	this->maskHeight = 0;
-	this->framenumber = 0;
-	this->rasterizedMask = NULL;
+	this->addOutputSocket(COM_DT_VALUE);
+	this->m_mask = NULL;
+	this->m_maskWidth = 0;
+	this->m_maskHeight = 0;
+	this->m_framenumber = 0;
+	this->m_rasterizedMask = NULL;
 	setComplex(true);
 }
 
 void MaskOperation::initExecution()
 {
 	initMutex();
-	this->rasterizedMask = NULL;
+	this->m_rasterizedMask = NULL;
 }
 
 void MaskOperation::deinitExecution()
 {
-	if (this->rasterizedMask) {
-		MEM_freeN(rasterizedMask);
-		this->rasterizedMask = NULL;
+	if (this->m_rasterizedMask) {
+		MEM_freeN(this->m_rasterizedMask);
+		this->m_rasterizedMask = NULL;
 	}
 }
 
 void *MaskOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers)
 {
-	if (this->rasterizedMask)
-		return this->rasterizedMask;
+	if (this->m_rasterizedMask)
+		return this->m_rasterizedMask;
 
-	if (!this->mask)
+	if (!this->m_mask)
 		return NULL;
 
-	BLI_mutex_lock(getMutex());
-	if (this->rasterizedMask == NULL) {
+	lockMutex();
+	if (this->m_rasterizedMask == NULL) {
 		int width = this->getWidth();
 		int height = this->getHeight();
 		float *buffer;
 
 		buffer = (float *)MEM_callocN(sizeof(float) * width * height, "rasterized mask");
-		BKE_mask_rasterize(mask, width, height, buffer);
+		BKE_mask_rasterize(this->m_mask, width, height, buffer, TRUE, this->m_do_smooth, this->m_do_feather);
+		if (this->m_do_smooth) {
+			PLX_antialias_buffer(buffer, width, height);
+		}
 
-		this->rasterizedMask = buffer;
+		this->m_rasterizedMask = buffer;
 	}
-	BLI_mutex_unlock(getMutex());
-
-	return this->rasterizedMask;
+	unlockMutex();
+	return this->m_rasterizedMask;
 }
 
 void MaskOperation::determineResolution(unsigned int resolution[], unsigned int preferredResolution[])
 {
-	if (maskWidth == 0 || maskHeight == 0) {
+	if (this->m_maskWidth == 0 || this->m_maskHeight == 0) {
 		NodeOperation::determineResolution(resolution, preferredResolution);
 	}
 	else {
 		unsigned int nr[2];
 
-		nr[0] = maskWidth;
-		nr[1] = maskHeight;
+		nr[0] = this->m_maskWidth;
+		nr[1] = this->m_maskHeight;
 
 		NodeOperation::determineResolution(resolution, nr);
 
-		resolution[0] = maskWidth;
-		resolution[1] = maskHeight;
+		resolution[0] = this->m_maskWidth;
+		resolution[1] = this->m_maskHeight;
 	}
 }
 
 void MaskOperation::executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void *data)
 {
 	if (!data) {
-		color[0] = 0;
-		color[1] = 0;
-		color[2] = 0;
-		color[3] = 1.0f;
+		color[0] = 0.0f;
 	}
 	else {
-		float *buffer = (float*) data;
+		float *buffer = (float *) data;
 		int index = (y * this->getWidth() + x);
 
 		color[0] = buffer[index];
-		color[1] = buffer[index];
-		color[2] = buffer[index];
-		color[3] = 1.0f;
 	}
 }
-
-

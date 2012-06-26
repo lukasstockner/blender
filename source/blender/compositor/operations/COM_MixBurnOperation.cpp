@@ -22,8 +22,9 @@
 
 #include "COM_MixBurnOperation.h"
 
-MixBurnOperation::MixBurnOperation(): MixBaseOperation()
+MixBurnOperation::MixBurnOperation() : MixBaseOperation()
 {
+	/* pass */
 }
 
 void MixBurnOperation::executePixel(float *outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[])
@@ -33,16 +34,16 @@ void MixBurnOperation::executePixel(float *outputValue, float x, float y, PixelS
 	float value;
 	float tmp;
 	
-	inputValueOperation->read(&value, x, y, sampler, inputBuffers);
-	inputColor1Operation->read(&inputColor1[0], x, y, sampler, inputBuffers);
-	inputColor2Operation->read(&inputColor2[0], x, y, sampler, inputBuffers);
+	this->m_inputValueOperation->read(&value, x, y, sampler, inputBuffers);
+	this->m_inputColor1Operation->read(&inputColor1[0], x, y, sampler, inputBuffers);
+	this->m_inputColor2Operation->read(&inputColor2[0], x, y, sampler, inputBuffers);
 	
 	if (this->useValueAlphaMultiply()) {
 		value *= inputColor2[3];
 	}
 	float valuem = 1.0f - value;
 	
-	tmp = valuem + value*inputColor2[0];
+	tmp = valuem + value * inputColor2[0];
 	if (tmp <= 0.0f)
 		outputValue[0] = 0.0f;
 	else {
@@ -55,7 +56,7 @@ void MixBurnOperation::executePixel(float *outputValue, float x, float y, PixelS
 			outputValue[0] = tmp;
 	}
 	
-	tmp = valuem + value*inputColor2[1];
+	tmp = valuem + value * inputColor2[1];
 	if (tmp <= 0.0f)
 		outputValue[1] = 0.0f;
 	else {
@@ -68,7 +69,7 @@ void MixBurnOperation::executePixel(float *outputValue, float x, float y, PixelS
 			outputValue[1] = tmp;
 	}
 	
-	tmp = valuem + value*inputColor2[2];
+	tmp = valuem + value * inputColor2[2];
 	if (tmp <= 0.0f)
 		outputValue[2] = 0.0f;
 	else {

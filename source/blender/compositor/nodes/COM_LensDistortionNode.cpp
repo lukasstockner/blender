@@ -26,19 +26,20 @@
 #include "COM_ProjectorLensDistortionOperation.h"
 #include "COM_ScreenLensDistortionOperation.h"
 
-LensDistortionNode::LensDistortionNode(bNode *editorNode): Node(editorNode)
+LensDistortionNode::LensDistortionNode(bNode *editorNode) : Node(editorNode)
 {
+	/* pass */
 }
 
-void LensDistortionNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context)
+void LensDistortionNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
 {
 	bNode *editorNode = this->getbNode();
-	NodeLensDist * data = (NodeLensDist*)editorNode->storage;
+	NodeLensDist *data = (NodeLensDist *)editorNode->storage;
 	if (data->proj) {
 		ProjectorLensDistortionOperation *operation = new ProjectorLensDistortionOperation();
 
 		this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-		operation->setDispertion(this->getInputSocket(2)->getStaticValues()[0]);
+		this->getInputSocket(2)->relinkConnections(operation->getInputSocket(1), 2, graph);
 		this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket(0));
 
 		operation->setData(data);
@@ -49,8 +50,8 @@ void LensDistortionNode::convertToOperations(ExecutionSystem *graph, CompositorC
 		ScreenLensDistortionOperation *operation = new ScreenLensDistortionOperation();
 
 		this->getInputSocket(0)->relinkConnections(operation->getInputSocket(0), 0, graph);
-		operation->setDistortion(this->getInputSocket(1)->getStaticValues()[0]);
-		operation->setDispertion(this->getInputSocket(2)->getStaticValues()[0]);
+		this->getInputSocket(1)->relinkConnections(operation->getInputSocket(1), 1, graph);
+		this->getInputSocket(2)->relinkConnections(operation->getInputSocket(2), 2, graph);
 		this->getOutputSocket(0)->relinkConnections(operation->getOutputSocket(0));
 
 		operation->setData(data);

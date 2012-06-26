@@ -29,12 +29,12 @@
 
 class ViewerOperation : public ViewerBaseOperation {
 private:
-	SocketReader *imageInput;
-	SocketReader *alphaInput;
+	SocketReader *m_imageInput;
+	SocketReader *m_alphaInput;
 
 public:
 	ViewerOperation();
-	void executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer** memoryBuffers);
+	void executeRegion(rcti *rect, unsigned int tileNumber, MemoryBuffer **memoryBuffers);
 	void initExecution();
 	void deinitExecution();
 };

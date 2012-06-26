@@ -150,8 +150,7 @@ private:
 	int m_curreye;
 
 	/** Categories for profiling display. */
-	typedef enum
-	{
+	typedef enum {
 		tc_first = 0,
 		tc_physics = 0,
 		tc_logic,
@@ -444,9 +443,7 @@ protected:
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_KetsjiEngine"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_KetsjiEngine")
 #endif
 };
 

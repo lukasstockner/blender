@@ -29,38 +29,36 @@ TranslateOperation::TranslateOperation() : NodeOperation()
 	this->addInputSocket(COM_DT_VALUE);
 	this->addOutputSocket(COM_DT_COLOR);
 	this->setResolutionInputSocketIndex(0);
-	this->inputOperation = NULL;
-	this->inputXOperation = NULL;
-	this->inputYOperation = NULL;
+	this->m_inputOperation = NULL;
+	this->m_inputXOperation = NULL;
+	this->m_inputYOperation = NULL;
+	this->m_isDeltaSet = false;
 }
 void TranslateOperation::initExecution()
 {
-	this->inputOperation = this->getInputSocketReader(0);
-	this->inputXOperation = this->getInputSocketReader(1);
-	this->inputYOperation = this->getInputSocketReader(2);
+	this->m_inputOperation = this->getInputSocketReader(0);
+	this->m_inputXOperation = this->getInputSocketReader(1);
+	this->m_inputYOperation = this->getInputSocketReader(2);
 
-	float tempDelta[4];
-	this->inputXOperation->read(tempDelta, 0, 0, COM_PS_NEAREST, NULL);
-	this->deltaX = tempDelta[0];
-	this->inputYOperation->read(tempDelta, 0, 0, COM_PS_NEAREST, NULL);
-	this->deltaY = tempDelta[0];
 }
 
 void TranslateOperation::deinitExecution()
 {
-	this->inputOperation = NULL;
-	this->inputXOperation = NULL;
-	this->inputYOperation = NULL;
+	this->m_inputOperation = NULL;
+	this->m_inputXOperation = NULL;
+	this->m_inputYOperation = NULL;
 }
 
 
-void TranslateOperation::executePixel(float *color,float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[])
+void TranslateOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[])
 {
-	this->inputOperation->read(color, x-this->getDeltaX(), y-this->getDeltaY(), sampler, inputBuffers);
+	ensureDelta();
+	this->m_inputOperation->read(color, x - this->getDeltaX(), y - this->getDeltaY(), sampler, inputBuffers);
 }
 
 bool TranslateOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output)
 {
+	ensureDelta();
 	rcti newInput;
 	
 	newInput.xmax = input->xmax - this->getDeltaX();

@@ -19,16 +19,16 @@
  *		Dalai Felinto
  */
 
-#ifndef _COM_CombineYCCANode_h
-#define _COM_CombineYCCANode_h
+#ifndef _COM_CombineYCCANode_h_
+#define _COM_CombineYCCANode_h_
 
 #include "COM_Node.h"
 #include "DNA_node_types.h"
 #include "COM_CombineRGBANode.h"
 /**
-  * @brief CombineYCCANode
-  * @ingroup Node
-  */
+ * @brief CombineYCCANode
+ * @ingroup Node
+ */
 class CombineYCCANode : public CombineRGBANode {
 public:
 	CombineYCCANode(bNode *editorNode);

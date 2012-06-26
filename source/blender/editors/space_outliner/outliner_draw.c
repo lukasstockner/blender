@@ -69,6 +69,9 @@
 
 #include "outliner_intern.h"
 
+/* disable - this is far too slow - campbell */
+// #define USE_GROUP_SELECT
+
 /* ****************************************************** */
 /* Tree Size Functions */
 
@@ -199,23 +202,38 @@ static int group_restrict_flag(Group *gr, int flag)
 {
 	GroupObject *gob;
 
+#ifdef USE_GROUP_SELECT
 	for (gob = gr->gobject.first; gob; gob = gob->next) {
 		if ((gob->ob->restrictflag & flag) == 0)
 			return 0;
 	}
-
 	return 1;
+#else
+	/* weak but fast */
+	if ((gob = gr->gobject.first))
+		if ((gob->ob->restrictflag & flag) == 0)
+			return 0;
+	return 1;
+#endif
 }
 
 static int group_select_flag(Group *gr)
 {
 	GroupObject *gob;
 
+#ifdef USE_GROUP_SELECT
 	for (gob = gr->gobject.first; gob; gob = gob->next)
 		if ((gob->ob->flag & SELECT))
 			return 1;
 
 	return 0;
+#else
+	/* weak but fast */
+	if ((gob = gr->gobject.first))
+		if (gob->ob->flag & SELECT)
+			return 1;
+	return 0;
+#endif
 }
 
 void restrictbutton_gr_restrict_flag(void *poin, void *poin2, int flag)
@@ -422,7 +440,7 @@ static void outliner_draw_restrictbuts(uiBlock *block, Scene *scene, ARegion *ar
 				gr = (Group *)tselem->id;
 				
 				uiBlockSetEmboss(block, UI_EMBOSSN);
-				
+
 				restrict_bool = group_restrict_flag(gr, OB_RESTRICT_VIEW);
 				bt = uiDefIconBut(block, ICONTOG, 0, restrict_bool ? ICON_RESTRICT_VIEW_ON : ICON_RESTRICT_VIEW_OFF, (int)ar->v2d.cur.xmax - OL_TOG_RESTRICT_VIEWX, (int)te->ys, UI_UNIT_X - 1, UI_UNIT_Y - 1, NULL, 0, 0, 0, 0, "Restrict/Allow visibility in the 3D View");
 				uiButSetFunc(bt, restrictbutton_gr_restrict_view, scene, gr);
@@ -430,7 +448,7 @@ static void outliner_draw_restrictbuts(uiBlock *block, Scene *scene, ARegion *ar
 				restrict_bool = group_restrict_flag(gr, OB_RESTRICT_SELECT);
 				bt = uiDefIconBut(block, ICONTOG, 0, restrict_bool ? ICON_RESTRICT_SELECT_ON : ICON_RESTRICT_SELECT_OFF, (int)ar->v2d.cur.xmax - OL_TOG_RESTRICT_SELECTX, (int)te->ys, UI_UNIT_X - 1, UI_UNIT_Y - 1, NULL, 0, 0, 0, 0, "Restrict/Allow selection in the 3D View");
 				uiButSetFunc(bt, restrictbutton_gr_restrict_select, scene, gr);
-	
+
 				restrict_bool = group_restrict_flag(gr, OB_RESTRICT_RENDER);
 				bt = uiDefIconBut(block, ICONTOG, 0, restrict_bool ? ICON_RESTRICT_RENDER_ON : ICON_RESTRICT_RENDER_OFF, (int)ar->v2d.cur.xmax - OL_TOG_RESTRICT_RENDERX, (int)te->ys, UI_UNIT_X - 1, UI_UNIT_Y - 1, NULL, 0, 0, 0, 0, "Restrict/Allow renderability");
 				uiButSetFunc(bt, restrictbutton_gr_restrict_render, scene, gr);
@@ -1042,15 +1060,15 @@ static void tselem_draw_icon(uiBlock *block, int xmax, float x, float y, TreeSto
 			case TSE_POSEGRP_BASE:
 				UI_icon_draw(x, y, ICON_GROUP_BONE); break;
 			case TSE_SEQUENCE:
-				if (te->idcode == SEQ_MOVIE)
+				if (te->idcode == SEQ_TYPE_MOVIE)
 					UI_icon_draw(x, y, ICON_SEQUENCE);
-				else if (te->idcode == SEQ_META)
+				else if (te->idcode == SEQ_TYPE_META)
 					UI_icon_draw(x, y, ICON_DOT);
-				else if (te->idcode == SEQ_SCENE)
+				else if (te->idcode == SEQ_TYPE_SCENE)
 					UI_icon_draw(x, y, ICON_SCENE);
-				else if (te->idcode == SEQ_SOUND)
+				else if (te->idcode == SEQ_TYPE_SOUND_RAM)
 					UI_icon_draw(x, y, ICON_SOUND);
-				else if (te->idcode == SEQ_IMAGE)
+				else if (te->idcode == SEQ_TYPE_IMAGE)
 					UI_icon_draw(x, y, ICON_IMAGE_COL);
 				else
 					UI_icon_draw(x, y, ICON_PARTICLES);
@@ -1275,7 +1293,6 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 			}
 			else if (te->idcode == ID_GR) {
 				Group *gr = (Group *)tselem->id;
-				
 				if (group_select_flag(gr)) {
 					char col[4];
 					UI_GetThemeColorType4ubv(TH_SELECT, SPACE_VIEW3D, col);

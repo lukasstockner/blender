@@ -71,6 +71,7 @@ enum {
 	TFM_BONESIZE,
 	TFM_BONE_ENVELOPE,
 	TFM_CURVE_SHRINKFATTEN,
+	TFM_MASK_SHRINKFATTEN,
 	TFM_BONE_ROLL,
 	TFM_TIME_TRANSLATE,
 	TFM_TIME_SLIDE,
@@ -102,7 +103,7 @@ enum {
  * returns 1 if successful, 0 otherwise (usually means there's no selection)
  * (if 0 is returns, *vec is unmodified)
  * */
-int calculateTransformCenter(struct bContext *C, int centerMode, float *cent3d, int *cent2d);
+int calculateTransformCenter(struct bContext *C, int centerMode, float cent3d[3], int cent2d[2]);
 
 struct TransInfo;
 struct ScrArea;
@@ -167,8 +168,7 @@ typedef struct DepthPeel {
 
 struct ListBase;
 
-typedef enum SnapMode
-{
+typedef enum SnapMode {
 	SNAP_ALL = 0,
 	SNAP_NOT_SELECTED = 1,
 	SNAP_NOT_OBEDIT = 2

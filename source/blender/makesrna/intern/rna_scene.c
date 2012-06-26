@@ -101,6 +101,16 @@ EnumPropertyItem proportional_falloff_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+/* subset of the enum - only curves, missing random and const */
+EnumPropertyItem proportional_falloff_curve_only_items[] = {
+	{PROP_SMOOTH, "SMOOTH", ICON_SMOOTHCURVE, "Smooth", "Smooth falloff"},
+	{PROP_SPHERE, "SPHERE", ICON_SPHERECURVE, "Sphere", "Spherical falloff"},
+	{PROP_ROOT, "ROOT", ICON_ROOTCURVE, "Root", "Root falloff"},
+	{PROP_SHARP, "SHARP", ICON_SHARPCURVE, "Sharp", "Sharp falloff"},
+	{PROP_LIN, "LINEAR", ICON_LINCURVE, "Linear", "Linear falloff"},
+	{0, NULL, 0, NULL, NULL}
+};
+
 
 EnumPropertyItem proportional_editing_items[] = {
 	{PROP_EDIT_OFF, "DISABLED", ICON_PROP_OFF, "Disable", "Proportional Editing disabled"},
@@ -3660,6 +3670,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "use_compositing", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "scemode", R_DOCOMP);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Compositing",
 	                         "Process the render result through the compositing pipeline, "
 	                         "if compositing nodes are enabled");
@@ -3667,6 +3678,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "use_sequencer", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "scemode", R_DOSEQ);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Sequencer",
 	                         "Process the render (and composited) result through the video sequence "
 	                         "editor pipeline, if sequencer strips exist");

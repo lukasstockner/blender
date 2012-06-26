@@ -20,18 +20,18 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_HueSaturationValueCorrectNode_h
-#define _COM_HueSaturationValueCorrectNode_h
+#ifndef _COM_HueSaturationValueCorrectNode_h_
+#define _COM_HueSaturationValueCorrectNode_h_
 
 #include "COM_Node.h"
 
 /**
-  * @brief HueSaturationValueCorrectNode
-  * @ingroup Node
-  */
+ * @brief HueSaturationValueCorrectNode
+ * @ingroup Node
+ */
 class HueSaturationValueCorrectNode : public Node {
 public:
 	HueSaturationValueCorrectNode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
+	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
 };
 #endif

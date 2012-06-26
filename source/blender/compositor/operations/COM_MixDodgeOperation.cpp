@@ -22,8 +22,9 @@
 
 #include "COM_MixDodgeOperation.h"
 
-MixDodgeOperation::MixDodgeOperation(): MixBaseOperation()
+MixDodgeOperation::MixDodgeOperation() : MixBaseOperation()
 {
+	/* pass */
 }
 
 void MixDodgeOperation::executePixel(float *outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[])
@@ -33,16 +34,16 @@ void MixDodgeOperation::executePixel(float *outputValue, float x, float y, Pixel
 	float value;
 	float tmp;
 
-	inputValueOperation->read(&value, x, y, sampler, inputBuffers);
-	inputColor1Operation->read(&inputColor1[0], x, y, sampler, inputBuffers);
-	inputColor2Operation->read(&inputColor2[0], x, y, sampler, inputBuffers);
+	this->m_inputValueOperation->read(&value, x, y, sampler, inputBuffers);
+	this->m_inputColor1Operation->read(&inputColor1[0], x, y, sampler, inputBuffers);
+	this->m_inputColor2Operation->read(&inputColor2[0], x, y, sampler, inputBuffers);
 
 	if (this->useValueAlphaMultiply()) {
 		value *= inputColor2[3];
 	}
 	
 	if (inputColor1[0] != 0.0f) {
-		tmp = 1.0f - value*inputColor2[0];
+		tmp = 1.0f - value * inputColor2[0];
 		if (tmp <= 0.0f)
 			outputValue[0] = 1.0f;
 		else {
@@ -57,7 +58,7 @@ void MixDodgeOperation::executePixel(float *outputValue, float x, float y, Pixel
 		outputValue[0] = 0.0f;
 	
 	if (inputColor1[1] != 0.0f) {
-		tmp = 1.0f - value*inputColor2[1];
+		tmp = 1.0f - value * inputColor2[1];
 		if (tmp <= 0.0f)
 			outputValue[1] = 1.0f;
 		else {
@@ -72,7 +73,7 @@ void MixDodgeOperation::executePixel(float *outputValue, float x, float y, Pixel
 		outputValue[1] = 0.0f;
 	
 	if (inputColor1[2] != 0.0f) {
-		tmp = 1.0f - value*inputColor2[2];
+		tmp = 1.0f - value * inputColor2[2];
 		if (tmp <= 0.0f)
 			outputValue[2] = 1.0f;
 		else {

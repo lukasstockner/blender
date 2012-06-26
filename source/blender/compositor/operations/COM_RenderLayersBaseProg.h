@@ -36,64 +36,63 @@ extern "C" {
 }
 
 /**
-  * Base class for all renderlayeroperations
-  *
-  * @todo: rename to operation.
-  */
+ * Base class for all renderlayeroperations
+ *
+ * @todo: rename to operation.
+ */
 class RenderLayersBaseProg : public NodeOperation {
 private:
 	/**
-	  * Reference to the scene object.
-	  */
-	Scene *scene;
+	 * Reference to the scene object.
+	 */
+	Scene *m_scene;
 	
 	/**
-	  * layerId of the layer where this operation needs to get its data from
-	  */
-	short layerId;
+	 * layerId of the layer where this operation needs to get its data from
+	 */
+	short m_layerId;
 	
 	/**
-	  * cached instance to the float buffer inside the layer
-	  */
-	float *inputBuffer;
+	 * cached instance to the float buffer inside the layer
+	 */
+	float *m_inputBuffer;
 	
 	/**
-	  * renderpass where this operation needs to get its data from
-	  */
-	int renderpass;
+	 * renderpass where this operation needs to get its data from
+	 */
+	int m_renderpass;
 	
-	int elementsize;
+	int m_elementsize;
 	
 protected:
 	/**
-	  * Constructor
-	  */
+	 * Constructor
+	 */
 	RenderLayersBaseProg(int renderpass, int elementsize);
 	
 	/**
-	  * Determine the output resolution. The resolution is retrieved from the Renderer
-	  */
+	 * Determine the output resolution. The resolution is retrieved from the Renderer
+	 */
 	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
 	
 	/**
-	  * retrieve the reference to the float buffer of the renderer.
-	  */
-	inline float *getInputBuffer() {return this->inputBuffer;}
+	 * retrieve the reference to the float buffer of the renderer.
+	 */
+	inline float *getInputBuffer() { return this->m_inputBuffer; }
 
 public:
 	/**
-	  * setter for the scene field. Will be called from
-	  * @see RenderLayerNode to set the actual scene where
-	  * the data will be retrieved from.
-	  */
-	void setScene(Scene *scene) {this->scene = scene;}
-	Scene *getScene() {return this->scene;}
-	void setLayerId(short layerId) {this->layerId = layerId;}
-	short getLayerId() {return this->layerId;}
+	 * setter for the scene field. Will be called from
+	 * @see RenderLayerNode to set the actual scene where
+	 * the data will be retrieved from.
+	 */
+	void setScene(Scene *scene) { this->m_scene = scene; }
+	Scene *getScene() { return this->m_scene; }
+	void setLayerId(short layerId) { this->m_layerId = layerId; }
+	short getLayerId() { return this->m_layerId; }
 	void initExecution();
 	void deinitExecution();
 	void executePixel(float *output, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
-
 };
 
 #endif
