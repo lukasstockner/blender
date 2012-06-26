@@ -151,7 +151,8 @@ static int load_tex(Brush *br, ViewContext *vc)
 	refresh_curve = do_tiled &&
 	        ((snap.BKE_brush_size_get != BKE_brush_size_get(vc->scene, br)) ||
 	        !br->curve ||
-	        br->curve->changed_timestamp != curve_changed_timestamp);
+	        br->curve->changed_timestamp != curve_changed_timestamp ||
+	        br->mtex.brush_map_mode != snap.brush_map_mode);
 
 	if (refresh || refresh_curve) {
 		int s = BKE_brush_size_get(vc->scene, br);
@@ -213,7 +214,7 @@ static int load_tex(Brush *br, ViewContext *vc)
 		buffer = MEM_mallocN(sizeof(GLubyte) * size * size, "load_tex");
 
 	if(refresh_curve)
-		curve_buffer = MEM_mallocN(sizeof(GLubyte) * curve_size * curve_size, "load_tex");
+		curve_buffer = MEM_mallocN(sizeof(GLubyte) * curve_size * curve_size, "load_tex_curve");
 
 	if(refresh) {
 		/* dummy call to avoid generating curve tables in openmp, causes memory leaks since allocation
@@ -306,7 +307,12 @@ static int load_tex(Brush *br, ViewContext *vc)
 
 	glEnable(GL_TEXTURE_2D);
 
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+	glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+	glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
+	glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_TEXTURE0);
+	glTexEnvf(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_TEXTURE);
+	glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PRIMARY_COLOR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -315,19 +321,23 @@ static int load_tex(Brush *br, ViewContext *vc)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 	}
 
+	/* view mode doesn't need a separate curve texture */
+	if(!do_tiled)
+		return 1;
+
 	if(refresh_curve) {
 		/* dummy call to avoid generating curve tables in openmp, causes memory leaks since allocation
 		 * is not thread safe */
 		BKE_brush_curve_strength(br, 0.5, 1);
 
 		#pragma omp parallel for schedule(static)
-		for (j = 0; j < size; j++) {
+		for (j = 0; j < curve_size; j++) {
 			int i;
 			float y;
 			float len;
 
 			for (i = 0; i < curve_size; i++) {
-				int index = j * size + i;
+				int index = j * curve_size + i;
 				float x;
 				float avg;
 
@@ -361,8 +371,7 @@ static int load_tex(Brush *br, ViewContext *vc)
 
 		if (!overlay_texture_curve)
 			glGenTextures(1, &overlay_texture_curve);
-	} else
-		return 1;
+	}
 
 	/* switch to second texture unit */
 	glActiveTexture(GL_TEXTURE1);
@@ -383,7 +392,7 @@ static int load_tex(Brush *br, ViewContext *vc)
 
 	glEnable(GL_TEXTURE_2D);
 
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
