@@ -939,16 +939,16 @@ BLI_INLINE void shape3(
 		GLfloat angleMin;
 		GLfloat angleMax;
 		GLfloat vSweepAngle;
-		GLfloat vecMin[3] = { 0, 0, zMin };
-		GLfloat vecMax[3] = { 0, 0, zMax };
+		GLfloat zMinNorm;
+		GLfloat zMaxNorm;
 		GLfloat vFracAngle;
 		GLfloat zDiff;
 
-		normalize_v3(vecMin);
-		angleMin = asinf(vecMin[2]);
+		zMinNorm = zMin / prim->params.sphere.radius;
+		angleMin = asinf(zMinNorm);
 
-		normalize_v3(vecMax);
-		angleMax = asinf(vecMax[2]);
+		zMaxNorm = zMax / prim->params.sphere.radius;
+		angleMax = asinf(zMaxNorm);
 
 		vSweepAngle = angleMax - angleMin;
 
@@ -1215,7 +1215,7 @@ void gpuAppendCylinder(
 	copy_v3_flflfl(prim->params.sweep.point1, radiusBase, 0, 0);
 	copy_v3_flflfl(prim->params.sweep.point2, radiusTop, 0, height);
 
-	shape3(prim, sweep, NULL, 0, height, GL_FALSE);
+	shape3(prim, sweep, NULL, 0, height, GL_TRUE);
 }
 
 
