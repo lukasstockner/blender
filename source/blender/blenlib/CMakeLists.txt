@@ -64,11 +64,15 @@ set(SRC
 	intern/lasso.c
 	intern/listbase.c
 	intern/math_base.c
+	intern/math_base_inline.c
 	intern/math_color.c
+	intern/math_color_inline.c
 	intern/math_geom.c
+	intern/math_geom_inline.c
 	intern/math_matrix.c
 	intern/math_rotation.c
 	intern/math_vector.c
+	intern/math_vector_inline.c
 	intern/md5.c
 	intern/noise.c
 	intern/path_util.c
@@ -86,11 +90,6 @@ set(SRC
 	intern/uvproject.c
 	intern/voxel.c
 	intern/winstuff.c
-
-	intern/math_base_inline.h
-	intern/math_color_inline.h
-	intern/math_geom_inline.h
-	intern/math_vector_inline.h
 
 	BLI_args.h
 	BLI_array.h

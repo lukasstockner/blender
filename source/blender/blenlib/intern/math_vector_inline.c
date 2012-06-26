@@ -23,7 +23,7 @@
  * ***** END GPL LICENSE BLOCK *****
  * */
 
-/** \file blender/blenlib/intern/math_vector_inline.h
+/** \file blender/blenlib/intern/math_vector_inline.c
  *  \ingroup bli
  */
 

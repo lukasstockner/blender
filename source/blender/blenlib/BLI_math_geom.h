@@ -36,7 +36,9 @@ extern "C" {
 
 #include "BLI_math_inline.h"
 
-#include "intern/math_geom_inline.h"
+#ifdef __BLI_MATH_INLINE_H__
+#include "intern/math_geom_inline.c"
+#endif
 
 /********************************** Polygons *********************************/
 

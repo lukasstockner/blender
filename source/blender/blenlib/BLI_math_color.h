@@ -116,7 +116,9 @@ void rgba_float_to_uchar(unsigned char col_r[4], const float col_f[4]);
 
 void lift_gamma_gain_to_asc_cdl(float *lift, float *gamma, float *gain, float *offset, float *slope, float *power);
 
-#include "intern/math_color_inline.h"
+#ifdef __BLI_MATH_INLINE_H__
+#include "intern/math_color_inline.c"
+#endif
 
 #ifdef __cplusplus
 }
