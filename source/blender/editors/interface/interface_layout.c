@@ -327,7 +327,10 @@ static void ui_layer_but_cb(bContext *C, void *arg_but, void *arg_index)
 	int shift = win->eventstate->shift;
 	int len = RNA_property_array_length(ptr, prop);
 
-	if (!shift) {
+	if (G.drag_button_func)
+		shift = 1;
+
+	if (!shift || win->eventstate->ctrl) {
 		RNA_property_boolean_set_index(ptr, prop, index, TRUE);
 
 		for (i = 0; i < len; i++)

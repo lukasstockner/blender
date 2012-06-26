@@ -2246,9 +2246,6 @@ static int ui_do_but_TOG(bContext *C, uiBut *but, uiHandleButtonData *data, wmEv
 
 			button_activate_state(C, but, BUTTON_STATE_EXIT);
 
-			// Kind of a hack. We don't want this assignment to turn off others, so force shift on to cause handle_layer_buttons to skip that.
-			win->eventstate->shift = 1;
-
 			return WM_UI_HANDLER_BREAK;
 		}
 	}

@@ -1979,7 +1979,10 @@ static void handle_layer_buttons(bContext *C, void *arg1, void *arg2)
 	wmWindow *win = CTX_wm_window(C);
 	int i, tot, shift = win->eventstate->shift;
 
-	if (!shift) {
+	if (G.drag_button_func)
+		shift = 1;
+
+	if (!shift || win->eventstate->ctrl) {
 		tot = RNA_property_array_length(&but->rnapoin, but->rnaprop);
 		
 		/* Normally clicking only selects one layer */

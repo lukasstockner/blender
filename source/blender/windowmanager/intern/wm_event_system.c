@@ -2127,10 +2127,7 @@ void wm_event_do_handlers(bContext *C)
 			}
 
 			if (event->val == KM_RELEASE)
-			{
 				G.drag_button_func = 0;
-				win->eventstate->shift = 0; // This was set in ui_do_but_TOG(). Clear it now that we're done toggling buttons.
-			}
 
 			/* unlink and free here, blender-quit then frees all */
 			BLI_remlink(&win->queue, event);
