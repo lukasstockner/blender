@@ -119,17 +119,23 @@ static void make_snap(Snapshot *snap, Brush *brush, ViewContext *vc)
 static int load_tex(Brush *br, ViewContext *vc)
 {
 	static GLuint overlay_texture = 0;
+	static GLuint overlay_texture_curve = 0;
 	static int init = 0;
+	static int init_curve = 0;
 	static int tex_changed_timestamp = -1;
 	static int curve_changed_timestamp = -1;
 	static Snapshot snap;
 	static int old_size = -1;
+	static int old_curve_size = -1;
 
 	GLubyte *buffer = NULL;
+	GLubyte *curve_buffer = NULL;
 
+	char do_tiled = (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED);
 	int size;
+	int curve_size;
 	int j;
-	int refresh;
+	int refresh, refresh_curve;
 
 	if (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && !br->mtex.tex) return 0;
 	
@@ -142,7 +148,15 @@ static int load_tex(Brush *br, ViewContext *vc)
 	    br->curve->changed_timestamp != curve_changed_timestamp ||
 	    !same_snap(&snap, br, vc);
 
-	if (refresh) {
+	refresh_curve = do_tiled &&
+	        ((snap.BKE_brush_size_get != BKE_brush_size_get(vc->scene, br)) ||
+	        !br->curve ||
+	        br->curve->changed_timestamp != curve_changed_timestamp);
+
+	if (refresh || refresh_curve) {
+		int s = BKE_brush_size_get(vc->scene, br);
+		int r = 1;
+
 		if (br->mtex.tex && br->mtex.tex->preview)
 			tex_changed_timestamp = br->mtex.tex->preview->changed_timestamp[0];
 
@@ -151,23 +165,25 @@ static int load_tex(Brush *br, ViewContext *vc)
 
 		make_snap(&snap, br, vc);
 
-		if (br->mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) {
-			int s = BKE_brush_size_get(vc->scene, br);
-			int r = 1;
+		for (s >>= 1; s > 0; s >>= 1)
+			r++;
 
-			for (s >>= 1; s > 0; s >>= 1)
-				r++;
+		size = (1 << r);
 
-			size = (1 << r);
+		if (size < 256)
+			size = 256;
 
-			if (size < 256)
-				size = 256;
+		if (size < old_size)
+			size = old_size;
 
-			if (size < old_size)
-				size = old_size;
-		}
-		else
+		if(do_tiled) {
+			curve_size = size;
 			size = 512;
+		}
+
+		if(!refresh) {
+			size = old_size;
+		}
 
 		if (old_size != size) {
 			if (overlay_texture) {
@@ -180,7 +196,29 @@ static int load_tex(Brush *br, ViewContext *vc)
 			old_size = size;
 		}
 
+		if (old_curve_size != curve_size) {
+			if (overlay_texture_curve) {
+				glDeleteTextures(1, &overlay_texture_curve);
+				overlay_texture_curve = 0;
+			}
+
+			init_curve = 0;
+
+			old_curve_size = curve_size;
+		}
+	}
+
+	/* image texture refresh */
+	if(refresh)
 		buffer = MEM_mallocN(sizeof(GLubyte) * size * size, "load_tex");
+
+	if(refresh_curve)
+		curve_buffer = MEM_mallocN(sizeof(GLubyte) * curve_size * curve_size, "load_tex");
+
+	if(refresh) {
+		/* dummy call to avoid generating curve tables in openmp, causes memory leaks since allocation
+		 * is not thread safe */
+		BKE_brush_curve_strength(br, 0.5, 1);
 
 		#pragma omp parallel for schedule(static)
 		for (j = 0; j < size; j++) {
@@ -204,7 +242,7 @@ static int load_tex(Brush *br, ViewContext *vc)
 				x -= 0.5f;
 				y -= 0.5f;
 
-				if (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED) {
+				if (do_tiled) {
 					x *= vc->ar->winx / radius;
 					y *= vc->ar->winy / radius;
 				}
@@ -215,7 +253,7 @@ static int load_tex(Brush *br, ViewContext *vc)
 
 				len = sqrtf(x * x + y * y);
 
-				if ((br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED) || len <= 1) {
+				if (do_tiled || len <= 1) {
 					/* it is probably worth optimizing for those cases where 
 					 * the texture is not rotated by skipping the calls to
 					 * atan2, sqrtf, sin, and cos. */
@@ -250,9 +288,6 @@ static int load_tex(Brush *br, ViewContext *vc)
 		if (!overlay_texture)
 			glGenTextures(1, &overlay_texture);
 	}
-	else {
-		size = old_size;
-	}
 
 	glBindTexture(GL_TEXTURE_2D, overlay_texture);
 
@@ -279,6 +314,83 @@ static int load_tex(Brush *br, ViewContext *vc)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 	}
+
+	if(refresh_curve) {
+		/* dummy call to avoid generating curve tables in openmp, causes memory leaks since allocation
+		 * is not thread safe */
+		BKE_brush_curve_strength(br, 0.5, 1);
+
+		#pragma omp parallel for schedule(static)
+		for (j = 0; j < size; j++) {
+			int i;
+			float y;
+			float len;
+
+			for (i = 0; i < curve_size; i++) {
+				int index = j * size + i;
+				float x;
+				float avg;
+
+				x = (float)i / curve_size;
+				y = (float)j / curve_size;
+
+				x -= 0.5f;
+				y -= 0.5f;
+
+				x *= 2;
+				y *= 2;
+
+				len = sqrtf(x * x + y * y);
+
+				if (len <= 1) {
+					x *= br->mtex.size[0];
+					y *= br->mtex.size[1];
+
+					x += br->mtex.ofs[0];
+					y += br->mtex.ofs[1];
+
+					avg = BKE_brush_curve_strength(br, len, 1);  /* Falloff curve */
+
+					curve_buffer[index] = 255 - (GLubyte)(255 * avg);
+				}
+				else {
+					curve_buffer[index] = 0;
+				}
+			}
+		}
+
+		if (!overlay_texture_curve)
+			glGenTextures(1, &overlay_texture_curve);
+	} else
+		return 1;
+
+	/* switch to second texture unit */
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, overlay_texture_curve);
+
+	if (refresh_curve) {
+		if (!init_curve) {
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, curve_size, curve_size, 0, GL_ALPHA, GL_UNSIGNED_BYTE, curve_buffer);
+			init_curve = 1;
+		}
+		else {
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, curve_size, curve_size, GL_ALPHA, GL_UNSIGNED_BYTE, curve_buffer);
+		}
+
+		if(curve_buffer)
+			MEM_freeN(curve_buffer);
+	}
+
+	glEnable(GL_TEXTURE_2D);
+
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+	glActiveTexture(GL_TEXTURE0);
 
 	return 1;
 }
@@ -432,10 +544,11 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			}
 		}
 		else {
-			quad.xmin = 0;
-			quad.ymin = 0;
-			quad.xmax = vc->ar->winrct.xmax - vc->ar->winrct.xmin;
-			quad.ymax = vc->ar->winrct.ymax - vc->ar->winrct.ymin;
+			const int radius = BKE_brush_size_get(vc->scene, brush);
+			quad.xmin = x - radius;
+			quad.ymin = y - radius;
+			quad.xmax = x + radius;
+			quad.ymax = y + radius;
 		}
 
 		/* set quad color */
@@ -446,15 +559,36 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 
 		/* draw textured quad */
 		glBegin(GL_QUADS);
-		glTexCoord2f(0, 0);
-		glVertex2f(quad.xmin, quad.ymin);
-		glTexCoord2f(1, 0);
-		glVertex2f(quad.xmax, quad.ymin);
-		glTexCoord2f(1, 1);
-		glVertex2f(quad.xmax, quad.ymax);
-		glTexCoord2f(0, 1);
-		glVertex2f(quad.xmin, quad.ymax);
+		if(brush->mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) {
+			glTexCoord2f(0, 0);
+			glVertex2f(quad.xmin, quad.ymin);
+			glTexCoord2f(1, 0);
+			glVertex2f(quad.xmax, quad.ymin);
+			glTexCoord2f(1, 1);
+			glVertex2f(quad.xmax, quad.ymax);
+			glTexCoord2f(0, 1);
+			glVertex2f(quad.xmin, quad.ymax);
+		} else {
+			short sizex = vc->ar->winrct.xmax - vc->ar->winrct.xmin;
+			short sizey = vc->ar->winrct.ymax - vc->ar->winrct.ymin;
+			glTexCoord2f(quad.xmin/sizex, quad.ymin/sizey);
+			glMultiTexCoord2f(GL_TEXTURE1, 0, 0);
+			glVertex2f(quad.xmin, quad.ymin);
+			glTexCoord2f(quad.xmax/sizex, quad.ymin/sizey);
+			glMultiTexCoord2f(GL_TEXTURE1, 1, 0);
+			glVertex2f(quad.xmax, quad.ymin);
+			glTexCoord2f(quad.xmax/sizex, quad.ymax/sizey);
+			glMultiTexCoord2f(GL_TEXTURE1, 1, 1);
+			glVertex2f(quad.xmax, quad.ymax);
+			glTexCoord2f(quad.xmin/sizex, quad.ymax/sizey);
+			glMultiTexCoord2f(GL_TEXTURE1, 0, 1);
+			glVertex2f(quad.xmin, quad.ymax);
+		}
 		glEnd();
+
+		/* should be caught by enable bits but do explicitly just in case..*/
+		glActiveTexture(GL_TEXTURE1);
+		glDisable(GL_TEXTURE_2D);
 
 		glPopMatrix();
 	}
