@@ -1152,7 +1152,7 @@ void GPU_buffer_unbind(void)
 			glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 		}
 	}
-	GLStates &= !(GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_NORMAL_STATE |
+	GLStates &= ~(GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_NORMAL_STATE |
 	              GPU_BUFFER_TEXCOORD_STATE | GPU_BUFFER_COLOR_STATE |
 	              GPU_BUFFER_ELEMENT_STATE);
 
@@ -1192,7 +1192,7 @@ void GPU_color_switch(int mode)
 	else {
 		if (GLStates & GPU_BUFFER_COLOR_STATE)
 			glDisableClientState(GL_COLOR_ARRAY);
-		GLStates &= (!GPU_BUFFER_COLOR_STATE);
+		GLStates &= ~GPU_BUFFER_COLOR_STATE;
 	}
 }
 

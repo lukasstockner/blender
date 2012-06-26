@@ -158,6 +158,7 @@ if(WITH_HEADLESS OR WITH_GHOST_SDL)
 				intern/GHOST_SystemPathsCarbon.h
 			)
 		endif()
+
 	elseif(UNIX)
 		list(APPEND SRC
 			intern/GHOST_SystemPathsX11.cpp
@@ -167,12 +168,16 @@ if(WITH_HEADLESS OR WITH_GHOST_SDL)
 		if(NOT WITH_INSTALL_PORTABLE)
 			add_definitions(-DPREFIX="${CMAKE_INSTALL_PREFIX}")
 		endif()
-	elseif(WIN32)
 
+	elseif(WIN32)
 		list(APPEND SRC
 			intern/GHOST_SystemPathsWin32.cpp
 
 			intern/GHOST_SystemPathsWin32.h
+		)
+
+		list(APPEND INC
+			../utfconv
 		)
 	endif()
 

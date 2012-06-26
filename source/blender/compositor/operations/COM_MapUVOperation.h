@@ -29,23 +29,23 @@ private:
 	/**
 	 * Cached reference to the inputProgram
 	 */
-	SocketReader *inputUVProgram;
-	SocketReader *inputColorProgram;
+	SocketReader *m_inputUVProgram;
+	SocketReader *m_inputColorProgram;
 
-	float alpha;
+	float m_alpha;
 	
 public:
 	MapUVOperation();
 
 	/**
-	* we need a 3x3 differential filter for UV Input and full buffer for the image
-	*/	
+	 * we need a 3x3 differential filter for UV Input and full buffer for the image
+	 */
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 
 	/**
 	 * the inner loop of this program
 	 */
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 	
 	/**
 	 * Initialize the execution
@@ -57,6 +57,6 @@ public:
 	 */
 	void deinitExecution();
 
-	void setAlpha(float alpha) { this->alpha = alpha; }
+	void setAlpha(float alpha) { this->m_alpha = alpha; }
 };
 #endif

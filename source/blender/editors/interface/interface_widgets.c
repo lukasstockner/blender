@@ -164,9 +164,10 @@ static unsigned int scroll_circle_face[14][3] = {
 };
 
 
-static float menu_tria_vert[6][2]= {
-{-0.33, 0.16}, {0.33, 0.16}, {0, 0.82}, 
-{0, -0.82}, {-0.33, -0.16}, {0.33, -0.16}};
+static float menu_tria_vert[6][2] = {
+	{-0.33, 0.16}, {0.33, 0.16}, {0, 0.82},
+	{0, -0.82}, {-0.33, -0.16}, {0.33, -0.16}
+};
 
 
 
@@ -1199,7 +1200,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 
 #if 0
 	ui_rasterpos_safe(x, y, but->aspect);
-	if (but->type == IDPOIN) transopts = 0;	// no translation, of course!
+	if (but->type == IDPOIN) transopts = 0;  // no translation, of course!
 	else transopts = ui_translate_buttons();
 #endif
 
@@ -1974,8 +1975,9 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 /* ************ custom buttons, old stuff ************** */
 
 /* draws in resolution of 20x4 colors */
-void ui_draw_gradient(rcti *rect, const float hsv[3], int type, float alpha)
+void ui_draw_gradient(rcti *rect, const float hsv[3], const int type, const float alpha)
 {
+	const float color_step = (type == UI_GRAD_H) ? 0.02 : 0.05f;
 	int a;
 	float h = hsv[0], s = hsv[1], v = hsv[2];
 	float dx, dy, sx1, sx2, sy;
@@ -2032,7 +2034,7 @@ void ui_draw_gradient(rcti *rect, const float hsv[3], int type, float alpha)
 	
 	/* old below */
 	
-	for (dx = 0.0f; dx < 1.0f; dx += 0.05f) {
+	for (dx = 0.0f; dx < 1.0f; dx += color_step) {
 		// previous color
 		copy_v3_v3(col0[0], col1[0]);
 		copy_v3_v3(col0[1], col1[1]);
@@ -2060,11 +2062,15 @@ void ui_draw_gradient(rcti *rect, const float hsv[3], int type, float alpha)
 				hsv_to_rgb(dx, 1.0, v,   &col1[3][0], &col1[3][1], &col1[3][2]);
 				break;
 			case UI_GRAD_H:
-				hsv_to_rgb(dx, 1.0, 1.0,   &col1[0][0], &col1[0][1], &col1[0][2]);
+			{
+				/* annoying but without this the color shifts - could be solved some other way
+				 * - campbell */
+				hsv_to_rgb(dx + color_step, 1.0, 1.0,   &col1[0][0], &col1[0][1], &col1[0][2]);
 				copy_v3_v3(col1[1], col1[0]);
 				copy_v3_v3(col1[2], col1[0]);
 				copy_v3_v3(col1[3], col1[0]);
 				break;
+			}
 			case UI_GRAD_S:
 				hsv_to_rgb(h, dx, 1.0,   &col1[1][0], &col1[1][1], &col1[1][2]);
 				copy_v3_v3(col1[0], col1[1]);
@@ -2081,7 +2087,7 @@ void ui_draw_gradient(rcti *rect, const float hsv[3], int type, float alpha)
 		
 		// rect
 		sx1 = rect->xmin + dx * (rect->xmax - rect->xmin);
-		sx2 = rect->xmin + (dx + 0.05f) * (rect->xmax - rect->xmin);
+		sx2 = rect->xmin + (dx + color_step) * (rect->xmax - rect->xmin);
 		sy = rect->ymin;
 		dy = (rect->ymax - rect->ymin) / 3.0;
 		
@@ -3160,7 +3166,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 					if (but->drawflag & UI_BUT_DRAW_ENUM_ARROWS)
 						wt = widget_type(UI_WTYPE_MENU_RADIO);  /* with arrows */
 					else
-						wt = widget_type(UI_WTYPE_MENU_ICON_RADIO); /* no arrows */
+						wt = widget_type(UI_WTYPE_MENU_ICON_RADIO);  /* no arrows */
 				}
 				/* with menu arrows */
 				else

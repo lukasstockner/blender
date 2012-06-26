@@ -40,7 +40,7 @@ if(WITH_BINRELOC)
 	add_subdirectory(binreloc)
 endif()
 
-if(WITH_BUILTIN_GLEW)
+if(NOT WITH_SYSTEM_GLEW)
 if(WITH_GLES)
 	add_subdirectory(glew-android)
 else()
@@ -52,7 +52,7 @@ if(WITH_GAMEENGINE)
 	add_subdirectory(recastnavigation)
 endif()
 
-if(WITH_IMAGE_OPENJPEG AND (NOT UNIX OR APPLE))
+if(WITH_IMAGE_OPENJPEG AND (NOT WITH_SYSTEM_OPENJPEG))
 	add_subdirectory(libopenjpeg)
 endif()
 

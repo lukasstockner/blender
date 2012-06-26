@@ -19,8 +19,8 @@
  *		Dalai Felinto
  */
 
-#ifndef _COM_DisplaceNode_h
-#define _COM_DisplaceNode_h
+#ifndef _COM_DisplaceNode_h_
+#define _COM_DisplaceNode_h_
 
 #include "COM_Node.h"
 
@@ -31,6 +31,6 @@
 class DisplaceNode : public Node {
 public:
 	DisplaceNode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
+	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
 };
 #endif

@@ -28,30 +28,30 @@
 class IDMaskOperation : public NodeOperation {
 private:
 	/**
-	  * Cached reference to the inputProgram
-	  */
-	SocketReader *inputProgram;
+	 * Cached reference to the inputProgram
+	 */
+	SocketReader *m_inputProgram;
 	
-	float objectIndex;
+	float m_objectIndex;
 public:
 	IDMaskOperation();
 	
 	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 	
 	/**
-	  * Initialize the execution
-	  */
+	 * Initialize the execution
+	 */
 	void initExecution();
 	
 	/**
-	  * Deinitialize the execution
-	  */
+	 * Deinitialize the execution
+	 */
 	void deinitExecution();
 	
-	void setObjectIndex(float objectIndex) {this->objectIndex = objectIndex;}
+	void setObjectIndex(float objectIndex) { this->m_objectIndex = objectIndex; }
 
 };
 #endif

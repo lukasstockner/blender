@@ -22,8 +22,9 @@
 
 #include "COM_MixDivideOperation.h"
 
-MixDivideOperation::MixDivideOperation(): MixBaseOperation()
+MixDivideOperation::MixDivideOperation() : MixBaseOperation()
 {
+	/* pass */
 }
 
 void MixDivideOperation::executePixel(float *outputValue, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[])
@@ -32,9 +33,9 @@ void MixDivideOperation::executePixel(float *outputValue, float x, float y, Pixe
 	float inputColor2[4];
 	float value;
 	
-	inputValueOperation->read(&value, x, y, sampler, inputBuffers);
-	inputColor1Operation->read(&inputColor1[0], x, y, sampler, inputBuffers);
-	inputColor2Operation->read(&inputColor2[0], x, y, sampler, inputBuffers);
+	this->m_inputValueOperation->read(&value, x, y, sampler, inputBuffers);
+	this->m_inputColor1Operation->read(&inputColor1[0], x, y, sampler, inputBuffers);
+	this->m_inputColor2Operation->read(&inputColor2[0], x, y, sampler, inputBuffers);
 	
 	if (this->useValueAlphaMultiply()) {
 		value *= inputColor2[3];
@@ -42,15 +43,15 @@ void MixDivideOperation::executePixel(float *outputValue, float x, float y, Pixe
 	float valuem = 1.0f - value;
 	
 	if (inputColor2[0] != 0.0f)
-		outputValue[0] = valuem*(inputColor1[0]) + value*(inputColor1[0])/inputColor2[0];
+		outputValue[0] = valuem * (inputColor1[0]) + value * (inputColor1[0]) / inputColor2[0];
 	else
 		outputValue[0] = 0.0f;
 	if (inputColor2[1] != 0.0f)
-		outputValue[1] = valuem*(inputColor1[1]) + value*(inputColor1[1])/inputColor2[1];
+		outputValue[1] = valuem * (inputColor1[1]) + value * (inputColor1[1]) / inputColor2[1];
 	else
 		outputValue[1] = 0.0f;
 	if (inputColor2[2] != 0.0f)
-		outputValue[2] = valuem*(inputColor1[2]) + value*(inputColor1[2])/inputColor2[2];
+		outputValue[2] = valuem * (inputColor1[2]) + value * (inputColor1[2]) / inputColor2[2];
 	else
 		outputValue[2] = 0.0f;
 	

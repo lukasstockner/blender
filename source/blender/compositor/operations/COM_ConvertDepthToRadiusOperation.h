@@ -26,47 +26,47 @@
 #include "DNA_object_types.h"
 
 /**
-  * this program converts an input colour to an output value.
-  * it assumes we are in sRGB colour space.
-  */
+ * this program converts an input colour to an output value.
+ * it assumes we are in sRGB colour space.
+ */
 class ConvertDepthToRadiusOperation : public NodeOperation {
 private:
 	/**
-	  * Cached reference to the inputProgram
-	  */
-	SocketReader * inputOperation;
-	float fStop;
-	float aspect;
-	float maxRadius;
-	float inverseFocalDistance;
-	float aperture;
-	float cam_lens;
-	float dof_sp;
-	Object *cameraObject;
+	 * Cached reference to the inputProgram
+	 */
+	SocketReader *m_inputOperation;
+	float m_fStop;
+	float m_aspect;
+	float m_maxRadius;
+	float m_inverseFocalDistance;
+	float m_aperture;
+	float m_cam_lens;
+	float m_dof_sp;
+	Object *m_cameraObject;
 public:
 	/**
-	  * Default constructor
-	  */
+	 * Default constructor
+	 */
 	ConvertDepthToRadiusOperation();
 	
 	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 	
 	/**
-	  * Initialize the execution
-	  */
+	 * Initialize the execution
+	 */
 	void initExecution();
 	
 	/**
-	  * Deinitialize the execution
-	  */
+	 * Deinitialize the execution
+	 */
 	void deinitExecution();
 	
-	void setfStop(float fStop) {this->fStop = fStop;}
-	void setMaxRadius(float maxRadius) {this->maxRadius = maxRadius;}
-	void setCameraObject(Object *camera) {this->cameraObject = camera;}
+	void setfStop(float fStop) { this->m_fStop = fStop; }
+	void setMaxRadius(float maxRadius) { this->m_maxRadius = maxRadius; }
+	void setCameraObject(Object *camera) { this->m_cameraObject = camera; }
 	float determineFocalDistance();
 };
 #endif

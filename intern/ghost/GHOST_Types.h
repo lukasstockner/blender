@@ -37,7 +37,11 @@
 #include "MEM_guardedalloc.h"
 #endif
 
-#define GHOST_DECLARE_HANDLE(name) typedef struct name##__ { int unused; } *name
+#if defined(WITH_CXX_GUARDEDALLOC) && defined(__cplusplus)
+#  define GHOST_DECLARE_HANDLE(name) typedef struct name##__ { int unused; MEM_CXX_CLASS_ALLOC_FUNCS(#name) } *name
+#else
+#  define GHOST_DECLARE_HANDLE(name) typedef struct name##__ { int unused; } *name
+#endif
 
 typedef char GHOST_TInt8;
 typedef unsigned char GHOST_TUns8;
@@ -56,8 +60,7 @@ typedef unsigned long long GHOST_TUns64;
 
 typedef void *GHOST_TUserDataPtr;
 
-typedef enum
-{
+typedef enum {
 	GHOST_kFailure = 0,
 	GHOST_kSuccess
 } GHOST_TSuccess;

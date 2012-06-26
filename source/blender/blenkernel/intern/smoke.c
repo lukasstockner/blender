@@ -150,6 +150,7 @@ static void fill_scs_points(Object *ob, DerivedMesh *dm, SmokeCollSettings *scs)
 struct WTURBULENCE *smoke_turbulence_init(int *UNUSED(res), int UNUSED(amplify), int UNUSED(noisetype)) { return NULL; }
 struct FLUID_3D *smoke_init(int *UNUSED(res), float *UNUSED(p0)) { return NULL; }
 void smoke_free(struct FLUID_3D *UNUSED(fluid)) {}
+float *smoke_get_density(struct FLUID_3D *UNUSED(fluid)) { return NULL; }
 void smoke_turbulence_free(struct WTURBULENCE *UNUSED(wt)) {}
 void smoke_initWaveletBlenderRNA(struct WTURBULENCE *UNUSED(wt), float *UNUSED(strength)) {}
 void smoke_initBlenderRNA(struct FLUID_3D *UNUSED(fluid), float *UNUSED(alpha), float *UNUSED(beta), float *UNUSED(dt_factor), float *UNUSED(vorticity), int *UNUSED(border_colli)) {}
@@ -1172,7 +1173,7 @@ static void update_obstacles(Scene *scene, Object *ob, SmokeDomainSettings *sds,
 
 				sub_v3_v3v3(vel, pos, oldpos);
 				/* Scale velocity to incorperate the object movement during this step */
-				mul_v3_fl(vel, 1.0 / (totalsteps * dt));
+				mul_v3_fl(vel, 1.0 / (totalsteps * dt * sds->scale));
 				// mul_v3_fl(vel, 1.0 / dt);
 
 				// DG TODO: cap velocity to maxVelMag (or maxvel)
@@ -1855,7 +1856,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 			BKE_ptcache_write(&pid, framenr);
 
 		tend();
-		// printf ( "Frame: %d, Time: %f\n\n", (int)smd->time, ( float ) tval() );
+		// printf ( "Frame: %d, Time: %f\n\n", (int)smd->time, (float) tval() );
 	}
 }
 

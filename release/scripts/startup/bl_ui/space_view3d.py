@@ -979,7 +979,9 @@ class VIEW3D_MT_object_group(Menu):
         layout = self.layout
 
         layout.operator("group.create")
+        # layout.operator_menu_enum("group.objects_remove", "group")  # BUGGY
         layout.operator("group.objects_remove")
+        layout.operator("group.objects_remove_all")
 
         layout.separator()
 
@@ -2391,7 +2393,7 @@ class VIEW3D_PT_view3d_display(Panel):
             col.prop(gs, "material_mode", text="")
             col.prop(view, "show_textured_solid")
 
-        col.prop(view, "show_backface_culling")            
+        col.prop(view, "show_backface_culling")
 
         layout.separator()
 
@@ -2556,7 +2558,7 @@ class VIEW3D_PT_background_image(Panel):
                         has_bg = True
 
                 elif bg.source == 'MOVIE_CLIP':
-                    box.prop(bg, 'use_camera_clip')
+                    box.prop(bg, "use_camera_clip")
 
                     column = box.column()
                     column.active = not bg.use_camera_clip
@@ -2575,13 +2577,21 @@ class VIEW3D_PT_background_image(Panel):
 
                 if has_bg:
                     col = box.column()
-                    col.prop(bg, "show_on_foreground")
                     col.prop(bg, "opacity", slider=True)
+
+                    rowsub = col.row()
+                    rowsub.prop(bg, "draw_depth", expand=True)
+
+                    if bg.view_axis in {'CAMERA', 'ALL'}:
+                        rowsub = col.row()
+                        rowsub.prop(bg, "frame_method", expand=True)
+
+                    row = col.row(align=True)
+                    row.prop(bg, "offset_x", text="X")
+                    row.prop(bg, "offset_y", text="Y")
+
                     if bg.view_axis != 'CAMERA':
                         col.prop(bg, "size")
-                        row = col.row(align=True)
-                        row.prop(bg, "offset_x", text="X")
-                        row.prop(bg, "offset_y", text="Y")
 
 
 class VIEW3D_PT_transform_orientations(Panel):

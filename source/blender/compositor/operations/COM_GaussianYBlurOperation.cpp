@@ -27,48 +27,64 @@ extern "C" {
 	#include "RE_pipeline.h"
 }
 
-GaussianYBlurOperation::GaussianYBlurOperation(): BlurBaseOperation()
+GaussianYBlurOperation::GaussianYBlurOperation() : BlurBaseOperation(COM_DT_COLOR)
 {
-	this->gausstab = NULL;
-	this->rad = 0;
+	this->m_gausstab = NULL;
+	this->m_rad = 0;
 }
 
 void *GaussianYBlurOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers)
 {
-	updateGauss(memoryBuffers);
+	lockMutex();
+	if (!this->m_sizeavailable) {
+		updateGauss(memoryBuffers);
+	}
 	void *buffer = getInputOperation(0)->initializeTileData(NULL, memoryBuffers);
+	unlockMutex();
 	return buffer;
+}
+
+void GaussianYBlurOperation::initExecution()
+{
+	BlurBaseOperation::initExecution();
+
+	initMutex();
+
+	if (this->m_sizeavailable) {
+		float rad = this->m_size * this->m_data->sizey;
+		if (rad < 1)
+			rad = 1;
+
+		this->m_rad = rad;
+		this->m_gausstab = BlurBaseOperation::make_gausstab(rad);
+	}
 }
 
 void GaussianYBlurOperation::updateGauss(MemoryBuffer **memoryBuffers)
 {
-	if (this->gausstab == NULL) {
+	if (this->m_gausstab == NULL) {
 		updateSize(memoryBuffers);
-		float rad = size*this->data->sizey;
-		if (rad<1)
+		float rad = this->m_size * this->m_data->sizey;
+		if (rad < 1)
 			rad = 1;
-		
-		this->rad = rad;
-		this->gausstab = BlurBaseOperation::make_gausstab(rad);
+
+		this->m_rad = rad;
+		this->m_gausstab = BlurBaseOperation::make_gausstab(rad);
 	}
 }
 
 void GaussianYBlurOperation::executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void *data)
 {
-	float tempColor[4];
-	tempColor[0] = 0;
-	tempColor[1] = 0;
-	tempColor[2] = 0;
-	tempColor[3] = 0;
-	float overallmultiplyer = 0;
-	MemoryBuffer *inputBuffer = (MemoryBuffer*)data;
+	float color_accum[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+	float multiplier_accum = 0.0f;
+	MemoryBuffer *inputBuffer = (MemoryBuffer *)data;
 	float *buffer = inputBuffer->getBuffer();
 	int bufferwidth = inputBuffer->getWidth();
 	int bufferstartx = inputBuffer->getRect()->xmin;
 	int bufferstarty = inputBuffer->getRect()->ymin;
 
-	int miny = y - this->rad;
-	int maxy = y + this->rad;
+	int miny = y - this->m_rad;
+	int maxy = y + this->m_rad;
 	int minx = x;
 	int maxx = x;
 	miny = max(miny, inputBuffer->getRect()->ymin);
@@ -76,29 +92,25 @@ void GaussianYBlurOperation::executePixel(float *color, int x, int y, MemoryBuff
 	maxy = min(maxy, inputBuffer->getRect()->ymax);
 	maxx = min(maxx, inputBuffer->getRect()->xmax);
 
+	int index;
 	int step = getStep();
-	int index = 0;
-	for (int ny = miny ; ny < maxy ; ny +=step) {
-		int bufferindex = ((minx - bufferstartx)*4)+((ny-bufferstarty)*4*bufferwidth);
-		float multiplyer = gausstab[index++];
-		tempColor[0] += multiplyer * buffer[bufferindex];
-		tempColor[1] += multiplyer * buffer[bufferindex+1];
-		tempColor[2] += multiplyer * buffer[bufferindex+2];
-		tempColor[3] += multiplyer * buffer[bufferindex+3];
-		overallmultiplyer += multiplyer;
+	for (int ny = miny; ny < maxy; ny += step) {
+		index = (ny - y) + this->m_rad;
+		int bufferindex = ((minx - bufferstartx) * 4) + ((ny - bufferstarty) * 4 * bufferwidth);
+		const float multiplier = this->m_gausstab[index];
+		madd_v4_v4fl(color_accum, &buffer[bufferindex], multiplier);
+		multiplier_accum += multiplier;
 	}
-	float divider = 1.0/overallmultiplyer;
-	color[0] = tempColor[0]*divider;
-	color[1] = tempColor[1]*divider;
-	color[2] = tempColor[2]*divider;
-	color[3] = tempColor[3]*divider;
+	mul_v4_v4fl(color, color_accum, 1.0f / multiplier_accum);
 }
 
 void GaussianYBlurOperation::deinitExecution()
 {
 	BlurBaseOperation::deinitExecution();
-	delete this->gausstab;
-	this->gausstab = NULL;
+	delete [] this->m_gausstab;
+	this->m_gausstab = NULL;
+
+	deinitMutex();
 }
 
 bool GaussianYBlurOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output)
@@ -110,22 +122,22 @@ bool GaussianYBlurOperation::determineDependingAreaOfInterest(rcti *input, ReadB
 	sizeInput.xmax = 5;
 	sizeInput.ymax = 5;
 	
-	NodeOperation * operation = this->getInputOperation(1);
+	NodeOperation *operation = this->getInputOperation(1);
 	if (operation->determineDependingAreaOfInterest(&sizeInput, readOperation, output)) {
 		return true;
 	}
 	else {
-		if (this->gausstab == NULL) {
+		if (this->m_sizeavailable && this->m_gausstab != NULL) {
+			newInput.xmax = input->xmax;
+			newInput.xmin = input->xmin;
+			newInput.ymax = input->ymax + this->m_rad;
+			newInput.ymin = input->ymin - this->m_rad;
+		}
+		else {
 			newInput.xmax = this->getWidth();
 			newInput.xmin = 0;
 			newInput.ymax = this->getHeight();
 			newInput.ymin = 0;
-		}
-		else {
-			newInput.xmax = input->xmax;
-			newInput.xmin = input->xmin;
-			newInput.ymax = input->ymax + rad;
-			newInput.ymin = input->ymin - rad;
 		}
 		return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 	}

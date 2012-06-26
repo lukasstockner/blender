@@ -176,8 +176,9 @@ void KX_BlenderMaterial::OnConstruction(int layer)
 				spit("unable to initialize image("<<i<<") in "<< 
 						 mMaterial->matname<< ", image will not be available");
 		} 
-	
-		else {
+		// If we're using glsl materials, the textures are handled by bf_gpu, so don't load them twice!
+		// However, if we're using a custom shader, then we still need to load the textures ourselves.
+		else if (!mMaterial->glslmat || mBlenderShader) {
 			if ( mMaterial->img[i] ) {
 				if ( ! mTextures[i].InitFromImage(i, mMaterial->img[i], (mMaterial->flag[i] &MIPMAP)!=0 ))
 					spit("unable to initialize image("<<i<<") in "<< 
@@ -899,8 +900,8 @@ KX_PYMETHODDEF_DOC( KX_BlenderMaterial, getShader , "getShader()")
 			mMaterial->SetSharedMaterial(true);
 			mScene->GetBucketManager()->ReleaseDisplayLists(this);
 			return mShader->GetProxy();
-		}else
-		{
+		}
+		else {
 			// decref all references to the object
 			// then delete it!
 			// We will then go back to fixed functionality

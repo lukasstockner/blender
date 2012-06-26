@@ -1153,155 +1153,155 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 	uiBut *but;
 	short ysize;
 	const char *str;
-	
+
 	/* yco is at the top of the rect, draw downwards */
-	
+
 	set_col_sensor(sens->type, 0);
-	
+
 	switch (sens->type) {
-	case SENS_ALWAYS:
+		case SENS_ALWAYS:
 		{
 			ysize= 24;
-			
+
 			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-			
+
 			draw_default_sensor_header(sens, block, xco, yco, width);
-			
+
 			yco-= ysize;
-			
+
 			break;
 		}
-	case SENS_TOUCH:
+		case SENS_TOUCH:
 		{
-			ysize= 48; 
-			
-			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco); 
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1); 
-			
+			ysize= 48;
+
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+
 			draw_default_sensor_header(sens, block, xco, yco, width);
-			
-			ts= sens->data; 
-			
+
+			ts= sens->data;
+
 			// uiDefBut(block, TEX, 1, "Property:",	xco, yco-22, width, 19, &ts->name, 0, MAX_NAME, 0, 0, "Only look for Objects with this property");
 			uiDefIDPoinBut(block, test_matpoin_but, ID_MA, 1, "MA:", (short)(xco + 10), (short)(yco-44), (short)(width - 20), 19, &ts->ma,  "Only look for floors with this Material");
 			// uiDefButF(block, NUM, 1, "Margin:",	xco+width/2, yco-44, width/2, 19, &ts->dist, 0.0, 10.0, 100, 0, "Extra margin (distance) for larger sensitivity");
-			yco-= ysize; 
-			break; 
+			yco-= ysize;
+			break;
 		}
-	case SENS_COLLISION:
+		case SENS_COLLISION:
 		{
 			ysize= 48;
-			
+
 			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-			
+
 			draw_default_sensor_header(sens, block, xco, yco, width);
 			cs= sens->data;
-			
+
 			/* The collision sensor will become a generic collision (i.e. it     */
 			/* absorb the old touch sensor).                                     */
 
 			uiDefButBitS(block, TOG, SENS_COLLISION_PULSE, B_REDR, "Pulse", (short)(xco + 10), (short)(yco - 44),
-				(short)(0.20 * (width-20)), 19, &cs->mode, 0.0, 0.0, 0, 0,
-				"Changes to the set of colliding objects generated pulses");
-			
+			             (short)(0.20 * (width-20)), 19, &cs->mode, 0.0, 0.0, 0, 0,
+			             "Changes to the set of colliding objects generated pulses");
+
 			uiDefButBitS(block, TOG, SENS_COLLISION_MATERIAL, B_REDR, "M/P", (short)(xco + 10 + (0.20 * (width-20))), (short)(yco - 44),
-				(short)(0.20 * (width-20)), 19, &cs->mode, 0.0, 0.0, 0, 0,
-				"Toggle collision on material or property");
-			
+			             (short)(0.20 * (width-20)), 19, &cs->mode, 0.0, 0.0, 0, 0,
+			             "Toggle collision on material or property");
+
 			if (cs->mode & SENS_COLLISION_MATERIAL) {
 				uiDefBut(block, TEX, 1, "Material:", (short)(xco + 10 + 0.40 * (width-20)),
-					(short)(yco-44), (short)(0.6*(width-20)), 19, &cs->materialName, 0, MAX_NAME, 0, 0,
-					"Only look for Objects with this material");
+				         (short)(yco-44), (short)(0.6*(width-20)), 19, &cs->materialName, 0, MAX_NAME, 0, 0,
+				         "Only look for Objects with this material");
 			}
 			else {
 				uiDefBut(block, TEX, 1, "Property:", (short)(xco + 10 + 0.40 * (width-20)), (short)(yco-44),
-					(short)(0.6*(width-20)), 19, &cs->name, 0, MAX_NAME, 0, 0,
-					"Only look for Objects with this property");
+				         (short)(0.6*(width-20)), 19, &cs->name, 0, MAX_NAME, 0, 0,
+				         "Only look for Objects with this property");
 			}
-	
+
 			/* uiDefButS(block, NUM, 1, "Damp:",	xco+10+width-90, yco-24, 70, 19, &cs->damp, 0, 250, 0, 0, "For 'damp' time don't detect another collision"); */
-			
+
 			yco-= ysize;
 			break;
 		}
-	case SENS_NEAR:
+		case SENS_NEAR:
 		{
 			ysize= 72;
-			
+
 			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-			
+
 			draw_default_sensor_header(sens, block, xco, yco, width);
 			ns= sens->data;
-			
+
 			uiDefBut(block, TEX, 1, "Property:", (short)(10+xco), (short)(yco-44), (short)(width-20), 19,
-				&ns->name, 0, MAX_NAME, 0, 0, "Only look for Objects with this property");
+			         &ns->name, 0, MAX_NAME, 0, 0, "Only look for Objects with this property");
 			uiDefButF(block, NUM, 1, "Dist", (short)(10+xco), (short)(yco-68), (short)((width-22)/2), 19,
-				&ns->dist, 0.0, 1000.0, 1000, 0, "Trigger distance");
+			          &ns->dist, 0.0, 1000.0, 1000, 0, "Trigger distance");
 			uiDefButF(block, NUM, 1, "Reset", (short)(10+xco+(width-22)/2), (short)(yco-68), (short)((width-22)/2), 19,
-				&ns->resetdist, 0.0, 1000.0, 1000, 0, "Reset distance"); 
+			          &ns->resetdist, 0.0, 1000.0, 1000, 0, "Reset distance");
 			yco-= ysize;
 			break;
 		}
-	case SENS_RADAR:
+		case SENS_RADAR:
 		{
-			ysize= 72; 
-			
+			ysize= 72;
+
 			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-			
-			draw_default_sensor_header(sens, block, xco, yco, width);
-			
-			rs= sens->data;
-			
-			uiDefBut(block, TEX, 1, "Prop:",
-					 (short)(10+xco), (short)(yco-44), (short)(0.7 * (width-20)), 19,
-					 &rs->name, 0, MAX_NAME, 0, 0,
-					 "Only look for Objects with this property");
 
-			str = "Type %t|+X axis %x0|+Y axis %x1|+Z axis %x2|-X axis %x3|-Y axis %x4|-Z axis %x5"; 
+			draw_default_sensor_header(sens, block, xco, yco, width);
+
+			rs= sens->data;
+
+			uiDefBut(block, TEX, 1, "Prop:",
+			         (short)(10+xco), (short)(yco-44), (short)(0.7 * (width-20)), 19,
+			         &rs->name, 0, MAX_NAME, 0, 0,
+			         "Only look for Objects with this property");
+
+			str = "Type %t|+X axis %x0|+Y axis %x1|+Z axis %x2|-X axis %x3|-Y axis %x4|-Z axis %x5";
 			uiDefButS(block, MENU, B_REDR, str,
-				(short)(10+xco+0.7 * (width-20)), (short)(yco-44), (short)(0.3 * (width-22)), 19,
-				&rs->axis, 2.0, 31, 0, 0,
-				"Specify along which axis the radar cone is cast");
-				
+			          (short)(10+xco+0.7 * (width-20)), (short)(yco-44), (short)(0.3 * (width-22)), 19,
+			          &rs->axis, 2.0, 31, 0, 0,
+			          "Specify along which axis the radar cone is cast");
+
 			uiDefButF(block, NUM, 1, "Ang:",
-					 (short)(10+xco), (short)(yco-68), (short)((width-20)/2), 19,
-					 &rs->angle, 0.0, 179.9, 10, 0,
-					 "Opening angle of the radar cone");
+			          (short)(10+xco), (short)(yco-68), (short)((width-20)/2), 19,
+			          &rs->angle, 0.0, 179.9, 10, 0,
+			          "Opening angle of the radar cone");
 			uiDefButF(block, NUM, 1, "Dist:",
-					 (short)(xco+10 + (width-20)/2), (short)(yco-68), (short)((width-20)/2), 19,
-					 &rs->range, 0.01, 10000.0, 100, 0,
-					 "Depth of the radar cone");
+			          (short)(xco+10 + (width-20)/2), (short)(yco-68), (short)((width-20)/2), 19,
+			          &rs->range, 0.01, 10000.0, 100, 0,
+			          "Depth of the radar cone");
 			yco-= ysize;
 			break;
 		}
-	case SENS_KEYBOARD:
+		case SENS_KEYBOARD:
 		{
 			ks= sens->data;
-			
+
 			/* 5 lines: 120 height */
 			ysize= (ks->type&1) ? 96:120;
-			
+
 			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-			
+
 			/* header line */
 			draw_default_sensor_header(sens, block, xco, yco, width);
-			
+
 			/* part of line 1 */
 			uiDefBut(block, LABEL, 0, "Key",	  xco, yco-44, 40, 19, NULL, 0, 0, 0, 0, "");
 			uiDefButBitS(block, TOG, 1, B_REDR, "All keys",	  xco+40+(width/2), yco-44, (width/2)-50, 19,
-				&ks->type, 0, 0, 0, 0, "");
-			
-			
+			             &ks->type, 0, 0, 0, 0, "");
+
+
 			if ((ks->type&1)==0) { /* is All Keys option off? */
 				/* line 2: hotkey and allkeys toggle */
 				but = uiDefKeyevtButS(block, 0, "", xco+40, yco-44, (width)/2, 19, &ks->key, "Key code");
 				uiButSetFunc(but, test_keyboard_event, ks, NULL);
-				
+
 				/* line 3: two key modifyers (qual1, qual2) */
 				uiDefBut(block, LABEL, 0, "Hold",	  xco, yco-68, 40, 19, NULL, 0, 0, 0, 0, "");
 				but = uiDefKeyevtButS(block, 0, "", xco+40, yco-68, (width-50)/2, 19, &ks->qual, "Modifier key code");
@@ -1309,50 +1309,50 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 				but = uiDefKeyevtButS(block, 0, "", xco+40+(width-50)/2, yco-68, (width-50)/2, 19, &ks->qual2, "Second Modifier key code");
 				uiButSetFunc(but, test_keyboard_event, ks, NULL);
 			}
-			
+
 			/* line 4: toggle property for string logging mode */
 			uiDefBut(block, TEX, 1, "LogToggle: ",
-				xco+10, yco-((ks->type&1) ? 68:92), (width-20), 19,
-				ks->toggleName, 0, MAX_NAME, 0, 0,
-				"Property that indicates whether to log "
-				"keystrokes as a string");
-			
+			         xco+10, yco-((ks->type&1) ? 68:92), (width-20), 19,
+			         ks->toggleName, 0, MAX_NAME, 0, 0,
+			         "Property that indicates whether to log "
+			         "keystrokes as a string");
+
 			/* line 5: target property for string logging mode */
 			uiDefBut(block, TEX, 1, "Target: ",
-				xco+10, yco-((ks->type&1) ? 92:116), (width-20), 19,
-				ks->targetName, 0, MAX_NAME, 0, 0,
-				"Property that receives the keystrokes in case "
-				"a string is logged");
-			
+			         xco+10, yco-((ks->type&1) ? 92:116), (width-20), 19,
+			         ks->targetName, 0, MAX_NAME, 0, 0,
+			         "Property that receives the keystrokes in case "
+			         "a string is logged");
+
 			yco-= ysize;
 			break;
 		}
-	case SENS_PROPERTY:
+		case SENS_PROPERTY:
 		{
 			ysize= 96;
-			
+
 			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize,
-				(float)xco+width, (float)yco, 1);
-			
+			         (float)xco+width, (float)yco, 1);
+
 			draw_default_sensor_header(sens, block, xco, yco, width);
 			ps= sens->data;
-			
-			str= "Type %t|Equal %x0|Not Equal %x1|Interval %x2|Changed %x3"; 
+
+			str= "Type %t|Equal %x0|Not Equal %x1|Interval %x2|Changed %x3";
 			/* str= "Type %t|Equal %x0|Not Equal %x1"; */
 			uiDefButI(block, MENU, B_REDR, str,			xco+30, yco-44, width-60, 19,
-				&ps->type, 0, 31, 0, 0, "Type");
-			
+			          &ps->type, 0, 31, 0, 0, "Type");
+
 			if (ps->type != SENS_PROP_EXPRESSION) {
 				uiDefBut(block, TEX, 1, "Prop: ",			xco+30, yco-68, width-60, 19,
-					ps->name, 0, MAX_NAME, 0, 0,  "Property name");
+				         ps->name, 0, MAX_NAME, 0, 0,  "Property name");
 			}
-			
+
 			if (ps->type == SENS_PROP_INTERVAL) {
 				uiDefBut(block, TEX, 1, "Min: ",		xco, yco-92, width/2, 19,
-					ps->value, 0, MAX_NAME, 0, 0, "check for min value");
+				         ps->value, 0, MAX_NAME, 0, 0, "check for min value");
 				uiDefBut(block, TEX, 1, "Max: ",		xco+width/2, yco-92, width/2, 19,
-					ps->maxvalue, 0, MAX_NAME, 0, 0, "check for max value");
+				         ps->maxvalue, 0, MAX_NAME, 0, 0, "check for max value");
 			}
 			else if (ps->type == SENS_PROP_CHANGED) {
 				/* pass */
@@ -1361,199 +1361,199 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 				uiDefBut(block, TEX, 1, "Value: ",		xco+30, yco-92, width-60, 19,
 				         ps->value, 0, MAX_NAME, 0, 0, "check for value");
 			}
-			
+
 			yco-= ysize;
 			break;
 		}
-	case SENS_ARMATURE:
+		case SENS_ARMATURE:
 		{
 			ysize= 70;
-			
+
 			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize,
-				(float)xco+width, (float)yco, 1);
-			
+			         (float)xco+width, (float)yco, 1);
+
 			draw_default_sensor_header(sens, block, xco, yco, width);
 			arm= sens->data;
 
 			if (ob->type == OB_ARMATURE) {
 				uiBlockBeginAlign(block);
 				but = uiDefBut(block, TEX, 1, "Bone: ",
-						(xco+10), (yco-44), (width-20)/2, 19,
-						arm->posechannel, 0, MAX_NAME, 0, 0,
-						"Bone on which you want to check a constraint");
+				               (xco+10), (yco-44), (width-20)/2, 19,
+				               arm->posechannel, 0, MAX_NAME, 0, 0,
+				               "Bone on which you want to check a constraint");
 				uiButSetFunc(but, check_armature_sensor, but, arm);
 				but = uiDefBut(block, TEX, 1, "Cons: ",
-						(xco+10)+(width-20)/2, (yco-44), (width-20)/2, 19,
-						arm->constraint, 0, MAX_NAME, 0, 0,
-						"Name of the constraint you want to control");
+				               (xco+10)+(width-20)/2, (yco-44), (width-20)/2, 19,
+				               arm->constraint, 0, MAX_NAME, 0, 0,
+				               "Name of the constraint you want to control");
 				uiButSetFunc(but, check_armature_sensor, but, arm);
 				uiBlockEndAlign(block);
 
-				str= "Type %t|State changed %x0|Lin error below %x1|Lin error above %x2|Rot error below %x3|Rot error above %x4"; 
+				str= "Type %t|State changed %x0|Lin error below %x1|Lin error above %x2|Rot error below %x3|Rot error above %x4";
 
 				uiDefButI(block, MENU, B_REDR, str,			xco+10, yco-66, 0.4*(width-20), 19,
-					&arm->type, 0, 31, 0, 0, "Type");
-			
+				          &arm->type, 0, 31, 0, 0, "Type");
+
 				if (arm->type != SENS_ARM_STATE_CHANGED) {
 					uiDefButF(block, NUM, 1, "Value: ",		xco+10+0.4*(width-20), yco-66, 0.6*(width-20), 19,
-					&arm->value, -10000.0, 10000.0, 100, 0, "Test the error against this value");
+					          &arm->value, -10000.0, 10000.0, 100, 0, "Test the error against this value");
 				}
 			}
 			yco-= ysize;
 			break;
 		}
-	case SENS_ACTUATOR:
+		case SENS_ACTUATOR:
 		{
 			ysize= 48;
-			
+
 			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize,
-				(float)xco+width, (float)yco, 1);
-			
+			         (float)xco+width, (float)yco, 1);
+
 			draw_default_sensor_header(sens, block, xco, yco, width);
 			as= sens->data;
-			
+
 			uiDefBut(block, TEX, 1, "Act: ",			xco+30, yco-44, width-60, 19,
-					as->name, 0, MAX_NAME, 0, 0,  "Actuator name, actuator active state modifications will be detected");
+			         as->name, 0, MAX_NAME, 0, 0,  "Actuator name, actuator active state modifications will be detected");
 			yco-= ysize;
 			break;
 		}
-	case SENS_DELAY:
+		case SENS_DELAY:
 		{
 			ysize= 48;
-			
+
 			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize,
-				(float)xco+width, (float)yco, 1);
-			
+			         (float)xco+width, (float)yco, 1);
+
 			draw_default_sensor_header(sens, block, xco, yco, width);
 			ds = sens->data;
-			
+
 			uiDefButS(block, NUM, 0, "Delay", (short)(10+xco), (short)(yco-44), (short)((width-22)*0.4+10), 19,
-				&ds->delay, 0.0, 5000.0, 0, 0, "Delay in number of logic tics before the positive trigger (default 60 per second)");
+			          &ds->delay, 0.0, 5000.0, 0, 0, "Delay in number of logic tics before the positive trigger (default 60 per second)");
 			uiDefButS(block, NUM, 0, "Dur", (short)(10+xco+(width-22)*0.4+10), (short)(yco-44), (short)((width-22)*0.4-10), 19,
-				&ds->duration, 0.0, 5000.0, 0, 0, "If >0, delay in number of logic tics before the negative trigger following the positive trigger");
+			          &ds->duration, 0.0, 5000.0, 0, 0, "If >0, delay in number of logic tics before the negative trigger following the positive trigger");
 			uiDefButBitS(block, TOG, SENS_DELAY_REPEAT, 0, "REP", (short)(xco + 10 + (width-22)*0.8), (short)(yco - 44),
-				(short)(0.20 * (width-22)), 19, &ds->flag, 0.0, 0.0, 0, 0,
-				"Toggle repeat option. If selected, the sensor restarts after Delay+Dur logic tics");
+			             (short)(0.20 * (width-22)), 19, &ds->flag, 0.0, 0.0, 0, 0,
+			             "Toggle repeat option. If selected, the sensor restarts after Delay+Dur logic tics");
 			yco-= ysize;
 			break;
 		}
-	case SENS_MOUSE:
+		case SENS_MOUSE:
 		{
 			ms= sens->data;
 			/* Two lines: 48 pixels high. */
 			ysize = 48;
-			
+
 			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-			
+
 			/* line 1: header */
 			draw_default_sensor_header(sens, block, xco, yco, width);
-			
+
 			/* Line 2: type selection. The number are a bit mangled to get
 			 * proper compatibility with older .blend files. */
 
 			/* Any sensor type default is 0 but the ms enum starts in 1.
 			 * Therefore the mouse sensor is initialized to 1 in sca.c */
 			str= "Type %t|Left button %x1|Middle button %x2|"
-				"Right button %x4|Wheel Up %x5|Wheel Down %x6|Movement %x8|Mouse over %x16|Mouse over any%x32"; 
+			     "Right button %x4|Wheel Up %x5|Wheel Down %x6|Movement %x8|Mouse over %x16|Mouse over any%x32";
 			uiDefButS(block, MENU, B_REDR, str, xco+10, yco-44, (width*0.8f)-20, 19,
-				&ms->type, 0, 31, 0, 0,
-				"Specify the type of event this mouse sensor should trigger on");
-			
+			          &ms->type, 0, 31, 0, 0,
+			          "Specify the type of event this mouse sensor should trigger on");
+
 			if (ms->type==32) {
 				uiDefButBitS(block, TOG, SENS_MOUSE_FOCUS_PULSE, B_REDR, "Pulse", (short)(xco + 10) + (width*0.8f)-20, (short)(yco - 44),
-					(short)(0.20 * (width-20)), 19, &ms->flag, 0.0, 0.0, 0, 0,
-					"Moving the mouse over a different object generates a pulse");	
+				             (short)(0.20 * (width-20)), 19, &ms->flag, 0.0, 0.0, 0, 0,
+				             "Moving the mouse over a different object generates a pulse");
 			}
-			
+
 			yco-= ysize;
 			break;
 		}
-	case SENS_RANDOM:
+		case SENS_RANDOM:
 		{
 			ysize = 48;
-			
+
 			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-			
+
 			draw_default_sensor_header(sens, block, xco, yco, width);
 			randomSensor = sens->data;
 			/* some files were wrongly written, avoid crash now */
 			if (randomSensor) {
 				uiDefButI(block, NUM, 1, "Seed: ",		xco+10, yco-44, (width-20), 19,
-					&randomSensor->seed, 0, 1000, 0, 0,
-					"Initial seed of the generator. (Choose 0 for not random)");
+				          &randomSensor->seed, 0, 1000, 0, 0,
+				          "Initial seed of the generator. (Choose 0 for not random)");
 			}
 			yco-= ysize;
 			break;
 		}
-	case SENS_RAY:
+		case SENS_RAY:
 		{
 			ysize = 72;
 			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-			
+
 			draw_default_sensor_header(sens, block, xco, yco, width);
 			raySens = sens->data;
-			
+
 			/* 1. property or material */
 			uiDefButBitS(block, TOG, SENS_COLLISION_MATERIAL, B_REDR, "M/P",
-				xco + 10, yco - 44, 0.20 * (width-20), 19,
-				&raySens->mode, 0.0, 0.0, 0, 0,
-				"Toggle collision on material or property");
-			
+			             xco + 10, yco - 44, 0.20 * (width-20), 19,
+			             &raySens->mode, 0.0, 0.0, 0, 0,
+			             "Toggle collision on material or property");
+
 			if (raySens->mode & SENS_COLLISION_MATERIAL) {
 				uiDefBut(block, TEX, 1, "Material:", xco + 10 + 0.20 * (width-20), yco-44, 0.8*(width-20), 19,
-					&raySens->matname, 0, MAX_NAME, 0, 0,
-					"Only look for Objects with this material");
+				         &raySens->matname, 0, MAX_NAME, 0, 0,
+				         "Only look for Objects with this material");
 			}
 			else {
 				uiDefBut(block, TEX, 1, "Property:", xco + 10 + 0.20 * (width-20), yco-44, 0.8*(width-20), 19,
-					&raySens->propname, 0, MAX_NAME, 0, 0,
-					"Only look for Objects with this property");
+				         &raySens->propname, 0, MAX_NAME, 0, 0,
+				         "Only look for Objects with this property");
 			}
 
 			/* X-Ray option */
 			uiDefButBitS(block, TOG, SENS_RAY_XRAY, 1, "X",
-				xco + 10, yco - 68, 0.10 * (width-20), 19,
-				&raySens->mode, 0.0, 0.0, 0, 0,
-				"Toggle X-Ray option (see through objects that don't have the property)");
+			             xco + 10, yco - 68, 0.10 * (width-20), 19,
+			             &raySens->mode, 0.0, 0.0, 0, 0,
+			             "Toggle X-Ray option (see through objects that don't have the property)");
 			/* 2. sensing range */
 			uiDefButF(block, NUM, 1, "Range", xco+10 + 0.10 * (width-20), yco-68, 0.5 * (width-20), 19,
-				&raySens->range, 0.01, 10000.0, 100, 0,
-				"Sense objects no farther than this distance");
-			
+			          &raySens->range, 0.01, 10000.0, 100, 0,
+			          "Sense objects no farther than this distance");
+
 			/* 3. axis choice */
-			str = "Type %t|+ X axis %x1|+ Y axis %x0|+ Z axis %x2|- X axis %x3|- Y axis %x4|- Z axis %x5"; 
+			str = "Type %t|+ X axis %x1|+ Y axis %x0|+ Z axis %x2|- X axis %x3|- Y axis %x4|- Z axis %x5";
 			uiDefButI(block, MENU, B_REDR, str, xco+10 + 0.6 * (width-20), yco-68, 0.4 * (width-20), 19,
-				&raySens->axisflag, 2.0, 31, 0, 0,
-				"Specify along which axis the ray is cast");
-			
-			yco-= ysize;		
+			          &raySens->axisflag, 2.0, 31, 0, 0,
+			          "Specify along which axis the ray is cast");
+
+			yco-= ysize;
 			break;
 		}
-	case SENS_MESSAGE:
+		case SENS_MESSAGE:
 		{
 			mes = sens->data;
 			ysize = 2 * 24; /* total number of lines * 24 pixels/line */
-			
+
 			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize,
-				(float)xco+width, (float)yco, 1);
-			
+			         (float)xco+width, (float)yco, 1);
+
 			/* line 1: header line */
 			draw_default_sensor_header(sens, block, xco, yco, width);
-			
+
 			/* line 2: Subject filter */
 			uiDefBut(block, TEX, 1, "Subject: ",
-				(xco+10), (yco-44), (width-20), 19,
-				mes->subject, 0, MAX_NAME, 0, 0,
-				"Optional subject filter: only accept messages with this subject"
-				", or empty for all");
-			
+			         (xco+10), (yco-44), (width-20), 19,
+			         mes->subject, 0, MAX_NAME, 0, 0,
+			         "Optional subject filter: only accept messages with this subject"
+			         ", or empty for all");
+
 			yco -= ysize;
 			break;
 		}
@@ -1561,96 +1561,96 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 		{
 
 			ysize =  72;
-			
+
 			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-			
+
 			/* line 1: header */
 			draw_default_sensor_header(sens, block, xco, yco, width);
 
 			joy= sens->data;
 
 			uiDefButC(block, NUM, 1, "Index:", xco+10, yco-44, 0.33 * (width-20), 19,
-			&joy->joyindex, 0, SENS_JOY_MAXINDEX-1, 100, 0,
-			"Specify which joystick to use");			
+			          &joy->joyindex, 0, SENS_JOY_MAXINDEX-1, 100, 0,
+			          "Specify which joystick to use");
 
-			str= "Type %t|Button %x0|Axis %x1|Single Axis %x3|Hat%x2"; 
+			str= "Type %t|Button %x0|Axis %x1|Single Axis %x3|Hat%x2";
 			uiDefButC(block, MENU, B_REDR, str, xco+87, yco-44, 0.26 * (width-20), 19,
-				&joy->type, 0, 31, 0, 0,
-				"The type of event this joystick sensor is triggered on");
-			
+			          &joy->type, 0, 31, 0, 0,
+			          "The type of event this joystick sensor is triggered on");
+
 			if (joy->type != SENS_JOY_AXIS_SINGLE) {
 				if (joy->flag & SENS_JOY_ANY_EVENT) {
 					switch (joy->type) {
-					case SENS_JOY_AXIS:	
-						str = "All Axis Events";
-						break;
-					case SENS_JOY_BUTTON:	
-						str = "All Button Events";
-						break;
-					default:
-						str = "All Hat Events";
-						break;
+						case SENS_JOY_AXIS:
+							str = "All Axis Events";
+							break;
+						case SENS_JOY_BUTTON:
+							str = "All Button Events";
+							break;
+						default:
+							str = "All Hat Events";
+							break;
 					}
 				}
 				else {
 					str = "All";
 				}
-				
+
 				uiDefButBitS(block, TOG, SENS_JOY_ANY_EVENT, B_REDR, str,
-					xco+10 + 0.475 * (width-20), yco-68, ((joy->flag & SENS_JOY_ANY_EVENT) ? 0.525 : 0.12) * (width-20), 19,
-					&joy->flag, 0, 0, 0, 0,
-					"Triggered by all events on this joysticks current type (axis/button/hat)");
+				             xco+10 + 0.475 * (width-20), yco-68, ((joy->flag & SENS_JOY_ANY_EVENT) ? 0.525 : 0.12) * (width-20), 19,
+				             &joy->flag, 0, 0, 0, 0,
+				             "Triggered by all events on this joysticks current type (axis/button/hat)");
 			}
 			if (joy->type == SENS_JOY_BUTTON) {
 				if ((joy->flag & SENS_JOY_ANY_EVENT)==0) {
 					uiDefButI(block, NUM, 1, "Number:", xco+10 + 0.6 * (width-20), yco-68, 0.4 * (width-20), 19,
-					&joy->button, 0, 18, 100, 0,
-					"Specify which button to use");
+					          &joy->button, 0, 18, 100, 0,
+					          "Specify which button to use");
 				}
 			}
 			else if (joy->type == SENS_JOY_AXIS) {
 				uiDefButS(block, NUM, 1, "Number:", xco+10, yco-68, 0.46 * (width-20), 19,
-				&joy->axis, 1, 8.0, 100, 0,
-				"Specify which axis pair to use, 1 is useually the main direction input");
+				          &joy->axis, 1, 8.0, 100, 0,
+				          "Specify which axis pair to use, 1 is useually the main direction input");
 
 				uiDefButI(block, NUM, 1, "Threshold:", xco+10 + 0.6 * (width-20), yco-44, 0.4 * (width-20), 19,
-				&joy->precision, 0, 32768.0, 100, 0,
-				"Specify the precision of the axis");
+				          &joy->precision, 0, 32768.0, 100, 0,
+				          "Specify the precision of the axis");
 
 				if ((joy->flag & SENS_JOY_ANY_EVENT)==0) {
-					str = "Type %t|Up Axis %x1 |Down Axis %x3|Left Axis %x2|Right Axis %x0"; 
+					str = "Type %t|Up Axis %x1 |Down Axis %x3|Left Axis %x2|Right Axis %x0";
 					uiDefButI(block, MENU, B_REDR, str, xco+10 + 0.6 * (width-20), yco-68, 0.4 * (width-20), 19,
-					&joy->axisf, 2.0, 31, 0, 0,
-					"The direction of the axis, use 'All Events' to receive events on any direction");
+					          &joy->axisf, 2.0, 31, 0, 0,
+					          "The direction of the axis, use 'All Events' to receive events on any direction");
 				}
 			}
 			else if (joy->type == SENS_JOY_HAT) {
 				uiDefButI(block, NUM, 1, "Number:", xco+10, yco-68, 0.46 * (width-20), 19,
-				&joy->hat, 1, 4.0, 100, 0,
-				"Specify which hat to use");
-				
+				          &joy->hat, 1, 4.0, 100, 0,
+				          "Specify which hat to use");
+
 				if ((joy->flag & SENS_JOY_ANY_EVENT)==0) {
-					str = "Direction%t|Up%x1|Down%x4|Left%x8|Right%x2|%l|Up/Right%x3|Down/Left%x12|Up/Left%x9|Down/Right%x6"; 
+					str = "Direction%t|Up%x1|Down%x4|Left%x8|Right%x2|%l|Up/Right%x3|Down/Left%x12|Up/Left%x9|Down/Right%x6";
 					uiDefButI(block, MENU, 0, str, xco+10 + 0.6 * (width-20), yco-68, 0.4 * (width-20), 19,
-					&joy->hatf, 2.0, 31, 0, 0,
-					"The direction of the hat, use 'All Events' to receive events on any direction");
+					          &joy->hatf, 2.0, 31, 0, 0,
+					          "The direction of the hat, use 'All Events' to receive events on any direction");
 				}
 			}
 			else { /* (joy->type == SENS_JOY_AXIS_SINGLE)*/
 				uiDefButS(block, NUM, 1, "Number:", xco+10, yco-68, 0.46 * (width-20), 19,
-				&joy->axis_single, 1, 16.0, 100, 0,
-				"Specify a single axis (verticle/horizontal/other) to detect");
-				
+				          &joy->axis_single, 1, 16.0, 100, 0,
+				          "Specify a single axis (verticle/horizontal/other) to detect");
+
 				uiDefButI(block, NUM, 1, "Threshold:", xco+10 + 0.6 * (width-20), yco-44, 0.4 * (width-20), 19,
-				&joy->precision, 0, 32768.0, 100, 0,
-				"Specify the precision of the axis");
+				          &joy->precision, 0, 32768.0, 100, 0,
+				          "Specify the precision of the axis");
 			}
 			yco-= ysize;
 			break;
 		}
 	}
-	
+
 	return yco-4;
 }
 
@@ -1861,7 +1861,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 	set_col_actuator(act->type, 0);
 	
 	switch (act->type) {
-	case ACT_OBJECT:
+		case ACT_OBJECT:
 		{
 			oa = act->data;
 			wval = (width-100)/3;
@@ -1892,7 +1892,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 
 				uiDefButBitS(block, TOG, ACT_DLOC_LOCAL, 0, "L",		xco+45+3*wval, yco-45, 15, 19, &oa->flag, 0.0, 0.0, 0, 0, "Local transformation");
 				uiDefButBitS(block, TOG, ACT_DROT_LOCAL, 0, "L",		xco+45+3*wval, yco-64, 15, 19, &oa->flag, 0.0, 0.0, 0, 0, "Local transformation");
-	
+
 				if (ob->gameflag & OB_DYNAMIC) {
 					uiDefBut(block, LABEL, 0, "Force",	xco, yco-87, 55, 19, NULL, 0, 0, 0, 0, "Sets the force");
 					uiBlockBeginAlign(block);
@@ -1905,7 +1905,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 					uiBlockBeginAlign(block);
 					uiDefButF(block, NUM, 0, "",		xco+45, yco-106, wval, 19, oa->forcerot, -10000.0, 10000.0, 10, 0, "");
 					uiDefButF(block, NUM, 0, "",		xco+45+wval, yco-106, wval, 19, oa->forcerot+1, -10000.0, 10000.0, 10, 0, "");
-					uiDefButF(block, NUM, 0, "",		xco+45+2*wval, yco-106, wval, 19, oa->forcerot+2, -10000.0, 10000.0, 10, 0, "");				
+					uiDefButF(block, NUM, 0, "",		xco+45+2*wval, yco-106, wval, 19, oa->forcerot+2, -10000.0, 10000.0, 10, 0, "");
 					uiBlockEndAlign(block);
 				}
 				
@@ -1916,14 +1916,14 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 					uiDefButF(block, NUM, 0, "",		xco+45+wval, yco-129, wval, 19, oa->linearvelocity+1, -10000.0, 10000.0, 10, 0, "");
 					uiDefButF(block, NUM, 0, "",		xco+45+2*wval, yco-129, wval, 19, oa->linearvelocity+2, -10000.0, 10000.0, 10, 0, "");
 					uiBlockEndAlign(block);
-				
+
 					uiDefBut(block, LABEL, 0, "AngV",	xco, yco-148, 45, 19, NULL, 0, 0, 0, 0, "Sets the angular velocity");
 					uiBlockBeginAlign(block);
 					uiDefButF(block, NUM, 0, "",		xco+45, yco-148, wval, 19, oa->angularvelocity, -10000.0, 10000.0, 10, 0, "");
 					uiDefButF(block, NUM, 0, "",		xco+45+wval, yco-148, wval, 19, oa->angularvelocity+1, -10000.0, 10000.0, 10, 0, "");
 					uiDefButF(block, NUM, 0, "",		xco+45+2*wval, yco-148, wval, 19, oa->angularvelocity+2, -10000.0, 10000.0, 10, 0, "");
 					uiBlockEndAlign(block);
-				
+
 					uiDefBut(block, LABEL, 0, "Damp",	xco, yco-171, 45, 19, NULL, 0, 0, 0, 0, "Number of frames to reach the target velocity");
 					uiDefButS(block, NUM, 0, "",		xco+45, yco-171, wval, 19, &oa->damping, 0.0, 1000.0, 100, 0, "");
 
@@ -1931,9 +1931,9 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 					uiDefButBitS(block, TOG, ACT_TORQUE_LOCAL, 0, "L",		xco+45+3*wval, yco-106, 15, 19, &oa->flag, 0.0, 0.0, 0, 0, "Local transformation");
 					uiDefButBitS(block, TOG, ACT_LIN_VEL_LOCAL, 0, "L",		xco+45+3*wval, yco-129, 15, 19, &oa->flag, 0.0, 0.0, 0, 0, "Local transformation");
 					uiDefButBitS(block, TOG, ACT_ANG_VEL_LOCAL, 0, "L",		xco+45+3*wval, yco-148, 15, 19, &oa->flag, 0.0, 0.0, 0, 0, "Local transformation");
-				
+
 					uiDefButBitS(block, TOG, ACT_ADD_LIN_VEL, 0, "use_additive", xco+45+3*wval+15, yco-129, 35, 19, &oa->flag, 0.0, 0.0, 0, 0, "Toggles between ADD and SET linV");
-				}				
+				}
 			}
 			else if (oa->type == ACT_OBJECT_SERVO) {
 				ysize= 195;
@@ -1986,8 +1986,8 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 			yco-= ysize;
 			break;
 		}
-	case ACT_ACTION:
-	case ACT_SHAPEACTION:
+		case ACT_ACTION:
+		case ACT_SHAPEACTION:
 		{
 			/* DrawAct */
 #ifdef __NLA_ACTION_BY_MOTION_ACTUATOR
@@ -2012,7 +2012,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 			uiDefIDPoinBut(block, test_actionpoin_but, ID_AC, 1, "AC: ", xco+10+ (width/3), yco-24, ((width/3)*2) - (20 + 60), 19, &aa->act, "Action name");
 			
 			uiDefButBitS(block, TOGN, 1, 0, "Continue", xco+((width/3)*2)+20, yco-24, 60, 19,
-					 &aa->end_reset, 0.0, 0.0, 0, 0, "Restore last frame when switching on/off, otherwise play from the start each time");
+			             &aa->end_reset, 0.0, 0.0, 0, 0, "Restore last frame when switching on/off, otherwise play from the start each time");
 			
 			
 			if (aa->type == ACT_ACTION_FROM_PROP) {
@@ -2022,7 +2022,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 				uiDefButF(block, NUM, 0, "Sta: ", xco+10, yco-44, (width-20)/2, 19, &aa->sta, 1.0, MAXFRAMEF, 0, 0, "Start frame");
 				uiDefButF(block, NUM, 0, "End: ", xco+10+(width-20)/2, yco-44, (width-20)/2, 19, &aa->end, 1.0, MAXFRAMEF, 0, 0, "End frame");
 			}
-						
+
 			uiDefButS(block, NUM, 0, "Blendin: ", xco+10, yco-64, (width-20)/2, 19, &aa->blendin, 0.0, 32767, 0.0, 0.0, "Number of frames of motion blending");
 			uiDefButS(block, NUM, 0, "Priority: ", xco+10+(width-20)/2, yco-64, (width-20)/2, 19, &aa->priority, 0.0, 100.0, 0.0, 0.0, "Execution priority - lower numbers will override actions with higher numbers, With 2 or more actions at once, the overriding channels must be lower in the stack");
 			
@@ -2040,7 +2040,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 			yco-=ysize;
 			break;
 		}
-	case ACT_IPO:
+		case ACT_IPO:
 		{
 			ia= act->data;
 			
@@ -2053,55 +2053,55 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 			
 			uiDefButS(block, MENU, B_REDR, str,		xco+10, yco-24, (width-20)/2, 19, &ia->type, 0, 0, 0, 0, "");
 
-			but = uiDefButBitS(block, TOG, ACT_IPOFORCE, ACT_IPOFORCE, 
-				"Force", xco+10+(width-20)/2, yco-24, (width-20)/4-10, 19, 
-				&ia->flag, 0, 0, 0, 0, 
-				"Apply Ipo as a global or local force depending on the local option (dynamic objects only)"); 
+			but = uiDefButBitS(block, TOG, ACT_IPOFORCE, ACT_IPOFORCE,
+			                   "Force", xco+10+(width-20)/2, yco-24, (width-20)/4-10, 19,
+			                   &ia->flag, 0, 0, 0, 0,
+			                   "Apply Ipo as a global or local force depending on the local option (dynamic objects only)");
 			uiButSetFunc(but, change_ipo_actuator, but, ia);
 
-			but = uiDefButBitS(block, TOG, ACT_IPOADD, ACT_IPOADD, 
-				"Add", xco+3*(width-20)/4, yco-24, (width-20)/4-10, 19, 
-				&ia->flag, 0, 0, 0, 0, 
-				"Ipo is added to the current loc/rot/scale in global or local coordinate according to Local flag"); 
+			but = uiDefButBitS(block, TOG, ACT_IPOADD, ACT_IPOADD,
+			                   "Add", xco+3*(width-20)/4, yco-24, (width-20)/4-10, 19,
+			                   &ia->flag, 0, 0, 0, 0,
+			                   "Ipo is added to the current loc/rot/scale in global or local coordinate according to Local flag");
 			uiButSetFunc(but, change_ipo_actuator, but, ia);
 			
 			/* Only show the do-force-local toggle if force is requested */
 			if (ia->flag & (ACT_IPOFORCE|ACT_IPOADD)) {
-				uiDefButBitS(block, TOG, ACT_IPOLOCAL, 0, 
-					"L", xco+width-30, yco-24, 20, 19, 
-					&ia->flag, 0, 0, 0, 0, 
-					"Let the ipo acts in local coordinates, used in Force and Add mode"); 
+				uiDefButBitS(block, TOG, ACT_IPOLOCAL, 0,
+				             "L", xco+width-30, yco-24, 20, 19,
+				             &ia->flag, 0, 0, 0, 0,
+				             "Let the ipo acts in local coordinates, used in Force and Add mode");
 			}
 
 			if (ia->type==ACT_IPO_FROM_PROP) {
-				uiDefBut(block, TEX, 0, 
-					"Prop: ",		xco+10, yco-44, width-80, 19, 
-					ia->name, 0.0, MAX_NAME, 0, 0,
-					"Use this property to define the Ipo position");
+				uiDefBut(block, TEX, 0,
+				         "Prop: ",		xco+10, yco-44, width-80, 19,
+				         ia->name, 0.0, MAX_NAME, 0, 0,
+				         "Use this property to define the Ipo position");
 			}
 			else {
-				uiDefButF(block, NUM, 0, 
-					"Sta",		xco+10, yco-44, (width-80)/2, 19, 
-					&ia->sta, 1.0, MAXFRAMEF, 0, 0, 
-					"Start frame");
-				uiDefButF(block, NUM, 0, 
-					"End",		xco+10+(width-80)/2, yco-44, (width-80)/2, 19, 
-					&ia->end, 1.0, MAXFRAMEF, 0, 0, 
-					"End frame");
+				uiDefButF(block, NUM, 0,
+				          "Sta",		xco+10, yco-44, (width-80)/2, 19,
+				          &ia->sta, 1.0, MAXFRAMEF, 0, 0,
+				          "Start frame");
+				uiDefButF(block, NUM, 0,
+				          "End",		xco+10+(width-80)/2, yco-44, (width-80)/2, 19,
+				          &ia->end, 1.0, MAXFRAMEF, 0, 0,
+				          "End frame");
 			}
-			uiDefButBitS(block, TOG, ACT_IPOCHILD,  B_REDR, 
-				"Child",	xco+10+(width-80), yco-44, 60, 19, 
-				&ia->flag, 0, 0, 0, 0, 
-				"Update IPO on all children Objects as well");
-			uiDefBut(block, TEX, 0, 
-				"FrameProp: ",		xco+10, yco-64, width-20, 19, 
-				ia->frameProp, 0.0, MAX_NAME, 0, 0,
-				"Assign the action's current frame number to this property");
+			uiDefButBitS(block, TOG, ACT_IPOCHILD,  B_REDR,
+			             "Child",	xco+10+(width-80), yco-44, 60, 19,
+			             &ia->flag, 0, 0, 0, 0,
+			             "Update IPO on all children Objects as well");
+			uiDefBut(block, TEX, 0,
+			         "FrameProp: ",		xco+10, yco-64, width-20, 19,
+			         ia->frameProp, 0.0, MAX_NAME, 0, 0,
+			         "Assign the action's current frame number to this property");
 
 			yco-= ysize;
 			break;
 		}
-	case ACT_PROPERTY:
+		case ACT_PROPERTY:
 		{
 			ysize= 68;
 			
@@ -2131,7 +2131,7 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 			
 			break;
 		}
-	case ACT_SOUND:
+		case ACT_SOUND:
 		{
 			sa = act->data;
 			sa->sndnr = 0;
@@ -2195,743 +2195,743 @@ static short draw_actuatorbuttons(Main *bmain, Object *ob, bActuator *act, uiBlo
 					}
 				}
 				MEM_freeN((void *)str);
-			} 
+			}
 			else {
 				uiDefButO(block, BUT, "sound.open", 0, "Load Sound", xco+10, yco-22, width-20, 19, "Load a sound file");
 			}
-					
+
 			yco-= ysize;
 			
 			break;
 		}
-	case ACT_CAMERA:
+		case ACT_CAMERA:
 
-		ysize= 48;
-
-		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-		uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-		
-		ca= act->data;
-
-		uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "OB:",		xco+10, yco-24, (width-20)/2, 19, &(ca->ob), "Look at this Object");
-		uiDefButF(block, NUM, 0, "Height:",	xco+10+(width-20)/2, yco-24, (width-20)/2, 19, &ca->height, 0.0, 20.0, 0, 0, "");
-		
-		uiDefButF(block, NUM, 0, "Min:",	xco+10, yco-44, (width-60)/2, 19, &ca->min, 0.0, 20.0, 0, 0, "");
-		
-		if (ca->axis==0) ca->axis= 'x';
-		uiDefButS(block, ROW, 0, "X",	xco+10+(width-60)/2, yco-44, 20, 19, &ca->axis, 4.0, (float)'x', 0, 0, "Camera tries to get behind the X axis");
-		uiDefButS(block, ROW, 0, "Y",	xco+30+(width-60)/2, yco-44, 20, 19, &ca->axis, 4.0, (float)'y', 0, 0, "Camera tries to get behind the Y axis");
-		
-		uiDefButF(block, NUM, 0, "Max:",	xco+20+(width)/2, yco-44, (width-60)/2, 19, &ca->max, 0.0, 20.0, 0, 0, "");
-
-		yco-= ysize;
-
-		break;
-
-	case ACT_EDIT_OBJECT:
-		
-		eoa= act->data;
-
-		if (eoa->type==ACT_EDOB_ADD_OBJECT) {
-			ysize = 92;
-			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-
-			uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "OB:",		xco+10, yco-44, (width-20)/2, 19, &(eoa->ob), "Add this Object and all its children (cant be on an visible layer)");
-			uiDefButI(block, NUM, 0, "Time:",	xco+10+(width-20)/2, yco-44, (width-20)/2, 19, &eoa->time, 0.0, 2000.0, 0, 0, "Duration the new Object lives");
-
-			wval= (width-60)/3;
-			uiDefBut(block, LABEL, 0, "linV",	xco,           yco-68,   45, 19,
-					 NULL, 0, 0, 0, 0,
-					 "Velocity upon creation");
-			uiDefButF(block, NUM, 0, "",		xco+45,        yco-68, wval, 19,
-					 eoa->linVelocity, -100.0, 100.0, 10, 0,
-					 "Velocity upon creation, x component");
-			uiDefButF(block, NUM, 0, "",		xco+45+wval,   yco-68, wval, 19,
-					 eoa->linVelocity+1, -100.0, 100.0, 10, 0,
-					 "Velocity upon creation, y component");
-			uiDefButF(block, NUM, 0, "",		xco+45+2*wval, yco-68, wval, 19,
-					 eoa->linVelocity+2, -100.0, 100.0, 10, 0,
-					 "Velocity upon creation, z component");
-			uiDefButBitS(block, TOG, ACT_EDOB_LOCAL_LINV, 0, "L", xco+45+3*wval, yco-68, 15, 19,
-					 &eoa->localflag, 0.0, 0.0, 0, 0,
-					 "Apply the transformation locally");
-			
-			
-			uiDefBut(block, LABEL, 0, "AngV",	xco,           yco-90,   45, 19,
-					 NULL, 0, 0, 0, 0,
-					 "Angular velocity upon creation");
-			uiDefButF(block, NUM, 0, "",		xco+45,        yco-90, wval, 19,
-					 eoa->angVelocity, -10000.0, 10000.0, 10, 0,
-					 "Angular velocity upon creation, x component");
-			uiDefButF(block, NUM, 0, "",		xco+45+wval,   yco-90, wval, 19,
-					 eoa->angVelocity+1, -10000.0, 10000.0, 10, 0,
-					 "Angular velocity upon creation, y component");
-			uiDefButF(block, NUM, 0, "",		xco+45+2*wval, yco-90, wval, 19,
-					 eoa->angVelocity+2, -10000.0, 10000.0, 10, 0,
-					 "Angular velocity upon creation, z component");
-			uiDefButBitS(block, TOG, ACT_EDOB_LOCAL_ANGV, 0, "L", xco+45+3*wval, yco-90, 15, 19,
-					 &eoa->localflag, 0.0, 0.0, 0, 0,
-					 "Apply the rotation locally");
-					 
-
-		}
-		else if (eoa->type==ACT_EDOB_END_OBJECT) {
-			ysize= 28;
-			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-		}
-		else if (eoa->type==ACT_EDOB_REPLACE_MESH) {
 			ysize= 48;
+
 			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-	 
-			uiDefIDPoinBut(block, test_meshpoin_but, ID_ME, 1, "ME:",		xco+40, yco-44, (width-80)/2, 19, &(eoa->me), "replace the existing, when left blank 'Phys' will remake the existing physics mesh");
-			
-			uiDefButBitS(block, TOGN, ACT_EDOB_REPLACE_MESH_NOGFX, 0, "Gfx",	xco+40 + (width-80)/2, yco-44, (width-80)/4, 19, &eoa->flag, 0, 0, 0, 0, "Replace the display mesh");
-			uiDefButBitS(block, TOG, ACT_EDOB_REPLACE_MESH_PHYS, 0, "Phys",	xco+40 + (width-80)/2 +(width-80)/4, yco-44, (width-80)/4, 19, &eoa->flag, 0, 0, 0, 0, "Replace the physics mesh (triangle bounds only. compound shapes not supported)");
-		}
-		else if (eoa->type==ACT_EDOB_TRACK_TO) {
-			ysize= 48;
-			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-	 
-			uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "OB:",		xco+10, yco-44, (width-20)/2, 19, &(eoa->ob), "Track to this Object");
-			uiDefButI(block, NUM, 0, "Time:",	xco+10+(width-20)/2, yco-44, (width-20)/2-40, 19, &eoa->time, 0.0, 2000.0, 0, 0, "Duration the tracking takes");
-			uiDefButS(block, TOG, 0, "3D",	xco+width-50, yco-44, 40, 19, &eoa->flag, 0.0, 0.0, 0, 0, "Enable 3D tracking");
-		}
-		else if (eoa->type==ACT_EDOB_DYNAMICS) {
-			ysize= 69;
-			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-			
-			str= "Dynamic Operation %t|Restore Dynamics %x0|Suspend Dynamics %x1|Enable Rigid Body %x2|Disable Rigid Body %x3|Set Mass %x4";
-			uiDefButS(block, MENU, B_REDR, str,		xco+40, yco-44, (width-80), 19,  &(eoa->dyn_operation), 0.0, 0.0, 0, 0, "");
-			if (eoa->dyn_operation==4) {
-				uiDefButF(block, NUM, 0, "",		xco+40, yco-63, width-80, 19,
-					 &eoa->mass, 0.0, 10000.0, 10, 0,
-					 "Mass for object");
+
+			ca= act->data;
+
+			uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "OB:",		xco+10, yco-24, (width-20)/2, 19, &(ca->ob), "Look at this Object");
+			uiDefButF(block, NUM, 0, "Height:",	xco+10+(width-20)/2, yco-24, (width-20)/2, 19, &ca->height, 0.0, 20.0, 0, 0, "");
+
+			uiDefButF(block, NUM, 0, "Min:",	xco+10, yco-44, (width-60)/2, 19, &ca->min, 0.0, 20.0, 0, 0, "");
+
+			if (ca->axis==0) ca->axis= 'x';
+			uiDefButS(block, ROW, 0, "X",	xco+10+(width-60)/2, yco-44, 20, 19, &ca->axis, 4.0, (float)'x', 0, 0, "Camera tries to get behind the X axis");
+			uiDefButS(block, ROW, 0, "Y",	xco+30+(width-60)/2, yco-44, 20, 19, &ca->axis, 4.0, (float)'y', 0, 0, "Camera tries to get behind the Y axis");
+
+			uiDefButF(block, NUM, 0, "Max:",	xco+20+(width)/2, yco-44, (width-60)/2, 19, &ca->max, 0.0, 20.0, 0, 0, "");
+
+			yco-= ysize;
+
+			break;
+
+		case ACT_EDIT_OBJECT:
+
+			eoa= act->data;
+
+			if (eoa->type==ACT_EDOB_ADD_OBJECT) {
+				ysize = 92;
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+
+				uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "OB:",		xco+10, yco-44, (width-20)/2, 19, &(eoa->ob), "Add this Object and all its children (cant be on an visible layer)");
+				uiDefButI(block, NUM, 0, "Time:",	xco+10+(width-20)/2, yco-44, (width-20)/2, 19, &eoa->time, 0.0, 2000.0, 0, 0, "Duration the new Object lives");
+
+				wval= (width-60)/3;
+				uiDefBut(block, LABEL, 0, "linV",	xco,           yco-68,   45, 19,
+				         NULL, 0, 0, 0, 0,
+				         "Velocity upon creation");
+				uiDefButF(block, NUM, 0, "",		xco+45,        yco-68, wval, 19,
+				          eoa->linVelocity, -100.0, 100.0, 10, 0,
+				          "Velocity upon creation, x component");
+				uiDefButF(block, NUM, 0, "",		xco+45+wval,   yco-68, wval, 19,
+				          eoa->linVelocity+1, -100.0, 100.0, 10, 0,
+				          "Velocity upon creation, y component");
+				uiDefButF(block, NUM, 0, "",		xco+45+2*wval, yco-68, wval, 19,
+				          eoa->linVelocity+2, -100.0, 100.0, 10, 0,
+				          "Velocity upon creation, z component");
+				uiDefButBitS(block, TOG, ACT_EDOB_LOCAL_LINV, 0, "L", xco+45+3*wval, yco-68, 15, 19,
+				             &eoa->localflag, 0.0, 0.0, 0, 0,
+				             "Apply the transformation locally");
+
+
+				uiDefBut(block, LABEL, 0, "AngV",	xco,           yco-90,   45, 19,
+				         NULL, 0, 0, 0, 0,
+				         "Angular velocity upon creation");
+				uiDefButF(block, NUM, 0, "",		xco+45,        yco-90, wval, 19,
+				          eoa->angVelocity, -10000.0, 10000.0, 10, 0,
+				          "Angular velocity upon creation, x component");
+				uiDefButF(block, NUM, 0, "",		xco+45+wval,   yco-90, wval, 19,
+				          eoa->angVelocity+1, -10000.0, 10000.0, 10, 0,
+				          "Angular velocity upon creation, y component");
+				uiDefButF(block, NUM, 0, "",		xco+45+2*wval, yco-90, wval, 19,
+				          eoa->angVelocity+2, -10000.0, 10000.0, 10, 0,
+				          "Angular velocity upon creation, z component");
+				uiDefButBitS(block, TOG, ACT_EDOB_LOCAL_ANGV, 0, "L", xco+45+3*wval, yco-90, 15, 19,
+				             &eoa->localflag, 0.0, 0.0, 0, 0,
+				             "Apply the rotation locally");
+
+
 			}
-		}
-		str= "Edit Object %t|Add Object %x0|End Object %x1|Replace Mesh %x2|Track to %x3|Dynamics %x4";
-		uiDefButS(block, MENU, B_REDR, str,		xco+40, yco-24, (width-80), 19, &eoa->type, 0.0, 0.0, 0, 0, "");
-
-		yco-= ysize;
-
-		break;
-
-	case ACT_CONSTRAINT:
-		coa= act->data;
-	
-		if (coa->type == ACT_CONST_TYPE_LOC) {
-			ysize= 69;
-
-			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-			
-	/*  		str= "Limit %t|None %x0|Loc X %x1|Loc Y %x2|Loc Z %x4|Rot X %x8|Rot Y %x16|Rot Z %x32"; */
-	/*			coa->flag &= ~(63); */
-			str= "Limit %t|None %x0|Loc X %x1|Loc Y %x2|Loc Z %x4";
-			coa->flag &= 7;
-			coa->time = 0;
-			uiDefButS(block, MENU, 1, str,		xco+10, yco-65, 70, 19, &coa->flag, 0.0, 0.0, 0, 0, "");
-		
-			uiDefButS(block, NUM,		0, "damp",	xco+10, yco-45, 70, 19, &coa->damp, 0.0, 100.0, 0, 0, "Damping factor: time constant (in frame) of low pass filter");
-			uiDefBut(block, LABEL,			0, "Min",	xco+80, yco-45, (width-90)/2, 19, NULL, 0.0, 0.0, 0, 0, "");
-			uiDefBut(block, LABEL,			0, "Max",	xco+80+(width-90)/2, yco-45, (width-90)/2, 19, NULL, 0.0, 0.0, 0, 0, "");
-
-			if (coa->flag & ACT_CONST_LOCX) fp= coa->minloc;
-			else if (coa->flag & ACT_CONST_LOCY) fp= coa->minloc+1;
-			else if (coa->flag & ACT_CONST_LOCZ) fp= coa->minloc+2;
-			else if (coa->flag & ACT_CONST_ROTX) fp= coa->minrot;
-			else if (coa->flag & ACT_CONST_ROTY) fp= coa->minrot+1;
-			else fp= coa->minrot+2;
-			
-			uiDefButF(block, NUM, 0, "",		xco+80, yco-65, (width-90)/2, 19, fp, -2000.0, 2000.0, 10, 0, "");
-			uiDefButF(block, NUM, 0, "",		xco+80+(width-90)/2, yco-65, (width-90)/2, 19, fp+3, -2000.0, 2000.0, 10, 0, "");
-		}
-		else if (coa->type == ACT_CONST_TYPE_DIST) {
-			ysize= 106;
-
-			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-			
-			str= "Direction %t|None %x0|X axis %x1|Y axis %x2|Z axis %x4|-X axis %x8|-Y axis %x16|-Z axis %x32";
-			uiDefButS(block, MENU, B_REDR, str,		xco+10, yco-65, 70, 19, &coa->mode, 0.0, 0.0, 0, 0, "Set the direction of the ray");
-		
-			uiDefButS(block, NUM,		0, "damp",	xco+10, yco-45, 70, 19, &coa->damp, 0.0, 100.0, 0, 0, "Damping factor: time constant (in frame) of low pass filter");
-			uiDefBut(block, LABEL,			0, "Range",	xco+80, yco-45, (width-115)/2, 19, NULL, 0.0, 0.0, 0, 0, "Set the maximum length of ray");
-			uiDefButBitS(block, TOG, ACT_CONST_DISTANCE, B_REDR, "Dist",	xco+80+(width-115)/2, yco-45, (width-115)/2, 19, &coa->flag, 0.0, 0.0, 0, 0, "Force distance of object to point of impact of ray");
-			uiDefButBitS(block, TOG, ACT_CONST_LOCAL, 0, "L", xco+80+(width-115), yco-45, 25, 19,
-					 &coa->flag, 0.0, 0.0, 0, 0, "Set ray along object's axis or global axis");
-
-			if (coa->mode & (ACT_CONST_DIRPX|ACT_CONST_DIRNX)) fp= coa->minloc;
-			else if (coa->mode & (ACT_CONST_DIRPY|ACT_CONST_DIRNY)) fp= coa->minloc+1;
-			else fp= coa->minloc+2;
-
-			uiDefButF(block, NUM, 0, "",		xco+80, yco-65, (width-115)/2, 19, fp+3, 0.0, 2000.0, 10, 0, "Maximum length of ray");
-			if (coa->flag & ACT_CONST_DISTANCE)
-				uiDefButF(block, NUM, 0, "",		xco+80+(width-115)/2, yco-65, (width-115)/2, 19, fp, -2000.0, 2000.0, 10, 0, "Keep this distance to target");
-			uiDefButBitS(block, TOG, ACT_CONST_NORMAL, 0, "N", xco+80+(width-115), yco-65, 25, 19,
-					 &coa->flag, 0.0, 0.0, 0, 0, "Set object axis along (local axis) or parallel (global axis) to the normal at hit position");
-			uiDefButBitS(block, TOG, ACT_CONST_MATERIAL, B_REDR, "M/P", xco+10, yco-84, 40, 19,
-					 &coa->flag, 0.0, 0.0, 0, 0, "Detect material instead of property");
-			if (coa->flag & ACT_CONST_MATERIAL) {
-				uiDefBut(block, TEX, 1, "Material:", xco + 50, yco-84, (width-60), 19,
-					coa->matprop, 0, MAX_NAME, 0, 0,
-					"Ray detects only Objects with this material");
+			else if (eoa->type==ACT_EDOB_END_OBJECT) {
+				ysize= 28;
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			}
-			else {
-				uiDefBut(block, TEX, 1, "Property:", xco + 50, yco-84, (width-60), 19,
-					coa->matprop, 0, MAX_NAME, 0, 0,
-					"Ray detect only Objects with this property");
+			else if (eoa->type==ACT_EDOB_REPLACE_MESH) {
+				ysize= 48;
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+
+				uiDefIDPoinBut(block, test_meshpoin_but, ID_ME, 1, "ME:",		xco+40, yco-44, (width-80)/2, 19, &(eoa->me), "replace the existing, when left blank 'Phys' will remake the existing physics mesh");
+
+				uiDefButBitS(block, TOGN, ACT_EDOB_REPLACE_MESH_NOGFX, 0, "Gfx",	xco+40 + (width-80)/2, yco-44, (width-80)/4, 19, &eoa->flag, 0, 0, 0, 0, "Replace the display mesh");
+				uiDefButBitS(block, TOG, ACT_EDOB_REPLACE_MESH_PHYS, 0, "Phys",	xco+40 + (width-80)/2 +(width-80)/4, yco-44, (width-80)/4, 19, &eoa->flag, 0, 0, 0, 0, "Replace the physics mesh (triangle bounds only. compound shapes not supported)");
 			}
-			uiDefButBitS(block, TOG, ACT_CONST_PERMANENT, 0, "PER", xco+10, yco-103, 40, 19,
-				&coa->flag, 0.0, 0.0, 0, 0, "Persistent actuator: stays active even if ray does not reach target");
-			uiDefButS(block, NUM, 0, "time", xco+50, yco-103, (width-60)/2, 19, &(coa->time), 0.0, 1000.0, 0, 0, "Maximum activation time in frame, 0 for unlimited");
-			uiDefButS(block, NUM, 0, "rotDamp", xco+50+(width-60)/2, yco-103, (width-60)/2, 19, &(coa->rotdamp), 0.0, 100.0, 0, 0, "Use a different damping for orientation");
-		}
-		else if (coa->type == ACT_CONST_TYPE_ORI) {
-			ysize= 87;
+			else if (eoa->type==ACT_EDOB_TRACK_TO) {
+				ysize= 48;
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
-			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-			
-			str= "Direction %t|None %x0|X axis %x1|Y axis %x2|Z axis %x4";
-			uiDefButS(block, MENU, B_REDR, str,		xco+10, yco-65, 70, 19, &coa->mode, 0.0, 0.0, 0, 0, "Select the axis to be aligned along the reference direction");
-		
-			uiDefButS(block, NUM,		0, "damp",	xco+10, yco-45, 70, 19, &coa->damp, 0.0, 100.0, 0, 0, "Damping factor: time constant (in frame) of low pass filter");
-			uiDefBut(block, LABEL,			0, "X",	xco+80, yco-45, (width-115)/3, 19, NULL, 0.0, 0.0, 0, 0, "");
-			uiDefBut(block, LABEL,			0, "Y",	xco+80+(width-115)/3, yco-45, (width-115)/3, 19, NULL, 0.0, 0.0, 0, 0, "");
-			uiDefBut(block, LABEL,			0, "Z",	xco+80+2*(width-115)/3, yco-45, (width-115)/3, 19, NULL, 0.0, 0.0, 0, 0, "");
-
-			uiDefButF(block, NUM, 0, "",		xco+80, yco-65, (width-115)/3, 19, &coa->maxrot[0], -2000.0, 2000.0, 10, 0, "X component of reference direction");
-			uiDefButF(block, NUM, 0, "",		xco+80+(width-115)/3, yco-65, (width-115)/3, 19, &coa->maxrot[1], -2000.0, 2000.0, 10, 0, "Y component of reference direction");
-			uiDefButF(block, NUM, 0, "",		xco+80+2*(width-115)/3, yco-65, (width-115)/3, 19, &coa->maxrot[2], -2000.0, 2000.0, 10, 0, "Z component of reference direction");
-
-			uiDefButS(block, NUM, 0, "time", xco+10, yco-84, 70, 19, &(coa->time), 0.0, 1000.0, 0, 0, "Maximum activation time in frame, 0 for unlimited");
-			uiDefButF(block, NUM, 0, "min", xco+80, yco-84, (width-115)/2, 19, &(coa->minloc[0]), 0.0, 180.0, 10, 1, "Minimum angle (in degree) to maintain with target direction. No correction is done if angle with target direction is between min and max");
-			uiDefButF(block, NUM, 0, "max", xco+80+(width-115)/2, yco-84, (width-115)/2, 19, &(coa->maxloc[0]), 0.0, 180.0, 10, 1, "Maximum angle (in degree) allowed with target direction. No correction is done if angle with target direction is between min and max");
-		}
-		else if (coa->type == ACT_CONST_TYPE_FH) {
-			ysize= 106;
-
-			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-			
-			str= "Direction %t|None %x0|X axis %x1|Y axis %x2|Z axis %x4|-X axis %x8|-Y axis %x16|-Z axis %x32";
-			uiDefButS(block, MENU, B_REDR, str,		xco+10, yco-65, 70, 19, &coa->mode, 0.0, 0.0, 0, 0, "Set the direction of the ray (in world coordinate)");
-
-			if (coa->mode & (ACT_CONST_DIRPX|ACT_CONST_DIRNX)) fp= coa->minloc;
-			else if (coa->mode & (ACT_CONST_DIRPY|ACT_CONST_DIRNY)) fp= coa->minloc+1;
-			else fp= coa->minloc+2;
-
-			uiDefButF(block, NUM,		0, "damp",	xco+10, yco-45, (width-70)/2, 19, &coa->maxrot[0], 0.0, 1.0, 1, 0, "Damping factor of the Fh spring force");
-			uiDefButF(block, NUM,		0, "dist",	xco+10+(width-70)/2, yco-45, (width-70)/2, 19, fp, 0.010, 2000.0, 10, 0, "Height of the Fh area");
-			uiDefButBitS(block, TOG, ACT_CONST_DOROTFH, 0, "Rot Fh",	xco+10+(width-70), yco-45, 50, 19, &coa->flag, 0.0, 0.0, 0, 0, "Keep object axis parallel to normal");
-
-			uiDefButF(block, NUMSLI, 0, "Fh ",		xco+80, yco-65, (width-115), 19, fp+3, 0.0, 1.0, 0, 0, "Spring force within the Fh area");
-			uiDefButBitS(block, TOG, ACT_CONST_NORMAL, 0, "N", xco+80+(width-115), yco-65, 25, 19,
-					 &coa->flag, 0.0, 0.0, 0, 0, "Add a horizontal spring force on slopes");
-			uiDefButBitS(block, TOG, ACT_CONST_MATERIAL, B_REDR, "M/P", xco+10, yco-84, 40, 19,
-					 &coa->flag, 0.0, 0.0, 0, 0, "Detect material instead of property");
-			if (coa->flag & ACT_CONST_MATERIAL) {
-				uiDefBut(block, TEX, 1, "Material:", xco + 50, yco-84, (width-60), 19,
-					coa->matprop, 0, MAX_NAME, 0, 0,
-					"Ray detects only Objects with this material");
+				uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "OB:",		xco+10, yco-44, (width-20)/2, 19, &(eoa->ob), "Track to this Object");
+				uiDefButI(block, NUM, 0, "Time:",	xco+10+(width-20)/2, yco-44, (width-20)/2-40, 19, &eoa->time, 0.0, 2000.0, 0, 0, "Duration the tracking takes");
+				uiDefButS(block, TOG, 0, "3D",	xco+width-50, yco-44, 40, 19, &eoa->flag, 0.0, 0.0, 0, 0, "Enable 3D tracking");
 			}
-			else {
-				uiDefBut(block, TEX, 1, "Property:", xco + 50, yco-84, (width-60), 19,
-					coa->matprop, 0, MAX_NAME, 0, 0,
-					"Ray detect only Objects with this property");
+			else if (eoa->type==ACT_EDOB_DYNAMICS) {
+				ysize= 69;
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+
+				str= "Dynamic Operation %t|Restore Dynamics %x0|Suspend Dynamics %x1|Enable Rigid Body %x2|Disable Rigid Body %x3|Set Mass %x4";
+				uiDefButS(block, MENU, B_REDR, str,		xco+40, yco-44, (width-80), 19,  &(eoa->dyn_operation), 0.0, 0.0, 0, 0, "");
+				if (eoa->dyn_operation==4) {
+					uiDefButF(block, NUM, 0, "",		xco+40, yco-63, width-80, 19,
+					          &eoa->mass, 0.0, 10000.0, 10, 0,
+					          "Mass for object");
+				}
 			}
-			uiDefButBitS(block, TOG, ACT_CONST_PERMANENT, 0, "PER", xco+10, yco-103, 40, 19,
-				&coa->flag, 0.0, 0.0, 0, 0, "Persistent actuator: stays active even if ray does not reach target");
-			uiDefButS(block, NUM, 0, "time", xco+50, yco-103, 90, 19, &(coa->time), 0.0, 1000.0, 0, 0, "Maximum activation time in frame, 0 for unlimited");
-			uiDefButF(block, NUM, 0, "rotDamp", xco+140, yco-103, (width-150), 19, &coa->maxrot[1], 0.0, 1.0, 1, 0, "Use a different damping for rotation");
-		}
-		str= "Constraint Type %t|Location %x0|Distance %x1|Orientation %x2|Force field %x3";
-		but = uiDefButS(block, MENU, B_REDR, str,		xco+40, yco-23, (width-80), 19, &coa->type, 0.0, 0.0, 0, 0, "");
-		yco-= ysize;
-		break;
+			str= "Edit Object %t|Add Object %x0|End Object %x1|Replace Mesh %x2|Track to %x3|Dynamics %x4";
+			uiDefButS(block, MENU, B_REDR, str,		xco+40, yco-24, (width-80), 19, &eoa->type, 0.0, 0.0, 0, 0, "");
 
-	case ACT_SCENE:
-		sca= act->data;
-		
-		if (sca->type==ACT_SCENE_RESTART) {
-			ysize= 28;
+			yco-= ysize;
+
+			break;
+
+		case ACT_CONSTRAINT:
+			coa= act->data;
+
+			if (coa->type == ACT_CONST_TYPE_LOC) {
+				ysize= 69;
+
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+
+				/*  		str= "Limit %t|None %x0|Loc X %x1|Loc Y %x2|Loc Z %x4|Rot X %x8|Rot Y %x16|Rot Z %x32"; */
+				/*			coa->flag &= ~(63); */
+				str= "Limit %t|None %x0|Loc X %x1|Loc Y %x2|Loc Z %x4";
+				coa->flag &= 7;
+				coa->time = 0;
+				uiDefButS(block, MENU, 1, str,		xco+10, yco-65, 70, 19, &coa->flag, 0.0, 0.0, 0, 0, "");
+
+				uiDefButS(block, NUM,		0, "damp",	xco+10, yco-45, 70, 19, &coa->damp, 0.0, 100.0, 0, 0, "Damping factor: time constant (in frame) of low pass filter");
+				uiDefBut(block, LABEL,			0, "Min",	xco+80, yco-45, (width-90)/2, 19, NULL, 0.0, 0.0, 0, 0, "");
+				uiDefBut(block, LABEL,			0, "Max",	xco+80+(width-90)/2, yco-45, (width-90)/2, 19, NULL, 0.0, 0.0, 0, 0, "");
+
+				if (coa->flag & ACT_CONST_LOCX) fp= coa->minloc;
+				else if (coa->flag & ACT_CONST_LOCY) fp= coa->minloc+1;
+				else if (coa->flag & ACT_CONST_LOCZ) fp= coa->minloc+2;
+				else if (coa->flag & ACT_CONST_ROTX) fp= coa->minrot;
+				else if (coa->flag & ACT_CONST_ROTY) fp= coa->minrot+1;
+				else fp= coa->minrot+2;
+
+				uiDefButF(block, NUM, 0, "",		xco+80, yco-65, (width-90)/2, 19, fp, -2000.0, 2000.0, 10, 0, "");
+				uiDefButF(block, NUM, 0, "",		xco+80+(width-90)/2, yco-65, (width-90)/2, 19, fp+3, -2000.0, 2000.0, 10, 0, "");
+			}
+			else if (coa->type == ACT_CONST_TYPE_DIST) {
+				ysize= 106;
+
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+
+				str= "Direction %t|None %x0|X axis %x1|Y axis %x2|Z axis %x4|-X axis %x8|-Y axis %x16|-Z axis %x32";
+				uiDefButS(block, MENU, B_REDR, str,		xco+10, yco-65, 70, 19, &coa->mode, 0.0, 0.0, 0, 0, "Set the direction of the ray");
+
+				uiDefButS(block, NUM,		0, "damp",	xco+10, yco-45, 70, 19, &coa->damp, 0.0, 100.0, 0, 0, "Damping factor: time constant (in frame) of low pass filter");
+				uiDefBut(block, LABEL,			0, "Range",	xco+80, yco-45, (width-115)/2, 19, NULL, 0.0, 0.0, 0, 0, "Set the maximum length of ray");
+				uiDefButBitS(block, TOG, ACT_CONST_DISTANCE, B_REDR, "Dist",	xco+80+(width-115)/2, yco-45, (width-115)/2, 19, &coa->flag, 0.0, 0.0, 0, 0, "Force distance of object to point of impact of ray");
+				uiDefButBitS(block, TOG, ACT_CONST_LOCAL, 0, "L", xco+80+(width-115), yco-45, 25, 19,
+				             &coa->flag, 0.0, 0.0, 0, 0, "Set ray along object's axis or global axis");
+
+				if (coa->mode & (ACT_CONST_DIRPX|ACT_CONST_DIRNX)) fp= coa->minloc;
+				else if (coa->mode & (ACT_CONST_DIRPY|ACT_CONST_DIRNY)) fp= coa->minloc+1;
+				else fp= coa->minloc+2;
+
+				uiDefButF(block, NUM, 0, "",		xco+80, yco-65, (width-115)/2, 19, fp+3, 0.0, 2000.0, 10, 0, "Maximum length of ray");
+				if (coa->flag & ACT_CONST_DISTANCE)
+					uiDefButF(block, NUM, 0, "",		xco+80+(width-115)/2, yco-65, (width-115)/2, 19, fp, -2000.0, 2000.0, 10, 0, "Keep this distance to target");
+				uiDefButBitS(block, TOG, ACT_CONST_NORMAL, 0, "N", xco+80+(width-115), yco-65, 25, 19,
+				             &coa->flag, 0.0, 0.0, 0, 0, "Set object axis along (local axis) or parallel (global axis) to the normal at hit position");
+				uiDefButBitS(block, TOG, ACT_CONST_MATERIAL, B_REDR, "M/P", xco+10, yco-84, 40, 19,
+				             &coa->flag, 0.0, 0.0, 0, 0, "Detect material instead of property");
+				if (coa->flag & ACT_CONST_MATERIAL) {
+					uiDefBut(block, TEX, 1, "Material:", xco + 50, yco-84, (width-60), 19,
+					         coa->matprop, 0, MAX_NAME, 0, 0,
+					         "Ray detects only Objects with this material");
+				}
+				else {
+					uiDefBut(block, TEX, 1, "Property:", xco + 50, yco-84, (width-60), 19,
+					         coa->matprop, 0, MAX_NAME, 0, 0,
+					         "Ray detect only Objects with this property");
+				}
+				uiDefButBitS(block, TOG, ACT_CONST_PERMANENT, 0, "PER", xco+10, yco-103, 40, 19,
+				             &coa->flag, 0.0, 0.0, 0, 0, "Persistent actuator: stays active even if ray does not reach target");
+				uiDefButS(block, NUM, 0, "time", xco+50, yco-103, (width-60)/2, 19, &(coa->time), 0.0, 1000.0, 0, 0, "Maximum activation time in frame, 0 for unlimited");
+				uiDefButS(block, NUM, 0, "rotDamp", xco+50+(width-60)/2, yco-103, (width-60)/2, 19, &(coa->rotdamp), 0.0, 100.0, 0, 0, "Use a different damping for orientation");
+			}
+			else if (coa->type == ACT_CONST_TYPE_ORI) {
+				ysize= 87;
+
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+
+				str= "Direction %t|None %x0|X axis %x1|Y axis %x2|Z axis %x4";
+				uiDefButS(block, MENU, B_REDR, str,		xco+10, yco-65, 70, 19, &coa->mode, 0.0, 0.0, 0, 0, "Select the axis to be aligned along the reference direction");
+
+				uiDefButS(block, NUM,		0, "damp",	xco+10, yco-45, 70, 19, &coa->damp, 0.0, 100.0, 0, 0, "Damping factor: time constant (in frame) of low pass filter");
+				uiDefBut(block, LABEL,			0, "X",	xco+80, yco-45, (width-115)/3, 19, NULL, 0.0, 0.0, 0, 0, "");
+				uiDefBut(block, LABEL,			0, "Y",	xco+80+(width-115)/3, yco-45, (width-115)/3, 19, NULL, 0.0, 0.0, 0, 0, "");
+				uiDefBut(block, LABEL,			0, "Z",	xco+80+2*(width-115)/3, yco-45, (width-115)/3, 19, NULL, 0.0, 0.0, 0, 0, "");
+
+				uiDefButF(block, NUM, 0, "",		xco+80, yco-65, (width-115)/3, 19, &coa->maxrot[0], -2000.0, 2000.0, 10, 0, "X component of reference direction");
+				uiDefButF(block, NUM, 0, "",		xco+80+(width-115)/3, yco-65, (width-115)/3, 19, &coa->maxrot[1], -2000.0, 2000.0, 10, 0, "Y component of reference direction");
+				uiDefButF(block, NUM, 0, "",		xco+80+2*(width-115)/3, yco-65, (width-115)/3, 19, &coa->maxrot[2], -2000.0, 2000.0, 10, 0, "Z component of reference direction");
+
+				uiDefButS(block, NUM, 0, "time", xco+10, yco-84, 70, 19, &(coa->time), 0.0, 1000.0, 0, 0, "Maximum activation time in frame, 0 for unlimited");
+				uiDefButF(block, NUM, 0, "min", xco+80, yco-84, (width-115)/2, 19, &(coa->minloc[0]), 0.0, 180.0, 10, 1, "Minimum angle (in degree) to maintain with target direction. No correction is done if angle with target direction is between min and max");
+				uiDefButF(block, NUM, 0, "max", xco+80+(width-115)/2, yco-84, (width-115)/2, 19, &(coa->maxloc[0]), 0.0, 180.0, 10, 1, "Maximum angle (in degree) allowed with target direction. No correction is done if angle with target direction is between min and max");
+			}
+			else if (coa->type == ACT_CONST_TYPE_FH) {
+				ysize= 106;
+
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+
+				str= "Direction %t|None %x0|X axis %x1|Y axis %x2|Z axis %x4|-X axis %x8|-Y axis %x16|-Z axis %x32";
+				uiDefButS(block, MENU, B_REDR, str,		xco+10, yco-65, 70, 19, &coa->mode, 0.0, 0.0, 0, 0, "Set the direction of the ray (in world coordinate)");
+
+				if (coa->mode & (ACT_CONST_DIRPX|ACT_CONST_DIRNX)) fp= coa->minloc;
+				else if (coa->mode & (ACT_CONST_DIRPY|ACT_CONST_DIRNY)) fp= coa->minloc+1;
+				else fp= coa->minloc+2;
+
+				uiDefButF(block, NUM,		0, "damp",	xco+10, yco-45, (width-70)/2, 19, &coa->maxrot[0], 0.0, 1.0, 1, 0, "Damping factor of the Fh spring force");
+				uiDefButF(block, NUM,		0, "dist",	xco+10+(width-70)/2, yco-45, (width-70)/2, 19, fp, 0.010, 2000.0, 10, 0, "Height of the Fh area");
+				uiDefButBitS(block, TOG, ACT_CONST_DOROTFH, 0, "Rot Fh",	xco+10+(width-70), yco-45, 50, 19, &coa->flag, 0.0, 0.0, 0, 0, "Keep object axis parallel to normal");
+
+				uiDefButF(block, NUMSLI, 0, "Fh ",		xco+80, yco-65, (width-115), 19, fp+3, 0.0, 1.0, 0, 0, "Spring force within the Fh area");
+				uiDefButBitS(block, TOG, ACT_CONST_NORMAL, 0, "N", xco+80+(width-115), yco-65, 25, 19,
+				             &coa->flag, 0.0, 0.0, 0, 0, "Add a horizontal spring force on slopes");
+				uiDefButBitS(block, TOG, ACT_CONST_MATERIAL, B_REDR, "M/P", xco+10, yco-84, 40, 19,
+				             &coa->flag, 0.0, 0.0, 0, 0, "Detect material instead of property");
+				if (coa->flag & ACT_CONST_MATERIAL) {
+					uiDefBut(block, TEX, 1, "Material:", xco + 50, yco-84, (width-60), 19,
+					         coa->matprop, 0, MAX_NAME, 0, 0,
+					         "Ray detects only Objects with this material");
+				}
+				else {
+					uiDefBut(block, TEX, 1, "Property:", xco + 50, yco-84, (width-60), 19,
+					         coa->matprop, 0, MAX_NAME, 0, 0,
+					         "Ray detect only Objects with this property");
+				}
+				uiDefButBitS(block, TOG, ACT_CONST_PERMANENT, 0, "PER", xco+10, yco-103, 40, 19,
+				             &coa->flag, 0.0, 0.0, 0, 0, "Persistent actuator: stays active even if ray does not reach target");
+				uiDefButS(block, NUM, 0, "time", xco+50, yco-103, 90, 19, &(coa->time), 0.0, 1000.0, 0, 0, "Maximum activation time in frame, 0 for unlimited");
+				uiDefButF(block, NUM, 0, "rotDamp", xco+140, yco-103, (width-150), 19, &coa->maxrot[1], 0.0, 1.0, 1, 0, "Use a different damping for rotation");
+			}
+			str= "Constraint Type %t|Location %x0|Distance %x1|Orientation %x2|Force field %x3";
+			but = uiDefButS(block, MENU, B_REDR, str,		xco+40, yco-23, (width-80), 19, &coa->type, 0.0, 0.0, 0, 0, "");
+			yco-= ysize;
+			break;
+
+		case ACT_SCENE:
+			sca= act->data;
+
+			if (sca->type==ACT_SCENE_RESTART) {
+				ysize= 28;
 			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-		}
-		else if (sca->type==ACT_SCENE_CAMERA) {
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+			}
+			else if (sca->type==ACT_SCENE_CAMERA) {
 
-			ysize= 48;
-			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+				ysize= 48;
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
-			uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "OB:",		xco+40, yco-44, (width-80), 19, &(sca->camera), "Set this Camera. Leave empty to refer to self object");
-		}
-		else if (sca->type==ACT_SCENE_SET) {
-			
-			ysize= 48;
-			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+				uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "OB:",		xco+40, yco-44, (width-80), 19, &(sca->camera), "Set this Camera. Leave empty to refer to self object");
+			}
+			else if (sca->type==ACT_SCENE_SET) {
 
-			uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Set this Scene");
-		}
-		else if (sca->type==ACT_SCENE_ADD_FRONT) {
-			
-			ysize= 48;
-			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+				ysize= 48;
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
-			uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Add an Overlay Scene");
-		}
-		else if (sca->type==ACT_SCENE_ADD_BACK) {
-			
-			ysize= 48;
-			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+				uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Set this Scene");
+			}
+			else if (sca->type==ACT_SCENE_ADD_FRONT) {
 
-			uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Add a Background Scene");
-		}
-		else if (sca->type==ACT_SCENE_REMOVE) {
-			
-			ysize= 48;
-			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+				ysize= 48;
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
-			uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Remove a Scene");
-		}
-		else if (sca->type==ACT_SCENE_SUSPEND) {
-			
-			ysize= 48;
-			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+				uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Add an Overlay Scene");
+			}
+			else if (sca->type==ACT_SCENE_ADD_BACK) {
 
-			uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Pause a Scene");
-		}
-		else if (sca->type==ACT_SCENE_RESUME) {
-			
-			ysize= 48;
-			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+				ysize= 48;
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
-			uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Unpause a Scene");
-		}
+				uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Add a Background Scene");
+			}
+			else if (sca->type==ACT_SCENE_REMOVE) {
 
-		str= "Scene %t|Restart %x0|Set Scene %x1|Set Camera %x2|Add OverlayScene %x3|Add BackgroundScene %x4|Remove Scene %x5|Suspend Scene %x6|Resume Scene %x7";
-		uiDefButS(block, MENU, B_REDR, str,		xco+40, yco-24, (width-80), 19, &sca->type, 0.0, 0.0, 0, 0, ""); 
+				ysize= 48;
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
-		  yco-= ysize; 
-		  break; 
-	case ACT_GAME:
+				uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Remove a Scene");
+			}
+			else if (sca->type==ACT_SCENE_SUSPEND) {
+
+				ysize= 48;
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+
+				uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Pause a Scene");
+			}
+			else if (sca->type==ACT_SCENE_RESUME) {
+
+				ysize= 48;
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+
+				uiDefIDPoinBut(block, test_scenepoin_but, ID_SCE, 1, "SCE:",		xco+40, yco-44, (width-80), 19, &(sca->scene), "Unpause a Scene");
+			}
+
+			str= "Scene %t|Restart %x0|Set Scene %x1|Set Camera %x2|Add OverlayScene %x3|Add BackgroundScene %x4|Remove Scene %x5|Suspend Scene %x6|Resume Scene %x7";
+			uiDefButS(block, MENU, B_REDR, str,		xco+40, yco-24, (width-80), 19, &sca->type, 0.0, 0.0, 0, 0, "");
+
+			yco-= ysize;
+			break;
+		case ACT_GAME:
 		{
 			gma = act->data;
 			if (gma->type == ACT_GAME_LOAD) {
 				//ysize = 68;
 				ysize = 48;
 				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco); 
-				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1); 
-				   uiDefBut(block, TEX, 1, "File: ", xco+10, yco-44, width-20, 19, &(gma->filename), 0, sizeof(gma->filename), 0, 0, "Load this blend file, use the \"//\" prefix for a path relative to the current blend file");
-//				uiDefBut(block, TEX, 1, "Anim: ", xco+10, yco-64, width-20, 19, &(gma->loadaniname), 0, sizeof(gma->loadaniname), 0, 0, "Use this loadinganimation");
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+				uiDefBut(block, TEX, 1, "File: ", xco+10, yco-44, width-20, 19, &(gma->filename), 0, sizeof(gma->filename), 0, 0, "Load this blend file, use the \"//\" prefix for a path relative to the current blend file");
+				//				uiDefBut(block, TEX, 1, "Anim: ", xco+10, yco-64, width-20, 19, &(gma->loadaniname), 0, sizeof(gma->loadaniname), 0, 0, "Use this loadinganimation");
 			}
 #if 0
 			else if (gma->type == ACT_GAME_START) {
-				ysize = 68; 
+				ysize = 68;
 				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco); 
 				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
-				   uiDefBut(block, TEX, 1, "File: ", xco+10, yco-44, width-20, 19, &(gma->filename), 0, sizeof(gma->filename), 0, 0, "Load this file");
+				uiDefBut(block, TEX, 1, "File: ", xco+10, yco-44, width-20, 19, &(gma->filename), 0, sizeof(gma->filename), 0, 0, "Load this file");
 				uiDefBut(block, TEX, 1, "Anim: ", xco+10, yco-64, width-20, 19, &(gma->loadaniname), 0, sizeof(gma->loadaniname), 0, 0, "Use this loadinganimation");
 			}
 #endif
 			else if (ELEM4(gma->type, ACT_GAME_RESTART, ACT_GAME_QUIT, ACT_GAME_SAVECFG, ACT_GAME_LOADCFG)) {
-				ysize = 28; 
+				ysize = 28;
 				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco); 
-				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1); 
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
 			}
 
 			//str = "Scene %t|Load game%x0|Start loaded game%x1|Restart this game%x2|Quit this game %x3";
 			str = "Scene %t|Start new game%x0|Restart this game%x2|Quit this game %x3|Save bge.logic.globalDict %x4|Load bge.logic.globalDict %x5";
-			uiDefButS(block, MENU, B_REDR, str, xco+40, yco-24, (width-80), 19, &gma->type, 0.0, 0.0, 0, 0, ""); 
+			uiDefButS(block, MENU, B_REDR, str, xco+40, yco-24, (width-80), 19, &gma->type, 0.0, 0.0, 0, 0, "");
 			
-			yco -= ysize; 
-			break; 
+			yco -= ysize;
+			break;
 		}
-	case ACT_GROUP:
-		ga= act->data;
+		case ACT_GROUP:
+			ga= act->data;
 
-		ysize= 52;
+			ysize= 52;
 
 		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-		uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-		
-		str= "GroupKey types   %t|Set Key %x6|Play %x0|Ping Pong %x1|Flipper %x2|Loop Stop %x3|Loop End %x4|Property %x5";
-
-		uiDefButS(block, MENU, 1, str,			xco+20, yco-24, width-40, 19, &ga->type, 0, 0, 0, 0, "");
-		if (ga->type==ACT_GROUP_SET) {
-			uiDefBut(block, TEX, 0, "Key: ",		xco+20, yco-44, (width-10)/2, 19, ga->name, 0.0, MAX_NAME, 0, 0, "This name defines groupkey to be set");
-			uiDefButI(block, NUM, 0, "Frame:",	xco+20+(width-10)/2, yco-44, (width-70)/2, 19, &ga->sta, 0.0, 2500.0, 0, 0, "Set this frame");
-		}
-		else if (ga->type==ACT_GROUP_FROM_PROP) {
-			uiDefBut(block, TEX, 0, "Prop: ",		xco+20, yco-44, width-40, 19, ga->name, 0.0, MAX_NAME, 0, 0, "Use this property to define the Group position");
-		}
-		else {
-			uiDefButI(block, NUM, 0, "State",		xco+20, yco-44, (width-40)/2, 19, &ga->sta, 0.0, 2500.0, 0, 0, "Start frame");
-			uiDefButI(block, NUM, 0, "End",		xco+20+(width-40)/2, yco-44, (width-40)/2, 19, &ga->end, 0.0, 2500.0, 0, 0, "End frame");
-		}
-		yco-= ysize;
-		break;
-
-	case ACT_VISIBILITY:
-		ysize = 24;
-
-		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-		uiEmboss((float)xco,
-			 (float)yco-ysize, (float)xco+width, (float)yco, 1);
-		
-		visAct = act->data;
-
-		uiBlockBeginAlign(block);
-		uiDefButBitI(block, TOGN, ACT_VISIBILITY_INVISIBLE, B_REDR,
-			  "Visible",
-			  xco + 10, yco - 20, (width - 20)/3, 19, &visAct->flag,
-			  0.0, 0.0, 0, 0,
-			  "Set the objects visible. Initialized from the objects render restriction toggle (access in the outliner)");
-		uiDefButBitI(block, TOG, ACT_VISIBILITY_OCCLUSION, B_REDR,
-			  "Occlusion",
-			  xco + 10 + ((width - 20)/3), yco - 20, (width - 20)/3, 19, &visAct->flag,
-			  0.0, 0.0, 0, 0,
-			  "Set the object to occlude objects behind it. Initialized from the object type in physics button");
-		uiBlockEndAlign(block);
-		
-		uiDefButBitI(block, TOG, ACT_VISIBILITY_RECURSIVE, 0,
-			  "Children",
-			  xco + 10 + (((width - 20)/3)*2)+10, yco - 20, ((width - 20)/3)-10, 19, &visAct->flag,
-			  0.0, 0.0, 0, 0,
-			  "Sets all the children of this object to the same visibility/occlusion recursively");
-
-		yco-= ysize;
-
-		break;
-		
-	case ACT_STATE:
-		ysize = 34;
-
-		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-		uiEmboss((float)xco,
-			 (float)yco-ysize, (float)xco+width, (float)yco, 1);
-		
-		staAct = act->data;
-
-		str= "Operation %t|Cpy %x0|Add %x1|Sub %x2|Inv %x3";
-
-		uiDefButI(block, MENU, B_REDR, str,
-			  xco + 10, yco - 24, 65, 19, &staAct->type,
-			  0.0, 0.0, 0, 0,
-			  "Select the bit operation on object state mask");
-
-		for (wval=0; wval<15; wval+=5) {
-			uiBlockBeginAlign(block);
-			for (stbit=0; stbit<5; stbit++) {
-				but = uiDefButBitI(block,  TOG, 1<<(stbit+wval), stbit+wval, "",	(short)(xco+85+12*stbit+13*wval), yco-17, 12, 12, (int *)&(staAct->mask), 0, 0, 0, 0, get_state_name(ob, (short)(stbit+wval)));
-				uiButSetFunc(but, check_state_mask, but, &(staAct->mask));
-			}
-			for (stbit=0; stbit<5; stbit++) {
-				but = uiDefButBitI(block, TOG, 1<<(stbit+wval+15), stbit+wval+15, "",	(short)(xco+85+12*stbit+13*wval), yco-29, 12, 12, (int *)&(staAct->mask), 0, 0, 0, 0, get_state_name(ob, (short)(stbit+wval+15)));
-				uiButSetFunc(but, check_state_mask, but, &(staAct->mask));
-			}
-		}
-		uiBlockEndAlign(block);
-
-		yco-= ysize;
-
-		break;
-
-	case ACT_RANDOM:
-		ysize  = 69;
-
-		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-		uiEmboss((float)xco,
-				  (float)yco-ysize, (float)xco+width, (float)yco, 1);
-		
-		randAct = act->data;
-
-		/* 1. seed */
-		uiDefButI(block, NUM, 1, "Seed: ",		(xco+10), yco-24, 0.4 *(width-20), 19,
-				 &randAct->seed, 0, 1000, 0, 0,
-				 "Initial seed of the random generator. Use Python for more freedom. "
-				 " (Choose 0 for not random)");
-
-		/* 2. distribution type */
-		/* One pick per distribution. These numbers MUST match the #defines  */
-		/* in game.h !!!                                                     */
-		str= "Distribution %t|Bool Constant %x0|Bool Uniform %x1"
-			"|Bool Bernoulli %x2|Int Constant %x3|Int Uniform %x4"
-			"|Int Poisson %x5|Float Constant %x6|Float Uniform %x7"
-			"|Float Normal %x8|Float Neg. Exp. %x9";
-		uiDefButI(block, MENU, B_REDR, str, (xco+10) + 0.4 * (width-20), yco-24, 0.6 * (width-20), 19,
-				 &randAct->distribution, 0.0, 0.0, 0, 0,
-				 "Choose the type of distribution");
-
-		/* 3. property */
-		uiDefBut(block, TEX, 1, "Property:", (xco+10), yco-44, (width-20), 19,
-				 &randAct->propname, 0, MAX_NAME, 0, 0,
-				 "Assign the random value to this property"); 
-
-		/*4. and 5. arguments for the distribution*/
-		switch (randAct->distribution) {
-		case ACT_RANDOM_BOOL_CONST:
-			uiDefButBitI(block, TOG, 1, 1, "Always true", (xco+10), yco-64, (width-20), 19,
-					 &randAct->int_arg_1, 2.0, 1, 0, 0,
-					 "Always false or always true");			
-			break;
-		case ACT_RANDOM_BOOL_UNIFORM:
-			uiDefBut(block, LABEL, 0, "     Do a 50-50 pick",	(xco+10), yco-64, (width-20), 19,
-					 NULL, 0, 0, 0, 0,
-					 "Choose between true and false, 50% chance each");
-			break;
-		case ACT_RANDOM_BOOL_BERNOUILLI:
-			uiDefButF(block, NUM, 1, "Chance", (xco+10), yco-64, (width-20), 19,
-					 &randAct->float_arg_1, 0.0, 1.0, 0, 0,
-					 "Pick a number between 0 and 1. Success if you stay "
-					 "below this value");			
-			break;
-		case ACT_RANDOM_INT_CONST:
-			uiDefButI(block, NUM, 1, "Value: ",		(xco+10), yco-64, (width-20), 19,
-					 &randAct->int_arg_1, -1000, 1000, 0, 0,
-					 "Always return this number");
-			break;
-		case ACT_RANDOM_INT_UNIFORM:
-			uiDefButI(block, NUM, 1, "Min: ",		(xco+10), yco-64, (width-20)/2, 19,
-					 &randAct->int_arg_1, -1000, 1000, 0, 0,
-					 "Choose a number from a range. "
-					 "Lower boundary of the range");
-			uiDefButI(block, NUM, 1, "Max: ",		(xco+10) + (width-20)/2, yco-64, (width-20)/2, 19,
-					 &randAct->int_arg_2, -1000, 1000, 0, 0,
-					 "Choose a number from a range. "
-					 "Upper boundary of the range");
-			break;
-		case ACT_RANDOM_INT_POISSON:
-			uiDefButF(block, NUM, 1, "Mean: ", (xco+10), yco-64, (width-20), 19,
-					 &randAct->float_arg_1, 0.01, 100.0, 0, 0,
-					 "Expected mean value of the distribution");						
-			break;
-		case ACT_RANDOM_FLOAT_CONST:
-			uiDefButF(block, NUM, 1, "Value: ", (xco+10), yco-64, (width-20), 19,
-					 &randAct->float_arg_1, 0.0, 1.0, 0, 0,
-					 "Always return this number");
-			break;
-		case ACT_RANDOM_FLOAT_UNIFORM:
-			uiDefButF(block, NUM, 1, "Min: ",		(xco+10), yco-64, (width-20)/2, 19,
-					 &randAct->float_arg_1, -10000.0, 10000.0, 0, 0,
-					 "Choose a number from a range"
-					 "Lower boundary of the range");
-			uiDefButF(block, NUM, 1, "Max: ",		(xco+10) + (width-20)/2, yco-64, (width-20)/2, 19,
-					 &randAct->float_arg_2, -10000.0, 10000.0, 0, 0,
-					 "Choose a number from a range"
-					 "Upper boundary of the range");
-			break;
-		case ACT_RANDOM_FLOAT_NORMAL:
-			uiDefButF(block, NUM, 1, "Mean: ",		(xco+10), yco-64, (width-20)/2, 19,
-					 &randAct->float_arg_1, -10000.0, 10000.0, 0, 0,
-					 "A normal distribution. Mean of the distribution");
-			uiDefButF(block, NUM, 1, "SD: ",		(xco+10) + (width-20)/2, yco-64, (width-20)/2, 19,
-					 &randAct->float_arg_2, 0.0, 10000.0, 0, 0,
-					 "A normal distribution. Standard deviation of the "
-					 "distribution");
-			break;
-		case ACT_RANDOM_FLOAT_NEGATIVE_EXPONENTIAL:
-			uiDefButF(block, NUM, 1, "Half-life time: ", (xco+10), yco-64, (width-20), 19,
-					 &randAct->float_arg_1, 0.001, 10000.0, 0, 0,
-					 "Negative exponential dropoff");
-			break;
-		default:
-			; /* don't know what this distro is... can be useful for testing */
-			/* though :)                                                     */
-		}
-
-		yco-= ysize;
-		break;
-	case ACT_MESSAGE:
-		ma = act->data;
-
-		ysize = 4 + (3 * 24); /* footer + number of lines * 24 pixels/line */
-	
-		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-		uiEmboss((float)xco,	    (float)yco-ysize,
-				 (float)xco+width,  (float)yco, 1);
-
-		myline=1;
-
-		/* line 1: To */
-		uiDefBut(block, TEX, 1, "To: ",
-			(xco+10), (yco-(myline++*24)), (width-20), 19,
-			&ma->toPropName, 0, MAX_NAME, 0, 0,
-			"Optional send message to objects with this name only, or empty to broadcast");
-
-		/* line 2: Message Subject */
-		uiDefBut(block, TEX, 1, "Subject: ",
-		(xco+10), (yco-(myline++*24)), (width-20), 19,
-		&ma->subject, 0, MAX_NAME, 0, 0,
-		"Optional message subject. This is what can be filtered on");
-
-		/* line 3: Text/Property */
-		uiDefButBitS(block, TOG, 1, B_REDR, "T/P",
-			(xco+10), (yco-(myline*24)), (0.20 * (width-20)), 19,
-			&ma->bodyType, 0.0, 0.0, 0, 0,
-			"Toggle message type: either Text or a PropertyName");
-
-		if (ma->bodyType == ACT_MESG_MESG) {
-			/* line 3: Message Body */
-			uiDefBut(block, TEX, 1, "Body: ",
-			(xco+10+(0.20*(width-20))), (yco-(myline++*24)), (0.8*(width-20)), 19,
-			&ma->body, 0, MAX_NAME, 0, 0,
-			"Optional message body Text");
-		}
-		else {
-			/* line 3: Property body (set by property) */
-			uiDefBut(block, TEX, 1, "Propname: ",
-			(xco+10+(0.20*(width-20))), (yco-(myline++*24)), (0.8*(width-20)), 19,
-			&ma->body, 0, MAX_NAME, 0, 0,
-			"The message body will be set by the Property Value");
-		}
-		
-		yco -= ysize;
-		break;
-	case ACT_2DFILTER:
-		tdfa = act->data;
-
-		ysize = 50;
-		if (tdfa->type == ACT_2DFILTER_CUSTOMFILTER) {
-			ysize +=20;
-		}
-		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-		uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-
-		switch (tdfa->type) {
-			case ACT_2DFILTER_MOTIONBLUR:
-				if (!tdfa->flag) {
-					uiDefButS(block, TOG, B_REDR, "D",	xco+30, yco-44, 19, 19, &tdfa->flag, 0.0, 0.0, 0.0, 0.0, "Disable Motion Blur");
-					uiDefButF(block, NUM, B_REDR, "Value:", xco+52, yco-44, width-82, 19, &tdfa->float_arg, 0.0, 1.0, 0.0, 0.0, "Set motion blur value");
-				}
-				else {
-					uiDefButS(block, TOG, B_REDR, "Disabled",	xco+30, yco-44, width-60, 19, &tdfa->flag, 0.0, 0.0, 0.0, 0.0, "Enable Motion Blur");
-				}
-				break;
-			case ACT_2DFILTER_BLUR:
-			case ACT_2DFILTER_SHARPEN:
-			case ACT_2DFILTER_DILATION:
-			case ACT_2DFILTER_EROSION:
-			case ACT_2DFILTER_LAPLACIAN:
-			case ACT_2DFILTER_SOBEL:
-			case ACT_2DFILTER_PREWITT:
-			case ACT_2DFILTER_GRAYSCALE:
-			case ACT_2DFILTER_SEPIA:
-			case ACT_2DFILTER_INVERT:
-			case ACT_2DFILTER_NOFILTER:
-			case ACT_2DFILTER_DISABLED:
-			case ACT_2DFILTER_ENABLED:
-				uiDefButI(block, NUM, B_REDR, "Pass Number:", xco+30, yco-44, width-60, 19, &tdfa->int_arg, 0.0, MAX_RENDER_PASS-1, 0.0, 0.0, "Set filter order");
-				break;
-			case ACT_2DFILTER_CUSTOMFILTER:
-				uiDefButI(block, NUM, B_REDR, "Pass Number:", xco+30, yco-44, width-60, 19, &tdfa->int_arg, 0.0, MAX_RENDER_PASS-1, 0.0, 0.0, "Set filter order");
-				uiDefIDPoinBut(block, test_scriptpoin_but, ID_SCRIPT, 1, "Script: ", xco+30, yco-64, width-60, 19, &tdfa->text, "");
-				break;
-		}
-		
-		str= "2D Filter   %t|Motion Blur   %x1|Blur %x2|Sharpen %x3|Dilation %x4|Erosion %x5|"
-				"Laplacian %x6|Sobel %x7|Prewitt %x8|Gray Scale %x9|Sepia %x10|Invert %x11|Custom Filter %x12|"
-				"Enable Filter %x-2|Disable Filter %x-1|Remove Filter %x0|";
-		uiDefButS(block, MENU, B_REDR, str,	xco+30, yco-24, width-60, 19, &tdfa->type, 0.0, 0.0, 0.0, 0.0, "2D filter type");
-		
-		yco -= ysize;
-		break;
-	case ACT_PARENT:
-		parAct = act->data;
-
-		if (parAct->type==ACT_PARENT_SET) {
-			
-			ysize= 48;
-			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-			uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "OB:",		xco+95, yco-24, (width-100), 19, &(parAct->ob), "Set this object as parent");
+
+			str= "GroupKey types   %t|Set Key %x6|Play %x0|Ping Pong %x1|Flipper %x2|Loop Stop %x3|Loop End %x4|Property %x5";
+
+			uiDefButS(block, MENU, 1, str,			xco+20, yco-24, width-40, 19, &ga->type, 0, 0, 0, 0, "");
+			if (ga->type==ACT_GROUP_SET) {
+				uiDefBut(block, TEX, 0, "Key: ",		xco+20, yco-44, (width-10)/2, 19, ga->name, 0.0, MAX_NAME, 0, 0, "This name defines groupkey to be set");
+				uiDefButI(block, NUM, 0, "Frame:",	xco+20+(width-10)/2, yco-44, (width-70)/2, 19, &ga->sta, 0.0, 2500.0, 0, 0, "Set this frame");
+			}
+			else if (ga->type==ACT_GROUP_FROM_PROP) {
+				uiDefBut(block, TEX, 0, "Prop: ",		xco+20, yco-44, width-40, 19, ga->name, 0.0, MAX_NAME, 0, 0, "Use this property to define the Group position");
+			}
+			else {
+				uiDefButI(block, NUM, 0, "State",		xco+20, yco-44, (width-40)/2, 19, &ga->sta, 0.0, 2500.0, 0, 0, "Start frame");
+				uiDefButI(block, NUM, 0, "End",		xco+20+(width-40)/2, yco-44, (width-40)/2, 19, &ga->end, 0.0, 2500.0, 0, 0, "End frame");
+			}
+			yco-= ysize;
+			break;
+
+		case ACT_VISIBILITY:
+			ysize = 24;
+
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+			uiEmboss((float)xco,
+			         (float)yco-ysize, (float)xco+width, (float)yco, 1);
+
+			visAct = act->data;
+
 			uiBlockBeginAlign(block);
-			uiDefButBitS(block, TOGN, ACT_PARENT_COMPOUND, B_REDR,
-			"Compound",
-			xco + 5, yco - 44, (width - 10)/2, 19, &parAct->flag,
-			0.0, 0.0, 0, 0,
-			"Add this object shape to the parent shape (only if the parent shape is already compound)");
-			uiDefButBitS(block, TOGN, ACT_PARENT_GHOST, B_REDR,
-			"Ghost",
-			xco + 5 + ((width - 10)/2), yco - 44, (width - 10)/2, 19, &parAct->flag,
-			0.0, 0.0, 0, 0,
-			"Make this object ghost while parented (only if not compound)");
+			uiDefButBitI(block, TOGN, ACT_VISIBILITY_INVISIBLE, B_REDR,
+			             "Visible",
+			             xco + 10, yco - 20, (width - 20)/3, 19, &visAct->flag,
+			             0.0, 0.0, 0, 0,
+			             "Set the objects visible. Initialized from the objects render restriction toggle (access in the outliner)");
+			uiDefButBitI(block, TOG, ACT_VISIBILITY_OCCLUSION, B_REDR,
+			             "Occlusion",
+			             xco + 10 + ((width - 20)/3), yco - 20, (width - 20)/3, 19, &visAct->flag,
+			             0.0, 0.0, 0, 0,
+			             "Set the object to occlude objects behind it. Initialized from the object type in physics button");
 			uiBlockEndAlign(block);
-		}
-		else if (parAct->type==ACT_PARENT_REMOVE) {
 
-			ysize= 28;
+			uiDefButBitI(block, TOG, ACT_VISIBILITY_RECURSIVE, 0,
+			             "Children",
+			             xco + 10 + (((width - 20)/3)*2)+10, yco - 20, ((width - 20)/3)-10, 19, &visAct->flag,
+			             0.0, 0.0, 0, 0,
+			             "Sets all the children of this object to the same visibility/occlusion recursively");
+
+			yco-= ysize;
+
+			break;
+
+		case ACT_STATE:
+			ysize = 34;
+
 			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-		}
+			uiEmboss((float)xco,
+			         (float)yco-ysize, (float)xco+width, (float)yco, 1);
 
-		str= "Parent %t|Set Parent %x0|Remove Parent %x1";
-		uiDefButI(block, MENU, B_REDR, str,		xco+5, yco-24, parAct->type==1?(width-80):90, 19, &parAct->type, 0.0, 0.0, 0, 0, ""); 
+			staAct = act->data;
 
-		yco-= ysize;
-		break;
-	case ACT_ARMATURE:
-		armAct = act->data;
+			str= "Operation %t|Cpy %x0|Add %x1|Sub %x2|Inv %x3";
 
-		if (ob->type == OB_ARMATURE) {
-			str= "Constraint %t|Run armature %x0|Enable %x1|Disable %x2|Set target %x3|Set weight %x4";
-			uiDefButI(block, MENU, B_REDR, str,		xco+5, yco-24, (width-10)*0.35, 19, &armAct->type, 0.0, 0.0, 0, 0, ""); 
+			uiDefButI(block, MENU, B_REDR, str,
+			          xco + 10, yco - 24, 65, 19, &staAct->type,
+			          0.0, 0.0, 0, 0,
+			          "Select the bit operation on object state mask");
 
-			switch (armAct->type) {
-			case ACT_ARM_RUN:
-				ysize = 28;
-				break;
-			default:
+			for (wval=0; wval<15; wval+=5) {
 				uiBlockBeginAlign(block);
-				but = uiDefBut(block, TEX, 1, "Bone: ",
-						(xco+5), (yco-44), (width-10)/2, 19,
-						armAct->posechannel, 0, MAX_NAME, 0, 0,
-						"Bone on which the constraint is defined");
-				uiButSetFunc(but, check_armature_actuator, but, armAct);
-				but = uiDefBut(block, TEX, 1, "Cons: ",
-						(xco+5)+(width-10)/2, (yco-44), (width-10)/2, 19,
-						armAct->constraint, 0, MAX_NAME, 0, 0,
-						"Name of the constraint you want to control");
-				uiButSetFunc(but, check_armature_actuator, but, armAct);
-				uiBlockEndAlign(block);
-				ysize = 48;
-				switch (armAct->type) {
-				case ACT_ARM_SETTARGET:
-					uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "Target: ",		xco+5, yco-64, (width-10), 19, &(armAct->target), "Set this object as the target of the constraint"); 
-					uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "Secondary Target: ",		xco+5, yco-84, (width-10), 19, &(armAct->subtarget), "Set this object as the secondary target of the constraint (only IK polar target at the moment)"); 
-					ysize += 40;
-					break;
-				case ACT_ARM_SETWEIGHT:
-					uiDefButF(block, NUM, B_REDR, "Weight:", xco+5+(width-10)*0.35, yco-24, (width-10)*0.65, 19, &armAct->weight, 0.0, 1.0, 0.0, 0.0, "Set weight of this constraint");
-					break;
+				for (stbit=0; stbit<5; stbit++) {
+					but = uiDefButBitI(block,  TOG, 1<<(stbit+wval), stbit+wval, "",	(short)(xco+85+12*stbit+13*wval), yco-17, 12, 12, (int *)&(staAct->mask), 0, 0, 0, 0, get_state_name(ob, (short)(stbit+wval)));
+					uiButSetFunc(but, check_state_mask, but, &(staAct->mask));
+				}
+				for (stbit=0; stbit<5; stbit++) {
+					but = uiDefButBitI(block, TOG, 1<<(stbit+wval+15), stbit+wval+15, "",	(short)(xco+85+12*stbit+13*wval), yco-29, 12, 12, (int *)&(staAct->mask), 0, 0, 0, 0, get_state_name(ob, (short)(stbit+wval+15)));
+					uiButSetFunc(but, check_state_mask, but, &(staAct->mask));
 				}
 			}
-		  }
-		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco); 
-		uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1); 
-		yco-= ysize;
-		break;
+			uiBlockEndAlign(block);
 
-	 default:
-		ysize= 4;
+			yco-= ysize;
 
-		gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
-		uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
-		
-		yco-= ysize;
-		break;
+			break;
+
+		case ACT_RANDOM:
+			ysize  = 69;
+
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+			uiEmboss((float)xco,
+			         (float)yco-ysize, (float)xco+width, (float)yco, 1);
+
+			randAct = act->data;
+
+			/* 1. seed */
+			uiDefButI(block, NUM, 1, "Seed: ",		(xco+10), yco-24, 0.4 *(width-20), 19,
+			          &randAct->seed, 0, 1000, 0, 0,
+			          "Initial seed of the random generator. Use Python for more freedom. "
+			          " (Choose 0 for not random)");
+
+			/* 2. distribution type */
+			/* One pick per distribution. These numbers MUST match the #defines  */
+			/* in game.h !!!                                                     */
+			str= "Distribution %t|Bool Constant %x0|Bool Uniform %x1"
+			     "|Bool Bernoulli %x2|Int Constant %x3|Int Uniform %x4"
+			     "|Int Poisson %x5|Float Constant %x6|Float Uniform %x7"
+			     "|Float Normal %x8|Float Neg. Exp. %x9";
+			uiDefButI(block, MENU, B_REDR, str, (xco+10) + 0.4 * (width-20), yco-24, 0.6 * (width-20), 19,
+			          &randAct->distribution, 0.0, 0.0, 0, 0,
+			          "Choose the type of distribution");
+
+			/* 3. property */
+			uiDefBut(block, TEX, 1, "Property:", (xco+10), yco-44, (width-20), 19,
+			         &randAct->propname, 0, MAX_NAME, 0, 0,
+			         "Assign the random value to this property");
+
+			/*4. and 5. arguments for the distribution*/
+			switch (randAct->distribution) {
+				case ACT_RANDOM_BOOL_CONST:
+					uiDefButBitI(block, TOG, 1, 1, "Always true", (xco+10), yco-64, (width-20), 19,
+					             &randAct->int_arg_1, 2.0, 1, 0, 0,
+					             "Always false or always true");
+					break;
+				case ACT_RANDOM_BOOL_UNIFORM:
+					uiDefBut(block, LABEL, 0, "     Do a 50-50 pick",	(xco+10), yco-64, (width-20), 19,
+					         NULL, 0, 0, 0, 0,
+					         "Choose between true and false, 50% chance each");
+					break;
+				case ACT_RANDOM_BOOL_BERNOUILLI:
+					uiDefButF(block, NUM, 1, "Chance", (xco+10), yco-64, (width-20), 19,
+					          &randAct->float_arg_1, 0.0, 1.0, 0, 0,
+					          "Pick a number between 0 and 1. Success if you stay "
+					          "below this value");
+					break;
+				case ACT_RANDOM_INT_CONST:
+					uiDefButI(block, NUM, 1, "Value: ",		(xco+10), yco-64, (width-20), 19,
+					          &randAct->int_arg_1, -1000, 1000, 0, 0,
+					          "Always return this number");
+					break;
+				case ACT_RANDOM_INT_UNIFORM:
+					uiDefButI(block, NUM, 1, "Min: ",		(xco+10), yco-64, (width-20)/2, 19,
+					          &randAct->int_arg_1, -1000, 1000, 0, 0,
+					          "Choose a number from a range. "
+					          "Lower boundary of the range");
+					uiDefButI(block, NUM, 1, "Max: ",		(xco+10) + (width-20)/2, yco-64, (width-20)/2, 19,
+					          &randAct->int_arg_2, -1000, 1000, 0, 0,
+					          "Choose a number from a range. "
+					          "Upper boundary of the range");
+					break;
+				case ACT_RANDOM_INT_POISSON:
+					uiDefButF(block, NUM, 1, "Mean: ", (xco+10), yco-64, (width-20), 19,
+					          &randAct->float_arg_1, 0.01, 100.0, 0, 0,
+					          "Expected mean value of the distribution");
+					break;
+				case ACT_RANDOM_FLOAT_CONST:
+					uiDefButF(block, NUM, 1, "Value: ", (xco+10), yco-64, (width-20), 19,
+					          &randAct->float_arg_1, 0.0, 1.0, 0, 0,
+					          "Always return this number");
+					break;
+				case ACT_RANDOM_FLOAT_UNIFORM:
+					uiDefButF(block, NUM, 1, "Min: ",		(xco+10), yco-64, (width-20)/2, 19,
+					          &randAct->float_arg_1, -10000.0, 10000.0, 0, 0,
+					          "Choose a number from a range"
+					          "Lower boundary of the range");
+					uiDefButF(block, NUM, 1, "Max: ",		(xco+10) + (width-20)/2, yco-64, (width-20)/2, 19,
+					          &randAct->float_arg_2, -10000.0, 10000.0, 0, 0,
+					          "Choose a number from a range"
+					          "Upper boundary of the range");
+					break;
+				case ACT_RANDOM_FLOAT_NORMAL:
+					uiDefButF(block, NUM, 1, "Mean: ",		(xco+10), yco-64, (width-20)/2, 19,
+					          &randAct->float_arg_1, -10000.0, 10000.0, 0, 0,
+					          "A normal distribution. Mean of the distribution");
+					uiDefButF(block, NUM, 1, "SD: ",		(xco+10) + (width-20)/2, yco-64, (width-20)/2, 19,
+					          &randAct->float_arg_2, 0.0, 10000.0, 0, 0,
+					          "A normal distribution. Standard deviation of the "
+					          "distribution");
+					break;
+				case ACT_RANDOM_FLOAT_NEGATIVE_EXPONENTIAL:
+					uiDefButF(block, NUM, 1, "Half-life time: ", (xco+10), yco-64, (width-20), 19,
+					          &randAct->float_arg_1, 0.001, 10000.0, 0, 0,
+					          "Negative exponential dropoff");
+					break;
+				default:
+					; /* don't know what this distro is... can be useful for testing */
+					/* though :)                                                     */
+			}
+
+			yco-= ysize;
+			break;
+		case ACT_MESSAGE:
+			ma = act->data;
+
+			ysize = 4 + (3 * 24); /* footer + number of lines * 24 pixels/line */
+
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+			uiEmboss((float)xco,	    (float)yco-ysize,
+			         (float)xco+width,  (float)yco, 1);
+
+			myline=1;
+
+			/* line 1: To */
+			uiDefBut(block, TEX, 1, "To: ",
+			         (xco+10), (yco-(myline++*24)), (width-20), 19,
+			         &ma->toPropName, 0, MAX_NAME, 0, 0,
+			         "Optional send message to objects with this name only, or empty to broadcast");
+
+			/* line 2: Message Subject */
+			uiDefBut(block, TEX, 1, "Subject: ",
+			         (xco+10), (yco-(myline++*24)), (width-20), 19,
+			         &ma->subject, 0, MAX_NAME, 0, 0,
+			         "Optional message subject. This is what can be filtered on");
+
+			/* line 3: Text/Property */
+			uiDefButBitS(block, TOG, 1, B_REDR, "T/P",
+			             (xco+10), (yco-(myline*24)), (0.20 * (width-20)), 19,
+			             &ma->bodyType, 0.0, 0.0, 0, 0,
+			             "Toggle message type: either Text or a PropertyName");
+
+			if (ma->bodyType == ACT_MESG_MESG) {
+				/* line 3: Message Body */
+				uiDefBut(block, TEX, 1, "Body: ",
+				         (xco+10+(0.20*(width-20))), (yco-(myline++*24)), (0.8*(width-20)), 19,
+				         &ma->body, 0, MAX_NAME, 0, 0,
+				         "Optional message body Text");
+			}
+			else {
+				/* line 3: Property body (set by property) */
+				uiDefBut(block, TEX, 1, "Propname: ",
+				         (xco+10+(0.20*(width-20))), (yco-(myline++*24)), (0.8*(width-20)), 19,
+				         &ma->body, 0, MAX_NAME, 0, 0,
+				         "The message body will be set by the Property Value");
+			}
+
+			yco -= ysize;
+			break;
+		case ACT_2DFILTER:
+			tdfa = act->data;
+
+			ysize = 50;
+			if (tdfa->type == ACT_2DFILTER_CUSTOMFILTER) {
+				ysize +=20;
+			}
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+
+			switch (tdfa->type) {
+				case ACT_2DFILTER_MOTIONBLUR:
+					if (!tdfa->flag) {
+						uiDefButS(block, TOG, B_REDR, "D",	xco+30, yco-44, 19, 19, &tdfa->flag, 0.0, 0.0, 0.0, 0.0, "Disable Motion Blur");
+						uiDefButF(block, NUM, B_REDR, "Value:", xco+52, yco-44, width-82, 19, &tdfa->float_arg, 0.0, 1.0, 0.0, 0.0, "Set motion blur value");
+					}
+					else {
+						uiDefButS(block, TOG, B_REDR, "Disabled",	xco+30, yco-44, width-60, 19, &tdfa->flag, 0.0, 0.0, 0.0, 0.0, "Enable Motion Blur");
+					}
+					break;
+				case ACT_2DFILTER_BLUR:
+				case ACT_2DFILTER_SHARPEN:
+				case ACT_2DFILTER_DILATION:
+				case ACT_2DFILTER_EROSION:
+				case ACT_2DFILTER_LAPLACIAN:
+				case ACT_2DFILTER_SOBEL:
+				case ACT_2DFILTER_PREWITT:
+				case ACT_2DFILTER_GRAYSCALE:
+				case ACT_2DFILTER_SEPIA:
+				case ACT_2DFILTER_INVERT:
+				case ACT_2DFILTER_NOFILTER:
+				case ACT_2DFILTER_DISABLED:
+				case ACT_2DFILTER_ENABLED:
+					uiDefButI(block, NUM, B_REDR, "Pass Number:", xco+30, yco-44, width-60, 19, &tdfa->int_arg, 0.0, MAX_RENDER_PASS-1, 0.0, 0.0, "Set filter order");
+					break;
+				case ACT_2DFILTER_CUSTOMFILTER:
+					uiDefButI(block, NUM, B_REDR, "Pass Number:", xco+30, yco-44, width-60, 19, &tdfa->int_arg, 0.0, MAX_RENDER_PASS-1, 0.0, 0.0, "Set filter order");
+					uiDefIDPoinBut(block, test_scriptpoin_but, ID_SCRIPT, 1, "Script: ", xco+30, yco-64, width-60, 19, &tdfa->text, "");
+					break;
+			}
+
+			str= "2D Filter   %t|Motion Blur   %x1|Blur %x2|Sharpen %x3|Dilation %x4|Erosion %x5|"
+			     "Laplacian %x6|Sobel %x7|Prewitt %x8|Gray Scale %x9|Sepia %x10|Invert %x11|Custom Filter %x12|"
+			     "Enable Filter %x-2|Disable Filter %x-1|Remove Filter %x0|";
+			uiDefButS(block, MENU, B_REDR, str,	xco+30, yco-24, width-60, 19, &tdfa->type, 0.0, 0.0, 0.0, 0.0, "2D filter type");
+
+			yco -= ysize;
+			break;
+		case ACT_PARENT:
+			parAct = act->data;
+
+			if (parAct->type==ACT_PARENT_SET) {
+
+				ysize= 48;
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+				uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "OB:",		xco+95, yco-24, (width-100), 19, &(parAct->ob), "Set this object as parent");
+				uiBlockBeginAlign(block);
+				uiDefButBitS(block, TOGN, ACT_PARENT_COMPOUND, B_REDR,
+				             "Compound",
+				             xco + 5, yco - 44, (width - 10)/2, 19, &parAct->flag,
+				             0.0, 0.0, 0, 0,
+				             "Add this object shape to the parent shape (only if the parent shape is already compound)");
+				uiDefButBitS(block, TOGN, ACT_PARENT_GHOST, B_REDR,
+				             "Ghost",
+				             xco + 5 + ((width - 10)/2), yco - 44, (width - 10)/2, 19, &parAct->flag,
+				             0.0, 0.0, 0, 0,
+				             "Make this object ghost while parented (only if not compound)");
+				uiBlockEndAlign(block);
+			}
+			else if (parAct->type==ACT_PARENT_REMOVE) {
+
+				ysize= 28;
+				gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+				uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+			}
+
+			str= "Parent %t|Set Parent %x0|Remove Parent %x1";
+			uiDefButI(block, MENU, B_REDR, str,		xco+5, yco-24, parAct->type==1?(width-80):90, 19, &parAct->type, 0.0, 0.0, 0, 0, "");
+
+			yco-= ysize;
+			break;
+		case ACT_ARMATURE:
+			armAct = act->data;
+
+			if (ob->type == OB_ARMATURE) {
+				str= "Constraint %t|Run armature %x0|Enable %x1|Disable %x2|Set target %x3|Set weight %x4";
+				uiDefButI(block, MENU, B_REDR, str,		xco+5, yco-24, (width-10)*0.35, 19, &armAct->type, 0.0, 0.0, 0, 0, "");
+
+				switch (armAct->type) {
+					case ACT_ARM_RUN:
+						ysize = 28;
+						break;
+					default:
+						uiBlockBeginAlign(block);
+						but = uiDefBut(block, TEX, 1, "Bone: ",
+						               (xco+5), (yco-44), (width-10)/2, 19,
+						               armAct->posechannel, 0, MAX_NAME, 0, 0,
+						               "Bone on which the constraint is defined");
+						uiButSetFunc(but, check_armature_actuator, but, armAct);
+						but = uiDefBut(block, TEX, 1, "Cons: ",
+						               (xco+5)+(width-10)/2, (yco-44), (width-10)/2, 19,
+						               armAct->constraint, 0, MAX_NAME, 0, 0,
+						               "Name of the constraint you want to control");
+						uiButSetFunc(but, check_armature_actuator, but, armAct);
+						uiBlockEndAlign(block);
+						ysize = 48;
+						switch (armAct->type) {
+							case ACT_ARM_SETTARGET:
+								uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "Target: ",		xco+5, yco-64, (width-10), 19, &(armAct->target), "Set this object as the target of the constraint");
+								uiDefIDPoinBut(block, test_obpoin_but, ID_OB, 1, "Secondary Target: ",		xco+5, yco-84, (width-10), 19, &(armAct->subtarget), "Set this object as the secondary target of the constraint (only IK polar target at the moment)");
+								ysize += 40;
+								break;
+							case ACT_ARM_SETWEIGHT:
+								uiDefButF(block, NUM, B_REDR, "Weight:", xco+5+(width-10)*0.35, yco-24, (width-10)*0.65, 19, &armAct->weight, 0.0, 1.0, 0.0, 0.0, "Set weight of this constraint");
+								break;
+						}
+				}
+			}
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco); 
+			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+			yco-= ysize;
+			break;
+
+		default:
+			ysize= 4;
+
+			gpuSingleFilledRecti(xco, yco-ysize, xco+width, yco);
+			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+
+			yco-= ysize;
+			break;
 	}
 
 	uiBlockSetEmboss(block, UI_EMBOSS);
@@ -3199,8 +3199,8 @@ static void draw_sensor_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *lo
 	uiLayout *box, *row, *sub;
 	bSensor *sens= (bSensor *)ptr->data;
 	
-	box= uiLayoutBox(layout);
-	row= uiLayoutRow(box, 0);
+	box = uiLayoutBox(layout);
+	row = uiLayoutRow(box, FALSE);
 	
 	uiItemR(row, ptr, "show_expanded", UI_ITEM_R_NO_BG, "", ICON_NONE);
 	if (RNA_boolean_get(ptr, "show_expanded")) {
@@ -3212,13 +3212,13 @@ static void draw_sensor_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *lo
 		uiItemL(row, sens->name, ICON_NONE);
 	}
 
-	sub= uiLayoutRow(row, 0);
+	sub = uiLayoutRow(row, FALSE);
 	uiLayoutSetActive(sub, ((RNA_boolean_get(logic_ptr, "show_sensors_active_states") &&
 	                         RNA_boolean_get(ptr, "show_expanded")) || RNA_boolean_get(ptr, "pin")));
 	uiItemR(sub, ptr, "pin", UI_ITEM_R_NO_BG, "", ICON_NONE);
 
 	if (RNA_boolean_get(ptr, "show_expanded")==0) {
-		sub= uiLayoutRow(row, 1);
+		sub = uiLayoutRow(row, TRUE);
 		uiItemEnumO(sub, "LOGIC_OT_sensor_move", "", ICON_TRIA_UP, "direction", 1); // up
 		uiItemEnumO(sub, "LOGIC_OT_sensor_move", "", ICON_TRIA_DOWN, "direction", 2); // down
 	}
@@ -3230,19 +3230,19 @@ static void draw_sensor_internal_header(uiLayout *layout, PointerRNA *ptr)
 {
 	uiLayout *box, *split, *sub, *row;
 
-	box= uiLayoutBox(layout);
-	split = uiLayoutSplit(box, 0.45, 0);
+	box = uiLayoutBox(layout);
+	split = uiLayoutSplit(box, 0.45f, FALSE);
 	
-	row= uiLayoutRow(split, 1);
+	row = uiLayoutRow(split, TRUE);
 	uiItemR(row, ptr, "use_pulse_true_level", 0, "", ICON_DOTSUP);
 	uiItemR(row, ptr, "use_pulse_false_level", 0, "", ICON_DOTSDOWN);
 
-	sub=uiLayoutRow(row, 0);
+	sub = uiLayoutRow(row, FALSE);
 	uiLayoutSetActive(sub, (RNA_boolean_get(ptr, "use_pulse_true_level") ||
 	                        RNA_boolean_get(ptr, "use_pulse_false_level")));
 	uiItemR(sub, ptr, "frequency", 0, "Freq", ICON_NONE);
 	
-	row= uiLayoutRow(split, 1);
+	row = uiLayoutRow(split, TRUE);
 	uiItemR(row, ptr, "use_level", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 	uiItemR(row, ptr, "use_tap", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 	
@@ -3284,7 +3284,7 @@ static void draw_sensor_armature(uiLayout *layout, PointerRNA *ptr)
 		if (RNA_property_collection_lookup_string(&pose_ptr, bones_prop, as->posechannel, &pchan_ptr))
 			uiItemPointerR(layout, ptr, "constraint", &pchan_ptr, "constraints", NULL, ICON_CONSTRAINT_BONE);
 	}
-	row = uiLayoutRow(layout, 1);
+	row = uiLayoutRow(layout, TRUE);
 	uiItemR(row, ptr, "test_type", 0, NULL, ICON_NONE);
 	if (RNA_enum_get(ptr, "test_type") != SENS_ARM_STATE_CHANGED)
 		uiItemR(row, ptr, "value", 0, NULL, ICON_NONE);
@@ -3297,8 +3297,8 @@ static void draw_sensor_collision(uiLayout *layout, PointerRNA *ptr, bContext *C
 
 	RNA_main_pointer_create(CTX_data_main(C), &main_ptr);
 
-	split = uiLayoutSplit(layout, 0.3, 0);
-	row = uiLayoutRow(split, 1);
+	split = uiLayoutSplit(layout, 0.3f, FALSE);
+	row = uiLayoutRow(split, TRUE);
 	uiItemR(row, ptr, "use_pulse", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 	uiItemR(row, ptr, "use_material", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 
@@ -3316,7 +3316,7 @@ static void draw_sensor_delay(uiLayout *layout, PointerRNA *ptr)
 {
 	uiLayout *row;
 	
-	row= uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 
 	uiItemR(row, ptr, "delay", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "duration", 0, NULL, ICON_NONE);
@@ -3334,17 +3334,17 @@ static void draw_sensor_joystick(uiLayout *layout, PointerRNA *ptr)
 		case SENS_JOY_BUTTON:
 			uiItemR(layout, ptr, "use_all_events", 0, NULL, ICON_NONE);
 
-			col = uiLayoutColumn(layout, 0);
+			col = uiLayoutColumn(layout, FALSE);
 			uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_all_events") == FALSE);
 			uiItemR(col, ptr, "button_number", 0, NULL, ICON_NONE);
 			break;
 		case SENS_JOY_AXIS:
-			row = uiLayoutRow(layout, 0);
+			row = uiLayoutRow(layout, FALSE);
 			uiItemR(row, ptr, "axis_number", 0, NULL, ICON_NONE);
 			uiItemR(row, ptr, "axis_threshold", 0, NULL, ICON_NONE);
 
 			uiItemR(layout, ptr, "use_all_events", 0, NULL, ICON_NONE);
-			col = uiLayoutColumn(layout, 0);
+			col = uiLayoutColumn(layout, FALSE);
 			uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_all_events") == FALSE);
 			uiItemR(col, ptr, "axis_direction", 0, NULL, ICON_NONE);
 			break;
@@ -3352,12 +3352,12 @@ static void draw_sensor_joystick(uiLayout *layout, PointerRNA *ptr)
 			uiItemR(layout, ptr, "hat_number", 0, NULL, ICON_NONE);
 			uiItemR(layout, ptr, "use_all_events", 0, NULL, ICON_NONE);
 
-			col = uiLayoutColumn(layout, 0);
+			col = uiLayoutColumn(layout, FALSE);
 			uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_all_events") == FALSE);
 			uiItemR(col, ptr, "hat_direction", 0, NULL, ICON_NONE);
 			break;
 		case SENS_JOY_AXIS_SINGLE:
-			row = uiLayoutRow(layout, 0);
+			row = uiLayoutRow(layout, FALSE);
 			uiItemR(row, ptr, "single_axis_number", 0, NULL, ICON_NONE);
 			uiItemR(row, ptr, "axis_threshold", 0, NULL, ICON_NONE);
 			break;
@@ -3370,21 +3370,21 @@ static void draw_sensor_keyboard(uiLayout *layout, PointerRNA *ptr)
 	PointerRNA settings_ptr;
 	uiLayout *row, *col;
 
-	row = uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 	uiItemL(row, "Key:", ICON_NONE);
-	col = uiLayoutColumn(row, 0);
+	col = uiLayoutColumn(row, FALSE);
 	uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_all_keys") == FALSE);
 	uiItemR(col, ptr, "key", UI_ITEM_R_EVENT, "", ICON_NONE);
-	col = uiLayoutColumn(row, 0);
+	col = uiLayoutColumn(row, FALSE);
 	uiItemR(col, ptr, "use_all_keys", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 	
-	col = uiLayoutColumn(layout, 0);
+	col = uiLayoutColumn(layout, FALSE);
 	uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_all_keys") == FALSE);
-	row = uiLayoutRow(col, 0);
+	row = uiLayoutRow(col, FALSE);
 	uiItemL(row, "First Modifier:", ICON_NONE);
 	uiItemR(row, ptr, "modifier_key_1", UI_ITEM_R_EVENT, "", ICON_NONE);
 	
-	row = uiLayoutRow(col, 0);
+	row = uiLayoutRow(col, FALSE);
 	uiItemL(row, "Second Modifier:", ICON_NONE);
 	uiItemR(row, ptr, "modifier_key_2", UI_ITEM_R_EVENT, "", ICON_NONE);
 
@@ -3409,7 +3409,7 @@ static void draw_sensor_near(uiLayout *layout, PointerRNA *ptr)
 
 	uiItemR(layout, ptr, "property", 0, NULL, ICON_NONE);
 
-	row= uiLayoutRow(layout, 1);
+	row = uiLayoutRow(layout, TRUE);
 	uiItemR(row, ptr, "distance", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "reset_distance", 0, NULL, ICON_NONE);
 }
@@ -3427,7 +3427,7 @@ static void draw_sensor_property(uiLayout *layout, PointerRNA *ptr)
 
 	switch (RNA_enum_get(ptr, "evaluation_type")) {
 		case SENS_PROP_INTERVAL:
-			row = uiLayoutRow(layout, 0);
+			row = uiLayoutRow(layout, FALSE);
 			uiItemR(row, ptr, "value_min", 0, NULL, ICON_NONE);
 			uiItemR(row, ptr, "value_max", 0, NULL, ICON_NONE);
 			break;
@@ -3449,7 +3449,7 @@ static void draw_sensor_radar(uiLayout *layout, PointerRNA *ptr)
 	uiItemR(layout, ptr, "property", 0, NULL, ICON_NONE);
 	uiItemR(layout, ptr, "axis", 0, NULL, ICON_NONE);
 
-	row= uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 	uiItemR(row, ptr, "angle", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "distance", 0, NULL, ICON_NONE);
 }
@@ -3465,7 +3465,7 @@ static void draw_sensor_ray(uiLayout *layout, PointerRNA *ptr, bContext *C)
 	PointerRNA main_ptr;
 
 	RNA_main_pointer_create(CTX_data_main(C), &main_ptr);
-	split= uiLayoutSplit(layout, 0.3, 0);
+	split = uiLayoutSplit(layout, 0.3f, FALSE);
 	uiItemR(split, ptr, "ray_type", 0, "", ICON_NONE);
 	switch (RNA_enum_get(ptr, "ray_type")) {
 		case SENS_RAY_PROPERTY:
@@ -3476,9 +3476,9 @@ static void draw_sensor_ray(uiLayout *layout, PointerRNA *ptr, bContext *C)
 			break;
 	}
 
-	split= uiLayoutSplit(layout, 0.3, 0);
+	split = uiLayoutSplit(layout, 0.3, FALSE);
 	uiItemR(split, ptr, "axis", 0, "", ICON_NONE);
-	row= uiLayoutRow(split, 0);	
+	row = uiLayoutRow(split, FALSE);
 	uiItemR(row, ptr, "range", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "use_x_ray", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 }
@@ -3557,8 +3557,8 @@ static void draw_controller_header(uiLayout *layout, PointerRNA *ptr, int xco, i
 	char state[3];
 	BLI_snprintf(state, sizeof(state), "%d", RNA_int_get(ptr, "states"));
 	
-	box= uiLayoutBox(layout);
-	row= uiLayoutRow(box, 0);
+	box = uiLayoutBox(layout);
+	row = uiLayoutRow(box, FALSE);
 	
 	uiItemR(row, ptr, "show_expanded", UI_ITEM_R_NO_BG, "", ICON_NONE);
 	if (RNA_boolean_get(ptr, "show_expanded")) {
@@ -3576,7 +3576,7 @@ static void draw_controller_header(uiLayout *layout, PointerRNA *ptr, int xco, i
 	uiItemR(row, ptr, "use_priority", 0, "", ICON_NONE);
 
 	if (RNA_boolean_get(ptr, "show_expanded")==0) {
-		sub= uiLayoutRow(row, 1);
+		sub = uiLayoutRow(row, TRUE);
 		uiItemEnumO(sub, "LOGIC_OT_controller_move", "", ICON_TRIA_UP, "direction", 1); // up
 		uiItemEnumO(sub, "LOGIC_OT_controller_move", "", ICON_TRIA_DOWN, "direction", 2); // down
 	}
@@ -3592,13 +3592,13 @@ static void draw_controller_python(uiLayout *layout, PointerRNA *ptr)
 {
 	uiLayout *split, *sub;
 
-	split = uiLayoutSplit(layout, 0.3, 1);
+	split = uiLayoutSplit(layout, 0.3, TRUE);
 	uiItemR(split, ptr, "mode", 0, "", ICON_NONE);
 	if (RNA_enum_get(ptr, "mode") == CONT_PY_SCRIPT) {
 		uiItemR(split, ptr, "text", 0, "", ICON_NONE);
 	}
 	else {
-		sub = uiLayoutSplit(split, 0.8, 0);
+		sub = uiLayoutSplit(split, 0.8f, FALSE);
 		uiItemR(sub, ptr, "module", 0, "", ICON_NONE);
 		uiItemR(sub, ptr, "use_debug", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 	}
@@ -3648,8 +3648,8 @@ static void draw_actuator_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *
 	uiLayout *box, *row, *sub;
 	bActuator *act= (bActuator *)ptr->data;
 	
-	box= uiLayoutBox(layout);
-	row= uiLayoutRow(box, 0);
+	box = uiLayoutBox(layout);
+	row = uiLayoutRow(box, FALSE);
 	
 	uiItemR(row, ptr, "show_expanded", UI_ITEM_R_NO_BG, "", ICON_NONE);
 	if (RNA_boolean_get(ptr, "show_expanded")) {
@@ -3661,13 +3661,13 @@ static void draw_actuator_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *
 		uiItemL(row, act->name, ICON_NONE);
 	}
 
-	sub= uiLayoutRow(row, 0);
+	sub = uiLayoutRow(row, FALSE);
 	uiLayoutSetActive(sub, ((RNA_boolean_get(logic_ptr, "show_actuators_active_states") &&
 	                         RNA_boolean_get(ptr, "show_expanded")) || RNA_boolean_get(ptr, "pin")));
 	uiItemR(sub, ptr, "pin", UI_ITEM_R_NO_BG, "", ICON_NONE);
 
 	if (RNA_boolean_get(ptr, "show_expanded")==0) {
-		sub= uiLayoutRow(row, 1);
+		sub = uiLayoutRow(row, TRUE);
 		uiItemEnumO(sub, "LOGIC_OT_actuator_move", "", ICON_TRIA_UP, "direction", 1); // up
 		uiItemEnumO(sub, "LOGIC_OT_actuator_move", "", ICON_TRIA_DOWN, "direction", 2); // down
 	}
@@ -3682,22 +3682,22 @@ static void draw_actuator_action(uiLayout *layout, PointerRNA *ptr)
 
 	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
 
-	row= uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 	uiItemR(row, ptr, "play_mode", 0, "", ICON_NONE);
 
-	sub= uiLayoutRow(row, 1);
+	sub = uiLayoutRow(row, TRUE);
 	uiItemR(sub, ptr, "use_force", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 	uiItemR(sub, ptr, "use_additive", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 
-	row = uiLayoutColumn(sub, 0);
+	row = uiLayoutColumn(sub, FALSE);
 	uiLayoutSetActive(row, (RNA_boolean_get(ptr, "use_additive") || RNA_boolean_get(ptr, "use_force")));
 	uiItemR(row, ptr, "use_local", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 
-	row= uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 	uiItemR(row, ptr, "action", 0, "", ICON_NONE);
 	uiItemR(row, ptr, "use_continue_last_frame", 0, NULL, ICON_NONE);
 
-	row= uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 	if ((RNA_enum_get(ptr, "play_mode") == ACT_ACTION_FROM_PROP))
 		uiItemPointerR(row, ptr, "property", &settings_ptr, "properties", NULL, ICON_NONE);
 
@@ -3708,11 +3708,11 @@ static void draw_actuator_action(uiLayout *layout, PointerRNA *ptr)
 
 	uiItemR(row, ptr, "apply_to_children", 0, NULL, ICON_NONE);
 
-	row= uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 	uiItemR(row, ptr, "frame_blend_in", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "priority", 0, NULL, ICON_NONE);
 
-	row= uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 	uiItemR(row, ptr, "layer", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "layer_weight", 0, NULL, ICON_NONE);
 
@@ -3800,11 +3800,11 @@ static void draw_actuator_camera(uiLayout *layout, PointerRNA *ptr)
 	uiLayout *row;
 	uiItemR(layout, ptr, "object", 0, NULL, ICON_NONE);
 
-	row = uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 	uiItemR(row, ptr, "height", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "axis", 0, NULL, ICON_NONE);
 
-	row = uiLayoutRow(layout, 1);
+	row = uiLayoutRow(layout, TRUE);
 	uiItemR(row, ptr, "min", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "max", 0, NULL, ICON_NONE);
 
@@ -3823,7 +3823,7 @@ static void draw_actuator_constraint(uiLayout *layout, PointerRNA *ptr, bContext
 		case ACT_CONST_TYPE_LOC:
 			uiItemR(layout, ptr, "limit", 0, NULL, ICON_NONE);
 
-			row = uiLayoutRow(layout, 1);
+			row = uiLayoutRow(layout, TRUE);
 			uiItemR(row, ptr, "limit_min", 0, NULL, ICON_NONE);
 			uiItemR(row, ptr, "limit_max", 0, NULL, ICON_NONE);
 
@@ -3831,36 +3831,36 @@ static void draw_actuator_constraint(uiLayout *layout, PointerRNA *ptr, bContext
 			break;
 
 		case ACT_CONST_TYPE_DIST:
-			split = uiLayoutSplit(layout, 0.8, 0);
+			split = uiLayoutSplit(layout, 0.8, FALSE);
 			uiItemR(split, ptr, "direction", 0, NULL, ICON_NONE);
-			row = uiLayoutRow(split, 1);
+			row = uiLayoutRow(split, TRUE);
 			uiItemR(row, ptr, "use_local", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 			uiItemR(row, ptr, "use_normal", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 
-			row = uiLayoutRow(layout, 0);
-			col = uiLayoutColumn(row, 1);
+			row = uiLayoutRow(layout, FALSE);
+			col = uiLayoutColumn(row, TRUE);
 			uiItemL(col, "Range:", ICON_NONE);
 			uiItemR(col, ptr, "range", 0, "", ICON_NONE);
 
-			col = uiLayoutColumn(row, 1);
+			col = uiLayoutColumn(row, TRUE);
 			uiItemR(col, ptr, "use_force_distance", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
-			sub = uiLayoutColumn(col, 0);
+			sub = uiLayoutColumn(col, FALSE);
 			uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_force_distance") == TRUE);
 			uiItemR(sub, ptr, "distance", 0, "", ICON_NONE);
 
 			uiItemR(layout, ptr, "damping", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 
-			split = uiLayoutSplit(layout, 0.15, 0);
+			split = uiLayoutSplit(layout, 0.15f, FALSE);
 			uiItemR(split, ptr, "use_material_detect", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 			if (RNA_boolean_get(ptr, "use_material_detect"))
 				uiItemPointerR(split, ptr, "material", &main_ptr, "materials", NULL, ICON_MATERIAL_DATA);
 			else
 				uiItemR(split, ptr, "property", 0, NULL, ICON_NONE);
 
-			split = uiLayoutSplit(layout, 0.15, 0);
+			split = uiLayoutSplit(layout, 0.15, FALSE);
 			uiItemR(split, ptr, "use_persistent", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 
-			row = uiLayoutRow(split, 1);
+			row = uiLayoutRow(split, TRUE);
 			uiItemR(row, ptr, "time", 0, NULL, ICON_NONE);
 			uiItemR(row, ptr, "damping_rotation", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 			break;
@@ -3868,43 +3868,43 @@ static void draw_actuator_constraint(uiLayout *layout, PointerRNA *ptr, bContext
 		case ACT_CONST_TYPE_ORI:
 			uiItemR(layout, ptr, "direction_axis_pos", 0, NULL, ICON_NONE);
 
-			row=uiLayoutRow(layout, 1);
+			row=uiLayoutRow(layout, TRUE);
 			uiItemR(row, ptr, "damping", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 			uiItemR(row, ptr, "time", 0, NULL, ICON_NONE);
 
-			row=uiLayoutRow(layout, 0);
+			row=uiLayoutRow(layout, FALSE);
 			uiItemR(row, ptr, "rotation_max", 0, NULL, ICON_NONE);
 
-			row=uiLayoutRow(layout, 1);
+			row=uiLayoutRow(layout, TRUE);
 			uiItemR(row, ptr, "angle_min", 0, NULL, ICON_NONE);
 			uiItemR(row, ptr, "angle_max", 0, NULL, ICON_NONE);
 			break;
 
 		case ACT_CONST_TYPE_FH:
-			split=uiLayoutSplit(layout, 0.75, 0);
-			row= uiLayoutRow(split, 0);
+			split = uiLayoutSplit(layout, 0.75, FALSE);
+			row = uiLayoutRow(split, FALSE);
 			uiItemR(row, ptr, "fh_damping", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 
 			uiItemR(row, ptr, "fh_height", 0, NULL, ICON_NONE);
 			uiItemR(split, ptr, "use_fh_paralel_axis", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 
-			row = uiLayoutRow(layout, 0);
+			row = uiLayoutRow(layout, FALSE);
 			uiItemR(row, ptr, "direction_axis", 0, NULL, ICON_NONE);
-			split = uiLayoutSplit(row, 0.9, 0);
+			split = uiLayoutSplit(row, 0.9f, FALSE);
 			uiItemR(split, ptr, "fh_force", 0, NULL, ICON_NONE);
 			uiItemR(split, ptr, "use_fh_normal", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 
-			split = uiLayoutSplit(layout, 0.15, 0);
+			split = uiLayoutSplit(layout, 0.15, FALSE);
 			uiItemR(split, ptr, "use_material_detect", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 			if (RNA_boolean_get(ptr, "use_material_detect"))
 				uiItemPointerR(split, ptr, "material", &main_ptr, "materials", NULL, ICON_MATERIAL_DATA);
 			else
 				uiItemR(split, ptr, "property", 0, NULL, ICON_NONE);
 
-			split = uiLayoutSplit(layout, 0.15, 0);
+			split = uiLayoutSplit(layout, 0.15, FALSE);
 			uiItemR(split, ptr, "use_persistent", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 
-			row = uiLayoutRow(split, 0);
+			row = uiLayoutRow(split, FALSE);
 			uiItemR(row, ptr, "time", 0, NULL, ICON_NONE);
 			uiItemR(row, ptr, "damping_rotation", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 			break;
@@ -3919,17 +3919,17 @@ static void draw_actuator_edit_object(uiLayout *layout, PointerRNA *ptr)
 
 	switch (RNA_enum_get(ptr, "mode")) {
 		case ACT_EDOB_ADD_OBJECT:
-			row = uiLayoutRow(layout, 0);
+			row = uiLayoutRow(layout, FALSE);
 			uiItemR(row, ptr, "object", 0, NULL, ICON_NONE);
 			uiItemR(row, ptr, "time", 0, NULL, ICON_NONE);
 
-			split = uiLayoutSplit(layout, 0.9, 0);
-			row = uiLayoutRow(split, 0);
+			split = uiLayoutSplit(layout, 0.9, FALSE);
+			row = uiLayoutRow(split, FALSE);
 			uiItemR(row, ptr, "linear_velocity", 0, NULL, ICON_NONE);
 			uiItemR(split, ptr, "use_local_linear_velocity", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 
-			split = uiLayoutSplit(layout, 0.9, 0);
-			row = uiLayoutRow(split, 0);
+			split = uiLayoutSplit(layout, 0.9, FALSE);
+			row = uiLayoutRow(split, FALSE);
 			uiItemR(row, ptr, "angular_velocity", 0, NULL, ICON_NONE);
 			uiItemR(split, ptr, "use_local_angular_velocity", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 			break;
@@ -3940,16 +3940,16 @@ static void draw_actuator_edit_object(uiLayout *layout, PointerRNA *ptr)
 				uiItemL(layout, "Mode only available for mesh objects", ICON_NONE);
 				break;
 			}
-			split = uiLayoutSplit(layout, 0.6, 0);
+			split = uiLayoutSplit(layout, 0.6, FALSE);
 			uiItemR(split, ptr, "mesh", 0, NULL, ICON_NONE);
-			row = uiLayoutRow(split, 0);
+			row = uiLayoutRow(split, FALSE);
 			uiItemR(row, ptr, "use_replace_display_mesh", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 			uiItemR(row, ptr, "use_replace_physics_mesh", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 			break;
 		case ACT_EDOB_TRACK_TO:
-			split = uiLayoutSplit(layout, 0.5, 0);
+			split = uiLayoutSplit(layout, 0.5, FALSE);
 			uiItemR(split, ptr, "track_object", 0, NULL, ICON_NONE);
-			sub = uiLayoutSplit(split, 0.7, 0);
+			sub = uiLayoutSplit(split, 0.7f, FALSE);
 			uiItemR(sub, ptr, "time", 0, NULL, ICON_NONE);
 			uiItemR(sub, ptr, "use_3d_tracking", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 			break;
@@ -3976,8 +3976,8 @@ static void draw_actuator_filter_2d(uiLayout *layout, PointerRNA *ptr)
 			uiItemR(layout, ptr, "glsl_shader", 0, NULL, ICON_NONE);
 			break;
 		case ACT_2DFILTER_MOTIONBLUR:
-			split=uiLayoutSplit(layout, 0.75, 1);
-			row= uiLayoutRow(split, 0);
+			split=uiLayoutSplit(layout, 0.75f, TRUE);
+			row = uiLayoutRow(split, FALSE);
 			uiLayoutSetActive(row, RNA_boolean_get(ptr, "use_motion_blur") == TRUE);
 			uiItemR(row, ptr, "motion_blur_factor", 0, NULL, ICON_NONE);
 			uiItemR(split, ptr, "use_motion_blur", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
@@ -4009,7 +4009,7 @@ static void draw_actuator_message(uiLayout *layout, PointerRNA *ptr, bContext *C
 	uiItemPointerR(layout, ptr, "to_property", &main_ptr, "objects", NULL, ICON_OBJECT_DATA);
 	uiItemR(layout, ptr, "subject", 0, NULL, ICON_NONE);
 
-	row= uiLayoutRow(layout, 1);
+	row = uiLayoutRow(layout, TRUE);
 	uiItemR(row, ptr, "body_type", 0, NULL, ICON_NONE);
 
 	if (RNA_enum_get(ptr, "body_type") == ACT_MESG_MESG)
@@ -4033,37 +4033,37 @@ static void draw_actuator_motion(uiLayout *layout, PointerRNA *ptr)
 	
 	switch (RNA_enum_get(ptr, "mode")) {
 		case ACT_OBJECT_NORMAL:
-			split = uiLayoutSplit(layout, 0.9, 0);
-			row = uiLayoutRow(split, 0);
+			split = uiLayoutSplit(layout, 0.9, FALSE);
+			row = uiLayoutRow(split, FALSE);
 			uiItemR(row, ptr, "offset_location", 0, NULL, ICON_NONE);
 			uiItemR(split, ptr, "use_local_location", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 
-			split = uiLayoutSplit(layout, 0.9, 0);
-			row = uiLayoutRow(split, 0);
+			split = uiLayoutSplit(layout, 0.9, FALSE);
+			row = uiLayoutRow(split, FALSE);
 			uiItemR(row, ptr, "offset_rotation", 0, NULL, ICON_NONE);
 			uiItemR(split, ptr, "use_local_rotation", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 			
 			if (ELEM3(physics_type, OB_BODY_TYPE_DYNAMIC, OB_BODY_TYPE_RIGID, OB_BODY_TYPE_SOFT)) {			
 				uiItemL(layout, "Dynamic Object Settings:", ICON_NONE);
-				split = uiLayoutSplit(layout, 0.9, 0);
-				row = uiLayoutRow(split, 0);
+				split = uiLayoutSplit(layout, 0.9, FALSE);
+				row = uiLayoutRow(split, FALSE);
 				uiItemR(row, ptr, "force", 0, NULL, ICON_NONE);
 				uiItemR(split, ptr, "use_local_force", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 
-				split = uiLayoutSplit(layout, 0.9, 0);
-				row = uiLayoutRow(split, 0);
+				split = uiLayoutSplit(layout, 0.9, FALSE);
+				row = uiLayoutRow(split, FALSE);
 				uiItemR(row, ptr, "torque", 0, NULL, ICON_NONE);
 				uiItemR(split, ptr, "use_local_torque", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 
-				split = uiLayoutSplit(layout, 0.9, 0);
-				row = uiLayoutRow(split, 0);
+				split = uiLayoutSplit(layout, 0.9, FALSE);
+				row = uiLayoutRow(split, FALSE);
 				uiItemR(row, ptr, "linear_velocity", 0, NULL, ICON_NONE);
-				row = uiLayoutRow(split, 1);
+				row = uiLayoutRow(split, TRUE);
 				uiItemR(row, ptr, "use_local_linear_velocity", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 				uiItemR(row, ptr, "use_add_linear_velocity", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 
-				split = uiLayoutSplit(layout, 0.9, 0);
-				row = uiLayoutRow(split, 0);
+				split = uiLayoutSplit(layout, 0.9, FALSE);
+				row = uiLayoutRow(split, FALSE);
 				uiItemR(row, ptr, "angular_velocity", 0, NULL, ICON_NONE);
 				uiItemR(split, ptr, "use_local_angular_velocity", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 
@@ -4073,29 +4073,29 @@ static void draw_actuator_motion(uiLayout *layout, PointerRNA *ptr)
 		case ACT_OBJECT_SERVO:
 			uiItemR(layout, ptr, "reference_object", 0, NULL, ICON_NONE);
 
-			split = uiLayoutSplit(layout, 0.9, 0);
-			row = uiLayoutRow(split, 0);
+			split = uiLayoutSplit(layout, 0.9, FALSE);
+			row = uiLayoutRow(split, FALSE);
 			uiItemR(row, ptr, "linear_velocity", 0, NULL, ICON_NONE);
 			uiItemR(split, ptr, "use_local_linear_velocity", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 
-			row = uiLayoutRow(layout, 0);
-			col = uiLayoutColumn(row, 0);
+			row = uiLayoutRow(layout, FALSE);
+			col = uiLayoutColumn(row, FALSE);
 			uiItemR(col, ptr, "use_servo_limit_x", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
-			sub = uiLayoutColumn(col, 1);
+			sub = uiLayoutColumn(col, TRUE);
 			uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_servo_limit_x") == TRUE);
 			uiItemR(sub, ptr, "force_max_x", 0, NULL, ICON_NONE);
 			uiItemR(sub, ptr, "force_min_x", 0, NULL, ICON_NONE);
 
-			col = uiLayoutColumn(row, 0);
+			col = uiLayoutColumn(row, FALSE);
 			uiItemR(col, ptr, "use_servo_limit_y", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
-			sub = uiLayoutColumn(col, 1);
+			sub = uiLayoutColumn(col, TRUE);
 			uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_servo_limit_y") == TRUE);
 			uiItemR(sub, ptr, "force_max_y", 0, NULL, ICON_NONE);
 			uiItemR(sub, ptr, "force_min_y", 0, NULL, ICON_NONE);
 
-			col = uiLayoutColumn(row, 0);
+			col = uiLayoutColumn(row, FALSE);
 			uiItemR(col, ptr, "use_servo_limit_z", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
-			sub = uiLayoutColumn(col, 1);
+			sub = uiLayoutColumn(col, TRUE);
 			uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_servo_limit_z") == TRUE);
 			uiItemR(sub, ptr, "force_max_z", 0, NULL, ICON_NONE);
 			uiItemR(sub, ptr, "force_min_z", 0, NULL, ICON_NONE);
@@ -4104,7 +4104,7 @@ static void draw_actuator_motion(uiLayout *layout, PointerRNA *ptr)
 			//Layout designers willing to help on that, please compare with 2.49 ui
 			// (since the old code is going to be deleted ... soon)
 
-			col = uiLayoutColumn(layout, 1);
+			col = uiLayoutColumn(layout, TRUE);
 			uiItemR(col, ptr, "proportional_coefficient", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 			uiItemR(col, ptr, "integral_coefficient", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 			uiItemR(col, ptr, "derivate_coefficient", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
@@ -4121,9 +4121,9 @@ static void draw_actuator_parent(uiLayout *layout, PointerRNA *ptr)
 	if (RNA_enum_get(ptr, "mode") == ACT_PARENT_SET) {
 		uiItemR(layout, ptr, "object", 0, NULL, ICON_NONE);
 
-		row = uiLayoutRow(layout, 0);
+		row = uiLayoutRow(layout, FALSE);
 		uiItemR(row, ptr, "use_compound", 0, NULL, ICON_NONE);
-		sub= uiLayoutRow(row, 0);
+		sub = uiLayoutRow(row, FALSE);
 		uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_compound") == TRUE);
 		uiItemR(sub, ptr, "use_ghost", 0, NULL, ICON_NONE);
 	}
@@ -4154,15 +4154,15 @@ static void draw_actuator_property(uiLayout *layout, PointerRNA *ptr)
 			uiItemR(layout, ptr, "value", 0, NULL, ICON_NONE);
 			break;
 		case ACT_PROP_COPY:
-			row = uiLayoutRow(layout, 0);
+			row = uiLayoutRow(layout, FALSE);
 			uiItemR(row, ptr, "object", 0, NULL, ICON_NONE);
 			if (ob_from) {
 				RNA_pointer_create((ID *)ob_from, &RNA_GameObjectSettings, ob_from, &obj_settings_ptr);
 				uiItemPointerR(row, ptr, "object_property", &obj_settings_ptr, "properties", NULL, ICON_NONE);
 			}
 			else {
-				sub= uiLayoutRow(row, 0);
-				uiLayoutSetActive(sub, 0);
+				sub = uiLayoutRow(row, FALSE);
+				uiLayoutSetActive(sub, FALSE);
 				uiItemR(sub, ptr, "object_property", 0, NULL, ICON_NONE);
 			}
 			break;
@@ -4178,15 +4178,15 @@ static void draw_actuator_random(uiLayout *layout, PointerRNA *ptr)
 	ob = (Object *)ptr->id.data;
 	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
 
-	row = uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 
 	uiItemR(row, ptr, "seed", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "distribution", 0, NULL, ICON_NONE);
 
-	row = uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 	uiItemPointerR(row, ptr, "property", &settings_ptr, "properties", NULL, ICON_NONE);
 
-	row = uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 
 	switch (RNA_enum_get(ptr, "distribution")) {
 		case ACT_RANDOM_BOOL_CONST:
@@ -4263,12 +4263,12 @@ static void draw_actuator_shape_action(uiLayout *layout, PointerRNA *ptr)
 
 	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
 
-	row= uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 	uiItemR(row, ptr, "mode", 0, "", ICON_NONE);
 	uiItemR(row, ptr, "action", 0, "", ICON_NONE);
 	uiItemR(row, ptr, "use_continue_last_frame", 0, NULL, ICON_NONE);
 
-	row= uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 	if ((RNA_enum_get(ptr, "mode") == ACT_ACTION_FROM_PROP))
 		uiItemPointerR(row, ptr, "property", &settings_ptr, "properties", NULL, ICON_NONE);
 
@@ -4277,11 +4277,11 @@ static void draw_actuator_shape_action(uiLayout *layout, PointerRNA *ptr)
 		uiItemR(row, ptr, "frame_end", 0, NULL, ICON_NONE);
 	}
 
-	row= uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 	uiItemR(row, ptr, "frame_blend_in", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "priority", 0, NULL, ICON_NONE);
 
-	row= uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 	uiItemPointerR(row, ptr, "frame_property", &settings_ptr, "properties", NULL, ICON_NONE);
 
 #ifdef __NLA_ACTION_BY_MOTION_ACTUATOR
@@ -4300,28 +4300,28 @@ static void draw_actuator_sound(uiLayout *layout, PointerRNA *ptr, bContext *C)
 	}
 	uiItemR(layout, ptr, "mode", 0, NULL, ICON_NONE);
 
-	row = uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 	uiItemR(row, ptr, "volume", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "pitch", 0, NULL, ICON_NONE);
 
 	uiItemR(layout, ptr, "use_sound_3d", 0, NULL, ICON_NONE);
 	
-	col = uiLayoutColumn(layout, 0);
+	col = uiLayoutColumn(layout, FALSE);
 	uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_sound_3d") == TRUE);
 
-	row = uiLayoutRow(col, 0);
+	row = uiLayoutRow(col, FALSE);
 	uiItemR(row, ptr, "gain_3d_min", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "gain_3d_max", 0, NULL, ICON_NONE);
 
-	row = uiLayoutRow(col, 0);
+	row = uiLayoutRow(col, FALSE);
 	uiItemR(row, ptr, "distance_3d_reference", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "distance_3d_max", 0, NULL, ICON_NONE);
 
-	row = uiLayoutRow(col, 0);
+	row = uiLayoutRow(col, FALSE);
 	uiItemR(row, ptr, "rolloff_factor_3d", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "cone_outer_gain_3d", 0, NULL, ICON_NONE);
 
-	row = uiLayoutRow(col, 0);
+	row = uiLayoutRow(col, FALSE);
 	uiItemR(row, ptr, "cone_outer_angle_3d", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "cone_inner_angle_3d", 0, NULL, ICON_NONE);
 }
@@ -4333,7 +4333,7 @@ static void draw_actuator_state(uiLayout *layout, PointerRNA *ptr)
 	PointerRNA settings_ptr;
 	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
 
-	split = uiLayoutSplit(layout, 0.35, 0);
+	split = uiLayoutSplit(layout, 0.35, FALSE);
 	uiItemR(split, ptr, "operation", 0, NULL, ICON_NONE);
 
 	uiTemplateLayers(split, ptr, "states", &settings_ptr, "used_states", 0);
@@ -4342,7 +4342,7 @@ static void draw_actuator_state(uiLayout *layout, PointerRNA *ptr)
 static void draw_actuator_visibility(uiLayout *layout, PointerRNA *ptr)
 {
 	uiLayout *row;
-	row = uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 
 	uiItemR(row, ptr, "use_visible", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "use_occlusion", 0, NULL, ICON_NONE);
@@ -4358,32 +4358,32 @@ static void draw_actuator_steering(uiLayout *layout, PointerRNA *ptr)
 	uiItemR(layout, ptr, "target", 0, NULL, 0);
 	uiItemR(layout, ptr, "navmesh", 0, NULL, 0);	
 
-	row = uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 	uiItemR(row, ptr, "distance", 0, NULL, 0);
 	uiItemR(row, ptr, "velocity", 0, NULL, 0);
-	row = uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 	uiItemR(row, ptr, "acceleration", 0, NULL, 0);
 	uiItemR(row, ptr, "turn_speed", 0, NULL, 0);
 
-	row = uiLayoutRow(layout, 0);
-	col = uiLayoutColumn(row, 0);
+	row = uiLayoutRow(layout, FALSE);
+	col = uiLayoutColumn(row, FALSE);
 	uiItemR(col, ptr, "facing", 0, NULL, 0);
-	col = uiLayoutColumn(row, 0);
+	col = uiLayoutColumn(row, FALSE);
 	uiItemR(col, ptr, "facing_axis", 0, NULL, 0);
 	if (!RNA_boolean_get(ptr, "facing")) {
-		uiLayoutSetActive(col, 0);
+		uiLayoutSetActive(col, FALSE);
 	}
-	col = uiLayoutColumn(row, 0);
+	col = uiLayoutColumn(row, FALSE);
 	uiItemR(col, ptr, "normal_up", 0, NULL, 0);
 	if (!RNA_pointer_get(ptr, "navmesh").data) {
-		uiLayoutSetActive(col, 0);
+		uiLayoutSetActive(col, FALSE);
 	}
 
-	row = uiLayoutRow(layout, 0);
+	row = uiLayoutRow(layout, FALSE);
 	uiItemR(row, ptr, "self_terminated", 0, NULL, 0);
 	if (RNA_enum_get(ptr, "mode")==ACT_STEERING_PATHFOLLOWING) {
 		uiItemR(row, ptr, "update_period", 0, NULL, 0);	
-		row = uiLayoutRow(layout, 0);
+		row = uiLayoutRow(layout, FALSE);
 	}
 	uiItemR(row, ptr, "show_visualization", 0, NULL, 0);	
 }
@@ -4524,7 +4524,7 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 	
 	xco= 420; yco= 170; width= 300;
 	layout= uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, xco, yco, width, 20, UI_GetStyle());
-	row = uiLayoutRow(layout, 1);
+	row = uiLayoutRow(layout, TRUE);
 	
 	uiDefBlockBut(block, controller_menu, NULL, "Controllers", xco-10, yco, 300, UI_UNIT_Y, "");		/* replace this with uiLayout stuff later */
 	
@@ -4547,32 +4547,32 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 
 		RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
 
-		split= uiLayoutSplit(layout, 0.05, 0);
+		split = uiLayoutSplit(layout, 0.05f, FALSE);
 		uiItemR(split, &settings_ptr, "show_state_panel", UI_ITEM_R_NO_BG, "", ICON_DISCLOSURE_TRI_RIGHT);
 
-		row = uiLayoutRow(split, 1);
+		row = uiLayoutRow(split, TRUE);
 		uiDefButBitS(block, TOG, OB_SHOWCONT, B_REDR, ob->id.name+2, (short)(xco-10), yco, (short)(width-30), UI_UNIT_Y, &ob->scaflag, 0, 31, 0, 0, "Object name, click to show/hide controllers");
 		if (ob == act_ob)
 			uiItemMenuEnumO(row, "LOGIC_OT_controller_add", "type", "Add Controller", ICON_NONE);
 
 		if (RNA_boolean_get(&settings_ptr, "show_state_panel")) {
 
-			box= uiLayoutBox(layout);
-			split= uiLayoutSplit(box, 0.2, 0);
+			box = uiLayoutBox(layout);
+			split = uiLayoutSplit(box, 0.2f, FALSE);
 
-			col= uiLayoutColumn(split, 0);
+			col = uiLayoutColumn(split, FALSE);
 			uiItemL(col, "Visible", ICON_NONE);
 			uiItemL(col, "Initial", ICON_NONE);
 
-			subsplit= uiLayoutSplit(split, 0.85, 0);
-			col= uiLayoutColumn(subsplit, 0);
-			row= uiLayoutRow(col, 0);
+			subsplit = uiLayoutSplit(split, 0.85f, FALSE);
+			col = uiLayoutColumn(subsplit, FALSE);
+			row = uiLayoutRow(col, FALSE);
 			uiLayoutSetActive(row, RNA_boolean_get(&settings_ptr, "use_all_states") == FALSE);
 			uiTemplateLayers(row, &settings_ptr, "states_visible", &settings_ptr, "used_states", 0);
-			row= uiLayoutRow(col, 0);
+			row = uiLayoutRow(col, FALSE);
 			uiTemplateLayers(row, &settings_ptr, "states_initial", &settings_ptr, "used_states", 0);
 
-			col= uiLayoutColumn(subsplit, 0);
+			col = uiLayoutColumn(subsplit, FALSE);
 			uiItemR(col, &settings_ptr, "use_all_states", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 			uiItemR(col, &settings_ptr, "show_debug_state", 0, "", ICON_NONE);
 		}
@@ -4591,18 +4591,18 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 				continue;
 			
 			/* use two nested splits to align inlinks/links properly */
-			split = uiLayoutSplit(layout, 0.05, 0);
+			split = uiLayoutSplit(layout, 0.05f, FALSE);
 			
 			/* put inlink button to the left */
-			col = uiLayoutColumn(split, 0);
+			col = uiLayoutColumn(split, FALSE);
 			uiLayoutSetAlignment(col, UI_LAYOUT_ALIGN_LEFT);
 			uiDefIconBut(block, INLINK, 0, ICON_INLINK, 0, 0, UI_UNIT_X, UI_UNIT_Y, cont, LINK_CONTROLLER, 0, 0, 0, "");
 			
-			//col = uiLayoutColumn(split, 1);
+			//col = uiLayoutColumn(split, TRUE);
 			/* nested split for middle and right columns */
-			subsplit = uiLayoutSplit(split, 0.95, 0);
+			subsplit = uiLayoutSplit(split, 0.95f, FALSE);
 			
-			col = uiLayoutColumn(subsplit, 1);
+			col = uiLayoutColumn(subsplit, TRUE);
 			uiLayoutSetContextPointer(col, "controller", &ptr);
 			
 			/* should make UI template for controller header.. function will do for now */
@@ -4614,7 +4614,7 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 			
 			
 			/* put link button to the right */
-			col = uiLayoutColumn(subsplit, 0);
+			col = uiLayoutColumn(subsplit, FALSE);
 			uiLayoutSetAlignment(col, UI_LAYOUT_ALIGN_LEFT);
 			but = uiDefIconBut(block, LINK, 0, ICON_LINK, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
 			uiSetButLink(but, NULL, (void ***)&(cont->links), &cont->totlinks, LINK_CONTROLLER, LINK_ACTUATOR);
@@ -4627,7 +4627,7 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 	
 	xco= 10; yco= 170; width= 340;
 	layout= uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, xco, yco, width, 20, UI_GetStyle());
-	row = uiLayoutRow(layout, 1);
+	row = uiLayoutRow(layout, TRUE);
 	
 	uiDefBlockBut(block, sensor_menu, NULL, "Sensors", xco-10, yco, 300, UI_UNIT_Y, "");		/* replace this with uiLayout stuff later */
 	
@@ -4645,7 +4645,7 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 		/* only draw the sensor common header if "use_visible" */
 		if ((ob->scavisflag & OB_VIS_SENS) == 0) continue;
 
-		row = uiLayoutRow(layout, 1);
+		row = uiLayoutRow(layout, TRUE);
 		uiDefButBitS(block, TOG, OB_SHOWSENS, B_REDR, ob->id.name+2, (short)(xco-10), yco, (short)(width-30), UI_UNIT_Y, &ob->scaflag, 0, 31, 0, 0, "Object name, click to show/hide sensors");
 		if (ob == act_ob)
 			uiItemMenuEnumO(row, "LOGIC_OT_sensor_add", "type", "Add Sensor", ICON_NONE);
@@ -4669,8 +4669,8 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 				/* make as visible, for move operator */
 				sens->flag |= SENS_VISIBLE;
 
-				split = uiLayoutSplit(layout, 0.95, 0);
-				col = uiLayoutColumn(split, 1);
+				split = uiLayoutSplit(layout, 0.95f, FALSE);
+				col = uiLayoutColumn(split, TRUE);
 				uiLayoutSetContextPointer(col, "sensor", &ptr);
 				
 				/* should make UI template for sensor header.. function will do for now */
@@ -4680,7 +4680,7 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 				draw_brick_sensor(col, &ptr, C);
 				
 				/* put link button to the right */
-				col = uiLayoutColumn(split, 0);
+				col = uiLayoutColumn(split, FALSE);
 				/* use old-school uiButtons for links for now */
 				but = uiDefIconBut(block, LINK, 0, ICON_LINK, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
 				uiSetButLink(but, NULL, (void ***)&(sens->links), &sens->totlinks, LINK_SENSOR, LINK_CONTROLLER);
@@ -4693,7 +4693,7 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 	
 	xco= 800; yco= 170; width= 340;
 	layout= uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, xco, yco, width, 20, UI_GetStyle());
-	row = uiLayoutRow(layout, 1);
+	row = uiLayoutRow(layout, TRUE);
 	
 	uiDefBlockBut(block, actuator_menu, NULL, "Actuators", xco-10, yco, 300, UI_UNIT_Y, "");		/* replace this with uiLayout stuff later */
 	
@@ -4711,7 +4711,7 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 		/* only draw the actuator common header if "use_visible" */
 		if ( (ob->scavisflag & OB_VIS_ACT) == 0) continue;
 
-		row = uiLayoutRow(layout, 1);
+		row = uiLayoutRow(layout, TRUE);
 		uiDefButBitS(block, TOG, OB_SHOWACT, B_REDR, ob->id.name+2, (short)(xco-10), yco, (short)(width-30), UI_UNIT_Y, &ob->scaflag, 0, 31, 0, 0, "Object name, click to show/hide actuators");
 		if (ob == act_ob)
 			uiItemMenuEnumO(row, "LOGIC_OT_actuator_add", "type", "Add Actuator", ICON_NONE);
@@ -4736,13 +4736,13 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 				/* make as visible, for move operator */
 				act->flag |= ACT_VISIBLE;
 
-				split = uiLayoutSplit(layout, 0.05, 0);
+				split = uiLayoutSplit(layout, 0.05f, FALSE);
 				
 				/* put inlink button to the left */
-				col = uiLayoutColumn(split, 0);
+				col = uiLayoutColumn(split, FALSE);
 				uiDefIconBut(block, INLINK, 0, ICON_INLINK, 0, 0, UI_UNIT_X, UI_UNIT_Y, act, LINK_ACTUATOR, 0, 0, 0, "");
 
-				col = uiLayoutColumn(split, 1);
+				col = uiLayoutColumn(split, TRUE);
 				uiLayoutSetContextPointer(col, "actuator", &ptr);
 				
 				/* should make UI template for actuator header.. function will do for now */

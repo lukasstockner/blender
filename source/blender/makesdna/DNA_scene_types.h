@@ -34,7 +34,7 @@
 
 #include "DNA_defs.h"
 
-// XXX, temp feature - campbell
+/* XXX, temp feature - campbell */
 #define DURIAN_CAMERA_SWITCH
 
 #ifdef __cplusplus
@@ -627,7 +627,7 @@ typedef struct GameData {
 	short raster_storage;
 	short pad3;
 	float levelHeight;
-	float pad2;
+	float deactivationtime, lineardeactthreshold, angulardeactthreshold;
 } GameData;
 
 #define STEREO_NOSTEREO		1
@@ -1007,7 +1007,8 @@ typedef struct ToolSettings {
 	short snap_flag, snap_target;
 	short proportional, prop_mode;
 	char proportional_objects; /* proportional edit, object mode */
-	char pad[5];
+	char proportional_mask; /* proportional edit, object mode */
+	char pad[4];
 
 	char auto_normalize; /*auto normalizing mode in wpaint*/
 	char multipaint; /* paint multiple bones in wpaint */

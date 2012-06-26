@@ -41,6 +41,7 @@ extern EnumPropertyItem object_mode_items[];
 extern EnumPropertyItem metaelem_type_items[];
 
 extern EnumPropertyItem proportional_falloff_items[];
+extern EnumPropertyItem proportional_falloff_curve_only_items[];
 extern EnumPropertyItem proportional_editing_items[];
 extern EnumPropertyItem snap_target_items[];
 extern EnumPropertyItem snap_element_items[];
@@ -144,6 +145,7 @@ EnumPropertyItem *RNA_scene_itemf(struct bContext *C, struct PointerRNA *ptr, st
 EnumPropertyItem *RNA_scene_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
 EnumPropertyItem *RNA_movieclip_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
 EnumPropertyItem *RNA_movieclip_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
-
+EnumPropertyItem *RNA_mask_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
+EnumPropertyItem *RNA_mask_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
 
 #endif /* __RNA_ENUM_TYPES_H__ */

@@ -88,7 +88,7 @@
 #include "BKE_pointcache.h"
 #include "BKE_screen.h"
 #include "BKE_sequencer.h"
-#include "BKE_texture.h" // for open_plugin_tex
+#include "BKE_texture.h"
 #include "BKE_utildefines.h" // SWITCH_INT DATA ENDB DNA1 O_BINARY GLOB USER TEST REND
 #include "BKE_sound.h"
 
@@ -744,7 +744,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 			if (scene->ed && scene->ed->seqbasep) {
 				SEQ_BEGIN (scene->ed, seq)
 				{
-					if (seq->type == SEQ_HD_SOUND) {
+					if (seq->type == SEQ_TYPE_SOUND_HD) {
 						char str[FILE_MAX];
 						BLI_join_dirfile(str, sizeof(str), seq->strip->dir, seq->strip->stripdata->name);
 						BLI_path_abs(str, main->name);
@@ -2558,11 +2558,11 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 			for (ob = main->object.first; ob; ob = ob->id.next) {
 				for (act = ob->actuators.first; act; act = act->next) {
 					if (act->type == ACT_IPO) {
-						// Create the new actuator
+						/* Create the new actuator */
 						ia = act->data;
 						aa = MEM_callocN(sizeof(bActionActuator), "fcurve -> action actuator do_version");
 
-						// Copy values
+						/* Copy values */
 						aa->type = ia->type;
 						aa->flag = ia->flag;
 						aa->sta = ia->sta;
@@ -2572,12 +2572,18 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 						if (ob->adt)
 							aa->act = ob->adt->action;
 
-						// Get rid of the old actuator
+						/* Get rid of the old actuator */
 						MEM_freeN(ia);
 
-						// Assign the new actuator
+						/* Assign the new actuator */
 						act->data = aa;
 						act->type = act->otype = ACT_ACTION;
+
+						/* Fix for converting 2.4x files: if we don't have an action, but we have an
+						   object IPO, then leave the actuator as an IPO actuator for now and let the
+						   IPO conversion code handle it */
+						if (ob->ipo && !aa->act)
+							act->type = ACT_IPO;
 					}
 					else if (act->type == ACT_SHAPEACTION) {
 						act->type = act->otype = ACT_ACTION;

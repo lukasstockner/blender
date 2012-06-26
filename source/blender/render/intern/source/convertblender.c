@@ -520,8 +520,7 @@ static void calc_tangent_vector(ObjectRen *obr, VertexTangent **vtangents, MemAr
  ************ tangent space generation interface ****************
  ****************************************************************/
 
-typedef struct
-{
+typedef struct {
 	ObjectRen *obr;
 
 } SRenderMeshToTangent;
@@ -1011,8 +1010,7 @@ static Material *give_render_material(Render *re, Object *ob, short nr)
 /* ------------------------------------------------------------------------- */
 /* Particles                                                                 */
 /* ------------------------------------------------------------------------- */
-typedef struct ParticleStrandData
-{
+typedef struct ParticleStrandData {
 	struct MCol *mcol;
 	float *orco, *uvco, *surfnor;
 	float time, adapt_angle, adapt_pix, size;
@@ -1731,7 +1729,7 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 			strandbuf->minwidth= ma->strand_min;
 
 			if (ma->strand_widthfade == 0.0f)
-				strandbuf->widthfade= 0.0f;
+				strandbuf->widthfade= -1.0f;
 			else if (ma->strand_widthfade >= 1.0f)
 				strandbuf->widthfade= 2.0f - ma->strand_widthfade;
 			else
@@ -5646,7 +5644,7 @@ void RE_Database_FromScene_Vectors(Render *re, Main *bmain, Scene *sce, unsigned
 						ok= 1;
 				}
 				if (ok==0) {
-					 printf("speed table: missing object %s\n", obi->ob->id.name+2);
+					printf("speed table: missing object %s\n", obi->ob->id.name+2);
 					continue;
 				}
 

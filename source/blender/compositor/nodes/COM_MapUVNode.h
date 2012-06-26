@@ -19,8 +19,8 @@
  *		Dalai Felinto
  */
 
-#ifndef _COM_MapUVNode_h
-#define _COM_MapUVNode_h
+#ifndef _COM_MapUVNode_h_
+#define _COM_MapUVNode_h_
 
 #include "COM_Node.h"
 
@@ -31,6 +31,6 @@
 class MapUVNode : public Node {
 public:
 	MapUVNode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
+	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
 };
 #endif

@@ -165,7 +165,7 @@ typedef struct Object {
 	
 	unsigned int lay;	/* copy of Base's layer in the scene */
 	
-	int pad6;
+	float sf; /* sf is time-offset */
 
 	short flag;			/* copy of Base */
 	short colbits DNA_DEPRECATED;		/* deprecated */
@@ -180,8 +180,6 @@ typedef struct Object {
 
 	int dupon, dupoff, dupsta, dupend;
 
-	float sf, ctime; /* sf is time-offset, ctime is the objects current time (XXX timing needs to be revised) */
-	
 	/* during realtime */
 
 	/* note that inertia is only called inertia for historical reasons
@@ -201,7 +199,7 @@ typedef struct Object {
 	float rdamping, sizefac;
 	float margin;
 	float max_vel; /* clamp the maximum velocity 0.0 is disabled */
-	float min_vel; /* clamp the maximum velocity 0.0 is disabled */
+	float min_vel; /* clamp the minimum velocity 0.0 is disabled */
 	float m_contactProcessingThreshold;
 	float obstacleRad;
 	
@@ -260,6 +258,7 @@ typedef struct Object {
 	struct FluidsimSettings *fluidsimSettings; /* if fluidsim enabled, store additional settings */
 
 	struct DerivedMesh *derivedDeform, *derivedFinal;
+	int *pad;
 	uint64_t lastDataMask;   /* the custom data layer mask that was last used to calculate derivedDeform and derivedFinal */
 	uint64_t customdata_mask; /* (extra) custom data layer mask to use for creating derivedmesh, set by depsgraph */
 	unsigned int state;			/* bit masks of game controllers that are active */
@@ -301,6 +300,15 @@ typedef struct DupliObject {
 
 	short type; /* from Object.transflag */
 	char no_draw, animated;
+
+	/* Lowest-level particle index.
+	 * Note: This is needed for particle info in shaders.
+	 * Otherwise dupli groups in particle systems would override the
+	 * index value from higher dupli levels. Would be nice to have full generic access
+	 * to all dupli levels somehow, but for now this should cover most use-cases.
+	 */
+	int particle_index;
+	int pad;
 } DupliObject;
 
 /* **************** OBJECT ********************* */
@@ -329,7 +337,7 @@ typedef struct DupliObject {
 
 /* check if the object type supports materials */
 #define OB_TYPE_SUPPORT_MATERIAL(_type) \
-	((_type)  >= OB_MESH && (_type) <= OB_MBALL)
+	((_type) >= OB_MESH && (_type) <= OB_MBALL)
 #define OB_TYPE_SUPPORT_VGROUP(_type) \
 	(ELEM(_type, OB_MESH, OB_LATTICE))
 #define OB_TYPE_SUPPORT_EDITMODE(_type) \

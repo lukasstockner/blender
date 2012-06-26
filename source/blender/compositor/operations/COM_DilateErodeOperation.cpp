@@ -22,89 +22,91 @@
 
 #include "COM_DilateErodeOperation.h"
 #include "BLI_math.h"
+#include "COM_OpenCLDevice.h"
 
-DilateErodeDistanceOperation::DilateErodeDistanceOperation(): NodeOperation()
+// DilateErode Distance Threshold
+DilateErodeThresholdOperation::DilateErodeThresholdOperation() : NodeOperation()
 {
 	this->addInputSocket(COM_DT_VALUE);
 	this->addOutputSocket(COM_DT_VALUE);
 	this->setComplex(true);
-	this->inputProgram = NULL;
-	this->inset = 0.0f;
-	this->_switch = 0.5f;
-	this->distance = 0.0f;
+	this->m_inputProgram = NULL;
+	this->m_inset = 0.0f;
+	this->m__switch = 0.5f;
+	this->m_distance = 0.0f;
 }
-void DilateErodeDistanceOperation::initExecution()
+void DilateErodeThresholdOperation::initExecution()
 {
-	this->inputProgram = this->getInputSocketReader(0);
-	if (this->distance < 0.0f) {
-		this->scope = - this->distance + this->inset;
+	this->m_inputProgram = this->getInputSocketReader(0);
+	if (this->m_distance < 0.0f) {
+		this->m_scope = -this->m_distance + this->m_inset;
 	}
 	else {
-		if (this->inset*2 > this->distance) {
-			this->scope = max(this->inset*2 - this->distance, this->distance);
+		if (this->m_inset * 2 > this->m_distance) {
+			this->m_scope = max(this->m_inset * 2 - this->m_distance, this->m_distance);
 		}
 		else {
-			this->scope = distance;
+			this->m_scope = this->m_distance;
 		}
 	}
-	if (scope < 3) {
-		scope = 3;
+	if (this->m_scope < 3) {
+		this->m_scope = 3;
 	}
 }
 
-void *DilateErodeDistanceOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers)
+void *DilateErodeThresholdOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers)
 {
-	void *buffer = inputProgram->initializeTileData(NULL, memoryBuffers);
+	void *buffer = this->m_inputProgram->initializeTileData(NULL, memoryBuffers);
 	return buffer;
 }
 
-void DilateErodeDistanceOperation::executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void *data)
+void DilateErodeThresholdOperation::executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void *data)
 {
 	float inputValue[4];
-	const float sw = this->_switch;
-	const float distance = this->distance;
+	const float sw = this->m__switch;
+	const float distance = this->m_distance;
 	float pixelvalue;
-	const float rd = scope * scope;
-	const float inset = this->inset;
-	float mindist = rd*2;
+	const float rd = this->m_scope * this->m_scope;
+	const float inset = this->m_inset;
+	float mindist = rd * 2;
 
-	MemoryBuffer *inputBuffer = (MemoryBuffer*)data;
+	MemoryBuffer *inputBuffer = (MemoryBuffer *)data;
 	float *buffer = inputBuffer->getBuffer();
 	rcti *rect = inputBuffer->getRect();
-	const int minx = max(x - scope, rect->xmin);
-	const int miny = max(y - scope, rect->ymin);
-	const int maxx = min(x + scope, rect->xmax);
-	const int maxy = min(y + scope, rect->ymax);
-	const int bufferWidth = rect->xmax-rect->xmin;
+	const int minx = max(x - this->m_scope, rect->xmin);
+	const int miny = max(y - this->m_scope, rect->ymin);
+	const int maxx = min(x + this->m_scope, rect->xmax);
+	const int maxy = min(y + this->m_scope, rect->ymax);
+	const int bufferWidth = rect->xmax - rect->xmin;
 	int offset;
 
-	this->inputProgram->read(inputValue, x, y, inputBuffers, NULL);
-	if (inputValue[0]>sw) {
-		for (int yi = miny ; yi<maxy;yi++) {
-			offset = ((yi-rect->ymin)*bufferWidth+(minx-rect->xmin))*4;
-			for (int xi = minx ; xi<maxx;xi++) {
-				if (buffer[offset]<sw) {
-					const float dx = xi-x;
-					const float dy = yi-y;
-					const float dis = dx*dx+dy*dy;
+	this->m_inputProgram->read(inputValue, x, y, inputBuffers, NULL);
+	if (inputValue[0] > sw) {
+		for (int yi = miny; yi < maxy; yi++) {
+			const float dy = yi - y;
+			offset = ((yi - rect->ymin) * bufferWidth + (minx - rect->xmin)) * 4;
+			for (int xi = minx; xi < maxx; xi++) {
+				if (buffer[offset] < sw) {
+					const float dx = xi - x;
+					const float dis = dx * dx + dy * dy;
 					mindist = min(mindist, dis);
 				}
-				offset +=4;
+				offset += 4;
 			}
 		}
 		pixelvalue = -sqrtf(mindist);
 	}
 	else {
-		for (int yi = miny ; yi<maxy;yi++) {
-			offset = ((yi-rect->ymin)*bufferWidth+(minx-rect->xmin))*4;
-			for (int xi = minx ; xi<maxx;xi++) {
-				if (buffer[offset]>sw) {
-					const float dx = xi-x;
-					const float dy = yi-y;
-					const float dis = dx*dx+dy*dy;
+		for (int yi = miny; yi < maxy; yi++) {
+			const float dy = yi - y;
+			offset = ((yi - rect->ymin) * bufferWidth + (minx - rect->xmin)) * 4;
+			for (int xi = minx; xi < maxx; xi++) {
+				if (buffer[offset] > sw) {
+					const float dx = xi - x;
+					const float dis = dx * dx + dy * dy;
 					mindist = min(mindist, dis);
 				}
-				offset +=4;
+				offset += 4;
 
 			}
 		}
@@ -118,7 +120,7 @@ void DilateErodeDistanceOperation::executePixel(float *color, int x, int y, Memo
 				color[0] = 1.0f;
 			}
 			else {
-				color[0] = delta/inset;
+				color[0] = delta / inset;
 			}
 		}
 		else {
@@ -126,13 +128,13 @@ void DilateErodeDistanceOperation::executePixel(float *color, int x, int y, Memo
 		}
 	}
 	else {
-		const float delta = -distance+pixelvalue;
+		const float delta = -distance + pixelvalue;
 		if (delta < 0.0f) {
 			if (delta < -inset) {
 				color[0] = 1.0f;
 			}
 			else {
-				color[0] = (-delta)/inset;
+				color[0] = (-delta) / inset;
 			}
 		}
 		else {
@@ -141,105 +143,259 @@ void DilateErodeDistanceOperation::executePixel(float *color, int x, int y, Memo
 	}
 }
 
-void DilateErodeDistanceOperation::deinitExecution()
+void DilateErodeThresholdOperation::deinitExecution()
 {
-	this->inputProgram = NULL;
+	this->m_inputProgram = NULL;
 }
 
-bool DilateErodeDistanceOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output)
+bool DilateErodeThresholdOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output)
 {
 	rcti newInput;
 
-	newInput.xmax = input->xmax + scope;
-	newInput.xmin = input->xmin - scope;
-	newInput.ymax = input->ymax + scope;
-	newInput.ymin = input->ymin - scope;
+	newInput.xmax = input->xmax + this->m_scope;
+	newInput.xmin = input->xmin - this->m_scope;
+	newInput.ymax = input->ymax + this->m_scope;
+	newInput.ymin = input->ymin - this->m_scope;
 
 	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
 }
 
-// Dilate step
-DilateStepOperation::DilateStepOperation(): NodeOperation()
+// Dilate Distance
+DilateDistanceOperation::DilateDistanceOperation() : NodeOperation()
 {
 	this->addInputSocket(COM_DT_VALUE);
 	this->addOutputSocket(COM_DT_VALUE);
 	this->setComplex(true);
-	this->inputProgram = NULL;
+	this->m_inputProgram = NULL;
+	this->m_distance = 0.0f;
+	this->setOpenCL(true);
+}
+void DilateDistanceOperation::initExecution()
+{
+	this->m_inputProgram = this->getInputSocketReader(0);
+	this->m_scope = this->m_distance;
+	if (this->m_scope < 3) {
+		this->m_scope = 3;
+	}
+}
+
+void *DilateDistanceOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers)
+{
+	void *buffer = this->m_inputProgram->initializeTileData(NULL, memoryBuffers);
+	return buffer;
+}
+
+void DilateDistanceOperation::executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void *data)
+{
+	const float distance = this->m_distance;
+	const float mindist = distance * distance;
+
+	MemoryBuffer *inputBuffer = (MemoryBuffer *)data;
+	float *buffer = inputBuffer->getBuffer();
+	rcti *rect = inputBuffer->getRect();
+	const int minx = max(x - this->m_scope, rect->xmin);
+	const int miny = max(y - this->m_scope, rect->ymin);
+	const int maxx = min(x + this->m_scope, rect->xmax);
+	const int maxy = min(y + this->m_scope, rect->ymax);
+	const int bufferWidth = rect->xmax - rect->xmin;
+	int offset;
+	
+	float value = 0.0f;
+
+	for (int yi = miny; yi < maxy; yi++) {
+		const float dy = yi - y;
+		offset = ((yi - rect->ymin) * bufferWidth + (minx - rect->xmin)) * 4;
+		for (int xi = minx; xi < maxx; xi++) {
+			const float dx = xi - x;
+			const float dis = dx * dx + dy * dy;
+			if (dis <= mindist) {
+				value = max(buffer[offset], value);
+			}
+			offset += 4;
+		}
+	}
+	color[0] = value;
+}
+
+void DilateDistanceOperation::deinitExecution()
+{
+	this->m_inputProgram = NULL;
+}
+
+bool DilateDistanceOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output)
+{
+	rcti newInput;
+
+	newInput.xmax = input->xmax + this->m_scope;
+	newInput.xmin = input->xmin - this->m_scope;
+	newInput.ymax = input->ymax + this->m_scope;
+	newInput.ymin = input->ymin - this->m_scope;
+
+	return NodeOperation::determineDependingAreaOfInterest(&newInput, readOperation, output);
+}
+
+static cl_kernel dilateKernel = 0;
+void DilateDistanceOperation::executeOpenCL(OpenCLDevice* device,
+                                            MemoryBuffer *outputMemoryBuffer, cl_mem clOutputBuffer,
+                                            MemoryBuffer **inputMemoryBuffers, list<cl_mem> *clMemToCleanUp,
+                                            list<cl_kernel> *clKernelsToCleanUp)
+{
+	if (!dilateKernel) {
+		dilateKernel = device->COM_clCreateKernel("dilateKernel", NULL);
+	}
+	cl_int distanceSquared = this->m_distance * this->m_distance;
+	cl_int scope = this->m_scope;
+	
+	device->COM_clAttachMemoryBufferToKernelParameter(dilateKernel, 0,  2, clMemToCleanUp, inputMemoryBuffers, this->m_inputProgram);
+	device->COM_clAttachOutputMemoryBufferToKernelParameter(dilateKernel, 1, clOutputBuffer);
+	device->COM_clAttachMemoryBufferOffsetToKernelParameter(dilateKernel, 3, outputMemoryBuffer);
+	clSetKernelArg(dilateKernel, 4, sizeof(cl_int), &scope);
+	clSetKernelArg(dilateKernel, 5, sizeof(cl_int), &distanceSquared);
+	device->COM_clAttachSizeToKernelParameter(dilateKernel, 6, this);
+	device->COM_clEnqueueRange(dilateKernel, outputMemoryBuffer, 7, this);
+}
+
+// Erode Distance
+ErodeDistanceOperation::ErodeDistanceOperation() : DilateDistanceOperation() 
+{
+	/* pass */
+}
+
+void ErodeDistanceOperation::executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void *data)
+{
+	const float distance = this->m_distance;
+	const float mindist = distance * distance;
+
+	MemoryBuffer *inputBuffer = (MemoryBuffer *)data;
+	float *buffer = inputBuffer->getBuffer();
+	rcti *rect = inputBuffer->getRect();
+	const int minx = max(x - this->m_scope, rect->xmin);
+	const int miny = max(y - this->m_scope, rect->ymin);
+	const int maxx = min(x + this->m_scope, rect->xmax);
+	const int maxy = min(y + this->m_scope, rect->ymax);
+	const int bufferWidth = rect->xmax - rect->xmin;
+	int offset;
+	
+	float value = 1.0f;
+
+	for (int yi = miny; yi < maxy; yi++) {
+		const float dy = yi - y;
+		offset = ((yi - rect->ymin) * bufferWidth + (minx - rect->xmin)) * 4;
+		for (int xi = minx; xi < maxx; xi++) {
+			const float dx = xi - x;
+			const float dis = dx * dx + dy * dy;
+			if (dis <= mindist) {
+				value = min(buffer[offset], value);
+			}
+			offset += 4;
+		}
+	}
+	color[0] = value;
+}
+
+static cl_kernel erodeKernel = 0;
+void ErodeDistanceOperation::executeOpenCL(OpenCLDevice* device,
+                                           MemoryBuffer *outputMemoryBuffer, cl_mem clOutputBuffer,
+                                           MemoryBuffer **inputMemoryBuffers, list<cl_mem> *clMemToCleanUp,
+                                           list<cl_kernel> *clKernelsToCleanUp)
+{
+	if (!erodeKernel) {
+		erodeKernel = device->COM_clCreateKernel("erodeKernel", NULL);
+	}
+	cl_int distanceSquared = this->m_distance * this->m_distance;
+	cl_int scope = this->m_scope;
+	
+	device->COM_clAttachMemoryBufferToKernelParameter(erodeKernel, 0,  2, clMemToCleanUp, inputMemoryBuffers, this->m_inputProgram);
+	device->COM_clAttachOutputMemoryBufferToKernelParameter(erodeKernel, 1, clOutputBuffer);
+	device->COM_clAttachMemoryBufferOffsetToKernelParameter(erodeKernel, 3, outputMemoryBuffer);
+	clSetKernelArg(erodeKernel, 4, sizeof(cl_int), &scope);
+	clSetKernelArg(erodeKernel, 5, sizeof(cl_int), &distanceSquared);
+	device->COM_clAttachSizeToKernelParameter(erodeKernel, 6, this);
+	device->COM_clEnqueueRange(erodeKernel, outputMemoryBuffer, 7, this);
+}
+
+// Dilate step
+DilateStepOperation::DilateStepOperation() : NodeOperation()
+{
+	this->addInputSocket(COM_DT_VALUE);
+	this->addOutputSocket(COM_DT_VALUE);
+	this->setComplex(true);
+	this->m_inputProgram = NULL;
 }
 void DilateStepOperation::initExecution()
 {
-	this->inputProgram = this->getInputSocketReader(0);
-	this->cached_buffer = NULL;
+	this->m_inputProgram = this->getInputSocketReader(0);
+	this->m_cached_buffer = NULL;
 	this->initMutex();
 }
 
 void *DilateStepOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers)
 {
-	if (this->cached_buffer != NULL) {
-		return this->cached_buffer;
+	if (this->m_cached_buffer != NULL) {
+		return this->m_cached_buffer;
 	}
-	BLI_mutex_lock(getMutex());
-	if (this->cached_buffer == NULL) {
-		MemoryBuffer *buffer = (MemoryBuffer*)inputProgram->initializeTileData(NULL, memoryBuffers);
+	lockMutex();
+	if (this->m_cached_buffer == NULL) {
+		MemoryBuffer *buffer = (MemoryBuffer *)this->m_inputProgram->initializeTileData(NULL, memoryBuffers);
 		float *rectf = buffer->convertToValueBuffer();
 		int x, y, i;
 		float *p;
 		int bwidth = buffer->getWidth();
 		int bheight = buffer->getHeight();
-		for (i = 0 ; i < this->iterations ; i ++) {
-			for (y=0; y < bheight; y++) {
-				for (x=0; x < bwidth-1; x++) {
-					p = rectf + (bwidth*y + x);
+		for (i = 0; i < this->m_iterations; i++) {
+			for (y = 0; y < bheight; y++) {
+				for (x = 0; x < bwidth - 1; x++) {
+					p = rectf + (bwidth * y + x);
 					*p = MAX2(*p, *(p + 1));
 				}
 			}
 		
-			for (y=0; y < bheight; y++) {
-				for (x=bwidth-1; x >= 1; x--) {
-					p = rectf + (bwidth*y + x);
+			for (y = 0; y < bheight; y++) {
+				for (x = bwidth - 1; x >= 1; x--) {
+					p = rectf + (bwidth * y + x);
 					*p = MAX2(*p, *(p - 1));
 				}
 			}
 		
-			for (x=0; x < bwidth; x++) {
-				for (y=0; y < bheight-1; y++) {
-					p = rectf + (bwidth*y + x);
+			for (x = 0; x < bwidth; x++) {
+				for (y = 0; y < bheight - 1; y++) {
+					p = rectf + (bwidth * y + x);
 					*p = MAX2(*p, *(p + bwidth));
 				}
 			}
 		
-			for (x=0; x < bwidth; x++) {
-				for (y=bheight-1; y >= 1; y--) {
-					p = rectf + (bwidth*y + x);
+			for (x = 0; x < bwidth; x++) {
+				for (y = bheight - 1; y >= 1; y--) {
+					p = rectf + (bwidth * y + x);
 					*p = MAX2(*p, *(p - bwidth));
 				}
 			}
 		}
-		this->cached_buffer = rectf;
+		this->m_cached_buffer = rectf;
 	}
-	BLI_mutex_unlock(getMutex());
-	return this->cached_buffer;
+	unlockMutex();
+	return this->m_cached_buffer;
 }
 
 
 void DilateStepOperation::executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void *data)
 {
-	color[0] = this->cached_buffer[y*this->getWidth()+x];
+	color[0] = this->m_cached_buffer[y * this->getWidth() + x];
 }
 
 void DilateStepOperation::deinitExecution()
 {
-	this->inputProgram = NULL;
+	this->m_inputProgram = NULL;
 	this->deinitMutex();
-	if (this->cached_buffer) {
-		delete cached_buffer;
-		this->cached_buffer = NULL;
+	if (this->m_cached_buffer) {
+		delete this->m_cached_buffer;
+		this->m_cached_buffer = NULL;
 	}
 }
 
 bool DilateStepOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output)
 {
-	if (this->cached_buffer) {
+	if (this->m_cached_buffer) {
 		return false;
 	}
 	else {
@@ -255,54 +411,55 @@ bool DilateStepOperation::determineDependingAreaOfInterest(rcti *input, ReadBuff
 }
 
 // Erode step
-ErodeStepOperation::ErodeStepOperation(): DilateStepOperation()
+ErodeStepOperation::ErodeStepOperation() : DilateStepOperation()
 {
+	/* pass */
 }
 
 void *ErodeStepOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers)
 {
-	if (this->cached_buffer != NULL) {
-		return this->cached_buffer;
+	if (this->m_cached_buffer != NULL) {
+		return this->m_cached_buffer;
 	}
-	BLI_mutex_lock(getMutex());
-	if (this->cached_buffer == NULL) {
-		MemoryBuffer *buffer = (MemoryBuffer*)inputProgram->initializeTileData(NULL, memoryBuffers);
+	lockMutex();
+	if (this->m_cached_buffer == NULL) {
+		MemoryBuffer *buffer = (MemoryBuffer *)this->m_inputProgram->initializeTileData(NULL, memoryBuffers);
 		float *rectf = buffer->convertToValueBuffer();
 		int x, y, i;
 		float *p;
 		int bwidth = buffer->getWidth();
 		int bheight = buffer->getHeight();
-		for (i = 0 ; i < this->iterations ; i ++) {
-			for (y=0; y < bheight; y++) {
-				for (x=0; x < bwidth-1; x++) {
-					p = rectf + (bwidth*y + x);
+		for (i = 0; i < this->m_iterations; i++) {
+			for (y = 0; y < bheight; y++) {
+				for (x = 0; x < bwidth - 1; x++) {
+					p = rectf + (bwidth * y + x);
 					*p = MIN2(*p, *(p + 1));
 				}
 			}
 		
-			for (y=0; y < bheight; y++) {
-				for (x=bwidth-1; x >= 1; x--) {
-					p = rectf + (bwidth*y + x);
+			for (y = 0; y < bheight; y++) {
+				for (x = bwidth - 1; x >= 1; x--) {
+					p = rectf + (bwidth * y + x);
 					*p = MIN2(*p, *(p - 1));
 				}
 			}
 		
-			for (x=0; x < bwidth; x++) {
-				for (y=0; y < bheight-1; y++) {
-					p = rectf + (bwidth*y + x);
+			for (x = 0; x < bwidth; x++) {
+				for (y = 0; y < bheight - 1; y++) {
+					p = rectf + (bwidth * y + x);
 					*p = MIN2(*p, *(p + bwidth));
 				}
 			}
 		
-			for (x=0; x < bwidth; x++) {
-				for (y=bheight-1; y >= 1; y--) {
-					p = rectf + (bwidth*y + x);
+			for (x = 0; x < bwidth; x++) {
+				for (y = bheight - 1; y >= 1; y--) {
+					p = rectf + (bwidth * y + x);
 					*p = MIN2(*p, *(p - bwidth));
 				}
 			}
 		}
-		this->cached_buffer = rectf;
+		this->m_cached_buffer = rectf;
 	}
-	BLI_mutex_unlock(getMutex());
-	return this->cached_buffer;
+	unlockMutex();
+	return this->m_cached_buffer;
 }

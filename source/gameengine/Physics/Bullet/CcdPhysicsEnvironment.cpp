@@ -719,8 +719,8 @@ void	CcdPhysicsEnvironment::processFhSprings(double curTime,float interval)
 					{
 						if (ctrl->getConstructionInfo().m_do_fh) 
 						{
-							btVector3 lspot = cl_object->getCenterOfMassPosition()
-								+ rayDirLocal * resultCallback.m_closestHitFraction;
+							btVector3 lspot = cl_object->getCenterOfMassPosition() +
+							        rayDirLocal * resultCallback.m_closestHitFraction;
 
 
 								
@@ -1811,8 +1811,8 @@ bool CcdPhysicsEnvironment::cullingTest(PHY_CullingCallback callback, void* user
 		// occlusion culling, the direction of the view is taken from the first plan which MUST be the near plane
 		btDbvt::collideOCL(m_cullingTree->m_sets[1].m_root,planes_n,planes_o,planes_n[0],nplanes,dispatcher);
 		btDbvt::collideOCL(m_cullingTree->m_sets[0].m_root,planes_n,planes_o,planes_n[0],nplanes,dispatcher);		
-	}else 
-	{
+	}
+	else {
 		btDbvt::collideKDOP(m_cullingTree->m_sets[1].m_root,planes_n,planes_o,nplanes,dispatcher);
 		btDbvt::collideKDOP(m_cullingTree->m_sets[0].m_root,planes_n,planes_o,nplanes,dispatcher);		
 	}

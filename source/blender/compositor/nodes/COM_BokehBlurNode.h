@@ -26,14 +26,13 @@
 #include "COM_Node.h"
 
 /**
-  * @brief BokehBlurNode
-  * @ingroup Node
-  */
-
-class BokehBlurNode: public Node {
+ * @brief BokehBlurNode
+ * @ingroup Node
+ */
+class BokehBlurNode : public Node {
 public:
 	BokehBlurNode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
+	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
 };
 
 #endif

@@ -346,10 +346,10 @@ static void vicon_editmode_dehlt_draw(int x, int y, int w, int h, float UNUSED(a
 	viconutil_set_point(pts[1], x + 3,     y + 4);
 	viconutil_set_point(pts[2], x + w - 3, y + 4);
 
-	gpuCurrentColor4f(0.0f, 0.0f, 0.0f, 1);
+	gpuCurrentColor3f(0, 0, 0);
 	viconutil_draw_lineloop_smooth(pts, 3);
 
-	gpuCurrentColor3f(.9f, .9f, .9f);
+	gpuCurrentColor3f(0.9f, 0.9f, 0.9f);
 	viconutil_draw_points(pts, 3, 1);
 }
 

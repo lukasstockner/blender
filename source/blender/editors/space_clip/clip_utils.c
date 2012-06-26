@@ -30,7 +30,7 @@
  */
 
 #include "DNA_scene_types.h"
-#include "DNA_object_types.h"	/* SELECT */
+#include "DNA_object_types.h"   /* SELECT */
 
 #include "MEM_guardedalloc.h"
 
@@ -63,14 +63,15 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
-#include "clip_intern.h"	// own include
+#include "clip_intern.h"    // own include
 
 void clip_graph_tracking_values_iterate_track(SpaceClip *sc, MovieTrackingTrack *track, void *userdata,
-			void (*func) (void *userdata, MovieTrackingTrack *track, MovieTrackingMarker *marker, int coord, float val),
-			void (*segment_start) (void *userdata, MovieTrackingTrack *track, int coord),
-			void (*segment_end) (void *userdata))
+		void (*func)(void *userdata, MovieTrackingTrack *track, MovieTrackingMarker *marker, int coord,
+		              int scene_framenr, float val),
+		void (*segment_start)(void *userdata, MovieTrackingTrack *track, int coord),
+		void (*segment_end)(void *userdata))
 {
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 	int width, height, coord;
 
 	BKE_movieclip_get_size(clip, &sc->user, &width, &height);
@@ -106,8 +107,11 @@ void clip_graph_tracking_values_iterate_track(SpaceClip *sc, MovieTrackingTrack 
 			val = (marker->pos[coord] - prevval) * ((coord == 0) ? (width) : (height));
 			val /= marker->framenr - prevfra;
 
-			if (func)
-				func(userdata, track, marker, coord, val);
+			if (func) {
+				int scene_framenr = BKE_movieclip_remap_clip_to_scene_frame(clip, marker->framenr);
+
+				func(userdata, track, marker, coord, scene_framenr, val);
+			}
 
 			prevval = marker->pos[coord];
 			prevfra = marker->framenr;
@@ -120,51 +124,54 @@ void clip_graph_tracking_values_iterate_track(SpaceClip *sc, MovieTrackingTrack 
 	}
 }
 
-void clip_graph_tracking_values_iterate(SpaceClip *sc, void *userdata,
-			void (*func) (void *userdata, MovieTrackingTrack *track, MovieTrackingMarker *marker, int coord, float val),
-			void (*segment_start) (void *userdata, MovieTrackingTrack *track, int coord),
-			void (*segment_end) (void *userdata))
+void clip_graph_tracking_values_iterate(SpaceClip *sc, int selected_only, int include_hidden, void *userdata,
+		void (*func)(void *userdata, MovieTrackingTrack *track, MovieTrackingMarker *marker,
+		             int coord, int scene_framenr, float val),
+		void (*segment_start)(void *userdata, MovieTrackingTrack *track, int coord),
+		void (*segment_end)(void *userdata))
 {
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 	MovieTracking *tracking = &clip->tracking;
-	ListBase *tracksbase = BKE_tracking_get_tracks(tracking);
+	ListBase *tracksbase = BKE_tracking_get_active_tracks(tracking);
 	MovieTrackingTrack *track;
 
-	track = tracksbase->first;
-	while (track) {
-		if (TRACK_VIEW_SELECTED(sc, track)) {
-			clip_graph_tracking_values_iterate_track(sc, track, userdata, func, segment_start, segment_end);
-		}
+	for (track = tracksbase->first; track; track = track->next) {
+		if (!include_hidden && (track->flag & TRACK_HIDDEN) != 0)
+			continue;
 
-		track = track->next;
+		if (selected_only && !TRACK_SELECTED(track))
+			continue;
+
+		clip_graph_tracking_values_iterate_track(sc, track, userdata, func, segment_start, segment_end);
 	}
 }
 
-void clip_graph_tracking_iterate(SpaceClip *sc, void *userdata,
-			void (*func) (void *userdata, MovieTrackingMarker *marker))
+void clip_graph_tracking_iterate(SpaceClip *sc, int selected_only, int include_hidden, void *userdata,
+                                 void (*func)(void *userdata, MovieTrackingMarker *marker))
 {
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 	MovieTracking *tracking = &clip->tracking;
-	ListBase *tracksbase = BKE_tracking_get_tracks(tracking);
+	ListBase *tracksbase = BKE_tracking_get_active_tracks(tracking);
 	MovieTrackingTrack *track;
 
-	track = tracksbase->first;
-	while (track) {
-		if (TRACK_VIEW_SELECTED(sc, track)) {
-			int i;
+	for (track = tracksbase->first; track; track = track->next) {
+		int i;
 
-			for (i = 0; i < track->markersnr; i++) {
-				MovieTrackingMarker *marker = &track->markers[i];
+		if (!include_hidden && (track->flag & TRACK_HIDDEN) != 0)
+			continue;
 
-				if (marker->flag & MARKER_DISABLED)
-					continue;
+		if (selected_only && !TRACK_SELECTED(track))
+			continue;
 
-				if (func)
-					func(userdata, marker);
-			}
+		for (i = 0; i < track->markersnr; i++) {
+			MovieTrackingMarker *marker = &track->markers[i];
+
+			if (marker->flag & MARKER_DISABLED)
+				continue;
+
+			if (func)
+				func(userdata, marker);
 		}
-
-		track = track->next;
 	}
 }
 
@@ -172,7 +179,7 @@ void clip_delete_track(bContext *C, MovieClip *clip, ListBase *tracksbase, Movie
 {
 	MovieTracking *tracking = &clip->tracking;
 	MovieTrackingStabilization *stab = &tracking->stabilization;
-	MovieTrackingTrack *act_track = BKE_tracking_active_track(tracking);
+	MovieTrackingTrack *act_track = BKE_tracking_track_get_active(tracking);
 
 	int has_bundle = FALSE, update_stab = FALSE;
 
@@ -189,7 +196,7 @@ void clip_delete_track(bContext *C, MovieClip *clip, ListBase *tracksbase, Movie
 	if (track->flag & TRACK_HAS_BUNDLE)
 		has_bundle = TRUE;
 
-	BKE_tracking_free_track(track);
+	BKE_tracking_track_free(track);
 	BLI_freelinkN(tracksbase, track);
 
 	WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
@@ -212,19 +219,20 @@ void clip_delete_marker(bContext *C, MovieClip *clip, ListBase *tracksbase,
 		clip_delete_track(C, clip, tracksbase, track);
 	}
 	else {
-		BKE_tracking_delete_marker(track, marker->framenr);
+		BKE_tracking_marker_delete(track, marker->framenr);
 
 		WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 	}
 }
 
-void clip_view_center_to_point(SpaceClip *sc, float x, float y)
+void clip_view_center_to_point(const bContext *C, float x, float y)
 {
+	SpaceClip *sc = CTX_wm_space_clip(C);
 	int width, height;
 	float aspx, aspy;
 
-	ED_space_clip_size(sc, &width, &height);
-	ED_space_clip_aspect(sc, &aspx, &aspy);
+	ED_space_clip_get_size(C, &width, &height);
+	ED_space_clip_get_aspect(sc, &aspx, &aspy);
 
 	sc->xof = (x - 0.5f) * width * aspx;
 	sc->yof = (y - 0.5f) * height * aspy;
@@ -234,21 +242,15 @@ void clip_draw_cfra(SpaceClip *sc, ARegion *ar, Scene *scene)
 {
 	View2D *v2d = &ar->v2d;
 	float xscale, yscale;
-	float vec[2];
+	float c;
 
 	/* Draw a light green line to indicate current frame */
-	vec[0] = (float)(sc->user.framenr * scene->r.framelen);
+	c = (float)(sc->user.framenr * scene->r.framelen);
 
 	UI_ThemeColor(TH_CFRAME);
 	glLineWidth(2.0);
 
-	gpuBegin(GL_LINE_STRIP);
-		vec[1] = v2d->cur.ymin;
-		gpuVertex2fv(vec);
-
-		vec[1] = v2d->cur.ymax;
-		gpuVertex2fv(vec);
-	gpuEnd();
+	gpuSingleLinef(c, v2d->cur.ymin, c, v2d->cur.ymax);
 
 	glLineWidth(1.0);
 
@@ -269,11 +271,14 @@ void clip_draw_sfra_efra(View2D *v2d, Scene *scene)
 	UI_view2d_view_ortho(v2d);
 
 	/* currently clip editor supposes that editing clip length is equal to scene frame range */
-	glEnable(GL_BLEND);
-		gpuCurrentColor4f(0.0f, 0.0f, 0.0f, 0.4f);
 
-		gpuSingleFilledRectf(v2d->cur.xmin, v2d->cur.ymin, (float)SFRA, v2d->cur.ymax);
-		gpuSingleFilledRectf((float)EFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+	glEnable(GL_BLEND);
+	
+	gpuCurrentColor4f(0, 0, 0, 0.4f);
+
+	gpuSingleFilledRectf(v2d->cur.xmin, v2d->cur.ymin, (float)SFRA, v2d->cur.ymax);
+	gpuSingleFilledRectf((float)EFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+
 	glDisable(GL_BLEND);
 
 	UI_ThemeColorShade(TH_BACK, -60);

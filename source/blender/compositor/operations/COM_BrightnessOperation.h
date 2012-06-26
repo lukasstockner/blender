@@ -28,28 +28,28 @@
 class BrightnessOperation : public NodeOperation {
 private:
 	/**
-	  * Cached reference to the inputProgram
-	  */
-	SocketReader *inputProgram;
-	SocketReader *inputBrightnessProgram;
-	SocketReader *inputContrastProgram;
+	 * Cached reference to the inputProgram
+	 */
+	SocketReader *m_inputProgram;
+	SocketReader *m_inputBrightnessProgram;
+	SocketReader *m_inputContrastProgram;
 
 public:
 	BrightnessOperation();
 	
 	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 	
 	/**
-	  * Initialize the execution
-	  */
+	 * Initialize the execution
+	 */
 	void initExecution();
 	
 	/**
-	  * Deinitialize the execution
-	  */
+	 * Deinitialize the execution
+	 */
 	void deinitExecution();
 
 };

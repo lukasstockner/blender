@@ -31,34 +31,34 @@ extern "C" {
 	#include "RE_render_ext.h"
 }
 
-RenderLayersBaseProg::RenderLayersBaseProg(int renderpass, int elementsize): NodeOperation()
+RenderLayersBaseProg::RenderLayersBaseProg(int renderpass, int elementsize) : NodeOperation()
 {
-	this->renderpass = renderpass;
+	this->m_renderpass = renderpass;
 	this->setScene(NULL);
-	this->inputBuffer = NULL;
-	this->elementsize = elementsize;
+	this->m_inputBuffer = NULL;
+	this->m_elementsize = elementsize;
 }
 
 
 void RenderLayersBaseProg::initExecution()
 {
-	Scene * scene = this->getScene();
-	Render *re = (scene)? RE_GetRender(scene->id.name): NULL;
+	Scene *scene = this->getScene();
+	Render *re = (scene) ? RE_GetRender(scene->id.name) : NULL;
 	RenderResult *rr = NULL;
 	
 	if (re)
 		rr = RE_AcquireResultRead(re);
 	
 	if (rr) {
-		SceneRenderLayer *srl = (SceneRenderLayer*)BLI_findlink(&scene->r.layers, getLayerId());
+		SceneRenderLayer *srl = (SceneRenderLayer *)BLI_findlink(&scene->r.layers, getLayerId());
 		if (srl) {
 
 			RenderLayer *rl = RE_GetRenderLayer(rr, srl->name);
 			if (rl && rl->rectf) {
-				this->inputBuffer = RE_RenderLayerGetPass(rl, renderpass);
+				this->m_inputBuffer = RE_RenderLayerGetPass(rl, this->m_renderpass);
 
-				if (this->inputBuffer == NULL || renderpass == SCE_PASS_COMBINED) {
-					this->inputBuffer = rl->rectf;
+				if (this->m_inputBuffer == NULL || this->m_renderpass == SCE_PASS_COMBINED) {
+					this->m_inputBuffer = rl->rectf;
 				}
 			}
 		}
@@ -74,38 +74,30 @@ void RenderLayersBaseProg::executePixel(float *output, float x, float y, PixelSa
 	int ix = x;
 	int iy = y;
 	
-	if (inputBuffer == NULL || ix < 0 || iy < 0 || ix >= (int)this->getWidth() || iy >= (int)this->getHeight() ) {
-		output[0] = 0.0f;
-		output[1] = 0.0f;
-		output[2] = 0.0f;
-		output[3] = 0.0f;
+	if (this->m_inputBuffer == NULL || ix < 0 || iy < 0 || ix >= (int)this->getWidth() || iy >= (int)this->getHeight() ) {
+		zero_v4(output);
 	}
 	else {
-		unsigned int offset = (iy*this->getWidth()+ix) * elementsize;
-		if (elementsize == 1) {
-			output[0] = inputBuffer[offset];
+		unsigned int offset = (iy * this->getWidth() + ix) * this->m_elementsize;
+		if (this->m_elementsize == 1) {
+			output[0] = this->m_inputBuffer[offset];
 			output[1] = 0.0f;
 			output[2] = 0.0f;
 			output[3] = 0.0f;
 		}
-		else if (elementsize == 3) {
-			output[0] = inputBuffer[offset];
-			output[1] = inputBuffer[offset+1];
-			output[2] = inputBuffer[offset+2];
+		else if (this->m_elementsize == 3) {
+			copy_v3_v3(output, &this->m_inputBuffer[offset]);
 			output[3] = 1.0f;
 		}
 		else {
-			output[0] = inputBuffer[offset];
-			output[1] = inputBuffer[offset+1];
-			output[2] = inputBuffer[offset+2];
-			output[3] = inputBuffer[offset+3];
+			copy_v4_v4(output, &this->m_inputBuffer[offset]);
 		}
 	}
 }
 
 void RenderLayersBaseProg::deinitExecution()
 {
-	this->inputBuffer = NULL;
+	this->m_inputBuffer = NULL;
 }
 
 void RenderLayersBaseProg::determineResolution(unsigned int resolution[], unsigned int preferredResolution[])
@@ -121,12 +113,12 @@ void RenderLayersBaseProg::determineResolution(unsigned int resolution[], unsign
 		rr = RE_AcquireResultRead(re);
 	
 	if (rr) {
-		SceneRenderLayer *srl	= (SceneRenderLayer*)BLI_findlink(&sce->r.layers, getLayerId());
+		SceneRenderLayer *srl   = (SceneRenderLayer *)BLI_findlink(&sce->r.layers, getLayerId());
 		if (srl) {
 			RenderLayer *rl = RE_GetRenderLayer(rr, srl->name);
 			if (rl && rl->rectf) {
-				resolution[0]=rl->rectx;
-				resolution[1]=rl->recty;
+				resolution[0] = rl->rectx;
+				resolution[1] = rl->recty;
 			}
 		}
 	}

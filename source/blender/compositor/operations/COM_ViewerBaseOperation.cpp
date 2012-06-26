@@ -42,22 +42,23 @@ ViewerBaseOperation::ViewerBaseOperation() : NodeOperation()
 {
 	this->setImage(NULL);
 	this->setImageUser(NULL);
-	this->outputBuffer = NULL;
-	this->outputBufferDisplay = NULL;
-	this->active = false;
-	this->doColorManagement = true;
+	this->m_outputBuffer = NULL;
+	this->m_outputBufferDisplay = NULL;
+	this->m_active = false;
+	this->m_doColorManagement = true;
 }
 
 void ViewerBaseOperation::initExecution()
 {
-	// When initializing the tree during initial load the width and height can be zero.
-	initImage();
+	if (isActiveViewerOutput()) {
+		initImage();
+	}
 }
 
 void ViewerBaseOperation::initImage()
 {
-	Image *anImage = this->image;
-	ImBuf *ibuf = BKE_image_acquire_ibuf(anImage, this->imageUser, &this->lock);
+	Image *anImage = this->m_image;
+	ImBuf *ibuf = BKE_image_acquire_ibuf(anImage, this->m_imageUser, &this->m_lock);
 	
 	if (!ibuf) return;
 	if (ibuf->x != (int)getWidth() || ibuf->y != (int)getHeight()) {
@@ -72,28 +73,27 @@ void ViewerBaseOperation::initImage()
 	}
 	
 	/* now we combine the input with ibuf */
-	this->outputBuffer = ibuf->rect_float;
-	this->outputBufferDisplay = (unsigned char*)ibuf->rect;
+	this->m_outputBuffer = ibuf->rect_float;
+	this->m_outputBufferDisplay = (unsigned char *)ibuf->rect;
 	
-	BKE_image_release_ibuf(this->image, this->lock);
+	BKE_image_release_ibuf(this->m_image, this->m_lock);
 }
 void ViewerBaseOperation:: updateImage(rcti *rect)
 {
-	/// @todo: introduce new event to update smaller area
-	WM_main_add_notifier(NC_WINDOW|ND_DRAW, NULL);
+	WM_main_add_notifier(NC_WINDOW | ND_DRAW, NULL);
 }
 
 void ViewerBaseOperation::deinitExecution()
 {
-	this->outputBuffer = NULL;
+	this->m_outputBuffer = NULL;
 }
 
-const int ViewerBaseOperation::getRenderPriority() const
+const CompositorPriority ViewerBaseOperation::getRenderPriority() const
 {
 	if (this->isActiveViewerOutput()) {
-		return 8;
+		return COM_PRIORITY_HIGH;
 	}
 	else {
-		return 0;
+		return COM_PRIORITY_LOW;
 	}
 }

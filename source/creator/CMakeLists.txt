@@ -397,14 +397,6 @@ if(UNIX AND NOT APPLE)
 		)
 	endif()
 
-		# plugins in blender 2.6 don't work at the moment.
-		#
-		# install(
-		# 	DIRECTORY ${CMAKE_SOURCE_DIR}/release/plugins
-		# 	DESTINATION ${TARGETDIR_VER}
-		# 	PATTERN ".svn" EXCLUDE
-		# )
-
 	if(WITH_PYTHON)
 		if(WITH_PYTHON_INSTALL)
 			# on some platforms (like openSUSE) Python is linked
@@ -483,14 +475,6 @@ elseif(WIN32)
 			)
 		endif()
 	endif()
-
-	# plugins in blender 2.6 don't work at the moment.
-	#
-	# install(
-	# 	DIRECTORY ${CMAKE_SOURCE_DIR}/release/plugins
-	# 	DESTINATION ${TARGETDIR_VER}
-	# 	PATTERN ".svn" EXCLUDE
-	# )
 
 	if(WITH_PYTHON)
 		set_lib_path(PYLIB "python/lib")
@@ -841,6 +825,8 @@ endif()
 		bf_editor_sound
 		bf_editor_animation
 		bf_editor_datafiles
+		bf_editor_mask
+		bf_editor_io
 
 		bf_render
 		bf_intern_opennl
@@ -859,7 +845,6 @@ endif()
 		bf_blenlib
 		bf_intern_ghost
 		bf_intern_string
-		bf_blenpluginapi
 		bf_avi
 		bf_imbuf_cineon
 		bf_imbuf_openexr
@@ -913,17 +898,19 @@ endif()
 		cycles_subd
 		bf_compositor #added for opencl compositor
 		bf_opencl #added for opencl compositor
+		bf_intern_raskter
 	)
 
 	if(WITH_LIBMV)
 		list(APPEND BLENDER_SORTED_LIBS extern_libmv)
+		list(APPEND BLENDER_SORTED_LIBS extern_ceres)
 	endif()
 
 	if(WITH_MOD_CLOTH_ELTOPO)
 		list(APPEND BLENDER_SORTED_LIBS extern_eltopo)
 	endif()
 
-	if(WITH_BUILTIN_GLEW)
+	if(NOT WITH_SYSTEM_GLEW)
 		list(APPEND BLENDER_SORTED_LIBS extern_glew)
 	endif()
 

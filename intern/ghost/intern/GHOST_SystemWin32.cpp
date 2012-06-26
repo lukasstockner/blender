@@ -27,18 +27,12 @@
 
 /** \file ghost/intern/GHOST_SystemWin32.cpp
  *  \ingroup GHOST
- */
-
-
-/**
-
- * Copyright (C) 2001 NaN Technologies B.V.
- * @author	Maarten Gribnau
- * @date	May 7, 2001
+ *
+ * \author	Maarten Gribnau
  */
 
 #ifdef WITH_GHOST_DEBUG
-#include <iostream>
+#  include <iostream>
 #endif
 
 #include <stdio.h> // [mce] temporary debug, remove soon!
@@ -47,17 +41,18 @@
 #include "GHOST_EventDragnDrop.h"
 
 #ifndef _WIN32_IE
-#define _WIN32_IE 0x0501 /* shipped before XP, so doesn't impose additional requirements */
+#  define _WIN32_IE 0x0501 /* shipped before XP, so doesn't impose additional requirements */
 #endif
+
 #include <shlobj.h>
 #include <tlhelp32.h>
 
 // win64 doesn't define GWL_USERDATA
 #ifdef WIN32
-#ifndef GWL_USERDATA
-#define GWL_USERDATA GWLP_USERDATA
-#define GWL_WNDPROC GWLP_WNDPROC 
-#endif
+#  ifndef GWL_USERDATA
+#    define GWL_USERDATA GWLP_USERDATA
+#    define GWL_WNDPROC GWLP_WNDPROC
+#  endif
 #endif
 
 #include "utfconv.h"
@@ -660,8 +655,8 @@ GHOST_EventButton *GHOST_SystemWin32::processButtonEvent(GHOST_TEventType type, 
 GHOST_EventCursor *GHOST_SystemWin32::processCursorEvent(GHOST_TEventType type, GHOST_IWindow *Iwindow)
 {
 	GHOST_TInt32 x_screen, y_screen;
-	GHOST_SystemWin32 *system = ((GHOST_SystemWin32 * ) getSystem());
-	GHOST_WindowWin32 *window = ( GHOST_WindowWin32 * ) Iwindow;
+	GHOST_SystemWin32 *system = (GHOST_SystemWin32 *) getSystem();
+	GHOST_WindowWin32 *window = (GHOST_WindowWin32 *) Iwindow;
 	
 	system->getCursorPosition(x_screen, y_screen);
 

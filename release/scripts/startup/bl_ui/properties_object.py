@@ -104,21 +104,26 @@ class OBJECT_PT_transform_locks(ObjectButtonsPanel, Panel):
 
         ob = context.object
 
-        row = layout.row()
+        split = layout.split(percentage=0.1)
 
-        col = row.column()
-        col.prop(ob, "lock_location", text="Location")
+        col = split.column(align=True)
+        col.label(text="")
+        col.label(text="X:")
+        col.label(text="Y:")
+        col.label(text="Z:")
 
-        col = row.column()
+        col = split.row()
+        col.column().prop(ob, "lock_location", text="Location")
+        col.column().prop(ob, "lock_rotation", text="Rotation")
+        col.column().prop(ob, "lock_scale", text="Scale")
+
         if ob.rotation_mode in {'QUATERNION', 'AXIS_ANGLE'}:
-            col.prop(ob, "lock_rotations_4d", text="Rotation")
-            if ob.lock_rotations_4d:
-                col.prop(ob, "lock_rotation_w", text="W")
-            col.prop(ob, "lock_rotation", text="")
-        else:
-            col.prop(ob, "lock_rotation", text="Rotation")
+            row = layout.row()
+            row.prop(ob, "lock_rotations_4d", text="Lock Rotation")
 
-        row.column().prop(ob, "lock_scale", text="Scale")
+            sub = row.row()
+            sub.active = ob.lock_rotations_4d
+            sub.prop(ob, "lock_rotation_w", text="W")
 
 
 class OBJECT_PT_relations(ObjectButtonsPanel, Panel):

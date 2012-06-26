@@ -50,6 +50,8 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
         physics_type = game.physics_type
 
         if physics_type == 'CHARACTER':
+            layout.prop(game, "use_actor")
+            layout.prop(ob, "hide_render", text="Invisible")  # out of place but useful
             layout.prop(game, "step_height", slider=True)
             layout.prop(game, "jump_speed")
             layout.prop(game, "fall_speed")
@@ -626,6 +628,14 @@ class WORLD_PT_game_physics(WorldButtonsPanel, Panel):
             col = split.column()
             col.label(text="Logic Steps:")
             col.prop(gs, "logic_step_max", text="Max")
+
+            col = layout.column()
+            col.label(text="Physics Deactivation:")
+            sub = col.row(align=True)
+            sub.prop(gs, "deactivation_linear_threshold", text="Linear Threshold")
+            sub.prop(gs, "deactivation_angular_threshold", text="Angular Threshold")
+            sub = col.row()
+            sub.prop(gs, "deactivation_time", text="Time")
 
             col = layout.column()
             col.prop(gs, "use_occlusion_culling", text="Occlusion Culling")

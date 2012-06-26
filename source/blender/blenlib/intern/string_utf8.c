@@ -211,7 +211,7 @@ size_t BLI_strncpy_wchar_as_utf8(char *dst, const wchar_t *src, const size_t max
 {
 	size_t len = 0;
 	while (*src && len < maxcpy) { /* XXX can still run over the buffer because utf8 size isn't known :| */
-		len += BLI_str_utf8_from_unicode(*src++, dst+len);
+		len += BLI_str_utf8_from_unicode(*src++, dst + len);
 	}
 
 	dst[len]= '\0';
@@ -335,9 +335,9 @@ size_t BLI_strncpy_wchar_from_utf8(wchar_t *dst_w, const char *src_c, const size
 int BLI_str_utf8_size(const char *p)
 {
 	int mask = 0, len;
-    unsigned char c = (unsigned char) *p;
+	unsigned char c = (unsigned char) *p;
 
-    UTF8_COMPUTE (c, mask, len);
+	UTF8_COMPUTE (c, mask, len);
 
 	(void)mask; /* quiet warning */
 

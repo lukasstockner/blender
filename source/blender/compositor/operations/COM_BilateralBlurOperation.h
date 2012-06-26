@@ -27,31 +27,31 @@
 
 class BilateralBlurOperation : public NodeOperation, public QualityStepHelper {
 private:
-	SocketReader *inputColorProgram;
-	SocketReader *inputDeterminatorProgram;
-	NodeBilateralBlurData *data;
-	float space;
+	SocketReader *m_inputColorProgram;
+	SocketReader *m_inputDeterminatorProgram;
+	NodeBilateralBlurData *m_data;
+	float m_space;
 
 public:
 	BilateralBlurOperation();
 
 	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void *data);
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, int x, int y, MemoryBuffer * inputBuffers[], void *data);
 	
 	/**
-	  * Initialize the execution
-	  */
+	 * Initialize the execution
+	 */
 	void initExecution();
 	
 	/**
-	  * Deinitialize the execution
-	  */
+	 * Deinitialize the execution
+	 */
 	void deinitExecution();
 	
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 	
-	void setData(NodeBilateralBlurData *data) {this->data = data;}
+	void setData(NodeBilateralBlurData *data) { this->m_data = data; }
 };
 #endif

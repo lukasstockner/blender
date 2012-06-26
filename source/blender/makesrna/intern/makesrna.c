@@ -2681,6 +2681,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
 	{"rna_world.c", NULL, RNA_def_world},
 	{"rna_movieclip.c", NULL, RNA_def_movieclip},
 	{"rna_tracking.c", NULL, RNA_def_tracking},
+	{"rna_mask.c", NULL, RNA_def_mask},
 	{NULL, NULL}
 };
 
@@ -2960,12 +2961,12 @@ static void rna_generate_header_cpp(BlenderRNA *brna, FILE *f)
 
 		fprintf(f, "class %s : public %s {\n", srna->identifier, (srna->base) ? srna->base->identifier : "Pointer");
 		fprintf(f, "public:\n");
-		fprintf(f, "\t%s(const PointerRNA& ptr) :\n\t\t%s(ptr)", srna->identifier,
+		fprintf(f, "\t%s(const PointerRNA& ptr_arg) :\n\t\t%s(ptr_arg)", srna->identifier,
 		        (srna->base) ? srna->base->identifier : "Pointer");
 		for (dp = ds->cont.properties.first; dp; dp = dp->next)
 			if (!(dp->prop->flag & (PROP_IDPROPERTY | PROP_BUILTIN)))
 				if (dp->prop->type == PROP_COLLECTION)
-					fprintf(f, ",\n\t\t%s(ptr)", dp->prop->identifier);
+					fprintf(f, ",\n\t\t%s(ptr_arg)", dp->prop->identifier);
 		fprintf(f, "\n\t\t{}\n\n");
 
 		for (dp = ds->cont.properties.first; dp; dp = dp->next)
@@ -3122,7 +3123,7 @@ int main(int argc, char **argv)
 		return_status = 1;
 	}
 	else {
-		fprintf(stderr, "Running makesrna");
+		fprintf(stderr, "Running makesrna\n");
 		makesrna_path = argv[0];
 		return_status = rna_preprocess(argv[1]);
 	}

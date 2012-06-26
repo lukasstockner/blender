@@ -26,24 +26,24 @@
 
 
 /**
-  * this program converts an input colour to an output value.
-  * it assumes we are in sRGB colour space.
-  */
+ * this program converts an input colour to an output value.
+ * it assumes we are in sRGB colour space.
+ */
 class SetAlphaOperation : public NodeOperation {
 private:
-	SocketReader *inputColor;
-	SocketReader *inputAlpha;
+	SocketReader *m_inputColor;
+	SocketReader *m_inputAlpha;
 
 public:
 	/**
-	  * Default constructor
-	  */
+	 * Default constructor
+	 */
 	SetAlphaOperation();
 	
 	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 	
 	void initExecution();
 	void deinitExecution();

@@ -157,22 +157,6 @@ static void do_node_add_group(bContext *C, void *UNUSED(arg), int event)
 	do_node_add(C, &ntemp);
 }
 
-#if 0 /* disabled */
-static void do_node_add_dynamic(bContext *C, void *UNUSED(arg), int event)
-{
-	Main *bmain = CTX_data_main(C);
-	Scene *scene = CTX_data_scene(C);
-	bNodeTemplate ntemp;
-	
-	ntemp.type = NODE_DYNAMIC;
-	
-	ntemp.main = bmain;
-	ntemp.scene = scene;
-	
-	do_node_add(C, &ntemp);
-}
-#endif
-
 static int node_tree_has_type(int treetype, int nodetype)
 {
 	bNodeTreeType *ttype= ntreeGetType(treetype);
@@ -228,9 +212,6 @@ static void node_add_menu(bContext *C, uiLayout *layout, void *arg_nodeclass)
 			}
 		}
 	}
-	else if (nodeclass==NODE_DYNAMIC) {
-		/* disabled */
-	}
 	else {
 		bNodeType *ntype;
 		
@@ -258,7 +239,7 @@ static void node_menu_add(const bContext *C, Menu *menu)
 	bNodeTreeType *ntreetype= ntreeGetType(snode->treetype);
 
 	if (!snode->nodetree)
-		uiLayoutSetActive(layout, 0);
+		uiLayoutSetActive(layout, FALSE);
 	
 	if (ntreetype && ntreetype->foreach_nodeclass)
 		ntreetype->foreach_nodeclass(scene, layout, node_menu_add_foreach_cb);

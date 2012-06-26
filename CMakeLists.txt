@@ -159,7 +159,7 @@ unset(PLATFORM_DEFAULT)
 if(UNIX AND NOT APPLE)
 	option(WITH_X11_XINPUT "Enable X11 Xinput (tablet support and unicode input)"	ON)
 	option(WITH_X11_XF86VMODE "Enable X11 video mode switching"	ON)
-	option(WITH_BUILTIN_GLEW "Use GLEW OpenGL wrapper library bundled with blender" ON)
+	option(WITH_SYSTEM_GLEW "Use GLEW OpenGL wrapper library provided by the operating system" ON)
 
 	# freebsd doesn't seems to support XDND
 	if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
@@ -167,8 +167,19 @@ if(UNIX AND NOT APPLE)
 	endif()
 else()
 	# not an option for other OS's
-	set(WITH_BUILTIN_GLEW ON)
+	set(WITH_SYSTEM_GLEW OFF)
 endif()
+
+
+# (unix defaults to System OpenJPEG On)
+if(UNIX AND NOT APPLE)
+	set(PLATFORM_DEFAULT ON)
+else()
+	set(PLATFORM_DEFAULT OFF)
+endif()
+option(WITH_SYSTEM_OPENJPEG "Use the operating systems OpenJPEG library" ${PLATFORM_DEFAULT})
+unset(PLATFORM_DEFAULT)
+
 
 # Modifiers
 option(WITH_MOD_FLUID        	"Enable Elbeem Modifier (Fluid Simulation)" ON)
@@ -239,13 +250,9 @@ endif()
 # Cycles
 option(WITH_CYCLES					"Enable cycles Render Engine" ON)
 option(WITH_CYCLES_TEST				"Build cycles test application" OFF)
+option(WITH_CYCLES_OSL				"Build Cycles with OSL support" OFF)
 option(WITH_CYCLES_CUDA_BINARIES	"Build cycles CUDA binaries" OFF)
-if(WIN32 AND NOT CMAKE_CL_64 AND NOT WITH_MINGW64)
-	set(PLATFORM_DEFAULT sm_20 sm_21)
-else()
-	set(PLATFORM_DEFAULT sm_13 sm_20 sm_21)
-endif()
-set(CYCLES_CUDA_BINARIES_ARCH ${PLATFORM_DEFAULT} CACHE STRING "CUDA architectures to build binaries for")
+set(CYCLES_CUDA_BINARIES_ARCH sm_13 sm_20 sm_21 CACHE STRING "CUDA architectures to build binaries for")
 mark_as_advanced(CYCLES_CUDA_BINARIES_ARCH)
 unset(PLATFORM_DEFAULT)
 
@@ -739,9 +746,16 @@ if(UNIX AND NOT APPLE)
 
 		find_package(OpenImageIO)
 
-		set(OPENIMAGEIO_LIBRARIES ${OPENIMAGEIO_LIBRARIES} ${PNG_LIBRARIES} ${JPEG_LIBRARIES} ${TIFF_LIBRARY} ${OPENEXR_LIBRARIES} ${ZLIB_LIBRARIES} ${BOOST_LIBRARIES})
+		set(OPENIMAGEIO_LIBRARIES ${OPENIMAGEIO_LIBRARIES} ${PNG_LIBRARIES} ${JPEG_LIBRARIES} ${ZLIB_LIBRARIES} ${BOOST_LIBRARIES})
 		set(OPENIMAGEIO_LIBPATH)  # TODO, remove and reference the absolute path everywhere
 		set(OPENIMAGEIO_DEFINITIONS)
+
+		if(WITH_IMAGE_TIFF)
+			list(APPEND OPENIMAGEIO_LIBRARIES "${TIFF_LIBRARY}")
+		endif()
+		if(WITH_IMAGE_OPENEXR)
+			list(APPEND OPENIMAGEIO_LIBRARIES "${OPENEXR_LIBRARIES}")
+		endif()
 
 		if(NOT OPENIMAGEIO_FOUND)
 			set(WITH_OPENIMAGEIO OFF)
@@ -1583,10 +1597,11 @@ endif()
 
 
 if(WITH_IMAGE_OPENJPEG)
-	if(UNIX AND NOT APPLE)
+	if(WITH_SYSTEM_OPENJPEG)
 		# dealt with above
 	else()
 		set(OPENJPEG_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/libopenjpeg")
+		add_definitions(-DOPJ_STATIC)
 	endif()
 endif()
 
@@ -1647,24 +1662,25 @@ endif()
 #-----------------------------------------------------------------------------
 # Configure GLEW
 
-if(WITH_BUILTIN_GLEW)
-	# set(GLEW_LIBRARY "")  # unused
-	if(WITH_GLES)
-		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew-android/include")
-	else()
-		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew/include")
-	endif()
-else()
+if(WITH_SYSTEM_GLEW)
+
 	find_package(GLEW)
 
 	if(NOT GLEW_FOUND)
-		message(FATAL_ERROR "GLEW is required to build blender, install it or use WITH_BUILTIN_GLEW")
+		message(FATAL_ERROR "GLEW is required to build blender, install it or disable WITH_SYSTEM_GLEW")
 	endif()
 
 	mark_as_advanced(
 		GLEW_LIBRARY
 		GLEW_INCLUDE_PATH
 	)
+else()
+	# set(GLEW_LIBRARY "")  # unused
+	if(WITH_GLES)
+		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew-android/include")
+	else()
+		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew/include")
+	endif()
 endif()
 
 #-----------------------------------------------------------------------------
@@ -1716,6 +1732,20 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	if(NOT APPLE)
 		ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_ERROR_UNUSED_BUT_SET_VARIABLE -Wno-error=unused-but-set-variable)
 	endif()
+
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_ALL -Wall)
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_NO_AUTOLOGICAL_COMPARE -Wno-tautological-compare)
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_NO_UNKNOWN_PRAGMAS -Wno-unknown-pragmas)
+	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_NO_CHAR_SUBSCRIPTS -Wno-char-subscripts)
+
+	ADD_CHECK_C_COMPILER_FLAG(CXX_WARNINGS C_WARN_ALL -Wall)
+	ADD_CHECK_C_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_AUTOLOGICAL_COMPARE -Wno-tautological-compare)
+	ADD_CHECK_C_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_UNKNOWN_PRAGMAS -Wno-unknown-pragmas)
+	ADD_CHECK_C_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_CHAR_SUBSCRIPTS -Wno-char-subscripts)
+	ADD_CHECK_C_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_OVERLOADED_VIRTUAL -Wno-overloaded-virtual)  # we get a lot of these, if its a problem a dev needs to look into it.
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_INVALID_OFFSETOF -Wno-invalid-offsetof)
 
 elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
 
@@ -1810,6 +1840,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PLATFORM_CFLAGS} ${CXX_WARNINGS}")
 
 if(WITH_CXX_GUARDEDALLOC)
 	include_directories(${CMAKE_SOURCE_DIR}/intern/guardedalloc)
+	add_definitions(-DWITH_CXX_GUARDEDALLOC)
 endif()
 
 if(WITH_ASSERT_ABORT)
@@ -1894,8 +1925,9 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_INSTALL_PORTABLE)
 	info_cfg_option(WITH_X11_XF86VMODE)
 	info_cfg_option(WITH_X11_XINPUT)
-	info_cfg_option(WITH_BUILTIN_GLEW)
 	info_cfg_option(WITH_MEM_JEMALLOC)
+	info_cfg_option(WITH_SYSTEM_GLEW)
+	info_cfg_option(WITH_SYSTEM_OPENJPEG)
 
 	info_cfg_text("Image Formats:")
 	info_cfg_option(WITH_IMAGE_CINEON)

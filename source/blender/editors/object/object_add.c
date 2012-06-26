@@ -108,13 +108,14 @@
 #include "object_intern.h"
 
 /* this is an exact copy of the define in rna_lamp.c
- * kept here because of linking order */
+ * kept here because of linking order. 
+ * Icons are only defined here */
 EnumPropertyItem lamp_type_items[] = {
-	{LA_LOCAL, "POINT", 0, "Point", "Omnidirectional point light source"},
-	{LA_SUN, "SUN", 0, "Sun", "Constant direction parallel ray light source"},
-	{LA_SPOT, "SPOT", 0, "Spot", "Directional cone light source"},
-	{LA_HEMI, "HEMI", 0, "Hemi", "180 degree constant light source"},
-	{LA_AREA, "AREA", 0, "Area", "Directional area light source"},
+	{LA_LOCAL, "POINT", ICON_LAMP_POINT, "Point", "Omnidirectional point light source"},
+	{LA_SUN, "SUN", ICON_LAMP_SUN, "Sun", "Constant direction parallel ray light source"},
+	{LA_SPOT, "SPOT", ICON_LAMP_SPOT, "Spot", "Directional cone light source"},
+	{LA_HEMI, "HEMI", ICON_LAMP_HEMI, "Hemi", "180 degree constant light source"},
+	{LA_AREA, "AREA", ICON_LAMP_AREA, "Area", "Directional area light source"},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -166,6 +167,7 @@ void ED_object_base_init_transform(bContext *C, Base *base, const float loc[3], 
 float ED_object_new_primitive_matrix(bContext *C, Object *obedit,
                                      const float loc[3], const float rot[3], float primmat[][4])
 {
+	Scene *scene = CTX_data_scene(C);
 	View3D *v3d = CTX_wm_view3d(C);
 	float mat[3][3], rmat[3][3], cmat[3][3], imat[3][3];
 	
@@ -186,7 +188,9 @@ float ED_object_new_primitive_matrix(bContext *C, Object *obedit,
 	invert_m3_m3(imat, mat);
 	mul_m3_v3(imat, primmat[3]);
 	
-	if (v3d) return v3d->grid;
+	if (v3d)
+		return ED_view3d_grid_scale(scene, v3d, NULL);
+
 	return 1.0f;
 }
 

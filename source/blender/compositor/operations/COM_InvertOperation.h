@@ -28,33 +28,33 @@
 class InvertOperation : public NodeOperation {
 private:
 	/**
-	  * Cached reference to the inputProgram
-	  */
-	SocketReader * inputValueProgram;
-	SocketReader * inputColorProgram;
+	 * Cached reference to the inputProgram
+	 */
+	SocketReader *m_inputValueProgram;
+	SocketReader *m_inputColorProgram;
 	
-	bool alpha;
-	bool color;
+	bool m_alpha;
+	bool m_color;
 
 public:
 	InvertOperation();
 	
 	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 	
 	/**
-	  * Initialize the execution
-	  */
+	 * Initialize the execution
+	 */
 	void initExecution();
 	
 	/**
-	  * Deinitialize the execution
-	  */
+	 * Deinitialize the execution
+	 */
 	void deinitExecution();
 	
-	void setColor(bool color) {this->color = color;}
-	void setAlpha(bool alpha) {this->alpha = alpha;}
+	void setColor(bool color) { this->m_color = color; }
+	void setAlpha(bool alpha) { this->m_alpha = alpha; }
 };
 #endif

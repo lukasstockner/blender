@@ -28,37 +28,37 @@
 class ColorCorrectionOperation : public NodeOperation {
 private:
 	/**
-	  * Cached reference to the inputProgram
-	  */
-	SocketReader *inputImage;
-	SocketReader *inputMask;
-	NodeColorCorrection *data;
+	 * Cached reference to the inputProgram
+	 */
+	SocketReader *m_inputImage;
+	SocketReader *m_inputMask;
+	NodeColorCorrection *m_data;
 	
-	bool redChannelEnabled;
-	bool greenChannelEnabled;
-	bool blueChannelEnabled;
+	bool m_redChannelEnabled;
+	bool m_greenChannelEnabled;
+	bool m_blueChannelEnabled;
 
 public:
 	ColorCorrectionOperation();
 	
 	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 	
 	/**
-	  * Initialize the execution
-	  */
+	 * Initialize the execution
+	 */
 	void initExecution();
 	
 	/**
-	  * Deinitialize the execution
-	  */
+	 * Deinitialize the execution
+	 */
 	void deinitExecution();
 	
-	void setData(NodeColorCorrection * data) {this->data = data;}
-	void setRedChannelEnabled(bool enabled) {this->redChannelEnabled = enabled;}
-	void setGreenChannelEnabled(bool enabled) {this->greenChannelEnabled = enabled;}
-	void setBlueChannelEnabled(bool enabled) {this->blueChannelEnabled = enabled;}
+	void setData(NodeColorCorrection *data) { this->m_data = data; }
+	void setRedChannelEnabled(bool enabled) { this->m_redChannelEnabled = enabled; }
+	void setGreenChannelEnabled(bool enabled) { this->m_greenChannelEnabled = enabled; }
+	void setBlueChannelEnabled(bool enabled) { this->m_blueChannelEnabled = enabled; }
 };
 #endif

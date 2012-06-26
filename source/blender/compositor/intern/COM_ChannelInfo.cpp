@@ -25,11 +25,11 @@
 #include <stdio.h>
 
 /**
-  * @brief create new ChannelInfo instance and sets the defaults.
-  */
+ * @brief create new ChannelInfo instance and sets the defaults.
+ */
 ChannelInfo::ChannelInfo()
 {
-	this->number = 0;
-	this->premultiplied = true;
-	this->type = COM_CT_UNUSED;
+	this->m_number = 0;
+	this->m_premultiplied = true;
+	this->m_type = COM_CT_UNUSED;
 }

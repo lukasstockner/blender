@@ -1016,8 +1016,8 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *d
 	if (ob && ob->mode & OB_MODE_WEIGHT_PAINT) {
 
 		if (do_light) {
-			GLfloat spec[4] =
-				{ 120/255.0f, 120/255.0f, 120/255.0f, 255/255.0f };
+			static const GLfloat spec[4] = {0.47f, 0.47f, 0.47f, 0.47f};
+
 
 			/* enforce default material settings */
 			GPU_enable_material(0, NULL);
