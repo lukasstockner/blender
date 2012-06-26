@@ -759,7 +759,6 @@ int main(int argc, char** argv)
 		}
 
 		GPU_set_anisotropic(U.anisotropic_filter);
-		GPU_ms_init();
 
 		GPUimmediate *immediate = gpuNewImmediate();
 		gpuImmediateMakeCurrent(immediate);
@@ -1075,7 +1074,6 @@ int main(int argc, char** argv)
 
 		gpuImmediateMakeCurrent(NULL);
 		gpuDeleteImmediate(immediate);
-		GPU_ms_exit();
 	}
 
 	// Cleanup
