@@ -86,6 +86,8 @@ extern char datatoc_bfont_ttf[];
 #endif // __cplusplus
 
 #include "GPU_draw.h"
+#include "GPU_compatibility.h"
+#include "GPU_matrix.h"
 
 /**********************************
 * End Blender include block
@@ -757,6 +759,15 @@ int main(int argc, char** argv)
 		}
 
 		GPU_set_anisotropic(U.anisotropic_filter);
+		GPU_ms_init();
+
+		GPUimmediate *immediate = gpuNewImmediate();
+		gpuImmediateMakeCurrent(immediate);
+		gpuImmediateMaxVertexCount(500000); // XXX: temporary!
+
+		GPUindex *gindex = gpuNewIndex();
+		gpuImmediateIndex(gindex);
+		gpuImmediateMaxIndexCount(500000); // XXX: temporary!
 		
 		// Create the system
 		if (GHOST_ISystem::createSystem() == GHOST_kSuccess)
@@ -1058,6 +1069,13 @@ int main(int argc, char** argv)
 			error = true;
 			printf("error: couldn't create a system.\n");
 		}
+
+		gpuDeleteIndex(gindex);
+		gpuImmediateIndex(NULL);
+
+		gpuImmediateMakeCurrent(NULL);
+		gpuDeleteImmediate(immediate);
+		GPU_ms_exit();
 	}
 
 	// Cleanup
