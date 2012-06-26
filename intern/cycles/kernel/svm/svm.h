@@ -186,9 +186,9 @@ __device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderT
 			case NODE_CLOSURE_BSDF:
 				svm_node_closure_bsdf(kg, sd, stack, node, randb, path_flag);
 				break;
-            case CLOSURE_MYBSDF_ID:
+            /* case CLOSURE_MYBSDF_ID:
                 svm_node_closure_bsdf(kg, sd, stack, node, randb, path_flag);
-                break;
+                break;*/
 			case NODE_CLOSURE_EMISSION:
 				svm_node_closure_emission(sd, stack, node);
 				break;
