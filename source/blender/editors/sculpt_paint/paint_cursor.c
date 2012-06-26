@@ -307,12 +307,8 @@ static int load_tex(Brush *br, ViewContext *vc)
 
 	glEnable(GL_TEXTURE_2D);
 
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-	glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
-	glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
-	glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_TEXTURE0);
-	glTexEnvf(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_TEXTURE);
-	glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PRIMARY_COLOR);
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -361,7 +357,7 @@ static int load_tex(Brush *br, ViewContext *vc)
 
 					avg = BKE_brush_curve_strength(br, len, 1);  /* Falloff curve */
 
-					curve_buffer[index] = 255 - (GLubyte)(255 * avg);
+					curve_buffer[index] = (GLubyte)(255 * avg);
 				}
 				else {
 					curve_buffer[index] = 0;
@@ -390,14 +386,19 @@ static int load_tex(Brush *br, ViewContext *vc)
 			MEM_freeN(curve_buffer);
 	}
 
-	glEnable(GL_TEXTURE_2D);
-
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glEnable(GL_TEXTURE_2D);
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+	glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+	glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
+	glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_PREVIOUS);
+	glTexEnvf(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_TEXTURE1);
+	glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PRIMARY_COLOR);
 
 	glActiveTexture(GL_TEXTURE0);
 
@@ -580,6 +581,7 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		} else {
 			short sizex = vc->ar->winrct.xmax - vc->ar->winrct.xmin;
 			short sizey = vc->ar->winrct.ymax - vc->ar->winrct.ymin;
+
 			glTexCoord2f(quad.xmin/sizex, quad.ymin/sizey);
 			glMultiTexCoord2f(GL_TEXTURE1, 0, 0);
 			glVertex2f(quad.xmin, quad.ymin);
