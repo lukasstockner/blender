@@ -1219,18 +1219,31 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			poly->SetTwoside(twoside);
 			//poly->SetEdgeCode(mface->edcode);
 
-#ifdef GLES
-			// Looks like we need a different vertex order for GLES
-			meshobj->AddVertex(poly,0,pt[2],uvs[2],tan[2],rgb[2],no[2],flat,mface->v3);
-			meshobj->AddVertex(poly,1,pt[3],uvs[3],tan[3],rgb[3],no[3],flat,mface->v4);
-			meshobj->AddVertex(poly,2,pt[0],uvs[0],tan[0],rgb[0],no[0],flat,mface->v1);
-#else
 			meshobj->AddVertex(poly,0,pt[0],uvs[0],tan[0],rgb[0],no[0],flat,mface->v1);
 			meshobj->AddVertex(poly,1,pt[1],uvs[1],tan[1],rgb[1],no[1],flat,mface->v2);
 			meshobj->AddVertex(poly,2,pt[2],uvs[2],tan[2],rgb[2],no[2],flat,mface->v3);
 
+#ifndef GLES
 			if (nverts==4)
 				meshobj->AddVertex(poly,3,pt[3],uvs[3],tan[3],rgb[3],no[3],flat,mface->v4);
+			
+			
+#else
+			if(mface->v4)
+			{
+				// GLES doesn't support QUADs so we are spliiting  a quad |_| to two triangles |/|
+				
+				poly = meshobj->AddPolygon(bucket, 3);
+
+				poly->SetVisible(visible);
+				poly->SetCollider(collider);
+				poly->SetTwoside(twoside);
+				
+				meshobj->AddVertex(poly,0,pt[2],uvs[2],tan[2],rgb[2],no[2],flat,mface->v3);
+				meshobj->AddVertex(poly,1,pt[3],uvs[3],tan[3],rgb[3],no[3],flat,mface->v4);
+				meshobj->AddVertex(poly,2,pt[0],uvs[0],tan[0],rgb[0],no[0],flat,mface->v1);
+				
+			}
 #endif
 
 		}
@@ -1600,18 +1613,30 @@ RAS_MeshObject* BL_ConvertMesh_old(Mesh* mesh, Object* blenderobj, KX_Scene* sce
 			poly->SetTwoside(twoside);
 			//poly->SetEdgeCode(mface->edcode);
 
-#ifdef GLES
-			// Looks like we need a different vertex order for GLES
-			meshobj->AddVertex(poly,0,pt[2],uvs[2],tan[2],rgb2,no[2],flat,mface->v3);
-			meshobj->AddVertex(poly,1,pt[3],uvs[3],tan[3],rgb3,no[3],flat,mface->v4);
-			meshobj->AddVertex(poly,2,pt[0],uvs[0],tan[0],rgb0,no[0],flat,mface->v1);
-#else
 			meshobj->AddVertex(poly,0,pt[0],uvs[0],tan[0],rgb0,no[0],flat,mface->v1);
 			meshobj->AddVertex(poly,1,pt[1],uvs[1],tan[1],rgb1,no[1],flat,mface->v2);
 			meshobj->AddVertex(poly,2,pt[2],uvs[2],tan[2],rgb2,no[2],flat,mface->v3);
 
+
+#ifndef GLES
 			if (nverts==4)
 				meshobj->AddVertex(poly,3,pt[3],uvs[3],tan[3],rgb3,no[3],flat,mface->v4);
+#else
+			if(mface->v4)
+			{
+				// GLES doesn't support QUADs so we are spliiting  a quad |_| to two triangles |/|
+				
+				poly = meshobj->AddPolygon(bucket, 3);
+
+				poly->SetVisible(visible);
+				poly->SetCollider(collider);
+				poly->SetTwoside(twoside);
+				
+				meshobj->AddVertex(poly,0,pt[2],uvs[2],tan[2],rgb2,no[2],flat,mface->v3);
+				meshobj->AddVertex(poly,1,pt[3],uvs[3],tan[3],rgb3,no[3],flat,mface->v4);
+				meshobj->AddVertex(poly,2,pt[0],uvs[0],tan[0],rgb0,no[0],flat,mface->v1);
+				
+			}
 #endif
 
 		}
