@@ -144,23 +144,35 @@ GLint gpuImmediateLockCount(void)
 #if GPU_SAFETY
 static void calc_last_texture(GPUimmediate* immediate)
 {
-	GLint maxTextureCoords = 1;
-	GLint maxCombinedTextureImageUnits = 0;
+	GLint maxTextureUnits;
+	GLint maxTextureCoords;
+	GLint maxCombinedTextureImageUnits;
 
 	if (GLEW_VERSION_1_3 || GLEW_ARB_multitexture) {
 		glGetIntegerv(
-			GL_MAX_TEXTURE_COORDS,
-			&maxTextureCoords);
+			GL_MAX_TEXTURE_UNITS,
+			&maxTextureUnits);
+	}
+	else {
+		maxTextureUnits = 1;
 	}
 
-	if (GLEW_VERSION_2_0) {
+	if (GLEW_VERSION_2_0 || GLEW_ARB_fragment_program) {
+		glGetIntegerv(
+			GL_MAX_TEXTURE_COORDS,
+			&maxTextureCoords);
+
 		glGetIntegerv(
 			GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
 			&maxCombinedTextureImageUnits);
 	}
+	else {
+		maxTextureCoords             = 0;
+		maxCombinedTextureImageUnits = 0;
+	}
 
 	immediate->lastTexture =
-		GL_TEXTURE0 + MAX2(maxTextureCoords, maxCombinedTextureImageUnits) - 1;
+		GL_TEXTURE0 + MAX3(maxTextureUnits, maxTextureCoords, maxCombinedTextureImageUnits) - 1;
 }
 #endif
 
