@@ -86,8 +86,8 @@ set(SRC
 	intern/gpu_immediate.h
 	intern/gpu_immediate_inline.h
 	intern/gpu_immediate_internal.h
-	intern/gpu_object_gles.h
-	intern/gpu_object_gl11.h
+	#intern/gpu_object_gles.h
+	#intern/gpu_object_gl11.h
 	intern/gpu_primitives_inline.h
 )
 
