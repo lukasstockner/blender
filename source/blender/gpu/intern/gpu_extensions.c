@@ -29,6 +29,9 @@
  *  \ingroup gpu
  */
 
+#ifdef GLES
+#include <GLES2/gl2.h>
+#endif
 
 #include <GL/glew.h>
 
@@ -38,6 +41,7 @@
 
 #include "BKE_global.h"
 
+#include <sys/time.h>
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -47,6 +51,7 @@
 #include "GPU_extensions.h"
 #include "gpu_codegen.h"
 #include "GPU_compatibility.h"
+#include <GPU_functions.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -73,6 +78,7 @@ extern char datatoc_gpu_shader_vsm_store_vert_glsl[];
 extern char datatoc_gpu_shader_vsm_store_frag_glsl[];
 extern char datatoc_gpu_shader_sep_gaussian_blur_vert_glsl[];
 extern char datatoc_gpu_shader_sep_gaussian_blur_frag_glsl[];
+unsigned int GPU_ext_config ;
 
 typedef struct GPUShaders {
 	GPUShader *vsm_store;
@@ -112,23 +118,37 @@ void GPU_extensions_init(void)
 {
 	GLint r, g, b;
 	const char *vendor, *renderer;
+	int bdepth = -1;
+
 
 	/* can't avoid calling this multiple times, see wm_window_add_ghostwindow */
 	if (gpu_extensions_init) return;
 	gpu_extensions_init= 1;
 
 	glewInit();
+	GPU_func_comp_init();
 	GPU_codegen_init();
 
 	/* glewIsSupported("GL_VERSION_2_0") */
-
+#include REAL_GL_MODE
 	if (GLEW_ARB_multitexture)
-		glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS_ARB, &GG.maxtextures);
-
+		glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &GG.maxtextures);
+	/* GL_MAX_TEXTURE_IMAGE_UNITS == GL_MAX_TEXTURE_IMAGE_UNITS_ARB */
+	
 	GG.glslsupport = 1;
+#ifndef GLES
 	if (!GLEW_ARB_multitexture) GG.glslsupport = 0;
 	if (!GLEW_ARB_vertex_shader) GG.glslsupport = 0;
 	if (!GLEW_ARB_fragment_shader) GG.glslsupport = 0;
+	if (GLEW_VERSION_2_0) GG.glslsupport = 1;
+	if (GLEW_EXT_framebuffer_object || GLEW_VERSION_3_0) GPU_ext_config |= GPU_EXT_FRAMEBUFFERS;
+#else 
+	GPU_ext_config |= GPU_EXT_FRAMEBUFFERS;
+#endif
+
+
+	if(GG.glslsupport)
+		GPU_ext_config |= GPU_EXT_GLSL | GPU_EXT_GLSL_FRAGMENT | GPU_EXT_GLSL_VERTEX;
 
 	glGetIntegerv(GL_RED_BITS, &r);
 	glGetIntegerv(GL_GREEN_BITS, &g);
@@ -137,6 +157,7 @@ void GPU_extensions_init(void)
 
 	vendor = (const char*)glGetString(GL_VENDOR);
 	renderer = (const char*)glGetString(GL_RENDERER);
+#include FAKE_GL_MODE
 
 	if (strstr(vendor, "ATI")) {
 		GG.device = GPU_DEVICE_ATI;
@@ -236,14 +257,14 @@ int GPU_color_depth(void)
 int GPU_print_error(const char *str)
 {
 	GLenum errCode;
-
+#include REAL_GL_MODE
 	if (G.debug & G_DEBUG) {
 		if ((errCode = glGetError()) != GL_NO_ERROR) {
 			fprintf(stderr, "%s opengl error: %s\n", str, gpuErrorString(errCode));
 			return 1;
 		}
 	}
-
+#include FAKE_GL_MODE
 	return 0;
 }
 
@@ -527,7 +548,7 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, double time, 
 {
 	GPUTexture *tex;
 	GLint w, h, border, lastbindcode, bindcode;
-
+#include REAL_GL_MODE
 	glGetIntegerv(GL_TEXTURE_BINDING_2D, &lastbindcode);
 
 	GPU_update_image_time(ima, time);
@@ -558,6 +579,8 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, double time, 
 	}
 	else {
 		glBindTexture(GL_TEXTURE_2D, tex->bindcode);
+		
+		#include FAKE_GL_MODE
 		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
 		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
 		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_BORDER, &border);
@@ -565,9 +588,9 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, double time, 
 		tex->w = w - border;
 		tex->h = h - border;
 	}
-
+#include REAL_GL_MODE
 	glBindTexture(GL_TEXTURE_2D, lastbindcode);
-
+#include FAKE_GL_MODE
 	return tex;
 }
 
@@ -724,16 +747,16 @@ struct GPUFrameBuffer {
 	GPUTexture *colortex;
 	GPUTexture *depthtex;
 };
-
+#include REAL_GL_MODE
 GPUFrameBuffer *GPU_framebuffer_create(void)
 {
 	GPUFrameBuffer *fb;
 
-	if (!GLEW_EXT_framebuffer_object)
+	if (!GPU_EXT_FRAMEBUFFERS)
 		return NULL;
 	
 	fb= MEM_callocN(sizeof(GPUFrameBuffer), "GPUFrameBuffer");
-	glGenFramebuffersEXT(1, &fb->object);
+	gpuGenFramebuffers(1, &fb->object);
 
 	if (!fb->object) {
 		fprintf(stderr, "GPUFFrameBuffer: framebuffer gen failed. %s\n",
@@ -744,7 +767,7 @@ GPUFrameBuffer *GPU_framebuffer_create(void)
 
 	return fb;
 }
-
+#include FAKE_GL_MODE
 int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, char err_out[256])
 {
 	GLenum status;
@@ -850,7 +873,7 @@ void GPU_framebuffer_texture_unbind(GPUFrameBuffer *UNUSED(fb), GPUTexture *UNUS
 	glPopAttrib();
 	glEnable(GL_SCISSOR_TEST);
 }
-
+#include REAL_GL_MODE
 void GPU_framebuffer_free(GPUFrameBuffer *fb)
 {
 	if (fb->depthtex)
@@ -859,17 +882,17 @@ void GPU_framebuffer_free(GPUFrameBuffer *fb)
 		GPU_framebuffer_texture_detach(fb, fb->colortex);
 
 	if (fb->object) {
-		glDeleteFramebuffersEXT(1, &fb->object);
+		gpuDeleteFramebuffers(1, &fb->object);
 
 		if (GG.currentfb == fb->object) {
-			glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+			gpuBindFramebuffer(GL_FRAMEBUFFER, 0);
 			GG.currentfb = 0;
 		}
 	}
 
 	MEM_freeN(fb);
 }
-
+#include FAKE_GL_MODE
 void GPU_framebuffer_restore(void)
 {
 	if (GG.currentfb != 0) {
@@ -1026,16 +1049,6 @@ void GPU_offscreen_read_pixels(GPUOffScreen *ofs, int type, void *pixels)
 	glReadPixels(0, 0, ofs->w, ofs->h, GL_RGBA, type, pixels);
 }
 
-/* GPUShader */
-
-struct GPUShader {
-	GLhandleARB object;		/* handle for full shader */
-	GLhandleARB vertex;		/* handle for vertex shader */
-	GLhandleARB fragment;	/* handle for fragment shader */
-	GLhandleARB lib;		/* handle for libment shader */
-	int totattrib;			/* total number of attributes */
-};
-
 static void shader_print_errors(const char *task, char *log, const char *code)
 {
 	const char *c, *pos, *end = code + strlen(code);
@@ -1057,26 +1070,27 @@ static void shader_print_errors(const char *task, char *log, const char *code)
 
 	fprintf(stderr, "%s\n", log);
 }
-
 GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, /*GPUShader *lib,*/ const char *libcode)
 {
 	GLint status;
-	GLcharARB log[5000];
+	char log[5000];
 	const char *fragsource[2];
 	GLsizei length = 0;
 	GLint count;
 	GPUShader *shader;
 
+#ifndef GLES
 	if (!GLEW_ARB_vertex_shader || !GLEW_ARB_fragment_shader)
 		return NULL;
+#endif
 
 	shader = MEM_callocN(sizeof(GPUShader), "GPUShader");
 
 	if (vertexcode)
-		shader->vertex = glCreateShaderObjectARB(GL_VERTEX_SHADER_ARB);
+		shader->vertex = gpuCreateShader(GL_VERTEX_SHADER);
 	if (fragcode)
-		shader->fragment = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
-	shader->object = glCreateProgramObjectARB();
+		shader->fragment = gpuCreateShader(GL_FRAGMENT_SHADER);
+	shader->object = gpuCreateProgram();
 
 	if (!shader->object ||
 	    (vertexcode && !shader->vertex) ||
@@ -1088,14 +1102,14 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, /*GPU
 	}
 
 	if (vertexcode) {
-		glAttachObjectARB(shader->object, shader->vertex);
-		glShaderSourceARB(shader->vertex, 1, (const char**)&vertexcode, NULL);
+		gpuAttachShader(shader->object, shader->vertex);
+		gpuShaderSource(shader->vertex, 1, (const char**)&vertexcode, NULL);
 
-		glCompileShaderARB(shader->vertex);
-		glGetObjectParameterivARB(shader->vertex, GL_OBJECT_COMPILE_STATUS_ARB, &status);
+		gpuCompileShader(shader->vertex);
+		gpuGetShaderiv(shader->vertex, GL_COMPILE_STATUS, &status);
 
 		if (!status) {
-			glGetInfoLogARB(shader->vertex, sizeof(log), &length, log);
+			gpuGetShaderInfoLog(shader->vertex, sizeof(log), &length, log);
 			shader_print_errors("compile", log, vertexcode);
 
 			GPU_shader_free(shader);
@@ -1108,14 +1122,14 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, /*GPU
 		if (libcode) fragsource[count++] = libcode;
 		if (fragcode) fragsource[count++] = fragcode;
 
-		glAttachObjectARB(shader->object, shader->fragment);
-		glShaderSourceARB(shader->fragment, count, fragsource, NULL);
+		gpuAttachShader(shader->object, shader->fragment);
+		gpuShaderSource(shader->fragment, count, fragsource, NULL);
 
-		glCompileShaderARB(shader->fragment);
-		glGetObjectParameterivARB(shader->fragment, GL_OBJECT_COMPILE_STATUS_ARB, &status);
+		gpuCompileShader(shader->fragment);
+		gpuGetShaderiv(shader->fragment, GL_COMPILE_STATUS, &status);
 
 		if (!status) {
-			glGetInfoLogARB(shader->fragment, sizeof(log), &length, log);
+			gpuGetShaderInfoLog(shader->fragment, sizeof(log), &length, log);
 			shader_print_errors("compile", log, fragcode);
 
 			GPU_shader_free(shader);
@@ -1125,13 +1139,13 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, /*GPU
 
 #if 0
 	if (lib && lib->lib)
-		glAttachObjectARB(shader->object, lib->lib);
+		gpuAttachShader(shader->object, lib->lib);
 #endif
 
-	glLinkProgramARB(shader->object);
-	glGetObjectParameterivARB(shader->object, GL_OBJECT_LINK_STATUS_ARB, &status);
+	gpuLinkProgram(shader->object);
+	gpuGetProgramiv(shader->object, GL_LINK_STATUS, &status);
 	if (!status) {
-		glGetInfoLogARB(shader->object, sizeof(log), &length, log);
+		gpuGetProgramInfoLog(shader->object, sizeof(log), &length, log);
 		if (fragcode) shader_print_errors("linking", log, fragcode);
 		else if (vertexcode) shader_print_errors("linking", log, vertexcode);
 		else if (libcode) shader_print_errors("linking", log, libcode);
@@ -1139,7 +1153,6 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, /*GPU
 		GPU_shader_free(shader);
 		return NULL;
 	}
-
 	return shader;
 }
 
@@ -1184,33 +1197,34 @@ GPUShader *GPU_shader_create_lib(const char *code)
 void GPU_shader_bind(GPUShader *shader)
 {
 	GPU_print_error("Pre Shader Bind");
-	glUseProgramObjectARB(shader->object);
+	gpuUseProgram(shader->object);
 	GPU_print_error("Post Shader Bind");
 }
 
 void GPU_shader_unbind(GPUShader *UNUSED(shader))
 {
 	GPU_print_error("Pre Shader Unbind");
-	glUseProgramObjectARB(0);
+	gpuUseProgram(0);
 	GPU_print_error("Post Shader Unbind");
 }
 
 void GPU_shader_free(GPUShader *shader)
 {
 	if (shader->lib)
-		glDeleteObjectARB(shader->lib);
+		gpuDeleteShader(shader->lib);
 	if (shader->vertex)
-		glDeleteObjectARB(shader->vertex);
+		gpuDeleteShader(shader->vertex);
 	if (shader->fragment)
-		glDeleteObjectARB(shader->fragment);
+		gpuDeleteShader(shader->fragment);
 	if (shader->object)
-		glDeleteObjectARB(shader->object);
+		gpuDeleteProgram(shader->object);
 	MEM_freeN(shader);
+
 }
 
 int GPU_shader_get_uniform(GPUShader *shader, const char *name)
 {
-	return glGetUniformLocationARB(shader->object, name);
+	return gpuGetUniformLocation(shader->object, name);
 }
 
 void GPU_shader_uniform_vector(GPUShader *UNUSED(shader), int location, int length, int arraysize, float *value)
@@ -1220,15 +1234,16 @@ void GPU_shader_uniform_vector(GPUShader *UNUSED(shader), int location, int leng
 
 	GPU_print_error("Pre Uniform Vector");
 
-	if (length == 1) glUniform1fvARB(location, arraysize, value);
-	else if (length == 2) glUniform2fvARB(location, arraysize, value);
-	else if (length == 3) glUniform3fvARB(location, arraysize, value);
-	else if (length == 4) glUniform4fvARB(location, arraysize, value);
-	else if (length == 9) glUniformMatrix3fvARB(location, arraysize, 0, value);
-	else if (length == 16) glUniformMatrix4fvARB(location, arraysize, 0, value);
+	if (length == 1) gpuUniform1fv(location, arraysize, value);
+	else if (length == 2) gpuUniform2fv(location, arraysize, value);
+	else if (length == 3) gpuUniform3fv(location, arraysize, value);
+	else if (length == 4) gpuUniform4fv(location, arraysize, value);
+	else if (length == 9) gpuUniformMatrix3fv(location, arraysize, 0, value);
+	else if (length == 16) gpuUniformMatrix4fv(location, arraysize, 0, value);
 
 	GPU_print_error("Post Uniform Vector");
 }
+
 
 void GPU_shader_uniform_texture(GPUShader *UNUSED(shader), int location, GPUTexture *tex)
 {
@@ -1248,13 +1263,15 @@ void GPU_shader_uniform_texture(GPUShader *UNUSED(shader), int location, GPUText
 	GPU_print_error("Pre Uniform Texture");
 
 	arbnumber = (GLenum)((GLuint)GL_TEXTURE0_ARB + tex->number);
-
-	if (tex->number != 0) glActiveTextureARB(arbnumber);
+#include REAL_GL_MODE
+	if (tex->number != 0) 
+		glActiveTexture(arbnumber);
 	glBindTexture(tex->target, tex->bindcode);
-	glUniform1iARB(location, tex->number);
+	gpuUniform1i(location, tex->number);
 	glEnable(tex->target);
-	if (tex->number != 0) glActiveTextureARB(GL_TEXTURE0_ARB);
-
+	if (tex->number != 0) 
+		glActiveTexture(GL_TEXTURE0_ARB);
+#include FAKE_GL_MODE
 	GPU_print_error("Post Uniform Texture");
 }
 
@@ -1263,9 +1280,7 @@ int GPU_shader_get_attribute(GPUShader *shader, const char *name)
 	int index;
 	
 	GPU_print_error("Pre Get Attribute");
-
-	index = glGetAttribLocationARB(shader->object, name);
-
+	index = gpuGetAttribLocation(shader->object, name);
 	GPU_print_error("Post Get Attribute");
 
 	return index;

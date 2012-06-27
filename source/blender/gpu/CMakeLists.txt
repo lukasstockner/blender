@@ -57,6 +57,10 @@ set(SRC
 	intern/gpu_material.c
 	intern/gpu_matrix.c
 	intern/gpu_primitives.c
+	#intern/gpu_object.c
+	#intern/gpu_object_gles.c
+	#intern/gpu_object_gl11.c
+	intern/gpu_functions.c
 	
 	shaders/gpu_shader_material.glsl.c
 	shaders/gpu_shader_vertex.glsl.c
@@ -74,12 +78,16 @@ set(SRC
 	GPU_matrix.h
 	GPU_lighting.h
 	GPU_primitives.h
+	#GPU_object.h
+	GPU_functions.h
 
 	intern/gpu_codegen.h
 	intern/gpu_deprecated.h
 	intern/gpu_immediate.h
 	intern/gpu_immediate_inline.h
 	intern/gpu_immediate_internal.h
+	intern/gpu_object_gles.h
+	intern/gpu_object_gl11.h
 	intern/gpu_primitives_inline.h
 )
 

@@ -32,9 +32,35 @@
 #ifndef __GPU_EXTENSIONS_H__
 #define __GPU_EXTENSIONS_H__
 
+
+
+extern unsigned int GPU_ext_config ;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+
+
+
+#define GPU_EXT_GLSL (1<<0)
+#define GPU_EXT_GLSL_ENABLED (GPU_ext_config & GPU_EXT_GLSL)
+#define GPU_EXT_GLSL_VERTEX (1<<1)
+#define GPU_EXT_GLSL_VERTEX_ENABLED (GPU_ext_config & GPU_EXT_GLSL_VERTEX)
+#define GPU_EXT_GLSL_FRAGMENT (1<<2)
+#define GPU_EXT_GLSL_FRAGMENT_ENABLED (GPU_ext_config & GPU_EXT_GLSL_FRAGMENT)
+#define GPU_EXT_FRAMEBUFFERS (1<<3)
+#define GPU_EXT_FRAMEBUFFERS_ENABLED (GPU_ext_config & GPU_EXT_FRAMEBUFFERS)
+
+/* GPUShader */
+
+struct GPUShader {
+	unsigned int object;		/* handle for full shader */
+	unsigned int vertex;		/* handle for vertex shader */
+	unsigned int fragment;	/* handle for fragment shader */
+	unsigned int lib;		/* handle for libment shader */
+	int totattrib;			/* total number of attributes */
+};
 
 struct Image;
 struct ImageUser;
