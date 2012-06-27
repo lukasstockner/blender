@@ -47,6 +47,7 @@ set(INC_SYS
 set(SRC
 	intern/gpu_buffers.c
 	intern/gpu_codegen.c
+    intern/gpu_debug.c
 	intern/gpu_draw.c
 	intern/gpu_extensions.c
 	intern/gpu_immediate.c
