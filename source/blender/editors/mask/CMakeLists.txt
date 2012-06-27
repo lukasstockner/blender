@@ -26,6 +26,7 @@ set(INC
 	../../blenkernel
 	../../blenloader
 	../../blenlib
+	../../gpu
 	../../makesdna
 	../../makesrna
 	../../windowmanager

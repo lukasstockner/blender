@@ -162,7 +162,7 @@ static int CheckTexfaceDM(void *mcol, int index)
 			return 2;
 		if (current_ms->m_bObjectColor) {
 			MT_Vector4& rgba = current_ms->m_RGBAcolor;
-			glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
+			gpuCurrentColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
 			// don't use mcol
 			return 2;
 		}
@@ -170,7 +170,7 @@ static int CheckTexfaceDM(void *mcol, int index)
 			// we have to set the color from the material
 			unsigned char rgba[4];
 			current_polymat->GetMaterialRGBAColor(rgba);
-			glColor4ubv((const GLubyte *)rgba);
+			gpuCurrentColor4ubv((const GLubyte *)rgba);
 			return 2;
 		}
 		return 1;

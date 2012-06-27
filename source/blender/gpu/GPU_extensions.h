@@ -97,7 +97,7 @@ int GPU_type_matches(GPUDeviceType device, GPUOSType os, GPUDriverType driver);
  *   graphics card capabilities the texture may actually be stored in a
  *   larger texture with power of two dimensions. the actual dimensions
  *   may be queried with GPU_texture_opengl_width/height. GPU_texture_coord_2f
- *   calls glTexCoord2f with the coordinates adjusted for this.
+ *   calls gpuTexCoord2f with the coordinates adjusted for this.
  * - can use reference counting:
  *     - reference counter after GPU_texture_create is 1
  *     - GPU_texture_ref increases by one

@@ -214,7 +214,7 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 			{
 				i = masklay_shape->frame;
 
-				/* glRecti((i - sfra) * framelen, 0, (i - sfra + 1) * framelen, 4); */
+				/* gpuDrawFilledRecti((i - sfra) * framelen, 0, (i - sfra + 1) * framelen, 4); */
 
 				/* use a line so we always see the keyframes */
 				gpuVertex2i((i - sfra) * framelen, 0);
