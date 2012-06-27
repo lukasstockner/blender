@@ -160,11 +160,11 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, 
 					break;
 			}
 		}
-		glClientActiveTextureARB(GL_TEXTURE0_ARB);
+		glClientActiveTexture(GL_TEXTURE0_ARB);
 	}
 	else //TexFace
 	{
-		glClientActiveTextureARB(GL_TEXTURE0_ARB);
+		glClientActiveTexture(GL_TEXTURE0_ARB);
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 		glTexCoordPointer(2, GL_FLOAT, this->stride, this->uv_offset);
 	}
