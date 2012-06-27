@@ -1126,6 +1126,8 @@ mat3 to_mat3(mat4 m4)
 	return m3;
 }
 
+#ifndef B_GLES
+
 void mtex_bump_init_objspace( vec3 surf_pos, vec3 surf_norm,
 							  mat4 mView, mat4 mViewInv, mat4 mObj, mat4 mObjInv, 
 							  float fPrevMagnitude_in, vec3 vNacc_in,
@@ -1362,6 +1364,9 @@ void mtex_bump_apply_texspace( float fDet, float dBs, float dBt, vec3 vR1, vec3 
 	perturbed_norm = normalize( vNacc_out );
 }
 
+
+#endif
+
 void mtex_negate_texnormal(vec3 normal, out vec3 outnormal)
 {
 	outnormal = vec3(-normal.x, -normal.y, normal.z);
@@ -1468,11 +1473,17 @@ void lamp_visibility_clamp(float visifac, out float outvisifac)
 	outvisifac = (visifac < 0.001)? 0.0: visifac;
 }
 
+
 void shade_view(vec3 co, out vec3 view)
 {
 	/* handle perspective/orthographic */
+#ifndef B_GLES
 	view = (gl_ProjectionMatrix[3][3] == 0.0)? normalize(co): vec3(0.0, 0.0, -1.0);
+#else
+	view = normalize(co);
+#endif		
 }
+
 
 void shade_tangent_v(vec3 lv, vec3 tang, out vec3 vn)
 {
@@ -1848,6 +1859,7 @@ void shade_only_shadow_specular(float shadfac, vec3 specrgb, vec4 spec, out vec4
 	outspec = spec - vec4(specrgb*shadfac, 0.0);
 }
 
+#ifndef B_GLES
 void test_shadowbuf(vec3 rco, sampler2DShadow shadowmap, mat4 shadowpersmat, float shadowbias, float inp, out float result)
 {
 	if(inp <= 0.0) {
@@ -1865,6 +1877,7 @@ void test_shadowbuf(vec3 rco, sampler2DShadow shadowmap, mat4 shadowpersmat, flo
 			result = 1.0;
 	}
 }
+#endif
 
 void test_shadowbuf_vsm(vec3 rco, sampler2D shadowmap, mat4 shadowpersmat, float shadowbias, float bleedbias, float inp, out float result)
 {
@@ -1914,8 +1927,11 @@ void shade_exposure_correct(vec3 col, float linfac, float logfac, out vec3 outco
 void shade_mist_factor(vec3 co, float miststa, float mistdist, float misttype, float misi, out float outfac)
 {
 	float fac, zcor;
-
+#ifndef B_GLES
 	zcor = (gl_ProjectionMatrix[3][3] == 0.0)? length(co): -co[2];
+#else	
+	zcor = length(co);	
+#endif	
 	
 	fac = clamp((zcor-miststa)/mistdist, 0.0, 1.0);
 	if(misttype == 0.0) fac *= fac;
@@ -1974,7 +1990,7 @@ float hypot(float x, float y)
 #define NUM_LIGHTS 3
 
 /* bsdfs */
-
+#ifndef B_GLES
 void node_bsdf_diffuse(vec4 color, float roughness, vec3 N, out vec4 result)
 {
 	/* ambient light */
@@ -2042,6 +2058,8 @@ void node_bsdf_velvet(vec4 color, float sigma, vec3 N, out vec4 result)
 	node_bsdf_diffuse(color, 0.0, N, result);
 }
 
+
+#endif
 /* emission */
 
 void node_emission(vec4 color, float strength, vec3 N, out vec4 result)
