@@ -12,6 +12,8 @@ typedef struct{
 	//perhaps more info later I might guess
 	float location[3];
 	float normal[3];
+	int r_dist;
+	float r_depth;
 }SnapPoint;
 
 typedef struct Snap Snap;
@@ -41,6 +43,7 @@ void Snap_free(Snap* s);
 
 int Snap_getretval(Snap* s);
 SnapPoint* Snap_getSnapPoint(Snap* s);
+void Snap_setClosestPoint(Snap* s, SnapPoint* sp);
 
 Snap* SnapMesh_create(	void* mesh_data,
 						SnapMesh_data_type data_type,
