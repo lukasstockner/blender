@@ -654,6 +654,10 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	int pixel_radius, hit = 0, in_uv_editor;
 	float zoomx, zoomy;
 
+	if(CTX_data_mode_enum(C) == CTX_MODE_PAINT_TEXTURE) {
+		brush->mtex.brush_map_mode = MTEX_MAP_MODE_TILED;
+	}
+
 	/* set various defaults */
 	translation[0] = x;
 	translation[1] = y;
