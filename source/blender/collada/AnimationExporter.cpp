@@ -145,6 +145,7 @@ void AnimationExporter::export_object_constraint_animation(Object *ob){
     //Takes frames of target animations
 	make_anim_frames_from_targets(ob, fra);
     
+	if (fra.size())
 	dae_baked_object_animation(fra, ob);
 }
 

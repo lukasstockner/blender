@@ -402,7 +402,17 @@ Object *DocumentImporter::create_instance_node(Object *source_ob, COLLADAFW::Nod
 	return obn;
 }
 
-void DocumentImporter::create_constraints(ExtraTags *et){}
+// to create constraints off node <extra> tags. Assumes only constraint data in
+// current <extra> with blender profile.
+void DocumentImporter::create_constraints(ExtraTags *et, Object *ob){
+	if ( et && et->isProfile("blender")){
+		std::string name;
+		short* type = 0;
+		et->setData("type", type);
+		bConstraint * con = add_ob_constraint(ob, "Test_con", *type);
+		
+	}
+}
 
 void DocumentImporter::write_node(COLLADAFW::Node *node, COLLADAFW::Node *parent_node, Scene *sce, Object *par, bool is_library_node)
 {
@@ -416,8 +426,6 @@ void DocumentImporter::write_node(COLLADAFW::Node *node, COLLADAFW::Node *parent
 
 	std::vector<Object *> *objects_done = new std::vector<Object *>();
     
-	create_constraints(et);
-
 	if (is_joint) {
 		if (par) {
 			Object *empty = par;
@@ -505,6 +513,8 @@ void DocumentImporter::write_node(COLLADAFW::Node *node, COLLADAFW::Node *parent
 			if (is_library_node)
 				libnode_ob.push_back(ob);
 		}
+
+		//create_constraints(et,ob);
 
 	}
 
