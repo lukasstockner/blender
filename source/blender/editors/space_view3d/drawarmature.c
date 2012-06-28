@@ -726,9 +726,9 @@ static void draw_sphere_bone_dist(float smat[][4], float imat[][4], bPoseChannel
 			madd_v3_v3v3fl(vec1, headvec, vec, head);
 			madd_v3_v3v3fl(vec2, headvec, vec, head + dist);
 			
-			gpuColor4ub(255, 255, 255, 50);
+			gpuColor4x(CPACK_WHITE, 0.196f);
 			gpuVertex3fv(vec1);
-			//gpuColor4ub(255, 255, 255, 0);
+			//gpuColor4x(CPACK_WHITE, 0);
 			gpuVertex3fv(vec2);
 		}
 		
@@ -740,9 +740,9 @@ static void draw_sphere_bone_dist(float smat[][4], float imat[][4], bPoseChannel
 			madd_v3_v3v3fl(vec1, tailvec, vec, tail);
 			madd_v3_v3v3fl(vec2, tailvec, vec, tail + dist);
 			
-			//gpuColor4ub(255, 255, 255, 50);
+			//gpuColor4x(CPACK_WHITE, 0.196f);
 			gpuVertex3fv(vec1);
-			//gpuColor4ub(255, 255, 255, 0);
+			//gpuColor4x(CPACK_WHITE, 0);
 			gpuVertex3fv(vec2);
 		}
 		/* make it cyclic... */
@@ -754,9 +754,9 @@ static void draw_sphere_bone_dist(float smat[][4], float imat[][4], bPoseChannel
 		madd_v3_v3v3fl(vec1, headvec, vec, head);
 		madd_v3_v3v3fl(vec2, headvec, vec, head + dist);
 
-		//gpuColor4ub(255, 255, 255, 50);
+		//gpuColor4x(CPACK_WHITE, 0.196f);
 		gpuVertex3fv(vec1);
-		//gpuColor4ub(255, 255, 255, 0);
+		//gpuColor4x(CPACK_WHITE, 0);
 		gpuVertex3fv(vec2);
 		
 		gpuEnd();
@@ -1535,7 +1535,7 @@ static void draw_dof_ellipse(float ax, float az)
 	glEnable(GL_BLEND);
 	glDepthMask(0);
 
-	gpuCurrentColor4ub(70, 70, 70, 50);
+	gpuCurrentGrey4f(0.276f, 0.196f);
 
 	gpuBegin(GL_QUADS);
 	pz = 0.0f;
@@ -1571,7 +1571,7 @@ static void draw_dof_ellipse(float ax, float az)
 	glDisable(GL_BLEND);
 	glDepthMask(1);
 
-	gpuCurrentColor3ub(0, 0, 0);
+	gpuCurrentColor3x(CPACK_BLACK);
 
 	gpuBegin(GL_LINE_STRIP);
 	for (i = 0; i < n; i++)

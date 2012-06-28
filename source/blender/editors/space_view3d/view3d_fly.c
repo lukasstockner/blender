@@ -233,7 +233,8 @@ static void drawFlyPixel(const struct bContext *UNUSED(C), struct ARegion *UNUSE
 	y1 = 0.45f * (float)fly->ar->winy;
 	x2 = 0.55f * (float)fly->ar->winx;
 	y2 = 0.55f * (float)fly->ar->winy;
-	gpuCurrentColorPack(0x000000);
+
+	gpuCurrentColor3x(CPACK_BLACK);
 
 	gpuBegin(GL_LINES);
 	/* bottom left */

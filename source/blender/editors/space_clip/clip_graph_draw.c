@@ -171,7 +171,7 @@ static void draw_frame_curves(SpaceClip *sc)
 	MovieTrackingReconstruction *reconstruction = BKE_tracking_get_active_reconstruction(tracking);
 	int i, lines = 0, prevfra = 0;
 
-	gpuColor3f(0.0f, 0.0f, 1.0f);
+	gpuColor3x(CPACK_BLUE);
 
 	for (i = 0; i < reconstruction->camnr; i++) {
 		MovieReconstructedCamera *camera = &reconstruction->cameras[i];

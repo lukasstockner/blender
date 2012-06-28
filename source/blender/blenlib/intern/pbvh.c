@@ -1647,7 +1647,7 @@ void BLI_pbvh_node_draw(PBVHNode *node, void *setMaterial)
 	}
 	gpuMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, col);
 
-	gpuCurrentColor3f(1, 0, 0);
+	gpuCurrentColor3x(CPACK_RED);
 #endif
 
 	if (!(node->flag & PBVH_FullyHidden))

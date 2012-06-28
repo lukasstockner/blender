@@ -201,7 +201,7 @@ void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 	if (me->drawflag & ME_DRAWFACES) {
 		glEnable(GL_BLEND);
 		/* dull unselected faces so as not to get in the way of seeing color */
-		gpuCurrentColor4ub(96, 96, 96, 64);
+		gpuCurrentGrey4f(0.376f, 0.250f);
 		dm->drawMappedFaces(dm, draw_mesh_face_select__drawFaceOptsInv, NULL, NULL, (void *)me, 0);
 		glDisable(GL_BLEND);
 	}
@@ -209,7 +209,7 @@ void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 	bglPolygonOffset(rv3d->dist, 1.0);
 
 	/* Draw Stippled Outline for selected faces */
-	gpuCurrentColor3ub(255, 255, 255);
+	gpuCurrentColor3x(CPACK_WHITE);
 	setlinestyle(1);
 	dm->drawMappedEdges(dm, draw_mesh_face_select__setSelectOpts, &data);
 	setlinestyle(0);
@@ -416,7 +416,7 @@ static DMDrawOption draw_tface__set_draw_legacy(MTFace *tface, int has_mcol, int
 	validtexture = set_draw_settings_cached(0, tface, ma, Gtexdraw);
 
 	if (tface && validtexture) {
-		gpuCurrentColor3ub(0xFF, 0x00, 0xFF);
+		gpuCurrentColor3x(CPACK_MAGENTA);
 		return DM_DRAW_OPTION_NO_MCOL; /* Don't set color */
 	}
 	else if (ma && (ma->shade_flag & MA_OBCOLOR)) {
@@ -424,7 +424,9 @@ static DMDrawOption draw_tface__set_draw_legacy(MTFace *tface, int has_mcol, int
 		return DM_DRAW_OPTION_NO_MCOL; /* Don't set color */
 	}
 	else if (!has_mcol) {
-		if (tface) gpuCurrentColor3f(1, 1, 1);
+		if (tface) {
+			gpuCurrentColor3x(CPACK_WHITE);
+		}
 		else {
 			if (ma) {
 				float col[3];
@@ -433,7 +435,9 @@ static DMDrawOption draw_tface__set_draw_legacy(MTFace *tface, int has_mcol, int
 				
 				gpuCurrentColor3fv(col);
 			}
-			else gpuCurrentColor3f(1, 1, 1);
+			else {
+				gpuCurrentColor3x(CPACK_WHITE);
+			}
 		}
 		return DM_DRAW_OPTION_NO_MCOL; /* Don't set color */
 	}
@@ -771,7 +775,7 @@ void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 	/* draw the textured mesh */
 	draw_textured_begin(scene, v3d, rv3d, ob);
 
-	gpuCurrentColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	gpuCurrentColor3x(CPACK_WHITE);
 
 	if (ob->mode & OB_MODE_EDIT) {
 		drawEMTFMapped_userData data;
@@ -875,7 +879,7 @@ static void tex_mat_set_texture_cb(void *userData, int mat_nr, void *attribs)
 			glEnable(GL_TEXTURE_2D);
 
 			glBindTexture(GL_TEXTURE_2D, ima->bindcode);
-			gpuCurrentColor3f(1.0f, 1.0f, 1.0f);
+			gpuCurrentColor3x(CPACK_WHITE);
 
 			glMatrixMode(GL_TEXTURE);
 			glLoadMatrixf(texbase->tex_mapping.mat);
@@ -1047,7 +1051,7 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *d
 			                    DM_DRAW_USE_COLORS | DM_DRAW_ALWAYS_SMOOTH);
 		}
 		else {
-			gpuCurrentColor3f(1.0f, 1.0f, 1.0f);
+			gpuCurrentColor3x(CPACK_WHITE);
 			dm->drawMappedFaces(dm, facemask, GPU_enable_material, NULL, me,
 			                    DM_DRAW_ALWAYS_SMOOTH);
 		}
@@ -1066,7 +1070,7 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *d
 		glDepthMask(0); // disable write in zbuffer, selected edge wires show better
 
 		glEnable(GL_BLEND);
-		gpuCurrentColor4ub(255, 255, 255, 96);
+		gpuCurrentColor4x(CPACK_WHITE, 0.376f);
 		glEnable(GL_LINE_STIPPLE);
 		glLineStipple(1, 0xAAAA);
 

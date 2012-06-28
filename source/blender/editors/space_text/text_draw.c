@@ -1686,7 +1686,7 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			x1 = st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
 			x2 = x1 + ar->winx;
 
-			gpuCurrentColor4ub(255, 255, 255, 32);
+			gpuCurrentColor4x(CPACK_WHITE, 0.125f);
 			
 			glEnable(GL_BLEND);
 			gpuSingleFilledRecti(x1 - 4, y1, x2, y2);

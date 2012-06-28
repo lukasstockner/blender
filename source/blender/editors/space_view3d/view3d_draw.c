@@ -100,7 +100,7 @@
 static void star_stuff_init_func(void)
 {
 	gpuImmediateFormat_V3();
-	gpuCurrentColorPack(0xFFFFFF);
+	gpuCurrentColor3x(CPACK_WHITE);
 	glPointSize(1.0);
 	gpuBegin(GL_POINTS);
 }
@@ -564,15 +564,15 @@ static void drawcursor(Scene *scene, ARegion *ar, View3D *v3d)
 		gpuImmediateFormat_V2(); // DOODLE: view3d cursor, 2 stippled circles, 4 mono lines
 
 		setlinestyle(0); 
-		gpuCurrentColorPack(0xFF);
+		gpuCurrentColor3x(CPACK_BLUE);
 		gpuDrawCircle((float)mx, (float)my, 10.0, 32);
 
 		setlinestyle(4); 
-		gpuCurrentColorPack(0xFFFFFF);
+		gpuCurrentColor3x(CPACK_WHITE);
 		gpuRepeat();
 
 		setlinestyle(0);
-		gpuCurrentColorPack(0x0);
+		gpuCurrentColor3x(CPACK_BLACK);
 
 		gpuBegin(GL_LINES);
 		gpuAppendLinei(mx - 20, my, mx - 5, my);
@@ -1153,7 +1153,7 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 	/* passepartout, specified in camera edit buttons */
 	if (ca && (ca->flag & CAM_SHOWPASSEPARTOUT) && ca->passepartalpha > 0.000001f) {
 		if (ca->passepartalpha == 1.0f) {
-			gpuCurrentColor3f(0, 0, 0);
+			gpuCurrentColor3x(CPACK_BLACK);
 		}
 		else {
 			glEnable(GL_BLEND);
@@ -1206,7 +1206,7 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 		x4 = x1 + scene->r.border.xmax * (x2 - x1);
 		y4 = y1 + scene->r.border.ymax * (y2 - y1);
 		
-		gpuCurrentColorPack(0x4040FF);
+		gpuCurrentColor3x(0x4040FF);
 		gpuDrawFilledRectf(x3,  y3,  x4,  y4); 
 	}
 
@@ -1790,10 +1790,11 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 			ED_region_pixelspace(ar);
 
 			glPixelZoom(zoomx, zoomy);
-			gpuCurrentColor4f(1.0f, 1.0f, 1.0f, 1.0f - bgpic->blend);
+
+			gpuCurrentColor4x(CPACK_WHITE, 1 - bgpic->blend);
 			glaDrawPixelsTex(x1, y1, ibuf->x, ibuf->y, GL_UNSIGNED_BYTE, ibuf->rect);
 
-			glPixelZoom(1.0, 1.0);
+			glPixelZoom(1, 1);
 
 			glMatrixMode(GL_PROJECTION);
 			glPopMatrix();
@@ -2684,7 +2685,7 @@ void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar,
 	glPopMatrix();
 
 	// XXX, without this the sequencer flickers with opengl draw enabled, need to find out why - campbell
-	gpuCurrentColor4ub(255, 255, 255, 255);
+	gpuCurrentColor3x(CPACK_WHITE);
 
 	G.f &= ~G_RENDER_OGL;
 }

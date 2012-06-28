@@ -381,8 +381,8 @@ void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *ar)
 
 	/* black line marking 'current frame' for Time-Slide transform mode */
 	if (saction->flag & SACTION_MOVING) {
-		gpuCurrentColor3f(0.0f, 0.0f, 0.0f);
-		
+		gpuCurrentColor3x(CPACK_BLACK);
+
 		gpuBegin(GL_LINES);
 		gpuVertex2f(saction->timeslide, v2d->cur.ymin - EXTRA_SCROLL_PAD);
 		gpuVertex2f(saction->timeslide, v2d->cur.ymax);

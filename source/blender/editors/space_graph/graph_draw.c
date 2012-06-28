@@ -91,26 +91,26 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm, View2D *v2d)
 	FCM_EnvelopeData *fed;
 	const float fac = 0.05f * (v2d->cur.xmax - v2d->cur.xmin);
 	int i;
-	
+
 	/* draw two black lines showing the standard reference levels */
-	gpuCurrentColor3f(0.0f, 0.0f, 0.0f);
+	gpuCurrentColor3x(CPACK_BLACK);
 	setlinestyle(5);
-	
+
 	gpuBegin(GL_LINES);
 	gpuVertex2f(v2d->cur.xmin, env->midval + env->min);
 	gpuVertex2f(v2d->cur.xmax, env->midval + env->min);
-		
+
 	gpuVertex2f(v2d->cur.xmin, env->midval + env->max);
 	gpuVertex2f(v2d->cur.xmax, env->midval + env->max);
 	gpuEnd(); // GL_LINES
 	setlinestyle(0);
-	
+
 	/* set size of vertices (non-adjustable for now) */
 	glPointSize(2.0f);
-	
+
 	// for now, point color is fixed, and is white
-	gpuCurrentColor3f(1.0f, 1.0f, 1.0f);
-	
+	gpuCurrentColor3x(CPACK_WHITE);
+
 	/* we use bgl points not standard gl points, to workaround vertex 
 	 * drawing bugs that some drivers have (probably legacy ones only though)
 	 */

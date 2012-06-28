@@ -170,7 +170,8 @@ BLI_INLINE void gpuColor4d(GLdouble r, GLdouble g, GLdouble b, GLdouble a)
 /* This function converts a numerical value to the equivalent 24-bit
    color, while not being endian-sensitive. On little-endians, this
    is the same as doing a 'naive' indexing, on big-endian, it is not! */
-BLI_INLINE void gpuColorPack(const GLuint rgb)
+
+BLI_INLINE void gpuColor3x(GLuint rgb)
 {
 	GPU_CHECK_CAN_VERTEX_ATTRIB();
 	GPU_CURRENT_COLOR_VALID(GL_FALSE);
@@ -181,6 +182,48 @@ BLI_INLINE void gpuColorPack(const GLuint rgb)
 	GPU_IMMEDIATE->color[3] = 255;
 }
 
+BLI_INLINE void gpuColor4x(GLuint rgb, GLfloat a)
+{
+	GPU_CHECK_CAN_VERTEX_ATTRIB();
+	GPU_CURRENT_COLOR_VALID(GL_FALSE);
+
+	GPU_IMMEDIATE->color[0] = (rgb >>  0) & 0xFF;
+	GPU_IMMEDIATE->color[1] = (rgb >>  8) & 0xFF;
+	GPU_IMMEDIATE->color[2] = (rgb >> 16) & 0xFF;
+	GPU_IMMEDIATE->color[3] = (GLubyte)(255 * a);
+}
+
+
+
+BLI_INLINE void gpuGrey3f(GLfloat luminance)
+{
+	GLubyte c;
+
+	GPU_CHECK_CAN_VERTEX_ATTRIB();
+	GPU_CURRENT_COLOR_VALID(GL_FALSE);
+
+	c = (GLubyte)(255.0 * luminance);
+
+	GPU_IMMEDIATE->color[0] = c;
+	GPU_IMMEDIATE->color[1] = c;
+	GPU_IMMEDIATE->color[2] = c;
+	GPU_IMMEDIATE->color[3] = 255;
+}
+
+BLI_INLINE void gpuGrey4f(GLfloat luminance, GLfloat alpha)
+{
+	GLubyte c;
+
+	GPU_CHECK_CAN_VERTEX_ATTRIB();
+	GPU_CURRENT_COLOR_VALID(GL_FALSE);
+
+	c = (GLubyte)(255.0 * luminance);
+
+	GPU_IMMEDIATE->color[0] = c;
+	GPU_IMMEDIATE->color[1] = c;
+	GPU_IMMEDIATE->color[2] = c;
+	GPU_IMMEDIATE->color[3] = (GLubyte)(255.0 * alpha);
+}
 
 
 

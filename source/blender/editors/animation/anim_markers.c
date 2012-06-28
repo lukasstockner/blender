@@ -372,12 +372,9 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 	{
 		setlinestyle(3);
 
-		if (marker->flag & SELECT) {
-			gpuCurrentColor4ub(255, 255, 255, 96);
-		}
-		else {
-			gpuCurrentColor4ub(0, 0, 0, 96);
-		}
+		gpuCurrentColor4x(
+			(marker->flag & SELECT) ? CPACK_WHITE : CPACK_BLACK,
+			0.376f);
 
 		// DOODLE single 2D line, stippled
 		gpuSingleLinef(

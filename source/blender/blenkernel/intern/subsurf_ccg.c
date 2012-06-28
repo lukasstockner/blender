@@ -1613,7 +1613,7 @@ static void ccgDM_drawEdges(DerivedMesh *dm, int drawLooseEdges, int drawAllEdge
 	}
 
 	if (useAging && !(G.f & G_BACKBUFSEL)) {
-		gpuCurrentColor3ub(0, 0, 0);
+		gpuCurrentColor3x(CPACK_BLACK);
 	}
 
 	if (ccgdm->drawInteriorEdges) {

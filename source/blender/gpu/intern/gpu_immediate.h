@@ -313,14 +313,20 @@ void gpuCurrentColor4ub(GLubyte r, GLubyte g, GLubyte b, GLubyte a);
 void gpuCurrentColor4ubv(const GLubyte *restrict v);
 void gpuCurrentColor4d(GLdouble r, GLdouble g, GLdouble b, GLdouble a);
 
-void gpuCurrentColorPack(GLuint rgb);
+void gpuCurrentColor3x(GLuint rgb);
+void gpuCurrentColor4x(GLuint rgb, GLfloat a);
 
 void gpuCurrentAlpha(GLfloat a);
 void gpuMultCurrentAlpha(GLfloat factor);
 
+
+
 void gpuGetCurrentColor4fv(GLfloat *restrict color);
 void gpuGetCurrentColor4ubv(GLubyte *restrict color);
 
+void gpuCurrentGrey3f(GLfloat luminance);
+
+void gpuCurrentGrey4f(GLfloat luminance, GLfloat alpha);
 
 
 void gpuCurrentNormal3fv(const GLfloat *restrict v);

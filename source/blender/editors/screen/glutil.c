@@ -147,7 +147,7 @@ GLubyte stipple_diag_stripes_neg[128] = {
 //	/* we can reuse the dist variable here to increment the GL curve eval amount*/
 //	dist = 1.0f / curve_res;
 //	
-//	gpuCurrentColorPack(0x000000);
+//	gpuCurrentColor3x(CPACK_BLACK);
 //	glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 4, vec[0]);
 //	gpuBegin(GL_LINE_STRIP);
 //	while (spline_step < 1.000001f) {

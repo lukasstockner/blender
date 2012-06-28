@@ -76,7 +76,7 @@ static void time_draw_sfra_efra(Scene *scene, View2D *v2d)
 	gpuImmediateFormat_V2(); // DOODLE: two lines, start frame & end frame
 
 	glEnable(GL_BLEND);
-	gpuCurrentColor4f(0.0f, 0.0f, 0.0f, 0.4f);
+	gpuCurrentColor4x(CPACK_BLACK, 0.400f);
 		
 	if (PSFRA < PEFRA) {
 		gpuDrawFilledRectf(v2d->cur.xmin, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
@@ -345,7 +345,7 @@ static void time_draw_keyframes(const bContext *C, SpaceTime *stime, ARegion *ar
 	 */
 	if (scene && onlysel == 0) {
 		/* set draw color */
-		gpuColor3ub(0xDD, 0xA7, 0x00);
+		gpuColor3x(0xDDA700);
 		time_draw_idblock_keyframes(v2d, (ID *)scene, onlysel);
 	}
 	
@@ -354,7 +354,7 @@ static void time_draw_keyframes(const bContext *C, SpaceTime *stime, ARegion *ar
 	 *    OR the onlysel flag was set, which means that only active object's keyframes should
 	 *    be considered
 	 */
-	gpuColor3ub(0xDD, 0xD7, 0x00);
+	gpuColor3x(0xDDD700);
 	
 	if (ob && ((ob->mode == OB_MODE_POSE) || onlysel)) {
 		/* draw keyframes for active object only */

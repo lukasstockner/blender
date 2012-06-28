@@ -519,7 +519,7 @@ static void wm_triple_draw_textures(wmWindow *win, wmDrawTriple *triple)
 
 			glBindTexture(triple->target, triple->bind[x + y * triple->nx]);
 
-			gpuCurrentColor3f(1.0f, 1.0f, 1.0f);
+			gpuCurrentColor3x(CPACK_WHITE);
 
 			gpuImmediateFormat_T2_V2(); // DOODLE: triple backbuffer
 

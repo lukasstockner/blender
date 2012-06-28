@@ -688,10 +688,10 @@ static void drawcentercircle(View3D *v3d, RegionView3D *rv3d, const float co[3],
 
 	if (special_color) {
 		if (selstate == ACTIVE || selstate == SELECT) {
-			gpuCurrentColor4ub(0x88, 0xFF, 0xFF, 155);
+			gpuCurrentColor4x(0x88FFFF, 0.608f);
 		}
 		else {
-			gpuCurrentColor4ub(0x55, 0xCC, 0xCC, 155);
+			gpuCurrentColor4x(0x55CCCC, 0.608f);
 		}
 	}
 	else {
@@ -1010,7 +1010,7 @@ static void draw_transp_spot_volume(Lamp *la, float x, float z)
 	glCullFace(GL_FRONT);
 
 	glBlendFunc(GL_ZERO, GL_SRC_ALPHA); /* non-standard blend function */
-	gpuCurrentColor4f(0.0f, 0.0f, 0.0f, 0.4f);
+	gpuCurrentColor4x(CPACK_BLACK, 0.400f);
 
 	draw_spot_cone(la, x, z);
 
@@ -1018,7 +1018,7 @@ static void draw_transp_spot_volume(Lamp *la, float x, float z)
 	glCullFace(GL_BACK);
 
 	glBlendFunc(GL_ONE, GL_ONE); /* non-standard blend function */
-	gpuCurrentColor4f(0.2f, 0.2f, 0.2f, 1.0f);
+	gpuCurrentGrey3f(0.200f);
 
 	draw_spot_cone(la, x, z);
 
@@ -1087,10 +1087,10 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 	if (lampsize > 0.0f) {
 		if (!(dflag & DRAW_CONSTCOLOR)  && ob->id.us > 1) {
 			if (ob == OBACT || (ob->flag & SELECT)) {
-				gpuCurrentColor4ub(0x88, 0xFF, 0xFF, 155);
+				gpuCurrentColor4x(0x88FFFF, 0.608f);
 			}
 			else {
-				gpuCurrentColor4ub(0x77, 0xCC, 0xCC, 155);
+				gpuCurrentColor4x(0x77CCCC, 0.608f);
 			}
 		}
 
@@ -1361,12 +1361,12 @@ static void draw_limit_line(float sta, float end, unsigned int col)
 
 	glPointSize(3.0);
 	gpuBegin(GL_POINTS);
-	gpuColorPack(col);
+	gpuColor3x(col);
 	gpuVertex3f(0.0, 0.0, -sta);
 	gpuVertex3f(0.0, 0.0, -end);
 	gpuEnd();
 	glPointSize(1.0);
-}		
+}
 
 
 /* yafray: draw camera focus point (cross, similar to aqsis code in tuhopuu) */
@@ -1727,14 +1727,14 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 			glMultMatrixf(nobmat);
 
 			if (cam->flag & CAM_SHOWLIMITS) {
-				draw_limit_line(cam->clipsta, cam->clipend, 0x77FFFF);
+				draw_limit_line(cam->clipsta, cam->clipend, 0x77FFFF); /* CPACK */
 				/* qdn: was yafray only, now also enabled for Blender to be used with defocus composite node */
 				draw_focus_cross(BKE_camera_object_dof_distance(ob), cam->drawsize);
 			}
 
 			wrld = scene->world;
 			if (cam->flag & CAM_SHOWMIST)
-				if (wrld) draw_limit_line(wrld->miststa, wrld->miststa + wrld->mistdist, 0xFFFFFF);
+				if (wrld) draw_limit_line(wrld->miststa, wrld->miststa + wrld->mistdist, CPACK_WHITE);
 
 			glPopMatrix();
 		}
@@ -1878,7 +1878,7 @@ static void drawlattice(Scene *scene, View3D *v3d, Object *ob)
 	if (is_edit) {
 		lt = lt->editlatt->latt;
 
-		gpuCurrentColorPack(0x004000);
+		gpuCurrentColor3x(0x004000);
 		
 		if (ob->defbase.first && lt->dvert) {
 			use_wcol = ob->actdef;
@@ -2004,10 +2004,10 @@ static void drawSelectedVertices__mapFunc(void *userData, int index, const float
 
 		// TODO define selected color
 		if (sel) {
-			gpuColor3f(1.0f, 1.0f, 0.0f);
+			gpuColor3x(CPACK_YELLOW);
 		}
 		else {
-			gpuColor3f(0.0f, 0.0f, 0.0f);
+			gpuColor3x(CPACK_BLACK);
 		}
 
 		gpuVertex3fv(co);
@@ -3171,7 +3171,7 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 
 			draw_dm_edges_seams(em, cageDM);
 
-			gpuCurrentColor3ub(0, 0, 0);
+			gpuCurrentColor3x(CPACK_BLACK);
 			glLineWidth(1);
 		}
 		
@@ -3181,7 +3181,7 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 
 			draw_dm_edges_sharp(em, cageDM);
 
-			gpuCurrentColor3ub(0, 0, 0);
+			gpuCurrentColor3x(CPACK_BLACK);
 			glLineWidth(1);
 		}
 
@@ -3449,14 +3449,14 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			else if (dflag != DRAW_CONSTCOLOR)
 				UI_ThemeColor(is_obact ? TH_ACTIVE : TH_SELECT);
 			else
-				gpuCurrentColor3ub(80, 80, 80);
+				gpuCurrentGrey3f(0.314f);
 		}
 		else {
 			if (ob->flag & OB_FROMGROUP)
 				UI_ThemeColor(TH_GROUP);
 			else {
 				if (ob->dtx & OB_DRAWWIRE && dflag == DRAW_CONSTCOLOR)
-					gpuCurrentColor3ub(80, 80, 80);
+					gpuCurrentGrey3f(0.314f);
 				else
 					UI_ThemeColor(TH_WIRE);
 			}
@@ -3500,12 +3500,11 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	}
 	
 	if (is_obact && paint_vertsel_test(ob)) {
-		
-		gpuCurrentColor3f(0.0f, 0.0f, 0.0f);
+		gpuCurrentColor3x(CPACK_BLACK);
 		glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
-		
+
 		drawSelectedVertices(dm, ob->data);
-		
+
 		glPointSize(1.0f);
 	}
 	dm->release(dm);
@@ -3928,7 +3927,7 @@ static int drawDispList(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *bas
 						GPU_end_object_materials();
 					}
 					if (cu->editnurb && cu->bevobj == NULL && cu->taperobj == NULL && cu->ext1 == 0.0f && cu->ext2 == 0.0f) {
-						gpuCurrentColorPack(0);
+						gpuCurrentColor3x(CPACK_BLACK);
 						draw_index_wire = 0;
 						drawDispListwire(lb);
 						draw_index_wire = 1;
@@ -4817,7 +4816,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	}
 
 	if (pdd && pdd->vedata) {
-		gpuCurrentColorPack(0xC0C0C0);
+		gpuCurrentGrey3f(0.753f);
 
 		draw_particle_arrays(
 			PART_DRAW_LINE,
@@ -5101,7 +5100,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 
 	gpuImmediateFormat_V3();
 
-	gpuCurrentColor4ub(0x7F, 0x00, 0x00, 155);
+	gpuCurrentColor4x(0x7F0000, 0.608f);
 	gpuBegin(GL_LINES);
 	root[1] = root[2] = 0.0f;
 	root[0] = -drw_size;
@@ -5151,7 +5150,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 	gpuVertex3fv(tip);
 	gpuEnd();
 
-	gpuCurrentColor4ub(0x00, 0x7F, 0x00, 155);
+	gpuCurrentColor4x(0x007F00, 0.608f);
 
 	gpuBegin(GL_LINES);
 	root[0] = root[2] = 0.0f;
@@ -5202,7 +5201,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 	gpuVertex3fv(tip);
 	gpuEnd();
 
-	gpuCurrentColor4ub(0x00, 0x00, 0x7F, 155);
+	gpuCurrentColor4x(0x00007F, 0.608f);
 	gpuBegin(GL_LINES);
 	root[0] = root[1] = 0.0f;
 	root[2] = -drw_size;
@@ -5348,7 +5347,7 @@ static void tekenhandlesN_active(Nurb *nu)
 	}
 	gpuEnd();
 
-	gpuCurrentColor3ub(0, 0, 0);
+	gpuCurrentColor3x(CPACK_BLACK);
 	glLineWidth(1);
 }
 
@@ -5442,7 +5441,7 @@ static void editnurb_draw_active_poly(Nurb *nu)
 		gpuEnd();
 	}
 
-	gpuCurrentColor3ub(0, 0, 0);
+	gpuCurrentColor3x(CPACK_BLACK);
 	glLineWidth(1);
 }
 
@@ -5487,7 +5486,7 @@ static void editnurb_draw_active_nurbs(Nurb *nu)
 
 	gpuEnd();
 
-	gpuCurrentColor3ub(0, 0, 0);
+	gpuCurrentColor3x(CPACK_BLACK);
 	glLineWidth(1);
 }
 
@@ -5804,7 +5803,7 @@ static void draw_textcurs(float textcurs[4][2])
 {
 	gpuImmediateFormat_V3();
 
-	gpuCurrentColorPack(0x000000);
+	gpuCurrentColor3x(CPACK_BLACK);
 	set_inverted_drawing(1);
 	gpuBegin(GL_QUADS);
 	gpuVertex2fv(textcurs[0]);
@@ -5922,8 +5921,8 @@ static int drawmball(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 
 		/* draw radius */
 		if (mb->editelems) {
-			if ((ml->flag & SELECT) && (ml->flag & MB_SCALE_RAD)) gpuCurrentColorPack(0xA0A0F0);
-			else gpuCurrentColorPack(0x3030A0);
+			if ((ml->flag & SELECT) && (ml->flag & MB_SCALE_RAD)) gpuCurrentColor3x(0xA0A0F0);
+			else gpuCurrentColor3x(0x3030A0);
 			
 			if (G.f & G_PICKSEL) {
 				ml->selcol1 = code;
@@ -5935,8 +5934,8 @@ static int drawmball(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 
 		/* draw stiffness */
 		if (mb->editelems) {
-			if ((ml->flag & SELECT) && !(ml->flag & MB_SCALE_RAD)) gpuCurrentColorPack(0xA0F0A0);
-			else gpuCurrentColorPack(0x30A030);
+			if ((ml->flag & SELECT) && !(ml->flag & MB_SCALE_RAD)) gpuCurrentColor3x(0xA0F0A0);
+			else gpuCurrentColor3x(0x30A030);
 			
 			if (G.f & G_PICKSEL) {
 				ml->selcol2 = code;
@@ -6408,7 +6407,7 @@ static void drawWireExtra(Scene *scene, RegionView3D *rv3d, Object *ob)
 			UI_ThemeColor(TH_GROUP);
 		else {
 			if (ob->dtx & OB_DRAWWIRE) {
-				gpuCurrentColor3ub(80, 80, 80);
+				gpuCurrentGrey3f(0.314f);
 			}
 			else {
 				UI_ThemeColor(TH_WIRE);
@@ -6597,7 +6596,6 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	Curve *cu;
 	RegionView3D *rv3d = ar->regiondata;
 	float vec1[3], vec2[3];
-	unsigned int col = 0;
 	unsigned char _ob_wire_col[4];      /* dont initialize this */
 	unsigned char *ob_wire_col = NULL;  /* dont initialize this, use NULL crashes as a way to find invalid use */
 	int i, selstart, selend, empty_object = 0;
@@ -6738,7 +6736,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				draw_textcurs(cu->editfont->textcurs);
 
 				if (cu->flag & CU_FAST) {
-					gpuCurrentColorPack(0xFFFFFF);
+					gpuCurrentColor3x(CPACK_WHITE);
 					set_inverted_drawing(1);
 					drawDispList(scene, v3d, rv3d, base, OB_WIRE, ob_wire_col);
 					set_inverted_drawing(0);
@@ -6793,7 +6791,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				if (BKE_vfont_select_get(ob, &selstart, &selend) && cu->selboxes) {
 					float selboxw;
 
-					gpuCurrentColorPack(0xFFFFFF);
+					gpuCurrentColor3x(CPACK_WHITE);
 					set_inverted_drawing(1);
 					for (i = 0; i < (selend - selstart + 1); i++) {
 						SelBox *sb = &(cu->selboxes[i]);
@@ -6953,7 +6951,9 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	{
 		ParticleSystem *psys;
 
-		if (col || (ob->flag & SELECT)) gpuCurrentColorPack(0xFFFFFF);    /* for visibility, also while wpaint */
+		if (ob->flag & SELECT) {
+			gpuCurrentColor3x(CPACK_WHITE); /* for visibility, also while wpaint */
+		}
 		//glDepthMask(GL_FALSE);
 
 		glLoadMatrixf(rv3d->viewmat);
@@ -6974,9 +6974,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		view3d_cached_text_draw_end(v3d, ar, 0, NULL);
 
 		glMultMatrixf(ob->obmat);
-		
+
 		//glDepthMask(GL_TRUE);
-		if (col) gpuCurrentColorPack(col);
 	}
 
 	/* draw edit particles last so that they can draw over child particles */
@@ -7009,7 +7008,9 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 				glLoadMatrixf(rv3d->viewmat);
 
-				if (col || (ob->flag & SELECT)) gpuCurrentColorPack(0xFFFFFF);
+				if (ob->flag & SELECT) {
+					gpuCurrentColor3x(CPACK_WHITE);
+				}
 				glDepthMask(GL_FALSE);
 				glEnable(GL_BLEND);
 				
@@ -7028,8 +7029,6 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				glMultMatrixf(ob->obmat);
 				glDisable(GL_BLEND);
 				glDepthMask(GL_TRUE);
-				if (col) gpuCurrentColorPack(col);
-				
 			}
 #endif
 		}
@@ -7056,7 +7055,9 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				glLoadMatrixf(rv3d->viewmat);
 				// glMultMatrixf(ob->obmat);
 
-				if (col || (ob->flag & SELECT)) gpuCurrentColorPack(0xFFFFFF);
+				if (ob->flag & SELECT) {
+					gpuCurrentColor3x(CPACK_WHITE);
+				}
 				glDepthMask(GL_FALSE);
 				glEnable(GL_BLEND);
 				
@@ -7090,7 +7091,6 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				glMultMatrixf(ob->obmat);
 				glDisable(GL_BLEND);
 				glDepthMask(GL_TRUE);
-				if (col) gpuCurrentColorPack(col);
 #endif
 			}
 			else if (smd->domain->wt && (smd->domain->viewsettings & MOD_SMOKE_VIEW_SHOWBIG)) {
@@ -7417,7 +7417,7 @@ static void bbs_mesh_solid_EM(BMEditMesh *em, Scene *scene, View3D *v3d,
                               Object *ob, DerivedMesh *dm, int facecol)
 {
 	void *ptrs[2] = {em, NULL}; //second one being null means to draw black
-	gpuCurrentColorPack(0x000000);
+	gpuCurrentColor3x(CPACK_BLACK);
 
 	if (facecol) {
 		ptrs[1] = (void *)(intptr_t) 1;
@@ -7472,8 +7472,8 @@ static void bbs_mesh_solid(Scene *scene, Object *ob)
 {
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
 	Mesh *me = (Mesh *)ob->data;
-	
-	gpuCurrentColor3ub(0, 0, 0);
+
+	gpuCurrentColor3x(CPACK_BLACK);
 
 	if ((me->editflag & ME_EDIT_PAINT_MASK))
 		dm->drawMappedFaces(dm, bbs_mesh_solid_hide__setDrawOpts, GPU_enable_material, NULL, me, 0);
@@ -7536,7 +7536,8 @@ void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 				    (ob->mode & OB_MODE_WEIGHT_PAINT))
 				{
 					DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
-					gpuCurrentColor3ub(0, 0, 0);
+
+					gpuCurrentColor3x(CPACK_BLACK);
 
 					dm->drawMappedFaces(dm, bbs_mesh_solid_hide2__setDrawOpts, GPU_enable_material, NULL, me, 0);
 

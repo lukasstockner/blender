@@ -233,7 +233,7 @@ static void node_draw_output_default(const bContext *C, uiBlock *block,
 static void node_draw_socket_new(bNodeSocket *sock, float size)
 {
 	float x=sock->locx, y=sock->locy;
-	
+
 	/* 16 values of sin function */
 	static float si[16] = {
 		0.00000000f, 0.39435585f, 0.72479278f,0.93775213f,
@@ -249,15 +249,15 @@ static void node_draw_socket_new(bNodeSocket *sock, float size)
 		0.15142777f,0.52896401f,0.82076344f,0.97952994f,
 	};
 	int a;
-	
-	gpuCurrentColor3ub(180, 180, 180);
-	
+
+	gpuCurrentGrey3f(0.706f);
+
 	gpuBegin(GL_POLYGON);
 	for (a=0; a<16; a++)
 		gpuVertex2f(x+size*si[a], y+size*co[a]);
 	gpuEnd();
-	
-	gpuCurrentColor4ub(0, 0, 0, 150);
+
+	gpuCurrentColor4x(CPACK_BLACK, 0.588f);
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
 	gpuBegin(GL_LINE_LOOP);
@@ -803,16 +803,16 @@ static void node_draw_group(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		UI_ThemeColorShadeAlpha(TH_BACK, 10, -50);
 		uiSetRoundBox(UI_CNR_BOTTOM_RIGHT);
 		uiDrawBox(GL_POLYGON, rect.xmax, rect.ymin, rect.xmax+node_group_frame, rect.ymax, BASIS_RAD);
-	
+
+		gpuCurrentGrey4f(0.784f, 0.549f);
+
 		/* input column separator */
-		gpuCurrentColor4ub(200, 200, 200, 140);
 		gpuBegin(GL_LINES);
 		gpuVertex2f(rect.xmin, rect.ymin);
 		gpuVertex2f(rect.xmin, rect.ymax);
 		gpuEnd();
 	
 		/* output column separator */
-		gpuCurrentColor4ub(200, 200, 200, 140);
 		gpuBegin(GL_LINES);
 		gpuVertex2f(rect.xmax, rect.ymin);
 		gpuVertex2f(rect.xmax, rect.ymax);
@@ -820,7 +820,6 @@ static void node_draw_group(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	
 		/* group node outline */
 		uiSetRoundBox(UI_CNR_ALL);
-		gpuCurrentColor4ub(200, 200, 200, 140);
 		glEnable(GL_LINE_SMOOTH);
 		uiDrawBox(GL_LINE_LOOP, rect.xmin-node_group_frame, rect.ymin, rect.xmax+node_group_frame, rect.ymax+group_header, BASIS_RAD);
 		glDisable(GL_LINE_SMOOTH);
@@ -2326,7 +2325,7 @@ void node_composit_backdrop_viewer(SpaceNode* snode, ImBuf* backdrop, bNode* nod
 		const float cx  = x+snode->zoom*backdropWidth*node->custom3;
 		const float cy = y+snode->zoom*backdropHeight*node->custom4;
 
-		gpuCurrentColor3f(1.0, 1.0, 1.0);
+		gpuCurrentColor3x(CPACK_WHITE);
 
 		gpuBegin(GL_LINES);
 		gpuVertex2f(cx-25, cy-25);
@@ -2356,7 +2355,7 @@ void node_composit_backdrop_boxmask(SpaceNode* snode, ImBuf* backdrop, bNode* no
 	/* keep this, saves us from a version patch */
 	if (snode->zoom == 0.0f) snode->zoom = 1.0f;
 
-	gpuCurrentColor3f(1.0, 1.0, 1.0);
+	gpuCurrentColor3x(CPACK_WHITE);
 
 	cx  = x+snode->zoom*backdropWidth*boxmask->x;
 	cy = y+snode->zoom*backdropHeight*boxmask->y;
@@ -2397,7 +2396,7 @@ void node_composit_backdrop_ellipsemask(SpaceNode* snode, ImBuf* backdrop, bNode
 	/* keep this, saves us from a version patch */
 	if (snode->zoom == 0.0f) snode->zoom = 1.0f;
 
-	gpuCurrentColor3f(1.0, 1.0, 1.0);
+	gpuCurrentColor3x(CPACK_WHITE);
 
 	cx  = x+snode->zoom*backdropWidth*ellipsemask->x;
 	cy = y+snode->zoom*backdropHeight*ellipsemask->y;
@@ -3040,7 +3039,7 @@ static void draw_nodespace_back_tex(ScrArea *sa, SpaceNode *snode)
 
 			glPixelZoom(zoom, zoom);
 
-			gpuCurrentColor4f(1.0, 1.0, 1.0, 1.0);
+			gpuCurrentColor3x(CPACK_WHITE);
 			if (ibuf->rect)
 				glaDrawPixelsTex(x, y, ibuf->x, ibuf->y, GL_UNSIGNED_BYTE, ibuf->rect);
 			else if (ibuf->channels==4)

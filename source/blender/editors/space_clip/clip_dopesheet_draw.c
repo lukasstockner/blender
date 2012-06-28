@@ -134,12 +134,12 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, sh
 	if (sel)
 		UI_ThemeColorShadeAlpha(TH_STRIP_SELECT, 50, -255 * (1.0f - alpha));
 	else
-		gpuCurrentColor4f(0.91f, 0.91f, 0.91f, alpha);
+		gpuCurrentGrey4f(0.910f, alpha);
 
 	glCallList(displist2);
 
 	/* exterior - black frame */
-	gpuCurrentColor4f(0.0f, 0.0f, 0.0f, alpha);
+	gpuCurrentColor4x(CPACK_BLACK, alpha);
 	glCallList(displist1);
 
 	glDisable(GL_LINE_SMOOTH);

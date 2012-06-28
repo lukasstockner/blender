@@ -262,8 +262,9 @@ static void vicon_x_draw(int x, int y, int w, int h, float alpha)
 	glEnable(GL_LINE_SMOOTH);
 
 	glLineWidth(2.5);
-	
-	gpuCurrentColor4f(0.0, 0.0, 0.0, alpha);
+
+	gpuCurrentColor4x(CPACK_BLACK, alpha);
+
 	gpuBegin(GL_LINES);
 	gpuVertex2i(x, y);
 	gpuVertex2i(x + w, y + h);
@@ -282,8 +283,10 @@ static void vicon_view3d_draw(int x, int y, int w, int h, float alpha)
 	int cy = y + h / 2;
 	int d = MAX2(2, h / 3);
 
-	gpuCurrentColor4f(0.5, 0.5, 0.5, alpha);
+	gpuCurrentGrey4f(0.500f, alpha);
+
 	gpuBegin(GL_LINES);
+
 	gpuVertex2i(x, cy - d);
 	gpuVertex2i(x + w, cy - d);
 	gpuVertex2i(x, cy + d);
@@ -293,14 +296,18 @@ static void vicon_view3d_draw(int x, int y, int w, int h, float alpha)
 	gpuVertex2i(cx - d, y + h);
 	gpuVertex2i(cx + d, y);
 	gpuVertex2i(cx + d, y + h);
+
 	gpuEnd();
-	
-	gpuCurrentColor4f(0.0, 0.0, 0.0, alpha);
+
+	gpuCurrentColor4x(CPACK_BLACK, alpha);
+
 	gpuBegin(GL_LINES);
+
 	gpuVertex2i(x, cy);
 	gpuVertex2i(x + w, cy);
 	gpuVertex2i(cx, y);
 	gpuVertex2i(cx, y + h);
+
 	gpuEnd();
 }
 
@@ -313,10 +320,10 @@ static void vicon_edit_draw(int x, int y, int w, int h, float alpha)
 	viconutil_set_point(pts[2], x + w - 3, y + h - 3);
 	viconutil_set_point(pts[3], x + 3,     y + h - 3);
 
-	gpuCurrentColor4f(0.0, 0.0, 0.0, alpha);
+	gpuCurrentColor4x(CPACK_BLACK, alpha);
 	viconutil_draw_lineloop(pts, 4);
 
-	gpuCurrentColor3f(1, 1, 0.0);
+	gpuCurrentColor3x(CPACK_YELLOW);
 	viconutil_draw_points(pts, 4, 1);
 }
 
@@ -328,13 +335,13 @@ static void vicon_editmode_hlt_draw(int x, int y, int w, int h, float alpha)
 	viconutil_set_point(pts[1], x + 3,     y + 4);
 	viconutil_set_point(pts[2], x + w - 3, y + 4);
 
-	gpuCurrentColor4f(0.5, 0.5, 0.5, alpha);
+	gpuCurrentGrey4f(0.500f, alpha);
 	viconutil_draw_tri(pts);
 
-	gpuCurrentColor4f(0.0, 0.0, 0.0, 1);
+	gpuCurrentColor4x(CPACK_BLACK, 1);
 	viconutil_draw_lineloop_smooth(pts, 3);
 
-	gpuCurrentColor3f(1, 1, 0.0);
+	gpuCurrentColor3x(CPACK_YELLOW);
 	viconutil_draw_points(pts, 3, 1);
 }
 
@@ -346,10 +353,10 @@ static void vicon_editmode_dehlt_draw(int x, int y, int w, int h, float UNUSED(a
 	viconutil_set_point(pts[1], x + 3,     y + 4);
 	viconutil_set_point(pts[2], x + w - 3, y + 4);
 
-	gpuCurrentColor3f(0, 0, 0);
+	gpuCurrentColor3x(CPACK_BLACK);
 	viconutil_draw_lineloop_smooth(pts, 3);
 
-	gpuCurrentColor3f(0.9f, 0.9f, 0.9f);
+	gpuCurrentGrey3f(0.900f);
 	viconutil_draw_points(pts, 3, 1);
 }
 
@@ -365,16 +372,21 @@ static void vicon_disclosure_tri_right_draw(int x, int y, int w, int UNUSED(h), 
 	viconutil_set_point(pts[2], cx + d2, cy);
 
 	glShadeModel(GL_SMOOTH);
+
 	gpuBegin(GL_TRIANGLES);
-	gpuColor4f(0.8f, 0.8f, 0.8f, alpha);
+
+	gpuGrey4f(0.800f, alpha);
 	gpuVertex2iv(pts[0]);
 	gpuVertex2iv(pts[1]);
-	gpuColor4f(0.3f, 0.3f, 0.3f, alpha);
+
+	gpuGrey4f(0.300f, alpha);
 	gpuVertex2iv(pts[2]);
+
 	gpuEnd();
+
 	glShadeModel(GL_FLAT);
 
-	gpuCurrentColor4f(0.0f, 0.0f, 0.0f, 1);
+	gpuCurrentColor3x(CPACK_BLACK);
 	viconutil_draw_lineloop_smooth(pts, 3);
 }
 
@@ -389,7 +401,7 @@ static void vicon_small_tri_right_draw(int x, int y, int w, int UNUSED(h), float
 	viconutil_set_point(pts[1], cx - d2, cy - d);
 	viconutil_set_point(pts[2], cx + d2, cy);
 
-	gpuCurrentColor4f(0.2f, 0.2f, 0.2f, alpha);
+	gpuCurrentGrey4f(0.200f, alpha);
 
 	gpuImmediateFormat_V3();
 	gpuBegin(GL_TRIANGLES);
@@ -412,16 +424,21 @@ static void vicon_disclosure_tri_down_draw(int x, int y, int w, int UNUSED(h), f
 	viconutil_set_point(pts[2], cx, cy - d2);
 
 	glShadeModel(GL_SMOOTH);
+
 	gpuBegin(GL_TRIANGLES);
-	gpuColor4f(0.8f, 0.8f, 0.8f, alpha);
+
+	gpuGrey4f(0.800f, alpha);
 	gpuVertex2iv(pts[0]);
 	gpuVertex2iv(pts[1]);
-	gpuColor4f(0.3f, 0.3f, 0.3f, alpha);
+
+	gpuGrey4f(0.300f, alpha);
 	gpuVertex2iv(pts[2]);
+
 	gpuEnd();
+
 	glShadeModel(GL_FLAT);
 
-	gpuCurrentColor4f(0.0f, 0.0f, 0.0f, 1);
+	gpuCurrentColor3x(CPACK_BLACK);
 	viconutil_draw_lineloop_smooth(pts, 3);
 }
 
@@ -431,7 +448,7 @@ static void vicon_move_up_draw(int x, int y, int w, int h, float UNUSED(alpha))
 
 	glEnable(GL_LINE_SMOOTH);
 	glLineWidth(1);
-	gpuCurrentColor3f(0.0, 0.0, 0.0);
+	gpuCurrentColor3x(CPACK_BLACK);
 
 	gpuBegin(GL_LINE_STRIP);
 	gpuVertex2i(x + w / 2 - d * 2, y + h / 2 + d);
@@ -449,7 +466,7 @@ static void vicon_move_down_draw(int x, int y, int w, int h, float UNUSED(alpha)
 
 	glEnable(GL_LINE_SMOOTH);
 	glLineWidth(1);
-	gpuCurrentColor3f(0.0, 0.0, 0.0);
+	gpuCurrentColor3x(CPACK_BLACK);
 
 	gpuBegin(GL_LINE_STRIP);
 	gpuVertex2i(x + w / 2 - d * 2, y + h / 2 + d);
@@ -920,8 +937,12 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 {
 	float x1, x2, y1, y2;
 
-	if (rgb) gpuCurrentColor4f(rgb[0], rgb[1], rgb[2], alpha);
-	else gpuCurrentColor4f(1.0f, 1.0f, 1.0f, alpha);
+	if (rgb) {
+		gpuCurrentColor4f(rgb[0], rgb[1], rgb[2], alpha);
+	}
+	else {
+		gpuCurrentColor4x(CPACK_WHITE, alpha);
+	}
 
 	x1 = ix * icongltex.invw;
 	x2 = (ix + ih) * icongltex.invw;

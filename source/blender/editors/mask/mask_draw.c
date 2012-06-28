@@ -91,7 +91,7 @@ static void draw_spline_parents(MaskLayer *UNUSED(masklay), MaskSpline *spline)
 	if (!spline->tot_point)
 		return;
 
-	gpuCurrentColor3ub(0, 0, 0);
+	gpuCurrentColor3x(CPACK_BLACK);
 	glEnable(GL_LINE_STIPPLE);
 	glLineStipple(1, 0xAAAA);
 
@@ -162,9 +162,9 @@ static void draw_spline_points(MaskLayer *masklay, MaskSpline *spline,
 
 			if (sel) {
 				if (point == masklay->act_point)
-					gpuColor3f(1.0f, 1.0f, 1.0f);
+					gpuColor3x(CPACK_WHITE);
 				else
-					gpuColor3f(1.0f, 1.0f, 0.0f);
+					gpuColor3x(CPACK_YELLOW);
 			}
 			else {
 				gpuColor3f(0.5f, 0.5f, 0.0f);
@@ -221,9 +221,9 @@ static void draw_spline_points(MaskLayer *masklay, MaskSpline *spline,
 		/* draw CV point */
 		if (MASKPOINT_ISSEL_KNOT(point)) {
 			if (point == masklay->act_point)
-				gpuColor3f(1.0f, 1.0f, 1.0f);
+				gpuColor3x(CPACK_WHITE);
 			else
-				gpuColor3f(1.0f, 1.0f, 0.0f);
+				gpuColor3x(CPACK_YELLOW);
 		}
 		else {
 			gpuColor3f(0.5f, 0.5f, 0.0f);
@@ -235,9 +235,9 @@ static void draw_spline_points(MaskLayer *masklay, MaskSpline *spline,
 		if (has_handle) {
 			if (MASKPOINT_ISSEL_HANDLE(point)) {
 				if (point == masklay->act_point)
-					gpuColor3f(1.0f, 1.0f, 1.0f);
+					gpuColor3x(CPACK_WHITE);
 				else
-					gpuColor3f(1.0f, 1.0f, 0.0f);
+					gpuColor3x(CPACK_YELLOW);
 			}
 			else {
 				gpuColor3f(0.5f, 0.5f, 0.0f);

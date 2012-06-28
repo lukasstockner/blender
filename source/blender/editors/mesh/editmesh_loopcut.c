@@ -120,7 +120,7 @@ static void ringsel_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		glPushMatrix();
 		glMultMatrixf(lcd->ob->obmat);
 
-		gpuCurrentColor3ub(255, 0, 255);
+		gpuCurrentColor3x(CPACK_MAGENTA);
 		gpuBegin(GL_LINES);
 		for (i = 0; i < lcd->totedge; i++) {
 			gpuVertex3fv(lcd->edges[i][0]);

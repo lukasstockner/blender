@@ -81,14 +81,14 @@ static void drawcursor_sima(SpaceImage *sima, ARegion *ar)
 	gpuImmediateFormat_C4_V2(); // DOODLE: uvedit cursor sima, 16 colored lines
 	gpuBegin(GL_LINES);
 
-	gpuColorPack(0xFFFFFF);
+	gpuColor3x(CPACK_WHITE);
 	gpuAppendLinef(-0.05f / w, 0, 0, 0.05f / h);
 	gpuAppendLinef(0, 0.05f / h, 0.05f / w, 0.0f);
 	gpuAppendLinef(0.05f / w, 0.0f, 0.0f, -0.05f / h);
 	gpuAppendLinef(0.0f, -0.05f / h, -0.05f / w, 0.0f);
 
 	setlinestyle(4);
-	gpuColorPack(0x0000FF);
+	gpuColor3x(CPACK_BLUE);
 	gpuAppendLinef(-0.05f / w, 0.0f, 0.0f, 0.05f / h);
 	gpuAppendLinef(0.0f, 0.05f / h, 0.05f / w, 0.0f);
 	gpuAppendLinef(0.05f / w, 0.0f, 0.0f, -0.05f / h);
@@ -96,14 +96,14 @@ static void drawcursor_sima(SpaceImage *sima, ARegion *ar)
 
 
 	setlinestyle(0.0f);
-	gpuColorPack(0x000000);
+	gpuColor3x(CPACK_BLACK);
 	gpuAppendLinef(-0.020f / w, 0.0f, -0.1f / w, 0.0f);
 	gpuAppendLinef(0.1f / w, 0.0f, 0.020f / w, 0.0f);
 	gpuAppendLinef(0.0f, -0.020f / h, 0.0f, -0.1f / h);
 	gpuAppendLinef(0.0f, 0.1f / h, 0.0f, 0.020f / h);
 
 	setlinestyle(1);
-	gpuColorPack(0xFFFFFF);
+	gpuColor3x(CPACK_WHITE);
 	gpuAppendLinef(-0.020f / w, 0.0f, -0.1f / w, 0.0f);
 	gpuAppendLinef(0.1f / w, 0.0f, 0.020f / w, 0.0f);
 	gpuAppendLinef(0.0f, -0.020f / h, 0.0f, -0.1f / h);
@@ -143,7 +143,7 @@ static void draw_uvs_shadow(Object *obedit)
 	MLoopUV *luv;
 
 	/* draws the grey mesh when painting */
-	gpuCurrentColor3ub(112, 112, 112);
+	gpuCurrentGrey3f(0.439f);
 
 	BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 		gpuBegin(GL_LINE_LOOP);
@@ -161,7 +161,7 @@ static int draw_uvs_dm_shadow(DerivedMesh *dm)
 	/* draw shadow mesh - this is the mesh with the modifier applied */
 
 	if (dm && dm->drawUVEdges && CustomData_has_layer(&dm->loopData, CD_MLOOPUV)) {
-		gpuCurrentColor3ub(112, 112, 112);
+		gpuCurrentGrey3f(0.439f);
 		dm->drawUVEdges(dm);
 		return 1;
 	}
@@ -380,7 +380,7 @@ static void draw_uvs_other(Scene *scene, Object *obedit, Image *curimage)
 {
 	Base *base;
 
-	gpuCurrentColor3ub(96, 96, 96);
+	gpuCurrentGrey3f(0.376f);
 
 	for (base = scene->base.first; base; base = base->next) {
 		Object *ob = base->object;
@@ -422,7 +422,7 @@ static void draw_uvs_texpaint(SpaceImage *sima, Scene *scene, Object *ob)
 	if (sima->flag & SI_DRAW_OTHER)
 		draw_uvs_other(scene, ob, curimage);
 
-	gpuCurrentColor3ub(112, 112, 112);
+	gpuCurrentGrey3f(0.439f);
 
 	if (me->mtface) {
 		MPoly *mpoly = me->mpoly;
@@ -594,7 +594,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 				tf = CustomData_bmesh_get(&bm->pdata, efa->head.data, CD_MTEXPOLY);
 
 				if (tf) {
-					gpuCurrentColorPack(0x111111);
+					gpuCurrentGrey3f(0.067f);
 
 					gpuBegin(GL_LINE_LOOP);
 					BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
@@ -604,7 +604,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 					gpuEnd();
 
 					setlinestyle(2);
-					gpuCurrentColorPack(0x909090);
+					gpuCurrentGrey3f(0.565f);
 
 					gpuBegin(GL_LINE_LOOP);
 					BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
@@ -628,8 +628,8 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 			break;
 		case SI_UVDT_BLACK: /* black/white */
 		case SI_UVDT_WHITE: 
-			if (sima->dt_uv == SI_UVDT_WHITE) gpuCurrentColor3f(1.0f, 1.0f, 1.0f);
-			else gpuCurrentColor3f(0.0f, 0.0f, 0.0f);
+			gpuCurrentColor3x(
+				sima->dt_uv == SI_UVDT_WHITE ? CPACK_WHITE : CPACK_BLACK);
 
 			BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 				if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
@@ -645,7 +645,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 			break;
 		case SI_UVDT_OUTLINE:
 			glLineWidth(3);
-			gpuCurrentColorPack(0x000000);
+			gpuCurrentColor3x(CPACK_BLACK);
 			
 			BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 				if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
@@ -790,12 +790,12 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 			}
 		}
 		gpuEndSprites();
-	
+
 		/* pinned uvs */
 		/* give odd pointsizes odd pin pointsizes */
 		glPointSize(pointsize * 2 + (((int)pointsize % 2) ? (-1) : 0));
-		gpuCurrentColorPack(0x0000FF);
-	
+		gpuCurrentColor3x(CPACK_BLUE);
+
 		gpuBeginSprites();
 		BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 			if (!BM_elem_flag_test(efa, BM_ELEM_TAG))

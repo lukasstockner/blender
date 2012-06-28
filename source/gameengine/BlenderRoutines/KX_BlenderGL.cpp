@@ -173,7 +173,7 @@ void BL_print_gamedebug_line(const char* text, int xco, int yco, int width, int 
 	gpuLoadIdentity(); gpuMatrixCommit();
 
 	/* the actual drawing */
-	gpuCurrentColor3ub(255, 255, 255);
+	gpuCurrentColor3x(CPACK_WHITE);
 	BLF_draw_default((float)xco, (float)(height-yco), 0.0f, (char *)text, 65535); /* XXX, use real len */
 
 	//glMatrixMode(GL_PROJECTION);
@@ -209,9 +209,9 @@ void BL_print_gamedebug_line_padded(const char* text, int xco, int yco, int widt
 	gpuLoadIdentity(); gpuMatrixCommit();
 
 	/* draw in black first*/
-	gpuCurrentColor3ub(0, 0, 0);
+	gpuCurrentColor3x(CPACK_BLACK);
 	BLF_draw_default((float)(xco+2), (float)(height-yco-2), 0.0f, text, 65535); /* XXX, use real len */
-	gpuCurrentColor3ub(255, 255, 255);
+	gpuCurrentColor3x(CPACK_WHITE);
 	BLF_draw_default((float)xco, (float)(height-yco), 0.0f, text, 65535); /* XXX, use real len */
 
 	//glMatrixMode(GL_PROJECTION);

@@ -72,8 +72,8 @@ static void console_draw_sel(int sel[2], int xy[2], int str_len_draw, int cwidth
 		glEnable(GL_POLYGON_STIPPLE);
 		glPolygonStipple(stipple_halftone);
 		glEnable(GL_BLEND);
-		gpuCurrentColor4ub(255, 255, 255, 96);
 
+		gpuCurrentColor4x(CPACK_WHITE, 0.376f);
 		gpuSingleFilledRecti(xy[0] + (cwidth * sta), xy[1] - 2 + lheight, xy[0] + (cwidth * end), xy[1] - 2);
 
 		glDisable(GL_POLYGON_STIPPLE);
@@ -151,7 +151,7 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 
 		if (cdc->sel[0] != cdc->sel[1]) {
 			STEP_SEL(-initial_offset);
-			// gpuCurrentColor4ub(255, 0, 0, 96); // debug
+			// gpuCurrentColor4x(CPACK_RED, 0.376f); // debug
 			console_draw_sel(cdc->sel, cdc->xy, str_len % cdc->console_width, cdc->cwidth, cdc->lheight);
 			STEP_SEL(cdc->console_width);
 			gpuCurrentColor3ubv(fg);
@@ -166,7 +166,7 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 			BLF_draw(mono, line_stride, cdc->console_width);
 			
 			if (cdc->sel[0] != cdc->sel[1]) {
-				// gpuCurrentColor4ub(0, 255, 0, 96); // debug
+				// gpuCurrentColor4x(CPACK_GREEN, 0.376f); // debug
 				console_draw_sel(cdc->sel, cdc->xy, cdc->console_width, cdc->cwidth, cdc->lheight);
 				STEP_SEL(cdc->console_width);
 				gpuCurrentColor3ubv(fg);
@@ -200,7 +200,7 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 			isel[0] = str_len - cdc->sel[1];
 			isel[1] = str_len - cdc->sel[0];
 
-			// gpuCurrentColor4ub(255, 255, 0, 96); // debug
+			// gpuCurrentColor4x(CPACK_YELLOW, 0.376f); // debug
 			console_draw_sel(isel, cdc->xy, str_len, cdc->cwidth, cdc->lheight);
 			STEP_SEL(-(str_len + 1));
 		}

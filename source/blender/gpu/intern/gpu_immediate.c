@@ -899,12 +899,44 @@ void gpuCurrentColor4d(GLdouble r, GLdouble g, GLdouble b, GLdouble a)
 	currentColor();
 }
 
+void gpuCurrentGrey3f(GLfloat luminance)
+{
+	GLubyte c;
+
+	GPU_CHECK_CAN_CURRENT();
+
+	c = (GLubyte)(255.0 * luminance);
+
+	GPU_IMMEDIATE->color[0] = c;
+	GPU_IMMEDIATE->color[1] = c;
+	GPU_IMMEDIATE->color[2] = c;
+	GPU_IMMEDIATE->color[3] = 255;
+
+	currentColor();
+}
+
+void gpuCurrentGrey4f(GLfloat luminance, GLfloat alpha)
+{
+	GLubyte c;
+
+	GPU_CHECK_CAN_CURRENT();
+
+	c = (GLubyte)(255.0 * luminance);
+
+	GPU_IMMEDIATE->color[0] = c;
+	GPU_IMMEDIATE->color[1] = c;
+	GPU_IMMEDIATE->color[2] = c;
+	GPU_IMMEDIATE->color[3] = (GLubyte)(255.0 * alpha);
+
+	currentColor();
+}
+
 
 
 /* This function converts a numerical value to the equivalent 24-bit
  * color, while not being endian-sensitive. On little-endians, this
  * is the same as doing a 'naive' indexing, on big-endian, it is not! */
-void gpuCurrentColorPack(GLuint rgb)
+void gpuCurrentColor3x(GLuint rgb)
 {
 	GPU_CHECK_CAN_CURRENT();
 
@@ -916,6 +948,17 @@ void gpuCurrentColorPack(GLuint rgb)
 	currentColor();
 }
 
+void gpuCurrentColor4x(GLuint rgb, GLfloat a)
+{
+	GPU_CHECK_CAN_CURRENT();
+
+	GPU_IMMEDIATE->color[0] = (rgb >>  0) & 0xFF;
+	GPU_IMMEDIATE->color[1] = (rgb >>  8) & 0xFF;
+	GPU_IMMEDIATE->color[2] = (rgb >> 16) & 0xFF;
+	GPU_IMMEDIATE->color[3] = (GLubyte)(255 * a);
+
+	currentColor();
+}
 
 
 void gpuCurrentAlpha(GLfloat a)

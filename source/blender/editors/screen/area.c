@@ -85,21 +85,13 @@ static void region_draw_emboss(ARegion *ar, rcti *scirct)
 	gpuImmediateFormat_C4_V2(); // DOODLE: emboss, 4 lines, colored
 	gpuBegin(GL_LINES);
 
-	/* right  */
-	gpuColor4ub(0, 0, 0, 30);
-	gpuAppendLinei(rect.xmax, rect.ymin, rect.xmax, rect.ymax);
-	
-	/* bottom  */
-	gpuColor4ub(0, 0, 0, 30);
-	gpuAppendLinei(rect.xmin, rect.ymin, rect.xmax, rect.ymin);
+	gpuColor4x(CPACK_BLACK, 0.118f);
+	gpuAppendLinei(rect.xmax, rect.ymin, rect.xmax, rect.ymax); /* right  */
+	gpuAppendLinei(rect.xmin, rect.ymin, rect.xmax, rect.ymin); /* bottom  */
 
-	/* top  */
-	gpuColor4ub(255, 255, 255, 30);
-	gpuAppendLinei(rect.xmin, rect.ymax, rect.xmax, rect.ymax);
-
-	/* left  */
-	gpuColor4ub(255, 255, 255, 30);
-	gpuAppendLinei(rect.xmin, rect.ymin, rect.xmin, rect.ymax);
+	gpuColor4x(CPACK_WHITE, 0.118f);
+	gpuAppendLinei(rect.xmin, rect.ymax, rect.xmax, rect.ymax); /* top  */
+	gpuAppendLinei(rect.xmin, rect.ymin, rect.xmin, rect.ymax); /* left  */
 
 	gpuEnd();
 	gpuImmediateUnformat();
@@ -186,19 +178,26 @@ static void area_draw_azone(short x1, short y1, short x2, short y2)
 	gpuImmediateFormat_C4_V2(); // DOODLE: azone, 6 lines, colored
 	gpuBegin(GL_LINES);
 
-	gpuColor4ub(255, 255, 255, 180);
+
+	gpuColor4x(CPACK_WHITE, 0.706f);
 	gpuAppendLinef(x1, y2, x2, y1);
-	gpuColor4ub(255, 255, 255, 130);
+
+	gpuColor4x(CPACK_WHITE, 0.510f);
 	gpuAppendLinef(x1, y2 - dy, x2 - dx, y1);
-	gpuColor4ub(255, 255, 255, 80);
+
+	gpuColor4x(CPACK_WHITE, 0.314f);
 	gpuAppendLinef(x1, y2 - 2 * dy, x2 - 2 * dx, y1);
 
-	gpuColor4ub(0, 0, 0, 210);
+
+	gpuColor4x(CPACK_BLACK, 0.824f);
 	gpuAppendLinef(x1, y2 + 1, x2 + 1, y1);
-	gpuColor4ub(0, 0, 0, 180);
+
+	gpuColor4x(CPACK_BLACK, 0.706f);
 	gpuAppendLinef(x1, y2 - dy + 1, x2 - dx + 1, y1);
-	gpuColor4ub(0, 0, 0, 150);
+
+	gpuColor4x(CPACK_BLACK, 0.588f);
 	gpuAppendLinef(x1, y2 - 2 * dy + 1, x2 - 2 * dx + 1, y1);
+
 
 	gpuEnd();
 	gpuImmediateUnformat();
@@ -223,10 +222,10 @@ static void region_draw_azone_icon(AZone *az)
 	/* outlined circle */
 	glEnable(GL_LINE_SMOOTH);
 
-	gpuCurrentColor4f(1.f, 1.f, 1.f, 0.8f);
+	gpuCurrentColor4x(CPACK_WHITE, 0.800f);
 	gpuDrawDisk(0, 0, 4.25f, 16);
 
-	gpuCurrentColor4f(0.2f, 0.2f, 0.2f, 0.9f);
+	gpuCurrentGrey4f(0.200f, 0.900f);
 	gpuDrawCircle(0, 0, 4.25, 16);
 
 	glDisable(GL_LINE_SMOOTH);
@@ -279,12 +278,12 @@ static void region_draw_azone_tab_plus(AZone *az)
 			break;
 	}
 
-	gpuCurrentColor4f(0.05f, 0.05f, 0.05f, 0.4f);
+	gpuCurrentGrey4f(0.050f, 0.400f);
 	uiRoundBox((float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2, 4.0f);
 
 	glEnable(GL_BLEND);
 
-	gpuCurrentColor4f(0.8f, 0.8f, 0.8f, 0.4f);
+	gpuCurrentGrey4f(0.800f, 0.400f);
 	draw_azone_plus((float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2);
 
 	glDisable(GL_BLEND);
@@ -293,60 +292,60 @@ static void region_draw_azone_tab_plus(AZone *az)
 static void region_draw_azone_tab(AZone *az)
 {
 	float col[3];
-	
+
 	glEnable(GL_BLEND);
 	UI_GetThemeColor3fv(TH_HEADER, col);
 	gpuCurrentColor4f(col[0], col[1], col[2], 0.5f);
-	
+
 	/* add code to draw region hidden as 'too small' */
 	switch (az->edge) {
 		case AE_TOP_TO_BOTTOMRIGHT:
 			uiSetRoundBox(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT | UI_RB_ALPHA);
-			
+
 			uiDrawBoxShade(GL_POLYGON, (float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2, 4.0f, -0.3f, 0.05f);
-			gpuCurrentColor4ub(0, 0, 0, 255);
+			gpuCurrentColor3x(CPACK_BLACK);
 			uiRoundRect((float)az->x1, 0.3f + (float)az->y1, (float)az->x2, 0.3f + (float)az->y2, 4.0f);
 			break;
 		case AE_BOTTOM_TO_TOPLEFT:
 			uiSetRoundBox(UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT | UI_RB_ALPHA);
-			
+
 			uiDrawBoxShade(GL_POLYGON, (float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2, 4.0f, -0.3f, 0.05f);
-			gpuCurrentColor4ub(0, 0, 0, 255);
+			gpuCurrentColor3x(CPACK_BLACK);
 			uiRoundRect((float)az->x1, 0.3f + (float)az->y1, (float)az->x2, 0.3f + (float)az->y2, 4.0f);
 			break;
 		case AE_LEFT_TO_TOPRIGHT:
 			uiSetRoundBox(UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT | UI_RB_ALPHA);
-			
+
 			uiDrawBoxShade(GL_POLYGON, (float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2, 4.0f, -0.3f, 0.05f);
-			gpuCurrentColor4ub(0, 0, 0, 255);
+			gpuCurrentColor3x(CPACK_BLACK);
 			uiRoundRect((float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2, 4.0f);
 			break;
 		case AE_RIGHT_TO_TOPLEFT:
 			uiSetRoundBox(UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT | UI_RB_ALPHA);
-			
+
 			uiDrawBoxShade(GL_POLYGON, (float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2, 4.0f, -0.3f, 0.05f);
-			gpuCurrentColor4ub(0, 0, 0, 255);
+			gpuCurrentColor3x(CPACK_BLACK);
 			uiRoundRect((float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2, 4.0f);
 			break;
 	}
-	
+
 	glDisable(GL_BLEND);
 }
 
 static void region_draw_azone_tria(AZone *az)
 {
 	extern void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3); /* xxx temp */
-	
+
 	glEnable(GL_BLEND);
 	//UI_GetThemeColor3fv(TH_HEADER, col);
-	gpuCurrentColor4f(0.0f, 0.0f, 0.0f, 0.35f);
-	
+	gpuCurrentColor4x(CPACK_BLACK, 0.350f);
+
 	/* add code to draw region hidden as 'too small' */
 	switch (az->edge) {
 		case AE_TOP_TO_BOTTOMRIGHT:
 			ui_draw_anti_tria((float)az->x1, (float)az->y1, (float)az->x2, (float)az->y1, (float)(az->x1 + az->x2) / 2, (float)az->y2);
 			break;
-			
+
 		case AE_BOTTOM_TO_TOPLEFT:
 			ui_draw_anti_tria((float)az->x1, (float)az->y2, (float)az->x2, (float)az->y2, (float)(az->x1 + az->x2) / 2, (float)az->y1);
 			break;
@@ -354,13 +353,13 @@ static void region_draw_azone_tria(AZone *az)
 		case AE_LEFT_TO_TOPRIGHT:
 			ui_draw_anti_tria((float)az->x2, (float)az->y1, (float)az->x2, (float)az->y2, (float)az->x1, (float)(az->y1 + az->y2) / 2);
 			break;
-			
+
 		case AE_RIGHT_TO_TOPLEFT:
 			ui_draw_anti_tria((float)az->x1, (float)az->y1, (float)az->x1, (float)az->y2, (float)az->x2, (float)(az->y1 + az->y2) / 2);
 			break;
 			
 	}
-	
+
 	glDisable(GL_BLEND);
 }
 
@@ -1819,7 +1818,7 @@ void ED_region_info_draw(ARegion *ar, const char *text, int block, float alpha)
 	rect.ymax = ar->winrct.ymax - ar->winrct.ymin;
 
 	glEnable(GL_BLEND);
-	gpuCurrentColor4f(0.0f, 0.0f, 0.0f, alpha);
+	gpuCurrentColor4x(CPACK_BLACK, alpha);
 	gpuSingleFilledRecti(rect.xmin, rect.ymin, rect.xmax + 1, rect.ymax + 1);
 	glDisable(GL_BLEND);
 

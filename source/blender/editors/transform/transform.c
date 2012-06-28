@@ -1648,13 +1648,13 @@ static void drawSnapping(const struct bContext *C, TransInfo *t)
 			w = (((float)wi)/256.0f)*G.sima->zoom * xuser_asp;
 			h = (((float)hi)/256.0f)*G.sima->zoom * yuser_asp;
 			
-			gpuCurrentColorPack(0xFFFFFF);
+			gpuCurrentColor3x(CPACK_WHITE);
 			glTranslatef(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], 0.0f);
 
 			//gpuDrawFilledRectf(0, 0, 1, 1);
 
 			setlinestyle(0);
-			gpuCurrentColorPack(0x0);
+			gpuCurrentColor3x(CPACK_BLACK);
 
 			gpuBegin(GL_LINES);
 			gpuAppendLinef(-0.020/w, 0, -0.1/w, 0);

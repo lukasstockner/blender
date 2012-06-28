@@ -111,7 +111,7 @@ void GPU_render_text(MTFace *tface, int mode,
 		if (tface->mode & TF_OBCOL)
 			col= NULL;
 		else if (!col)
-			gpuCurrentColor3f(1.0f, 1.0f, 1.0f);
+			gpuCurrentColor3x(CPACK_WHITE);
 
 		glPushMatrix();
 		

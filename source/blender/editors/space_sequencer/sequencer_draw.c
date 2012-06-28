@@ -379,15 +379,25 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 	{
 		glEnable(GL_BLEND);
 
-		if (seq->flag & whichsel) gpuCurrentColor4ub(0, 0, 0, 80);
-		else if (seq->flag & SELECT) gpuCurrentColor4ub(255, 255, 255, 30);
-		else gpuCurrentColor4ub(0, 0, 0, 22);
-		
+		if (seq->flag & whichsel) {
+			gpuCurrentColor4x(CPACK_BLACK, 0.314f);
+		}
+		else if (seq->flag & SELECT) {
+			gpuCurrentColor4x(CPACK_WHITE, 0.118f);
+		}
+		else {
+			gpuCurrentColor4x(CPACK_BLACK, 0.086f);
+		}
+
 		gpuSingleFilledRectf(rx1, y1, rx2, y2);
 		
-		if (seq->flag & whichsel) gpuCurrentColor4ub(255, 255, 255, 200);
-		else gpuCurrentColor4ub(0, 0, 0, 50);
-		
+		if (seq->flag & whichsel) {
+			gpuCurrentColor4x(CPACK_WHITE, 0.784f);
+		}
+		else {
+			gpuCurrentColor4x(CPACK_BLACK, 0.196f);
+		}
+
 		glEnable(GL_POLYGON_SMOOTH);
 		gpuBegin(GL_TRIANGLES);
 		gpuVertex2fv(v1); gpuVertex2fv(v2); gpuVertex2fv(v3);
@@ -733,12 +743,12 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 		glEnable(GL_BLEND);
 
 		/* light stripes */
-		gpuCurrentColor4ub(255, 255, 255, 32);
+		gpuCurrentColor4x(CPACK_WHITE, 0.125f);
 		glPolygonStipple(stipple_diag_stripes_pos);
 		gpuSingleFilledRectf(x1, y1, x2, y2);
 
 		/* dark stripes */
-		gpuCurrentColor4ub(0, 0, 0, 32);
+		gpuCurrentColor4x(CPACK_BLACK, 0.125f);
 		glPolygonStipple(stipple_diag_stripes_neg);
 		gpuSingleFilledRectf(x1, y1, x2, y2);
 
@@ -848,7 +858,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	}
 
 	/* without this colors can flicker from previous opengl state */
-	gpuCurrentColor4ub(255, 255, 255, 255);
+	gpuCurrentColor3x(CPACK_WHITE);
 
 	UI_view2d_totRect_set(v2d, viewrectx + 0.5f, viewrecty + 0.5f);
 	UI_view2d_curRect_validate(v2d);
@@ -1250,7 +1260,7 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	/* overlap playhead */
 	if (scene->ed && scene->ed->over_flag & SEQ_EDIT_OVERLAY_SHOW) {
 		int cfra_over = (scene->ed->over_flag & SEQ_EDIT_OVERLAY_ABS) ? scene->ed->over_cfra : scene->r.cfra + scene->ed->over_ofs;
-		gpuCurrentColor3f(0.2, 0.2, 0.2);
+		gpuCurrentGrey3f(0.200f);
 		// gpuSingleFilledRectf(cfra_over, v2d->cur.ymin, scene->ed->over_ofs + scene->r.cfra + 1, v2d->cur.ymax);
 
 		gpuSingleLinef(cfra_over, v2d->cur.ymin, cfra_over, v2d->cur.ymax);

@@ -811,7 +811,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 
 			/* emboss bottom shadow */
 			if (0 && wtb->emboss) {
-				gpuColor4f(1, 1, 1, 0.02f);
+				gpuColor4x(CPACK_WHITE, 0.020f);
 				for (i = 0; i < 2*wtb->halfwayvert - 1; i += 2) {
 					gpuVertex2f(
 						quad_strip_emboss[i+0][0] + dx,
@@ -1189,7 +1189,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 					but->drawstr[pos] = ch;
 				}
 
-				gpuCurrentColor3f(0.20, 0.6, 0.9);
+				gpuCurrentColor3f(0.2f, 0.6f, 0.9f);
 				gpuSingleFilledRecti(rect->xmin + t, rect->ymin + 2, rect->xmin + t + 2, rect->ymax - 2);
 			}
 		}
@@ -1812,7 +1812,7 @@ static void widget_softshadow(rcti *rect, int roundboxalign, float radin, float 
 		round_box_shadow_edges(wtb.outer_v, &rect1, radin, UI_CNR_ALL, (float)step);
 		widget_verts_to_quad_strip_open(&wtb, totvert, quad_strip);
 
-		gpuColor4f(0, 0, 0, alpha);
+		gpuColor4x(CPACK_BLACK, alpha);
 
 		for (i = 0; i < count; i++) {
 			gpuVertex2fv(quad_strip[i]);
@@ -1856,12 +1856,12 @@ static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int dir
 
 static void ui_hsv_cursor(float x, float y)
 {
-	gpuCurrentColor3f(1.0f, 1.0f, 1.0f);
+	gpuCurrentColor3x(CPACK_WHITE);
 	gpuDrawDisk(x, y, 3.0f, 12);
 
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
-	gpuCurrentColor3f(0.0f, 0.0f, 0.0f);
+	gpuCurrentColor3x(CPACK_BLACK);
 	gpuDrawCircle(x, y, 3.0f, 12);
 	glDisable(GL_BLEND);
 	glDisable(GL_LINE_SMOOTH);
@@ -1979,7 +1979,7 @@ void ui_draw_gradient(rcti *rect, const float hsv[3], const int type, const floa
 {
 	const float color_step = (type == UI_GRAD_H) ? 0.02 : 0.05f;
 	int a;
-	float h = hsv[0], s = hsv[1], v = hsv[2];
+	const float h = hsv[0], s = hsv[1], v = hsv[2];
 	float dx, dy, sx1, sx2, sy;
 	float col0[4][3];   // left half, rect bottom to top
 	float col1[4][3];   // right half, rect bottom to top
@@ -2154,7 +2154,7 @@ static void ui_draw_but_HSVCUBE(uiBut *but, rcti *rect)
 	ui_hsv_cursor(x, y);
 
 	/* outline */
-	gpuCurrentColor3ub(0,  0,  0);
+	gpuCurrentColor3x(CPACK_BLACK);
 	gpuDrawWireRectf((rect->xmin), (rect->ymin), (rect->xmax), (rect->ymax));
 
 	gpuImmediateUnformat();

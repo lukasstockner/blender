@@ -381,11 +381,11 @@ void GPC_RenderTools::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 	// Actual drawing (draw black first if padded)
 	if (mode == RAS_IRenderTools::RAS_TEXT_PADDED)
 	{
-		gpuCurrentColor3ub(0, 0, 0);
+		gpuCurrentColor3x(CPACK_BLACK);
 		BLF_draw_default(xco+1, height-yco-1, 0.f, text, 65536);
 	}
 
-	gpuCurrentColor3ub(255, 255, 255);
+	gpuCurrentColor3x(CPACK_WHITE);
 	BLF_draw_default(xco, height-yco, 0.f, text, 65536);
 
 	// Restore view settings

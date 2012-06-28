@@ -70,6 +70,7 @@ set(SRC
 	shaders/gpu_shader_vsm_store_vert.glsl.c
 
 	GPU_buffers.h
+	GPU_colors.h
 	GPU_compatibility.h
 	GPU_draw.h
 	GPU_extensions.h

@@ -1219,7 +1219,7 @@ static void outliner_draw_iconrow(bContext *C, uiBlock *block, Scene *scene, Spa
 				float ufac = UI_UNIT_X / 20.0f;
 
 				uiSetRoundBox(UI_CNR_ALL);
-				gpuCurrentColor4ub(255, 255, 255, 100);
+				gpuCurrentColor4x(CPACK_WHITE, 0.392f);
 				uiRoundBox((float) *offsx - 0.5f * ufac,
 				           (float)ys - 1.0f * ufac,
 				           (float)*offsx + UI_UNIT_Y - 3.0f * ufac,
@@ -1295,7 +1295,7 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 		if (tselem->type == 0) {
 			if (te->idcode == ID_SCE) {
 				if (tselem->id == (ID *)scene) {
-					gpuCurrentColor4ub(255, 255, 255, 100);
+					gpuCurrentColor4x(CPACK_WHITE, 0.392f);
 					active = 2;
 				}
 			}
@@ -1334,10 +1334,9 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 					
 					gpuCurrentColor4ubv((GLubyte *)col);
 				}
-			
 			}
 			else if (scene->obedit && scene->obedit->data == tselem->id) {
-				gpuCurrentColor4ub(255, 255, 255, 100);
+				gpuCurrentColor4x(CPACK_WHITE, 0.392f);
 				active = 2;
 			}
 			else {

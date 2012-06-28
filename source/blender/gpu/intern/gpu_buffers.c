@@ -1344,8 +1344,7 @@ static void gpu_color_from_mask_copy(float mask, unsigned char out[3])
 
 static void gpu_color_from_mask_set(float mask)
 {
-	float color = gpu_color_from_mask(mask);
-	gpuColor3f(color, color, color);
+	gpuGrey3f(gpu_color_from_mask(mask));
 }
 
 static float gpu_color_from_mask_quad(const CCGKey *key,
@@ -1378,8 +1377,7 @@ static void gpu_color_from_mask_quad_set(const CCGKey *key,
                                          CCGElem *a, CCGElem *b,
                                          CCGElem *c, CCGElem *d)
 {
-	float color = gpu_color_from_mask_quad(key, a, b, c, d);
-	gpuColor3f(color, color, color);
+	gpuGrey3f(gpu_color_from_mask_quad(key, a, b, c, d));
 }
 
 void GPU_update_mesh_buffers(GPU_Buffers *buffers, MVert *mvert,

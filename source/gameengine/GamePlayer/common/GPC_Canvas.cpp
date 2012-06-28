@@ -312,7 +312,7 @@ void GPC_Canvas::DrawBanner(TBannerData& banner)
 	// Draw the rectangle with the texture on it
 	::gpuImmediateFormat_T2_V2();
 	::gpuBegin(GL_QUADS);
-	::gpuColor4f(1, 1, 1, 1);
+	::gpuCurrentColor3x(CPACK_WHITE);
 	::gpuTexCoord2iv((GLint*)uvs[0]);
 	::gpuVertex2iv((GLint*)coords[0]);
 	::gpuTexCoord2iv((GLint*)uvs[1]);

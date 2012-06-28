@@ -4924,7 +4924,7 @@ void logic_buttons(bContext *C, ARegion *ar)
 							if (yco-6 < ycoo) ycoo= (yco+ycoo-20)/2;
 						}
 						else {
-							gpuCurrentColorPack(0x999999);
+							gpuCurrentGrey3f(0.600f);
 							gpuSingleFilledRecti(xco+22, yco, xco+width-22, yco+19);
 							but = uiDefBut(block, LABEL, 0, controller_name(cont->type), (short)(xco+22), yco, 70, UI_UNIT_Y, cont, 0, 0, 0, 0, "Controller type");
 							//uiButSetFunc(but, old_sca_move_controller, cont, NULL);

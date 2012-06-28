@@ -230,12 +230,12 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot& ms)
 				gpuCurrentColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
 			}
 			else {
-				gpuCurrentColor4f(0, 0, 0, 1);
+				gpuCurrentColor3x(CPACK_BLACK);
 				glEnableClientState(GL_COLOR_ARRAY);
 			}
 		}
 		else
-			gpuCurrentColor4f(0, 0, 0, 1);
+			gpuCurrentColor3x(CPACK_BLACK);
 
 #include REAL_GL_MODE
 		//glVertexPointer(3, GL_FLOAT, stride, it.vertex->getXYZ());
@@ -339,12 +339,12 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot& ms)
 				gpuCurrentColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
 			}
 			else {
-				gpuCurrentColor4f(0, 0, 0, 1);
+				gpuCurrentColor3x(CPACK_BLACK);
 				glEnableClientState(GL_COLOR_ARRAY);
 			}
 		}
 		else {
-			gpuCurrentColor4f(0, 0, 0, 1);
+			gpuCurrentColor3x(CPACK_BLACK);
 		}
 
 		glVertexPointer(3, GL_FLOAT, stride, it.vertex->getXYZ());
@@ -405,12 +405,12 @@ void RAS_StorageVA::IndexPrimitivesMulti(class RAS_MeshSlot& ms)
 				gpuCurrentColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
 			}
 			else {
-				gpuCurrentColor4f(0, 0, 0, 1);
+				gpuCurrentColor3x(CPACK_BLACK);
 				glEnableClientState(GL_COLOR_ARRAY);
 			}
 		}
 		else {
-			gpuCurrentColor4f(0, 0, 0, 1);
+			gpuCurrentColor3x(CPACK_BLACK);
 		}
 
 		glVertexPointer(3, GL_FLOAT, stride, it.vertex->getXYZ());

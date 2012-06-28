@@ -35,7 +35,7 @@
 #include "intern/gpu_immediate_inline.h"
 #include "GPU_lighting.h"
 #include "GPU_primitives.h" // XXX: temporary, these do not belong here
-
+#include "GPU_colors.h" // XXX: temporary, these do not belong here
 
 #ifndef GPU_MANGLE_DEPRECATED
 #define GPU_MANGLE_DEPRECATED 1

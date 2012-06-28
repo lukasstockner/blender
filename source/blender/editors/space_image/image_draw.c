@@ -135,13 +135,13 @@ void ED_image_draw_info(ARegion *ar, int color_manage, int channels, int x, int 
 	glEnable(GL_BLEND);
 
 	/* noisy, high contrast make impossible to read if lower alpha is used. */
-	gpuCurrentColor4ub(0, 0, 0, 190);
+	gpuCurrentColor4x(CPACK_BLACK, 0.745f);
 	gpuSingleFilledRecti(0.0, 0.0, ar->winrct.xmax - ar->winrct.xmin + 1, 20);
 	glDisable(GL_BLEND);
 
 	BLF_size(blf_mono_font, 11, 72);
 
-	gpuCurrentColor3ub(255, 255, 255);
+	gpuCurrentColor3x(CPACK_WHITE);
 	BLI_snprintf(str, sizeof(str), "X:%-4d  Y:%-4d |", x, y);
 	// UI_DrawString(6, 6, str); // works ok but fixed width is nicer.
 	BLF_position(blf_mono_font, dx, 6, 0);
@@ -149,14 +149,14 @@ void ED_image_draw_info(ARegion *ar, int color_manage, int channels, int x, int 
 	dx += BLF_width(blf_mono_font, str);
 
 	if (zp) {
-		gpuCurrentColor3ub(255, 255, 255);
+		gpuCurrentColor3x(CPACK_WHITE);
 		BLI_snprintf(str, sizeof(str), " Z:%-.4f |", 0.5f + 0.5f * (((float)*zp) / (float)0x7fffffff));
 		BLF_position(blf_mono_font, dx, 6, 0);
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
 		dx += BLF_width(blf_mono_font, str);
 	}
 	if (zpf) {
-		gpuCurrentColor3ub(255, 255, 255);
+		gpuCurrentColor3x(CPACK_WHITE);
 		BLI_snprintf(str, sizeof(str), " Z:%-.3f |", *zpf);
 		BLF_position(blf_mono_font, dx, 6, 0);
 		BLF_draw_ascii(blf_mono_font, str, sizeof(str));
@@ -198,7 +198,7 @@ void ED_image_draw_info(ARegion *ar, int color_manage, int channels, int x, int 
 		dx += BLF_width(blf_mono_font, str);
 		
 		if (channels == 4) {
-			gpuCurrentColor3ub(255, 255, 255);
+			gpuCurrentColor3x(CPACK_WHITE);
 			if (fp)
 				BLI_snprintf(str, sizeof(str), "  A:%-.4f", fp[3]);
 			else if (cp)
@@ -271,7 +271,7 @@ void ED_image_draw_info(ARegion *ar, int color_manage, int channels, int x, int 
 	gpuEnd();
 
 	/* draw outline */
-	gpuCurrentColor3ub(128, 128, 128);
+	gpuCurrentGrey3f(0.500f);
 	gpuBegin(GL_LINE_LOOP);
 	gpuVertex2f(dx, 3);
 	gpuVertex2f(dx, 17);
@@ -283,7 +283,7 @@ void ED_image_draw_info(ARegion *ar, int color_manage, int channels, int x, int 
 
 	dx += 35;
 
-	gpuCurrentColor3ub(255, 255, 255);
+	gpuCurrentColor3x(CPACK_WHITE);
 	if (channels == 1) {
 		if (fp) {
 			rgb_to_hsv(fp[0], fp[0], fp[0], &hue, &sat, &val);
@@ -591,14 +591,14 @@ void draw_image_sample_line(SpaceImage *sima)
 		Histogram *hist = &sima->sample_line_hist;
 
 		gpuBegin(GL_LINES);
-		gpuColor3ub(0, 0, 0);
+		gpuColor3x(CPACK_BLACK);
 		gpuVertex2fv(hist->co[0]);
 		gpuVertex2fv(hist->co[1]);
 		gpuEnd();
 
 		setlinestyle(1);
 		gpuBegin(GL_LINES);
-		gpuColor3ub(255, 255, 255);
+		gpuColor3x(CPACK_WHITE);
 		gpuVertex2fv(hist->co[0]);
 		gpuVertex2fv(hist->co[1]);
 		gpuEnd();
@@ -764,7 +764,7 @@ void draw_image_main(SpaceImage *sima, ARegion *ar, Scene *scene)
 		if (image_preview_active(sa, &xim, &yim)) {
 			xoffs = scene->r.disprect.xmin;
 			yoffs = scene->r.disprect.ymin;
-			gpuCurrentColor3ub(0, 0, 0);
+			gpuCurrentColor3x(CPACK_BLACK);
 			calc_image_view(sima, 'f');	
 			myortho2(G.v2d->cur.xmin, G.v2d->cur.xmax, G.v2d->cur.ymin, G.v2d->cur.ymax);
 			gpuSingleFilledRectf(0.0f, 0.0f, 1.0f, 1.0f);

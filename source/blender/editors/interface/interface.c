@@ -512,11 +512,11 @@ static void ui_draw_linkline(uiLinkLine *line, int hilightActiveLines)
 	rect.ymax = (line->to->y1 + line->to->y2) / 2.0f;
 	
 	if (line->flag & UI_SELECT)
-		gpuCurrentColor3ub(100, 100, 100);
+		gpuCurrentGrey3f(0.392f);
 	else if (hilightActiveLines && ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE)))
 		UI_ThemeColor(TH_TEXT_HI);
 	else 
-		gpuCurrentColor3ub(0, 0, 0);
+		gpuCurrentColor3x(CPACK_BLACK);
 
 	ui_draw_link_bezier(&rect);
 }

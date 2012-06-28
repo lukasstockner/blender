@@ -3028,7 +3028,7 @@ void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float 
 		/* draw red underline if channel is disabled */
 		if ((ale->type == ANIMTYPE_FCURVE) && (ale->flag & FCURVE_DISABLED)) {
 			// FIXME: replace hardcoded color here, and check on extents!
-			gpuCurrentColor3f(1, 0, 0);
+			gpuCurrentColor3x(CPACK_RED);
 			glLineWidth(2.0);
 			gpuSingleLinef(offset, yminc, v2d->cur.xmax, yminc); // DOODLE: single thick colored line
 			glLineWidth(1.0);

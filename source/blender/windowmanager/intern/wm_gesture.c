@@ -172,7 +172,7 @@ static void wm_gesture_draw_rect(wmGesture *gt)
 
 	glEnable(GL_BLEND);
 
-	gpuCurrentColor4f(1.0, 1.0, 1.0, 0.05);
+	gpuCurrentColor4x(CPACK_WHITE, 0.050f);
 	gpuBegin(GL_QUADS);
 	gpuVertex2i(rect->xmax, rect->ymin);
 	gpuVertex2i(rect->xmax, rect->ymax);
@@ -184,11 +184,11 @@ static void wm_gesture_draw_rect(wmGesture *gt)
 
 	glEnable(GL_LINE_STIPPLE);
 
-	gpuCurrentColor3ub(96, 96, 96);
+	gpuCurrentGrey3f(0.376f);
 	glLineStipple(1, 0xCCCC);
 	gpuDrawWireRecti(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 
-	gpuCurrentColor3ub(255, 255, 255);
+	gpuCurrentColor3x(CPACK_WHITE);
 	glLineStipple(1, 0x3333);
 	gpuDrawWireRecti(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 
@@ -202,11 +202,11 @@ static void wm_gesture_draw_line(wmGesture *gt)
 	glEnable(GL_LINE_STIPPLE);
 
 	glLineStipple(1, 0xAAAA);
-	gpuCurrentColor3ub(96, 96, 96);
+	gpuCurrentGrey3f(0.376f);
 	gpuDrawLinei(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 
 	glLineStipple(1, 0x5555);
-	gpuCurrentColor3ub(255, 255, 255);
+	gpuCurrentColor3x(CPACK_WHITE);
 	gpuDrawLinei(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 
 	glDisable(GL_LINE_STIPPLE);
@@ -221,7 +221,7 @@ static void wm_gesture_draw_circle(wmGesture *gt)
 
 	glEnable(GL_BLEND);
 
-	gpuCurrentColor4f(1.0, 1.0, 1.0, 0.05);
+	gpuCurrentColor4x(CPACK_WHITE, 0.050f);
 	gpuDrawDisk(x, y, rect->xmax, 40);
 
 	glDisable(GL_BLEND);
@@ -229,11 +229,11 @@ static void wm_gesture_draw_circle(wmGesture *gt)
 	glEnable(GL_LINE_STIPPLE);
 
 	glLineStipple(1, 0xAAAA);
-	gpuCurrentColor3ub(96, 96, 96);
+	gpuCurrentGrey3f(0.376f);
 	gpuDrawCircle(x, y, rect->xmax, 40);
 
 	glLineStipple(1, 0x5555);
-	gpuCurrentColor3ub(255, 255, 255);
+	gpuCurrentColor3x(CPACK_WHITE);
 	gpuDrawCircle(x, y, rect->xmax, 40);
 
 	glDisable(GL_LINE_STIPPLE);
@@ -270,7 +270,7 @@ static void draw_filled_lasso(wmGesture *gt)
 
 		glEnable(GL_BLEND);
 
-		gpuCurrentColor4f(1.0, 1.0, 1.0, 0.05);
+		gpuCurrentColor4x(CPACK_WHITE, 0.050f);
 		gpuBegin(GL_TRIANGLES);
 		for (sf_tri = sf_ctx.fillfacebase.first; sf_tri; sf_tri = sf_tri->next) {
 			gpuVertex2fv(sf_tri->v1->co);
@@ -295,7 +295,7 @@ static void wm_gesture_draw_lasso(wmGesture *gt)
 	glEnable(GL_LINE_STIPPLE);
 
 	glLineStipple(1, 0xAAAA);
-	gpuCurrentColor3ub(96, 96, 96);
+	gpuCurrentGrey3f(0.376f);
 
 	gpuBegin(GL_LINE_STRIP);
 
@@ -310,7 +310,7 @@ static void wm_gesture_draw_lasso(wmGesture *gt)
 	gpuEnd();
 
 	glLineStipple(1, 0x5555);
-	gpuCurrentColor3ub(255, 255, 255);
+	gpuCurrentColor3x(CPACK_WHITE);
 
 	gpuBegin(GL_LINE_STRIP);
 
@@ -335,14 +335,14 @@ static void wm_gesture_draw_cross(wmWindow *win, wmGesture *gt)
 	glEnable(GL_LINE_STIPPLE);
 
 	glLineStipple(1, 0xCCCC);
-	gpuCurrentColor3ub(96, 96, 96);
+	gpuCurrentGrey3f(0.376f);
 	gpuBegin(GL_LINES);
 	gpuAppendLinei(rect->xmin - win->sizex, rect->ymin, rect->xmin + win->sizex, rect->ymin);
 	gpuAppendLinei(rect->xmin, rect->ymin - win->sizey, rect->xmin, rect->ymin + win->sizey);
 	gpuEnd();
 
 	glLineStipple(1, 0x3333);
-	gpuCurrentColor3ub(255, 255, 255);
+	gpuCurrentColor3x(CPACK_WHITE);
 	gpuBegin(GL_LINES);
 	gpuAppendLinei(rect->xmin - win->sizex, rect->ymin, rect->xmin + win->sizex, rect->ymin);
 	gpuAppendLinei(rect->xmin, rect->ymin - win->sizey, rect->xmin, rect->ymin + win->sizey);

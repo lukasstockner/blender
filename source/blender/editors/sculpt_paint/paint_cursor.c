@@ -447,10 +447,11 @@ static void paint_draw_alpha_overlay(Sculpt *sd, Brush *brush,
 		}
 
 		/* set quad color */
-		gpuCurrentColor4f(U.sculpt_paint_overlay_col[0],
-		          U.sculpt_paint_overlay_col[1],
-		          U.sculpt_paint_overlay_col[2],
-		          brush->texture_overlay_alpha / 100.0f);
+		gpuCurrentColor4f(
+			U.sculpt_paint_overlay_col[0],
+			U.sculpt_paint_overlay_col[1],
+			U.sculpt_paint_overlay_col[2],
+			brush->texture_overlay_alpha / 100.0f);
 
 		/* draw textured quad */
 		gpuBegin(GL_QUADS);

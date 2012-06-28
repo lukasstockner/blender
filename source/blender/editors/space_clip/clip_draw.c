@@ -153,9 +153,9 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 				if (framenr != i)
 					gpuCurrentColor4ub(128, 128, 0, 96);
 				else if ((marker->flag & MARKER_TRACKED) == 0)
-					gpuCurrentColor4ub(255, 255, 0, 196);
+					gpuCurrentColor4x(CPACK_YELLOW, 0.769f);
 				else
-					gpuCurrentColor4ub(255, 255, 0, 96);
+					gpuCurrentColor4x(CPACK_YELLOW, 0.376f);
 
 				gpuSingleFilledRecti((i - sfra + clip->start_frame - 1) * framelen, 0, (i - sfra + clip->start_frame) * framelen, 4);
 			}
@@ -167,7 +167,7 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 		int n = reconstruction->camnr;
 		MovieReconstructedCamera *cameras = reconstruction->cameras;
 
-		gpuCurrentColor4ub(255, 0, 0, 96);
+		gpuCurrentColor4x(CPACK_RED, 0.376f);
 
 		for (i = sfra, a = 0; i <= efra; i++) {
 			int ok = FALSE;
@@ -263,7 +263,7 @@ static void draw_movieclip_buffer(SpaceClip *sc, ARegion *ar, ImBuf *ibuf,
 	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
 	if (sc->flag & SC_MUTE_FOOTAGE) {
-		gpuCurrentColor3f(0.0f, 0.0f, 0.0f);
+		gpuCurrentColor3x(CPACK_BLACK);
 		gpuSingleFilledRectf(x, y, x + zoomx * width, y + zoomy * height);
 	}
 	else {
@@ -318,7 +318,8 @@ static void draw_movieclip_buffer(SpaceClip *sc, ARegion *ar, ImBuf *ibuf,
 
 	/* draw boundary border for frame if stabilization is enabled */
 	if (sc->flag & SC_SHOW_STABLE && clip->tracking.stabilization.flag & TRACKING_2D_STABILIZATION) {
-		gpuCurrentColor3f(0.0f, 0.0f, 0.0f);
+		gpuCurrentColor3x(CPACK_BLACK);
+
 		glLineStipple(3, 0xaaaa);
 		glEnable(GL_LINE_STIPPLE);
 		glEnable(GL_COLOR_LOGIC_OP);
@@ -641,9 +642,11 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 			
 			gpuEnd();
 
-			gpuCurrentColor3f(0, 0, 0);
-			glLineStipple(3, 0xAAAA);
+			gpuCurrentColor3x(CPACK_BLACK);
+
 			glEnable(GL_LINE_STIPPLE);
+			glLineStipple(3, 0xAAAA);
+
 			glEnable(GL_COLOR_LOGIC_OP);
 			glLogicOp(GL_NOR);
 
@@ -1173,9 +1176,9 @@ static void draw_tracking_tracks(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 						sub_v2_v2(vec, npos);
 
 						if (len_v2(vec) < 3.0f)
-							gpuCurrentColor3f(0.0f, 1.0f, 0.0f);
+							gpuCurrentColor3x(CPACK_GREEN);
 						else
-							gpuCurrentColor3f(1.0f, 0.0f, 0.0f);
+							gpuCurrentColor3x(CPACK_RED);
 
 						gpuBegin(GL_POINTS);
 
@@ -1328,7 +1331,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 			pos[1] += dy;
 		}
 
-		gpuCurrentColor3f(1.0f, 0.0f, 0.0f);
+		gpuCurrentColor3x(CPACK_RED);
 
 		for (i = 0; i <= n; i++) {
 			gpuBegin(GL_LINE_STRIP);

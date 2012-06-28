@@ -499,7 +499,7 @@ static void sk_drawNormal(GPUprim3 *prim, SK_Point *pt, float size, float height
 
 	glRotatef(angle * (float)(180.0 / M_PI), axis[0], axis[1], axis[2]);
 
-	gpuCurrentColor3f(0, 1, 1);
+	gpuCurrentColor3x(CPACK_CYAN);
 
 	gpuDrawCylinder(prim, sk_clampPointSize(pt, size), 0, sk_clampPointSize(pt, height));
 	//GLU gluCylinder(quad, sk_clampPointSize(pt, size), 0, sk_clampPointSize(pt, height), 10, 2);
@@ -542,13 +542,13 @@ static void sk_drawStroke(SK_Stroke *stk, int id, float color[3], int start, int
 			glPushMatrix();
 
 			if (pt->type == PT_EXACT) {
-				gpuCurrentColor3f(0, 0, 0);
+				gpuCurrentColor3x(CPACK_BLACK);
 				sk_drawPoint(&prim, pt, 0.15);
 				sk_drawNormal(&prim, pt, 0.05, 0.9);
 			}
 
 			if (i >= start && i <= end) {
-				gpuCurrentColor3f(0.3, 0.3, 0.3);
+				gpuCurrentGrey3f(0.300f);
 			}
 			else {
 				gpuCurrentColor3fv(rgb);
@@ -588,7 +588,7 @@ static void drawSubdividedStrokeBy(ToolSettings *toolsettings, BArcIterator *ite
 
 		glPushMatrix();
 
-		gpuCurrentColor3f(0, 1, 0);
+		gpuCurrentColor3x(CPACK_GREEN);
 		sk_drawPoint(&prim, pt, 0.15);
 
 		sk_drawNormal(&prim, pt, 0.05, 0.9);
@@ -2076,10 +2076,10 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 
 				switch (sketch->next_point.mode) {
 					case PT_SNAP:
-						gpuCurrentColor3f(0, 1, 0);
+						gpuCurrentColor3x(CPACK_GREEN);
 						break;
 					case PT_PROJECT:
-						gpuCurrentColor3f(0, 0, 0);
+						gpuCurrentColor3x(CPACK_BLACK);
 						break;
 				}
 

@@ -251,31 +251,31 @@ int EDBM_backbuf_border_mask_init(ViewContext *vc, int mcords[][2], short tot, s
 
 	/* draw the mask */
 	glDisable(GL_DEPTH_TEST);
-	
-	gpuCurrentColor3ub(0, 0, 0);
-	
+
+	gpuCurrentColor3x(CPACK_BLACK);
+
 	/* yah, opengl doesn't do concave... tsk! */
 	ED_region_pixelspace(vc->ar);
 	draw_triangulated(mcords, tot);
-	
+
 	gpuBegin(GL_LINE_LOOP);  /* for zero sized masks, lines */
 	for (a = 0; a < tot; a++) {
 		gpuVertex2iv(mcords[a]);
 	}
 	gpuEnd();
-	
-	glFinish(); /* to be sure readpixels sees mask */
-	
+
+	glFinish(); /* to be sure readpixels sees mask */ /* jwilkins: questionable */
+
 	/* grab mask */
 	bufmask = view3d_read_backbuf(vc, xmin, ymin, xmax, ymax);
 	drm = bufmask->rect;
 	if (bufmask == NULL) {
 		return 0; /* only when mem alloc fails, go crash somewhere else! */
 	}
-	
+
 	/* build selection lookup */
 	selbuf = MEM_callocN(bm_vertoffs + 1, "selbuf");
-	
+
 	a = (xmax - xmin + 1) * (ymax - ymin + 1);
 	while (a--) {
 		if (*dr > 0 && *dr <= bm_vertoffs && *drm == 0) selbuf[*dr] = 1;

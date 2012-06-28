@@ -369,12 +369,12 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int
 		glEnable(GL_BLEND);
 		
 		/* the image */
-		gpuCurrentColor4f(1.0, 1.0, 1.0, 1.0);
+		gpuCurrentColor3x(CPACK_WHITE);
 		glaDrawPixelsTexScaled((float)xco, (float)yco, imb->x, imb->y, GL_UNSIGNED_BYTE, imb->rect, scale, scale);
 		
 		/* border */
 		if (dropshadow) {
-			gpuCurrentColor4f(0.0f, 0.0f, 0.0f, 0.4f);
+			gpuCurrentColor4x(CPACK_BLACK, 0.400f);
 			gpuSingleWireRectf((float)xco, (float)yco, (float)(xco + ex), (float)(yco + ey));
 		}
 		

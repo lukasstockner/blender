@@ -584,7 +584,7 @@ static void node_circle_draw(float x, float y, float size, char *col, int highli
 		glLineWidth(1.5f);
 	}
 	else {
-		gpuCurrentColor4ub(0, 0, 0, 150);
+		gpuColor4x(CPACK_BLACK, 0.588f);
 	}
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
@@ -614,10 +614,11 @@ static void node_draw_preview(bNodePreview *preview, rctf *prv)
 	float x, y;
 	
 	/* draw checkerboard backdrop to show alpha */
-	gpuCurrentColor3ub(120, 120, 120);
+	gpuCurrentGrey3f(0.471f);
 	gpuSingleFilledRectf(prv->xmin, prv->ymin, prv->xmax, prv->ymax);
-	gpuCurrentColor3ub(160, 160, 160);
-	
+
+	gpuCurrentGrey3f(0.627f);
+
 	for (y=prv->ymin; y<prv->ymax; y+=tile*2) {
 		for (x=prv->xmin; x<prv->xmax; x+=tile*2) {
 			float tilex= tile, tiley= tile;
@@ -647,7 +648,7 @@ static void node_draw_preview(bNodePreview *preview, rctf *prv)
 
 	glEnable(GL_BLEND);  /* premul graphics */
 	
-	gpuCurrentColor4f(1.0, 1.0, 1.0, 1.0);
+	gpuCurrentColor3x(CPACK_WHITE);
 	glaDrawPixelsTex(prv->xmin, prv->ymin, preview->xsize, preview->ysize, GL_UNSIGNED_BYTE, preview->rect);
 	
 	glDisable(GL_BLEND);
@@ -679,8 +680,8 @@ void node_draw_shadow(SpaceNode *snode, bNode *node, float radius, float alpha)
 		ui_dropshadow(rct, radius, snode->aspect, alpha, node->flag & SELECT);
 	else {
 		const float margin = 3.0f;
-		
-		gpuCurrentColor4f(0.0f, 0.0f, 0.0f, 0.33f);
+
+		gpuCurrentColor4x(CPACK_BLACK, 0.333f);
 		glEnable(GL_BLEND);
 		uiRoundBox(rct->xmin-margin, rct->ymin-margin,
 		           rct->xmax+margin, rct->ymax+margin, radius+margin);

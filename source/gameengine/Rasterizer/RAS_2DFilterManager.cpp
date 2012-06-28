@@ -459,7 +459,7 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 			glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 0, 0, texturewidth, textureheight, 0);
 			glClear(GL_COLOR_BUFFER_BIT);
 
-			gpuCurrentColor4f(1, 1, 1, 1);
+			gpuCurrentColor3x(CPACK_WHITE);
 
 			{
 				GLenum map[1] = { GL_TEXTURE3 };

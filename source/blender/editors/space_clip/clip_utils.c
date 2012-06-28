@@ -274,7 +274,7 @@ void clip_draw_sfra_efra(View2D *v2d, Scene *scene)
 
 	glEnable(GL_BLEND);
 	
-	gpuCurrentColor4f(0, 0, 0, 0.4f);
+	gpuCurrentColor4x(CPACK_BLACK, 0.400f);
 
 	gpuSingleFilledRectf(v2d->cur.xmin, v2d->cur.ymin, (float)SFRA, v2d->cur.ymax);
 	gpuSingleFilledRectf((float)EFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);

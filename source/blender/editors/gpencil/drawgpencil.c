@@ -645,7 +645,6 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 	/* restore initial gl conditions */
 	glLineWidth(1.0);
 	glPointSize(1.0);
-	gpuCurrentColor4f(0, 0, 0, 1);
 
 	gpuImmediateUnformat();
 }

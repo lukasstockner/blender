@@ -420,7 +420,7 @@ void draw_volume(ARegion *ar, GPUTexture *tex, float min[3], float max[3], int r
 			// printf("numpoints: %d\n", numpoints);
 			gpuImmediateFormat_T3_C4_V3();
 			gpuBegin(GL_POLYGON);
-			gpuColor3f(1.0, 1.0, 1.0);
+			gpuCurrentColor3x(CPACK_WHITE);
 			for (i = 0; i < numpoints; i++) {
 				gpuTexCoord3f(
 					(points[i * 3 + 0] - min[0]) * cor[0] / size[0],

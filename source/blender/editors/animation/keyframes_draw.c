@@ -633,7 +633,7 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 	
 	if (ELEM(mode, KEYFRAME_SHAPE_FRAME, KEYFRAME_SHAPE_BOTH)) {
 		/* exterior - black frame */
-		gpuCurrentColor4f(0.0f, 0.0f, 0.0f, alpha);
+		gpuCurrentColor4x(CPACK_BLACK, alpha);
 		
 		glCallList(displist1);
 	}

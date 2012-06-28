@@ -130,22 +130,22 @@ static void nla_action_draw_keyframes(AnimData *adt, bAction *act, View2D *v2d, 
 	 */
 	f1 = ((ActKeyColumn *)keys.first)->cfra;
 	f2 = ((ActKeyColumn *)keys.last)->cfra;
-	
+
 	gpuSingleFilledRectf(f1, ymin + 2, f2, ymax - 2);
-	
-	
+
+
 	/* get View2D scaling factor */
 	UI_view2d_getscale(v2d, &xscale, NULL);
-	
+
 	/* for now, color is hardcoded to be black */
-	gpuCurrentColor3f(0.0f, 0.0f, 0.0f);
-	
+	gpuCurrentColor3x(CPACK_BLACK);
+
 	/* just draw each keyframe as a simple dot (regardless of the selection status) 
 	 *	- size is 3.0f which is smaller than the editable keyframes, so that there is a distinction
 	 */
 	for (ak = keys.first; ak; ak = ak->next)
 		draw_keyframe_shape(ak->cfra, y, xscale, 3.0f, 0, ak->key_type, KEYFRAME_SHAPE_FRAME, 1.0f);
-	
+
 	/* free icons */
 	BLI_dlrbTree_free(&keys);
 }
@@ -222,8 +222,8 @@ static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc)
 	/* drawing color is simply a light-grey */
 	// TODO: is this color suitable?
 	// XXX nasty hacked color for now... which looks quite bad too...
-	gpuCurrentColor3f(0.7f, 0.7f, 0.7f);
-	
+	gpuCurrentGrey3f(0.700f);
+
 	/* draw with AA'd line */
 	glEnable(GL_LINE_SMOOTH);
 	glEnable(GL_BLEND);
@@ -601,7 +601,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 					/* draw 'embossed' lines above and below the strip for effect */
 					/* white base-lines */
 					glLineWidth(2.0f);
-					gpuCurrentColor4f(1.0f, 1.0f, 1.0f, 0.3);
+					gpuCurrentColor4x(CPACK_WHITE, 0.300f);
 					gpuBegin(GL_LINES);
 					gpuAppendLinef(v2d->cur.xmin, yminc + NLACHANNEL_SKIP, v2d->cur.xmax, yminc + NLACHANNEL_SKIP);
 					gpuAppendLinef(v2d->cur.xmin, ymaxc - NLACHANNEL_SKIP, v2d->cur.xmax, ymaxc - NLACHANNEL_SKIP);
@@ -609,7 +609,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 
 					/* black top-lines */
 					glLineWidth(1.0f);
-					gpuCurrentColor3f(0.0f, 0.0f, 0.0f);
+					gpuCurrentColor3x(CPACK_BLACK);
 					gpuBegin(GL_LINES);
 					gpuAppendLinef(v2d->cur.xmin, yminc + NLACHANNEL_SKIP, v2d->cur.xmax, yminc + NLACHANNEL_SKIP);
 					gpuAppendLinef(v2d->cur.xmin, ymaxc - NLACHANNEL_SKIP, v2d->cur.xmax, ymaxc - NLACHANNEL_SKIP);

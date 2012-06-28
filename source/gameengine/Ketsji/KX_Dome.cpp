@@ -1705,7 +1705,7 @@ void KX_Dome::DrawEnvMap(void)
 	glDisable(GL_DEPTH_TEST);
 
 	glEnable(GL_TEXTURE_2D);
-	gpuCurrentColor3f(1.0,1.0,1.0);
+	gpuCurrentColor3x(CPACK_WHITE);
 
 	float uv_ratio = (float)(m_buffersize-1) / m_imagesize;
 	double onebythree = 1.0f / 3;
@@ -1862,7 +1862,7 @@ void KX_Dome::DrawDomeFisheye(void)
 	glDisable(GL_DEPTH_TEST);
 
 	glEnable(GL_TEXTURE_2D);
-	gpuCurrentColor3f(1.0,1.0,1.0);
+	gpuCurrentColor3x(CPACK_WHITE);
 
 	if (dlistSupported) {
 		for (i=0;i<m_numfaces;i++) {
@@ -1953,7 +1953,7 @@ void KX_Dome::DrawPanorama(void)
 	glDisable(GL_DEPTH_TEST);
 
 	glEnable(GL_TEXTURE_2D);
-	gpuCurrentColor3f(1.0,1.0,1.0);
+	gpuCurrentColor3x(CPACK_WHITE);
 
 	if (dlistSupported) {
 		for (i=0;i<m_numfaces;i++) {
@@ -2027,7 +2027,7 @@ void KX_Dome::DrawDomeWarped(void)
 	glDisable(GL_DEPTH_TEST);
 
 	glEnable(GL_TEXTURE_2D);
-	gpuCurrentColor3f(1.0,1.0,1.0);
+	gpuCurrentColor3x(CPACK_WHITE);
 
 	if (dlistSupported) {
 		glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);
