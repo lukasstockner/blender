@@ -200,7 +200,7 @@ typedef struct View3D {
 
 	/* transform widget info */
 	char twtype, twmode, twflag, pad2[2];
-	
+
 	/* afterdraw, for xray & transparent */
 	struct ListBase afterdraw_transp;
 	struct ListBase afterdraw_xray;
@@ -216,6 +216,10 @@ typedef struct View3D {
 	/* XXX deprecated? */
 	struct bGPdata *gpd  DNA_DEPRECATED;		/* Grease-Pencil Data (annotation layers) */
 
+	/* more transform widget info */
+	unsigned int twhighlight;
+
+	int available;
 } View3D;
 
 
