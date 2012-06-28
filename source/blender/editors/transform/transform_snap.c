@@ -1678,7 +1678,7 @@ static int snapObject(Scene *scene, View3D *v3d, ARegion *ar, Object *ob, int ed
 			retval = Snap_getretval(sm);
 			if(retval){
 				sp = Snap_getSnapPoint(sm);
-				printf("SnapPointExternal: %f, %f, %f\n", sp->location[0], sp->location[1], sp->location[2]);
+				//printf("SnapPointExternal: %f, %f, %f\n", sp->location[0], sp->location[1], sp->location[2]);
 				copy_v3_v3(r_loc, sp->location);
 				copy_v3_v3(r_no, sp->normal);
 				*r_depth = sp->r_depth;
