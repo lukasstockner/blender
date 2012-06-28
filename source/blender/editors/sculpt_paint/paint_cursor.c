@@ -656,6 +656,9 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 
 	if(CTX_data_mode_enum(C) == CTX_MODE_PAINT_TEXTURE) {
 		brush->mtex.brush_map_mode = MTEX_MAP_MODE_TILED;
+
+		if((brush->flag & BRUSH_RAKE) || (brush->flag & BRUSH_RANDOM_ROTATION))
+			brush->mtex.brush_map_mode = MTEX_MAP_MODE_VIEW;
 	}
 
 	/* set various defaults */
