@@ -683,21 +683,7 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 		 * account the brush movements before the stroke
 		 * starts, but this doesn't really belong in draw code
 		 *  TODO) */
-	{
-		const float u = 0.5f;
-		const float v = 1 - u;
-		const float r = RAKE_THRESHHOLD;
-
-		const float dx = ups->last_pos[0] - x;
-		const float dy = ups->last_pos[1] - y;
-
-		if (dx * dx + dy * dy >= r * r) {
-			ups->last_angle = atan2(dx, dy);
-
-			ups->last_pos[0] = u * ups->last_pos[0] + v * x;
-			ups->last_pos[1] = u * ups->last_pos[1] + v * y;
-		}
-	}
+	paint_calculate_rake_rotation(ups, translation);
 
 	if(!in_uv_editor) {
 		/* test if brush is over the mesh. sculpt only for now */

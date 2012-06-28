@@ -75,7 +75,7 @@ void BKE_brush_imbuf_new(const struct Scene *scene, struct Brush *brush, short f
 /* painting */
 struct BrushPainter;
 typedef struct BrushPainter BrushPainter;
-typedef int (*BrushFunc)(void *user, struct ImBuf *ibuf, const float lastpos[2], const float pos[2]);
+typedef int (*BrushFunc)(void *user, struct ImBuf *ibuf, const float lastpos[2], const float pos[2], float rotation);
 
 BrushPainter *BKE_brush_painter_new(struct Scene *scene, struct Brush *brush);
 void BKE_brush_painter_require_imbuf(BrushPainter *painter, short flt,

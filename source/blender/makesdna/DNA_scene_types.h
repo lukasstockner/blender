@@ -836,6 +836,7 @@ typedef struct TransformOrientation {
 typedef struct UnifiedPaintSettings {
 	/* unified radius of brush in pixels */
 	int size;
+	int draw_anchored;
 
 	/* unified radius of brush in Blender units */
 	float unprojected_radius;
@@ -846,18 +847,16 @@ typedef struct UnifiedPaintSettings {
 	/* unified brush weight, [0, 1] */
 	float weight;
 
-	/* all this below is used to communicate with the cursor drawing routine */
-
 	/* record movement of mouse so that rake can start at an intuitive angle */
 	float last_angle;
 	float last_pos[2];
 
-	int draw_anchored;
-	int   anchored_size;
+	int draw_pressure;
+	int anchored_size;
+
 	float anchored_location[3];
 	float anchored_initial_mouse[2];
 
-	int draw_pressure;
 	float pressure_value;
 
 	float special_rotation;

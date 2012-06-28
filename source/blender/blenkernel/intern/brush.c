@@ -1079,7 +1079,7 @@ static void brush_painter_fixed_tex_partial_update(BrushPainter *painter, const 
 		brush_painter_do_partial(painter, NULL, x1, y2, x2, ibuf->y, 0, 0, pos);
 }
 
-static void brush_painter_refresh_cache(BrushPainter *painter, const float pos[2], int use_color_correction)
+static void brush_painter_refresh_cache(BrushPainter *painter, const float pos[2], int use_color_correction, float special_rotation)
 {
 	const Scene *scene = painter->scene;
 	Brush *brush = painter->brush;
@@ -1089,7 +1089,7 @@ static void brush_painter_refresh_cache(BrushPainter *painter, const float pos[2
 	short flt;
 	const int diameter = 2 * BKE_brush_size_randomized_get(scene, brush);
 	const float alpha = BKE_brush_alpha_get(scene, brush);
-	const float rotation = scene->toolsettings->unified_paint_settings.last_angle;
+	const float rotation = -special_rotation + brush->mtex.rot;
 
 	if (diameter != cache->lastsize ||
 	    alpha != cache->lastalpha ||
@@ -1177,9 +1177,10 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
                             void *user, int use_color_correction)
 {
 	Scene *scene = painter->scene;
-	UnifiedPaintSettings *unified_paint_settings = &scene->toolsettings->unified_paint_settings;
+	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
 	Brush *brush = painter->brush;
 	int totpaintops = 0;
+	float special_rotation = 0.0;
 
 	BKE_brush_randomize_size(brush);
 
@@ -1195,15 +1196,17 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 		painter->startpaintpos[1] = pos[1];
 
 		if(brush->flag & BRUSH_RANDOM_ROTATION)
-			unified_paint_settings->last_angle = BLI_frand()*2*M_PI;
-		else if(!(brush->flag & BRUSH_RAKE))
-			unified_paint_settings->last_angle = brush->mtex.rot;
-		copy_v2_v2(unified_paint_settings->last_pos, pos);
+			special_rotation = BLI_frand()*2*M_PI;
+		else if(brush->flag & BRUSH_RAKE) {
+			paint_calculate_rake_rotation(ups, pos);
+			special_rotation = ups->last_angle;
+		}
+		copy_v2_v2(ups->last_pos, pos);
 
 		brush_pressure_apply(painter, brush, pressure);
 		if (painter->cache.enabled)
-			brush_painter_refresh_cache(painter, pos, use_color_correction);
-		totpaintops += func(user, painter->cache.ibuf, pos, pos);
+			brush_painter_refresh_cache(painter, pos, use_color_correction, special_rotation);
+		totpaintops += func(user, painter->cache.ibuf, pos, pos, special_rotation);
 		
 		painter->lasttime = time;
 		painter->firsttouch = 0;
@@ -1261,24 +1264,10 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 		painter->accumdistance += len;
 
 		if(brush->flag & BRUSH_RAKE) {
-			float mrakediff[2];
-			sub_v2_v2v2(mrakediff, pos, unified_paint_settings->last_pos);
-
-			if(len_squared_v2(mrakediff) > RAKE_THRESHHOLD*RAKE_THRESHHOLD) {
-				float angle;
-				angle = atan2(dmousepos[1], dmousepos[0]);
-				unified_paint_settings->last_angle = angle;
-				unified_paint_settings->last_angle += brush->mtex.rot;
-
-				/* to match sculpt behaviour */
-				interp_v2_v2v2(unified_paint_settings->last_pos, unified_paint_settings->last_pos,
-				               pos, 0.5);
-			}
+			paint_calculate_rake_rotation(ups, pos);
+			special_rotation = ups->last_angle;
 		} else if(brush->flag & BRUSH_RANDOM_ROTATION)
-			unified_paint_settings->last_angle = BLI_frand()*2*M_PI;
-		else
-			unified_paint_settings->last_angle = brush->mtex.rot;
-
+			special_rotation = BLI_frand()*2*M_PI;
 
 		if (brush->flag & BRUSH_SPACE) {
 			/* do paint op over unpainted distance */
@@ -1295,10 +1284,10 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 				BKE_brush_jitter_pos(scene, brush, paintpos, finalpos);
 
 				if (painter->cache.enabled)
-					brush_painter_refresh_cache(painter, finalpos, use_color_correction);
+					brush_painter_refresh_cache(painter, finalpos, use_color_correction, special_rotation);
 
 				totpaintops +=
-				    func(user, painter->cache.ibuf, painter->lastpaintpos, finalpos);
+				    func(user, painter->cache.ibuf, painter->lastpaintpos, finalpos, special_rotation);
 
 				painter->lastpaintpos[0] = paintpos[0];
 				painter->lastpaintpos[1] = paintpos[1];
@@ -1310,9 +1299,9 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 			BKE_brush_jitter_pos(scene, brush, pos, finalpos);
 
 			if (painter->cache.enabled)
-				brush_painter_refresh_cache(painter, finalpos, use_color_correction);
+				brush_painter_refresh_cache(painter, finalpos, use_color_correction, special_rotation);
 
-			totpaintops += func(user, painter->cache.ibuf, pos, finalpos);
+			totpaintops += func(user, painter->cache.ibuf, pos, finalpos, special_rotation);
 
 			painter->lastpaintpos[0] = pos[0];
 			painter->lastpaintpos[1] = pos[1];
@@ -1338,10 +1327,10 @@ int BKE_brush_painter_paint(BrushPainter *painter, BrushFunc func, const float p
 				BKE_brush_jitter_pos(scene, brush, pos, finalpos);
 
 				if (painter->cache.enabled)
-					brush_painter_refresh_cache(painter, finalpos, use_color_correction);
+					brush_painter_refresh_cache(painter, finalpos, use_color_correction, special_rotation);
 
 				totpaintops +=
-				    func(user, painter->cache.ibuf, painter->lastmousepos, finalpos);
+				    func(user, painter->cache.ibuf, painter->lastmousepos, finalpos, special_rotation);
 				painter->accumtime -= (double)brush->rate;
 			}
 

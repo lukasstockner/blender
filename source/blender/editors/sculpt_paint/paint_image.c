@@ -339,6 +339,7 @@ typedef struct ProjPaintState {
 	int bucketMin[2];
 	int bucketMax[2];
 	int context_bucket_x, context_bucket_y; /* must lock threads while accessing these */
+	float rotation;
 } ProjPaintState;
 
 typedef union pixelPointer {
@@ -3933,7 +3934,7 @@ static void *do_projectpaint_thread(void *ph_v)
 					if (falloff > 0.0f) {
 						if (ps->is_texbrush) {
 							/* note, for clone and smear, we only use the alpha, could be a special function */
-							BKE_brush_sample_tex(ps->scene, ps->brush, samplecos, rgba, thread_index, unified_paint_settings->last_angle);
+							BKE_brush_sample_tex(ps->scene, ps->brush, samplecos, rgba, thread_index, -ps->rotation + ps->brush->mtex.rot);
 							alpha = rgba[3];
 						}
 						else {
@@ -4043,19 +4044,27 @@ static void *do_projectpaint_thread(void *ph_v)
 	return NULL;
 }
 
-static int project_paint_op(void *state, ImBuf *UNUSED(ibufb), const float lastpos[2], const float pos[2])
+static int project_paint_op(void *state, ImBuf *UNUSED(ibufb), const float lastpos[2], const float pos[2], float rotation)
 {
 	/* First unpack args from the struct */
 	ProjPaintState *ps = (ProjPaintState *)state;
 	int touch_any = 0;	
-	
+
 	ProjectHandle handles[BLENDER_MAX_THREADS];
 	ListBase threads;
 	int a, i;
-	
+
 	if (!project_bucket_iter_init(ps, pos)) {
 		return 0;
 	}
+
+	ps->rotation = rotation;
+
+	if (ps->brush->flag & BRUSH_RAKE) {
+
+	} else if (ps->brush->flag & BRUSH_RANDOM_ROTATION) {
+
+	} else ;
 
 	if (ps->thread_tot > 1)
 		BLI_init_threads(&threads, do_projectpaint_thread, ps->thread_tot);
@@ -4405,7 +4414,7 @@ static void imapaint_convert_brushco(ImBuf *ibufb, const float pos[2], int ipos[
 
 /* dosnt run for projection painting
  * only the old style painting in the 3d view */
-static int imapaint_paint_op(void *state, ImBuf *ibufb, const float lastpos[2], const float pos[2])
+static int imapaint_paint_op(void *state, ImBuf *ibufb, const float lastpos[2], const float pos[2], float UNUSED(rotation))
 {
 	ImagePaintState *s = ((ImagePaintState *)state);
 	ImBuf *clonebuf = NULL, *frombuf;
@@ -5766,7 +5775,7 @@ static int texture_paint_camera_project_exec(bContext *C, wmOperator *op)
 		for (a = 0; a < ps.image_tot; a++)
 			partial_redraw_array_init(ps.projImages[a].partRedrawRect);
 
-		project_paint_op(&ps, NULL, lastpos, pos);
+		project_paint_op(&ps, NULL, lastpos, pos, 0);
 
 		project_image_refresh_tagged(&ps);
 

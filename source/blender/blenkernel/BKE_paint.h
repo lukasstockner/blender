@@ -45,6 +45,7 @@ struct Paint;
 struct PBVH;
 struct Scene;
 struct StrokeCache;
+struct UnifiedPaintSettings;
 
 extern const char PAINT_CURSOR_SCULPT[3];
 extern const char PAINT_CURSOR_VERTEX_PAINT[3];
@@ -74,6 +75,8 @@ int paint_is_grid_face_hidden(const unsigned int *grid_hidden,
 /* paint masks */
 float paint_grid_paint_mask(const struct GridPaintMask *gpm, unsigned level,
                             unsigned x, unsigned y);
+
+void paint_calculate_rake_rotation(struct UnifiedPaintSettings *ups, const float mouse_pos[]);
 
 /* Session data (mode-specific) */
 
