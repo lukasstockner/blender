@@ -601,6 +601,7 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		glActiveTexture(GL_TEXTURE1);
 		glDisable(GL_TEXTURE_2D);
 
+		glActiveTexture(GL_TEXTURE0);
 		glPopMatrix();
 	}
 
