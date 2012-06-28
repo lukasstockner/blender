@@ -20,7 +20,7 @@
 import bpy
 from bpy.types import Menu, Panel
 from bl_ui.properties_paint_common import UnifiedPaintPanel
-from bl_ui.properties_paint_common import sculpt_brush_texture_settings
+from bl_ui.properties_paint_common import brush_texture_settings
 
 
 class View3DPanel():
@@ -513,7 +513,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
         # Sculpt Mode #
 
         elif context.sculpt_object and brush:
-            capabilities = brush.sculpt_capabilities
+            capabilities = brush.paint_capabilities
 
             col = layout.column()
 
@@ -738,11 +738,11 @@ class VIEW3D_PT_tools_brush_texture(Panel, View3DPaintPanel):
             col.prop(brush, "use_fixed_texture")
 
         if context.sculpt_object or context.image_paint_object:
-            sculpt_brush_texture_settings(col, brush)
+            brush_texture_settings(col, brush, context.sculpt_object)
 
             # use_texture_overlay and texture_overlay_alpha
             col = layout.column(align=True)
-            col.active = brush.sculpt_capabilities.has_overlay
+            col.active = brush.paint_capabilities.has_overlay
             col.label(text="Overlay:")
 
             row = col.row()
@@ -793,7 +793,7 @@ class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
                 row.active = brush.use_space
                 row.prop(brush, "spacing", text="Spacing")
 
-            if brush.sculpt_capabilities.has_smooth_stroke:
+            if brush.paint_capabilities.has_smooth_stroke:
                 col = layout.column()
                 col.separator()
 
@@ -804,7 +804,7 @@ class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
                 sub.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
                 sub.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
 
-            if brush.sculpt_capabilities.has_jitter:
+            if brush.paint_capabilities.has_jitter:
                 col.separator()
 
                 row = col.row(align=True)
@@ -831,7 +831,7 @@ class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
             col.separator()
 
             col = layout.column()
-            col.active = brush.sculpt_capabilities.has_spacing
+            col.active = brush.paint_capabilities.has_spacing
             col.prop(brush, "use_space")
 
             row = col.row()
@@ -945,7 +945,7 @@ class VIEW3D_PT_tools_brush_appearance(Panel, View3DPaintPanel):
         col = layout.column()
 
         if context.sculpt_object and context.tool_settings.sculpt:
-            if brush.sculpt_capabilities.has_secondary_color:
+            if brush.paint_capabilities.has_secondary_color:
                 col.prop(brush, "cursor_color_add", text="Add Color")
                 col.prop(brush, "cursor_color_subtract", text="Subtract Color")
             else:

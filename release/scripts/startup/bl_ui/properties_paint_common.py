@@ -70,26 +70,27 @@ class UnifiedPaintPanel():
 
 
 # Used in both the View3D toolbar and texture properties
-def sculpt_brush_texture_settings(layout, brush):
+def brush_texture_settings(layout, brush, sculpt):
     tex_slot = brush.texture_slot
 
     layout.label(text="Brush Mapping:")
 
     # map_mode
-    layout.row().prop(tex_slot, "map_mode", text="")
-    layout.separator()
+    if sculpt:
+        layout.row().prop(tex_slot, "map_mode", text="")
+        layout.separator()
 
     # angle and texture_angle_source
     col = layout.column()
-    col.active = brush.sculpt_capabilities.has_texture_angle_source
+    col.active = brush.paint_capabilities.has_texture_angle_source
     col.label(text="Angle:")
-    if brush.sculpt_capabilities.has_random_texture_angle:
+    if brush.paint_capabilities.has_random_texture_angle:
         col.prop(brush, "texture_angle_source_random", text="")
     else:
         col.prop(brush, "texture_angle_source_no_random", text="")
 
     col = layout.column()
-    col.active = brush.sculpt_capabilities.has_texture_angle
+    col.active = brush.paint_capabilities.has_texture_angle
     col.prop(tex_slot, "angle", text="")
 
     # scale and offset
