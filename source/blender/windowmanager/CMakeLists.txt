@@ -93,6 +93,10 @@ if(WITH_ASSIMP)
 	add_definitions(-DWITH_ASSIMP)
 endif()
 
+if(WITH_FBX)
+	add_definitions(-DWITH_FBX)
+endif()
+
 if(WITH_CODEC_QUICKTIME)
 	list(APPEND INC
 		../quicktime

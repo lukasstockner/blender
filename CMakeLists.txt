@@ -213,6 +213,7 @@ endif()
 # disable opencollada on non-apple unix because opencollada has no package for debian
 option(WITH_OPENCOLLADA		"Enable OpenCollada Support (http://www.opencollada.org)"	OFF)
 option(WITH_ASSIMP		"Enable Assimp Support (http://www.assimp.sourceforge.net)"	OFF)
+option(WITH_FBX			"Enable FBX support using Assimp"	OFF)
 
 # Sound output
 option(WITH_SDL           "Enable SDL for sound and joystick support" ON)
@@ -352,6 +353,10 @@ endif()
 
 if(NOT WITH_FFTW3 AND WITH_MOD_OCEANSIM)
 	message(FATAL_ERROR "WITH_MOD_OCEANSIM requires WITH_FFTW3 to be ON")
+endif()
+
+if(NOT WITH_ASSIMP AND WITH_FBX)
+	message(FATAL_ERROR "WITH_FBX requires WITH_ASSIMP")
 endif()
 
 # may as well build python module without a UI
@@ -1792,6 +1797,7 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_IK_ITASC)
 	info_cfg_option(WITH_OPENCOLLADA)
 	info_cfg_option(WITH_ASSIMP)
+	info_cfg_option(WITH_FBX)
 	info_cfg_option(WITH_FFTW3)
 	info_cfg_option(WITH_INTERNATIONAL)
 	info_cfg_option(WITH_INPUT_NDOF)

@@ -159,6 +159,8 @@ class INFO_MT_file_import(Menu):
             self.layout.operator("wm.collada_import", text="Collada (Default) (.dae)")
         if hasattr(bpy.types, "WM_OT_assimp_import"):
             self.layout.operator("wm.assimp_import", text="Open Asset Import Library (Default) (multiple)")
+        if hasattr(bpy.types, "WM_OT_fbx_import"):
+            self.layout.operator("wm.fbx_import", text="FBX (.fbx)")
 
 
 class INFO_MT_file_export(Menu):

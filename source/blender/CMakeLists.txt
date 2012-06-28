@@ -135,3 +135,7 @@ endif()
 if(WITH_ASSIMP)
 	add_subdirectory(assimp)
 endif()
+
+if(WITH_FBX)
+	add_subdirectory(fbx)
+endif()

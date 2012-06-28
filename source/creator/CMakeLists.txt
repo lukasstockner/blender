@@ -940,6 +940,10 @@ endif()
 		list(APPEND BLENDER_SORTED_LIBS bf_assimp)
 		list(APPEND BLENDER_SORTED_LIBS extern_assimp)	
 	endif()
+
+	if(WITH_FBX)
+		list(APPEND BLENDER_SORTED_LIBS bf_fbx)
+	endif()
 	
 
 	foreach(SORTLIB ${BLENDER_SORTED_LIBS})

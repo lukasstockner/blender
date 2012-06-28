@@ -183,6 +183,8 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 			params->filter |= RNA_boolean_get(op->ptr, "filter_collada") ? COLLADAFILE : 0;
 		if (RNA_struct_find_property(op->ptr, "filter_assimp"))
 			params->filter |= RNA_boolean_get(op->ptr, "filter_assimp") ? ASSIMPFILE : 0;
+		if (RNA_struct_find_property(op->ptr, "filter_fbx"))
+			params->filter |= RNA_boolean_get(op->ptr, "filter_fbx") ? FBXFILE : 0;
 		if (RNA_struct_find_property(op->ptr, "filter_glob")) {
 			RNA_string_get(op->ptr, "filter_glob", params->filter_glob);
 			params->filter |= (OPERATORFILE | FOLDERFILE);
