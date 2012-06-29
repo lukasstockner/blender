@@ -705,11 +705,11 @@ static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds
 
 		if (bvhtree_from_mesh_faces(&treeData, dm, 0.0f, 4, 6)) {
 			#pragma omp parallel for schedule(static)
-			for (z = 0; z < res[2]; z++) {
+			for (z = sds->res_min[2]; z < sds->res_max[2]; z++) {
 				int x,y;
-				for (x = 0; x < res[0]; x++)
-				for (y = 0; y < res[1]; y++) {
-					int index = x + y*res[0] + z*res[0]*res[1];
+				for (x = sds->res_min[0]; x < sds->res_max[0]; x++)
+				for (y = sds->res_min[1]; y < sds->res_max[1]; y++) {
+					int index = smoke_get_index(x-sds->res_min[0], sds->res[0], y-sds->res_min[1], sds->res[1], z-sds->res_min[2]);
 
 					float ray_start[3] = {(float)x + 0.5f, (float)y + 0.5f, (float)z + 0.5f};
 					BVHTreeNearest nearest = {0};

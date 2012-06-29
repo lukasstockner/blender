@@ -7010,15 +7010,17 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				normalize_v3(viewnormal);
 
 				
-				/* draw domain max bounds */
-				VECSUBFAC(p0, sds->p0, sds->cell_size, sds->adapt_res);
-				VECADDFAC(p1, sds->p1, sds->cell_size, sds->adapt_res);
-				BKE_boundbox_init_from_minmax(&bb, p0, p1);
-				draw_box(bb.vec);
+				if (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) {
+					/* draw domain max bounds */
+					VECSUBFAC(p0, sds->p0, sds->cell_size, sds->adapt_res);
+					VECADDFAC(p1, sds->p1, sds->cell_size, sds->adapt_res);
+					BKE_boundbox_init_from_minmax(&bb, p0, p1);
+					draw_box(bb.vec);
 
-				/* draw base resolution bounds */
-				/*BKE_boundbox_init_from_minmax(&bb, sds->p0, sds->p1);
-				draw_box(bb.vec);*/
+					/* draw base resolution bounds */
+					/*BKE_boundbox_init_from_minmax(&bb, sds->p0, sds->p1);
+					draw_box(bb.vec);*/
+				}
 
 				/* set dynamic boundaries to draw the volume */
 				p0[0] = sds->p0[0] + sds->cell_size[0]*sds->res_min[0] + sds->obj_shift_f[0];
