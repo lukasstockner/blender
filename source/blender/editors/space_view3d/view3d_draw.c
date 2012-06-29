@@ -516,7 +516,7 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 	if (v3d->gridflag & (V3D_SHOW_X | V3D_SHOW_Y | V3D_SHOW_Z)) {
 		int axis;
 
-		gpuImmediateFormat_V3();
+		gpuImmediateFormat_C4_V3();
 		gpuBegin(GL_LINES);
 
 		for (axis = 0; axis < 3; axis++) {
