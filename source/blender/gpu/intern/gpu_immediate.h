@@ -32,7 +32,11 @@
 #ifndef __GPU_IMMEDIATE_H__
 #define __GPU_IMMEDIATE_H__
 
+#ifdef GLES
+#include <GLES2/gl2.h>
+#else
 #include <GL/glew.h>
+#endif
 
 #include <stdlib.h>
 

@@ -41,7 +41,7 @@
 
 #include "BKE_global.h"
 
-#include <sys/time.h>
+//#include <sys/time.h> XXX: not found while compiling with MSVC8
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
