@@ -30,7 +30,7 @@
 #ifndef GPU_FUNCTIONS_H
 #define GPU_FUNTCIONS_H
 
-#include "gpu_immediate_internal.h" /* XXX: temporary, will re-factor header files later */
+#include "intern/gpu_immediate.h" /* XXX: temporary, will re-factor header files later */
 
 
 
@@ -224,6 +224,8 @@ void (GLAPIENTRY* gpuDeleteFramebuffers)(GLint n, const GLuint * framebuffers);
 
 
 void GPU_func_comp_init(void);
+
+
 
 #ifdef __cplusplus
 }

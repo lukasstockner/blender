@@ -40,6 +40,8 @@
 
 #include <stdlib.h>
 
+#include "BLI_utildefines.h"
+
 
 
 /* Are restricted pointers available? (C99) */
