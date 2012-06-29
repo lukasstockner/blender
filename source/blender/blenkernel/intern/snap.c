@@ -120,7 +120,10 @@ SnapPoint* Snap_getSnapPoint(Snap* s){
 }
 
 void Snap_calc_rays(Snap* s){
-	ED_view3d_win_to_ray(s->ar, s->v3d, s->mval, s->ray_start, s->ray_normal);
+	float mval_f[2];
+	mval_f[0] = (float)(s->mval[0]);
+	mval_f[1] = (float)(s->mval[1]);
+	ED_view3d_win_to_ray(s->ar, s->v3d, mval_f, s->ray_start, s->ray_normal);
 }
 
 void Snap_calc_matrix(Snap* s){
@@ -369,8 +372,10 @@ void MeshData_DerivedMesh_getEdgeVerts(MeshData *md, int index, MVert* mv1, MVer
 }
 
 int MeshData_DerivedMesh_checkEdge(MeshData *md, int index){
+	//TODO: optimise this code a bit, and remove debug variables.
 	MEdge* edges;
 	MVert* verts;
+	MVert *v1, *v2;
 	DerivedMesh* dm = (DerivedMesh*)md->data;
 	char hidden, v1_selected, v2_selected;
 	edges = dm->getEdgeArray(dm);
@@ -379,9 +384,11 @@ int MeshData_DerivedMesh_checkEdge(MeshData *md, int index){
 	When they are selected their flag will be 0? (if indeed it works similar to bmesh)*/
 	/* in this case v1 and v2 are integer indexes for the vertex array*/
 
+	v1 = &(verts[edges[index].v1]);
+	v2 = &(verts[edges[index].v2]);
 	if(md->edit_mode){
-		v1_selected = verts[edges[index].v1].flag & 1;
-		v2_selected = verts[edges[index].v2].flag & 1;
+		v1_selected = v1->flag & 1;
+		v2_selected = v2->flag & 1;
 	}
 	else{
 		v1_selected = 0;
@@ -527,7 +534,7 @@ void SnapMesh_snap_vertex(Snap* sm){
 
 		copy_v3_v3(sm->snap_point.location, location);
 
-		printf("SnapPointInternal: %f, %f, %f\n", location[0], location[1], location[2]);
+		//printf("SnapPointInternal: %f, %f, %f\n", location[0], location[1], location[2]);
 
 		normal_short_to_float_v3(sm->snap_point.normal, mv.no);
 		mul_m3_v3(sm->timat, sm->snap_point.normal);
@@ -546,13 +553,13 @@ void SnapMesh_snap_face_plane(Snap* sm){
 }
 
 void SnapMesh_snap_edge(Snap* sm){
-	int i, totedge, result, new_dist, r_dist;
+	int i, totedge, result, new_dist;
 	int screen_loc[2];
 
 	float intersect[3] = {0, 0, 0}, ray_end[3], dvec[3];
 	float edge_loc[3], vec[3], location[3];
 	float n1[3], n2[3];
-	float mul, new_depth, r_depth;
+	float mul, new_depth;
 
 	SnapMesh_data* sm_data = (SnapMesh_data*)sm->snap_data;
 	MeshData* md = sm_data->mesh_data;
@@ -563,8 +570,6 @@ void SnapMesh_snap_edge(Snap* sm){
 	add_v3_v3v3(ray_end, sm->ray_start_local, ray_end);
 
 	sm->retval = 0;
-	r_depth = FLT_MAX;
-	r_dist = sm->min_distance;
 
 	md->index_init(md, SNAPMESH_DAT_edge); //should perhaps only be called once per mesh...
 
@@ -630,7 +635,7 @@ void SnapMesh_snap_edge(Snap* sm){
 		 * this takes care of series of connected edges a bit slanted w.r.t the viewport
 		 * otherwise, it would stick to the verts of the closest edge and not slide along merrily
 		 * */
-		if (new_dist > r_dist || new_depth > r_depth){
+		if (new_dist > sm->snap_point.r_dist || new_depth >= sm->snap_point.r_depth * 1.001f){
 			continue;
 		}
 
@@ -652,8 +657,10 @@ void SnapMesh_snap_edge(Snap* sm){
 
 		copy_v3_v3(sm->snap_point.normal, location);
 
-		r_dist = new_dist;
+		copy_v3_v3(sm->snap_point.location, location);
 
+		sm->snap_point.r_dist = new_dist;
+		sm->snap_point.r_depth = new_depth;
 	}
 
 }

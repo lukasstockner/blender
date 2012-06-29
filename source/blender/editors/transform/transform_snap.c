@@ -1673,7 +1673,6 @@ static int snapObject(Scene *scene, View3D *v3d, ARegion *ar, Object *ob, int ed
 				Snap_setClosestPoint(sm, &sp_prev);
 			}
 
-
 			Snap_run(sm);
 			retval = Snap_getretval(sm);
 			if(retval){
@@ -1686,22 +1685,36 @@ static int snapObject(Scene *scene, View3D *v3d, ARegion *ar, Object *ob, int ed
 			}
 			Snap_free(sm);
 
-//		}else if(ts->snap_mode == SCE_SNAP_MODE_EDGE){
-//			int mval_i[2] = {mval[0], mval[1]};
-//			Snap* sm;
-//			SnapPoint* sp;
-//			if(em == NULL){
-//				sm = SnapMesh_create(dm, SNAPMESH_DATA_TYPE_DerivedMesh, SNAPMESH_TYPE_EDGE, scene, ob, v3d, ar, mval_i);
-//			}else{
-//				sm = SnapMesh_create(em, SNAPMESH_DATA_TYPE_BMEditMesh, SNAPMESH_TYPE_EDGE, scene, ob, v3d, ar, mval_i);
-//			}
-//			Snap_run(sm);
-//			retval = Snap_getretval(sm);
-//			sp = Snap_getSnapPoint(sm);
-//			printf("SnapPoint: %f, %f, %f\n", sp->location[0], sp->location[1], sp->location[2]);
-//			copy_v3_v3(r_loc, sp->location);
-//			copy_v3_v3(r_no, sp->normal);
-//			Snap_free(sm); //TODO: there is some memory not getting freed around here.
+		}else if(ts->snap_mode == SCE_SNAP_MODE_EDGE){
+			int mval_i[2] = {mval[0], mval[1]};
+			Snap* sm;
+			SnapPoint* sp;
+			SnapPoint sp_prev;
+
+			if(em == NULL){
+				sm = SnapMesh_create(dm, SNAPMESH_DATA_TYPE_DerivedMesh, SNAPMESH_TYPE_EDGE, scene, ob, v3d, ar, mval_i);
+			}else{
+				sm = SnapMesh_create(em, SNAPMESH_DATA_TYPE_BMEditMesh, SNAPMESH_TYPE_EDGE, scene, ob, v3d, ar, mval_i);
+			}
+
+			//if this is not the first run through.
+			if(*r_depth < FLT_MAX - 10){
+				sp_prev.r_depth = *r_depth;
+				sp_prev.r_dist = *r_dist;
+				Snap_setClosestPoint(sm, &sp_prev);
+			}
+
+			Snap_run(sm);
+			retval = Snap_getretval(sm);
+			if(retval){
+				sp = Snap_getSnapPoint(sm);
+				//printf("SnapPointExternal: %f, %f, %f\n", sp->location[0], sp->location[1], sp->location[2]);
+				copy_v3_v3(r_loc, sp->location);
+				copy_v3_v3(r_no, sp->normal);
+				*r_depth = sp->r_depth;
+				*r_dist = sp->r_dist;
+			}
+			Snap_free(sm); //TODO: there is some memory not getting freed around here.
 		}else {
 			retval = snapDerivedMesh(ts->snap_mode, ar, ob, dm, em, obmat, ray_start, ray_normal, mval, r_loc, r_no, r_dist, r_depth);
 		}
