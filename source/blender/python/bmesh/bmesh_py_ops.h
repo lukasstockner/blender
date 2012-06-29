@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,22 +15,21 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2007 Blender Foundation.
+ * The Original Code is Copyright (C) 2012 Blender Foundation.
  * All rights reserved.
  *
- * 
- * Contributor(s): Blender Foundation
+ * Contributor(s): Campbell Barton
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/editor/io/io_ops.h
- *  \ingroup editor/io
+/** \file blender/python/bmesh/bmesh_py_ops.h
+ *  \ingroup pybmesh
  */
 
-#ifndef __IO_OPS_H__
-#define __IO_OPS_H__
+#ifndef __BMESH_PY_OPS_H__
+#define __BMESH_PY_OPS_H__
 
-void ED_operatortypes_io(void);
+PyObject *BPyInit_bmesh_ops(void);
 
-#endif
+#endif /* __BMESH_PY_OPS_H__ */

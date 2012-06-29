@@ -3830,6 +3830,11 @@ void initTranslation(TransInfo *t)
 		t->snap[1] = 0.125f;
 		t->snap[2] = 0.0625f;
 	}
+	else if (t->spacetype == SPACE_NODE) {
+		t->snap[0] = 0.0f;
+		t->snap[1] = 125.0f;
+		t->snap[2] = 25.0f;
+	}
 	else {
 		t->snap[0] = 0.0f;
 		t->snap[1] = t->snap[2] = 1.0f;
@@ -5275,6 +5280,7 @@ void projectSVData(TransInfo *t, int final)
 	BMEditMesh *em = sld->em;
 	SmallHash visit;
 	int i;
+	short has_uv;
 
 	if (!em)
 		return;
@@ -5287,12 +5293,13 @@ void projectSVData(TransInfo *t, int final)
 	if (em->bm->shapenr > 1)
 		return;
 
+	has_uv = CustomData_has_layer(&(em->bm->ldata), CD_MLOOPUV);
+
 	BLI_smallhash_init(&visit);
 	
 	for (i = 0, sv = sld->sv; i < sld->totsv; sv++, i++) {
 		BMIter fiter;
 		BMFace *f;
-		
 
 		/* BMESH_TODO, this interpolates between vertex/loops which are not moved
 		 * (are only apart of a face attached to a slide vert), couldn't we iterate BM_LOOPS_OF_VERT
@@ -5322,6 +5329,8 @@ void projectSVData(TransInfo *t, int final)
 			
 			/* project onto copied projection face */
 			BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+				/* only affected verts will get interpolated */
+				char affected = FALSE;
 				f_copy_flip = f_copy;
 
 				if (BM_elem_flag_test(l->e, BM_ELEM_SELECT) || BM_elem_flag_test(l->prev->e, BM_ELEM_SELECT)) {
@@ -5346,6 +5355,8 @@ void projectSVData(TransInfo *t, int final)
 					if (!f_copy_flip) {
 						continue;  /* shouldn't happen, but protection */
 					}
+
+					affected = TRUE;
 				}
 				else {
 					/* the loop is attached to only one vertex and not a selected edge,
@@ -5382,10 +5393,15 @@ void projectSVData(TransInfo *t, int final)
 								f_copy_flip = BLI_smallhash_lookup(&sld->origfaces, (uintptr_t)e_sel->l->radial_next->f);
 							}
 						}
+
+						affected = TRUE;
 					}
 
 				}
 				
+				if(!affected)
+					continue;
+
 				/* only loop data, no vertex data since that contains shape keys,
 				 * and we do not want to mess up other shape keys */
 				BM_loop_interp_from_face(em->bm, l, f_copy_flip, FALSE, FALSE);
@@ -5410,7 +5426,7 @@ void projectSVData(TransInfo *t, int final)
 			}
 		}
 	}
-	
+
 	BLI_smallhash_release(&visit);
 }
 
