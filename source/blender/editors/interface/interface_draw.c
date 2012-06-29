@@ -1265,6 +1265,8 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), rcti *rect)
 void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 {
 	static GPUimmediate *displist = NULL;
+	static GPUindex *index = NULL;
+
 	int a, old[8];
 	GLfloat diff[4], diffn[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 	float vec0[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -1314,15 +1316,24 @@ void ui_draw_but_NORMAL(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	
 	glShadeModel(GL_SMOOTH);
 
-	if (displist == 0) {
+	if (!displist) {
 		GPUprim3 prim = GPU_PRIM_HIFI_SOLID;
+		prim.usegs = 32;
+		prim.vsegs = 24;
+
 		gpuPushImmediate();
+		gpuImmediateMaxVertexCount(800);
+		
+		index = gpuNewIndex();
+		gpuImmediateIndex(index);
+		gpuImmediateMaxIndexCount(4608);
+
 		gpuSingleSphere(&prim, 100);
-		//GLU gluSphere(qobj, 100.0, 32, 24);
+
 		displist = gpuPopImmediate();
 	}
 	else {
-		gpuImmediateSingleRepeat(displist);
+		gpuImmediateSingleRepeatElements(displist);
 	}
 
 	glShadeModel(GL_FLAT);
