@@ -648,7 +648,7 @@ typedef enum eFileSel_File_Types {
 	COLLADAFILE         = (1 << 13),
 	OPERATORFILE        = (1 << 14), /* from filter_glob operator property */
 	ASSIMPFILE          = (1 << 15),
-	FBXFILE             = (1 << 16),
+	FBXFILE             = (1 << 1), /* XXX not using << 16 because FileSelectParams::filter is short */
 } eFileSel_File_Types;
 
 /* Selection Flags in filesel: struct direntry, unsigned char selflag */
