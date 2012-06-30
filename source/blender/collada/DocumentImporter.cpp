@@ -421,19 +421,10 @@ void DocumentImporter::write_node(COLLADAFW::Node *node, COLLADAFW::Node *parent
 	bool read_transform = true;
 
 	ExtraTags *et = getExtraTags(node->getUniqueId());
-    
-	
 
 	std::vector<Object *> *objects_done = new std::vector<Object *>();
     
 	if (is_joint) {
-		if (par) {
-			Object *empty = par;
-			par = bc_add_object(sce, OB_ARMATURE, NULL);
-			bc_set_parent(par, empty->parent, mContext);
-			//remove empty : todo
-			object_map.insert(std::make_pair<COLLADAFW::UniqueId, Object *>(parent_node->getUniqueId(), par));
-		}
 		armature_importer.add_joint(node, parent_node == NULL || parent_node->getType() != COLLADAFW::Node::JOINT, par, sce);
 	}
 	else {
@@ -496,7 +487,11 @@ void DocumentImporter::write_node(COLLADAFW::Node *node, COLLADAFW::Node *parent
 		// if node is empty - create empty object
 		// XXX empty node may not mean it is empty object, not sure about this
 		if ( (geom_done + camera_done + lamp_done + controller_done + inst_done) < 1) {
-			ob = bc_add_object(sce, OB_EMPTY, NULL);
+			//Check if Object is armature, by checking if immediate child is a JOINT node.
+			if(is_armature(node))
+				ob = bc_add_object(sce, OB_ARMATURE, NULL);
+			else ob = bc_add_object(sce, OB_EMPTY, NULL);
+
 			objects_done->push_back(ob);
 		}
 		
@@ -1192,3 +1187,14 @@ bool DocumentImporter::addExtraTags(const COLLADAFW::UniqueId &uid, ExtraTags *e
 	return true;
 }
 
+bool DocumentImporter::is_armature(COLLADAFW::Node *node){
+	COLLADAFW::NodePointerArray &child_nodes = node->getChildNodes();
+	for (unsigned int i = 0; i < child_nodes.getCount(); i++) {	
+		if(child_nodes[i]->getType() == COLLADAFW::Node::JOINT) return true;
+		else continue;
+	}
+    
+	//no child is JOINT
+	return false;
+
+}

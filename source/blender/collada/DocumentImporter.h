@@ -130,6 +130,8 @@ public:
 	/** Get an extisting ExtraTags for uid */
 	ExtraTags* getExtraTags(const COLLADAFW::UniqueId &uid);
 
+	bool is_armature(COLLADAFW::Node * node);
+
 
 
 private:

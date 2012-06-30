@@ -101,12 +101,12 @@ void ArmatureImporter::create_unskinned_bone(COLLADAFW::Node *node, EditBone *pa
 	// get world-space
 	if (parent) {
 		mult_m4_m4m4(mat, parent_mat, obmat);
-
 	}
 	else {
 		copy_m4_m4(mat, obmat);
-
 	}
+
+	mult_m4_m4m4(mat, ob_arm->obmat , mat);
 	float loc[3], size[3], rot[3][3];
 	mat4_to_loc_rot_size(loc, rot, size, obmat);
 	mat3_to_vec_roll(rot, NULL, &angle);

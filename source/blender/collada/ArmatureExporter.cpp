@@ -187,58 +187,59 @@ void ArmatureExporter::add_bone_node(Bone *bone, Object *ob_arm, Scene *sce,
 		node.setNodeName(node_name);
 		node.setNodeSid(node_sid);
 
-#if 0
+//#if 1 
 		if (bone->childbase.first == NULL || BLI_countlist(&(bone->childbase)) >= 2) {
 			add_blender_leaf_bone( bone, ob_arm , node );
 		}
-		else {
-#endif
-		node.start();
+		else{
+//#endif
+			node.start();
 
-		add_bone_transform(ob_arm, bone, node);
+			add_bone_transform(ob_arm, bone, node);
 
-		// Write nodes of childobjects, remove written objects from list
-		std::list<Object *>::iterator i = child_objects.begin();
+			// Write nodes of childobjects, remove written objects from list
+			std::list<Object *>::iterator i = child_objects.begin();
 
-		while (i != child_objects.end()) {
-			if ((*i)->partype == PARBONE && (0 == strcmp((*i)->parsubstr, bone->name))) {
-				float backup_parinv[4][4];
-				copy_m4_m4(backup_parinv, (*i)->parentinv);
+			while (i != child_objects.end()) {
+				if ((*i)->partype == PARBONE && (0 == strcmp((*i)->parsubstr, bone->name))) {
+					float backup_parinv[4][4];
+					copy_m4_m4(backup_parinv, (*i)->parentinv);
 
-				// crude, temporary change to parentinv
-				// so transform gets exported correctly.
+					// crude, temporary change to parentinv
+					// so transform gets exported correctly.
 
-				// Add bone tail- translation... don't know why
-				// bone parenting is against the tail of a bone
-				// and not it's head, seems arbitrary.
-				(*i)->parentinv[3][1] += bone->length;
+					// Add bone tail- translation... don't know why
+					// bone parenting is against the tail of a bone
+					// and not it's head, seems arbitrary.
+					(*i)->parentinv[3][1] += bone->length;
 
-				// SECOND_LIFE_COMPATIBILITY
-				// TODO: when such objects are animated as
-				// single matrix the tweak must be applied
-				// to the result.
-				if (export_settings->second_life) {
-					// tweak objects parentinverse to match compatibility
-					float temp[4][4];
+					// SECOND_LIFE_COMPATIBILITY
+					// TODO: when such objects are animated as
+					// single matrix the tweak must be applied
+					// to the result.
+					if (export_settings->second_life) {
+						// tweak objects parentinverse to match compatibility
+						float temp[4][4];
 
-					copy_m4_m4(temp, bone->arm_mat);
-					temp[3][0] = temp[3][1] = temp[3][2] = 0.0f;
+						copy_m4_m4(temp, bone->arm_mat);
+						temp[3][0] = temp[3][1] = temp[3][2] = 0.0f;
 
-					mult_m4_m4m4((*i)->parentinv, temp, (*i)->parentinv);
+						mult_m4_m4m4((*i)->parentinv, temp, (*i)->parentinv);
+					}
+
+					se->writeNodes(*i, sce);
+
+					copy_m4_m4((*i)->parentinv, backup_parinv);
+					child_objects.erase(i++);
 				}
-
-				se->writeNodes(*i, sce);
-
-				copy_m4_m4((*i)->parentinv, backup_parinv);
-				child_objects.erase(i++);
+				else i++;
 			}
-			else i++;
-		}
 
-		for (Bone *child = (Bone *)bone->childbase.first; child; child = child->next) {
-			add_bone_node(child, ob_arm, sce, se, child_objects);
+			for (Bone *child = (Bone *)bone->childbase.first; child; child = child->next) {
+				add_bone_node(child, ob_arm, sce, se, child_objects);
+			}
+			node.end();
 		}
-		node.end();
 	}
 	else {
 		for (Bone *child = (Bone *)bone->childbase.first; child; child = child->next) {
@@ -247,7 +248,7 @@ void ArmatureExporter::add_bone_node(Bone *bone, Object *ob_arm, Scene *sce,
 	}
 }
 
-#if 0
+//#if 1
 void ArmatureExporter::add_blender_leaf_bone(Bone *bone, Object *ob_arm, COLLADASW::Node& node)
 {
 	node.start();
@@ -258,13 +259,13 @@ void ArmatureExporter::add_blender_leaf_bone(Bone *bone, Object *ob_arm, COLLADA
 	node.addExtraTechniqueParameter("blender", "tip_y", bone->tail[1]);
 	node.addExtraTechniqueParameter("blender", "tip_z", bone->tail[2]);
 	
-	for (Bone *child = (Bone *)bone->childbase.first; child; child = child->next) {
+	/*for (Bone *child = (Bone *)bone->childbase.first; child; child = child->next) {
 		add_bone_node(child, ob_arm, sce, se, child_objects);
-	}
+	}*/
 	node.end();
 	
 }
-#endif
+//#endif
 
 void ArmatureExporter::add_bone_transform(Object *ob_arm, Bone *bone, COLLADASW::Node& node)
 {
@@ -273,7 +274,7 @@ void ArmatureExporter::add_bone_transform(Object *ob_arm, Bone *bone, COLLADASW:
 	float mat[4][4];
 
 	if (bone->parent) {
-		// get bone-space matrix from armature-space
+		// get bone-space matrix from parent pose
 		bPoseChannel *parchan = BKE_pose_channel_find_name(ob_arm->pose, bone->parent->name);
 
 		float invpar[4][4];
@@ -281,6 +282,7 @@ void ArmatureExporter::add_bone_transform(Object *ob_arm, Bone *bone, COLLADASW:
 		mult_m4_m4m4(mat, invpar, pchan->pose_mat);
 	}
 	else {
+		//pose mat is object space
 		copy_m4_m4(mat, pchan->pose_mat);
 		// Why? Joint's localspace is still it's parent node
 		//get world-space from armature-space
@@ -288,7 +290,7 @@ void ArmatureExporter::add_bone_transform(Object *ob_arm, Bone *bone, COLLADASW:
 	}
 
 	// SECOND_LIFE_COMPATIBILITY
-	if (export_settings->second_life) {
+//	if (export_settings->second_life) {
 		// Remove rotations vs armature from transform
 		// parent_rest_rot * mat * irest_rot
 		float temp[4][4];
@@ -304,7 +306,7 @@ void ArmatureExporter::add_bone_transform(Object *ob_arm, Bone *bone, COLLADASW:
 
 			mult_m4_m4m4(mat, temp, mat);
 		}
-	}
+//	}
 
 	TransformWriter::add_node_transform(node, mat, NULL);
 }
