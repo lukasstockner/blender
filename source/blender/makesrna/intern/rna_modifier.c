@@ -797,11 +797,6 @@ static void rna_def_modifier_subsurf(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", eSubsurfModifierFlag_SubsurfUv);
 	RNA_def_property_ui_text(prop, "Subdivide UVs", "Use subsurf to subdivide UVs");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
-
-	prop = RNA_def_property(srna, "show_faded_edge_levels", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", eSubsurfModifierFlag_DebugIncr);
-	RNA_def_property_ui_text(prop, "Show Faded Edge Levels", "Show higher levels of subdivisions in lighter colors.");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
 static void rna_def_modifier_generic_map_info(StructRNA *srna)
