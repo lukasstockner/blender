@@ -464,29 +464,31 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 			gpuCurrentColor3x(CPACK_WHITE);
 
 			{
-				GLenum map[1] = { GL_TEXTURE3 };
+				GLenum map[2] = { GL_TEXTURE0, GL_TEXTURE3 };
+				GLint sizes[2] = { 2, 2 };
 
 				gpuImmediateElementSizes(2, 0, 0);
-				gpuImmediateTextureUnitCount(1);
+				gpuImmediateTextureUnitCount(2);
 				gpuImmediateTextureUnitMap(map);
+				gpuImmediateTexCoordSizes(sizes);
 			}
 
 			gpuImmediateLock();
 			gpuBegin(GL_QUADS);
 				gpuTexCoord2f(1, 1);
-				gpuMultiTexCoord2f(0, canvascoord[1], canvascoord[3]);
+				gpuMultiTexCoord2f(1, canvascoord[1], canvascoord[3]);
 				gpuVertex2f( 1, 1);
 
 				gpuTexCoord2f(0, 1);
-				gpuMultiTexCoord2f(0, canvascoord[0], canvascoord[3]);
+				gpuMultiTexCoord2f(1, canvascoord[0], canvascoord[3]);
 				gpuVertex2f(-1, 1);
 
 				gpuTexCoord2f(0, 0);
-				gpuMultiTexCoord2f(0, canvascoord[0], canvascoord[2]);
+				gpuMultiTexCoord2f(1, canvascoord[0], canvascoord[2]);
 				gpuVertex2f(-1,-1);
 
 				gpuTexCoord2f(1, 0);
-				gpuMultiTexCoord2f(0, canvascoord[1], canvascoord[2]);
+				gpuMultiTexCoord2f(1, canvascoord[1], canvascoord[2]);
 				gpuVertex2f( 1,-1);
 			gpuEnd();
 			gpuImmediateUnlock();

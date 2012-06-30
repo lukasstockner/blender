@@ -941,7 +941,6 @@ static void cdDM_drawMappedFaces(
 			
 			if (nors) nors += 3;
 		}
-		gpuImmediateUnformat();
 	}
 	else { /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
 		int prevstart = 0;
@@ -1058,7 +1057,7 @@ static void cddm_format_attrib_vertex(DMVertexAttribs *attribs)
 			texco = GL_TRUE;
 		else {
 			attribMap_f[attrib_f] = attribs->tface[b].gl_index;
-			attribSize_f[attrib_f] = 3;
+			attribSize_f[attrib_f] = 2;
 			attrib_f++;
 		}
 	}
@@ -1175,7 +1174,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		DEBUG_VBO("Using legacy code. cdDM_drawMappedFacesGLSL\n");
 		memset(&attribs, 0, sizeof(attribs));
 
-		cddm_format_attrib_vertex(&attribs);
+		cddm_format_attrib_vertex(&attribs); /* XXX: jwilkins, just to make this simple to write for now */
 		gpuBegin(GL_QUADS);
 
 		for (a = 0; a < dm->numTessFaceData; a++, mface++) {

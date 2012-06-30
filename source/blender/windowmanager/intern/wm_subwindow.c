@@ -388,6 +388,11 @@ void WM_set_framebuffer_index_color(int index)
 	gpuColor3x(index_to_framebuffer(index));
 }
 
+void WM_set_framebuffer_index_current_color(int index)
+{
+	gpuCurrentColor3x(index_to_framebuffer(index));
+}
+
 int WM_framebuffer_to_index(unsigned int col)
 {
 	if (col == 0) return 0;

@@ -464,6 +464,8 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 
 	StitchPreviewer *stitch_preview = uv_get_stitch_previewer();
 
+	gpuImmediateFormat_C4_V2();
+
 	activetf = EDBM_mtexpoly_active_get(em, &efa_act, FALSE); /* will be set to NULL if hidden */
 	activef = BM_active_face_get(bm, FALSE);
 	ts = scene->toolsettings;
@@ -880,6 +882,8 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 	}
 
 	glPointSize(1.0);
+
+	gpuImmediateUnformat();
 }
 
 void draw_uvedit_main(SpaceImage *sima, ARegion *ar, Scene *scene, Object *obedit, Object *obact)

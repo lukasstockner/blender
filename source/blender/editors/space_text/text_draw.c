@@ -1387,6 +1387,8 @@ static void draw_markers(SpaceText *st, ARegion *ar)
 		x = st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
 		y = ar->winy - 3;
 
+		gpuImmediateFormat_V2();
+
 		if (y1 == y2) {
 			y -= y1 * st->lheight;
 			gpuBegin(GL_LINE_LOOP);
@@ -1423,6 +1425,8 @@ static void draw_markers(SpaceText *st, ARegion *ar)
 			gpuVertex2i(x, y - st->lheight);
 			gpuEnd();
 		}
+
+		gpuImmediateUnformat();
 	}
 }
 
@@ -1464,6 +1468,7 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 	UI_ThemeColor(TH_BACK);
 	gpuSingleFilledRecti(x, y, x + boxw, y - boxh);
 	UI_ThemeColor(TH_SHADE1);
+	gpuImmediateFormat_V2();
 	gpuBegin(GL_LINE_LOOP);
 	gpuVertex2i(x, y);
 	gpuVertex2i(x + boxw, y);
@@ -1480,6 +1485,7 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 	gpuVertex2i(x + boxw - 4, y - boxh + 7);
 	gpuVertex2i(x + boxw - 7, y - boxh + 2);
 	gpuEnd();
+	gpuImmediateUnformat();
 	UI_ThemeColor(TH_TEXT);
 
 	BLF_draw_lock(mono);
@@ -1965,10 +1971,12 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	if (st->flags & ST_SHOW_MARGIN) {
 		UI_ThemeColor(TH_HILITE);
 
+		gpuImmediateFormat_V2();
 		gpuBegin(GL_LINES);
 		gpuVertex2i(x + st->cwidth * st->margin_column, 0);
 		gpuVertex2i(x + st->cwidth * st->margin_column, ar->winy - 2);
 		gpuEnd();
+		gpuImmediateUnformat();
 	}
 
 	/* draw other stuff */

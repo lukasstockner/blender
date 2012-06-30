@@ -236,7 +236,10 @@ static void drawFlyPixel(const struct bContext *UNUSED(C), struct ARegion *UNUSE
 
 	gpuCurrentColor3x(CPACK_BLACK);
 
+	gpuImmediateFormat_V2();
+
 	gpuBegin(GL_LINES);
+
 	/* bottom left */
 	gpuVertex2f(x1, y1);
 	gpuVertex2f(x1, y1 + 5);
@@ -264,7 +267,10 @@ static void drawFlyPixel(const struct bContext *UNUSED(C), struct ARegion *UNUSE
 
 	gpuVertex2f(x2, y1);
 	gpuVertex2f(x2 - 5, y1);
+
 	gpuEnd();
+
+	gpuImmediateUnformat();
 }
 
 /* FlyInfo->state */

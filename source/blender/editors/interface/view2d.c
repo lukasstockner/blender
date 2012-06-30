@@ -1336,6 +1336,8 @@ void UI_view2d_multi_grid_draw(View2D *v2d, float step, int level_size, int totl
 	float lstep = step;
 	int level;
 
+	gpuImmediateFormat_V2();
+
 	for (level = 0; level < totlevels; ++level) {
 		int i;
 		float start;
@@ -1376,6 +1378,8 @@ void UI_view2d_multi_grid_draw(View2D *v2d, float step, int level_size, int totl
 		lstep *= level_size;
 		offset -= 6;
 	}
+
+	gpuImmediateUnformat();
 }
 
 /* the price we pay for not exposting structs :( */

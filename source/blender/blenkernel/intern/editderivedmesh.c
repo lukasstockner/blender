@@ -987,6 +987,64 @@ static void emDM_drawMappedFacesTex(DerivedMesh *dm,
 	emDM_drawFacesTex_common(dm, NULL, setDrawOptions, compareDrawOptions, userData);
 }
 
+static emdm_format_attrib_vertex(DMVertexAttribs *attribs)
+{
+	int b;
+	GLint attribMap_f[16];
+	GLint attribSize_f[16];
+	GLint attrib_f = 0;
+	GLint attribMap_ub[16];
+	GLint attribSize_ub[16];
+	GLint attrib_ub = 0;
+
+	/* orco texture coordinates */
+	if (attribs->totorco) {
+		attribMap_f[attrib_f] = attribs->orco.gl_index;
+		attribSize_f[attrib_f] = 3;
+		attrib_f++;
+	}
+
+	/* uv texture coordinates */
+	for (b = 0; b < attribs->tottface; b++) {
+		attribMap_f[attrib_f] = attribs->tface[b].gl_index;
+		attribSize_f[attrib_f] = 2;
+		attrib_f++;
+	}
+
+	/* vertex colors */
+	for (b = 0; b < attribs->totmcol; b++) {
+		attribMap_ub[attrib_ub] = attribs->mcol[b].gl_index;
+		attribSize_ub[attrib_ub] = 4;
+		attrib_ub++;
+	}
+
+	/* tangent for normal mapping */
+	if (attribs->tottang) {
+		attribMap_f[attrib_f] = attribs->tang.gl_index;
+		attribSize_f[attrib_f] = 3;
+		attrib_f++;
+	}
+
+	gpuImmediateFormatReset();
+
+	gpuImmediateElementSizes(3, 3, 0);
+
+	gpuImmediateFloatAttribCount(attrib_f);
+	gpuImmediateFloatAttribIndexMap(attribMap_f);
+	gpuImmediateFloatAttribSizes(attribSize_f);
+
+	gpuImmediateUbyteAttribCount(attrib_ub);
+	gpuImmediateUbyteAttribIndexMap(attribMap_ub);
+	gpuImmediateUbyteAttribSizes(attribMap_ub);
+
+	gpuImmediateLock();
+}
+
+static void emdm_unformat_attrib_vertex(void)
+{
+	gpuImmediateUnlock();
+}
+
 static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
                                      DMSetMaterial setMaterial,
                                      DMSetDrawOptions setDrawOptions,
@@ -1008,6 +1066,8 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	matnr = -1;
 
 	memset(&attribs, 0, sizeof(attribs));
+
+	emdm_format_attrib_vertex(&attribs); /* XXX: jwilkins, just to make this easy to write for now */
 
 	/* always use smooth shading even for flat faces, else vertex colors wont interpolate */
 	glShadeModel(GL_SMOOTH);
@@ -1049,8 +1109,13 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		new_matnr = efa->mat_nr + 1;
 		if (new_matnr != matnr) {
 			do_draw = setMaterial(matnr = new_matnr, &gattribs);
-			if (do_draw)
+			if (do_draw) {
+				emdm_unformat_attrib_vertex();
+
 				DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
+
+				emdm_format_attrib_vertex(&attribs);
+			}
 		}
 
 		if (do_draw) {
@@ -1105,6 +1170,8 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 			gpuEnd();
 		}
 	}
+
+	emdm_unformat_attrib_vertex();
 #undef PASSATTRIB
 }
 

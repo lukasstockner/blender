@@ -91,7 +91,9 @@ void draw_motion_path_instance(Scene *scene,
 	bMotionPathVert *mpv, *mpv_start;
 	int i, stepsize = avs->path_step;
 	int sfra, efra, sind, len;
-	
+
+	gpuImmediateFormat_V3();
+
 	/* get frame ranges */
 	if (avs->path_type == MOTIONPATH_TYPE_ACFRA) {
 		/* With "Around Current", we only choose frames from around 
@@ -105,7 +107,7 @@ void draw_motion_path_instance(Scene *scene,
 		sfra = avs->path_sf;
 		efra = avs->path_ef;
 	}
-	
+
 	/* no matter what, we can only show what is in the cache and no more 
 	 * - abort if whole range is past ends of path
 	 * - otherwise clamp endpoints to extents of path
@@ -114,7 +116,7 @@ void draw_motion_path_instance(Scene *scene,
 		/* whole path is out of bounds */
 		return;
 	}
-	
+
 	if (sfra < mpath->start_frame) {
 		/* start clamp */
 		sfra = mpath->start_frame;
@@ -123,25 +125,25 @@ void draw_motion_path_instance(Scene *scene,
 		/* end clamp */
 		efra = mpath->end_frame;
 	}
-	
+
 	len = efra - sfra;
-	
+
 	if (len <= 0) {
 		return;
 	}
-	
+
 	/* get pointers to parts of path */
 	sind = sfra - mpath->start_frame;
 	mpv_start = (mpath->points + sind);
-	
+
 	/* draw curve-line of path */
 	glShadeModel(GL_SMOOTH);
-	
-	gpuBegin(GL_LINE_STRIP); 				
+
+	gpuBegin(GL_LINE_STRIP); 
 	for (i = 0, mpv = mpv_start; i < len; i++, mpv++) {
 		short sel = (pchan) ? (pchan->bone->flag & BONE_SELECTED) : (ob->flag & SELECT);
 		float intensity; /* how faint */
-		
+
 		/* set color
 		 * - more intense for active/selected bones, less intense for unselected bones
 		 * - black for before current frame, green for current frame, blue for after current frame
@@ -158,7 +160,7 @@ void draw_motion_path_instance(Scene *scene,
 				//intensity= 0.8f;
 				intensity = SET_INTENSITY(sfra, i, CFRA, 0.68f, 0.92f);
 			}
-			UI_ThemeColorBlend(TH_WIRE, TH_BACK, intensity);
+			UI_ThemeAppendColorBlend(TH_WIRE, TH_BACK, intensity);
 		}
 		else if ((sfra + i) > CFRA) {
 			/* blue - after cfra */
@@ -170,7 +172,7 @@ void draw_motion_path_instance(Scene *scene,
 				//intensity = 0.8f;
 				intensity = SET_INTENSITY(CFRA, i, efra, 0.68f, 0.92f);
 			}
-			UI_ThemeColorBlend(TH_BONE_POSE, TH_BACK, intensity);
+			UI_ThemeAppendColorBlend(TH_BONE_POSE, TH_BACK, intensity);
 		}
 		else {
 			/* green - on cfra */
@@ -180,18 +182,18 @@ void draw_motion_path_instance(Scene *scene,
 			else {
 				intensity = 0.99f;
 			}
-			UI_ThemeColorBlendShade(TH_CFRAME, TH_BACK, intensity, 10);
+			UI_ThemeAppendColorBlendShade(TH_CFRAME, TH_BACK, intensity, 10);
 		}	
 		
 		/* draw a vertex with this color */ 
 		gpuVertex3fv(mpv->co);
 	}
-	
+
 	gpuEnd();
 	glShadeModel(GL_FLAT);
-	
+
 	glPointSize(1.0);
-	
+
 	/* draw little black point at each frame
 	 * NOTE: this is not really visible/noticeable
 	 */
@@ -199,14 +201,14 @@ void draw_motion_path_instance(Scene *scene,
 	for (i = 0, mpv = mpv_start; i < len; i++, mpv++)
 		gpuVertex3fv(mpv->co);
 	gpuEnd();
-	
+
 	/* Draw little white dots at each framestep value */
 	UI_ThemeColor(TH_TEXT_HI);
 	gpuBegin(GL_POINTS);
 	for (i = 0, mpv = mpv_start; i < len; i += stepsize, mpv += stepsize)
 		gpuVertex3fv(mpv->co);
 	gpuEnd();
-	
+
 	/* Draw big green dot where the current frame is 
 	 * NOTE: this is only done when keyframes are shown, since this adds similar types of clutter
 	 */
@@ -220,14 +222,14 @@ void draw_motion_path_instance(Scene *scene,
 		mpv = mpv_start + (CFRA - sfra);
 		gpuVertex3fv(mpv->co);
 		gpuEnd();
-		
+
 		glPointSize(1.0f);
 		UI_ThemeColor(TH_TEXT_HI);
 	}
-	
+
 	// XXX, this isn't up to date but probably should be kept so.
 	invert_m4_m4(ob->imat, ob->obmat);
-	
+
 	/* Draw frame numbers at each framestep value */
 	if (avs->path_viewflag & MOTIONPATH_VIEW_FNUMS) {
 		unsigned char col[4];
@@ -237,7 +239,7 @@ void draw_motion_path_instance(Scene *scene,
 		for (i = 0, mpv = mpv_start; i < len; i += stepsize, mpv += stepsize) {
 			char numstr[32];
 			float co[3];
-			
+
 			/* only draw framenum if several consecutive highlighted points don't occur on same point */
 			if (i == 0) {
 				sprintf(numstr, "%d", (i + sfra));
@@ -247,7 +249,7 @@ void draw_motion_path_instance(Scene *scene,
 			else if ((i > stepsize) && (i < len - stepsize)) {
 				bMotionPathVert *mpvP = (mpv - stepsize);
 				bMotionPathVert *mpvN = (mpv + stepsize);
-				
+
 				if ((equals_v3v3(mpv->co, mpvP->co) == 0) || (equals_v3v3(mpv->co, mpvN->co) == 0)) {
 					sprintf(numstr, "%d", (sfra + i));
 					mul_v3_m4v3(co, ob->imat, mpv->co);
@@ -256,24 +258,24 @@ void draw_motion_path_instance(Scene *scene,
 			}
 		}
 	}
-	
+
 	/* Keyframes - dots and numbers */
 	if (avs->path_viewflag & MOTIONPATH_VIEW_KFRAS) {
-		unsigned char col[4];
-		
+	unsigned char col[4];
+
 		AnimData *adt = BKE_animdata_from_id(&ob->id);
 		DLRBT_Tree keys;
-		
+
 		/* build list of all keyframes in active action for object or pchan */
 		BLI_dlrbTree_init(&keys);
-		
+
 		if (adt) {
 			/* it is assumed that keyframes for bones are all grouped in a single group
 			 * unless an option is set to always use the whole action
 			 */
 			if ((pchan) && (avs->path_viewflag & MOTIONPATH_VIEW_KFACT) == 0) {
 				bActionGroup *agrp = BKE_action_group_find_name(adt->action, pchan->name);
-				
+
 				if (agrp) {
 					agroup_to_keylist(adt, agrp, &keys, NULL);
 					BLI_dlrbTree_linkedlist_sync(&keys);
@@ -284,43 +286,45 @@ void draw_motion_path_instance(Scene *scene,
 				BLI_dlrbTree_linkedlist_sync(&keys);
 			}
 		}
-		
+
 		/* Draw slightly-larger yellow dots at each keyframe */
 		UI_GetThemeColor3ubv(TH_VERTEX_SELECT, col);
 		col[3] = 255;
-		
+
 		glPointSize(4.0f); // XXX perhaps a bit too big
 		gpuCurrentColor3ubv(col);
-		
+
 		gpuBegin(GL_POINTS);
 		for (i = 0, mpv = mpv_start; i < len; i++, mpv++) {
 			float mframe = (float)(sfra + i);
-			
+
 			if (BLI_dlrbTree_search_exact(&keys, compare_ak_cfraPtr, &mframe))
 				gpuVertex3fv(mpv->co);
 		}
 		gpuEnd();
-		
+
 		glPointSize(1.0f);
-		
+
 		/* Draw frame numbers of keyframes  */
 		if (avs->path_viewflag & MOTIONPATH_VIEW_KFNOS) {
 			float co[3];
 			for (i = 0, mpv = mpv_start; i < len; i++, mpv++) {
 				float mframe = (float)(sfra + i);
-				
+
 				if (BLI_dlrbTree_search_exact(&keys, compare_ak_cfraPtr, &mframe)) {
 					char numstr[32];
-					
+
 					sprintf(numstr, "%d", (sfra + i));
 					mul_v3_m4v3(co, ob->imat, mpv->co);
 					view3d_cached_text_draw_add(co, numstr, 0, V3D_CACHE_TEXT_WORLDSPACE | V3D_CACHE_TEXT_ASCII, col);
 				}
 			}
 		}
-		
+
 		BLI_dlrbTree_free(&keys);
 	}
+
+	gpuImmediateUnformat();
 }
 
 /* Clean up drawing environment after drawing motion paths */

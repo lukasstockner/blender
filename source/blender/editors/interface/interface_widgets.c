@@ -2169,8 +2169,6 @@ static void ui_draw_but_HSV_v(uiBut *but, rcti *rect)
 	float rgb[3], hsv[3], v, range;
 	int color_profile = but->block->color_profile;
 
-	gpuImmediateFormat_C4_V3();
-
 	if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
 		color_profile = BLI_PR_NONE;
 
@@ -2204,8 +2202,8 @@ static void ui_draw_but_HSV_v(uiBut *but, rcti *rect)
 	y = rect->ymin + v * (rect->ymax - rect->ymin);
 	CLAMP(y, rect->ymin + 3.0f, rect->ymax - 3.0f);
 
+	gpuImmediateFormat_C4_V3();
 	ui_hsv_cursor(x, y);
-
 	gpuImmediateUnformat();
 }
 

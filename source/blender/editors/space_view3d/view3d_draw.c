@@ -1172,18 +1172,16 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 	}
 
 	/* edge */
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);	
-
 	setlinestyle(0);
 
 	UI_ThemeColor(TH_BACK);
-		
-	gpuDrawFilledRectf(x1i, y1i, x2i, y2i);
+
+	gpuDrawWireRectf(x1i, y1i, x2i, y2i);
 
 #ifdef VIEW3D_CAMERA_BORDER_HACK
-	if (view3d_camera_border_hack_test == TRUE) {
+	if (view3d_camera_border_hack_test) {
 		gpuCurrentColor3ubv(view3d_camera_border_hack_col);
-		gpuDrawFilledRectf(x1i + 1, y1i + 1, x2i - 1, y2i - 1);
+		gpuDrawWireRectf(x1i + 1, y1i + 1, x2i - 1, y2i - 1);
 		view3d_camera_border_hack_test = FALSE;
 	}
 #endif
@@ -1193,11 +1191,11 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 	/* outer line not to confuse with object selecton */
 	if (v3d->flag2 & V3D_LOCK_CAMERA) {
 		UI_ThemeColor(TH_REDALERT);
-		gpuDrawFilledRectf(x1i - 1, y1i - 1, x2i + 1, y2i + 1);
+		gpuDrawWireRectf(x1i - 1, y1i - 1, x2i + 1, y2i + 1);
 	}
 
 	UI_ThemeColor(TH_WIRE);
-	gpuDrawFilledRectf(x1i, y1i, x2i, y2i);
+	gpuDrawWireRectf(x1i, y1i, x2i, y2i);
 
 	/* border */
 	if (scene->r.mode & R_BORDER) {
@@ -1207,7 +1205,7 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 		y4 = y1 + scene->r.border.ymax * (y2 - y1);
 		
 		gpuCurrentColor3x(0x4040FF);
-		gpuDrawFilledRectf(x3,  y3,  x4,  y4); 
+		gpuDrawWireRectf(x3,  y3,  x4,  y4); 
 	}
 
 	gpuImmediateUnformat();
@@ -1323,7 +1321,6 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 	}
 
 	setlinestyle(0);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	/* camera name - draw in highlighted text color */
 	if (ca && (ca->flag & CAM_SHOWNAME)) {

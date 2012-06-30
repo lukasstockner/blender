@@ -2281,9 +2281,9 @@ static void draw_dm_vert_normals__mapFunc(void *userData, int index, const float
 			copy_v3_v3(no, no_f);
 		}
 		else {
-			no[0] = no_s[0] / 32767.0f;
-			no[1] = no_s[1] / 32767.0f;
-			no[2] = no_s[2] / 32767.0f;
+			no[0] = no_s[0] / (float)SHRT_MAX;
+			no[1] = no_s[1] / (float)SHRT_MAX;
+			no[2] = no_s[2] / (float)SHRT_MAX;
 		}
 
 		if (!data->uniform_scale) {
@@ -7520,14 +7520,14 @@ static void bbs_mesh_solid_EM(BMEditMesh *em, Scene *scene, View3D *v3d,
 
 static DMDrawOption bbs_mesh_solid__setDrawOpts(void *UNUSED(userData), int index)
 {
-	WM_set_framebuffer_index_color(index + 1);
+	WM_set_framebuffer_index_current_color(index + 1);
 	return DM_DRAW_OPTION_NORMALLY;
 }
 
 static DMDrawOption bbs_mesh_solid_hide__setDrawOpts(Mesh *me, int index)
 {
 	if (!(me->mpoly[index].flag & ME_HIDE)) {
-		WM_set_framebuffer_index_color(index + 1);
+		WM_set_framebuffer_index_current_color(index + 1);
 		return DM_DRAW_OPTION_NORMALLY;
 	}
 	else {
