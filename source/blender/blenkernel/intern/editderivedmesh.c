@@ -405,7 +405,6 @@ static void emDM_drawMappedEdges(DerivedMesh *dm,
 	BMIter iter;
 	int i;
 
-	gpuImmediateFormat_V3();
 	gpuBegin(GL_LINES);
 
 	if (bmdm->vertexCos) {
@@ -428,7 +427,6 @@ static void emDM_drawMappedEdges(DerivedMesh *dm,
 	}
 
 	gpuEnd();
-	gpuImmediateUnformat();
 }
 static void emDM_drawEdges(DerivedMesh *dm,
                            int UNUSED(drawLooseEdges),
@@ -500,9 +498,11 @@ static void emDM_drawUVEdges(DerivedMesh *dm)
 			if (luv) {
 				if (lastluv)
 					gpuVertex2fv(luv->uv);
+
 				gpuVertex2fv(luv->uv);
 
 				lastluv = luv;
+
 				if (!firstluv)
 					firstluv = luv;
 			}
@@ -570,12 +570,13 @@ static void emDM_foreachMappedFaceCenter(DerivedMesh *dm,
 	}
 }
 
-static void emDM_drawMappedFaces(DerivedMesh *dm,
-                                 DMSetDrawOptions setDrawOptions,
-                                 DMSetMaterial setMaterial,
-                                 DMCompareDrawOptions compareDrawOptions,
-                                 void *userData,
-                                 DMDrawFlag flag)
+static void emDM_drawMappedFaces(
+	DerivedMesh *dm,
+	DMSetDrawOptions setDrawOptions,
+	DMSetMaterial setMaterial,
+	DMCompareDrawOptions compareDrawOptions,
+	void *userData,
+	DMDrawFlag flag)
 {
 	EditDerivedBMesh *bmdm = (EditDerivedBMesh *)dm;
 	BMFace *efa;
@@ -583,11 +584,11 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 	const int tottri = bmdm->tc->tottri;
 	const int lasttri = tottri - 1; /* compare agasint this a lot */
 	DMDrawOption draw_option;
+	int useNormals = flag & DM_DRAW_USE_NORMALS;
 	int i, flush;
-	const int skip_normals = !glIsEnabled(GL_LIGHTING); /* could be passed as an arg */
 
 	/* GL_NOOP is used to detect if drawing has started or not */
-	GLenum poly_prev = GL_NOOP;
+	GLenum poly_prev  = GL_NOOP;
 	GLenum shade_prev = GL_NOOP;
 
 	(void)setMaterial; /* UNUSED */
@@ -595,19 +596,12 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 	/* currently unused -- each original face is handled separately */
 	(void)compareDrawOptions;
 
-	if (skip_normals) {
 		if (flag & DM_DRAW_USE_COLORS)
 			gpuImmediateFormat_C4_V3();
 		else
-			gpuImmediateFormat_V3();
-	}
-	else {
 		if (flag & DM_DRAW_USE_COLORS)
 			gpuImmediateFormat_C4_N3_V3();
 		else
-			gpuImmediateFormat_N3_V3();
-	}
-
 	if (bmdm->vertexCos) {
 		/* add direct access */
 		float (*vertexCos)[3] = bmdm->vertexCos;
@@ -625,7 +619,7 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 			drawSmooth = (flag & DM_DRAW_ALWAYS_SMOOTH) ? 1 : BM_elem_flag_test(efa, BM_ELEM_SMOOTH);
 
 			draw_option = (!setDrawOptions ?
-			               DM_DRAW_OPTION_NORMAL :
+			               DM_DRAW_OPTION_NORMALLY :
 			               setDrawOptions(userData, BM_elem_index_get(efa)));
 			if (draw_option != DM_DRAW_OPTION_SKIP) {
 				const GLenum poly_type = GL_TRIANGLES; /* BMESH NOTE, this is odd but keep it for now to match trunk */
@@ -638,7 +632,7 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 					glPolygonStipple(stipple_quarttone);
 				}
 
-				if (skip_normals) {
+				if (!useNormals) {
 					if (poly_type != poly_prev) {
 						if (poly_prev != GL_NOOP) gpuEnd();
 						gpuBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
@@ -676,7 +670,7 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 				}
 
 				flush = (draw_option == DM_DRAW_OPTION_STIPPLE);
-				if (!skip_normals && !flush && (i != lasttri))
+				if (useNormals && !flush && (i != lasttri))
 					flush |= efa->mat_nr != looptris[i + 1][0]->f->mat_nr;  /* TODO, make this neater */
 
 				if (flush) {
@@ -702,7 +696,7 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 			drawSmooth = (flag & DM_DRAW_ALWAYS_SMOOTH) ? 1 : BM_elem_flag_test(efa, BM_ELEM_SMOOTH);
 
 			draw_option = (!setDrawOptions ?
-			               DM_DRAW_OPTION_NORMAL :
+			               DM_DRAW_OPTION_NORMALLY :
 			               setDrawOptions(userData, BM_elem_index_get(efa)));
 			if (draw_option != DM_DRAW_OPTION_SKIP) {
 				const GLenum poly_type = GL_TRIANGLES; /* BMESH NOTE, this is odd but keep it for now to match trunk */
@@ -715,7 +709,7 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 					glPolygonStipple(stipple_quarttone);
 				}
 
-				if (skip_normals) {
+				if (!useNormals) {
 					if (poly_type != poly_prev) {
 						if (poly_prev != GL_NOOP) gpuEnd();
 						gpuBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
@@ -753,7 +747,7 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 				}
 
 				flush = (draw_option == DM_DRAW_OPTION_STIPPLE);
-				if (!skip_normals && !flush && (i != lasttri)) {
+				if (useNormals && !flush && (i != lasttri)) {
 					flush |= efa->mat_nr != looptris[i + 1][0]->f->mat_nr; /* TODO, make this neater */
 				}
 
@@ -771,8 +765,6 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 
 	/* if non zero we know a face was rendered */
 	if (poly_prev != GL_NOOP) gpuEnd();
-
-	gpuImmediateUnformat();
 }
 
 static void bmdm_get_tri_tex(BMesh *bm, BMLoop **ls, MLoopUV *luv[3], MLoopCol *lcol[3],
@@ -845,7 +837,7 @@ static void emDM_drawFacesTex_common(DerivedMesh *dm,
 			else if (drawParamsMapped)
 				draw_option = drawParamsMapped(userData, BM_elem_index_get(efa));
 			else
-				draw_option = DM_DRAW_OPTION_NORMAL;
+				draw_option = DM_DRAW_OPTION_NORMALLY;
 
 			if (draw_option != DM_DRAW_OPTION_SKIP) {
 
@@ -917,7 +909,7 @@ static void emDM_drawFacesTex_common(DerivedMesh *dm,
 			else if (drawParamsMapped)
 				draw_option = drawParamsMapped(userData, BM_elem_index_get(efa));
 			else
-				draw_option = DM_DRAW_OPTION_NORMAL;
+				draw_option = DM_DRAW_OPTION_NORMALLY;
 
 			if (draw_option != DM_DRAW_OPTION_SKIP) {
 

@@ -2397,16 +2397,13 @@ static void draw_dm_verts(BMEditMesh *em, DerivedMesh *dm, int sel, BMVert *eve_
 }
 
 /* Draw edges with color set based on selection */
-static DMDrawOption draw_dm_edges_sel__setDrawOptions(void *userData, int index)
+static DMDrawOption draw_dm_edges_sel__setDrawOptions(drawDMEdgesSel_userData *data, int index)
 {
-	BMEdge *eed;
-	//unsigned char **cols = userData, *col;
-	drawDMEdgesSel_userData *data = userData;
-	unsigned char *col;
-
-	eed = EDBM_edge_at_index(data->em, index);
+	BMEdge* eed = EDBM_edge_at_index(data->em, index);
 
 	if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
+		unsigned char *col;
+
 		if (eed == data->eed_act) {
 			gpuColor4ubv(data->actCol);
 		}
@@ -2417,18 +2414,20 @@ static DMDrawOption draw_dm_edges_sel__setDrawOptions(void *userData, int index)
 			else {
 				col = data->baseCol;
 			}
+
 			/* no alpha, this is used so a transparent color can disable drawing unselected edges in editmode  */
 			if (col[3] == 0)
 				return DM_DRAW_OPTION_SKIP;
 			
 			gpuColor4ubv(col);
 		}
-		return DM_DRAW_OPTION_NORMAL;
+		return DM_DRAW_OPTION_NORMALLY;
 	}
 	else {
 		return DM_DRAW_OPTION_SKIP;
 	}
 }
+
 static void draw_dm_edges_sel(BMEditMesh *em, DerivedMesh *dm, unsigned char *baseCol, 
                               unsigned char *selCol, unsigned char *actCol, BMEdge *eed_act)
 {
@@ -2439,7 +2438,10 @@ static void draw_dm_edges_sel(BMEditMesh *em, DerivedMesh *dm, unsigned char *ba
 	data.actCol = actCol;
 	data.em = em;
 	data.eed_act = eed_act;
+
+	gpuImmediateFormat_C4_V3();
 	dm->drawMappedEdges(dm, draw_dm_edges_sel__setDrawOptions, &data);
+	gpuImmediateUnformat();
 }
 
 /* Draw edges */
@@ -2448,12 +2450,14 @@ static DMDrawOption draw_dm_edges__setDrawOptions(void *userData, int index)
 	if (BM_elem_flag_test(EDBM_edge_at_index(userData, index), BM_ELEM_HIDDEN))
 		return DM_DRAW_OPTION_SKIP;
 	else
-		return DM_DRAW_OPTION_NORMAL;
+		return DM_DRAW_OPTION_NORMALLY;
 }
 
 static void draw_dm_edges(BMEditMesh *em, DerivedMesh *dm) 
 {
+	gpuImmediateFormat_C4_V3(); /* XXX: jwilkins, C4 only because CCG age visualization may be enabled */
 	dm->drawMappedEdges(dm, draw_dm_edges__setDrawOptions, em);
+	gpuImmediateUnformat();
 }
 
 /* Draw edges with color interpolated based on selection */
@@ -2462,7 +2466,7 @@ static DMDrawOption draw_dm_edges_sel_interp__setDrawOptions(void *userData, int
 	if (BM_elem_flag_test(EDBM_edge_at_index(((void **)userData)[0], index), BM_ELEM_HIDDEN))
 		return DM_DRAW_OPTION_SKIP;
 	else
-		return DM_DRAW_OPTION_NORMAL;
+		return DM_DRAW_OPTION_NORMALLY;
 }
 
 static void draw_dm_edges_sel_interp__setDrawInterpOptions(void *userData, int index, float t)
@@ -2472,10 +2476,11 @@ static void draw_dm_edges_sel_interp__setDrawInterpOptions(void *userData, int i
 	unsigned char *col0 = cols[(BM_elem_flag_test(eed->v1, BM_ELEM_SELECT)) ? 2 : 1];
 	unsigned char *col1 = cols[(BM_elem_flag_test(eed->v2, BM_ELEM_SELECT)) ? 2 : 1];
 
-	gpuColor4ub(col0[0] + (col1[0] - col0[0]) * t,
-	           col0[1] + (col1[1] - col0[1]) * t,
-	           col0[2] + (col1[2] - col0[2]) * t,
-	           col0[3] + (col1[3] - col0[3]) * t);
+	gpuColor4ub(
+		col0[0] + (col1[0] - col0[0]) * t,
+		col0[1] + (col1[1] - col0[1]) * t,
+		col0[2] + (col1[2] - col0[2]) * t,
+		col0[3] + (col1[3] - col0[3]) * t);
 }
 
 static void draw_dm_edges_sel_interp(BMEditMesh *em, DerivedMesh *dm, unsigned char *baseCol, unsigned char *selCol)
@@ -2493,14 +2498,16 @@ static DMDrawOption draw_dm_edges_seams__setDrawOptions(void *userData, int inde
 	BMEdge *eed = EDBM_edge_at_index(userData, index);
 
 	if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN) && BM_elem_flag_test(eed, BM_ELEM_SEAM))
-		return DM_DRAW_OPTION_NORMAL;
+		return DM_DRAW_OPTION_NORMALLY;
 	else
 		return DM_DRAW_OPTION_SKIP;
 }
 
 static void draw_dm_edges_seams(BMEditMesh *em, DerivedMesh *dm)
 {
+	gpuImmediateFormat_C4_V3(); /* XXX: jwilkins, C4 only because CCG age visualization may be enabled */
 	dm->drawMappedEdges(dm, draw_dm_edges_seams__setDrawOptions, em);
+	gpuImmediateUnformat();
 }
 
 /* Draw only sharp edges */
@@ -2509,14 +2516,16 @@ static DMDrawOption draw_dm_edges_sharp__setDrawOptions(void *userData, int inde
 	BMEdge *eed = EDBM_edge_at_index(userData, index);
 
 	if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN) && !BM_elem_flag_test(eed, BM_ELEM_SMOOTH))
-		return DM_DRAW_OPTION_NORMAL;
+		return DM_DRAW_OPTION_NORMALLY;
 	else
 		return DM_DRAW_OPTION_SKIP;
 }
 
 static void draw_dm_edges_sharp(BMEditMesh *em, DerivedMesh *dm)
 {
+	gpuImmediateFormat_C4_V3(); /* XXX: jwilkins, C4 only because CCG age visualization may be enabled */
 	dm->drawMappedEdges(dm, draw_dm_edges_sharp__setDrawOptions, em);
+	gpuImmediateUnformat();
 }
 
 
@@ -2541,7 +2550,7 @@ static DMDrawOption draw_dm_faces_sel__setDrawOptions(void *userData, int index)
 			if (col[3] == 0)
 				return DM_DRAW_OPTION_SKIP;
 			gpuColor4ubv(col);
-			return DM_DRAW_OPTION_NORMAL;
+			return DM_DRAW_OPTION_NORMALLY;
 		}
 	}
 	return DM_DRAW_OPTION_SKIP;
@@ -2590,7 +2599,15 @@ static void draw_dm_faces_sel(BMEditMesh *em, DerivedMesh *dm, unsigned char *ba
 	data.efa_act = efa_act;
 	data.orig_index = DM_get_tessface_data_layer(dm, CD_ORIGINDEX);
 
-	dm->drawMappedFaces(dm, draw_dm_faces_sel__setDrawOptions, GPU_enable_material, draw_dm_faces_sel__compareDrawOptions, &data, DM_DRAW_USE_COLORS);
+	gpuImmediateFormat_C4_V3();
+	dm->drawMappedFaces(
+		dm,
+		draw_dm_faces_sel__setDrawOptions,
+		GPU_enable_material,
+		draw_dm_faces_sel__compareDrawOptions,
+		&data,
+		0);
+	gpuImmediateUnformat();
 }
 
 static DMDrawOption draw_dm_creases__setDrawOptions(void *userData, int index)
@@ -2603,8 +2620,8 @@ static DMDrawOption draw_dm_creases__setDrawOptions(void *userData, int index)
 		return DM_DRAW_OPTION_SKIP;
 	
 	if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN) && *crease != 0.0f) {
-		UI_ThemeColorBlend(TH_WIRE, TH_EDGE_CREASE, *crease);
-		return DM_DRAW_OPTION_NORMAL;
+		UI_ThemeAppendColorBlend(TH_WIRE, TH_EDGE_CREASE, *crease);
+		return DM_DRAW_OPTION_NORMALLY;
 	}
 	else {
 		return DM_DRAW_OPTION_SKIP;
@@ -2613,7 +2630,9 @@ static DMDrawOption draw_dm_creases__setDrawOptions(void *userData, int index)
 static void draw_dm_creases(BMEditMesh *em, DerivedMesh *dm)
 {
 	glLineWidth(3.0);
+	gpuImmediateFormat_C4_V3();
 	dm->drawMappedEdges(dm, draw_dm_creases__setDrawOptions, em);
+	gpuImmediateUnformat();
 	glLineWidth(1.0);
 }
 
@@ -2628,8 +2647,8 @@ static DMDrawOption draw_dm_bweights__setDrawOptions(void *userData, int index)
 	if (bweight && *bweight != 0.0f &&
 		!BM_elem_flag_test(eed, BM_ELEM_HIDDEN))
 	{
-		UI_ThemeColorBlend(TH_WIRE, TH_EDGE_SELECT, *bweight);
-		return DM_DRAW_OPTION_NORMAL;
+		UI_ThemeAppendColorBlend(TH_WIRE, TH_EDGE_SELECT, *bweight);
+		return DM_DRAW_OPTION_NORMALLY;
 	}
 	else {
 		return DM_DRAW_OPTION_SKIP;
@@ -2667,7 +2686,9 @@ static void draw_dm_bweights(BMEditMesh *em, Scene *scene, DerivedMesh *dm)
 	}
 	else {
 		glLineWidth(3.0);
+		gpuImmediateFormat_C4_V3();
 		dm->drawMappedEdges(dm, draw_dm_bweights__setDrawOptions, em);
+		gpuImmediateUnformat();
 		glLineWidth(1.0);
 	}
 }
@@ -3036,7 +3057,7 @@ static DMDrawOption draw_em_fancy__setFaceOpts(void *userData, int index)
 
 	if (efa && !BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
 		GPU_enable_material(efa->mat_nr + 1, NULL);
-		return DM_DRAW_OPTION_NORMAL;
+		return DM_DRAW_OPTION_NORMALLY;
 	}
 	else
 		return DM_DRAW_OPTION_SKIP;
@@ -3049,7 +3070,7 @@ static DMDrawOption draw_em_fancy__setGLSLFaceOpts(void *userData, int index)
 	if (BM_elem_flag_test(efa, BM_ELEM_HIDDEN))
 		return DM_DRAW_OPTION_SKIP;
 	else
-		return DM_DRAW_OPTION_NORMAL;
+		return DM_DRAW_OPTION_NORMALLY;
 }
 
 static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d,
@@ -3102,7 +3123,16 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 
 			glEnable(GL_LIGHTING);
 			glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
-			finalDM->drawMappedFaces(finalDM, draw_em_fancy__setFaceOpts, GPU_enable_material, NULL, me->edit_btmesh, 0);
+
+			gpuImmediateFormat_N3_V3();
+			finalDM->drawMappedFaces(
+				finalDM,
+				draw_em_fancy__setFaceOpts,
+				GPU_enable_material,
+				NULL,
+				me->edit_btmesh,
+				DM_DRAW_USE_NORMALS);
+			gpuImmediateUnformat();
 
 			glFrontFace(GL_CCW);
 			glDisable(GL_LIGHTING);
@@ -3377,7 +3407,16 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				glEnable(GL_LIGHTING);
 				glEnable(GL_COLOR_MATERIAL);
 
-				dm->drawMappedFaces(dm, NULL, GPU_enable_material, NULL, NULL, DM_DRAW_USE_COLORS);
+				gpuImmediateFormat_C4_N3_V3();
+				dm->drawMappedFaces(
+					dm,
+					NULL,
+					GPU_enable_material,
+					NULL,
+					NULL,
+					DM_DRAW_USE_COLORS|DM_DRAW_USE_NORMALS);
+				gpuImmediateUnformat();
+
 				glDisable(GL_COLOR_MATERIAL);
 				glDisable(GL_LIGHTING);
 
@@ -7359,55 +7398,77 @@ static void bbs_mesh_verts__mapFunc(void *userData, int index, const float co[3]
 		gpuSprite3fv(co);
 	}
 }
+
 static void bbs_mesh_verts(BMEditMesh *em, DerivedMesh *dm, int offset)
 {
 	void *ptrs[2] = {(void *)(intptr_t) offset, em};
 
 	glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
+
+	gpuImmediateFormat_C4_V3();
+
 	gpuBeginSprites();
 	dm->foreachMappedVert(dm, bbs_mesh_verts__mapFunc, ptrs);
 	gpuEndSprites();
-	glPointSize(1.0);
-}		
 
-static DMDrawOption bbs_mesh_wire__setDrawOptions(void *userData, int index)
+	gpuImmediateUnformat();
+
+	glPointSize(1.0);
+}
+
+typedef struct mesh_wire_options {
+	BMEditMesh* em;
+	size_t      offset;
+} mesh_wire_options;
+
+static DMDrawOption bbs_mesh_wire__setDrawOptions(mesh_wire_options *opts, int index)
 {
-	void **ptrs = userData;
-	int offset = (intptr_t) ptrs[0];
-	BMEdge *eed = EDBM_edge_at_index(ptrs[1], index);
+	BMEdge *eed = EDBM_edge_at_index(opts->em, index);
 
 	if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
-		WM_set_framebuffer_index_color(offset + index);
-		return DM_DRAW_OPTION_NORMAL;
+		WM_set_framebuffer_index_color(opts->offset + index);
+		return DM_DRAW_OPTION_NORMALLY;
 	}
 	else {
 		return DM_DRAW_OPTION_SKIP;
 	}
 }
-static void bbs_mesh_wire(BMEditMesh *em, DerivedMesh *dm, int offset)
-{
-	void *ptrs[2] = {(void *)(intptr_t) offset, em};
-	dm->drawMappedEdges(dm, bbs_mesh_wire__setDrawOptions, ptrs);
-}		
 
-static DMDrawOption bbs_mesh_solid__setSolidDrawOptions(void *userData, int index)
+static void bbs_mesh_wire(BMEditMesh *em, DerivedMesh *dm, size_t offset)
 {
-	BMFace *efa = EDBM_face_at_index(((void **)userData)[0], index);
+	mesh_wire_options opts;
+
+	opts.em     = em;
+	opts.offset = offset;
+
+	gpuImmediateFormat_C4_V3();
+	dm->drawMappedEdges(dm, bbs_mesh_wire__setDrawOptions, &opts);
+	gpuImmediateUnformat();
+}
+
+typedef struct mesh_solid_options {
+	BMEditMesh* em;
+	int         facecol;
+} mesh_solid_options;
+
+static DMDrawOption bbs_mesh_solid__setSolidDrawOptions(mesh_solid_options *opts, int index)
+{
+	BMFace *efa = EDBM_face_at_index(opts->em, index);
 	
 	if (efa && !BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
-		if (((void **)userData)[1]) {
+		if (opts->facecol) {
 			WM_set_framebuffer_index_color(index + 1);
 		}
-		return DM_DRAW_OPTION_NORMAL;
+		return DM_DRAW_OPTION_NORMALLY;
 	}
 	else {
 		return DM_DRAW_OPTION_SKIP;
 	}
 }
 
-static void bbs_mesh_solid__drawCenter(void *userData, int index, const float cent[3], const float UNUSED(no[3]))
+static void bbs_mesh_solid__drawCenter(mesh_solid_options *opts, int index, const float cent[3], const float UNUSED(no[3]))
 {
-	BMFace *efa = EDBM_face_at_index(((void **)userData)[0], index);
+	BMFace *efa = EDBM_face_at_index(opts->em, index);
 
 	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
 		WM_set_framebuffer_index_color(index + 1);
@@ -7420,40 +7481,54 @@ static void bbs_mesh_solid__drawCenter(void *userData, int index, const float ce
 static void bbs_mesh_solid_EM(BMEditMesh *em, Scene *scene, View3D *v3d,
                               Object *ob, DerivedMesh *dm, int facecol)
 {
-	void *ptrs[2] = {em, NULL}; //second one being null means to draw black
-	gpuCurrentColor3x(CPACK_BLACK);
+	mesh_solid_options opts;
 
-	if (facecol) {
-		ptrs[1] = (void *)(intptr_t) 1;
-		dm->drawMappedFaces(dm, bbs_mesh_solid__setSolidDrawOptions, GPU_enable_material, NULL, ptrs, 0);
+	opts.em      = em;
+	opts.facecol = facecol;
 
-		if (check_ob_drawface_dot(scene, v3d, ob->dt)) {
-			glPointSize(UI_GetThemeValuef(TH_FACEDOT_SIZE));
-
-			gpuBeginSprites();
-			dm->foreachMappedFaceCenter(dm, bbs_mesh_solid__drawCenter, ptrs);
-			gpuEndSprites();
-		}
-
+	if (opts.facecol) {
+		gpuImmediateFormat_C4_V3();
 	}
 	else {
-		dm->drawMappedFaces(dm, bbs_mesh_solid__setSolidDrawOptions, GPU_enable_material, NULL, ptrs, 0);
+		gpuCurrentColor3x(CPACK_BLACK);
+		gpuImmediateFormat_V3();
 	}
+
+	dm->drawMappedFaces(
+		dm,
+		bbs_mesh_solid__setSolidDrawOptions,
+		GPU_enable_material,
+		NULL,
+		&opts,
+		0);
+
+	if (!(opts.facecol)) {
+		gpuImmediateUnformat();
+		gpuImmediateFormat_C4_V3();
+	}
+
+	if (facecol && check_ob_drawface_dot(scene, v3d, ob->dt)) {
+		glPointSize(UI_GetThemeValuef(TH_FACEDOT_SIZE));
+
+		gpuBeginSprites();
+		dm->foreachMappedFaceCenter(dm, bbs_mesh_solid__drawCenter, &opts);
+		gpuEndSprites();
+	}
+
+	gpuImmediateUnformat();
 }
 
 static DMDrawOption bbs_mesh_solid__setDrawOpts(void *UNUSED(userData), int index)
 {
 	WM_set_framebuffer_index_color(index + 1);
-	return DM_DRAW_OPTION_NORMAL;
+	return DM_DRAW_OPTION_NORMALLY;
 }
 
-static DMDrawOption bbs_mesh_solid_hide__setDrawOpts(void *userData, int index)
+static DMDrawOption bbs_mesh_solid_hide__setDrawOpts(Mesh *me, int index)
 {
-	Mesh *me = userData;
-
 	if (!(me->mpoly[index].flag & ME_HIDE)) {
 		WM_set_framebuffer_index_color(index + 1);
-		return DM_DRAW_OPTION_NORMAL;
+		return DM_DRAW_OPTION_NORMALLY;
 	}
 	else {
 		return DM_DRAW_OPTION_SKIP;
@@ -7461,12 +7536,10 @@ static DMDrawOption bbs_mesh_solid_hide__setDrawOpts(void *userData, int index)
 }
 
 // must have called WM_set_framebuffer_index_color beforehand
-static DMDrawOption bbs_mesh_solid_hide2__setDrawOpts(void *userData, int index)
+static DMDrawOption bbs_mesh_solid_hide2__setDrawOpts(Mesh *me, int index)
 {
-	Mesh *me = userData;
-
 	if (!(me->mpoly[index].flag & ME_HIDE)) {
-		return DM_DRAW_OPTION_NORMAL;
+		return DM_DRAW_OPTION_NORMALLY;
 	}
 	else {
 		return DM_DRAW_OPTION_SKIP;
@@ -7477,12 +7550,14 @@ static void bbs_mesh_solid(Scene *scene, Object *ob)
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
 	Mesh *me = (Mesh *)ob->data;
 
-	gpuCurrentColor3x(CPACK_BLACK);
+	gpuImmediateFormat_C4_V3();
 
 	if ((me->editflag & ME_EDIT_PAINT_MASK))
 		dm->drawMappedFaces(dm, bbs_mesh_solid_hide__setDrawOpts, GPU_enable_material, NULL, me, 0);
 	else
 		dm->drawMappedFaces(dm, bbs_mesh_solid__setDrawOpts, GPU_enable_material, NULL, me, 0);
+
+	gpuImmediateUnformat();
 
 	dm->release(dm);
 }
@@ -7542,9 +7617,9 @@ void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 					DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
 
 					gpuCurrentColor3x(CPACK_BLACK);
-
+					gpuImmediateFormat_V3();
 					dm->drawMappedFaces(dm, bbs_mesh_solid_hide2__setDrawOpts, GPU_enable_material, NULL, me, 0);
-
+					gpuImmediateUnformat();
 
 					bbs_obmode_mesh_verts(ob, dm, 1);
 					bm_vertoffs = me->totvert + 1;
@@ -7607,9 +7682,12 @@ static void draw_object_mesh_instance(Scene *scene, View3D *v3d, RegionView3D *r
 			dm->drawFacesSolid(dm, NULL, 0, GPU_enable_material);
 			GPU_end_object_materials();
 		}
-		else if (edm)
-			edm->drawMappedFaces(edm, NULL, GPU_enable_material, NULL, NULL, 0);
-		
+		else if (edm) {
+			gpuImmediateFormat_N3_V3();
+			edm->drawMappedFaces(edm, NULL, GPU_enable_material, NULL, NULL, DM_DRAW_USE_NORMALS);
+			gpuImmediateUnformat();
+		}
+
 		glDisable(GL_LIGHTING);
 	}
 

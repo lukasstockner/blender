@@ -2210,9 +2210,9 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 		if (drawParams)
 			draw_option = drawParams(tf, (mcol != NULL), mat_nr);
 		else if (index != ORIGINDEX_NONE)
-			draw_option = (drawParamsMapped) ? drawParamsMapped(userData, index) : DM_DRAW_OPTION_NORMAL;
+			draw_option = (drawParamsMapped) ? drawParamsMapped(userData, index) : DM_DRAW_OPTION_NORMALLY;
 		else
-			draw_option = GPU_enable_material(mat_nr, NULL) ? DM_DRAW_OPTION_NORMAL : DM_DRAW_OPTION_SKIP;
+			draw_option = GPU_enable_material(mat_nr, NULL) ? DM_DRAW_OPTION_NORMALLY : DM_DRAW_OPTION_SKIP;
 
 
 		if (draw_option == DM_DRAW_OPTION_SKIP) {
@@ -2367,11 +2367,13 @@ static void ccgDM_drawUVEdges(DerivedMesh *dm)
 	}
 }
 
-static void ccgDM_drawMappedFaces(DerivedMesh *dm,
-                                  DMSetDrawOptions setDrawOptions,
-                                  DMSetMaterial setMaterial,
-                                  DMCompareDrawOptions compareDrawOptions,
-                                  void *userData, DMDrawFlag flag)
+static void ccgDM_drawMappedFaces(
+	DerivedMesh *dm,
+	DMSetDrawOptions setDrawOptions,
+	DMSetMaterial setMaterial,
+	DMCompareDrawOptions compareDrawOptions,
+	void *userData,
+	DMDrawFlag flag)
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
@@ -2379,7 +2381,10 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 	MCol *mcol = NULL;
 	int i, gridSize = ccgSubSurf_getGridSize(ss);
 	DMFlagMat *faceFlags = ccgdm->faceFlags;
-	int useColors = flag & DM_DRAW_USE_COLORS;
+
+	int useColors  = flag & DM_DRAW_USE_COLORS;
+	int useNormals = flag & DM_DRAW_USE_NORMALS;
+
 	int gridFaces = gridSize - 1, totface;
 
 	CCG_key_top_level(&key, ss);
@@ -2392,8 +2397,6 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 		if (!mcol)
 			mcol = dm->getTessFaceDataArray(dm, CD_MCOL);
 	}
-
-	gpuImmediateFormat_C4_N3_V3(); // DOODLE: heavy, lit, colored solid faces
 
 	totface = ccgSubSurf_getNumFaces(ss);
 	for (i = 0; i < totface; i++) {
@@ -2415,7 +2418,7 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 		}
 
 		{
-			DMDrawOption draw_option = DM_DRAW_OPTION_NORMAL;
+			DMDrawOption draw_option = DM_DRAW_OPTION_NORMALLY;
 
 			if (index == ORIGINDEX_NONE)
 				draw_option = setMaterial(faceFlags ? faceFlags[origIndex].mat_nr + 1 : 1, NULL);  /* XXX, no faceFlags no material */
@@ -2443,10 +2446,10 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 								b = CCG_grid_elem(&key, faceGridData, x, y + 1);
 	
 								if (cp) gpuColor3ub(cp[3], cp[2], cp[1]);
-								gpuNormal3fv(CCG_elem_no(&key, a));
+								if (useNormals) gpuNormal3fv(CCG_elem_no(&key, a));
 								gpuVertex3fv(CCG_elem_co(&key, a));
 								if (cp) gpuColor3ub(cp[7], cp[6], cp[5]);
-								gpuNormal3fv(CCG_elem_no(&key, b));
+								if (useNormals) gpuNormal3fv(CCG_elem_no(&key, b));
 								gpuVertex3fv(CCG_elem_co(&key, b));
 
 								if (x != gridFaces - 1) {
@@ -2458,10 +2461,10 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 							b = CCG_grid_elem(&key, faceGridData, x, y + 1);
 
 							if (cp) gpuColor3ub(cp[15], cp[14], cp[13]);
-							gpuNormal3fv(CCG_elem_no(&key, a));
+							if (useNormals) gpuNormal3fv(CCG_elem_no(&key, a));
 							gpuVertex3fv(CCG_elem_co(&key, a));
 							if (cp) gpuColor3ub(cp[11], cp[10], cp[9]);
-							gpuNormal3fv(CCG_elem_no(&key, b));
+							if (useNormals) gpuNormal3fv(CCG_elem_no(&key, b));
 							gpuVertex3fv(CCG_elem_co(&key, b));
 
 							if (cp) cp += 16;
@@ -2478,8 +2481,10 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 								float *c = CCG_grid_elem_co(&key, faceGridData, x + 1, y + 1);
 								float *d = CCG_grid_elem_co(&key, faceGridData, x, y + 1);
 
-								ccgDM_gpuNormalFast(a, b, c, d);
-	
+								if (useNormals) {
+									ccgDM_gpuNormalFast(a, b, c, d);
+								}
+
 								if (cp) gpuColor3ub(cp[7], cp[6], cp[5]);
 								gpuVertex3fv(d);
 								if (cp) gpuColor3ub(cp[11], cp[10], cp[9]);
@@ -2500,8 +2505,6 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 			}
 		}
 	}
-
-	gpuImmediateUnformat();
 }
 
 static void ccgDM_drawMappedEdges(DerivedMesh *dm,
@@ -2516,8 +2519,6 @@ static void ccgDM_drawMappedEdges(DerivedMesh *dm,
 
 	CCG_key_top_level(&key, ss);
 	ccgSubSurf_getUseAgeCounts(ss, &useAging, NULL, NULL, NULL);
-
-	gpuImmediateFormat_C4_V3(); // DOODLE: heavy, colored, edges
 
 	for (ei = ccgSubSurf_getEdgeIterator(ss); !ccgEdgeIterator_isStopped(ei); ccgEdgeIterator_next(ei)) {
 		CCGEdge *e = ccgEdgeIterator_getCurrent(ei);
@@ -2538,8 +2539,6 @@ static void ccgDM_drawMappedEdges(DerivedMesh *dm,
 		}
 		gpuEnd();
 	}
-
-	gpuImmediateUnformat();
 
 	ccgEdgeIterator_free(ei);
 }

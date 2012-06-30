@@ -125,8 +125,8 @@ typedef enum DerivedMeshType {
 typedef enum DMDrawOption {
 	/* the element is hidden or otherwise non-drawable */
 	DM_DRAW_OPTION_SKIP = 0,
-	/* normal drawing */
-	DM_DRAW_OPTION_NORMAL = 1,
+	/* draw element normally */
+	DM_DRAW_OPTION_NORMALLY = 1,
 	/* draw, but don't set the color from mcol */
 	DM_DRAW_OPTION_NO_MCOL = 2,
 	/* used in drawMappedFaces, use GL stipple for the face */
@@ -142,7 +142,8 @@ typedef DMDrawOption (*DMSetDrawOptionsTex)(struct MTFace *tface, int has_vcol, 
 
 typedef enum DMDrawFlag {
 	DM_DRAW_USE_COLORS = 1,
-	DM_DRAW_ALWAYS_SMOOTH = 2
+	DM_DRAW_ALWAYS_SMOOTH = 2,
+	DM_DRAW_USE_NORMALS = 4,
 } DMDrawFlag;
 
 typedef enum DMDirtyFlag {

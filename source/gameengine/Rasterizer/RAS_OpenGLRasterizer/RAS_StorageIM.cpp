@@ -181,29 +181,34 @@ static int CheckTexfaceDM(void *mcol, int index)
 
 static DMDrawOption CheckTexDM(MTFace *tface, int has_mcol, int matnr)
 {
-
 	// index is the original face index, retrieve the polygon
-	if (matnr == current_blmat_nr &&
-		(tface == NULL || tface->tpage == current_image)) {
+	if (matnr == current_blmat_nr && (tface == NULL || tface->tpage == current_image)) {
 		// must handle color.
-		if (current_wireframe)
-			return DM_DRAW_OPTION_NO_MCOL;
-		if (current_ms->m_bObjectColor) {
-			MT_Vector4& rgba = current_ms->m_RGBAcolor;
-			gpuCurrentColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
-			// don't use mcol
+		if (current_wireframe) {
 			return DM_DRAW_OPTION_NO_MCOL;
 		}
-		if (!has_mcol) {
+		else if (current_ms->m_bObjectColor) {
+			MT_Vector4& rgba = current_ms->m_RGBAcolor;
+			gpuColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
+			// don't use mcol
+
+			return DM_DRAW_OPTION_NO_MCOL;
+		}
+		else if (!has_mcol) {
 			// we have to set the color from the material
 			unsigned char rgba[4];
 			current_polymat->GetMaterialRGBAColor(rgba);
-			gpuCurrentColor4ubv((const GLubyte *)rgba);
+			gpuColor4ubv((const GLubyte *)rgba);
+
 			return DM_DRAW_OPTION_NO_MCOL;
 		}
-		return DM_DRAW_OPTION_NORMAL;
+		else {
+			return DM_DRAW_OPTION_NORMALLY;
+		}
 	}
-	return DM_DRAW_OPTION_SKIP;
+	else {
+		return DM_DRAW_OPTION_SKIP;
+	}
 }
 
 void RAS_StorageIM::IndexPrimitivesInternal(RAS_MeshSlot& ms, bool multi)

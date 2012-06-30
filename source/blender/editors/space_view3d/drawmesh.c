@@ -149,12 +149,12 @@ static DMDrawOption draw_mesh_face_select__setHiddenOpts(void *userData, int ind
 
 	if (me->drawflag & ME_DRAWEDGES) {
 		if ((me->drawflag & ME_HIDDENEDGES) || (flags & eEdge_Visible))
-			return DM_DRAW_OPTION_NORMAL;
+			return DM_DRAW_OPTION_NORMALLY;
 		else
 			return DM_DRAW_OPTION_SKIP;
 	}
 	else if (flags & eEdge_Select)
-		return DM_DRAW_OPTION_NORMAL;
+		return DM_DRAW_OPTION_NORMALLY;
 	else
 		return DM_DRAW_OPTION_SKIP;
 }
@@ -165,7 +165,7 @@ static DMDrawOption draw_mesh_face_select__setSelectOpts(void *userData, int ind
 	MEdge *med = &data->me->medge[index];
 	uintptr_t flags = (intptr_t) BLI_edgehash_lookup(data->eh, med->v1, med->v2);
 
-	return (flags & eEdge_Select) ? DM_DRAW_OPTION_NORMAL : DM_DRAW_OPTION_SKIP;
+	return (flags & eEdge_Select) ? DM_DRAW_OPTION_NORMALLY : DM_DRAW_OPTION_SKIP;
 }
 
 /* draws unselected */
@@ -194,7 +194,9 @@ void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 	/* Draw (Hidden) Edges */
 	setlinestyle(1);
 	UI_ThemeColor(TH_EDGE_FACESEL);
+	gpuImmediateFormat_C4_V3(); /* XXX: jwilkins, C4 only because CCG age visualization may be enabled */
 	dm->drawMappedEdges(dm, draw_mesh_face_select__setHiddenOpts, &data);
+	gpuImmediateUnformat();
 	setlinestyle(0);
 
 	/* Draw Selected Faces */
@@ -202,7 +204,10 @@ void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 		glEnable(GL_BLEND);
 		/* dull unselected faces so as not to get in the way of seeing color */
 		gpuCurrentGrey4f(0.376f, 0.250f);
-		dm->drawMappedFaces(dm, draw_mesh_face_select__drawFaceOptsInv, NULL, NULL, (void *)me, 0);
+		gpuImmediateFormat_V3();
+		/* XXX: jwilkins, drawing without mesh colors, so setDrawOption that turns off color for unselected faces is redundant? */
+		dm->drawMappedFaces(dm, draw_mesh_face_select__drawFaceOptsInv, NULL, NULL, me, 0);
+		gpuImmediateUnformat();
 		glDisable(GL_BLEND);
 	}
 	
@@ -211,7 +216,9 @@ void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 	/* Draw Stippled Outline for selected faces */
 	gpuCurrentColor3x(CPACK_WHITE);
 	setlinestyle(1);
+	gpuImmediateFormat_C4_V3(); /* XXX: jwilkins, C4 only because CCG age visualization may be enabled */
 	dm->drawMappedEdges(dm, draw_mesh_face_select__setSelectOpts, &data);
+	gpuImmediateUnformat();
 	setlinestyle(0);
 
 	bglPolygonOffset(rv3d->dist, 0.0);  // resets correctly now, even after calling accumulated offsets
@@ -442,14 +449,14 @@ static DMDrawOption draw_tface__set_draw_legacy(MTFace *tface, int has_mcol, int
 		return DM_DRAW_OPTION_NO_MCOL; /* Don't set color */
 	}
 	else {
-		return DM_DRAW_OPTION_NORMAL; /* Set color from mcol */
+		return DM_DRAW_OPTION_NORMALLY; /* Set color from mcol */
 	}
 }
 
 static DMDrawOption draw_mcol__set_draw_legacy(MTFace *UNUSED(tface), int has_mcol, int UNUSED(matnr))
 {
 	if (has_mcol)
-		return DM_DRAW_OPTION_NORMAL;
+		return DM_DRAW_OPTION_NORMALLY;
 	else
 		return DM_DRAW_OPTION_NO_MCOL;
 }
@@ -468,10 +475,10 @@ static DMDrawOption draw_tface__set_draw(MTFace *tface, int has_mcol, int matnr)
 	}
 	else if (!has_mcol) {
 		/* XXX: this return value looks wrong (and doesn't match comment) */
-		return DM_DRAW_OPTION_NORMAL; /* Don't set color */
+		return DM_DRAW_OPTION_NORMALLY; /* Don't set color */
 	}
 	else {
-		return DM_DRAW_OPTION_NORMAL; /* Set color from mcol */
+		return DM_DRAW_OPTION_NORMALLY; /* Set color from mcol */
 	}
 }
 static void add_tface_color_layer(DerivedMesh *dm)
@@ -602,13 +609,11 @@ static DMDrawOption draw_em_tf_mapped__set_draw(void *userData, int index)
 }
 
 /* when face select is on, use face hidden flag */
-static DMDrawOption wpaint__setSolidDrawOptions_facemask(void *userData, int index)
+static DMDrawOption wpaint__setSolidDrawOptions_facemask(Mesh *me, int index)
 {
-	Mesh *me = (Mesh *)userData;
 	MPoly *mp = &me->mpoly[index];
-	if (mp->flag & ME_HIDE)
-		return DM_DRAW_OPTION_SKIP;
-	return DM_DRAW_OPTION_NORMAL;
+
+	return (mp->flag & ME_HIDE) ? DM_DRAW_OPTION_SKIP : DM_DRAW_OPTION_NORMALLY;
 }
 
 static void draw_mesh_text(Scene *scene, Object *ob, int glsl)
@@ -789,11 +794,24 @@ void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 		dm->drawMappedFacesTex(dm, draw_em_tf_mapped__set_draw, compareDrawOptionsEm, &data);
 	}
 	else if (draw_flags & DRAW_FACE_SELECT) {
-		if (ob->mode & OB_MODE_WEIGHT_PAINT)
-			dm->drawMappedFaces(dm, wpaint__setSolidDrawOptions_facemask, GPU_enable_material, NULL, me,
-			                    DM_DRAW_USE_COLORS | DM_DRAW_ALWAYS_SMOOTH);
-		else
-			dm->drawMappedFacesTex(dm, me->mpoly ? draw_tface_mapped__set_draw : NULL, NULL, me);
+		if (ob->mode & OB_MODE_WEIGHT_PAINT) {
+			gpuImmediateFormat_C4_V3();
+			dm->drawMappedFaces(
+				dm,
+				wpaint__setSolidDrawOptions_facemask,
+				GPU_enable_material,
+				NULL,
+				me,
+				DM_DRAW_USE_COLORS|DM_DRAW_ALWAYS_SMOOTH);
+			gpuImmediateUnformat();
+		}
+		else {
+			dm->drawMappedFacesTex(
+				dm,
+				me->mpoly ? draw_tface_mapped__set_draw : NULL,
+				NULL,
+				me);
+		}
 	}
 	else {
 		if (GPU_buffer_legacy(dm)) {
@@ -1009,19 +1027,17 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *o
 
 void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *dm, int draw_flags)
 {
-	DMSetDrawOptions facemask = NULL;
+	DMSetDrawOptions facemask;
 	Mesh *me = ob->data;
 	const short do_light = (v3d->drawtype >= OB_SOLID);
 
 	/* hide faces in face select mode */
-	if (draw_flags & DRAW_FACE_SELECT)
-		facemask = wpaint__setSolidDrawOptions_facemask;
+	facemask = (draw_flags & DRAW_FACE_SELECT) ? wpaint__setSolidDrawOptions_facemask : NULL;
 
 	if (ob && ob->mode & OB_MODE_WEIGHT_PAINT) {
 
 		if (do_light) {
 			static const GLfloat spec[4] = {0.47f, 0.47f, 0.47f, 0.47f};
-
 
 			/* enforce default material settings */
 			GPU_enable_material(0, NULL);
@@ -1035,8 +1051,22 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *d
 			glEnable(GL_COLOR_MATERIAL);
 		}
 
-		dm->drawMappedFaces(dm, facemask, GPU_enable_material, NULL, me,
-		                    DM_DRAW_USE_COLORS | DM_DRAW_ALWAYS_SMOOTH);
+		if (do_light) {
+			gpuImmediateFormat_C4_N3_V3();
+		}
+		else {
+			gpuImmediateFormat_C4_V3();
+		}
+
+		dm->drawMappedFaces(
+			dm,
+			facemask,
+			GPU_enable_material,
+			NULL,
+			me,
+			DM_DRAW_USE_COLORS | DM_DRAW_ALWAYS_SMOOTH | (do_light ? DM_DRAW_USE_NORMALS : 0));
+
+		gpuImmediateUnformat();
 
 		if (do_light) {
 			glDisable(GL_COLOR_MATERIAL);
@@ -1047,13 +1077,27 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d, Object *ob, DerivedMesh *d
 	}
 	else if (ob->mode & OB_MODE_VERTEX_PAINT) {
 		if (me->mloopcol) {
-			dm->drawMappedFaces(dm, facemask, GPU_enable_material, NULL, me,
-			                    DM_DRAW_USE_COLORS | DM_DRAW_ALWAYS_SMOOTH);
+			gpuImmediateFormat_C4_V3();
+			dm->drawMappedFaces(
+				dm,
+				facemask,
+				GPU_enable_material,
+				NULL,
+				me,
+				DM_DRAW_USE_COLORS | DM_DRAW_ALWAYS_SMOOTH);
+			gpuImmediateUnformat();
 		}
 		else {
 			gpuCurrentColor3x(CPACK_WHITE);
-			dm->drawMappedFaces(dm, facemask, GPU_enable_material, NULL, me,
-			                    DM_DRAW_ALWAYS_SMOOTH);
+			gpuImmediateFormat_V3();
+			dm->drawMappedFaces(
+				dm,
+				facemask,
+				GPU_enable_material,
+				NULL,
+				me,
+				DM_DRAW_ALWAYS_SMOOTH);
+			gpuImmediateUnformat();
 		}
 	}
 
