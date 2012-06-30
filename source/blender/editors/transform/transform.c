@@ -77,6 +77,7 @@
 #include "ED_view3d.h"
 #include "ED_mesh.h"
 #include "ED_clip.h"
+#include "ED_node.h"
 
 #include "UI_view2d.h"
 #include "WM_types.h"
@@ -1500,7 +1501,7 @@ static void drawConstraint(TransInfo *t)
 {
 	TransCon *tc = &(t->con);
 
-	if (!ELEM(t->spacetype, SPACE_VIEW3D, SPACE_IMAGE))
+	if (!ELEM3(t->spacetype, SPACE_VIEW3D, SPACE_IMAGE, SPACE_NODE))
 		return;
 	if (!(tc->mode & CON_APPLY))
 		return;
@@ -1571,11 +1572,36 @@ static void drawConstraint(TransInfo *t)
 	}
 }
 
+static void drawnodesnap(View2D *v2d, const float cent[2], float size, NodeBorder border)
+{
+	gpuBegin(GL_LINES);
+	
+	if (border & (NODE_LEFT | NODE_RIGHT)) {
+		gpuVertex2f(cent[0], v2d->cur.ymin);
+		gpuVertex2f(cent[0], v2d->cur.ymax);
+	}
+	else {
+		gpuVertex2f(cent[0], cent[1] - size);
+		gpuVertex2f(cent[0], cent[1] + size);
+	}
+	
+	if (border & (NODE_TOP | NODE_BOTTOM)) {
+		gpuVertex2f(v2d->cur.xmin, cent[1]);
+		gpuVertex2f(v2d->cur.xmax, cent[1]);
+	}
+	else {
+		gpuVertex2f(cent[0] - size, cent[1]);
+		gpuVertex2f(cent[0] + size, cent[1]);
+	}
+	
+	gpuEnd();
+}
+
 static void drawSnapping(const struct bContext *C, TransInfo *t)
 {
-	if (validSnap(t) && activeSnap(t)) {
-		
+	if (activeSnap(t)) {
 		unsigned char col[4], selectedCol[4], activeCol[4];
+
 		UI_GetThemeColor3ubv(TH_TRANSFORM, col);
 		col[3]= 128;
 		
@@ -1588,49 +1614,55 @@ static void drawSnapping(const struct bContext *C, TransInfo *t)
 		gpuImmediateFormat_V3(); // DOODLE: 4 mono lines, commented out
 
 		if (t->spacetype == SPACE_VIEW3D) {
-			TransSnapPoint *p;
-			View3D *v3d = CTX_wm_view3d(C);
-			RegionView3D *rv3d = CTX_wm_region_view3d(C);
-			float imat[4][4];
-			float size;
-			
-			glDisable(GL_DEPTH_TEST);
-	
-			size = 2.5f * UI_GetThemeValuef(TH_VERTEX_SIZE);
+			if (validSnap(t)) {
+				TransSnapPoint *p;
+				View3D *v3d = CTX_wm_view3d(C);
+				RegionView3D *rv3d = CTX_wm_region_view3d(C);
+				float imat[4][4];
+				float size;
 
-			invert_m4_m4(imat, rv3d->viewmat);
+				glDisable(GL_DEPTH_TEST);
 
-			for (p = t->tsnap.points.first; p; p = p->next) {
-				if (p == t->tsnap.selectedPoint) {
-					gpuCurrentColor4ubv(selectedCol);
+				size = 2.5f * UI_GetThemeValuef(TH_VERTEX_SIZE);
+
+				invert_m4_m4(imat, rv3d->viewmat);
+
+				for (p = t->tsnap.points.first; p; p = p->next) {
+					if (p == t->tsnap.selectedPoint) {
+						gpuCurrentColor4ubv(selectedCol);
+					}
+					else {
+						gpuCurrentColor4ubv(col);
+					}
+
+					gpuDrawFastBall(GL_LINE_LOOP, p->co, ED_view3d_pixel_size(rv3d, p->co) * size * 0.75f, imat);
 				}
-				else {
-					gpuCurrentColor4ubv(col);
+
+				if (t->tsnap.status & POINT_INIT) {
+					gpuCurrentColor4ubv(activeCol);
+
+					gpuDrawFastBall(GL_LINE_LOOP, t->tsnap.snapPoint, ED_view3d_pixel_size(rv3d, t->tsnap.snapPoint) * size, imat);
 				}
+				
+				/* draw normal if needed */
+				if (usingSnappingNormal(t) && validSnappingNormal(t)) {
+					gpuCurrentColor4ubv(activeCol);
 
-				gpuDrawFastBall(GL_LINE_LOOP, p->co, ED_view3d_pixel_size(rv3d, p->co) * size * 0.75f, imat);
+					gpuBegin(GL_LINES);
+						gpuVertex3f(
+							t->tsnap.snapPoint[0],
+							t->tsnap.snapPoint[1],
+							t->tsnap.snapPoint[2]);
+						gpuVertex3f(
+							t->tsnap.snapPoint[0] + t->tsnap.snapNormal[0],
+							t->tsnap.snapPoint[1] + t->tsnap.snapNormal[1],
+							t->tsnap.snapPoint[2] + t->tsnap.snapNormal[2]);
+					gpuEnd();
+				}
+				
+				if (v3d->zbuf)
+					glEnable(GL_DEPTH_TEST);
 			}
-
-			if (t->tsnap.status & POINT_INIT) {
-				gpuCurrentColor4ubv(activeCol);
-
-				gpuDrawFastBall(GL_LINE_LOOP, t->tsnap.snapPoint, ED_view3d_pixel_size(rv3d, t->tsnap.snapPoint) * size, imat);
-			}
-			
-			/* draw normal if needed */
-			if (usingSnappingNormal(t) && validSnappingNormal(t)) {
-				gpuCurrentColor4ubv(activeCol);
-
-				gpuBegin(GL_LINES);
-					gpuVertex3f(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], t->tsnap.snapPoint[2]);
-					gpuVertex3f(t->tsnap.snapPoint[0] + t->tsnap.snapNormal[0],
-					           t->tsnap.snapPoint[1] + t->tsnap.snapNormal[1],
-					           t->tsnap.snapPoint[2] + t->tsnap.snapNormal[2]);
-				gpuEnd();
-			}
-			
-			if (v3d->zbuf)
-				glEnable(GL_DEPTH_TEST);
 		}
 		else if (t->spacetype==SPACE_IMAGE) {
 			/* This will not draw, and Im nor sure why - campbell */
@@ -1666,6 +1698,36 @@ static void drawSnapping(const struct bContext *C, TransInfo *t)
 			glTranslatef(-t->tsnap.snapPoint[0], -t->tsnap.snapPoint[1], 0.0f);
 			setlinestyle(0);
 #endif
+		}
+		else if (t->spacetype == SPACE_NODE) {
+			if (validSnap(t)) {
+				ARegion *ar = CTX_wm_region(C);
+				TransSnapPoint *p;
+				float size;
+
+				size = 2.5f * UI_GetThemeValuef(TH_VERTEX_SIZE);
+
+				glEnable(GL_BLEND);
+
+				for (p = t->tsnap.points.first; p; p = p->next) {
+					if (p == t->tsnap.selectedPoint) {
+						gpuCurrentColor4ubv(selectedCol);
+					}
+					else {
+						gpuCurrentColor4ubv(col);
+					}
+
+					drawnodesnap(&ar->v2d, p->co, size, 0);
+				}
+
+				if (t->tsnap.status & POINT_INIT) {
+					gpuCurrentColor4ubv(activeCol);
+
+					drawnodesnap(&ar->v2d, t->tsnap.snapPoint, size, t->tsnap.snapNodeBorder);
+				}
+
+				glDisable(GL_BLEND);
+			}
 		}
 
 		gpuImmediateUnformat();
@@ -1941,6 +2003,12 @@ int initTransform(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event, int
 	else if (t->spacetype == SPACE_CLIP) {
 		unit_m3(t->spacemtx);
 		t->draw_handle_view = ED_region_draw_cb_activate(t->ar->type, drawTransformView, t, REGION_DRAW_POST_VIEW);
+	}
+	else if (t->spacetype == SPACE_NODE) {
+		unit_m3(t->spacemtx);
+		/*t->draw_handle_apply = ED_region_draw_cb_activate(t->ar->type, drawTransformApply, t, REGION_DRAW_PRE_VIEW);*/
+		t->draw_handle_view = ED_region_draw_cb_activate(t->ar->type, drawTransformView, t, REGION_DRAW_POST_VIEW);
+		/*t->draw_handle_cursor = WM_paint_cursor_activate(CTX_wm_manager(C), helpline_poll, drawHelpline, t);*/
 	}
 	else {
 		unit_m3(t->spacemtx);
@@ -5280,7 +5348,6 @@ void projectSVData(TransInfo *t, int final)
 	BMEditMesh *em = sld->em;
 	SmallHash visit;
 	int i;
-	short has_uv;
 
 	if (!em)
 		return;
@@ -5292,8 +5359,6 @@ void projectSVData(TransInfo *t, int final)
 	 * accidentally break uv maps or vertex colors then */
 	if (em->bm->shapenr > 1)
 		return;
-
-	has_uv = CustomData_has_layer(&(em->bm->ldata), CD_MLOOPUV);
 
 	BLI_smallhash_init(&visit);
 	

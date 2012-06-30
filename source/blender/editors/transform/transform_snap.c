@@ -42,6 +42,7 @@
 #include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h" // Temporary, for snapping to other unselected meshes
+#include "DNA_node_types.h"
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
@@ -75,6 +76,7 @@
 #include "ED_armature.h"
 #include "ED_image.h"
 #include "ED_mesh.h"
+#include "ED_node.h"
 #include "ED_uvedit.h"
 #include "ED_view3d.h"
 
@@ -113,6 +115,9 @@ static float ResizeBetween(TransInfo *t, float p1[3], float p2[3]);
 
 
 /****************** IMPLEMENTATIONS *********************/
+
+static int snapNodeTest(View2D *v2d, bNode *node, SnapMode mode);
+static NodeBorder snapNodeBorder(int snap_node_mode);
 
 #if 0
 int BIF_snappingSupported(Object *obedit)
@@ -256,6 +261,8 @@ void resetSnapping(TransInfo *t)
 	t->tsnap.snapNormal[0] = 0;
 	t->tsnap.snapNormal[1] = 0;
 	t->tsnap.snapNormal[2] = 0;
+	
+	t->tsnap.snapNodeBorder = 0;
 }
 
 int usingSnappingNormal(TransInfo *t)
@@ -280,12 +287,20 @@ static void initSnappingMode(TransInfo *t)
 	Object *obedit = t->obedit;
 	Scene *scene = t->scene;
 
-	/* force project off when not supported */
-	if (ts->snap_mode != SCE_SNAP_MODE_FACE) {
+	if (t->spacetype == SPACE_NODE) {
+		/* force project off when not supported */
 		t->tsnap.project = 0;
+		
+		t->tsnap.mode = ts->snap_node_mode;
 	}
-
-	t->tsnap.mode = ts->snap_mode;
+	else {
+		/* force project off when not supported */
+		if (ts->snap_mode != SCE_SNAP_MODE_FACE) {
+			t->tsnap.project = 0;
+		}
+		
+		t->tsnap.mode = ts->snap_mode;
+	}
 
 	if ((t->spacetype == SPACE_VIEW3D || t->spacetype == SPACE_IMAGE) &&  /* Only 3D view or UV */
 	    (t->flag & T_CAMERA) == 0)  /* Not with camera selected in camera view */
@@ -313,6 +328,19 @@ static void initSnappingMode(TransInfo *t)
 		/* Object mode */
 		else if (t->tsnap.applySnap != NULL && // A snapping function actually exist
 		         (obedit == NULL) ) // Object Mode
+		{
+			t->tsnap.modeSelect = SNAP_NOT_SELECTED;
+		}
+		else {
+			/* Grid if snap is not possible */
+			t->tsnap.mode = SCE_SNAP_MODE_INCREMENT;
+		}
+	}
+	else if (t->spacetype == SPACE_NODE)
+	{
+		setSnappingCallback(t);
+		
+		if (t->tsnap.applySnap != NULL)
 		{
 			t->tsnap.modeSelect = SNAP_NOT_SELECTED;
 		}
@@ -531,7 +559,17 @@ static void ApplySnapTranslation(TransInfo *t, float vec[3])
 {
 	float point[3];
 	getSnapPoint(t, point);
-	sub_v3_v3v3(vec, point, t->tsnap.snapTarget);
+
+	if (t->spacetype == SPACE_NODE) {
+		char border = t->tsnap.snapNodeBorder;
+		if (border & (NODE_LEFT | NODE_RIGHT))
+			vec[0] = point[0] - t->tsnap.snapTarget[0];
+		if (border & (NODE_BOTTOM | NODE_TOP))
+			vec[1] = point[1] - t->tsnap.snapTarget[1];
+	}
+	else {
+		sub_v3_v3v3(vec, point, t->tsnap.snapTarget);
+	}
 }
 
 static void ApplySnapRotation(TransInfo *t, float *value)
@@ -786,19 +824,56 @@ static void CalcSnapGeometry(TransInfo *t, float *UNUSED(vec))
 			t->tsnap.status &= ~POINT_INIT;
 		}
 	}
+	else if (t->spacetype == SPACE_NODE) {
+		float loc[2];
+		int dist = SNAP_MIN_DISTANCE; // Use a user defined value here
+		char node_border;
+		
+		if (snapNodesTransform(t, t->mval, &dist, loc, &node_border, t->tsnap.modeSelect)) {
+			copy_v2_v2(t->tsnap.snapPoint, loc);
+			t->tsnap.snapNodeBorder = node_border;
+			
+			t->tsnap.status |=  POINT_INIT;
+		}
+		else {
+			t->tsnap.status &= ~POINT_INIT;
+		}
+	}
 }
 
 /********************** TARGET **************************/
+
+static void TargetSnapOffset(TransInfo *t, TransData *td)
+{
+	if (t->spacetype == SPACE_NODE && td != NULL) {
+		bNode *node = td->extra;
+		char border = t->tsnap.snapNodeBorder;
+		float width = node->totr.xmax - node->totr.xmin;
+		float height = node->totr.ymax - node->totr.ymin;
+		
+		if (border & NODE_LEFT)
+			t->tsnap.snapTarget[0] -= 0.5f * width;
+		if (border & NODE_RIGHT)
+			t->tsnap.snapTarget[0] += 0.5f * width;
+		if (border & NODE_BOTTOM)
+			t->tsnap.snapTarget[1] -= 0.5f * height;
+		if (border & NODE_TOP)
+			t->tsnap.snapTarget[1] += 0.5f * height;
+	}
+}
 
 static void TargetSnapCenter(TransInfo *t)
 {
 	/* Only need to calculate once */
 	if ((t->tsnap.status & TARGET_INIT) == 0) {
 		copy_v3_v3(t->tsnap.snapTarget, t->center);	
+		
 		if (t->flag & (T_EDIT | T_POSE)) {
 			Object *ob = t->obedit ? t->obedit : t->poseobj;
 			mul_m4_v3(ob->obmat, t->tsnap.snapTarget);
 		}
+		
+		TargetSnapOffset(t, NULL);
 		
 		t->tsnap.status |= TARGET_INIT;		
 	}
@@ -821,11 +896,13 @@ static void TargetSnapActive(TransInfo *t)
 
 		if (active_td) {
 			copy_v3_v3(t->tsnap.snapTarget, active_td->center);
-				
+			
 			if (t->flag & (T_EDIT | T_POSE)) {
 				Object *ob = t->obedit ? t->obedit : t->poseobj;
 				mul_m4_v3(ob->obmat, t->tsnap.snapTarget);
 			}
+			
+			TargetSnapOffset(t, active_td);
 			
 			t->tsnap.status |= TARGET_INIT;
 		}
@@ -859,6 +936,8 @@ static void TargetSnapMedian(TransInfo *t)
 			Object *ob = t->obedit ? t->obedit : t->poseobj;
 			mul_m4_v3(ob->obmat, t->tsnap.snapTarget);
 		}
+		
+		TargetSnapOffset(t, NULL);
 		
 		t->tsnap.status |= TARGET_INIT;		
 	}
@@ -935,6 +1014,8 @@ static void TargetSnapClosest(TransInfo *t)
 				}
 			}
 		}
+		
+		TargetSnapOffset(t, closest);
 		
 		t->tsnap.status |= TARGET_INIT;
 	}
@@ -1781,6 +1862,113 @@ int peelObjectsContext(bContext *C, ListBase *depth_peels, const float mval[2], 
 	View3D *v3d = sa->spacedata.first;
 
 	return peelObjects(CTX_data_scene(C), v3d, CTX_wm_region(C), CTX_data_edit_object(C), depth_peels, mval, mode);
+}
+
+/******************** NODES ***********************************/
+
+static int snapNodeTest(View2D *v2d, bNode *node, SnapMode mode)
+{
+	/* node is use for snapping only if a) snap mode matches and b) node is inside the view */
+	return ((mode == SNAP_NOT_SELECTED && !(node->flag & NODE_SELECT)) ||
+	        (mode == SNAP_ALL && !(node->flag & NODE_ACTIVE))) &&
+	        (node->totr.xmin < v2d->cur.xmax && node->totr.xmax > v2d->cur.xmin &&
+	         node->totr.ymin < v2d->cur.ymax && node->totr.ymax > v2d->cur.ymin);
+}
+
+static NodeBorder snapNodeBorder(int snap_node_mode)
+{
+	switch (snap_node_mode) {
+		case SCE_SNAP_MODE_NODE_X:
+			return NODE_LEFT | NODE_RIGHT;
+		case SCE_SNAP_MODE_NODE_Y:
+			return NODE_TOP | NODE_BOTTOM;
+		case SCE_SNAP_MODE_NODE_XY:
+			return NODE_LEFT | NODE_RIGHT | NODE_TOP | NODE_BOTTOM;
+	}
+	return 0;
+}
+
+static int snapNode(ToolSettings *ts, SpaceNode *UNUSED(snode), ARegion *ar, bNode *node, const int mval[2],
+                    float r_loc[2], int *r_dist, char *r_node_border)
+{
+	View2D *v2d = &ar->v2d;
+	NodeBorder border = snapNodeBorder(ts->snap_node_mode);
+	int retval = 0;
+	rcti totr;
+	int new_dist;
+	
+	UI_view2d_to_region_no_clip(v2d, node->totr.xmin, node->totr.ymin, &totr.xmin, &totr.ymin);
+	UI_view2d_to_region_no_clip(v2d, node->totr.xmax, node->totr.ymax, &totr.xmax, &totr.ymax);
+	
+	if (border & NODE_LEFT) {
+		new_dist = abs(totr.xmin - mval[0]);
+		if (new_dist < *r_dist) {
+			UI_view2d_region_to_view(v2d, totr.xmin, mval[1], &r_loc[0], &r_loc[1]);
+			*r_dist = new_dist;
+			*r_node_border = NODE_LEFT;
+			retval = 1;
+		}
+	}
+	
+	if (border & NODE_RIGHT) {
+		new_dist = abs(totr.xmax - mval[0]);
+		if (new_dist < *r_dist) {
+			UI_view2d_region_to_view(v2d, totr.xmax, mval[1], &r_loc[0], &r_loc[1]);
+			*r_dist = new_dist;
+			*r_node_border = NODE_RIGHT;
+			retval = 1;
+		}
+	}
+	
+	if (border & NODE_BOTTOM) {
+		new_dist = abs(totr.ymin - mval[1]);
+		if (new_dist < *r_dist) {
+			UI_view2d_region_to_view(v2d, mval[0], totr.ymin, &r_loc[0], &r_loc[1]);
+			*r_dist = new_dist;
+			*r_node_border = NODE_BOTTOM;
+			retval = 1;
+		}
+	}
+	
+	if (border & NODE_TOP) {
+		new_dist = abs(totr.ymax - mval[1]);
+		if (new_dist < *r_dist) {
+			UI_view2d_region_to_view(v2d, mval[0], totr.ymax, &r_loc[0], &r_loc[1]);
+			*r_dist = new_dist;
+			*r_node_border = NODE_TOP;
+			retval = 1;
+		}
+	}
+	
+	return retval;
+}
+
+static int snapNodes(ToolSettings *ts, SpaceNode *snode, ARegion *ar, const int mval[2],
+                     int *r_dist, float r_loc[2], char *r_node_border, SnapMode mode)
+{
+	bNodeTree *ntree = snode->edittree;
+	bNode *node;
+	int retval = 0;
+	
+	*r_node_border = 0;
+	
+	for (node = ntree->nodes.first; node; node = node->next) {
+		if (snapNodeTest(&ar->v2d, node, mode))
+			retval |= snapNode(ts, snode, ar, node, mval, r_loc, r_dist, r_node_border);
+	}
+	
+	return retval;
+}
+
+int snapNodesTransform(TransInfo *t, const int mval[2], int *r_dist, float r_loc[2], char *r_node_border, SnapMode mode)
+{
+	return snapNodes(t->settings, t->sa->spacedata.first, t->ar, mval, r_dist, r_loc, r_node_border, mode);
+}
+
+int snapNodesContext(bContext *C, const int mval[2], int *r_dist, float r_loc[2], char *r_node_border, SnapMode mode)
+{
+	Scene *scene = CTX_data_scene(C);
+	return snapNodes(scene->toolsettings, CTX_wm_space_node(C), CTX_wm_region(C), mval, r_dist, r_loc, r_node_border, mode);
 }
 
 /*================================================================*/
