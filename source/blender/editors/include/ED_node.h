@@ -53,8 +53,6 @@ typedef enum {
 /* drawnode.c */
 void ED_init_node_butfuncs(void);
 
-void drawnodesnap(struct View2D *v2d, const float cent[2], float size, NodeBorder border);
-
 /* node_draw.c */
 void ED_node_tree_update(struct SpaceNode *snode, struct Scene *scene);
 void ED_node_changed_update(struct ID *id, struct bNode *node);
