@@ -2586,7 +2586,7 @@ static void draw_dm_faces_sel(BMEditMesh *em, DerivedMesh *dm, unsigned char *ba
 	data.efa_act = efa_act;
 	data.orig_index = DM_get_tessface_data_layer(dm, CD_ORIGINDEX);
 
-	dm->drawMappedFaces(dm, draw_dm_faces_sel__setDrawOptions, GPU_enable_material, draw_dm_faces_sel__compareDrawOptions, &data, 0);
+	dm->drawMappedFaces(dm, draw_dm_faces_sel__setDrawOptions, GPU_enable_material, draw_dm_faces_sel__compareDrawOptions, &data, DM_DRAW_USE_COLORS);
 }
 
 static DMDrawOption draw_dm_creases__setDrawOptions(void *userData, int index)

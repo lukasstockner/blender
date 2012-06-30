@@ -596,10 +596,16 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 	(void)compareDrawOptions;
 
 	if (skip_normals) {
-		gpuImmediateFormat_V3();
+		if (flag & DM_DRAW_USE_COLORS)
+			gpuImmediateFormat_C4_V3();
+		else
+			gpuImmediateFormat_V3();
 	}
 	else {
-		gpuImmediateFormat_N3_V3();
+		if (flag & DM_DRAW_USE_COLORS)
+			gpuImmediateFormat_C4_N3_V3();
+		else
+			gpuImmediateFormat_N3_V3();
 	}
 
 	if (bmdm->vertexCos) {
