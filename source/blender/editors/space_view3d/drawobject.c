@@ -2242,9 +2242,11 @@ static void draw_dm_face_normals(BMEditMesh *em, Scene *scene, Object *ob, Deriv
 
 	calcDrawDMNormalScale(ob, &data);
 
+	gpuImmediateFormat_V3();
 	gpuBegin(GL_LINES);
 	dm->foreachMappedFaceCenter(dm, draw_dm_face_normals__mapFunc, &data);
 	gpuEnd();
+	gpuImmediateUnformat();
 }
 
 static void draw_dm_face_centers__mapFunc(void *userData, int index, const float cent[3], const float UNUSED(no[3]))
@@ -2310,9 +2312,11 @@ static void draw_dm_vert_normals(BMEditMesh *em, Scene *scene, Object *ob, Deriv
 
 	calcDrawDMNormalScale(ob, &data);
 
+	gpuImmediateFormat_V3();
 	gpuBegin(GL_LINES);
 	dm->foreachMappedVert(dm, draw_dm_vert_normals__mapFunc, &data);
 	gpuEnd();
+	gpuImmediateUnformat();
 }
 
 /* Draw verts with color set based on selection */
