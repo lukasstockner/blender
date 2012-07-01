@@ -329,9 +329,9 @@ using std::ptrdiff_t;
 #include "src/Core/GeneralProduct.h"
 #include "src/Core/TriangularMatrix.h"
 #include "src/Core/SelfAdjointView.h"
+#include "src/Core/products/GeneralBlockPanelKernel.h"
 #include "src/Core/products/Parallelizer.h"
 #include "src/Core/products/CoeffBasedProduct.h"
-#include "src/Core/products/GeneralBlockPanelKernel.h"
 #include "src/Core/products/GeneralMatrixVector.h"
 #include "src/Core/products/GeneralMatrixMatrix.h"
 #include "src/Core/SolveTriangular.h"
@@ -354,6 +354,13 @@ using std::ptrdiff_t;
 #include "src/Core/Reverse.h"
 #include "src/Core/ArrayBase.h"
 #include "src/Core/ArrayWrapper.h"
+
+#ifdef EIGEN_ENABLE_EVALUATORS
+#include "src/Core/Product.h"
+#include "src/Core/CoreEvaluators.h"
+#include "src/Core/AssignEvaluator.h"
+#include "src/Core/ProductEvaluators.h"
+#endif
 
 #ifdef EIGEN_USE_BLAS
 #include "src/Core/products/GeneralMatrixMatrix_MKL.h"
