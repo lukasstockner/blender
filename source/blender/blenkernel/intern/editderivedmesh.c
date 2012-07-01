@@ -987,7 +987,7 @@ static void emDM_drawMappedFacesTex(DerivedMesh *dm,
 	emDM_drawFacesTex_common(dm, NULL, setDrawOptions, compareDrawOptions, userData);
 }
 
-static emdm_format_attrib_vertex(DMVertexAttribs *attribs)
+static void emdm_format_attrib_vertex(DMVertexAttribs *attribs)
 {
 	int b;
 	GLint attribMap_f[16];
