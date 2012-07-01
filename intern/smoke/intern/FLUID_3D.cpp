@@ -411,6 +411,17 @@ void FLUID_3D::step(float dt)
 	for (int i = 0; i < _totalCells; i++)
 	{
 		_xForce[i] = _yForce[i] = _zForce[i] = 0.0f;
+
+		/*
+		if(_density[i] < FLT_EPSILON)
+		{
+			// _density[i] = 0.0f;
+
+			_xVelocity[i] =
+			_yVelocity[i] = 
+			_zVelocity[i] = 0.0f;
+		}
+		*/
 	}
 
 }
@@ -767,7 +778,7 @@ void FLUID_3D::project()
 {
 	int x, y, z;
 	size_t index;
-
+#if USE_NEW_CG == 1
 	VectorXf p(_totalCells);
 
 	ArrayXd A0(_totalCells);
@@ -799,7 +810,7 @@ void FLUID_3D::project()
 	b.setZero(linearIndex);
 	SparseMatrix<float,RowMajor> A(linearIndex, linearIndex);
 	A.reserve(VectorXi::Constant(linearIndex, 7));
-
+#endif
 	// float *_pressure = new float[_totalCells];
 	float *_divergence   = new float[_totalCells];
 
@@ -1566,35 +1577,6 @@ void FLUID_3D::advectMacCormackEnd2(int zBegin, int zEnd)
 
 	setZeroBorder(_density, res, zBegin, zEnd);
 	setZeroBorder(_heat, res, zBegin, zEnd);
-#if 0
-	{
-	const size_t index_ = _slabSize + _xRes + 1;
-	int bb=0;
-	int bt=0;
-
-	if (zBegin == 0) {bb = 1;}
-	if (zEnd == _zRes) {bt = 1;}
-	
-	for (int z = zBegin + bb; z < zEnd - bt; z++)
-	{
-		size_t index = index_ +(z-1)*_slabSize;
-
-		for (int y = 1; y < _yRes - 1; y++, index += 2)
-		{
-			for (int x = 1; x < _xRes - 1; x++, index++)
-			{
-				// clean custom velocities from moving obstacles again
-				if (_obstacles[index])
-				{
-					_xVelocity[index] =
-					_yVelocity[index] =
-					_zVelocity[index] = 0.0f;
-				}
-			}
-		}
-	}
-	}
-#endif
 
 	/*int begin=zBegin * _slabSize;
 	int end=begin + (zEnd - zBegin) * _slabSize;

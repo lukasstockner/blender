@@ -176,6 +176,14 @@ class FLUID_3D
 		void solvePressurePre(VectorXf &b, SparseMatrix<float,RowMajor> &A, ArrayXd &gti, VectorXf &result);
 #else
 		void solvePressurePre(float* field, float* b, unsigned char* skip);
+
+		// diagonal preconditioner
+		void precond_init_diag(float *precond, float* field, unsigned char* skip, size_t index);
+		void precond_apply_diag(float *dest, float* source, float *precond, unsigned char* skip, size_t index);
+
+		// modified incomplete cholesky preconditioner
+		void precond_init_mic(float *precond, float* field, unsigned char* skip, size_t index);
+		void precond_apply_mic(float *dest, float* source, float *precond, unsigned char* skip, size_t index);
 #endif
 
 		void solvePressureJacobian(float* p, float* d, unsigned char* ob);
