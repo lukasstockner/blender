@@ -40,6 +40,9 @@
 #define EDGE_MARK	4
 #define EDGE_DONE	8
 
+#define FACE_MARK   1
+#define EDGE_CONNECTED 7
+
 void bmo_connectverts_exec(BMesh *bm, BMOperator *op)
 {
 	BMIter iter, liter;
@@ -210,7 +213,383 @@ static void bm_vert_loop_pair(BMesh *bm, BMVert *v1, BMVert *v2, BMLoop **l1, BM
 	*l2 = BM_iter_at_index(bm, BM_LOOPS_OF_VERT, v2, 0);
 }
 
-void bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
+//TODO: rename and comented
+int bmo_bridge_array_entry_elem(BMEdge **list, int size,  BMEdge *elem)
+{
+    int i = 0, count = 0;
+
+    for (i = 0; i < size; i++)
+    {
+        if (list[i] == elem)
+            count ++;
+    }
+    return count;
+}
+
+/*
+* return coordinate of middle edge
+*/
+void  get_middle_edge(BMEdge* e, float v[3]){
+    BMVert *v1, *v2;
+    v1 = e->v1;
+    v2 = BM_edge_other_vert(e, v1);
+    mid_v3_v3v3(v, v1->co, v2->co);
+}
+
+/*
+*   this function find centroid of group vertex
+*   return coordinate of centroid
+*/
+void get_centroid(BMVert **vv, int vert_count, float center[3]){
+    int i;
+    center[0] = 0; center[1] = 0; center[2] = 0;
+    for (i = 0; i < vert_count; i++){
+        add_v3_v3(center, vv[i]->co);
+    }
+    mul_v3_fl(center, 1.0f/vert_count);
+}
+
+/*
+* this function return vertex of linear interpolation
+*/
+BMVert* get_linear_seg(BMesh *bm, int seg, int n, BMVert *v1, BMVert *v2)
+{
+    float co[3];
+    BMVert *v;
+    co[0] = v1->co[0] + (v2->co[0]-v1->co[0])*n / seg;
+    co[1] = v1->co[1] + (v2->co[1]-v1->co[1])*n / seg;
+    co[2] = v1->co[2] + (v2->co[2]-v1->co[2])*n / seg;
+    // TODO проверка на то что уже это вершина  существует
+
+    v = BM_vert_create(bm, co, NULL);
+    //BLI_array_append(list_exist_vert, v);
+    return v;
+}
+
+BMVert* get_cubic_seg(BMesh *bm, int seg, int n, BMVert *v1, BMVert *v2){
+    float co[3];
+    BMVert *v;
+    return v;
+}
+
+
+float get_cos_v3v3(float a[3], float b[3]){
+    float cos_ab = (a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) /
+            (sqrt(a[0]*a[0]+ a[1]*a[1]+ a[2]*a[2]) * sqrt(b[0]*b[0]+ b[1]*b[1]+ b[2]*b[2]));
+    return cos_ab;
+}
+/*
+  create face betwin two edge
+  */
+void bmo_edge_face_connect(BMesh *bm, BMEdge *e1, BMEdge *e2, BMFace *f_example, BMVert** list_exist_vert, int count)
+{
+    int seg=5, i;
+    BMVert *v1, *v2, *v3, *v4;
+    BMVert *vi1, *vi2, *vi3, *vi4; // input vertex
+    float vect1[3], vect2[3], vect3[3], vect4[3];
+    float vp1[3], vp2[3], vp3[3], vp4[3];
+
+    vi1 = e1->v1;
+    vi2 = e2->v1;
+    vi3 = BM_edge_other_vert(e2,vi2);
+    vi4 = BM_edge_other_vert(e1,vi1);
+// calculate vector betwen input vertx
+    sub_v3_v3v3(vect1, vi1->co, vi2->co);  // v1-v2
+    sub_v3_v3v3(vect2, vi2->co, vi3->co);  // v2-v3
+    sub_v3_v3v3(vect3, vi3->co, vi4->co);  // v3-v4
+    sub_v3_v3v3(vect4, vi4->co, vi1->co);  // v4-v1
+
+// cros product
+    cross_v3_v3v3(vp1, vect1, vect2);
+    cross_v3_v3v3(vp2, vect2, vect3);
+    cross_v3_v3v3(vp3, vect3, vect4);
+    cross_v3_v3v3(vp4, vect4, vect1);
+
+    // check direction cros produc result
+    if (!(get_cos_v3v3(vp1, vp2)>0 &&
+        get_cos_v3v3(vp2, vp3)>0 &&
+        get_cos_v3v3(vp3, vp4)>0 &&
+        get_cos_v3v3(vp4, vp1)>0))
+    {
+        vi1 = e1->v1;
+        vi2 = BM_edge_other_vert(e2, e2->v1);
+        vi3 = BM_edge_other_vert(e2,vi2);
+        vi4 = BM_edge_other_vert(e1,vi1);
+    }
+
+    // vi1  - v1 - v2 ... vi2
+    // |      |    |       |
+    // vi4 .. v4 - v3 ... vi3
+   v1 = vi1; v2 = vi2; v3 = vi3; v4 = vi4;
+    if (seg > 1){
+        for (i = 1; i <= seg; i++){
+           v2 = get_linear_seg (bm, seg, i, vi1, vi2);
+           v3 = get_linear_seg(bm, seg,  i, vi4, vi3);
+
+           BM_face_create_quad_tri(bm, v1, v2, v3, v4, f_example, TRUE);
+           v1 = v2;
+           v4 = v3;
+        }
+    }
+    else {
+        BM_face_create_quad_tri(bm, v1, v2, v3, v4, f_example, TRUE);
+    }
+}
+
+void bmo_edge_vert_connect(BMesh *bm, BMEdge *e, BMVert *v, BMFace *f_example)
+{
+    int seg = 5, i;
+    BMVert *v1, *v2, *v3, *v4;
+    v1 = e->v1;
+    v2 = v;
+    v3 = 0;
+    v4 = BM_edge_other_vert(e, e->v1);;
+    if (seg > 1){
+        for (i = 1; i < seg; i++){
+            v2 = get_linear_seg(bm, seg, i, e->v1, v);
+            v3 = get_linear_seg(bm, seg, i, BM_edge_other_vert(e, e->v1), v);
+            BM_face_create_quad_tri(bm, v1, v2, v3, v4, f_example, TRUE);
+            v1 = v2;
+            v4 = v3;
+        }
+        BM_face_create_quad_tri(bm, v1, v, v4, NULL, f_example, TRUE);
+    }
+    else
+        BM_face_create_quad_tri(bm, e->v1, BM_edge_other_vert(e, e->v1), v, NULL, f_example, TRUE);
+}
+
+
+void  bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
+{
+    BMEdge *e;
+    BMOIter siter;
+    BMIter iter;
+    BMEdge **skip_edge = NULL, **all_edge = NULL, **ee1=NULL, **ee2=NULL;
+    BMVert **vv1 = NULL, **vv2 = NULL;
+    BMVert **list_exist_vert = NULL; //  list of exixting vertex. it's needed only in case segmentation >1
+    BLI_array_declare(list_exist_vert);
+    BLI_array_declare(skip_edge);
+    BLI_array_declare(all_edge);
+    BLI_array_declare(ee1);
+    BLI_array_declare(ee2);
+    BLI_array_declare(vv1);
+    BLI_array_declare(vv2);
+
+    int i = 0, j = 0, loops_count = 0, cl1 = 0, cl2 = 0;
+    BMFace *f;
+
+    // find all edges in faces
+    BMO_ITER (f, &siter, bm, op, "edgefacein", BM_FACE)
+    {
+       BMLoop* loop;
+       loop = f->l_first;
+       do
+       {
+           BLI_array_append(all_edge, loop->e);
+           loop = loop->next;
+       }
+       while (loop != f->l_first);
+    }
+    // count entry edges
+    for (i = 0; i< BLI_array_count(all_edge); i++)
+    {
+        int counter = 0;
+        for (j = 0; j< BLI_array_count(all_edge); j++)
+        {
+            if ((all_edge[i] == all_edge[j]) && (i != j))
+                counter ++;
+        }
+        if ((counter > 0) &&
+            (bmo_bridge_array_entry_elem(skip_edge,
+                                         BLI_array_count(skip_edge),
+                                         all_edge[i]) == 0 ))
+        {
+            BLI_array_append(skip_edge, all_edge[i]);
+            BMO_elem_flag_enable(bm, all_edge[i], EDGE_DONE); // skiped adjacent faces edge
+
+        }
+    }
+    // create loop according with skiped edges
+    BMO_slot_buffer_flag_enable(bm, op, "edgefacein", BM_EDGE, EDGE_MARK);
+    BMO_ITER (e, &siter, bm, op, "edgefacein", BM_EDGE)
+    {
+        if (!BMO_elem_flag_test(bm, e, EDGE_DONE))
+        {
+        BMVert *v, *ov;
+        BMEdge *e2, *e3;
+
+        if (loops_count > 2)
+        {
+            BMO_error_raise(bm, op, BMERR_INVALID_SELECTION, "Select only two edge loops");
+            goto cleanup_2;
+        }
+            v = e->v1;
+            e2 = e;
+            ov = v;
+            do
+            {
+                if (loops_count == 0)
+                {
+                    BLI_array_append(ee1, e2);
+                    BLI_array_append(vv1, v);
+                }
+                else
+                {
+                    BLI_array_append(ee2, e2);
+                    BLI_array_append(vv2, v);
+                }
+
+                BMO_elem_flag_enable(bm, e2, EDGE_DONE);
+
+                v = BM_edge_other_vert(e2, v);
+                BM_ITER_ELEM (e3, &iter, v, BM_EDGES_OF_VERT)
+                {
+                    if ((e3 != e2)
+                        && (BMO_elem_flag_test(bm, e3, EDGE_MARK))
+                        && (!BMO_elem_flag_test(bm, e3, EDGE_DONE)))
+                    {
+                        break;
+                    }
+                }
+                if (e3)
+                    e2 = e3;
+            }
+            while (e3 && e2 != e);
+            /* test for connected loops, and set cl1 or cl2 if so */
+            if (v == ov) {
+                if (loops_count == 0) {
+                    cl1 = 1;
+                }
+                else {
+                    cl2 = 1;
+                }
+            }
+            loops_count ++;
+        }
+    }
+
+// -----------------------------------------------
+// ---------------CREATE BRIDGE-------------------
+// -----------------------------------------------
+    if (ee1 && ee2)
+    {
+       float min = 1e32;
+       int min_i, min_j;
+       float center1[3], center2[3];
+       BMEdge **non_conected = NULL, **conected = NULL;
+       BLI_array_declare(non_conected);
+       BLI_array_declare(conected);
+
+       if(BLI_array_count(ee1) > BLI_array_count(ee2))
+       {
+           ARRAY_SWAP(BMVert *, vv1, vv2);
+           ARRAY_SWAP(BMEdge *, ee1, ee2);
+       }
+
+       get_centroid(vv1, BLI_array_count(vv1), center1);
+       get_centroid(vv2, BLI_array_count(vv2), center2);
+/*       BM_edge_create(bm, BM_vert_create(bm, center1, NULL),
+                        BM_vert_create(bm, center2, NULL),
+                        NULL,
+                        1);
+                        */
+
+       // проходим по короткому циклу
+
+
+
+       for (i = 0; i < BLI_array_count(ee1); i++)
+       {
+           BMVert *v_i, *v_j;
+           float mid_V_i[3];
+           float mid_V_j[3];
+           get_middle_edge(ee1[i], mid_V_i);
+           v_i = BM_vert_create(bm, mid_V_i, NULL);
+           min = 1e32;
+           min_j =  0;
+           for (j = 0; j < BLI_array_count(ee2); j++)
+           {
+               float co1[3], co2[3]; // new coordinate with center of loops
+               get_middle_edge(ee2[j],mid_V_j);
+               // TDDO add normolize loops
+               sub_v3_v3v3(co1, mid_V_i, center1);
+               sub_v3_v3v3(co2, mid_V_j, center2);
+
+               if (len_v3v3(co1, co2) < min)
+               {
+                    min = len_v3v3(co1, co2);
+                    min_j = j;
+               }
+           }
+            // only for debuging
+          // get_middle_edge(ee2[min_j], mid_V_j);
+         //  v_j = BM_vert_create(bm, mid_V_j, NULL);
+         //  BM_edge_create(bm, v_i, v_j, NULL, 1);
+
+           bmo_edge_face_connect(bm, ee1[i], ee2[min_j], NULL, list_exist_vert, BLI_array_count(list_exist_vert));
+
+           BLI_array_append(conected, ee2[min_j]);
+           //BMO_elem_flag_enable(bm, ee2[min_j], EDGE_CONNECTED);
+       }
+
+        // create triangle
+       for (i = 0; i < BLI_array_count(ee2); i++)
+       {
+           int flag = 0;
+           for (j = 0; j < BLI_array_count(conected); j++)
+           {
+               if (ee2[i] == conected[j])
+                   flag = 1;
+            }
+           if (flag  == 0)
+               BLI_array_append(non_conected, ee2[i]);
+
+        }
+
+       // найти ближающую точку в vv1; и приконектить...
+        for (i = 0; i< BLI_array_count(non_conected); i++)
+        {
+            //if (BMO_elem_flag_test(bm, ee2[i], EDGE_CONNECTED))
+            //{
+                float  mid[3];
+                float co1[3], co2[3]; // new coordinate with center of loops
+
+                get_middle_edge(non_conected[i], mid);
+                sub_v3_v3v3(co1, mid, center2);
+                min = 1e32;
+                min_j = 0;
+                for (j = 0; j < BLI_array_count(vv1); j++) {
+                    sub_v3_v3v3(co2, vv1[j]->co, center1);
+                    if (len_v3v3(co1, co2) < min)
+                    {
+                        min = len_v3v3(co1, co2);
+                        min_j = j;
+                    }
+                }
+                bmo_edge_vert_connect(bm, non_conected[i], vv1[min_j], NULL);
+
+            //}
+        }
+    }
+// -----kill input data-------------------------
+    BMO_ITER (f, &siter, bm, op, "edgefacein", BM_FACE)
+    {
+        BM_face_kill(bm,f);
+    }
+    for (i=0; i< BLI_array_count(skip_edge); i++){
+        BM_edge_kill(bm, skip_edge[i]);
+    }
+
+cleanup_2:
+    i = BLI_array_count(ee1);
+    j = BLI_array_count(ee2);
+
+    BLI_array_free(ee1);
+    BLI_array_free(ee2);
+}
+
+
+void bmo_bridge_loops_exec_old(BMesh *bm, BMOperator *op)
 {
 	BMEdge **ee1 = NULL, **ee2 = NULL;
 	BMVert **vv1 = NULL, **vv2 = NULL;

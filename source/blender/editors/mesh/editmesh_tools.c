@@ -4698,7 +4698,7 @@ static int edbm_bridge_edge_loops_exec(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BMEdit_FromObject(obedit);
 	
-	if (!EDBM_op_callf(em, op, "bridge_loops edges=%he", BM_ELEM_SELECT))
+    if (!EDBM_op_callf(em, op, "bridge_loops edgefacein=%hfe", BM_ELEM_SELECT))
 		return OPERATOR_CANCELLED;
 	
 	EDBM_update_generic(C, em, TRUE);
