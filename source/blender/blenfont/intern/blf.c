@@ -51,6 +51,7 @@
 #include "blf_internal.h"
 
 #include "GPU_compatibility.h"
+#include "GPU_matrix.h"
 
 
 /* Max number of font in memory.
@@ -558,30 +559,35 @@ static void blf_draw__start(FontBLF *font)
 	}
 #endif
 
-	glMatrixMode(GL_TEXTURE);
-	glPushMatrix();
-	glLoadIdentity();
+	gpuMatrixLock();
 
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
+	gpuMatrixMode(GPU_TEXTURE);
+	gpuPushMatrix();
+	gpuLoadIdentity();
+
+	gpuMatrixMode(GPU_MODELVIEW);
+	gpuPushMatrix();
+
 
 	if (font->flags & BLF_MATRIX) {
-		glMultMatrixd((GLdouble *)&font->m);
+		gpuMultMatrixd((GLdouble *)&font->m);
 	}
 
-	glTranslatef(font->pos[0], font->pos[1], font->pos[2]);
+	gpuTranslate(font->pos[0], font->pos[1], font->pos[2]);
 
 	if (font->flags & BLF_ASPECT)
-		glScalef(font->aspect[0], font->aspect[1], font->aspect[2]);
+		gpuScale(font->aspect[0], font->aspect[1], font->aspect[2]);
 
 	if (font->flags & BLF_ROTATION)
-		glRotatef(font->angle, 0.0f, 0.0f, 1.0f);
+		gpuRotateAxis(font->angle, 'Z');
 
 	if (font->shadow || font->blur) 
 		gpuGetCurrentColor4fv(font->orig_col);
 
 	/* always bind the texture for the first glyph */
 	font->tex_bind_state = -1;
+
+	gpuMatrixCommit();
 
 	draw_lock(font);
 }
@@ -590,11 +596,13 @@ static void blf_draw__end(FontBLF *font)
 {
 	draw_unlock(font);
 
-	glMatrixMode(GL_TEXTURE);
-	glPopMatrix();
+	gpuMatrixMode(GPU_TEXTURE);
+	gpuPopMatrix();
 
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	gpuMatrixMode(GPU_MODELVIEW);
+	gpuPopMatrix();
+
+	gpuMatrixUnlock();
 
 	/* XXX: current color becomes undefined due to use of vertex arrays,
 	        but a lot of code relies on it remaining the same */
