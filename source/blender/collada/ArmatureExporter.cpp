@@ -187,12 +187,12 @@ void ArmatureExporter::add_bone_node(Bone *bone, Object *ob_arm, Scene *sce,
 		node.setNodeName(node_name);
 		node.setNodeSid(node_sid);
 
-//#if 1 
+#if 0 
 		if (bone->childbase.first == NULL || BLI_countlist(&(bone->childbase)) >= 2) {
 			add_blender_leaf_bone( bone, ob_arm , node );
 		}
 		else{
-//#endif
+#endif
 			node.start();
 
 			add_bone_transform(ob_arm, bone, node);
@@ -240,12 +240,11 @@ void ArmatureExporter::add_bone_node(Bone *bone, Object *ob_arm, Scene *sce,
 			}
 			node.end();
 		}
-	}
-	else {
-		for (Bone *child = (Bone *)bone->childbase.first; child; child = child->next) {
-			add_bone_node(child, ob_arm, sce, se, child_objects);
+		else {
+			for (Bone *child = (Bone *)bone->childbase.first; child; child = child->next) {
+				add_bone_node(child, ob_arm, sce, se, child_objects);
+			}
 		}
-	}
 }
 
 //#if 1
@@ -275,22 +274,26 @@ void ArmatureExporter::add_bone_transform(Object *ob_arm, Bone *bone, COLLADASW:
 
 	if (bone->parent) {
 		// get bone-space matrix from parent pose
-		bPoseChannel *parchan = BKE_pose_channel_find_name(ob_arm->pose, bone->parent->name);
-
+		/*bPoseChannel *parchan = BKE_pose_channel_find_name(ob_arm->pose, bone->parent->name);
 		float invpar[4][4];
 		invert_m4_m4(invpar, parchan->pose_mat);
-		mult_m4_m4m4(mat, invpar, pchan->pose_mat);
+		mult_m4_m4m4(mat, invpar, pchan->pose_mat);*/
+		
+		float invpar[4][4];
+		invert_m4_m4(invpar, bone->parent->arm_mat);
+		mult_m4_m4m4(mat, invpar, bone->arm_mat);
+
 	}
 	else {
 		//pose mat is object space
-		copy_m4_m4(mat, pchan->pose_mat);
-		// Why? Joint's localspace is still it's parent node
-		//get world-space from armature-space
-		//mult_m4_m4m4(mat, ob_arm->obmat, pchan->pose_mat);
+		//copy_m4_m4(mat, pchan->pose_mat);
+		
+		//New change: export bone->arm_mat
+		copy_m4_m4(mat, bone->arm_mat);
 	}
 
 	// SECOND_LIFE_COMPATIBILITY
-//	if (export_settings->second_life) {
+    if (export_settings->second_life) {
 		// Remove rotations vs armature from transform
 		// parent_rest_rot * mat * irest_rot
 		float temp[4][4];
@@ -306,7 +309,7 @@ void ArmatureExporter::add_bone_transform(Object *ob_arm, Bone *bone, COLLADASW:
 
 			mult_m4_m4m4(mat, temp, mat);
 		}
-//	}
+	}
 
 	TransformWriter::add_node_transform(node, mat, NULL);
 }

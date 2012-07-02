@@ -96,9 +96,6 @@ void ArmatureImporter::create_unskinned_bone(COLLADAFW::Node *node, EditBone *pa
 	
 	if (parent) bone->parent = parent;
 
-	float angle = 0;
-
-	// get world-space
 	if (parent) {
 		mult_m4_m4m4(mat, parent_mat, obmat);
 	}
@@ -106,16 +103,17 @@ void ArmatureImporter::create_unskinned_bone(COLLADAFW::Node *node, EditBone *pa
 		copy_m4_m4(mat, obmat);
 	}
 
-	mult_m4_m4m4(mat, ob_arm->obmat , mat);
-	float loc[3], size[3], rot[3][3];
-	mat4_to_loc_rot_size(loc, rot, size, obmat);
-	mat3_to_vec_roll(rot, NULL, &angle);
+	////mult_m4_m4m4(mat, ob_arm->obmat , mat);
+	float loc[3], size[3], rot[3][3], angle;
+    float vec[3] = {0.0f, 0.5f, 0.0f};
+	mat4_to_loc_rot_size(loc, rot, size, mat);
+	mat3_to_vec_roll(rot, vec, &angle);
 	bone->roll = angle;
+	
 	// set head
 	copy_v3_v3(bone->head, mat[3]);
-
+	
 	// set tail, don't set it to head because 0-length bones are not allowed
-	float vec[3] = {0.0f, 0.5f, 0.0f};
 	add_v3_v3v3(bone->tail, bone->head, vec);
 
 	// set parent tail
@@ -146,10 +144,11 @@ void ArmatureImporter::create_unskinned_bone(COLLADAFW::Node *node, EditBone *pa
 		create_unskinned_bone(children[i], bone, children.getCount(), mat, ob_arm);
 	}
 
+	//XXX - leaf bones are also handled above.
 	// in second case it's not a leaf bone, but we handle it the same way
-	if (!children.getCount() || children.getCount() > 1) {
+	/*if (!children.getCount() || children.getCount() > 1) {
 		add_leaf_bone(mat, bone, node);
-	}
+	}*/
 
 	finished_joints.push_back(node);
 
@@ -186,12 +185,12 @@ void ArmatureImporter::create_bone(SkinInfo& skin, COLLADAFW::Node *node, EditBo
 
 		// get world-space
 		if (parent)
-			mult_m4_m4m4(mat, parent_mat, obmat);
+			mult_m4_m4m4(mat, parent_mat, mat);
 		else
 			copy_m4_m4(mat, obmat);
 
 		float loc[3], size[3], rot[3][3], angle;
-		mat4_to_loc_rot_size(loc, rot, size, obmat);
+		mat4_to_loc_rot_size(loc, rot, size, mat);
 		mat3_to_vec_roll(rot, NULL, &angle);
 		bone->roll = angle;
 	}
@@ -414,18 +413,12 @@ void ArmatureImporter::create_armature_bones( )
 	for (ri = root_joints.begin(); ri != root_joints.end(); ri++) {
 		if (get_armature_for_joint(*ri) != NULL) continue;
 		
-		//add armature object for current joint
-		//Object *ob_arm = bc_add_object(scene, OB_ARMATURE, NULL);
-
 		Object *ob_arm = joint_parent_map[(*ri)->getUniqueId()];
 
 		if (!ob_arm)
 			continue;
-
-		//ob_arm->type = OB_ARMATURE;
+        
 		ED_armature_to_edit(ob_arm);
-
-		// min_angle = 360.0f;		// minimum angle between bone head-tail and a row of bone matrix
 
 		// create unskinned bones
 		/*
@@ -434,16 +427,18 @@ void ArmatureImporter::create_armature_bones( )
 		 */
 		leaf_bone_length = FLT_MAX;
 		create_unskinned_bone(*ri, NULL, (*ri)->getChildNodes().getCount(), NULL, ob_arm);
-
-		fix_leaf_bones();
+        
+		//leaf bone tails are derived from the matrix, so no need of this.
+		//fix_leaf_bones();
 
 		// exit armature edit mode
 	
 		unskinned_armature_map[(*ri)->getUniqueId()] = ob_arm;
 
 		ED_armature_from_edit(ob_arm);
-
-		set_pose(ob_arm, *ri, NULL, NULL);
+        
+		//This serves no purpose, as pose is automatically reset later, in BKE_where_is_bone()
+		//set_pose(ob_arm, *ri, NULL, NULL);
 
 		ED_armature_edit_free(ob_arm);
 		DAG_id_tag_update(&ob_arm->id, OB_RECALC_OB | OB_RECALC_DATA);
@@ -597,14 +592,16 @@ void ArmatureImporter::set_pose(Object *ob_arm,  COLLADAFW::Node *root_node, con
 
 	}
 	else {
+		
 		copy_m4_m4(mat, obmat);
 		float invObmat[4][4];
 		invert_m4_m4(invObmat, ob_arm->obmat);
 		mult_m4_m4m4(pchan->pose_mat, invObmat, mat);
+		
 	}
 
-	mat4_to_axis_angle(ax, &angle, mat);
-	pchan->bone->roll = angle;
+	///*mat4_to_axis_angle(ax, &angle, mat);
+	//pchan->bone->roll = angle;*/
 
 
 	COLLADAFW::NodePointerArray& children = root_node->getChildNodes();
