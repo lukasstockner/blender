@@ -103,11 +103,8 @@ private:
 	JointData *get_joint_data(COLLADAFW::Node *node);
 #endif
 
-	void create_bone(SkinInfo& skin, COLLADAFW::Node *node, EditBone *parent, int totchild,
+	void create_bone(SkinInfo* skin, COLLADAFW::Node *node, EditBone *parent, int totchild,
 					 float parent_mat[][4], bArmature *arm);
-
-	void create_unskinned_bone(COLLADAFW::Node *node, EditBone *parent, int totchild,
-	                           float parent_mat[][4], Object * ob_arm);
 
 	void add_leaf_bone(float mat[][4], EditBone *bone, COLLADAFW::Node * node);
 

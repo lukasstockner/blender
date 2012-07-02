@@ -78,83 +78,8 @@ JointData *ArmatureImporter::get_joint_data(COLLADAFW::Node *node);
 	return &joint_index_to_joint_info_map[joint_index];
 }
 #endif
-void ArmatureImporter::create_unskinned_bone(COLLADAFW::Node *node, EditBone *parent, int totchild,
-                                             float parent_mat[][4], Object *ob_arm)
-{
-	std::vector<COLLADAFW::Node *>::iterator it;
-	it = std::find(finished_joints.begin(), finished_joints.end(), node);
-	if (it != finished_joints.end()) return;
 
-	float mat[4][4];
-	float obmat[4][4];
-
-	// object-space
-	get_node_mat(obmat, node, NULL, NULL);
-
-	EditBone *bone = ED_armature_edit_bone_add((bArmature *)ob_arm->data, (char *)bc_get_joint_name(node));
-	totbone++;
-	
-	if (parent) bone->parent = parent;
-
-	if (parent) {
-		mult_m4_m4m4(mat, parent_mat, obmat);
-	}
-	else {
-		copy_m4_m4(mat, obmat);
-	}
-
-	////mult_m4_m4m4(mat, ob_arm->obmat , mat);
-	float loc[3], size[3], rot[3][3], angle;
-    float vec[3] = {0.0f, 0.5f, 0.0f};
-	mat4_to_loc_rot_size(loc, rot, size, mat);
-	mat3_to_vec_roll(rot, vec, &angle);
-	bone->roll = angle;
-	
-	// set head
-	copy_v3_v3(bone->head, mat[3]);
-	
-	// set tail, don't set it to head because 0-length bones are not allowed
-	add_v3_v3v3(bone->tail, bone->head, vec);
-
-	// set parent tail
-	if (parent && totchild == 1) {
-		copy_v3_v3(parent->tail, bone->head);
-		
-		// not setting BONE_CONNECTED because this would lock child bone location with respect to parent
-		// bone->flag |= BONE_CONNECTED;
-	
-		// XXX increase this to prevent "very" small bones?
-		const float epsilon = 0.000001f;
-
-		// derive leaf bone length
-		float length = len_v3v3(parent->head, parent->tail);
-		if ((length < leaf_bone_length || totbone == 0) && length > epsilon) {
-			leaf_bone_length = length;
-		}
-
-		// treat zero-sized bone like a leaf bone
-		if (length <= epsilon) {
-			add_leaf_bone(parent_mat, parent, node);
-		}
-
-	}
-
-	COLLADAFW::NodePointerArray& children = node->getChildNodes();
-	for (unsigned int i = 0; i < children.getCount(); i++) {
-		create_unskinned_bone(children[i], bone, children.getCount(), mat, ob_arm);
-	}
-
-	//XXX - leaf bones are also handled above.
-	// in second case it's not a leaf bone, but we handle it the same way
-	/*if (!children.getCount() || children.getCount() > 1) {
-		add_leaf_bone(mat, bone, node);
-	}*/
-
-	finished_joints.push_back(node);
-
-}
-
-void ArmatureImporter::create_bone(SkinInfo& skin, COLLADAFW::Node *node, EditBone *parent, int totchild,
+void ArmatureImporter::create_bone(SkinInfo* skin, COLLADAFW::Node *node, EditBone *parent, int totchild,
                                    float parent_mat[][4], bArmature *arm)
 {
 	//Checking if bone is already made.
@@ -167,42 +92,40 @@ void ArmatureImporter::create_bone(SkinInfo& skin, COLLADAFW::Node *node, EditBo
 	// JointData* jd = get_joint_data(node);
 
 	float mat[4][4];
+	float obmat[4][4];
 
 	// TODO rename from Node "name" attrs later
 	EditBone *bone = ED_armature_edit_bone_add(arm, (char *)bc_get_joint_name(node));
 	totbone++;
 
-	if (skin.get_joint_inv_bind_matrix(joint_inv_bind_mat, node)) {
+	if (skin && skin->get_joint_inv_bind_matrix(joint_inv_bind_mat, node)) {
 		// get original world-space matrix
 		invert_m4_m4(mat, joint_inv_bind_mat);
 	}
 	// create a bone even if there's no joint data for it (i.e. it has no influence)
 	else {
-		float obmat[4][4];
-
 		// object-space
 		get_node_mat(obmat, node, NULL, NULL);
-
+        		
 		// get world-space
 		if (parent)
 			mult_m4_m4m4(mat, parent_mat, mat);
 		else
 			copy_m4_m4(mat, obmat);
-
-		float loc[3], size[3], rot[3][3], angle;
-		mat4_to_loc_rot_size(loc, rot, size, mat);
-		mat3_to_vec_roll(rot, NULL, &angle);
-		bone->roll = angle;
 	}
 
-	
 	if (parent) bone->parent = parent;
 
+	////mult_m4_m4m4(mat, ob_arm->obmat , mat);
+	float loc[3], size[3], rot[3][3], angle;
+	float vec[3] = {0.0f, 0.5f, 0.0f};
+	mat4_to_loc_rot_size(loc, rot, size, mat);
+	mat3_to_vec_roll(rot, vec, &angle);
+	bone->roll = angle;
 	// set head
 	copy_v3_v3(bone->head, mat[3]);
 
 	// set tail, don't set it to head because 0-length bones are not allowed
-	float vec[3] = {0.0f, 0.5f, 0.0f};
 	add_v3_v3v3(bone->tail, bone->head, vec);
 
 	// set parent tail
@@ -260,9 +183,9 @@ void ArmatureImporter::create_bone(SkinInfo& skin, COLLADAFW::Node *node, EditBo
 	}
 
 	// in second case it's not a leaf bone, but we handle it the same way
-	if (!children.getCount() || children.getCount() > 1) {
+	/*if (!children.getCount() || children.getCount() > 1) {
 		add_leaf_bone(mat, bone, node);
-	}
+	}*/
 
 	finished_joints.push_back(node);
 }
@@ -426,7 +349,8 @@ void ArmatureImporter::create_armature_bones( )
 		 * check if bones have already been created for a given joint
 		 */
 		leaf_bone_length = FLT_MAX;
-		create_unskinned_bone(*ri, NULL, (*ri)->getChildNodes().getCount(), NULL, ob_arm);
+
+        create_bone(NULL, *ri , NULL, (*ri)->getChildNodes().getCount(), NULL, (bArmature *)ob_arm->data);
         
 		//leaf bone tails are derived from the matrix, so no need of this.
 		//fix_leaf_bones();
@@ -544,7 +468,7 @@ void ArmatureImporter::create_armature_bones(SkinInfo& skin)
 
 		// since root_joints may contain joints for multiple controllers, we need to filter
 		if (skin.uses_joint_or_descendant(*ri)) {
-			create_bone(skin, *ri, NULL, (*ri)->getChildNodes().getCount(), NULL, (bArmature *)ob_arm->data);
+			create_bone(&skin, *ri, NULL, (*ri)->getChildNodes().getCount(), NULL, (bArmature *)ob_arm->data);
 
 			if (joint_parent_map.find((*ri)->getUniqueId()) != joint_parent_map.end() && !skin.get_parent())
 				skin.set_parent(joint_parent_map[(*ri)->getUniqueId()]);
