@@ -604,7 +604,10 @@ static char *code_generate_fragment(ListBase *nodes, GPUOutput *output, const ch
 	/* create shader */
 	code = BLI_dynstr_get_cstring(ds);
 	BLI_dynstr_free(ds);
-
+	
+#ifdef GLES	
+	printf("%s\n", code);
+#endif
 	//if (G.debug & G_DEBUG) printf("%s\n", code);
 
 	return code;
@@ -616,6 +619,28 @@ static char *code_generate_vertex(ListBase *nodes)
 	GPUNode *node;
 	GPUInput *input;
 	char *code;
+
+#ifdef GLES
+
+BLI_dynstr_append(ds, 
+"#define gl_ModelViewMatrix b_ModelViewMatrix\n"
+"#define gl_ProjectionMatrix b_ProjectionMatrix\n"
+"#define gl_NormalMatrix b_NormalMatrix\n"
+
+"#define gl_Vertex b_Vertex\n"
+"#define gl_Normal b_Normal\n"
+
+"uniform mat4 b_ProjectionMatrix ;	\n"
+"uniform mat4 b_ModelViewMatrix ;	\n"
+"uniform mat3 b_NormalMatrix ;	\n"
+
+"attribute vec4 b_Vertex;	\n"
+"attribute vec3 b_Normal;	\n"
+"\n");
+
+
+
+#endif	
 	
 	for (node=nodes->first; node; node=node->next) {
 		for (input=node->inputs.first; input; input=input->next) {
@@ -667,6 +692,15 @@ void GPU_code_generate_glsl_lib(void)
 		return;
 
 	ds = BLI_dynstr_new();
+
+#ifdef GLES
+		BLI_dynstr_append(ds, 
+		"#define B_GLES\n"
+		"precision mediump float;		\n"
+		
+		);
+#endif
+
 
 	if (GPU_bicubic_bump_support()) {
 		BLI_dynstr_append(ds, "/* These are needed for high quality bump mapping */\n"

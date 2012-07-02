@@ -32,6 +32,10 @@
 
 #include <string.h>
 
+#ifdef GLES
+#include <GLES2/gl2.h>
+#endif
+
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
@@ -425,6 +429,91 @@ static void gpu_verify_reflection(Image *ima)
 	}
 }
 
+#define BOX_FILTER_HALF_ONLY \
+	for(y=0; y<hightout; y++)\
+	{\
+		for(x=0; x<widthout; x++)\
+		{\
+			for(sizei=0; sizei<size; sizei++)\
+			{\
+				int p;\
+				wf = scw*x;\
+				hf = sch*y;\
+				win = wf;\
+				hin = hf;\
+				\
+				mix[0][1] = wf-win;\
+				mix[0][0] = 1.0f - mix[0][1];\
+				\
+				mix[1][1] = hf-hin;\
+				mix[1][0] = 1.0f - mix[1][1];\
+				\
+				p = (hin*widthin+win)*size+sizei;\
+				col[0][0]=p<max?imgin[p]:0;\
+				p = (hin*widthin+win+1)*size+sizei;\
+				col[0][1]=p<max?imgin[p]:0;\
+				p = ((hin+1)*widthin+win)*size+sizei;\
+				col[1][0]=p<max?imgin[p]:0;\
+				p = ((hin+1)*widthin+win+1)*size+sizei;\
+				col[1][1]=p<max?imgin[p]:0;\
+			\
+				imgout[(y*widthout+x)*size+sizei] = mix[0][0]*mix[1][0]*col[0][0]+\
+													mix[0][1]*mix[1][0]*col[0][1]+\
+													mix[0][0]*mix[1][1]*col[1][0]+\
+													mix[0][1]*mix[1][1]*col[1][1];\
+			}}}
+
+static void ScaleHalfImageChar(int size, unsigned char *imgin, int widthin, int hightin, unsigned char* imgout, int widthout, int hightout)
+{
+	int sizei, x, y;
+	float scw = (float)(widthin-1)/(widthout-1);
+	float sch = (float)(hightin-1)/(hightout-1);
+	int hin, win;
+	float hf, wf;
+	float mix[2][2];
+	char col[2][2];
+	int max = hightin*widthin*size;
+	
+	BOX_FILTER_HALF_ONLY
+}
+
+static void ScaleHalfImageFloat(int size, float *imgin, int widthin, int hightin, float* imgout, int widthout, int hightout)
+{
+	int sizei, x, y;
+	float scw = (float)(widthin-1)/(widthout-1);
+	float sch = (float)(hightin-1)/(hightout-1);
+	int hin, win;
+	float hf, wf;
+	float mix[2][2];
+	float col[2][2];
+	int max = hightin*widthin*size;
+	
+	BOX_FILTER_HALF_ONLY
+}
+
+#undef BOX_FILTER_HALF_ONLY
+
+#ifndef GLES
+static void GenerateMipmapRGBA(int high_bit, int w, int h, void * data)
+{
+		if (high_bit)
+			gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA16, w, h, GL_RGBA, GL_FLOAT, data);
+		else
+			gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA, w, h, GL_RGBA, GL_UNSIGNED_BYTE, data);
+}
+#else	
+static void GenerateMipmapRGBA(int high_bit, int w, int h, void * data)
+{
+#include REAL_GL_MODE
+		if (high_bit)
+			glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA16,  w, h, 0, GL_RGBA, GL_FLOAT, data);
+		else
+			glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA,  w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+#include FAKE_GL_MODE
+}
+#endif
+
 int GPU_verify_image(Image *ima, ImageUser *iuser, int tftile, int compare, int mipmap)
 {
 	ImBuf *ibuf = NULL;
@@ -576,6 +665,7 @@ int GPU_verify_image(Image *ima, ImageUser *iuser, int tftile, int compare, int 
 
 	if (*bind != 0) {
 		/* enable opengl drawing with textures */
+#include REAL_GL_MODE
 		glBindTexture(GL_TEXTURE_2D, *bind);
 		return *bind;
 	}
@@ -648,13 +738,12 @@ void GPU_create_gl_tex(unsigned int *bind, unsigned int *pix, float * frect, int
 		
 		if (use_high_bit_depth) {
 			fscalerect= MEM_mallocN(rectw*recth*sizeof(*fscalerect)*4, "fscalerect");
-			gluScaleImage(GL_RGBA, tpx, tpy, GL_FLOAT, frect, rectw, recth, GL_FLOAT, fscalerect);
-
+			ScaleHalfImageFloat(4, (float*)pix, tpx, tpy, (float*)fscalerect, rectw, recth);
 			frect = fscalerect;
 		}
 		else {
 			scalerect= MEM_mallocN(rectw*recth*sizeof(*scalerect), "scalerect");
-			gluScaleImage(GL_RGBA, tpx, tpy, GL_UNSIGNED_BYTE, pix, rectw, recth, GL_UNSIGNED_BYTE, scalerect);
+			ScaleHalfImageChar(4, (unsigned char*)pix, tpx, tpy, (unsigned char*)scalerect, rectw, recth);
 
 			pix= scalerect;
 		}
@@ -664,38 +753,34 @@ void GPU_create_gl_tex(unsigned int *bind, unsigned int *pix, float * frect, int
 	glGenTextures(1, (GLuint *)bind);
 	glBindTexture(GL_TEXTURE_2D, *bind);
 
+
 	if (!(gpu_get_mipmap() && mipmap)) {
 		if (use_high_bit_depth)
 			glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA16,  rectw, recth, 0, GL_RGBA, GL_FLOAT, frect);
 		else
 			glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA,  rectw, recth, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gpu_get_mipmap_filter(1));
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gpu_get_mipmap_filter(1));	
 	}
 	else {
-		if (GTS.gpu_mipmap) {
-			if (use_high_bit_depth)
-				glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA16,  rectw, recth, 0, GL_RGBA, GL_FLOAT, frect);
-			else
-				glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA,  rectw, recth, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
+	
+		GenerateMipmapRGBA(use_high_bit_depth, rectw, recth, use_high_bit_depth?frect: pix);
 
-			glGenerateMipmapEXT(GL_TEXTURE_2D);
-		} else {
-			if (use_high_bit_depth)
-				gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA16, rectw, recth, GL_RGBA, GL_FLOAT, frect);
-			else
-				gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA, rectw, recth, GL_RGBA, GL_UNSIGNED_BYTE, pix);
-		}
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gpu_get_mipmap_filter(0));
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gpu_get_mipmap_filter(1));
-
+#include FAKE_GL_MODE
 		ima->tpageflag |= IMA_MIPMAP_COMPLETE;
 	}
 
 	if (GLEW_EXT_texture_filter_anisotropic)
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, GPU_get_anisotropic());
+		
+#ifndef GLES
 	/* set to modulate with vertex color */
+	/* we don't have it in OpenGL ES 2.0 */
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+#endif
 
 	if (scalerect)
 		MEM_freeN(scalerect);
