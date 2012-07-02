@@ -307,9 +307,48 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip)
 		SMOKE_LOOP
 		{
 			field[index] += alpha * _direction[index];
+		}
 
-			_residual[index] -= alpha * _q[index];
+		if(i % 50)
+		{
+			SMOKE_LOOP
+			{
+				// if the cell is a variable
+				float Acenter = 0.0f;
+				if (!skip[index])
+				{
+					// set the matrix to the Poisson stencil in order
+					if (!skip[index + 1]) Acenter += 1.;
+					if (!skip[index - 1]) Acenter += 1.;
+					if (!skip[index + _xRes]) Acenter += 1.;
+					if (!skip[index - _xRes]) Acenter += 1.;
+					if (!skip[index + _slabSize]) Acenter += 1.;
+					if (!skip[index - _slabSize]) Acenter += 1.;
 
+					_residual[index] = b[index] - (Acenter * field[index] +  
+						field[index - 1] * (skip[index - 1] ? 0.0 : -1.0f) + 
+						field[index + 1] * (skip[index + 1] ? 0.0 : -1.0f) +
+						field[index - _xRes] * (skip[index - _xRes] ? 0.0 : -1.0f) + 
+						field[index + _xRes] * (skip[index + _xRes] ? 0.0 : -1.0f)+
+						field[index - _slabSize] * (skip[index - _slabSize] ? 0.0 : -1.0f) + 
+						field[index + _slabSize] * (skip[index + _slabSize] ? 0.0 : -1.0f) );
+				}
+				else
+				{
+					_residual[index] = 0.0f;
+				}
+			}
+		}
+		else
+		{
+			SMOKE_LOOP
+			{
+				_residual[index] -= alpha * _q[index];
+			}
+		}
+
+		SMOKE_LOOP
+		{
 			// Apply preconditioner
 			precond_apply_diag(_h, _residual, _Precond, skip, index);
 			// _h[index] = _Precond[index] * _residual[index];
@@ -317,7 +356,6 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip)
 			tmp = _residual[index] * _h[index];
 			deltaNew += tmp;
 			maxR = (tmp > maxR) ? tmp : maxR;
-
 		}
 
 
@@ -341,63 +379,3 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip)
 	if (_direction) delete[] _direction;
 	if (_q)       delete[] _q;
 }
-#if 0
-void FLUID_3D::solvePressureJacobian(float* p, float* d, unsigned char* ob)
-{
-	float *_tmp = new float[_totalCells];
-	unsigned int x, y, z;
-
-	float maxdp = 0.0f;
-
-	do
-	{
-		maxdp = 0.0f;
-
-		size_t index = _slabSize + _xRes + 1;
-		for (z = 1; z < _zRes - 1; z++, index += 2 * _xRes)
-			for (y = 1; y < _yRes - 1; y++, index += 2)
-				for (x = 1; x < _xRes - 1; x++, index++)
-				{
-					float dC = d[index];
-					float pC = p[index]; // center
-
-					float pR = p[index + 1]; // right
-					float pL = p[index - 1]; // left
-					float pT = p[index + _slabSize]; // top
-					float pB = p[index - _slabSize]; // bottom
-					float pU = p[index + _xRes]; // Up
-					float pD = p[index - _xRes]; // Down
-
-					if(ob[index + 1])			pR = pC;
-					if(ob[index - 1])			pL = pC;
-					if(ob[index + _slabSize])	pT = pC;
-					if(ob[index - _slabSize])	pB = pC;
-					if(ob[index + _xRes])		pU = pC;
-					if(ob[index - _xRes])		pD = pC;
-
-					_tmp[index] = (pR + pL + pT + pB + pU + pD + dC) / 6.0f;
-
-					if(ob[index])
-						_tmp[index] = 0;
-				}
-
-				for(unsigned int i = 0; i < _totalCells; i++)
-				{
-					float dp = _tmp[i] - p[i];
-
-					if(dp < 0)
-						dp *= -1.0f;
-
-					if(dp > maxdp)
-						maxdp = dp;
-
-					p[i] = _tmp[i];
-				}
-				printf("maxdp: %f\n", maxdp);
-	} while(maxdp > SOLVER_ACCURACY);
-
-	printf("\n");
-
-	if (_tmp) delete[] _tmp;
-}
-#endif
