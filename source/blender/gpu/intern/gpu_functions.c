@@ -26,10 +26,12 @@
  *  \ingroup gpu
  */
 
+#ifdef GLES
+#include <GLES2/gl2.h>
+#endif
+
 #include "GPU_functions.h"
-
-
-
+#include REAL_GL_MODE
 
 #if GPU_SAFETY
 
