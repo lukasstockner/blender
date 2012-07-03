@@ -92,6 +92,7 @@ unsigned int *BKE_brush_gen_texture_cache(struct Brush *br, int half_side);
 struct ImBuf *BKE_brush_gen_radial_control_imbuf(struct Brush *br);
 
 /* unified strength and size */
+void BKE_brush_randomize_size(struct Brush *brush);
 int BKE_brush_size_randomized_get(const struct Scene *scene, struct Brush *brush);
 int  BKE_brush_size_get(const struct Scene *scene, struct Brush *brush);
 void BKE_brush_size_set(struct Scene *scene, struct Brush *brush, int value);
@@ -100,8 +101,9 @@ float BKE_brush_unprojected_radius_get(const struct Scene *scene, struct Brush *
 void  BKE_brush_unprojected_radius_set(struct Scene *scene, struct Brush *brush, float value);
 
 float BKE_brush_alpha_get(const struct Scene *scene, struct Brush *brush);
-float BKE_brush_weight_get(const Scene *scene, struct Brush *brush);
-void BKE_brush_weight_set(const Scene *scene, struct Brush *brush, float value);
+void BKE_brush_alpha_set(struct Scene *scene, struct Brush *brush, float alpha);
+float BKE_brush_weight_get(const struct Scene *scene, struct Brush *brush);
+void BKE_brush_weight_set(const struct Scene *scene, struct Brush *brush, float value);
 
 int  BKE_brush_use_locked_size(const struct Scene *scene, struct Brush *brush);
 int  BKE_brush_use_alpha_pressure(const struct Scene *scene, struct Brush *brush);

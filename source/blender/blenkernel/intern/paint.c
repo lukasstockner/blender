@@ -245,5 +245,7 @@ void paint_calculate_rake_rotation(UnifiedPaintSettings *ups, const float mouse_
 
 		interp_v2_v2v2(ups->last_pos, ups->last_pos,
 		               mouse_pos, u);
+
+		copy_v2_v2(ups->last_pos, mouse_pos);
 	}
 }

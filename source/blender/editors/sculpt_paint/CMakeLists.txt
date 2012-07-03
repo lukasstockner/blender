@@ -51,9 +51,11 @@ set(SRC
 	sculpt.c
 	sculpt_undo.c
 	sculpt_uv.c
+	paint_2D.c
 
 	paint_intern.h
 	sculpt_intern.h
+	paint_2D.h
 )
 
 blender_add_lib(bf_editor_sculpt_paint "${SRC}" "${INC}" "${INC_SYS}")

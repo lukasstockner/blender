@@ -692,6 +692,8 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 		 *  TODO) */
 	paint_calculate_rake_rotation(ups, translation);
 
+	print_v2("mouse"__FILE__, translation);
+
 	if(!in_uv_editor) {
 		/* test if brush is over the mesh. sculpt only for now */
 		hit = sculpt_get_brush_geometry(C, &vc, x, y, &pixel_radius, location);
