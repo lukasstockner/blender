@@ -105,6 +105,7 @@
 #include "GPU_extensions.h"
 
 #include "paint_intern.h"
+#include "paint_2D.h"
 
 /* Defines and Structs */
 
@@ -4128,6 +4129,9 @@ static int project_paint_sub_stroke(ProjPaintState *ps, BrushPainter *painter, c
 	pos[0] = (float)(mval_i[0]);
 	pos[1] = (float)(mval_i[1]);
 
+	painter->areamousepos[0] = (float)(mval_i[0]);
+	painter->areamousepos[1] = (float)(mval_i[1]);
+
 	// we may want to use this later 
 	// BKE_brush_painter_require_imbuf(painter, ((ibuf->rect_float)? 1: 0), 0, 0);
 	
@@ -4639,6 +4643,9 @@ static int imapaint_paint_stroke(ViewContext *vc, ImagePaintState *s, BrushPaint
 		s->uv[1] = newuv[1];
 	}
 	else {
+		painter->areamousepos[0] = (float)(mval[0]);
+		painter->areamousepos[1] = (float)(mval[1]);
+
 		UI_view2d_region_to_view(s->v2d, mval[0], mval[1], &newuv[0], &newuv[1]);
 		redraw |= imapaint_paint_sub_stroke(s, painter, s->image, texpaint, newuv,
 		                                    time, 1, pressure);

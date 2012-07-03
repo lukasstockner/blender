@@ -52,7 +52,7 @@ struct BrushPainter {
 	struct Scene *scene;
 	struct Brush *brush;
 
-	float lastmousepos[2];  /* mouse position of last paint call */
+	float lastmousepos[2];  /* mouse position of last paint call. May be area space or image space, depending texture or image paint */
 
 	float accumdistance;    /* accumulated distance of brush since last paint op */
 	float lastpaintpos[2];  /* position of last paint op */
@@ -69,6 +69,8 @@ struct BrushPainter {
 	float startalpha;
 	float startjitter;
 	float startspacing;
+
+	float areamousepos[2]; /* guaranteed to hold the mouse position */
 
 	BrushPainterCache cache;
 };
