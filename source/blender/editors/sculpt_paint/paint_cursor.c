@@ -487,7 +487,7 @@ static int sculpt_get_brush_geometry(bContext *C, ViewContext *vc,
  * have on brush strength */
 /* TODO: sculpt only for now */
 static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
-                                     ViewContext *vc, int x, int y)
+                                     ViewContext *vc, int x, int y, float zoomx, float zoomy)
 {
 	rctf quad;
 
@@ -528,14 +528,13 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			glRotatef((double)RAD2DEGF((brush->flag & BRUSH_RAKE) ?
 			                           ups->last_angle : ups->special_rotation),
 			          0.0, 0.0, 1.0);
-			glTranslatef(-0.5f, -0.5f, 0);
 
 			/* scale based on tablet pressure */
 			if (ups->draw_pressure && BKE_brush_use_size_pressure(vc->scene, brush)) {
-				glTranslatef(0.5f, 0.5f, 0);
 				glScalef(1.0f / ups->pressure_value, 1.0f / ups->pressure_value, 1);
-				glTranslatef(-0.5f, -0.5f, 0);
 			}
+
+			glTranslatef(-0.5f, -0.5f, 0);
 
 			if (ups->draw_anchored) {
 				const float *aim = ups->anchored_initial_mouse;
@@ -546,7 +545,10 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 				quad.ymax = aim[1] + ups->anchored_size - win->ymin;
 			}
 			else {
-				const int radius = BKE_brush_size_get(vc->scene, brush);
+				int radius = BKE_brush_size_get(vc->scene, brush);
+
+				radius *= MAX2(zoomx, zoomy);
+
 				quad.xmin = x - radius;
 				quad.ymin = y - radius;
 				quad.xmax = x + radius;
@@ -555,6 +557,7 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		}
 		else {
 			const int radius = BKE_brush_size_get(vc->scene, brush);
+
 			quad.xmin = x - radius;
 			quad.ymin = y - radius;
 			quad.xmax = x + radius;
@@ -652,14 +655,7 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	float outline_alpha, *outline_col;
 	float location[3];
 	int pixel_radius, hit = 0, in_uv_editor;
-	float zoomx, zoomy;
-
-	if(CTX_data_mode_enum(C) == CTX_MODE_PAINT_TEXTURE) {
-		brush->mtex.brush_map_mode = MTEX_MAP_MODE_TILED;
-
-		if((brush->flag & BRUSH_RAKE) || (brush->flag & BRUSH_RANDOM_ROTATION))
-			brush->mtex.brush_map_mode = MTEX_MAP_MODE_VIEW;
-	}
+	float zoomx = 1.0, zoomy = 1.0;
 
 	/* set various defaults */
 	translation[0] = x;
@@ -673,6 +669,17 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 		return;
 
 	in_uv_editor = get_imapaint_zoom(C, &zoomx, &zoomy);
+
+	if(CTX_data_mode_enum(C) == CTX_MODE_PAINT_TEXTURE) {
+		brush->mtex.brush_map_mode = MTEX_MAP_MODE_TILED;
+
+		if((brush->flag & BRUSH_RAKE) || (brush->flag & BRUSH_RANDOM_ROTATION))
+			brush->mtex.brush_map_mode = MTEX_MAP_MODE_VIEW;
+	}
+
+	if(in_uv_editor)
+		brush->mtex.brush_map_mode = MTEX_MAP_MODE_VIEW;
+
 
 	/* can't use stroke vc here because this will be called during
 	 * mouse over too, not just during a stroke */
@@ -695,21 +702,21 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 #define PX_SIZE_FADE_MAX 12.0f
 #define PX_SIZE_FADE_MIN 4.0f
 
-		final_radius = MAX2(final_radius * zoomx, final_radius * zoomy);
+		float temp_radius =  MAX2(final_radius * zoomx, final_radius * zoomy);
 
-		if (final_radius < PX_SIZE_FADE_MIN) {
+		if (temp_radius < PX_SIZE_FADE_MIN) {
 			return;
 		}
-		else if (final_radius < PX_SIZE_FADE_MAX) {
-			outline_alpha *= (final_radius - PX_SIZE_FADE_MIN) / (PX_SIZE_FADE_MAX - PX_SIZE_FADE_MIN);
+		else if (temp_radius < PX_SIZE_FADE_MAX) {
+			outline_alpha *= (temp_radius - PX_SIZE_FADE_MIN) / (PX_SIZE_FADE_MAX - PX_SIZE_FADE_MIN);
 		}
 #undef PX_SIZE_FADE_MAX
 #undef PX_SIZE_FADE_MIN
 	}
 	/* draw overlay */
-	paint_draw_alpha_overlay(ups, brush, &vc, x, y);
+	paint_draw_alpha_overlay(ups, brush, &vc, x, y, zoomx, zoomy);
 
-	if (BKE_brush_use_locked_size(scene, brush)) {
+	if (BKE_brush_use_locked_size(scene, brush) && !in_uv_editor) {
 		BKE_brush_size_set(scene, brush, pixel_radius);
 		final_radius = pixel_radius;
 	}
