@@ -1655,8 +1655,11 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 	uiEndPanels(C, ar, &x, &y);
 
 	/* clear */
-	UI_ThemeClearColor((ar->type->regionid == RGN_TYPE_PREVIEW) ? TH_PREVIEW_BACK : TH_BACK);
-	glClear(GL_COLOR_BUFFER_BIT);
+	if (!ar->type->dont_clear)
+	{
+		UI_ThemeClearColor((ar->type->regionid == RGN_TYPE_PREVIEW) ? TH_PREVIEW_BACK : TH_BACK);
+		glClear(GL_COLOR_BUFFER_BIT);
+	}
 	
 	/* before setting the view */
 	if (vertical) {

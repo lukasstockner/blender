@@ -155,6 +155,8 @@ typedef struct ARegionType {
 	short do_lock, lock;
 	/* call cursor function on each move event */
 	short event_cursor;
+	/* If it's enabled, don't clear the region before drawing panels (ED_region_panels) */
+	char dont_clear;
 } ARegionType;
 
 /* panel types */

@@ -3076,6 +3076,11 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 
 }
 
+static void view3d_main_area_draw_floating_controls(const bContext *C, ARegion *ar)
+{
+	ED_region_panels(C, ar, 1, CTX_data_mode_string(C), -1);
+}
+
 static void view3d_main_area_draw_info(const bContext *C, ARegion *ar, const char *grid_unit)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
@@ -3128,6 +3133,8 @@ static void view3d_main_area_draw_info(const bContext *C, ARegion *ar, const cha
 		BLF_draw_default_ascii(22,  ar->winy - (USER_SHOW_VIEWPORTNAME ? 40 : 20), 0.0f,
 		                       numstr[0] ? numstr : grid_unit, sizeof(numstr));
 	}
+
+	view3d_main_area_draw_floating_controls(C, ar);
 }
 
 void view3d_main_area_draw(const bContext *C, ARegion *ar)

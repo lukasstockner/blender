@@ -61,6 +61,7 @@
 #include "RNA_access.h"
 
 #include "UI_resources.h"
+#include "UI_view2d.h"
 
 #include "view3d_intern.h"  // own include
 
@@ -380,6 +381,9 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 {
 	ListBase *lb;
 	wmKeyMap *keymap;
+
+	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_PANELS_UI, ar->winx, ar->winy);
+	ar->v2d.scroll = 0;
 
 	/* object ops. */
 	
@@ -1167,8 +1171,11 @@ void ED_spacetype_view3d(void)
 	art->listener = view3d_main_area_listener;
 	art->cursor = view3d_main_area_cursor;
 	art->lock = 1;   /* can become flag, see BKE_spacedata_draw_locks */
+	art->dont_clear = 1;
 	BLI_addhead(&st->regiontypes, art);
-	
+
+	view3d_main_register(art);
+
 	/* regions: listview/buttons */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype view3d buttons region");
 	art->regionid = RGN_TYPE_UI;
