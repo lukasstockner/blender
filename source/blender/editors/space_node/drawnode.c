@@ -1194,7 +1194,7 @@ static void node_common_set_butfunc(bNodeType *ntype)
 
 /* ****************** BUTTON CALLBACKS FOR SHADER NODES ***************** */
 
-static void node_buts_image_user(uiLayout *layout, bContext *C, PointerRNA *imaptr, PointerRNA *iuserptr)
+static void node_buts_image_user(uiLayout *layout, bContext *C, PointerRNA *ptr, PointerRNA *imaptr, PointerRNA *iuserptr)
 {
 	uiLayout *col;
 	int source;
@@ -1220,18 +1220,17 @@ static void node_buts_image_user(uiLayout *layout, bContext *C, PointerRNA *imap
 
 	if (ELEM(source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
 		col = uiLayoutColumn(layout, TRUE);
-		uiItemR(col, iuserptr, "frame_duration", 0, NULL, ICON_NONE);
-		uiItemR(col, iuserptr, "frame_start", 0, NULL, ICON_NONE);
-		uiItemR(col, iuserptr, "frame_offset", 0, NULL, ICON_NONE);
-		uiItemR(col, iuserptr, "use_cyclic", 0, NULL, ICON_NONE);
-		uiItemR(col, iuserptr, "use_auto_refresh", UI_ITEM_R_ICON_ONLY, NULL, ICON_NONE);
+		uiItemR(col, ptr, "frame_duration", 0, NULL, ICON_NONE);
+		uiItemR(col, ptr, "frame_start", 0, NULL, ICON_NONE);
+		uiItemR(col, ptr, "frame_offset", 0, NULL, ICON_NONE);
+		uiItemR(col, ptr, "use_cyclic", 0, NULL, ICON_NONE);
+		uiItemR(col, ptr, "use_auto_refresh", UI_ITEM_R_ICON_ONLY, NULL, ICON_NONE);
 	}
 
 	col = uiLayoutColumn(layout, FALSE);
 
 	if (RNA_enum_get(imaptr, "type") == IMA_TYPE_MULTILAYER)
-		uiItemR(col, iuserptr, "layer", 0, NULL, ICON_NONE);
-
+		uiItemR(col, ptr, "layer", 0, NULL, ICON_NONE);
 }
 
 static void node_shader_buts_material(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -1311,7 +1310,10 @@ static void node_shader_buts_tex_image(uiLayout *layout, bContext *C, PointerRNA
 	uiTemplateID(layout, C, ptr, "image", NULL, "IMAGE_OT_open", NULL);
 	uiItemR(layout, ptr, "color_space", 0, "", ICON_NONE);
 
-	node_buts_image_user(layout, C, &imaptr, &iuserptr);
+	/* note: image user properties used directly here, unlike compositor image node,
+	 * which redefines them in the node struct RNA to get proper updates.
+	 */
+	node_buts_image_user(layout, C, &iuserptr, &imaptr, &iuserptr);
 }
 
 static void node_shader_buts_tex_environment(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -1323,7 +1325,7 @@ static void node_shader_buts_tex_environment(uiLayout *layout, bContext *C, Poin
 	uiItemR(layout, ptr, "color_space", 0, "", ICON_NONE);
 	uiItemR(layout, ptr, "projection", 0, "", ICON_NONE);
 
-	node_buts_image_user(layout, C, &imaptr, &iuserptr);
+	node_buts_image_user(layout, C, ptr, &imaptr, &iuserptr);
 }
 
 static void node_shader_buts_tex_sky(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -1456,7 +1458,7 @@ static void node_composit_buts_image(uiLayout *layout, bContext *C, PointerRNA *
 	imaptr = RNA_pointer_get(ptr, "image");
 	RNA_pointer_create((ID *)ptr->id.data, &RNA_ImageUser, node->storage, &iuserptr);
 	
-	node_buts_image_user(layout, C, &imaptr, &iuserptr);
+	node_buts_image_user(layout, C, ptr, &imaptr, &iuserptr);
 }
 
 static void node_composit_buts_renderlayers(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -3351,4 +3353,29 @@ void node_draw_link(View2D *v2d, SpaceNode *snode, bNodeLink *link)
 	
 	node_draw_link_bezier(v2d, snode, link, th_col1, do_shaded, th_col2, do_triple, th_col3);
 //	node_draw_link_straight(v2d, snode, link, th_col1, do_shaded, th_col2, do_triple, th_col3);
+}
+
+void drawnodesnap(View2D *v2d, const float cent[2], float size, NodeBorder border)
+{
+	glBegin(GL_LINES);
+	
+	if (border & (NODE_LEFT | NODE_RIGHT)) {
+		glVertex2f(cent[0], v2d->cur.ymin);
+		glVertex2f(cent[0], v2d->cur.ymax);
+	}
+	else {
+		glVertex2f(cent[0], cent[1] - size);
+		glVertex2f(cent[0], cent[1] + size);
+	}
+	
+	if (border & (NODE_TOP | NODE_BOTTOM)) {
+		glVertex2f(v2d->cur.xmin, cent[1]);
+		glVertex2f(v2d->cur.xmax, cent[1]);
+	}
+	else {
+		glVertex2f(cent[0] - size, cent[1]);
+		glVertex2f(cent[0] + size, cent[1]);
+	}
+	
+	glEnd();
 }
