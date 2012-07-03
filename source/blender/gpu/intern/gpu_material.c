@@ -33,6 +33,11 @@
 #include <math.h>
 #include <string.h>
 
+#ifdef GLES
+#include <GLES2/gl2.h>
+#endif
+
+
 #include <GL/glew.h>
 
 #include "MEM_guardedalloc.h"
@@ -61,8 +66,14 @@
 
 #include "GPU_extensions.h"
 #include "GPU_material.h"
+#include "GPU_matrix.h"
 
 #include "gpu_codegen.h"
+
+#ifdef GLES
+#include "gpu_object_gles.h"
+#endif
+
 
 #include <string.h>
 
@@ -74,6 +85,7 @@ typedef enum DynMatProperty {
 	DYN_LAMP_IMAT = 4,
 	DYN_LAMP_PERSMAT = 8,
 } DynMatProperty;
+
 
 struct GPUMaterial {
 	Scene *scene;
@@ -95,7 +107,11 @@ struct GPUMaterial {
 	int viewmatloc, invviewmatloc;
 	int obmatloc, invobmatloc;
 	int obcolloc, obautobumpscaleloc;
-
+	
+#ifdef GLES	
+	struct GPUGLSL_ES_info glslloc;
+#endif
+	
 	ListBase lamps;
 };
 
@@ -221,6 +237,11 @@ static int GPU_material_construct_end(GPUMaterial *material)
 			material->obcolloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_OBCOLOR));
 		if (material->builtins & GPU_AUTO_BUMPSCALE)
 			material->obautobumpscaleloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_AUTO_BUMPSCALE));
+
+		#ifdef GLES
+		gpu_assign_gles_loc(&material->glslloc, shader->object);
+		#endif					
+			
 		return 1;
 	}
 
@@ -339,6 +360,9 @@ void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[][4], float v
 		}
 
 		GPU_pass_update_uniforms(material->pass);
+#ifdef GLES
+		gpu_set_shader_es(&material->glslloc,1);
+#endif
 	}
 }
 
@@ -2032,4 +2056,3 @@ void GPU_free_shader_export(GPUShaderExport *shader)
 
 	MEM_freeN(shader);
 }
-

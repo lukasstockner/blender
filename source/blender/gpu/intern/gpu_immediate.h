@@ -33,12 +33,16 @@
 #define __GPU_IMMEDIATE_H__
 
 #ifdef GLES
+#include REAL_GL_MODE
 #include <GLES2/gl2.h>
+#include <GL/glew.h>
 #else
 #include <GL/glew.h>
 #endif
 
+#ifndef GLES
 #include <stdlib.h>
+#endif
 
 #include "BLI_utildefines.h"
 

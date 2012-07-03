@@ -42,7 +42,9 @@ typedef struct bufferDataGL11 {
 	GLubyte* ptr;
 } bufferDataGL11;
 
-
+#ifdef GLES
+#define glClientActiveTexture
+#endif
 
 static void allocate(void)
 {
