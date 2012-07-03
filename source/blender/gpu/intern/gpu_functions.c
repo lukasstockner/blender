@@ -30,6 +30,7 @@
 #include <GLES2/gl2.h>
 #endif
 
+#define GPU_FUNC_INTERN
 #include "GPU_functions.h"
 #include REAL_GL_MODE
 

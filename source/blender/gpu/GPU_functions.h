@@ -32,6 +32,11 @@
 
 #include "intern/gpu_immediate.h" /* XXX: temporary, will re-factor header files later */
 
+#ifndef GPU_FUNC_INTERN
+#define GPUFUNC extern
+#else
+#define GPUFUNC
+#endif
 
 
 #undef GLAPIENTRY /* glew.h was included above, so GLAPIENTRY is defined, but blank */
@@ -184,47 +189,45 @@ typedef _W64 int ptrdiff_t;
 extern "C" {
 #endif
 
+GPUFUNC GLuint (GLAPIENTRY* gpuCreateShader)(GLuint shaderType);
+GPUFUNC void (GLAPIENTRY* gpuAttachShader)(GLuint program, GLuint shader);
+GPUFUNC void (GLAPIENTRY* gpuShaderSource)(GLuint shader, GLint count, const GLchar ** string, const GLint * length);
+GPUFUNC void (GLAPIENTRY* gpuCompileShader)(GLuint shader);
+GPUFUNC void (* gpuGetShaderiv)(GLuint shader, GLuint pname, GLint *params);
+GPUFUNC void (GLAPIENTRY* gpuGetShaderInfoLog)(GLuint shader, GLint maxLength, GLint *length, GLchar *infoLog);
 
-GLuint (GLAPIENTRY* gpuCreateShader)(GLuint shaderType);
-void (GLAPIENTRY* gpuAttachShader)(GLuint program, GLuint shader);
-void (GLAPIENTRY* gpuShaderSource)(GLuint shader, GLint count, const GLchar ** string, const GLint * length);
-void (GLAPIENTRY* gpuCompileShader)(GLuint shader);
-void (* gpuGetShaderiv)(GLuint shader, GLuint pname, GLint *params);
-void (GLAPIENTRY* gpuGetShaderInfoLog)(GLuint shader, GLint maxLength, GLint *length, GLchar *infoLog);
-
-GLuint (GLAPIENTRY* gpuCreateProgram)(void);
-void (GLAPIENTRY* gpuLinkProgram)(GLuint program);
-void (* gpuGetProgramiv)(GLuint shader, GLuint pname, GLint *params);
-void (GLAPIENTRY* gpuGetProgramInfoLog)(GLuint shader, GLint maxLength, GLint *length, GLchar *infoLog);
-
-
-void (GLAPIENTRY* gpuUniform1i)(GLint location, GLint v0);
-
-void (GLAPIENTRY* gpuUniform1fv)(GLint location, GLint count, const GLfloat * value);
-void (GLAPIENTRY* gpuUniform2fv)(GLint location, GLint count, const GLfloat * value);
-void (GLAPIENTRY* gpuUniform3fv)(GLint location, GLint count, const GLfloat * value);
-void (GLAPIENTRY* gpuUniform4fv)(GLint location, GLint count, const GLfloat * value);
-void (GLAPIENTRY* gpuUniformMatrix3fv)(GLint location, GLint count, GLboolean transpose, const GLfloat * value);
-void (GLAPIENTRY* gpuUniformMatrix4fv)(GLint location, GLint count, GLboolean transpose, const GLfloat * value);
-
-GLint (GLAPIENTRY* gpuGetAttribLocation)(GLuint program, const GLchar *name);
-GLint (GLAPIENTRY* gpuGetUniformLocation)(GLuint program, const GLchar * name);
+GPUFUNC GLuint (GLAPIENTRY* gpuCreateProgram)(void);
+GPUFUNC void (GLAPIENTRY* gpuLinkProgram)(GLuint program);
+GPUFUNC void (* gpuGetProgramiv)(GLuint shader, GLuint pname, GLint *params);
+GPUFUNC void (GLAPIENTRY* gpuGetProgramInfoLog)(GLuint shader, GLint maxLength, GLint *length, GLchar *infoLog);
 
 
-void (GLAPIENTRY* gpuUseProgram)(GLuint program);
-void (GLAPIENTRY* gpuDeleteShader)(GLuint shader);
-void (GLAPIENTRY* gpuDeleteProgram)(GLuint program);
+GPUFUNC void (GLAPIENTRY* gpuUniform1i)(GLint location, GLint v0);
+
+GPUFUNC void (GLAPIENTRY* gpuUniform1fv)(GLint location, GLint count, const GLfloat * value);
+GPUFUNC void (GLAPIENTRY* gpuUniform2fv)(GLint location, GLint count, const GLfloat * value);
+GPUFUNC void (GLAPIENTRY* gpuUniform3fv)(GLint location, GLint count, const GLfloat * value);
+GPUFUNC void (GLAPIENTRY* gpuUniform4fv)(GLint location, GLint count, const GLfloat * value);
+GPUFUNC void (GLAPIENTRY* gpuUniformMatrix3fv)(GLint location, GLint count, GLboolean transpose, const GLfloat * value);
+GPUFUNC void (GLAPIENTRY* gpuUniformMatrix4fv)(GLint location, GLint count, GLboolean transpose, const GLfloat * value);
+
+GPUFUNC GLint (GLAPIENTRY* gpuGetAttribLocation)(GLuint program, const GLchar *name);
+GPUFUNC GLint (GLAPIENTRY* gpuGetUniformLocation)(GLuint program, const GLchar * name);
+
+
+GPUFUNC void (GLAPIENTRY* gpuUseProgram)(GLuint program);
+GPUFUNC void (GLAPIENTRY* gpuDeleteShader)(GLuint shader);
+GPUFUNC void (GLAPIENTRY* gpuDeleteProgram)(GLuint program);
 
 
 
-void (GLAPIENTRY* gpuGenFramebuffers)(GLint m, GLuint * ids);
-void (GLAPIENTRY* gpuBindFramebuffer)(GLuint target, GLuint framebuffer);
-void (GLAPIENTRY* gpuDeleteFramebuffers)(GLint n, const GLuint * framebuffers);
+GPUFUNC void (GLAPIENTRY* gpuGenFramebuffers)(GLint m, GLuint * ids);
+GPUFUNC void (GLAPIENTRY* gpuBindFramebuffer)(GLuint target, GLuint framebuffer);
+GPUFUNC void (GLAPIENTRY* gpuDeleteFramebuffers)(GLint n, const GLuint * framebuffers);
 
 
 
 void GPU_func_comp_init(void);
-
 
 
 #ifdef __cplusplus
