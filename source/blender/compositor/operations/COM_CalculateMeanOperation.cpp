@@ -26,37 +26,37 @@
 
 
 
-CalculateMeanOperation::CalculateMeanOperation(): NodeOperation()
+CalculateMeanOperation::CalculateMeanOperation() : NodeOperation()
 {
 	this->addInputSocket(COM_DT_COLOR, COM_SC_NO_RESIZE);
 	this->addOutputSocket(COM_DT_VALUE);
-	this->imageReader = NULL;
-	this->iscalculated = false;
-	this->setting = 1;
+	this->m_imageReader = NULL;
+	this->m_iscalculated = false;
+	this->m_setting = 1;
 	this->setComplex(true);
 }
 void CalculateMeanOperation::initExecution()
 {
-	this->imageReader = this->getInputSocketReader(0);
-	this->iscalculated = false;
+	this->m_imageReader = this->getInputSocketReader(0);
+	this->m_iscalculated = false;
 	NodeOperation::initMutex();
 }
 
-void CalculateMeanOperation::executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void * data)
+void CalculateMeanOperation::executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void *data)
 {
-	color[0] = this->result;
+	color[0] = this->m_result;
 }
 
 void CalculateMeanOperation::deinitExecution()
 {
-	this->imageReader = NULL;
+	this->m_imageReader = NULL;
 	NodeOperation::deinitMutex();
 }
 
 bool CalculateMeanOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output)
 {
 	rcti imageInput;
-	if (iscalculated) {
+	if (this->m_iscalculated) {
 		return false;
 	}
 	NodeOperation *operation = getInputOperation(0);
@@ -72,58 +72,57 @@ bool CalculateMeanOperation::determineDependingAreaOfInterest(rcti *input, ReadB
 
 void *CalculateMeanOperation::initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers)
 {
-	BLI_mutex_lock(getMutex());
-	if (!this->iscalculated) {
-		MemoryBuffer *tile = (MemoryBuffer*)imageReader->initializeTileData(rect, memoryBuffers);
+	lockMutex();
+	if (!this->m_iscalculated) {
+		MemoryBuffer *tile = (MemoryBuffer *)this->m_imageReader->initializeTileData(rect, memoryBuffers);
 		calculateMean(tile);
-		this->iscalculated = true;
+		this->m_iscalculated = true;
 	}
-	BLI_mutex_unlock(getMutex());
+	unlockMutex();
 	return NULL;
 }
 
-void CalculateMeanOperation::calculateMean(MemoryBuffer * tile)
+void CalculateMeanOperation::calculateMean(MemoryBuffer *tile)
 {
-	this->result = 0.0f;
+	this->m_result = 0.0f;
 	float *buffer = tile->getBuffer();
-	int size = tile->getWidth()*tile->getHeight();
+	int size = tile->getWidth() * tile->getHeight();
 	int pixels = 0;
-	float sum;
-	for (int i = 0, offset = 0 ; i < size ; i ++, offset +=4) {
-		if (buffer[offset+3] > 0) {
-			pixels ++;
+	float sum = 0.0f;
+	for (int i = 0, offset = 0; i < size; i++, offset += 4) {
+		if (buffer[offset + 3] > 0) {
+			pixels++;
 	
-			switch (this->setting)
-			{
-			case 1:
+			switch (this->m_setting) {
+				case 1:
 				{
-					sum += buffer[offset]*0.35f + buffer[offset+1]*0.45f + buffer[offset+2]*0.2f;
+					sum += rgb_to_bw(&buffer[offset]);
 					break;
 				}
-			case 2:
+				case 2:
 				{
-				sum+= buffer[offset];
+					sum += buffer[offset];
 					break;
 				}
-			case 3:
+				case 3:
 				{
-				sum+= buffer[offset+1];
+					sum += buffer[offset + 1];
 					break;
 				}
-			case 4:
+				case 4:
 				{
-				sum+= buffer[offset+2];
+					sum += buffer[offset + 2];
 					break;
 				}
-			case 5:
+				case 5:
 				{
 					float yuv[3];
-					rgb_to_yuv(buffer[offset], buffer[offset+1], buffer[offset+2], &yuv[0], &yuv[1], &yuv[2]);
-					sum+=yuv[0];
+					rgb_to_yuv(buffer[offset], buffer[offset + 1], buffer[offset + 2], &yuv[0], &yuv[1], &yuv[2]);
+					sum += yuv[0];
 					break;
 				}
 			}
 		}
 	}
-	this->result = sum / pixels;
+	this->m_result = sum / pixels;
 }

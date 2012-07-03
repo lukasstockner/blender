@@ -26,39 +26,45 @@
 
 
 /**
-  * this program converts an input colour to an output value.
-  * it assumes we are in sRGB colour space.
-  */
+ * this program converts an input colour to an output value.
+ * it assumes we are in sRGB colour space.
+ */
 class SetColorOperation : public NodeOperation {
 private:
-	float channel1;
-	float channel2;
-	float channel3;
-	float channel4;
+	float m_channel1;
+	float m_channel2;
+	float m_channel3;
+	float m_channel4;
 
 public:
 	/**
-	  * Default constructor
-	  */
+	 * Default constructor
+	 */
 	SetColorOperation();
 
-	const float getChannel1() {return this->channel1;}
-	void setChannel1(float value) {this->channel1 = value;}
-	const float getChannel2() {return this->channel2;}
-	void setChannel2(float value) {this->channel2 = value;}
-	const float getChannel3() {return this->channel3;}
-	void setChannel3(float value) {this->channel3 = value;}
-	const float getChannel4() {return this->channel4;}
-	void setChannel4(float value) {this->channel4 = value;}
-	void setChannels(float value[4]) {this->channel1 = value[0];this->channel2 = value[1];this->channel3 = value[2];this->channel4 = value[3];}
+	const float getChannel1() { return this->m_channel1; }
+	void setChannel1(float value) { this->m_channel1 = value; }
+	const float getChannel2() { return this->m_channel2; }
+	void setChannel2(float value) { this->m_channel2 = value; }
+	const float getChannel3() { return this->m_channel3; }
+	void setChannel3(float value) { this->m_channel3 = value; }
+	const float getChannel4() { return this->m_channel4; }
+	void setChannel4(float value) { this->m_channel4 = value; }
+	void setChannels(float value[4])
+	{
+		this->m_channel1 = value[0];
+		this->m_channel2 = value[1];
+		this->m_channel3 = value[2];
+		this->m_channel4 = value[3];
+	}
 
 	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 
 	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
-	const bool isSetOperation() const {return true;}
+	const bool isSetOperation() const { return true; }
 
 };
 #endif

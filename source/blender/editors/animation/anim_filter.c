@@ -183,7 +183,7 @@ static short actedit_get_context(bAnimContext *ac, SpaceAction *saction)
 			//MovieClip *clip = ac->scene->clip;
 //			struct Mask *mask = seq ? seq->mask : NULL;
 
-			saction->ads.source = (ID *)ac->scene;;
+			saction->ads.source = (ID *)ac->scene;
 
 			ac->datatype = ANIMCONT_MASK;
 			ac->data = &saction->ads;
@@ -2397,13 +2397,15 @@ size_t ANIM_animdata_filter(bAnimContext *ac, ListBase *anim_data, int filter_mo
 				
 			case ANIMCONT_GPENCIL:
 			{
-				items = animdata_filter_gpencil(anim_data, data, filter_mode);
+				if (animdata_filter_dopesheet_summary(ac, anim_data, filter_mode, &items))
+					items = animdata_filter_gpencil(anim_data, data, filter_mode);
 			}
 			break;
 
 			case ANIMCONT_MASK:
 			{
-				items = animdata_filter_mask(anim_data, data, filter_mode);
+				if (animdata_filter_dopesheet_summary(ac, anim_data, filter_mode, &items))
+					items = animdata_filter_mask(anim_data, data, filter_mode);
 			}
 			break;
 

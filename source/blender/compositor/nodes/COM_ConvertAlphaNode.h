@@ -19,19 +19,19 @@
  *		Dalai Felinto
  */
 
-#ifndef _COM_ConvertAlphaNode_h
-#define _COM_ConvertAlphaNode_h
+#ifndef _COM_ConvertAlphaNode_h_
+#define _COM_ConvertAlphaNode_h_
 
 #include "COM_Node.h"
 
 /**
-  * @brief ConvertAlphaNode
-  * @ingroup Node
-  */
-class ConvertAlphaNode: public Node {
+ * @brief ConvertAlphaNode
+ * @ingroup Node
+ */
+class ConvertAlphaNode : public Node {
 public:
-	ConvertAlphaNode(bNode *editorNode) :Node(editorNode) {}
-	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
+	ConvertAlphaNode(bNode *editorNode) : Node(editorNode) {}
+	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
 };
 
 #endif

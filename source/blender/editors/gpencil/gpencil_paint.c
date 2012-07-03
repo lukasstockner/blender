@@ -56,6 +56,7 @@
 #include "ED_gpencil.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
+#include "ED_clip.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -1032,9 +1033,10 @@ static int gp_session_initdata(bContext *C, tGPsdata *p)
 			p->custom_color[3] = 0.9f;
 			
 			if (sc->gpencil_src == SC_GPENCIL_SRC_TRACK) {
-				int framenr = sc->user.framenr;
-				MovieTrackingTrack *track = BKE_tracking_active_track(&sc->clip->tracking);
-				MovieTrackingMarker *marker = BKE_tracking_exact_marker(track, framenr);
+				MovieClip *clip = ED_space_clip_get_clip(sc);
+				int framenr = ED_space_clip_get_clip_frame_number(sc);
+				MovieTrackingTrack *track = BKE_tracking_track_get_active(&clip->tracking);
+				MovieTrackingMarker *marker = BKE_tracking_marker_get_exact(track, framenr);
 				
 				p->imat[3][0] -= marker->pos[0];
 				p->imat[3][1] -= marker->pos[1];

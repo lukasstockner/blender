@@ -2819,7 +2819,7 @@ static void posttrans_mask_clean(Mask *mask)
 			short added = 0;
 			masklay_shape_new = masklay_shape->next;
 
-			if (masklay_shape->flag & GP_FRAME_SELECT) {
+			if (masklay_shape->flag & MASK_SHAPE_SELECT) {
 				BLI_remlink(&masklay->splines_shapes, masklay_shape);
 
 				/* find place to add them in buffer
@@ -5046,7 +5046,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 	else if (t->spacetype == SPACE_CLIP) {
 		if (t->options & CTX_MOVIECLIP) {
 			SpaceClip *sc = t->sa->spacedata.first;
-			MovieClip *clip = ED_space_clip(sc);
+			MovieClip *clip = ED_space_clip_get_clip(sc);
 
 			if (t->scene->nodetree) {
 				/* tracks can be used for stabilization nodes,
@@ -5057,7 +5057,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 		}
 		else if (t->options & CTX_MASK) {
 			SpaceClip *sc = t->sa->spacedata.first;
-			Mask *mask = ED_space_clip_mask(sc);
+			Mask *mask = ED_space_clip_get_mask(sc);
 
 			if (t->scene->nodetree) {
 				/* tracks can be used for stabilization nodes,
@@ -5516,8 +5516,11 @@ static void NodeToTransData(TransData *td, TransData2D *td2d, bNode *node)
 	}
 
 	td->loc = td2d->loc;
-	copy_v3_v3(td->center, td->loc);
 	copy_v3_v3(td->iloc, td->loc);
+	/* use node center instead of origin (top-left corner) */
+	td->center[0] = node->locx + 0.5f * (node->totr.xmax - node->totr.xmin);
+	td->center[1] = node->locy - 0.5f * (node->totr.ymax - node->totr.ymin);	/* node height is used negative */
+	td->center[2] = 0.0f;
 
 	memset(td->axismtx, 0, sizeof(td->axismtx));
 	td->axismtx[2][2] = 1.0f;
@@ -5529,6 +5532,8 @@ static void NodeToTransData(TransData *td, TransData2D *td2d, bNode *node)
 
 	unit_m3(td->mtx);
 	unit_m3(td->smtx);
+
+	td->extra = node;
 }
 
 static void createTransNodeData(bContext *C, TransInfo *t)
@@ -5653,8 +5658,8 @@ static void markerToTransDataInit(TransData *td, TransData2D *td2d, TransDataTra
 static void trackToTransData(SpaceClip *sc, TransData *td, TransData2D *td2d,
                              TransDataTracking *tdt, MovieTrackingTrack *track, float aspx, float aspy)
 {
-	int framenr = ED_space_clip_clip_framenr(sc);
-	MovieTrackingMarker *marker = BKE_tracking_ensure_marker(track, framenr);
+	int framenr = ED_space_clip_get_clip_frame_number(sc);
+	MovieTrackingMarker *marker = BKE_tracking_marker_ensure(track, framenr);
 
 	tdt->flag = marker->flag;
 	marker->flag &= ~(MARKER_DISABLED | MARKER_TRACKED);
@@ -5702,12 +5707,12 @@ static void createTransTrackingTracksData(bContext *C, TransInfo *t)
 	TransData *td;
 	TransData2D *td2d;
 	SpaceClip *sc = CTX_wm_space_clip(C);
-	MovieClip *clip = ED_space_clip(sc);
-	ListBase *tracksbase = BKE_tracking_get_tracks(&clip->tracking);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
+	ListBase *tracksbase = BKE_tracking_get_active_tracks(&clip->tracking);
 	MovieTrackingTrack *track;
 	MovieTrackingMarker *marker;
 	TransDataTracking *tdt;
-	int framenr = ED_space_clip_clip_framenr(sc);
+	int framenr = ED_space_clip_get_clip_frame_number(sc);
 	float aspx, aspy;
 
 	/* count */
@@ -5716,7 +5721,7 @@ static void createTransTrackingTracksData(bContext *C, TransInfo *t)
 	track = tracksbase->first;
 	while (track) {
 		if (TRACK_VIEW_SELECTED(sc, track) && (track->flag & TRACK_LOCKED) == 0) {
-			marker = BKE_tracking_get_marker(track, framenr);
+			marker = BKE_tracking_marker_get(track, framenr);
 
 			t->total++; /* offset */
 
@@ -5736,7 +5741,7 @@ static void createTransTrackingTracksData(bContext *C, TransInfo *t)
 	if (t->total == 0)
 		return;
 
-	ED_space_clip_aspect_dimension_aware(sc, &aspx, &aspy);
+	ED_space_clip_get_aspect_dimension_aware(sc, &aspx, &aspy);
 
 	td = t->data = MEM_callocN(t->total * sizeof(TransData), "TransTracking TransData");
 	td2d = t->data2d = MEM_callocN(t->total * sizeof(TransData2D), "TransTracking TransData2D");
@@ -5748,7 +5753,7 @@ static void createTransTrackingTracksData(bContext *C, TransInfo *t)
 	track = tracksbase->first;
 	while (track) {
 		if (TRACK_VIEW_SELECTED(sc, track) && (track->flag & TRACK_LOCKED) == 0) {
-			marker = BKE_tracking_get_marker(track, framenr);
+			marker = BKE_tracking_marker_get(track, framenr);
 
 			trackToTransData(sc, td, td2d, tdt, track, aspx, aspy);
 
@@ -5830,8 +5835,8 @@ static void createTransTrackingCurvesData(bContext *C, TransInfo *t)
 	TransData *td;
 	TransData2D *td2d;
 	SpaceClip *sc = CTX_wm_space_clip(C);
-	MovieClip *clip = ED_space_clip(sc);
-	ListBase *tracksbase = BKE_tracking_get_tracks(&clip->tracking);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
+	ListBase *tracksbase = BKE_tracking_get_active_tracks(&clip->tracking);
 	MovieTrackingTrack *track;
 	MovieTrackingMarker *marker, *prev_marker;
 	TransDataTracking *tdt;
@@ -5908,14 +5913,17 @@ static void createTransTrackingData(bContext *C, TransInfo *t)
 {
 	ARegion *ar = CTX_wm_region(C);
 	SpaceClip *sc = CTX_wm_space_clip(C);
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 	int width, height;
 
 	t->total = 0;
 
+	if (!clip)
+		return;
+
 	BKE_movieclip_get_size(clip, &sc->user, &width, &height);
 
-	if (!clip || width == 0 || height == 0)
+	if (width == 0 || height == 0)
 		return;
 
 	if (ar->regiontype == RGN_TYPE_PREVIEW) {
@@ -5931,17 +5939,17 @@ static void cancelTransTracking(TransInfo *t)
 {
 	TransDataTracking *tdt = t->customData;
 	SpaceClip *sc = t->sa->spacedata.first;
-	MovieClip *clip = ED_space_clip(sc);
-	ListBase *tracksbase = BKE_tracking_get_tracks(&clip->tracking);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
+	ListBase *tracksbase = BKE_tracking_get_active_tracks(&clip->tracking);
 	MovieTrackingTrack *track;
 	MovieTrackingMarker *marker;
-	int a, framenr = ED_space_clip_clip_framenr(sc);
+	int a, framenr = ED_space_clip_get_clip_frame_number(sc);
 
 	if (tdt->mode == transDataTracking_ModeTracks) {
 		track = tracksbase->first;
 		while (track) {
 			if (TRACK_VIEW_SELECTED(sc, track) && (track->flag & TRACK_LOCKED) == 0) {
-				marker = BKE_tracking_get_marker(track, framenr);
+				marker = BKE_tracking_marker_get(track, framenr);
 				marker->flag = tdt->flag;
 
 				tdt++;
@@ -5992,7 +6000,7 @@ void flushTransTracking(TransInfo *t)
 	int a;
 	float aspx, aspy;
 
-	ED_space_clip_aspect_dimension_aware(sc, &aspx, &aspy);
+	ED_space_clip_get_aspect_dimension_aware(sc, &aspx, &aspy);
 
 	if (t->state == TRANS_CANCEL)
 		cancelTransTracking(t);
@@ -6072,7 +6080,7 @@ static void MaskPointToTransData(SpaceClip *sc, MaskSplinePoint *point,
 	tdm->point = point;
 	copy_m3_m3(tdm->vec, bezt->vec);
 
-	ED_space_clip_mask_aspect(sc, &aspx, &aspy);
+	ED_space_clip_get_aspect(sc, &aspx, &aspy);
 
 	if (propmode || is_sel_point) {
 		int i;
@@ -6250,7 +6258,7 @@ void flushTransMasking(TransInfo *t)
 	int a;
 	float aspx, aspy, invx, invy;
 
-	ED_space_clip_mask_aspect(sc, &aspx, &aspy);
+	ED_space_clip_get_aspect(sc, &aspx, &aspy);
 	invx = 1.0f / aspx;
 	invy = 1.0f / aspy;
 
@@ -6321,7 +6329,7 @@ void createTransData(bContext *C, TransInfo *t)
 #endif
 	}
 	else if (t->spacetype == SPACE_NODE) {
-		t->flag |= T_2D_EDIT | T_POINTS;
+		t->flag |= T_POINTS | T_2D_EDIT;
 		createTransNodeData(C, t);
 		if (t->data && (t->flag & T_PROP_EDIT)) {
 			sort_trans_data(t); // makes selected become first in array

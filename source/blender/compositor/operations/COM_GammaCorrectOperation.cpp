@@ -23,21 +23,21 @@
 #include "COM_GammaCorrectOperation.h"
 #include "BLI_math.h"
 
-GammaCorrectOperation::GammaCorrectOperation(): NodeOperation()
+GammaCorrectOperation::GammaCorrectOperation() : NodeOperation()
 {
 	this->addInputSocket(COM_DT_COLOR);
 	this->addOutputSocket(COM_DT_COLOR);
-	this->inputProgram = NULL;
+	this->m_inputProgram = NULL;
 }
 void GammaCorrectOperation::initExecution()
 {
-	this->inputProgram = this->getInputSocketReader(0);
+	this->m_inputProgram = this->getInputSocketReader(0);
 }
 
 void GammaCorrectOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[])
 {
 	float inputColor[4];
-	this->inputProgram->read(inputColor, x, y, sampler, inputBuffers);
+	this->m_inputProgram->read(inputColor, x, y, sampler, inputBuffers);
 	if (inputColor[3] > 0.0f) {
 		inputColor[0] /= inputColor[3];
 		inputColor[1] /= inputColor[3];
@@ -45,9 +45,9 @@ void GammaCorrectOperation::executePixel(float *color, float x, float y, PixelSa
 	}
 
 	/* check for negative to avoid nan's */
-	color[0] = inputColor[0]>0.0f?inputColor[0]*inputColor[0] :0.0f;
-	color[1] = inputColor[1]>0.0f?inputColor[1]*inputColor[1] :0.0f;
-	color[2] = inputColor[2]>0.0f?inputColor[2]*inputColor[2] :0.0f;
+	color[0] = inputColor[0] > 0.0f ? inputColor[0] * inputColor[0] : 0.0f;
+	color[1] = inputColor[1] > 0.0f ? inputColor[1] * inputColor[1] : 0.0f;
+	color[2] = inputColor[2] > 0.0f ? inputColor[2] * inputColor[2] : 0.0f;
 
 	inputColor[0] *= inputColor[3];
 	inputColor[1] *= inputColor[3];
@@ -61,24 +61,24 @@ void GammaCorrectOperation::executePixel(float *color, float x, float y, PixelSa
 
 void GammaCorrectOperation::deinitExecution()
 {
-	this->inputProgram = NULL;
+	this->m_inputProgram = NULL;
 }
 
-GammaUncorrectOperation::GammaUncorrectOperation(): NodeOperation()
+GammaUncorrectOperation::GammaUncorrectOperation() : NodeOperation()
 {
 	this->addInputSocket(COM_DT_COLOR);
 	this->addOutputSocket(COM_DT_COLOR);
-	this->inputProgram = NULL;
+	this->m_inputProgram = NULL;
 }
 void GammaUncorrectOperation::initExecution()
 {
-	this->inputProgram = this->getInputSocketReader(0);
+	this->m_inputProgram = this->getInputSocketReader(0);
 }
 
 void GammaUncorrectOperation::executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[])
 {
 	float inputColor[4];
-	this->inputProgram->read(inputColor, x, y, sampler, inputBuffers);
+	this->m_inputProgram->read(inputColor, x, y, sampler, inputBuffers);
 
 	if (inputColor[3] > 0.0f) {
 		inputColor[0] /= inputColor[3];
@@ -86,9 +86,9 @@ void GammaUncorrectOperation::executePixel(float *color, float x, float y, Pixel
 		inputColor[2] /= inputColor[3];
 	}
 
-	color[0] = inputColor[0]>0.0f?sqrtf(inputColor[0]) :0.0f;
-	color[1] = inputColor[1]>0.0f?sqrtf(inputColor[1]) :0.0f;
-	color[2] = inputColor[2]>0.0f?sqrtf(inputColor[2]) :0.0f;
+	color[0] = inputColor[0] > 0.0f ? sqrtf(inputColor[0]) : 0.0f;
+	color[1] = inputColor[1] > 0.0f ? sqrtf(inputColor[1]) : 0.0f;
+	color[2] = inputColor[2] > 0.0f ? sqrtf(inputColor[2]) : 0.0f;
 
 	inputColor[0] *= inputColor[3];
 	inputColor[1] *= inputColor[3];
@@ -102,5 +102,5 @@ void GammaUncorrectOperation::executePixel(float *color, float x, float y, Pixel
 
 void GammaUncorrectOperation::deinitExecution()
 {
-	this->inputProgram = NULL;
+	this->m_inputProgram = NULL;
 }

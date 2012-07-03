@@ -12,7 +12,7 @@
 #include "CcdPhysicsController.h"
 #endif
 
-class KX_BulletPhysicsController : public KX_IPhysicsController ,public CcdPhysicsController
+class KX_BulletPhysicsController : public KX_IPhysicsController, public CcdPhysicsController
 {
 private:
 	int m_savedCollisionFlags;
@@ -92,9 +92,7 @@ public:
 
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_BulletPhysicsController"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BulletPhysicsController")
 #endif
 };
 

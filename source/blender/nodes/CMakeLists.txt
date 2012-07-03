@@ -35,7 +35,6 @@ set(INC
 	../makesrna
 	../render/extern/include
 	../../../intern/guardedalloc
-	../compositor
 )
 
 set(INC_SYS
@@ -76,6 +75,8 @@ set(SRC
 	composite/nodes/node_composite_idMask.c
 	composite/nodes/node_composite_image.c
 	composite/nodes/node_composite_invert.c
+	composite/nodes/node_composite_keyingscreen.c
+	composite/nodes/node_composite_keying.c
 	composite/nodes/node_composite_lensdist.c
 	composite/nodes/node_composite_levels.c
 	composite/nodes/node_composite_lummaMatte.c
@@ -239,6 +240,13 @@ endif()
 
 if(WITH_IMAGE_OPENEXR)
 	add_definitions(-DWITH_OPENEXR)
+endif()
+
+if(WITH_COMPOSITOR)
+	list(APPEND INC
+		../compositor
+	)
+	add_definitions(-DWITH_COMPOSITOR)
 endif()
 
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}")

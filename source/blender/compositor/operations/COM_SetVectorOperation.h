@@ -26,38 +26,38 @@
 
 
 /**
-  * this program converts an input colour to an output value.
-  * it assumes we are in sRGB colour space.
-  */
+ * this program converts an input colour to an output value.
+ * it assumes we are in sRGB colour space.
+ */
 class SetVectorOperation : public NodeOperation {
 private:
-	float x;
-	float y;
-	float z;
-	float w;
+	float m_x;
+	float m_y;
+	float m_z;
+	float m_w;
 
 public:
 	/**
-	  * Default constructor
-	  */
+	 * Default constructor
+	 */
 	SetVectorOperation();
 	
-	const float getX() {return this->x;}
-	void setX(float value) {this->x = value;}
-	const float getY() {return this->y;}
-	void setY(float value) {this->y = value;}
-	const float getZ() {return this->z;}
-	void setZ(float value) {this->z = value;}
-	const float getW() {return this->w;}
-	void setW(float value) {this->w = value;}
+	const float getX() { return this->m_x; }
+	void setX(float value) { this->m_x = value; }
+	const float getY() { return this->m_y; }
+	void setY(float value) { this->m_y = value; }
+	const float getZ() { return this->m_z; }
+	void setZ(float value) { this->m_z = value; }
+	const float getW() { return this->m_w; }
+	void setW(float value) { this->m_w = value; }
 	
 	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer *inputBuffers[]);
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, float x, float y, PixelSampler sampler, MemoryBuffer * inputBuffers[]);
 
 	void determineResolution(unsigned int resolution[], unsigned int preferredResolution[]);
-	const bool isSetOperation() const {return true;}
+	const bool isSetOperation() const { return true; }
 
 	void setVector(float vector[3]) {
 		setX(vector[0]);

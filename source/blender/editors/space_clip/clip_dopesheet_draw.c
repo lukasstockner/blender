@@ -146,7 +146,7 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, sh
 
 void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 {
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 	View2D *v2d = &ar->v2d;
 
 	/* frame range */
@@ -158,6 +158,12 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 		MovieTrackingDopesheetChannel *channel;
 		float y, xscale, yscale;
 		float strip[4], selected_strip[4];
+		float height = (dopesheet->tot_channel * CHANNEL_STEP) + (CHANNEL_HEIGHT * 2);
+
+		/* don't use totrect set, as the width stays the same
+		 * (NOTE: this is ok here, the configuration is pretty straightforward)
+		 */
+		v2d->tot.ymin = (float)(-height);
 
 		y = (float) CHANNEL_FIRST;
 
@@ -250,7 +256,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *ar)
 	ScrArea *sa = CTX_wm_area(C);
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	View2D *v2d = &ar->v2d;
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 	MovieTracking *tracking;
 	MovieTrackingDopesheet *dopesheet;
 	MovieTrackingDopesheetChannel *channel;
@@ -307,10 +313,10 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *ar)
 			else
 				UI_ThemeColor(TH_TEXT);
 
-			font_height = BLF_height(fontid, track->name);
+			font_height = BLF_height(fontid, channel->name);
 			BLF_position(fontid, v2d->cur.xmin + CHANNEL_PAD,
 			             y - font_height / 2.0f, 0.0f);
-			BLF_draw(fontid, track->name, strlen(track->name));
+			BLF_draw(fontid, channel->name, strlen(channel->name));
 		}
 
 		/* adjust y-position for next one */

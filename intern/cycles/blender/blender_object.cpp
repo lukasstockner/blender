@@ -154,6 +154,7 @@ void BlenderSync::sync_light(BL::Object b_parent, int b_index, BL::Object b_ob, 
 	/* shadow */
 	PointerRNA clamp = RNA_pointer_get(&b_lamp.ptr, "cycles");
 	light->cast_shadow = get_boolean(clamp, "cast_shadow");
+	light->samples = get_int(clamp, "samples");
 
 	/* tag */
 	light->tag_update(scene);
@@ -178,6 +179,7 @@ void BlenderSync::sync_background_light()
 			{
 				light->type = LIGHT_BACKGROUND;
 				light->map_resolution  = get_int(cworld, "sample_map_resolution");
+				light->samples  = get_int(cworld, "samples");
 				light->shader = scene->default_background;
 
 				light->tag_update(scene);
@@ -303,7 +305,7 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, int motion)
 	for(; b_sce; b_sce = b_sce.background_set()) {
 		for(b_sce.objects.begin(b_ob); b_ob != b_sce.objects.end(); ++b_ob) {
 			bool hide = (render_layer.use_viewport_visibility)? b_ob->hide(): b_ob->hide_render();
-			uint ob_layer = get_layer(b_ob->layers());
+			uint ob_layer = get_layer(b_ob->layers(), b_ob->layers_local_view(), object_is_light(*b_ob));
 			hide = hide || !(ob_layer & scene_layer);
 
 			if(!hide) {
@@ -317,14 +319,18 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, int motion)
 					object_create_duplilist(*b_ob, b_scene);
 
 					BL::Object::dupli_list_iterator b_dup;
+					int b_index = 0;
+
 					for(b_ob->dupli_list.begin(b_dup); b_dup != b_ob->dupli_list.end(); ++b_dup) {
 						Transform tfm = get_transform(b_dup->matrix());
 						BL::Object b_dup_ob = b_dup->object();
 						bool dup_hide = (b_v3d)? b_dup_ob.hide(): b_dup_ob.hide_render();
 
 						if(!(b_dup->hide() || dup_hide)) {
-							sync_object(*b_ob, b_dup->index(), b_dup_ob, tfm, ob_layer, motion, b_dup->particle_index() + particle_offset);
+							sync_object(*b_ob, b_index, b_dup_ob, tfm, ob_layer, motion, b_dup->particle_index() + particle_offset);
 						}
+						
+						++b_index;
 					}
 
 					object_free_duplilist(*b_ob);

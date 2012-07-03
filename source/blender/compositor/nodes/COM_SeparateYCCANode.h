@@ -19,17 +19,17 @@
  *		Dalai Felinto
  */
 
-#ifndef _COM_SeparateYCCANode_h
-#define _COM_SeparateYCCANode_h
+#ifndef _COM_SeparateYCCANode_h_
+#define _COM_SeparateYCCANode_h_
 
 #include "COM_Node.h"
 #include "DNA_node_types.h"
 #include "COM_SeparateRGBANode.h"
 
 /**
-  * @brief SeparateYCCANode
-  * @ingroup Node
-  */
+ * @brief SeparateYCCANode
+ * @ingroup Node
+ */
 class SeparateYCCANode : public SeparateRGBANode {
 public:
 	SeparateYCCANode(bNode *editorNode);

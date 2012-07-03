@@ -144,6 +144,12 @@ static void rna_userdef_anisotropic_update(Main *bmain, Scene *scene, PointerRNA
 	rna_userdef_update(bmain, scene, ptr);
 }
 
+static void rna_userdef_gl_gpu_mipmaps(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
+	rna_userdef_update(bmain, scene, ptr);
+}
+
 static void rna_userdef_gl_texture_limit_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	GPU_free_images();
@@ -457,7 +463,7 @@ static void rna_def_userdef_theme_ui_font_style(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "shadowcolor", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "Shadow Brightness", "Shadow color in grey value");
+	RNA_def_property_ui_text(prop, "Shadow Brightness", "Shadow color in gray value");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 }
 
@@ -2087,7 +2093,7 @@ static void rna_def_userdef_theme_space_clip(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "marker_outline", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_float_sdna(prop, NULL, "marker_outline");
 	RNA_def_property_array(prop, 3);
-	RNA_def_property_ui_text(prop, "Marker Outline Color", "Color of marker's outile");
+	RNA_def_property_ui_text(prop, "Marker Outline Color", "Color of marker's outline");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
 	prop = RNA_def_property(srna, "marker", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -3142,6 +3148,11 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "use_16bit_textures", 1);
 	RNA_def_property_ui_text(prop, "16 Bit Float Textures", "Use 16 bit per component texture for float images");
 	RNA_def_property_update(prop, 0, "rna_userdef_gl_use_16bit_textures");
+
+	prop = RNA_def_property(srna, "use_gpu_mipmap", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "use_gpu_mipmap", 1);
+	RNA_def_property_ui_text(prop, "GPU Mipmap Generation", "Generate Image Mipmaps on the GPU");
+	RNA_def_property_update(prop, 0, "rna_userdef_gl_gpu_mipmaps");
 
 	prop = RNA_def_property(srna, "use_vertex_buffer_objects", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "gameflags", USER_DISABLE_VBO);

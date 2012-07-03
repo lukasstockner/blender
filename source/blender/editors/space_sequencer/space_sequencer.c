@@ -325,27 +325,43 @@ static void sequencer_main_area_draw(const bContext *C, ARegion *ar)
 
 /* ************* dropboxes ************* */
 
-static int image_drop_poll(bContext *UNUSED(C), wmDrag *drag, wmEvent *UNUSED(event))
+static int image_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
 {
+	ARegion *ar = CTX_wm_region(C);
+	Scene *scene = CTX_data_scene(C);
+	int hand;
+
 	if (drag->type == WM_DRAG_PATH)
 		if (ELEM(drag->icon, ICON_FILE_IMAGE, ICON_FILE_BLANK)) /* rule might not work? */
-			return 1;
+			if (find_nearest_seq(scene, &ar->v2d, &hand, event->mval) == NULL)
+				return 1;
+
 	return 0;
 }
 
-static int movie_drop_poll(bContext *UNUSED(C), wmDrag *drag, wmEvent *UNUSED(event))
+static int movie_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
 {
+	ARegion *ar = CTX_wm_region(C);
+	Scene *scene = CTX_data_scene(C);
+	int hand;
+
 	if (drag->type == WM_DRAG_PATH)
 		if (ELEM3(drag->icon, 0, ICON_FILE_MOVIE, ICON_FILE_BLANK)) /* rule might not work? */
-			return 1;
+			if (find_nearest_seq(scene, &ar->v2d, &hand, event->mval) == NULL)
+				return 1;
 	return 0;
 }
 
-static int sound_drop_poll(bContext *UNUSED(C), wmDrag *drag, wmEvent *UNUSED(event))
+static int sound_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
 {
+	ARegion *ar = CTX_wm_region(C);
+	Scene *scene = CTX_data_scene(C);
+	int hand;
+
 	if (drag->type == WM_DRAG_PATH)
 		if (ELEM(drag->icon, ICON_FILE_SOUND, ICON_FILE_BLANK)) /* rule might not work? */
-			return 1;
+			if (find_nearest_seq(scene, &ar->v2d, &hand, event->mval) == NULL)
+				return 1;
 	return 0;
 }
 
@@ -436,6 +452,10 @@ static void sequencer_main_area_listener(ARegion *ar, wmNotifier *wmn)
 			break;
 		case NC_ID:
 			if (wmn->action == NA_RENAME)
+				ED_region_tag_redraw(ar);
+			break;
+		case NC_SCREEN:
+			if (ELEM(wmn->data, ND_SCREENCAST, ND_ANIMPLAY))
 				ED_region_tag_redraw(ar);
 			break;
 	}

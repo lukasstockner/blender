@@ -48,7 +48,7 @@ class CLIP_HT_header(Header):
                     sub.menu("CLIP_MT_clip")
 
         row = layout.row()
-        row.template_ID(sc, "clip", open='clip.open')
+        row.template_ID(sc, "clip", open="clip.open")
 
         if clip:
             tracking = clip.tracking
@@ -62,10 +62,14 @@ class CLIP_HT_header(Header):
                 r = active_object.reconstruction
 
                 if r.is_valid and sc.view == 'CLIP':
-                    layout.label(text="Average solve error: %.4f" %
+                    layout.label(text="Solve error: %.4f" %
                                  (r.average_error))
             elif sc.view == 'GRAPH':
                 layout.prop(sc, "view", text="", expand=True)
+
+                row = layout.row(align=True)
+                row.prop(sc, "show_graph_only_selected", text="")
+                row.prop(sc, "show_graph_hidden", text="")
 
                 row = layout.row(align=True)
 
@@ -82,11 +86,17 @@ class CLIP_HT_header(Header):
                     row.prop(sc, "show_filters", icon='DISCLOSURE_TRI_RIGHT',
                              text="Filters")
             elif sc.view == 'DOPESHEET':
+                dopesheet = tracking.dopesheet
                 layout.prop(sc, "view", text="", expand=True)
 
-                layout.label(text="Sort by:")
-                layout.prop(sc, "dopesheet_sort_method", text="")
-                layout.prop(sc, "invert_dopesheet_sort", text="Invert")
+                row = layout.row(align=True)
+                row.prop(dopesheet, "show_only_selected", text="")
+                row.prop(dopesheet, "show_hidden", text="")
+
+                row = layout.row(align=True)
+                row.prop(dopesheet, "sort_method", text="")
+                row.prop(dopesheet, "use_invert_sort",
+                         text="Invert", toggle=True)
         else:
             layout.prop(sc, "view", text="", expand=True)
 
@@ -112,7 +122,7 @@ class CLIP_HT_header(Header):
                 sub.menu("CLIP_MT_clip")
 
         row = layout.row()
-        row.template_ID(sc, "clip", open='clip.open')
+        row.template_ID(sc, "clip", open="clip.open")
 
         layout.prop(sc, "mode", text="")
 
@@ -233,6 +243,7 @@ class CLIP_PT_tools_marker(CLIP_PT_tracking_panel, Panel):
             col.prop(settings, "default_motion_model")
             col.prop(settings, "default_use_brute")
             col.prop(settings, "default_use_normalization")
+            col.prop(settings, "default_use_mask")
             col.prop(settings, "default_correlation_min")
 
             col.separator()
@@ -245,7 +256,7 @@ class CLIP_PT_tools_marker(CLIP_PT_tracking_panel, Panel):
             col.prop(settings, "default_pattern_match", text="")
 
             col.separator()
-            col.operator('clip.track_settings_as_default',
+            col.operator("clip.track_settings_as_default",
                          text="Copy From Active Track")
 
 
@@ -330,9 +341,9 @@ class CLIP_PT_tools_cleanup(CLIP_PT_tracking_panel, Panel):
 
         layout.operator("clip.clean_tracks")
 
-        layout.prop(settings, 'clean_frames', text="Frames")
-        layout.prop(settings, 'clean_error', text="Error")
-        layout.prop(settings, 'clean_action', text="")
+        layout.prop(settings, "clean_frames", text="Frames")
+        layout.prop(settings, "clean_error", text="Error")
+        layout.prop(settings, "clean_action", text="")
 
 
 class CLIP_PT_tools_geometry(CLIP_PT_reconstruction_panel, Panel):
@@ -541,6 +552,11 @@ class CLIP_PT_track(CLIP_PT_tracking_panel, Panel):
         sub = row.row()
         sub.prop(act_track, "use_grayscale_preview", text="B/W", toggle=True)
 
+        row.separator()
+        sub = row.row()
+        sub.prop(act_track, "use_alpha_preview",
+                 text="", toggle=True, icon='IMAGE_ALPHA')
+
         layout.separator()
 
         row = layout.row(align=True)
@@ -580,6 +596,7 @@ class CLIP_PT_track_settings(CLIP_PT_tracking_panel, Panel):
             col.prop(active, "motion_model")
             col.prop(active, "use_brute")
             col.prop(active, "use_normalization")
+            col.prop(active, "use_mask")
             col.prop(active, "correlation_min")
 
             col.separator()
@@ -720,7 +737,9 @@ class CLIP_PT_active_mask_point(Panel):
         mask = sc.mask
 
         if mask and sc.mode == 'MASKEDIT':
-            return mask.layers.active and mask.layers.active.splines.active_point
+            mask_layer_active = mask.layers.active
+            return (mask_layer_active and
+                    mask_layer_active.splines.active_point)
 
         return False
 
@@ -964,7 +983,7 @@ class CLIP_PT_proxy(CLIP_PT_clip_view_panel, Panel):
 
         layout.prop(clip.proxy, "quality")
 
-        layout.prop(clip, 'use_proxy_custom_directory')
+        layout.prop(clip, "use_proxy_custom_directory")
         if clip.use_proxy_custom_directory:
             layout.prop(clip.proxy, "directory")
 
@@ -998,6 +1017,7 @@ class CLIP_PT_footage(CLIP_PT_clip_view_panel, Panel):
         col = layout.column()
         col.template_movieclip(sc, "clip", compact=True)
         col.prop(clip, "start_frame")
+        col.prop(clip, "frame_offset")
 
 
 class CLIP_PT_tools_clip(CLIP_PT_clip_view_panel, Panel):
@@ -1037,7 +1057,8 @@ class CLIP_MT_view(Menu):
 
             for a, b in ratios:
                 text = "Zoom %d:%d" % (a, b)
-                layout.operator("clip.view_zoom_ratio", text=text).ratio = a / b
+                layout.operator("clip.view_zoom_ratio",
+                                text=text).ratio = a / b
         else:
             layout.prop(sc, "show_seconds")
             layout.separator()
@@ -1187,16 +1208,20 @@ class CLIP_MT_select(Menu):
 
             layout.separator()
 
-            layout.operator("mask.select_all").action = 'TOGGLE'
-            layout.operator("mask.select_all", text="Inverse").action = 'INVERT'
+            layout.operator("mask.select_all"
+                            ).action = 'TOGGLE'
+            layout.operator("mask.select_all",
+                            text="Inverse").action = 'INVERT'
         else:
             layout.operator("clip.select_border")
             layout.operator("clip.select_circle")
 
             layout.separator()
 
-            layout.operator("clip.select_all").action = 'TOGGLE'
-            layout.operator("clip.select_all", text="Inverse").action = 'INVERT'
+            layout.operator("clip.select_all"
+                            ).action = 'TOGGLE'
+            layout.operator("clip.select_all",
+                            text="Inverse").action = 'INVERT'
 
             layout.menu("CLIP_MT_select_grouped")
 
@@ -1253,6 +1278,7 @@ class CLIP_MT_mask(Menu):
         layout.separator()
         layout.operator("mask.cyclic_toggle")
         layout.operator("mask.switch_direction")
+        layout.operator("mask.normals_make_consistent")
         layout.operator("mask.feather_weight_clear")  # TODO, better place?
 
         layout.separator()
@@ -1300,6 +1326,7 @@ class CLIP_MT_mask_animation(Menu):
         layout.operator("mask.shape_key_clear")
         layout.operator("mask.shape_key_insert")
         layout.operator("mask.shape_key_feather_reset")
+        layout.operator("mask.shape_key_rekey")
 
 
 class CLIP_MT_camera_presets(Menu):
@@ -1332,7 +1359,7 @@ class CLIP_MT_track_color_specials(Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator('clip.track_copy_color', icon='COPY_ID')
+        layout.operator("clip.track_copy_color", icon='COPY_ID')
 
 
 class CLIP_MT_stabilize_2d_specials(Menu):
@@ -1341,7 +1368,7 @@ class CLIP_MT_stabilize_2d_specials(Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator('clip.stabilize_2d_select')
+        layout.operator("clip.stabilize_2d_select")
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

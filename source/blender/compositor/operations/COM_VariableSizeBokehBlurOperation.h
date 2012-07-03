@@ -27,35 +27,36 @@
 
 class VariableSizeBokehBlurOperation : public NodeOperation, public QualityStepHelper {
 private:
-	int maxBlur;
-	float threshold;
-	SocketReader *inputProgram;
-	SocketReader *inputBokehProgram;
-	SocketReader *inputSizeProgram;
+	int m_maxBlur;
+	float m_threshold;
+	SocketReader *m_inputProgram;
+	SocketReader *m_inputBokehProgram;
+	SocketReader *m_inputSizeProgram;
+	SocketReader *m_inputDepthProgram;
 
 public:
 	VariableSizeBokehBlurOperation();
 
 	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void *data);
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, int x, int y, MemoryBuffer * inputBuffers[], void *data);
 	
 	/**
-	  * Initialize the execution
-	  */
+	 * Initialize the execution
+	 */
 	void initExecution();
 	
 	/**
-	  * Deinitialize the execution
-	  */
+	 * Deinitialize the execution
+	 */
 	void deinitExecution();
 	
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 	
-	void setMaxBlur(int maxRadius) {this->maxBlur = maxRadius;}
-	
-	void setThreshold(float threshold) {this->threshold = threshold;}
+	void setMaxBlur(int maxRadius) { this->m_maxBlur = maxRadius; }
+
+	void setThreshold(float threshold) { this->m_threshold = threshold; }
 
 
 };

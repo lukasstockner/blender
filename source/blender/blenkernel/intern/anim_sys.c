@@ -1287,9 +1287,11 @@ static void animsys_evaluate_drivers(PointerRNA *ptr, AnimData *adt, float ctime
 		/* check if this driver's curve should be skipped */
 		if ((fcu->flag & (FCURVE_MUTED | FCURVE_DISABLED)) == 0) {
 			/* check if driver itself is tagged for recalculation */
-			if ((driver) && !(driver->flag & DRIVER_FLAG_INVALID) /*&& (driver->flag & DRIVER_FLAG_RECALC)*/) {  // XXX driver recalc flag is not set yet by depsgraph!
-				/* evaluate this using values set already in other places */
-				// NOTE: for 'layering' option later on, we should check if we should remove old value before adding new to only be done when drivers only changed
+			/* XXX driver recalc flag is not set yet by depsgraph! */
+			if ((driver) && !(driver->flag & DRIVER_FLAG_INVALID) /*&& (driver->flag & DRIVER_FLAG_RECALC)*/) {
+				/* evaluate this using values set already in other places
+				 * NOTE: for 'layering' option later on, we should check if we should remove old value before adding
+				 *       new to only be done when drivers only changed */
 				calculate_fcurve(fcu, ctime);
 				ok = animsys_execute_fcurve(ptr, NULL, fcu);
 				
@@ -1855,7 +1857,7 @@ static void nlastrip_evaluate_transition(PointerRNA *ptr, ListBase *channels, Li
 	/* prepare template for 'evaluation strip' 
 	 *	- based on the transition strip's evaluation strip data
 	 *	- strip_mode is NES_TIME_TRANSITION_* based on which endpoint
-	 *	- strip_time is the 'normalised' (i.e. in-strip) time for evaluation,
+	 *	- strip_time is the 'normalized' (i.e. in-strip) time for evaluation,
 	 *	  which doubles up as an additional weighting factor for the strip influences
 	 *	  which allows us to appear to be 'interpolating' between the two extremes
 	 */

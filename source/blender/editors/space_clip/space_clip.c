@@ -215,10 +215,19 @@ static void clip_scopes_tag_refresh(ScrArea *sa)
 	sc->scopes.ok = FALSE;
 }
 
+static void clip_scopes_check_gpencil_change(ScrArea *sa)
+{
+	SpaceClip *sc = (SpaceClip *)sa->spacedata.first;
+
+	if (sc->gpencil_src == SC_GPENCIL_SRC_TRACK) {
+		clip_scopes_tag_refresh(sa);
+	}
+}
+
 static void clip_stabilization_tag_refresh(ScrArea *sa)
 {
 	SpaceClip *sc = (SpaceClip *) sa->spacedata.first;
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 
 	if (clip) {
 		MovieTrackingStabilization *stab = &clip->tracking.stabilization;
@@ -400,6 +409,7 @@ static void clip_listener(ScrArea *sa, wmNotifier *wmn)
 			switch (wmn->data) {
 				case ND_ANIMPLAY:
 				case ND_GPENCIL:
+					clip_scopes_check_gpencil_change(sa);
 					ED_area_tag_redraw(sa);
 					break;
 			}
@@ -998,13 +1008,14 @@ static void clip_refresh(const bContext *C, ScrArea *sa)
 /********************* main region ********************/
 
 /* sets up the fields of the View2D from zoom and offset */
-static void movieclip_main_area_set_view2d(SpaceClip *sc, ARegion *ar)
+static void movieclip_main_area_set_view2d(const bContext *C, ARegion *ar)
 {
-	MovieClip *clip = ED_space_clip(sc);
+	SpaceClip *sc = CTX_wm_space_clip(C);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 	float x1, y1, w, h;
 	int width, height, winx, winy;
 
-	ED_space_clip_size(sc, &width, &height);
+	ED_space_clip_get_size(C, &width, &height);
 
 	w = width;
 	h = height;
@@ -1064,17 +1075,60 @@ static void clip_main_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 }
 
+static void clip_main_area_draw_mask(const bContext *C, ARegion *ar)
+{
+	SpaceClip *sc = CTX_wm_space_clip(C);
+	int x, y;
+	int width, height;
+	float zoomx, zoomy;
+
+	/* frame image */
+	float maxdim;
+	float xofs, yofs;
+
+	/* find window pixel coordinates of origin */
+	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &x, &y);
+
+	ED_space_clip_get_size(C, &width, &height);
+	ED_space_clip_get_zoom(C, &zoomx, &zoomy);
+
+	/* frame the image */
+	maxdim = maxf(width, height);
+	if (width == height) {
+		xofs = yofs = 0;
+	}
+	else if (width < height) {
+		xofs = ((height - width) / -2.0f) * zoomx;
+		yofs = 0.0f;
+	}
+	else { /* (width > height) */
+		xofs = 0.0f;
+		yofs = ((width - height) / -2.0f) * zoomy;
+	}
+
+	/* apply transformation so mask editing tools will assume drawing from the origin in normalized space */
+	glPushMatrix();
+	glTranslatef(x + xofs, y + yofs, 0);
+	glScalef(maxdim * zoomx, maxdim * zoomy, 0);
+	glMultMatrixf(sc->stabmat);
+
+	ED_mask_draw(C, sc->mask_draw_flag, sc->mask_draw_type);
+
+	ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
+
+	glPopMatrix();
+}
+
 static void clip_main_area_draw(const bContext *C, ARegion *ar)
 {
 	/* draw entirely, view changes should be handled here */
 	SpaceClip *sc = CTX_wm_space_clip(C);
-	Scene *scene = CTX_data_scene(C);
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 
 	/* if tracking is in progress, we should synchronize framenr from clipuser
 	 * so latest tracked frame would be shown */
 	if (clip && clip->tracking_context)
-		BKE_tracking_sync_user(&sc->user, clip->tracking_context);
+		BKE_tracking_context_sync_user(clip->tracking_context, &sc->user);
 
 	if (sc->flag & SC_LOCK_SELECTION) {
 		ImBuf *tmpibuf = NULL;
@@ -1083,7 +1137,7 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 			tmpibuf = ED_space_clip_get_stable_buffer(sc, NULL, NULL, NULL);
 		}
 
-		if (ED_clip_view_selection(sc, ar, 0)) {
+		if (ED_clip_view_selection(C, ar, 0)) {
 			sc->xof += sc->xlockof;
 			sc->yof += sc->ylockof;
 		}
@@ -1097,51 +1151,12 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	/* data... */
-	movieclip_main_area_set_view2d(sc, ar);
+	movieclip_main_area_set_view2d(C, ar);
 
-	clip_draw_main(sc, ar, scene);
+	clip_draw_main(C, ar);
 
 	if (sc->mode == SC_MODE_MASKEDIT) {
-		int x, y;
-		int width, height;
-		float zoomx, zoomy, aspx, aspy;
-
-		/* frame image */
-		float maxdim;
-		float xofs, yofs;
-
-		/* find window pixel coordinates of origin */
-		UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &x, &y);
-
-		ED_space_clip_size(sc, &width, &height);
-		ED_space_clip_zoom(sc, ar, &zoomx, &zoomy);
-		ED_space_clip_aspect(sc, &aspx, &aspy);
-
-		/* frame the image */
-		maxdim = maxf(width, height);
-		if (width == height) {
-			xofs = yofs = 0;
-		}
-		else if (width < height) {
-			xofs = ((height - width) / -2.0f) * zoomx;
-			yofs = 0.0f;
-		}
-		else { /* (width > height) */
-			xofs = 0.0f;
-			yofs = ((width - height) / -2.0f) * zoomy;
-		}
-
-		/* apply transformation so mask editing tools will assume drawing from the origin in normalized space */
-		glPushMatrix();
-		glTranslatef(x + xofs, y + yofs, 0);
-		glScalef(maxdim * zoomx, maxdim * zoomy, 0);
-		glMultMatrixf(sc->stabmat);
-
-		ED_mask_draw((bContext *)C, sc->mask_draw_flag, sc->mask_draw_type);
-
-		ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
-
-		glPopMatrix();
+		clip_main_area_draw_mask(C, ar);
 	}
 
 	/* Grease Pencil */
@@ -1216,14 +1231,14 @@ static void dopesheet_area_draw(const bContext *C, ARegion *ar)
 {
 	Scene *scene = CTX_data_scene(C);
 	SpaceClip *sc = CTX_wm_space_clip(C);
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 	View2D *v2d = &ar->v2d;
 	View2DGrid *grid;
 	View2DScrollers *scrollers;
 	short unit = 0;
 
 	if (clip)
-		BKE_tracking_dopesheet_update(&clip->tracking, sc->dope_sort, sc->dope_flag & SC_DOPE_SORT_INVERSE);
+		BKE_tracking_dopesheet_update(&clip->tracking);
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
@@ -1279,12 +1294,12 @@ static void clip_channels_area_init(wmWindowManager *wm, ARegion *ar)
 static void clip_channels_area_draw(const bContext *C, ARegion *ar)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
-	MovieClip *clip = ED_space_clip(sc);
+	MovieClip *clip = ED_space_clip_get_clip(sc);
 	View2D *v2d = &ar->v2d;
 	View2DScrollers *scrollers;
 
 	if (clip)
-		BKE_tracking_dopesheet_update(&clip->tracking, sc->dope_sort, sc->dope_flag & SC_DOPE_SORT_INVERSE);
+		BKE_tracking_dopesheet_update(&clip->tracking);
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);

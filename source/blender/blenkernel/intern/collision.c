@@ -325,8 +325,7 @@ static int cloth_collision_response_static ( ClothModifierData *clmd, CollisionM
 
 			result = 1;
 		}
-		else
-		{
+		else {
 			// Apply repulse impulse if distance too short
 			// I_r = -min(dt*kd, max(0, 1d/dt - v_n))
 			// DG: this formula ineeds to be changed for this code since we apply impulses/repulses like this:
@@ -643,12 +642,12 @@ static void cloth_bvh_objcollisions_nearcheck ( ClothModifierData * clmd, Collis
 {
 	int i;
 	
-	*collisions = ( CollPair* ) MEM_mallocN ( sizeof ( CollPair ) * numresult * 64, "collision array" ); //*4 since cloth_collision_static can return more than 1 collision
+	*collisions = (CollPair *) MEM_mallocN(sizeof(CollPair) * numresult * 64, "collision array" ); //*4 since cloth_collision_static can return more than 1 collision
 	*collisions_index = *collisions;
 
 	for ( i = 0; i < numresult; i++ ) {
 		*collisions_index = cloth_collision ( (ModifierData *)clmd, (ModifierData *)collmd,
-											  overlap+i, *collisions_index, dt );
+		                                      overlap+i, *collisions_index, dt );
 	}
 }
 
@@ -841,9 +840,11 @@ int cloth_bvh_objcollision(Object *ob, ClothModifierData * clmd, float step, flo
 							}
 						}
 
-						if( ( cloth->verts[i].flags & CLOTH_VERT_FLAG_NOSELFCOLL ) || 
-							( cloth->verts[j].flags & CLOTH_VERT_FLAG_NOSELFCOLL ) )
+						if ((cloth->verts[i].flags & CLOTH_VERT_FLAG_NOSELFCOLL) ||
+						    (cloth->verts[j].flags & CLOTH_VERT_FLAG_NOSELFCOLL))
+						{
 							continue;
+						}
 	
 						sub_v3_v3v3(temp, verts[i].tx, verts[j].tx);
 	

@@ -232,19 +232,24 @@ typedef struct MovieTrackingDopesheetChannel {
 	MovieTrackingTrack *track;  /* motion track for which channel is created */
 	int pad;
 
+	char name[64];          /* name of channel */
+
 	int tot_segment;        /* total number of segments */
 	int *segments;          /* tracked segments */
 	int max_segment, total_frames;  /* longest segment length and total number of tracked frames */
 } MovieTrackingDopesheetChannel;
 
 typedef struct MovieTrackingDopesheet {
-	int ok, pad;                /* flag if dopesheet information is still relevant */
+	int ok;                     /* flag if dopesheet information is still relevant */
 
+	short sort_method;          /* method to be used to sort tracks */
+	short flag;                 /* dopesheet building flag such as inverted order of sort */
+
+	/* runtime stuff */
 	ListBase channels;
 	int tot_channel;
 
-	short sort_method;          /* method to be used to sort tracks */
-	short sort_inverse;         /* order of tracks is inverted */
+	int pad;
 } MovieTrackingDopesheet;
 
 typedef struct MovieTracking {
@@ -266,7 +271,7 @@ typedef struct MovieTracking {
 /* MovieTrackingCamera->units */
 enum {
 	CAMERA_UNITS_PX = 0,
-	CAMERA_UNITS_MM
+	CAMERA_UNITS_MM = 1
 };
 
 /* MovieTrackingMarker->flag */
@@ -287,6 +292,7 @@ enum {
 #define TRACK_USE_2D_STAB   (1 << 8)
 #define TRACK_PREVIEW_GRAYSCALE (1 << 9)
 #define TRACK_DOPE_SEL      (1 << 10)
+#define TRACK_PREVIEW_ALPHA (1 << 11)
 
 /* MovieTrackingTrack->motion_model */
 #define TRACK_MOTION_MODEL_TRANSLATION                 0
@@ -297,8 +303,9 @@ enum {
 #define TRACK_MOTION_MODEL_HOMOGRAPHY                  5
 
 /* MovieTrackingTrack->algorithm_flag */
-#define TRACK_ALGORITHM_FLAG_USE_BRUTE 1
-#define TRACK_ALGORITHM_FLAG_USE_NORMALIZATION 2
+#define TRACK_ALGORITHM_FLAG_USE_BRUTE			(1 << 0)
+#define TRACK_ALGORITHM_FLAG_USE_NORMALIZATION	(1 << 2)
+#define TRACK_ALGORITHM_FLAG_USE_MASK			(1 << 3)
 
 /* MovieTrackingTrack->adjframes */
 #define TRACK_MATCH_KEYFRAME        0
@@ -344,5 +351,16 @@ enum {
 #define TRACKING_CLEAN_SELECT           0
 #define TRACKING_CLEAN_DELETE_TRACK     1
 #define TRACKING_CLEAN_DELETE_SEGMENT   2
+
+/* MovieTrackingDopesheet->sort_method */
+#define TRACKING_DOPE_SORT_NAME          0
+#define TRACKING_DOPE_SORT_LONGEST       1
+#define TRACKING_DOPE_SORT_TOTAL         2
+#define TRACKING_DOPE_SORT_AVERAGE_ERROR 3
+
+/* MovieTrackingDopesheet->flag */
+#define TRACKING_DOPE_SORT_INVERSE    (1 << 0)
+#define TRACKING_DOPE_SELECTED_ONLY   (1 << 1)
+#define TRACKING_DOPE_SHOW_HIDDEN     (1 << 2)
 
 #endif

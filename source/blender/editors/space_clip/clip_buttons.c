@@ -118,13 +118,13 @@ void uiTemplateMovieClip(uiLayout *layout, bContext *C, PointerRNA *ptr, const c
 		uiTemplateID(layout, C, ptr, propname, NULL, "CLIP_OT_open", NULL);
 
 	if (clip) {
-		row = uiLayoutRow(layout, 0);
+		row = uiLayoutRow(layout, FALSE);
 		block = uiLayoutGetBlock(row);
 		uiDefBut(block, LABEL, 0, "File Path:", 0, 19, 145, 19, NULL, 0, 0, 0, 0, "");
 
-		row = uiLayoutRow(layout, 0);
-		split = uiLayoutSplit(row, 0.0, 0);
-		row = uiLayoutRow(split, 1);
+		row = uiLayoutRow(layout, FALSE);
+		split = uiLayoutSplit(row, 0.0f, FALSE);
+		row = uiLayoutRow(split, TRUE);
 
 		uiItemR(row, &clipptr, "filepath", 0, "", ICON_NONE);
 		uiItemO(row, "", ICON_FILE_REFRESH, "clip.reload");
@@ -165,7 +165,8 @@ void uiTemplateTrack(uiLayout *layout, PointerRNA *ptr, const char *propname)
 
 	block = uiLayoutAbsoluteBlock(layout);
 
-	scopes->track_preview_height = (scopes->track_preview_height <= UI_UNIT_Y) ? UI_UNIT_Y : scopes->track_preview_height;
+	scopes->track_preview_height =
+		(scopes->track_preview_height <= UI_UNIT_Y) ? UI_UNIT_Y : scopes->track_preview_height;
 
 	uiDefBut(block, TRACKPREVIEW, 0, "", rect.xmin, rect.ymin, rect.xmax - rect.xmin,
 	         scopes->track_preview_height, scopes, 0, 0, 0, 0, "");
@@ -211,7 +212,7 @@ static void marker_update_cb(bContext *C, void *arg_cb, void *UNUSED(arg))
 	if (!cb->compact)
 		return;
 
-	marker = BKE_tracking_ensure_marker(cb->track, cb->framenr);
+	marker = BKE_tracking_marker_ensure(cb->track, cb->framenr);
 
 	marker->flag = cb->marker_flag;
 
@@ -226,7 +227,7 @@ static void marker_block_handler(bContext *C, void *arg_cb, int event)
 
 	BKE_movieclip_get_size(cb->clip, cb->user, &width, &height);
 
-	marker = BKE_tracking_ensure_marker(cb->track, cb->framenr);
+	marker = BKE_tracking_marker_ensure(cb->track, cb->framenr);
 
 	if (event == B_MARKER_POS) {
 		marker->pos[0] = cb->marker_pos[0] / width;
@@ -258,7 +259,7 @@ static void marker_block_handler(bContext *C, void *arg_cb, int event)
 			cb->marker->pattern_corners[a][1] *= scale_y;
 		}
 
-		BKE_tracking_clamp_marker(cb->marker, CLAMP_PAT_DIM);
+		BKE_tracking_marker_clamp(cb->marker, CLAMP_PAT_DIM);
 
 		ok = TRUE;
 	}
@@ -274,7 +275,7 @@ static void marker_block_handler(bContext *C, void *arg_cb, int event)
 		sub_v2_v2v2(cb->marker->search_min, delta, side);
 		add_v2_v2v2(cb->marker->search_max, delta, side);
 
-		BKE_tracking_clamp_marker(cb->marker, CLAMP_SEARCH_POS);
+		BKE_tracking_marker_clamp(cb->marker, CLAMP_SEARCH_POS);
 
 		ok = TRUE;
 	}
@@ -295,7 +296,7 @@ static void marker_block_handler(bContext *C, void *arg_cb, int event)
 		cb->marker->search_max[0] += dim[0];
 		cb->marker->search_max[1] += dim[1];
 
-		BKE_tracking_clamp_marker(cb->marker, CLAMP_SEARCH_DIM);
+		BKE_tracking_marker_clamp(cb->marker, CLAMP_SEARCH_DIM);
 
 		ok = TRUE;
 	}
@@ -364,7 +365,7 @@ void uiTemplateMarker(uiLayout *layout, PointerRNA *ptr, const char *propname, P
 	user = userptr->data;
 	track = trackptr->data;
 
-	marker = BKE_tracking_get_marker(track, user->framenr);
+	marker = BKE_tracking_marker_get(track, user->framenr);
 
 	cb = MEM_callocN(sizeof(MarkerUpdateCb), "uiTemplateMarker update_cb");
 	cb->compact = compact;
@@ -395,7 +396,7 @@ void uiTemplateMarker(uiLayout *layout, PointerRNA *ptr, const char *propname, P
 		BKE_movieclip_get_size(clip, user, &width, &height);
 
 		if (track->flag & TRACK_LOCKED) {
-			uiLayoutSetActive(layout, 0);
+			uiLayoutSetActive(layout, FALSE);
 			block = uiLayoutAbsoluteBlock(layout);
 			uiDefBut(block, LABEL, 0, "Track is locked", 0, 0, 300, 19, NULL, 0, 0, 0, 0, "");
 
@@ -433,7 +434,7 @@ void uiTemplateMarker(uiLayout *layout, PointerRNA *ptr, const char *propname, P
 		uiDefButBitI(block, OPTIONN, MARKER_DISABLED, B_MARKER_FLAG,  "Enabled", 10, 190, 145, 19, &cb->marker_flag,
 		             0, 0, 0, 0, tip);
 
-		col = uiLayoutColumn(layout, 1);
+		col = uiLayoutColumn(layout, TRUE);
 		uiLayoutSetActive(col, (cb->marker_flag & MARKER_DISABLED) == 0);
 
 		block = uiLayoutAbsoluteBlock(col);

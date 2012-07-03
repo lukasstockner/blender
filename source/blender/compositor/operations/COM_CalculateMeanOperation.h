@@ -26,42 +26,42 @@
 #include "DNA_node_types.h"
 
 /**
-  * @brief base class of CalculateMean, implementing the simple CalculateMean
-  * @ingroup operation
-  */
+ * @brief base class of CalculateMean, implementing the simple CalculateMean
+ * @ingroup operation
+ */
 class CalculateMeanOperation : public NodeOperation {
 protected:
 	/**
-	  * @brief Cached reference to the reader
-	  */
-	SocketReader * imageReader;
+	 * @brief Cached reference to the reader
+	 */
+	SocketReader *m_imageReader;
 	
-	bool iscalculated;
-	float result;
-	int setting;
+	bool m_iscalculated;
+	float m_result;
+	int m_setting;
 
 public:
 	CalculateMeanOperation();
 	
 	/**
-	  * the inner loop of this program
-	  */
-	void executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void * data);
+	 * the inner loop of this program
+	 */
+	void executePixel(float *color, int x, int y, MemoryBuffer * inputBuffers[], void *data);
 	
 	/**
-	  * Initialize the execution
-	  */
+	 * Initialize the execution
+	 */
 	void initExecution();
 	
 	void *initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers);
 	
 	/**
-	  * Deinitialize the execution
-	  */
+	 * Deinitialize the execution
+	 */
 	void deinitExecution();
 	
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
-	void setSetting(int setting) {this->setting = setting;}
+	void setSetting(int setting) { this->m_setting = setting; }
 	
 protected:
 	void calculateMean(MemoryBuffer *tile);

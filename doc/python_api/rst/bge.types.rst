@@ -72,6 +72,20 @@ Game Types (bge.types)
 
       :type: dictionary {:ref:`keycode<keyboard-keys>`::ref:`status<input-status>`, ...}
 
+
+   .. function:: getClipboard()
+
+      Gets the clipboard text.
+
+      :rtype: string
+
+   .. function:: setClipboard(text)
+
+      Sets the clipboard text.
+
+      :arg text: New clipboard text
+      :type text: string
+
 .. class:: SCA_PythonMouse(PyObjectPlus)
 
    The current mouse.
@@ -242,12 +256,6 @@ Game Types (bge.types)
 
       :type: string
 
-   .. attribute:: channelNames
-
-      A list of channel names that may be used with :data:`setChannel` and :data:`getChannel`.
-
-      :type: list of strings
-
    .. attribute:: frameStart
 
       Specifies the starting frame of the animation.
@@ -307,26 +315,6 @@ Game Types (bge.types)
       The name of the property that is set to the current frame number.
 
       :type: string
-
-   .. method:: setChannel(channel, matrix)
-
-      Alternative to the 2 arguments, 4 arguments (channel, matrix, loc, size, quat) are also supported.
-
-      :arg channel: A string specifying the name of the bone channel, error raised if not in :data:`channelNames`.
-      :type channel: string
-      :arg matrix: A 4x4 matrix specifying the overriding transformation as an offset from the bone's rest position.
-      :arg  matrix: list [[float]]
-
-      .. note::
-         
-         These values are relative to the bones rest position, currently the api has no way to get this info (which is annoying), but can be worked around by using bones with a rest pose that has no translation.
-
-   .. method:: getChannel(channel)
-
-      :arg channel: A string specifying the name of the bone channel. error raised if not in :data:`channelNames`.
-      :type channel: string
-      :return: (loc, size, quat)
-      :rtype: tuple
 
 .. class:: BL_Shader(PyObjectPlus)
 
@@ -2692,7 +2680,7 @@ Game Types (bge.types)
 
       The angle of the cone (in degrees) with which to test.
 
-      :type: float from 0 to 360
+      :type: float
 
    .. attribute:: axis
 
@@ -2702,11 +2690,6 @@ Game Types (bge.types)
 
       KX_RADAR_AXIS_POS_X, KX_RADAR_AXIS_POS_Y, KX_RADAR_AXIS_POS_Z, 
       KX_RADAR_AXIS_NEG_X, KX_RADAR_AXIS_NEG_Y, KX_RADAR_AXIS_NEG_Z
-
-   .. method:: getConeHeight()
-
-      :return: The height of the cone with which to test.
-      :rtype: float
 
 .. class:: KX_RaySensor(SCA_ISensor)
 
@@ -3591,7 +3574,7 @@ Game Types (bge.types)
 
       Gets the normal vector of this vertex.
 
-      :return: normalised normal vector.
+      :return: normalized normal vector.
       :rtype: list [nx, ny, nz]
 
    .. method:: setNormal(normal)

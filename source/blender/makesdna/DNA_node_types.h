@@ -347,20 +347,31 @@ typedef struct bNodeSocketValueRGBA {
 
 
 /* data structs, for node->storage */
+enum {
+	CMP_NODE_MASKTYPE_ADD         = 0,
+	CMP_NODE_MASKTYPE_SUBTRACT    = 1,
+	CMP_NODE_MASKTYPE_MULTIPLY    = 2,
+	CMP_NODE_MASKTYPE_NOT         = 3
+};
 
-#define CMP_NODE_MASKTYPE_ADD       	0
-#define CMP_NODE_MASKTYPE_SUBTRACT  	1
-#define CMP_NODE_MASKTYPE_MULTIPLY  	2
-#define CMP_NODE_MASKTYPE_NOT       	3
+enum {
+	CMP_NODE_LENSFLARE_GHOST   = 1,
+	CMP_NODE_LENSFLARE_GLOW    = 2,
+	CMP_NODE_LENSFLARE_CIRCLE  = 4,
+	CMP_NODE_LENSFLARE_STREAKS = 8
+};
 
-#define CMP_NODE_LENSFLARE_GHOST   1
-#define CMP_NODE_LENSFLARE_GLOW    2
-#define CMP_NODE_LENSFLARE_CIRCLE  4
-#define CMP_NODE_LENSFLARE_STREAKS 8
+enum {
+	CMP_NODE_DILATEERODE_STEP             = 0,
+	CMP_NODE_DILATEERODE_DISTANCE_THRESH  = 1,
+	CMP_NODE_DILATEERODE_DISTANCE         = 2,
+	CMP_NODE_DILATEERODE_DISTANCE_FEATHER = 3
+};
 
-#define CMP_NODE_DILATEERODE_STEP            0
-#define CMP_NODE_DILATEERODE_DISTANCE_THRESH 1
-#define CMP_NODE_DILATEERODE_DISTANCE        2
+enum {
+	CMP_NODEFLAG_MASK_AA         = (1 << 0),
+	CMP_NODEFLAG_MASK_NO_FEATHER = (1 << 1)
+};
 
 typedef struct NodeFrame {
 	short flag;
@@ -558,6 +569,11 @@ typedef struct NodeColorspill {
 	float uspillr, uspillg, uspillb;
 } NodeColorspill;
 
+typedef struct NodeDilateErode {
+	char falloff;
+	char pad[7];
+} NodeDilateErode;
+
 typedef struct NodeTexBase {
 	TexMapping tex_mapping;
 	ColorMapping color_mapping;
@@ -627,6 +643,22 @@ typedef struct NodeShaderAttribute {
 typedef struct TexNodeOutput {
 	char name[64];
 } TexNodeOutput;
+
+typedef struct NodeKeyingScreenData {
+	char tracking_object[64];
+} NodeKeyingScreenData;
+
+typedef struct NodeKeyingData {
+	float screen_balance;
+	float despill_factor;
+	int edge_kernel_radius;
+	float edge_kernel_tolerance;
+	float clip_black, clip_white;
+	int dilate_distance;
+	int feather_distance;
+	int feather_falloff;
+	int blur_pre, blur_post;
+} NodeKeyingData;
 
 /* frame node flags */
 #define NODE_FRAME_SHRINK		1	/* keep the bounding box minimal */

@@ -63,6 +63,7 @@
 #include "BLI_math.h"
 #include "BLI_pbvh.h"
 #include "BLI_utildefines.h"
+#include "BLI_linklist.h"
 
 #include "BKE_main.h"
 #include "BKE_global.h"
@@ -842,7 +843,7 @@ Object *BKE_object_add_only_object(int type, const char *name)
 
 	ob->pc_ids.first = ob->pc_ids.last = NULL;
 	
-	/* Animation Visualisation defaults */
+	/* Animation Visualization defaults */
 	animviz_settings_init(&ob->avs);
 
 	return ob;
@@ -1454,12 +1455,12 @@ void BKE_object_rot_to_mat3(Object *ob, float mat[][3])
 		eulO_to_mat3(dmat, ob->drot, ob->rotmode);
 	}
 	else if (ob->rotmode == ROT_MODE_AXISANGLE) {
-		/* axis-angle -  not really that great for 3D-changing orientations */
+		/* axis-angle - not really that great for 3D-changing orientations */
 		axis_angle_to_mat3(rmat, ob->rotAxis, ob->rotAngle);
 		axis_angle_to_mat3(dmat, ob->drotAxis, ob->drotAngle);
 	}
 	else {
-		/* quats are normalised before use to eliminate scaling issues */
+		/* quats are normalized before use to eliminate scaling issues */
 		float tquat[4];
 		
 		normalize_qt_qt(tquat, ob->quat);
@@ -2537,7 +2538,7 @@ void BKE_object_handle_update(Scene *scene, Object *ob)
 				printf("recalcdata %s\n", ob->id.name + 2);
 
 			if (adt) {
-				/* evaluate drivers */
+				/* evaluate drivers - datalevel */
 				// XXX: for mesh types, should we push this to derivedmesh instead?
 				BKE_animsys_evaluate_animdata(scene, data_id, adt, ctime, ADT_RECALC_DRIVERS);
 			}
@@ -2594,8 +2595,26 @@ void BKE_object_handle_update(Scene *scene, Object *ob)
 					BKE_lattice_modifiers_calc(scene, ob);
 					break;
 			}
-
-
+			
+			/* related materials */
+			/* XXX: without depsgraph tagging, this will always need to be run, which will be slow! 
+			 * However, not doing anything (or trying to hack around this lack) is not an option 
+			 * anymore, especially due to Cycles [#31834] 
+			 */
+			if (ob->totcol) {
+				int a;
+				
+				for (a = 1; a <= ob->totcol; a++) {
+					Material *ma = give_current_material(ob, a);
+					
+					if (ma) {
+						/* recursively update drivers for this material */
+						material_drivers_update(scene, ma, ctime);
+					}
+				}
+			}
+			
+			/* particles */
 			if (ob->particlesystem.first) {
 				ParticleSystem *tpsys, *psys;
 				DerivedMesh *dm;
@@ -3075,4 +3094,137 @@ MovieClip *BKE_object_movieclip_get(Scene *scene, Object *ob, int use_default)
 	}
 
 	return clip;
+}
+
+
+/*
+ * Find an associated Armature object
+ */
+static Object *obrel_armature_find(Object *ob)
+{
+	Object *ob_arm = NULL;
+
+	if (ob->parent && ob->partype == PARSKEL && ob->parent->type == OB_ARMATURE) {
+		ob_arm = ob->parent;
+	}
+	else {
+		ModifierData *mod;
+		for (mod = (ModifierData *)ob->modifiers.first; mod; mod = mod->next) {
+			if (mod->type == eModifierType_Armature) {
+				ob_arm = ((ArmatureModifierData *)mod)->object;
+			}
+		}
+	}
+
+	return ob_arm;
+}
+
+static int obrel_is_recursive_child(Object *ob, Object *child)
+{
+	Object *par;
+	for (par = child->parent; par; par = par->parent) {
+		if (par == ob) {
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+
+static int obrel_list_test(Object *ob)
+{
+	return ob && !(ob->id.flag & LIB_DOIT);
+}
+
+static void obrel_list_add(LinkNode **links, Object *ob)
+{
+	BLI_linklist_prepend(links, ob);
+	ob->id.flag |= LIB_DOIT;
+}
+
+/*
+ * Iterates over all objects of the given scene.
+ * Depending on the eObjectSet flag:
+ * collect either OB_SET_ALL, OB_SET_VISIBLE or OB_SET_SELECTED objects.
+ * If OB_SET_VISIBLE or OB_SET_SELECTED are collected, 
+ * then also add related objects according to the given includeFilters.
+ */
+struct LinkNode *BKE_object_relational_superset(struct Scene *scene, eObjectSet objectSet, eObRelationTypes includeFilter)
+{
+	LinkNode *links = NULL;
+
+	Base *base;
+
+	/* Remove markers from all objects */
+	for (base = scene->base.first; base; base = base->next) {
+		base->object->id.flag &= ~LIB_DOIT;
+	}
+
+	/* iterate over all selected and visible objects */
+	for (base = scene->base.first; base; base = base->next) {
+		if (objectSet == OB_SET_ALL) {
+			// as we get all anyways just add it
+			Object *ob = base->object;
+			obrel_list_add(&links, ob);
+		}
+		else {
+			if ((objectSet == OB_SET_SELECTED && TESTBASELIB_BGMODE(((View3D *)NULL), scene, base)) ||
+			    (objectSet == OB_SET_VISIBLE  && BASE_EDITABLE_BGMODE(((View3D *)NULL), scene, base)))
+			{
+				Object *ob = base->object;
+
+				if (obrel_list_test(ob))
+					obrel_list_add(&links, ob);
+
+				/* parent relationship */
+				if (includeFilter & (OB_REL_PARENT | OB_REL_PARENT_RECURSIVE)) {
+					Object *parent = ob->parent;
+					if (obrel_list_test(parent)) {
+
+						obrel_list_add(&links, parent);
+
+						/* recursive parent relationship */
+						if (includeFilter & OB_REL_PARENT_RECURSIVE) {
+							parent = parent->parent;
+							while (obrel_list_test(parent)) {
+
+								obrel_list_add(&links, parent);
+								parent = parent->parent;
+							}
+						}
+					}
+				}
+
+				/* child relationship */
+				if (includeFilter & (OB_REL_CHILDREN | OB_REL_CHILDREN_RECURSIVE)) {
+					Base *local_base;
+					for (local_base = scene->base.first; local_base; local_base = local_base->next) {
+						if (BASE_EDITABLE_BGMODE(((View3D *)NULL), scene, local_base)) {
+
+							Object *child = local_base->object;
+							if (obrel_list_test(child)) {
+								if ((includeFilter & OB_REL_CHILDREN_RECURSIVE && obrel_is_recursive_child(ob, child)) ||
+								    (includeFilter & OB_REL_CHILDREN && child->parent && child->parent == ob))
+								{
+									obrel_list_add(&links, child);
+								}
+							}
+						}
+					}
+				}
+
+
+				/* include related armatures */
+				if (includeFilter & OB_REL_MOD_ARMATURE) {
+					Object *arm = obrel_armature_find(ob);
+					if (obrel_list_test(arm)) {
+						obrel_list_add(&links, arm);
+					}
+				}
+
+			}
+		}
+	}
+
+	return links;
 }

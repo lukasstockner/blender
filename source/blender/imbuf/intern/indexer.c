@@ -313,7 +313,7 @@ int IMB_proxy_size_to_array_index(IMB_Proxy_Size pr_size)
 {
 	switch (pr_size) {
 		case IMB_PROXY_NONE: /* if we got here, something is broken anyways,
-		                        so sane defaults... */
+		                      * so sane defaults... */
 			return 0;
 		case IMB_PROXY_25:
 			return 0;
@@ -333,7 +333,7 @@ int IMB_timecode_to_array_index(IMB_Timecode_Type tc)
 {
 	switch (tc) {
 		case IMB_TC_NONE: /* if we got here, something is broken anyways,
-		                     so sane defaults... */
+		                   * so sane defaults... */
 			return 0;
 		case IMB_TC_RECORD_RUN:
 			return 0;
@@ -531,13 +531,6 @@ static struct proxy_output_ctx *alloc_proxy_output_ffmpeg(
 		rv->c->flags |= CODEC_FLAG_GLOBAL_HEADER;
 	}
 
-	if (av_set_parameters(rv->of, NULL) < 0) {
-		fprintf(stderr, "Couldn't set output parameters? "
-		        "Proxy not built!\n");
-		av_free(rv->of);
-		return 0;
-	}
-
 	if (avio_open(&rv->of->pb, fname, AVIO_FLAG_WRITE) < 0) {
 		fprintf(stderr, "Couldn't open outputfile! "
 		        "Proxy not built!\n");
@@ -574,7 +567,12 @@ static struct proxy_output_ctx *alloc_proxy_output_ffmpeg(
 		        NULL, NULL, NULL);
 	}
 
-	av_write_header(rv->of);
+	if (avformat_write_header(rv->of, NULL) < 0) {
+		fprintf(stderr, "Couldn't set output parameters? "
+		        "Proxy not built!\n");
+		av_free(rv->of);
+		return 0;
+	}
 
 	return rv;
 }
@@ -737,7 +735,7 @@ static IndexBuildContext *index_ffmpeg_create_context(struct anim *anim, IMB_Tim
 	memset(context->proxy_ctx, 0, sizeof(context->proxy_ctx));
 	memset(context->indexer, 0, sizeof(context->indexer));
 
-	if (av_open_input_file(&context->iFormatCtx, anim->name, NULL, 0, NULL) != 0) {
+	if (avformat_open_input(&context->iFormatCtx, anim->name, NULL, NULL) != 0) {
 		MEM_freeN(context);
 		return NULL;
 	}
@@ -908,11 +906,11 @@ static int index_rebuild_ffmpeg(FFmpegIndexBuilderContext *context,
 			                pts_time_base * frame_rate + 0.5f);
 
 			/* decoding starts *always* on I-Frames,
-			   so: P-Frames won't work, even if all the
-			   information is in place, when we seek
-			   to the I-Frame presented *after* the P-Frame,
-			   but located before the P-Frame within
-			   the stream */
+			 * so: P-Frames won't work, even if all the
+			 * information is in place, when we seek
+			 * to the I-Frame presented *after* the P-Frame,
+			 * but located before the P-Frame within
+			 * the stream */
 
 			if (pts < seek_pos_pts) {
 				s_pos = last_seek_pos;
@@ -968,7 +966,7 @@ static AviMovie *alloc_proxy_output_avi(
 	double framerate;
 	AviMovie *avi;
 	short frs_sec = 25;      /* it doesn't really matter for proxies,
-	                            but sane defaults help anyways...*/
+	                          * but sane defaults help anyways...*/
 	float frs_sec_base = 1.0;
 
 	IMB_anim_get_fps(anim, &frs_sec, &frs_sec_base);

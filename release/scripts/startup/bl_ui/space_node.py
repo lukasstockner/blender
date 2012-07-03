@@ -32,6 +32,7 @@ class NODE_HT_header(Header):
         snode = context.space_data
         snode_id = snode.id
         id_from = snode.id_from
+        toolsettings = context.tool_settings
 
         row = layout.row(align=True)
         row.template_header()
@@ -85,6 +86,13 @@ class NODE_HT_header(Header):
             layout.prop(snode, "use_auto_render")
 
         layout.separator()
+
+        # Snap
+        row = layout.row(align=True)
+        row.prop(toolsettings, "use_snap", text="")
+        row.prop(toolsettings, "snap_node_element", text="", icon_only=True)
+        if toolsettings.snap_node_element != 'INCREMENT':
+            row.prop(toolsettings, "snap_target", text="")
 
         layout.template_running_jobs()
 
@@ -205,6 +213,7 @@ class NODE_PT_properties(Panel):
         col.prop(snode, "backdrop_y", text="Y")
         col.operator("node.backimage_move", text="Move")
 
+
 class NODE_PT_quality(bpy.types.Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
@@ -225,7 +234,7 @@ class NODE_PT_quality(bpy.types.Panel):
         layout.prop(tree, "chunk_size")
         layout.prop(tree, "use_opencl")
 
-        
+
 class NODE_MT_node_color_presets(Menu):
     """Predefined node color"""
     bl_label = "Color Presets"
@@ -240,8 +249,8 @@ class NODE_MT_node_color_specials(Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator('node.node_copy_color', icon='COPY_ID')
+        layout.operator("node.node_copy_color", icon='COPY_ID')
 
-        
+
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

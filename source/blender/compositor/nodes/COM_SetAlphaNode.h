@@ -20,19 +20,19 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_SetAlphaNode_h
-#define _COM_SetAlphaNode_h
+#ifndef _COM_SetAlphaNode_h_
+#define _COM_SetAlphaNode_h_
 
 #include "COM_Node.h"
 
 /**
-  * @brief SetAlphaNode
-  * @ingroup Node
-  */
-class SetAlphaNode: public Node {
+ * @brief SetAlphaNode
+ * @ingroup Node
+ */
+class SetAlphaNode : public Node {
 public:
-	SetAlphaNode(bNode *editorNode) :Node(editorNode) {}
-	void convertToOperations(ExecutionSystem *graph, CompositorContext * context);
+	SetAlphaNode(bNode *editorNode) : Node(editorNode) {}
+	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
 };
 
 #endif

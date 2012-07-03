@@ -26,17 +26,17 @@
 #include "COM_BlurBaseOperation.h"
 #include "DNA_node_types.h"
 
-class FastGaussianBlurOperation: public BlurBaseOperation {
+class FastGaussianBlurOperation : public BlurBaseOperation {
 private:
-	float sx;
-	float sy;
-	MemoryBuffer* iirgaus;
+	float m_sx;
+	float m_sy;
+	MemoryBuffer *m_iirgaus;
 public:
 	FastGaussianBlurOperation();
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
-	void executePixel(float *color, int x, int y, MemoryBuffer *inputBuffers[], void *data);
+	void executePixel(float *color, int x, int y, MemoryBuffer * inputBuffers[], void *data);
 	
-	static void IIR_gauss(MemoryBuffer *src, float sigma, int channel, int xy);
+	static void IIR_gauss(MemoryBuffer *src, float sigma, unsigned int channel, unsigned int xy);
 	void *initializeTileData(rcti *rect, MemoryBuffer **memoryBuffers);
 	void deinitExecution();
 	void initExecution();

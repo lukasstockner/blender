@@ -20,21 +20,23 @@
  *		Monique Dewanchand
  */
 
+#include <stdio.h>
+
 #include "COM_MuteNode.h"
 #include "COM_SocketConnection.h"
-#include "stdio.h"
 #include "COM_SetValueOperation.h"
 #include "COM_SetVectorOperation.h"
 #include "COM_SetColorOperation.h"
 
-MuteNode::MuteNode(bNode *editorNode): Node(editorNode)
+MuteNode::MuteNode(bNode *editorNode) : Node(editorNode)
 {
+	/* pass */
 }
 
-void MuteNode::reconnect(ExecutionSystem * graph, OutputSocket * output)
+void MuteNode::reconnect(ExecutionSystem *graph, OutputSocket *output)
 {
-	vector<InputSocket*> &inputsockets = this->getInputSockets();
-	for (unsigned int index = 0; index < inputsockets.size() ; index ++) {
+	vector<InputSocket *> &inputsockets = this->getInputSockets();
+	for (unsigned int index = 0; index < inputsockets.size(); index++) {
 		InputSocket *input = inputsockets[index];
 		if (input->getDataType() == output->getDataType()) {
 			if (input->isConnected()) {
@@ -44,7 +46,7 @@ void MuteNode::reconnect(ExecutionSystem * graph, OutputSocket * output)
 		}
 	}
 	
-	NodeOperation *operation;
+	NodeOperation *operation = NULL;
 	switch (output->getDataType()) {
 		case COM_DT_VALUE:
 		{
@@ -72,10 +74,6 @@ void MuteNode::reconnect(ExecutionSystem * graph, OutputSocket * output)
 			operation = coloroperation;
 			break;
 		}
-			/* quiet warnings */
-		case COM_DT_UNKNOWN:
-			operation = NULL;
-			break;
 	}
 
 	if (operation) {
@@ -86,12 +84,12 @@ void MuteNode::reconnect(ExecutionSystem * graph, OutputSocket * output)
 	output->clearConnections();
 }
 
-void MuteNode::convertToOperations(ExecutionSystem *graph, CompositorContext * context)
+void MuteNode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
 {
-	vector<OutputSocket*> &outputsockets = this->getOutputSockets();
+	vector<OutputSocket *> &outputsockets = this->getOutputSockets();
 
-	for (unsigned int index = 0 ; index < outputsockets.size() ; index ++) {
-		OutputSocket * output = outputsockets[index];
+	for (unsigned int index = 0; index < outputsockets.size(); index++) {
+		OutputSocket *output = outputsockets[index];
 		if (output->isConnected()) {
 			reconnect(graph, output);
 		}
