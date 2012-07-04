@@ -119,20 +119,19 @@ void ArmatureImporter::create_bone(SkinInfo* skin, COLLADAFW::Node *node, EditBo
 	if (parent) bone->parent = parent;
 
 	////mult_m4_m4m4(mat, ob_arm->obmat , mat);
-	//float loc[3], size[3], rot[3][3], 
+	float loc[3], size[3], rot[3][3]; 
 	float angle;
 	float vec[3] = {0.0f, 0.5f, 0.0f};
-	// mat4_to_loc_rot_size(loc, rot, size, mat);
-	copy_m3_m4(bonemat,mat);
-	mat3_to_vec_roll(bonemat, vec, &angle);
+	mat4_to_loc_rot_size(loc, rot, size, mat);
+	//copy_m3_m4(bonemat,mat);
+	mat3_to_vec_roll(rot, vec, &angle);
+
 	bone->roll = angle;
 	// set head
 	copy_v3_v3(bone->head, mat[3]);
 
 	// set tail, don't set it to head because 0-length bones are not allowed
 	add_v3_v3v3(bone->tail, bone->head, vec);
-
-	bone->length = len_v3v3(bone->head, bone->tail);
 
 	// set parent tail
 	if (parent && totchild == 1) {
@@ -155,32 +154,6 @@ void ArmatureImporter::create_bone(SkinInfo* skin, COLLADAFW::Node *node, EditBo
 			add_leaf_bone(parent_mat, parent, node);
 		}
 
-		/*
-#if 0
-		// and which row in mat is bone direction
-		float vec[3];
-		sub_v3_v3v3(vec, parent->tail, parent->head);
-#ifdef COLLADA_DEBUG
-		print_v3("tail - head", vec);
-		print_m4("matrix", parent_mat);
-#endif
-		for (int i = 0; i < 3; i++) {
-#ifdef COLLADA_DEBUG
-			char *axis_names[] = {"X", "Y", "Z"};
-			printf("%s-axis length is %f\n", axis_names[i], len_v3(parent_mat[i]));
-#endif
-			float angle = angle_v2v2(vec, parent_mat[i]);
-			if (angle < min_angle) {
-#ifdef COLLADA_DEBUG
-				print_v3("picking", parent_mat[i]);
-				printf("^ %s axis of %s's matrix\n", axis_names[i], get_dae_name(node));
-#endif
-				bone_direction_row = i;
-				min_angle = angle;
-			}
-		}
-#endif
-		*/
 	}
 
 	COLLADAFW::NodePointerArray& children = node->getChildNodes();
@@ -189,9 +162,11 @@ void ArmatureImporter::create_bone(SkinInfo* skin, COLLADAFW::Node *node, EditBo
 	}
 
 	// in second case it's not a leaf bone, but we handle it the same way
-	/*if (!children.getCount() || children.getCount() > 1) {
+	if (!children.getCount() || children.getCount() > 1) {
 		add_leaf_bone(mat, bone, node);
-	}*/
+	}
+
+	bone->length = len_v3v3(bone->head, bone->tail);
 
 	finished_joints.push_back(node);
 }
@@ -227,7 +202,7 @@ void ArmatureImporter::add_leaf_bone(float mat[][4], EditBone *bone,  COLLADAFW:
 void ArmatureImporter::fix_leaf_bones( )
 {
 	// just setting tail for leaf bones here
-
+    float correctionMin = 1.0f;
 	std::vector<LeafBone>::iterator it;
 	for (it = leaf_bones.begin(); it != leaf_bones.end(); it++) {
 		LeafBone& leaf = *it;
@@ -235,12 +210,13 @@ void ArmatureImporter::fix_leaf_bones( )
 		// pointing up
 		float vec[3] = {0.0f, 0.0f, 0.1f};
 		
-		// if parent: take parent length and direction
-		if (leaf.bone->parent) sub_v3_v3v3(vec, leaf.bone->parent->tail, leaf.bone->parent->head);
+		sub_v3_v3v3(vec, leaf.bone->tail , leaf.bone->head);
+		
+		mul_v3_fl(vec, leaf_bone_length);
 
-		copy_v3_v3(leaf.bone->tail, leaf.bone->head);
-		add_v3_v3v3(leaf.bone->tail, leaf.bone->head, vec);
-	}
+		add_v3_v3v3(leaf.bone->tail, leaf.bone->head , vec);
+
+		}
 }
 
 #if 0
@@ -359,7 +335,7 @@ void ArmatureImporter::create_armature_bones( )
         create_bone(NULL, *ri , NULL, (*ri)->getChildNodes().getCount(), NULL, (bArmature *)ob_arm->data);
         
 		//leaf bone tails are derived from the matrix, so no need of this.
-		//fix_leaf_bones();
+		fix_leaf_bones();
 
 		// exit armature edit mode
 	
