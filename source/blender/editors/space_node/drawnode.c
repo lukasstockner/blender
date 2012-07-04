@@ -3147,7 +3147,9 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link, int t
 		dist = 1.0f/(float)LINK_RESOL;
 		
 		glEnable(GL_LINE_SMOOTH);
-		
+
+		gpuImmediateFormat_V2();
+
 		drawarrow = (link->tonode && (link->tonode->type == NODE_REROUTE)) && (link->fromnode && (link->fromnode->type == NODE_REROUTE));
 		if (drawarrow) {
 			// draw arrow in line segment LINK_ARROW
@@ -3167,11 +3169,13 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link, int t
 		if (do_triple) {
 			UI_ThemeColorShadeAlpha(th_col3, -80, -120);
 			glLineWidth(4.0f);
-			
+
 			gpuBegin(GL_LINE_STRIP);
+
 			for (i=0; i<=LINK_RESOL; i++) {
 				gpuVertex2fv(coord_array[i]);
 			}
+
 			gpuEnd();
 
 			if (drawarrow) {
@@ -3192,10 +3196,10 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link, int t
 		if (do_shaded) {
 			gpuBegin(GL_LINES);
 			for (i=0; i<LINK_RESOL; i++) {
-				UI_ThemeColorBlend(th_col1, th_col2, spline_step);
+				UI_ThemeAppendColorBlend(th_col1, th_col2, spline_step);
 				gpuVertex2fv(coord_array[i]);
 				
-				UI_ThemeColorBlend(th_col1, th_col2, spline_step+dist);
+				UI_ThemeAppendColorBlend(th_col1, th_col2, spline_step+dist);
 				gpuVertex2fv(coord_array[i+1]);
 				
 				spline_step += dist;
@@ -3224,6 +3228,8 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link, int t
 		
 		/* restore previuos linewidth */
 		glLineWidth(linew);
+
+		gpuImmediateUnformat();
 	}
 }
 

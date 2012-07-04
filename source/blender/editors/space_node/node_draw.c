@@ -585,7 +585,7 @@ static void node_circle_draw(float x, float y, float size, char *col, int highli
 		glLineWidth(1.5f);
 	}
 	else {
-		gpuColor4x(CPACK_BLACK, 0.588f);
+		gpuCurrentColor4x(CPACK_BLACK, 0.588f);
 	}
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
@@ -826,29 +826,32 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	if (node->flag & NODE_MUTED)
 		node_draw_mute_line(v2d, snode, node);
 
-	
+	gpuImmediateFormat_C4_V2();
+
 	/* socket inputs, buttons */
 	for (sock= node->inputs.first; sock; sock= sock->next) {
 		if (nodeSocketIsHidden(sock))
 			continue;
-		
+
 		node_socket_circle_draw(ntree, sock, NODE_SOCKSIZE, sock->flag & SELECT);
 		
 		node->typeinfo->drawinputfunc(C, node->block, ntree, node, sock, IFACE_(sock->name),
 		                              sock->locx+NODE_DYS, sock->locy-NODE_DYS, node->width-NODE_DY);
 	}
-	
+
 	/* socket outputs */
 	for (sock= node->outputs.first; sock; sock= sock->next) {
 		if (nodeSocketIsHidden(sock))
 			continue;
-		
+
 		node_socket_circle_draw(ntree, sock, NODE_SOCKSIZE, sock->flag & SELECT);
 		
 		node->typeinfo->drawoutputfunc(C, node->block, ntree, node, sock, IFACE_(sock->name),
 		                               sock->locx-node->width+NODE_DYS, sock->locy-NODE_DYS, node->width-NODE_DY);
 	}
-	
+
+	gpuImmediateUnformat();
+
 	/* preview */
 	if (node->flag & NODE_PREVIEW) {
 		BLI_lock_thread(LOCK_PREVIEW);

@@ -1030,6 +1030,23 @@ void UI_ThemeColorShadeAlpha(int colorid, int coloffset, int alphaoffset)
 	gpuCurrentColor4ub(r, g, b, a);
 }
 
+void UI_ThemeAppendColorShadeAlpha(int colorid, int coloffset, int alphaoffset)
+{
+	int r, g, b, a;
+	const unsigned char *cp;
+	
+	cp = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid);
+	r = coloffset + (int) cp[0];
+	CLAMP(r, 0, 255);
+	g = coloffset + (int) cp[1];
+	CLAMP(g, 0, 255);
+	b = coloffset + (int) cp[2];
+	CLAMP(b, 0, 255);
+	a = alphaoffset + (int) cp[3];
+	CLAMP(a, 0, 255);
+	gpuColor4ub(r, g, b, a);
+}
+
 // blend between to theme colors, and set it
 void UI_ThemeColorBlend(int colorid1, int colorid2, float fac)
 {

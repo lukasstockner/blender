@@ -238,6 +238,7 @@ void    UI_ThemeAppendColorShade(int colorid, int offset);
 
 // sets color plus offset for alpha
 void    UI_ThemeColorShadeAlpha(int colorid, int coloffset, int alphaoffset);
+void    UI_ThemeAppendColorShadeAlpha(int colorid, int coloffset, int alphaoffset);
 
 // sets color, which is blend between two theme colors
 void    UI_ThemeColorBlend(int colorid1, int colorid2, float fac);
