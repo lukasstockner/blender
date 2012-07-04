@@ -157,7 +157,7 @@ void BKE_image_assign_ibuf(struct Image *ima, struct ImBuf *ibuf);
 /* called on frame change or before render */
 void BKE_image_user_frame_calc(struct ImageUser *iuser, int cfra, int fieldnr);
 void BKE_image_user_check_frame_calc(struct ImageUser *iuser, int cfra, int fieldnr);
-int  BKE_image_user_frame_get(const struct ImageUser *iuser, int cfra, int fieldnr);
+int  BKE_image_user_frame_get(const struct ImageUser *iuser, int cfra, int fieldnr, short *r_is_in_range);
 void BKE_image_user_file_path(struct ImageUser *iuser, struct Image *ima, char *path); 
 
 /* sets index offset for multilayer files */
@@ -191,7 +191,7 @@ struct Image *BKE_image_copy(struct Image *ima);
 void BKE_image_merge(struct Image *dest, struct Image *source);
 
 /* scale the image */
-void BKE_image_scale(struct Image *image, int width, int height);
+int BKE_image_scale(struct Image *image, int width, int height);
 
 /* check if texture has alpha (depth=32) */
 int BKE_image_has_alpha(struct Image *image);

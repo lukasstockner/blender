@@ -514,17 +514,21 @@ void BKE_image_merge(Image *dest, Image *source)
 }
 
 /* note, we could be clever and scale all imbuf's but since some are mipmaps its not so simple */
-void BKE_image_scale(Image *image, int width, int height)
+int BKE_image_scale(Image *image, int width, int height)
 {
 	ImBuf *ibuf;
 	void *lock;
 
 	ibuf = BKE_image_acquire_ibuf(image, NULL, &lock);
 
-	IMB_scaleImBuf(ibuf, width, height);
-	ibuf->userflags |= IB_BITMAPDIRTY;
+	if (ibuf) {
+		IMB_scaleImBuf(ibuf, width, height);
+		ibuf->userflags |= IB_BITMAPDIRTY;
+	}
 
 	BKE_image_release_ibuf(image, lock);
+
+	return (ibuf != NULL);
 }
 
 Image *BKE_image_load(const char *filepath)
@@ -2780,9 +2784,13 @@ ImBuf *BKE_image_get_ibuf(Image *ima, ImageUser *iuser)
 	return BKE_image_acquire_ibuf(ima, iuser, NULL);
 }
 
-int BKE_image_user_frame_get(const ImageUser *iuser, int cfra, int fieldnr)
+int BKE_image_user_frame_get(const ImageUser *iuser, int cfra, int fieldnr, short *r_is_in_range)
 {
 	const int len = (iuser->fie_ima * iuser->frames) / 2;
+
+	if (r_is_in_range) {
+		*r_is_in_range = FALSE;
+	}
 
 	if (len == 0) {
 		return 0;
@@ -2796,10 +2804,23 @@ int BKE_image_user_frame_get(const ImageUser *iuser, int cfra, int fieldnr)
 			cfra = ((cfra) % len);
 			if (cfra < 0) cfra += len;
 			if (cfra == 0) cfra = len;
+
+			if (r_is_in_range) {
+				*r_is_in_range = TRUE;
+			}
 		}
 
-		if (cfra < 0) cfra = 0;
-		else if (cfra > len) cfra = len;
+		if (cfra < 0) {
+			cfra = 0;
+		}
+		else if (cfra > len) {
+			cfra = len;
+		}
+		else {
+			if (r_is_in_range) {
+				*r_is_in_range = TRUE;
+			}
+		}
 
 		/* convert current frame to current field */
 		cfra = 2 * (cfra);
@@ -2808,13 +2829,15 @@ int BKE_image_user_frame_get(const ImageUser *iuser, int cfra, int fieldnr)
 		/* transform to images space */
 		framenr = (cfra + iuser->fie_ima - 2) / iuser->fie_ima;
 		if (framenr > iuser->frames) framenr = iuser->frames;
-		framenr += iuser->offset;
 
 		if (iuser->cycl) {
 			framenr = ((framenr) % len);
 			while (framenr < 0) framenr += len;
 			if (framenr == 0) framenr = len;
 		}
+
+		/* important to apply after else we cant loop on frames 100 - 110 for eg. */
+		framenr += iuser->offset;
 
 		return framenr;
 	}
@@ -2823,7 +2846,15 @@ int BKE_image_user_frame_get(const ImageUser *iuser, int cfra, int fieldnr)
 void BKE_image_user_frame_calc(ImageUser *iuser, int cfra, int fieldnr)
 {
 	if (iuser) {
-		const int framenr = BKE_image_user_frame_get(iuser, cfra, fieldnr);
+		short is_in_range;
+		const int framenr = BKE_image_user_frame_get(iuser, cfra, fieldnr, &is_in_range);
+
+		if (is_in_range) {
+			iuser->flag |= IMA_USER_FRAME_IN_RANGE;
+		}
+		else {
+			iuser->flag &= ~IMA_USER_FRAME_IN_RANGE;
+		}
 
 		/* allows image users to handle redraws */
 		if (iuser->flag & IMA_ANIM_ALWAYS)
@@ -2851,7 +2882,7 @@ void BKE_image_user_file_path(ImageUser *iuser, Image *ima, char *filepath)
 	if (ima->source == IMA_SRC_SEQUENCE) {
 		char head[FILE_MAX], tail[FILE_MAX];
 		unsigned short numlen;
-		int frame = iuser->framenr;
+		int frame = iuser ? iuser->framenr : ima->lastframe;
 
 		BLI_stringdec(filepath, head, tail, &numlen);
 		BLI_stringenc(filepath, head, tail, numlen, frame);

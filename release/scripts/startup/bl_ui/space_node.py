@@ -32,6 +32,7 @@ class NODE_HT_header(Header):
         snode = context.space_data
         snode_id = snode.id
         id_from = snode.id_from
+        toolsettings = context.tool_settings
 
         row = layout.row(align=True)
         row.template_header()
@@ -85,6 +86,13 @@ class NODE_HT_header(Header):
             layout.prop(snode, "use_auto_render")
 
         layout.separator()
+
+        # Snap
+        row = layout.row(align=True)
+        row.prop(toolsettings, "use_snap", text="")
+        row.prop(toolsettings, "snap_node_element", text="", icon_only=True)
+        if toolsettings.snap_node_element != 'INCREMENT':
+            row.prop(toolsettings, "snap_target", text="")
 
         layout.template_running_jobs()
 
@@ -209,7 +217,7 @@ class NODE_PT_properties(Panel):
 class NODE_PT_quality(bpy.types.Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
-    bl_label = "Quality"
+    bl_label = "Performance"
 
     @classmethod
     def poll(cls, context):
@@ -225,7 +233,9 @@ class NODE_PT_quality(bpy.types.Panel):
         layout.prop(tree, "edit_quality", text="Edit")
         layout.prop(tree, "chunk_size")
         layout.prop(tree, "use_opencl")
-
+        layout.prop(tree, "two_pass")
+        layout.prop(snode, "show_highlight")
+        
 
 class NODE_MT_node_color_presets(Menu):
     """Predefined node color"""
