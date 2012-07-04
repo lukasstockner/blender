@@ -51,6 +51,7 @@
 #include "BLI_kdtree.h"
 #include "BLI_kdopbvh.h"
 #include "BLI_utildefines.h"
+#include "BLI_voxel.h"
 
 #include "DNA_customdata_types.h"
 #include "DNA_group_types.h"
@@ -189,6 +190,16 @@ void smoke_reallocate_highres_fluid(SmokeDomainSettings *sds, float dx, int res[
 	sds->res_wt[2] = res[2] * (sds->amplify + 1);			
 	sds->dx_wt = dx / (sds->amplify + 1);
 	smoke_initWaveletBlenderRNA(sds->wt, &(sds->strength));
+}
+
+/* convert global position to domain cell space */
+static void smoke_pos_to_cell(SmokeDomainSettings *sds, float pos[3])
+{
+	mul_m4_v3(sds->imat, pos);
+	sub_v3_v3(pos, sds->p0);
+	pos[0] *= 1.0f/sds->cell_size[0];
+	pos[1] *= 1.0f/sds->cell_size[1];
+	pos[2] *= 1.0f/sds->cell_size[2];
 }
 
 /* set domain resolution and dimensions from object derivedmesh */
@@ -680,11 +691,7 @@ static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds
 
 			/* vert pos */
 			mul_m4_v3(coll_ob->obmat, mvert[i].co);
-			mul_m4_v3(sds->imat, mvert[i].co);
-			sub_v3_v3(mvert[i].co, sds->p0);
-			mvert[i].co[0] *= 1.0f/sds->cell_size[0];
-			mvert[i].co[1] *= 1.0f/sds->cell_size[1];
-			mvert[i].co[2] *= 1.0f/sds->cell_size[2];
+			smoke_pos_to_cell(sds, mvert[i].co);
 
 			/* vert normal */
 			normal_short_to_float_v3(n, mvert[i].no);
@@ -947,11 +954,7 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 				continue;
 
 			pos = &particle_pos[valid_particles*3];
-			mul_v3_m4v3(pos, sds->imat, state.co);
-			sub_v3_v3(pos, sds->p0);
-			pos[0] *= 1.0f/sds->cell_size[0];
-			pos[1] *= 1.0f/sds->cell_size[1];
-			pos[2] *= 1.0f/sds->cell_size[2];
+			smoke_pos_to_cell(sds, pos);
 
 			copy_v3_v3(&particle_vel[valid_particles*3], state.vel);
 			mul_mat3_m4_v3(sds->imat, &particle_vel[valid_particles*3]);
@@ -1044,11 +1047,7 @@ static void emit_from_derivedmesh(Object *flow_ob, SmokeDomainSettings *sds, Smo
 			float n[3];
 			/* vert pos */
 			mul_m4_v3(flow_ob->obmat, mvert[i].co);
-			mul_m4_v3(sds->imat, mvert[i].co);
-			sub_v3_v3(mvert[i].co, sds->p0);
-			mvert[i].co[0] *= 1.0f/sds->cell_size[0];
-			mvert[i].co[1] *= 1.0f/sds->cell_size[1];
-			mvert[i].co[2] *= 1.0f/sds->cell_size[2];
+			smoke_pos_to_cell(sds, mvert[i].co);
 			/* vert normal */
 			normal_short_to_float_v3(n, mvert[i].no);
 			mul_mat3_m4_v3(flow_ob->obmat, n);
@@ -1687,7 +1686,10 @@ static void update_flowsfluids(Scene *scene, Object *ob, SmokeDomainSettings *sd
 
 static void update_effectors(Scene *scene, Object *ob, SmokeDomainSettings *sds, float UNUSED(dt))
 {
-	ListBase *effectors = pdInitEffectors(scene, ob, NULL, sds->effector_weights);
+	ListBase *effectors;
+	/* make sure smoke flow influence is 0.0f */
+	sds->effector_weights->weight[PFIELD_SMOKEFLOW] = 0.0f;
+	effectors = pdInitEffectors(scene, ob, NULL, sds->effector_weights);
 
 	if(effectors)
 	{
@@ -1756,7 +1758,7 @@ static void step(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMesh *
 	float maxVel;
 	// maxVel should be 1.5 (1.5 cell max movement) * dx (cell size)
 
-	float dt = DT_DEFAULT;
+	float dt;
 	float maxVelMag = 0.0f;
 	int totalSubsteps;
 	int substep = 0;
@@ -1789,7 +1791,7 @@ static void step(Scene *scene, Object *ob, SmokeModifierData *smd, DerivedMesh *
 	mul_v3_fl(gravity, gravity_mag);
 
 	/* adapt timestep for different framerates, dt = 0.1 is at 25fps */
-	dt *= (25.0f / fps);
+	dt = DT_DEFAULT * (25.0f / fps);
 	// maximum timestep/"CFL" constraint: dt < 5.0 *dx / maxVel
 	maxVel = (sds->dx * 5.0);
 
@@ -2259,6 +2261,60 @@ static void smoke_calc_transparency(SmokeDomainSettings *sds, Scene *scene)
 				sds->shadow[index] = tRay;			
 			}
 	}
+}
+
+/* get smoke velocity and density at given coordinates
+*  returns fluid density or -1.0f if outside domain*/
+float smoke_get_velocity_at(struct Object *ob, float position[3], float velocity[3])
+{
+	SmokeModifierData *smd = (SmokeModifierData*)modifiers_findByType(ob, eModifierType_Smoke);
+	zero_v3(velocity);
+
+	if(smd && (smd->type & MOD_SMOKE_TYPE_DOMAIN) && smd->domain && smd->domain->fluid) {
+		SmokeDomainSettings *sds = smd->domain;
+		float time_mult = 25.f * DT_DEFAULT;
+		float vel_mag;
+		float *velX = smoke_get_velocity_x(sds->fluid);
+		float *velY = smoke_get_velocity_y(sds->fluid);
+		float *velZ = smoke_get_velocity_z(sds->fluid);
+		float density, fuel;
+		float pos[3];
+		copy_v3_v3(pos, position);
+		smoke_pos_to_cell(sds, pos);
+
+		/* check if point is outside domain max bounds */
+		if (pos[0] < sds->res_min[0] || pos[1] < sds->res_min[1] || pos[2] < sds->res_min[2]) return -1.0f;
+		if (pos[0] > sds->res_max[0] || pos[1] > sds->res_max[1] || pos[2] > sds->res_max[2]) return -1.0f;
+
+		/* map pos between 0.0 - 1.0 */
+		pos[0] = (pos[0] - sds->res_min[0]) / ((float)sds->res[0]);
+		pos[1] = (pos[1] - sds->res_min[1]) / ((float)sds->res[1]);
+		pos[2] = (pos[2] - sds->res_min[2]) / ((float)sds->res[2]);
+
+
+		/* check if point is outside active area */
+		if (smd->domain->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) {
+			if (pos[0] < 0.0f || pos[1] < 0.0f || pos[2] < 0.0f) return 0.0f;
+			if (pos[0] > 1.0f || pos[1] > 1.0f || pos[2] > 1.0f) return 0.0f;
+		}
+
+		/* get interpolated velocity */
+		velocity[0] = BLI_voxel_sample_trilinear(velX, sds->res, pos) * sds->global_size[0] * time_mult;
+		velocity[1] = BLI_voxel_sample_trilinear(velY, sds->res, pos) * sds->global_size[1] * time_mult;
+		velocity[2] = BLI_voxel_sample_trilinear(velZ, sds->res, pos) * sds->global_size[2] * time_mult;
+
+		/* convert velocity direction to global space */
+		vel_mag = len_v3(velocity);
+		mul_mat3_m4_v3(sds->obmat, velocity);
+		normalize_v3(velocity);
+		mul_v3_fl(velocity, vel_mag);
+
+		/* use max value of fuel or smoke density */
+		density = BLI_voxel_sample_trilinear(smoke_get_density(sds->fluid), sds->res, pos);
+		fuel = BLI_voxel_sample_trilinear(smoke_get_fuel(sds->fluid), sds->res, pos);
+		return MAX2(density, fuel);
+	}
+	return -1.0f;
 }
 
 #endif /* WITH_SMOKE */

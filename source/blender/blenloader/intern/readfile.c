@@ -3346,6 +3346,8 @@ static void lib_link_partdeflect(FileData *fd, ID *id, PartDeflect *pd)
 {
 	if (pd && pd->tex)
 		pd->tex = newlibadr_us(fd, id->lib, pd->tex);
+	if (pd && pd->f_source)
+		pd->f_source = newlibadr_us(fd, id->lib, pd->f_source);
 }
 
 static void lib_link_particlesettings(FileData *fd, Main *main)
@@ -4392,8 +4394,12 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 					smd->coll->numverts = 0;
 					smd->coll->dm = NULL;
 				}
-				else
+				else {
 					smd->type = 0;
+					smd->flow = NULL;
+					smd->domain = NULL;
+					smd->coll = NULL;
+				}
 			}
 		}
 		else if (md->type == eModifierType_DynamicPaint) {

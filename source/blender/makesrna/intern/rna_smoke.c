@@ -70,6 +70,7 @@ static void rna_Smoke_resetCache(Main *bmain, Scene *scene, PointerRNA *ptr)
 	SmokeDomainSettings *settings = (SmokeDomainSettings *)ptr->data;
 	if (settings->smd && settings->smd->domain)
 		settings->point_cache[0]->flag |= PTCACHE_OUTDATED;
+	DAG_id_tag_update(ptr->id.data, OB_RECALC_DATA);
 }
 
 static void rna_Smoke_reset(Main *bmain, Scene *scene, PointerRNA *ptr)

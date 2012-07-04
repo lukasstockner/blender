@@ -281,7 +281,7 @@ class PHYSICS_PT_smoke_field_weights(PhysicButtonsPanel, Panel):
 
     def draw(self, context):
         domain = context.smoke.domain_settings
-        effector_weights_ui(self, context, domain.effector_weights)
+        effector_weights_ui(self, context, domain.effector_weights, 'SMOKE')
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

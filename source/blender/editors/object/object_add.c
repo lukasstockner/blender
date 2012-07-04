@@ -414,6 +414,7 @@ static EnumPropertyItem field_type_items[] = {
 	{PFIELD_BOID, "BOID", ICON_FORCE_BOID, "Boid", ""},
 	{PFIELD_TURBULENCE, "TURBULENCE", ICON_FORCE_TURBULENCE, "Turbulence", ""},
 	{PFIELD_DRAG, "DRAG", ICON_FORCE_DRAG, "Drag", ""},
+	{PFIELD_SMOKEFLOW, "SMOKE", ICON_FORCE_SMOKEFLOW, "Smoke Flow", ""},
 	{0, NULL, 0, NULL, NULL}};
 
 /* for effector add primitive operators */
