@@ -764,7 +764,7 @@ void GPU_create_gl_tex(unsigned int *bind, unsigned int *pix, float * frect, int
 	}
 	else {
 	
-		GenerateMipmapRGBA(use_high_bit_depth, rectw, recth, use_high_bit_depth?frect: pix);
+		GenerateMipmapRGBA(use_high_bit_depth, rectw, recth, use_high_bit_depth? (void*)frect: (void*)pix);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gpu_get_mipmap_filter(0));
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gpu_get_mipmap_filter(1));
