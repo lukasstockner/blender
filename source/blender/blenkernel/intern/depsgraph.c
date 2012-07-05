@@ -559,7 +559,11 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 
 	/* softbody collision  */
 	if ((ob->type == OB_MESH) || (ob->type == OB_CURVE) || (ob->type == OB_LATTICE)) {
-		if (modifiers_isSoftbodyEnabled(ob) || modifiers_isClothEnabled(ob) || ob->particlesystem.first)
+		if (modifiers_isModifierEnabled(ob, eModifierType_Softbody) 
+			|| modifiers_isModifierEnabled(ob, eModifierType_Cloth)
+			|| modifiers_isModifierEnabled(ob, eModifierType_Smoke)
+			|| modifiers_isModifierEnabled(ob, eModifierType_DynamicPaint)
+			|| ob->particlesystem.first)
 			dag_add_collision_field_relation(dag, scene, ob, node);  /* TODO: use effectorweight->group */
 	}
 	
@@ -662,15 +666,15 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 				/* note that this relation actually runs in the wrong direction, the problem
 				 * is that dupli system all have this (due to parenting), and the render
 				 * engine instancing assumes particular ordering of objects in list */
-				dag_add_relation(dag, node, node2, DAG_RL_OB_OB, "Particle Object Visualisation");
+				dag_add_relation(dag, node, node2, DAG_RL_OB_OB, "Particle Object Visualization");
 				if (part->dup_ob->type == OB_MBALL)
-					dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA, "Particle Object Visualisation");
+					dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA, "Particle Object Visualization");
 			}
 
 			if (part->ren_as == PART_DRAW_GR && part->dup_group) {
 				for (go = part->dup_group->gobject.first; go; go = go->next) {
 					node2 = dag_get_node(dag, go->ob);
-					dag_add_relation(dag, node2, node, DAG_RL_OB_OB, "Particle Group Visualisation");
+					dag_add_relation(dag, node2, node, DAG_RL_OB_OB, "Particle Group Visualization");
 				}
 			}
 
