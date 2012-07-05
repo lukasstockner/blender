@@ -142,7 +142,7 @@ static void draw_uvs_shadow(Object *obedit)
 	BMIter iter, liter;
 	MLoopUV *luv;
 
-	/* draws the grey mesh when painting */
+	/* draws the gray mesh when painting */
 	gpuCurrentGrey3f(0.439f);
 
 	BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {

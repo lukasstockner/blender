@@ -516,8 +516,8 @@ static void gpu_copy_vertex(void)
 
 	if (GPU_IMMEDIATE->format.colorSize != 0) {
 		/* 4 bytes are always reserved for color, for efficient memory alignment */
-		memcpy(buffer + offset, GPU_IMMEDIATE->color, 4); //-V112
-		offset += 4; //-V112
+		memcpy(buffer + offset, GPU_IMMEDIATE->color, 4*sizeof(GLubyte));
+		offset += 4*sizeof(GLubyte);
 	}
 
 	/* texture coordinate(s) */

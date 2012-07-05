@@ -217,6 +217,9 @@ static void time_draw_cache(SpaceTime *stime, Object *ob)
 		if (pid->cache->flag & PTCACHE_BAKED) {
 			col[0] -= 0.4f; col[1] -= 0.4f; col[2] -= 0.4f;
 		}
+		else if (pid->cache->flag & PTCACHE_OUTDATED) {
+			col[0] += 0.4f; col[1] += 0.4f; col[2] += 0.4f;
+		}
 
 		gpuCurrentColor4fv(col);
 		gpuSingleClientArrays_V2F(GL_QUADS, stc->array, 0, 0, (fp - (stc->array)) / 2);
@@ -709,4 +712,3 @@ void ED_spacetype_time(void)
 		
 	BKE_spacetype_register(st);
 }
-

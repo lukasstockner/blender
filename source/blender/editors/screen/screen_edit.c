@@ -868,7 +868,7 @@ static void draw_join_shape(ScrArea *sa, char dir)
 	gpuImmediateUnformat();
 }
 
-/* draw screen area darker with arrow (visualisation of future joining) */
+/* draw screen area darker with arrow (visualization of future joining) */
 static void scrarea_draw_shape_dark(ScrArea *sa, char dir)
 {
 	glEnable(GL_BLEND);

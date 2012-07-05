@@ -99,7 +99,7 @@ enum {
 
 	/* normally store pointers to object, scene,
 	 * _never_ store arrays corresponding to mesh elements with this */
-	BMO_OP_SLOT_PNT = 4,
+	BMO_OP_SLOT_PTR = 4,
 	BMO_OP_SLOT_MAT = 5,
 	BMO_OP_SLOT_VEC = 8,
 
@@ -194,7 +194,7 @@ int BMO_mesh_disabled_flag_count(BMesh *bm, const char htype, const short oflag)
  * this system is used to execute or initialize an operator,
  * using a formatted-string system.
  *
- * for example, BMO_op_callf(bm, "del geom=%hf context=%i", BM_ELEM_SELECT, DEL_FACES);
+ * for example, BMO_op_callf(bm, "delete geom=%hf context=%i", BM_ELEM_SELECT, DEL_FACES);
  * . . .will execute the delete operator, feeding in selected faces, deleting them.
  *
  * the basic format for the format string is:
@@ -351,6 +351,11 @@ int BMO_vert_edge_flags_count(BMesh *bm, BMVert *v, const short oflag);
  * bmesh elements in it.*/
 void BMO_slot_map_to_flag(BMesh *bm, BMOperator *op, const char *slot_name,
                           const char hflag, const short oflag);
+
+void *BMO_slot_buffer_alloc(BMOperator *op, const char *slot_name, const int len);
+
+void BMO_slot_buffer_from_all(BMesh *bm, BMOperator *op, const char *slot_name,
+                              const char htype);
 
 /* this part of the API is used to iterate over element buffer or
  * mapping slots.

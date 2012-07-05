@@ -128,8 +128,8 @@ extern GHOST_TSuccess GHOST_RemoveTimer(GHOST_SystemHandle systemhandle,
                                         GHOST_TimerTaskHandle timertaskhandle);
 
 /***************************************************************************************
-** Display/window management functionality
-***************************************************************************************/
+ * Display/window management functionality
+ ***************************************************************************************/
 
 /**
  * Returns the number of displays on this system.
@@ -235,8 +235,8 @@ extern GHOST_TSuccess GHOST_EndFullScreen(GHOST_SystemHandle systemhandle);
 extern int GHOST_GetFullScreen(GHOST_SystemHandle systemhandle);
 
 /***************************************************************************************
-** Event management functionality
-***************************************************************************************/
+ * Event management functionality
+ ***************************************************************************************/
 
 /**
  * Retrieves events from the system and stores them in the queue.
@@ -273,8 +273,8 @@ extern GHOST_TSuccess GHOST_RemoveEventConsumer(GHOST_SystemHandle systemhandle,
                                                 GHOST_EventConsumerHandle consumerhandle);
 
 /***************************************************************************************
-** Progress bar functionality
-***************************************************************************************/
+ * Progress bar functionality
+ ***************************************************************************************/
 
 /**
  * Sets the progress bar value displayed in the window/application icon
@@ -290,8 +290,8 @@ extern GHOST_TSuccess GHOST_SetProgressBar(GHOST_WindowHandle windowhandle, floa
 extern GHOST_TSuccess GHOST_EndProgressBar(GHOST_WindowHandle windowhandle);
 
 /***************************************************************************************
-** Cursor management functionality
-***************************************************************************************/
+ * Cursor management functionality
+ ***************************************************************************************/
 
 /**
  * Returns the current cursor shape.
@@ -328,7 +328,8 @@ extern GHOST_TSuccess GHOST_SetCustomCursorShape(GHOST_WindowHandle windowhandle
  * @param windowhandle The handle to the window
  * @param	bitmap	The bitmap data for the cursor.
  * @param	mask	The mask data for the cursor.
- * @parm    sizex, sizey  The size of the cursor
+ * @param	sizex	The width of the cursor
+ * @param	sizey	The height of the cursor
  * @param	hotX	The X coordinate of the cursor hotspot.
  * @param	hotY	The Y coordinate of the cursor hotspot.
  * @param   fg_color, bg_color  Colors of the cursor
@@ -394,8 +395,8 @@ extern GHOST_TSuccess GHOST_SetCursorGrab(GHOST_WindowHandle windowhandle,
                                           int *bounds);
 
 /***************************************************************************************
-** Access to mouse button and keyboard states.
-***************************************************************************************/
+ * Access to mouse button and keyboard states.
+ ***************************************************************************************/
 
 /**
  * Returns the state of a modifier key (ouside the message queue).
@@ -421,8 +422,8 @@ extern GHOST_TSuccess GHOST_GetButtonState(GHOST_SystemHandle systemhandle,
 
 
 /***************************************************************************************
-** Drag'n'drop operations
-***************************************************************************************/
+ * Drag'n'drop operations
+ ***************************************************************************************/
 
 /**
  * Tells if the ongoing drag'n'drop object can be accepted upon mouse drop

@@ -199,9 +199,8 @@ static void draw_spline_points(MaskLayer *masklay, MaskSpline *spline,
 
 			/* this could be split into its own loop */
 			if (draw_type == MASK_DT_OUTLINE) {
-				const unsigned char rgb_grey[4] = {0x60, 0x60, 0x60, 0xff};
 				glLineWidth(3);
-				gpuCurrentColor4ubv(rgb_grey);
+				gpuCurrentGrey3f(0.376f);
 				gpuBegin(GL_LINES);
 				gpuVertex3fv(vert);
 				gpuVertex3fv(handle);

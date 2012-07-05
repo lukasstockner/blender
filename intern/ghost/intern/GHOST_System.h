@@ -77,8 +77,8 @@ protected:
 
 public:
 	/***************************************************************************************
-	** Time(r) functionality
-	***************************************************************************************/
+	 * Time(r) functionality
+	 ***************************************************************************************/
 
 	/**
 	 * Returns the system time.
@@ -111,8 +111,8 @@ public:
 	virtual GHOST_TSuccess removeTimer(GHOST_ITimerTask *timerTask);
 
 	/***************************************************************************************
-	** Display/window management functionality
-	***************************************************************************************/
+	 * Display/window management functionality
+	 ***************************************************************************************/
 	
 	/**
 	 * Inherited from GHOST_ISystem but left pure virtual
@@ -170,8 +170,8 @@ public:
 
 
 	/***************************************************************************************
-	** Event management functionality
-	***************************************************************************************/
+	 * Event management functionality
+	 ***************************************************************************************/
 
 	/**
 	 * Inherited from GHOST_ISystem but left pure virtual
@@ -203,8 +203,8 @@ public:
 	virtual GHOST_TSuccess removeEventConsumer(GHOST_IEventConsumer *consumer);
 
 	/***************************************************************************************
-	** Cursor management functionality
-	***************************************************************************************/
+	 * Cursor management functionality
+	 ***************************************************************************************/
 
 	/** Inherited from GHOST_ISystem but left pure virtual
 	 *	GHOST_TSuccess getCursorPosition(GHOST_TInt32& x, GHOST_TInt32& y) const = 0;	
@@ -212,8 +212,8 @@ public:
 	 */
 
 	/***************************************************************************************
-	** Access to mouse button and keyboard states.
-	***************************************************************************************/
+	 * Access to mouse button and keyboard states.
+	 ***************************************************************************************/
 
 	/**
 	 * Returns the state of a modifier key (ouside the message queue).
@@ -232,8 +232,8 @@ public:
 	virtual GHOST_TSuccess getButtonState(GHOST_TButtonMask mask, bool& isDown) const;
 	
 	/***************************************************************************************
-	** Other (internal) functionality.
-	***************************************************************************************/
+	 * Other (internal) functionality.
+	 ***************************************************************************************/
 
 	/**
 	 * Pushes an event on the stack.

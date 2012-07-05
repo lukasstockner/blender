@@ -132,7 +132,7 @@ static void setup(void)
 			bufferData->ptr + offset);
 
 		/* 4 bytes are always reserved for color, for efficient memory alignment */
-		offset += 4; //-V112
+		offset += 4 * sizeof(GLubyte);
 
 		glEnableClientState(GL_COLOR_ARRAY);
 	}
@@ -195,13 +195,12 @@ static void setup(void)
 			glVertexAttribPointer(
 				GPU_IMMEDIATE->format.attribIndexMap_ub[i],
 				GPU_IMMEDIATE->format.attribSize_ub[i],
-				GL_FLOAT,
+				GL_UNSIGNED_BYTE,
 				GPU_IMMEDIATE->format.attribNormalized_ub[i],
 				GPU_IMMEDIATE->stride,
 				bufferData->ptr + offset);
 
-			offset +=
-				(size_t)(GPU_IMMEDIATE->format.attribSize_ub[i]) * sizeof(GLfloat);
+			offset += 4 * sizeof(GLubyte);
 
 			glEnableVertexAttribArray(
 				GPU_IMMEDIATE->format.attribIndexMap_ub[i]);

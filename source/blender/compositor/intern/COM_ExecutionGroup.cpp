@@ -25,9 +25,6 @@
 #include <sstream>
 #include <stdlib.h>
 
-#include "BLI_math.h"
-#include "PIL_time.h"
-
 #include "COM_ExecutionGroup.h"
 #include "COM_InputSocket.h"
 #include "COM_SocketConnection.h"
@@ -40,6 +37,11 @@
 #include "COM_ViewerOperation.h"
 #include "COM_ChunkOrder.h"
 #include "COM_ExecutionSystemHelper.h"
+
+#include "BLI_math.h"
+#include "PIL_time.h"
+#include "WM_api.h"
+#include "WM_types.h"
 
 ExecutionGroup::ExecutionGroup()
 {
@@ -347,6 +349,8 @@ void ExecutionGroup::execute(ExecutionSystem *graph)
 				finished = false;
 				startEvaluated = true;
 				numberEvaluated++;
+
+				WM_main_add_notifier(NC_WINDOW | ND_DRAW, NULL);
 			}
 			else if (state == COM_ES_SCHEDULED) {
 				finished = false;
@@ -485,14 +489,18 @@ bool ExecutionGroup::scheduleAreaWhenPossible(ExecutionSystem *graph, rcti *area
 	float chunkSizef = this->m_chunkSize;
 
 	int indexx, indexy;
-	const int minxchunk = floor(area->xmin / chunkSizef);
-	const int maxxchunk = ceil((area->xmax - 1) / chunkSizef);
-	const int minychunk = floor(area->ymin / chunkSizef);
-	const int maxychunk = ceil((area->ymax - 1) / chunkSizef);
+	int minxchunk = floor(area->xmin / chunkSizef);
+	int maxxchunk = ceil((area->xmax - 1) / chunkSizef);
+	int minychunk = floor(area->ymin / chunkSizef);
+	int maxychunk = ceil((area->ymax - 1) / chunkSizef);
+	minxchunk = MAX2(minxchunk, 0);
+	minychunk = MAX2(minychunk, 0);
+	maxxchunk = MIN2(maxxchunk, this->m_numberOfXChunks);
+	maxychunk = MIN2(maxychunk, this->m_numberOfYChunks);
 
 	bool result = true;
-	for (indexx = max(minxchunk, 0); indexx < maxxchunk; indexx++) {
-		for (indexy = max(minychunk, 0); indexy < maxychunk; indexy++) {
+	for (indexx = minxchunk; indexx < maxxchunk; indexx++) {
+		for (indexy = minychunk; indexy < maxychunk; indexy++) {
 			if (!scheduleChunkWhenPossible(graph, indexx, indexy)) {
 				result = false;
 			}

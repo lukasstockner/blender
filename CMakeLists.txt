@@ -130,6 +130,7 @@ option(WITH_FFTW3         "Enable FFTW3 support (Used for smoke and audio effect
 option(WITH_BULLET        "Enable Bullet (Physics Engine)" ON)
 option(WITH_GAMEENGINE    "Enable Game Engine" ON)
 option(WITH_PLAYER        "Build Player" OFF)
+option(WITH_COMPOSITOR    "Enable the tile based nodal compositor" ON)
 
 # GHOST Windowing Library Options
 option(WITH_GHOST_DEBUG   "Enable debugging output for the GHOST library" OFF)
@@ -147,7 +148,7 @@ mark_as_advanced(WITH_AUDASPACE)
 
 
 # (unix defaults to OpenMP On)
-if(UNIX AND NOT APPLE)
+if((UNIX AND NOT APPLE) OR (MINGW))
 	set(PLATFORM_DEFAULT ON)
 else()
 	set(PLATFORM_DEFAULT OFF)
@@ -754,7 +755,6 @@ if(UNIX AND NOT APPLE)
 
 		if(NOT OPENIMAGEIO_FOUND)
 			set(WITH_OPENIMAGEIO OFF)
-			set(WITH_CYCLES OFF)
 			message(STATUS "OpenImageIO not found, disabling WITH_CYCLES")
 		endif()
 	endif()
@@ -1091,22 +1091,19 @@ elseif(WIN32)
 			set(BOOST ${LIBDIR}/boost)
 			set(BOOST_INCLUDE_DIR ${BOOST}/include)
 			if(MSVC10)
-				set(BOOST_POSTFIX "vc100-mt-s-1_47.lib")
-				set(BOOST_DEBUG_POSTFIX "vc100-mt-sgd-1_47.lib")
+				set(BOOST_LIBPATH ${BOOST}/lib/vc_10)
+				set(BOOST_POSTFIX "vc100-mt-s-1_49.lib")
+				set(BOOST_DEBUG_POSTFIX "vc100-mt-sgd-1_49.lib")
 			else()
-				set(BOOST_POSTFIX "vc90-mt-s-1_47.lib")
-				set(BOOST_DEBUG_POSTFIX "vc90-mt-sgd-1_47.lib")					
+				set(BOOST_LIBPATH ${BOOST}/lib)
+				set(BOOST_POSTFIX "vc90-mt-s-1_49.lib")
+				set(BOOST_DEBUG_POSTFIX "vc90-mt-sgd-1_49.lib")					
 			endif()
 			set(BOOST_LIBRARIES
 				optimized libboost_date_time-${BOOST_POSTFIX} optimized libboost_filesystem-${BOOST_POSTFIX}
 				optimized libboost_regex-${BOOST_POSTFIX} optimized libboost_system-${BOOST_POSTFIX} optimized libboost_thread-${BOOST_POSTFIX}
 				debug libboost_date_time-${BOOST_DEBUG_POSTFIX} debug libboost_filesystem-${BOOST_DEBUG_POSTFIX}
 				debug libboost_regex-${BOOST_DEBUG_POSTFIX} debug libboost_system-${BOOST_DEBUG_POSTFIX} debug libboost_thread-${BOOST_DEBUG_POSTFIX})
-			if(MSVC10)
-				set(BOOST_LIBPATH ${BOOST}/lib/vc_10)
-			else()
-				set(BOOST_LIBPATH ${BOOST}/lib)
-			endif()
 			set(BOOST_DEFINITIONS "-DBOOST_ALL_NO_LIB")
 		endif()
 			
@@ -1557,6 +1554,16 @@ if(APPLE OR WIN32)
 		message(FATAL_ERROR "Apple and Windows require pre-compiled libs at: '${LIBDIR}'")
 	endif()
 endif()
+
+if(WITH_CYCLES)
+	if(NOT WITH_OPENIMAGEIO)
+		message(FATAL_ERROR "Cycles reqires WITH_OPENIMAGEIO, the library may not have been found. Configure OIIO or disable WITH_CYCLES")
+	endif()
+	if(NOT WITH_BOOST)
+		message(FATAL_ERROR "Cycles reqires WITH_BOOST, the library may not have been found. Configure BOOST or disable WITH_CYCLES")
+	endif()
+endif()
+
 
 # See TEST_SSE_SUPPORT() for how this is defined.
 

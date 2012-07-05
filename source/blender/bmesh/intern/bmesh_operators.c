@@ -225,9 +225,9 @@ int BMO_slot_exists(BMOperator *op, const char *slot_name)
  *
  * Returns a pointer to the slot of type 'slot_code'
  */
-BMOpSlot *BMO_slot_get(BMOperator *op, const char *slot_namee)
+BMOpSlot *BMO_slot_get(BMOperator *op, const char *slot_name)
 {
-	int slot_code = bmo_name_to_slotcode_check(opdefines[op->type], slot_namee);
+	int slot_code = bmo_name_to_slotcode_check(opdefines[op->type], slot_name);
 
 	if (slot_code < 0) {
 		return &BMOpEmptySlot;
@@ -378,8 +378,8 @@ void BMO_slot_mat3_set(BMOperator *op, const char *slot_name, float r_mat[3][3])
 void BMO_slot_ptr_set(BMOperator *op, const char *slot_name, void *p)
 {
 	BMOpSlot *slot = BMO_slot_get(op, slot_name);
-	BLI_assert(slot->slot_type == BMO_OP_SLOT_PNT);
-	if (!(slot->slot_type == BMO_OP_SLOT_PNT))
+	BLI_assert(slot->slot_type == BMO_OP_SLOT_PTR);
+	if (!(slot->slot_type == BMO_OP_SLOT_PTR))
 		return;
 
 	slot->data.p = p;
@@ -430,8 +430,8 @@ int BMO_slot_bool_get(BMOperator *op, const char *slot_name)
 void *BMO_slot_ptr_get(BMOperator *op, const char *slot_name)
 {
 	BMOpSlot *slot = BMO_slot_get(op, slot_name);
-	BLI_assert(slot->slot_type == BMO_OP_SLOT_PNT);
-	if (!(slot->slot_type == BMO_OP_SLOT_PNT))
+	BLI_assert(slot->slot_type == BMO_OP_SLOT_PTR);
+	if (!(slot->slot_type == BMO_OP_SLOT_PTR))
 		return NULL;
 
 	return slot->data.p;
@@ -625,7 +625,7 @@ void BMO_slot_map_to_flag(BMesh *bm, BMOperator *op, const char *slot_name,
 	}
 }
 
-static void *bmo_slot_buffer_alloc(BMOperator *op, const char *slot_name, int len)
+void *BMO_slot_buffer_alloc(BMOperator *op, const char *slot_name, const int len)
 {
 	BMOpSlot *slot = BMO_slot_get(op, slot_name);
 	BLI_assert(slot->slot_type == BMO_OP_SLOT_ELEMENT_BUF);
@@ -645,7 +645,7 @@ static void *bmo_slot_buffer_alloc(BMOperator *op, const char *slot_name, int le
  *
  * Copies all elements of a certain type into an operator slot.
  */
-static void BMO_slot_buffer_from_all(BMesh *bm, BMOperator *op, const char *slot_name, const char htype)
+void BMO_slot_buffer_from_all(BMesh *bm, BMOperator *op, const char *slot_name, const char htype)
 {
 	BMOpSlot *output = BMO_slot_get(op, slot_name);
 	int totelement = 0, i = 0;
@@ -658,7 +658,7 @@ static void BMO_slot_buffer_from_all(BMesh *bm, BMOperator *op, const char *slot
 		BMIter iter;
 		BMHeader *ele;
 
-		bmo_slot_buffer_alloc(op, slot_name, totelement);
+		BMO_slot_buffer_alloc(op, slot_name, totelement);
 
 		/* TODO - collapse these loops into one */
 
@@ -709,7 +709,7 @@ static void bmo_slot_buffer_from_hflag(BMesh *bm, BMOperator *op, const char *sl
 		BMIter iter;
 		BMElem *ele;
 
-		bmo_slot_buffer_alloc(op, slot_name, totelement);
+		BMO_slot_buffer_alloc(op, slot_name, totelement);
 
 		/* TODO - collapse these loops into one */
 
@@ -821,7 +821,7 @@ static void bmo_slot_buffer_from_flag(BMesh *bm, BMOperator *op, const char *slo
 		BMHeader *ele;
 		BMHeader **ele_array;
 
-		bmo_slot_buffer_alloc(op, slot_name, totelement);
+		BMO_slot_buffer_alloc(op, slot_name, totelement);
 
 		ele_array = (BMHeader **)slot->data.p;
 
@@ -1320,7 +1320,7 @@ static int bmo_opname_to_opcode(const char *opname)
 }
 
 /* Example:
- * BMO_op_callf(bm, "del %i %hv", DEL_ONLYFACES, BM_ELEM_SELECT);
+ * BMO_op_callf(bm, "delete %i %hv", DEL_ONLYFACES, BM_ELEM_SELECT);
  *
  *  i - int
  *  b - boolean (same as int but 1/0 only)
