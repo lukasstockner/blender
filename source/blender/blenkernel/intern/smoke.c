@@ -953,9 +953,12 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 			if(psys_get_particle_state(&sim, p, &state, 0) == 0)
 				continue;
 
+			/* location */
 			pos = &particle_pos[valid_particles*3];
+			copy_v3_v3(pos, state.co);
 			smoke_pos_to_cell(sds, pos);
 
+			/* velocity */
 			copy_v3_v3(&particle_vel[valid_particles*3], state.vel);
 			mul_mat3_m4_v3(sds->imat, &particle_vel[valid_particles*3]);
 
