@@ -472,7 +472,7 @@ void volume_preservation(BMesh *bm, BMOperator *op, float vini, float vend, int 
 	}
 }
 
-void bmo_vertexsmoothlaplacian_exec(BMesh *bm, BMOperator *op)
+void bmo_smooth_laplacian_vert_exec(BMesh *bm, BMOperator *op)
 {
 	int i;
 	int m_vertex_id;

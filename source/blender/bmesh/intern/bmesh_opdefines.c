@@ -115,8 +115,8 @@ static BMOpDefine bmo_smooth_vert_def = {
  * Smooths vertices by using Laplacian smoothing propose by.
  * Desbrun, et al. Implicit Fairing of Irregular Meshes using Diffusion and Curvature Flow
 */
-static BMOpDefine bmo_vertexsmoothlaplacian_def = {
-	"vertexsmoothlaplacian",
+static BMOpDefine bmo_smooth_laplacian_vert_def = {
+	"smooth_laplacian_vert",
 	{{BMO_OP_SLOT_ELEMENT_BUF, "verts"}, //input vertices
 	 {BMO_OP_SLOT_FLT, "lambda"}, //lambda param
 	 {BMO_OP_SLOT_FLT, "lambda_border"}, //lambda param in border
@@ -127,7 +127,7 @@ static BMOpDefine bmo_vertexsmoothlaplacian_def = {
 	 {BMO_OP_SLOT_MAPPING, "vertex_group"}, // Vertex group with weights for every vertice.
 	{0} /* null-terminating sentinel */,
 	},
-	bmo_vertexsmoothlaplacian_exec,
+	bmo_smooth_laplacian_vert_exec,
 	0
 };
 
@@ -1264,7 +1264,7 @@ BMOpDefine *opdefines[] = {
 	&bmo_translate_def,
 	&bmo_triangle_fill_def,
 	&bmo_triangulate_def,
-	&bmo_vertexsmoothlaplacian_def,
+	&bmo_smooth_laplacian_vert_def,
 	&bmo_weld_verts_def,
 	&bmo_wireframe_def,
 

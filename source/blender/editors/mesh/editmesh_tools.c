@@ -1635,7 +1635,7 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 	
 	for (i = 0; i < repeat; i++) {
 		if (!EDBM_op_callf(em, op,
-		                   "vertexsmoothlaplacian verts=%hv lambda=%f lambda_border=%f min_area=%f use_x=%b use_y=%b use_z=%b",
+		                   "smooth_laplacian_vert verts=%hv lambda=%f lambda_border=%f min_area=%f use_x=%b use_y=%b use_z=%b",
 		                   BM_ELEM_SELECT, lambda, lambda_border, min_area, usex, usey, usez))
 		{
 			return OPERATOR_CANCELLED;
