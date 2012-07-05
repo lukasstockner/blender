@@ -1032,18 +1032,24 @@ static void cdDM_drawMappedFacesTex(DerivedMesh *dm,
 static void cddm_format_attrib_vertex(DMVertexAttribs *attribs)
 {
 	int b;
+
 	GLboolean texco = GL_FALSE;
+	GLint texSize[1];
+
 	GLint attribMap_f[16];
 	GLint attribSize_f[16];
 	GLint attrib_f = 0;
+
 	GLint attribMap_ub[16];
 	GLint attribSize_ub[16];
 	GLint attrib_ub = 0;
 
 	/* orco texture coordinates */
 	if (attribs->totorco) {
-		if (attribs->orco.gl_texco)
+		if (attribs->orco.gl_texco) {
 			texco = GL_TRUE;
+			texSize[0] = 3;
+		}
 		else {
 			attribMap_f[attrib_f] = attribs->orco.gl_index;
 			attribSize_f[attrib_f] = 3;
@@ -1053,8 +1059,10 @@ static void cddm_format_attrib_vertex(DMVertexAttribs *attribs)
 
 	/* uv texture coordinates */
 	for (b = 0; b < attribs->tottface; b++) {
-		if (attribs->tface[b].gl_texco)
+		if (attribs->tface[b].gl_texco) {
 			texco = GL_TRUE;
+			texSize[0] = 2;
+		}
 		else {
 			attribMap_f[attrib_f] = attribs->tface[b].gl_index;
 			attribSize_f[attrib_f] = 2;
@@ -1084,6 +1092,7 @@ static void cddm_format_attrib_vertex(DMVertexAttribs *attribs)
 		static const GLenum texmap[1] = { GL_TEXTURE0 };
 		gpuImmediateTextureUnitCount(1);
 		gpuImmediateTextureUnitMap(texmap);
+		gpuImmediateTexCoordSizes(texSize);
 	}
 
 	gpuImmediateFloatAttribCount(attrib_f);
@@ -1092,7 +1101,7 @@ static void cddm_format_attrib_vertex(DMVertexAttribs *attribs)
 
 	gpuImmediateUbyteAttribCount(attrib_ub);
 	gpuImmediateUbyteAttribIndexMap(attribMap_ub);
-	gpuImmediateUbyteAttribSizes(attribMap_ub);
+	gpuImmediateUbyteAttribSizes(attribSize_ub);
 
 	gpuImmediateLock();
 }
