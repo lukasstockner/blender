@@ -58,4 +58,6 @@ set(SRC
 	paint_2D.h
 )
 
+add_definitions(-DGLEW_STATIC)
+
 blender_add_lib(bf_editor_sculpt_paint "${SRC}" "${INC}" "${INC_SYS}")
