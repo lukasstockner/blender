@@ -68,9 +68,9 @@ struct BLaplacianSystem {
 };
 typedef struct BLaplacianSystem LaplacianSystem;
 
-static int vert_is_boundary(BMVert *v);
 static float compute_volume(BMesh *bm, BMOperator *op);
 static float cotan_weight(float *v1, float *v2, float *v3);
+static int vert_is_boundary(BMVert *v);
 static LaplacianSystem * init_laplacian_system( int a_numEdges, int a_numFaces, int a_numVerts);
 static void init_laplacian_matrix(LaplacianSystem * sys);
 static void delete_laplacian_system(LaplacianSystem * sys);
@@ -472,7 +472,7 @@ static void volume_preservation(BMesh *bm, BMOperator *op, float vini, float ven
 	}
 }
 
-static void bmo_smooth_laplacian_vert_exec(BMesh *bm, BMOperator *op)
+void bmo_smooth_laplacian_vert_exec(BMesh *bm, BMOperator *op)
 {
 	int i;
 	int m_vertex_id;

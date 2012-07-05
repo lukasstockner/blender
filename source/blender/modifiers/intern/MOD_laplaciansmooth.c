@@ -57,7 +57,7 @@
 
 #include "ONL_opennl.h"
 
-struct BModLaplacianSystem {
+struct BLaplacianSystem {
 	float *eweights;		/* Length weights per Edge */
 	float (*fweights)[3];   /* Cotangent weights per face */
 	float *ring_areas;		/* Total area per ring*/
@@ -79,23 +79,23 @@ struct BModLaplacianSystem {
 	/*Data*/
 	float min_area;
 };
-typedef struct BModLaplacianSystem ModLaplacianSystem;
+typedef struct BLaplacianSystem LaplacianSystem;
 
+static CustomDataMask required_data_mask(Object *UNUSED(ob), ModifierData *md);
+static int is_disabled(ModifierData *md, int UNUSED(useRenderParams));
 static float compute_volume(float (*vertexCos)[3], MFace *mfaces, int numFaces);
 static float cotan_weight(float *v1, float *v2, float *v3);
-static int isDisabled(ModifierData *md, int UNUSED(useRenderParams));
-static void copyData(ModifierData *md, ModifierData *target);
-static void delete_ModLaplacianSystem(ModLaplacianSystem * sys);
-static void delete_void_MLS(void * data);
-static void fill_laplacian_matrix(ModLaplacianSystem * sys);
-static void initData(ModifierData *md);
-static void init_laplacian(ModLaplacianSystem * sys);
-static void memset_ModLaplacianSystem(ModLaplacianSystem *sys, int val);
+static LaplacianSystem * init_laplacian_system( int a_numEdges, int a_numFaces, int a_numVerts);
+static void copy_data(ModifierData *md, ModifierData *target);
+static void delete_laplacian_system(LaplacianSystem * sys);
+static void delete_void_pointer(void * data);
+static void fill_laplacian_matrix(LaplacianSystem * sys);
+static void init_data(ModifierData *md);
+static void init_laplacian_matrix(LaplacianSystem * sys);
+static void memset_laplacian_system(LaplacianSystem *sys, int val);
 static void volume_preservation(float (*vertexCos)[3], int numVerts, float vini, float vend, short flag);
-static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md);
-static ModLaplacianSystem * init_ModLaplacianSystem( int a_numEdges, int a_numFaces, int a_numVerts);
 
-static void delete_void_MLS(void * data)
+static void delete_void_pointer(void * data)
 {
 	if (data) {
 		MEM_freeN(data);
@@ -103,16 +103,16 @@ static void delete_void_MLS(void * data)
 	}
 }
 
-static void delete_ModLaplacianSystem(ModLaplacianSystem * sys) 
+static void delete_laplacian_system(LaplacianSystem * sys) 
 {
-	delete_void_MLS(sys->eweights);
-	delete_void_MLS(sys->fweights);
-	delete_void_MLS(sys->numNeEd);
-	delete_void_MLS(sys->numNeFa);
-	delete_void_MLS(sys->ring_areas);
-	delete_void_MLS(sys->vlengths);
-	delete_void_MLS(sys->vweights);
-	delete_void_MLS(sys->zerola);
+	delete_void_pointer(sys->eweights);
+	delete_void_pointer(sys->fweights);
+	delete_void_pointer(sys->numNeEd);
+	delete_void_pointer(sys->numNeFa);
+	delete_void_pointer(sys->ring_areas);
+	delete_void_pointer(sys->vlengths);
+	delete_void_pointer(sys->vweights);
+	delete_void_pointer(sys->zerola);
 	if (sys->context) {
 		nlDeleteContext(sys->context);
 	}
@@ -122,7 +122,7 @@ static void delete_ModLaplacianSystem(ModLaplacianSystem * sys)
 	MEM_freeN(sys);
 }
 
-static void memset_ModLaplacianSystem(ModLaplacianSystem *sys, int val)
+static void memset_laplacian_system(LaplacianSystem *sys, int val)
 {
 	memset(sys->eweights	, val, sizeof(float) * sys->numEdges);
 	memset(sys->fweights	, val, sizeof(float) * sys->numFaces * 3);
@@ -134,66 +134,66 @@ static void memset_ModLaplacianSystem(ModLaplacianSystem *sys, int val)
 	memset(sys->zerola		, val, sizeof(short) * sys->numVerts);
 }
 
-static ModLaplacianSystem * init_ModLaplacianSystem( int a_numEdges, int a_numFaces, int a_numVerts) 
+static LaplacianSystem * init_laplacian_system( int a_numEdges, int a_numFaces, int a_numVerts) 
 {
-	ModLaplacianSystem * sys; 
-	sys = MEM_callocN(sizeof(ModLaplacianSystem), "ModLaplSmoothSystem");
+	LaplacianSystem * sys; 
+	sys = MEM_callocN(sizeof(LaplacianSystem), "ModLaplSmoothSystem");
 	sys->numEdges = a_numEdges;
 	sys->numFaces = a_numFaces;
 	sys->numVerts = a_numVerts;
 
 	sys->eweights =  MEM_callocN(sizeof(float) * sys->numEdges, "ModLaplSmoothEWeight");
 	if (!sys->eweights) {
-		delete_ModLaplacianSystem(sys);
+		delete_laplacian_system(sys);
 		return NULL;
 	}
 	
 	sys->fweights =  MEM_callocN(sizeof(float) * 3 * sys->numFaces, "ModLaplSmoothFWeight");
 	if (!sys->fweights) {
-		delete_ModLaplacianSystem(sys);
+		delete_laplacian_system(sys);
 		return NULL;
 	}
 
 	sys->numNeEd =  MEM_callocN(sizeof(short) * sys->numVerts, "ModLaplSmoothNumNeEd");
 	if (!sys->numNeEd) {
-		delete_ModLaplacianSystem(sys);
+		delete_laplacian_system(sys);
 		return NULL;
 	}
 	
 	sys->numNeFa =  MEM_callocN(sizeof(short) * sys->numVerts, "ModLaplSmoothNumNeFa");
 	if (!sys->numNeFa) {
-		delete_ModLaplacianSystem(sys);
+		delete_laplacian_system(sys);
 		return NULL;
 	}
 	
 	sys->ring_areas =  MEM_callocN(sizeof(float) * sys->numVerts, "ModLaplSmoothRingAreas");
 	if (!sys->ring_areas) {
-		delete_ModLaplacianSystem(sys);
+		delete_laplacian_system(sys);
 		return NULL;
 	}
 	
 	sys->vlengths =  MEM_callocN(sizeof(float) * sys->numVerts, "ModLaplSmoothVlengths");
 	if (!sys->vlengths) {
-		delete_ModLaplacianSystem(sys);
+		delete_laplacian_system(sys);
 		return NULL;
 	}
 
 	sys->vweights =  MEM_callocN(sizeof(float) * sys->numVerts, "ModLaplSmoothVweights");
 	if (!sys->vweights) {
-		delete_ModLaplacianSystem(sys);
+		delete_laplacian_system(sys);
 		return NULL;
 	}
 
 	sys->zerola =  MEM_callocN(sizeof(short) * sys->numVerts, "ModLaplSmoothZeloa");
 	if (!sys->zerola) {
-		delete_ModLaplacianSystem(sys);
+		delete_laplacian_system(sys);
 		return NULL;
 	}
 
 	return sys;
 }
 
-static void initData(ModifierData *md)
+static void init_data(ModifierData *md)
 {
 	LaplacianSmoothModifierData *smd = (LaplacianSmoothModifierData *) md;
 	smd->lambda = 0.00001f;
@@ -204,7 +204,7 @@ static void initData(ModifierData *md)
 	smd->defgrp_name[0] = '\0';
 }
 
-static void copyData(ModifierData *md, ModifierData *target)
+static void copy_data(ModifierData *md, ModifierData *target)
 {
 	LaplacianSmoothModifierData *smd = (LaplacianSmoothModifierData *) md;
 	LaplacianSmoothModifierData *tsmd = (LaplacianSmoothModifierData *) target;
@@ -217,7 +217,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 	BLI_strncpy(tsmd->defgrp_name, smd->defgrp_name, sizeof(tsmd->defgrp_name));
 }
 
-static int isDisabled(ModifierData *md, int UNUSED(useRenderParams))
+static int is_disabled(ModifierData *md, int UNUSED(useRenderParams))
 {
 	LaplacianSmoothModifierData *smd = (LaplacianSmoothModifierData *) md;
 	short flag;
@@ -230,7 +230,7 @@ static int isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 	return 0;
 }
 
-static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
+static CustomDataMask required_data_mask(Object *UNUSED(ob), ModifierData *md)
 {
 	LaplacianSmoothModifierData *smd = (LaplacianSmoothModifierData *)md;
 	CustomDataMask dataMask = 0;
@@ -315,7 +315,7 @@ static void volume_preservation(float (*vertexCos)[3], int numVerts, float vini,
 	}
 }
 
-static void init_laplacian(ModLaplacianSystem * sys)
+static void init_laplacian_matrix(LaplacianSystem * sys)
 {
 	float *v1, *v2, *v3, *v4;
 	float w1, w2, w3, w4;
@@ -427,10 +427,10 @@ static void init_laplacian(ModLaplacianSystem * sys)
 
 }
 
-static void fill_laplacian_matrix(ModLaplacianSystem * sys)
+static void fill_laplacian_matrix(LaplacianSystem * sys)
 {
 	float *v1, *v2, *v3, *v4;
-	float w1, w2, w3, w4;
+	float w2, w3, w4;
 	int i, j;
 	int has_4_vert ;
 	unsigned int idv1, idv2, idv3, idv4, idv[4];
@@ -507,17 +507,16 @@ static void laplaciansmoothModifier_do(
         LaplacianSmoothModifierData *smd, Object *ob, DerivedMesh *dm,
         float (*vertexCos)[3], int numVerts)
 {
-	ModLaplacianSystem *sys;
+	LaplacianSystem *sys;
 	MDeformVert *dvert = NULL;
 	MDeformVert *dv = NULL;
 	float w, wpaint;
 	int i, iter;
 	int defgrp_index;
-	unsigned int idv1, idv2, idv3;
 
 	DM_ensure_tessface(dm);
 
-	sys = init_ModLaplacianSystem(dm->getNumEdges(dm), dm->getNumTessFaces(dm), numVerts);
+	sys = init_laplacian_system(dm->getNumEdges(dm), dm->getNumTessFaces(dm), numVerts);
 	if(!sys) return;
 
 	sys->mfaces = dm->getTessFaceArray(dm);
@@ -528,7 +527,7 @@ static void laplaciansmoothModifier_do(
 
 	
 	for (iter = 0; iter < smd->repeat; iter++) {
-		memset_ModLaplacianSystem(sys, 0);
+		memset_laplacian_system(sys, 0);
 		nlNewContext();
 		sys->context = nlGetCurrent();
 		nlSolverParameteri(NL_NB_VARIABLES, numVerts);
@@ -536,7 +535,7 @@ static void laplaciansmoothModifier_do(
 		nlSolverParameteri(NL_NB_ROWS, numVerts);
 		nlSolverParameteri(NL_NB_RIGHT_HAND_SIDES, 3);
 
-		init_laplacian(sys);
+		init_laplacian_matrix(sys);
 
 		nlBegin(NL_SYSTEM);	
 		for (i = 0; i < numVerts; i++) {
@@ -598,7 +597,7 @@ static void laplaciansmoothModifier_do(
 		nlDeleteContext(sys->context);
 		sys->context = NULL;
 	}
-	delete_ModLaplacianSystem(sys);
+	delete_laplacian_system(sys);
 
 }
 
@@ -636,17 +635,17 @@ ModifierTypeInfo modifierType_LaplacianSmooth = {
 	/* flags */             eModifierTypeFlag_AcceptsMesh |
 	                        eModifierTypeFlag_SupportsEditmode,
 
-	/* copyData */          copyData,
+	/* copy_data */          copy_data,
 	/* deformVerts */       deformVerts,
 	/* deformMatrices */    NULL,
 	/* deformVertsEM */     deformVertsEM,
 	/* deformMatricesEM */  NULL,
 	/* applyModifier */     NULL,
 	/* applyModifierEM */   NULL,
-	/* initData */          initData,
-	/* requiredDataMask */  requiredDataMask,
+	/* init_data */          init_data,
+	/* required_data_mask */  required_data_mask,
 	/* freeData */          NULL,
-	/* isDisabled */        isDisabled,
+	/* is_disabled */        is_disabled,
 	/* updateDepgraph */    NULL,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
