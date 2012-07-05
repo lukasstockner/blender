@@ -1535,7 +1535,7 @@ static void draw_dof_ellipse(float ax, float az)
 	glEnable(GL_BLEND);
 	glDepthMask(0);
 
-	gpuCurrentGrey4f(0.276f, 0.196f);
+	gpuCurrentGray4f(0.276f, 0.196f);
 
 	gpuBegin(GL_QUADS);
 	pz = 0.0f;

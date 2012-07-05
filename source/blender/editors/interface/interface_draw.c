@@ -401,14 +401,14 @@ void uiEmboss(float x1, float y1, float x2, float y2, int sel)
 	gpuBegin(GL_LINES);
 
 	/* below */
-	gpuCurrentGrey3f(sel ? 0.784f : 0.196f);
+	gpuCurrentGray3f(sel ? 0.784f : 0.196f);
 	gpuAppendLinef(x1, y1, x2, y1);
 
 	/* right */
 	gpuAppendLinef(x2, y1, x2, y2);
 	
 	/* top */
-	gpuCurrentGrey3f(!sel ? 0.784f : 0.196f);
+	gpuCurrentGray3f(!sel ? 0.784f : 0.196f);
 	gpuAppendLinef(x1, y2, x2, y2);
 
 	/* left */
@@ -530,7 +530,7 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 	/* Start drawing the button itself */
 	glShadeModel(GL_SMOOTH);
 
-	gpuCurrentGrey3f(0.784f);
+	gpuCurrentGray3f(0.784f);
 	gpuSingleFilledRectf((rect->xmin), (rect->ymin), (rect->xmax), (rect->ymax));
 
 	gpuCurrentColor3x(CPACK_BLACK);
@@ -891,7 +891,7 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 		gpuImmediateFormat_V2();
 
 		/* LUMA (1 channel) */
-		gpuCurrentGrey3f(alpha);
+		gpuCurrentGray3f(alpha);
 		if (scopes->wavefrm_mode == SCOPES_WAVEFRM_LUMA) {
 
 			glPushMatrix();
@@ -904,7 +904,7 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 			glPopMatrix();
 
 			/* min max */
-			gpuCurrentGrey3f(0.500f);
+			gpuCurrentGray3f(0.500f);
 			min = yofs + scopes->minmax[0][0] * h;
 			max = yofs + scopes->minmax[0][1] * h;
 			CLAMP(min, rect.ymin, rect.ymax);
@@ -1115,7 +1115,7 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 		glBlendFunc(GL_ONE, GL_ONE); /* non-standard blendfunc */
 
 		/* pixel point cloud */
-		gpuCurrentGrey3f(alpha);
+		gpuCurrentGray3f(alpha);
 
 		glPushMatrix();
 		glTranslatef(centerx, centery, 0);
@@ -1491,7 +1491,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *rect
 		if (but->a1 == UI_GRAD_H) {
 			float tsample[3];
 			float hsv[3];
-			gpuCurrentGrey3f(0.941f);
+			gpuCurrentGray3f(0.941f);
 			linearrgb_to_srgb_v3_v3(tsample, cumap->sample);
 			rgb_to_hsv_v(tsample, hsv);
 

@@ -927,7 +927,7 @@ static void drawscredge_area(ScrArea *sa, int sizex, int sizey, int center)
 	rt = 0; // CLAMPIS(G.rt, 0, 16);
 	
 	if (center == 0) {
-		gpuCurrentGrey3f(0.314f);
+		gpuCurrentGray3f(0.314f);
 		for (a = -rt; a <= rt; a++)
 			if (a != 0)
 				drawscredge_area_draw(sizex, sizey, x1, y1, x2, y2, a);

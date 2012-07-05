@@ -143,7 +143,7 @@ static void draw_uvs_shadow(Object *obedit)
 	MLoopUV *luv;
 
 	/* draws the gray mesh when painting */
-	gpuCurrentGrey3f(0.439f);
+	gpuCurrentGray3f(0.439f);
 
 	BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 		gpuBegin(GL_LINE_LOOP);
@@ -161,7 +161,7 @@ static int draw_uvs_dm_shadow(DerivedMesh *dm)
 	/* draw shadow mesh - this is the mesh with the modifier applied */
 
 	if (dm && dm->drawUVEdges && CustomData_has_layer(&dm->loopData, CD_MLOOPUV)) {
-		gpuCurrentGrey3f(0.439f);
+		gpuCurrentGray3f(0.439f);
 		dm->drawUVEdges(dm);
 		return 1;
 	}
@@ -380,7 +380,7 @@ static void draw_uvs_other(Scene *scene, Object *obedit, Image *curimage)
 {
 	Base *base;
 
-	gpuCurrentGrey3f(0.376f);
+	gpuCurrentGray3f(0.376f);
 
 	for (base = scene->base.first; base; base = base->next) {
 		Object *ob = base->object;
@@ -422,7 +422,7 @@ static void draw_uvs_texpaint(SpaceImage *sima, Scene *scene, Object *ob)
 	if (sima->flag & SI_DRAW_OTHER)
 		draw_uvs_other(scene, ob, curimage);
 
-	gpuCurrentGrey3f(0.439f);
+	gpuCurrentGray3f(0.439f);
 
 	if (me->mtface) {
 		MPoly *mpoly = me->mpoly;
@@ -596,7 +596,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 				tf = CustomData_bmesh_get(&bm->pdata, efa->head.data, CD_MTEXPOLY);
 
 				if (tf) {
-					gpuCurrentGrey3f(0.067f);
+					gpuCurrentGray3f(0.067f);
 
 					gpuBegin(GL_LINE_LOOP);
 					BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
@@ -606,7 +606,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 					gpuEnd();
 
 					setlinestyle(2);
-					gpuCurrentGrey3f(0.565f);
+					gpuCurrentGray3f(0.565f);
 
 					gpuBegin(GL_LINE_LOOP);
 					BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {

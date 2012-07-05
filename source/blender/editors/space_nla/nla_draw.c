@@ -222,7 +222,7 @@ static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc)
 	/* drawing color is simply a light-gray */
 	// TODO: is this color suitable?
 	// XXX nasty hacked color for now... which looks quite bad too...
-	gpuCurrentGrey3f(0.700f);
+	gpuCurrentGray3f(0.700f);
 
 	/* draw with AA'd line */
 	glEnable(GL_LINE_SMOOTH);

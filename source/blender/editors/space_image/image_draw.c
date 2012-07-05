@@ -271,7 +271,7 @@ void ED_image_draw_info(ARegion *ar, int color_manage, int channels, int x, int 
 	gpuEnd();
 
 	/* draw outline */
-	gpuCurrentGrey3f(0.500f);
+	gpuCurrentGray3f(0.500f);
 	gpuBegin(GL_LINE_LOOP);
 	gpuVertex2f(dx, 3);
 	gpuVertex2f(dx, 17);

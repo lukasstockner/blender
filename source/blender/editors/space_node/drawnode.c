@@ -250,7 +250,7 @@ static void node_draw_socket_new(bNodeSocket *sock, float size)
 	};
 	int a;
 
-	gpuCurrentGrey3f(0.706f);
+	gpuCurrentGray3f(0.706f);
 
 	gpuBegin(GL_POLYGON);
 	for (a=0; a<16; a++)
@@ -804,7 +804,7 @@ static void node_draw_group(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		uiSetRoundBox(UI_CNR_BOTTOM_RIGHT);
 		uiDrawBox(GL_POLYGON, rect.xmax, rect.ymin, rect.xmax+node_group_frame, rect.ymax, BASIS_RAD);
 
-		gpuCurrentGrey4f(0.784f, 0.549f);
+		gpuCurrentGray4f(0.784f, 0.549f);
 
 		/* input column separator */
 		gpuBegin(GL_LINES);

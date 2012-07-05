@@ -1260,7 +1260,7 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	/* overlap playhead */
 	if (scene->ed && scene->ed->over_flag & SEQ_EDIT_OVERLAY_SHOW) {
 		int cfra_over = (scene->ed->over_flag & SEQ_EDIT_OVERLAY_ABS) ? scene->ed->over_cfra : scene->r.cfra + scene->ed->over_ofs;
-		gpuCurrentGrey3f(0.200f);
+		gpuCurrentGray3f(0.200f);
 		// gpuSingleFilledRectf(cfra_over, v2d->cur.ymin, scene->ed->over_ofs + scene->r.cfra + 1, v2d->cur.ymax);
 
 		gpuSingleLinef(cfra_over, v2d->cur.ymin, cfra_over, v2d->cur.ymax);

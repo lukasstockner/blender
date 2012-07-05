@@ -194,7 +194,7 @@ BLI_INLINE void gpuColor4x(GLuint rgb, GLfloat a)
 
 
 
-BLI_INLINE void gpuGrey3f(GLfloat luminance)
+BLI_INLINE void gpuGray3f(GLfloat luminance)
 {
 	GLubyte c;
 
@@ -209,7 +209,7 @@ BLI_INLINE void gpuGrey3f(GLfloat luminance)
 	GPU_IMMEDIATE->color[3] = 255;
 }
 
-BLI_INLINE void gpuGrey4f(GLfloat luminance, GLfloat alpha)
+BLI_INLINE void gpuGray4f(GLfloat luminance, GLfloat alpha)
 {
 	GLubyte c;
 

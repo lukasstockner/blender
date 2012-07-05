@@ -203,7 +203,7 @@ void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 	if (me->drawflag & ME_DRAWFACES) {
 		glEnable(GL_BLEND);
 		/* dull unselected faces so as not to get in the way of seeing color */
-		gpuCurrentGrey4f(0.376f, 0.250f);
+		gpuCurrentGray4f(0.376f, 0.250f);
 		gpuImmediateFormat_V3();
 		/* XXX: jwilkins, drawing without mesh colors, so setDrawOption that turns off color for unselected faces is redundant? */
 		dm->drawMappedFaces(dm, draw_mesh_face_select__drawFaceOptsInv, NULL, NULL, me, 0);

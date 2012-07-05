@@ -512,7 +512,7 @@ static void ui_draw_linkline(uiLinkLine *line, int highlightActiveLines)
 	rect.ymax = (line->to->y1 + line->to->y2) / 2.0f;
 	
 	if (line->flag & UI_SELECT)
-		gpuCurrentGrey3f(0.392f);
+		gpuCurrentGray3f(0.392f);
 	else if (highlightActiveLines && ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE)))
 		UI_ThemeColor(TH_TEXT_HI);
 	else 

@@ -899,7 +899,7 @@ void gpuCurrentColor4d(GLdouble r, GLdouble g, GLdouble b, GLdouble a)
 	currentColor();
 }
 
-void gpuCurrentGrey3f(GLfloat luminance)
+void gpuCurrentGray3f(GLfloat luminance)
 {
 	GLubyte c;
 
@@ -915,7 +915,7 @@ void gpuCurrentGrey3f(GLfloat luminance)
 	currentColor();
 }
 
-void gpuCurrentGrey4f(GLfloat luminance, GLfloat alpha)
+void gpuCurrentGray4f(GLfloat luminance, GLfloat alpha)
 {
 	GLubyte c;
 

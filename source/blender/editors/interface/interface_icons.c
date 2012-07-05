@@ -283,7 +283,7 @@ static void vicon_view3d_draw(int x, int y, int w, int h, float alpha)
 	int cy = y + h / 2;
 	int d = MAX2(2, h / 3);
 
-	gpuCurrentGrey4f(0.500f, alpha);
+	gpuCurrentGray4f(0.500f, alpha);
 
 	gpuBegin(GL_LINES);
 
@@ -335,7 +335,7 @@ static void vicon_editmode_hlt_draw(int x, int y, int w, int h, float alpha)
 	viconutil_set_point(pts[1], x + 3,     y + 4);
 	viconutil_set_point(pts[2], x + w - 3, y + 4);
 
-	gpuCurrentGrey4f(0.500f, alpha);
+	gpuCurrentGray4f(0.500f, alpha);
 	viconutil_draw_tri(pts);
 
 	gpuCurrentColor4x(CPACK_BLACK, 1);
@@ -356,7 +356,7 @@ static void vicon_editmode_dehlt_draw(int x, int y, int w, int h, float UNUSED(a
 	gpuCurrentColor3x(CPACK_BLACK);
 	viconutil_draw_lineloop_smooth(pts, 3);
 
-	gpuCurrentGrey3f(0.900f);
+	gpuCurrentGray3f(0.900f);
 	viconutil_draw_points(pts, 3, 1);
 }
 
@@ -375,11 +375,11 @@ static void vicon_disclosure_tri_right_draw(int x, int y, int w, int UNUSED(h), 
 
 	gpuBegin(GL_TRIANGLES);
 
-	gpuGrey4f(0.800f, alpha);
+	gpuGray4f(0.800f, alpha);
 	gpuVertex2iv(pts[0]);
 	gpuVertex2iv(pts[1]);
 
-	gpuGrey4f(0.300f, alpha);
+	gpuGray4f(0.300f, alpha);
 	gpuVertex2iv(pts[2]);
 
 	gpuEnd();
@@ -401,7 +401,7 @@ static void vicon_small_tri_right_draw(int x, int y, int w, int UNUSED(h), float
 	viconutil_set_point(pts[1], cx - d2, cy - d);
 	viconutil_set_point(pts[2], cx + d2, cy);
 
-	gpuCurrentGrey4f(0.200f, alpha);
+	gpuCurrentGray4f(0.200f, alpha);
 
 	gpuImmediateFormat_V3();
 	gpuBegin(GL_TRIANGLES);
@@ -427,11 +427,11 @@ static void vicon_disclosure_tri_down_draw(int x, int y, int w, int UNUSED(h), f
 
 	gpuBegin(GL_TRIANGLES);
 
-	gpuGrey4f(0.800f, alpha);
+	gpuGray4f(0.800f, alpha);
 	gpuVertex2iv(pts[0]);
 	gpuVertex2iv(pts[1]);
 
-	gpuGrey4f(0.300f, alpha);
+	gpuGray4f(0.300f, alpha);
 	gpuVertex2iv(pts[2]);
 
 	gpuEnd();

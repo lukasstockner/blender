@@ -184,7 +184,7 @@ static void wm_gesture_draw_rect(wmGesture *gt)
 
 	glEnable(GL_LINE_STIPPLE);
 
-	gpuCurrentGrey3f(0.376f);
+	gpuCurrentGray3f(0.376f);
 	glLineStipple(1, 0xCCCC);
 	gpuDrawWireRecti(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 
@@ -202,7 +202,7 @@ static void wm_gesture_draw_line(wmGesture *gt)
 	glEnable(GL_LINE_STIPPLE);
 
 	glLineStipple(1, 0xAAAA);
-	gpuCurrentGrey3f(0.376f);
+	gpuCurrentGray3f(0.376f);
 	gpuDrawLinei(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 
 	glLineStipple(1, 0x5555);
@@ -229,7 +229,7 @@ static void wm_gesture_draw_circle(wmGesture *gt)
 	glEnable(GL_LINE_STIPPLE);
 
 	glLineStipple(1, 0xAAAA);
-	gpuCurrentGrey3f(0.376f);
+	gpuCurrentGray3f(0.376f);
 	gpuDrawCircle(x, y, rect->xmax, 40);
 
 	glLineStipple(1, 0x5555);
@@ -295,7 +295,7 @@ static void wm_gesture_draw_lasso(wmGesture *gt)
 	glEnable(GL_LINE_STIPPLE);
 
 	glLineStipple(1, 0xAAAA);
-	gpuCurrentGrey3f(0.376f);
+	gpuCurrentGray3f(0.376f);
 
 	gpuBegin(GL_LINE_STRIP);
 
@@ -335,7 +335,7 @@ static void wm_gesture_draw_cross(wmWindow *win, wmGesture *gt)
 	glEnable(GL_LINE_STIPPLE);
 
 	glLineStipple(1, 0xCCCC);
-	gpuCurrentGrey3f(0.376f);
+	gpuCurrentGray3f(0.376f);
 	gpuBegin(GL_LINES);
 	gpuAppendLinei(rect->xmin - win->sizex, rect->ymin, rect->xmin + win->sizex, rect->ymin);
 	gpuAppendLinei(rect->xmin, rect->ymin - win->sizey, rect->xmin, rect->ymin + win->sizey);

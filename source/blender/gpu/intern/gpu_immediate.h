@@ -334,9 +334,9 @@ void gpuMultCurrentAlpha(GLfloat factor);
 void gpuGetCurrentColor4fv(GLfloat *restrict color);
 void gpuGetCurrentColor4ubv(GLubyte *restrict color);
 
-void gpuCurrentGrey3f(GLfloat luminance);
+void gpuCurrentGray3f(GLfloat luminance);
 
-void gpuCurrentGrey4f(GLfloat luminance, GLfloat alpha);
+void gpuCurrentGray4f(GLfloat luminance, GLfloat alpha);
 
 
 void gpuCurrentNormal3fv(const GLfloat *restrict v);

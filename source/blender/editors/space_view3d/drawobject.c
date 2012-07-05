@@ -1018,7 +1018,7 @@ static void draw_transp_spot_volume(Lamp *la, float x, float z)
 	glCullFace(GL_BACK);
 
 	glBlendFunc(GL_ONE, GL_ONE); /* non-standard blend function */
-	gpuCurrentGrey3f(0.200f);
+	gpuCurrentGray3f(0.200f);
 
 	draw_spot_cone(la, x, z);
 
@@ -3492,14 +3492,14 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			else if (dflag != DRAW_CONSTCOLOR)
 				UI_ThemeColor(is_obact ? TH_ACTIVE : TH_SELECT);
 			else
-				gpuCurrentGrey3f(0.314f);
+				gpuCurrentGray3f(0.314f);
 		}
 		else {
 			if (ob->flag & OB_FROMGROUP)
 				UI_ThemeColor(TH_GROUP);
 			else {
 				if (ob->dtx & OB_DRAWWIRE && dflag == DRAW_CONSTCOLOR)
-					gpuCurrentGrey3f(0.314f);
+					gpuCurrentGray3f(0.314f);
 				else
 					UI_ThemeColor(TH_WIRE);
 			}
@@ -4859,7 +4859,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	}
 
 	if (pdd && pdd->vedata) {
-		gpuCurrentGrey3f(0.753f);
+		gpuCurrentGray3f(0.753f);
 
 		draw_particle_arrays(
 			PART_DRAW_LINE,
@@ -6450,7 +6450,7 @@ static void drawWireExtra(Scene *scene, RegionView3D *rv3d, Object *ob)
 			UI_ThemeColor(TH_GROUP);
 		else {
 			if (ob->dtx & OB_DRAWWIRE) {
-				gpuCurrentGrey3f(0.314f);
+				gpuCurrentGray3f(0.314f);
 			}
 			else {
 				UI_ThemeColor(TH_WIRE);

@@ -225,7 +225,7 @@ static void region_draw_azone_icon(AZone *az)
 	gpuCurrentColor4x(CPACK_WHITE, 0.800f);
 	gpuDrawDisk(0, 0, 4.25f, 16);
 
-	gpuCurrentGrey4f(0.200f, 0.900f);
+	gpuCurrentGray4f(0.200f, 0.900f);
 	gpuDrawCircle(0, 0, 4.25, 16);
 
 	glDisable(GL_LINE_SMOOTH);
@@ -278,12 +278,12 @@ static void region_draw_azone_tab_plus(AZone *az)
 			break;
 	}
 
-	gpuCurrentGrey4f(0.050f, 0.400f);
+	gpuCurrentGray4f(0.050f, 0.400f);
 	uiRoundBox((float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2, 4.0f);
 
 	glEnable(GL_BLEND);
 
-	gpuCurrentGrey4f(0.800f, 0.400f);
+	gpuCurrentGray4f(0.800f, 0.400f);
 	draw_azone_plus((float)az->x1, (float)az->y1, (float)az->x2, (float)az->y2);
 
 	glDisable(GL_BLEND);

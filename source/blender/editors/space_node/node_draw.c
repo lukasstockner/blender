@@ -615,10 +615,10 @@ static void node_draw_preview(bNodePreview *preview, rctf *prv)
 	float x, y;
 	
 	/* draw checkerboard backdrop to show alpha */
-	gpuCurrentGrey3f(0.471f);
+	gpuCurrentGray3f(0.471f);
 	gpuSingleFilledRectf(prv->xmin, prv->ymin, prv->xmax, prv->ymax);
 
-	gpuCurrentGrey3f(0.627f);
+	gpuCurrentGray3f(0.627f);
 
 	for (y=prv->ymin; y<prv->ymax; y+=tile*2) {
 		for (x=prv->xmin; x<prv->xmax; x+=tile*2) {

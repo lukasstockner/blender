@@ -548,7 +548,7 @@ static void sk_drawStroke(SK_Stroke *stk, int id, float color[3], int start, int
 			}
 
 			if (i >= start && i <= end) {
-				gpuCurrentGrey3f(0.300f);
+				gpuCurrentGray3f(0.300f);
 			}
 			else {
 				gpuCurrentColor3fv(rgb);
