@@ -186,9 +186,6 @@ void viewmove_modal_keymap(struct wmKeyConfig *keyconf);
 void viewzoom_modal_keymap(struct wmKeyConfig *keyconf);
 void viewdolly_modal_keymap(struct wmKeyConfig *keyconf);
 
-/* view3d_view.c */
-void view3d_main_register(struct ARegionType *art);
-
 /* view3d_buttons.c */
 void VIEW3D_OT_properties(struct wmOperatorType *ot);
 void view3d_buttons_register(struct ARegionType *art);

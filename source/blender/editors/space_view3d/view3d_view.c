@@ -64,11 +64,6 @@
 #include "ED_screen.h"
 #include "ED_armature.h"
 
-#ifdef TEST_CONTROLS
-#include "UI_interface.h"
-#include "UI_resources.h"
-#endif
-
 #ifdef WITH_GAMEENGINE
 #include "BL_System.h"
 #endif
@@ -1874,27 +1869,6 @@ float ED_view3d_pixel_size(struct RegionView3D *rv3d, const float co[3])
 	            rv3d->persmat[1][3] * co[1] +
 	            rv3d->persmat[2][3] * co[2])
 	        ) * rv3d->pixsize;
-}
-
-static void view3d_panel_main(const bContext *C, Panel *pa)
-{
-#ifdef TEST_CONTROLS
-	uiLayout *col;
-	col = uiLayoutColumn(pa->layout, TRUE);
-	uiItemFullO(col, "TRANSFORM_OT_transform", NULL, ICON_SIZE_ICON, NULL, WM_OP_INVOKE_REGION_WIN, 0);
-#endif
-}
-
-void view3d_main_register(ARegionType *art)
-{
-	PanelType *pt;
-
-	pt = MEM_callocN(sizeof(PanelType), "spacetype view3d panel floating");
-	strcpy(pt->idname, "VIEW3D_PT_floating_controls");
-	strcpy(pt->label, "Floating Controls");
-	pt->draw = view3d_panel_main;
-	pt->flag = PNL_NO_HEADER;
-	BLI_addtail(&art->paneltypes, pt);
 }
 
 /* view matrix properties utilities */

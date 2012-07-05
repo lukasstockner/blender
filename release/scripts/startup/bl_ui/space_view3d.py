@@ -2703,6 +2703,23 @@ class VIEW3D_PT_context_properties(Panel):
             rna_prop_ui.draw(self.layout, context, member, object, False)
 
 
+class VIEW3D_PT_floating_controls(Panel):
+	bl_space_type = 'VIEW_3D'
+	bl_region_type = 'WINDOW'
+	bl_label = "Floating Controls"
+	bl_options = {'HIDE_HEADER'}
+
+	def draw(self, context):
+		layout = self.layout
+
+		col = layout.column(align=True)
+		col.label(text="Transform:")
+		#col.operator("transform.translate")
+		#col.operator("transform.rotate")
+		#col.operator("transform.resize", text="Scale")
+
+
+
 def register():
     bpy.utils.register_module(__name__)
 
