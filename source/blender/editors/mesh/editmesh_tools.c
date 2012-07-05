@@ -1600,7 +1600,7 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BMEdit_FromObject(obedit);
 	ModifierData *md;
-	int usex = TRUE, usey = TRUE, usez = TRUE;
+	int usex = TRUE, usey = TRUE, usez = TRUE, volume_preservation = TRUE;
 	int i, repeat;
 	float lambda = 0.1f;
 	float lambda_border = 0.1f;
@@ -1630,13 +1630,14 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
 	usex = RNA_boolean_get(op->ptr, "use_x");
 	usey = RNA_boolean_get(op->ptr, "use_y");
 	usez = RNA_boolean_get(op->ptr, "use_z");
+	volume_preservation = RNA_boolean_get(op->ptr, "volume_preservation");
 	if (!repeat)
 		repeat = 1;
 	
 	for (i = 0; i < repeat; i++) {
 		if (!EDBM_op_callf(em, op,
-		                   "smooth_laplacian_vert verts=%hv lambda=%f lambda_border=%f min_area=%f use_x=%b use_y=%b use_z=%b",
-		                   BM_ELEM_SELECT, lambda, lambda_border, min_area, usex, usey, usez))
+		                   "smooth_laplacian_vert verts=%hv lambda=%f lambda_border=%f min_area=%f use_x=%b use_y=%b use_z=%b volume_preservation=%b",
+		                   BM_ELEM_SELECT, lambda, lambda_border, min_area, usex, usey, usez, volume_preservation))
 		{
 			return OPERATOR_CANCELLED;
 		}
@@ -1678,6 +1679,7 @@ void MESH_OT_vertices_smooth_laplacian(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "use_x", 1, "Smooth X Axis", "Smooth object along	X axis");
 	RNA_def_boolean(ot->srna, "use_y", 1, "Smooth Y Axis", "Smooth object along	Y axis");
 	RNA_def_boolean(ot->srna, "use_z", 1, "Smooth Z Axis", "Smooth object along	Z axis");
+	RNA_def_boolean(ot->srna, "volume_preservation", 1, "Volume Preservation", "Apply volume preservation after smooth");
 
 }
 

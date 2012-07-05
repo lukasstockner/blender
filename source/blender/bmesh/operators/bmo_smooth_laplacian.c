@@ -476,7 +476,7 @@ void bmo_smooth_laplacian_vert_exec(BMesh *bm, BMOperator *op)
 {
 	int i;
 	int m_vertex_id;
-	int usex, usey, usez;
+	int usex, usey, usez, volumepreservation;
 	float lambda, lambda_border;
 	float vini, vend;
 	float w;
@@ -498,6 +498,7 @@ void bmo_smooth_laplacian_vert_exec(BMesh *bm, BMOperator *op)
 	usex = BMO_slot_bool_get(op, "use_x");
 	usey = BMO_slot_bool_get(op, "use_y");
 	usez = BMO_slot_bool_get(op, "use_z");
+	volumepreservation = BMO_slot_bool_get(op, "volume_preservation");
 
 
 	nlNewContext();
@@ -549,7 +550,9 @@ void bmo_smooth_laplacian_vert_exec(BMesh *bm, BMOperator *op)
 	nlEnd(NL_SYSTEM);
 
 	if (nlSolveAdvanced(NULL, NL_TRUE) ) {
-		vini = compute_volume(bm, op);
+		if(volumepreservation){
+			vini = compute_volume(bm, op);
+		}
 		BMO_ITER (v, &siter, bm, op, "verts", BM_VERT) {
 			m_vertex_id = BM_elem_index_get(v);
 			if (usex) {
@@ -562,8 +565,10 @@ void bmo_smooth_laplacian_vert_exec(BMesh *bm, BMOperator *op)
 				v->co[2] =  nlGetVariable(2, m_vertex_id);
 			}
 		}
-		vend = compute_volume(bm, op);
-		volume_preservation(bm, op, vini, vend, usex, usey, usez);
+		if(volumepreservation){
+			vend = compute_volume(bm, op);
+			volume_preservation(bm, op, vini, vend, usex, usey, usez);
+		}
 	}
 		
 	delete_laplacian_system(sys);

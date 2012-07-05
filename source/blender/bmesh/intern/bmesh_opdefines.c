@@ -125,6 +125,7 @@ static BMOpDefine bmo_smooth_laplacian_vert_def = {
 	 {BMO_OP_SLOT_BOOL, "use_y"}, //Smooth object along Y axis
 	 {BMO_OP_SLOT_BOOL, "use_z"}, //Smooth object along Z axis
 	 {BMO_OP_SLOT_MAPPING, "vertex_group"}, // Vertex group with weights for every vertice.
+	 {BMO_OP_SLOT_BOOL, "volume_preservation"}, //Apply volume preservation after smooth
 	{0} /* null-terminating sentinel */,
 	},
 	bmo_smooth_laplacian_vert_exec,

@@ -200,7 +200,7 @@ static void init_data(ModifierData *md)
 	smd->lambda_border = 0.00005f;
 	smd->min_area = 0.00001f;
 	smd->repeat = 1;
-	smd->flag = MOD_LAPLACIANSMOOTH_X | MOD_LAPLACIANSMOOTH_Y | MOD_LAPLACIANSMOOTH_Z;
+	smd->flag = MOD_LAPLACIANSMOOTH_X | MOD_LAPLACIANSMOOTH_Y | MOD_LAPLACIANSMOOTH_Z | MOD_LAPLACIANSMOOTH_VOLUME_PRESERVATION;
 	smd->defgrp_name[0] = '\0';
 }
 
@@ -579,7 +579,9 @@ static void laplaciansmoothModifier_do(
 
 		if (nlSolveAdvanced(NULL, NL_TRUE)) {
 			float vini, vend;
-			vini = compute_volume(vertexCos, sys->mfaces, sys->numFaces);
+			if (smd->flag & MOD_LAPLACIANSMOOTH_VOLUME_PRESERVATION) {
+				vini = compute_volume(vertexCos, sys->mfaces, sys->numFaces);
+			}
 			for (i = 0; i < numVerts; i++) {
 				if (smd->flag & MOD_LAPLACIANSMOOTH_X) {
 					vertexCos[i][0] = nlGetVariable(0, i);
@@ -591,8 +593,10 @@ static void laplaciansmoothModifier_do(
 					vertexCos[i][2] = nlGetVariable(2, i);
 				}
 			}
-			vend = compute_volume(vertexCos, sys->mfaces, sys->numFaces);
-			volume_preservation(vertexCos, numVerts, vini, vend, smd->flag);
+			if (smd->flag & MOD_LAPLACIANSMOOTH_VOLUME_PRESERVATION) {
+				vend = compute_volume(vertexCos, sys->mfaces, sys->numFaces);
+				volume_preservation(vertexCos, numVerts, vini, vend, smd->flag);
+			}
 		}
 		nlDeleteContext(sys->context);
 		sys->context = NULL;
