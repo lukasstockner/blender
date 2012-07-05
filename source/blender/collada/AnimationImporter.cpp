@@ -857,7 +857,6 @@ void AnimationImporter::translate_Animations(COLLADAFW::Node *node,
 					else {				
 
 						if (is_joint) {
-
 							add_bone_animation_sampled(ob, animcurves, root, node, transform);
 						}
 						else {

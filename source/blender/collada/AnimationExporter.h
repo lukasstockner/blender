@@ -43,6 +43,7 @@ extern "C"
 #include "BKE_animsys.h"
 #include "BKE_scene.h"
 #include "BKE_object.h"
+
 #ifdef NAN_BUILDINFO
 extern char build_rev[];
 #endif
@@ -54,6 +55,7 @@ extern char build_rev[];
 #include "BKE_armature.h"
 #include "BKE_object.h"
 #include "BKE_constraint.h"
+#include "BIK_api.h"
 
 #include "BLI_math.h"
 #include "BLI_string.h"

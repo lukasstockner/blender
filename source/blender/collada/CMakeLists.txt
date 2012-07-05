@@ -36,6 +36,7 @@ set(INC
 	../windowmanager
 	../imbuf
 	../../../intern/guardedalloc
+	../ikplugin
 )
 
 set(INC_SYS

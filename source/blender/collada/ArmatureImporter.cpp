@@ -138,7 +138,7 @@ void ArmatureImporter::create_bone(SkinInfo* skin, COLLADAFW::Node *node, EditBo
 	   copy_v3_v3(parent->tail, bone->head);
 
 		// not setting BONE_CONNECTED because this would lock child bone location with respect to parent
-		// bone->flag |= BONE_CONNECTED;
+		 bone->flag |= BONE_CONNECTED;
 
 		// XXX increase this to prevent "very" small bones?
 		const float epsilon = 0.000001f;
@@ -314,6 +314,8 @@ ArmatureJoints& ArmatureImporter::get_armature_joints(Object *ob_arm)
 void ArmatureImporter::create_armature_bones( )
 {
 	std::vector<COLLADAFW::Node *>::iterator ri;
+
+	leaf_bone_length = FLT_MAX;
 	//if there is an armature created for root_joint next root_joint
 	for (ri = root_joints.begin(); ri != root_joints.end(); ri++) {
 		if (get_armature_for_joint(*ri) != NULL) continue;
@@ -325,12 +327,10 @@ void ArmatureImporter::create_armature_bones( )
         
 		ED_armature_to_edit(ob_arm);
 
-		// create unskinned bones
 		/*
 		 * TODO:
 		 * check if bones have already been created for a given joint
 		 */
-		leaf_bone_length = FLT_MAX;
 
         create_bone(NULL, *ri , NULL, (*ri)->getChildNodes().getCount(), NULL, (bArmature *)ob_arm->data);
         

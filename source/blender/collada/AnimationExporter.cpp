@@ -410,19 +410,21 @@ void AnimationExporter::sample_and_write_bone_animation_matrix(Object *ob_arm, B
 	FCurve *fcu = (FCurve *)ob_arm->adt->action->curves.first;
 
 	//Check if there is a fcurve in the armature for the bone in param
-	while (fcu) {
+	//when baking this check is not needed, solve every bone for every frame.
+	/*while (fcu) {
 		std::string bone_name = getObjectBoneName(ob_arm, fcu);
 		int val = BLI_strcasecmp((char *)bone_name.c_str(), bone->name);
 		if (val == 0) break;
 		fcu = fcu->next;
 	}
 
-	if (!(fcu)) return; 
+	if (!(fcu)) return;*/ 
 
 	bPoseChannel *pchan = BKE_pose_channel_find_name(ob_arm->pose, bone->name);
 	if (!pchan)
 		return;
 
+	//every inserted keyframe of bones.	
 	find_frames(ob_arm, fra);
 
 	if (flag & ARM_RESTPOS) {
@@ -848,6 +850,15 @@ std::string AnimationExporter::create_4x4_source(std::vector<float> &frames, Obj
 
 		BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, ctime, ADT_RECALC_ANIM);
 		if (bone){
+			/* 4a. if we find an IK root, we handle it separated */
+			if (pchan->flag & POSE_IKTREE) {
+				BIK_execute_tree(scene, ob, pchan, ctime);
+			}
+			///* 4b. if we find a Spline IK root, we handle it separated too */
+			//else if (pchan->flag & POSE_IKSPLINE) {
+			//	splineik_execute_tree(scene, ob, pchan, ctime);
+			//}
+			
 			BKE_pose_where_is_bone(scene, ob, pchan, ctime, 1);
 			// compute bone local mat
 			if (bone->parent) {
