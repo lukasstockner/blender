@@ -152,7 +152,8 @@ static int load_tex(Brush *br, ViewContext *vc)
 	        ((snap.BKE_brush_size_get != BKE_brush_size_get(vc->scene, br)) ||
 	        !br->curve ||
 	        br->curve->changed_timestamp != curve_changed_timestamp ||
-	        br->mtex.brush_map_mode != snap.brush_map_mode);
+	        br->mtex.brush_map_mode != snap.brush_map_mode ||
+	        !overlay_texture_curve);
 
 	if (refresh || refresh_curve) {
 		int s = BKE_brush_size_get(vc->scene, br);
@@ -487,13 +488,14 @@ static int sculpt_get_brush_geometry(bContext *C, ViewContext *vc,
  * have on brush strength */
 /* TODO: sculpt only for now */
 static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
-                                     ViewContext *vc, int x, int y, float zoomx, float zoomy)
+                                     ViewContext *vc, int x, int y, float zoomx, float zoomy, int in_uv_editor)
 {
 	rctf quad;
 
 	/* check for overlay mode */
 	if (!(brush->flag & BRUSH_TEXTURE_OVERLAY) ||
-	    !(ELEM(brush->mtex.brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_TILED)))
+	    !(ELEM(brush->mtex.brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_TILED)) ||
+	    (brush->flag & BRUSH_FIXED_TEX && in_uv_editor))
 	{
 		return;
 	}
@@ -556,7 +558,9 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			}
 		}
 		else {
-			const int radius = BKE_brush_size_get(vc->scene, brush);
+			int radius = BKE_brush_size_get(vc->scene, brush);
+
+			radius *= MAX2(zoomx, zoomy);
 
 			quad.xmin = x - radius;
 			quad.ymin = y - radius;
@@ -677,8 +681,12 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 			brush->mtex.brush_map_mode = MTEX_MAP_MODE_VIEW;
 	}
 
-	if(in_uv_editor)
+	if(in_uv_editor) {
 		brush->mtex.brush_map_mode = MTEX_MAP_MODE_VIEW;
+
+		if(brush->flag & BRUSH_FIXED_TEX)
+			brush->mtex.brush_map_mode = MTEX_MAP_MODE_TILED;
+	}
 
 
 	/* can't use stroke vc here because this will be called during
@@ -692,7 +700,7 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 		 *  TODO) */
 	paint_calculate_rake_rotation(ups, translation);
 
-	print_v2("mouse"__FILE__, translation);
+	//print_v2("mouse"__FILE__, translation);
 
 	if(!in_uv_editor) {
 		/* test if brush is over the mesh. sculpt only for now */
@@ -716,7 +724,7 @@ void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 #undef PX_SIZE_FADE_MIN
 	}
 	/* draw overlay */
-	paint_draw_alpha_overlay(ups, brush, &vc, x, y, zoomx, zoomy);
+	paint_draw_alpha_overlay(ups, brush, &vc, x, y, zoomx, zoomy, in_uv_editor);
 
 	if (BKE_brush_use_locked_size(scene, brush) && !in_uv_editor) {
 		BKE_brush_size_set(scene, brush, pixel_radius);
